@@ -8,5 +8,5 @@
 package handler
 
 import (
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-route-refresh/schema" // init() registers YANG module
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/schema" // init() registers YANG module
 )

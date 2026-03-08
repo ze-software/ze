@@ -1,4 +1,4 @@
-package bgp_nlri_vpn
+package vpn
 
 import (
 	"bytes"
@@ -17,6 +17,7 @@ import (
 // VALIDATES: VPNv4 NLRI encodes to wire format and decodes back correctly.
 // PREVENTS: Wire format corruption, label stack errors, RD parsing issues.
 func TestVPNv4WireRoundTrip(t *testing.T) {
+	t.Parallel()
 	// Build a VPNv4 NLRI: RD 1:1, label 100, prefix 10.0.0.0/24
 	rd, err := ParseRDString("1:1")
 	require.NoError(t, err)
@@ -43,6 +44,7 @@ func TestVPNv4WireRoundTrip(t *testing.T) {
 // VALIDATES: VPNv6 NLRI encodes to wire format and decodes back correctly.
 // PREVENTS: IPv6 address handling errors, prefix length issues.
 func TestVPNv6WireRoundTrip(t *testing.T) {
+	t.Parallel()
 	// Build a VPNv6 NLRI: RD 2:65000:1, label 200, prefix 2001:db8::/32
 	rd, err := ParseRDString("2:65000:1")
 	require.NoError(t, err)
@@ -69,6 +71,7 @@ func TestVPNv6WireRoundTrip(t *testing.T) {
 // VALIDATES: RD types 0, 1, 2 all work in VPN NLRI.
 // PREVENTS: RD type confusion, incorrect field sizes.
 func TestVPNAllRDTypes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		rdStr  string
@@ -81,6 +84,7 @@ func TestVPNAllRDTypes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			rd, err := ParseRDString(tt.rdStr)
 			require.NoError(t, err)
 
@@ -101,6 +105,7 @@ func TestVPNAllRDTypes(t *testing.T) {
 // VALIDATES: Multiple MPLS labels encode and decode correctly.
 // PREVENTS: Label stack S-bit errors, label ordering issues.
 func TestVPNLabelStack(t *testing.T) {
+	t.Parallel()
 	rd, err := ParseRDString("1:1")
 	require.NoError(t, err)
 
@@ -120,6 +125,7 @@ func TestVPNLabelStack(t *testing.T) {
 // VALIDATES: Plugin correctly handles decode nlri requests.
 // PREVENTS: Protocol parsing errors, JSON format issues.
 func TestVPNDecodeMode(t *testing.T) {
+	t.Parallel()
 	// Build real wire bytes from a VPN struct
 	rd, err := ParseRDString("1:1")
 	require.NoError(t, err)
@@ -142,6 +148,7 @@ func TestVPNDecodeMode(t *testing.T) {
 // VALIDATES: JSON output contains expected fields.
 // PREVENTS: Missing fields, incorrect JSON structure.
 func TestVPNJSONOutput(t *testing.T) {
+	t.Parallel()
 	rd, err := ParseRDString("1:1")
 	require.NoError(t, err)
 
@@ -158,6 +165,7 @@ func TestVPNJSONOutput(t *testing.T) {
 // VALIDATES: Text output is human-readable.
 // PREVENTS: Formatting errors in CLI output.
 func TestVPNTextOutput(t *testing.T) {
+	t.Parallel()
 	result := map[string]any{
 		"rd":     "0:1:1",
 		"prefix": "10.0.0.0/24",
@@ -176,6 +184,7 @@ func TestVPNTextOutput(t *testing.T) {
 // PREVENTS: Off-by-one errors in prefix length handling.
 // BOUNDARY: IPv4 0-32, IPv6 0-128.
 func TestVPNBoundaryPrefixLen(t *testing.T) {
+	t.Parallel()
 	rd, err := ParseRDString("1:1")
 	require.NoError(t, err)
 
@@ -192,6 +201,7 @@ func TestVPNBoundaryPrefixLen(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			family := IPv4VPN
 			if tt.afi == AFIIPv6 {
 				family = IPv6VPN
@@ -213,6 +223,7 @@ func TestVPNBoundaryPrefixLen(t *testing.T) {
 // PREVENTS: Label overflow, truncation errors.
 // BOUNDARY: 0-1048575 (20-bit max).
 func TestVPNBoundaryLabel(t *testing.T) {
+	t.Parallel()
 	rd, err := ParseRDString("1:1")
 	require.NoError(t, err)
 
@@ -227,6 +238,7 @@ func TestVPNBoundaryLabel(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			original := NewVPN(IPv4VPN, rd, []uint32{tt.label}, netip.MustParsePrefix("10.0.0.0/24"), 0)
 			wireBytes := original.Bytes()
 
@@ -243,6 +255,7 @@ func TestVPNBoundaryLabel(t *testing.T) {
 // VALIDATES: CLI mode produces correct output.
 // PREVENTS: CLI output formatting errors.
 func TestRunCLIDecode(t *testing.T) {
+	t.Parallel()
 	// Build wire bytes for a simple VPNv4
 	rd, err := ParseRDString("1:1")
 	require.NoError(t, err)
@@ -263,6 +276,7 @@ func TestRunCLIDecode(t *testing.T) {
 // VALIDATES: Invalid family is rejected.
 // PREVENTS: Silent failure on bad input.
 func TestRunCLIDecodeInvalidFamily(t *testing.T) {
+	t.Parallel()
 	output := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
 
@@ -276,6 +290,7 @@ func TestRunCLIDecodeInvalidFamily(t *testing.T) {
 // VALIDATES: Invalid hex is rejected.
 // PREVENTS: Panic on malformed input.
 func TestRunCLIDecodeInvalidHex(t *testing.T) {
+	t.Parallel()
 	output := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
 
@@ -289,6 +304,7 @@ func TestRunCLIDecodeInvalidHex(t *testing.T) {
 // VALIDATES: String() produces round-trip compatible output.
 // PREVENTS: String format incompatible with API parsing.
 func TestVPNString(t *testing.T) {
+	t.Parallel()
 	rd, err := ParseRDString("1:1")
 	require.NoError(t, err)
 
@@ -305,6 +321,7 @@ func TestVPNString(t *testing.T) {
 // VALIDATES: Path ID is stored and reported correctly.
 // PREVENTS: Path ID loss in parsing.
 func TestVPNWithPathID(t *testing.T) {
+	t.Parallel()
 	rd, err := ParseRDString("1:1")
 	require.NoError(t, err)
 
@@ -320,6 +337,7 @@ func TestVPNWithPathID(t *testing.T) {
 // VALIDATES: Short data returns error, not panic.
 // PREVENTS: Panic on malformed input.
 func TestParseVPNShortData(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		data []byte
@@ -331,6 +349,7 @@ func TestParseVPNShortData(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, _, err := ParseVPN(AFIIPv4, SAFIVPN, tt.data, false)
 			assert.Error(t, err)
 		})
@@ -342,6 +361,7 @@ func TestParseVPNShortData(t *testing.T) {
 // VALIDATES: SetVPNLogger accepts logger without panic.
 // PREVENTS: Nil logger causing panic.
 func TestSetVPNLogger(t *testing.T) {
+	t.Parallel()
 	// Should not panic with nil
 	SetVPNLogger(nil)
 
@@ -355,6 +375,7 @@ func TestSetVPNLogger(t *testing.T) {
 // VALIDATES: GetVPNYANG returns empty (no config augmentation).
 // PREVENTS: Unexpected YANG output.
 func TestGetVPNYANG(t *testing.T) {
+	t.Parallel()
 	yang := GetVPNYANG()
 	assert.Empty(t, yang)
 }
@@ -364,6 +385,7 @@ func TestGetVPNYANG(t *testing.T) {
 // VALIDATES: VPNFamilies returns correct families.
 // PREVENTS: Missing family support.
 func TestVPNFamilies(t *testing.T) {
+	t.Parallel()
 	families := VPNFamilies()
 	assert.Contains(t, families, "ipv4/vpn")
 	assert.Contains(t, families, "ipv6/vpn")
@@ -375,6 +397,7 @@ func TestVPNFamilies(t *testing.T) {
 // VALIDATES: Valid VPN families are accepted, invalid rejected.
 // PREVENTS: Accepting non-VPN families.
 func TestIsValidVPNFamily(t *testing.T) {
+	t.Parallel()
 	assert.True(t, isValidVPNFamily("ipv4/vpn"))
 	assert.True(t, isValidVPNFamily("ipv6/vpn"))
 	assert.False(t, isValidVPNFamily("ipv4/unicast"))

@@ -1,4 +1,4 @@
-package bgp_nlri_evpn
+package evpn
 
 import (
 	"testing"

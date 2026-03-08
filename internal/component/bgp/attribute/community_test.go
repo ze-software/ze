@@ -8,12 +8,14 @@ import (
 )
 
 func TestCommunityString(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "NO_EXPORT", CommunityNoExport.String())
 	assert.Equal(t, "NO_ADVERTISE", CommunityNoAdvertise.String())
 	assert.Equal(t, "65001:100", Community(0xFDE90064).String())
 }
 
 func TestCommunities(t *testing.T) {
+	t.Parallel()
 	comms := Communities{Community(0xFDE90064), CommunityNoExport}
 
 	assert.Equal(t, AttrCommunity, comms.Code())
@@ -27,6 +29,7 @@ func TestCommunities(t *testing.T) {
 }
 
 func TestCommunitiesParse(t *testing.T) {
+	t.Parallel()
 	data := []byte{0xFD, 0xE9, 0x00, 0x64, 0xFF, 0xFF, 0xFF, 0x01}
 	comms, err := ParseCommunities(data)
 	require.NoError(t, err)
@@ -34,17 +37,20 @@ func TestCommunitiesParse(t *testing.T) {
 }
 
 func TestCommunitiesContains(t *testing.T) {
+	t.Parallel()
 	comms := Communities{Community(0xFDE90064), CommunityNoExport}
 	assert.True(t, comms.Contains(CommunityNoExport))
 	assert.False(t, comms.Contains(CommunityNoAdvertise))
 }
 
 func TestLargeCommunity(t *testing.T) {
+	t.Parallel()
 	lc := LargeCommunity{GlobalAdmin: 65001, LocalData1: 100, LocalData2: 200}
 	assert.Equal(t, "65001:100:200", lc.String())
 }
 
 func TestLargeCommunities(t *testing.T) {
+	t.Parallel()
 	lcs := LargeCommunities{
 		{GlobalAdmin: 65001, LocalData1: 100, LocalData2: 200},
 	}
@@ -65,6 +71,7 @@ func TestLargeCommunities(t *testing.T) {
 }
 
 func TestLargeCommunitiesParse(t *testing.T) {
+	t.Parallel()
 	data := []byte{
 		0x00, 0x00, 0xFD, 0xE9,
 		0x00, 0x00, 0x00, 0x64,
@@ -79,6 +86,7 @@ func TestLargeCommunitiesParse(t *testing.T) {
 }
 
 func TestExtendedCommunities(t *testing.T) {
+	t.Parallel()
 	ec := ExtendedCommunity{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64}
 	ecs := ExtendedCommunities{ec}
 
@@ -92,6 +100,7 @@ func TestExtendedCommunities(t *testing.T) {
 }
 
 func TestExtendedCommunitiesParse(t *testing.T) {
+	t.Parallel()
 	data := []byte{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64}
 	ecs, err := ParseExtendedCommunities(data)
 	require.NoError(t, err)
@@ -107,6 +116,7 @@ func TestExtendedCommunitiesParse(t *testing.T) {
 //
 // PREVENTS: Incorrect parsing of IPv6 extended communities.
 func TestIPv6ExtendedCommunities(t *testing.T) {
+	t.Parallel()
 	// Create a test IPv6 Extended Community:
 	// Type 0x00 (transitive), Sub-type 0x02 (Route Target)
 	// Global Admin: 2001:db8::1 (IPv6 address)
@@ -137,6 +147,7 @@ func TestIPv6ExtendedCommunities(t *testing.T) {
 //
 // PREVENTS: Accepting malformed data.
 func TestIPv6ExtendedCommunitiesParse(t *testing.T) {
+	t.Parallel()
 	// Valid 20-byte community
 	data := []byte{
 		0x00, 0x02, // Type + Sub-type
@@ -158,6 +169,7 @@ func TestIPv6ExtendedCommunitiesParse(t *testing.T) {
 //
 // VALIDATES: Invalid length is rejected.
 func TestIPv6ExtendedCommunitiesParseInvalid(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		data []byte
@@ -169,6 +181,7 @@ func TestIPv6ExtendedCommunitiesParseInvalid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := ParseIPv6ExtendedCommunities(tt.data)
 			require.Error(t, err)
 		})
@@ -187,6 +200,7 @@ func TestIPv6ExtendedCommunitiesParseInvalid(t *testing.T) {
 //
 // PREVENTS: Transmitting or storing redundant communities.
 func TestLargeCommunitiesDeduplication(t *testing.T) {
+	t.Parallel()
 	// Test data with duplicates: [65001:100:200, 65001:100:200, 65002:1:2]
 	dataWithDups := []byte{
 		0x00, 0x00, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0xC8, // 65001:100:200
@@ -207,6 +221,7 @@ func TestLargeCommunitiesDeduplication(t *testing.T) {
 //
 // VALIDATES: Even if struct contains duplicates, WriteTo outputs unique.
 func TestLargeCommunitiesWriteToNoDuplicates(t *testing.T) {
+	t.Parallel()
 	// Create with intentional duplicates (shouldn't happen normally, but defensive)
 	lcs := LargeCommunities{
 		{65001, 100, 200},
@@ -227,6 +242,7 @@ func TestLargeCommunitiesWriteToNoDuplicates(t *testing.T) {
 
 // TestIPv6ExtendedCommunitiesRoundTrip verifies WriteTo/parse consistency.
 func TestIPv6ExtendedCommunitiesRoundTrip(t *testing.T) {
+	t.Parallel()
 	// Two IPv6 extended communities
 	original := IPv6ExtendedCommunities{
 		{0x00, 0x02, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
@@ -250,6 +266,7 @@ func TestIPv6ExtendedCommunitiesRoundTrip(t *testing.T) {
 //
 // PREVENTS: Wire format errors in community encoding.
 func TestCommunitiesWriteTo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		comms   Communities
@@ -274,6 +291,7 @@ func TestCommunitiesWriteTo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 4096)
 			n := tt.comms.WriteTo(buf, 0)
 
@@ -299,6 +317,7 @@ func TestCommunitiesWriteTo(t *testing.T) {
 //
 // PREVENTS: Length byte overflow causing malformed COMMUNITIES (bug found in code review).
 func TestCommunitiesWriteToExtendedLength(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		numComms int
@@ -328,6 +347,7 @@ func TestCommunitiesWriteToExtendedLength(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			comms := make(Communities, tt.numComms)
 			for i := range comms {
 				comms[i] = Community(uint32(0xFFFF0000 | i)) //nolint:gosec // G115: test data, i bounded
@@ -351,6 +371,7 @@ func TestCommunitiesWriteToExtendedLength(t *testing.T) {
 //
 // PREVENTS: Buffer corruption when writing at non-zero offset.
 func TestCommunitiesWriteToOffset(t *testing.T) {
+	t.Parallel()
 	comms := Communities{Community(0xFDE90064), CommunityNoExport}
 	wantLen := comms.Len()
 	offset := 100
@@ -378,6 +399,7 @@ func TestCommunitiesWriteToOffset(t *testing.T) {
 //
 // VALIDATES: Zero-allocation WriteTo path produces correct wire format.
 func TestExtendedCommunitiesWriteTo(t *testing.T) {
+	t.Parallel()
 	ecs := ExtendedCommunities{
 		{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64},
 		{0x00, 0x02, 0xFD, 0xEA, 0x00, 0x00, 0x00, 0x65},
@@ -403,6 +425,7 @@ func TestExtendedCommunitiesWriteTo(t *testing.T) {
 //
 // PREVENTS: Length byte overflow causing malformed attribute.
 func TestExtendedCommunitiesWriteToExtendedLength(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		numComms int
@@ -427,6 +450,7 @@ func TestExtendedCommunitiesWriteToExtendedLength(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			ecs := make(ExtendedCommunities, tt.numComms)
 			for i := range ecs {
 				ecs[i] = ExtendedCommunity{0x00, 0x02, byte(i >> 8), byte(i), 0x00, 0x00, 0x00, byte(i)}
@@ -448,6 +472,7 @@ func TestExtendedCommunitiesWriteToExtendedLength(t *testing.T) {
 //
 // VALIDATES: Zero-allocation WriteTo path produces correct wire format.
 func TestLargeCommunitiesWriteTo(t *testing.T) {
+	t.Parallel()
 	lcs := LargeCommunities{
 		{GlobalAdmin: 65001, LocalData1: 100, LocalData2: 200},
 		{GlobalAdmin: 65002, LocalData1: 101, LocalData2: 201},
@@ -473,6 +498,7 @@ func TestLargeCommunitiesWriteTo(t *testing.T) {
 //
 // PREVENTS: Length byte overflow causing malformed attribute.
 func TestLargeCommunitiesWriteToExtendedLength(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		numComms int
@@ -497,6 +523,7 @@ func TestLargeCommunitiesWriteToExtendedLength(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			lcs := make(LargeCommunities, tt.numComms)
 			for i := range lcs {
 				lcs[i] = LargeCommunity{
@@ -527,6 +554,7 @@ func TestLargeCommunitiesWriteToExtendedLength(t *testing.T) {
 //
 // PREVENTS: Length byte overflow causing malformed attribute.
 func TestIPv6ExtendedCommunitiesWriteToExtendedLength(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		numComms int
@@ -551,6 +579,7 @@ func TestIPv6ExtendedCommunitiesWriteToExtendedLength(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			ecs := make(IPv6ExtendedCommunities, tt.numComms)
 			for i := range ecs {
 				ecs[i] = IPv6ExtendedCommunity{

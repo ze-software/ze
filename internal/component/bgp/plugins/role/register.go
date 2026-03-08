@@ -1,9 +1,9 @@
-package bgp_role
+package role
 
 import (
 	"os"
 
-	roleschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-role/schema"
+	roleschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/role/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"

@@ -2,7 +2,7 @@
 // RFC: rfc/short/rfc8277.md
 //
 // Package bgp_labeled implements Labeled Unicast NLRI (RFC 8277, SAFI 4).
-package bgp_nlri_labeled
+package labeled
 
 import (
 	"fmt"

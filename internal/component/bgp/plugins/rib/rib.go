@@ -10,7 +10,7 @@
 //
 // RFC 7911: ADD-PATH path-id is included in route keys when present.
 // Multiple paths to the same prefix with different path-ids are stored separately.
-package bgp_rib
+package rib
 
 import (
 	"context"
@@ -23,9 +23,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/pool"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/schema"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )

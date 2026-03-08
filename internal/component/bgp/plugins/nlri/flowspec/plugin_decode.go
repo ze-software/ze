@@ -4,7 +4,7 @@
 // Related: plugin_encode_text.go — text-to-wire encoding
 // Related: plugin_protocol.go — stdin/stdout protocol dispatch
 
-package bgp_nlri_flowspec
+package flowspec
 
 import (
 	"fmt"

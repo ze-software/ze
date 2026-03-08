@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/commands.md — BGP reactor type assertion
 
-package bgpcmdcache
+package cache
 
 import (
 	"fmt"

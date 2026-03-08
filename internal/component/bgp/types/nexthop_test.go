@@ -10,6 +10,7 @@ import (
 // VALIDATES: Constructors set correct Policy and Addr.
 // PREVENTS: Incorrect policy assignment in constructors.
 func TestRouteNextHop_Constructors(t *testing.T) {
+	t.Parallel()
 	// NewNextHopExplicit
 	addr := netip.MustParseAddr("192.0.2.1")
 	explicit := NewNextHopExplicit(addr)
@@ -35,6 +36,7 @@ func TestRouteNextHop_Constructors(t *testing.T) {
 // VALIDATES: Zero value RouteNextHop is not valid.
 // PREVENTS: Accidental use of uninitialized RouteNextHop.
 func TestRouteNextHop_ZeroValue(t *testing.T) {
+	t.Parallel()
 	var nh RouteNextHop
 	if nh.IsValid() {
 		t.Error("zero value should not be valid")
@@ -49,6 +51,7 @@ func TestRouteNextHop_ZeroValue(t *testing.T) {
 // VALIDATES: IsSelf() returns true only for NextHopSelf policy.
 // PREVENTS: Incorrect policy detection.
 func TestRouteNextHop_IsSelf(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		nh   RouteNextHop
@@ -60,6 +63,7 @@ func TestRouteNextHop_IsSelf(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := tt.nh.IsSelf(); got != tt.want {
 				t.Errorf("IsSelf() = %v, want %v", got, tt.want)
 			}
@@ -72,6 +76,7 @@ func TestRouteNextHop_IsSelf(t *testing.T) {
 // VALIDATES: IsExplicit() returns true only for NextHopExplicit policy.
 // PREVENTS: Incorrect policy detection.
 func TestRouteNextHop_IsExplicit(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		nh   RouteNextHop
@@ -83,6 +88,7 @@ func TestRouteNextHop_IsExplicit(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := tt.nh.IsExplicit(); got != tt.want {
 				t.Errorf("IsExplicit() = %v, want %v", got, tt.want)
 			}
@@ -95,6 +101,7 @@ func TestRouteNextHop_IsExplicit(t *testing.T) {
 // VALIDATES: Self=true, Explicit+valid=true, Explicit+invalid=false, Unset=false.
 // PREVENTS: Invalid next-hop configurations being used.
 func TestRouteNextHop_IsValid(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		nh   RouteNextHop
@@ -107,6 +114,7 @@ func TestRouteNextHop_IsValid(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := tt.nh.IsValid(); got != tt.want {
 				t.Errorf("IsValid() = %v, want %v", got, tt.want)
 			}
@@ -119,6 +127,7 @@ func TestRouteNextHop_IsValid(t *testing.T) {
 // VALIDATES: Self="self", Explicit=IP, Unset="", Explicit+invalid="".
 // PREVENTS: Incorrect string representation in logs/output.
 func TestRouteNextHop_String(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		nh   RouteNextHop
@@ -132,6 +141,7 @@ func TestRouteNextHop_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := tt.nh.String(); got != tt.want {
 				t.Errorf("String() = %q, want %q", got, tt.want)
 			}

@@ -1,4 +1,4 @@
-package bgp_nlri_labeled
+package labeled
 
 import (
 	"bytes"

@@ -12,6 +12,7 @@ import (
 // VALIDATES: Iterator returns each segment correctly
 // PREVENTS: Off-by-one errors, incorrect segment extraction.
 func TestASPathIterator(t *testing.T) {
+	t.Parallel()
 	// AS_PATH with two segments (4-byte ASN):
 	// AS_SEQUENCE [65001, 65002]
 	// AS_SET [65003]
@@ -47,6 +48,7 @@ func TestASPathIterator(t *testing.T) {
 // VALIDATES: Iterator correctly handles 2-byte ASN encoding
 // PREVENTS: Incorrect length calculation for legacy ASN format.
 func TestASPathIteratorASN2(t *testing.T) {
+	t.Parallel()
 	// AS_PATH with 2-byte ASNs:
 	// AS_SEQUENCE [65001, 65002, 65003]
 	data := []byte{
@@ -72,6 +74,7 @@ func TestASPathIteratorASN2(t *testing.T) {
 // VALIDATES: Empty buffer returns no items immediately
 // PREVENTS: Panic on empty input.
 func TestASPathIteratorEmpty(t *testing.T) {
+	t.Parallel()
 	iter := NewASPathIterator(nil, true)
 	_, _, ok := iter.Next()
 	assert.False(t, ok)
@@ -86,6 +89,7 @@ func TestASPathIteratorEmpty(t *testing.T) {
 // VALIDATES: Reset allows re-iteration from start
 // PREVENTS: Iterator becoming unusable after exhaustion.
 func TestASPathIteratorReset(t *testing.T) {
+	t.Parallel()
 	data := []byte{
 		0x02, 0x01, 0x00, 0x00, 0xFD, 0xE9, // AS_SEQUENCE [65001]
 	}
@@ -109,6 +113,7 @@ func TestASPathIteratorReset(t *testing.T) {
 // VALIDATES: Count returns correct number of segments
 // PREVENTS: Miscounting segments.
 func TestASPathIteratorCount(t *testing.T) {
+	t.Parallel()
 	data := []byte{
 		0x02, 0x02, 0x00, 0x00, 0xFD, 0xE9, 0x00, 0x00, 0xFD, 0xEA, // AS_SEQUENCE [65001, 65002]
 		0x01, 0x01, 0x00, 0x00, 0xFD, 0xEB, // AS_SET [65003]
@@ -123,6 +128,7 @@ func TestASPathIteratorCount(t *testing.T) {
 // VALIDATES: ASNIterator returns each ASN correctly
 // PREVENTS: Incorrect ASN extraction from segment bytes.
 func TestASNIterator(t *testing.T) {
+	t.Parallel()
 	// 4-byte ASNs: 65001, 65002, 65003
 	asns := []byte{
 		0x00, 0x00, 0xFD, 0xE9,
@@ -153,6 +159,7 @@ func TestASNIterator(t *testing.T) {
 // VALIDATES: ASNIterator handles 2-byte ASN encoding
 // PREVENTS: Incorrect ASN values from 2-byte format.
 func TestASNIteratorASN2(t *testing.T) {
+	t.Parallel()
 	// 2-byte ASNs: 65001, 65002
 	asns := []byte{0xFD, 0xE9, 0xFD, 0xEA}
 
@@ -175,6 +182,7 @@ func TestASNIteratorASN2(t *testing.T) {
 // VALIDATES: Empty segment returns no ASNs
 // PREVENTS: Panic on empty segment.
 func TestASNIteratorEmpty(t *testing.T) {
+	t.Parallel()
 	iter := NewASNIterator(nil, true)
 	_, ok := iter.Next()
 	assert.False(t, ok)
@@ -189,6 +197,7 @@ func TestASNIteratorEmpty(t *testing.T) {
 // VALIDATES: Count returns correct number of ASNs
 // PREVENTS: Miscounting ASNs.
 func TestASNIteratorCount(t *testing.T) {
+	t.Parallel()
 	asns4 := []byte{
 		0x00, 0x00, 0xFD, 0xE9,
 		0x00, 0x00, 0xFD, 0xEA,

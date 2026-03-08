@@ -1,4 +1,4 @@
-package bgpcmdpeer
+package peer
 
 import (
 	"net/netip"

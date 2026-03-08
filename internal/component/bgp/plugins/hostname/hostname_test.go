@@ -1,5 +1,5 @@
 // Package hostname implements hostname (FQDN) capability plugin for ze.
-package bgp_hostname
+package hostname
 
 import (
 	"bytes"

@@ -12,6 +12,7 @@ import (
 // VALIDATES: Builder correctly parses origin strings.
 // PREVENTS: Invalid origin values from text commands.
 func TestBuilderParseOrigin(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -29,6 +30,7 @@ func TestBuilderParseOrigin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			b := NewBuilder()
 			err := b.ParseOrigin(tt.input)
 			if tt.wantErr {
@@ -48,6 +50,7 @@ func TestBuilderParseOrigin(t *testing.T) {
 // VALIDATES: Builder correctly parses AS_PATH strings.
 // PREVENTS: Malformed AS_PATH from text commands.
 func TestBuilderParseASPath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -64,6 +67,7 @@ func TestBuilderParseASPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			b := NewBuilder()
 			err := b.ParseASPath(tt.input)
 			if tt.wantErr {
@@ -81,6 +85,7 @@ func TestBuilderParseASPath(t *testing.T) {
 // VALIDATES: Builder correctly parses community strings.
 // PREVENTS: Invalid community values from text commands.
 func TestBuilderParseCommunity(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -100,6 +105,7 @@ func TestBuilderParseCommunity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			b := NewBuilder()
 			err := b.ParseCommunity(tt.input)
 			if tt.wantErr {
@@ -117,6 +123,7 @@ func TestBuilderParseCommunity(t *testing.T) {
 // VALIDATES: Builder correctly parses large community strings.
 // PREVENTS: Invalid large community values from text commands.
 func TestBuilderParseLargeCommunity(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -132,6 +139,7 @@ func TestBuilderParseLargeCommunity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			b := NewBuilder()
 			err := b.ParseLargeCommunity(tt.input)
 			if tt.wantErr {
@@ -149,6 +157,7 @@ func TestBuilderParseLargeCommunity(t *testing.T) {
 // VALIDATES: Builder correctly parses extended community strings.
 // PREVENTS: Invalid extended community values from text commands.
 func TestBuilderParseExtCommunity(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -217,6 +226,7 @@ func TestBuilderParseExtCommunity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			b := NewBuilder()
 			err := b.ParseExtCommunity(tt.input)
 			if tt.wantErr {
@@ -234,6 +244,7 @@ func TestBuilderParseExtCommunity(t *testing.T) {
 // VALIDATES: Builder correctly parses MED strings.
 // PREVENTS: Invalid MED values from text commands.
 func TestBuilderParseMED(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -250,6 +261,7 @@ func TestBuilderParseMED(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			b := NewBuilder()
 			err := b.ParseMED(tt.input)
 			if tt.wantErr {
@@ -268,6 +280,7 @@ func TestBuilderParseMED(t *testing.T) {
 // VALIDATES: Builder correctly parses LOCAL_PREF strings.
 // PREVENTS: Invalid LOCAL_PREF values from text commands.
 func TestBuilderParseLocalPref(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		input   string
@@ -282,6 +295,7 @@ func TestBuilderParseLocalPref(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			b := NewBuilder()
 			err := b.ParseLocalPref(tt.input)
 			if tt.wantErr {

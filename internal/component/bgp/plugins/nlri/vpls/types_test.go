@@ -1,4 +1,4 @@
-package bgp_nlri_vpls
+package vpls
 
 import (
 	"encoding/binary"
@@ -10,6 +10,7 @@ import (
 
 // TestVPLSBasic verifies basic VPLS NLRI creation.
 func TestVPLSBasic(t *testing.T) {
+	t.Parallel()
 	vpls := NewVPLS(RouteDistinguisher{Type: 1}, 100, 200, []byte{1, 2, 3})
 
 	assert.Equal(t, uint16(100), vpls.VEBlockOffset())
@@ -18,6 +19,7 @@ func TestVPLSBasic(t *testing.T) {
 
 // TestVPLSFamily verifies VPLS address family.
 func TestVPLSFamily(t *testing.T) {
+	t.Parallel()
 	vpls := NewVPLS(RouteDistinguisher{}, 0, 0, nil)
 
 	assert.Equal(t, AFIL2VPN, vpls.Family().AFI)
@@ -26,6 +28,7 @@ func TestVPLSFamily(t *testing.T) {
 
 // TestVPLSBytes verifies VPLS wire format.
 func TestVPLSBytes(t *testing.T) {
+	t.Parallel()
 	vpls := NewVPLS(RouteDistinguisher{Type: 1}, 100, 200, []byte{1, 2, 3})
 
 	data := vpls.Bytes()
@@ -36,6 +39,7 @@ func TestVPLSBytes(t *testing.T) {
 
 // TestVPLSFull verifies full VPLS NLRI creation.
 func TestVPLSFull(t *testing.T) {
+	t.Parallel()
 	rd := RouteDistinguisher{Type: RDType0}
 	binary.BigEndian.PutUint16(rd.Value[:2], 65001)
 	binary.BigEndian.PutUint32(rd.Value[2:6], 100)
@@ -51,6 +55,7 @@ func TestVPLSFull(t *testing.T) {
 
 // TestVPLSRoundTrip verifies encode/decode cycle.
 func TestVPLSRoundTrip(t *testing.T) {
+	t.Parallel()
 	rd := RouteDistinguisher{Type: RDType0}
 	binary.BigEndian.PutUint16(rd.Value[:2], 65001)
 	binary.BigEndian.PutUint32(rd.Value[2:6], 100)
@@ -70,6 +75,7 @@ func TestVPLSRoundTrip(t *testing.T) {
 
 // TestVPLSParseErrors verifies error handling.
 func TestVPLSParseErrors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		data []byte
@@ -82,6 +88,7 @@ func TestVPLSParseErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, _, err := ParseVPLS(tt.data)
 			assert.Error(t, err)
 		})
@@ -93,6 +100,7 @@ func TestVPLSParseErrors(t *testing.T) {
 // VALIDATES: VPLS String() outputs command-style format for API round-trip.
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestVPLSStringCommandStyle(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		vpls     *VPLS
@@ -122,6 +130,7 @@ func TestVPLSStringCommandStyle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.vpls.String())
 		})
 	}
@@ -132,6 +141,7 @@ func TestVPLSStringCommandStyle(t *testing.T) {
 // VALIDATES: WriteTo produces identical wire format to Bytes() for VPLS NLRI.
 // PREVENTS: Label encoding errors, VE block field ordering issues.
 func TestVPLSWriteToMatchesBytes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		vpls *VPLS
@@ -153,6 +163,7 @@ func TestVPLSWriteToMatchesBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			expected := tt.vpls.Bytes()
 
 			buf := make([]byte, len(expected)+10)

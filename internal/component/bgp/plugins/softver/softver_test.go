@@ -1,4 +1,4 @@
-package bgp_softver
+package softver
 
 import (
 	"bytes"

@@ -11,6 +11,7 @@ import (
 // VALIDATES: Len() returns payload-only length after Phase 3 simplification.
 // PREVENTS: Size mismatch when building wire format with ADD-PATH.
 func TestLen_INET(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		prefix  netip.Prefix
@@ -51,6 +52,7 @@ func TestLen_INET(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			family := IPv4Unicast
 			if tt.prefix.Addr().Is6() {
 				family = IPv6Unicast
@@ -74,6 +76,7 @@ func TestLen_INET(t *testing.T) {
 // VALIDATES: WriteTo produces bytes identical to Bytes().
 // PREVENTS: Wire format corruption when ADD-PATH is handled externally.
 func TestWriteTo_INET(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		prefix netip.Prefix
@@ -98,6 +101,7 @@ func TestWriteTo_INET(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			family := IPv4Unicast
 			if tt.prefix.Addr().Is6() {
 				family = IPv6Unicast
@@ -135,10 +139,12 @@ func TestWriteTo_INET(t *testing.T) {
 // VALIDATES: WriteNLRI prepends path ID when ctx.AddPath=true.
 // PREVENTS: Missing path ID in ADD-PATH enabled sessions.
 func TestWriteNLRI_AddPath(t *testing.T) {
+	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	inet := NewINET(IPv4Unicast, prefix, 0) // No stored path ID
 
 	t.Run("AddPath enabled", func(t *testing.T) {
+		t.Parallel()
 		buf := make([]byte, 100)
 		n := WriteNLRI(inet, buf, 0, true)
 
@@ -155,6 +161,7 @@ func TestWriteNLRI_AddPath(t *testing.T) {
 	})
 
 	t.Run("AddPath disabled", func(t *testing.T) {
+		t.Parallel()
 		buf := make([]byte, 100)
 		n := WriteNLRI(inet, buf, 0, false)
 
@@ -170,6 +177,7 @@ func TestWriteNLRI_AddPath(t *testing.T) {
 // VALIDATES: WriteNLRI uses stored path ID when addPath=true.
 // PREVENTS: Path ID being lost or zeroed when forwarding routes.
 func TestWriteNLRI_WithStoredPathID(t *testing.T) {
+	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	inet := NewINET(IPv4Unicast, prefix, 42) // Stored path ID = 42
 
@@ -193,6 +201,7 @@ func TestWriteNLRI_WithStoredPathID(t *testing.T) {
 // VALIDATES: LenWithContext returns exact bytes WriteNLRI will write.
 // PREVENTS: Buffer overflow/underflow when pre-allocating.
 func TestLenWithContext_MatchesWriteNLRI(t *testing.T) {
+	t.Parallel()
 	nlris := []NLRI{
 		NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
 		NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 1),
@@ -210,6 +219,7 @@ func TestLenWithContext_MatchesWriteNLRI(t *testing.T) {
 			}
 
 			t.Run(n.String()+"_"+name, func(t *testing.T) {
+				t.Parallel()
 				predicted := LenWithContext(n, addPath)
 
 				buf := make([]byte, 100)

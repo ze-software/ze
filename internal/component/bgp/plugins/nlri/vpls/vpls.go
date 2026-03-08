@@ -3,7 +3,7 @@
 //
 // Package bgp_vpls implements a VPLS family plugin for ze.
 // It handles VPLS NLRI (RFC 4761, SAFI 65).
-package bgp_nlri_vpls
+package vpls
 
 import (
 	"bufio"

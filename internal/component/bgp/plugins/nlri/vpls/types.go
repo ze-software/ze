@@ -2,7 +2,7 @@
 // RFC: rfc/short/rfc4761.md
 //
 // Package bgp_vpls implements VPLS NLRI (RFC 4761, SAFI 65).
-package bgp_nlri_vpls
+package vpls
 
 import (
 	"encoding/binary"

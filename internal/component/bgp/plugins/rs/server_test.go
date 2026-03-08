@@ -1,4 +1,4 @@
-package bgp_rs
+package rs
 
 import (
 	"fmt"

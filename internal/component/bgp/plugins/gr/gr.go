@@ -9,7 +9,7 @@
 //
 // Event subscriptions: open (received), state, eor.
 // Inter-plugin coordination: DispatchCommand → bgp-rib retain-routes/release-routes.
-package bgp_gr
+package gr
 
 import (
 	"bufio"
@@ -26,7 +26,7 @@ import (
 	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-gr/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )

@@ -14,6 +14,7 @@ import (
 //
 // PREVENTS: Incorrect RD parsing causing VPN route mismatches.
 func TestRouteDistinguisherType0(t *testing.T) {
+	t.Parallel()
 	// Type 0: 2-byte admin (ASN) + 4-byte assigned
 	// ASN=65000, Assigned=100
 	data := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
@@ -32,6 +33,7 @@ func TestRouteDistinguisherType0(t *testing.T) {
 //
 // PREVENTS: Incorrect IP-based RD parsing.
 func TestRouteDistinguisherType1(t *testing.T) {
+	t.Parallel()
 	// Type 1: 4-byte IP + 2-byte assigned
 	// IP=10.0.0.1, Assigned=100
 	data := []byte{0x00, 0x01, 0x0A, 0x00, 0x00, 0x01, 0x00, 0x64}
@@ -50,6 +52,7 @@ func TestRouteDistinguisherType1(t *testing.T) {
 //
 // PREVENTS: Incorrect 4-byte ASN RD parsing.
 func TestRouteDistinguisherType2(t *testing.T) {
+	t.Parallel()
 	// Type 2: 4-byte ASN + 2-byte assigned
 	// ASN=65536, Assigned=100
 	data := []byte{0x00, 0x02, 0x00, 0x01, 0x00, 0x00, 0x00, 0x64}
@@ -67,6 +70,7 @@ func TestRouteDistinguisherType2(t *testing.T) {
 //
 // PREVENTS: Buffer overflow from undersized allocation.
 func TestRouteDistinguisherLenMatchesWriteTo(t *testing.T) {
+	t.Parallel()
 	tests := []RouteDistinguisher{
 		{Type: RDType0, Value: [6]byte{0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}}, // 65000:100
 		{Type: RDType1, Value: [6]byte{0x0A, 0x00, 0x00, 0x01, 0x00, 0x64}}, // 10.0.0.1:100
@@ -75,6 +79,7 @@ func TestRouteDistinguisherLenMatchesWriteTo(t *testing.T) {
 
 	for _, rd := range tests {
 		t.Run(rd.String(), func(t *testing.T) {
+			t.Parallel()
 			expectedLen := rd.Len()
 
 			buf := make([]byte, 100)
@@ -92,6 +97,7 @@ func TestRouteDistinguisherLenMatchesWriteTo(t *testing.T) {
 //
 // PREVENTS: Label stack parsing errors.
 func TestLabelStackSingle(t *testing.T) {
+	t.Parallel()
 	// Label 16 with bottom-of-stack (BOS) bit set
 	// Label value is in upper 20 bits, BOS is bit 0
 	// 16 << 4 | 1 = 0x000101
@@ -111,6 +117,7 @@ func TestLabelStackSingle(t *testing.T) {
 //
 // PREVENTS: Stack underflow/overflow in label parsing.
 func TestLabelStackMultiple(t *testing.T) {
+	t.Parallel()
 	// Two labels: 100, 200 (second has BOS)
 	// Label 100: 0x000640 (100 << 4 = 0x640, no BOS)
 	// Label 200: 0x000C81 (200 << 4 | 1 = 0xC81)
@@ -133,6 +140,7 @@ func TestLabelStackMultiple(t *testing.T) {
 // VALIDATES: ParseRDString handles Type 0 (ASN:value) and Type 1 (IP:value).
 // PREVENTS: RD string parsing bugs.
 func TestParseRDString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input       string
 		expectType  RDType
@@ -156,6 +164,7 @@ func TestParseRDString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			result, err := ParseRDString(tt.input)
 			if tt.wantErr {
 				require.Error(t, err)

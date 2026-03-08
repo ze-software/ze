@@ -1,4 +1,4 @@
-package bgp_nlri_ls
+package ls
 
 import (
 	"bytes"

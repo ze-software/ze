@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/nlri.md — labeled unicast NLRI plugin
 // RFC: rfc/short/rfc8277.md
 
-package bgp_nlri_labeled
+package labeled
 
 import (
 	"encoding/hex"

@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/nlri-flowspec.md — FlowSpec NLRI plugin
 // RFC: rfc/short/rfc5575.md
 
-package bgp_nlri_flowspec
+package flowspec
 
 import (
 	"log/slog"

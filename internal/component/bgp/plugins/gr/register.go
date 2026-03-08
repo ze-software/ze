@@ -1,11 +1,11 @@
-package bgp_gr
+package gr
 
 import (
 	"bytes"
 	"fmt"
 	"os"
 
-	grschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-gr/schema"
+	grschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"

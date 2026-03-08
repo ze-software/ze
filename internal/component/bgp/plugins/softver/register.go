@@ -1,11 +1,11 @@
-package bgp_softver
+package softver
 
 import (
 	"bytes"
 	"fmt"
 	"os"
 
-	softverschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-softver/schema"
+	softverschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"

@@ -1,4 +1,4 @@
-package bgpcmdcache
+package cache
 
 import (
 	"testing"

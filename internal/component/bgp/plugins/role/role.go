@@ -6,7 +6,7 @@
 // Role capabilities (code 9) per-peer during Stage 3.
 //
 // RFC 9234: Route Leak Prevention and Detection Using Roles.
-package bgp_role
+package role
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"net"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-role/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/role/schema"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )

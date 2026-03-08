@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md — route server plugin
 // Overview: server.go — RouteServer dispatch, batch accumulation, async forward
 
-package bgp_rs
+package rs
 
 import (
 	"runtime"

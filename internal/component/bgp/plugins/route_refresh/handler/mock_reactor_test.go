@@ -3,7 +3,7 @@ package handler
 import (
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/commit"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/rib"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
@@ -106,7 +106,7 @@ func (m *mockReactor) SoftClearPeer(sel string) ([]string, error) {
 // newTestContext creates a CommandContext backed by a mock reactor.
 func newTestContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandContext {
 	server := pluginserver.NewServer(&pluginserver.ServerConfig{
-		CommitManager: commit.NewCommitManager(),
+		CommitManager: transaction.NewCommitManager(),
 	}, reactor)
 	return &pluginserver.CommandContext{Server: server}
 }

@@ -3,13 +3,13 @@
 // Related: rib_commands.go — command handling and JSON responses
 // Related: rib_nlri.go — NLRI wire format helpers
 // Related: bestpath.go — best-path selection (asPathLength, firstASInPath shared concern)
-package bgp_rib
+package rib
 
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/pool"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 )
 
 // enrichRouteMapFromEntry adds path attributes from a pool-based RouteEntry to a route map.

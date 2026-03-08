@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/nlri.md — VPLS NLRI plugin
 // RFC: rfc/short/rfc4761.md
 
-package bgp_nlri_vpls
+package vpls
 
 import (
 	"encoding/hex"

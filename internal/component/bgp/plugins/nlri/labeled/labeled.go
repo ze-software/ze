@@ -3,7 +3,7 @@
 //
 // Package bgp_labeled implements a Labeled Unicast family plugin for ze.
 // It handles Labeled Unicast NLRI (RFC 8277, SAFI 4).
-package bgp_nlri_labeled
+package labeled
 
 import (
 	"bufio"

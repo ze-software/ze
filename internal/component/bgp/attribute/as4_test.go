@@ -8,6 +8,7 @@ import (
 )
 
 func TestAS4Path_WriteTo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		path     *AS4Path
@@ -64,6 +65,7 @@ func TestAS4Path_WriteTo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 4096)
 			n := tt.path.WriteTo(buf, 0)
 			got := buf[:n]
@@ -75,6 +77,7 @@ func TestAS4Path_WriteTo(t *testing.T) {
 }
 
 func TestParseAS4Path(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		data     []byte
@@ -116,6 +119,7 @@ func TestParseAS4Path(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			path, err := ParseAS4Path(tt.data)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseAS4Path() error = %v, wantErr %v", err, tt.wantErr)
@@ -156,6 +160,7 @@ func TestParseAS4Path(t *testing.T) {
 //
 // PREVENTS: Processing corrupt path attributes that could affect routing.
 func TestParseAS4PathValidation(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		data    []byte
@@ -195,6 +200,7 @@ func TestParseAS4PathValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := ParseAS4Path(tt.data)
 			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("ParseAS4Path() error = %v, want %v", err, tt.wantErr)
@@ -204,6 +210,7 @@ func TestParseAS4PathValidation(t *testing.T) {
 }
 
 func TestAS4Path_RoundTrip(t *testing.T) {
+	t.Parallel()
 	original := &AS4Path{
 		Segments: []ASPathSegment{
 			{Type: ASSequence, ASNs: []uint32{4200000001, 65002}},
@@ -240,6 +247,7 @@ func TestAS4Path_RoundTrip(t *testing.T) {
 }
 
 func TestAS4Aggregator_WriteTo(t *testing.T) {
+	t.Parallel()
 	agg := &AS4Aggregator{
 		ASN:     4200000001,
 		Address: netip.MustParseAddr("10.0.0.1"),
@@ -259,6 +267,7 @@ func TestAS4Aggregator_WriteTo(t *testing.T) {
 }
 
 func TestParseAS4Aggregator(t *testing.T) {
+	t.Parallel()
 	data := []byte{
 		0xfa, 0x56, 0xea, 0x01,
 		0x0a, 0x00, 0x00, 0x01,
@@ -278,6 +287,7 @@ func TestParseAS4Aggregator(t *testing.T) {
 }
 
 func TestAS4Aggregator_RoundTrip(t *testing.T) {
+	t.Parallel()
 	original := &AS4Aggregator{
 		ASN:     4200000001,
 		Address: netip.MustParseAddr("192.168.1.1"),
@@ -300,6 +310,7 @@ func TestAS4Aggregator_RoundTrip(t *testing.T) {
 }
 
 func TestMergeAS4Path(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		asPath   *ASPath
@@ -342,6 +353,7 @@ func TestMergeAS4Path(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			merged := MergeAS4Path(tt.asPath, tt.as4Path)
 			if merged == nil {
 				t.Fatal("MergeAS4Path() returned nil")
@@ -385,6 +397,7 @@ func TestMergeAS4Path(t *testing.T) {
 //
 // PREVENTS: Incorrect path length causing wrong merge behavior.
 func TestMergeAS4PathWithASSet(t *testing.T) {
+	t.Parallel()
 	// AS_PATH: [SEQ: 65001] [SET: 65002, 65003, 65004]
 	// Path length should be: 1 (seq) + 1 (set=1) = 2
 	asPath := &ASPath{Segments: []ASPathSegment{
@@ -438,6 +451,7 @@ func TestMergeAS4PathWithASSet(t *testing.T) {
 //
 // PREVENTS: Confed segments incorrectly inflating path length.
 func TestMergeAS4PathWithConfed(t *testing.T) {
+	t.Parallel()
 	// AS_PATH: [CONFED_SEQ: 64512, 64513] [SEQ: 65001]
 	// Path length should be: 0 (confed) + 1 (seq) = 1
 	asPath := &ASPath{Segments: []ASPathSegment{
@@ -493,6 +507,7 @@ func TestMergeAS4PathWithConfed(t *testing.T) {
 //
 // PREVENTS: Leaking confederation segments in AS4_PATH to peers.
 func TestAS4PathWriteToExcludesConfed(t *testing.T) {
+	t.Parallel()
 	// AS4_PATH with confed segments that should be filtered
 	path := &AS4Path{
 		Segments: []ASPathSegment{
@@ -548,6 +563,7 @@ func TestAS4PathWriteToExcludesConfed(t *testing.T) {
 //
 // PREVENTS: Confed segments in AS4_PATH to OLD speakers.
 func TestAS4PathFilterConfedSegments(t *testing.T) {
+	t.Parallel()
 	path := &AS4Path{
 		Segments: []ASPathSegment{
 			{Type: ASConfedSequence, ASNs: []uint32{64512}},
@@ -585,6 +601,7 @@ func TestAS4PathFilterConfedSegments(t *testing.T) {
 //
 // PREVENTS: Incorrectly rejecting AS4_PATH with confed segments.
 func TestAS4PathParseAcceptsConfed(t *testing.T) {
+	t.Parallel()
 	// AS4_PATH with AS_CONFED_SEQUENCE (type 3 per RFC 5065)
 	data := []byte{
 		0x03, 0x02, // AS_CONFED_SEQUENCE (3), 2 ASNs
@@ -608,6 +625,7 @@ func TestAS4PathParseAcceptsConfed(t *testing.T) {
 }
 
 func TestAS4Path_PathLength(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		path *AS4Path
@@ -644,6 +662,7 @@ func TestAS4Path_PathLength(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := tt.path.PathLength(); got != tt.want {
 				t.Errorf("PathLength() = %d, want %d", got, tt.want)
 			}

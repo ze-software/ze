@@ -1,4 +1,4 @@
-package bgp_nlri_flowspec
+package flowspec
 
 import (
 	"bytes"

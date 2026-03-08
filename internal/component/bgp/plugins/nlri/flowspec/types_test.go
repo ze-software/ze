@@ -1,4 +1,4 @@
-package bgp_nlri_flowspec
+package flowspec
 
 import (
 	"encoding/binary"
@@ -16,6 +16,7 @@ import (
 // PREVENTS: Registry mismatch with RFC-assigned component type numbers;
 // silent breakage if constants are accidentally changed.
 func TestFlowSpecComponentTypes(t *testing.T) {
+	t.Parallel()
 	// RFC 5575 component types
 	assert.Equal(t, FlowComponentType(1), FlowDestPrefix)
 	assert.Equal(t, FlowComponentType(2), FlowSourcePrefix)
@@ -38,6 +39,7 @@ func TestFlowSpecComponentTypes(t *testing.T) {
 //
 // PREVENTS: Prefix data corruption; Type() returning wrong component identifier.
 func TestFlowSpecDestPrefix(t *testing.T) {
+	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	comp := NewFlowDestPrefixComponent(prefix)
 
@@ -54,6 +56,7 @@ func TestFlowSpecDestPrefix(t *testing.T) {
 //
 // PREVENTS: Source/destination prefix confusion; incorrect Type() return value.
 func TestFlowSpecSourcePrefix(t *testing.T) {
+	t.Parallel()
 	prefix := netip.MustParsePrefix("192.168.1.0/24")
 	comp := NewFlowSourcePrefixComponent(prefix)
 
@@ -70,6 +73,7 @@ func TestFlowSpecSourcePrefix(t *testing.T) {
 //
 // PREVENTS: Protocol values being lost or corrupted; incorrect operator encoding.
 func TestFlowSpecIPProtocol(t *testing.T) {
+	t.Parallel()
 	// TCP = 6
 	comp := NewFlowIPProtocolComponent(6)
 
@@ -86,6 +90,7 @@ func TestFlowSpecIPProtocol(t *testing.T) {
 //
 // PREVENTS: Port values lost when multiple specified; port matching incorrect logic.
 func TestFlowSpecPort(t *testing.T) {
+	t.Parallel()
 	comp := NewFlowPortComponent(80, 443)
 
 	assert.Equal(t, FlowPort, comp.Type())
@@ -101,6 +106,7 @@ func TestFlowSpecPort(t *testing.T) {
 //
 // PREVENTS: Source/dest port confusion; port value truncation.
 func TestFlowSpecDestPort(t *testing.T) {
+	t.Parallel()
 	comp := NewFlowDestPortComponent(22)
 
 	assert.Equal(t, FlowDestPort, comp.Type())
@@ -115,6 +121,7 @@ func TestFlowSpecDestPort(t *testing.T) {
 //
 // PREVENTS: Source/dest port confusion; multiple values being dropped.
 func TestFlowSpecSourcePort(t *testing.T) {
+	t.Parallel()
 	comp := NewFlowSourcePortComponent(1024, 65535)
 
 	assert.Equal(t, FlowSourcePort, comp.Type())
@@ -132,6 +139,7 @@ func TestFlowSpecSourcePort(t *testing.T) {
 // PREVENTS: ICMP type values being confused with other numeric components;
 // incorrect length encoding for single-byte ICMP type values (0-255).
 func TestFlowSpecICMPType(t *testing.T) {
+	t.Parallel()
 	// Echo Request = 8, Echo Reply = 0 per RFC 792
 	comp := NewFlowICMPTypeComponent(8, 0)
 
@@ -149,6 +157,7 @@ func TestFlowSpecICMPType(t *testing.T) {
 //
 // PREVENTS: Data corruption during encode/decode; incorrect operator byte handling.
 func TestFlowSpecICMPTypeRoundTrip(t *testing.T) {
+	t.Parallel()
 	original := NewFlowSpec(IPv4FlowSpec)
 	original.AddComponent(NewFlowICMPTypeComponent(8)) // Echo Request
 
@@ -171,6 +180,7 @@ func TestFlowSpecICMPTypeRoundTrip(t *testing.T) {
 //
 // PREVENTS: ICMP code values being confused with ICMP type; incorrect operator encoding.
 func TestFlowSpecICMPCode(t *testing.T) {
+	t.Parallel()
 	// Network Unreachable = 0, Host Unreachable = 1 per RFC 792
 	comp := NewFlowICMPCodeComponent(0, 1)
 
@@ -188,6 +198,7 @@ func TestFlowSpecICMPCode(t *testing.T) {
 //
 // PREVENTS: Boundary value truncation; off-by-one errors at 0 or 255.
 func TestFlowSpecICMPBoundary(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		comp      FlowComponent
@@ -215,6 +226,7 @@ func TestFlowSpecICMPBoundary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Verify component stores boundary values
 			nc, ok := tt.comp.(interface{ Values() []uint64 })
 			require.True(t, ok)
@@ -243,6 +255,7 @@ func TestFlowSpecICMPBoundary(t *testing.T) {
 //
 // PREVENTS: Data corruption during encode/decode; confusion with ICMP type component.
 func TestFlowSpecICMPCodeRoundTrip(t *testing.T) {
+	t.Parallel()
 	original := NewFlowSpec(IPv4FlowSpec)
 	original.AddComponent(NewFlowICMPCodeComponent(3)) // Port Unreachable
 
@@ -266,6 +279,7 @@ func TestFlowSpecICMPCodeRoundTrip(t *testing.T) {
 // PREVENTS: TCP flags using wrong operator type (numeric vs bitmask);
 // flag bits being corrupted.
 func TestFlowSpecTCPFlags(t *testing.T) {
+	t.Parallel()
 	// SYN flag = 0x02
 	comp := NewFlowTCPFlagsComponent(0x02)
 
@@ -283,6 +297,7 @@ func TestFlowSpecTCPFlags(t *testing.T) {
 // PREVENTS: Packet length matching against wrong field (e.g., L2 frame size);
 // multi-value ranges being dropped.
 func TestFlowSpecPacketLength(t *testing.T) {
+	t.Parallel()
 	comp := NewFlowPacketLengthComponent(64, 1500)
 
 	assert.Equal(t, FlowPacketLength, comp.Type())
@@ -299,6 +314,7 @@ func TestFlowSpecPacketLength(t *testing.T) {
 //
 // PREVENTS: DSCP values exceeding 6 bits; confusion with full TOS byte.
 func TestFlowSpecDSCP(t *testing.T) {
+	t.Parallel()
 	// EF = 46
 	comp := NewFlowDSCPComponent(46)
 
@@ -315,6 +331,7 @@ func TestFlowSpecDSCP(t *testing.T) {
 //
 // PREVENTS: Fragment flags using wrong operator type; flag bits inverted.
 func TestFlowSpecFragment(t *testing.T) {
+	t.Parallel()
 	comp := NewFlowFragmentComponent(FlowFragDontFragment)
 
 	assert.Equal(t, FlowFragment, comp.Type())
@@ -331,6 +348,7 @@ func TestFlowSpecFragment(t *testing.T) {
 //
 // PREVENTS: Flow Label values being corrupted; incorrect 4-byte encoding.
 func TestFlowSpecFlowLabel(t *testing.T) {
+	t.Parallel()
 	// Flow Label is 20-bit, max value 0xFFFFF
 	comp := NewFlowFlowLabelComponent(0x12345, 0x00000)
 
@@ -348,6 +366,7 @@ func TestFlowSpecFlowLabel(t *testing.T) {
 //
 // PREVENTS: Data corruption during encode/decode; incorrect 4-byte value encoding.
 func TestFlowSpecFlowLabelRoundTrip(t *testing.T) {
+	t.Parallel()
 	original := NewFlowSpec(IPv6FlowSpec)
 	original.AddComponent(NewFlowFlowLabelComponent(0xABCDE))
 
@@ -370,6 +389,7 @@ func TestFlowSpecFlowLabelRoundTrip(t *testing.T) {
 //
 // PREVENTS: AFI/SAFI family confusion; component list corruption.
 func TestFlowSpecIPv4Basic(t *testing.T) {
+	t.Parallel()
 	fs := NewFlowSpec(IPv4FlowSpec)
 	fs.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
 	fs.AddComponent(NewFlowIPProtocolComponent(6)) // TCP
@@ -385,6 +405,7 @@ func TestFlowSpecIPv4Basic(t *testing.T) {
 //
 // PREVENTS: IPv4/IPv6 family confusion; IPv6 prefix encoding errors.
 func TestFlowSpecIPv6Basic(t *testing.T) {
+	t.Parallel()
 	fs := NewFlowSpec(IPv6FlowSpec)
 	fs.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("2001:db8::/32")))
 
@@ -397,6 +418,7 @@ func TestFlowSpecIPv6Basic(t *testing.T) {
 //
 // PREVENTS: Missing length prefix; empty output for valid FlowSpec.
 func TestFlowSpecBytes(t *testing.T) {
+	t.Parallel()
 	fs := NewFlowSpec(IPv4FlowSpec)
 	fs.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/8")))
 
@@ -413,6 +435,7 @@ func TestFlowSpecBytes(t *testing.T) {
 //
 // PREVENTS: Missing component data in string output; panic on nil components.
 func TestFlowSpecString(t *testing.T) {
+	t.Parallel()
 	fs := NewFlowSpec(IPv4FlowSpec)
 	fs.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
 	fs.AddComponent(NewFlowDestPortComponent(80))
@@ -429,6 +452,7 @@ func TestFlowSpecString(t *testing.T) {
 //
 // PREVENTS: Component ordering corruption; data loss with multiple components.
 func TestFlowSpecComplexRule(t *testing.T) {
+	t.Parallel()
 	// Match: TCP traffic to 10.0.0.0/24 port 80,443 from any source
 	fs := NewFlowSpec(IPv4FlowSpec)
 	fs.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
@@ -449,6 +473,7 @@ func TestFlowSpecComplexRule(t *testing.T) {
 //
 // PREVENTS: Operator bit positions being wrong; silent comparison failures.
 func TestFlowSpecOperatorEncoding(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		op     FlowOperator
@@ -463,6 +488,7 @@ func TestFlowSpecOperatorEncoding(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expect, byte(tt.op))
 		})
 	}
@@ -474,6 +500,7 @@ func TestFlowSpecOperatorEncoding(t *testing.T) {
 //
 // PREVENTS: Parse/encode asymmetry; data loss during round-trip.
 func TestParseFlowSpec(t *testing.T) {
+	t.Parallel()
 	// Create a FlowSpec, encode it, then parse it back
 	original := NewFlowSpec(IPv4FlowSpec)
 	original.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("192.168.0.0/16")))
@@ -495,6 +522,7 @@ func TestParseFlowSpec(t *testing.T) {
 //
 // PREVENTS: Panic on truncated data; accepting invalid component types.
 func TestParseFlowSpecErrors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		data []byte
@@ -506,6 +534,7 @@ func TestParseFlowSpecErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := ParseFlowSpec(IPv4FlowSpec, tt.data)
 			assert.Error(t, err)
 		})
@@ -518,6 +547,7 @@ func TestParseFlowSpecErrors(t *testing.T) {
 //
 // PREVENTS: Data corruption for different component combinations; edge cases in encoding.
 func TestFlowSpecRoundTrip(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name       string
 		components []FlowComponent
@@ -545,6 +575,7 @@ func TestFlowSpecRoundTrip(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			original := NewFlowSpec(IPv4FlowSpec)
 			for _, c := range tt.components {
 				original.AddComponent(c)
@@ -569,6 +600,7 @@ func TestFlowSpecRoundTrip(t *testing.T) {
 //
 // PREVENTS: SAFI value mismatch causing capability negotiation failures.
 func TestFlowSpecVPNSAFI(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, SAFI(134), SAFIFlowSpecVPN)
 	assert.Equal(t, "flow-vpn", SAFIFlowSpecVPN.String())
 }
@@ -579,6 +611,7 @@ func TestFlowSpecVPNSAFI(t *testing.T) {
 //
 // PREVENTS: AFI/SAFI mismatch between IPv4 and IPv6 VPN variants.
 func TestFlowSpecVPNFamily(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, AFIIPv4, IPv4FlowSpecVPN.AFI)
 	assert.Equal(t, SAFIFlowSpecVPN, IPv4FlowSpecVPN.SAFI)
 	assert.Equal(t, AFIIPv6, IPv6FlowSpecVPN.AFI)
@@ -591,6 +624,7 @@ func TestFlowSpecVPNFamily(t *testing.T) {
 //
 // PREVENTS: RD being lost; component list not being inherited from FlowSpec.
 func TestFlowSpecVPNBasic(t *testing.T) {
+	t.Parallel()
 	rd := RouteDistinguisher{Type: RDType0, Value: [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x64}} // 100:100
 
 	fsv := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
@@ -609,6 +643,7 @@ func TestFlowSpecVPNBasic(t *testing.T) {
 //
 // PREVENTS: RD bytes not being included; length field not covering RD.
 func TestFlowSpecVPNBytes(t *testing.T) {
+	t.Parallel()
 	rd := RouteDistinguisher{Type: RDType0, Value: [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x64}}
 
 	fsv := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
@@ -634,6 +669,7 @@ func TestFlowSpecVPNBytes(t *testing.T) {
 //
 // PREVENTS: RD corruption during parse; component data loss.
 func TestFlowSpecVPNRoundTrip(t *testing.T) {
+	t.Parallel()
 	rd := RouteDistinguisher{Type: RDType0, Value: [6]byte{0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}} // 65000:100
 
 	original := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
@@ -658,6 +694,7 @@ func TestFlowSpecVPNRoundTrip(t *testing.T) {
 //
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestFlowSpecStringCommandStyle(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		fs       *FlowSpec
@@ -714,6 +751,7 @@ func TestFlowSpecStringCommandStyle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.fs.String())
 		})
 	}
@@ -726,6 +764,7 @@ func TestFlowSpecStringCommandStyle(t *testing.T) {
 //
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestFlowSpecVPNStringCommandStyle(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		fsv      *FlowSpecVPN
@@ -758,6 +797,7 @@ func TestFlowSpecVPNStringCommandStyle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.fsv.String())
 		})
 	}
@@ -770,6 +810,7 @@ func TestFlowSpecVPNStringCommandStyle(t *testing.T) {
 //
 // PREVENTS: Wrong component name, missing space between name and prefix.
 func TestPrefixComponentString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		comp     FlowComponent
@@ -794,6 +835,7 @@ func TestPrefixComponentString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.comp.String())
 		})
 	}
@@ -806,6 +848,7 @@ func TestPrefixComponentString(t *testing.T) {
 //
 // PREVENTS: Wrong component names, brackets around values, missing operators.
 func TestNumericComponentString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		comp     FlowComponent
@@ -860,6 +903,7 @@ func TestNumericComponentString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.comp.String())
 		})
 	}
@@ -872,6 +916,7 @@ func TestNumericComponentString(t *testing.T) {
 //
 // PREVENTS: Wrong operator symbols, missing & for AND.
 func TestNumericOperatorString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		comp     FlowComponent
@@ -932,6 +977,7 @@ func TestNumericOperatorString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.comp.String())
 		})
 	}
@@ -946,6 +992,7 @@ func TestNumericOperatorString(t *testing.T) {
 // It verifies the STRING FORMAT matches what the parser expects.
 // True round-trip testing requires integration with the parser.
 func TestFlowSpecStringRoundTrip(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		fs       *FlowSpec
@@ -1000,6 +1047,7 @@ func TestFlowSpecStringRoundTrip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := tt.fs.String()
 			assert.Equal(t, tt.expected, got)
 		})
@@ -1013,6 +1061,7 @@ func TestFlowSpecStringRoundTrip(t *testing.T) {
 //
 // PREVENTS: Raw numeric output instead of flag names.
 func TestBitmaskComponentString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		comp     FlowComponent
@@ -1074,6 +1123,7 @@ func TestBitmaskComponentString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.comp.String())
 		})
 	}

@@ -1,4 +1,4 @@
-package bgpcmdcache
+package cache
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/commit"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
@@ -15,7 +15,7 @@ import (
 // simulating the production dispatch chain.
 func newDispatchContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandContext {
 	server := pluginserver.NewServer(&pluginserver.ServerConfig{
-		CommitManager: commit.NewCommitManager(),
+		CommitManager: transaction.NewCommitManager(),
 	}, reactor)
 	return &pluginserver.CommandContext{Server: server}
 }

@@ -1,4 +1,4 @@
-package bgp_nlri_mvpn
+package mvpn
 
 import (
 	"encoding/binary"
@@ -10,6 +10,7 @@ import (
 
 // TestMVPNTypes verifies MVPN route types.
 func TestMVPNTypes(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, MVPNRouteType(1), MVPNIntraASIPMSIAD)
 	assert.Equal(t, MVPNRouteType(2), MVPNInterASIPMSIAD)
 	assert.Equal(t, MVPNRouteType(3), MVPNSPMSIAD)
@@ -21,6 +22,7 @@ func TestMVPNTypes(t *testing.T) {
 
 // TestMVPNBasic verifies basic MVPN NLRI creation.
 func TestMVPNBasic(t *testing.T) {
+	t.Parallel()
 	mvpn := NewMVPN(MVPNIntraASIPMSIAD, []byte{1, 2, 3, 4})
 
 	assert.Equal(t, MVPNIntraASIPMSIAD, mvpn.RouteType())
@@ -29,6 +31,7 @@ func TestMVPNBasic(t *testing.T) {
 
 // TestMVPNFamily verifies MVPN address family.
 func TestMVPNFamily(t *testing.T) {
+	t.Parallel()
 	mvpn := NewMVPN(MVPNIntraASIPMSIAD, nil)
 
 	assert.Equal(t, AFIIPv4, mvpn.Family().AFI)
@@ -37,6 +40,7 @@ func TestMVPNFamily(t *testing.T) {
 
 // TestMVPNWithRD verifies MVPN with Route Distinguisher.
 func TestMVPNWithRD(t *testing.T) {
+	t.Parallel()
 	rd := RouteDistinguisher{Type: RDType0}
 	binary.BigEndian.PutUint16(rd.Value[:2], 65001)
 	binary.BigEndian.PutUint32(rd.Value[2:6], 100)
@@ -49,6 +53,7 @@ func TestMVPNWithRD(t *testing.T) {
 
 // TestMVPNRoundTrip verifies encode/decode cycle.
 func TestMVPNRoundTrip(t *testing.T) {
+	t.Parallel()
 	rd := RouteDistinguisher{Type: RDType0}
 	binary.BigEndian.PutUint16(rd.Value[:2], 65001)
 	binary.BigEndian.PutUint32(rd.Value[2:6], 100)
@@ -65,6 +70,7 @@ func TestMVPNRoundTrip(t *testing.T) {
 
 // TestMVPNParseErrors verifies error handling.
 func TestMVPNParseErrors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		data []byte
@@ -76,6 +82,7 @@ func TestMVPNParseErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, _, err := ParseMVPN(AFIIPv4, tt.data)
 			assert.Error(t, err)
 		})
@@ -87,6 +94,7 @@ func TestMVPNParseErrors(t *testing.T) {
 // VALIDATES: MVPN String() outputs command-style format for API round-trip.
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestMVPNStringCommandStyle(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		mvpn     *MVPN
@@ -121,6 +129,7 @@ func TestMVPNStringCommandStyle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.mvpn.String())
 		})
 	}
@@ -131,6 +140,7 @@ func TestMVPNStringCommandStyle(t *testing.T) {
 // VALIDATES: WriteTo produces identical wire format to Bytes() for MVPN NLRI.
 // PREVENTS: Route type encoding errors, RD data loss.
 func TestMVPNWriteToMatchesBytes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		mvpn *MVPN
@@ -152,6 +162,7 @@ func TestMVPNWriteToMatchesBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			expected := tt.mvpn.Bytes()
 
 			buf := make([]byte, len(expected)+10)

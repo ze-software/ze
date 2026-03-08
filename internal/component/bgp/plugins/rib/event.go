@@ -3,7 +3,7 @@
 // Type aliases importing from component/bgp package.
 // bgp-rib was the original home for these types; they moved to
 // internal/component/bgp/ so bgp-adj-rib-in and future plugins can reuse them.
-package bgp_rib
+package rib
 
 import bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 

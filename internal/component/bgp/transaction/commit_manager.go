@@ -1,6 +1,6 @@
 // Design: docs/architecture/update-building.md — commit management
 
-package commit
+package transaction
 
 import (
 	"fmt"

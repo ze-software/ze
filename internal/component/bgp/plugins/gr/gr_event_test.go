@@ -1,4 +1,4 @@
-package bgp_gr
+package gr
 
 import (
 	"encoding/json"

@@ -3,7 +3,7 @@
 // Related: update_text_flowspec.go — FlowSpec NLRI parsing
 // Related: update_text_vpls.go — VPLS NLRI parsing
 // Related: update_text_evpn.go — EVPN NLRI parsing
-package bgpcmdupdate
+package update
 
 import (
 	"encoding/hex"

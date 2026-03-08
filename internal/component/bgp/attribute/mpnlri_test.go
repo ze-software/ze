@@ -6,6 +6,7 @@ import (
 )
 
 func TestMPReachNLRI_WriteTo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		attr     *MPReachNLRI
@@ -69,6 +70,7 @@ func TestMPReachNLRI_WriteTo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 256)
 			n := tt.attr.WriteTo(buf, 0)
 			got := buf[:n]
@@ -86,6 +88,7 @@ func TestMPReachNLRI_WriteTo(t *testing.T) {
 }
 
 func TestParseMPReachNLRI(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		data      []byte
@@ -134,6 +137,7 @@ func TestParseMPReachNLRI(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			m, err := ParseMPReachNLRI(tt.data)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseMPReachNLRI() error = %v, wantErr %v", err, tt.wantErr)
@@ -160,6 +164,7 @@ func TestParseMPReachNLRI(t *testing.T) {
 }
 
 func TestMPUnreachNLRI_WriteTo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		attr     *MPUnreachNLRI
@@ -194,6 +199,7 @@ func TestMPUnreachNLRI_WriteTo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 256)
 			n := tt.attr.WriteTo(buf, 0)
 			got := buf[:n]
@@ -211,6 +217,7 @@ func TestMPUnreachNLRI_WriteTo(t *testing.T) {
 }
 
 func TestParseMPUnreachNLRI(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		data     []byte
@@ -252,6 +259,7 @@ func TestParseMPUnreachNLRI(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			m, err := ParseMPUnreachNLRI(tt.data)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseMPUnreachNLRI() error = %v, wantErr %v", err, tt.wantErr)
@@ -285,6 +293,7 @@ func TestParseMPUnreachNLRI(t *testing.T) {
 // PREVENTS: Parsing failures when receiving IPv4 routes with IPv6 next-hops
 // over IPv6-only infrastructure.
 func TestParseMPReachNLRI_ExtendedNextHop(t *testing.T) {
+	t.Parallel()
 	// RFC 5549 Section 3: IPv4 NLRI with 16-byte (IPv6) next-hop
 	// This is used when advertising IPv4 routes over IPv6-only networks.
 	//
@@ -338,6 +347,7 @@ func TestParseMPReachNLRI_ExtendedNextHop(t *testing.T) {
 //
 // PREVENTS: Parsing failures for VPN routes over IPv6 infrastructure.
 func TestParseMPReachNLRI_ExtendedNextHop_VPN(t *testing.T) {
+	t.Parallel()
 	// RFC 5549 Section 6.2: VPN-IPv4 NLRI with IPv6 next-hop
 	data := []byte{
 		0x00, 0x01, // AFI IPv4
@@ -375,6 +385,7 @@ func TestParseMPReachNLRI_ExtendedNextHop_VPN(t *testing.T) {
 //
 // PREVENTS: Incorrect parsing of dual-stack next-hop announcements.
 func TestParseMPReachNLRI_ExtendedNextHop_DualStack(t *testing.T) {
+	t.Parallel()
 	// RFC 5549 Section 3 + RFC 2545: 32-byte next-hop = global + link-local
 	data := []byte{
 		0x00, 0x01, // AFI IPv4
@@ -411,6 +422,7 @@ func TestParseMPReachNLRI_ExtendedNextHop_DualStack(t *testing.T) {
 //
 // PREVENTS: Incorrect parsing of VPN routes, treating RD as part of IP address.
 func TestParseMPReachNLRI_VPNIPv4NextHop(t *testing.T) {
+	t.Parallel()
 	// VPN-IPv4: AFI=1, SAFI=128
 	// Next-hop: 8-byte RD (all zeros per RFC 4364) + 4-byte IPv4
 	data := []byte{
@@ -457,6 +469,7 @@ func TestParseMPReachNLRI_VPNIPv4NextHop(t *testing.T) {
 //
 // PREVENTS: Incorrect parsing of VPN routes with IPv6 next-hop.
 func TestParseMPReachNLRI_VPNWithIPv6NextHop(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		afi      AFI
@@ -479,6 +492,7 @@ func TestParseMPReachNLRI_VPNWithIPv6NextHop(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			expected := netip.MustParseAddr(tt.wantNH)
 			nhBytes := expected.AsSlice()
 
@@ -514,6 +528,7 @@ func TestParseMPReachNLRI_VPNWithIPv6NextHop(t *testing.T) {
 }
 
 func TestMPReachNLRI_RoundTrip(t *testing.T) {
+	t.Parallel()
 	original := &MPReachNLRI{
 		AFI:      AFIIPv6,
 		SAFI:     SAFIUnicast,
@@ -543,6 +558,7 @@ func TestMPReachNLRI_RoundTrip(t *testing.T) {
 }
 
 func TestMPUnreachNLRI_RoundTrip(t *testing.T) {
+	t.Parallel()
 	original := &MPUnreachNLRI{
 		AFI:  AFIIPv6,
 		SAFI: SAFIUnicast,

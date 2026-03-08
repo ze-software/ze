@@ -27,6 +27,7 @@ var (
 //
 // PREVENTS: Unnecessary transcoding when capabilities match.
 func TestASPathWriteToWithContext_ASN4ToASN4(t *testing.T) {
+	t.Parallel()
 	path := &attribute.ASPath{
 		Segments: []attribute.ASPathSegment{
 			{Type: attribute.ASSequence, ASNs: []uint32{65001, 65002, 100000}},
@@ -56,6 +57,7 @@ func TestASPathWriteToWithContext_ASN4ToASN4(t *testing.T) {
 //
 // PREVENTS: Protocol errors when sending to legacy peers.
 func TestASPathWriteToWithContext_ASN4ToASN2(t *testing.T) {
+	t.Parallel()
 	path := &attribute.ASPath{
 		Segments: []attribute.ASPathSegment{
 			{Type: attribute.ASSequence, ASNs: []uint32{65001, 100000}}, // 100000 > 65535
@@ -85,6 +87,7 @@ func TestASPathWriteToWithContext_ASN4ToASN2(t *testing.T) {
 //
 // PREVENTS: Wrong encoding after AS4_PATH merge.
 func TestASPathWriteToWithContext_ASN2ToASN4(t *testing.T) {
+	t.Parallel()
 	// After AS4_PATH merge, path contains real 4-byte ASNs
 	path := &attribute.ASPath{
 		Segments: []attribute.ASPathSegment{
@@ -107,6 +110,7 @@ func TestASPathWriteToWithContext_ASN2ToASN4(t *testing.T) {
 //
 // PREVENTS: Panic on nil context.
 func TestASPathWriteToWithContext_NilDstCtx(t *testing.T) {
+	t.Parallel()
 	path := &attribute.ASPath{
 		Segments: []attribute.ASPathSegment{
 			{Type: attribute.ASSequence, ASNs: []uint32{65001}},
@@ -132,6 +136,7 @@ func TestASPathWriteToWithContext_NilDstCtx(t *testing.T) {
 //
 // PREVENTS: Parse errors on ASN4-capable peers.
 func TestAggregatorWriteToWithContext_ASN4(t *testing.T) {
+	t.Parallel()
 	agg := &attribute.Aggregator{
 		ASN:     100000, // Large ASN
 		Address: netip.MustParseAddr("192.0.2.1"),
@@ -152,6 +157,7 @@ func TestAggregatorWriteToWithContext_ASN4(t *testing.T) {
 //
 // PREVENTS: Protocol errors when sending to legacy peers.
 func TestAggregatorWriteToWithContext_ASN2(t *testing.T) {
+	t.Parallel()
 	agg := &attribute.Aggregator{
 		ASN:     100000, // Large ASN -> AS_TRANS
 		Address: netip.MustParseAddr("192.0.2.1"),
@@ -172,6 +178,7 @@ func TestAggregatorWriteToWithContext_ASN2(t *testing.T) {
 //
 // PREVENTS: Unnecessary AS_TRANS substitution.
 func TestAggregatorWriteToWithContext_ASN2SmallASN(t *testing.T) {
+	t.Parallel()
 	agg := &attribute.Aggregator{
 		ASN:     65001, // Small ASN
 		Address: netip.MustParseAddr("192.0.2.1"),
@@ -195,6 +202,7 @@ func TestAggregatorWriteToWithContext_ASN2SmallASN(t *testing.T) {
 //
 // PREVENTS: Unexpected context-dependent behavior.
 func TestOriginWriteToWithContext(t *testing.T) {
+	t.Parallel()
 	origin := attribute.OriginIGP
 
 	buf := make([]byte, 4096)
@@ -214,6 +222,7 @@ func TestOriginWriteToWithContext(t *testing.T) {
 //
 // PREVENTS: Unexpected context-dependent behavior.
 func TestMEDWriteToWithContext(t *testing.T) {
+	t.Parallel()
 	med := attribute.MED(100)
 
 	buf := make([]byte, 4096)
@@ -233,6 +242,7 @@ func TestMEDWriteToWithContext(t *testing.T) {
 //
 // PREVENTS: Unexpected context-dependent behavior.
 func TestLocalPrefWriteToWithContext(t *testing.T) {
+	t.Parallel()
 	lp := attribute.LocalPref(100)
 
 	buf := make([]byte, 4096)
@@ -252,6 +262,7 @@ func TestLocalPrefWriteToWithContext(t *testing.T) {
 //
 // PREVENTS: Unexpected context-dependent behavior.
 func TestNextHopWriteToWithContext(t *testing.T) {
+	t.Parallel()
 	nh := &attribute.NextHop{Addr: netip.MustParseAddr("192.0.2.1")}
 
 	buf := make([]byte, 4096)
@@ -271,6 +282,7 @@ func TestNextHopWriteToWithContext(t *testing.T) {
 //
 // PREVENTS: Unexpected context-dependent behavior.
 func TestAtomicAggregateWriteToWithContext(t *testing.T) {
+	t.Parallel()
 	aa := attribute.AtomicAggregate{}
 
 	buf := make([]byte, 4096)
@@ -290,6 +302,7 @@ func TestAtomicAggregateWriteToWithContext(t *testing.T) {
 //
 // PREVENTS: Unexpected context-dependent behavior.
 func TestOriginatorIDWriteToWithContext(t *testing.T) {
+	t.Parallel()
 	oid := attribute.OriginatorID(netip.MustParseAddr("192.0.2.1"))
 
 	buf := make([]byte, 4096)
@@ -309,6 +322,7 @@ func TestOriginatorIDWriteToWithContext(t *testing.T) {
 //
 // PREVENTS: Unexpected context-dependent behavior.
 func TestClusterListWriteToWithContext(t *testing.T) {
+	t.Parallel()
 	cl := attribute.ClusterList{1, 2, 3}
 
 	buf := make([]byte, 4096)

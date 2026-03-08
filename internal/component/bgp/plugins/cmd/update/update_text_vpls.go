@@ -2,7 +2,7 @@
 // Overview: update_text.go — shared text attribute parsing types and helpers
 // Related: update_text_nlri.go — NLRI section parsing and dispatch
 // Related: update_text_evpn.go — EVPN route type text parsing
-package bgpcmdupdate
+package update
 
 import (
 	"errors"

@@ -1,10 +1,10 @@
-package bgp_llnh
+package llnh
 
 import (
 	"fmt"
 	"os"
 
-	llnhschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-llnh/schema"
+	llnhschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/llnh/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"

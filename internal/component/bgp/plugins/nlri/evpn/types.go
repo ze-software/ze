@@ -4,7 +4,7 @@
 // Package evpn implements EVPN NLRI types for the evpn plugin.
 // RFC 7432: BGP MPLS-Based Ethernet VPN
 // RFC 9136: IP Prefix Advertisement in EVPN
-package bgp_nlri_evpn
+package evpn
 
 import (
 	"encoding/binary"

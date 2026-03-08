@@ -1,4 +1,4 @@
-package bgpcmdcommit
+package commit
 
 import (
 	"testing"

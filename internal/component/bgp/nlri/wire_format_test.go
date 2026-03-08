@@ -15,6 +15,7 @@ import (
 // VALIDATES: Wire format is [pathID][payload] when AddPath=true.
 // PREVENTS: Path ID in wrong position or missing entirely.
 func TestWireFormat_AddPath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		nlri    NLRI
@@ -70,6 +71,7 @@ func TestWireFormat_AddPath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 100)
 			n := WriteNLRI(tt.nlri, buf, 0, tt.addPath)
 			got := hex.EncodeToString(buf[:n])
@@ -89,6 +91,7 @@ func TestWireFormat_AddPath(t *testing.T) {
 // VALIDATES: Parsing preserves all NLRI data including path ID.
 // PREVENTS: Data loss during parse/pack cycle.
 func TestRoundTrip_INET(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		nlri    *INET
@@ -104,6 +107,7 @@ func TestRoundTrip_INET(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// addPath is already a bool
 			family := tt.nlri.Family()
 

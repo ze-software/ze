@@ -2,7 +2,7 @@
 // Detail: summary.go — BGP summary and capabilities handlers
 // Detail: session.go — BGP peer session handlers
 
-package bgpcmdpeer
+package peer
 
 import (
 	"fmt"

@@ -3,7 +3,7 @@
 // Overview: types.go — core types, TLV constants, and helper functions
 // Related: types_nlri.go — NLRI types that embed these descriptors
 // Related: types_srv6.go — SRv6 SID descriptor (RFC 9514)
-package bgp_nlri_ls
+package ls
 
 import (
 	"encoding/binary"

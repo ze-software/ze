@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md — BGP role plugin
 // RFC: rfc/short/rfc9234.md
 
-package bgp_role
+package role
 
 import (
 	"encoding/hex"

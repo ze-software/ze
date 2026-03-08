@@ -6,7 +6,7 @@
 // Detail: server_forward.go — forward target selection and batch accumulation
 // Detail: server_handlers.go — peer event handlers (state, open, refresh, command)
 
-package bgp_rs
+package rs
 
 import (
 	"context"

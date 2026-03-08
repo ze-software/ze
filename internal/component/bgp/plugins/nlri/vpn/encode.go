@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/nlri.md — VPN NLRI plugin
 // RFC: rfc/short/rfc4364.md
 
-package bgp_nlri_vpn
+package vpn
 
 import (
 	"fmt"

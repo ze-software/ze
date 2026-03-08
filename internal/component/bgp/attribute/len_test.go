@@ -17,6 +17,7 @@ const ctxNameNil = "nil"
 // VALIDATES: attrLenWithContext is consistent with WriteToWithContext.
 // PREVENTS: Buffer overflow or garbage when using WriteAttrToWithContext.
 func TestAttrLenWithContext_MatchesActualWriteLen(t *testing.T) {
+	t.Parallel()
 	// Context-dependent attributes per RFC 6793
 	testCases := []struct {
 		name string
@@ -75,6 +76,7 @@ func TestAttrLenWithContext_MatchesActualWriteLen(t *testing.T) {
 		for _, ctxCase := range contexts {
 			name := tt.name + "_" + ctxCase.name
 			t.Run(name, func(t *testing.T) {
+				t.Parallel()
 				attr := tt.attr
 				ctx := ctxCase.ctx
 
@@ -100,6 +102,7 @@ func TestAttrLenWithContext_MatchesActualWriteLen(t *testing.T) {
 // VALIDATES: Buffer size from attrLenWithContext is exactly what WriteToWithContext needs.
 // PREVENTS: Buffer overflow when WriteToWithContext writes more than predicted.
 func TestAttrLenWithContext_MatchesWriteToWithContext(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name string
 		attr Attribute
@@ -128,6 +131,7 @@ func TestAttrLenWithContext_MatchesWriteToWithContext(t *testing.T) {
 			name := tt.name + "_" + ctxName
 
 			t.Run(name, func(t *testing.T) {
+				t.Parallel()
 				attr := tt.attr
 
 				// Get predicted length
@@ -152,6 +156,7 @@ func TestAttrLenWithContext_MatchesWriteToWithContext(t *testing.T) {
 // VALIDATES: WriteAttrToWithContext produces correct wire format.
 // PREVENTS: Protocol errors from incorrect encoding.
 func TestWriteAttrToWithContext_Consistency(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name string
 		attr Attribute
@@ -184,6 +189,7 @@ func TestWriteAttrToWithContext_Consistency(t *testing.T) {
 			name := tt.name + "_" + ctxName
 
 			t.Run(name, func(t *testing.T) {
+				t.Parallel()
 				attr := tt.attr
 
 				// Encode using WriteAttrToWithContext

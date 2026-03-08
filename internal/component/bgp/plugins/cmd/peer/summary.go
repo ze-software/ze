@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — BGP summary and capability handlers
 // Overview: peer.go — BGP peer lifecycle and introspection handlers
 
-package bgpcmdpeer
+package peer
 
 import (
 	"fmt"

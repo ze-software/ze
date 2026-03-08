@@ -1,4 +1,4 @@
-package bgpcmdmeta
+package meta
 
 import (
 	"strings"
@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/commit"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
@@ -15,7 +15,7 @@ import (
 // newTestContext creates a CommandContext for handler tests.
 func newTestContext() *pluginserver.CommandContext {
 	server := pluginserver.NewServer(&pluginserver.ServerConfig{
-		CommitManager: commit.NewCommitManager(),
+		CommitManager: transaction.NewCommitManager(),
 	}, nil)
 	return &pluginserver.CommandContext{Server: server}
 }

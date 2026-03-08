@@ -10,6 +10,7 @@ import (
 // VALIDATES: PrefixBytes(bits) == (bits+7)/8 for various bit lengths.
 // PREVENTS: Off-by-one errors in prefix byte calculation.
 func TestPrefixBytes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		bits int
 		want int
@@ -41,6 +42,7 @@ func TestPrefixBytes(t *testing.T) {
 // VALIDATES: Labels encoded per RFC 3032/8277: 20-bit label + TC=0 + S bit.
 // PREVENTS: Incorrect label encoding, missing BOS bit on last label.
 func TestWriteLabelStack(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		labels []uint32
@@ -73,6 +75,7 @@ func TestWriteLabelStack(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, len(tt.labels)*3)
 			n := WriteLabelStack(buf, 0, tt.labels)
 			if n != len(tt.want) {
@@ -90,6 +93,7 @@ func TestWriteLabelStack(t *testing.T) {
 // VALIDATES: Labels written at correct buffer offset.
 // PREVENTS: Buffer overwrite bugs.
 func TestWriteLabelStackOffset(t *testing.T) {
+	t.Parallel()
 	buf := make([]byte, 10)
 	buf[0] = 0xFF // Should not be overwritten
 

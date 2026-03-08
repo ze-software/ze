@@ -2,7 +2,7 @@
 // Overview: server.go — route server plugin orchestration
 // Related: server_forward.go — forward target selection and batching
 
-package bgp_rs
+package rs
 
 import (
 	"net/netip"

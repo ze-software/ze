@@ -9,6 +9,7 @@ import (
 
 // TestAttributeCodes verifies attribute type codes match RFC 4271/RFC 4760.
 func TestAttributeCodes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		code AttributeCode
 		val  uint8
@@ -38,6 +39,7 @@ func TestAttributeCodes(t *testing.T) {
 
 // TestAttributeFlags verifies flag bit positions per RFC 4271.
 func TestAttributeFlags(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, uint8(0x80), uint8(FlagOptional))
 	assert.Equal(t, uint8(0x40), uint8(FlagTransitive))
 	assert.Equal(t, uint8(0x20), uint8(FlagPartial))
@@ -46,6 +48,7 @@ func TestAttributeFlags(t *testing.T) {
 
 // TestParseHeader verifies attribute header parsing.
 func TestParseHeader(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		data    []byte
@@ -93,6 +96,7 @@ func TestParseHeader(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			flags, code, length, hdrLen, err := ParseHeader(tt.data)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -109,6 +113,7 @@ func TestParseHeader(t *testing.T) {
 
 // TestWriteHeaderToBasic verifies attribute header encoding.
 func TestWriteHeaderToBasic(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		flags  AttributeFlags
@@ -134,6 +139,7 @@ func TestWriteHeaderToBasic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			gotBuf := make([]byte, 10)
 			gotN := WriteHeaderTo(gotBuf, 0, tt.flags, tt.code, tt.length)
 			got := gotBuf[:gotN]
@@ -144,6 +150,7 @@ func TestWriteHeaderToBasic(t *testing.T) {
 
 // TestAttributeCodeString verifies string representation.
 func TestAttributeCodeString(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "ORIGIN", AttrOrigin.String())
 	assert.Equal(t, "AS_PATH", AttrASPath.String())
 	assert.Equal(t, "NEXT_HOP", AttrNextHop.String())
@@ -165,6 +172,7 @@ func TestAttributeCodeString(t *testing.T) {
 //
 // PREVENTS: Non-deterministic attribute order in UPDATE messages.
 func TestOrderAttributes(t *testing.T) {
+	t.Parallel()
 	// Create attributes out of order: COMMUNITY(8), ORIGIN(1), AS_PATH(2)
 	community := Communities{Community(0xFDE90064)}
 	origin := OriginIGP
@@ -182,12 +190,14 @@ func TestOrderAttributes(t *testing.T) {
 
 // TestOrderAttributesEmpty verifies empty/nil handling.
 func TestOrderAttributesEmpty(t *testing.T) {
+	t.Parallel()
 	assert.Nil(t, OrderAttributes(nil))
 	assert.Equal(t, []Attribute{}, OrderAttributes([]Attribute{}))
 }
 
 // TestOrderAttributesSingle verifies single attribute.
 func TestOrderAttributesSingle(t *testing.T) {
+	t.Parallel()
 	origin := OriginIGP
 	attrs := []Attribute{origin}
 
@@ -204,6 +214,7 @@ func TestOrderAttributesSingle(t *testing.T) {
 // VALIDATES: MP attributes placed correctly regardless of input order.
 // PREVENTS: ExaBGP compatibility issues from wrong attribute ordering.
 func TestOrderAttributesMPPlacement(t *testing.T) {
+	t.Parallel()
 	// Create attrs in wrong order: REACH(14), COMMUNITY(8), ORIGIN(1), UNREACH(15)
 	mpReach := &MPReachNLRI{AFI: AFIIPv6, SAFI: SAFIUnicast}
 	community := Communities{Community(0xFDE90064)}
@@ -227,6 +238,7 @@ func TestOrderAttributesMPPlacement(t *testing.T) {
 //
 // VALIDATES: WriteAttributesOrdered produces correctly ordered output.
 func TestWriteAttributesOrdered(t *testing.T) {
+	t.Parallel()
 	// Create attributes out of order: COMMUNITY(8), ORIGIN(1)
 	community := Communities{Community(0xFDE90064)}
 	origin := OriginIGP
@@ -252,6 +264,7 @@ func TestWriteAttributesOrdered(t *testing.T) {
 //
 // PREVENTS: Length byte overflow causing malformed attribute header.
 func TestWriteHeaderToBoundary(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		length     uint16
@@ -298,6 +311,7 @@ func TestWriteHeaderToBoundary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 10)
 			n := WriteHeaderTo(buf, 0, FlagTransitive, AttrASPath, tt.length)
 
@@ -321,6 +335,7 @@ func TestWriteHeaderToBoundary(t *testing.T) {
 //
 // PREVENTS: Wire format errors in attribute header encoding.
 func TestWriteHeaderTo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		flags  AttributeFlags
 		code   AttributeCode
@@ -335,6 +350,7 @@ func TestWriteHeaderTo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.code.String(), func(t *testing.T) {
+			t.Parallel()
 			refBuf := make([]byte, 10)
 			refN := WriteHeaderTo(refBuf, 0, tt.flags, tt.code, tt.length)
 			expected := refBuf[:refN]
@@ -354,6 +370,7 @@ func TestWriteHeaderTo(t *testing.T) {
 //
 // PREVENTS: Buffer corruption when writing at non-zero offset.
 func TestWriteHeaderToOffset(t *testing.T) {
+	t.Parallel()
 	buf := make([]byte, 100)
 	for i := range buf {
 		buf[i] = 0xAA
@@ -385,6 +402,7 @@ func TestWriteHeaderToOffset(t *testing.T) {
 //
 // PREVENTS: Length byte overflow causing malformed attribute (bug found in code review).
 func TestWriteAttrToExtendedLength(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		attr       Attribute
@@ -424,6 +442,7 @@ func TestWriteAttrToExtendedLength(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 4096)
 			n := WriteAttrTo(tt.attr, buf, 0)
 
@@ -452,6 +471,7 @@ func TestWriteAttrToExtendedLength(t *testing.T) {
 //
 // PREVENTS: Wire format errors in full attribute encoding.
 func TestWriteAttrTo(t *testing.T) {
+	t.Parallel()
 	attrs := []Attribute{
 		OriginIGP,
 		Communities{Community(0xFDE90064), CommunityNoExport},
@@ -462,6 +482,7 @@ func TestWriteAttrTo(t *testing.T) {
 
 	for _, attr := range attrs {
 		t.Run(attr.Code().String(), func(t *testing.T) {
+			t.Parallel()
 			refBuf := make([]byte, 4096)
 			refN := WriteAttrTo(attr, refBuf, 0)
 			expected := refBuf[:refN]

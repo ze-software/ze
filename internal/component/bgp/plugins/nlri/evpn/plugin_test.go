@@ -1,4 +1,4 @@
-package bgp_nlri_evpn
+package evpn
 
 import (
 	"bytes"
@@ -16,6 +16,7 @@ import (
 // VALIDATES: Valid EVPN NLRI is decoded to JSON via the decode protocol.
 // PREVENTS: Decode failures for valid input, wrong family silently accepted.
 func TestDecodeNLRIViaRunEVPNDecode(t *testing.T) {
+	t.Parallel()
 	// Valid Type 2 MAC-only: RD(8) + ESI(10) + EthTag(4) + MACLen(1) + MAC(6) + IPLen(1) + Label(3) = 33 = 0x21
 	validType2 := "0221" + // type=2, len=33
 		"0000FDE800000064" + // RD: 65000:100
@@ -40,6 +41,7 @@ func TestDecodeNLRIViaRunEVPNDecode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := strings.NewReader(tt.input)
 			output := &bytes.Buffer{}
 
@@ -61,6 +63,7 @@ func TestDecodeNLRIViaRunEVPNDecode(t *testing.T) {
 // VALIDATES: Decode mode reads requests and writes responses.
 // PREVENTS: Decode mode producing no output.
 func TestRunEVPNDecode(t *testing.T) {
+	t.Parallel()
 	// Valid Type 3: RD + EthTag + IP(32) + IPv4
 	validType3 := "0311" + // type=3, len=17
 		"0000FDE800000064" + // RD
@@ -86,6 +89,7 @@ func TestRunEVPNDecode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := strings.NewReader(tt.input)
 			output := &bytes.Buffer{}
 
@@ -108,6 +112,7 @@ func TestRunEVPNDecode(t *testing.T) {
 // PREVENTS: Text format being empty or malformed.
 // Note: Keys match evpnToJSON output: "name" (not "route-type-name"), "originator" (not "originator-ip").
 func TestFormatEVPNText(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		input  map[string]any
@@ -171,6 +176,7 @@ func TestFormatEVPNText(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := formatEVPNTextSingle(tt.input)
 			for _, exp := range tt.expect {
 				assert.Contains(t, result, exp)
@@ -184,6 +190,7 @@ func TestFormatEVPNText(t *testing.T) {
 // VALIDATES: SetEVPNLogger accepts logger without panic.
 // PREVENTS: Nil logger causing panic.
 func TestSetEVPNLogger(t *testing.T) {
+	t.Parallel()
 	// Should not panic with nil
 	SetEVPNLogger(nil)
 
@@ -197,6 +204,7 @@ func TestSetEVPNLogger(t *testing.T) {
 // VALIDATES: GetEVPNYANG returns empty (no config augmentation).
 // PREVENTS: Unexpected YANG output.
 func TestGetEVPNYANG(t *testing.T) {
+	t.Parallel()
 	yang := GetEVPNYANG()
 	assert.Empty(t, yang)
 }
@@ -206,6 +214,7 @@ func TestGetEVPNYANG(t *testing.T) {
 // VALIDATES: EVPNFamilies returns correct family.
 // PREVENTS: Plugin not handling expected family.
 func TestEVPNFamilies(t *testing.T) {
+	t.Parallel()
 	families := EVPNFamilies()
 	assert.Equal(t, []string{"l2vpn/evpn"}, families)
 }
@@ -215,6 +224,7 @@ func TestEVPNFamilies(t *testing.T) {
 // VALIDATES: Only l2vpn/evpn is accepted.
 // PREVENTS: Plugin decoding wrong families.
 func TestIsValidEVPNFamily(t *testing.T) {
+	t.Parallel()
 	assert.True(t, isValidEVPNFamily("l2vpn/evpn"))
 	// Note: isValidEVPNFamily expects lowercase input; callers use strings.ToLower()
 	assert.False(t, isValidEVPNFamily("L2VPN/EVPN")) // uppercase not accepted directly
@@ -227,6 +237,7 @@ func TestIsValidEVPNFamily(t *testing.T) {
 // VALIDATES: All EVPN types produce valid JSON.
 // PREVENTS: Missing fields in JSON output.
 func TestEvpnToJSON(t *testing.T) {
+	t.Parallel()
 	rd, _ := ParseRDString("65000:100")
 
 	tests := []struct {
@@ -291,6 +302,7 @@ func TestEvpnToJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := evpnToJSON(tt.evpn, nil)
 			require.NotNil(t, result)
 			for k, v := range tt.checks {
@@ -305,6 +317,7 @@ func TestEvpnToJSON(t *testing.T) {
 // VALIDATES: MAC is formatted as colon-separated hex.
 // PREVENTS: Wrong MAC format in output.
 func TestFormatMAC(t *testing.T) {
+	t.Parallel()
 	mac := [6]byte{0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff}
 	assert.Equal(t, "aa:bb:cc:dd:ee:ff", formatMAC(mac))
 
@@ -317,6 +330,7 @@ func TestFormatMAC(t *testing.T) {
 // VALIDATES: RunCLIDecode decodes hex and outputs JSON/text correctly.
 // PREVENTS: CLI mode regression.
 func TestRunCLIDecode(t *testing.T) {
+	t.Parallel()
 	// Valid Type 2 EVPN NLRI hex
 	validHex := "02210001252C37370001000000000000000000000000076D30FC15B4787B8F00000001"
 
@@ -360,6 +374,7 @@ func TestRunCLIDecode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var out, errOut bytes.Buffer
 			code := RunCLIDecode(tt.hex, "l2vpn/evpn", tt.textOutput, &out, &errOut)
 			assert.Equal(t, tt.wantCode, code)
@@ -378,6 +393,7 @@ func TestRunCLIDecode(t *testing.T) {
 // VALIDATES: Invalid family is rejected.
 // PREVENTS: Silent failure on bad input.
 func TestRunCLIDecodeInvalidFamily(t *testing.T) {
+	t.Parallel()
 	var out, errOut bytes.Buffer
 	code := RunCLIDecode("02", "invalid/family", false, &out, &errOut)
 	assert.Equal(t, 1, code)

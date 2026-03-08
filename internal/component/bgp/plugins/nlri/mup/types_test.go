@@ -1,4 +1,4 @@
-package bgp_nlri_mup
+package mup
 
 import (
 	"encoding/binary"
@@ -10,6 +10,7 @@ import (
 
 // TestMUPTypes verifies MUP route types.
 func TestMUPTypes(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, MUPRouteType(1), MUPISD)
 	assert.Equal(t, MUPRouteType(2), MUPDSD)
 	assert.Equal(t, MUPRouteType(3), MUPT1ST)
@@ -18,6 +19,7 @@ func TestMUPTypes(t *testing.T) {
 
 // TestMUPBasic verifies basic MUP NLRI creation.
 func TestMUPBasic(t *testing.T) {
+	t.Parallel()
 	mup := NewMUP(MUPISD, []byte{1, 2, 3, 4})
 
 	assert.Equal(t, MUPISD, mup.RouteType())
@@ -26,6 +28,7 @@ func TestMUPBasic(t *testing.T) {
 
 // TestMUPFamily verifies MUP address family.
 func TestMUPFamily(t *testing.T) {
+	t.Parallel()
 	mup := NewMUP(MUPISD, nil)
 
 	assert.Equal(t, AFIIPv4, mup.Family().AFI)
@@ -34,6 +37,7 @@ func TestMUPFamily(t *testing.T) {
 
 // TestMUPFull verifies full MUP NLRI creation.
 func TestMUPFull(t *testing.T) {
+	t.Parallel()
 	rd := RouteDistinguisher{Type: RDType0}
 	binary.BigEndian.PutUint16(rd.Value[:2], 65001)
 	binary.BigEndian.PutUint32(rd.Value[2:6], 100)
@@ -48,6 +52,7 @@ func TestMUPFull(t *testing.T) {
 
 // TestMUPRoundTrip verifies encode/decode cycle.
 func TestMUPRoundTrip(t *testing.T) {
+	t.Parallel()
 	rd := RouteDistinguisher{Type: RDType0}
 	binary.BigEndian.PutUint16(rd.Value[:2], 65001)
 	binary.BigEndian.PutUint32(rd.Value[2:6], 100)
@@ -65,6 +70,7 @@ func TestMUPRoundTrip(t *testing.T) {
 
 // TestMUPParseErrors verifies error handling.
 func TestMUPParseErrors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		data []byte
@@ -76,6 +82,7 @@ func TestMUPParseErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, _, err := ParseMUP(AFIIPv4, tt.data)
 			assert.Error(t, err)
 		})
@@ -87,6 +94,7 @@ func TestMUPParseErrors(t *testing.T) {
 // VALIDATES: MUP String() outputs command-style format for API round-trip.
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestMUPStringCommandStyle(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		mup      *MUP
@@ -121,6 +129,7 @@ func TestMUPStringCommandStyle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.mup.String())
 		})
 	}
@@ -131,6 +140,7 @@ func TestMUPStringCommandStyle(t *testing.T) {
 // VALIDATES: WriteTo produces identical wire format to Bytes() for MUP NLRI.
 // PREVENTS: Architecture type encoding errors, route type confusion.
 func TestMUPWriteToMatchesBytes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		mup  *MUP
@@ -152,6 +162,7 @@ func TestMUPWriteToMatchesBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			expected := tt.mup.Bytes()
 
 			buf := make([]byte, len(expected)+10)

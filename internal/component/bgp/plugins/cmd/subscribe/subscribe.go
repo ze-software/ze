@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — event subscription handlers
 // Overview: doc.go — bgp-cmd-subscribe plugin registration
 
-package bgpcmdsubscribe
+package subscribe
 
 import (
 	"errors"

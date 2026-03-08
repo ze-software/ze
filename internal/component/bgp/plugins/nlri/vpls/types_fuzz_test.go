@@ -1,4 +1,4 @@
-package bgp_nlri_vpls
+package vpls
 
 import (
 	"testing"

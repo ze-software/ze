@@ -2,7 +2,7 @@
 // RFC: rfc/short/draft-ietf-bess-mup-safi.md
 //
 // Package bgp_mup implements Mobile User Plane NLRI (draft-mpmz-bess-mup-safi, SAFI 85).
-package bgp_nlri_mup
+package mup
 
 import (
 	"encoding/binary"

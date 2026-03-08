@@ -8,7 +8,7 @@
 //
 // RFC 2918: Route Refresh Capability for BGP-4.
 // RFC 7313: Enhanced Route Refresh Capability for BGP-4.
-package bgp_route_refresh
+package route_refresh
 
 import (
 	"bufio"
@@ -21,7 +21,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-route-refresh/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/schema"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )

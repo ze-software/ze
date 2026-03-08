@@ -4,7 +4,7 @@
 // Related: plugin_decode.go — wire-to-JSON decoding and formatting
 // Related: plugin_encode_text.go — text-to-wire encoding
 
-package bgp_nlri_flowspec
+package flowspec
 
 import (
 	"bufio"

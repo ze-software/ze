@@ -8,6 +8,7 @@ import (
 
 // TestSAFIConstants verifies additional SAFI constants exist.
 func TestSAFIConstants(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, SAFI(5), SAFIMVPN)
 	assert.Equal(t, SAFI(65), SAFIVPLS)
 	assert.Equal(t, SAFI(85), SAFIMUP)
@@ -16,6 +17,7 @@ func TestSAFIConstants(t *testing.T) {
 
 // TestFamilyVariables verifies family variables.
 func TestFamilyVariables(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, AFIIPv4, IPv4MVPN.AFI)
 	assert.Equal(t, SAFIMVPN, IPv4MVPN.SAFI)
 
@@ -37,6 +39,7 @@ func TestFamilyVariables(t *testing.T) {
 
 // TestSAFIStrings verifies SAFI String() method for specialized types.
 func TestSAFIStrings(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		safi     SAFI
 		expected string
@@ -50,6 +53,7 @@ func TestSAFIStrings(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.expected, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.safi.String())
 		})
 	}
@@ -57,6 +61,7 @@ func TestSAFIStrings(t *testing.T) {
 
 // TestFamilyParsing verifies family string parsing for specialized types.
 func TestFamilyParsing(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input    string
 		expected Family
@@ -73,6 +78,7 @@ func TestFamilyParsing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			family, ok := ParseFamily(tt.input)
 			assert.Equal(t, tt.ok, ok)
 			if ok {

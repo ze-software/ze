@@ -1,4 +1,4 @@
-package bgp_route_refresh
+package route_refresh
 
 import (
 	"bytes"

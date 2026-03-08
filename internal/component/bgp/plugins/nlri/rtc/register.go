@@ -1,4 +1,4 @@
-package bgp_nlri_rtc
+package rtc
 
 import (
 	"bytes"

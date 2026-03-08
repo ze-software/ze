@@ -3,7 +3,7 @@
 //
 // Package vpn implements a VPN family plugin for ze.
 // It handles decoding of VPN NLRI (RFC 4364, 4659) for the decode mode protocol.
-package bgp_nlri_vpn
+package vpn
 
 import (
 	"bufio"

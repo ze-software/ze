@@ -11,6 +11,7 @@ import (
 // VALIDATES: LenWithContext is consistent with WriteTo for buffer pre-allocation.
 // PREVENTS: Buffer overflow or garbage bytes when using WriteTo after LenWithContext.
 func TestLenWithContext_MatchesWriteTo(t *testing.T) {
+	t.Parallel()
 	// Create test NLRIs of different types
 	testCases := []struct {
 		name string
@@ -50,6 +51,7 @@ func TestLenWithContext_MatchesWriteTo(t *testing.T) {
 		for _, ap := range addPathValues {
 			name := tt.name + "_" + ap.name
 			t.Run(name, func(t *testing.T) {
+				t.Parallel()
 				nlri := tt.nlri
 
 				// Get length via LenWithContext
@@ -76,6 +78,7 @@ func TestLenWithContext_MatchesWriteTo(t *testing.T) {
 // VALIDATES: Buffer size from LenWithContext is exactly what WriteNLRI needs.
 // PREVENTS: Buffer overflow when WriteNLRI writes more than LenWithContext predicted.
 func TestLenWithContext_MatchesWriteNLRI_AllTypes(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name            string
 		nlri            NLRI
@@ -107,6 +110,7 @@ func TestLenWithContext_MatchesWriteNLRI_AllTypes(t *testing.T) {
 			name := tt.name + "_" + ctxName
 
 			t.Run(name, func(t *testing.T) {
+				t.Parallel()
 				nlri := tt.nlri
 
 				// Get predicted length

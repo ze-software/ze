@@ -14,6 +14,7 @@ import (
 //
 // PREVENTS: Protocol errors from wrong capability codes.
 func TestCapabilityCodeConstants(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		code Code
 		val  uint8
@@ -31,6 +32,7 @@ func TestCapabilityCodeConstants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.val, uint8(tt.code))
 		})
 	}
@@ -42,6 +44,7 @@ func TestCapabilityCodeConstants(t *testing.T) {
 //
 // PREVENTS: Opaque numeric codes in logs.
 func TestCodeString(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "Multiprotocol(1)", CodeMultiprotocol.String())
 	assert.Equal(t, "ASN4(65)", CodeASN4.String())
 	assert.Equal(t, "Unknown(99)", Code(99).String())
@@ -53,6 +56,7 @@ func TestCodeString(t *testing.T) {
 //
 // PREVENTS: Capability negotiation failures from parse errors.
 func TestParseCapabilities(t *testing.T) {
+	t.Parallel()
 	// Two capabilities: Multiprotocol IPv4/Unicast + ASN4
 	data := []byte{
 		// Capability 1: Multiprotocol
@@ -89,6 +93,7 @@ func TestParseCapabilities(t *testing.T) {
 //
 // PREVENTS: Panic on empty input.
 func TestParseEmpty(t *testing.T) {
+	t.Parallel()
 	caps, err := Parse(nil)
 	require.NoError(t, err)
 	require.Len(t, caps, 0)
@@ -104,6 +109,7 @@ func TestParseEmpty(t *testing.T) {
 //
 // PREVENTS: Buffer overread from malicious/corrupted packets.
 func TestParseTruncated(t *testing.T) {
+	t.Parallel()
 	// Length says 4 bytes but only 2 provided
 	data := []byte{0x01, 0x04, 0x00, 0x01}
 
@@ -117,6 +123,7 @@ func TestParseTruncated(t *testing.T) {
 //
 // PREVENTS: Connection failures when peer sends unknown capability.
 func TestParseUnknownCapability(t *testing.T) {
+	t.Parallel()
 	data := []byte{
 		0xFE,       // Unknown code 254
 		0x02,       // Length = 2
@@ -139,6 +146,7 @@ func TestParseUnknownCapability(t *testing.T) {
 //
 // PREVENTS: Route selection issues when multiple paths are available.
 func TestAddPathCapability(t *testing.T) {
+	t.Parallel()
 	// ADD-PATH for IPv4 Unicast: send+receive
 	data := []byte{
 		0x45,       // Code = ADD-PATH (69)
@@ -166,6 +174,7 @@ func TestAddPathCapability(t *testing.T) {
 //
 // PREVENTS: Only first family being parsed.
 func TestAddPathMultipleFamilies(t *testing.T) {
+	t.Parallel()
 	data := []byte{
 		0x45,       // Code = ADD-PATH (69)
 		0x08,       // Length = 8 (2 families * 4 bytes)
@@ -198,6 +207,7 @@ func TestAddPathMultipleFamilies(t *testing.T) {
 //
 // PREVENTS: Session drops during BGP restart.
 func TestGracefulRestartCapability(t *testing.T) {
+	t.Parallel()
 	data := []byte{
 		0x40,       // Code = Graceful Restart (64)
 		0x06,       // Length = 6
@@ -226,6 +236,7 @@ func TestGracefulRestartCapability(t *testing.T) {
 //
 // PREVENTS: Data corruption during pack/parse cycle.
 func TestCapabilityRoundTrip(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		cap  Capability
@@ -245,6 +256,7 @@ func TestCapabilityRoundTrip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			packed := make([]byte, tt.cap.Len())
 			tt.cap.WriteTo(packed, 0)
 			parsed, err := Parse(packed)
@@ -261,6 +273,7 @@ func TestCapabilityRoundTrip(t *testing.T) {
 //
 // PREVENTS: Routing failures on IPv6-only networks.
 func TestExtendedNextHopCapability(t *testing.T) {
+	t.Parallel()
 	data := []byte{
 		0x05,       // Code = Extended Next Hop (5)
 		0x06,       // Length = 6
@@ -283,6 +296,7 @@ func TestExtendedNextHopCapability(t *testing.T) {
 
 // TestExtendedNextHopRoundTrip verifies Extended Next Hop pack/parse.
 func TestExtendedNextHopRoundTrip(t *testing.T) {
+	t.Parallel()
 	original := &ExtendedNextHop{
 		Families: []ExtendedNextHopFamily{
 			{NLRIAFI: AFIIPv4, NLRISAFI: SAFIUnicast, NextHopAFI: AFIIPv6},
@@ -312,6 +326,7 @@ func TestExtendedNextHopRoundTrip(t *testing.T) {
 //
 // PREVENTS: Missing hostname in BGP sessions.
 func TestFQDNCapability(t *testing.T) {
+	t.Parallel()
 	// FQDN: hostname="router1", domain="example.com"
 	data := []byte{
 		0x49,                              // Code = FQDN (73)
@@ -334,6 +349,7 @@ func TestFQDNCapability(t *testing.T) {
 
 // TestFQDNRoundTrip verifies FQDN pack/parse.
 func TestFQDNRoundTrip(t *testing.T) {
+	t.Parallel()
 	original := &FQDN{
 		Hostname:   "bgp-speaker-01",
 		DomainName: "datacenter.internal",
@@ -353,6 +369,7 @@ func TestFQDNRoundTrip(t *testing.T) {
 
 // TestFQDNEmpty verifies FQDN with empty fields.
 func TestFQDNEmpty(t *testing.T) {
+	t.Parallel()
 	original := &FQDN{
 		Hostname:   "",
 		DomainName: "",
@@ -376,6 +393,7 @@ func TestFQDNEmpty(t *testing.T) {
 // VALIDATES: WriteTo(buf, off) writes correct TLV bytes matching Len().
 // PREVENTS: Encoding errors in buffer-first WriteTo path.
 func TestCapabilityWriteTo(t *testing.T) {
+	t.Parallel()
 	caps := []Capability{
 		&Unknown{code: 99, Data: []byte{0x01, 0x02, 0x03}},
 		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
@@ -407,6 +425,7 @@ func TestCapabilityWriteTo(t *testing.T) {
 	for _, c := range caps {
 		name := fmt.Sprintf("%T/code=%d", c, c.Code())
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, c.Len())
 			n := c.WriteTo(buf, 0)
 
@@ -428,6 +447,7 @@ func TestCapabilityWriteTo(t *testing.T) {
 // VALIDATES: WriteTo writes at the specified offset, not at position 0.
 // PREVENTS: Off-by-one or ignored offset in WriteTo implementations.
 func TestCapabilityWriteToAtOffset(t *testing.T) {
+	t.Parallel()
 	caps := []Capability{
 		&ASN4{ASN: 65533},
 		&FQDN{Hostname: "test", DomainName: "example.com"},
@@ -440,6 +460,7 @@ func TestCapabilityWriteToAtOffset(t *testing.T) {
 	for _, c := range caps {
 		name := fmt.Sprintf("%T/offset", c)
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			// Get reference bytes from WriteTo at offset 0
 			ref := make([]byte, c.Len())
 			c.WriteTo(ref, 0)

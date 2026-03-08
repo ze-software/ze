@@ -3,7 +3,7 @@
 //
 // Package bgp_rtc implements a Route Target Constraint family plugin for ze.
 // It handles RTC NLRI (RFC 4684, SAFI 132).
-package bgp_nlri_rtc
+package rtc
 
 import (
 	"bufio"

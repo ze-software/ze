@@ -14,6 +14,7 @@ import (
 //
 // PREVENTS: Basic parsing failures for most common NLRI type.
 func TestINETIPv4Basic(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		data     []byte
@@ -43,6 +44,7 @@ func TestINETIPv4Basic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			nlri, remaining, err := ParseINET(AFIIPv4, SAFIUnicast, tt.data, false)
 			require.NoError(t, err)
 			require.Empty(t, remaining)
@@ -62,6 +64,7 @@ func TestINETIPv4Basic(t *testing.T) {
 //
 // PREVENTS: IPv6 parsing failures.
 func TestINETIPv6Basic(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		data     []byte
@@ -86,6 +89,7 @@ func TestINETIPv6Basic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			nlri, remaining, err := ParseINET(AFIIPv6, SAFIUnicast, tt.data, false)
 			require.NoError(t, err)
 			require.Empty(t, remaining)
@@ -104,6 +108,7 @@ func TestINETIPv6Basic(t *testing.T) {
 //
 // PREVENTS: ADD-PATH interop failures.
 func TestINETWithAddPath(t *testing.T) {
+	t.Parallel()
 	// Path ID (4 bytes) + prefix length (1) + prefix bytes
 	// Path ID = 0x00000001, prefix = 10.0.0.0/8
 	data := []byte{0x00, 0x00, 0x00, 0x01, 8, 10}
@@ -125,6 +130,7 @@ func TestINETWithAddPath(t *testing.T) {
 //
 // PREVENTS: Incorrect offset handling corrupting subsequent prefixes.
 func TestINETMultiplePrefixes(t *testing.T) {
+	t.Parallel()
 	// 10.0.0.0/8 followed by 192.168.0.0/16
 	data := []byte{8, 10, 16, 192, 168}
 
@@ -148,6 +154,7 @@ func TestINETMultiplePrefixes(t *testing.T) {
 //
 // PREVENTS: Encoding errors causing interop failures.
 func TestINETBytes(t *testing.T) {
+	t.Parallel()
 	prefix := netip.MustParsePrefix("10.1.2.0/24")
 	inet := NewINET(IPv4Unicast, prefix, 0)
 
@@ -162,6 +169,7 @@ func TestINETBytes(t *testing.T) {
 // Phase 3: Bytes() returns payload only (no path ID).
 // Use WriteTo with ADD-PATH context to encode with path ID.
 func TestINETBytesWithPathID(t *testing.T) {
+	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/8")
 	inet := NewINET(IPv4Unicast, prefix, 42)
 
@@ -181,6 +189,7 @@ func TestINETBytesWithPathID(t *testing.T) {
 
 // TestINETString verifies string representation.
 func TestINETString(t *testing.T) {
+	t.Parallel()
 	inet := NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0)
 	assert.Equal(t, "prefix 10.0.0.0/8", inet.String())
 
@@ -195,6 +204,7 @@ func TestINETString(t *testing.T) {
 //
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestINETStringCommandStyle(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		inet     *INET
@@ -224,6 +234,7 @@ func TestINETStringCommandStyle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.inet.String())
 		})
 	}
@@ -234,6 +245,7 @@ func TestINETStringCommandStyle(t *testing.T) {
 // VALIDATES: Key() returns bare CIDR for map keys, String() keeps "prefix" keyword.
 // PREVENTS: Key() and String() returning the same value.
 func TestINETKey(t *testing.T) {
+	t.Parallel()
 	inet := NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0)
 	assert.Equal(t, "10.0.0.0/8", inet.Key(), "Key() should return bare CIDR")
 	assert.Equal(t, "prefix 10.0.0.0/8", inet.String(), "String() should include prefix keyword")
@@ -247,6 +259,7 @@ func TestINETKey(t *testing.T) {
 // VALIDATES: AC-4 from spec-alloc-3-format-efficiency.md
 // PREVENTS: AppendKey producing different output than Key().
 func TestINETAppendKey(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		inet *INET
@@ -262,6 +275,7 @@ func TestINETAppendKey(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			want := tt.inet.Key()
 			got := string(tt.inet.AppendKey(nil))
 			assert.Equal(t, want, got, "AppendKey must match Key()")
@@ -274,6 +288,7 @@ func TestINETAppendKey(t *testing.T) {
 // VALIDATES: AC-5 from spec-alloc-3-format-efficiency.md
 // PREVENTS: AppendString producing different output than String().
 func TestINETAppendString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		inet *INET
@@ -286,6 +301,7 @@ func TestINETAppendString(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			want := tt.inet.String()
 			got := string(tt.inet.AppendString(nil))
 			assert.Equal(t, want, got, "AppendString must match String()")
@@ -295,6 +311,7 @@ func TestINETAppendString(t *testing.T) {
 
 // TestINETErrors verifies error handling.
 func TestINETErrors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		data []byte
@@ -306,6 +323,7 @@ func TestINETErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, _, err := ParseINET(AFIIPv4, SAFIUnicast, tt.data, false)
 			require.Error(t, err)
 		})
@@ -321,6 +339,7 @@ func TestINETErrors(t *testing.T) {
 // PREVENTS: Off-by-one errors in prefix length validation.
 // BOUNDARY: IPv4 32 (valid), 33 (invalid); IPv6 128 (valid), 129 (invalid).
 func TestINETPrefixLengthBoundary(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		afi     AFI
@@ -357,6 +376,7 @@ func TestINETPrefixLengthBoundary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, _, err := ParseINET(tt.afi, SAFIUnicast, tt.data, false)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -370,6 +390,7 @@ func TestINETPrefixLengthBoundary(t *testing.T) {
 
 // TestINETRoundTrip verifies parse/encode round-trip.
 func TestINETRoundTrip(t *testing.T) {
+	t.Parallel()
 	originals := [][]byte{
 		{8, 10},           // 10.0.0.0/8
 		{24, 192, 168, 1}, // 192.168.1.0/24
@@ -394,6 +415,7 @@ func TestINETRoundTrip(t *testing.T) {
 // PREVENTS: Interoperability failures with peers expecting ADD-PATH encoding.
 // Without proper encoding, peers will misparse the NLRI causing session drops.
 func TestINETWriteNLRI(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		inet     *INET
@@ -440,6 +462,7 @@ func TestINETWriteNLRI(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 100)
 			n := WriteNLRI(tt.inet, buf, 0, tt.addPath)
 			result := buf[:n]
@@ -454,6 +477,7 @@ func TestINETWriteNLRI(t *testing.T) {
 //
 // PREVENTS: IPv6-specific encoding issues with ADD-PATH.
 func TestINETWriteNLRIIPv6(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		inet     *INET
@@ -476,6 +500,7 @@ func TestINETWriteNLRIIPv6(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 100)
 			n := WriteNLRI(tt.inet, buf, 0, tt.addPath)
 			result := buf[:n]

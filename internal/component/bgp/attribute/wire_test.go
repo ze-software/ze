@@ -40,6 +40,7 @@ func setupTestContext(asn4 bool) bgpctx.ContextID {
 // VALIDATES: Only requested attribute is parsed, cached for reuse.
 // PREVENTS: Full parse on single attribute access.
 func TestAttributesWireGet(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	// Build packed: ORIGIN (IGP=0) + LOCAL_PREF (100)
@@ -85,6 +86,7 @@ func TestAttributesWireGet(t *testing.T) {
 // VALIDATES: Errors returned with context, not swallowed.
 // PREVENTS: Silent failures on corrupt wire bytes.
 func TestAttributesWireGetError(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	// Truncated header (only 2 bytes)
@@ -102,6 +104,7 @@ func TestAttributesWireGetError(t *testing.T) {
 // VALIDATES: Check existence without parsing value, returns error on malformed data.
 // PREVENTS: Parsing overhead for existence check, silent failures.
 func TestAttributesWireHas(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	origin := packAttr(FlagTransitive, AttrOrigin, []byte{0x00})
@@ -140,6 +143,7 @@ func TestAttributesWireHas(t *testing.T) {
 // VALIDATES: Only requested attributes are parsed.
 // PREVENTS: Parsing unrequested attributes.
 func TestAttributesWireGetMultiple(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	// Build: ORIGIN, LOCAL_PREF, MED
@@ -174,6 +178,7 @@ func TestAttributesWireGetMultiple(t *testing.T) {
 // VALIDATES: Same context returns original bytes.
 // PREVENTS: Unnecessary re-encoding.
 func TestAttributesWirePackFor(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	origin := packAttr(FlagTransitive, AttrOrigin, []byte{0x00})
@@ -196,6 +201,7 @@ func TestAttributesWirePackFor(t *testing.T) {
 // VALIDATES: Different context triggers re-encode.
 // PREVENTS: Sending wrong encoding to peer.
 func TestAttributesWirePackForDifferentContext(t *testing.T) {
+	t.Parallel()
 	srcCtxID := setupTestContext(true)  // ASN4
 	dstCtxID := setupTestContext(false) // ASN2
 
@@ -220,6 +226,7 @@ func TestAttributesWirePackForDifferentContext(t *testing.T) {
 // VALIDATES: All attributes returned in wire order.
 // PREVENTS: Missing or duplicated attributes.
 func TestAttributesWireAll(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	// Build: ORIGIN, LOCAL_PREF (wire order)
@@ -251,6 +258,7 @@ func TestAttributesWireAll(t *testing.T) {
 // VALIDATES: Concurrent Get() calls don't race.
 // PREVENTS: Data races on parsed cache.
 func TestAttributesWireConcurrentAccess(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	origin := packAttr(FlagTransitive, AttrOrigin, []byte{0x00})
@@ -288,6 +296,7 @@ func TestAttributesWireConcurrentAccess(t *testing.T) {
 // VALIDATES: Second Get() reuses index, doesn't rescan.
 // PREVENTS: O(n^2) scanning for multiple Gets.
 func TestAttributesWireIndexReuse(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	origin := packAttr(FlagTransitive, AttrOrigin, []byte{0x00})
@@ -315,6 +324,7 @@ func TestAttributesWireIndexReuse(t *testing.T) {
 // VALIDATES: Duplicate attributes return error.
 // PREVENTS: Silent acceptance of malformed UPDATE messages.
 func TestAttributesWireDuplicateAttribute(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	// Two ORIGIN attributes (RFC 4271 violation)
@@ -334,6 +344,7 @@ func TestAttributesWireDuplicateAttribute(t *testing.T) {
 // VALIDATES: Empty packed bytes returns empty results, not error.
 // PREVENTS: Nil pointer dereference on empty input.
 func TestAttributesWireEmptyPacked(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	// Empty packed
@@ -361,6 +372,7 @@ func TestAttributesWireEmptyPacked(t *testing.T) {
 // VALIDATES: Unknown attribute codes return OpaqueAttribute.
 // PREVENTS: Errors on vendor-specific or future attributes.
 func TestAttributesWireUnknownAttribute(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	// Unknown attribute code 250
@@ -391,6 +403,7 @@ func TestAttributesWireUnknownAttribute(t *testing.T) {
 // VALIDATES: Invalid context ID returns error.
 // PREVENTS: Nil pointer dereference on missing context.
 func TestAttributesWireInvalidContext(t *testing.T) {
+	t.Parallel()
 	// Use an invalid context ID (not registered)
 	invalidCtxID := bgpctx.ContextID(65000)
 
@@ -410,6 +423,7 @@ func TestAttributesWireInvalidContext(t *testing.T) {
 // VALIDATES: Unknown transitive attributes retain original flags including Partial bit.
 // PREVENTS: Incorrect flag reconstruction during forwarding (RFC 4271 violation).
 func TestAttributesWirePreservesFlags(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	// Unknown attribute with Partial bit set
@@ -433,6 +447,7 @@ func TestAttributesWirePreservesFlags(t *testing.T) {
 // VALIDATES: ATOMIC_AGGREGATE with non-zero length returns error.
 // PREVENTS: Silent acceptance of malformed ATOMIC_AGGREGATE.
 func TestAttributesWireAtomicAggregateValidation(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	// Valid ATOMIC_AGGREGATE (empty)
@@ -462,6 +477,7 @@ func TestAttributesWireAtomicAggregateValidation(t *testing.T) {
 // VALIDATES: ORIGINATOR_ID is correctly parsed.
 // PREVENTS: Route reflection failures.
 func TestAttributesWireOriginatorID(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	// ORIGINATOR_ID is 4 bytes (IPv4 router ID)
@@ -486,6 +502,7 @@ func TestAttributesWireOriginatorID(t *testing.T) {
 // VALIDATES: SourceContext returns the original context ID.
 // PREVENTS: Context mismatch in forwarding logic.
 func TestAttributesWireSourceContext(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	aw := NewAttributesWire(nil, ctxID)
@@ -500,6 +517,7 @@ func TestAttributesWireSourceContext(t *testing.T) {
 // VALIDATES: Packed returns original bytes unchanged.
 // PREVENTS: Modification of wire bytes.
 func TestAttributesWirePacked(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	origin := packAttr(FlagTransitive, AttrOrigin, []byte{0x00})
@@ -521,6 +539,7 @@ func TestAttributesWirePacked(t *testing.T) {
 // VALIDATES: Extended Length attributes (>255 bytes) are handled correctly.
 // PREVENTS: Parse errors on large attributes.
 func TestAttributesWireExtendedLength(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	// Large community list (>255 bytes)
@@ -549,6 +568,7 @@ func TestAttributesWireExtendedLength(t *testing.T) {
 // VALIDATES: Truncated attribute values are detected.
 // PREVENTS: Buffer overread on malformed data.
 func TestAttributesWireTruncatedValue(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	// Header says 4 bytes but only 2 present
@@ -567,6 +587,7 @@ func TestAttributesWireTruncatedValue(t *testing.T) {
 // VALIDATES: Parse errors are returned consistently on subsequent calls.
 // PREVENTS: Silent data loss when first parse fails but subsequent calls succeed.
 func TestAttributesWireErrorRecovery(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	// Valid ORIGIN followed by truncated second attribute
@@ -601,6 +622,7 @@ func TestAttributesWireErrorRecovery(t *testing.T) {
 // VALIDATES: Empty partial index doesn't cause silent success.
 // PREVENTS: Bug where non-nil empty index causes subsequent calls to return "not found" instead of error.
 func TestAttributesWireErrorOnFirstAttribute(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	// First attribute is truncated - no valid attributes at all
@@ -632,6 +654,7 @@ func TestAttributesWireErrorOnFirstAttribute(t *testing.T) {
 // VALIDATES: AS_PATH with 4-byte ASNs is re-encoded for 2-byte context.
 // PREVENTS: Sending 4-byte ASNs to peers that don't support them.
 func TestAttributesWireASN4ReEncoding(t *testing.T) {
+	t.Parallel()
 	// Source context: 4-byte ASN capable
 	srcCtxID := setupTestContext(true)
 	// Destination context: 2-byte ASN only
@@ -687,6 +710,7 @@ func TestAttributesWireASN4ReEncoding(t *testing.T) {
 // VALIDATES: GetRaw returns attribute value bytes without parsing.
 // PREVENTS: Unnecessary parsing when only raw bytes needed (e.g., for MPReachWire).
 func TestAttributesWireGetRaw(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	// Build MP_REACH_NLRI with known content
@@ -723,6 +747,7 @@ func TestAttributesWireGetRaw(t *testing.T) {
 // VALIDATES: GetRaw returns nil, nil for missing attributes.
 // PREVENTS: Errors on absent attributes.
 func TestAttributesWireGetRawNotFound(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	origin := packAttr(FlagTransitive, AttrOrigin, []byte{0x00})
@@ -744,6 +769,7 @@ func TestAttributesWireGetRawNotFound(t *testing.T) {
 // VALIDATES: No copy made - returns view into packed bytes.
 // PREVENTS: Memory waste from unnecessary copies.
 func TestAttributesWireGetRawZeroCopy(t *testing.T) {
+	t.Parallel()
 	ctxID := setupTestContext(true)
 
 	originValue := []byte{0x00}

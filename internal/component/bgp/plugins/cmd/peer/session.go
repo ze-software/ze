@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — BGP peer session handlers
 // Overview: peer.go — BGP peer lifecycle and introspection handlers
 
-package bgpcmdpeer
+package peer
 
 import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"

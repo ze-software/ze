@@ -1,4 +1,4 @@
-package bgp_role
+package role
 
 import (
 	"testing"

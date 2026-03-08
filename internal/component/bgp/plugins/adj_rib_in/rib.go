@@ -7,7 +7,7 @@
 //
 // RFC 4271 Section 3.2: Adj-RIBs-In stores unprocessed routing information
 // advertised to the local BGP speaker by its peers.
-package bgp_adj_rib_in
+package adj_rib_in
 
 import (
 	"context"
@@ -21,7 +21,7 @@ import (
 	"time"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
-	adjschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-adj-rib-in/schema"
+	adjschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/adj_rib_in/schema"
 	"codeberg.org/thomas-mangin/ze/internal/core/seqmap"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"

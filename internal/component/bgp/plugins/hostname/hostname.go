@@ -4,7 +4,7 @@
 // It receives per-peer hostname/domain config and registers FQDN capabilities (code 73).
 //
 // draft-walton-bgp-hostname: FQDN Capability for BGP.
-package bgp_hostname
+package hostname
 
 import (
 	"bufio"
@@ -17,7 +17,7 @@ import (
 	"net"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-hostname/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/hostname/schema"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )

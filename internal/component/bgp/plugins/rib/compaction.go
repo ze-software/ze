@@ -1,7 +1,7 @@
 // Design: docs/architecture/pool-architecture.md — compaction scheduler wiring
 // Overview: rib.go — RIB plugin lifecycle
 
-package bgp_rib
+package rib
 
 import (
 	"context"

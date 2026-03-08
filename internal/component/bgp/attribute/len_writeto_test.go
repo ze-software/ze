@@ -18,6 +18,7 @@ import (
 //
 // PREVENTS: Buffer overflow from undersized allocation (RFC 4271 compliance).
 func TestLenMatchesWriteTo(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		attr Attribute
@@ -107,6 +108,7 @@ func TestLenMatchesWriteTo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			expectedLen := tt.attr.Len()
 
 			buf := make([]byte, 65536)
@@ -126,6 +128,7 @@ func TestLenMatchesWriteTo(t *testing.T) {
 //
 // PREVENTS: Buffer overflow when encoding for 2-byte vs 4-byte ASN peers.
 func TestLenMatchesWriteToWithContext(t *testing.T) {
+	t.Parallel()
 	contexts := []*bgpctx.EncodingContext{
 		nil,
 		bgpctx.EncodingContextForASN4(true),
@@ -148,6 +151,7 @@ func TestLenMatchesWriteToWithContext(t *testing.T) {
 			}
 
 			t.Run("ASPath_"+name, func(t *testing.T) {
+				t.Parallel()
 				asn4 := ctx == nil || ctx.ASN4()
 				expectedLen := path.LenWithASN4(asn4)
 
@@ -174,6 +178,7 @@ func TestLenMatchesWriteToWithContext(t *testing.T) {
 		}
 
 		t.Run("Aggregator_"+name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 65536)
 			n := agg.WriteToWithContext(buf, 0, nil, ctx)
 
@@ -189,6 +194,7 @@ func TestLenMatchesWriteToWithContext(t *testing.T) {
 //
 // PREVENTS: Header/value length mismatch causing parse errors.
 func TestWriteAttrToLenMatchesOutput(t *testing.T) {
+	t.Parallel()
 	attrs := []Attribute{
 		OriginIGP,
 		MED(100),
@@ -201,6 +207,7 @@ func TestWriteAttrToLenMatchesOutput(t *testing.T) {
 
 	for _, attr := range attrs {
 		t.Run(attr.Code().String(), func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 65536)
 			n := WriteAttrTo(attr, buf, 0)
 

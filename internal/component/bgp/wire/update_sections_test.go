@@ -13,6 +13,7 @@ import (
 // VALIDATES: ParseUpdateSections correctly parses UPDATE body into section offsets.
 // PREVENTS: Off-by-one errors in offset calculations.
 func TestUpdateSectionsParse(t *testing.T) {
+	t.Parallel()
 	// Build UPDATE payload:
 	// WithdrawnLen(2) + Withdrawn(variable) + AttrLen(2) + Attrs(variable) + NLRI(variable)
 	//
@@ -53,6 +54,7 @@ func TestUpdateSectionsParse(t *testing.T) {
 // VALIDATES: Empty withdrawn/attrs/NLRI return nil slices.
 // PREVENTS: False errors on valid empty UPDATE (End-of-RIB).
 func TestUpdateSectionsEmpty(t *testing.T) {
+	t.Parallel()
 	// Minimal UPDATE: WithdrawnLen=0, AttrLen=0, no NLRI
 	payload := []byte{0x00, 0x00, 0x00, 0x00}
 
@@ -75,6 +77,7 @@ func TestUpdateSectionsEmpty(t *testing.T) {
 // VALIDATES: Truncated payloads return error, not garbage data.
 // PREVENTS: Buffer overread from malformed UPDATE.
 func TestUpdateSectionsTruncated(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		payload []byte
@@ -89,6 +92,7 @@ func TestUpdateSectionsTruncated(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := ParseUpdateSections(tt.payload)
 			assert.Error(t, err)
 		})
@@ -100,6 +104,7 @@ func TestUpdateSectionsTruncated(t *testing.T) {
 // VALIDATES: Accessors return slices sharing underlying array with input.
 // PREVENTS: Unintended copies that break zero-copy semantics.
 func TestUpdateSectionsZeroCopy(t *testing.T) {
+	t.Parallel()
 	// Build payload with all sections
 	withdrawn := []byte{0x10, 0x0a}
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
@@ -152,6 +157,7 @@ func TestUpdateSectionsZeroCopy(t *testing.T) {
 // VALIDATES: Extended Message sizes (up to 65535 - 19 = 65516 body) are supported.
 // PREVENTS: Overflow when handling Extended Message UPDATE.
 func TestUpdateSectionsExtendedMessage(t *testing.T) {
+	t.Parallel()
 	// RFC 8654: Extended message max = 65535 total, minus 19 byte header = 65516 body
 	// Build a large payload (but reasonable for test)
 	largeAttrs := make([]byte, 10000)
@@ -179,6 +185,7 @@ func TestUpdateSectionsExtendedMessage(t *testing.T) {
 // VALIDATES: Maximum Extended Message body (65516 bytes) is handled correctly.
 // PREVENTS: Integer overflow at maximum sizes with int type.
 func TestUpdateSectionsExtendedMessageMaximum(t *testing.T) {
+	t.Parallel()
 	// RFC 8654: max body = 65535 - 19 = 65516 bytes
 	// Body format: wdLen(2) + withdrawn + attrLen(2) + attrs + nlri
 	// Test with maximum attrs section: 65516 - 4 = 65512 bytes for attrs
@@ -221,6 +228,7 @@ func TestUpdateSectionsExtendedMessageMaximum(t *testing.T) {
 // VALIDATES: Maximum body with all sections populated works correctly.
 // PREVENTS: Offset calculation errors when all sections have data.
 func TestUpdateSectionsExtendedMessageAllSections(t *testing.T) {
+	t.Parallel()
 	// Split max body across all three sections
 	const maxBodySize = 65516
 	const wdSize = 20000   // ~30% for withdrawn
@@ -279,6 +287,7 @@ func TestUpdateSectionsExtendedMessageAllSections(t *testing.T) {
 // VALIDATES: Edge cases at section boundaries are handled correctly.
 // PREVENTS: Off-by-one errors at boundaries.
 func TestUpdateSectionsBoundary(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		payload   []byte
@@ -321,6 +330,7 @@ func TestUpdateSectionsBoundary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			sections, err := ParseUpdateSections(tt.payload)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -338,6 +348,7 @@ func TestUpdateSectionsBoundary(t *testing.T) {
 // VALIDATES: NLRI bytes after attrs section are correctly identified.
 // PREVENTS: Missing NLRI when attrs section is empty but NLRI follows.
 func TestUpdateSectionsWithNLRI(t *testing.T) {
+	t.Parallel()
 	// wdLen=0, attrLen=0, then NLRI bytes
 	nlriBytes := []byte{0x18, 0x0A, 0x00, 0x00} // /24 prefix 10.0.0.x
 	payload := append([]byte{0x00, 0x00, 0x00, 0x00}, nlriBytes...)
@@ -354,6 +365,7 @@ func TestUpdateSectionsWithNLRI(t *testing.T) {
 // VALIDATES: NLRILen() returns correct length of trailing NLRI.
 // PREVENTS: Wrong NLRI length affecting iteration.
 func TestUpdateSectionsNLRILength(t *testing.T) {
+	t.Parallel()
 	withdrawn := []byte{0x10, 0x0a}
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
 	nlri := []byte{0x18, 0xc0, 0xa8, 0x01, 0x08, 0x0a} // two prefixes
@@ -377,6 +389,7 @@ func TestUpdateSectionsNLRILength(t *testing.T) {
 // VALIDATES: Zero-value UpdateSections is distinguishable from parsed empty.
 // PREVENTS: Confusion between "not parsed" and "parsed with all empty sections".
 func TestUpdateSectionsNotParsed(t *testing.T) {
+	t.Parallel()
 	var sections UpdateSections
 
 	// Zero-value should not be valid
@@ -388,6 +401,7 @@ func TestUpdateSectionsNotParsed(t *testing.T) {
 // VALIDATES: Accessors safely handle zero-value UpdateSections.
 // PREVENTS: Panic or wrong data when accessors called on uninitialized struct.
 func TestUpdateSectionsAccessorsOnZeroValue(t *testing.T) {
+	t.Parallel()
 	var sections UpdateSections
 	data := []byte{0x00, 0x00, 0x00, 0x00, 0xAA, 0xBB, 0xCC, 0xDD}
 

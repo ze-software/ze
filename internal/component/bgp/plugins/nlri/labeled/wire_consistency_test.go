@@ -1,4 +1,4 @@
-package bgp_nlri_labeled_test
+package labeled_test
 
 import (
 	"net/netip"
@@ -8,7 +8,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
-	labeled "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-nlri-labeled"
+	labeled "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/labeled"
 )
 
 // TestLabeledUnicastWireConsistency verifies two code paths produce identical wire format.
@@ -19,6 +19,7 @@ import (
 //
 // PREVENTS: Route replay producing different wire encoding than original announcement.
 func TestLabeledUnicastWireConsistency(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		prefix  netip.Prefix
@@ -79,6 +80,7 @@ func TestLabeledUnicastWireConsistency(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Path 1: Build via UpdateBuilder (immediate send path)
 			ub := message.NewUpdateBuilder(65001, false, true, tt.addPath)
 			params := message.LabeledUnicastParams{
@@ -111,6 +113,7 @@ func TestLabeledUnicastWireConsistency(t *testing.T) {
 // RFC 7911: Path Identifier MUST be present when ADD-PATH is negotiated,
 // even if the value is 0. Both code paths now correctly include NOPATH.
 func TestLabeledUnicastWireConsistency_AddPathZero(t *testing.T) {
+	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/8")
 	label := uint32(100)
 	pathID := uint32(0) // Path ID is 0

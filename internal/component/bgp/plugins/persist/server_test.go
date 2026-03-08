@@ -1,4 +1,4 @@
-package bgp_persist
+package persist
 
 import (
 	"strings"

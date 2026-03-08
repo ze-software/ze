@@ -3,7 +3,7 @@
 // Related: server.go — command dispatch and state management
 // Related: config.go — config tree parser
 
-package bgp_watchdog
+package watchdog
 
 import (
 	"errors"

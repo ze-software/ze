@@ -1,4 +1,4 @@
-package bgp_nlri_ls
+package ls
 
 import (
 	"testing"
@@ -9,6 +9,7 @@ import (
 
 // TestBGPLSNLRITypes verifies NLRI type constants.
 func TestBGPLSNLRITypes(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, BGPLSNLRIType(1), BGPLSNodeNLRI)
 	assert.Equal(t, BGPLSNLRIType(2), BGPLSLinkNLRI)
 	assert.Equal(t, BGPLSNLRIType(3), BGPLSPrefixV4NLRI)
@@ -20,6 +21,7 @@ func TestBGPLSNLRITypes(t *testing.T) {
 
 // TestBGPLSNodeDescriptor verifies node descriptor creation.
 func TestBGPLSNodeDescriptor(t *testing.T) {
+	t.Parallel()
 	nd := NodeDescriptor{
 		ASN:             65000,
 		BGPLSIdentifier: 0x12345678,
@@ -34,6 +36,7 @@ func TestBGPLSNodeDescriptor(t *testing.T) {
 
 // TestBGPLSNodeNLRI verifies node NLRI creation.
 func TestBGPLSNodeNLRI(t *testing.T) {
+	t.Parallel()
 	node := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},
@@ -46,6 +49,7 @@ func TestBGPLSNodeNLRI(t *testing.T) {
 
 // TestBGPLSLinkNLRI verifies link NLRI creation.
 func TestBGPLSLinkNLRI(t *testing.T) {
+	t.Parallel()
 	localNode := NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},
@@ -66,6 +70,7 @@ func TestBGPLSLinkNLRI(t *testing.T) {
 
 // TestBGPLSPrefixV4NLRI verifies IPv4 prefix NLRI creation.
 func TestBGPLSPrefixV4NLRI(t *testing.T) {
+	t.Parallel()
 	node := NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},
@@ -81,6 +86,7 @@ func TestBGPLSPrefixV4NLRI(t *testing.T) {
 
 // TestBGPLSPrefixV6NLRI verifies IPv6 prefix NLRI creation.
 func TestBGPLSPrefixV6NLRI(t *testing.T) {
+	t.Parallel()
 	node := NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},
@@ -96,6 +102,7 @@ func TestBGPLSPrefixV6NLRI(t *testing.T) {
 
 // TestBGPLSFamily verifies BGP-LS address family.
 func TestBGPLSFamily(t *testing.T) {
+	t.Parallel()
 	node := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
 		ASN: 65001,
 	})
@@ -106,6 +113,7 @@ func TestBGPLSFamily(t *testing.T) {
 
 // TestBGPLSNodeBytes verifies wire format encoding.
 func TestBGPLSNodeBytes(t *testing.T) {
+	t.Parallel()
 	node := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},
@@ -125,6 +133,7 @@ func TestBGPLSNodeBytes(t *testing.T) {
 
 // TestBGPLSNodeString verifies string representation.
 func TestBGPLSNodeString(t *testing.T) {
+	t.Parallel()
 	node := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},
@@ -136,6 +145,7 @@ func TestBGPLSNodeString(t *testing.T) {
 
 // TestBGPLSLinkBytes verifies link wire format.
 func TestBGPLSLinkBytes(t *testing.T) {
+	t.Parallel()
 	link := NewBGPLSLink(
 		ProtoOSPFv2, 0x100,
 		NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
@@ -155,6 +165,7 @@ func TestBGPLSLinkBytes(t *testing.T) {
 //
 // PREVENTS: Encoding violation where link descriptors are wrapped in TLV 258.
 func TestBGPLSLinkDescriptorNotWrapped(t *testing.T) {
+	t.Parallel()
 	link := NewBGPLSLink(
 		ProtoOSPFv2, 0x100,
 		NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
@@ -206,6 +217,7 @@ func TestBGPLSLinkDescriptorNotWrapped(t *testing.T) {
 //
 // PREVENTS: Encoding violation where prefix descriptors are wrapped in TLV 264.
 func TestBGPLSPrefixDescriptorNotWrapped(t *testing.T) {
+	t.Parallel()
 	prefix := NewBGPLSPrefixV4(
 		ProtoOSPFv2, 0x100,
 		NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
@@ -242,6 +254,7 @@ func TestBGPLSPrefixDescriptorNotWrapped(t *testing.T) {
 
 // TestParseBGPLSNode verifies parsing node NLRI.
 func TestParseBGPLSNode(t *testing.T) {
+	t.Parallel()
 	original := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},
@@ -258,6 +271,7 @@ func TestParseBGPLSNode(t *testing.T) {
 
 // TestParseBGPLSErrors verifies error handling.
 func TestParseBGPLSErrors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		data []byte
@@ -270,6 +284,7 @@ func TestParseBGPLSErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := ParseBGPLS(tt.data)
 			assert.Error(t, err)
 		})
@@ -278,6 +293,7 @@ func TestParseBGPLSErrors(t *testing.T) {
 
 // TestBGPLSRoundTrip verifies encode/decode cycle.
 func TestBGPLSRoundTrip(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name string
 		nlri BGPLSNLRI
@@ -301,6 +317,7 @@ func TestBGPLSRoundTrip(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			data := tt.nlri.Bytes()
 			parsed, err := ParseBGPLS(data)
 			require.NoError(t, err)
@@ -312,6 +329,7 @@ func TestBGPLSRoundTrip(t *testing.T) {
 
 // TestBGPLSSRv6SID verifies SRv6 SID NLRI creation.
 func TestBGPLSSRv6SID(t *testing.T) {
+	t.Parallel()
 	node := NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},
@@ -329,6 +347,7 @@ func TestBGPLSSRv6SID(t *testing.T) {
 
 // TestBGPLSSRv6SIDBytes verifies SRv6 SID wire format.
 func TestBGPLSSRv6SIDBytes(t *testing.T) {
+	t.Parallel()
 	node := NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},
@@ -346,6 +365,7 @@ func TestBGPLSSRv6SIDBytes(t *testing.T) {
 
 // TestBGPLSSRv6SIDRoundTrip verifies SRv6 SID encode/decode cycle.
 func TestBGPLSSRv6SIDRoundTrip(t *testing.T) {
+	t.Parallel()
 	node := NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},
@@ -373,6 +393,7 @@ func TestBGPLSSRv6SIDRoundTrip(t *testing.T) {
 //
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestBGPLSNodeStringCommandStyle(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		node     *BGPLSNode
@@ -397,6 +418,7 @@ func TestBGPLSNodeStringCommandStyle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.node.String())
 		})
 	}
@@ -409,6 +431,7 @@ func TestBGPLSNodeStringCommandStyle(t *testing.T) {
 //
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestBGPLSLinkStringCommandStyle(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		link     *BGPLSLink
@@ -436,6 +459,7 @@ func TestBGPLSLinkStringCommandStyle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.link.String())
 		})
 	}
@@ -448,6 +472,7 @@ func TestBGPLSLinkStringCommandStyle(t *testing.T) {
 //
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestBGPLSPrefixStringCommandStyle(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		prefix   *BGPLSPrefix
@@ -473,6 +498,7 @@ func TestBGPLSPrefixStringCommandStyle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.prefix.String())
 		})
 	}
@@ -485,6 +511,7 @@ func TestBGPLSPrefixStringCommandStyle(t *testing.T) {
 //
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestBGPLSSRv6SIDStringCommandStyle(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		srv6     *BGPLSSRv6SID
@@ -511,6 +538,7 @@ func TestBGPLSSRv6SIDStringCommandStyle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.srv6.String())
 		})
 	}
@@ -521,6 +549,7 @@ func TestBGPLSSRv6SIDStringCommandStyle(t *testing.T) {
 // VALIDATES: BGPLSNode.Len() calculates wire size arithmetically matching WriteTo output.
 // PREVENTS: Len() calling Bytes() which allocates just to measure size.
 func TestBGPLSNodeLen(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		node *BGPLSNode
@@ -551,6 +580,7 @@ func TestBGPLSNodeLen(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Verify Len() matches actual WriteTo byte count
 			buf := make([]byte, 1024)
 			n := tt.node.WriteTo(buf, 0)
@@ -564,6 +594,7 @@ func TestBGPLSNodeLen(t *testing.T) {
 // VALIDATES: BGPLSLink.Len() calculates wire size arithmetically matching WriteTo output.
 // PREVENTS: Len() calling Bytes() which allocates just to measure size.
 func TestBGPLSLinkLen(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		link *BGPLSLink
@@ -593,6 +624,7 @@ func TestBGPLSLinkLen(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 1024)
 			n := tt.link.WriteTo(buf, 0)
 			assert.Equal(t, n, tt.link.Len(), "Len() must match WriteTo byte count")
@@ -605,6 +637,7 @@ func TestBGPLSLinkLen(t *testing.T) {
 // VALIDATES: BGPLSPrefix.Len() calculates wire size arithmetically matching WriteTo output.
 // PREVENTS: Len() calling Bytes() which allocates just to measure size.
 func TestBGPLSPrefixLen(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		prefix *BGPLSPrefix
@@ -634,6 +667,7 @@ func TestBGPLSPrefixLen(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 1024)
 			n := tt.prefix.WriteTo(buf, 0)
 			assert.Equal(t, n, tt.prefix.Len(), "Len() must match WriteTo byte count")
@@ -646,6 +680,7 @@ func TestBGPLSPrefixLen(t *testing.T) {
 // VALIDATES: BGPLSSRv6SID.Len() calculates wire size arithmetically matching WriteTo output.
 // PREVENTS: Len() calling Bytes() which allocates just to measure size.
 func TestBGPLSSRv6SIDLen(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		srv6 *BGPLSSRv6SID
@@ -668,6 +703,7 @@ func TestBGPLSSRv6SIDLen(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 1024)
 			n := tt.srv6.WriteTo(buf, 0)
 			assert.Equal(t, n, tt.srv6.Len(), "Len() must match WriteTo byte count")
@@ -680,6 +716,7 @@ func TestBGPLSSRv6SIDLen(t *testing.T) {
 // VALIDATES: WriteTo produces identical wire format to Bytes() for BGP-LS Node NLRI.
 // PREVENTS: TLV encoding errors, header length miscalculation.
 func TestBGPLSNodeWriteToMatchesBytes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		node *BGPLSNode
@@ -704,6 +741,7 @@ func TestBGPLSNodeWriteToMatchesBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			expected := tt.node.Bytes()
 
 			buf := make([]byte, len(expected)+10)
@@ -720,6 +758,7 @@ func TestBGPLSNodeWriteToMatchesBytes(t *testing.T) {
 // VALIDATES: WriteTo produces identical wire format to Bytes() for BGP-LS Link NLRI.
 // PREVENTS: Local/remote node descriptor confusion, link TLV encoding errors.
 func TestBGPLSLinkWriteToMatchesBytes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		link *BGPLSLink
@@ -747,6 +786,7 @@ func TestBGPLSLinkWriteToMatchesBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			expected := tt.link.Bytes()
 
 			buf := make([]byte, len(expected)+10)
@@ -763,6 +803,7 @@ func TestBGPLSLinkWriteToMatchesBytes(t *testing.T) {
 // VALIDATES: WriteTo produces identical wire format to Bytes() for BGP-LS Prefix NLRI.
 // PREVENTS: IPv4/IPv6 confusion, prefix descriptor encoding errors.
 func TestBGPLSPrefixWriteToMatchesBytes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		prefix *BGPLSPrefix
@@ -785,6 +826,7 @@ func TestBGPLSPrefixWriteToMatchesBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			expected := tt.prefix.Bytes()
 
 			buf := make([]byte, len(expected)+10)
@@ -801,6 +843,7 @@ func TestBGPLSPrefixWriteToMatchesBytes(t *testing.T) {
 // VALIDATES: WriteTo produces identical wire format to Bytes() for SRv6 SID NLRI.
 // PREVENTS: SID encoding errors, TLV 518 format issues.
 func TestBGPLSSRv6SIDWriteToMatchesBytes(t *testing.T) {
+	t.Parallel()
 	srv6 := NewBGPLSSRv6SID(ProtoSegment, 0x200,
 		NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
 		SRv6SIDDescriptor{SRv6SID: []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}},

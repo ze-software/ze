@@ -4,7 +4,7 @@
 // Related: types_numeric.go — numeric/bitmask component implementations
 // Related: types_vpn.go — FlowSpec VPN wrapper
 
-package bgp_nlri_flowspec
+package flowspec
 
 import (
 	"fmt"

@@ -1,4 +1,4 @@
-package bgp_nlri_labeled
+package labeled
 
 import (
 	"net/netip"
@@ -15,6 +15,7 @@ import (
 // VALIDATES: LabeledUnicast implements all NLRI interface methods.
 // PREVENTS: Compile-time interface compliance failures.
 func TestLabeledUnicastInterface(t *testing.T) {
+	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/8")
 	lu := NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, []uint32{100}, 0)
 
@@ -33,6 +34,7 @@ func TestLabeledUnicastInterface(t *testing.T) {
 // VALIDATES: RFC 8277 Section 2.2 - NLRI encoding.
 // PREVENTS: Wire format encoding errors causing interop failures.
 func TestLabeledUnicastBytes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		prefix   netip.Prefix
@@ -72,6 +74,7 @@ func TestLabeledUnicastBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			lu := NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, tt.prefix, tt.labels, tt.pathID)
 			assert.Equal(t, tt.expected, lu.Bytes())
 			assert.Equal(t, len(tt.expected), lu.Len())
@@ -84,6 +87,7 @@ func TestLabeledUnicastBytes(t *testing.T) {
 // VALIDATES: Bytes() returns payload only (no path ID).
 // PREVENTS: Confusion about Bytes() behavior.
 func TestLabeledUnicastBytesWithPathID(t *testing.T) {
+	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/8")
 	lu := NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, []uint32{100}, 42)
 
@@ -107,6 +111,7 @@ func TestLabeledUnicastBytesWithPathID(t *testing.T) {
 // VALIDATES: RFC 8277 with AFI=2 (IPv6).
 // PREVENTS: IPv6 labeled unicast encoding errors.
 func TestLabeledUnicastIPv6(t *testing.T) {
+	t.Parallel()
 	prefix := netip.MustParsePrefix("2001:db8::/32")
 	lu := NewLabeledUnicast(Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, prefix, []uint32{100}, 0)
 
@@ -120,6 +125,7 @@ func TestLabeledUnicastIPv6(t *testing.T) {
 // VALIDATES: RFC 7911 Section 3 - Context-aware encoding.
 // PREVENTS: ADD-PATH negotiation mismatches causing session drops.
 func TestLabeledUnicastWriteNLRI(t *testing.T) {
+	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/8")
 
 	tests := []struct {
@@ -156,6 +162,7 @@ func TestLabeledUnicastWriteNLRI(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 100)
 			n := nlri.WriteNLRI(tt.lu, buf, 0, tt.addPath)
 			assert.Equal(t, tt.expected, buf[:n])
@@ -168,6 +175,7 @@ func TestLabeledUnicastWriteNLRI(t *testing.T) {
 // VALIDATES: LabeledUnicast String() outputs command-style format for API round-trip.
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestLabeledUnicastStringCommandStyle(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		lu       *LabeledUnicast
@@ -202,6 +210,7 @@ func TestLabeledUnicastStringCommandStyle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.lu.String())
 		})
 	}
@@ -212,6 +221,7 @@ func TestLabeledUnicastStringCommandStyle(t *testing.T) {
 // VALIDATES: RFC 8277 Section 2.3 - Multiple Labels encoding.
 // PREVENTS: Label stack corruption breaking MPLS forwarding.
 func TestLabeledUnicastLabelStack(t *testing.T) {
+	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/8")
 	lu := NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, []uint32{100, 200}, 0)
 
@@ -225,6 +235,7 @@ func TestLabeledUnicastLabelStack(t *testing.T) {
 // VALIDATES: WriteTo produces identical wire format to Bytes().
 // PREVENTS: Route replay producing different wire encoding than original announcement.
 func TestLabeledUnicastWireConsistency(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		prefix netip.Prefix
@@ -238,6 +249,7 @@ func TestLabeledUnicastWireConsistency(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			lu := NewLabeledUnicast(Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, tt.prefix, []uint32{tt.label}, tt.pathID)
 
 			bytesOut := lu.Bytes()
@@ -266,6 +278,7 @@ func TestLabeledUnicastWireConsistency(t *testing.T) {
 // VALIDATES: Family().SAFI is always SAFIMPLSLabel regardless of input.
 // PREVENTS: Wrong SAFI being used in MP_REACH_NLRI.
 func TestLabeledUnicastFamilyOverride(t *testing.T) {
+	t.Parallel()
 	prefix := netip.MustParsePrefix("10.0.0.0/8")
 
 	// Even if we pass SAFIUnicast, the result should have SAFI=4

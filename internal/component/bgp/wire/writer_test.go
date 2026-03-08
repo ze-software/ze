@@ -13,6 +13,7 @@ import (
 // VALIDATES: Write, Reset, Bytes work correctly.
 // PREVENTS: Buffer corruption or incorrect offset tracking.
 func TestSessionBufferBasic(t *testing.T) {
+	t.Parallel()
 	sb := wire.NewSessionBuffer(false) // 4096 bytes
 
 	if sb.Cap() != 4096 {
@@ -66,6 +67,7 @@ func TestSessionBufferBasic(t *testing.T) {
 // VALIDATES: Extended buffer is 65535 bytes.
 // PREVENTS: Incorrect buffer size for extended messages.
 func TestSessionBufferExtended(t *testing.T) {
+	t.Parallel()
 	sb := wire.NewSessionBuffer(true) // 65535 bytes
 
 	if sb.Cap() != 65535 {
@@ -78,6 +80,7 @@ func TestSessionBufferExtended(t *testing.T) {
 // VALIDATES: Resize preserves existing data and expands capacity.
 // PREVENTS: Data loss during resize.
 func TestSessionBufferResize(t *testing.T) {
+	t.Parallel()
 	sb := wire.NewSessionBuffer(false) // Start with 4096
 
 	// Write some data
@@ -102,6 +105,7 @@ func TestSessionBufferResize(t *testing.T) {
 // VALIDATES: Resize doesn't reallocate unnecessarily.
 // PREVENTS: Wasted allocations.
 func TestSessionBufferResizeNoop(t *testing.T) {
+	t.Parallel()
 	sb := wire.NewSessionBuffer(true) // Already 65535
 
 	// Get pointer to underlying buffer
@@ -126,6 +130,7 @@ func TestSessionBufferResizeNoop(t *testing.T) {
 // VALIDATES: Remaining() returns correct available space.
 // PREVENTS: Buffer overflow from incorrect capacity tracking.
 func TestSessionBufferRemaining(t *testing.T) {
+	t.Parallel()
 	sb := wire.NewSessionBuffer(false) // 4096
 
 	if sb.Remaining() != 4096 {
@@ -144,6 +149,7 @@ func TestSessionBufferRemaining(t *testing.T) {
 // VALIDATES: WriteByte works correctly.
 // PREVENTS: Off-by-one errors in single byte writes.
 func TestSessionBufferWriteByte(t *testing.T) {
+	t.Parallel()
 	sb := wire.NewSessionBuffer(false)
 
 	_ = sb.WriteByte(0xFF)
@@ -160,6 +166,7 @@ func TestSessionBufferWriteByte(t *testing.T) {
 // VALIDATES: WriteUint16 writes in network byte order.
 // PREVENTS: Endianness bugs.
 func TestSessionBufferWriteUint16(t *testing.T) {
+	t.Parallel()
 	sb := wire.NewSessionBuffer(false)
 
 	sb.WriteUint16(0x1234)
@@ -175,6 +182,7 @@ func TestSessionBufferWriteUint16(t *testing.T) {
 // VALIDATES: WriteUint32 writes in network byte order.
 // PREVENTS: Endianness bugs.
 func TestSessionBufferWriteUint32(t *testing.T) {
+	t.Parallel()
 	sb := wire.NewSessionBuffer(false)
 
 	sb.WriteUint32(0x12345678)
@@ -190,6 +198,7 @@ func TestSessionBufferWriteUint32(t *testing.T) {
 // VALIDATES: Offset() and SetOffset() work correctly.
 // PREVENTS: Incorrect position tracking for placeholder fills.
 func TestSessionBufferOffset(t *testing.T) {
+	t.Parallel()
 	sb := wire.NewSessionBuffer(false)
 
 	if sb.Offset() != 0 {
@@ -219,6 +228,7 @@ func TestSessionBufferOffset(t *testing.T) {
 // VALIDATES: PutUint16At writes at correct position without moving offset.
 // PREVENTS: Placeholder fill bugs.
 func TestSessionBufferPutUint16At(t *testing.T) {
+	t.Parallel()
 	sb := wire.NewSessionBuffer(false)
 
 	// Write header with placeholder
@@ -244,6 +254,7 @@ func TestSessionBufferPutUint16At(t *testing.T) {
 // VALIDATES: CheckedWrite validates buffer capacity before writing.
 // PREVENTS: Buffer overflow from unchecked writes.
 func TestCheckedWriteReturnsErrBufferTooSmall(t *testing.T) {
+	t.Parallel()
 	sb := wire.NewSessionBuffer(false)
 	buf := sb.Buffer()
 
@@ -269,6 +280,7 @@ func TestCheckedWriteReturnsErrBufferTooSmall(t *testing.T) {
 // VALIDATES: CheckedWrite writes data and returns correct count.
 // PREVENTS: False negatives in capacity checks.
 func TestCheckedWriteSuccess(t *testing.T) {
+	t.Parallel()
 	sb := wire.NewSessionBuffer(false)
 
 	data := []byte{1, 2, 3, 4, 5}

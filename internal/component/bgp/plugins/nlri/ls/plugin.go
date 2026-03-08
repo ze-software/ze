@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/nlri-bgpls.md — BGP-LS NLRI plugin
 // RFC: rfc/short/rfc7752.md
 
-package bgp_nlri_ls
+package ls
 
 import (
 	"bufio"

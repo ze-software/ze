@@ -8,7 +8,7 @@
 // RFC 7752: North-Bound Distribution of Link-State and TE Information Using BGP
 // RFC 9085: BGP-LS Extensions for Segment Routing
 // RFC 9514: BGP-LS Extensions for SRv6
-package bgp_nlri_ls
+package ls
 
 import (
 	"encoding/binary"

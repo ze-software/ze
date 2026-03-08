@@ -1,4 +1,4 @@
-package bgp_nlri_mvpn
+package mvpn
 
 import (
 	"testing"

@@ -6,7 +6,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/pool"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 )
 
 // FamilyRIB stores routes with per-attribute-type deduplication.

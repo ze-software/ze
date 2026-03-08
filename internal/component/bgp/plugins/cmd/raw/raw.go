@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — BGP raw message handlers
 // Overview: doc.go — bgp-cmd-raw plugin registration
 
-package bgpcmdraw
+package raw
 
 import (
 	"encoding/base64"

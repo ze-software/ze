@@ -4,7 +4,7 @@
 // It advertises the software version of the BGP speaker (code 75).
 //
 // draft-ietf-idr-software-version: BGP Software Version Capability.
-package bgp_softver
+package softver
 
 import (
 	"bufio"
@@ -17,7 +17,7 @@ import (
 	"net"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-softver/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver/schema"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )

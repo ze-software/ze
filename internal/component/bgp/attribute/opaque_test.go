@@ -11,6 +11,7 @@ import (
 // VALIDATES: OpaqueAttribute stores flags, code, and data correctly.
 // PREVENTS: Data corruption or flag loss for unknown attributes.
 func TestOpaqueAttributeBasic(t *testing.T) {
+	t.Parallel()
 	flags := FlagOptional | FlagTransitive
 	code := AttributeCode(99) // Unknown attribute code
 	data := []byte{0x01, 0x02, 0x03, 0x04}
@@ -33,6 +34,7 @@ func TestOpaqueAttributeBasic(t *testing.T) {
 // VALIDATES: Unknown attribute value is preserved exactly.
 // PREVENTS: Modification or corruption of unknown attribute data.
 func TestOpaqueAttributeWriteTo(t *testing.T) {
+	t.Parallel()
 	data := []byte{0xDE, 0xAD, 0xBE, 0xEF}
 	attr := NewOpaqueAttribute(FlagOptional|FlagTransitive, AttributeCode(200), data)
 
@@ -54,6 +56,7 @@ func TestOpaqueAttributeWriteTo(t *testing.T) {
 // VALIDATES: Unknown attributes write the same regardless of context.
 // PREVENTS: Incorrect re-encoding of unknown attribute structures.
 func TestOpaqueAttributeWriteToWithContext(t *testing.T) {
+	t.Parallel()
 	data := []byte{0x01, 0x02, 0x03}
 	attr := NewOpaqueAttribute(FlagOptional|FlagTransitive, AttributeCode(100), data)
 
@@ -90,6 +93,7 @@ func TestOpaqueAttributeWriteToWithContext(t *testing.T) {
 // VALIDATES: OpaqueAttribute WriteTo produces expected content.
 // PREVENTS: Data corruption in zero-copy forwarding path.
 func TestOpaqueAttributeWriteToContent(t *testing.T) {
+	t.Parallel()
 	data := []byte{0x01, 0x02, 0x03}
 	attr := NewOpaqueAttribute(FlagOptional|FlagTransitive, AttributeCode(100), data)
 
@@ -112,6 +116,7 @@ func TestOpaqueAttributeWriteToContent(t *testing.T) {
 // VALIDATES: Partial flag is preserved for forwarding.
 // PREVENTS: RFC 4271 violation - Partial bit must be preserved for transitive unknown attributes.
 func TestOpaqueAttributePreservesPartialFlag(t *testing.T) {
+	t.Parallel()
 	// RFC 4271: Partial bit indicates incomplete propagation
 	flags := FlagOptional | FlagTransitive | FlagPartial
 	attr := NewOpaqueAttribute(flags, AttributeCode(150), []byte{0x01})
@@ -129,6 +134,7 @@ func TestOpaqueAttributePreservesPartialFlag(t *testing.T) {
 // VALIDATES: Empty data is valid for opaque attributes.
 // PREVENTS: Nil pointer issues with zero-length unknown attributes.
 func TestOpaqueAttributeEmptyData(t *testing.T) {
+	t.Parallel()
 	attr := NewOpaqueAttribute(FlagOptional|FlagTransitive, AttributeCode(50), nil)
 
 	if attr.Len() != 0 {
@@ -147,5 +153,6 @@ func TestOpaqueAttributeEmptyData(t *testing.T) {
 // VALIDATES: OpaqueAttribute satisfies Attribute interface.
 // PREVENTS: Compile-time interface mismatch.
 func TestOpaqueAttributeImplementsInterface(t *testing.T) {
+	t.Parallel()
 	var _ Attribute = (*OpaqueAttribute)(nil)
 }

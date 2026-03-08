@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/nlri.md — MUP NLRI wire encoding from route commands
 // RFC: rfc/short/draft-ietf-bess-mup-safi.md — MUP SAFI wire format
 
-package bgp_nlri_mup
+package mup
 
 import (
 	"encoding/binary"

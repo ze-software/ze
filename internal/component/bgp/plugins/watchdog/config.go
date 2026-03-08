@@ -3,7 +3,7 @@
 // Related: server.go — command dispatch and state management
 // Related: pool.go — route pool management
 
-package bgp_watchdog
+package watchdog
 
 import (
 	"encoding/json"

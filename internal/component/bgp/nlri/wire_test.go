@@ -10,6 +10,7 @@ import (
 // VALIDATES: Constructor stores family, data, hasAddPath.
 // PREVENTS: Missing initialization.
 func TestNewWireNLRI(t *testing.T) {
+	t.Parallel()
 	data := []byte{24, 10, 0, 0} // 10.0.0.0/24
 	w, err := NewWireNLRI(IPv4Unicast, data, false)
 	if err != nil {
@@ -28,6 +29,7 @@ func TestNewWireNLRI(t *testing.T) {
 // VALIDATES: Family getter works.
 // PREVENTS: Wrong family returned.
 func TestWireNLRI_Family(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		family Family
 	}{
@@ -48,6 +50,7 @@ func TestWireNLRI_Family(t *testing.T) {
 // VALIDATES: Bytes returns data without path-id prefix.
 // PREVENTS: Truncation or modification.
 func TestWireNLRI_Bytes_NoAddPath(t *testing.T) {
+	t.Parallel()
 	data := []byte{24, 10, 0, 0} // 10.0.0.0/24
 	w, _ := NewWireNLRI(IPv4Unicast, data, false)
 	if !bytes.Equal(w.Bytes(), data) {
@@ -60,6 +63,7 @@ func TestWireNLRI_Bytes_NoAddPath(t *testing.T) {
 // VALIDATES: Bytes returns full data with path-id prefix.
 // PREVENTS: Path-id being stripped when not requested.
 func TestWireNLRI_Bytes_WithAddPath(t *testing.T) {
+	t.Parallel()
 	// path-id=1 + 10.0.0.0/24
 	data := []byte{0, 0, 0, 1, 24, 10, 0, 0}
 	w, _ := NewWireNLRI(IPv4Unicast, data, true)
@@ -73,6 +77,7 @@ func TestWireNLRI_Bytes_WithAddPath(t *testing.T) {
 // VALIDATES: Len returns payload byte count per NLRI interface contract.
 // PREVENTS: Wrong length calculation.
 func TestWireNLRI_Len(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		data   []byte
 		addp   bool
@@ -94,6 +99,7 @@ func TestWireNLRI_Len(t *testing.T) {
 // VALIDATES: PathID returns 0 for non-ADD-PATH NLRI.
 // PREVENTS: Incorrect path-id extraction.
 func TestWireNLRI_PathID_NoAddPath(t *testing.T) {
+	t.Parallel()
 	data := []byte{24, 10, 0, 0}
 	w, _ := NewWireNLRI(IPv4Unicast, data, false)
 	if w.PathID() != 0 {
@@ -106,6 +112,7 @@ func TestWireNLRI_PathID_NoAddPath(t *testing.T) {
 // VALIDATES: PathID extracts 4-byte path-id from data.
 // PREVENTS: Wrong path-id value.
 func TestWireNLRI_PathID_WithAddPath(t *testing.T) {
+	t.Parallel()
 	// path-id=258 (0x00000102) + 10.0.0.0/24
 	data := []byte{0, 0, 1, 2, 24, 10, 0, 0}
 	w, _ := NewWireNLRI(IPv4Unicast, data, true)
@@ -119,6 +126,7 @@ func TestWireNLRI_PathID_WithAddPath(t *testing.T) {
 // VALIDATES: WriteNLRI passes through when source and target match.
 // PREVENTS: Unnecessary modification.
 func TestWireNLRI_WriteNLRI_NoMismatch(t *testing.T) {
+	t.Parallel()
 	data := []byte{24, 10, 0, 0}
 	w, _ := NewWireNLRI(IPv4Unicast, data, false)
 
@@ -135,6 +143,7 @@ func TestWireNLRI_WriteNLRI_NoMismatch(t *testing.T) {
 // VALIDATES: RFC 7911 path-id stripping works.
 // PREVENTS: Path-id leaked to non-ADD-PATH peer.
 func TestWireNLRI_WriteNLRI_StripPathID(t *testing.T) {
+	t.Parallel()
 	// path-id=1 + 10.0.0.0/24
 	data := []byte{0, 0, 0, 1, 24, 10, 0, 0}
 	w, _ := NewWireNLRI(IPv4Unicast, data, true)
@@ -153,6 +162,7 @@ func TestWireNLRI_WriteNLRI_StripPathID(t *testing.T) {
 // VALIDATES: RFC 7911 NOPATH prepending works.
 // PREVENTS: Missing path-id for ADD-PATH peer.
 func TestWireNLRI_WriteNLRI_PrependNOPATH(t *testing.T) {
+	t.Parallel()
 	data := []byte{24, 10, 0, 0}
 	w, _ := NewWireNLRI(IPv4Unicast, data, false)
 
@@ -170,6 +180,7 @@ func TestWireNLRI_WriteNLRI_PrependNOPATH(t *testing.T) {
 // VALIDATES: Constructor validates data length for ADD-PATH.
 // PREVENTS: Panic on short data.
 func TestNewWireNLRI_Malformed(t *testing.T) {
+	t.Parallel()
 	// Too short for ADD-PATH (need at least 4 bytes for path-id)
 	data := []byte{24, 10}
 	_, err := NewWireNLRI(IPv4Unicast, data, true)
@@ -183,6 +194,7 @@ func TestNewWireNLRI_Malformed(t *testing.T) {
 // VALIDATES: WriteTo writes correct bytes at offset.
 // PREVENTS: Wrong data or offset handling.
 func TestWireNLRI_WriteTo(t *testing.T) {
+	t.Parallel()
 	data := []byte{24, 10, 0, 0}
 	w, _ := NewWireNLRI(IPv4Unicast, data, false)
 
@@ -201,6 +213,7 @@ func TestWireNLRI_WriteTo(t *testing.T) {
 // VALIDATES: String returns meaningful representation.
 // PREVENTS: Panic or empty string.
 func TestWireNLRI_String(t *testing.T) {
+	t.Parallel()
 	data := []byte{24, 10, 0, 0}
 	w, _ := NewWireNLRI(IPv4Unicast, data, false)
 	s := w.String()

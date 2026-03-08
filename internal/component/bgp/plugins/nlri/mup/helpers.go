@@ -3,7 +3,7 @@
 //
 // Shared utilities for building MUP NLRI data. Used by config (loader.go)
 // and reactor (reactor.go) to avoid duplicating MUP prefix/TEID encoding.
-package bgp_nlri_mup
+package mup
 
 import "net/netip"
 

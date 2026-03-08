@@ -1,4 +1,4 @@
-package bgpcmdupdate
+package update
 
 import (
 	"net/netip"

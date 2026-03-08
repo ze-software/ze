@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — BGP command discovery handlers
 // Overview: doc.go — bgp-cmd-meta plugin overview
 
-package bgpcmdmeta
+package meta
 
 import (
 	"fmt"

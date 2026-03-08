@@ -13,6 +13,7 @@ import (
 // VALIDATES: Builder produces correct ORIGIN wire format.
 // PREVENTS: Incorrect origin values in announcements.
 func TestBuilderOrigin(t *testing.T) {
+	t.Parallel()
 	b := NewBuilder()
 	b.SetOrigin(0) // IGP
 
@@ -31,6 +32,7 @@ func TestBuilderOrigin(t *testing.T) {
 // VALIDATES: Builder produces correct LOCAL_PREF wire format.
 // PREVENTS: Incorrect local preference in iBGP announcements.
 func TestBuilderLocalPref(t *testing.T) {
+	t.Parallel()
 	b := NewBuilder()
 	b.SetLocalPref(200)
 
@@ -52,6 +54,7 @@ func TestBuilderLocalPref(t *testing.T) {
 // VALIDATES: Builder produces correct MED wire format.
 // PREVENTS: Incorrect MED values affecting route selection.
 func TestBuilderMED(t *testing.T) {
+	t.Parallel()
 	b := NewBuilder()
 	b.SetMED(100)
 
@@ -72,6 +75,7 @@ func TestBuilderMED(t *testing.T) {
 // VALIDATES: Builder produces correct AS_PATH wire format.
 // PREVENTS: Loop detection failures from malformed AS_PATH.
 func TestBuilderASPath(t *testing.T) {
+	t.Parallel()
 	b := NewBuilder()
 	b.SetASPath([]uint32{65001, 65002})
 
@@ -95,6 +99,7 @@ func TestBuilderASPath(t *testing.T) {
 // VALIDATES: Builder produces correct community wire format.
 // PREVENTS: Policy failures from malformed communities.
 func TestBuilderCommunities(t *testing.T) {
+	t.Parallel()
 	b := NewBuilder()
 	b.AddCommunity(65000, 100)
 	b.AddCommunity(65000, 200)
@@ -119,6 +124,7 @@ func TestBuilderCommunities(t *testing.T) {
 // VALIDATES: Builder produces correct large community wire format.
 // PREVENTS: Policy failures from malformed large communities.
 func TestBuilderLargeCommunities(t *testing.T) {
+	t.Parallel()
 	b := NewBuilder()
 	b.AddLargeCommunity(65000, 1, 2)
 
@@ -138,6 +144,7 @@ func TestBuilderLargeCommunities(t *testing.T) {
 // VALIDATES: Builder methods return self for chaining.
 // PREVENTS: Verbose code when building multiple attributes.
 func TestBuilderChaining(t *testing.T) {
+	t.Parallel()
 	wire := NewBuilder().
 		SetOrigin(0).
 		SetLocalPref(100).
@@ -155,6 +162,7 @@ func TestBuilderChaining(t *testing.T) {
 // VALIDATES: Empty builder produces no attributes.
 // PREVENTS: Unexpected default attributes.
 func TestBuilderEmpty(t *testing.T) {
+	t.Parallel()
 	b := NewBuilder()
 	wire := b.Build()
 
@@ -167,6 +175,7 @@ func TestBuilderEmpty(t *testing.T) {
 // VALIDATES: SetWire returns bytes directly without rebuilding.
 // PREVENTS: Unnecessary re-encoding for forwarded routes.
 func TestBuilderWirePassthrough(t *testing.T) {
+	t.Parallel()
 	original := []byte{0x40, 0x01, 0x01, 0x00}
 	b := NewBuilder()
 	b.SetWire(original)
@@ -180,6 +189,7 @@ func TestBuilderWirePassthrough(t *testing.T) {
 // VALIDATES: Reset allows builder reuse.
 // PREVENTS: State leakage between builds.
 func TestBuilderReset(t *testing.T) {
+	t.Parallel()
 	b := NewBuilder()
 	b.SetOrigin(1)
 	b.SetLocalPref(100)
@@ -198,6 +208,7 @@ func TestBuilderReset(t *testing.T) {
 // VALIDATES: Builder produces correct NEXT_HOP wire format.
 // PREVENTS: Routing failures from malformed next-hop.
 func TestBuilderNextHop(t *testing.T) {
+	t.Parallel()
 	b := NewBuilder()
 	b.SetNextHop([4]byte{192, 168, 1, 1})
 
@@ -218,6 +229,7 @@ func TestBuilderNextHop(t *testing.T) {
 // VALIDATES: SetNextHopAddr correctly converts netip.Addr.
 // PREVENTS: Address conversion errors.
 func TestBuilderNextHopAddr(t *testing.T) {
+	t.Parallel()
 	b := NewBuilder()
 	addr := netip.MustParseAddr("10.0.0.1")
 	b.SetNextHopAddr(addr)
@@ -235,6 +247,7 @@ func TestBuilderNextHopAddr(t *testing.T) {
 // VALIDATES: IPv6 addresses don't set NEXT_HOP attribute.
 // PREVENTS: Invalid NEXT_HOP encoding for IPv6 routes.
 func TestBuilderNextHopAddrIPv6Ignored(t *testing.T) {
+	t.Parallel()
 	b := NewBuilder()
 	addr := netip.MustParseAddr("2001:db8::1")
 	b.SetNextHopAddr(addr)
@@ -250,6 +263,7 @@ func TestBuilderNextHopAddrIPv6Ignored(t *testing.T) {
 // VALIDATES: Len() matches Build() output length.
 // PREVENTS: Buffer size mismatches in zero-allocation encoding.
 func TestBuilderLen(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		setup func(*Builder)
@@ -270,6 +284,7 @@ func TestBuilderLen(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			b := NewBuilder()
 			tt.setup(b)
 
@@ -286,6 +301,7 @@ func TestBuilderLen(t *testing.T) {
 // VALIDATES: WriteTo produces identical wire format as Build.
 // PREVENTS: Inconsistency between Build and WriteTo.
 func TestBuilderWriteTo(t *testing.T) {
+	t.Parallel()
 	b := NewBuilder()
 	b.SetOrigin(0).SetLocalPref(200).SetMED(100)
 	b.SetASPath([]uint32{65001, 65002, 65003})
@@ -309,6 +325,7 @@ func TestBuilderWriteTo(t *testing.T) {
 // VALIDATES: WriteTo correctly handles pre-built wire bytes.
 // PREVENTS: Wire passthrough failing with WriteTo.
 func TestBuilderWriteToWire(t *testing.T) {
+	t.Parallel()
 	wire := []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64}
 	b := NewBuilder()
 	b.SetWire(wire)

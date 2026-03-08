@@ -1,4 +1,4 @@
-package bgp_nlri_evpn
+package evpn
 
 import (
 	"bytes"
@@ -30,6 +30,7 @@ func buildEVPNData(routeType EVPNRouteType, length byte, components ...[]byte) [
 // VALIDATES: Basic MAC advertisement without IP.
 // PREVENTS: MAC-only route parsing failures.
 func TestEVPNType2MACOnly(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64} // 65000:100
 	esi := make([]byte, 10)
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
@@ -60,6 +61,7 @@ func TestEVPNType2MACOnly(t *testing.T) {
 // VALIDATES: MAC+IPv4 advertisement.
 // PREVENTS: IPv4 parsing errors in MAC/IP routes.
 func TestEVPNType2MACIPv4(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := make([]byte, 10)
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
@@ -85,6 +87,7 @@ func TestEVPNType2MACIPv4(t *testing.T) {
 // VALIDATES: MAC+IPv6 advertisement.
 // PREVENTS: IPv6 parsing errors in MAC/IP routes.
 func TestEVPNType2MACIPv6(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := make([]byte, 10)
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
@@ -110,6 +113,7 @@ func TestEVPNType2MACIPv6(t *testing.T) {
 // VALIDATES: IMET route for BUM traffic.
 // PREVENTS: Multicast route parsing failures.
 func TestEVPNType3(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
 	ipLen := byte(32)
@@ -133,6 +137,7 @@ func TestEVPNType3(t *testing.T) {
 // VALIDATES: RFC 9136 Section 3.1 - IPv4 IP Prefix route.
 // PREVENTS: Incorrect variable-length prefix parsing that violates RFC 9136.
 func TestEVPNType5IPv4(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := make([]byte, 10)
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
@@ -163,6 +168,7 @@ func TestEVPNType5IPv4(t *testing.T) {
 // VALIDATES: RFC 9136 Section 3.1 - IPv6 IP Prefix route.
 // PREVENTS: Incorrect variable-length prefix parsing for IPv6.
 func TestEVPNType5IPv6(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := make([]byte, 10)
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
@@ -188,6 +194,7 @@ func TestEVPNType5IPv6(t *testing.T) {
 // VALIDATES: RFC 9136 requirement that length MUST be 34 (IPv4) or 58 (IPv6).
 // PREVENTS: Accepting malformed Type 5 routes with incorrect lengths.
 func TestEVPNType5InvalidLength(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := make([]byte, 10)
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
@@ -205,6 +212,7 @@ func TestEVPNType5InvalidLength(t *testing.T) {
 
 // TestEVPNRouteTypeString verifies route type string representation.
 func TestEVPNRouteTypeString(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "ethernet-auto-discovery", EVPNRouteType1.String())
 	assert.Equal(t, "mac-ip-advertisement", EVPNRouteType2.String())
 	assert.Equal(t, "inclusive-multicast", EVPNRouteType3.String())
@@ -217,6 +225,7 @@ func TestEVPNRouteTypeString(t *testing.T) {
 // VALIDATES: RFC 7432 Section 7.1 - Ethernet A-D route format.
 // PREVENTS: Parsing failures for Ethernet Auto-Discovery routes.
 func TestEVPNType1(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
 	ethTag := []byte{0x00, 0x00, 0x00, 0x0A}
@@ -245,6 +254,7 @@ func TestEVPNType1(t *testing.T) {
 // VALIDATES: Ethernet Auto-Discovery with path ID (RFC 7911 support).
 // PREVENTS: Add-path parsing errors for Type 1 routes.
 func TestEVPNType1WithAddPath(t *testing.T) {
+	t.Parallel()
 	pathID := []byte{0x00, 0x00, 0x00, 0x05}
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := make([]byte, 10)
@@ -272,6 +282,7 @@ func TestEVPNType1WithAddPath(t *testing.T) {
 // VALIDATES: RFC 7432 Section 7.4 - Ethernet Segment route format.
 // PREVENTS: Parsing failures for Ethernet Segment routes.
 func TestEVPNType4IPv4(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
 	ipLen := byte(32)
@@ -299,6 +310,7 @@ func TestEVPNType4IPv4(t *testing.T) {
 // VALIDATES: RFC 7432 Section 7.4 - Ethernet Segment route with IPv6.
 // PREVENTS: IPv6 parsing errors in Ethernet Segment routes.
 func TestEVPNType4IPv6(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
 	ipLen := byte(128)
@@ -320,6 +332,7 @@ func TestEVPNType4IPv6(t *testing.T) {
 // VALIDATES: Rejection of invalid IP address lengths per RFC 7432.
 // PREVENTS: Accepting malformed Ethernet Segment routes.
 func TestEVPNType4InvalidIPLen(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := make([]byte, 10)
 	ipLen := byte(64)
@@ -334,6 +347,7 @@ func TestEVPNType4InvalidIPLen(t *testing.T) {
 
 // TestEVPNErrors verifies error handling.
 func TestEVPNErrors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		data []byte
@@ -345,6 +359,7 @@ func TestEVPNErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, _, err := ParseEVPN(tt.data, false)
 			require.Error(t, err)
 		})
@@ -356,6 +371,7 @@ func TestEVPNErrors(t *testing.T) {
 // VALIDATES: Bytes() produces wire format that ParseEVPN() can read back.
 // PREVENTS: Asymmetric encoding that would corrupt routes.
 func TestEVPNType1RoundTrip(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
 	ethTag := []byte{0x00, 0x00, 0x00, 0x0A}
@@ -379,6 +395,7 @@ func TestEVPNType1RoundTrip(t *testing.T) {
 // VALIDATES: Bytes() correctly encodes MAC-only routes.
 // PREVENTS: MAC-only routes being corrupted.
 func TestEVPNType2RoundTripMACOnly(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := make([]byte, 10)
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
@@ -405,6 +422,7 @@ func TestEVPNType2RoundTripMACOnly(t *testing.T) {
 // VALIDATES: Bytes() correctly encodes MAC+IPv4 routes.
 // PREVENTS: IPv4 address corruption in MAC/IP advertisement routes.
 func TestEVPNType2RoundTripWithIPv4(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := make([]byte, 10)
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
@@ -432,6 +450,7 @@ func TestEVPNType2RoundTripWithIPv4(t *testing.T) {
 // VALIDATES: Bytes() correctly encodes MAC+IPv6 routes.
 // PREVENTS: IPv6 address corruption in MAC/IP advertisement routes.
 func TestEVPNType2RoundTripWithIPv6(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := make([]byte, 10)
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
@@ -459,6 +478,7 @@ func TestEVPNType2RoundTripWithIPv6(t *testing.T) {
 // VALIDATES: Bytes() correctly encodes Inclusive Multicast routes.
 // PREVENTS: BUM traffic flooding issues from malformed Type 3 routes.
 func TestEVPNType3RoundTripIPv4(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
 	ipLen := byte(32)
@@ -482,6 +502,7 @@ func TestEVPNType3RoundTripIPv4(t *testing.T) {
 // VALIDATES: Bytes() correctly encodes Inclusive Multicast routes with IPv6.
 // PREVENTS: IPv6 originator address corruption in IMET routes.
 func TestEVPNType3RoundTripIPv6(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
 	ipLen := byte(128)
@@ -505,6 +526,7 @@ func TestEVPNType3RoundTripIPv6(t *testing.T) {
 // VALIDATES: Bytes() correctly encodes Ethernet Segment routes.
 // PREVENTS: DF election failures from malformed Type 4 routes.
 func TestEVPNType4RoundTripIPv4(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
 	ipLen := byte(32)
@@ -528,6 +550,7 @@ func TestEVPNType4RoundTripIPv4(t *testing.T) {
 // VALIDATES: Bytes() correctly encodes Ethernet Segment routes with IPv6.
 // PREVENTS: IPv6 originator address corruption in ES routes.
 func TestEVPNType4RoundTripIPv6(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
 	ipLen := byte(128)
@@ -551,6 +574,7 @@ func TestEVPNType4RoundTripIPv6(t *testing.T) {
 // VALIDATES: Bytes() correctly encodes IP Prefix routes per RFC 9136.
 // PREVENTS: IP prefix routes being malformed.
 func TestEVPNType5RoundTripIPv4(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := make([]byte, 10)
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
@@ -577,6 +601,7 @@ func TestEVPNType5RoundTripIPv4(t *testing.T) {
 // VALIDATES: Bytes() correctly encodes IPv6 prefix routes per RFC 9136.
 // PREVENTS: IPv6 prefix routes being malformed.
 func TestEVPNType5RoundTripIPv6(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := make([]byte, 10)
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
@@ -603,6 +628,7 @@ func TestEVPNType5RoundTripIPv6(t *testing.T) {
 // VALIDATES: Bytes() correctly encodes multiple MPLS labels with BOS bit.
 // PREVENTS: Label stack corruption breaking EVPN-MPLS forwarding.
 func TestEVPNType1RoundTripMultiLabel(t *testing.T) {
+	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
 	ethTag := []byte{0x00, 0x00, 0x00, 0x0A}
@@ -627,6 +653,7 @@ func TestEVPNType1RoundTripMultiLabel(t *testing.T) {
 // VALIDATES: ParseESIString handles all formats.
 // PREVENTS: ESI string parsing bugs.
 func TestParseESIString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		input    string
 		expected ESI
@@ -645,6 +672,7 @@ func TestParseESIString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			result, err := ParseESIString(tt.input)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -661,6 +689,7 @@ func TestParseESIString(t *testing.T) {
 // VALIDATES: Type 2 output uses "mac-ip rd ... mac ..." format.
 // PREVENTS: Output mismatch with input parser expectations.
 func TestEVPNType2StringCommandStyle(t *testing.T) {
+	t.Parallel()
 	rd, _ := ParseRDString("65000:100")
 	mac := [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
 
@@ -676,6 +705,7 @@ func TestEVPNType2StringCommandStyle(t *testing.T) {
 // VALIDATES: Type 2 with IP outputs proper format.
 // PREVENTS: Missing IP in output when present.
 func TestEVPNType2WithIPStringCommandStyle(t *testing.T) {
+	t.Parallel()
 	rd, _ := ParseRDString("65000:100")
 	mac := [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
 	ip := netip.MustParseAddr("192.168.1.1")
@@ -695,6 +725,7 @@ func TestEVPNType2WithIPStringCommandStyle(t *testing.T) {
 // VALIDATES: Type 3 output uses "multicast rd ... ip ..." format.
 // PREVENTS: Output mismatch with input parser expectations.
 func TestEVPNType3StringCommandStyle(t *testing.T) {
+	t.Parallel()
 	rd, _ := ParseRDString("65000:100")
 	ip := netip.MustParseAddr("10.0.0.1")
 
@@ -711,6 +742,7 @@ func TestEVPNType3StringCommandStyle(t *testing.T) {
 // VALIDATES: Type 5 output uses "ip-prefix rd ... prefix ..." format.
 // PREVENTS: Output mismatch with input parser expectations.
 func TestEVPNType5StringCommandStyle(t *testing.T) {
+	t.Parallel()
 	rd, _ := ParseRDString("65000:100")
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 
@@ -727,6 +759,7 @@ func TestEVPNType5StringCommandStyle(t *testing.T) {
 // VALIDATES: Type 1 output uses "ethernet-ad rd ... esi ..." format.
 // PREVENTS: Output mismatch with input parser expectations.
 func TestEVPNType1StringCommandStyle(t *testing.T) {
+	t.Parallel()
 	rd, _ := ParseRDString("65000:100")
 	esi := [10]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
 
@@ -744,6 +777,7 @@ func TestEVPNType1StringCommandStyle(t *testing.T) {
 // VALIDATES: Type 4 output uses "ethernet-segment rd ... esi ..." format.
 // PREVENTS: Output mismatch with input parser expectations.
 func TestEVPNType4StringCommandStyle(t *testing.T) {
+	t.Parallel()
 	rd, _ := ParseRDString("65000:100")
 	esi := [10]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
 	ip := netip.MustParseAddr("10.0.0.1")
@@ -762,6 +796,7 @@ func TestEVPNType4StringCommandStyle(t *testing.T) {
 // VALIDATES: Buffer size from LenWithContext is exactly what WriteNLRI needs.
 // PREVENTS: Buffer overflow when WriteNLRI writes more than LenWithContext predicted.
 func TestLenWithContext_EVPN(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name string
 		nlri nlri.NLRI
@@ -781,6 +816,7 @@ func TestLenWithContext_EVPN(t *testing.T) {
 			name := tt.name + "_" + ctxName
 
 			t.Run(name, func(t *testing.T) {
+				t.Parallel()
 				predictedLen := nlri.LenWithContext(tt.nlri, addPath)
 				buf := make([]byte, predictedLen+10)
 				written := nlri.WriteNLRI(tt.nlri, buf, 0, addPath)
@@ -799,6 +835,7 @@ func TestLenWithContext_EVPN(t *testing.T) {
 // VALIDATES: EVPN wire format is [pathID][type][length][payload].
 // PREVENTS: ADD-PATH encoding bugs.
 func TestWireFormat_EVPN(t *testing.T) {
+	t.Parallel()
 	rd := RouteDistinguisher{Type: 0, Value: [6]byte{0, 0, 0, 0, 0, 1}}
 	mac := [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
 
@@ -836,6 +873,7 @@ func TestWireFormat_EVPN(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 100)
 			n := nlri.WriteNLRI(tt.nlri, buf, 0, tt.addPath)
 
@@ -863,6 +901,7 @@ func TestWireFormat_EVPN(t *testing.T) {
 // VALIDATES: EVPN routes preserve RD, MAC, IP, labels.
 // PREVENTS: EVPN encoding corruption.
 func TestRoundTrip_EVPN(t *testing.T) {
+	t.Parallel()
 	rd := RouteDistinguisher{Type: 0, Value: [6]byte{0, 0, 0, 0, 0, 1}}
 	mac := [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
 
@@ -879,6 +918,7 @@ func TestRoundTrip_EVPN(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 100)
 			n := nlri.WriteNLRI(tt.nlri, buf, 0, tt.addPath)
 			wire := buf[:n]

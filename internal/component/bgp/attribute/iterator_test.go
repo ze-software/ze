@@ -12,6 +12,7 @@ import (
 // VALIDATES: Iterator returns each attribute correctly
 // PREVENTS: Off-by-one errors, incorrect attribute extraction.
 func TestAttrIterator(t *testing.T) {
+	t.Parallel()
 	// Build wire format:
 	// ORIGIN (type 1, transitive, length 1): value = IGP (0)
 	// MED (type 4, optional transitive, length 4): value = 100
@@ -46,6 +47,7 @@ func TestAttrIterator(t *testing.T) {
 // VALIDATES: Iterator handles 2-byte length for large attributes
 // PREVENTS: Incorrect parsing of attributes > 255 bytes.
 func TestAttrIteratorExtendedLength(t *testing.T) {
+	t.Parallel()
 	// Extended length attribute (flags bit 0x10 set)
 	// AS_PATH with 300 bytes of data (hypothetical)
 	data := make([]byte, 4+256) // flags + code + 2-byte len + 256 bytes
@@ -75,6 +77,7 @@ func TestAttrIteratorExtendedLength(t *testing.T) {
 // VALIDATES: Empty buffer returns no items immediately
 // PREVENTS: Panic on empty input.
 func TestAttrIteratorEmpty(t *testing.T) {
+	t.Parallel()
 	iter := NewAttrIterator(nil)
 	_, _, _, ok := iter.Next()
 	assert.False(t, ok)
@@ -89,6 +92,7 @@ func TestAttrIteratorEmpty(t *testing.T) {
 // VALIDATES: Find locates attribute by type code
 // PREVENTS: Missing attributes, incorrect search.
 func TestAttrIteratorFind(t *testing.T) {
+	t.Parallel()
 	data := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN
 		0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x64, // MED
@@ -119,6 +123,7 @@ func TestAttrIteratorFind(t *testing.T) {
 // VALIDATES: Reset allows re-iteration from start
 // PREVENTS: Iterator becoming unusable after exhaustion.
 func TestAttrIteratorReset(t *testing.T) {
+	t.Parallel()
 	data := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN
 		0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x64, // MED
@@ -144,6 +149,7 @@ func TestAttrIteratorReset(t *testing.T) {
 // VALIDATES: Count returns correct number of attributes
 // PREVENTS: Miscounting attributes.
 func TestAttrIteratorCount(t *testing.T) {
+	t.Parallel()
 	data := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN
 		0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x64, // MED
@@ -159,6 +165,7 @@ func TestAttrIteratorCount(t *testing.T) {
 // VALIDATES: Returned slices point to correct buffer regions
 // PREVENTS: Buffer overrun from invalid slicing.
 func TestAttrIteratorValueSlices(t *testing.T) {
+	t.Parallel()
 	data := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN: value at offset 3, len 1
 		0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x64, // MED: value at offset 7, len 4

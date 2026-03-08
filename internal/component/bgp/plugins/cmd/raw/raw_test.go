@@ -1,4 +1,4 @@
-package bgpcmdraw
+package raw
 
 import (
 	"net/netip"

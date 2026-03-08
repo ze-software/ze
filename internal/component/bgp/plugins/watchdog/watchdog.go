@@ -6,7 +6,7 @@
 // Package bgp_watchdog implements a watchdog route management plugin for ze.
 // It manages per-peer config-based watchdog groups. Routes are injected
 // into the engine via "update text" commands.
-package bgp_watchdog
+package watchdog
 
 import (
 	"context"

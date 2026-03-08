@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md — route persistence plugin
 // Related: register.go — plugin registration
 
-package bgp_persist
+package persist
 
 import (
 	"context"

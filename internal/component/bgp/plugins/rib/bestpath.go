@@ -5,7 +5,7 @@
 //
 // Best-path selection per RFC 4271 §9.1.2 Decision Process Phase 2.
 // Pure functions operating on extracted Candidate values — no pool dependency.
-package bgp_rib
+package rib
 
 import (
 	"bytes"

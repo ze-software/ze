@@ -1,4 +1,4 @@
-package bgp_nlri_flowspec
+package flowspec
 
 import (
 	"bytes"
@@ -15,6 +15,7 @@ import (
 // VALIDATES: Plugin correctly parses decode requests and returns JSON.
 // PREVENTS: Decode mode protocol errors, malformed JSON output.
 func TestRunFlowSpecDecode(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -57,6 +58,7 @@ func TestRunFlowSpecDecode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := strings.NewReader(tt.input)
 			output := &bytes.Buffer{}
 
@@ -83,6 +85,7 @@ func TestRunFlowSpecDecode(t *testing.T) {
 // VALIDATES: Only FlowSpec families are accepted.
 // PREVENTS: Non-FlowSpec families being processed.
 func TestIsValidFlowSpecFamily(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		family string
 		valid  bool
@@ -99,6 +102,7 @@ func TestIsValidFlowSpecFamily(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.family, func(t *testing.T) {
+			t.Parallel()
 			got := isValidFlowSpecFamily(tt.family)
 			assert.Equal(t, tt.valid, got)
 		})
@@ -110,6 +114,7 @@ func TestIsValidFlowSpecFamily(t *testing.T) {
 // VALIDATES: All FlowSpec families are listed.
 // PREVENTS: Missing family declarations.
 func TestFlowSpecFamilies(t *testing.T) {
+	t.Parallel()
 	families := FlowSpecFamilies()
 	assert.Len(t, families, 4)
 	assert.Contains(t, families, "ipv4/flow")
@@ -124,6 +129,7 @@ func TestFlowSpecFamilies(t *testing.T) {
 // PREVENTS: Crashes on malformed input, incorrect boundary handling.
 // BOUNDARY: Component type 0 (invalid), 13 (last valid), 14+ (invalid).
 func TestFlowSpecDecodeBoundary(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -183,6 +189,7 @@ func TestFlowSpecDecodeBoundary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := strings.NewReader(tt.input)
 			output := &bytes.Buffer{}
 
@@ -209,6 +216,7 @@ func TestFlowSpecDecodeBoundary(t *testing.T) {
 // VALIDATES: VPN variants correctly parse RD + FlowSpec components per RFC 8955 Section 8.
 // PREVENTS: RD corruption, VPN/non-VPN confusion.
 func TestFlowSpecVPNDecode(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -244,6 +252,7 @@ func TestFlowSpecVPNDecode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := strings.NewReader(tt.input)
 			output := &bytes.Buffer{}
 
@@ -271,6 +280,7 @@ func TestFlowSpecVPNDecode(t *testing.T) {
 // VALIDATES: RunFlowSpecDecode handles encode and decode requests correctly.
 // PREVENTS: Regression in the stdin/stdout decode protocol used by ze bgp decode.
 func TestEncodeDecodeViaRunFlowSpecDecode(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		input        string
@@ -305,6 +315,7 @@ func TestEncodeDecodeViaRunFlowSpecDecode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := strings.NewReader(tt.input)
 			output := &bytes.Buffer{}
 
@@ -328,6 +339,7 @@ func TestEncodeDecodeViaRunFlowSpecDecode(t *testing.T) {
 // VALIDATES: Plugin returns human-readable text for decode text requests.
 // PREVENTS: Missing text format support in plugin protocol.
 func TestRunFlowSpecDecodeTextFormat(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		input        string
@@ -363,6 +375,7 @@ func TestRunFlowSpecDecodeTextFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := strings.NewReader(tt.input)
 			output := &bytes.Buffer{}
 
@@ -388,6 +401,7 @@ func TestRunFlowSpecDecodeTextFormat(t *testing.T) {
 // VALIDATES: Plugin accepts JSON input and encodes to wire bytes.
 // PREVENTS: Missing JSON encode support, breaking round-trip encode/decode.
 func TestEncodeJSONFormat(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		input       string
@@ -431,6 +445,7 @@ func TestEncodeJSONFormat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			input := strings.NewReader(tt.input)
 			output := &bytes.Buffer{}
 
@@ -458,6 +473,7 @@ func TestEncodeJSONFormat(t *testing.T) {
 // VALIDATES: Decode output can be used as encode input, producing same wire bytes.
 // PREVENTS: Format mismatch between decode JSON output and encode JSON input.
 func TestEncodeJSONRoundTrip(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		family string
@@ -554,6 +570,7 @@ func TestEncodeJSONRoundTrip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Step 1: Encode text → hex
 			encodeTextInput := fmt.Sprintf("encode nlri %s %s\n", tt.family, tt.text)
 			encodeTextOutput := &bytes.Buffer{}
@@ -598,6 +615,7 @@ func TestEncodeJSONRoundTrip(t *testing.T) {
 // VALIDATES: RunCLIDecode decodes hex and outputs JSON/text correctly.
 // PREVENTS: CLI mode regression.
 func TestRunCLIDecode(t *testing.T) {
+	t.Parallel()
 	// Valid FlowSpec NLRI: destination 10.0.0.0/24
 	validHex := "0501180A0000"
 
@@ -654,6 +672,7 @@ func TestRunCLIDecode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var out, errOut bytes.Buffer
 			code := RunCLIDecode(tt.hex, tt.family, tt.textOutput, &out, &errOut)
 			assert.Equal(t, tt.wantCode, code)

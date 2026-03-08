@@ -1,4 +1,4 @@
-package bgp_llnh
+package llnh
 
 import (
 	"bytes"

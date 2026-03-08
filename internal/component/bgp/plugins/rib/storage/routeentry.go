@@ -4,7 +4,7 @@ package storage
 
 import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/pool"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 )
 
 // RouteEntry stores per-attribute handles for a single route.

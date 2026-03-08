@@ -2,7 +2,7 @@
 // Overview: server.go — route server plugin orchestration
 // Related: server_withdrawal.go — withdrawal tracking
 
-package bgp_rs
+package rs
 
 import (
 	"fmt"

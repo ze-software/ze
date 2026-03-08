@@ -2,7 +2,7 @@
 // RFC: rfc/short/rfc4724.md — Receiving Speaker procedures (Section 4.2)
 // Overview: gr.go — GR plugin entry point, event dispatch, and capability storage
 
-package bgp_gr
+package gr
 
 import (
 	"sync"

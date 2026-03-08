@@ -1,11 +1,11 @@
-package bgp_route_refresh
+package route_refresh
 
 import (
 	"bytes"
 	"log/slog"
 	"os"
 
-	rrschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-route-refresh/schema"
+	rrschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"

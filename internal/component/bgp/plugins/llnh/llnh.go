@@ -7,7 +7,7 @@
 //
 // Capability 77 has no payload — it is a simple flag signaling willingness
 // to receive IPv6 link-local addresses as BGP next-hops (RFC 2545 Section 3).
-package bgp_llnh
+package llnh
 
 import (
 	"bufio"
@@ -19,7 +19,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-llnh/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/llnh/schema"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )

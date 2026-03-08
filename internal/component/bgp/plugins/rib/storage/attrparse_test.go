@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
-	pool "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/pool"
+	pool "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 )
 
 // Test attribute wire bytes (flags + type + length + value).

@@ -21,7 +21,7 @@
 // Attributes must precede all nlri sections (no interleaving).
 //
 // Note: rd and label are ignored for families that don't support them.
-package bgpcmdupdate
+package update
 
 import (
 	"errors"

@@ -1,7 +1,7 @@
 // Design: docs/architecture/core-design.md — peer event handlers for route server
 // Overview: server.go — route server plugin orchestration
 
-package bgp_rs
+package rs
 
 import (
 	"context"

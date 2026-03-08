@@ -3,7 +3,7 @@
 //
 // update_wire.go provides the wire-encoded update parser.
 // Handles hex and b64 encodings for peer update commands.
-package bgpcmdupdate
+package update
 
 import (
 	"encoding/base64"

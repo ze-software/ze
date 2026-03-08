@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — BGP commit workflow handlers
 // Overview: doc.go — bgp-cmd-commit plugin registration
 
-package bgpcmdcommit
+package commit
 
 import (
 	"errors"
@@ -9,7 +9,7 @@ import (
 	"net/netip"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/commit"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -21,13 +21,13 @@ var (
 	ErrCommitManagerNotAvailable = errors.New("commit manager not available")
 
 	// ErrCommitManagerTypeAssertionFailed is returned when the commit manager
-	// cannot be type-asserted to *commit.CommitManager.
+	// cannot be type-asserted to *transaction.CommitManager.
 	ErrCommitManagerTypeAssertionFailed = errors.New("commit manager type assertion failed")
 )
 
 // requireCommitManager returns the commit manager or an error response.
 // Type-asserts from the opaque any stored in plugin.Server.
-func requireCommitManager(ctx *pluginserver.CommandContext) (*commit.CommitManager, *plugin.Response, error) {
+func requireCommitManager(ctx *pluginserver.CommandContext) (*transaction.CommitManager, *plugin.Response, error) {
 	cm := ctx.CommitManager()
 	if cm == nil {
 		return nil, &plugin.Response{
@@ -35,7 +35,7 @@ func requireCommitManager(ctx *pluginserver.CommandContext) (*commit.CommitManag
 			Data:   "commit manager not available",
 		}, ErrCommitManagerNotAvailable
 	}
-	typed, ok := cm.(*commit.CommitManager)
+	typed, ok := cm.(*transaction.CommitManager)
 	if !ok {
 		return nil, &plugin.Response{
 			Status: plugin.StatusError,

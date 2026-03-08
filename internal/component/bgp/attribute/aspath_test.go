@@ -16,6 +16,7 @@ import (
 //
 // PREVENTS: Encoding wrong segment types, causing interoperability failures.
 func TestASPathSegmentTypes(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, uint8(1), uint8(ASSet))
 	assert.Equal(t, uint8(2), uint8(ASSequence))
 	assert.Equal(t, uint8(3), uint8(ASConfedSequence)) // RFC 5065
@@ -23,6 +24,7 @@ func TestASPathSegmentTypes(t *testing.T) {
 }
 
 func TestASPathEmpty(t *testing.T) {
+	t.Parallel()
 	path := &ASPath{}
 	assert.Equal(t, 0, path.Len())
 	buf := make([]byte, 64)
@@ -32,6 +34,7 @@ func TestASPathEmpty(t *testing.T) {
 }
 
 func TestASPathSimpleSequence(t *testing.T) {
+	t.Parallel()
 	path := &ASPath{
 		Segments: []ASPathSegment{
 			{Type: ASSequence, ASNs: []uint32{65001, 65002, 65003}},
@@ -49,6 +52,7 @@ func TestASPathSimpleSequence(t *testing.T) {
 }
 
 func TestASPathParse4Byte(t *testing.T) {
+	t.Parallel()
 	// AS_SEQUENCE with 2 ASNs: [65001, 65002]
 	data := []byte{
 		0x02,                   // AS_SEQUENCE
@@ -65,6 +69,7 @@ func TestASPathParse4Byte(t *testing.T) {
 }
 
 func TestASPathParse2Byte(t *testing.T) {
+	t.Parallel()
 	// AS_SEQUENCE with 2 ASNs: [65001, 65002] (2-byte format)
 	data := []byte{
 		0x02,       // AS_SEQUENCE
@@ -80,6 +85,7 @@ func TestASPathParse2Byte(t *testing.T) {
 }
 
 func TestASPathMultipleSegments(t *testing.T) {
+	t.Parallel()
 	path := &ASPath{
 		Segments: []ASPathSegment{
 			{Type: ASSequence, ASNs: []uint32{65001, 65002}},
@@ -93,12 +99,14 @@ func TestASPathMultipleSegments(t *testing.T) {
 }
 
 func TestASPathParseEmpty(t *testing.T) {
+	t.Parallel()
 	path, err := ParseASPath([]byte{}, true)
 	require.NoError(t, err)
 	assert.Len(t, path.Segments, 0)
 }
 
 func TestASPathParseErrors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		data []byte
@@ -109,6 +117,7 @@ func TestASPathParseErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := ParseASPath(tt.data, true)
 			require.Error(t, err)
 		})
@@ -116,6 +125,7 @@ func TestASPathParseErrors(t *testing.T) {
 }
 
 func TestASPathRoundTrip(t *testing.T) {
+	t.Parallel()
 	original := &ASPath{
 		Segments: []ASPathSegment{
 			{Type: ASSequence, ASNs: []uint32{65001, 65002, 65003}},
@@ -133,6 +143,7 @@ func TestASPathRoundTrip(t *testing.T) {
 }
 
 func TestASPathInterface(t *testing.T) {
+	t.Parallel()
 	var attr Attribute = &ASPath{
 		Segments: []ASPathSegment{
 			{Type: ASSequence, ASNs: []uint32{65001}},
@@ -144,6 +155,7 @@ func TestASPathInterface(t *testing.T) {
 }
 
 func TestASPathContains(t *testing.T) {
+	t.Parallel()
 	path := &ASPath{
 		Segments: []ASPathSegment{
 			{Type: ASSequence, ASNs: []uint32{65001, 65002}},
@@ -158,6 +170,7 @@ func TestASPathContains(t *testing.T) {
 }
 
 func TestASPathPrepend(t *testing.T) {
+	t.Parallel()
 	path := &ASPath{
 		Segments: []ASPathSegment{
 			{Type: ASSequence, ASNs: []uint32{65002, 65003}},
@@ -182,6 +195,7 @@ func TestASPathPrepend(t *testing.T) {
 //
 // PREVENTS: Segment length overflow causing malformed AS_PATH.
 func TestASPathPrependOverflow(t *testing.T) {
+	t.Parallel()
 	// Create a segment with 255 ASNs (max)
 	asns := make([]uint32, MaxASPathSegmentLength)
 	for i := range asns {
@@ -212,6 +226,7 @@ func TestASPathPrependOverflow(t *testing.T) {
 //
 // PREVENTS: Encoding invalid segments with length > 255.
 func TestASPathWriteToAutoSplit(t *testing.T) {
+	t.Parallel()
 	// Create a segment with 300 ASNs (exceeds 255)
 	asns := make([]uint32, 300)
 	for i := range asns {
@@ -246,6 +261,7 @@ func TestASPathWriteToAutoSplit(t *testing.T) {
 //
 // PREVENTS: Edge case bugs in recursive/iterative splitting.
 func TestASPathWriteToAutoSplitLarge(t *testing.T) {
+	t.Parallel()
 	// Create a segment with 600 ASNs (needs 3 segments: 255+255+90)
 	asns := make([]uint32, 600)
 	for i := range asns {
@@ -282,6 +298,7 @@ func TestASPathWriteToAutoSplitLarge(t *testing.T) {
 // PREVENTS: Accepting malformed AS_PATH with invalid segment types,
 // which could cause undefined behavior or interoperability issues.
 func TestParseASPathInvalidSegmentType(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		segType byte
@@ -299,6 +316,7 @@ func TestParseASPathInvalidSegmentType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Build AS path with single segment: type + count(1) + ASN(4 bytes)
 			data := []byte{
 				tt.segType,             // segment type
@@ -328,6 +346,7 @@ func TestParseASPathInvalidSegmentType(t *testing.T) {
 // PREVENTS: Memory exhaustion and CPU abuse from extremely long AS paths
 // that could be used for denial of service attacks.
 func TestParseASPathMaxLength(t *testing.T) {
+	t.Parallel()
 	// Build a path with exactly MaxASPathTotalLength ASNs using multiple segments
 	// (since a single segment max is 255, we need 4 segments of 250 each = 1000)
 	var data []byte
@@ -376,6 +395,7 @@ func TestParseASPathMaxLength(t *testing.T) {
 //
 // PREVENTS: False rejection of valid (albeit unusual) AS paths.
 func TestParseASPathEmptySegment(t *testing.T) {
+	t.Parallel()
 	// Empty segment: type + count(0)
 	data := []byte{
 		byte(ASSequence), // segment type
@@ -398,6 +418,7 @@ func TestParseASPathEmptySegment(t *testing.T) {
 //
 // PREVENTS: Wire format mismatch causing interoperability failures with confederation peers.
 func TestParseASPathConfederationTypes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		wireType byte
@@ -417,6 +438,7 @@ func TestParseASPathConfederationTypes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Segment with 2 confederation member ASNs
 			data := []byte{
 				tt.wireType,            // segment type
@@ -442,6 +464,7 @@ func TestParseASPathConfederationTypes(t *testing.T) {
 //
 // PREVENTS: Incorrect route selection due to counting confederation hops.
 func TestParseASPathConfederationPathLength(t *testing.T) {
+	t.Parallel()
 	// Path with: AS_SEQUENCE(2) + AS_CONFED_SEQUENCE(3) + AS_CONFED_SET(2) + AS_SET(2)
 	// Expected path length: 2 (sequence) + 0 (confed_seq) + 0 (confed_set) + 1 (set) = 3
 	path := &ASPath{
@@ -465,6 +488,7 @@ func TestParseASPathConfederationPathLength(t *testing.T) {
 //
 // PREVENTS: Validation bypass when speaking to OLD (2-byte) peers.
 func TestParseASPath2ByteValidation(t *testing.T) {
+	t.Parallel()
 	// Invalid segment type 5 with 2-byte ASNs
 	data := []byte{
 		0x05,       // invalid segment type
@@ -483,6 +507,7 @@ func TestParseASPath2ByteValidation(t *testing.T) {
 //
 // PREVENTS: Wire format errors in AS_PATH encoding.
 func TestASPathWriteToWithASN4(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		path *ASPath
@@ -525,6 +550,7 @@ func TestASPathWriteToWithASN4(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			buf := make([]byte, 4096)
 			n := tt.path.WriteToWithASN4(buf, 0, tt.asn4)
 
@@ -543,6 +569,7 @@ func TestASPathWriteToWithASN4(t *testing.T) {
 //
 // PREVENTS: Length byte overflow causing malformed AS_PATH (bug found in code review).
 func TestASPathWriteToExtendedLength4Byte(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		numASNs  int
@@ -583,6 +610,7 @@ func TestASPathWriteToExtendedLength4Byte(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			asns := make([]uint32, tt.numASNs)
 			for i := range asns {
 				asns[i] = uint32(65000 + i) //nolint:gosec // G115: test data, i bounded by small test values
@@ -624,6 +652,7 @@ func TestASPathWriteToExtendedLength4Byte(t *testing.T) {
 //
 // PREVENTS: Length byte overflow in legacy 2-byte ASN mode.
 func TestASPathWriteToExtendedLength2Byte(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		numASNs int
@@ -658,6 +687,7 @@ func TestASPathWriteToExtendedLength2Byte(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			asns := make([]uint32, tt.numASNs)
 			for i := range asns {
 				asns[i] = uint32(i + 1) //nolint:gosec // G115: test data, i bounded by small test values
@@ -684,6 +714,7 @@ func TestASPathWriteToExtendedLength2Byte(t *testing.T) {
 //
 // PREVENTS: Buffer corruption when writing at non-zero offset.
 func TestASPathWriteToOffset(t *testing.T) {
+	t.Parallel()
 	path := &ASPath{
 		Segments: []ASPathSegment{
 			{Type: ASSequence, ASNs: []uint32{65001, 65002}},

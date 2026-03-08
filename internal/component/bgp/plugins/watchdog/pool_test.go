@@ -1,4 +1,4 @@
-package bgp_watchdog
+package watchdog
 
 import (
 	"errors"

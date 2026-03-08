@@ -1,10 +1,10 @@
-package bgp_rib
+package rib
 
 import (
 	"fmt"
 	"os"
 
-	ribschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/schema"
+	ribschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"

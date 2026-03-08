@@ -12,6 +12,7 @@ import (
 //
 // PREVENTS: Sending routes for non-negotiated families.
 func TestEncodingCapsSupportsFamily(t *testing.T) {
+	t.Parallel()
 	enc := &EncodingCaps{
 		Families: []Family{
 			{AFI: AFIIPv4, SAFI: SAFIUnicast},
@@ -30,6 +31,7 @@ func TestEncodingCapsSupportsFamily(t *testing.T) {
 //
 // PREVENTS: Wrong ADD-PATH handling (including/omitting path ID incorrectly).
 func TestEncodingCapsAddPathFor(t *testing.T) {
+	t.Parallel()
 	enc := &EncodingCaps{
 		AddPathMode: map[Family]AddPathMode{
 			{AFI: AFIIPv4, SAFI: SAFIUnicast}: AddPathBoth,
@@ -48,6 +50,7 @@ func TestEncodingCapsAddPathFor(t *testing.T) {
 //
 // PREVENTS: Panic on nil map access.
 func TestEncodingCapsAddPathForNil(t *testing.T) {
+	t.Parallel()
 	enc := &EncodingCaps{}
 	assert.Equal(t, AddPathNone, enc.AddPathFor(Family{AFI: AFIIPv4, SAFI: SAFIUnicast}))
 }
@@ -58,6 +61,7 @@ func TestEncodingCapsAddPathForNil(t *testing.T) {
 //
 // PREVENTS: Wrong next-hop encoding per RFC 8950.
 func TestEncodingCapsExtendedNextHopAFI(t *testing.T) {
+	t.Parallel()
 	enc := &EncodingCaps{
 		ExtendedNextHop: map[Family]AFI{
 			{AFI: AFIIPv4, SAFI: SAFIUnicast}: AFIIPv6, // IPv4/Unicast can use IPv6 NH
@@ -74,6 +78,7 @@ func TestEncodingCapsExtendedNextHopAFI(t *testing.T) {
 //
 // PREVENTS: Panic on nil map access.
 func TestEncodingCapsExtendedNextHopAFINil(t *testing.T) {
+	t.Parallel()
 	enc := &EncodingCaps{}
 	assert.Equal(t, AFI(0), enc.ExtendedNextHopAFI(Family{AFI: AFIIPv4, SAFI: SAFIUnicast}))
 }

@@ -3,7 +3,7 @@
 // Overview: types.go — core types, bgplsBase, TLV constants, parser functions
 // Related: types_descriptor.go — descriptor structs embedded in these NLRI types
 // Related: types_srv6.go — SRv6 SID NLRI type (RFC 9514)
-package bgp_nlri_ls
+package ls
 
 import (
 	"encoding/binary"

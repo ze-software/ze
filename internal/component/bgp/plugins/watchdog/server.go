@@ -3,7 +3,7 @@
 // Related: pool.go — route pool management
 // Related: config.go — config parsing and route building
 
-package bgp_watchdog
+package watchdog
 
 import (
 	"errors"

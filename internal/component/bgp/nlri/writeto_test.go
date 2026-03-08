@@ -24,6 +24,7 @@ import (
 // VALIDATES: WriteTo honors offset parameter and writes at correct position.
 // PREVENTS: Off-by-one errors, buffer corruption at wrong positions.
 func TestWriteToAtOffset(t *testing.T) {
+	t.Parallel()
 	inet := &INET{
 		PrefixNLRI: PrefixNLRI{
 			prefix: netip.MustParsePrefix("10.0.0.0/24"),
@@ -53,6 +54,7 @@ func TestWriteToAtOffset(t *testing.T) {
 // VALIDATES: WriteTo implementation is consistent with Bytes().
 // PREVENTS: Divergent implementations of WriteTo and Bytes.
 func TestWriteToZeroAlloc(t *testing.T) {
+	t.Parallel()
 	// Create an INET
 	inet := &INET{
 		PrefixNLRI: PrefixNLRI{

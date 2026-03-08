@@ -4,7 +4,7 @@
 // Related: types_prefix.go — prefix component implementations
 // Related: types_numeric.go — numeric/bitmask component implementations
 
-package bgp_nlri_flowspec
+package flowspec
 
 import (
 	"fmt"

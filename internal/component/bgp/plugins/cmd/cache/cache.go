@@ -1,7 +1,7 @@
 // Design: docs/architecture/api/commands.md — BGP cache operation handlers
 // Overview: doc.go — bgp-cmd-cache plugin registration
 
-package bgpcmdcache
+package cache
 
 import (
 	"fmt"

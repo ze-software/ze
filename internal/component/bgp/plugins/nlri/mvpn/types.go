@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/nlri.md — MVPN NLRI plugin
 //
 // Package bgp_mvpn implements Multicast VPN NLRI (RFC 6514, SAFI 5).
-package bgp_nlri_mvpn
+package mvpn
 
 import (
 	"encoding/binary"

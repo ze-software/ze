@@ -1,4 +1,4 @@
-package bgp_rib
+package rib
 
 import (
 	"encoding/json"
@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 )
 
 // Wire attribute bytes for test data.

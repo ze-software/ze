@@ -1,6 +1,6 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — Adj-RIB-In command handlers
 // Overview: rib.go — core types, event handlers, and raw hex storage
-package bgp_adj_rib_in
+package adj_rib_in
 
 import (
 	"encoding/json"

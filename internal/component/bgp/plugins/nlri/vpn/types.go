@@ -4,7 +4,7 @@
 // Package vpn implements VPN NLRI types for the vpn plugin.
 // RFC 4364: BGP/MPLS IP VPNs (VPNv4)
 // RFC 4659: BGP-MPLS IP VPN Extension for IPv6 VPN (VPNv6)
-package bgp_nlri_vpn
+package vpn
 
 import (
 	"encoding/binary"

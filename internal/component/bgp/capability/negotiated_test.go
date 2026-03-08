@@ -13,6 +13,7 @@ import (
 //
 // PREVENTS: Session established with wrong features enabled.
 func TestNegotiateBasic(t *testing.T) {
+	t.Parallel()
 	local := []Capability{
 		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
 		&Multiprotocol{AFI: AFIIPv6, SAFI: SAFIUnicast},
@@ -44,6 +45,7 @@ func TestNegotiateBasic(t *testing.T) {
 //
 // PREVENTS: Path ID sent when peer can't receive, or vice versa.
 func TestNegotiateAddPath(t *testing.T) {
+	t.Parallel()
 	local := []Capability{
 		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
 		&AddPath{Families: []AddPathFamily{
@@ -72,6 +74,7 @@ func TestNegotiateAddPath(t *testing.T) {
 //
 // PREVENTS: Sending >4KB messages to peer that doesn't support them.
 func TestNegotiateExtendedMessage(t *testing.T) {
+	t.Parallel()
 	local := []Capability{
 		&ExtendedMessage{},
 	}
@@ -94,6 +97,7 @@ func TestNegotiateExtendedMessage(t *testing.T) {
 //
 // PREVENTS: Missing families in UPDATE processing.
 func TestNegotiatedFamilies(t *testing.T) {
+	t.Parallel()
 	local := []Capability{
 		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
 		&Multiprotocol{AFI: AFIIPv6, SAFI: SAFIUnicast},
@@ -116,6 +120,7 @@ func TestNegotiatedFamilies(t *testing.T) {
 //
 // PREVENTS: Panic on empty capability lists.
 func TestNegotiateEmpty(t *testing.T) {
+	t.Parallel()
 	neg := Negotiate(nil, nil, 65001, 65002)
 
 	assert.False(t, neg.ASN4)
@@ -133,6 +138,7 @@ func TestNegotiateEmpty(t *testing.T) {
 //
 // PREVENTS: Silent capability incompatibilities that affect routing.
 func TestNegotiateMismatches(t *testing.T) {
+	t.Parallel()
 	local := []Capability{
 		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
 		&Multiprotocol{AFI: AFIIPv6, SAFI: SAFIUnicast}, // Only local
@@ -200,6 +206,7 @@ func TestNegotiateMismatches(t *testing.T) {
 
 // TestMismatchString verifies mismatch string representation.
 func TestMismatchString(t *testing.T) {
+	t.Parallel()
 	m := Mismatch{
 		Code:           CodeExtendedMessage,
 		LocalSupported: true,
@@ -228,6 +235,7 @@ func TestMismatchString(t *testing.T) {
 //
 // PREVENTS: Sending IPv4 NLRI with IPv6 next-hop to peer that doesn't support it.
 func TestNegotiateExtendedNextHop(t *testing.T) {
+	t.Parallel()
 	// Both peers advertise IPv4/Unicast can use IPv6 next-hop
 	local := []Capability{
 		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
@@ -258,6 +266,7 @@ func TestNegotiateExtendedNextHop(t *testing.T) {
 //
 // PREVENTS: Assuming ExtNH support when only one peer advertises it.
 func TestNegotiateExtendedNextHopMismatch(t *testing.T) {
+	t.Parallel()
 	// Only local advertises ExtNH
 	local := []Capability{
 		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
@@ -286,6 +295,7 @@ func TestNegotiateExtendedNextHopMismatch(t *testing.T) {
 //
 // PREVENTS: All-or-nothing behavior when only some tuples match.
 func TestNegotiateExtendedNextHopMultipleFamilies(t *testing.T) {
+	t.Parallel()
 	// Local advertises IPv4/Unicast and IPv4/MPLS can use IPv6 next-hop
 	local := []Capability{
 		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
@@ -323,6 +333,7 @@ func TestNegotiateExtendedNextHopMultipleFamilies(t *testing.T) {
 //
 // PREVENTS: Missing sub-component data after negotiation.
 func TestNegotiateComposite(t *testing.T) {
+	t.Parallel()
 	local := []Capability{
 		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
 		&ASN4{ASN: 65001},
@@ -369,6 +380,7 @@ func TestNegotiateComposite(t *testing.T) {
 //
 // PREVENTS: Wrong iBGP/eBGP attribute handling.
 func TestNegotiateCompositeIBGP(t *testing.T) {
+	t.Parallel()
 	local := []Capability{
 		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
 	}
@@ -385,6 +397,7 @@ func TestNegotiateCompositeIBGP(t *testing.T) {
 // VALIDATES: Required capability codes checked against negotiated result.
 // PREVENTS: Sessions established when required capabilities are missing.
 func TestCheckRequiredCodes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		local    []Capability
@@ -438,6 +451,7 @@ func TestCheckRequiredCodes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			neg := Negotiate(tt.local, tt.remote, 65001, 65002)
 			got := neg.CheckRequiredCodes(tt.required)
 			assert.Equal(t, tt.want, got)
@@ -450,6 +464,7 @@ func TestCheckRequiredCodes(t *testing.T) {
 // VALIDATES: Refused codes checked against peer's advertised (not negotiated) capabilities.
 // PREVENTS: Refused capabilities passing because they're absent from negotiated intersection.
 func TestCheckRefusedCodes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		local   []Capability
@@ -496,6 +511,7 @@ func TestCheckRefusedCodes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			neg := Negotiate(tt.local, tt.remote, 65001, 65002)
 			got := neg.CheckRefusedCodes(tt.refused)
 			assert.Equal(t, tt.want, got)

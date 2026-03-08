@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
-	attrpool "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/pool"
+	attrpool "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 )
 
 // TestFamilyRIB_PerAttrDedup verifies per-attribute deduplication.

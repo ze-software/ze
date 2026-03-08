@@ -1,4 +1,4 @@
-package bgp_rib
+package rib
 
 import (
 	"encoding/json"
@@ -11,7 +11,7 @@ import (
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 )
 
 // newTestRIBManager creates a RIBManager with closed SDK connections for unit testing.

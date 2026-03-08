@@ -1,11 +1,11 @@
-package bgp_hostname
+package hostname
 
 import (
 	"bytes"
 	"fmt"
 	"os"
 
-	hostnameschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-hostname/schema"
+	hostnameschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/hostname/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"

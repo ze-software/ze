@@ -14,6 +14,7 @@ import (
 // VALIDATES: RawMessage with nil WireUpdate is async-safe; with non-nil is not.
 // PREVENTS: Regression if IsAsyncSafe logic is accidentally inverted.
 func TestRawMessageIsAsyncSafe(t *testing.T) {
+	t.Parallel()
 	safe := &RawMessage{RawBytes: []byte{1, 2, 3}, Timestamp: time.Now()}
 	assert.True(t, safe.IsAsyncSafe(), "nil WireUpdate should be async-safe")
 
@@ -26,6 +27,7 @@ func TestRawMessageIsAsyncSafe(t *testing.T) {
 // VALIDATES: Empty Encoding/Format get defaults "text"/"parsed".
 // PREVENTS: Missing defaults causing empty-string comparisons downstream.
 func TestContentConfigWithDefaults(t *testing.T) {
+	t.Parallel()
 	// Zero value gets defaults
 	zero := ContentConfig{}
 	filled := zero.WithDefaults()

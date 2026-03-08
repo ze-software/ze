@@ -1,4 +1,4 @@
-package bgp_nlri_mup
+package mup
 
 import (
 	"testing"

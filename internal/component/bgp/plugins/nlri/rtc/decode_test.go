@@ -1,4 +1,4 @@
-package bgp_nlri_rtc
+package rtc
 
 import (
 	"bytes"
@@ -12,6 +12,7 @@ import (
 // VALIDATES: RunDecode produces "decoded json" with correct fields for valid NLRI.
 // PREVENTS: Regression in in-process decode path used by CLI fallback.
 func TestRunDecode(t *testing.T) {
+	t.Parallel()
 	input := "decode nlri ipv4/rtc 600000fde900020000fde90064\n"
 	var output bytes.Buffer
 	RunDecode(strings.NewReader(input), &output)
@@ -33,6 +34,7 @@ func TestRunDecode(t *testing.T) {
 // VALIDATES: RunDecode handles invalid input gracefully.
 // PREVENTS: Panic or hang on malformed protocol input.
 func TestRunDecodeUnknown(t *testing.T) {
+	t.Parallel()
 	input := "invalid command\n"
 	var output bytes.Buffer
 	RunDecode(strings.NewReader(input), &output)
@@ -48,6 +50,7 @@ func TestRunDecodeUnknown(t *testing.T) {
 // VALIDATES: DecodeNLRIHex produces correct JSON for valid RTC NLRI.
 // PREVENTS: Regression in RTC decode pipeline (hex→parse→JSON).
 func TestDecodeNLRIHex(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name      string
 		family    string
@@ -86,6 +89,7 @@ func TestDecodeNLRIHex(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := DecodeNLRIHex(tt.family, tt.hex)
 			if tt.wantErr {
 				if err == nil {

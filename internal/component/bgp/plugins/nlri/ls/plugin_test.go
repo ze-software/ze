@@ -1,4 +1,4 @@
-package bgp_nlri_ls
+package ls
 
 import (
 	"bytes"
@@ -16,6 +16,7 @@ import (
 // VALIDATES: Plugin responds correctly to "decode nlri bgp-ls/bgp-ls <hex>" requests.
 // PREVENTS: Protocol mismatch with engine decode dispatcher.
 func TestBGPLSPluginDecodeMode(t *testing.T) {
+	t.Parallel()
 	// Create a node NLRI for testing
 	node := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
 		ASN:         65001,
@@ -45,6 +46,7 @@ func TestBGPLSPluginDecodeMode(t *testing.T) {
 // VALIDATES: Plugin returns "decoded unknown" for non-bgp-ls families.
 // PREVENTS: Plugin crashes on unexpected family strings.
 func TestBGPLSPluginInvalidFamily(t *testing.T) {
+	t.Parallel()
 	input := bytes.NewBufferString("decode nlri ipv4/unicast 00000000\n")
 	output := &bytes.Buffer{}
 
@@ -59,6 +61,7 @@ func TestBGPLSPluginInvalidFamily(t *testing.T) {
 // VALIDATES: Plugin returns "decoded unknown" for invalid hex input.
 // PREVENTS: Plugin crashes on malformed input.
 func TestBGPLSPluginInvalidHex(t *testing.T) {
+	t.Parallel()
 	input := bytes.NewBufferString("decode nlri bgp-ls/bgp-ls GGGG\n")
 	output := &bytes.Buffer{}
 
@@ -73,6 +76,7 @@ func TestBGPLSPluginInvalidHex(t *testing.T) {
 // VALIDATES: CLI mode produces valid JSON output.
 // PREVENTS: CLI mode output incompatible with downstream tools.
 func TestBGPLSCLIDecode(t *testing.T) {
+	t.Parallel()
 	node := NewBGPLSNode(ProtoISISL2, 0x200, NodeDescriptor{
 		ASN:         65500,
 		IGPRouterID: []byte{10, 0, 0, 1},
@@ -100,6 +104,7 @@ func TestBGPLSCLIDecode(t *testing.T) {
 // VALIDATES: CLI mode with --text produces human-readable output.
 // PREVENTS: Text mode crashes or produces garbled output.
 func TestBGPLSCLIDecodeText(t *testing.T) {
+	t.Parallel()
 	node := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},
@@ -121,6 +126,7 @@ func TestBGPLSCLIDecodeText(t *testing.T) {
 // VALIDATES: CLI returns error for invalid family.
 // PREVENTS: Silent failures on bad input.
 func TestBGPLSCLIDecodeInvalidFamily(t *testing.T) {
+	t.Parallel()
 	output := &bytes.Buffer{}
 	errOut := &bytes.Buffer{}
 
@@ -135,6 +141,7 @@ func TestBGPLSCLIDecodeInvalidFamily(t *testing.T) {
 // VALIDATES: Node NLRI (type 1) decodes with correct fields.
 // PREVENTS: Node-specific fields missing from output.
 func TestBGPLSNodeNLRIDecode(t *testing.T) {
+	t.Parallel()
 	node := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
 		ASN:             65001,
 		BGPLSIdentifier: 0x12345678,
@@ -160,6 +167,7 @@ func TestBGPLSNodeNLRIDecode(t *testing.T) {
 // VALIDATES: Link NLRI (type 2) decodes with local/remote node descriptors.
 // PREVENTS: Link-specific fields missing from output.
 func TestBGPLSLinkNLRIDecode(t *testing.T) {
+	t.Parallel()
 	link := NewBGPLSLink(
 		ProtoISISL2, 0x200,
 		NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
@@ -186,6 +194,7 @@ func TestBGPLSLinkNLRIDecode(t *testing.T) {
 // VALIDATES: IPv4 Prefix NLRI (type 3) decodes correctly.
 // PREVENTS: Prefix-specific fields missing from output.
 func TestBGPLSPrefixV4NLRIDecode(t *testing.T) {
+	t.Parallel()
 	prefix := NewBGPLSPrefixV4(
 		ProtoOSPFv2, 0x100,
 		NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
@@ -203,6 +212,7 @@ func TestBGPLSPrefixV4NLRIDecode(t *testing.T) {
 // VALIDATES: IPv6 Prefix NLRI (type 4) decodes correctly.
 // PREVENTS: IPv6-specific handling issues.
 func TestBGPLSPrefixV6NLRIDecode(t *testing.T) {
+	t.Parallel()
 	prefix := NewBGPLSPrefixV6(
 		ProtoOSPFv3, 0x200,
 		NodeDescriptor{ASN: 65002},
@@ -220,6 +230,7 @@ func TestBGPLSPrefixV6NLRIDecode(t *testing.T) {
 // VALIDATES: SRv6 SID NLRI (type 6, RFC 9514) decodes correctly.
 // PREVENTS: Wrong NLRI type detection.
 func TestBGPLSSRv6SIDNLRIDecode(t *testing.T) {
+	t.Parallel()
 	srv6 := NewBGPLSSRv6SID(
 		ProtoSegment, 0x300,
 		NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
@@ -242,6 +253,7 @@ func TestBGPLSSRv6SIDNLRIDecode(t *testing.T) {
 // VALIDATES: All RFC 7752 protocol IDs produce valid output.
 // PREVENTS: Unknown protocol ID crashes.
 func TestBGPLSProtocolIDs(t *testing.T) {
+	t.Parallel()
 	protocols := []BGPLSProtocolID{
 		ProtoISISL1,
 		ProtoISISL2,
@@ -254,6 +266,7 @@ func TestBGPLSProtocolIDs(t *testing.T) {
 
 	for _, proto := range protocols {
 		t.Run(proto.String(), func(t *testing.T) {
+			t.Parallel()
 			node := NewBGPLSNode(proto, 0x100, NodeDescriptor{ASN: 65001})
 			results := decodeBGPLSNLRI(node.Bytes())
 			require.Len(t, results, 1)
@@ -266,6 +279,7 @@ func TestBGPLSProtocolIDs(t *testing.T) {
 // VALIDATES: Truncated data returns nil.
 // PREVENTS: Panic on malformed wire bytes.
 func TestBGPLSMalformedInput(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		data []byte
@@ -277,6 +291,7 @@ func TestBGPLSMalformedInput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			results := decodeBGPLSNLRI(tt.data)
 			// Malformed input returns a result with parsed=false
 			require.Len(t, results, 1)
@@ -290,6 +305,7 @@ func TestBGPLSMalformedInput(t *testing.T) {
 // VALIDATES: "bgp-ls/bgp-ls" and "bgp-ls/bgp-ls-vpn" are accepted.
 // PREVENTS: Incorrect family strings being processed.
 func TestIsValidBGPLSFamily(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		family string
 		valid  bool
@@ -305,6 +321,7 @@ func TestIsValidBGPLSFamily(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.family, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.valid, isValidBGPLSFamily(tt.family))
 		})
 	}
@@ -315,6 +332,7 @@ func TestIsValidBGPLSFamily(t *testing.T) {
 // VALIDATES: Router ID formatted correctly for OSPF (4B), IS-IS (6/7B), pseudonode (8B).
 // PREVENTS: Incorrect router ID display in JSON output.
 func TestFormatRouterID(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		id       []byte
@@ -329,6 +347,7 @@ func TestFormatRouterID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, formatRouterID(tt.id))
 		})
 	}
@@ -339,6 +358,7 @@ func TestFormatRouterID(t *testing.T) {
 // VALIDATES: IPv6 addresses formatted with zero compression via netip.
 // PREVENTS: Garbled IPv6 output in JSON.
 func TestFormatIPv6Compressed(t *testing.T) {
+	t.Parallel()
 	// 2001:db8::1
 	addr := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
 	result := formatIPv6Compressed(addr)
@@ -350,6 +370,7 @@ func TestFormatIPv6Compressed(t *testing.T) {
 // VALIDATES: Known types return named strings, unknown return "bgpls-type-N".
 // PREVENTS: Panic on unknown NLRI types.
 func TestBGPLSNLRITypeString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		nlriType uint16
 		expected string
@@ -365,6 +386,7 @@ func TestBGPLSNLRITypeString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.expected, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, bgplsNLRITypeString(tt.nlriType))
 		})
 	}
@@ -375,6 +397,7 @@ func TestBGPLSNLRITypeString(t *testing.T) {
 // VALIDATES: Multiple NLRIs in single buffer are all decoded.
 // PREVENTS: Only first NLRI being decoded when multiple are packed.
 func TestBGPLSMultipleNLRIDecode(t *testing.T) {
+	t.Parallel()
 	// Create two Node NLRIs with different ASNs
 	node1 := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
 		ASN:         65001,
@@ -407,6 +430,7 @@ func TestBGPLSMultipleNLRIDecode(t *testing.T) {
 // VALIDATES: Plugin handles bgp-ls/bgp-ls-vpn family correctly.
 // PREVENTS: VPN family rejected despite being valid.
 func TestBGPLSVPNFamilyDecode(t *testing.T) {
+	t.Parallel()
 	node := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},
@@ -435,6 +459,7 @@ func TestBGPLSVPNFamilyDecode(t *testing.T) {
 // VALIDATES: CLI mode works with bgp-ls/bgp-ls-vpn family.
 // PREVENTS: CLI rejecting valid VPN family.
 func TestBGPLSCLIDecodeVPNFamily(t *testing.T) {
+	t.Parallel()
 	node := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
 		ASN:         65001,
 		IGPRouterID: []byte{1, 1, 1, 1},

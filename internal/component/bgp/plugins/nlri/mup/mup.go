@@ -3,7 +3,7 @@
 //
 // Package bgp_mup implements a Mobile User Plane family plugin for ze.
 // It handles MUP NLRI (draft-mpmz-bess-mup-safi, SAFI 85).
-package bgp_nlri_mup
+package mup
 
 import (
 	"bufio"

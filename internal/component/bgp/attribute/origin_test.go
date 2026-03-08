@@ -10,6 +10,7 @@ import (
 // VALIDATES: Origin constants match RFC 4271 wire values (IGP=0, EGP=1, INCOMPLETE=2).
 // PREVENTS: Wrong origin type codes in BGP UPDATE messages.
 func TestOriginValues(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, uint8(0), uint8(OriginIGP))
 	assert.Equal(t, uint8(1), uint8(OriginEGP))
 	assert.Equal(t, uint8(2), uint8(OriginIncomplete))
@@ -18,6 +19,7 @@ func TestOriginValues(t *testing.T) {
 // VALIDATES: Origin String() returns human-readable names and unknown fallback.
 // PREVENTS: Garbled origin display in logs and JSON output.
 func TestOriginString(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "IGP", OriginIGP.String())
 	assert.Equal(t, "EGP", OriginEGP.String())
 	assert.Equal(t, "INCOMPLETE", OriginIncomplete.String())
@@ -27,6 +29,7 @@ func TestOriginString(t *testing.T) {
 // VALIDATES: ParseOrigin accepts valid wire values and rejects empty/invalid data.
 // PREVENTS: Accepting invalid origin codes from malformed UPDATEs.
 func TestOriginParse(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name    string
 		data    []byte
@@ -42,6 +45,7 @@ func TestOriginParse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := ParseOrigin(tt.data)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -56,6 +60,7 @@ func TestOriginParse(t *testing.T) {
 // VALIDATES: Origin WriteTo encodes correct byte at buffer offset.
 // PREVENTS: Wrong wire encoding of origin attribute.
 func TestOriginWriteTo(t *testing.T) {
+	t.Parallel()
 	buf := make([]byte, 64)
 
 	n := OriginIGP.WriteTo(buf, 0)
@@ -74,6 +79,7 @@ func TestOriginWriteTo(t *testing.T) {
 // VALIDATES: Origin satisfies Attribute interface with correct code, flags, and length.
 // PREVENTS: Interface compliance regression breaking attribute dispatch.
 func TestOriginInterface(t *testing.T) {
+	t.Parallel()
 	var attr Attribute = OriginIGP
 
 	assert.Equal(t, AttrOrigin, attr.Code())
@@ -89,6 +95,7 @@ func TestOriginInterface(t *testing.T) {
 // VALIDATES: WriteAttrTo produces correct full attribute encoding (flags+code+len+value).
 // PREVENTS: Malformed origin attribute in outgoing UPDATE messages.
 func TestOriginWriteAttrTo(t *testing.T) {
+	t.Parallel()
 	// Full attribute: flags(1) + code(1) + len(1) + value(1) = 4 bytes
 	want := []byte{0x40, 0x01, 0x01, 0x00} // Transitive, ORIGIN, len=1, value=IGP
 	buf := make([]byte, 64)

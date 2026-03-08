@@ -12,6 +12,7 @@ import (
 // VALIDATES: Iterator returns each prefix correctly without allocation.
 // PREVENTS: Off-by-one errors, incorrect prefix extraction.
 func TestNLRIIterator(t *testing.T) {
+	t.Parallel()
 	// Wire format: multiple IPv4 prefixes concatenated
 	// 10.0.0.0/8 = [8, 10]
 	// 192.168.1.0/24 = [24, 192, 168, 1]
@@ -52,6 +53,7 @@ func TestNLRIIterator(t *testing.T) {
 // VALIDATES: Iterator correctly extracts 4-byte path-id prefix
 // PREVENTS: Incorrect ADD-PATH handling per RFC 7911.
 func TestNLRIIteratorAddPath(t *testing.T) {
+	t.Parallel()
 	// Wire format with ADD-PATH: [path-id (4 bytes), length, prefix...]
 	// Path ID 100, 10.0.0.0/8 = [0, 0, 0, 100, 8, 10]
 	// Path ID 200, 192.168.0.0/16 = [0, 0, 0, 200, 16, 192, 168]
@@ -84,6 +86,7 @@ func TestNLRIIteratorAddPath(t *testing.T) {
 // VALIDATES: Empty buffer returns no items immediately
 // PREVENTS: Panic on empty input.
 func TestNLRIIteratorEmpty(t *testing.T) {
+	t.Parallel()
 	iter := NewNLRIIterator(nil, false)
 	_, _, ok := iter.Next()
 	assert.False(t, ok)
@@ -98,6 +101,7 @@ func TestNLRIIteratorEmpty(t *testing.T) {
 // VALIDATES: Iterator handles longer IPv6 prefixes correctly
 // PREVENTS: Incorrect byte count for IPv6.
 func TestNLRIIteratorIPv6(t *testing.T) {
+	t.Parallel()
 	// 2001:db8::/32 = [32, 0x20, 0x01, 0x0d, 0xb8]
 	// ::1/128 = [128, 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]
 	data := []byte{
@@ -119,6 +123,7 @@ func TestNLRIIteratorIPv6(t *testing.T) {
 // VALIDATES: Default route (0.0.0.0/0) parsed correctly
 // PREVENTS: Edge case with zero-length prefix.
 func TestNLRIIteratorZeroPrefix(t *testing.T) {
+	t.Parallel()
 	// 0.0.0.0/0 = [0] (no prefix bytes)
 	data := []byte{0}
 
@@ -137,6 +142,7 @@ func TestNLRIIteratorZeroPrefix(t *testing.T) {
 // VALIDATES: Reset allows re-iteration from start
 // PREVENTS: Iterator becoming unusable after exhaustion.
 func TestNLRIIteratorReset(t *testing.T) {
+	t.Parallel()
 	data := []byte{8, 10, 16, 172, 16}
 
 	iter := NewNLRIIterator(data, false)
@@ -159,6 +165,7 @@ func TestNLRIIteratorReset(t *testing.T) {
 // VALIDATES: Count returns correct number of NLRIs
 // PREVENTS: Miscounting prefixes.
 func TestNLRIIteratorCount(t *testing.T) {
+	t.Parallel()
 	data := []byte{
 		8, 10, // 10.0.0.0/8
 		24, 192, 168, 1, // 192.168.1.0/24

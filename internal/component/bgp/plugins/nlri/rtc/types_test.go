@@ -1,4 +1,4 @@
-package bgp_nlri_rtc
+package rtc
 
 import (
 	"encoding/binary"
@@ -10,6 +10,7 @@ import (
 
 // TestRTCBasic verifies basic RTC NLRI creation.
 func TestRTCBasic(t *testing.T) {
+	t.Parallel()
 	rt := RouteTarget{
 		Type:  0,
 		Value: [6]byte{0xFD, 0xE9, 0, 0, 0, 100},
@@ -21,6 +22,7 @@ func TestRTCBasic(t *testing.T) {
 
 // TestRTCFamily verifies RTC address family.
 func TestRTCFamily(t *testing.T) {
+	t.Parallel()
 	rtc := NewRTC(65001, RouteTarget{})
 
 	assert.Equal(t, AFIIPv4, rtc.Family().AFI)
@@ -29,6 +31,7 @@ func TestRTCFamily(t *testing.T) {
 
 // TestRTCBytes verifies RTC wire format.
 func TestRTCBytes(t *testing.T) {
+	t.Parallel()
 	rtc := NewRTC(65001, RouteTarget{
 		Type:  0,
 		Value: [6]byte{0xFD, 0xE9, 0, 0, 0, 100},
@@ -42,6 +45,7 @@ func TestRTCBytes(t *testing.T) {
 
 // TestRTCDefault verifies default RTC (matches all RTs).
 func TestRTCDefault(t *testing.T) {
+	t.Parallel()
 	rtc := NewRTC(0, RouteTarget{})
 
 	assert.True(t, rtc.IsDefault())
@@ -50,6 +54,7 @@ func TestRTCDefault(t *testing.T) {
 
 // TestRTCRoundTrip verifies encode/decode cycle.
 func TestRTCRoundTrip(t *testing.T) {
+	t.Parallel()
 	rt := RouteTarget{
 		Type:  0x0002,
 		Value: [6]byte{0, 0, 0xFD, 0xE9, 0, 100},
@@ -66,6 +71,7 @@ func TestRTCRoundTrip(t *testing.T) {
 
 // TestRTCParseDefault verifies parsing default RTC.
 func TestRTCParseDefault(t *testing.T) {
+	t.Parallel()
 	data := []byte{0} // prefix-length = 0
 
 	parsed, remaining, err := ParseRTC(data)
@@ -76,6 +82,7 @@ func TestRTCParseDefault(t *testing.T) {
 
 // TestRTCParseErrors verifies error handling.
 func TestRTCParseErrors(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		data []byte
@@ -85,6 +92,7 @@ func TestRTCParseErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, _, err := ParseRTC(tt.data)
 			assert.Error(t, err)
 		})
@@ -93,6 +101,7 @@ func TestRTCParseErrors(t *testing.T) {
 
 // TestRouteTargetString verifies RT string formatting.
 func TestRouteTargetString(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		rt       RouteTarget
@@ -112,6 +121,7 @@ func TestRouteTargetString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.rt.String())
 		})
 	}
@@ -122,6 +132,7 @@ func TestRouteTargetString(t *testing.T) {
 // VALIDATES: RTC String() outputs command-style format for API round-trip.
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestRTCStringCommandStyle(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		rtc      *RTC
@@ -152,6 +163,7 @@ func TestRTCStringCommandStyle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.rtc.String())
 		})
 	}
@@ -162,6 +174,7 @@ func TestRTCStringCommandStyle(t *testing.T) {
 // VALIDATES: WriteTo produces identical wire format to Bytes() for RTC NLRI.
 // PREVENTS: Origin AS encoding errors, route target data corruption.
 func TestRTCWriteToMatchesBytes(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		rtc  *RTC
@@ -181,6 +194,7 @@ func TestRTCWriteToMatchesBytes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			expected := tt.rtc.Bytes()
 
 			buf := make([]byte, len(expected)+10)
@@ -197,6 +211,7 @@ func TestRTCWriteToMatchesBytes(t *testing.T) {
 // VALIDATES: RouteTargetValue() returns the expected route target.
 // PREVENTS: Regression from method rename (RouteTarget→RouteTargetValue).
 func TestRTCRouteTargetValueAccessor(t *testing.T) {
+	t.Parallel()
 	rt := RouteTarget{
 		Type:  0x0002,
 		Value: [6]byte{0xFD, 0xE9, 0, 0, 0, 100},

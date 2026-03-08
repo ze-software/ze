@@ -1,4 +1,4 @@
-package bgpcmdsubscribe
+package subscribe
 
 import (
 	"testing"
@@ -6,7 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/commit"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -16,7 +16,7 @@ import (
 // and an optional Process. Pass nil proc for tests that need no process context.
 func newTestContext(proc *process.Process) *pluginserver.CommandContext {
 	server := pluginserver.NewServer(&pluginserver.ServerConfig{
-		CommitManager: commit.NewCommitManager(),
+		CommitManager: transaction.NewCommitManager(),
 	}, nil)
 	return &pluginserver.CommandContext{
 		Server:  server,

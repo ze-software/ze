@@ -3,7 +3,7 @@
 //
 // Package evpn implements an EVPN family plugin for ze.
 // It handles decoding of EVPN NLRI (RFC 7432, 9136) for the decode mode protocol.
-package bgp_nlri_evpn
+package evpn
 
 import (
 	"bufio"

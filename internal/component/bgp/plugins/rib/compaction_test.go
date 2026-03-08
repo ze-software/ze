@@ -1,4 +1,4 @@
-package bgp_rib
+package rib
 
 import (
 	"context"

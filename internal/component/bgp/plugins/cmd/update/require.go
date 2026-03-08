@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/commands.md — BGP reactor type assertion
-package bgpcmdupdate
+package update
 
 import (
 	"fmt"

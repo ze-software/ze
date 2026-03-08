@@ -12,6 +12,7 @@ import (
 //
 // PREVENTS: Wrong path attribute handling (iBGP vs eBGP rules differ).
 func TestPeerIdentityIsIBGP(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		localASN uint32
@@ -46,6 +47,7 @@ func TestPeerIdentityIsIBGP(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			id := &PeerIdentity{
 				LocalASN: tt.localASN,
 				PeerASN:  tt.peerASN,
@@ -61,6 +63,7 @@ func TestPeerIdentityIsIBGP(t *testing.T) {
 //
 // PREVENTS: Missing router IDs for route reflection (ORIGINATOR_ID).
 func TestPeerIdentityRouterIDs(t *testing.T) {
+	t.Parallel()
 	id := &PeerIdentity{
 		LocalASN:      65000,
 		PeerASN:       65001,

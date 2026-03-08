@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/nlri-evpn.md — EVPN NLRI plugin
 // RFC: rfc/short/rfc7432.md
 
-package bgp_nlri_evpn
+package evpn
 
 import (
 	"fmt"

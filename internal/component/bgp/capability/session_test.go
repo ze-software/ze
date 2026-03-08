@@ -13,6 +13,7 @@ import (
 //
 // PREVENTS: Missing capability data after negotiation.
 func TestSessionCapsBasic(t *testing.T) {
+	t.Parallel()
 	sess := &SessionCaps{
 		RouteRefresh:         true,
 		EnhancedRouteRefresh: false,
@@ -32,6 +33,7 @@ func TestSessionCapsBasic(t *testing.T) {
 //
 // PREVENTS: Lost GR state during capability negotiation.
 func TestSessionCapsWithGracefulRestart(t *testing.T) {
+	t.Parallel()
 	gr := &GracefulRestart{
 		RestartTime: 120,
 	}
@@ -49,6 +51,7 @@ func TestSessionCapsWithGracefulRestart(t *testing.T) {
 //
 // PREVENTS: Lost mismatch information per RFC 5492 Section 3.
 func TestSessionCapsMismatches(t *testing.T) {
+	t.Parallel()
 	sess := &SessionCaps{
 		Mismatches: []Mismatch{
 			{Code: CodeExtendedMessage, LocalSupported: true, PeerSupported: false},

@@ -1,4 +1,4 @@
-package bgp_adj_rib_in
+package adj_rib_in
 
 import (
 	"encoding/json"

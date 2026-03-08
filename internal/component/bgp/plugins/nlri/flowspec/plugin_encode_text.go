@@ -4,7 +4,7 @@
 // Related: plugin_decode.go — wire-to-JSON decoding and formatting
 // Related: plugin_protocol.go — stdin/stdout protocol dispatch
 
-package bgp_nlri_flowspec
+package flowspec
 
 import (
 	"fmt"

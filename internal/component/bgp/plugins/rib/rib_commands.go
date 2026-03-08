@@ -3,7 +3,7 @@
 // Related: rib_nlri.go — NLRI wire format helpers
 // Related: rib_attr_format.go — attribute formatting for show enrichment
 // Related: bestpath.go — best-path selection (extractCandidate, gatherCandidates, SelectBest)
-package bgp_rib
+package rib
 
 import (
 	"encoding/json"
@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/pool"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 )
 
 // handleCommand processes command requests via SDK execute-command callback.
