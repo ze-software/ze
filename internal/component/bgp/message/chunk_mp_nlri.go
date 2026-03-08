@@ -9,24 +9,20 @@ import (
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/iter"
 )
+
+// NewNLRIElements creates a generic element iterator for NLRI wire bytes.
+// The iterator yields one NLRI at a time as subslices of nlriData.
+// Use GetNLRISizeFunc to obtain the appropriate sizeFunc for the address family.
+func NewNLRIElements(nlriData []byte, sizeFunc NLRISizeFunc) iter.Elements {
+	return iter.NewElements(nlriData, iter.SizeFunc(sizeFunc))
+}
 
 // ChunkMPNLRI splits MP family NLRIs respecting maxSize.
 //
-// Unlike ChunkNLRI (IPv4-only), handles all NLRI formats:
-//   - Add-Path: 4-byte path-id prefix
-//   - Labeled unicast: 3-byte label stack(s) before prefix
-//   - VPN: labels + 8-byte RD before prefix
-//   - EVPN: [route-type:1][length:1][payload]
-//   - FlowSpec: variable-length encoding
-//   - BGP-LS: [type:2][length:2][payload]
-//
-// Parameters:
-//   - nlri: raw NLRI bytes from MP_REACH_NLRI or MP_UNREACH_NLRI
-//   - afi: Address Family Identifier (1=IPv4, 2=IPv6, 25=L2VPN, 16388=BGP-LS)
-//   - safi: Subsequent AFI (1=unicast, 4=labeled, 70=EVPN, 128=VPN, 133=FlowSpec)
-//   - addPath: whether Add-Path is negotiated for this family
-//   - maxSize: maximum bytes per chunk
+// Handles all NLRI formats: Add-Path, Labeled, VPN, EVPN, FlowSpec, BGP-LS.
+// Returns subslices of nlriData (zero-copy).
 //
 // Returns error if:
 //   - Single NLRI exceeds maxSize (ErrNLRITooLarge)
@@ -46,43 +42,26 @@ func ChunkMPNLRI(nlriData []byte, afi nlri.AFI, safi nlri.SAFI, addPath bool, ma
 		return nil, nil
 	}
 
-	// Select size calculator based on family
 	sizeFunc := GetNLRISizeFunc(afi, safi, addPath)
+	e := NewNLRIElements(nlriData, sizeFunc)
 
-	// Validate NLRI structure and check if fits in fast path
+	// Fast path: validate structure and return single chunk if all fits
 	if len(nlriData) <= maxSize {
-		// Still need to validate structure
-		offset := 0
-		for offset < len(nlriData) {
-			size, err := sizeFunc(nlriData[offset:])
-			if err != nil {
-				return nil, fmt.Errorf("parsing NLRI at offset %d: %w", offset, err)
-			}
-			if offset+size > len(nlriData) {
-				return nil, fmt.Errorf("%w: NLRI at offset %d claims %d bytes, only %d available",
-					ErrNLRIMalformed, offset, size, len(nlriData)-offset)
-			}
-			offset += size
+		for e.Next() != nil {
+		}
+		if err := e.Err(); err != nil {
+			return nil, err
 		}
 		return [][]byte{nlriData}, nil
 	}
 
-	var chunks [][]byte
-	var current []byte
-	offset := 0
+	// Slow path: split into chunks respecting element boundaries
+	chunks := make([][]byte, 0, (len(nlriData)+maxSize-1)/maxSize+1)
+	chunkStart := 0
+	prevOffset := 0
 
-	for offset < len(nlriData) {
-		// Calculate size of current NLRI
-		nlriSize, err := sizeFunc(nlriData[offset:])
-		if err != nil {
-			return nil, fmt.Errorf("parsing NLRI at offset %d: %w", offset, err)
-		}
-
-		// Bounds check
-		if offset+nlriSize > len(nlriData) {
-			return nil, fmt.Errorf("%w: NLRI at offset %d claims %d bytes, only %d available",
-				ErrNLRIMalformed, offset, nlriSize, len(nlriData)-offset)
-		}
+	for elem := e.Next(); elem != nil; elem = e.Next() {
+		nlriSize := len(elem)
 
 		// RFC 7752 Section 3.2: BGP-LS NLRI uses 2-byte length field.
 		// Single NLRI can exceed standard 4096-byte message size.
@@ -91,20 +70,22 @@ func ChunkMPNLRI(nlriData []byte, afi nlri.AFI, safi nlri.SAFI, addPath bool, ma
 			return nil, fmt.Errorf("%w: %d bytes, max %d", ErrNLRITooLarge, nlriSize, maxSize)
 		}
 
-		// Would overflow? Flush current chunk
-		if len(current)+nlriSize > maxSize && len(current) > 0 {
-			chunks = append(chunks, current)
-			current = nil
+		// Would overflow? Emit current chunk as subslice
+		if e.Offset()-chunkStart > maxSize && prevOffset > chunkStart {
+			chunks = append(chunks, nlriData[chunkStart:prevOffset])
+			chunkStart = prevOffset
 		}
 
-		// Add this NLRI to current chunk
-		current = append(current, nlriData[offset:offset+nlriSize]...)
-		offset += nlriSize
+		prevOffset = e.Offset()
 	}
 
-	// Flush remainder
-	if len(current) > 0 {
-		chunks = append(chunks, current)
+	if err := e.Err(); err != nil {
+		return nil, err
+	}
+
+	// Emit remainder as subslice
+	if prevOffset > chunkStart {
+		chunks = append(chunks, nlriData[chunkStart:prevOffset])
 	}
 
 	return chunks, nil
@@ -114,7 +95,7 @@ func ChunkMPNLRI(nlriData []byte, afi nlri.AFI, safi nlri.SAFI, addPath bool, ma
 var ErrNLRIMalformed = fmt.Errorf("malformed NLRI")
 
 // SplitMPNLRI splits MP family NLRIs, returning fitting slice and remaining.
-// Unlike ChunkMPNLRI which creates copies, this returns subslices for efficiency.
+// Returns subslices for zero-copy efficiency.
 // This enables O(n) splitting across multiple calls instead of O(n²).
 //
 // Used when forwarding wire UPDATEs to peers with smaller buffers:
@@ -141,35 +122,28 @@ func SplitMPNLRI(nlriData []byte, afi nlri.AFI, safi nlri.SAFI, addPath bool, ma
 	}
 
 	sizeFunc := GetNLRISizeFunc(afi, safi, addPath)
+	e := NewNLRIElements(nlriData, sizeFunc)
 
-	offset := 0
-	for offset < len(nlriData) {
-		size, err := sizeFunc(nlriData[offset:])
-		if err != nil {
-			return nil, nil, fmt.Errorf("parsing NLRI at offset %d: %w", offset, err)
-		}
-		if offset+size > len(nlriData) {
-			return nil, nil, fmt.Errorf("%w: NLRI at offset %d claims %d bytes, only %d available",
-				ErrNLRIMalformed, offset, size, len(nlriData)-offset)
-		}
+	prevOffset := 0
+	for elem := e.Next(); elem != nil; elem = e.Next() {
 		// RFC 7752 Section 3.2: BGP-LS can have single NLRI > 4096 bytes.
 		// MUST error if single NLRI exceeds maxSize (cannot split one NLRI).
-		if size > maxSize {
-			return nil, nil, fmt.Errorf("%w: %d bytes, max %d", ErrNLRITooLarge, size, maxSize)
+		if len(elem) > maxSize {
+			return nil, nil, fmt.Errorf("%w: %d bytes, max %d", ErrNLRITooLarge, len(elem), maxSize)
 		}
-		if offset+size > maxSize {
-			// This NLRI would exceed limit, stop here
-			break
+		if e.Offset() > maxSize {
+			// This NLRI would exceed limit, split here
+			return nlriData[:prevOffset], nlriData[prevOffset:], nil
 		}
-		offset += size
+		prevOffset = e.Offset()
 	}
 
-	if offset == 0 {
-		// First NLRI alone exceeds maxSize - shouldn't happen since we check size > maxSize above
-		return nil, nil, fmt.Errorf("%w: first NLRI exceeds max %d", ErrNLRITooLarge, maxSize)
+	if err := e.Err(); err != nil {
+		return nil, nil, err
 	}
 
-	return nlriData[:offset], nlriData[offset:], nil
+	// Everything fit (shouldn't reach here due to len check above, but safe)
+	return nlriData, nil, nil
 }
 
 // NLRISizeFunc returns the size of the first NLRI in the buffer.

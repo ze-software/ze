@@ -4,7 +4,11 @@
 
 package message
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+)
 
 // ATTR_DISCARD path attribute implementation.
 // draft-mangin-idr-attr-discard-00: In-place marker for RFC 7606 attribute discard.
@@ -88,111 +92,54 @@ func ApplyAttrDiscard(pathAttrs []byte, entries []DiscardEntry) ([]byte, bool) {
 //  7. Zero remaining value bytes
 //  8. Length field unchanged
 func applyInPlace(pathAttrs []byte, entry DiscardEntry) bool {
-	pos := 0
-	for pos < len(pathAttrs) {
-		if pos+2 > len(pathAttrs) {
-			return false
+	iter := attribute.NewAttrIterator(pathAttrs)
+	for {
+		hdrStart := iter.Offset()
+		typeCode, flags, value, ok := iter.Next()
+		if !ok {
+			return false // Attribute not found.
 		}
-
-		flags := pathAttrs[pos]
-		code := pathAttrs[pos+1]
-		hdrStart := pos
-		pos += 2
-
-		// Determine attribute value length and offset.
-		var valueLen int
-		if flags&0x10 != 0 { // Extended length
-			if pos+2 > len(pathAttrs) {
-				return false
-			}
-			valueLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
-			pos += 2
-		} else {
-			if pos >= len(pathAttrs) {
-				return false
-			}
-			valueLen = int(pathAttrs[pos])
-			pos++
-		}
-
-		valueStart := pos
-		if valueStart+valueLen > len(pathAttrs) {
-			return false
-		}
-
-		if code == entry.Code {
+		if uint8(typeCode) == entry.Code {
 			// Found the attribute to discard.
-			if valueLen < 2 {
+			if len(value) < 2 {
 				return false // Cannot do in-place overwrite.
 			}
 
 			// Overwrite flags.
-			pathAttrs[hdrStart] = attrDiscardFlags(flags)
+			pathAttrs[hdrStart] = attrDiscardFlags(uint8(flags))
 			// Overwrite type code.
 			pathAttrs[hdrStart+1] = attrCodeAttrDiscard
 			// Write original code and reason into first two value bytes.
-			pathAttrs[valueStart] = entry.Code
-			pathAttrs[valueStart+1] = entry.Reason
+			// value is a subslice of pathAttrs — writes go through to the original buffer.
+			value[0] = entry.Code
+			value[1] = entry.Reason
 			// Zero remaining value bytes.
-			for i := valueStart + 2; i < valueStart+valueLen; i++ {
-				pathAttrs[i] = 0
+			for i := 2; i < len(value); i++ {
+				value[i] = 0
 			}
 			return true
 		}
-
-		pos = valueStart + valueLen
 	}
-	return false // Attribute not found.
 }
 
 // ExtractUpstreamAttrDiscard finds an existing ATTR_DISCARD and extracts its (code, reason) pairs.
 // Returns nil if no upstream ATTR_DISCARD is present.
+// Uses AttrIterator.Find to avoid duplicating TLV walk logic.
 func ExtractUpstreamAttrDiscard(pathAttrs []byte) []DiscardEntry {
-	pos := 0
-	for pos < len(pathAttrs) {
-		if pos+2 > len(pathAttrs) {
-			return nil
-		}
-
-		flags := pathAttrs[pos]
-		code := pathAttrs[pos+1]
-		pos += 2
-
-		var valueLen int
-		if flags&0x10 != 0 {
-			if pos+2 > len(pathAttrs) {
-				return nil
-			}
-			valueLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
-			pos += 2
-		} else {
-			if pos >= len(pathAttrs) {
-				return nil
-			}
-			valueLen = int(pathAttrs[pos])
-			pos++
-		}
-
-		valueStart := pos
-		if valueStart+valueLen > len(pathAttrs) {
-			return nil
-		}
-
-		if code == attrCodeAttrDiscard {
-			// Parse (code, reason) pairs from value.
-			var entries []DiscardEntry
-			for i := 0; i+1 < valueLen; i += 2 {
-				entries = append(entries, DiscardEntry{
-					Code:   pathAttrs[valueStart+i],
-					Reason: pathAttrs[valueStart+i+1],
-				})
-			}
-			return entries
-		}
-
-		pos = valueStart + valueLen
+	iter := attribute.NewAttrIterator(pathAttrs)
+	value, found := iter.Find(attribute.AttributeCode(attrCodeAttrDiscard))
+	if !found {
+		return nil
 	}
-	return nil
+	// Parse (code, reason) pairs from value.
+	var entries []DiscardEntry
+	for i := 0; i+1 < len(value); i += 2 {
+		entries = append(entries, DiscardEntry{
+			Code:   value[i],
+			Reason: value[i+1],
+		})
+	}
+	return entries
 }
 
 // rebuildWithAttrDiscard rebuilds the path attributes section, removing discarded
@@ -216,45 +163,19 @@ func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []Discard
 
 	// Calculate new size: copy non-removed, non-ATTR_DISCARD attributes,
 	// then append new ATTR_DISCARD.
-	// First pass: measure.
+	// First pass: measure using AttrIterator.
 	var keepSize int
-	pos := 0
-	for pos < len(pathAttrs) {
-		if pos+2 > len(pathAttrs) {
+	iter := attribute.NewAttrIterator(pathAttrs)
+	for {
+		start := iter.Offset()
+		typeCode, _, _, ok := iter.Next()
+		if !ok {
 			break
 		}
-		flags := pathAttrs[pos]
-		attrCode := pathAttrs[pos+1]
-		pos += 2
-
-		var valueLen int
-		var hdrLen int
-		if flags&0x10 != 0 {
-			if pos+2 > len(pathAttrs) {
-				break
-			}
-			valueLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
-			hdrLen = 4
-			pos += 2
-		} else {
-			if pos >= len(pathAttrs) {
-				break
-			}
-			valueLen = int(pathAttrs[pos])
-			hdrLen = 3
-			pos++
-		}
-
-		attrTotalLen := hdrLen + valueLen
-
-		if attrCode == attrCodeAttrDiscard || removeCodes[attrCode] {
-			// Skip this attribute.
-			pos += valueLen
+		if uint8(typeCode) == attrCodeAttrDiscard || removeCodes[uint8(typeCode)] {
 			continue
 		}
-
-		keepSize += attrTotalLen
-		pos += valueLen
+		keepSize += iter.Offset() - start
 	}
 
 	// ATTR_DISCARD value: 2 bytes per entry.
@@ -307,44 +228,20 @@ func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []Discard
 	result := make([]byte, keepSize+discardTotalLen)
 	wpos := 0
 
-	// Second pass: copy kept attributes.
-	pos = 0
-	for pos < len(pathAttrs) {
-		if pos+2 > len(pathAttrs) {
+	// Second pass: copy kept attributes using AttrIterator.
+	iter.Reset()
+	for {
+		start := iter.Offset()
+		typeCode, _, _, ok := iter.Next()
+		if !ok {
 			break
 		}
-		flags := pathAttrs[pos]
-		attrCode := pathAttrs[pos+1]
-		attrStart := pos
-		pos += 2
-
-		var valueLen int
-		var hdrLen int
-		if flags&0x10 != 0 {
-			if pos+2 > len(pathAttrs) {
-				break
-			}
-			valueLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
-			hdrLen = 4
-			pos += 2
-		} else {
-			if pos >= len(pathAttrs) {
-				break
-			}
-			valueLen = int(pathAttrs[pos])
-			hdrLen = 3
-			pos++
-		}
-
-		if attrCode == attrCodeAttrDiscard || removeCodes[attrCode] {
-			pos += valueLen
+		if uint8(typeCode) == attrCodeAttrDiscard || removeCodes[uint8(typeCode)] {
 			continue
 		}
-
-		totalLen := hdrLen + valueLen
-		copy(result[wpos:], pathAttrs[attrStart:attrStart+totalLen])
-		wpos += totalLen
-		pos += valueLen
+		attrLen := iter.Offset() - start
+		copy(result[wpos:], pathAttrs[start:start+attrLen])
+		wpos += attrLen
 	}
 
 	// Write ATTR_DISCARD attribute.
@@ -372,36 +269,13 @@ func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []Discard
 // findAttrFlags finds the flags byte for an attribute by its type code.
 // Returns 0 if the attribute is not found (e.g., upstream ATTR_DISCARD entry
 // whose original attribute is no longer in the path attributes section).
+// Uses AttrIterator to avoid duplicating TLV walk logic.
 func findAttrFlags(pathAttrs []byte, code uint8) uint8 {
-	pos := 0
-	for pos < len(pathAttrs) {
-		if pos+2 > len(pathAttrs) {
-			return 0
+	iter := attribute.NewAttrIterator(pathAttrs)
+	for typeCode, flags, _, ok := iter.Next(); ok; typeCode, flags, _, ok = iter.Next() {
+		if uint8(typeCode) == code {
+			return uint8(flags)
 		}
-		flags := pathAttrs[pos]
-		attrCode := pathAttrs[pos+1]
-		pos += 2
-
-		var valueLen int
-		if flags&0x10 != 0 {
-			if pos+2 > len(pathAttrs) {
-				return 0
-			}
-			valueLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
-			pos += 2
-		} else {
-			if pos >= len(pathAttrs) {
-				return 0
-			}
-			valueLen = int(pathAttrs[pos])
-			pos++
-		}
-
-		if attrCode == code {
-			return flags
-		}
-
-		pos += valueLen
 	}
 	return 0
 }

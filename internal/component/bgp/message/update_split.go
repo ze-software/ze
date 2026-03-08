@@ -47,8 +47,8 @@ func SplitUpdate(u *Update, maxSize int) ([]*Update, error) {
 // for this family. This affects NLRI boundary detection during splitting.
 //
 // Handles both IPv4 (NLRI field) and MP families (MP_REACH_NLRI attribute):
-// - IPv4 announcements: split u.NLRI via ChunkNLRI
-// - IPv4 withdrawals: split u.WithdrawnRoutes via ChunkNLRI
+// - IPv4 announcements: split u.NLRI via ChunkMPNLRI
+// - IPv4 withdrawals: split u.WithdrawnRoutes via ChunkMPNLRI
 // - MP announcements: detect MP_REACH_NLRI in PathAttributes, split via SplitMPReachNLRI
 // - MP withdrawals: detect MP_UNREACH_NLRI in PathAttributes, split via SplitMPUnreachNLRI
 //
@@ -121,53 +121,24 @@ type mpAttrInfo struct {
 
 // findMPAttribute locates an MP attribute in raw PathAttributes bytes.
 // Returns info about the attribute's location for later extraction/replacement.
+// Uses AttrIterator to avoid duplicating TLV walk logic.
 func findMPAttribute(pathAttrs []byte, code attribute.AttributeCode) mpAttrInfo {
-	offset := 0
-	for offset < len(pathAttrs) {
-		if offset+2 > len(pathAttrs) {
-			break
+	iter := attribute.NewAttrIterator(pathAttrs)
+	for {
+		start := iter.Offset()
+		typeCode, _, value, ok := iter.Next()
+		if !ok {
+			return mpAttrInfo{found: false}
 		}
-
-		flags := attribute.AttributeFlags(pathAttrs[offset])
-		attrCode := attribute.AttributeCode(pathAttrs[offset+1])
-
-		// Determine length field size
-		var length int
-		var headerSize int
-		if flags.IsExtLength() {
-			if offset+4 > len(pathAttrs) {
-				break
-			}
-			length = int(pathAttrs[offset+2])<<8 | int(pathAttrs[offset+3])
-			headerSize = 4
-		} else {
-			if offset+3 > len(pathAttrs) {
-				break
-			}
-			length = int(pathAttrs[offset+2])
-			headerSize = 3
-		}
-
-		// Check if this is the attribute we're looking for
-		if attrCode == code {
-			valueStart := offset + headerSize
-			valueEnd := valueStart + length
-			if valueEnd > len(pathAttrs) {
-				break // Malformed
-			}
+		if typeCode == code {
 			return mpAttrInfo{
 				found: true,
-				start: offset,
-				end:   valueEnd,
-				value: pathAttrs[valueStart:valueEnd],
+				start: start,
+				end:   iter.Offset(),
+				value: value,
 			}
 		}
-
-		// Move to next attribute
-		offset += headerSize + length
 	}
-
-	return mpAttrInfo{found: false}
 }
 
 // splitUpdateWithMP handles splitting when MP_REACH_NLRI or MP_UNREACH_NLRI is present.

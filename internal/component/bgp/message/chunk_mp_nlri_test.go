@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"net/netip"
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -148,13 +149,13 @@ func TestChunkMPNLRI_IPv6_EdgePrefixLengths(t *testing.T) {
 }
 
 // =============================================================================
-// Add-Path Tests (critical failure mode for ChunkNLRI)
+// Add-Path Tests (critical failure mode for basic NLRI chunking)
 // =============================================================================
 
 // TestChunkMPNLRI_AddPath_SinglePrefix verifies Add-Path prefix parsing.
 //
 // VALIDATES: [path-id:4][prefix-len:1][prefix] parsed as single unit.
-// PREVENTS: ChunkNLRI bug: path-id[0] interpreted as prefix-len.
+// PREVENTS: Add-Path bug: path-id[0] interpreted as prefix-len.
 func TestChunkMPNLRI_AddPath_SinglePrefix(t *testing.T) {
 	// Path-ID=1, 192.168.1.0/24
 	// [0x00, 0x00, 0x00, 0x01, 24, 192, 168, 1]
@@ -388,7 +389,7 @@ func TestChunkMPNLRI_Labeled_IPv6(t *testing.T) {
 // TestChunkMPNLRI_EVPN_Type2 verifies EVPN MAC/IP route.
 //
 // VALIDATES: [route-type:1][length:1][payload] parsed correctly.
-// PREVENTS: ChunkNLRI bug: route-type (2) as prefix-len.
+// PREVENTS: EVPN bug: route-type (2) misinterpreted as prefix-len.
 func TestChunkMPNLRI_EVPN_Type2(t *testing.T) {
 	// EVPN Type 2 (MAC/IP Advertisement)
 	// route-type=2, length=33 (typical MAC+IPv4)
@@ -913,6 +914,73 @@ func TestChunkMPNLRI_SingleTooLarge(t *testing.T) {
 
 	_, err := ChunkMPNLRI(nlri, 2, 1, false, 10)
 	require.Error(t, err)
+}
+
+// TestChunkMPNLRI_ZeroAlloc verifies ChunkMPNLRI makes zero allocations.
+//
+// VALIDATES: Subslice-based chunking produces no heap allocations.
+// PREVENTS: Regression to copy-based chunking with append().
+func TestChunkMPNLRI_ZeroAlloc(t *testing.T) {
+	// Build 10 IPv6 /48 prefixes = 70 bytes total (7 bytes each)
+	nlri := make([]byte, 70)
+	for i := range 10 {
+		nlri[i*7] = 48
+		nlri[i*7+1] = 0x20
+		nlri[i*7+2] = 0x01
+		nlri[i*7+3] = 0x0d
+		nlri[i*7+4] = 0xb8
+		nlri[i*7+5] = 0x00
+		nlri[i*7+6] = byte(i)
+	}
+
+	// Warm up
+	chunks, err := ChunkMPNLRI(nlri, 2, 1, false, 20)
+	require.NoError(t, err)
+	require.True(t, len(chunks) > 1, "should produce multiple chunks")
+
+	// Measure allocations — maxSize 20 forces multiple chunks
+	allocs := testing.AllocsPerRun(100, func() {
+		chunks, err = ChunkMPNLRI(nlri, 2, 1, false, 20)
+	})
+
+	assert.NoError(t, err)
+	assert.LessOrEqual(t, allocs, float64(1), "ChunkMPNLRI should only allocate the result slice")
+}
+
+// TestChunkMPNLRI_SubsliceVerification verifies chunks are subslices of original buffer.
+//
+// VALIDATES: Each chunk points into the original nlriData buffer.
+// PREVENTS: Silent copies that break zero-copy guarantee.
+func TestChunkMPNLRI_SubsliceVerification(t *testing.T) {
+	t.Parallel()
+	// Build 6 IPv6 /48 prefixes = 42 bytes total
+	nlri := make([]byte, 42)
+	for i := range 6 {
+		nlri[i*7] = 48
+		nlri[i*7+1] = 0x20
+		nlri[i*7+2] = 0x01
+		nlri[i*7+3] = 0x0d
+		nlri[i*7+4] = 0xb8
+		nlri[i*7+5] = 0x00
+		nlri[i*7+6] = byte(i)
+	}
+
+	// maxSize 20 → 2 NLRIs per chunk (14 bytes), 3 chunks
+	chunks, err := ChunkMPNLRI(nlri, 2, 1, false, 20)
+	require.NoError(t, err)
+	require.Len(t, chunks, 3)
+
+	// Each chunk must be a subslice of nlri (same backing array)
+	nlriStart := &nlri[0]
+	nlriEnd := &nlri[len(nlri)-1]
+	for i, chunk := range chunks {
+		chunkStart := &chunk[0]
+		assert.True(t, uintptr(unsafe.Pointer(chunkStart)) >= uintptr(unsafe.Pointer(nlriStart)),
+			"chunk %d starts before nlri buffer", i)
+		chunkEnd := &chunk[len(chunk)-1]
+		assert.True(t, uintptr(unsafe.Pointer(chunkEnd)) <= uintptr(unsafe.Pointer(nlriEnd)),
+			"chunk %d ends after nlri buffer", i)
+	}
 }
 
 // =============================================================================

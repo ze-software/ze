@@ -221,22 +221,26 @@ func FuzzUnpackRouteRefresh(f *testing.F) {
 	})
 }
 
-// FuzzChunkNLRI tests NLRI chunking robustness.
+// FuzzChunkMPNLRI tests NLRI chunking robustness.
 //
-// VALIDATES: ChunkNLRI handles arbitrary NLRI bytes without crashing.
+// VALIDATES: ChunkMPNLRI handles arbitrary NLRI bytes without crashing.
 // PREVENTS: Panic on malformed prefix lengths, zero maxSize.
 // SECURITY: NLRI data originates from untrusted UPDATE messages.
-func FuzzChunkNLRI(f *testing.F) {
+func FuzzChunkMPNLRI(f *testing.F) {
 	f.Add([]byte{24, 10, 0, 0, 16, 172, 16}, 100) // Two valid prefixes
 	f.Add([]byte{24, 10, 0, 0}, 2)                // maxSize smaller than prefix
 	f.Add([]byte{}, 100)                          // Empty
 	f.Add([]byte{32, 10, 0, 0, 1}, 5)             // Exact fit
 	f.Add([]byte{0xFF}, 10)                       // Invalid prefix length 255
 
-	f.Fuzz(func(t *testing.T, nlri []byte, maxSize int) {
+	f.Fuzz(func(t *testing.T, data []byte, maxSize int) {
 		if maxSize < 1 {
 			maxSize = 1 // Avoid zero/negative
 		}
-		_ = ChunkNLRI(nlri, maxSize) // MUST NOT panic
+		chunks, err := ChunkMPNLRI(data, 1, 1, false, maxSize) // MUST NOT panic
+		if err != nil {
+			return // Malformed input is expected in fuzz testing
+		}
+		_ = chunks
 	})
 }
