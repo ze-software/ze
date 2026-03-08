@@ -1129,7 +1129,7 @@ func TestSDKDispatchCommand(t *testing.T) {
 
 	// Respond with result
 	dispatchResult := rpc.DispatchCommandOutput{
-		Status: "done",
+		Status: rpc.StatusDone,
 		Data:   `{"last-index":42}`,
 	}
 	require.NoError(t, engine.server.SendResult(ctx, req.ID, dispatchResult))

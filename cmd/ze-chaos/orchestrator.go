@@ -1,6 +1,7 @@
 // Design: docs/architecture/chaos-web-dashboard.md — chaos test orchestrator
-// Related: orchestrator_run.go — orchestrator run loop and reporting setup
 // Overview: main.go — CLI entry and flag parsing
+// Related: orchestrator_run.go — orchestrator run loop and reporting setup
+// Related: scheduler.go — chaos and route dynamics schedulers
 package main
 
 import (

@@ -21,7 +21,7 @@ func TestDispatcherRegister(t *testing.T) {
 	d := NewDispatcher()
 
 	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
-		return &plugin.Response{Status: "done"}, nil
+		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
 
 	d.Register("test command", handler, "Test command help")
@@ -46,7 +46,7 @@ func TestDispatcherDispatch(t *testing.T) {
 	var receivedArgs []string
 	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
 		receivedArgs = args
-		return &plugin.Response{Status: "done"}, nil
+		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
 
 	d.Register("peer show", handler, "Show peers")
@@ -68,7 +68,7 @@ func TestDispatcherDispatchNoArgs(t *testing.T) {
 	var receivedArgs []string
 	handler := func(ctx *CommandContext, args []string) (*plugin.Response, error) {
 		receivedArgs = args
-		return &plugin.Response{Status: "done"}, nil
+		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}
 
 	d.Register("daemon shutdown", handler, "Shutdown daemon")
@@ -121,15 +121,15 @@ func TestDispatcherLongestMatch(t *testing.T) {
 	var matched string
 	d.Register("peer", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
 		matched = "peer"
-		return &plugin.Response{Status: "done"}, nil
+		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "")
 	d.Register("peer show", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
 		matched = "peer show"
-		return &plugin.Response{Status: "done"}, nil
+		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "")
 	d.Register("peer show extensive", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
 		matched = "peer show extensive"
-		return &plugin.Response{Status: "done"}, nil
+		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "")
 
 	// "peer show extensive" should match the most specific
@@ -295,7 +295,7 @@ func TestDispatcherCaseInsensitive(t *testing.T) {
 	called := false
 	d.Register("peer show", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
 		called = true
-		return &plugin.Response{Status: "done"}, nil
+		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "")
 
 	// Should match regardless of case
@@ -319,7 +319,7 @@ func TestDispatchRejectsNoSelector(t *testing.T) {
 
 	d.RegisterWithOptions("bgp peer eorr", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		t.Fatal("handler should not be called without selector")
-		return &plugin.Response{Status: "done"}, nil
+		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Send EoRR", RegisterOptions{RequiresSelector: true})
 
 	ctx := &CommandContext{}
@@ -338,7 +338,7 @@ func TestDispatchWithSelector(t *testing.T) {
 	var calledWithPeer string
 	d.RegisterWithOptions("bgp peer eorr", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
 		calledWithPeer = ctx.PeerSelector()
-		return &plugin.Response{Status: "done"}, nil
+		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Send EoRR", RegisterOptions{RequiresSelector: true})
 
 	ctx := &CommandContext{}
@@ -359,7 +359,7 @@ func TestDispatchReadOnlyNoSelector(t *testing.T) {
 	called := false
 	d.RegisterWithOptions("bgp peer list", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		called = true
-		return &plugin.Response{Status: "done"}, nil
+		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "List peers", RegisterOptions{RequiresSelector: false})
 
 	ctx := &CommandContext{}
@@ -378,7 +378,7 @@ func TestDispatchTeardownNoSelector(t *testing.T) {
 
 	d.RegisterWithOptions("bgp peer teardown", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		t.Fatal("handler should not be called without selector")
-		return &plugin.Response{Status: "done"}, nil
+		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Teardown peer", RegisterOptions{RequiresSelector: true})
 
 	ctx := &CommandContext{}
@@ -397,7 +397,7 @@ func TestDispatchWildcardSelector(t *testing.T) {
 	var calledWithPeer string
 	d.RegisterWithOptions("bgp peer eorr", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
 		calledWithPeer = ctx.PeerSelector()
-		return &plugin.Response{Status: "done"}, nil
+		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Send EoRR", RegisterOptions{RequiresSelector: true})
 
 	ctx := &CommandContext{}

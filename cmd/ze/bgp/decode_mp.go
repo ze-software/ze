@@ -2,6 +2,7 @@
 // Overview: decode.go — top-level decode dispatch
 // Related: decode_update.go — UPDATE message decoding calls MP_REACH/MP_UNREACH parsers
 // Related: decode_plugin.go — plugin invocation for NLRI decoding
+// Related: decode_human.go — human-readable NLRI formatters
 
 package bgp
 

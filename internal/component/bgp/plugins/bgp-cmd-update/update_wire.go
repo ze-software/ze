@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/commands.md — wire UPDATE parsing handlers
-// Overview: register.go — bgp-cmd-update plugin registration
+// Overview: doc.go — bgp-cmd-update plugin registration
 //
 // update_wire.go provides the wire-encoded update parser.
 // Handles hex and b64 encodings for peer update commands.

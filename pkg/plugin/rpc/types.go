@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/ipc_protocol.md — plugin RPC types
 // Related: text.go — text format/parse uses RPC types
+// Related: message.go — RPC wire message types
 //
 // Package rpc defines the canonical wire-format types for the ze plugin RPC protocol.
 //
@@ -15,6 +16,14 @@
 package rpc
 
 import "encoding/json"
+
+// Status constants for plugin API responses.
+// Defined here so both internal code and pkg/plugin/sdk can use them.
+const (
+	StatusDone  = "done"
+	StatusError = "error"
+	StatusOK    = "ok"
+)
 
 // DeclareRegistrationInput is the input for ze-plugin-engine:declare-registration (Stage 1).
 type DeclareRegistrationInput struct {

@@ -55,7 +55,7 @@ func (p *PendingRequests) Add(req *PendingRequest) string {
 			if req.RespChan != nil {
 				select {
 				case req.RespChan <- &plugin.Response{
-					Status: "error",
+					Status: plugin.StatusError,
 					Data:   "too many pending requests",
 				}:
 				default:
@@ -176,7 +176,7 @@ func (p *PendingRequests) timeout(serial string) {
 	if req.RespChan != nil {
 		select {
 		case req.RespChan <- &plugin.Response{
-			Status: "error",
+			Status: plugin.StatusError,
 			Data:   "command timed out",
 		}:
 		default:
@@ -213,7 +213,7 @@ func (p *PendingRequests) CancelAll(proc *process.Process) {
 		if req.RespChan != nil {
 			select {
 			case req.RespChan <- &plugin.Response{
-				Status: "error",
+				Status: plugin.StatusError,
 				Data:   "process died",
 			}:
 			default:

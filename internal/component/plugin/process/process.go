@@ -1,6 +1,8 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process lifecycle
 // Detail: delivery.go — event delivery pipeline
 // Detail: manager.go — multi-process coordination and respawn
+// Detail: sysproc_linux.go — Linux-specific process isolation
+// Detail: sysproc_other.go — non-Linux process isolation
 
 package process
 

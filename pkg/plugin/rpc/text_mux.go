@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/ipc_protocol.md — multiplexed text plugin RPC
+// Related: text.go — text handshake serialization
 // Related: text_conn.go — TextConn text-mode framing
 // Related: mux.go — JSON-mode MuxConn (NUL-framed, JSON ID routing)
 

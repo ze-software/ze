@@ -47,6 +47,9 @@ Key decisions agreed with user:
 ### Bash Timeout for ze-verify
 `make ze-verify` needs timeout 120s (2 min) — runs lint + unit + functional + exabgp + chaos.
 
+### Constants for Command/Status Names
+String literals used as command names or status values must be constants — compiler catches typos that `case "sett":` would silently miss. Editor commands live in `config/editor/model.go`. Plugin status uses `plugin.StatusDone`/`plugin.StatusError`.
+
 ### Proximity Principle & Handler Location
 `bgp/handler/` is a middleman — command handlers belong in `bgp/plugins/` (self-contained).
 ALL RPCs need YANG — no "command module" category. Missing YANG is a bug, not a design choice.

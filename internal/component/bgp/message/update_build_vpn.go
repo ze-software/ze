@@ -1,6 +1,7 @@
 // Design: docs/architecture/update-building.md — VPN UPDATE builders
 // RFC: rfc/short/rfc4364.md — BGP/MPLS IP VPN NLRI
 // Overview: update_build.go — core UpdateBuilder struct and unicast builders
+// Related: update_build_grouped.go — grouped and size-aware UPDATE builders
 package message
 
 import (

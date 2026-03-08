@@ -188,6 +188,11 @@ ze-test: ze-lint ze-chaos-lint ze-unit-test ze-functional-test ze-exabgp-test ze
 ze-verify: ze-lint ze-chaos-lint ze-unit-test ze-functional-test ze-exabgp-test ze-chaos-test
 	@echo "Ze verification passed"
 
+# Codebase consistency checks (naming, structure, cross-refs, file sizes)
+ze-consistency:
+	@echo "Running consistency checks..."
+	@go run scripts/consistency-check.go .
+
 # Ze CI check
 ze-ci: ze-lint ze-unit-test build
 	@echo "Ze CI check passed"

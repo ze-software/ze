@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/commands.md — text UPDATE parsing handlers
-// Overview: register.go — bgp-cmd-update plugin registration
+// Overview: doc.go — bgp-cmd-update plugin registration
 // Detail: update_text_nlri.go — NLRI section parsing
 // Detail: update_text_evpn.go — EVPN NLRI parsing
 // Detail: update_text_flowspec.go — FlowSpec NLRI parsing

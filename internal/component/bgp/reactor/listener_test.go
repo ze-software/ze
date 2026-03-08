@@ -111,10 +111,10 @@ func TestListenerMultipleConnections(t *testing.T) {
 		}()
 	}
 
-	// Wait for handlers
-	time.Sleep(100 * time.Millisecond)
-
-	require.Equal(t, int32(numConns), accepted.Load(), "handler should be called for each connection")
+	// Wait for all handlers to complete — polling is reliable under race detector.
+	require.Eventually(t, func() bool { return accepted.Load() >= int32(numConns) },
+		2*time.Second, 10*time.Millisecond,
+		"handler should be called for each connection")
 }
 
 // TestListenerContextCancellation verifies listener stops on context cancellation.

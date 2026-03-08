@@ -1,5 +1,6 @@
 // Design: docs/architecture/core-design.md — session connect, accept, teardown
 // Overview: session.go — BGP session struct and lifecycle
+// Related: session_read.go — inbound message reading
 // Related: session_write.go — wire write primitives
 
 package reactor

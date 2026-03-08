@@ -1,4 +1,5 @@
 // Design: docs/architecture/chaos-web-dashboard.md — chaos and route dynamics schedulers
+// Overview: main.go — CLI entry and flag parsing
 // Related: orchestrator_run.go — orchestrator that launches schedulers
 // Related: orchestrator.go — ChaosConfig, RouteConfig, establishedState types
 package main

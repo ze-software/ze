@@ -64,7 +64,7 @@ func (m *mockPluginResponder) start(ctx context.Context) {
 				m.verifyCalls++
 				resp := m.verifyResp
 				if resp == nil {
-					resp = &rpc.ConfigVerifyOutput{Status: "ok"}
+					resp = &rpc.ConfigVerifyOutput{Status: rpc.StatusOK}
 				}
 				// Hook runs BEFORE sending the response — the coordinator's
 				// SendConfigVerify blocks until it reads this response, so any
@@ -81,7 +81,7 @@ func (m *mockPluginResponder) start(ctx context.Context) {
 				m.applyCalls++
 				resp := m.applyResp
 				if resp == nil {
-					resp = &rpc.ConfigApplyOutput{Status: "ok"}
+					resp = &rpc.ConfigApplyOutput{Status: rpc.StatusOK}
 				}
 				_ = m.pluginConn.SendResult(ctx, req.ID, resp)
 
@@ -215,7 +215,7 @@ func TestReloadConfigVerifyFails(t *testing.T) {
 		{
 			name:       "rib",
 			roots:      []string{"bgp"},
-			verifyResp: &rpc.ConfigVerifyOutput{Status: "error", Error: "invalid router-id"},
+			verifyResp: &rpc.ConfigVerifyOutput{Status: plugin.StatusError, Error: "invalid router-id"},
 		},
 	}
 	s := newTestReloadServer(t, reactor, plugins)
@@ -322,7 +322,7 @@ func TestReloadConfigMultiplePlugins(t *testing.T) {
 		{
 			name:       "gr",
 			roots:      []string{"bgp"},
-			verifyResp: &rpc.ConfigVerifyOutput{Status: "error", Error: "GR in progress"},
+			verifyResp: &rpc.ConfigVerifyOutput{Status: plugin.StatusError, Error: "GR in progress"},
 		},
 	}
 	s := newTestReloadServer(t, reactor, plugins)
@@ -670,7 +670,7 @@ func TestReloadApplyErrorReturned(t *testing.T) {
 		{
 			name:      "rib",
 			roots:     []string{"bgp"},
-			applyResp: &rpc.ConfigApplyOutput{Status: "error", Error: "apply rejected"},
+			applyResp: &rpc.ConfigApplyOutput{Status: plugin.StatusError, Error: "apply rejected"},
 		},
 	}
 	s := newTestReloadServer(t, reactor, plugins)

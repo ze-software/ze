@@ -1,5 +1,5 @@
 // Design: docs/architecture/chaos-web-dashboard.md — convergence trend percentile chart
-// Related: viz.go — writeConvergenceHistogram renders the distribution view
+// Overview: viz.go — writeConvergenceHistogram renders the distribution view
 // Related: state.go — ConvergenceTrend RingBuffer and ComputeConvergencePercentiles
 
 package web

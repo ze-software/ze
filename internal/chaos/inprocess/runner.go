@@ -234,13 +234,17 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 		}
 	}()
 
-	// Give real time for reactor startup, BGP handshake, and route exchange.
-	// The base 3s covers reactor + plugin initialization (which is slower
-	// under the race detector). The per-peer 500ms covers each OPEN exchange
-	// competing for goroutine scheduling — the race detector adds 5-10x
-	// overhead per goroutine operation, and the reactor accepts connections
-	// sequentially.
-	handshakeWait := 3*time.Second + time.Duration(len(cfg.Profiles))*500*time.Millisecond
+	// Give real time for reactor startup and plugin initialization.
+	// The base 5s covers reactor + plugin init under the race detector
+	// with full-suite load. The per-peer 500ms covers each connection
+	// being queued and accepted sequentially.
+	//
+	// NOTE: session.Run() uses s.clock.Sleep(10ms) — a virtual clock sleep —
+	// when waiting for a connection. The handshake cannot complete until the
+	// virtual clock advances (via vc.Advance in the loop below). This wait
+	// is only for reactor/plugin startup; the handshake happens during the
+	// first few virtual time steps.
+	handshakeWait := 5*time.Second + time.Duration(len(cfg.Profiles))*500*time.Millisecond
 	time.Sleep(handshakeWait)
 
 	// Advance virtual time in 1-second steps with real-time pauses

@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — RFC 7606 UPDATE validation
+// Overview: session.go — BGP session struct and lifecycle
 
 package reactor
 

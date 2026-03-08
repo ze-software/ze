@@ -15,7 +15,7 @@ import (
 func TestResponseJSONHasTypeWrapper(t *testing.T) {
 	resp := &Response{
 		Serial: "123",
-		Status: "done",
+		Status: StatusDone,
 		Data:   map[string]any{"message": "ok"},
 	}
 
@@ -59,7 +59,7 @@ func TestResponseMarshalFormat(t *testing.T) {
 			name: "done_with_data",
 			resp: &Response{
 				Serial: "1",
-				Status: "done",
+				Status: StatusDone,
 				Data:   map[string]any{"count": 42},
 			},
 			wantType: "response",
@@ -69,7 +69,7 @@ func TestResponseMarshalFormat(t *testing.T) {
 			name: "error_response",
 			resp: &Response{
 				Serial: "2",
-				Status: "error",
+				Status: StatusError,
 				Data:   "something went wrong",
 			},
 			wantType: "response",
@@ -89,7 +89,7 @@ func TestResponseMarshalFormat(t *testing.T) {
 		{
 			name: "no_serial",
 			resp: &Response{
-				Status: "done",
+				Status: StatusDone,
 			},
 			wantType: "response",
 			wantKeys: []string{"status"},

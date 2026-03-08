@@ -39,7 +39,7 @@ func TestDispatchCommandToPlugin(t *testing.T) {
 	d := NewDispatcher()
 	d.Register("test command", func(_ *CommandContext, args []string) (*plugin.Response, error) {
 		return &plugin.Response{
-			Status: "done",
+			Status: plugin.StatusDone,
 			Data:   map[string]any{"last-index": float64(42)},
 		}, nil
 	}, "test command")
@@ -158,7 +158,7 @@ func TestDispatchCommandPluginError(t *testing.T) {
 	d := NewDispatcher()
 	d.Register("failing command", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		return &plugin.Response{
-			Status: "error",
+			Status: plugin.StatusError,
 			Data:   "something went wrong",
 		}, nil
 	}, "failing command")
@@ -269,7 +269,7 @@ func TestDispatchCommandDirectBridge(t *testing.T) {
 	d := NewDispatcher()
 	d.Register("bridge test", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		return &plugin.Response{
-			Status: "done",
+			Status: plugin.StatusDone,
 			Data:   map[string]any{"result": "bridge-ok"},
 		}, nil
 	}, "bridge test")

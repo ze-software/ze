@@ -1,6 +1,7 @@
 // Design: docs/architecture/update-building.md — VPLS UPDATE builders
 // RFC: rfc/short/rfc4761.md — VPLS NLRI encoding
 // Overview: update_build.go — core UpdateBuilder struct and unicast builders
+// Related: update_build_grouped.go — grouped and size-aware UPDATE builders
 package message
 
 import (

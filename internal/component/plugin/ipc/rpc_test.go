@@ -640,7 +640,7 @@ func TestEngineExecuteCommand(t *testing.T) {
 	assert.Equal(t, []string{"ipv4"}, input.Args)
 	assert.Equal(t, "10.0.0.1", input.Peer)
 
-	result := &rpc.ExecuteCommandOutput{Status: "done", Data: `{"routes":[]}`}
+	result := &rpc.ExecuteCommandOutput{Status: rpc.StatusDone, Data: `{"routes":[]}`}
 	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, result))
 
 	r := <-done
@@ -681,7 +681,7 @@ func TestSendConfigVerifyOK(t *testing.T) {
 	assert.Equal(t, 1, len(input.Sections))
 	assert.Equal(t, "bgp", input.Sections[0].Root)
 
-	result := &rpc.ConfigVerifyOutput{Status: "ok"}
+	result := &rpc.ConfigVerifyOutput{Status: rpc.StatusOK}
 	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, result))
 
 	r := <-done
@@ -717,7 +717,7 @@ func TestSendConfigVerifyError(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "ze-plugin-callback:config-verify", req.Method)
 
-	result := &rpc.ConfigVerifyOutput{Status: "error", Error: "invalid config: missing router-id"}
+	result := &rpc.ConfigVerifyOutput{Status: rpc.StatusError, Error: "invalid config: missing router-id"}
 	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, result))
 
 	r := <-done
@@ -760,7 +760,7 @@ func TestSendConfigApplyOK(t *testing.T) {
 	assert.Equal(t, `{"peer":{"p1":{}}}`, input.Sections[0].Added)
 	assert.Equal(t, `{"router-id":"5.6.7.8"}`, input.Sections[0].Changed)
 
-	result := &rpc.ConfigApplyOutput{Status: "ok"}
+	result := &rpc.ConfigApplyOutput{Status: rpc.StatusOK}
 	require.NoError(t, pluginConn.SendResult(context.Background(), req.ID, result))
 
 	r := <-done

@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/commands.md — BGP peer lifecycle and introspection handlers
 // Detail: summary.go — BGP summary and capabilities handlers
+// Detail: session.go — BGP peer session handlers
 
 package bgpcmdpeer
 

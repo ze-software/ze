@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — BGP capability negotiation
+// Overview: session.go — BGP session struct and lifecycle
 
 package reactor
 

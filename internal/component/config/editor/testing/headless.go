@@ -86,17 +86,20 @@ func (hm *HeadlessModel) processCmdWithDepth(cmd tea.Cmd, depth int) {
 		done <- cmd()
 	}()
 
-	// Very short timeout - commands should complete quickly
-	// Blocking commands (cursor blink, etc.) will timeout and be skipped
+	// Wait for the command to complete. Most commands (including file I/O
+	// for commit/load) finish quickly, but cursor blink and other blocking
+	// commands need to be skipped. 50ms is long enough for I/O under the
+	// race detector, but short enough that accumulated timeouts from many
+	// cursor blinks don't cause the test to time out (ET tests generate
+	// thousands of keystrokes, each potentially spawning a blink command).
 	select {
 	case msg := <-done:
 		if msg == nil {
 			return
 		}
 		hm.processMsg(msg, depth)
-	case <-time.After(10 * time.Millisecond):
+	case <-time.After(50 * time.Millisecond):
 		// Command would block (like cursor blink), skip it
-		// The goroutine will be abandoned but depth limiting prevents accumulation
 		return
 	}
 }

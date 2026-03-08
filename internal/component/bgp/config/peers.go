@@ -1,4 +1,6 @@
 // Design: docs/architecture/config/syntax.md — peer configuration extraction and route expansion
+// Related: loader_prefix.go — prefix expansion for route splitting
+// Related: loader_routes.go — BGP route type conversion
 
 package bgpconfig
 

@@ -196,14 +196,17 @@ func TestSignalHandlerRecoversPanic(t *testing.T) {
 	// First SIGTERM: callback will panic — handler should recover.
 	sigErr := syscall.Kill(os.Getpid(), syscall.SIGTERM)
 	require.NoError(t, sigErr)
-	time.Sleep(50 * time.Millisecond)
+
+	// Wait for first signal to be processed (needs time under race detector)
+	require.Eventually(t, func() bool { return callCount.Load() >= 1 },
+		time.Second, 10*time.Millisecond, "first signal should be handled")
 
 	// Second SIGTERM: should still be handled.
 	sigErr = syscall.Kill(os.Getpid(), syscall.SIGTERM)
 	require.NoError(t, sigErr)
-	time.Sleep(50 * time.Millisecond)
 
-	assert.GreaterOrEqual(t, callCount.Load(), int32(2),
+	require.Eventually(t, func() bool { return callCount.Load() >= 2 },
+		time.Second, 10*time.Millisecond,
 		"signal handler should continue after callback panic")
 }
 

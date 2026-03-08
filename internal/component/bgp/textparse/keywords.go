@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/text-format.md — shared keyword definitions for text protocol
 // Related: scanner.go — shared text tokenizer
+// Related: ../format/text.go — message formatting uses keyword constants
 
 package textparse
 

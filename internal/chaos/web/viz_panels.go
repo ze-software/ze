@@ -1,5 +1,5 @@
 // Design: docs/architecture/chaos-web-dashboard.md — multi-panel viz layout
-// Related: viz.go — viz write functions reused for panel content
+// Overview: viz.go — viz write functions reused for panel content
 // Related: render.go — writeLayout tab bar includes panel mode toggle
 
 package web

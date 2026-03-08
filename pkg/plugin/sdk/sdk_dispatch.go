@@ -348,19 +348,19 @@ func (p *Plugin) handleConfigRPC(ctx context.Context, req *rpc.Request, handler 
 		// No handler = graceful no-op (not all plugins care about config).
 		return p.callbackConn.SendResult(ctx, req.ID, &struct {
 			Status string `json:"status"`
-		}{Status: "ok"})
+		}{Status: rpc.StatusOK})
 	}
 
 	if err := handler(req.Params); err != nil {
 		return p.callbackConn.SendResult(ctx, req.ID, &struct {
 			Status string `json:"status"`
 			Error  string `json:"error,omitempty"`
-		}{Status: "error", Error: err.Error()})
+		}{Status: rpc.StatusError, Error: err.Error()})
 	}
 
 	return p.callbackConn.SendResult(ctx, req.ID, &struct {
 		Status string `json:"status"`
-	}{Status: "ok"})
+	}{Status: rpc.StatusOK})
 }
 
 func (p *Plugin) handleConfigVerify(ctx context.Context, req *rpc.Request) error {

@@ -227,17 +227,18 @@ func TestFwdPool_HandlerError(t *testing.T) {
 
 	// First dispatch panics
 	pool.Dispatch(key, fwdItem{done: doneFunc})
-	time.Sleep(50 * time.Millisecond)
 
-	// done callback should still be called despite panic
-	assert.Equal(t, int32(1), doneCalled.Load())
+	// done callback should still be called despite panic (goroutine needs time under race detector)
+	require.Eventually(t, func() bool { return doneCalled.Load() >= 1 },
+		time.Second, 10*time.Millisecond, "done callback should be called after panic")
 
 	// Second dispatch should still work (worker survived panic)
 	pool.Dispatch(key, fwdItem{done: doneFunc})
-	time.Sleep(50 * time.Millisecond)
 
-	assert.Equal(t, int32(2), handled.Load())
-	assert.Equal(t, int32(2), doneCalled.Load())
+	require.Eventually(t, func() bool { return handled.Load() >= 2 },
+		time.Second, 10*time.Millisecond, "worker should survive panic and handle second dispatch")
+	require.Eventually(t, func() bool { return doneCalled.Load() >= 2 },
+		time.Second, 10*time.Millisecond, "done callback should be called for both dispatches")
 	assert.Equal(t, 1, pool.WorkerCount())
 }
 

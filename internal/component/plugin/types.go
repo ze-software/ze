@@ -320,6 +320,7 @@ func ParseWireEncoding(s string) (WireEncoding, error) {
 const (
 	StatusDone  = "done"
 	StatusError = "error"
+	StatusOK    = "ok"
 )
 
 // cmdPlugin is the "plugin" token in command strings like "ze plugin <name>".

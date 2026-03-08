@@ -188,9 +188,9 @@ type NLRIBatch struct {
 // RIBStatsInfo holds RIB statistics for Adj-RIB-In and Adj-RIB-Out.
 // Moved from internal/plugin/types.go — this is a BGP-specific type.
 type RIBStatsInfo struct {
-	InPeerCount   int `json:"in_peer_count"`
-	InRouteCount  int `json:"in_route_count"`
-	OutPending    int `json:"out_pending"`
-	OutWithdrawls int `json:"out_withdrawals"`
-	OutSent       int `json:"out_sent"`
+	InPeerCount   int `json:"in-peer-count"`
+	InRouteCount  int `json:"in-route-count"`
+	OutPending    int `json:"out-pending"`
+	OutWithdrawls int `json:"out-withdrawals"`
+	OutSent       int `json:"out-sent"`
 }

@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — text-mode plugin handshake
 // Overview: subsystem.go — JSON-mode completeProtocol and SubsystemHandler
+// Related: startup_text.go — text-mode handleTextProcessStartup
 
 package server
 

@@ -1,6 +1,7 @@
 // Design: docs/architecture/api/ipc_protocol.md — NUL-delimited frame I/O
 // Detail: batch.go — batched event delivery frame construction
 // Related: conn.go — Conn uses FrameReader/FrameWriter for RPC framing
+// Related: message.go — RPC wire message types
 
 package rpc
 

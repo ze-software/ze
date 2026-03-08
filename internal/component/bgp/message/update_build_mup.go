@@ -1,6 +1,7 @@
 // Design: docs/architecture/update-building.md — MUP UPDATE builders
 // RFC: rfc/short/draft-ietf-bess-mup-safi.md — MUP SAFI NLRI
 // Overview: update_build.go — core UpdateBuilder struct and unicast builders
+// Related: update_build_grouped.go — grouped and size-aware UPDATE builders
 package message
 
 import (
