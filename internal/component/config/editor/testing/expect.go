@@ -100,7 +100,7 @@ func checkDirty(exp Expectation, state State) error {
 func checkError(exp Expectation, state State) error {
 	if _, hasNone := exp.Values["none"]; hasNone {
 		if state.Error() != nil {
-			return fmt.Errorf("expected error:none, got: %s", state.Error().Error())
+			return fmt.Errorf("expected error:none, got: %w", state.Error())
 		}
 		return nil
 	}
@@ -110,7 +110,7 @@ func checkError(exp Expectation, state State) error {
 			return fmt.Errorf("expected error containing %q, got no error", expected)
 		}
 		if !strings.Contains(state.Error().Error(), expected) {
-			return fmt.Errorf("expected error containing %q, got: %s", expected, state.Error().Error())
+			return fmt.Errorf("expected error containing %q, got: %w", expected, state.Error())
 		}
 		return nil
 	}

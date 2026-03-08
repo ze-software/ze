@@ -226,8 +226,7 @@ func TestReloadConfigVerifyFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid router-id")
 
 	// Apply should NOT have been called.
-	time.Sleep(50 * time.Millisecond)
-	assert.Equal(t, 1, plugins[0].responder.getVerifyCalls())
+	require.Eventually(t, func() bool { return plugins[0].responder.getVerifyCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "verify should have been called once")
 	assert.Equal(t, 0, plugins[0].responder.getApplyCalls())
 
 	// Running config should NOT be updated.
@@ -256,9 +255,8 @@ func TestReloadConfigVerifyThenApply(t *testing.T) {
 	require.NoError(t, err)
 
 	// Both verify and apply should have been called.
-	time.Sleep(50 * time.Millisecond)
-	assert.Equal(t, 1, plugins[0].responder.getVerifyCalls())
-	assert.Equal(t, 1, plugins[0].responder.getApplyCalls())
+	require.Eventually(t, func() bool { return plugins[0].responder.getVerifyCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "verify should have been called once")
+	require.Eventually(t, func() bool { return plugins[0].responder.getApplyCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "apply should have been called once")
 
 	// Running config should be updated.
 	reactor.mu.Lock()
@@ -295,15 +293,13 @@ func TestReloadConfigPerRootFiltering(t *testing.T) {
 	err := s.ReloadConfig(context.Background(), newTree)
 	require.NoError(t, err)
 
-	time.Sleep(50 * time.Millisecond)
+	// env-plugin SHOULD be called (environment changed).
+	require.Eventually(t, func() bool { return plugins[1].responder.getVerifyCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "env-plugin should get verify")
+	require.Eventually(t, func() bool { return plugins[1].responder.getApplyCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "env-plugin should get apply")
 
 	// bgp-plugin should NOT be called (bgp unchanged).
 	assert.Equal(t, 0, plugins[0].responder.getVerifyCalls(), "bgp-plugin should not get verify")
 	assert.Equal(t, 0, plugins[0].responder.getApplyCalls(), "bgp-plugin should not get apply")
-
-	// env-plugin SHOULD be called (environment changed).
-	assert.Equal(t, 1, plugins[1].responder.getVerifyCalls(), "env-plugin should get verify")
-	assert.Equal(t, 1, plugins[1].responder.getApplyCalls(), "env-plugin should get apply")
 }
 
 // TestReloadConfigMultiplePlugins verifies that one plugin rejecting aborts all.
@@ -511,11 +507,9 @@ func TestReloadConfigRootRemoved(t *testing.T) {
 	err := s.ReloadConfig(context.Background(), newTree)
 	require.NoError(t, err)
 
-	time.Sleep(50 * time.Millisecond)
-
 	// Plugin MUST get both verify and apply even though root was removed.
-	assert.Equal(t, 1, plugins[0].responder.getVerifyCalls(), "rib should get verify for removed root")
-	assert.Equal(t, 1, plugins[0].responder.getApplyCalls(), "rib should get apply for removed root")
+	require.Eventually(t, func() bool { return plugins[0].responder.getVerifyCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "rib should get verify for removed root")
+	require.Eventually(t, func() bool { return plugins[0].responder.getApplyCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "rib should get apply for removed root")
 
 	// Running config should be updated.
 	reactor.mu.Lock()
@@ -551,11 +545,9 @@ func TestReloadConfigWildcardRoot(t *testing.T) {
 	err := s.ReloadConfig(context.Background(), newTree)
 	require.NoError(t, err)
 
-	time.Sleep(50 * time.Millisecond)
-
 	// Wildcard plugin MUST get both verify and apply.
-	assert.Equal(t, 1, plugins[0].responder.getVerifyCalls(), "wildcard plugin should get verify")
-	assert.Equal(t, 1, plugins[0].responder.getApplyCalls(), "wildcard plugin should get apply")
+	require.Eventually(t, func() bool { return plugins[0].responder.getVerifyCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "wildcard plugin should get verify")
+	require.Eventually(t, func() bool { return plugins[0].responder.getApplyCalls() == 1 }, 2*time.Second, 10*time.Millisecond, "wildcard plugin should get apply")
 
 	// Running config should be updated.
 	reactor.mu.Lock()
@@ -681,10 +673,11 @@ func TestReloadApplyErrorReturned(t *testing.T) {
 	assert.Contains(t, err.Error(), "rib")
 
 	// SetConfigTree should still be called (apply errors are non-fatal for config update).
-	time.Sleep(50 * time.Millisecond)
-	reactor.mu.Lock()
-	require.NotNil(t, reactor.setTree, "config should still be updated after apply error")
-	reactor.mu.Unlock()
+	require.Eventually(t, func() bool {
+		reactor.mu.Lock()
+		defer reactor.mu.Unlock()
+		return reactor.setTree != nil
+	}, 2*time.Second, 10*time.Millisecond, "config should still be updated after apply error")
 }
 
 // TestReloadVerifyCrashedPluginMultiple verifies that when one of several plugins

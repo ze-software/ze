@@ -76,9 +76,8 @@ func TestSessionFlow_WaitForResume_Blocked(t *testing.T) {
 		waitErr = s.waitForResume(context.Background())
 	})
 
-	// Give the goroutine time to enter select
-	time.Sleep(10 * time.Millisecond)
-	assert.True(t, s.IsPaused())
+	// Wait for the goroutine to observe pause state
+	require.Eventually(t, func() bool { return s.IsPaused() }, 2*time.Second, 10*time.Millisecond, "session should be paused")
 
 	s.Resume()
 	wg.Wait()

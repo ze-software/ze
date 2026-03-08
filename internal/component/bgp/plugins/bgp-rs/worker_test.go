@@ -60,11 +60,15 @@ func TestWorkerPool_IdleCooldown(t *testing.T) {
 		t.Fatalf("expected 1 worker, got %d", wp.WorkerCount())
 	}
 
-	// Wait for idle timeout + margin.
-	time.Sleep(150 * time.Millisecond)
-
-	if wp.WorkerCount() != 0 {
-		t.Errorf("expected 0 workers after idle timeout, got %d", wp.WorkerCount())
+	// Wait for idle timeout to take effect.
+	deadline := time.After(2 * time.Second)
+	for wp.WorkerCount() != 0 {
+		select {
+		case <-deadline:
+			t.Fatalf("expected 0 workers after idle timeout, got %d", wp.WorkerCount())
+		default:
+			time.Sleep(5 * time.Millisecond)
+		}
 	}
 
 	// New dispatch recreates the worker.
