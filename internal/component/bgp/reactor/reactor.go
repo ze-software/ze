@@ -22,7 +22,9 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/commit"
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/handler"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-ops"    // init() registers operational command RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-peer"   // init() registers peer management RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-update" // init() registers update parsing RPCs
 	bgpserver "codeberg.org/thomas-mangin/ze/internal/component/bgp/server"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
@@ -490,11 +492,8 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		apiConfig := &pluginserver.ServerConfig{
 			SocketPath:         r.config.APISocketPath,
 			ConfiguredFamilies: r.config.ConfiguredFamilies,
-			RPCProviders: []func() []pluginserver.RPCRegistration{
-				handler.BgpHandlerRPCs,
-			},
-			RPCFallback:   bgpserver.CodecRPCHandler,
-			CommitManager: commit.NewCommitManager(),
+			RPCFallback:        bgpserver.CodecRPCHandler,
+			CommitManager:      commit.NewCommitManager(),
 		}
 		// Convert plugin configs
 		for _, pc := range r.config.Plugins {

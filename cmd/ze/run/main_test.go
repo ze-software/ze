@@ -42,7 +42,8 @@ func TestRunCommandTree(t *testing.T) {
 	tree := cli.BuildCommandTree(false)
 
 	// These top-level commands must exist (they come from RPC registrations)
-	topLevel := []string{"daemon", "peer", "rib", "system", "summary"}
+	// Note: "rib" commands moved to bgp-rib plugin (SDK protocol), not in AllBuiltinRPCs().
+	topLevel := []string{"daemon", "peer", "system", "summary"}
 	for _, cmd := range topLevel {
 		if _, ok := tree.Children[cmd]; !ok {
 			t.Errorf("missing top-level command in tree: %s", cmd)
@@ -94,7 +95,6 @@ func TestIsValidCommand(t *testing.T) {
 		{"daemon_status", []string{"daemon", "status"}, fullTree, true},
 		{"daemon_shutdown_run", []string{"daemon", "shutdown"}, fullTree, true},
 		{"daemon_shutdown_show", []string{"daemon", "shutdown"}, showTree, false},
-		{"rib_help", []string{"rib", "help"}, fullTree, true},
 		{"peer_branch", []string{"peer"}, fullTree, true},
 		{"unknown", []string{"nonexistent"}, fullTree, false},
 		{"peer_bad", []string{"peer", "nonexistent"}, fullTree, false},
@@ -127,7 +127,7 @@ func TestCommandList(t *testing.T) {
 		found[e.Name] = true
 	}
 
-	for _, want := range []string{"peer", "summary", "daemon", "rib", "system"} {
+	for _, want := range []string{"peer", "summary", "daemon", "system"} {
 		if !found[want] {
 			t.Errorf("CommandList() missing entry: %s", want)
 		}

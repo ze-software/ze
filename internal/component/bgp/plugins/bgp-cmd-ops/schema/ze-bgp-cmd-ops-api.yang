@@ -1,0 +1,14 @@
+module ze-bgp-cmd-ops-api {
+  namespace "urn:ze:bgp:cmd:ops:api";
+  prefix bgp-cmd-ops;
+
+  description
+    "Ze BGP operational command RPCs.";
+
+  rpc cache { description "BGP message cache operations"; }
+  rpc commit { description "Named commit operations"; }
+  rpc peer-raw { description "Send raw bytes to peer (no validation)"; }
+  rpc peer-refresh { description "Send ROUTE-REFRESH to peer (RFC 2918)"; }
+  rpc peer-borr { description "Send Beginning of Route Refresh"; }
+  rpc peer-eorr { description "Send End of Route Refresh"; }
+}

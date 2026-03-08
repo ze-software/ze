@@ -69,7 +69,7 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	// Best-path commands (RFC 4271 §9.1.2)
 	assert.Contains(t, commandNames, "rib show best")
 	assert.Contains(t, commandNames, "rib best status")
-	assert.Len(t, regInput.Commands, 14, "rib registers exactly 14 commands")
+	assert.Len(t, regInput.Commands, 17, "rib registers exactly 17 commands")
 
 	require.NoError(t, connA.SendOK(ctx, stage1.ID))
 

@@ -19,49 +19,10 @@ var ErrUnknownCommand = errors.New("unknown command")
 // ErrEmptyCommand is returned when the command is empty.
 var ErrEmptyCommand = errors.New("empty command")
 
-// BgpPluginRPCs returns RPCs that remain in the plugin package (ze-bgp namespace).
-// BGP-specific handlers (peer ops, introspection, cache, commit, raw, refresh)
-// are now in internal/plugins/bgp/handler/ and injected via ServerConfig.RPCProviders.
-// BgpPluginRPCs returns RPCs that remain in the plugin package (ze-bgp namespace).
-// Only subscribe/unsubscribe RPCs remain here — update and watchdog RPCs
-// moved to internal/plugins/bgp/handler/ and injected via ServerConfig.RPCProviders.
-func BgpPluginRPCs() []RPCRegistration {
-	return subscribeRPCs()
-}
-
-// SystemPluginRPCs returns all RPCs owned by the system module (ze-system namespace).
-func SystemPluginRPCs() []RPCRegistration {
-	return systemRPCs()
-}
-
-// PluginLifecycleRPCs returns all RPCs for plugin lifecycle (ze-plugin namespace).
-func PluginLifecycleRPCs() []RPCRegistration {
-	sess := sessionRPCs() // session ready/ping/bye (session.go)
-	plug := pluginRPCs()  // plugin help/command (plugin.go)
-	rpcs := make([]RPCRegistration, 0, len(sess)+len(plug))
-	rpcs = append(rpcs, sess...)
-	rpcs = append(rpcs, plug...)
-	return rpcs
-}
-
-// AllBuiltinRPCs returns all builtin RPCs from all modules.
-// Each module registers its own commands; this aggregates them.
-// BGP-specific handlers are injected separately via ServerConfig.RPCProviders.
+// AllBuiltinRPCs returns all RPCs registered via init() + RegisterRPCs().
+// Includes server, handler, and editor RPCs (when their packages are imported).
 func AllBuiltinRPCs() []RPCRegistration {
-	sources := [][]RPCRegistration{
-		BgpPluginRPCs(),
-		SystemPluginRPCs(),
-		PluginLifecycleRPCs(),
-	}
-	n := 0
-	for _, s := range sources {
-		n += len(s)
-	}
-	all := make([]RPCRegistration, 0, n)
-	for _, s := range sources {
-		all = append(all, s...)
-	}
-	return all
+	return registeredRPCs
 }
 
 // BuiltinCount returns the number of registered builtin handlers.

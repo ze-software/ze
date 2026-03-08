@@ -497,14 +497,17 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Handle mode switching commands (intercepted before normal dispatch)
-	if input == "/command" {
+	// Handle mode switching commands (intercepted before normal dispatch).
+	// /command and /edit always switch (explicit prefix).
+	// Bare "command" switches only from edit mode; bare "edit" switches only from command mode.
+	// This avoids intercepting "edit <path>" (config-edit) when already in edit mode.
+	if input == "/command" || (m.mode == ModeEdit && input == modeNameCommand) {
 		m.textInput.SetValue("")
 		m.SwitchMode(ModeCommand)
 		m.updateCompletions()
 		return m, nil
 	}
-	if input == "/edit" {
+	if input == "/edit" || (m.mode == ModeCommand && input == modeNameEdit) {
 		m.textInput.SetValue("")
 		m.SwitchMode(ModeEdit)
 		m.updateCompletions()

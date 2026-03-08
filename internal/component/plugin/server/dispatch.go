@@ -115,6 +115,8 @@ func (s *Server) handleUpdateRouteRPC(proc *process.Process, connA *plugipc.Plug
 	// Commands from "bgp peer <sel> <cmd>" arrive with the peer selector stripped
 	// and command as just "<cmd>" (e.g., "update text ..."). These need "bgp peer "
 	// prepended for the dispatcher to match "bgp peer update", "bgp peer teardown", etc.
+	// The peer selector is included so the dispatcher sees it as explicit
+	// (required for RequiresSelector commands).
 	//
 	// Commands that aren't peer-targeted (e.g., "bgp watchdog announce dnsr",
 	// "bgp cache list") arrive with the full "bgp ..." prefix intact and must be
@@ -124,7 +126,7 @@ func (s *Server) handleUpdateRouteRPC(proc *process.Process, connA *plugipc.Plug
 	if strings.HasPrefix(strings.ToLower(input.Command), "bgp ") {
 		dispatchCmd = input.Command
 	} else {
-		dispatchCmd = "bgp peer " + input.Command
+		dispatchCmd = "bgp peer " + cmdCtx.Peer + " " + input.Command
 	}
 
 	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
@@ -373,7 +375,7 @@ func (s *Server) handleUpdateRouteDirect(proc *process.Process, params json.RawM
 	if strings.HasPrefix(strings.ToLower(input.Command), "bgp ") {
 		dispatchCmd = input.Command
 	} else {
-		dispatchCmd = "bgp peer " + input.Command
+		dispatchCmd = "bgp peer " + cmdCtx.Peer + " " + input.Command
 	}
 
 	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)

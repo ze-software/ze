@@ -23,9 +23,18 @@ if [[ "$FILE_PATH" =~ _test\.go$ ]]; then
     exit 0
 fi
 
-# Skip register.go files — init() registration is the established pattern
-# for plugins (internal/plugins/*/register.go) and schema packages
-if [[ "$(basename "$FILE_PATH")" == "register.go" ]]; then
+# Skip register.go and register_*.go files — init() registration is the
+# established pattern for plugins (internal/plugins/*/register.go), schema
+# packages, and per-module RPC registration (server/register_*.go)
+BASENAME="$(basename "$FILE_PATH")"
+if [[ "$BASENAME" == "register.go" || "$BASENAME" == register_*.go ]]; then
+    exit 0
+fi
+
+# Skip any file that calls RegisterRPCs() — this is the canonical RPC
+# self-registration API. Handler files across all packages use init() +
+# RegisterRPCs() to register where commands are defined.
+if echo "$CONTENT" | grep -qE 'RegisterRPCs\('; then
     exit 0
 fi
 

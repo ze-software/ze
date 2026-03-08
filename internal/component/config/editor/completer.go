@@ -66,6 +66,7 @@ var commands = []Completion{
 	{Text: "rollback", Description: "Restore from backup", Type: "command"},
 	{Text: "exit", Description: "Exit editor", Type: "command"},
 	{Text: "help", Description: "Show help", Type: "command"},
+	{Text: "command", Description: "Switch to operational command mode", Type: "command"},
 }
 
 // Complete returns completions for the given input at cursor position.
@@ -108,7 +109,7 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 	switch cmd {
 	case "set", "delete":
 		return c.completeSetPath(tokens[1:], contextPath, endsWithSpace)
-	case "edit":
+	case modeNameEdit:
 		return c.completeEditPath(tokens[1:], contextPath, endsWithSpace)
 	case "show":
 		return c.completeShowPath(tokens[1:], contextPath, endsWithSpace)

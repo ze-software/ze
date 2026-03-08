@@ -16,7 +16,9 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/handler"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-ops"    // init() registers operational command RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-peer"   // init() registers peer management RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-update" // init() registers update parsing RPCs
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -321,12 +323,10 @@ func formatNumber(v any) any {
 }
 
 // AllCLIRPCs returns all RPCs needed for CLI command mapping.
-// Combines builtin RPCs with BGP handler RPCs (moved to handler/ package).
+// All RPCs self-register via init() + pluginserver.RegisterRPCs().
 // Exported so other CLI commands (e.g., ze show) can build from the same source.
 func AllCLIRPCs() []pluginserver.RPCRegistration {
-	rpcs := pluginserver.AllBuiltinRPCs()
-	rpcs = append(rpcs, handler.BgpHandlerRPCs()...)
-	return rpcs
+	return pluginserver.AllBuiltinRPCs()
 }
 
 // BuildCommandTree builds the command tree from registered RPCs.

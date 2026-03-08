@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
+// Overview: register.go — RPC registration hub
 
 package server
 
@@ -12,14 +13,12 @@ import (
 // ErrSilent is returned when a command should produce no response.
 var ErrSilent = errors.New("silent")
 
-// sessionRPCs returns RPC registrations for handlers defined in this file.
-func sessionRPCs() []RPCRegistration {
-	return []RPCRegistration{
-		{WireMethod: "ze-plugin:session-ready", CLICommand: "plugin session ready", Handler: handlePluginSessionReady, Help: "Signal plugin init complete"},
-		{WireMethod: "ze-plugin:peer-session-ready", CLICommand: "bgp peer plugin session ready", Handler: handlePluginSessionReady, Help: "Signal peer-specific plugin init complete"},
-		{WireMethod: "ze-plugin:session-ping", CLICommand: "plugin session ping", Handler: handlePluginSessionPing, Help: "Health check (returns PID)", ReadOnly: true},
-		{WireMethod: "ze-plugin:session-bye", CLICommand: "plugin session bye", Handler: handlePluginSessionBye, Help: "Disconnect"},
-	}
+func init() {
+	RegisterRPCs(
+		RPCRegistration{WireMethod: "ze-plugin:session-ready", CLICommand: "plugin session ready", Handler: handlePluginSessionReady, Help: "Signal plugin init complete"},
+		RPCRegistration{WireMethod: "ze-plugin:session-ping", CLICommand: "plugin session ping", Handler: handlePluginSessionPing, Help: "Health check (returns PID)", ReadOnly: true},
+		RPCRegistration{WireMethod: "ze-plugin:session-bye", CLICommand: "plugin session bye", Handler: handlePluginSessionBye, Help: "Disconnect"},
+	)
 }
 
 // handlePluginSessionPing returns a pong response for health checking.
@@ -47,18 +46,10 @@ func handlePluginSessionBye(_ *CommandContext, _ []string) (*plugin.Response, er
 }
 
 // handlePluginSessionReady signals that an API process has completed initialization.
-// If called with a peer prefix ("peer <addr> plugin session ready"), signals that
-// peer-specific API initialization is complete (e.g., route replay after reconnect).
-// If called without peer prefix, unblocks reactor startup.
+// Unblocks reactor startup. Peer-specific ready is handled in bgp/plugins/bgp-cmd-peer/session.go.
 func handlePluginSessionReady(ctx *CommandContext, _ []string) (*plugin.Response, error) {
 	if ctx.Reactor() != nil {
-		// Check if this is a peer-specific ready signal
-		if ctx.Peer != "" && ctx.Peer != "*" {
-			ctx.Reactor().SignalPeerAPIReady(ctx.Peer)
-		} else {
-			// Global ready signal for startup
-			ctx.Reactor().SignalAPIReady()
-		}
+		ctx.Reactor().SignalAPIReady()
 	}
 	return &plugin.Response{
 		Status: plugin.StatusDone,

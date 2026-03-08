@@ -39,9 +39,74 @@ func (r *RIBManager) handleCommand(command, selector string, args []string) (str
 		return statusDone, r.bestPathShowJSON(selector, args), nil
 	case "rib best status":
 		return statusDone, r.bestPathStatusJSON(), nil
+	case "rib help":
+		return statusDone, ribHelpJSON(), nil
+	case "rib command list":
+		return statusDone, ribCommandListJSON(), nil
+	case "rib event list":
+		return statusDone, ribEventListJSON(), nil
 	default: // fail on unknown command
 		return "error", "", fmt.Errorf("unknown command: %s", command)
 	}
+}
+
+// ribCommands is the authoritative list of RIB plugin commands.
+var ribCommands = []struct {
+	Name string
+	Help string
+}{
+	{"rib status", "Show RIB status (peer count, route counts)"},
+	{"rib show in", "Show Adj-RIB-In routes"},
+	{"rib clear in", "Clear Adj-RIB-In routes"},
+	{"rib show out", "Show Adj-RIB-Out routes"},
+	{"rib clear out", "Resend Adj-RIB-Out routes"},
+	{"rib show best", "Show best-path per prefix (RFC 4271 §9.1.2)"},
+	{"rib best status", "Show best-path computation status"},
+	{"rib retain-routes", "Mark peer RIB for retention (GR)"},
+	{"rib release-routes", "Release retained peer RIB (GR)"},
+	{"rib help", "Show RIB subcommands"},
+	{"rib command list", "List RIB commands"},
+	{"rib event list", "List RIB event types"},
+}
+
+// ribHelpJSON returns RIB subcommands as JSON.
+func ribHelpJSON() string {
+	seen := make(map[string]bool)
+	var subs []string
+	for _, cmd := range ribCommands {
+		after, ok := strings.CutPrefix(cmd.Name, "rib ")
+		if !ok {
+			continue
+		}
+		parts := strings.SplitN(after, " ", 2)
+		if len(parts) > 0 && !seen[parts[0]] {
+			subs = append(subs, parts[0])
+			seen[parts[0]] = true
+		}
+	}
+	data, _ := json.Marshal(map[string]any{"subcommands": subs})
+	return string(data)
+}
+
+// ribCommandListJSON returns all RIB commands as JSON.
+func ribCommandListJSON() string {
+	type entry struct {
+		Name string `json:"name"`
+		Help string `json:"help"`
+	}
+	cmds := make([]entry, 0, len(ribCommands))
+	for _, cmd := range ribCommands {
+		cmds = append(cmds, entry{Name: cmd.Name, Help: cmd.Help})
+	}
+	data, _ := json.Marshal(map[string]any{"commands": cmds})
+	return string(data)
+}
+
+// ribEventListJSON returns RIB event types as JSON.
+func ribEventListJSON() string {
+	events := []string{"cache", "route", "peer", "memory"}
+	data, _ := json.Marshal(map[string]any{"events": events})
+	return string(data)
 }
 
 // matchesPeer returns true if peerAddr matches the selector string.

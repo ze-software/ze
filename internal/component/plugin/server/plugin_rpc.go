@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
+// Overview: register.go — RPC registration hub
 
 package server
 
@@ -8,15 +9,13 @@ import (
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
-// pluginRPCs returns RPC registrations for handlers defined in this file.
-// Part of the ze-plugin module — aggregated by PluginLifecycleRPCs().
-func pluginRPCs() []RPCRegistration {
-	return []RPCRegistration{
-		{WireMethod: "ze-plugin:help", CLICommand: "plugin help", Handler: handlePluginHelp, Help: "List plugin subcommands", ReadOnly: true},
-		{WireMethod: "ze-plugin:command-list", CLICommand: "plugin command list", Handler: handlePluginCommandList, Help: "List plugin commands", ReadOnly: true},
-		{WireMethod: "ze-plugin:command-help", CLICommand: "plugin command help", Handler: handlePluginCommandHelp, Help: "Show command details", ReadOnly: true},
-		{WireMethod: "ze-plugin:command-complete", CLICommand: "plugin command complete", Handler: handlePluginCommandComplete, Help: "Complete command/args", ReadOnly: true},
-	}
+func init() {
+	RegisterRPCs(
+		RPCRegistration{WireMethod: "ze-plugin:help", CLICommand: "plugin help", Handler: handlePluginHelp, Help: "List plugin subcommands", ReadOnly: true},
+		RPCRegistration{WireMethod: "ze-plugin:command-list", CLICommand: "plugin command list", Handler: handlePluginCommandList, Help: "List plugin commands", ReadOnly: true},
+		RPCRegistration{WireMethod: "ze-plugin:command-help", CLICommand: "plugin command help", Handler: handlePluginCommandHelp, Help: "Show command details", ReadOnly: true},
+		RPCRegistration{WireMethod: "ze-plugin:command-complete", CLICommand: "plugin command complete", Handler: handlePluginCommandComplete, Help: "Complete command/args", ReadOnly: true},
+	)
 }
 
 // handlePluginHelp returns list of plugin subcommands.

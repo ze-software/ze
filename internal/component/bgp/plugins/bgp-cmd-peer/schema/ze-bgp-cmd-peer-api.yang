@@ -1,0 +1,29 @@
+module ze-bgp-cmd-peer-api {
+  namespace "urn:ze:bgp:cmd:peer:api";
+  prefix bgp-cmd-peer;
+
+  description
+    "Ze BGP peer lifecycle and introspection command RPCs.";
+
+  rpc peer-list { description "List peer(s) (brief)"; }
+  rpc peer-show { description "Show peer(s) details"; }
+  rpc peer-teardown { description "Teardown peer session with cease subcode"; }
+  rpc peer-add { description "Add a peer dynamically"; }
+  rpc peer-remove { description "Remove a peer dynamically"; }
+  rpc peer-pause { description "Pause peer read loop (flow control)"; }
+  rpc peer-resume { description "Resume peer read loop (flow control)"; }
+  rpc help { description "List bgp subcommands"; }
+  rpc command-list { description "List bgp commands"; }
+  rpc command-help { description "Show command details"; }
+  rpc command-complete { description "Complete command/args"; }
+  rpc event-list { description "List available BGP event types"; }
+  rpc plugin-encoding { description "Set event encoding (json|text)"; }
+  rpc plugin-format { description "Set wire format (hex|base64|parsed|full)"; }
+  rpc plugin-ack { description "Set ACK timing (sync|async)"; }
+  rpc summary { description "Show BGP summary (peer table with statistics)"; }
+  rpc peer-capabilities { description "Show negotiated capabilities for peer(s)"; }
+  rpc peer-clear-soft { description "Soft-clear peer (send ROUTE-REFRESH for all families)"; }
+  rpc subscribe { description "Subscribe to events"; }
+  rpc unsubscribe { description "Unsubscribe from events"; }
+  rpc session-peer-ready { description "Signal peer-specific plugin init complete"; }
+}

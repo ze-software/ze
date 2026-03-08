@@ -147,16 +147,6 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) *Server {
 		}
 	}
 
-	// Register additional RPCs from providers (e.g., BGP handler RPCs injected by reactor)
-	for _, provider := range config.RPCProviders {
-		for _, reg := range provider() {
-			s.dispatcher.Register(reg.CLICommand, reg.Handler, reg.Help)
-			if err := s.rpcDispatcher.Register(reg.WireMethod, s.wrapHandler(reg.Handler)); err != nil {
-				logger().Error("rpc dispatcher: registration failed", "method", reg.WireMethod, "error", err)
-			}
-		}
-	}
-
 	return s
 }
 

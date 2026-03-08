@@ -156,6 +156,10 @@ func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
 			// Best-path selection (RFC 4271 §9.1.2)
 			{Name: "rib show best"},
 			{Name: "rib best status"},
+			// Meta-commands (introspection)
+			{Name: "rib help"},
+			{Name: "rib command list"},
+			{Name: "rib event list"},
 		},
 	})
 	if err != nil {

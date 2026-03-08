@@ -55,7 +55,7 @@ module ze-plugin-api {
         description "Signal plugin init complete";
     }
 
-    rpc peer-session-ready {
+    rpc session-peer-ready {
         description "Signal peer-specific plugin init complete";
     }
 

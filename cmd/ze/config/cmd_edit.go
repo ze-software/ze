@@ -19,7 +19,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/bgp/handler"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/editor"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -115,9 +114,7 @@ func buildCommandMap() (map[string]string, []string) {
 
 // allEditorRPCs returns all RPCs for command resolution.
 func allEditorRPCs() []pluginserver.RPCRegistration {
-	rpcs := pluginserver.AllBuiltinRPCs()
-	rpcs = append(rpcs, handler.BgpHandlerRPCs()...)
-	return rpcs
+	return pluginserver.AllBuiltinRPCs()
 }
 
 // formatJSONResult pretty-prints a JSON result, falling back to raw string.
@@ -166,7 +163,6 @@ const createPromptTimeout = 10 * time.Second
 // Strips the "bgp " prefix for BGP commands so the user types "peer list" not "bgp peer list".
 func buildEditorCommandTree() *editor.CommandNode {
 	rpcs := pluginserver.AllBuiltinRPCs()
-	rpcs = append(rpcs, handler.BgpHandlerRPCs()...)
 
 	root := &editor.CommandNode{Children: make(map[string]*editor.CommandNode)}
 	for _, reg := range rpcs {
@@ -272,8 +268,8 @@ Commands:
   exit/quit             Exit (prompts if unsaved changes)
 
 Mode switching:
-  /command              Switch to operational command mode
-  /edit                 Switch back to config edit mode
+  command               Switch to operational command mode
+  edit                  Switch back to config edit mode (in command mode)
 
 Tab completion:
   Type partial text + Tab for completion

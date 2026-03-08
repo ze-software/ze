@@ -14,6 +14,28 @@ Rationale: `.claude/rationale/plugin-design.md`
 | All imports | `internal/plugin/all/` | Blank imports triggering all `init()` |
 | CLI shared | `internal/plugin/cli/` | `PluginConfig` + `RunPlugin()` |
 
+## Proximity Principle (BLOCKING)
+
+**Related code belongs together.** The "delete the folder" test is a mechanical check for proximity.
+
+| Rule | Meaning |
+|------|---------|
+| All code for a concern in its folder | Commands, handlers, registration, logic — not scattered across packages |
+| No external references to internals | Infrastructure, reactor, other units never import a specific plugin/command module |
+| Blank import is the only coupling | A single `_ "package"` triggers init(); removing it cleanly disables the unit |
+| Engine core works without any command module | Reactor, FSM, wire layer must function without CLI command handlers |
+
+## YANG Is Required (BLOCKING)
+
+**All RPCs need YANG registration for the CLI.** Any command handler without a YANG schema is a structural issue to fix, not a different category. There is no "command module" — everything with RPCs is a plugin and lives under `plugins/<name>/`.
+
+| Registration | YANG | Location |
+|-------------|------|----------|
+| `registry.Register()` (SDK) | Required | `plugins/<name>/` |
+| `pluginserver.RegisterRPCs()` (engine-side) | Required | `plugins/<name>/` |
+
+**Anti-pattern:** Placing command handlers in reactor/ (couples engine core to command surface), in a separate handler/ package (middleman), or in a `command/` folder (formalizes missing YANG as acceptable). Commands belong in `plugins/` with YANG schemas.
+
 ## Import Rules (BLOCKING)
 
 Infrastructure MUST NOT import plugin implementations directly — use registry lookups.

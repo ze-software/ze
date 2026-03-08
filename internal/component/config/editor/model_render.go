@@ -435,8 +435,8 @@ func (m Model) renderHelpOverlay(base string) string {
   exit                 Exit editor
 
 Modes:
-  /command             Switch to operational command mode
-  /edit                Switch back to config edit mode
+  command              Switch to operational command mode
+  edit                 Switch back to config edit mode (in command mode)
 
 Load:
   load file absolute replace <path>    Replace entire config from file

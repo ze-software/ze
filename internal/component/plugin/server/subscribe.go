@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
+// Overview: register.go — RPC registration hub
 
 package server
 
@@ -10,6 +11,8 @@ import (
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
+
+// Subscribe/unsubscribe handlers are in bgp/plugins/bgp-cmd-peer/subscribe.go.
 
 // Subscription represents an event subscription.
 type Subscription struct {
@@ -278,85 +281,4 @@ func validateEventType(namespace, eventType string) error {
 		return fmt.Errorf("invalid namespace: %s", namespace)
 	}
 	return nil
-}
-
-// subscribeRPCs returns RPC registrations for handlers defined in this file.
-// Part of the ze-bgp module — aggregated by BgpPluginRPCs().
-func subscribeRPCs() []RPCRegistration {
-	return []RPCRegistration{
-		{WireMethod: "ze-bgp:subscribe", CLICommand: "subscribe", Handler: handleSubscribe, Help: "Subscribe to events"},
-		{WireMethod: "ze-bgp:unsubscribe", CLICommand: "unsubscribe", Handler: handleUnsubscribe, Help: "Unsubscribe from events"},
-	}
-}
-
-// handleSubscribe handles the "subscribe" command.
-func handleSubscribe(ctx *CommandContext, args []string) (*plugin.Response, error) {
-	sub, err := ParseSubscription(args)
-	if err != nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Data:   err.Error(),
-		}, err
-	}
-
-	if ctx.Process == nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Data:   "subscribe requires a process context",
-		}, fmt.Errorf("no process context")
-	}
-
-	if ctx.Subscriptions() == nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Data:   "subscription manager not available",
-		}, fmt.Errorf("no subscription manager")
-	}
-
-	ctx.Subscriptions().Add(ctx.Process, sub)
-
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: map[string]any{
-			"namespace": sub.Namespace,
-			"event":     sub.EventType,
-			"direction": sub.Direction,
-		},
-	}, nil
-}
-
-// handleUnsubscribe handles the "unsubscribe" command.
-func handleUnsubscribe(ctx *CommandContext, args []string) (*plugin.Response, error) {
-	sub, err := ParseSubscription(args)
-	if err != nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Data:   err.Error(),
-		}, err
-	}
-
-	if ctx.Process == nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Data:   "unsubscribe requires a process context",
-		}, fmt.Errorf("no process context")
-	}
-
-	if ctx.Subscriptions() == nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Data:   "subscription manager not available",
-		}, fmt.Errorf("no subscription manager")
-	}
-
-	removed := ctx.Subscriptions().Remove(ctx.Process, sub)
-
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: map[string]any{
-			"removed":   removed,
-			"namespace": sub.Namespace,
-			"event":     sub.EventType,
-		},
-	}, nil
 }

@@ -537,7 +537,8 @@ func TestCommandTree(t *testing.T) {
 	tree := BuildCommandTree(false)
 
 	// Check top-level commands exist
-	topLevel := []string{"daemon", "peer", "rib", "system"}
+	// Note: "rib" commands moved to bgp-rib plugin (SDK protocol), not in AllBuiltinRPCs().
+	topLevel := []string{"daemon", "peer", "system"}
 	for _, cmd := range topLevel {
 		if _, ok := tree.Children[cmd]; !ok {
 			t.Errorf("missing top-level command: %s", cmd)
@@ -570,21 +571,8 @@ func TestCommandTree(t *testing.T) {
 		t.Error("peer missing show subcommand")
 	}
 
-	// Check rib hierarchy (meta-commands only — data commands moved to plugin)
-	rib := tree.Children["rib"]
-	if rib == nil {
-		t.Fatal("rib command missing")
-		return
-	}
-	if _, ok := rib.Children["help"]; !ok {
-		t.Error("rib missing 'help' subcommand")
-	}
-	if _, ok := rib.Children["command"]; !ok {
-		t.Error("rib missing 'command' subcommand")
-	}
-	if _, ok := rib.Children["event"]; !ok {
-		t.Error("rib missing 'event' subcommand")
-	}
+	// Note: rib commands are registered by the bgp-rib plugin via SDK protocol,
+	// not via AllBuiltinRPCs(), so they don't appear in BuildCommandTree().
 }
 
 // TestCLIClient_ResponseWithStringList verifies string list formatting.

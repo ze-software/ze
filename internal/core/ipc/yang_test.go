@@ -273,7 +273,7 @@ func TestYANGPluginAPIRPCs(t *testing.T) {
 
 	expectedRPCs := []string{
 		"help", "command-list", "command-help", "command-complete",
-		"session-ready", "peer-session-ready", "session-ping", "session-bye",
+		"session-ready", "session-peer-ready", "session-ping", "session-bye",
 	}
 
 	rpcNames := make(map[string]bool)
@@ -338,7 +338,7 @@ func TestExtractRPCs(t *testing.T) {
 			module: "ze-plugin-api",
 			wantRPCs: []string{
 				"help", "command-list", "command-help", "command-complete",
-				"session-ready", "peer-session-ready", "session-ping", "session-bye",
+				"session-ready", "session-peer-ready", "session-ping", "session-bye",
 			},
 		},
 	}

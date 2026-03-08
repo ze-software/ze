@@ -1,0 +1,10 @@
+module ze-bgp-cmd-update-api {
+  namespace "urn:ze:bgp:cmd:update:api";
+  prefix bgp-cmd-update;
+
+  description
+    "Ze BGP route announcement parsing command RPCs.";
+
+  rpc peer-update { description "Parse and send text-format UPDATE to peer"; }
+  rpc peer-update-hex { description "Parse and send hex/b64-format UPDATE to peer"; }
+}

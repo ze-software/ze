@@ -19,9 +19,9 @@ import (
 func TestRPCRegistrationTable(t *testing.T) {
 	rpcs := AllBuiltinRPCs()
 
-	// Verify count matches expected (BGP handler RPCs + RIB meta RPCs moved to handler/ package,
-	// injected via RPCProviders — not counted here)
-	assert.Len(t, rpcs, 21, "expected 21 builtin RPCs (update+watchdog+rib moved to handler/)")
+	// Only server-package init() RPCs are visible here (handler/editor register
+	// from their own packages and can't be imported due to cycle).
+	assert.Len(t, rpcs, 18, "expected 18 server RPCs (system 11 + session 3 + plugin-rpc 4)")
 
 	// Track uniqueness
 	wireMethodsSeen := make(map[string]bool)
@@ -36,8 +36,8 @@ func TestRPCRegistrationTable(t *testing.T) {
 			// Non-empty CLI command
 			assert.NotEmpty(t, reg.CLICommand, "missing CLI command")
 
-			// Non-nil handler
-			assert.NotNil(t, reg.Handler, "missing handler")
+			// All server-package RPCs must have handlers (editor RPCs moved to editor package)
+			assert.NotNil(t, reg.Handler, "nil handler for %s", reg.WireMethod)
 
 			// Non-empty help
 			assert.NotEmpty(t, reg.Help, "missing help text")
@@ -55,39 +55,24 @@ func TestRPCRegistrationTable(t *testing.T) {
 
 // TestRPCRegistrationPerModule verifies each module registers the expected RPCs.
 //
-// VALIDATES: Per-module registration functions return correct counts.
+// VALIDATES: Per-module registration via init() produces correct counts per namespace.
 // PREVENTS: Commands accidentally placed in wrong module.
 func TestRPCRegistrationPerModule(t *testing.T) {
-	bgp := BgpPluginRPCs()
-	system := SystemPluginRPCs()
-	lifecycle := PluginLifecycleRPCs()
+	rpcs := AllBuiltinRPCs()
 
-	// Verify per-module counts
-	// RIB meta RPCs moved to handler/ package, injected via RPCProviders
-	assert.Len(t, bgp, 2, "BGP plugin RPCs (update+watchdog moved to handler/)")
-	assert.Len(t, system, 11, "System RPCs")
-	assert.Len(t, lifecycle, 8, "Plugin lifecycle RPCs")
-
-	// Verify BGP RPCs all have ze-bgp: prefix
-	for _, reg := range bgp {
+	// Count RPCs per module prefix
+	counts := make(map[string]int)
+	for _, reg := range rpcs {
 		module, _, err := ipc.ParseMethod(reg.WireMethod)
-		require.NoError(t, err)
-		assert.Equal(t, "ze-bgp", module, "BGP RPC %s has wrong module", reg.WireMethod)
+		require.NoError(t, err, "invalid wire method: %s", reg.WireMethod)
+		counts[module]++
 	}
 
-	// Verify system RPCs all have ze-system: prefix
-	for _, reg := range system {
-		module, _, err := ipc.ParseMethod(reg.WireMethod)
-		require.NoError(t, err)
-		assert.Equal(t, "ze-system", module, "system RPC %s has wrong module", reg.WireMethod)
-	}
-
-	// Verify plugin RPCs all have ze-plugin: prefix
-	for _, reg := range lifecycle {
-		module, _, err := ipc.ParseMethod(reg.WireMethod)
-		require.NoError(t, err)
-		assert.Equal(t, "ze-plugin", module, "plugin RPC %s has wrong module", reg.WireMethod)
-	}
+	assert.Equal(t, 0, counts["ze-bgp"], "ze-bgp RPCs registered from bgp/plugins/bgp-cmd-*, not here")
+	assert.Equal(t, 11, counts["ze-system"], "ze-system RPCs")
+	assert.Equal(t, 7, counts["ze-plugin"], "ze-plugin RPCs (session-peer-ready in bgp/plugins/bgp-cmd-peer)")
+	assert.Equal(t, 0, counts["ze-editor"], "ze-editor RPCs registered from editor package, not here")
+	assert.Equal(t, 0, counts["ze-rib"], "ze-rib RPCs live in bgp-rib plugin, not here")
 }
 
 // TestRPCRegistrationExpectedMethods verifies specific critical wire methods are present.
@@ -102,14 +87,12 @@ func TestRPCRegistrationExpectedMethods(t *testing.T) {
 		methodMap[rpcs[i].WireMethod] = &rpcs[i]
 	}
 
-	// BGP handler methods + RIB meta RPCs moved to handler/ package,
-	// injected via RPCProviders — not in AllBuiltinRPCs.
+	// Only server-package RPCs are visible here.
+	// BGP handler RPCs (subscribe, rib, peer ops) are tested in handler_test.go.
 	expectedMethods := []string{
 		"ze-system:daemon-shutdown",
 		"ze-system:daemon-status",
 		"ze-system:daemon-reload",
-		"ze-bgp:subscribe",
-		"ze-bgp:unsubscribe",
 		"ze-system:help",
 		"ze-system:command-list",
 		"ze-plugin:session-ready",
@@ -136,11 +119,10 @@ func TestRPCRegistrationLoadDispatcher(t *testing.T) {
 		require.NoError(t, err, "failed to register %s", reg.WireMethod)
 	}
 
-	// Verify specific methods are registered (peer-list moved to handler/ RPCProviders)
-	assert.True(t, dispatcher.HasMethod("ze-bgp:subscribe"))
+	// Only server-package RPCs are registered in this test's scope
 	assert.True(t, dispatcher.HasMethod("ze-system:help"))
-	// ze-rib:help moved to handler/ RPCProviders
 	assert.True(t, dispatcher.HasMethod("ze-plugin:session-ready"))
+	assert.False(t, dispatcher.HasMethod("ze-bgp:subscribe"), "handler RPCs not in server scope")
 }
 
 // TestRPCRegistrationToRegistry verifies the full RPC→conversion→registry integration path.

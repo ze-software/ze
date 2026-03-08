@@ -47,6 +47,11 @@ Key decisions agreed with user:
 ### Bash Timeout for ze-verify
 `make ze-verify` needs timeout 120s (2 min) — runs lint + unit + functional + exabgp + chaos.
 
+### Proximity Principle & Handler Location
+`bgp/handler/` is a middleman — command handlers belong in `bgp/plugins/` (self-contained).
+ALL RPCs need YANG — no "command module" category. Missing YANG is a bug, not a design choice.
+"Delete the folder" is a mechanical check for proximity. See `rules/plugin-design.md`.
+
 ### SDK Type Aliases Are Intentional
 `pkg/plugin/sdk/sdk_types.go` re-exports `rpc.*` types as `sdk.*` aliases. This is deliberate —
 external plugin authors import only `sdk`, never `rpc`. Decouples public API from internal structure.
