@@ -12,7 +12,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
 
-// Subscribe/unsubscribe handlers are in bgp/plugins/bgp-cmd-peer/subscribe.go.
+// Subscribe/unsubscribe handlers are in bgp/plugins/bgp-cmd-subscribe/subscribe.go.
 
 // Subscription represents an event subscription.
 type Subscription struct {

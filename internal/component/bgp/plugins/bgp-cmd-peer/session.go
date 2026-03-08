@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/commands.md — BGP peer session handlers
-// Overview: register.go — bgp-cmd-peer plugin registration
+// Overview: peer.go — BGP peer lifecycle and introspection handlers
 
 package bgpcmdpeer
 

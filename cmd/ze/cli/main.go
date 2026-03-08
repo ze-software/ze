@@ -16,9 +16,14 @@ import (
 	"sort"
 	"strings"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-ops"    // init() registers operational command RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-peer"   // init() registers peer management RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-update" // init() registers update parsing RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-cache"             // init() registers cache command RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-commit"            // init() registers commit command RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-meta"              // init() registers help/discovery RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-peer"              // init() registers peer management RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-raw"               // init() registers raw message RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-subscribe"         // init() registers subscribe/unsubscribe RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-cmd-update"            // init() registers update parsing RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/bgp-route-refresh/handler" // init() registers route-refresh command RPCs
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"

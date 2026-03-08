@@ -1,5 +1,4 @@
 // Design: docs/architecture/api/commands.md — BGP peer lifecycle and introspection handlers
-// Overview: register.go — bgp-cmd-peer plugin registration
 // Detail: summary.go — summary, capabilities, and clear soft handlers
 
 package bgpcmdpeer
@@ -23,21 +22,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-remove", CLICommand: "bgp peer remove", Handler: handleBgpPeerRemove, Help: "Remove a peer dynamically", RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-pause", CLICommand: "bgp peer pause", Handler: handleBgpPeerPause, Help: "Pause peer read loop (flow control)", RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-resume", CLICommand: "bgp peer resume", Handler: handleBgpPeerResume, Help: "Resume peer read loop (flow control)", RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:help", CLICommand: "bgp help", Handler: handleBgpHelp, Help: "List bgp subcommands", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-list", CLICommand: "bgp command list", Handler: handleBgpCommandList, Help: "List bgp commands", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-help", CLICommand: "bgp command help", Handler: handleBgpCommandHelp, Help: "Show command details", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-complete", CLICommand: "bgp command complete", Handler: handleBgpCommandComplete, Help: "Complete command/args", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:event-list", CLICommand: "bgp event list", Handler: handleBgpEventList, Help: "List available BGP event types", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:plugin-encoding", CLICommand: "bgp plugin encoding", Handler: handleBgpPluginEncoding, Help: "Set event encoding (json|text)"},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:plugin-format", CLICommand: "bgp plugin format", Handler: handleBgpPluginFormat, Help: "Set wire format (hex|base64|parsed|full)"},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:plugin-ack", CLICommand: "bgp plugin ack", Handler: handleBgpPluginAck, Help: "Set ACK timing (sync|async)"},
 	)
-}
-
-// BGP event types.
-var bgpEventTypes = []string{
-	"update", "open", "notification", "keepalive",
-	"refresh", "state", "negotiated",
 }
 
 // filterPeersBySelector returns peers matching the context's peer selector.
@@ -301,7 +286,7 @@ func handleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.
 			}
 			config.Connection = v
 
-		default: // unknown option → return error
+		default: // unknown option -> return error
 			return &plugin.Response{
 				Status: plugin.StatusError,
 				Data:   fmt.Sprintf("unknown option: %s", args[i]),
@@ -452,198 +437,4 @@ func parseRouterID(s string) (uint32, error) {
 		return 0, fmt.Errorf("router-id out of range: %s", s)
 	}
 	return uint32(n), nil
-}
-
-// handleBgpHelp returns list of bgp subcommands.
-func handleBgpHelp(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	var commands []string
-
-	if ctx.Dispatcher() != nil {
-		for _, cmd := range ctx.Dispatcher().Commands() {
-			if strings.HasPrefix(cmd.Name, "bgp ") {
-				commands = append(commands, cmd.Name+" - "+cmd.Help)
-			}
-		}
-	}
-
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: map[string]any{
-			"commands": commands,
-		},
-	}, nil
-}
-
-// handleBgpCommandList returns commands in bgp namespace.
-func handleBgpCommandList(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	verbose := len(args) > 0 && args[0] == argVerbose
-
-	var commands []pluginserver.Completion
-
-	if ctx.Dispatcher() != nil {
-		for _, cmd := range ctx.Dispatcher().Commands() {
-			if strings.HasPrefix(cmd.Name, "bgp ") {
-				c := pluginserver.Completion{
-					Value: cmd.Name,
-					Help:  cmd.Help,
-				}
-				if verbose {
-					c.Source = sourceBuiltin
-				}
-				commands = append(commands, c)
-			}
-		}
-	}
-
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: map[string]any{
-			"commands": commands,
-		},
-	}, nil
-}
-
-// handleBgpCommandHelp returns detailed help for a bgp command.
-func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	if len(args) < 1 {
-		return nil, fmt.Errorf("usage: bgp command help \"<name>\"")
-	}
-
-	name := args[0]
-
-	if ctx.Dispatcher() != nil {
-		if cmd := ctx.Dispatcher().Lookup(name); cmd != nil {
-			if strings.HasPrefix(cmd.Name, "bgp ") {
-				return &plugin.Response{
-					Status: plugin.StatusDone,
-					Data: map[string]any{
-						"command":     cmd.Name,
-						"description": cmd.Help,
-						"source":      sourceBuiltin,
-					},
-				}, nil
-			}
-		}
-	}
-
-	return nil, fmt.Errorf("unknown bgp command: %s", name)
-}
-
-// handleBgpCommandComplete returns completions for bgp commands.
-func handleBgpCommandComplete(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	if len(args) < 1 {
-		return nil, fmt.Errorf("usage: bgp command complete \"<partial>\"")
-	}
-
-	partial := args[0]
-	var completions []pluginserver.Completion
-
-	if ctx.Dispatcher() != nil {
-		lowerPartial := strings.ToLower(partial)
-		for _, cmd := range ctx.Dispatcher().Commands() {
-			if strings.HasPrefix(cmd.Name, "bgp ") &&
-				strings.HasPrefix(strings.ToLower(cmd.Name), lowerPartial) {
-				completions = append(completions, pluginserver.Completion{
-					Value: cmd.Name,
-					Help:  cmd.Help,
-				})
-			}
-		}
-	}
-
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: map[string]any{
-			"completions": completions,
-		},
-	}, nil
-}
-
-// handleBgpEventList returns available BGP event types.
-func handleBgpEventList(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: map[string]any{
-			"events": bgpEventTypes,
-		},
-	}, nil
-}
-
-// handleBgpPluginEncoding sets event encoding for this process.
-// Syntax: bgp plugin encoding <json|text>.
-func handleBgpPluginEncoding(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	if len(args) == 0 {
-		return nil, fmt.Errorf("missing encoding: bgp plugin encoding <json|text>")
-	}
-
-	enc := strings.ToLower(args[0])
-	switch enc {
-	case plugin.EncodingJSON, plugin.EncodingText:
-		if ctx.Process != nil {
-			ctx.Process.SetEncoding(enc)
-		}
-	default: // invalid encoding → return error
-		return nil, fmt.Errorf("invalid encoding: %s (valid: json, text)", args[0])
-	}
-
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: map[string]any{
-			"encoding": enc,
-		},
-	}, nil
-}
-
-// handleBgpPluginFormat sets wire format for this process.
-// Syntax: bgp plugin format <hex|base64|parsed|full>.
-func handleBgpPluginFormat(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	if len(args) == 0 {
-		return nil, fmt.Errorf("missing format: bgp plugin format <hex|base64|parsed|full>")
-	}
-
-	format := strings.ToLower(args[0])
-	switch format {
-	case plugin.FormatHex, plugin.FormatBase64, plugin.FormatParsed, plugin.FormatFull:
-		if ctx.Process != nil {
-			ctx.Process.SetFormat(format)
-		}
-	default: // invalid format → return error
-		return nil, fmt.Errorf("invalid format: %s (valid: hex, base64, parsed, full)", args[0])
-	}
-
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: map[string]any{
-			"format": format,
-		},
-	}, nil
-}
-
-// handleBgpPluginAck sets ACK timing for this process.
-// Syntax: bgp plugin ack <sync|async>.
-func handleBgpPluginAck(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	if len(args) == 0 {
-		return nil, fmt.Errorf("missing mode: bgp plugin ack <sync|async>")
-	}
-
-	mode := strings.ToLower(args[0])
-	switch mode {
-	case "sync":
-		if ctx.Process != nil {
-			ctx.Process.SetSync(true)
-		}
-	case "async":
-		if ctx.Process != nil {
-			ctx.Process.SetSync(false)
-		}
-	default: // invalid mode → return error
-		return nil, fmt.Errorf("invalid mode: %s (valid: sync, async)", args[0])
-	}
-
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: map[string]any{
-			"ack": mode,
-		},
-	}, nil
 }

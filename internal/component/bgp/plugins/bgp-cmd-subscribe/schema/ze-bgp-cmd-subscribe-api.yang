@@ -1,0 +1,17 @@
+module ze-bgp-cmd-subscribe-api {
+    namespace "urn:ze:bgp:cmd:subscribe:api";
+    prefix "bgp-sub-api";
+
+    organization "Ze Project";
+    description "BGP event subscription RPCs.";
+    revision 2026-03-08 {
+        description "Initial revision.";
+    }
+
+    rpc subscribe {
+        description "Subscribe to events matching filter criteria.";
+    }
+    rpc unsubscribe {
+        description "Unsubscribe from event subscriptions.";
+    }
+}

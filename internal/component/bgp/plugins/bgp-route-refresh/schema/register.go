@@ -6,4 +6,5 @@ import (
 
 func init() {
 	yang.RegisterModule("ze-route-refresh.yang", ZeRouteRefreshYANG)
+	yang.RegisterModule("ze-route-refresh-api.yang", ZeRouteRefreshAPIYANG)
 }

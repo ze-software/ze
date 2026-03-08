@@ -15,7 +15,6 @@ func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:summary", CLICommand: "bgp summary", Handler: handleBgpSummary, Help: "Show BGP summary (peer table with statistics)", ReadOnly: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-capabilities", CLICommand: "bgp peer capabilities", Handler: handleBgpPeerCapabilities, Help: "Show negotiated capabilities for peer(s)", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-clear-soft", CLICommand: "bgp peer clear soft", Handler: handleBgpPeerClearSoft, Help: "Soft-clear peer (send ROUTE-REFRESH for all families)", RequiresSelector: true},
 	)
 }
 
@@ -123,48 +122,5 @@ func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, _ []string) (*p
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data:   data,
-	}, nil
-}
-
-// handleBgpPeerClearSoft performs a soft clear by sending ROUTE-REFRESH
-// for all negotiated families of the specified peer.
-// RFC 2918 Section 3: soft reset via route refresh.
-func handleBgpPeerClearSoft(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
-	r, errResp, err := requireBGPReactor(ctx)
-	if err != nil {
-		return errResp, err
-	}
-
-	peer := ctx.PeerSelector()
-	if peer == "*" || peer == "" {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Data:   "clear soft requires specific peer: bgp peer <ip> clear soft",
-		}, fmt.Errorf("no peer specified")
-	}
-
-	addr, err := netip.ParseAddr(peer)
-	if err != nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("invalid peer address: %s", peer),
-		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
-	}
-
-	families, err := r.SoftClearPeer(addr.String())
-	if err != nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("soft clear failed: %v", err),
-		}, fmt.Errorf("soft clear peer %s: %w", addr, err)
-	}
-
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: map[string]any{
-			"peer":               addr.String(),
-			"action":             "soft-clear",
-			"families-refreshed": families,
-		},
 	}, nil
 }
