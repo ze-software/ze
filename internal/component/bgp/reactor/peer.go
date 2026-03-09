@@ -150,9 +150,11 @@ type Peer struct {
 	// Created at session establishment, cleared on teardown.
 	// recvCtx is used when parsing routes FROM peer.
 	// sendCtx is used when encoding routes TO peer.
+	// sendCtx uses atomic.Pointer for lock-free reads from plugin dispatch goroutines
+	// (e.g., WithdrawNLRIBatch via DirectBridge) that race with FSM teardown writes.
 	recvCtx   *bgpctx.EncodingContext
 	recvCtxID bgpctx.ContextID
-	sendCtx   *bgpctx.EncodingContext
+	sendCtx   atomic.Pointer[bgpctx.EncodingContext]
 	sendCtxID bgpctx.ContextID
 
 	// Per-peer message and route counters for operational statistics.
@@ -334,9 +336,7 @@ func (p *Peer) RecvContextID() bgpctx.ContextID {
 // Used when encoding routes TO this peer.
 // Returns nil if session is not established.
 func (p *Peer) SendContext() *bgpctx.EncodingContext {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return p.sendCtx
+	return p.sendCtx.Load()
 }
 
 // SendContextID returns the send context ID.
@@ -358,9 +358,10 @@ func (p *Peer) setEncodingContexts(neg *capability.Negotiated) {
 		p.recvCtxID = bgpctx.Registry.Register(p.recvCtx)
 	}
 
-	p.sendCtx = bgpctx.FromNegotiatedSend(neg)
-	if p.sendCtx != nil {
-		p.sendCtxID = bgpctx.Registry.Register(p.sendCtx)
+	sctx := bgpctx.FromNegotiatedSend(neg)
+	p.sendCtx.Store(sctx)
+	if sctx != nil {
+		p.sendCtxID = bgpctx.Registry.Register(sctx)
 	}
 
 	// Set context IDs on session for zero-copy WireUpdate and AttrsWire creation
@@ -378,7 +379,7 @@ func (p *Peer) clearEncodingContexts() {
 
 	p.recvCtx = nil
 	p.recvCtxID = 0
-	p.sendCtx = nil
+	p.sendCtx.Store(nil)
 	p.sendCtxID = 0
 }
 
@@ -469,20 +470,22 @@ func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error 
 // RFC 7911: ADD-PATH requires 4-byte path identifier prefix on NLRI.
 // Returns false if session not established.
 func (p *Peer) addPathFor(family nlri.Family) bool {
-	if p.sendCtx == nil {
+	ctx := p.sendCtx.Load()
+	if ctx == nil {
 		return false
 	}
-	return p.sendCtx.AddPath(family)
+	return ctx.AddPath(family)
 }
 
 // asn4 returns whether 4-byte ASN is negotiated.
 // RFC 6793: ASN4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
 // Returns true if session not established (default to modern).
 func (p *Peer) asn4() bool {
-	if p.sendCtx == nil {
+	ctx := p.sendCtx.Load()
+	if ctx == nil {
 		return true
 	}
-	return p.sendCtx.ASN4()
+	return ctx.ASN4()
 }
 
 // resolveNextHop returns the actual IP address for a RouteNextHop policy.
@@ -531,8 +534,9 @@ func (p *Peer) canUseNextHopFor(addr netip.Addr, family nlri.Family) bool {
 	}
 
 	// Cross-family via Extended NH (RFC 5549/8950)
-	if p.sendCtx != nil {
-		nhAFI := p.sendCtx.ExtendedNextHopFor(family)
+	ctx := p.sendCtx.Load()
+	if ctx != nil {
+		nhAFI := ctx.ExtendedNextHopFor(family)
 		if nhAFI != 0 {
 			if addr.Is6() && nhAFI == nlri.AFIIPv6 {
 				return true

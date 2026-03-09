@@ -697,7 +697,7 @@ func TestPeerAddPathNilSendCtx(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// No sendCtx set (session not established)
-	require.Nil(t, peer.sendCtx, "sendCtx should be nil")
+	require.Nil(t, peer.sendCtx.Load(), "sendCtx should be nil")
 }
 
 // TestPeerAddPathIPv4Unicast verifies IPv4 unicast ADD-PATH context.
@@ -713,12 +713,12 @@ func TestPeerAddPathIPv4Unicast(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Set sendCtx with ADD-PATH enabled for IPv4 unicast
-	peer.sendCtx = bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
+	peer.sendCtx.Store(bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
 		nlri.IPv4Unicast: true,
 		nlri.IPv6Unicast: false,
-	})
+	}))
 
-	addPath := peer.sendCtx.AddPath(nlri.IPv4Unicast)
+	addPath := peer.sendCtx.Load().AddPath(nlri.IPv4Unicast)
 	require.True(t, addPath, "AddPath should be true for IPv4 unicast")
 }
 
@@ -735,12 +735,12 @@ func TestPeerAddPathIPv6Unicast(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Set sendCtx with ADD-PATH enabled for IPv6 unicast
-	peer.sendCtx = bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
+	peer.sendCtx.Store(bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
 		nlri.IPv4Unicast: false,
 		nlri.IPv6Unicast: true,
-	})
+	}))
 
-	addPath := peer.sendCtx.AddPath(nlri.IPv6Unicast)
+	addPath := peer.sendCtx.Load().AddPath(nlri.IPv6Unicast)
 	require.True(t, addPath, "AddPath should be true for IPv6 unicast")
 }
 
@@ -757,17 +757,17 @@ func TestPeerAddPathLabeledUnicast(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Set sendCtx with ADD-PATH enabled for labeled-unicast
-	peer.sendCtx = bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
+	peer.sendCtx.Store(bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
 		nlri.IPv4LabeledUnicast: true,
 		nlri.IPv6LabeledUnicast: true,
-	})
+	}))
 
 	// IPv4 labeled-unicast (SAFI 4)
-	addPath4 := peer.sendCtx.AddPath(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel})
+	addPath4 := peer.sendCtx.Load().AddPath(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel})
 	require.True(t, addPath4, "AddPath should be true for IPv4 labeled-unicast")
 
 	// IPv6 labeled-unicast (SAFI 4)
-	addPath6 := peer.sendCtx.AddPath(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIMPLSLabel})
+	addPath6 := peer.sendCtx.Load().AddPath(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIMPLSLabel})
 	require.True(t, addPath6, "AddPath should be true for IPv6 labeled-unicast")
 }
 
@@ -784,15 +784,15 @@ func TestPeerAddPathNoAddPath(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Set sendCtx WITHOUT ADD-PATH
-	peer.sendCtx = bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
+	peer.sendCtx.Store(bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
 		nlri.IPv4Unicast: false,
 		nlri.IPv6Unicast: false,
-	})
+	}))
 
-	addPath4 := peer.sendCtx.AddPath(nlri.IPv4Unicast)
+	addPath4 := peer.sendCtx.Load().AddPath(nlri.IPv4Unicast)
 	require.False(t, addPath4, "AddPath should be false for IPv4 unicast without ADD-PATH")
 
-	addPath6 := peer.sendCtx.AddPath(nlri.IPv6Unicast)
+	addPath6 := peer.sendCtx.Load().AddPath(nlri.IPv6Unicast)
 	require.False(t, addPath6, "AddPath should be false for IPv6 unicast without ADD-PATH")
 }
 
@@ -808,16 +808,16 @@ func TestPeerAddPathOtherFamilies(t *testing.T) {
 	)
 	peer := NewPeer(settings)
 
-	peer.sendCtx = bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
+	peer.sendCtx.Store(bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
 		nlri.IPv4Unicast: true,
 		// VPN not in map = AddPath false
-	})
+	}))
 
 	// VPN family - not in AddPath map so should be false
 	vpnFamily := nlri.Family{AFI: nlri.AFIIPv4, SAFI: 128}
-	addPath := peer.sendCtx.AddPath(vpnFamily)
+	addPath := peer.sendCtx.Load().AddPath(vpnFamily)
 	require.False(t, addPath, "VPN family should have AddPath=false")
-	require.True(t, peer.sendCtx.ASN4(), "ASN4 should still be accessible from sendCtx")
+	require.True(t, peer.sendCtx.Load().ASN4(), "ASN4 should still be accessible from sendCtx")
 }
 
 // TestPeerEncodingContextASN4 verifies sendCtx includes ASN4 from negotiated state.
@@ -834,12 +834,12 @@ func TestPeerEncodingContextASN4(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Session with ASN4=true
-	peer.sendCtx = bgpctx.EncodingContextForASN4(true)
-	require.True(t, peer.sendCtx.ASN4(), "ASN4 should be true when negotiated")
+	peer.sendCtx.Store(bgpctx.EncodingContextForASN4(true))
+	require.True(t, peer.sendCtx.Load().ASN4(), "ASN4 should be true when negotiated")
 
 	// Session with ASN4=false (OLD speaker)
-	peer.sendCtx = bgpctx.EncodingContextForASN4(false)
-	require.False(t, peer.sendCtx.ASN4(), "ASN4 should be false for OLD speaker")
+	peer.sendCtx.Store(bgpctx.EncodingContextForASN4(false))
+	require.False(t, peer.sendCtx.Load().ASN4(), "ASN4 should be false for OLD speaker")
 }
 
 // =============================================================================
@@ -1351,11 +1351,11 @@ func TestCanUseNextHopFor_ExtendedNH(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Set up sendCtx with Extended NH for IPv4 unicast → IPv6 next-hop
-	peer.sendCtx = bgpctx.NewEncodingContext(nil, &capability.EncodingCaps{
+	peer.sendCtx.Store(bgpctx.NewEncodingContext(nil, &capability.EncodingCaps{
 		ExtendedNextHop: map[capability.Family]capability.AFI{
 			{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}: capability.AFIIPv6,
 		},
-	}, bgpctx.DirectionSend)
+	}, bgpctx.DirectionSend))
 
 	addr := netip.MustParseAddr("2001:db8::1") // IPv6 addr
 	ok := peer.canUseNextHopFor(addr, nlri.IPv4Unicast)
@@ -1383,7 +1383,7 @@ func TestCanUseNextHopFor_CrossFamilyNoCap(t *testing.T) {
 func TestCanUseNextHopFor_NilSendCtx(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)
-	peer.sendCtx = nil
+	peer.sendCtx.Store(nil)
 
 	addr := netip.MustParseAddr("2001:db8::1") // IPv6 addr
 	ok := peer.canUseNextHopFor(addr, nlri.IPv4Unicast)

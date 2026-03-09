@@ -84,7 +84,7 @@ func (p *Peer) SendWithdraw(prefix netip.Prefix) error {
 	if err := session.SendWithdraw(prefix, addPath); err != nil {
 		return err
 	}
-	p.IncrRoutesSent(1)
+	p.IncrWithdrawsSent(1)
 	return nil
 }
 
@@ -120,17 +120,13 @@ func (p *Peer) SendRawMessage(msgType uint8, payload []byte) error {
 
 // sendUpdateWithSplit sends an UPDATE, splitting if it exceeds maxSize.
 // Uses SplitUpdateWithAddPath to chunk oversized messages into multiple UPDATEs.
-// The family parameter is used to determine Add-Path state for correct NLRI parsing.
+// The addPath parameter must match the encoding used to build the UPDATE's NLRIs.
 // Returns nil on success, first error encountered on failure.
 //
 // RFC 4271 Section 4.3: Each split UPDATE is self-contained with full attributes.
 // RFC 7911: Add-Path requires 4-byte path identifier before each NLRI.
 // RFC 8654: Respects peer's max message size (4096 or 65535).
-func (p *Peer) sendUpdateWithSplit(update *message.Update, maxSize int, family nlri.Family) error {
-	// Determine Add-Path state for this family using sendCtx
-	// RFC 7911: Add-Path is negotiated per AFI/SAFI
-	addPath := p.sendCtx != nil && p.sendCtx.AddPath(family)
-
+func (p *Peer) sendUpdateWithSplit(update *message.Update, maxSize int, addPath bool) error {
 	chunks, err := message.SplitUpdateWithAddPath(update, maxSize, addPath)
 	if err != nil {
 		// Attributes too large or single NLRI too large - cannot send

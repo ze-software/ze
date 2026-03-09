@@ -59,7 +59,7 @@ func TestForwardUpdate_DispatchesToPool(t *testing.T) {
 		ExtendedMessage: false,
 	})
 	// Set send context to match source context → zero-copy path
-	peer.sendCtx = ctx
+	peer.sendCtx.Store(ctx)
 	peer.sendCtxID = ctxID
 
 	// Capture dispatched items via test handler
@@ -151,7 +151,7 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
 		ExtendedMessage: false,
 	})
-	peer1.sendCtx = ctx
+	peer1.sendCtx.Store(ctx)
 	peer1.sendCtxID = ctxID
 
 	peer2Settings := &PeerSettings{
@@ -167,7 +167,7 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
 		ExtendedMessage: false,
 	})
-	peer2.sendCtx = ctx
+	peer2.sendCtx.Store(ctx)
 	peer2.sendCtxID = ctxID
 
 	// Block workers so we can observe Retain count while they're in flight
@@ -251,7 +251,7 @@ func TestForwardUpdate_DispatchToStoppedPool(t *testing.T) {
 		families:        map[nlri.Family]bool{nlri.IPv4Unicast: true},
 		ExtendedMessage: false,
 	})
-	peer.sendCtx = ctx
+	peer.sendCtx.Store(ctx)
 	peer.sendCtxID = ctxID
 
 	// Create pool and stop it immediately

@@ -92,7 +92,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch bgptype
 
 			// Send with splitting for large batches
 			// RFC 4271: Each split UPDATE is self-contained with full attributes
-			if err := peer.sendUpdateWithSplit(update, maxMsgSize, batch.Family); err != nil {
+			if err := peer.sendUpdateWithSplit(update, maxMsgSize, addPath); err != nil {
 				lastErr = err
 			} else {
 				acceptedCount++
@@ -146,7 +146,7 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch bgptype
 			update := a.buildBatchWithdrawUpdate(attrBuf, nlriBuf, batch, addPath)
 
 			// Send with splitting for large batches
-			if err := peer.sendUpdateWithSplit(update, maxMsgSize, batch.Family); err != nil {
+			if err := peer.sendUpdateWithSplit(update, maxMsgSize, addPath); err != nil {
 				lastErr = err
 			} else {
 				acceptedCount++
