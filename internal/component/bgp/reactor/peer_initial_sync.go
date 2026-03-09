@@ -247,6 +247,7 @@ func (p *Peer) sendInitialRoutes() {
 		// Send EOR for ALL negotiated families before teardown
 		for _, family := range nc.Families() {
 			_ = p.SendUpdate(message.BuildEOR(family))
+			p.IncrEORSent()
 			routesLogger().Debug("sent EOR (before teardown)", "peer", addr, "family", family)
 		}
 
@@ -289,6 +290,7 @@ func (p *Peer) sendInitialRoutes() {
 	// Families() returns families in deterministic order (sorted by AFI, then SAFI).
 	for _, family := range nc.Families() {
 		_ = p.SendUpdate(message.BuildEOR(family))
+		p.IncrEORSent()
 		routesLogger().Debug("sent EOR", "peer", addr, "family", family)
 	}
 

@@ -14,9 +14,11 @@ func testCommandTree() *CommandNode {
 				Name:        "peer",
 				Description: "Peer operations",
 				Children: map[string]*CommandNode{
-					"list":         {Name: "list", Description: "List all peers"},
-					"show":         {Name: "show", Description: "Show peer details"},
-					"capabilities": {Name: "capabilities", Description: "Show peer capabilities"},
+					"list": {Name: "list", Description: "List all peers"},
+					"show": {Name: "show", Description: "Show peer details", Children: map[string]*CommandNode{
+						"capabilities": {Name: "capabilities", Description: "Show peer capabilities"},
+						"statistics":   {Name: "statistics", Description: "Show peer statistics"},
+					}},
 				},
 			},
 			"daemon": {
@@ -63,12 +65,12 @@ func TestCommandModeSubcommandCompletions(t *testing.T) {
 	cc := NewCommandCompleter(testCommandTree())
 
 	comps := cc.Complete("peer ")
-	if len(comps) != 3 {
-		t.Fatalf("expected 3 peer subcommands, got %d: %v", len(comps), comps)
+	if len(comps) != 2 {
+		t.Fatalf("expected 2 peer subcommands, got %d: %v", len(comps), comps)
 	}
 
-	// Sorted: capabilities, list, show
-	want := []string{"capabilities", "list", "show"}
+	// Sorted: list, show
+	want := []string{"list", "show"}
 	for i, w := range want {
 		if comps[i].Text != w {
 			t.Errorf("completion[%d] = %q, want %q", i, comps[i].Text, w)

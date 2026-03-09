@@ -112,7 +112,7 @@ module ze-bgp-api {
         }
     }
 
-    rpc peer-capabilities {
+    rpc peer-show-capabilities {
         description "Show negotiated capabilities for peer";
         input {
             leaf selector { type zt:peer-selector; mandatory true; description "Peer filter"; }
@@ -121,6 +121,29 @@ module ze-bgp-api {
             leaf peer { type zt:ip-address; description "Peer address"; }
             leaf state { type string; description "FSM state"; }
             leaf negotiation-complete { type boolean; description "True if OPEN exchange completed"; }
+        }
+    }
+
+    rpc peer-show-statistics {
+        description "Show per-peer update statistics with rates";
+        input {
+            leaf selector { type zt:peer-selector; description "Peer filter"; }
+        }
+        output {
+            leaf address { type zt:ip-address; description "Peer address"; }
+            leaf peer-as { type zt:asn; description "Peer ASN"; }
+            leaf state { type string; description "FSM state"; }
+            leaf uptime { type string; description "Session uptime"; }
+            leaf updates-received { type uint32; description "UPDATE messages received"; }
+            leaf updates-sent { type uint32; description "UPDATE messages sent"; }
+            leaf keepalives-received { type uint32; description "KEEPALIVE messages received"; }
+            leaf keepalives-sent { type uint32; description "KEEPALIVE messages sent"; }
+            leaf eor-received { type uint32; description "End-of-RIB markers received"; }
+            leaf eor-sent { type uint32; description "End-of-RIB markers sent"; }
+            leaf rate-updates-received { type string; description "Updates received per second"; }
+            leaf rate-updates-sent { type string; description "Updates sent per second"; }
+            leaf rate-keepalives-received { type string; description "Keepalives received per second"; }
+            leaf rate-keepalives-sent { type string; description "Keepalives sent per second"; }
         }
     }
 

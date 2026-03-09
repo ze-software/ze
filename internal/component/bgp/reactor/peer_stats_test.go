@@ -9,38 +9,47 @@ import (
 
 // TestPeerStatsInitialZero verifies counters start at zero.
 //
-// VALIDATES: New peers have zero message and route counters.
+// VALIDATES: New peers have zero update, keepalive, and EOR counters.
 // PREVENTS: Counters starting with garbage values.
 func TestPeerStatsInitialZero(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)
 
 	stats := peer.Stats()
-	assert.Equal(t, uint64(0), stats.MessagesReceived)
-	assert.Equal(t, uint64(0), stats.MessagesSent)
-	assert.Equal(t, uint32(0), stats.RoutesReceived)
-	assert.Equal(t, uint32(0), stats.RoutesSent)
+	assert.Equal(t, uint32(0), stats.UpdatesReceived)
+	assert.Equal(t, uint32(0), stats.UpdatesSent)
+	assert.Equal(t, uint32(0), stats.KeepalivesReceived)
+	assert.Equal(t, uint32(0), stats.KeepalivesSent)
+	assert.Equal(t, uint32(0), stats.EORReceived)
+	assert.Equal(t, uint32(0), stats.EORSent)
 }
 
 // TestPeerStatsIncrement verifies counter increment methods.
 //
-// VALIDATES: IncrMessageReceived/Sent and IncrRoutesReceived/Sent update counters.
+// VALIDATES: IncrUpdatesReceived/Sent, IncrKeepalivesReceived/Sent, IncrEORReceived/Sent update counters.
 // PREVENTS: Counters not being updated or updating the wrong counter.
 func TestPeerStatsIncrement(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)
 
-	peer.IncrMessageReceived()
-	peer.IncrMessageReceived()
-	peer.IncrMessageSent()
-	peer.IncrRoutesReceived(5)
-	peer.IncrRoutesSent(3)
+	peer.IncrUpdatesReceived()
+	peer.IncrUpdatesReceived()
+	peer.IncrUpdatesSent()
+	peer.IncrKeepalivesReceived()
+	peer.IncrKeepalivesReceived()
+	peer.IncrKeepalivesReceived()
+	peer.IncrKeepalivesSent()
+	peer.IncrKeepalivesSent()
+	peer.IncrEORReceived()
+	peer.IncrEORSent()
 
 	stats := peer.Stats()
-	assert.Equal(t, uint64(2), stats.MessagesReceived)
-	assert.Equal(t, uint64(1), stats.MessagesSent)
-	assert.Equal(t, uint32(5), stats.RoutesReceived)
-	assert.Equal(t, uint32(3), stats.RoutesSent)
+	assert.Equal(t, uint32(2), stats.UpdatesReceived)
+	assert.Equal(t, uint32(1), stats.UpdatesSent)
+	assert.Equal(t, uint32(3), stats.KeepalivesReceived)
+	assert.Equal(t, uint32(2), stats.KeepalivesSent)
+	assert.Equal(t, uint32(1), stats.EORReceived)
+	assert.Equal(t, uint32(1), stats.EORSent)
 }
 
 // TestPeerEstablishedAt verifies per-peer uptime tracking.
@@ -66,18 +75,22 @@ func TestPeerStatsClearOnReset(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)
 
-	peer.IncrMessageReceived()
-	peer.IncrMessageSent()
-	peer.IncrRoutesReceived(10)
-	peer.IncrRoutesSent(5)
+	peer.IncrUpdatesReceived()
+	peer.IncrUpdatesSent()
+	peer.IncrKeepalivesReceived()
+	peer.IncrKeepalivesSent()
+	peer.IncrEORReceived()
+	peer.IncrEORSent()
 	peer.SetEstablishedNow()
 
 	peer.ClearStats()
 
 	stats := peer.Stats()
-	assert.Equal(t, uint64(0), stats.MessagesReceived)
-	assert.Equal(t, uint64(0), stats.MessagesSent)
-	assert.Equal(t, uint32(0), stats.RoutesReceived)
-	assert.Equal(t, uint32(0), stats.RoutesSent)
+	assert.Equal(t, uint32(0), stats.UpdatesReceived)
+	assert.Equal(t, uint32(0), stats.UpdatesSent)
+	assert.Equal(t, uint32(0), stats.KeepalivesReceived)
+	assert.Equal(t, uint32(0), stats.KeepalivesSent)
+	assert.Equal(t, uint32(0), stats.EORReceived)
+	assert.Equal(t, uint32(0), stats.EORSent)
 	assert.True(t, peer.EstablishedAt().IsZero())
 }

@@ -526,6 +526,7 @@ func (a *reactorAPIAdapter) SendRoutes(peerSelector string, routes []*rib.Route,
 			for _, f := range families {
 				eor := message.BuildEOR(f)
 				if err := peer.SendUpdate(eor); err == nil {
+					peer.IncrEORSent()
 					totalResult.UpdatesSent++
 				}
 			}

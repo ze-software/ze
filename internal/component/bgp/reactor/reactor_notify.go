@@ -105,18 +105,31 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			RouterID:     s.RouterID,
 			State:        peer.State().String(),
 		}
-		// Increment per-peer message counters (lock-free atomics).
+		// Increment per-peer counters (lock-free atomics).
+		// Engine counts updates, keepalives, and EOR. NLRI-level counters
+		// (announce vs withdraw per prefix) belong in the RIB plugin.
 		if direction == plugin.DirectionReceived {
-			peer.IncrMessageReceived()
-			// Count received routes for UPDATE messages.
-			// Uses +1 per UPDATE as approximation; individual NLRI counting
-			// would require iterating the wireUpdate which is deferred to the
-			// consumer (RIB plugin) for zero-copy reasons.
-			if msgType == message.TypeUPDATE {
-				peer.IncrRoutesReceived(1)
+			switch msgType { //nolint:exhaustive // only counting updates and keepalives
+			case message.TypeUPDATE:
+				peer.IncrUpdatesReceived()
+				// Additionally count EOR as a subset of updates.
+				if wireUpdate != nil {
+					if _, isEOR := wireUpdate.IsEOR(); isEOR {
+						peer.IncrEORReceived()
+					}
+				}
+			case message.TypeKEEPALIVE:
+				peer.IncrKeepalivesReceived()
 			}
 		} else {
-			peer.IncrMessageSent()
+			switch msgType { //nolint:exhaustive // only counting updates and keepalives
+			case message.TypeUPDATE:
+				peer.IncrUpdatesSent()
+				// EOR sent is counted at BuildEOR call sites via IncrEORSent()
+				// because wireUpdate is nil for sent messages.
+			case message.TypeKEEPALIVE:
+				peer.IncrKeepalivesSent()
+			}
 		}
 	} else {
 		peerInfo = plugin.PeerInfo{Address: peerAddr}

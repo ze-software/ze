@@ -18,13 +18,14 @@ func TestPeerInfoPopulatesStats(t *testing.T) {
 
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	peer := NewPeer(settings)
-	peer.IncrMessageReceived()
-	peer.IncrMessageReceived()
-	peer.IncrMessageReceived()
-	peer.IncrMessageSent()
-	peer.IncrMessageSent()
-	peer.IncrRoutesReceived(10)
-	peer.IncrRoutesSent(5)
+	peer.IncrUpdatesReceived()
+	peer.IncrUpdatesReceived()
+	peer.IncrUpdatesSent()
+	peer.IncrKeepalivesReceived()
+	peer.IncrKeepalivesReceived()
+	peer.IncrKeepalivesSent()
+	peer.IncrEORReceived()
+	peer.IncrEORSent()
 	peer.SetEstablishedNow()
 	peer.state.Store(int32(PeerStateEstablished))
 
@@ -36,10 +37,12 @@ func TestPeerInfoPopulatesStats(t *testing.T) {
 	require.Len(t, peers, 1)
 	p := peers[0]
 
-	assert.Equal(t, uint64(3), p.MessagesReceived, "messages received")
-	assert.Equal(t, uint64(2), p.MessagesSent, "messages sent")
-	assert.Equal(t, uint32(10), p.RoutesReceived, "routes received")
-	assert.Equal(t, uint32(5), p.RoutesSent, "routes sent")
+	assert.Equal(t, uint32(2), p.UpdatesReceived, "updates received")
+	assert.Equal(t, uint32(1), p.UpdatesSent, "updates sent")
+	assert.Equal(t, uint32(2), p.KeepalivesReceived, "keepalives received")
+	assert.Equal(t, uint32(1), p.KeepalivesSent, "keepalives sent")
+	assert.Equal(t, uint32(1), p.EORReceived, "eor received")
+	assert.Equal(t, uint32(1), p.EORSent, "eor sent")
 	assert.True(t, p.Uptime > 0, "uptime should be non-zero for established peer")
 }
 

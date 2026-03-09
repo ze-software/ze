@@ -31,11 +31,13 @@ type PeerInfo struct {
 	State        string
 	Uptime       time.Duration
 
-	// Statistics
-	MessagesReceived uint64
-	MessagesSent     uint64
-	RoutesReceived   uint32
-	RoutesSent       uint32
+	// Statistics (engine-level counters; NLRI-level counters live in the RIB plugin)
+	UpdatesReceived    uint32
+	UpdatesSent        uint32
+	KeepalivesReceived uint32
+	KeepalivesSent     uint32
+	EORReceived        uint32
+	EORSent            uint32
 }
 
 // PeerCapabilityConfig holds capability configuration for a peer.

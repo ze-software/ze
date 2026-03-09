@@ -19,14 +19,14 @@ func TestBgpSummaryFormat(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
 			{
-				Address:          netip.MustParseAddr("192.0.2.1"),
-				PeerAS:           65001,
-				State:            "established",
-				Uptime:           5 * time.Minute,
-				MessagesReceived: 100,
-				MessagesSent:     50,
-				RoutesReceived:   10,
-				RoutesSent:       5,
+				Address:            netip.MustParseAddr("192.0.2.1"),
+				PeerAS:             65001,
+				State:              "established",
+				Uptime:             5 * time.Minute,
+				UpdatesReceived:    10,
+				UpdatesSent:        5,
+				KeepalivesReceived: 100,
+				KeepalivesSent:     50,
 			},
 			{
 				Address: netip.MustParseAddr("192.0.2.2"),
@@ -70,10 +70,10 @@ func TestBgpSummaryFormat(t *testing.T) {
 	assert.Equal(t, "192.0.2.1", peers[0]["address"])
 	assert.Equal(t, uint32(65001), peers[0]["peer-as"])
 	assert.Equal(t, "established", peers[0]["state"])
-	assert.Equal(t, uint64(100), peers[0]["messages-received"])
-	assert.Equal(t, uint64(50), peers[0]["messages-sent"])
-	assert.Equal(t, uint32(10), peers[0]["routes-received"])
-	assert.Equal(t, uint32(5), peers[0]["routes-sent"])
+	assert.Equal(t, uint32(10), peers[0]["updates-received"])
+	assert.Equal(t, uint32(5), peers[0]["updates-sent"])
+	assert.Equal(t, uint32(100), peers[0]["keepalives-received"])
+	assert.Equal(t, uint32(50), peers[0]["keepalives-sent"])
 }
 
 // TestBgpSummaryNoPeers verifies summary with no peers configured.
@@ -138,6 +138,83 @@ func TestPeerCapabilitiesHandler(t *testing.T) {
 	addPath, ok := neg["add-path"].(map[string]string)
 	require.True(t, ok, "add-path should be present")
 	assert.Equal(t, "send", addPath["ipv4/unicast"])
+}
+
+// TestPeerShowStatistics verifies statistics handler returns counters and rates.
+//
+// VALIDATES: bgp peer show statistics returns updates, messages, and rate fields.
+// PREVENTS: Missing counters or rate calculations in statistics output.
+func TestPeerShowStatistics(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{
+				Address:            netip.MustParseAddr("192.0.2.1"),
+				PeerAS:             65001,
+				State:              "established",
+				Uptime:             5 * time.Minute,
+				UpdatesReceived:    1000,
+				UpdatesSent:        500,
+				KeepalivesReceived: 150,
+				KeepalivesSent:     120,
+			},
+		},
+	}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "192.0.2.1"
+
+	resp, err := handleBgpPeerShowStatistics(ctx, nil)
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	// Single peer → flat object
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+
+	// Counter fields
+	assert.Equal(t, "192.0.2.1", data["address"])
+	assert.Equal(t, uint32(1000), data["updates-received"])
+	assert.Equal(t, uint32(500), data["updates-sent"])
+	assert.Equal(t, uint32(150), data["keepalives-received"])
+	assert.Equal(t, uint32(120), data["keepalives-sent"])
+
+	// Rate fields (1000 updates / 300 seconds = ~3.33 upd/s)
+	rateUpdRecv, ok := data["rate-updates-received"].(float64)
+	require.True(t, ok, "rate-updates-received should be float64")
+	assert.InDelta(t, 3.33, rateUpdRecv, 0.01)
+
+	rateUpdSent, ok := data["rate-updates-sent"].(float64)
+	require.True(t, ok, "rate-updates-sent should be float64")
+	assert.InDelta(t, 1.67, rateUpdSent, 0.01)
+}
+
+// TestPeerShowStatisticsZeroUptime verifies rates are zero when peer is not established.
+//
+// VALIDATES: Rate calculation handles zero uptime without division by zero.
+// PREVENTS: NaN or Inf in rate fields for idle peers.
+func TestPeerShowStatisticsZeroUptime(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{
+				Address: netip.MustParseAddr("192.0.2.1"),
+				PeerAS:  65001,
+				State:   "idle",
+				// Uptime is zero (not established)
+			},
+		},
+	}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "192.0.2.1"
+
+	resp, err := handleBgpPeerShowStatistics(ctx, nil)
+	require.NoError(t, err)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+
+	assert.Equal(t, 0.0, data["rate-updates-received"])
+	assert.Equal(t, 0.0, data["rate-updates-sent"])
+	assert.Equal(t, 0.0, data["rate-keepalives-received"])
+	assert.Equal(t, 0.0, data["rate-keepalives-sent"])
 }
 
 // TestPeerCapabilitiesNotEstablished verifies capabilities for non-established peer.

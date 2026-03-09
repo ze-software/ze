@@ -82,16 +82,18 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 		s := p.Settings()
 		stats := p.Stats()
 		info := plugin.PeerInfo{
-			Address:          s.Address,
-			LocalAddress:     s.LocalAddress,
-			LocalAS:          s.LocalAS,
-			PeerAS:           s.PeerAS,
-			RouterID:         s.RouterID,
-			State:            p.State().String(),
-			MessagesReceived: stats.MessagesReceived,
-			MessagesSent:     stats.MessagesSent,
-			RoutesReceived:   stats.RoutesReceived,
-			RoutesSent:       stats.RoutesSent,
+			Address:            s.Address,
+			LocalAddress:       s.LocalAddress,
+			LocalAS:            s.LocalAS,
+			PeerAS:             s.PeerAS,
+			RouterID:           s.RouterID,
+			State:              p.State().String(),
+			UpdatesReceived:    stats.UpdatesReceived,
+			UpdatesSent:        stats.UpdatesSent,
+			KeepalivesReceived: stats.KeepalivesReceived,
+			KeepalivesSent:     stats.KeepalivesSent,
+			EORReceived:        stats.EORReceived,
+			EORSent:            stats.EORSent,
 		}
 		if estAt := p.EstablishedAt(); !estAt.IsZero() {
 			info.Uptime = a.r.clock.Now().Sub(estAt)
@@ -265,41 +267,6 @@ func (a *reactorAPIAdapter) Stats() plugin.ReactorStats {
 // Stop signals the reactor to stop.
 func (a *reactorAPIAdapter) Stop() {
 	a.r.Stop()
-}
-
-// sendToMatchingPeers sends an UPDATE to peers matching the selector.
-// Supports: "*" (all peers), exact IP, or glob patterns (e.g., "192.168.*.*").
-func (a *reactorAPIAdapter) sendToMatchingPeers(selector string, update *message.Update) error {
-	a.r.mu.RLock()
-	defer a.r.mu.RUnlock()
-
-	var lastErr error
-	sentCount := 0
-
-	for addrStr, peer := range a.r.peers {
-		// Check if this peer matches the selector using glob matching
-		if !ipGlobMatch(selector, addrStr) {
-			continue
-		}
-
-		// Only send to established peers
-		if peer.State() != PeerStateEstablished {
-			continue
-		}
-
-		if err := peer.SendUpdate(update); err != nil {
-			lastErr = err
-		} else {
-			sentCount++
-		}
-	}
-
-	if sentCount == 0 && lastErr == nil {
-		// No peers matched or were established
-		return errors.New("no established peers to send to")
-	}
-
-	return lastErr
 }
 
 // Reload reloads the configuration.

@@ -387,14 +387,14 @@ func TestBgpSummaryHandler(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
 			{
-				Address:          netip.MustParseAddr("192.0.2.1"),
-				PeerAS:           65001,
-				State:            "established",
-				Uptime:           5 * time.Minute,
-				MessagesReceived: 100,
-				MessagesSent:     50,
-				RoutesReceived:   10,
-				RoutesSent:       5,
+				Address:            netip.MustParseAddr("192.0.2.1"),
+				PeerAS:             65001,
+				State:              "established",
+				Uptime:             5 * time.Minute,
+				UpdatesReceived:    10,
+				UpdatesSent:        5,
+				KeepalivesReceived: 100,
+				KeepalivesSent:     50,
 			},
 			{
 				Address: netip.MustParseAddr("192.0.2.2"),
@@ -434,10 +434,10 @@ func TestBgpSummaryHandler(t *testing.T) {
 	assert.Equal(t, "192.0.2.1", p1["address"])
 	assert.Equal(t, uint32(65001), p1["peer-as"])
 	assert.Equal(t, "established", p1["state"])
-	assert.Equal(t, uint64(100), p1["messages-received"])
-	assert.Equal(t, uint64(50), p1["messages-sent"])
-	assert.Equal(t, uint32(10), p1["routes-received"])
-	assert.Equal(t, uint32(5), p1["routes-sent"])
+	assert.Equal(t, uint32(10), p1["updates-received"])
+	assert.Equal(t, uint32(5), p1["updates-sent"])
+	assert.Equal(t, uint32(100), p1["keepalives-received"])
+	assert.Equal(t, uint32(50), p1["keepalives-sent"])
 }
 
 // TestBgpSummaryNilReactor verifies summary handler errors without reactor.

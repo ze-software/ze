@@ -55,7 +55,6 @@ func (p *Peer) SendAnnounce(route bgptypes.RouteSpec, localAS uint32) error {
 	if err := session.SendAnnounce(route, localAS, isIBGP, asn4, addPath); err != nil {
 		return err
 	}
-	p.IncrRoutesSent(1)
 	return nil
 }
 
@@ -84,7 +83,6 @@ func (p *Peer) SendWithdraw(prefix netip.Prefix) error {
 	if err := session.SendWithdraw(prefix, addPath); err != nil {
 		return err
 	}
-	p.IncrWithdrawsSent(1)
 	return nil
 }
 

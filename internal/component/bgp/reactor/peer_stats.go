@@ -8,52 +8,73 @@ import (
 	"time"
 )
 
-// PeerStats holds a snapshot of per-peer message and route counters.
+// PeerStats holds a snapshot of per-peer counters.
+// Updates = per UPDATE message (engine level, no content parsing).
+// Keepalives = per KEEPALIVE message.
+// EOR = End-of-RIB markers (RFC 4724).
+// NLRI-level counters (announce vs withdraw) belong in the RIB plugin.
 type PeerStats struct {
-	MessagesReceived uint64
-	MessagesSent     uint64
-	RoutesReceived   uint32
-	RoutesSent       uint32
+	UpdatesReceived    uint32
+	UpdatesSent        uint32
+	KeepalivesReceived uint32
+	KeepalivesSent     uint32
+	EORReceived        uint32
+	EORSent            uint32
 }
 
-// peerCounters holds atomic counters for message and route statistics.
+// peerCounters holds atomic counters for per-peer statistics.
 // Embedded in Peer for lock-free increment from hot paths.
+// NLRI-level counters (announce vs withdraw) are tracked by the RIB plugin.
 type peerCounters struct {
-	messagesReceived atomic.Uint64
-	messagesSent     atomic.Uint64
-	routesReceived   atomic.Uint32
-	routesSent       atomic.Uint32
-	establishedAt    atomic.Int64 // UnixNano; 0 = not established
+	updatesReceived    atomic.Uint32
+	updatesSent        atomic.Uint32
+	keepalivesReceived atomic.Uint32
+	keepalivesSent     atomic.Uint32
+	eorReceived        atomic.Uint32
+	eorSent            atomic.Uint32
+	establishedAt      atomic.Int64 // UnixNano; 0 = not established
 }
 
-// Stats returns a snapshot of the peer's message and route counters.
+// Stats returns a snapshot of the peer's counters.
 func (p *Peer) Stats() PeerStats {
 	return PeerStats{
-		MessagesReceived: p.counters.messagesReceived.Load(),
-		MessagesSent:     p.counters.messagesSent.Load(),
-		RoutesReceived:   p.counters.routesReceived.Load(),
-		RoutesSent:       p.counters.routesSent.Load(),
+		UpdatesReceived:    p.counters.updatesReceived.Load(),
+		UpdatesSent:        p.counters.updatesSent.Load(),
+		KeepalivesReceived: p.counters.keepalivesReceived.Load(),
+		KeepalivesSent:     p.counters.keepalivesSent.Load(),
+		EORReceived:        p.counters.eorReceived.Load(),
+		EORSent:            p.counters.eorSent.Load(),
 	}
 }
 
-// IncrMessageReceived increments the received message counter.
-func (p *Peer) IncrMessageReceived() {
-	p.counters.messagesReceived.Add(1)
+// IncrUpdatesReceived increments the received UPDATE counter.
+func (p *Peer) IncrUpdatesReceived() {
+	p.counters.updatesReceived.Add(1)
 }
 
-// IncrMessageSent increments the sent message counter.
-func (p *Peer) IncrMessageSent() {
-	p.counters.messagesSent.Add(1)
+// IncrUpdatesSent increments the sent UPDATE counter.
+func (p *Peer) IncrUpdatesSent() {
+	p.counters.updatesSent.Add(1)
 }
 
-// IncrRoutesReceived adds n to the received route counter.
-func (p *Peer) IncrRoutesReceived(n uint32) {
-	p.counters.routesReceived.Add(n)
+// IncrKeepalivesReceived increments the received KEEPALIVE counter.
+func (p *Peer) IncrKeepalivesReceived() {
+	p.counters.keepalivesReceived.Add(1)
 }
 
-// IncrRoutesSent adds n to the sent route counter.
-func (p *Peer) IncrRoutesSent(n uint32) {
-	p.counters.routesSent.Add(n)
+// IncrKeepalivesSent increments the sent KEEPALIVE counter.
+func (p *Peer) IncrKeepalivesSent() {
+	p.counters.keepalivesSent.Add(1)
+}
+
+// IncrEORReceived increments the received End-of-RIB counter.
+func (p *Peer) IncrEORReceived() {
+	p.counters.eorReceived.Add(1)
+}
+
+// IncrEORSent increments the sent End-of-RIB counter.
+func (p *Peer) IncrEORSent() {
+	p.counters.eorSent.Add(1)
 }
 
 // SetEstablishedNow records the current time as session establishment time.
@@ -74,9 +95,11 @@ func (p *Peer) EstablishedAt() time.Time {
 // ClearStats resets all counters and the established timestamp.
 // Called on session teardown to start fresh for the next session.
 func (p *Peer) ClearStats() {
-	p.counters.messagesReceived.Store(0)
-	p.counters.messagesSent.Store(0)
-	p.counters.routesReceived.Store(0)
-	p.counters.routesSent.Store(0)
+	p.counters.updatesReceived.Store(0)
+	p.counters.updatesSent.Store(0)
+	p.counters.keepalivesReceived.Store(0)
+	p.counters.keepalivesSent.Store(0)
+	p.counters.eorReceived.Store(0)
+	p.counters.eorSent.Store(0)
 	p.counters.establishedAt.Store(0)
 }

@@ -127,7 +127,7 @@ func TestYANGBGPAPIRPCs(t *testing.T) {
 	expectedRPCs := []string{
 		"help", "command-list", "command-help", "command-complete",
 		"plugin-encoding", "plugin-format", "plugin-ack",
-		"summary", "peer-capabilities", "peer-clear-soft",
+		"summary", "peer-show-capabilities", "peer-show-statistics", "peer-clear-soft",
 		"peer-list", "peer-show", "peer-add", "peer-remove", "peer-teardown",
 		"peer-update",
 		"peer-borr", "peer-eorr", "peer-raw",
@@ -306,7 +306,7 @@ func TestExtractRPCs(t *testing.T) {
 			wantRPCs: []string{
 				"help", "command-list", "command-help", "command-complete",
 				"plugin-encoding", "plugin-format", "plugin-ack",
-				"summary", "peer-capabilities", "peer-clear-soft",
+				"summary", "peer-show-capabilities", "peer-show-statistics", "peer-clear-soft",
 				"peer-list", "peer-show", "peer-add", "peer-remove", "peer-teardown",
 				"peer-update",
 				"peer-borr", "peer-eorr", "peer-raw",

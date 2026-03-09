@@ -14,7 +14,8 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:summary", CLICommand: "bgp summary", Handler: handleBgpSummary, Help: "Show BGP summary (peer table with statistics)", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-capabilities", CLICommand: "bgp peer capabilities", Handler: handleBgpPeerCapabilities, Help: "Show negotiated capabilities for peer(s)", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-show-capabilities", CLICommand: "bgp peer show capabilities", Handler: handleBgpPeerCapabilities, Help: "Show negotiated capabilities for peer(s)", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-show-statistics", CLICommand: "bgp peer show statistics", Handler: handleBgpPeerShowStatistics, Help: "Show per-peer update statistics with rates", ReadOnly: true},
 	)
 }
 
@@ -39,14 +40,16 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, _ []string) (*plugin.Res
 			established++
 		}
 		peerRows[i] = map[string]any{
-			"address":           p.Address.String(),
-			"peer-as":           p.PeerAS,
-			"state":             p.State,
-			"uptime":            p.Uptime.String(),
-			"messages-received": p.MessagesReceived,
-			"messages-sent":     p.MessagesSent,
-			"routes-received":   p.RoutesReceived,
-			"routes-sent":       p.RoutesSent,
+			"address":             p.Address.String(),
+			"peer-as":             p.PeerAS,
+			"state":               p.State,
+			"uptime":              p.Uptime.String(),
+			"updates-received":    p.UpdatesReceived,
+			"updates-sent":        p.UpdatesSent,
+			"keepalives-received": p.KeepalivesReceived,
+			"keepalives-sent":     p.KeepalivesSent,
+			"eor-received":        p.EORReceived,
+			"eor-sent":            p.EORSent,
 		}
 	}
 
@@ -110,6 +113,69 @@ func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, _ []string) (*p
 		} else {
 			entry["negotiation-complete"] = false
 		}
+		results[i] = entry
+	}
+
+	// Single peer: flat object. Multiple: array.
+	var data any = results
+	if len(results) == 1 {
+		data = results[0]
+	}
+
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data:   data,
+	}, nil
+}
+
+// handleBgpPeerShowStatistics returns per-peer update statistics with rates.
+// Rate is computed from cumulative counters and uptime: counter / uptime_seconds.
+// Returns 0 for all rates when uptime is zero (peer not established).
+// Single peer: flat object. Multiple peers: array.
+func handleBgpPeerShowStatistics(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	peers, errResp, err := filterPeersBySelector(ctx)
+	if errResp != nil {
+		return errResp, err
+	}
+
+	if len(peers) == 0 {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Data:   "no matching peers",
+		}, fmt.Errorf("no matching peers")
+	}
+
+	results := make([]map[string]any, len(peers))
+	for i, p := range peers {
+		uptimeSec := p.Uptime.Seconds()
+
+		entry := map[string]any{
+			"address":             p.Address.String(),
+			"peer-as":             p.PeerAS,
+			"state":               p.State,
+			"uptime":              p.Uptime.String(),
+			"updates-received":    p.UpdatesReceived,
+			"updates-sent":        p.UpdatesSent,
+			"keepalives-received": p.KeepalivesReceived,
+			"keepalives-sent":     p.KeepalivesSent,
+			"eor-received":        p.EORReceived,
+			"eor-sent":            p.EORSent,
+		}
+
+		// Compute rates from cumulative counters / uptime.
+		// Zero uptime (not established) → zero rates.
+		if uptimeSec > 0 {
+			entry["rate-updates-received"] = float64(p.UpdatesReceived) / uptimeSec
+			entry["rate-updates-sent"] = float64(p.UpdatesSent) / uptimeSec
+			entry["rate-keepalives-received"] = float64(p.KeepalivesReceived) / uptimeSec
+			entry["rate-keepalives-sent"] = float64(p.KeepalivesSent) / uptimeSec
+		} else {
+			entry["rate-updates-received"] = 0.0
+			entry["rate-updates-sent"] = 0.0
+			entry["rate-keepalives-received"] = 0.0
+			entry["rate-keepalives-sent"] = 0.0
+		}
+
 		results[i] = entry
 	}
 

@@ -38,8 +38,8 @@ func TestBgpHandlerRPCs(t *testing.T) {
 		wireMethodsSeen[reg.WireMethod] = true
 	}
 
-	// 7 peer ops + 2 summary/caps + 1 session-peer-ready = 10
-	assert.Equal(t, 10, bgpCount, "expected 10 BGP handler RPCs")
+	// 7 peer ops + 3 summary/caps/stats + 1 session-peer-ready = 11
+	assert.Equal(t, 11, bgpCount, "expected 11 BGP handler RPCs")
 }
 
 // TestHandlerPeerList verifies handleBgpPeerList returns peer info.

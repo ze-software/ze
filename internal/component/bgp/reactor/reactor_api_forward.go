@@ -6,6 +6,7 @@
 package reactor
 
 import (
+	"errors"
 	"fmt"
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
@@ -18,9 +19,36 @@ import (
 )
 
 // AnnounceEOR sends an End-of-RIB marker for the given address family.
+// Inlined peer iteration (not sendToMatchingPeers) to count EOR sent per peer.
 func (a *reactorAPIAdapter) AnnounceEOR(peerSelector string, afi uint16, safi uint8) error {
 	update := message.BuildEOR(nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)})
-	return a.sendToMatchingPeers(peerSelector, update)
+
+	a.r.mu.RLock()
+	defer a.r.mu.RUnlock()
+
+	var lastErr error
+	sentCount := 0
+
+	for addrStr, peer := range a.r.peers {
+		if !ipGlobMatch(peerSelector, addrStr) {
+			continue
+		}
+		if peer.State() != PeerStateEstablished {
+			continue
+		}
+		if err := peer.SendUpdate(update); err != nil {
+			lastErr = err
+		} else {
+			peer.IncrEORSent()
+			sentCount++
+		}
+	}
+
+	if sentCount == 0 && lastErr == nil {
+		return errors.New("no established peers to send to")
+	}
+
+	return lastErr
 }
 
 // SendRefresh sends a normal ROUTE-REFRESH message to matching peers.
