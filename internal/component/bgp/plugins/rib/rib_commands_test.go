@@ -333,6 +333,30 @@ func TestParseShowFiltersUnrecognizedArg(t *testing.T) {
 	assert.Contains(t, err.Error(), "unrecognized filter argument")
 }
 
+// TestParseShowFiltersDanglingKeyword verifies keyword without value returns clear error.
+//
+// VALIDATES: "community" or "regexp" as last arg gives specific error, not "unrecognized".
+// PREVENTS: Misleading error message when keyword value is missing.
+func TestParseShowFiltersDanglingKeyword(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantMsg string
+	}{
+		{"bare community", []string{"community"}, "community requires a value"},
+		{"bare regexp", []string{"regexp"}, "regexp requires a pattern"},
+		{"community after family", []string{"ipv4/unicast", "community"}, "community requires a value"},
+		{"regexp after prefix", []string{"10.0.0.0/24", "regexp"}, "regexp requires a pattern"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := parseShowFilters(tt.args)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantMsg)
+		})
+	}
+}
+
 // TestInboundShowCommunityFilter verifies community filter restricts results.
 //
 // VALIDATES: AC-1 — rib show in with community filter returns only matching routes.

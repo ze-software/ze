@@ -34,12 +34,18 @@ func parseShowFilters(args []string) (showFilters, error) {
 	i := 0
 	for i < len(args) {
 		arg := args[i]
-		if arg == "community" && i+1 < len(args) {
+		if arg == "community" {
+			if i+1 >= len(args) {
+				return showFilters{}, fmt.Errorf("community requires a value")
+			}
 			f.community = args[i+1]
 			i += 2
 			continue
 		}
-		if arg == "regexp" && i+1 < len(args) {
+		if arg == "regexp" {
+			if i+1 >= len(args) {
+				return showFilters{}, fmt.Errorf("regexp requires a pattern")
+			}
 			re, err := regexp.Compile(args[i+1])
 			if err != nil {
 				return showFilters{}, fmt.Errorf("invalid regexp %q: %w", args[i+1], err)

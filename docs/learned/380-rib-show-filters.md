@@ -25,11 +25,12 @@ Add community and AS-path regex filters to `rib show in` and `rib show best` com
 - **`slices.Contains` required:** Linter flagged manual loop over formatted communities. Use `slices.Contains(formatCommunities(data), community)`.
 - **`bestPathShowJSON` filter bypass:** When `peerRIB` was nil for the best peer, the `if peerRIB != nil` block was skipped entirely, falling through to `append` without applying community/regexp filters. Fix: flatten control flow — nil peerRIB with active filters → skip; nil peerRIB without filters → include bare; non-nil → apply filters. Nested `if` blocks that skip filter checks on the nil path are a trap.
 - **API schemas not in `ze schema show`:** API (`-api`) YANG modules are only indexed for `ze schema methods/events`, not `ze schema show/list` (which only has `-conf` modules). `.ci` tests for API schemas must use `methods`, not `show`.
+- **Dangling keyword misleading error:** Combined condition `arg == "community" && i+1 < len(args)` falls through to "unrecognized" when value is missing. Fix: split into keyword recognition then value check, giving "community requires a value" instead.
 
 ## Files
 
 - `internal/component/bgp/plugins/rib/rib_show_filter.go` — filter parsing and matching (extracted)
 - `internal/component/bgp/plugins/rib/rib_commands.go` — inboundShowJSON, bestPathShowJSON apply filters
-- `internal/component/bgp/plugins/rib/rib_commands_test.go` — 8 new filter tests
+- `internal/component/bgp/plugins/rib/rib_commands_test.go` — 9 new filter tests
 - `internal/component/bgp/plugins/rib/schema/ze-rib-api.yang` — community/regexp input leaves
 - `test/plugin/rib-show-filter.ci` — dispatch-command wiring test
