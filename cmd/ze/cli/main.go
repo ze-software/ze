@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — interactive CLI
+// Detail: pipe.go — pipe operators (match, count, json, no-more)
 // Related: ../run/main.go — run convenience command (uses BuildCommandTree)
 // Related: ../show/main.go — show convenience command (uses BuildCommandTree)
 // Related: ../internal/cmdutil/cmdutil.go — shared command utilities (uses BuildCommandTree)
@@ -62,6 +63,14 @@ Subsystems:
 Options:
   --socket <path>    Path to API socket (default: auto-detected)
   --run <command>    Execute single command and exit
+
+Pipe operators (interactive mode only, Tab completes after |):
+  <command> | match <pattern>    Filter lines matching pattern
+  <command> | count              Count output lines
+  <command> | table              Render as nushell-style table
+  <command> | json               Pretty-print JSON (default)
+  <command> | json compact       Single-line JSON
+  <command> | no-more            Disable paging
 
 Examples:
   ze cli                           Interactive BGP CLI
@@ -551,33 +560,62 @@ func (m model) handleHistoryDown() model {
 }
 
 func (m *model) applySelectedSuggestion() {
-	if m.selected >= 0 && m.selected < len(m.suggestions) {
-		// Get current input and find the last word
-		input := m.textInput.Value()
-		words := strings.Fields(input)
-
-		// Replace the last partial word with the suggestion
-		if len(words) > 0 {
-			// Check if input ends with space (completing new word)
-			if strings.HasSuffix(input, " ") || input == "" {
-				m.textInput.SetValue(input + m.suggestions[m.selected].text + " ")
-			} else {
-				// Replace last word
-				words[len(words)-1] = m.suggestions[m.selected].text
-				m.textInput.SetValue(strings.Join(words, " ") + " ")
-			}
-		} else {
-			m.textInput.SetValue(m.suggestions[m.selected].text + " ")
-		}
-		m.textInput.CursorEnd()
+	if m.selected < 0 || m.selected >= len(m.suggestions) {
+		return
 	}
+	input := m.textInput.Value()
+	suggested := m.suggestions[m.selected].text
+
+	// After a pipe: replace partial pipe operator name.
+	if pipeIdx := strings.LastIndex(input, "|"); pipeIdx >= 0 {
+		prefix := input[:pipeIdx+1] + " "
+		m.textInput.SetValue(prefix + suggested + " ")
+		m.textInput.CursorEnd()
+		return
+	}
+
+	// Command completion: replace last partial word.
+	words := strings.Fields(input)
+	if len(words) > 0 {
+		if strings.HasSuffix(input, " ") || input == "" {
+			m.textInput.SetValue(input + suggested + " ")
+		} else {
+			words[len(words)-1] = suggested
+			m.textInput.SetValue(strings.Join(words, " ") + " ")
+		}
+	} else {
+		m.textInput.SetValue(suggested + " ")
+	}
+	m.textInput.CursorEnd()
+}
+
+// pipeSuggestions lists available pipe operators for tab completion.
+var pipeSuggestions = []suggestion{
+	{text: "match", description: "Filter lines matching pattern"},
+	{text: "count", description: "Count output lines"},
+	{text: "table", description: "Render as table"},
+	{text: "json", description: "JSON output (pretty or compact)"},
+	{text: "no-more", description: "Disable paging"},
 }
 
 func (m *model) updateSuggestions() {
 	input := m.textInput.Value()
+
+	// After a pipe character, suggest pipe operators instead of commands.
+	if pipeIdx := strings.LastIndex(input, "|"); pipeIdx >= 0 {
+		after := strings.TrimSpace(input[pipeIdx+1:])
+		m.suggestions = nil
+		for _, s := range pipeSuggestions {
+			if after == "" || strings.HasPrefix(s.text, after) {
+				m.suggestions = append(m.suggestions, s)
+			}
+		}
+		return
+	}
+
 	words := strings.Fields(input)
 
-	// Navigate command tree
+	// Navigate command tree.
 	current := commandTree
 	var partial string
 
@@ -587,31 +625,31 @@ func (m *model) updateSuggestions() {
 			return
 		}
 
-		// Check if this is the last word (partial match)
+		// Check if this is the last word (partial match).
 		if i == len(words)-1 && !strings.HasSuffix(input, " ") {
 			partial = word
 			break
 		}
 
-		// Find exact match to navigate deeper
+		// Find exact match to navigate deeper.
 		if child, ok := current.Children[word]; ok {
 			current = child
 		} else {
-			// No match, no suggestions
+			// No match, no suggestions.
 			m.suggestions = nil
 			return
 		}
 	}
 
-	// If input ends with space, show all children
+	// If input ends with space, show all children.
 	if strings.HasSuffix(input, " ") || input == "" {
 		partial = ""
 	}
 
-	// Generate suggestions from current level
+	// Generate suggestions from current level.
 	m.suggestions = nil
 	if current.Children != nil {
-		// Collect and sort keys
+		// Collect and sort keys.
 		keys := make([]string, 0, len(current.Children))
 		for k := range current.Children {
 			keys = append(keys, k)
@@ -630,32 +668,39 @@ func (m *model) updateSuggestions() {
 	}
 }
 
-func (m model) executeCommand(command string) tea.Cmd {
+func (m model) executeCommand(input string) tea.Cmd {
 	return func() tea.Msg {
+		// Parse pipe operators from input (e.g., "peer list | match established").
+		command, ops := parsePipe(input)
+
 		resp, err := m.client.SendCommand(command)
 		if err != nil {
 			return executeResultMsg{err: err}
 		}
 
-		// Format response
-		var output strings.Builder
+		// Format response.
+		var output string
 		if resp.Error != "" {
-			output.WriteString(errorStyle.Render("Error: " + resp.Error))
-		} else {
-			if len(resp.Result) > 0 && string(resp.Result) != "null" {
-				var data any
-				if err := json.Unmarshal(resp.Result, &data); err == nil {
-					formatted, _ := json.MarshalIndent(data, "", "  ")
-					output.WriteString(string(formatted))
-				} else {
-					output.WriteString(string(resp.Result))
-				}
-			} else {
-				output.WriteString(successStyle.Render("OK"))
-			}
+			return executeResultMsg{output: errorStyle.Render("Error: " + resp.Error)}
 		}
 
-		return executeResultMsg{output: output.String()}
+		if len(resp.Result) == 0 || string(resp.Result) == "null" {
+			return executeResultMsg{output: successStyle.Render("OK")}
+		}
+
+		// Keep raw JSON as the base — pipe operators (including default table) work on it.
+		output = string(resp.Result)
+
+		// Default format: table. If the user specified | json or | table explicitly, skip auto-table.
+		if !hasFormatOp(ops) {
+			ops = append([]pipeOp{{kind: pipeTable}}, ops...)
+		}
+
+		result, pipeErr := applyPipes(output, ops)
+		if pipeErr != "" {
+			return executeResultMsg{output: errorStyle.Render("pipe error: " + pipeErr)}
+		}
+		return executeResultMsg{output: result}
 	}
 }
 
@@ -667,7 +712,7 @@ func (m model) View() string {
 	var b strings.Builder
 
 	// Header
-	b.WriteString(dimStyle.Render("Ze CLI") + " " + dimStyle.Render("(Tab: complete, Enter: execute, Ctrl+C: quit)"))
+	b.WriteString(dimStyle.Render("Ze CLI") + " " + dimStyle.Render("(Tab: complete, Enter: execute, | pipe, Ctrl+C: quit)"))
 	b.WriteString("\n\n")
 
 	// Prompt and input
