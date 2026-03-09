@@ -55,6 +55,11 @@ String literals used as command names or status values must be constants — com
 ALL RPCs need YANG — no "command module" category. Missing YANG is a bug, not a design choice.
 "Delete the folder" is a mechanical check for proximity. See `rules/plugin-design.md`.
 
+### LSP Tool for Go Navigation
+Load the LSP tool (`select:LSP`) at session start for Go code intelligence — goToDefinition,
+findReferences, goToImplementation, incomingCalls, outgoingCalls. More precise than grep for
+tracing call chains and finding interface implementations.
+
 ### SDK Type Aliases Are Intentional
 `pkg/plugin/sdk/sdk_types.go` re-exports `rpc.*` types as `sdk.*` aliases. This is deliberate —
 external plugin authors import only `sdk`, never `rpc`. Decouples public API from internal structure.
