@@ -22,12 +22,17 @@ Post-commit: hash, file count, clean state confirmation.
 ```
 [ ] 1. Run `make ze-verify` — capture to tmp/ze-test.log. ANY failure: STOP.
 [ ] 2. Report test result: pass/fail. If failures: list every one. No omissions.
-[ ] 3. Present what will be committed — concise table, not raw git output:
+[ ] 3. Spec completion gate — if work was driven by a spec in docs/plan/:
+      [ ] Learned summary written to docs/learned/NNN-<name>.md
+      [ ] Spec file staged for deletion (git rm)
+      [ ] Both included in THIS commit (one commit = code + tests + summary)
+      If not done: STOP. Do it before proceeding to step 4.
+[ ] 4. Present what will be committed — concise table, not raw git output:
       | File | Change |
       staged files with one-line description of what changed and why
       Mention any unstaged/untracked files excluded from commit.
-[ ] 4. Executive Summary Report (rules/planning.md) — present to user
-[ ] 5. ASK user: "Ready to commit?" — WAIT for explicit yes
+[ ] 5. Executive Summary Report (rules/planning.md) — present to user
+[ ] 6. ASK user: "Ready to commit?" — WAIT for explicit yes
 ```
 
 **Forbidden:** `git diff --stat`, `git status` dumped raw into output. Summarise for the user.
