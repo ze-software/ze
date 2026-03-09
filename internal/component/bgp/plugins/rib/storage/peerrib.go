@@ -160,6 +160,68 @@ func (r *PeerRIB) Families() []nlri.Family {
 	return result
 }
 
+// MarkFamilyStale marks all routes in a specific family as stale.
+// No-op if the family doesn't exist.
+// RFC 4724 Section 4.2: mark routes stale on GR-capable peer session drop.
+func (r *PeerRIB) MarkFamilyStale(family nlri.Family) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if rib, exists := r.families[family]; exists {
+		rib.MarkStale()
+	}
+}
+
+// MarkAllStale marks all routes across all families as stale.
+// RFC 4724 Section 4.2: mark all routes stale on GR-capable peer session drop.
+func (r *PeerRIB) MarkAllStale() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	for _, rib := range r.families {
+		rib.MarkStale()
+	}
+}
+
+// PurgeFamilyStale deletes stale routes for a specific family.
+// Returns the number of routes purged. No-op if family doesn't exist.
+// RFC 4724 Section 4.2: purge stale routes on EOR receipt per family.
+func (r *PeerRIB) PurgeFamilyStale(family nlri.Family) int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	rib, exists := r.families[family]
+	if !exists {
+		return 0
+	}
+	return rib.PurgeStale()
+}
+
+// PurgeAllStale deletes all stale routes across all families.
+// Returns the total number of routes purged.
+func (r *PeerRIB) PurgeAllStale() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	total := 0
+	for _, rib := range r.families {
+		total += rib.PurgeStale()
+	}
+	return total
+}
+
+// StaleCount returns the total number of stale routes across all families.
+func (r *PeerRIB) StaleCount() int {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	total := 0
+	for _, rib := range r.families {
+		total += rib.StaleCount()
+	}
+	return total
+}
+
 // getOrCreateFamily returns the FamilyRIB, creating if needed.
 // Caller must hold write lock.
 func (r *PeerRIB) getOrCreateFamily(family nlri.Family) *FamilyRIB {

@@ -66,10 +66,12 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	// GR support commands (RFC 4724)
 	assert.Contains(t, commandNames, "rib retain-routes")
 	assert.Contains(t, commandNames, "rib release-routes")
+	assert.Contains(t, commandNames, "rib mark-stale")
+	assert.Contains(t, commandNames, "rib purge-stale")
 	// Best-path commands (RFC 4271 §9.1.2)
 	assert.Contains(t, commandNames, "rib show best")
 	assert.Contains(t, commandNames, "rib best status")
-	assert.Len(t, regInput.Commands, 17, "rib registers exactly 17 commands")
+	assert.Len(t, regInput.Commands, 19, "rib registers exactly 19 commands")
 
 	require.NoError(t, connA.SendOK(ctx, stage1.ID))
 

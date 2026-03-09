@@ -844,6 +844,34 @@ func NewNLRISet(family FamilyKey, addPath bool) NLRISet {
 2. **Efficient lookup:** Find all routes with same attributes
 3. **UPDATE building:** Group routes by attrs for efficient encoding
 
+### Stale Route Tracking (Graceful Restart)
+
+RFC 4724 requires the Receiving Speaker to mark routes as stale when a GR-capable peer
+drops, retain them during the restart window, and selectively purge only stale routes
+when EOR arrives — preserving fresh routes received during the GR window.
+
+**Design:** `Stale bool` on `RouteEntry` — per-route metadata, NOT a pooled attribute.
+Stale state is not shared via dedup because each route instance has independent stale status.
+
+| Operation | Method | Scope |
+|-----------|--------|-------|
+| Mark stale | `FamilyRIB.MarkStale()` | All routes in one family |
+| Purge stale | `FamilyRIB.PurgeStale()` | Only stale routes in one family |
+| Stale count | `FamilyRIB.StaleCount()` | Count stale routes |
+| Implicit unstale | `FamilyRIB.Insert()` | New entry always has `Stale = false` |
+
+`PeerRIB` provides aggregate methods: `MarkAllStale`, `PurgeFamilyStale`, `PurgeAllStale`, `StaleCount`.
+
+**RIB commands:** `rib mark-stale <peer> <restart-time>` and `rib purge-stale <peer> [family]`.
+Called by bgp-gr plugin via `DispatchCommand`. The RIB stores per-peer GR state
+(`StaleAt`, `RestartTime`, `ExpiresAt`) and starts a safety-net expiry timer
+(restart-time + 5s margin) that auto-purges stale routes if bgp-gr never sends
+`purge-stale` or `release-routes`.
+
+**Show output:** `rib show in` includes `"stale": true` on stale routes.
+`rib status` includes aggregate `stale-routes` count and per-peer GR state with
+`stale-at` and `expires-at` absolute times.
+
 ---
 
 ## Update → RIB Flow

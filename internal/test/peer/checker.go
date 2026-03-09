@@ -16,6 +16,7 @@ import (
 
 // Action type identifiers used in .ci test files.
 const (
+	actionClose   = "close"
 	actionSighup  = "sighup"
 	actionSigterm = "sigterm"
 )
@@ -230,6 +231,32 @@ func parseExpectRule(rule string) (conn, seq int, content string, err error) {
 		}
 
 		content = actionSighup
+		return conn, seq, content, nil
+	}
+
+	// action=close:conn=N:seq=N
+	if after, ok := strings.CutPrefix(rule, "action=close:"); ok {
+		kv := parseKV(after)
+
+		connStr := kv["conn"]
+		if connStr == "" {
+			return 0, 0, "", fmt.Errorf("action:close missing conn: %q", rule)
+		}
+		conn, err = strconv.Atoi(connStr)
+		if err != nil || conn < 1 || conn > 4 {
+			return 0, 0, "", fmt.Errorf("action:close invalid conn=%q (must be 1-4): %q", connStr, rule)
+		}
+
+		seqStr := kv["seq"]
+		if seqStr == "" {
+			return 0, 0, "", fmt.Errorf("action:close missing seq: %q", rule)
+		}
+		seq, err = strconv.Atoi(seqStr)
+		if err != nil || seq < 1 {
+			return 0, 0, "", fmt.Errorf("action:close invalid seq=%q (must be >= 1): %q", seqStr, rule)
+		}
+
+		content = actionClose
 		return conn, seq, content, nil
 	}
 
@@ -491,6 +518,27 @@ func (c *Checker) NextRewriteAction() (bool, string, string) {
 	c.updateMessagesIfRequired()
 
 	return true, parts[0], parts[1]
+}
+
+// NextCloseAction checks if the next expected item is a close action.
+// If so, it returns true and removes the action from the queue.
+// Close action means: close TCP without sending NOTIFICATION (triggers GR activation).
+func (c *Checker) NextCloseAction() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if len(c.messages) == 0 {
+		return false
+	}
+
+	if c.messages[0] != actionClose {
+		return false
+	}
+
+	c.messages = c.messages[1:]
+	c.updateMessagesIfRequired()
+
+	return true
 }
 
 // NextSighupAction checks if the next expected item is a sighup action.

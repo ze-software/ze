@@ -17,6 +17,11 @@ import (
 // Limitation: Attribute flags (especially Partial bit 0x20) are not preserved.
 // For exact wire reproduction, use msg-id cache forwarding instead.
 type RouteEntry struct {
+	// Stale is true when this route was marked stale during Graceful Restart.
+	// RFC 4724 Section 4.2: routes from a restarting peer are marked stale
+	// until replaced by a fresh UPDATE or purged on EOR/timer expiry.
+	// Per-route metadata, not pooled — each route has independent stale state.
+	Stale bool
 	// Well-known mandatory (RFC 4271 Section 5.1)
 	Origin  attrpool.Handle // ORIGIN (type 1) - IGP, EGP, INCOMPLETE
 	ASPath  attrpool.Handle // AS_PATH (type 2)

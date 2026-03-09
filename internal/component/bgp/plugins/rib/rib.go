@@ -30,7 +30,10 @@ import (
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
-const statusDone = "done"
+const (
+	statusDone  = "done"
+	statusError = "error"
+)
 
 // loggerPtr is the package-level logger, disabled by default.
 // Use SetLogger() to enable logging from CLI --log-level flag.
@@ -60,6 +63,17 @@ type PeerMeta struct {
 	LocalASN uint32 // local AS number (for eBGP/iBGP detection)
 }
 
+// peerGRState holds per-peer Graceful Restart metadata in the RIB plugin.
+// Stored when "rib mark-stale" is received so that "rib status" can display
+// absolute times (when routes went stale, when they expire).
+// RFC 4724 Section 4.2: Receiving Speaker route retention.
+type peerGRState struct {
+	StaleAt     time.Time   // when routes were marked stale (disconnect time)
+	RestartTime uint16      // peer's negotiated restart time in seconds
+	ExpiresAt   time.Time   // StaleAt + RestartTime
+	expiryTimer *time.Timer // safety-net timer — auto-purges stale if no command arrives
+}
+
 // RIBManager implements a BGP RIB plugin.
 // It tracks routes received from and sent to peers.
 type RIBManager struct {
@@ -86,7 +100,12 @@ type RIBManager struct {
 	// Cleared by "rib release-routes <peer>" or when the peer comes back up.
 	retainedPeers map[string]bool
 
-	mu sync.RWMutex // protects ribInPool, ribOut, peerUp, peerMeta, retainedPeers
+	// grState tracks per-peer Graceful Restart metadata.
+	// Set by "rib mark-stale" command, cleared by "rib release-routes" or timer expiry.
+	// RFC 4724 Section 4.2: Receiving Speaker route retention state.
+	grState map[string]*peerGRState
+
+	mu sync.RWMutex // protects ribInPool, ribOut, peerUp, peerMeta, retainedPeers, grState
 }
 
 // RunRIBPlugin runs the RIB plugin using the SDK RPC protocol.
@@ -104,6 +123,7 @@ func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
 		peerUp:        make(map[string]bool),
 		peerMeta:      make(map[string]*PeerMeta),
 		retainedPeers: make(map[string]bool),
+		grState:       make(map[string]*peerGRState),
 	}
 
 	// Register event handler: dispatches BGP events (update, sent, state, refresh)
@@ -150,9 +170,11 @@ func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
 			{Name: "rib adjacent inbound empty"},
 			{Name: "rib adjacent outbound show"},
 			{Name: "rib adjacent outbound resend"},
-			// GR support: route retention (RFC 4724)
+			// GR support: route retention and stale tracking (RFC 4724)
 			{Name: "rib retain-routes"},
 			{Name: "rib release-routes"},
+			{Name: "rib mark-stale"},
+			{Name: "rib purge-stale"},
 			// Best-path selection (RFC 4271 §9.1.2)
 			{Name: "rib show best"},
 			{Name: "rib best status"},

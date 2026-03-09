@@ -50,6 +50,8 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 		// Check if same attributes (no-op update).
 		if entriesEqual(oldEntry, newEntry) {
 			// Same attributes - release the new entry, keep old.
+			// RFC 4724: clear stale flag — re-announcement means route is still valid.
+			oldEntry.Stale = false
 			newEntry.Release()
 			return
 		}
@@ -113,6 +115,40 @@ func (r *FamilyRIB) Family() nlri.Family {
 // HasAddPath returns whether ADD-PATH is enabled.
 func (r *FamilyRIB) HasAddPath() bool {
 	return r.addPath
+}
+
+// MarkStale sets Stale=true on all routes in this family.
+// RFC 4724 Section 4.2: mark routes as stale when GR-capable peer's session drops.
+func (r *FamilyRIB) MarkStale() {
+	for _, entry := range r.routes {
+		entry.Stale = true
+	}
+}
+
+// PurgeStale deletes all routes where Stale=true, releasing pool handles.
+// Returns the number of routes purged.
+// RFC 4724 Section 4.2: remove stale routes on EOR receipt or timer expiry.
+func (r *FamilyRIB) PurgeStale() int {
+	purged := 0
+	for key, entry := range r.routes {
+		if entry.Stale {
+			entry.Release()
+			delete(r.routes, key)
+			purged++
+		}
+	}
+	return purged
+}
+
+// StaleCount returns the number of routes marked as stale.
+func (r *FamilyRIB) StaleCount() int {
+	count := 0
+	for _, entry := range r.routes {
+		if entry.Stale {
+			count++
+		}
+	}
+	return count
 }
 
 // entriesEqual checks if two RouteEntries have the same attribute handles.

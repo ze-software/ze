@@ -297,6 +297,13 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 		}
 	}
 
+	// Check for close action after OPEN handshake.
+	// Close without NOTIFICATION — triggers GR activation in ze.
+	if p.checker.NextCloseAction() {
+		p.printf("\nclosing connection (action=close)\n")
+		return Result{Success: true}
+	}
+
 	// Check for notification action after OPEN handshake.
 	if ok, text := p.checker.NextNotificationAction(); ok {
 		p.printf("\nsending notification: %q\n", text)
@@ -328,6 +335,12 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 		if p.checker.Completed() {
 			return Result{Success: true}
 		}
+	}
+
+	// Check for close action after OPEN sends (send → close sequence).
+	if p.checker.NextCloseAction() {
+		p.printf("\nclosing connection (action=close)\n")
+		return Result{Success: true}
 	}
 
 	// Main message loop.
@@ -408,6 +421,13 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 			return Result{Success: true}
 		}
 
+		// Check for close action after matched message.
+		// Close without NOTIFICATION — triggers GR activation in ze.
+		if p.checker.NextCloseAction() {
+			p.printf("\nclosing connection (action=close)\n")
+			return Result{Success: true}
+		}
+
 		// Check for notification action after matched message.
 		if ok, text := p.checker.NextNotificationAction(); ok {
 			p.printf("\nsending notification: %q\n", text)
@@ -439,6 +459,12 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 			if p.checker.Completed() {
 				return Result{Success: true}
 			}
+		}
+
+		// Check for close action after sends (send → close sequence).
+		if p.checker.NextCloseAction() {
+			p.printf("\nclosing connection (action=close)\n")
+			return Result{Success: true}
 		}
 
 		// Check for rewrite action after matched message.

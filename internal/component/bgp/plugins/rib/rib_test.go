@@ -36,6 +36,7 @@ func newTestRIBManager(t *testing.T) *RIBManager {
 		peerUp:        make(map[string]bool),
 		peerMeta:      make(map[string]*PeerMeta),
 		retainedPeers: make(map[string]bool),
+		grState:       make(map[string]*peerGRState),
 	}
 }
 

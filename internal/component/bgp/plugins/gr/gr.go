@@ -8,7 +8,7 @@
 // Receiving Speaker procedures during the event loop.
 //
 // Event subscriptions: open (received), state, eor.
-// Inter-plugin coordination: DispatchCommand → bgp-rib retain-routes/release-routes.
+// Inter-plugin coordination: DispatchCommand → bgp-rib retain-routes/release-routes/mark-stale/purge-stale.
 package gr
 
 import (
@@ -214,7 +214,7 @@ func (gp *grPlugin) handleOpenEvent(peerAddr string, payload map[string]any) {
 
 // handleStateEvent processes peer up/down state changes.
 // RFC 4724 Section 4.2:
-//   - TCP failure for GR-capable peer → retain routes, start timer
+//   - TCP failure for GR-capable peer → 3-step sequence: purge-stale → retain → mark-stale
 //   - NOTIFICATION → standard BGP (no retention)
 //   - Peer reconnects → validate new GR cap, purge non-forwarding families
 func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
@@ -231,8 +231,13 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 
 		activated := gp.state.onSessionDown(peerAddr, cap, wasNotification)
 		if activated {
-			// Tell bgp-rib to retain this peer's routes during restart
+			// 3-step session-down sequence (RFC 4724 + consecutive restart handling):
+			// 1. Purge old stale routes from previous GR cycle (no-op on first disconnect)
+			gp.dispatchRIBCommand("rib purge-stale " + peerAddr)
+			// 2. Retain routes — prevents bgp-rib from deleting on state=down
 			gp.dispatchRIBCommand("rib retain-routes " + peerAddr)
+			// 3. Mark remaining routes as stale for new GR cycle
+			gp.dispatchRIBCommand("rib mark-stale " + peerAddr + " " + strconv.FormatUint(uint64(cap.RestartTime), 10))
 		}
 
 	case "up":
@@ -241,12 +246,9 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 		gp.mu.Unlock()
 
 		purged := gp.state.onSessionReestablished(peerAddr, newCap)
-		if len(purged) > 0 {
-			logger().Debug("gr: purged families on reconnect", "peer", peerAddr, "families", purged)
-			// If all families purged, release retained routes
-			if !gp.state.peerActive(peerAddr) {
-				gp.releaseRoutes(peerAddr)
-			}
+		for _, family := range purged {
+			// RFC 4724: purge stale routes for families with F-bit=0 or missing
+			gp.dispatchRIBCommand("rib purge-stale " + peerAddr + " " + family)
 		}
 	}
 }
@@ -266,12 +268,9 @@ func (gp *grPlugin) handleEOREvent(peerAddr string, payload map[string]any) {
 
 	shouldPurge := gp.state.onEORReceived(peerAddr, family)
 	if shouldPurge {
-		logger().Debug("gr: EOR received, stale routes purged", "peer", peerAddr, "family", family)
-
-		// If GR is now complete (all EORs received), release retained routes
-		if !gp.state.peerActive(peerAddr) {
-			gp.releaseRoutes(peerAddr)
-		}
+		// RFC 4724: purge only stale routes for this family (selective, not nuclear)
+		gp.dispatchRIBCommand("rib purge-stale " + peerAddr + " " + family)
+		logger().Debug("gr: EOR received, purging stale routes", "peer", peerAddr, "family", family)
 	}
 }
 

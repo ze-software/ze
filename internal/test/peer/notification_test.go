@@ -2,6 +2,7 @@ package peer
 
 import (
 	"encoding/hex"
+	"os"
 	"strings"
 	"testing"
 )
@@ -220,6 +221,110 @@ func TestCheckerEORSilentAccept(t *testing.T) {
 	}
 	if silent {
 		t.Error("NOTIFICATION match should not be silent")
+	}
+}
+
+// TestCheckerCloseAction verifies that action=close is parsed and consumable.
+//
+// VALIDATES: Close action is recognized by checker and consumed by NextCloseAction.
+// PREVENTS: action=close being silently ignored or misinterpreted as a BGP expectation.
+func TestCheckerCloseAction(t *testing.T) {
+	t.Parallel()
+	expected := []string{"action=close:conn=1:seq=1"}
+	c, err := NewChecker(expected)
+	if err != nil {
+		t.Fatalf("NewChecker failed: %v", err)
+	}
+	c.Init()
+
+	if !c.NextCloseAction() {
+		t.Error("expected close action, got none")
+	}
+
+	if !c.Completed() {
+		t.Error("checker should be completed after consuming close action")
+	}
+}
+
+// TestCheckerCloseNotConfusedWithExpect verifies BGP expects are not close actions.
+//
+// VALIDATES: BGP expectations are correctly identified as receive expectations.
+// PREVENTS: Testpeer closing connection instead of checking for BGP message.
+func TestCheckerCloseNotConfusedWithExpect(t *testing.T) {
+	t.Parallel()
+	expected := []string{"expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000"}
+	c, err := NewChecker(expected)
+	if err != nil {
+		t.Fatalf("NewChecker failed: %v", err)
+	}
+	c.Init()
+
+	if c.NextCloseAction() {
+		t.Error("expect=bgp should not be treated as close action")
+	}
+}
+
+// TestCheckerCloseAfterSend verifies send → close action sequence works.
+//
+// VALIDATES: Close action is consumable after send actions are processed.
+// PREVENTS: Close action stuck in queue after send actions consumed.
+func TestCheckerCloseAfterSend(t *testing.T) {
+	t.Parallel()
+	expected := []string{
+		"action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000",
+		"action=close:conn=1:seq=1",
+	}
+	c, err := NewChecker(expected)
+	if err != nil {
+		t.Fatalf("NewChecker failed: %v", err)
+	}
+	c.Init()
+
+	// Consume send action first
+	ok, _ := c.NextSendAction()
+	if !ok {
+		t.Fatal("expected send action")
+	}
+
+	// Now close should be consumable
+	if !c.NextCloseAction() {
+		t.Error("expected close action after send")
+	}
+
+	if !c.Completed() {
+		t.Error("checker should be completed after consuming both actions")
+	}
+}
+
+// TestLoadExpectFileCloseAction verifies LoadExpectFile parses action=close.
+//
+// VALIDATES: action=close is passed through by LoadExpectFile.
+// PREVENTS: action=close being silently dropped during .ci file parsing.
+func TestLoadExpectFileCloseAction(t *testing.T) {
+	t.Parallel()
+	tmpDir := t.TempDir()
+	ciFile := tmpDir + "/test.ci"
+
+	ciContent := `expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=close:conn=1:seq=2`
+
+	if err := os.WriteFile(ciFile, []byte(ciContent), 0o600); err != nil {
+		t.Fatalf("write temp file: %v", err)
+	}
+
+	expects, _, err := LoadExpectFile(ciFile)
+	if err != nil {
+		t.Fatalf("LoadExpectFile failed: %v", err)
+	}
+
+	foundClose := false
+	for _, exp := range expects {
+		if exp == "action=close:conn=1:seq=2" {
+			foundClose = true
+		}
+	}
+	if !foundClose {
+		t.Error("action=close should be in expects list")
 	}
 }
 

@@ -76,6 +76,10 @@ func LoadExpectFile(path string) ([]string, *Config, error) {
 				// Pass through: action=rewrite:conn=N:seq=N:source=FILE:dest=FILE
 				expect = append(expect, line)
 			}
+			if lineType == actionClose {
+				// Pass through: action=close:conn=N:seq=N
+				expect = append(expect, line)
+			}
 			if lineType == actionSighup {
 				// Pass through: action=sighup:conn=N:seq=N
 				expect = append(expect, line)

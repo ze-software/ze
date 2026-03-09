@@ -9,12 +9,43 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 )
+
+// grTimerMargin is the extra time added to restart-time for the RIB's safety-net timer.
+// The margin avoids racing with bgp-gr's normal expiry path.
+const grTimerMargin = 5 * time.Second
+
+// autoExpireStale is called by the safety-net timer when restart-time + margin elapses.
+// It purges all remaining stale routes for the peer and cleans up GR state.
+// RFC 4724 Section 4.2: stale routes MUST NOT persist past restart-time.
+//
+// The owner parameter is the peerGRState that created this timer. If a consecutive
+// restart replaced it (new mark-stale created a new state), the callback is stale
+// and must be a no-op — otherwise it would purge the new cycle's routes.
+func (r *RIBManager) autoExpireStale(peerAddr string, owner *peerGRState) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// Guard: skip if grState was replaced by a consecutive restart.
+	if r.grState[peerAddr] != owner {
+		return
+	}
+
+	peerRIB := r.ribInPool[peerAddr]
+	if peerRIB != nil {
+		purged := peerRIB.PurgeAllStale()
+		logger().Info("auto-expire stale", "peer", peerAddr, "purged", purged)
+	}
+
+	delete(r.grState, peerAddr)
+}
 
 // handleCommand processes command requests via SDK execute-command callback.
 // Returns (status, data, error) for the SDK to send back to the engine.
@@ -35,6 +66,10 @@ func (r *RIBManager) handleCommand(command, selector string, args []string) (str
 		return statusDone, r.retainRoutesJSON(selector), nil
 	case "rib release-routes":
 		return statusDone, r.releaseRoutesJSON(selector), nil
+	case "rib mark-stale":
+		return r.markStaleCommand(args)
+	case "rib purge-stale":
+		return r.purgeStaleCommand(args)
 	case "rib show best":
 		return statusDone, r.bestPathShowJSON(selector, args), nil
 	case "rib best status":
@@ -46,7 +81,7 @@ func (r *RIBManager) handleCommand(command, selector string, args []string) (str
 	case "rib event list":
 		return statusDone, ribEventListJSON(), nil
 	default: // fail on unknown command
-		return "error", "", fmt.Errorf("unknown command: %s", command)
+		return statusError, "", fmt.Errorf("unknown command: %s", command)
 	}
 }
 
@@ -64,6 +99,8 @@ var ribCommands = []struct {
 	{"rib best status", "Show best-path computation status"},
 	{"rib retain-routes", "Mark peer RIB for retention (GR)"},
 	{"rib release-routes", "Release retained peer RIB (GR)"},
+	{"rib mark-stale", "Mark peer routes as stale (GR disconnect)"},
+	{"rib purge-stale", "Purge only stale routes for peer (GR EOR/reconnect)"},
 	{"rib help", "Show RIB subcommands"},
 	{"rib command list", "List RIB commands"},
 	{"rib event list", "List RIB event types"},
@@ -306,8 +343,10 @@ func (r *RIBManager) statusJSON() string {
 	defer r.mu.RUnlock()
 
 	routesIn := 0
+	staleRoutes := 0
 	for _, peerRIB := range r.ribInPool {
 		routesIn += peerRIB.Len()
+		staleRoutes += peerRIB.StaleCount()
 	}
 
 	routesOut := 0
@@ -315,8 +354,29 @@ func (r *RIBManager) statusJSON() string {
 		routesOut += len(routes)
 	}
 
-	return fmt.Sprintf(`{"running":true,"peers":%d,"routes-in":%d,"routes-out":%d}`,
-		len(r.peerUp), routesIn, routesOut)
+	result := map[string]any{
+		"running":      true,
+		"peers":        len(r.peerUp),
+		"routes-in":    routesIn,
+		"routes-out":   routesOut,
+		"stale-routes": staleRoutes,
+	}
+
+	// Add per-peer GR state if any peers have stale routes.
+	if len(r.grState) > 0 {
+		grPeers := make(map[string]any, len(r.grState))
+		for peer, state := range r.grState {
+			grPeers[peer] = map[string]any{
+				"stale-at":     state.StaleAt.Format(time.RFC3339),
+				"restart-time": state.RestartTime,
+				"expires-at":   state.ExpiresAt.Format(time.RFC3339),
+			}
+		}
+		result["gr-state"] = grPeers
+	}
+
+	data, _ := json.Marshal(result)
+	return string(data)
 }
 
 // retainRoutesJSON marks a peer's Adj-RIB-In for retention during GR.
@@ -357,11 +417,111 @@ func (r *RIBManager) releaseRoutesJSON(selector string) string {
 			delete(r.ribInPool, peer)
 		}
 		delete(r.peerMeta, peer)
+		// Cancel expiry timer if present.
+		if state := r.grState[peer]; state != nil && state.expiryTimer != nil {
+			state.expiryTimer.Stop()
+		}
+		delete(r.grState, peer)
 		released++
 	}
 
 	data, _ := json.Marshal(map[string]any{"released-peers": released})
 	return string(data)
+}
+
+// markStaleCommand handles "rib mark-stale <peer> <restart-time>".
+// Marks all routes for the peer as stale and stores GR metadata.
+// RFC 4724 Section 4.2: mark routes stale on GR-capable peer session drop.
+// Args: [0]=peer address, [1]=restart time in seconds.
+func (r *RIBManager) markStaleCommand(args []string) (string, string, error) {
+	if len(args) < 2 {
+		return statusError, "", fmt.Errorf("mark-stale requires <peer> <restart-time>")
+	}
+
+	peerAddr := args[0]
+	restartSec, err := strconv.ParseUint(args[1], 10, 16)
+	if err != nil {
+		return statusError, "", fmt.Errorf("invalid restart-time %q: %w", args[1], err)
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	marked := 0
+	peerRIB := r.ribInPool[peerAddr]
+	if peerRIB != nil {
+		peerRIB.MarkAllStale()
+		marked = peerRIB.StaleCount()
+	}
+
+	// Cancel existing expiry timer if consecutive restart.
+	if existing := r.grState[peerAddr]; existing != nil && existing.expiryTimer != nil {
+		existing.expiryTimer.Stop()
+	}
+
+	// Store GR state for status display and start expiry timer.
+	now := time.Now()
+	restartTime := uint16(restartSec)
+	expiryDuration := time.Duration(restartTime)*time.Second + grTimerMargin
+	state := &peerGRState{
+		StaleAt:     now,
+		RestartTime: restartTime,
+		ExpiresAt:   now.Add(time.Duration(restartTime) * time.Second),
+	}
+	state.expiryTimer = time.AfterFunc(expiryDuration, func() {
+		r.autoExpireStale(peerAddr, state)
+	})
+	r.grState[peerAddr] = state
+
+	logger().Debug("mark-stale", "peer", peerAddr, "marked", marked, "restart-time", restartTime)
+
+	data, _ := json.Marshal(map[string]any{"marked": marked})
+	return statusDone, string(data), nil
+}
+
+// purgeStaleCommand handles "rib purge-stale <peer> [family]".
+// Deletes only stale routes, optionally for a specific family.
+// RFC 4724 Section 4.2: purge stale routes on EOR receipt or timer expiry.
+// Args: [0]=peer address, [1]=optional family (e.g., "ipv4/unicast").
+func (r *RIBManager) purgeStaleCommand(args []string) (string, string, error) {
+	if len(args) < 1 {
+		return statusError, "", fmt.Errorf("purge-stale requires <peer>")
+	}
+
+	peerAddr := args[0]
+	familyFilter := ""
+	if len(args) >= 2 {
+		familyFilter = args[1]
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	purged := 0
+	peerRIB := r.ribInPool[peerAddr]
+	if peerRIB != nil {
+		if familyFilter != "" {
+			family, ok := parseFamily(familyFilter)
+			if ok {
+				purged = peerRIB.PurgeFamilyStale(family)
+			}
+		} else {
+			purged = peerRIB.PurgeAllStale()
+		}
+	}
+
+	// If no stale routes remain, stop expiry timer and clear GR state.
+	if peerRIB != nil && peerRIB.StaleCount() == 0 {
+		if state := r.grState[peerAddr]; state != nil && state.expiryTimer != nil {
+			state.expiryTimer.Stop()
+		}
+		delete(r.grState, peerAddr)
+	}
+
+	logger().Debug("purge-stale", "peer", peerAddr, "purged", purged, "family", familyFilter)
+
+	data, _ := json.Marshal(map[string]any{"purged": purged})
+	return statusDone, string(data), nil
 }
 
 // bestPathShowJSON computes and returns the best route per prefix across all peers.
