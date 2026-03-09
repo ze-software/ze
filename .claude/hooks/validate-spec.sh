@@ -173,13 +173,15 @@ if [[ -n "$FILES_SECTION" ]]; then
     fi
 fi
 
-# === FUNCTIONAL TEST CHECK ===
-# Ensure spec includes functional tests for end-user verification
+# === FUNCTIONAL TEST CHECK (BLOCKING) ===
+# Every spec with user-facing features MUST have .ci functional tests
 FUNC_TEST_SECTION=$(sed -n '/^### Functional Tests/,/^###\|^##/p' "$FILE_PATH" | head -20)
 if [[ -z "$FUNC_TEST_SECTION" ]]; then
-    WARNINGS+=("Missing '### Functional Tests' section. Features need functional tests to verify end-user behavior")
-elif ! echo "$FUNC_TEST_SECTION" | grep -qE '\.ci|test/'; then
-    WARNINGS+=("Functional Tests section should reference .ci files or test/ locations for end-user verification")
+    ERRORS+=("Missing '### Functional Tests' section. User-facing features MUST have .ci tests (see rules/integration-completeness.md)")
+elif echo "$FUNC_TEST_SECTION" | grep -qiE 'N/A|not applicable|no new .* features|no user-facing|cosmetic|existing test|no regressions|test suite passes'; then
+    : # Explicit opt-out for internal/cosmetic specs — allowed
+elif ! echo "$FUNC_TEST_SECTION" | grep -qE '\.ci'; then
+    ERRORS+=("Functional Tests section must reference .ci test files. A Go unit test is NOT a substitute for a .ci functional test")
 fi
 
 # === NO CODE IN SPECS CHECK ===
@@ -214,6 +216,7 @@ else
     # Extract the last column (test name) from data rows (skip header + separator)
     WIRING_ROWS=$(echo "$WIRING_SECTION" | grep '|.*→.*|' | grep -v '^|.*Entry Point' | grep -v '^|.*---')
     if [[ -n "$WIRING_ROWS" ]]; then
+        HAS_CI_TEST=false
         # Check each row's test column for deferred/TODO/placeholder/empty
         while IFS= read -r row; do
             TEST_CELL=$(echo "$row" | awk -F'|' '{print $NF}' | sed 's/^[ \t]*//;s/[ \t]*$//')
@@ -225,7 +228,18 @@ else
                 ERRORS+=("Wiring Test: every row must have a concrete test name. Found deferred/empty: '$TEST_CELL'")
                 break
             fi
+            # Track if any test references a .ci file
+            if echo "$TEST_CELL" | grep -qE '\.ci'; then
+                HAS_CI_TEST=true
+            fi
         done <<< "$WIRING_ROWS"
+        # User-facing features need .ci tests in wiring table (unless all rows reference existing Go test suite)
+        if [[ "$HAS_CI_TEST" == false ]]; then
+            # Check if spec explicitly opts out (cosmetic/internal work)
+            if ! echo "$WIRING_SECTION" | grep -qiE 'existing test|no new feature|cosmetic|N/A'; then
+                WARNINGS+=("Wiring Test: user-facing features should reference .ci functional tests, not just Go unit tests")
+            fi
+        fi
     fi
 fi
 
