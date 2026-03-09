@@ -2,7 +2,7 @@
 //
 // gen-plugin-imports generates internal/plugin/all/all.go from register.go discovery.
 //
-// It scans internal/component/bgp/plugins/*/register.go to find plugin packages and
+// It scans internal/component/bgp/plugins/**/register.go to find plugin packages and
 // internal/**/schema/register.go to find YANG schema packages, then generates
 // the blank-import file that triggers init() registration.
 //
@@ -94,20 +94,30 @@ func readModulePath(path string) (string, error) {
 
 // discoverPlugins finds plugin packages by looking for register.go files.
 func discoverPlugins(pluginsDir string) ([]string, error) {
-	entries, err := os.ReadDir(pluginsDir)
+	var plugins []string
+
+	err := filepath.WalkDir(pluginsDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || d.Name() != "register.go" {
+			return nil
+		}
+		// Only include register.go files that import the plugin registry
+		// (skip schema/register.go which imports config/yang instead).
+		if !fileImports(path, "plugin/registry") {
+			return nil
+		}
+		// Convert directory containing register.go to a relative path from pluginsDir.
+		rel, err := filepath.Rel(pluginsDir, filepath.Dir(path))
+		if err != nil {
+			return err
+		}
+		plugins = append(plugins, rel)
+		return nil
+	})
 	if err != nil {
 		return nil, err
-	}
-
-	var plugins []string
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		regPath := filepath.Join(pluginsDir, entry.Name(), "register.go")
-		if _, err := os.Stat(regPath); err == nil {
-			plugins = append(plugins, entry.Name())
-		}
 	}
 
 	sort.Strings(plugins)
