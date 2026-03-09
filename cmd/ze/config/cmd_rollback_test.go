@@ -45,6 +45,16 @@ func TestCmdRollbackInvalidRevision(t *testing.T) {
 	assert.Equal(t, exitError, code)
 }
 
+// TestCmdRollbackZero verifies error when revision number is zero.
+//
+// VALIDATES: Revision 0 is rejected (1-indexed).
+// PREVENTS: Off-by-one accessing backups[-1].
+func TestCmdRollbackZero(t *testing.T) {
+	configPath := writeTestConfig(t, "bgp {}\n")
+	code := cmdRollback([]string{"0", configPath})
+	assert.Equal(t, exitError, code)
+}
+
 // TestCmdRollbackOutOfRange verifies error when revision number exceeds available backups.
 //
 // VALIDATES: Out-of-range revision returns error.

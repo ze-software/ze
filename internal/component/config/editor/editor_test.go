@@ -217,6 +217,104 @@ func TestEditorRollback(t *testing.T) {
 	assert.Equal(t, version2, string(backupData), "pre-rollback backup should preserve the overwritten config")
 }
 
+// TestAtomicWriteFileCreatesCorrectContent verifies atomic write produces correct file.
+//
+// VALIDATES: atomicWriteFile creates file with expected content and permissions.
+// PREVENTS: Temp file left behind or wrong content written.
+func TestAtomicWriteFileCreatesCorrectContent(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "output.conf")
+
+	err := atomicWriteFile(path, []byte("hello world"), 0o600)
+	require.NoError(t, err)
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, "hello world", string(data))
+
+	info, err := os.Stat(path)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+}
+
+// TestAtomicWriteFileOverwritesExisting verifies atomic write replaces existing file.
+//
+// VALIDATES: Existing file is atomically replaced, not appended.
+// PREVENTS: Stale content surviving a write.
+func TestAtomicWriteFileOverwritesExisting(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "output.conf")
+
+	require.NoError(t, os.WriteFile(path, []byte("old content"), 0o600))
+
+	err := atomicWriteFile(path, []byte("new content"), 0o600)
+	require.NoError(t, err)
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, "new content", string(data))
+}
+
+// TestAtomicWriteFilePreservesOriginalOnDirFailure verifies original survives if dir is bad.
+//
+// VALIDATES: Original file is untouched when temp creation fails.
+// PREVENTS: Data loss when target directory is not writable.
+func TestAtomicWriteFilePreservesOriginalOnDirFailure(t *testing.T) {
+	err := atomicWriteFile("/nonexistent/dir/file.conf", []byte("data"), 0o600)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "create temp file")
+}
+
+// TestAtomicWriteFileNoTempFileLeftBehind verifies no .ze-tmp files remain after success.
+//
+// VALIDATES: Temp file is renamed (not left behind) on successful write.
+// PREVENTS: Accumulation of orphan temp files in config directory.
+func TestAtomicWriteFileNoTempFileLeftBehind(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "output.conf")
+
+	require.NoError(t, atomicWriteFile(path, []byte("content"), 0o600))
+
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	for _, e := range entries {
+		assert.False(t, strings.HasPrefix(e.Name(), ".ze-tmp-"),
+			"temp file should not remain: %s", e.Name())
+	}
+}
+
+// TestListBackupsSkipsMalformedFiles verifies junk files in rollback/ are ignored.
+//
+// VALIDATES: Non-matching files in rollback/ don't appear in backup list.
+// PREVENTS: Panic or incorrect entries from malformed filenames.
+func TestListBackupsSkipsMalformedFiles(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	require.NoError(t, os.WriteFile(configPath, []byte("content"), 0o600))
+
+	// Create rollback dir with junk + one valid backup
+	rollbackDir := filepath.Join(tmpDir, "rollback")
+	require.NoError(t, os.MkdirAll(rollbackDir, 0o700))
+
+	// Junk files
+	require.NoError(t, os.WriteFile(filepath.Join(rollbackDir, "notes.txt"), []byte("junk"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(rollbackDir, "test-broken.conf"), []byte("junk"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(rollbackDir, "test-99999999-999999.999.conf"), []byte("junk"), 0o600))
+
+	// Valid backup
+	require.NoError(t, os.WriteFile(filepath.Join(rollbackDir, "test-20260101-120000.000.conf"), []byte("backup"), 0o600))
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	backups, err := ed.ListBackups()
+	require.NoError(t, err)
+	require.Len(t, backups, 1, "only the valid backup should be listed")
+	assert.Contains(t, backups[0].Path, "20260101-120000")
+}
+
 func TestEditorListBackupsEmpty(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
