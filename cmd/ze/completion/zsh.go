@@ -23,6 +23,7 @@ _ze() {
         'run:Execute daemon command (all commands)'
         'plugin:Plugin system'
         'exabgp:ExaBGP bridge tools'
+        'status:Check if daemon is running'
         'signal:Send signals to running daemon'
         'completion:Generate shell completion scripts'
         'version:Show version'
@@ -156,7 +157,6 @@ _ze() {
                         'reload:Send SIGHUP - reload configuration'
                         'stop:Send SIGTERM - graceful shutdown'
                         'quit:Send SIGQUIT - goroutine dump + immediate exit'
-                        'status:Check if process is running'
                     )
                     if (( CURRENT == 2 )); then
                         _describe 'signal command' signal_commands

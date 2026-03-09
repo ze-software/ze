@@ -62,7 +62,7 @@ _ze() {
         cword=${COMP_CWORD}
     fi
 
-    local commands="bgp config cli validate schema show run plugin exabgp signal completion version help"
+    local commands="bgp config cli validate schema show run status plugin exabgp signal completion version help"
 
     # Complete argument for flags that take a value
     case "${prev}" in
@@ -146,7 +146,7 @@ _ze() {
             ;;
         signal)
             if [[ ${depth} -eq 1 ]]; then
-                COMPREPLY=($(compgen -W "reload stop quit status" -- "${cur}"))
+                COMPREPLY=($(compgen -W "reload stop quit" -- "${cur}"))
             else
                 _ze_filedir conf
             fi

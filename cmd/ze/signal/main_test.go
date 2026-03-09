@@ -71,7 +71,7 @@ func TestSignalCommandMissingArgs(t *testing.T) {
 		args []string
 	}{
 		{"no_args", []string{}},
-		{"command_only", []string{"status"}},
+		{"command_only", []string{"reload"}},
 	}
 
 	for _, tt := range tests {
@@ -82,11 +82,11 @@ func TestSignalCommandMissingArgs(t *testing.T) {
 	}
 }
 
-// TestSignalCommandExplicitPIDFile verifies --pid-file overrides config-derived path.
+// TestRunStatusExplicitPIDFile verifies --pid-file overrides config-derived path.
 //
-// VALIDATES: Explicit PID file path is used when provided.
+// VALIDATES: Explicit PID file path is used when provided via RunStatus.
 // PREVENTS: Ignoring user-specified PID file location.
-func TestSignalCommandExplicitPIDFile(t *testing.T) {
+func TestRunStatusExplicitPIDFile(t *testing.T) {
 	dir := t.TempDir()
 	explicit := filepath.Join(dir, "explicit.pid")
 
@@ -95,17 +95,17 @@ func TestSignalCommandExplicitPIDFile(t *testing.T) {
 	require.NoError(t, err)
 	defer pf.Release()
 
-	// Run status with explicit --pid-file pointing to our PID
-	code := Run([]string{"--pid-file", explicit, "status", "/etc/ze/test.conf"})
+	// RunStatus with explicit --pid-file pointing to our PID
+	code := RunStatus([]string{"--pid-file", explicit, "/etc/ze/test.conf"})
 	assert.Equal(t, ExitSuccess, code)
 }
 
-// TestSignalCommandNoPIDFile verifies correct exit code when PID file doesn't exist.
+// TestRunStatusNoPIDFile verifies correct exit code when PID file doesn't exist.
 //
-// VALIDATES: Returns ExitNoPIDFile when PID file is missing.
+// VALIDATES: Returns ExitNoPIDFile when PID file is missing via RunStatus.
 // PREVENTS: Confusing error message when daemon isn't running.
-func TestSignalCommandNoPIDFile(t *testing.T) {
-	code := Run([]string{"--pid-file", "/nonexistent/path/test.pid", "status", "/etc/ze/test.conf"})
+func TestRunStatusNoPIDFile(t *testing.T) {
+	code := RunStatus([]string{"--pid-file", "/nonexistent/path/test.pid", "/etc/ze/test.conf"})
 	assert.Equal(t, ExitNoPIDFile, code)
 }
 
@@ -181,9 +181,9 @@ func TestSignalMapCompleteness(t *testing.T) {
 	assert.Len(t, signalMap, len(expected), "unexpected entries in signalMap")
 }
 
-// TestRunStatusWithPIDFile verifies full Run() flow for status command.
+// TestRunStatusWithPIDFile verifies full RunStatus() flow.
 //
-// VALIDATES: End-to-end: Run → parse args → resolve PID file → check status.
+// VALIDATES: End-to-end: RunStatus → parse args → resolve PID file → check status.
 // PREVENTS: Integration gaps between argument parsing and PID file lookup.
 func TestRunStatusWithPIDFile(t *testing.T) {
 	dir := t.TempDir()
@@ -200,8 +200,8 @@ func TestRunStatusWithPIDFile(t *testing.T) {
 	require.NoError(t, err)
 	defer pf.Release()
 
-	// Run status — should find our PID file and report running
-	code := Run([]string{"status", configPath})
+	// RunStatus — should find our PID file and report running
+	code := RunStatus([]string{configPath})
 
 	assert.Equal(t, ExitSuccess, code, fmt.Sprintf(
 		"expected success checking status of pid %d", os.Getpid()))

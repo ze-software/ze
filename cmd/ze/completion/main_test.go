@@ -42,7 +42,7 @@ func TestBashContainsCommands(t *testing.T) {
 	}
 
 	for _, cmd := range []string{
-		"bgp", "config", "cli", "validate", "schema", "show", "run",
+		"bgp", "config", "cli", "validate", "schema", "show", "run", "status",
 		"plugin", "exabgp", "signal", "completion", "version", "help",
 	} {
 		if !strings.Contains(commandsLine, cmd) {
@@ -66,7 +66,7 @@ func TestBashContainsSubcommands(t *testing.T) {
 		{"config)", []string{"edit", "check", "migrate", "fmt", "dump", "diff", "completion"}},
 		{"cli)", []string{"bgp"}},
 		{"schema)", []string{"list", "show", "handlers", "methods", "events", "protocol"}},
-		{"signal)", []string{"reload", "stop", "quit", "status"}},
+		{"signal)", []string{"reload", "stop", "quit"}},
 		{"exabgp)", []string{"plugin", "migrate"}},
 		{"completion)", []string{"bash", "zsh"}},
 	}
@@ -187,7 +187,7 @@ func TestZshContainsCommands(t *testing.T) {
 	out := buf.String()
 
 	for _, cmd := range []string{
-		"bgp:", "config:", "cli:", "validate:", "schema:", "show:", "run:",
+		"bgp:", "config:", "cli:", "validate:", "schema:", "show:", "run:", "status:",
 		"plugin:", "exabgp:", "signal:", "completion:", "version:", "help:",
 	} {
 		if !strings.Contains(out, "'"+cmd) {

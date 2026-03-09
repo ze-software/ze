@@ -166,6 +166,8 @@ dispatch:
 		os.Exit(exabgp.Run(args[1:]))
 	case "signal":
 		os.Exit(zesignal.Run(args[1:]))
+	case "status":
+		os.Exit(zesignal.RunStatus(args[1:]))
 	case "show":
 		os.Exit(show.Run(args[1:]))
 	case "run":
@@ -210,7 +212,7 @@ dispatch:
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
 	commands := []string{
 		"bgp", "plugin", "cli", "config", "validate", "schema",
-		"exabgp", "signal", "show", "run", "completion", "version", "help",
+		"exabgp", "signal", "status", "show", "run", "completion", "version", "help",
 	}
 	if suggestion := suggest.Command(arg, commands); suggestion != "" {
 		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", suggestion)
@@ -280,9 +282,10 @@ Commands:
   cli      Interactive CLI for running daemons
   show     Show daemon state (read-only commands)
   run      Execute daemon command (all commands)
+  status   Check if daemon is running
   bgp      BGP protocol tools (decode, encode)
   plugin   Plugin system (rib, rr, gr, etc.)
-  signal   Send signals to running daemon (reload, stop, status)
+  signal   Send signals to running daemon (reload, stop, quit)
   exabgp       ExaBGP bridge tools
   completion   Generate shell completion scripts
   version      Show version

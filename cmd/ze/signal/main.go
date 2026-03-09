@@ -45,7 +45,6 @@ Commands:
   reload    Send SIGHUP - reload configuration
   stop      Send SIGTERM - graceful shutdown
   quit      Send SIGQUIT - goroutine dump + immediate exit
-  status    Check if process is running (exit 0 = running, 1 = not)
 
 Options:
 `)
@@ -55,7 +54,6 @@ Arguments:
   <config>  Config file path (used to derive PID file location)
 
 Examples:
-  ze signal status config.conf
   ze signal reload config.conf
   ze signal stop --pid-file /run/ze/daemon.pid config.conf
 `)
@@ -90,18 +88,73 @@ Examples:
 	}
 
 	switch command {
-	case "status":
-		return cmdStatus(info)
 	case "reload", "stop", "quit":
 		return cmdSignal(command, info)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown signal command: %s\n", command)
-		if s := suggest.Command(command, []string{"reload", "stop", "quit", "status"}); s != "" {
+		if s := suggest.Command(command, []string{"reload", "stop", "quit"}); s != "" {
 			fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
 		}
 		fs.Usage()
 		return ExitNotRunning
 	}
+}
+
+// RunStatus executes the ze status command with the given arguments.
+// Returns an exit code.
+func RunStatus(args []string) int {
+	fs := flag.NewFlagSet("status", flag.ContinueOnError)
+	pidFilePath := fs.String("pid-file", "", "Explicit PID file path (overrides config-derived)")
+
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, `Usage: ze status [options] <config>
+
+Check if a Ze daemon is running.
+
+Exit codes:
+  0  Process is running
+  1  Process is not running
+  2  PID file not found
+
+Options:
+`)
+		fs.PrintDefaults()
+		fmt.Fprintf(os.Stderr, `
+Arguments:
+  <config>  Config file path (used to derive PID file location)
+
+Examples:
+  ze status config.conf
+  ze status --pid-file /run/ze/daemon.pid config.conf
+`)
+	}
+
+	if err := fs.Parse(args); err != nil {
+		return ExitNotRunning
+	}
+
+	remaining := fs.Args()
+	if len(remaining) < 1 {
+		fmt.Fprintf(os.Stderr, "error: requires <config>\n")
+		fs.Usage()
+		return ExitNotRunning
+	}
+
+	configPath := remaining[0]
+
+	pidPath, err := resolvePIDFile(*pidFilePath, configPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return ExitNoPIDFile
+	}
+
+	info, err := pidfile.ReadInfo(pidPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return ExitNoPIDFile
+	}
+
+	return cmdStatus(info)
 }
 
 // cmdStatus checks if the process is running.
