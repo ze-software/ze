@@ -61,15 +61,7 @@ func TestWorkerPool_IdleCooldown(t *testing.T) {
 	}
 
 	// Wait for idle timeout to take effect.
-	deadline := time.After(2 * time.Second)
-	for wp.WorkerCount() != 0 {
-		select {
-		case <-deadline:
-			t.Fatalf("expected 0 workers after idle timeout, got %d", wp.WorkerCount())
-		default:
-			time.Sleep(5 * time.Millisecond)
-		}
-	}
+	waitForWorkerCount(wp, 0, t)
 
 	// New dispatch recreates the worker.
 	wp.Dispatch(key, workItem{msgID: 2})
@@ -107,15 +99,7 @@ func TestWorkerPool_PeerDown(t *testing.T) {
 	wp.PeerDown("10.0.0.1")
 
 	// Wait for one worker to exit.
-	deadline := time.After(2 * time.Second)
-	for wp.WorkerCount() != 2 {
-		select {
-		case <-deadline:
-			t.Fatalf("expected 2 workers after PeerDown, got %d", wp.WorkerCount())
-		default:
-			time.Sleep(5 * time.Millisecond)
-		}
-	}
+	waitForWorkerCount(wp, 2, t)
 }
 
 // TestWorkerPool_BackpressureWarning verifies log warning when channel approaches capacity.
@@ -273,42 +257,18 @@ func TestWorkerPool_NoSendOnClosedChannel(t *testing.T) {
 	wp.Dispatch(key, workItem{msgID: 1})
 
 	// Wait for worker to be created.
-	deadline := time.After(2 * time.Second)
-	for wp.WorkerCount() == 0 {
-		select {
-		case <-deadline:
-			t.Fatal("worker not created")
-		default:
-			time.Sleep(time.Millisecond)
-		}
-	}
+	waitForWorkerCount(wp, 1, t)
 
 	// Close all workers for this peer.
 	wp.PeerDown("10.0.0.1")
 
 	// Wait for workers to exit.
-	deadline = time.After(2 * time.Second)
-	for wp.WorkerCount() != 0 {
-		select {
-		case <-deadline:
-			t.Fatal("worker did not exit")
-		default:
-			time.Sleep(time.Millisecond)
-		}
-	}
+	waitForWorkerCount(wp, 0, t)
 
 	// Dispatch after PeerDown — must not panic, should lazily recreate worker.
 	wp.Dispatch(key, workItem{msgID: 2})
 
-	deadline = time.After(2 * time.Second)
-	for wp.WorkerCount() == 0 {
-		select {
-		case <-deadline:
-			t.Fatal("worker not recreated after PeerDown")
-		default:
-			time.Sleep(time.Millisecond)
-		}
-	}
+	waitForWorkerCount(wp, 1, t)
 }
 
 // TestWorkerPool_StopDrains verifies Stop() drains all workers.
@@ -362,9 +322,6 @@ func TestWorkerPool_HandlerPanicRecovery(t *testing.T) {
 
 	// First dispatch: handler panics.
 	wp.Dispatch(key, workItem{msgID: 1})
-
-	// Give worker time to recover.
-	time.Sleep(50 * time.Millisecond)
 
 	// Second dispatch: should succeed (worker recovered or recreated).
 	wp.Dispatch(key, workItem{msgID: 2})
@@ -1241,6 +1198,19 @@ func waitForCount(count *atomic.Int32, target int32, t *testing.T) {
 		select {
 		case <-deadline:
 			t.Fatalf("timeout waiting for count=%d, got %d", target, count.Load())
+		default:
+			time.Sleep(time.Millisecond)
+		}
+	}
+}
+
+func waitForWorkerCount(wp *workerPool, target int, t *testing.T) {
+	t.Helper()
+	deadline := time.After(2 * time.Second)
+	for wp.WorkerCount() != target {
+		select {
+		case <-deadline:
+			t.Fatalf("timeout waiting for worker count=%d, got %d", target, wp.WorkerCount())
 		default:
 			time.Sleep(time.Millisecond)
 		}

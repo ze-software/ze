@@ -96,9 +96,12 @@ func TestTimersHoldTimerStop(t *testing.T) {
 	timers := NewTimers()
 	timers.SetHoldTime(50 * time.Millisecond)
 
-	fired := false
+	fired := make(chan struct{}, 1)
 	timers.OnHoldTimerExpires(func() {
-		fired = true
+		select {
+		case fired <- struct{}{}:
+		default:
+		}
 	})
 
 	timers.StartHoldTimer()
@@ -106,8 +109,12 @@ func TestTimersHoldTimerStop(t *testing.T) {
 
 	require.False(t, timers.IsHoldTimerRunning())
 
-	time.Sleep(100 * time.Millisecond)
-	require.False(t, fired, "hold timer should not fire after stop")
+	select {
+	case <-fired:
+		t.Fatal("hold timer should not fire after stop")
+	case <-time.After(100 * time.Millisecond):
+		// Expected — timer was stopped
+	}
 }
 
 // TestTimersKeepaliveTimer verifies keepalive timer behavior.
@@ -145,9 +152,12 @@ func TestTimersKeepaliveTimerStop(t *testing.T) {
 	timers := NewTimers()
 	timers.SetHoldTime(60 * time.Millisecond)
 
-	fired := false
+	fired := make(chan struct{}, 1)
 	timers.OnKeepaliveTimerExpires(func() {
-		fired = true
+		select {
+		case fired <- struct{}{}:
+		default:
+		}
 	})
 
 	timers.StartKeepaliveTimer()
@@ -155,8 +165,12 @@ func TestTimersKeepaliveTimerStop(t *testing.T) {
 
 	require.False(t, timers.IsKeepaliveTimerRunning())
 
-	time.Sleep(50 * time.Millisecond)
-	require.False(t, fired, "keepalive timer should not fire after stop")
+	select {
+	case <-fired:
+		t.Fatal("keepalive timer should not fire after stop")
+	case <-time.After(50 * time.Millisecond):
+		// Expected — timer was stopped
+	}
 }
 
 // TestTimersConnectRetryTimer verifies connect retry timer behavior.
@@ -194,9 +208,12 @@ func TestTimersConnectRetryTimerStop(t *testing.T) {
 	timers := NewTimers()
 	timers.SetConnectRetryTime(50 * time.Millisecond)
 
-	fired := false
+	fired := make(chan struct{}, 1)
 	timers.OnConnectRetryTimerExpires(func() {
-		fired = true
+		select {
+		case fired <- struct{}{}:
+		default:
+		}
 	})
 
 	timers.StartConnectRetryTimer()
@@ -204,8 +221,12 @@ func TestTimersConnectRetryTimerStop(t *testing.T) {
 
 	require.False(t, timers.IsConnectRetryTimerRunning())
 
-	time.Sleep(100 * time.Millisecond)
-	require.False(t, fired, "connect retry timer should not fire after stop")
+	select {
+	case <-fired:
+		t.Fatal("connect retry timer should not fire after stop")
+	case <-time.After(100 * time.Millisecond):
+		// Expected — timer was stopped
+	}
 }
 
 // TestTimersStopAll verifies all timers can be stopped at once.
@@ -242,13 +263,15 @@ func TestTimersHoldTimeZeroDisables(t *testing.T) {
 	timers := NewTimers()
 	timers.SetHoldTime(0)
 
-	fired := false
-	timers.OnHoldTimerExpires(func() {
-		fired = true
-	})
-	timers.OnKeepaliveTimerExpires(func() {
-		fired = true
-	})
+	fired := make(chan struct{}, 1)
+	cb := func() {
+		select {
+		case fired <- struct{}{}:
+		default:
+		}
+	}
+	timers.OnHoldTimerExpires(cb)
+	timers.OnKeepaliveTimerExpires(cb)
 
 	timers.StartHoldTimer()
 	timers.StartKeepaliveTimer()
@@ -257,6 +280,10 @@ func TestTimersHoldTimeZeroDisables(t *testing.T) {
 	require.False(t, timers.IsHoldTimerRunning())
 	require.False(t, timers.IsKeepaliveTimerRunning())
 
-	time.Sleep(50 * time.Millisecond)
-	require.False(t, fired, "no timer should fire when hold time is 0")
+	select {
+	case <-fired:
+		t.Fatal("no timer should fire when hold time is 0")
+	case <-time.After(50 * time.Millisecond):
+		// Expected — no timers running
+	}
 }
