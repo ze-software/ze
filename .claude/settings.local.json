@@ -1,6 +1,7 @@
 {
   "permissions": {
     "allow": [
+      "Read(//Users/thomas/Code/codeberg.org/thomas-mangin/ze/**)",
       "Read(/Users/thomas/Code/github.com/exa-networks/exabgp/**)",
       "Glob(*)",
       "Grep(*)",
@@ -107,7 +108,11 @@
       "Bash(bin/ze config:*)",
       "Bash(bin/go-extract:*)",
       "Bash(dot:*)",
-      "Bash(goimports:*)"
+      "Bash(goimports:*)",
+      "Bash(mkdir:*)",
+      "Bash(sed:*)",
+      "Bash(gofmt:*)",
+      "Bash(./scripts/worktree-update.sh:*)"
     ],
     "deny": [
       "Bash(git reset:*)",
