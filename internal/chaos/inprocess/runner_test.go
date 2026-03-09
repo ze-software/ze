@@ -226,10 +226,12 @@ func TestInProcessSpeed(t *testing.T) {
 	elapsed := time.Since(start)
 	require.NoError(t, err)
 
-	// 30s simulated in under 10s wall-clock = at least 3x speedup.
-	// The 10ms real-time pauses per 1s virtual step add ~300ms for 30 steps,
-	// plus 500ms handshake wait and reactor startup overhead.
-	assert.Less(t, elapsed, 10*time.Second, "in-process 30s scenario should complete in <10s")
+	// Run() includes a fixed startup overhead: handshakeWait = 5s base + N×500ms
+	// per peer = 7s for 4 peers. The virtual loop is only 30 steps × 10ms = 300ms.
+	// Under -race (instrumentation overhead) the total reaches ~9-10s, so we
+	// assert <15s to avoid flaky failures while still proving meaningful speedup
+	// (30s virtual in <15s real = at least 2x).
+	assert.Less(t, elapsed, 15*time.Second, "in-process 30s scenario should complete in <15s")
 }
 
 // TestInProcessDisconnectReconnect verifies mock connection lifecycle:
