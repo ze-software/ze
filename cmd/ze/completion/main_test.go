@@ -68,7 +68,7 @@ func TestBashContainsSubcommands(t *testing.T) {
 		{"schema)", []string{"list", "show", "handlers", "methods", "events", "protocol"}},
 		{"signal)", []string{"reload", "stop", "quit"}},
 		{"exabgp)", []string{"plugin", "migrate"}},
-		{"completion)", []string{"bash", "zsh"}},
+		{"completion)", []string{"bash", "zsh", "fish"}},
 	}
 
 	for _, tt := range tests {
@@ -102,14 +102,14 @@ func TestBashDynamicPlugins(t *testing.T) {
 	}
 }
 
-// VALIDATES: show completions are dynamic (call ze show help), not hardcoded.
+// VALIDATES: show completions are dynamic (call ze completion words), not hardcoded.
 func TestBashShowIsDynamic(t *testing.T) {
 	var buf strings.Builder
 	generate("bash", &buf)
 	out := buf.String()
 
-	if !strings.Contains(out, "ze show help") {
-		t.Error("bash show completion should call 'ze show help' dynamically")
+	if !strings.Contains(out, "ze completion words show") {
+		t.Error("bash show completion should call 'ze completion words show' dynamically")
 	}
 }
 
@@ -145,15 +145,15 @@ func TestBashGlobalFlagSkipping(t *testing.T) {
 	}
 }
 
-// VALIDATES: bash show awk uses Available commands section filter.
-// PREVENTS: awk matching "ze" from Examples section in ze show help output.
-func TestBashShowAwkPattern(t *testing.T) {
+// VALIDATES: bash show completion uses ze completion words with path.
+// PREVENTS: hardcoded show subcommand lists going stale.
+func TestBashShowUsesCompletionWords(t *testing.T) {
 	var buf strings.Builder
 	generate("bash", &buf)
 	out := buf.String()
 
-	if !strings.Contains(out, "Available commands:") {
-		t.Error("bash show awk should filter within 'Available commands:' section")
+	if !strings.Contains(out, "path_words") {
+		t.Error("bash show completion should build path_words for multi-level completion")
 	}
 }
 
@@ -177,6 +177,93 @@ func TestRunZsh(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("zsh output missing %q", want)
 		}
+	}
+}
+
+// VALIDATES: fish script has correct structure.
+func TestRunFish(t *testing.T) {
+	var buf strings.Builder
+	code := generate("fish", &buf)
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d", code)
+	}
+
+	out := buf.String()
+
+	for _, want := range []string{
+		"complete -c ze",
+		"__ze_needs_command",
+		"__ze_under_command",
+		"__ze_complete_dynamic",
+		"ze completion words $subcmd",
+		"__ze_complete_dynamic show",
+		"__ze_complete_dynamic run",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("fish output missing %q", want)
+		}
+	}
+}
+
+// VALIDATES: fish top-level commands have descriptions.
+func TestFishCommandDescriptions(t *testing.T) {
+	var buf strings.Builder
+	generate("fish", &buf)
+	out := buf.String()
+
+	for _, cmd := range []string{
+		"bgp", "config", "cli", "validate", "schema", "show", "run",
+		"plugin", "exabgp", "status", "signal", "completion", "version", "help",
+	} {
+		pattern := "-a " + cmd + " -d '"
+		if !strings.Contains(out, pattern) {
+			t.Errorf("fish output missing command with description: %q", cmd)
+		}
+	}
+}
+
+// VALIDATES: fish uses depth guards for static subcommands.
+// PREVENTS: completing subcommands at wrong depth in fish.
+func TestFishDepthGuards(t *testing.T) {
+	var buf strings.Builder
+	generate("fish", &buf)
+	out := buf.String()
+
+	// __ze_depth function must exist
+	if !strings.Contains(out, "__ze_depth") {
+		t.Fatal("fish output missing __ze_depth function")
+	}
+
+	// Static subcommands should use depth = 0 guards
+	for _, cmd := range []string{"bgp", "config", "cli", "schema", "signal", "exabgp", "completion"} {
+		pattern := "__ze_depth " + cmd + ") = 0"
+		if !strings.Contains(out, pattern) {
+			t.Errorf("fish missing depth guard for %q", cmd)
+		}
+	}
+}
+
+// VALIDATES: fish plugin completion is dynamic (calls ze --plugins --json).
+// PREVENTS: fish missing dynamically registered plugin names.
+func TestFishDynamicPlugins(t *testing.T) {
+	var buf strings.Builder
+	generate("fish", &buf)
+	out := buf.String()
+
+	if !strings.Contains(out, "ze --plugins --json") {
+		t.Error("fish output missing dynamic plugin completion via 'ze --plugins --json'")
+	}
+}
+
+// VALIDATES: fish schema completion has dynamic module names at depth 2.
+// PREVENTS: fish missing YANG module names for "schema show" and "schema methods".
+func TestFishSchemaIsDynamic(t *testing.T) {
+	var buf strings.Builder
+	generate("fish", &buf)
+	out := buf.String()
+
+	if !strings.Contains(out, "ze schema list") {
+		t.Error("fish schema completion should call 'ze schema list' for dynamic module names")
 	}
 }
 
@@ -212,26 +299,25 @@ func TestZshGlobalFlags(t *testing.T) {
 	}
 }
 
-// VALIDATES: zsh show completions are dynamic.
+// VALIDATES: zsh show completions are dynamic via ze completion words.
 func TestZshShowIsDynamic(t *testing.T) {
 	var buf strings.Builder
 	generate("zsh", &buf)
 	out := buf.String()
 
-	if !strings.Contains(out, "ze show help") {
-		t.Error("zsh show completion should call 'ze show help' dynamically")
+	if !strings.Contains(out, "ze completion words show") {
+		t.Error("zsh show completion should call 'ze completion words show' dynamically")
 	}
 }
 
-// VALIDATES: zsh show awk uses Available commands section filter.
-// PREVENTS: awk matching spurious lines outside the commands section.
-func TestZshShowAwkPattern(t *testing.T) {
+// VALIDATES: zsh show completion supports multi-level path navigation.
+func TestZshShowUsesCompletionWords(t *testing.T) {
 	var buf strings.Builder
 	generate("zsh", &buf)
 	out := buf.String()
 
-	if !strings.Contains(out, "Available commands:") {
-		t.Error("zsh show awk should filter within 'Available commands:' section")
+	if !strings.Contains(out, "path_words") {
+		t.Error("zsh show completion should build path_words for multi-level completion")
 	}
 }
 
@@ -269,15 +355,15 @@ func TestZshDepthGuards(t *testing.T) {
 	}
 }
 
-// VALIDATES: run completions are dynamic (call ze run help), not hardcoded.
+// VALIDATES: run completions are dynamic (call ze completion words run), not hardcoded.
 // PREVENTS: run command being silently omitted from completion.
 func TestBashRunIsDynamic(t *testing.T) {
 	var buf strings.Builder
 	generate("bash", &buf)
 	out := buf.String()
 
-	if !strings.Contains(out, "ze run help") {
-		t.Error("bash run completion should call 'ze run help' dynamically")
+	if !strings.Contains(out, "ze completion words run") {
+		t.Error("bash run completion should call 'ze completion words run' dynamically")
 	}
 }
 
@@ -287,8 +373,8 @@ func TestZshRunIsDynamic(t *testing.T) {
 	generate("zsh", &buf)
 	out := buf.String()
 
-	if !strings.Contains(out, "ze run help") {
-		t.Error("zsh run completion should call 'ze run help' dynamically")
+	if !strings.Contains(out, "ze completion words run") {
+		t.Error("zsh run completion should call 'ze completion words run' dynamically")
 	}
 }
 
@@ -320,7 +406,7 @@ func TestRunNoArgs(t *testing.T) {
 
 // VALIDATES: AC-7 — unknown shell shows error and exits 1.
 func TestRunUnknown(t *testing.T) {
-	code := Run([]string{"fish"})
+	code := Run([]string{"powershell"})
 	if code != 1 {
 		t.Fatalf("expected exit 1 for unknown shell, got %d", code)
 	}
@@ -333,6 +419,22 @@ func TestRunHelp(t *testing.T) {
 		if code != 0 {
 			t.Errorf("Run(%q) = %d, want 0", arg, code)
 		}
+	}
+}
+
+// VALIDATES: words subcommand is reachable through Run dispatch.
+// PREVENTS: words being wired to internal writeWords but not to Run.
+func TestRunWords(t *testing.T) {
+	// "words show" should succeed (exit 0) — produces output to stdout.
+	code := Run([]string{"words", "show"})
+	if code != 0 {
+		t.Errorf("Run(words show) = %d, want 0", code)
+	}
+
+	// "words" with no further args should also succeed (silent, no output).
+	code = Run([]string{"words"})
+	if code != 0 {
+		t.Errorf("Run(words) = %d, want 0", code)
 	}
 }
 

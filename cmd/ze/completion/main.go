@@ -1,9 +1,11 @@
 // Design: (none -- new feature, shell completion generation)
 // Detail: bash.go -- bash completion script generation
 // Detail: zsh.go -- zsh completion script generation
+// Detail: fish.go -- fish completion script generation
+// Detail: words.go -- dynamic completion data source for shell scripts
 //
 // Package completion provides the ze completion subcommand.
-// It generates shell completion scripts for bash and zsh.
+// It generates shell completion scripts for bash, zsh, and fish.
 package completion
 
 import (
@@ -25,11 +27,15 @@ func Run(args []string) int {
 		return generate("bash", os.Stdout)
 	case "zsh":
 		return generate("zsh", os.Stdout)
+	case "fish":
+		return generate("fish", os.Stdout)
+	case "words":
+		return words(args[1:])
 	case "help", "-h", "--help":
 		usage()
 		return 0
 	default:
-		fmt.Fprintf(os.Stderr, "unknown shell: %s (supported: bash, zsh)\n", args[0])
+		fmt.Fprintf(os.Stderr, "unknown shell: %s (supported: bash, zsh, fish)\n", args[0])
 		usage()
 		return 1
 	}
@@ -43,11 +49,13 @@ Generate shell completion scripts.
 Shells:
   bash    Generate bash completion script
   zsh     Generate zsh completion script
+  fish    Generate fish completion script
 
 Examples:
   eval "$(ze completion bash)"
   ze completion bash > /etc/bash_completion.d/ze
   ze completion zsh > ~/.zsh/completions/_ze
+  ze completion fish > ~/.config/fish/completions/ze.fish
 `)
 }
 
@@ -59,6 +67,8 @@ func generate(shell string, w io.Writer) int {
 		s = bashScript()
 	case "zsh":
 		s = zshScript()
+	case "fish":
+		s = fishScript()
 	default:
 		return 1
 	}

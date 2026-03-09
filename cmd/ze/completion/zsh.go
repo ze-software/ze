@@ -1,5 +1,6 @@
 // Design: (none -- new feature, shell completion generation)
 // Overview: main.go -- completion dispatch
+// Related: words.go -- dynamic completion data source
 
 package completion
 
@@ -114,20 +115,24 @@ _ze() {
                     fi
                     ;;
                 show)
-                    if (( CURRENT == 2 )); then
-                        # Dynamic: subcommands from YANG-driven RPC command tree (read-only)
-                        local -a show_commands
-                        show_commands=(${(f)"$(ze show help 2>&1 | awk '/^Available commands:/,/^$/{if (/^  [a-z]/) printf "%s:%s\n", $1, substr($0, index($0,$2))}')"})
-                        _describe 'show command' show_commands
+                    # Dynamic: multi-level completion from YANG-driven command tree (read-only)
+                    local -a path_words=()
+                    if (( CURRENT > 2 )); then
+                        path_words=("${words[2,CURRENT-1]}")
                     fi
+                    local -a dynamic_commands
+                    dynamic_commands=(${(f)"$(ze completion words show ${path_words} 2>/dev/null | sed $'s/\t/:/')"})
+                    [[ ${#dynamic_commands} -gt 0 ]] && _describe 'command' dynamic_commands
                     ;;
                 run)
-                    if (( CURRENT == 2 )); then
-                        # Dynamic: subcommands from YANG-driven RPC command tree (all)
-                        local -a run_commands
-                        run_commands=(${(f)"$(ze run help 2>&1 | awk '/^Available commands:/,/^$/{if (/^  [a-z]/) printf "%s:%s\n", $1, substr($0, index($0,$2))}')"})
-                        _describe 'run command' run_commands
+                    # Dynamic: multi-level completion from YANG-driven command tree (all)
+                    local -a path_words=()
+                    if (( CURRENT > 2 )); then
+                        path_words=("${words[2,CURRENT-1]}")
                     fi
+                    local -a dynamic_commands
+                    dynamic_commands=(${(f)"$(ze completion words run ${path_words} 2>/dev/null | sed $'s/\t/:/')"})
+                    [[ ${#dynamic_commands} -gt 0 ]] && _describe 'command' dynamic_commands
                     ;;
                 plugin)
                     if (( CURRENT == 2 )); then
@@ -167,7 +172,7 @@ _ze() {
                 completion)
                     if (( CURRENT == 2 )); then
                         local -a shells
-                        shells=(bash zsh)
+                        shells=(bash zsh fish)
                         _describe 'shell' shells
                     fi
                     ;;
