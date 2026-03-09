@@ -1,0 +1,83 @@
+# Test: Plugin without connection-handlers works normally
+# Validates: connection-handler feature does not break standard plugin startup
+#
+# This is a regression test ensuring the connection handoff code path
+# (empty connection-handlers list) does not interfere with normal startup.
+
+# ze-peer expectations: expect EOR after successful startup
+stdin=peer:terminator=EOF_PEER
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python plugin with NO connection-handlers — standard 5-stage protocol
+tmpfs=handoff-no-declare.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Standard plugin startup without connection-handlers (regression test)."""
+
+import time
+from ze_api import API
+
+
+def main() -> None:
+    api = API()
+
+    # Stage 1: No connection-handlers declared
+    api.declare_family('ipv4', 'unicast')
+    api.declare_done()
+
+    # Stage 2: Receive config
+    api.wait_for_config(timeout=5.0)
+
+    # Stage 3: No capabilities
+    api.capability_done()
+
+    # Stage 4: Receive registry
+    api.wait_for_registry(timeout=5.0)
+
+    # Stage 5: Ready
+    api.ready()
+
+    # Signal success: send EOR
+    time.sleep(0.1)
+    api.send('bgp peer * update text nlri ipv4/unicast eor')
+    time.sleep(0.2)
+
+    api.wait_for_ack(expected_count=1)
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze BGP configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external no-handoff-test {
+        run ./handoff-no-declare.run;
+        encoder json;
+    }
+}
+bgp {
+    peer 127.0.0.1 {
+        router-id 10.0.0.1;
+        local-address 127.0.0.1;
+        local-as 65000;
+        peer-as 65000;
+        connection active;
+        group-updates disable;
+
+        family {
+            ipv4/unicast;
+        }
+        process no-handoff-test {
+            send [ update ];
+        }
+    }
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s

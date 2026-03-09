@@ -1488,4 +1488,94 @@ Future: Plugins will declare decodable capabilities via `declare decode capabili
 
 ---
 
-**Last Updated:** 2026-02-23
+## Connection Handoff (Listen Socket Passing)
+
+Plugins can request listen sockets from the engine via SCM_RIGHTS fd passing.
+The engine creates the socket, binds it, and passes the file descriptor to the
+plugin over the existing Unix socket pair. This is similar to systemd socket
+activation.
+
+### When to Use
+
+- Plugin needs to accept TCP connections (e.g., BGP listen on port 179)
+- Engine should own the socket lifecycle (bind on privileged port, manage across restarts)
+- Plugin should only receive connections, not manage socket creation
+
+### How It Works
+
+1. Plugin declares `connection-handlers` in Stage 1 registration
+2. Engine creates listen socket(s) and sends fd(s) via SCM_RIGHTS on Socket B
+3. Plugin receives fd(s) between Stage 1 OK and Stage 2 (config delivery)
+4. After Stage 5 (ready), plugin calls `Accept()` on the received listener
+
+### Configuration (Plugin Side)
+
+#### Go SDK
+
+```go
+p := sdk.NewFromEnv("my-plugin")
+reg := sdk.Registration{
+    ConnectionHandlers: []sdk.ConnectionHandlerDecl{
+        {Type: "listen", Port: 179, Address: "0.0.0.0"},
+    },
+}
+p.Run(ctx, reg)
+
+// After startup, listeners are available:
+for _, ln := range p.Listeners() {
+    go acceptLoop(ln)
+}
+```
+
+The SDK auto-receives listener fds between Stage 1 and Stage 2. Access them
+via `p.Listeners()` after `Run()` completes startup.
+
+#### Python SDK (ze_api.py)
+
+```python
+from ze_api import API
+
+api = API()
+api.declare_connection_handler('listen', port=179, address='0.0.0.0')
+api.declare_done()
+
+# Receive listener fd — must be called after declare_done(), before wait_for_config()
+listener = api.receive_listener()
+
+api.wait_for_config()
+api.capability_done()
+api.wait_for_registry()
+api.ready()
+
+# Accept connections on the received listener
+conn, addr = listener.accept()
+```
+
+### Connection Handler Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | `"listen"` (other types reserved for future use) |
+| `port` | integer | Yes | TCP port (1–65535) |
+| `address` | string | No | Bind address (empty = all interfaces) |
+
+### Limitations
+
+- Only external plugins (real Unix sockets) — internal plugins use `net.Pipe` which
+  does not support SCM_RIGHTS
+- Text-mode plugins do not support connection-handoff (connection-handlers are
+  ignored with a warning)
+- Port 0 is not supported (engine validates port range 1–65535)
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `internal/component/plugin/ipc/fdpass.go` | `SendFD()` / `ReceiveFD()` over Unix sockets |
+| `internal/component/plugin/server/startup.go` | `handoffListenSockets()` — engine-side handoff |
+| `pkg/plugin/sdk/sdk.go` | `ReceiveListener()`, `Listeners()` — SDK auto-receive |
+| `test/scripts/ze_api.py` | `declare_connection_handler()`, `receive_listener()` — Python SDK |
+
+---
+
+**Last Updated:** 2026-03-09

@@ -70,6 +70,12 @@ func NewConn(readConn, writeConn net.Conn) *Conn {
 	}
 }
 
+// WriteConn returns the underlying write connection.
+// Used for out-of-band operations (SCM_RIGHTS fd passing) that need the raw net.Conn.
+func (c *Conn) WriteConn() net.Conn {
+	return c.writeConn
+}
+
 // Close closes the read connection, unblocking the persistent reader goroutine.
 // Safe to call multiple times. Does not close the write connection separately
 // (in single-socket mode they are the same connection).

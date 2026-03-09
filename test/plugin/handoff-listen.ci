@@ -1,0 +1,124 @@
+# Test: Connection handoff — plugin receives listen socket via SCM_RIGHTS
+# Validates: plugin declares connection-handler → engine creates listen socket →
+# engine sends fd via SCM_RIGHTS → plugin receives and accepts connections
+#
+# The plugin allocates a free port, declares it as a connection-handler,
+# receives the fd after Stage 1, and self-verifies by connecting to it
+# from a background thread. Success is signaled via EOR.
+
+# ze-peer expectations: expect EOR after successful handoff
+stdin=peer:terminator=EOF_PEER
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python plugin with connection-handler declaration and fd receive
+tmpfs=handoff-listen.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Connection handoff test: declares listen socket, receives fd, verifies."""
+
+import socket
+import sys
+import threading
+import time
+from ze_api import API
+
+
+def main() -> None:
+    api = API()
+
+    # Find a free port by briefly binding then releasing.
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    probe.bind(('127.0.0.1', 0))
+    port = probe.getsockname()[1]
+    probe.close()
+
+    # Stage 1: Declare connection-handler for the free port.
+    api.declare_family('ipv4', 'unicast')
+    api.declare_connection_handler('listen', port, '127.0.0.1')
+    api.declare_done()
+
+    # Receive the listen socket fd via SCM_RIGHTS on Socket B.
+    # Must happen after declare_done() and before wait_for_config().
+    listener = api.receive_listener()
+
+    # Verify the received listener by accepting a connection from a thread.
+    accepted = threading.Event()
+    def accept_one():
+        try:
+            conn, _addr = listener.accept()
+            conn.close()
+            accepted.set()
+        except Exception as e:
+            print(f'accept failed: {e}', file=sys.stderr)
+
+    accept_thread = threading.Thread(target=accept_one, daemon=True)
+    accept_thread.start()
+
+    # Connect to the listener from the main thread.
+    client = socket.create_connection(('127.0.0.1', port), timeout=2.0)
+    client.close()
+
+    # Wait for accept to complete.
+    if not accepted.wait(timeout=2.0):
+        print('handoff FAILED: accept timed out', file=sys.stderr)
+        sys.exit(1)
+
+    listener.close()
+
+    # Stage 2: Receive config
+    api.wait_for_config(timeout=5.0)
+
+    # Stage 3: No capabilities
+    api.capability_done()
+
+    # Stage 4: Receive registry
+    api.wait_for_registry(timeout=5.0)
+
+    # Stage 5: Ready
+    api.ready()
+
+    # Signal success: send EOR (proves full protocol completed with handoff)
+    time.sleep(0.1)
+    api.send('bgp peer * update text nlri ipv4/unicast eor')
+    time.sleep(0.2)
+
+    api.wait_for_ack(expected_count=1)
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze BGP configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external handoff-test {
+        run ./handoff-listen.run;
+        encoder json;
+    }
+}
+bgp {
+    peer 127.0.0.1 {
+        router-id 10.0.0.1;
+        local-address 127.0.0.1;
+        local-as 65000;
+        peer-as 65000;
+        connection active;
+        group-updates disable;
+
+        family {
+            ipv4/unicast;
+        }
+        process handoff-test {
+            send [ update ];
+        }
+    }
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s

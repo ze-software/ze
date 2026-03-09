@@ -27,14 +27,22 @@ const (
 
 // DeclareRegistrationInput is the input for ze-plugin-engine:declare-registration (Stage 1).
 type DeclareRegistrationInput struct {
-	Families               []FamilyDecl  `json:"families,omitempty"`
-	Commands               []CommandDecl `json:"commands,omitempty"`
-	Dependencies           []string      `json:"dependencies,omitempty"`
-	WantsConfig            []string      `json:"wants-config,omitempty"`
-	Schema                 *SchemaDecl   `json:"schema,omitempty"`
-	WantsValidateOpen      bool          `json:"wants-validate-open,omitempty"`
-	CacheConsumer          bool          `json:"cache-consumer,omitempty"`
-	CacheConsumerUnordered bool          `json:"cache-consumer-unordered,omitempty"`
+	Families               []FamilyDecl            `json:"families,omitempty"`
+	Commands               []CommandDecl           `json:"commands,omitempty"`
+	Dependencies           []string                `json:"dependencies,omitempty"`
+	WantsConfig            []string                `json:"wants-config,omitempty"`
+	Schema                 *SchemaDecl             `json:"schema,omitempty"`
+	WantsValidateOpen      bool                    `json:"wants-validate-open,omitempty"`
+	CacheConsumer          bool                    `json:"cache-consumer,omitempty"`
+	CacheConsumerUnordered bool                    `json:"cache-consumer-unordered,omitempty"`
+	ConnectionHandlers     []ConnectionHandlerDecl `json:"connection-handlers,omitempty"`
+}
+
+// ConnectionHandlerDecl declares a listen socket the plugin wants to receive via fd passing.
+type ConnectionHandlerDecl struct {
+	Type    string `json:"type"`              // "listen" (Mode A)
+	Port    int    `json:"port"`              // TCP port (1-65535)
+	Address string `json:"address,omitempty"` // Bind address (default: all interfaces)
 }
 
 // FamilyDecl declares an address family the plugin handles.

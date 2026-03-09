@@ -50,6 +50,13 @@ func (s PluginStage) String() string {
 	}
 }
 
+// ConnectionHandler describes a listen socket a plugin wants to receive via fd passing.
+type ConnectionHandler struct {
+	Type    string // "listen" (Mode A)
+	Port    int    // TCP port (1-65535)
+	Address string // Bind address (empty = all interfaces)
+}
+
 // PluginRegistration holds Stage 1 registration data from a plugin.
 type PluginRegistration struct {
 	Name               string              // Plugin name (set after Stage 4)
@@ -62,6 +69,7 @@ type PluginRegistration struct {
 	SchemaDeclarations []SchemaDeclaration // Schema extensions for capability config
 	WantsConfigRoots   []string            // Config roots to receive (e.g., ["bgp", "environment"] via "declare wants config <root>")
 	WantsValidateOpen  bool                // Plugin wants to validate OPEN message pairs (validate-open callback)
+	ConnectionHandlers []ConnectionHandler // Listen sockets to receive via SCM_RIGHTS fd passing
 	Done               bool                // True when "registration done" received
 
 	// YANG schema declarations (Hub Architecture)

@@ -81,3 +81,6 @@ type DecodeMPUnreachOutput = rpc.DecodeMPUnreachOutput
 
 // DecodeUpdateOutput is the output for decode-update (plugin→engine).
 type DecodeUpdateOutput = rpc.DecodeUpdateOutput
+
+// ConnectionHandlerDecl declares a listen socket the plugin wants via fd passing.
+type ConnectionHandlerDecl = rpc.ConnectionHandlerDecl

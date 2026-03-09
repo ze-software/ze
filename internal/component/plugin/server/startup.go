@@ -8,11 +8,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"strings"
 	"sync"
 	"time"
 
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	pluginipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -375,6 +377,15 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 		return
 	}
 
+	// Connection handoff: send listen socket fds to plugin via SCM_RIGHTS.
+	// Must happen after Stage 1 OK (plugin knows registration accepted) and
+	// before Stage 2 (config delivery).
+	if len(reg.ConnectionHandlers) > 0 {
+		if !s.handoffListenSockets(proc, reg) {
+			return
+		}
+	}
+
 	// Progress: Registration -> Config (deliver config) -> Capability
 	s.progressThroughStages(proc, reg.Name, stageProgression{
 		from: plugin.StageRegistration, mid: plugin.StageConfig, to: plugin.StageCapability,
@@ -659,6 +670,14 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		}
 	}
 
+	for _, ch := range input.ConnectionHandlers {
+		reg.ConnectionHandlers = append(reg.ConnectionHandlers, plugin.ConnectionHandler{
+			Type:    ch.Type,
+			Port:    ch.Port,
+			Address: ch.Address,
+		})
+	}
+
 	return reg
 }
 
@@ -678,4 +697,73 @@ func capabilitiesFromRPC(input *rpc.DeclareCapabilitiesInput) *plugin.PluginCapa
 	}
 
 	return caps
+}
+
+// validHandoffPort reports whether port is in the valid range for connection handoff (1-65535).
+func validHandoffPort(port int) bool {
+	return port >= 1 && port <= 65535
+}
+
+// handoffListenSockets creates listen sockets for each ConnectionHandler declared
+// by the plugin and sends the fds via SCM_RIGHTS over Socket B.
+// Called between Stage 1 (registration accepted) and Stage 2 (config delivery).
+// Returns false if handoff failed and the plugin should be stopped.
+func (s *Server) handoffListenSockets(proc *process.Process, reg *plugin.PluginRegistration) bool {
+	connB := proc.ConnB()
+	if connB == nil {
+		logger().Error("handoff: no callback connection", "plugin", proc.Name())
+		return false
+	}
+
+	// Get the raw net.Conn underlying Socket B for SCM_RIGHTS fd passing.
+	rawConn := connB.WriteConn()
+
+	for _, ch := range reg.ConnectionHandlers {
+		if ch.Type != "listen" {
+			logger().Warn("handoff: unsupported handler type", "plugin", proc.Name(), "type", ch.Type)
+			continue
+		}
+
+		if !validHandoffPort(ch.Port) {
+			logger().Error("handoff: invalid port", "plugin", proc.Name(), "port", ch.Port)
+			return false
+		}
+
+		addr := fmt.Sprintf("%s:%d", ch.Address, ch.Port)
+
+		var lc net.ListenConfig
+		ln, err := lc.Listen(s.ctx, "tcp", addr)
+		if err != nil {
+			logger().Error("handoff: listen failed", "plugin", proc.Name(), "addr", addr, "error", err)
+			return false
+		}
+
+		// Extract fd from the listener.
+		tcpLn, ok := ln.(*net.TCPListener)
+		if !ok {
+			ln.Close() //nolint:errcheck,gosec // cleanup on type assertion failure
+			logger().Error("handoff: not a TCP listener", "plugin", proc.Name(), "addr", addr)
+			return false
+		}
+		lnFile, err := tcpLn.File()
+		if err != nil {
+			ln.Close() //nolint:errcheck,gosec // cleanup on File() error
+			logger().Error("handoff: get listener fd", "plugin", proc.Name(), "error", err)
+			return false
+		}
+		// Close the Go listener — lnFile holds a dup'd fd.
+		ln.Close() //nolint:errcheck,gosec // fd ownership transferred to lnFile
+
+		// Send fd via SCM_RIGHTS on the raw callback socket.
+		if err := pluginipc.SendFD(rawConn, lnFile); err != nil {
+			lnFile.Close() //nolint:errcheck,gosec // cleanup on send failure
+			logger().Error("handoff: send fd failed", "plugin", proc.Name(), "addr", addr, "error", err)
+			return false
+		}
+		lnFile.Close() //nolint:errcheck,gosec // hub closes its copy after send
+
+		logger().Debug("handoff: sent listen socket", "plugin", proc.Name(), "addr", addr)
+	}
+
+	return true
 }

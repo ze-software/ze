@@ -33,6 +33,7 @@ import (
 	"strconv"
 	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -86,6 +87,11 @@ type Plugin struct {
 	// Capabilities to declare during Stage 3.
 	capabilities []CapabilityDecl
 
+	// Listen sockets received from engine via SCM_RIGHTS during startup.
+	// Populated automatically between Stage 1 and Stage 2 when connection-handlers
+	// are declared. Access via Listeners() after startup.
+	listeners []net.Listener
+
 	mu sync.Mutex
 }
 
@@ -98,6 +104,7 @@ func NewWithConn(name string, engineConn, callbackConn net.Conn) *Plugin {
 		name:         name,
 		engineConn:   rpc.NewConn(engineConn, engineConn),
 		callbackConn: rpc.NewConn(callbackConn, callbackConn),
+		rawCallbackB: callbackConn,
 	}
 	// Discover bridge via type assertion (internal plugins only).
 	if bridger, ok := engineConn.(rpc.Bridger); ok {
@@ -170,13 +177,45 @@ func envFD(name string) (int, error) {
 	return fd, nil
 }
 
-// Close closes the underlying connections, unblocking any goroutines waiting
-// on Read(). Must be called when the plugin is done to prevent goroutine leaks.
+// ReceiveListener receives a listen socket fd from the engine via SCM_RIGHTS
+// on the callback connection (Socket B) and returns it as a net.Listener.
+// This is used after Stage 1 when the plugin declared connection-handlers.
+// Only works for external plugins (real Unix sockets, not net.Pipe).
+func (p *Plugin) ReceiveListener() (net.Listener, error) {
+	received, err := ipc.ReceiveFD(p.rawCallbackB)
+	if err != nil {
+		return nil, fmt.Errorf("receive listener fd: %w", err)
+	}
+	ln, err := net.FileListener(received)
+	received.Close() //nolint:errcheck,gosec // fd ownership transferred to listener
+	if err != nil {
+		return nil, fmt.Errorf("convert fd to listener: %w", err)
+	}
+	return ln, nil
+}
+
+// Listeners returns the listen sockets received from the engine during startup.
+// The engine creates these sockets and sends them via SCM_RIGHTS between
+// Stage 1 and Stage 2, one per connection-handler declared in the registration.
+// Returns nil if no connection-handlers were declared.
+func (p *Plugin) Listeners() []net.Listener {
+	return p.listeners
+}
+
+// Close closes the underlying connections and any received listeners,
+// unblocking any goroutines waiting on Read(). Must be called when the
+// plugin is done to prevent goroutine and socket leaks.
 // Safe to call multiple times.
 func (p *Plugin) Close() error {
 	if p.textMode {
 		return p.closeText()
 	}
+	// Close received listeners first — they hold open TCP sockets.
+	for _, ln := range p.listeners {
+		ln.Close() //nolint:errcheck,gosec // best-effort cleanup of handed-off listeners
+	}
+	p.listeners = nil
+
 	// Close MuxConn first — its background reader must stop before
 	// closing the underlying engineConn (which it reads from).
 	if p.engineMux != nil {
@@ -210,6 +249,17 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 	// Stage 1: declare-registration
 	if err := p.callEngine(ctx, "ze-plugin-engine:declare-registration", &reg); err != nil {
 		return fmt.Errorf("stage 1 (declare-registration): %w", err)
+	}
+
+	// Auto-receive listen socket fds sent by engine between Stage 1 and Stage 2.
+	// The engine sends one fd per connection-handler via SCM_RIGHTS on Socket B.
+	// Must happen before Stage 2 (which starts FrameReader on callbackConn).
+	for range reg.ConnectionHandlers {
+		ln, err := p.ReceiveListener()
+		if err != nil {
+			return fmt.Errorf("receive connection handler listener: %w", err)
+		}
+		p.listeners = append(p.listeners, ln)
 	}
 
 	// Stage 2: wait for configure from engine

@@ -46,10 +46,12 @@ Full protocol usage:
 
 from __future__ import annotations
 
+import array
 import json
 import os
 import select
 import signal
+import socket
 import sys
 from typing import Any
 
@@ -87,6 +89,9 @@ class API:
         self._families: list[dict[str, str]] = []
         self._commands: list[dict[str, str]] = []
         self._wants_config: list[str] = []
+
+        # Accumulated connection handlers for Stage 1
+        self._connection_handlers: list[dict[str, Any]] = []
 
         # Accumulated capabilities for Stage 3
         self._capabilities: list[dict[str, Any]] = []
@@ -262,6 +267,25 @@ class API:
         """
         self._commands.append({'name': command})
 
+    def declare_connection_handler(self, handler_type: str = 'listen',
+                                   port: int = 0, address: str = '') -> None:
+        """Declare a connection handler for listen socket handoff (Stage 1).
+
+        The engine will create a listen socket on the specified port and
+        send the fd via SCM_RIGHTS on Socket B after Stage 1.
+        Call receive_listener() after declare_done() to receive the fd.
+
+        Args:
+            handler_type: Handler type ('listen' for Mode A)
+            port: TCP port to listen on (1-65535)
+            address: Bind address (empty = all interfaces)
+        """
+        self._connection_handlers.append({
+            'type': handler_type,
+            'port': port,
+            'address': address,
+        })
+
     def declare_done(self) -> None:
         """Signal Stage 1 declaration complete.
 
@@ -275,8 +299,61 @@ class API:
             params['commands'] = self._commands
         if self._wants_config:
             params['wants-config'] = self._wants_config
+        if self._connection_handlers:
+            params['connection-handlers'] = self._connection_handlers
 
         self._call_engine('ze-plugin-engine:declare-registration', params)
+
+    def receive_listener(self) -> socket.socket:
+        """Receive a listen socket fd from the engine via SCM_RIGHTS on Socket B.
+
+        Must be called after declare_done() and before wait_for_config().
+        The engine sends one fd per connection-handler declared in Stage 1.
+
+        Returns:
+            A socket object wrapping the received listen socket fd.
+        """
+        # Create a socket object from the raw callback fd for recvmsg.
+        # socket.fromfd() dups the fd — we must close this socket after use.
+        sock = socket.fromfd(self._callback_fd, socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            # Read 1 framing byte + ancillary data (SCM_RIGHTS carrying one fd).
+            fds = array.array('i')
+            msg, ancdata, _flags, _addr = sock.recvmsg(
+                1, socket.CMSG_SPACE(fds.itemsize))
+            if not msg:
+                raise RuntimeError('no data received (connection closed?)')
+            for cmsg_level, cmsg_type, cmsg_data in ancdata:
+                if (cmsg_level == socket.SOL_SOCKET and
+                        cmsg_type == socket.SCM_RIGHTS):
+                    received_fds = array.array('i', cmsg_data)
+                    if not received_fds:
+                        continue
+                    fd = received_fds[0]
+                    # Close any extra fds.
+                    for extra_fd in received_fds[1:]:
+                        os.close(extra_fd)
+                    # Detect socket family from the fd via getsockname.
+                    # The engine may create IPv4 or IPv6 listeners depending
+                    # on the address configured in the connection-handler.
+                    probe = socket.fromfd(fd, socket.AF_INET, socket.SOCK_STREAM)
+                    try:
+                        addr = probe.getsockname()
+                        # IPv6 getsockname returns 4-tuple, IPv4 returns 2-tuple
+                        family = socket.AF_INET6 if len(addr) == 4 else socket.AF_INET
+                    except OSError:
+                        family = socket.AF_INET
+                    finally:
+                        probe.close()
+                    # Create a listener socket with the detected family.
+                    # fromfd() dups the fd, so close the original.
+                    listener = socket.fromfd(fd, family, socket.SOCK_STREAM)
+                    os.close(fd)
+                    return listener
+            raise RuntimeError('no fd in control message')
+        finally:
+            # Close the dup'd socket — the original _callback_fd is unaffected.
+            sock.close()
 
     # ==================================================================
     # Stage 2: Config Delivery
@@ -760,6 +837,17 @@ def declare_config(pattern: str) -> None:
 def declare_command(command: str) -> None:
     """Declare a command handler (Stage 1)."""
     _get_api().declare_command(command)
+
+
+def declare_connection_handler(handler_type: str = 'listen',
+                                port: int = 0, address: str = '') -> None:
+    """Declare a connection handler for listen socket handoff (Stage 1)."""
+    _get_api().declare_connection_handler(handler_type, port, address)
+
+
+def receive_listener() -> socket.socket:
+    """Receive a listen socket fd from the engine via SCM_RIGHTS."""
+    return _get_api().receive_listener()
 
 
 def declare_done() -> None:

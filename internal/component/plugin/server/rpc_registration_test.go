@@ -221,6 +221,48 @@ func TestRPCCapabilityToInjector(t *testing.T) {
 	assert.Equal(t, uint8(73), peerCaps[1].Code)
 }
 
+// TestConnectionHandlerDeclaration verifies connection-handlers in DeclareRegistrationInput
+// flow through registrationFromRPC() into PluginRegistration.ConnectionHandlers.
+//
+// VALIDATES: ConnectionHandlerDecl parsed from Stage 1 registration RPC input.
+// PREVENTS: Connection handler declarations silently dropped during RPC conversion.
+func TestConnectionHandlerDeclaration(t *testing.T) {
+	t.Parallel()
+
+	input := &rpc.DeclareRegistrationInput{
+		ConnectionHandlers: []rpc.ConnectionHandlerDecl{
+			{Type: "listen", Port: 179, Address: ""},
+			{Type: "listen", Port: 8179, Address: "127.0.0.1"},
+		},
+	}
+
+	reg := registrationFromRPC(input)
+
+	require.Len(t, reg.ConnectionHandlers, 2)
+	assert.Equal(t, "listen", reg.ConnectionHandlers[0].Type)
+	assert.Equal(t, 179, reg.ConnectionHandlers[0].Port)
+	assert.Empty(t, reg.ConnectionHandlers[0].Address)
+	assert.Equal(t, "listen", reg.ConnectionHandlers[1].Type)
+	assert.Equal(t, 8179, reg.ConnectionHandlers[1].Port)
+	assert.Equal(t, "127.0.0.1", reg.ConnectionHandlers[1].Address)
+}
+
+// TestConnectionHandlerNoDeclaration verifies that missing connection-handlers
+// field results in an empty list (no error, backward compatible).
+//
+// VALIDATES: No connection-handlers field in registration = empty ConnectionHandlers slice.
+// PREVENTS: Nil pointer or error when plugin doesn't declare connection-handlers.
+func TestConnectionHandlerNoDeclaration(t *testing.T) {
+	t.Parallel()
+
+	input := &rpc.DeclareRegistrationInput{
+		Commands: []rpc.CommandDecl{{Name: "test cmd"}},
+	}
+
+	reg := registrationFromRPC(input)
+	assert.Empty(t, reg.ConnectionHandlers)
+}
+
 // TestRPCRegistrationConflictThroughConversion verifies conflicts are detected
 // when two plugins register via the RPC path.
 //

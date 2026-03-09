@@ -68,6 +68,14 @@ func (s *Server) handleTextProcessStartup(proc *process.Process, tcA, tcB *rpc.T
 		return
 	}
 
+	// Connection handoff is not supported for text-mode plugins.
+	// SCM_RIGHTS fd passing requires raw socket access before framing starts,
+	// which conflicts with the TextConn's buffered reader.
+	if len(reg.ConnectionHandlers) > 0 {
+		logger().Warn("text startup: connection-handlers ignored (not supported in text mode)",
+			"plugin", name, "count", len(reg.ConnectionHandlers))
+	}
+
 	// --- Coordinator: Registration → Config → Capability ---
 	s.progressThroughStages(proc, name, stageProgression{
 		from: plugin.StageRegistration, mid: plugin.StageConfig, to: plugin.StageCapability,
