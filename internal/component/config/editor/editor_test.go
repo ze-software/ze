@@ -70,6 +70,39 @@ func TestEditorSaveCreatesBackup(t *testing.T) {
 	assert.Equal(t, initial, string(backupData))
 }
 
+// TestEditorBackupInRollbackDir verifies backups are stored in rollback/ subdirectory.
+//
+// VALIDATES: Backups are created in <dir>/rollback/ (Junos-style).
+// PREVENTS: Backups polluting the config directory root.
+func TestEditorBackupInRollbackDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte("router-id 1.2.3.4;"), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	ed.MarkDirty()
+	err = ed.Save()
+	require.NoError(t, err)
+
+	// Verify rollback/ directory was created
+	rollbackDir := filepath.Join(tmpDir, "rollback")
+	info, err := os.Stat(rollbackDir)
+	require.NoError(t, err, "rollback/ directory should exist")
+	assert.True(t, info.IsDir(), "rollback/ should be a directory")
+
+	// Verify backup is inside rollback/
+	backups, err := ed.ListBackups()
+	require.NoError(t, err)
+	require.Len(t, backups, 1)
+	assert.True(t, strings.HasPrefix(backups[0].Path, rollbackDir),
+		"backup path %s should be under rollback/", backups[0].Path)
+}
+
 func TestEditorBackupNaming(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "myconfig.conf")
@@ -97,15 +130,19 @@ func TestEditorBackupNaming(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, backups, 3)
 
-	today := time.Now().Format("2006-01-02")
+	today := time.Now().Format("20060102")
 
-	// Backups should be named: myconfig-YYYY-MM-DD-1.conf, -2.conf, -3.conf
+	// Backups should be named: myconfig-YYYYMMDD-HHMMSS.conf
 	for i, b := range backups {
-		expectedSuffix := today + "-" + string(rune('0'+3-i)) + ".conf"
-		assert.True(t, strings.HasSuffix(b.Path, expectedSuffix) ||
-			strings.Contains(b.Path, today),
-			"backup %d should contain date: %s", i, b.Path)
+		assert.True(t, strings.Contains(b.Path, today),
+			"backup %d should contain today's date: %s", i, b.Path)
+		assert.True(t, strings.HasSuffix(b.Path, ".conf"),
+			"backup %d should end with .conf: %s", i, b.Path)
 	}
+
+	// Newest first (descending order)
+	assert.True(t, !backups[0].Timestamp.Before(backups[1].Timestamp),
+		"backups should be sorted newest first")
 }
 
 func TestEditorDiscard(t *testing.T) {
@@ -168,6 +205,16 @@ func TestEditorRollback(t *testing.T) {
 	data, err := os.ReadFile(configPath) //nolint:gosec // Test file path
 	require.NoError(t, err)
 	assert.Equal(t, version1, string(data))
+
+	// Verify rollback created a backup of version2 (rollback is reversible)
+	backups, err = ed.ListBackups()
+	require.NoError(t, err)
+	require.Len(t, backups, 2, "rollback should create a backup of the current config before restoring")
+
+	// The newest backup (index 0) should contain version2
+	backupData, err := os.ReadFile(backups[0].Path) //nolint:gosec // Test path
+	require.NoError(t, err)
+	assert.Equal(t, version2, string(backupData), "pre-rollback backup should preserve the overwritten config")
 }
 
 func TestEditorListBackupsEmpty(t *testing.T) {

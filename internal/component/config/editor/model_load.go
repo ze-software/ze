@@ -135,10 +135,9 @@ func (m *Model) rollbackConfirmed() (commandResult, error) {
 		}
 	}
 
-	content := m.editor.ContentAtPath(m.contextPath)
 	return commandResult{
 		statusMessage:     msg,
-		configView:        &viewportData{content: content, lineMapping: nil},
+		configView:        m.configViewAtPath(m.contextPath),
 		revalidate:        true,
 		setConfirmTimer:   true,
 		confirmTimerValue: false,
@@ -188,10 +187,9 @@ func (m *Model) cmdLoad(args []string) (commandResult, error) {
 	m.editor.SetWorkingContent(string(data))
 	m.editor.MarkDirty()
 
-	content := m.editor.ContentAtPath(m.contextPath)
 	return commandResult{
 		statusMessage: fmt.Sprintf("Configuration loaded from %s", args[0]),
-		configView:    &viewportData{content: content, lineMapping: nil},
+		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
 }
@@ -218,10 +216,9 @@ func (m *Model) cmdLoadMerge(args []string) (commandResult, error) {
 	m.editor.SetWorkingContent(merged)
 	m.editor.MarkDirty()
 
-	content := m.editor.ContentAtPath(m.contextPath)
 	return commandResult{
 		statusMessage: fmt.Sprintf("Configuration merged from %s", args[0]),
-		configView:    &viewportData{content: content, lineMapping: nil},
+		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
 }
@@ -319,7 +316,7 @@ func (m *Model) applyLoadAbsolute(action, content, path string) (commandResult, 
 		m.editor.MarkDirty()
 		return commandResult{
 			statusMessage: fmt.Sprintf("Configuration loaded from %s", path),
-			configView:    &viewportData{content: m.editor.ContentAtPath(m.contextPath), lineMapping: nil},
+			configView:    m.configViewAtPath(m.contextPath),
 			revalidate:    true,
 		}, nil
 	}
@@ -331,7 +328,7 @@ func (m *Model) applyLoadAbsolute(action, content, path string) (commandResult, 
 	m.editor.MarkDirty()
 	return commandResult{
 		statusMessage: fmt.Sprintf("Configuration merged from %s", path),
-		configView:    &viewportData{content: m.editor.ContentAtPath(m.contextPath), lineMapping: nil},
+		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
 }
@@ -363,7 +360,7 @@ func (m *Model) applyLoadRelative(action, content, path string) (commandResult, 
 
 	return commandResult{
 		statusMessage: fmt.Sprintf("Configuration %s from %s at %s", verb, path, strings.Join(m.contextPath, " ")),
-		configView:    &viewportData{content: m.editor.ContentAtPath(m.contextPath), lineMapping: nil},
+		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
 }

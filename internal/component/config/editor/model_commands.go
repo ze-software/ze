@@ -108,13 +108,12 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 // Command implementations
 
 func (m *Model) cmdTop() (commandResult, error) {
-	content := m.editor.WorkingContent()
-	if content == "" {
+	if m.editor.WorkingContent() == "" {
 		return commandResult{clearContext: true, output: "(empty configuration)"}, nil
 	}
 	return commandResult{
 		clearContext: true,
-		configView:   &viewportData{content: content, lineMapping: nil},
+		configView:   m.configViewAtPath(nil),
 	}, nil
 }
 
@@ -130,29 +129,26 @@ func (m *Model) cmdUp() (commandResult, error) {
 		newContext := m.contextPath[:len(m.contextPath)-removeCount]
 
 		if len(newContext) == 0 {
-			content := m.editor.WorkingContent()
 			return commandResult{
 				clearContext: true,
-				configView:   &viewportData{content: content, lineMapping: nil},
+				configView:   m.configViewAtPath(nil),
 			}, nil
 		}
 
 		// Verify this parent path resolves in the tree
 		if m.editor.WalkPath(newContext) != nil {
-			content := m.editor.ContentAtPath(newContext)
 			return commandResult{
 				newContext: newContext,
 				isTemplate: false,
-				configView: &viewportData{content: content, lineMapping: nil},
+				configView: m.configViewAtPath(newContext),
 			}, nil
 		}
 	}
 
 	// Fallback: go to root
-	content := m.editor.WorkingContent()
 	return commandResult{
 		clearContext: true,
-		configView:   &viewportData{content: content, lineMapping: nil},
+		configView:   m.configViewAtPath(nil),
 	}, nil
 }
 
@@ -182,31 +178,28 @@ func (m *Model) cmdEdit(args []string) (commandResult, error) {
 		}
 	}
 
-	content := m.editor.ContentAtPath(fullPath)
 	return commandResult{
 		newContext: fullPath,
 		isTemplate: false,
-		configView: &viewportData{content: content, lineMapping: nil},
+		configView: m.configViewAtPath(fullPath),
 	}, nil
 }
 
 // showConfigContent displays config content in viewport with proper highlighting.
 // Used only in WindowSizeMsg handler for initial display.
 func (m *Model) showConfigContent() {
-	content := m.editor.ContentAtPath(m.contextPath)
-	if content == "" {
+	if m.editor.ContentAtPath(m.contextPath) == "" {
 		m.setViewportText("(empty configuration)")
 		return
 	}
-	m.setViewportData(viewportData{content: content, lineMapping: nil})
+	m.setViewportData(*m.configViewAtPath(m.contextPath))
 }
 
 func (m *Model) cmdShow(_ []string) (commandResult, error) {
-	content := m.editor.ContentAtPath(m.contextPath)
-	if content == "" {
+	if m.editor.ContentAtPath(m.contextPath) == "" {
 		return commandResult{output: "(empty configuration)"}, nil
 	}
-	return commandResult{configView: &viewportData{content: content, lineMapping: nil}}, nil
+	return commandResult{configView: m.configViewAtPath(m.contextPath)}, nil
 }
 
 func (m *Model) cmdHistory() (commandResult, error) {
@@ -221,10 +214,10 @@ func (m *Model) cmdHistory() (commandResult, error) {
 
 	var b strings.Builder
 	for i, backup := range backups {
-		fmt.Fprintf(&b, "%d. %s (%s)\n",
+		fmt.Fprintf(&b, "%d. %s  %s\n",
 			i+1,
-			backup.Path,
-			backup.Timestamp.Format("2006-01-02"))
+			backup.Timestamp.Format("2006-01-02 15:04:05"),
+			backup.Path)
 	}
 	return commandResult{output: b.String()}, nil
 }
@@ -234,8 +227,8 @@ func (m *Model) cmdRollback(args []string) (commandResult, error) {
 		return commandResult{}, fmt.Errorf("usage: rollback <number>")
 	}
 
-	var n int
-	if _, err := fmt.Sscanf(args[0], "%d", &n); err != nil {
+	n, err := strconv.Atoi(args[0])
+	if err != nil {
 		return commandResult{}, fmt.Errorf("invalid backup number: %s", args[0])
 	}
 
@@ -252,10 +245,9 @@ func (m *Model) cmdRollback(args []string) (commandResult, error) {
 		return commandResult{}, err
 	}
 
-	content := m.editor.ContentAtPath(m.contextPath)
 	return commandResult{
 		statusMessage: fmt.Sprintf("Rolled back to %s", backups[n-1].Path),
-		configView:    &viewportData{content: content, lineMapping: nil},
+		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
 }
@@ -300,11 +292,10 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	// Update completer with mutated tree
 	m.completer.SetTree(m.editor.Tree())
 
-	content := m.editor.ContentAtPath(m.contextPath)
 	displayPath := append(append([]string{}, containerPath...), key)
 	return commandResult{
 		statusMessage: fmt.Sprintf("Set %s = %s", strings.Join(displayPath, " "), value),
-		configView:    &viewportData{content: content, lineMapping: nil},
+		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
 }
@@ -413,10 +404,9 @@ func (m *Model) cmdDelete(args []string) (commandResult, error) {
 	// Update completer with mutated tree
 	m.completer.SetTree(m.editor.Tree())
 
-	content := m.editor.ContentAtPath(m.contextPath)
 	return commandResult{
 		statusMessage: fmt.Sprintf("Deleted %s", strings.Join(fullPath, " ")),
-		configView:    &viewportData{content: content, lineMapping: nil},
+		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
 }
@@ -470,10 +460,9 @@ func (m *Model) cmdDiscard() (commandResult, error) {
 		return commandResult{}, err
 	}
 
-	content := m.editor.ContentAtPath(m.contextPath)
 	return commandResult{
 		statusMessage: "Changes discarded",
-		configView:    &viewportData{content: content, lineMapping: nil},
+		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
 }

@@ -723,7 +723,7 @@ func (e *Editor) Save() error {
 
 	// Write serialized tree (or raw text fallback) to original path
 	content := e.WorkingContent()
-	if err := os.WriteFile(e.originalPath, []byte(content), 0o600); err != nil {
+	if err := atomicWriteFile(e.originalPath, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 
@@ -807,6 +807,41 @@ func computeDiff(original, modified string) string {
 	}
 
 	return diff.String()
+}
+
+// atomicWriteFile writes data to a file atomically: write to a temp file in the
+// same directory, then rename. On POSIX, rename is atomic — the target path is
+// either the old content or the new content, never a partial write.
+func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
+	dir := filepath.Dir(path)
+	tmp, err := os.CreateTemp(dir, ".ze-tmp-*")
+	if err != nil {
+		return fmt.Errorf("create temp file: %w", err)
+	}
+	tmpName := tmp.Name()
+
+	cleanup := func() {
+		tmp.Close()        //nolint:errcheck // best effort cleanup on error path
+		os.Remove(tmpName) //nolint:errcheck // best effort cleanup on error path
+	}
+
+	if _, err := tmp.Write(data); err != nil {
+		cleanup()
+		return fmt.Errorf("write temp file: %w", err)
+	}
+	if err := tmp.Chmod(perm); err != nil {
+		cleanup()
+		return fmt.Errorf("chmod temp file: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		os.Remove(tmpName) //nolint:errcheck // best effort cleanup on error path
+		return fmt.Errorf("close temp file: %w", err)
+	}
+	if err := os.Rename(tmpName, path); err != nil {
+		os.Remove(tmpName) //nolint:errcheck // best effort cleanup on error path
+		return fmt.Errorf("rename temp file: %w", err)
+	}
+	return nil
 }
 
 // rollbackDir returns the rollback subdirectory for storing config snapshots.
@@ -935,7 +970,7 @@ func (e *Editor) Rollback(backupPath string) error {
 	}
 
 	// Write to original path
-	if err := os.WriteFile(e.originalPath, data, 0o600); err != nil {
+	if err := atomicWriteFile(e.originalPath, data, 0o600); err != nil {
 		return fmt.Errorf("cannot write config: %w", err)
 	}
 

@@ -39,8 +39,10 @@ var (
 // viewportData bundles content with its line mapping for display.
 // This ensures content and mapping always travel together, avoiding implicit coupling.
 type viewportData struct {
-	content     string      // The text content to display
-	lineMapping map[int]int // Maps displayed line (1-based) to original line (1-based), nil for full content
+	content         string      // The text content to display
+	originalContent string      // Original content for diff gutter
+	hasOriginal     bool        // True when originalContent was explicitly set (distinguishes "not set" from "empty = new block")
+	lineMapping     map[int]int // Maps displayed line (1-based) to original line (1-based), nil for full content
 }
 
 // Model is the Bubble Tea model for the editor.

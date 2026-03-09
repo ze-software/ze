@@ -1,5 +1,6 @@
 // Design: docs/architecture/config/yang-config-design.md — config editor
 // Related: model_mode.go — mode-aware prompt rendering
+// Related: diff.go — diff algorithm for gutter annotation
 
 package editor
 
@@ -12,14 +13,38 @@ import (
 )
 
 // setViewportData sets content with line mapping in the viewport.
-// Applies error and warning highlighting based on validation state.
+// When originalContent is provided and differs from content, a diff gutter
+// is prepended to each line showing change markers: ' ' unchanged, '+' added,
+// '-' removed, '|' modified. The line mapping is adjusted so validation
+// highlighting still finds the correct lines.
 func (m *Model) setViewportData(data viewportData) {
-	highlighted := highlightValidationIssues(data.content, m.validationErrors, m.validationWarnings, data.lineMapping)
+	content := data.content
+	lineMapping := data.lineMapping
+
+	// Apply diff gutter when original was explicitly provided and differs from content.
+	// hasOriginal distinguishes "not set" (non-config text) from "empty = new block".
+	if data.hasOriginal && data.originalContent != data.content {
+		content, lineMapping = annotateContentWithGutter(data.originalContent, data.content)
+	}
+
+	highlighted := highlightValidationIssues(content, m.validationErrors, m.validationWarnings, lineMapping)
 	m.viewportContent = highlighted
 	m.viewport.SetContent(highlighted)
 	m.viewport.GotoTop()
 	m.showViewport = true
 	m.err = nil
+}
+
+// configViewAtPath builds a viewportData for the config at the given path,
+// including original content for diff gutter annotation.
+func (m *Model) configViewAtPath(path []string) *viewportData {
+	content := m.editor.ContentAtPath(path)
+	original := m.editor.OriginalContentAtPath(path)
+	return &viewportData{
+		content:         content,
+		originalContent: original,
+		hasOriginal:     true,
+	}
 }
 
 // setViewportText sets simple text content without line mapping.

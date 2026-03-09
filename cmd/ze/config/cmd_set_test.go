@@ -66,11 +66,11 @@ func TestCmdSetCreatesBackup(t *testing.T) {
 		t.Fatalf("cmdSet returned %d, want %d", code, exitOK)
 	}
 
-	// Check for backup file
-	dir := filepath.Dir(configPath)
-	entries, err := os.ReadDir(dir)
+	// Check for backup file in rollback/ subdirectory
+	rollbackDir := filepath.Join(filepath.Dir(configPath), "rollback")
+	entries, err := os.ReadDir(rollbackDir)
 	if err != nil {
-		t.Fatalf("readdir: %v", err)
+		t.Fatalf("readdir rollback/: %v", err)
 	}
 
 	backupFound := false
@@ -81,7 +81,7 @@ func TestCmdSetCreatesBackup(t *testing.T) {
 		}
 	}
 	if !backupFound {
-		t.Error("expected backup file to be created")
+		t.Error("expected backup file to be created in rollback/")
 	}
 }
 

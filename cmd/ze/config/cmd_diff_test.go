@@ -46,22 +46,13 @@ bgp {
 }
 `
 
-// writeTempConfig writes content to a temp file and returns its path.
-func writeTempConfig(t *testing.T, content string) string {
-	t.Helper()
-	dir := t.TempDir()
-	path := filepath.Join(dir, "config.conf")
-	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
-	return path
-}
-
 // TestConfigDiffIdentical verifies identical configs produce no differences.
 //
 // VALIDATES: AC-9 — identical files produce empty diff, exit 0.
 // PREVENTS: False positives in diff output.
 func TestConfigDiffIdentical(t *testing.T) {
-	file1 := writeTempConfig(t, testConfigBase)
-	file2 := writeTempConfig(t, testConfigBase)
+	file1 := writeTestConfig(t, testConfigBase)
+	file2 := writeTestConfig(t, testConfigBase)
 
 	code := cmdDiff([]string{file1, file2})
 	assert.Equal(t, exitOK, code)
@@ -72,8 +63,8 @@ func TestConfigDiffIdentical(t *testing.T) {
 // VALIDATES: AC-10 — changed peer-as appears in diff output.
 // PREVENTS: Missing changes in diff.
 func TestConfigDiffChanged(t *testing.T) {
-	file1 := writeTempConfig(t, testConfigBase)
-	file2 := writeTempConfig(t, testConfigChanged)
+	file1 := writeTestConfig(t, testConfigBase)
+	file2 := writeTestConfig(t, testConfigChanged)
 
 	code := cmdDiff([]string{"--json", file1, file2})
 	assert.Equal(t, exitOK, code)
@@ -84,8 +75,8 @@ func TestConfigDiffChanged(t *testing.T) {
 // VALIDATES: AC-11 — added peer subtree appears in diff output.
 // PREVENTS: Missed additions in diff.
 func TestConfigDiffAdded(t *testing.T) {
-	file1 := writeTempConfig(t, testConfigBase)
-	file2 := writeTempConfig(t, testConfigAdded)
+	file1 := writeTestConfig(t, testConfigBase)
+	file2 := writeTestConfig(t, testConfigAdded)
 
 	code := cmdDiff([]string{"--json", file1, file2})
 	assert.Equal(t, exitOK, code)
@@ -96,7 +87,7 @@ func TestConfigDiffAdded(t *testing.T) {
 // VALIDATES: AC-12 — nonexistent file returns exit code 2.
 // PREVENTS: Crash or silent failure on missing file.
 func TestConfigDiffMissingFile(t *testing.T) {
-	file1 := writeTempConfig(t, testConfigBase)
+	file1 := writeTestConfig(t, testConfigBase)
 
 	code := cmdDiff([]string{file1, "/nonexistent/path/config.conf"})
 	assert.Equal(t, exitError, code)
@@ -107,8 +98,8 @@ func TestConfigDiffMissingFile(t *testing.T) {
 // VALIDATES: AC-10 — JSON output has added/removed/changed keys.
 // PREVENTS: Malformed JSON diff output.
 func TestConfigDiffJSON(t *testing.T) {
-	file1 := writeTempConfig(t, testConfigBase)
-	file2 := writeTempConfig(t, testConfigChanged)
+	file1 := writeTestConfig(t, testConfigBase)
+	file2 := writeTestConfig(t, testConfigChanged)
 
 	// Capture stdout
 	old := os.Stdout
@@ -148,4 +139,36 @@ func TestConfigDiffJSON(t *testing.T) {
 func TestConfigDiffNoArgs(t *testing.T) {
 	code := cmdDiff([]string{})
 	assert.Equal(t, exitError, code)
+}
+
+// TestConfigDiffRevisionNotFound verifies error when rollback revision does not exist.
+//
+// VALIDATES: diff with revision number returns error when no backups.
+// PREVENTS: Panic or misleading output on missing rollback.
+func TestConfigDiffRevisionNotFound(t *testing.T) {
+	file := writeTestConfig(t, testConfigBase)
+	code := cmdDiff([]string{"1", file})
+	assert.Equal(t, exitError, code)
+}
+
+// TestConfigDiffRevisionMode verifies diff against a rollback revision.
+//
+// VALIDATES: "diff <N> <file>" resolves revision and compares.
+// PREVENTS: Revision-number mode silently failing.
+func TestConfigDiffRevisionMode(t *testing.T) {
+	file := writeTestConfig(t, testConfigBase)
+
+	// Create rollback dir with a backup containing different content
+	rollbackDir := filepath.Join(filepath.Dir(file), "rollback")
+	require.NoError(t, os.MkdirAll(rollbackDir, 0o700))
+
+	backupName := "test-20260101-120000.000.conf"
+	require.NoError(t, os.WriteFile(
+		filepath.Join(rollbackDir, backupName),
+		[]byte(testConfigChanged),
+		0o600,
+	))
+
+	code := cmdDiff([]string{"1", file})
+	assert.Equal(t, exitOK, code)
 }

@@ -6,6 +6,8 @@
 // Detail: cmd_dump.go — dump subcommand handler
 // Detail: cmd_diff.go — diff subcommand handler
 // Detail: cmd_completion.go — completion query handler
+// Detail: cmd_history.go — history subcommand handler
+// Detail: cmd_rollback.go — rollback subcommand handler
 // Detail: cmd_set.go — set subcommand handler
 //
 // Package config provides the ze config subcommand.
@@ -38,6 +40,8 @@ var subcommandHandlers = map[string]func([]string) int{
 	"diff":       cmdDiff,
 	"set":        cmdSet,
 	"completion": cmdCompletion,
+	"history":    cmdHistory,
+	"rollback":   cmdRollback,
 }
 
 // Run executes the config subcommand with the given arguments.
@@ -95,6 +99,9 @@ Commands:
   fmt <file>        Format and normalize configuration file
   dump <file>       Dump parsed configuration
   diff <f1> <f2>    Compare two configuration files
+  diff <N> <file>   Compare rollback revision N against current
+  history <file>    List rollback revisions
+  rollback <N> <file>  Restore from rollback revision N
   set <file> <path> <value>  Set a configuration value
   completion <file> Query completion engine (testing/debugging)
 
@@ -107,6 +114,9 @@ Examples:
   ze config diff old.conf new.conf
   ze config diff --json old.conf new.conf
   ze config set config.conf bgp local-as 65000
+  ze config history config.conf
+  ze config rollback 3 config.conf
+  ze config diff 3 config.conf
   ze config completion --input set+ --context bgp/peer/1.1.1.1 config.conf
 `)
 }

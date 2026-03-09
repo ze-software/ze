@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/editor"
 )
 
 func cmdDiff(args []string) int {
@@ -19,8 +21,10 @@ func cmdDiff(args []string) int {
 	jsonOutput := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze config diff [options] <file1> <file2>
+       ze config diff [options] <N> <file>
 
 Compare two configuration files and show differences.
+When first argument is a number, compares current config against rollback revision N.
 Operates on resolved config (after template expansion).
 Use - for stdin (only one file can be stdin).
 
@@ -39,20 +43,32 @@ Exit codes:
 	}
 
 	if fs.NArg() < 2 {
-		fmt.Fprintf(os.Stderr, "error: requires two config files\n")
+		fmt.Fprintf(os.Stderr, "error: requires two config files, or revision number and config file\n")
 		fs.Usage()
 		return exitError
 	}
 
-	tree1, err := loadAndResolve(fs.Arg(0))
+	// Check if first arg is a revision number (diff against rollback)
+	file1 := fs.Arg(0)
+	file2 := fs.Arg(1)
+	if n, err := strconv.Atoi(file1); err == nil {
+		resolved, err := resolveRollbackPath(file2, n)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return exitError
+		}
+		file1 = resolved
+	}
+
+	tree1, err := loadAndResolve(file1)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %s: %v\n", fs.Arg(0), err)
+		fmt.Fprintf(os.Stderr, "error: %s: %v\n", file1, err)
 		return exitError
 	}
 
-	tree2, err := loadAndResolve(fs.Arg(1))
+	tree2, err := loadAndResolve(file2)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %s: %v\n", fs.Arg(1), err)
+		fmt.Fprintf(os.Stderr, "error: %s: %v\n", file2, err)
 		return exitError
 	}
 
@@ -62,6 +78,26 @@ Exit codes:
 		return outputDiffJSON(diff)
 	}
 	return outputDiffText(diff)
+}
+
+// resolveRollbackPath resolves a revision number to a rollback file path.
+func resolveRollbackPath(configPath string, n int) (string, error) {
+	ed, err := editor.NewEditor(configPath)
+	if err != nil {
+		return "", err
+	}
+	defer ed.Close() //nolint:errcheck // best effort cleanup
+
+	backups, err := ed.ListBackups()
+	if err != nil {
+		return "", err
+	}
+
+	if n < 1 || n > len(backups) {
+		return "", fmt.Errorf("revision %d not found (have %d revisions)", n, len(backups))
+	}
+
+	return backups[n-1].Path, nil
 }
 
 // loadAndResolve loads a config file, parses it, and resolves the BGP tree.
