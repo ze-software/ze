@@ -876,6 +876,43 @@ func (e *Editor) ListBackups() ([]BackupInfo, error) {
 	return backups, nil
 }
 
+// LivePath returns the path to the .live.conf file.
+// This file holds the trial config during a "commit confirmed" window.
+func (e *Editor) LivePath() string {
+	dir := filepath.Dir(e.originalPath)
+	base := filepath.Base(e.originalPath)
+	ext := filepath.Ext(base)
+	name := strings.TrimSuffix(base, ext)
+	return filepath.Join(dir, name+".live"+ext)
+}
+
+// SaveLive writes the current working content to the .live.conf file.
+// Used by "commit confirmed" to create the trial config.
+func (e *Editor) SaveLive() error {
+	content := e.WorkingContent()
+	if err := os.WriteFile(e.LivePath(), []byte(content), 0o600); err != nil {
+		return fmt.Errorf("failed to write live config: %w", err)
+	}
+	return nil
+}
+
+// HasPendingLive returns true if a .live.conf file exists.
+// This indicates an unconfirmed "commit confirmed" from a previous session.
+func (e *Editor) HasPendingLive() bool {
+	_, err := os.Stat(e.LivePath())
+	return err == nil
+}
+
+// DeleteLive removes the .live.conf file if it exists.
+// Errors are ignored because the file may not exist.
+func (e *Editor) DeleteLive() {
+	livePath := e.LivePath()
+	if err := os.Remove(livePath); err != nil && !os.IsNotExist(err) {
+		// Best-effort removal — log but don't fail
+		return
+	}
+}
+
 // Rollback restores the configuration from a backup file.
 func (e *Editor) Rollback(backupPath string) error {
 	// Read backup content

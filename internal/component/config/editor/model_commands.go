@@ -60,16 +60,16 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 		return commandResult{output: m.editor.Diff()}, nil
 
 	case cmdCommit:
-		// Check for "commit confirm <N>"
-		if len(args) >= 1 && args[0] == cmdConfirm {
+		// Check for "commit confirmed <N>"
+		if len(args) >= 1 && args[0] == cmdConfirmed {
 			if len(args) < 2 {
-				return commandResult{}, fmt.Errorf("usage: commit confirm <seconds>")
+				return commandResult{}, fmt.Errorf("usage: commit confirmed <seconds>")
 			}
 			seconds, err := strconv.Atoi(args[1])
 			if err != nil {
 				return commandResult{}, fmt.Errorf("invalid seconds: %s", args[1])
 			}
-			return m.cmdCommitConfirm(seconds)
+			return m.cmdCommitConfirmed(seconds)
 		}
 		return m.cmdCommit()
 

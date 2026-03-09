@@ -1,5 +1,5 @@
 # Test: Commit confirm requires seconds argument
-# VALIDATES: "commit confirm" without number fails
+# VALIDATES: "commit confirmed" without number fails
 # PREVENTS: Ambiguous command being accepted
 
 tmpfs=test.conf:terminator=EOF_CONF
@@ -22,6 +22,6 @@ input=enter
 expect=dirty:true
 
 # Commit confirm without seconds should fail
-input=type:text=commit confirm
+input=type:text=commit confirmed
 input=enter
 expect=error:contains=usage

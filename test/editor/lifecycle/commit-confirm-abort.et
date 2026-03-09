@@ -1,5 +1,5 @@
 # Test: Commit confirm with abort
-# VALIDATES: Abort after commit confirm rolls back changes
+# VALIDATES: Abort after commit confirmed rolls back changes
 # PREVENTS: Abort not working correctly
 # NOTE: Timer state not tracked in headless mode - check status messages instead
 
@@ -23,7 +23,7 @@ input=enter
 expect=dirty:true
 
 # Commit with confirm
-input=type:text=commit confirm 60
+input=type:text=commit confirmed 60
 input=enter
 expect=status:contains=Confirm within
 

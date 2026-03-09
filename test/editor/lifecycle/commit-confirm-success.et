@@ -23,7 +23,7 @@ input=enter
 expect=dirty:true
 
 # Commit with confirm
-input=type:text=commit confirm 60
+input=type:text=commit confirmed 60
 input=enter
 expect=status:contains=Confirm within
 

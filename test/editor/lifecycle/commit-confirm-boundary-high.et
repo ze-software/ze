@@ -1,5 +1,5 @@
 # Test: Commit confirm rejects invalid seconds (3601)
-# VALIDATES: commit confirm 3601 is invalid (must be <= 3600)
+# VALIDATES: commit confirmed 3601 is invalid (must be <= 3600)
 # BOUNDARY: First invalid above valid range
 
 tmpfs=test.conf:terminator=EOF_CONF
@@ -22,6 +22,6 @@ input=enter
 expect=dirty:true
 
 # Commit confirm 3601 should fail
-input=type:text=commit confirm 3601
+input=type:text=commit confirmed 3601
 input=enter
 expect=error:contains=seconds

@@ -429,6 +429,9 @@ func (m Model) renderHelpOverlay(base string) string {
   show                 Display configuration (scrollable)
   compare              Show diff vs original
   commit               Save changes with backup
+  commit confirmed <N> Save with auto-revert after N seconds
+  confirm              Make pending commit permanent
+  abort                Cancel pending commit and roll back
   discard              Revert all changes
   history              List backup files
   rollback <N>         Restore backup N

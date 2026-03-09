@@ -77,8 +77,9 @@ type Model struct {
 	// Quit confirmation state
 	confirmQuit bool // True if waiting for y/n/Esc to confirm quit
 
-	// Commit confirm state
+	// Commit confirmed state (VyOS-style commit with auto-revert)
 	confirmTimerActive bool   // True if waiting for confirm/abort
+	confirmSecondsLeft int    // Countdown seconds remaining
 	confirmBackupPath  string // Path to backup for rollback on timeout/abort
 
 	// Paste mode state (for load terminal ...)
@@ -110,28 +111,29 @@ const validationDebounce = 100 * time.Millisecond
 
 // Command names (used in multiple switch statements).
 const (
-	cmdSet      = "set"
-	cmdShow     = "show"
-	cmdDelete   = "delete"
-	cmdCompare  = "compare"
-	cmdEdit     = "edit"
-	cmdCommit   = "commit"
-	cmdConfirm  = "confirm"
-	cmdAbort    = "abort"
-	cmdDiscard  = "discard"
-	cmdHistory  = "history"
-	cmdRollback = "rollback"
-	cmdLoad     = "load"
-	cmdErrors   = "errors"
-	cmdTop      = "top"
-	cmdUp       = "up"
-	cmdExit     = "exit"
-	cmdQuit     = "quit"
-	cmdHelp     = "help"
-	cmdCommand  = "command"
-	cmdGrep     = "grep"
-	cmdHead     = "head"
-	cmdTail     = "tail"
+	cmdSet       = "set"
+	cmdShow      = "show"
+	cmdDelete    = "delete"
+	cmdCompare   = "compare"
+	cmdEdit      = "edit"
+	cmdCommit    = "commit"
+	cmdConfirm   = "confirm"
+	cmdConfirmed = "confirmed"
+	cmdAbort     = "abort"
+	cmdDiscard   = "discard"
+	cmdHistory   = "history"
+	cmdRollback  = "rollback"
+	cmdLoad      = "load"
+	cmdErrors    = "errors"
+	cmdTop       = "top"
+	cmdUp        = "up"
+	cmdExit      = "exit"
+	cmdQuit      = "quit"
+	cmdHelp      = "help"
+	cmdCommand   = "command"
+	cmdGrep      = "grep"
+	cmdHead      = "head"
+	cmdTail      = "tail"
 )
 
 // Load command keywords.
@@ -154,10 +156,11 @@ type commandResult struct {
 	showHelp      bool          // Show help overlay
 	revalidate    bool          // Trigger re-validation after command
 
-	// Commit confirm state (must be propagated through result, not set directly on model)
-	setConfirmTimer   bool   // True to set confirmTimerActive
-	confirmTimerValue bool   // Value to set confirmTimerActive to
-	confirmBackupPath string // Backup path for rollback (empty to clear)
+	// Commit confirmed state (must be propagated through result, not set directly on model)
+	setConfirmTimer       bool   // True to set confirmTimerActive
+	confirmTimerValue     bool   // Value to set confirmTimerActive to
+	confirmBackupPath     string // Backup path for rollback (empty to clear)
+	startConfirmCountdown int    // Seconds for countdown timer (0 = no countdown)
 
 	// Paste mode state (for load terminal ...)
 	enterPasteMode    bool   // True to enter paste mode
@@ -180,6 +183,9 @@ type (
 	// validationTickMsg triggers debounced validation.
 	// The id field is used to ignore stale ticks.
 	validationTickMsg struct{ id int }
+
+	// confirmCountdownMsg fires every second during a "commit confirmed" window.
+	confirmCountdownMsg struct{}
 )
 
 // NewModel creates a new editor model.
@@ -274,6 +280,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.runValidation()
 		}
 		return m, nil
+
+	case confirmCountdownMsg:
+		return m.handleConfirmCountdown()
 	}
 
 	m.textInput, cmd = m.textInput.Update(msg)
@@ -432,6 +441,14 @@ func (m Model) handleCommandResult(msg commandResultMsg) (tea.Model, tea.Cmd) {
 	if r.setConfirmTimer {
 		m.confirmTimerActive = r.confirmTimerValue
 		m.confirmBackupPath = r.confirmBackupPath
+	}
+
+	// Start countdown timer if requested
+	if r.startConfirmCountdown > 0 {
+		m.confirmSecondsLeft = r.startConfirmCountdown
+		return m, tea.Tick(time.Second, func(_ time.Time) tea.Msg {
+			return confirmCountdownMsg{}
+		})
 	}
 
 	// Apply paste mode state
@@ -863,5 +880,8 @@ func (m *Model) ApplyResult(r commandResult) {
 	if r.setConfirmTimer {
 		m.confirmTimerActive = r.confirmTimerValue
 		m.confirmBackupPath = r.confirmBackupPath
+	}
+	if r.startConfirmCountdown > 0 {
+		m.confirmSecondsLeft = r.startConfirmCountdown
 	}
 }

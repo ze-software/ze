@@ -1,5 +1,5 @@
 # Test: Commit confirm accepts minimum valid seconds (1)
-# VALIDATES: commit confirm 1 is valid (minimum)
+# VALIDATES: commit confirmed 1 is valid (minimum)
 # BOUNDARY: Last valid at lower boundary
 
 tmpfs=test.conf:terminator=EOF_CONF
@@ -22,7 +22,7 @@ input=enter
 expect=dirty:true
 
 # Commit confirm 1 should succeed
-input=type:text=commit confirm 1
+input=type:text=commit confirmed 1
 input=enter
 expect=status:contains=Confirm within
 expect=error:none

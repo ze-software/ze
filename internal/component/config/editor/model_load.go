@@ -8,13 +8,27 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
-// --- Phase 2: New Editor Features ---
+// --- Commit Confirmed (VyOS-style safe commit with auto-revert) ---
+//
+// Three-file convention:
+//   <config>.edit.conf — working copy being edited
+//   <config>.live.conf — trial config applied during confirm window
+//   <config>.conf      — stable config, restored on timeout/abort
+//
+// Flow:
+//   commit confirmed <N> → backup .conf, write .live.conf, overwrite .conf, start timer
+//   confirm              → delete .live.conf (already permanent in .conf)
+//   timeout/abort        → rollback .conf from backup, delete .live.conf, reload daemon
 
-// cmdCommitConfirm commits with auto-rollback if not confirmed within timeout.
-// RFC 4271 Section 4.2 doesn't specify this, but it's a standard network CLI feature.
-func (m *Model) cmdCommitConfirm(seconds int) (commandResult, error) {
+// cmdCommitConfirmed commits with auto-rollback if not confirmed within timeout.
+// Writes the trial config to .live.conf for audit, then overwrites .conf so the
+// daemon picks it up on reload. The original .conf is preserved in a dated backup.
+func (m *Model) cmdCommitConfirmed(seconds int) (commandResult, error) {
 	// Boundary validation: 1-3600 seconds
 	if seconds < 1 {
 		return commandResult{}, fmt.Errorf("timeout must be at least 1 second")
@@ -29,8 +43,14 @@ func (m *Model) cmdCommitConfirm(seconds int) (commandResult, error) {
 		return commandResult{}, fmt.Errorf("cannot commit: %d validation error(s). Use 'errors' to see details", len(result.Errors))
 	}
 
-	// Save changes (this creates a backup)
+	// Write trial config to .live.conf (audit trail + pending indicator)
+	if err := m.editor.SaveLive(); err != nil {
+		return commandResult{}, err
+	}
+
+	// Save to .conf (creates backup of original, overwrites .conf)
 	if err := m.editor.Save(); err != nil {
+		m.editor.DeleteLive() // Clean up .live.conf on failure
 		return commandResult{}, err
 	}
 
@@ -49,19 +69,23 @@ func (m *Model) cmdCommitConfirm(seconds int) (commandResult, error) {
 	}
 
 	return commandResult{
-		statusMessage:     fmt.Sprintf("Committed%s. Confirm within %d seconds or changes will be rolled back. Use 'confirm' or 'abort'.", reloadWarning, seconds),
-		setConfirmTimer:   true,
-		confirmTimerValue: true,
-		confirmBackupPath: backups[0].Path,
+		statusMessage:         fmt.Sprintf("Committed%s. Confirm within %ds or auto-revert. Use 'confirm' or 'abort'.", reloadWarning, seconds),
+		setConfirmTimer:       true,
+		confirmTimerValue:     true,
+		confirmBackupPath:     backups[0].Path,
+		startConfirmCountdown: seconds,
 	}, nil
 }
 
-// cmdConfirm confirms a pending commit, making changes permanent.
-// Triggers daemon reload so the confirmed config takes effect.
+// cmdConfirm confirms a pending commit, making the trial config permanent.
+// The .conf already has the new content. We just clean up .live.conf and stop the timer.
 func (m *Model) cmdConfirm() (commandResult, error) {
 	if !m.confirmTimerActive {
 		return commandResult{}, fmt.Errorf("no pending commit to confirm")
 	}
+
+	// Clean up .live.conf — .conf already has the confirmed content
+	m.editor.DeleteLive()
 
 	msg := "Configuration confirmed and saved permanently."
 	if m.editor.HasReloadNotifier() {
@@ -79,13 +103,18 @@ func (m *Model) cmdConfirm() (commandResult, error) {
 }
 
 // cmdAbort aborts a pending commit and rolls back to previous state.
-// Triggers daemon reload so the daemon reverts to the rolled-back config.
+// Restores .conf from backup, deletes .live.conf, notifies daemon.
 func (m *Model) cmdAbort() (commandResult, error) {
 	if !m.confirmTimerActive {
 		return commandResult{}, fmt.Errorf("no pending commit to abort")
 	}
 
-	// Rollback to backup
+	return m.rollbackConfirmed()
+}
+
+// rollbackConfirmed performs the actual rollback for both abort and timeout.
+func (m *Model) rollbackConfirmed() (commandResult, error) {
+	// Rollback .conf from backup
 	if m.confirmBackupPath != "" {
 		if err := m.editor.Rollback(m.confirmBackupPath); err != nil {
 			return commandResult{
@@ -96,7 +125,10 @@ func (m *Model) cmdAbort() (commandResult, error) {
 		}
 	}
 
-	msg := "Changes rolled back to previous state."
+	// Clean up .live.conf
+	m.editor.DeleteLive()
+
+	msg := "Changes rolled back to previous configuration."
 	if m.editor.HasReloadNotifier() {
 		if err := m.editor.NotifyReload(); err != nil {
 			msg = fmt.Sprintf("Changes rolled back (reload failed: %v)", err)
@@ -112,6 +144,32 @@ func (m *Model) cmdAbort() (commandResult, error) {
 		confirmTimerValue: false,
 		confirmBackupPath: "",
 	}, nil
+}
+
+// handleConfirmCountdown processes a countdown tick during a commit confirmed window.
+// Decrements the counter each second, triggers rollback at zero.
+func (m Model) handleConfirmCountdown() (tea.Model, tea.Cmd) {
+	if !m.confirmTimerActive {
+		return m, nil
+	}
+
+	m.confirmSecondsLeft--
+	if m.confirmSecondsLeft <= 0 {
+		// Timeout — auto-revert
+		result, err := m.rollbackConfirmed()
+		if err != nil {
+			m.err = err
+		}
+		m.ApplyResult(result)
+		m.statusMessage = "Timeout: configuration automatically rolled back."
+		return m, nil
+	}
+
+	// Update countdown display
+	m.statusMessage = fmt.Sprintf("Confirm within %ds or auto-revert. Use 'confirm' or 'abort'.", m.confirmSecondsLeft)
+	return m, tea.Tick(time.Second, func(_ time.Time) tea.Msg {
+		return confirmCountdownMsg{}
+	})
 }
 
 // cmdLoad loads configuration from a file, replacing current content.

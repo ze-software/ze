@@ -35,7 +35,7 @@ func TestModelCommitConfirmStartsTimer(t *testing.T) {
 	model.editor.MarkDirty()
 
 	// Execute commit confirm with 60 second timeout
-	result, err := model.cmdCommitConfirm(60)
+	result, err := model.cmdCommitConfirmed(60)
 	require.NoError(t, err)
 
 	// Apply result to model (simulating what Update handler does)
@@ -68,7 +68,7 @@ func TestModelCommitConfirmBoundaryLow(t *testing.T) {
 	model.editor.MarkDirty()
 
 	// 0 seconds should fail
-	_, err = model.cmdCommitConfirm(0)
+	_, err = model.cmdCommitConfirmed(0)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "1", "error should mention minimum")
 }
@@ -93,7 +93,7 @@ func TestModelCommitConfirmBoundaryHigh(t *testing.T) {
 	model.editor.MarkDirty()
 
 	// 3601 seconds should fail
-	_, err = model.cmdCommitConfirm(3601)
+	_, err = model.cmdCommitConfirmed(3601)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "3600", "error should mention maximum")
 }
@@ -118,7 +118,7 @@ func TestModelConfirmCancelsTimer(t *testing.T) {
 	model.editor.MarkDirty()
 
 	// Start commit confirm
-	commitResult, err := model.cmdCommitConfirm(60)
+	commitResult, err := model.cmdCommitConfirmed(60)
 	require.NoError(t, err)
 	model.ApplyResult(commitResult)
 	require.True(t, model.ConfirmTimerActive(), "timer should be active")
@@ -160,7 +160,7 @@ func TestModelAbortRollsBack(t *testing.T) {
 	ed.MarkDirty()
 
 	// Start commit confirm (this saves with backup)
-	commitResult, err := model.cmdCommitConfirm(60)
+	commitResult, err := model.cmdCommitConfirmed(60)
 	require.NoError(t, err)
 	model.ApplyResult(commitResult)
 
@@ -867,7 +867,7 @@ description "merged content";`
 
 // TestCommitConfirmTriggersReload verifies commit confirm notifies daemon.
 //
-// VALIDATES: cmdCommitConfirm calls reload notifier after save.
+// VALIDATES: cmdCommitConfirmed calls reload notifier after save.
 // PREVENTS: Daemon running old config during confirm window.
 func TestCommitConfirmTriggersReload(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -890,7 +890,7 @@ func TestCommitConfirmTriggersReload(t *testing.T) {
 	require.NoError(t, err)
 	model.editor.MarkDirty()
 
-	result, err := model.cmdCommitConfirm(60)
+	result, err := model.cmdCommitConfirmed(60)
 	require.NoError(t, err)
 	model.ApplyResult(result)
 
@@ -921,7 +921,7 @@ func TestCommitConfirmReloadFailsGracefully(t *testing.T) {
 	require.NoError(t, err)
 	model.editor.MarkDirty()
 
-	result, err := model.cmdCommitConfirm(60)
+	result, err := model.cmdCommitConfirmed(60)
 	require.NoError(t, err, "commit confirm should not fail on reload error")
 	model.ApplyResult(result)
 
@@ -955,7 +955,7 @@ func TestConfirmTriggersReload(t *testing.T) {
 	model.editor.MarkDirty()
 
 	// Start commit confirm
-	commitResult, err := model.cmdCommitConfirm(60)
+	commitResult, err := model.cmdCommitConfirmed(60)
 	require.NoError(t, err)
 	model.ApplyResult(commitResult)
 	assert.Equal(t, 1, reloadCount, "first reload during commit-confirm")
@@ -996,7 +996,7 @@ func TestAbortTriggersReload(t *testing.T) {
 	model.editor.MarkDirty()
 
 	// Start commit confirm
-	commitResult, err := model.cmdCommitConfirm(60)
+	commitResult, err := model.cmdCommitConfirmed(60)
 	require.NoError(t, err)
 	model.ApplyResult(commitResult)
 	assert.Equal(t, 1, reloadCount, "first reload during commit-confirm")
