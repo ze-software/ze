@@ -306,6 +306,55 @@ func TestModeScrollRestore(t *testing.T) {
 	}
 }
 
+func TestTabOnCommonPrefixShowsDropdown(t *testing.T) {
+	// VALIDATES: Tab on common prefix applies partial completion and shows dropdown.
+	// PREVENTS: Tab completing "edit peer 12" to "127.0.0. " (with space) and no dropdown,
+	//           leaving user with an invalid partial token and no way to pick between matches.
+	m := newTestModel(t)
+	m.SetCommandCompleter(NewCommandCompleter(&CommandNode{
+		Children: map[string]*CommandNode{
+			"edit": {Name: "edit", Children: map[string]*CommandNode{
+				"peer": {Name: "peer", Children: map[string]*CommandNode{
+					"127.0.0.1": {Name: "127.0.0.1", Description: "Peer 1"},
+					"127.0.0.2": {Name: "127.0.0.2", Description: "Peer 2"},
+				}},
+			}},
+		},
+	}))
+
+	m.SwitchMode(ModeCommand)
+	m.textInput.SetValue("edit peer 12")
+	m.UpdateCompletions()
+
+	// Precondition: ghost text is the common prefix tail, multiple completions
+	if m.GhostText() != "7.0.0." {
+		t.Fatalf("expected ghost text '7.0.0.', got %q", m.GhostText())
+	}
+	if len(m.Completions()) != 2 {
+		t.Fatalf("expected 2 completions, got %d", len(m.Completions()))
+	}
+
+	// Press Tab — should apply common prefix WITHOUT trailing space, and show dropdown
+	newModel, _ := m.handleTab()
+	updated, ok := newModel.(Model)
+	if !ok {
+		t.Fatal("expected Model from handleTab")
+	}
+
+	// Input should end with the common prefix, no trailing space
+	if updated.InputValue() != "edit peer 127.0.0." {
+		t.Errorf("expected 'edit peer 127.0.0.', got %q", updated.InputValue())
+	}
+
+	// Dropdown should be visible with both peer options
+	if !updated.ShowDropdown() {
+		t.Error("dropdown should be visible after Tab on common prefix")
+	}
+	if len(updated.Completions()) != 2 {
+		t.Errorf("expected 2 completions in dropdown, got %d", len(updated.Completions()))
+	}
+}
+
 // newTestModel creates a minimal Model for mode tests.
 func newTestModel(t *testing.T) *Model {
 	t.Helper()

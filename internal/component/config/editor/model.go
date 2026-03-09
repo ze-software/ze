@@ -454,10 +454,22 @@ func (m Model) handleTab() (tea.Model, tea.Cmd) {
 	}
 
 	if m.ghostText != "" && !m.showDropdown {
-		// Accept ghost text
-		m.textInput.SetValue(m.textInput.Value() + m.ghostText + " ")
-		m.textInput.CursorEnd()
-		m.updateCompletions()
+		// Accept ghost text (common prefix of multiple matches, or single match)
+		if len(m.completions) > 1 {
+			// Multiple matches: apply common prefix without trailing space, show dropdown
+			m.textInput.SetValue(m.textInput.Value() + m.ghostText)
+			m.textInput.CursorEnd()
+			m.updateCompletions()
+			if len(m.completions) > 1 {
+				m.showDropdown = true
+				m.selected = 0
+			}
+		} else {
+			// Single match: apply full completion with trailing space
+			m.textInput.SetValue(m.textInput.Value() + m.ghostText + " ")
+			m.textInput.CursorEnd()
+			m.updateCompletions()
+		}
 		return m, nil
 	}
 
