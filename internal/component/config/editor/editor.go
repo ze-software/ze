@@ -42,7 +42,6 @@ type Editor struct {
 type BackupInfo struct {
 	Path      string
 	Timestamp time.Time
-	Number    int
 }
 
 // NewEditor creates a new editor for the given configuration file.
@@ -291,6 +290,29 @@ func (e *Editor) SetWorkingContent(content string) {
 	}
 }
 
+// OriginalContentAtPath returns the serialized content from the original (on-disk)
+// config at the given context path. Re-parses originalContent on each call (config
+// files are small, and this is only called on user interaction, not hot path).
+// Returns empty string if path doesn't resolve in the original config.
+func (e *Editor) OriginalContentAtPath(path []string) string {
+	if len(path) == 0 {
+		return e.originalContent
+	}
+	if e.schema == nil {
+		return ""
+	}
+	parser := config.NewParser(e.schema)
+	origTree, err := parser.Parse(e.originalContent)
+	if err != nil {
+		return ""
+	}
+	subtree, schemaNode := e.walkPathWithSchemaFrom(origTree, path)
+	if subtree == nil || schemaNode == nil {
+		return ""
+	}
+	return config.SerializeSubtree(subtree, schemaNode)
+}
+
 // ContentAtPath returns the serialized content at the given context path.
 // If path is empty, returns the full WorkingContent().
 // If the path doesn't resolve, falls back to full content.
@@ -315,14 +337,20 @@ type schemaGetter interface {
 	Get(name string) config.Node
 }
 
-// walkPathWithSchema navigates tree and schema in parallel, returning both
-// the subtree and the schema node at the destination.
+// walkPathWithSchema navigates the working tree and schema in parallel.
 func (e *Editor) walkPathWithSchema(path []string) (*config.Tree, config.Node) {
-	if e.tree == nil || e.schema == nil || len(path) == 0 {
+	return e.walkPathWithSchemaFrom(e.tree, path)
+}
+
+// walkPathWithSchemaFrom navigates an arbitrary tree and schema in parallel,
+// returning both the subtree and the schema node at the destination.
+// Used by ContentAtPath (working tree) and OriginalContentAtPath (re-parsed original tree).
+func (e *Editor) walkPathWithSchemaFrom(tree *config.Tree, path []string) (*config.Tree, config.Node) {
+	if tree == nil || e.schema == nil || len(path) == 0 {
 		return nil, nil
 	}
 
-	currentTree := e.tree
+	currentTree := tree
 	var currentSchema schemaGetter = e.schema
 
 	i := 0
@@ -689,7 +717,7 @@ func (e *Editor) Save() error {
 	}
 
 	// Create backup of original
-	if _, err := e.createBackup(); err != nil {
+	if err := e.createBackup(); err != nil {
 		return fmt.Errorf("failed to create backup: %w", err)
 	}
 
@@ -781,63 +809,50 @@ func computeDiff(original, modified string) string {
 	return diff.String()
 }
 
-// createBackup creates a backup of the original file.
-func (e *Editor) createBackup() (string, error) {
-	dir := filepath.Dir(e.originalPath)
+// rollbackDir returns the rollback subdirectory for storing config snapshots.
+// Junos-style: backups live in a dedicated rollback/ folder alongside the config.
+func (e *Editor) rollbackDir() string {
+	return filepath.Join(filepath.Dir(e.originalPath), "rollback")
+}
+
+// createBackup creates a backup of the original file in the rollback/ subdirectory.
+// Filename uses a full timestamp (YYYYMMDD-HHMMSS.mmm) for natural date ordering.
+func (e *Editor) createBackup() error {
 	base := filepath.Base(e.originalPath)
 	ext := filepath.Ext(base)
 	name := strings.TrimSuffix(base, ext)
 
-	today := time.Now().Format("2006-01-02")
+	rollback := e.rollbackDir()
+	if err := os.MkdirAll(rollback, 0o700); err != nil {
+		return fmt.Errorf("cannot create rollback directory: %w", err)
+	}
 
-	// Find next number for today
-	num := e.nextBackupNumber(dir, name, today)
-
-	backupPath := filepath.Join(dir, fmt.Sprintf("%s-%s-%d.conf", name, today, num))
+	now := time.Now()
+	stamp := fmt.Sprintf("%s.%03d", now.Format("20060102-150405"), now.Nanosecond()/1e6)
+	backupPath := filepath.Join(rollback, fmt.Sprintf("%s-%s.conf", name, stamp))
 
 	// Copy original content to backup
-	if err := os.WriteFile(backupPath, []byte(e.originalContent), 0o600); err != nil {
-		return "", err
-	}
-
-	return backupPath, nil
+	return os.WriteFile(backupPath, []byte(e.originalContent), 0o600)
 }
 
-// nextBackupNumber finds the next backup number for the given date.
-func (e *Editor) nextBackupNumber(dir, name, date string) int {
-	pattern := filepath.Join(dir, fmt.Sprintf("%s-%s-*.conf", name, date))
-	matches, _ := filepath.Glob(pattern)
-
-	maxNum := 0
-	re := regexp.MustCompile(`-(\d+)\.conf$`)
-
-	for _, match := range matches {
-		if m := re.FindStringSubmatch(match); len(m) > 1 {
-			if n, err := strconv.Atoi(m[1]); err == nil && n > maxNum {
-				maxNum = n
-			}
-		}
-	}
-
-	return maxNum + 1
-}
-
-// ListBackups returns available backup files, sorted by date descending.
+// ListBackups returns available backup files, sorted by timestamp descending.
+// Looks in the rollback/ subdirectory for date-stamped config snapshots.
 func (e *Editor) ListBackups() ([]BackupInfo, error) {
-	dir := filepath.Dir(e.originalPath)
 	base := filepath.Base(e.originalPath)
 	ext := filepath.Ext(base)
 	name := strings.TrimSuffix(base, ext)
 
-	// Pattern: name-YYYY-MM-DD-N.conf
-	pattern := filepath.Join(dir, fmt.Sprintf("%s-????-??-??-*.conf", name))
+	rollback := e.rollbackDir()
+
+	// Pattern: rollback/name-YYYYMMDD-HHMMSS.mmm.conf
+	pattern := filepath.Join(rollback, fmt.Sprintf("%s-????????-??????.???.conf", name))
 	matches, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil, err
 	}
 
 	backups := make([]BackupInfo, 0, len(matches))
-	re := regexp.MustCompile(`-(\d{4}-\d{2}-\d{2})-(\d+)\.conf$`)
+	re := regexp.MustCompile(`-(\d{8}-\d{6})\.(\d{3})\.conf$`)
 
 	for _, path := range matches {
 		m := re.FindStringSubmatch(path)
@@ -845,31 +860,23 @@ func (e *Editor) ListBackups() ([]BackupInfo, error) {
 			continue
 		}
 
-		dateStr := m[1]
-		numStr := m[2]
-
-		ts, err := time.Parse("2006-01-02", dateStr)
+		ts, err := time.ParseInLocation("20060102-150405", m[1], time.Local)
 		if err != nil {
 			continue
 		}
 
-		num, err := strconv.Atoi(numStr)
-		if err != nil {
-			continue
-		}
+		// Add milliseconds back to timestamp
+		ms, _ := strconv.Atoi(m[2])
+		ts = ts.Add(time.Duration(ms) * time.Millisecond)
 
 		backups = append(backups, BackupInfo{
 			Path:      path,
 			Timestamp: ts,
-			Number:    num,
 		})
 	}
 
-	// Sort by timestamp descending, then number descending
+	// Sort by timestamp descending (newest first)
 	sort.Slice(backups, func(i, j int) bool {
-		if backups[i].Timestamp.Equal(backups[j].Timestamp) {
-			return backups[i].Number > backups[j].Number
-		}
 		return backups[i].Timestamp.After(backups[j].Timestamp)
 	})
 
@@ -914,11 +921,17 @@ func (e *Editor) DeleteLive() {
 }
 
 // Rollback restores the configuration from a backup file.
+// Creates a backup of the current config first, so the rollback itself can be undone.
 func (e *Editor) Rollback(backupPath string) error {
 	// Read backup content
 	data, err := os.ReadFile(backupPath) //nolint:gosec // Backup path from ListBackups
 	if err != nil {
 		return fmt.Errorf("cannot read backup: %w", err)
+	}
+
+	// Backup current config before overwriting — rollback is itself reversible
+	if err := e.createBackup(); err != nil {
+		return fmt.Errorf("cannot backup current config before rollback: %w", err)
 	}
 
 	// Write to original path

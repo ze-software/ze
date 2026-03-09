@@ -1,0 +1,27 @@
+# Test: ze config dump masks sensitive values with $9$ encoding
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1;
+	local-as 65533;
+	peer 10.0.0.3 {
+		peer-as 65534;
+		md5-password abc123;
+	}
+}
+EOF_CONF
+
+tmpfs=test.conf:terminator=EOF_FILE
+bgp {
+	router-id 10.0.0.1;
+	local-as 65533;
+	peer 10.0.0.3 {
+		peer-as 65534;
+		md5-password abc123;
+	}
+}
+EOF_FILE
+
+cmd=foreground:seq=1:exec=ze config dump test.conf
+expect=exit:code=0
+expect=stdout:contains=router-id
+expect=stdout:contains=$9$

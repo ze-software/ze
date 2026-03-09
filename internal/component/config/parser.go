@@ -11,6 +11,8 @@ package config
 import (
 	"fmt"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config/secret"
 )
 
 // KeyDefault is the key used for anonymous list entries (e.g., "api { ... }").
@@ -109,6 +111,7 @@ func (p *Parser) parseNode(tree *Tree, name string, node Node) error {
 }
 
 // parseLeaf parses a leaf value: `name value;`.
+// Sensitive leaves accept $9$-encoded values and decode them to plaintext.
 func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 	tok := p.tok.Peek()
 
@@ -120,7 +123,16 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 		return p.errorf(tok, "expected value for %s, got %s", name, tok.Type)
 	}
 
-	// Validate value type
+	// Decode $9$-encoded values on sensitive leaves
+	if node.Sensitive && secret.IsEncoded(value) {
+		decoded, err := secret.Decode(value)
+		if err != nil {
+			return p.errorf(tok, "invalid $9$ encoding for %s: %v", name, err)
+		}
+		value = decoded
+	}
+
+	// Validate value type (works on decoded plaintext too)
 	if err := ValidateValue(node.Type, value); err != nil {
 		return p.errorf(tok, "invalid value for %s: %v", name, err)
 	}

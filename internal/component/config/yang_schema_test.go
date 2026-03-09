@@ -59,6 +59,34 @@ func TestYANGSchemaLeafTypes(t *testing.T) {
 		"router-id should be TypeIPv4 or TypeString, got %v", leaf.Type)
 }
 
+func TestYANGSchemaSensitiveExtension(t *testing.T) {
+	schema := YANGSchema()
+	require.NotNil(t, schema)
+
+	bgpNode := schema.Get("bgp")
+	require.NotNil(t, bgpNode)
+	bgp, ok := bgpNode.(*ContainerNode)
+	require.True(t, ok)
+	peerNode := bgp.Get("peer")
+	require.NotNil(t, peerNode)
+	peer, ok := peerNode.(*ListNode)
+	require.True(t, ok)
+
+	// md5-password should be marked sensitive
+	md5 := peer.Get("md5-password")
+	require.NotNil(t, md5, "peer should have md5-password")
+	md5Leaf, ok := md5.(*LeafNode)
+	require.True(t, ok, "md5-password should be LeafNode")
+	assert.True(t, md5Leaf.Sensitive, "md5-password should be marked sensitive")
+
+	// peer-as should NOT be sensitive
+	peerAS := peer.Get("peer-as")
+	require.NotNil(t, peerAS, "peer should have peer-as")
+	peerASLeaf, ok := peerAS.(*LeafNode)
+	require.True(t, ok)
+	assert.False(t, peerASLeaf.Sensitive, "peer-as should not be sensitive")
+}
+
 func TestYANGSchemaSyntaxHints(t *testing.T) {
 	schema := YANGSchema()
 	require.NotNil(t, schema)

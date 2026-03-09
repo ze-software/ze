@@ -220,7 +220,7 @@ func TestYANGRibAPIRPCs(t *testing.T) {
 
 	expectedRPCs := []string{
 		"help", "command-list", "command-help", "command-complete", "event-list",
-		"show-in", "clear-in", "show-out", "clear-out",
+		"show-in", "clear-in", "show-out", "clear-out", "show-best", "best-status",
 	}
 
 	rpcNames := make(map[string]bool)
@@ -330,7 +330,7 @@ func TestExtractRPCs(t *testing.T) {
 			module: "ze-rib-api",
 			wantRPCs: []string{
 				"help", "command-list", "command-help", "command-complete", "event-list",
-				"show-in", "clear-in", "show-out", "clear-out",
+				"show-in", "clear-in", "show-out", "clear-out", "show-best", "best-status",
 			},
 		},
 		{

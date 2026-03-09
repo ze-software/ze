@@ -241,13 +241,25 @@ func getKeyTypeExtension(entry *gyang.Entry) ValueType {
 	return TypePrefix // Default for route-like lists
 }
 
+// hasSensitiveExtension checks if a YANG entry has the ze:sensitive extension.
+func hasSensitiveExtension(entry *gyang.Entry) bool {
+	for _, ext := range entry.Exts {
+		if ext.Keyword == "ze:sensitive" || strings.HasSuffix(ext.Keyword, ":sensitive") {
+			return true
+		}
+	}
+	return false
+}
+
 // yangToLeaf converts YANG leaf to LeafNode.
 func yangToLeaf(entry *gyang.Entry) *LeafNode {
 	typ := yangTypeToValueType(entry.Type)
+	node := Leaf(typ)
 	if len(entry.Default) > 0 {
-		return LeafWithDefault(typ, entry.Default[0])
+		node.Default = entry.Default[0]
 	}
-	return Leaf(typ)
+	node.Sensitive = hasSensitiveExtension(entry)
+	return node
 }
 
 // yangToContainer converts YANG container to ContainerNode.

@@ -58,6 +58,42 @@ func (t ValueType) String() string {
 	}
 }
 
+// DisplayMode controls how sensitive values are shown in output.
+type DisplayMode int
+
+const (
+	// DisplayEncode shows sensitive values as $9$-encoded (default).
+	DisplayEncode DisplayMode = iota
+	// DisplayStrip replaces sensitive values with /* SECRET-DATA */.
+	DisplayStrip
+	// DisplayPlain shows sensitive values as plaintext (internal use).
+	DisplayPlain
+)
+
+// SecretDataPlaceholder is the replacement text for stripped sensitive values.
+const SecretDataPlaceholder = "/* SECRET-DATA */" //nolint:gosec // not a credential
+
+// SensitiveKeys walks a schema tree and returns all leaf names marked ze:sensitive.
+func SensitiveKeys(schema *Schema) map[string]bool {
+	keys := make(map[string]bool)
+	collectSensitiveKeys(schema.root, keys)
+	return keys
+}
+
+func collectSensitiveKeys(node Node, keys map[string]bool) {
+	cp, ok := node.(childProvider)
+	if !ok {
+		return
+	}
+	for _, name := range cp.Children() {
+		child := cp.Get(name)
+		if leaf, ok := child.(*LeafNode); ok && leaf.Sensitive {
+			keys[name] = true
+		}
+		collectSensitiveKeys(child, keys)
+	}
+}
+
 // NodeKind represents the kind of schema node.
 type NodeKind int
 
@@ -77,8 +113,9 @@ type Node interface {
 
 // LeafNode represents a terminal value.
 type LeafNode struct {
-	Type    ValueType
-	Default string
+	Type      ValueType
+	Default   string
+	Sensitive bool // ze:sensitive — value is a password/key, masked in display
 }
 
 func (n *LeafNode) Kind() NodeKind { return NodeLeaf }

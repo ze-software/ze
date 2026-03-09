@@ -243,6 +243,7 @@ module ze-bgp-conf {
 
         leaf md5-password {
             type string;
+            ze:sensitive;
             description "MD5 authentication password";
         }
 

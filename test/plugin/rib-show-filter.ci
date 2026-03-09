@@ -1,0 +1,137 @@
+# Test: RIB show filter dispatch wiring
+#
+# Flow:
+# 1. BGP session establishes, rib plugin sends EOR
+# 2. Python test plugin dispatches rib show commands with filter args
+# 3. Verifies community, regexp, combined filters reach rib plugin correctly
+# 4. Verifies invalid regexp returns error status
+# 5. Shuts down daemon via dispatch-command
+#
+# VALIDATES: Filter parameters are dispatched through the full command chain
+#   (dispatch-command → tokenizer → longest-match → execute-command → parseShowFilters).
+# PREVENTS: Filter args silently dropped or command routing broken.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+
+# ze sends EOR after session setup (no static routes configured)
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: exercises dispatch-command with filter args
+tmpfs=rib-filter-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""
+Test: RIB show filter dispatch wiring
+
+Verifies dispatch-command with community and regexp filter args
+reaches the rib plugin handler and returns valid responses.
+Empty RIB is expected — the test proves wiring, not filtering logic
+(unit tests cover filtering).
+"""
+
+import sys
+import time
+
+from ze_api import API
+
+
+def dispatch(api, command):
+    """Call dispatch-command and return result dict."""
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+
+def check(label, result, expected_status):
+    """Assert result status matches expected, exit on failure."""
+    actual = result.get('status')
+    if actual != expected_status:
+        sys.exit(1)
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for BGP session to establish and rib plugin to be ready
+    time.sleep(2.0)
+
+    # Community filter on empty RIB — done (not error)
+    check('community', dispatch(api, 'rib show in community 65000:100'), 'done')
+
+    # Regexp filter on empty RIB — done (not error)
+    check('regexp', dispatch(api, 'rib show in regexp "64501"'), 'done')
+
+    # Best path with community filter — done
+    check('best+community', dispatch(api, 'rib show best community 65000:100'), 'done')
+
+    # Combined family + community filter — done
+    check('family+community', dispatch(api, 'rib show in ipv4/unicast community 65000:100'), 'done')
+
+    # Invalid regexp — error
+    check('invalid-regexp', dispatch(api, 'rib show in regexp "[invalid"'), 'error')
+
+    # All passed — shutdown daemon
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external filter-test {
+		run ./rib-filter-test.run;
+		encoder json;
+	}
+	external rib {
+		run "ze plugin bgp-rib";
+		encoder json;
+	}
+}
+
+environment {
+	tcp {
+		attempts 3;
+	}
+}
+
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
+		connection active;
+		group-updates disable;
+
+		family {
+			ipv4/unicast;
+		}
+		capability {
+			graceful-restart disable;
+		}
+		process filter-test {
+		}
+		process rib {
+			receive [ state ];
+			send [ update ];
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0

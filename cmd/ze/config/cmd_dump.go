@@ -7,20 +7,24 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/secret"
 )
 
 func cmdDump(args []string) int {
 	fs := flag.NewFlagSet("config dump", flag.ExitOnError)
 	jsonOutput := fs.Bool("json", false, "output as JSON")
+	stripPrivate := fs.Bool("strip-private", false, "replace sensitive values with /* SECRET-DATA */")
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze config dump [options] <config>
 
 Dump parsed configuration in human-readable or JSON format.
-Useful for debugging config parsing issues.
+Sensitive values (passwords, keys) are displayed as $9$-encoded by default.
+Use --strip-private to replace them with /* SECRET-DATA */ for sharing.
 Use - to read from stdin.
 
 Options:
@@ -72,10 +76,17 @@ Options:
 		return 1
 	}
 
+	mode := config.DisplayEncode
+	if *stripPrivate {
+		mode = config.DisplayStrip
+	}
+	sensitiveKeys := config.SensitiveKeys(schema)
+
 	if *jsonOutput {
 		// Build full dump with resolved BGP section.
 		dumpMap := tree.ToMap()
 		dumpMap["bgp"] = bgpTree
+		maskMapValues(dumpMap, sensitiveKeys, mode)
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		if err := enc.Encode(dumpMap); err != nil {
@@ -85,11 +96,45 @@ Options:
 		return 0
 	}
 
-	printConfig(bgpTree, tree)
+	printConfig(bgpTree, tree, sensitiveKeys, mode)
 	return 0
 }
 
-func printConfig(bgpTree map[string]any, tree *config.Tree) {
+// maskMapValues recursively replaces sensitive values in a map.
+func maskMapValues(m map[string]any, sensitiveKeys map[string]bool, mode config.DisplayMode) {
+	if mode == config.DisplayPlain {
+		return
+	}
+	for k, v := range m {
+		switch val := v.(type) {
+		case map[string]any:
+			maskMapValues(val, sensitiveKeys, mode)
+		case string:
+			if sensitiveKeys[k] {
+				m[k] = maskValue(val, mode)
+			}
+		}
+	}
+}
+
+// maskValue applies the display mode to a sensitive value.
+func maskValue(v string, mode config.DisplayMode) string {
+	switch mode {
+	case config.DisplayStrip:
+		return config.SecretDataPlaceholder
+	case config.DisplayEncode:
+		encoded, err := secret.Encode(v)
+		if err != nil {
+			slog.Debug("secret encode failed", "error", err)
+			return config.SecretDataPlaceholder
+		}
+		return encoded
+	default:
+		return v
+	}
+}
+
+func printConfig(bgpTree map[string]any, tree *config.Tree, sensitiveKeys map[string]bool, mode config.DisplayMode) {
 	// Global BGP settings.
 	for _, key := range []string{"router-id", "local-as", "listen"} {
 		if v, ok := bgpTree[key]; ok {
@@ -106,7 +151,7 @@ func printConfig(bgpTree map[string]any, tree *config.Tree) {
 			continue
 		}
 		fmt.Printf("peer %s:\n", addr)
-		printTreeMap(peer, "  ")
+		printTreeMap(peer, "  ", sensitiveKeys, mode)
 		fmt.Println()
 	}
 
@@ -129,14 +174,18 @@ func printConfig(bgpTree map[string]any, tree *config.Tree) {
 }
 
 // printTreeMap prints a map[string]any tree in a readable key-value format.
-func printTreeMap(m map[string]any, indent string) {
+func printTreeMap(m map[string]any, indent string, sensitiveKeys map[string]bool, mode config.DisplayMode) {
 	for k, v := range m {
 		switch val := v.(type) {
 		case map[string]any:
 			fmt.Printf("%s%s:\n", indent, k)
-			printTreeMap(val, indent+"  ")
+			printTreeMap(val, indent+"  ", sensitiveKeys, mode)
 		default:
-			fmt.Printf("%s%s: %v\n", indent, k, val)
+			display := fmt.Sprintf("%v", val)
+			if sensitiveKeys[k] {
+				display = maskValue(display, mode)
+			}
+			fmt.Printf("%s%s: %s\n", indent, k, display)
 		}
 	}
 }

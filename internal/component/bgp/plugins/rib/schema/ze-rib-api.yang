@@ -69,6 +69,8 @@ module ze-rib-api {
         input {
             leaf peer { type zt:ip-address; description "Filter by peer"; }
             leaf family { type zt:address-family; description "Filter by address family"; }
+            leaf community { type string; description "Filter by community (high:low format, e.g. 65000:100)"; }
+            leaf regexp { type string; description "Filter by AS-path regexp (matched against space-separated ASNs)"; }
         }
         output {
             leaf route-count { type uint32; description "Number of routes"; }
@@ -99,6 +101,27 @@ module ze-rib-api {
         input {
             leaf peer { type zt:ip-address; description "Filter by peer"; }
             leaf family { type zt:address-family; description "Filter by address family"; }
+        }
+    }
+
+    rpc show-best {
+        description "Show best-path per prefix (RFC 4271 §9.1.2)";
+        input {
+            leaf peer { type zt:ip-address; description "Filter by peer"; }
+            leaf family { type zt:address-family; description "Filter by address family"; }
+            leaf community { type string; description "Filter by community (high:low format, e.g. 65000:100)"; }
+            leaf regexp { type string; description "Filter by AS-path regexp (matched against space-separated ASNs)"; }
+        }
+        output {
+            leaf route-count { type uint32; description "Number of best paths"; }
+        }
+    }
+
+    rpc best-status {
+        description "Show best-path computation status";
+        output {
+            leaf peers-with-rib { type uint32; description "Peers with RIB entries"; }
+            leaf total-routes { type uint32; description "Total routes across all peers"; }
         }
     }
 

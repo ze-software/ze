@@ -53,6 +53,16 @@ module ze-extensions {
                      like 'bgp.routes debug;' for ze.log.bgp.routes=debug.";
     }
 
+    // Extension: sensitive
+    // Marks a leaf as containing sensitive data (passwords, keys).
+    // Sensitive values are displayed as $9$-encoded in config output
+    // and can be replaced with /* SECRET-DATA */ via --strip-private.
+    extension sensitive {
+        description "Marks a leaf as containing sensitive data.
+                     Values are obfuscated in display output using
+                     JunOS-compatible $9$ encoding.";
+    }
+
     // Extension: validate
     // References a registered Go function for runtime validation and completion.
     // Used only when YANG native constraints (enum, pattern, range) are insufficient —
