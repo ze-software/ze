@@ -225,7 +225,7 @@ func TestAtomicWriteFileCreatesCorrectContent(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "output.conf")
 
-	err := atomicWriteFile(path, []byte("hello world"), 0o600)
+	err := atomicWriteFile(path, []byte("hello world"))
 	require.NoError(t, err)
 
 	data, err := os.ReadFile(path)
@@ -247,7 +247,7 @@ func TestAtomicWriteFileOverwritesExisting(t *testing.T) {
 
 	require.NoError(t, os.WriteFile(path, []byte("old content"), 0o600))
 
-	err := atomicWriteFile(path, []byte("new content"), 0o600)
+	err := atomicWriteFile(path, []byte("new content"))
 	require.NoError(t, err)
 
 	data, err := os.ReadFile(path)
@@ -260,7 +260,7 @@ func TestAtomicWriteFileOverwritesExisting(t *testing.T) {
 // VALIDATES: Original file is untouched when temp creation fails.
 // PREVENTS: Data loss when target directory is not writable.
 func TestAtomicWriteFilePreservesOriginalOnDirFailure(t *testing.T) {
-	err := atomicWriteFile("/nonexistent/dir/file.conf", []byte("data"), 0o600)
+	err := atomicWriteFile("/nonexistent/dir/file.conf", []byte("data"))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "create temp file")
 }
@@ -273,7 +273,7 @@ func TestAtomicWriteFileNoTempFileLeftBehind(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "output.conf")
 
-	require.NoError(t, atomicWriteFile(path, []byte("content"), 0o600))
+	require.NoError(t, atomicWriteFile(path, []byte("content")))
 
 	entries, err := os.ReadDir(dir)
 	require.NoError(t, err)

@@ -723,7 +723,7 @@ func (e *Editor) Save() error {
 
 	// Write serialized tree (or raw text fallback) to original path
 	content := e.WorkingContent()
-	if err := atomicWriteFile(e.originalPath, []byte(content), 0o600); err != nil {
+	if err := atomicWriteFile(e.originalPath, []byte(content)); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 
@@ -812,7 +812,7 @@ func computeDiff(original, modified string) string {
 // atomicWriteFile writes data to a file atomically: write to a temp file in the
 // same directory, then rename. On POSIX, rename is atomic — the target path is
 // either the old content or the new content, never a partial write.
-func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
+func atomicWriteFile(path string, data []byte) error {
 	dir := filepath.Dir(path)
 	tmp, err := os.CreateTemp(dir, ".ze-tmp-*")
 	if err != nil {
@@ -829,7 +829,7 @@ func atomicWriteFile(path string, data []byte, perm os.FileMode) error {
 		cleanup()
 		return fmt.Errorf("write temp file: %w", err)
 	}
-	if err := tmp.Chmod(perm); err != nil {
+	if err := tmp.Chmod(0o600); err != nil {
 		cleanup()
 		return fmt.Errorf("chmod temp file: %w", err)
 	}
@@ -970,7 +970,7 @@ func (e *Editor) Rollback(backupPath string) error {
 	}
 
 	// Write to original path
-	if err := atomicWriteFile(e.originalPath, data, 0o600); err != nil {
+	if err := atomicWriteFile(e.originalPath, data); err != nil {
 		return fmt.Errorf("cannot write config: %w", err)
 	}
 
