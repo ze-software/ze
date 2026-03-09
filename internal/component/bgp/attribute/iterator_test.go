@@ -160,6 +160,57 @@ func TestAttrIteratorCount(t *testing.T) {
 	assert.Equal(t, 3, iter.Count())
 }
 
+// TestAttrFind verifies standalone attribute lookup.
+//
+// VALIDATES: AttrFind locates attribute and returns header offset, flags, value.
+// PREVENTS: Regression in zero-alloc attribute lookup.
+func TestAttrFind(t *testing.T) {
+	t.Parallel()
+	data := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN: hdr@0, value=0x00
+		0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x64, // MED: hdr@4, value=100
+		0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0xC8, // LOCAL_PREF: hdr@11, value=200
+	}
+
+	// Find MED.
+	hdrStart, flags, value, found := AttrFind(data, AttrMED)
+	require.True(t, found)
+	assert.Equal(t, 4, hdrStart)
+	assert.Equal(t, AttributeFlags(0x80), flags)
+	assert.Equal(t, []byte{0x00, 0x00, 0x00, 0x64}, value)
+
+	// Find LOCAL_PREF.
+	hdrStart, flags, value, found = AttrFind(data, AttrLocalPref)
+	require.True(t, found)
+	assert.Equal(t, 11, hdrStart)
+	assert.Equal(t, AttributeFlags(0x40), flags)
+	assert.Equal(t, []byte{0x00, 0x00, 0x00, 0xC8}, value)
+
+	// Not found.
+	_, _, _, found = AttrFind(data, AttrCommunity)
+	assert.False(t, found)
+
+	// Empty data.
+	_, _, _, found = AttrFind(nil, AttrOrigin)
+	assert.False(t, found)
+}
+
+// TestAttrFindZeroAlloc verifies AttrFind causes no heap allocations.
+//
+// VALIDATES: Standalone function avoids pointer-receiver escape.
+// PREVENTS: Hidden allocations from method dispatch.
+func TestAttrFindZeroAlloc(t *testing.T) {
+	data := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN
+		0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x64, // MED
+	}
+
+	allocs := testing.AllocsPerRun(100, func() {
+		AttrFind(data, AttrMED)
+	})
+	assert.Equal(t, float64(0), allocs, "AttrFind must be zero-alloc")
+}
+
 // TestAttrIteratorValueSlices verifies returned slices are correct.
 //
 // VALIDATES: Returned slices point to correct buffer regions

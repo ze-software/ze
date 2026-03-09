@@ -29,7 +29,6 @@ func TestRouteAttrIterator(t *testing.T) {
 	route := NewRouteWithWireCache(inet, nextHop, nil, nil, wireBytes, 1)
 
 	iter := route.AttrIterator()
-	require.NotNil(t, iter, "AttrIterator must not return nil when wireBytes present")
 
 	// First: ORIGIN
 	typeCode, _, value, ok := iter.Next()
@@ -48,9 +47,9 @@ func TestRouteAttrIterator(t *testing.T) {
 	assert.False(t, ok)
 }
 
-// TestRouteAttrIteratorNoWireBytes verifies nil when no wireBytes.
+// TestRouteAttrIteratorNoWireBytes verifies empty iterator when no wireBytes.
 //
-// VALIDATES: AttrIterator returns nil when route has no wire cache.
+// VALIDATES: AttrIterator returns zero-value iterator when route has no wire cache.
 // PREVENTS: Panic on routes without wire cache.
 func TestRouteAttrIteratorNoWireBytes(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
@@ -61,7 +60,8 @@ func TestRouteAttrIteratorNoWireBytes(t *testing.T) {
 	route := NewRoute(inet, nextHop, nil)
 
 	iter := route.AttrIterator()
-	assert.Nil(t, iter, "AttrIterator must return nil when no wireBytes")
+	_, _, _, ok := iter.Next()
+	assert.False(t, ok, "AttrIterator must yield nothing when no wireBytes")
 }
 
 // TestRouteASPathIterator verifies Route exposes AS-PATH iterator.
@@ -147,7 +147,6 @@ func TestRouteZeroCopy(t *testing.T) {
 	route := NewRouteWithWireCache(inet, nextHop, nil, nil, wireBytes, 1)
 
 	iter := route.AttrIterator()
-	require.NotNil(t, iter)
 
 	_, _, value, ok := iter.Next()
 	require.True(t, ok)

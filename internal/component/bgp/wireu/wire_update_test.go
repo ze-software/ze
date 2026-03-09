@@ -1071,10 +1071,6 @@ func TestWireUpdate_AttrIterator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AttrIterator() error = %v", err)
 	}
-	if iter == nil {
-		t.Fatal("AttrIterator() returned nil")
-	}
-
 	// First: ORIGIN
 	typeCode, _, value, ok := iter.Next()
 	if !ok {
@@ -1108,7 +1104,7 @@ func TestWireUpdate_AttrIterator(t *testing.T) {
 
 // TestWireUpdate_AttrIteratorEmpty verifies empty attrs returns nil.
 //
-// VALIDATES: Empty attributes section returns nil iterator.
+// VALIDATES: Empty attributes section returns zero-value iterator that yields nothing.
 // PREVENTS: False error on withdraw-only UPDATE.
 func TestWireUpdate_AttrIteratorEmpty(t *testing.T) {
 	payload := []byte{0x00, 0x00, 0x00, 0x00}
@@ -1119,8 +1115,9 @@ func TestWireUpdate_AttrIteratorEmpty(t *testing.T) {
 	if err != nil {
 		t.Errorf("AttrIterator() error = %v, want nil", err)
 	}
-	if iter != nil {
-		t.Error("AttrIterator() should return nil for empty attrs")
+	// Zero-value iterator should yield nothing.
+	if _, _, _, ok := iter.Next(); ok {
+		t.Error("AttrIterator() should yield no attributes for empty attrs")
 	}
 }
 

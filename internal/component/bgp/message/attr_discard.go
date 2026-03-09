@@ -80,7 +80,9 @@ func ApplyAttrDiscard(pathAttrs []byte, entries []DiscardEntry) ([]byte, bool) {
 }
 
 // applyInPlace overwrites a single malformed attribute with ATTR_DISCARD in-place.
-// Returns true if successful, false if the attribute's value length < 2.
+// Returns true if successful, false if the attribute is not found or value length < 2.
+//
+// Zero allocation — uses AttrFind (standalone function, no pointer receiver escape).
 //
 // draft-mangin-idr-attr-discard-00 Section 5.1, steps 1-8:
 //  1. Locate the attribute by code
@@ -92,42 +94,31 @@ func ApplyAttrDiscard(pathAttrs []byte, entries []DiscardEntry) ([]byte, bool) {
 //  7. Zero remaining value bytes
 //  8. Length field unchanged
 func applyInPlace(pathAttrs []byte, entry DiscardEntry) bool {
-	iter := attribute.NewAttrIterator(pathAttrs)
-	for {
-		hdrStart := iter.Offset()
-		typeCode, flags, value, ok := iter.Next()
-		if !ok {
-			return false // Attribute not found.
-		}
-		if uint8(typeCode) == entry.Code {
-			// Found the attribute to discard.
-			if len(value) < 2 {
-				return false // Cannot do in-place overwrite.
-			}
-
-			// Overwrite flags.
-			pathAttrs[hdrStart] = attrDiscardFlags(uint8(flags))
-			// Overwrite type code.
-			pathAttrs[hdrStart+1] = attrCodeAttrDiscard
-			// Write original code and reason into first two value bytes.
-			// value is a subslice of pathAttrs — writes go through to the original buffer.
-			value[0] = entry.Code
-			value[1] = entry.Reason
-			// Zero remaining value bytes.
-			for i := 2; i < len(value); i++ {
-				value[i] = 0
-			}
-			return true
-		}
+	hdrStart, flags, value, found := attribute.AttrFind(pathAttrs, attribute.AttributeCode(entry.Code))
+	if !found || len(value) < 2 {
+		return false
 	}
+
+	// Overwrite flags.
+	pathAttrs[hdrStart] = attrDiscardFlags(uint8(flags))
+	// Overwrite type code.
+	pathAttrs[hdrStart+1] = attrCodeAttrDiscard
+	// Write original code and reason into first two value bytes.
+	// value is a subslice of pathAttrs — writes go through to the original buffer.
+	value[0] = entry.Code
+	value[1] = entry.Reason
+	// Zero remaining value bytes.
+	for i := 2; i < len(value); i++ {
+		value[i] = 0
+	}
+	return true
 }
 
 // ExtractUpstreamAttrDiscard finds an existing ATTR_DISCARD and extracts its (code, reason) pairs.
 // Returns nil if no upstream ATTR_DISCARD is present.
-// Uses AttrIterator.Find to avoid duplicating TLV walk logic.
+// Uses AttrFind (zero allocation when no upstream present — the happy path).
 func ExtractUpstreamAttrDiscard(pathAttrs []byte) []DiscardEntry {
-	iter := attribute.NewAttrIterator(pathAttrs)
-	value, found := iter.Find(attribute.AttributeCode(attrCodeAttrDiscard))
+	_, _, value, found := attribute.AttrFind(pathAttrs, attribute.AttributeCode(attrCodeAttrDiscard))
 	if !found {
 		return nil
 	}
@@ -269,15 +260,13 @@ func rebuildWithAttrDiscard(pathAttrs []byte, localEntries, allEntries []Discard
 // findAttrFlags finds the flags byte for an attribute by its type code.
 // Returns 0 if the attribute is not found (e.g., upstream ATTR_DISCARD entry
 // whose original attribute is no longer in the path attributes section).
-// Uses AttrIterator to avoid duplicating TLV walk logic.
+// Uses AttrFind (zero allocation).
 func findAttrFlags(pathAttrs []byte, code uint8) uint8 {
-	iter := attribute.NewAttrIterator(pathAttrs)
-	for typeCode, flags, _, ok := iter.Next(); ok; typeCode, flags, _, ok = iter.Next() {
-		if uint8(typeCode) == code {
-			return uint8(flags)
-		}
+	_, flags, _, found := attribute.AttrFind(pathAttrs, attribute.AttributeCode(code))
+	if !found {
+		return 0
 	}
-	return 0
+	return uint8(flags)
 }
 
 // RebuildUpdateBody reconstructs an UPDATE message body with new path attributes.

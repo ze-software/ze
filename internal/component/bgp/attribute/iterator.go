@@ -38,8 +38,8 @@ type AttrIterator struct {
 //
 // The iterator does not copy data - it returns []byte slices into the original buffer.
 // Caller must not modify the buffer while iterating.
-func NewAttrIterator(data []byte) *AttrIterator {
-	return &AttrIterator{
+func NewAttrIterator(data []byte) AttrIterator {
+	return AttrIterator{
 		data:   data,
 		offset: 0,
 	}
@@ -123,6 +123,42 @@ func (it *AttrIterator) Count() int {
 
 	it.offset = savedOffset
 	return count
+}
+
+// AttrFind locates the first attribute with the given type code in path attribute wire bytes.
+// Returns header start offset, flags, value subslice, and whether the attribute was found.
+// Zero allocation — standalone function with no pointer receiver, no escape path.
+// Use this instead of NewAttrIterator + Find when only a single lookup is needed.
+func AttrFind(data []byte, code AttributeCode) (hdrStart int, flags AttributeFlags, value []byte, found bool) {
+	offset := 0
+	for offset+3 <= len(data) {
+		f := AttributeFlags(data[offset])
+		tc := AttributeCode(data[offset+1])
+
+		var length, hdrLen int
+		if f&FlagExtLength != 0 {
+			if offset+4 > len(data) {
+				return 0, 0, nil, false
+			}
+			length = int(binary.BigEndian.Uint16(data[offset+2:]))
+			hdrLen = 4
+		} else {
+			length = int(data[offset+2])
+			hdrLen = 3
+		}
+
+		valueStart := offset + hdrLen
+		if valueStart+length > len(data) {
+			return 0, 0, nil, false
+		}
+
+		if tc == code {
+			return offset, f, data[valueStart : valueStart+length], true
+		}
+
+		offset = valueStart + length
+	}
+	return 0, 0, nil, false
 }
 
 // Remaining returns the number of bytes not yet consumed.

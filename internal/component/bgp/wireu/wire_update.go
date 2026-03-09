@@ -229,15 +229,15 @@ func (u *WireUpdate) WithdrawnIterator(addPath bool) (*nlri.NLRIIterator, error)
 }
 
 // AttrIterator returns an iterator over the Path Attributes section.
-// Returns (nil, nil) if attributes section is empty.
-// Returns (nil, error) if payload is malformed.
-func (u *WireUpdate) AttrIterator() (*attribute.AttrIterator, error) {
+// Returns zero-value iterator (yields nothing) if attributes section is empty.
+// Returns error if payload is malformed.
+func (u *WireUpdate) AttrIterator() (attribute.AttrIterator, error) {
 	attrs, err := u.Attrs()
 	if err != nil {
-		return nil, err
+		return attribute.AttrIterator{}, err
 	}
 	if attrs == nil {
-		return nil, nil //nolint:nilnil // nil,nil = valid empty
+		return attribute.AttrIterator{}, nil
 	}
 	return attribute.NewAttrIterator(attrs.Packed()), nil
 }

@@ -166,7 +166,7 @@ type AttrIterator struct {
     offset int
 }
 
-func NewAttrIterator(data []byte) *AttrIterator
+func NewAttrIterator(data []byte) AttrIterator  // value return — stack-allocated
 
 // Next returns the next attribute
 // Returns (0, 0, nil, false) when exhausted
@@ -174,6 +174,9 @@ func (it *AttrIterator) Next() (typeCode uint8, flags uint8, value []byte, ok bo
 
 // Convenience: find specific attribute
 func (it *AttrIterator) Find(typeCode uint8) ([]byte, bool)
+
+// Zero-alloc standalone find — no pointer receiver, no heap escape
+func AttrFind(data []byte, code AttributeCode) (hdrStart int, flags AttributeFlags, value []byte, found bool)
 ```
 
 ### NLRI Iterator
@@ -274,7 +277,7 @@ type Route struct {
 }
 
 // Access via iterators - parse on demand
-func (r *Route) AttrIterator() *AttrIterator {
+func (r *Route) AttrIterator() AttrIterator {
     return NewAttrIterator(r.wireBytes)
 }
 

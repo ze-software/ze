@@ -157,7 +157,7 @@ func (u *WireUpdate) MPReach() (MPReachWire, error)
 func (u *WireUpdate) MPUnreach() (MPUnreachWire, error)
 
 // Iterators (parse on demand)
-func (u *WireUpdate) AttrIterator() (*AttrIterator, error)
+func (u *WireUpdate) AttrIterator() (AttrIterator, error)
 func (u *WireUpdate) NLRIIterator(addPath bool) (*NLRIIterator, error)
 ```
 
@@ -460,7 +460,7 @@ type Attributes struct {
 
 // Reading (from received wire)
 func (a *Attributes) Get(code AttributeCode) (Attribute, error)
-func (a *Attributes) Iterator() *AttrIterator
+func (a *Attributes) Iterator() AttrIterator
 func (a *Attributes) Packed() []byte
 
 // Building (to wire)

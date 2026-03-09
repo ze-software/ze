@@ -684,6 +684,37 @@ func TestApplyAttrDiscardUpstreamTransitivityMerge(t *testing.T) {
 	}
 }
 
+// TestApplyAttrDiscardInPlaceZeroAlloc verifies the happy path is allocation-free.
+//
+// VALIDATES: Single-attribute discard with no upstream merge allocates zero bytes.
+// PREVENTS: Heap escape from iterator construction or intermediate buffers.
+func TestApplyAttrDiscardInPlaceZeroAlloc(t *testing.T) {
+	pathAttrs := concatBytes(
+		makeAttr(0x40, 1, []byte{0x00}),                         // ORIGIN
+		makeAttr(0x40, 2, []byte{}),                             // AS_PATH
+		makeAttr(0x40, 3, []byte{0xC0, 0, 2, 1}),                // NEXT_HOP
+		makeAttr(0xC0, 7, []byte{0x01, 0x02, 0x03, 0x04, 0x05}), // AGGREGATOR (5 bytes, wrong)
+	)
+	entries := []DiscardEntry{{Code: 7, Reason: DiscardReasonInvalidLength}}
+
+	// Save original BEFORE warm-up — applyInPlace modifies pathAttrs in-place.
+	original := make([]byte, len(pathAttrs))
+	copy(original, pathAttrs)
+
+	// Warm up to avoid first-run effects.
+	result, rebuilt := ApplyAttrDiscard(pathAttrs, entries)
+	require.False(t, rebuilt, "single discard should be in-place")
+	require.NotNil(t, result)
+
+	allocs := testing.AllocsPerRun(100, func() {
+		// Restore original bytes before each run since in-place modifies them.
+		copy(pathAttrs, original)
+		ApplyAttrDiscard(pathAttrs, entries)
+	})
+
+	assert.Equal(t, float64(0), allocs, "happy path (single in-place discard) must be zero-alloc")
+}
+
 // findAttrByCode returns the raw attribute bytes for a given code, or nil if not found.
 func findAttrByCode(pathAttrs []byte, code uint8) []byte {
 	pos := 0

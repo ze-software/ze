@@ -430,10 +430,7 @@ func (r *Route) JSON(peerID string) RouteJSON {
 // The iterator provides zero-copy access to path attributes stored in wireBytes.
 // Use this instead of Attributes() when you only need to iterate without
 // building a slice of parsed Attribute objects.
-func (r *Route) AttrIterator() *attribute.AttrIterator {
-	if len(r.wireBytes) == 0 {
-		return nil
-	}
+func (r *Route) AttrIterator() attribute.AttrIterator {
 	return attribute.NewAttrIterator(r.wireBytes)
 }
 
