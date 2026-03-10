@@ -19,6 +19,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/editor"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -42,9 +43,12 @@ func wireCommandExecutor(m *editor.Model, socketPath string) net.Conn {
 	cmdMap, cmdKeys := buildCommandMap()
 
 	m.SetCommandExecutor(func(input string) (string, error) {
-		method, args := resolveEditorCommand(cmdMap, cmdKeys, input)
+		// Split pipe operators from command (e.g., "peer list | table").
+		command, pipeFormat := cli.ProcessPipes(input)
+
+		method, args := resolveEditorCommand(cmdMap, cmdKeys, command)
 		if method == "" {
-			return "", fmt.Errorf("unknown command: %s", input)
+			return "", fmt.Errorf("unknown command: %s", command)
 		}
 
 		req := rpc.Request{Method: method}
@@ -88,7 +92,7 @@ func wireCommandExecutor(m *editor.Model, socketPath string) net.Conn {
 			return "OK", nil
 		}
 
-		return formatJSONResult(resp.Result), nil
+		return pipeFormat(string(resp.Result)), nil
 	})
 
 	return conn
@@ -115,19 +119,6 @@ func buildCommandMap() (map[string]string, []string) {
 // allEditorRPCs returns all RPCs for command resolution.
 func allEditorRPCs() []pluginserver.RPCRegistration {
 	return pluginserver.AllBuiltinRPCs()
-}
-
-// formatJSONResult pretty-prints a JSON result, falling back to raw string.
-func formatJSONResult(raw json.RawMessage) string {
-	var data any
-	if json.Unmarshal(raw, &data) != nil {
-		return string(raw)
-	}
-	formatted, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		return string(raw)
-	}
-	return string(formatted)
 }
 
 // resolveEditorCommand finds the wire method for a text command.

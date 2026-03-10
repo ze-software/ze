@@ -159,10 +159,11 @@ func applyPipes(output string, ops []pipeOp) (string, string) {
 	return result, ""
 }
 
-// hasFormatOp returns true if the pipe chain contains an explicit format operator (json or table).
+// hasFormatOp returns true if the pipe chain contains an explicit format or terminal operator.
+// Count is terminal: it suppresses the default table format so it can work on raw JSON.
 func hasFormatOp(ops []pipeOp) bool {
 	for _, op := range ops {
-		if op.kind == pipeJSON || op.kind == pipeTable || op.kind == pipeYAML {
+		if op.kind == pipeJSON || op.kind == pipeTable || op.kind == pipeYAML || op.kind == pipeCount {
 			return true
 		}
 	}
@@ -182,11 +183,18 @@ func applyMatch(input, pattern string) string {
 	return b.String()
 }
 
-// applyCount returns the number of non-empty lines.
+// applyCount counts items. If input is JSON, counts array elements or map keys
+// (unwrapping single-key wrappers). Otherwise counts non-empty lines.
 func applyCount(input string) string {
 	if input == "" {
 		return "0\n"
 	}
+	trimmed := strings.TrimSpace(input)
+	var data any
+	if err := json.Unmarshal([]byte(trimmed), &data); err == nil {
+		return strconv.Itoa(countItems(data)) + "\n"
+	}
+	// Fallback: count non-empty lines.
 	n := 0
 	for line := range strings.SplitSeq(input, "\n") {
 		if line != "" {
@@ -194,6 +202,24 @@ func applyCount(input string) string {
 		}
 	}
 	return strconv.Itoa(n) + "\n"
+}
+
+// countItems counts the number of items in a JSON value.
+func countItems(v any) int {
+	switch val := v.(type) {
+	case []any:
+		return len(val)
+	case map[string]any:
+		// Single-key wrapper: unwrap and count the inner value.
+		if len(val) == 1 {
+			for _, inner := range val {
+				return countItems(inner)
+			}
+		}
+		return len(val)
+	default:
+		return 1
+	}
 }
 
 // applyJSON reformats JSON output. "pretty" indents, "compact" produces one line.
@@ -228,4 +254,24 @@ func applyYAML(input string) string {
 		return input
 	}
 	return renderYAML(data)
+}
+
+// ProcessPipes splits user input into a command and a formatting function.
+// The returned function applies pipe operators (table, json, yaml, match, count)
+// to raw JSON output. If no pipes are present, the formatter returns raw JSON unchanged.
+func ProcessPipes(input string) (command string, format func(string) string) {
+	command, ops := parsePipe(input)
+	command, ops = foldServerPipeline(command, ops)
+
+	if len(ops) == 0 {
+		return command, func(s string) string { return s }
+	}
+
+	return command, func(rawJSON string) string {
+		result, errMsg := applyPipes(rawJSON, ops)
+		if errMsg != "" {
+			return "pipe error: " + errMsg
+		}
+		return result
+	}
 }
