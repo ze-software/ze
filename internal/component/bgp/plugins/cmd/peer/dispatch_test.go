@@ -46,11 +46,11 @@ func TestDispatchBGPPeerList(t *testing.T) {
 	assert.Contains(t, peers, "192.0.2.1")
 }
 
-// TestDispatchBGPPeerShow verifies "bgp peer show" dispatches through init() registration.
+// TestDispatchBGPPeerDetail verifies "bgp peer detail" dispatches through init() registration.
 //
-// VALIDATES: Dispatch chain reaches handleBgpPeerShow via injected init() registration.
-// PREVENTS: init() registration registration silently failing for peer show.
-func TestDispatchBGPPeerShow(t *testing.T) {
+// VALIDATES: Dispatch chain reaches handleBgpPeerDetail via injected init() registration.
+// PREVENTS: init() registration silently failing for peer detail.
+func TestDispatchBGPPeerDetail(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
 			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: "established"},
@@ -58,7 +58,7 @@ func TestDispatchBGPPeerShow(t *testing.T) {
 	}
 	ctx := newDispatchContext(reactor)
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "bgp peer show")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "bgp peer detail")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 }

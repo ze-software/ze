@@ -30,12 +30,12 @@ See [JSON_FORMAT.md](JSON_FORMAT.md#exabgp-differences) for output format differ
 | Daemon | shutdown, reload, restart, status |
 | Session | ack, sync, reset, ping, bye |
 | System | help, version, api version |
-| Peer | list, show, create, delete, teardown |
+| Peer | list, detail, capabilities, statistics, create, delete, teardown |
 | Announce | route, flow, vpls, eor, operational |
 | Withdraw | route, flow, vpls, watchdog |
-| RIB | show, flush, clear |
-| Log | show, set (runtime log levels) |
-| Metrics | show, list (Prometheus metrics) |
+| RIB | routes, best, status, clear |
+| Log | levels, set (runtime log levels) |
+| Metrics | values, list (Prometheus metrics) |
 | Group | start, end (batching) |
 | Subscribe | subscribe, unsubscribe (event filtering) |
 
@@ -143,10 +143,12 @@ daemon reload            # Reload the configuration
 
 ```
 peer list                # List all peers
-peer show                # Show all peers (detailed)
-peer <ip> show           # Show specific peer
-peer <ip> show summary   # Show peer summary
-peer <ip> show extensive # Show extensive detail
+peer detail              # Show all peers (detailed)
+peer <ip> detail         # Show specific peer detail
+peer capabilities        # Show peer capabilities
+peer <ip> capabilities   # Show specific peer capabilities
+peer statistics          # Show peer statistics (counters)
+peer <ip> statistics     # Show specific peer statistics
 peer <ip> teardown <code> [<reason>]  # Disconnect peer
 peer create <config>     # Create dynamic peer
 peer <ip> delete         # Delete dynamic peer
@@ -178,7 +180,7 @@ The cache commands enable route reflection via API:
 ### Log Commands (Ze)
 
 ```
-bgp log show                      # Show all subsystem log levels (JSON map)
+bgp log levels                    # Show all subsystem log levels (JSON map)
 bgp log set <subsystem> <level>   # Change subsystem log level at runtime
 ```
 
@@ -187,7 +189,7 @@ Levels: `debug`, `info`, `warn`, `err`. Changes take effect immediately via `slo
 ### Metrics Commands (Ze)
 
 ```
-bgp metrics show          # Dump Prometheus text format output
+bgp metrics values        # Dump Prometheus text format output
 bgp metrics list          # List metric names only (no values)
 ```
 
@@ -265,15 +267,15 @@ update text next 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 watchdog set m
 ### RIB Commands
 
 ```
-rib show [scope] [filters...] [terminal]  # Unified route display with pipeline
+rib routes [scope] [filters...] [terminal]  # Unified route display with pipeline
     scope: sent | received | sent-received (default)
     filters: path <pattern>, cidr <prefix>, community <value>,
              family <afi/safi>, match <text>
     terminals: count, json
-rib best [filters...] [terminal]          # Best-path per prefix (RFC 4271 §9.1.2)
-rib status                                # RIB status (peer/route counts)
-rib clear in                              # Clear Adj-RIB-In
-rib clear out                             # Resend Adj-RIB-Out
+rib best [filters...] [terminal]            # Best-path per prefix (RFC 4271 §9.1.2)
+rib status                                  # RIB status (peer/route counts)
+rib clear in                                # Clear Adj-RIB-In
+rib clear out                               # Resend Adj-RIB-Out
 ```
 
 ### Group Commands (Batching)
@@ -610,10 +612,10 @@ bgp
 ├── event
 │   └── list
 ├── log
-│   ├── show              # Show subsystem log levels
+│   ├── levels            # Show subsystem log levels
 │   └── set               # Set subsystem log level at runtime
 ├── metrics
-│   ├── show              # Show Prometheus metrics (text format)
+│   ├── values            # Show Prometheus metrics (text format)
 │   └── list              # List metric names
 └── plugin
     ├── encoding
@@ -622,18 +624,22 @@ bgp
 
 peer
 ├── list
-├── show
+├── detail
+├── capabilities
+├── statistics
 ├── create
 ├── delete
 └── <selector>
-    ├── show
+    ├── detail
+    ├── capabilities
+    ├── statistics
     ├── teardown
     ├── announce
     ├── withdraw
     └── group
 
 rib
-├── show [sent|received|sent-received] [filters...] [count|json]
+├── routes [sent|received|sent-received] [filters...] [count|json]
 ├── best [filters...] [count|json]
 ├── status
 └── clear [in|out]
@@ -693,4 +699,4 @@ var Commands = []CommandInfo{
 
 ---
 
-**Last Updated:** 2026-02-27
+**Last Updated:** 2026-03-10

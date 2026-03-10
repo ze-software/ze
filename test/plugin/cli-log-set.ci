@@ -2,9 +2,9 @@
 #
 # Flow:
 # 1. BGP session establishes
-# 2. Python plugin dispatches "bgp log show" to see initial levels
+# 2. Python plugin dispatches "bgp log levels" to see initial levels
 # 3. Dispatches "bgp log set <subsystem> debug" to change a level
-# 4. Dispatches "bgp log show" again to verify the change
+# 4. Dispatches "bgp log levels" again to verify the change
 # 5. Shuts down daemon
 #
 # VALIDATES: AC-2 — bgp log set changes subsystem to specified level.
@@ -59,12 +59,12 @@ def main():
     time.sleep(1.0)
 
     # Get initial levels to find a subsystem to modify
-    r = dispatch(api, 'bgp log show')
+    r = dispatch(api, 'bgp log levels')
     data = parse_data(r)
     levels = data.get('levels', {})
 
     if not levels:
-        print('FAIL: no subsystems in log show', file=sys.stderr)
+        print('FAIL: no subsystems in log levels', file=sys.stderr)
         sys.exit(1)
 
     # Pick the first subsystem and change it to debug
@@ -79,8 +79,8 @@ def main():
         print(f'FAIL: set returned status={status}', file=sys.stderr)
         sys.exit(1)
 
-    # Verify the change via log show
-    r = dispatch(api, 'bgp log show')
+    # Verify the change via log levels
+    r = dispatch(api, 'bgp log levels')
     data = parse_data(r)
     new_levels = data.get('levels', {})
 

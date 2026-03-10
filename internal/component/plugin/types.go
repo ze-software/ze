@@ -4,7 +4,7 @@
 //
 // This package provides:
 //   - Unix socket server for CLI and external tool communication
-//   - Command dispatch and handlers (peer show, rib show, announce/withdraw)
+//   - Command dispatch and handlers (peer detail, rib routes, announce/withdraw)
 //   - JSON encoder for ze-bgp format output
 //   - External process management for spawning and communicating with subprocesses
 package plugin

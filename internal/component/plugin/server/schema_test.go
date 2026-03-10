@@ -334,7 +334,7 @@ func TestSchemaRegistry_RegisterRPCs(t *testing.T) {
 		},
 		{
 			Module:      "ze-bgp-api",
-			Name:        "peer-show",
+			Name:        "peer-detail",
 			Description: "Show peer details",
 		},
 	}
@@ -353,9 +353,9 @@ func TestSchemaRegistry_RegisterRPCs(t *testing.T) {
 	assert.Equal(t, "selector", rpc.Input[0].Name)
 
 	// Second RPC
-	rpc, err = reg.FindRPC("ze-bgp:peer-show")
+	rpc, err = reg.FindRPC("ze-bgp:peer-detail")
 	require.NoError(t, err)
-	assert.Equal(t, "peer-show", rpc.Name)
+	assert.Equal(t, "peer-detail", rpc.Name)
 
 	// Unknown wire method
 	_, err = reg.FindRPC("ze-bgp:nonexistent")

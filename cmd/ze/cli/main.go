@@ -601,8 +601,8 @@ func (m *model) applySelectedSuggestion() {
 	m.textInput.CursorEnd()
 }
 
-// ribShowPipeSuggestions lists server-side pipeline keywords for rib show/best commands.
-var ribShowPipeSuggestions = []suggestion{
+// ribRoutesPipeSuggestions lists server-side pipeline keywords for rib routes/best commands.
+var ribRoutesPipeSuggestions = []suggestion{
 	{text: "path", description: "Filter by AS path (contiguous subsequence, ^ = anchor)"},
 	{text: "cidr", description: "Filter by prefix match"},
 	{text: "community", description: "Filter by community value"},
@@ -621,14 +621,14 @@ func (m *model) updateSuggestions() {
 	input := m.textInput.Value()
 
 	// After a pipe character, suggest pipe operators instead of commands.
-	// For rib show/best commands, suggest server-side pipeline keywords.
+	// For rib routes/best commands, suggest server-side pipeline keywords.
 	if pipeIdx := strings.LastIndex(input, "|"); pipeIdx >= 0 {
 		cmdPart := strings.TrimSpace(input[:pipeIdx])
 		after := strings.TrimSpace(input[pipeIdx+1:])
 		m.suggestions = nil
 		lower := strings.ToLower(cmdPart)
-		if strings.HasPrefix(lower, "rib show") || strings.HasPrefix(lower, "rib best") {
-			for _, s := range ribShowPipeSuggestions {
+		if strings.HasPrefix(lower, "rib routes") || strings.HasPrefix(lower, "rib best") {
+			for _, s := range ribRoutesPipeSuggestions {
 				if after == "" || strings.HasPrefix(s.text, after) {
 					m.suggestions = append(m.suggestions, s)
 				}

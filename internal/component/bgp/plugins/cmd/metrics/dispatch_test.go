@@ -24,11 +24,11 @@ func newDispatchContext() *pluginserver.CommandContext {
 	return &pluginserver.CommandContext{Server: server}
 }
 
-// TestDispatchBGPMetricsShow verifies "bgp metrics show" dispatches through init() registration.
+// TestDispatchBGPMetricsValues verifies "bgp metrics values" dispatches through init() registration.
 //
-// VALIDATES: AC-5 — metrics show registered and dispatchable.
-// PREVENTS: Metrics show handler not registered in dispatcher.
-func TestDispatchBGPMetricsShow(t *testing.T) {
+// VALIDATES: AC-5 — metrics values registered and dispatchable.
+// PREVENTS: Metrics values handler not registered in dispatcher.
+func TestDispatchBGPMetricsValues(t *testing.T) {
 	reg := metrics.NewPrometheusRegistry()
 	reg.Counter("dispatch_test_total", "test").Inc()
 
@@ -37,7 +37,7 @@ func TestDispatchBGPMetricsShow(t *testing.T) {
 	defer registry.SetMetricsRegistry(old)
 
 	ctx := newDispatchContext()
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "bgp metrics show")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "bgp metrics values")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 }

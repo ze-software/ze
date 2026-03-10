@@ -47,7 +47,7 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 		cli  string
 	}{
 		{"ze-rib-api:status", "bgp rib status"},
-		{"ze-rib-api:show", "bgp rib show"},
+		{"ze-rib-api:routes", "bgp rib routes"},
 		{"ze-rib-api:best", "bgp rib best"},
 		{"ze-rib-api:best-status", "bgp rib best status"},
 	} {
@@ -83,7 +83,7 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 func TestRibProxyHandlersNonNil(t *testing.T) {
 	handlers := map[string]pluginserver.Handler{
 		"status":     forwardRibStatus,
-		"show":       forwardRibShow,
+		"routes":     forwardRibRoutes,
 		"best":       forwardRibBest,
 		"bestStatus": forwardRibBestStatus,
 		"clearIn":    forwardRibClearIn,

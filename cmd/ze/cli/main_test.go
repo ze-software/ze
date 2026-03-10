@@ -566,8 +566,8 @@ func TestCommandTree(t *testing.T) {
 	if _, ok := peer.Children["list"]; !ok {
 		t.Error("peer missing list subcommand")
 	}
-	if _, ok := peer.Children["show"]; !ok {
-		t.Error("peer missing show subcommand")
+	if _, ok := peer.Children["detail"]; !ok {
+		t.Error("peer missing detail subcommand")
 	}
 
 	// Check rib subcommands (proxy handlers forwarding to bgp-rib plugin)
@@ -576,7 +576,7 @@ func TestCommandTree(t *testing.T) {
 		t.Fatal("rib command missing")
 		return
 	}
-	for _, sub := range []string{"status", "show", "best", "clear"} {
+	for _, sub := range []string{"status", "routes", "best", "clear"} {
 		if _, ok := rib.Children[sub]; !ok {
 			t.Errorf("rib missing subcommand: %s", sub)
 		}
@@ -837,7 +837,7 @@ func TestResolveCommand(t *testing.T) {
 	client := &cliClient{
 		cmdMap: map[string]string{
 			"bgp peer list":           "ze-bgp:peer-list",
-			"bgp peer show":           "ze-bgp:peer-show",
+			"bgp peer detail":         "ze-bgp:peer-detail",
 			"daemon status":           "ze-system:daemon-status",
 			"system help":             "ze-system:help",
 			"system version software": "ze-system:version-software",
@@ -864,7 +864,7 @@ func TestResolveCommand(t *testing.T) {
 		wantArgs   []string
 	}{
 		{"peer_list", "peer list", "ze-bgp:peer-list", nil},
-		{"peer_show_with_arg", "peer show 10.0.0.1", "ze-bgp:peer-show", []string{"10.0.0.1"}},
+		{"peer_detail_with_arg", "peer detail 10.0.0.1", "ze-bgp:peer-detail", []string{"10.0.0.1"}},
 		{"daemon_status", "daemon status", "ze-system:daemon-status", nil},
 		{"system_help", "system help", "ze-system:help", nil},
 		{"unknown", "nonexistent", "", nil},

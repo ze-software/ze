@@ -2,6 +2,7 @@
 .PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-test ze-verify ze-ci
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
+.PHONY: ze-interop-test
 .PHONY: check
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
@@ -234,6 +235,17 @@ ze-chaos-test: ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test
 ze-chaos-verify: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test
 	@echo "Chaos verification passed"
 
+# ─── Interop tests ──────────────────────────────────────────────────────────
+
+# Run interoperability tests against FRR and BIRD (requires Docker).
+# Override FRR image: make ze-interop-test FRR_IMAGE=quay.io/frrouting/frr:10.3
+# Run single scenario: make ze-interop-test INTEROP_SCENARIO=01-ebgp-ipv4-frr
+INTEROP_SCENARIO ?=
+
+ze-interop-test:
+	@echo "Running interop tests (requires Docker)..."
+	@test/interop/run.sh $(INTEROP_SCENARIO)
+
 # ─── Utilities ───────────────────────────────────────────────────────────────
 
 # Format code
@@ -299,6 +311,10 @@ help:
 	@echo "  ze-chaos-web-test        - Run chaos web dashboard HTTP tests"
 	@echo "  ze-chaos-test            - All chaos tests (unit + functional + web)"
 	@echo "  ze-chaos-verify          - ze-chaos-lint + all chaos tests"
+	@echo ""
+	@echo "  Interop tests (Docker):"
+	@echo "  ze-interop-test          - Run interop tests against FRR and BIRD"
+	@echo "                             INTEROP_SCENARIO=name to run one scenario"
 	@echo ""
 	@echo "  Utilities:"
 	@echo "  fmt                   - Format code (gofmt + goimports)"

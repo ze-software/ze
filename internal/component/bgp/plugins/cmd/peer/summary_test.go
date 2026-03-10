@@ -142,7 +142,7 @@ func TestPeerCapabilitiesHandler(t *testing.T) {
 
 // TestPeerShowStatistics verifies statistics handler returns counters and rates.
 //
-// VALIDATES: bgp peer show statistics returns updates, messages, and rate fields.
+// VALIDATES: bgp peer statistics returns updates, messages, and rate fields.
 // PREVENTS: Missing counters or rate calculations in statistics output.
 func TestPeerShowStatistics(t *testing.T) {
 	reactor := &mockReactor{
@@ -162,7 +162,7 @@ func TestPeerShowStatistics(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerShowStatistics(ctx, nil)
+	resp, err := handleBgpPeerStatistics(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -205,7 +205,7 @@ func TestPeerShowStatisticsZeroUptime(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerShowStatistics(ctx, nil)
+	resp, err := handleBgpPeerStatistics(ctx, nil)
 	require.NoError(t, err)
 
 	data, ok := resp.Data.(map[string]any)

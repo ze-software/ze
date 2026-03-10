@@ -335,13 +335,13 @@ func TestModeScrollRestore(t *testing.T) {
 
 func TestTabOnCommonPrefixShowsDropdown(t *testing.T) {
 	// VALIDATES: Tab on common prefix applies partial completion and shows dropdown.
-	// PREVENTS: Tab completing "peer show 12" to "127.0.0. " (with space) and no dropdown,
+	// PREVENTS: Tab completing "peer detail 12" to "127.0.0. " (with space) and no dropdown,
 	//           leaving user with an invalid partial token and no way to pick between matches.
 	m := newTestModel(t)
 	m.SetCommandCompleter(NewCommandCompleter(&CommandNode{
 		Children: map[string]*CommandNode{
 			"peer": {Name: "peer", Children: map[string]*CommandNode{
-				"show": {Name: "show", Children: map[string]*CommandNode{
+				"detail": {Name: "detail", Children: map[string]*CommandNode{
 					"127.0.0.1": {Name: "127.0.0.1", Description: "Peer 1"},
 					"127.0.0.2": {Name: "127.0.0.2", Description: "Peer 2"},
 				}},
@@ -350,7 +350,7 @@ func TestTabOnCommonPrefixShowsDropdown(t *testing.T) {
 	}))
 
 	m.SwitchMode(ModeCommand)
-	m.textInput.SetValue("peer show 12")
+	m.textInput.SetValue("peer detail 12")
 	m.UpdateCompletions()
 
 	// Precondition: ghost text is the common prefix tail, multiple completions
@@ -369,8 +369,8 @@ func TestTabOnCommonPrefixShowsDropdown(t *testing.T) {
 	}
 
 	// Input should end with the common prefix, no trailing space
-	if updated.InputValue() != "peer show 127.0.0." {
-		t.Errorf("expected 'peer show 127.0.0.', got %q", updated.InputValue())
+	if updated.InputValue() != "peer detail 127.0.0." {
+		t.Errorf("expected 'peer detail 127.0.0.', got %q", updated.InputValue())
 	}
 
 	// Dropdown should be visible with both peer options

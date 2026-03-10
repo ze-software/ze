@@ -1,12 +1,12 @@
-# Test: bgp metrics show returns Prometheus text format via dispatch-command
+# Test: bgp metrics values returns Prometheus text format via dispatch-command
 #
 # Flow:
 # 1. BGP session establishes with telemetry enabled
-# 2. Python plugin dispatches "bgp metrics show" via dispatch-command
+# 2. Python plugin dispatches "bgp metrics values" via dispatch-command
 # 3. Verifies response contains Prometheus text output
 # 4. Shuts down daemon
 #
-# VALIDATES: AC-1 — bgp metrics show returns Prometheus text format output.
+# VALIDATES: AC-1 — bgp metrics values returns Prometheus text format output.
 # PREVENTS: Metrics handler not wired into dispatch chain.
 
 # ze-peer expectations
@@ -18,10 +18,10 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for bgp metrics show
+# Python test plugin: exercises dispatch-command for bgp metrics values
 tmpfs=metrics-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-"""Test: bgp metrics show via dispatch-command."""
+"""Test: bgp metrics values via dispatch-command."""
 
 import json
 import sys
@@ -48,8 +48,8 @@ def main():
     # Wait for BGP session to establish
     time.sleep(1.0)
 
-    # Test: bgp metrics show should return Prometheus text
-    r = dispatch(api, 'bgp metrics show')
+    # Test: bgp metrics values should return Prometheus text
+    r = dispatch(api, 'bgp metrics values')
     status = r.get('status')
     if status != 'done':
         print(f'FAIL: expected status=done, got={status}', file=sys.stderr)
@@ -66,7 +66,7 @@ def main():
         print(f'FAIL: empty metrics text, data={data}', file=sys.stderr)
         sys.exit(1)
 
-    print(f'OK: metrics show returned {len(metrics_text)} bytes', file=sys.stderr)
+    print(f'OK: metrics values returned {len(metrics_text)} bytes', file=sys.stderr)
 
     # Shutdown daemon
     dispatch(api, 'daemon shutdown')

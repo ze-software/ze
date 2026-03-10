@@ -11,13 +11,13 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:log-show", CLICommand: "bgp log show", Handler: handleLogShow, Help: "Show subsystem log levels", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:log-levels", CLICommand: "bgp log levels", Handler: handleLogLevels, Help: "Subsystem log levels", ReadOnly: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:log-set", CLICommand: "bgp log set", Handler: handleLogSet, Help: "Set subsystem log level at runtime"},
 	)
 }
 
-// handleLogShow returns a map of subsystem names to their current log levels.
-func handleLogShow(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+// handleLogLevels returns a map of subsystem names to their current log levels.
+func handleLogLevels(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	levels := slogutil.ListLevels()
 
 	return &plugin.Response{

@@ -11,11 +11,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
-// TestLogShowHandler verifies handler returns subsystem list from registry.
+// TestLogLevelsHandler verifies handler returns subsystem list from registry.
 //
-// VALIDATES: AC-1 — bgp log show returns JSON map of subsystem names to levels.
+// VALIDATES: AC-1 — bgp log levels returns JSON map of subsystem names to levels.
 // PREVENTS: Handler returning empty when loggers exist.
-func TestLogShowHandler(t *testing.T) {
+func TestLogLevelsHandler(t *testing.T) {
 	slogutil.ResetLevelRegistry()
 	defer slogutil.ResetLevelRegistry()
 
@@ -23,7 +23,7 @@ func TestLogShowHandler(t *testing.T) {
 	_ = slogutil.Logger("showtest")
 
 	ctx := &pluginserver.CommandContext{}
-	resp, err := handleLogShow(ctx, nil)
+	resp, err := handleLogLevels(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 

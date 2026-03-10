@@ -14,8 +14,8 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:summary", CLICommand: "bgp summary", Handler: handleBgpSummary, Help: "Show BGP summary (peer table with statistics)", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-show-capabilities", CLICommand: "bgp peer show capabilities", Handler: handleBgpPeerCapabilities, Help: "Show negotiated capabilities for peer(s)", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-show-statistics", CLICommand: "bgp peer show statistics", Handler: handleBgpPeerShowStatistics, Help: "Show per-peer update statistics with rates", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-capabilities", CLICommand: "bgp peer capabilities", Handler: handleBgpPeerCapabilities, Help: "Negotiated capabilities for peer(s)", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-statistics", CLICommand: "bgp peer statistics", Handler: handleBgpPeerStatistics, Help: "Per-peer update statistics with rates", ReadOnly: true},
 	)
 }
 
@@ -130,11 +130,11 @@ func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, _ []string) (*p
 	}, nil
 }
 
-// handleBgpPeerShowStatistics returns per-peer update statistics with rates.
+// handleBgpPeerStatistics returns per-peer update statistics with rates.
 // Rate is computed from cumulative counters and uptime: counter / uptime_seconds.
 // Returns 0 for all rates when uptime is zero (peer not established).
 // Single peer: flat object. Multiple peers: array.
-func handleBgpPeerShowStatistics(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	peers, errResp, err := filterPeersBySelector(ctx)
 	if errResp != nil {
 		return errResp, err

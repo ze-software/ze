@@ -57,7 +57,7 @@ module ze-bgp-conf {
 }
 EOF
 declare cmd bgp peer list
-declare cmd bgp peer show
+declare cmd bgp peer detail
 declare encoding json
 declare done
 ```
@@ -403,7 +403,7 @@ Hub shares the command registry with plugins.
 **Example:**
 ```
 registry cmd bgp peer list
-registry cmd bgp peer show
+registry cmd bgp peer detail
 registry cmd rib adjacent status
 registry done
 ```

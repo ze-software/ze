@@ -18,7 +18,7 @@ func init() {
 	pluginserver.RegisterRPCs(
 		// Read-only commands (exposed via "ze show")
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:status", CLICommand: "bgp rib status", Handler: forwardRibStatus, Help: "RIB summary (peer count, route counts)", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:show", CLICommand: "bgp rib show", Handler: forwardRibShow, Help: "Show routes (scope + filters + terminal)", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:routes", CLICommand: "bgp rib routes", Handler: forwardRibRoutes, Help: "Routes (scope + filters + terminal)", ReadOnly: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:best", CLICommand: "bgp rib best", Handler: forwardRibBest, Help: "Best-path per prefix", ReadOnly: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:best-status", CLICommand: "bgp rib best status", Handler: forwardRibBestStatus, Help: "Best-path computation status", ReadOnly: true},
 		// Write commands (exposed via "ze run" only)
@@ -31,7 +31,7 @@ func forwardRibStatus(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	return ctx.Dispatcher().ForwardToPlugin("rib status", args, ctx.PeerSelector())
 }
 
-func forwardRibShow(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func forwardRibRoutes(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	return ctx.Dispatcher().ForwardToPlugin("rib show", args, ctx.PeerSelector())
 }
 

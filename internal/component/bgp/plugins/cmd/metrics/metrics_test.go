@@ -15,7 +15,7 @@ import (
 
 // TestMetricsShowWithRegistry verifies handler returns Prometheus text when registry available.
 //
-// VALIDATES: AC-1 — bgp metrics show returns Prometheus text format output.
+// VALIDATES: AC-1 — bgp metrics values returns Prometheus text format output.
 // PREVENTS: Handler returning empty or wrong format when metrics are available.
 func TestMetricsShowWithRegistry(t *testing.T) {
 	// Set up a Prometheus registry with a test metric
@@ -27,7 +27,7 @@ func TestMetricsShowWithRegistry(t *testing.T) {
 	defer registry.SetMetricsRegistry(old)
 
 	ctx := &pluginserver.CommandContext{}
-	resp, err := handleMetricsShow(ctx, nil)
+	resp, err := handleMetricsValues(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -40,7 +40,7 @@ func TestMetricsShowWithRegistry(t *testing.T) {
 
 // TestMetricsShowNoRegistry verifies handler returns error when no registry.
 //
-// VALIDATES: AC-3 — bgp metrics show with no metrics registry returns error.
+// VALIDATES: AC-3 — bgp metrics values with no metrics registry returns error.
 // PREVENTS: Panic when telemetry is disabled and registry is nil.
 func TestMetricsShowNoRegistry(t *testing.T) {
 	old := registry.GetMetricsRegistry()
@@ -48,7 +48,7 @@ func TestMetricsShowNoRegistry(t *testing.T) {
 	defer registry.SetMetricsRegistry(old)
 
 	ctx := &pluginserver.CommandContext{}
-	resp, err := handleMetricsShow(ctx, nil)
+	resp, err := handleMetricsValues(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Data, "metrics not available")

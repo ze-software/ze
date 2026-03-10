@@ -53,7 +53,7 @@ func TestShowCommandTreeReadOnly(t *testing.T) {
 	if peer == nil {
 		t.Fatal("peer missing from show tree")
 	}
-	for _, sub := range []string{"list", "show"} {
+	for _, sub := range []string{"list", "detail"} {
 		if _, ok := peer.Children[sub]; !ok {
 			t.Errorf("show peer missing read-only subcommand: %s", sub)
 		}
@@ -69,7 +69,7 @@ func TestShowCommandTreeReadOnly(t *testing.T) {
 	if rib == nil {
 		t.Fatal("rib missing from show tree")
 	}
-	for _, sub := range []string{"status", "show", "best"} {
+	for _, sub := range []string{"status", "routes", "best"} {
 		if _, ok := rib.Children[sub]; !ok {
 			t.Errorf("show rib missing read-only subcommand: %s", sub)
 		}
@@ -94,7 +94,7 @@ func TestShowIsValidCommand(t *testing.T) {
 	}{
 		{"summary", []string{"summary"}, true},
 		{"peer_list", []string{"peer", "list"}, true},
-		{"peer_show", []string{"peer", "show"}, true},
+		{"peer_detail", []string{"peer", "detail"}, true},
 		{"daemon_status", []string{"daemon", "status"}, true},
 		{"peer_teardown_blocked", []string{"peer", "teardown"}, false},
 		{"daemon_shutdown_blocked", []string{"daemon", "shutdown"}, false},

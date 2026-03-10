@@ -20,7 +20,7 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:metrics-show", CLICommand: "bgp metrics show", Handler: handleMetricsShow, Help: "Show Prometheus metrics (text format)", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:metrics-values", CLICommand: "bgp metrics values", Handler: handleMetricsValues, Help: "Prometheus metrics (text format)", ReadOnly: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:metrics-list", CLICommand: "bgp metrics list", Handler: handleMetricsList, Help: "List metric names", ReadOnly: true},
 	)
 }
@@ -60,8 +60,8 @@ func captureMetricsText(handler http.Handler) (string, error) {
 	return recorder.Body.String(), nil
 }
 
-// handleMetricsShow returns Prometheus text format output.
-func handleMetricsShow(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+// handleMetricsValues returns Prometheus text format output.
+func handleMetricsValues(_ *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	handler, errResp := getPrometheusHandler()
 	if errResp != nil {
 		return errResp, nil

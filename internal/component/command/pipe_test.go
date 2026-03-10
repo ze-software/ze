@@ -315,7 +315,7 @@ func TestApplyPipesCountOfCount(t *testing.T) {
 	}
 }
 
-// VALIDATES: FoldServerPipeline folds pipe segments into rib show command args.
+// VALIDATES: FoldServerPipeline folds pipe segments into rib routes command args.
 // PREVENTS: server-side pipeline keywords being treated as unknown client ops.
 func TestFoldServerPipeline(t *testing.T) {
 	tests := []struct {
@@ -326,52 +326,52 @@ func TestFoldServerPipeline(t *testing.T) {
 		wantOpsLen int
 	}{
 		{
-			name:       "non-rib-show unchanged",
+			name:       "non-rib-routes unchanged",
 			command:    "peer list",
 			ops:        []pipeOp{{kind: pipeMatch, arg: "established"}},
 			wantCmd:    "peer list",
 			wantOpsLen: 1,
 		},
 		{
-			name:       "rib show with path filter",
-			command:    "rib show received",
+			name:       "rib routes with path filter",
+			command:    "rib routes received",
 			ops:        []pipeOp{{kind: pipeUnknown, arg: "path 65001"}},
-			wantCmd:    "rib show received path 65001",
+			wantCmd:    "rib routes received path 65001",
 			wantOpsLen: 0,
 		},
 		{
-			name:       "rib show with count terminal",
-			command:    "rib show",
+			name:       "rib routes with count terminal",
+			command:    "rib routes",
 			ops:        []pipeOp{{kind: pipeCount}},
-			wantCmd:    "rib show count",
+			wantCmd:    "rib routes count",
 			wantOpsLen: 0,
 		},
 		{
-			name:       "rib show with match filter",
-			command:    "rib show received",
+			name:       "rib routes with match filter",
+			command:    "rib routes received",
 			ops:        []pipeOp{{kind: pipeMatch, arg: "10.0.0.0"}},
-			wantCmd:    "rib show received match 10.0.0.0",
+			wantCmd:    "rib routes received match 10.0.0.0",
 			wantOpsLen: 0,
 		},
 		{
-			name:       "rib show keeps no-more client-side",
-			command:    "rib show",
+			name:       "rib routes keeps no-more client-side",
+			command:    "rib routes",
 			ops:        []pipeOp{{kind: pipeUnknown, arg: "path 65001"}, {kind: pipeNoMore}},
-			wantCmd:    "rib show path 65001",
+			wantCmd:    "rib routes path 65001",
 			wantOpsLen: 1,
 		},
 		{
-			name:       "rib show keeps table client-side",
-			command:    "rib show received",
+			name:       "rib routes keeps table client-side",
+			command:    "rib routes received",
 			ops:        []pipeOp{{kind: pipeCount}, {kind: pipeTable}},
-			wantCmd:    "rib show received count",
+			wantCmd:    "rib routes received count",
 			wantOpsLen: 1,
 		},
 		{
-			name:       "rib show with json terminal",
-			command:    "rib show",
+			name:       "rib routes with json terminal",
+			command:    "rib routes",
 			ops:        []pipeOp{{kind: pipeJSON, arg: jsonPretty}},
-			wantCmd:    "rib show json",
+			wantCmd:    "rib routes json",
 			wantOpsLen: 0,
 		},
 		{
@@ -399,7 +399,7 @@ func TestFoldServerPipeline(t *testing.T) {
 // VALIDATES: parsePipe preserves full segment text for unknown ops.
 // PREVENTS: loss of filter arguments (e.g., "path 65001" becomes just "path").
 func TestParsePipeUnknownPreservesArgs(t *testing.T) {
-	_, ops := ParsePipe("rib show | path 65001")
+	_, ops := ParsePipe("rib routes | path 65001")
 	if len(ops) != 1 {
 		t.Fatalf("got %d ops, want 1", len(ops))
 	}

@@ -88,15 +88,15 @@ func ParsePipe(input string) (command string, ops []pipeOp) {
 }
 
 // FoldServerPipeline rewrites command and ops for commands that support server-side pipelines.
-// For "rib show" commands, pipe segments containing server pipeline keywords are folded
+// For "rib routes" commands, pipe segments containing server pipeline keywords are folded
 // back into the command string. Only client-side ops (no-more, table) remain as ops.
-// Example: "rib show received | path 65001 | count" → command="rib show received path 65001 count", ops=nil.
+// Example: "rib routes received | path 65001 | count" → command="rib routes received path 65001 count", ops=nil.
 func FoldServerPipeline(command string, ops []pipeOp) (string, []pipeOp) {
 	trimmed := strings.TrimSpace(command)
 	lower := strings.ToLower(trimmed)
 
-	// Only fold for rib show and rib best commands (server-side pipeline).
-	if !strings.HasPrefix(lower, "rib show") && !strings.HasPrefix(lower, "rib best") {
+	// Only fold for rib routes and rib best commands (server-side pipeline).
+	if !strings.HasPrefix(lower, "rib routes") && !strings.HasPrefix(lower, "rib best") {
 		return command, ops
 	}
 
@@ -109,7 +109,7 @@ func FoldServerPipeline(command string, ops []pipeOp) (string, []pipeOp) {
 			// Client-side only
 			clientOps = append(clientOps, op)
 		case pipeMatch:
-			// "match" is a server pipeline keyword for rib show
+			// "match" is a server pipeline keyword for rib routes
 			if op.arg != "" {
 				serverArgs = append(serverArgs, "match", op.arg)
 			} else {

@@ -54,7 +54,7 @@ func TestRunCommandTree(t *testing.T) {
 	if peer == nil {
 		t.Fatal("peer command missing from tree")
 	}
-	for _, sub := range []string{"list", "show", "teardown", "add", "remove"} {
+	for _, sub := range []string{"list", "detail", "teardown", "add", "remove"} {
 		if _, ok := peer.Children[sub]; !ok {
 			t.Errorf("peer missing subcommand: %s", sub)
 		}
@@ -88,7 +88,7 @@ func TestIsValidCommand(t *testing.T) {
 	}{
 		{"summary", []string{"summary"}, fullTree, true},
 		{"peer_list", []string{"peer", "list"}, fullTree, true},
-		{"peer_show", []string{"peer", "show"}, fullTree, true},
+		{"peer_detail", []string{"peer", "detail"}, fullTree, true},
 		{"peer_teardown_run", []string{"peer", "teardown"}, fullTree, true},
 		{"peer_teardown_show", []string{"peer", "teardown"}, showTree, false},
 		{"daemon_status", []string{"daemon", "status"}, fullTree, true},
@@ -129,13 +129,13 @@ func TestFindNodeGroupCommand(t *testing.T) {
 		t.Error("peer should have children")
 	}
 
-	// "peer show" is a leaf with children — has Description AND children
-	showNode := cmdutil.FindNode([]string{"peer", "show"}, tree)
-	if showNode == nil {
-		t.Fatal("FindNode(peer show) returned nil")
+	// "peer detail" is a leaf — has Description
+	detailNode := cmdutil.FindNode([]string{"peer", "detail"}, tree)
+	if detailNode == nil {
+		t.Fatal("FindNode(peer detail) returned nil")
 	}
-	if showNode.Description == "" {
-		t.Error("peer show should have a Description")
+	if detailNode.Description == "" {
+		t.Error("peer detail should have a Description")
 	}
 
 	// "nonexistent" should return nil

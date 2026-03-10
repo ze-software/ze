@@ -11,11 +11,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
-// TestHandlerPeerShowAllPeers verifies peer show returns all peers with wildcard.
+// TestHandlerPeerDetailAllPeers verifies peer detail returns all peers with wildcard.
 //
-// VALIDATES: Peer show handler returns full peer details.
+// VALIDATES: Peer detail handler returns full peer details.
 // PREVENTS: Handler unable to return peer details via CommandContext.
-func TestHandlerPeerShowAllPeers(t *testing.T) {
+func TestHandlerPeerDetailAllPeers(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
 			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: "established"},
@@ -24,7 +24,7 @@ func TestHandlerPeerShowAllPeers(t *testing.T) {
 	}
 	ctx := newTestContext(reactor)
 
-	resp, err := handleBgpPeerShow(ctx, nil)
+	resp, err := handleBgpPeerDetail(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -43,11 +43,11 @@ func TestHandlerPeerShowAllPeers(t *testing.T) {
 	assert.Contains(t, peer1, "keepalives-received")
 }
 
-// TestHandlerPeerShowFilterByIP verifies peer show filters by specific IP.
+// TestHandlerPeerDetailFilterByIP verifies peer detail filters by specific IP.
 //
 // VALIDATES: Peer selector filters to matching peer only.
 // PREVENTS: Returning all peers when specific peer requested.
-func TestHandlerPeerShowFilterByIP(t *testing.T) {
+func TestHandlerPeerDetailFilterByIP(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
 			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, State: "established"},
@@ -57,7 +57,7 @@ func TestHandlerPeerShowFilterByIP(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerShow(ctx, nil)
+	resp, err := handleBgpPeerDetail(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 

@@ -1,13 +1,13 @@
-# Test: bgp log show returns subsystem levels via dispatch-command
+# Test: bgp log levels returns subsystem levels via dispatch-command
 #
 # Flow:
 # 1. BGP session establishes
-# 2. Python plugin dispatches "bgp log show" via dispatch-command
+# 2. Python plugin dispatches "bgp log levels" via dispatch-command
 # 3. Verifies response contains levels map with subsystem entries
 # 4. Shuts down daemon
 #
-# VALIDATES: AC-1 — bgp log show returns JSON map of subsystem names to levels.
-# PREVENTS: Log show handler not wired into dispatch chain.
+# VALIDATES: AC-1 — bgp log levels returns JSON map of subsystem names to levels.
+# PREVENTS: Log levels handler not wired into dispatch chain.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -18,10 +18,10 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for bgp log show
+# Python test plugin: exercises dispatch-command for bgp log levels
 tmpfs=log-show-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-"""Test: bgp log show via dispatch-command."""
+"""Test: bgp log levels via dispatch-command."""
 
 import json
 import sys
@@ -48,8 +48,8 @@ def main():
     # Wait for BGP session to establish
     time.sleep(1.0)
 
-    # Test: bgp log show should return subsystem levels
-    r = dispatch(api, 'bgp log show')
+    # Test: bgp log levels should return subsystem levels
+    r = dispatch(api, 'bgp log levels')
     status = r.get('status')
     if status != 'done':
         print(f'FAIL: expected status=done, got={status}', file=sys.stderr)
@@ -71,7 +71,7 @@ def main():
         print(f'FAIL: expected at least 1 subsystem, got count={count}', file=sys.stderr)
         sys.exit(1)
 
-    print(f'OK: log show returned {count} subsystems', file=sys.stderr)
+    print(f'OK: log levels returned {count} subsystems', file=sys.stderr)
 
     # Shutdown daemon
     dispatch(api, 'daemon shutdown')

@@ -294,7 +294,7 @@ EOF
 
 ```
 declare cmd bgp peer list
-declare cmd bgp peer show
+declare cmd bgp peer detail
 declare encoding json
 declare done
 ```

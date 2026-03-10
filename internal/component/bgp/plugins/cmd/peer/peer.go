@@ -18,7 +18,7 @@ import (
 func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-list", CLICommand: "bgp peer list", Handler: handleBgpPeerList, Help: "List peer(s) (brief)", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-show", CLICommand: "bgp peer show", Handler: handleBgpPeerShow, Help: "Show peer(s) details", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-detail", CLICommand: "bgp peer detail", Handler: handleBgpPeerDetail, Help: "Peer details (config, state, counters)", ReadOnly: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-teardown", CLICommand: "bgp peer teardown", Handler: handleTeardown, Help: "Teardown peer session with cease subcode", RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-add", CLICommand: "bgp peer add", Handler: handleBgpPeerAdd, Help: "Add a peer dynamically", RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-remove", CLICommand: "bgp peer remove", Handler: handleBgpPeerRemove, Help: "Remove a peer dynamically", RequiresSelector: true},
@@ -85,10 +85,10 @@ func handleBgpPeerList(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 	}, nil
 }
 
-// handleBgpPeerShow returns detailed peer information indexed by IP.
-// Used by "bgp peer <selector> show" - filters to matching peers.
+// handleBgpPeerDetail returns detailed peer information indexed by IP.
+// Used by "bgp peer <selector> detail" - filters to matching peers.
 // The selector is extracted by dispatcher into ctx.Peer.
-func handleBgpPeerShow(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func handleBgpPeerDetail(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	peers, errResp, err := filterPeersBySelector(ctx)
 	if errResp != nil {
 		return errResp, err

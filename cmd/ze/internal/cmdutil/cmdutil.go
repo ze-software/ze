@@ -70,7 +70,7 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 	}
 
 	// Build the run command: tree words + selector as trailing arg.
-	// CLI client's resolveCommand("peer show 127.0.0.2") matches "bgp peer show"
+	// CLI client's resolveCommand("peer detail 127.0.0.2") matches "bgp peer detail"
 	// and passes "127.0.0.2" as args to the handler.
 	runCmd := strings.Join(treeWords, " ")
 	if selector != "" {
