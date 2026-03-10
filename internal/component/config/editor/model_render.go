@@ -141,7 +141,7 @@ func (m Model) View() string {
 
 	// Viewport for scrollable content (show/compare output)
 	if m.showViewport && m.viewportContent != "" {
-		lines = append(lines, dimStyle.Render("─── "+m.contextLabel()+" (↑↓ scroll) ───"))
+		lines = append(lines, dimStyle.Render("─── "+m.contextLabel()+" (Shift+↑↓ scroll) ───"))
 		vpLines := strings.Split(m.viewport.View(), "\n")
 		lines = append(lines, vpLines...)
 		lines = append(lines, "")
@@ -463,8 +463,9 @@ func (m Model) renderHelpOverlay(base string) string {
   exit                 Exit editor
 
 Modes:
-  command              Switch to operational command mode
-  edit                 Switch back to config edit mode (in command mode)
+  run                  Switch to operational command mode
+  run <cmd>            Switch to command mode and execute <cmd>
+  (config commands in command mode auto-switch back to edit mode)
 
 Load:
   load file absolute replace <path>    Replace entire config from file

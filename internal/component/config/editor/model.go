@@ -132,7 +132,7 @@ const (
 	cmdExit      = "exit"
 	cmdQuit      = "quit"
 	cmdHelp      = "help"
-	cmdCommand   = "command"
+	cmdRun       = "run"
 	cmdGrep      = "grep"
 	cmdHead      = "head"
 	cmdTail      = "tail"
@@ -354,12 +354,21 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handlePasteModeKey(msg)
 	}
 
-	// Handle viewport scrolling with Shift+Arrow (when no dropdown)
+	// Handle viewport scrolling with Shift+Arrow and PgUp/PgDown (when no dropdown)
 	if m.showViewport && !m.showDropdown {
 		switch msg.Type { //nolint:exhaustive // only handle specific keys
-		case tea.KeyShiftUp, tea.KeyShiftDown, tea.KeyPgUp, tea.KeyPgDown:
-			m.viewport, cmd = m.viewport.Update(msg)
-			return m, cmd
+		case tea.KeyShiftUp:
+			m.viewport.ScrollUp(1)
+			return m, nil
+		case tea.KeyShiftDown:
+			m.viewport.ScrollDown(1)
+			return m, nil
+		case tea.KeyPgUp:
+			m.viewport.PageUp()
+			return m, nil
+		case tea.KeyPgDown:
+			m.viewport.PageDown()
+			return m, nil
 		}
 	}
 
@@ -551,21 +560,41 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// Handle mode switching commands (intercepted before normal dispatch).
-	// /command and /edit always switch (explicit prefix).
-	// Bare "command" switches only from edit mode; bare "edit" switches only from command mode.
-	// This avoids intercepting "edit <path>" (config-edit) when already in edit mode.
-	if input == "/command" || (m.mode == ModeEdit && input == modeNameCommand) {
+	// Handle mode switching commands.
+	// "run" (bare) in edit mode → switch to command mode.
+	// "run <args>" in edit mode → switch to command mode and execute.
+	// "edit" (bare) in command mode → switch to edit mode.
+	// Config commands (set, delete, etc.) in command mode → switch to edit mode and execute.
+	if m.mode == ModeEdit && (input == cmdRun || strings.HasPrefix(input, cmdRun+" ")) {
+		args := strings.TrimSpace(strings.TrimPrefix(input, cmdRun))
 		m.textInput.SetValue("")
 		m.SwitchMode(ModeCommand)
 		m.updateCompletions()
-		return m, nil
+		if args == "" {
+			return m, nil
+		}
+		// Save to history and execute.
+		if len(m.history) == 0 || m.history[len(m.history)-1] != args {
+			m.history = append(m.history, args)
+		}
+		m.historyIdx = -1
+		m.historyTmp = ""
+		m.showDropdown = false
+		m.selected = -1
+		m.ghostText = ""
+		m.completions = nil
+		return m, m.executeOperationalCommand(args)
 	}
-	if input == "/edit" || (m.mode == ModeCommand && input == cmdEdit) {
+	if m.mode == ModeCommand && input == cmdEdit {
 		m.textInput.SetValue("")
 		m.SwitchMode(ModeEdit)
 		m.updateCompletions()
 		return m, nil
+	}
+	if m.mode == ModeCommand && isEditCommand(input) {
+		m.SwitchMode(ModeEdit)
+		// Fall through to normal dispatch — history/clear happens below,
+		// executeCommand runs with the switched mode.
 	}
 
 	// Handle exit/quit directly (not via async command dispatch)
@@ -742,13 +771,41 @@ func (m *Model) applyCompletion(comp Completion) {
 }
 
 // updateCompletions updates completions based on current input.
+// Cross-mode completions:
+//   - Edit mode with "run " prefix → operational command completions
+//   - Command mode with config command prefix → YANG completions
+//   - Command mode top-level → merge operational + config command completions
 func (m *Model) updateCompletions() {
 	input := m.textInput.Value()
 
-	if m.mode == ModeCommand && m.commandCompleter != nil {
-		m.completions = m.commandCompleter.Complete(input)
-		m.ghostText = m.commandCompleter.GhostText(input)
-	} else {
+	switch {
+	case m.mode == ModeEdit && strings.HasPrefix(input, cmdRun+" "):
+		// Edit mode with "run " prefix: delegate to command completer for operational completions.
+		if m.commandCompleter != nil {
+			args := input[len(cmdRun)+1:] // preserve trailing spaces
+			m.completions = m.commandCompleter.Complete(args)
+			m.ghostText = m.commandCompleter.GhostText(args)
+		}
+
+	case m.mode == ModeCommand && isEditCommandWithArgs(input):
+		// Command mode with a full config command followed by args: YANG completions.
+		m.completions = m.completer.Complete(input, m.contextPath)
+		m.ghostText = m.completer.GhostText(input, m.contextPath)
+
+	case m.mode == ModeCommand:
+		// Command mode top-level: merge operational + config command completions.
+		if m.commandCompleter != nil {
+			m.completions = m.commandCompleter.Complete(input)
+			m.ghostText = m.commandCompleter.GhostText(input)
+		}
+		editComps := m.completer.Complete(input, m.contextPath)
+		m.completions = append(m.completions, editComps...)
+		if m.ghostText == "" {
+			m.ghostText = m.completer.GhostText(input, m.contextPath)
+		}
+
+	case m.mode == ModeEdit:
+		// Edit mode: YANG completions.
 		m.completions = m.completer.Complete(input, m.contextPath)
 		m.ghostText = m.completer.GhostText(input, m.contextPath)
 	}

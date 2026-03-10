@@ -11,7 +11,7 @@ import (
 )
 
 func TestModeSwitchToCommand(t *testing.T) {
-	// VALIDATES: AC-1 — /command switches to command mode
+	// VALIDATES: AC-1 — run switches to command mode
 	m := newTestModel(t)
 
 	if m.Mode() != ModeEdit {
@@ -26,7 +26,7 @@ func TestModeSwitchToCommand(t *testing.T) {
 }
 
 func TestModeSwitchToEdit(t *testing.T) {
-	// VALIDATES: AC-2 — /edit switches to edit mode
+	// VALIDATES: AC-2 — edit switches to edit mode
 	m := newTestModel(t)
 	m.SwitchMode(ModeCommand)
 	m.SwitchMode(ModeEdit)
@@ -111,18 +111,45 @@ func TestCommandModeCompletionsWired(t *testing.T) {
 	m.UpdateCompletions()
 	editComps := m.Completions()
 
-	// Switch to command mode
+	// Switch to command mode — completions merge operational + edit commands
 	m.SwitchMode(ModeCommand)
 	m.UpdateCompletions()
 	cmdComps := m.Completions()
 
-	// Command mode should show operational commands, not editor commands
-	if len(cmdComps) != 2 {
-		t.Fatalf("expected 2 command completions, got %d: %v", len(cmdComps), cmdComps)
+	// Command mode should include operational commands (peer, daemon) merged with edit commands
+	if len(cmdComps) <= 2 {
+		t.Fatalf("expected merged completions (operational + edit), got %d: %v", len(cmdComps), cmdComps)
 	}
-	// Should be different from edit mode
-	if len(editComps) > 0 && editComps[0].Text == cmdComps[0].Text {
-		t.Error("command mode completions should differ from edit mode")
+
+	// Verify operational commands are present
+	hasPeer, hasDaemon := false, false
+	for _, c := range cmdComps {
+		if c.Text == "peer" {
+			hasPeer = true
+		}
+		if c.Text == "daemon" {
+			hasDaemon = true
+		}
+	}
+	if !hasPeer || !hasDaemon {
+		t.Errorf("expected operational commands in merged completions: peer=%v, daemon=%v", hasPeer, hasDaemon)
+	}
+
+	// Verify edit commands are also present (set, delete, etc.)
+	hasSet := false
+	for _, c := range cmdComps {
+		if c.Text == "set" {
+			hasSet = true
+			break
+		}
+	}
+	if !hasSet {
+		t.Error("expected edit commands (set) in merged command mode completions")
+	}
+
+	// Should have more completions than edit mode alone (edit commands + operational)
+	if len(cmdComps) <= len(editComps) {
+		t.Errorf("command mode should have more completions than edit mode: cmd=%d, edit=%d", len(cmdComps), len(editComps))
 	}
 }
 
@@ -308,13 +335,13 @@ func TestModeScrollRestore(t *testing.T) {
 
 func TestTabOnCommonPrefixShowsDropdown(t *testing.T) {
 	// VALIDATES: Tab on common prefix applies partial completion and shows dropdown.
-	// PREVENTS: Tab completing "edit peer 12" to "127.0.0. " (with space) and no dropdown,
+	// PREVENTS: Tab completing "peer show 12" to "127.0.0. " (with space) and no dropdown,
 	//           leaving user with an invalid partial token and no way to pick between matches.
 	m := newTestModel(t)
 	m.SetCommandCompleter(NewCommandCompleter(&CommandNode{
 		Children: map[string]*CommandNode{
-			"edit": {Name: "edit", Children: map[string]*CommandNode{
-				"peer": {Name: "peer", Children: map[string]*CommandNode{
+			"peer": {Name: "peer", Children: map[string]*CommandNode{
+				"show": {Name: "show", Children: map[string]*CommandNode{
 					"127.0.0.1": {Name: "127.0.0.1", Description: "Peer 1"},
 					"127.0.0.2": {Name: "127.0.0.2", Description: "Peer 2"},
 				}},
@@ -323,7 +350,7 @@ func TestTabOnCommonPrefixShowsDropdown(t *testing.T) {
 	}))
 
 	m.SwitchMode(ModeCommand)
-	m.textInput.SetValue("edit peer 12")
+	m.textInput.SetValue("peer show 12")
 	m.UpdateCompletions()
 
 	// Precondition: ghost text is the common prefix tail, multiple completions
@@ -342,8 +369,8 @@ func TestTabOnCommonPrefixShowsDropdown(t *testing.T) {
 	}
 
 	// Input should end with the common prefix, no trailing space
-	if updated.InputValue() != "edit peer 127.0.0." {
-		t.Errorf("expected 'edit peer 127.0.0.', got %q", updated.InputValue())
+	if updated.InputValue() != "peer show 127.0.0." {
+		t.Errorf("expected 'peer show 127.0.0.', got %q", updated.InputValue())
 	}
 
 	// Dropdown should be visible with both peer options
@@ -352,6 +379,91 @@ func TestTabOnCommonPrefixShowsDropdown(t *testing.T) {
 	}
 	if len(updated.Completions()) != 2 {
 		t.Errorf("expected 2 completions in dropdown, got %d", len(updated.Completions()))
+	}
+}
+
+func TestCrossModeCompletionsRunPrefix(t *testing.T) {
+	// VALIDATES: edit mode with "run " prefix gets operational command completions
+	// PREVENTS: dead completions when typing "run peer" in edit mode
+	m := newTestModel(t)
+	m.SetCommandCompleter(NewCommandCompleter(&CommandNode{
+		Children: map[string]*CommandNode{
+			"peer":   {Name: "peer", Description: "Peer operations"},
+			"daemon": {Name: "daemon", Description: "Daemon operations"},
+		},
+	}))
+
+	// In edit mode, type "run " — should get command completions
+	m.textInput.SetValue("run ")
+	m.UpdateCompletions()
+	comps := m.Completions()
+
+	hasPeer := false
+	for _, c := range comps {
+		if c.Text == "peer" {
+			hasPeer = true
+		}
+	}
+	if !hasPeer {
+		t.Errorf("expected operational completions for 'run ' prefix, got %v", comps)
+	}
+
+	// Type "run pe" — ghost text should suggest "er" (completing "peer")
+	m.textInput.SetValue("run pe")
+	m.UpdateCompletions()
+	if m.GhostText() != "er" {
+		t.Errorf("expected ghost text 'er' for 'run pe', got %q", m.GhostText())
+	}
+}
+
+func TestCrossModeCompletionsEditInCommandMode(t *testing.T) {
+	// VALIDATES: command mode with edit command prefix routes to YANG completions
+	// PREVENTS: trying to match "set bgp" against operational command tree
+	m := newTestModel(t)
+	m.SetCommandCompleter(NewCommandCompleter(&CommandNode{
+		Children: map[string]*CommandNode{
+			"peer": {Name: "peer", Description: "Peer operations"},
+		},
+	}))
+
+	m.SwitchMode(ModeCommand)
+
+	// Type "set " — should get YANG completions, not operational
+	m.textInput.SetValue("set ")
+	m.UpdateCompletions()
+	comps := m.Completions()
+
+	// Should NOT contain operational commands like "peer"
+	for _, c := range comps {
+		if c.Text == "peer" {
+			t.Error("'set ' prefix should use YANG completions, not operational commands")
+		}
+	}
+}
+
+func TestIsEditCommandWithArgs(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"", false},
+		{"set", false},    // no args yet — still at command level
+		{"set ", true},    // trailing space — entering path
+		{"set bgp", true}, // has args
+		{"set bgp peer", true},
+		{"delete ", true},
+		{"peer list", false}, // not an edit command
+		{"run peer", false},  // "run" is not in editModeCommands
+		{"show ", true},
+		{"show bgp", true},
+		{"commit", false}, // no args
+		{"commit ", true}, // trailing space counts
+	}
+	for _, tt := range tests {
+		got := isEditCommandWithArgs(tt.input)
+		if got != tt.want {
+			t.Errorf("isEditCommandWithArgs(%q) = %v, want %v", tt.input, got, tt.want)
+		}
 	}
 }
 

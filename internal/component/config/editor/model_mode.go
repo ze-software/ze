@@ -7,6 +7,7 @@ package editor
 
 import (
 	"fmt"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -88,6 +89,37 @@ func (m *Model) SwitchMode(target EditorMode) {
 	if target == ModeCommand && m.commandExecutor == nil {
 		m.statusMessage = "no daemon connection — completions available, but commands will not execute"
 	}
+}
+
+// editModeCommands lists config commands that trigger a switch from command mode to edit mode.
+var editModeCommands = map[string]bool{
+	cmdSet: true, cmdDelete: true, cmdShow: true, cmdEdit: true,
+	cmdCommit: true, cmdDiscard: true, cmdCompare: true,
+	cmdRollback: true, cmdHistory: true, cmdLoad: true,
+	cmdErrors: true, cmdTop: true, cmdUp: true,
+}
+
+// isEditCommand returns true if the input starts with a config editing command.
+func isEditCommand(input string) bool {
+	fields := strings.Fields(input)
+	if len(fields) == 0 {
+		return false
+	}
+	return editModeCommands[fields[0]]
+}
+
+// isEditCommandWithArgs returns true if the input starts with a config editing command
+// followed by arguments or a trailing space. Used by updateCompletions to decide when
+// to switch from merged completions to YANG-only completions.
+func isEditCommandWithArgs(input string) bool {
+	fields := strings.Fields(input)
+	if len(fields) == 0 {
+		return false
+	}
+	if !editModeCommands[fields[0]] {
+		return false
+	}
+	return len(fields) > 1 || strings.HasSuffix(input, " ")
 }
 
 // executeOperationalCommand sends a command to the daemon via the injected executor.

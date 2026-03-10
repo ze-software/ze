@@ -66,7 +66,7 @@ var commands = []Completion{
 	{Text: cmdRollback, Description: "Restore from backup", Type: "command"},
 	{Text: cmdExit, Description: "Exit editor", Type: "command"},
 	{Text: cmdHelp, Description: "Show help", Type: "command"},
-	{Text: cmdCommand, Description: "Switch to operational command mode", Type: "command"},
+	{Text: cmdRun, Description: "Run operational command", Type: "command"},
 }
 
 // Complete returns completions for the given input at cursor position.

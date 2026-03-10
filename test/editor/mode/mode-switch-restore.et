@@ -24,12 +24,12 @@ input=enter
 expect=content:contains=local-as 65000
 
 # Switch to command mode — edit content should be saved
-input=type:text=/command
+input=type:text=run
 input=enter
 expect=mode:is=command
 
 # Switch back to edit — config should still be there
-input=type:text=/edit
+input=type:text=edit
 input=enter
 expect=mode:is=edit
 expect=dirty:true
