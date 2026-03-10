@@ -1,0 +1,125 @@
+# Test: bgp metrics show returns Prometheus text format via dispatch-command
+#
+# Flow:
+# 1. BGP session establishes with telemetry enabled
+# 2. Python plugin dispatches "bgp metrics show" via dispatch-command
+# 3. Verifies response contains Prometheus text output
+# 4. Shuts down daemon
+#
+# VALIDATES: AC-1 — bgp metrics show returns Prometheus text format output.
+# PREVENTS: Metrics handler not wired into dispatch chain.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+
+# EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: exercises dispatch-command for bgp metrics show
+tmpfs=metrics-show-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Test: bgp metrics show via dispatch-command."""
+
+import json
+import sys
+import time
+
+from ze_api import API
+
+
+def dispatch(api, command):
+    """Call dispatch-command and return result dict."""
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for BGP session to establish
+    time.sleep(1.0)
+
+    # Test: bgp metrics show should return Prometheus text
+    r = dispatch(api, 'bgp metrics show')
+    status = r.get('status')
+    if status != 'done':
+        print(f'FAIL: expected status=done, got={status}', file=sys.stderr)
+        sys.exit(1)
+
+    data_str = r.get('data', '{}')
+    try:
+        data = json.loads(data_str) if isinstance(data_str, str) else data_str
+    except (json.JSONDecodeError, TypeError):
+        data = {}
+
+    metrics_text = data.get('metrics', '')
+    if not metrics_text:
+        print(f'FAIL: empty metrics text, data={data}', file=sys.stderr)
+        sys.exit(1)
+
+    print(f'OK: metrics show returned {len(metrics_text)} bytes', file=sys.stderr)
+
+    # Shutdown daemon
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration with telemetry enabled
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external metrics-show-test {
+		run ./metrics-show-test.run;
+		encoder json;
+	}
+}
+
+environment {
+	tcp {
+		attempts 3;
+	}
+}
+
+telemetry {
+	prometheus {
+		port 19273;
+	}
+}
+
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
+		connection active;
+		group-updates disable;
+
+		family {
+			ipv4/unicast;
+		}
+		capability {
+			graceful-restart disable;
+		}
+		process metrics-show-test {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

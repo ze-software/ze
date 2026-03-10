@@ -34,6 +34,8 @@ See [JSON_FORMAT.md](JSON_FORMAT.md#exabgp-differences) for output format differ
 | Announce | route, flow, vpls, eor, operational |
 | Withdraw | route, flow, vpls, watchdog |
 | RIB | show, flush, clear |
+| Log | show, set (runtime log levels) |
+| Metrics | show, list (Prometheus metrics) |
 | Group | start, end (batching) |
 | Subscribe | subscribe, unsubscribe (event filtering) |
 
@@ -172,6 +174,24 @@ The cache commands enable route reflection via API:
 3. External process decides routing
 4. Cache forward command references msg-id (zero-copy when contexts match)
 5. Cache entries expire after configurable TTL (default 60s) unless retained
+
+### Log Commands (Ze)
+
+```
+bgp log show                      # Show all subsystem log levels (JSON map)
+bgp log set <subsystem> <level>   # Change subsystem log level at runtime
+```
+
+Levels: `debug`, `info`, `warn`, `err`. Changes take effect immediately via `slog.LevelVar` atomic swap. Only loggers created via `slogutil.Logger()` or `slogutil.LazyLogger()` (non-disabled) are shown and modifiable.
+
+### Metrics Commands (Ze)
+
+```
+bgp metrics show          # Dump Prometheus text format output
+bgp metrics list          # List metric names only (no values)
+```
+
+Requires telemetry to be enabled in config (`telemetry { prometheus { ... } }`). Returns error if metrics registry is not available.
 
 ### Peer Selectors
 
@@ -589,6 +609,12 @@ bgp
 │   └── complete
 ├── event
 │   └── list
+├── log
+│   ├── show              # Show subsystem log levels
+│   └── set               # Set subsystem log level at runtime
+├── metrics
+│   ├── show              # Show Prometheus metrics (text format)
+│   └── list              # List metric names
 └── plugin
     ├── encoding
     ├── format

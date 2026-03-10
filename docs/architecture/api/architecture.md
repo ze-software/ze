@@ -234,6 +234,8 @@ Each YANG module defines RPCs and notifications for a domain. Every RPC maps 1:1
 | Module | Location | RPCs | Notifications |
 |--------|----------|------|---------------|
 | `ze-bgp-api` | `internal/component/bgp/schema/` | 24 | 7 |
+| `ze-bgp-cmd-log-api` | `internal/component/bgp/plugins/cmd/log/schema/` | 2 | 0 |
+| `ze-bgp-cmd-metrics-api` | `internal/component/bgp/plugins/cmd/metrics/schema/` | 2 | 0 |
 | `ze-system-api` | `internal/ipc/schema/` | 8 | 0 |
 | `ze-plugin-api` | `internal/ipc/schema/` | 8 | 0 |
 | `ze-rib-api` | `internal/plugin/rib/schema/` | 9 | 1 |
