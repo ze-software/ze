@@ -13,6 +13,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/system/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/ssh/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/core/ipc/schema"
 
@@ -38,4 +39,3 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/watchdog"
 )
-

@@ -1,0 +1,22 @@
+# Test: ze validate with invalid SSH config (unknown field)
+# Verifies that unknown fields in the ssh block are rejected
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer 127.0.0.1 {
+		local-address 127.0.0.1;
+		local-as 65533;
+		peer-as 65533;
+	}
+}
+
+system {
+	ssh {
+		listen 0.0.0.0:2222;
+		unknown-field value;
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=unknown

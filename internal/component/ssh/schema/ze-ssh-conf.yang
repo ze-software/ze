@@ -1,0 +1,59 @@
+module ze-ssh-conf {
+    namespace "urn:ze:ssh:conf";
+    prefix ssh;
+
+    import ze-extensions { prefix ze; }
+
+    description "SSH server configuration for Ze";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    container system {
+        description "System-level settings";
+
+        container authentication {
+            description "System authentication settings";
+
+            list user {
+                key "name";
+                description "Authenticated user";
+
+                leaf name {
+                    type string;
+                    description "Username";
+                }
+
+                leaf password {
+                    type string;
+                    description "Bcrypt-hashed password";
+                }
+            }
+        }
+
+        container ssh {
+            description "SSH server settings";
+
+            leaf listen {
+                type string;
+                description "Listen address and port (e.g. 0.0.0.0:2222)";
+            }
+
+            leaf host-key {
+                type string;
+                description "Path to SSH host key file (default: config dir + ssh_host_ed25519_key, auto-generated if missing)";
+            }
+
+            leaf idle-timeout {
+                type uint32;
+                description "Idle timeout in seconds (default 600)";
+            }
+
+            leaf max-sessions {
+                type uint16;
+                description "Maximum concurrent SSH sessions";
+            }
+        }
+    }
+}

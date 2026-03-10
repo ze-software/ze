@@ -171,6 +171,18 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) *Schema {
 		}
 	}
 
+	// Load ze-ssh-conf module (system > ssh)
+	sshEntry := loader.GetEntry("ze-ssh-conf")
+	if sshEntry != nil {
+		for _, name := range sortedKeys(sshEntry.Dir) {
+			child := sshEntry.Dir[name]
+			node := yangToNode(child, name)
+			if node != nil {
+				schema.Define(name, node)
+			}
+		}
+	}
+
 	// Load ze-telemetry-conf module (telemetry)
 	telemetryEntry := loader.GetEntry("ze-telemetry-conf")
 	if telemetryEntry != nil {
