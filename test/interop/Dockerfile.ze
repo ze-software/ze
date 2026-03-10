@@ -1,0 +1,26 @@
+# Multi-stage build for Ze BGP daemon.
+# Produces a minimal Alpine image with just the ze binary.
+
+FROM golang:1.25-alpine AS builder
+
+RUN apk add --no-cache git
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+
+RUN CGO_ENABLED=0 go build -o /ze ./cmd/ze
+
+FROM alpine:3.21
+
+RUN apk add --no-cache tini python3
+
+COPY --from=builder /ze /usr/local/bin/ze
+
+# ze_api.py is needed by process plugin scripts that announce routes.
+COPY test/scripts/ze_api.py /usr/lib/ze/ze_api.py
+ENV PYTHONPATH=/usr/lib/ze
+
+# tini ensures proper signal handling (SIGTERM → ze process).
+ENTRYPOINT ["tini", "--", "ze"]

@@ -1,0 +1,9 @@
+# BIRD2 BGP daemon for interoperability testing.
+# Alpine ships bird2 in its community repository.
+
+FROM alpine:3.21
+
+RUN apk add --no-cache bird tini
+
+ENTRYPOINT ["tini", "--", "bird"]
+CMD ["-f", "-c", "/etc/bird/bird.conf"]
