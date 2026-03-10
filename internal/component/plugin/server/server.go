@@ -150,6 +150,14 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) *Server {
 	return s
 }
 
+// ConfigPath returns the path to the config file. Empty if not set.
+func (s *Server) ConfigPath() string {
+	if s.config == nil {
+		return ""
+	}
+	return s.config.ConfigPath
+}
+
 // hasConfiguredPlugin returns true if a plugin with the given name is in the
 // server's configured plugin list. Used by stage 1 dependency validation.
 func (s *Server) hasConfiguredPlugin(name string) bool {

@@ -1,6 +1,7 @@
 // Design: docs/architecture/api/commands.md — BGP peer lifecycle and introspection handlers
 // Detail: summary.go — BGP summary and capabilities handlers
 // Detail: session.go — BGP peer session handlers
+// Detail: save.go — BGP peer config persistence
 
 package peer
 
@@ -23,6 +24,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-remove", CLICommand: "bgp peer remove", Handler: handleBgpPeerRemove, Help: "Remove a peer dynamically", RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-pause", CLICommand: "bgp peer pause", Handler: handleBgpPeerPause, Help: "Pause peer read loop (flow control)", RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-resume", CLICommand: "bgp peer resume", Handler: handleBgpPeerResume, Help: "Resume peer read loop (flow control)", RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-save", CLICommand: "bgp peer save", Handler: handleBgpPeerSave, Help: "Save peer(s) to config file (merges into existing config)", RequiresSelector: true},
 	)
 }
 
@@ -47,9 +49,9 @@ func filterPeersBySelector(ctx *pluginserver.CommandContext) ([]plugin.PeerInfo,
 		}, fmt.Errorf("invalid peer address %s: %w", selector, err)
 	}
 
-	for _, p := range allPeers {
-		if p.Address == filterIP {
-			return []plugin.PeerInfo{p}, nil, nil
+	for i := range allPeers {
+		if allPeers[i].Address == filterIP {
+			return []plugin.PeerInfo{allPeers[i]}, nil, nil
 		}
 	}
 
@@ -66,7 +68,8 @@ func handleBgpPeerList(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 	}
 
 	result := make(map[string]any, len(peers))
-	for _, p := range peers {
+	for i := range peers {
+		p := &peers[i]
 		result[p.Address.String()] = map[string]any{
 			"peer-as": p.PeerAS,
 			"state":   p.State,
@@ -92,7 +95,8 @@ func handleBgpPeerShow(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 	}
 
 	result := make(map[string]any, len(peers))
-	for _, p := range peers {
+	for i := range peers {
+		p := &peers[i]
 		rid := p.RouterID
 		routerID := netip.AddrFrom4([4]byte{byte(rid >> 24), byte(rid >> 16), byte(rid >> 8), byte(rid)}).String()
 
@@ -100,6 +104,8 @@ func handleBgpPeerShow(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 			"peer-as":             p.PeerAS,
 			"local-as":            p.LocalAS,
 			"router-id":           routerID,
+			"hold-time":           int(p.HoldTime.Seconds()),
+			"connection":          p.Connection,
 			"state":               p.State,
 			"uptime":              p.Uptime.String(),
 			"updates-received":    p.UpdatesReceived,

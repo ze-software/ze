@@ -87,6 +87,8 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			LocalAS:            s.LocalAS,
 			PeerAS:             s.PeerAS,
 			RouterID:           s.RouterID,
+			HoldTime:           s.HoldTime,
+			Connection:         s.Connection.String(),
 			State:              p.State().String(),
 			UpdatesReceived:    stats.UpdatesReceived,
 			UpdatesSent:        stats.UpdatesSent,

@@ -533,6 +533,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	if r.config.APISocketPath != "" {
 		apiConfig := &pluginserver.ServerConfig{
 			SocketPath:         r.config.APISocketPath,
+			ConfigPath:         r.config.ConfigPath,
 			ConfiguredFamilies: r.config.ConfiguredFamilies,
 			RPCFallback:        bgpserver.CodecRPCHandler,
 			CommitManager:      transaction.NewCommitManager(),

@@ -28,6 +28,8 @@ type PeerInfo struct {
 	LocalAS      uint32
 	PeerAS       uint32
 	RouterID     uint32
+	HoldTime     time.Duration // Configured hold time
+	Connection   string        // Connection mode: "both", "passive", "active"
 	State        string
 	Uptime       time.Duration
 

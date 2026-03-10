@@ -12,6 +12,7 @@ module ze-bgp-cmd-peer-api {
   rpc peer-remove { description "Remove a peer dynamically"; }
   rpc peer-pause { description "Pause peer read loop (flow control)"; }
   rpc peer-resume { description "Resume peer read loop (flow control)"; }
+  rpc peer-save { description "Save peer(s) to config file"; }
   rpc summary { description "Show BGP summary (peer table with statistics)"; }
   rpc peer-capabilities { description "Show negotiated capabilities for peer(s)"; }
   rpc session-peer-ready { description "Signal peer-specific plugin init complete"; }

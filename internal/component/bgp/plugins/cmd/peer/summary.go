@@ -35,7 +35,8 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, _ []string) (*plugin.Res
 
 	established := 0
 	peerRows := make([]map[string]any, len(allPeers))
-	for i, p := range allPeers {
+	for i := range allPeers {
+		p := &allPeers[i]
 		if p.State == "established" {
 			established++
 		}
@@ -90,7 +91,8 @@ func handleBgpPeerCapabilities(ctx *pluginserver.CommandContext, _ []string) (*p
 
 	reactor := ctx.Reactor()
 	results := make([]map[string]any, len(peers))
-	for i, peer := range peers {
+	for i := range peers {
+		peer := &peers[i]
 		caps := reactor.PeerNegotiatedCapabilities(peer.Address)
 
 		entry := map[string]any{
@@ -146,7 +148,8 @@ func handleBgpPeerShowStatistics(ctx *pluginserver.CommandContext, _ []string) (
 	}
 
 	results := make([]map[string]any, len(peers))
-	for i, p := range peers {
+	for i := range peers {
+		p := &peers[i]
 		uptimeSec := p.Uptime.Seconds()
 
 		entry := map[string]any{
