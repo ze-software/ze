@@ -558,6 +558,7 @@ func (p *Peer) State() PeerState {
 func (p *Peer) setState(s PeerState) {
 	old := PeerState(p.state.Swap(int32(s)))
 	if old != s {
+		p.updatePeerStateMetric(s)
 		p.mu.RLock()
 		cb := p.callback
 		p.mu.RUnlock()

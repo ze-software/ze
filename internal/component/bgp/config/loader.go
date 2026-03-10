@@ -23,6 +23,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
@@ -432,6 +433,20 @@ func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reacto
 				configLogger().Error("pprof server failed", "error", err)
 			}
 		}()
+	}
+
+	// Start Prometheus metrics HTTP server from telemetry config block.
+	// Creates a shared registry that the reactor (and future components) register metrics into.
+	if addr, port, path, ok := metrics.ExtractTelemetryConfig(tree.ToMap()); ok {
+		reg := metrics.NewPrometheusRegistry()
+		var srv metrics.Server
+		if err := srv.Start(reg, addr, port, path); err != nil {
+			configLogger().Warn("metrics server failed to start", "error", err)
+		} else {
+			configLogger().Info("prometheus metrics enabled",
+				"address", addr, "port", port, "path", path)
+			r.SetMetricsRegistry(reg)
+		}
 	}
 
 	// Inject chaos wrappers from config environment block.

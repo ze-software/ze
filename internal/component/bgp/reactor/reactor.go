@@ -9,6 +9,7 @@
 // Detail: signal.go — OS signal handling
 // Detail: forward_pool.go — per-peer forward worker pool
 // Detail: recent_cache.go — recent UPDATE cache
+// Detail: reactor_metrics.go — Prometheus metrics initialization and update loop
 // Detail: api_sync.go — API process synchronization
 //
 // Package reactor implements the BGP reactor - the main orchestrator
@@ -43,6 +44,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
@@ -192,6 +194,8 @@ type Reactor struct {
 	clock           clock.Clock
 	dialer          network.Dialer
 	listenerFactory network.ListenerFactory
+	metricsRegistry metrics.Registry // injected by caller; nil when metrics not enabled
+	rmetrics        *reactorMetrics  // cached metric references (nil when registry not set)
 
 	peers           map[string]*Peer     // keyed by "addr:port" (PeerKey format)
 	listener        *Listener            // deprecated: single listener for backward compat
@@ -305,6 +309,13 @@ func (r *Reactor) SetListenerFactory(f network.ListenerFactory) {
 	r.listenerFactory = f
 }
 
+// SetMetricsRegistry sets the metrics registry for Prometheus instrumentation.
+// Must be called before StartWithContext. The caller owns the registry and
+// HTTP server; the reactor only registers and increments metrics.
+func (r *Reactor) SetMetricsRegistry(reg metrics.Registry) {
+	r.metricsRegistry = reg
+}
+
 // SetReloadFunc sets the function that will be called to reload config.
 // This must be set before Start() for SIGHUP reload to work.
 func (r *Reactor) SetReloadFunc(fn ReloadFunc) {
@@ -316,6 +327,14 @@ func (r *Reactor) SetReloadFunc(fn ReloadFunc) {
 // SetConfigPath sets the config file path for reload.
 func (r *Reactor) SetConfigPath(path string) {
 	r.config.ConfigPath = path
+}
+
+// ConfigTree returns the full config as a map.
+// Used by startup code to extract telemetry and other non-BGP config.
+func (r *Reactor) ConfigTree() map[string]any {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.configTree
 }
 
 // Running returns true if the reactor is running.
@@ -438,6 +457,18 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 
 	r.ctx, r.cancel = context.WithCancel(ctx)
 	r.startTime = r.clock.Now()
+
+	// Register BGP metrics into the injected registry (if set by caller).
+	if r.metricsRegistry != nil {
+		version, _ := pluginserver.GetVersion()
+		routerID := fmt.Sprintf("%d.%d.%d.%d",
+			r.config.RouterID>>24&0xFF, r.config.RouterID>>16&0xFF,
+			r.config.RouterID>>8&0xFF, r.config.RouterID&0xFF)
+		r.rmetrics = initReactorMetrics(r.metricsRegistry, version,
+			routerID, strconv.FormatUint(uint64(r.config.LocalAS), 10))
+		r.rmetrics.peersConfigured.Set(float64(len(r.peers)))
+		go r.metricsUpdateLoop()
+	}
 
 	// Start background gap scan goroutine for the recent update cache.
 	r.recentUpdates.Start()

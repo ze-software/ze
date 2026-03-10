@@ -159,6 +159,18 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) *Schema {
 		}
 	}
 
+	// Load ze-telemetry-conf module (telemetry)
+	telemetryEntry := loader.GetEntry("ze-telemetry-conf")
+	if telemetryEntry != nil {
+		for _, name := range sortedKeys(telemetryEntry.Dir) {
+			child := telemetryEntry.Dir[name]
+			node := yangToNode(child, name)
+			if node != nil {
+				schema.Define(name, node)
+			}
+		}
+	}
+
 	return schema
 }
 

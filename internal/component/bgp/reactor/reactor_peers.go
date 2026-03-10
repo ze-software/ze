@@ -101,6 +101,11 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	peer.messageCallback = r.notifyMessageReceiver
 	r.peers[key] = peer
 
+	// Update Prometheus gauge if metrics are configured.
+	if r.rmetrics != nil {
+		r.rmetrics.peersConfigured.Set(float64(len(r.peers)))
+	}
+
 	// If reactor is running, start the peer and create listener if needed.
 	// Active-only peers dial out and never accept inbound — skip listener.
 	if r.running {
@@ -143,6 +148,17 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 	peer.Stop()
 
 	delete(r.peers, key)
+
+	// Update Prometheus metrics if configured.
+	if r.rmetrics != nil {
+		r.rmetrics.peersConfigured.Set(float64(len(r.peers)))
+
+		// Remove per-peer label entries so removed peers don't linger in /metrics.
+		label := peer.peerAddrLabel()
+		r.rmetrics.peerState.Delete(label)
+		r.rmetrics.peerMsgRecv.Delete(label)
+		r.rmetrics.peerMsgSent.Delete(label)
+	}
 
 	// Check if any other peer uses this listener (same LocalAddress + port)
 	if localAddr.IsValid() {

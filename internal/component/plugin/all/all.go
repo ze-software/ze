@@ -12,6 +12,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/core/ipc/schema"
 
 	// Plugin packages — plugin + schema registration.

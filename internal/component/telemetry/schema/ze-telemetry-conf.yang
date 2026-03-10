@@ -1,0 +1,44 @@
+module ze-telemetry-conf {
+    namespace "urn:ze:telemetry:conf";
+    prefix tel;
+
+    import ze-types { prefix zt; }
+
+    description "Telemetry configuration for Ze";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    container telemetry {
+        description "Telemetry export configuration";
+
+        container prometheus {
+            description "Prometheus metrics HTTP export";
+
+            leaf enabled {
+                type boolean;
+                default false;
+                description "Enable Prometheus metrics endpoint";
+            }
+
+            leaf address {
+                type string;
+                default "0.0.0.0";
+                description "Listen IP address";
+            }
+
+            leaf port {
+                type zt:port;
+                default 9273;
+                description "Listen TCP port";
+            }
+
+            leaf path {
+                type string;
+                default "/metrics";
+                description "HTTP path for metrics endpoint";
+            }
+        }
+    }
+}
