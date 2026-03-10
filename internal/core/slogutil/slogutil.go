@@ -30,7 +30,6 @@ import (
 	"io"
 	"log/slog"
 	"os"
-	"sort"
 	"strings"
 	"sync"
 )
@@ -101,7 +100,7 @@ func Logger(subsystem string) *slog.Logger {
 		lv := &slog.LevelVar{}
 		lv.Set(slog.LevelWarn)
 		levelRegistry.Store(subsystem, lv)
-		handler := createHandlerVar(lv)
+		handler := createHandler(lv)
 		return slog.New(handler).With("subsystem", subsystem)
 	}
 	lvl, enabled := parseLevel(v)
@@ -111,7 +110,7 @@ func Logger(subsystem string) *slog.Logger {
 	lv := &slog.LevelVar{}
 	lv.Set(lvl)
 	levelRegistry.Store(subsystem, lv)
-	handler := createHandlerVar(lv)
+	handler := createHandler(lv)
 	return slog.New(handler).With("subsystem", subsystem)
 }
 
@@ -168,7 +167,8 @@ func RelayLevel() (slog.Level, bool) {
 }
 
 // createHandler creates a slog.Handler based on ze.log.backend setting.
-func createHandler(level slog.Level) slog.Handler {
+// Accepts slog.Leveler so both slog.Level (fixed) and *slog.LevelVar (mutable) work.
+func createHandler(level slog.Leveler) slog.Handler {
 	opts := &slog.HandlerOptions{Level: level}
 	backend := getSpecialEnv("backend")
 	switch strings.ToLower(backend) {
@@ -179,27 +179,6 @@ func createHandler(level slog.Level) slog.Handler {
 	default: // stderr (default)
 		return slog.NewTextHandler(os.Stderr, opts)
 	}
-}
-
-// createHandlerVar creates a slog.Handler using a LevelVar for runtime-mutable levels.
-func createHandlerVar(lv *slog.LevelVar) slog.Handler {
-	opts := &slog.HandlerOptions{Level: lv}
-	backend := getSpecialEnv("backend")
-	switch strings.ToLower(backend) {
-	case backendStdout:
-		return slog.NewTextHandler(os.Stdout, opts)
-	case backendSyslog:
-		return newSyslogHandler(opts)
-	default: // stderr (default)
-		return slog.NewTextHandler(os.Stderr, opts)
-	}
-}
-
-// ParseLevel parses a log level string.
-// Returns (level, enabled). enabled=false means logging should be disabled.
-// Level strings are case-insensitive: disabled, debug, info, warn/warning, err/error.
-func ParseLevel(s string) (slog.Level, bool) {
-	return parseLevel(s)
 }
 
 // parseLevel parses a log level string.
@@ -354,7 +333,7 @@ func ListLevels() map[string]string {
 func SetLevel(subsystem, levelStr string) error {
 	lvl, enabled := parseLevel(levelStr)
 	if !enabled {
-		return fmt.Errorf("invalid level: %s", levelStr)
+		return fmt.Errorf("invalid level %q (valid: debug, info, warn, err)", levelStr)
 	}
 
 	val, ok := levelRegistry.Load(subsystem)
@@ -384,23 +363,6 @@ func LevelString(level slog.Level) string {
 	}
 	// Non-standard level (e.g. custom numeric) — use stdlib formatting.
 	return level.String()
-}
-
-// SortedLevels returns subsystem names sorted alphabetically with their levels.
-// Convenience for display purposes.
-func SortedLevels() []struct{ Name, Level string } {
-	levels := ListLevels()
-	names := make([]string, 0, len(levels))
-	for name := range levels {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-
-	result := make([]struct{ Name, Level string }, len(names))
-	for i, name := range names {
-		result[i] = struct{ Name, Level string }{Name: name, Level: levels[name]}
-	}
-	return result
 }
 
 // ResetLevelRegistry clears all entries from the level registry. Only for use in tests.

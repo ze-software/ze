@@ -1074,16 +1074,3 @@ func TestDefaultLoggerRegistered(t *testing.T) {
 	assert.Contains(t, levels, "defaultregtest")
 	assert.Equal(t, "warn", levels["defaultregtest"])
 }
-
-// TestParseLevelExported verifies the exported ParseLevel function works.
-//
-// VALIDATES: ParseLevel() public wrapper matches parseLevel() behavior.
-// PREVENTS: Export wrapper returning different results.
-func TestParseLevelExported(t *testing.T) {
-	lvl, enabled := ParseLevel("debug")
-	assert.True(t, enabled)
-	assert.Equal(t, slog.LevelDebug, lvl)
-
-	_, enabled = ParseLevel("disabled")
-	assert.False(t, enabled)
-}

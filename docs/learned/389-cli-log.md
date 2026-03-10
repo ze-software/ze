@@ -22,13 +22,13 @@ Add `bgp log show` and `bgp log set <subsystem> <level>` CLI commands for runtim
 
 - **Handler error contract**: `dispatch-command` sends JSON-RPC errors when handlers return a Go error. Business logic errors (e.g., "unknown subsystem") must return `StatusError` Response with `nil` Go error. The `nilerr` linter then requires extracting the error-returning call into a helper that returns a Response directly.
 - **Missing blank import**: `reactor.go` needs `_ "...cmd/log"` for `init()` to fire in the binary. Dispatch tests pass without it because they import the package directly.
-- **goconst lint**: Adding `createHandlerVar()` tripled `"stdout"`/`"syslog"` strings — fixed with constants.
+- **goconst lint**: Repeated backend strings (`"stdout"`, `"syslog"`, `"stderr"`) — fixed with constants.
 - **errcheck lint**: `sync.Map.Range()` with bare type assertions triggers errcheck — use checked form.
 - **block-silent-ignore hook**: `default:` case in switch blocked. Used explicit cases + fallback return.
 
 ## Files
 
-- `internal/core/slogutil/slogutil.go` — LevelRegistry, LevelVar switch, ListLevels/SetLevel/ParseLevel/LevelString/SortedLevels/ResetLevelRegistry
+- `internal/core/slogutil/slogutil.go` — LevelRegistry, LevelVar switch, ListLevels/SetLevel/LevelString/ResetLevelRegistry
 - `internal/component/bgp/plugins/cmd/log/` — handler package (log.go, doc.go, schema/)
 - `internal/component/bgp/reactor/reactor.go` — blank import added
 - `test/plugin/cli-log-show.ci`, `test/plugin/cli-log-set.ci` — functional tests
