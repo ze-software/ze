@@ -95,8 +95,8 @@ func FoldServerPipeline(command string, ops []pipeOp) (string, []pipeOp) {
 	trimmed := strings.TrimSpace(command)
 	lower := strings.ToLower(trimmed)
 
-	// Only fold for rib show commands (not "rib status", "rib best", etc.)
-	if !strings.HasPrefix(lower, "rib show") {
+	// Only fold for rib show and rib best commands (server-side pipeline).
+	if !strings.HasPrefix(lower, "rib show") && !strings.HasPrefix(lower, "rib best") {
 		return command, ops
 	}
 

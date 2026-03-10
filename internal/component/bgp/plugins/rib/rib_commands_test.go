@@ -67,9 +67,9 @@ func requireFirstRoute(t *testing.T, jsonStr, topKey, peerAddr string) map[strin
 	return route
 }
 
-// TestInboundShowWithAttributes verifies enriched rib show in returns attributes.
+// TestInboundShowWithAttributes verifies enriched rib show received returns attributes.
 //
-// VALIDATES: AC-6 — rib show in returns origin, as-path, med, local-pref, communities.
+// VALIDATES: AC-6 — rib show received returns origin, as-path, med, local-pref, communities.
 // PREVENTS: Show command returning only family/prefix/next-hop without path attributes.
 func TestInboundShowWithAttributes(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -91,7 +91,7 @@ func TestInboundShowWithAttributes(t *testing.T) {
 	peerRIB.Insert(family, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
-	route := requireFirstRoute(t, r.inboundShowJSON("*", nil), "adj-rib-in", "192.0.2.1")
+	route := requireFirstRoute(t, r.showPipeline("*", []string{"received"}), "adj-rib-in", "192.0.2.1")
 
 	assert.Equal(t, "ipv4/unicast", route["family"])
 	assert.Equal(t, "10.0.0.0/24", route["prefix"])
@@ -128,7 +128,7 @@ func TestInboundShowMinimalAttributes(t *testing.T) {
 	peerRIB.Insert(family, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
-	route := requireFirstRoute(t, r.inboundShowJSON("192.0.2.1", nil), "adj-rib-in", "192.0.2.1")
+	route := requireFirstRoute(t, r.showPipeline("192.0.2.1", []string{"received"}), "adj-rib-in", "192.0.2.1")
 
 	assert.Equal(t, "igp", route["origin"])
 	assert.Equal(t, "10.0.0.1", route["next-hop"])
@@ -142,9 +142,9 @@ func TestInboundShowMinimalAttributes(t *testing.T) {
 	assert.False(t, hasCom, "communities should be absent when not in route")
 }
 
-// TestOutboundShowWithAttributes verifies enriched rib show out returns attributes.
+// TestOutboundShowWithAttributes verifies enriched rib show sent returns attributes.
 //
-// VALIDATES: AC-7 — rib show out returns origin, as-path, med, local-pref, communities.
+// VALIDATES: AC-7 — rib show sent returns origin, as-path, med, local-pref, communities.
 // PREVENTS: Outbound show missing path attributes for route replay verification.
 func TestOutboundShowWithAttributes(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -165,7 +165,7 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 		},
 	}
 
-	route := requireFirstRoute(t, r.outboundShowJSON("*"), "adj-rib-out", "192.0.2.1")
+	route := requireFirstRoute(t, r.showPipeline("*", []string{"sent"}), "adj-rib-out", "192.0.2.1")
 
 	assert.Equal(t, "ipv4/unicast", route["family"])
 	assert.Equal(t, "10.0.0.0/24", route["prefix"])
@@ -193,7 +193,7 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 
 // TestInboundShowFamilyFilter verifies family filter restricts results.
 //
-// VALIDATES: AC-6 — rib show in with family filter returns only matching family.
+// VALIDATES: AC-6 — rib show received with family filter returns only matching family.
 // PREVENTS: Family filter being ignored, all families returned.
 func TestInboundShowFamilyFilter(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -213,11 +213,11 @@ func TestInboundShowFamilyFilter(t *testing.T) {
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	// Without filter: both families
-	allRoutes := requirePeerRoutes(t, r.inboundShowJSON("*", nil), "adj-rib-in", "192.0.2.1")
+	allRoutes := requirePeerRoutes(t, r.showPipeline("*", []string{"received"}), "adj-rib-in", "192.0.2.1")
 	assert.Len(t, allRoutes, 2, "expected both routes without filter")
 
 	// With family filter: only IPv4
-	filteredRoutes := requirePeerRoutes(t, r.inboundShowJSON("*", []string{"ipv4/unicast"}), "adj-rib-in", "192.0.2.1")
+	filteredRoutes := requirePeerRoutes(t, r.showPipeline("*", []string{"received", "family", "ipv4/unicast"}), "adj-rib-in", "192.0.2.1")
 	require.Len(t, filteredRoutes, 1, "expected only IPv4 route")
 	first, ok := filteredRoutes[0].(map[string]any)
 	require.True(t, ok)
@@ -226,7 +226,7 @@ func TestInboundShowFamilyFilter(t *testing.T) {
 
 // TestInboundShowPrefixFilter verifies prefix filter restricts results.
 //
-// VALIDATES: AC-7 — rib show in with prefix filter returns only matching prefix.
+// VALIDATES: AC-7 — rib show received with cidr filter returns only matching prefix.
 // PREVENTS: Prefix filter being ignored, all prefixes returned.
 func TestInboundShowPrefixFilter(t *testing.T) {
 	r := newTestRIBManager(t)
@@ -241,41 +241,12 @@ func TestInboundShowPrefixFilter(t *testing.T) {
 	peerRIB.Insert(family, attrBytes, nlri2)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
-	// Filter by prefix
-	routes := requirePeerRoutes(t, r.inboundShowJSON("*", []string{"10.0.0.0/24"}), "adj-rib-in", "192.0.2.1")
+	// Filter by prefix using cidr filter (exact prefix string match)
+	routes := requirePeerRoutes(t, r.showPipeline("*", []string{"received", "cidr", "10.0.0.0/24"}), "adj-rib-in", "192.0.2.1")
 	require.Len(t, routes, 1, "expected only matching prefix")
 	first, ok := routes[0].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "10.0.0.0/24", first["prefix"])
-}
-
-// TestParseShowFilters verifies family vs prefix disambiguation.
-//
-// VALIDATES: parseShowFilters distinguishes family ("ipv4/unicast") from prefix ("10.0.0.0/24", "fc00::/7").
-// PREVENTS: IPv6 ULA prefix "fc00::/7" being misclassified as family filter.
-func TestParseShowFilters(t *testing.T) {
-	tests := []struct {
-		name       string
-		args       []string
-		wantFamily string
-		wantPrefix string
-	}{
-		{"family only", []string{"ipv4/unicast"}, "ipv4/unicast", ""},
-		{"ipv4 prefix", []string{"10.0.0.0/24"}, "", "10.0.0.0/24"},
-		{"ipv6 prefix", []string{"2001:db8::/32"}, "", "2001:db8::/32"},
-		{"ipv6 ula prefix", []string{"fc00::/7"}, "", "fc00::/7"},
-		{"both", []string{"ipv4/unicast", "10.0.0.0/24"}, "ipv4/unicast", "10.0.0.0/24"},
-		{"no slash", []string{"hello"}, "", ""},
-		{"empty", nil, "", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			family, prefix := parseShowFilters(tt.args)
-			assert.Equal(t, tt.wantFamily, family, "family")
-			assert.Equal(t, tt.wantPrefix, prefix, "prefix")
-		})
-	}
 }
 
 // TestOutboundShowMinimalAttributes verifies outbound show omits missing attributes.
@@ -293,7 +264,7 @@ func TestOutboundShowMinimalAttributes(t *testing.T) {
 		},
 	}
 
-	route := requireFirstRoute(t, r.outboundShowJSON("*"), "adj-rib-out", "192.0.2.2")
+	route := requireFirstRoute(t, r.showPipeline("*", []string{"sent"}), "adj-rib-out", "192.0.2.2")
 
 	// Only family, prefix, next-hop should be present
 	assert.Equal(t, "ipv4/unicast", route["family"])

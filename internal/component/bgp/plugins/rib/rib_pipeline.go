@@ -1,5 +1,6 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — iterator pipeline for RIB show commands
 // Overview: rib.go — RIB plugin core types and event handlers
+// Related: rib_pipeline_best.go — best-path pipeline (bestSource, bestPipeline, bestJSONTerminal)
 // Related: rib_commands.go — command handling and JSON responses
 // Related: rib_attr_format.go — attribute formatting for show enrichment
 // Related: rib_nlri.go — NLRI wire format helpers
@@ -260,6 +261,22 @@ func matchASPath(asPath []uint32, pattern string) bool {
 	return false
 }
 
+// validatePathPattern checks that every ASN in a path pattern is a valid uint32.
+// Returns an error message if invalid, empty string if valid.
+func validatePathPattern(pattern string) string {
+	p := strings.TrimPrefix(pattern, "^")
+	for s := range strings.SplitSeq(p, ",") {
+		s = strings.TrimSpace(s)
+		if s == "" {
+			continue
+		}
+		if _, err := strconv.ParseUint(s, 10, 32); err != nil {
+			return fmt.Sprintf("invalid ASN in path pattern: %s", s)
+		}
+	}
+	return ""
+}
+
 // --- Filter stages ---
 
 // pathFilter filters routes by AS path pattern.
@@ -434,9 +451,108 @@ func (f *matchFilter) matches(item RouteItem) bool {
 	if strings.Contains(strings.ToLower(item.Family), f.pattern) {
 		return true
 	}
-	// Check next-hop
-	if item.OutRoute != nil && strings.Contains(strings.ToLower(item.OutRoute.NextHop), f.pattern) {
+
+	if item.OutRoute != nil {
+		return f.matchOutRoute(item.OutRoute)
+	}
+	if item.InEntry != nil {
+		return f.matchInEntry(item.InEntry)
+	}
+	return false
+}
+
+// matchOutRoute checks OutRoute fields: next-hop, origin, AS-path, communities, MED, local-pref.
+func (f *matchFilter) matchOutRoute(rt *Route) bool {
+	if strings.Contains(strings.ToLower(rt.NextHop), f.pattern) {
 		return true
+	}
+	if strings.Contains(strings.ToLower(rt.Origin), f.pattern) {
+		return true
+	}
+	// AS-path as space-separated ASNs
+	for _, asn := range rt.ASPath {
+		if strings.Contains(strconv.FormatUint(uint64(asn), 10), f.pattern) {
+			return true
+		}
+	}
+	// Communities
+	for _, c := range rt.Communities {
+		if strings.Contains(strings.ToLower(c), f.pattern) {
+			return true
+		}
+	}
+	// MED
+	if rt.MED != nil {
+		if strings.Contains(strconv.FormatUint(uint64(*rt.MED), 10), f.pattern) {
+			return true
+		}
+	}
+	// LOCAL_PREF
+	if rt.LocalPreference != nil {
+		if strings.Contains(strconv.FormatUint(uint64(*rt.LocalPreference), 10), f.pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+// matchInEntry checks InEntry pool attributes: next-hop, origin, AS-path, communities, MED, local-pref.
+func (f *matchFilter) matchInEntry(entry *storage.RouteEntry) bool {
+	// Next-hop
+	if entry.HasNextHop() {
+		if data, err := pool.NextHop.Get(entry.NextHop); err == nil {
+			if strings.Contains(strings.ToLower(formatNextHop(data)), f.pattern) {
+				return true
+			}
+		}
+	}
+	// Origin
+	if entry.HasOrigin() {
+		if data, err := pool.Origin.Get(entry.Origin); err == nil {
+			if strings.Contains(strings.ToLower(formatOrigin(data)), f.pattern) {
+				return true
+			}
+		}
+	}
+	// AS-path as space-separated ASNs
+	if entry.HasASPath() {
+		if data, err := pool.ASPath.Get(entry.ASPath); err == nil {
+			for _, asn := range formatASPath(data) {
+				if strings.Contains(strconv.FormatUint(uint64(asn), 10), f.pattern) {
+					return true
+				}
+			}
+		}
+	}
+	// Communities
+	if entry.HasCommunities() {
+		if data, err := pool.Communities.Get(entry.Communities); err == nil {
+			for _, c := range formatCommunities(data) {
+				if strings.Contains(strings.ToLower(c), f.pattern) {
+					return true
+				}
+			}
+		}
+	}
+	// MED
+	if entry.HasMED() {
+		if data, err := pool.MED.Get(entry.MED); err == nil {
+			if v, ok := formatUint32Attr(data); ok {
+				if strings.Contains(strconv.FormatUint(uint64(v), 10), f.pattern) {
+					return true
+				}
+			}
+		}
+	}
+	// LOCAL_PREF
+	if entry.HasLocalPref() {
+		if data, err := pool.LocalPref.Get(entry.LocalPref); err == nil {
+			if v, ok := formatUint32Attr(data); ok {
+				if strings.Contains(strconv.FormatUint(uint64(v), 10), f.pattern) {
+					return true
+				}
+			}
+		}
 	}
 	return false
 }
@@ -603,16 +719,20 @@ const (
 	scopeSentReceived = "sent-received"
 )
 
+// filterPath is the pipeline keyword for AS-path filtering.
+const filterPath = "path"
+
 // showPipeline builds and executes a pipeline from command args.
 // Called by handleCommand for "rib show" with optional scope + filter stages.
-// Returns JSON string result. Error is non-nil for invalid pipeline args.
-func (r *RIBManager) showPipeline(selector string, args []string) (string, error) {
+// Returns JSON string result.
+func (r *RIBManager) showPipeline(selector string, args []string) string {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	scope, stages, errMsg := parsePipelineArgs(args)
 	if errMsg != "" {
-		return "", fmt.Errorf("%s", errMsg)
+		data, _ := json.Marshal(map[string]any{"error": errMsg})
+		return string(data)
 	}
 
 	// Create source based on scope
@@ -636,19 +756,19 @@ func (r *RIBManager) showPipeline(selector string, args []string) (string, error
 	if !hasTerminal(stages) {
 		jt := newJSONTerminal(current)
 		meta := jt.Meta()
-		return meta.JSON, nil
+		return meta.JSON
 	}
 
 	// Execute terminal — drain it and return metadata
 	meta := current.Meta()
 
 	if meta.JSON != "" {
-		return meta.JSON, nil
+		return meta.JSON
 	}
 
 	// count terminal
 	data, _ := json.Marshal(map[string]any{"count": meta.Count})
-	return string(data), nil
+	return string(data)
 }
 
 // pipelineStage represents a parsed pipeline stage (filter or terminal).
@@ -660,7 +780,7 @@ type pipelineStage struct {
 
 func (s pipelineStage) apply(upstream PipelineIterator) PipelineIterator {
 	switch s.kind {
-	case "path":
+	case filterPath:
 		return newPathFilter(upstream, s.arg)
 	case "cidr":
 		return newCIDRFilter(upstream, s.arg)
@@ -682,7 +802,7 @@ func (s pipelineStage) apply(upstream PipelineIterator) PipelineIterator {
 
 // filterKeywords are pipeline stage keywords that require a value argument.
 var filterKeywords = map[string]bool{
-	"path":      true,
+	filterPath:  true,
 	"cidr":      true,
 	"community": true,
 	"family":    true,
@@ -704,11 +824,13 @@ var scopeKeywords = map[string]string{
 
 // parsePipelineArgs parses args into scope + ordered stage list.
 // Returns (scope, stages, errorMessage).
+// Validates ordering: filters must precede terminals, and at most one terminal is allowed.
 func parsePipelineArgs(args []string) (string, []pipelineStage, string) {
 	scope := scopeSentReceived
 	var stages []pipelineStage
 
 	i := 0
+	sawTerminal := false
 
 	// Check for optional scope keyword at position 0
 	if i < len(args) {
@@ -723,9 +845,17 @@ func parsePipelineArgs(args []string) (string, []pipelineStage, string) {
 		keyword := args[i]
 
 		if filterKeywords[keyword] {
+			if sawTerminal {
+				return "", nil, fmt.Sprintf("filter after terminal: %s", keyword)
+			}
 			i++
 			if i >= len(args) {
 				return "", nil, fmt.Sprintf("%s requires a value", keyword)
+			}
+			if keyword == filterPath {
+				if errMsg := validatePathPattern(args[i]); errMsg != "" {
+					return "", nil, errMsg
+				}
 			}
 			stages = append(stages, pipelineStage{kind: keyword, arg: args[i]})
 			i++
@@ -733,6 +863,10 @@ func parsePipelineArgs(args []string) (string, []pipelineStage, string) {
 		}
 
 		if terminalKeywords[keyword] {
+			if sawTerminal {
+				return "", nil, "multiple terminals not allowed"
+			}
+			sawTerminal = true
 			stages = append(stages, pipelineStage{kind: keyword, terminal: true})
 			i++
 			continue

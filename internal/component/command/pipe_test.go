@@ -315,38 +315,7 @@ func TestApplyPipesCountOfCount(t *testing.T) {
 	}
 }
 
-// VALIDATES: match then json compact on partial JSON lines passes through.
-// PREVENTS: crash when json filter receives non-JSON from match output.
-func TestApplyPipesMatchThenJSON(t *testing.T) {
-	input := "{\n  \"address\": \"1.2.3.4\",\n  \"state\": \"established\"\n}"
-	ops := []pipeOp{
-		{kind: pipeMatch, arg: "address"},
-		{kind: pipeJSON, arg: jsonCompact},
-	}
-	result, err := ApplyPipes(input, ops)
-	if err != "" {
-		t.Fatalf("unexpected error: %s", err)
-	}
-	// match extracts one line → not valid JSON → json compact passes through.
-	if !strings.Contains(result, "address") {
-		t.Errorf("expected address in output, got %q", result)
-	}
-}
-
-// VALIDATES: multiple format operators are rejected.
-// PREVENTS: confusing silent passthrough when stacking formatters.
-func TestApplyPipesMultipleFormats(t *testing.T) {
-	ops := []pipeOp{{kind: pipeText}, {kind: pipeJSON, arg: jsonPretty}}
-	_, err := ApplyPipes(`{"a":1}`, ops)
-	if err == "" {
-		t.Fatal("expected error for multiple format operators")
-	}
-	if !strings.Contains(err, "multiple format") {
-		t.Errorf("error should mention multiple formats, got: %q", err)
-	}
-}
-
-// VALIDATES: foldServerPipeline folds pipe segments into rib show command args.
+// VALIDATES: FoldServerPipeline folds pipe segments into rib show command args.
 // PREVENTS: server-side pipeline keywords being treated as unknown client ops.
 func TestFoldServerPipeline(t *testing.T) {
 	tests := []struct {
@@ -405,6 +374,13 @@ func TestFoldServerPipeline(t *testing.T) {
 			wantCmd:    "rib show json",
 			wantOpsLen: 0,
 		},
+		{
+			name:       "rib best with path filter",
+			command:    "rib best",
+			ops:        []pipeOp{{kind: pipeUnknown, arg: "path 65001"}},
+			wantCmd:    "rib best path 65001",
+			wantOpsLen: 0,
+		},
 	}
 
 	for _, tt := range tests {
@@ -429,6 +405,37 @@ func TestParsePipeUnknownPreservesArgs(t *testing.T) {
 	}
 	if ops[0].arg != "path 65001" {
 		t.Errorf("arg = %q, want %q", ops[0].arg, "path 65001")
+	}
+}
+
+// VALIDATES: match then json compact on partial JSON lines passes through.
+// PREVENTS: crash when json filter receives non-JSON from match output.
+func TestApplyPipesMatchThenJSON(t *testing.T) {
+	input := "{\n  \"address\": \"1.2.3.4\",\n  \"state\": \"established\"\n}"
+	ops := []pipeOp{
+		{kind: pipeMatch, arg: "address"},
+		{kind: pipeJSON, arg: jsonCompact},
+	}
+	result, err := ApplyPipes(input, ops)
+	if err != "" {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	// match extracts one line → not valid JSON → json compact passes through.
+	if !strings.Contains(result, "address") {
+		t.Errorf("expected address in output, got %q", result)
+	}
+}
+
+// VALIDATES: multiple format operators are rejected.
+// PREVENTS: confusing silent passthrough when stacking formatters.
+func TestApplyPipesMultipleFormats(t *testing.T) {
+	ops := []pipeOp{{kind: pipeText}, {kind: pipeJSON, arg: jsonPretty}}
+	_, err := ApplyPipes(`{"a":1}`, ops)
+	if err == "" {
+		t.Fatal("expected error for multiple format operators")
+	}
+	if !strings.Contains(err, "multiple format") {
+		t.Errorf("error should mention multiple formats, got: %q", err)
 	}
 }
 

@@ -245,11 +245,15 @@ update text next 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 watchdog set m
 ### RIB Commands
 
 ```
-rib show in [<afi> <safi>]       # Show Adj-RIB-In
-rib show out [<afi> <safi>]      # Show Adj-RIB-Out
-rib flush out                     # Flush Adj-RIB-Out
-rib clear in                      # Clear Adj-RIB-In
-rib clear out                     # Clear Adj-RIB-Out
+rib show [scope] [filters...] [terminal]  # Unified route display with pipeline
+    scope: sent | received | sent-received (default)
+    filters: path <pattern>, cidr <prefix>, community <value>,
+             family <afi/safi>, match <text>
+    terminals: count, json
+rib best [filters...] [terminal]          # Best-path per prefix (RFC 4271 §9.1.2)
+rib status                                # RIB status (peer/route counts)
+rib clear in                              # Clear Adj-RIB-In
+rib clear out                             # Resend Adj-RIB-Out
 ```
 
 ### Group Commands (Batching)
@@ -603,9 +607,10 @@ peer
     └── group
 
 rib
-├── show
-├── flush
-└── clear
+├── show [sent|received|sent-received] [filters...] [count|json]
+├── best [filters...] [count|json]
+├── status
+└── clear [in|out]
 
 group
 ├── start

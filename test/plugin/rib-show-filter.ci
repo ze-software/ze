@@ -45,11 +45,15 @@ def dispatch(api, command):
     return resp.get('result', {})
 
 
-def check(label, result, expected_status):
+def check(label, result, expected_status, expect_error=False):
     """Assert result status matches expected, exit on failure."""
     actual = result.get('status')
     if actual != expected_status:
         sys.exit(1)
+    if expect_error:
+        data = result.get('data', '')
+        if '"error"' not in data:
+            sys.exit(1)
 
 
 def main():
@@ -75,8 +79,8 @@ def main():
     # Combined family + community filter — done
     check('family+community', dispatch(api, 'rib show received family ipv4/unicast community 65000:100'), 'done')
 
-    # Unknown pipeline keyword — error
-    check('unknown-keyword', dispatch(api, 'rib show bogus'), 'error')
+    # Unknown pipeline keyword — status is done but data contains error JSON
+    check('unknown-keyword', dispatch(api, 'rib show bogus'), 'done', expect_error=True)
 
     # All passed — shutdown daemon
     dispatch(api, 'daemon shutdown')

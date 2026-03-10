@@ -4,6 +4,7 @@
 // Related: rib_attr_format.go — attribute formatting for show enrichment
 // Related: bestpath.go — best-path selection (extractCandidate, gatherCandidates, SelectBest)
 // Related: rib_pipeline.go — iterator pipeline for show commands (scope, filters, terminals)
+// Related: rib_pipeline_best.go — best-path pipeline (bestSource, bestPipeline, bestJSONTerminal)
 package rib
 
 import (
@@ -55,11 +56,7 @@ func (r *RIBManager) handleCommand(command, selector string, args []string) (str
 	case "rib status", "rib adjacent status":
 		return statusDone, r.statusJSON(), nil
 	case "rib show":
-		data, err := r.showPipeline(selector, args)
-		if err != nil {
-			return statusError, "", err
-		}
-		return statusDone, data, nil
+		return statusDone, r.showPipeline(selector, args), nil
 	case "rib clear in", "rib adjacent inbound empty":
 		return statusDone, r.inboundEmptyJSON(selector), nil
 	case "rib clear out", "rib adjacent outbound resend":
@@ -73,7 +70,7 @@ func (r *RIBManager) handleCommand(command, selector string, args []string) (str
 	case "rib purge-stale":
 		return r.purgeStaleCommand(args)
 	case "rib best":
-		return statusDone, r.bestPathShowJSON(selector, args), nil
+		return statusDone, r.bestPipeline(selector, args), nil
 	case "rib best status":
 		return statusDone, r.bestPathStatusJSON(), nil
 	case "rib help":
@@ -176,69 +173,6 @@ func matchesPeer(peerAddr, selector string) bool {
 	return peerAddr == selector
 }
 
-// inboundShowJSON returns Adj-RIB-In routes filtered by selector as JSON.
-// Optional args filter by family (e.g., "ipv4/unicast") or prefix (e.g., "10.0.0.0/24").
-func (r *RIBManager) inboundShowJSON(selector string, args []string) string {
-	familyFilter, prefixFilter := parseShowFilters(args)
-
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	result := make(map[string][]map[string]any)
-
-	for peer, peerRIB := range r.ribInPool {
-		if !matchesPeer(peer, selector) {
-			continue
-		}
-		var routeList []map[string]any
-		peerRIB.Iterate(func(family nlri.Family, nlriBytes []byte, entry *storage.RouteEntry) bool {
-			familyStr := formatFamily(family)
-			prefixStr := formatNLRIAsPrefix(family, nlriBytes)
-
-			if familyFilter != "" && familyStr != familyFilter {
-				return true
-			}
-			if prefixFilter != "" && prefixStr != prefixFilter {
-				return true
-			}
-
-			routeMap := map[string]any{
-				"family": familyStr,
-				"prefix": prefixStr,
-			}
-			if entry != nil {
-				enrichRouteMapFromEntry(routeMap, entry)
-			}
-			routeList = append(routeList, routeMap)
-			return true
-		})
-		if len(routeList) > 0 {
-			result[peer] = routeList
-		}
-	}
-
-	data, _ := json.Marshal(map[string]any{"adj-rib-in": result})
-	return string(data)
-}
-
-// parseShowFilters extracts family and prefix filters from command args.
-// Family: "afi/safi" (e.g., "ipv4/unicast") — starts with letter, no colons.
-// Prefix: IP/len (e.g., "10.0.0.0/24", "fc00::/7") — has digits or colons.
-func parseShowFilters(args []string) (familyFilter, prefixFilter string) {
-	for _, arg := range args {
-		if !strings.Contains(arg, "/") {
-			continue
-		}
-		// Family names never contain colons; IPv6 prefixes always do.
-		if arg[0] >= 'a' && arg[0] <= 'z' && !strings.Contains(arg, ":") {
-			familyFilter = arg
-		} else {
-			prefixFilter = arg
-		}
-	}
-	return
-}
-
 // inboundEmptyJSON clears Adj-RIB-In routes for matching peers, returns JSON result.
 func (r *RIBManager) inboundEmptyJSON(selector string) string {
 	r.mu.Lock()
@@ -256,36 +190,6 @@ func (r *RIBManager) inboundEmptyJSON(selector string) string {
 	r.mu.Unlock()
 
 	data, _ := json.Marshal(map[string]any{"cleared": cleared})
-	return string(data)
-}
-
-// outboundShowJSON returns Adj-RIB-Out routes filtered by selector as JSON.
-func (r *RIBManager) outboundShowJSON(selector string) string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	result := make(map[string][]map[string]any)
-	for peer, routes := range r.ribOut {
-		if !matchesPeer(peer, selector) {
-			continue
-		}
-		routeList := make([]map[string]any, 0, len(routes))
-		for _, rt := range routes {
-			routeMap := map[string]any{
-				"family":   rt.Family,
-				"prefix":   rt.Prefix,
-				"next-hop": rt.NextHop,
-			}
-			if rt.PathID != 0 {
-				routeMap["path-id"] = rt.PathID
-			}
-			enrichRouteMapFromRoute(routeMap, rt)
-			routeList = append(routeList, routeMap)
-		}
-		result[peer] = routeList
-	}
-
-	data, _ := json.Marshal(map[string]any{"adj-rib-out": result})
 	return string(data)
 }
 
@@ -523,95 +427,6 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, string, error) {
 
 	data, _ := json.Marshal(map[string]any{"purged": purged})
 	return statusDone, string(data), nil
-}
-
-// bestPathShowJSON computes and returns the best route per prefix across all peers.
-// RFC 4271 §9.1.2: Decision Process Phase 2 — on-demand computation.
-// Optional args filter by family or prefix (same as inboundShowJSON).
-func (r *RIBManager) bestPathShowJSON(selector string, args []string) string {
-	familyFilter, prefixFilter := parseShowFilters(args)
-
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	// Collect all unique (family, nlriKey) across matching peers.
-	type routeKey struct {
-		family  nlri.Family
-		nlriKey string
-		familyS string
-		prefixS string
-	}
-	seen := make(map[string]routeKey) // "familyStr|nlriKey" → routeKey
-
-	for peer, peerRIB := range r.ribInPool {
-		if !matchesPeer(peer, selector) {
-			continue
-		}
-		peerRIB.Iterate(func(family nlri.Family, nlriBytes []byte, _ *storage.RouteEntry) bool {
-			fStr := formatFamily(family)
-			pStr := formatNLRIAsPrefix(family, nlriBytes)
-
-			if familyFilter != "" && fStr != familyFilter {
-				return true
-			}
-			if prefixFilter != "" && pStr != prefixFilter {
-				return true
-			}
-
-			key := fStr + "|" + string(nlriBytes)
-			if _, ok := seen[key]; !ok {
-				seen[key] = routeKey{family: family, nlriKey: string(nlriBytes), familyS: fStr, prefixS: pStr}
-			}
-			return true
-		})
-	}
-
-	// For each unique prefix, gather candidates and select best.
-	type bestResult struct {
-		Family   string         `json:"family"`
-		Prefix   string         `json:"prefix"`
-		BestPeer string         `json:"best-peer"`
-		Attrs    map[string]any `json:"attributes,omitempty"`
-	}
-
-	var results []bestResult
-	for _, rk := range seen {
-		candidates := r.gatherCandidates(rk.family, []byte(rk.nlriKey))
-		best := SelectBest(candidates)
-		if best == nil {
-			continue
-		}
-
-		br := bestResult{
-			Family:   rk.familyS,
-			Prefix:   rk.prefixS,
-			BestPeer: best.PeerAddr,
-		}
-
-		// Enrich with attributes from the best route's pool entry.
-		if peerRIB := r.ribInPool[best.PeerAddr]; peerRIB != nil {
-			if entry, ok := peerRIB.Lookup(rk.family, []byte(rk.nlriKey)); ok && entry != nil {
-				attrs := make(map[string]any)
-				enrichRouteMapFromEntry(attrs, entry)
-				if len(attrs) > 0 {
-					br.Attrs = attrs
-				}
-			}
-		}
-
-		results = append(results, br)
-	}
-
-	// Sort by family then prefix for stable output.
-	sort.Slice(results, func(i, j int) bool {
-		if results[i].Family != results[j].Family {
-			return results[i].Family < results[j].Family
-		}
-		return results[i].Prefix < results[j].Prefix
-	})
-
-	data, _ := json.Marshal(map[string]any{"best-path": results})
-	return string(data)
 }
 
 // bestPathStatusJSON returns summary statistics about the best-path computation.

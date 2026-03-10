@@ -289,8 +289,7 @@ func TestBuildPipeline(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := r.showPipeline("*", tt.args)
-			require.NoError(t, err)
+			result := r.showPipeline("*", tt.args)
 			assert.NotEmpty(t, result)
 
 			var parsed map[string]any
@@ -310,8 +309,11 @@ func TestBuildPipeline(t *testing.T) {
 func TestBuildPipelineUnknownKeyword(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	_, err := r.showPipeline("*", []string{"bogus"})
-	require.Error(t, err, "expected error for unknown keyword")
+	result := r.showPipeline("*", []string{"bogus"})
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	_, hasError := parsed["error"]
+	assert.True(t, hasError, "expected error for unknown keyword: %s", result)
 }
 
 // TestBuildPipelineFilterKeywordNoValue verifies filter keywords without values return error.
@@ -334,8 +336,11 @@ func TestBuildPipelineFilterKeywordNoValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := r.showPipeline("*", tt.args)
-			require.Error(t, err, "expected error for '%s'", tt.name)
+			result := r.showPipeline("*", tt.args)
+			var parsed map[string]any
+			require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+			_, hasError := parsed["error"]
+			assert.True(t, hasError, "expected error for '%s': %s", tt.name, result)
 		})
 	}
 }
@@ -364,8 +369,7 @@ func TestShowPipelineBothDirections(t *testing.T) {
 		},
 	}
 
-	result, err := r.showPipeline("*", []string{"count"})
-	require.NoError(t, err)
+	result := r.showPipeline("*", []string{"count"})
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
 	count, ok := parsed["count"]
@@ -393,8 +397,7 @@ func TestShowPipelineReceivedScope(t *testing.T) {
 		},
 	}
 
-	result, err := r.showPipeline("*", []string{"received", "count"})
-	require.NoError(t, err)
+	result := r.showPipeline("*", []string{"received", "count"})
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
 	count := parsed["count"]
@@ -421,8 +424,7 @@ func TestShowPipelineSentScope(t *testing.T) {
 		},
 	}
 
-	result, err := r.showPipeline("*", []string{"sent", "count"})
-	require.NoError(t, err)
+	result := r.showPipeline("*", []string{"sent", "count"})
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
 	count := parsed["count"]
@@ -453,8 +455,7 @@ func TestShowPipelineComposed(t *testing.T) {
 	}
 
 	// path 64501 community 65000:100 count -> should match only first route
-	result, err := r.showPipeline("*", []string{"sent", "path", "64501", "community", "65000:100", "count"})
-	require.NoError(t, err)
+	result := r.showPipeline("*", []string{"sent", "path", "64501", "community", "65000:100", "count"})
 	var parsed map[string]any
 	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
 	count := parsed["count"]
@@ -511,15 +512,337 @@ func TestHandleCommandRibShowCount(t *testing.T) {
 
 // TestHandleCommandOldCommandsError verifies old commands return errors.
 //
-// VALIDATES: Old commands (rib show in, rib show out) return error.
+// VALIDATES: Old commands (rib show in, rib show out, rib show best) return pipeline errors;
+// truly unknown commands return Go errors.
 // PREVENTS: Old commands silently working after migration.
 func TestHandleCommandOldCommandsError(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	for _, cmd := range []string{"rib show in", "rib show out", "rib show best", "rib adjacent inbound show", "rib adjacent outbound show"} {
+	// Pipeline-parsed old keywords: routed through "rib show" with args,
+	// parsePipelineArgs returns "unknown keyword" error in JSON data.
+	for _, keyword := range []string{"in", "out", "best"} {
+		status, data, err := r.handleCommand("rib show", "*", []string{keyword})
+		assert.NoError(t, err, "pipeline error for %q should not be a Go error", keyword)
+		assert.Equal(t, statusDone, status, "pipeline error status for %q", keyword)
+
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal([]byte(data), &parsed), "data should be valid JSON for %q", keyword)
+		_, hasError := parsed["error"]
+		assert.True(t, hasError, "data should contain error key for old keyword %q", keyword)
+	}
+
+	// Truly unknown commands: fall through to default case in handleCommand.
+	for _, cmd := range []string{"rib adjacent inbound show", "rib adjacent outbound show"} {
 		_, _, err := r.handleCommand(cmd, "*", nil)
 		assert.Error(t, err, "expected error for old command %q", cmd)
 	}
+}
+
+// --- Phase 4a: Match filter cross-field ---
+
+// TestFilterMatchCrossField verifies match filter checks AS-path and community values.
+//
+// VALIDATES: match filter searches across origin, AS-path, communities, MED, local-pref fields.
+// PREVENTS: match filter only checking prefix/peer/family/next-hop.
+func TestFilterMatchCrossField(t *testing.T) {
+	med100 := uint32(100)
+	localPref200 := uint32(200)
+
+	tests := []struct {
+		name    string
+		pattern string
+		items   []RouteItem
+		want    int
+	}{
+		{
+			name:    "match AS path value",
+			pattern: "64501",
+			items: []RouteItem{
+				{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", OutRoute: &Route{ASPath: []uint32{64501, 64502}}},
+				{Peer: "p2", Family: "ipv4/unicast", Prefix: "10.0.1.0/24", OutRoute: &Route{ASPath: []uint32{64503}}},
+			},
+			want: 1,
+		},
+		{
+			name:    "match community value",
+			pattern: "65000:100",
+			items: []RouteItem{
+				{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", OutRoute: &Route{Communities: []string{"65000:100"}}},
+				{Peer: "p2", Family: "ipv4/unicast", Prefix: "10.0.1.0/24", OutRoute: &Route{Communities: []string{"65001:200"}}},
+			},
+			want: 1,
+		},
+		{
+			name:    "match origin value",
+			pattern: "igp",
+			items: []RouteItem{
+				{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", OutRoute: &Route{Origin: "igp"}},
+				{Peer: "p2", Family: "ipv4/unicast", Prefix: "10.0.1.0/24", OutRoute: &Route{Origin: "egp"}},
+			},
+			want: 1,
+		},
+		{
+			name:    "match MED value",
+			pattern: "100",
+			items: []RouteItem{
+				{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", OutRoute: &Route{MED: &med100}},
+				{Peer: "p2", Family: "ipv4/unicast", Prefix: "10.0.1.0/24", OutRoute: &Route{}},
+			},
+			want: 1,
+		},
+		{
+			name:    "match local-pref value",
+			pattern: "200",
+			items: []RouteItem{
+				{Peer: "p1", Family: "ipv4/unicast", Prefix: "10.0.0.0/24", OutRoute: &Route{LocalPreference: &localPref200}},
+				{Peer: "p2", Family: "ipv4/unicast", Prefix: "10.0.1.0/24", OutRoute: &Route{}},
+			},
+			want: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			src := &sliceSource{items: tt.items}
+			f := newMatchFilter(src, tt.pattern)
+
+			var results []RouteItem
+			for {
+				item, ok := f.Next()
+				if !ok {
+					break
+				}
+				results = append(results, item)
+			}
+
+			assert.Len(t, results, tt.want, "expected %d results for pattern %q", tt.want, tt.pattern)
+		})
+	}
+}
+
+// TestParsePipelineInvalidASN verifies invalid ASN in path filter is rejected at parse time.
+//
+// VALIDATES: path filter with non-numeric ASN returns error from parsePipelineArgs.
+// PREVENTS: invalid ASN silently passing through to matchASPath where it returns false.
+func TestParsePipelineInvalidASN(t *testing.T) {
+	_, _, errMsg := parsePipelineArgs([]string{"path", "abc"})
+	assert.NotEmpty(t, errMsg, "expected error for invalid ASN")
+	assert.Contains(t, errMsg, "invalid ASN", "error should mention invalid ASN")
+
+	// Also verify via bestPipelineArgs
+	_, errMsg = parseBestPipelineArgs([]string{"path", "abc"})
+	assert.NotEmpty(t, errMsg, "expected error for invalid ASN in best pipeline")
+	assert.Contains(t, errMsg, "invalid ASN", "error should mention invalid ASN")
+}
+
+// TestFilterMatchCrossFieldInEntry verifies match filter checks InEntry pool attributes.
+//
+// VALIDATES: match filter searches InEntry attributes (origin, AS-path, communities, MED, local-pref).
+// PREVENTS: match filter only working for OutRoute but not InEntry.
+func TestFilterMatchCrossFieldInEntry(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001, testWireCommunity, testWireMED100, testWireLocalPref100)
+	nlriBytes := []byte{24, 10, 0, 0}
+
+	peerRIB := storage.NewPeerRIB("192.0.2.1")
+	peerRIB.Insert(family, attrBytes, nlriBytes)
+	r.ribInPool["192.0.2.1"] = peerRIB
+
+	// Match on AS-path value "65001"
+	result := r.showPipeline("*", []string{"received", "match", "65001", "count"})
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	assert.Equal(t, float64(1), parsed["count"], "expected match on AS-path 65001")
+
+	// Match on community "65000:100"
+	result = r.showPipeline("*", []string{"received", "match", "65000:100", "count"})
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	assert.Equal(t, float64(1), parsed["count"], "expected match on community 65000:100")
+
+	// Match on origin "igp"
+	result = r.showPipeline("*", []string{"received", "match", "igp", "count"})
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	assert.Equal(t, float64(1), parsed["count"], "expected match on origin igp")
+}
+
+// --- Phase 4b: Terminal ordering validation ---
+
+// TestParsePipelineTerminalBeforeFilter verifies filter after terminal returns error.
+//
+// VALIDATES: AC-10 — terminal before filter is invalid.
+// PREVENTS: Silently ignoring filters placed after a terminal stage.
+func TestParsePipelineTerminalBeforeFilter(t *testing.T) {
+	_, _, errMsg := parsePipelineArgs([]string{"count", "path", "64501"})
+	assert.Contains(t, errMsg, "filter after terminal")
+}
+
+// TestParsePipelineTwoTerminals verifies multiple terminals return error.
+//
+// VALIDATES: AC-10 — multiple terminals not allowed.
+// PREVENTS: Ambiguous pipeline with two terminal stages.
+func TestParsePipelineTwoTerminals(t *testing.T) {
+	_, _, errMsg := parsePipelineArgs([]string{"count", "json"})
+	assert.Contains(t, errMsg, "multiple terminals not allowed")
+}
+
+// --- Phase 4c: Zero-count and explicit scope ---
+
+// TestTerminalCountZero verifies count terminal returns 0 when no routes match.
+//
+// VALIDATES: count terminal returns {"count":0} format for empty result.
+// PREVENTS: count terminal returning empty string or omitting count key on zero.
+func TestTerminalCountZero(t *testing.T) {
+	src := &sliceSource{items: nil} // no items
+	ct := newCountTerminal(src)
+
+	_, ok := ct.Next()
+	assert.False(t, ok, "count terminal should produce no items")
+
+	meta := ct.Meta()
+	assert.Equal(t, 0, meta.Count)
+}
+
+// TestShowPipelineCountZeroWithFilter verifies count=0 when filter excludes all routes.
+//
+// VALIDATES: Pipeline with filter that matches nothing returns {"count":0}.
+// PREVENTS: Empty filter result producing invalid JSON or missing count key.
+func TestShowPipelineCountZeroWithFilter(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
+	nlriBytes := []byte{24, 10, 0, 0}
+	peerRIB := storage.NewPeerRIB("192.0.2.1")
+	peerRIB.Insert(family, attrBytes, nlriBytes)
+	r.ribInPool["192.0.2.1"] = peerRIB
+
+	// Path filter for ASN 99999 — no routes have this ASN
+	result := r.showPipeline("*", []string{"received", "path", "99999", "count"})
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	count, ok := parsed["count"]
+	require.True(t, ok, "expected count key in result")
+	assert.Equal(t, float64(0), count, "expected count=0 for non-matching filter")
+}
+
+// TestShowPipelineExplicitSentReceived verifies explicit sent-received scope returns both directions.
+//
+// VALIDATES: "sent-received" keyword produces same result as default (no scope).
+// PREVENTS: sent-received keyword being rejected as unknown.
+func TestShowPipelineExplicitSentReceived(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Add inbound route
+	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
+	nlriBytes := []byte{24, 10, 0, 0}
+	peerRIB := storage.NewPeerRIB("192.0.2.1")
+	peerRIB.Insert(family, attrBytes, nlriBytes)
+	r.ribInPool["192.0.2.1"] = peerRIB
+
+	// Add outbound route
+	r.ribOut["192.0.2.2"] = map[string]*Route{
+		"ipv4/unicast:172.16.0.0/24": {
+			Family: "ipv4/unicast", Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
+		},
+	}
+
+	// Explicit sent-received scope
+	result := r.showPipeline("*", []string{"sent-received", "count"})
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	count, ok := parsed["count"]
+	require.True(t, ok, "expected count key")
+	assert.Equal(t, float64(2), count, "expected 2 routes (1 in + 1 out) with explicit sent-received")
+}
+
+// --- Phase 5: Best-path pipeline ---
+
+// TestBestPipeline_WithFilter verifies best-path pipeline with community filter.
+//
+// VALIDATES: bestPipeline applies filter stages to best-path results.
+// PREVENTS: Filters being ignored on best-path output.
+func TestBestPipeline_WithFilter(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Two peers with routes to same prefix, different communities
+	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	nlri1 := []byte{24, 10, 0, 0}   // 10.0.0.0/24
+	nlri2 := []byte{24, 172, 16, 0} // 172.16.0.0/24
+
+	// Peer 1: 10.0.0.0/24 with community 65000:100
+	attr1 := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001, testWireCommunity)
+	peerRIB1 := storage.NewPeerRIB("192.0.2.1")
+	peerRIB1.Insert(family, attr1, nlri1)
+	r.ribInPool["192.0.2.1"] = peerRIB1
+
+	// Peer 2: 172.16.0.0/24 with no community (just origin + nexthop)
+	attr2 := concatBytes(testWireOriginIGP, testWireNextHop)
+	peerRIB2 := storage.NewPeerRIB("192.0.2.2")
+	peerRIB2.Insert(family, attr2, nlri2)
+	r.ribInPool["192.0.2.2"] = peerRIB2
+
+	// Best pipeline with community filter: should only return the route with 65000:100
+	result := r.bestPipeline("*", []string{"community", "65000:100"})
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+
+	bestPath, ok := parsed["best-path"].([]any)
+	require.True(t, ok, "expected best-path array")
+	require.Len(t, bestPath, 1, "expected 1 best-path result matching community 65000:100")
+
+	entry, ok := bestPath[0].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "10.0.0.0/24", entry["prefix"])
+}
+
+// TestBestPipeline_CountTerminal verifies count terminal on best-path results.
+//
+// VALIDATES: bestPipeline with count terminal returns count of best-path entries.
+// PREVENTS: Count terminal not working with best-path source.
+func TestBestPipeline_CountTerminal(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	nlri1 := []byte{24, 10, 0, 0}   // 10.0.0.0/24
+	nlri2 := []byte{24, 172, 16, 0} // 172.16.0.0/24
+
+	// Single peer with two prefixes
+	attrBytes := concatBytes(testWireOriginIGP, testWireNextHop)
+	peerRIB := storage.NewPeerRIB("192.0.2.1")
+	peerRIB.Insert(family, attrBytes, nlri1)
+	peerRIB.Insert(family, attrBytes, nlri2)
+	r.ribInPool["192.0.2.1"] = peerRIB
+
+	result := r.bestPipeline("*", []string{"count"})
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+
+	count, ok := parsed["count"]
+	require.True(t, ok, "expected count key")
+	assert.Equal(t, float64(2), count, "expected 2 best-path entries")
+}
+
+// TestBestPipeline_Empty verifies best-path pipeline with empty RIB returns empty array.
+//
+// VALIDATES: bestPipeline with no routes returns {"best-path":[]} not {"best-path":null}.
+// PREVENTS: nil slice marshaling to JSON null instead of empty array.
+func TestBestPipeline_Empty(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// No routes in ribInPool — best pipeline should return empty array
+	result := r.bestPipeline("*", nil)
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+
+	bestPath, ok := parsed["best-path"]
+	require.True(t, ok, "expected best-path key")
+	// Must be empty array, not null
+	arr, ok := bestPath.([]any)
+	require.True(t, ok, "best-path must be an array, not null; got %T", bestPath)
+	assert.Empty(t, arr, "expected empty best-path array")
 }
 
 // --- Helpers ---

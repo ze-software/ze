@@ -1,7 +1,8 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — best-path selection
 // Overview: rib.go — RIB plugin core types and event handlers
 // Related: rib_attr_format.go — attribute formatting (asPathLength, firstASInPath shared concern)
-// Related: rib_commands.go — extractCandidate, gatherCandidates, bestPathShowJSON
+// Related: rib_commands.go — extractCandidate, gatherCandidates
+// Related: rib_pipeline_best.go — best-path pipeline for rib best commands
 //
 // Best-path selection per RFC 4271 §9.1.2 Decision Process Phase 2.
 // Pure functions operating on extracted Candidate values — no pool dependency.

@@ -5,6 +5,7 @@
 // Detail: bestpath.go — best-path selection algorithm (RFC 4271 §9.1.2)
 // Detail: compaction.go — pool compaction scheduler wiring
 // Detail: rib_pipeline.go — iterator pipeline for show commands (scope, filters, terminals)
+// Detail: rib_pipeline_best.go — best-path pipeline for rib best commands
 //
 // Package rib implements a RIB (Routing Information Base) plugin for ze.
 // It tracks routes received from peers (Adj-RIB-In) and sent to peers (Adj-RIB-Out).

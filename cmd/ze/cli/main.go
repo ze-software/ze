@@ -600,7 +600,7 @@ func (m *model) applySelectedSuggestion() {
 	m.textInput.CursorEnd()
 }
 
-// ribShowPipeSuggestions lists additional server-side pipeline keywords for rib show commands.
+// ribShowPipeSuggestions lists server-side pipeline keywords for rib show/best commands.
 var ribShowPipeSuggestions = []suggestion{
 	{text: "path", description: "Filter by AS path (contiguous subsequence, ^ = anchor)"},
 	{text: "cidr", description: "Filter by prefix match"},
@@ -620,12 +620,13 @@ func (m *model) updateSuggestions() {
 	input := m.textInput.Value()
 
 	// After a pipe character, suggest pipe operators instead of commands.
-	// For rib show commands, suggest server-side pipeline keywords.
+	// For rib show/best commands, suggest server-side pipeline keywords.
 	if pipeIdx := strings.LastIndex(input, "|"); pipeIdx >= 0 {
 		cmdPart := strings.TrimSpace(input[:pipeIdx])
 		after := strings.TrimSpace(input[pipeIdx+1:])
 		m.suggestions = nil
-		if strings.HasPrefix(strings.ToLower(cmdPart), "rib show") {
+		lower := strings.ToLower(cmdPart)
+		if strings.HasPrefix(lower, "rib show") || strings.HasPrefix(lower, "rib best") {
 			for _, s := range ribShowPipeSuggestions {
 				if after == "" || strings.HasPrefix(s.text, after) {
 					m.suggestions = append(m.suggestions, s)

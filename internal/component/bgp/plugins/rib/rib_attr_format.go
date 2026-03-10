@@ -3,6 +3,7 @@
 // Related: rib_commands.go — command handling and JSON responses
 // Related: rib_nlri.go — NLRI wire format helpers
 // Related: bestpath.go — best-path selection (asPathLength, firstASInPath shared concern)
+// Related: rib_pipeline.go — iterator pipeline for show commands
 package rib
 
 import (
