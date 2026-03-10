@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/environment.md — structured logging utilities
+// Detail: color.go — ANSI color formatting for terminal output
 //
 // Package slogutil provides per-subsystem logging configuration for Ze BGP.
 //
@@ -168,17 +169,29 @@ func RelayLevel() (slog.Level, bool) {
 
 // createHandler creates a slog.Handler based on ze.log.backend setting.
 // Accepts slog.Leveler so both slog.Level (fixed) and *slog.LevelVar (mutable) work.
+// Uses colorHandler for terminal output (auto-detected), plain TextHandler otherwise.
 func createHandler(level slog.Leveler) slog.Handler {
 	opts := &slog.HandlerOptions{Level: level}
 	backend := getSpecialEnv("backend")
 	switch strings.ToLower(backend) {
 	case backendStdout:
+		if useColor(os.Stdout) {
+			return newColorHandler(os.Stdout, opts)
+		}
 		return slog.NewTextHandler(os.Stdout, opts)
 	case backendSyslog:
 		return newSyslogHandler(opts)
-	default: // stderr (default)
+	case backendStderr:
+		if useColor(os.Stderr) {
+			return newColorHandler(os.Stderr, opts)
+		}
 		return slog.NewTextHandler(os.Stderr, opts)
 	}
+	// default: stderr
+	if useColor(os.Stderr) {
+		return newColorHandler(os.Stderr, opts)
+	}
+	return slog.NewTextHandler(os.Stderr, opts)
 }
 
 // parseLevel parses a log level string.
