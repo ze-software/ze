@@ -471,8 +471,8 @@ func TestCmdMethods(t *testing.T) {
 	if modules["ze-plugin-api"] != 8 {
 		t.Errorf("expected 8 plugin RPCs, got %d", modules["ze-plugin-api"])
 	}
-	if modules["ze-rib-api"] != 11 {
-		t.Errorf("expected 11 RIB RPCs, got %d", modules["ze-rib-api"])
+	if modules["ze-rib-api"] != 8 {
+		t.Errorf("expected 8 RIB RPCs, got %d", modules["ze-rib-api"])
 	}
 }
 
@@ -592,7 +592,7 @@ func TestBuildSchemaRegistryRPCs(t *testing.T) {
 		"ze-bgp:subscribe", "ze-bgp:unsubscribe", "ze-bgp:commit",
 		"ze-system:help", "ze-system:version-software", "ze-system:daemon-status",
 		"ze-plugin:help", "ze-plugin:session-ping", "ze-plugin:session-bye",
-		"ze-rib:help", "ze-rib:show-in", "ze-rib:event-list",
+		"ze-rib:help", "ze-rib:show", "ze-rib:event-list",
 	}
 	for _, method := range expected {
 		if !wireSet[method] {

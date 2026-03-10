@@ -19,7 +19,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/editor"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -44,11 +44,12 @@ func wireCommandExecutor(m *editor.Model, socketPath string) net.Conn {
 
 	m.SetCommandExecutor(func(input string) (string, error) {
 		// Split pipe operators from command (e.g., "peer list | table").
-		command, pipeFormat := cli.ProcessPipes(input)
+		// Default to table format when no explicit format pipe is specified.
+		cmd, pipeFormat := command.ProcessPipesDefaultTable(input)
 
-		method, args := resolveEditorCommand(cmdMap, cmdKeys, command)
+		method, args := resolveEditorCommand(cmdMap, cmdKeys, cmd)
 		if method == "" {
-			return "", fmt.Errorf("unknown command: %s", command)
+			return "", fmt.Errorf("unknown command: %s", cmd)
 		}
 
 		req := rpc.Request{Method: method}
@@ -150,35 +151,19 @@ func matchEditorCommand(cmdMap map[string]string, cmdKeys []string, input string
 
 const createPromptTimeout = 10 * time.Second
 
-// buildEditorCommandTree builds a CommandNode tree from all registered RPCs.
+// buildEditorCommandTree builds a command.Node tree from all registered RPCs.
 // Strips the "bgp " prefix for BGP commands so the user types "peer list" not "bgp peer list".
-func buildEditorCommandTree() *editor.CommandNode {
+func buildEditorCommandTree() *command.Node {
 	rpcs := pluginserver.AllBuiltinRPCs()
-
-	root := &editor.CommandNode{Children: make(map[string]*editor.CommandNode)}
-	for _, reg := range rpcs {
-		cmd := strings.TrimPrefix(reg.CLICommand, "bgp ")
-		parts := strings.Fields(cmd)
-		if len(parts) == 0 {
-			continue
+	infos := make([]command.RPCInfo, len(rpcs))
+	for i, reg := range rpcs {
+		infos[i] = command.RPCInfo{
+			CLICommand: reg.CLICommand,
+			Help:       reg.Help,
+			ReadOnly:   reg.ReadOnly,
 		}
-
-		current := root
-		for _, part := range parts {
-			if current.Children == nil {
-				current.Children = make(map[string]*editor.CommandNode)
-			}
-			child, ok := current.Children[part]
-			if !ok {
-				child = &editor.CommandNode{Name: part}
-				current.Children[part] = child
-			}
-			current = child
-		}
-		current.Description = reg.Help
 	}
-
-	return root
+	return command.BuildTree(infos, false)
 }
 
 // promptCreateConfig asks the user whether to create a missing config file.

@@ -1,5 +1,4 @@
 // Design: docs/architecture/core-design.md — interactive CLI
-// Detail: pipe.go — pipe operators (match, count, json, no-more)
 // Related: ../run/main.go — run convenience command (uses BuildCommandTree)
 // Related: ../show/main.go — show convenience command (uses BuildCommandTree)
 // Related: ../internal/cmdutil/cmdutil.go — shared command utilities (uses BuildCommandTree)
@@ -25,11 +24,13 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/subscribe"         // init() registers subscribe/unsubscribe RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update"            // init() registers update parsing RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler" // init() registers route-refresh command RPCs
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -113,8 +114,11 @@ func runBGP(args []string) int {
 	ti.CharLimit = 256
 	ti.Width = 60
 
+	vp := viewport.New(80, 20)
+
 	m := model{
 		textInput:  ti,
+		viewport:   vp,
 		client:     client,
 		historyIdx: -1,
 	}
@@ -291,89 +295,16 @@ func (c *cliClient) printFormatted(resp *rpcResponse, format string) {
 
 	switch format {
 	case "json":
-		fmt.Println(applyJSON(string(resp.Result), jsonPretty))
+		fmt.Println(command.ApplyJSON(string(resp.Result), "pretty"))
 	case "table":
-		fmt.Print(applyTable(string(resp.Result)))
+		fmt.Print(command.ApplyTable(string(resp.Result)))
 	default: // yaml
 		var data any
 		if err := json.Unmarshal(resp.Result, &data); err != nil {
 			fmt.Println(string(resp.Result))
 			return
 		}
-		fmt.Print(renderYAML(data))
-	}
-}
-
-// renderYAML formats a parsed JSON value as valid YAML.
-func renderYAML(data any) string {
-	var b strings.Builder
-	writeValue(&b, data, "")
-	return b.String()
-}
-
-// writeValue recursively writes a JSON value as valid YAML with indentation.
-func writeValue(b *strings.Builder, v any, indent string) {
-	switch val := v.(type) {
-	case map[string]any:
-		writeMap(b, val, indent)
-	case []any:
-		for _, item := range val {
-			if m, ok := item.(map[string]any); ok {
-				writeMapItem(b, m, indent)
-			} else {
-				fmt.Fprintf(b, "%s- %v\n", indent, formatNumber(item))
-			}
-		}
-	default:
-		fmt.Fprintf(b, "%s%v\n", indent, formatNumber(v))
-	}
-}
-
-// writeMap writes a map with sorted keys at the given indentation.
-func writeMap(b *strings.Builder, m map[string]any, indent string) {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	for _, key := range keys {
-		writeKeyValue(b, key, m[key], indent)
-	}
-}
-
-// writeKeyValue writes a single key-value pair with proper YAML formatting.
-func writeKeyValue(b *strings.Builder, key string, value any, indent string) {
-	switch child := value.(type) {
-	case map[string]any:
-		fmt.Fprintf(b, "%s%s:\n", indent, key)
-		writeMap(b, child, indent+"  ")
-	case []any:
-		if len(child) == 0 {
-			fmt.Fprintf(b, "%s%s: []\n", indent, key)
-		} else {
-			fmt.Fprintf(b, "%s%s:\n", indent, key)
-			writeValue(b, child, indent+"  ")
-		}
-	default:
-		fmt.Fprintf(b, "%s%s: %v\n", indent, key, formatNumber(value))
-	}
-}
-
-// writeMapItem writes a map as a YAML sequence item (first key on the "- " line).
-func writeMapItem(b *strings.Builder, m map[string]any, indent string) {
-	keys := make([]string, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	for i, key := range keys {
-		if i == 0 {
-			writeKeyValue(b, key, m[key], indent+"- ")
-		} else {
-			writeKeyValue(b, key, m[key], indent+"  ")
-		}
+		fmt.Print(command.RenderYAML(data))
 	}
 }
 
@@ -383,16 +314,6 @@ func looksLikePeerSelector(s string) bool {
 		return true
 	}
 	return strings.ContainsAny(s, ".:")
-}
-
-// formatNumber displays integers without decimal points.
-func formatNumber(v any) any {
-	if n, ok := v.(float64); ok {
-		if n == float64(int64(n)) {
-			return int64(n)
-		}
-	}
-	return v
 }
 
 // AllCLIRPCs returns all RPCs needed for CLI command mapping.
@@ -406,47 +327,20 @@ func AllCLIRPCs() []pluginserver.RPCRegistration {
 // Strips the "bgp " prefix for BGP commands to create the user-facing tree.
 // If readOnly is true, only includes RPCs marked ReadOnly (for "ze show").
 func BuildCommandTree(readOnly bool) *Command {
-	root := &Command{Children: make(map[string]*Command)}
-
-	for _, reg := range AllCLIRPCs() {
-		if readOnly && !reg.ReadOnly {
-			continue
+	rpcs := AllCLIRPCs()
+	infos := make([]command.RPCInfo, len(rpcs))
+	for i, reg := range rpcs {
+		infos[i] = command.RPCInfo{
+			CLICommand: reg.CLICommand,
+			Help:       reg.Help,
+			ReadOnly:   reg.ReadOnly,
 		}
-
-		cmd := reg.CLICommand
-
-		// Strip "bgp " prefix for BGP commands (user types "peer list", not "bgp peer list")
-		cmd = strings.TrimPrefix(cmd, "bgp ")
-
-		parts := strings.Fields(cmd)
-		if len(parts) == 0 {
-			continue
-		}
-
-		current := root
-		for _, part := range parts {
-			if current.Children == nil {
-				current.Children = make(map[string]*Command)
-			}
-			child, ok := current.Children[part]
-			if !ok {
-				child = &Command{Name: part}
-				current.Children[part] = child
-			}
-			current = child
-		}
-		current.Description = reg.Help
 	}
-
-	return root
+	return command.BuildTree(infos, readOnly)
 }
 
-// Command represents a CLI command with metadata.
-type Command struct {
-	Name        string
-	Description string
-	Children    map[string]*Command
-}
+// Command is an alias for command.Node. Use command.Node directly in new code.
+type Command = command.Node
 
 // commandTree holds all available commands for completion.
 var commandTree = BuildCommandTree(false)
@@ -464,10 +358,9 @@ var (
 // model is the bubbletea model for the CLI.
 type model struct {
 	textInput   textinput.Model
+	viewport    viewport.Model
 	suggestions []suggestion
 	selected    int
-	output      string
-	err         error
 	client      *cliClient
 	quitting    bool
 	width       int
@@ -475,6 +368,9 @@ type model struct {
 	history     []string // Previous commands (oldest first)
 	historyIdx  int      // Current position in history (-1 = not browsing)
 	historyTmp  string   // Saved current input when browsing history
+	outputBuf   string   // Accumulated command output history
+	tabBase     string   // Input before Tab completion cycle started
+	tabActive   bool     // Whether we're cycling through completions
 }
 
 type suggestion struct {
@@ -502,11 +398,36 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.quitting = true
 			return m, tea.Quit
 
+		case tea.KeyShiftUp:
+			m.viewport.ScrollUp(1)
+			return m, nil
+
+		case tea.KeyShiftDown:
+			m.viewport.ScrollDown(1)
+			return m, nil
+
+		case tea.KeyPgUp:
+			m.viewport.PageUp()
+			return m, nil
+
+		case tea.KeyPgDown:
+			m.viewport.PageDown()
+			return m, nil
+
 		case tea.KeyTab:
 			// Cycle through suggestions
 			if len(m.suggestions) > 0 {
-				m.selected = (m.selected + 1) % len(m.suggestions)
-				// Apply the selected suggestion
+				if !m.tabActive {
+					m.tabBase = m.textInput.Value()
+					m.tabActive = true
+					m.selected = 0
+				} else {
+					// Single suggestion: already applied, nothing to cycle
+					if len(m.suggestions) == 1 {
+						return m, nil
+					}
+					m.selected = (m.selected + 1) % len(m.suggestions)
+				}
 				m.applySelectedSuggestion()
 			}
 			return m, nil
@@ -514,23 +435,35 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case tea.KeyShiftTab:
 			// Cycle backwards through suggestions
 			if len(m.suggestions) > 0 {
-				m.selected--
-				if m.selected < 0 {
+				if !m.tabActive {
+					m.tabBase = m.textInput.Value()
+					m.tabActive = true
 					m.selected = len(m.suggestions) - 1
+				} else {
+					if len(m.suggestions) == 1 {
+						return m, nil
+					}
+					m.selected--
+					if m.selected < 0 {
+						m.selected = len(m.suggestions) - 1
+					}
 				}
 				m.applySelectedSuggestion()
 			}
 			return m, nil
 
 		case tea.KeyUp:
+			m.tabActive = false
 			m = m.handleHistoryUp()
 			return m, nil
 
 		case tea.KeyDown:
+			m.tabActive = false
 			m = m.handleHistoryDown()
 			return m, nil
 
 		case tea.KeyEnter:
+			m.tabActive = false
 			input := strings.TrimSpace(m.textInput.Value())
 			if input == "" {
 				return m, nil
@@ -548,13 +481,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.historyIdx = -1
 			m.historyTmp = ""
 
+			// Echo command to output history
+			m.outputBuf += dimStyle.Render("❯") + " " + input + "\n"
+			m.viewport.SetContent(m.outputBuf)
+			m.viewport.GotoBottom()
+
 			// Execute command
 			m.textInput.SetValue("")
 			m.suggestions = nil
 			m.selected = 0
+			m.resizeViewport()
 			return m, m.executeCommand(input)
 
 		default: // handle all other keys via textinput
+			m.tabActive = false
 			m.textInput, cmd = m.textInput.Update(msg)
 			m.updateSuggestions()
 			m.selected = 0
@@ -565,11 +505,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.textInput.Width = min(msg.Width-4, 80)
+		m.resizeViewport()
 		return m, nil
 
 	case executeResultMsg:
-		m.output = msg.output
-		m.err = msg.err
+		if msg.err != nil {
+			m.outputBuf += errorStyle.Render("Error: "+msg.err.Error()) + "\n\n"
+		} else if msg.output != "" {
+			m.outputBuf += msg.output + "\n"
+		}
+		m.viewport.SetContent(m.outputBuf)
+		m.viewport.GotoBottom()
 		return m, nil
 	}
 
@@ -622,7 +568,13 @@ func (m *model) applySelectedSuggestion() {
 	if m.selected < 0 || m.selected >= len(m.suggestions) {
 		return
 	}
-	input := m.textInput.Value()
+
+	// When cycling (Tab pressed multiple times), use the original input
+	// before Tab was first pressed — prevents appending suggestions repeatedly.
+	input := m.tabBase
+	if !m.tabActive {
+		input = m.textInput.Value()
+	}
 	suggested := m.suggestions[m.selected].text
 
 	// After a pipe: replace partial pipe operator name.
@@ -648,17 +600,7 @@ func (m *model) applySelectedSuggestion() {
 	m.textInput.CursorEnd()
 }
 
-// pipeSuggestions lists available client-side pipe operators for tab completion.
-var pipeSuggestions = []suggestion{
-	{text: "match", description: "Filter lines matching pattern"},
-	{text: "count", description: "Count output lines"},
-	{text: "table", description: "Render as table"},
-	{text: "json", description: "JSON output (pretty or compact)"},
-	{text: "yaml", description: "YAML output"},
-	{text: "no-more", description: "Disable paging"},
-}
-
-// ribShowPipeSuggestions lists server-side pipeline keywords for rib show commands.
+// ribShowPipeSuggestions lists additional server-side pipeline keywords for rib show commands.
 var ribShowPipeSuggestions = []suggestion{
 	{text: "path", description: "Filter by AS path (contiguous subsequence, ^ = anchor)"},
 	{text: "cidr", description: "Filter by prefix match"},
@@ -673,21 +615,26 @@ var ribShowPipeSuggestions = []suggestion{
 }
 
 func (m *model) updateSuggestions() {
+	defer m.resizeViewport()
+
 	input := m.textInput.Value()
 
 	// After a pipe character, suggest pipe operators instead of commands.
 	// For rib show commands, suggest server-side pipeline keywords.
 	if pipeIdx := strings.LastIndex(input, "|"); pipeIdx >= 0 {
 		cmdPart := strings.TrimSpace(input[:pipeIdx])
-		suggestions := pipeSuggestions
-		if strings.HasPrefix(strings.ToLower(cmdPart), "rib show") {
-			suggestions = ribShowPipeSuggestions
-		}
 		after := strings.TrimSpace(input[pipeIdx+1:])
 		m.suggestions = nil
-		for _, s := range suggestions {
-			if after == "" || strings.HasPrefix(s.text, after) {
-				m.suggestions = append(m.suggestions, s)
+		if strings.HasPrefix(strings.ToLower(cmdPart), "rib show") {
+			for _, s := range ribShowPipeSuggestions {
+				if after == "" || strings.HasPrefix(s.text, after) {
+					m.suggestions = append(m.suggestions, s)
+				}
+			}
+		} else {
+			// Use shared pipe completion (handles sub-args like json compact/pretty).
+			for _, s := range command.CompletePipe(input[pipeIdx+1:]) {
+				m.suggestions = append(m.suggestions, suggestion{text: s.Text, description: s.Description})
 			}
 		}
 		return
@@ -750,20 +697,15 @@ func (m *model) updateSuggestions() {
 
 func (m model) executeCommand(input string) tea.Cmd {
 	return func() tea.Msg {
-		// Parse pipe operators from input (e.g., "peer list | match established").
-		command, ops := parsePipe(input)
+		// Split pipe operators and fold server-side keywords.
+		// Default to table format when no explicit format pipe is specified.
+		cmd, format := command.ProcessPipesDefaultTable(input)
 
-		// For rib show commands, fold server-side pipeline keywords (path, cidr, count, etc.)
-		// back into the command string as args. Only no-more/table remain client-side.
-		command, ops = foldServerPipeline(command, ops)
-
-		resp, err := m.client.SendCommand(command)
+		resp, err := m.client.SendCommand(cmd)
 		if err != nil {
 			return executeResultMsg{err: err}
 		}
 
-		// Format response.
-		var output string
 		if resp.Error != "" {
 			return executeResultMsg{output: errorStyle.Render("Error: " + resp.Error)}
 		}
@@ -772,20 +714,19 @@ func (m model) executeCommand(input string) tea.Cmd {
 			return executeResultMsg{output: successStyle.Render("OK")}
 		}
 
-		// Keep raw JSON as the base — pipe operators (including default table) work on it.
-		output = string(resp.Result)
-
-		// Default format: table. If the user specified | json or | table explicitly, skip auto-table.
-		if !hasFormatOp(ops) {
-			ops = append([]pipeOp{{kind: pipeTable}}, ops...)
-		}
-
-		result, pipeErr := applyPipes(output, ops)
-		if pipeErr != "" {
-			return executeResultMsg{output: errorStyle.Render("pipe error: " + pipeErr)}
-		}
-		return executeResultMsg{output: result}
+		return executeResultMsg{output: format(string(resp.Result))}
 	}
+}
+
+// resizeViewport adjusts viewport height based on terminal size and suggestion count.
+func (m *model) resizeViewport() {
+	if m.height == 0 {
+		return
+	}
+	// Layout: 1 header + viewport + suggestions + 1 input = total height
+	vpHeight := max(m.height-len(m.suggestions)-2, 3)
+	m.viewport.Height = vpHeight
+	m.viewport.Width = m.width
 }
 
 func (m model) View() string {
@@ -796,41 +737,37 @@ func (m model) View() string {
 	var b strings.Builder
 
 	// Header
-	b.WriteString(dimStyle.Render("Ze CLI") + " " + dimStyle.Render("(Tab: complete, Enter: execute, | pipe, Ctrl+C: quit)"))
-	b.WriteString("\n\n")
-
-	// Prompt and input
-	b.WriteString(promptStyle.Render("❯ "))
-	b.WriteString(m.textInput.View())
+	b.WriteString(dimStyle.Render("Ze CLI") + " " + dimStyle.Render("(Shift+↑↓: scroll, Tab: complete, | pipe, Ctrl+C: quit)"))
 	b.WriteString("\n")
 
-	// Suggestions
+	// Viewport (scrollable output history)
+	b.WriteString(m.viewport.View())
+	b.WriteString("\n")
+
+	// Suggestions (tabulated with aligned columns)
 	if len(m.suggestions) > 0 {
-		b.WriteString("\n")
-		for i, s := range m.suggestions {
-			if i == m.selected {
-				b.WriteString(selectedStyle.Render("▸ "+s.text) + " ")
-				b.WriteString(dimStyle.Render(s.description))
-			} else {
-				b.WriteString(suggestionStyle.Render("  "+s.text) + " ")
-				b.WriteString(dimStyle.Render(s.description))
+		maxWidth := 0
+		for _, s := range m.suggestions {
+			if l := len(s.text); l > maxWidth {
+				maxWidth = l
 			}
+		}
+		for i, s := range m.suggestions {
+			padded := fmt.Sprintf("%-*s", maxWidth, s.text)
+			if i == m.selected {
+				b.WriteString(selectedStyle.Render("▸ " + padded))
+			} else {
+				b.WriteString(suggestionStyle.Render("  " + padded))
+			}
+			b.WriteString("  ")
+			b.WriteString(dimStyle.Render(s.description))
 			b.WriteString("\n")
 		}
 	}
 
-	// Output
-	if m.output != "" {
-		b.WriteString("\n")
-		b.WriteString(m.output)
-		b.WriteString("\n")
-	}
-
-	if m.err != nil {
-		b.WriteString("\n")
-		b.WriteString(errorStyle.Render("Error: " + m.err.Error()))
-		b.WriteString("\n")
-	}
+	// Input prompt at bottom
+	b.WriteString(promptStyle.Render("❯ "))
+	b.WriteString(m.textInput.View())
 
 	return b.String()
 }

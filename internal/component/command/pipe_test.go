@@ -1,4 +1,4 @@
-package cli
+package command
 
 import (
 	"strings"
@@ -78,6 +78,12 @@ func TestParsePipe(t *testing.T) {
 			ops:     []pipeOp{{kind: pipeTable}},
 		},
 		{
+			name:    "text filter",
+			input:   "peer list | text",
+			command: "peer list",
+			ops:     []pipeOp{{kind: pipeText}},
+		},
+		{
 			name:    "trailing pipe no operator",
 			input:   "peer list |",
 			command: "peer list",
@@ -93,7 +99,7 @@ func TestParsePipe(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			cmd, ops := parsePipe(tt.input)
+			cmd, ops := ParsePipe(tt.input)
 			if cmd != tt.command {
 				t.Errorf("command = %q, want %q", cmd, tt.command)
 			}
@@ -131,18 +137,20 @@ func TestApplyMatch(t *testing.T) {
 	}
 }
 
-// VALIDATES: count filter returns line count.
-// PREVENTS: counting empty trailing lines.
+// VALIDATES: count filter returns JSON {"count": N}.
+// PREVENTS: count output not being renderable by table/text pipes.
 func TestApplyCount(t *testing.T) {
 	tests := []struct {
 		name  string
 		input string
 		want  string
 	}{
-		{"three lines", "a\nb\nc\n", "3"},
-		{"empty", "", "0"},
-		{"single line", "hello\n", "1"},
-		{"no trailing newline", "a\nb\nc", "3"},
+		{"three lines", "a\nb\nc\n", `{"count":3}`},
+		{"empty", "", `{"count":0}`},
+		{"single line", "hello\n", `{"count":1}`},
+		{"no trailing newline", "a\nb\nc", `{"count":3}`},
+		{"json array", `[1,2,3]`, `{"count":3}`},
+		{"json object wrapper", `{"items":[1,2]}`, `{"count":2}`},
 	}
 
 	for _, tt := range tests {
@@ -159,7 +167,7 @@ func TestApplyCount(t *testing.T) {
 // PREVENTS: multi-line JSON output when compact is requested.
 func TestApplyJSONCompact(t *testing.T) {
 	input := "{\n  \"address\": \"1.2.3.4\",\n  \"state\": \"established\"\n}"
-	result := applyJSON(input, jsonCompact)
+	result := ApplyJSON(input, jsonCompact)
 
 	if strings.Contains(result, "\n") {
 		t.Errorf("compact JSON should be single line, got: %q", result)
@@ -173,7 +181,7 @@ func TestApplyJSONCompact(t *testing.T) {
 // PREVENTS: unreadable JSON output in default mode.
 func TestApplyJSONPretty(t *testing.T) {
 	input := `{"address":"1.2.3.4","state":"established"}`
-	result := applyJSON(input, jsonPretty)
+	result := ApplyJSON(input, jsonPretty)
 
 	lines := strings.Split(result, "\n")
 	if len(lines) < 3 {
@@ -185,7 +193,7 @@ func TestApplyJSONPretty(t *testing.T) {
 // PREVENTS: error when piping non-JSON output through json filter.
 func TestApplyJSONNonJSON(t *testing.T) {
 	input := "this is not json"
-	result := applyJSON(input, jsonCompact)
+	result := ApplyJSON(input, jsonCompact)
 
 	if result != input {
 		t.Errorf("non-JSON should pass through, got %q", result)
@@ -201,12 +209,12 @@ func TestApplyPipes(t *testing.T) {
 		{kind: pipeCount},
 	}
 
-	result, err := applyPipes(input, ops)
+	result, err := ApplyPipes(input, ops)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if strings.TrimSpace(result) != "2" {
-		t.Errorf("match + count = %q, want %q", strings.TrimSpace(result), "2")
+	if strings.TrimSpace(result) != `{"count":2}` {
+		t.Errorf("match + count = %q, want %q", strings.TrimSpace(result), `{"count":2}`)
 	}
 }
 
@@ -215,7 +223,7 @@ func TestApplyPipes(t *testing.T) {
 func TestApplyPipesUnknown(t *testing.T) {
 	ops := []pipeOp{{kind: pipeUnknown, arg: "bogus"}}
 
-	_, err := applyPipes("input", ops)
+	_, err := ApplyPipes("input", ops)
 	if err == "" {
 		t.Fatal("expected error for unknown pipe operator")
 	}
@@ -227,15 +235,15 @@ func TestApplyPipesUnknown(t *testing.T) {
 // VALIDATES: match with no argument is flagged as error.
 // PREVENTS: silent no-op when user forgets the pattern.
 func TestParsePipeMatchNoArg(t *testing.T) {
-	_, ops := parsePipe("peer list | match")
+	_, ops := ParsePipe("peer list | match")
 	if len(ops) != 1 {
 		t.Fatal("expected 1 op")
 	}
 	if ops[0].kind != pipeMatch {
 		t.Error("expected pipeMatch")
 	}
-	// Match with no arg should still parse; applyPipes should error.
-	_, err := applyPipes("test", ops)
+	// Match with no arg should still parse; ApplyPipes should error.
+	_, err := ApplyPipes("test", ops)
 	if err == "" {
 		t.Error("expected error for match with no pattern")
 	}
@@ -245,7 +253,7 @@ func TestParsePipeMatchNoArg(t *testing.T) {
 // PREVENTS: double-formatting artifacts.
 func TestApplyJSONPrettyIdempotent(t *testing.T) {
 	input := "{\n  \"address\": \"1.2.3.4\",\n  \"state\": \"established\"\n}"
-	result := applyJSON(input, jsonPretty)
+	result := ApplyJSON(input, jsonPretty)
 	if result != input {
 		t.Errorf("pretty→pretty should be idempotent:\ngot:  %q\nwant: %q", result, input)
 	}
@@ -255,7 +263,7 @@ func TestApplyJSONPrettyIdempotent(t *testing.T) {
 // PREVENTS: empty operator list altering output.
 func TestApplyPipesEmpty(t *testing.T) {
 	input := "some output"
-	result, err := applyPipes(input, nil)
+	result, err := ApplyPipes(input, nil)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -282,7 +290,7 @@ func TestApplyMatchWithSpaces(t *testing.T) {
 func TestApplyJSONANSIPassthrough(t *testing.T) {
 	// Simulate lipgloss-styled error output containing ANSI escape codes.
 	input := "\x1b[38;5;196mError: unknown command\x1b[0m"
-	result := applyJSON(input, jsonCompact)
+	result := ApplyJSON(input, jsonCompact)
 	if result != input {
 		t.Errorf("ANSI-styled text should pass through, got %q", result)
 	}
@@ -296,13 +304,14 @@ func TestApplyPipesCountOfCount(t *testing.T) {
 		{kind: pipeCount},
 		{kind: pipeCount},
 	}
-	result, err := applyPipes(input, ops)
+	result, err := ApplyPipes(input, ops)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	// count("a\nb\nc\n") = "3\n", count("3\n") = "1\n".
-	if strings.TrimSpace(result) != "1" {
-		t.Errorf("count | count = %q, want %q", strings.TrimSpace(result), "1")
+	// count("a\nb\nc\n") = '{"count":3}\n', count('{"count":3}') = '{"count":1}\n'.
+	// Second count: JSON parses → single-key map → unwrap → float64(3) → 1 item.
+	if strings.TrimSpace(result) != `{"count":1}` {
+		t.Errorf("count | count = %q, want %q", strings.TrimSpace(result), `{"count":1}`)
 	}
 }
 
@@ -314,12 +323,148 @@ func TestApplyPipesMatchThenJSON(t *testing.T) {
 		{kind: pipeMatch, arg: "address"},
 		{kind: pipeJSON, arg: jsonCompact},
 	}
-	result, err := applyPipes(input, ops)
+	result, err := ApplyPipes(input, ops)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	// match extracts one line → not valid JSON → json compact passes through.
 	if !strings.Contains(result, "address") {
 		t.Errorf("expected address in output, got %q", result)
+	}
+}
+
+// VALIDATES: multiple format operators are rejected.
+// PREVENTS: confusing silent passthrough when stacking formatters.
+func TestApplyPipesMultipleFormats(t *testing.T) {
+	ops := []pipeOp{{kind: pipeText}, {kind: pipeJSON, arg: jsonPretty}}
+	_, err := ApplyPipes(`{"a":1}`, ops)
+	if err == "" {
+		t.Fatal("expected error for multiple format operators")
+	}
+	if !strings.Contains(err, "multiple format") {
+		t.Errorf("error should mention multiple formats, got: %q", err)
+	}
+}
+
+// VALIDATES: foldServerPipeline folds pipe segments into rib show command args.
+// PREVENTS: server-side pipeline keywords being treated as unknown client ops.
+func TestFoldServerPipeline(t *testing.T) {
+	tests := []struct {
+		name       string
+		command    string
+		ops        []pipeOp
+		wantCmd    string
+		wantOpsLen int
+	}{
+		{
+			name:       "non-rib-show unchanged",
+			command:    "peer list",
+			ops:        []pipeOp{{kind: pipeMatch, arg: "established"}},
+			wantCmd:    "peer list",
+			wantOpsLen: 1,
+		},
+		{
+			name:       "rib show with path filter",
+			command:    "rib show received",
+			ops:        []pipeOp{{kind: pipeUnknown, arg: "path 65001"}},
+			wantCmd:    "rib show received path 65001",
+			wantOpsLen: 0,
+		},
+		{
+			name:       "rib show with count terminal",
+			command:    "rib show",
+			ops:        []pipeOp{{kind: pipeCount}},
+			wantCmd:    "rib show count",
+			wantOpsLen: 0,
+		},
+		{
+			name:       "rib show with match filter",
+			command:    "rib show received",
+			ops:        []pipeOp{{kind: pipeMatch, arg: "10.0.0.0"}},
+			wantCmd:    "rib show received match 10.0.0.0",
+			wantOpsLen: 0,
+		},
+		{
+			name:       "rib show keeps no-more client-side",
+			command:    "rib show",
+			ops:        []pipeOp{{kind: pipeUnknown, arg: "path 65001"}, {kind: pipeNoMore}},
+			wantCmd:    "rib show path 65001",
+			wantOpsLen: 1,
+		},
+		{
+			name:       "rib show keeps table client-side",
+			command:    "rib show received",
+			ops:        []pipeOp{{kind: pipeCount}, {kind: pipeTable}},
+			wantCmd:    "rib show received count",
+			wantOpsLen: 1,
+		},
+		{
+			name:       "rib show with json terminal",
+			command:    "rib show",
+			ops:        []pipeOp{{kind: pipeJSON, arg: jsonPretty}},
+			wantCmd:    "rib show json",
+			wantOpsLen: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd, ops := FoldServerPipeline(tt.command, tt.ops)
+			if cmd != tt.wantCmd {
+				t.Errorf("command = %q, want %q", cmd, tt.wantCmd)
+			}
+			if len(ops) != tt.wantOpsLen {
+				t.Errorf("got %d client ops, want %d", len(ops), tt.wantOpsLen)
+			}
+		})
+	}
+}
+
+// VALIDATES: parsePipe preserves full segment text for unknown ops.
+// PREVENTS: loss of filter arguments (e.g., "path 65001" becomes just "path").
+func TestParsePipeUnknownPreservesArgs(t *testing.T) {
+	_, ops := ParsePipe("rib show | path 65001")
+	if len(ops) != 1 {
+		t.Fatalf("got %d ops, want 1", len(ops))
+	}
+	if ops[0].arg != "path 65001" {
+		t.Errorf("arg = %q, want %q", ops[0].arg, "path 65001")
+	}
+}
+
+// TestProcessPipesDefaultTable verifies default table format is added when no format pipe present.
+//
+// VALIDATES: ProcessPipesDefaultTable adds table format by default.
+// PREVENTS: Editor command mode showing raw JSON instead of table.
+func TestProcessPipesDefaultTable(t *testing.T) {
+	tests := []struct {
+		name      string
+		input     string
+		wantCmd   string
+		wantTable bool // true if result should contain box-drawing chars (table)
+	}{
+		{"no pipe adds table", "peer list", "peer list", true},
+		{"match only adds table", "peer list | match name", "peer list", true},
+		{"explicit json skips table", "peer list | json", "peer list", false},
+		{"explicit table keeps table", "peer list | table", "peer list", true},
+		{"explicit text skips table", "peer list | text", "peer list", false},
+		{"explicit yaml skips table", "peer list | yaml", "peer list", false},
+		{"count gets default table", "peer list | count", "peer list", true},
+	}
+
+	jsonInput := `[{"name":"a","value":1},{"name":"b","value":2}]`
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd, format := ProcessPipesDefaultTable(tt.input)
+			if cmd != tt.wantCmd {
+				t.Errorf("command = %q, want %q", cmd, tt.wantCmd)
+			}
+			result := format(jsonInput)
+			hasTable := strings.Contains(result, "┌") || strings.Contains(result, "│")
+			if hasTable != tt.wantTable {
+				t.Errorf("hasTable = %v, want %v; result:\n%s", hasTable, tt.wantTable, result)
+			}
+		})
 	}
 }

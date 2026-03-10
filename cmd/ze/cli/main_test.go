@@ -749,6 +749,78 @@ func TestHistoryDedup(t *testing.T) {
 	}
 }
 
+// TestTabCycleDoesNotAppend verifies Tab cycling replaces rather than appends.
+//
+// VALIDATES: Pressing Tab multiple times cycles through completions at the same position.
+// PREVENTS: Tab appending suggestions repeatedly (e.g., "peer plugin peer plugin...").
+func TestTabCycleDoesNotAppend(t *testing.T) {
+	m := model{
+		textInput:  textinput.New(),
+		historyIdx: -1,
+		suggestions: []suggestion{
+			{text: "peer", description: "Peer management"},
+			{text: "plugin", description: "Plugin management"},
+		},
+		selected: -1,
+	}
+	m.textInput.SetValue("p")
+
+	tabKey := tea.KeyMsg{Type: tea.KeyTab}
+
+	// First Tab: should select "peer" (index 0 after increment from -1→0)
+	updated, _ := m.Update(tabKey)
+	m, _ = updated.(model) //nolint:errcheck // test: type is always model
+	if got := m.textInput.Value(); got != "peer " {
+		t.Fatalf("first Tab = %q, want %q", got, "peer ")
+	}
+
+	// Second Tab: should replace with "plugin", not append
+	updated, _ = m.Update(tabKey)
+	m, _ = updated.(model) //nolint:errcheck // test: type is always model
+	if got := m.textInput.Value(); got != "plugin " {
+		t.Fatalf("second Tab = %q, want %q", got, "plugin ")
+	}
+
+	// Third Tab: should cycle back to "peer"
+	updated, _ = m.Update(tabKey)
+	m, _ = updated.(model) //nolint:errcheck // test: type is always model
+	if got := m.textInput.Value(); got != "peer " {
+		t.Fatalf("third Tab = %q, want %q", got, "peer ")
+	}
+}
+
+// TestTabSingleSuggestion verifies Tab with one suggestion applies once, not twice.
+//
+// VALIDATES: Single suggestion Tab applies once, subsequent Tabs are no-ops.
+// PREVENTS: Tab producing "peer peer " when only one suggestion matches.
+func TestTabSingleSuggestion(t *testing.T) {
+	m := model{
+		textInput:  textinput.New(),
+		historyIdx: -1,
+		suggestions: []suggestion{
+			{text: "peer", description: "Peer management"},
+		},
+		selected: -1,
+	}
+	m.textInput.SetValue("pee")
+
+	tabKey := tea.KeyMsg{Type: tea.KeyTab}
+
+	// First Tab: applies "peer"
+	updated, _ := m.Update(tabKey)
+	m, _ = updated.(model) //nolint:errcheck // test: type is always model
+	if got := m.textInput.Value(); got != "peer " {
+		t.Fatalf("first Tab = %q, want %q", got, "peer ")
+	}
+
+	// Second Tab: should be no-op (only one suggestion)
+	updated, _ = m.Update(tabKey)
+	m, _ = updated.(model) //nolint:errcheck // test: type is always model
+	if got := m.textInput.Value(); got != "peer " {
+		t.Fatalf("second Tab = %q, want %q (should be no-op)", got, "peer ")
+	}
+}
+
 // TestResolveCommand verifies text command to wire method mapping.
 //
 // VALIDATES: CLI commands resolve to correct wire methods.

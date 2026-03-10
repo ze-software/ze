@@ -2,8 +2,9 @@
 // Overview: pipe.go — pipe operator framework (table is one operator)
 //
 // pipe_table.go renders JSON data as nushell-style tables with box-drawing
-// characters. Supports nested tables (objects/arrays within cells).
-package cli
+// characters (table mode) or space-aligned columns (text mode).
+// Supports nested tables (objects/arrays within cells).
+package command
 
 import (
 	"encoding/json"
@@ -15,24 +16,39 @@ import (
 
 const emptyMarker = "(empty)\n"
 
+// tableStyle controls rendering: box-drawing (table) or plain spacing (text).
+type tableStyle struct {
+	plain bool // true = space-aligned columns, no box-drawing
+}
+
 // tableCell holds pre-rendered cell content, potentially multi-line for nested tables.
 type tableCell struct {
 	lines []string
 	width int // max display width across all lines
 }
 
-// applyTable parses JSON input and renders it as a table.
+// ApplyTable parses JSON input and renders it as a box-drawing table.
 // Non-JSON input passes through unchanged.
-func applyTable(input string) string {
+func ApplyTable(input string) string {
+	return applyTableStyled(input, tableStyle{})
+}
+
+// ApplyText parses JSON input and renders it as space-aligned columns.
+// Non-JSON input passes through unchanged.
+func ApplyText(input string) string {
+	return applyTableStyled(input, tableStyle{plain: true})
+}
+
+func applyTableStyled(input string, style tableStyle) string {
 	var data any
 	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err != nil {
 		return input
 	}
-	return renderValue(data)
+	return style.renderValue(data)
 }
 
 // renderValue dispatches to the appropriate table renderer based on type.
-func renderValue(v any) string {
+func (s tableStyle) renderValue(v any) string {
 	switch val := v.(type) {
 	case map[string]any:
 		if len(val) == 0 {
@@ -44,27 +60,26 @@ func renderValue(v any) string {
 			for _, inner := range val {
 				switch inner.(type) {
 				case map[string]any, []any:
-					return renderValue(inner)
+					return s.renderValue(inner)
 				}
 			}
 		}
 		// Check if this is a map-of-maps with homogeneous keys (e.g., peers indexed by IP).
 		// Render as columnar table with the parent key as first column.
 		if childKeys := homogeneousMapOfMapsKeys(val); childKeys != nil {
-			return renderMapOfMaps(val, childKeys)
+			return s.renderMapOfMaps(val, childKeys)
 		}
-		return renderRecord(val)
+		return s.renderRecord(val)
 	case []any:
 		if len(val) == 0 {
 			return emptyMarker
 		}
 		if _, ok := val[0].(map[string]any); ok {
-			return renderList(val)
+			return s.renderList(val)
 		}
-		return renderPrimitiveList(val)
-	default:
-		return fmt.Sprint(formatNumber(v)) + "\n"
+		return s.renderPrimitiveList(val)
 	}
+	return fmt.Sprint(FormatNumber(v)) + "\n"
 }
 
 // homogeneousMapOfMapsKeys returns the shared child keys if every value in m is a map
@@ -79,7 +94,7 @@ func homogeneousMapOfMapsKeys(m map[string]any) []string {
 		if !ok {
 			return nil
 		}
-		keys := sortedKeys(child)
+		keys := tableSortedKeys(child)
 		if len(keys) == 0 {
 			return nil
 		}
@@ -101,8 +116,8 @@ func homogeneousMapOfMapsKeys(m map[string]any) []string {
 
 // renderMapOfMaps renders a map-of-maps as a columnar table.
 // The parent key becomes the first column; child keys become the remaining columns.
-func renderMapOfMaps(m map[string]any, childKeys []string) string {
-	parentKeys := sortedKeys(m)
+func (s tableStyle) renderMapOfMaps(m map[string]any, childKeys []string) string {
+	parentKeys := tableSortedKeys(m)
 
 	// All columns: parent key header + child key headers.
 	allCols := make([]string, 0, 1+len(childKeys))
@@ -126,7 +141,7 @@ func renderMapOfMaps(m map[string]any, childKeys []string) string {
 		child, _ := m[parentKey].(map[string]any)
 		for colIdx, childKey := range childKeys {
 			if v, ok := child[childKey]; ok {
-				row[colIdx+1] = cellFromValue(v)
+				row[colIdx+1] = s.cellFromValue(v)
 			} else {
 				row[colIdx+1] = cellFromString("")
 			}
@@ -139,27 +154,27 @@ func renderMapOfMaps(m map[string]any, childKeys []string) string {
 
 	// Render.
 	var b strings.Builder
-	b.WriteString(drawBorder(widths, '┌', '┬', '┐'))
+	b.WriteString(s.drawBorder(widths, '┌', '┬', '┐'))
 
 	// Header row.
 	headerCells := make([]tableCell, len(allCols))
 	for i, col := range allCols {
 		headerCells[i] = cellFromString(col)
 	}
-	writeRow(&b, headerCells, widths)
-	b.WriteString(drawBorder(widths, '├', '┼', '┤'))
+	s.writeRow(&b, headerCells, widths)
+	b.WriteString(s.drawBorder(widths, '├', '┼', '┤'))
 
 	// Data rows.
 	for _, row := range rows {
-		writeRow(&b, row, widths)
+		s.writeRow(&b, row, widths)
 	}
-	b.WriteString(drawBorder(widths, '└', '┴', '┘'))
+	b.WriteString(s.drawBorder(widths, '└', '┴', '┘'))
 	return b.String()
 }
 
 // renderRecord renders a map as a two-column key-value table.
-func renderRecord(m map[string]any) string {
-	keys := sortedKeys(m)
+func (s tableStyle) renderRecord(m map[string]any) string {
+	keys := tableSortedKeys(m)
 
 	keyCells := make([]tableCell, len(keys))
 	valCells := make([]tableCell, len(keys))
@@ -167,7 +182,7 @@ func renderRecord(m map[string]any) string {
 
 	for i, k := range keys {
 		keyCells[i] = cellFromString(k)
-		valCells[i] = cellFromValue(m[k])
+		valCells[i] = s.cellFromValue(m[k])
 		if keyCells[i].width > keyWidth {
 			keyWidth = keyCells[i].width
 		}
@@ -178,16 +193,16 @@ func renderRecord(m map[string]any) string {
 
 	widths := []int{keyWidth, valWidth}
 	var b strings.Builder
-	b.WriteString(drawBorder(widths, '┌', '┬', '┐'))
+	b.WriteString(s.drawBorder(widths, '┌', '┬', '┐'))
 	for i := range keys {
-		writeRow(&b, []tableCell{keyCells[i], valCells[i]}, widths)
+		s.writeRow(&b, []tableCell{keyCells[i], valCells[i]}, widths)
 	}
-	b.WriteString(drawBorder(widths, '└', '┴', '┘'))
+	b.WriteString(s.drawBorder(widths, '└', '┴', '┘'))
 	return b.String()
 }
 
 // renderList renders an array of objects as a columnar table with headers.
-func renderList(arr []any) string {
+func (s tableStyle) renderList(arr []any) string {
 	// Collect union of all keys.
 	keySet := make(map[string]bool)
 	for _, item := range arr {
@@ -221,14 +236,14 @@ func renderList(arr []any) string {
 		for colIdx, k := range keys {
 			if ok {
 				if v, exists := m[k]; exists {
-					row[colIdx] = cellFromValue(v)
+					row[colIdx] = s.cellFromValue(v)
 				} else {
 					row[colIdx] = cellFromString("")
 				}
 			} else {
 				// Non-object in array — put in first column only.
 				if colIdx == 0 {
-					row[colIdx] = cellFromValue(item)
+					row[colIdx] = s.cellFromValue(item)
 				} else {
 					row[colIdx] = cellFromString("")
 				}
@@ -242,30 +257,30 @@ func renderList(arr []any) string {
 
 	// Render.
 	var b strings.Builder
-	b.WriteString(drawBorder(widths, '┌', '┬', '┐'))
+	b.WriteString(s.drawBorder(widths, '┌', '┬', '┐'))
 
 	// Header row.
 	headerCells := make([]tableCell, len(keys))
 	for i, k := range keys {
 		headerCells[i] = cellFromString(k)
 	}
-	writeRow(&b, headerCells, widths)
-	b.WriteString(drawBorder(widths, '├', '┼', '┤'))
+	s.writeRow(&b, headerCells, widths)
+	b.WriteString(s.drawBorder(widths, '├', '┼', '┤'))
 
 	// Data rows.
 	for _, row := range rows {
-		writeRow(&b, row, widths)
+		s.writeRow(&b, row, widths)
 	}
-	b.WriteString(drawBorder(widths, '└', '┴', '┘'))
+	b.WriteString(s.drawBorder(widths, '└', '┴', '┘'))
 	return b.String()
 }
 
 // renderPrimitiveList renders an array of non-object values as a single-column table.
-func renderPrimitiveList(arr []any) string {
+func (s tableStyle) renderPrimitiveList(arr []any) string {
 	cells := make([]tableCell, len(arr))
 	width := 0
 	for i, item := range arr {
-		cells[i] = cellFromValue(item)
+		cells[i] = s.cellFromValue(item)
 		if cells[i].width > width {
 			width = cells[i].width
 		}
@@ -273,43 +288,42 @@ func renderPrimitiveList(arr []any) string {
 
 	widths := []int{width}
 	var b strings.Builder
-	b.WriteString(drawBorder(widths, '┌', '┬', '┐'))
+	b.WriteString(s.drawBorder(widths, '┌', '┬', '┐'))
 	for _, c := range cells {
-		writeRow(&b, []tableCell{c}, widths)
+		s.writeRow(&b, []tableCell{c}, widths)
 	}
-	b.WriteString(drawBorder(widths, '└', '┴', '┘'))
+	b.WriteString(s.drawBorder(widths, '└', '┴', '┘'))
 	return b.String()
 }
 
 // cellFromValue creates a table cell from any JSON value.
 // Objects and arrays render as nested sub-tables.
-func cellFromValue(v any) tableCell {
+func (s tableStyle) cellFromValue(v any) tableCell {
 	switch val := v.(type) {
 	case map[string]any:
 		if len(val) == 0 {
 			return cellFromString("")
 		}
-		return cellFromString(strings.TrimRight(renderRecord(val), "\n"))
+		return cellFromString(strings.TrimRight(s.renderRecord(val), "\n"))
 	case []any:
 		if len(val) == 0 {
 			return cellFromString("")
 		}
 		if _, ok := val[0].(map[string]any); ok {
-			return cellFromString(strings.TrimRight(renderList(val), "\n"))
+			return cellFromString(strings.TrimRight(s.renderList(val), "\n"))
 		}
 		// Inline array of primitives.
 		parts := make([]string, len(val))
 		for i, item := range val {
-			parts[i] = fmt.Sprint(formatNumber(item))
+			parts[i] = fmt.Sprint(FormatNumber(item))
 		}
 		return cellFromString("[" + strings.Join(parts, ", ") + "]")
 	case bool:
 		return cellFromString(fmt.Sprint(val))
 	case nil:
 		return cellFromString("")
-	default:
-		return cellFromString(fmt.Sprint(formatNumber(v)))
 	}
+	return cellFromString(fmt.Sprint(FormatNumber(v)))
 }
 
 // cellFromString wraps a string (possibly multi-line) into a tableCell.
@@ -333,7 +347,11 @@ func displayWidth(s string) int {
 }
 
 // drawBorder creates a horizontal border line using box-drawing characters.
-func drawBorder(widths []int, left, mid, right rune) string {
+// In plain mode, returns empty string (no borders).
+func (s tableStyle) drawBorder(widths []int, left, mid, right rune) string {
+	if s.plain {
+		return ""
+	}
 	var b strings.Builder
 	b.WriteRune(left)
 	for i, w := range widths {
@@ -350,7 +368,8 @@ func drawBorder(widths []int, left, mid, right rune) string {
 }
 
 // writeRow writes a potentially multi-line row to the builder.
-func writeRow(b *strings.Builder, cells []tableCell, widths []int) {
+// In box mode: │-delimited cells with padding. In plain mode: space-aligned columns.
+func (s tableStyle) writeRow(b *strings.Builder, cells []tableCell, widths []int) {
 	// Find max height across all cells.
 	height := 1
 	for _, c := range cells {
@@ -360,26 +379,37 @@ func writeRow(b *strings.Builder, cells []tableCell, widths []int) {
 	}
 
 	for lineIdx := range height {
-		b.WriteRune('│')
+		if !s.plain {
+			b.WriteRune('│')
+		}
 		for colIdx, c := range cells {
-			b.WriteByte(' ')
+			if s.plain && colIdx > 0 {
+				b.WriteString("  ")
+			}
+			if !s.plain {
+				b.WriteByte(' ')
+			}
 			line := ""
 			if lineIdx < len(c.lines) {
 				line = c.lines[lineIdx]
 			}
 			b.WriteString(line)
-			// Pad to column width.
-			for range widths[colIdx] - displayWidth(line) {
-				b.WriteByte(' ')
+			// Pad to column width. Skip trailing padding on last column in plain mode.
+			if !s.plain || colIdx < len(cells)-1 {
+				for range widths[colIdx] - displayWidth(line) {
+					b.WriteByte(' ')
+				}
 			}
-			b.WriteString(" │")
+			if !s.plain {
+				b.WriteString(" │")
+			}
 		}
 		b.WriteByte('\n')
 	}
 }
 
-// sortedKeys returns map keys sorted alphabetically.
-func sortedKeys(m map[string]any) []string {
+// tableSortedKeys returns map keys sorted alphabetically.
+func tableSortedKeys(m map[string]any) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)

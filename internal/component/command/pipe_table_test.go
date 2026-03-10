@@ -1,4 +1,4 @@
-package cli
+package command
 
 import (
 	"strings"
@@ -9,7 +9,7 @@ import (
 // PREVENTS: unformatted JSON dumped for single objects.
 func TestApplyTableRecord(t *testing.T) {
 	input := `{"state":"established","address":"1.2.3.4"}`
-	result := applyTable(input)
+	result := ApplyTable(input)
 
 	// Keys sorted alphabetically: address, state.
 	lines := strings.Split(strings.TrimRight(result, "\n"), "\n")
@@ -34,7 +34,7 @@ func TestApplyTableRecord(t *testing.T) {
 // PREVENTS: array data rendered without column headers.
 func TestApplyTableArray(t *testing.T) {
 	input := `[{"name":"a","value":1},{"name":"b","value":2}]`
-	result := applyTable(input)
+	result := ApplyTable(input)
 
 	lines := strings.Split(strings.TrimRight(result, "\n"), "\n")
 	// top border + header + separator + 2 data rows + bottom border = 6
@@ -65,7 +65,7 @@ func TestApplyTableArray(t *testing.T) {
 // PREVENTS: nested data shown as flat string.
 func TestApplyTableNested(t *testing.T) {
 	input := `{"peer":"1.2.3.4","caps":{"asn4":true}}`
-	result := applyTable(input)
+	result := ApplyTable(input)
 
 	// Should contain nested table markers.
 	count := strings.Count(result, "┌")
@@ -88,7 +88,7 @@ func TestApplyTableNested(t *testing.T) {
 // PREVENTS: crash on non-JSON input to table formatter.
 func TestApplyTableNonJSON(t *testing.T) {
 	input := "this is not json"
-	result := applyTable(input)
+	result := ApplyTable(input)
 	if result != input {
 		t.Errorf("non-JSON should pass through, got %q", result)
 	}
@@ -97,7 +97,7 @@ func TestApplyTableNonJSON(t *testing.T) {
 // VALIDATES: empty array shows empty marker.
 // PREVENTS: blank output for empty results.
 func TestApplyTableEmptyArray(t *testing.T) {
-	result := applyTable("[]")
+	result := ApplyTable("[]")
 	if !strings.Contains(result, "empty") {
 		t.Errorf("empty array should show empty marker, got %q", result)
 	}
@@ -106,7 +106,7 @@ func TestApplyTableEmptyArray(t *testing.T) {
 // VALIDATES: empty object shows empty marker.
 // PREVENTS: blank output for empty results.
 func TestApplyTableEmptyObject(t *testing.T) {
-	result := applyTable("{}")
+	result := ApplyTable("{}")
 	if !strings.Contains(result, "empty") {
 		t.Errorf("empty object should show empty marker, got %q", result)
 	}
@@ -116,7 +116,7 @@ func TestApplyTableEmptyObject(t *testing.T) {
 // PREVENTS: JSON float64 showing as "65001.000000" in table cells.
 func TestApplyTableNumbers(t *testing.T) {
 	input := `{"peer-as":65001,"med":100}`
-	result := applyTable(input)
+	result := ApplyTable(input)
 	if strings.Contains(result, ".") {
 		t.Errorf("integers should not have decimals:\n%s", result)
 	}
@@ -129,7 +129,7 @@ func TestApplyTableNumbers(t *testing.T) {
 // PREVENTS: panic or misaligned columns with heterogeneous objects.
 func TestApplyTableMissingKeys(t *testing.T) {
 	input := `[{"a":"1","b":"2"},{"a":"3","c":"4"}]`
-	result := applyTable(input)
+	result := ApplyTable(input)
 
 	// Should have columns: a, b, c.
 	if !strings.Contains(result, "a") || !strings.Contains(result, "b") || !strings.Contains(result, "c") {
@@ -147,7 +147,7 @@ func TestApplyTableMissingKeys(t *testing.T) {
 // PREVENTS: ragged columns with varying content widths.
 func TestApplyTableAlignment(t *testing.T) {
 	input := `[{"x":"short","y":"a"},{"x":"much longer value","y":"b"}]`
-	result := applyTable(input)
+	result := ApplyTable(input)
 
 	lines := strings.Split(strings.TrimRight(result, "\n"), "\n")
 	// All lines should have the same rune width (aligned columns).
@@ -166,7 +166,7 @@ func TestApplyTableAlignment(t *testing.T) {
 // VALIDATES: scalar JSON values pass through as-is.
 // PREVENTS: wrapping simple values in unnecessary table chrome.
 func TestApplyTableScalar(t *testing.T) {
-	result := applyTable(`"hello"`)
+	result := ApplyTable(`"hello"`)
 	if strings.Contains(result, "┌") {
 		t.Errorf("scalar string should not be wrapped in table:\n%s", result)
 	}
@@ -176,7 +176,7 @@ func TestApplyTableScalar(t *testing.T) {
 // PREVENTS: crash when array contains non-objects.
 func TestApplyTablePrimitiveArray(t *testing.T) {
 	input := `["10.0.0.0/24","10.0.1.0/24"]`
-	result := applyTable(input)
+	result := ApplyTable(input)
 	if !strings.Contains(result, "10.0.0.0/24") || !strings.Contains(result, "10.0.1.0/24") {
 		t.Errorf("primitive array values missing:\n%s", result)
 	}
@@ -192,13 +192,13 @@ func TestApplyPipesTable(t *testing.T) {
 		{kind: pipeCount},
 	}
 
-	result, err := applyPipes(input, ops)
+	result, err := ApplyPipes(input, ops)
 	if err != "" {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	// Table renders "established" in one data row → match finds it → count = 1.
-	if strings.TrimSpace(result) != "1" {
-		t.Errorf("table | match | count = %q, want %q", strings.TrimSpace(result), "1")
+	// Table renders "established" in one data row → match finds it → count = {"count":1}.
+	if strings.TrimSpace(result) != `{"count":1}` {
+		t.Errorf("table | match | count = %q, want %q", strings.TrimSpace(result), `{"count":1}`)
 	}
 }
 
@@ -210,7 +210,7 @@ func TestApplyTableBGPPeerList(t *testing.T) {
 		{"address":"10.0.0.1","peer-as":65003,"state":"idle","routes-received":0},
 		{"address":"172.16.0.5","peer-as":65004,"state":"established","routes-received":128}
 	]`
-	result := applyTable(input)
+	result := ApplyTable(input)
 	t.Logf("BGP peer list table:\n%s", result)
 
 	// Verify structure.
@@ -245,7 +245,7 @@ func TestApplyTableBGPCapabilities(t *testing.T) {
 		"state":"established",
 		"negotiated":{"asn4":true,"extended-message":true}
 	}`
-	result := applyTable(input)
+	result := ApplyTable(input)
 	t.Logf("BGP capabilities table:\n%s", result)
 
 	// Should have nested table for "negotiated".
@@ -254,5 +254,104 @@ func TestApplyTableBGPCapabilities(t *testing.T) {
 	}
 	if !strings.Contains(result, "asn4") {
 		t.Error("nested key 'asn4' missing")
+	}
+}
+
+// VALIDATES: text mode renders space-aligned columns without box-drawing.
+// PREVENTS: box-drawing characters appearing in text output.
+func TestApplyTextRecord(t *testing.T) {
+	input := `{"count":3}`
+	result := ApplyText(input)
+
+	if strings.Contains(result, "┌") || strings.Contains(result, "│") || strings.Contains(result, "─") {
+		t.Errorf("text mode should have no box-drawing characters:\n%s", result)
+	}
+	if !strings.Contains(result, "count") || !strings.Contains(result, "3") {
+		t.Errorf("expected count and 3 in output:\n%s", result)
+	}
+	// Should be "count  3\n" — key and value separated by spaces.
+	if strings.TrimSpace(result) != "count  3" {
+		t.Errorf("got %q, want %q", strings.TrimSpace(result), "count  3")
+	}
+}
+
+// VALIDATES: text mode renders array of objects as space-aligned columns.
+// PREVENTS: missing headers or misaligned columns in text mode.
+func TestApplyTextArray(t *testing.T) {
+	input := `[{"name":"a","value":1},{"name":"b","value":2}]`
+	result := ApplyText(input)
+
+	if strings.Contains(result, "┌") || strings.Contains(result, "│") {
+		t.Errorf("text mode should have no box-drawing:\n%s", result)
+	}
+
+	lines := strings.Split(strings.TrimRight(result, "\n"), "\n")
+	// header + 2 data rows = 3 lines (no borders)
+	if len(lines) != 3 {
+		t.Fatalf("expected 3 lines, got %d:\n%s", len(lines), result)
+	}
+	// Header line.
+	if !strings.Contains(lines[0], "name") || !strings.Contains(lines[0], "value") {
+		t.Errorf("missing headers: %q", lines[0])
+	}
+	// Data rows.
+	if !strings.Contains(lines[1], "a") {
+		t.Errorf("missing first data row: %q", lines[1])
+	}
+	if !strings.Contains(lines[2], "b") {
+		t.Errorf("missing second data row: %q", lines[2])
+	}
+}
+
+// VALIDATES: text mode non-JSON input passes through unchanged.
+// PREVENTS: crash on non-JSON input to text formatter.
+func TestApplyTextNonJSON(t *testing.T) {
+	input := "this is not json"
+	result := ApplyText(input)
+	if result != input {
+		t.Errorf("non-JSON should pass through, got %q", result)
+	}
+}
+
+// VALIDATES: count | table renders count as a nice key-value table.
+// PREVENTS: count output not being displayable by table pipe.
+func TestApplyPipesCountThenTable(t *testing.T) {
+	input := `[{"name":"a"},{"name":"b"},{"name":"c"}]`
+	ops := []pipeOp{
+		{kind: pipeCount},
+		{kind: pipeTable},
+	}
+
+	result, err := ApplyPipes(input, ops)
+	if err != "" {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	// count → {"count":3} → table renders as key-value record.
+	if !strings.Contains(result, "count") || !strings.Contains(result, "3") {
+		t.Errorf("expected count table with 3:\n%s", result)
+	}
+	if !strings.Contains(result, "┌") {
+		t.Errorf("expected box-drawing table:\n%s", result)
+	}
+}
+
+// VALIDATES: count | text renders count as plain text.
+// PREVENTS: count output not rendering in text mode.
+func TestApplyPipesCountThenText(t *testing.T) {
+	input := `[{"name":"a"},{"name":"b"},{"name":"c"}]`
+	ops := []pipeOp{
+		{kind: pipeCount},
+		{kind: pipeText},
+	}
+
+	result, err := ApplyPipes(input, ops)
+	if err != "" {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	if strings.Contains(result, "┌") || strings.Contains(result, "│") {
+		t.Errorf("text mode should have no box-drawing:\n%s", result)
+	}
+	if strings.TrimSpace(result) != "count  3" {
+		t.Errorf("got %q, want %q", strings.TrimSpace(result), "count  3")
 	}
 }

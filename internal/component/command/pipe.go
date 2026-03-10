@@ -1,11 +1,11 @@
 // Design: docs/architecture/api/commands.md — CLI pipe operators
-// Detail: pipe_table.go — table rendering (applyTable)
-// Related: main.go — interactive CLI (executeCommand uses parsePipe)
+// Detail: pipe_table.go — table rendering (ApplyTable)
+// Related: format.go — YAML and number formatting
 //
-// pipe.go implements VyOS-style pipe operators for the interactive CLI.
+// pipe.go implements VyOS-style pipe operators for command output.
 // Users can append | match <pattern>, | count, | no-more, | json [compact|pretty],
-// | table to any command. Pipes are client-side filters applied to the command output.
-package cli
+// | table, | yaml to any command. Pipes are client-side filters applied to command output.
+package command
 
 import (
 	"encoding/json"
@@ -19,10 +19,11 @@ type pipeKind int
 
 const (
 	pipeMatch   pipeKind = iota // | match <pattern> — grep lines
-	pipeCount                   // | count — count lines
+	pipeCount                   // | count — count items (returns JSON {"count": N})
 	pipeNoMore                  // | no-more — disable paging (currently no-op)
 	pipeJSON                    // | json [pretty|compact] — format as JSON
-	pipeTable                   // | table — nushell-style table rendering
+	pipeTable                   // | table — nushell-style table rendering with box-drawing
+	pipeText                    // | text — space-aligned columns without box-drawing
 	pipeYAML                    // | yaml — YAML-formatted output
 	pipeUnknown                 // unrecognized operator
 )
@@ -38,9 +39,20 @@ type pipeOp struct {
 	arg  string
 }
 
-// parsePipe splits user input into the command and a chain of pipe operators.
+// knownPipeOps maps operator names to their pipeKind.
+var knownPipeOps = map[string]pipeKind{
+	"match":   pipeMatch,
+	"count":   pipeCount,
+	"no-more": pipeNoMore,
+	"table":   pipeTable,
+	"text":    pipeText,
+	"yaml":    pipeYAML,
+	"json":    pipeJSON,
+}
+
+// ParsePipe splits user input into the command and a chain of pipe operators.
 // Input "peer list | match established | count" returns ("peer list", [{match,"established"}, {count,""}]).
-func parsePipe(input string) (command string, ops []pipeOp) {
+func ParsePipe(input string) (command string, ops []pipeOp) {
 	parts := strings.Split(input, "|")
 	command = strings.TrimSpace(parts[0])
 
@@ -50,46 +62,36 @@ func parsePipe(input string) (command string, ops []pipeOp) {
 			continue
 		}
 
-		switch fields[0] {
-		case "match":
-			arg := ""
-			if len(fields) > 1 {
-				arg = strings.Join(fields[1:], " ")
-			}
-			ops = append(ops, pipeOp{kind: pipeMatch, arg: arg})
-
-		case "count":
-			ops = append(ops, pipeOp{kind: pipeCount})
-
-		case "no-more":
-			ops = append(ops, pipeOp{kind: pipeNoMore})
-
-		case "table":
-			ops = append(ops, pipeOp{kind: pipeTable})
-
-		case "yaml":
-			ops = append(ops, pipeOp{kind: pipeYAML})
-
-		case "json":
-			arg := jsonPretty
-			if len(fields) > 1 && fields[1] == jsonCompact {
-				arg = jsonCompact
-			}
-			ops = append(ops, pipeOp{kind: pipeJSON, arg: arg})
-
-		default:
+		kind, known := knownPipeOps[fields[0]]
+		if !known {
+			// Unknown operator — preserved for error reporting in ApplyPipes.
 			ops = append(ops, pipeOp{kind: pipeUnknown, arg: strings.Join(fields, " ")})
+			continue
 		}
+
+		op := pipeOp{kind: kind}
+		switch kind { //nolint:exhaustive // only some operators take arguments
+		case pipeMatch:
+			if len(fields) > 1 {
+				op.arg = strings.Join(fields[1:], " ")
+			}
+		case pipeJSON:
+			op.arg = jsonPretty
+			if len(fields) > 1 && fields[1] == jsonCompact {
+				op.arg = jsonCompact
+			}
+		}
+		ops = append(ops, op)
 	}
 
 	return command, ops
 }
 
-// foldServerPipeline rewrites command and ops for commands that support server-side pipelines.
+// FoldServerPipeline rewrites command and ops for commands that support server-side pipelines.
 // For "rib show" commands, pipe segments containing server pipeline keywords are folded
 // back into the command string. Only client-side ops (no-more, table) remain as ops.
 // Example: "rib show received | path 65001 | count" → command="rib show received path 65001 count", ops=nil.
-func foldServerPipeline(command string, ops []pipeOp) (string, []pipeOp) {
+func FoldServerPipeline(command string, ops []pipeOp) (string, []pipeOp) {
 	trimmed := strings.TrimSpace(command)
 	lower := strings.ToLower(trimmed)
 
@@ -102,8 +104,8 @@ func foldServerPipeline(command string, ops []pipeOp) (string, []pipeOp) {
 	var clientOps []pipeOp
 
 	for _, op := range ops {
-		switch op.kind {
-		case pipeNoMore, pipeTable, pipeYAML:
+		switch op.kind { //nolint:exhaustive // only classify server vs client ops
+		case pipeNoMore, pipeTable, pipeText, pipeYAML:
 			// Client-side only
 			clientOps = append(clientOps, op)
 		case pipeMatch:
@@ -119,7 +121,7 @@ func foldServerPipeline(command string, ops []pipeOp) (string, []pipeOp) {
 			serverArgs = append(serverArgs, "json")
 		case pipeUnknown:
 			// Pipeline keywords like "path", "cidr", "community", "family"
-			// are parsed as pipeUnknown by parsePipe. Fold them back.
+			// are parsed as pipeUnknown by ParsePipe. Fold them back.
 			serverArgs = append(serverArgs, op.arg)
 		}
 	}
@@ -131,9 +133,20 @@ func foldServerPipeline(command string, ops []pipeOp) (string, []pipeOp) {
 	return command, clientOps
 }
 
-// applyPipes runs the output through each pipe operator in order.
+// ApplyPipes runs the output through each pipe operator in order.
 // Returns the filtered output and an error message (empty on success).
-func applyPipes(output string, ops []pipeOp) (string, string) {
+// Rejects multiple format operators (json, table, text, yaml).
+func ApplyPipes(output string, ops []pipeOp) (string, string) {
+	formatCount := 0
+	for _, op := range ops {
+		if op.kind == pipeJSON || op.kind == pipeTable || op.kind == pipeText || op.kind == pipeYAML {
+			formatCount++
+		}
+	}
+	if formatCount > 1 {
+		return "", "multiple format operators (use only one of: json, table, text, yaml)"
+	}
+
 	result := output
 	for _, op := range ops {
 		switch op.kind {
@@ -147,9 +160,11 @@ func applyPipes(output string, ops []pipeOp) (string, string) {
 		case pipeNoMore:
 			// No-op: paging not yet implemented
 		case pipeJSON:
-			result = applyJSON(result, op.arg)
+			result = ApplyJSON(result, op.arg)
 		case pipeTable:
-			result = applyTable(result)
+			result = ApplyTable(result)
+		case pipeText:
+			result = ApplyText(result)
 		case pipeYAML:
 			result = applyYAML(result)
 		case pipeUnknown:
@@ -159,11 +174,11 @@ func applyPipes(output string, ops []pipeOp) (string, string) {
 	return result, ""
 }
 
-// hasFormatOp returns true if the pipe chain contains an explicit format or terminal operator.
-// Count is terminal: it suppresses the default table format so it can work on raw JSON.
-func hasFormatOp(ops []pipeOp) bool {
+// HasFormatOp returns true if the pipe chain contains an explicit display format.
+// Count is a data transform (not a format) — it produces JSON for downstream formatting.
+func HasFormatOp(ops []pipeOp) bool {
 	for _, op := range ops {
-		if op.kind == pipeJSON || op.kind == pipeTable || op.kind == pipeYAML || op.kind == pipeCount {
+		if op.kind == pipeJSON || op.kind == pipeTable || op.kind == pipeText || op.kind == pipeYAML {
 			return true
 		}
 	}
@@ -183,16 +198,17 @@ func applyMatch(input, pattern string) string {
 	return b.String()
 }
 
-// applyCount counts items. If input is JSON, counts array elements or map keys
+// applyCount counts items and returns JSON {"count": N}.
+// If input is JSON, counts array elements or map keys
 // (unwrapping single-key wrappers). Otherwise counts non-empty lines.
 func applyCount(input string) string {
 	if input == "" {
-		return "0\n"
+		return "{\"count\":0}\n"
 	}
 	trimmed := strings.TrimSpace(input)
 	var data any
 	if err := json.Unmarshal([]byte(trimmed), &data); err == nil {
-		return strconv.Itoa(countItems(data)) + "\n"
+		return "{\"count\":" + strconv.Itoa(countItems(data)) + "}\n"
 	}
 	// Fallback: count non-empty lines.
 	n := 0
@@ -201,7 +217,7 @@ func applyCount(input string) string {
 			n++
 		}
 	}
-	return strconv.Itoa(n) + "\n"
+	return "{\"count\":" + strconv.Itoa(n) + "}\n"
 }
 
 // countItems counts the number of items in a JSON value.
@@ -217,33 +233,32 @@ func countItems(v any) int {
 			}
 		}
 		return len(val)
-	default:
-		return 1
 	}
+	return 1
 }
 
-// applyJSON reformats JSON output. "pretty" indents, "compact" produces one line.
+// ApplyJSON reformats JSON output. "pretty" indents, "compact" produces one line.
 // Non-JSON input passes through unchanged.
-func applyJSON(input, mode string) string {
+func ApplyJSON(input, mode string) string {
 	var data any
 	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err != nil {
 		return input
 	}
 
-	switch mode {
-	case jsonCompact:
+	if mode == jsonCompact {
 		out, err := json.Marshal(data)
 		if err != nil {
 			return input
 		}
 		return string(out)
-	default: // "pretty"
-		out, err := json.MarshalIndent(data, "", "  ")
-		if err != nil {
-			return input
-		}
-		return string(out)
 	}
+
+	// Pretty-print (default).
+	out, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return input
+	}
+	return string(out)
 }
 
 // applyYAML reformats JSON output as valid YAML.
@@ -253,22 +268,41 @@ func applyYAML(input string) string {
 	if err := json.Unmarshal([]byte(strings.TrimSpace(input)), &data); err != nil {
 		return input
 	}
-	return renderYAML(data)
+	return RenderYAML(data)
 }
 
 // ProcessPipes splits user input into a command and a formatting function.
 // The returned function applies pipe operators (table, json, yaml, match, count)
 // to raw JSON output. If no pipes are present, the formatter returns raw JSON unchanged.
 func ProcessPipes(input string) (command string, format func(string) string) {
-	command, ops := parsePipe(input)
-	command, ops = foldServerPipeline(command, ops)
+	command, ops := ParsePipe(input)
+	command, ops = FoldServerPipeline(command, ops)
 
 	if len(ops) == 0 {
 		return command, func(s string) string { return s }
 	}
 
 	return command, func(rawJSON string) string {
-		result, errMsg := applyPipes(rawJSON, ops)
+		result, errMsg := ApplyPipes(rawJSON, ops)
+		if errMsg != "" {
+			return "pipe error: " + errMsg
+		}
+		return result
+	}
+}
+
+// ProcessPipesDefaultTable is like ProcessPipes but defaults to table format
+// when no explicit format pipe (json, table, yaml, count) is specified.
+func ProcessPipesDefaultTable(input string) (command string, format func(string) string) {
+	command, ops := ParsePipe(input)
+	command, ops = FoldServerPipeline(command, ops)
+
+	if !HasFormatOp(ops) {
+		ops = append(ops, pipeOp{kind: pipeTable})
+	}
+
+	return command, func(rawJSON string) string {
+		result, errMsg := ApplyPipes(rawJSON, ops)
 		if errMsg != "" {
 			return "pipe error: " + errMsg
 		}

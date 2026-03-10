@@ -210,7 +210,7 @@ func TestYANGSystemAPIRPCs(t *testing.T) {
 
 // TestYANGRibAPIRPCs verifies RIB API module contains expected RPCs.
 //
-// VALIDATES: RIB RPCs (show-in, clear-in, show-out, clear-out) are defined.
+// VALIDATES: RIB RPCs (show, clear-in, clear-out) are defined.
 // PREVENTS: Missing RPC definitions breaking RIB query dispatch.
 func TestYANGRibAPIRPCs(t *testing.T) {
 	loader := loadAllAPIModules(t)
@@ -220,7 +220,7 @@ func TestYANGRibAPIRPCs(t *testing.T) {
 
 	expectedRPCs := []string{
 		"help", "command-list", "command-help", "command-complete", "event-list",
-		"show-in", "clear-in", "show-out", "clear-out", "show-best", "best-status",
+		"show", "clear-in", "clear-out",
 	}
 
 	rpcNames := make(map[string]bool)
@@ -330,7 +330,7 @@ func TestExtractRPCs(t *testing.T) {
 			module: "ze-rib-api",
 			wantRPCs: []string{
 				"help", "command-list", "command-help", "command-complete", "event-list",
-				"show-in", "clear-in", "show-out", "clear-out", "show-best", "best-status",
+				"show", "clear-in", "clear-out",
 			},
 		},
 		{
