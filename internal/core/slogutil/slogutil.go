@@ -30,12 +30,22 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 )
 
-// levelDisabled is the log level string that disables logging.
-const levelDisabled = "disabled"
+// Log level and backend string constants.
+const (
+	levelDisabled = "disabled"
+	backendStdout = "stdout"
+	backendSyslog = "syslog"
+	backendStderr = "stderr"
+)
+
+// levelRegistry tracks subsystem names to their *slog.LevelVar for runtime level changes.
+// Only loggers created via Logger() or LazyLogger() are registered (not disabled ones).
+var levelRegistry sync.Map // map[string]*slog.LevelVar
 
 // getLogEnv returns the log level for a subsystem using hierarchical lookup.
 // Walks from most specific to least specific: ze.log.bgp.fsm → ze.log.bgp → ze.log
@@ -83,18 +93,25 @@ func getSpecialEnv(key string) string {
 // Each subsystem gets its own logger instance to allow independent enable/disable.
 // Uses hierarchical env var lookup: ze.log.<subsystem> → ze.log.<parent> → ze.log
 // Default: WARN level (shows warnings and errors). Use ze.log=disabled to silence.
+// Enabled loggers are registered in the level registry for runtime level changes.
 func Logger(subsystem string) *slog.Logger {
 	v := getLogEnv(subsystem)
 	if v == "" {
 		// Default to WARN level - show warnings and errors
-		handler := createHandler(slog.LevelWarn)
+		lv := &slog.LevelVar{}
+		lv.Set(slog.LevelWarn)
+		levelRegistry.Store(subsystem, lv)
+		handler := createHandlerVar(lv)
 		return slog.New(handler).With("subsystem", subsystem)
 	}
 	lvl, enabled := parseLevel(v)
 	if !enabled {
 		return slog.New(discardHandler{})
 	}
-	handler := createHandler(lvl)
+	lv := &slog.LevelVar{}
+	lv.Set(lvl)
+	levelRegistry.Store(subsystem, lv)
+	handler := createHandlerVar(lv)
 	return slog.New(handler).With("subsystem", subsystem)
 }
 
@@ -155,13 +172,34 @@ func createHandler(level slog.Level) slog.Handler {
 	opts := &slog.HandlerOptions{Level: level}
 	backend := getSpecialEnv("backend")
 	switch strings.ToLower(backend) {
-	case "stdout":
+	case backendStdout:
 		return slog.NewTextHandler(os.Stdout, opts)
-	case "syslog":
+	case backendSyslog:
 		return newSyslogHandler(opts)
 	default: // stderr (default)
 		return slog.NewTextHandler(os.Stderr, opts)
 	}
+}
+
+// createHandlerVar creates a slog.Handler using a LevelVar for runtime-mutable levels.
+func createHandlerVar(lv *slog.LevelVar) slog.Handler {
+	opts := &slog.HandlerOptions{Level: lv}
+	backend := getSpecialEnv("backend")
+	switch strings.ToLower(backend) {
+	case backendStdout:
+		return slog.NewTextHandler(os.Stdout, opts)
+	case backendSyslog:
+		return newSyslogHandler(opts)
+	default: // stderr (default)
+		return slog.NewTextHandler(os.Stderr, opts)
+	}
+}
+
+// ParseLevel parses a log level string.
+// Returns (level, enabled). enabled=false means logging should be disabled.
+// Level strings are case-insensitive: disabled, debug, info, warn/warning, err/error.
+func ParseLevel(s string) (slog.Level, bool) {
+	return parseLevel(s)
 }
 
 // parseLevel parses a log level string.
@@ -193,6 +231,7 @@ func DiscardLogger() *slog.Logger {
 // LazyLogger returns a logger that defers creation until first use.
 // This allows package-level loggers to pick up config file settings
 // that are applied after init() but before first log call.
+// The logger is registered in the level registry on first call (inside the Once).
 //
 // Usage:
 //
@@ -206,7 +245,7 @@ func LazyLogger(subsystem string) func() *slog.Logger {
 	var once sync.Once
 	return func() *slog.Logger {
 		once.Do(func() {
-			logger = Logger(subsystem)
+			logger = Logger(subsystem) // Logger() handles registration
 		})
 		return logger
 	}
@@ -255,7 +294,7 @@ func applyLogConfigTo(configValues map[string]map[string]string, warnWriter io.W
 		case "backend":
 			// Validate backend value
 			switch strings.ToLower(value) {
-			case "stderr", "stdout", "syslog":
+			case backendStderr, backendStdout, backendSyslog:
 				// valid
 			default:
 				_, _ = fmt.Fprintf(warnWriter, "warning: invalid log backend %q (must be stderr/stdout/syslog)\n", value)
@@ -289,6 +328,87 @@ func applyLogConfigTo(configValues map[string]map[string]string, warnWriter io.W
 			_ = os.Setenv(envKey, value)
 		}
 	}
+}
+
+// ListLevels returns a map of subsystem names to their current level strings.
+// Only includes loggers registered via Logger() or LazyLogger() (not disabled ones).
+func ListLevels() map[string]string {
+	result := make(map[string]string)
+	levelRegistry.Range(func(key, value any) bool {
+		name, ok := key.(string)
+		if !ok {
+			return true
+		}
+		lv, ok := value.(*slog.LevelVar)
+		if !ok {
+			return true
+		}
+		result[name] = LevelString(lv.Level())
+		return true
+	})
+	return result
+}
+
+// SetLevel changes the log level for a subsystem at runtime.
+// Returns an error if the subsystem is unknown or the level string is invalid.
+func SetLevel(subsystem, levelStr string) error {
+	lvl, enabled := parseLevel(levelStr)
+	if !enabled {
+		return fmt.Errorf("invalid level: %s", levelStr)
+	}
+
+	val, ok := levelRegistry.Load(subsystem)
+	if !ok {
+		return fmt.Errorf("unknown subsystem: %s", subsystem)
+	}
+
+	lv, ok := val.(*slog.LevelVar)
+	if !ok {
+		return fmt.Errorf("unknown subsystem: %s", subsystem)
+	}
+	lv.Set(lvl)
+	return nil
+}
+
+// LevelString converts a slog.Level to a human-readable string.
+func LevelString(level slog.Level) string {
+	switch level {
+	case slog.LevelDebug:
+		return "debug"
+	case slog.LevelInfo:
+		return "info"
+	case slog.LevelWarn:
+		return "warn"
+	case slog.LevelError:
+		return "error"
+	}
+	// Non-standard level (e.g. custom numeric) — use stdlib formatting.
+	return level.String()
+}
+
+// SortedLevels returns subsystem names sorted alphabetically with their levels.
+// Convenience for display purposes.
+func SortedLevels() []struct{ Name, Level string } {
+	levels := ListLevels()
+	names := make([]string, 0, len(levels))
+	for name := range levels {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	result := make([]struct{ Name, Level string }, len(names))
+	for i, name := range names {
+		result[i] = struct{ Name, Level string }{Name: name, Level: levels[name]}
+	}
+	return result
+}
+
+// ResetLevelRegistry clears all entries from the level registry. Only for use in tests.
+func ResetLevelRegistry() {
+	levelRegistry.Range(func(key, _ any) bool {
+		levelRegistry.Delete(key)
+		return true
+	})
 }
 
 // discardHandler discards all log records.

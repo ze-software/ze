@@ -1,0 +1,18 @@
+module ze-bgp-cmd-log-api {
+    namespace "urn:ze:bgp:cmd:log:api";
+    prefix "bgp-log-api";
+
+    organization "Ze Project";
+    description "BGP log level command RPCs.";
+    revision 2026-03-10 {
+        description "Initial revision.";
+    }
+
+    rpc log-show {
+        description "Show current log levels for all subsystems.";
+    }
+
+    rpc log-set {
+        description "Set log level for a subsystem at runtime.";
+    }
+}

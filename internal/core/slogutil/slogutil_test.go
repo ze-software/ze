@@ -922,3 +922,168 @@ func TestLazyLoggerConcurrentAccess(t *testing.T) {
 		assert.Same(t, first, l, "goroutine %d got different logger instance", i)
 	}
 }
+
+// =============================================================================
+// LevelRegistry Tests
+// =============================================================================
+
+// TestLevelRegistryTracksLoggers verifies Logger() registers subsystem in LevelRegistry.
+//
+// VALIDATES: Logger() registers enabled loggers in level registry.
+// PREVENTS: ListLevels() returning empty when loggers exist.
+func TestLevelRegistryTracksLoggers(t *testing.T) {
+	ResetLevelRegistry()
+	defer ResetLevelRegistry()
+
+	t.Setenv("ze.log.regtest", "info")
+	_ = Logger("regtest")
+
+	levels := ListLevels()
+	assert.Contains(t, levels, "regtest")
+	assert.Equal(t, "info", levels["regtest"])
+}
+
+// TestLevelRegistryListLevels verifies ListLevels() returns all tracked subsystems.
+//
+// VALIDATES: ListLevels() returns subsystem names with current levels.
+// PREVENTS: Missing subsystems in list output.
+func TestLevelRegistryListLevels(t *testing.T) {
+	ResetLevelRegistry()
+	defer ResetLevelRegistry()
+
+	t.Setenv("ze.log.list1", "debug")
+	t.Setenv("ze.log.list2", "warn")
+	_ = Logger("list1")
+	_ = Logger("list2")
+
+	levels := ListLevels()
+	assert.Equal(t, "debug", levels["list1"])
+	assert.Equal(t, "warn", levels["list2"])
+}
+
+// TestLevelRegistrySetLevel verifies SetLevel() changes level and logger reflects it.
+//
+// VALIDATES: SetLevel() changes level atomically and logger output reflects new level.
+// PREVENTS: SetLevel() having no effect on actual logging.
+func TestLevelRegistrySetLevel(t *testing.T) {
+	ResetLevelRegistry()
+	defer ResetLevelRegistry()
+
+	t.Setenv("ze.log.settest", "warn")
+	logger := Logger("settest")
+
+	// Initially warn level — debug should be disabled
+	assert.False(t, logger.Enabled(context.Background(), slog.LevelDebug))
+	assert.True(t, logger.Enabled(context.Background(), slog.LevelWarn))
+
+	// Change to debug
+	err := SetLevel("settest", "debug")
+	require.NoError(t, err)
+
+	// Now debug should be enabled
+	assert.True(t, logger.Enabled(context.Background(), slog.LevelDebug))
+
+	// ListLevels should reflect new level
+	levels := ListLevels()
+	assert.Equal(t, "debug", levels["settest"])
+}
+
+// TestLevelRegistrySetLevelUnknown verifies SetLevel() for unknown subsystem returns error.
+//
+// VALIDATES: SetLevel() for unknown subsystem returns error.
+// PREVENTS: Silent no-op when subsystem name is wrong.
+func TestLevelRegistrySetLevelUnknown(t *testing.T) {
+	ResetLevelRegistry()
+	defer ResetLevelRegistry()
+
+	err := SetLevel("nonexistent", "info")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown subsystem")
+}
+
+// TestLazyLoggerRegistered verifies LazyLogger() registers on first call.
+//
+// VALIDATES: LazyLogger() registers in level registry on first call, not at creation.
+// PREVENTS: Uninitialized subsystems appearing in list.
+func TestLazyLoggerRegistered(t *testing.T) {
+	ResetLevelRegistry()
+	defer ResetLevelRegistry()
+
+	t.Setenv("ze.log.lazyregtest", "info")
+
+	lazy := LazyLogger("lazyregtest")
+
+	// Before first call — not registered
+	levels := ListLevels()
+	assert.NotContains(t, levels, "lazyregtest")
+
+	// First call triggers registration
+	_ = lazy()
+
+	levels = ListLevels()
+	assert.Contains(t, levels, "lazyregtest")
+	assert.Equal(t, "info", levels["lazyregtest"])
+}
+
+// TestSetLevelInvalidLevel verifies SetLevel() rejects invalid level strings.
+//
+// VALIDATES: SetLevel() with invalid level string returns error.
+// PREVENTS: Accepting typos silently.
+func TestSetLevelInvalidLevel(t *testing.T) {
+	ResetLevelRegistry()
+	defer ResetLevelRegistry()
+
+	t.Setenv("ze.log.invalidtest", "info")
+	_ = Logger("invalidtest")
+
+	err := SetLevel("invalidtest", "badlevel")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid level")
+}
+
+// TestDisabledLoggerNotRegistered verifies disabled loggers are not in the registry.
+//
+// VALIDATES: Disabled loggers (discardHandler) are NOT registered.
+// PREVENTS: Users seeing disabled subsystems they can't change.
+func TestDisabledLoggerNotRegistered(t *testing.T) {
+	ResetLevelRegistry()
+	defer ResetLevelRegistry()
+
+	t.Setenv("ze.log.disabledregtest", "disabled")
+	_ = Logger("disabledregtest")
+
+	levels := ListLevels()
+	assert.NotContains(t, levels, "disabledregtest")
+}
+
+// TestDefaultLoggerRegistered verifies Logger() with no env var registers at WARN.
+//
+// VALIDATES: Default (no env var) loggers are registered at WARN level.
+// PREVENTS: Default loggers missing from ListLevels().
+func TestDefaultLoggerRegistered(t *testing.T) {
+	ResetLevelRegistry()
+	defer ResetLevelRegistry()
+
+	t.Setenv("ze.log.defaultregtest", "")
+	t.Setenv("ze_log_defaultregtest", "")
+	t.Setenv("ze.log", "")
+	t.Setenv("ze_log", "")
+	_ = Logger("defaultregtest")
+
+	levels := ListLevels()
+	assert.Contains(t, levels, "defaultregtest")
+	assert.Equal(t, "warn", levels["defaultregtest"])
+}
+
+// TestParseLevelExported verifies the exported ParseLevel function works.
+//
+// VALIDATES: ParseLevel() public wrapper matches parseLevel() behavior.
+// PREVENTS: Export wrapper returning different results.
+func TestParseLevelExported(t *testing.T) {
+	lvl, enabled := ParseLevel("debug")
+	assert.True(t, enabled)
+	assert.Equal(t, slog.LevelDebug, lvl)
+
+	_, enabled = ParseLevel("disabled")
+	assert.False(t, enabled)
+}
