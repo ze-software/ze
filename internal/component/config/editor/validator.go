@@ -97,7 +97,7 @@ func (v *ConfigValidator) Validate(content string) ConfigValidationResult {
 
 	// Run YANG validation on the parsed tree
 	// This catches RFC-specific constraints from YANG model
-	yangErrs := v.ValidateWithYANG(tree)
+	yangErrs := v.validateWithYANG(tree, content)
 	result.Errors = append(result.Errors, yangErrs...)
 
 	return result
@@ -130,6 +130,12 @@ func (v *ConfigValidator) parseError(err error) ConfigValidationError {
 // Uses recursive ValidateTree for systematic validation of all leaves.
 // Template inheritance is resolved before validation - inherited values are merged with peer values.
 func (v *ConfigValidator) ValidateWithYANG(tree *config.Tree) []ConfigValidationError {
+	return v.validateWithYANG(tree, "")
+}
+
+// validateWithYANG validates the parsed tree using YANG constraints.
+// When content is provided, errors are mapped to source line numbers.
+func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) []ConfigValidationError {
 	if tree == nil || v.yangValidator == nil {
 		return nil
 	}
@@ -140,6 +146,7 @@ func (v *ConfigValidator) ValidateWithYANG(tree *config.Tree) []ConfigValidation
 		return nil // No BGP config
 	}
 
+	lines := strings.Split(content, "\n")
 	var errs []ConfigValidationError
 
 	// Extract templates for inheritance resolution
@@ -151,6 +158,7 @@ func (v *ConfigValidator) ValidateWithYANG(tree *config.Tree) []ConfigValidation
 		resolved, inheritErr := v.resolveInheritance(peerTree, templates)
 		if inheritErr != nil {
 			errs = append(errs, ConfigValidationError{
+				Line:     findPeerLine(lines, peerAddr),
 				Message:  fmt.Sprintf("peer %s: %s", peerAddr, inheritErr.Error()),
 				Severity: "error",
 			})
@@ -167,8 +175,10 @@ func (v *ConfigValidator) ValidateWithYANG(tree *config.Tree) []ConfigValidation
 			if yangErrs[i].Type == yang.ErrTypeMissing && !strings.HasSuffix(yangErrs[i].Path, ".peer-as") {
 				continue
 			}
+			field := yangLeafName(yangErrs[i].Path)
 			errs = append(errs, ConfigValidationError{
-				Message:  fmt.Sprintf("peer %s: %s: %s", peerAddr, yangLeafName(yangErrs[i].Path), yangErrs[i].Message),
+				Line:     findErrorLine(lines, peerAddr, field, yangErrs[i].Type),
+				Message:  formatPeerError(peerAddr, field, yangErrs[i]),
 				Severity: "error",
 			})
 		}
@@ -183,8 +193,10 @@ func (v *ConfigValidator) ValidateWithYANG(tree *config.Tree) []ConfigValidation
 		if yangErrs[i].Type == yang.ErrTypeMissing {
 			continue
 		}
+		field := yangLeafName(yangErrs[i].Path)
 		errs = append(errs, ConfigValidationError{
-			Message:  fmt.Sprintf("%s: %s", yangLeafName(yangErrs[i].Path), yangErrs[i].Message),
+			Line:     findFieldLine(lines, "bgp", field),
+			Message:  fmt.Sprintf("%s: %s", field, yangErrs[i].Message),
 			Severity: "error",
 		})
 	}
@@ -198,6 +210,92 @@ func yangLeafName(path string) string {
 		return path[idx+1:]
 	}
 	return path
+}
+
+// formatPeerError formats a YANG validation error for a peer with clear, non-redundant messaging.
+func formatPeerError(peerAddr, field string, yerr yang.ValidationError) string {
+	if yerr.Type == yang.ErrTypeMissing {
+		return fmt.Sprintf("peer %s: missing required field %q", peerAddr, field)
+	}
+	if yerr.Type == yang.ErrTypeEnum {
+		if yerr.Expected != "" {
+			return fmt.Sprintf("peer %s: %q must be one of: %s (got %q)", peerAddr, field, yerr.Expected, yerr.Got)
+		}
+		return fmt.Sprintf("peer %s: %q has invalid value %q", peerAddr, field, yerr.Got)
+	}
+	return fmt.Sprintf("peer %s: %q — %s", peerAddr, field, yerr.Message)
+}
+
+// findErrorLine returns the source line for a YANG error.
+// Missing fields highlight the peer header; value errors highlight the field itself.
+func findErrorLine(lines []string, peerAddr, field string, errType yang.ErrorType) int {
+	if errType == yang.ErrTypeMissing {
+		return findPeerLine(lines, peerAddr)
+	}
+	if line := findFieldInPeer(lines, peerAddr, field); line > 0 {
+		return line
+	}
+	return findPeerLine(lines, peerAddr)
+}
+
+// findPeerLine returns the 1-based line number of "peer <addr>" in the config.
+func findPeerLine(lines []string, addr string) int {
+	needle := "peer " + addr
+	for i, line := range lines {
+		if strings.Contains(line, needle) {
+			return i + 1
+		}
+	}
+	return 0
+}
+
+// findFieldInPeer returns the 1-based line number of a field inside a peer block.
+func findFieldInPeer(lines []string, addr, field string) int {
+	needle := "peer " + addr
+	inPeer := false
+	depth := 0
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !inPeer && strings.Contains(trimmed, needle) {
+			inPeer = true
+			depth = strings.Count(trimmed, "{") - strings.Count(trimmed, "}")
+			continue
+		}
+		if inPeer {
+			depth += strings.Count(trimmed, "{") - strings.Count(trimmed, "}")
+			if depth <= 0 {
+				break
+			}
+			if strings.HasPrefix(trimmed, field+" ") || strings.HasPrefix(trimmed, field+";") {
+				return i + 1
+			}
+		}
+	}
+	return 0
+}
+
+// findFieldLine returns the 1-based line number of a field inside a named block.
+func findFieldLine(lines []string, block, field string) int {
+	inBlock := false
+	depth := 0
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if !inBlock && strings.HasPrefix(trimmed, block+" ") {
+			inBlock = true
+			depth = strings.Count(trimmed, "{") - strings.Count(trimmed, "}")
+			continue
+		}
+		if inBlock {
+			depth += strings.Count(trimmed, "{") - strings.Count(trimmed, "}")
+			if depth <= 0 {
+				break
+			}
+			if strings.HasPrefix(trimmed, field+" ") || strings.HasPrefix(trimmed, field+";") {
+				return i + 1
+			}
+		}
+	}
+	return 0
 }
 
 // extractTemplates extracts named templates from the config tree.
