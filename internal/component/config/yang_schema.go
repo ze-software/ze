@@ -135,6 +135,18 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) *Schema {
 		}
 	}
 
+	// Load ze-system-conf module (system identity and archive)
+	systemEntry := loader.GetEntry("ze-system-conf")
+	if systemEntry != nil {
+		for _, name := range sortedKeys(systemEntry.Dir) {
+			child := systemEntry.Dir[name]
+			node := yangToNode(child, name)
+			if node != nil {
+				schema.Define(name, node)
+			}
+		}
+	}
+
 	// Load ze-plugin-conf module
 	pluginEntry := loader.GetEntry("ze-plugin-conf")
 	if pluginEntry != nil {

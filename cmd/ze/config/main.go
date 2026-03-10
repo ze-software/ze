@@ -9,6 +9,7 @@
 // Detail: cmd_history.go — history subcommand handler
 // Detail: cmd_rollback.go — rollback subcommand handler
 // Detail: cmd_set.go — set subcommand handler
+// Detail: cmd_archive.go — archive subcommand handler
 //
 // Package config provides the ze config subcommand.
 package config
@@ -39,6 +40,7 @@ var subcommandHandlers = map[string]func([]string) int{
 	"dump":       cmdDump,
 	"diff":       cmdDiff,
 	"set":        cmdSet,
+	"archive":    cmdArchive,
 	"completion": cmdCompletion,
 	"history":    cmdHistory,
 	"rollback":   cmdRollback,
@@ -103,6 +105,7 @@ Commands:
   history <file>    List rollback revisions
   rollback <N> <file>  Restore from rollback revision N
   set <file> <path> <value>  Set a configuration value
+  archive <name> <file>  Archive config to named destination
   completion <file> Query completion engine (testing/debugging)
 
 Examples:

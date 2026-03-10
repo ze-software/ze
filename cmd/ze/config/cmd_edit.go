@@ -21,7 +21,9 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/editor"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
@@ -292,6 +294,16 @@ Examples:
 	if conn, err := (&net.Dialer{}).DialContext(probeCtx, "unix", socketPath); err == nil {
 		conn.Close() //nolint:errcheck,gosec // Probe connection, close error is irrelevant
 		ed.SetReloadNotifier(editor.NewSocketReloadNotifier(socketPath))
+	}
+
+	// Wire archive notifier if config has commit-triggered archive blocks
+	if ed.Tree() != nil {
+		sys := system.ExtractSystemConfig(ed.Tree())
+		allConfigs := archive.ExtractConfigs(ed.Tree())
+		commitConfigs := archive.FilterByTrigger(allConfigs, archive.TriggerCommit)
+		if len(commitConfigs) > 0 {
+			ed.SetArchiveNotifier(archive.NewNotifier(configPath, commitConfigs, sys))
+		}
 	}
 
 	// Check for pending edit file from previous session

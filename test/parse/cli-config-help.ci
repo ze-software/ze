@@ -19,3 +19,4 @@ expect=stdout:contains=check
 expect=stdout:contains=migrate
 expect=stdout:contains=fmt
 expect=stdout:contains=dump
+expect=stdout:contains=archive

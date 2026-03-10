@@ -26,12 +26,11 @@ func TestSchema_ZeHubModule(t *testing.T) {
 	// Check namespace
 	assert.Equal(t, "urn:ze:hub:conf", mod.Namespace.Name)
 
-	// Find environment container
+	// Find expected containers
 	var envContainer bool
 	for _, c := range mod.Container {
 		if c.Name == "environment" {
 			envContainer = true
-			break
 		}
 	}
 	assert.True(t, envContainer, "environment container should exist")

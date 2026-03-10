@@ -1,0 +1,63 @@
+module ze-system-conf {
+    namespace "urn:ze:system:conf";
+    prefix sys;
+
+    import ze-extensions { prefix ze; }
+
+    description "System identity and config archive settings";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    // System block - global identity and archive settings
+    container system {
+        description "System-wide settings including identity and config archival";
+
+        leaf host {
+            type string;
+            description "System hostname, supports $ENV_VAR expansion";
+        }
+
+        leaf domain {
+            type string;
+            description "System domain, supports $ENV_VAR expansion";
+        }
+
+        // Named archive blocks
+        list archive {
+            key "name";
+            description "Named config archive destinations";
+
+            leaf name {
+                type string;
+                description "Archive block name (used as key)";
+            }
+
+            leaf location {
+                type string;
+                description "Archive destination URL (file://, http://, https://)";
+            }
+
+            leaf filename {
+                type string;
+                description "Filename format with token substitution";
+            }
+
+            leaf timeout {
+                type string;
+                description "HTTP upload timeout (Go duration format, e.g., 30s)";
+            }
+
+            leaf trigger {
+                type string;
+                description "When to archive: commit, manual, daily, hourly";
+            }
+
+            leaf on-change {
+                type boolean;
+                description "Time-based only: skip if config unchanged since last archive";
+            }
+        }
+    }
+}

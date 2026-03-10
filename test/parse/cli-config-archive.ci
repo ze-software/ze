@@ -1,0 +1,38 @@
+# Test: ze config archive with named block and file:// location
+# This tests the config archive subcommand with a named archive destination
+stdin=config:terminator=EOF_CONF
+system {
+	host testhost;
+	archive local {
+		location file:///tmp/ze-ci-archive-test;
+	}
+}
+bgp {
+	router-id 10.0.0.1;
+	local-as 65533;
+	peer 127.0.0.1 {
+		local-address 127.0.0.1;
+		peer-as 65534;
+	}
+}
+EOF_CONF
+
+tmpfs=test.conf:terminator=EOF_FILE
+system {
+	host testhost;
+	archive local {
+		location file:///tmp/ze-ci-archive-test;
+	}
+}
+bgp {
+	router-id 10.0.0.1;
+	local-as 65533;
+	peer 127.0.0.1 {
+		local-address 127.0.0.1;
+		peer-as 65534;
+	}
+}
+EOF_FILE
+
+cmd=foreground:seq=1:exec=ze config archive local test.conf
+expect=exit:code=0

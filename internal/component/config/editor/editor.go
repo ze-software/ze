@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
 )
 
 // ReloadNotifier is called after a successful save to notify the running daemon.
@@ -34,8 +35,9 @@ type Editor struct {
 	schema          *config.Schema // YANG schema for Serialize
 	treeValid       bool           // True when tree was parsed successfully
 	dirty           atomic.Bool
-	hasPendingEdit  bool           // true if .edit file exists
-	onReload        ReloadNotifier // Optional: called after successful save
+	hasPendingEdit  bool             // true if .edit file exists
+	onReload        ReloadNotifier   // Optional: called after successful save
+	onArchive       archive.Notifier // Optional: called after successful save to archive config
 }
 
 // BackupInfo describes a backup file.
@@ -253,6 +255,27 @@ func (e *Editor) NotifyReload() error {
 		return nil
 	}
 	return e.onReload()
+}
+
+// SetArchiveNotifier sets an optional function to archive config after save.
+// When set, commit will call this after writing config to disk.
+// When nil (no archive locations configured), no archival is attempted.
+func (e *Editor) SetArchiveNotifier(fn archive.Notifier) {
+	e.onArchive = fn
+}
+
+// HasArchiveNotifier returns true if an archive notifier is configured.
+func (e *Editor) HasArchiveNotifier() bool {
+	return e.onArchive != nil
+}
+
+// NotifyArchive calls the archive notifier if one is configured.
+// Returns nil if no notifier is set or if archival succeeds.
+func (e *Editor) NotifyArchive(content []byte) []error {
+	if e.onArchive == nil {
+		return nil
+	}
+	return e.onArchive(content)
 }
 
 // MarkDirty marks the editor as having unsaved changes.

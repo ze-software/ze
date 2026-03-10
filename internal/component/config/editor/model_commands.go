@@ -443,15 +443,24 @@ func (m *Model) cmdCommit() (commandResult, error) {
 		return commandResult{}, err
 	}
 
-	// Notify daemon of config change (best-effort)
-	if !m.editor.HasReloadNotifier() {
-		return commandResult{statusMessage: "Configuration committed (daemon not running)"}, nil
-	}
-	if err := m.editor.NotifyReload(); err != nil {
-		return commandResult{statusMessage: fmt.Sprintf("Configuration committed (reload failed: %v)", err)}, nil
+	// Archive config to remote locations (best-effort, non-fatal)
+	var archiveMsg string
+	if m.editor.HasArchiveNotifier() {
+		content := []byte(m.editor.WorkingContent())
+		if errs := m.editor.NotifyArchive(content); len(errs) > 0 {
+			archiveMsg = fmt.Sprintf(" (archive: %d error(s))", len(errs))
+		}
 	}
 
-	return commandResult{statusMessage: "Configuration committed and reloaded"}, nil
+	// Notify daemon of config change (best-effort)
+	if !m.editor.HasReloadNotifier() {
+		return commandResult{statusMessage: "Configuration committed (daemon not running)" + archiveMsg}, nil
+	}
+	if err := m.editor.NotifyReload(); err != nil {
+		return commandResult{statusMessage: fmt.Sprintf("Configuration committed (reload failed: %v)", err) + archiveMsg}, nil
+	}
+
+	return commandResult{statusMessage: "Configuration committed and reloaded" + archiveMsg}, nil
 }
 
 // cmdDiscard reverts all changes.
