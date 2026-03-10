@@ -78,6 +78,11 @@ func GetInternalPluginRunner(name string) InternalPluginRunner {
 		if reg.ConfigureEngineLogger != nil {
 			reg.ConfigureEngineLogger(name)
 		}
+		if reg.ConfigureMetrics != nil {
+			if mr := registry.GetMetricsRegistry(); mr != nil {
+				reg.ConfigureMetrics(mr)
+			}
+		}
 		return reg.RunEngine(engineConn, callbackConn)
 	}
 }

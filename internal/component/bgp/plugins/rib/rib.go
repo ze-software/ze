@@ -28,6 +28,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -57,6 +58,33 @@ func SetLogger(l *slog.Logger) {
 		loggerPtr.Store(l)
 	}
 }
+
+// ribMetrics holds Prometheus gauges for RIB route counts.
+type ribMetrics struct {
+	routesIn     metrics.Gauge    // global total
+	routesOut    metrics.Gauge    // global total
+	routesInVec  metrics.GaugeVec // per-peer
+	routesOutVec metrics.GaugeVec // per-peer
+}
+
+// metricsPtr stores RIB metrics gauges, set by SetMetricsRegistry.
+// Atomic pointer for concurrent access from metrics loop + tests.
+var metricsPtr atomic.Pointer[ribMetrics]
+
+// SetMetricsRegistry creates RIB route gauges from the given registry.
+// Called via ConfigureMetrics callback before RunEngine.
+func SetMetricsRegistry(reg metrics.Registry) {
+	m := &ribMetrics{
+		routesIn:     reg.Gauge("ze_rib_routes_in_total", "Total Adj-RIB-In route count."),
+		routesOut:    reg.Gauge("ze_rib_routes_out_total", "Total Adj-RIB-Out route count."),
+		routesInVec:  reg.GaugeVec("ze_rib_routes_in", "Adj-RIB-In route count per peer.", []string{"peer"}),
+		routesOutVec: reg.GaugeVec("ze_rib_routes_out", "Adj-RIB-Out route count per peer.", []string{"peer"}),
+	}
+	metricsPtr.Store(m)
+}
+
+// metricsUpdateInterval is how often RIB metrics gauges are refreshed.
+const metricsUpdateInterval = 10 * time.Second
 
 // PeerMeta stores per-peer metadata for best-path comparison.
 // Extracted from received UPDATE events (nested peer format).
@@ -108,6 +136,77 @@ type RIBManager struct {
 	grState map[string]*peerGRState
 
 	mu sync.RWMutex // protects ribInPool, ribOut, peerUp, peerMeta, retainedPeers, grState
+
+	// lastMetricsInPeers / lastMetricsOutPeers track peer labels emitted in the
+	// previous updateMetrics cycle. Peers that disappear from ribInPool/ribOut
+	// get their GaugeVec label deleted, preventing stale Prometheus series.
+	lastMetricsInPeers  map[string]bool
+	lastMetricsOutPeers map[string]bool
+}
+
+// runMetricsLoop periodically updates RIB route count gauges.
+// Runs until ctx is canceled.
+func (r *RIBManager) runMetricsLoop(ctx context.Context) {
+	ticker := time.NewTicker(metricsUpdateInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			r.updateMetrics()
+		}
+	}
+}
+
+// updateMetrics refreshes RIB route count gauges from current state.
+// Deletes Prometheus labels for peers that are no longer in the RIB,
+// preventing stale series from accumulating in long-running daemons.
+func (r *RIBManager) updateMetrics() {
+	m := metricsPtr.Load()
+	if m == nil {
+		return
+	}
+
+	r.mu.RLock()
+
+	currentIn := make(map[string]bool, len(r.ribInPool))
+	totalIn := 0
+	for peer, peerRIB := range r.ribInPool {
+		count := peerRIB.Len()
+		m.routesInVec.With(peer).Set(float64(count))
+		currentIn[peer] = true
+		totalIn += count
+	}
+
+	currentOut := make(map[string]bool, len(r.ribOut))
+	totalOut := 0
+	for peer, routes := range r.ribOut {
+		count := len(routes)
+		m.routesOutVec.With(peer).Set(float64(count))
+		currentOut[peer] = true
+		totalOut += count
+	}
+
+	r.mu.RUnlock()
+
+	// Delete stale peer labels (peers removed since last cycle)
+	for peer := range r.lastMetricsInPeers {
+		if !currentIn[peer] {
+			m.routesInVec.Delete(peer)
+		}
+	}
+	for peer := range r.lastMetricsOutPeers {
+		if !currentOut[peer] {
+			m.routesOutVec.Delete(peer)
+		}
+	}
+	r.lastMetricsInPeers = currentIn
+	r.lastMetricsOutPeers = currentOut
+
+	m.routesIn.Set(float64(totalIn))
+	m.routesOut.Set(float64(totalOut))
 }
 
 // RunRIBPlugin runs the RIB plugin using the SDK RPC protocol.
@@ -154,6 +253,9 @@ func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
 	// reclaiming dead buffer space in attribute pools under route churn.
 	p.OnStarted(func(ctx context.Context) error {
 		go runCompaction(ctx, pool.AllPools())
+		if metricsPtr.Load() != nil {
+			go r.runMetricsLoop(ctx)
+		}
 		return nil
 	})
 

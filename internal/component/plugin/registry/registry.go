@@ -67,6 +67,10 @@ type Registration struct {
 	// (e.g., "destination", "protocol", "port") with string values.
 	InProcessConfigNLRIBuilder func(matchCriteria map[string][]string, isIPv6, forVPN bool) []byte
 
+	// ConfigureMetrics is called before RunEngine with the metrics registry (any).
+	// The plugin should type-assert to metrics.Registry and register gauges/counters.
+	ConfigureMetrics func(reg any)
+
 	// CLI metadata (used by RunPlugin).
 	Features     string // Space-separated feature list (e.g., "nlri yang")
 	SupportsNLRI bool   // Plugin can decode NLRI via CLI
@@ -98,6 +102,11 @@ var (
 	// plugins is the global plugin registry, populated during init().
 	plugins = make(map[string]*Registration)
 	mu      sync.RWMutex
+
+	// metricsRegistry stores the metrics registry (as any to avoid importing metrics).
+	// Set by the config loader after creating the Prometheus registry.
+	// Read by GetInternalPluginRunner to inject into plugins via ConfigureMetrics.
+	metricsRegistry any
 )
 
 // Register adds a plugin to the global registry.
@@ -137,6 +146,22 @@ func Register(reg Registration) error {
 	r := reg // copy
 	plugins[reg.Name] = &r
 	return nil
+}
+
+// SetMetricsRegistry stores the metrics registry for plugin injection.
+// Called by the config loader after creating the Prometheus registry.
+// The registry is passed as any to avoid importing the metrics package.
+func SetMetricsRegistry(reg any) {
+	mu.Lock()
+	defer mu.Unlock()
+	metricsRegistry = reg
+}
+
+// GetMetricsRegistry returns the stored metrics registry, or nil.
+func GetMetricsRegistry() any {
+	mu.RLock()
+	defer mu.RUnlock()
+	return metricsRegistry
 }
 
 // Lookup returns the registration for a named plugin, or nil if not found.
@@ -381,6 +406,7 @@ func Reset() {
 	mu.Lock()
 	defer mu.Unlock()
 	plugins = make(map[string]*Registration)
+	metricsRegistry = nil
 }
 
 // Snapshot returns a copy of the current registry state. Only for use in tests.

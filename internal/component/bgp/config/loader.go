@@ -446,6 +446,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reacto
 			configLogger().Info("prometheus metrics enabled",
 				"address", addr, "port", port, "path", path)
 			r.SetMetricsRegistry(reg)
+			registry.SetMetricsRegistry(reg)
 		}
 	}
 
