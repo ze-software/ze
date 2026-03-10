@@ -306,6 +306,17 @@ func (d *Dispatcher) dispatchSubsystem(_ *CommandContext, handler *SubsystemHand
 	return handler.Handle(context.Background(), input)
 }
 
+// ForwardToPlugin routes a command to a plugin process by exact name lookup.
+// Used by proxy handlers that bridge CLI builtins to plugin commands.
+// Returns ErrUnknownCommand if the command is not registered (plugin may not be running).
+func (d *Dispatcher) ForwardToPlugin(command string, args []string, peerSelector string) (*plugin.Response, error) {
+	cmd := d.registry.Lookup(command)
+	if cmd == nil {
+		return nil, fmt.Errorf("plugin command %q not registered (plugin may not be running): %w", command, ErrUnknownCommand)
+	}
+	return d.routeToProcess(cmd, args, peerSelector)
+}
+
 // dispatchPlugin routes a command to a plugin process.
 func (d *Dispatcher) dispatchPlugin(_ *CommandContext, input, peerSelector string) (*plugin.Response, error) {
 	lowerInput := strings.ToLower(strings.TrimSpace(input))

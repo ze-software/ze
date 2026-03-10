@@ -64,6 +64,17 @@ module ze-rib-api {
 
     // RIB operations
 
+    rpc status {
+        description "RIB summary: peer count, route counts, GR state.";
+        output {
+            leaf running { type boolean; description "RIB plugin is running"; }
+            leaf peers { type uint32; description "Number of peers tracked"; }
+            leaf routes-in { type uint32; description "Total Adj-RIB-In routes"; }
+            leaf routes-out { type uint32; description "Total Adj-RIB-Out routes"; }
+            leaf stale-routes { type uint32; description "Stale routes (GR)"; }
+        }
+    }
+
     rpc show {
         description "Show routes with pipeline filters.
                      Syntax: rib show [scope] [filters...] [terminal]

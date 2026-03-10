@@ -406,3 +406,71 @@ func TestDispatchWildcardSelector(t *testing.T) {
 	assert.Equal(t, "done", resp.Status)
 	assert.Equal(t, "*", calledWithPeer)
 }
+
+// TestForwardToPluginNotRegistered verifies ForwardToPlugin returns error
+// when the plugin command is not registered (plugin not running).
+//
+// VALIDATES: ForwardToPlugin returns wrapped ErrUnknownCommand for missing commands.
+// PREVENTS: Silent failures when proxy handlers call ForwardToPlugin before plugin starts.
+func TestForwardToPluginNotRegistered(t *testing.T) {
+	d := NewDispatcher()
+
+	resp, err := d.ForwardToPlugin("rib status", nil, "*")
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.True(t, errors.Is(err, ErrUnknownCommand),
+		"expected ErrUnknownCommand, got: %v", err)
+	assert.Contains(t, err.Error(), "rib status")
+}
+
+// TestForwardToPluginRegistered verifies ForwardToPlugin finds registered commands.
+// The process is not running, so routeToProcess fails — but the lookup succeeds.
+//
+// VALIDATES: ForwardToPlugin looks up commands by exact name in the registry.
+// PREVENTS: Proxy handlers unable to reach plugin commands after registration.
+func TestForwardToPluginRegistered(t *testing.T) {
+	d := NewDispatcher()
+
+	// Register a plugin command (process not running)
+	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-rib"})
+	d.Registry().Register(proc, []CommandDef{
+		{Name: "rib status", Description: "RIB summary"},
+	})
+
+	// ForwardToPlugin should find the command but fail because process isn't running
+	resp, err := d.ForwardToPlugin("rib status", nil, "*")
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrUnknownCommand),
+		"command should be found in registry, got: %v", err)
+	// routeToProcess returns ErrPluginProcessNotRunning
+	assert.True(t, errors.Is(err, ErrPluginProcessNotRunning),
+		"expected ErrPluginProcessNotRunning, got: %v", err)
+	assert.Nil(t, resp)
+}
+
+// TestForwardToPluginNoBuiltinConflict verifies that registering a builtin
+// with "bgp rib status" does not conflict with a plugin command "rib status".
+//
+// VALIDATES: Builtin proxy "bgp rib status" and plugin "rib status" coexist.
+// PREVENTS: Builtin registration accidentally blocking plugin command lookup.
+func TestForwardToPluginNoBuiltinConflict(t *testing.T) {
+	d := NewDispatcher()
+
+	// Register builtin "bgp rib status" (what the proxy does)
+	d.Register("bgp rib status", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "RIB summary")
+
+	// Register plugin command "rib status" (what bgp-rib does at runtime)
+	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-rib"})
+	results := d.Registry().Register(proc, []CommandDef{
+		{Name: "rib status", Description: "RIB summary"},
+	})
+	assert.True(t, results[0].OK, "plugin 'rib status' should not conflict with builtin 'bgp rib status'")
+
+	// ForwardToPlugin should find the plugin command
+	_, err := d.ForwardToPlugin("rib status", nil, "*")
+	// Error because process not running, but NOT ErrUnknownCommand
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrUnknownCommand))
+}

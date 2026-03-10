@@ -42,8 +42,7 @@ func TestRunCommandTree(t *testing.T) {
 	tree := cli.BuildCommandTree(false)
 
 	// These top-level commands must exist (they come from RPC registrations)
-	// Note: "rib" commands moved to bgp-rib plugin (SDK protocol), not in AllBuiltinRPCs().
-	topLevel := []string{"daemon", "peer", "system", "summary"}
+	topLevel := []string{"daemon", "peer", "rib", "system", "summary"}
 	for _, cmd := range topLevel {
 		if _, ok := tree.Children[cmd]; !ok {
 			t.Errorf("missing top-level command in tree: %s", cmd)

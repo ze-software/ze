@@ -42,7 +42,7 @@ func TestShowCommandTreeReadOnly(t *testing.T) {
 	tree := cli.BuildCommandTree(true)
 
 	// Read-only commands must exist
-	for _, cmd := range []string{"peer", "summary", "daemon", "system"} {
+	for _, cmd := range []string{"peer", "rib", "summary", "daemon", "system"} {
 		if _, ok := tree.Children[cmd]; !ok {
 			t.Errorf("show tree missing read-only command: %s", cmd)
 		}
@@ -62,6 +62,21 @@ func TestShowCommandTreeReadOnly(t *testing.T) {
 		if _, ok := peer.Children[sub]; ok {
 			t.Errorf("show peer should NOT contain destructive subcommand: %s", sub)
 		}
+	}
+
+	// RIB read-only commands must exist
+	rib := tree.Children["rib"]
+	if rib == nil {
+		t.Fatal("rib missing from show tree")
+	}
+	for _, sub := range []string{"status", "show", "best"} {
+		if _, ok := rib.Children[sub]; !ok {
+			t.Errorf("show rib missing read-only subcommand: %s", sub)
+		}
+	}
+	// RIB clear is NOT read-only — must NOT appear in show tree
+	if clear := rib.Children["clear"]; clear != nil {
+		t.Errorf("show rib should NOT contain destructive subcommand: clear")
 	}
 }
 
