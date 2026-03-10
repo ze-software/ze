@@ -190,7 +190,23 @@ func NewSchema() *Schema {
 // If a node with the same name already exists, it is replaced
 // without adding a duplicate to the order.
 func (s *Schema) Define(name string, node Node) {
-	_, exists := s.root.children[name]
+	existing, exists := s.root.children[name]
+	if exists {
+		// Merge containers: add new children to existing container.
+		// Multiple YANG modules may define children under the same top-level container
+		// (e.g., ze-system-conf and ze-ssh-conf both contribute to "system").
+		if ec, ok := existing.(*ContainerNode); ok {
+			if nc, ok := node.(*ContainerNode); ok {
+				for _, childName := range nc.order {
+					if _, dup := ec.children[childName]; !dup {
+						ec.children[childName] = nc.children[childName]
+						ec.order = append(ec.order, childName)
+					}
+				}
+				return
+			}
+		}
+	}
 	s.root.children[name] = node
 	if !exists {
 		s.root.order = append(s.root.order, name)
