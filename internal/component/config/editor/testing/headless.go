@@ -4,6 +4,7 @@ package testing
 
 import (
 	"fmt"
+	"runtime"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -80,26 +81,29 @@ func (hm *HeadlessModel) processCmdWithDepth(cmd tea.Cmd, depth int) {
 		return // Depth limit to prevent infinite recursion
 	}
 
-	// Execute the command in a goroutine with timeout
+	// Execute the command in a goroutine with timeout.
 	done := make(chan tea.Msg, 1)
 	go func() {
 		done <- cmd()
 	}()
 
-	// Wait for the command to complete. Most commands (including file I/O
-	// for commit/load) finish quickly, but cursor blink and other blocking
-	// commands need to be skipped. 50ms is long enough for I/O under the
-	// race detector, but short enough that accumulated timeouts from many
-	// cursor blinks don't cause the test to time out (ET tests generate
-	// thousands of keystrokes, each potentially spawning a blink command).
+	// Yield to let the command goroutine run. Real commands (file I/O
+	// for commit/load, in-memory tree ops) complete in microseconds.
+	// Blocking commands (cursor blink ~530ms, validation tick ~100ms,
+	// confirm countdown ~1s) never complete quickly. Gosched lets fast
+	// commands finish and write to the buffered channel before we
+	// reach the select — the result is picked up instantly without
+	// waiting for the timer. Previously a flat 50ms timeout here
+	// accumulated to ~5 minutes across all ET tests.
+	runtime.Gosched()
+
 	select {
 	case msg := <-done:
-		if msg == nil {
-			return
+		if msg != nil {
+			hm.processMsg(msg, depth)
 		}
-		hm.processMsg(msg, depth)
-	case <-time.After(50 * time.Millisecond):
-		// Command would block (like cursor blink), skip it
+	case <-time.After(15 * time.Millisecond):
+		// Command would block (cursor blink, tick timer), skip it
 		return
 	}
 }

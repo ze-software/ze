@@ -230,6 +230,7 @@ expect=context:root
 // VALIDATES: All functional editor tests pass.
 // PREVENTS: Regressions in editor behavior.
 func TestFunctionalETFiles(t *testing.T) {
+	t.Parallel()
 	// Find the test/editor directory relative to project root
 	// The test runs from the package directory, so we need to navigate up
 	projectRoot := findProjectRoot()
@@ -260,10 +261,12 @@ func TestFunctionalETFiles(t *testing.T) {
 
 	t.Logf("Found %d .et files", len(etFiles))
 
-	// Run each .et file as a subtest
+	// Run each .et file as a parallel subtest — each creates its own
+	// temp dir and headless model, so there are no shared resources.
 	for _, etPath := range etFiles {
 		relPath, _ := filepath.Rel(editorTestDir, etPath)
 		t.Run(relPath, func(t *testing.T) {
+			t.Parallel()
 			result := RunETFile(etPath)
 			if !result.Passed {
 				t.Errorf("test failed: %s", result.Error)
