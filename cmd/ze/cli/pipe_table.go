@@ -38,6 +38,21 @@ func renderValue(v any) string {
 		if len(val) == 0 {
 			return emptyMarker
 		}
+		// Single-key wrapper map (e.g., {"peers": ...}): unwrap and render the value.
+		// Common JSON API pattern where the top key is just a namespace.
+		if len(val) == 1 {
+			for _, inner := range val {
+				switch inner.(type) {
+				case map[string]any, []any:
+					return renderValue(inner)
+				}
+			}
+		}
+		// Check if this is a map-of-maps with homogeneous keys (e.g., peers indexed by IP).
+		// Render as columnar table with the parent key as first column.
+		if childKeys := homogeneousMapOfMapsKeys(val); childKeys != nil {
+			return renderMapOfMaps(val, childKeys)
+		}
 		return renderRecord(val)
 	case []any:
 		if len(val) == 0 {
@@ -50,6 +65,96 @@ func renderValue(v any) string {
 	default:
 		return fmt.Sprint(formatNumber(v)) + "\n"
 	}
+}
+
+// homogeneousMapOfMapsKeys returns the shared child keys if every value in m is a map
+// with identical key sets, or nil if the map is not a homogeneous map-of-maps.
+func homogeneousMapOfMapsKeys(m map[string]any) []string {
+	if len(m) < 2 {
+		return nil
+	}
+	var refKeys []string
+	for _, v := range m {
+		child, ok := v.(map[string]any)
+		if !ok {
+			return nil
+		}
+		keys := sortedKeys(child)
+		if len(keys) == 0 {
+			return nil
+		}
+		if refKeys == nil {
+			refKeys = keys
+			continue
+		}
+		if len(keys) != len(refKeys) {
+			return nil
+		}
+		for i, k := range keys {
+			if k != refKeys[i] {
+				return nil
+			}
+		}
+	}
+	return refKeys
+}
+
+// renderMapOfMaps renders a map-of-maps as a columnar table.
+// The parent key becomes the first column; child keys become the remaining columns.
+func renderMapOfMaps(m map[string]any, childKeys []string) string {
+	parentKeys := sortedKeys(m)
+
+	// All columns: parent key header + child key headers.
+	allCols := make([]string, 0, 1+len(childKeys))
+	allCols = append(allCols, "") // first column has no header (it's the key)
+	allCols = append(allCols, childKeys...)
+
+	// Initialize widths from header names.
+	widths := make([]int, len(allCols))
+	for i, col := range allCols {
+		widths[i] = displayWidth(col)
+	}
+
+	// Build rows.
+	rows := make([][]tableCell, len(parentKeys))
+	for rowIdx, parentKey := range parentKeys {
+		row := make([]tableCell, len(allCols))
+		row[0] = cellFromString(parentKey)
+		if row[0].width > widths[0] {
+			widths[0] = row[0].width
+		}
+		child, _ := m[parentKey].(map[string]any)
+		for colIdx, childKey := range childKeys {
+			if v, ok := child[childKey]; ok {
+				row[colIdx+1] = cellFromValue(v)
+			} else {
+				row[colIdx+1] = cellFromString("")
+			}
+			if row[colIdx+1].width > widths[colIdx+1] {
+				widths[colIdx+1] = row[colIdx+1].width
+			}
+		}
+		rows[rowIdx] = row
+	}
+
+	// Render.
+	var b strings.Builder
+	b.WriteString(drawBorder(widths, '┌', '┬', '┐'))
+
+	// Header row.
+	headerCells := make([]tableCell, len(allCols))
+	for i, col := range allCols {
+		headerCells[i] = cellFromString(col)
+	}
+	writeRow(&b, headerCells, widths)
+	b.WriteString(drawBorder(widths, '├', '┼', '┤'))
+
+	// Data rows.
+	for _, row := range rows {
+		writeRow(&b, row, widths)
+	}
+	b.WriteString(drawBorder(widths, '└', '┴', '┘'))
+	return b.String()
 }
 
 // renderRecord renders a map as a two-column key-value table.

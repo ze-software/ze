@@ -85,6 +85,7 @@ func runBGP(args []string) int {
 	fs := flag.NewFlagSet("cli", flag.ExitOnError)
 	socketPath := fs.String("socket", config.DefaultSocketPath(), "Path to API socket")
 	runCmd := fs.String("run", "", "Execute single command and exit")
+	format := fs.String("format", "yaml", "Output format: yaml, json, table")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -102,7 +103,7 @@ func runBGP(args []string) int {
 
 	// If --run specified, execute single command and exit
 	if *runCmd != "" {
-		return client.Execute(*runCmd)
+		return client.Execute(*runCmd, *format)
 	}
 
 	// Create initial model
@@ -208,15 +209,16 @@ func (c *cliClient) matchCommand(input string) (method string, args []string) {
 	return "", nil
 }
 
-// Execute sends a command and prints the response.
-func (c *cliClient) Execute(command string) int {
+// Execute sends a command and prints the response in the given format.
+// Valid formats: "yaml" (default), "json", "table".
+func (c *cliClient) Execute(command, format string) int {
 	resp, err := c.SendCommand(command)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 
-	c.PrintResponse(resp)
+	c.printFormatted(resp, format)
 
 	if resp.Error != "" {
 		return 1
@@ -231,12 +233,20 @@ func (c *cliClient) SendCommand(command string) (*rpcResponse, error) {
 		return &rpcResponse{Error: "unknown command: " + command}, nil
 	}
 
-	// Build JSON RPC request
+	// Build JSON RPC request.
+	// Extract peer selector from args: if the first arg looks like an IP/glob,
+	// it's a peer selector that the server expects in params.selector.
 	req := rpc.Request{Method: method}
-	if len(args) > 0 {
+	var selector string
+	if len(args) > 0 && looksLikePeerSelector(args[0]) {
+		selector = args[0]
+		args = args[1:]
+	}
+	if len(args) > 0 || selector != "" {
 		params := struct {
-			Args []string `json:"args,omitempty"`
-		}{Args: args}
+			Selector string   `json:"selector,omitempty"`
+			Args     []string `json:"args,omitempty"`
+		}{Selector: selector, Args: args}
 		paramBytes, err := json.Marshal(params)
 		if err != nil {
 			return nil, fmt.Errorf("marshal params: %w", err)
@@ -267,8 +277,8 @@ func (c *cliClient) SendCommand(command string) (*rpcResponse, error) {
 	return &resp, nil
 }
 
-// PrintResponse formats and prints a response.
-func (c *cliClient) PrintResponse(resp *rpcResponse) {
+// printFormatted formats and prints a response in the given format.
+func (c *cliClient) printFormatted(resp *rpcResponse, format string) {
 	if resp.Error != "" {
 		fmt.Fprintf(os.Stderr, "error: %s\n", resp.Error)
 		return
@@ -279,51 +289,100 @@ func (c *cliClient) PrintResponse(resp *rpcResponse) {
 		return
 	}
 
-	// Pretty print result
-	var data any
-	if err := json.Unmarshal(resp.Result, &data); err != nil {
-		fmt.Println(string(resp.Result))
-		return
+	switch format {
+	case "json":
+		fmt.Println(applyJSON(string(resp.Result), jsonPretty))
+	case "table":
+		fmt.Print(applyTable(string(resp.Result)))
+	default: // yaml
+		var data any
+		if err := json.Unmarshal(resp.Result, &data); err != nil {
+			fmt.Println(string(resp.Result))
+			return
+		}
+		fmt.Print(renderYAML(data))
 	}
-
-	printValue(data, "")
 }
 
-// printValue recursively prints a JSON value with indentation.
-func printValue(v any, indent string) {
+// renderYAML formats a parsed JSON value as valid YAML.
+func renderYAML(data any) string {
+	var b strings.Builder
+	writeValue(&b, data, "")
+	return b.String()
+}
+
+// writeValue recursively writes a JSON value as valid YAML with indentation.
+func writeValue(b *strings.Builder, v any, indent string) {
 	switch val := v.(type) {
 	case map[string]any:
-		for key, value := range val {
-			switch child := value.(type) {
-			case map[string]any:
-				fmt.Printf("%s%s:\n", indent, key)
-				printValue(child, indent+"  ")
-			case []any:
-				if len(child) == 0 {
-					fmt.Printf("%s%s: (none)\n", indent, key)
-				} else {
-					fmt.Printf("%s%s:\n", indent, key)
-					printValue(child, indent+"  ")
-				}
-			default:
-				fmt.Printf("%s%s: %v\n", indent, key, formatNumber(value))
-			}
-		}
+		writeMap(b, val, indent)
 	case []any:
 		for _, item := range val {
 			if m, ok := item.(map[string]any); ok {
-				// For peer info, format nicely
-				if addr, ok := m["Address"]; ok {
-					state := m["State"]
-					fmt.Printf("%s%v [%v]\n", indent, addr, state)
-					continue
-				}
+				writeMapItem(b, m, indent)
+			} else {
+				fmt.Fprintf(b, "%s- %v\n", indent, formatNumber(item))
 			}
-			fmt.Printf("%s- %v\n", indent, item)
 		}
 	default:
-		fmt.Printf("%s%v\n", indent, v)
+		fmt.Fprintf(b, "%s%v\n", indent, formatNumber(v))
 	}
+}
+
+// writeMap writes a map with sorted keys at the given indentation.
+func writeMap(b *strings.Builder, m map[string]any, indent string) {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		writeKeyValue(b, key, m[key], indent)
+	}
+}
+
+// writeKeyValue writes a single key-value pair with proper YAML formatting.
+func writeKeyValue(b *strings.Builder, key string, value any, indent string) {
+	switch child := value.(type) {
+	case map[string]any:
+		fmt.Fprintf(b, "%s%s:\n", indent, key)
+		writeMap(b, child, indent+"  ")
+	case []any:
+		if len(child) == 0 {
+			fmt.Fprintf(b, "%s%s: []\n", indent, key)
+		} else {
+			fmt.Fprintf(b, "%s%s:\n", indent, key)
+			writeValue(b, child, indent+"  ")
+		}
+	default:
+		fmt.Fprintf(b, "%s%s: %v\n", indent, key, formatNumber(value))
+	}
+}
+
+// writeMapItem writes a map as a YAML sequence item (first key on the "- " line).
+func writeMapItem(b *strings.Builder, m map[string]any, indent string) {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for i, key := range keys {
+		if i == 0 {
+			writeKeyValue(b, key, m[key], indent+"- ")
+		} else {
+			writeKeyValue(b, key, m[key], indent+"  ")
+		}
+	}
+}
+
+// looksLikePeerSelector returns true if the string looks like an IP address or glob.
+func looksLikePeerSelector(s string) bool {
+	if s == "*" {
+		return true
+	}
+	return strings.ContainsAny(s, ".:")
 }
 
 // formatNumber displays integers without decimal points.
@@ -589,23 +648,44 @@ func (m *model) applySelectedSuggestion() {
 	m.textInput.CursorEnd()
 }
 
-// pipeSuggestions lists available pipe operators for tab completion.
+// pipeSuggestions lists available client-side pipe operators for tab completion.
 var pipeSuggestions = []suggestion{
 	{text: "match", description: "Filter lines matching pattern"},
 	{text: "count", description: "Count output lines"},
 	{text: "table", description: "Render as table"},
 	{text: "json", description: "JSON output (pretty or compact)"},
+	{text: "yaml", description: "YAML output"},
 	{text: "no-more", description: "Disable paging"},
+}
+
+// ribShowPipeSuggestions lists server-side pipeline keywords for rib show commands.
+var ribShowPipeSuggestions = []suggestion{
+	{text: "path", description: "Filter by AS path (contiguous subsequence, ^ = anchor)"},
+	{text: "cidr", description: "Filter by prefix match"},
+	{text: "community", description: "Filter by community value"},
+	{text: "family", description: "Filter by address family (e.g. ipv4/unicast)"},
+	{text: "match", description: "Filter by field value substring"},
+	{text: "count", description: "Count matching routes (metadata only)"},
+	{text: "json", description: "Output as JSON"},
+	{text: "yaml", description: "YAML output"},
+	{text: "no-more", description: "Disable paging"},
+	{text: "table", description: "Render as table"},
 }
 
 func (m *model) updateSuggestions() {
 	input := m.textInput.Value()
 
 	// After a pipe character, suggest pipe operators instead of commands.
+	// For rib show commands, suggest server-side pipeline keywords.
 	if pipeIdx := strings.LastIndex(input, "|"); pipeIdx >= 0 {
+		cmdPart := strings.TrimSpace(input[:pipeIdx])
+		suggestions := pipeSuggestions
+		if strings.HasPrefix(strings.ToLower(cmdPart), "rib show") {
+			suggestions = ribShowPipeSuggestions
+		}
 		after := strings.TrimSpace(input[pipeIdx+1:])
 		m.suggestions = nil
-		for _, s := range pipeSuggestions {
+		for _, s := range suggestions {
 			if after == "" || strings.HasPrefix(s.text, after) {
 				m.suggestions = append(m.suggestions, s)
 			}
@@ -672,6 +752,10 @@ func (m model) executeCommand(input string) tea.Cmd {
 	return func() tea.Msg {
 		// Parse pipe operators from input (e.g., "peer list | match established").
 		command, ops := parsePipe(input)
+
+		// For rib show commands, fold server-side pipeline keywords (path, cidr, count, etc.)
+		// back into the command string as args. Only no-more/table remain client-side.
+		command, ops = foldServerPipeline(command, ops)
 
 		resp, err := m.client.SendCommand(command)
 		if err != nil {

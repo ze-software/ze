@@ -56,7 +56,7 @@ func filterPeersBySelector(ctx *pluginserver.CommandContext) ([]plugin.PeerInfo,
 	return nil, nil, nil
 }
 
-// handleBgpPeerList returns a brief list of peer(s).
+// handleBgpPeerList returns a brief list of peer(s) indexed by IP.
 // Used by "bgp peer <selector> list" - filters to matching peers.
 // The selector is extracted by dispatcher into ctx.Peer.
 func handleBgpPeerList(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
@@ -65,15 +65,24 @@ func handleBgpPeerList(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 		return errResp, err
 	}
 
+	result := make(map[string]any, len(peers))
+	for _, p := range peers {
+		result[p.Address.String()] = map[string]any{
+			"peer-as": p.PeerAS,
+			"state":   p.State,
+			"uptime":  p.Uptime.String(),
+		}
+	}
+
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: map[string]any{
-			"peers": peers,
+			"peers": result,
 		},
 	}, nil
 }
 
-// handleBgpPeerShow returns detailed peer information.
+// handleBgpPeerShow returns detailed peer information indexed by IP.
 // Used by "bgp peer <selector> show" - filters to matching peers.
 // The selector is extracted by dispatcher into ctx.Peer.
 func handleBgpPeerShow(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
@@ -82,10 +91,34 @@ func handleBgpPeerShow(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 		return errResp, err
 	}
 
+	result := make(map[string]any, len(peers))
+	for _, p := range peers {
+		rid := p.RouterID
+		routerID := netip.AddrFrom4([4]byte{byte(rid >> 24), byte(rid >> 16), byte(rid >> 8), byte(rid)}).String()
+
+		row := map[string]any{
+			"peer-as":             p.PeerAS,
+			"local-as":            p.LocalAS,
+			"router-id":           routerID,
+			"state":               p.State,
+			"uptime":              p.Uptime.String(),
+			"updates-received":    p.UpdatesReceived,
+			"updates-sent":        p.UpdatesSent,
+			"keepalives-received": p.KeepalivesReceived,
+			"keepalives-sent":     p.KeepalivesSent,
+			"eor-received":        p.EORReceived,
+			"eor-sent":            p.EORSent,
+		}
+		if p.LocalAddress.IsValid() {
+			row["local-address"] = p.LocalAddress.String()
+		}
+		result[p.Address.String()] = row
+	}
+
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: map[string]any{
-			"peers": peers,
+			"peers": result,
 		},
 	}, nil
 }

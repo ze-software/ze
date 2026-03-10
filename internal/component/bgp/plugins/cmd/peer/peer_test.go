@@ -61,9 +61,11 @@ func TestHandlerPeerList(t *testing.T) {
 
 	data, ok := resp.Data.(map[string]any)
 	require.True(t, ok, "expected map response data")
-	peers, ok := data["peers"].([]plugin.PeerInfo)
-	require.True(t, ok, "expected peers slice")
+	peers, ok := data["peers"].(map[string]any)
+	require.True(t, ok, "expected peers map indexed by IP")
 	assert.Len(t, peers, 2)
+	assert.Contains(t, peers, "192.0.2.1")
+	assert.Contains(t, peers, "192.0.2.2")
 }
 
 // TestHandlerPeerListNilReactor verifies handleBgpPeerList errors without reactor.

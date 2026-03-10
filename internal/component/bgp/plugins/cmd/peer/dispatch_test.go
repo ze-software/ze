@@ -40,9 +40,10 @@ func TestDispatchBGPPeerList(t *testing.T) {
 
 	data, ok := resp.Data.(map[string]any)
 	require.True(t, ok)
-	peers, ok := data["peers"].([]plugin.PeerInfo)
+	peers, ok := data["peers"].(map[string]any)
 	require.True(t, ok)
 	assert.Len(t, peers, 1)
+	assert.Contains(t, peers, "192.0.2.1")
 }
 
 // TestDispatchBGPPeerShow verifies "bgp peer show" dispatches through init() registration.

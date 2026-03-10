@@ -30,9 +30,17 @@ func TestHandlerPeerShowAllPeers(t *testing.T) {
 
 	data, ok := resp.Data.(map[string]any)
 	require.True(t, ok)
-	peers, ok := data["peers"].([]plugin.PeerInfo)
+	peers, ok := data["peers"].(map[string]any)
 	require.True(t, ok)
 	assert.Len(t, peers, 2)
+
+	// Verify peers are indexed by IP with detailed fields
+	peer1, ok := peers["192.0.2.1"].(map[string]any)
+	require.True(t, ok, "peer 192.0.2.1 not found")
+	assert.Equal(t, uint32(65001), peer1["peer-as"])
+	assert.Equal(t, "established", peer1["state"])
+	assert.Contains(t, peer1, "updates-received")
+	assert.Contains(t, peer1, "keepalives-received")
 }
 
 // TestHandlerPeerShowFilterByIP verifies peer show filters by specific IP.
@@ -55,10 +63,11 @@ func TestHandlerPeerShowFilterByIP(t *testing.T) {
 
 	data, ok := resp.Data.(map[string]any)
 	require.True(t, ok)
-	peers, ok := data["peers"].([]plugin.PeerInfo)
+	peers, ok := data["peers"].(map[string]any)
 	require.True(t, ok)
 	assert.Len(t, peers, 1)
-	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), peers[0].Address)
+	_, ok = peers["192.0.2.1"]
+	assert.True(t, ok, "peer 192.0.2.1 not found in result")
 }
 
 // TestHandlerTeardown verifies teardown sends correct addr and subcode.

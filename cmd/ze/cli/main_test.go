@@ -228,7 +228,7 @@ func TestCLIClient_Execute(t *testing.T) {
 
 	var code int
 	output := captureOutput(t, false, func() {
-		code = client.Execute("system help")
+		code = client.Execute("system help", "yaml")
 	})
 
 	if code != 0 {
@@ -252,7 +252,7 @@ func TestCLIClient_ExecuteError(t *testing.T) {
 
 	var code int
 	output := captureOutput(t, true, func() {
-		code = client.Execute("nonexistent command")
+		code = client.Execute("nonexistent command", "yaml")
 	})
 
 	if code != 1 {
@@ -472,11 +472,11 @@ func TestCLIClient_PrintResponse(t *testing.T) {
 			var output string
 			if tt.wantErr {
 				output = captureOutput(t, true, func() {
-					client.PrintResponse(tt.resp)
+					client.printFormatted(tt.resp, "yaml")
 				})
 			} else {
 				output = captureOutput(t, false, func() {
-					client.PrintResponse(tt.resp)
+					client.printFormatted(tt.resp, "yaml")
 				})
 			}
 
@@ -510,7 +510,7 @@ func TestCLIClient_PrintResponseNestedData(t *testing.T) {
 	}
 
 	output := captureOutput(t, false, func() {
-		client.PrintResponse(resp)
+		client.printFormatted(resp, "yaml")
 	})
 
 	// Check peer formatting (special case with Address)
@@ -519,8 +519,8 @@ func TestCLIClient_PrintResponseNestedData(t *testing.T) {
 	}
 
 	// Check empty list handling
-	if !strings.Contains(output, "(none)") {
-		t.Errorf("output should show '(none)' for empty list: %q", output)
+	if !strings.Contains(output, "[]") {
+		t.Errorf("output should show '[]' for empty list: %q", output)
 	}
 
 	// Check nested map
@@ -593,7 +593,7 @@ func TestCLIClient_ResponseWithStringList(t *testing.T) {
 	}
 
 	output := captureOutput(t, false, func() {
-		client.PrintResponse(resp)
+		client.printFormatted(resp, "yaml")
 	})
 
 	// Should contain list items formatted as "- item"
