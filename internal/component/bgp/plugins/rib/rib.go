@@ -4,6 +4,7 @@
 // Detail: rib_attr_format.go — attribute formatting for show enrichment
 // Detail: bestpath.go — best-path selection algorithm (RFC 4271 §9.1.2)
 // Detail: compaction.go — pool compaction scheduler wiring
+// Detail: rib_pipeline.go — iterator pipeline for show commands (scope, filters, terminals)
 //
 // Package rib implements a RIB (Routing Information Base) plugin for ze.
 // It tracks routes received from peers (Adj-RIB-In) and sent to peers (Adj-RIB-Out).
@@ -158,25 +159,20 @@ func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
 	ctx := context.Background()
 	err := p.Run(ctx, sdk.Registration{
 		Commands: []sdk.CommandDecl{
-			// Short names (primary — match engine API style)
+			// Unified show with pipeline (scope + filters + terminals)
 			{Name: "rib status"},
-			{Name: "rib show in"},
+			{Name: "rib show"},
 			{Name: "rib clear in"},
-			{Name: "rib show out"},
 			{Name: "rib clear out"},
-			// Long names (RFC 4271 Adj-RIB terminology)
+			// Legacy status alias
 			{Name: "rib adjacent status"},
-			{Name: "rib adjacent inbound show"},
-			{Name: "rib adjacent inbound empty"},
-			{Name: "rib adjacent outbound show"},
-			{Name: "rib adjacent outbound resend"},
 			// GR support: route retention and stale tracking (RFC 4724)
 			{Name: "rib retain-routes"},
 			{Name: "rib release-routes"},
 			{Name: "rib mark-stale"},
 			{Name: "rib purge-stale"},
 			// Best-path selection (RFC 4271 §9.1.2)
-			{Name: "rib show best"},
+			{Name: "rib best"},
 			{Name: "rib best status"},
 			// Meta-commands (introspection)
 			{Name: "rib help"},

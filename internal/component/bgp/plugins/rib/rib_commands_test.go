@@ -35,29 +35,7 @@ func concatBytes(slices ...[]byte) []byte {
 	return result
 }
 
-// mustShowIn calls inboundShowJSON and requires no error.
-//
-//nolint:unparam // selector mirrors inboundShowJSON API; new filter tests will use non-"*" values.
-func mustShowIn(t *testing.T, r *RIBManager, selector string, args []string) string {
-	t.Helper()
-	data, err := r.inboundShowJSON(selector, args)
-	require.NoError(t, err)
-	return data
-}
-
-// mustShowBest calls bestPathShowJSON and requires no error.
-//
-//nolint:unparam // selector mirrors bestPathShowJSON API.
-func mustShowBest(t *testing.T, r *RIBManager, selector string, args []string) string {
-	t.Helper()
-	data, err := r.bestPathShowJSON(selector, args)
-	require.NoError(t, err)
-	return data
-}
-
 // requirePeerRoutes unmarshals JSON and returns the route array for a peer.
-//
-//nolint:unparam // topKey is parameterized for reuse with adj-rib-in and adj-rib-out.
 func requirePeerRoutes(t *testing.T, jsonStr, topKey, peerAddr string) []any {
 	t.Helper()
 	var result map[string]any
@@ -113,7 +91,7 @@ func TestInboundShowWithAttributes(t *testing.T) {
 	peerRIB.Insert(family, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
-	route := requireFirstRoute(t, mustShowIn(t, r, "*", nil), "adj-rib-in", "192.0.2.1")
+	route := requireFirstRoute(t, r.inboundShowJSON("*", nil), "adj-rib-in", "192.0.2.1")
 
 	assert.Equal(t, "ipv4/unicast", route["family"])
 	assert.Equal(t, "10.0.0.0/24", route["prefix"])
@@ -150,7 +128,7 @@ func TestInboundShowMinimalAttributes(t *testing.T) {
 	peerRIB.Insert(family, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
-	route := requireFirstRoute(t, mustShowIn(t, r, "*", nil), "adj-rib-in", "192.0.2.1")
+	route := requireFirstRoute(t, r.inboundShowJSON("192.0.2.1", nil), "adj-rib-in", "192.0.2.1")
 
 	assert.Equal(t, "igp", route["origin"])
 	assert.Equal(t, "10.0.0.1", route["next-hop"])
@@ -235,11 +213,11 @@ func TestInboundShowFamilyFilter(t *testing.T) {
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	// Without filter: both families
-	allRoutes := requirePeerRoutes(t, mustShowIn(t, r, "*", nil), "adj-rib-in", "192.0.2.1")
+	allRoutes := requirePeerRoutes(t, r.inboundShowJSON("*", nil), "adj-rib-in", "192.0.2.1")
 	assert.Len(t, allRoutes, 2, "expected both routes without filter")
 
 	// With family filter: only IPv4
-	filteredRoutes := requirePeerRoutes(t, mustShowIn(t, r, "*", []string{"ipv4/unicast"}), "adj-rib-in", "192.0.2.1")
+	filteredRoutes := requirePeerRoutes(t, r.inboundShowJSON("*", []string{"ipv4/unicast"}), "adj-rib-in", "192.0.2.1")
 	require.Len(t, filteredRoutes, 1, "expected only IPv4 route")
 	first, ok := filteredRoutes[0].(map[string]any)
 	require.True(t, ok)
@@ -264,290 +242,40 @@ func TestInboundShowPrefixFilter(t *testing.T) {
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	// Filter by prefix
-	routes := requirePeerRoutes(t, mustShowIn(t, r, "*", []string{"10.0.0.0/24"}), "adj-rib-in", "192.0.2.1")
+	routes := requirePeerRoutes(t, r.inboundShowJSON("*", []string{"10.0.0.0/24"}), "adj-rib-in", "192.0.2.1")
 	require.Len(t, routes, 1, "expected only matching prefix")
 	first, ok := routes[0].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "10.0.0.0/24", first["prefix"])
 }
 
-// TestParseShowFilters verifies family, prefix, community, and regexp extraction.
+// TestParseShowFilters verifies family vs prefix disambiguation.
 //
-// VALIDATES: parseShowFilters distinguishes family ("ipv4/unicast") from prefix ("10.0.0.0/24", "fc00::/7"),
-// and extracts community and regexp keyword arguments.
+// VALIDATES: parseShowFilters distinguishes family ("ipv4/unicast") from prefix ("10.0.0.0/24", "fc00::/7").
 // PREVENTS: IPv6 ULA prefix "fc00::/7" being misclassified as family filter.
 func TestParseShowFilters(t *testing.T) {
 	tests := []struct {
-		name          string
-		args          []string
-		wantFamily    string
-		wantPrefix    string
-		wantCommunity string
-		wantRegexp    bool // true if asPathRe should be non-nil
+		name       string
+		args       []string
+		wantFamily string
+		wantPrefix string
 	}{
-		{"family only", []string{"ipv4/unicast"}, "ipv4/unicast", "", "", false},
-		{"ipv4 prefix", []string{"10.0.0.0/24"}, "", "10.0.0.0/24", "", false},
-		{"ipv6 prefix", []string{"2001:db8::/32"}, "", "2001:db8::/32", "", false},
-		{"ipv6 ula prefix", []string{"fc00::/7"}, "", "fc00::/7", "", false},
-		{"both", []string{"ipv4/unicast", "10.0.0.0/24"}, "ipv4/unicast", "10.0.0.0/24", "", false},
-		{"community", []string{"community", "65000:100"}, "", "", "65000:100", false},
-		{"regexp", []string{"regexp", "64501"}, "", "", "", true},
-		{"family and community", []string{"ipv4/unicast", "community", "65000:100"}, "ipv4/unicast", "", "65000:100", false},
-		{"all filters", []string{"ipv4/unicast", "10.0.0.0/24", "community", "65000:100", "regexp", "64501"}, "ipv4/unicast", "10.0.0.0/24", "65000:100", true},
-		{"empty", nil, "", "", "", false},
+		{"family only", []string{"ipv4/unicast"}, "ipv4/unicast", ""},
+		{"ipv4 prefix", []string{"10.0.0.0/24"}, "", "10.0.0.0/24"},
+		{"ipv6 prefix", []string{"2001:db8::/32"}, "", "2001:db8::/32"},
+		{"ipv6 ula prefix", []string{"fc00::/7"}, "", "fc00::/7"},
+		{"both", []string{"ipv4/unicast", "10.0.0.0/24"}, "ipv4/unicast", "10.0.0.0/24"},
+		{"no slash", []string{"hello"}, "", ""},
+		{"empty", nil, "", ""},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			f, err := parseShowFilters(tt.args)
-			require.NoError(t, err)
-			assert.Equal(t, tt.wantFamily, f.family, "family")
-			assert.Equal(t, tt.wantPrefix, f.prefix, "prefix")
-			assert.Equal(t, tt.wantCommunity, f.community, "community")
-			if tt.wantRegexp {
-				assert.NotNil(t, f.asPathRe, "regexp should be compiled")
-			} else {
-				assert.Nil(t, f.asPathRe, "regexp should be nil")
-			}
+			family, prefix := parseShowFilters(tt.args)
+			assert.Equal(t, tt.wantFamily, family, "family")
+			assert.Equal(t, tt.wantPrefix, prefix, "prefix")
 		})
 	}
-}
-
-// TestParseShowFiltersInvalidRegexp verifies bad regexp returns error.
-//
-// VALIDATES: AC-5 — invalid regexp returns error, not panic.
-// PREVENTS: Uncompilable regex crashing the RIB plugin.
-func TestParseShowFiltersInvalidRegexp(t *testing.T) {
-	_, err := parseShowFilters([]string{"regexp", "[invalid"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid regexp")
-}
-
-// TestParseShowFiltersUnrecognizedArg verifies unknown args return error.
-//
-// VALIDATES: Unrecognized filter arguments are rejected.
-// PREVENTS: Typos in filter keywords being silently ignored.
-func TestParseShowFiltersUnrecognizedArg(t *testing.T) {
-	_, err := parseShowFilters([]string{"bogus"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unrecognized filter argument")
-}
-
-// TestParseShowFiltersDanglingKeyword verifies keyword without value returns clear error.
-//
-// VALIDATES: "community" or "regexp" as last arg gives specific error, not "unrecognized".
-// PREVENTS: Misleading error message when keyword value is missing.
-func TestParseShowFiltersDanglingKeyword(t *testing.T) {
-	tests := []struct {
-		name    string
-		args    []string
-		wantMsg string
-	}{
-		{"bare community", []string{"community"}, "community requires a value"},
-		{"bare regexp", []string{"regexp"}, "regexp requires a pattern"},
-		{"community after family", []string{"ipv4/unicast", "community"}, "community requires a value"},
-		{"regexp after prefix", []string{"10.0.0.0/24", "regexp"}, "regexp requires a pattern"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := parseShowFilters(tt.args)
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), tt.wantMsg)
-		})
-	}
-}
-
-// TestInboundShowCommunityFilter verifies community filter restricts results.
-//
-// VALIDATES: AC-1 — rib show in with community filter returns only matching routes.
-// VALIDATES: AC-2 — non-matching community returns empty result.
-// PREVENTS: Community filter being ignored.
-func TestInboundShowCommunityFilter(t *testing.T) {
-	r := newTestRIBManager(t)
-
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-
-	// Route 1: has community 65000:100
-	attr1 := concatBytes(testWireOriginIGP, testWireNextHop, testWireCommunity)
-	nlri1 := []byte{24, 10, 0, 0} // 10.0.0.0/24
-
-	// Route 2: no communities
-	attr2 := concatBytes(testWireOriginIGP, testWireNextHop)
-	nlri2 := []byte{24, 172, 16, 0} // 172.16.0.0/24
-
-	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attr1, nlri1)
-	peerRIB.Insert(family, attr2, nlri2)
-	r.ribInPool["192.0.2.1"] = peerRIB
-
-	// AC-1: matching community returns only that route
-	routes := requirePeerRoutes(t, mustShowIn(t, r, "*", []string{"community", "65000:100"}), "adj-rib-in", "192.0.2.1")
-	require.Len(t, routes, 1)
-	first, ok := routes[0].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, "10.0.0.0/24", first["prefix"])
-
-	// AC-2: non-matching community returns empty
-	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(mustShowIn(t, r, "*", []string{"community", "99999:1"})), &result))
-	ribIn, ok := result["adj-rib-in"].(map[string]any)
-	require.True(t, ok)
-	assert.Empty(t, ribIn, "non-matching community should return empty result")
-}
-
-// TestInboundShowASPathRegexpFilter verifies AS-path regexp filter restricts results.
-//
-// VALIDATES: AC-3 — rib show in with regexp returns only matching routes.
-// VALIDATES: AC-4 — non-matching regexp returns empty result.
-// PREVENTS: AS-path regex filter being ignored.
-func TestInboundShowASPathRegexpFilter(t *testing.T) {
-	r := newTestRIBManager(t)
-
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-
-	// Route 1: AS-path [65001]
-	attr1 := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001)
-	nlri1 := []byte{24, 10, 0, 0} // 10.0.0.0/24
-
-	// Route 2: no AS-path (only origin + next-hop)
-	attr2 := concatBytes(testWireOriginIGP, testWireNextHop)
-	nlri2 := []byte{24, 172, 16, 0} // 172.16.0.0/24
-
-	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attr1, nlri1)
-	peerRIB.Insert(family, attr2, nlri2)
-	r.ribInPool["192.0.2.1"] = peerRIB
-
-	// AC-3: regexp matching AS 65001
-	routes := requirePeerRoutes(t, mustShowIn(t, r, "*", []string{"regexp", "65001"}), "adj-rib-in", "192.0.2.1")
-	require.Len(t, routes, 1)
-	first, ok := routes[0].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, "10.0.0.0/24", first["prefix"])
-
-	// AC-4: regexp matching nothing
-	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(mustShowIn(t, r, "*", []string{"regexp", "^99999$"})), &result))
-	ribIn, ok := result["adj-rib-in"].(map[string]any)
-	require.True(t, ok)
-	assert.Empty(t, ribIn, "non-matching regexp should return empty result")
-}
-
-// TestInboundShowCombinedFilters verifies family + community filters work together.
-//
-// VALIDATES: AC-6 — multiple filters applied simultaneously.
-// PREVENTS: One filter overriding another.
-func TestInboundShowCombinedFilters(t *testing.T) {
-	r := newTestRIBManager(t)
-
-	ipv4 := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-	ipv6 := nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}
-
-	// IPv4 route with community
-	attr1 := concatBytes(testWireOriginIGP, testWireNextHop, testWireCommunity)
-	nlri1 := []byte{24, 10, 0, 0} // 10.0.0.0/24
-
-	// IPv6 route with same community
-	attr2 := concatBytes(testWireOriginIGP, testWireNextHop, testWireCommunity)
-	nlri2 := []byte{64, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01, 0x00, 0x00} // 2001:db8:1::/64
-
-	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(ipv4, attr1, nlri1)
-	peerRIB.Insert(ipv6, attr2, nlri2)
-	r.ribInPool["192.0.2.1"] = peerRIB
-
-	// Family + community: only IPv4 with matching community
-	routes := requirePeerRoutes(t, mustShowIn(t, r, "*", []string{"ipv4/unicast", "community", "65000:100"}), "adj-rib-in", "192.0.2.1")
-	require.Len(t, routes, 1)
-	first, ok := routes[0].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, "ipv4/unicast", first["family"])
-	assert.Equal(t, "10.0.0.0/24", first["prefix"])
-}
-
-// TestBestPathShowCommunityFilter verifies community filter on best-path query.
-//
-// VALIDATES: AC-7 — rib show best with community filter returns only matching best paths.
-// PREVENTS: Best-path query ignoring community filter.
-func TestBestPathShowCommunityFilter(t *testing.T) {
-	r := newTestRIBManager(t)
-
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-
-	// Route 1: 10.0.0.0/24 with community 65000:100
-	attr1 := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001, testWireLocalPref100, testWireCommunity)
-	nlri1 := []byte{24, 10, 0, 0}
-
-	// Route 2: 172.16.0.0/24 without community
-	attr2 := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001, testWireLocalPref100)
-	nlri2 := []byte{24, 172, 16, 0}
-
-	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attr1, nlri1)
-	peerRIB.Insert(family, attr2, nlri2)
-	r.ribInPool["192.0.2.1"] = peerRIB
-	r.peerMeta["192.0.2.1"] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
-
-	// Best path with community filter: only 10.0.0.0/24
-	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(mustShowBest(t, r, "*", []string{"community", "65000:100"})), &result))
-	bestPaths, ok := result["best-path"].([]any)
-	require.True(t, ok)
-	require.Len(t, bestPaths, 1)
-	bp, ok := bestPaths[0].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, "10.0.0.0/24", bp["prefix"])
-}
-
-// TestBestPathShowASPathRegexpFilter verifies AS-path regexp filter on best-path query.
-//
-// VALIDATES: AC-7 — rib show best with regexp filter returns only matching best paths.
-// PREVENTS: Best-path query ignoring AS-path regexp filter.
-func TestBestPathShowASPathRegexpFilter(t *testing.T) {
-	r := newTestRIBManager(t)
-
-	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
-
-	// Route 1: 10.0.0.0/24 with AS-path [65001]
-	attr1 := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001, testWireLocalPref100)
-	nlri1 := []byte{24, 10, 0, 0}
-
-	// Route 2: 172.16.0.0/24 without AS-path
-	attr2 := concatBytes(testWireOriginIGP, testWireNextHop, testWireLocalPref100)
-	nlri2 := []byte{24, 172, 16, 0}
-
-	peerRIB := storage.NewPeerRIB("192.0.2.1")
-	peerRIB.Insert(family, attr1, nlri1)
-	peerRIB.Insert(family, attr2, nlri2)
-	r.ribInPool["192.0.2.1"] = peerRIB
-	r.peerMeta["192.0.2.1"] = &PeerMeta{PeerASN: 65001, LocalASN: 65000}
-
-	// Regexp matching AS 65001: only 10.0.0.0/24
-	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(mustShowBest(t, r, "*", []string{"regexp", "65001"})), &result))
-	bestPaths, ok := result["best-path"].([]any)
-	require.True(t, ok)
-	require.Len(t, bestPaths, 1)
-	bp, ok := bestPaths[0].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, "10.0.0.0/24", bp["prefix"])
-
-	// Non-matching regexp: null or empty (nil slice marshals as JSON null)
-	require.NoError(t, json.Unmarshal([]byte(mustShowBest(t, r, "*", []string{"regexp", "^99999$"})), &result))
-	bestPaths2, _ := result["best-path"].([]any)
-	assert.Empty(t, bestPaths2, "non-matching regexp should return empty best-path list")
-}
-
-// TestInboundShowInvalidRegexp verifies invalid regexp propagates as error through inboundShowJSON.
-//
-// VALIDATES: AC-5 — invalid regexp returns error from inboundShowJSON, not just parseShowFilters.
-// PREVENTS: Error being swallowed or panicking in the full pipeline.
-func TestInboundShowInvalidRegexp(t *testing.T) {
-	r := newTestRIBManager(t)
-
-	_, err := r.inboundShowJSON("*", []string{"regexp", "[invalid"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid regexp")
 }
 
 // TestOutboundShowMinimalAttributes verifies outbound show omits missing attributes.

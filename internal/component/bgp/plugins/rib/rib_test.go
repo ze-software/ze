@@ -598,11 +598,11 @@ func TestHandleCommand_RIBAdjacentStatus(t *testing.T) {
 	assert.Contains(t, data, `"routes-out":2`)
 }
 
-// TestHandleCommand_RIBAdjacentInboundShow verifies inbound show with selector.
+// TestHandleCommand_RIBShowReceived verifies received show with selector.
 //
-// VALIDATES: "rib adjacent inbound show" filters by peer selector.
+// VALIDATES: "rib show" with received scope filters by peer selector.
 // PREVENTS: Wrong routes returned for filtered queries.
-func TestHandleCommand_RIBAdjacentInboundShow(t *testing.T) {
+func TestHandleCommand_RIBShowReceived(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Add routes via pool storage for peer 10.0.0.1
@@ -665,7 +665,7 @@ func TestHandleCommand_RIBAdjacentInboundShow(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status, data, err := r.handleCommand("rib adjacent inbound show", tt.selector, nil)
+			status, data, err := r.handleCommand("rib show", tt.selector, []string{"received"})
 			require.NoError(t, err)
 			assert.Equal(t, "done", status)
 			if tt.wantPeer1 {
@@ -727,11 +727,11 @@ func TestHandleCommand_RIBAdjacentInboundEmpty(t *testing.T) {
 	assert.Equal(t, 1, r.ribInPool["10.0.0.2"].Len())
 }
 
-// TestHandleCommand_RIBAdjacentOutboundShow verifies outbound show with selector.
+// TestHandleCommand_RIBShowSent verifies sent show with selector.
 //
-// VALIDATES: "rib adjacent outbound show" filters by peer selector.
+// VALIDATES: "rib show" with sent scope filters by peer selector.
 // PREVENTS: Wrong routes returned for outbound queries.
-func TestHandleCommand_RIBAdjacentOutboundShow(t *testing.T) {
+func TestHandleCommand_RIBShowSent(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	r.ribOut["10.0.0.1"] = map[string]*Route{
@@ -741,7 +741,7 @@ func TestHandleCommand_RIBAdjacentOutboundShow(t *testing.T) {
 		"ipv4/unicast:10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
 	}
 
-	status, data, err := r.handleCommand("rib adjacent outbound show", "10.0.0.1", nil)
+	status, data, err := r.handleCommand("rib show", "10.0.0.1", []string{"sent"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, data, "10.0.0.1")
@@ -833,19 +833,20 @@ func TestRIBPluginHandleCommandShortNames(t *testing.T) {
 	tests := []struct {
 		name    string
 		command string
+		args    []string
 		wantOK  bool
 		wantIn  string // substring expected in data
 	}{
-		{"rib status", "rib status", true, `"running":true`},
-		{"rib show in", "rib show in", true, "10.0.0.1"},
-		{"rib clear in", "rib clear in", true, `"cleared"`},
-		{"rib show out", "rib show out", true, "adj-rib-out"},
-		{"rib clear out", "rib clear out", true, `"resent"`},
+		{"rib status", "rib status", nil, true, `"running":true`},
+		{"rib show received", "rib show", []string{"received"}, true, "10.0.0.1"},
+		{"rib clear in", "rib clear in", nil, true, `"cleared"`},
+		{"rib show sent", "rib show", []string{"sent"}, true, "adj-rib-out"},
+		{"rib clear out", "rib clear out", nil, true, `"resent"`},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status, data, err := r.handleCommand(tt.command, "*", nil)
+			status, data, err := r.handleCommand(tt.command, "*", tt.args)
 			if tt.wantOK {
 				require.NoError(t, err, "command %q should succeed", tt.command)
 				assert.Equal(t, "done", status)
@@ -878,16 +879,15 @@ func TestRIBPluginHandleCommandLegacyNames(t *testing.T) {
 	r.handleReceived(announce)
 	r.peerUp["10.0.0.1"] = true
 
-	// Legacy names must still work
+	// Legacy names that still work (status, empty, resend have aliases;
+	// show commands now use unified "rib show" with scope args).
 	tests := []struct {
 		name    string
 		command string
 		wantIn  string
 	}{
 		{"adjacent status", "rib adjacent status", `"running":true`},
-		{"adjacent inbound show", "rib adjacent inbound show", "10.0.0.1"},
 		{"adjacent inbound empty", "rib adjacent inbound empty", `"cleared"`},
-		{"adjacent outbound show", "rib adjacent outbound show", "adj-rib-out"},
 		{"adjacent outbound resend", "rib adjacent outbound resend", `"resent"`},
 	}
 
@@ -1223,8 +1223,8 @@ func TestHandleCommand_InboundShow_PoolStorage(t *testing.T) {
 	// Verify route is in pool
 	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
 
-	// Call show command via handleCommand
-	status, data, err := r.handleCommand("rib adjacent inbound show", "*", nil)
+	// Call show command via handleCommand (unified pipeline, received scope)
+	status, data, err := r.handleCommand("rib show", "*", []string{"received"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, data, "10.0.0.1", "should contain peer address")

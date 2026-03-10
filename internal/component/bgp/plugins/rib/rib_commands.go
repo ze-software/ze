@@ -1,9 +1,9 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — RIB command handlers
 // Overview: rib.go — RIB plugin core types and event handlers
-// Related: rib_show_filter.go — show command filter parsing and matching
 // Related: rib_nlri.go — NLRI wire format helpers
 // Related: rib_attr_format.go — attribute formatting for show enrichment
 // Related: bestpath.go — best-path selection (extractCandidate, gatherCandidates, SelectBest)
+// Related: rib_pipeline.go — iterator pipeline for show commands (scope, filters, terminals)
 package rib
 
 import (
@@ -50,21 +50,18 @@ func (r *RIBManager) autoExpireStale(peerAddr string, owner *peerGRState) {
 
 // handleCommand processes command requests via SDK execute-command callback.
 // Returns (status, data, error) for the SDK to send back to the engine.
-// Supports both short names (rib show in) and legacy names (rib adjacent inbound show).
 func (r *RIBManager) handleCommand(command, selector string, args []string) (string, string, error) {
 	switch command {
 	case "rib status", "rib adjacent status":
 		return statusDone, r.statusJSON(), nil
-	case "rib show in", "rib adjacent inbound show":
-		data, err := r.inboundShowJSON(selector, args)
+	case "rib show":
+		data, err := r.showPipeline(selector, args)
 		if err != nil {
 			return statusError, "", err
 		}
 		return statusDone, data, nil
 	case "rib clear in", "rib adjacent inbound empty":
 		return statusDone, r.inboundEmptyJSON(selector), nil
-	case "rib show out", "rib adjacent outbound show":
-		return statusDone, r.outboundShowJSON(selector), nil
 	case "rib clear out", "rib adjacent outbound resend":
 		return statusDone, r.outboundResendJSON(selector), nil
 	case "rib retain-routes":
@@ -75,12 +72,8 @@ func (r *RIBManager) handleCommand(command, selector string, args []string) (str
 		return r.markStaleCommand(args)
 	case "rib purge-stale":
 		return r.purgeStaleCommand(args)
-	case "rib show best":
-		data, err := r.bestPathShowJSON(selector, args)
-		if err != nil {
-			return statusError, "", err
-		}
-		return statusDone, data, nil
+	case "rib best":
+		return statusDone, r.bestPathShowJSON(selector, args), nil
 	case "rib best status":
 		return statusDone, r.bestPathStatusJSON(), nil
 	case "rib help":
@@ -100,11 +93,10 @@ var ribCommands = []struct {
 	Help string
 }{
 	{"rib status", "Show RIB status (peer count, route counts)"},
-	{"rib show in", "Show Adj-RIB-In routes"},
+	{"rib show", "Show routes (scope: sent|received|sent-received, filters: path|cidr|community|family|match, terminals: count|json)"},
 	{"rib clear in", "Clear Adj-RIB-In routes"},
-	{"rib show out", "Show Adj-RIB-Out routes"},
 	{"rib clear out", "Resend Adj-RIB-Out routes"},
-	{"rib show best", "Show best-path per prefix (RFC 4271 §9.1.2)"},
+	{"rib best", "Show best-path per prefix (RFC 4271 §9.1.2)"},
 	{"rib best status", "Show best-path computation status"},
 	{"rib retain-routes", "Mark peer RIB for retention (GR)"},
 	{"rib release-routes", "Release retained peer RIB (GR)"},
@@ -185,12 +177,9 @@ func matchesPeer(peerAddr, selector string) bool {
 }
 
 // inboundShowJSON returns Adj-RIB-In routes filtered by selector as JSON.
-// Optional args filter by family, prefix, community, or AS-path regexp.
-func (r *RIBManager) inboundShowJSON(selector string, args []string) (string, error) {
-	filters, err := parseShowFilters(args)
-	if err != nil {
-		return "", err
-	}
+// Optional args filter by family (e.g., "ipv4/unicast") or prefix (e.g., "10.0.0.0/24").
+func (r *RIBManager) inboundShowJSON(selector string, args []string) string {
+	familyFilter, prefixFilter := parseShowFilters(args)
 
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -206,21 +195,11 @@ func (r *RIBManager) inboundShowJSON(selector string, args []string) (string, er
 			familyStr := formatFamily(family)
 			prefixStr := formatNLRIAsPrefix(family, nlriBytes)
 
-			if filters.family != "" && familyStr != filters.family {
+			if familyFilter != "" && familyStr != familyFilter {
 				return true
 			}
-			if filters.prefix != "" && prefixStr != filters.prefix {
+			if prefixFilter != "" && prefixStr != prefixFilter {
 				return true
-			}
-			if filters.community != "" {
-				if entry == nil || !entryMatchesCommunity(entry, filters.community) {
-					return true
-				}
-			}
-			if filters.asPathRe != nil {
-				if entry == nil || !entryMatchesASPathRegexp(entry, filters.asPathRe) {
-					return true
-				}
 			}
 
 			routeMap := map[string]any{
@@ -239,7 +218,25 @@ func (r *RIBManager) inboundShowJSON(selector string, args []string) (string, er
 	}
 
 	data, _ := json.Marshal(map[string]any{"adj-rib-in": result})
-	return string(data), nil
+	return string(data)
+}
+
+// parseShowFilters extracts family and prefix filters from command args.
+// Family: "afi/safi" (e.g., "ipv4/unicast") — starts with letter, no colons.
+// Prefix: IP/len (e.g., "10.0.0.0/24", "fc00::/7") — has digits or colons.
+func parseShowFilters(args []string) (familyFilter, prefixFilter string) {
+	for _, arg := range args {
+		if !strings.Contains(arg, "/") {
+			continue
+		}
+		// Family names never contain colons; IPv6 prefixes always do.
+		if arg[0] >= 'a' && arg[0] <= 'z' && !strings.Contains(arg, ":") {
+			familyFilter = arg
+		} else {
+			prefixFilter = arg
+		}
+	}
+	return
 }
 
 // inboundEmptyJSON clears Adj-RIB-In routes for matching peers, returns JSON result.
@@ -530,12 +527,9 @@ func (r *RIBManager) purgeStaleCommand(args []string) (string, string, error) {
 
 // bestPathShowJSON computes and returns the best route per prefix across all peers.
 // RFC 4271 §9.1.2: Decision Process Phase 2 — on-demand computation.
-// Optional args filter by family, prefix, community, or AS-path regexp.
-func (r *RIBManager) bestPathShowJSON(selector string, args []string) (string, error) {
-	filters, err := parseShowFilters(args)
-	if err != nil {
-		return "", err
-	}
+// Optional args filter by family or prefix (same as inboundShowJSON).
+func (r *RIBManager) bestPathShowJSON(selector string, args []string) string {
+	familyFilter, prefixFilter := parseShowFilters(args)
 
 	r.mu.RLock()
 	defer r.mu.RUnlock()
@@ -557,10 +551,10 @@ func (r *RIBManager) bestPathShowJSON(selector string, args []string) (string, e
 			fStr := formatFamily(family)
 			pStr := formatNLRIAsPrefix(family, nlriBytes)
 
-			if filters.family != "" && fStr != filters.family {
+			if familyFilter != "" && fStr != familyFilter {
 				return true
 			}
-			if filters.prefix != "" && pStr != filters.prefix {
+			if prefixFilter != "" && pStr != prefixFilter {
 				return true
 			}
 
@@ -594,31 +588,17 @@ func (r *RIBManager) bestPathShowJSON(selector string, args []string) (string, e
 			BestPeer: best.PeerAddr,
 		}
 
-		// Lookup entry for filter checking and attribute enrichment.
-		peerRIB := r.ribInPool[best.PeerAddr]
-		if peerRIB == nil {
-			// No RIB for best peer — skip if filters are active (can't verify match).
-			if filters.community != "" || filters.asPathRe != nil {
-				continue
+		// Enrich with attributes from the best route's pool entry.
+		if peerRIB := r.ribInPool[best.PeerAddr]; peerRIB != nil {
+			if entry, ok := peerRIB.Lookup(rk.family, []byte(rk.nlriKey)); ok && entry != nil {
+				attrs := make(map[string]any)
+				enrichRouteMapFromEntry(attrs, entry)
+				if len(attrs) > 0 {
+					br.Attrs = attrs
+				}
 			}
-			results = append(results, br)
-			continue
 		}
-		entry, ok := peerRIB.Lookup(rk.family, []byte(rk.nlriKey))
-		if !ok || entry == nil {
-			continue
-		}
-		if filters.community != "" && !entryMatchesCommunity(entry, filters.community) {
-			continue
-		}
-		if filters.asPathRe != nil && !entryMatchesASPathRegexp(entry, filters.asPathRe) {
-			continue
-		}
-		attrs := make(map[string]any)
-		enrichRouteMapFromEntry(attrs, entry)
-		if len(attrs) > 0 {
-			br.Attrs = attrs
-		}
+
 		results = append(results, br)
 	}
 
@@ -631,7 +611,7 @@ func (r *RIBManager) bestPathShowJSON(selector string, args []string) (string, e
 	})
 
 	data, _ := json.Marshal(map[string]any{"best-path": results})
-	return string(data), nil
+	return string(data)
 }
 
 // bestPathStatusJSON returns summary statistics about the best-path computation.

@@ -66,10 +66,9 @@ EOF_CONF2
 # Runs as background process since there's no initial peer to trigger actions from
 tmpfs=trigger.sh:mode=755:terminator=EOF_TRIGGER
 #!/bin/sh
-# Wait for daemon to be ready (daemon.pid written by test runner)
-while [ ! -f daemon.pid ]; do sleep 1; done
-# Give daemon time to fully initialize
-sleep 1
+# Wait for daemon PID and readiness file (signal handlers registered)
+while [ ! -f daemon.pid ]; do sleep 0.1; done
+while [ ! -f daemon.ready ]; do sleep 0.1; done
 cp config2.conf ze-bgp.conf
 kill -HUP $(cat daemon.pid)
 EOF_TRIGGER

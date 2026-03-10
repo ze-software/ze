@@ -47,31 +47,30 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	var regInput rpc.DeclareRegistrationInput
 	require.NoError(t, json.Unmarshal(stage1.Params, &regInput))
 
-	// Verify command registration — short names (primary).
+	// Verify command registration — unified pipeline commands.
 	commandNames := make([]string, len(regInput.Commands))
 	for i, cmd := range regInput.Commands {
 		commandNames[i] = cmd.Name
 	}
 	assert.Contains(t, commandNames, "rib status")
-	assert.Contains(t, commandNames, "rib show in")
+	assert.Contains(t, commandNames, "rib show")
 	assert.Contains(t, commandNames, "rib clear in")
-	assert.Contains(t, commandNames, "rib show out")
 	assert.Contains(t, commandNames, "rib clear out")
-	// Long names (RFC 4271 Adj-RIB terminology).
+	// Legacy status alias
 	assert.Contains(t, commandNames, "rib adjacent status")
-	assert.Contains(t, commandNames, "rib adjacent inbound show")
-	assert.Contains(t, commandNames, "rib adjacent inbound empty")
-	assert.Contains(t, commandNames, "rib adjacent outbound show")
-	assert.Contains(t, commandNames, "rib adjacent outbound resend")
 	// GR support commands (RFC 4724)
 	assert.Contains(t, commandNames, "rib retain-routes")
 	assert.Contains(t, commandNames, "rib release-routes")
 	assert.Contains(t, commandNames, "rib mark-stale")
 	assert.Contains(t, commandNames, "rib purge-stale")
 	// Best-path commands (RFC 4271 §9.1.2)
-	assert.Contains(t, commandNames, "rib show best")
+	assert.Contains(t, commandNames, "rib best")
 	assert.Contains(t, commandNames, "rib best status")
-	assert.Len(t, regInput.Commands, 19, "rib registers exactly 19 commands")
+	// Meta-commands (introspection)
+	assert.Contains(t, commandNames, "rib help")
+	assert.Contains(t, commandNames, "rib command list")
+	assert.Contains(t, commandNames, "rib event list")
+	assert.Len(t, regInput.Commands, 14, "rib registers exactly 14 commands")
 
 	require.NoError(t, connA.SendOK(ctx, stage1.ID))
 

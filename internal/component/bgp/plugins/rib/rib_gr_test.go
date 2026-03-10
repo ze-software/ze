@@ -329,8 +329,8 @@ func TestRIBShowInStaleFlag(t *testing.T) {
 
 	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
 
-	// Before marking stale, show in should not have "stale" field.
-	_, data, err := r.handleCommand("rib show in", "192.0.2.1", nil)
+	// Before marking stale, show received should not have "stale" field.
+	_, data, err := r.handleCommand("rib show", "192.0.2.1", []string{"received"})
 	require.NoError(t, err)
 	var before map[string]any
 	require.NoError(t, json.Unmarshal([]byte(data), &before))
@@ -357,8 +357,8 @@ func TestRIBShowInStaleFlag(t *testing.T) {
 	attrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop)
 	r.ribInPool["192.0.2.1"].Insert(ipv4Family, attrBytes, []byte{24, 192, 168, 0}) // fresh 192.168.0.0/24
 
-	// Show in should have "stale": true on stale routes, no "stale" on fresh.
-	_, data, err = r.handleCommand("rib show in", "192.0.2.1", nil)
+	// Show received should have "stale": true on stale routes, no "stale" on fresh.
+	_, data, err = r.handleCommand("rib show", "192.0.2.1", []string{"received"})
 	require.NoError(t, err)
 	var after map[string]any
 	require.NoError(t, json.Unmarshal([]byte(data), &after))

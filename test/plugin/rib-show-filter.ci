@@ -1,15 +1,15 @@
-# Test: RIB show filter dispatch wiring
+# Test: RIB show pipeline dispatch wiring
 #
 # Flow:
 # 1. BGP session establishes, rib plugin sends EOR
-# 2. Python test plugin dispatches rib show commands with filter args
-# 3. Verifies community, regexp, combined filters reach rib plugin correctly
-# 4. Verifies invalid regexp returns error status
+# 2. Python test plugin dispatches rib show commands with pipeline args
+# 3. Verifies community, path, family filters reach rib pipeline correctly
+# 4. Verifies unknown pipeline keyword returns error status
 # 5. Shuts down daemon via dispatch-command
 #
-# VALIDATES: Filter parameters are dispatched through the full command chain
-#   (dispatch-command → tokenizer → longest-match → execute-command → parseShowFilters).
-# PREVENTS: Filter args silently dropped or command routing broken.
+# VALIDATES: Pipeline parameters are dispatched through the full command chain
+#   (dispatch-command → tokenizer → longest-match → execute-command → parsePipelineArgs).
+# PREVENTS: Pipeline args silently dropped or command routing broken.
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -24,10 +24,10 @@ EOF_PEER
 tmpfs=rib-filter-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 """
-Test: RIB show filter dispatch wiring
+Test: RIB show pipeline dispatch wiring
 
-Verifies dispatch-command with community and regexp filter args
-reaches the rib plugin handler and returns valid responses.
+Verifies dispatch-command with pipeline filter args (community, path, family)
+reaches the rib plugin pipeline handler and returns valid responses.
 Empty RIB is expected — the test proves wiring, not filtering logic
 (unit tests cover filtering).
 """
@@ -63,20 +63,20 @@ def main():
     # Wait for BGP session to establish and rib plugin to be ready
     time.sleep(2.0)
 
-    # Community filter on empty RIB — done (not error)
-    check('community', dispatch(api, 'rib show in community 65000:100'), 'done')
+    # Community filter on empty RIB via pipeline — done (not error)
+    check('community', dispatch(api, 'rib show received community 65000:100'), 'done')
 
-    # Regexp filter on empty RIB — done (not error)
-    check('regexp', dispatch(api, 'rib show in regexp "64501"'), 'done')
+    # Path filter on empty RIB — done (not error)
+    check('path', dispatch(api, 'rib show received path 64501'), 'done')
 
-    # Best path with community filter — done
-    check('best+community', dispatch(api, 'rib show best community 65000:100'), 'done')
+    # Count terminal on empty RIB — done
+    check('count', dispatch(api, 'rib show count'), 'done')
 
     # Combined family + community filter — done
-    check('family+community', dispatch(api, 'rib show in ipv4/unicast community 65000:100'), 'done')
+    check('family+community', dispatch(api, 'rib show received family ipv4/unicast community 65000:100'), 'done')
 
-    # Invalid regexp — error
-    check('invalid-regexp', dispatch(api, 'rib show in regexp "[invalid"'), 'error')
+    # Unknown pipeline keyword — error
+    check('unknown-keyword', dispatch(api, 'rib show bogus'), 'error')
 
     # All passed — shutdown daemon
     dispatch(api, 'daemon shutdown')

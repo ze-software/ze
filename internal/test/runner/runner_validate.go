@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os/exec"
 	"regexp"
@@ -299,8 +298,9 @@ func (r *Runner) executeOneHTTPCheck(ctx context.Context, client *http.Client, c
 		resp, err := client.Do(req)
 		if err != nil {
 			lastErr = err
-			// Retry on connection refused (server not ready yet).
-			if isConnectionRefused(err) && attempt < maxRetries-1 {
+			// Retry on transient connection errors (server starting up).
+			// Covers ECONNREFUSED, ECONNRESET, EOF, and similar.
+			if isTransientConnError(err) && attempt < maxRetries-1 {
 				select {
 				case <-time.After(retryInterval):
 					continue
@@ -334,13 +334,14 @@ func (r *Runner) executeOneHTTPCheck(ctx context.Context, client *http.Client, c
 	return fmt.Errorf("http %s %s: %w (after %d retries)", chk.Method, url, lastErr, maxRetries)
 }
 
-// isConnectionRefused checks if an error is due to connection refused.
-func isConnectionRefused(err error) bool {
-	var opErr *net.OpError
-	if errors.As(err, &opErr) {
-		return errors.Is(opErr.Err, syscall.ECONNREFUSED)
-	}
-	return false
+// isTransientConnError checks if an error is a transient connection error
+// that should be retried during server startup. Covers ECONNREFUSED (not
+// listening yet), ECONNRESET (listener restarting), and EOF (accepted but
+// handler not ready). errors.Is unwraps through url.Error/net.OpError chains.
+func isTransientConnError(err error) bool {
+	return errors.Is(err, syscall.ECONNREFUSED) ||
+		errors.Is(err, syscall.ECONNRESET) ||
+		errors.Is(err, io.EOF)
 }
 
 // truncate shortens a string to maxLen, adding "..." if truncated.
