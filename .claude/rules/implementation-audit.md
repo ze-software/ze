@@ -41,6 +41,16 @@ Before: writing summary to `docs/learned/`, claiming "done", asking to commit.
 | AC-N done (wiring) | Functional test name exercising full path | Unit test in isolation |
 | AC-N done (logic) | Unit test name + file:line | "should work" |
 
+## Mechanically Enforced
+
+Hook `pre-commit-spec-audit.sh` (exit 2) blocks `git commit` when:
+- Any `.ci` file in Wiring Test or Functional Tests tables does not exist on disk
+- Any Implementation Audit table has zero data rows
+- Audit Summary has no totals
+- Learned summary contains "not yet implemented", "not wired", "library only"
+
+Bypass: clear `.claude/selected-spec` for unrelated commits.
+
 ## Red Flags
 
 - AC-N with no test or evidence
@@ -49,3 +59,5 @@ Before: writing summary to `docs/learned/`, claiming "done", asking to commit.
 - File from "Files to Create" wasn't created
 - New RPCs without functional tests
 - New CLI commands without usage text
+- Learned summary admits incompleteness ("not wired", "infrastructure only")
+- Commit message says "library and interface only"

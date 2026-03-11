@@ -17,9 +17,13 @@ Rationale: `.claude/rationale/anti-rationalization.md`
 | Excuse | Answer |
 |--------|--------|
 | "Transient" / "resource contention" | Investigate. A failure happened |
-| "Not related to our changes" | Prove it with evidence |
+| "Not related to our changes" | **ASK the user.** You do not get to decide this. Show the failure, explain your analysis, and ask "Is this from my changes or pre-existing?" |
 | "Passed on retry" | Retry is not evidence |
 | "Timing-dependent" | Race condition. Fix it |
+| "Pre-existing issue" | Prove it: `git stash && make ze-verify` — if it fails without your changes, it's pre-existing. Otherwise it's yours |
+| "The test was already broken" | Show the test passing on the parent commit. No proof = assume your fault |
+
+**Default assumption:** test failures after your changes are caused by your changes. You must PROVE otherwise before dismissing. Never self-diagnose "not my fault" — present evidence and let the user decide.
 
 ## Completion
 
@@ -28,6 +32,11 @@ Rationale: `.claude/rationale/anti-rationalization.md`
 | "Should work" / "Probably fine" | Run it, paste output |
 | "Tests passed earlier" | Run again now |
 | "Only cosmetic differences" | Show diff, let user decide |
+| "Library and interface only" | Feature is not done — library without wiring is dead code |
+| "Wiring will be done in next commit" | One commit = code + tests + wiring + summary. No partial deliveries |
+| "The .ci test requires infrastructure" | Then the feature is blocked, not done |
+| "Unit tests prove it works" | Unit tests prove the algorithm. .ci tests prove the user can reach it |
+| "SetAuthorizer is called somewhere" | Show the .ci test where a user command is denied. No test = no proof |
 
 ## 3-Fix Rule
 
