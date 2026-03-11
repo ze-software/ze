@@ -87,16 +87,30 @@ func (hm *HeadlessModel) processCmdWithDepth(cmd tea.Cmd, depth int) {
 		done <- cmd()
 	}()
 
-	// Yield to let the command goroutine run. Real commands (file I/O
-	// for commit/load, in-memory tree ops) complete in microseconds.
-	// Blocking commands (cursor blink ~530ms, validation tick ~100ms,
-	// confirm countdown ~1s) never complete quickly. Gosched lets fast
-	// commands finish and write to the buffered channel before we
-	// reach the select — the result is picked up instantly without
-	// waiting for the timer. Previously a flat 50ms timeout here
-	// accumulated to ~5 minutes across all ET tests.
-	runtime.Gosched()
+	// Fast path: yield multiple times for microsecond-level commands
+	// (tree ops, config lookups, batch wrappers). Most commands complete
+	// during these yields and we pick up the result without hitting the
+	// timer. A single Gosched is insufficient under heavy CPU load or
+	// GC pressure — the scheduler may not pick the command goroutine
+	// on the first yield when many timer goroutines (from per-keystroke
+	// cursor blink and validation debounce) are competing.
+	for range 10 {
+		runtime.Gosched()
+		select {
+		case msg := <-done:
+			if msg != nil {
+				hm.processMsg(msg, depth)
+			}
+			return
+		default: // non-blocking check: continue yielding if not ready yet
+		}
+	}
 
+	// Slow path: command didn't complete during yields — likely a blocking
+	// timer (cursor blink ~530ms, validation tick ~100ms, confirm
+	// countdown ~1s). Previously a flat 50ms timeout here accumulated to
+	// ~5 minutes across all ET tests; 15ms is sufficient since blocking
+	// commands never complete within this window.
 	select {
 	case msg := <-done:
 		if msg != nil {
