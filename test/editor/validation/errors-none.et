@@ -7,6 +7,7 @@ bgp {
   local-as 65000;
   peer 1.1.1.1 {
     peer-as 65001;
+    local-address auto;
     hold-time 90;
   }
 }

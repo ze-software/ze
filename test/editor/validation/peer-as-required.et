@@ -15,5 +15,5 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Should have validation error for missing peer-as
-expect=errors:contains=peer-as
+# Missing peer-as is a warning (YANG mandatory-missing), not an error
+expect=warnings:contains=peer-as

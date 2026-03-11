@@ -18,7 +18,8 @@ option=timeout:value=10s
 # Config has validation error (hold-time 1 is invalid per RFC 4271)
 expect=errors:count=1
 
-# Try to commit
+# Try to commit — issues shown in viewport, not as error
 input=type:text=commit
 input=enter
-expect=error:contains=validation
+expect=viewport:contains=hold-time
+expect=status:contains=blocked

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -481,10 +482,18 @@ func TestValidateMissingPeerAS(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := v.Validate(tt.content)
 			if tt.wantErr {
-				require.NotEmpty(t, result.Errors, "expected error for missing peer-as")
-				assert.Contains(t, result.Errors[0].Message, "peer-as")
+				var found bool
+				for _, w := range result.Warnings {
+					if strings.Contains(w.Message, "peer-as") {
+						found = true
+						break
+					}
+				}
+				assert.True(t, found, "expected warning containing peer-as")
 			} else {
-				assert.Empty(t, result.Errors, "expected no errors")
+				for _, w := range result.Warnings {
+					assert.NotContains(t, w.Message, "peer-as", "unexpected peer-as warning")
+				}
 			}
 		})
 	}
@@ -501,8 +510,9 @@ func TestValidatePeerASInheritance(t *testing.T) {
 	tests := []struct {
 		name            string
 		content         string
-		wantErr         bool
-		wantMsgContains string // what error message should contain
+		wantErr         bool   // expect an error
+		wantWarn        bool   // expect a warning (mandatory-missing)
+		wantMsgContains string // what error/warning message should contain
 	}{
 		{
 			name: "peer-as_inherited_from_group",
@@ -519,7 +529,6 @@ bgp {
     inherit ibgp
   }
 }`,
-			wantErr: false,
 		},
 		{
 			name: "peer-as_override_inherited",
@@ -536,7 +545,6 @@ bgp {
     peer-as 65001
   }
 }`,
-			wantErr: false,
 		},
 		{
 			name: "inherit_without_peer-as_in_template",
@@ -552,7 +560,7 @@ bgp {
     inherit base
   }
 }`,
-			wantErr:         true,
+			wantWarn:        true,
 			wantMsgContains: "peer-as",
 		},
 		{
@@ -584,7 +592,6 @@ bgp {
     inherit ibgp
   }
 }`,
-			wantErr: false,
 		},
 		{
 			name: "invalid_hold-time_inherited",
@@ -609,10 +616,28 @@ bgp {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := v.Validate(tt.content)
-			if tt.wantErr {
+			switch {
+			case tt.wantErr:
 				require.NotEmpty(t, result.Errors, "expected error")
-				assert.Contains(t, result.Errors[0].Message, tt.wantMsgContains)
-			} else {
+				var found bool
+				for _, e := range result.Errors {
+					if strings.Contains(e.Message, tt.wantMsgContains) {
+						found = true
+						break
+					}
+				}
+				assert.True(t, found, "expected error containing %q", tt.wantMsgContains)
+			case tt.wantWarn:
+				require.NotEmpty(t, result.Warnings, "expected warning")
+				var found bool
+				for _, w := range result.Warnings {
+					if strings.Contains(w.Message, tt.wantMsgContains) {
+						found = true
+						break
+					}
+				}
+				assert.True(t, found, "expected warning containing %q", tt.wantMsgContains)
+			default:
 				assert.Empty(t, result.Errors, "expected no errors when peer-as is inherited")
 			}
 		})

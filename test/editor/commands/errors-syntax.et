@@ -16,5 +16,5 @@ input=type:text=errors
 input=enter
 
 # Should show errors
-expect=content:contains=Errors
+expect=content:contains=issue
 expect=error:none

@@ -57,7 +57,7 @@ func TestComputeAnnotatedDiffBothEmpty(t *testing.T) {
 	assert.Nil(t, result)
 }
 
-// TestComputeAnnotatedDiffModified verifies adjacent changed lines with same indent become '|'.
+// TestComputeAnnotatedDiffModified verifies adjacent changed lines with same indent become '*'.
 //
 // VALIDATES: Value change at same indent level produces modified marker.
 // PREVENTS: Showing separate -/+ for simple value edits.
@@ -129,7 +129,7 @@ func TestDetectModificationsDifferentIndent(t *testing.T) {
 
 // TestDetectModificationsSameIndent verifies same indent collapses to modified.
 //
-// VALIDATES: Adjacent -/+ with matching indent become '|'.
+// VALIDATES: Adjacent -/+ with matching indent become '*'.
 // PREVENTS: Noisy -/+ pairs for simple value changes.
 func TestDetectModificationsSameIndent(t *testing.T) {
 	lines := []diffLine{
@@ -158,7 +158,7 @@ func TestAnnotateContentWithGutterNoChanges(t *testing.T) {
 
 // TestAnnotateContentWithGutterMarkers verifies gutter markers appear in output.
 //
-// VALIDATES: Modified lines get '|' prefix, unchanged get ' ' prefix.
+// VALIDATES: Modified lines get '*' prefix, unchanged get ' ' prefix.
 // PREVENTS: Missing or incorrect gutter characters.
 func TestAnnotateContentWithGutterMarkers(t *testing.T) {
 	original := "line 1\nline 2"
@@ -167,7 +167,7 @@ func TestAnnotateContentWithGutterMarkers(t *testing.T) {
 	result, mapping := annotateContentWithGutter(original, modified)
 
 	assert.Contains(t, result, "  line 1", "unchanged line should have space prefix")
-	assert.Contains(t, result, "| line 3", "modified line should have | prefix")
+	assert.Contains(t, result, "* line 3", "modified line should have * prefix")
 	assert.NotNil(t, mapping)
 }
 
@@ -222,7 +222,7 @@ func TestAnnotateContentWithGutterTrailingNewline(t *testing.T) {
 	result, mapping := annotateContentWithGutter(original, modified)
 
 	assert.Contains(t, result, "  a", "unchanged line")
-	assert.Contains(t, result, "| c", "modified line")
+	assert.Contains(t, result, "* c", "modified line")
 	assert.NotNil(t, mapping)
 }
 
@@ -303,7 +303,7 @@ func TestSetViewportDataAppliesGutter(t *testing.T) {
 
 	assert.True(t, m.showViewport)
 	assert.Contains(t, m.viewportContent, "  line 1", "unchanged line gets space prefix")
-	assert.Contains(t, m.viewportContent, "| line 3", "modified line gets | prefix")
+	assert.Contains(t, m.viewportContent, "* line 3", "modified line gets * prefix")
 }
 
 // TestSetViewportDataNewBlockGutter verifies new blocks get '+' through the pipeline.

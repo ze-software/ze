@@ -37,10 +37,13 @@ func (m *Model) cmdCommitConfirmed(seconds int) (commandResult, error) {
 		return commandResult{}, fmt.Errorf("timeout must be at most 3600 seconds (1 hour)")
 	}
 
-	// Validate before commit
+	// Validate before commit — both errors and warnings block
 	result := m.validator.Validate(m.editor.WorkingContent())
-	if len(result.Errors) > 0 {
-		return commandResult{}, fmt.Errorf("cannot commit: %d validation error(s). Use 'errors' to see details", len(result.Errors))
+	issues := make([]ConfigValidationError, 0, len(result.Errors)+len(result.Warnings))
+	issues = append(issues, result.Errors...)
+	issues = append(issues, result.Warnings...)
+	if len(issues) > 0 {
+		return commandResult{}, fmt.Errorf("cannot commit: %s", formatValidationErrors(issues))
 	}
 
 	// Write trial config to .live.conf (audit trail + pending indicator)
@@ -70,6 +73,8 @@ func (m *Model) cmdCommitConfirmed(seconds int) (commandResult, error) {
 
 	return commandResult{
 		statusMessage:         fmt.Sprintf("Committed%s. Confirm within %ds or auto-revert. Use 'confirm' or 'abort'.", reloadWarning, seconds),
+		refreshConfig:         true,
+		revalidate:            true,
 		setConfirmTimer:       true,
 		confirmTimerValue:     true,
 		confirmBackupPath:     backups[0].Path,
@@ -96,6 +101,7 @@ func (m *Model) cmdConfirm() (commandResult, error) {
 
 	return commandResult{
 		statusMessage:     msg,
+		refreshConfig:     true,
 		setConfirmTimer:   true,
 		confirmTimerValue: false,
 		confirmBackupPath: "",
@@ -724,7 +730,7 @@ func (m *Model) dispatchWithPipe(cmdTokens, pipeTokens []string) (commandResult,
 	case cmdShow:
 		return m.cmdShowPipe(cmdTokens[1:], filters)
 	case cmdErrors:
-		result, err := m.cmdErrors()
+		result, err := m.cmdErrors(nil)
 		if err != nil {
 			return result, err
 		}

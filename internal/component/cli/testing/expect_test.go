@@ -340,6 +340,7 @@ type MockState struct {
 	completions        []cli.Completion
 	ghostText          string
 	validationErrors   []cli.ConfigValidationError
+	validationWarnings []cli.ConfigValidationError
 	dirty              bool
 	statusMessage      string
 	err                error
@@ -351,20 +352,21 @@ type MockState struct {
 	mode               cli.EditorMode
 }
 
-func (m *MockState) ContextPath() []string                         { return m.contextPath }
-func (m *MockState) Completions() []cli.Completion                 { return m.completions }
-func (m *MockState) GhostText() string                             { return m.ghostText }
-func (m *MockState) ValidationErrors() []cli.ConfigValidationError { return m.validationErrors }
-func (m *MockState) Dirty() bool                                   { return m.dirty }
-func (m *MockState) StatusMessage() string                         { return m.statusMessage }
-func (m *MockState) Error() error                                  { return m.err }
-func (m *MockState) IsTemplate() bool                              { return m.isTemplate }
-func (m *MockState) ShowDropdown() bool                            { return m.showDropdown }
-func (m *MockState) WorkingContent() string                        { return m.workingContent }
-func (m *MockState) ViewportContent() string                       { return m.viewportContent }
-func (m *MockState) ConfirmTimerActive() bool                      { return m.confirmTimerActive }
-func (m *MockState) TriggerCompletions()                           {}
-func (m *MockState) Mode() cli.EditorMode                          { return m.mode }
+func (m *MockState) ContextPath() []string                           { return m.contextPath }
+func (m *MockState) Completions() []cli.Completion                   { return m.completions }
+func (m *MockState) GhostText() string                               { return m.ghostText }
+func (m *MockState) ValidationErrors() []cli.ConfigValidationError   { return m.validationErrors }
+func (m *MockState) ValidationWarnings() []cli.ConfigValidationError { return m.validationWarnings }
+func (m *MockState) Dirty() bool                                     { return m.dirty }
+func (m *MockState) StatusMessage() string                           { return m.statusMessage }
+func (m *MockState) Error() error                                    { return m.err }
+func (m *MockState) IsTemplate() bool                                { return m.isTemplate }
+func (m *MockState) ShowDropdown() bool                              { return m.showDropdown }
+func (m *MockState) WorkingContent() string                          { return m.workingContent }
+func (m *MockState) ViewportContent() string                         { return m.viewportContent }
+func (m *MockState) ConfirmTimerActive() bool                        { return m.confirmTimerActive }
+func (m *MockState) TriggerCompletions()                             {}
+func (m *MockState) Mode() cli.EditorMode                            { return m.mode }
 
 // mockError is a simple error type for testing.
 type mockError struct{ msg string }

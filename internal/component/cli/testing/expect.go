@@ -16,6 +16,7 @@ type State interface {
 	Completions() []cli.Completion
 	GhostText() string
 	ValidationErrors() []cli.ConfigValidationError
+	ValidationWarnings() []cli.ConfigValidationError
 	Dirty() bool
 	StatusMessage() string
 	Error() error
@@ -238,10 +239,30 @@ func checkErrors(exp Expectation, state State) error {
 }
 
 // checkWarnings verifies validation warning expectations.
-func checkWarnings(_ Expectation, _ State) error {
-	// Note: State interface would need ValidationWarnings() method
-	// For now, this is a placeholder
-	return fmt.Errorf("warnings expectation not yet implemented")
+func checkWarnings(exp Expectation, state State) error {
+	warns := state.ValidationWarnings()
+
+	if expected, hasCount := exp.Values["count"]; hasCount {
+		expectedCount, err := strconv.Atoi(expected)
+		if err != nil {
+			return fmt.Errorf("invalid count value: %s", expected)
+		}
+		if len(warns) != expectedCount {
+			return fmt.Errorf("expected %d validation warnings, got %d", expectedCount, len(warns))
+		}
+		return nil
+	}
+
+	if expected, hasContains := exp.Values["contains"]; hasContains {
+		for _, w := range warns {
+			if strings.Contains(w.Message, expected) {
+				return nil
+			}
+		}
+		return fmt.Errorf("no validation warning contains %q", expected)
+	}
+
+	return fmt.Errorf("warnings expectation requires 'count' or 'contains' key")
 }
 
 // checkContent verifies content expectations.

@@ -12,12 +12,18 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 )
 
+// Severity constants for validation issues.
+const (
+	severityError   = "error"
+	severityWarning = "warning"
+)
+
 // ConfigValidationError represents a single validation error or warning.
 type ConfigValidationError struct {
 	Line     int    // 1-based line number (0 if unknown)
 	Column   int    // 1-based column (0 if unknown)
 	Message  string // Human-readable message
-	Severity string // "error" or "warning"
+	Severity string // severityError or severityWarning
 }
 
 // ConfigValidationResult contains all validation errors and warnings.
@@ -91,14 +97,15 @@ func (v *ConfigValidator) Validate(content string) ConfigValidationResult {
 	for _, warn := range parser.Warnings() {
 		result.Warnings = append(result.Warnings, ConfigValidationError{
 			Message:  warn,
-			Severity: "warning",
+			Severity: severityWarning,
 		})
 	}
 
 	// Run YANG validation on the parsed tree
 	// This catches RFC-specific constraints from YANG model
-	yangErrs := v.validateWithYANG(tree, content)
+	yangErrs, yangWarns := v.validateWithYANG(tree, content)
 	result.Errors = append(result.Errors, yangErrs...)
+	result.Warnings = append(result.Warnings, yangWarns...)
 
 	return result
 }
@@ -122,32 +129,33 @@ func (v *ConfigValidator) parseError(err error) ConfigValidationError {
 	return ConfigValidationError{
 		Line:     line,
 		Message:  msg,
-		Severity: "error",
+		Severity: severityError,
 	}
 }
 
 // ValidateWithYANG validates the parsed tree using YANG constraints.
 // Uses recursive ValidateTree for systematic validation of all leaves.
 // Template inheritance is resolved before validation - inherited values are merged with peer values.
-func (v *ConfigValidator) ValidateWithYANG(tree *config.Tree) []ConfigValidationError {
+// Returns (errors, warnings). Mandatory-missing fields are warnings, value errors are errors.
+func (v *ConfigValidator) ValidateWithYANG(tree *config.Tree) ([]ConfigValidationError, []ConfigValidationError) {
 	return v.validateWithYANG(tree, "")
 }
 
 // validateWithYANG validates the parsed tree using YANG constraints.
 // When content is provided, errors are mapped to source line numbers.
-func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) []ConfigValidationError {
+func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) ([]ConfigValidationError, []ConfigValidationError) {
 	if tree == nil || v.yangValidator == nil {
-		return nil
+		return nil, nil
 	}
 
 	// Get BGP container
 	bgp := tree.GetContainer("bgp")
 	if bgp == nil {
-		return nil // No BGP config
+		return nil, nil // No BGP config
 	}
 
 	lines := strings.Split(content, "\n")
-	var errs []ConfigValidationError
+	var errs, warns []ConfigValidationError
 
 	// Extract templates for inheritance resolution
 	templates := v.extractTemplates(tree)
@@ -160,48 +168,65 @@ func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) []
 			errs = append(errs, ConfigValidationError{
 				Line:     findPeerLine(lines, peerAddr),
 				Message:  fmt.Sprintf("peer %s: %s", peerAddr, inheritErr.Error()),
-				Severity: "error",
+				Severity: severityError,
 			})
 			continue
 		}
 
 		// Validate resolved peer data using recursive YANG tree walk.
 		// ToMap() produces string leaf values; ValidateTree converts them via YANG types.
-		// Skip most mandatory-missing errors during editing (config is incomplete).
-		// Keep peer-as mandatory check — a peer without AS is never valid.
+		// Mandatory-missing → warning (don't block editing). Value errors → error.
 		peerMap := resolved.ToMap()
 		yangErrs := v.yangValidator.ValidateTree("bgp.peer", peerMap)
 		for i := range yangErrs {
-			if yangErrs[i].Type == yang.ErrTypeMissing && !strings.HasSuffix(yangErrs[i].Path, ".peer-as") {
-				continue
-			}
 			field := yangLeafName(yangErrs[i].Path)
-			errs = append(errs, ConfigValidationError{
+			severity := severityError
+			if yangErrs[i].Type == yang.ErrTypeMissing {
+				severity = severityWarning
+			}
+			ve := ConfigValidationError{
 				Line:     findErrorLine(lines, peerAddr, field, yangErrs[i].Type),
 				Message:  formatPeerError(peerAddr, field, yangErrs[i]),
-				Severity: "error",
-			})
+				Severity: severity,
+			}
+			if severity == severityWarning {
+				warns = append(warns, ve)
+			} else {
+				errs = append(errs, ve)
+			}
 		}
 	}
 
-	// Validate BGP-level fields (value correctness only, not mandatory).
+	// Validate BGP-level fields — YANG schema defines which are mandatory.
 	bgpMap := bgp.ToMap()
 	// Remove peer sub-map to avoid re-validating (already done above with templates).
 	delete(bgpMap, "peer")
 	yangErrs := v.yangValidator.ValidateTree("bgp", bgpMap)
 	for i := range yangErrs {
-		if yangErrs[i].Type == yang.ErrTypeMissing {
-			continue
-		}
 		field := yangLeafName(yangErrs[i].Path)
-		errs = append(errs, ConfigValidationError{
+		var msg string
+		if yangErrs[i].Type == yang.ErrTypeMissing {
+			msg = fmt.Sprintf("missing required field %q", field)
+		} else {
+			msg = fmt.Sprintf("%s: %s", field, yangErrs[i].Message)
+		}
+		severity := severityError
+		if yangErrs[i].Type == yang.ErrTypeMissing {
+			severity = severityWarning
+		}
+		ve := ConfigValidationError{
 			Line:     findFieldLine(lines, "bgp", field),
-			Message:  fmt.Sprintf("%s: %s", field, yangErrs[i].Message),
-			Severity: "error",
-		})
+			Message:  msg,
+			Severity: severity,
+		}
+		if severity == severityWarning {
+			warns = append(warns, ve)
+		} else {
+			errs = append(errs, ve)
+		}
 	}
 
-	return errs
+	return errs, warns
 }
 
 // yangLeafName extracts the leaf name from a YANG path (last dot-separated segment).
@@ -275,6 +300,7 @@ func findFieldInPeer(lines []string, addr, field string) int {
 }
 
 // findFieldLine returns the 1-based line number of a field inside a named block.
+// Only matches direct children (depth 1), not fields nested inside sub-containers.
 func findFieldLine(lines []string, block, field string) int {
 	inBlock := false
 	depth := 0
@@ -290,7 +316,8 @@ func findFieldLine(lines []string, block, field string) int {
 			if depth <= 0 {
 				break
 			}
-			if strings.HasPrefix(trimmed, field+" ") || strings.HasPrefix(trimmed, field+";") {
+			// Only match at depth 1 (direct children of the block)
+			if depth == 1 && (strings.HasPrefix(trimmed, field+" ") || strings.HasPrefix(trimmed, field+";")) {
 				return i + 1
 			}
 		}
@@ -360,7 +387,7 @@ func (v *ConfigValidator) resolveInheritance(peerTree *config.Tree, templates ma
 
 // ValidateSemantic validates semantic constraints on parsed tree.
 // Delegates to ValidateWithYANG for YANG-based validation.
-func (v *ConfigValidator) ValidateSemantic(tree *config.Tree) []ConfigValidationError {
+func (v *ConfigValidator) ValidateSemantic(tree *config.Tree) ([]ConfigValidationError, []ConfigValidationError) {
 	return v.ValidateWithYANG(tree)
 }
 

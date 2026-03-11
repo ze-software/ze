@@ -14,13 +14,14 @@ import (
 
 // Test config constants to avoid duplication.
 const (
-	testValidBGPConfig         = `bgp { router-id 1.2.3.4; }`
-	testValidBGPConfigOneLine  = `bgp { router-id 1.2.3.4; }`
+	testValidBGPConfig         = `bgp { router-id 1.2.3.4; local-as 65000; }`
+	testValidBGPConfigOneLine  = `bgp { router-id 1.2.3.4; local-as 65000; }`
 	testValidBGPConfigWithPeer = `bgp {
   router-id 1.2.3.4
   local-as 65000
   peer 1.1.1.1 {
     peer-as 65001
+    local-address auto
     hold-time 90
   }
 }`
@@ -30,6 +31,7 @@ const (
   local-as 65000
   peer 1.1.1.1 {
     peer-as 65001
+    local-address auto
   }
 }`
 )
@@ -92,11 +94,11 @@ func TestModelCommitBlockedOnErrors(t *testing.T) {
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	// Commit should fail
-	_, err = model.cmdCommit()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot commit")
-	assert.Contains(t, err.Error(), "validation error")
+	// Commit should fail — issues shown in output, not as Go error
+	result, err := model.cmdCommit()
+	require.NoError(t, err)
+	assert.Contains(t, result.output, "hold-time")
+	assert.Contains(t, result.statusMessage, "blocked")
 }
 
 // TestModelCommitSucceedsWhenValid verifies commit works with valid config.
@@ -113,6 +115,7 @@ func TestModelCommitSucceedsWhenValid(t *testing.T) {
   local-as 65000
   peer 1.1.1.1 {
     peer-as 65001
+    local-address auto
     hold-time 90
   }
 }`

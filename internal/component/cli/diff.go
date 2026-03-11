@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md — config diff annotation
+// Related: diff_tree.go — tree-aware diff using YANG schema
 // Related: model_render.go — viewport rendering with gutter markers
 
 package cli
@@ -16,7 +17,7 @@ const (
 	// diffRemoved marks a line present only in original.
 	diffRemoved diffMarker = '-'
 	// diffModified marks a line where the value changed (same indent, different content).
-	diffModified diffMarker = '|'
+	diffModified diffMarker = '*'
 )
 
 // diffLine is a single line in the annotated diff output.

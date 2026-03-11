@@ -23,6 +23,12 @@ expect=status:contains=Set
 expect=dirty:true
 expect=error:none
 
+# Set local-address on the same peer
+input=type:text=set bgp peer 10.0.0.1 local-address auto
+input=enter
+expect=status:contains=Set
+expect=error:none
+
 # Set hold-time on the same peer
 input=type:text=set bgp peer 10.0.0.1 hold-time 90
 input=enter

@@ -1,6 +1,7 @@
 // Design: docs/architecture/config/yang-config-design.md — config editor
 // Related: model_mode.go — mode-aware prompt rendering
-// Related: diff.go — diff algorithm for gutter annotation
+// Related: diff.go — line-based LCS diff for gutter annotation
+// Related: diff_tree.go — tree-aware diff using YANG schema
 
 package cli
 
@@ -15,8 +16,12 @@ import (
 // setViewportData sets content with line mapping in the viewport.
 // When originalContent is provided and differs from content, a diff gutter
 // is prepended to each line showing change markers: ' ' unchanged, '+' added,
-// '-' removed, '|' modified. The line mapping is adjusted so validation
+// '-' removed, '*' modified. The line mapping is adjusted so validation
 // highlighting still finds the correct lines.
+//
+// When a YANG schema is available and we're at root context, uses tree-aware diff
+// that respects container boundaries (solving LCS brace-misalignment). Falls back
+// to line-based LCS diff for subtrees or when schema is unavailable.
 func (m *Model) setViewportData(data viewportData) {
 	content := data.content
 	lineMapping := data.lineMapping
@@ -24,10 +29,14 @@ func (m *Model) setViewportData(data viewportData) {
 	// Apply diff gutter when original was explicitly provided and differs from content.
 	// hasOriginal distinguishes "not set" (non-config text) from "empty = new block".
 	if data.hasOriginal && data.originalContent != data.content {
-		content, lineMapping = annotateContentWithGutter(data.originalContent, data.content)
+		if m.hasEditor() && m.editor.schema != nil && len(m.contextPath) == 0 {
+			content, lineMapping = annotateContentWithTreeDiff(data.originalContent, data.content, m.editor.schema)
+		} else {
+			content, lineMapping = annotateContentWithGutter(data.originalContent, data.content)
+		}
 	}
 
-	highlighted := highlightValidationIssues(content, m.validationErrors, m.validationWarnings, lineMapping)
+	highlighted := highlightValidationIssues(content, m.validationErrors, m.validationWarnings, lineMapping, m.showHints)
 	m.viewportContent = highlighted
 	m.viewport.SetContent(highlighted)
 	m.viewport.GotoTop()
@@ -49,34 +58,40 @@ func (m *Model) configViewAtPath(path []string) *viewportData {
 
 // setViewportText sets simple text content without line mapping.
 // Use for non-config content like diffs, history, or messages.
+// Skips validation highlighting since this is not config content.
 func (m *Model) setViewportText(content string) {
-	m.setViewportData(viewportData{content: content, lineMapping: nil})
+	m.viewportContent = content
+	m.viewport.SetContent(content)
+	m.viewport.GotoTop()
+	m.showViewport = true
+	m.err = nil
 }
 
 // highlightValidationIssues adds styling to lines with validation errors or warnings.
-// Errors are highlighted in red, warnings in yellow.
+// Errors are highlighted in red with inline message, warnings in yellow with inline message.
 // lineMapping maps filtered line numbers to original line numbers (used when showing filtered content).
-func highlightValidationIssues(content string, errors, warnings []ConfigValidationError, lineMapping map[int]int) string {
+func highlightValidationIssues(content string, errors, warnings []ConfigValidationError, lineMapping map[int]int, showHints bool) string {
 	if len(errors) == 0 && len(warnings) == 0 {
 		return content
 	}
 
-	// Build sets of line numbers (1-based, in original content)
-	errorLines := make(map[int]bool)
+	// Build maps: line number → short diagnostic message (1-based, in original content).
+	// Errors take precedence over warnings on the same line.
+	errorMsgs := make(map[int]string)
 	for _, e := range errors {
 		if e.Line > 0 {
-			errorLines[e.Line] = true
+			errorMsgs[e.Line] = shortDiagnostic(e.Message)
 		}
 	}
 
-	warningLines := make(map[int]bool)
+	warningMsgs := make(map[int]string)
 	for _, w := range warnings {
-		if w.Line > 0 && !errorLines[w.Line] { // Errors take precedence over warnings
-			warningLines[w.Line] = true
+		if w.Line > 0 && errorMsgs[w.Line] == "" {
+			warningMsgs[w.Line] = shortDiagnostic(w.Message)
 		}
 	}
 
-	if len(errorLines) == 0 && len(warningLines) == 0 {
+	if len(errorMsgs) == 0 && len(warningMsgs) == 0 {
 		return content
 	}
 
@@ -87,23 +102,48 @@ func highlightValidationIssues(content string, errors, warnings []ConfigValidati
 		// Determine the original line number to check
 		var origLineNum int
 		if lineMapping != nil {
-			// Filtered content: map to original line number
 			origLineNum = lineMapping[filteredLineNum]
 		} else {
-			// Full content: filtered line == original line
 			origLineNum = filteredLineNum
 		}
 
 		if origLineNum > 0 {
-			if errorLines[origLineNum] {
-				lines[i] = errorLineStyle.Render(line)
-			} else if warningLines[origLineNum] {
-				lines[i] = warningLineStyle.Render(line)
+			if msg, ok := errorMsgs[origLineNum]; ok {
+				styled := errorLineStyle.Render(line)
+				if showHints {
+					styled += dimStyle.Render("  ← " + msg)
+				}
+				lines[i] = styled
+			} else if msg, ok := warningMsgs[origLineNum]; ok {
+				styled := warningLineStyle.Render(line)
+				if showHints {
+					styled += dimStyle.Render("  ← " + msg)
+				}
+				lines[i] = styled
 			}
 		}
 	}
 
 	return strings.Join(lines, "\n")
+}
+
+// shortDiagnostic extracts a concise message for inline display.
+// e.g. `peer 1.1.1.1: missing required field "local-address"` → `missing: local-address`
+// e.g. `hold-time must be 0 or >= 3` → kept as-is.
+func shortDiagnostic(msg string) string {
+	// Strip "peer X.X.X.X: " prefix if present
+	if idx := strings.Index(msg, ": "); idx >= 0 {
+		msg = msg[idx+2:]
+	}
+	// Shorten "missing required field "X"" → "missing: X"
+	if strings.HasPrefix(msg, "missing required field") {
+		if start := strings.IndexByte(msg, '"'); start >= 0 {
+			if end := strings.IndexByte(msg[start+1:], '"'); end >= 0 {
+				return "missing: " + msg[start+1:start+1+end]
+			}
+		}
+	}
+	return msg
 }
 
 // View implements tea.Model.
@@ -118,66 +158,26 @@ func (m Model) View() string {
 		viewHeight = 24 // Default fallback
 	}
 
+	// Layout: viewport at top (filling available space), message area + prompt at bottom.
+	// 3 = message area (2 lines) + prompt
+	const bottomRows = 3
 	var lines []string
 
-	// Header (2 lines: header + blank)
-	var header string
-	if m.editor != nil {
-		header = "Ze Editor [" + m.mode.String() + "]"
-		if m.editor.Dirty() {
-			header += " [modified]"
-		}
-	} else {
-		header = "Ze CLI [" + m.mode.String() + "]"
-	}
-	// Add validation status indicator
-	var statusIndicator string
-	if len(m.validationErrors) > 0 {
-		statusIndicator = errorStyle.Render(fmt.Sprintf(" ⚠️ %d error(s)", len(m.validationErrors)))
-	} else if len(m.validationWarnings) > 0 {
-		statusIndicator = dimStyle.Render(fmt.Sprintf(" ⚡ %d warning(s)", len(m.validationWarnings)))
-	}
-	lines = append(lines, dimStyle.Render(header)+statusIndicator+" "+dimStyle.Render("(Tab/?: complete, Enter: execute, Esc: quit)"), "")
-
-	// Status message (temporary notification from commands)
-	if m.statusMessage != "" {
-		lines = append(lines, promptStyle.Render("► "+m.statusMessage), "")
-	}
-
-	// Viewport for scrollable content (show/compare output)
+	// Viewport for scrollable content — fills all space above the bottom rows
 	if m.showViewport && m.viewportContent != "" {
-		lines = append(lines, dimStyle.Render("─── "+m.contextLabel()+" (Shift+↑↓ scroll) ───"))
+		m.viewport.Height = max(viewHeight-bottomRows, 5)
 		vpLines := strings.Split(m.viewport.View(), "\n")
 		lines = append(lines, vpLines...)
+	}
+
+	// Pad between viewport and bottom area
+	for len(lines) < viewHeight-bottomRows {
 		lines = append(lines, "")
 	}
 
-	// Calculate how many empty lines we need before the prompt
-	// Reserve: prompt (1) + error (1 if present)
-	// Note: dropdown overlays existing content, doesn't need reserved space
-	reservedBottom := 1
-	if m.err != nil {
-		reservedBottom++
-	}
-
-	// Pad to push prompt toward bottom
-	for len(lines) < viewHeight-reservedBottom {
-		lines = append(lines, "")
-	}
-
-	// Prompt with context + input
-	promptLine := m.buildPrompt() + m.renderInputWithGhost()
-	lines = append(lines, promptLine)
-
-	// Error display
-	if m.err != nil {
-		lines = append(lines, errorStyle.Render("Error: "+m.err.Error()))
-	}
-
-	// Pad to exact height
-	for len(lines) < viewHeight {
-		lines = append(lines, "")
-	}
+	// Message area (2 lines) + prompt — always at the bottom
+	msg1, msg2 := m.messageLines()
+	lines = append(lines, msg1, msg2, m.buildPrompt()+m.renderInputWithGhost())
 
 	// Truncate if too many lines
 	if len(lines) > viewHeight {
@@ -197,6 +197,56 @@ func (m Model) View() string {
 	}
 
 	return baseView
+}
+
+// messageLines returns the two lines for the message area above the prompt.
+// Priority: error (red) > status message > idle info (header/tips).
+func (m Model) messageLines() (string, string) {
+	// Error takes top priority — show in red across both lines if needed
+	if m.err != nil {
+		return errorStyle.Render("Error: " + m.err.Error()), ""
+	}
+
+	// Status message from last command (e.g., "Configuration committed")
+	if m.statusMessage != "" {
+		return promptStyle.Render("► " + m.statusMessage), m.idleInfoLine()
+	}
+
+	// Idle: show header info + validation status
+	return m.idleInfoLine(), m.validationHintLine()
+}
+
+// idleInfoLine returns the default info line shown when there's no error or status.
+func (m Model) idleInfoLine() string {
+	var info string
+	if m.editor != nil {
+		info = "Ze Editor [" + m.mode.String() + "]"
+		if m.editor.Dirty() {
+			info += " [modified]"
+		}
+	} else {
+		info = "Ze CLI [" + m.mode.String() + "]"
+	}
+
+	// Validation indicator
+	if len(m.validationErrors) > 0 {
+		info += errorStyle.Render(fmt.Sprintf(" %d error(s)", len(m.validationErrors)))
+	} else if len(m.validationWarnings) > 0 {
+		info += dimStyle.Render(fmt.Sprintf(" %d warning(s)", len(m.validationWarnings)))
+	}
+
+	info += dimStyle.Render("  (Tab/?: complete, Enter: execute, Esc: quit)")
+	return dimStyle.Render(info)
+}
+
+// validationHintLine returns a brief summary of validation issues when idle.
+// Helps the user understand why lines are highlighted (red=error, yellow=warning).
+func (m Model) validationHintLine() string {
+	if len(m.validationErrors) == 0 && len(m.validationWarnings) == 0 {
+		return ""
+	}
+	hint := "  red=error, yellow=missing field — 'errors' for details, 'show' for config"
+	return dimStyle.Render(hint)
 }
 
 // overlayDropdown renders the dropdown as a floating overlay on the base view.
@@ -437,14 +487,6 @@ func (m Model) renderDropdownBox(availableHeight int) string {
 	lines = append(lines, "╰"+strings.Repeat("─", innerWidth+2)+"╯")
 
 	return strings.Join(lines, "\n")
-}
-
-// contextLabel returns a label for the current context.
-func (m Model) contextLabel() string {
-	if len(m.contextPath) == 0 {
-		return "Configuration"
-	}
-	return strings.Join(m.contextPath, " ")
 }
 
 // renderHelpOverlay renders help as a floating overlay.

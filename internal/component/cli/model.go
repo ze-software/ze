@@ -77,6 +77,7 @@ type Model struct {
 	viewportContent string // Content shown in viewport
 	showViewport    bool   // Whether viewport is active (for scrolling)
 	showHelp        bool   // Whether help overlay is shown
+	showHints       bool   // Whether inline diagnostic hints are shown (← missing: ...)
 	statusMessage   string // Temporary status message (clears on next command)
 	err             error
 	width           int
@@ -137,6 +138,7 @@ const (
 	cmdHistory   = "history"
 	cmdRollback  = "rollback"
 	cmdLoad      = "load"
+	cmdSave      = "save"
 	cmdErrors    = "errors"
 	cmdTop       = "top"
 	cmdUp        = "up"
@@ -162,6 +164,7 @@ const (
 type commandResult struct {
 	output        string        // Text to display in viewport (non-config content)
 	configView    *viewportData // Config content to display with line mapping
+	refreshConfig bool          // Recompute config view from editor state (use when original baseline changed)
 	statusMessage string        // Temporary status message (shown above viewport, clears on next command)
 	newContext    []string      // New context path (nil = no change)
 	clearContext  bool          // True to clear context to root
@@ -236,6 +239,7 @@ func NewModel(ed *Editor) (Model, error) {
 		historyIdx:         -1,
 		validationErrors:   result.Errors,
 		validationWarnings: result.Warnings,
+		showHints:          true,
 		mode:               ModeEdit,
 		modeStates:         make(map[EditorMode]modeState),
 	}, nil
@@ -472,10 +476,18 @@ func (m Model) handleCommandResult(msg commandResultMsg) (tea.Model, tea.Cmd) {
 		m.isTemplate = r.isTemplate
 	}
 
+	// Run validation before viewport update so highlightValidationIssues uses fresh errors.
+	if r.revalidate {
+		m.runValidation()
+	}
+
 	// Apply viewport changes
-	if r.configView != nil {
+	switch {
+	case r.refreshConfig && m.hasEditor():
+		m.setViewportData(*m.configViewAtPath(m.contextPath))
+	case r.configView != nil:
 		m.setViewportData(*r.configView)
-	} else if r.output != "" {
+	case r.output != "":
 		if !m.hasEditor() {
 			// Command-only mode: accumulate output in scroll-back buffer.
 			if m.outputBuf.Len() > 0 {
@@ -496,9 +508,6 @@ func (m Model) handleCommandResult(msg commandResultMsg) (tea.Model, tea.Cmd) {
 	// Other state
 	if r.showHelp {
 		m.showHelp = true
-	}
-	if r.revalidate {
-		m.runValidation()
 	}
 
 	// Apply confirm timer state (must be propagated through result)
@@ -1001,17 +1010,20 @@ func (m *Model) ApplyResult(r commandResult) {
 		m.contextPath = r.newContext
 		m.isTemplate = r.isTemplate
 	}
-	if r.configView != nil {
+	if r.revalidate {
+		m.runValidation()
+	}
+	switch {
+	case r.refreshConfig && m.hasEditor():
+		m.setViewportData(*m.configViewAtPath(m.contextPath))
+	case r.configView != nil:
 		m.setViewportData(*r.configView)
-	} else if r.output != "" {
+	case r.output != "":
 		m.setViewportText(r.output)
 	}
 	m.statusMessage = r.statusMessage
 	if r.showHelp {
 		m.showHelp = true
-	}
-	if r.revalidate {
-		m.runValidation()
 	}
 	if r.setConfirmTimer {
 		m.confirmTimerActive = r.confirmTimerValue

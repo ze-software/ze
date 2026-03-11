@@ -16,13 +16,12 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Missing peer-as should be a semantic error
-expect=errors:count=1
-expect=errors:contains=peer-as
+# Missing peer-as should be a semantic warning (YANG mandatory-missing)
+expect=warnings:contains=peer-as
 
-# Errors command shows the issue
+# Errors command shows the issue (unified issue list)
 input=type:text=errors
 input=enter
-expect=viewport:contains=Errors
+expect=viewport:contains=issue
 expect=viewport:contains=peer-as
 expect=error:none

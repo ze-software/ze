@@ -104,8 +104,11 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 	case cmdDelete:
 		return m.cmdDelete(args)
 
+	case cmdSave:
+		return m.cmdSave()
+
 	case cmdErrors:
-		return m.cmdErrors()
+		return m.cmdErrors(args)
 	}
 
 	return commandResult{}, fmt.Errorf("unknown command: %s", cmd)
@@ -232,6 +235,27 @@ func (m *Model) cmdHistory() (commandResult, error) {
 			backup.Path)
 	}
 	return commandResult{output: b.String()}, nil
+}
+
+// formatValidationErrors formats a slice of validation errors into a human-readable string.
+func formatValidationErrors(errs []ConfigValidationError) string {
+	if len(errs) == 1 {
+		e := errs[0]
+		if e.Line > 0 {
+			return fmt.Sprintf("line %d: %s", e.Line, e.Message)
+		}
+		return e.Message
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "%d validation error(s):", len(errs))
+	for _, e := range errs {
+		if e.Line > 0 {
+			fmt.Fprintf(&b, "\n  line %d: %s", e.Line, e.Message)
+		} else {
+			fmt.Fprintf(&b, "\n  %s", e.Message)
+		}
+	}
+	return b.String()
 }
 
 func (m *Model) cmdRollback(args []string) (commandResult, error) {
@@ -445,15 +469,33 @@ func (m *Model) scheduleValidation() tea.Cmd {
 	})
 }
 
+// cmdSave writes the working config to a .edit snapshot without validation.
+// Use this to persist work-in-progress that isn't ready to commit.
+func (m *Model) cmdSave() (commandResult, error) {
+	if err := m.editor.SaveEditState(); err != nil {
+		return commandResult{}, err
+	}
+	return commandResult{statusMessage: "Configuration saved (snapshot)"}, nil
+}
+
 // cmdCommit saves changes with validation check.
 // If a ReloadNotifier is set (daemon was reachable at startup), attempts to reload.
 // Reload failure does not fail the commit — config is saved regardless.
+// Both errors and warnings block commit — config must be fully correct.
 func (m *Model) cmdCommit() (commandResult, error) {
 	// Validate inline - don't rely on m.validationErrors which may be stale
 	// (m is captured by value in the tea.Cmd closure)
 	result := m.validator.Validate(m.editor.WorkingContent())
-	if len(result.Errors) > 0 {
-		return commandResult{}, fmt.Errorf("cannot commit: %d validation error(s). Use 'errors' to see details", len(result.Errors))
+	issues := make([]ConfigValidationError, 0, len(result.Errors)+len(result.Warnings))
+	issues = append(issues, result.Errors...)
+	issues = append(issues, result.Warnings...)
+	if len(issues) > 0 {
+		// Show details in viewport (scrollable), brief summary in status.
+		output := "Cannot commit:\n" + formatIssueList(issues) + "\nFix issues and retry. Use 'save' to snapshot work-in-progress."
+		return commandResult{
+			output:        output,
+			statusMessage: fmt.Sprintf("commit blocked: %d issue(s) — 'show' for config", len(issues)),
+		}, nil
 	}
 
 	// Save changes
@@ -470,18 +512,17 @@ func (m *Model) cmdCommit() (commandResult, error) {
 		}
 	}
 
-	// Refresh viewport so diff gutter clears (original now matches working after save)
-	configView := m.configViewAtPath(m.contextPath)
-
 	// Notify daemon of config change (best-effort)
+	// refreshConfig tells handleCommandResult to recompute the viewport from the editor's
+	// updated state — after Save(), original matches working so diff gutter clears.
 	if !m.editor.HasReloadNotifier() {
-		return commandResult{statusMessage: "Configuration committed (daemon not running)" + archiveMsg, configView: configView, revalidate: true}, nil
+		return commandResult{statusMessage: "Configuration committed (daemon not running)" + archiveMsg, refreshConfig: true, revalidate: true}, nil
 	}
 	if err := m.editor.NotifyReload(); err != nil {
-		return commandResult{statusMessage: fmt.Sprintf("Configuration committed (reload failed: %v)", err) + archiveMsg, configView: configView, revalidate: true}, nil
+		return commandResult{statusMessage: fmt.Sprintf("Configuration committed (reload failed: %v)", err) + archiveMsg, refreshConfig: true, revalidate: true}, nil
 	}
 
-	return commandResult{statusMessage: "Configuration committed and reloaded" + archiveMsg, configView: configView, revalidate: true}, nil
+	return commandResult{statusMessage: "Configuration committed and reloaded" + archiveMsg, refreshConfig: true, revalidate: true}, nil
 }
 
 // cmdDiscard reverts all changes.
@@ -497,38 +538,59 @@ func (m *Model) cmdDiscard() (commandResult, error) {
 	}, nil
 }
 
-// cmdErrors displays validation errors.
-func (m *Model) cmdErrors() (commandResult, error) {
-	if len(m.validationErrors) == 0 && len(m.validationWarnings) == 0 {
-		return commandResult{output: "No validation issues"}, nil
+// cmdErrors handles the errors command with subcommands:
+//
+//	errors / errors show — display validation issues in viewport.
+//	errors hints — toggle inline diagnostic hints (← missing: ...).
+//	errors hide — return to config view.
+func (m *Model) cmdErrors(args []string) (commandResult, error) {
+	sub := "show"
+	if len(args) > 0 {
+		sub = args[0]
 	}
 
+	switch sub {
+	case "show":
+		issues := make([]ConfigValidationError, 0, len(m.validationErrors)+len(m.validationWarnings))
+		issues = append(issues, m.validationErrors...)
+		issues = append(issues, m.validationWarnings...)
+		if len(issues) == 0 {
+			return commandResult{output: "No validation issues"}, nil
+		}
+		return commandResult{output: formatIssueList(issues)}, nil
+
+	case "hints":
+		m.showHints = !m.showHints
+		msg := "Inline hints disabled"
+		if m.showHints {
+			msg = "Inline hints enabled"
+		}
+		return commandResult{
+			statusMessage: msg,
+			configView:    m.configViewAtPath(m.contextPath),
+		}, nil
+
+	case "hide":
+		return commandResult{
+			statusMessage: "Errors hidden",
+			configView:    m.configViewAtPath(m.contextPath),
+		}, nil
+	}
+
+	return commandResult{}, fmt.Errorf("unknown errors subcommand: %s (use show, hints, or hide)", sub)
+}
+
+// formatIssueList formats validation issues for viewport display.
+// Used by both cmdErrors and cmdCommit failure output.
+func formatIssueList(issues []ConfigValidationError) string {
 	var b strings.Builder
-
-	if len(m.validationErrors) > 0 {
-		fmt.Fprintf(&b, "Errors (%d):\n", len(m.validationErrors))
-		for _, e := range m.validationErrors {
-			if e.Line > 0 {
-				fmt.Fprintf(&b, "  Line %d: %s\n", e.Line, e.Message)
-			} else {
-				fmt.Fprintf(&b, "  %s\n", e.Message)
-			}
+	fmt.Fprintf(&b, "%d issue(s):\n", len(issues))
+	for _, e := range issues {
+		if e.Line > 0 {
+			fmt.Fprintf(&b, "  line %d: %s\n", e.Line, e.Message)
+		} else {
+			fmt.Fprintf(&b, "  %s\n", e.Message)
 		}
 	}
-
-	if len(m.validationWarnings) > 0 {
-		if len(m.validationErrors) > 0 {
-			b.WriteString("\n")
-		}
-		fmt.Fprintf(&b, "Warnings (%d):\n", len(m.validationWarnings))
-		for _, w := range m.validationWarnings {
-			if w.Line > 0 {
-				fmt.Fprintf(&b, "  Line %d: %s\n", w.Line, w.Message)
-			} else {
-				fmt.Fprintf(&b, "  %s\n", w.Message)
-			}
-		}
-	}
-
-	return commandResult{output: b.String()}, nil
+	return b.String()
 }

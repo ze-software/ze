@@ -32,7 +32,7 @@ line 4`
 		{Line: 4, Message: "error on line 4"},
 	}
 
-	result := highlightValidationIssues(content, errors, nil, nil)
+	result := highlightValidationIssues(content, errors, nil, nil, true)
 
 	// Lines 2 and 4 should have error styling (ANSI codes)
 	lines := strings.Split(result, "\n")
@@ -60,10 +60,10 @@ line 4`
 func TestHighlightValidationIssuesEmpty(t *testing.T) {
 	content := "line 1\nline 2"
 
-	result := highlightValidationIssues(content, nil, nil, nil)
+	result := highlightValidationIssues(content, nil, nil, nil, true)
 	assert.Equal(t, content, result, "empty errors should return unchanged content")
 
-	result = highlightValidationIssues(content, []ConfigValidationError{}, nil, nil)
+	result = highlightValidationIssues(content, []ConfigValidationError{}, nil, nil, true)
 	assert.Equal(t, content, result, "empty errors should return unchanged content")
 }
 
@@ -80,7 +80,7 @@ func TestHighlightValidationIssuesOutOfRange(t *testing.T) {
 	}
 
 	// Should not panic
-	result := highlightValidationIssues(content, errors, nil, nil)
+	result := highlightValidationIssues(content, errors, nil, nil, true)
 	assert.Equal(t, content, result, "out of range errors should be ignored")
 }
 
@@ -110,7 +110,7 @@ hold-time 1`
 		2: 5,
 	}
 
-	result := highlightValidationIssues(filteredContent, errors, nil, lineMapping)
+	result := highlightValidationIssues(filteredContent, errors, nil, lineMapping, true)
 
 	lines := strings.Split(result, "\n")
 	require.Len(t, lines, 2)
@@ -144,7 +144,7 @@ line 3`
 		{Line: 3, Message: "warning"},
 	}
 
-	result := highlightValidationIssues(content, errors, warnings, nil)
+	result := highlightValidationIssues(content, errors, warnings, nil, true)
 
 	lines := strings.Split(result, "\n")
 	require.Len(t, lines, 3)
@@ -173,7 +173,7 @@ func TestHighlightValidationIssuesErrorPrecedence(t *testing.T) {
 	errors := []ConfigValidationError{{Line: 1, Message: "error"}}
 	warnings := []ConfigValidationError{{Line: 1, Message: "warning"}}
 
-	result := highlightValidationIssues(content, errors, warnings, nil)
+	result := highlightValidationIssues(content, errors, warnings, nil, true)
 
 	// Should have styling (error takes precedence)
 	assert.Contains(t, result, "\x1b[", "should have ANSI styling")
@@ -358,13 +358,7 @@ func TestModelStatusBarNoErrorsWhenValid(t *testing.T) {
 	// Should have no errors
 	require.Empty(t, model.validationErrors, "valid config should have no errors")
 
-	// View should not show error indicator
+	// View should not show error indicator anywhere
 	view := model.View()
-	// Check that error style text is not present
-	// The status bar should just show "Ze Editor" without error count
-	lines := strings.Split(view, "\n")
-	if len(lines) > 0 {
-		header := lines[0]
-		assert.NotContains(t, header, "⚠️", "status bar should not show error icon for valid config")
-	}
+	assert.NotContains(t, view, "error(s)", "view should not show error count for valid config")
 }

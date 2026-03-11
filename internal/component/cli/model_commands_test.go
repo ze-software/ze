@@ -34,11 +34,11 @@ func TestModelErrorsCommand(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get errors
-	result, err := model.cmdErrors()
+	result, err := model.cmdErrors(nil)
 	require.NoError(t, err)
 
 	// Should have error content (parser error for invalid router-id)
-	assert.Contains(t, result.output, "Errors")
+	assert.Contains(t, result.output, "issue(s)")
 }
 
 // TestModelErrorsCommandNoIssues verifies errors command with valid config.
@@ -61,7 +61,7 @@ func TestModelErrorsCommandNoIssues(t *testing.T) {
 	require.NoError(t, err)
 
 	// Get errors
-	result, err := model.cmdErrors()
+	result, err := model.cmdErrors(nil)
 	require.NoError(t, err)
 
 	assert.Contains(t, result.output, "No validation issues")
@@ -869,9 +869,9 @@ func TestCommitValidationFailsNoReload(t *testing.T) {
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	_, err = model.cmdCommit()
-	require.Error(t, err, "commit should fail with validation errors")
-	assert.Contains(t, err.Error(), "validation error")
+	result, err := model.cmdCommit()
+	require.NoError(t, err, "commit returns nil error, issues in output")
+	assert.Contains(t, result.statusMessage, "blocked")
 	assert.False(t, notified, "reload notifier should NOT be called on validation failure")
 }
 
