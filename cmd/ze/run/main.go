@@ -49,7 +49,8 @@ Execute daemon commands. All registered commands are available.
 For read-only commands only, use "ze show".
 
 Options:
-  --socket <path>  Path to API socket (default: auto-detected)
+  --socket <path>    Path to API socket (default: auto-detected)
+  --user <username>  Simulate authenticated user for authorization testing
 
 Available commands:
 `)

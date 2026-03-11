@@ -54,6 +54,7 @@ func stageTimeoutFromEnv() time.Duration {
 type RPCParams struct {
 	Selector string   `json:"selector,omitempty"` // Peer selector (optional)
 	Args     []string `json:"args,omitempty"`     // Command arguments (optional)
+	Username string   `json:"username,omitempty"` // Authenticated username (for authorization)
 }
 
 // Server manages API connections and command dispatch.
@@ -90,7 +91,9 @@ type Server struct {
 
 // wrapHandler adapts a Handler to an ipc.RPCHandler for the RPC dispatcher.
 // Creates a CommandContext from the server state and extracts args from JSON params.
-func (s *Server) wrapHandler(handler Handler) ipc.RPCHandler {
+// The cliCommand and readOnly parameters enable authorization checks on the RPC path
+// (same checks that Dispatch() applies on the text protocol path).
+func (s *Server) wrapHandler(handler Handler, cliCommand string, readOnly bool) ipc.RPCHandler {
 	return func(_ string, params json.RawMessage) (any, error) {
 		ctx := &CommandContext{
 			Server: s,
@@ -106,6 +109,12 @@ func (s *Server) wrapHandler(handler Handler) ipc.RPCHandler {
 
 		if rpcParams.Selector != "" {
 			ctx.Peer = rpcParams.Selector
+		}
+		ctx.Username = rpcParams.Username
+
+		// Authorization check — same path as Dispatch() in command.go
+		if s.dispatcher != nil && !s.dispatcher.isAuthorized(ctx, cliCommand, readOnly) {
+			return nil, ErrUnauthorized
 		}
 
 		resp, err := handler(ctx, rpcParams.Args)
@@ -142,7 +151,7 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) *Server {
 
 	// Register all builtin RPCs with wire method dispatcher (for socket clients)
 	for _, reg := range AllBuiltinRPCs() {
-		if err := s.rpcDispatcher.Register(reg.WireMethod, s.wrapHandler(reg.Handler)); err != nil {
+		if err := s.rpcDispatcher.Register(reg.WireMethod, s.wrapHandler(reg.Handler, reg.CLICommand, reg.ReadOnly)); err != nil {
 			logger().Error("rpc dispatcher: registration failed", "method", reg.WireMethod, "error", err)
 		}
 	}

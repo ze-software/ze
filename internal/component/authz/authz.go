@@ -294,6 +294,28 @@ func (s *Store) HasProfiles() bool {
 	return len(s.profiles) > 0
 }
 
+// HasProfile returns true if a profile with the given name exists.
+func (s *Store) HasProfile(name string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	_, ok := s.profiles[name]
+	return ok
+}
+
+// WalkEntries calls fn for each entry in every profile's run and edit sections.
+func (s *Store) WalkEntries(fn func(profileName, section string, e Entry)) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, p := range s.profiles {
+		for _, e := range p.Run.Entries {
+			fn(p.Name, "run", e)
+		}
+		for _, e := range p.Edit.Entries {
+			fn(p.Name, "edit", e)
+		}
+	}
+}
+
 // HasUserAssignments returns true if any user-to-profile assignments exist.
 func (s *Store) HasUserAssignments() bool {
 	s.mu.RLock()

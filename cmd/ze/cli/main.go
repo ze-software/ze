@@ -88,6 +88,7 @@ func runBGP(args []string) int {
 	socketPath := fs.String("socket", config.DefaultSocketPath(), "Path to API socket")
 	runCmd := fs.String("run", "", "Execute single command and exit")
 	format := fs.String("format", "yaml", "Output format: yaml, json, table")
+	user := fs.String("user", "", "Username for authorization (simulates authenticated user)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -102,6 +103,7 @@ func runBGP(args []string) int {
 		return 1
 	}
 	defer func() { _ = client.Close() }()
+	client.username = *user
 
 	// If --run specified, execute single command and exit
 	if *runCmd != "" {
@@ -142,11 +144,12 @@ type rpcResponse struct {
 
 // cliClient handles communication with the API server using NUL-framed JSON RPC.
 type cliClient struct {
-	conn    net.Conn
-	reader  *rpc.FrameReader
-	writer  *rpc.FrameWriter
-	cmdMap  map[string]string // lowercase CLI command → wire method
-	cmdKeys []string          // sorted by length descending for longest-match
+	conn     net.Conn
+	reader   *rpc.FrameReader
+	writer   *rpc.FrameWriter
+	cmdMap   map[string]string // lowercase CLI command → wire method
+	cmdKeys  []string          // sorted by length descending for longest-match
+	username string            // authenticated username for authorization (empty = no auth)
 }
 
 func newCLIClient(socketPath string) (*cliClient, error) {
@@ -247,11 +250,12 @@ func (c *cliClient) SendCommand(command string) (*rpcResponse, error) {
 		selector = args[0]
 		args = args[1:]
 	}
-	if len(args) > 0 || selector != "" {
+	if len(args) > 0 || selector != "" || c.username != "" {
 		params := struct {
 			Selector string   `json:"selector,omitempty"`
 			Args     []string `json:"args,omitempty"`
-		}{Selector: selector, Args: args}
+			Username string   `json:"username,omitempty"`
+		}{Selector: selector, Args: args, Username: c.username}
 		paramBytes, err := json.Marshal(params)
 		if err != nil {
 			return nil, fmt.Errorf("marshal params: %w", err)

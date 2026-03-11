@@ -1,0 +1,130 @@
+# Test: authorization allows admin and permitted restricted commands
+#
+# Flow:
+# 1. Daemon starts with authz config (admin + restricted profiles)
+# 2. Shell script connects via ze run --user
+# 3. Admin user can run any command (default-action allow)
+# 4. Restricted user can run permitted command (entry match)
+#
+# VALIDATES: AC-1 — admin profile allows all commands via ze run --user.
+# VALIDATES: AC-2 — restricted profile allows entry-matched commands.
+# PREVENTS: Authorization wiring missing — authz store not set on dispatcher.
+
+# Config with authorization profiles
+tmpfs=authz-allow.conf:terminator=EOF_CONF
+bgp {
+	peer 127.0.0.1 {
+		local-address 127.0.0.1
+		local-as 65533
+		peer-as 65533
+	}
+}
+
+system {
+	authentication {
+		user admin {
+			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+			profile [ admin ]
+		}
+		user operator {
+			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+			profile [ restricted ]
+		}
+	}
+	authorization {
+		profile admin {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action allow
+			}
+		}
+		profile restricted {
+			run {
+				default-action deny
+				entry 10 {
+					action allow
+					match "bgp peer list"
+				}
+				entry 20 {
+					action allow
+					match "bgp summary"
+				}
+			}
+			edit {
+				default-action deny
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Test script: admin + restricted allowed commands
+tmpfs=test-authz-allow.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+SOCKET="$ze_bgp_api_socketpath"
+
+# Signal test runner readiness (avoids 5s waitReady timeout)
+touch daemon.ready
+
+# Start daemon in background
+ze authz-allow.conf &
+DAEMON_PID=$!
+
+# Wait for API socket (up to 5 seconds)
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50; do
+	if [ -S "$SOCKET" ]; then
+		break
+	fi
+	sleep 0.1
+done
+
+if [ ! -S "$SOCKET" ]; then
+	echo "FAIL: API socket not created at $SOCKET" >&2
+	kill $DAEMON_PID 2>/dev/null
+	exit 1
+fi
+
+# Brief delay for postStartFunc to wire authorizer
+sleep 0.2
+
+# Test 1: admin can run read-only command
+OUTPUT=$(ze run --socket "$SOCKET" --user admin peer list 2>&1) || {
+	echo "FAIL: admin should be allowed to run 'peer list'" >&2
+	echo "OUTPUT: $OUTPUT" >&2
+	kill $DAEMON_PID 2>/dev/null
+	exit 1
+}
+echo "OK: admin allowed peer list" >&2
+
+# Test 2: restricted user can run permitted command (matches entry 10: "bgp peer list")
+OUTPUT=$(ze run --socket "$SOCKET" --user operator peer list 2>&1) || {
+	echo "FAIL: operator should be allowed to run 'peer list' (entry 10)" >&2
+	echo "OUTPUT: $OUTPUT" >&2
+	kill $DAEMON_PID 2>/dev/null
+	exit 1
+}
+echo "OK: operator allowed peer list (entry match)" >&2
+
+# Test 3: restricted user can run another permitted command (matches entry 20: "bgp summary")
+OUTPUT=$(ze run --socket "$SOCKET" --user operator summary 2>&1) || {
+	echo "FAIL: operator should be allowed to run 'summary' (entry 20)" >&2
+	echo "OUTPUT: $OUTPUT" >&2
+	kill $DAEMON_PID 2>/dev/null
+	exit 1
+}
+echo "OK: operator allowed summary (entry match)" >&2
+
+# Cleanup
+kill $DAEMON_PID 2>/dev/null
+wait $DAEMON_PID 2>/dev/null || true
+echo "OK: all allow tests passed" >&2
+exit 0
+EOF_SH
+
+# Process orchestration
+cmd=foreground:seq=1:exec=./test-authz-allow.sh:timeout=15s
+expect=exit:code=0

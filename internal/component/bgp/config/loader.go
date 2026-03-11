@@ -456,9 +456,18 @@ func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reacto
 		}
 	}
 
+	// Validate authorization config (AC-8: reject undefined profile references).
+	if err := ValidateAuthzConfig(tree); err != nil {
+		return nil, fmt.Errorf("authorization config: %w", err)
+	}
+
+	// Extract authz profiles from config (independent of SSH).
+	authzStore := extractAuthzConfig(tree)
+
 	// Start SSH server from system config block.
 	// SSH binds the port immediately, but the command executor is wired later
 	// via SetExecutorFactory after the reactor's API server starts (post-start hook).
+	var sshSrv *zessh.Server
 	if sshCfg, ok := extractSSHConfig(tree); ok {
 		srv, sshErr := zessh.NewServer(sshCfg)
 		if sshErr != nil {
@@ -467,27 +476,29 @@ func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reacto
 			configLogger().Warn("SSH server failed to start", "error", startErr)
 		} else {
 			configLogger().Info("SSH server listening", "address", srv.Address())
+			sshSrv = srv
+		}
+	}
 
-			// Extract authz profiles from config for the post-start hook.
-			authzStore := extractAuthzConfig(tree)
+	// Deferred wiring: after reactor starts and Dispatcher is available,
+	// connect authorization store and SSH executor (if configured).
+	if authzStore != nil || sshSrv != nil {
+		r.SetPostStartFunc(func() {
+			d := r.Dispatcher()
+			if d == nil {
+				return
+			}
 
-			// Deferred wiring: after reactor starts and Dispatcher is available,
-			// connect the SSH executor and authorization store.
-			r.SetPostStartFunc(func() {
-				d := r.Dispatcher()
-				if d == nil {
-					return
-				}
+			// Wire authorization (applies to API socket + SSH)
+			if authzStore != nil {
+				d.SetAuthorizer(authzStore)
+				configLogger().Info("authorization profiles loaded")
+			}
 
-				// Wire authorization
-				if authzStore != nil {
-					d.SetAuthorizer(authzStore)
-					configLogger().Info("authorization profiles loaded")
-				}
-
-				// Wire SSH command executor with per-session username
+			// Wire SSH command executor with per-session username
+			if sshSrv != nil {
 				apiServer := r.APIServer()
-				srv.SetExecutorFactory(func(username string) zessh.CommandExecutor {
+				sshSrv.SetExecutorFactory(func(username string) zessh.CommandExecutor {
 					return func(input string) (string, error) {
 						ctx := &pluginserver.CommandContext{
 							Server:   apiServer,
@@ -504,8 +515,8 @@ func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reacto
 					}
 				})
 				configLogger().Info("SSH command executor wired")
-			})
-		}
+			}
+		})
 	}
 
 	// Inject chaos wrappers from config environment block.
@@ -585,6 +596,53 @@ func detectLegacySyntaxHint(input string, parseErr error) string {
 	return ""
 }
 
+// ValidateAuthzConfig validates authorization config in the parsed tree.
+// Checks: profile entry regex syntax (hard error), user→profile references (AC-8).
+// Exported so ze validate can also call it.
+func ValidateAuthzConfig(tree *config.Tree) error {
+	sys := tree.GetContainer("system")
+	if sys == nil {
+		return nil
+	}
+
+	authzContainer := sys.GetContainer("authorization")
+	if authzContainer == nil {
+		return nil
+	}
+
+	profiles := authzContainer.GetList("profile")
+
+	// Validate each profile's entries (regex syntax, empty match).
+	for name, profileTree := range profiles {
+		p := authz.Profile{Name: name}
+		if runContainer := profileTree.GetContainer("run"); runContainer != nil {
+			p.Run = extractAuthzSection(runContainer)
+		}
+		if editContainer := profileTree.GetContainer("edit"); editContainer != nil {
+			p.Edit = extractAuthzSection(editContainer)
+		}
+		if err := p.Validate(); err != nil {
+			return fmt.Errorf("authorization profile: %w", err)
+		}
+	}
+
+	// Check user→profile references (AC-8).
+	auth := sys.GetContainer("authentication")
+	if auth == nil {
+		return nil
+	}
+
+	for username, userTree := range auth.GetList("user") {
+		for _, pn := range userTree.GetSlice("profile") {
+			if _, ok := profiles[pn]; !ok {
+				return fmt.Errorf("user %q references undefined profile %q", username, pn)
+			}
+		}
+	}
+
+	return nil
+}
+
 // extractAuthzConfig extracts authorization profiles from the parsed config tree.
 // Returns a populated Store if system.authorization is present with profiles, nil otherwise.
 // User-to-profile assignments come from system.authentication.user[*].profile (leaf-list).
@@ -617,11 +675,7 @@ func extractAuthzConfig(tree *config.Tree) *authz.Store {
 			p.Edit = extractAuthzSection(editContainer)
 		}
 
-		if err := p.Validate(); err != nil {
-			configLogger().Warn("invalid authz profile, skipping", "profile", name, "error", err)
-			continue
-		}
-
+		// ValidateAuthzConfig already rejected invalid profiles (regex, empty match).
 		store.AddProfile(p)
 	}
 
@@ -635,11 +689,44 @@ func extractAuthzConfig(tree *config.Tree) *authz.Store {
 		}
 	}
 
+	// Warn about match entries that don't match any known builtin command (AC-9).
+	// Warning only — plugins may register commands dynamically at runtime.
+	validateMatchEntries(store)
+
 	if !store.HasProfiles() {
 		return nil
 	}
 
 	return store
+}
+
+// validateMatchEntries warns about profile match entries that don't match
+// any known builtin command prefix. This is a best-effort check because
+// plugins register commands dynamically at runtime.
+func validateMatchEntries(store *authz.Store) {
+	rpcs := pluginserver.AllBuiltinRPCs()
+	if len(rpcs) == 0 {
+		return
+	}
+
+	cmds := make([]string, 0, len(rpcs))
+	for _, r := range rpcs {
+		cmds = append(cmds, strings.ToLower(r.CLICommand))
+	}
+
+	store.WalkEntries(func(profileName, section string, e authz.Entry) {
+		if e.Regex {
+			return // regex entries can't be prefix-checked
+		}
+		match := strings.ToLower(e.Match)
+		for _, cmd := range cmds {
+			if strings.HasPrefix(cmd, match) || strings.HasPrefix(match, cmd) {
+				return // match is a prefix of (or matches) a known command
+			}
+		}
+		configLogger().Warn("authz match entry does not match any known command",
+			"profile", profileName, "section", section, "match", e.Match)
+	})
 }
 
 // extractAuthzSection extracts a run or edit authorization section from the config tree.

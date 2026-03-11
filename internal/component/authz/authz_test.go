@@ -582,6 +582,43 @@ func TestStoreHasProfiles(t *testing.T) {
 	}
 }
 
+func TestStoreHasProfile(t *testing.T) {
+	s := NewStore()
+	if s.HasProfile("test") {
+		t.Error("empty store should not have profile 'test'")
+	}
+	s.AddProfile(Profile{Name: "test", Run: Section{Default: Allow}, Edit: Section{Default: Allow}})
+	if !s.HasProfile("test") {
+		t.Error("store should have profile 'test' after adding it")
+	}
+	if s.HasProfile("other") {
+		t.Error("store should not have profile 'other'")
+	}
+}
+
+func TestStoreWalkEntries(t *testing.T) {
+	s := NewStore()
+	s.AddProfile(Profile{
+		Name: "noc",
+		Run: Section{Default: Deny, Entries: []Entry{
+			{Number: 10, Action: Allow, Match: "peer show"},
+			{Number: 20, Action: Deny, Match: "restart"},
+		}},
+		Edit: Section{Default: Deny, Entries: []Entry{
+			{Number: 10, Action: Allow, Match: "router bgp"},
+		}},
+	})
+
+	var entries []string
+	s.WalkEntries(func(profileName, section string, e Entry) {
+		entries = append(entries, profileName+"/"+section+"/"+e.Match)
+	})
+
+	if len(entries) != 3 {
+		t.Fatalf("expected 3 entries, got %d: %v", len(entries), entries)
+	}
+}
+
 func TestStoreHasUserAssignments(t *testing.T) {
 	s := NewStore()
 	if s.HasUserAssignments() {

@@ -162,6 +162,15 @@ func validateConfig(input, path string) *ValidationResult {
 	// Semantic validation.
 	result.Warnings = semanticValidation(bgpTree)
 
+	// Authorization profile reference validation (AC-8).
+	if err := bgpconfig.ValidateAuthzConfig(tree); err != nil {
+		result.Valid = false
+		result.Errors = append(result.Errors, ValidationError{
+			Message: err.Error(),
+		})
+		return result
+	}
+
 	// Full validation: peer settings, route extraction, and capability constraints.
 	if _, err := bgpconfig.PeersFromConfigTree(tree); err != nil {
 		result.Valid = false

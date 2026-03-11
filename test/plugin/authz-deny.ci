@@ -1,0 +1,116 @@
+# Test: authorization denies restricted user for non-matching commands
+#
+# Flow:
+# 1. Daemon starts with authz config (restricted profile: default deny)
+# 2. Shell script connects via ze run --user operator
+# 3. Commands not matching any allow entry are denied
+# 4. Stderr contains "unauthorized" error message
+#
+# VALIDATES: AC-3 — restricted profile denies commands not in allow entries.
+# PREVENTS: Authorization check bypassed — all commands pass through unchecked.
+
+# Config with authorization profiles
+tmpfs=authz-deny.conf:terminator=EOF_CONF
+bgp {
+	peer 127.0.0.1 {
+		local-address 127.0.0.1
+		local-as 65533
+		peer-as 65533
+	}
+}
+
+system {
+	authentication {
+		user operator {
+			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+			profile [ restricted ]
+		}
+	}
+	authorization {
+		profile restricted {
+			run {
+				default-action deny
+				entry 10 {
+					action allow
+					match "bgp peer list"
+				}
+			}
+			edit {
+				default-action deny
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Test script: restricted user denied for non-matching commands
+tmpfs=test-authz-deny.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+SOCKET="$ze_bgp_api_socketpath"
+
+# Signal test runner readiness
+touch daemon.ready
+
+# Start daemon in background
+ze authz-deny.conf &
+DAEMON_PID=$!
+
+# Wait for API socket
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50; do
+	if [ -S "$SOCKET" ]; then
+		break
+	fi
+	sleep 0.1
+done
+
+if [ ! -S "$SOCKET" ]; then
+	echo "FAIL: API socket not created at $SOCKET" >&2
+	kill $DAEMON_PID 2>/dev/null
+	exit 1
+fi
+
+# Brief delay for postStartFunc to wire authorizer
+sleep 0.2
+
+# Test 1: restricted user denied for command not in allow list
+# "bgp peer detail" is NOT in the restricted profile's allow entries
+OUTPUT=$(ze run --socket "$SOCKET" --user operator peer detail 2>&1) && {
+	echo "FAIL: operator should be denied 'peer detail' but command succeeded" >&2
+	echo "OUTPUT: $OUTPUT" >&2
+	kill $DAEMON_PID 2>/dev/null
+	exit 1
+}
+echo "OK: operator denied peer detail (exit non-zero)" >&2
+
+# Verify the error message contains "unauthorized"
+case "$OUTPUT" in
+	*unauthorized*|*Unauthorized*)
+		echo "OK: error message contains 'unauthorized'" >&2
+		;;
+	*)
+		echo "FAIL: expected 'unauthorized' in error, got: $OUTPUT" >&2
+		kill $DAEMON_PID 2>/dev/null
+		exit 1
+		;;
+esac
+
+# Test 2: restricted user denied for metrics command (not in allow list)
+ze run --socket "$SOCKET" --user operator metrics list 2>/dev/null && {
+	echo "FAIL: operator should be denied 'metrics list'" >&2
+	kill $DAEMON_PID 2>/dev/null
+	exit 1
+}
+echo "OK: operator denied metrics list" >&2
+
+# Cleanup
+kill $DAEMON_PID 2>/dev/null
+wait $DAEMON_PID 2>/dev/null || true
+echo "OK: all deny tests passed" >&2
+exit 0
+EOF_SH
+
+# Process orchestration
+cmd=foreground:seq=1:exec=./test-authz-deny.sh:timeout=15s
+expect=exit:code=0

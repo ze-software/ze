@@ -24,17 +24,26 @@ import (
 // read-only commands are accepted. The cmdName is used in error/hint messages.
 func RunCommand(args []string, readOnly bool, cmdName string) int {
 	var socketPath string
+	var username string
 	var cmdWords []string
 
 	for i := 0; i < len(args); i++ {
-		if args[i] == "--socket" {
+		switch args[i] {
+		case "--socket":
 			if i+1 >= len(args) {
 				fmt.Fprintf(os.Stderr, "error: --socket requires a path argument\n")
 				return 1
 			}
 			socketPath = args[i+1]
 			i++ // skip value
-		} else {
+		case "--user":
+			if i+1 >= len(args) {
+				fmt.Fprintf(os.Stderr, "error: --user requires a username argument\n")
+				return 1
+			}
+			username = args[i+1]
+			i++ // skip value
+		default:
 			cmdWords = append(cmdWords, args[i])
 		}
 	}
@@ -80,6 +89,9 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 	var cliArgs []string
 	if socketPath != "" {
 		cliArgs = append(cliArgs, "--socket", socketPath)
+	}
+	if username != "" {
+		cliArgs = append(cliArgs, "--user", username)
 	}
 	if format != "" {
 		cliArgs = append(cliArgs, "--format", format)

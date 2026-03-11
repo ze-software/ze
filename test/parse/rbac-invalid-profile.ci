@@ -1,0 +1,37 @@
+# Test: config referencing non-existent profile fails validation
+#
+# VALIDATES: AC-8 — user referencing undefined profile produces config error.
+# PREVENTS: User silently assigned non-existent profile — falls to admin default.
+
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer 127.0.0.1 {
+		local-address 127.0.0.1
+		local-as 65533
+		peer-as 65533
+	}
+}
+
+system {
+	authentication {
+		user operator {
+			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+			profile [ nonexistent ]
+		}
+	}
+	authorization {
+		profile restricted {
+			run {
+				default-action deny
+			}
+			edit {
+				default-action deny
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=undefined profile

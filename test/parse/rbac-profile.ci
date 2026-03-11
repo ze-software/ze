@@ -1,0 +1,57 @@
+# Test: valid RBAC profile config parses successfully
+#
+# VALIDATES: AC-1 — authorization profiles with run/edit sections parse without error.
+# PREVENTS: YANG schema or config parser rejects valid authorization config.
+
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer 127.0.0.1 {
+		local-address 127.0.0.1
+		local-as 65533
+		peer-as 65533
+	}
+}
+
+system {
+	authentication {
+		user operator {
+			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+			profile [ restricted ]
+		}
+		user admin {
+			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+			profile [ admin ]
+		}
+	}
+	authorization {
+		profile admin {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action allow
+			}
+		}
+		profile restricted {
+			run {
+				default-action deny
+				entry 10 {
+					action allow
+					match "bgp peer list"
+				}
+				entry 20 {
+					action allow
+					match "bgp summary"
+				}
+			}
+			edit {
+				default-action deny
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid
