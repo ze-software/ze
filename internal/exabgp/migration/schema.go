@@ -5,6 +5,7 @@ package migration
 import (
 	_ "embed"
 	"errors"
+	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
@@ -43,6 +44,12 @@ func ExaBGPSchema() *config.Schema {
 
 // ParseExaBGPConfig parses an ExaBGP configuration string.
 func ParseExaBGPConfig(input string) (*config.Tree, error) {
+	// ExaBGP uses backslash-newline for line continuation. The tokenizer's
+	// auto-semicolon insertion would otherwise treat the backslash as a word
+	// and insert a semicolon at the line break, prematurely terminating
+	// multi-line flex entries (vpls, mup routes).
+	input = strings.ReplaceAll(input, "\\\n", " ")
+
 	schema := ExaBGPSchema()
 	if schema == nil {
 		return nil, ErrSchemaLoad
