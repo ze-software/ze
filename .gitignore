@@ -5,6 +5,10 @@
 /functional
 tmp/
 
+# ssh host file
+etc/ze/ssh_host_ed25519_key
+etc/ze/ssh_host_ed25519_key.pub
+
 # MRT data files (large, downloaded)
 test/internet/*.gz
 test/internet/*.bz2
