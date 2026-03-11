@@ -297,6 +297,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.Height = max(msg.Height-10, 5)
 		// Show config on first size event (startup)
 		if m.hasEditor() && !m.showViewport && m.viewportContent == "" {
+			if m.editor.HasPendingEdit() {
+				if err := m.editor.LoadPendingEdit(); err == nil {
+					m.statusMessage = "Restored snapshot from previous session. Use 'commit' to apply or 'discard' to revert."
+					m.runValidation()
+				}
+			}
 			if m.editor.WorkingContent() != "" {
 				m.showConfigContent()
 			}
@@ -345,11 +351,13 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.confirmQuit {
 		switch msg.Type { //nolint:exhaustive // only handle specific keys
 		case tea.KeyEsc, tea.KeyCtrlC:
-			// Second Escape or Ctrl-C confirms quit
+			// Second Escape or Ctrl-C confirms quit — auto-save snapshot
+			m.autoSaveOnQuit()
 			m.quitting = true
 			return m, tea.Quit
 		case tea.KeyRunes:
 			if len(msg.Runes) == 1 && (msg.Runes[0] == 'y' || msg.Runes[0] == 'Y') {
+				m.autoSaveOnQuit()
 				m.quitting = true
 				return m, tea.Quit
 			}
@@ -673,7 +681,8 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	if input == cmdExit || input == cmdQuit {
 		if m.hasEditor() && m.editor.Dirty() {
 			m.textInput.SetValue("")
-			m.statusMessage = "Unsaved changes. Use 'commit' or 'discard' first, or Esc to force quit."
+			m.statusMessage = "Unsaved changes. Use 'commit', 'save', or 'discard' first, or Esc to force quit."
+			m.confirmQuit = true
 			return m, nil
 		}
 		m.quitting = true
@@ -936,6 +945,13 @@ func (m Model) ValidationWarnings() []ConfigValidationError {
 // Dirty returns true if there are unsaved changes.
 func (m Model) Dirty() bool {
 	return m.hasEditor() && m.editor.Dirty()
+}
+
+// autoSaveOnQuit saves a .edit snapshot when force-quitting with unsaved changes.
+func (m *Model) autoSaveOnQuit() {
+	if m.hasEditor() && m.editor.Dirty() {
+		_ = m.editor.SaveEditState() // Best effort — quitting anyway
+	}
 }
 
 // StatusMessage returns the current status message.
