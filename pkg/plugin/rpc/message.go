@@ -7,6 +7,49 @@ package rpc
 
 import "encoding/json"
 
+// NewError creates an RPCError with an explicit short code and human-readable detail.
+// The code is a short kebab-case identifier (e.g., "unknown-command", "unauthorized").
+// The message is preserved in Params.message for human display.
+func NewError(id json.RawMessage, code, message string) *RPCError {
+	params, _ := json.Marshal(map[string]string{"message": message})
+
+	return &RPCError{
+		Error:  code,
+		Params: params,
+		ID:     id,
+	}
+}
+
+// CodedError is a Go error that carries a short machine-readable code.
+// Used to pass structured error information through the dispatch chain
+// so that Dispatch can construct an RPCError with a proper code.
+type CodedError struct {
+	Code    string // Short kebab-case identifier (e.g., "unknown-command")
+	message string
+}
+
+// NewCodedError creates an error with a code and human-readable message.
+func NewCodedError(code, message string) *CodedError {
+	return &CodedError{Code: code, message: message}
+}
+
+func (e *CodedError) Error() string { return e.message }
+
+// ExtractMessage extracts the human-readable message from RPCError params JSON.
+// Returns the message if present, or empty string.
+func ExtractMessage(params json.RawMessage) string {
+	if len(params) == 0 {
+		return ""
+	}
+	var detail struct {
+		Message string `json:"message"`
+	}
+	if json.Unmarshal(params, &detail) == nil {
+		return detail.Message
+	}
+	return ""
+}
+
 // Request represents an IPC request on the wire.
 // Method uses "module:rpc-name" format (e.g., "ze-bgp:peer-list").
 type Request struct {

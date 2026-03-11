@@ -9,8 +9,8 @@ import (
 	"os"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/editor"
 )
 
 func cmdSet(args []string) int {
@@ -64,7 +64,7 @@ Examples:
 		return exitError
 	}
 
-	ed, err := editor.NewEditor(configPath)
+	ed, err := cli.NewEditor(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
@@ -72,7 +72,7 @@ Examples:
 	defer ed.Close() //nolint:errcheck // best-effort cleanup
 
 	// Validate value against YANG schema
-	completer := editor.NewCompleter()
+	completer := cli.NewCompleter()
 	completer.SetTree(ed.Tree())
 	if err := completer.ValidateValueAtPath(path, value); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -106,7 +106,7 @@ Examples:
 
 	// Notify daemon (best-effort)
 	if !*noReload {
-		ed.SetReloadNotifier(editor.NewSocketReloadNotifier(config.DefaultSocketPath()))
+		ed.SetReloadNotifier(cli.NewSocketReloadNotifier(config.DefaultSocketPath()))
 		if err := ed.NotifyReload(); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: could not notify daemon: %v\n", err)
 		}

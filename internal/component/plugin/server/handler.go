@@ -37,4 +37,5 @@ type RPCRegistration struct {
 	Help             string  // Human-readable description
 	ReadOnly         bool    // True if command only reads state (safe for "ze show")
 	RequiresSelector bool    // True if peer commands must have explicit selector (not default "*")
+	PluginCommand    string  // If set, this builtin proxies to a runtime plugin command (e.g., "rib show")
 }

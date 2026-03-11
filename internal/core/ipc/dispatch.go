@@ -4,6 +4,7 @@ package ipc
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -59,10 +60,7 @@ func (d *RPCDispatcher) HasMethod(method string) bool {
 func (d *RPCDispatcher) Dispatch(req *rpc.Request) any {
 	// Validate method format
 	if _, _, err := ParseMethod(req.Method); err != nil {
-		return &rpc.RPCError{
-			Error: normalizeErrorName(err),
-			ID:    req.ID,
-		}
+		return rpc.NewError(req.ID, "invalid-method", err.Error())
 	}
 
 	// Find handler
@@ -71,19 +69,19 @@ func (d *RPCDispatcher) Dispatch(req *rpc.Request) any {
 	d.mu.RUnlock()
 
 	if !exists {
-		return &rpc.RPCError{
-			Error: "unknown-method",
-			ID:    req.ID,
-		}
+		return rpc.NewError(req.ID, "unknown-method", "unknown method")
 	}
 
 	// Call handler
 	result, err := handler(req.Method, req.Params)
 	if err != nil {
-		return &rpc.RPCError{
-			Error: normalizeErrorName(err),
-			ID:    req.ID,
+		// If the handler returned a CodedError, use its explicit code.
+		// Otherwise fall back to a generic "handler-error" code.
+		var coded *rpc.CodedError
+		if errors.As(err, &coded) {
+			return rpc.NewError(req.ID, coded.Code, coded.Error())
 		}
+		return rpc.NewError(req.ID, "handler-error", err.Error())
 	}
 
 	// Marshal result
@@ -92,10 +90,7 @@ func (d *RPCDispatcher) Dispatch(req *rpc.Request) any {
 		var marshalErr error
 		resultJSON, marshalErr = json.Marshal(result)
 		if marshalErr != nil {
-			return &rpc.RPCError{
-				Error: "marshal-error",
-				ID:    req.ID,
-			}
+			return rpc.NewError(req.ID, "marshal-error", marshalErr.Error())
 		}
 	}
 

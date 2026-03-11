@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 
+	unicli "codeberg.org/thomas-mangin/ze/internal/component/cli"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
@@ -22,6 +22,7 @@ type mockServer struct {
 	listener net.Listener
 	path     string
 	done     chan struct{}
+	commands []any // Override ze-system:command-list response (nil = use default)
 }
 
 func newMockServer(t *testing.T) *mockServer {
@@ -60,7 +61,7 @@ func (s *mockServer) serve() {
 }
 
 func (s *mockServer) handleConn(conn net.Conn) {
-	defer conn.Close() //nolint:errcheck // test cleanup
+	defer conn.Close() //nolint:forcetypeassert,errcheck // test cleanup
 
 	reader := rpc.NewFrameReader(conn)
 	writer := rpc.NewFrameWriter(conn)
@@ -73,7 +74,7 @@ func (s *mockServer) handleConn(conn net.Conn) {
 
 		var req rpc.Request
 		if err := json.Unmarshal(msg, &req); err != nil {
-			resp := &rpc.RPCError{Error: "invalid-json"}
+			resp := rpc.NewError(nil, "invalid-json", "invalid JSON request")
 			data, merr := json.Marshal(resp)
 			if merr != nil {
 				return
@@ -116,8 +117,24 @@ func (s *mockServer) handleRPC(method string) any {
 				map[string]any{"Address": "10.0.0.2", "State": "idle"},
 			},
 		})}
+	case "ze-system:command-list":
+		return &rpc.RPCResult{Result: mustJSON(s.commandListResponse())}
 	default:
-		return &rpc.RPCError{Error: "unknown-method"}
+		return rpc.NewError(nil, "unknown-method", "unknown method")
+	}
+}
+
+// commandListResponse returns the command list for ze-system:command-list.
+// By default includes "rib status" but omits "rib show" to test proxy filtering.
+func (s *mockServer) commandListResponse() map[string]any {
+	if s.commands != nil {
+		return map[string]any{"commands": s.commands}
+	}
+	// Default: only "rib status" is available (not "rib show")
+	return map[string]any{
+		"commands": []any{
+			map[string]any{"value": "rib status"},
+		},
 	}
 }
 
@@ -180,7 +197,7 @@ func TestCLIClient_SendCommand(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer client.Close() //nolint:errcheck // test cleanup
+	defer client.Close() //nolint:forcetypeassert,errcheck // test cleanup
 
 	tests := []struct {
 		name     string
@@ -224,7 +241,7 @@ func TestCLIClient_Execute(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer client.Close() //nolint:errcheck // test cleanup
+	defer client.Close() //nolint:forcetypeassert,errcheck // test cleanup
 
 	var code int
 	output := captureOutput(t, false, func() {
@@ -248,7 +265,7 @@ func TestCLIClient_ExecuteError(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer client.Close() //nolint:errcheck // test cleanup
+	defer client.Close() //nolint:forcetypeassert,errcheck // test cleanup
 
 	var code int
 	output := captureOutput(t, true, func() {
@@ -279,7 +296,7 @@ func TestCLIClient_MultipleCommands(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to connect: %v", err)
 	}
-	defer client.Close() //nolint:errcheck // test cleanup
+	defer client.Close() //nolint:forcetypeassert,errcheck // test cleanup
 
 	// Send multiple commands on same connection
 	commands := []string{"system help", "daemon status", "peer list"}
@@ -614,220 +631,231 @@ func TestCLIClient_ResponseWithStringList(t *testing.T) {
 	}
 }
 
-// TestHistoryUpDown verifies Up/Down arrow navigation through command history.
+// TestErrorMessage verifies rpcResponse.ErrorMessage prefers Params.message over Error code.
+//
+// VALIDATES: Structured error detail is used for display when available.
+// PREVENTS: Kebab-case error codes shown to users instead of readable messages.
+func TestErrorMessage(t *testing.T) {
+	tests := []struct {
+		name string
+		resp rpcResponse
+		want string
+	}{
+		{
+			name: "params_message",
+			resp: rpcResponse{
+				Error:  "command-not-available",
+				Params: json.RawMessage(`{"message":"command \"bgp rib routes\" not available (plugin may not be running)"}`),
+			},
+			want: `command "bgp rib routes" not available (plugin may not be running)`,
+		},
+		{
+			name: "fallback_to_error",
+			resp: rpcResponse{Error: "unknown-method"},
+			want: "unknown-method",
+		},
+		{
+			name: "empty_params_message",
+			resp: rpcResponse{
+				Error:  "some-error",
+				Params: json.RawMessage(`{"message":""}`),
+			},
+			want: "some-error",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.resp.ErrorMessage()
+			if got != tt.want {
+				t.Errorf("ErrorMessage() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestHistoryUpDown verifies Up/Down arrow navigation through command history
+// using the unified cli.Model.
 //
 // VALIDATES: History recall via Up/Down arrows works correctly.
 // PREVENTS: History browsing returning wrong entries or panicking.
 func TestHistoryUpDown(t *testing.T) {
-	m := model{
-		textInput:  textinput.New(),
-		historyIdx: -1,
-		history:    []string{"peer list", "daemon status", "system help"},
+	m := unicli.NewCommandModel()
+	upKey := tea.KeyMsg{Type: tea.KeyUp}
+	downKey := tea.KeyMsg{Type: tea.KeyDown}
+	enterKey := tea.KeyMsg{Type: tea.KeyEnter}
+
+	// Populate history by executing commands.
+	for _, cmd := range []string{"peer list", "daemon status", "system help"} {
+		m.SetInput(cmd)
+		updated, _ := m.Update(enterKey)
+		m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
 	}
 
 	// Up once → most recent ("system help")
-	m = m.handleHistoryUp()
-	if m.textInput.Value() != "system help" {
-		t.Errorf("first Up = %q, want 'system help'", m.textInput.Value())
-	}
-	if m.historyIdx != 2 {
-		t.Errorf("historyIdx = %d, want 2", m.historyIdx)
+	updated, _ := m.Update(upKey)
+	m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
+	if m.InputValue() != "system help" {
+		t.Errorf("first Up = %q, want 'system help'", m.InputValue())
 	}
 
 	// Up again → "daemon status"
-	m = m.handleHistoryUp()
-	if m.textInput.Value() != "daemon status" {
-		t.Errorf("second Up = %q, want 'daemon status'", m.textInput.Value())
+	updated, _ = m.Update(upKey)
+	m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
+	if m.InputValue() != "daemon status" {
+		t.Errorf("second Up = %q, want 'daemon status'", m.InputValue())
 	}
 
 	// Up again → "peer list"
-	m = m.handleHistoryUp()
-	if m.textInput.Value() != "peer list" {
-		t.Errorf("third Up = %q, want 'peer list'", m.textInput.Value())
+	updated, _ = m.Update(upKey)
+	m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
+	if m.InputValue() != "peer list" {
+		t.Errorf("third Up = %q, want 'peer list'", m.InputValue())
 	}
 
 	// Up at top → stays at "peer list"
-	m = m.handleHistoryUp()
-	if m.textInput.Value() != "peer list" {
-		t.Errorf("Up at top = %q, want 'peer list'", m.textInput.Value())
+	updated, _ = m.Update(upKey)
+	m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
+	if m.InputValue() != "peer list" {
+		t.Errorf("Up at top = %q, want 'peer list'", m.InputValue())
 	}
 
 	// Down → "daemon status"
-	m = m.handleHistoryDown()
-	if m.textInput.Value() != "daemon status" {
-		t.Errorf("Down = %q, want 'daemon status'", m.textInput.Value())
+	updated, _ = m.Update(downKey)
+	m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
+	if m.InputValue() != "daemon status" {
+		t.Errorf("Down = %q, want 'daemon status'", m.InputValue())
 	}
 
 	// Down → "system help"
-	m = m.handleHistoryDown()
-	if m.textInput.Value() != "system help" {
-		t.Errorf("Down = %q, want 'system help'", m.textInput.Value())
+	updated, _ = m.Update(downKey)
+	m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
+	if m.InputValue() != "system help" {
+		t.Errorf("Down = %q, want 'system help'", m.InputValue())
 	}
 
 	// Down past end → restores original input
-	m = m.handleHistoryDown()
-	if m.textInput.Value() != "" {
-		t.Errorf("Down past end = %q, want empty (original)", m.textInput.Value())
-	}
-	if m.historyIdx != -1 {
-		t.Errorf("historyIdx = %d, want -1 after restoring", m.historyIdx)
+	updated, _ = m.Update(downKey)
+	m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
+	if m.InputValue() != "" {
+		t.Errorf("Down past end = %q, want empty (original)", m.InputValue())
 	}
 }
 
-// TestHistoryPreservesInput verifies current input is saved when browsing history.
+// TestHistoryPreservesInput verifies current input is saved when browsing history
+// using the unified cli.Model.
 //
 // VALIDATES: Partial input is restored when pressing Down past the end.
 // PREVENTS: Losing user's in-progress input when browsing history.
 func TestHistoryPreservesInput(t *testing.T) {
-	m := model{
-		textInput:  textinput.New(),
-		historyIdx: -1,
-		history:    []string{"peer list"},
-	}
-	m.textInput.SetValue("daemon st")
+	m := unicli.NewCommandModel()
+	upKey := tea.KeyMsg{Type: tea.KeyUp}
+	downKey := tea.KeyMsg{Type: tea.KeyDown}
+	enterKey := tea.KeyMsg{Type: tea.KeyEnter}
+
+	// Populate history
+	m.SetInput("peer list")
+	updated, _ := m.Update(enterKey)
+	m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
+
+	// Type partial input
+	m.SetInput("daemon st")
 
 	// Up → recalls "peer list", saves "daemon st"
-	m = m.handleHistoryUp()
-	if m.textInput.Value() != "peer list" {
-		t.Errorf("Up = %q, want 'peer list'", m.textInput.Value())
-	}
-	if m.historyTmp != "daemon st" {
-		t.Errorf("historyTmp = %q, want 'daemon st'", m.historyTmp)
+	updated, _ = m.Update(upKey)
+	m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
+	if m.InputValue() != "peer list" {
+		t.Errorf("Up = %q, want 'peer list'", m.InputValue())
 	}
 
 	// Down → restores "daemon st"
-	m = m.handleHistoryDown()
-	if m.textInput.Value() != "daemon st" {
-		t.Errorf("Down = %q, want 'daemon st'", m.textInput.Value())
+	updated, _ = m.Update(downKey)
+	m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
+	if m.InputValue() != "daemon st" {
+		t.Errorf("Down = %q, want 'daemon st'", m.InputValue())
 	}
 }
 
-// TestHistoryEmpty verifies Up/Down on empty history is a no-op.
+// TestHistoryEmpty verifies Up/Down on empty history is a no-op
+// using the unified cli.Model.
 //
 // VALIDATES: No crash when browsing history with no entries.
 // PREVENTS: Index out of bounds on empty history.
 func TestHistoryEmpty(t *testing.T) {
-	m := model{
-		textInput:  textinput.New(),
-		historyIdx: -1,
-	}
-	m.textInput.SetValue("test")
+	t.Run("up", func(t *testing.T) {
+		m := unicli.NewCommandModel()
+		m.SetInput("test")
+		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
+		m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
+		if m.InputValue() != "test" {
+			t.Errorf("Up on empty history = %q, want 'test'", m.InputValue())
+		}
+	})
 
-	m = m.handleHistoryUp()
-	if m.textInput.Value() != "test" {
-		t.Errorf("Up on empty history = %q, want 'test'", m.textInput.Value())
-	}
-
-	m = m.handleHistoryDown()
-	if m.textInput.Value() != "test" {
-		t.Errorf("Down on empty history = %q, want 'test'", m.textInput.Value())
-	}
+	t.Run("down", func(t *testing.T) {
+		m := unicli.NewCommandModel()
+		m.SetInput("test")
+		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+		m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
+		if m.InputValue() != "test" {
+			t.Errorf("Down on empty history = %q, want 'test'", m.InputValue())
+		}
+	})
 }
 
-// TestHistoryDedup verifies consecutive duplicate commands are not stored twice.
+// TestHistoryDedup verifies consecutive duplicate commands are not stored twice
+// using the unified cli.Model.
 //
 // VALIDATES: Duplicate consecutive commands produce single history entry.
 // PREVENTS: History filling with repeated identical commands.
 func TestHistoryDedup(t *testing.T) {
-	m := model{
-		textInput:  textinput.New(),
-		historyIdx: -1,
-	}
-
+	m := unicli.NewCommandModel()
 	enterKey := tea.KeyMsg{Type: tea.KeyEnter}
+	upKey := tea.KeyMsg{Type: tea.KeyUp}
 
-	// Type "peer list" and press Enter three times through Update().
+	// Type "peer list" and press Enter three times.
 	for range 3 {
-		m.textInput.SetValue("peer list")
+		m.SetInput("peer list")
 		updated, _ := m.Update(enterKey)
-		m, _ = updated.(model) //nolint:errcheck // test: type is always model
+		m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
 	}
 
-	if len(m.history) != 1 {
-		t.Errorf("history len = %d, want 1 (dedup)", len(m.history))
+	// Navigate history: Up should give "peer list", next Up should stay (only one entry).
+	updated, _ := m.Update(upKey)
+	m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
+	if m.InputValue() != "peer list" {
+		t.Errorf("first Up = %q, want 'peer list'", m.InputValue())
+	}
+	updated, _ = m.Update(upKey)
+	m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
+	if m.InputValue() != "peer list" {
+		t.Errorf("second Up = %q, want 'peer list' (should stay, single entry)", m.InputValue())
 	}
 
 	// Different command should be added.
-	m.textInput.SetValue("daemon status")
-	updated, _ := m.Update(enterKey)
-	m, _ = updated.(model) //nolint:errcheck // test: type is always model
+	m.SetInput("daemon status")
+	updated, _ = m.Update(enterKey)
+	m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
 
-	if len(m.history) != 2 {
-		t.Errorf("history len = %d, want 2", len(m.history))
+	// Up → "daemon status", Up → "peer list"
+	updated, _ = m.Update(upKey)
+	m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
+	if m.InputValue() != "daemon status" {
+		t.Errorf("Up after second cmd = %q, want 'daemon status'", m.InputValue())
+	}
+	updated, _ = m.Update(upKey)
+	m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
+	if m.InputValue() != "peer list" {
+		t.Errorf("second Up = %q, want 'peer list'", m.InputValue())
 	}
 }
 
-// TestTabCycleDoesNotAppend verifies Tab cycling replaces rather than appends.
-//
-// VALIDATES: Pressing Tab multiple times cycles through completions at the same position.
-// PREVENTS: Tab appending suggestions repeatedly (e.g., "peer plugin peer plugin...").
-func TestTabCycleDoesNotAppend(t *testing.T) {
-	m := model{
-		textInput:  textinput.New(),
-		historyIdx: -1,
-		suggestions: []suggestion{
-			{text: "peer", description: "Peer management"},
-			{text: "plugin", description: "Plugin management"},
-		},
-		selected: -1,
-	}
-	m.textInput.SetValue("p")
-
-	tabKey := tea.KeyMsg{Type: tea.KeyTab}
-
-	// First Tab: should select "peer" (index 0 after increment from -1→0)
-	updated, _ := m.Update(tabKey)
-	m, _ = updated.(model) //nolint:errcheck // test: type is always model
-	if got := m.textInput.Value(); got != "peer " {
-		t.Fatalf("first Tab = %q, want %q", got, "peer ")
-	}
-
-	// Second Tab: should replace with "plugin", not append
-	updated, _ = m.Update(tabKey)
-	m, _ = updated.(model) //nolint:errcheck // test: type is always model
-	if got := m.textInput.Value(); got != "plugin " {
-		t.Fatalf("second Tab = %q, want %q", got, "plugin ")
-	}
-
-	// Third Tab: should cycle back to "peer"
-	updated, _ = m.Update(tabKey)
-	m, _ = updated.(model) //nolint:errcheck // test: type is always model
-	if got := m.textInput.Value(); got != "peer " {
-		t.Fatalf("third Tab = %q, want %q", got, "peer ")
-	}
-}
-
-// TestTabSingleSuggestion verifies Tab with one suggestion applies once, not twice.
-//
-// VALIDATES: Single suggestion Tab applies once, subsequent Tabs are no-ops.
-// PREVENTS: Tab producing "peer peer " when only one suggestion matches.
-func TestTabSingleSuggestion(t *testing.T) {
-	m := model{
-		textInput:  textinput.New(),
-		historyIdx: -1,
-		suggestions: []suggestion{
-			{text: "peer", description: "Peer management"},
-		},
-		selected: -1,
-	}
-	m.textInput.SetValue("pee")
-
-	tabKey := tea.KeyMsg{Type: tea.KeyTab}
-
-	// First Tab: applies "peer"
-	updated, _ := m.Update(tabKey)
-	m, _ = updated.(model) //nolint:errcheck // test: type is always model
-	if got := m.textInput.Value(); got != "peer " {
-		t.Fatalf("first Tab = %q, want %q", got, "peer ")
-	}
-
-	// Second Tab: should be no-op (only one suggestion)
-	updated, _ = m.Update(tabKey)
-	m, _ = updated.(model) //nolint:errcheck // test: type is always model
-	if got := m.textInput.Value(); got != "peer " {
-		t.Fatalf("second Tab = %q, want %q (should be no-op)", got, "peer ")
-	}
-}
+// Tab completion tests (TestTabCycleDoesNotAppend, TestTabSingleSuggestion)
+// were removed: they tested the old local model's suggestion cycling behavior.
+// The unified cli.Model uses a different completion system (dropdown overlay
+// with ghost text). Equivalent behavior is tested in
+// internal/component/cli/model_test.go (TestTabOnListKeyShowsChildrenImmediately
+// and the headless .et functional tests).
 
 // TestResolveCommand verifies text command to wire method mapping.
 //
@@ -880,5 +908,47 @@ func TestResolveCommand(t *testing.T) {
 				t.Errorf("resolveCommand(%q) args = %v, want %v", tt.input, args, tt.wantArgs)
 			}
 		})
+	}
+}
+
+// TestBuildRuntimeTree verifies proxy commands are filtered when plugin is not running.
+//
+// VALIDATES: buildRuntimeTree excludes proxy commands whose PluginCommand is not in daemon's command list.
+// PREVENTS: Completions offered for commands that will fail because plugin is not running.
+func TestBuildRuntimeTree(t *testing.T) {
+	server := newMockServer(t)
+	defer server.Close()
+
+	client, err := newCLIClient(server.path)
+	if err != nil {
+		t.Fatalf("failed to connect: %v", err)
+	}
+	defer client.Close() //nolint:forcetypeassert,errcheck // test cleanup
+
+	tree := buildRuntimeTree(client)
+	if tree == nil {
+		t.Fatal("buildRuntimeTree returned nil")
+	}
+
+	// "rib status" is in the mock's command list → rib.status should be present
+	rib := tree.Children["rib"]
+	if rib == nil {
+		t.Fatal("expected 'rib' in runtime tree")
+	}
+	if _, ok := rib.Children["status"]; !ok {
+		t.Error("expected 'rib status' in runtime tree (plugin command available)")
+	}
+
+	// "rib show" is NOT in the mock's command list → rib.routes should be absent
+	if _, ok := rib.Children["routes"]; ok {
+		t.Error("expected 'rib routes' to be filtered out (plugin command 'rib show' not available)")
+	}
+
+	// Non-proxy commands should always be present
+	if _, ok := tree.Children["peer"]; !ok {
+		t.Error("expected 'peer' in runtime tree (not a proxy command)")
+	}
+	if _, ok := tree.Children["daemon"]; !ok {
+		t.Error("expected 'daemon' in runtime tree (not a proxy command)")
 	}
 }

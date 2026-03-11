@@ -9,6 +9,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -21,6 +22,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // logger is the plugin server subsystem logger (lazy initialization).
@@ -103,7 +105,7 @@ func (s *Server) wrapHandler(handler Handler, cliCommand string, readOnly bool) 
 		var rpcParams RPCParams
 		if len(params) > 0 {
 			if err := json.Unmarshal(params, &rpcParams); err != nil {
-				return nil, fmt.Errorf("invalid params: %w", err)
+				return nil, rpc.NewCodedError("invalid-params", fmt.Sprintf("invalid params: %v", err))
 			}
 		}
 
@@ -114,18 +116,23 @@ func (s *Server) wrapHandler(handler Handler, cliCommand string, readOnly bool) 
 
 		// Authorization check — same path as Dispatch() in command.go
 		if s.dispatcher != nil && !s.dispatcher.isAuthorized(ctx, cliCommand, readOnly) {
-			return nil, ErrUnauthorized
+			return nil, rpc.NewCodedError("unauthorized", "unauthorized")
 		}
 
 		resp, err := handler(ctx, rpcParams.Args)
 		if err != nil {
+			// Use CLI-facing command name, not internal plugin command name
+			if errors.Is(err, ErrUnknownCommand) {
+				return nil, rpc.NewCodedError("command-not-available",
+					fmt.Sprintf("command %q not available (plugin may not be running)", cliCommand))
+			}
 			return nil, err
 		}
 		if resp == nil {
 			return nil, nil
 		}
 		if resp.Status == plugin.StatusError {
-			return nil, fmt.Errorf("%v", resp.Data)
+			return nil, rpc.NewCodedError("handler-error", fmt.Sprintf("%v", resp.Data))
 		}
 		return resp.Data, nil
 	}

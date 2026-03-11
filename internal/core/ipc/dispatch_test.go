@@ -83,10 +83,10 @@ func TestRPCDispatchUnknownMethod(t *testing.T) {
 	assert.Equal(t, json.RawMessage(`3`), errResp.ID)
 }
 
-// TestRPCDispatchHandlerError verifies error from handler is formatted as RPCError.
+// TestRPCDispatchHandlerError verifies plain Go errors get generic code with readable Params.
 //
-// VALIDATES: Handler errors are converted to kebab-case RPCError.
-// PREVENTS: Raw Go errors leaking to wire protocol.
+// VALIDATES: Plain errors produce RPCError with "handler-error" code and human-readable Params.
+// PREVENTS: Raw Go errors leaking to wire protocol without structured detail.
 func TestRPCDispatchHandlerError(t *testing.T) {
 	d := NewRPCDispatcher()
 
@@ -103,8 +103,44 @@ func TestRPCDispatchHandlerError(t *testing.T) {
 	resp := d.Dispatch(req)
 	errResp, ok := resp.(*rpc.RPCError)
 	require.True(t, ok, "expected RPCError, got %T", resp)
-	assert.Equal(t, "peer-not-found", errResp.Error)
+	assert.Equal(t, "handler-error", errResp.Error)
 	assert.Equal(t, json.RawMessage(`4`), errResp.ID)
+
+	// Params carries the human-readable message
+	var detail struct {
+		Message string `json:"message"`
+	}
+	require.NoError(t, json.Unmarshal(errResp.Params, &detail))
+	assert.Equal(t, "peer not found", detail.Message)
+}
+
+// TestRPCDispatchCodedError verifies CodedError passes explicit code through dispatch.
+//
+// VALIDATES: CodedError's code is used as the RPCError.Error field, not a generic fallback.
+// PREVENTS: Loss of specific error codes when handlers use CodedError.
+func TestRPCDispatchCodedError(t *testing.T) {
+	d := NewRPCDispatcher()
+
+	err := d.Register("ze-bgp:peer-teardown", func(_ string, _ json.RawMessage) (any, error) {
+		return nil, rpc.NewCodedError("command-not-available", `command "bgp rib routes" not available (plugin may not be running)`)
+	})
+	require.NoError(t, err)
+
+	req := &rpc.Request{
+		Method: "ze-bgp:peer-teardown",
+		ID:     json.RawMessage(`5`),
+	}
+
+	resp := d.Dispatch(req)
+	errResp, ok := resp.(*rpc.RPCError)
+	require.True(t, ok, "expected RPCError, got %T", resp)
+	assert.Equal(t, "command-not-available", errResp.Error)
+
+	var detail struct {
+		Message string `json:"message"`
+	}
+	require.NoError(t, json.Unmarshal(errResp.Params, &detail))
+	assert.Equal(t, `command "bgp rib routes" not available (plugin may not be running)`, detail.Message)
 }
 
 // TestRPCDispatchInvalidMethod verifies error for malformed method names.

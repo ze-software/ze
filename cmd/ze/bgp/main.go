@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — BGP CLI commands
+// Detail: cmd_plugin.go — plugin CLI simulator subcommand
 //
 // Package bgp provides the Ze BGP daemon subcommand.
 package bgp
@@ -31,6 +32,8 @@ func Run(args []string) int {
 		return cmdDecode(args[1:])
 	case "encode":
 		return cmdEncode(args[1:])
+	case "plugin":
+		return cmdPlugin(args[1:])
 	case "help", "-h", "--help": //nolint:goconst // consistent pattern across cmd files
 		usage()
 		return 0
@@ -38,7 +41,7 @@ func Run(args []string) int {
 
 	// Unknown command
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
-	if s := suggest.Command(arg, []string{"decode", "encode", "help"}); s != "" {
+	if s := suggest.Command(arg, []string{"decode", "encode", "plugin", "help"}); s != "" {
 		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
 	}
 	usage()
@@ -54,6 +57,7 @@ Usage:
 Commands:
   decode <hex>         Decode BGP message from hex to JSON
   encode <route>       Encode API route command to BGP hex
+  plugin               Interactive plugin simulator
   help                 Show this help
 
 See also:

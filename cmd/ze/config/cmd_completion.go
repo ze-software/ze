@@ -10,8 +10,8 @@ import (
 	"os"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/editor"
 )
 
 func cmdCompletion(args []string) int {
@@ -85,7 +85,7 @@ Examples:
 	}
 
 	// Create completer with config tree for data-aware completion
-	completer := editor.NewCompleter()
+	completer := cli.NewCompleter()
 	completer.SetTree(tree)
 
 	if *ghost {
@@ -95,7 +95,7 @@ Examples:
 	return outputCompletions(completer, input, contextPath, *jsonOutput)
 }
 
-func outputGhost(c *editor.Completer, input string, contextPath []string, asJSON bool) int {
+func outputGhost(c *cli.Completer, input string, contextPath []string, asJSON bool) int {
 	text := c.GhostText(input, contextPath)
 
 	if asJSON {
@@ -111,7 +111,7 @@ func outputGhost(c *editor.Completer, input string, contextPath []string, asJSON
 	return exitOK
 }
 
-func outputCompletions(c *editor.Completer, input string, contextPath []string, asJSON bool) int {
+func outputCompletions(c *cli.Completer, input string, contextPath []string, asJSON bool) int {
 	completions := c.Complete(input, contextPath)
 
 	if asJSON {

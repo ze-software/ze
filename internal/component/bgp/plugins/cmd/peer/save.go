@@ -8,7 +8,7 @@ import (
 	"net/netip"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/editor"
+	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
@@ -50,7 +50,7 @@ func handleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 	}
 
 	// Open config file via Editor (YANG-aware, creates backup on save)
-	ed, err := editor.NewEditor(configPath)
+	ed, err := cli.NewEditor(configPath)
 	if err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,

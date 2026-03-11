@@ -1,6 +1,6 @@
 // Design: (none -- new SSH server component)
 // Detail: auth.go -- password authentication
-// Detail: session.go -- per-session editor creation
+// Detail: session.go -- per-session unified CLI model creation
 
 package ssh
 
@@ -240,26 +240,13 @@ func (s *Server) maxSessionsMiddleware() wish.Middleware {
 	}
 }
 
-// teaHandler creates a per-session Bubble Tea model.
-// Each SSH session gets a fresh editor in command mode (read-only).
-// The command executor is injected directly — no socket needed since we're in-process.
+// teaHandler creates a per-session Bubble Tea model using the unified cli.Model.
+// Each SSH session gets a command-mode model with an executor wired.
 // If an executor factory is set, it creates a per-session executor with the
 // authenticated username (for authorization context). Falls back to config.Executor.
 func (s *Server) teaHandler(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
 	username := sess.User()
-
-	s.mu.Lock()
-	factory := s.executorFactory
-	s.mu.Unlock()
-
-	var executor CommandExecutor
-	if factory != nil {
-		executor = factory(username)
-	} else if s.config.Executor != nil {
-		executor = s.config.Executor
-	}
-
-	model := NewSessionModel(executor)
+	model := s.createSessionModel(username)
 	s.logger.Info("SSH session started", "user", username, "remote", sess.RemoteAddr().String())
 	return model, []tea.ProgramOption{tea.WithAltScreen()}
 }

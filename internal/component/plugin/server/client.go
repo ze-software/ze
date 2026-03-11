@@ -71,7 +71,7 @@ func (s *Server) clientLoop(client *Client) {
 
 		var req rpc.Request
 		if err := json.Unmarshal(msg, &req); err != nil {
-			errResp := &rpc.RPCError{Error: "invalid-json"}
+			errResp := rpc.NewError(nil, "invalid-json", "invalid JSON request")
 			if writeErr := s.writeRPCResponse(writer, errResp); writeErr != nil {
 				return
 			}

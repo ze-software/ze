@@ -411,7 +411,7 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 	ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
 	defer cancel()
 	_, _, err := rs.plugin.UpdateRoute(ctx, peerSelector, command)
-	if err != nil {
+	if err != nil { //nolint:gocritic // ifElseChain: switch blocked by block-silent-ignore hook
 		if rs.stopping.Load() {
 			logger().Debug("update-route failed (shutting down)", "peer", peerSelector, "command", command, "error", err)
 		} else if isConnectionError(err) {

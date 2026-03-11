@@ -6,8 +6,11 @@ import (
 	"testing"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 )
 
 // VALIDATES: AC-4 — SSH server created with config values.
@@ -183,4 +186,45 @@ func TestServerActiveSessionsCounter(t *testing.T) {
 	assert.Equal(t, int32(2), srv.ActiveSessions())
 	srv.activeSessions.Add(-1)
 	assert.Equal(t, int32(1), srv.ActiveSessions())
+}
+
+// VALIDATES: AC-5 — SSH session uses unified cli.Model in command mode.
+// PREVENTS: SSH sessions missing features available in other TUI entry points.
+func TestSSHUsesUnifiedModel(t *testing.T) {
+	// Create a server with an executor factory.
+	executorCalled := false
+	factory := func(username string) CommandExecutor {
+		return func(input string) (string, error) {
+			executorCalled = true
+			return "result:" + input, nil
+		}
+	}
+
+	cfg := Config{
+		HostKeyPath: t.TempDir() + "/test_host_key",
+	}
+	srv, err := NewServer(cfg)
+	require.NoError(t, err)
+	srv.SetExecutorFactory(factory)
+
+	// createSessionModel is the extracted function that teaHandler uses.
+	model := srv.createSessionModel("testuser")
+
+	// Verify it starts in ModeCommand (command-only, no editor).
+	assert.Equal(t, cli.ModeCommand, model.Mode(), "SSH model should start in command mode")
+
+	// Verify the executor is wired: send a command through Update.
+	// Bubble Tea commands are async — Update returns a tea.Cmd that must be
+	// executed manually in tests, then the resulting message fed back through Update.
+	model.SetInput("test-command")
+	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	require.NotNil(t, cmd, "Enter should return a command for async execution")
+
+	// Execute the command and feed the result back.
+	msg := cmd()
+	updated, _ = updated.Update(msg)
+	m, ok := updated.(cli.Model)
+	require.True(t, ok, "Update should return cli.Model")
+	assert.True(t, executorCalled, "executor should be called via async command")
+	assert.Contains(t, m.ViewportContent(), "result:test-command")
 }

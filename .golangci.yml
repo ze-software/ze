@@ -17,7 +17,7 @@ linters:
         linters:
           - forbidigo
       # Bubbletea tea.Model interface requires value receivers — cannot use pointer
-      - path: "(internal/component/config/editor/model[^/]*|cmd/ze/cli/main)\\.go"
+      - path: "(internal/component/cli/model[^/]*|cmd/ze/cli/main)\\.go"
         text: "hugeParam"
       # slog.Handler interface requires slog.Record by value — cannot use pointer
       - path: "internal/core/slogutil/color\\.go"

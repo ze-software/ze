@@ -5,7 +5,6 @@ package ipc
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
@@ -26,12 +25,14 @@ func MapResponse(status, serial string, partial bool, data any) any {
 	}
 
 	if status == "error" {
-		errMsg := normalizeErrorName(data)
-		resp := &rpc.RPCError{
-			Error: errMsg,
-			ID:    id,
+		msg := fmt.Sprintf("%v", data)
+		if s, ok := data.(string); ok {
+			msg = s
 		}
-		return resp
+		if e, ok := data.(error); ok {
+			msg = e.Error()
+		}
+		return rpc.NewError(id, "error", msg)
 	}
 
 	// Marshal data to JSON for the result field
@@ -51,19 +52,4 @@ func MapResponse(status, serial string, partial bool, data any) any {
 		Continues: partial,
 	}
 	return resp
-}
-
-// normalizeErrorName converts an error data value to a kebab-case error identity.
-func normalizeErrorName(data any) string {
-	msg := fmt.Sprintf("%v", data)
-	if s, ok := data.(string); ok {
-		msg = s
-	}
-	if e, ok := data.(error); ok {
-		msg = e.Error()
-	}
-	// Convert spaces to hyphens for kebab-case
-	msg = strings.ToLower(msg)
-	msg = strings.ReplaceAll(msg, " ", "-")
-	return msg
 }

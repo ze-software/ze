@@ -19,10 +19,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/editor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -31,7 +31,7 @@ import (
 // wireCommandExecutor tries to connect to the daemon socket and sets up the command executor.
 // If the daemon is not running, command mode will show an error on Enter (best-effort).
 // Returns the connection (caller must close) or nil if no daemon.
-func wireCommandExecutor(m *editor.Model, socketPath string) net.Conn {
+func wireCommandExecutor(m *cli.Model, socketPath string) net.Conn {
 	var d net.Dialer
 	conn, err := d.DialContext(context.Background(), "unix", socketPath)
 	if err != nil {
@@ -44,14 +44,12 @@ func wireCommandExecutor(m *editor.Model, socketPath string) net.Conn {
 	// Build command map for resolving CLI text → wire method
 	cmdMap, cmdKeys := buildCommandMap()
 
+	// Pipe processing (| table, | json, etc.) is handled by the unified model's
+	// executeOperationalCommand — executor receives pre-pipe commands, returns raw JSON.
 	m.SetCommandExecutor(func(input string) (string, error) {
-		// Split pipe operators from command (e.g., "peer list | table").
-		// Default to table format when no explicit format pipe is specified.
-		cmd, pipeFormat := command.ProcessPipesDefaultTable(input)
-
-		method, args := resolveEditorCommand(cmdMap, cmdKeys, cmd)
+		method, args := resolveEditorCommand(cmdMap, cmdKeys, input)
 		if method == "" {
-			return "", fmt.Errorf("unknown command: %s", cmd)
+			return "", fmt.Errorf("unknown command: %s", input)
 		}
 
 		req := rpc.Request{Method: method}
@@ -82,12 +80,16 @@ func wireCommandExecutor(m *editor.Model, socketPath string) net.Conn {
 		var resp struct {
 			Result json.RawMessage `json:"result,omitempty"`
 			Error  string          `json:"error,omitempty"`
+			Params json.RawMessage `json:"params,omitempty"`
 		}
 		if err := json.Unmarshal(respBytes, &resp); err != nil {
 			return "", fmt.Errorf("parse response: %w", err)
 		}
 
 		if resp.Error != "" {
+			if msg := rpc.ExtractMessage(resp.Params); msg != "" {
+				return "", fmt.Errorf("%s", msg)
+			}
 			return "", fmt.Errorf("%s", resp.Error)
 		}
 
@@ -95,7 +97,7 @@ func wireCommandExecutor(m *editor.Model, socketPath string) net.Conn {
 			return "OK", nil
 		}
 
-		return pipeFormat(string(resp.Result)), nil
+		return string(resp.Result), nil
 	})
 
 	return conn
@@ -280,7 +282,7 @@ Examples:
 	}
 
 	// Create editor
-	ed, err := editor.NewEditor(configPath)
+	ed, err := cli.NewEditor(configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
@@ -293,7 +295,7 @@ Examples:
 	defer probeCancel()
 	if conn, err := (&net.Dialer{}).DialContext(probeCtx, "unix", socketPath); err == nil {
 		conn.Close() //nolint:errcheck,gosec // Probe connection, close error is irrelevant
-		ed.SetReloadNotifier(editor.NewSocketReloadNotifier(socketPath))
+		ed.SetReloadNotifier(cli.NewSocketReloadNotifier(socketPath))
 	}
 
 	// Wire archive notifier if config has commit-triggered archive blocks
@@ -309,23 +311,23 @@ Examples:
 	// Check for pending edit file from previous session
 	if ed.HasPendingEdit() {
 		switch ed.PromptPendingEdit() {
-		case editor.PendingEditContinue:
+		case cli.PendingEditContinue:
 			if err := ed.LoadPendingEdit(); err != nil {
 				fmt.Fprintf(os.Stderr, "error loading edit file: %v\n", err)
 				return 1
 			}
-		case editor.PendingEditDiscard:
+		case cli.PendingEditDiscard:
 			if err := ed.Discard(); err != nil {
 				fmt.Fprintf(os.Stderr, "error discarding edit file: %v\n", err)
 				return 1
 			}
-		case editor.PendingEditQuit:
+		case cli.PendingEditQuit:
 			return 0
 		}
 	}
 
 	// Create model
-	m, err := editor.NewModel(ed)
+	m, err := cli.NewModel(ed)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
@@ -333,7 +335,7 @@ Examples:
 
 	// Wire command mode: completer from RPC registrations, executor from daemon socket.
 	// Command mode is best-effort — works without a running daemon (completions only).
-	m.SetCommandCompleter(editor.NewCommandCompleter(buildEditorCommandTree()))
+	m.SetCommandCompleter(cli.NewCommandCompleter(buildEditorCommandTree()))
 	if conn := wireCommandExecutor(&m, config.DefaultSocketPath()); conn != nil {
 		defer conn.Close() //nolint:errcheck // best-effort cleanup
 	}

@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	editortesting "codeberg.org/thomas-mangin/ze/internal/component/config/editor/testing"
+	editortesting "codeberg.org/thomas-mangin/ze/internal/component/cli/testing"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 	"codeberg.org/thomas-mangin/ze/internal/test/runner"
 )

@@ -231,16 +231,17 @@ func TestWireFormatStreaming(t *testing.T) {
 // PREVENTS: Existing handler responses being incorrectly translated to IPC.
 func TestResponseMapping(t *testing.T) {
 	tests := []struct {
-		name       string
-		status     string
-		serial     string
-		partial    bool
-		data       any
-		wantResp   bool // true = RPCResult, false = RPCError
-		wantID     string
-		wantCont   bool
-		wantResult string
-		wantError  string
+		name        string
+		status      string
+		serial      string
+		partial     bool
+		data        any
+		wantResp    bool // true = RPCResult, false = RPCError
+		wantID      string
+		wantCont    bool
+		wantResult  string
+		wantError   string
+		wantMessage string // Expected Params.message (for error responses)
 	}{
 		{
 			name:       "done_no_serial",
@@ -259,13 +260,14 @@ func TestResponseMapping(t *testing.T) {
 			wantResult: `{"count":5}`,
 		},
 		{
-			name:      "error_response",
-			status:    "error",
-			serial:    "7",
-			data:      "peer not found",
-			wantResp:  false,
-			wantID:    "7",
-			wantError: "peer-not-found",
+			name:        "error_response",
+			status:      "error",
+			serial:      "7",
+			data:        "peer not found",
+			wantResp:    false,
+			wantID:      "7",
+			wantError:   "error",
+			wantMessage: "peer not found",
 		},
 		{
 			name:       "partial_streaming",
@@ -285,18 +287,20 @@ func TestResponseMapping(t *testing.T) {
 			wantResp: true,
 		},
 		{
-			name:      "error_type_data",
-			status:    "error",
-			data:      fmt.Errorf("connection refused"),
-			wantResp:  false,
-			wantError: "connection-refused",
+			name:        "error_type_data",
+			status:      "error",
+			data:        fmt.Errorf("connection refused"),
+			wantResp:    false,
+			wantError:   "error",
+			wantMessage: "connection refused",
 		},
 		{
-			name:      "error_numeric_data",
-			status:    "error",
-			data:      42,
-			wantResp:  false,
-			wantError: "42",
+			name:        "error_numeric_data",
+			status:      "error",
+			data:        42,
+			wantResp:    false,
+			wantError:   "error",
+			wantMessage: "42",
 		},
 		{
 			name:       "non_numeric_serial",
@@ -330,6 +334,10 @@ func TestResponseMapping(t *testing.T) {
 				assert.NotEmpty(t, errResp.Error)
 				if tt.wantError != "" {
 					assert.Equal(t, tt.wantError, errResp.Error)
+				}
+				if tt.wantMessage != "" {
+					msg := rpc.ExtractMessage(errResp.Params)
+					assert.Equal(t, tt.wantMessage, msg)
 				}
 				if tt.wantID != "" {
 					assert.Equal(t, tt.wantID, string(errResp.ID))

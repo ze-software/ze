@@ -198,13 +198,9 @@ func (c *Conn) SendOK(ctx context.Context, id json.RawMessage) error {
 	return c.WriteWithContext(ctx, resp)
 }
 
-// SendError sends an error RPC response with the given ID and error name.
-func (c *Conn) SendError(ctx context.Context, id json.RawMessage, errorName string) error {
-	resp := &RPCError{
-		Error: errorName,
-		ID:    id,
-	}
-	return c.WriteWithContext(ctx, resp)
+// SendError sends a structured error RPC response with the given ID and human-readable message.
+func (c *Conn) SendError(ctx context.Context, id json.RawMessage, message string) error {
+	return c.WriteWithContext(ctx, NewError(id, "error", message))
 }
 
 // CallRPC sends an RPC request and waits for the response.
@@ -349,12 +345,16 @@ func writeDeadline(ctx context.Context) time.Time {
 // Returns nil if the response is successful, or an error if it contains an RPC error.
 func CheckResponse(raw json.RawMessage) error {
 	var probe struct {
-		Error string `json:"error,omitempty"`
+		Error  string          `json:"error,omitempty"`
+		Params json.RawMessage `json:"params,omitempty"`
 	}
 	if err := json.Unmarshal(raw, &probe); err != nil {
 		return fmt.Errorf("unmarshal response: %w", err)
 	}
 	if probe.Error != "" {
+		if msg := ExtractMessage(probe.Params); msg != "" {
+			return fmt.Errorf("rpc error: %s", msg)
+		}
 		return fmt.Errorf("rpc error: %s", probe.Error)
 	}
 	return nil
@@ -365,12 +365,16 @@ func CheckResponse(raw json.RawMessage) error {
 func ParseResponse(raw json.RawMessage) (json.RawMessage, error) {
 	var probe struct {
 		Error  string          `json:"error,omitempty"`
+		Params json.RawMessage `json:"params,omitempty"`
 		Result json.RawMessage `json:"result,omitempty"`
 	}
 	if err := json.Unmarshal(raw, &probe); err != nil {
 		return nil, fmt.Errorf("unmarshal response: %w", err)
 	}
 	if probe.Error != "" {
+		if msg := ExtractMessage(probe.Params); msg != "" {
+			return nil, fmt.Errorf("rpc error: %s", msg)
+		}
 		return nil, fmt.Errorf("rpc error: %s", probe.Error)
 	}
 	return probe.Result, nil

@@ -9,7 +9,7 @@ import (
 	"os"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/config/editor"
+	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 )
 
 func cmdRollback(args []string) int {
@@ -42,7 +42,7 @@ Exit codes:
 		return exitError
 	}
 
-	ed, err := editor.NewEditor(fs.Arg(1))
+	ed, err := cli.NewEditor(fs.Arg(1))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError

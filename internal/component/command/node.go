@@ -2,8 +2,8 @@
 // Related: completer.go — command completion using tree
 
 // Package command provides shared types and logic for operational command execution.
-// Both the standalone CLI (cmd/ze/cli) and the config editor's command mode
-// (internal/component/config/editor) use this package for command trees,
+// Both the standalone CLI (cmd/ze/cli) and the unified CLI model's command mode
+// (internal/component/cli) use this package for command trees,
 // completion, and pipe operators.
 package command
 

@@ -12,8 +12,8 @@ import (
 	"strconv"
 
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/internal/component/config/editor"
 )
 
 func cmdDiff(args []string) int {
@@ -82,7 +82,7 @@ Exit codes:
 
 // resolveRollbackPath resolves a revision number to a rollback file path.
 func resolveRollbackPath(configPath string, n int) (string, error) {
-	ed, err := editor.NewEditor(configPath)
+	ed, err := cli.NewEditor(configPath)
 	if err != nil {
 		return "", err
 	}
