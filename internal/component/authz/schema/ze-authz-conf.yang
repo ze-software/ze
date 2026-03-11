@@ -1,0 +1,110 @@
+module ze-authz-conf {
+    namespace "urn:ze:authz:conf";
+    prefix authz;
+
+    import ze-extensions { prefix ze; }
+
+    description "Authorization profile configuration for Ze";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    container system {
+        description "System-level settings";
+
+        container authorization {
+            description "Profile-based command authorization";
+
+            list profile {
+                key "name";
+                description "Named authorization profile with run and edit sections";
+
+                leaf name {
+                    type string;
+                    description "Profile identifier";
+                }
+
+                container run {
+                    description "Operational command authorization (read-only commands)";
+
+                    leaf default-action {
+                        type enumeration {
+                            enum allow;
+                            enum deny;
+                        }
+                        description "Action when no entry matches";
+                    }
+
+                    list entry {
+                        key "number";
+                        description "Ordered authorization entry";
+
+                        leaf number {
+                            type uint32;
+                            description "Sequence number (auto-assigned)";
+                        }
+
+                        leaf action {
+                            type enumeration {
+                                enum allow;
+                                enum deny;
+                            }
+                            description "Authorization action";
+                        }
+
+                        leaf match {
+                            type string;
+                            description "Command path prefix or regex pattern";
+                        }
+
+                        leaf regex {
+                            type boolean;
+                            description "If true, match is a regular expression";
+                        }
+                    }
+                }
+
+                container edit {
+                    description "Configuration command authorization (write commands)";
+
+                    leaf default-action {
+                        type enumeration {
+                            enum allow;
+                            enum deny;
+                        }
+                        description "Action when no entry matches";
+                    }
+
+                    list entry {
+                        key "number";
+                        description "Ordered authorization entry";
+
+                        leaf number {
+                            type uint32;
+                            description "Sequence number (auto-assigned)";
+                        }
+
+                        leaf action {
+                            type enumeration {
+                                enum allow;
+                                enum deny;
+                            }
+                            description "Authorization action";
+                        }
+
+                        leaf match {
+                            type string;
+                            description "Command path prefix or regex pattern";
+                        }
+
+                        leaf regex {
+                            type boolean;
+                            description "If true, match is a regular expression";
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

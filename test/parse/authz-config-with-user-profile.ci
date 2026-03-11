@@ -1,0 +1,50 @@
+# Test: ze validate with authorization profiles assigned to SSH users
+# Verifies that the profile leaf-list on user works together with authorization config
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer 127.0.0.1 {
+		local-address 127.0.0.1
+		local-as 65533
+		peer-as 65533
+	}
+}
+
+system {
+	authentication {
+		user operator {
+			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+			profile [ noc ]
+		}
+		user admin {
+			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+			profile [ admin ]
+		}
+	}
+	authorization {
+		profile noc {
+			run {
+				default-action allow
+				entry 10 {
+					action deny
+					match restart
+				}
+			}
+			edit {
+				default-action deny
+			}
+		}
+		profile admin {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action allow
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

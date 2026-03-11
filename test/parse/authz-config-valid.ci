@@ -1,0 +1,44 @@
+# Test: ze validate with valid authorization profile config
+# Verifies that the YANG schema accepts authorization profiles with run/edit sections
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer 127.0.0.1 {
+		local-address 127.0.0.1
+		local-as 65533
+		peer-as 65533
+	}
+}
+
+system {
+	authorization {
+		profile noc {
+			run {
+				default-action deny
+				entry 10 {
+					action allow
+					match "bgp peer show"
+				}
+				entry 20 {
+					action allow
+					match "bgp peer summary"
+				}
+			}
+			edit {
+				default-action deny
+			}
+		}
+		profile admin {
+			run {
+				default-action allow
+			}
+			edit {
+				default-action allow
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

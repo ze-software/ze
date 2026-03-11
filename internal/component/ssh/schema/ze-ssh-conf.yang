@@ -29,6 +29,11 @@ module ze-ssh-conf {
                     type string;
                     description "Bcrypt-hashed password";
                 }
+
+                leaf-list profile {
+                    type string;
+                    description "Authorization profile name(s) assigned to this user";
+                }
             }
         }
 

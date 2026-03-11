@@ -9,6 +9,7 @@ package all
 
 import (
 	// Infrastructure schema packages — YANG module registration.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/authz/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/system/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"

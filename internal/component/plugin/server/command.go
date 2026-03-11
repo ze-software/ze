@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
@@ -18,6 +19,9 @@ var ErrUnknownCommand = errors.New("unknown command")
 
 // ErrEmptyCommand is returned when the command is empty.
 var ErrEmptyCommand = errors.New("empty command")
+
+// ErrUnauthorized is returned when a command is denied by authorization.
+var ErrUnauthorized = errors.New("unauthorized")
 
 // ErrPluginProcessNotRunning is returned when a plugin command targets a non-running process.
 var ErrPluginProcessNotRunning = errors.New("plugin process not running")
@@ -40,6 +44,7 @@ func BuiltinCount() int {
 func LoadBuiltins(d *Dispatcher) {
 	for _, reg := range AllBuiltinRPCs() {
 		d.RegisterWithOptions(reg.CLICommand, reg.Handler, reg.Help, RegisterOptions{
+			ReadOnly:         reg.ReadOnly,
 			RequiresSelector: reg.RequiresSelector,
 		})
 	}
@@ -53,12 +58,18 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 // Handler processes a command and returns a response.
 type Handler func(ctx *CommandContext, args []string) (*plugin.Response, error)
 
+// Authorizer checks whether a user is allowed to execute a command.
+type Authorizer interface {
+	Authorize(username, command string, isReadOnly bool) authz.Action
+}
+
 // CommandContext provides access to reactor and session state.
 // Dependencies are accessed through Server; per-request state is stored directly.
 type CommandContext struct {
-	Server  *Server          // Gateway to all server state (reactor, dispatcher, etc.)
-	Process *process.Process // The API process (for session state)
-	Peer    string           // Peer selector: "*" for all, or specific IP. Empty = "*"
+	Server   *Server          // Gateway to all server state (reactor, dispatcher, etc.)
+	Process  *process.Process // The API process (for session state)
+	Peer     string           // Peer selector: "*" for all, or specific IP. Empty = "*"
+	Username string           // Authenticated username (empty = no auth, full access)
 }
 
 // Reactor returns the reactor lifecycle interface via Server. Nil-safe: returns nil if Server is nil.
@@ -119,11 +130,13 @@ type Command struct {
 	Name             string
 	Handler          Handler
 	Help             string
+	ReadOnly         bool // True if command only reads state (safe for "ze show")
 	RequiresSelector bool // True if command requires explicit peer selector (not default "*")
 }
 
 // RegisterOptions holds optional settings for command registration.
 type RegisterOptions struct {
+	ReadOnly         bool // True if command only reads state
 	RequiresSelector bool // True if "bgp peer <command>" must have an explicit peer selector
 }
 
@@ -134,6 +147,7 @@ type Dispatcher struct {
 	registry   *CommandRegistry  // Plugin commands
 	pending    *PendingRequests  // In-flight plugin requests
 	subsystems *SubsystemManager // Forked subsystem processes
+	authorizer Authorizer        // Authorization checker (nil = allow all)
 }
 
 // NewDispatcher creates a new command dispatcher.
@@ -144,6 +158,12 @@ func NewDispatcher() *Dispatcher {
 		pending:    NewPendingRequests(),
 		subsystems: NewSubsystemManager(),
 	}
+}
+
+// SetAuthorizer sets the authorization checker for the dispatcher.
+// When set, all commands are checked against the authorizer before execution.
+func (d *Dispatcher) SetAuthorizer(a Authorizer) {
+	d.authorizer = a
 }
 
 // Subsystems returns the subsystem manager.
@@ -189,6 +209,7 @@ func (d *Dispatcher) RegisterWithOptions(name string, handler Handler, help stri
 		Name:             name,
 		Handler:          handler,
 		Help:             help,
+		ReadOnly:         opts.ReadOnly,
 		RequiresSelector: opts.RequiresSelector,
 	}
 	d.updateSortedKeys()
@@ -219,6 +240,18 @@ func (d *Dispatcher) Commands() []*Command {
 		result = append(result, cmd)
 	}
 	return result
+}
+
+// isAuthorized checks if the user is allowed to execute the command.
+func (d *Dispatcher) isAuthorized(ctx *CommandContext, input string, readOnly bool) bool {
+	if d.authorizer == nil {
+		return true
+	}
+	username := ""
+	if ctx != nil {
+		username = ctx.Username
+	}
+	return d.authorizer.Authorize(username, input, readOnly) != authz.Deny
 }
 
 // Dispatch parses and executes a command.
@@ -274,8 +307,23 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 			strings.TrimPrefix(strings.ToLower(matchedCmd.Name), "bgp peer "))
 	}
 
-	// If no builtin match, try forked subsystems
+	// Authorization check — after command resolution, before execution
+	if matchedCmd != nil && !d.isAuthorized(ctx, input, matchedCmd.ReadOnly) {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Data:   fmt.Sprintf("authorization denied for %q", input),
+		}, ErrUnauthorized
+	}
+
+	// If no builtin match, try forked subsystems and plugin registry.
+	// Authorization applies to these paths too — treat as non-ReadOnly (write).
 	if matchedCmd == nil {
+		if !d.isAuthorized(ctx, input, false) {
+			return &plugin.Response{
+				Status: plugin.StatusError,
+				Data:   fmt.Sprintf("authorization denied for %q", input),
+			}, ErrUnauthorized
+		}
 		if d.subsystems != nil {
 			if handler := d.subsystems.FindHandler(input); handler != nil {
 				return d.dispatchSubsystem(ctx, handler, input)

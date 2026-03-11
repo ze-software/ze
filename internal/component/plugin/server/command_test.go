@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
@@ -473,4 +474,231 @@ func TestForwardToPluginNoBuiltinConflict(t *testing.T) {
 	// Error because process not running, but NOT ErrUnknownCommand
 	require.Error(t, err)
 	assert.False(t, errors.Is(err, ErrUnknownCommand))
+}
+
+// mockAuthorizer implements Authorizer for testing.
+type mockAuthorizer struct {
+	decision authz.Action
+}
+
+func (m *mockAuthorizer) Authorize(_, _ string, _ bool) authz.Action {
+	return m.decision
+}
+
+// TestDispatcherAuthorizationAllow verifies authorized commands execute.
+//
+// VALIDATES: AC-1 — Dispatcher permits command when authorizer returns Allow.
+// PREVENTS: Authorization blocking all commands.
+func TestDispatcherAuthorizationAllow(t *testing.T) {
+	d := NewDispatcher()
+	d.SetAuthorizer(&mockAuthorizer{decision: authz.Allow})
+
+	called := false
+	d.Register("peer show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		called = true
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "")
+
+	ctx := &CommandContext{Username: "noc-user"}
+	resp, err := d.Dispatch(ctx, "peer show")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.True(t, called)
+}
+
+// TestDispatcherAuthorizationDeny verifies denied commands return error.
+//
+// VALIDATES: AC-2 — Dispatcher blocks command when authorizer returns Deny.
+// PREVENTS: Authorization bypass allowing all commands.
+func TestDispatcherAuthorizationDeny(t *testing.T) {
+	d := NewDispatcher()
+	d.SetAuthorizer(&mockAuthorizer{decision: authz.Deny})
+
+	d.Register("restart", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		t.Fatal("handler should not be called when denied")
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "")
+
+	ctx := &CommandContext{Username: "noc-user"}
+	resp, err := d.Dispatch(ctx, "restart")
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUnauthorized))
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "authorization denied")
+}
+
+// TestDispatcherNoAuthorizerAllowsAll verifies nil authorizer permits everything.
+//
+// VALIDATES: AC-5 — No authorizer set = all commands allowed.
+// PREVENTS: Nil authorizer causing panics or denials.
+func TestDispatcherNoAuthorizerAllowsAll(t *testing.T) {
+	d := NewDispatcher()
+	// No SetAuthorizer call
+
+	called := false
+	d.Register("restart", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		called = true
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "")
+
+	resp, err := d.Dispatch(nil, "restart")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.True(t, called)
+}
+
+// TestDispatcherAuthorizationUsesReadOnly verifies ReadOnly flag is passed to authorizer.
+//
+// VALIDATES: ReadOnly flag from Command is used for section selection.
+// PREVENTS: All commands evaluated against wrong section.
+func TestDispatcherAuthorizationUsesReadOnly(t *testing.T) {
+	d := NewDispatcher()
+
+	var capturedReadOnly bool
+	d.SetAuthorizer(&readOnlyCapture{captured: &capturedReadOnly})
+
+	d.RegisterWithOptions("peer show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "", RegisterOptions{ReadOnly: true})
+
+	d.RegisterWithOptions("config set", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "", RegisterOptions{ReadOnly: false})
+
+	ctx := &CommandContext{Username: "user1"}
+
+	// ReadOnly command
+	resp, err := d.Dispatch(ctx, "peer show")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.True(t, capturedReadOnly, "peer show should be ReadOnly=true")
+
+	// Write command
+	resp, err = d.Dispatch(ctx, "config set")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.False(t, capturedReadOnly, "config set should be ReadOnly=false")
+}
+
+// readOnlyCapture captures the readOnly argument passed to Authorize.
+type readOnlyCapture struct {
+	captured *bool
+}
+
+func (r *readOnlyCapture) Authorize(_, _ string, readOnly bool) authz.Action {
+	*r.captured = readOnly
+	return authz.Allow
+}
+
+// TestDispatcherAuthorizationUsesUsername verifies Username from context is passed.
+//
+// VALIDATES: AC-12 — CommandContext.Username passed to authorizer.
+// PREVENTS: Authorization using wrong or empty username.
+func TestDispatcherAuthorizationUsesUsername(t *testing.T) {
+	d := NewDispatcher()
+
+	var capturedUsername string
+	d.SetAuthorizer(&usernameCapture{captured: &capturedUsername})
+
+	d.Register("peer show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "")
+
+	ctx := &CommandContext{Username: "admin-user"}
+	resp, err := d.Dispatch(ctx, "peer show")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.Equal(t, "admin-user", capturedUsername)
+}
+
+// usernameCapture captures the username argument passed to Authorize.
+type usernameCapture struct {
+	captured *string
+}
+
+func (u *usernameCapture) Authorize(username, _ string, _ bool) authz.Action {
+	*u.captured = username
+	return authz.Allow
+}
+
+// TestDispatcherWithAuthzStore verifies the authz.Store integrates with the dispatcher.
+// This is the wiring test: authz.Store satisfies server.Authorizer and controls dispatch.
+//
+// VALIDATES: AC-3 — authz.Store plugs into Dispatcher as Authorizer.
+// PREVENTS: Type mismatch or interface incompatibility at integration boundary.
+func TestDispatcherWithAuthzStore(t *testing.T) {
+	store := authz.NewStore()
+
+	// Create a restrictive profile: allow "bgp peer show", deny everything else
+	store.AddProfile(authz.Profile{
+		Name: "noc",
+		Run: authz.Section{
+			Default: authz.Deny,
+			Entries: []authz.Entry{
+				{Number: 10, Action: authz.Allow, Match: "bgp peer show"},
+			},
+		},
+		Edit: authz.Section{Default: authz.Deny},
+	})
+	store.AssignProfiles("operator", []string{"noc"})
+
+	d := NewDispatcher()
+	d.SetAuthorizer(store)
+
+	showCalled := false
+	d.RegisterWithOptions("bgp peer show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		showCalled = true
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "", RegisterOptions{ReadOnly: true})
+
+	restartCalled := false
+	d.RegisterWithOptions("restart", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		restartCalled = true
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "", RegisterOptions{ReadOnly: true})
+
+	ctx := &CommandContext{Username: "operator"}
+
+	// Allowed command
+	resp, err := d.Dispatch(ctx, "bgp peer show")
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+	assert.True(t, showCalled)
+
+	// Denied command
+	resp, err = d.Dispatch(ctx, "restart")
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUnauthorized))
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.False(t, restartCalled)
+
+	// No-auth user (empty username) should be allowed everything
+	noAuthCtx := &CommandContext{Username: ""}
+	resp, err = d.Dispatch(noAuthCtx, "restart")
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	// User with no profile assignment gets admin (allow all)
+	unknownCtx := &CommandContext{Username: "unknown-user"}
+	resp, err = d.Dispatch(unknownCtx, "restart")
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+}
+
+// TestDispatcherAuthorizationAppliesToUnknownCommands verifies that authorization
+// is checked even for commands that don't match any builtin handler (subsystem/plugin path).
+//
+// VALIDATES: AC-4 — Authorization applies to all command paths, not just builtins.
+// PREVENTS: Authorization bypass by sending unregistered commands to plugin/subsystem dispatch.
+func TestDispatcherAuthorizationAppliesToUnknownCommands(t *testing.T) {
+	d := NewDispatcher()
+	d.SetAuthorizer(&mockAuthorizer{decision: authz.Deny})
+
+	// Don't register "custom plugin cmd" as a builtin — it falls to plugin dispatch.
+	ctx := &CommandContext{Username: "noc-user"}
+	resp, err := d.Dispatch(ctx, "custom plugin cmd")
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, ErrUnauthorized))
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "authorization denied")
 }
