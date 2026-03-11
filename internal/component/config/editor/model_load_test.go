@@ -142,8 +142,8 @@ func TestModelAbortRollsBack(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	originalContent := `bgp {
-  router-id 1.2.3.4;
-  local-as 65000;
+  router-id 1.2.3.4
+  local-as 65000
 }`
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
@@ -225,12 +225,12 @@ func TestModelLoadMerge(t *testing.T) {
 	mergePath := filepath.Join(tmpDir, "merge.conf")
 
 	originalContent := `bgp {
-  router-id 1.2.3.4;
-  local-as 65000;
+  router-id 1.2.3.4
+  local-as 65000
 }`
 	mergeContent := `bgp {
   peer 1.1.1.1 {
-    peer-as 65001;
+    peer-as 65001
   }
 }`
 
@@ -526,12 +526,12 @@ func TestLoadFileAbsoluteMerge(t *testing.T) {
 	mergePath := filepath.Join(tmpDir, "merge.conf")
 
 	originalContent := `bgp {
-  router-id 1.2.3.4;
-  local-as 65000;
+  router-id 1.2.3.4
+  local-as 65000
 }`
 	mergeContent := `bgp {
   peer 1.1.1.1 {
-    peer-as 65001;
+    peer-as 65001
   }
 }`
 
@@ -571,16 +571,16 @@ func TestLoadFileRelativeReplace(t *testing.T) {
 	loadPath := filepath.Join(tmpDir, "peer.conf")
 
 	originalContent := `bgp {
-  router-id 1.2.3.4;
-  local-as 65000;
+  router-id 1.2.3.4
+  local-as 65000
   peer 1.1.1.1 {
-    peer-as 65001;
-    hold-time 90;
+    peer-as 65001
+    hold-time 90
   }
 }`
 	// Content to replace the peer block with
-	loadContent := `peer-as 65002;
-description "new peer";`
+	loadContent := `peer-as 65002
+description "new peer"`
 
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
@@ -625,13 +625,13 @@ func TestLoadFileRelativeMerge(t *testing.T) {
 	mergePath := filepath.Join(tmpDir, "extra.conf")
 
 	originalContent := `bgp {
-  router-id 1.2.3.4;
+  router-id 1.2.3.4
   peer 1.1.1.1 {
-    peer-as 65001;
+    peer-as 65001
   }
 }`
-	mergeContent := `description "merged peer";
-hold-time 180;`
+	mergeContent := `description "merged peer"
+hold-time 180`
 
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
@@ -751,13 +751,13 @@ func TestLoadFileRelativeReplaceSingleContext(t *testing.T) {
 	loadPath := filepath.Join(tmpDir, "bgp-content.conf")
 
 	originalContent := `bgp {
-  router-id 1.2.3.4;
-  local-as 65000;
+  router-id 1.2.3.4
+  local-as 65000
 }`
 	// Content to replace the bgp block with
-	loadContent := `router-id 5.6.7.8;
+	loadContent := `router-id 5.6.7.8
 peer 1.1.1.1 {
-  peer-as 65001;
+  peer-as 65001
 }`
 
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
@@ -814,11 +814,11 @@ func TestLoadFileRelativeMergeSingleContext(t *testing.T) {
 	mergePath := filepath.Join(tmpDir, "extra.conf")
 
 	originalContent := `bgp {
-  router-id 1.2.3.4;
+  router-id 1.2.3.4
 }`
 	// Content to merge into the bgp block
-	mergeContent := `local-as 65000;
-description "merged content";`
+	mergeContent := `local-as 65000
+description "merged content"`
 
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)

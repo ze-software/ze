@@ -124,39 +124,39 @@ EOF_RUN
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external summary-check {
-		run ./summary-format.run;
-		encoder text;
+		run ./summary-format.run
+		encoder text
 	}
 }
 template {
 	group test-peer {
 		family {
-			ipv4/unicast;
+			ipv4/unicast
 		}
 		update {
 			attribute {
-				origin igp;
-				local-preference 100;
-				next-hop 127.0.0.2;
+				origin igp
+				local-preference 100
+				next-hop 127.0.0.2
 			}
 			nlri {
-				ipv4/unicast add 127.0.0.1/32;
+				ipv4/unicast add 127.0.0.1/32
 			}
 		}
 		process summary-check {
-			send [ update ];
+			send [ update ]
 		}
 	}
 }
 bgp {
 	peer 127.0.0.1 {
-		inherit test-peer;
-		router-id 10.0.0.139;
-		local-address 127.0.0.1;
-		local-as 65512;
-		peer-as 65512;
-		connection active;
-		hold-time 30;
+		inherit test-peer
+		router-id 10.0.0.139
+		local-address 127.0.0.1
+		local-as 65512
+		peer-as 65512
+		connection active
+		hold-time 30
 	}
 }
 EOF_CONF

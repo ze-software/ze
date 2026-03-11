@@ -233,3 +233,79 @@ func TestTokenizerArray(t *testing.T) {
 	require.Equal(t, "]", tokens[4].Value)
 	require.Equal(t, TokenSemicolon, tokens[5].Type)
 }
+
+// TestTokenizerAutoSemicolon verifies newlines act as implicit semicolons.
+//
+// VALIDATES: Newlines after value tokens insert automatic semicolons.
+//
+// PREVENTS: Requiring explicit semicolons when one statement per line.
+func TestTokenizerAutoSemicolon(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		types  []TokenType
+		values []string
+	}{
+		{
+			name:   "newline after word",
+			input:  "local-as 65000\npeer-as 65001\n",
+			types:  []TokenType{TokenWord, TokenWord, TokenSemicolon, TokenWord, TokenWord, TokenSemicolon, TokenEOF},
+			values: []string{"local-as", "65000", ";", "peer-as", "65001", ";", ""},
+		},
+		{
+			name:   "EOF without newline",
+			input:  "local-as 65000",
+			types:  []TokenType{TokenWord, TokenWord, TokenSemicolon, TokenEOF},
+			values: []string{"local-as", "65000", ";", ""},
+		},
+		{
+			name:   "no auto-semi after open brace",
+			input:  "bgp {\nlocal-as 1\n}",
+			types:  []TokenType{TokenWord, TokenLBrace, TokenWord, TokenWord, TokenSemicolon, TokenRBrace, TokenEOF},
+			values: []string{"bgp", "{", "local-as", "1", ";", "}", ""},
+		},
+		{
+			name:   "explicit semicolons still work",
+			input:  "local-as 65000;\npeer-as 65001;\n",
+			types:  []TokenType{TokenWord, TokenWord, TokenSemicolon, TokenWord, TokenWord, TokenSemicolon, TokenEOF},
+			values: []string{"local-as", "65000", ";", "peer-as", "65001", ";", ""},
+		},
+		{
+			name:   "auto-semi after closing bracket",
+			input:  "processes [ foo bar ]\n",
+			types:  []TokenType{TokenWord, TokenLBracket, TokenWord, TokenWord, TokenRBracket, TokenSemicolon, TokenEOF},
+			values: []string{"processes", "[", "foo", "bar", "]", ";", ""},
+		},
+		{
+			name:   "auto-semi after closing paren",
+			input:  "name ( content )\n",
+			types:  []TokenType{TokenWord, TokenLParen, TokenWord, TokenRParen, TokenSemicolon, TokenEOF},
+			values: []string{"name", "(", "content", ")", ";", ""},
+		},
+		{
+			name:   "auto-semi after quoted string",
+			input:  "description \"hello world\"\n",
+			types:  []TokenType{TokenWord, TokenString, TokenSemicolon, TokenEOF},
+			values: []string{"description", "hello world", ";", ""},
+		},
+		{
+			name:   "comment ends line like newline",
+			input:  "local-as 65000 # comment\npeer-as 1\n",
+			types:  []TokenType{TokenWord, TokenWord, TokenSemicolon, TokenWord, TokenWord, TokenSemicolon, TokenEOF},
+			values: []string{"local-as", "65000", ";", "peer-as", "1", ";", ""},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tok := NewTokenizer(tt.input)
+			tokens := tok.All()
+
+			require.Equal(t, len(tt.types), len(tokens), "token count")
+			for i, token := range tokens {
+				require.Equal(t, tt.types[i], token.Type, "token %d type", i)
+				require.Equal(t, tt.values[i], token.Value, "token %d value", i)
+			}
+		})
+	}
+}

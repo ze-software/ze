@@ -51,24 +51,24 @@ EOF_RUN
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external announce-routes {
-		run ./ipv4.run;
-		encoder json;
+		run ./ipv4.run
+		encoder json
 	}
 }
 bgp {
 	peer 127.0.0.1 {
-		router-id 10.0.0.1;
-		local-address 127.0.0.1;
-		local-as 65000;
-		peer-as 65000;
-		connection active;
-		group-updates disable;
+		router-id 10.0.0.1
+		local-address 127.0.0.1
+		local-as 65000
+		peer-as 65000
+		connection active
+		group-updates disable
 	
 		family {
-			ipv4/unicast;
+			ipv4/unicast
 		}
 		capability {
-			graceful-restart;
+			graceful-restart
 		}
 		process announce-routes {
 		}

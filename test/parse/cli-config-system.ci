@@ -2,15 +2,15 @@
 # Validates that the system block with identity leaves is accepted by the parser
 stdin=config:terminator=EOF_CONF
 system {
-	host router1;
-	domain dc1.example.com;
+	host router1
+	domain dc1.example.com
 }
 bgp {
-	router-id 10.0.0.1;
-	local-as 65533;
+	router-id 10.0.0.1
+	local-as 65533
 	peer 127.0.0.1 {
-		local-address 127.0.0.1;
-		peer-as 65534;
+		local-address 127.0.0.1
+		peer-as 65534
 	}
 }
 EOF_CONF

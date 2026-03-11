@@ -25,8 +25,8 @@ func serializeSchemaWithGR() *Schema {
 // PREVENTS: Lost data during serialization.
 func TestSerializeSimple(t *testing.T) {
 	input := `bgp {
-    router-id 1.2.3.4;
-    local-as 65000;
+    router-id 1.2.3.4
+    local-as 65000
 }
 `
 	schema := YANGSchema()
@@ -53,10 +53,10 @@ func TestSerializeSimple(t *testing.T) {
 func TestSerializeNeighbor(t *testing.T) {
 	input := `bgp {
     peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
-        router-id 1.2.3.4;
-        hold-time 90;
+        local-as 65000
+        peer-as 65001
+        router-id 1.2.3.4
+        hold-time 90
     }
 }
 `
@@ -82,11 +82,11 @@ func TestSerializeNeighbor(t *testing.T) {
 func TestSerializeFamily(t *testing.T) {
 	input := `bgp {
     peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
+        local-as 65000
+        peer-as 65001
         family {
-            ipv4/unicast;
-            ipv6/unicast;
+            ipv4/unicast
+            ipv6/unicast
         }
     }
 }
@@ -112,8 +112,8 @@ func TestSerializeFamily(t *testing.T) {
 func TestSerializePlugin(t *testing.T) {
 	input := `plugin {
     external watcher {
-        run "/usr/bin/watcher";
-        encoder json;
+        run "/usr/bin/watcher"
+        encoder json
     }
 }
 `
@@ -138,13 +138,13 @@ func TestSerializePlugin(t *testing.T) {
 func TestSerializeCapability(t *testing.T) {
 	input := `bgp {
     peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
+        local-as 65000
+        peer-as 65001
         capability {
-            asn4 true;
-            route-refresh true;
+            asn4 true
+            route-refresh true
             graceful-restart {
-                restart-time 120;
+                restart-time 120
             }
         }
     }
@@ -170,7 +170,7 @@ func TestSerializeCapability(t *testing.T) {
 // PREVENTS: Lost leaf values.
 func TestSerializeLeafRoundtrip(t *testing.T) {
 	input := `bgp {
-    listen 0.0.0.0:179;
+    listen 0.0.0.0:179
 }
 `
 	schema := YANGSchema()
@@ -345,7 +345,7 @@ func TestSerializeArray(t *testing.T) {
 	schema := NewSchema()
 	schema.Define("items", BracketLeafList(TypeString))
 
-	input := `items [ foo bar baz ];`
+	input := `items [ foo bar baz ]`
 
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
@@ -369,9 +369,9 @@ func TestSerializeArray(t *testing.T) {
 func TestSerializeQuotedStrings(t *testing.T) {
 	input := `bgp {
     peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
-        description "My BGP Peer";
+        local-as 65000
+        peer-as 65001
+        description "My BGP Peer"
     }
 }
 `

@@ -19,8 +19,8 @@ func TestParseTmpfsInCI(t *testing.T) {
 	// Create a .ci file with tmpfs blocks
 	ciContent := `tmpfs=peer.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
-    local-as 65533;
-    peer-as 65533;
+    local-as 65533
+    peer-as 65533
 }
 EOF_CONF
 
@@ -62,7 +62,7 @@ EOF_RULES
 
 tmpfs=peer.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
-    local-as 65533;
+    local-as 65533
 }
 EOF_CONF
 

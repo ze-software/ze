@@ -52,7 +52,7 @@ func testSchema() *Schema {
 //
 // PREVENTS: Lost simple configuration values.
 func TestParserSimpleLeaf(t *testing.T) {
-	input := `router-id 1.2.3.4;`
+	input := `router-id 1.2.3.4`
 
 	p := NewParser(testSchema())
 	tree, err := p.Parse(input)
@@ -73,9 +73,9 @@ func TestParserSimpleLeaf(t *testing.T) {
 func TestParserNeighborBlock(t *testing.T) {
 	input := `
 neighbor 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    router-id 1.2.3.4;
+    local-as 65000
+    peer-as 65001
+    router-id 1.2.3.4
 }
 `
 
@@ -106,13 +106,13 @@ neighbor 192.0.2.1 {
 func TestParserMultipleNeighbors(t *testing.T) {
 	input := `
 neighbor 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
+    local-as 65000
+    peer-as 65001
 }
 
 neighbor 192.0.2.2 {
-    local-as 65000;
-    peer-as 65002;
+    local-as 65000
+    peer-as 65002
 }
 `
 
@@ -141,14 +141,14 @@ neighbor 192.0.2.2 {
 func TestParserNestedContainer(t *testing.T) {
 	input := `
 neighbor 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
+    local-as 65000
+    peer-as 65001
     family {
         ipv4 {
-            unicast true;
+            unicast true
         }
         ipv6 {
-            unicast true;
+            unicast true
         }
     }
 }
@@ -180,14 +180,14 @@ neighbor 192.0.2.1 {
 func TestParserNestedList(t *testing.T) {
 	input := `
 neighbor 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
+    local-as 65000
+    peer-as 65001
     static {
         route 10.0.0.0/8 {
-            next-hop 192.0.2.1;
+            next-hop 192.0.2.1
         }
         route 172.16.0.0/12 {
-            next-hop 192.0.2.1;
+            next-hop 192.0.2.1
         }
     }
 }
@@ -220,8 +220,8 @@ neighbor 192.0.2.1 {
 func TestParserProcess(t *testing.T) {
 	input := `
 process announce-routes {
-    run "/usr/bin/exabgp-announce";
-    encoder json;
+    run "/usr/bin/exabgp-announce"
+    encoder json
 }
 `
 
@@ -251,7 +251,7 @@ process announce-routes {
 func TestParserValidationError(t *testing.T) {
 	input := `
 neighbor 192.0.2.1 {
-    local-as not-a-number;
+    local-as not-a-number
 }
 `
 
@@ -270,7 +270,7 @@ neighbor 192.0.2.1 {
 func TestParserUnknownField(t *testing.T) {
 	input := `
 neighbor 192.0.2.1 {
-    unknown-field value;
+    unknown-field value
 }
 `
 
@@ -289,7 +289,7 @@ neighbor 192.0.2.1 {
 func TestParserUnknownTopLevel(t *testing.T) {
 	input := `
 unknown-block {
-    something value;
+    something value
 }
 `
 
@@ -308,9 +308,9 @@ unknown-block {
 func TestParserQuotedValues(t *testing.T) {
 	input := `
 neighbor 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    description "My BGP Peer";
+    local-as 65000
+    peer-as 65001
+    description "My BGP Peer"
 }
 `
 
@@ -334,8 +334,8 @@ neighbor 192.0.2.1 {
 func TestParserLineNumbers(t *testing.T) {
 	input := `
 neighbor 192.0.2.1 {
-    local-as 65000;
-    unknown-field value;
+    local-as 65000
+    unknown-field value
 }
 `
 
@@ -355,7 +355,7 @@ func TestParserArray(t *testing.T) {
 	schema := NewSchema()
 	schema.Define("items", BracketLeafList(TypeString))
 
-	input := `items [ foo bar baz ];`
+	input := `items [ foo bar baz ]`
 
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
@@ -375,7 +375,7 @@ func TestParserArraySingle(t *testing.T) {
 	schema := NewSchema()
 	schema.Define("items", BracketLeafList(TypeString))
 
-	input := `items [ single ];`
+	input := `items [ single ]`
 
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
@@ -394,8 +394,8 @@ func TestParserArraySingle(t *testing.T) {
 func TestTreeClone(t *testing.T) {
 	input := `
 neighbor 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
+    local-as 65000
+    peer-as 65001
 }
 `
 	p := NewParser(testSchema())

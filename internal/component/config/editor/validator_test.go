@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestValidateSyntaxMissingSemicolon verifies detection of missing semicolons.
+// TestValidateSyntaxMissingSemicolon verifies semicolon handling.
 //
-// VALIDATES: Parser detects missing semicolons.
+// VALIDATES: Semicolons are auto-inserted at newlines; still required on single-line input.
 // PREVENTS: Invalid config saved without warning.
 func TestValidateSyntaxMissingSemicolon(t *testing.T) {
 	v, err := NewConfigValidator()
@@ -26,7 +26,7 @@ func TestValidateSyntaxMissingSemicolon(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "missing_semicolon",
+			name:    "missing_semicolon_single_line",
 			content: "bgp { router-id 1.2.3.4 }",
 			wantErr: true,
 		},
@@ -34,19 +34,19 @@ func TestValidateSyntaxMissingSemicolon(t *testing.T) {
 			name: "block_no_semicolon_needed",
 			content: `bgp {
   peer 1.1.1.1 {
-    peer-as 65001;
+    peer-as 65001
   }
 }`,
 			wantErr: false,
 		},
 		{
-			name: "missing_semicolon_in_block",
+			name: "auto_semicolon_at_newline",
 			content: `bgp {
   peer 1.1.1.1 {
     peer-as 65001
   }
 }`,
-			wantErr: true,
+			wantErr: false,
 		},
 	}
 
@@ -79,7 +79,7 @@ func TestValidateSyntaxUnclosedBrace(t *testing.T) {
 			name: "balanced_braces",
 			content: `bgp {
   peer 1.1.1.1 {
-    peer-as 65001;
+    peer-as 65001
   }
 }`,
 			wantErr: false,
@@ -88,7 +88,7 @@ func TestValidateSyntaxUnclosedBrace(t *testing.T) {
 			name: "unclosed_brace",
 			content: `bgp {
   peer 1.1.1.1 {
-    peer-as 65001;
+    peer-as 65001
 `,
 			wantErr: true,
 		},
@@ -96,7 +96,7 @@ func TestValidateSyntaxUnclosedBrace(t *testing.T) {
 			name: "extra_close_brace",
 			content: `bgp {
   peer 1.1.1.1 {
-    peer-as 65001;
+    peer-as 65001
   }
 }}`,
 			wantErr: true,
@@ -106,9 +106,9 @@ func TestValidateSyntaxUnclosedBrace(t *testing.T) {
 			content: `bgp {
   peer 1.1.1.1 {
     capability {
-      route-refresh;
+      route-refresh
     }
-    peer-as 65001;
+    peer-as 65001
   }
 }`,
 			wantErr: false,
@@ -144,9 +144,9 @@ func TestValidateSemanticPeerAsLocalAs(t *testing.T) {
 		{
 			name: "different_as",
 			content: `bgp {
-  local-as 65000;
+  local-as 65000
   peer 1.1.1.1 {
-    peer-as 65001;
+    peer-as 65001
   }
 }`,
 			wantErr: false,
@@ -154,9 +154,9 @@ func TestValidateSemanticPeerAsLocalAs(t *testing.T) {
 		{
 			name: "same_as_ibgp",
 			content: `bgp {
-  local-as 65000;
+  local-as 65000
   peer 1.1.1.1 {
-    peer-as 65000;
+    peer-as 65000
   }
 }`,
 			// iBGP (peer-as == local-as) is valid config.
@@ -194,10 +194,10 @@ func TestValidateSemanticDuplicatePeer(t *testing.T) {
 			name: "unique_peers",
 			content: `bgp {
   peer 1.1.1.1 {
-    peer-as 65001;
+    peer-as 65001
   }
   peer 2.2.2.2 {
-    peer-as 65002;
+    peer-as 65002
   }
 }`,
 			wantErr: false,
@@ -329,11 +329,11 @@ func TestValidateAll(t *testing.T) {
 
 	// Valid config
 	validConfig := `bgp {
-  router-id 1.2.3.4;
-  local-as 65000;
+  router-id 1.2.3.4
+  local-as 65000
   peer 1.1.1.1 {
-    peer-as 65001;
-    hold-time 90;
+    peer-as 65001
+    hold-time 90
   }
 }`
 	result := v.Validate(validConfig)
@@ -341,11 +341,11 @@ func TestValidateAll(t *testing.T) {
 
 	// Config with semantic error (invalid hold-time)
 	invalidConfig := `bgp {
-  router-id 1.2.3.4;
-  local-as 65000;
+  router-id 1.2.3.4
+  local-as 65000
   peer 1.1.1.1 {
-    peer-as 65001;
-    hold-time 1;
+    peer-as 65001
+    hold-time 1
   }
 }`
 	result = v.Validate(invalidConfig)
@@ -363,10 +363,10 @@ func TestValidationErrorFormat(t *testing.T) {
 	require.NoError(t, err)
 
 	content := `bgp {
-  router-id 1.2.3.4;
+  router-id 1.2.3.4
   peer 1.1.1.1 {
-    peer-as 65001;
-    hold-time 1;
+    peer-as 65001
+    hold-time 1
   }
 }`
 
@@ -395,7 +395,7 @@ func TestValidatePeerAddress(t *testing.T) {
 			name: "valid_ipv4_peer",
 			content: `bgp {
   peer 192.168.1.1 {
-    peer-as 65001;
+    peer-as 65001
   }
 }`,
 			wantErr: false,
@@ -404,7 +404,7 @@ func TestValidatePeerAddress(t *testing.T) {
 			name: "valid_ipv6_peer",
 			content: `bgp {
   peer 2001:db8::1 {
-    peer-as 65001;
+    peer-as 65001
   }
 }`,
 			wantErr: false,
@@ -432,7 +432,7 @@ func TestValidateUnknownKeyword(t *testing.T) {
 	require.NoError(t, err)
 
 	content := `bgp {
-  unknown-keyword value;
+  unknown-keyword value
 }`
 
 	result := v.Validate(content)
@@ -456,10 +456,10 @@ func TestValidateMissingPeerAS(t *testing.T) {
 		{
 			name: "peer_with_peer-as",
 			content: `bgp {
-  router-id 1.1.1.1;
-  local-as 65000;
+  router-id 1.1.1.1
+  local-as 65000
   peer 192.0.2.1 {
-    peer-as 65001;
+    peer-as 65001
   }
 }`,
 			wantErr: false,
@@ -467,10 +467,10 @@ func TestValidateMissingPeerAS(t *testing.T) {
 		{
 			name: "peer_missing_peer-as",
 			content: `bgp {
-  router-id 1.1.1.1;
-  local-as 65000;
+  router-id 1.1.1.1
+  local-as 65000
   peer 192.0.2.1 {
-    hold-time 90;
+    hold-time 90
   }
 }`,
 			wantErr: true,
@@ -508,15 +508,15 @@ func TestValidatePeerASInheritance(t *testing.T) {
 			name: "peer-as_inherited_from_group",
 			content: `template {
   group ibgp {
-    peer-as 65000;
-    hold-time 60;
+    peer-as 65000
+    hold-time 60
   }
 }
 bgp {
-  router-id 1.1.1.1;
-  local-as 65000;
+  router-id 1.1.1.1
+  local-as 65000
   peer 192.0.2.1 {
-    inherit ibgp;
+    inherit ibgp
   }
 }`,
 			wantErr: false,
@@ -525,15 +525,15 @@ bgp {
 			name: "peer-as_override_inherited",
 			content: `template {
   group ibgp {
-    peer-as 65000;
+    peer-as 65000
   }
 }
 bgp {
-  router-id 1.1.1.1;
-  local-as 65000;
+  router-id 1.1.1.1
+  local-as 65000
   peer 192.0.2.1 {
-    inherit ibgp;
-    peer-as 65001;
+    inherit ibgp
+    peer-as 65001
   }
 }`,
 			wantErr: false,
@@ -542,14 +542,14 @@ bgp {
 			name: "inherit_without_peer-as_in_template",
 			content: `template {
   group base {
-    hold-time 60;
+    hold-time 60
   }
 }
 bgp {
-  router-id 1.1.1.1;
-  local-as 65000;
+  router-id 1.1.1.1
+  local-as 65000
   peer 192.0.2.1 {
-    inherit base;
+    inherit base
   }
 }`,
 			wantErr:         true,
@@ -558,10 +558,10 @@ bgp {
 		{
 			name: "inherit_nonexistent_template",
 			content: `bgp {
-  router-id 1.1.1.1;
-  local-as 65000;
+  router-id 1.1.1.1
+  local-as 65000
   peer 192.0.2.1 {
-    inherit nonexistent;
+    inherit nonexistent
   }
 }`,
 			wantErr:         true,
@@ -572,16 +572,16 @@ bgp {
 			content: `template {
   bgp {
     peer * {
-      inherit-name ibgp;
-      peer-as 65000;
+      inherit-name ibgp
+      peer-as 65000
     }
   }
 }
 bgp {
-  router-id 1.1.1.1;
-  local-as 65000;
+  router-id 1.1.1.1
+  local-as 65000
   peer 192.0.2.1 {
-    inherit ibgp;
+    inherit ibgp
   }
 }`,
 			wantErr: false,
@@ -590,15 +590,15 @@ bgp {
 			name: "invalid_hold-time_inherited",
 			content: `template {
   group bad {
-    peer-as 65001;
-    hold-time 1;
+    peer-as 65001
+    hold-time 1
   }
 }
 bgp {
-  router-id 1.1.1.1;
-  local-as 65000;
+  router-id 1.1.1.1
+  local-as 65000
   peer 192.0.2.1 {
-    inherit bad;
+    inherit bad
   }
 }`,
 			wantErr:         true,

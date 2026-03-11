@@ -12,30 +12,30 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer 127.0.0.1 {
-		router-id 198.51.100.200;
-		local-address 127.0.0.1;
-		local-as 65000;
-		peer-as 65000;
-		connection active;
-		group-updates disable;
+		router-id 198.51.100.200
+		local-address 127.0.0.1
+		local-as 65000
+		peer-as 65000
+		connection active
+		group-updates disable
 
 		family {
-			ipv4/mpls-vpn;
+			ipv4/mpls-vpn
 		}
 		capability {
 			nexthop {
-				ipv4/mpls-vpn ipv6;
+				ipv4/mpls-vpn ipv6
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop cafe::1;
-				extended-community [ target:4:100 ];
-				bgp-prefix-sid-srv6 ( l3-service 2001:1:: );
+				origin igp
+				next-hop cafe::1
+				extended-community [ target:4:100 ]
+				bgp-prefix-sid-srv6 ( l3-service 2001:1:: )
 			}
 			nlri {
-				ipv4/mpls-vpn add rd 4:100 label 3 10.1.0.0/24;
+				ipv4/mpls-vpn add rd 4:100 label 3 10.1.0.0/24
 			}
 		}
 	}

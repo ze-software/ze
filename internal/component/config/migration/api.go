@@ -34,15 +34,15 @@ var ErrAPICollision = errors.New("process block collision: old syntax process co
 // 2. Named process blocks with processes inside:
 //
 //	api speaking {
-//	    processes [ foo ];
-//	    receive [ parsed update ];
+//	    processes [ foo ]
+//	    receive [ parsed update ]
 //	}
 //
 // Becomes:
 //
 //	api foo {
 //	    content { format parsed; }
-//	    receive [ update ];
+//	    receive [ update ]
 //	}
 //
 // Format mapping:
@@ -50,7 +50,7 @@ var ErrAPICollision = errors.New("process block collision: old syntax process co
 //   - packets only (no parsed) → format raw
 //   - parsed + packets OR consolidate → format full
 //
-// State flag (neighbor-changes) → receive [ state ];
+// State flag (neighbor-changes) → receive [ state ]
 //
 // Note: Format flags in send block (parsed, packets, consolidate) are dropped
 // since ze uses a single format for both directions.
@@ -297,7 +297,7 @@ func buildNewAPIBlock(cfg apiConfig) *config.Tree {
 	}
 
 	// Add receive leaf-list if any receive flags are set.
-	// Output uses bracket syntax: receive [ state update ];
+	// Output uses bracket syntax: receive [ state update ]
 	if recvFlags := buildFlagList(
 		flagEntry{cfg.receiveState, "state"},
 		flagEntry{cfg.receiveUpdate, "update"},

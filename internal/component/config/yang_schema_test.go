@@ -123,10 +123,10 @@ func TestYANGSchemaCanParse(t *testing.T) {
 
 	// Test that parser works with YANG-derived schema
 	config := `bgp {
-    local-as 65000;
-    router-id 1.2.3.4;
+    local-as 65000
+    router-id 1.2.3.4
     peer 192.168.1.1 {
-        peer-as 65001;
+        peer-as 65001
     }
 }`
 
@@ -166,13 +166,13 @@ func TestYANGSchema_NoAnnounce(t *testing.T) {
 
 	// ExaBGP-style announce block should be rejected
 	config := `bgp {
-    local-as 65000;
-    router-id 1.2.3.4;
+    local-as 65000
+    router-id 1.2.3.4
     peer 192.168.1.1 {
-        peer-as 65001;
+        peer-as 65001
         announce {
             ipv4 {
-                unicast 10.0.0.0/24 next-hop 10.0.0.1;
+                unicast 10.0.0.0/24 next-hop 10.0.0.1
             }
         }
     }
@@ -194,12 +194,12 @@ func TestYANGSchema_NoStatic(t *testing.T) {
 
 	// ExaBGP-style static block should be rejected
 	config := `bgp {
-    local-as 65000;
-    router-id 1.2.3.4;
+    local-as 65000
+    router-id 1.2.3.4
     peer 192.168.1.1 {
-        peer-as 65001;
+        peer-as 65001
         static {
-            route 10.0.0.0/24 next-hop 10.0.0.1;
+            route 10.0.0.0/24 next-hop 10.0.0.1
         }
     }
 }`
@@ -297,11 +297,11 @@ func TestPresenceContainerParsesAllForms(t *testing.T) {
 		{
 			name: "flag form",
 			input: `bgp {
-    local-as 65000;
+    local-as 65000
     peer 192.168.1.1 {
-        peer-as 65001;
+        peer-as 65001
         capability {
-            route-refresh;
+            route-refresh
         }
     }
 }`,
@@ -314,11 +314,11 @@ func TestPresenceContainerParsesAllForms(t *testing.T) {
 		{
 			name: "value form",
 			input: `bgp {
-    local-as 65000;
+    local-as 65000
     peer 192.168.1.1 {
-        peer-as 65001;
+        peer-as 65001
         capability {
-            route-refresh true;
+            route-refresh true
         }
     }
 }`,
@@ -331,13 +331,13 @@ func TestPresenceContainerParsesAllForms(t *testing.T) {
 		{
 			name: "block form with children",
 			input: `bgp {
-    local-as 65000;
+    local-as 65000
     peer 192.168.1.1 {
-        peer-as 65001;
+        peer-as 65001
         capability {
             add-path {
-                send true;
-                receive true;
+                send true
+                receive true
             }
         }
     }
@@ -388,11 +388,11 @@ func TestPresenceContainerSerializesAllForms(t *testing.T) {
 		{
 			name: "flag form roundtrip",
 			input: `bgp {
-    local-as 65000;
+    local-as 65000
     peer 192.168.1.1 {
-        peer-as 65001;
+        peer-as 65001
         capability {
-            route-refresh;
+            route-refresh
         }
     }
 }`,
@@ -400,12 +400,12 @@ func TestPresenceContainerSerializesAllForms(t *testing.T) {
 		{
 			name: "block form roundtrip",
 			input: `bgp {
-    local-as 65000;
+    local-as 65000
     peer 192.168.1.1 {
-        peer-as 65001;
+        peer-as 65001
         capability {
-            extended-message;
-            software-version;
+            extended-message
+            software-version
         }
     }
 }`,
@@ -443,11 +443,11 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
 		{
 			name: "bracket form",
 			input: `bgp {
-    local-as 65000;
+    local-as 65000
     peer 192.168.1.1 {
-        peer-as 65001;
+        peer-as 65001
         process rib {
-            receive [ update state ];
+            receive [ update state ]
         }
     }
 }`,
@@ -456,11 +456,11 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
 		{
 			name: "single value",
 			input: `bgp {
-    local-as 65000;
+    local-as 65000
     peer 192.168.1.1 {
-        peer-as 65001;
+        peer-as 65001
         process rib {
-            receive all;
+            receive all
         }
     }
 }`,
@@ -469,11 +469,11 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
 		{
 			name: "space-separated values",
 			input: `bgp {
-    local-as 65000;
+    local-as 65000
     peer 192.168.1.1 {
-        peer-as 65001;
+        peer-as 65001
         process rib {
-            receive update state;
+            receive update state
         }
     }
 }`,
@@ -525,11 +525,11 @@ func TestDeadCapabilityRejected(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `bgp {
-    local-as 65000;
+    local-as 65000
     peer 192.168.1.1 {
-        peer-as 65001;
+        peer-as 65001
         capability {
-            ` + tt.capability + `;
+            ` + tt.capability + `
         }
     }
 }`
@@ -550,10 +550,10 @@ func TestDeadPeerLeafRejected(t *testing.T) {
 	require.NotNil(t, schema)
 
 	input := `bgp {
-    local-as 65000;
+    local-as 65000
     peer 192.168.1.1 {
-        peer-as 65001;
-        multi-session;
+        peer-as 65001
+        multi-session
     }
 }`
 	parser := NewParser(schema)
@@ -596,11 +596,11 @@ func TestProcessReceiveInvalidEnum(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `bgp {
-    local-as 65000;
+    local-as 65000
     peer 192.168.1.1 {
-        peer-as 65001;
+        peer-as 65001
         process rib {
-            ` + tt.field + `;
+            ` + tt.field + `
         }
     }
 }`

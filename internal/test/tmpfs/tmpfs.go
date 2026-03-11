@@ -12,7 +12,7 @@
 //
 //	tmpfs=peer.conf:terminator=EOF_CONF
 //	peer 127.0.0.1 {
-//	    local-as 65533;
+//	    local-as 65533
 //	}
 //	EOF_CONF
 package tmpfs

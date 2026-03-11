@@ -18,8 +18,8 @@ func TestNewEditor(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	// Write initial config
-	initial := `router-id 1.2.3.4;
-local-as 65000;
+	initial := `router-id 1.2.3.4
+local-as 65000
 `
 	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
@@ -43,7 +43,7 @@ func TestEditorSaveCreatesBackup(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	// Write initial config
-	initial := `router-id 1.2.3.4;` //nolint:goconst // test value
+	initial := `router-id 1.2.3.4` //nolint:goconst // test value
 	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
@@ -149,7 +149,7 @@ func TestEditorDiscard(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	initial := `router-id 1.2.3.4;`
+	initial := `router-id 1.2.3.4`
 	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
@@ -172,7 +172,7 @@ func TestEditorRollback(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	// Write initial config
-	version1 := `router-id 1.1.1.1;`
+	version1 := `router-id 1.1.1.1`
 	err := os.WriteFile(configPath, []byte(version1), 0o600)
 	require.NoError(t, err)
 
@@ -185,7 +185,7 @@ func TestEditorRollback(t *testing.T) {
 	_ = ed.Close()
 
 	// Write version 2
-	version2 := `router-id 2.2.2.2;`
+	version2 := `router-id 2.2.2.2`
 	err = os.WriteFile(configPath, []byte(version2), 0o600)
 	require.NoError(t, err)
 
@@ -335,8 +335,8 @@ func TestEditorDiff(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	initial := `router-id 1.2.3.4;
-local-as 65000;
+	initial := `router-id 1.2.3.4
+local-as 65000
 `
 	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
@@ -350,8 +350,8 @@ local-as 65000;
 	assert.Empty(t, diff)
 
 	// Simulate modification by setting working content
-	ed.SetWorkingContent(`router-id 1.2.3.4;
-local-as 65001;
+	ed.SetWorkingContent(`router-id 1.2.3.4
+local-as 65001
 `)
 	ed.MarkDirty()
 
@@ -370,7 +370,7 @@ func TestEditFilePersistence(t *testing.T) {
 	editPath := configPath + ".edit"
 
 	// Write initial config
-	initial := `router-id 1.2.3.4;`
+	initial := `router-id 1.2.3.4`
 	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
@@ -383,7 +383,7 @@ func TestEditFilePersistence(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "edit file should not exist initially")
 
 	// Make a change and save edit state
-	ed.SetWorkingContent(`router-id 2.2.2.2;`)
+	ed.SetWorkingContent(`router-id 2.2.2.2`)
 	ed.MarkDirty()
 	err = ed.SaveEditState()
 	require.NoError(t, err)
@@ -395,7 +395,7 @@ func TestEditFilePersistence(t *testing.T) {
 	// Verify edit file content
 	editContent, err := os.ReadFile(editPath) //nolint:gosec // test path
 	require.NoError(t, err)
-	assert.Equal(t, `router-id 2.2.2.2;`, string(editContent))
+	assert.Equal(t, `router-id 2.2.2.2`, string(editContent))
 
 	ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 }
@@ -410,12 +410,12 @@ func TestEditFileResume(t *testing.T) {
 	editPath := configPath + ".edit"
 
 	// Write original config
-	original := `router-id 1.1.1.1;`
+	original := `router-id 1.1.1.1`
 	err := os.WriteFile(configPath, []byte(original), 0o600)
 	require.NoError(t, err)
 
 	// Write existing edit file (simulating previous session)
-	editContent := `router-id 9.9.9.9;`
+	editContent := `router-id 9.9.9.9`
 	err = os.WriteFile(editPath, []byte(editContent), 0o600)
 	require.NoError(t, err)
 
@@ -446,7 +446,7 @@ func TestEditFileDeletedOnCommit(t *testing.T) {
 	editPath := configPath + ".edit"
 
 	// Write initial config
-	initial := `router-id 1.2.3.4;`
+	initial := `router-id 1.2.3.4`
 	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
@@ -454,7 +454,7 @@ func TestEditFileDeletedOnCommit(t *testing.T) {
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
 
-	ed.SetWorkingContent(`router-id 2.2.2.2;`)
+	ed.SetWorkingContent(`router-id 2.2.2.2`)
 	ed.MarkDirty()
 	err = ed.SaveEditState()
 	require.NoError(t, err)
@@ -484,7 +484,7 @@ func TestEditFileDeletedOnDiscard(t *testing.T) {
 	editPath := configPath + ".edit"
 
 	// Write initial config
-	initial := `router-id 1.2.3.4;`
+	initial := `router-id 1.2.3.4`
 	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
@@ -492,7 +492,7 @@ func TestEditFileDeletedOnDiscard(t *testing.T) {
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
 
-	ed.SetWorkingContent(`router-id 2.2.2.2;`)
+	ed.SetWorkingContent(`router-id 2.2.2.2`)
 	ed.MarkDirty()
 	err = ed.SaveEditState()
 	require.NoError(t, err)
@@ -522,7 +522,7 @@ func TestPendingEditTime(t *testing.T) {
 	editPath := configPath + ".edit"
 
 	// Write initial config
-	initial := `router-id 1.2.3.4;`
+	initial := `router-id 1.2.3.4`
 	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
@@ -534,7 +534,7 @@ func TestPendingEditTime(t *testing.T) {
 	assert.True(t, ed.PendingEditTime().IsZero(), "no edit file should return zero time")
 
 	// Create edit file
-	editContent := `router-id 2.2.2.2;`
+	editContent := `router-id 2.2.2.2`
 	err = os.WriteFile(editPath, []byte(editContent), 0o600)
 	require.NoError(t, err)
 
@@ -561,15 +561,15 @@ func TestPendingEditDiff(t *testing.T) {
 	editPath := configPath + ".edit"
 
 	// Write initial config
-	initial := `router-id 1.2.3.4;
-local-as 65000;`
+	initial := `router-id 1.2.3.4
+local-as 65000`
 	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
 	// Write edit file with changes
-	editContent := `router-id 2.2.2.2;
-local-as 65000;
-peer-as 65001;`
+	editContent := `router-id 2.2.2.2
+local-as 65000
+peer-as 65001`
 	err = os.WriteFile(editPath, []byte(editContent), 0o600)
 	require.NoError(t, err)
 
@@ -580,9 +580,9 @@ peer-as 65001;`
 
 	// Get diff
 	diff := ed.PendingEditDiff()
-	assert.Contains(t, diff, "- router-id 1.2.3.4;", "should show removed line")
-	assert.Contains(t, diff, "+ router-id 2.2.2.2;", "should show added line")
-	assert.Contains(t, diff, "+ peer-as 65001;", "should show new line")
+	assert.Contains(t, diff, "- router-id 1.2.3.4", "should show removed line")
+	assert.Contains(t, diff, "+ router-id 2.2.2.2", "should show added line")
+	assert.Contains(t, diff, "+ peer-as 65001", "should show new line")
 }
 
 // TestPendingEditDiffNoEditFile verifies empty diff when no edit file exists.
@@ -594,7 +594,7 @@ func TestPendingEditDiffNoEditFile(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	// Write config only, no edit file
-	content := `router-id 1.2.3.4;`
+	content := `router-id 1.2.3.4`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 
@@ -618,7 +618,7 @@ func TestPendingEditDiffNoChanges(t *testing.T) {
 	editPath := configPath + ".edit"
 
 	// Write same content to both files
-	content := `router-id 1.2.3.4;`
+	content := `router-id 1.2.3.4`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
 	err = os.WriteFile(editPath, []byte(content), 0o600)
@@ -638,11 +638,11 @@ func TestPendingEditDiffNoChanges(t *testing.T) {
 
 // validBGPConfig is a parseable config for tree tests.
 const validBGPConfig = `bgp {
-	router-id 1.2.3.4;
-	local-as 65000;
+	router-id 1.2.3.4
+	local-as 65000
 	peer 1.1.1.1 {
-		peer-as 65001;
-		hold-time 90;
+		peer-as 65001
+		hold-time 90
 	}
 }
 `
@@ -996,8 +996,8 @@ func TestEditorSetWorkingContentParse(t *testing.T) {
 
 	// Load new content via SetWorkingContent (simulates load command)
 	newContent := `bgp {
-	router-id 5.6.7.8;
-	local-as 65001;
+	router-id 5.6.7.8
+	local-as 65001
 }
 `
 	ed.SetWorkingContent(newContent)
@@ -1047,11 +1047,11 @@ func TestSerializationRoundTrip(t *testing.T) {
 	}{
 		{"simple", "bgp { router-id 1.2.3.4; }"},
 		{"with-peer", `bgp {
-  router-id 1.2.3.4;
-  local-as 65000;
+  router-id 1.2.3.4
+  local-as 65000
   peer 1.1.1.1 {
-    peer-as 65001;
-    hold-time 90;
+    peer-as 65001
+    hold-time 90
   }
 }`},
 	}

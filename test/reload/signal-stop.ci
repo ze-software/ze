@@ -18,34 +18,34 @@ EOF_PEER
 tmpfs=ze-bgp.conf:terminator=EOF_CONF
 environment {
 	tcp {
-		attempts 1;
+		attempts 1
 	}
 }
 
 bgp {
 	peer 127.0.0.1 {
-		router-id 1.2.3.4;
-		local-address 127.0.0.1;
-		local-as 1;
-		peer-as 1;
-		connection active;
-		group-updates disable;
+		router-id 1.2.3.4
+		local-address 127.0.0.1
+		local-as 1
+		peer-as 1
+		connection active
+		group-updates disable
 
 		family {
-			ipv4/unicast;
+			ipv4/unicast
 		}
 		capability {
-			graceful-restart disable;
+			graceful-restart disable
 		}
 
 		update {
 			attribute {
-				origin igp;
-				local-preference 100;
-				next-hop 10.0.0.1;
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
 			}
 			nlri {
-				ipv4/unicast add 192.168.1.0/24;
+				ipv4/unicast add 192.168.1.0/24
 			}
 		}
 	}

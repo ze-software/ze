@@ -14,70 +14,70 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer 127.0.0.1 {
-		description "parsing l2vpn/vpls routes";
-		router-id 127.0.0.1;
-		local-address 127.0.0.1;
-		local-as 54591;
-		peer-as 54591;
-		connection active;
-		hold-time 180;
-		group-updates disable;
+		description "parsing l2vpn/vpls routes"
+		router-id 127.0.0.1
+		local-address 127.0.0.1
+		local-as 54591
+		peer-as 54591
+		connection active
+		hold-time 180
+		group-updates disable
 
 		family {
-			l2vpn/vpls;
+			l2vpn/vpls
 		}
 
 		# Route 1: VPLS with local-preference 1
 		update {
 			attribute {
-				origin igp;
-				as-path [30740 30740 30740 30740 30740 30740 30740];
-				local-preference 1;
-				med 2000;
-				community [54591:123];
-				extended-community [target:54591:6 l2info:19:0:1500:111];
-				originator-id 192.168.22.1;
-				cluster-list [3.3.3.3 192.168.201.1];
-				next-hop 192.168.201.1;
+				origin igp
+				as-path [30740 30740 30740 30740 30740 30740 30740]
+				local-preference 1
+				med 2000
+				community [54591:123]
+				extended-community [target:54591:6 l2info:19:0:1500:111]
+				originator-id 192.168.22.1
+				cluster-list [3.3.3.3 192.168.201.1]
+				next-hop 192.168.201.1
 			}
 			nlri {
-				l2vpn/vpls rd 192.168.201.1:123 add ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10702;
+				l2vpn/vpls rd 192.168.201.1:123 add ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10702
 			}
 		}
 
 		# Route 2: VPLS with RD :124 and label-base 10732
 		update {
 			attribute {
-				origin igp;
-				as-path [30740 30740 30740 30740 30740 30740 30740];
-				local-preference 1;
-				med 2000;
-				community [54591:123];
-				extended-community [target:54591:6 l2info:19:0:1500:111];
-				originator-id 192.168.22.1;
-				cluster-list [3.3.3.3 192.168.201.1];
-				next-hop 192.168.201.1;
+				origin igp
+				as-path [30740 30740 30740 30740 30740 30740 30740]
+				local-preference 1
+				med 2000
+				community [54591:123]
+				extended-community [target:54591:6 l2info:19:0:1500:111]
+				originator-id 192.168.22.1
+				cluster-list [3.3.3.3 192.168.201.1]
+				next-hop 192.168.201.1
 			}
 			nlri {
-				l2vpn/vpls rd 192.168.201.1:124 add ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10732;
+				l2vpn/vpls rd 192.168.201.1:124 add ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10732
 			}
 		}
 
 		# Route 3: VPLS with local-preference 100
 		update {
 			attribute {
-				origin igp;
-				as-path [30740 30740 30740 30740 30740 30740 30740];
-				local-preference 100;
-				med 2000;
-				community [54591:123];
-				extended-community [target:54591:6 l2info:19:0:1500:111];
-				originator-id 192.168.22.1;
-				cluster-list [3.3.3.3 192.168.201.1];
-				next-hop 192.168.201.1;
+				origin igp
+				as-path [30740 30740 30740 30740 30740 30740 30740]
+				local-preference 100
+				med 2000
+				community [54591:123]
+				extended-community [target:54591:6 l2info:19:0:1500:111]
+				originator-id 192.168.22.1
+				cluster-list [3.3.3.3 192.168.201.1]
+				next-hop 192.168.201.1
 			}
 			nlri {
-				l2vpn/vpls rd 192.168.201.1:123 add ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10702;
+				l2vpn/vpls rd 192.168.201.1:123 add ve-id 5 ve-block-offset 1 ve-block-size 8 label-base 10702
 			}
 		}
 	}

@@ -17,46 +17,46 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer 127.0.0.1 {
-		router-id 127.0.0.1;
-		local-address 127.0.0.1;
-		local-as 55219;
-		peer-as 55219;
-		connection active;
+		router-id 127.0.0.1
+		local-address 127.0.0.1
+		local-as 55219
+		peer-as 55219
+		connection active
 
 		family {
-			ipv4/unicast;
+			ipv4/unicast
 		}
 		capability {
-			add-path send/receive;
+			add-path send/receive
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 10.10.1.1;
-				path-information 0.0.0.1;
+				origin igp
+				next-hop 10.10.1.1
+				path-information 0.0.0.1
 			}
 			nlri {
-				ipv4/unicast add 10.0.0.10/32;
-			}
-		}
-		update {
-			attribute {
-				origin igp;
-				next-hop 10.10.1.2;
-				path-information 0.0.0.2;
-			}
-			nlri {
-				ipv4/unicast add 10.0.0.10/32;
+				ipv4/unicast add 10.0.0.10/32
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 10.10.1.3;
-				path-information 0.0.0.3;
+				origin igp
+				next-hop 10.10.1.2
+				path-information 0.0.0.2
 			}
 			nlri {
-				ipv4/unicast add 10.1.0.10/32;
+				ipv4/unicast add 10.0.0.10/32
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 10.10.1.3
+				path-information 0.0.0.3
+			}
+			nlri {
+				ipv4/unicast add 10.1.0.10/32
 			}
 		}
 	}

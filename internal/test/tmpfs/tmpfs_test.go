@@ -20,7 +20,7 @@ import (
 func TestParseTmpfsBlock(t *testing.T) {
 	input := `tmpfs=peer.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
-    local-as 65533;
+    local-as 65533
 }
 EOF_CONF
 `
@@ -31,7 +31,7 @@ EOF_CONF
 	f := v.Files[0]
 	assert.Equal(t, "peer.conf", f.Path)
 	assert.Equal(t, fs.FileMode(0o644), f.Mode)
-	assert.Equal(t, "peer 127.0.0.1 {\n    local-as 65533;\n}\n", string(f.Content))
+	assert.Equal(t, "peer 127.0.0.1 {\n    local-as 65533\n}\n", string(f.Content))
 }
 
 // TestParseMultipleBlocks verifies multiple Tmpfs blocks in stream.

@@ -55,12 +55,15 @@ type Token struct {
 }
 
 // Tokenizer breaks input into tokens.
+// Automatic semicolon insertion: a newline (or EOF) after a value token
+// (word, string, ], )) inserts a synthetic semicolon — same approach as Go's lexer.
 type Tokenizer struct {
-	input  string
-	pos    int
-	line   int
-	col    int
-	peeked *Token
+	input      string
+	pos        int
+	line       int
+	col        int
+	peeked     *Token
+	insertSemi bool // next newline/EOF should produce a semicolon
 }
 
 // NewTokenizer creates a new tokenizer for the given input.
@@ -85,13 +88,27 @@ func (t *Tokenizer) Peek() Token {
 
 // Next returns the next token and advances the tokenizer.
 func (t *Tokenizer) Next() Token {
+	var tok Token
 	if t.peeked != nil {
-		tok := *t.peeked
+		tok = *t.peeked
 		t.peeked = nil
-		return tok
+	} else {
+		tok = t.scan()
 	}
+	// Auto-semicolon: value tokens cause the next newline/EOF to produce a semicolon.
+	t.insertSemi = tok.Type == TokenWord || tok.Type == TokenString ||
+		tok.Type == TokenRBracket || tok.Type == TokenRParen
+	return tok
+}
 
-	t.skipWhitespaceAndComments()
+// scan produces the next raw token, including synthetic semicolons.
+func (t *Tokenizer) scan() Token {
+	semiLine, semiCol := t.line, t.col
+	newlineSeen := t.skipWhitespaceAndComments()
+
+	if t.insertSemi && (newlineSeen || t.pos >= len(t.input)) {
+		return Token{Type: TokenSemicolon, Value: ";", Line: semiLine, Col: semiCol}
+	}
 
 	if t.pos >= len(t.input) {
 		return Token{Type: TokenEOF, Line: t.line, Col: t.col}
@@ -124,9 +141,8 @@ func (t *Tokenizer) Next() Token {
 		return Token{Type: TokenSemicolon, Value: ";", Line: startLine, Col: startCol}
 	case '"', '\'':
 		return t.readString(ch, startLine, startCol)
-	default:
-		return t.readWord(startLine, startCol)
 	}
+	return t.readWord(startLine, startCol)
 }
 
 // All returns all tokens.
@@ -156,17 +172,25 @@ func (t *Tokenizer) advance() {
 }
 
 // skipWhitespaceAndComments skips whitespace and # comments.
-func (t *Tokenizer) skipWhitespaceAndComments() {
+// Returns true if a newline was crossed (used for auto-semicolon insertion).
+func (t *Tokenizer) skipWhitespaceAndComments() bool {
+	newlineSeen := false
 	for t.pos < len(t.input) {
 		ch := t.input[t.pos]
 
-		if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' {
+		if ch == ' ' || ch == '\t' || ch == '\r' {
+			t.advance()
+			continue
+		}
+
+		if ch == '\n' {
+			newlineSeen = true
 			t.advance()
 			continue
 		}
 
 		if ch == '#' {
-			// Skip to end of line
+			// Comments end at newline, which counts as a newline crossing
 			for t.pos < len(t.input) && t.input[t.pos] != '\n' {
 				t.advance()
 			}
@@ -175,6 +199,7 @@ func (t *Tokenizer) skipWhitespaceAndComments() {
 
 		break
 	}
+	return newlineSeen
 }
 
 // readString reads a quoted string.

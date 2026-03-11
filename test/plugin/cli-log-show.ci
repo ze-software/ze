@@ -86,31 +86,31 @@ EOF_RUN
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external log-show-test {
-		run ./log-show-test.run;
-		encoder json;
+		run ./log-show-test.run
+		encoder json
 	}
 }
 
 environment {
 	tcp {
-		attempts 3;
+		attempts 3
 	}
 }
 
 bgp {
 	peer 127.0.0.1 {
-		router-id 1.2.3.4;
-		local-address 127.0.0.1;
-		local-as 1;
-		peer-as 1;
-		connection active;
-		group-updates disable;
+		router-id 1.2.3.4
+		local-address 127.0.0.1
+		local-as 1
+		peer-as 1
+		connection active
+		group-updates disable
 
 		family {
-			ipv4/unicast;
+			ipv4/unicast
 		}
 		capability {
-			graceful-restart disable;
+			graceful-restart disable
 		}
 		process log-show-test {
 		}

@@ -98,9 +98,9 @@ func TestReader_ParseBlocks(t *testing.T) {
 
 	configContent := `
 bgp {
-    local-as 65000;
+    local-as 65000
     peer 192.0.2.1 {
-        peer-as 65001;
+        peer-as 65001
     }
 }
 `
@@ -275,9 +275,9 @@ func TestReader_Reload(t *testing.T) {
 	// Initial config.
 	initial := `
 bgp {
-    local-as 65000;
+    local-as 65000
     peer 192.0.2.1 {
-        peer-as 65001;
+        peer-as 65001
     }
 }
 `
@@ -290,12 +290,12 @@ bgp {
 	// Modify config: change peer AS and add a second peer.
 	modified := `
 bgp {
-    local-as 65000;
+    local-as 65000
     peer 192.0.2.1 {
-        peer-as 65099;
+        peer-as 65099
     }
     peer 192.0.2.2 {
-        peer-as 65002;
+        peer-as 65002
     }
 }
 `
@@ -375,11 +375,11 @@ func TestReader_ValidateBlock_ValidTypes(t *testing.T) {
 
 	configContent := `
 bgp {
-    router-id 192.0.2.1;
-    local-as 65001;
+    router-id 192.0.2.1
+    local-as 65001
     peer 10.0.0.1 {
-        peer-as 65002;
-        local-address auto;
+        peer-as 65002
+        local-address auto
     }
 }
 `
@@ -410,8 +410,8 @@ func TestReader_ValidateBlock_InvalidRange(t *testing.T) {
 
 	configContent := `
 bgp {
-    router-id 192.0.2.1;
-    local-as 0;
+    router-id 192.0.2.1
+    local-as 0
 }
 `
 	dir := t.TempDir()
@@ -436,8 +436,8 @@ func TestReader_ValidateBlock_InvalidPattern(t *testing.T) {
 
 	configContent := `
 bgp {
-    router-id not-an-ip;
-    local-as 65001;
+    router-id not-an-ip
+    local-as 65001
 }
 `
 	dir := t.TempDir()
@@ -462,7 +462,7 @@ func TestReader_ValidateBlock_MandatoryMissing(t *testing.T) {
 
 	configContent := `
 bgp {
-    local-as 65001;
+    local-as 65001
 }
 `
 	dir := t.TempDir()
@@ -486,8 +486,8 @@ func TestReader_Load_NoValidator(t *testing.T) {
 
 	configContent := `
 bgp {
-    router-id not-an-ip;
-    local-as 0;
+    router-id not-an-ip
+    local-as 0
 }
 `
 	dir := t.TempDir()
@@ -517,8 +517,8 @@ func TestReader_Reload_WithValidator(t *testing.T) {
 	// Valid initial config.
 	initial := `
 bgp {
-    router-id 192.0.2.1;
-    local-as 65001;
+    router-id 192.0.2.1
+    local-as 65001
 }
 `
 	require.NoError(t, os.WriteFile(confPath, []byte(initial), 0o644))
@@ -530,8 +530,8 @@ bgp {
 	// Reload with invalid config (ASN 0 violates range 1..max).
 	invalid := `
 bgp {
-    router-id 192.0.2.1;
-    local-as 0;
+    router-id 192.0.2.1
+    local-as 0
 }
 `
 	require.NoError(t, os.WriteFile(confPath, []byte(invalid), 0o644))
@@ -575,10 +575,10 @@ func frontendTestSchema() *Schema {
 // PREVENTS: Tokenizer frontend producing wrong structure or losing data.
 func TestFrontend_Tokenizer_ProducesMap(t *testing.T) {
 	content := `
-router-id 1.2.3.4;
-local-as 65000;
+router-id 1.2.3.4
+local-as 65000
 neighbor 192.0.2.1 {
-    peer-as 65001;
+    peer-as 65001
 }
 `
 	fe := &TokenizerFrontend{}
@@ -633,10 +633,10 @@ set neighbor 192.0.2.1 peer-as 65001
 // PREVENTS: Frontend-dependent behavior in handler routing.
 func TestFrontend_BothProduceSameShape(t *testing.T) {
 	tokenizerContent := `
-router-id 1.2.3.4;
-local-as 65000;
+router-id 1.2.3.4
+local-as 65000
 neighbor 192.0.2.1 {
-    peer-as 65001;
+    peer-as 65001
 }
 `
 	setContent := `

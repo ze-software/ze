@@ -19,62 +19,62 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer 127.0.0.1 {
-		router-id 32.32.32.32;
-		local-address 127.0.0.1;
-		local-as 65000;
-		peer-as 65000;
-		connection active;
-		group-updates enable;
+		router-id 32.32.32.32
+		local-address 127.0.0.1
+		local-as 65000
+		peer-as 65000
+		connection active
+		group-updates enable
 
 		family {
-			ipv4/mcast-vpn;
-			ipv6/mcast-vpn;
+			ipv4/mcast-vpn
+			ipv6/mcast-vpn
 		}
-		auto-flush enable;
+		auto-flush enable
 
 		# Route 1: IPv4 shared-join and source-join (grouped)
 		update {
 			attribute {
-				next-hop 10.10.6.3;
-				extended-community [target:192.168.94.12:5];
+				next-hop 10.10.6.3
+				extended-community [target:192.168.94.12:5]
 			}
 			nlri {
-				ipv4/mcast-vpn add shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000;
-				ipv4/mcast-vpn add source-join source 10.99.12.2 group 239.251.255.228 rd 65000:99999 source-as 65000;
+				ipv4/mcast-vpn add shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000
+				ipv4/mcast-vpn add source-join source 10.99.12.2 group 239.251.255.228 rd 65000:99999 source-as 65000
 			}
 		}
 
 		# Route 2: IPv6 shared-join and source-join (grouped)
 		update {
 			attribute {
-				next-hop 10.10.6.3;
-				extended-community [target:192.168.94.12:5];
+				next-hop 10.10.6.3
+				extended-community [target:192.168.94.12:5]
 			}
 			nlri {
-				ipv6/mcast-vpn add shared-join rp fd00::1 group ff0e::1 rd 65000:99999 source-as 65000;
-				ipv6/mcast-vpn add source-join source fd12::2 group ff0e::1 rd 65000:99999 source-as 65000;
+				ipv6/mcast-vpn add shared-join rp fd00::1 group ff0e::1 rd 65000:99999 source-as 65000
+				ipv6/mcast-vpn add source-join source fd12::2 group ff0e::1 rd 65000:99999 source-as 65000
 			}
 		}
 
 		# Route 3: IPv4 source-ad
 		update {
 			attribute {
-				next-hop 10.10.6.4;
-				extended-community [target:65000:99999];
+				next-hop 10.10.6.4
+				extended-community [target:65000:99999]
 			}
 			nlri {
-				ipv4/mcast-vpn add source-ad source 10.99.12.4 group 239.251.255.228 rd 65000:99999;
+				ipv4/mcast-vpn add source-ad source 10.99.12.4 group 239.251.255.228 rd 65000:99999
 			}
 		}
 
 		# Route 4: IPv6 source-ad
 		update {
 			attribute {
-				next-hop 10.10.6.4;
-				extended-community [target:65000:99999];
+				next-hop 10.10.6.4
+				extended-community [target:65000:99999]
 			}
 			nlri {
-				ipv6/mcast-vpn add source-ad source fd12::4 group ff0e::1 rd 65000:99999;
+				ipv6/mcast-vpn add source-ad source fd12::4 group ff0e::1 rd 65000:99999
 			}
 		}
 	}

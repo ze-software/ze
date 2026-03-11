@@ -90,33 +90,33 @@ EOF_RUN
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external announce-routes {
-		run ./refresh.run;
-		encoder json;
+		run ./refresh.run
+		encoder json
 	}
 	external rib {
-		run "ze plugin bgp-rib";
-		encoder json;
+		run "ze plugin bgp-rib"
+		encoder json
 	}
 }
 bgp {
 	peer 127.0.0.1 {
-		router-id 1.2.3.4;
-		local-address 127.0.0.1;
-		local-as 1;
-		peer-as 1;
-		connection active;
-		group-updates disable;
+		router-id 1.2.3.4
+		local-address 127.0.0.1
+		local-as 1
+		peer-as 1
+		connection active
+		group-updates disable
 	
 		family {
-			ipv4/unicast;
+			ipv4/unicast
 		}
 		capability {
-			route-refresh;
+			route-refresh
 		}
 		process announce-routes {
 		}
 		process rib {
-			send [ update borr eorr ];
+			send [ update borr eorr ]
 		}
 	}
 }

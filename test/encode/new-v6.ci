@@ -15,16 +15,16 @@ stdin=ze-bgp:terminator=EOF_CONF
 template {
 	bgp {
 		peer * {
-			inherit-name a-few-routes;
+			inherit-name a-few-routes
 			update {
 				attribute {
-					origin igp;
-					next-hop 2A02:B80:0:2::1;
-					local-preference 200;
-					community [ 30740:0 30740:30740 ];
+					origin igp
+					next-hop 2A02:B80:0:2::1
+					local-preference 200
+					community [ 30740:0 30740:30740 ]
 				}
 				nlri {
-					ipv6/unicast add 2A02:B80:0:1::1/128;
+					ipv6/unicast add 2A02:B80:0:1::1/128
 				}
 			}
 		}
@@ -32,27 +32,27 @@ template {
 }
 bgp {
 	peer 127.0.0.1 {
-		inherit a-few-routes;
-		description "a simple test for the new configuration format name";
-		router-id 10.0.0.2;
-		local-address 127.0.0.1;
-		local-as 65533;
-		peer-as 65533;
-		connection active;
-		hold-time 180;
+		inherit a-few-routes
+		description "a simple test for the new configuration format name"
+		router-id 10.0.0.2
+		local-address 127.0.0.1
+		local-as 65533
+		peer-as 65533
+		connection active
+		hold-time 180
 
 		family {
-			ipv6/unicast;
+			ipv6/unicast
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 2A02:B80:0:2::1;
-				local-preference 200;
-				community [ 30740:0 30740:30740 ];
+				origin igp
+				next-hop 2A02:B80:0:2::1
+				local-preference 200
+				community [ 30740:0 30740:30740 ]
 			}
 			nlri {
-				ipv6/unicast add 2A02:B80:0:1::2/128;
+				ipv6/unicast add 2A02:B80:0:1::2/128
 			}
 		}
 	}

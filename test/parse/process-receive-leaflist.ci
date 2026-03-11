@@ -2,17 +2,17 @@
 stdin=config:terminator=EOF_CONF
 plugin {
 	external my-process {
-		run ./syslog-1.py;
-		encoder json;
+		run ./syslog-1.py
+		encoder json
 	}
 }
 bgp {
 	peer 10.0.0.3 {
-		local-address 10.0.0.2;
-		local-as 65533;
-		peer-as 65533;
+		local-address 10.0.0.2
+		local-as 65533
+		peer-as 65533
 		process my-process {
-			receive [ update state negotiated ];
+			receive [ update state negotiated ]
 		}
 	}
 }

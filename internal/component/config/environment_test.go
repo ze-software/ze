@@ -859,18 +859,18 @@ func TestParseEnvironmentBlock(t *testing.T) {
 	input := `
 environment {
     log {
-        level DEBUG;
+        level DEBUG
     }
     tcp {
-        port 1179;
+        port 1179
     }
 }
 
 bgp {
-    router-id 192.0.2.1;
-    local-as 65000;
+    router-id 192.0.2.1
+    local-as 65000
     peer 192.0.2.2 {
-        peer-as 65001;
+        peer-as 65001
     }
 }
 `
@@ -905,21 +905,21 @@ func TestParseEnvironmentBlockApplied(t *testing.T) {
 	input := `
 environment {
     log {
-        level WARNING;
+        level WARNING
     }
     tcp {
-        port 1179;
+        port 1179
     }
     api {
-        encoder text;
+        encoder text
     }
 }
 
 bgp {
-    router-id 192.0.2.1;
-    local-as 65000;
+    router-id 192.0.2.1
+    local-as 65000
     peer 192.0.2.2 {
-        peer-as 65001;
+        peer-as 65001
     }
 }
 `
@@ -955,8 +955,8 @@ func TestParseEmptyEnvironmentBlock(t *testing.T) {
 environment { }
 
 bgp {
-    router-id 192.0.2.1;
-    local-as 65000;
+    router-id 192.0.2.1
+    local-as 65000
 }
 `
 	p := NewParser(YANGSchema())
@@ -981,13 +981,13 @@ func TestParseEmptySectionInEnvironmentBlock(t *testing.T) {
 environment {
     log { }
     tcp {
-        port 1179;
+        port 1179
     }
 }
 
 bgp {
-    router-id 192.0.2.1;
-    local-as 65000;
+    router-id 192.0.2.1
+    local-as 65000
 }
 `
 	p := NewParser(YANGSchema())
@@ -1020,18 +1020,18 @@ func TestParseMultipleEnvironmentBlocks(t *testing.T) {
 	input := `
 environment {
     log {
-        level DEBUG;
+        level DEBUG
     }
 }
 environment {
     tcp {
-        port 1179;
+        port 1179
     }
 }
 
 bgp {
-    router-id 192.0.2.1;
-    local-as 65000;
+    router-id 192.0.2.1
+    local-as 65000
 }
 `
 	p := NewParser(YANGSchema())
@@ -1058,10 +1058,10 @@ bgp {
 func TestParseNoEnvironmentBlock(t *testing.T) {
 	input := `
 bgp {
-    router-id 192.0.2.1;
-    local-as 65000;
+    router-id 192.0.2.1
+    local-as 65000
     peer 192.0.2.2 {
-        peer-as 65001;
+        peer-as 65001
     }
 }
 `

@@ -2,12 +2,12 @@
 # VALIDATES: AC-7 — valid complete config produces no errors
 stdin=config:terminator=EOF_CONF
 bgp {
-	router-id 1.2.3.4;
-	local-as 65000;
+	router-id 1.2.3.4
+	local-as 65000
 	peer 192.0.2.1 {
-		local-address 192.0.2.2;
-		peer-as 65001;
-		hold-time 90;
+		local-address 192.0.2.2
+		peer-as 65001
+		hold-time 90
 	}
 }
 EOF_CONF

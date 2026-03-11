@@ -3,8 +3,8 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer 192.0.2.1 {
-		local-as 65000;
-		peer-as 65001;
+		local-as 65000
+		peer-as 65001
 	}
 }
 EOF_CONF

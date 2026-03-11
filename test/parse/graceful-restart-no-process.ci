@@ -2,10 +2,10 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer 10.0.0.1 {
-		router-id 1.2.3.4;
-		local-as 65001;
-		peer-as 65002;
-		local-address 192.0.2.1;
+		router-id 1.2.3.4
+		local-as 65001
+		peer-as 65002
+		local-address 192.0.2.1
 		capability {
 			graceful-restart { restart-time 120; }
 		}

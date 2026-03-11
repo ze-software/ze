@@ -11,10 +11,10 @@ import (
 )
 
 const testConfig = `bgp {
-  local-as 65000;
-  router-id 1.2.3.4;
+  local-as 65000
+  router-id 1.2.3.4
   peer 1.1.1.1 {
-    peer-as 65001;
+    peer-as 65001
   }
 }
 `

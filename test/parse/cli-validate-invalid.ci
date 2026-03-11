@@ -4,7 +4,7 @@ stdin=config:terminator=EOF_CONF
 # Invalid: missing bgp block
 environment {
 	log {
-		level info;
+		level info
 	}
 }
 EOF_CONF

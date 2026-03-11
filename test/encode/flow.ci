@@ -51,150 +51,150 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer 127.0.0.1 {
-		router-id 1.2.3.4;
-		local-address 127.0.0.1;
-		local-as 1;
-		peer-as 1;
-		connection active;
-		group-updates disable;
+		router-id 1.2.3.4
+		local-address 127.0.0.1
+		local-as 1
+		peer-as 1
+		connection active
+		group-updates disable
 
 		family {
-			ipv4/flow;
-			ipv4/flow-vpn;
-			ipv6/flow;
+			ipv4/flow
+			ipv4/flow-vpn
+			ipv6/flow
 		}
 
 		# Route 1: flow source-ipv4 10.0.0.1/32 rd 65535:65536 extended-community discard
 		update {
 			attribute {
-				extended-community [rate-limit:0];
+				extended-community [rate-limit:0]
 			}
 			nlri {
-				ipv4/flow-vpn rd 65535:65536 add source-ipv4 10.0.0.1/32;
+				ipv4/flow-vpn rd 65535:65536 add source-ipv4 10.0.0.1/32
 			}
 		}
 
 		# Route 2: flow source-ipv4 10.0.0.2/32 next-hop 1.2.3.4 extended-community copy-to-nexthop
 		update {
 			attribute {
-				next-hop 1.2.3.4;
-				extended-community [copy-to-nexthop];
+				next-hop 1.2.3.4
+				extended-community [copy-to-nexthop]
 			}
 			nlri {
-				ipv4/flow add source-ipv4 10.0.0.2/32;
+				ipv4/flow add source-ipv4 10.0.0.2/32
 			}
 		}
 
 		# Route 3: flow with community and extended-community
 		update {
 			attribute {
-				community [30740:0 30740:30740];
-				extended-community [rate-limit:0];
+				community [30740:0 30740:30740]
+				extended-community [rate-limit:0]
 			}
 			nlri {
-				ipv4/flow add destination-ipv4 10.0.0.2/32 source-ipv4 10.0.0.1/32 protocol =tcp destination-port =3128;
+				ipv4/flow add destination-ipv4 10.0.0.2/32 source-ipv4 10.0.0.1/32 protocol =tcp destination-port =3128
 			}
 		}
 
 		# Route 4: fragment action
 		update {
 			attribute {
-				extended-community [action sample-terminal];
+				extended-community [action sample-terminal]
 			}
 			nlri {
-				ipv4/flow add fragment last-fragment;
+				ipv4/flow add fragment last-fragment
 			}
 		}
 
 		# Route 5: rate-limit 9600
 		update {
 			attribute {
-				extended-community [rate-limit:9600];
+				extended-community [rate-limit:9600]
 			}
 			nlri {
-				ipv4/flow add source-ipv4 10.0.0.0/24 protocol =tcp destination-port =3128;
+				ipv4/flow add source-ipv4 10.0.0.0/24 protocol =tcp destination-port =3128
 			}
 		}
 
 		# Route 6: IPv6 flow
 		update {
 			attribute {
-				extended-community [rate-limit:0];
+				extended-community [rate-limit:0]
 			}
 			nlri {
-				ipv6/flow add destination-ipv6 2a02:b80:15:0:7aca:39ff:feae:a87a/128/0 source-ipv6 ::1/128/120 next-header =udp traffic-class =101 flow-label =2013;
+				ipv6/flow add destination-ipv6 2a02:b80:15:0:7aca:39ff:feae:a87a/128/0 source-ipv6 ::1/128/120 next-header =udp traffic-class =101 flow-label =2013
 			}
 		}
 
 		# Route 7: packet-length ranges
 		update {
 			attribute {
-				extended-community [mark 10];
+				extended-community [mark 10]
 			}
 			nlri {
-				ipv4/flow add packet-length [ >200&<300 >400&<500 ];
+				ipv4/flow add packet-length [ >200&<300 >400&<500 ]
 			}
 		}
 
 		# Route 8: flow-vpn with redirect-to-nexthop-draft
 		update {
 			attribute {
-				next-hop 5.6.7.8;
-				extended-community [redirect-to-nexthop-draft];
+				next-hop 5.6.7.8
+				extended-community [redirect-to-nexthop-draft]
 			}
 			nlri {
-				ipv4/flow-vpn rd 65535:65536 add source-ipv4 10.0.0.3/32;
+				ipv4/flow-vpn rd 65535:65536 add source-ipv4 10.0.0.3/32
 			}
 		}
 
 		# Route 9: redirect-to-nexthop-draft
 		update {
 			attribute {
-				next-hop 1.2.3.4;
-				extended-community [redirect-to-nexthop-draft];
+				next-hop 1.2.3.4
+				extended-community [redirect-to-nexthop-draft]
 			}
 			nlri {
-				ipv4/flow add destination-ipv4 192.168.0.1/32;
+				ipv4/flow add destination-ipv4 192.168.0.1/32
 			}
 		}
 
 		# Route 10: complex flow with redirect
 		update {
 			attribute {
-				extended-community [redirect:258:33756718];
+				extended-community [redirect:258:33756718]
 			}
 			nlri {
-				ipv4/flow add destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.2/32 protocol [ =udp =tcp ] port [ =80 =8080 ] destination-port [ >8080&<8088 =3128 ] source-port >1024;
+				ipv4/flow add destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.2/32 protocol [ =udp =tcp ] port [ =80 =8080 ] destination-port [ >8080&<8088 =3128 ] source-port >1024
 			}
 		}
 
 		# Route 11: redirect 65500:12345
 		update {
 			attribute {
-				extended-community [redirect:65500:12345];
+				extended-community [redirect:65500:12345]
 			}
 			nlri {
-				ipv4/flow add destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.9/32 protocol [ =udp =tcp ] port [ =80 =8080 ] destination-port [ >8080&<8088 =3128 ] source-port >1024;
+				ipv4/flow add destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.9/32 protocol [ =udp =tcp ] port [ =80 =8080 ] destination-port [ >8080&<8088 =3128 ] source-port >1024
 			}
 		}
 
 		# Route 12: negation operators
 		update {
 			attribute {
-				extended-community [rate-limit:0];
+				extended-community [rate-limit:0]
 			}
 			nlri {
-				ipv4/flow add destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.10/32 protocol !=tcp port !=0 destination-port !=443 source-port [ !=80 !=8080 ];
+				ipv4/flow add destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.10/32 protocol !=tcp port !=0 destination-port !=443 source-port [ !=80 !=8080 ]
 			}
 		}
 
 		# Route 13: tcp-flags
 		update {
 			attribute {
-				extended-community [rate-limit:0];
+				extended-community [rate-limit:0]
 			}
 			nlri {
-				ipv4/flow add destination-ipv4 10.0.0.2/32 source-ipv4 10.0.0.1/32 protocol =tcp destination-port =3128 tcp-flags [ syn rst&fin&!=push ];
+				ipv4/flow add destination-ipv4 10.0.0.2/32 source-ipv4 10.0.0.1/32 protocol =tcp destination-port =3128 tcp-flags [ syn rst&fin&!=push ]
 			}
 		}
 	}

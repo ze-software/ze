@@ -81,25 +81,25 @@ EOF_RUN
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
     external flowspec {
-        run ./flowspec-wrapper.run;
-        encoder json;
+        run ./flowspec-wrapper.run
+        encoder json
     }
 }
 bgp {
     peer 127.0.0.1 {
-        router-id 1.2.3.4;
-        local-address 127.0.0.1;
-        local-as 1;
-        peer-as 1;
-        connection active;
+        router-id 1.2.3.4
+        local-address 127.0.0.1
+        local-as 1
+        peer-as 1
+        connection active
 
         family {
-            ipv4/flow;
-            ipv4/unicast;
+            ipv4/flow
+            ipv4/unicast
         }
 
         process flowspec {
-            send [ update ];
+            send [ update ]
         }
     }
 }

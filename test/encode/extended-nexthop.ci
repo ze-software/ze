@@ -20,42 +20,42 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer 127.0.0.1 {
-		router-id 127.0.0.2;
-		local-address 127.0.0.1;
-		local-as 12345;
-		peer-as 12345;
-		connection active;
-		group-updates disable;
+		router-id 127.0.0.2
+		local-address 127.0.0.1
+		local-as 12345
+		peer-as 12345
+		connection active
+		group-updates disable
 
 		family {
-			ipv4/mpls-vpn;
-			ipv4/unicast;
-			ipv6/mpls-vpn;
-			ipv6/unicast;
+			ipv4/mpls-vpn
+			ipv4/unicast
+			ipv6/mpls-vpn
+			ipv6/unicast
 		}
 		capability {
 			nexthop {
-				ipv4/mpls-vpn ipv6;
-				ipv4/unicast ipv6;
-				ipv6/unicast ipv4;
+				ipv4/mpls-vpn ipv6
+				ipv4/unicast ipv6
+				ipv6/unicast ipv4
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop BAD:CAFE:BAD:CAFE:BAD:CAFE:BAD:CAFE;
+				origin igp
+				next-hop BAD:CAFE:BAD:CAFE:BAD:CAFE:BAD:CAFE
 			}
 			nlri {
-				ipv4/unicast add 153.153.153.153/32;
+				ipv4/unicast add 153.153.153.153/32
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 170.170.170.170;
+				origin igp
+				next-hop 170.170.170.170
 			}
 			nlri {
-				ipv6/unicast add DEAD:BEEF:DEAD:BEEF:DEAD:BEEF:DEAD:BEEF/128;
+				ipv6/unicast add DEAD:BEEF:DEAD:BEEF:DEAD:BEEF:DEAD:BEEF/128
 			}
 		}
 	}

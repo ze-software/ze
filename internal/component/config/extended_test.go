@@ -28,11 +28,11 @@ func TestFlagSyntax(t *testing.T) {
 	input := `
 bgp {
     peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
+        local-as 65000
+        peer-as 65001
         capability {
-            graceful-restart;
-            route-refresh;
+            graceful-restart
+            route-refresh
         }
     }
 }
@@ -69,10 +69,10 @@ func TestFlagWithValue(t *testing.T) {
 	input := `
 bgp {
     peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
+        local-as 65000
+        peer-as 65001
         capability {
-            graceful-restart 120;
+            graceful-restart 120
         }
     }
 }
@@ -102,11 +102,11 @@ func TestFlagWithBlock(t *testing.T) {
 	input := `
 bgp {
     peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
+        local-as 65000
+        peer-as 65001
         capability {
             graceful-restart {
-                restart-time 120;
+                restart-time 120
             }
         }
     }
@@ -140,10 +140,10 @@ func TestEnableDisable(t *testing.T) {
 	input := `
 bgp {
     peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
+        local-as 65000
+        peer-as 65001
         capability {
-            asn4 enable;
+            asn4 enable
         }
     }
 }
@@ -173,17 +173,17 @@ func TestArraySyntax(t *testing.T) {
 	input := `
 plugin {
     external watcher {
-        run "/usr/bin/watcher";
-        encoder json;
+        run "/usr/bin/watcher"
+        encoder json
     }
 }
 
 bgp {
     peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
+        local-as 65000
+        peer-as 65001
         process {
-            processes [ watcher ];
+            processes [ watcher ]
         }
     }
 }
@@ -218,10 +218,10 @@ func TestArrayMultipleValues(t *testing.T) {
 	input := `
 bgp {
     peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
+        local-as 65000
+        peer-as 65001
         process {
-            processes [ watcher announcer receiver ];
+            processes [ watcher announcer receiver ]
         }
     }
 }
@@ -256,10 +256,10 @@ func TestArrayRoundtrip(t *testing.T) {
 	input := `
 bgp {
     peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
+        local-as 65000
+        peer-as 65001
         process {
-            processes [ watcher ];
+            processes [ watcher ]
         }
     }
 }

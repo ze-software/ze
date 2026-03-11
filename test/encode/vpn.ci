@@ -14,28 +14,28 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer 127.0.0.1 {
-		router-id 127.1.1.1;
-		local-address 127.0.0.1;
-		local-as 65000;
-		peer-as 65000;
-		connection active;
-		hold-time 180;
-		group-updates disable;
+		router-id 127.1.1.1
+		local-address 127.0.0.1
+		local-as 65000
+		peer-as 65000
+		connection active
+		hold-time 180
+		group-updates disable
 		capability {
-			asn4 true;
+			asn4 true
 		}
 		family {
-			ipv4/mpls-vpn;
+			ipv4/mpls-vpn
 		}
 		update {
 			attribute {
-				origin igp;
-				local-preference 100;
-				next-hop 200.10.0.101;
-				extended-community [ 0x0002fde800000001 0x0002271000000001 ];
+				origin igp
+				local-preference 100
+				next-hop 200.10.0.101
+				extended-community [ 0x0002fde800000001 0x0002271000000001 ]
 			}
 			nlri {
-				ipv4/mpls-vpn add rd 65000:1 label 1000 10.0.0.0/25 10.0.0.128/25 20.0.0.0/25 20.0.0.128/25;
+				ipv4/mpls-vpn add rd 65000:1 label 1000 10.0.0.0/25 10.0.0.128/25 20.0.0.0/25 20.0.0.128/25
 			}
 		}
 	}

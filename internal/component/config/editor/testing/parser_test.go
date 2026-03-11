@@ -413,8 +413,8 @@ func TestParseExpectGhost(t *testing.T) {
 func TestParseTmpfs(t *testing.T) {
 	content := `tmpfs=test.conf:terminator=EOF_CONF
 bgp {
-  local-as 65000;
-  router-id 1.2.3.4;
+  local-as 65000
+  router-id 1.2.3.4
 }
 EOF_CONF`
 
@@ -529,10 +529,10 @@ func TestParseCompleteExample(t *testing.T) {
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
-  local-as 65000;
-  router-id 1.2.3.4;
+  local-as 65000
+  router-id 1.2.3.4
   peer 1.1.1.1 {
-    peer-as 65001;
+    peer-as 65001
   }
 }
 EOF_CONF

@@ -16,8 +16,8 @@ func TestConfigFmtFormatsConfig(t *testing.T) {
 	input := `bgp{peer 127.0.0.1{local-as 1;peer-as 2;}}`
 	expected := `bgp {
 	peer 127.0.0.1 {
-		local-as 1;
-		peer-as 2;
+		local-as 1
+		peer-as 2
 	}
 }
 `
@@ -44,8 +44,8 @@ func TestConfigFmtFormatsConfig(t *testing.T) {
 func TestConfigFmtIdempotent(t *testing.T) {
 	input := `bgp {
 	peer 127.0.0.1 {
-		local-as 1;
-		peer-as 2;
+		local-as 1
+		peer-as 2
 	}
 }
 `
@@ -83,8 +83,8 @@ func TestConfigFmtIdempotent(t *testing.T) {
 func TestConfigFmtRejectsOld(t *testing.T) {
 	// Old config uses "neighbor" keyword which is no longer in YANG schema
 	input := `neighbor 127.0.0.1 {
-	local-as 1;
-	peer-as 2;
+	local-as 1
+	peer-as 2
 }
 `
 
@@ -141,14 +141,14 @@ func TestConfigCheckCurrentConfig(t *testing.T) {
 	config := `
 bgp {
 	peer 192.0.2.1 {
-		peer-as 65001;
+		peer-as 65001
 	}
 }
 template {
 	bgp {
 		peer * {
-			inherit-name rr;
-			peer-as 65000;
+			inherit-name rr
+			peer-as 65000
 		}
 	}
 }
@@ -176,7 +176,7 @@ template {
 func TestConfigCheckRejectsNeighbor(t *testing.T) {
 	config := `
 neighbor 192.0.2.1 {
-	peer-as 65001;
+	peer-as 65001
 }
 `
 	tmpDir := t.TempDir()
@@ -202,7 +202,7 @@ func TestConfigMigrateNativeConfig(t *testing.T) {
 	input := `
 bgp {
 	peer 192.0.2.1 {
-		peer-as 65001;
+		peer-as 65001
 	}
 }
 `

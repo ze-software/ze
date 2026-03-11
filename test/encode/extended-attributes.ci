@@ -55,165 +55,165 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer 127.0.0.1 {
-		router-id 1.2.3.4;
-		local-address 127.0.0.1;
-		local-as 1;
-		peer-as 1;
-		connection active;
-		group-updates disable;
+		router-id 1.2.3.4
+		local-address 127.0.0.1
+		local-as 1
+		peer-as 1
+		connection active
+		group-updates disable
 
 		family {
-			ipv4/unicast;
-			ipv6/unicast;
+			ipv4/unicast
+			ipv6/unicast
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 15.15.15.1;
-				extended-community [ origin:100:0.0.3.232 ];
+				origin igp
+				next-hop 15.15.15.1
+				extended-community [ origin:100:0.0.3.232 ]
 			}
 			nlri {
-				ipv4/unicast add 10.0.0.1/32;
-			}
-		}
-		update {
-			attribute {
-				origin igp;
-				next-hop 15.15.15.2;
-				extended-community [ target:200:2000 ];
-			}
-			nlri {
-				ipv4/unicast add 10.0.0.2/32;
+				ipv4/unicast add 10.0.0.1/32
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 15.15.15.3;
-				extended-community [ origin:300:0.1.29.40 ];
+				origin igp
+				next-hop 15.15.15.2
+				extended-community [ target:200:2000 ]
 			}
 			nlri {
-				ipv4/unicast add 10.0.0.3/32;
+				ipv4/unicast add 10.0.0.2/32
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 15.15.15.4;
-				extended-community [ target:400:74000 ];
+				origin igp
+				next-hop 15.15.15.3
+				extended-community [ origin:300:0.1.29.40 ]
 			}
 			nlri {
-				ipv4/unicast add 10.0.0.4/32;
+				ipv4/unicast add 10.0.0.3/32
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 15.15.15.5;
-				extended-community [ origin:0.1.19.100:5000 ];
+				origin igp
+				next-hop 15.15.15.4
+				extended-community [ target:400:74000 ]
 			}
 			nlri {
-				ipv4/unicast add 10.0.0.5/32;
+				ipv4/unicast add 10.0.0.4/32
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 15.15.15.6;
-				extended-community [ target:0.1.19.200:6000 ];
+				origin igp
+				next-hop 15.15.15.5
+				extended-community [ origin:0.1.19.100:5000 ]
 			}
 			nlri {
-				ipv4/unicast add 10.0.0.6/32;
+				ipv4/unicast add 10.0.0.5/32
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 15.15.15.7;
-				extended-community [ origin:7.7.7.7:7000 ];
+				origin igp
+				next-hop 15.15.15.6
+				extended-community [ target:0.1.19.200:6000 ]
 			}
 			nlri {
-				ipv4/unicast add 10.0.0.7/32;
+				ipv4/unicast add 10.0.0.6/32
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 15.15.15.8;
-				extended-community [ target:8.8.8.8:8000 ];
+				origin igp
+				next-hop 15.15.15.7
+				extended-community [ origin:7.7.7.7:7000 ]
 			}
 			nlri {
-				ipv4/unicast add 10.0.0.8/32;
+				ipv4/unicast add 10.0.0.7/32
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 15.15.15.9;
-				extended-community [ origin:9000:9.9.9.9 ];
+				origin igp
+				next-hop 15.15.15.8
+				extended-community [ target:8.8.8.8:8000 ]
 			}
 			nlri {
-				ipv4/unicast add 10.0.0.9/32;
+				ipv4/unicast add 10.0.0.8/32
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 15.15.15.10;
-				extended-community [ target:1000:168430090 ];
+				origin igp
+				next-hop 15.15.15.9
+				extended-community [ origin:9000:9.9.9.9 ]
 			}
 			nlri {
-				ipv4/unicast add 10.0.0.10/32;
+				ipv4/unicast add 10.0.0.9/32
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 15.15.15.11;
-				extended-community [ origin:0.1.21.188:11000 ];
+				origin igp
+				next-hop 15.15.15.10
+				extended-community [ target:1000:168430090 ]
 			}
 			nlri {
-				ipv4/unicast add 10.0.0.11/32;
+				ipv4/unicast add 10.0.0.10/32
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 15.15.15.12;
-				extended-community [ target:0.1.22.32:12000 ];
+				origin igp
+				next-hop 15.15.15.11
+				extended-community [ origin:0.1.21.188:11000 ]
 			}
 			nlri {
-				ipv4/unicast add 10.0.0.12/32;
+				ipv4/unicast add 10.0.0.11/32
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 15.15.15.13;
-				extended-community [ redirect:1300:83000 ];
+				origin igp
+				next-hop 15.15.15.12
+				extended-community [ target:0.1.22.32:12000 ]
 			}
 			nlri {
-				ipv4/unicast add 10.0.0.13/32;
+				ipv4/unicast add 10.0.0.12/32
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 15.15.15.14;
-				extended-community [ redirect:1400:84000 ];
+				origin igp
+				next-hop 15.15.15.13
+				extended-community [ redirect:1300:83000 ]
 			}
 			nlri {
-				ipv4/unicast add 10.0.0.14/32;
+				ipv4/unicast add 10.0.0.13/32
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 15.15.15.15;
-				extended-community [ l2info:1:2:13398:30864 ];
+				origin igp
+				next-hop 15.15.15.14
+				extended-community [ redirect:1400:84000 ]
 			}
 			nlri {
-				ipv4/unicast add 10.0.0.15/32;
+				ipv4/unicast add 10.0.0.14/32
+			}
+		}
+		update {
+			attribute {
+				origin igp
+				next-hop 15.15.15.15
+				extended-community [ l2info:1:2:13398:30864 ]
+			}
+			nlri {
+				ipv4/unicast add 10.0.0.15/32
 			}
 		}
 	}

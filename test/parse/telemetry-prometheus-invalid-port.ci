@@ -2,17 +2,17 @@
 # VALIDATES: AC-9 — telemetry { prometheus { bogus; } } fails YANG schema check
 stdin=config:terminator=EOF_CONF
 bgp {
-	router-id 10.0.0.1;
-	local-as 65533;
+	router-id 10.0.0.1
+	local-as 65533
 	peer 127.0.0.1 {
-		local-address 127.0.0.1;
-		peer-as 65534;
+		local-address 127.0.0.1
+		peer-as 65534
 	}
 }
 telemetry {
 	prometheus {
-		enabled true;
-		bogus true;
+		enabled true
+		bogus true
 	}
 }
 EOF_CONF

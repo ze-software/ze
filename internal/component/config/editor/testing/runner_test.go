@@ -17,8 +17,8 @@ func TestRunnerBasicTest(t *testing.T) {
 	etContent := `# Basic test
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
-  local-as 65000;
-  router-id 1.2.3.4;
+  local-as 65000
+  router-id 1.2.3.4
 }
 EOF_CONF
 
@@ -42,8 +42,8 @@ func TestRunnerWithInput(t *testing.T) {
 	etContent := `# Test with input
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
-  local-as 65000;
-  router-id 1.2.3.4;
+  local-as 65000
+  router-id 1.2.3.4
 }
 EOF_CONF
 
@@ -67,7 +67,7 @@ func TestRunnerFailingExpectation(t *testing.T) {
 	etContent := `# Test with failing expectation
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
-  local-as 65000;
+  local-as 65000
 }
 EOF_CONF
 
@@ -106,8 +106,8 @@ func TestRunnerMultipleExpectations(t *testing.T) {
 	etContent := `# Test with multiple expectations
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
-  local-as 65000;
-  router-id 1.2.3.4;
+  local-as 65000
+  router-id 1.2.3.4
 }
 EOF_CONF
 
@@ -131,8 +131,8 @@ func TestRunnerWithTabCompletion(t *testing.T) {
 	etContent := `# Test tab completion
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
-  local-as 65000;
-  router-id 1.2.3.4;
+  local-as 65000
+  router-id 1.2.3.4
 }
 EOF_CONF
 
@@ -160,7 +160,7 @@ func TestRunETFile(t *testing.T) {
 	etContent := `# File-based test
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
-  local-as 65000;
+  local-as 65000
 }
 EOF_CONF
 

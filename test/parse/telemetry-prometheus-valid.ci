@@ -2,19 +2,19 @@
 # VALIDATES: AC-1 — telemetry { prometheus { enabled true; } } accepted by YANG validation
 stdin=config:terminator=EOF_CONF
 bgp {
-	router-id 10.0.0.1;
-	local-as 65533;
+	router-id 10.0.0.1
+	local-as 65533
 	peer 127.0.0.1 {
-		local-address 127.0.0.1;
-		peer-as 65534;
+		local-address 127.0.0.1
+		peer-as 65534
 	}
 }
 telemetry {
 	prometheus {
-		enabled true;
-		address 127.0.0.1;
-		port 9273;
-		path /metrics;
+		enabled true
+		address 127.0.0.1
+		port 9273
+		path /metrics
 	}
 }
 EOF_CONF

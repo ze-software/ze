@@ -22,72 +22,72 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer 127.0.0.1 {
-		description "m7i-4 router";
-		router-id 10.0.0.1;
-		local-address 127.0.0.1;
-		local-as 65500;
-		peer-as 65500;
-		connection active;
-		group-updates disable;
+		description "m7i-4 router"
+		router-id 10.0.0.1
+		local-address 127.0.0.1
+		local-as 65500
+		peer-as 65500
+		connection active
+		group-updates disable
 
 		family {
-			ipv4/flow;
-			ipv4/flow-vpn;
-			ipv6/flow;
+			ipv4/flow
+			ipv4/flow-vpn
+			ipv6/flow
 		}
 		capability {
-			graceful-restart 5;
+			graceful-restart 5
 		}
 
 		# Route 1: complex flow with all match criteria
 		update {
 			attribute {
-				community [30740:0 30740:30740];
-				extended-community [ redirect:65500:12345 origin:2345:6.7.8.9 origin:2.3.4.5:6789 ];
+				community [30740:0 30740:30740]
+				extended-community [ redirect:65500:12345 origin:2345:6.7.8.9 origin:2.3.4.5:6789 ]
 			}
 			nlri {
-				ipv4/flow add destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.1/32 protocol [ =tcp =udp ] port [ =80 =8080 ] destination-port [ >8080&<8088 =3128 ] source-port >1024 icmp-type [ =unreachable =echo-request =echo-reply ] icmp-code [ =1 =0 ] tcp-flags [ urg rst ] packet-length [ >200&<300 >400&<500 ] dscp [ =10 =20 ] fragment [ first-fragment last-fragment ];
+				ipv4/flow add destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.1/32 protocol [ =tcp =udp ] port [ =80 =8080 ] destination-port [ >8080&<8088 =3128 ] source-port >1024 icmp-type [ =unreachable =echo-request =echo-reply ] icmp-code [ =1 =0 ] tcp-flags [ urg rst ] packet-length [ >200&<300 >400&<500 ] dscp [ =10 =20 ] fragment [ first-fragment last-fragment ]
 			}
 		}
 
 		# Route 2: simple flow
 		update {
 			attribute {
-				community [30740:0 30740:30740];
-				extended-community [ redirect:65500:12345 origin:2345:6.7.8.9 origin:2.3.4.5:6789 ];
+				community [30740:0 30740:30740]
+				extended-community [ redirect:65500:12345 origin:2345:6.7.8.9 origin:2.3.4.5:6789 ]
 			}
 			nlri {
-				ipv4/flow add destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.1/32;
+				ipv4/flow add destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.1/32
 			}
 		}
 
 		# Route 3: rate-limit and redirect
 		update {
 			attribute {
-				extended-community [rate-limit:1250000000 redirect:65001:119];
+				extended-community [rate-limit:1250000000 redirect:65001:119]
 			}
 			nlri {
-				ipv4/flow add destination-ipv4 118.184.176.6/32;
+				ipv4/flow add destination-ipv4 118.184.176.6/32
 			}
 		}
 
 		# Route 4: redirect-to-nexthop
 		update {
 			attribute {
-				extended-community [redirect-to-nexthop 1.2.3.4];
+				extended-community [redirect-to-nexthop 1.2.3.4]
 			}
 			nlri {
-				ipv4/flow add destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.1/32;
+				ipv4/flow add destination-ipv4 192.168.0.1/32 source-ipv4 10.0.0.1/32
 			}
 		}
 
 		# Route 5: raw attribute (IPv6 extended community)
 		update {
 			attribute {
-				attribute [0x19 0xc0 0x000c2a020b800000000100000000000000010000];
+				attribute [0x19 0xc0 0x000c2a020b800000000100000000000000010000]
 			}
 			nlri {
-				ipv4/flow add destination-ipv4 192.168.0.2/32 source-ipv4 10.0.0.1/32;
+				ipv4/flow add destination-ipv4 192.168.0.2/32 source-ipv4 10.0.0.1/32
 			}
 		}
 	}

@@ -36,19 +36,19 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		case v == "":
 			buf.WriteString(indent)
 			buf.WriteString(key)
-			buf.WriteString(";\n")
+			buf.WriteString("\n")
 		case strings.Contains(v, " ") && !strings.HasPrefix(v, "[") && !strings.HasPrefix(v, "\""):
 			buf.WriteString(indent)
 			buf.WriteString(key)
 			buf.WriteString(" \"")
 			buf.WriteString(v)
-			buf.WriteString("\";\n")
+			buf.WriteString("\"\n")
 		default: // single word or already bracketed/quoted
 			buf.WriteString(indent)
 			buf.WriteString(key)
 			buf.WriteString(" ")
 			buf.WriteString(v)
-			buf.WriteString(";\n")
+			buf.WriteString("\n")
 		}
 	}
 
@@ -112,7 +112,7 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 			buf.WriteString(indent)
 			buf.WriteString("\t")
 			buf.WriteString(entry.Key)
-			buf.WriteString(";\n")
+			buf.WriteString("\n")
 		}
 		buf.WriteString(indent)
 		buf.WriteString("}\n")
@@ -164,7 +164,7 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 				buf.WriteString(" ")
 				buf.WriteString(content)
 			}
-			buf.WriteString(";\n")
+			buf.WriteString("\n")
 		}
 		buf.WriteString(indent)
 		buf.WriteString("}\n")

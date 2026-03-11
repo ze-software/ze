@@ -2,29 +2,29 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer 2a02:b80::2 {
-		description "a quagga test peer over ipv6";
-		router-id 10.0.0.2;
-		local-address 2a02:b80::1;
-		local-as 65533;
-		peer-as 65533;
+		description "a quagga test peer over ipv6"
+		router-id 10.0.0.2
+		local-address 2a02:b80::1
+		local-as 65533
+		peer-as 65533
 		update {
 			attribute {
-				origin igp;
-				next-hop 5.6.7.8;
+				origin igp
+				next-hop 5.6.7.8
 			}
 			nlri {
-				ipv4/unicast add 1.2.3.4/32;
+				ipv4/unicast add 1.2.3.4/32
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 2A02:B80:0:2::1;
-				local-preference 200;
-				community [ 30740:0 30740:30740 ];
+				origin igp
+				next-hop 2A02:B80:0:2::1
+				local-preference 200
+				community [ 30740:0 30740:30740 ]
 			}
 			nlri {
-				ipv6/unicast add 2A02:B80:0:1::/64;
+				ipv6/unicast add 2A02:B80:0:1::/64
 			}
 		}
 	}

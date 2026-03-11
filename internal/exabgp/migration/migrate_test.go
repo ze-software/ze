@@ -19,8 +19,8 @@ import (
 func TestMigrateExtendedMessageDefault(t *testing.T) {
 	input := `
 neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 }
 `
 	tree, err := ParseExaBGPConfig(input)
@@ -42,10 +42,10 @@ neighbor 10.0.0.1 {
 func TestMigrateHostnameToCapability(t *testing.T) {
 	input := `
 neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
-	host-name my-host;
-	domain-name example.com;
+	local-as 65001
+	peer-as 65002
+	host-name my-host
+	domain-name example.com
 }
 `
 	tree, err := ParseExaBGPConfig(input)
@@ -73,10 +73,10 @@ neighbor 10.0.0.1 {
 func TestMigrateLinkLocalNexthop(t *testing.T) {
 	input := `
 neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 	capability {
-		link-local-nexthop;
+		link-local-nexthop
 	}
 }
 `
@@ -101,10 +101,10 @@ neighbor 10.0.0.1 {
 func TestMigrateASN4Disable(t *testing.T) {
 	input := `
 neighbor 127.0.0.1 {
-	local-as 65533;
-	peer-as 65533;
+	local-as 65533
+	peer-as 65533
 	capability {
-		asn4 disable;
+		asn4 disable
 	}
 }
 `
@@ -127,10 +127,10 @@ neighbor 127.0.0.1 {
 func TestMigrateSplitRoute(t *testing.T) {
 	input := `
 neighbor 127.0.0.1 {
-	local-as 65533;
-	peer-as 65533;
+	local-as 65533
+	peer-as 65533
 	static {
-		route 172.10.0.0/22 next-hop 192.0.2.1 split /24;
+		route 172.10.0.0/22 next-hop 192.0.2.1 split /24
 	}
 }
 `
@@ -152,9 +152,9 @@ neighbor 127.0.0.1 {
 func TestMigrateLinkLocal(t *testing.T) {
 	input := `
 neighbor ::1 {
-	local-as 65533;
-	peer-as 65533;
-	local-link-local fe80::1;
+	local-as 65533
+	peer-as 65533
+	local-link-local fe80::1
 }
 `
 	tree, err := ParseExaBGPConfig(input)
@@ -176,9 +176,9 @@ neighbor ::1 {
 func TestMigrateSimple(t *testing.T) {
 	input := `
 neighbor 10.0.0.1 {
-	router-id 1.1.1.1;
-	local-as 65001;
-	peer-as 65002;
+	router-id 1.1.1.1
+	local-as 65001
+	peer-as 65002
 }
 `
 	tree, err := ParseExaBGPConfig(input)
@@ -204,11 +204,11 @@ neighbor 10.0.0.1 {
 func TestMigrateWithGR(t *testing.T) {
 	input := `
 neighbor 10.0.0.1 {
-	router-id 1.1.1.1;
-	local-as 65001;
-	peer-as 65002;
+	router-id 1.1.1.1
+	local-as 65001
+	peer-as 65002
 	capability {
-		graceful-restart 120;
+		graceful-restart 120
 	}
 }
 `
@@ -243,10 +243,10 @@ neighbor 10.0.0.1 {
 func TestMigrateWithGRBare(t *testing.T) {
 	input := `
 neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 	capability {
-		graceful-restart;
+		graceful-restart
 	}
 }
 `
@@ -258,9 +258,9 @@ neighbor 10.0.0.1 {
 
 	output := SerializeTree(result.Tree)
 
-	// Must contain "graceful-restart enable;" not "graceful-restart true;"
-	assert.Contains(t, output, "graceful-restart enable;")
-	assert.NotContains(t, output, "graceful-restart true;")
+	// Must contain "graceful-restart enable" not "graceful-restart true"
+	assert.Contains(t, output, "graceful-restart enable")
+	assert.NotContains(t, output, "graceful-restart true")
 }
 
 // TestMigrateWithRR verifies route-refresh injects RIB plugin.
@@ -270,11 +270,11 @@ neighbor 10.0.0.1 {
 func TestMigrateWithRR(t *testing.T) {
 	input := `
 neighbor 10.0.0.1 {
-	router-id 1.1.1.1;
-	local-as 65001;
-	peer-as 65002;
+	router-id 1.1.1.1
+	local-as 65001
+	peer-as 65002
 	capability {
-		route-refresh;
+		route-refresh
 	}
 }
 `
@@ -316,16 +316,16 @@ neighbor 10.0.0.1 {
 func TestMigrateProcess(t *testing.T) {
 	input := `
 process my-plugin {
-	run /path/to/plugin.py;
-	encoder json;
+	run /path/to/plugin.py
+	encoder json
 }
 
 neighbor 10.0.0.1 {
-	router-id 1.1.1.1;
-	local-as 65001;
-	peer-as 65002;
+	router-id 1.1.1.1
+	local-as 65001
+	peer-as 65002
 	api {
-		processes [ my-plugin ];
+		processes [ my-plugin ]
 	}
 }
 `
@@ -356,7 +356,7 @@ func TestMigrateL2VPNSupported(t *testing.T) {
 neighbor 10.0.0.1 {
 	l2vpn {
 		vpls foo {
-			endpoint 1;
+			endpoint 1
 		}
 	}
 }
@@ -388,11 +388,11 @@ func TestMigrateNil(t *testing.T) {
 func TestMigrateFamilyConversion(t *testing.T) {
 	input := `
 neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 	family {
-		ipv4 unicast;
-		ipv6 unicast;
+		ipv4 unicast
+		ipv6 unicast
 	}
 }
 `
@@ -420,20 +420,20 @@ func TestMigrateTemplate(t *testing.T) {
 	input := `
 template {
 	neighbor base {
-		local-as 65001;
-		hold-time 180;
+		local-as 65001
+		hold-time 180
 		family {
-			ipv4 unicast;
+			ipv4 unicast
 		}
 		capability {
-			route-refresh;
+			route-refresh
 		}
 	}
 }
 neighbor 10.0.0.1 {
-	inherit base;
-	peer-as 65002;
-	router-id 1.2.3.4;
+	inherit base
+	peer-as 65002
+	router-id 1.2.3.4
 }
 `
 	tree, err := ParseExaBGPConfig(input)
@@ -468,10 +468,10 @@ neighbor 10.0.0.1 {
 func TestMigrateStaticBlock(t *testing.T) {
 	input := `
 neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 	static {
-		route 192.168.0.0/24 next-hop 10.0.0.1;
+		route 192.168.0.0/24 next-hop 10.0.0.1
 	}
 }
 `
@@ -488,10 +488,10 @@ neighbor 10.0.0.1 {
 	assert.Contains(t, output, "update {", "expected update block")
 
 	// Route should appear in nlri block.
-	assert.Contains(t, output, "ipv4/unicast add 192.168.0.0/24;", "expected nlri entry")
+	assert.Contains(t, output, "ipv4/unicast add 192.168.0.0/24", "expected nlri entry")
 
 	// Next-hop should appear in attribute block.
-	assert.Contains(t, output, "next-hop 10.0.0.1;", "expected next-hop in attribute")
+	assert.Contains(t, output, "next-hop 10.0.0.1", "expected next-hop in attribute")
 }
 
 // TestMigrateStaticPathInformation verifies path-information is preserved.
@@ -501,10 +501,10 @@ neighbor 10.0.0.1 {
 func TestMigrateStaticPathInformation(t *testing.T) {
 	input := `
 neighbor 127.0.0.1 {
-	local-as 1;
-	peer-as 1;
+	local-as 1
+	peer-as 1
 	static {
-		route 193.0.2.1 path-information 1.2.3.4 next-hop 10.0.0.1;
+		route 193.0.2.1 path-information 1.2.3.4 next-hop 10.0.0.1
 	}
 }
 `
@@ -542,11 +542,11 @@ neighbor 127.0.0.1 {
 func TestMigrateAnnounceBlock(t *testing.T) {
 	input := `
 neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 	announce {
 		ipv4 {
-			unicast 10.0.0.0/24 next-hop 192.168.1.1 local-preference 100;
+			unicast 10.0.0.0/24 next-hop 192.168.1.1 local-preference 100
 		}
 	}
 }
@@ -564,11 +564,11 @@ neighbor 10.0.0.1 {
 	assert.Contains(t, output, "update {", "expected update block")
 
 	// Route should appear in nlri block.
-	assert.Contains(t, output, "ipv4/unicast add 10.0.0.0/24;", "expected nlri entry")
+	assert.Contains(t, output, "ipv4/unicast add 10.0.0.0/24", "expected nlri entry")
 
 	// Attributes should appear in attribute block.
-	assert.Contains(t, output, "next-hop 192.168.1.1;", "expected next-hop in attribute")
-	assert.Contains(t, output, "local-preference 100;", "expected local-preference in attribute")
+	assert.Contains(t, output, "next-hop 192.168.1.1", "expected next-hop in attribute")
+	assert.Contains(t, output, "local-preference 100", "expected local-preference in attribute")
 }
 
 // TestNeedsRIBPlugin verifies RIB requirement detection.
@@ -584,18 +584,18 @@ func TestNeedsRIBPlugin(t *testing.T) {
 		{
 			name: "simple_no_rib",
 			input: `neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 }`,
 			wantRIB: false,
 		},
 		{
 			name: "graceful_restart",
 			input: `neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 	capability {
-		graceful-restart;
+		graceful-restart
 	}
 }`,
 			wantRIB: true,
@@ -603,10 +603,10 @@ func TestNeedsRIBPlugin(t *testing.T) {
 		{
 			name: "route_refresh",
 			input: `neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 	capability {
-		route-refresh;
+		route-refresh
 	}
 }`,
 			wantRIB: true,
@@ -614,15 +614,15 @@ func TestNeedsRIBPlugin(t *testing.T) {
 		{
 			name: "api_receive_update",
 			input: `process foo {
-	run /path;
+	run /path
 }
 neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 	api {
-		processes [ foo ];
+		processes [ foo ]
 		receive {
-			update;
+			update
 		}
 	}
 }`,
@@ -650,10 +650,10 @@ func TestMigrateNexthopCapability(t *testing.T) {
 	// Presence of nexthop block implies Extended Next Hop capability.
 	input := `
 neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 	nexthop {
-		ipv4 unicast ipv6;
+		ipv4 unicast ipv6
 	}
 }
 `
@@ -668,7 +668,7 @@ neighbor 10.0.0.1 {
 	// Nexthop block should be inside capability with family syntax conversion.
 	assert.Contains(t, output, "capability {", "expected capability block")
 	assert.Contains(t, output, "nexthop {", "expected nexthop block")
-	assert.Contains(t, output, "ipv4/unicast ipv6;", "expected converted family syntax")
+	assert.Contains(t, output, "ipv4/unicast ipv6", "expected converted family syntax")
 }
 
 // TestMigrateNexthopExplicitAndBlock verifies both explicit capability and block together.
@@ -680,13 +680,13 @@ func TestMigrateNexthopExplicitAndBlock(t *testing.T) {
 	// The capability should only appear once in output.
 	input := `
 neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 	capability {
-		nexthop;
+		nexthop
 	}
 	nexthop {
-		ipv4 unicast ipv6;
+		ipv4 unicast ipv6
 	}
 }
 `
@@ -702,7 +702,7 @@ neighbor 10.0.0.1 {
 	assert.Equal(t, 1, strings.Count(output, "nexthop {"), "expected exactly 1 nexthop block")
 
 	// Nexthop block content should be present.
-	assert.Contains(t, output, "ipv4/unicast ipv6;", "expected nexthop block content")
+	assert.Contains(t, output, "ipv4/unicast ipv6", "expected nexthop block content")
 }
 
 // TestMigrateNexthopBlock verifies nexthop block migration with multiple entries.
@@ -712,12 +712,12 @@ neighbor 10.0.0.1 {
 func TestMigrateNexthopBlock(t *testing.T) {
 	input := `
 neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 	nexthop {
-		ipv4 unicast ipv6;
-		ipv4 mpls-vpn ipv6;
-		ipv6 unicast ipv4;
+		ipv4 unicast ipv6
+		ipv4 mpls-vpn ipv6
+		ipv6 unicast ipv4
 	}
 }
 `
@@ -734,9 +734,9 @@ neighbor 10.0.0.1 {
 	assert.Contains(t, output, "nexthop {", "expected nexthop block")
 
 	// Check nexthop block syntax conversion.
-	assert.Contains(t, output, "ipv4/unicast ipv6;")
-	assert.Contains(t, output, "ipv4/mpls-vpn ipv6;")
-	assert.Contains(t, output, "ipv6/unicast ipv4;")
+	assert.Contains(t, output, "ipv4/unicast ipv6")
+	assert.Contains(t, output, "ipv4/mpls-vpn ipv6")
+	assert.Contains(t, output, "ipv6/unicast ipv4")
 
 	// Should NOT have space-separated format.
 	assert.NotContains(t, output, "ipv4 unicast ipv6", "should not contain ExaBGP format")
@@ -754,10 +754,10 @@ func TestMigrateNexthopExplicitCapabilityIgnored(t *testing.T) {
 	// This is useless in ZeBGP - capability is inferred from nexthop block.
 	input := `
 neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 	capability {
-		nexthop;
+		nexthop
 	}
 }
 `
@@ -788,13 +788,13 @@ func TestMigrateNexthopBothCapabilityAndBlock(t *testing.T) {
 	// Capability inferred from block (explicit one is redundant).
 	input := `
 neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 	capability {
-		nexthop;
+		nexthop
 	}
 	nexthop {
-		ipv4 unicast ipv6;
+		ipv4 unicast ipv6
 	}
 }
 `
@@ -810,7 +810,7 @@ neighbor 10.0.0.1 {
 	assert.Equal(t, 1, strings.Count(output, "nexthop {"), "expected exactly 1 nexthop block")
 
 	// Nexthop block content should be present.
-	assert.Contains(t, output, "ipv4/unicast ipv6;", "expected nexthop block content")
+	assert.Contains(t, output, "ipv4/unicast ipv6", "expected nexthop block content")
 }
 
 // TestMigrateNexthopBlockSAFINormalization verifies SAFI name normalization.
@@ -820,11 +820,11 @@ neighbor 10.0.0.1 {
 func TestMigrateNexthopBlockSAFINormalization(t *testing.T) {
 	input := `
 neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 	nexthop {
-		ipv4 nlri-mpls ipv6;
-		ipv4 labeled-unicast ipv6;
+		ipv4 nlri-mpls ipv6
+		ipv4 labeled-unicast ipv6
 	}
 }
 `
@@ -837,7 +837,7 @@ neighbor 10.0.0.1 {
 	output := SerializeTree(result.Tree)
 
 	// Both should be normalized to mpls-label.
-	assert.Contains(t, output, "ipv4/mpls-label ipv6;", "expected normalized SAFI")
+	assert.Contains(t, output, "ipv4/mpls-label ipv6", "expected normalized SAFI")
 
 	// Should NOT have ExaBGP SAFI names.
 	assert.NotContains(t, output, "nlri-mpls", "ExaBGP name should be normalized")
@@ -852,15 +852,15 @@ func TestMigrateTemplateWithNexthop(t *testing.T) {
 	input := `
 template {
 	neighbor base {
-		local-as 65001;
+		local-as 65001
 		nexthop {
-			ipv4 unicast ipv6;
+			ipv4 unicast ipv6
 		}
 	}
 }
 neighbor 10.0.0.1 {
-	inherit base;
-	peer-as 65002;
+	inherit base
+	peer-as 65002
 }
 `
 	tree, err := ParseExaBGPConfig(input)
@@ -1229,10 +1229,10 @@ func TestMigrationRefusesUnsupportedCap(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `
 neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 	capability {
-		` + tt.cap + `;
+		` + tt.cap + `
 	}
 }
 `
@@ -1253,11 +1253,11 @@ neighbor 10.0.0.1 {
 func TestMigrationSucceedsWithoutUnsupported(t *testing.T) {
 	input := `
 neighbor 10.0.0.1 {
-	local-as 65001;
-	peer-as 65002;
+	local-as 65001
+	peer-as 65002
 	capability {
-		route-refresh;
-		extended-message;
+		route-refresh
+		extended-message
 	}
 }
 `

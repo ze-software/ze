@@ -8,15 +8,15 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer 127.0.0.1 {
-		router-id 10.0.0.2;
-		local-address 127.0.0.1;
-		local-as 65533;
-		peer-as 65533;
-		connection active;
-		hold-time 180;
+		router-id 10.0.0.2
+		local-address 127.0.0.1
+		local-as 65533
+		peer-as 65533
+		connection active
+		hold-time 180
 
 		family {
-			ipv4/unicast;
+			ipv4/unicast
 		}
 		capability {
 			software-version { }

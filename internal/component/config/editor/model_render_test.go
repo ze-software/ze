@@ -96,8 +96,8 @@ func TestHighlightValidationIssuesWithMapping(t *testing.T) {
 	// Filtered content (e.g., inside a peer block)
 	// Original config had: line 1=bgp{, line 2=router-id, line 3=peer{, line 4=peer-as, line 5=hold-time
 	// Filtered shows just line 4 and 5 as lines 1 and 2
-	filteredContent := `peer-as 65001;
-hold-time 1;`
+	filteredContent := `peer-as 65001
+hold-time 1`
 
 	// Error is on original line 5 (hold-time), which is filtered line 2
 	errors := []ConfigValidationError{
@@ -196,11 +196,11 @@ func TestModelContextHighlighting(t *testing.T) {
 	// The parser rejects "notanumber" during type validation, so tree is empty.
 	// This test verifies error highlighting works on the full config view (raw text fallback).
 	content := `bgp {
-  router-id 1.2.3.4;
-  local-as 65000;
+  router-id 1.2.3.4
+  local-as 65000
   peer 1.1.1.1 {
-    peer-as 65001;
-    hold-time notanumber;
+    peer-as 65001
+    hold-time notanumber
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)

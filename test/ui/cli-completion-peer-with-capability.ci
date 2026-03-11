@@ -3,16 +3,16 @@
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
-	router-id 1.2.3.4;
-	local-as 65000;
+	router-id 1.2.3.4
+	local-as 65000
 	peer 1.1.1.1 {
-		peer-as 65001;
-		local-address 127.0.0.1;
+		peer-as 65001
+		local-address 127.0.0.1
 		capability {
-			asn4 true;
+			asn4 true
 			add-path {
-				send true;
-				receive true;
+				send true
+				receive true
 			}
 		}
 	}

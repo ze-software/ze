@@ -21,7 +21,7 @@ func TestModelErrorsCommand(t *testing.T) {
 
 	// Write config with errors
 	content := `bgp {
-  router-id invalid;
+  router-id invalid
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
@@ -188,11 +188,11 @@ func TestModelCmdEditFromContext(t *testing.T) {
 
 	// Config with nested structure
 	content := `bgp {
-  router-id 1.2.3.4;
+  router-id 1.2.3.4
   peer 1.1.1.1 {
-    peer-as 65001;
+    peer-as 65001
     capability {
-      route-refresh;
+      route-refresh
     }
   }
 }`
@@ -228,10 +228,10 @@ func TestModelCmdEditExactMatch(t *testing.T) {
 	// Config with multiple peer blocks
 	content := `bgp {
   peer 2.2.2.2 {
-    peer-as 65001;
+    peer-as 65001
   }
   peer 1.1.1.1 {
-    peer-as 65002;
+    peer-as 65002
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
@@ -353,13 +353,13 @@ func TestModelPipeShowGrep(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	content := `bgp {
-  router-id 1.2.3.4;
-  local-as 65000;
+  router-id 1.2.3.4
+  local-as 65000
   peer 1.1.1.1 {
-    peer-as 65001;
+    peer-as 65001
   }
   peer 2.2.2.2 {
-    peer-as 65002;
+    peer-as 65002
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
@@ -392,10 +392,10 @@ func TestModelPipeShowHead(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	content := `bgp {
-  router-id 1.2.3.4;
-  local-as 65000;
+  router-id 1.2.3.4
+  local-as 65000
   peer 1.1.1.1 {
-    peer-as 65001;
+    peer-as 65001
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
@@ -466,9 +466,9 @@ func TestSetCommandModifiesConfig(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	originalContent := `bgp {
-	router-id 1.2.3.4;
+	router-id 1.2.3.4
 	peer 1.1.1.1 {
-		peer-as 65001;
+		peer-as 65001
 	}
 }`
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
@@ -571,10 +571,10 @@ func TestSetCommandUpdatesExistingValue(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	originalContent := `bgp {
-	router-id 1.2.3.4;
+	router-id 1.2.3.4
 	peer 1.1.1.1 {
-		peer-as 65001;
-		description "old value";
+		peer-as 65001
+		description "old value"
 	}
 }`
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
@@ -700,7 +700,7 @@ func TestEditQuotedListKey(t *testing.T) {
 	// template.group is a string-keyed list (key "name")
 	originalContent := `template {
 	group "my group" {
-		peer-as 65001;
+		peer-as 65001
 	}
 }`
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
@@ -736,7 +736,7 @@ func TestSetInQuotedListEntry(t *testing.T) {
 	// template.group is a string-keyed list (key "name")
 	originalContent := `template {
 	group "my group" {
-		peer-as 65001;
+		peer-as 65001
 	}
 }`
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
@@ -848,7 +848,7 @@ func TestCommitValidationFailsNoReload(t *testing.T) {
 
 	// Write config with errors
 	content := `bgp {
-  router-id invalid;
+  router-id invalid
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)

@@ -81,7 +81,7 @@ func serializeExtraValues(b *strings.Builder, tree *Tree, children []string, ind
 		b.WriteString(k)
 		b.WriteString(" ")
 		b.WriteString(quoteIfNeeded(tree.values[k]))
-		b.WriteString(";\n")
+		b.WriteString("\n")
 	}
 }
 
@@ -116,7 +116,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 			b.WriteString(name)
 			b.WriteString(" ")
 			b.WriteString(quoteIfNeeded(normalizeBool(v)))
-			b.WriteString(";\n")
+			b.WriteString("\n")
 		}
 
 	case *MultiLeafNode:
@@ -125,7 +125,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 			b.WriteString(name)
 			b.WriteString(" ")
 			b.WriteString(v) // Already space-separated
-			b.WriteString(";\n")
+			b.WriteString("\n")
 		}
 
 	case *BracketLeafListNode:
@@ -134,7 +134,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 			b.WriteString(name)
 			b.WriteString(" [ ")
 			b.WriteString(v) // Space-separated items
-			b.WriteString(" ];\n")
+			b.WriteString(" ]\n")
 		}
 
 	case *ValueOrArrayNode:
@@ -144,7 +144,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 			if len(items) == 1 {
 				b.WriteString(" ")
 				b.WriteString(quoteIfNeeded(items[0]))
-				b.WriteString(";\n")
+				b.WriteString("\n")
 			} else {
 				b.WriteString(" [ ")
 				for i, item := range items {
@@ -153,7 +153,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 					}
 					b.WriteString(quoteIfNeeded(item))
 				}
-				b.WriteString(" ];\n")
+				b.WriteString(" ]\n")
 			}
 		}
 
@@ -218,7 +218,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 				b.WriteString(" ")
 				b.WriteString(quoteIfNeeded(v))
 			}
-			b.WriteString(";\n")
+			b.WriteString("\n")
 		} else if mv := tree.multiValues[name]; len(mv) > 0 {
 			// Inline values (e.g., vpls rd X endpoint Y ...;)
 			for _, v := range mv {
@@ -226,7 +226,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 				b.WriteString(name)
 				b.WriteString(" ")
 				b.WriteString(v)
-				b.WriteString(";\n")
+				b.WriteString("\n")
 			}
 		}
 		// Also serialize container form
@@ -297,7 +297,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 							b.WriteString(quoteIfNeeded(v))
 						}
 					}
-					b.WriteString(";\n")
+					b.WriteString("\n")
 				} else {
 					b.WriteString(prefix)
 					b.WriteString(name)
@@ -360,7 +360,7 @@ func serializeListMultiBlock(b *strings.Builder, name string, entries map[string
 				b.WriteString(quoteIfNeeded(v))
 			}
 		}
-		b.WriteString(";\n")
+		b.WriteString("\n")
 	}
 
 	b.WriteString(prefix)
@@ -403,7 +403,7 @@ func serializeFreeform(b *strings.Builder, tree *Tree, indent int) {
 				b.WriteString(" ]")
 			}
 		}
-		b.WriteString(";\n")
+		b.WriteString("\n")
 	}
 }
 
@@ -420,14 +420,14 @@ func serializePresenceContainer(b *strings.Builder, tree *Tree, name string, nod
 			b.WriteString(" ")
 			b.WriteString(quoteIfNeeded(v))
 		}
-		b.WriteString(";\n")
+		b.WriteString("\n")
 	} else if mv := tree.multiValues[name]; len(mv) > 0 {
 		for _, v := range mv {
 			b.WriteString(prefix)
 			b.WriteString(name)
 			b.WriteString(" ")
 			b.WriteString(v)
-			b.WriteString(";\n")
+			b.WriteString("\n")
 		}
 	}
 

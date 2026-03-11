@@ -2,19 +2,19 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer 10.0.200.1 {
-		router-id 1.2.3.4;
-		local-address 3.3.3.3;
-		local-as 65000;
-		peer-as 65000;
-		group-updates disable;
+		router-id 1.2.3.4
+		local-address 3.3.3.3
+		local-as 65000
+		peer-as 65000
+		group-updates disable
 		update {
 			attribute {
-				origin igp;
-				next-hop 192.0.2.1;
-				extended-community [ target:120000L:123 origin:130000:1234 ];
+				origin igp
+				next-hop 192.0.2.1
+				extended-community [ target:120000L:123 origin:130000:1234 ]
 			}
 			nlri {
-				ipv4/unicast add 9.9.9.9/32;
+				ipv4/unicast add 9.9.9.9/32
 			}
 		}
 	}

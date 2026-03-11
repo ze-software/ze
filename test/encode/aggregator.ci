@@ -8,23 +8,23 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer 127.0.0.1 {
-		description "a quagga test peer";
-		router-id 10.0.0.2;
-		local-address 127.0.0.1;
-		local-as 65533;
-		peer-as 65533;
-		connection active;
-		hold-time 180;
+		description "a quagga test peer"
+		router-id 10.0.0.2
+		local-address 127.0.0.1
+		local-as 65533
+		peer-as 65533
+		connection active
+		hold-time 180
 		update {
 			attribute {
-				origin igp;
-				next-hop 192.168.1.254;
-				as-path [ 57821 6939 ];
-				aggregator 18144:219.118.225.189;
-				atomic-aggregate true;
+				origin igp
+				next-hop 192.168.1.254
+				as-path [ 57821 6939 ]
+				aggregator 18144:219.118.225.189
+				atomic-aggregate true
 			}
 			nlri {
-				ipv4/unicast add 1.0.64.0/18;
+				ipv4/unicast add 1.0.64.0/18
 			}
 		}
 	}

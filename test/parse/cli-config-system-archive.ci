@@ -2,21 +2,21 @@
 # Validates that system identity + archive blocks work together
 stdin=config:terminator=EOF_CONF
 system {
-	host myrouter;
-	domain lab.example.com;
+	host myrouter
+	domain lab.example.com
 	archive backup {
-		location file:///var/backups/ze;
-		filename "{name}-{host}-{domain}-{date}";
-		timeout 10s;
-		trigger manual;
+		location file:///var/backups/ze
+		filename "{name}-{host}-{domain}-{date}"
+		timeout 10s
+		trigger manual
 	}
 }
 bgp {
-	router-id 10.0.0.1;
-	local-as 65533;
+	router-id 10.0.0.1
+	local-as 65533
 	peer 127.0.0.1 {
-		local-address 127.0.0.1;
-		peer-as 65534;
+		local-address 127.0.0.1
+		peer-as 65534
 	}
 }
 EOF_CONF

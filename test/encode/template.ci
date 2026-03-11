@@ -21,26 +21,26 @@ stdin=ze-bgp:terminator=EOF_CONF
 template {
 	bgp {
 		peer * {
-			inherit-name test;
-			local-as 65533;
-			peer-as 65533;
-			connection active;
-			hold-time 180;
-			group-updates disable;
+			inherit-name test
+			local-as 65533
+			peer-as 65533
+			connection active
+			hold-time 180
+			group-updates disable
 
 			family {
-				ipv4/unicast;
+				ipv4/unicast
 			}
 			capability {
-				graceful-restart 1200;
+				graceful-restart 1200
 			}
 			update {
 				attribute {
-					origin igp;
-					next-hop 1.1.1.1;
+					origin igp
+					next-hop 1.1.1.1
 				}
 				nlri {
-					ipv4/unicast add 1.0.0.0/8;
+					ipv4/unicast add 1.0.0.0/8
 				}
 			}
 		}
@@ -48,35 +48,35 @@ template {
 }
 bgp {
 	peer 127.0.0.1 {
-		inherit test;
-		description "router 2 with two routes from inheritance";
-		router-id 127.0.0.0;
-		local-address 127.0.0.1;
+		inherit test
+		description "router 2 with two routes from inheritance"
+		router-id 127.0.0.0
+		local-address 127.0.0.1
 		update {
 			attribute {
-				origin igp;
-				next-hop 1.1.1.1;
+				origin igp
+				next-hop 1.1.1.1
 			}
 			nlri {
-				ipv4/unicast add 2.0.0.0/8;
+				ipv4/unicast add 2.0.0.0/8
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 1.2.3.4;
+				origin igp
+				next-hop 1.2.3.4
 			}
 			nlri {
-				ipv4/unicast add 3.0.0.0/8;
+				ipv4/unicast add 3.0.0.0/8
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 2.2.2.2;
+				origin igp
+				next-hop 2.2.2.2
 			}
 			nlri {
-				ipv4/unicast add 4.0.0.0/8;
+				ipv4/unicast add 4.0.0.0/8
 			}
 		}
 	}

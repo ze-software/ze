@@ -2,12 +2,12 @@
 # VALIDATES: AC-1 — connection invalid-value triggers validation error
 stdin=config:terminator=EOF_CONF
 bgp {
-	router-id 1.2.3.4;
-	local-as 65000;
+	router-id 1.2.3.4
+	local-as 65000
 	peer 192.0.2.1 {
-		local-address 192.0.2.2;
-		peer-as 65001;
-		connection invalid-value;
+		local-address 192.0.2.2
+		peer-as 65001
+		connection invalid-value
 	}
 }
 EOF_CONF

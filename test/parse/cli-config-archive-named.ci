@@ -2,24 +2,24 @@
 # Validates that named archive blocks under system are accepted by the parser
 stdin=config:terminator=EOF_CONF
 system {
-	host router1;
-	domain dc1.example.com;
+	host router1
+	domain dc1.example.com
 	archive local-backup {
-		location file:///backups;
-		trigger commit;
+		location file:///backups
+		trigger commit
 	}
 	archive offsite {
-		location https://server/archive;
-		trigger daily;
-		on-change true;
+		location https://server/archive
+		trigger daily
+		on-change true
 	}
 }
 bgp {
-	router-id 10.0.0.1;
-	local-as 65533;
+	router-id 10.0.0.1
+	local-as 65533
 	peer 127.0.0.1 {
-		local-address 127.0.0.1;
-		peer-as 65534;
+		local-address 127.0.0.1
+		peer-as 65534
 	}
 }
 EOF_CONF

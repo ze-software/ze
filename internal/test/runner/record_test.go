@@ -193,9 +193,9 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 
 // minimalConfig is a minimal valid ZeBGP config for testing.
 const minimalConfig = `peer 127.0.0.1 {
-    router-id 1.2.3.4;
-    local-address 127.0.0.1;
-    local-as 1;
-    peer-as 1;
+    router-id 1.2.3.4
+    local-address 127.0.0.1
+    local-as 1
+    peer-as 1
 }
 `

@@ -3,11 +3,11 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer 10.0.0.3 {
-		local-address 10.0.0.2;
-		local-as 65533;
-		peer-as 65533;
+		local-address 10.0.0.2
+		local-as 65533
+		peer-as 65533
 		capability {
-			aigp;
+			aigp
 		}
 	}
 }

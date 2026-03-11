@@ -39,31 +39,31 @@ EOF_RUN
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external flowspec-process {
-		run ./flowspec.run;
-		encoder json;
+		run ./flowspec.run
+		encoder json
 	}
 }
 bgp {
 	peer 127.0.0.1 {
-		router-id 1.2.3.4;
-		local-address 127.0.0.1;
-		local-as 1;
-		peer-as 1;
-		connection active;
-		group-updates disable;
+		router-id 1.2.3.4
+		local-address 127.0.0.1
+		local-as 1
+		peer-as 1
+		connection active
+		group-updates disable
 
 		family {
-			ipv4/flow;
+			ipv4/flow
 		}
 
 		# Static FlowSpec route (ensures route is sent)
 		update {
 			attribute {
-				next-hop 1.2.3.4;
-				extended-community [copy-to-nexthop];
+				next-hop 1.2.3.4
+				extended-community [copy-to-nexthop]
 			}
 			nlri {
-				ipv4/flow add source-ipv4 10.0.0.2/32;
+				ipv4/flow add source-ipv4 10.0.0.2/32
 			}
 		}
 

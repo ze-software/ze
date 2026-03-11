@@ -11,47 +11,47 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer 127.0.0.1 {
-		router-id 1.2.3.4;
-		local-address 127.0.0.1;
-		local-as 1;
-		peer-as 1;
-		connection active;
-		group-updates disable;
+		router-id 1.2.3.4
+		local-address 127.0.0.1
+		local-as 1
+		peer-as 1
+		connection active
+		group-updates disable
 
 		family {
-			ipv4/mpls-vpn;
-			ipv4/unicast;
-			ipv6/unicast;
+			ipv4/mpls-vpn
+			ipv4/unicast
+			ipv6/unicast
 		}
 		capability {
-			add-path send/receive;
+			add-path send/receive
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 10.0.0.1;
-				extended-community [ target:72:1 ];
-				path-information 1.2.3.4;
+				origin igp
+				next-hop 10.0.0.1
+				extended-community [ target:72:1 ]
+				path-information 1.2.3.4
 			}
 			nlri {
-				ipv4/unicast add 193.0.2.1/32;
+				ipv4/unicast add 193.0.2.1/32
 			}
 		}
 		update {
 			attribute {
-				origin igp;
-				next-hop 192.168.0.1;
-				local-preference 100;
-				extended-community [ target:0:0 target:1:1 ];
-				path-information 10;
+				origin igp
+				next-hop 192.168.0.1
+				local-preference 100
+				extended-community [ target:0:0 target:1:1 ]
+				path-information 10
 			}
 			nlri {
-				ipv4/mpls-vpn add rd 100:100 label 20012 10.0.0.0/24;
+				ipv4/mpls-vpn add rd 100:100 label 20012 10.0.0.0/24
 			}
 		}
 		add-path {
-			ipv4/mpls-vpn;
-			ipv4/unicast;
+			ipv4/mpls-vpn
+			ipv4/unicast
 		}
 	}
 }

@@ -17,19 +17,19 @@ const (
 	testValidBGPConfig         = `bgp { router-id 1.2.3.4; }`
 	testValidBGPConfigOneLine  = `bgp { router-id 1.2.3.4; }`
 	testValidBGPConfigWithPeer = `bgp {
-  router-id 1.2.3.4;
-  local-as 65000;
+  router-id 1.2.3.4
+  local-as 65000
   peer 1.1.1.1 {
-    peer-as 65001;
-    hold-time 90;
+    peer-as 65001
+    hold-time 90
   }
 }`
 	// testValidBGPConfigSimplePeer is for tests that don't need hold-time.
 	testValidBGPConfigSimplePeer = `bgp {
-  router-id 1.2.3.4;
-  local-as 65000;
+  router-id 1.2.3.4
+  local-as 65000
   peer 1.1.1.1 {
-    peer-as 65001;
+    peer-as 65001
   }
 }`
 )
@@ -44,11 +44,11 @@ func TestModelValidationOnLoad(t *testing.T) {
 
 	// Write config with validation error (hold-time 1 inside peer)
 	content := `bgp {
-  router-id 1.2.3.4;
-  local-as 65000;
+  router-id 1.2.3.4
+  local-as 65000
   peer 1.1.1.1 {
-    peer-as 65001;
-    hold-time 1;
+    peer-as 65001
+    hold-time 1
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
@@ -75,11 +75,11 @@ func TestModelCommitBlockedOnErrors(t *testing.T) {
 
 	// Write config with validation error (hold-time 2 inside peer)
 	content := `bgp {
-  router-id 1.2.3.4;
-  local-as 65000;
+  router-id 1.2.3.4
+  local-as 65000
   peer 1.1.1.1 {
-    peer-as 65001;
-    hold-time 2;
+    peer-as 65001
+    hold-time 2
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
@@ -109,11 +109,11 @@ func TestModelCommitSucceedsWhenValid(t *testing.T) {
 
 	// Write valid config
 	content := `bgp {
-  router-id 1.2.3.4;
-  local-as 65000;
+  router-id 1.2.3.4
+  local-as 65000
   peer 1.1.1.1 {
-    peer-as 65001;
-    hold-time 90;
+    peer-as 65001
+    hold-time 90
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
@@ -334,8 +334,8 @@ func TestModelStatusBarErrorIndicator(t *testing.T) {
 	// Write config with validation error
 	content := `bgp {
   peer 1.1.1.1 {
-    peer-as 65001;
-    hold-time 1;
+    peer-as 65001
+    hold-time 1
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)

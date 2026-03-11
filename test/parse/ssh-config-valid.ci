@@ -3,23 +3,23 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer 127.0.0.1 {
-		local-address 127.0.0.1;
-		local-as 65533;
-		peer-as 65533;
+		local-address 127.0.0.1
+		local-as 65533
+		peer-as 65533
 	}
 }
 
 system {
 	authentication {
 		user admin {
-			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012";
+			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012"
 		}
 	}
 	ssh {
-		listen 0.0.0.0:2222;
-		host-key /etc/ze/ssh_host_ed25519_key;
-		idle-timeout 600;
-		max-sessions 8;
+		listen 0.0.0.0:2222
+		host-key /etc/ze/ssh_host_ed25519_key
+		idle-timeout 600
+		max-sessions 8
 	}
 }
 EOF_CONF
