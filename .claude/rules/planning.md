@@ -107,13 +107,20 @@ If a spec describes work that is **already implemented**, run the full Completio
       // Related: still accurate? Add/update for new couplings
       (rules/design-doc-references.md, rules/related-refs.md)
 [ ] 4. Implementation Audit (BLOCKING — rules/implementation-audit.md)
-[ ] 5. Critical Review (BLOCKING — rules/quality.md)
-[ ] 6. Review Mistake Log — check MEMORY.md, promote if seen before
-[ ] 7. Update spec — Implementation Summary, Documentation Updates, Deviations
-[ ] 8. Write learned summary: docs/learned/NNN-<name>.md (see docs/plan/TEMPLATE.md for summary format)
-[ ] 9. Verify: `make ze-verify` + git status + git diff, no unintended changes
-[ ] 10. Executive Summary Report — present to user BEFORE asking to commit
-[ ] 11. Commit (when user approves) — ALL files in ONE commit
+[ ] 5. Pre-Commit Verification (BLOCKING — do NOT trust the audit)
+      Re-read spec from scratch. For each item, independently verify:
+      - Files Exist: `ls` every file from "Files to Create" — paste output
+      - AC Verified: for each AC-N, grep/test for fresh evidence — do NOT copy from audit
+      - Wiring Verified: read each .ci file, confirm it tests the claimed path
+      Fill the "## Pre-Commit Verification" section in the spec.
+      Hook `pre-commit-spec-audit.sh` (exit 2) checks this section is filled.
+[ ] 6. Critical Review (BLOCKING — rules/quality.md)
+[ ] 7. Review Mistake Log — check MEMORY.md, promote if seen before
+[ ] 8. Update spec — Implementation Summary, Documentation Updates, Deviations
+[ ] 9. Write learned summary: docs/learned/NNN-<name>.md (see docs/plan/TEMPLATE.md for summary format)
+[ ] 10. Verify: `make ze-verify` + git status + git diff, no unintended changes
+[ ] 11. Executive Summary Report — present to user BEFORE asking to commit
+[ ] 12. Commit (when user approves) — ALL files in ONE commit
 ```
 
 ## Deferred Work (BLOCKING)

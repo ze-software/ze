@@ -44,12 +44,33 @@ Before: writing summary to `docs/learned/`, claiming "done", asking to commit.
 ## Mechanically Enforced
 
 Hook `pre-commit-spec-audit.sh` (exit 2) blocks `git commit` when:
-- Any `.ci` file in Wiring Test or Functional Tests tables does not exist on disk
-- Any Implementation Audit table has zero data rows
-- Audit Summary has no totals
-- Learned summary contains "not yet implemented", "not wired", "library only"
+
+| Check | What it verifies |
+|-------|-----------------|
+| Wiring Test .ci files | Every `.ci` path in Wiring Test table exists on disk |
+| Functional Tests .ci files | Every `.ci` path in Functional Tests table exists on disk |
+| Files to Create | Every file path in "Files to Create" section exists on disk |
+| TDD test files | Every `_test.go` file referenced in TDD Plan exists on disk |
+| Audit tables filled | All 4 audit tables have data rows (not just headers) |
+| AC evidence | Every AC row has non-empty "Demonstrated By" column |
+| Audit Summary | Has actual totals (not template placeholders) |
+| Pre-Commit Verification | Section exists with filled Files Exist + AC Verified + Wiring Verified tables |
+| Learned summary | Exists and does not contain "not wired", "library only", etc. |
 
 Bypass: clear `.claude/selected-spec` for unrelated commits.
+
+## Pre-Commit Verification (BLOCKING)
+
+**Do NOT trust the audit.** After filling the audit, independently re-verify every item.
+This is a separate section in the spec (see `TEMPLATE.md`). It requires FRESH evidence:
+
+| Table | What to verify | How |
+|-------|---------------|-----|
+| Files Exist | Every file from "Files to Create" | `ls -la <path>` — paste output |
+| AC Verified | Every AC-N | grep, test output, or ls — NOT a copy from audit |
+| Wiring Verified | Every wiring test row | Read the .ci file, confirm it tests the claimed path |
+
+**NOT acceptable:** "Already checked in audit", "should work", empty cells.
 
 ## Red Flags
 

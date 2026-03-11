@@ -222,6 +222,31 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 - **Skipped:** (all require user approval)
 - **Changed:** (documented in Deviations)
 
+## Pre-Commit Verification
+
+<!-- BLOCKING: Do NOT trust the audit above. Re-verify everything independently. -->
+<!-- For each item: run a command (grep, ls, go test -run) and paste the evidence. -->
+<!-- Hook pre-commit-spec-audit.sh (exit 2) checks this section exists and is filled. -->
+
+### Files Exist (ls)
+<!-- For EVERY file in "Files to Create": ls -la <path> — paste output. -->
+<!-- For EVERY .ci file in Wiring Test and Functional Tests: ls -la <path> — paste output. -->
+| File | Exists | Evidence |
+|------|--------|----------|
+
+### AC Verified (grep/test)
+<!-- For EVERY AC-N: independently verify. Do NOT copy from audit — re-check. -->
+<!-- Acceptable evidence: test name + pass output, grep showing function call, ls showing file. -->
+<!-- NOT acceptable: "already checked", "should work", reference to audit table above. -->
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+
+### Wiring Verified (end-to-end)
+<!-- For EVERY wiring test row: does the .ci test exist AND does it exercise the full path? -->
+<!-- Read the .ci file content. Does it actually test what the wiring table claims? -->
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+
 ## Checklist
 
 ### Goal Gates (MUST pass)
