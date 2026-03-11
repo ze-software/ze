@@ -41,6 +41,11 @@ const (
 // since the server runs as a goroutine inside the daemon process.
 type CommandExecutor func(input string) (string, error)
 
+// CommandExecutorFactory creates a per-session CommandExecutor.
+// The username is the authenticated SSH user; the returned executor
+// can use it for authorization context.
+type CommandExecutorFactory func(username string) CommandExecutor
+
 // Config holds SSH server configuration parsed from the config file.
 type Config struct {
 	Listen      string
@@ -55,12 +60,13 @@ type Config struct {
 // Server is the SSH server subsystem.
 // It serves the config editor over SSH with password authentication.
 type Server struct {
-	config         Config
-	mu             sync.Mutex // protects wish field
-	wish           *ssh.Server
-	listener       net.Listener // bound listener (for address resolution)
-	logger         *slog.Logger
-	activeSessions atomic.Int32
+	config          Config
+	mu              sync.Mutex // protects wish field and executorFactory
+	wish            *ssh.Server
+	listener        net.Listener // bound listener (for address resolution)
+	logger          *slog.Logger
+	activeSessions  atomic.Int32
+	executorFactory CommandExecutorFactory // set after reactor starts; creates per-session executors
 }
 
 // NewServer creates a new SSH server with the given configuration.
@@ -124,6 +130,16 @@ func (s *Server) Users() []UserConfig {
 // ActiveSessions returns the current number of active SSH sessions.
 func (s *Server) ActiveSessions() int32 {
 	return s.activeSessions.Load()
+}
+
+// SetExecutorFactory sets the per-session command executor factory.
+// Called after the reactor starts and the Dispatcher is available.
+// New sessions created after this call will use the factory to create
+// per-session executors with the authenticated username.
+func (s *Server) SetExecutorFactory(f CommandExecutorFactory) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.executorFactory = f
 }
 
 // Start launches the SSH server. It implements ze.Subsystem.
@@ -227,8 +243,23 @@ func (s *Server) maxSessionsMiddleware() wish.Middleware {
 // teaHandler creates a per-session Bubble Tea model.
 // Each SSH session gets a fresh editor in command mode (read-only).
 // The command executor is injected directly — no socket needed since we're in-process.
+// If an executor factory is set, it creates a per-session executor with the
+// authenticated username (for authorization context). Falls back to config.Executor.
 func (s *Server) teaHandler(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
-	model := NewSessionModel(s.config.Executor)
-	s.logger.Info("SSH session started", "user", sess.User(), "remote", sess.RemoteAddr().String())
+	username := sess.User()
+
+	s.mu.Lock()
+	factory := s.executorFactory
+	s.mu.Unlock()
+
+	var executor CommandExecutor
+	if factory != nil {
+		executor = factory(username)
+	} else if s.config.Executor != nil {
+		executor = s.config.Executor
+	}
+
+	model := NewSessionModel(executor)
+	s.logger.Info("SSH session started", "user", username, "remote", sess.RemoteAddr().String())
 	return model, []tea.ProgramOption{tea.WithAltScreen()}
 }

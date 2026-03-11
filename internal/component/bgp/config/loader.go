@@ -5,6 +5,7 @@
 package bgpconfig
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -22,6 +23,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
@@ -450,6 +453,58 @@ func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reacto
 		}
 	}
 
+	// Start SSH server from system config block.
+	// SSH binds the port immediately, but the command executor is wired later
+	// via SetExecutorFactory after the reactor's API server starts (post-start hook).
+	if sshCfg, ok := extractSSHConfig(tree); ok {
+		srv, sshErr := zessh.NewServer(sshCfg)
+		if sshErr != nil {
+			configLogger().Warn("SSH server config error", "error", sshErr)
+		} else if startErr := srv.Start(context.Background(), nil, nil); startErr != nil {
+			configLogger().Warn("SSH server failed to start", "error", startErr)
+		} else {
+			configLogger().Info("SSH server listening", "address", srv.Address())
+
+			// Extract authz profiles from config for the post-start hook.
+			authzStore := extractAuthzConfig(tree)
+
+			// Deferred wiring: after reactor starts and Dispatcher is available,
+			// connect the SSH executor and authorization store.
+			r.SetPostStartFunc(func() {
+				d := r.Dispatcher()
+				if d == nil {
+					return
+				}
+
+				// Wire authorization
+				if authzStore != nil {
+					d.SetAuthorizer(authzStore)
+					configLogger().Info("authorization profiles loaded")
+				}
+
+				// Wire SSH command executor with per-session username
+				apiServer := r.APIServer()
+				srv.SetExecutorFactory(func(username string) zessh.CommandExecutor {
+					return func(input string) (string, error) {
+						ctx := &pluginserver.CommandContext{
+							Server:   apiServer,
+							Username: username,
+						}
+						resp, err := d.Dispatch(ctx, input)
+						if err != nil {
+							return "", err
+						}
+						if resp == nil {
+							return "", nil
+						}
+						return resp.Data, nil
+					}
+				})
+				configLogger().Info("SSH command executor wired")
+			})
+		}
+	}
+
 	// Inject chaos wrappers from config environment block.
 	// CLI flags (--chaos-seed) override this via SetClock/SetDialer/SetListenerFactory after load.
 	if env.Chaos.Seed != 0 {
@@ -525,4 +580,55 @@ func detectLegacySyntaxHint(input string, parseErr error) string {
 	}
 
 	return ""
+}
+
+// extractSSHConfig extracts SSH server configuration from the parsed config tree.
+// Returns the SSH config and true if a system.ssh block is present.
+func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
+	sys := tree.GetContainer("system")
+	if sys == nil {
+		return zessh.Config{}, false
+	}
+
+	sshContainer := sys.GetContainer("ssh")
+	if sshContainer == nil {
+		return zessh.Config{}, false
+	}
+
+	// ConfigDir intentionally left empty — host key resolves from binary
+	// location via paths.DefaultConfigDir() (e.g., ./bin/ze → etc/ze/).
+	// The configDir parameter is the config file directory (or cwd for stdin),
+	// which is wrong for host key placement.
+	var cfg zessh.Config
+
+	if v, ok := sshContainer.Get("listen"); ok {
+		cfg.Listen = v
+	}
+	if v, ok := sshContainer.Get("host-key"); ok {
+		cfg.HostKeyPath = v
+	}
+	if v, ok := sshContainer.Get("idle-timeout"); ok {
+		if n, err := strconv.ParseUint(v, 10, 32); err == nil {
+			cfg.IdleTimeout = uint32(n)
+		}
+	}
+	if v, ok := sshContainer.Get("max-sessions"); ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.MaxSessions = n
+		}
+	}
+
+	// Extract users from system.authentication.user list.
+	if auth := sys.GetContainer("authentication"); auth != nil {
+		for name, entry := range auth.GetList("user") {
+			var uc zessh.UserConfig
+			uc.Name = name
+			if pw, ok := entry.Get("password"); ok {
+				uc.Hash = pw
+			}
+			cfg.Users = append(cfg.Users, uc)
+		}
+	}
+
+	return cfg, true
 }

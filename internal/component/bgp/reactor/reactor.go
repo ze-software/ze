@@ -242,6 +242,29 @@ type Reactor struct {
 	// reloadFunc is called by Reload() to get the list of peers from config.
 	// Set via SetReloadFunc. If nil, Reload() returns an error.
 	reloadFunc ReloadFunc
+
+	// postStartFunc is called after the API server starts.
+	// Used by config loader to wire deferred components (SSH executor, authz).
+	postStartFunc func()
+}
+
+// SetPostStartFunc sets a function called after the API server starts.
+// Used to wire components that depend on the Dispatcher (e.g., SSH executor, authz).
+func (r *Reactor) SetPostStartFunc(f func()) {
+	r.postStartFunc = f
+}
+
+// Dispatcher returns the command dispatcher, or nil if the API server hasn't started.
+func (r *Reactor) Dispatcher() *pluginserver.Dispatcher {
+	if r.api == nil {
+		return nil
+	}
+	return r.api.Dispatcher()
+}
+
+// APIServer returns the plugin server, or nil if not started.
+func (r *Reactor) APIServer() *pluginserver.Server {
+	return r.api
 }
 
 // New creates a new reactor with the given configuration.
@@ -329,6 +352,28 @@ func (r *Reactor) SetReloadFunc(fn ReloadFunc) {
 // SetConfigPath sets the config file path for reload.
 func (r *Reactor) SetConfigPath(path string) {
 	r.config.ConfigPath = path
+}
+
+// ExecuteCommand dispatches a text command through the API server's dispatcher.
+// Returns the response data or an error. Safe to call before Start() — returns
+// an error if the API server is not yet initialized.
+func (r *Reactor) ExecuteCommand(input string) (string, error) {
+	if r.api == nil {
+		return "", fmt.Errorf("server not ready")
+	}
+	ctx := &pluginserver.CommandContext{Server: r.api}
+	resp, err := r.api.Dispatcher().Dispatch(ctx, input)
+	if err != nil {
+		return "", err
+	}
+	if resp == nil {
+		return "", nil
+	}
+	data, ok := resp.Data.(string)
+	if !ok {
+		return fmt.Sprintf("%v", resp.Data), nil
+	}
+	return data, nil
 }
 
 // ConfigTree returns the full config as a map.
@@ -572,6 +617,12 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 			r.cancel()
 			return err
 		}
+	}
+
+	// Run post-start hook after API server is ready.
+	// This wires deferred components that depend on the Dispatcher.
+	if r.postStartFunc != nil {
+		r.postStartFunc()
 	}
 
 	// Start signal handler

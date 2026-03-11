@@ -18,6 +18,7 @@ type ConfigParams struct {
 	Profiles  []PeerProfile
 	NoPlugin  bool   // When true, omit the plugin block (in-process mode adds plugins via CLI args).
 	PprofAddr string // When set, inject environment { debug { pprof <addr>; } } into generated config.
+	SSHPort   int    // When >0, add system { ssh + authentication } block with test/test user.
 }
 
 // GenerateConfig produces a Ze configuration string from the given parameters.
@@ -53,6 +54,21 @@ func GenerateConfig(params ConfigParams) string {
 		fmt.Fprintf(&b, "environment {\n")
 		fmt.Fprintf(&b, "    debug {\n")
 		fmt.Fprintf(&b, "        pprof %s;\n", params.PprofAddr)
+		fmt.Fprintf(&b, "    }\n")
+		fmt.Fprintf(&b, "}\n\n")
+	}
+
+	// SSH server block — test user with bcrypt-hashed "test" password.
+	if params.SSHPort > 0 {
+		fmt.Fprintf(&b, "system {\n")
+		fmt.Fprintf(&b, "    authentication {\n")
+		fmt.Fprintf(&b, "        user test {\n")
+		// bcrypt hash of "test" at cost 10.
+		fmt.Fprintf(&b, "            password \"$2a$10$4A3D3GHd7l3FZXyL/YgH4.bWB2G1oHD1IXgyUDClqIThEcPEJY8Sq\";\n")
+		fmt.Fprintf(&b, "        }\n")
+		fmt.Fprintf(&b, "    }\n")
+		fmt.Fprintf(&b, "    ssh {\n")
+		fmt.Fprintf(&b, "        listen 127.0.0.1:%d;\n", params.SSHPort)
 		fmt.Fprintf(&b, "    }\n")
 		fmt.Fprintf(&b, "}\n\n")
 	}

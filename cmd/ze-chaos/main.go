@@ -76,6 +76,9 @@ func run(args []string) int {
 	listenBase := fs.Int("listen-base", 1950, "Base port for tool to listen on")
 	localAddr := fs.String("local-addr", "127.0.0.1", "Local address")
 
+	// SSH flags
+	sshPort := fs.Int("ssh", 0, "Enable SSH server on port (user: test, password: test)")
+
 	// Output flags
 	configOut := fs.String("config-out", "", "Write Ze config to file instead of stdout")
 	eventLog := fs.String("event-log", "", "NDJSON event log file")
@@ -161,6 +164,9 @@ Replay:
 Properties:
   --properties <names>       Comma-sep property names, 'all', or 'list'
   --convergence-deadline <d> Deadline for convergence property (default: 30s)
+
+SSH:
+  --ssh <port>               Enable SSH server on port (user: test, password: test)
 
 Control:
   --duration <dur>           Max runtime (default: 0 = run forever until Ctrl-C)
@@ -362,6 +368,7 @@ Control:
 		ZeBinary:  *zeBinary,
 		Profiles:  profiles,
 		PprofAddr: *debugAddr,
+		SSHPort:   *sshPort,
 	}
 	zeConfig := scenario.GenerateConfig(configParams)
 
