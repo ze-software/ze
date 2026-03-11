@@ -163,7 +163,13 @@ func (m *SessionModel) handleEnter() (tea.Model, tea.Cmd) {
 	if input == "help" {
 		help := "SSH session\n\nBuilt-in commands:\n  help    Show this help\n  exit    Disconnect\n  quit    Disconnect"
 		if m.commandExecutor != nil {
-			help += "\n\nDaemon connected. Operational commands available (e.g., peer list, rib summary)."
+			// Query dispatcher for available commands.
+			result, err := m.commandExecutor("system help")
+			if err == nil && result != "" {
+				help += "\n\nDaemon commands:\n" + result
+			} else {
+				help += "\n\nDaemon connected. Try: system help, bgp help, bgp summary, bgp peer list"
+			}
 		} else {
 			help += "\n\nNo command executor. Only built-in commands available."
 		}
@@ -174,18 +180,25 @@ func (m *SessionModel) handleEnter() (tea.Model, tea.Cmd) {
 	}
 
 	// Try command executor if available.
-	if m.commandExecutor != nil {
-		result, err := m.commandExecutor(input)
-		if err != nil {
-			m.output = fmt.Sprintf("error: %v", err)
-		} else {
-			m.output = result
-		}
-	} else {
+	if m.commandExecutor == nil {
 		m.output = fmt.Sprintf("no command executor: cannot execute '%s'\nType 'help' for available commands.", input)
+	} else {
+		m.output = m.executeCommand(input)
 	}
 
 	m.viewport.SetContent(m.output)
 	m.viewport.GotoTop()
 	return m, nil
+}
+
+// executeCommand dispatches a command through the executor and formats the result.
+func (m *SessionModel) executeCommand(input string) string {
+	result, err := m.commandExecutor(input)
+	if err != nil {
+		return fmt.Sprintf("error: %v", err)
+	}
+	if result == "" {
+		return "ok"
+	}
+	return result
 }

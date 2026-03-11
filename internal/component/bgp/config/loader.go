@@ -6,6 +6,7 @@ package bgpconfig
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,10 +14,12 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos"
+	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
@@ -497,7 +500,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reacto
 						if resp == nil {
 							return "", nil
 						}
-						return resp.Data, nil
+						return formatResponseData(resp.Data), nil
 					}
 				})
 				configLogger().Info("SSH command executor wired")
@@ -582,6 +585,106 @@ func detectLegacySyntaxHint(input string, parseErr error) string {
 	return ""
 }
 
+// extractAuthzConfig extracts authorization profiles from the parsed config tree.
+// Returns a populated Store if system.authorization is present with profiles, nil otherwise.
+// User-to-profile assignments come from system.authentication.user[*].profile (leaf-list).
+func extractAuthzConfig(tree *config.Tree) *authz.Store {
+	sys := tree.GetContainer("system")
+	if sys == nil {
+		return nil
+	}
+
+	authzContainer := sys.GetContainer("authorization")
+	if authzContainer == nil {
+		return nil
+	}
+
+	profiles := authzContainer.GetList("profile")
+	if len(profiles) == 0 {
+		return nil
+	}
+
+	store := authz.NewStore()
+
+	for name, profileTree := range profiles {
+		p := authz.Profile{Name: name}
+
+		if runContainer := profileTree.GetContainer("run"); runContainer != nil {
+			p.Run = extractAuthzSection(runContainer)
+		}
+
+		if editContainer := profileTree.GetContainer("edit"); editContainer != nil {
+			p.Edit = extractAuthzSection(editContainer)
+		}
+
+		if err := p.Validate(); err != nil {
+			configLogger().Warn("invalid authz profile, skipping", "profile", name, "error", err)
+			continue
+		}
+
+		store.AddProfile(p)
+	}
+
+	// Extract user → profile assignments from authentication block
+	if auth := sys.GetContainer("authentication"); auth != nil {
+		for username, userTree := range auth.GetList("user") {
+			profileNames := userTree.GetSlice("profile")
+			if len(profileNames) > 0 {
+				store.AssignProfiles(username, profileNames)
+			}
+		}
+	}
+
+	if !store.HasProfiles() {
+		return nil
+	}
+
+	return store
+}
+
+// extractAuthzSection extracts a run or edit authorization section from the config tree.
+func extractAuthzSection(container *config.Tree) authz.Section {
+	var s authz.Section
+
+	if v, ok := container.Get("default-action"); ok {
+		if v == "allow" {
+			s.Default = authz.Allow
+		}
+	}
+
+	for numStr, entryTree := range container.GetList("entry") {
+		num, err := strconv.ParseUint(numStr, 10, 32)
+		if err != nil {
+			continue
+		}
+
+		e := authz.Entry{Number: uint32(num)}
+
+		if v, ok := entryTree.Get("action"); ok {
+			if v == "allow" {
+				e.Action = authz.Allow
+			}
+		}
+
+		if v, ok := entryTree.Get("match"); ok {
+			e.Match = v
+		}
+
+		if v, ok := entryTree.Get("regex"); ok {
+			e.Regex = v == "true"
+		}
+
+		s.Entries = append(s.Entries, e)
+	}
+
+	// Sort entries by number (ascending) for deterministic evaluation order
+	sort.Slice(s.Entries, func(i, j int) bool {
+		return s.Entries[i].Number < s.Entries[j].Number
+	})
+
+	return s
+}
+
 // extractSSHConfig extracts SSH server configuration from the parsed config tree.
 // Returns the SSH config and true if a system.ssh block is present.
 func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
@@ -631,4 +734,20 @@ func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
 	}
 
 	return cfg, true
+}
+
+// formatResponseData converts a command response Data value to a human-readable string.
+// Strings pass through directly. Maps and other complex types are JSON-encoded with indentation.
+func formatResponseData(data any) string {
+	if data == nil {
+		return ""
+	}
+	if s, ok := data.(string); ok {
+		return s
+	}
+	b, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return fmt.Sprintf("%v", data)
+	}
+	return string(b)
 }
