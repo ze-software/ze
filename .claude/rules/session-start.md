@@ -15,9 +15,10 @@ Rationale: `.claude/rationale/session-start.md`
 ## Checklist
 
 ```
-[ ] 1. Read .claude/selected-spec
-[ ] 2. Read docs/plan/<spec-name> (if selected)
-[ ] 3. Read .claude/session-state.md (if exists)
-[ ] 4. Check git status
-[ ] 5. Start working
+[ ] 1. Load LSP tool (`select:LSP`) for Go code intelligence
+[ ] 2. Read .claude/selected-spec
+[ ] 3. Read docs/plan/<spec-name> (if selected)
+[ ] 4. Read .claude/session-state.md (if exists)
+[ ] 5. Check git status
+[ ] 6. Start working
 ```
