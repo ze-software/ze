@@ -45,6 +45,13 @@ type viewportData struct {
 	lineMapping     map[int]int // Maps displayed line (1-based) to original line (1-based), nil for full content
 }
 
+// CommandModeCompleter provides completions for command mode.
+// Implemented by CommandCompleter (operational commands) and PluginCompleter (plugin SDK methods).
+type CommandModeCompleter interface {
+	Complete(input string) []Completion
+	GhostText(input string) string
+}
+
 // Model is the Bubble Tea model for the editor.
 type Model struct {
 	editor      *Editor
@@ -102,7 +109,7 @@ type Model struct {
 	// Mode state
 	mode             EditorMode                   // Current editor mode (edit or command)
 	modeStates       map[EditorMode]modeState     // Saved screen state per mode
-	commandCompleter *CommandCompleter            // Completer for command mode (nil if no daemon)
+	commandCompleter CommandModeCompleter         // Completer for command mode (nil if no daemon)
 	commandExecutor  func(string) (string, error) // Executes operational commands via RPC (nil if no daemon)
 }
 
@@ -226,6 +233,7 @@ func NewModel(ed *Editor) (Model, error) {
 		viewport:           vp,
 		contextPath:        nil,
 		selected:           -1,
+		historyIdx:         -1,
 		validationErrors:   result.Errors,
 		validationWarnings: result.Warnings,
 		mode:               ModeEdit,
@@ -959,7 +967,8 @@ func (m Model) ViewportContent() string {
 // SetCommandCompleter sets the command mode completer.
 // When set, command mode provides operational command completions.
 // When nil, command mode has no completions (editor-only / standalone mode).
-func (m *Model) SetCommandCompleter(cc *CommandCompleter) {
+// Accepts any CommandModeCompleter (e.g., *CommandCompleter or *PluginCompleter).
+func (m *Model) SetCommandCompleter(cc CommandModeCompleter) {
 	m.commandCompleter = cc
 }
 

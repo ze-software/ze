@@ -712,6 +712,26 @@ func TestNoFalseDirtyOnOpen(t *testing.T) {
 
 // --- Phase 2: Command-only mode (unified CLI) tests ---
 
+// TestModelStartsInEditMode verifies that NewModel creates a model in ModeEdit.
+//
+// VALIDATES: AC-1 from spec-unified-cli: ze config edit opens in Edit mode.
+// PREVENTS: Editor model accidentally starting in command mode.
+func TestModelStartsInEditMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	m, err := NewModel(ed)
+	require.NoError(t, err)
+	assert.Equal(t, ModeEdit, m.Mode(), "editor model should start in ModeEdit")
+	assert.True(t, m.hasEditor(), "editor model should have an editor")
+}
+
 // TestModelStartsInCommandMode verifies that NewCommandModel creates a model
 // in ModeCommand with nil editor.
 //
@@ -890,4 +910,42 @@ func TestCtrlArrowPageScroll(t *testing.T) {
 	m, ok = newModel.(Model)
 	require.True(t, ok)
 	assert.Less(t, m.viewport.YOffset, afterDown, "Ctrl+Up should scroll up")
+}
+
+// --- Phase 5: Plugin CLI tests ---
+
+// TestPluginCommandCompleter verifies plugin SDK method completions.
+//
+// VALIDATES: AC-11 from spec-unified-cli: tab completion for plugin SDK methods.
+// PREVENTS: Plugin CLI having no completions or wrong completions.
+func TestPluginCommandCompleter(t *testing.T) {
+	pc := NewPluginCompleter()
+
+	// Empty input should return all methods
+	all := pc.Complete("")
+	assert.GreaterOrEqual(t, len(all), 10, "should have at least 10 plugin SDK methods")
+
+	// Partial match
+	comps := pc.Complete("up")
+	require.Len(t, comps, 1)
+	assert.Equal(t, "update-route", comps[0].Text)
+
+	// Ghost text for partial input
+	ghost := pc.GhostText("dec")
+	assert.NotEmpty(t, ghost, "should have ghost text for partial 'dec'")
+
+	// No ghost text for empty input
+	assert.Empty(t, pc.GhostText(""), "empty input should have no ghost text")
+
+	// After typing full method + space, show argument hint
+	argComps := pc.Complete("decode-nlri ")
+	require.Len(t, argComps, 1)
+	assert.Equal(t, "hint", argComps[0].Type, "argument hint should be type 'hint'")
+	assert.Contains(t, argComps[0].Text, "family")
+
+	// Unknown method
+	assert.Empty(t, pc.Complete("zzz"), "unknown prefix should have no completions")
+
+	// Verify PluginCompleter satisfies CommandModeCompleter interface
+	var _ CommandModeCompleter = pc
 }

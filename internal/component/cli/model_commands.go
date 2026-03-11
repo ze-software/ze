@@ -205,6 +205,9 @@ func (m *Model) showConfigContent() {
 }
 
 func (m *Model) cmdShow(_ []string) (commandResult, error) {
+	if m.editor == nil {
+		return commandResult{}, fmt.Errorf("command %q requires edit mode (no config file loaded)", cmdShow)
+	}
 	if m.editor.ContentAtPath(m.contextPath) == "" {
 		return commandResult{output: "(empty configuration)"}, nil
 	}
@@ -467,15 +470,18 @@ func (m *Model) cmdCommit() (commandResult, error) {
 		}
 	}
 
+	// Refresh viewport so diff gutter clears (original now matches working after save)
+	configView := m.configViewAtPath(m.contextPath)
+
 	// Notify daemon of config change (best-effort)
 	if !m.editor.HasReloadNotifier() {
-		return commandResult{statusMessage: "Configuration committed (daemon not running)" + archiveMsg}, nil
+		return commandResult{statusMessage: "Configuration committed (daemon not running)" + archiveMsg, configView: configView, revalidate: true}, nil
 	}
 	if err := m.editor.NotifyReload(); err != nil {
-		return commandResult{statusMessage: fmt.Sprintf("Configuration committed (reload failed: %v)", err) + archiveMsg}, nil
+		return commandResult{statusMessage: fmt.Sprintf("Configuration committed (reload failed: %v)", err) + archiveMsg, configView: configView, revalidate: true}, nil
 	}
 
-	return commandResult{statusMessage: "Configuration committed and reloaded" + archiveMsg}, nil
+	return commandResult{statusMessage: "Configuration committed and reloaded" + archiveMsg, configView: configView, revalidate: true}, nil
 }
 
 // cmdDiscard reverts all changes.

@@ -1,5 +1,6 @@
 // Design: docs/architecture/config/yang-config-design.md — command mode completion
 // Related: completer.go — edit mode YANG-driven completion
+// Related: completer_plugin.go — plugin SDK method completion
 // Overview: model_mode.go — editor mode switching
 
 package cli

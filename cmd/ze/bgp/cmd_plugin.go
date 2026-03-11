@@ -49,14 +49,14 @@ Commands:
   help                 Show this help
 
 Examples:
-  ze bgp plugin cli                          Auto-negotiate and enter interactive mode
+  ze bgp plugin cli                          Enter interactive plugin command mode
   ze bgp plugin cli --socket /tmp/ze.sock    Connect to specific daemon socket
 `)
 }
 
-// cmdPluginCLI runs the interactive plugin CLI simulator.
-// Connects to the daemon socket, performs the 5-stage text protocol
-// negotiation, then enters interactive mode with plugin SDK method completion.
+// cmdPluginCLI runs the interactive plugin CLI.
+// Connects to the daemon API socket and enters interactive command mode
+// with plugin SDK method completion. Sends commands as JSON-RPC.
 func cmdPluginCLI(args []string) int {
 	fs := flag.NewFlagSet("plugin cli", flag.ExitOnError)
 	socketPath := fs.String("socket", config.DefaultSocketPath(), "Path to API socket")
@@ -64,10 +64,10 @@ func cmdPluginCLI(args []string) int {
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze bgp plugin cli [options]
 
-Interactive plugin CLI simulator. Connects to the daemon and simulates
-a text-mode plugin with the 5-stage negotiation protocol.
+Interactive plugin CLI. Connects to the daemon API socket and enters
+command mode with tab completion for plugin SDK methods.
 
-After negotiation, enter plugin SDK commands interactively:
+Commands:
   update-route <selector> <command>   Inject route update
   dispatch-command <command>          Dispatch engine command
   subscribe-events [events...]        Subscribe to events
@@ -98,9 +98,9 @@ Options:
 	reader := rpc.NewFrameReader(conn)
 	writer := rpc.NewFrameWriter(conn)
 
-	// Create unified model in command-only mode with plugin completer
+	// Create unified model in command-only mode with plugin SDK method completions
 	m := cli.NewCommandModel()
-	m.SetCommandCompleter(cli.NewCommandCompleter(nil)) // No operational command tree
+	m.SetCommandCompleter(cli.NewPluginCompleter())
 	m.SetCommandExecutor(func(input string) (string, error) {
 		// Send as JSON-RPC to daemon (plugin commands are forwarded)
 		req := rpc.Request{Method: "ze-plugin-engine:" + input}

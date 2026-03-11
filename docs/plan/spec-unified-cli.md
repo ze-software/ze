@@ -169,9 +169,9 @@ Unify the three separate TUI implementations (`ze config edit`, `ze cli`, SSH se
 | `ze config edit` | → | `cli.Model` in ModeEdit | `test/editor/commands/show-full.et` (existing .et test) |
 | `ze cli` command | → | `cli.Model` in ModeCommand | `test/plugin/cli-log-show.ci` (existing, updated) |
 | SSH session | → | `cli.Model` in ModeEdit | `test/parse/ssh-config-valid.ci` (existing, updated) |
-| `ze bgp plugin cli` auto | → | 5-stage negotiation + cli.Model | `test/plugin/plugin-cli-auto.ci` (to create) |
-| `ze bgp plugin cli` manual | → | interactive stages + cli.Model | `test/plugin/plugin-cli-manual.ci` (to create) |
-| Ctrl+Arrow scroll | → | viewport page up/down | Unit test in `cli/model_test.go` (to create) |
+| ~~`ze bgp plugin cli` auto~~ | → | ~~5-stage negotiation + cli.Model~~ | **BLOCKED**: AC-9 blocked — no daemon-side plugin connection path |
+| ~~`ze bgp plugin cli` manual~~ | → | ~~interactive stages + cli.Model~~ | **BLOCKED**: AC-10 blocked — same |
+| Ctrl+Arrow scroll | → | viewport page up/down | `TestCtrlArrowPageScroll` in `cli/model_test.go` |
 
 ## Acceptance Criteria
 
@@ -185,8 +185,8 @@ Unify the three separate TUI implementations (`ze config edit`, `ze cli`, SSH se
 | AC-6 | Shift+Arrow in any mode | Scrolls viewport one line up/down (preserved) |
 | AC-7 | Ctrl+Arrow in any mode | Scrolls viewport one page up/down (new) |
 | AC-8 | PgUp/PgDown in any mode | Scrolls viewport one page up/down (preserved) |
-| AC-9 | `ze bgp plugin cli --socket /path auto` | Performs 5-stage negotiation automatically, enters interactive plugin command mode |
-| AC-10 | `ze bgp plugin cli --socket /path manual` | Shows each stage, user edits/confirms, no timeout, performs for real |
+| AC-9 | ~~`ze bgp plugin cli --socket /path auto`~~ | ~~Performs 5-stage negotiation automatically~~ — **BLOCKED**: daemon has no "connect and become a plugin" path; plugins are launched by the engine, not connected by external clients. Requires daemon-side infrastructure (accept-plugin-connection RPC or similar). |
+| AC-10 | ~~`ze bgp plugin cli --socket /path manual`~~ | ~~Shows each stage, user edits/confirms~~ — **BLOCKED**: same as AC-9. Requires daemon-side infrastructure for external plugin connections. |
 | AC-11 | Plugin CLI interactive mode | Tab completion for plugin SDK methods (update-route, dispatch-command, subscribe-events, etc.) |
 | AC-12 | All existing editor tests pass | `go test ./internal/component/cli/...` passes (relocated package) |
 | AC-13 | All existing CLI tests pass | `go test ./cmd/ze/cli/...` passes (using unified model) |
@@ -221,8 +221,8 @@ Unify the three separate TUI implementations (`ze config edit`, `ze cli`, SSH se
 | Existing edit tests | `test/parse/edit-*.ci` | Config editing works after relocation | |
 | Existing CLI tests | `test/plugin/cli-*.ci` | CLI commands work with unified model | |
 | Existing SSH tests | `test/plugin/ssh-*.ci` | SSH sessions work with unified model | |
-| `plugin-cli-auto` | `test/plugin/plugin-cli-auto.ci` | `ze bgp plugin cli auto` completes negotiation and runs commands | |
-| `plugin-cli-manual` | `test/plugin/plugin-cli-manual.ci` | `ze bgp plugin cli manual` allows stage-by-stage control | |
+| ~~`plugin-cli-auto`~~ | ~~`test/plugin/plugin-cli-auto.ci`~~ | ~~`ze bgp plugin cli auto`~~ — **BLOCKED**: AC-9 blocked (no daemon-side plugin connection path) | |
+| ~~`plugin-cli-manual`~~ | ~~`test/plugin/plugin-cli-manual.ci`~~ | ~~`ze bgp plugin cli manual`~~ — **BLOCKED**: AC-10 blocked (same) | |
 
 ### Future (if deferring any tests)
 - Plugin CLI chaos/timeout tests — deferred to spec-bgp-chaos-integration (advanced fault injection)
@@ -278,8 +278,8 @@ Unify the three separate TUI implementations (`ze config edit`, `ze cli`, SSH se
 ## Files to Create
 - `internal/component/cli/completer_plugin.go` — plugin SDK method completions (update-route, dispatch-command, subscribe-events, etc.)
 - `cmd/ze/bgp/cmd_plugin.go` — `ze bgp plugin` sub-dispatch with `cli` subcommand: flag parsing, negotiation mode selection, socket connection, TextMuxConn setup, model creation
-- `test/plugin/plugin-cli-auto.ci` — functional test for auto-negotiate + command execution
-- `test/plugin/plugin-cli-manual.ci` — functional test for manual stage-by-stage negotiation
+- ~~`test/plugin/plugin-cli-auto.ci`~~ — **BLOCKED**: AC-9 blocked (no daemon-side plugin connection path)
+- ~~`test/plugin/plugin-cli-manual.ci`~~ — **BLOCKED**: AC-10 blocked (same)
 
 ## Implementation Steps
 
