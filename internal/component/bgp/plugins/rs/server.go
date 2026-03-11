@@ -15,6 +15,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -413,10 +414,22 @@ func (rs *RouteServer) updateRoute(peerSelector, command string) {
 	if err != nil {
 		if rs.stopping.Load() {
 			logger().Debug("update-route failed (shutting down)", "peer", peerSelector, "command", command, "error", err)
+		} else if isConnectionError(err) {
+			logger().Warn("update-route failed (peer disconnected)", "peer", peerSelector, "command", command, "error", err)
 		} else {
 			logger().Error("update-route failed", "peer", peerSelector, "command", command, "error", err)
 		}
 	}
+}
+
+// isConnectionError reports whether err indicates the target peer's
+// connection is already closed (broken pipe, reset, EOF). RPC errors
+// cross a string boundary, so errors.Is cannot unwrap them.
+func isConnectionError(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "broken pipe") ||
+		strings.Contains(msg, "connection reset") ||
+		strings.Contains(msg, "use of closed network connection")
 }
 
 // wireFlowControl connects the worker pool's backpressure signals to
