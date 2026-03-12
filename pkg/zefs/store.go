@@ -1,0 +1,438 @@
+// Design: (none -- predates documentation)
+// Detail: lock.go -- advisory locking (ReadLock, WriteLock)
+// Detail: netstring.go -- netstring encoding/decoding
+// Detail: tree.go -- in-memory tree for ReadDir
+// Detail: file.go -- fs.File and fs.DirEntry wrappers
+// Detail: mmap_unix.go -- mmap/munmap for zero-copy reads
+// Detail: mmap_other.go -- heap fallback for non-unix
+
+package zefs
+
+import (
+	"fmt"
+	"io"
+	"io/fs"
+	"os"
+	"sort"
+	"strings"
+	"sync"
+)
+
+const (
+	magic          = "ZeFS:"
+	initialNameCap = 64
+	initialDataCap = 256
+)
+
+// slotInfo tracks a named entry's disk layout.
+type slotInfo struct {
+	nameCap int
+	dataCap int
+}
+
+// BlobStore is a netstring-framed blob store with hierarchical keys.
+// It implements fs.FS, fs.ReadFileFS, and fs.ReadDirFS.
+//
+// ReadFile and Open return slices backed by a memory-mapped file (on unix)
+// or a heap buffer (elsewhere). These slices are borrowed: do not modify
+// them, and do not retain them past the next WriteFile, Remove, Import,
+// or Close call.
+type BlobStore struct {
+	mu      sync.RWMutex
+	path    string
+	root    *node
+	keys    []string            // ordered keys for deterministic serialization
+	slots   map[string]slotInfo // per-key slot capacities
+	backing []byte              // mmap'd region or heap buffer; tree nodes reference this
+	fd      *os.File            // non-nil when backing is mmap'd (must stay open)
+}
+
+// Create creates a new empty store at the given path.
+func Create(path string) (*BlobStore, error) {
+	s := &BlobStore{
+		path:  path,
+		root:  newDirNode(),
+		slots: make(map[string]slotInfo),
+	}
+	if err := s.flush(); err != nil {
+		return nil, fmt.Errorf("zefs: create %s: %w", path, err)
+	}
+	return s, nil
+}
+
+// Open opens an existing store, memory-mapping the file for zero-copy reads.
+func Open(path string) (*BlobStore, error) {
+	s := &BlobStore{
+		path:  path,
+		root:  newDirNode(),
+		slots: make(map[string]slotInfo),
+	}
+	if err := s.load(); err != nil {
+		return nil, fmt.Errorf("zefs: open %s: %w", path, err)
+	}
+	return s, nil
+}
+
+// Close releases the memory mapping and any associated file descriptor.
+// After Close, slices returned by ReadFile or Open are no longer valid.
+func (s *BlobStore) Close() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.unload()
+}
+
+// ReadFile returns the contents of the named file.
+// The returned slice references the store's internal buffer (zero-copy).
+// Do not modify the returned data.
+func (s *BlobStore) ReadFile(name string) ([]byte, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.readFile(name)
+}
+
+func (s *BlobStore) readFile(name string) ([]byte, error) {
+	data, ok := s.root.get(name)
+	if !ok {
+		return nil, &fs.PathError{Op: "read", Path: name, Err: fs.ErrNotExist}
+	}
+	return data, nil
+}
+
+// Open opens the named file, implementing fs.FS.
+func (s *BlobStore) Open(name string) (fs.File, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if name == "." {
+		return &storeDir{node: s.root, name: "."}, nil
+	}
+
+	nd := s.root.walk(name)
+	if nd == nil {
+		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
+	}
+
+	if nd.data != nil {
+		parts := strings.Split(name, "/")
+		return &storeFile{name: parts[len(parts)-1], data: nd.data}, nil
+	}
+
+	parts := strings.Split(name, "/")
+	return &storeDir{node: nd, name: parts[len(parts)-1]}, nil
+}
+
+// ReadDir returns directory entries for the named directory.
+func (s *BlobStore) ReadDir(name string) ([]fs.DirEntry, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.readDir(name)
+}
+
+func (s *BlobStore) readDir(name string) ([]fs.DirEntry, error) {
+	nd := s.root.walk(name)
+	if nd == nil || nd.children == nil {
+		return nil, &fs.PathError{Op: "readdir", Path: name, Err: fs.ErrNotExist}
+	}
+
+	entries := make([]fs.DirEntry, 0, len(nd.children))
+	for childName, child := range nd.children {
+		entries = append(entries, &storeDirEntry{
+			entryName: childName,
+			isDir:     child.children != nil,
+			size:      len(child.data),
+		})
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Name() < entries[j].Name()
+	})
+	return entries, nil
+}
+
+// WriteFile creates or updates the named file.
+// The perm argument is accepted for Go proposal #67002 compatibility but ignored.
+func (s *BlobStore) WriteFile(name string, data []byte, perm fs.FileMode) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.writeFileNoFlush(name, data, perm); err != nil {
+		return err
+	}
+	return s.flush()
+}
+
+func (s *BlobStore) writeFileNoFlush(name string, data []byte, _ fs.FileMode) error {
+	if len(name) > maxHeaderVal || len(data) > maxHeaderVal {
+		return fmt.Errorf("zefs: entry too large: name=%d, data=%d (max %d)", len(name), len(data), maxHeaderVal)
+	}
+
+	stored := make([]byte, len(data))
+	copy(stored, data)
+
+	if !s.root.has(name) {
+		s.keys = append(s.keys, name)
+		s.slots[name] = slotInfo{
+			nameCap: growCapacity(len(name), initialNameCap),
+			dataCap: growCapacity(len(data), initialDataCap),
+		}
+	} else {
+		sl := s.slots[name]
+		if len(data) > sl.dataCap {
+			sl.dataCap = growCapacity(len(data), sl.dataCap)
+			s.slots[name] = sl
+		}
+	}
+
+	s.root.set(name, stored)
+	return nil
+}
+
+// Remove deletes the named file.
+func (s *BlobStore) Remove(name string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.removeNoFlush(name); err != nil {
+		return err
+	}
+	return s.flush()
+}
+
+func (s *BlobStore) removeNoFlush(name string) error {
+	if !s.root.remove(name) {
+		return &fs.PathError{Op: "remove", Path: name, Err: fs.ErrNotExist}
+	}
+	for i, k := range s.keys {
+		if k == name {
+			s.keys = append(s.keys[:i], s.keys[i+1:]...)
+			break
+		}
+	}
+	delete(s.slots, name)
+	return nil
+}
+
+// Has returns true if the named file exists.
+func (s *BlobStore) Has(name string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.root.has(name)
+}
+
+// List returns all file keys under the given prefix.
+// Use "" to list all keys.
+func (s *BlobStore) List(prefix string) []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.list(prefix)
+}
+
+func (s *BlobStore) list(prefix string) []string {
+	nd := s.root
+	if prefix != "" {
+		nd = s.root.walk(prefix)
+		if nd == nil {
+			return nil
+		}
+	}
+	var result []string
+	nd.collect(prefix, &result)
+	return result
+}
+
+// Export writes the raw store bytes to w.
+func (s *BlobStore) Export(w io.Writer) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	data, err := s.encode()
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(data)
+	return err
+}
+
+// Import replaces the store contents from r.
+func (s *BlobStore) Import(r io.Reader) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return fmt.Errorf("zefs: import: %w", err)
+	}
+
+	if err := s.unload(); err != nil {
+		return fmt.Errorf("zefs: import unload: %w", err)
+	}
+
+	s.root = newDirNode()
+	s.keys = nil
+	s.slots = make(map[string]slotInfo)
+
+	if err := s.decode(data); err != nil {
+		return fmt.Errorf("zefs: import: %w", err)
+	}
+
+	return s.flush()
+}
+
+// slot returns the slotInfo for a key (used by tests).
+func (s *BlobStore) slot(name string) (slotInfo, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	sl, ok := s.slots[name]
+	return sl, ok
+}
+
+// load memory-maps the file and decodes the tree with zero-copy references.
+func (s *BlobStore) load() error {
+	data, fd, err := loadBacking(s.path)
+	if err != nil {
+		return err
+	}
+
+	if err := s.unload(); err != nil {
+		// Best effort: release newly loaded backing if old unload fails
+		unloadErr := unloadBacking(data, fd)
+		if unloadErr != nil {
+			return fmt.Errorf("zefs: load: %w (also: %w)", err, unloadErr)
+		}
+		return err
+	}
+
+	s.backing = data
+	s.fd = fd
+	s.root = newDirNode()
+	s.keys = nil
+	s.slots = make(map[string]slotInfo)
+	return s.decode(s.backing)
+}
+
+// unload releases the backing buffer (munmap on unix, no-op on heap).
+func (s *BlobStore) unload() error {
+	if s.backing == nil {
+		return nil
+	}
+	err := unloadBacking(s.backing, s.fd)
+	s.backing = nil
+	s.fd = nil
+	return err
+}
+
+// encode serializes the store to a new byte buffer.
+// Safe to call while backed by mmap: encodeNetstring copies data out.
+func (s *BlobStore) encode() ([]byte, error) {
+	var entries []byte
+	for _, key := range s.keys {
+		data, ok := s.root.get(key)
+		if !ok {
+			continue
+		}
+		sl := s.slots[key]
+		nameNS, err := encodeNetstring([]byte(key), sl.nameCap)
+		if err != nil {
+			return nil, fmt.Errorf("zefs: encode key %q: %w", key, err)
+		}
+		dataNS, err := encodeNetstring(data, sl.dataCap)
+		if err != nil {
+			return nil, fmt.Errorf("zefs: encode data for %q: %w", key, err)
+		}
+		entries = append(entries, nameNS...)
+		entries = append(entries, dataNS...)
+	}
+	entries = append(entries, '\n')
+
+	containerCap := growCapacity(len(entries), len(entries))
+	container, err := encodeNetstring(entries, containerCap)
+	if err != nil {
+		return nil, fmt.Errorf("zefs: encode container: %w", err)
+	}
+
+	result := make([]byte, len(magic)+len(container))
+	copy(result, magic)
+	copy(result[len(magic):], container)
+	return result, nil
+}
+
+// decode parses store bytes using zero-copy references into the backing buffer.
+// Tree nodes will hold sub-slices of data (no allocation per entry).
+func (s *BlobStore) decode(data []byte) error {
+	if len(data) < len(magic) || string(data[:len(magic)]) != magic {
+		return fmt.Errorf("zefs: invalid magic: %q", data[:min(len(data), len(magic))])
+	}
+
+	containerData, _, _, err := decodeNetstringRef(data, len(magic))
+	if err != nil {
+		return fmt.Errorf("zefs: container: %w", err)
+	}
+
+	off := 0
+	for off < len(containerData) {
+		if containerData[off] == '\n' || containerData[off] == 0 {
+			break
+		}
+
+		nameData, nameCap, next, err := decodeNetstringRef(containerData, off)
+		if err != nil {
+			return fmt.Errorf("zefs: entry name at %d: %w", off, err)
+		}
+		off = next
+
+		fileData, dataCap, next, err := decodeNetstringRef(containerData, off)
+		if err != nil {
+			return fmt.Errorf("zefs: entry data at %d: %w", off, err)
+		}
+		off = next
+
+		key := string(nameData)
+		s.root.set(key, fileData)
+		s.keys = append(s.keys, key)
+		s.slots[key] = slotInfo{nameCap: nameCap, dataCap: dataCap}
+	}
+
+	return nil
+}
+
+// flush encodes, writes to disk, then reloads via mmap.
+// After flush, all tree nodes reference the new backing.
+// If the write or reload fails, the tree is rebuilt from the encoded
+// copy as a heap-backed buffer so the store remains usable.
+func (s *BlobStore) flush() error {
+	// encode() copies data out of current backing (safe before unload)
+	encoded, err := s.encode()
+	if err != nil {
+		return err
+	}
+
+	// Release old backing before writing (avoids inode conflict with mmap)
+	if err := s.unload(); err != nil {
+		return fmt.Errorf("zefs: flush unload: %w", err)
+	}
+
+	// Write new file
+	if err := os.WriteFile(s.path, encoded, 0o600); err != nil {
+		s.recoverFromEncoded(encoded)
+		return fmt.Errorf("zefs: flush write: %w", err)
+	}
+
+	// Re-map new file; tree nodes now reference new backing
+	if err := s.load(); err != nil {
+		s.recoverFromEncoded(encoded)
+		return fmt.Errorf("zefs: flush reload: %w", err)
+	}
+	return nil
+}
+
+// recoverFromEncoded rebuilds the tree from an encoded copy after a failed
+// write or reload. The tree nodes reference the encoded buffer (heap-backed,
+// fd=nil so unloadBacking skips munmap).
+func (s *BlobStore) recoverFromEncoded(encoded []byte) {
+	s.backing = encoded
+	s.fd = nil
+	s.root = newDirNode()
+	s.keys = nil
+	s.slots = make(map[string]slotInfo)
+	// encoded was just produced by encode(), decode cannot fail
+	if err := s.decode(encoded); err != nil {
+		s.root = newDirNode()
+	}
+}
