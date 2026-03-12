@@ -9,8 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	_ "net/http/pprof" //nolint:gosec // pprof server only starts when configured
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -432,13 +430,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reacto
 	// Start pprof HTTP server from config environment block.
 	// CLI --pprof flag takes precedence (started earlier in main.go).
 	if env.Debug.Pprof != "" {
-		pprofAddr := env.Debug.Pprof
-		configLogger().Info("pprof server starting (config)", "addr", pprofAddr)
-		go func() {
-			if err := http.ListenAndServe(pprofAddr, nil); err != nil { //nolint:gosec // pprof is intentionally bound to configured address
-				configLogger().Error("pprof server failed", "error", err)
-			}
-		}()
+		startPprofServer(env.Debug.Pprof)
 	}
 
 	// Start Prometheus metrics HTTP server from telemetry config block.

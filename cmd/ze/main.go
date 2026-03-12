@@ -6,9 +6,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net"
-	"net/http"
-	_ "net/http/pprof" //nolint:gosec // pprof server only starts when --pprof flag is set
 	"os"
 	"strconv"
 	"strings"
@@ -126,19 +123,8 @@ func main() {
 	}
 dispatch:
 
-	// Start pprof HTTP server if --pprof was set.
-	// Uses DefaultServeMux which net/http/pprof registers handlers on.
 	if pprofAddr != "" {
-		if !isLocalhostPprof(pprofAddr) {
-			fmt.Fprintf(os.Stderr, "error: --pprof must bind to localhost (e.g. 127.0.0.1:6060 or [::1]:6060), got %q\n", pprofAddr)
-			os.Exit(1)
-		}
-		fmt.Fprintf(os.Stderr, "pprof server listening on %s\n", pprofAddr) //nolint:gosec // stderr, not HTTP response
-		go func() {
-			if err := http.ListenAndServe(pprofAddr, nil); err != nil { //nolint:gosec // pprof is bound to localhost only
-				fmt.Fprintf(os.Stderr, "error: pprof server: %v\n", err)
-			}
-		}()
+		startPprof(pprofAddr)
 	}
 
 	if len(args) < 1 {
@@ -303,16 +289,6 @@ Examples:
   ze run <command>                     Execute daemon command
   ze bgp help                         Show BGP commands
 `)
-}
-
-// isLocalhostPprof returns true if addr binds to a loopback address only.
-// Rejects empty host (binds all interfaces), 0.0.0.0, and non-loopback addresses.
-func isLocalhostPprof(addr string) bool {
-	host, _, err := net.SplitHostPort(addr)
-	if err != nil {
-		return false
-	}
-	return host == "127.0.0.1" || host == "::1" || host == "localhost"
 }
 
 // printPlugins outputs available plugins in table or JSON format.
