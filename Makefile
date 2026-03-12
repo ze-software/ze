@@ -10,6 +10,13 @@
 export GOCACHE := $(CURDIR)/tmp/go-cache
 export GOLANGCI_LINT_CACHE := $(CURDIR)/tmp/golangci-lint-cache
 
+# Go compiler: override with GO=tinygo for smaller binaries
+# TinyGo finds go via PATH, so we prepend Go 1.25 when GO=tinygo
+GO ?= go
+ifeq ($(GO),tinygo)
+export PATH := /opt/homebrew/opt/go@1.25/bin:$(PATH)
+endif
+
 # Version: YY.MM.DD from current date, injected via ldflags.
 ZE_VERSION := $(shell date +%y.%m.%d)
 ZE_BUILD_DATE := $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
@@ -32,31 +39,31 @@ build: generate bin/ze bin/ze-test bin/ze-chaos
 
 ze:
 	@mkdir -p bin
-	go build -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+	$(GO) build -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
 
 chaos:
 	@mkdir -p bin
-	go build -o bin/ze-chaos ./cmd/ze-chaos
+	$(GO) build -o bin/ze-chaos ./cmd/ze-chaos
 
 test:
 	@mkdir -p bin
-	go build -o bin/ze-test ./cmd/ze-test
+	$(GO) build -o bin/ze-test ./cmd/ze-test
 
 # Individual binary targets
 bin/ze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze..."
 	@mkdir -p bin
-	go build -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
+	$(GO) build -ldflags "$(ZE_LDFLAGS)" -o bin/ze ./cmd/ze
 
 bin/ze-test: $(shell find cmd/ze-test internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-test..."
 	@mkdir -p bin
-	go build -o bin/ze-test ./cmd/ze-test
+	$(GO) build -o bin/ze-test ./cmd/ze-test
 
 bin/ze-chaos: $(shell find cmd/ze-chaos internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-chaos..."
 	@mkdir -p bin
-	go build -o bin/ze-chaos ./cmd/ze-chaos
+	$(GO) build -o bin/ze-chaos ./cmd/ze-chaos
 
 # ─── Ze tests ────────────────────────────────────────────────────────────────
 
@@ -295,6 +302,8 @@ help:
 	@echo "  ze                    - Build bin/ze"
 	@echo "  chaos                 - Build bin/ze-chaos"
 	@echo "  test                  - Build bin/ze-test"
+	@echo ""
+	@echo "  Use GO=tinygo to build with TinyGo (e.g. make ze GO=tinygo)"
 	@echo ""
 	@echo "  Ze tests:"
 	@echo "  ze-lint               - Run linter on ze packages"
