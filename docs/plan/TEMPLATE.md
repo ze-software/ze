@@ -1,5 +1,12 @@
 # Spec: <task-name>
 
+| Field | Value |
+|-------|-------|
+| Status | skeleton |
+| Depends | - |
+| Phase | - |
+| Updated | YYYY-MM-DD |
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**

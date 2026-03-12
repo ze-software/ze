@@ -1,6 +1,11 @@
-# Spec: rib-05 — Best-Path Selection + Pool Review (DEFERRED)
+# Spec: rib-05 — Best-Path Selection + Pool Review
 
-**Status:** Skeleton — not ready for implementation. Complete research and design phases before implementing.
+| Field | Value |
+|-------|-------|
+| Status | deferred |
+| Depends | spec-rib-02 |
+| Phase | - |
+| Updated | 2026-03-06 |
 
 ## Post-Compaction Recovery
 

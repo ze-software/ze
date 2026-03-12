@@ -37,6 +37,31 @@ WARNINGS=()
 # Read file content
 CONTENT=$(cat "$FILE_PATH")
 
+# === METADATA TABLE CHECK ===
+# Every spec must have the metadata table (Status, Depends, Phase, Updated)
+if ! grep -q '| Status |' "$FILE_PATH"; then
+    ERRORS+=("Missing metadata table. Add after title: | Field | Value | with Status, Depends, Phase, Updated rows")
+else
+    # Validate Status value
+    SPEC_STATUS=$(sed -n 's/^| Status | *\([a-z-]*\).*/\1/p' "$FILE_PATH" | head -1)
+    case "$SPEC_STATUS" in
+        skeleton|design|ready|in-progress|blocked|deferred) ;;
+        *) ERRORS+=("Invalid Status '$SPEC_STATUS'. Must be: skeleton, design, ready, in-progress, blocked, deferred") ;;
+    esac
+    # Check Updated field exists and has a date
+    if ! grep -qE '^\| Updated \| *[0-9]{4}-[0-9]{2}-[0-9]{2}' "$FILE_PATH"; then
+        WARNINGS+=("Metadata: Updated field should have a date (YYYY-MM-DD)")
+    fi
+    # Check Phase field exists
+    if ! grep -q '| Phase |' "$FILE_PATH"; then
+        WARNINGS+=("Metadata: Missing Phase field")
+    fi
+    # Check Depends field exists
+    if ! grep -q '| Depends |' "$FILE_PATH"; then
+        WARNINGS+=("Metadata: Missing Depends field")
+    fi
+fi
+
 # === REQUIRED SECTIONS ===
 REQUIRED_SECTIONS=(
     "## Task"

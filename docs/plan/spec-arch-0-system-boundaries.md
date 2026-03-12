@@ -1,5 +1,12 @@
 # Spec: arch-0 — System Boundaries (Umbrella)
 
+| Field | Value |
+|-------|-------|
+| Status | design |
+| Depends | - |
+| Phase | 0/6 |
+| Updated | 2026-03-04 |
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**

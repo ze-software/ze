@@ -1,6 +1,11 @@
 # Spec: Split bgp-rs into RS (bgp-rs) + RR (bgp-rr) with Shared Forwarding
 
-**Status:** Skeleton — not ready for implementation. Depends on spec-rib-04.
+| Field | Value |
+|-------|-------|
+| Status | deferred |
+| Depends | spec-rib-04 |
+| Phase | - |
+| Updated | 2026-03-03 |
 
 ## Post-Compaction Recovery
 

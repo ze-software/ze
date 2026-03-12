@@ -71,9 +71,47 @@ When multiple specs form a related set (umbrella + child specs), use a shared pr
 - **Cross-references:** all specs in a set reference siblings by filename
 - **Selected spec:** point to the umbrella; select children individually when implementing
 
+## Spec Metadata (BLOCKING)
+
+Every spec MUST have a metadata table immediately after the `# Spec:` title. This is the source of truth for spec status, parsed by `make ze-spec-status` and validated by `validate-spec.sh`.
+
+| Field | Purpose | Values |
+|-------|---------|--------|
+| Status | Current state | `skeleton`, `design`, `ready`, `in-progress`, `blocked`, `deferred` |
+| Depends | Blocking prerequisite | Spec filename (e.g., `spec-rib-04`) or `-` |
+| Phase | Multi-phase progress | `N/M` (e.g., `3/5`) or `-` for single-phase |
+| Updated | Date of last status change | `YYYY-MM-DD` -- NOT last file edit |
+
+### When to Update
+
+| Event | Status change | Phase | Updated |
+|-------|--------------|-------|---------|
+| Start design | `skeleton` to `design` | - | Yes |
+| Design complete | `design` to `ready` | - | Yes |
+| Start coding | `ready` to `in-progress` | Set `1/N` | Yes |
+| Finish a phase | - | Increment | Yes |
+| Blocked | to `blocked` | - | Yes |
+| Deferred | to `deferred` | - | Yes |
+
+### Status Vocabulary
+
+| Status | Meaning |
+|--------|---------|
+| `skeleton` | Task defined, design not started |
+| `design` | Research/design in progress |
+| `ready` | Design complete, ready for implementation |
+| `in-progress` | Actively being implemented |
+| `blocked` | Waiting on prerequisite (see Depends) |
+| `deferred` | Explicitly postponed |
+
+### Viewing Status
+
+`make ze-spec-status` shows the full inventory table. `make ze-spec-status-json` for machine-readable output.
+
 ## Pre-Spec Verification
 
 ```
+[ ] Metadata table present with valid Status, Depends, Phase, Updated
 [ ] INDEX.md keyword table checked
 [ ] RFC summaries exist for all referenced RFCs
 [ ] Template format followed (🧪 emoji, tables not prose)

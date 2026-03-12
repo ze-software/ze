@@ -1,5 +1,12 @@
 # Spec: iface-bus — Interface Management on the Bus
 
+| Field | Value |
+|-------|-------|
+| Status | design |
+| Depends | spec-arch-0 |
+| Phase | - |
+| Updated | 2026-03-04 |
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**

@@ -3,6 +3,7 @@
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-interop-test
+.PHONY: ze-spec-status ze-spec-status-json
 .PHONY: check
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
@@ -246,6 +247,16 @@ ze-interop-test:
 	@echo "Running interop tests (requires Docker)..."
 	@test/interop/run.sh $(INTEROP_SCENARIO)
 
+# ─── Spec status ─────────────────────────────────────────────────────────────
+
+# Show spec inventory with progress status
+ze-spec-status:
+	@bash scripts/spec-status.sh
+
+# Show spec inventory as JSON
+ze-spec-status-json:
+	@bash scripts/spec-status.sh --json
+
 # ─── Utilities ───────────────────────────────────────────────────────────────
 
 # Format code
@@ -315,6 +326,10 @@ help:
 	@echo "  Interop tests (Docker):"
 	@echo "  ze-interop-test          - Run interop tests against FRR and BIRD"
 	@echo "                             INTEROP_SCENARIO=name to run one scenario"
+	@echo ""
+	@echo "  Spec status:"
+	@echo "  ze-spec-status        - Show spec inventory with progress status"
+	@echo "  ze-spec-status-json   - Show spec inventory as JSON"
 	@echo ""
 	@echo "  Utilities:"
 	@echo "  fmt                   - Format code (gofmt + goimports)"

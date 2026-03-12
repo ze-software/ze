@@ -1,5 +1,12 @@
 # Spec: bgp-monitor
 
+| Field | Value |
+|-------|-------|
+| Status | ready |
+| Depends | - |
+| Phase | - |
+| Updated | 2026-03-09 |
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**

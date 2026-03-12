@@ -1,5 +1,12 @@
 # Spec: Config Archive v2 — Named Archives with Triggers and System Identity
 
+| Field | Value |
+|-------|-------|
+| Status | skeleton |
+| Depends | - |
+| Phase | - |
+| Updated | 2026-03-10 |
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**

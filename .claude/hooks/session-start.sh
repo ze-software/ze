@@ -26,6 +26,16 @@ elif [ "$SPEC_COUNT" -gt 0 ]; then
     echo "📋 ${SPEC_COUNT} specs, none selected"
 fi
 
+# Spec status summary (compact counts by status)
+if [ "$SPEC_COUNT" -gt 0 ]; then
+    COUNTS=""
+    for status in in-progress ready design skeleton blocked deferred; do
+        N=$(grep -l "| Status | *${status}" docs/plan/spec-*.md 2>/dev/null | wc -l | tr -d ' ')
+        [ "$N" -gt 0 ] && COUNTS="${COUNTS:+$COUNTS, }${N} ${status}"
+    done
+    [ -n "$COUNTS" ] && echo "   ($COUNTS)"
+fi
+
 # Session state reminder with phase display
 if [ -f ".claude/session-state.md" ]; then
     LAST_UPDATE=$(head -5 .claude/session-state.md | grep -o '20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]' | head -1)

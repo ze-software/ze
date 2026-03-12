@@ -1,5 +1,12 @@
 # Spec: ci-gaps — Close All .ci Functional Test Gaps
 
+| Field | Value |
+|-------|-------|
+| Status | ready |
+| Depends | - |
+| Phase | 0/5 |
+| Updated | 2026-03-09 |
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**

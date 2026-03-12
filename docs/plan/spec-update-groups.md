@@ -1,5 +1,12 @@
 # Spec: update-groups
 
+| Field | Value |
+|-------|-------|
+| Status | skeleton |
+| Depends | - |
+| Phase | - |
+| Updated | 2026-03-04 |
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**

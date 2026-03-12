@@ -1,5 +1,12 @@
 # Spec: unified-cli
 
+| Field | Value |
+|-------|-------|
+| Status | design |
+| Depends | - |
+| Phase | - |
+| Updated | 2026-03-11 |
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**

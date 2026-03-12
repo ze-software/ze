@@ -1,6 +1,11 @@
 # Spec: Route Type Consolidation
 
-**Status:** Skeleton — not ready for implementation. Low priority cleanup.
+| Field | Value |
+|-------|-------|
+| Status | deferred |
+| Depends | - |
+| Phase | - |
+| Updated | 2026-03-03 |
 
 ## Post-Compaction Recovery
 

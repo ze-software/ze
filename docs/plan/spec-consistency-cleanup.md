@@ -1,5 +1,12 @@
 # Spec: Consistency Cleanup
 
+| Field | Value |
+|-------|-------|
+| Status | skeleton |
+| Depends | - |
+| Phase | 0/6 |
+| Updated | 2026-03-08 |
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**

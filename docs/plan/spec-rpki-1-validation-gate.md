@@ -1,5 +1,12 @@
 # Spec: rpki-1-validation-gate
 
+| Field | Value |
+|-------|-------|
+| Status | ready |
+| Depends | spec-rpki-0-umbrella |
+| Phase | - |
+| Updated | 2026-03-04 |
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**

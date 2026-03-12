@@ -1,5 +1,12 @@
 # Spec: chaos-actions-v2
 
+| Field | Value |
+|-------|-------|
+| Status | skeleton |
+| Depends | - |
+| Phase | - |
+| Updated | 2026-02-25 |
+
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**

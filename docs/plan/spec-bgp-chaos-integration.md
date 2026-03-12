@@ -1,10 +1,15 @@
-# Spec: bgp-chaos-integration (Phase 11 of 11) — SKELETON
+# Spec: bgp-chaos-integration (Phase 11 of 11)
+
+| Field | Value |
+|-------|-------|
+| Status | blocked |
+| Depends | spec-bgp-chaos |
+| Phase | - |
+| Updated | 2026-03-03 |
 
 **Master design:** `docs/plan/spec-bgp-chaos.md`
 **Previous spec:** `spec-bgp-chaos-selftest.md` (Phase 10)
 **Next spec:** None (final phase)
-
-**Status:** Blocked — depends on Phase 9 (in-process mode) and Phase 10 (self-chaos mode). Injection completeness gap closed (FakeClock + integration test in sim-abstractions spec).
 
 ## Post-Compaction Recovery
 
