@@ -245,14 +245,21 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 			return err
 		}
 
-		// Create listener
+		// Set restrictive umask before socket creation to eliminate the TOCTOU
+		// window between Listen() and Chmod(). The socket is created with 0600
+		// permissions from the start instead of briefly being world-accessible.
+		oldMask := setUmask(0o177) // owner rw only (0600)
+
 		var lc net.ListenConfig
 		listener, err := lc.Listen(ctx, "unix", s.config.SocketPath)
+
+		setUmask(oldMask) // restore immediately after socket creation
+
 		if err != nil {
 			return err
 		}
 
-		// Restrict socket permissions to owner only (CWE-732: no world access)
+		// Belt-and-suspenders: chmod in case umask was not effective (non-POSIX).
 		if err := os.Chmod(s.config.SocketPath, 0o600); err != nil {
 			listener.Close() //nolint:errcheck,gosec // cleanup on chmod failure
 			return fmt.Errorf("set socket permissions: %w", err)

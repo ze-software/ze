@@ -129,6 +129,15 @@ func parsePeerFromTree(addr string, tree map[string]any, localAS, routerID uint3
 	// Parse process bindings.
 	parseProcessBindingsFromTree(tree, ps)
 
+	// Warn if md5-password is configured: accepted by YANG schema but not applied.
+	// TCP MD5 (RFC 2385) requires platform-specific TCP_MD5SIG setsockopt which
+	// is not yet implemented. Without this warning, operators may believe their
+	// BGP sessions are authenticated when they are not.
+	if _, ok := mapString(tree, "md5-password"); ok {
+		reactorLogger().Warn("md5-password configured but not applied: TCP MD5 authentication is not yet implemented",
+			"peer", addr)
+	}
+
 	return ps, nil
 }
 

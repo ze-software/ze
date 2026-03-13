@@ -3,12 +3,28 @@
 package server
 
 import (
+	"fmt"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
+
+// validateCommandName checks that a command name contains only safe characters.
+// Prevents command shadowing via prefix matching with special characters.
+func validateCommandName(name string) error {
+	if name == "" {
+		return fmt.Errorf("command name cannot be empty")
+	}
+	for _, r := range name {
+		if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != ' ' && r != '-' {
+			return fmt.Errorf("command name %q contains invalid character %q (only letters, digits, spaces, hyphens allowed)", name, r)
+		}
+	}
+	return nil
+}
 
 // Default timeouts for plugin commands.
 const (
@@ -88,6 +104,13 @@ func (r *CommandRegistry) Register(proc *process.Process, defs []CommandDef) []R
 	for i, def := range defs {
 		key := strings.ToLower(def.Name)
 		results[i].Name = def.Name
+
+		// Validate command name format
+		if err := validateCommandName(def.Name); err != nil {
+			results[i].OK = false
+			results[i].Error = err.Error()
+			continue
+		}
 
 		// Check builtin conflict
 		if r.builtins[key] {

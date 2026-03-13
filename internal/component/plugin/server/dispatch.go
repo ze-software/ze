@@ -177,9 +177,13 @@ func (s *Server) handleDispatchCommandRPC(proc *process.Process, connA *plugipc.
 		return
 	}
 
+	// Set plugin name as username so authorization rules apply to plugin-dispatched
+	// commands. Without this, the empty username causes authz to return Allow for all
+	// commands, bypassing any configured authorization profiles.
 	cmdCtx := &CommandContext{
-		Server:  s,
-		Process: proc,
+		Server:   s,
+		Process:  proc,
+		Username: "plugin:" + proc.Name(),
 	}
 
 	resp, err := s.dispatcher.Dispatch(cmdCtx, input.Command)
@@ -413,9 +417,11 @@ func (s *Server) handleDispatchCommandDirect(proc *process.Process, params json.
 		return directErrorResponse("invalid dispatch-command params: " + err.Error())
 	}
 
+	// Set plugin name as username so authorization rules apply (see handleDispatchCommandRPC).
 	cmdCtx := &CommandContext{
-		Server:  s,
-		Process: proc,
+		Server:   s,
+		Process:  proc,
+		Username: "plugin:" + proc.Name(),
 	}
 
 	resp, err := s.dispatcher.Dispatch(cmdCtx, input.Command)

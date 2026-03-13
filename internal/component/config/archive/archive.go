@@ -139,6 +139,13 @@ func ToFile(content []byte, destDir, filename string) error {
 
 	destPath := filepath.Join(destDir, filename)
 
+	// Path traversal check: reject filenames that escape the destination directory.
+	// Config tokens like {host} could contain path separators (e.g., "../../etc/cron.d/evil").
+	cleanDir := filepath.Clean(destDir) + string(filepath.Separator)
+	if !strings.HasPrefix(filepath.Clean(destPath)+string(filepath.Separator), cleanDir) {
+		return fmt.Errorf("archive filename %q escapes destination directory %s", filename, destDir)
+	}
+
 	if err := os.WriteFile(destPath, content, 0o600); err != nil {
 		return fmt.Errorf("archive to file %s: %w", destPath, err)
 	}

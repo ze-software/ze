@@ -88,10 +88,10 @@ func ExtractTelemetryConfig(tree map[string]any) (address string, port int, path
 		return "", 0, "", false
 	}
 
-	// Extract address (default: 0.0.0.0)
+	// Extract address (default: 127.0.0.1 -- localhost only to avoid exposing metrics to network)
 	address, _ = prom["address"].(string)
 	if address == "" {
-		address = "0.0.0.0"
+		address = "127.0.0.1"
 	}
 
 	// Extract port (default: 9273, valid range: 1-65535)

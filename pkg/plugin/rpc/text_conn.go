@@ -76,10 +76,15 @@ type TextConn struct {
 // NewTextConn creates a TextConn that reads from readConn and writes to writeConn.
 // For single-socket use, pass the same conn for both arguments.
 func NewTextConn(readConn, writeConn net.Conn) *TextConn {
+	s := bufio.NewScanner(readConn)
+	// Set explicit buffer limit consistent with MaxMessageSize (16 MB).
+	// Without this, a text-mode plugin could send arbitrarily large lines
+	// causing memory exhaustion (default bufio.Scanner limit is 64KB).
+	s.Buffer(make([]byte, 4096), MaxMessageSize+1)
 	return &TextConn{
 		readConn:  readConn,
 		writeConn: writeConn,
-		scanner:   bufio.NewScanner(readConn),
+		scanner:   s,
 	}
 }
 

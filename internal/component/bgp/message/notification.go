@@ -202,10 +202,16 @@ func UnpackNotification(data []byte) (*Notification, error) {
 	if len(data) < 2 {
 		return nil, ErrShortRead
 	}
+	// Defensive copy: data may be a pooled read buffer that gets reused.
+	// Without this copy, Notification.Data would alias the caller's buffer,
+	// causing stale reads if the notification is logged asynchronously.
+	dataCopy := make([]byte, len(data)-2)
+	copy(dataCopy, data[2:])
+
 	return &Notification{
 		ErrorCode:    NotifyErrorCode(data[0]),
 		ErrorSubcode: data[1],
-		Data:         data[2:],
+		Data:         dataCopy,
 	}, nil
 }
 

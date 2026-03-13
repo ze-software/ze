@@ -41,7 +41,7 @@ func TestNewServerDefaults(t *testing.T) {
 
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
-	assert.Equal(t, "0.0.0.0:2222", srv.Address(), "default listen address")
+	assert.Equal(t, "127.0.0.1:2222", srv.Address(), "default listen address")
 	assert.Equal(t, 8, srv.MaxSessions(), "default max sessions")
 }
 

@@ -285,6 +285,10 @@ func (s *BlobStore) Export(w io.Writer) error {
 	return err
 }
 
+// maxImportSize is the maximum allowed import size (256 MB).
+// Prevents memory exhaustion from untrusted or corrupted input.
+const maxImportSize = 256 * 1024 * 1024
+
 // Import replaces the store contents from r.
 // The input is validated into temporary structures before committing,
 // so the store is unchanged if the input is malformed.
@@ -293,9 +297,12 @@ func (s *BlobStore) Import(r io.Reader) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	data, err := io.ReadAll(r)
+	data, err := io.ReadAll(io.LimitReader(r, maxImportSize+1))
 	if err != nil {
 		return fmt.Errorf("zefs: import: %w", err)
+	}
+	if len(data) > maxImportSize {
+		return fmt.Errorf("zefs: import exceeds maximum size %d bytes", maxImportSize)
 	}
 
 	// Decode into temporary structures to validate before committing.

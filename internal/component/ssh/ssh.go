@@ -30,7 +30,7 @@ var _ ze.Subsystem = (*Server)(nil)
 
 // Default configuration values.
 const (
-	defaultListen      = "0.0.0.0:2222"
+	defaultListen      = "127.0.0.1:2222"
 	defaultMaxSessions = 8
 	defaultIdleTimeout = 600 // seconds
 	defaultHostKeyFile = "ssh_host_ed25519_key"
