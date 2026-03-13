@@ -125,30 +125,35 @@ const validationDebounce = 100 * time.Millisecond
 
 // Command names (used in multiple switch statements).
 const (
-	cmdSet       = "set"
-	cmdShow      = "show"
-	cmdDelete    = "delete"
-	cmdCompare   = "compare"
-	cmdEdit      = "edit"
-	cmdCommit    = "commit"
-	cmdConfirm   = "confirm"
-	cmdConfirmed = "confirmed"
-	cmdAbort     = "abort"
-	cmdDiscard   = "discard"
-	cmdHistory   = "history"
-	cmdRollback  = "rollback"
-	cmdLoad      = "load"
-	cmdSave      = "save"
-	cmdErrors    = "errors"
-	cmdTop       = "top"
-	cmdUp        = "up"
-	cmdExit      = "exit"
-	cmdQuit      = "quit"
-	cmdHelp      = "help"
-	cmdRun       = "run"
-	cmdGrep      = "grep"
-	cmdHead      = "head"
-	cmdTail      = "tail"
+	cmdSet        = "set"
+	cmdShow       = "show"
+	cmdDelete     = "delete"
+	cmdCompare    = "compare"
+	cmdEdit       = "edit"
+	cmdCommit     = "commit"
+	cmdConfirm    = "confirm"
+	cmdConfirmed  = "confirmed"
+	cmdAbort      = "abort"
+	cmdDiscard    = "discard"
+	cmdHistory    = "history"
+	cmdRollback   = "rollback"
+	cmdLoad       = "load"
+	cmdSave       = "save"
+	cmdErrors     = "errors"
+	cmdTop        = "top"
+	cmdUp         = "up"
+	cmdExit       = "exit"
+	cmdQuit       = "quit"
+	cmdHelp       = "help"
+	cmdRun        = "run"
+	cmdGrep       = "grep"
+	cmdWho        = "who"
+	cmdDisconnect = "disconnect"
+	cmdAll        = "all"
+	cmdBlame      = "blame"
+	cmdChanges    = "changes"
+	cmdHead       = "head"
+	cmdTail       = "tail"
 )
 
 // Load command keywords.
@@ -436,6 +441,11 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	switch msg.Type { //nolint:exhaustive // only handle specific keys
 	case tea.KeyCtrlC, tea.KeyEsc:
+		if m.hasEditor() && m.hasPendingChanges() {
+			m.confirmQuit = true
+			m.statusMessage = "Pending changes. Use 'commit', 'discard all', or Esc to force quit."
+			return m, nil
+		}
 		m.confirmQuit = true
 		m.statusMessage = "Quit? (y/Esc to confirm, any other key to cancel)"
 		return m, nil
@@ -679,9 +689,9 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 
 	// Handle exit/quit directly (not via async command dispatch)
 	if input == cmdExit || input == cmdQuit {
-		if m.hasEditor() && m.editor.Dirty() {
+		if m.hasPendingChanges() {
 			m.textInput.SetValue("")
-			m.statusMessage = "Unsaved changes. Use 'commit', 'save', or 'discard' first, or Esc to force quit."
+			m.statusMessage = "Pending changes. Use 'commit', 'discard all', or Esc to force quit."
 			m.confirmQuit = true
 			return m, nil
 		}
@@ -898,6 +908,11 @@ func (m *Model) updateCompletions() {
 		}
 	}
 
+	// Filter session-dependent commands (who, disconnect, blame, changes) when no session is active.
+	if m.editor != nil && !m.editor.HasSession() {
+		m.completions = filterOutSessionCommands(m.completions)
+	}
+
 	// Reset dropdown state when input changes
 	if !m.showDropdown {
 		m.selected = -1
@@ -947,9 +962,22 @@ func (m Model) Dirty() bool {
 	return m.hasEditor() && m.editor.Dirty()
 }
 
+// hasPendingChanges returns true if the editor has pending changes,
+// using session-aware detection when a session is active.
+func (m Model) hasPendingChanges() bool {
+	if !m.hasEditor() {
+		return false
+	}
+	if m.editor.HasSession() {
+		return m.editor.HasPendingSessionChanges()
+	}
+	return m.editor.Dirty()
+}
+
 // autoSaveOnQuit saves a .edit snapshot when force-quitting with unsaved changes.
+// In session mode, write-through already persists to .draft, so no snapshot needed.
 func (m *Model) autoSaveOnQuit() {
-	if m.hasEditor() && m.editor.Dirty() {
+	if m.hasEditor() && !m.editor.HasSession() && m.editor.Dirty() {
 		_ = m.editor.SaveEditState() // Best effort — quitting anyway
 	}
 }

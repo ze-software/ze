@@ -9,6 +9,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 // executeCommand dispatches a command for execution.
@@ -66,6 +68,13 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 		return commandResult{output: m.editor.Diff()}, nil
 
 	case cmdCommit:
+		// Session-aware commit: use CommitSession when a session is active.
+		if m.editor.HasSession() {
+			if len(args) >= 1 && args[0] == cmdConfirmed {
+				return commandResult{}, fmt.Errorf("commit confirmed not yet supported in session mode (use 'commit')")
+			}
+			return m.cmdCommitSession()
+		}
 		// Check for "commit confirmed <N>"
 		if len(args) >= 1 && args[0] == cmdConfirmed {
 			if len(args) < 2 {
@@ -86,6 +95,10 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 		return m.cmdAbort()
 
 	case cmdDiscard:
+		// Session-aware discard: requires path or cmdAll when session is active.
+		if m.editor.HasSession() {
+			return m.cmdDiscardSession(args)
+		}
 		return m.cmdDiscard()
 
 	case cmdHistory:
@@ -109,6 +122,18 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 
 	case cmdErrors:
 		return m.cmdErrors(args)
+
+	case cmdWho:
+		if !m.editor.HasSession() {
+			return commandResult{}, fmt.Errorf("who requires an active editing session")
+		}
+		return m.cmdWho()
+
+	case cmdDisconnect:
+		if !m.editor.HasSession() {
+			return commandResult{}, fmt.Errorf("disconnect requires an active editing session")
+		}
+		return m.cmdDisconnectSession(args)
 	}
 
 	return commandResult{}, fmt.Errorf("unknown command: %s", cmd)
@@ -207,10 +232,28 @@ func (m *Model) showConfigContent() {
 	m.setViewportData(*m.configViewAtPath(m.contextPath))
 }
 
-func (m *Model) cmdShow(_ []string) (commandResult, error) {
+func (m *Model) cmdShow(args []string) (commandResult, error) {
 	if m.editor == nil {
 		return commandResult{}, fmt.Errorf("command %q requires edit mode (no config file loaded)", cmdShow)
 	}
+
+	if len(args) > 0 {
+		// show set works without a session (exportable format, no metadata).
+		if args[0] == cmdSet {
+			return m.cmdShowSet()
+		}
+		// show blame and show changes require an active session.
+		if args[0] == cmdBlame || args[0] == cmdChanges {
+			if !m.editor.HasSession() {
+				return commandResult{}, fmt.Errorf("show %s requires an active editing session", args[0])
+			}
+			if args[0] == cmdBlame {
+				return m.cmdShowBlame()
+			}
+			return m.cmdShowChanges(args[1:])
+		}
+	}
+
 	if m.editor.ContentAtPath(m.contextPath) == "" {
 		return commandResult{output: "(empty configuration)"}, nil
 	}
@@ -469,9 +512,13 @@ func (m *Model) scheduleValidation() tea.Cmd {
 	})
 }
 
-// cmdSave writes the working config to a .edit snapshot without validation.
-// Use this to persist work-in-progress that isn't ready to commit.
+// cmdSave persists work-in-progress. In session mode, write-through already
+// keeps the draft on disk, so this is a no-op confirmation. In non-session mode,
+// it writes a .edit snapshot.
 func (m *Model) cmdSave() (commandResult, error) {
+	if m.editor.HasSession() {
+		return commandResult{statusMessage: "Draft already saved (write-through keeps draft on disk)"}, nil
+	}
 	if err := m.editor.SaveEditState(); err != nil {
 		return commandResult{}, err
 	}
@@ -523,6 +570,219 @@ func (m *Model) cmdCommit() (commandResult, error) {
 	}
 
 	return commandResult{statusMessage: "Configuration committed and reloaded" + archiveMsg, refreshConfig: true, revalidate: true}, nil
+}
+
+// cmdCommitSession commits only the current session's changes with conflict detection.
+// Validates the resulting config before committing (same check as non-session commit).
+func (m *Model) cmdCommitSession() (commandResult, error) {
+	// Validate the current config before attempting commit.
+	// Session mode uses set/delete commands that validate per-field, but
+	// whole-config validation catches semantic issues (mandatory fields, etc.).
+	result := m.validator.Validate(m.editor.WorkingContent())
+	issues := make([]ConfigValidationError, 0, len(result.Errors)+len(result.Warnings))
+	issues = append(issues, result.Errors...)
+	issues = append(issues, result.Warnings...)
+	if len(issues) > 0 {
+		output := "Cannot commit:\n" + formatIssueList(issues) + "\nFix issues and retry."
+		return commandResult{
+			output:        output,
+			statusMessage: fmt.Sprintf("commit blocked: %d issue(s)", len(issues)),
+		}, nil
+	}
+
+	commitResult, err := m.editor.CommitSession()
+	if err != nil {
+		return commandResult{}, err
+	}
+
+	if len(commitResult.Conflicts) > 0 {
+		var b strings.Builder
+		b.WriteString("Commit blocked by conflicts:\n")
+		for _, c := range commitResult.Conflicts {
+			switch c.Type {
+			case ConflictLive:
+				fmt.Fprintf(&b, "  LIVE %s: you=%s, %s=%s\n", c.Path, c.MyValue, c.OtherUser, c.OtherValue)
+			case ConflictStale:
+				fmt.Fprintf(&b, "  STALE %s: you=%s, committed=%s (was %s)\n", c.Path, c.MyValue, c.OtherValue, c.PreviousValue)
+			}
+		}
+		b.WriteString("Re-set conflicting values to resolve.")
+		return commandResult{
+			output:        b.String(),
+			statusMessage: fmt.Sprintf("commit blocked: %d conflict(s)", len(commitResult.Conflicts)),
+		}, nil
+	}
+
+	msg := fmt.Sprintf("Session committed: %d change(s) applied", commitResult.Applied)
+	if commitResult.MigrationWarning != "" {
+		msg += fmt.Sprintf(" (warning: %s)", commitResult.MigrationWarning)
+	}
+
+	// Archive config to remote locations (best-effort, non-fatal).
+	if m.editor.HasArchiveNotifier() {
+		content := []byte(m.editor.OriginalContent())
+		if errs := m.editor.NotifyArchive(content); len(errs) > 0 {
+			msg += fmt.Sprintf(" (archive: %d error(s))", len(errs))
+		}
+	}
+
+	// Notify daemon of config change (best-effort).
+	if m.editor.HasReloadNotifier() {
+		if err := m.editor.NotifyReload(); err != nil {
+			msg += fmt.Sprintf(" (reload failed: %v)", err)
+		} else {
+			msg += " and reloaded"
+		}
+	}
+
+	return commandResult{statusMessage: msg, refreshConfig: true, revalidate: true}, nil
+}
+
+// cmdDiscardSession discards session changes, requiring path or cmdAll.
+func (m *Model) cmdDiscardSession(args []string) (commandResult, error) {
+	if len(args) == 0 {
+		return commandResult{}, fmt.Errorf("discard requires path or 'all' in session mode")
+	}
+
+	var path []string
+	if args[0] != cmdAll {
+		path = args
+	}
+
+	if err := m.editor.DiscardSessionPath(path); err != nil {
+		return commandResult{}, err
+	}
+
+	msg := "Session changes discarded"
+	if len(path) > 0 {
+		msg = fmt.Sprintf("Discarded: %s", strings.Join(path, " "))
+	}
+
+	return commandResult{
+		statusMessage: msg,
+		configView:    m.configViewAtPath(m.contextPath),
+		revalidate:    true,
+	}, nil
+}
+
+// cmdShowBlame displays blame-annotated configuration with per-line authorship.
+func (m *Model) cmdShowBlame() (commandResult, error) {
+	return commandResult{output: m.editor.BlameView()}, nil
+}
+
+// cmdShowChanges displays pending changes for the current session (default) or all sessions.
+func (m *Model) cmdShowChanges(args []string) (commandResult, error) {
+	showAll := len(args) > 0 && args[0] == cmdAll
+
+	if showAll {
+		return m.cmdShowChangesAll()
+	}
+
+	entries := m.editor.SessionChanges(m.editor.SessionID())
+	if len(entries) == 0 {
+		return commandResult{output: "No pending changes."}, nil
+	}
+
+	var b strings.Builder
+	for _, se := range entries {
+		formatChangeEntry(&b, se)
+	}
+	return commandResult{output: b.String()}, nil
+}
+
+// formatChangeEntry writes a single change entry with appropriate marker and command.
+// Handles set (new/modified) and delete entries.
+func formatChangeEntry(b *strings.Builder, se config.SessionEntry) {
+	if se.Entry.Value == "" {
+		// Delete: no value in entry, Previous holds what was deleted.
+		fmt.Fprintf(b, "  - delete %s  (was: %s)\n", se.Path, se.Entry.Previous)
+		return
+	}
+	marker := '+'
+	annotation := "(new)"
+	if se.Entry.Previous != "" {
+		marker = '*'
+		annotation = fmt.Sprintf("(was: %s)", se.Entry.Previous)
+	}
+	fmt.Fprintf(b, "  %c set %s %s  %s\n", marker, se.Path, se.Entry.Value, annotation)
+}
+
+// cmdShowChangesAll displays pending changes grouped by session.
+func (m *Model) cmdShowChangesAll() (commandResult, error) {
+	sessions := m.editor.ActiveSessions()
+	if len(sessions) == 0 {
+		return commandResult{output: "No pending changes."}, nil
+	}
+
+	var b strings.Builder
+	for i, sid := range sessions {
+		entries := m.editor.SessionChanges(sid)
+		if i > 0 {
+			b.WriteString("\n")
+		}
+		fmt.Fprintf(&b, "Session: %s (%d change", sid, len(entries))
+		if len(entries) != 1 {
+			b.WriteString("s")
+		}
+		b.WriteString(")\n")
+		for _, se := range entries {
+			formatChangeEntry(&b, se)
+		}
+	}
+	return commandResult{output: b.String()}, nil
+}
+
+// cmdShowSet displays the flat set-format configuration without metadata (exportable).
+func (m *Model) cmdShowSet() (commandResult, error) {
+	return commandResult{output: m.editor.SetView()}, nil
+}
+
+// cmdWho lists active sessions with pending changes and change counts.
+func (m *Model) cmdWho() (commandResult, error) {
+	sessions := m.editor.ActiveSessions()
+	if len(sessions) == 0 {
+		return commandResult{output: "No active sessions."}, nil
+	}
+
+	var b strings.Builder
+	b.WriteString("Active editing sessions:\n")
+	myID := m.editor.SessionID()
+	for _, sid := range sessions {
+		marker := "  "
+		if sid == myID {
+			marker = "* "
+		}
+		entries := m.editor.SessionChanges(sid)
+		changeWord := "changes"
+		if len(entries) == 1 {
+			changeWord = "change"
+		}
+		fmt.Fprintf(&b, "%s%s - %d pending %s\n", marker, sid, len(entries), changeWord)
+	}
+	return commandResult{output: b.String()}, nil
+}
+
+// cmdDisconnectSession removes another session's pending changes from the draft.
+// Unrestricted for this spec -- any session can disconnect any other session.
+// RBAC gating deferred to a future spec when ze gains a role/permission system.
+func (m *Model) cmdDisconnectSession(args []string) (commandResult, error) {
+	if len(args) == 0 {
+		return commandResult{}, fmt.Errorf("usage: disconnect <session-id>")
+	}
+	targetSession := args[0]
+	if targetSession == m.editor.SessionID() {
+		return commandResult{}, fmt.Errorf("cannot disconnect own session (use 'discard %s' instead)", cmdAll)
+	}
+
+	if err := m.editor.DisconnectSession(targetSession); err != nil {
+		return commandResult{}, err
+	}
+
+	return commandResult{
+		statusMessage: fmt.Sprintf("Disconnected session: %s", targetSession),
+		configView:    m.configViewAtPath(m.contextPath),
+		revalidate:    true,
+	}, nil
 }
 
 // cmdDiscard reverts all changes.
@@ -593,4 +853,17 @@ func formatIssueList(issues []ConfigValidationError) string {
 		}
 	}
 	return b.String()
+}
+
+// filterOutSessionCommands removes session-dependent commands and show subcommands
+// (who, disconnect, blame, changes) from completions when no editing session is active.
+func filterOutSessionCommands(completions []Completion) []Completion {
+	result := make([]Completion, 0, len(completions))
+	for _, c := range completions {
+		if c.Text == cmdBlame || c.Text == cmdChanges || c.Text == cmdWho || c.Text == cmdDisconnect {
+			continue
+		}
+		result = append(result, c)
+	}
+	return result
 }

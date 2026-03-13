@@ -99,6 +99,7 @@ var editModeCommands = map[string]bool{
 	cmdCommit: true, cmdSave: true, cmdDiscard: true, cmdCompare: true,
 	cmdRollback: true, cmdHistory: true, cmdLoad: true,
 	cmdErrors: true, cmdTop: true, cmdUp: true,
+	cmdWho: true, cmdDisconnect: true,
 }
 
 // isEditCommand returns true if the input starts with a config editing command.

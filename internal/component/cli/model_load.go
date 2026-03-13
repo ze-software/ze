@@ -51,10 +51,28 @@ func (m *Model) cmdCommitConfirmed(seconds int) (commandResult, error) {
 		return commandResult{}, err
 	}
 
-	// Save to .conf (creates backup of original, overwrites .conf)
-	if err := m.editor.Save(); err != nil {
-		m.editor.DeleteLive() // Clean up .live.conf on failure
-		return commandResult{}, err
+	// Save to .conf: use CommitSession() in session mode (writes set+meta format),
+	// fall back to Save() for non-session mode (raw text / hierarchical).
+	if m.editor.HasSession() {
+		commitResult, err := m.editor.CommitSession()
+		if err != nil {
+			m.editor.DeleteLive()
+			return commandResult{}, err
+		}
+		if len(commitResult.Conflicts) > 0 {
+			m.editor.DeleteLive()
+			var b strings.Builder
+			b.WriteString("Commit blocked by conflicts:\n")
+			for _, c := range commitResult.Conflicts {
+				fmt.Fprintf(&b, "  %s: %s\n", c.Path, c.MyValue)
+			}
+			return commandResult{output: b.String()}, nil
+		}
+	} else {
+		if err := m.editor.Save(); err != nil {
+			m.editor.DeleteLive()
+			return commandResult{}, err
+		}
 	}
 
 	// Notify daemon immediately so it runs the new config during the confirm window

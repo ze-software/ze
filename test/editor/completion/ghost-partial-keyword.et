@@ -11,6 +11,7 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Type partial command - "disc" uniquely matches "discard"
-input=type:text=disc
-expect=ghost:text=ard
+# Type partial command - "disca" uniquely matches "discard"
+# (note: "disc" matches both "discard" and "disconnect")
+input=type:text=disca
+expect=ghost:text=rd

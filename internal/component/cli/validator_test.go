@@ -687,3 +687,46 @@ func TestValidateASNBoundary(t *testing.T) {
 		})
 	}
 }
+
+// TestValidateSetFormat verifies that Validate handles set-format content.
+//
+// VALIDATES: Validate detects set/set-meta format and uses SetParser.
+// PREVENTS: Session-mode commits failing because validator only uses hierarchical parser.
+func TestValidateSetFormat(t *testing.T) {
+	v, err := NewConfigValidator()
+	require.NoError(t, err)
+
+	tests := []struct {
+		name    string
+		content string
+		wantErr bool
+	}{
+		{
+			name:    "set_format_valid",
+			content: "set bgp router-id 1.2.3.4\nset bgp local-as 65000\nset bgp peer 192.0.2.1 peer-as 65001\nset bgp peer 192.0.2.1 local-address auto\n",
+			wantErr: false,
+		},
+		{
+			name:    "set_meta_format_valid",
+			content: "#user@local @2025-01-01T00:00:00Z set bgp router-id 1.2.3.4\n#user@local @2025-01-01T00:00:00Z set bgp local-as 65000\n#user@local @2025-01-01T00:00:00Z set bgp peer 192.0.2.1 peer-as 65001\n#user@local @2025-01-01T00:00:00Z set bgp peer 192.0.2.1 local-address auto\n",
+			wantErr: false,
+		},
+		{
+			name:    "set_format_invalid_field",
+			content: "set bgp unknown-field 123\n",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := v.Validate(tt.content)
+			if tt.wantErr {
+				assert.NotEmpty(t, result.Errors, "expected validation errors")
+			} else {
+				assert.Empty(t, result.Errors, "expected no errors for valid set-format content")
+				assert.Empty(t, result.Warnings, "expected no warnings for valid set-format content")
+			}
+		})
+	}
+}

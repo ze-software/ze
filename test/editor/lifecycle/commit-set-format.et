@@ -1,0 +1,36 @@
+# Test: Show set displays flat set-format commands after commit
+# VALIDATES: show set produces set-format output from hierarchical config
+# PREVENTS: Set-format serialization broken or unreachable from editor
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+  peer 1.1.1.1 {
+    peer-as 65001;
+    local-address auto;
+    hold-time 90;
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Make a change and commit
+input=type:text=set bgp router-id 5.6.7.8
+input=enter
+expect=dirty:true
+
+input=type:text=commit
+input=enter
+expect=status:contains=committed
+expect=dirty:false
+
+# show set should display flat set commands
+input=type:text=show set
+input=enter
+expect=viewport:contains=set bgp router-id
+expect=viewport:contains=set bgp local-as
+expect=viewport:contains=set bgp peer 1.1.1.1 peer-as
+expect=error:none

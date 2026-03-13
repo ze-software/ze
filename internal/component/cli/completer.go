@@ -69,6 +69,8 @@ var commands = []Completion{
 	{Text: cmdExit, Description: "Exit editor", Type: "command"},
 	{Text: cmdHelp, Description: "Show help", Type: "command"},
 	{Text: cmdRun, Description: "Run operational command", Type: "command"},
+	{Text: cmdWho, Description: "List active editing sessions", Type: "command"},
+	{Text: cmdDisconnect, Description: "Remove another session", Type: "command"},
 }
 
 // Complete returns completions for the given input at cursor position.
@@ -115,7 +117,9 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 		return c.completeEditPath(tokens[1:], contextPath, endsWithSpace)
 	case cmdShow:
 		return c.completeShowPath(tokens[1:], contextPath, endsWithSpace)
-	default:
+	case cmdDiscard:
+		return c.completeDiscardPath(tokens[1:], contextPath, endsWithSpace)
+	default: // No subcommand completions for other commands
 		return nil
 	}
 }
@@ -265,6 +269,14 @@ func (c *Completer) completeEditPath(tokens, contextPath []string, endsWithSpace
 	return nil
 }
 
+// showSubcommands are completions offered when typing "show ".
+// Session-dependent filtering (blame, changes) is done by the Model.
+var showSubcommands = []Completion{
+	{Text: cmdSet, Description: "Flat set commands (exportable)", Type: "keyword"},
+	{Text: cmdBlame, Description: "Annotated tree view with authorship", Type: "keyword"},
+	{Text: cmdChanges, Description: "Pending changes (mine or all)", Type: "keyword"},
+}
+
 // completeShowPath completes paths for show command.
 func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace bool) []Completion {
 	if len(tokens) == 0 || (len(tokens) == 1 && !endsWithSpace) {
@@ -272,7 +284,15 @@ func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace
 		if len(tokens) == 1 {
 			prefix = tokens[0]
 		}
-		return c.matchEditTargets(contextPath, prefix)
+		// Offer subcommands alongside path completions.
+		results := filterCompletions(showSubcommands, prefix)
+		results = append(results, c.matchEditTargets(contextPath, prefix)...)
+		return results
+	}
+
+	// "show changes " -> offer "all" subcommand.
+	if len(tokens) == 1 && tokens[0] == cmdChanges && endsWithSpace {
+		return []Completion{{Text: cmdAll, Description: "All sessions' pending changes", Type: "keyword"}}
 	}
 
 	if len(tokens) == 1 && endsWithSpace {
@@ -283,6 +303,23 @@ func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace
 	}
 
 	return nil
+}
+
+// completeDiscardPath completes paths for the discard command.
+// Offers "all" alongside YANG path completions in session mode.
+func (c *Completer) completeDiscardPath(tokens, contextPath []string, endsWithSpace bool) []Completion {
+	if len(tokens) == 0 || (len(tokens) == 1 && !endsWithSpace) {
+		prefix := ""
+		if len(tokens) == 1 {
+			prefix = tokens[0]
+		}
+		results := filterCompletions([]Completion{
+			{Text: cmdAll, Description: "Discard all pending changes", Type: "keyword"},
+		}, prefix)
+		results = append(results, c.completeSetPath(tokens, contextPath, endsWithSpace)...)
+		return results
+	}
+	return c.completeSetPath(tokens, contextPath, endsWithSpace)
 }
 
 // listKeyCompletions returns completions for list keys.

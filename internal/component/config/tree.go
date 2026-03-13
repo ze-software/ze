@@ -1,6 +1,7 @@
 // Design: docs/architecture/config/syntax.md — Tree data structure
 // Related: parser.go — config parser core
 // Related: serialize.go — Tree serialization to config text
+// Related: meta.go — MetaTree mirrors Tree navigation for metadata
 
 package config
 

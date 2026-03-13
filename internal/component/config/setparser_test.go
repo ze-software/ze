@@ -2,6 +2,7 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -338,4 +339,337 @@ delete neighbor 192.0.2.1 peer-as
 
 	_, ok = n.Get("peer-as")
 	require.False(t, ok, "peer-as should be deleted")
+}
+
+// TestParseSetWithMetaSimple verifies metadata prefix parsing for top-level leaves.
+//
+// VALIDATES: User, time, and session metadata are extracted from line prefixes.
+//
+// PREVENTS: Lost metadata when parsing draft files.
+func TestParseSetWithMetaSimple(t *testing.T) {
+	input := "#thomas@local @2026-03-12T14:30:01Z %thomas@local:1741783801 set router-id 1.2.3.4\n" +
+		"#alice@ssh @2026-03-12T14:31:00Z %alice@ssh:1741783860 set local-as 65000\n"
+
+	p := NewSetParser(testSchema())
+	tree, meta, err := p.ParseWithMeta(input)
+
+	require.NoError(t, err)
+
+	// Tree values correct
+	val, ok := tree.Get("router-id")
+	require.True(t, ok)
+	assert.Equal(t, "1.2.3.4", val)
+
+	val, ok = tree.Get("local-as")
+	require.True(t, ok)
+	assert.Equal(t, "65000", val)
+
+	// Metadata correct
+	e, ok := meta.GetEntry("router-id")
+	require.True(t, ok)
+	assert.Equal(t, "thomas@local", e.User)
+	assert.Equal(t, "thomas@local:1741783801", e.Session)
+	assert.Equal(t, 2026, e.Time.Year())
+	assert.Equal(t, time.Month(3), e.Time.Month())
+
+	e, ok = meta.GetEntry("local-as")
+	require.True(t, ok)
+	assert.Equal(t, "alice@ssh", e.User)
+	assert.Equal(t, "alice@ssh:1741783860", e.Session)
+}
+
+// TestParseSetWithMetaNested verifies metadata for nested paths.
+//
+// VALIDATES: Metadata is stored at the correct MetaTree depth.
+//
+// PREVENTS: Metadata misplaced in tree hierarchy.
+func TestParseSetWithMetaNested(t *testing.T) {
+	input := "#thomas@local @2026-03-12T14:30:01Z set neighbor 192.0.2.1 local-as 65000\n"
+
+	p := NewSetParser(testSchema())
+	_, meta, err := p.ParseWithMeta(input)
+
+	require.NoError(t, err)
+
+	// Navigate MetaTree: neighbor -> 192.0.2.1 -> local-as
+	neighborMeta := meta.containers["neighbor"]
+	require.NotNil(t, neighborMeta)
+	entryMeta := neighborMeta.lists["192.0.2.1"]
+	require.NotNil(t, entryMeta)
+	e, ok := entryMeta.GetEntry("local-as")
+	require.True(t, ok)
+	assert.Equal(t, "thomas@local", e.User)
+}
+
+// TestParseSetWithMetaMixed verifies lines with and without metadata.
+//
+// VALIDATES: Lines without metadata produce no MetaEntry.
+//
+// PREVENTS: Spurious metadata for hand-written config lines.
+func TestParseSetWithMetaMixed(t *testing.T) {
+	input := "#thomas@local @2026-03-12T14:30:01Z set router-id 1.2.3.4\n" +
+		"set local-as 65000\n"
+
+	p := NewSetParser(testSchema())
+	tree, meta, err := p.ParseWithMeta(input)
+
+	require.NoError(t, err)
+
+	// Both values present in tree
+	val, _ := tree.Get("router-id")
+	assert.Equal(t, "1.2.3.4", val)
+	val, _ = tree.Get("local-as")
+	assert.Equal(t, "65000", val)
+
+	// Only router-id has metadata
+	_, ok := meta.GetEntry("router-id")
+	assert.True(t, ok)
+	_, ok = meta.GetEntry("local-as")
+	assert.False(t, ok)
+}
+
+// TestParseSetWithMetaComments verifies comment handling in metadata format.
+//
+// VALIDATES: "# text" comments are skipped, "#user" metadata is parsed.
+//
+// PREVENTS: Comments confused with user metadata.
+func TestParseSetWithMetaComments(t *testing.T) {
+	input := "# This is a comment\n" +
+		"#thomas@local set router-id 1.2.3.4\n" +
+		"# Another comment\n"
+
+	p := NewSetParser(testSchema())
+	tree, meta, err := p.ParseWithMeta(input)
+
+	require.NoError(t, err)
+
+	val, ok := tree.Get("router-id")
+	require.True(t, ok)
+	assert.Equal(t, "1.2.3.4", val)
+
+	e, ok := meta.GetEntry("router-id")
+	require.True(t, ok)
+	assert.Equal(t, "thomas@local", e.User)
+}
+
+// TestParseSetWithMetaRoundTrip verifies parse -> serialize -> parse with metadata.
+//
+// VALIDATES: Metadata survives serialization round-trip.
+//
+// PREVENTS: Metadata loss through serialization.
+func TestParseSetWithMetaRoundTrip(t *testing.T) {
+	input := "#thomas@local @2026-03-12T14:30:01Z %thomas@local:1741783801 set router-id 1.2.3.4\n" +
+		"#alice@ssh @2026-03-12T14:31:00Z %alice@ssh:1741783860 set local-as 65000\n"
+
+	schema := testSchema()
+	p := NewSetParser(schema)
+
+	// Parse
+	tree1, meta1, err := p.ParseWithMeta(input)
+	require.NoError(t, err)
+
+	// Serialize with metadata
+	output := SerializeSetWithMeta(tree1, meta1, schema)
+
+	// Re-parse
+	tree2, meta2, err := p.ParseWithMeta(output)
+	require.NoError(t, err)
+
+	// Compare trees
+	output2 := SerializeSetWithMeta(tree2, meta2, schema)
+	assert.Equal(t, output, output2, "round-trip should produce identical output")
+
+	// Verify metadata survived
+	e, ok := meta2.GetEntry("router-id")
+	require.True(t, ok)
+	assert.Equal(t, "thomas@local", e.User)
+	assert.Equal(t, "thomas@local:1741783801", e.Session)
+}
+
+// TestParseSetWithMetaDelete verifies metadata parsing for delete commands.
+//
+// VALIDATES: Delete with metadata records entry with empty Value.
+//
+// PREVENTS: Lost session metadata for delete operations.
+func TestParseSetWithMetaDelete(t *testing.T) {
+	input := "#bob @2026-03-12T15:00:00Z %bob:200 set router-id 1.2.3.4\n" +
+		"#alice @2026-03-12T16:00:00Z %alice:100 delete router-id\n"
+
+	p := NewSetParser(testSchema())
+	tree, meta, err := p.ParseWithMeta(input)
+	require.NoError(t, err)
+
+	// Delete should have removed the tree value
+	_, ok := tree.Get("router-id")
+	assert.False(t, ok, "router-id should be deleted from tree")
+
+	// But metadata should survive for both entries
+	all := meta.GetAllEntries("router-id")
+	require.Len(t, all, 2, "both set and delete metadata should be preserved")
+
+	// Bob's set entry
+	assert.Equal(t, "bob", all[0].User)
+	assert.Equal(t, "bob:200", all[0].Session)
+
+	// Alice's delete entry (Value should be empty since it's a delete)
+	assert.Equal(t, "alice", all[1].User)
+	assert.Equal(t, "alice:100", all[1].Session)
+}
+
+// TestParseSetWithMetaValueField verifies that Entry.Value is populated
+// from the set command value during metadata parsing.
+//
+// VALIDATES: MetaEntry.Value records the value from the set command.
+//
+// PREVENTS: Empty Value field preventing contested leaf serialization.
+func TestParseSetWithMetaValueField(t *testing.T) {
+	input := "#alice %alice:100 set router-id 10.0.0.1\n" +
+		"#bob %bob:200 set router-id 1.2.3.4\n"
+
+	p := NewSetParser(testSchema())
+	_, meta, err := p.ParseWithMeta(input)
+	require.NoError(t, err)
+
+	all := meta.GetAllEntries("router-id")
+	require.Len(t, all, 2)
+
+	assert.Equal(t, "10.0.0.1", all[0].Value, "alice's Value should be recorded")
+	assert.Equal(t, "1.2.3.4", all[1].Value, "bob's Value should be recorded")
+}
+
+// TestParseSetWithMetaDeleteNested verifies delete metadata at nested paths.
+//
+// VALIDATES: Delete metadata navigates to correct MetaTree depth.
+//
+// PREVENTS: Delete metadata stored at wrong MetaTree level.
+func TestParseSetWithMetaDeleteNested(t *testing.T) {
+	input := "#alice %alice:100 set neighbor 192.0.2.1 peer-as 65001\n" +
+		"#bob %bob:200 delete neighbor 192.0.2.1 peer-as\n"
+
+	p := NewSetParser(testSchema())
+	_, meta, err := p.ParseWithMeta(input)
+	require.NoError(t, err)
+
+	// Navigate to the leaf's MetaTree
+	neighborMeta := meta.GetContainer("neighbor")
+	require.NotNil(t, neighborMeta)
+	peerMeta := neighborMeta.GetListEntry("192.0.2.1")
+	require.NotNil(t, peerMeta)
+
+	all := peerMeta.GetAllEntries("peer-as")
+	require.Len(t, all, 2)
+	assert.Equal(t, "alice:100", all[0].Session)
+	assert.Equal(t, "bob:200", all[1].Session)
+}
+
+// TestParseSetWithMetaPartialFields verifies metadata with only some fields present.
+//
+// VALIDATES: Metadata parsing handles partial prefixes (e.g., only session, no user/time).
+//
+// PREVENTS: Parse failure when not all metadata fields are present.
+func TestParseSetWithMetaPartialFields(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		user    string
+		session string
+		hasTime bool
+	}{
+		{
+			name:    "only user",
+			input:   "#alice set router-id 1.2.3.4\n",
+			user:    "alice",
+			session: "",
+			hasTime: false,
+		},
+		{
+			name:    "only session",
+			input:   "%alice:100 set router-id 1.2.3.4\n",
+			user:    "",
+			session: "alice:100",
+			hasTime: false,
+		},
+		{
+			name:    "user and time only",
+			input:   "#alice @2026-03-12T10:00:00Z set router-id 1.2.3.4\n",
+			user:    "alice",
+			session: "",
+			hasTime: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewSetParser(testSchema())
+			tree, meta, err := p.ParseWithMeta(tt.input)
+			require.NoError(t, err)
+
+			val, ok := tree.Get("router-id")
+			require.True(t, ok)
+			assert.Equal(t, "1.2.3.4", val)
+
+			e, ok := meta.GetEntry("router-id")
+			require.True(t, ok)
+			assert.Equal(t, tt.user, e.User)
+			assert.Equal(t, tt.session, e.Session)
+			if tt.hasTime {
+				assert.False(t, e.Time.IsZero())
+			} else {
+				assert.True(t, e.Time.IsZero())
+			}
+		})
+	}
+}
+
+// TestPreviousQuoteEscapeRoundTrip verifies Previous values with embedded double quotes
+// survive serialization and parsing.
+//
+// VALIDATES: Backslash-escaped quotes in ^"..." round-trip correctly.
+// PREVENTS: Truncated Previous values when they contain double quotes.
+func TestPreviousQuoteEscapeRoundTrip(t *testing.T) {
+	schema := testSchema()
+
+	tests := []struct {
+		name     string
+		previous string
+	}{
+		{name: "simple", previous: "65000"},
+		{name: "spaces", previous: "My BGP Peer"},
+		{name: "embedded quotes", previous: `My "special" peer`},
+		{name: "trailing quote", previous: `value"`},
+		{name: "only quotes", previous: `""`},
+		{name: "backslash", previous: `path\to\file`},
+		{name: "backslash before quote", previous: `value\"`},
+		{name: "trailing backslash with space", previous: `back slash\`},
+		{name: "backslash and quotes", previous: `a\"b`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := NewTree()
+			tree.Set("router-id", "1.2.3.4")
+
+			meta := NewMetaTree()
+			meta.SetEntry("router-id", MetaEntry{
+				User:     "thomas@local",
+				Time:     time.Date(2026, 3, 12, 14, 30, 1, 0, time.UTC),
+				Session:  "thomas@local:1741783801",
+				Previous: tt.previous,
+				Value:    "1.2.3.4",
+			})
+
+			// Serialize
+			output := SerializeSetWithMeta(tree, meta, schema)
+
+			// Parse back
+			p := NewSetParser(schema)
+			_, meta2, err := p.ParseWithMeta(output)
+			require.NoError(t, err)
+
+			e, ok := meta2.GetEntry("router-id")
+			require.True(t, ok)
+			assert.Equal(t, tt.previous, e.Previous,
+				"Previous value should survive round-trip")
+		})
+	}
 }

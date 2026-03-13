@@ -452,7 +452,7 @@ func TestExitBlockedByDirty(t *testing.T) {
 
 	// Should NOT be quitting — dirty state blocks it
 	assert.False(t, m.quitting, "exit should not quit with unsaved changes")
-	assert.Contains(t, m.StatusMessage(), "Unsaved", "should show unsaved changes warning")
+	assert.Contains(t, m.StatusMessage(), "Pending changes", "should show pending changes warning")
 }
 
 // TestCommandHistoryRecall verifies Up/Down arrows recall previously executed commands.

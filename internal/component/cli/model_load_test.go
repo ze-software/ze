@@ -1010,3 +1010,48 @@ func TestAbortTriggersReload(t *testing.T) {
 	assert.False(t, model.ConfirmTimerActive(), "timer should be canceled")
 	assert.Contains(t, abortResult.statusMessage, "rolled back", "status should mention rollback")
 }
+
+// TestCommitConfirmedSessionRouting verifies commit confirmed routes through
+// CommitSession when a session is active.
+//
+// VALIDATES: cmdCommitConfirmed uses CommitSession() in session mode.
+// PREVENTS: Session commit bypassing CommitSession, writing hierarchical format.
+func TestCommitConfirmedSessionRouting(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// Set up session.
+	session := NewEditSession("testuser", "local")
+	ed.SetSession(session)
+
+	// Make a change (creates draft + meta via write-through).
+	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err)
+
+	// Commit confirmed should succeed using CommitSession path.
+	result, err := model.cmdCommitConfirmed(60)
+	require.NoError(t, err)
+
+	assert.Contains(t, result.statusMessage, "Confirm within",
+		"should show confirm message")
+	assert.True(t, result.setConfirmTimer, "should set confirm timer")
+
+	// Verify file was written in set format (CommitSession writes set+meta).
+	data, readErr := os.ReadFile(configPath)
+	require.NoError(t, readErr)
+	configContent := string(data)
+	assert.Contains(t, configContent, "set bgp router-id",
+		"config should be in set format from CommitSession")
+	assert.NotContains(t, configContent, "{",
+		"config should not contain hierarchical braces")
+}

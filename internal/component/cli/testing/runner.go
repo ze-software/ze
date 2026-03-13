@@ -177,10 +177,32 @@ func runTestCase(tc *TestCase) *TestResult {
 			}
 
 		case StepExpect:
+			// Drain any command results that completed after their
+			// processCmd timeout (common under concurrent test load
+			// where file I/O exceeds the 15ms window).
+			hm.Settle()
 			exp := tc.Expects[step.ExpectIndex]
 			if err := CheckExpectation(exp, hm); err != nil {
-				result.Error = fmt.Sprintf("step %d (expect %s): %v", stepIdx+1, exp.Type, err)
-				return result
+				// Command may still be in-flight under heavy load.
+				// Retry with backoff before declaring failure.
+				settled := false
+				for _, wait := range []time.Duration{
+					5 * time.Millisecond,
+					10 * time.Millisecond,
+					25 * time.Millisecond,
+					50 * time.Millisecond,
+				} {
+					time.Sleep(wait)
+					hm.Settle()
+					if CheckExpectation(exp, hm) == nil {
+						settled = true
+						break
+					}
+				}
+				if !settled {
+					result.Error = fmt.Sprintf("step %d (expect %s): %v", stepIdx+1, exp.Type, err)
+					return result
+				}
 			}
 
 		case StepWait:

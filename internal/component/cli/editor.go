@@ -1,4 +1,7 @@
 // Design: docs/architecture/config/yang-config-design.md — config editor
+// Detail: editor_draft.go — write-through draft protocol
+// Detail: editor_lock.go — file locking (used during write-through)
+// Detail: editor_session.go — session identity for concurrent editing
 //
 // Package editor provides an interactive configuration editor.
 package cli
@@ -36,6 +39,8 @@ type Editor struct {
 	treeValid       bool           // True when tree was parsed successfully
 	dirty           atomic.Bool
 	hasPendingEdit  bool             // true if .edit file exists
+	session         *EditSession     // Optional: concurrent editing session
+	meta            *config.MetaTree // Optional: metadata tree for write-through
 	onReload        ReloadNotifier   // Optional: called after successful save
 	onArchive       archive.Notifier // Optional: called after successful save to archive config
 }
@@ -289,9 +294,14 @@ func (e *Editor) OriginalContent() string {
 }
 
 // WorkingContent returns the current working content.
-// When tree is valid, returns Serialize(tree, schema); otherwise raw text.
+// When a session is active with metadata, returns set+meta format (matching
+// what CommitSession writes). Otherwise returns hierarchical format.
+// Falls back to raw text if tree is not valid.
 func (e *Editor) WorkingContent() string {
 	if e.treeValid && e.tree != nil && e.schema != nil {
+		if e.session != nil && e.meta != nil {
+			return config.SerializeSetWithMeta(e.tree, e.meta, e.schema)
+		}
 		return config.Serialize(e.tree, e.schema)
 	}
 	return e.workingContent
@@ -553,6 +563,9 @@ func resolveListKey(tree *config.Tree, listName, key string) *config.Tree {
 }
 
 // walkOrCreate navigates the tree, creating containers along the way.
+// Supports anonymous list entries (KeyDefault) for interactive editing.
+// See walkOrCreateIn in editor_draft.go for the write-through variant
+// that requires explicit list keys (used with full set-command paths).
 func (e *Editor) walkOrCreate(path []string) (*config.Tree, error) {
 	if e.tree == nil || e.schema == nil {
 		return nil, fmt.Errorf("tree or schema not available")
@@ -603,9 +616,29 @@ func (e *Editor) walkOrCreate(path []string) (*config.Tree, error) {
 			currentTree = currentTree.GetOrCreateContainer(name)
 			currentSchema = n
 			i++
+		case *config.InlineListNode:
+			// Inline lists use the same key navigation as regular lists.
+			var key string
+			var step int
+			if i+1 >= len(path) || n.Get(path[i+1]) != nil {
+				key = config.KeyDefault
+				step = 1
+			} else {
+				key = path[i+1]
+				step = 2
+			}
+			entries := currentTree.GetList(name)
+			if entries == nil || entries[key] == nil {
+				entry := config.NewTree()
+				currentTree.AddListEntry(name, key, entry)
+				currentTree = entry
+			} else {
+				currentTree = entries[key]
+			}
+			currentSchema = n
+			i += step
 		case *config.LeafNode, *config.FreeformNode,
-			*config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode,
-			*config.InlineListNode:
+			*config.MultiLeafNode, *config.BracketLeafListNode, *config.ValueOrArrayNode:
 			return nil, fmt.Errorf("cannot navigate into %s (leaf node)", name)
 		}
 	}
@@ -613,8 +646,83 @@ func (e *Editor) walkOrCreate(path []string) (*config.Tree, error) {
 	return currentTree, nil
 }
 
+// HasSession returns true if a concurrent editing session is active.
+func (e *Editor) HasSession() bool {
+	return e.session != nil
+}
+
+// HasPendingSessionChanges returns true if this session has pending changes in the draft.
+func (e *Editor) HasPendingSessionChanges() bool {
+	if e.session == nil || e.meta == nil {
+		return false
+	}
+	return len(e.meta.SessionEntries(e.session.ID)) > 0
+}
+
+// SessionID returns the current session's ID, or empty string if no session.
+func (e *Editor) SessionID() string {
+	if e.session == nil {
+		return ""
+	}
+	return e.session.ID
+}
+
+// BlameView returns a blame-annotated view of the configuration.
+// When no metadata exists, uses an empty MetaTree to produce a consistent
+// hierarchical tree format with empty blame gutters.
+func (e *Editor) BlameView() string {
+	meta := e.meta
+	if meta == nil {
+		meta = config.NewMetaTree()
+	}
+	return config.SerializeBlame(e.tree, meta, e.schema)
+}
+
+// SetView returns the flat set-format view of the configuration.
+// Always emits bare set commands without metadata (AC-15: exportable format).
+func (e *Editor) SetView() string {
+	return config.SerializeSet(e.tree, e.schema)
+}
+
+// SessionChanges returns the changes for a specific session, or all sessions.
+// If sessionID is empty, returns changes for all sessions.
+func (e *Editor) SessionChanges(sessionID string) []config.SessionEntry {
+	if e.meta == nil {
+		return nil
+	}
+	if sessionID == "" {
+		// All sessions: collect from all known sessions.
+		var all []config.SessionEntry
+		for _, sid := range e.meta.AllSessions() {
+			all = append(all, e.meta.SessionEntries(sid)...)
+		}
+		return all
+	}
+	return e.meta.SessionEntries(sessionID)
+}
+
+// ActiveSessions returns all session IDs with pending changes.
+func (e *Editor) ActiveSessions() []string {
+	if e.meta == nil {
+		return nil
+	}
+	return e.meta.AllSessions()
+}
+
+// SetSession sets the concurrent editing session identity.
+// When set, SetValue and DeleteValue use write-through to the draft file.
+func (e *Editor) SetSession(session *EditSession) {
+	e.session = session
+	if e.meta == nil {
+		e.meta = config.NewMetaTree()
+	}
+}
+
 // SetValue sets a leaf value at the given path in the tree.
 func (e *Editor) SetValue(path []string, key, value string) error {
+	if e.session != nil {
+		return e.writeThroughSet(path, key, value)
+	}
 	target, err := e.walkOrCreate(path)
 	if err != nil {
 		return err
@@ -626,6 +734,9 @@ func (e *Editor) SetValue(path []string, key, value string) error {
 
 // DeleteValue removes a leaf value at the given path in the tree.
 func (e *Editor) DeleteValue(path []string, key string) error {
+	if e.session != nil {
+		return e.writeThroughDelete(path, key)
+	}
 	target := e.WalkPath(path)
 	if target == nil {
 		return fmt.Errorf("path not found")
@@ -734,13 +845,17 @@ func (e *Editor) DeleteListEntry(path []string, listName, key string) error {
 }
 
 // Save commits changes: creates backup of original, writes serialized tree.
+// Returns an error when a session is active -- use CommitSession() instead.
 func (e *Editor) Save() error {
+	if e.session != nil {
+		return fmt.Errorf("Save() not allowed with active session; use CommitSession()")
+	}
 	if !e.dirty.Load() {
 		return nil
 	}
 
 	// Create backup of original
-	if err := e.createBackup(); err != nil {
+	if err := e.createBackup(e.originalContent); err != nil {
 		return fmt.Errorf("failed to create backup: %w", err)
 	}
 
@@ -856,6 +971,10 @@ func atomicWriteFile(path string, data []byte) error {
 		cleanup()
 		return fmt.Errorf("chmod temp file: %w", err)
 	}
+	if err := tmp.Sync(); err != nil {
+		cleanup()
+		return fmt.Errorf("sync temp file: %w", err)
+	}
 	if err := tmp.Close(); err != nil {
 		os.Remove(tmpName) //nolint:errcheck // best effort cleanup on error path
 		return fmt.Errorf("close temp file: %w", err)
@@ -873,9 +992,11 @@ func (e *Editor) rollbackDir() string {
 	return filepath.Join(filepath.Dir(e.originalPath), "rollback")
 }
 
-// createBackup creates a backup of the original file in the rollback/ subdirectory.
+// createBackup creates a backup of the given content in the rollback/ subdirectory.
 // Filename uses a full timestamp (YYYYMMDD-HHMMSS.mmm) for natural date ordering.
-func (e *Editor) createBackup() error {
+// The content parameter is what was on disk before the overwrite -- callers pass
+// freshly-read data to avoid backing up stale cached content.
+func (e *Editor) createBackup(content string) error {
 	base := filepath.Base(e.originalPath)
 	ext := filepath.Ext(base)
 	name := strings.TrimSuffix(base, ext)
@@ -889,8 +1010,7 @@ func (e *Editor) createBackup() error {
 	stamp := fmt.Sprintf("%s.%03d", now.Format("20060102-150405"), now.Nanosecond()/1e6)
 	backupPath := filepath.Join(rollback, fmt.Sprintf("%s-%s.conf", name, stamp))
 
-	// Copy original content to backup
-	return os.WriteFile(backupPath, []byte(e.originalContent), 0o600)
+	return os.WriteFile(backupPath, []byte(content), 0o600)
 }
 
 // ListBackups returns available backup files, sorted by timestamp descending.
@@ -988,7 +1108,7 @@ func (e *Editor) Rollback(backupPath string) error {
 	}
 
 	// Backup current config before overwriting — rollback is itself reversible
-	if err := e.createBackup(); err != nil {
+	if err := e.createBackup(e.originalContent); err != nil {
 		return fmt.Errorf("cannot backup current config before rollback: %w", err)
 	}
 

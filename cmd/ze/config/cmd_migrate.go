@@ -16,13 +16,14 @@ import (
 func cmdMigrate(args []string) int {
 	fs := flag.NewFlagSet("config migrate", flag.ExitOnError)
 	outputPath := fs.String("o", "", "write output to file")
+	outputFormat := fs.String("format", "set", "output format: set (default) or hierarchical")
 	dryRun := fs.Bool("dry-run", false, "show what would be migrated without making changes")
 	listTransforms := fs.Bool("list", false, "list available transformations")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze config migrate [options] <config-file>
 
-Convert configuration to current format.
+Convert configuration to current format. Default output is set format.
 Use - to read from stdin.
 
 Options:
@@ -34,11 +35,12 @@ Exit codes:
   2  Error (file not found, parse error, write error)
 
 Examples:
-  ze config migrate config.conf              # Output to stdout
-  ze config migrate config.conf -o new.conf  # Output to file
-  ze config migrate config.conf --dry-run    # Preview transformations
-  ze config migrate --list                   # List available transformations
-  cat config.conf | ze config migrate -      # Read from stdin
+  ze config migrate config.conf                          # Convert to set format (stdout)
+  ze config migrate config.conf -o new.conf              # Convert to new file
+  ze config migrate --format hierarchical config.conf    # Explicit hierarchical output
+  ze config migrate config.conf --dry-run                # Preview transformations
+  ze config migrate --list                               # List available transformations
+  cat config.conf | ze config migrate -                  # Read from stdin
 `)
 	}
 
@@ -68,7 +70,12 @@ Examples:
 		return cmdMigrateDryRun(configPath)
 	}
 
-	output, result, warnings, err := configMigrateWithWarnings(configPath, *outputPath)
+	if *outputFormat != "set" && *outputFormat != "hierarchical" {
+		fmt.Fprintf(os.Stderr, "error: --format must be 'set' or 'hierarchical'\n")
+		return exitError
+	}
+
+	output, result, warnings, err := configMigrateWithWarnings(configPath, *outputPath, *outputFormat)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
@@ -186,7 +193,7 @@ func printMigrateWarnings(warnings []string) {
 	}
 }
 
-func configMigrateWithWarnings(inputPath, outputPath string) (string, *migration.MigrateResult, []string, error) {
+func configMigrateWithWarnings(inputPath, outputPath, outputFormat string) (string, *migration.MigrateResult, []string, error) {
 	data, err := loadConfigData(inputPath)
 	if err != nil {
 		return "", nil, nil, err
@@ -194,8 +201,20 @@ func configMigrateWithWarnings(inputPath, outputPath string) (string, *migration
 
 	content := string(data)
 
-	p := config.NewParser(config.YANGSchema())
-	tree, err := p.Parse(content)
+	// Parse any format: auto-detect and use the appropriate parser.
+	schema := config.YANGSchema()
+	if schema == nil {
+		return "", nil, nil, fmt.Errorf("failed to load YANG schema")
+	}
+
+	sourceFormat := config.DetectFormat(content)
+	var tree *config.Tree
+	switch sourceFormat {
+	case config.FormatSet, config.FormatSetMeta:
+		tree, err = config.NewSetParser(schema).Parse(content)
+	default:
+		tree, err = config.NewParser(schema).Parse(content)
+	}
 	if err != nil {
 		return "", nil, nil, fmt.Errorf("parse error: %w", err)
 	}
@@ -207,11 +226,13 @@ func configMigrateWithWarnings(inputPath, outputPath string) (string, *migration
 
 	warnings := findUnsupportedFeatures(result.Tree)
 
-	schema := config.YANGSchema()
-	if schema == nil {
-		return "", nil, nil, fmt.Errorf("failed to load YANG schema")
+	// Serialize in the requested output format (default: set).
+	var output string
+	if outputFormat == "hierarchical" {
+		output = config.Serialize(result.Tree, schema)
+	} else {
+		output = config.SerializeSet(result.Tree, schema)
 	}
-	output := config.Serialize(result.Tree, schema)
 
 	if outputPath != "" {
 		if err := os.WriteFile(outputPath, []byte(output), 0o600); err != nil {

@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 // TestModelErrorsCommand verifies errors command output.
@@ -1074,6 +1076,44 @@ func TestSetRejectsUnknownPath(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown path")
 }
 
+// TestWhoWithSession verifies "who" command works with active session.
+//
+// VALIDATES: who lists active sessions when session is active.
+// PREVENTS: Session guard false-positive blocking who when session exists.
+func TestWhoWithSession(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	ed.SetSession(NewEditSession("testuser", "local"))
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.dispatchCommand("who")
+	require.NoError(t, err, "who should succeed with active session")
+	// No pending changes, so output says "No active sessions." (no changes tracked yet)
+	assert.NotEmpty(t, result.output)
+}
+
+// TestFilterOutSessionCommandsEmpty verifies filter handles empty input.
+//
+// VALIDATES: filterOutSessionCommands does not panic on empty slice.
+// PREVENTS: Index out of bounds on empty completion list.
+func TestFilterOutSessionCommandsEmpty(t *testing.T) {
+	filtered := filterOutSessionCommands(nil)
+	assert.Empty(t, filtered)
+
+	filtered = filterOutSessionCommands([]Completion{})
+	assert.Empty(t, filtered)
+}
+
 // TestSocketReloadNotifierNoDaemon verifies socket notifier fails gracefully.
 //
 // VALIDATES: NewSocketReloadNotifier returns error when daemon socket doesn't exist.
@@ -1084,4 +1124,556 @@ func TestSocketReloadNotifierNoDaemon(t *testing.T) {
 	err := notifier()
 	require.Error(t, err, "should fail when daemon socket doesn't exist")
 	assert.Contains(t, err.Error(), "daemon not reachable")
+}
+
+// --- Phase 5: Display Views, Session Management, and Commands ---
+
+// TestFormatChangeEntryNew verifies change entry formatting for new values.
+//
+// VALIDATES: New entries use '+' marker and "(new)" annotation.
+// PREVENTS: Wrong marker or missing annotation for new entries.
+func TestFormatChangeEntryNew(t *testing.T) {
+	var b strings.Builder
+	formatChangeEntry(&b, config.SessionEntry{
+		Path:  "bgp router-id",
+		Entry: config.MetaEntry{Value: "1.2.3.4"},
+	})
+	line := b.String()
+	assert.Contains(t, line, "  + set bgp router-id 1.2.3.4")
+	assert.Contains(t, line, "(new)")
+}
+
+// TestFormatChangeEntryModified verifies change entry formatting for modified values.
+//
+// VALIDATES: Modified entries use '*' marker and "(was: ...)" annotation.
+// PREVENTS: Wrong marker or missing previous value for modified entries.
+func TestFormatChangeEntryModified(t *testing.T) {
+	var b strings.Builder
+	formatChangeEntry(&b, config.SessionEntry{
+		Path:  "bgp peer-as",
+		Entry: config.MetaEntry{Value: "65002", Previous: "65001"},
+	})
+	line := b.String()
+	assert.Contains(t, line, "  * set bgp peer-as 65002")
+	assert.Contains(t, line, "(was: 65001)")
+}
+
+// TestFormatChangeEntryDelete verifies change entry formatting for deleted values.
+//
+// VALIDATES: Delete entries use '-' marker, "delete" command, and "(was: ...)" annotation.
+// PREVENTS: Delete rendered as set with empty value.
+func TestFormatChangeEntryDelete(t *testing.T) {
+	var b strings.Builder
+	formatChangeEntry(&b, config.SessionEntry{
+		Path:  "bgp hold-time",
+		Entry: config.MetaEntry{Value: "", Previous: "180"},
+	})
+	line := b.String()
+	assert.Contains(t, line, "  - delete bgp hold-time")
+	assert.Contains(t, line, "(was: 180)")
+	assert.NotContains(t, line, "set")
+}
+
+// TestFilterOutSessionCommands verifies session-dependent command filtering.
+//
+// VALIDATES: who, disconnect, blame, changes are removed; other commands preserved.
+// PREVENTS: Non-session commands accidentally filtered or session commands leaking.
+func TestFilterOutSessionCommands(t *testing.T) {
+	input := []Completion{
+		{Text: cmdSet, Type: "command"},
+		{Text: cmdBlame, Type: "keyword"},
+		{Text: cmdChanges, Type: "keyword"},
+		{Text: cmdWho, Type: "command"},
+		{Text: cmdDisconnect, Type: "command"},
+		{Text: cmdExit, Type: "command"},
+		{Text: cmdShow, Type: "command"},
+	}
+	result := filterOutSessionCommands(input)
+
+	texts := make([]string, len(result))
+	for i, c := range result {
+		texts[i] = c.Text
+	}
+	assert.Contains(t, texts, cmdSet)
+	assert.Contains(t, texts, cmdExit)
+	assert.Contains(t, texts, cmdShow)
+	assert.NotContains(t, texts, cmdBlame)
+	assert.NotContains(t, texts, cmdChanges)
+	assert.NotContains(t, texts, cmdWho)
+	assert.NotContains(t, texts, cmdDisconnect)
+}
+
+// TestCmdShowBlameRequiresSession verifies show blame errors without session.
+//
+// VALIDATES: "show blame" returns error when no editing session is active.
+// PREVENTS: Nil pointer or empty output when blame called without session.
+func TestCmdShowBlameRequiresSession(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// No session set -- show blame should error
+	_, err = model.cmdShow([]string{cmdBlame})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requires an active editing session")
+}
+
+// TestCmdShowChangesRequiresSession verifies show changes errors without session.
+//
+// VALIDATES: "show changes" returns error when no editing session is active.
+// PREVENTS: Empty or misleading output when changes called without session.
+func TestCmdShowChangesRequiresSession(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	_, err = model.cmdShow([]string{cmdChanges})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requires an active editing session")
+}
+
+// TestCmdShowSetWithoutSession verifies show set works without session.
+//
+// VALIDATES: "show set" is available without an editing session (AC-15: exportable).
+// PREVENTS: show set incorrectly gated behind session check.
+func TestCmdShowSetWithoutSession(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// No session -- show set should still work
+	result, err := model.cmdShow([]string{cmdSet})
+	require.NoError(t, err)
+	assert.Contains(t, result.output, "set ")
+}
+
+// TestCmdWhoRequiresSession verifies who command errors without session.
+//
+// VALIDATES: "who" returns error when no editing session is active.
+// PREVENTS: Confusing output when who called outside session context.
+func TestCmdWhoRequiresSession(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	_, err = model.dispatchCommand("who")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requires an active editing session")
+}
+
+// TestCmdDisconnectRequiresSession verifies disconnect errors without session.
+//
+// VALIDATES: "disconnect" returns error when no editing session is active.
+// PREVENTS: Disconnect operating on global state without session context.
+func TestCmdDisconnectRequiresSession(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	_, err = model.dispatchCommand("disconnect some-session")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "requires an active editing session")
+}
+
+// TestCmdDisconnectOwnSession verifies disconnect rejects own session.
+//
+// VALIDATES: Cannot disconnect own session (must use 'discard all' instead).
+// PREVENTS: User accidentally disconnecting themselves.
+func TestCmdDisconnectOwnSession(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("alice", "local")
+	ed.SetSession(session)
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	_, err = model.cmdDisconnectSession([]string{session.ID})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot disconnect own session")
+}
+
+// TestCmdDisconnectNoArgs verifies disconnect errors without session ID argument.
+//
+// VALIDATES: "disconnect" without args returns usage error.
+// PREVENTS: Ambiguous disconnect without target.
+func TestCmdDisconnectNoArgs(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("alice", "local")
+	ed.SetSession(session)
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	_, err = model.cmdDisconnectSession(nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "usage:")
+}
+
+// TestCmdSaveSessionModeNoOp verifies save is a no-op in session mode.
+//
+// VALIDATES: "save" in session mode returns confirmation without I/O (AC-24).
+// PREVENTS: Redundant .edit snapshot when write-through already persists draft.
+func TestCmdSaveSessionModeNoOp(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("alice", "local")
+	ed.SetSession(session)
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.cmdSave()
+	require.NoError(t, err)
+	assert.Contains(t, result.statusMessage, "already saved")
+}
+
+// TestCmdWhoOutputFormat verifies who command output format.
+//
+// VALIDATES: Who output includes current session marker, change counts, pluralization.
+// PREVENTS: Malformed session listing with wrong markers or grammar.
+func TestCmdWhoOutputFormat(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("alice", "local")
+	ed.SetSession(session)
+
+	// Make a change so there's something to report
+	err = ed.SetValue([]string{"bgp"}, "router-id", "10.0.0.1")
+	require.NoError(t, err)
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.cmdWho()
+	require.NoError(t, err)
+
+	assert.Contains(t, result.output, "Active editing sessions:")
+	assert.Contains(t, result.output, "* "+session.ID, "current session should be marked with *")
+	assert.Contains(t, result.output, "1 pending change\n", "singular 'change' for count of 1")
+}
+
+// TestCmdShowChangesNoChanges verifies show changes with empty session.
+//
+// VALIDATES: "show changes" with no pending changes returns informative message.
+// PREVENTS: Empty or confusing output when no changes exist.
+func TestCmdShowChangesNoChanges(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("alice", "local")
+	ed.SetSession(session)
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.cmdShowChanges(nil)
+	require.NoError(t, err)
+	assert.Contains(t, result.output, "No pending changes")
+}
+
+// TestCmdShowChangesAllGrouping verifies show changes all groups by session.
+//
+// VALIDATES: "show changes all" groups changes by session with headers (AC-18).
+// PREVENTS: Changes from different sessions mixed without grouping.
+func TestCmdShowChangesAllGrouping(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	// Session 1 makes a change
+	ed1, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
+
+	session1 := NewEditSession("alice", "ssh")
+	ed1.SetSession(session1)
+	err = ed1.SetValue([]string{"bgp"}, "router-id", "10.0.0.1")
+	require.NoError(t, err)
+
+	// Session 2 makes a different change
+	ed2, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
+
+	session2 := NewEditSession("bob", "local")
+	ed2.SetSession(session2)
+	err = ed2.SetValue([]string{"bgp"}, "local-as", "65001")
+	require.NoError(t, err)
+
+	model, err := NewModel(ed2)
+	require.NoError(t, err)
+
+	result, err := model.cmdShowChangesAll()
+	require.NoError(t, err)
+
+	// Should have session headers
+	assert.Contains(t, result.output, "Session: "+session1.ID)
+	assert.Contains(t, result.output, "Session: "+session2.ID)
+	// Should have change counts
+	assert.Contains(t, result.output, "(1 change)")
+}
+
+// TestCmdCommitConfirmedRejectedInSession verifies commit confirmed is rejected in session mode.
+//
+// VALIDATES: "commit confirmed N" in session mode returns explicit error (AC-37).
+// PREVENTS: Silent misrouting of commit confirmed through session commit path.
+func TestCmdCommitConfirmedRejectedInSession(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("alice", "local")
+	ed.SetSession(session)
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	_, err = model.dispatchCommand("commit confirmed 30")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "not yet supported in session mode")
+}
+
+// TestHasPendingChangesSessionAware verifies pending changes detection uses session.
+//
+// VALIDATES: hasPendingChanges() checks session entries when session is active.
+// PREVENTS: Exit prompt using dirty flag instead of session entries in session mode.
+func TestHasPendingChangesSessionAware(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("alice", "local")
+	ed.SetSession(session)
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	// No changes yet
+	assert.False(t, model.hasPendingChanges(), "no pending changes before set")
+
+	// Make a change through write-through
+	err = ed.SetValue([]string{"bgp"}, "router-id", "10.0.0.1")
+	require.NoError(t, err)
+
+	assert.True(t, model.hasPendingChanges(), "should detect pending session changes")
+}
+
+// TestAutoSaveOnQuitSkipsSession verifies auto-save skips in session mode.
+//
+// VALIDATES: autoSaveOnQuit() does not write .edit when session is active.
+// PREVENTS: Redundant .edit snapshot alongside write-through .draft.
+func TestAutoSaveOnQuitSkipsSession(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("alice", "local")
+	ed.SetSession(session)
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	model.autoSaveOnQuit()
+
+	// .edit file should NOT exist (session mode skips auto-save)
+	editPath := configPath + ".edit"
+	_, statErr := os.Stat(editPath)
+	assert.True(t, os.IsNotExist(statErr), ".edit should not exist in session mode")
+}
+
+// TestCmdCommitSessionReload verifies session commit triggers reload notifier.
+//
+// VALIDATES: cmdCommitSession (model_commands.go:630-635) reload path.
+// PREVENTS: Daemon not refreshed after session commit.
+func TestCmdCommitSessionReload(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	notified := false
+	ed.SetReloadNotifier(func() error {
+		notified = true
+		return nil
+	})
+
+	session := NewEditSession("alice", "local")
+	ed.SetSession(session)
+	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err)
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.cmdCommitSession()
+	require.NoError(t, err)
+
+	assert.True(t, notified, "reload notifier should be called")
+	assert.Contains(t, result.statusMessage, "reloaded", "status should mention reloaded")
+}
+
+// TestCmdCommitSessionReloadFails verifies session commit handles reload failure.
+//
+// VALIDATES: cmdCommitSession (model_commands.go:631-632) reload error path.
+// PREVENTS: Session commit failing when daemon is unreachable.
+func TestCmdCommitSessionReloadFails(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	ed.SetReloadNotifier(func() error {
+		return fmt.Errorf("connection refused")
+	})
+
+	session := NewEditSession("alice", "local")
+	ed.SetSession(session)
+	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err)
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.cmdCommitSession()
+	require.NoError(t, err, "session commit should not fail on reload error")
+
+	assert.Contains(t, result.statusMessage, "reload failed", "status should warn about reload failure")
+	assert.Contains(t, result.statusMessage, "change(s) applied", "status should show changes applied")
+}
+
+// TestCmdCommitSessionValidatesSetFormat verifies session commit validates set-format content.
+//
+// VALIDATES: cmdCommitSession (model_commands.go:581) validates WorkingContent in set format.
+// PREVENTS: Validator rejecting set-format content from session mode.
+func TestCmdCommitSessionValidatesSetFormat(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfigSimplePeer), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("alice", "local")
+	ed.SetSession(session)
+
+	// WorkingContent should be set+meta format now that session is active.
+	content := ed.WorkingContent()
+	format := config.DetectFormat(content)
+	assert.NotEqual(t, config.FormatHierarchical, format,
+		"WorkingContent should return set format when session active")
+
+	// Make a valid change and commit: should succeed (validator handles set format).
+	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err)
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+
+	result, err := model.cmdCommitSession()
+	require.NoError(t, err)
+
+	assert.Contains(t, result.statusMessage, "change(s) applied",
+		"session commit should succeed with set-format validation")
 }

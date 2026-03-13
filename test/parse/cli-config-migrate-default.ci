@@ -1,0 +1,31 @@
+# Test: ze config migrate defaults to set format output
+# VALIDATES: Default output format is set (flat commands)
+# PREVENTS: Default format regression to hierarchical
+
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1
+	local-as 65533
+	peer 127.0.0.1 {
+		local-address 127.0.0.1
+		peer-as 65534
+	}
+}
+EOF_CONF
+
+tmpfs=test.conf:terminator=EOF_FILE
+bgp {
+	router-id 10.0.0.1
+	local-as 65533
+	peer 127.0.0.1 {
+		local-address 127.0.0.1
+		peer-as 65534
+	}
+}
+EOF_FILE
+
+cmd=foreground:seq=1:exec=ze config migrate test.conf
+expect=exit:code=0
+expect=stdout:contains=set bgp router-id
+expect=stdout:contains=set bgp local-as
+expect=stdout:contains=set bgp peer 127.0.0.1 peer-as

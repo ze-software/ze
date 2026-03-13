@@ -76,29 +76,46 @@ func NewConfigValidator() (*ConfigValidator, error) {
 }
 
 // Validate runs all validation levels and returns the result.
+// Detects the config format (hierarchical vs set/set-meta) and uses
+// the appropriate parser. This is necessary because WorkingContent()
+// returns set+meta format when a session is active.
 func (v *ConfigValidator) Validate(content string) ConfigValidationResult {
 	var result ConfigValidationResult
 
-	// Parse with YANG-derived schema - catches syntax and schema errors
-	// Including: router-id (TypeIPv4), local-as (TypeUint32),
-	// peer-as (TypeUint32), peer address (TypeIP), hold-time (TypeUint16)
-	parser := config.NewParser(v.schema)
-	tree, err := parser.Parse(content)
-	if err != nil {
-		// Parser error - extract line number if available
-		result.Errors = append(result.Errors, v.parseError(err))
-		// Still try semantic validation on partial parse if possible
-		if tree == nil {
-			return result
-		}
-	}
+	format := config.DetectFormat(content)
 
-	// Check parser warnings (unknown fields, etc.)
-	for _, warn := range parser.Warnings() {
-		result.Warnings = append(result.Warnings, ConfigValidationError{
-			Message:  warn,
-			Severity: severityWarning,
-		})
+	var tree *config.Tree
+	var parseErr error
+
+	switch format {
+	case config.FormatSet, config.FormatSetMeta:
+		// Set-format content: use SetParser which handles set/delete commands
+		// and metadata prefixes (@timestamp, %session, #user, ^previous).
+		sp := config.NewSetParser(v.schema)
+		tree, _, parseErr = sp.ParseWithMeta(content)
+		if parseErr != nil {
+			result.Errors = append(result.Errors, v.parseError(parseErr))
+			if tree == nil {
+				return result
+			}
+		}
+	case config.FormatHierarchical:
+		// Hierarchical format: use standard parser.
+		parser := config.NewParser(v.schema)
+		tree, parseErr = parser.Parse(content)
+		if parseErr != nil {
+			result.Errors = append(result.Errors, v.parseError(parseErr))
+			if tree == nil {
+				return result
+			}
+		}
+		// Check parser warnings (unknown fields, etc.)
+		for _, warn := range parser.Warnings() {
+			result.Warnings = append(result.Warnings, ConfigValidationError{
+				Message:  warn,
+				Severity: severityWarning,
+			})
+		}
 	}
 
 	// Run YANG validation on the parsed tree

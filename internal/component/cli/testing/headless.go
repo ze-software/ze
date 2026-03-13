@@ -15,8 +15,9 @@ import (
 // HeadlessModel wraps the editor Model for headless testing.
 // It provides direct access to model state without TTY rendering.
 type HeadlessModel struct {
-	model  cli.Model
-	editor *cli.Editor
+	model   cli.Model
+	editor  *cli.Editor
+	pending []<-chan tea.Msg // commands that timed out but may still complete
 }
 
 // NewHeadlessModel creates a headless model from a config file path.
@@ -117,9 +118,40 @@ func (hm *HeadlessModel) processCmdWithDepth(cmd tea.Cmd, depth int) {
 			hm.processMsg(msg, depth)
 		}
 	case <-time.After(15 * time.Millisecond):
-		// Command would block (cursor blink, tick timer), skip it
+		// Command didn't complete in time. Usually a blocking timer
+		// (cursor blink, countdown), but under concurrent test load
+		// legitimate commands (Save with file I/O) can also exceed
+		// 15ms. Save the channel so Settle() can drain the result
+		// before expectation checks.
+		hm.pending = append(hm.pending, done)
 		return
 	}
+}
+
+// Settle drains any commands that timed out in processCmdWithDepth
+// but may have since completed. Under concurrent test load, file I/O
+// commands like Save() can exceed the 15ms processCmd timeout. Without
+// Settle, their results are lost and the model state never updates.
+//
+// Called by the runner before expectation checks. Non-blocking for each
+// channel: if the command hasn't completed yet (likely a timer), it
+// stays in the pending list.
+func (hm *HeadlessModel) Settle() {
+	if len(hm.pending) == 0 {
+		return
+	}
+	remaining := hm.pending[:0]
+	for _, ch := range hm.pending {
+		select {
+		case msg := <-ch:
+			if msg != nil {
+				hm.processMsg(msg, 0)
+			}
+		default: // not ready yet (timer) -- keep in pending
+			remaining = append(remaining, ch)
+		}
+	}
+	hm.pending = remaining
 }
 
 // processMsg processes a message from a command.

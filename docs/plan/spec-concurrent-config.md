@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-03-12 |
+| Phase | 6/7 |
+| Updated | 2026-03-13 |
 
 ## Post-Compaction Recovery
 
@@ -32,7 +32,7 @@ Replace the hierarchical text configuration format with a flat, line-oriented fo
 6. **Authorship tracking:** Every value carries who changed it and when. Survives schema migrations because metadata keys follow YANG paths, not line numbers.
 7. **Multiple views:** The flat format on disk is rendered as tree view, set view, blame view, or changes view depending on user command.
 8. **Save and commit are distinct:** `save` persists the draft with metadata (work survives across sessions, no effect on running config). `commit` applies the session's changes to the running config.
-9. **Session management:** `who` lists active editing sessions. `disconnect <session>` (RBAC-gated) removes another session's pending changes. On exit with pending changes, prompt to save or discard all.
+9. **Session management:** `who` lists active editing sessions. `disconnect <session>` removes another session's pending changes. On exit with pending changes, prompt to save or discard all.
 10. **Startup flow:** No interactive "Found uncommitted changes" prompt. Draft loaded automatically. Same-user orphaned sessions prompt for adoption.
 
 ### Non-Goals
@@ -68,10 +68,10 @@ Replace the hierarchical text configuration format with a flat, line-oriented fo
   -> Decision: add SerializeSet (flat set commands), SerializeSetWithMeta (with prefixes), keep Serialize for tree view
 - [ ] `internal/component/config/parser.go` - Parser.Parse
   -> Constraint: current parser handles hierarchical text. Must add set-format parser.
-  -> Decision: auto-detect format by first non-comment, non-empty line (starts with `set` or `delete` = flat format, starts with `#` followed by `set` = flat with meta, otherwise = hierarchical text for migration)
+  -> Decision: auto-detect format via `DetectFormat()` (in `serialize_set.go`) by first non-comment, non-empty line (starts with `set` or `delete` = flat format, starts with `#` followed by `set` = flat with meta, otherwise = hierarchical text for migration)
 - [ ] `internal/component/ssh/session.go` - createSessionModel, NewCommandModel
-  -> Constraint: SSH sessions currently use NewCommandModel (command-only, no editor). Must gain editor access.
-  -> Decision: SSH sessions receive an Editor pointed at the same config file, with username from SSH auth as identity
+  -> Constraint: SSH sessions currently use NewCommandModel (command-only, no editor). Must gain editor access. SSH Server has no config file path today.
+  -> Decision: Add ConfigPath to ssh.Config (set by daemon loader). SSH sessions receive an Editor pointed at the same config file, with username from SSH auth as identity. Wiring mirrors cmd_edit.go: SetSession, SetReloadNotifier, SetArchiveNotifier, SetCommandExecutor, SetCommandCompleter.
 - [ ] `cmd/ze/config/cmd_edit.go` - cmdEdit, PromptPendingEdit flow, wireCommandExecutor
   -> Constraint: startup currently blocks on interactive prompt if .edit exists. Must remove.
   -> Decision: if draft exists, load it automatically. Display pending sessions from metadata.
@@ -163,10 +163,11 @@ This is valid. The parser treats metadata-less lines as having unknown authorshi
 ```
 <line>     := [<comment>] | [<meta>...] <command>
 <comment>  := "#" <text-without-sigil-after-hash>
-<meta>     := <user-meta> | <time-meta> | <session-meta>
+<meta>     := <user-meta> | <time-meta> | <session-meta> | <prev-meta>
 <user-meta>    := "#" <user-id>          (# immediately followed by non-space identifier)
 <time-meta>    := "@" <iso8601>
 <session-meta> := "%" <session-id>
+<prev-meta>    := "^" <value>            (committed value before this edit, for stale conflict detection)
 <command>  := "set" <path> <value>
             | "delete" <path>
 ```
@@ -186,14 +187,15 @@ This is unambiguous because user identifiers cannot start with a space.
 | `#` | User | `user@origin` | `#thomas@local` | No |
 | `@` | Timestamp | ISO 8601 | `@2026-03-12T14:30:01` | No |
 | `%` | Session | `user@origin:unix-ts` | `%thomas@local:1741783801` | No (draft only) |
+| `^` | Previous | value string | `^90` | No (draft only) |
 
-All three are optional. They appear in any order before the `set`/`delete` command. The parser consumes all tokens starting with `#` (user), `@` (time), or `%` (session) as metadata, then treats the remainder as the command.
+All four are optional. They appear in any order before the `set`/`delete` command. The parser consumes all tokens starting with `#` (user), `@` (time), `%` (session), or `^` (previous) as metadata, then treats the remainder as the command.
 
-#### Session metadata (`%`) is draft-only
+#### Session metadata (`%`) and previous value (`^`) are draft-only
 
-The committed config file (`config.conf`) never contains `%session` tokens. These exist only in the draft file (`config.conf.draft`) to track which editing session made each pending change.
+The committed config file (`config.conf`) never contains `%session` or `^previous` tokens. These exist only in the draft file (`config.conf.draft`): `%session` tracks which editing session made each pending change, and `^previous` records the committed value at the time of the edit (for stale conflict detection).
 
-When a line is committed, its `%session` token is removed. The `#user` and `@timestamp` are updated to reflect the committer and commit time.
+When a line is committed, its `%session` and `^previous` tokens are removed. The `#user` and `@timestamp` are updated to reflect the committer and commit time.
 
 ### YANG Path Derivation
 
@@ -274,12 +276,12 @@ Comments (lines starting with `# ` -- hash followed by space) are preserved duri
 
 The lock file `config.conf.lock` is an empty file used with POSIX `flock(2)` for advisory locking:
 
-```go
-lockFd, _ := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0o600)
-syscall.Flock(int(lockFd.Fd()), syscall.LOCK_EX)  // blocking exclusive lock
-// ... read, modify, write ...
-syscall.Flock(int(lockFd.Fd()), syscall.LOCK_UN)   // unlock
-```
+| Step | syscall | Mode | Purpose |
+|------|---------|------|---------|
+| 1 | `OpenFile(lockPath, O_CREATE\|O_RDWR, 0o600)` | - | Create/open lock file |
+| 2 | `flock(fd, LOCK_EX)` | Blocking exclusive | Acquire lock (blocks if held by another process) |
+| 3 | Read, modify, write draft | - | Critical section |
+| 4 | `flock(fd, LOCK_UN)` | Unlock | Release lock |
 
 The lock is held for the duration of a single read-modify-write cycle (milliseconds). It is never held while waiting for user input.
 
@@ -332,6 +334,17 @@ Adopt these changes? (yes/no/show)
 - `no` -- leaves them as orphaned (visible via `who`, removable via `disconnect`)
 - `show` -- displays details before deciding
 
+**Adoption implementation:** `Editor.AdoptSession(oldSessionID string) error` method in `editor_draft.go`:
+
+| Step | Action |
+|------|--------|
+| 1 | Acquire lock |
+| 2 | Read and parse draft |
+| 3 | Find all MetaTree entries with `%session` matching `oldSessionID` |
+| 4 | Rewrite each entry's `Session` field to the current session's ID |
+| 5 | Serialize and write draft atomically |
+| 6 | Release lock |
+
 **Other users' sessions:** displayed as information, no prompt:
 
 ```
@@ -340,6 +353,19 @@ Active editing sessions:
 ```
 
 The editor then proceeds directly to the editing interface.
+
+### Exit Prompt
+
+When the user quits the editor (Ctrl-C, `exit`, or `quit`) and has pending changes in the draft, the model intercepts the quit key message in `model.go`'s `Update` handler.
+
+| Condition | Behavior |
+|-----------|----------|
+| No pending changes for this session | Quit immediately |
+| Pending changes exist | Display status: "Pending changes. Use 'commit', 'discard all', or Esc to force quit." Enter `confirmQuit` state. |
+| User presses Esc/Ctrl-C/y while in `confirmQuit` | Auto-save snapshot, quit (draft already on disk via write-through, snapshot is best-effort) |
+| Any other key while in `confirmQuit` | Cancel quit, return to editor |
+
+Both intercept points (`handleEnter` for `exit`/`quit` commands, `handleKeyMsg` for Ctrl-C/Esc) use the shared `Model.hasPendingChanges()` helper. In session mode it checks `Editor.HasPendingSessionChanges()` (`len(meta.SessionEntries(session.ID)) > 0`). In non-session mode it checks `Editor.Dirty()`. In session mode, `autoSaveOnQuit()` is a no-op since write-through already persists to the draft file. In non-session mode, it writes a `.edit` snapshot as before.
 
 ## Write-Through Protocol
 
@@ -370,12 +396,22 @@ Same protocol. Step 5 removes the value from the tree. Step 8 omits the deleted 
 
 ### Concurrent read by other editors
 
-Each editor caches the `mtime` of `config.draft`. Before processing any command or rendering the display:
+**Status: not yet implemented (assigned to Phase 6).**
+
+Each editor caches the `mtime` of `config.draft`. A periodic `tea.Tick` in `model.go` checks the draft file's mtime:
 
 | `mtime` changed? | Action |
 |-------------------|--------|
 | No | Proceed with cached tree |
 | Yes | Re-read `config.draft`, re-parse tree, update display, show notification of changes by other sessions |
+
+Implementation in `model.go`:
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `draftMtime` field | `Model` struct | Cached mtime of `config.draft` |
+| `draftPollMsg` | Tick message | Fires every 2 seconds to check mtime |
+| `checkDraftMtime()` | `Update` handler | Stats draft file, compares with cached mtime, triggers re-read if changed |
 
 The notification shows recent changes from other sessions (entries whose `@timestamp` is newer than our last read and whose `%session` differs from ours):
 
@@ -399,7 +435,7 @@ When the user types `commit`:
 | 5c | If both sessions set the same value (agreement), no conflict -- first to commit wins. |
 | 6 | **If any conflict (either type):** report ALL conflicts to user, do not commit ANY changes, release lock. The entire commit is blocked, not just conflicting keys. |
 | 7 | **If no conflicts:** |
-| 7a | Apply my changes to the committed tree |
+| 7a | Apply my changes to the committed tree. For each session entry: retrieve the value from the draft tree at that YANG path. If the value is non-empty, `Set` it in the committed tree. If the value is empty (the session deleted this path -- the draft tree has no value but metadata exists via `delete` line), `Delete` it from the committed tree. |
 | 7b | Serialize committed tree to `config.conf` (with `#user @timestamp`, no `%session`) |
 | 7c | Create backup in `rollback/` |
 | 7d | Remove my `%session` entries from the draft tree |
@@ -490,7 +526,7 @@ set bgp peer 10.0.0.1 capability route-refresh enable
 set bgp peer 10.0.0.1 family ipv4/unicast
 ```
 
-Flat set commands without metadata. This is the exportable format -- a user can save this to a file and use it as a config for ze (or paste it into another editor session).
+Flat set commands without metadata. This is the exportable format -- a user can save this to a file and use it as a config for ze (or paste it into another editor session). Available in both session and non-session mode (no metadata dependency).
 
 ### `show blame` -- Annotated Tree View
 
@@ -520,11 +556,13 @@ thomas@local  03-12 14:30  + }
 |--------|-------|---------|---------|
 | User | 14 chars | `#user` field, right-padded with spaces | Fixed |
 | Date | 5 chars | `MM-DD` from `@timestamp` | Fixed |
+| Gap 1 | 1 char | Space between date and time | Fixed |
 | Time | 5 chars | `HH:MM` from `@timestamp` | Fixed |
+| Gap 2 | 2 chars | Two spaces before marker | Fixed |
 | Marker | 1 char | `+`, `-`, `*`, or space | Fixed |
-| Gap | 1 char | Space separator | Fixed |
+| Gap 3 | 1 char | Trailing space after marker | Fixed |
 
-Total gutter: 28 characters.
+Total gutter: 29 characters (`blameGutterWidth` constant).
 
 #### Diff markers
 
@@ -549,36 +587,43 @@ Braces (`{`, `}`) in the tree view inherit the marker of their first/last child 
 ```
   + set router-id 1.2.3.4                              (new)
   + set bgp peer 10.0.0.1 local-as 65000               (new)
-  + set bgp peer 10.0.0.1 peer-as 65001                (new)
+  * set bgp peer 10.0.0.1 peer-as 65001 65002          (was: 65001)
+  - delete bgp peer 10.0.0.1 hold-time                 (was: 180)
 ```
 
 Shows the current session's pending changes with markers and previous values. This is the default because the common question is "what did I change?"
 
+#### Change markers
+
+| Marker | Meaning | Command |
+|--------|---------|---------|
+| `+` | New value (not in committed config) | `set` |
+| `*` | Modified value (different from committed) | `set` |
+| `-` | Deleted value (was in committed config) | `delete` |
+
+Delete entries have `Value == ""` in the MetaEntry. The display uses "delete" instead of "set" and shows the previous value.
+
 ### `show changes all` -- All Sessions' Pending Changes
 
 ```
-Session: thomas@local (started 14:30, 3 changes)
+Session: thomas@local:1741783800 (3 changes)
   + set router-id 1.2.3.4                              (new)
   + set bgp peer 10.0.0.1 local-as 65000               (new)
   + set bgp peer 10.0.0.1 peer-as 65001                (new)
 
-Session: alice@ssh (started 14:31, 1 change)
+Session: alice@ssh:1741783860 (1 change)
   * set bgp peer 10.0.0.1 hold-time 90                 (was: 180)
 ```
 
-Grouped by session. Shows the `set` command with a marker and the previous value (if modified).
+Grouped by session. Uses the raw session ID (from `%session` entries). Shows the `set`/`delete` command with a marker and the previous value (if modified or deleted).
 
-### `show raw` -- File Content
+### `show raw` -- File Content (informal, no AC)
 
-Displays the draft file content as-is (metadata + commands). Useful for debugging.
+Displays the draft file content as-is (metadata + commands). This is an informal debug command -- no acceptance criteria or functional test required. It reads the draft file and displays it verbatim without parsing.
 
 ### `save` -- Persist Draft
 
-`save` persists the current draft file with metadata to disk. The draft already exists on disk (write-through), but `save` is the explicit "I want to keep my work" action. On exit with unsaved pending changes, the editor prompts:
-
-```
-You have 3 pending changes. Save or discard all? (save/discard)
-```
+In session mode, `save` is a **no-op confirmation** -- write-through already persists every `set`/`delete` to the draft file immediately. The command prints a confirmation message but performs no disk I/O because the draft is already on disk. In non-session mode (legacy), `save` writes a `.edit` snapshot as before.
 
 `save` has no effect on the running config (`config.conf`). Use `commit` to apply changes to the running config.
 
@@ -588,24 +633,28 @@ You have 3 pending changes. Save or discard all? (save/discard)
 who
 ```
 
-Displays all active editing sessions extracted from `%session` entries in the draft:
+Displays all sessions with pending changes, extracted from `%session` entries in the draft:
 
 ```
 Active editing sessions:
-  thomas@local (started 14:28) - 5 pending changes
-  alice@ssh (started 14:31) - 1 pending change
-  bob@ssh (started 14:15) - 2 pending changes (orphaned)
+* thomas@local:1741783680 - 5 pending changes
+  alice@ssh:1741783860 - 1 pending change
+  bob@ssh:1741782900 - 2 pending changes
 ```
 
-Orphaned sessions (no active connection) are marked. Any user can run `who`.
+The current session is marked with `*`. Session IDs include the unix timestamp (start time). This uses the raw session ID format from `%session` entries.
 
-### `disconnect` -- Force Remove Session (RBAC-gated)
+**Limitation: no liveness detection.** The editor cannot distinguish between active sessions (currently connected) and orphaned sessions (disconnected without committing). All sessions with `%session` entries in the draft are listed equally. Liveness detection would require a heartbeat mechanism or connection tracking in the SSH server -- deferred to future work. Users can `disconnect` sessions they know to be abandoned. Any user can run `who`.
+
+### `disconnect` -- Force Remove Session
 
 ```
 disconnect alice@ssh:1741783860
 ```
 
-Removes all `%session` entries for the specified session from the draft. The session's pending changes are lost. Requires admin role (RBAC). Use cases: clean up abandoned sessions, break deadlocks when conflicting sessions are unresponsive.
+Removes all `%session` entries for the specified session from the draft. The session's pending changes are lost (committed values restored). Use cases: clean up abandoned sessions, break deadlocks when conflicting sessions are unresponsive.
+
+**Authorization:** For this spec, `disconnect` is unrestricted -- any editor session can disconnect any other session. ~~RBAC gating (admin role required)~~ deferred to a future RBAC spec when ze gains a role/permission system. AC-29 and AC-30 are updated accordingly: AC-29 tests that `disconnect` works, AC-30 is removed (no RBAC to test yet).
 
 ## Migration from Hierarchical Text Format
 
@@ -618,26 +667,47 @@ The parser auto-detects the file format by examining the first non-empty, non-co
 | `set` or `delete` | Flat set commands (new format) | SetParser |
 | `#identifier` (no space after `#`) | Flat set commands with metadata | SetParser (strips metadata) |
 | Any other word | Hierarchical text (current format) | Current Parser (unchanged) |
+| Empty or comment-only file | Flat set commands (new format) | SetParser (empty Tree) |
+
+**Edge case:** An empty file or a file containing only `# ` comments has no first data line. `DetectFormat` returns `FormatSet` (not `FormatHierarchical`) because new files should default to the new format, not trigger migration.
 
 ### Migration Path
 
+**Two types of migration (distinct concerns):**
+
+| Type | What | Where |
+|------|------|-------|
+| **Format conversion** | Hierarchical text to flat set commands | Serialization output choice |
+| **Tree structure migration** | `neighbor` to `peer`, template renaming, etc. | `migration.Migrate()` pipeline |
+
+Format conversion is a serialization concern (same Tree, different output format). Tree structure migration transforms the Tree itself (renaming keys, moving subtrees). Both should run when a hierarchical config is committed for the first time.
+
+**Flow:**
+
 1. User opens a hierarchical text config with `ze config edit`
-2. The parser reads it with the current hierarchical parser into a Tree
-3. The editor works normally (set/delete commands)
-4. On first `commit`, the file is written in the new flat set format with metadata
-5. The old hierarchical format is never written again (but can always be read)
+2. The parser reads it with the current hierarchical parser into a Tree (format-agnostic)
+3. The editor works normally (set/delete commands via write-through)
+4. On first `set`, the draft is created in set+meta format (`writeThroughSet` serializes with `SerializeSetWithMeta`). The format conversion of the draft happens here, not at commit time.
+5. On `commit`, `CommitSession` writes config.conf with `SerializeSetWithMeta`. If the original was hierarchical, `migration.Migrate()` runs on the tree first to apply any pending tree structure migrations (e.g., `neighbor` to `peer`).
+6. The old hierarchical format is never written again (but can always be read)
+
+**Key observation:** `CommitSession()` already writes set+meta format unconditionally. The remaining work is: (a) running tree structure migrations on first commit of hierarchical input, (b) making the non-session `Save()` path format-aware, (c) aligning `WorkingContent()` with the format actually written.
 
 ### `ze config migrate` Subcommand
 
 Explicit migration command:
 
 ```
-ze config migrate config.conf              # convert in-place
+ze config migrate config.conf              # convert to set format (stdout)
 ze config migrate config.conf -o new.conf  # convert to new file
-ze config migrate --format set config.conf # explicit format
+ze config migrate --format hierarchical config.conf # explicit output format
 ```
 
-Reads any supported format, writes flat set format. The original is backed up in `rollback/`.
+**Default output is always set format** regardless of input format. This differs from the existing `cmd_migrate.go` behavior which preserves input format -- the existing code must be changed so that `ze config migrate` on a hierarchical file outputs set-format commands (not hierarchical text). The `--format` flag selects output format explicitly (`set` is default, `hierarchical` for backwards output).
+
+The command runs both tree structure migrations (`migration.Migrate()`) and format conversion in one pass: read any format, apply tree transforms, serialize as set format.
+
+**Current `cmd_migrate.go` bug:** Lines 215-222 check `sourceFormat` and output hierarchical for hierarchical input. This must change to always output set format by default.
 
 ### ExaBGP Migration
 
@@ -649,27 +719,32 @@ The existing ExaBGP migration path is unchanged: `ze bgp config migrate` convert
 
 SSH sessions use `NewCommandModel()` which creates a command-only model with no editor. SSH users can run operational commands but cannot edit configuration.
 
+### Config Path Propagation
+
+The SSH `Server` needs the config file path to create Editors. Add `ConfigPath string` to `ssh.Config`, set during daemon startup from the loaded config file path. This parallels `ConfigDir` (already on `ssh.Config`) but points to the specific file.
+
+| Field | Source | Purpose |
+|-------|--------|---------|
+| `ConfigPath` | Set by daemon loader at startup | Passed to `cli.NewEditor()` for each SSH session |
+
 ### New State
 
-SSH sessions receive an `Editor` connected to the same config file:
+SSH sessions receive an `Editor` connected to the same config file. The `createSessionModel` method changes from creating a `NewCommandModel()` to creating a full `NewModel(ed)` with editor support.
 
-```go
-func (s *Server) createSessionModel(username string) cli.Model {
-    // Create editor for same config file as terminal
-    ed, err := cli.NewEditor(s.configPath, cli.WithSession(username, "ssh"))
-    if err != nil {
-        // Fall back to command-only
-        return cli.NewCommandModel()
-    }
-    m, _ := cli.NewModel(ed)
-    // Wire command executor...
-    return m
-}
-```
+| Step | Action |
+|------|--------|
+| 1 | Call `cli.NewEditor(s.config.ConfigPath)` to create an Editor for the shared config file |
+| 2 | If `NewEditor` fails, fall back to `cli.NewCommandModel()` (command-only, no editing) |
+| 3 | Call `ed.SetSession(cli.NewEditSession(username, "ssh"))` to set SSH session identity |
+| 4 | Call `ed.SetReloadNotifier(...)` to enable daemon reload on commit (same as terminal) |
+| 5 | Call `ed.SetArchiveNotifier(...)` if commit-triggered archives are configured (same as terminal) |
+| 6 | Create model with `cli.NewModel(ed)` -- starts in editor mode with mode-switching support |
+| 7 | Call `m.SetCommandExecutor(executor)` using the existing executor factory |
+| 8 | Call `m.SetCommandCompleter(...)` for tab completion of operational commands |
 
 The SSH session's `Editor` has:
-- Same config file path as the terminal editor
-- Session identity: `username@ssh`
+- Same config file path as the terminal editor (from `ssh.Config.ConfigPath`)
+- Session identity: `username@ssh` (via `SetSession` post-construction, same pattern as `cmd_edit.go`)
 - Same write-through protocol (shared lock file)
 - Same draft file
 
@@ -688,28 +763,31 @@ The SSH session's `Editor` has:
 If an SSH session disconnects without committing, its `%session` entries remain in the draft. This is intentional:
 - The user can reconnect and resume (their changes are still there, adoption prompt on reconnect)
 - Another user can see the pending changes with `show changes all` or `who`
-- An admin can clean up with `disconnect alice@ssh:1741783860` (RBAC-gated)
+- Any user can clean up with `disconnect alice@ssh:1741783860`
 
 ## MetaTree Data Structure
 
 ### In-Memory Representation
 
-The `MetaTree` mirrors the `Tree` structure. For each leaf in `Tree` that has metadata, `MetaTree` has a `MetaEntry`:
+The `MetaTree` mirrors the `Tree` structure. For each leaf in `Tree` that has metadata, `MetaTree` has a `MetaEntry`.
 
-```go
-type MetaEntry struct {
-    User     string    // "#user" field
-    Time     time.Time // "@timestamp" field
-    Session  string    // "%session" field (empty in committed config)
-    Previous string    // Value from config.conf when this change was made (for stale conflict detection, always read from committed config, never from draft)
-}
+**MetaEntry fields:**
 
-type MetaTree struct {
-    entries    map[string]MetaEntry  // leaf name -> metadata
-    containers map[string]*MetaTree  // container name -> subtree
-    lists      map[string]map[string]*MetaTree // list name -> key -> subtree
-}
-```
+| Field | Type | Source | Purpose |
+|-------|------|--------|---------|
+| `User` | string | `#user` prefix | Who made this change |
+| `Time` | time.Time | `@timestamp` prefix | When the change was made |
+| `Session` | string | `%session` prefix | Session ID (empty in committed config) |
+| `Previous` | string | Computed on set | Value from config.conf when change was made (stale conflict detection; always read from committed config, never from draft) |
+| `Value` | string | Computed on set | The value this entry set (for live conflict comparison) |
+
+**MetaTree fields:**
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `entries` | map of leaf name to list of MetaEntry | Per-leaf metadata (multiple entries for contested leaves) |
+| `containers` | map of container name to MetaTree | Child containers (mirrors Tree containers) |
+| `lists` | map of key to MetaTree | List entries (mirrors Tree list entries) |
 
 `MetaTree` is populated during parsing (from the metadata prefixes) and used during serialization (to emit the prefixes). It is also used during commit for dual conflict detection: live disagreement (comparing values across active sessions) and stale Previous (comparing `Previous` against current `config.conf` value).
 
@@ -719,7 +797,7 @@ When the YANG schema changes (e.g., leaf renamed, container restructured), the m
 
 | YANG Change | Tree Transform | MetaTree Transform |
 |-------------|---------------|-------------------|
-| Leaf renamed `a` to `b` | `values["b"] = values["a"]; delete values["a"]` | `entries["b"] = entries["a"]; delete entries["a"]` |
+| Leaf renamed `a` to `b` | Copy value from key `a` to key `b`, remove key `a` | Copy entries from key `a` to key `b`, remove key `a` |
 | Container moved | Move subtree | Move MetaTree subtree |
 | Leaf deleted | Delete value | Delete MetaEntry |
 | New leaf added | Nothing | Nothing |
@@ -772,13 +850,16 @@ The transforms are identical because both structures use the same YANG path as k
 | `ze config edit` + type `set` | -> | Write-through to draft file | `test/config/concurrent-write-through.ci` |
 | `ze config edit` + type `commit` | -> | Per-session commit to config.conf (dual conflict check) | `test/config/concurrent-commit.ci` |
 | `ze config edit` on flat-format file | -> | SetParser parses set commands | `test/parse/set-format.ci` |
-| `ze config edit` on hierarchical file | -> | Auto-detect + migration | `test/parse/set-format-migration.ci` |
+| `ze config edit` on hierarchical file + `set` + `commit` | -> | Auto-detect + format conversion + tree structure migration | `test/parse/set-format-migration.ci` |
 | Two editors + conflicting `commit` (live) | -> | Live disagreement conflict detection | `test/config/concurrent-conflict-live.ci` |
 | Editor commits after another committed same path (stale) | -> | Stale Previous conflict detection | `test/config/concurrent-conflict-stale.ci` |
 | `show blame` command | -> | Annotated tree view with gutter | `test/config/show-blame.ci` |
 | `who` command | -> | List active sessions | `test/config/who.ci` |
-| `disconnect` command | -> | Remove session entries (RBAC) | `test/config/disconnect.ci` |
+| `disconnect` command | -> | Remove session entries | `test/config/disconnect.ci` |
 | Same-user reconnect with orphaned session | -> | Adoption prompt | `test/config/session-adopt.ci` |
+| SSH session connects + `set` + `commit` | -> | SSH editor with session identity, write-through, commit | `test/config/ssh-editor.ci` |
+| Exit editor with pending changes | -> | Exit prompt (save/discard/cancel) | `test/config/exit-prompt.ci` |
+| `ze config migrate` on hierarchical file | -> | Output is set format (default), tree migrations applied | `test/parse/set-format-migration-cmd.ci` |
 
 ## Acceptance Criteria
 
@@ -804,18 +885,23 @@ The transforms are identical because both structures use the same YANG path as k
 | AC-18 | `show changes all` | Displays pending changes grouped by all sessions |
 | AC-19 | All sessions committed/discarded | Draft file deleted |
 | AC-20 | Hierarchical text config opened | Auto-detected, parsed, editor works normally |
-| AC-21 | First commit of hierarchical config | Written in new flat set format |
+| AC-21 | First commit of hierarchical config | config.conf written in set+meta format. Tree structure migrations applied if needed. Draft already in set format from first `set`. |
 | AC-22 | SSH session connects | Gets editor with session identity, can set/commit |
 | AC-23 | `# comment` lines in config | Preserved through read/write cycle |
-| AC-24 | `save` command | Draft persisted with metadata, no effect on running config |
+| AC-24 | `save` command in session mode | No-op confirmation (draft already on disk via write-through), no effect on running config |
 | AC-25 | Lock contention (two writes at same instant) | Second writer blocks briefly on flock, then succeeds |
 | AC-26 | Editor starts with existing draft | No interactive prompt, loads draft automatically, displays other sessions |
 | AC-27 | Same-user reconnect with orphaned session | Prompted to adopt previous session's changes |
 | AC-28 | `who` command | Lists all active/orphaned sessions with change counts |
-| AC-29 | `disconnect <session>` with admin role | Session's entries removed from draft |
-| AC-30 | `disconnect <session>` without admin role | Rejected (RBAC) |
+| AC-29 | `disconnect <session>` | Session's entries removed from draft, committed values restored |
+| ~~AC-30~~ | ~~`disconnect <session>` without admin role~~ | ~~Rejected (RBAC)~~ Deferred: ze has no RBAC system yet. Will be added when a role/permission spec exists. |
 | AC-31 | Exit with pending changes | Prompted to save or discard all |
 | AC-32 | Re-`set` a path after stale conflict | Previous updated to current config.conf value, next commit succeeds |
+| AC-33 | Empty or comment-only config file opened | Detected as set format (not hierarchical), no migration triggered |
+| AC-34 | `ze config migrate` on hierarchical file (no `--format` flag) | Output is set format (not hierarchical). Tree structure migrations also applied. |
+| AC-35 | `WorkingContent()` called when session is active | Returns set-format serialization consistent with what `CommitSession()` writes, so validation operates on the same format as the commit output |
+| AC-36 | Non-session `commit` on hierarchical config | `Save()` rejects when session is active. Non-session `Save()` only for raw-text fallback. |
+| AC-37 | `commit confirmed` in session mode | ~~Routes through `CommitSession()` (not `Save()`), writes set+meta format~~ Currently rejected with error ("not yet supported in session mode"). Full timer/auto-rollback session support deferred to Phase 7 Item 4. |
 
 ## 🧪 TDD Test Plan
 
@@ -823,15 +909,15 @@ The transforms are identical because both structures use the same YANG path as k
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestParseSetFormat` | `internal/component/config/parse_set_test.go` | Flat set commands parsed into Tree | |
-| `TestParseSetFormatWithMeta` | `internal/component/config/parse_set_test.go` | Metadata prefixes parsed into MetaTree | |
-| `TestParseSetFormatMixed` | `internal/component/config/parse_set_test.go` | Mixed lines (with/without metadata) | |
-| `TestParseSetFormatComments` | `internal/component/config/parse_set_test.go` | Comments preserved, not confused with user metadata | |
-| `TestParseSetFormatEmpty` | `internal/component/config/parse_set_test.go` | Empty file produces empty tree | |
-| `TestParseSetFormatDelete` | `internal/component/config/parse_set_test.go` | Delete lines recorded in MetaTree | |
-| `TestSerializeSet` | `internal/component/config/serialize_set_test.go` | Tree serialized to flat set commands | |
-| `TestSerializeSetWithMeta` | `internal/component/config/serialize_set_test.go` | Tree + MetaTree serialized with prefixes | |
-| `TestSerializeSetRoundTrip` | `internal/component/config/serialize_set_test.go` | Parse -> Serialize -> Parse produces same Tree | |
+| ~~`TestParseSetFormat`~~ `TestSetParserSimpleLeaf`, `TestSetParserNeighborLeaf`, `TestSetParserMultipleNeighbors`, `TestSetParserNestedContainer`, `TestSetParserNestedList`, `TestSetParserProcess` | `internal/component/config/setparser_test.go` | Flat set commands parsed into Tree (split into per-type tests) | |
+| ~~`TestParseSetFormatWithMeta`~~ `TestParseSetWithMetaSimple`, `TestParseSetWithMetaNested` | `internal/component/config/setparser_test.go` | Metadata prefixes parsed into MetaTree | |
+| ~~`TestParseSetFormatMixed`~~ `TestParseSetWithMetaMixed` | `internal/component/config/setparser_test.go` | Mixed lines (with/without metadata) | |
+| ~~`TestParseSetFormatComments`~~ `TestSetParserComments`, `TestParseSetWithMetaComments` | `internal/component/config/setparser_test.go` | Comments preserved, not confused with user metadata | |
+| ~~`TestParseSetFormatEmpty`~~ `TestSetParserEmptyLines` | `internal/component/config/setparser_test.go` | Empty/blank lines handled correctly | |
+| ~~`TestParseSetFormatDelete`~~ `TestSetParserDelete` | `internal/component/config/setparser_test.go` | Delete lines parsed and recorded | |
+| ~~`TestSerializeSet`~~ `TestSerializeSetSimpleLeaf`, `TestSerializeSetNeighborLeaf`, `TestSerializeSetNestedContainer`, `TestSerializeSetMultipleNeighbors`, `TestSerializeSetNestedList`, `TestSerializeSetEmptyTree` | `internal/component/config/serialize_set_test.go` | Tree serialized to flat set commands (split into per-type tests) | |
+| ~~`TestSerializeSetWithMeta`~~ `TestSerializeSetWithMeta`, `TestSerializeSetWithMetaNested`, `TestSerializeSetWithMetaMixed` | `internal/component/config/serialize_set_test.go` | Tree + MetaTree serialized with prefixes | |
+| `TestSerializeSetRoundTrip`, `TestSerializeSetCrossFormatRoundTrip` | `internal/component/config/serialize_set_test.go` | Parse -> Serialize -> Parse produces same Tree (including cross-format hierarchical->set) | |
 | `TestSerializeSetSchemaOrder` | `internal/component/config/serialize_set_test.go` | Output follows YANG schema order | |
 | `TestSerializeBlame` | `internal/component/config/serialize_set_test.go` | Blame view with fixed-width gutter | |
 | `TestFormatAutoDetect` | `internal/component/config/parser_test.go` | First-line detection: set vs hierarchical | |
@@ -859,7 +945,11 @@ The transforms are identical because both structures use the same YANG path as k
 | `TestEditorDisconnect` | `internal/component/cli/editor_test.go` | Disconnect removes target session entries | |
 | `TestEditorExitPrompt` | `internal/component/cli/editor_test.go` | Exit with pending changes prompts save/discard | |
 | `TestEditorSave` | `internal/component/cli/editor_test.go` | Save persists draft, does not affect config.conf | |
-| `TestHierarchicalToSetMigration` | `internal/component/config/migrate_test.go` | Hierarchical config migrated on first commit | |
+| `TestHierarchicalToSetMigration` | `internal/component/cli/editor_test.go` | Hierarchical config opened, first `CommitSession` writes set+meta format to config.conf with tree structure migrations applied | |
+| `TestWorkingContentSessionFormat` | `internal/component/cli/editor_test.go` | `WorkingContent()` returns set format when session is active, hierarchical when no session | |
+| `TestSaveGuardInSessionMode` | `internal/component/cli/editor_test.go` | `Save()` rejects (returns error) when session is active, preventing accidental hierarchical overwrite | |
+| `TestDetectFormatEmptyFile` | `internal/component/config/serialize_set_test.go` | Empty file and comment-only file detected as `FormatSet`, not `FormatHierarchical` | |
+| `TestMigrateDefaultOutputSet` | `cmd/ze/config/cmd_migrate_test.go` | `ze config migrate` on hierarchical input produces set format by default | |
 | `TestBlameGutterWidth` | `internal/component/cli/model_commands_test.go` | Gutter columns have fixed width | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
@@ -876,26 +966,30 @@ The transforms are identical because both structures use the same YANG path as k
 | `test-set-format-parse` | `test/parse/set-format.ci` | Config in set format parsed, ze starts | |
 | `test-set-format-meta` | `test/parse/set-format-meta.ci` | Config with metadata parsed, ze starts | |
 | `test-set-format-migration` | `test/parse/set-format-migration.ci` | Hierarchical config auto-detected, migrated on commit | |
+| `test-set-format-migration-cmd` | `test/parse/set-format-migration-cmd.ci` | `ze config migrate` on hierarchical file outputs set format | |
 | `test-concurrent-write` | `test/config/concurrent-write-through.ci` | `set` writes to draft immediately | |
 | `test-concurrent-commit` | `test/config/concurrent-commit.ci` | `commit` applies only my session | |
 | `test-concurrent-conflict-live` | `test/config/concurrent-conflict-live.ci` | Live disagreement conflict detected and reported | |
 | `test-concurrent-conflict-stale` | `test/config/concurrent-conflict-stale.ci` | Stale Previous conflict detected and reported | |
 | `test-show-blame` | `test/config/show-blame.ci` | `show blame` displays annotated tree | |
 | `test-who` | `test/config/who.ci` | `who` lists active sessions | |
-| `test-disconnect` | `test/config/disconnect.ci` | `disconnect` removes session entries (RBAC) | |
+| `test-disconnect` | `test/config/disconnect.ci` | `disconnect` removes session entries | |
 | `test-session-adopt` | `test/config/session-adopt.ci` | Same-user reconnect adoption prompt | |
+| `test-ssh-editor` | `test/config/ssh-editor.ci` | SSH session gets editor, can set/commit | |
+| `test-exit-prompt` | `test/config/exit-prompt.ci` | Exit with pending changes shows prompt | |
 | `test-discard-path` | `test/config/discard-path.ci` | `discard <path>` restores committed value | |
 
 ## Files to Modify
 
 - `internal/component/config/tree.go` - no structural change, Tree remains as-is
-- `internal/component/config/parser.go` - add format auto-detection at parse entry point
+- `internal/component/config/parser.go` - unchanged (auto-detection is in `serialize_set.go` via `DetectFormat`, called from `editor_draft.go`'s `parseConfigWithFormat`)
 - `internal/component/config/serialize.go` - unchanged (tree view generation stays)
-- `internal/component/cli/editor.go` - major rewrite: session identity, lock file, write-through, draft management
+- `internal/component/cli/editor.go` - major rewrite: session identity, lock file, write-through, draft management, adoption
 - `internal/component/cli/model_commands.go` - update cmdSet/cmdDelete for write-through return, add cmdShowBlame, cmdShowChanges, cmdShowSet, cmdSave, cmdWho, cmdDisconnect; update cmdDiscard to require path or `all`
-- `internal/component/cli/model.go` - mtime polling for draft changes, notification display
-- `cmd/ze/config/cmd_edit.go` - remove PromptPendingEdit, pass session identity to Editor, auto-load draft
-- `internal/component/ssh/session.go` - create Editor for SSH sessions with username identity
+- `internal/component/cli/model.go` - mtime polling for draft changes, notification display, exit prompt intercept in `Update` for quit key messages
+- `cmd/ze/config/cmd_edit.go` - remove legacy `.edit` fallback (PromptPendingEdit), add adoption prompt for same-user orphaned sessions (session identity and auto-load already implemented)
+- `internal/component/ssh/ssh.go` - add `ConfigPath` to `Config` struct
+- `internal/component/ssh/session.go` - create Editor for SSH sessions with username identity, full wiring (session, reload, archive, command executor)
 
 ### Integration Checklist
 
@@ -903,18 +997,20 @@ The transforms are identical because both structures use the same YANG path as k
 |-------------------|---------|------|
 | YANG schema (new RPCs) | [x] | No new RPCs, editor commands are local |
 | RPC count in architecture docs | [ ] | N/A |
-| CLI commands/flags | [x] | `cmd/ze/config/cmd_edit.go` (remove prompt), `cmd/ze/config/cmd_migrate.go` (add format flag) |
+| CLI commands/flags | [x] | `cmd/ze/config/cmd_edit.go` (remove prompt), `cmd/ze/config/cmd_migrate.go` (default output to set format, add `--format` flag for explicit format choice) |
 | CLI usage/help text | [x] | Update `show` subcommands help |
 | API commands doc | [ ] | N/A |
 | Plugin SDK docs | [ ] | N/A |
 | Editor autocomplete | [x] | Add completions for `show blame`, `show changes`, `show changes all`, `show set`, `save`, `who`, `disconnect`, `discard all` |
-| Functional test for new RPC/API | [x] | `test/parse/set-format*.ci`, `test/config/concurrent*.ci` |
+| SSH config path wiring | [x] | `internal/component/bgp/config/loader.go` (pass config path to `ssh.Config.ConfigPath`) |
+| Functional test for new RPC/API | [x] | `test/parse/set-format*.ci`, `test/config/concurrent*.ci`, `test/config/ssh-editor.ci` |
 
 ## Files to Create
 
-- `internal/component/config/parse_set.go` - SetParser: parse flat set commands into Tree + MetaTree
-- `internal/component/config/parse_set_test.go` - unit tests for SetParser
-- `internal/component/config/serialize_set.go` - SerializeSet, SerializeSetWithMeta, SerializeBlame
+- `internal/component/config/setparser.go` - SetParser: parse flat set commands into Tree + MetaTree
+- `internal/component/config/setparser_test.go` - unit tests for SetParser
+- `internal/component/config/serialize_set.go` - SerializeSet, SerializeSetWithMeta, DetectFormat, metadata-aware serialization
+- `internal/component/config/serialize_blame.go` - SerializeBlame, blame gutter formatting (extracted from serialize_set.go)
 - `internal/component/config/serialize_set_test.go` - unit tests for set serializers
 - `internal/component/config/meta.go` - MetaEntry, MetaTree, session operations
 - `internal/component/config/meta_test.go` - unit tests for MetaTree
@@ -929,9 +1025,12 @@ The transforms are identical because both structures use the same YANG path as k
 - `test/config/concurrent-conflict-stale.ci` - functional test: stale Previous conflict
 - `test/config/show-blame.ci` - functional test: blame view
 - `test/config/who.ci` - functional test: who command
-- `test/config/disconnect.ci` - functional test: disconnect command (RBAC)
+- `test/config/disconnect.ci` - functional test: disconnect command
 - `test/config/session-adopt.ci` - functional test: same-user adoption
+- `test/config/ssh-editor.ci` - functional test: SSH session gets editor with set/commit
+- `test/config/exit-prompt.ci` - functional test: exit with pending changes shows prompt
 - `test/config/discard-path.ci` - functional test: discard with path
+- `test/parse/set-format-migration-cmd.ci` - functional test: `ze config migrate` outputs set format
 
 ## Implementation Steps
 
@@ -943,7 +1042,7 @@ Parse flat set commands into Tree. Serialize Tree to flat set commands. Round-tr
 
 1. **Write unit tests** for `ParseSet()` and `SerializeSet()` -> Review: covers all YANG node types?
 2. **Run tests** -> Verify FAIL
-3. **Implement** `parse_set.go`: line-by-line parser that tokenizes `set` commands and builds Tree using existing `walkOrCreate` + `SetValue`
+3. **Implement** `setparser.go`: line-by-line parser that tokenizes `set` commands and builds Tree using existing `walkOrCreate` + `SetValue`
 4. **Implement** `serialize_set.go`: walk Tree in schema order, emit `set <path> <value>` per leaf
 5. **Run tests** -> Verify PASS
 6. **Add round-trip test:** parse hierarchical -> serialize to set -> parse set -> serialize to set -> compare
@@ -957,7 +1056,7 @@ Add metadata prefix handling. MetaTree. Blame view.
 1. **Write unit tests** for `ParseSetWithMeta()`, `SerializeSetWithMeta()`, `SerializeBlame()`
 2. **Run tests** -> Verify FAIL
 3. **Implement** `meta.go`: MetaEntry, MetaTree
-4. **Implement** metadata prefix parsing in `parse_set.go`
+4. **Implement** metadata prefix parsing in `setparser.go`
 5. **Implement** metadata prefix serialization in `serialize_set.go`
 6. **Implement** blame view serialization with fixed-width gutter
 7. **Run tests** -> Verify PASS
@@ -1000,21 +1099,59 @@ Add show blame, show changes (mine/all), show set, save, who, disconnect command
 
 ### Phase 6: SSH Integration, Startup Flow, and Session Adoption
 
-SSH sessions get editors. Remove startup prompt. Add same-user adoption.
+SSH sessions get editors. Remove legacy startup prompt. Add same-user adoption. Add exit prompt. Add mtime polling for draft changes.
 
-1. **Modify** `cmd/ze/config/cmd_edit.go`: remove `PromptPendingEdit`, auto-load draft, display other sessions, prompt adoption for same-user orphaned sessions
-2. **Modify** `ssh/session.go`: create Editor with SSH username
-3. **Add session discovery** on startup (list active sessions from draft metadata)
-4. **Add exit prompt** (save/discard when pending changes exist)
-5. **Functional tests:** `test/config/session-adopt.ci`
+**Note:** `cmd_edit.go` already has session creation (`NewEditSession`), `SetSession`, draft auto-load, and active session display (implemented in earlier phases). Phase 6 completes the remaining wiring.
 
-### Phase 7: Migration
+1. **Write unit tests** for `Editor.AdoptSession` (rewrite `%session` entries), exit prompt logic (pending changes detection, quit intercept), mtime draft polling (AC-5)
+2. **Run tests** -> Verify FAIL
+3. **Implement** `Editor.AdoptSession(oldSessionID string) error` in `editor_draft.go`: acquire lock, read draft, rewrite matching `%session` entries to current session ID, serialize, write draft, release lock
+4. **Modify** `cmd/ze/config/cmd_edit.go`: remove legacy `.edit` fallback (lines 330-346 with `PromptPendingEdit`), add adoption prompt for same-user orphaned sessions (check `ActiveSessions` for matching username with different session ID, call `AdoptSession` on "yes")
+5. **Modify** `internal/component/ssh/ssh.go`: add `ConfigPath string` field to `Config` struct
+6. **Modify** `internal/component/ssh/session.go`: rewrite `createSessionModel` to create `cli.NewEditor(s.config.ConfigPath)` + `ed.SetSession(cli.NewEditSession(username, "ssh"))` + `ed.SetReloadNotifier(...)` + `ed.SetArchiveNotifier(...)` + `cli.NewModel(ed)` + `m.SetCommandExecutor(executor)` + `m.SetCommandCompleter(...)`. Fall back to `cli.NewCommandModel()` if `NewEditor` fails.
+7. **Modify** `internal/component/bgp/config/loader.go`: pass config file path to `ssh.Config.ConfigPath` when creating the SSH server
+8. **Modify** `model.go`: intercept quit key messages (`tea.KeyCtrlC`, `exit`, `quit`) in `Update`, check for pending session entries, display save/discard/cancel prompt, handle response
+9. **Modify** `model.go`: add `draftMtime` field + `draftPollMsg` tick (every 2s) + `checkDraftMtime()` handler that stats draft file, compares mtime, re-reads and re-parses if changed, shows notification of other sessions' changes (AC-5)
+10. **Run tests** -> Verify PASS
+11. **Functional tests:** `test/config/session-adopt.ci`, `test/config/ssh-editor.ci`, `test/config/exit-prompt.ci`
 
-Hierarchical text auto-migration on first commit.
+### Phase 7: Format Migration
 
-1. **Implement** migration in `editor.go`: detect hierarchical format, convert on commit
-2. **Update** `cmd/ze/config/` for explicit `ze config migrate` command
-3. **Functional tests:** `test/parse/set-format-migration.ci`
+~~Hierarchical text auto-migration on first commit.~~
+~~1. Write unit tests for `TestHierarchicalToSetMigration` in `internal/component/config/migrate_test.go`~~
+~~2. Run tests -> Verify FAIL~~
+~~3. Implement migration in `editor.go`: detect hierarchical format, on commit serialize to set format~~
+~~4. Run tests -> Verify PASS~~
+~~5. Update `cmd/ze/config/cmd_migrate.go` for explicit `ze config migrate` command~~
+~~6. Functional tests: `test/parse/set-format-migration.ci`~~
+*(Superseded after critical review: separated format conversion from tree migration, fixed non-session commit path, added validation format alignment, added empty-file edge case.)*
+
+**Already done by existing code:**
+- `CommitSession()` unconditionally writes config.conf with `SerializeSetWithMeta()` -- format conversion is implicit
+- `parseConfigWithFormat()` auto-detects hierarchical input and parses correctly
+- First `writeThroughSet()` creates a set-format draft (Tree is format-agnostic)
+
+**Remaining work (2 items):**
+
+~~1. **Tree structure migration on first commit**: Done. `editor_draft.go:571` calls `migration.NeedsMigration()` on committed tree.~~
+
+~~2. **`WorkingContent()` format-awareness**: Done. `editor.go:300-303` returns `SerializeSetWithMeta()` when session is active.~~
+
+~~3. **`Save()` format-awareness**: Done. `editor.go:849-852` rejects when session is active.~~
+
+4. **`commit confirmed` session routing** (`model_load.go`): ~~Route through `CommitSession()` when session is active instead of calling `Save()` directly.~~ Currently rejected with error in session mode (see Deviations). Full timer/auto-rollback session support deferred. AC-37.
+
+~~5. **`DetectFormat` empty-file edge case**: Done. `serialize_set.go:66-68` returns `FormatSet` for empty/comment-only files.~~
+
+~~6. **`cmd_migrate.go` default output format**: Done. `cmd_migrate.go` has `--format` flag with set format as default.~~
+
+7. **Functional tests:** `test/parse/set-format-migration.ci` -- not yet created.
+
+~~**TDD cycle:**~~ *(Items 1-3, 5-6 already implemented and tested. Remaining: Item 4 deferred, Item 7 functional test.)*
+
+**Remaining TDD:**
+
+1. **Functional test:** `test/parse/set-format-migration.ci` -- open hierarchical config, `set` a value, `commit`, verify config.conf is set format
 
 ### Failure Routing
 
@@ -1027,7 +1164,15 @@ Hierarchical text auto-migration on first commit.
 | Stale conflict not detected | Phase 4 Step 3 (check Previous from config.conf, not draft) |
 | Re-set doesn't clear stale conflict | Phase 4 Step 3 (verify Previous updated to config.conf value on re-set) |
 | Blame gutter misaligned | Phase 5 Step 3 (check fixed-width formatting) |
-| SSH session can't write | Phase 6 Step 2 (check config path propagation) |
+| SSH session can't write | Phase 6 Step 5-6 (check ConfigPath on ssh.Config, check createSessionModel wiring) |
+| Adoption moves wrong entries | Phase 6 Step 3 (check session ID matching in AdoptSession) |
+| Exit prompt not shown | Phase 6 Step 8 (check quit key intercept in model.go Update) |
+| Hierarchical config committed without tree structure migration | Phase 7 Item 1 (check `NeedsMigration()` call in `CommitSession`) |
+| Validation passes but commit writes different content | Phase 7 Item 2 (check `WorkingContent()` returns set format in session mode) |
+| Non-session commit writes hierarchical format | Phase 7 Item 3 (check `Save()` guard or format-awareness) |
+| `commit confirmed` in session mode writes hierarchical | Phase 7 Item 4 (check `model_load.go` session routing) |
+| Empty config triggers migration | Phase 7 Item 5 (check `DetectFormat` empty-file case) |
+| `ze config migrate` on hierarchical outputs hierarchical | Phase 7 Item 6 (check `cmd_migrate.go` default output format) |
 
 ## Mistake Log
 
@@ -1055,6 +1200,37 @@ N/A -- this is an internal config format change, not a protocol change.
 ### Documentation Updates
 
 ### Deviations from Plan
+
+- **Phase boundary:** Phases 3-5 were implemented together in `editor_draft.go` rather than as separate commits. Write-through, commit, discard, and disconnect all share the same file. The TDD cycle should verify Phase 3 tests fail/pass before Phase 4 code is added.
+- **`^previous` sigil:** Added to the metadata grammar to serialize the Previous field to draft files. Not in the original spec grammar (now documented above).
+- **`readCommittedValue` replaced with `readCommittedTree` + `getValueAtPath`:** The original 90-line function with its own tree navigation was replaced to reuse existing schema-aware navigation and eliminate duplicated code.
+- **`walkOrCreate` and `walkOrCreateIn` aligned on `InlineListNode`:** Both now handle inline lists with key navigation (anonymous and keyed). Previously `walkOrCreate` treated inline lists as leaf errors while `walkOrCreateIn` navigated them.
+- **RBAC for `disconnect` deferred:** Original spec had `disconnect` gated by admin role (AC-30). Ze has no RBAC system, so `disconnect` is unrestricted for this spec. AC-30 struck through. RBAC will be added when a role/permission spec is created.
+- **Anonymous list support in `walkOrCreateIn`:** Added `KeyDefault` logic matching `walkOrCreate` so anonymous lists work correctly in write-through paths.
+- **Discard path boundary matching:** `DiscardSessionPath` now uses word-boundary matching (`se.Path == pathPrefix || HasPrefix(se.Path, pathPrefix+" ")`) instead of raw prefix to prevent "bgp peer" from matching "bgp peer-group".
+- **Phase 7 rewritten after critical review:** Original Phase 7 was 3 steps (implement migration, update cmd_migrate, functional tests). Critical review found: (a) `CommitSession()` already does format conversion implicitly, (b) format migration and tree structure migration are distinct concerns that were conflated, (c) non-session `Save()` path still writes hierarchical, (d) `WorkingContent()` format doesn't match commit output, (e) `DetectFormat` mishandles empty files, (f) `cmd_migrate.go` preserves input format instead of defaulting to set format, (g) `commit confirmed` path bypasses `CommitSession()`. Phase 7 expanded to 7 items + 5 new ACs (AC-33 through AC-37).
+- **Known limitation: commit validation scope.** Pre-commit validation in `cmdCommitSession` checks the full draft tree (all sessions combined), but commit only applies this session's changes. If two sessions' changes are individually invalid but valid together, validation passes but the committed result may be invalid. Acceptable because single-user editing is the common case, and full draft validation catches most errors.
+- **`delete` command in set format:** The serializer emits `delete <path>` lines with metadata for keys that have metadata entries but no tree value. The parser recognizes `delete` lines and records metadata via `walkAndRecordDeleteMeta`. This enables Previous to survive the serialize/parse round-trip for deleted keys, making stale conflict detection work symmetrically for both set and delete operations.
+- **`editor_draft.go` at 958 lines:** Exceeds the 600-line review threshold. Contains write-through, commit, discard, disconnect, and tree/meta walking utilities. Candidate for splitting at completion (file-modularity check in Completion Checklist step 3). Natural split: commit/discard/disconnect into `editor_commit.go`, tree/meta walking utilities into `editor_walk.go`.
+- **Filename deviation: `setparser.go` instead of `parse_set.go`:** Original spec planned `parse_set.go`; implemented as `setparser.go` to follow the naming pattern of existing parsers in the `config` package (e.g., `parser.go`). Tests similarly: `setparser_test.go` instead of `parse_set_test.go`.
+- **`DetectFormat` location:** Spec originally placed format auto-detection in `parser.go`. Implemented in `serialize_set.go` alongside the `ConfigFormat` constants. Called from `editor_draft.go`'s `parseConfigWithFormat`.
+- **Mtime polling not yet implemented:** AC-5 (other editors detect changes) requires draft file mtime polling in `model.go`. Design specified in Write-Through Protocol section. Assigned to Phase 6.
+- **Stale conflict for newly-added values:** Original code only checked stale conflict when `Previous != ""`. This missed the case where session A adds a new value (Previous=""), then session B commits a value at the same path -- session A's commit should detect the stale conflict. Fixed: also check for `committedValue != ""` when `Previous == ""`.
+- **`disconnect` IsAdmin guard removed:** Code had an `IsAdmin` check on `cmdDisconnectSession` despite spec saying `disconnect` is unrestricted. Guard removed to match spec. `IsAdmin` field and `IsAdmin()` method also removed from `EditSession` (YAGNI -- no current RBAC requirement).
+- **`save` in session mode is a no-op:** Code was calling `SaveEditState()` (writes `.edit` file) even in session mode where write-through already persists to `.draft`. Fixed: session mode returns confirmation without I/O.
+- **`show changes` delete rendering:** Code rendered delete entries as `+ set <path>  (new)` because delete MetaEntries have empty Value. Fixed: entries with empty Value and non-empty Previous render as `- delete <path>  (was: <prev>)`.
+- **Exit prompt session awareness:** Code checked `editor.Dirty()` (in-memory flag) instead of session entries for pending changes. In write-through mode, `Dirty()` is unreliable. Fixed: session mode checks `HasPendingSessionChanges()` (meta.SessionEntries count). Prompt text updated to match session semantics.
+- **Phase counter corrections:** Originally set to 5/7, corrected to 4/7 (Phase 5 `.ci` tests missing), then to 6/7 (Phase 7 Items 1-3, 5-6 already implemented in code; only Item 4 deferred and Item 7 functional tests remain).
+- **Functional tests deferred to Phase 5 completion:** Phases 1-2 spec listed `.ci` functional tests (`set-format.ci`, `set-format-meta.ci`) as deliverables but none were created. All `.ci` tests consolidated to Phase 5+ delivery.
+- **`show changes` grammar fix:** "No my pending changes." corrected to "No pending changes."
+- **`commit confirmed` rejected in session mode:** `commit confirmed <N>` in session mode was silently routed to `cmdCommitSession()`, ignoring the timer/auto-rollback semantics entirely. Fixed: session mode rejects `commit confirmed` with an explicit error, directing the user to use plain `commit`. Full `commit confirmed` session support (AC-37) deferred to Phase 7 Item 4.
+- **Ctrl-C/Esc quit path now session-aware:** The Ctrl-C/Esc handler in `handleKeyMsg` went straight to `confirmQuit` with a generic "Quit?" message, bypassing the pending-changes check. Fixed: both the Ctrl-C/Esc path and the exit/quit command path now use a shared `hasPendingChanges()` helper that checks `HasPendingSessionChanges()` in session mode and `Dirty()` otherwise.
+- **`autoSaveOnQuit` skipped in session mode:** Force-quit auto-save was writing a `.edit` snapshot even when write-through already persists to `.draft`. Fixed: `autoSaveOnQuit()` now skips `SaveEditState()` when a session is active, since the draft is already on disk.
+- **`show set` available without session:** `show set` (flat set-format view) was gated behind `HasSession()` along with `show blame` and `show changes`. Since `show set` is a pure format conversion with no metadata dependency, it now works without an active session. `show blame` and `show changes` still require a session (they depend on MetaTree data).
+- **`discard` completion offers `all`:** Added `completeDiscardPath` to the completer dispatch, offering `all` alongside YANG path completions when typing `discard `.
+- **Conflict display format is compact:** Spec shows a multi-line format with "Your value:", "Committed value:", etc. Implementation uses a single-line format (`LIVE path: you=val, other=val`). Same information, more compact. Cosmetic deviation.
+- **`show blame`/`show changes` error without session:** Previously fell through silently when no session was active. Now returns explicit error ("show blame requires an active editing session").
+- **`who`/`disconnect` guarded and filtered without session:** Both commands return explicit errors when no editing session is active. Completion filtering extended from `blame`/`changes` to also hide `who` and `disconnect` when no session is active.
 
 ## Implementation Audit
 
@@ -1091,7 +1267,7 @@ N/A -- this is an internal config format change, not a protocol change.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-32 all demonstrated
+- [ ] AC-1..AC-37 all demonstrated (AC-30 struck through, AC-33 through AC-37 added by Phase 7 critical review)
 - [ ] Wiring Test table complete
 - [ ] `make ze-test` passes
 - [ ] Feature code integrated

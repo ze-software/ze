@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -212,7 +213,7 @@ bgp {
 		t.Fatalf("write config: %v", err)
 	}
 
-	_, _, _, err := configMigrateWithWarnings(configPath, "")
+	_, _, _, err := configMigrateWithWarnings(configPath, "", "set")
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
@@ -233,8 +234,100 @@ invalid { syntax }
 		t.Fatalf("write config: %v", err)
 	}
 
-	_, _, _, err := configMigrateWithWarnings(configPath, "")
+	_, _, _, err := configMigrateWithWarnings(configPath, "", "set")
 	if err == nil {
 		t.Error("expected error for invalid syntax, got nil")
+	}
+}
+
+// TestConfigMigrateSetFormatInput tests that set-format input is parsed correctly.
+//
+// VALIDATES: configMigrateWithWarnings uses SetParser for set-format input.
+//
+// PREVENTS: Set-format configs failing to parse because hierarchical parser is used.
+func TestConfigMigrateSetFormatInput(t *testing.T) {
+	input := `set bgp local-as 65000
+set bgp peer 192.0.2.1 peer-as 65001
+`
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	if err := os.WriteFile(configPath, []byte(input), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	output, _, _, err := configMigrateWithWarnings(configPath, "", "set")
+	if err != nil {
+		t.Fatalf("unexpected error for set-format input: %v", err)
+	}
+
+	// Output should still be set format and contain the original values.
+	if !strings.Contains(output, "set bgp local-as") {
+		t.Errorf("expected set-format output, got:\n%s", output)
+	}
+	if !strings.Contains(output, "set bgp peer 192.0.2.1 peer-as") {
+		t.Errorf("expected peer in output, got:\n%s", output)
+	}
+}
+
+// TestConfigMigrateHierarchicalOutput tests that --format hierarchical works.
+//
+// VALIDATES: configMigrateWithWarnings produces hierarchical output when requested.
+//
+// PREVENTS: --format hierarchical flag ignored.
+func TestConfigMigrateHierarchicalOutput(t *testing.T) {
+	input := `set bgp local-as 65000
+set bgp peer 192.0.2.1 peer-as 65001
+`
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	if err := os.WriteFile(configPath, []byte(input), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	output, _, _, err := configMigrateWithWarnings(configPath, "", "hierarchical")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Hierarchical output should contain braces.
+	if !strings.Contains(output, "{") {
+		t.Errorf("expected hierarchical output with braces, got:\n%s", output)
+	}
+	if !strings.Contains(output, "local-as") {
+		t.Errorf("expected local-as in output, got:\n%s", output)
+	}
+}
+
+// TestConfigMigrateOutputToFile tests that -o flag writes to file.
+//
+// VALIDATES: configMigrateWithWarnings writes output to file.
+//
+// PREVENTS: Output file not created or empty.
+func TestConfigMigrateOutputToFile(t *testing.T) {
+	input := `bgp {
+	peer 192.0.2.1 {
+		peer-as 65001
+	}
+}
+`
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	if err := os.WriteFile(configPath, []byte(input), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	outputPath := filepath.Join(tmpDir, "output.conf")
+
+	_, _, _, err := configMigrateWithWarnings(configPath, outputPath, "set")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	data, err := os.ReadFile(outputPath) //nolint:gosec // Test file
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+
+	if !strings.Contains(string(data), "set bgp peer 192.0.2.1 peer-as") {
+		t.Errorf("expected set-format in output file, got:\n%s", string(data))
 	}
 }

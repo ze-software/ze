@@ -308,8 +308,27 @@ Examples:
 		}
 	}
 
-	// Check for pending edit file from previous session
-	if ed.HasPendingEdit() {
+	// Create session for concurrent editing.
+	username := os.Getenv("USER")
+	if username == "" {
+		username = "unknown"
+	}
+	session := cli.NewEditSession(username, "local")
+	ed.SetSession(session)
+
+	// Auto-load draft if it exists (replaces PromptPendingEdit).
+	draftPath := cli.DraftPath(configPath)
+	if _, statErr := os.Stat(draftPath); statErr == nil {
+		// Draft exists: display active sessions.
+		activeSessions := ed.ActiveSessions()
+		if len(activeSessions) > 0 {
+			fmt.Fprintf(os.Stderr, "Active sessions:\n") //nolint:errcheck // terminal output
+			for _, sid := range activeSessions {
+				fmt.Fprintf(os.Stderr, "  %s\n", sid) //nolint:errcheck // terminal output
+			}
+		}
+	} else if ed.HasPendingEdit() {
+		// Legacy pending edit file (pre-session format).
 		switch ed.PromptPendingEdit() {
 		case cli.PendingEditContinue:
 			if err := ed.LoadPendingEdit(); err != nil {
