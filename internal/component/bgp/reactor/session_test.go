@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"codeberg.org/thomas-mangin/ze/internal/core/network"
 )
 
 // acceptWithReader handles net.Pipe's synchronous behavior by reading
@@ -2913,4 +2914,60 @@ func TestSendMessageAutoFlush(t *testing.T) {
 	require.Equal(t, byte(message.TypeKEEPALIVE), buf[18])
 
 	require.NoError(t, <-errCh)
+}
+
+// TestSessionMD5DialerWiring verifies NewSession sets MD5 fields on the dialer.
+//
+// VALIDATES: MD5Key from PeerSettings flows to RealDialer.
+// PREVENTS: MD5 config accepted but not applied to the dialer.
+func TestSessionMD5DialerWiring(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.MD5Key = "test-md5-key"
+
+	session := NewSession(settings)
+	require.NotNil(t, session)
+
+	// Verify the dialer has MD5 fields set.
+	rd, ok := session.dialer.(*network.RealDialer)
+	require.True(t, ok, "dialer should be *network.RealDialer")
+	require.Equal(t, "test-md5-key", rd.MD5Key)
+	require.Equal(t, net.IP(netip.MustParseAddr("192.0.2.1").AsSlice()), rd.PeerAddr)
+}
+
+// TestSessionMD5DialerWiringWithMD5IP verifies MD5IP overrides peer address.
+//
+// VALIDATES: MD5IP from PeerSettings is used as the dialer's PeerAddr.
+// PREVENTS: MD5IP being ignored when set.
+func TestSessionMD5DialerWiringWithMD5IP(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.MD5Key = "test-md5-key"
+	settings.MD5IP = netip.MustParseAddr("10.0.0.1")
+
+	session := NewSession(settings)
+	rd, ok := session.dialer.(*network.RealDialer)
+	require.True(t, ok)
+	require.Equal(t, net.IP(netip.MustParseAddr("10.0.0.1").AsSlice()), rd.PeerAddr)
+}
+
+// TestSessionNoMD5WhenKeyAbsent verifies no MD5 fields set when key is empty.
+//
+// VALIDATES: Dialer has no MD5 config when PeerSettings.MD5Key is empty.
+// PREVENTS: False positive MD5 activation.
+func TestSessionNoMD5WhenKeyAbsent(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+
+	session := NewSession(settings)
+	rd, ok := session.dialer.(*network.RealDialer)
+	require.True(t, ok)
+	require.Empty(t, rd.MD5Key)
+	require.Nil(t, rd.PeerAddr)
 }

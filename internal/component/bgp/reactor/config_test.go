@@ -1372,3 +1372,70 @@ func TestParseGracefulRestartWithMode(t *testing.T) {
 		})
 	}
 }
+
+// TestParsePeerMD5FieldsParsed verifies md5-password and md5-ip are stored in PeerSettings.
+//
+// VALIDATES: MD5 fields are populated from config on all platforms.
+// PREVENTS: MD5 config silently ignored during parsing.
+func TestParsePeerMD5FieldsParsed(t *testing.T) {
+	tree := map[string]any{
+		"peer-as":       "65001",
+		"local-address": "auto",
+		"md5-password":  "bgp-secret-key",
+		"md5-ip":        "192.0.2.100",
+	}
+
+	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	require.NoError(t, err)
+	assert.Equal(t, "bgp-secret-key", ps.MD5Key)
+	assert.Equal(t, netip.MustParseAddr("192.0.2.100"), ps.MD5IP)
+}
+
+// TestParsePeerMD5InvalidIP verifies md5-ip validation.
+//
+// VALIDATES: Invalid md5-ip returns error.
+// PREVENTS: Broken MD5 configuration silently accepted.
+func TestParsePeerMD5InvalidIP(t *testing.T) {
+	tree := map[string]any{
+		"peer-as":       "65001",
+		"local-address": "auto",
+		"md5-password":  "secret",
+		"md5-ip":        "not-an-ip",
+	}
+
+	_, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid md5-ip")
+}
+
+// TestParsePeerNoMD5FieldsWhenAbsent verifies MD5 fields are empty when not configured.
+//
+// VALIDATES: MD5 fields default to zero values when md5-password is absent.
+// PREVENTS: False positive MD5 activation.
+func TestParsePeerNoMD5FieldsWhenAbsent(t *testing.T) {
+	tree := map[string]any{
+		"peer-as":       "65001",
+		"local-address": "auto",
+	}
+
+	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	require.NoError(t, err)
+	assert.Empty(t, ps.MD5Key)
+	assert.False(t, ps.MD5IP.IsValid())
+}
+
+// TestParsePeerMD5IPWithoutPassword verifies md5-ip without md5-password is rejected.
+//
+// VALIDATES: md5-ip requires md5-password to be set.
+// PREVENTS: Orphaned md5-ip silently ignored.
+func TestParsePeerMD5IPWithoutPassword(t *testing.T) {
+	tree := map[string]any{
+		"peer-as":       "65001",
+		"local-address": "auto",
+		"md5-ip":        "10.0.0.99",
+	}
+
+	_, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "md5-ip requires md5-password")
+}

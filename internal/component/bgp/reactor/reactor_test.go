@@ -10,6 +10,7 @@ import (
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"codeberg.org/thomas-mangin/ze/internal/core/network"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -2247,4 +2248,60 @@ func TestGetMatchingPeersExclusion(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestMD5PeersForListener verifies md5PeersForListener collects the right peers.
+//
+// VALIDATES: MD5 peers are collected by listen port with MD5IP override.
+// PREVENTS: Listener socket missing MD5 keys or applying keys to wrong port.
+func TestMD5PeersForListener(t *testing.T) {
+	r := New(&Config{Port: 179})
+
+	// Peer 1: MD5 on default port, no MD5IP override.
+	s1 := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65001, 0x01010101)
+	s1.MD5Key = "key-one"
+	require.NoError(t, r.AddPeer(s1))
+
+	// Peer 2: MD5 on default port, with MD5IP override.
+	s2 := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65002, 0x01010101)
+	s2.MD5Key = "key-two"
+	s2.MD5IP = mustParseAddr("10.0.0.200")
+	require.NoError(t, r.AddPeer(s2))
+
+	// Peer 3: no MD5 on default port.
+	s3 := NewPeerSettings(mustParseAddr("10.0.0.3"), 65000, 65003, 0x01010101)
+	require.NoError(t, r.AddPeer(s3))
+
+	// Peer 4: MD5 but on custom port 1179.
+	s4 := NewPeerSettings(mustParseAddr("10.0.0.4"), 65000, 65004, 0x01010101)
+	s4.Port = 1179
+	s4.MD5Key = "key-four"
+	require.NoError(t, r.AddPeer(s4))
+
+	// Collect MD5 peers for default port (179).
+	md5 := r.md5PeersForListener(179)
+	require.Len(t, md5, 2, "should collect 2 MD5 peers on port 179")
+
+	// Build lookup for deterministic assertions.
+	byKey := make(map[string]network.MD5Peer)
+	for _, p := range md5 {
+		byKey[p.Key] = p
+	}
+
+	// Peer 1: address used directly (no MD5IP).
+	p1 := byKey["key-one"]
+	assert.Equal(t, net.IP(mustParseAddr("10.0.0.1").AsSlice()), p1.Addr)
+
+	// Peer 2: MD5IP override used instead of peer address.
+	p2 := byKey["key-two"]
+	assert.Equal(t, net.IP(mustParseAddr("10.0.0.200").AsSlice()), p2.Addr)
+
+	// Custom port: only peer 4.
+	md5Custom := r.md5PeersForListener(1179)
+	require.Len(t, md5Custom, 1)
+	assert.Equal(t, "key-four", md5Custom[0].Key)
+
+	// Unrelated port: empty.
+	md5None := r.md5PeersForListener(2179)
+	assert.Empty(t, md5None)
 }

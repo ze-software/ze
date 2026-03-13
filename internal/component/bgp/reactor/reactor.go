@@ -520,11 +520,17 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// Start background gap scan goroutine for the recent update cache.
 	r.recentUpdates.Start()
 
-	// Start legacy listener if ListenAddr is configured (backward compatibility)
+	// Start global listener if ListenAddr is configured.
 	if r.config.ListenAddr != "" {
 		r.listener = NewListener(r.config.ListenAddr)
 		r.listener.SetClock(r.clock)
-		r.listener.SetListenerFactory(r.listenerFactory)
+		// Apply MD5 peers to global listener if any peers have MD5 configured.
+		md5Peers := r.md5PeersForListener(r.config.Port)
+		if len(md5Peers) > 0 {
+			r.listener.SetListenerFactory(network.RealListenerFactory{MD5Peers: md5Peers})
+		} else {
+			r.listener.SetListenerFactory(r.listenerFactory)
+		}
 		r.listener.SetHandler(r.handleConnection)
 		if err := r.listener.StartWithContext(r.ctx); err != nil {
 			r.cancel()
@@ -708,6 +714,30 @@ func (r *Reactor) Stop() {
 	}
 }
 
+// md5PeersForListener collects MD5 peer entries for a listener on the given port.
+// Must be called with r.mu held.
+func (r *Reactor) md5PeersForListener(listenPort int) []network.MD5Peer {
+	var md5Peers []network.MD5Peer
+	for _, p := range r.peers {
+		s := p.Settings()
+		if s.MD5Key == "" {
+			continue
+		}
+		if r.peerListenPort(s) != listenPort {
+			continue
+		}
+		md5Addr := s.Address
+		if s.MD5IP.IsValid() {
+			md5Addr = s.MD5IP
+		}
+		md5Peers = append(md5Peers, network.MD5Peer{
+			Addr: md5Addr.AsSlice(),
+			Key:  s.MD5Key,
+		})
+	}
+	return md5Peers
+}
+
 // startListenerForAddressPort creates and starts a listener on addr:port.
 // If peerKey is non-empty, the listener is a per-peer-port listener that routes
 // directly to that peer (no remote IP matching). Otherwise, it's a shared listener
@@ -722,7 +752,13 @@ func (r *Reactor) startListenerForAddressPort(addr netip.Addr, port int, peerKey
 
 	listener := NewListener(lkey)
 	listener.SetClock(r.clock)
-	listener.SetListenerFactory(r.listenerFactory)
+	// Build listener factory with MD5 peers for this port.
+	md5Peers := r.md5PeersForListener(port)
+	if len(md5Peers) > 0 {
+		listener.SetListenerFactory(network.RealListenerFactory{MD5Peers: md5Peers})
+	} else {
+		listener.SetListenerFactory(r.listenerFactory)
+	}
 
 	if peerKey != "" {
 		// Per-peer-port listener: route directly by peer key

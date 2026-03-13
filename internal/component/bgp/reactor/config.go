@@ -15,6 +15,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/core/network"
 )
 
 // Config tree string constants (shared with reactor.go to satisfy goconst).
@@ -129,13 +130,22 @@ func parsePeerFromTree(addr string, tree map[string]any, localAS, routerID uint3
 	// Parse process bindings.
 	parseProcessBindingsFromTree(tree, ps)
 
-	// Warn if md5-password is configured: accepted by YANG schema but not applied.
-	// TCP MD5 (RFC 2385) requires platform-specific TCP_MD5SIG setsockopt which
-	// is not yet implemented. Without this warning, operators may believe their
-	// BGP sessions are authenticated when they are not.
-	if _, ok := mapString(tree, "md5-password"); ok {
-		reactorLogger().Warn("md5-password configured but not applied: TCP MD5 authentication is not yet implemented",
-			"peer", addr)
+	// TCP MD5 authentication (RFC 2385).
+	if md5, ok := mapString(tree, "md5-password"); ok {
+		if !network.TCPMD5Supported() {
+			reactorLogger().Warn("md5-password configured but TCP MD5 is not supported on this platform; connections will fail",
+				"peer", addr)
+		}
+		ps.MD5Key = md5
+		if md5ip, ok := mapString(tree, "md5-ip"); ok {
+			a, err := netip.ParseAddr(md5ip)
+			if err != nil {
+				return nil, fmt.Errorf("peer %s: invalid md5-ip: %w", addr, err)
+			}
+			ps.MD5IP = a
+		}
+	} else if _, hasMD5IP := mapString(tree, "md5-ip"); hasMD5IP {
+		return nil, fmt.Errorf("peer %s: md5-ip requires md5-password", addr)
 	}
 
 	return ps, nil

@@ -112,9 +112,26 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 		if settings.LocalAddress.IsValid() && settings.Connection.IsPassive() {
 			listenPort := r.peerListenPort(settings)
 			lkey := net.JoinHostPort(settings.LocalAddress.String(), strconv.Itoa(listenPort))
-			if _, hasListener := r.listeners[lkey]; !hasListener {
+			if existing, hasListener := r.listeners[lkey]; !hasListener {
 				if err := r.startListenerForAddressPort(settings.LocalAddress, listenPort, settings.PeerKey()); err != nil {
 					// Rollback peer addition
+					delete(r.peers, key)
+					return err
+				}
+			} else if settings.MD5Key != "" {
+				// Listener exists but new peer has MD5 -- restart listener so
+				// TCP_MD5SIG includes the new peer. Go's net.ListenConfig.Control
+				// callback only fires at socket creation time.
+				existing.Stop()
+				waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				_ = existing.Wait(waitCtx)
+				cancel()
+				delete(r.listeners, lkey)
+				peerKey := ""
+				if settings.Port != 0 && settings.Port != DefaultBGPPort {
+					peerKey = settings.PeerKey()
+				}
+				if err := r.startListenerForAddressPort(settings.LocalAddress, listenPort, peerKey); err != nil {
 					delete(r.peers, key)
 					return err
 				}

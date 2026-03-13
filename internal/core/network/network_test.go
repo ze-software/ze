@@ -130,6 +130,68 @@ func TestListenerFactoryInterfaceSatisfied(t *testing.T) {
 	var _ ListenerFactory = &RealListenerFactory{}
 }
 
+// TestTCPMD5SupportedReturnsValue verifies TCPMD5Supported returns a boolean.
+//
+// VALIDATES: TCPMD5Supported reports platform capability.
+// PREVENTS: Missing platform-specific implementation.
+func TestTCPMD5SupportedReturnsValue(t *testing.T) {
+	// On macOS: false, on Linux/FreeBSD: true, on other: false
+	got := TCPMD5Supported()
+	t.Logf("TCPMD5Supported() = %v", got)
+}
+
+// TestSetTCPMD5SigPlatform verifies setTCPMD5Sig behavior on the current platform.
+//
+// VALIDATES: Platform-specific TCP MD5 function exists and returns expected error.
+// PREVENTS: Missing build tag or function signature.
+func TestSetTCPMD5SigPlatform(t *testing.T) {
+	err := setTCPMD5Sig(0, net.IPv4(192, 0, 2, 1), "secret")
+	if TCPMD5Supported() {
+		// On Linux/FreeBSD: expect syscall error (bad fd), not "unsupported"
+		if err == nil {
+			t.Fatal("expected error for fd=0, got nil")
+		}
+		t.Logf("supported platform error (expected): %v", err)
+	} else {
+		// On macOS/other: expect "not supported" error
+		if err == nil {
+			t.Fatal("expected unsupported error, got nil")
+		}
+		t.Logf("unsupported platform error (expected): %v", err)
+	}
+}
+
+// TestRealDialerMD5FieldsZeroValue verifies that MD5 fields default to zero values.
+//
+// VALIDATES: RealDialer with no MD5 config works identically to before.
+// PREVENTS: MD5 fields breaking existing dialer behavior.
+func TestRealDialerMD5FieldsZeroValue(t *testing.T) {
+	d := &RealDialer{}
+	if d.MD5Key != "" {
+		t.Error("MD5Key should default to empty")
+	}
+	if d.PeerAddr != nil {
+		t.Error("PeerAddr should default to nil")
+	}
+}
+
+// TestRealListenerFactoryMD5PeersZeroValue verifies MD5Peers defaults to nil.
+//
+// VALIDATES: RealListenerFactory with no MD5 config works identically to before.
+// PREVENTS: MD5Peers field breaking existing factory behavior.
+func TestRealListenerFactoryMD5PeersZeroValue(t *testing.T) {
+	f := RealListenerFactory{}
+	if f.MD5Peers != nil {
+		t.Error("MD5Peers should default to nil")
+	}
+	// Verify it still creates a working listener
+	ln, err := f.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("Listen failed: %v", err)
+	}
+	closeOrLog(t, ln)
+}
+
 type closer interface {
 	Close() error
 }

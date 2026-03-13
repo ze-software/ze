@@ -254,6 +254,16 @@ type PeerSettings struct {
 	// ConnectionActive: dial only (no bind/listen).
 	Connection ConnectionMode
 
+	// MD5Key is the TCP MD5 authentication key (RFC 2385).
+	// When non-empty, TCP_MD5SIG is applied on both dialer and listener sockets.
+	// The MD5IP field specifies which address to authenticate (defaults to Address).
+	MD5Key string
+
+	// MD5IP overrides the peer address used for TCP_MD5SIG setsockopt.
+	// Useful for multihop BGP where the MD5 key is bound to a different address.
+	// Defaults to Address when empty.
+	MD5IP netip.Addr
+
 	// GroupUpdates indicates whether to group compatible routes in single UPDATE.
 	// Default: true (reduces UPDATE count from O(routes) to O(routes/capacity)).
 	GroupUpdates bool

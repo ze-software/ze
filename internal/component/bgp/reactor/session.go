@@ -211,6 +211,14 @@ func NewSession(settings *PeerSettings) *Session {
 	if settings.LocalAddress.IsValid() {
 		dialer.LocalAddr = &net.TCPAddr{IP: settings.LocalAddress.AsSlice()}
 	}
+	if settings.MD5Key != "" {
+		md5Addr := settings.Address
+		if settings.MD5IP.IsValid() {
+			md5Addr = settings.MD5IP
+		}
+		dialer.PeerAddr = md5Addr.AsSlice()
+		dialer.MD5Key = settings.MD5Key
+	}
 
 	s := &Session{
 		settings: settings,
