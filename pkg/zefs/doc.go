@@ -1,7 +1,7 @@
-// Package zefs provides a netstring-framed blob store with hierarchical keys.
+// Package zefs provides a netcapstring-framed blob store with hierarchical keys.
 //
 // Keys use "/" separators to form a virtual directory tree. On disk, entries
-// are stored as flat netstrings with fixed-width headers. In memory, keys
+// are stored as flat netcapstrings with fixed-width headers. In memory, keys
 // are indexed as a tree for ReadDir support.
 //
 // The store implements io/fs.FS, fs.ReadFileFS, and fs.ReadDirFS for reads.

@@ -6,6 +6,7 @@ package zefs
 import (
 	"io"
 	"io/fs"
+	"sort"
 	"time"
 )
 
@@ -31,10 +32,12 @@ func (f *storeFile) Stat() (fs.FileInfo, error) {
 
 func (f *storeFile) Close() error { return nil }
 
-// storeDir implements fs.File for a directory node.
+// storeDir implements fs.File and fs.ReadDirFile for a directory node.
 type storeDir struct {
-	node *node
-	name string
+	node    *node
+	name    string
+	entries []fs.DirEntry // lazily built, sorted
+	pos     int           // streaming position for ReadDir(n>0)
 }
 
 func (d *storeDir) Read([]byte) (int, error) {
@@ -47,6 +50,42 @@ func (d *storeDir) Stat() (fs.FileInfo, error) {
 
 func (d *storeDir) Close() error { return nil }
 
+// ReadDir implements fs.ReadDirFile. When n > 0, it returns up to n entries
+// per call, advancing an internal cursor; io.EOF signals no more entries.
+// When n <= 0, it returns all entries in one shot.
+func (d *storeDir) ReadDir(n int) ([]fs.DirEntry, error) {
+	if d.entries == nil {
+		d.entries = make([]fs.DirEntry, 0, len(d.node.children))
+		for childName, child := range d.node.children {
+			d.entries = append(d.entries, &storeDirEntry{
+				entryName: childName,
+				isDir:     child.children != nil,
+				size:      len(child.data),
+			})
+		}
+		sort.Slice(d.entries, func(i, j int) bool {
+			return d.entries[i].Name() < d.entries[j].Name()
+		})
+	}
+
+	if n <= 0 {
+		remaining := d.entries[d.pos:]
+		d.pos = len(d.entries)
+		return remaining, nil
+	}
+
+	if d.pos >= len(d.entries) {
+		return nil, io.EOF
+	}
+	end := min(d.pos+n, len(d.entries))
+	result := d.entries[d.pos:end]
+	d.pos = end
+	if d.pos >= len(d.entries) {
+		return result, io.EOF
+	}
+	return result, nil
+}
+
 // storeFileInfo implements fs.FileInfo.
 type storeFileInfo struct {
 	name string
@@ -54,9 +93,14 @@ type storeFileInfo struct {
 	dir  bool
 }
 
-func (fi *storeFileInfo) Name() string       { return fi.name }
-func (fi *storeFileInfo) Size() int64        { return fi.size }
-func (fi *storeFileInfo) Mode() fs.FileMode  { return 0o444 }
+func (fi *storeFileInfo) Name() string { return fi.name }
+func (fi *storeFileInfo) Size() int64  { return fi.size }
+func (fi *storeFileInfo) Mode() fs.FileMode {
+	if fi.dir {
+		return fs.ModeDir | 0o555
+	}
+	return 0o444
+}
 func (fi *storeFileInfo) ModTime() time.Time { return time.Time{} }
 func (fi *storeFileInfo) IsDir() bool        { return fi.dir }
 func (fi *storeFileInfo) Sys() any           { return nil }
@@ -68,9 +112,14 @@ type storeDirEntry struct {
 	size      int
 }
 
-func (e *storeDirEntry) Name() string      { return e.entryName }
-func (e *storeDirEntry) IsDir() bool       { return e.isDir }
-func (e *storeDirEntry) Type() fs.FileMode { return 0 }
+func (e *storeDirEntry) Name() string { return e.entryName }
+func (e *storeDirEntry) IsDir() bool  { return e.isDir }
+func (e *storeDirEntry) Type() fs.FileMode {
+	if e.isDir {
+		return fs.ModeDir
+	}
+	return 0
+}
 func (e *storeDirEntry) Info() (fs.FileInfo, error) {
 	return &storeFileInfo{name: e.entryName, size: int64(e.size), dir: e.isDir}, nil
 }

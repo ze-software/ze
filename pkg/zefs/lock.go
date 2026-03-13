@@ -1,26 +1,30 @@
 // Design: (none -- predates documentation)
-// Overview: store.go -- BlobStore uses lock guards for concurrent access
+// Overview: store.go -- BlobStore concurrent access via ReadLock and WriteLock
+// Related: guard.go -- WriteGuard and ReadGuard interfaces
 
 package zefs
 
 import (
+	"fmt"
 	"io/fs"
+	"sync/atomic"
 )
 
 // ReadLock is a shared lock guard for read-only operations.
 // Multiple ReadLocks can be held simultaneously.
 // Release must be called exactly once; subsequent calls are no-ops.
+// The released flag uses atomic.Bool so Release is safe from concurrent goroutines.
 type ReadLock struct {
 	s        *BlobStore
-	released bool
+	released atomic.Bool
 }
 
-// Release releases the shared lock. Safe to call multiple times.
+// Release releases the shared lock. Safe to call multiple times and from
+// concurrent goroutines.
 func (rl *ReadLock) Release() {
-	if rl.released {
+	if !rl.released.CompareAndSwap(false, true) {
 		return
 	}
-	rl.released = true
 	rl.s.mu.RUnlock()
 }
 
@@ -51,16 +55,18 @@ func (rl *ReadLock) ReadDir(name string) ([]fs.DirEntry, error) {
 type WriteLock struct {
 	s        *BlobStore
 	dirty    bool
-	released bool
+	released atomic.Bool
 }
 
-// Release flushes any pending writes to disk and releases the exclusive lock.
-// Safe to call multiple times; subsequent calls return nil.
+// Release flushes any pending writes to disk and releases both
+// the in-process mutex and the cross-process flock.
+// Safe to call multiple times and from concurrent goroutines;
+// subsequent calls return nil.
 func (wl *WriteLock) Release() error {
-	if wl.released {
+	if !wl.released.CompareAndSwap(false, true) {
 		return nil
 	}
-	wl.released = true
+	defer flockUnlock(wl.s.lockFd) //nolint:errcheck // best-effort flock release
 	defer wl.s.mu.Unlock()
 	if wl.dirty {
 		return wl.s.flush()
@@ -113,8 +119,12 @@ func (s *BlobStore) RLock() *ReadLock {
 	return &ReadLock{s: s}
 }
 
-// Lock acquires an exclusive write lock and returns a WriteLock guard.
-func (s *BlobStore) Lock() *WriteLock {
+// Lock acquires a cross-process flock and an exclusive in-process write lock,
+// then returns a WriteLock guard. Release must be called to release both locks.
+func (s *BlobStore) Lock() (*WriteLock, error) {
+	if err := flockExclusive(s.lockFd); err != nil {
+		return nil, fmt.Errorf("zefs: flock: %w", err)
+	}
 	s.mu.Lock()
-	return &WriteLock{s: s}
+	return &WriteLock{s: s}, nil
 }

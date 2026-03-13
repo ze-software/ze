@@ -1,5 +1,5 @@
 // Design: (none -- predates documentation)
-// Overview: store.go -- BlobStore uses netstrings for disk framing
+// Overview: store.go -- BlobStore uses netcapstrings for disk framing
 
 package zefs
 
@@ -8,16 +8,16 @@ import (
 	"strconv"
 )
 
-// headerLen is the fixed-width netstring header size: "NNNNNNN:NNNNNNN:" = 16 bytes.
+// headerLen is the fixed-width netcapstring header size: "NNNNNNN:NNNNNNN:" = 16 bytes.
 const headerLen = 16
 
 // maxHeaderVal is the largest value representable in a 7-digit field.
 const maxHeaderVal = 9_999_999
 
-// encodeNetstring writes data into a netstring with fixed-width header and zero padding.
+// encodeNetcapstring writes data into a netcapstring with fixed-width header and zero padding.
 // Format: "UUUUUUU:CCCCCCC:<data><zero-padding>" where U=used, C=capacity.
 // Returns an error if used or capacity exceeds the 7-digit header limit.
-func encodeNetstring(data []byte, capacity int) ([]byte, error) {
+func encodeNetcapstring(data []byte, capacity int) ([]byte, error) {
 	if len(data) > maxHeaderVal || capacity > maxHeaderVal {
 		return nil, fmt.Errorf("zefs: value exceeds header limit (%d): used=%d, capacity=%d", maxHeaderVal, len(data), capacity)
 	}
@@ -28,10 +28,10 @@ func encodeNetstring(data []byte, capacity int) ([]byte, error) {
 	return buf, nil
 }
 
-// decodeNetstring reads a netstring at the given offset, returning a copy.
-// This is the safe-copy variant of decodeNetstringRef (which returns sub-slices
+// decodeNetcapstring reads a netcapstring at the given offset, returning a copy.
+// This is the safe-copy variant of decodeNetcapstringRef (which returns sub-slices
 // of the input buffer). Used by tests to verify round-trip correctness.
-func decodeNetstring(buf []byte, off int) (data []byte, capacity, next int, err error) {
+func decodeNetcapstring(buf []byte, off int) (data []byte, capacity, next int, err error) {
 	if off+headerLen > len(buf) {
 		return nil, 0, 0, fmt.Errorf("zefs: truncated header at offset %d", off)
 	}
@@ -88,10 +88,10 @@ func parseHeader(hdr []byte) (used, capacity int, err error) {
 	return used, capacity, nil
 }
 
-// decodeNetstringRef reads a netstring at the given offset without copying.
+// decodeNetcapstringRef reads a netcapstring at the given offset without copying.
 // The returned data is a sub-slice of buf and shares its backing array.
 // Callers must not modify the returned data.
-func decodeNetstringRef(buf []byte, off int) (data []byte, capacity, next int, err error) {
+func decodeNetcapstringRef(buf []byte, off int) (data []byte, capacity, next int, err error) {
 	if off+headerLen > len(buf) {
 		return nil, 0, 0, fmt.Errorf("zefs: truncated header at offset %d", off)
 	}

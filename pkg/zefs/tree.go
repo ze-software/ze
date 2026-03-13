@@ -4,6 +4,7 @@
 package zefs
 
 import (
+	"fmt"
 	"strings"
 )
 
@@ -18,8 +19,10 @@ func newDirNode() *node {
 }
 
 // set inserts or updates a key in the tree. Intermediate directory nodes
-// are created as needed.
-func (n *node) set(key string, data []byte) {
+// are created as needed. Returns an error if the path conflicts with
+// existing entries (e.g., writing "a/b" when "a" is a file, or writing
+// "a" when "a/b" exists).
+func (n *node) set(key string, data []byte) error {
 	parts := strings.Split(key, "/")
 	cur := n
 	for _, p := range parts[:len(parts)-1] {
@@ -27,11 +30,17 @@ func (n *node) set(key string, data []byte) {
 		if !ok {
 			child = newDirNode()
 			cur.children[p] = child
+		} else if child.children == nil {
+			return fmt.Errorf("zefs: path conflict: segment %q in %q is a file", p, key)
 		}
 		cur = child
 	}
 	leaf := parts[len(parts)-1]
+	if existing, ok := cur.children[leaf]; ok && existing.children != nil {
+		return fmt.Errorf("zefs: path conflict: %q is a directory", key)
+	}
 	cur.children[leaf] = &node{data: data}
+	return nil
 }
 
 // get returns the data for a key, or nil if not found.
