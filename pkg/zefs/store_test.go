@@ -377,8 +377,8 @@ func TestStoreGrowthSpare(t *testing.T) {
 		t.Fatal("slot not found")
 	}
 	minCap := len(big) + len(big)/10
-	if sl.dataCap < minCap {
-		t.Errorf("slot capacity %d should be >= %d (used %d + 10%% spare)", sl.dataCap, minCap, len(big))
+	if sl.data.capacity < minCap {
+		t.Errorf("slot capacity %d should be >= %d (used %d + 10%% spare)", sl.data.capacity, minCap, len(big))
 	}
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
@@ -405,7 +405,7 @@ func TestStoreSlotRegrowth(t *testing.T) {
 	}
 
 	// Overwrite with data much larger than the current slot capacity
-	big := make([]byte, slBefore.dataCap*3)
+	big := make([]byte, slBefore.data.capacity*3)
 	for i := range big {
 		big[i] = 'A'
 	}
@@ -417,12 +417,12 @@ func TestStoreSlotRegrowth(t *testing.T) {
 	if !ok {
 		t.Fatal("slot not found after regrowth")
 	}
-	if slAfter.dataCap <= slBefore.dataCap {
-		t.Errorf("slot should have grown: before=%d, after=%d", slBefore.dataCap, slAfter.dataCap)
+	if slAfter.data.capacity <= slBefore.data.capacity {
+		t.Errorf("slot should have grown: before=%d, after=%d", slBefore.data.capacity, slAfter.data.capacity)
 	}
 	minCap := len(big) + len(big)/10
-	if slAfter.dataCap < minCap {
-		t.Errorf("regrown slot %d should be >= %d (10%% spare)", slAfter.dataCap, minCap)
+	if slAfter.data.capacity < minCap {
+		t.Errorf("regrown slot %d should be >= %d (10%% spare)", slAfter.data.capacity, minCap)
 	}
 
 	// Verify data round-trips through close+reopen
@@ -681,21 +681,19 @@ func TestStoreReopenAndModify(t *testing.T) {
 	}
 }
 
-// VALIDATES: WriteFile rejects data exceeding the 7-digit header limit
-// PREVENTS: silent framing corruption on oversized entries
+// VALIDATES: WriteFile rejects invalid keys
+// PREVENTS: silent corruption from bad key names
 
-func TestStoreHeaderOverflow(t *testing.T) {
+func TestStoreInvalidKeyRejected(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "test.zefs")
 	s, err := Create(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Write data larger than the 7-digit header can represent
-	big := make([]byte, maxHeaderVal+1)
-	err = s.WriteFile("toobig", big, 0)
+	err = s.WriteFile(".", []byte("bad"), 0)
 	if err == nil {
-		t.Fatal("expected error for data exceeding header limit")
+		t.Fatal("expected error for invalid key")
 	}
 
 	// Store should still be usable after the rejected write
@@ -709,6 +707,41 @@ func TestStoreHeaderOverflow(t *testing.T) {
 	}
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// VALIDATES: decodeInto rejects blob with too many entries
+// PREVENTS: memory exhaustion from crafted blob with millions of tiny entries
+
+func TestStoreDecodeEntryCountLimit(t *testing.T) {
+	// Build a blob with maxEntryCount+1 entries.
+	// Each entry is a key-value pair of minimal netcapstrings.
+	path := filepath.Join(t.TempDir(), "test.zefs")
+	s, err := Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Write maxEntryCount+1 entries via WriteLock (bypasses per-write flush)
+	wl, err := s.Lock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range maxEntryCount + 1 {
+		key := fmt.Sprintf("k/%d", i)
+		if writeErr := wl.WriteFile(key, []byte("v"), 0); writeErr != nil {
+			_ = wl.Release()
+			t.Fatalf("write entry %d: %v", i, writeErr)
+		}
+	}
+	// Release triggers flush+load which decodes. The decode should fail.
+	err = wl.Release()
+	if err == nil {
+		t.Error("expected error from entry count limit on decode")
+	}
+
+	if closeErr := s.Close(); closeErr != nil {
+		t.Logf("close after limit error: %v", closeErr)
 	}
 }
 
@@ -2572,8 +2605,8 @@ func TestStoreSlotMissing(t *testing.T) {
 	if ok {
 		t.Error("slot should return false for missing key")
 	}
-	if sl.nameCap != 0 || sl.dataCap != 0 {
-		t.Errorf("zero-value expected, got nameCap=%d dataCap=%d", sl.nameCap, sl.dataCap)
+	if sl.name.capacity != 0 || sl.data.capacity != 0 {
+		t.Errorf("zero-value expected, got nameCap=%d dataCap=%d", sl.name.capacity, sl.data.capacity)
 	}
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
@@ -3680,7 +3713,7 @@ func TestStoreUpdateExactCapacity(t *testing.T) {
 	if !ok {
 		t.Fatal("slot not found")
 	}
-	origDataCap := sl.dataCap
+	origDataCap := sl.data.capacity
 
 	// Write data exactly at dataCap length -- should NOT trigger regrowth
 	exact := make([]byte, origDataCap)
@@ -3690,8 +3723,8 @@ func TestStoreUpdateExactCapacity(t *testing.T) {
 	writeOrFatal(t, s, "key", exact)
 
 	sl2, _ := s.slot("key")
-	if sl2.dataCap != origDataCap {
-		t.Errorf("dataCap changed from %d to %d on exact-fit update", origDataCap, sl2.dataCap)
+	if sl2.data.capacity != origDataCap {
+		t.Errorf("dataCap changed from %d to %d on exact-fit update", origDataCap, sl2.data.capacity)
 	}
 
 	// Read back and verify
@@ -3720,15 +3753,15 @@ func TestStoreUpdateExceedsCapacity(t *testing.T) {
 
 	writeOrFatal(t, s, "key", []byte("hi"))
 	sl, _ := s.slot("key")
-	origDataCap := sl.dataCap
+	origDataCap := sl.data.capacity
 
 	// Write data larger than current capacity
 	big := bytes.Repeat([]byte("x"), origDataCap+1)
 	writeOrFatal(t, s, "key", big)
 
 	sl2, _ := s.slot("key")
-	if sl2.dataCap <= origDataCap {
-		t.Errorf("dataCap should have grown: was %d, now %d", origDataCap, sl2.dataCap)
+	if sl2.data.capacity <= origDataCap {
+		t.Errorf("dataCap should have grown: was %d, now %d", origDataCap, sl2.data.capacity)
 	}
 
 	got, err := s.ReadFile("key")
@@ -3740,6 +3773,126 @@ func TestStoreUpdateExceedsCapacity(t *testing.T) {
 	}
 
 	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// VALIDATES: growing one entry recalculates offsets for all entries
+// PREVENTS: stale offsets after capacity growth shifts subsequent entries
+
+func TestStoreGrowthRecalculatesOffsets(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "test.zefs")
+	s, err := Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create 5 entries in order. Keys are ordered deterministically.
+	entries := []struct {
+		key  string
+		data string
+	}{
+		{"a/first", "data-1"},
+		{"b/second", "data-2"},
+		{"c/third", "data-3"},
+		{"d/fourth", "data-4"},
+		{"e/fifth", "data-5"},
+	}
+	for _, e := range entries {
+		writeOrFatal(t, s, e.key, []byte(e.data))
+	}
+
+	// Record offsets before growth
+	slotsBefore := make(map[string]slotInfo)
+	for _, e := range entries {
+		sl, ok := s.slot(e.key)
+		if !ok {
+			t.Fatalf("slot %q not found before growth", e.key)
+		}
+		slotsBefore[e.key] = sl
+	}
+
+	// Grow "b/second" well past its capacity -- forces re-encode, shifts c/d/e
+	sl2 := slotsBefore["b/second"]
+	bigData := bytes.Repeat([]byte("X"), sl2.data.capacity*3)
+	writeOrFatal(t, s, "b/second", bigData)
+
+	// Verify all entries are readable with correct data
+	for _, e := range entries {
+		want := e.data
+		if e.key == "b/second" {
+			want = string(bigData)
+		}
+		got, readErr := s.ReadFile(e.key)
+		if readErr != nil {
+			t.Fatalf("ReadFile(%q) after growth: %v", e.key, readErr)
+		}
+		if string(got) != want {
+			t.Errorf("ReadFile(%q): got %d bytes, want %d bytes", e.key, len(got), len(want))
+		}
+	}
+
+	// Verify offsets are consistent: each slot's offset should be after the previous slot's end
+	slotsAfter := make(map[string]slotInfo)
+	for _, e := range entries {
+		sl, ok := s.slot(e.key)
+		if !ok {
+			t.Fatalf("slot %q not found after growth", e.key)
+		}
+		slotsAfter[e.key] = sl
+	}
+
+	// a/first should be at the same offset (before the grown entry)
+	if slotsAfter["a/first"].name.offset != slotsBefore["a/first"].name.offset {
+		t.Errorf("a/first offset changed: before=%d, after=%d",
+			slotsBefore["a/first"].name.offset, slotsAfter["a/first"].name.offset)
+	}
+
+	// b/second should have grown capacity
+	if slotsAfter["b/second"].data.capacity <= slotsBefore["b/second"].data.capacity {
+		t.Errorf("b/second data capacity should have grown: before=%d, after=%d",
+			slotsBefore["b/second"].data.capacity, slotsAfter["b/second"].data.capacity)
+	}
+
+	// c/third offset should have shifted (it's after the grown entry)
+	if slotsAfter["c/third"].name.offset == slotsBefore["c/third"].name.offset {
+		t.Error("c/third offset should have shifted after b/second grew")
+	}
+
+	// Verify offset ordering: each entry starts after the previous entry ends
+	orderedKeys := []string{"a/first", "b/second", "c/third", "d/fourth", "e/fifth"}
+	for i := 1; i < len(orderedKeys); i++ {
+		prev := slotsAfter[orderedKeys[i-1]]
+		curr := slotsAfter[orderedKeys[i]]
+		prevEnd := prev.data.offset + prev.data.totalLen()
+		if curr.name.offset != prevEnd {
+			t.Errorf("entry %q starts at %d, but previous entry %q ends at %d (gap or overlap)",
+				orderedKeys[i], curr.name.offset, orderedKeys[i-1], prevEnd)
+		}
+	}
+
+	// Reopen store from disk and verify all data survives
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s2, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		want := e.data
+		if e.key == "b/second" {
+			want = string(bigData)
+		}
+		got, readErr := s2.ReadFile(e.key)
+		if readErr != nil {
+			t.Fatalf("ReadFile(%q) after reopen: %v", e.key, readErr)
+		}
+		if string(got) != want {
+			t.Errorf("ReadFile(%q) after reopen: got %d bytes, want %d bytes", e.key, len(got), len(want))
+		}
+	}
+	if err := s2.Close(); err != nil {
 		t.Fatal(err)
 	}
 }

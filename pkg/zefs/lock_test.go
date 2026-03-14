@@ -331,10 +331,10 @@ func TestWriteLockReadOperations(t *testing.T) {
 	}
 }
 
-// VALIDATES: WriteLock.WriteFile rejects oversized data
-// PREVENTS: tree poisoning from oversized entries in batched writes
+// VALIDATES: WriteLock.WriteFile rejects invalid keys
+// PREVENTS: tree poisoning from invalid entries in batched writes
 
-func TestWriteLockRejectsOversized(t *testing.T) {
+func TestWriteLockRejectsInvalidKey(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "test.zefs")
 	s, err := Create(path)
 	if err != nil {
@@ -344,10 +344,9 @@ func TestWriteLockRejectsOversized(t *testing.T) {
 	wl := lockOrFatal(t, s)
 	writeLockedOrFatal(t, wl, "good", []byte("fine"))
 
-	big := make([]byte, maxHeaderVal+1)
-	err = wl.WriteFile("toobig", big, 0)
+	err = wl.WriteFile(".", []byte("bad-key"), 0)
 	if err == nil {
-		t.Fatal("expected error for oversized data")
+		t.Fatal("expected error for invalid key")
 	}
 
 	// The good write should still succeed on Release

@@ -1,4 +1,4 @@
-// Design: (none -- predates documentation)
+// Design: docs/architecture/zefs-format.md -- netcapstring encoding
 // Overview: store.go -- BlobStore uses netcapstrings for disk framing
 
 package zefs
@@ -8,23 +8,69 @@ import (
 	"strconv"
 )
 
-// headerLen is the fixed-width netcapstring header size: "NNNNNNN:NNNNNNN:" = 16 bytes.
-const headerLen = 16
+// maxNumberWidth limits the number field to prevent pathological inputs.
+// 19 digits covers the full range of int64.
+const maxNumberWidth = 19
 
-// maxHeaderVal is the largest value representable in a 7-digit field.
-const maxHeaderVal = 9_999_999
+// writeNetcapstringHeader writes the header :<number>:<cap>:<dataLen>: into buf at off.
+// Capacity first, then dataLen (derived from data). Returns bytes written.
+// Caller must ensure buf has sufficient space.
+func writeNetcapstringHeader(buf []byte, off, capacity, dataLen int) int {
+	start := off
+	number := digitCount(capacity)
+	numberStr := strconv.Itoa(number)
 
-// encodeNetcapstring writes data into a netcapstring with fixed-width header and zero padding.
-// Format: "UUUUUUU:CCCCCCC:<data><zero-padding>" where U=used, C=capacity.
-// Returns an error if used or capacity exceeds the 7-digit header limit.
-func encodeNetcapstring(data []byte, capacity int) ([]byte, error) {
-	if len(data) > maxHeaderVal || capacity > maxHeaderVal {
-		return nil, fmt.Errorf("zefs: value exceeds header limit (%d): used=%d, capacity=%d", maxHeaderVal, len(data), capacity)
+	buf[off] = ':'
+	off++
+	off += copy(buf[off:], numberStr)
+	buf[off] = ':'
+	off++
+	off += writeZeroPadded(buf[off:], capacity, number)
+	buf[off] = ':'
+	off++
+	off += writeZeroPadded(buf[off:], dataLen, number)
+	buf[off] = ':'
+	off++
+
+	return off - start
+}
+
+// writeNetcapstring writes a complete netcapstring into buf at off.
+// Format: :<number>:<cap>:<used>:<data><zero-padding>
+// Used is calculated from len(data). Returns bytes written.
+// Caller must ensure buf has sufficient space.
+// Padding bytes are explicitly zeroed (safe for in-place overwrites).
+func writeNetcapstring(buf []byte, off int, data []byte, capacity int) int {
+	start := off
+	off += writeNetcapstringHeader(buf, off, capacity, len(data))
+	off += copy(buf[off:], data)
+
+	// Explicitly zero padding (required for in-place writes into non-zeroed buffers)
+	padding := capacity - len(data)
+	for i := range padding {
+		buf[off+i] = 0
 	}
-	buf := make([]byte, headerLen+capacity)
-	writeHeader(buf, len(data), capacity)
-	copy(buf[headerLen:], data)
-	// remaining bytes are zero (Go initializes slices to zero)
+	off += padding
+
+	return off - start
+}
+
+// netcapstringTotalLen returns the total on-disk size of a netcapstring (header + capacity).
+func netcapstringTotalLen(capacity int) int {
+	return netcapstringHeaderLen(capacity) + capacity
+}
+
+// encodeNetcapstring allocates a buffer and writes a netcapstring into it.
+// Convenience wrapper around writeNetcapstring for callers that need standalone bytes.
+func encodeNetcapstring(data []byte, capacity int) ([]byte, error) {
+	if capacity < 0 {
+		return nil, fmt.Errorf("zefs: negative capacity: %d", capacity)
+	}
+	if len(data) > capacity {
+		return nil, fmt.Errorf("zefs: data length %d exceeds capacity %d", len(data), capacity)
+	}
+	buf := make([]byte, netcapstringTotalLen(capacity))
+	writeNetcapstring(buf, 0, data, capacity)
 	return buf, nil
 }
 
@@ -32,91 +78,190 @@ func encodeNetcapstring(data []byte, capacity int) ([]byte, error) {
 // This is the safe-copy variant of decodeNetcapstringRef (which returns sub-slices
 // of the input buffer). Used by tests to verify round-trip correctness.
 func decodeNetcapstring(buf []byte, off int) (data []byte, capacity, next int, err error) {
-	if off+headerLen > len(buf) {
-		return nil, 0, 0, fmt.Errorf("zefs: truncated header at offset %d", off)
-	}
-
-	used, cap_, err := parseHeader(buf[off : off+headerLen])
+	ref, cap_, next, err := decodeNetcapstringRef(buf, off)
 	if err != nil {
 		return nil, 0, 0, err
 	}
-
-	dataStart := off + headerLen
-	if dataStart+cap_ > len(buf) {
-		return nil, 0, 0, fmt.Errorf("zefs: truncated data at offset %d: need %d, have %d", off, cap_, len(buf)-dataStart)
-	}
-
-	// Return a copy of the used portion so caller doesn't hold the backing array
-	result := make([]byte, used)
-	copy(result, buf[dataStart:dataStart+used])
-
-	return result, cap_, dataStart + cap_, nil
-}
-
-// writeHeader writes "UUUUUUU:CCCCCCC:" into buf[:headerLen].
-func writeHeader(buf []byte, used, capacity int) {
-	h := fmt.Sprintf("%07d:%07d:", used, capacity)
-	copy(buf, h)
-}
-
-// parseHeader reads "UUUUUUU:CCCCCCC:" and returns used and capacity.
-func parseHeader(hdr []byte) (used, capacity int, err error) {
-	if len(hdr) < headerLen {
-		return 0, 0, fmt.Errorf("zefs: header too short: %d", len(hdr))
-	}
-	if hdr[7] != ':' || hdr[15] != ':' {
-		return 0, 0, fmt.Errorf("zefs: malformed header: %q", hdr[:headerLen])
-	}
-
-	used, err = strconv.Atoi(string(hdr[:7]))
-	if err != nil {
-		return 0, 0, fmt.Errorf("zefs: invalid used: %w", err)
-	}
-
-	capacity, err = strconv.Atoi(string(hdr[8:15]))
-	if err != nil {
-		return 0, 0, fmt.Errorf("zefs: invalid capacity: %w", err)
-	}
-
-	if used < 0 || capacity < 0 {
-		return 0, 0, fmt.Errorf("zefs: negative header values: used=%d, capacity=%d", used, capacity)
-	}
-	if used > capacity {
-		return 0, 0, fmt.Errorf("zefs: used %d exceeds capacity %d", used, capacity)
-	}
-
-	return used, capacity, nil
+	result := make([]byte, len(ref))
+	copy(result, ref)
+	return result, cap_, next, nil
 }
 
 // decodeNetcapstringRef reads a netcapstring at the given offset without copying.
 // The returned data is a sub-slice of buf and shares its backing array.
 // Callers must not modify the returned data.
 func decodeNetcapstringRef(buf []byte, off int) (data []byte, capacity, next int, err error) {
-	if off+headerLen > len(buf) {
-		return nil, 0, 0, fmt.Errorf("zefs: truncated header at offset %d", off)
-	}
+	start := off
 
-	used, cap_, err := parseHeader(buf[off : off+headerLen])
+	// Expect leading ':'
+	if off >= len(buf) || buf[off] != ':' {
+		return nil, 0, 0, fmt.Errorf("zefs: expected ':' at offset %d", start)
+	}
+	off++
+
+	// Scan for number field (digits until next ':')
+	numStart := off
+	for off < len(buf) && buf[off] != ':' {
+		off++
+	}
+	if off >= len(buf) {
+		return nil, 0, 0, fmt.Errorf("zefs: unterminated number field at offset %d", start)
+	}
+	number, err := strconv.Atoi(string(buf[numStart:off]))
+	if err != nil || number <= 0 || number > maxNumberWidth {
+		return nil, 0, 0, fmt.Errorf("zefs: invalid number field at offset %d: %q", start, buf[numStart:off])
+	}
+	off++ // skip ':'
+
+	// Read cap (number digits)
+	if off+number > len(buf) {
+		return nil, 0, 0, fmt.Errorf("zefs: truncated capacity at offset %d", start)
+	}
+	cap_, err := strconv.Atoi(string(buf[off : off+number]))
 	if err != nil {
-		return nil, 0, 0, err
+		return nil, 0, 0, fmt.Errorf("zefs: invalid capacity at offset %d: %w", start, err)
+	}
+	off += number
+
+	// Expect ':'
+	if off >= len(buf) || buf[off] != ':' {
+		return nil, 0, 0, fmt.Errorf("zefs: expected ':' after capacity at offset %d", start)
+	}
+	off++
+
+	// Read used (number digits)
+	if off+number > len(buf) {
+		return nil, 0, 0, fmt.Errorf("zefs: truncated used at offset %d", start)
+	}
+	used, err := strconv.Atoi(string(buf[off : off+number]))
+	if err != nil {
+		return nil, 0, 0, fmt.Errorf("zefs: invalid used at offset %d: %w", start, err)
+	}
+	off += number
+
+	// Expect ':'
+	if off >= len(buf) || buf[off] != ':' {
+		return nil, 0, 0, fmt.Errorf("zefs: expected ':' after used at offset %d", start)
+	}
+	off++
+
+	// Validate
+	if cap_ < 0 {
+		return nil, 0, 0, fmt.Errorf("zefs: negative capacity at offset %d: %d", start, cap_)
+	}
+	if used < 0 || used > cap_ {
+		return nil, 0, 0, fmt.Errorf("zefs: used %d exceeds capacity %d at offset %d", used, cap_, start)
 	}
 
-	dataStart := off + headerLen
-	if dataStart+cap_ > len(buf) {
-		return nil, 0, 0, fmt.Errorf("zefs: truncated data at offset %d: need %d, have %d", off, cap_, len(buf)-dataStart)
+	// Check data region fits in buffer (subtraction avoids int overflow on crafted cap_ values)
+	if cap_ > len(buf)-off {
+		return nil, 0, 0, fmt.Errorf("zefs: truncated data at offset %d: need %d, have %d", start, cap_, len(buf)-off)
 	}
 
 	// Zero-copy: return sub-slice with capped length to prevent access to padding
-	return buf[dataStart : dataStart+used : dataStart+used], cap_, dataStart + cap_, nil
+	return buf[off : off+used : off+used], cap_, off + cap_, nil
+}
+
+// writeZeroPadded writes n as a zero-padded decimal of the given width into buf.
+// Returns width (number of bytes written).
+func writeZeroPadded(buf []byte, n, width int) int {
+	s := fmt.Sprintf("%0*d", width, n)
+	copy(buf, s)
+	return width
+}
+
+// digitCount returns the number of decimal digits needed to represent n.
+func digitCount(n int) int {
+	if n == 0 {
+		return 1
+	}
+	count := 0
+	v := n
+	for v > 0 {
+		count++
+		v /= 10
+	}
+	return count
+}
+
+// netcapstringHeaderLen returns the header length for a netcapstring with the given capacity.
+// Header format: colon-number-colon-cap-colon-used-colon.
+func netcapstringHeaderLen(capacity int) int {
+	number := digitCount(capacity)
+	numberWidth := digitCount(number)
+	return 4 + numberWidth + 2*number
+}
+
+// netcapSlot describes a single netcapstring's on-disk layout.
+// Tracks position, capacity, and current used length within the backing buffer.
+type netcapSlot struct {
+	offset   int // byte offset of the netcapstring header (the ':') in the backing buffer
+	capacity int // allocated data capacity (from header)
+	used     int // current data length (from header, updated on writes)
+}
+
+// headerLen returns the header length for this slot.
+func (s netcapSlot) headerLen() int {
+	return netcapstringHeaderLen(s.capacity)
+}
+
+// totalLen returns the total on-disk size (header + capacity).
+func (s netcapSlot) totalLen() int {
+	return netcapstringTotalLen(s.capacity)
+}
+
+// dataOffset returns the byte offset where data starts in the buffer.
+func (s netcapSlot) dataOffset() int {
+	return s.offset + s.headerLen()
+}
+
+// data returns a zero-copy sub-slice of the used data from buf.
+func (s netcapSlot) data(buf []byte) []byte {
+	start := s.dataOffset()
+	return buf[start : start+s.used : start+s.used]
+}
+
+// writeData writes data into this slot's position in buf.
+// Updates used from len(data). Writes header, data, and zeroed padding.
+// Returns an error if len(data) exceeds capacity.
+func (s *netcapSlot) writeData(buf, data []byte) error {
+	if len(data) > s.capacity {
+		return fmt.Errorf("zefs: writeData: data length %d exceeds slot capacity %d", len(data), s.capacity)
+	}
+	s.used = len(data)
+	writeNetcapstring(buf, s.offset, data, s.capacity)
+	return nil
+}
+
+// writeAt writes data at a local offset within the slot's data region.
+// Updates used if the write extends past current used. Updates the header.
+// Returns an error if localOff is negative, data is empty, or write extends past capacity.
+func (s *netcapSlot) writeAt(buf []byte, localOff int, data []byte) error {
+	if localOff < 0 {
+		return fmt.Errorf("zefs: writeAt: negative offset %d", localOff)
+	}
+	if len(data) == 0 {
+		return fmt.Errorf("zefs: writeAt: empty data")
+	}
+	end := localOff + len(data)
+	if end > s.capacity {
+		return fmt.Errorf("zefs: writeAt: write ends at %d, exceeds slot capacity %d", end, s.capacity)
+	}
+	start := s.dataOffset()
+	copy(buf[start+localOff:], data)
+	if end > s.used {
+		s.used = end
+		writeNetcapstringHeader(buf, s.offset, s.capacity, s.used)
+	}
+	return nil
 }
 
 // growCapacity returns a new capacity that fits dataLen with at least 10% spare.
-// The result is capped at maxHeaderVal to fit the 7-digit header field.
 func growCapacity(dataLen, currentCap int) int {
 	needed := max(dataLen+dataLen/10, dataLen+1)
 	cap_ := max(currentCap, 64)
 	for cap_ < needed {
 		cap_ *= 2
 	}
-	return min(cap_, maxHeaderVal)
+	return cap_
 }

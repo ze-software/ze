@@ -24,6 +24,7 @@
 | Text coverage | `docs/architecture/api/text-coverage.md` |
 | Config syntax | `docs/architecture/config/syntax.md` |
 | YANG design | `docs/architecture/config/yang-config-design.md` |
+| ZeFS format | `docs/architecture/zefs-format.md` |
 | ExaBGP mapping | `docs/exabgp/exabgp-code-map.md` |
 | ExaBGP compat | `docs/exabgp/exabgp-differences.md` |
 
@@ -46,6 +47,7 @@
 | API, command, announce, withdraw | `api/architecture.md`, `api/capability-contract.md` |
 | text format, IPC, formatter, parser | `api/text-format.md`, `api/text-parser.md`, `api/text-coverage.md` |
 | config, load | `config/syntax.md` |
+| zefs, blob, netcapstring, storage | `zefs-format.md` |
 | FlowSpec | `wire/nlri.md`, `wire/nlri-flowspec.md` |
 | VPN, L3VPN, MPLS-VPN, 6PE | `wire/nlri.md` |
 | EVPN, MAC-IP | `wire/nlri.md`, `wire/nlri-evpn.md` |

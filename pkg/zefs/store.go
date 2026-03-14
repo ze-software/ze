@@ -1,7 +1,7 @@
-// Design: (none -- predates documentation)
+// Design: docs/architecture/zefs-format.md -- ZeFS file format and netcapstring framing
 // Detail: guard.go -- WriteGuard and ReadGuard interfaces
 // Detail: lock.go -- advisory locking (ReadLock, WriteLock)
-// Detail: flock_unix.go -- cross-process flock on persistent fd
+// Detail: flock_unix.go -- flock on persistent fd (single-process; retained for standalone use)
 // Detail: flock_other.go -- no-op flock fallback for non-unix
 // Detail: netcapstring.go -- netcapstring encoding/decoding
 // Detail: tree.go -- in-memory tree for ReadDir
@@ -23,24 +23,24 @@ import (
 )
 
 const (
-	magic          = "ZeFS:"
+	magic          = "ZeFS"
 	initialNameCap = 64
 	initialDataCap = 256
 )
 
-// slotInfo tracks a named entry's disk layout.
+// slotInfo tracks a key-value entry's disk layout (two netcapstrings).
 type slotInfo struct {
-	nameCap int
-	dataCap int
+	name netcapSlot
+	data netcapSlot
 }
 
 // BlobStore is a netcapstring-framed blob store with hierarchical keys.
 // It implements fs.FS, fs.ReadFileFS, and fs.ReadDirFS.
 //
-// ReadFile and Open return slices backed by a memory-mapped file (on unix)
-// or a heap buffer (elsewhere). These slices are borrowed: do not modify
-// them, and do not retain them past the next WriteFile, Remove, Import,
-// or Close call.
+// ReadFile and Open return caller-owned copies. For zero-copy access,
+// use RLock()/Lock() to acquire a ReadLock/WriteLock guard -- slices
+// returned by the guard's ReadFile are valid for the lock duration.
+// Do not retain lock-scoped slices past Release().
 type BlobStore struct {
 	mu      sync.RWMutex
 	path    string
@@ -49,7 +49,7 @@ type BlobStore struct {
 	slots   map[string]slotInfo // per-key slot capacities
 	backing []byte              // mmap'd region or heap buffer; tree nodes reference this
 	fd      *os.File            // non-nil when backing is mmap'd (must stay open)
-	lockFd  *os.File            // persistent fd for cross-process flock (survives flush)
+	lockFd  *os.File            // persistent fd for flock (survives flush; single-process model in ze)
 }
 
 // Create creates a new empty store at the given path.
@@ -195,23 +195,19 @@ func (s *BlobStore) writeFileNoFlush(name string, data []byte, _ fs.FileMode) er
 	if !fs.ValidPath(name) || name == "." {
 		return &fs.PathError{Op: "write", Path: name, Err: fs.ErrInvalid}
 	}
-	if len(name) > maxHeaderVal || len(data) > maxHeaderVal {
-		return fmt.Errorf("zefs: entry too large: name=%d, data=%d (max %d)", len(name), len(data), maxHeaderVal)
-	}
-
 	stored := make([]byte, len(data))
 	copy(stored, data)
 
 	if !s.root.has(name) {
 		s.keys = append(s.keys, name)
 		s.slots[name] = slotInfo{
-			nameCap: growCapacity(len(name), initialNameCap),
-			dataCap: growCapacity(len(data), initialDataCap),
+			name: netcapSlot{capacity: growCapacity(len(name), initialNameCap)},
+			data: netcapSlot{capacity: growCapacity(len(data), initialDataCap)},
 		}
 	} else {
 		sl := s.slots[name]
-		if len(data) > sl.dataCap {
-			sl.dataCap = growCapacity(len(data), sl.dataCap)
+		if len(data) > sl.data.capacity {
+			sl.data.capacity = growCapacity(len(data), sl.data.capacity)
 			s.slots[name] = sl
 		}
 	}
@@ -277,17 +273,19 @@ func (s *BlobStore) Export(w io.Writer) error {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	data, err := s.encode()
-	if err != nil {
-		return err
-	}
-	_, err = w.Write(data)
+	data := s.encode()
+	_, err := w.Write(data)
 	return err
 }
 
 // maxImportSize is the maximum allowed import size (256 MB).
 // Prevents memory exhaustion from untrusted or corrupted input.
 const maxImportSize = 256 * 1024 * 1024
+
+// maxEntryCount is the maximum number of entries allowed in a store.
+// Prevents memory exhaustion from crafted blobs with millions of tiny entries.
+// 100,000 entries is far beyond any real config storage use case.
+const maxEntryCount = 100_000
 
 // Import replaces the store contents from r.
 // The input is validated into temporary structures before committing,
@@ -362,39 +360,47 @@ func (s *BlobStore) unload() error {
 	return err
 }
 
-// encode serializes the store to a new byte buffer.
-// Safe to call while backed by mmap: encodeNetcapstring copies data out.
-func (s *BlobStore) encode() ([]byte, error) {
-	var entries []byte
+// encode serializes the store to a new byte buffer using single-allocation WriteTo.
+// Safe to call while backed by mmap: data is copied out during writing.
+func (s *BlobStore) encode() []byte {
+	// Phase 1: compute entries total size
+	entriesSize := 0
+	for _, key := range s.keys {
+		if !s.root.has(key) {
+			continue
+		}
+		sl := s.slots[key]
+		entriesSize += sl.name.totalLen()
+		entriesSize += sl.data.totalLen()
+	}
+	entriesSize++ // trailing '\n'
+
+	// Phase 2: compute container + total size
+	containerCap := growCapacity(entriesSize, entriesSize)
+	containerHdrLen := netcapstringHeaderLen(containerCap)
+	totalSize := len(magic) + containerHdrLen + containerCap
+
+	// Phase 3: single allocation, write everything in place
+	result := make([]byte, totalSize)
+	off := copy(result, magic)
+
+	// Container header
+	off += writeNetcapstringHeader(result, off, containerCap, entriesSize)
+
+	// Entries: key-value pairs written directly into the container data region
 	for _, key := range s.keys {
 		data, ok := s.root.get(key)
 		if !ok {
 			continue
 		}
 		sl := s.slots[key]
-		nameNS, err := encodeNetcapstring([]byte(key), sl.nameCap)
-		if err != nil {
-			return nil, fmt.Errorf("zefs: encode key %q: %w", key, err)
-		}
-		dataNS, err := encodeNetcapstring(data, sl.dataCap)
-		if err != nil {
-			return nil, fmt.Errorf("zefs: encode data for %q: %w", key, err)
-		}
-		entries = append(entries, nameNS...)
-		entries = append(entries, dataNS...)
+		off += writeNetcapstring(result, off, []byte(key), sl.name.capacity)
+		off += writeNetcapstring(result, off, data, sl.data.capacity)
 	}
-	entries = append(entries, '\n')
+	result[off] = '\n'
+	// Remaining bytes are zero (container padding from make)
 
-	containerCap := growCapacity(len(entries), len(entries))
-	container, err := encodeNetcapstring(entries, containerCap)
-	if err != nil {
-		return nil, fmt.Errorf("zefs: encode container: %w", err)
-	}
-
-	result := make([]byte, len(magic)+len(container))
-	copy(result, magic)
-	copy(result[len(magic):], container)
-	return result, nil
+	return result
 }
 
 // decodeInto parses store bytes into fresh temporary structures.
@@ -405,10 +411,14 @@ func decodeInto(data []byte) (*node, []string, map[string]slotInfo, error) {
 		return nil, nil, nil, fmt.Errorf("zefs: invalid magic: %q", data[:min(len(data), len(magic))])
 	}
 
-	containerData, _, _, err := decodeNetcapstringRef(data, len(magic))
+	containerData, containerCap, _, err := decodeNetcapstringRef(data, len(magic))
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("zefs: container: %w", err)
 	}
+
+	// Compute where container data starts in the backing buffer.
+	// Entry offsets within containerData are relative; add this base to get backing-absolute offsets.
+	containerDataBase := len(magic) + netcapstringHeaderLen(containerCap)
 
 	root := newDirNode()
 	var keys []string
@@ -420,12 +430,14 @@ func decodeInto(data []byte) (*node, []string, map[string]slotInfo, error) {
 			break
 		}
 
+		nameOff := off
 		nameData, nameCap, next, err := decodeNetcapstringRef(containerData, off)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("zefs: entry name at %d: %w", off, err)
 		}
 		off = next
 
+		dataOff := off
 		fileData, dataCap, next, err := decodeNetcapstringRef(containerData, off)
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("zefs: entry data at %d: %w", off, err)
@@ -440,7 +452,13 @@ func decodeInto(data []byte) (*node, []string, map[string]slotInfo, error) {
 			return nil, nil, nil, fmt.Errorf("zefs: decode: %w", err)
 		}
 		keys = append(keys, key)
-		slots[key] = slotInfo{nameCap: nameCap, dataCap: dataCap}
+		if len(keys) > maxEntryCount {
+			return nil, nil, nil, fmt.Errorf("zefs: entry count exceeds maximum %d", maxEntryCount)
+		}
+		slots[key] = slotInfo{
+			name: netcapSlot{offset: containerDataBase + nameOff, capacity: nameCap, used: len(nameData)},
+			data: netcapSlot{offset: containerDataBase + dataOff, capacity: dataCap, used: len(fileData)},
+		}
 	}
 
 	return root, keys, slots, nil
@@ -465,10 +483,7 @@ func (s *BlobStore) decode(data []byte) error {
 // copy as a heap-backed buffer so the store remains usable.
 func (s *BlobStore) flush() error {
 	// encode() copies data out of current backing (safe before unload)
-	encoded, err := s.encode()
-	if err != nil {
-		return err
-	}
+	encoded := s.encode()
 
 	// Release old backing before writing (avoids inode conflict with mmap)
 	if err := s.unload(); err != nil {

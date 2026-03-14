@@ -14,6 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 	zecompletion "codeberg.org/thomas-mangin/ze/cmd/ze/completion"
 	zeconfig "codeberg.org/thomas-mangin/ze/cmd/ze/config"
+	zedb "codeberg.org/thomas-mangin/ze/cmd/ze/db"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
@@ -144,6 +145,8 @@ dispatch:
 		os.Exit(cli.Run(args[1:]))
 	case "config":
 		os.Exit(zeconfig.Run(args[1:]))
+	case "db":
+		os.Exit(zedb.Run(args[1:]))
 	case "validate":
 		os.Exit(validate.Run(args[1:]))
 	case "schema":
@@ -197,7 +200,7 @@ dispatch:
 	// Unknown command
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
 	commands := []string{
-		"bgp", "plugin", "cli", "config", "validate", "schema",
+		"bgp", "plugin", "cli", "config", "db", "validate", "schema",
 		"exabgp", "signal", "status", "show", "run", "completion", "version", "help",
 	}
 	if suggestion := suggest.Command(arg, commands); suggestion != "" {
@@ -264,6 +267,7 @@ Options:
 Commands:
   validate  Validate configuration file
   config    Configuration management
+  db        Blob store management
   schema    Schema discovery
   cli      Interactive CLI for running daemons
   show     Show daemon state (read-only commands)
