@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"sort"
 	"strconv"
@@ -14,9 +15,18 @@ import (
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
+func cmdDiffWithStorage(store storage.Storage, args []string) int {
+	return cmdDiffImpl(store, args)
+}
+
 func cmdDiff(args []string) int {
+	return cmdDiffImpl(storage.NewFilesystem(), args)
+}
+
+func cmdDiffImpl(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config diff", flag.ExitOnError)
 	jsonOutput := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
@@ -52,7 +62,7 @@ Exit codes:
 	file1 := fs.Arg(0)
 	file2 := fs.Arg(1)
 	if n, err := strconv.Atoi(file1); err == nil {
-		resolved, err := resolveRollbackPath(file2, n)
+		resolved, err := resolveRollbackPath(store, file2, n)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
 			return exitError
@@ -60,13 +70,13 @@ Exit codes:
 		file1 = resolved
 	}
 
-	tree1, err := loadAndResolve(file1)
+	tree1, err := loadAndResolve(store, file1)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s: %v\n", file1, err)
 		return exitError
 	}
 
-	tree2, err := loadAndResolve(file2)
+	tree2, err := loadAndResolve(store, file2)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s: %v\n", file2, err)
 		return exitError
@@ -81,8 +91,8 @@ Exit codes:
 }
 
 // resolveRollbackPath resolves a revision number to a rollback file path.
-func resolveRollbackPath(configPath string, n int) (string, error) {
-	ed, err := cli.NewEditor(configPath)
+func resolveRollbackPath(store storage.Storage, configPath string, n int) (string, error) {
+	ed, err := cli.NewEditorWithStorage(store, configPath)
 	if err != nil {
 		return "", err
 	}
@@ -100,9 +110,16 @@ func resolveRollbackPath(configPath string, n int) (string, error) {
 	return backups[n-1].Path, nil
 }
 
-// loadAndResolve loads a config file, parses it, and resolves the BGP tree.
-func loadAndResolve(path string) (map[string]any, error) {
-	data, err := loadConfigData(path)
+// loadAndResolve loads a config file via storage, parses it, and resolves the BGP tree.
+// Supports "-" for stdin.
+func loadAndResolve(store storage.Storage, path string) (map[string]any, error) {
+	var data []byte
+	var err error
+	if path == "-" {
+		data, err = io.ReadAll(os.Stdin)
+	} else {
+		data, err = store.ReadFile(path)
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -5,7 +5,6 @@ package hub
 import (
 	"fmt"
 	"log/slog"
-	"os"
 	"syscall"
 
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -65,8 +64,8 @@ func (o *Orchestrator) Reload(configPath string) error {
 	o.mu.Lock()
 	defer o.mu.Unlock()
 
-	// Read and parse new config from disk.
-	data, err := os.ReadFile(configPath) //nolint:gosec // Config path from trusted source
+	// Read and parse new config via storage (filesystem or blob).
+	data, err := o.store.ReadFile(configPath)
 	if err != nil {
 		return fmt.Errorf("reload: read config: %w", err)
 	}

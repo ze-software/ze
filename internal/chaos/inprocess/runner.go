@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos/report"
 	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
 // RunConfig holds parameters for an in-process chaos run.
@@ -117,7 +118,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	// Scoped narrowly: set before load, unset immediately after.
 	socketPath := filepath.Join(tmpDir, "ze.socket")
 	_ = os.Setenv("ze.bgp.api.socketpath", socketPath) //nolint:errcheck // best-effort env setup
-	reactor, err := bgpconfig.LoadReactorWithPlugins(zeConfig, "-", []string{"ze.bgp-rs"})
+	reactor, err := bgpconfig.LoadReactorWithPlugins(storage.NewFilesystem(), zeConfig, "-", []string{"ze.bgp-rs"})
 	_ = os.Unsetenv("ze.bgp.api.socketpath") //nolint:errcheck // best-effort cleanup
 	if err != nil {
 		return nil, fmt.Errorf("create reactor: %w", err)

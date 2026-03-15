@@ -1,18 +1,17 @@
 // Design: docs/architecture/config/yang-config-design.md — write-through draft protocol
 // Overview: editor.go — config editor (calls write-through from SetValue/DeleteValue)
-// Related: editor_lock.go — file locking (used during write-through)
 // Related: editor_session.go — session identity for concurrent editing
 
 package cli
 
 import (
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/migration"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
 // ConflictType identifies whether a conflict is a live disagreement or stale previous.
@@ -45,16 +44,15 @@ type CommitResult struct {
 // writeThroughSet implements the write-through protocol for set commands.
 // Steps: lock -> read draft -> parse -> apply set -> record metadata -> serialize -> write draft -> unlock.
 func (e *Editor) writeThroughSet(path []string, key, value string) error {
-	lockPath := LockPath(e.originalPath)
-	lockFile, err := acquireLock(lockPath)
+	guard, err := e.store.AcquireLock(e.originalPath)
 	if err != nil {
 		return fmt.Errorf("write-through lock: %w", err)
 	}
-	defer releaseLock(lockFile) //nolint:errcheck,gosec // Best effort unlock on all paths
+	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
 
 	// Read draft (or config.conf if no draft exists).
 	draftPath := DraftPath(e.originalPath)
-	tree, meta, err := e.readDraftOrConfig(draftPath)
+	tree, meta, err := e.readDraftOrConfig(guard, draftPath)
 	if err != nil {
 		return fmt.Errorf("write-through read: %w", err)
 	}
@@ -69,10 +67,10 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 	// Build the YANG path for metadata recording.
 	metaPath := append(path, key) //nolint:gocritic // intentional new slice
 
-	// Read committed value for Previous field (re-read from disk under lock
+	// Read committed value for Previous field (re-read under lock
 	// to capture external commits; reuses getValueAtPath for navigation).
 	previous := ""
-	if committedTree := e.readCommittedTree(); committedTree != nil {
+	if committedTree := e.readCommittedTree(guard); committedTree != nil {
 		previous = getValueAtPath(committedTree, e.schema, metaPath)
 	}
 
@@ -88,9 +86,9 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 	metaTarget := walkOrCreateMeta(meta, e.schema, path)
 	metaTarget.SetEntry(key, entry)
 
-	// Serialize and write draft atomically.
+	// Serialize and write draft through the guard.
 	output := config.SerializeSetWithMeta(tree, meta, e.schema)
-	if err := atomicWriteFile(draftPath, []byte(output)); err != nil {
+	if err := guard.WriteFile(draftPath, []byte(output), 0o600); err != nil {
 		return fmt.Errorf("write-through write: %w", err)
 	}
 
@@ -104,16 +102,15 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 // writeThroughDelete implements the write-through protocol for delete commands.
 // Steps: lock -> read draft -> parse -> apply delete -> serialize -> write draft -> unlock.
 func (e *Editor) writeThroughDelete(path []string, key string) error {
-	lockPath := LockPath(e.originalPath)
-	lockFile, err := acquireLock(lockPath)
+	guard, err := e.store.AcquireLock(e.originalPath)
 	if err != nil {
 		return fmt.Errorf("write-through lock: %w", err)
 	}
-	defer releaseLock(lockFile) //nolint:errcheck,gosec // Best effort unlock on all paths
+	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
 
 	// Read draft (or config.conf if no draft exists).
 	draftPath := DraftPath(e.originalPath)
-	tree, meta, err := e.readDraftOrConfig(draftPath)
+	tree, meta, err := e.readDraftOrConfig(guard, draftPath)
 	if err != nil {
 		return fmt.Errorf("write-through read: %w", err)
 	}
@@ -125,11 +122,11 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 	}
 	target.Delete(key)
 
-	// Read committed value for Previous field (re-read from disk under lock
+	// Read committed value for Previous field (re-read under lock
 	// to capture external commits, matching writeThroughSet behavior).
 	metaPath := append(path, key) //nolint:gocritic // intentional new slice
 	previous := ""
-	if committedTree := e.readCommittedTree(); committedTree != nil {
+	if committedTree := e.readCommittedTree(guard); committedTree != nil {
 		previous = getValueAtPath(committedTree, e.schema, metaPath)
 	}
 
@@ -146,9 +143,9 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 	metaTarget := walkOrCreateMeta(meta, e.schema, path)
 	metaTarget.SetEntry(key, entry)
 
-	// Serialize and write draft atomically.
+	// Serialize and write draft through the guard.
 	output := config.SerializeSetWithMeta(tree, meta, e.schema)
-	if err := atomicWriteFile(draftPath, []byte(output)); err != nil {
+	if err := guard.WriteFile(draftPath, []byte(output), 0o600); err != nil {
 		return fmt.Errorf("write-through write: %w", err)
 	}
 
@@ -160,11 +157,11 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 }
 
 // readDraftOrConfig reads and parses the draft file, falling back to config.conf.
-// Returns the parsed tree and metadata.
-func (e *Editor) readDraftOrConfig(draftPath string) (*config.Tree, *config.MetaTree, error) {
+// Returns the parsed tree and metadata. Uses guard for I/O (called within locked sections).
+func (e *Editor) readDraftOrConfig(guard storage.WriteGuard, draftPath string) (*config.Tree, *config.MetaTree, error) {
 	parser := config.NewSetParser(e.schema)
 
-	data, err := os.ReadFile(draftPath) //nolint:gosec // Draft path derived from config
+	data, err := guard.ReadFile(draftPath)
 	if err == nil {
 		tree, meta, parseErr := parser.ParseWithMeta(string(data))
 		if parseErr != nil {
@@ -178,11 +175,11 @@ func (e *Editor) readDraftOrConfig(draftPath string) (*config.Tree, *config.Meta
 	return e.tree.Clone(), config.NewMetaTree(), nil
 }
 
-// readCommittedTree reads and parses config.conf from disk.
-// Re-reads the file each time to capture external commits between write-through calls.
+// readCommittedTree reads and parses config.conf under lock.
+// Re-reads each time to capture external commits between write-through calls.
 // Returns nil if the file cannot be read or parsed.
-func (e *Editor) readCommittedTree() *config.Tree {
-	data, err := os.ReadFile(e.originalPath) //nolint:gosec // Config path is user-provided
+func (e *Editor) readCommittedTree(guard storage.WriteGuard) *config.Tree {
+	data, err := guard.ReadFile(e.originalPath)
 	if err != nil {
 		return nil
 	}
@@ -543,17 +540,16 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 		return nil, fmt.Errorf("no session set")
 	}
 
-	lockPath := LockPath(e.originalPath)
-	lockFile, err := acquireLock(lockPath)
+	guard, err := e.store.AcquireLock(e.originalPath)
 	if err != nil {
 		return nil, fmt.Errorf("commit lock: %w", err)
 	}
-	defer releaseLock(lockFile) //nolint:errcheck,gosec // Best effort unlock on all paths
+	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
 
 	// Read and parse config.conf (committed), detecting format to handle
 	// both hierarchical and set+meta formats (config.conf becomes set+meta
 	// after the first session commit).
-	committedData, err := os.ReadFile(e.originalPath) //nolint:gosec // Config path is user-provided
+	committedData, err := guard.ReadFile(e.originalPath)
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
@@ -582,7 +578,7 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 
 	// Read and parse config.draft.
 	draftPath := DraftPath(e.originalPath)
-	draftData, err := os.ReadFile(draftPath) //nolint:gosec // Draft path derived from config
+	draftData, err := guard.ReadFile(draftPath)
 	if err != nil {
 		return nil, fmt.Errorf("read draft: %w", err)
 	}
@@ -664,7 +660,7 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	// Create backup before overwriting config.conf. Use freshly-read data
 	// (not cached originalContent) in case another session committed since
 	// this editor was created.
-	if err := e.createBackup(string(committedData)); err != nil {
+	if err := e.createBackup(string(committedData), guard); err != nil {
 		return nil, fmt.Errorf("backup: %w", err)
 	}
 
@@ -672,7 +668,7 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	now := time.Now()
 	commitMeta := buildCommitMeta(existingMeta, draftMeta, myEntries, e.session.UserAtOrigin(), now, e.schema)
 	committedOutput := config.SerializeSetWithMeta(committedTree, commitMeta, e.schema)
-	if err := atomicWriteFile(e.originalPath, []byte(committedOutput)); err != nil {
+	if err := guard.WriteFile(e.originalPath, []byte(committedOutput), 0o600); err != nil {
 		return nil, fmt.Errorf("write config: %w", err)
 	}
 
@@ -683,11 +679,11 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	remainingSessions := draftMeta.AllSessions()
 	if len(remainingSessions) == 0 {
 		// No more pending changes: delete draft.
-		os.Remove(draftPath) //nolint:errcheck,gosec // Best effort
+		guard.Remove(draftPath) //nolint:errcheck // Best effort
 	} else {
 		// Regenerate draft without my entries.
 		draftOutput := config.SerializeSetWithMeta(draftTree, draftMeta, e.schema)
-		if err := atomicWriteFile(draftPath, []byte(draftOutput)); err != nil {
+		if err := guard.WriteFile(draftPath, []byte(draftOutput), 0o600); err != nil {
 			return nil, fmt.Errorf("write draft: %w", err)
 		}
 	}
@@ -717,15 +713,14 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 		return fmt.Errorf("no session set")
 	}
 
-	lockPath := LockPath(e.originalPath)
-	lockFile, err := acquireLock(lockPath)
+	guard, err := e.store.AcquireLock(e.originalPath)
 	if err != nil {
 		return fmt.Errorf("discard lock: %w", err)
 	}
-	defer releaseLock(lockFile) //nolint:errcheck,gosec // Best effort unlock on all paths
+	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
 
 	draftPath := DraftPath(e.originalPath)
-	draftData, err := os.ReadFile(draftPath) //nolint:gosec // Draft path derived from config
+	draftData, err := guard.ReadFile(draftPath)
 	if err != nil {
 		return fmt.Errorf("read draft: %w", err)
 	}
@@ -735,10 +730,10 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 		return fmt.Errorf("parse draft: %w", err)
 	}
 
-	// Read committed config from disk (not cached originalContent) to capture
+	// Read committed config under lock (not cached originalContent) to capture
 	// external commits since the editor was created. Spec: "restore committed
 	// value (from config.conf)".
-	committedData, readErr := os.ReadFile(e.originalPath) //nolint:gosec // Config path is user-provided
+	committedData, readErr := guard.ReadFile(e.originalPath)
 	if readErr != nil {
 		return fmt.Errorf("read config: %w", readErr)
 	}
@@ -797,10 +792,10 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 	// Check if other sessions remain.
 	remainingSessions := draftMeta.AllSessions()
 	if len(remainingSessions) == 0 {
-		os.Remove(draftPath) //nolint:errcheck,gosec // Best effort
+		guard.Remove(draftPath) //nolint:errcheck // Best effort
 	} else {
 		draftOutput := config.SerializeSetWithMeta(draftTree, draftMeta, e.schema)
-		if err := atomicWriteFile(draftPath, []byte(draftOutput)); err != nil {
+		if err := guard.WriteFile(draftPath, []byte(draftOutput), 0o600); err != nil {
 			return fmt.Errorf("write draft: %w", err)
 		}
 	}
@@ -824,15 +819,14 @@ func (e *Editor) DisconnectSession(sessionID string) error {
 		return fmt.Errorf("no session set")
 	}
 
-	lockPath := LockPath(e.originalPath)
-	lockFile, err := acquireLock(lockPath)
+	guard, err := e.store.AcquireLock(e.originalPath)
 	if err != nil {
 		return fmt.Errorf("disconnect lock: %w", err)
 	}
-	defer releaseLock(lockFile) //nolint:errcheck,gosec // Best effort unlock on all paths
+	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
 
 	draftPath := DraftPath(e.originalPath)
-	draftData, err := os.ReadFile(draftPath) //nolint:gosec // Draft path derived from config
+	draftData, err := guard.ReadFile(draftPath)
 	if err != nil {
 		return fmt.Errorf("read draft: %w", err)
 	}
@@ -843,7 +837,7 @@ func (e *Editor) DisconnectSession(sessionID string) error {
 	}
 
 	// Parse committed config for restoring values.
-	committedData, readErr := os.ReadFile(e.originalPath) //nolint:gosec // Config path is user-provided
+	committedData, readErr := guard.ReadFile(e.originalPath)
 	if readErr != nil {
 		return fmt.Errorf("read config: %w", readErr)
 	}
@@ -891,10 +885,10 @@ func (e *Editor) DisconnectSession(sessionID string) error {
 	// Check if any sessions remain.
 	remainingSessions := draftMeta.AllSessions()
 	if len(remainingSessions) == 0 {
-		os.Remove(draftPath) //nolint:errcheck,gosec // Best effort
+		guard.Remove(draftPath) //nolint:errcheck // Best effort
 	} else {
 		draftOutput := config.SerializeSetWithMeta(draftTree, draftMeta, e.schema)
-		if err := atomicWriteFile(draftPath, []byte(draftOutput)); err != nil {
+		if err := guard.WriteFile(draftPath, []byte(draftOutput), 0o600); err != nil {
 			return fmt.Errorf("write draft: %w", err)
 		}
 	}

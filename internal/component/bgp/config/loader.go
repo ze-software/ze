@@ -22,6 +22,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -106,14 +107,16 @@ func LoadReactor(input string) (*reactor.Reactor, error) {
 	if err != nil {
 		return nil, err
 	}
-	return CreateReactorFromTree(tree, "", plugins)
+	return CreateReactorFromTree(tree, "", plugins, nil)
 }
 
 // LoadReactorWithPlugins parses config with CLI plugins and creates Reactor.
 // configPath is the original file path (used for SIGHUP reload). May be empty or "-".
+// store is used by the reload function to re-read config on SIGHUP; may be nil when
+// configPath is "" or "-" (reload not supported).
 // This is used when config data is already read (e.g., from stdin) and plugins
 // need to be merged in.
-func LoadReactorWithPlugins(input, configPath string, cliPlugins []string) (*reactor.Reactor, error) {
+func LoadReactorWithPlugins(store storage.Storage, input, configPath string, cliPlugins []string) (*reactor.Reactor, error) {
 	// Internal plugin schemas loaded via init()-based registration (LoadRegistered).
 	// Only CLI-specified external plugins need explicit loading.
 	pluginYANG := plugin.CollectPluginYANG(cliPlugins)
@@ -152,7 +155,7 @@ func LoadReactorWithPlugins(input, configPath string, cliPlugins []string) (*rea
 		configDir = cwd
 	}
 
-	r, err := CreateReactorFromTree(tree, configDir, plugins)
+	r, err := CreateReactorFromTree(tree, configDir, plugins, store)
 	if err != nil {
 		return nil, err
 	}
@@ -160,15 +163,15 @@ func LoadReactorWithPlugins(input, configPath string, cliPlugins []string) (*rea
 	// Set config path for SIGHUP reload support
 	if configPath != "" && configPath != "-" {
 		r.SetConfigPath(configPath)
-		r.SetReloadFunc(createReloadFunc())
+		r.SetReloadFunc(createReloadFunc(store))
 	}
 
 	return r, nil
 }
 
 // LoadReactorFile loads config from file and creates Reactor.
-func LoadReactorFile(path string) (*reactor.Reactor, error) {
-	return LoadReactorFileWithPlugins(path, nil)
+func LoadReactorFile(store storage.Storage, path string) (*reactor.Reactor, error) {
+	return LoadReactorFileWithPlugins(store, path, nil)
 }
 
 // LoadReactorFileWithPlugins loads config from file and creates Reactor,
@@ -183,7 +186,7 @@ func LoadReactorFile(path string) (*reactor.Reactor, error) {
 //
 // Plugin YANG schemas are loaded before config parsing to allow plugins
 // to augment the config schema (e.g., hostname plugin adds host-name/domain-name).
-func LoadReactorFileWithPlugins(path string, cliPlugins []string) (*reactor.Reactor, error) {
+func LoadReactorFileWithPlugins(store storage.Storage, path string, cliPlugins []string) (*reactor.Reactor, error) {
 	var data []byte
 	var err error
 
@@ -191,7 +194,7 @@ func LoadReactorFileWithPlugins(path string, cliPlugins []string) (*reactor.Reac
 	if path == "-" {
 		data, err = io.ReadAll(os.Stdin)
 	} else {
-		data, err = os.ReadFile(path) //nolint:gosec // Config file path from user
+		data, err = store.ReadFile(path)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
@@ -248,7 +251,7 @@ func LoadReactorFileWithPlugins(path string, cliPlugins []string) (*reactor.Reac
 	}
 
 	// Create reactor from tree
-	r, err := CreateReactorFromTree(tree, configDir, plugins)
+	r, err := CreateReactorFromTree(tree, configDir, plugins, store)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +259,7 @@ func LoadReactorFileWithPlugins(path string, cliPlugins []string) (*reactor.Reac
 	// Set config path for SIGHUP reload support
 	if path != "-" {
 		r.SetConfigPath(absPath)
-		r.SetReloadFunc(createReloadFunc())
+		r.SetReloadFunc(createReloadFunc(store))
 	}
 
 	return r, nil
@@ -353,7 +356,7 @@ func expandDependencies(plugins []reactor.PluginConfig) ([]reactor.PluginConfig,
 }
 
 // CreateReactorFromTree creates a Reactor directly from a parsed config tree.
-func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reactor.PluginConfig) (*reactor.Reactor, error) {
+func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reactor.PluginConfig, store storage.Storage) (*reactor.Reactor, error) {
 	// Load environment with config block values (if any)
 	envValues := config.ExtractEnvironment(tree)
 	env, err := config.LoadEnvironmentWithConfig(envValues)
@@ -461,6 +464,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reacto
 	// via SetExecutorFactory after the reactor's API server starts (post-start hook).
 	var sshSrv *zessh.Server
 	if sshCfg, ok := extractSSHConfig(tree); ok {
+		sshCfg.Storage = store
 		srv, sshErr := zessh.NewServer(sshCfg)
 		if sshErr != nil {
 			configLogger().Warn("SSH server config error", "error", sshErr)
@@ -537,9 +541,9 @@ func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reacto
 // createReloadFunc creates a ReloadFunc that parses config files.
 // It returns full PeerSettings to ensure reloaded peers are identical to initial load.
 // Uses PeersFromConfigTree which resolves templates and extracts routes directly.
-func createReloadFunc() reactor.ReloadFunc {
+func createReloadFunc(store storage.Storage) reactor.ReloadFunc {
 	return func(configPath string) ([]*reactor.PeerSettings, error) {
-		data, err := os.ReadFile(configPath) //nolint:gosec // User-provided config path
+		data, err := store.ReadFile(configPath)
 		if err != nil {
 			return nil, err
 		}

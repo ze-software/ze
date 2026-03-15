@@ -66,12 +66,13 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 	}
 
 	colors := NewColors()
+	binDir := filepath.Join(baseDir, "bin")
 	return &Runner{
 		tests:    tests,
 		baseDir:  baseDir,
 		tmpDir:   tmpDir,
-		zePath:   filepath.Join(tmpDir, "ze"),
-		testPath: filepath.Join(tmpDir, "ze-test"),
+		zePath:   filepath.Join(binDir, "ze"),
+		testPath: filepath.Join(binDir, "ze-test"),
 		colors:   colors,
 		display:  NewDisplay(tests.Tests, colors),
 		report:   NewReport(colors),

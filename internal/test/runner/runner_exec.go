@@ -513,6 +513,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		if binName == "ze" || binName == binNameZePeer {
 			proc.Env = append(proc.Env, fmt.Sprintf("ze_bgp_tcp_port=%d", rec.Port))
 		}
+		// Add test-specific environment variables (option=env:var=KEY:value=VALUE)
+		proc.Env = append(proc.Env, rec.EnvVars...)
 		// Tell foreground ze processes to write a readiness file after signal
 		// handlers are registered. The test runner waits for this file before
 		// writing daemon.pid, eliminating a startup race condition.

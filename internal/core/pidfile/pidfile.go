@@ -8,6 +8,7 @@ package pidfile
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -15,12 +16,17 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
 // PIDFile represents an acquired PID file with an active flock.
+// In filesystem mode, fd holds the flock for the daemon's lifetime.
+// In blob mode, fd is nil and store holds the storage reference for cleanup.
 type PIDFile struct {
-	path string
-	fd   *os.File
+	path  string
+	fd    *os.File
+	store storage.Storage // non-nil in blob mode; used by Release to remove PID entry
 }
 
 // Info contains parsed information from a PID file.
@@ -125,12 +131,53 @@ func Acquire(pidPath, configPath string) (*PIDFile, error) {
 	return &PIDFile{path: pidPath, fd: fd}, nil
 }
 
+// AcquireWithStorage writes a PID entry into blob storage with kill(0) mutual exclusion.
+// Unlike filesystem Acquire (flock held for daemon lifetime), the storage WriteLock
+// is held only for the check-and-write. Mutual exclusion relies on PID + kill check.
+func AcquireWithStorage(store storage.Storage, pidKey, configPath string) (*PIDFile, error) {
+	guard, err := store.AcquireLock(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("acquire storage lock for PID: %w", err)
+	}
+	defer guard.Release() //nolint:errcheck // best effort release
+
+	// Check for existing PID entry.
+	if data, readErr := guard.ReadFile(pidKey); readErr == nil {
+		lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+		if len(lines) >= 1 {
+			if pid, parseErr := strconv.Atoi(lines[0]); parseErr == nil && pid > 0 {
+				// Check if process is alive via kill(0).
+				// EPERM means the process exists but belongs to a different user.
+				killErr := syscall.Kill(pid, 0)
+				if killErr == nil || errors.Is(killErr, syscall.EPERM) {
+					return nil, fmt.Errorf("already running (PID %d in storage key %s)", pid, pidKey)
+				}
+			}
+		}
+	}
+
+	// Write own PID entry.
+	content := fmt.Sprintf("%d\n%s\n%s\n", os.Getpid(), configPath, time.Now().UTC().Format(time.RFC3339))
+	if err := guard.WriteFile(pidKey, []byte(content), 0o644); err != nil {
+		return nil, fmt.Errorf("write PID to storage: %w", err)
+	}
+
+	return &PIDFile{path: pidKey, store: store}, nil
+}
+
 // Release releases the flock and removes the PID file.
+// In blob mode, removes the PID entry from storage.
 func (f *PIDFile) Release() {
+	if f.store != nil {
+		// Blob mode: remove PID entry from storage.
+		f.store.Remove(f.path) //nolint:errcheck // best effort cleanup
+		f.store = nil
+		return
+	}
 	if f.fd == nil {
 		return
 	}
-	// Best effort cleanup: unlock, close, remove
+	// Filesystem mode: unlock, close, remove.
 	syscall.Flock(int(f.fd.Fd()), syscall.LOCK_UN) //nolint:errcheck,gosec // Best effort unlock
 	f.fd.Close()                                   //nolint:errcheck,gosec // Best effort close
 	os.Remove(f.path)                              //nolint:errcheck,gosec // Best effort remove

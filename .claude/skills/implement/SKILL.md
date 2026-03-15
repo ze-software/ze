@@ -21,7 +21,24 @@ Implement the selected spec end-to-end with built-in review loops.
 6. **Fix every issue found** in the review
 7. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
 8. **Repeat steps 5-7** until the review finds zero issues and all tests pass. Maximum 2 review passes.
-9. **Present summary:** List all changes made (files modified/created, tests added, issues found and fixed). Ask user to commit.
+9. **Deliverables review:** Re-read the spec from scratch. For every deliverable, requirement, and acceptance criterion:
+   - Verify it is implemented (file:line evidence)
+   - Verify it behaves correctly (test name or manual check)
+   - If anything is missing or incomplete, go back to step 3 and implement it before proceeding
+10. **Security review:** Act as a security vulnerability researcher. Review all new and modified code for:
+    - Injection flaws (command injection, SQL injection, format string)
+    - Buffer overflows, out-of-bounds access, integer overflow/underflow
+    - Untrusted input handling (missing validation, missing bounds checks, missing sanitization)
+    - Path traversal and symlink attacks
+    - Race conditions and TOCTOU vulnerabilities
+    - Cryptographic misuse (weak algorithms, hardcoded secrets, predictable randomness)
+    - Denial of service vectors (unbounded allocations, infinite loops, resource exhaustion)
+    - Privilege escalation and missing authorization checks
+    - Information leakage (error messages exposing internals, sensitive data in logs)
+    - Any OWASP Top 10 relevant to the code's context
+    - Fix every issue found. If a fix requires design changes, present to user before proceeding.
+11. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
+12. **Present summary:** List all changes made (files modified/created, tests added, issues found and fixed). Ask user to commit.
 
 ## Rules
 

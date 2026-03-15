@@ -1,6 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md — session identity for concurrent editing
 // Related: editor.go — config editor (uses EditSession for write-through)
-// Related: editor_lock.go — file locking (used during write-through)
 
 package cli
 

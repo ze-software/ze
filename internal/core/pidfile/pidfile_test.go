@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
 // TestPIDFileLocationXDG verifies XDG_RUNTIME_DIR is used when set and writable.
@@ -168,6 +170,74 @@ func TestPIDFileStaleDetection(t *testing.T) {
 	info2, err := ReadInfo(pidPath)
 	require.NoError(t, err)
 	assert.True(t, info2.Locked, "should be locked after Acquire")
+}
+
+// TestAcquireWithStorage verifies PID acquisition via storage backend.
+//
+// VALIDATES: PID written to storage, readable back, and cleaned up on Release.
+// PREVENTS: Blob-mode PID failing to write or clean up.
+func TestAcquireWithStorage(t *testing.T) {
+	store := storage.NewFilesystem()
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "router.conf")
+	pidKey := filepath.Join(dir, "router.conf.pid")
+
+	pf, err := AcquireWithStorage(store, pidKey, configPath)
+	require.NoError(t, err)
+	require.NotNil(t, pf)
+
+	// Verify PID was written.
+	data, err := store.ReadFile(pidKey)
+	require.NoError(t, err)
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	require.Len(t, lines, 3)
+	pid, err := strconv.Atoi(lines[0])
+	require.NoError(t, err)
+	assert.Equal(t, os.Getpid(), pid)
+	assert.Equal(t, configPath, lines[1])
+
+	// Second acquire should fail (same process is alive).
+	_, err = AcquireWithStorage(store, pidKey, configPath)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "already running")
+
+	// Release should remove the PID entry.
+	pf.Release()
+	assert.False(t, store.Exists(pidKey), "PID entry should be removed after Release")
+
+	// Should be able to acquire again.
+	pf2, err := AcquireWithStorage(store, pidKey, configPath)
+	require.NoError(t, err)
+	pf2.Release()
+}
+
+// TestAcquireWithStorageStalePID verifies stale PID detection in storage mode.
+//
+// VALIDATES: Dead process PID is overwritten, not treated as running.
+// PREVENTS: Stale PID in blob blocking startup after crash.
+func TestAcquireWithStorageStalePID(t *testing.T) {
+	store := storage.NewFilesystem()
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "router.conf")
+	pidKey := filepath.Join(dir, "router.conf.pid")
+
+	// Write a stale PID (process 99999 is almost certainly dead).
+	staleContent := "99999\n" + configPath + "\n2026-01-31T10:30:00Z\n"
+	err := store.WriteFile(pidKey, []byte(staleContent), 0o644)
+	require.NoError(t, err)
+
+	// Acquire should succeed (stale PID detected via kill check).
+	pf, err := AcquireWithStorage(store, pidKey, configPath)
+	require.NoError(t, err)
+	defer pf.Release()
+
+	// Verify our PID replaced the stale one.
+	data, err := store.ReadFile(pidKey)
+	require.NoError(t, err)
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	pid, err := strconv.Atoi(lines[0])
+	require.NoError(t, err)
+	assert.Equal(t, os.Getpid(), pid)
 }
 
 // TestPIDFileConfigHash verifies consistent hash computation.

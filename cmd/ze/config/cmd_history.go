@@ -9,9 +9,18 @@ import (
 	"os"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
+func cmdHistoryWithStorage(store storage.Storage, args []string) int {
+	return cmdHistoryImpl(store, args)
+}
+
 func cmdHistory(args []string) int {
+	return cmdHistoryImpl(storage.NewFilesystem(), args)
+}
+
+func cmdHistoryImpl(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config history", flag.ExitOnError)
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze config history <file>
@@ -35,7 +44,7 @@ Exit codes:
 		return exitError
 	}
 
-	ed, err := cli.NewEditor(fs.Arg(0))
+	ed, err := cli.NewEditorWithStorage(store, fs.Arg(0))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError

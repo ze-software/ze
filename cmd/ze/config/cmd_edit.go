@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,10 +24,14 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+// defaultConfigName is the config name used when no argument is given.
+const defaultConfigName = "ze.conf"
 
 // wireCommandExecutor tries to connect to the daemon socket and sets up the command executor.
 // If the daemon is not running, command mode will show an error on Enter (best-effort).
@@ -220,13 +225,88 @@ func doPromptCreateConfig(path string, in io.Reader, errw io.Writer, timeout tim
 	return true
 }
 
-func cmdEdit(args []string) int {
+// selectConfig prompts the user to select a config from available configs in blob storage.
+// Returns the selected config path, or empty string if canceled/error.
+func selectConfig(store storage.Storage, configDir, defaultPath string) string {
+	return doSelectConfig(store, configDir, defaultPath, os.Stdin, os.Stderr, createPromptTimeout)
+}
+
+// doSelectConfig is the testable core of selectConfig.
+// Lists .conf files in configDir via storage; if none exist (AC-7), creates defaultPath.
+// If multiple exist (AC-6), presents numbered list and accepts selection.
+func doSelectConfig(store storage.Storage, configDir, defaultPath string, in io.Reader, errw io.Writer, timeout time.Duration) string { //nolint:cyclop // linear flow with early returns
+	files, err := store.List(configDir)
+	if err != nil {
+		// Empty blob has no directory entries - treat as "no configs"
+		files = nil
+	}
+
+	// Filter to .conf files (excludes .draft, .lock, ssh_host_*, etc.)
+	var configs []string
+	for _, f := range files {
+		if strings.HasSuffix(f, ".conf") {
+			configs = append(configs, f)
+		}
+	}
+	sort.Strings(configs)
+
+	// AC-7: no configs exist, create ze.conf
+	if len(configs) == 0 {
+		fmt.Fprintf(errw, "no configs found, creating %s\n", filepath.Base(defaultPath)) //nolint:errcheck // terminal output
+		if writeErr := store.WriteFile(defaultPath, []byte{}, 0o600); writeErr != nil {
+			fmt.Fprintf(errw, "error: cannot create %s: %v\n", filepath.Base(defaultPath), writeErr) //nolint:errcheck // terminal output
+			return ""
+		}
+		return defaultPath
+	}
+
+	// AC-6: list available configs and prompt for selection
+	fmt.Fprintf(errw, "ze.conf not found in store. Available configs:\n") //nolint:errcheck // terminal output
+	for i, c := range configs {
+		fmt.Fprintf(errw, "  %d) %s\n", i+1, filepath.Base(c)) //nolint:errcheck // terminal output
+	}
+	fmt.Fprintf(errw, "select [1-%d]: ", len(configs)) //nolint:errcheck // terminal output
+
+	ch := make(chan string, 1)
+	go func() {
+		reader := bufio.NewReader(in)
+		line, _ := reader.ReadString('\n') //nolint:errcheck // EOF returns empty string, handled below
+		ch <- strings.TrimSpace(line)
+	}()
+
+	var answer string
+	select {
+	case answer = <-ch:
+	case <-time.After(timeout):
+		fmt.Fprintln(errw)                                 //nolint:errcheck // terminal output
+		fmt.Fprintf(errw, "error: no response, exiting\n") //nolint:errcheck // terminal output
+		return ""
+	}
+
+	if answer == "" {
+		return ""
+	}
+
+	n, parseErr := strconv.Atoi(answer)
+	if parseErr != nil || n < 1 || n > len(configs) {
+		fmt.Fprintf(errw, "error: invalid selection\n") //nolint:errcheck // terminal output
+		return ""
+	}
+
+	return configs[n-1]
+}
+
+// cmdEditWithStorage handles the edit command with a given storage backend.
+// Supports -f flag to override to filesystem and defaults to ze.conf.
+func cmdEditWithStorage(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config edit", flag.ExitOnError)
+	fileOverride := fs.Bool("f", false, "Use filesystem directly, bypass blob store")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze config edit [options] <config-file>
+		fmt.Fprintf(os.Stderr, `Usage: ze config edit [options] [config-file]
 
 Interactive configuration editor with VyOS-like set commands.
+Config file defaults to ze.conf when not specified.
 
 Options:
 `)
@@ -257,8 +337,9 @@ Tab completion:
   Ghost text shows best match in gray
 
 Examples:
-  ze config edit /etc/ze/config.conf
-  ze config edit ./myconfig.conf
+  ze config edit                         Edit default ze.conf
+  ze config edit router.conf             Edit specific config
+  ze config edit -f /etc/ze/config.conf  Edit from filesystem
 `)
 	}
 
@@ -266,27 +347,51 @@ Examples:
 		return 1
 	}
 
-	if fs.NArg() < 1 {
-		fmt.Fprintf(os.Stderr, "error: missing config file\n")
-		fs.Usage()
-		return 1
+	// Override to filesystem if -f flag is set
+	if *fileOverride {
+		store.Close() //nolint:errcheck // closing blob before switching to filesystem
+		store = storage.NewFilesystem()
 	}
 
-	configPath := fs.Arg(0)
+	// Default to ze.conf when no config name given
+	configPath := defaultConfigName
+	userProvided := fs.NArg() >= 1
+	if userProvided {
+		configPath = fs.Arg(0)
+	}
 
-	// Offer to create if file doesn't exist
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		if !promptCreateConfig(configPath) {
-			return 1
+	configPath = config.ResolveConfigPath(configPath)
+
+	// For filesystem storage, offer to create if file doesn't exist
+	if !storage.IsBlobStorage(store) {
+		if _, err := os.Stat(configPath); os.IsNotExist(err) {
+			if !promptCreateConfig(configPath) {
+				return 1
+			}
 		}
 	}
 
-	// Create editor
-	ed, err := cli.NewEditor(configPath)
+	// For blob storage with default config name, handle missing ze.conf (AC-6/AC-7)
+	if storage.IsBlobStorage(store) && !userProvided && !store.Exists(configPath) {
+		selected := selectConfig(store, filepath.Dir(configPath), configPath)
+		if selected == "" {
+			return 1
+		}
+		configPath = selected
+	}
+
+	// Create editor with storage backend
+	ed, err := cli.NewEditorWithStorage(store, configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
+
+	return runEditor(ed, configPath)
+}
+
+// runEditor runs the interactive editor TUI after the Editor is created.
+func runEditor(ed *cli.Editor, configPath string) int {
 	defer ed.Close() //nolint:errcheck // Best effort cleanup
 
 	// Probe daemon socket at startup: only wire reload if daemon is reachable

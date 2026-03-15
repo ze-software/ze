@@ -16,6 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -176,7 +177,7 @@ func runChildModeWithArgs(args []string) int {
 		return 1
 	}
 
-	reactor, err := bgpconfig.LoadReactorFile(configPath)
+	reactor, err := bgpconfig.LoadReactorFile(storage.NewFilesystem(), configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
 		return 1

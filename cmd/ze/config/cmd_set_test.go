@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
 // writeTestConfig creates a temp config file and returns its path.
@@ -18,6 +20,25 @@ func writeTestConfig(t *testing.T, content string) string {
 		t.Fatalf("write config: %v", err)
 	}
 	return configPath
+}
+
+// writeBlobConfig creates a blob store, writes a config into it, and returns
+// the store and the config key (absolute path) used inside the blob.
+func writeBlobConfig(t *testing.T, content string) (storage.Storage, string) {
+	t.Helper()
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "test.conf")
+	// Write to filesystem first so NewBlob migrates it in
+	if err := os.WriteFile(configPath, []byte(content), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+	blobPath := filepath.Join(dir, "database.zefs")
+	store, err := storage.NewBlob(blobPath, dir)
+	if err != nil {
+		t.Fatalf("create blob: %v", err)
+	}
+	t.Cleanup(func() { store.Close() }) //nolint:errcheck // test cleanup
+	return store, configPath
 }
 
 // TestCmdSetBasic verifies setting a simple leaf value.
@@ -147,12 +168,68 @@ func TestCmdSetTooFewArgs(t *testing.T) {
 // VALIDATES: "set" subcommand is registered in dispatch map.
 // PREVENTS: Wiring failure where set command is unreachable.
 func TestCmdSetDispatch(t *testing.T) {
-	// Verify the handler is registered
-	handler, ok := subcommandHandlers["set"]
+	// Verify the handler is registered in storage-aware handlers
+	handler, ok := storageHandlers["set"]
 	if !ok {
-		t.Fatal("'set' not registered in subcommandHandlers")
+		t.Fatal("'set' not registered in storageHandlers")
 	}
 	if handler == nil {
 		t.Fatal("'set' handler is nil")
+	}
+}
+
+// TestCmdSetWithBlobStorage verifies set works through blob storage backend.
+//
+// VALIDATES: cmdSetWithStorage writes through blob, not filesystem.
+// PREVENTS: Storage wiring broken — set silently falls back to filesystem.
+func TestCmdSetWithBlobStorage(t *testing.T) {
+	store, configPath := writeBlobConfig(t, `bgp {
+	peer 127.0.0.1 {
+		local-as 1;
+		peer-as 2;
+	}
+}
+`)
+
+	code := cmdSetWithStorage(store, []string{"--no-reload", configPath, "bgp", "peer", "127.0.0.1", "local-as", "65000"})
+	if code != exitOK {
+		t.Fatalf("cmdSetWithStorage returned %d, want %d", code, exitOK)
+	}
+
+	// Read back from blob storage (not filesystem) and verify
+	data, err := store.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read from blob: %v", err)
+	}
+	if !strings.Contains(string(data), "65000") {
+		t.Errorf("blob config should contain '65000', got:\n%s", string(data))
+	}
+}
+
+// TestRunWithStorageDispatches verifies RunWithStorage routes to storage-aware handlers.
+//
+// VALIDATES: RunWithStorage passes storage to subcommand handlers.
+// PREVENTS: Storage lost during dispatch — subcommands use filesystem instead.
+func TestRunWithStorageDispatches(t *testing.T) {
+	store, configPath := writeBlobConfig(t, `bgp {
+	peer 127.0.0.1 {
+		local-as 1;
+		peer-as 2;
+	}
+}
+`)
+
+	code := RunWithStorage(store, []string{"set", "--no-reload", configPath, "bgp", "peer", "127.0.0.1", "local-as", "65000"})
+	if code != exitOK {
+		t.Fatalf("RunWithStorage set returned %d, want %d", code, exitOK)
+	}
+
+	// Verify change persisted in blob
+	data, err := store.ReadFile(configPath)
+	if err != nil {
+		t.Fatalf("read from blob: %v", err)
+	}
+	if !strings.Contains(string(data), "65000") {
+		t.Errorf("blob config should contain '65000' after RunWithStorage dispatch")
 	}
 }

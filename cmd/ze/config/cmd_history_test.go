@@ -16,9 +16,9 @@ import (
 // VALIDATES: "history" subcommand is registered in dispatch map.
 // PREVENTS: Wiring failure where history command is unreachable.
 func TestCmdHistoryDispatch(t *testing.T) {
-	handler, ok := subcommandHandlers["history"]
+	handler, ok := storageHandlers["history"]
 	if !ok {
-		t.Fatal("'history' not registered in subcommandHandlers")
+		t.Fatal("'history' not registered in storageHandlers")
 	}
 	if handler == nil {
 		t.Fatal("'history' handler is nil")

@@ -1,0 +1,18 @@
+# Test: ze config set --dry-run with blob storage
+# VALIDATES: config read/write through blob storage backend (AC-1, AC-2)
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4
+	local-as 65000
+	peer 1.1.1.1 {
+		peer-as 65001
+		local-address 127.0.0.1
+	}
+}
+EOF_CONF
+
+option=env:var=ZE_CONFIG_DIR:value=.
+cmd=foreground:seq=1:exec=ze config set --dry-run --no-reload test.conf bgp local-as 65001
+expect=exit:code=0
+expect=stderr:contains=dry-run: would set

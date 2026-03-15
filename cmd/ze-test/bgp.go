@@ -233,7 +233,6 @@ func runSimpleTests(ctx context.Context, cli *runCLIFlags, baseDir string, newSu
 	if err != nil {
 		return err
 	}
-	defer func() { _ = os.Remove(zePath) }()
 
 	// Run tests
 	success := tests.Run(ctx, zePath, cli.verbose, cli.quiet)
@@ -487,7 +486,6 @@ func runClientOnly(ctx context.Context, cli *runCLIFlags, tests *runner.Encoding
 	if err != nil {
 		return err
 	}
-	defer func() { _ = os.Remove(zePath) }()
 
 	// Print info
 	port := cli.port
@@ -521,19 +519,15 @@ func runClientOnly(ctx context.Context, cli *runCLIFlags, tests *runner.Encoding
 	return clientCmd.Run()
 }
 
-// buildZe builds the ze binary and returns its path.
+// buildZe builds the ze binary into bin/ and returns its path.
+// Uses the project's bin/ directory so DefaultConfigDir() resolves correctly
+// (binary in bin/ → config in etc/ze via GNU prefix conventions).
 func buildZe(ctx context.Context, baseDir string) (string, error) {
-	tmpDir, err := os.MkdirTemp("", "ze-functional-*")
-	if err != nil {
-		return "", fmt.Errorf("create temp dir: %w", err)
-	}
-
-	zePath := filepath.Join(tmpDir, "ze")
+	zePath := filepath.Join(baseDir, "bin", "ze")
 	cmd := exec.CommandContext(ctx, "go", "build", "-o", zePath, "./cmd/ze") //nolint:gosec // paths from internal runner
 	cmd.Dir = baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {
-		_ = os.RemoveAll(tmpDir)
 		return "", fmt.Errorf("build ze: %w: %s", err, output)
 	}
 

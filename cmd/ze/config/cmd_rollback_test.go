@@ -17,9 +17,9 @@ import (
 // VALIDATES: "rollback" subcommand is registered in dispatch map.
 // PREVENTS: Wiring failure where rollback command is unreachable.
 func TestCmdRollbackDispatch(t *testing.T) {
-	handler, ok := subcommandHandlers["rollback"]
+	handler, ok := storageHandlers["rollback"]
 	if !ok {
-		t.Fatal("'rollback' not registered in subcommandHandlers")
+		t.Fatal("'rollback' not registered in storageHandlers")
 	}
 	if handler == nil {
 		t.Fatal("'rollback' handler is nil")

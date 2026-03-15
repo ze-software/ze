@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
@@ -109,7 +110,7 @@ func TestDetectConfigType(t *testing.T) {
 			err := os.WriteFile(path, []byte(tt.content), 0o600)
 			require.NoError(t, err)
 
-			got := detectConfigType(path)
+			got := detectConfigType(storage.NewFilesystem(), path)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -149,6 +150,6 @@ func TestIsLocalhostPprof(t *testing.T) {
 // VALIDATES: Missing file returns ConfigTypeUnknown.
 // PREVENTS: Panic on missing config file.
 func TestDetectConfigTypeFileError(t *testing.T) {
-	got := detectConfigType("/nonexistent/path/config.conf")
+	got := detectConfigType(storage.NewFilesystem(), "/nonexistent/path/config.conf")
 	assert.Equal(t, config.ConfigTypeUnknown, got)
 }

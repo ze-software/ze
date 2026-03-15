@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
 // TestRunMissingConfig verifies error handling for missing config.
@@ -13,7 +15,7 @@ import (
 // VALIDATES: Hub returns error for non-existent config.
 // PREVENTS: Silent failure when config file not found.
 func TestRunMissingConfig(t *testing.T) {
-	exit := Run("/nonexistent/config.conf", nil, 0, -1)
+	exit := Run(storage.NewFilesystem(), "/nonexistent/config.conf", nil, 0, -1)
 	assert.Equal(t, 1, exit)
 }
 
@@ -30,7 +32,7 @@ func TestRunInvalidConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exit := Run(configPath, nil, 0, -1)
+	exit := Run(storage.NewFilesystem(), configPath, nil, 0, -1)
 	assert.Equal(t, 1, exit)
 }
 

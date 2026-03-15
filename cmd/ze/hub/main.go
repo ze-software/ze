@@ -9,12 +9,14 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
@@ -23,9 +25,10 @@ import (
 )
 
 // Run executes the hub with the given config file path and optional CLI plugins.
+// store provides the I/O backend (filesystem or blob); used for config reads and reload.
 // chaosSeed > 0 enables chaos self-test mode; chaosRate < 0 means "use default".
 // Returns exit code.
-func Run(configPath string, plugins []string, chaosSeed int64, chaosRate float64) int {
+func Run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64) int {
 	// Read config content first (to probe type without parsing).
 	// When reading from stdin, we look for a NUL sentinel that signals
 	// "config complete but pipe stays open for liveness monitoring."
@@ -35,7 +38,7 @@ func Run(configPath string, plugins []string, chaosSeed int64, chaosRate float64
 	if configPath == "-" {
 		data, stdinOpen, err = readStdinConfig()
 	} else {
-		data, err = os.ReadFile(configPath) //nolint:gosec // Config path from user
+		data, err = store.ReadFile(configPath)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: read config: %v\n", err)
@@ -46,12 +49,12 @@ func Run(configPath string, plugins []string, chaosSeed int64, chaosRate float64
 	switch zeconfig.ProbeConfigType(string(data)) {
 	case zeconfig.ConfigTypeBGP:
 		// Run BGP in-process using YANG parser
-		return runBGPInProcess(configPath, data, plugins, chaosSeed, chaosRate, stdinOpen)
+		return runBGPInProcess(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen)
 	case zeconfig.ConfigTypeHub:
 		// Run hub orchestrator using hub parser
 		// TODO: pass plugins to orchestrator when hub mode supports them
 		_ = plugins // Currently unused in hub mode
-		return runOrchestratorWithData(configPath, data)
+		return runOrchestratorWithData(store, configPath, data)
 	case zeconfig.ConfigTypeUnknown:
 		fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
 	}
@@ -95,9 +98,15 @@ func readStdinConfig() (data []byte, stdinOpen bool, err error) {
 // Returns the PIDFile (caller must Release) or an error if another instance
 // holds the lock. Returns a no-op PIDFile for stdin configs or when the
 // PID file location cannot be determined.
-func acquirePIDFile(configPath string) (*pidfile.PIDFile, error) {
+// When store is non-nil, the PID is stored in the blob with kill(0) mutual exclusion.
+// When store is nil, uses filesystem flock (current behavior).
+func acquirePIDFile(store storage.Storage, configPath string) (*pidfile.PIDFile, error) {
 	if configPath == "-" {
 		return pidfile.Noop(), nil
+	}
+	if storage.IsBlobStorage(store) {
+		pidKey := strings.TrimPrefix(configPath, "/") + ".pid"
+		return pidfile.AcquireWithStorage(store, pidKey, configPath)
 	}
 	pidPath, err := pidfile.Location(configPath)
 	if err != nil {
@@ -114,9 +123,9 @@ func acquirePIDFile(configPath string) (*pidfile.PIDFile, error) {
 // runBGPInProcess loads BGP config using YANG parser and runs reactor in-process.
 // When stdinOpen is true, a background goroutine monitors stdin for EOF and
 // triggers shutdown when the upstream process exits (pipe mode).
-func runBGPInProcess(configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen bool) int {
+func runBGPInProcess(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen bool) int {
 	// Use YANG-based config parser with CLI plugins
-	reactor, err := bgpconfig.LoadReactorWithPlugins(string(data), configPath, plugins)
+	reactor, err := bgpconfig.LoadReactorWithPlugins(store, string(data), configPath, plugins)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
 		return 1
@@ -148,7 +157,7 @@ func runBGPInProcess(configPath string, data []byte, plugins []string, chaosSeed
 	}
 
 	// Acquire PID file (prevents duplicate instances)
-	pf, err := acquirePIDFile(configPath)
+	pf, err := acquirePIDFile(store, configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
@@ -226,7 +235,7 @@ func monitorStdinEOF(sigCh chan<- os.Signal) {
 }
 
 // runOrchestratorWithData parses hub config and runs the orchestrator.
-func runOrchestratorWithData(configPath string, data []byte) int {
+func runOrchestratorWithData(store storage.Storage, configPath string, data []byte) int {
 	cfg, err := hub.ParseHubConfig(string(data))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: parse config: %v\n", err)
@@ -235,7 +244,7 @@ func runOrchestratorWithData(configPath string, data []byte) int {
 	cfg.ConfigPath = configPath
 
 	// Acquire PID file (prevents duplicate instances)
-	pf, err := acquirePIDFile(configPath)
+	pf, err := acquirePIDFile(store, configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
@@ -243,6 +252,7 @@ func runOrchestratorWithData(configPath string, data []byte) int {
 	defer pf.Release()
 
 	o := hub.NewOrchestrator(cfg)
+	o.SetStorage(store)
 
 	// Setup signal handling
 	ctx, cancel := context.WithCancel(context.Background())

@@ -10,9 +10,18 @@ import (
 	"strconv"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
+func cmdRollbackWithStorage(store storage.Storage, args []string) int {
+	return cmdRollbackImpl(store, args)
+}
+
 func cmdRollback(args []string) int {
+	return cmdRollbackImpl(storage.NewFilesystem(), args)
+}
+
+func cmdRollbackImpl(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config rollback", flag.ExitOnError)
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze config rollback <N> <file>
@@ -42,7 +51,7 @@ Exit codes:
 		return exitError
 	}
 
-	ed, err := cli.NewEditor(fs.Arg(1))
+	ed, err := cli.NewEditorWithStorage(store, fs.Arg(1))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError

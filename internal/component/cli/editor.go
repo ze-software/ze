@@ -1,6 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md — config editor
 // Detail: editor_draft.go — write-through draft protocol
-// Detail: editor_lock.go — file locking (used during write-through)
 // Detail: editor_session.go — session identity for concurrent editing
 //
 // Package editor provides an interactive configuration editor.
@@ -20,6 +19,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
 // ReloadNotifier is called after a successful save to notify the running daemon.
@@ -32,6 +32,7 @@ type ReloadNotifier func() error
 // back to stored raw text for configs that can't be parsed.
 type Editor struct {
 	originalPath    string
+	store           storage.Storage // Storage backend (filesystem or blob)
 	originalContent string
 	workingContent  string         // Fallback when tree can't parse
 	tree            *config.Tree   // Parsed config tree (canonical when treeValid)
@@ -52,9 +53,16 @@ type BackupInfo struct {
 }
 
 // NewEditor creates a new editor for the given configuration file.
+// Uses filesystem storage by default. For blob storage, use NewEditorWithStorage.
 func NewEditor(configPath string) (*Editor, error) {
+	return NewEditorWithStorage(storage.NewFilesystem(), configPath)
+}
+
+// NewEditorWithStorage creates a new editor backed by the given storage.
+// All file I/O (config, draft, backup, lock) goes through the storage interface.
+func NewEditorWithStorage(store storage.Storage, configPath string) (*Editor, error) {
 	// Read original file
-	data, err := os.ReadFile(configPath) //nolint:gosec // Config path is user-provided
+	data, err := store.ReadFile(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read config file: %w", err)
 	}
@@ -75,16 +83,14 @@ func NewEditor(configPath string) (*Editor, error) {
 
 	// Check for existing edit file
 	editPath := configPath + ".edit"
-	hasPending := false
-	if _, err := os.Stat(editPath); err == nil {
-		hasPending = true
-	}
+	hasPending := store.Exists(editPath)
 
 	// Parse succeeded if tree has content (not the empty fallback)
 	treeValid := err == nil
 
 	return &Editor{
 		originalPath:    configPath,
+		store:           store,
 		originalContent: content,
 		workingContent:  content,
 		tree:            tree,
@@ -128,9 +134,15 @@ func (e *Editor) HasPendingEdit() bool {
 }
 
 // PendingEditTime returns the modification time of the .edit file.
-// Returns zero time if no edit file exists.
+// Returns zero time if no edit file exists. For blob storage, mod time is
+// unavailable so this returns zero time even when the edit exists; callers
+// handle zero time gracefully in the prompt.
 func (e *Editor) PendingEditTime() time.Time {
 	editPath := e.originalPath + ".edit"
+	if !e.store.Exists(editPath) {
+		return time.Time{}
+	}
+	// Best-effort: filesystem stat for mod time (blob returns zero time).
 	info, err := os.Stat(editPath)
 	if err != nil {
 		return time.Time{}
@@ -142,7 +154,7 @@ func (e *Editor) PendingEditTime() time.Time {
 // Returns empty string if no edit file exists.
 func (e *Editor) PendingEditDiff() string {
 	editPath := e.originalPath + ".edit"
-	data, err := os.ReadFile(editPath) //nolint:gosec // Edit path derived from original
+	data, err := e.store.ReadFile(editPath)
 	if err != nil {
 		return ""
 	}
@@ -210,7 +222,7 @@ func (e *Editor) PromptPendingEdit() PendingEditAction {
 // LoadPendingEdit loads the content from the .edit file.
 func (e *Editor) LoadPendingEdit() error {
 	editPath := e.originalPath + ".edit"
-	data, err := os.ReadFile(editPath) //nolint:gosec // Edit path derived from original
+	data, err := e.store.ReadFile(editPath)
 	if err != nil {
 		return fmt.Errorf("cannot read edit file: %w", err)
 	}
@@ -228,7 +240,7 @@ func (e *Editor) SaveEditState() error {
 	}
 
 	editPath := e.originalPath + ".edit"
-	if err := os.WriteFile(editPath, []byte(e.workingContent), 0o600); err != nil {
+	if err := e.store.WriteFile(editPath, []byte(e.workingContent), 0o600); err != nil {
 		return fmt.Errorf("failed to write edit file: %w", err)
 	}
 	return nil
@@ -237,7 +249,7 @@ func (e *Editor) SaveEditState() error {
 // deleteEditFile removes the .edit file if it exists.
 func (e *Editor) deleteEditFile() {
 	editPath := e.originalPath + ".edit"
-	_ = os.Remove(editPath) // Ignore error if doesn't exist
+	_ = e.store.Remove(editPath) // Ignore error if doesn't exist
 }
 
 // SetReloadNotifier sets an optional function to notify the daemon after save.
@@ -855,13 +867,13 @@ func (e *Editor) Save() error {
 	}
 
 	// Create backup of original
-	if err := e.createBackup(e.originalContent); err != nil {
+	if err := e.createBackup(e.originalContent, nil); err != nil {
 		return fmt.Errorf("failed to create backup: %w", err)
 	}
 
 	// Write serialized tree (or raw text fallback) to original path
 	content := e.WorkingContent()
-	if err := atomicWriteFile(e.originalPath, []byte(content)); err != nil {
+	if err := e.store.WriteFile(e.originalPath, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 
@@ -996,21 +1008,23 @@ func (e *Editor) rollbackDir() string {
 // Filename uses a full timestamp (YYYYMMDD-HHMMSS.mmm) for natural date ordering.
 // The content parameter is what was on disk before the overwrite -- callers pass
 // freshly-read data to avoid backing up stale cached content.
-func (e *Editor) createBackup(content string) error {
+// When guard is non-nil (inside a lock), writes through the guard to avoid deadlock.
+// When guard is nil (outside a lock), writes through e.store.
+func (e *Editor) createBackup(content string, guard storage.WriteGuard) error {
 	base := filepath.Base(e.originalPath)
 	ext := filepath.Ext(base)
 	name := strings.TrimSuffix(base, ext)
 
 	rollback := e.rollbackDir()
-	if err := os.MkdirAll(rollback, 0o700); err != nil {
-		return fmt.Errorf("cannot create rollback directory: %w", err)
-	}
 
 	now := time.Now()
 	stamp := fmt.Sprintf("%s.%03d", now.Format("20060102-150405"), now.Nanosecond()/1e6)
 	backupPath := filepath.Join(rollback, fmt.Sprintf("%s-%s.conf", name, stamp))
 
-	return os.WriteFile(backupPath, []byte(content), 0o600)
+	if guard != nil {
+		return guard.WriteFile(backupPath, []byte(content), 0o600)
+	}
+	return e.store.WriteFile(backupPath, []byte(content), 0o600)
 }
 
 // ListBackups returns available backup files, sorted by timestamp descending.
@@ -1022,12 +1036,24 @@ func (e *Editor) ListBackups() ([]BackupInfo, error) {
 
 	rollback := e.rollbackDir()
 
-	// Pattern: rollback/name-YYYYMMDD-HHMMSS.mmm.conf
-	pattern := filepath.Join(rollback, fmt.Sprintf("%s-????????-??????.???.conf", name))
-	matches, err := filepath.Glob(pattern)
+	// List all files in rollback directory, then filter by name pattern.
+	matches, err := e.store.List(rollback)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil // No rollback directory = no backups
+		}
 		return nil, err
 	}
+
+	// Filter to files matching this config's backup pattern.
+	prefix := name + "-"
+	filtered := matches[:0]
+	for _, m := range matches {
+		if b := filepath.Base(m); strings.HasPrefix(b, prefix) {
+			filtered = append(filtered, m)
+		}
+	}
+	matches = filtered
 
 	backups := make([]BackupInfo, 0, len(matches))
 	re := regexp.MustCompile(`-(\d{8}-\d{6})\.(\d{3})\.conf$`)
@@ -1075,7 +1101,7 @@ func (e *Editor) LivePath() string {
 // Used by "commit confirmed" to create the trial config.
 func (e *Editor) SaveLive() error {
 	content := e.WorkingContent()
-	if err := os.WriteFile(e.LivePath(), []byte(content), 0o600); err != nil {
+	if err := e.store.WriteFile(e.LivePath(), []byte(content), 0o600); err != nil {
 		return fmt.Errorf("failed to write live config: %w", err)
 	}
 	return nil
@@ -1084,36 +1110,31 @@ func (e *Editor) SaveLive() error {
 // HasPendingLive returns true if a .live.conf file exists.
 // This indicates an unconfirmed "commit confirmed" from a previous session.
 func (e *Editor) HasPendingLive() bool {
-	_, err := os.Stat(e.LivePath())
-	return err == nil
+	return e.store.Exists(e.LivePath())
 }
 
 // DeleteLive removes the .live.conf file if it exists.
 // Errors are ignored because the file may not exist.
 func (e *Editor) DeleteLive() {
-	livePath := e.LivePath()
-	if err := os.Remove(livePath); err != nil && !os.IsNotExist(err) {
-		// Best-effort removal — log but don't fail
-		return
-	}
+	_ = e.store.Remove(e.LivePath()) // Ignore error if doesn't exist
 }
 
 // Rollback restores the configuration from a backup file.
 // Creates a backup of the current config first, so the rollback itself can be undone.
 func (e *Editor) Rollback(backupPath string) error {
 	// Read backup content
-	data, err := os.ReadFile(backupPath) //nolint:gosec // Backup path from ListBackups
+	data, err := e.store.ReadFile(backupPath)
 	if err != nil {
 		return fmt.Errorf("cannot read backup: %w", err)
 	}
 
-	// Backup current config before overwriting — rollback is itself reversible
-	if err := e.createBackup(e.originalContent); err != nil {
+	// Backup current config before overwriting -- rollback is itself reversible
+	if err := e.createBackup(e.originalContent, nil); err != nil {
 		return fmt.Errorf("cannot backup current config before rollback: %w", err)
 	}
 
 	// Write to original path
-	if err := atomicWriteFile(e.originalPath, data); err != nil {
+	if err := e.store.WriteFile(e.originalPath, data, 0o600); err != nil {
 		return fmt.Errorf("cannot write config: %w", err)
 	}
 

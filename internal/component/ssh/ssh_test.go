@@ -3,6 +3,7 @@ package ssh
 import (
 	"context"
 	"net"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
 // VALIDATES: AC-4 — SSH server created with config values.
@@ -96,6 +98,75 @@ func TestNewServerNoHostKeyNoConfigDir(t *testing.T) {
 	}
 	assert.NotEmpty(t, srv.config.HostKeyPath)
 	assert.Contains(t, srv.config.HostKeyPath, "ssh_host_ed25519_key")
+}
+
+// VALIDATES: host key generated and stored when blob storage is set and key is missing.
+// PREVENTS: SSH server failing to start with blob storage when no host key exists.
+func TestResolveHostKeyFromBlobStorage(t *testing.T) {
+	dir := t.TempDir()
+	blobPath := filepath.Join(dir, "database.zefs")
+	store, err := storage.NewBlob(blobPath, dir)
+	require.NoError(t, err)
+	defer store.Close() //nolint:errcheck // test cleanup
+
+	keyPath := filepath.Join(dir, "ssh_host_ed25519_key")
+
+	cfg := Config{
+		Listen:      "127.0.0.1:0",
+		HostKeyPath: keyPath,
+		Storage:     store,
+	}
+
+	srv, srvErr := NewServer(cfg)
+	require.NoError(t, srvErr)
+
+	// Key does not exist yet -- resolveHostKeyOption should generate and store it.
+	opt, optErr := srv.resolveHostKeyOption()
+	require.NoError(t, optErr)
+	assert.NotNil(t, opt, "should return a valid ssh.Option")
+
+	// Verify the key was written to storage.
+	assert.True(t, store.Exists(keyPath), "host key should be written to storage")
+	data, readErr := store.ReadFile(keyPath)
+	require.NoError(t, readErr)
+	assert.Contains(t, string(data), "PRIVATE KEY", "stored key should be PEM-encoded")
+
+	// Second call should read the existing key, not generate a new one.
+	opt2, opt2Err := srv.resolveHostKeyOption()
+	require.NoError(t, opt2Err)
+	assert.NotNil(t, opt2, "should return a valid ssh.Option from existing key")
+	data2, read2Err := store.ReadFile(keyPath)
+	require.NoError(t, read2Err)
+	assert.Equal(t, data, data2, "key should not be regenerated")
+}
+
+// VALIDATES: resolveHostKeyOption uses WithHostKeyPath when storage is nil or filesystem.
+// PREVENTS: regression in filesystem mode.
+func TestResolveHostKeyFilesystemMode(t *testing.T) {
+	t.Run("nil storage", func(t *testing.T) {
+		cfg := Config{
+			Listen:      "127.0.0.1:0",
+			HostKeyPath: filepath.Join(t.TempDir(), "host_key"),
+		}
+		srv, err := NewServer(cfg)
+		require.NoError(t, err)
+		opt, err := srv.resolveHostKeyOption()
+		require.NoError(t, err)
+		assert.NotNil(t, opt, "should return WithHostKeyPath option")
+	})
+
+	t.Run("filesystem storage", func(t *testing.T) {
+		cfg := Config{
+			Listen:      "127.0.0.1:0",
+			HostKeyPath: filepath.Join(t.TempDir(), "host_key"),
+			Storage:     storage.NewFilesystem(),
+		}
+		srv, err := NewServer(cfg)
+		require.NoError(t, err)
+		opt, err := srv.resolveHostKeyOption()
+		require.NoError(t, err)
+		assert.NotNil(t, opt, "filesystem storage should still use WithHostKeyPath")
+	})
 }
 
 // VALIDATES: explicit host-key is preserved.

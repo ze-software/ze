@@ -16,6 +16,7 @@ import (
 	"context"
 	"sync"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
@@ -38,6 +39,7 @@ type HubConfig struct {
 // It composes existing plugin infrastructure rather than duplicating it.
 type Orchestrator struct {
 	config     *HubConfig
+	store      storage.Storage
 	subsystems *pluginserver.SubsystemManager
 	registry   *pluginserver.SchemaRegistry
 	pluginHub  *pluginserver.Hub
@@ -48,6 +50,7 @@ type Orchestrator struct {
 }
 
 // NewOrchestrator creates a new hub orchestrator with the given configuration.
+// Uses filesystem storage by default; call SetStorage to use blob storage.
 func NewOrchestrator(cfg *HubConfig) *Orchestrator {
 	if cfg == nil {
 		cfg = &HubConfig{}
@@ -67,10 +70,17 @@ func NewOrchestrator(cfg *HubConfig) *Orchestrator {
 
 	return &Orchestrator{
 		config:     cfg,
+		store:      storage.NewFilesystem(),
 		subsystems: subsystems,
 		registry:   registry,
 		pluginHub:  pluginserver.NewHub(registry, subsystems),
 	}
+}
+
+// SetStorage overrides the default filesystem storage.
+// Must be called before Start or Reload.
+func (o *Orchestrator) SetStorage(store storage.Storage) {
+	o.store = store
 }
 
 // Start starts all plugins and the hub event loop.

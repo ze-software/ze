@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -25,8 +26,10 @@ import (
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/validate"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 
 	// Import all plugins to trigger init() registration.
 	// Must happen at the binary entry point (not in internal/plugin)
@@ -58,9 +61,17 @@ func main() {
 	var chaosSeed int64
 	var chaosRate float64 = -1 // -1 means "not set by CLI"
 	var pprofAddr string
+	var fileOverride string // -f flag: bypass blob, use filesystem directly
 	args := os.Args[1:]
-	for len(args) > 0 && (strings.HasPrefix(args[0], "--") || args[0] == "-d" || args[0] == "-V") {
+	for len(args) > 0 && (strings.HasPrefix(args[0], "--") || args[0] == "-d" || args[0] == "-V" || args[0] == "-f") {
 		switch args[0] {
+		case "-f":
+			if len(args) < 2 {
+				fmt.Fprintf(os.Stderr, "error: -f requires a file path\n")
+				os.Exit(1)
+			}
+			fileOverride = args[1]
+			args = args[2:]
 		case "-d", "--debug":
 			_ = os.Setenv("ze.log", "debug")
 			_ = os.Setenv("ze.log.relay", "debug")
@@ -128,6 +139,19 @@ dispatch:
 		startPprof(pprofAddr)
 	}
 
+	// Handle -f flag: use filesystem storage with the override path
+	if fileOverride != "" {
+		store := storage.NewFilesystem()
+		fileOverride = config.ResolveConfigPath(fileOverride)
+		switch detectConfigType(store, fileOverride) {
+		case config.ConfigTypeBGP, config.ConfigTypeHub:
+			os.Exit(hub.Run(store, fileOverride, plugins, chaosSeed, chaosRate))
+		case config.ConfigTypeUnknown:
+			fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
+			os.Exit(1)
+		}
+	}
+
 	if len(args) < 1 {
 		usage()
 		os.Exit(1)
@@ -144,7 +168,10 @@ dispatch:
 	case "cli":
 		os.Exit(cli.Run(args[1:]))
 	case "config":
-		os.Exit(zeconfig.Run(args[1:]))
+		store := resolveStorage()
+		code := zeconfig.RunWithStorage(store, args[1:])
+		store.Close() //nolint:errcheck // best-effort cleanup before exit
+		os.Exit(code)
 	case "db":
 		os.Exit(zedb.Run(args[1:]))
 	case "validate":
@@ -178,19 +205,26 @@ dispatch:
 
 	// If arg looks like a config file, dispatch based on content
 	if looksLikeConfig(arg) {
-		// For stdin, skip detection - hub.Run reads and probes internally
+		// For stdin, skip blob - hub.Run reads and probes internally
 		if arg == "-" {
-			os.Exit(hub.Run(arg, plugins, chaosSeed, chaosRate))
+			os.Exit(hub.Run(storage.NewFilesystem(), arg, plugins, chaosSeed, chaosRate))
 		}
+		store := resolveStorage()
 		// Search XDG config paths if not found locally
 		arg = config.ResolveConfigPath(arg)
-		switch detectConfigType(arg) {
+		// If blob storage doesn't have the file, fall back to filesystem
+		// (config may not be imported into blob yet)
+		if storage.IsBlobStorage(store) && !store.Exists(arg) {
+			store.Close() //nolint:errcheck // closing blob before filesystem fallback
+			store = storage.NewFilesystem()
+		}
+		switch detectConfigType(store, arg) {
 		case config.ConfigTypeBGP:
 			// Start BGP daemon in-process via hub
-			os.Exit(hub.Run(arg, plugins, chaosSeed, chaosRate))
+			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate))
 		case config.ConfigTypeHub:
 			// Start hub orchestrator (forks external plugins)
-			os.Exit(hub.Run(arg, plugins, chaosSeed, chaosRate))
+			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate))
 		case config.ConfigTypeUnknown:
 			fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
 			os.Exit(1)
@@ -240,12 +274,35 @@ func looksLikeConfig(arg string) bool {
 // detectConfigType probes a config file to determine what daemon to start.
 // Returns ConfigTypeBGP for bgp {} block, ConfigTypeHub for plugin { external },
 // ConfigTypeUnknown otherwise. BGP takes precedence if both blocks are present.
-func detectConfigType(path string) config.ConfigType {
-	data, err := os.ReadFile(path) //nolint:gosec // Config file path from user
+func detectConfigType(store storage.Storage, path string) config.ConfigType {
+	data, err := store.ReadFile(path)
 	if err != nil {
 		return config.ConfigTypeUnknown
 	}
 	return config.ProbeConfigType(string(data))
+}
+
+// resolveStorage creates the appropriate storage backend.
+// Default: blob storage at {configDir}/database.zefs.
+// Fallback: filesystem if blob cannot be created or ZE_STORAGE_BLOB=false.
+func resolveStorage() storage.Storage {
+	if v := os.Getenv("ZE_STORAGE_BLOB"); strings.EqualFold(v, "false") {
+		return storage.NewFilesystem()
+	}
+	configDir := os.Getenv("ZE_CONFIG_DIR")
+	if configDir == "" {
+		configDir = paths.DefaultConfigDir()
+	}
+	if configDir == "" {
+		return storage.NewFilesystem()
+	}
+	blobPath := filepath.Join(configDir, "database.zefs")
+	store, err := storage.NewBlob(blobPath, configDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: blob storage unavailable (%v), using filesystem\n", err)
+		return storage.NewFilesystem()
+	}
+	return store
 }
 
 func usage() {
@@ -257,6 +314,7 @@ Usage:
 
 Options:
   -d, --debug           Enable debug logging (sets ze.log=debug for all subsystems)
+  -f <file>             Use filesystem directly, bypass blob store
   --plugin <name>       Load plugin before starting (repeatable)
   --plugins             List available internal plugins
   --pprof <addr:port>   Start pprof HTTP server (e.g. :6060)

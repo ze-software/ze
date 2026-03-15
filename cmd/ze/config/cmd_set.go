@@ -11,9 +11,18 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
+func cmdSetWithStorage(store storage.Storage, args []string) int {
+	return cmdSetImpl(store, args)
+}
+
 func cmdSet(args []string) int {
+	return cmdSetImpl(storage.NewFilesystem(), args)
+}
+
+func cmdSetImpl(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config set", flag.ExitOnError)
 	dryRun := fs.Bool("dry-run", false, "show what would change without writing")
 	noReload := fs.Bool("no-reload", false, "do not notify running daemon after save")
@@ -58,13 +67,15 @@ Examples:
 	key := path[len(path)-1]
 	containerPath := path[:len(path)-1]
 
-	// Load config
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		fmt.Fprintf(os.Stderr, "error: config file not found: %s\n", configPath)
-		return exitError
+	// For filesystem storage, check file exists
+	if !storage.IsBlobStorage(store) {
+		if _, err := os.Stat(configPath); os.IsNotExist(err) {
+			fmt.Fprintf(os.Stderr, "error: config file not found: %s\n", configPath)
+			return exitError
+		}
 	}
 
-	ed, err := cli.NewEditor(configPath)
+	ed, err := cli.NewEditorWithStorage(store, configPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError

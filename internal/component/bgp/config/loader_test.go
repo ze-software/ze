@@ -2,6 +2,8 @@ package bgpconfig
 
 import (
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -10,6 +12,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
@@ -1016,7 +1019,7 @@ bgp {
     }
 }
 `
-	r, err := LoadReactorWithPlugins(input, "-", []string{"ze.bgp-rs"})
+	r, err := LoadReactorWithPlugins(storage.NewFilesystem(), input, "-", []string{"ze.bgp-rs"})
 	require.NoError(t, err)
 	require.NotNil(t, r)
 
@@ -1024,4 +1027,107 @@ bgp {
 	pluginNames := r.PluginNames()
 	assert.Contains(t, pluginNames, "bgp-rs", "bgp-rs should be in plugin list")
 	assert.Contains(t, pluginNames, "bgp-adj-rib-in", "bgp-adj-rib-in should be auto-added")
+}
+
+// TestLoaderWithBlobStorage verifies config loading through blob storage.
+//
+// VALIDATES: LoadReactorFile reads config from blob storage, not filesystem.
+// PREVENTS: Storage wiring broken - loader silently falls back to os.ReadFile.
+func TestLoaderWithBlobStorage(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "test.conf")
+	configContent := `
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
+    peer 192.0.2.1 {
+        peer-as 65001;
+        local-address 192.168.1.1;
+    }
+}
+`
+	// Write config to filesystem first so NewBlob migrates it
+	if err := os.WriteFile(configPath, []byte(configContent), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	blobPath := filepath.Join(dir, "database.zefs")
+	store, err := storage.NewBlob(blobPath, dir)
+	if err != nil {
+		t.Fatalf("NewBlob: %v", err)
+	}
+	defer store.Close() //nolint:errcheck // test cleanup
+
+	// Delete the filesystem copy to prove we're reading from blob
+	if err := os.Remove(configPath); err != nil {
+		t.Fatalf("remove filesystem config: %v", err)
+	}
+
+	// Load from blob storage
+	r, err := LoadReactorFile(store, configPath)
+	require.NoError(t, err)
+	require.NotNil(t, r)
+
+	peers := r.Peers()
+	require.Len(t, peers, 1)
+	assert.Equal(t, uint32(65000), peers[0].Settings().LocalAS)
+	assert.Equal(t, uint32(65001), peers[0].Settings().PeerAS)
+}
+
+// TestReloadWithBlobStorage verifies config can be re-read from blob after modification.
+//
+// VALIDATES: Modified config in blob is picked up on re-read.
+// PREVENTS: Stale config served from cache or filesystem fallback.
+func TestReloadWithBlobStorage(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "test.conf")
+	initialConfig := `
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
+    peer 192.0.2.1 {
+        peer-as 65001;
+        local-address 192.168.1.1;
+    }
+}
+`
+	if err := os.WriteFile(configPath, []byte(initialConfig), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	blobPath := filepath.Join(dir, "database.zefs")
+	store, err := storage.NewBlob(blobPath, dir)
+	if err != nil {
+		t.Fatalf("NewBlob: %v", err)
+	}
+	defer store.Close() //nolint:errcheck // test cleanup
+
+	// Load initial config from blob
+	r1, err := LoadReactorFile(store, configPath)
+	require.NoError(t, err)
+	require.Len(t, r1.Peers(), 1)
+
+	// Update config in blob (add second peer)
+	updatedConfig := `
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
+    peer 192.0.2.1 {
+        peer-as 65001;
+        local-address 192.168.1.1;
+    }
+    peer 192.0.2.2 {
+        peer-as 65002;
+        local-address 192.168.1.1;
+    }
+}
+`
+	if err := store.WriteFile(configPath, []byte(updatedConfig), 0o600); err != nil {
+		t.Fatalf("update config in blob: %v", err)
+	}
+
+	// Reload from blob - should see updated config
+	r2, err := LoadReactorFile(store, configPath)
+	require.NoError(t, err)
+	require.Len(t, r2.Peers(), 2, "reloaded config should have 2 peers")
 }

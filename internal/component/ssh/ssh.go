@@ -6,6 +6,10 @@ package ssh
 
 import (
 	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -21,6 +25,7 @@ import (
 	"github.com/charmbracelet/wish/activeterm"
 	"github.com/charmbracelet/wish/bubbletea"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -50,7 +55,8 @@ type CommandExecutorFactory func(username string) CommandExecutor
 type Config struct {
 	Listen      string
 	HostKeyPath string
-	ConfigDir   string // directory of the config file; used for host-key default
+	ConfigDir   string          // directory of the config file; used for host-key default
+	Storage     storage.Storage // when set, host key is read from/stored to blob
 	IdleTimeout uint32
 	MaxSessions int
 	Users       []UserConfig
@@ -152,12 +158,18 @@ func (s *Server) Start(ctx context.Context, _ ze.Bus, _ ze.ConfigProvider) error
 		return fmt.Errorf("SSH server already started")
 	}
 
+	// Resolve host key: from storage (blob mode) or filesystem path.
+	hostKeyOpt, err := s.resolveHostKeyOption()
+	if err != nil {
+		return fmt.Errorf("resolve host key: %w", err)
+	}
+
 	users := s.config.Users
 
 	// Always register a password auth handler.
 	// When no users are configured, reject all attempts (never allow NoClientAuth).
 	opts := []ssh.Option{
-		wish.WithHostKeyPath(s.config.HostKeyPath),
+		hostKeyOpt,
 		wish.WithMaxTimeout(time.Duration(s.config.IdleTimeout) * time.Second),
 		wish.WithMiddleware(
 			s.maxSessionsMiddleware(),
@@ -222,6 +234,44 @@ func (s *Server) Stop(ctx context.Context) error {
 func (s *Server) Reload(_ context.Context, _ ze.ConfigProvider) error {
 	// SSH server config changes require restart; no hot-reload for v1.
 	return nil
+}
+
+// resolveHostKeyOption returns the Wish host key option.
+// When storage is configured, the key is read from (or generated into) storage
+// and served from memory via WithHostKeyPEM.
+// When storage is nil, the key is served from the filesystem via WithHostKeyPath.
+func (s *Server) resolveHostKeyOption() (ssh.Option, error) {
+	store := s.config.Storage
+	if !storage.IsBlobStorage(store) {
+		return wish.WithHostKeyPath(s.config.HostKeyPath), nil
+	}
+
+	keyPath := s.config.HostKeyPath
+	if store.Exists(keyPath) {
+		data, err := store.ReadFile(keyPath)
+		if err != nil {
+			return nil, fmt.Errorf("read host key from storage: %w", err)
+		}
+		return wish.WithHostKeyPEM(data), nil
+	}
+
+	// Key not found in storage -- generate a new Ed25519 key.
+	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("generate host key: %w", err)
+	}
+	pkcs8Bytes, err := x509.MarshalPKCS8PrivateKey(priv)
+	if err != nil {
+		return nil, fmt.Errorf("marshal host key: %w", err)
+	}
+	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: pkcs8Bytes})
+
+	if err := store.WriteFile(keyPath, pemBytes, 0o600); err != nil {
+		return nil, fmt.Errorf("store host key: %w", err)
+	}
+	s.logger.Info("generated SSH host key", "path", keyPath)
+
+	return wish.WithHostKeyPEM(pemBytes), nil
 }
 
 // maxSessionsMiddleware returns middleware that enforces the max sessions limit.

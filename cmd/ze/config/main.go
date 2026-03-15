@@ -20,6 +20,7 @@ import (
 	"os"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
 // Exit codes for config commands.
@@ -29,26 +30,36 @@ const (
 	exitError           = 2 // Error (file not found, parse error, etc.)
 )
 
+// storageHandlers maps subcommand names to handler functions that receive storage.
+var storageHandlers = map[string]func(storage.Storage, []string) int{
+	"edit":     cmdEditWithStorage,
+	"set":      cmdSetWithStorage,
+	"history":  cmdHistoryWithStorage,
+	"rollback": cmdRollbackWithStorage,
+	"archive":  cmdArchiveWithStorage,
+	"diff":     cmdDiffWithStorage,
+}
+
 // subcommandHandlers maps subcommand names to their handler functions.
 // Using a map avoids both if-else chains (gocritic lint) and switch default
 // (hook false positive for /config/ path).
 var subcommandHandlers = map[string]func([]string) int{
-	"edit":       cmdEdit,
 	"check":      cmdCheck,
 	"migrate":    cmdMigrate,
 	"fmt":        cmdFmt,
 	"dump":       cmdDump,
-	"diff":       cmdDiff,
-	"set":        cmdSet,
-	"archive":    cmdArchive,
 	"completion": cmdCompletion,
-	"history":    cmdHistory,
-	"rollback":   cmdRollback,
 }
 
-// Run executes the config subcommand with the given arguments.
+// Run executes the config subcommand with filesystem storage (backward compat).
 // Returns exit code.
 func Run(args []string) int {
+	return RunWithStorage(storage.NewFilesystem(), args)
+}
+
+// RunWithStorage executes the config subcommand with the given storage backend.
+// Returns exit code.
+func RunWithStorage(store storage.Storage, args []string) int {
 	if len(args) < 1 {
 		usage()
 		return 1
@@ -63,25 +74,33 @@ func Run(args []string) int {
 		return 0
 	}
 
-	// Look up handler in map
+	// Look up storage-aware handler first
+	if handler, ok := storageHandlers[subcmd]; ok {
+		return handler(store, subArgs)
+	}
+
+	// Look up plain handler
 	if handler, ok := subcommandHandlers[subcmd]; ok {
 		return handler(subArgs)
 	}
 
 	// Unknown subcommand
 	fmt.Fprintf(os.Stderr, "unknown config subcommand: %s\n", subcmd)
-	candidates := make([]string, 0, len(subcommandHandlers))
-	for k := range subcommandHandlers {
-		candidates = append(candidates, k)
+	allCmds := make([]string, 0, len(storageHandlers)+len(subcommandHandlers))
+	for k := range storageHandlers {
+		allCmds = append(allCmds, k)
 	}
-	if s := suggest.Command(subcmd, candidates); s != "" {
+	for k := range subcommandHandlers {
+		allCmds = append(allCmds, k)
+	}
+	if s := suggest.Command(subcmd, allCmds); s != "" {
 		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
 	}
 	usage()
 	return 1
 }
 
-// loadConfigData reads config from the given path, or stdin if path is "-".
+// loadConfigData reads config from the given path via storage, or stdin if path is "-".
 func loadConfigData(path string) ([]byte, error) {
 	if path == "-" {
 		return io.ReadAll(os.Stdin)
@@ -95,7 +114,7 @@ func usage() {
 Configuration management commands.
 
 Commands:
-  edit <file>       Interactive configuration editor
+  edit [file]       Interactive configuration editor (default: ze.conf)
   check <file>      Check config status and deprecated patterns
   migrate <file>    Convert configuration to current format
   fmt <file>        Format and normalize configuration file
@@ -108,18 +127,15 @@ Commands:
   archive <name> <file>  Archive config to named destination
   completion <file> Query completion engine (testing/debugging)
 
+Options:
+  -f                Use filesystem directly, bypass blob store
+
 Examples:
-  ze config edit config.conf
+  ze config edit                         Edit default ze.conf from blob
+  ze config edit router.conf             Edit router.conf from blob
+  ze config edit -f router.conf          Edit router.conf from filesystem
   ze config check config.conf
   ze config migrate config.conf -o new.conf
-  ze config fmt config.conf
-  ze config dump config.conf
-  ze config diff old.conf new.conf
-  ze config diff --json old.conf new.conf
   ze config set config.conf bgp local-as 65000
-  ze config history config.conf
-  ze config rollback 3 config.conf
-  ze config diff 3 config.conf
-  ze config completion --input set+ --context bgp/peer/1.1.1.1 config.conf
 `)
 }

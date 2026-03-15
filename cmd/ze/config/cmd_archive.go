@@ -6,14 +6,24 @@ package config
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 
 	iconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 )
 
+func cmdArchiveWithStorage(store storage.Storage, args []string) int {
+	return cmdArchiveImpl(store, args)
+}
+
 func cmdArchive(args []string) int {
+	return cmdArchiveImpl(storage.NewFilesystem(), args)
+}
+
+func cmdArchiveImpl(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config archive", flag.ExitOnError)
 
 	fs.Usage = func() {
@@ -48,8 +58,14 @@ Examples:
 	archiveName := fs.Arg(0)
 	configPath := fs.Arg(1)
 
-	// Read and parse config file
-	data, err := loadConfigData(configPath)
+	// Read config file via storage backend (stdin supported)
+	var data []byte
+	var err error
+	if configPath == "-" {
+		data, err = io.ReadAll(os.Stdin)
+	} else {
+		data, err = store.ReadFile(configPath)
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError

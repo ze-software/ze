@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
 func TestNewEditor(t *testing.T) {
@@ -4630,4 +4631,73 @@ func TestCopyNonSessionMetaRecursive(t *testing.T) {
 	got, ok := dstPeer.GetEntry("peer-as")
 	require.True(t, ok)
 	assert.Equal(t, "hand-written", got.User)
+}
+
+// TestEditorWithBlobStorage verifies editor set/commit cycle using blob storage.
+//
+// VALIDATES: Editor reads/writes config through blob storage, not filesystem.
+// PREVENTS: Storage wiring broken - editor silently falls back to os.ReadFile.
+func TestEditorWithBlobStorage(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "test.conf")
+
+	// Write config to filesystem so blob migration picks it up
+	err := os.WriteFile(configPath, []byte(validBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	blobPath := filepath.Join(dir, "database.zefs")
+	store, err := storage.NewBlob(blobPath, dir)
+	require.NoError(t, err)
+	defer store.Close() //nolint:errcheck // test cleanup
+
+	// Remove filesystem copy to prove reads come from blob
+	err = os.Remove(configPath)
+	require.NoError(t, err)
+
+	// Create editor with blob storage
+	ed, err := NewEditorWithStorage(store, configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	// Verify initial content was read from blob
+	assert.False(t, ed.Dirty())
+
+	// Set a value
+	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err)
+	assert.True(t, ed.Dirty())
+
+	// Save (commit) - should write back to blob
+	err = ed.Save()
+	require.NoError(t, err)
+
+	// Read back from blob to verify the write went through storage
+	data, err := store.ReadFile(configPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "9.9.9.9", "saved config should contain new router-id")
+}
+
+// TestEditorFilesystemOverride verifies that filesystem storage is used when -f flag
+// causes storage to be replaced with NewFilesystem().
+//
+// VALIDATES: Editor with filesystem storage reads from real filesystem.
+// PREVENTS: -f flag not actually switching to filesystem storage.
+func TestEditorFilesystemOverride(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "test.conf")
+
+	// Write config to filesystem only (no blob)
+	err := os.WriteFile(configPath, []byte(validBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	// Use filesystem storage directly (simulates -f flag)
+	store := storage.NewFilesystem()
+
+	ed, err := NewEditorWithStorage(store, configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	// Should have loaded from filesystem
+	assert.False(t, ed.Dirty())
+	assert.Equal(t, configPath, ed.OriginalPath())
 }
