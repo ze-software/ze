@@ -101,3 +101,39 @@ func TestPrefixCollisionMinPrefixBoundary(t *testing.T) {
 	groups4 := FindCollisions(siblings, 4)
 	assert.Empty(t, groups4, "needs 3 chars, threshold 4 should exclude")
 }
+
+// PREVENTS: Crash on empty input.
+func TestPrefixCollisionsEmpty(t *testing.T) {
+	assert.Empty(t, FindCollisions(nil, 1), "nil input")
+	assert.Empty(t, FindCollisions([]SiblingInfo{}, 1), "empty input")
+	assert.Empty(t, FindCollisions([]SiblingInfo{{Name: "solo"}}, 1), "single sibling")
+}
+
+// PREVENTS: Crash or incorrect results when a sibling has empty name.
+func TestPrefixCollisionsEmptyName(t *testing.T) {
+	siblings := []SiblingInfo{
+		{Name: "", Source: SourceConfig},
+		{Name: "add", Source: SourceConfig},
+		{Name: "adj", Source: SourceConfig},
+	}
+	groups := FindCollisions(siblings, 1)
+	assert.Len(t, groups, 1, "empty-name sibling should be skipped, add/adj collide")
+	assert.Len(t, groups[0].Siblings, 2, "only add and adj, not the empty one")
+}
+
+// PREVENTS: Incorrect depth for one-char names that are a prefix of another.
+func TestPrefixCollisionSubstringName(t *testing.T) {
+	siblings := []SiblingInfo{
+		{Name: "a", Source: SourceConfig},
+		{Name: "ab", Source: SourceConfig},
+		{Name: "abc", Source: SourceConfig},
+	}
+	groups := FindCollisions(siblings, 1)
+	assert.Len(t, groups, 1)
+	// "a" is LCP 1 with "ab" -> depth 2, but "a" is only 1 char -> disambig = min(2, 1) = 1
+	// "ab" is LCP 2 with "abc" -> depth 3, but "ab" is only 2 chars -> disambig = min(3, 2) = 2
+	// longestCommonPrefix("a", "ab") = 1, so depth for "a" = 1+1 = 2. But len("a") = 1.
+	// disambigPrefix clips to len(name). So "a" gets prefix "a".
+	// This tests that we don't panic or go out of bounds.
+	assert.Equal(t, 1, groups[0].MinChars)
+}

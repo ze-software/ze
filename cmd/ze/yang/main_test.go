@@ -68,3 +68,57 @@ func TestRunCompletionMinPrefixMax(t *testing.T) {
 	code := Run([]string{"completion", "--min-prefix", "10"})
 	assert.Equal(t, 0, code)
 }
+
+// PREVENTS: JSON output crash through CLI dispatch.
+func TestRunCompletionJSON(t *testing.T) {
+	code := Run([]string{"completion", "--json"})
+	assert.Equal(t, 0, code)
+}
+
+// PREVENTS: JSON tree output crash through CLI dispatch.
+func TestRunTreeJSON(t *testing.T) {
+	code := Run([]string{"tree", "--json"})
+	assert.Equal(t, 0, code)
+}
+
+// PREVENTS: --commands filter crash through CLI dispatch.
+func TestRunTreeCommands(t *testing.T) {
+	code := Run([]string{"tree", "--commands"})
+	assert.Equal(t, 0, code)
+}
+
+// PREVENTS: --config filter crash through CLI dispatch.
+func TestRunTreeConfig(t *testing.T) {
+	code := Run([]string{"tree", "--config"})
+	assert.Equal(t, 0, code)
+}
+
+// PREVENTS: Mutually exclusive flags accepted.
+func TestRunTreeCommandsConfigConflict(t *testing.T) {
+	code := Run([]string{"tree", "--commands", "--config"})
+	assert.Equal(t, 1, code)
+}
+
+// PREVENTS: doc with specific command crash through CLI dispatch.
+func TestRunDocSpecificCommand(t *testing.T) {
+	code := Run([]string{"doc", "bgp", "peer", "list"})
+	assert.Equal(t, 0, code)
+}
+
+// PREVENTS: doc with no args and no --list gives usage error (not crash).
+func TestRunDocNoArgs(t *testing.T) {
+	code := Run([]string{"doc"})
+	assert.Equal(t, 1, code)
+}
+
+// PREVENTS: -h flag not handled.
+func TestRunDashH(t *testing.T) {
+	code := Run([]string{"-h"})
+	assert.Equal(t, 0, code)
+}
+
+// PREVENTS: --help flag not handled.
+func TestRunDashDashHelp(t *testing.T) {
+	code := Run([]string{"--help"})
+	assert.Equal(t, 0, code)
+}

@@ -126,3 +126,99 @@ func TestUnifiedTreeCollisions(t *testing.T) {
 	}
 	assert.True(t, foundR, "should find r-prefix collision in peer commands")
 }
+
+// PREVENTS: Crash when collecting collisions on a leaf node (no children).
+func TestCollectCollisionsSingleChild(t *testing.T) {
+	root := &AnalysisNode{
+		Name:     "(root)",
+		Children: map[string]*AnalysisNode{"only": {Name: "only", Children: make(map[string]*AnalysisNode)}},
+	}
+	groups := CollectCollisions(root, 1)
+	assert.Empty(t, groups, "single child should produce no collisions")
+}
+
+// PREVENTS: Panic on nil AnalysisNode.
+func TestCollectCollisionsNil(t *testing.T) {
+	groups := CollectCollisions(nil, 1)
+	assert.Empty(t, groups)
+}
+
+// PREVENTS: SortedChildren crash on nil Children map.
+func TestSortedChildrenNil(t *testing.T) {
+	node := &AnalysisNode{Name: "leaf"}
+	assert.Empty(t, node.SortedChildren())
+}
+
+// PREVENTS: Config constraint fields not populated (mandatory, default, range).
+func TestUnifiedTreeConstraints(t *testing.T) {
+	root, err := BuildUnifiedTree()
+	require.NoError(t, err)
+
+	bgp := root.Children["bgp"]
+	require.NotNil(t, bgp)
+
+	// router-id is mandatory in ze-bgp-conf.yang
+	rid := bgp.Children["router-id"]
+	require.NotNil(t, rid)
+	assert.True(t, rid.Mandatory, "router-id should be mandatory")
+
+	// hold-time has default 90 -- check inside peer
+	peer := bgp.Children["peer"]
+	require.NotNil(t, peer)
+	ht := peer.Children["hold-time"]
+	require.NotNil(t, ht)
+	assert.Equal(t, "90", ht.Default, "hold-time should have default 90")
+}
+
+// PREVENTS: List key not skipped, showing up as config child.
+func TestUnifiedTreeListKeySkipped(t *testing.T) {
+	root, err := BuildUnifiedTree()
+	require.NoError(t, err)
+
+	bgp := root.Children["bgp"]
+	require.NotNil(t, bgp)
+	peer := bgp.Children["peer"]
+	require.NotNil(t, peer)
+
+	// "address" is the list key for peer -- it should be skipped.
+	_, hasAddress := peer.Children["address"]
+	assert.False(t, hasAddress, "list key 'address' should be skipped in peer children")
+}
+
+// PREVENTS: AllRPCDocs returning wrong count or missing commands.
+func TestAllRPCDocsCount(t *testing.T) {
+	docs, err := AllRPCDocs()
+	require.NoError(t, err)
+	// Should have a reasonable number of commands (at least 20 from bgp + system + plugin)
+	assert.Greater(t, len(docs), 20, "should have at least 20 registered commands")
+
+	// Every doc should have non-empty CLICommand and WireMethod.
+	for _, d := range docs {
+		assert.NotEmpty(t, d.CLICommand, "every doc should have CLICommand")
+		assert.NotEmpty(t, d.WireMethod, "every doc should have WireMethod")
+	}
+}
+
+// PREVENTS: RPC parameter extraction failing silently.
+func TestAllRPCDocsHaveParams(t *testing.T) {
+	docs, err := AllRPCDocs()
+	require.NoError(t, err)
+
+	// "bgp peer list" has a "selector" input parameter in ze-bgp-api.yang
+	for _, d := range docs {
+		if d.CLICommand != "bgp peer list" {
+			continue
+		}
+		assert.NotEmpty(t, d.Input, "bgp peer list should have input parameters")
+		found := false
+		for _, leaf := range d.Input {
+			if leaf.Name == "selector" {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "bgp peer list should have 'selector' input parameter")
+		return
+	}
+	t.Fatal("bgp peer list not found in docs")
+}
