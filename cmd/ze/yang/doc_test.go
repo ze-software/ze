@@ -42,3 +42,40 @@ func TestDocList(t *testing.T) {
 	assert.Contains(t, out, "daemon shutdown", "should list daemon shutdown")
 	assert.Contains(t, out, "Command", "should have header")
 }
+
+// PREVENTS: Doc output missing output parameters.
+func TestDocCommandWithOutputParams(t *testing.T) {
+	var buf bytes.Buffer
+	err := FormatDocCommand(&buf, "bgp summary")
+	require.NoError(t, err)
+
+	out := buf.String()
+	assert.Contains(t, out, "Parameters (output):", "summary should have output parameters")
+	assert.Contains(t, out, "uptime", "summary output should list uptime")
+}
+
+// PREVENTS: Doc output not showing commands with no parameters.
+func TestDocCommandNoParams(t *testing.T) {
+	var buf bytes.Buffer
+	err := FormatDocCommand(&buf, "daemon shutdown")
+	require.NoError(t, err)
+
+	out := buf.String()
+	assert.Contains(t, out, "daemon shutdown")
+	assert.NotContains(t, out, "Parameters", "shutdown has no YANG params")
+}
+
+// PREVENTS: Case-insensitive matching failure.
+func TestDocCommandCaseInsensitive(t *testing.T) {
+	var buf bytes.Buffer
+	err := FormatDocCommand(&buf, "BGP PEER LIST")
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), "bgp peer list")
+}
+
+// PREVENTS: Empty command string treated as valid.
+func TestDocCommandEmpty(t *testing.T) {
+	var buf bytes.Buffer
+	err := FormatDocCommand(&buf, "")
+	assert.Error(t, err)
+}

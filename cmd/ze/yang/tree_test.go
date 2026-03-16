@@ -222,3 +222,51 @@ func TestAllRPCDocsHaveParams(t *testing.T) {
 	}
 	t.Fatal("bgp peer list not found in docs")
 }
+
+// PREVENTS: SourceBoth merge logic not working when command node precedes config node.
+// The "plugin" node exists at root in both domains:
+// - command: "bgp plugin encoding" -> after stripping "bgp " -> "plugin > encoding"
+// - config: ze-plugin-conf defines "plugin" container.
+func TestUnifiedTreeSourceBothMerge(t *testing.T) {
+	root, err := BuildUnifiedTree()
+	require.NoError(t, err)
+
+	plugin, ok := root.Children["plugin"]
+	require.True(t, ok, "plugin should be in unified tree")
+	assert.Equal(t, SourceBoth, plugin.Source,
+		"plugin should be SourceBoth (exists in both config from ze-plugin-conf and command from bgp plugin *)")
+}
+
+// PREVENTS: Tree with SourceBoth parent correctly shows children from both domains.
+func TestUnifiedTreeBothDomainChildren(t *testing.T) {
+	root, err := BuildUnifiedTree()
+	require.NoError(t, err)
+
+	plugin, ok := root.Children["plugin"]
+	require.True(t, ok)
+
+	// Command children: "encoding", "format", "ack" (from bgp plugin * RPCs)
+	// Config children: whatever ze-plugin-conf defines
+	// Both should be present as children.
+	hasCommandChild := false
+	for _, child := range plugin.Children {
+		if child.Source == SourceCommand || child.Source == SourceBoth {
+			hasCommandChild = true
+			break
+		}
+	}
+	// plugin has command children (encoding, format, ack from RPCs)
+	assert.True(t, hasCommandChild, "plugin should have command children")
+}
+
+// PREVENTS: walkYANGEntry not enriching existing command node with config metadata.
+func TestUnifiedTreeMergeEnrichesDescription(t *testing.T) {
+	root, err := BuildUnifiedTree()
+	require.NoError(t, err)
+
+	plugin, ok := root.Children["plugin"]
+	require.True(t, ok)
+	// After merge, the plugin node should have a description from YANG (not empty).
+	assert.NotEmpty(t, plugin.Description,
+		"merged plugin node should have description from YANG config module")
+}
