@@ -19,8 +19,8 @@ func TestLoadEnvironmentDefaults(t *testing.T) {
 	}
 
 	// Check daemon defaults
-	if env.Daemon.User != "nobody" {
-		t.Errorf("Daemon.User = %q, want %q", env.Daemon.User, "nobody")
+	if env.Daemon.User != "zeuser" {
+		t.Errorf("Daemon.User = %q, want %q", env.Daemon.User, "zeuser")
 	}
 	if !env.Daemon.Drop {
 		t.Error("Daemon.Drop should be true by default")

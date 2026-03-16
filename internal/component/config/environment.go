@@ -43,11 +43,12 @@ type Environment struct {
 }
 
 // DaemonEnv holds daemon-related settings.
+// Privilege dropping uses ze.user/ze.group env vars (see internal/core/privilege/).
 type DaemonEnv struct {
 	PID       string // PID file location
-	User      string // User to run as
+	User      string // User (legacy config compat; prefer ze.user env var)
 	Daemonize bool   // Run in background
-	Drop      bool   // Drop privileges before forking
+	Drop      bool   // Drop privileges (legacy config compat; prefer ze.user env var)
 	Umask     int    // Umask for files (octal)
 }
 
@@ -144,7 +145,7 @@ func LoadEnvironment() (*Environment, error) {
 // loadDefaults sets default values.
 func (e *Environment) loadDefaults() {
 	// Daemon defaults
-	e.Daemon.User = "nobody"
+	e.Daemon.User = "zeuser"
 	e.Daemon.Drop = true
 	e.Daemon.Umask = 0o137
 

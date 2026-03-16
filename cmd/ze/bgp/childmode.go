@@ -19,6 +19,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
+	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
@@ -194,6 +195,17 @@ func runChildModeWithArgs(args []string) int {
 	if err := reactor.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: start reactor: %v\n", err)
 		return 1
+	}
+
+	// Drop privileges after port binding.
+	if cfg := privilege.DropConfigFromEnv(); cfg.User != "" {
+		if err := privilege.Drop(cfg); err != nil {
+			fmt.Fprintf(os.Stderr, "error: drop privileges: %v\n", err)
+			reactor.Stop()
+			return 1
+		}
+	} else if os.Getuid() == 0 {
+		fmt.Fprintln(os.Stderr, "warning: running as root, set ze.user to drop privileges")
 	}
 
 	// Wait for shutdown signal (stdin closes when hub terminates)

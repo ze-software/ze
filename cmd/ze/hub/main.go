@@ -21,6 +21,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/pidfile"
+	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
@@ -183,6 +184,14 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 		return 1
 	}
 
+	// Drop privileges after port binding (while still root).
+	// All subsequent work (plugins, connections) runs as the configured user.
+	if err := dropPrivileges(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: drop privileges: %v\n", err)
+		reactor.Stop()
+		return 1
+	}
+
 	// Wait for either signal or reactor to stop itself
 	doneCh := make(chan struct{})
 	go func() {
@@ -217,6 +226,21 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 
 	fmt.Println("Ze BGP stopped.")
 	return 0
+}
+
+// dropPrivileges drops to the user/group from ze.user/ze.group env vars.
+// Called after port binding, before accepting connections or spawning plugins.
+// No-op if not running as root or if ze.user is not set.
+// Warns if running as root without ze.user configured.
+func dropPrivileges() error {
+	cfg := privilege.DropConfigFromEnv()
+	if cfg.User == "" {
+		if os.Getuid() == 0 {
+			fmt.Fprintln(os.Stderr, "warning: running as root, set ze.user to drop privileges")
+		}
+		return nil
+	}
+	return privilege.Drop(cfg)
 }
 
 // monitorStdinEOF blocks until stdin is closed (EOF or error), then sends
@@ -282,6 +306,14 @@ func runOrchestratorWithData(store storage.Storage, configPath string, data []by
 		fmt.Fprintf(os.Stderr, "error: start: %v\n", err)
 		return 1
 	}
+
+	// Drop privileges after port binding.
+	if err := dropPrivileges(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: drop privileges: %v\n", err)
+		o.Stop()
+		return 1
+	}
+
 	fmt.Fprintf(os.Stderr, "hub: started with config %s\n", configPath)
 
 	// Signal readiness to test infrastructure. Written after signal.Notify
