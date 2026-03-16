@@ -634,6 +634,38 @@ internal/
 
 ---
 
+## Security Model
+
+### Privilege Dropping (ExaBGP Pattern)
+
+Ze follows the standard Unix daemon privilege separation model:
+
+1. Start as root (or with `CAP_NET_BIND_SERVICE`) to bind port 179
+2. Bind the BGP listening socket
+3. Drop privileges to the configured user/group
+4. All subsequent work -- including plugin spawning -- runs as the unprivileged user
+
+The target user/group is configured via environment variables:
+
+| Variable | Underscore form | Purpose |
+|----------|-----------------|---------|
+| `ze.user` | `ze_user` | User to switch to after port binding |
+| `ze.group` | `ze_group` | Group to switch to (default: primary group of user) |
+
+When `ze.user` is not set, no privilege dropping occurs.
+
+Implementation: `internal/core/privilege/` -- calls `setgid` then `setuid` after `reactor.Start()` binds port 179.
+
+### FD Passing via SCM_RIGHTS
+
+Ze binds BGP port 179 centrally in the engine, then passes the listening file descriptor to the BGP plugin via SCM_RIGHTS over Unix domain sockets. Plugins never bind privileged ports themselves. This means plugins have no need for elevated privileges.
+
+### Plugin Process Isolation
+
+Each external plugin runs in its own process group (`Setpgid`) for clean signal handling and inherits the daemon's (already-dropped) uid/gid. All plugins run as the same unprivileged user.
+
+---
+
 ## Example Session
 
 ```bash

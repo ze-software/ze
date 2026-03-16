@@ -1,321 +1,174 @@
-# Environment Variables
+# Ze Environment Variables
 
-**Source:** ExaBGP `environment/config.py`
-**Purpose:** Document all environment variables for compatibility
-
----
-
-## ExaBGP Differences
-
-| Aspect | ExaBGP | Ze |
-|--------|--------|-------|
-| Prefix | `exabgp.` | `ze.` |
-| API version var | `exabgp.api.version` (4 or 6) | Not present (single format) |
-| Invalid values | Silent defaults | Startup failure |
-| Config block | Not supported | `environment { }` in config |
-| Validation | Runtime | `ze bgp config check --env` |
-
-## Ze Enhancements
-
-1. **Config block support:** Set environment in config file via `environment { }` block
-2. **Strict validation:** Invalid values cause startup failure (not silent defaults)
-3. **Migration helper:** `ze bgp config check --env` validates before upgrade
-
-See [ENVIRONMENT_BLOCK.md](ENVIRONMENT_BLOCK.md) for the config block syntax.
-
-**Ze priority:** `ze.bgp.x.y` > `ze_x_y` > config block > defaults
+**Source:** `internal/component/config/environment.go`
+**Purpose:** Complete reference of all ze environment variables
 
 ---
 
 ## Overview
 
-ExaBGP configuration uses environment variables with the format:
+Ze uses environment variables for daemon and BGP subsystem configuration.
 
-```
-exabgp.<section>.<option>=<value>
-```
+**Two variable families:**
 
-Or with underscores (for shell compatibility):
+| Family | Format | Purpose |
+|--------|--------|---------|
+| Top-level | `ze.<option>` / `ze_<option>` | Daemon-wide settings (privilege drop) |
+| BGP subsystem | `ze.bgp.<section>.<option>` / `ze_bgp_<section>_<option>` | BGP and process settings |
 
-```
-exabgp_<section>_<option>=<value>
-```
+**Priority:** env var (dot) > env var (underscore) > config file `environment { }` block > default.
 
-Priority: `exabgp.x.y` > `exabgp_x_y` > INI file > default
+**Strict validation:** Invalid values cause startup failure (not silent defaults).
 
 ---
 
-## Configuration Sections
+## Top-Level Variables
 
-### profile
+| Variable | Underscore | Type | Default | Description |
+|----------|------------|------|---------|-------------|
+| `ze.user` | `ze_user` | string | (none) | User to drop to after port binding |
+| `ze.group` | `ze_group` | string | (primary group of user) | Group to drop to after port binding |
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| exabgp.profile.enable | bool | false | Toggle profiling of the code |
-| exabgp.profile.file | string | "" | Profiling result file (empty = stdout) |
+When `ze.user` is not set, no privilege dropping occurs.
+See `internal/core/privilege/` for implementation.
 
-### pdb
+---
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| exabgp.pdb.enable | bool | false | Start pdb on program fault |
+## BGP Subsystem Variables
+
+All BGP variables use the `ze.bgp.<section>.<option>` format.
+They can also be set via the config file `environment { <section> { <option> <value> } }` block.
 
 ### daemon
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| exabgp.daemon.pid | string | "" | PID file location |
-| exabgp.daemon.user | string | "nobody" | User to run as |
-| exabgp.daemon.daemonize | bool | false | Run in background |
-| exabgp.daemon.drop | bool | true | Drop privileges before forking |
-| exabgp.daemon.umask | octal | 0137 | Umask for files |
+| `ze.bgp.daemon.pid` | string | "" | PID file location |
+| `ze.bgp.daemon.user` | string | "zeuser" | Legacy user field (prefer `ze.user`) |
+| `ze.bgp.daemon.daemonize` | bool | false | Run in background |
+| `ze.bgp.daemon.drop` | bool | true | Legacy drop field (prefer `ze.user`) |
+| `ze.bgp.daemon.umask` | octal | 0137 | Umask for created files |
 
 ### log
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| exabgp.log.enable | bool | true | Enable logging |
-| exabgp.log.level | string | "INFO" | Syslog level |
-| exabgp.log.destination | string | "stdout" | Log destination |
-| exabgp.log.all | bool | false | Debug everything |
-| exabgp.log.configuration | bool | true | Log config parsing |
-| exabgp.log.reactor | bool | true | Log signals, reloads |
-| exabgp.log.daemon | bool | true | Log pid, forking |
-| exabgp.log.processes | bool | true | Log process handling |
-| exabgp.log.network | bool | true | Log TCP/IP, network state |
-| exabgp.log.statistics | bool | true | Log packet statistics |
-| exabgp.log.packets | bool | false | Log BGP packets |
-| exabgp.log.rib | bool | false | Log local route changes |
-| exabgp.log.message | bool | false | Log route announcements |
-| exabgp.log.timers | bool | false | Log keepalive timers |
-| exabgp.log.routes | bool | false | Log received routes |
-| exabgp.log.parser | bool | false | Log message parsing |
-| exabgp.log.short | bool | true | Short log format |
+| `ze.bgp.log.enable` | bool | true | Enable logging |
+| `ze.bgp.log.level` | string | "INFO" | Syslog level: DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL |
+| `ze.bgp.log.destination` | string | "stdout" | stdout, stderr, syslog, or filename |
+| `ze.bgp.log.all` | bool | false | Debug all subsystems |
+| `ze.bgp.log.configuration` | bool | true | Log config parsing |
+| `ze.bgp.log.reactor` | bool | true | Log signals, reloads |
+| `ze.bgp.log.daemon` | bool | true | Log pid, forking |
+| `ze.bgp.log.processes` | bool | true | Log process handling |
+| `ze.bgp.log.network` | bool | true | Log TCP/IP, network state |
+| `ze.bgp.log.statistics` | bool | true | Log packet statistics |
+| `ze.bgp.log.packets` | bool | false | Log BGP packets |
+| `ze.bgp.log.rib` | bool | false | Log local route changes |
+| `ze.bgp.log.message` | bool | false | Log route announcements |
+| `ze.bgp.log.timers` | bool | false | Log keepalive timers |
+| `ze.bgp.log.routes` | bool | false | Log received routes |
+| `ze.bgp.log.parser` | bool | false | Log message parsing |
+| `ze.bgp.log.short` | bool | true | Short log format |
 
-**Log destination values:**
-- `syslog` - Local syslog
-- `host:<location>` - Remote syslog
-- `stdout` - Standard output
-- `stderr` - Standard error
-- `<filename>` - File path
+Per-subsystem log levels are also supported via `ze.log.<subsystem>=<level>` (handled by `slogutil.ApplyLogConfig()`).
 
 ### tcp
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| exabgp.tcp.once | bool | false | One session then exit (deprecated, use attempts=1) |
-| exabgp.tcp.attempts | int | 0 | Exit after N sessions complete (0 = unlimited) |
-| exabgp.tcp.delay | int | 0 | Delay announcements by N minutes |
-| exabgp.tcp.bind | list | [] | IPs to bind when listening |
-| exabgp.tcp.port | int | 179 | Port to bind |
-| exabgp.tcp.acl | bool | false | Experimental ACL |
-
-**tcp.attempts behavior:** When set to N > 0, Ze exits after N peer sessions have disconnected (after reaching ESTABLISHED state). Useful for testing scenarios where you want Ze to exit after completing a test exchange.
+| `ze.bgp.tcp.port` | int | 179 | Port to bind (179 or 1025-65535) |
+| `ze.bgp.tcp.attempts` | int | 0 | Exit after N sessions complete (0 = unlimited) |
+| `ze.bgp.tcp.delay` | int | 0 | Delay announcements by N minutes |
+| `ze.bgp.tcp.acl` | bool | false | Experimental ACL |
+| `ze.bgp.tcp.once` | bool | false | Legacy alias: sets attempts=1 |
+| `ze.bgp.tcp.connections` | int | - | Legacy alias for attempts |
 
 ### bgp
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| exabgp.bgp.passive | bool | false | Make all peers passive |
-| exabgp.bgp.openwait | int | 60 | Seconds to wait for OPEN |
+| `ze.bgp.bgp.connection` | string | "" | Connection mode: "both", "passive", "active" |
+| `ze.bgp.bgp.openwait` | int | 60 | Seconds to wait for OPEN (1-3600) |
 
 ### cache
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| exabgp.cache.attributes | bool | true | Cache attributes |
-| exabgp.cache.nexthops | bool | true | Cache nexthops (deprecated) |
+| `ze.bgp.cache.attributes` | bool | true | Cache attributes |
 
 ### api
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| exabgp.api.ack | bool | true | Acknowledge API commands |
-| exabgp.api.chunk | int | 1 | Max lines before yield |
-| exabgp.api.encoder | string | "json" | Encoder (json/text) |
-| exabgp.api.compact | bool | false | Compact JSON for INET |
-| exabgp.api.respawn | bool | true | Respawn dead processes |
-| exabgp.api.terminate | bool | false | Terminate if process dies |
-| exabgp.api.cli | bool | true | Create CLI named pipe |
-| exabgp.api.pipename | string | "exabgp" | Name for CLI pipe |
-| exabgp.api.socketname | string | "exabgp" | Name for Unix socket |
+| `ze.bgp.api.ack` | bool | true | Acknowledge API commands |
+| `ze.bgp.api.chunk` | int | 1 | Max lines before yield |
+| `ze.bgp.api.encoder` | string | "json" | Encoder: json or text |
+| `ze.bgp.api.compact` | bool | false | Compact JSON for INET |
+| `ze.bgp.api.respawn` | bool | true | Respawn dead processes |
+| `ze.bgp.api.terminate` | bool | false | Terminate if process dies |
+| `ze.bgp.api.cli` | bool | true | Create CLI named pipe |
+| `ze.bgp.api.pipename` | string | "ze-bgp" | Name for CLI pipe |
+| `ze.bgp.api.socketname` | string | "ze-bgp" | Name for Unix socket |
 
 ### reactor
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| exabgp.reactor.speed | float | 1.0 | Reactor loop time |
+| `ze.bgp.reactor.speed` | float | 1.0 | Reactor loop time multiplier (0.1-10.0) |
+| `ze.bgp.reactor.cache-ttl` | int | 60 | UPDATE cache TTL in seconds (0-3600) |
+| `ze.bgp.reactor.cache-max` | int | 1000000 | UPDATE cache max entries (0 = unlimited) |
 
 ### debug
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| exabgp.debug.pdb | bool | false | Enable pdb on errors |
-| exabgp.debug.memory | bool | false | Memory debug (--memory) |
-| exabgp.debug.configuration | bool | false | Raise on config errors |
-| exabgp.debug.selfcheck | bool | false | Self-check config |
-| exabgp.debug.route | string | "" | Decode route from config |
-| exabgp.debug.defensive | bool | false | Generate random faults |
-| exabgp.debug.rotate | bool | false | Rotate config on reload |
-| exabgp.debug.timing | bool | false | Reactor timing analysis |
+| `ze.bgp.debug.pdb` | bool | false | Enable pdb on errors (N/A in Go) |
+| `ze.bgp.debug.memory` | bool | false | Memory debug |
+| `ze.bgp.debug.configuration` | bool | false | Raise on config errors |
+| `ze.bgp.debug.selfcheck` | bool | false | Self-check config |
+| `ze.bgp.debug.route` | string | "" | Decode route from config |
+| `ze.bgp.debug.defensive` | bool | false | Generate random faults |
+| `ze.bgp.debug.rotate` | bool | false | Rotate config on reload |
+| `ze.bgp.debug.timing` | bool | false | Reactor timing analysis |
+| `ze.bgp.debug.pprof` | string | "" | pprof HTTP server address (e.g. ":6060") |
+
+### chaos
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `ze.bgp.chaos.seed` | int64 | 0 | PRNG seed (0 = disabled, -1 = time-based) |
+| `ze.bgp.chaos.rate` | float | 0.1 | Fault probability per operation (0.0-1.0) |
 
 ---
 
-## INI File Format
+## Config File Syntax
 
-Location: `~/.exabgp/exabgp.env` or `/etc/exabgp/exabgp.env`
+Environment variables can also be set in the config file:
 
-```ini
-[exabgp.log]
-level = DEBUG
-destination = /var/log/exabgp.log
-
-[exabgp.api]
-encoder = json
-
-[exabgp.tcp]
-bind = 0.0.0.0
-port = 179
 ```
-
----
-
-## Type Parsing
-
-### Boolean
-
-```python
-def boolean(value: str) -> bool:
-    return value.lower() in ('1', 'true', 'yes', 'on', 'enable')
-```
-
-### Integer
-
-```python
-def integer(value: str) -> int:
-    return int(value)
-```
-
-### Umask
-
-```python
-def umask_read(value: str) -> int:
-    return int(value, 8)
-
-def umask_write(value: int) -> str:
-    return f'0{value:o}'
-```
-
-### IP List
-
-```python
-def ip_list(value: str) -> list[IP]:
-    return [IP.create(v) for v in value.split()]
-```
-
-### Syslog Level
-
-```python
-SYSLOG_LEVELS = {
-    'DEBUG': 10, 'INFO': 20, 'NOTICE': 25,
-    'WARNING': 30, 'ERR': 40, 'CRITICAL': 50
-}
-
-def syslog_value(value: str) -> str:
-    return value.upper() if value.upper() in SYSLOG_LEVELS else 'INFO'
-```
-
----
-
-## Backward Compatibility
-
-### tcp.once → tcp.attempts
-
-The legacy `tcp.once` boolean is converted to `tcp.attempts=1`:
-
-```python
-if env.tcp.once and not env.tcp.attempts:
-    env.tcp.attempts = 1
-```
-
-**Effect:** Ze exits after the first peer session disconnects (after reaching ESTABLISHED).
-
-### tcp.connections → tcp.attempts
-
-```python
-connections = os.environ.get('exabgp.tcp.connections')
-if connections:
-    env.tcp.attempts = int(connections)
-```
-
----
-
-## Ze Implementation Notes
-
-### Go Configuration
-
-```go
-type Config struct {
-    Profile  ProfileConfig
-    Daemon   DaemonConfig
-    Log      LogConfig
-    TCP      TCPConfig
-    BGP      BGPConfig
-    Cache    CacheConfig
-    API      APIConfig
-    Reactor  ReactorConfig
-    Debug    DebugConfig
-}
-
-type LogConfig struct {
-    Enable        bool   `env:"exabgp.log.enable" default:"true"`
-    Level         string `env:"exabgp.log.level" default:"INFO"`
-    Destination   string `env:"exabgp.log.destination" default:"stdout"`
-    // ...
-}
-```
-
-### Environment Loading
-
-```go
-func LoadConfig() (*Config, error) {
-    cfg := &Config{}
-
-    // For each field:
-    // 1. Check env var with dots: exabgp.log.level
-    // 2. Check env var with underscores: exabgp_log_level
-    // 3. Check INI file
-    // 4. Use default
-
-    return cfg, nil
-}
-```
-
-### Priority
-
-```go
-func getValue(section, option string, def string) string {
-    // Dot notation first
-    dotKey := fmt.Sprintf("exabgp.%s.%s", section, option)
-    if v := os.Getenv(dotKey); v != "" {
-        return v
+environment {
+    log {
+        level DEBUG
     }
-
-    // Underscore notation
-    underKey := strings.ReplaceAll(dotKey, ".", "_")
-    if v := os.Getenv(underKey); v != "" {
-        return v
+    tcp {
+        port 1179
     }
-
-    // INI file
-    if v := ini.Get(dotKey); v != "" {
-        return v
+    daemon {
+        user zeuser
     }
-
-    return def
 }
 ```
 
+See [environment-block.md](environment-block.md) for the full config block syntax.
+
 ---
 
-**Last Updated:** 2025-12-19
+## Boolean Values
+
+Accepted: `true`, `false`, `yes`, `no`, `on`, `off`, `enable`, `disable`, `1`, `0`.
+Any other value causes a startup error.
+
+---
+
+**Last Updated:** 2026-03-16
