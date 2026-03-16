@@ -60,6 +60,12 @@ Load the LSP tool (`select:LSP`) at session start for Go code intelligence — g
 findReferences, goToImplementation, incomingCalls, outgoingCalls. More precise than grep for
 tracing call chains and finding interface implementations.
 
+### Project Inventory Tool
+`make ze-inventory` (or `--json`) runs `scripts/inventory.go`, which imports `plugin/all` to trigger
+real registrations, then queries `registry.All()`, `yang.Modules()`, counts RPCs from .yang files,
+.ci tests from `test/`, and Go stats from `internal/`+`pkg/`+`cmd/`. Always accurate, no regex.
+Use when checking plugin counts, RPC totals, family coverage, or codebase size.
+
 ### SDK Type Aliases Are Intentional
 `pkg/plugin/sdk/sdk_types.go` re-exports `rpc.*` types as `sdk.*` aliases. This is deliberate —
 external plugin authors import only `sdk`, never `rpc`. Decouples public API from internal structure.

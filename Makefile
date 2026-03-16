@@ -3,7 +3,7 @@
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-interop-test
-.PHONY: ze-spec-status ze-spec-status-json
+.PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json
 .PHONY: check
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
@@ -187,7 +187,7 @@ ze-fuzz-one:
 # Uses uv to auto-install psutil dependency
 ze-exabgp-test: bin/ze
 	@echo "Running ExaBGP compatibility tests..."
-	uv run --with psutil ./test/exabgp-compat/bin/functional encoding --timeout 60
+	uv run --with psutil --with paramiko ./test/exabgp-compat/bin/functional encoding --timeout 60
 
 # Run all ze tests (use before commits)
 ze-test: ze-lint ze-chaos-lint ze-unit-test ze-functional-test ze-exabgp-test ze-chaos-test ze-fuzz-test
@@ -264,6 +264,16 @@ ze-spec-status:
 ze-spec-status-json:
 	@bash scripts/spec-status.sh --json
 
+# ─── Inventory ──────────────────────────────────────────────────────────
+
+# Generate project inventory (plugins, YANG, RPCs, tests, packages)
+ze-inventory:
+	@go run scripts/inventory.go
+
+# Generate project inventory as JSON
+ze-inventory-json:
+	@go run scripts/inventory.go --json
+
 # ─── Utilities ───────────────────────────────────────────────────────────────
 
 # Format code
@@ -339,6 +349,10 @@ help:
 	@echo "  Spec status:"
 	@echo "  ze-spec-status        - Show spec inventory with progress status"
 	@echo "  ze-spec-status-json   - Show spec inventory as JSON"
+	@echo ""
+	@echo "  Inventory:"
+	@echo "  ze-inventory          - Generate project inventory (plugins, YANG, RPCs, tests)"
+	@echo "  ze-inventory-json     - Generate project inventory as JSON"
 	@echo ""
 	@echo "  Utilities:"
 	@echo "  fmt                   - Format code (gofmt + goimports)"

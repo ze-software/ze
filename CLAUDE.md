@@ -71,4 +71,7 @@ make ze-fuzz-test          # Fuzz tests (15s per target)
 make ze-exabgp-test        # ExaBGP compatibility
 make ze-chaos-test         # Chaos unit + functional
 make ze-test               # All tests: lint + unit + functional + exabgp + chaos + fuzz (before commits)
+make ze-inventory          # Project inventory: plugins, YANG, RPCs, families, tests, packages
+make ze-inventory-json     # Same as above, machine-readable JSON
+make ze-spec-status        # Spec progress table
 ```

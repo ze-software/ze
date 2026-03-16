@@ -16,3 +16,8 @@ var modules []Module
 func RegisterModule(name, content string) {
 	modules = append(modules, Module{Name: name, Content: content})
 }
+
+// Modules returns all registered YANG modules.
+func Modules() []Module {
+	return modules
+}
