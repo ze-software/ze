@@ -149,7 +149,13 @@ func (c *cliClient) Execute(command, format string) int {
 }
 
 // SendCommand sends a command to the daemon via SSH exec and returns the response.
+// The BGP CLI strips the "bgp " prefix for user display (BuildCommandTree);
+// re-add it for the daemon dispatcher which matches against full RPC paths.
 func (c *cliClient) SendCommand(command string) (string, error) {
+	lower := strings.ToLower(command)
+	if !strings.HasPrefix(lower, "bgp ") && !strings.HasPrefix(lower, "daemon ") && !strings.HasPrefix(lower, "system ") {
+		command = "bgp " + command
+	}
 	return sshclient.ExecCommand(c.creds, command)
 }
 

@@ -224,7 +224,6 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	clientEnv := append(os.Environ(),
 		fmt.Sprintf("ze_bgp_tcp_port=%d", rec.Port),
 		// NOTE: ze_bgp_tcp_bind removed - listeners now derived from peer LocalAddress
-		fmt.Sprintf("ze_bgp_api_socketpath=%s", filepath.Join(os.TempDir(), fmt.Sprintf("ze-test-%d.sock", rec.Port))),
 		fmt.Sprintf("PATH=%s:%s", zeDir, existingPath),
 		"SLOG_LEVEL=DEBUG",            // Enable debug logging for tracing
 		"ze_plugin_stage_timeout=10s", // Allow more time for plugin stage barriers under concurrent test load
@@ -502,7 +501,6 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		zeDir := filepath.Dir(r.zePath)
 		existingPath := os.Getenv("PATH")
 		proc.Env = append(os.Environ(),
-			fmt.Sprintf("ze_bgp_api_socketpath=%s", filepath.Join(os.TempDir(), fmt.Sprintf("ze-test-%d.sock", rec.Port))),
 			fmt.Sprintf("PYTHONPATH=%s", filepath.Join(r.baseDir, "test", "scripts")),
 			fmt.Sprintf("PATH=%s:%s", zeDir, existingPath),
 			"ze_plugin_stage_timeout=10s", // Allow more time for plugin stage barriers under concurrent test load

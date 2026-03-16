@@ -505,7 +505,6 @@ func runClientOnly(ctx context.Context, cli *runCLIFlags, tests *runner.Encoding
 	existingPath := os.Getenv("PATH")
 	clientEnv := append(os.Environ(),
 		fmt.Sprintf("ze_bgp_tcp_port=%d", port),
-		fmt.Sprintf("ze_bgp_api_socketpath=%s", filepath.Join(os.TempDir(), fmt.Sprintf("ze-debug-%d.sock", port))),
 		fmt.Sprintf("PATH=%s:%s", zeDir, existingPath),
 		"ze_bgp_tcp_attempts=1", // Exit after first session ends
 	)

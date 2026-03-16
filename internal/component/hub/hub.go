@@ -30,7 +30,6 @@ type PluginDef struct {
 type HubConfig struct {
 	Plugins    []PluginDef       // Plugins to fork
 	Env        map[string]string // Environment settings
-	APISocket  string            // Unix socket path for CLI
 	Blocks     map[string]any    // Remaining config blocks (bgp, rib, etc.)
 	ConfigPath string            // Original config file path (for child processes)
 }

@@ -1,33 +1,42 @@
 # Test: authorization allows admin and permitted restricted commands
 #
 # Flow:
-# 1. Daemon starts with authz config (admin + restricted profiles)
-# 2. Shell script connects via ze run --user
+# 1. Daemon starts with SSH + authz config (admin + restricted profiles)
+# 2. Shell script creates per-user SSH credentials via ze init
 # 3. Admin user can run any command (default-action allow)
 # 4. Restricted user can run permitted command (entry match)
 #
-# VALIDATES: AC-1 — admin profile allows all commands via ze run --user.
-# VALIDATES: AC-2 — restricted profile allows entry-matched commands.
-# PREVENTS: Authorization wiring missing — authz store not set on dispatcher.
+# VALIDATES: AC-1 -- admin profile allows all commands via SSH.
+# VALIDATES: AC-2 -- restricted profile allows entry-matched commands.
+# PREVENTS: Authorization wiring missing -- authz store not set on dispatcher.
 
-# Config with authorization profiles
-tmpfs=authz-allow.conf:terminator=EOF_CONF
+# Test script: admin + restricted allowed commands via SSH
+tmpfs=test-authz-allow.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+# Signal test runner readiness
+touch daemon.ready
+
+# Generate config with SSH on port 0 (OS-assigned)
+cat > authz-allow.conf << 'ZECONF'
 bgp {
 	peer 127.0.0.1 {
 		local-address 127.0.0.1
 		local-as 65533
 		peer-as 65533
+		connection active
 	}
 }
 
 system {
 	authentication {
 		user admin {
-			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
 			profile [ admin ]
 		}
 		user operator {
-			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+			password "$2a$04$MdupNBXL8iUHgRUDfsFl0ue/.FEH3db8U.LPd/XtMhiBmd4MoRM0m"
 			profile [ restricted ]
 		}
 	}
@@ -57,70 +66,74 @@ system {
 			}
 		}
 	}
+	ssh {
+		listen 127.0.0.1:0
+	}
 }
-EOF_CONF
+ZECONF
 
-# Test script: admin + restricted allowed commands
-tmpfs=test-authz-allow.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-set -e
+# Use a PID-derived high port for BGP to avoid needing root for port 179
+export ze_bgp_tcp_port=$((10000 + ($$ % 50000)))
 
-SOCKET="$ze_bgp_api_socketpath"
-
-# Signal test runner readiness (avoids 5s waitReady timeout)
-touch daemon.ready
-
-# Start daemon in background
-ze authz-allow.conf &
+# Start daemon, capture stderr to parse SSH port
+ze authz-allow.conf 2>daemon.log &
 DAEMON_PID=$!
+trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
 
-# Wait for API socket (up to 5 seconds)
-for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50; do
-	if [ -S "$SOCKET" ]; then
+# Wait for SSH server to report its listening address
+SSH_PORT=""
+for i in $(seq 1 50); do
+	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
+	if [ -n "$SSH_PORT" ]; then
 		break
 	fi
-	sleep 0.1
+	sleep 0.2
 done
 
-if [ ! -S "$SOCKET" ]; then
-	echo "FAIL: API socket not created at $SOCKET" >&2
-	kill $DAEMON_PID 2>/dev/null
+if [ -z "$SSH_PORT" ]; then
+	echo "FAIL: SSH server did not start (no address in daemon.log)" >&2
+	cat daemon.log >&2
 	exit 1
 fi
+echo "SSH port: $SSH_PORT" >&2
 
 # Brief delay for postStartFunc to wire authorizer
-sleep 0.2
+sleep 0.5
+
+# Set up admin credentials
+ADMIN_DIR=$(mktemp -d)
+trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
 
 # Test 1: admin can run read-only command
-OUTPUT=$(ze run --socket "$SOCKET" --user admin peer list 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ze cli --run "peer list" 2>&1) || {
 	echo "FAIL: admin should be allowed to run 'peer list'" >&2
 	echo "OUTPUT: $OUTPUT" >&2
-	kill $DAEMON_PID 2>/dev/null
 	exit 1
 }
 echo "OK: admin allowed peer list" >&2
 
+# Set up operator credentials
+OP_DIR=$(mktemp -d)
+trap 'rm -rf "$ADMIN_DIR" "$OP_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+printf 'operator\noppass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$OP_DIR" ze init >/dev/null
+
 # Test 2: restricted user can run permitted command (matches entry 10: "bgp peer list")
-OUTPUT=$(ze run --socket "$SOCKET" --user operator peer list 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$OP_DIR" ze cli --run "peer list" 2>&1) || {
 	echo "FAIL: operator should be allowed to run 'peer list' (entry 10)" >&2
 	echo "OUTPUT: $OUTPUT" >&2
-	kill $DAEMON_PID 2>/dev/null
 	exit 1
 }
 echo "OK: operator allowed peer list (entry match)" >&2
 
 # Test 3: restricted user can run another permitted command (matches entry 20: "bgp summary")
-OUTPUT=$(ze run --socket "$SOCKET" --user operator summary 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$OP_DIR" ze cli --run "summary" 2>&1) || {
 	echo "FAIL: operator should be allowed to run 'summary' (entry 20)" >&2
 	echo "OUTPUT: $OUTPUT" >&2
-	kill $DAEMON_PID 2>/dev/null
 	exit 1
 }
 echo "OK: operator allowed summary (entry match)" >&2
 
-# Cleanup
-kill $DAEMON_PID 2>/dev/null
-wait $DAEMON_PID 2>/dev/null || true
 echo "OK: all allow tests passed" >&2
 exit 0
 EOF_SH

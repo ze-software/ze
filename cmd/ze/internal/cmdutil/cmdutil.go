@@ -23,22 +23,7 @@ import (
 // and delegates to cli.Run with --run. The readOnly flag controls whether only
 // read-only commands are accepted. The cmdName is used in error/hint messages.
 func RunCommand(args []string, readOnly bool, cmdName string) int {
-	var username string
-	var cmdWords []string
-
-	for i := 0; i < len(args); i++ {
-		switch args[i] {
-		case "--user":
-			if i+1 >= len(args) {
-				fmt.Fprintf(os.Stderr, "error: --user requires a username argument\n")
-				return 1
-			}
-			username = args[i+1]
-			i++ // skip value
-		default:
-			cmdWords = append(cmdWords, args[i])
-		}
-	}
+	cmdWords := args
 
 	if len(cmdWords) == 0 {
 		return -1 // signal caller to show usage
@@ -79,9 +64,6 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 	}
 
 	var cliArgs []string
-	if username != "" {
-		cliArgs = append(cliArgs, "--user", username)
-	}
 	if format != "" {
 		cliArgs = append(cliArgs, "--format", format)
 	}

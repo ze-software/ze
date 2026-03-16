@@ -1,28 +1,40 @@
 # Test: unassigned user gets built-in admin default (allow all)
 #
 # Flow:
-# 1. Daemon starts with authz config (profiles exist but user not assigned)
-# 2. Shell script connects via ze run --user unknown
-# 3. Unknown user has no profile assignment → built-in admin → allow all
+# 1. Daemon starts with SSH + authz config (profiles exist but user not assigned)
+# 2. Shell script connects via SSH as unknown user (no profile assignment)
+# 3. Unknown user has no profile assignment -> built-in admin -> allow all
 #
-# VALIDATES: AC-4 — users without profile assignment get admin default access.
-# PREVENTS: Unassigned users silently denied — locked out without explicit profile.
+# VALIDATES: AC-4 -- users without profile assignment get admin default access.
+# PREVENTS: Unassigned users silently denied -- locked out without explicit profile.
 
-# Config with authorization profiles but no assignment for "unknown" user
-tmpfs=authz-default.conf:terminator=EOF_CONF
+# Test script: unassigned user gets admin default
+tmpfs=test-authz-default.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+# Signal test runner readiness
+touch daemon.ready
+
+# Generate config with SSH on port 0 (OS-assigned)
+cat > authz-default.conf << 'ZECONF'
 bgp {
 	peer 127.0.0.1 {
 		local-address 127.0.0.1
 		local-as 65533
 		peer-as 65533
+		connection active
 	}
 }
 
 system {
 	authentication {
 		user operator {
-			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ012"
+			password "$2a$04$MdupNBXL8iUHgRUDfsFl0ue/.FEH3db8U.LPd/XtMhiBmd4MoRM0m"
 			profile [ restricted ]
+		}
+		user unknown {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
 		}
 	}
 	authorization {
@@ -39,62 +51,62 @@ system {
 			}
 		}
 	}
+	ssh {
+		listen 127.0.0.1:0
+	}
 }
-EOF_CONF
+ZECONF
 
-# Test script: unassigned user gets admin default
-tmpfs=test-authz-default.sh:mode=755:terminator=EOF_SH
-#!/bin/sh
-set -e
+# Use a PID-derived high port for BGP to avoid needing root for port 179
+export ze_bgp_tcp_port=$((10000 + ($$ % 50000)))
 
-SOCKET="$ze_bgp_api_socketpath"
-
-# Signal test runner readiness
-touch daemon.ready
-
-# Start daemon in background
-ze authz-default.conf &
+# Start daemon, capture stderr to parse SSH port
+ze authz-default.conf 2>daemon.log &
 DAEMON_PID=$!
+trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
 
-# Wait for API socket
-for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50; do
-	if [ -S "$SOCKET" ]; then
+# Wait for SSH server to report its listening address
+SSH_PORT=""
+for i in $(seq 1 50); do
+	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
+	if [ -n "$SSH_PORT" ]; then
 		break
 	fi
-	sleep 0.1
+	sleep 0.2
 done
 
-if [ ! -S "$SOCKET" ]; then
-	echo "FAIL: API socket not created at $SOCKET" >&2
-	kill $DAEMON_PID 2>/dev/null
+if [ -z "$SSH_PORT" ]; then
+	echo "FAIL: SSH server did not start (no address in daemon.log)" >&2
+	cat daemon.log >&2
 	exit 1
 fi
+echo "SSH port: $SSH_PORT" >&2
 
 # Brief delay for postStartFunc to wire authorizer
-sleep 0.2
+sleep 0.5
+
+# Set up unknown user credentials (has auth entry but no profile assignment)
+UNK_DIR=$(mktemp -d)
+trap 'rm -rf "$UNK_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+printf 'unknown\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$UNK_DIR" ze init >/dev/null
 
 # Test 1: unknown user (no profile assignment) can run any read-only command
 # Store.Authorize returns Allow for users with no assignment (built-in admin)
-OUTPUT=$(ze run --socket "$SOCKET" --user unknown peer list 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ze cli --run "peer list" 2>&1) || {
 	echo "FAIL: unknown user should get admin default (allow 'peer list')" >&2
 	echo "OUTPUT: $OUTPUT" >&2
-	kill $DAEMON_PID 2>/dev/null
 	exit 1
 }
 echo "OK: unknown user allowed peer list (admin default)" >&2
 
 # Test 2: unknown user can also run commands that restricted profile would deny
-OUTPUT=$(ze run --socket "$SOCKET" --user unknown peer detail 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ze cli --run "peer detail" 2>&1) || {
 	echo "FAIL: unknown user should get admin default (allow 'peer detail')" >&2
 	echo "OUTPUT: $OUTPUT" >&2
-	kill $DAEMON_PID 2>/dev/null
 	exit 1
 }
 echo "OK: unknown user allowed peer detail (admin default)" >&2
 
-# Cleanup
-kill $DAEMON_PID 2>/dev/null
-wait $DAEMON_PID 2>/dev/null || true
 echo "OK: all default admin tests passed" >&2
 exit 0
 EOF_SH

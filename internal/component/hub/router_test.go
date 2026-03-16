@@ -70,17 +70,3 @@ func TestHubEventPattern(t *testing.T) {
 		})
 	}
 }
-
-// TestSocketPathResolution verifies socket path selection.
-//
-// VALIDATES: Socket path follows precedence order.
-// PREVENTS: Socket creation in non-writable location.
-func TestSocketPathResolution(t *testing.T) {
-	// Default path when no config
-	path := resolveSocketPath("")
-	assert.NotEmpty(t, path)
-
-	// Explicit path from config
-	path = resolveSocketPath("/custom/path.sock")
-	assert.Equal(t, "/custom/path.sock", path)
-}

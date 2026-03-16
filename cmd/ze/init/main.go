@@ -136,16 +136,19 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string) int {
 		return 1
 	}
 
-	// Write SSH credentials
-	entries := map[string]string{
-		keyUsername: username,
-		keyPassword: password,
-		keyHost:     host,
-		keyPort:     port,
+	// Write SSH credentials in deterministic order.
+	type entry struct {
+		key, value string
+	}
+	entries := []entry{
+		{keyUsername, username},
+		{keyPassword, password},
+		{keyHost, host},
+		{keyPort, port},
 	}
 
-	for key, value := range entries {
-		if err := store.WriteFile(key, []byte(value), 0); err != nil {
+	for _, e := range entries {
+		if err := store.WriteFile(e.key, []byte(e.value), 0); err != nil {
 			store.Close() //nolint:errcheck // best-effort cleanup after write failure
 			return 1
 		}

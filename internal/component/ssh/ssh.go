@@ -1,4 +1,4 @@
-// Design: (none -- new SSH server component)
+// Design: docs/architecture/system-architecture.md -- SSH server subsystem
 // Detail: auth.go -- password authentication
 // Detail: session.go -- per-session unified CLI model creation
 
@@ -187,11 +187,15 @@ func (s *Server) Start(ctx context.Context, _ ze.Bus, _ ze.ConfigProvider) error
 	opts := []ssh.Option{
 		hostKeyOpt,
 		wish.WithMaxTimeout(time.Duration(s.config.IdleTimeout) * time.Second),
+		// Wish composes middleware from first to last: last = outermost = runs first.
+		// Order: maxSessions → exec → bubbletea → activeterm (innermost).
+		// Exec middleware intercepts non-interactive sessions before they
+		// reach bubbletea/activeterm (which require a PTY).
 		wish.WithMiddleware(
-			s.maxSessionsMiddleware(),
-			s.execMiddleware(),
-			bubbletea.Middleware(s.teaHandler),
 			activeterm.Middleware(),
+			bubbletea.Middleware(s.teaHandler),
+			s.execMiddleware(),
+			s.maxSessionsMiddleware(),
 		),
 		wish.WithPasswordAuth(func(ctx ssh.Context, pass string) bool {
 			ok := AuthenticateUser(users, ctx.User(), pass)
@@ -346,13 +350,16 @@ func (s *Server) execMiddleware() wish.Middleware {
 			input := strings.Join(cmd, " ")
 			s.logger.Info("SSH exec command", "user", sess.User(), "command", input, "remote", sess.RemoteAddr().String())
 
-			// Handle lifecycle commands directly
+			// Handle lifecycle commands directly.
+			// Note: stop bypasses RPC authorization by design -- any authenticated
+			// SSH user can shut down the daemon. Restrict via SSH user config.
 			if strings.ToLower(strings.TrimSpace(input)) == "stop" {
 				s.mu.Lock()
 				fn := s.shutdownFunc
 				s.mu.Unlock()
 				if fn != nil {
 					fmt.Fprintln(sess, "stopping daemon") //nolint:errcheck // best-effort response
+					sess.Exit(0)                          //nolint:errcheck // best-effort exit status
 					fn()
 				} else {
 					fmt.Fprintln(sess.Stderr(), "error: shutdown not available") //nolint:errcheck // best-effort

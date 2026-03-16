@@ -18,11 +18,10 @@ import (
 
 // Exit codes for signal command.
 const (
-	ExitSuccess      = 0
-	ExitNotRunning   = 1
-	ExitNoPIDFile    = 2
-	ExitPermission   = 3
-	ExitSignalFailed = 4
+	ExitSuccess       = 0
+	ExitNotRunning    = 1
+	ExitNoCredentials = 2
+	ExitSignalFailed  = 4
 )
 
 // Default SSH connection target.
@@ -153,10 +152,10 @@ func cmdSSHExec(addr, command string) int {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		fmt.Fprintf(os.Stderr, "hint: run 'ze init' to set up credentials\n")
-		return ExitNoPIDFile
+		return ExitNoCredentials
 	}
 
-	// Override addr from loaded credentials
+	// Override credentials' host/port with flag-specified addr
 	creds.Host, creds.Port, _ = net.SplitHostPort(addr)
 
 	result, err := sshclient.ExecCommand(creds, command)

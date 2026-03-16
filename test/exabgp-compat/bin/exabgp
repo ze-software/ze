@@ -264,12 +264,6 @@ def main():
             # Ze reads ze_bgp_tcp_port to override peer port (see loader.go:388)
             os.environ['ze_bgp_tcp_port'] = env_vars['port']
 
-        # For tests: use a unique socket path per test instance to avoid
-        # requiring root (default /var/run/ze-bgp.sock) and prevent collisions
-        port = env_vars.get('port', '0')
-        api_socket_path = f'/tmp/ze-exabgp-test-{port}.sock'
-        os.environ['ze_bgp_api_socketpath'] = api_socket_path
-
         # For tests: exit after first session so test can complete
         # (Ze doesn't know it's in a test and would otherwise keep running)
         os.environ['ze_bgp_tcp_attempts'] = '1'

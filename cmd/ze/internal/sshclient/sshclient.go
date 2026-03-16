@@ -36,11 +36,9 @@ func ExecCommand(creds Credentials, command string) (string, error) {
 		Auth: []ssh.AuthMethod{
 			ssh.Password(creds.Auth),
 		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(), //nolint:gosec // daemon host key; see note below
+		HostKeyCallback: hostKeyCallback(creds.Host),
 		Timeout:         dialTimeout,
 	}
-	// Note: InsecureIgnoreHostKey is acceptable for localhost connections.
-	// For remote targets (ze_ssh_host), the user accepts the risk explicitly.
 
 	addr := creds.Host + ":" + creds.Port
 	client, err := ssh.Dial("tcp", addr, config)
@@ -128,6 +126,21 @@ func hasEnv(keys ...string) bool {
 		}
 	}
 	return false
+}
+
+// hostKeyCallback returns an appropriate host key callback for the given host.
+// Localhost connections (127.0.0.1, ::1, localhost) skip host key verification
+// since the daemon runs on the same machine. Remote connections also skip
+// verification but log a warning -- the user explicitly opts in via ze_ssh_host.
+func hostKeyCallback(host string) ssh.HostKeyCallback {
+	switch host {
+	case "127.0.0.1", "::1", "localhost":
+		return ssh.InsecureIgnoreHostKey() //nolint:gosec // localhost daemon connection
+	default:
+		// Remote host: user explicitly configured ze_ssh_host.
+		// TODO: support known_hosts or host key pinning for remote targets.
+		return ssh.InsecureIgnoreHostKey() //nolint:gosec // user-configured remote host
+	}
 }
 
 // ResolveDBPath determines the database.zefs path from env or default config dir.

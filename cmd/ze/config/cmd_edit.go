@@ -55,7 +55,7 @@ func startEphemeralDaemon(configPath, host, port string) (*os.Process, error) {
 	// Start ze with the config file as a background daemon.
 	proc, err := os.StartProcess(exe, []string{exe, configPath}, &os.ProcAttr{
 		Env:   os.Environ(),
-		Files: []*os.File{devnull, nil, os.Stderr},
+		Files: []*os.File{devnull, os.Stderr, os.Stderr},
 	})
 	devnull.Close() //nolint:errcheck // devnull close is non-fatal
 	if err != nil {
@@ -105,7 +105,7 @@ func stopEphemeralDaemon(proc *os.Process, creds sshclient.Credentials) {
 		return
 	case <-time.After(5 * time.Second):
 		// Process didn't exit after SSH stop — force kill, then wait for goroutine.
-		if err := proc.Signal(os.Kill); err != nil {
+		if err := proc.Kill(); err != nil {
 			fmt.Fprintf(os.Stderr, "warning: kill ephemeral daemon: %v\n", err)
 		}
 		<-done // wait for goroutine to finish after kill

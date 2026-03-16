@@ -3,8 +3,6 @@
 package hub
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -31,29 +29,4 @@ func matchEventPattern(pattern, event string) bool {
 	}
 
 	return false
-}
-
-// resolveSocketPath returns the socket path to use.
-// Precedence:
-// 1. Explicit path from config (if non-empty)
-// 2. $XDG_RUNTIME_DIR/ze/api.sock
-// 3. $HOME/.ze/api.sock
-// 4. /var/run/ze/api.sock.
-func resolveSocketPath(configPath string) string {
-	if configPath != "" {
-		return configPath
-	}
-
-	// Try XDG_RUNTIME_DIR first
-	if xdg := os.Getenv("XDG_RUNTIME_DIR"); xdg != "" {
-		return filepath.Join(xdg, "ze", "api.sock")
-	}
-
-	// Try HOME
-	if home := os.Getenv("HOME"); home != "" {
-		return filepath.Join(home, ".ze", "api.sock")
-	}
-
-	// Fallback to system path
-	return "/var/run/ze/api.sock"
 }

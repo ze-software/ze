@@ -1,17 +1,32 @@
 # Test: ze init with piped stdin creates zefs database
 #
-# VALIDATES: AC-1 — piped credentials create zefs with SSH entries.
+# VALIDATES: AC-1 -- piped credentials create zefs with SSH entries.
 # PREVENTS: ze init failing to write credentials to database.
 
-# Pipe credentials: username, password, host, port
-stdin=creds:terminator=EOF_CREDS
-admin
-secret123
-127.0.0.1
-2222
-EOF_CREDS
+# Test script
+tmpfs=test-ze-init.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
 
-# Run ze init with piped credentials (ZE_CONFIG_DIR set by test runner to tmpdir)
-cmd=foreground:seq=1:exec=ze init:stdin=creds:env=ZE_CONFIG_DIR=$TMPDIR
+# Signal test runner readiness
+touch daemon.ready
+
+# Create a temp directory for the database
+INIT_DIR=$(mktemp -d)
+trap 'rm -rf "$INIT_DIR"' EXIT
+
+# Pipe credentials to ze init
+printf 'admin\nsecret123\n127.0.0.1\n2222\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init
+
+# Verify database was created
+if [ ! -f "$INIT_DIR/database.zefs" ]; then
+	echo "FAIL: database.zefs not created" >&2
+	exit 1
+fi
+
+echo "OK: ze init created database" >&2
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-ze-init.sh:timeout=10s
 expect=exit:code=0
-expect=stdout:contains=initialized
