@@ -247,6 +247,23 @@ func TestOpenUnpackExtendedParams(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			// RFC 9072 Section 2: "If the Non-Ext OP Len is not 255, the
+			// Non-Ext OP Type field and the Extended Opt. Parm. Length field
+			// SHOULD be treated as part of the original Optional Parameters."
+			// A standard OPEN with optLen=4 where first param byte is 0xFF
+			// must NOT be misinterpreted as extended format.
+			name: "standard format - first param byte 0xFF not misread as extended",
+			data: []byte{
+				0x04,       // Version
+				0xFD, 0xE9, // AS
+				0x00, 0xB4, // Hold Time
+				0xC0, 0xA8, 0x01, 0x01, // BGP ID
+				0x04,                   // Opt Params Len = 4 (NOT 255)
+				0xFF, 0x02, 0x01, 0x02, // Params: first byte happens to be 0xFF
+			},
+			wantOptLen: 4,
+		},
+		{
 			name: "extended format - truncated",
 			data: []byte{
 				0x04,       // Version

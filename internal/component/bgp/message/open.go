@@ -180,9 +180,11 @@ func UnpackOpen(data []byte) (*Open, error) {
 	optLen := int(data[9])
 
 	// RFC 9072 Section 2 - Check for extended format
-	// "If the value of the 'Non-Ext OP Type' field is 255, then the encoding
-	// described above is used for the Optional Parameters length."
-	if optLen != 0 && len(data) > 10 && data[10] == ExtendedParamMarker {
+	// Non-Ext OP Len must be 255 (reserved marker, not valid as standard length).
+	// "If the Non-Ext OP Len is not 255, the Non-Ext OP Type field and the
+	// Extended Opt. Parm. Length field SHOULD be treated as part of the original
+	// Optional Parameters."
+	if optLen == 255 && len(data) > 10 && data[10] == ExtendedParamMarker {
 		// Extended format: need at least 4 bytes after fixed fields
 		// (Non-Ext OP Len + Non-Ext OP Type + Extended Length)
 		if len(data) < 13 {
