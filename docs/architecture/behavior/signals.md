@@ -241,68 +241,35 @@ Ze diverges from ExaBGP's signal mapping. The following reflects the actual impl
 | SIGUSR1 | Status dump | `reactor.SignalHandler.OnStatus` (BGP path only) |
 | SIGQUIT | Goroutine dump + exit | Go runtime default (not caught — useful for debugging) |
 
-### PID File Management
+### Daemon Liveness
 
-Ze uses flock(2)-based PID files to prevent duplicate instances and enable `ze signal` CLI.
-
-**Package:** `internal/pidfile/`
-
-**Location cascade** (matches socket path — see `config.DefaultSocketPath`):
-
-| Priority | Path | Condition |
-|----------|------|-----------|
-| 1 | `$XDG_RUNTIME_DIR/ze/<config-hash>.pid` | XDG_RUNTIME_DIR set and writable |
-| 2 | `/var/run/ze/<config-hash>.pid` | Running as root |
-| 3 | `/tmp/ze/<config-hash>.pid` | Fallback (always writable) |
-
-**Config hash:** First 8 hex characters of SHA256 of absolute config path.
-
-**PID file content** (3 lines):
-
-| Line | Content | Example |
-|------|---------|---------|
-| 1 | Process ID | `12345` |
-| 2 | Config path | `/etc/ze/router.conf` |
-| 3 | Start time (RFC 3339) | `2026-01-31T10:30:00Z` |
-
-**Lifecycle:**
-- Startup: `pidfile.Acquire()` creates file, writes content, acquires `flock(LOCK_EX|LOCK_NB)`
-- Running: flock held — second `Acquire` fails with "already running"
-- Shutdown: `pidfile.Release()` unlocks, closes, removes file
-- Crash: stale file detected by successful `flock(LOCK_NB)` probe (no holder)
-
-**Lock failure is fatal:** If another instance holds the lock, the daemon refuses to start.
+Daemon liveness is detected by TCP dial to the SSH port. CLI tools (`ze signal stop`, `ze signal reload`, `ze signal status`) connect via SSH to send commands. No PID files or Unix sockets are used.
 
 ### `ze signal` CLI
 
 **Package:** `cmd/ze/signal/`
 
-Usage: `ze signal <command> [--pid-file <path>] <config>`
+Usage: `ze signal <command>`
 
-| Command | Signal | Exit 0 | Exit 1 | Exit 2 | Exit 3 | Exit 4 |
-|---------|--------|--------|--------|--------|--------|--------|
-| reload | SIGHUP | Sent | Not running | No PID file | Permission denied | Send failed |
-| stop | SIGTERM | Sent | Not running | No PID file | Permission denied | Send failed |
-| quit | SIGQUIT | Sent | Not running | No PID file | Permission denied | Send failed |
-| status | kill(0) | Running | Not running | No PID file | — | — |
+| Command | Mechanism | Exit 0 | Exit 1 |
+|---------|-----------|--------|--------|
+| reload | SSH command | Reload sent | Not running / SSH error |
+| stop | SSH command | Stop sent | Not running / SSH error |
+| status | TCP dial to SSH port | Running | Not running |
 
 ### Startup Paths
 
-Both startup paths acquire PID files:
-
 **BGP in-process** (`runBGPInProcess`):
 1. Load config via YANG parser
-2. Acquire PID file (fatal on lock failure)
+2. Start SSH server (binds configured listen addresses)
 3. Start reactor with `SignalHandler` (handles SIGHUP/SIGUSR1)
 4. Wait for SIGTERM/SIGINT or reactor done
-5. Release PID file (deferred)
 
 **Hub orchestrator** (`runOrchestratorWithData`):
 1. Parse hub config
-2. Acquire PID file (fatal on lock failure)
+2. Start SSH server
 3. Start orchestrator
 4. Signal goroutine handles SIGTERM/SIGINT/SIGHUP
-5. Release PID file (deferred)
 
 ---
 

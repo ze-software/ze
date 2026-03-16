@@ -296,21 +296,21 @@ ze config reload
 ┌─────────────────────────────────────────────────────────────────────┐
 │ $ ze bgp peer list                                                  │
 │                                                                     │
-│  1. CLI connects to hub via Unix socket (/var/run/ze/api.sock)      │
+│  1. CLI connects to daemon via SSH (127.0.0.1:2222)                 │
 │  2. CLI sends: bgp peer list                                        │
-│  3. Hub looks up "bgp" in handler map → ze bgp process              │
-│  4. Hub forwards command via stdin to ze bgp                        │
+│  3. Daemon looks up "bgp" in handler map → ze bgp process           │
+│  4. Daemon forwards command via stdin to ze bgp                     │
 │  5. ze bgp executes, sends response via stdout                      │
-│  6. Hub returns response to CLI via socket                          │
+│  6. Daemon returns response to CLI via SSH session                  │
 │  7. CLI displays result                                             │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 **Same binary, two modes:**
-- `ze config.conf` → starts as hub, listens on Unix socket
-- `ze bgp peer list` → connects to running hub as CLI client
+- `ze config.conf` → starts as daemon, listens on SSH port
+- `ze bgp peer list` → connects to running daemon as SSH client
 
-Socket path configurable via `env { api-socket /path/to/socket; }`
+SSH target configurable via env vars `ze_ssh_host` and `ze_ssh_port`
 
 ### System Commands
 

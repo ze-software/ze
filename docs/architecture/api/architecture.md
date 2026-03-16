@@ -190,14 +190,14 @@ Per-binding format/encoding applied
 ## Overview
 
 The Ze API system enables external route injection and daemon control via:
-- Unix socket connections (CLI tools)
+- SSH connections (CLI tools)
 - Subprocess management (external route generators)
 
 ## Package Structure
 
 ```
 internal/component/plugin/
-├── server.go         # Server, Client, socket listener, plugin response handling
+├── server.go         # Server, Client, plugin response handling
 ├── process.go        # Process, subprocess management
 ├── command.go        # Dispatcher, CommandContext, AllBuiltinRPCs()
 ├── handler.go        # RPCRegistration struct, constants

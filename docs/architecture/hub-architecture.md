@@ -1006,7 +1006,7 @@ Phase 1: Hub Foundation ──────► Phase 2: Config Parsing
 | 2 | `spec-hub-phase2-config.md` | Parse 3-section config, env handling |
 | 3 | `spec-hub-phase3-schema-routing.md` | YANG validation, JSON delivery, query protocol |
 | 4 | `spec-hub-phase4-bgp-process.md` | Move BGP code, ze bgp as child |
-| 5 | `spec-hub-phase5-routing.md` | Event/command routing, CLI socket |
+| 5 | `spec-hub-phase5-routing.md` | Event/command routing, SSH interface |
 | 6 | `spec-hub-phase6-gr-plugin.md` | ze-gr.yang, capability injection |
 | 7 | `spec-hub-phase7-cleanup.md` | Remove old code, update docs |
 

@@ -67,7 +67,6 @@ environment {
 | | terminate | bool | - | false |
 | | cli | bool | - | true |
 | | pipename | string | - | ze |
-| | socketname | string | - | ze |
 | **reactor** | speed | float | 0.1-10.0 | 1.0 |
 | **debug** | pdb | bool | - | false |
 | | memory | bool | - | false |

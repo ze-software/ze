@@ -122,7 +122,7 @@ On unix, the backing file is memory-mapped (`PROT_READ`, `MAP_PRIVATE`). Tree no
 
 ### Single-process ownership
 
-Only one process opens a ZeFS blob at a time. In ze, the daemon (`ze router.conf`) owns the blob. SSH editor sessions run as goroutines within the daemon process (via Wish). Terminal commands (`ze config edit`, `ze db ls`) detect the running daemon via the API socket and become API clients, sending commands through the bus rather than opening the blob directly. When no daemon is running, terminal commands open the blob directly as the sole process.
+Only one process opens a ZeFS blob at a time. In ze, the daemon (`ze router.conf`) owns the blob. SSH editor sessions run as goroutines within the daemon process (via Wish). Terminal commands (`ze config edit`, `ze db ls`) detect the running daemon by dialing the SSH port and become SSH clients, sending commands through the daemon rather than opening the blob directly. When no daemon is running, the editor starts an ephemeral daemon, connects via SSH, and stops it when done.
 
 ### In-process locking
 
@@ -137,16 +137,16 @@ All blob concurrency is in-process, handled by `sync.RWMutex`:
 
 ### Daemon mutual exclusion
 
-PID is stored as a blob entry. On startup, the daemon acquires a `WriteLock` (brief), reads the PID entry, checks `kill(pid, 0)`, writes its own PID if the previous daemon is not alive, and releases. This prevents two daemon instances from running on the same blob. The `WriteLock` is held only for the check-and-write (not the daemon's lifetime).
+The SSH server binds to its configured listen address on startup. If the port is already in use, the daemon fails with a clear error (port conflict), preventing two daemon instances.
 
-### Terminal commands as API clients
+### Terminal commands as SSH clients
 
-When the daemon is running, terminal processes must not open the blob directly (that would be two processes on the same file). Instead, they connect to the daemon's API socket and send commands. The daemon's config component executes operations with mutex protection and returns results. This follows the same pattern as plugin communication.
+When the daemon is running, terminal processes connect via SSH and send commands. The daemon's config component executes operations with mutex protection and returns results via the SSH session.
 
 | Scenario | Terminal behavior |
 |----------|-------------------|
-| Daemon running | API client via Unix socket |
-| No daemon | Direct blob access (sole process) |
+| Daemon running | SSH client to daemon |
+| No daemon | Ephemeral daemon started, then SSH client |
 
 ## Implementation
 

@@ -43,10 +43,7 @@ They can also be set via the config file `environment { <section> { <option> <va
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `ze.bgp.daemon.pid` | string | "" | PID file location |
 | `ze.bgp.daemon.user` | string | "zeuser" | Legacy user field (prefer `ze.user`) |
-| `ze.bgp.daemon.daemonize` | bool | false | Run in background |
-| `ze.bgp.daemon.drop` | bool | true | Legacy drop field (prefer `ze.user`) |
 | `ze.bgp.daemon.umask` | octal | 0137 | Umask for created files |
 
 ### log
