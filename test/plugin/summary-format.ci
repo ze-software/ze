@@ -128,7 +128,7 @@ plugin {
 		encoder text
 	}
 }
-template {
+bgp {
 	group test-peer {
 		family {
 			ipv4/unicast
@@ -146,17 +146,15 @@ template {
 		process summary-check {
 			send [ update ]
 		}
-	}
-}
-bgp {
-	peer 127.0.0.1 {
-		inherit test-peer
-		router-id 10.0.0.139
-		local-address 127.0.0.1
-		local-as 65512
-		peer-as 65512
-		connection active
-		hold-time 30
+
+		peer 127.0.0.1 {
+			router-id 10.0.0.139
+			local-address 127.0.0.1
+			local-as 65512
+			peer-as 65512
+			connection active
+			hold-time 30
+		}
 	}
 }
 EOF_CONF

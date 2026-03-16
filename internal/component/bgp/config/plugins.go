@@ -148,6 +148,7 @@ func markInternalPlugin(pc *reactor.PluginConfig) {
 
 // ValidatePluginReferences checks that all process binding plugin references
 // point to declared plugins. Skip bindings with inline Run (defines plugin inline).
+// Checks both standalone peers and peers inside groups.
 func ValidatePluginReferences(tree *config.Tree, plugins []reactor.PluginConfig) error {
 	bgpContainer := tree.GetContainer("bgp")
 	if bgpContainer == nil {
@@ -160,24 +161,46 @@ func ValidatePluginReferences(tree *config.Tree, plugins []reactor.PluginConfig)
 		pluginNames[p.Name] = true
 	}
 
-	// Walk peer process bindings
-	for _, entry := range bgpContainer.GetListOrdered("peer") {
-		addr := entry.Key
-		peerTree := entry.Value
-		processList := peerTree.GetList("process")
-		for name, processTree := range processList {
-			if name == config.KeyDefault {
-				continue
-			}
-			// Skip inline plugins (have run defined)
-			if run, ok := processTree.Get("run"); ok && run != "" {
-				continue
-			}
-			if !pluginNames[name] {
-				return fmt.Errorf("bgp.peer %s: undefined plugin %q in process binding", addr, name)
+	// Walk grouped peer process bindings.
+	for _, groupEntry := range bgpContainer.GetListOrdered("group") {
+		groupName := groupEntry.Key
+		groupTree := groupEntry.Value
+		for _, peerEntry := range groupTree.GetListOrdered("peer") {
+			addr := peerEntry.Key
+			peerTree := peerEntry.Value
+			if err := validatePeerProcessRefs(peerTree, pluginNames, fmt.Sprintf("bgp.group %s peer %s", groupName, addr)); err != nil {
+				return err
 			}
 		}
 	}
 
+	// Walk standalone peer process bindings.
+	for _, entry := range bgpContainer.GetListOrdered("peer") {
+		addr := entry.Key
+		peerTree := entry.Value
+		if err := validatePeerProcessRefs(peerTree, pluginNames, fmt.Sprintf("bgp.peer %s", addr)); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validatePeerProcessRefs checks that all process binding references in a peer tree
+// point to declared plugins. context is the error message prefix (e.g., "bgp.peer 10.0.0.1").
+func validatePeerProcessRefs(peerTree *config.Tree, pluginNames map[string]bool, context string) error {
+	processList := peerTree.GetList("process")
+	for name, processTree := range processList {
+		if name == config.KeyDefault {
+			continue
+		}
+		// Skip inline plugins (have run defined)
+		if run, ok := processTree.Get("run"); ok && run != "" {
+			continue
+		}
+		if !pluginNames[name] {
+			return fmt.Errorf("%s: undefined plugin %q in process binding", context, name)
+		}
+	}
 	return nil
 }

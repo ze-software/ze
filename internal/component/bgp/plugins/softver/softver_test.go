@@ -177,3 +177,24 @@ func TestRunCLIDecode(t *testing.T) {
 	assert.Equal(t, 0, code)
 	assert.Contains(t, stdout.String(), `"value":"zebgp"`)
 }
+
+// TestExtractSoftverCapabilities_GroupPeerOverride verifies per-peer disable
+// overrides group-level enable.
+//
+// VALIDATES: When a group enables software-version and a peer disables it,
+// the per-peer setting wins for that peer.
+// PREVENTS: Group-level capability suppressing per-peer overrides.
+func TestExtractSoftverCapabilities_GroupPeerOverride(t *testing.T) {
+	jsonStr := `{"bgp":{"group":{"transit":{
+		"capability":{"software-version":{"mode":"enable"}},
+		"peer":{
+			"10.0.0.1":{"capability":{"software-version":{"mode":"disable"}}},
+			"10.0.0.2":{"peer-as":65002}
+		}
+	}}}}`
+
+	caps := extractSoftverCapabilities(jsonStr)
+	// 10.0.0.1 explicitly disables, so only 10.0.0.2 should get the capability.
+	require.Len(t, caps, 1, "only peer without disable should get capability")
+	assert.Equal(t, []string{"10.0.0.2"}, caps[0].Peers, "10.0.0.2 should inherit group capability")
+}

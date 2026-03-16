@@ -52,16 +52,19 @@ func TestMigrate_NeighborToPeer(t *testing.T) {
 	assert.Equal(t, "65002", peerAS)
 }
 
-// TestMigrate_PeerGlobToMatch verifies glob patterns move to template.match.
-func TestMigrate_PeerGlobToMatch(t *testing.T) {
+// TestMigrate_PeerGlobToGroup verifies glob patterns become peer groups.
+//
+// VALIDATES: Glob peer patterns are converted to named groups via template->group migration.
+// PREVENTS: Glob patterns remaining as flat peers or in deleted template block.
+func TestMigrate_PeerGlobToGroup(t *testing.T) {
 	tree := config.NewTree()
 
-	// Regular peer — should stay
+	// Regular peer -- should end up as standalone peer in bgp
 	regular := config.NewTree()
 	regular.Set("peer-as", "65002")
 	tree.AddListEntry("peer", "10.0.0.1", regular)
 
-	// Glob peer — should move to template.match
+	// Glob peer -- should become a named group
 	glob := config.NewTree()
 	glob.Set("peer-as", "65000")
 	tree.AddListEntry("peer", "10.0.0.0/8", glob)
@@ -69,22 +72,23 @@ func TestMigrate_PeerGlobToMatch(t *testing.T) {
 	result, err := Migrate(tree)
 	require.NoError(t, err)
 
-	// Regular peer stays under "peer" (inside bgp {} after wrap)
-	bgp := result.Tree.GetContainer("bgp")
-	require.NotNil(t, bgp, "bgp block should exist after wrap-bgp-block")
-	peers := bgp.GetList("peer")
-	assert.Contains(t, peers, "10.0.0.1")
-
-	// Glob should be in template.bgp.peer (after template->new-format migration)
+	// Template block should be gone (template->group removes it).
 	tmpl := result.Tree.GetContainer("template")
-	require.NotNil(t, tmpl)
-	tmplBGP := tmpl.GetContainer("bgp")
-	require.NotNil(t, tmplBGP)
-	tmplPeers := tmplBGP.GetList("peer")
-	assert.Contains(t, tmplPeers, "10.0.0.0/8")
+	assert.Nil(t, tmpl, "template block should be removed after migration")
+
+	// Regular peer ends up in bgp block (via wrap-bgp-block then template->group default group).
+	bgp := result.Tree.GetContainer("bgp")
+	require.NotNil(t, bgp, "bgp block should exist after migration")
+
+	// The glob pattern should be a group (match-10-0-0-0-8 or similar).
+	groups := bgp.GetListOrdered("group")
+	assert.NotEmpty(t, groups, "groups should exist after migration")
 }
 
-// TestMigrate_TemplateNeighborToGroup verifies template.neighbor → template.group.
+// TestMigrate_TemplateNeighborToGroup verifies template.neighbor becomes bgp.group.
+//
+// VALIDATES: Template neighbors are converted to peer groups in bgp block.
+// PREVENTS: Template neighbors remaining in deleted template block.
 func TestMigrate_TemplateNeighborToGroup(t *testing.T) {
 	tree := config.NewTree()
 	tmpl := config.NewTree()
@@ -95,13 +99,19 @@ func TestMigrate_TemplateNeighborToGroup(t *testing.T) {
 
 	result, err := Migrate(tree)
 	require.NoError(t, err)
-	assert.Contains(t, result.Applied, "template.neighbor->group")
 
-	// template.neighbor should be gone, template.group should exist
-	// (then template->new-format converts group → bgp.peer)
+	// Template block should be removed entirely.
 	resultTmpl := result.Tree.GetContainer("template")
-	require.NotNil(t, resultTmpl)
-	assert.Empty(t, resultTmpl.GetList("neighbor"))
+	assert.Nil(t, resultTmpl, "template block should be removed after migration")
+
+	// my-group should now be a group in bgp block.
+	bgp := result.Tree.GetContainer("bgp")
+	require.NotNil(t, bgp, "bgp block should exist")
+	groups := bgp.GetList("group")
+	require.Contains(t, groups, "my-group", "my-group should be a bgp group")
+	holdTime, ok := groups["my-group"].Get("hold-time")
+	assert.True(t, ok)
+	assert.Equal(t, "30", holdTime)
 }
 
 // --- Static route extraction ---

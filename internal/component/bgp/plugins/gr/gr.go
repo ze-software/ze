@@ -25,6 +25,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -325,75 +326,80 @@ func afiSAFIToFamily(afi uint16, safi uint8) string {
 	return nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)}.String()
 }
 
+// parseGRCapValue extracts a GR capability hex value from a capability map's
+// "graceful-restart" entry. Returns "" if no GR config is present.
+func parseGRCapValue(capMap map[string]any, peerAddr string) string {
+	if capMap == nil {
+		return ""
+	}
+	grData, ok := capMap["graceful-restart"].(map[string]any)
+	if !ok {
+		return ""
+	}
+
+	// Extract restart-time (default 120 per RFC 4724)
+	restartTime := uint16(120)
+	if rtVal, ok := grData["restart-time"]; ok {
+		switch v := rtVal.(type) {
+		case float64:
+			restartTime = uint16(v)
+		case string:
+			if parsed, err := strconv.ParseUint(v, 10, 16); err == nil {
+				restartTime = uint16(parsed)
+			}
+		}
+	}
+
+	// RFC 4724: restart-time is 12 bits (0-4095)
+	if restartTime > 4095 {
+		logger().Warn("restart-time exceeds 12-bit max, clamping", "peer", peerAddr, "value", restartTime)
+		restartTime = 4095
+	}
+
+	// RFC 4724 Section 3: Restart Flags (4 bits) + Restart Time (12 bits)
+	return fmt.Sprintf("%04x", restartTime&0x0FFF)
+}
+
 // extractGRCapabilities parses bgp config JSON and returns per-peer GR capabilities.
+// Handles both standalone peers (bgp.peer) and grouped peers (bgp.group.<name>.peer).
 // RFC 4724: Graceful Restart capability code is 64.
 func extractGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
-	var bgpConfig map[string]any
-	if err := json.Unmarshal([]byte(jsonStr), &bgpConfig); err != nil {
-		logger().Warn("invalid JSON in bgp config", "err", err)
-		return nil
-	}
-
-	// The config tree is wrapped: {"bgp": {"peer": {...}}}
-	bgpSubtree, ok := bgpConfig["bgp"].(map[string]any)
+	bgpSubtree, ok := configjson.ParseBGPSubtree(jsonStr)
 	if !ok {
-		bgpSubtree = bgpConfig
-	}
-
-	peersMap, ok := bgpSubtree["peer"].(map[string]any)
-	if !ok {
-		logger().Debug("no peer config in bgp tree")
+		logger().Warn("invalid JSON in bgp config")
 		return nil
 	}
 
 	const grCapCode = 64
 	var caps []sdk.CapabilityDecl
 
-	for peerAddr, peerData := range peersMap {
-		peerMap, ok := peerData.(map[string]any)
-		if !ok {
-			continue
+	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any) {
+		// Check per-peer graceful-restart capability first.
+		peerCapValue := parseGRCapValue(configjson.GetCapability(peerMap), peerAddr)
+
+		// Check group-level graceful-restart capability (fallback).
+		var groupCapValue string
+		if groupMap != nil {
+			groupCapValue = parseGRCapValue(configjson.GetCapability(groupMap), peerAddr)
 		}
 
-		capMap, ok := peerMap["capability"].(map[string]any)
-		if !ok {
-			continue
+		// Per-peer wins over group.
+		capValue := groupCapValue
+		if peerCapValue != "" {
+			capValue = peerCapValue
+		}
+		if capValue == "" {
+			return
 		}
 
-		grData, ok := capMap["graceful-restart"].(map[string]any)
-		if !ok {
-			continue
-		}
-
-		// Extract restart-time (default 120 per RFC 4724)
-		restartTime := uint16(120)
-		if rtVal, ok := grData["restart-time"]; ok {
-			switch v := rtVal.(type) {
-			case float64:
-				restartTime = uint16(v)
-			case string:
-				if parsed, err := strconv.ParseUint(v, 10, 16); err == nil {
-					restartTime = uint16(parsed)
-				}
-			}
-		}
-
-		// RFC 4724: restart-time is 12 bits (0-4095)
-		if restartTime > 4095 {
-			logger().Warn("restart-time exceeds 12-bit max, clamping", "peer", peerAddr, "value", restartTime)
-			restartTime = 4095
-		}
-
-		// RFC 4724 Section 3: Restart Flags (4 bits) + Restart Time (12 bits)
-		capValue := fmt.Sprintf("%04x", restartTime&0x0FFF)
 		caps = append(caps, sdk.CapabilityDecl{
 			Code:     grCapCode,
 			Encoding: "hex",
 			Payload:  capValue,
 			Peers:    []string{peerAddr},
 		})
-		logger().Debug("gr capability", "peer", peerAddr, "restart-time", restartTime)
-	}
+		logger().Debug("gr capability", "peer", peerAddr)
+	})
 
 	return caps
 }

@@ -157,6 +157,11 @@ func hasPeerGlobPattern(tree *config.Tree) bool {
 	return false
 }
 
+// hasTemplateBlock returns true if a template block exists (any format).
+func hasTemplateBlock(tree *config.Tree) bool {
+	return tree.GetContainer("template") != nil
+}
+
 // hasTemplateNeighbor returns true if tree has template.neighbor entries.
 func hasTemplateNeighbor(tree *config.Tree) bool {
 	if tmpl := tree.GetContainer("template"); tmpl != nil {

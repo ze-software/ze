@@ -28,8 +28,8 @@ const deliveryChannelCapacity = 256
 // drainDeliveryBatch collects the first item plus any additional items available
 // without blocking. Same pattern as process.drainBatch but for per-peer delivery.
 // buf is a reusable slice from the caller — reset to [:0] and returned for reuse.
-func drainDeliveryBatch(buf []deliveryItem, first deliveryItem, ch <-chan deliveryItem) []deliveryItem {
-	buf = append(buf[:0], first)
+func drainDeliveryBatch(buf []deliveryItem, first *deliveryItem, ch <-chan deliveryItem) []deliveryItem {
+	buf = append(buf[:0], *first)
 	for {
 		select {
 		case item, ok := <-ch:

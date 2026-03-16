@@ -17,6 +17,7 @@ import (
 	"net"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver/schema"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -35,6 +36,12 @@ func ConfigureLogger(l *slog.Logger) {
 // ZeVersion is the software version string advertised in the capability.
 // Convention: "name/version" (e.g., "ExaBGP/4.2.22", "FRRouting/9.0").
 const ZeVersion = "Ze/0.1.0"
+
+// Software-version capability mode values that suppress advertisement.
+const (
+	modeDisable = "disable"
+	modeRefuse  = "refuse"
+)
 
 // encodeValue returns the hex-encoded capability value (without code/length prefix).
 // draft-ietf-idr-software-version: version-length (1 octet) + version-string (UTF-8).
@@ -83,61 +90,61 @@ func RunSoftverPlugin(engineConn, callbackConn net.Conn) int {
 }
 
 // extractSoftverCapabilities parses bgp config JSON and returns per-peer software-version capabilities.
+// Handles both standalone peers (bgp.peer) and grouped peers (bgp.group.<name>.peer).
 func extractSoftverCapabilities(jsonStr string) []sdk.CapabilityDecl {
+	bgpSubtree, ok := configjson.ParseBGPSubtree(jsonStr)
+	if !ok {
+		Logger.Warn("invalid JSON in bgp config")
+		return nil
+	}
+
 	const softverCapCode = 75
-
-	var bgpConfig map[string]any
-	if err := json.Unmarshal([]byte(jsonStr), &bgpConfig); err != nil {
-		Logger.Warn("invalid JSON in bgp config", "err", err)
-		return nil
-	}
-
-	bgpSubtree, ok := bgpConfig["bgp"].(map[string]any)
-	if !ok {
-		bgpSubtree = bgpConfig
-	}
-
-	peersMap, ok := bgpSubtree["peer"].(map[string]any)
-	if !ok {
-		return nil
-	}
-
 	var caps []sdk.CapabilityDecl
 
-	for peerAddr, peerData := range peersMap {
-		peerMap, ok := peerData.(map[string]any)
-		if !ok {
-			continue
+	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any) {
+		// Check per-peer software-version capability first.
+		peerHasExplicit := false
+		peerEnabled := false
+		if svRaw, exists := configjson.GetCapability(peerMap)["software-version"]; exists {
+			peerHasExplicit = true
+			var mode string
+			switch sv := svRaw.(type) {
+			case map[string]any:
+				mode, _ = sv["mode"].(string)
+			case string:
+				mode = sv
+			case nil:
+				// bare presence -- treat as enable
+			}
+			peerEnabled = mode != modeDisable && mode != modeRefuse
 		}
 
-		capMap, ok := peerMap["capability"].(map[string]any)
-		if !ok {
-			continue
+		// Check group-level software-version capability (fallback).
+		groupEnabled := false
+		if groupMap != nil {
+			if svRaw, exists := configjson.GetCapability(groupMap)["software-version"]; exists {
+				var mode string
+				switch sv := svRaw.(type) {
+				case map[string]any:
+					mode, _ = sv["mode"].(string)
+				case string:
+					mode = sv
+				}
+				groupEnabled = mode != modeDisable && mode != modeRefuse
+			}
 		}
 
-		// software-version can be:
-		// - map: {"mode": "enable"} (container form)
-		// - string: "enable" (leaf form, consistent with other capabilities)
-		// - map: {} (bare presence container)
-		svRaw, exists := capMap["software-version"]
-		if !exists {
-			continue
+		// Per-peer wins; if no per-peer config, use group default.
+		enabled := groupEnabled
+		if peerHasExplicit {
+			enabled = peerEnabled
 		}
 
-		var mode string
-		switch sv := svRaw.(type) {
-		case map[string]any:
-			mode, _ = sv["mode"].(string)
-		case string:
-			mode = sv
-		case nil:
-			// bare presence — treat as enable (default)
-		}
-		// Unknown types are ignored (presence container with no mode = enable).
-
-		if mode == "disable" || mode == "refuse" {
-			Logger.Debug("software-version capability suppressed by mode", "peer", peerAddr, "mode", mode)
-			continue
+		if !enabled {
+			if peerHasExplicit {
+				Logger.Debug("software-version capability suppressed by mode", "peer", peerAddr)
+			}
+			return
 		}
 
 		caps = append(caps, sdk.CapabilityDecl{
@@ -147,7 +154,7 @@ func extractSoftverCapabilities(jsonStr string) []sdk.CapabilityDecl {
 			Peers:    []string{peerAddr},
 		})
 		Logger.Debug("software-version capability enabled", "peer", peerAddr)
-	}
+	})
 
 	return caps
 }

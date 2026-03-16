@@ -1602,7 +1602,7 @@ class EncodingTests(Tests):
 
     API: Pattern[str] = re.compile(r'^\s*run\s+(.*)\s*?;\s*?$')
 
-    def __init__(self, path_config: TestPathConfig | None = None) -> None:
+    def __init__(self, path_config: Optional[TestPathConfig] = None) -> None:
         if path_config is None:
             path_config = Path.encoding_config()
         self.path_config = path_config
@@ -2168,7 +2168,7 @@ class APITests(EncodingTests):
     separate directory (qa/api/) for tests that exercise the API functionality.
     """
 
-    def __init__(self, path_config: TestPathConfig | None = None) -> None:
+    def __init__(self, path_config: Optional[TestPathConfig] = None) -> None:
         if path_config is None:
             path_config = Path.api_config()
         # Call EncodingTests.__init__ with the api path config
@@ -2538,7 +2538,7 @@ class CLITests(Tests):
                     return True
             return False
 
-    def __init__(self, path_config: TestPathConfig | None = None) -> None:
+    def __init__(self, path_config: Optional[TestPathConfig] = None) -> None:
         if path_config is None:
             path_config = Path.cli_config()
         self.path_config = path_config

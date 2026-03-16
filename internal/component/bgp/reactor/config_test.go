@@ -1439,3 +1439,45 @@ func TestParsePeerMD5IPWithoutPassword(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "md5-ip requires md5-password")
 }
+
+// TestParsePeerFromTree_Name verifies the Name field is parsed from the peer tree.
+//
+// VALIDATES: AC-7 -- peer name flows from config tree into PeerSettings.
+// PREVENTS: Name field silently dropped during parsing.
+func TestParsePeerFromTree_Name(t *testing.T) {
+	peers, err := PeersFromTree(map[string]any{
+		"local-as":  "65000",
+		"router-id": "1.2.3.4",
+		"peer": map[string]any{
+			"10.0.0.1": map[string]any{
+				"peer-as":       "65001",
+				"local-address": "auto",
+				"name":          "router-east",
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, peers, 1)
+	assert.Equal(t, "router-east", peers[0].Name)
+}
+
+// TestParsePeerFromTree_GroupName verifies the GroupName field is parsed from the peer tree.
+//
+// VALIDATES: AC-7 -- group name injected by ResolveBGPTree flows into PeerSettings.
+// PREVENTS: GroupName field silently dropped during parsing.
+func TestParsePeerFromTree_GroupName(t *testing.T) {
+	peers, err := PeersFromTree(map[string]any{
+		"local-as":  "65000",
+		"router-id": "1.2.3.4",
+		"peer": map[string]any{
+			"10.0.0.1": map[string]any{
+				"peer-as":       "65001",
+				"local-address": "auto",
+				"group-name":    "rr-clients",
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, peers, 1)
+	assert.Equal(t, "rr-clients", peers[0].GroupName)
+}

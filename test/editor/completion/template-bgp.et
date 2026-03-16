@@ -1,17 +1,13 @@
-# Test: Template BGP block completion
-# VALIDATES: Completion shows template.bgp children
-# PREVENTS: Template structure not navigable
+# Test: BGP group block completion
+# VALIDATES: Completion shows bgp.group children
+# PREVENTS: Group structure not navigable
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-}
-template {
-  bgp {
-    peer internal-peers {
-      inherit-name internal;
-      hold-time 90;
-    }
+  group internal {
+    peer-as 65000;
+    hold-time 90;
   }
 }
 EOF_CONF
@@ -19,13 +15,13 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Enter template context
-input=type:text=edit template
+# Enter bgp context
+input=type:text=edit bgp
 input=enter
-expect=context:path=template
+expect=context:path=bgp
 expect=error:none
 
-# Completions in template context
+# Completions in bgp context should include group
 input=type:text=edit
 input=space
-expect=completion:contains=bgp,group,match
+expect=completion:contains=group,peer

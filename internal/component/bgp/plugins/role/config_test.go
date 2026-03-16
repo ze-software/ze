@@ -22,35 +22,35 @@ func TestExtractRoleCapabilities_ParseBGPConfig(t *testing.T) {
 	}{
 		{
 			name:        "provider_role_0",
-			json:        `{"bgp":{"peer":{"192.168.1.1":{"capability":{"role":{"role":"provider"}}}}}}`,
+			json:        `{"bgp":{"peer":{"192.168.1.1":{"role":{"name":"provider"}}}}}`,
 			wantPeer:    "192.168.1.1",
 			wantPayload: "00",
 			wantParsed:  true,
 		},
 		{
 			name:        "rs_role_1",
-			json:        `{"bgp":{"peer":{"10.0.0.1":{"capability":{"role":{"role":"rs"}}}}}}`,
+			json:        `{"bgp":{"peer":{"10.0.0.1":{"role":{"name":"rs"}}}}}`,
 			wantPeer:    "10.0.0.1",
 			wantPayload: "01",
 			wantParsed:  true,
 		},
 		{
 			name:        "rs_client_role_2",
-			json:        `{"bgp":{"peer":{"10.0.0.2":{"capability":{"role":{"role":"rs-client"}}}}}}`,
+			json:        `{"bgp":{"peer":{"10.0.0.2":{"role":{"name":"rs-client"}}}}}`,
 			wantPeer:    "10.0.0.2",
 			wantPayload: "02",
 			wantParsed:  true,
 		},
 		{
 			name:        "customer_role_3",
-			json:        `{"bgp":{"peer":{"10.0.0.3":{"capability":{"role":{"role":"customer"}}}}}}`,
+			json:        `{"bgp":{"peer":{"10.0.0.3":{"role":{"name":"customer"}}}}}`,
 			wantPeer:    "10.0.0.3",
 			wantPayload: "03",
 			wantParsed:  true,
 		},
 		{
 			name:        "peer_role_4",
-			json:        `{"bgp":{"peer":{"10.0.0.4":{"capability":{"role":{"role":"peer"}}}}}}`,
+			json:        `{"bgp":{"peer":{"10.0.0.4":{"role":{"name":"peer"}}}}}`,
 			wantPeer:    "10.0.0.4",
 			wantPayload: "04",
 			wantParsed:  true,
@@ -72,12 +72,12 @@ func TestExtractRoleCapabilities_ParseBGPConfig(t *testing.T) {
 		},
 		{
 			name:       "invalid_role_name",
-			json:       `{"bgp":{"peer":{"192.168.1.1":{"capability":{"role":{"role":"invalid"}}}}}}`,
+			json:       `{"bgp":{"peer":{"192.168.1.1":{"role":{"name":"invalid"}}}}}`,
 			wantParsed: false,
 		},
 		{
 			name:       "empty_role_name",
-			json:       `{"bgp":{"peer":{"192.168.1.1":{"capability":{"role":{"role":""}}}}}}`,
+			json:       `{"bgp":{"peer":{"192.168.1.1":{"role":{"name":""}}}}}`,
 			wantParsed: false,
 		},
 	}
@@ -107,8 +107,8 @@ func TestExtractRoleCapabilities_ParseBGPConfig(t *testing.T) {
 // PREVENTS: Only first peer being extracted when multiple peers have Role config.
 func TestExtractRoleCapabilities_MultiplePeers(t *testing.T) {
 	json := `{"bgp":{"peer":{
-		"192.168.1.1":{"capability":{"role":{"role":"customer"}}},
-		"10.0.0.1":{"capability":{"role":{"role":"provider"}}}
+		"192.168.1.1":{"role":{"name":"customer"}},
+		"10.0.0.1":{"role":{"name":"provider"}}
 	}}}`
 
 	caps := extractRoleCapabilities(json)
@@ -141,15 +141,63 @@ func TestExtractRoleCapabilities_InvalidJSON(t *testing.T) {
 // VALIDATES: extractPeerRoleConfigs extracts strict flag from config JSON.
 // PREVENTS: Strict mode being silently ignored in config parsing.
 func TestExtractPeerRoleConfigs_StrictParsing(t *testing.T) {
-	strictJSON := `{"bgp":{"peer":{"10.0.0.1":{"capability":{"role":{"role":"customer","role-strict":true}}}}}}`
+	strictJSON := `{"bgp":{"peer":{"10.0.0.1":{"role":{"name":"customer","strict":true}}}}}`
 	configs := extractPeerRoleConfigs(strictJSON)
 	require.Contains(t, configs, "10.0.0.1")
-	assert.True(t, configs["10.0.0.1"].strict, "strict should be true when role-strict is true")
+	assert.True(t, configs["10.0.0.1"].strict, "strict should be true when strict is true")
 
-	normalJSON := `{"bgp":{"peer":{"10.0.0.1":{"capability":{"role":{"role":"customer"}}}}}}`
+	normalJSON := `{"bgp":{"peer":{"10.0.0.1":{"role":{"name":"customer"}}}}}`
 	configs = extractPeerRoleConfigs(normalJSON)
 	require.Contains(t, configs, "10.0.0.1")
 	assert.False(t, configs["10.0.0.1"].strict, "strict should be false when role-strict is absent")
+}
+
+// TestExtractPeerRoleConfigs_GroupWithPeerOverride verifies per-peer role overrides group role.
+//
+// VALIDATES: When a group has role "customer" and one peer has role "provider",
+// the per-peer role takes precedence.
+// PREVENTS: Group-level role config suppressing per-peer overrides.
+func TestExtractPeerRoleConfigs_GroupWithPeerOverride(t *testing.T) {
+	jsonStr := `{"bgp":{"group":{"transit":{"role":{"name":"customer"},"peer":{
+		"10.0.0.1":{"role":{"name":"provider"}},
+		"10.0.0.2":{}
+	}}}}}`
+
+	configs := extractPeerRoleConfigs(jsonStr)
+	require.Len(t, configs, 2, "both peers should have role configs")
+
+	// 10.0.0.1 should use its own role (provider), not the group's (customer).
+	cfg1 := configs["10.0.0.1"]
+	require.NotNil(t, cfg1)
+	assert.Equal(t, "provider", cfg1.role, "per-peer role should override group role")
+
+	// 10.0.0.2 should inherit group role (customer).
+	cfg2 := configs["10.0.0.2"]
+	require.NotNil(t, cfg2)
+	assert.Equal(t, "customer", cfg2.role, "peer without role should inherit group role")
+}
+
+// TestExtractRoleCapabilities_GroupOnly verifies group-level role applies to all peers.
+//
+// VALIDATES: Group-level role config is applied to all peers in the group.
+// PREVENTS: Group-level role being ignored when no per-peer role is set.
+func TestExtractRoleCapabilities_GroupOnly(t *testing.T) {
+	jsonStr := `{"bgp":{"group":{"transit":{"role":{"name":"customer","strict":true},"peer":{
+		"10.0.0.1":{"peer-as":65001},
+		"10.0.0.2":{"peer-as":65002}
+	}}}}}`
+
+	caps := extractRoleCapabilities(jsonStr)
+	require.Len(t, caps, 2, "both peers should get role capabilities from group")
+
+	peerPayload := make(map[string]string)
+	for _, cap := range caps {
+		require.Len(t, cap.Peers, 1)
+		peerPayload[cap.Peers[0]] = cap.Payload
+	}
+
+	assert.Equal(t, "03", peerPayload["10.0.0.1"], "10.0.0.1 role=customer (3)")
+	assert.Equal(t, "03", peerPayload["10.0.0.2"], "10.0.0.2 role=customer (3)")
 }
 
 // TestExtractRoleCapabilities_StrictMode verifies strict mode config extraction.
@@ -165,19 +213,19 @@ func TestExtractRoleCapabilities_StrictMode(t *testing.T) {
 	}{
 		{
 			name:       "strict_true",
-			json:       `{"bgp":{"peer":{"10.0.0.1":{"capability":{"role":{"role":"customer","role-strict":true}}}}}}`,
+			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"name":"customer","strict":true}}}}}`,
 			wantStrict: true,
 			wantRole:   "customer",
 		},
 		{
 			name:       "strict_false_explicit",
-			json:       `{"bgp":{"peer":{"10.0.0.1":{"capability":{"role":{"role":"provider","role-strict":false}}}}}}`,
+			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"name":"provider","strict":false}}}}}`,
 			wantStrict: false,
 			wantRole:   "provider",
 		},
 		{
 			name:       "strict_absent_defaults_false",
-			json:       `{"bgp":{"peer":{"10.0.0.1":{"capability":{"role":{"role":"peer"}}}}}}`,
+			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"name":"peer"}}}}}`,
 			wantStrict: false,
 			wantRole:   "peer",
 		},

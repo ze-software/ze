@@ -693,14 +693,14 @@ func TestJoinTokensWithQuotes(t *testing.T) {
 
 // TestEditQuotedListKey verifies edit command works with quoted string-keyed list entries.
 //
-// VALIDATES: Tree navigation handles string-keyed lists (e.g., template group names).
+// VALIDATES: Tree navigation handles string-keyed lists (e.g., bgp group names).
 // PREVENTS: Navigation failure for list entries with spaces in keys.
 func TestEditQuotedListKey(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	// template.group is a string-keyed list (key "name")
-	originalContent := `template {
+	// bgp.group is a string-keyed list (key "name")
+	originalContent := `bgp {
 	group "my group" {
 		peer-as 65001
 	}
@@ -716,11 +716,11 @@ func TestEditQuotedListKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// Edit group with quoted name using full path (JUNOS-style)
-	editResult, err := model.cmdEdit([]string{"template", "group", "my group"})
+	editResult, err := model.cmdEdit([]string{"bgp", "group", "my group"})
 	require.NoError(t, err, "edit should find string-keyed list entry")
 
 	// Verify we entered the correct context
-	assert.Equal(t, []string{"template", "group", "my group"}, editResult.newContext)
+	assert.Equal(t, []string{"bgp", "group", "my group"}, editResult.newContext)
 
 	// Verify config content includes the group block (full tree in Part 1)
 	assert.NotNil(t, editResult.configView)
@@ -735,8 +735,8 @@ func TestSetInQuotedListEntry(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	// template.group is a string-keyed list (key "name")
-	originalContent := `template {
+	// bgp.group is a string-keyed list (key "name")
+	originalContent := `bgp {
 	group "my group" {
 		peer-as 65001
 	}
@@ -752,7 +752,7 @@ func TestSetInQuotedListEntry(t *testing.T) {
 	require.NoError(t, err)
 
 	// Enter the group context using full path (JUNOS-style)
-	editResult, err := model.cmdEdit([]string{"template", "group", "my group"})
+	editResult, err := model.cmdEdit([]string{"bgp", "group", "my group"})
 	require.NoError(t, err)
 	model.ApplyResult(editResult)
 

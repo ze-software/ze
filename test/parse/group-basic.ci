@@ -1,0 +1,17 @@
+# Valid config: peer groups with inherited hold-time
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 1.2.3.4
+	local-as 65000
+	group peering {
+		hold-time 180
+		peer 127.0.0.1 {
+			peer-as 65001
+			local-address 127.0.0.1
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze validate -:stdin=config
+expect=exit:code=0

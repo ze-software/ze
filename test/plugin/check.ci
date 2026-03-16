@@ -118,9 +118,8 @@ plugin {
 		encoder text
 	}
 }
-template {
+bgp {
 	group controler {
-
 		family {
 			ipv4/unicast
 			ipv6/unicast
@@ -151,17 +150,15 @@ template {
 			}
 			send [ update ]
 		}
-	}
-}
-bgp {
-	peer 127.0.0.1 {
-		inherit controler
-		router-id 10.0.0.139
-		local-address 127.0.0.1
-		local-as 65512
-		peer-as 65512
-		connection active
-		hold-time 30
+
+		peer 127.0.0.1 {
+			router-id 10.0.0.139
+			local-address 127.0.0.1
+			local-as 65512
+			peer-as 65512
+			connection active
+			hold-time 30
+		}
 	}
 }
 EOF_CONF

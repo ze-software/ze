@@ -19,7 +19,7 @@ func TestDrainDeliveryBatchReusesBuffer(t *testing.T) {
 
 	// First call: buffer grows from nil.
 	var buf []deliveryItem
-	buf = drainDeliveryBatch(buf, first, ch)
+	buf = drainDeliveryBatch(buf, &first, ch)
 
 	if len(buf) != 3 {
 		t.Fatalf("expected 3 items, got %d", len(buf))
@@ -29,7 +29,7 @@ func TestDrainDeliveryBatchReusesBuffer(t *testing.T) {
 	// Second call: reuse existing buffer.
 	ch <- deliveryItem{}
 	first2 := deliveryItem{}
-	buf = drainDeliveryBatch(buf, first2, ch)
+	buf = drainDeliveryBatch(buf, &first2, ch)
 
 	if len(buf) != 2 {
 		t.Fatalf("expected 2 items, got %d", len(buf))
@@ -52,7 +52,7 @@ func TestDrainDeliveryBatchChannelClose(t *testing.T) {
 	close(ch)
 
 	first := deliveryItem{}
-	buf := drainDeliveryBatch(nil, first, ch)
+	buf := drainDeliveryBatch(nil, &first, ch)
 
 	if len(buf) != 2 {
 		t.Fatalf("expected 2 items (first + 1 from channel before close), got %d", len(buf))

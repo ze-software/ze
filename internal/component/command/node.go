@@ -13,6 +13,11 @@ type Node struct {
 	Name        string
 	Description string
 	Children    map[string]*Node
+
+	// DynamicChildren returns additional completion suggestions at this node.
+	// Called alongside static Children when completing. Used for runtime data
+	// like peer names/IPs that aren't known at tree build time.
+	DynamicChildren func() []Suggestion
 }
 
 // RPCInfo holds the fields needed to build a command tree from RPC registrations.

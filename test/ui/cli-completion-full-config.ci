@@ -18,7 +18,9 @@ bgp {
 		local-address 192.168.1.254
 		hold-time 90
 		connection passive
-		role customer
+		role {
+			name customer
+		}
 		capability {
 			asn4 true
 			graceful-restart {
@@ -32,7 +34,9 @@ bgp {
 	peer 192.168.2.1 {
 		peer-as 65002
 		local-address 192.168.2.254
-		role provider
+		role {
+			name provider
+		}
 	}
 }
 EOF_CONF

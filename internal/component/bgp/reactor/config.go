@@ -188,6 +188,15 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		// Extract peer name and group name (set by ResolveBGPTree).
+		if name, ok := mapString(peerTree, "name"); ok {
+			ps.Name = name
+		}
+		if groupName, ok := mapString(peerTree, "group-name"); ok {
+			ps.GroupName = groupName
+		}
+
 		peers = append(peers, ps)
 	}
 

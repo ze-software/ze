@@ -12,7 +12,7 @@ module ze-softver {
         description "Initial revision.";
     }
 
-    augment "/bgp:bgp/bgp:peer/bgp:capability" {
+    grouping software-version-config {
         container software-version {
             presence "Software Version capability enabled";
             description "Software Version capability (code 75).";
@@ -27,5 +27,20 @@ module ze-softver {
                 description "Capability negotiation mode.";
             }
         }
+    }
+
+    // Standalone peer capability
+    augment "/bgp:bgp/bgp:peer/bgp:capability" {
+        uses software-version-config;
+    }
+
+    // Peer inside group capability
+    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:capability" {
+        uses software-version-config;
+    }
+
+    // Group-level capability
+    augment "/bgp:bgp/bgp:group/bgp:capability" {
+        uses software-version-config;
     }
 }

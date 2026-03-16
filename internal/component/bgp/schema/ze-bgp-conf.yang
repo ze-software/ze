@@ -12,46 +12,6 @@ module ze-bgp-conf {
         description "Initial revision";
     }
 
-    // Template block - peer templates
-    container template {
-        description "Peer templates";
-
-        container bgp {
-            description "BGP templates";
-            list peer {
-                key "pattern";
-                description "Peer pattern template";
-
-                leaf pattern {
-                    type string;
-                    description "Pattern to match peer addresses";
-                }
-
-                leaf inherit-name {
-                    type string;
-                    description "Named template identifier";
-                }
-
-                uses peer-fields;
-            }
-        }
-
-        // Legacy syntax support
-        list group {
-            key "name";
-            description "Legacy group template";
-            leaf name { type string; }
-            uses peer-fields;
-        }
-
-        list match {
-            key "pattern";
-            description "Legacy match template";
-            leaf pattern { type string; }
-            uses peer-fields;
-        }
-    }
-
     // BGP block - main BGP configuration
     container bgp {
         description "BGP configuration";
@@ -73,13 +33,49 @@ module ze-bgp-conf {
             description "Listen address and port";
         }
 
+        // Peer groups - Junos-style: peers nested inside named groups
+        list group {
+            key "name";
+            description "Peer group - defines shared defaults for member peers";
+
+            leaf name {
+                type string;
+                description "Group name (indicative, for readability)";
+            }
+
+            uses peer-fields;
+
+            list peer {
+                key "address";
+                description "BGP peer in this group";
+
+                leaf address {
+                    type zt:ip-address;
+                    description "Peer IP address";
+                }
+
+                leaf name {
+                    type string;
+                    description "Human-readable peer name for CLI selector";
+                }
+
+                uses peer-fields;
+            }
+        }
+
+        // Standalone peers (not in a group)
         list peer {
             key "address";
-            description "BGP peer configuration";
+            description "BGP peer configuration (standalone, no group)";
 
             leaf address {
                 type zt:ip-address;
                 description "Peer IP address";
+            }
+
+            leaf name {
+                type string;
+                description "Human-readable peer name for CLI selector";
             }
 
             uses peer-fields;
@@ -89,12 +85,6 @@ module ze-bgp-conf {
     // Grouping for peer configuration fields
     grouping peer-fields {
         description "Common peer configuration fields";
-
-        // Template inheritance
-        leaf inherit {
-            type string;
-            description "Inherit from template";
-        }
 
         // Basic peer identification
         leaf description {
@@ -114,8 +104,7 @@ module ze-bgp-conf {
                     enum auto;
                 }
             }
-            mandatory true;
-            description "Local address for connection (use IP address or 'auto') (required)";
+            description "Local address for connection (use IP address or 'auto')";
         }
 
         leaf link-local {
@@ -130,8 +119,7 @@ module ze-bgp-conf {
 
         leaf peer-as {
             type zt:asn;
-            mandatory true;
-            description "Peer Autonomous System Number (required)";
+            description "Peer Autonomous System Number";
         }
 
         leaf hold-time {

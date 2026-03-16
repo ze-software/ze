@@ -15,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
 // TestLoadReactor verifies loading config into a Reactor.
@@ -51,9 +52,9 @@ bgp {
 	require.Len(t, peers, 2)
 }
 
-// TestLoadReactorInheritance verifies local-as inheritance.
+// TestLoadReactorInheritance verifies local-as global default.
 //
-// VALIDATES: Neighbors inherit global local-as.
+// VALIDATES: Neighbors receive global default local-as.
 //
 // PREVENTS: Zero AS numbers in neighbors.
 func TestLoadReactorInheritance(t *testing.T) {
@@ -75,7 +76,7 @@ bgp {
 	peers := r.Peers()
 	require.Len(t, peers, 1)
 
-	// Neighbor should inherit local-as from global
+	// Neighbor should receive local-as from global default
 	n := peers[0].Settings()
 	require.Equal(t, uint32(65000), n.LocalAS)
 	require.Equal(t, uint32(65001), n.PeerAS)
@@ -198,12 +199,11 @@ func TestOldSyntaxHint(t *testing.T) {
 		require.Contains(t, err.Error(), "ze bgp config migrate")
 	})
 
-	t.Run("template.neighbor triggers hint", func(t *testing.T) {
+	t.Run("template keyword rejected", func(t *testing.T) {
 		input := `template { neighbor test { local-as 65000; } }`
 		_, err := LoadReactor(input)
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "unknown field in template: neighbor")
-		require.Contains(t, err.Error(), "ze bgp config migrate")
+		require.Contains(t, err.Error(), "unknown top-level keyword: template")
 	})
 
 	t.Run("current syntax no hint", func(t *testing.T) {
@@ -590,27 +590,23 @@ peer 192.0.2.1 {
 	assert.Contains(t, err.Error(), "unknown top-level keyword")
 }
 
-// TestParseTemplateNewSyntax verifies new template syntax with peer patterns.
+// TestParseGroupWithInheritance verifies group-level defaults are inherited by member peers.
 //
-// VALIDATES: template { bgp { peer <pattern> { } } } syntax.
-// PREVENTS: Template config parsing failures with new syntax.
-func TestParseTemplateNewSyntax(t *testing.T) {
+// VALIDATES: bgp { group <name> { hold-time N; peer <ip> { } } } syntax.
+// PREVENTS: Group default inheritance failures.
+func TestParseGroupWithInheritance(t *testing.T) {
 	input := `
-template {
-    bgp {
-        peer * {
-            hold-time 90;
-            local-address auto;
-        }
-    }
-}
-
 bgp {
     router-id 10.0.0.1;
     local-as 65000;
 
-    peer 192.0.2.1 {
-        peer-as 65001;
+    group backbone {
+        hold-time 30;
+
+        peer 10.0.0.1 {
+            peer-as 65001;
+            local-address auto;
+        }
     }
 }
 `
@@ -622,34 +618,28 @@ bgp {
 	peers := r.Peers()
 	require.Len(t, peers, 1)
 
-	// Peer should inherit hold-time from template
+	// Peer should inherit hold-time from group
 	settings := peers[0].Settings()
-	assert.Equal(t, 90*1000000000, int(settings.HoldTime.Nanoseconds()))
+	assert.Equal(t, 30*1000000000, int(settings.HoldTime.Nanoseconds()))
 }
 
-// TestInheritNameKeyword verifies inherit-name in templates.
+// TestGroupNameKeyword verifies named groups with peer inheritance.
 //
-// VALIDATES: template with inherit-name creates named template.
-// PREVENTS: Named template lookup failures.
-func TestInheritNameKeyword(t *testing.T) {
+// VALIDATES: bgp { group <name> { ... peer ... } } creates named group with defaults.
+// PREVENTS: Group name not being associated with member peers.
+func TestGroupNameKeyword(t *testing.T) {
 	input := `
-template {
-    bgp {
-        peer * {
-            inherit-name backbone;
-            hold-time 90;
-            local-address auto;
-        }
-    }
-}
-
 bgp {
     router-id 10.0.0.1;
     local-as 65000;
 
-    peer 192.0.2.1 {
-        inherit backbone;
-        peer-as 65001;
+    group backbone {
+        hold-time 30;
+
+        peer 192.0.2.1 {
+            peer-as 65001;
+            local-address auto;
+        }
     }
 }
 `
@@ -661,63 +651,57 @@ bgp {
 	peers := r.Peers()
 	require.Len(t, peers, 1)
 
-	// Peer should inherit hold-time from backbone template
+	// Peer should inherit hold-time from backbone group
 	settings := peers[0].Settings()
-	assert.Equal(t, 90*1000000000, int(settings.HoldTime.Nanoseconds()))
+	assert.Equal(t, 30*1000000000, int(settings.HoldTime.Nanoseconds()))
 }
 
-// TestInheritNonExistent verifies error for missing template.
+// TestUnknownKeywordInGroup verifies error for unknown keyword inside a group.
 //
-// VALIDATES: inherit with non-existent template name fails.
-// PREVENTS: Silent failure when template doesn't exist.
-func TestInheritNonExistent(t *testing.T) {
+// VALIDATES: Unknown keywords inside a group produce a parse error.
+// PREVENTS: Silent acceptance of invalid group fields.
+func TestUnknownKeywordInGroup(t *testing.T) {
 	input := `
 bgp {
     router-id 10.0.0.1;
     local-as 65000;
 
-    peer 192.0.2.1 {
-        inherit nonexistent;
-        peer-as 65001;
+    group backbone {
+        nonexistent-field value;
+        peer 192.0.2.1 {
+            peer-as 65001;
+            local-address auto;
+        }
     }
 }
 `
 
 	_, err := LoadReactor(input)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "nonexistent")
+	assert.Contains(t, err.Error(), "nonexistent-field")
 }
 
-// TestInheritPatternValidation verifies inherit pattern matching.
+// TestPeerNameValidation verifies peer name validation rejects invalid characters.
 //
-// VALIDATES: inherit only works when peer matches template pattern.
-// PREVENTS: Applying templates to non-matching peers.
-func TestInheritPatternValidation(t *testing.T) {
+// VALIDATES: Peer names with invalid characters produce a parse error.
+// PREVENTS: Invalid peer names breaking CLI selector matching.
+func TestPeerNameValidation(t *testing.T) {
 	input := `
-template {
-    bgp {
-        peer 10.* {
-            inherit-name internal;
-            hold-time 90;
-        }
-    }
-}
-
 bgp {
     router-id 10.0.0.1;
     local-as 65000;
 
-    # This peer IP doesn't match 10.* pattern
     peer 192.168.1.1 {
-        inherit internal;
         peer-as 65001;
+        local-address auto;
+        name "invalid name with spaces";
     }
 }
 `
 
 	_, err := LoadReactor(input)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "pattern")
+	assert.Contains(t, err.Error(), "invalid peer name")
 }
 
 // TestMergeCliPlugins verifies CLI plugin merging with config plugins.
@@ -1130,4 +1114,27 @@ bgp {
 	r2, err := LoadReactorFile(store, configPath)
 	require.NoError(t, err)
 	require.Len(t, r2.Peers(), 2, "reloaded config should have 2 peers")
+}
+
+// TestReservedPeerNamesSyncWithRPCs verifies that reservedPeerNames in resolve.go
+// matches the subcommand keywords derived from registered RPCs.
+// This test imports plugin/all so all init() registrations have run.
+//
+// VALIDATES: Hardcoded reserved names stay in sync with registered "bgp peer" RPCs.
+// PREVENTS: New "bgp peer <subcommand>" RPC added without updating reservedPeerNames.
+func TestReservedPeerNamesSyncWithRPCs(t *testing.T) {
+	dynamicKeywords := pluginserver.PeerSubcommandKeywords()
+	require.NotEmpty(t, dynamicKeywords, "plugin/all should register bgp peer RPCs")
+
+	// Every dynamically discovered keyword must be in the hardcoded set.
+	for keyword := range dynamicKeywords {
+		assert.True(t, reservedPeerNames[keyword],
+			"RPC keyword %q (from registered bgp peer commands) is missing from reservedPeerNames in resolve.go", keyword)
+	}
+
+	// Every hardcoded keyword should correspond to a registered RPC.
+	for keyword := range reservedPeerNames {
+		assert.True(t, dynamicKeywords[keyword],
+			"reservedPeerNames entry %q has no matching registered bgp peer RPC -- remove it or register the RPC", keyword)
+	}
 }

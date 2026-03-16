@@ -265,12 +265,13 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	}
 
 	// Check for "bgp peer <selector>" prefix
-	// Format: bgp peer <addr|*> <command>
+	// Format: bgp peer <addr|name|*> <command>
+	// Selector can be an IP address, glob pattern, peer name, or "*" for all.
 	peerSelector := "*"
 	hasExplicitSelector := false
 	if len(tokens) >= 4 && strings.EqualFold(tokens[0], "bgp") && strings.EqualFold(tokens[1], "peer") {
-		// Check if third token looks like IP/glob (contains dots, colons, or is "*")
-		if looksLikeIPOrGlob(tokens[2]) {
+		// Accept IP/glob directly, or check against known peer names via reactor.
+		if looksLikeIPOrGlob(tokens[2]) || isKnownPeerName(ctx, tokens[2]) {
 			peerSelector = tokens[2]
 			hasExplicitSelector = true
 			if ctx != nil {
@@ -500,6 +501,22 @@ func looksLikeIPOrGlob(s string) bool {
 	// Contains colons (IPv6)
 	if strings.Contains(s, ":") {
 		return true
+	}
+	return false
+}
+
+// isKnownPeerName checks whether s matches the name of any configured peer.
+// Uses the reactor's peer list for an exact match. Returns false if the
+// reactor is unavailable (e.g., during shell completion without a running daemon).
+func isKnownPeerName(ctx *CommandContext, s string) bool {
+	if ctx == nil || ctx.Reactor() == nil {
+		return false
+	}
+	peers := ctx.Reactor().Peers()
+	for i := range peers {
+		if peers[i].Name == s {
+			return true
+		}
 	}
 	return false
 }

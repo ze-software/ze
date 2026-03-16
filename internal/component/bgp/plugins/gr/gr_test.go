@@ -427,3 +427,36 @@ func TestRunCLIDecode(t *testing.T) {
 		})
 	}
 }
+
+// TestExtractGRCapabilities_GroupPeerOverride verifies per-peer GR config
+// overrides group-level GR config.
+//
+// VALIDATES: When a group has graceful-restart with restart-time 120 and a peer
+// sets restart-time 300, the per-peer value wins for that peer.
+// PREVENTS: Group-level GR capability suppressing per-peer overrides.
+func TestExtractGRCapabilities_GroupPeerOverride(t *testing.T) {
+	jsonStr := `{"bgp":{"group":{"transit":{
+		"capability":{"graceful-restart":{"restart-time":"120"}},
+		"peer":{
+			"10.0.0.1":{"capability":{"graceful-restart":{"restart-time":"300"}}},
+			"10.0.0.2":{"peer-as":65002}
+		}
+	}}}}`
+
+	caps := extractGRCapabilities(jsonStr)
+	require.Len(t, caps, 2, "both peers should get GR capabilities")
+
+	capByPeer := make(map[string]string)
+	for _, cap := range caps {
+		require.Len(t, cap.Peers, 1)
+		capByPeer[cap.Peers[0]] = cap.Payload
+	}
+
+	// 10.0.0.1 should use its own restart-time (300 = 0x012c).
+	assert.Equal(t, "012c", capByPeer["10.0.0.1"],
+		"per-peer restart-time 300 should override group 120")
+
+	// 10.0.0.2 should inherit group restart-time (120 = 0x0078).
+	assert.Equal(t, "0078", capByPeer["10.0.0.2"],
+		"peer without GR config should inherit group restart-time 120")
+}

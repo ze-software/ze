@@ -1,4 +1,4 @@
-# Valid config: process with template inheritance
+# Valid config: process with group
 stdin=config:terminator=EOF_CONF
 plugin {
 	external my-process {
@@ -6,21 +6,20 @@ plugin {
 		encoder json
 	}
 }
-template {
-	group test {
+bgp {
+	group default {
 		process my-process {
 			receive [ state ]
 		}
-	}
-}
-bgp {
-	peer 10.0.0.3 {
-		description "will pass received routes to the program"
-		router-id 10.0.0.2
-		local-address 10.0.0.2
-		local-as 65533
-		peer-as 65533
-		hold-time 180
+
+		peer 10.0.0.3 {
+			description "will pass received routes to the program"
+			router-id 10.0.0.2
+			local-address 10.0.0.2
+			local-as 65533
+			peer-as 65533
+			hold-time 180
+		}
 	}
 }
 EOF_CONF

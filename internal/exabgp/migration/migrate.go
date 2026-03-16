@@ -9,6 +9,7 @@ package migration
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -177,12 +178,23 @@ func migrateProcesses(tree *config.Tree, result *MigrateResult) map[string]strin
 	return make(map[string]string)
 }
 
-// migrateNeighbors converts ExaBGP neighbors to ZeBGP peers.
+// migrateNeighbors converts ExaBGP neighbors to ZeBGP peers inside groups.
+// Peers are grouped by their ExaBGP template name. Peers without a template
+// go into a "default" group.
 func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[string]string, needsRIB bool, templates map[string]*config.Tree) error {
+	// Track which group each peer belongs to.
+	groups := make(map[string]*config.Tree) // group name -> group tree
+
 	// Use ordered iteration for deterministic output.
 	for _, entry := range tree.GetListOrdered("neighbor") {
 		addr := entry.Key
 		neighborTree := entry.Value
+
+		// Determine which group this peer belongs to.
+		groupName := "default"
+		if inheritName, hasInherit := neighborTree.Get("inherit"); hasInherit {
+			groupName = inheritName
+		}
 
 		// Check for template inheritance and expand if found.
 		expandedTree := expandInheritance(neighborTree, templates)
@@ -198,11 +210,30 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[s
 			bindRIBProcess(peer, expandedTree)
 		}
 
-		// Migrate process bindings (old: process { processes [...] } → new: process NAME { ... }).
+		// Migrate process bindings (old: process { processes [...] } -> new: process NAME { ... }).
 		migrateProcessBindings(expandedTree, peer, processMap)
 
-		result.Tree.AddListEntry("peer", addr, peer)
+		// Get or create group tree.
+		groupTree, ok := groups[groupName]
+		if !ok {
+			groupTree = config.NewTree()
+			groups[groupName] = groupTree
+		}
+
+		// Add peer to group.
+		groupTree.AddListEntry("peer", addr, peer)
 	}
+
+	// Add all groups to result tree (sorted for deterministic output).
+	sortedGroupNames := make([]string, 0, len(groups))
+	for name := range groups {
+		sortedGroupNames = append(sortedGroupNames, name)
+	}
+	sort.Strings(sortedGroupNames)
+	for _, name := range sortedGroupNames {
+		result.Tree.AddListEntry("group", name, groups[name])
+	}
+
 	return nil
 }
 

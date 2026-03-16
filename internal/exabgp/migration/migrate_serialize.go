@@ -70,7 +70,44 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		buf.WriteString("}\n")
 	}
 
-	// Write peer blocks - wrap in bgp {} at root level.
+	// Write group blocks - wrap in bgp {} at root level.
+	// Groups contain nested peer blocks.
+	groupList := tree.GetListOrdered("group")
+	if len(groupList) > 0 {
+		if isRoot {
+			buf.WriteString(indent)
+			buf.WriteString("bgp {\n")
+			indent += "\t"
+		}
+		for _, groupEntry := range groupList {
+			buf.WriteString(indent)
+			buf.WriteString("group ")
+			buf.WriteString(groupEntry.Key)
+			buf.WriteString(" {\n")
+			groupIndent := indent + "\t"
+			// Write group-level values first.
+			serializeGroupValues(groupEntry.Value, buf, groupIndent)
+			// Write nested peer blocks.
+			for _, peerEntry := range groupEntry.Value.GetListOrdered("peer") {
+				buf.WriteString(groupIndent)
+				buf.WriteString("peer ")
+				buf.WriteString(peerEntry.Key)
+				buf.WriteString(" {\n")
+				serializeTreeIndent(peerEntry.Value, buf, groupIndent+"\t", false)
+				buf.WriteString(groupIndent)
+				buf.WriteString("}\n")
+			}
+			buf.WriteString(indent)
+			buf.WriteString("}\n")
+		}
+		if isRoot {
+			indent = indent[:len(indent)-1]
+			buf.WriteString(indent)
+			buf.WriteString("}\n")
+		}
+	}
+
+	// Write peer blocks (legacy -- should not appear after migration).
 	peerList := tree.GetListOrdered("peer")
 	if len(peerList) > 0 {
 		if isRoot {
@@ -203,4 +240,25 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 	}
 
 	// Templates are expanded via inherit, not serialized.
+}
+
+// serializeGroupValues writes the group-level fields (everything except nested peer list).
+// This avoids recursing into serializeTreeIndent which would also write peer blocks.
+func serializeGroupValues(tree *config.Tree, buf *strings.Builder, indent string) {
+	// Write simple values (sorted for deterministic output).
+	keys := tree.Values()
+	sort.Strings(keys)
+	for _, key := range keys {
+		v, ok := tree.Get(key)
+		if !ok {
+			continue
+		}
+		buf.WriteString(indent)
+		buf.WriteString(key)
+		if v != "" {
+			buf.WriteString(" ")
+			buf.WriteString(v)
+		}
+		buf.WriteString("\n")
+	}
 }

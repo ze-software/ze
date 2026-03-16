@@ -391,3 +391,111 @@ func TestParseConfigAllAttributes(t *testing.T) {
 		t.Errorf("AnnounceCmd:\n  got  %q\n  want %q", route.AnnounceCmd, want)
 	}
 }
+
+// TestParseConfigGroupAndPeerBothHaveWatchdog verifies both group-level and peer-level
+// watchdog routes are collected when both levels have update blocks.
+//
+// VALIDATES: Group watchdog routes and peer watchdog routes are both present.
+// PREVENTS: Peer update block shadowing group watchdog when both levels set.
+func TestParseConfigGroupAndPeerBothHaveWatchdog(t *testing.T) {
+	// Group has watchdog route 10.0.0.0/24 in pool "health".
+	// Peer has its own watchdog route 20.0.0.0/24 in pool "dns".
+	// Both should be collected.
+	jsonData := `{
+		"bgp": {
+			"group": {
+				"test-group": {
+					"update": {
+						"default": {
+							"attribute": {"origin": "igp", "next-hop": "1.1.1.1"},
+							"nlri": {"ipv4/unicast": {"content": "add 10.0.0.0/24"}},
+							"watchdog": {"name": "health"}
+						}
+					},
+					"peer": {
+						"10.0.0.1": {
+							"update": {
+								"default": {
+									"attribute": {"origin": "igp", "next-hop": "2.2.2.2"},
+									"nlri": {"ipv4/unicast": {"content": "add 20.0.0.0/24"}},
+									"watchdog": {"name": "dns"}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}`
+
+	peerPools, err := parseConfig(jsonData)
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+
+	pools, ok := peerPools["10.0.0.1"]
+	if !ok {
+		t.Fatal("no pools for 10.0.0.1")
+	}
+
+	// Both pools should be present.
+	healthPool := pools.GetPool("health")
+	if healthPool == nil {
+		t.Fatal("missing 'health' pool from group-level watchdog")
+	}
+	if len(healthPool.Routes()) != 1 {
+		t.Fatalf("health pool: want 1 route, got %d", len(healthPool.Routes()))
+	}
+
+	dnsPool := pools.GetPool("dns")
+	if dnsPool == nil {
+		t.Fatal("missing 'dns' pool from peer-level watchdog")
+	}
+	if len(dnsPool.Routes()) != 1 {
+		t.Fatalf("dns pool: want 1 route, got %d", len(dnsPool.Routes()))
+	}
+}
+
+// TestParseConfigGroupWatchdogPeerNoUpdate verifies group watchdog is inherited
+// when the peer has no update block at all.
+//
+// VALIDATES: Group watchdog routes apply to peers without their own updates.
+// PREVENTS: Group-level watchdog silently ignored for peers without update blocks.
+func TestParseConfigGroupWatchdogPeerNoUpdate(t *testing.T) {
+	jsonData := `{
+		"bgp": {
+			"group": {
+				"test-group": {
+					"update": {
+						"default": {
+							"attribute": {"origin": "igp", "next-hop": "1.1.1.1"},
+							"nlri": {"ipv4/unicast": {"content": "add 10.0.0.0/24"}},
+							"watchdog": {"name": "health"}
+						}
+					},
+					"peer": {
+						"10.0.0.1": {}
+					}
+				}
+			}
+		}
+	}`
+
+	peerPools, err := parseConfig(jsonData)
+	if err != nil {
+		t.Fatalf("parseConfig: %v", err)
+	}
+
+	pools, ok := peerPools["10.0.0.1"]
+	if !ok {
+		t.Fatal("no pools for 10.0.0.1 -- group watchdog not inherited")
+	}
+
+	healthPool := pools.GetPool("health")
+	if healthPool == nil {
+		t.Fatal("missing 'health' pool from group-level watchdog")
+	}
+	if len(healthPool.Routes()) != 1 {
+		t.Fatalf("health pool: want 1 route, got %d", len(healthPool.Routes()))
+	}
+}

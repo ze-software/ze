@@ -223,6 +223,12 @@ type MUPRoute struct {
 
 // PeerSettings contains configuration for a BGP peer.
 type PeerSettings struct {
+	// Name is an optional human-readable peer name for CLI selector.
+	Name string
+
+	// GroupName is the peer-group this peer belongs to.
+	GroupName string
+
 	// Address is the peer's IP address.
 	Address netip.Addr
 

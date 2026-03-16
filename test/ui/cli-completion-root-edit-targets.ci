@@ -11,4 +11,3 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze config completion --input edit+ test.conf
 expect=exit:code=0
 expect=stdout:contains=bgp
-expect=stdout:contains=template

@@ -952,7 +952,7 @@ func (p *Peer) runOnce() error {
 		}()
 		var batchBuf []deliveryItem
 		for first := range p.deliverChan {
-			batchBuf = drainDeliveryBatch(batchBuf, first, p.deliverChan)
+			batchBuf = drainDeliveryBatch(batchBuf, &first, p.deliverChan)
 			batch := batchBuf
 
 			p.mu.RLock()

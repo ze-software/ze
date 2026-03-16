@@ -263,3 +263,28 @@ func TestDecodableCapabilities(t *testing.T) {
 		t.Errorf("expected [77], got %v", caps)
 	}
 }
+
+// TestExtractLLNHCapabilities_GroupPeerOverride verifies per-peer disable
+// overrides group-level enable.
+//
+// VALIDATES: When a group enables link-local-nexthop and a peer disables it,
+// the per-peer setting wins for that peer.
+// PREVENTS: Group-level capability suppressing per-peer overrides.
+func TestExtractLLNHCapabilities_GroupPeerOverride(t *testing.T) {
+	jsonStr := `{"bgp":{"group":{"transit":{
+		"capability":{"link-local-nexthop":"enable"},
+		"peer":{
+			"10.0.0.1":{"capability":{"link-local-nexthop":"disable"}},
+			"10.0.0.2":{"peer-as":65002}
+		}
+	}}}}`
+
+	caps := extractLLNHCapabilities(jsonStr)
+	// 10.0.0.1 explicitly disables, so only 10.0.0.2 should get the capability.
+	if len(caps) != 1 {
+		t.Fatalf("expected 1 capability, got %d", len(caps))
+	}
+	if len(caps[0].Peers) != 1 || caps[0].Peers[0] != "10.0.0.2" {
+		t.Errorf("expected peer 10.0.0.2, got %v", caps[0].Peers)
+	}
+}

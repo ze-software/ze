@@ -4,7 +4,6 @@ package cli
 
 import (
 	"fmt"
-	"maps"
 	"strconv"
 	"strings"
 
@@ -16,6 +15,13 @@ import (
 const (
 	severityError   = "error"
 	severityWarning = "warning"
+)
+
+// Config key constants used in validation.
+const (
+	keyPeer  = "peer"
+	keyGroup = "group"
+	keyName  = "name"
 )
 
 // ConfigValidationError represents a single validation error or warning.
@@ -152,7 +158,7 @@ func (v *ConfigValidator) parseError(err error) ConfigValidationError {
 
 // ValidateWithYANG validates the parsed tree using YANG constraints.
 // Uses recursive ValidateTree for systematic validation of all leaves.
-// Template inheritance is resolved before validation - inherited values are merged with peer values.
+// Group peers inherit group-level fields merged with peer-level fields.
 // Returns (errors, warnings). Mandatory-missing fields are warnings, value errors are errors.
 func (v *ConfigValidator) ValidateWithYANG(tree *config.Tree) ([]ConfigValidationError, []ConfigValidationError) {
 	return v.validateWithYANG(tree, "")
@@ -174,50 +180,26 @@ func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) ([
 	lines := strings.Split(content, "\n")
 	var errs, warns []ConfigValidationError
 
-	// Extract templates for inheritance resolution
-	templates := v.extractTemplates(tree)
-
-	// Resolve peer inheritance before validation
-	peers := bgp.GetList("peer")
+	// Validate standalone peers (directly under bgp)
+	peers := bgp.GetList(keyPeer)
 	for peerAddr, peerTree := range peers {
-		resolved, inheritErr := v.resolveInheritance(peerTree, templates)
-		if inheritErr != nil {
-			errs = append(errs, ConfigValidationError{
-				Line:     findPeerLine(lines, peerAddr),
-				Message:  fmt.Sprintf("peer %s: %s", peerAddr, inheritErr.Error()),
-				Severity: severityError,
-			})
-			continue
-		}
+		v.validatePeer(peerAddr, peerTree, nil, lines, &errs, &warns)
+	}
 
-		// Validate resolved peer data using recursive YANG tree walk.
-		// ToMap() produces string leaf values; ValidateTree converts them via YANG types.
-		// Mandatory-missing → warning (don't block editing). Value errors → error.
-		peerMap := resolved.ToMap()
-		yangErrs := v.yangValidator.ValidateTree("bgp.peer", peerMap)
-		for i := range yangErrs {
-			field := yangLeafName(yangErrs[i].Path)
-			severity := severityError
-			if yangErrs[i].Type == yang.ErrTypeMissing {
-				severity = severityWarning
-			}
-			ve := ConfigValidationError{
-				Line:     findErrorLine(lines, peerAddr, field, yangErrs[i].Type),
-				Message:  formatPeerError(peerAddr, field, yangErrs[i]),
-				Severity: severity,
-			}
-			if severity == severityWarning {
-				warns = append(warns, ve)
-			} else {
-				errs = append(errs, ve)
-			}
+	// Validate group peers (bgp > group > peer) — merge group defaults with peer values
+	groups := bgp.GetList(keyGroup)
+	for _, groupTree := range groups {
+		groupPeers := groupTree.GetList(keyPeer)
+		for peerAddr, peerTree := range groupPeers {
+			v.validatePeer(peerAddr, peerTree, groupTree, lines, &errs, &warns)
 		}
 	}
 
 	// Validate BGP-level fields — YANG schema defines which are mandatory.
 	bgpMap := bgp.ToMap()
-	// Remove peer sub-map to avoid re-validating (already done above with templates).
-	delete(bgpMap, "peer")
+	// Remove peer and group sub-maps to avoid re-validating (already done above).
+	delete(bgpMap, keyPeer)
+	delete(bgpMap, keyGroup)
 	yangErrs := v.yangValidator.ValidateTree("bgp", bgpMap)
 	for i := range yangErrs {
 		field := yangLeafName(yangErrs[i].Path)
@@ -244,6 +226,125 @@ func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) ([
 	}
 
 	return errs, warns
+}
+
+// validatePeer validates a single peer, optionally merging group defaults.
+// When groupTree is non-nil, group-level fields are applied first, then peer-level fields override.
+func (v *ConfigValidator) validatePeer(peerAddr string, peerTree, groupTree *config.Tree, lines []string, errs, warns *[]ConfigValidationError) {
+	resolved := peerTree
+	if groupTree != nil {
+		resolved = v.mergeGroupDefaults(peerTree, groupTree)
+	}
+
+	// Validate resolved peer data using recursive YANG tree walk.
+	// ToMap() produces string leaf values; ValidateTree converts them via YANG types.
+	// Mandatory-missing -> warning (don't block editing). Value errors -> error.
+	peerMap := resolved.ToMap()
+	yangErrs := v.yangValidator.ValidateTree("bgp.peer", peerMap)
+	for i := range yangErrs {
+		field := yangLeafName(yangErrs[i].Path)
+		severity := severityError
+		if yangErrs[i].Type == yang.ErrTypeMissing {
+			severity = severityWarning
+		}
+		ve := ConfigValidationError{
+			Line:     findErrorLine(lines, peerAddr, field, yangErrs[i].Type),
+			Message:  formatPeerError(peerAddr, field, yangErrs[i]),
+			Severity: severity,
+		}
+		if severity == severityWarning {
+			*warns = append(*warns, ve)
+		} else {
+			*errs = append(*errs, ve)
+		}
+	}
+
+	// Custom check: peer-as is required for peers (not mandatory in YANG because
+	// groups can set it at group level, but every peer must have it resolved).
+	if _, hasPeerAS := resolved.Get("peer-as"); !hasPeerAS {
+		*warns = append(*warns, ConfigValidationError{
+			Line:     findPeerLine(lines, peerAddr),
+			Message:  fmt.Sprintf("peer %s: missing required field \"peer-as\"", peerAddr),
+			Severity: severityWarning,
+		})
+	}
+}
+
+// mergeGroupDefaults creates a merged tree with group defaults applied first,
+// then peer values overriding. Merges both leaf values and containers (deep merge).
+// Skips "peer" and "name" sub-entries which are group structural elements.
+func (v *ConfigValidator) mergeGroupDefaults(peerTree, groupTree *config.Tree) *config.Tree {
+	merged := config.NewTree()
+
+	// Copy group-level leaf values first (skip "peer" and "name" sub-entries).
+	for _, key := range groupTree.Values() {
+		if key == keyPeer || key == keyName {
+			continue
+		}
+		if val, ok := groupTree.Get(key); ok {
+			merged.Set(key, val)
+		}
+	}
+
+	// Copy group-level containers (e.g., capability, family, rib).
+	for _, name := range groupTree.ContainerNames() {
+		if name == keyPeer {
+			continue
+		}
+		if c := groupTree.GetContainer(name); c != nil {
+			merged.SetContainer(name, c)
+		}
+	}
+
+	// Overlay peer leaf values (these take precedence).
+	for _, key := range peerTree.Values() {
+		if val, ok := peerTree.Get(key); ok {
+			merged.Set(key, val)
+		}
+	}
+
+	// Overlay peer containers: deep merge when both group and peer have the
+	// same container (e.g., group sets capability.GR, peer sets capability.hostname).
+	// If only the peer has the container, it replaces any group container.
+	for _, name := range peerTree.ContainerNames() {
+		peerContainer := peerTree.GetContainer(name)
+		if peerContainer == nil {
+			continue
+		}
+		groupContainer := merged.GetContainer(name)
+		if groupContainer == nil {
+			// No group container to merge with -- just set the peer's.
+			merged.SetContainer(name, peerContainer)
+			continue
+		}
+		// Both exist -- deep merge: start with group, overlay peer values.
+		mergedContainer := config.NewTree()
+		// Copy group container values.
+		for _, key := range groupContainer.Values() {
+			if val, ok := groupContainer.Get(key); ok {
+				mergedContainer.Set(key, val)
+			}
+		}
+		for _, cname := range groupContainer.ContainerNames() {
+			if c := groupContainer.GetContainer(cname); c != nil {
+				mergedContainer.SetContainer(cname, c)
+			}
+		}
+		// Overlay peer container values.
+		for _, key := range peerContainer.Values() {
+			if val, ok := peerContainer.Get(key); ok {
+				mergedContainer.Set(key, val)
+			}
+		}
+		for _, cname := range peerContainer.ContainerNames() {
+			if c := peerContainer.GetContainer(cname); c != nil {
+				mergedContainer.SetContainer(cname, c)
+			}
+		}
+		merged.SetContainer(name, mergedContainer)
+	}
+
+	return merged
 }
 
 // yangLeafName extracts the leaf name from a YANG path (last dot-separated segment).
@@ -340,66 +441,6 @@ func findFieldLine(lines []string, block, field string) int {
 		}
 	}
 	return 0
-}
-
-// extractTemplates extracts named templates from the config tree.
-// Supports both new syntax (template.bgp.peer with inherit-name) and legacy (template.group).
-func (v *ConfigValidator) extractTemplates(tree *config.Tree) map[string]*config.Tree {
-	templates := make(map[string]*config.Tree)
-
-	tmpl := tree.GetContainer("template")
-	if tmpl == nil {
-		return templates
-	}
-
-	// New syntax: template { bgp { peer <pattern> { inherit-name <name>; ... } } }
-	if bgpTmpl := tmpl.GetContainer("bgp"); bgpTmpl != nil {
-		for _, peerTree := range bgpTmpl.GetList("peer") {
-			if inheritName, hasName := peerTree.Get("inherit-name"); hasName {
-				templates[inheritName] = peerTree
-			}
-		}
-	}
-
-	// Legacy syntax: template { group <name> { ... } }
-	maps.Copy(templates, tmpl.GetList("group"))
-
-	return templates
-}
-
-// resolveInheritance merges template values with peer values.
-// Template values are applied first, peer values override.
-// Returns resolved tree and error if template not found.
-func (v *ConfigValidator) resolveInheritance(peerTree *config.Tree, templates map[string]*config.Tree) (*config.Tree, error) {
-	// Check if peer uses inheritance
-	inheritName, hasInherit := peerTree.Get("inherit")
-	if !hasInherit {
-		return peerTree, nil // No inheritance, return as-is
-	}
-
-	tmpl, found := templates[inheritName]
-	if !found {
-		return peerTree, fmt.Errorf("template %q not found", inheritName)
-	}
-
-	// Create merged tree: start with template, overlay peer values
-	merged := config.NewTree()
-
-	// Copy template values first (Values() returns keys, use Get to retrieve values)
-	for _, key := range tmpl.Values() {
-		if val, ok := tmpl.Get(key); ok {
-			merged.Set(key, val)
-		}
-	}
-
-	// Overlay peer values (these take precedence)
-	for _, key := range peerTree.Values() {
-		if val, ok := peerTree.Get(key); ok {
-			merged.Set(key, val)
-		}
-	}
-
-	return merged, nil
 }
 
 // ValidateSemantic validates semantic constraints on parsed tree.

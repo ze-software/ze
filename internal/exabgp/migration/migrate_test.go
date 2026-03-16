@@ -12,6 +12,19 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
+// findPeerInGroups finds a peer by address in any group of the result tree.
+// Returns the peer tree or nil if not found.
+func findPeerInGroups(t *testing.T, tree *config.Tree, addr string) *config.Tree {
+	t.Helper()
+	for _, groupEntry := range tree.GetListOrdered("group") {
+		peers := groupEntry.Value.GetList("peer")
+		if peerTree, ok := peers[addr]; ok {
+			return peerTree
+		}
+	}
+	return nil
+}
+
 // TestMigrateExtendedMessageDefault verifies extended-message is always added.
 //
 // VALIDATES: Migration always adds extended-message enable to capability block.
@@ -187,10 +200,9 @@ neighbor 10.0.0.1 {
 	result, err := MigrateFromExaBGP(tree)
 	require.NoError(t, err, "migrate")
 
-	// Check peer exists
-	peers := result.Tree.GetList("peer")
-	_, ok := peers["10.0.0.1"]
-	assert.True(t, ok, "expected peer 10.0.0.1")
+	// Check peer exists inside a group
+	peerTree := findPeerInGroups(t, result.Tree, "10.0.0.1")
+	assert.NotNil(t, peerTree, "expected peer 10.0.0.1 in a group")
 
 	// Check neighbor removed
 	neighbors := result.Tree.GetList("neighbor")
@@ -223,10 +235,9 @@ neighbor 10.0.0.1 {
 	_, ok := plugins["rib"]
 	assert.True(t, ok, "expected plugin rib to be injected for GR")
 
-	// Check peer has RIB process binding
-	peers := result.Tree.GetList("peer")
-	peerTree, ok := peers["10.0.0.1"]
-	require.True(t, ok, "expected peer 10.0.0.1")
+	// Check peer has RIB process binding (peer is inside a group)
+	peerTree := findPeerInGroups(t, result.Tree, "10.0.0.1")
+	require.NotNil(t, peerTree, "expected peer 10.0.0.1 in a group")
 
 	processes := peerTree.GetList("process")
 	_, ok = processes["rib"]
@@ -289,9 +300,9 @@ neighbor 10.0.0.1 {
 	_, ok := plugins["rib"]
 	assert.True(t, ok, "expected plugin rib to be injected for route-refresh")
 
-	// Check process binding includes refresh
-	peers := result.Tree.GetList("peer")
-	peerTree := peers["10.0.0.1"]
+	// Check process binding includes refresh (peer is inside a group)
+	peerTree := findPeerInGroups(t, result.Tree, "10.0.0.1")
+	require.NotNil(t, peerTree, "expected peer 10.0.0.1 in a group")
 	processes := peerTree.GetList("process")
 	ribProcess := processes["rib"]
 	require.NotNil(t, ribProcess, "expected process rib binding")

@@ -15,6 +15,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache"             // init() registers cache command RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/commit"            // init() registers commit command RPCs
@@ -409,5 +410,74 @@ func buildRuntimeTree(client *cliClient) *Command {
 		})
 	}
 
-	return cmd.BuildTree(filtered, false)
+	tree := cmd.BuildTree(filtered, false)
+
+	// Attach dynamic peer selector completion to the "peer" node.
+	// This allows "peer <TAB>" to suggest peer names and IPs.
+	if tree.Children != nil {
+		if peerNode, ok := tree.Children["peer"]; ok {
+			peerNode.DynamicChildren = func() []cmd.Suggestion {
+				return fetchPeerSelectors(client)
+			}
+		}
+	}
+
+	return tree
+}
+
+// peerSelectorCache holds cached peer selector suggestions with a TTL.
+type peerSelectorCache struct {
+	suggestions []cmd.Suggestion
+	fetchedAt   time.Time
+}
+
+// peerSelectorCacheTTL is how long peer selector suggestions are cached.
+// Avoids querying the daemon on every tab press.
+const peerSelectorCacheTTL = 3 * time.Second
+
+var peerCache peerSelectorCache
+
+// fetchPeerSelectors queries the daemon for peer names and IPs.
+// Results are cached for peerSelectorCacheTTL to avoid per-keystroke queries.
+func fetchPeerSelectors(client *cliClient) []cmd.Suggestion {
+	if time.Since(peerCache.fetchedAt) < peerSelectorCacheTTL {
+		return peerCache.suggestions
+	}
+
+	resp, err := client.SendCommand("bgp peer * list")
+	if err != nil || resp.Error != "" {
+		return nil
+	}
+
+	var data struct {
+		Peers map[string]struct {
+			Name string `json:"name"`
+		} `json:"peers"`
+	}
+	if json.Unmarshal(resp.Result, &data) != nil {
+		return nil
+	}
+
+	var suggestions []cmd.Suggestion
+	for ip, info := range data.Peers {
+		suggestions = append(suggestions, cmd.Suggestion{
+			Text:        ip,
+			Description: "peer",
+			Type:        "selector",
+		})
+		if info.Name != "" {
+			suggestions = append(suggestions, cmd.Suggestion{
+				Text:        info.Name,
+				Description: "peer (" + ip + ")",
+				Type:        "selector",
+			})
+		}
+	}
+
+	peerCache = peerSelectorCache{
+		suggestions: suggestions,
+		fetchedAt:   time.Now(),
+	}
+
+	return suggestions
 }

@@ -1,5 +1,5 @@
-# Test: ze config completion — template level children
-# VALIDATES: Template container shows bgp, group, match sub-containers
+# Test: ze config completion -- bgp group level children
+# VALIDATES: BGP container shows group as a completable entry
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -8,8 +8,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context template --input edit+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context bgp --input edit+ test.conf
 expect=exit:code=0
-expect=stdout:contains=bgp
 expect=stdout:contains=group
-expect=stdout:contains=match

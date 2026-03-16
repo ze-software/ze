@@ -11,17 +11,19 @@ EOF_PEER
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
-	peer 127.0.0.1 {
-		router-id 1.2.3.4
-		local-address 127.0.0.1
-		local-as 65001
-		peer-as 65001
-		connection active
-		capability {
-			asn4 refuse
-		}
-		family {
-			ipv4/unicast
+	group default {
+		peer 127.0.0.1 {
+			router-id 1.2.3.4
+			local-address 127.0.0.1
+			local-as 65001
+			peer-as 65001
+			connection active
+			capability {
+				asn4 refuse
+			}
+			family {
+				ipv4/unicast
+			}
 		}
 	}
 }

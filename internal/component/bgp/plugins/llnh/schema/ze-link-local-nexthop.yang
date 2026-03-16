@@ -23,23 +23,18 @@ module ze-link-local-nexthop {
         }
     }
 
-    // Main bgp block
+    // Standalone peer capability
     augment "/bgp:bgp/bgp:peer/bgp:capability" {
         uses link-local-nexthop-config;
     }
 
-    // Template: bgp peer pattern
-    augment "/bgp:template/bgp:bgp/bgp:peer/bgp:capability" {
+    // Peer inside group capability
+    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:capability" {
         uses link-local-nexthop-config;
     }
 
-    // Template: legacy group
-    augment "/bgp:template/bgp:group/bgp:capability" {
-        uses link-local-nexthop-config;
-    }
-
-    // Template: legacy match
-    augment "/bgp:template/bgp:match/bgp:capability" {
+    // Group-level capability
+    augment "/bgp:bgp/bgp:group/bgp:capability" {
         uses link-local-nexthop-config;
     }
 }

@@ -25,6 +25,8 @@ const (
 type PeerInfo struct {
 	Address      netip.Addr
 	LocalAddress netip.Addr
+	Name         string // Human-readable peer name for CLI selector
+	GroupName    string // Peer-group this peer belongs to
 	LocalAS      uint32
 	PeerAS       uint32
 	RouterID     uint32

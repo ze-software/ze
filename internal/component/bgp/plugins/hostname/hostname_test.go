@@ -541,3 +541,44 @@ func hexNibble(b byte) (byte, error) {
 		return 0, assert.AnError
 	}
 }
+
+// TestExtractHostnameCapabilities_GroupPeerOverride verifies per-peer hostname
+// overrides group-level hostname.
+//
+// VALIDATES: When a group has hostname config and a peer also has its own,
+// the per-peer hostname wins for that peer.
+// PREVENTS: Group-level hostname suppressing per-peer overrides.
+func TestExtractHostnameCapabilities_GroupPeerOverride(t *testing.T) {
+	jsonStr := `{"bgp":{"group":{"transit":{
+		"capability":{"hostname":{"host":"group-host","domain":"group.com"}},
+		"peer":{
+			"10.0.0.1":{"capability":{"hostname":{"host":"peer1-host","domain":"peer1.com"}}},
+			"10.0.0.2":{"peer-as":65002}
+		}
+	}}}}`
+
+	caps := extractHostnameCapabilities(jsonStr)
+	require.Len(t, caps, 2, "both peers should get hostname capabilities")
+
+	capByPeer := make(map[string]sdk.CapabilityDecl)
+	for _, c := range caps {
+		require.Len(t, c.Peers, 1)
+		capByPeer[c.Peers[0]] = c
+	}
+
+	// 10.0.0.1 should use its own hostname, not the group's.
+	cap1 := capByPeer["10.0.0.1"]
+	data1, err := hexDecode(cap1.Payload)
+	require.NoError(t, err)
+	host1, domain1 := decodeFQDN(data1)
+	assert.Equal(t, "peer1-host", host1, "per-peer hostname should override group")
+	assert.Equal(t, "peer1.com", domain1, "per-peer domain should override group")
+
+	// 10.0.0.2 should inherit group hostname.
+	cap2 := capByPeer["10.0.0.2"]
+	data2, err := hexDecode(cap2.Payload)
+	require.NoError(t, err)
+	host2, domain2 := decodeFQDN(data2)
+	assert.Equal(t, "group-host", host2, "peer without hostname should inherit group")
+	assert.Equal(t, "group.com", domain2, "peer without domain should inherit group")
+}

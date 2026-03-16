@@ -5,8 +5,6 @@ package bgpconfig
 import (
 	"net/netip"
 	"strings"
-
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
 // ipToUint32 converts an IPv4 address to uint32.
@@ -171,11 +169,4 @@ func ipv4GlobMatch(pattern, ip string) bool {
 		}
 	}
 	return true
-}
-
-// PeerGlob holds a parsed peer glob pattern and its settings.
-type PeerGlob struct {
-	Pattern     string
-	Specificity int
-	Tree        *config.Tree
 }

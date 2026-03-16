@@ -32,7 +32,6 @@ expect=stdout:contains=adj-rib-out
 expect=stdout:contains=adj-rib-in
 expect=stdout:contains=manual-eor
 expect=stdout:contains=group-updates
-expect=stdout:contains=inherit
 # Containers/lists
 expect=stdout:contains=capability
 expect=stdout:contains=family
@@ -42,6 +41,5 @@ expect=stdout:contains=process
 expect=stdout:contains=rib
 # Plugin augments
 expect=stdout:contains=role
-expect=stdout:contains=role-strict
 expect=stdout:contains=host-name
 expect=stdout:contains=domain-name

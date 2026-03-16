@@ -1,5 +1,5 @@
-# Test: ze config completion — enum value hints (role plugin)
-# VALIDATES: Role plugin augment provides enum completions
+# Test: ze config completion -- role container children and enum values
+# VALIDATES: Role plugin augment provides container children and enum completions
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -12,7 +12,14 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/1.1.1.1 --input set+role+ test.conf
+# Role container should show name and strict children
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/1.1.1.1/role --input set+ test.conf
+expect=exit:code=0
+expect=stdout:contains=name
+expect=stdout:contains=strict
+
+# Role name should show enum values
+cmd=foreground:seq=2:exec=ze config completion --context bgp/peer/1.1.1.1/role --input set+name+ test.conf
 expect=exit:code=0
 expect=stdout:contains=provider
 expect=stdout:contains=customer

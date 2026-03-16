@@ -1,12 +1,12 @@
-// Design: docs/architecture/core-design.md — BGP role plugin
+// Design: docs/architecture/core-design.md -- BGP role plugin
 // RFC: rfc/short/rfc9234.md
 
 package role
 
 import (
-	"encoding/json"
 	"fmt"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -16,64 +16,90 @@ type peerRoleConfig struct {
 	strict bool   // require peer to send Role capability
 }
 
-// extractPeerRoleConfigs parses BGP config JSON and returns per-peer role configs.
-func extractPeerRoleConfigs(jsonStr string) map[string]*peerRoleConfig {
-	var bgpConfig map[string]any
-	if err := json.Unmarshal([]byte(jsonStr), &bgpConfig); err != nil {
-		logger().Warn("invalid JSON in bgp config", "err", err)
+// parseRoleContainer extracts a peerRoleConfig from a role container map.
+// The container has {"name": "<role-type>", "strict": true/false}.
+func parseRoleContainer(roleMap map[string]any) *peerRoleConfig {
+	roleName, ok := roleMap["name"].(string)
+	if !ok || roleName == "" {
 		return nil
 	}
-
-	// The config tree is wrapped: {"bgp": {"peer": {...}}}
-	bgpSubtree, ok := bgpConfig["bgp"].(map[string]any)
-	if !ok {
-		bgpSubtree = bgpConfig
+	if _, valid := roleValues[roleName]; !valid {
+		return nil
 	}
+	cfg := &peerRoleConfig{role: roleName}
+	cfg.strict = parseBool(roleMap["strict"])
+	return cfg
+}
 
-	peersMap, ok := bgpSubtree["peer"].(map[string]any)
+// parseBool handles both JSON boolean (true) and config tree string ("true").
+func parseBool(v any) bool {
+	if b, ok := v.(bool); ok {
+		return b
+	}
+	if s, ok := v.(string); ok {
+		return s == "true"
+	}
+	return false
+}
+
+// parseRoleFromMap extracts a peerRoleConfig from a peer or group config map.
+// Role is augmented directly on the peer/group node (not inside capability container).
+func parseRoleFromMap(m map[string]any) *peerRoleConfig {
+	if m == nil {
+		return nil
+	}
+	roleMap, ok := m["role"].(map[string]any)
 	if !ok {
-		logger().Debug("no peer config in bgp tree")
+		return nil
+	}
+	return parseRoleContainer(roleMap)
+}
+
+// extractPeerRoleConfigs parses BGP config JSON and returns per-peer role configs.
+// Handles both standalone peers (bgp.peer) and grouped peers (bgp.group.<name>.peer).
+// Role is a container with name (role-type enum) and strict (boolean) fields.
+func extractPeerRoleConfigs(jsonStr string) map[string]*peerRoleConfig {
+	bgpSubtree, ok := configjson.ParseBGPSubtree(jsonStr)
+	if !ok {
+		logger().Warn("invalid JSON in bgp config")
 		return nil
 	}
 
 	configs := make(map[string]*peerRoleConfig)
 
-	for peerAddr, peerData := range peersMap {
-		peerMap, ok := peerData.(map[string]any)
-		if !ok {
-			continue
+	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any) {
+		// Check per-peer role config first.
+		peerCfg := parseRoleFromMap(peerMap)
+
+		// Check group-level role config (fallback).
+		var groupCfg *peerRoleConfig
+		if groupMap != nil {
+			groupCfg = parseRoleFromMap(groupMap)
 		}
 
-		capMap, ok := peerMap["capability"].(map[string]any)
-		if !ok {
-			continue
+		// Per-peer wins over group.
+		useCfg := groupCfg
+		if peerCfg != nil {
+			useCfg = peerCfg
+		} else if peerCfg == nil && peerMap != nil {
+			// Peer has a config map but no role -- check if invalid role was present.
+			if roleMap, hasRole := peerMap["role"].(map[string]any); hasRole {
+				if parseRoleContainer(roleMap) == nil {
+					logger().Warn("invalid role config", "peer", peerAddr)
+				}
+			}
 		}
 
-		roleData, ok := capMap["role"].(map[string]any)
-		if !ok {
-			continue
+		if useCfg == nil {
+			return
 		}
 
-		roleName, ok := roleData["role"].(string)
-		if !ok || roleName == "" {
-			continue
-		}
+		configs[peerAddr] = useCfg
+		logger().Debug("role config", "peer", peerAddr, "role", useCfg.role, "strict", useCfg.strict)
+	})
 
-		// Validate role name
-		if _, valid := roleValues[roleName]; !valid {
-			logger().Warn("unknown role name", "peer", peerAddr, "role", roleName)
-			continue
-		}
-
-		cfg := &peerRoleConfig{role: roleName}
-
-		// Extract strict mode (default false)
-		if strict, ok := roleData["role-strict"].(bool); ok {
-			cfg.strict = strict
-		}
-
-		configs[peerAddr] = cfg
-		logger().Debug("role config", "peer", peerAddr, "role", roleName, "strict", cfg.strict)
+	if len(configs) == 0 {
+		return nil
 	}
 
 	return configs

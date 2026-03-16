@@ -1,108 +1,18 @@
-// Design: docs/architecture/config/syntax.md — BGP template resolution and inheritance
+// Design: docs/architecture/config/syntax.md — BGP peer-group resolution and inheritance
 
 package bgpconfig
 
 import (
 	"fmt"
-	"maps"
+	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
-// templateData holds parsed template information for inheritance resolution.
-type templateData struct {
-	named    map[string]*config.Tree // Named templates (inherit by name)
-	patterns map[string]string       // Template patterns (for validation)
-	globs    []PeerGlob              // Auto-matching glob patterns
-}
-
-// extractTemplateData extracts templates and glob patterns from the config tree.
-// Shared by ResolveBGPTree (map-level resolution) and PeersFromConfigTree (route extraction).
-func extractTemplateData(tree *config.Tree) templateData {
-	td := templateData{
-		named:    make(map[string]*config.Tree),
-		patterns: make(map[string]string),
-	}
-
-	tmpl := tree.GetContainer("template")
-	if tmpl == nil {
-		return td
-	}
-
-	// New syntax: template { bgp { peer <pattern> { inherit-name <name>; ... } } }
-	if bgpTmpl := tmpl.GetContainer("bgp"); bgpTmpl != nil {
-		for _, entry := range bgpTmpl.GetListOrdered("peer") {
-			pattern := entry.Key
-			peerTree := entry.Value
-
-			if inheritName, hasName := peerTree.Get("inherit-name"); hasName {
-				td.named[inheritName] = peerTree
-				td.patterns[inheritName] = pattern
-			} else {
-				td.globs = append(td.globs, PeerGlob{
-					Pattern: pattern,
-					Tree:    peerTree,
-				})
-			}
-		}
-	}
-
-	// Legacy syntax: template { group <name> { ... } }
-	maps.Copy(td.named, tmpl.GetList("group"))
-
-	// Legacy syntax: template { match <pattern> { ... } } — auto-apply.
-	for _, entry := range tmpl.GetListOrdered("match") {
-		td.globs = append(td.globs, PeerGlob{
-			Pattern: entry.Key,
-			Tree:    entry.Value,
-		})
-	}
-
-	return td
-}
-
-// resolveInheritedTrees returns template trees for a peer's inherit directives.
-// Used by PeersFromConfigTree to extract routes from all template layers.
-func resolveInheritedTrees(addr string, peerTree *config.Tree, td templateData) []*config.Tree {
-	var result []*config.Tree
-
-	// Check ordered list of inherit entries.
-	for _, entry := range peerTree.GetListOrdered("inherit") {
-		inheritName := entry.Key
-		t, exists := td.named[inheritName]
-		if !exists {
-			continue // Validation already done by ResolveBGPTree
-		}
-		if pattern, hasPattern := td.patterns[inheritName]; hasPattern {
-			if !IPGlobMatch(pattern, addr) {
-				continue
-			}
-		}
-		result = append(result, t)
-	}
-
-	// Also check single inherit value (backward compat).
-	if len(result) == 0 {
-		if inheritName, ok := peerTree.Get("inherit"); ok {
-			if t, exists := td.named[inheritName]; exists {
-				if pattern, hasPattern := td.patterns[inheritName]; hasPattern {
-					if IPGlobMatch(pattern, addr) {
-						result = append(result, t)
-					}
-				} else {
-					result = append(result, t)
-				}
-			}
-		}
-	}
-
-	return result
-}
-
-// ResolveBGPTree resolves template inheritance and returns the bgp block as map[string]any.
-// Template resolution applies 3 layers per peer (in precedence order):
-//  1. Auto-matching glob patterns (template.match or template.bgp.peer without inherit-name)
-//  2. Named templates via 'inherit' directive (template.group or template.bgp.peer with inherit-name)
+// ResolveBGPTree resolves peer-group inheritance and returns the bgp block as map[string]any.
+// Resolution applies 3 layers per peer (in precedence order):
+//  1. BGP-level globals (local-as, router-id from the bgp block)
+//  2. Group-level defaults (fields set on the group, shared by all member peers)
 //  3. The peer's own values (highest precedence)
 //
 // Each layer deep-merges into the previous, so containers like capability are merged
@@ -113,104 +23,204 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 		return nil, fmt.Errorf("missing required bgp { } block")
 	}
 
-	td := extractTemplateData(tree)
-
 	// Build result map with global bgp values.
 	result := bgp.ToMap()
 
-	// Remove raw peer list — we'll rebuild it with resolved peers.
+	// Remove raw group and peer lists -- we'll rebuild as a flat peer map.
+	delete(result, "group")
 	delete(result, "peer")
 
-	// Resolve each peer.
-	peerEntries := bgp.GetListOrdered("peer")
-	if len(peerEntries) == 0 {
-		return result, nil
+	peerMap := make(map[string]any)
+	peerNames := make(map[string]string) // name -> addr (for uniqueness check)
+
+	// Resolve grouped peers: bgp { group <name> { peer <ip> { } } }
+	for _, groupEntry := range bgp.GetListOrdered("group") {
+		groupName := groupEntry.Key
+		groupTree := groupEntry.Value
+
+		// Validate group name using the same rules as peer names.
+		if err := validateGroupName(groupName); err != nil {
+			return nil, err
+		}
+
+		// Extract group-level fields (everything except the nested peer list).
+		groupFields := groupTree.ToMap()
+		delete(groupFields, "peer") // Peer list is not a group-level field.
+
+		// Resolve each peer in this group.
+		for _, peerEntry := range groupTree.GetListOrdered("peer") {
+			addr := peerEntry.Key
+			peerTree := peerEntry.Value
+
+			resolved := make(map[string]any)
+
+			// Layer 2: Apply group defaults.
+			deepMergeMaps(resolved, groupFields)
+
+			// Layer 3: Apply peer's own values (highest precedence).
+			deepMergeMaps(resolved, peerTree.ToMap())
+
+			// Inject group name so PeersFromTree can populate PeerSettings.GroupName.
+			resolved["group-name"] = groupName
+
+			if err := validateAndTrackPeerName(resolved, groupName, addr, peerNames); err != nil {
+				return nil, err
+			}
+
+			if _, exists := peerMap[addr]; exists {
+				return nil, fmt.Errorf("bgp.group %s: duplicate peer IP %s (already defined in another group or as standalone)", groupName, addr)
+			}
+			peerMap[addr] = resolved
+		}
 	}
 
-	peerMap := make(map[string]any, len(peerEntries))
-	for _, entry := range peerEntries {
-		addr := entry.Key
-		peerTree := entry.Value
+	// Resolve standalone peers: bgp { peer <ip> { } }
+	for _, peerEntry := range bgp.GetListOrdered("peer") {
+		addr := peerEntry.Key
+		peerTree := peerEntry.Value
 
-		resolved := make(map[string]any)
+		resolved := peerTree.ToMap()
 
-		// Layer 1: Apply matching globs.
-		for _, glob := range td.globs {
-			if IPGlobMatch(glob.Pattern, addr) {
-				deepMergeMaps(resolved, glob.Tree.ToMap())
-			}
+		if err := validateAndTrackPeerName(resolved, "", addr, peerNames); err != nil {
+			return nil, err
 		}
 
-		// Layer 2: Apply inherited templates.
-		if err := resolveInheritedTemplates(addr, peerTree, td.named, td.patterns, resolved); err != nil {
-			return nil, fmt.Errorf("bgp.peer %s: %w", addr, err)
+		if _, exists := peerMap[addr]; exists {
+			return nil, fmt.Errorf("bgp.peer %s: duplicate peer IP (already defined in a group or as standalone)", addr)
 		}
-
-		// Layer 3: Apply peer's own values (highest precedence).
-		deepMergeMaps(resolved, peerTree.ToMap())
-
-		// Remove config directives that aren't peer values.
-		delete(resolved, "inherit")
-		delete(resolved, "inherit-name")
-
 		peerMap[addr] = resolved
 	}
 
-	result["peer"] = peerMap
+	if len(peerMap) > 0 {
+		result["peer"] = peerMap
+	}
+
 	return result, nil
 }
 
-// resolveInheritedTemplates handles the 'inherit' directive for a peer.
-// Supports both list-ordered inherit (multiple templates) and single value.
-func resolveInheritedTemplates(addr string, peerTree *config.Tree, templates map[string]*config.Tree, templatePatterns map[string]string, resolved map[string]any) error {
-	var inheritedTemplates []*config.Tree
+// validateAndTrackPeerName validates and registers a peer name for uniqueness.
+// groupName may be empty for standalone peers.
+func validateAndTrackPeerName(resolved map[string]any, groupName, addr string, peerNames map[string]string) error {
+	name, ok := resolved["name"].(string)
+	if !ok || name == "" {
+		return nil
+	}
+	if err := validatePeerName(name); err != nil {
+		if groupName != "" {
+			return fmt.Errorf("bgp.group %s peer %s: %w", groupName, addr, err)
+		}
+		return fmt.Errorf("bgp.peer %s: %w", addr, err)
+	}
+	if existingAddr, exists := peerNames[name]; exists {
+		if groupName != "" {
+			return fmt.Errorf("bgp.group %s peer %s: duplicate peer name %q (already used by %s)", groupName, addr, name, existingAddr)
+		}
+		return fmt.Errorf("bgp.peer %s: duplicate peer name %q (already used by %s)", addr, name, existingAddr)
+	}
+	peerNames[name] = addr
+	return nil
+}
 
-	// Check ordered list of inherit entries.
-	for _, entry := range peerTree.GetListOrdered("inherit") {
-		inheritName := entry.Key
-		t, exists := templates[inheritName]
-		if !exists {
-			return fmt.Errorf("inherit %q: template not found", inheritName)
-		}
-		if err := validateTemplatePattern(inheritName, addr, templatePatterns); err != nil {
-			return err
-		}
-		inheritedTemplates = append(inheritedTemplates, t)
+// isASCIILetterOrDigit returns true if the character is an ASCII letter or digit.
+func isASCIILetterOrDigit(ch rune) bool {
+	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')
+}
+
+// isValidPeerNameChar returns true if the character is allowed in a peer name.
+// Allowed: ASCII letters, ASCII digits, hyphens, underscores.
+// Non-ASCII letters (unicode.IsLetter accepts CJK, accents, etc.) are rejected
+// to avoid display issues and CLI ambiguity.
+func isValidPeerNameChar(ch rune) bool {
+	return isASCIILetterOrDigit(ch) || ch == '-' || ch == '_'
+}
+
+// maxPeerNameLen is the maximum length for peer names.
+// Limits JSON response size and prevents DoS via long names.
+const maxPeerNameLen = 255
+
+// reservedPeerNames contains names that collide with "bgp peer <subcommand>"
+// keywords. A peer named "list" would cause dispatch ambiguity: the dispatcher
+// cannot tell if "bgp peer list detail" means "show detail for peer named list"
+// or a syntax error. Reject these at config validation time.
+var reservedPeerNames = map[string]bool{
+	"list": true, "detail": true, "add": true, "remove": true,
+	"pause": true, "resume": true, "save": true, "teardown": true,
+	"capabilities": true, "statistics": true, "update": true,
+	"raw": true, "refresh": true, "borr": true, "eorr": true,
+	"clear": true, "plugin": true,
+}
+
+// validatePeerName checks that a peer name is valid for use as a CLI selector.
+// Names must be ASCII alphanumeric with hyphens and underscores only.
+// Names must not parse as IP addresses or look like glob patterns.
+// Names must start with a letter or digit (not punctuation-only).
+// Names must not collide with "bgp peer" subcommand keywords.
+func validatePeerName(name string) error {
+	if name == "*" {
+		return fmt.Errorf("invalid peer name %q: reserved wildcard", name)
 	}
 
-	// Also check single inherit value (backward compat with old config syntax).
-	if len(inheritedTemplates) == 0 {
-		if inheritName, ok := peerTree.Get("inherit"); ok {
-			t, exists := templates[inheritName]
-			if !exists {
-				return fmt.Errorf("inherit %q: template not found", inheritName)
-			}
-			if err := validateTemplatePattern(inheritName, addr, templatePatterns); err != nil {
-				return err
-			}
-			inheritedTemplates = append(inheritedTemplates, t)
+	if len(name) > maxPeerNameLen {
+		return fmt.Errorf("invalid peer name %q: exceeds maximum length %d", name, maxPeerNameLen)
+	}
+
+	// Reject names that collide with CLI subcommand keywords.
+	if reservedPeerNames[name] {
+		return fmt.Errorf("invalid peer name %q: conflicts with \"bgp peer\" subcommand", name)
+	}
+
+	// Reject names containing invalid characters.
+	// Only ASCII letters, digits, hyphens, and underscores are allowed.
+	for _, ch := range name {
+		if !isValidPeerNameChar(ch) {
+			return fmt.Errorf("invalid peer name %q: only ASCII alphanumeric, hyphens, and underscores allowed", name)
 		}
 	}
 
-	// Apply inherited templates in order.
-	for _, tmpl := range inheritedTemplates {
-		tmplMap := tmpl.ToMap()
-		// Remove inherit-name from template map (config metadata, not a peer value).
-		delete(tmplMap, "inherit-name")
-		deepMergeMaps(resolved, tmplMap)
+	// Reject names that are only punctuation (hyphens/underscores).
+	// Such names are confusing as CLI selectors and provide no useful identification.
+	hasAlphanumeric := false
+	for _, ch := range name {
+		if isASCIILetterOrDigit(ch) {
+			hasAlphanumeric = true
+			break
+		}
+	}
+	if !hasAlphanumeric {
+		return fmt.Errorf("invalid peer name %q: must contain at least one letter or digit", name)
+	}
+
+	// Reject names that parse as valid IP addresses.
+	if _, err := netip.ParseAddr(name); err == nil {
+		return fmt.Errorf("invalid peer name %q: must not be a valid IP address", name)
 	}
 
 	return nil
 }
 
-// validateTemplatePattern checks that the peer address matches the template's pattern.
-func validateTemplatePattern(inheritName, addr string, templatePatterns map[string]string) error {
-	pattern, hasPattern := templatePatterns[inheritName]
-	if !hasPattern {
-		return nil
+// validateGroupName checks that a group name is valid.
+// Group names follow the same character and length rules as peer names.
+func validateGroupName(name string) error {
+	if name == "" {
+		return fmt.Errorf("invalid group name: must not be empty")
 	}
-	if !IPGlobMatch(pattern, addr) {
-		return fmt.Errorf("inherit %q: peer %s does not match template pattern %q", inheritName, addr, pattern)
+	if len(name) > maxPeerNameLen {
+		return fmt.Errorf("invalid group name %q: exceeds maximum length %d", name, maxPeerNameLen)
+	}
+	for _, ch := range name {
+		if !isValidPeerNameChar(ch) {
+			return fmt.Errorf("invalid group name %q: only ASCII alphanumeric, hyphens, and underscores allowed", name)
+		}
+	}
+	hasAlphanumeric := false
+	for _, ch := range name {
+		if isASCIILetterOrDigit(ch) {
+			hasAlphanumeric = true
+			break
+		}
+	}
+	if !hasAlphanumeric {
+		return fmt.Errorf("invalid group name %q: must contain at least one letter or digit", name)
 	}
 	return nil
 }
@@ -227,11 +237,11 @@ func deepMergeMaps(dst, src map[string]any) {
 		}
 		dstMap, dstIsMap := dst[k].(map[string]any)
 		if !dstIsMap {
-			// dst doesn't have a map here — copy src map.
+			// dst doesn't have a map here -- copy src map.
 			dst[k] = srcVal
 			continue
 		}
-		// Both are maps — recurse.
+		// Both are maps -- recurse.
 		deepMergeMaps(dstMap, srcMap)
 	}
 }

@@ -5,6 +5,7 @@ package migration
 import (
 	"errors"
 	"fmt"
+	"sort"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
@@ -80,10 +81,10 @@ var transformations = []Transformation{
 		Apply:       wrapBGPBlock,
 	},
 	{
-		Name:        "template->new-format",
-		Description: "Convert template.group/match to template.bgp.peer",
-		Detect:      hasOldTemplateFormat,
-		Apply:       migrateTemplateToNewFormat,
+		Name:        "template->group",
+		Description: "Convert template block to bgp peer-groups and move peers into groups",
+		Detect:      hasTemplateBlock,
+		Apply:       migrateTemplateToGroups,
 	},
 }
 
@@ -296,24 +297,15 @@ func wrapBGPBlock(tree *config.Tree) (*config.Tree, error) {
 	return result, nil
 }
 
-// hasOldTemplateFormat returns true if template uses old group/match format.
-func hasOldTemplateFormat(tree *config.Tree) bool {
-	tmpl := tree.GetContainer("template")
-	if tmpl == nil {
-		return false
-	}
-	// Check for group or match lists (old format)
-	if len(tmpl.GetListOrdered("group")) > 0 {
-		return true
-	}
-	if len(tmpl.GetListOrdered("match")) > 0 {
-		return true
-	}
-	return false
-}
-
-// migrateTemplateToNewFormat converts template.group/match to template.bgp.peer.
-func migrateTemplateToNewFormat(tree *config.Tree) (*config.Tree, error) {
+// migrateTemplateToGroups converts template block to bgp peer-groups.
+// It handles both old format (template.group/match) and new format (template.bgp.peer).
+// Steps:
+//  1. Extract named templates and glob patterns from template block
+//  2. Create bgp.group entries from templates
+//  3. Move peers with "inherit X" into the appropriate group
+//  4. Assign ungrouped peers to a "default" group
+//  5. Delete the template block
+func migrateTemplateToGroups(tree *config.Tree) (*config.Tree, error) {
 	result := tree.Clone()
 
 	tmpl := result.GetContainer("template")
@@ -321,23 +313,126 @@ func migrateTemplateToNewFormat(tree *config.Tree) (*config.Tree, error) {
 		return result, nil
 	}
 
-	// Create template.bgp.peer structure
-	bgpContainer := tmpl.GetOrCreateContainer("bgp")
+	bgp := result.GetOrCreateContainer("bgp")
 
-	// Migrate group entries to peer with inherit-name
+	// Collect named templates and glob patterns from template block.
+	namedTemplates := make(map[string]*config.Tree) // name -> template tree
+
+	// Old format: template { group <name> { ... } }
 	for _, entry := range tmpl.GetListOrdered("group") {
-		// For named groups, create peer * with inherit-name
-		peerTree := entry.Value.Clone()
-		peerTree.Set("inherit-name", entry.Key)
-		bgpContainer.AddListEntry("peer", "*", peerTree)
-		tmpl.RemoveListEntry("group", entry.Key)
+		namedTemplates[entry.Key] = entry.Value.Clone()
 	}
 
-	// Migrate match entries to peer patterns
+	// Old format: template { match <pattern> { ... } }
 	for _, entry := range tmpl.GetListOrdered("match") {
-		bgpContainer.AddListEntry("peer", entry.Key, entry.Value)
-		tmpl.RemoveListEntry("match", entry.Key)
+		groupName := "match-" + sanitizeGroupName(entry.Key)
+		namedTemplates[groupName] = entry.Value.Clone()
 	}
+
+	// New format: template { bgp { peer <pattern> { inherit-name <name>; ... } } }
+	if bgpTmpl := tmpl.GetContainer("bgp"); bgpTmpl != nil {
+		for _, entry := range bgpTmpl.GetListOrdered("peer") {
+			peerTree := entry.Value.Clone()
+			if inheritName, hasName := peerTree.Get("inherit-name"); hasName {
+				peerTree.Delete("inherit-name")
+				namedTemplates[inheritName] = peerTree
+			} else {
+				// Unnamed glob pattern.
+				groupName := "match-" + sanitizeGroupName(entry.Key)
+				namedTemplates[groupName] = peerTree
+			}
+		}
+	}
+
+	// Create bgp.group entries from templates (sorted for deterministic output).
+	sortedNames := make([]string, 0, len(namedTemplates))
+	for name := range namedTemplates {
+		sortedNames = append(sortedNames, name)
+	}
+	sort.Strings(sortedNames)
+	for _, name := range sortedNames {
+		bgp.AddListEntry("group", name, namedTemplates[name])
+	}
+
+	// Move peers with "inherit X" into the appropriate group.
+	for _, peerEntry := range bgp.GetListOrdered("peer") {
+		addr := peerEntry.Key
+		peerTree := peerEntry.Value
+
+		inheritName := ""
+		// Check single inherit value.
+		if v, ok := peerTree.Get("inherit"); ok {
+			inheritName = v
+		}
+		// Check ordered inherit list.
+		if inheritName == "" {
+			for _, inheritEntry := range peerTree.GetListOrdered("inherit") {
+				inheritName = inheritEntry.Key
+				break // Use first inherit entry.
+			}
+		}
+
+		if inheritName == "" {
+			continue // Peer without inherit -- will be handled below.
+		}
+
+		// Remove inherit directive from peer.
+		peerTree.Delete("inherit")
+		peerTree.RemoveListEntry("inherit", inheritName)
+
+		// Find or create the group.
+		groupTree := findGroupTree(bgp, inheritName)
+		if groupTree == nil {
+			// Create group for unmatched inherit reference.
+			groupTree = config.NewTree()
+			bgp.AddListEntry("group", inheritName, groupTree)
+		}
+
+		// Move peer into the group.
+		groupTree.AddListEntry("peer", addr, peerTree)
+		bgp.RemoveListEntry("peer", addr)
+	}
+
+	// Move remaining ungrouped peers into a "default" group.
+	remainingPeers := bgp.GetListOrdered("peer")
+	if len(remainingPeers) > 0 {
+		defaultGroup := findGroupTree(bgp, "default")
+		if defaultGroup == nil {
+			defaultGroup = config.NewTree()
+			bgp.AddListEntry("group", "default", defaultGroup)
+		}
+		for _, peerEntry := range remainingPeers {
+			defaultGroup.AddListEntry("peer", peerEntry.Key, peerEntry.Value)
+			bgp.RemoveListEntry("peer", peerEntry.Key)
+		}
+	}
+
+	// Delete the template block.
+	result.RemoveContainer("template")
 
 	return result, nil
+}
+
+// findGroupTree returns the tree for a named group in bgp, or nil if not found.
+func findGroupTree(bgp *config.Tree, name string) *config.Tree {
+	for _, entry := range bgp.GetListOrdered("group") {
+		if entry.Key == name {
+			return entry.Value
+		}
+	}
+	return nil
+}
+
+// sanitizeGroupName converts a glob pattern to a valid group name.
+// Replaces special characters with hyphens.
+func sanitizeGroupName(pattern string) string {
+	var b []byte
+	for _, ch := range pattern {
+		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '-' || ch == '_' {
+			b = append(b, byte(ch))
+		} else {
+			b = append(b, '-')
+		}
+	}
+	return string(b)
 }

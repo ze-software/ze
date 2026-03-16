@@ -44,51 +44,56 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 		return peers, nil
 	}
 
-	// Step 3: Extract routes from all template layers per peer.
-	// The old pipeline accumulated routes from 3 layers:
-	//   Layer 1: Matching glob patterns
-	//   Layer 2: Inherited templates
-	//   Layer 3: Peer's own tree
-	// We call patchRoutes for each layer to accumulate routes correctly.
+	// Step 3: Extract routes from group and peer layers.
+	// Routes accumulate from 2 layers:
+	//   Layer 1: Group-level routes (shared by all peers in the group)
+	//   Layer 2: Peer's own routes
 	bgpContainer := tree.GetContainer("bgp")
 	if bgpContainer == nil {
 		return peers, nil
 	}
 
-	td := extractTemplateData(tree)
-
-	// Build address → PeerSettings index for matching.
+	// Build address -> PeerSettings index for matching.
 	peerIndex := make(map[string]*reactor.PeerSettings, len(peers))
 	for _, ps := range peers {
 		peerIndex[ps.Address.String()] = ps
 	}
 
-	for _, entry := range bgpContainer.GetListOrdered("peer") {
-		addr := entry.Key
-		peerTree := entry.Value
+	// Grouped peers: routes from group + peer layers.
+	for _, groupEntry := range bgpContainer.GetListOrdered("group") {
+		groupTree := groupEntry.Value
+
+		for _, peerEntry := range groupTree.GetListOrdered("peer") {
+			addr := peerEntry.Key
+			peerTree := peerEntry.Value
+
+			ps, ok := peerIndex[addr]
+			if !ok {
+				continue
+			}
+
+			// Layer 1: Routes from group defaults.
+			if err := patchRoutes(ps, addr, groupTree); err != nil {
+				return nil, err
+			}
+
+			// Layer 2: Routes from peer's own tree.
+			if err := patchRoutes(ps, addr, peerTree); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	// Standalone peers: routes from peer's own tree only.
+	for _, peerEntry := range bgpContainer.GetListOrdered("peer") {
+		addr := peerEntry.Key
+		peerTree := peerEntry.Value
 
 		ps, ok := peerIndex[addr]
 		if !ok {
 			continue
 		}
 
-		// Layer 1: Routes from matching glob patterns.
-		for _, glob := range td.globs {
-			if IPGlobMatch(glob.Pattern, addr) {
-				if err := patchRoutes(ps, addr, glob.Tree); err != nil {
-					return nil, err
-				}
-			}
-		}
-
-		// Layer 2: Routes from inherited templates.
-		for _, tmpl := range resolveInheritedTrees(addr, peerTree, td) {
-			if err := patchRoutes(ps, addr, tmpl); err != nil {
-				return nil, err
-			}
-		}
-
-		// Layer 3: Routes from peer's own tree.
 		if err := patchRoutes(ps, addr, peerTree); err != nil {
 			return nil, err
 		}

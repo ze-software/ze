@@ -102,11 +102,11 @@ func TestConfigFmtRejectsOld(t *testing.T) {
 
 // TestConfigFmtComplexConfig verifies formatting of a more complex config.
 //
-// VALIDATES: Complex configs with templates and families are formatted correctly.
+// VALIDATES: Complex configs with groups and families are formatted correctly.
 //
 // PREVENTS: Formatting errors on real-world configs.
 func TestConfigFmtComplexConfig(t *testing.T) {
-	input := `template{bgp{peer *{inherit-name defaults;hold-time 90;}}}bgp{peer 192.0.2.1{inherit defaults;local-as 65000;peer-as 65001;family{ipv4/unicast;}}}`
+	input := `bgp{group defaults{hold-time 90;peer 192.0.2.1{local-as 65000;peer-as 65001;family{ipv4/unicast;}}}}`
 
 	output, hasChanges, err := ConfigFmtBytes([]byte(input))
 	if err != nil {
@@ -141,15 +141,10 @@ func TestConfigFmtComplexConfig(t *testing.T) {
 func TestConfigCheckCurrentConfig(t *testing.T) {
 	config := `
 bgp {
-	peer 192.0.2.1 {
-		peer-as 65001
-	}
-}
-template {
-	bgp {
-		peer * {
-			inherit-name rr
-			peer-as 65000
+	group rr {
+		peer-as 65000
+		peer 192.0.2.1 {
+			peer-as 65001
 		}
 	}
 }

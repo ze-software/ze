@@ -146,7 +146,7 @@ module ze-types {
 
     typedef peer-selector {
         type string;
-        description "Peer address, '*' for all, or comma-separated list";
+        description "Peer address, peer name, '*' for all, or comma-separated list";
     }
 
     typedef encoding-mode {

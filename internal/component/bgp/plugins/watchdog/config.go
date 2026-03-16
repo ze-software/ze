@@ -35,77 +35,112 @@ func parseConfig(jsonData string) (map[string]*PoolSet, error) {
 		return make(map[string]*PoolSet), nil
 	}
 
-	peerMap, ok := getMap(bgpTree, "peer")
-	if !ok {
+	result := make(map[string]*PoolSet)
+
+	// Standalone peers: bgp.peer.<addr>
+	if peerMap, ok := getMap(bgpTree, "peer"); ok {
+		parseWatchdogPeers(peerMap, nil, result)
+	}
+
+	// Grouped peers: bgp.group.<name>.peer.<addr>
+	if groupsMap, ok := getMap(bgpTree, "group"); ok {
+		for _, groupData := range groupsMap {
+			groupMap, ok := groupData.(map[string]any)
+			if !ok {
+				continue
+			}
+			if peerMap, ok := getMap(groupMap, "peer"); ok {
+				parseWatchdogPeers(peerMap, groupMap, result)
+			}
+		}
+	}
+
+	if len(result) == 0 {
 		return make(map[string]*PoolSet), nil
 	}
 
-	result := make(map[string]*PoolSet)
+	return result, nil
+}
 
+// parseWatchdogPeers extracts watchdog config from a peer map into the result.
+// groupMap is the enclosing group's config (nil for standalone peers).
+// Both group-level and peer-level update blocks are processed: group first
+// (defaults), then peer (additions/overrides). Duplicate routes log a warning.
+func parseWatchdogPeers(peerMap, groupMap map[string]any, result map[string]*PoolSet) {
 	for peerAddr, peerData := range peerMap {
 		peerTree, ok := peerData.(map[string]any)
 		if !ok {
 			continue
 		}
 
-		updateMap, ok := getMap(peerTree, "update")
-		if !ok {
-			continue
-		}
-
 		var pools *PoolSet
 
-		for _, updateData := range updateMap {
-			updateTree, ok := updateData.(map[string]any)
-			if !ok {
-				continue
+		// Layer 1: group-level update blocks (defaults).
+		if groupMap != nil {
+			if groupUpdateMap, ok := getMap(groupMap, "update"); ok {
+				pools = collectWatchdogRoutes(groupUpdateMap, peerAddr, pools)
 			}
+		}
 
-			// Only process update blocks with a watchdog container
-			wdMap, ok := getMap(updateTree, "watchdog")
-			if !ok {
-				continue
-			}
-
-			wdName := getString(wdMap, "name")
-			if wdName == "" {
-				continue
-			}
-
-			_, wdWithdraw := wdMap["withdraw"]
-
-			// Parse attributes into a base Route (family/prefix/RD/labels added per NLRI)
-			attrMap, _ := getMap(updateTree, "attribute")
-			base := buildRouteFromAttrs(attrMap)
-
-			// Parse NLRI entries
-			nlriMap, ok := getMap(updateTree, "nlri")
-			if !ok {
-				continue
-			}
-
-			entries := parseNLRIEntries(nlriMap, base, wdWithdraw)
-			if len(entries) == 0 {
-				continue
-			}
-
-			if pools == nil {
-				pools = NewPoolSet()
-			}
-
-			for _, entry := range entries {
-				if err := pools.AddRoute(wdName, entry); err != nil {
-					logger().Warn("duplicate watchdog route", "peer", peerAddr, "pool", wdName, "key", entry.Key, "error", err)
-				}
-			}
+		// Layer 2: peer-level update blocks (additions/overrides).
+		if peerUpdateMap, ok := getMap(peerTree, "update"); ok {
+			pools = collectWatchdogRoutes(peerUpdateMap, peerAddr, pools)
 		}
 
 		if pools != nil {
 			result[peerAddr] = pools
 		}
 	}
+}
 
-	return result, nil
+// collectWatchdogRoutes scans update blocks for watchdog containers and adds
+// their routes to pools. Creates a new PoolSet if pools is nil and routes are found.
+func collectWatchdogRoutes(updateMap map[string]any, peerAddr string, pools *PoolSet) *PoolSet {
+	for _, updateData := range updateMap {
+		updateTree, ok := updateData.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		// Only process update blocks with a watchdog container.
+		wdMap, ok := getMap(updateTree, "watchdog")
+		if !ok {
+			continue
+		}
+
+		wdName := getString(wdMap, "name")
+		if wdName == "" {
+			continue
+		}
+
+		_, wdWithdraw := wdMap["withdraw"]
+
+		// Parse attributes into a base Route (family/prefix/RD/labels added per NLRI).
+		attrMap, _ := getMap(updateTree, "attribute")
+		base := buildRouteFromAttrs(attrMap)
+
+		// Parse NLRI entries.
+		nlriMap, ok := getMap(updateTree, "nlri")
+		if !ok {
+			continue
+		}
+
+		entries := parseNLRIEntries(nlriMap, base, wdWithdraw)
+		if len(entries) == 0 {
+			continue
+		}
+
+		if pools == nil {
+			pools = NewPoolSet()
+		}
+
+		for _, entry := range entries {
+			if err := pools.AddRoute(wdName, entry); err != nil {
+				logger().Warn("duplicate watchdog route", "peer", peerAddr, "pool", wdName, "key", entry.Key, "error", err)
+			}
+		}
+	}
+	return pools
 }
 
 // buildRouteFromAttrs creates a bgp.Route with path attributes from an attribute map.

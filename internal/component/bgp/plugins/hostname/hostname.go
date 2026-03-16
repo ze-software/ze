@@ -17,6 +17,7 @@ import (
 	"net"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/hostname/schema"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -102,67 +103,72 @@ func RunHostnamePlugin(engineConn, callbackConn net.Conn) int {
 	return 0
 }
 
+// parseFQDNFromCapability extracts an fqdnConfig from a capability map's "hostname" entry.
+// Returns nil if no hostname data or both fields are empty.
+func parseFQDNFromCapability(capMap map[string]any) *fqdnConfig {
+	if capMap == nil {
+		return nil
+	}
+	hostnameData, ok := capMap["hostname"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	cfg := &fqdnConfig{}
+	if host, ok := hostnameData["host"].(string); ok {
+		cfg.hostname = host
+	}
+	if domain, ok := hostnameData["domain"].(string); ok {
+		cfg.domain = domain
+	}
+	if cfg.hostname == "" && cfg.domain == "" {
+		return nil
+	}
+	return cfg
+}
+
 // extractHostnameCapabilities parses bgp config JSON and returns per-peer FQDN capabilities.
+// Handles both standalone peers (bgp.peer) and grouped peers (bgp.group.<name>.peer).
 // draft-walton-bgp-hostname: FQDN capability code is 73.
 func extractHostnameCapabilities(jsonStr string) []sdk.CapabilityDecl {
+	bgpSubtree, ok := configjson.ParseBGPSubtree(jsonStr)
+	if !ok {
+		Logger.Warn("invalid JSON in bgp config")
+		return nil
+	}
+
 	const fqdnCapCode = 73
-
-	var bgpConfig map[string]any
-	if err := json.Unmarshal([]byte(jsonStr), &bgpConfig); err != nil {
-		Logger.Warn("invalid JSON in bgp config", "err", err)
-		return nil
-	}
-
-	// The config tree is wrapped: {"bgp": {"peer": {...}}}
-	bgpSubtree, ok := bgpConfig["bgp"].(map[string]any)
-	if !ok {
-		bgpSubtree = bgpConfig
-	}
-
-	peersMap, ok := bgpSubtree["peer"].(map[string]any)
-	if !ok {
-		Logger.Debug("no peer config in bgp tree")
-		return nil
-	}
-
 	var caps []sdk.CapabilityDecl
 
-	for peerAddr, peerData := range peersMap {
-		peerMap, ok := peerData.(map[string]any)
-		if !ok {
-			continue
+	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any) {
+		// Check per-peer hostname config first.
+		peerCfg := parseFQDNFromCapability(configjson.GetCapability(peerMap))
+
+		// Check group-level hostname config (fallback).
+		var groupCfg *fqdnConfig
+		if groupMap != nil {
+			groupCfg = parseFQDNFromCapability(configjson.GetCapability(groupMap))
 		}
 
-		capMap, ok := peerMap["capability"].(map[string]any)
-		if !ok {
-			continue
+		// Per-peer wins over group.
+		useCfg := groupCfg
+		if peerCfg != nil {
+			useCfg = peerCfg
 		}
-
-		hostnameData, ok := capMap["hostname"].(map[string]any)
-		if !ok {
-			continue
-		}
-
-		cfg := &fqdnConfig{}
-		if host, ok := hostnameData["host"].(string); ok {
-			cfg.hostname = host
-		}
-		if domain, ok := hostnameData["domain"].(string); ok {
-			cfg.domain = domain
-		}
-
-		// Skip if both hostname and domain are empty
-		if cfg.hostname == "" && cfg.domain == "" {
-			continue
+		if useCfg == nil {
+			return
 		}
 
 		caps = append(caps, sdk.CapabilityDecl{
 			Code:     fqdnCapCode,
 			Encoding: "hex",
-			Payload:  cfg.encodeValue(),
+			Payload:  useCfg.encodeValue(),
 			Peers:    []string{peerAddr},
 		})
-		Logger.Debug("hostname capability", "peer", peerAddr, "hostname", cfg.hostname, "domain", cfg.domain)
+		Logger.Debug("hostname capability", "peer", peerAddr, "hostname", useCfg.hostname, "domain", useCfg.domain)
+	})
+
+	if len(caps) == 0 {
+		Logger.Debug("no hostname capabilities found in bgp config")
 	}
 
 	return caps

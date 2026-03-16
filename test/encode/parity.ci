@@ -11,28 +11,30 @@ EOF_PEER
 # ze bgp configuration using native update syntax
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
-	peer 127.0.0.1 {
-		router-id 1.2.3.4
-		local-address 127.0.0.1
-		local-as 1
-		peer-as 1
-		connection active
+	group default {
+		peer 127.0.0.1 {
+			router-id 1.2.3.4
+			local-address 127.0.0.1
+			local-as 1
+			peer-as 1
+			connection active
 
-		family {
-			ipv6/mpls-vpn
-		}
-		update {
-			attribute {
-				origin igp
-				as-path "25186 65000 64512"
-				local-preference 100
-				next-hop "::ffff:81.52.17.146"
-				community 65000:33
-				extended-community "target:10283:4.249.92.120"
-				originator-id 57.35.2.240
+			family {
+				ipv6/mpls-vpn
 			}
-			nlri {
-				ipv6/mpls-vpn add rd 3215:583457597 label 926 2001:4b50:20c0::/48 2001:4b50:20d0::/48
+			update {
+				attribute {
+					origin igp
+					as-path "25186 65000 64512"
+					local-preference 100
+					next-hop "::ffff:81.52.17.146"
+					community 65000:33
+					extended-community "target:10283:4.249.92.120"
+					originator-id 57.35.2.240
+				}
+				nlri {
+					ipv6/mpls-vpn add rd 3215:583457597 label 926 2001:4b50:20c0::/48 2001:4b50:20d0::/48
+				}
 			}
 		}
 	}

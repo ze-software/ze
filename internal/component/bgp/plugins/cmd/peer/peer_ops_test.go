@@ -244,23 +244,43 @@ func TestHandlerPeerRemoveWildcardPeer(t *testing.T) {
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
 
-// TestFilterPeersBySelectorInvalidIP verifies filter rejects invalid IP.
+// TestFilterPeersBySelectorByName verifies filter matches peers by name.
 //
-// VALIDATES: Invalid IP in selector produces error response.
-// PREVENTS: Panic on unparseable IP string.
-func TestFilterPeersBySelectorInvalidIP(t *testing.T) {
+// VALIDATES: AC-9 -- peer name selector returns matching peer.
+// PREVENTS: Name-based selection silently failing.
+func TestFilterPeersBySelectorByName(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001, Name: "router-east"},
+		},
+	}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "router-east"
+
+	peers, errResp, err := filterPeersBySelector(ctx)
+	require.NoError(t, err)
+	require.Nil(t, errResp)
+	require.Len(t, peers, 1)
+	assert.Equal(t, "router-east", peers[0].Name)
+}
+
+// TestFilterPeersBySelectorNameNotFound verifies non-matching name returns empty.
+//
+// VALIDATES: Non-existent peer name returns empty result (not error).
+// PREVENTS: Unknown names causing error instead of empty result.
+func TestFilterPeersBySelectorNameNotFound(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
 			{Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001},
 		},
 	}
 	ctx := newTestContext(reactor)
-	ctx.Peer = "not-an-ip"
+	ctx.Peer = "not-a-peer"
 
-	_, errResp, err := filterPeersBySelector(ctx)
-	require.Error(t, err)
-	require.NotNil(t, errResp)
-	assert.Equal(t, plugin.StatusError, errResp.Status)
+	peers, errResp, err := filterPeersBySelector(ctx)
+	require.NoError(t, err)
+	require.Nil(t, errResp)
+	assert.Empty(t, peers)
 }
 
 // TestParseRouterID verifies router ID parsing in IP and numeric formats.

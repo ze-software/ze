@@ -21,18 +21,35 @@ module ze-role {
         description "RFC 9234 BGP Role values";
     }
 
+    grouping role-config {
+        container role {
+            description "RFC 9234 BGP Role configuration";
+
+            leaf name {
+                type role-type;
+                description "Our role in this peer relationship";
+            }
+
+            leaf strict {
+                type boolean;
+                default false;
+                description "Require peer to send Role capability";
+            }
+        }
+    }
+
+    // Standalone peer
     augment "/bgp:bgp/bgp:peer" {
-        description "Role configuration for peers";
+        uses role-config;
+    }
 
-        leaf role {
-            type role-type;
-            description "Our role in this peer relationship";
-        }
+    // Peer inside group
+    augment "/bgp:bgp/bgp:group/bgp:peer" {
+        uses role-config;
+    }
 
-        leaf role-strict {
-            type boolean;
-            default false;
-            description "Require peer to send Role capability";
-        }
+    // Group-level
+    augment "/bgp:bgp/bgp:group" {
+        uses role-config;
     }
 }

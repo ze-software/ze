@@ -111,18 +111,24 @@ func (c *TreeCompleter) Complete(input string) []Suggestion {
 	var partial string
 
 	for i, word := range words {
-		if current.Children == nil {
-			return nil
-		}
-
 		isLast := i == len(words)-1
 		if isLast && !endsWithSpace {
 			partial = word
 			break
 		}
 
+		if current.Children == nil {
+			return nil
+		}
+
 		child, ok := current.Children[word]
 		if !ok {
+			// Word is not a static child. If parent has DynamicChildren,
+			// the word might be a dynamic selector (e.g., peer name).
+			// Skip it and continue showing the same node's children.
+			if current.DynamicChildren != nil {
+				continue
+			}
 			return nil
 		}
 		current = child
@@ -195,26 +201,40 @@ func (c *TreeCompleter) GhostText(input string) string {
 }
 
 // matchChildren returns sorted completions for children matching prefix.
+// Includes both static children and dynamic suggestions from DynamicChildren callback.
 func (c *TreeCompleter) matchChildren(node *Node, prefix string) []Suggestion {
-	if node == nil || node.Children == nil {
+	if node == nil {
 		return nil
 	}
 
-	keys := make([]string, 0, len(node.Children))
-	for k := range node.Children {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
 	var completions []Suggestion
-	for _, name := range keys {
-		if prefix == "" || strings.HasPrefix(name, prefix) {
-			child := node.Children[name]
-			completions = append(completions, Suggestion{
-				Text:        name,
-				Description: child.Description,
-				Type:        "command",
-			})
+
+	// Static children from tree.
+	if node.Children != nil {
+		keys := make([]string, 0, len(node.Children))
+		for k := range node.Children {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		for _, name := range keys {
+			if prefix == "" || strings.HasPrefix(name, prefix) {
+				child := node.Children[name]
+				completions = append(completions, Suggestion{
+					Text:        name,
+					Description: child.Description,
+					Type:        "command",
+				})
+			}
+		}
+	}
+
+	// Dynamic children (e.g., peer names/IPs).
+	if node.DynamicChildren != nil {
+		for _, s := range node.DynamicChildren() {
+			if prefix == "" || strings.HasPrefix(s.Text, prefix) {
+				completions = append(completions, s)
+			}
 		}
 	}
 

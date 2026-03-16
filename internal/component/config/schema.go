@@ -259,9 +259,9 @@ func (s *Schema) Lookup(path string) (Node, error) {
 
 // ExtendCapability adds a capability sub-block to the schema at runtime.
 // Used by plugins to declare their config schema extensions.
-// The path is "peer.capability" by default - the name is the capability name.
+// Extends standalone peers (bgp.peer), grouped peers (bgp.group.peer),
+// and group-level capability (bgp.group).
 func (s *Schema) ExtendCapability(name string, fields ...FieldDef) error {
-	// Navigate to bgp.peer.capability container
 	bgpNode := s.Get("bgp")
 	if bgpNode == nil {
 		return fmt.Errorf("bgp node not found in schema")
@@ -272,19 +272,35 @@ func (s *Schema) ExtendCapability(name string, fields ...FieldDef) error {
 		return fmt.Errorf("bgp is not a ContainerNode")
 	}
 
-	peerNode := bgpContainer.Get("peer")
+	// Extend standalone peers: bgp.peer.capability
+	if err := s.extendPeerListCapability(bgpContainer, "peer", name, fields); err != nil {
+		return err
+	}
+
+	// Extend grouped peers: bgp.group.*.peer.capability
+	s.extendGroupPeerCapability(bgpContainer, name, fields)
+
+	// Extend group-level: bgp.group.capability
+	s.extendGroupCapability(bgpContainer, name, fields)
+
+	return nil
+}
+
+// extendPeerListCapability adds a capability to a peer list's capability container.
+func (s *Schema) extendPeerListCapability(parent *ContainerNode, listName, capName string, fields []FieldDef) error {
+	peerNode := parent.Get(listName)
 	if peerNode == nil {
-		return fmt.Errorf("peer node not found in bgp schema")
+		return fmt.Errorf("%s node not found in schema", listName)
 	}
 
 	listNode, ok := peerNode.(*ListNode)
 	if !ok {
-		return fmt.Errorf("peer is not a ListNode")
+		return fmt.Errorf("%s is not a ListNode", listName)
 	}
 
 	capNode := listNode.Get("capability")
 	if capNode == nil {
-		return fmt.Errorf("capability node not found in peer schema")
+		return fmt.Errorf("capability node not found in %s schema", listName)
 	}
 
 	container, ok := capNode.(*ContainerNode)
@@ -292,74 +308,66 @@ func (s *Schema) ExtendCapability(name string, fields ...FieldDef) error {
 		return fmt.Errorf("capability is not a ContainerNode")
 	}
 
-	// Add the new capability as a Flex node
-	container.children[name] = Flex(fields...)
-	container.order = append(container.order, name)
-
-	// Also add to template.group and template.match if they exist
-	s.extendTemplateCapability(name, fields)
+	container.children[capName] = Flex(fields...)
+	container.order = append(container.order, capName)
 
 	return nil
 }
 
-// extendTemplateCapability extends capability schema in templates.
-func (s *Schema) extendTemplateCapability(name string, fields []FieldDef) {
-	templateNode := s.Get("template")
-	if templateNode == nil {
+// extendGroupPeerCapability extends capability schema in group peer lists.
+func (s *Schema) extendGroupPeerCapability(bgpContainer *ContainerNode, name string, fields []FieldDef) {
+	groupNode := bgpContainer.Get("group")
+	if groupNode == nil {
 		return
 	}
 
-	templateContainer, ok := templateNode.(*ContainerNode)
+	groupList, ok := groupNode.(*ListNode)
 	if !ok {
 		return
 	}
 
-	// Extend template.bgp.peer
-	bgpNode := templateContainer.Get("bgp")
-	if bgpNode == nil {
-		return
-	}
-
-	bgpContainer, ok := bgpNode.(*ContainerNode)
-	if !ok {
-		return
-	}
-
-	peerNode := bgpContainer.Get("peer")
+	// Group list's child "peer" contains the nested peer list.
+	peerNode := groupList.Get("peer")
 	if peerNode == nil {
 		return
 	}
 
-	if peerList, ok := peerNode.(*ListNode); ok {
-		if capNode := peerList.Get("capability"); capNode != nil {
-			if capContainer, ok := capNode.(*ContainerNode); ok {
-				capContainer.children[name] = Flex(fields...)
-				capContainer.order = append(capContainer.order, name)
-			}
-		}
+	peerList, ok := peerNode.(*ListNode)
+	if !ok {
+		return
 	}
 
-	// Also extend legacy template.group and template.match if they exist
-	if groupNode := templateContainer.Get("group"); groupNode != nil {
-		if groupList, ok := groupNode.(*ListNode); ok {
-			if capNode := groupList.Get("capability"); capNode != nil {
-				if capContainer, ok := capNode.(*ContainerNode); ok {
-					capContainer.children[name] = Flex(fields...)
-					capContainer.order = append(capContainer.order, name)
-				}
-			}
-		}
+	capNode := peerList.Get("capability")
+	if capNode == nil {
+		return
 	}
 
-	if matchNode := templateContainer.Get("match"); matchNode != nil {
-		if matchList, ok := matchNode.(*ListNode); ok {
-			if capNode := matchList.Get("capability"); capNode != nil {
-				if capContainer, ok := capNode.(*ContainerNode); ok {
-					capContainer.children[name] = Flex(fields...)
-					capContainer.order = append(capContainer.order, name)
-				}
-			}
-		}
+	if capContainer, ok := capNode.(*ContainerNode); ok {
+		capContainer.children[name] = Flex(fields...)
+		capContainer.order = append(capContainer.order, name)
+	}
+}
+
+// extendGroupCapability extends capability schema at the group level (bgp.group.capability).
+func (s *Schema) extendGroupCapability(bgpContainer *ContainerNode, name string, fields []FieldDef) {
+	groupNode := bgpContainer.Get("group")
+	if groupNode == nil {
+		return
+	}
+
+	groupList, ok := groupNode.(*ListNode)
+	if !ok {
+		return
+	}
+
+	capNode := groupList.Get("capability")
+	if capNode == nil {
+		return
+	}
+
+	if capContainer, ok := capNode.(*ContainerNode); ok {
+		capContainer.children[name] = Flex(fields...)
+		capContainer.order = append(capContainer.order, name)
 	}
 }
 

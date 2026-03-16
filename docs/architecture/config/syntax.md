@@ -5,10 +5,10 @@
 | Concept | Description |
 |---------|-------------|
 | **Style** | JUNOS-like: `{}` blocks, `;` terminators, `#` comments |
-| **Top-Level** | `environment`, `plugin`, `template`, `bgp` |
-| **BGP Block** | `bgp { peer <ip> { ... } }` - wraps all BGP config |
-| **Templates** | `template { bgp { peer <pattern> { inherit-name <name>; ... } } }` |
-| **Inheritance** | `inherit <name>` in peer, `inherit-name <name>` in template |
+| **Top-Level** | `environment`, `plugin`, `bgp` |
+| **BGP Block** | `bgp { group <name> { peer <ip> { ... } } }` - wraps all BGP config |
+| **Groups** | `group <name> { ... peer <ip> { } }` - named peer groups with shared defaults |
+| **Inheritance** | 3 levels: bgp globals, group defaults, peer overrides (deep-merge for containers) |
 | **Schema** | YANG-driven: parser dispatches by node type (leaf, container, list, leaf-list) |
 | **Migration** | `ze bgp config migrate` converts ExaBGP syntax to ze-native |
 
@@ -78,19 +78,21 @@ plugin {
     }
 }
 
-template {
-    bgp {
-        peer <pattern> {
-            inherit-name <template-name>;   # Optional: name for this template
-            ...                             # Template configuration
+bgp {
+    router-id <ip>;                         # BGP-level global (inherited by all peers)
+    local-as <asn>;                         # BGP-level global (inherited by all peers)
+
+    group <name> {
+        <peer-fields>                       # Group-level defaults (shared by all peers in group)
+        peer <ip-address> {
+            name <display-name>;            # Optional: CLI selector name
+            <peer-fields>                   # Peer-level overrides
         }
     }
-}
 
-bgp {
-    peer <ip-address> {
-        inherit <template-name>;            # Inherit from named template
-        ...                                 # Peer-specific configuration
+    peer <ip-address> {                     # Standalone peer (no group inheritance)
+        name <display-name>;
+        <peer-fields>
     }
 }
 ```
@@ -134,120 +136,136 @@ plugin {
 
 **Timeout semantics:** During startup, all plugins synchronize at each stage. The timeout controls how long this plugin waits for all plugins to complete each stage. With multiple plugins, use the same timeout for all, or set the longest timeout on all plugins to avoid fast plugins timing out while waiting for slow ones.
 
-### template
+### Peer Groups
 
-Reusable configuration templates under `template.bgp.peer`.
+Peers are organized into named groups under `bgp`. Groups provide shared defaults inherited by all member peers.
 
-#### Template Definition
+#### Group Structure
 
 ```
-template {
-    bgp {
-        peer <pattern> {
-            inherit-name <name>;    # Name for this template (optional)
-            <config>                # Template configuration
-        }
-    }
-}
-```
-
-#### Design
-
-| Field | Purpose |
-|-------|---------|
-| `<pattern>` | Glob pattern limiting which peers can use this template (`*` = any, `10.0.0.*` = subnet) |
-| `inherit-name` | Names this template for inheritance lookup |
-| `<config>` | Configuration to inherit (session settings, capabilities, announcements, etc.) |
-
-#### Two Use Cases
-
-**1. Named template (has `inherit-name`):**
-```
-template {
-    bgp {
-        peer * {
-            inherit-name rr-client;     # Template named "rr-client"
-            local-as 65000;
-            capability { route-refresh enable; }
-        }
-    }
-}
 bgp {
-    peer 10.0.0.1 { inherit rr-client; }    # Uses template "rr-client"
-}
-```
-
-**2. Pattern-based template (no `inherit-name`):**
-```
-template {
-    bgp {
-        peer 10.0.0.* {                 # Applies to peers matching 10.0.0.*
-            local-as 65000;
-            peer-as 65001;
+    group <name> {
+        <peer-fields>               # Group-level defaults
+        peer <ip-address> {
+            name <display-name>;    # Optional CLI selector
+            <peer-fields>           # Peer-level overrides
         }
     }
 }
+```
+
+| Element | Type | Purpose |
+|---------|------|---------|
+| `group` | list (key: name) | Named collection of peers with shared defaults |
+| `peer` inside group | list (key: IP) | Peer with optional overrides of group defaults |
+| `peer` at bgp level | list (key: IP) | Standalone peer (no group inheritance) |
+| `name` on peer | leaf (optional) | Display name usable as CLI selector instead of IP |
+
+#### 3-Level Inheritance
+
+| Priority | Source | Scope |
+|----------|--------|-------|
+| Lowest | `bgp` block globals | `local-as`, `router-id` -- inherited by all peers |
+| Middle | Group defaults | All `peer-fields` set on the group |
+| Highest | Peer overrides | All `peer-fields` set on the peer |
+
+Containers (like `capability`) deep-merge at key level -- both group and peer capabilities are combined. Leaves (like `hold-time`) override -- peer value wins over group value.
+
+#### Example
+
+```
 bgp {
-    peer 10.0.0.5 { }                   # Automatically gets config from pattern match
+    router-id 1.2.3.4
+    local-as 65000
+
+    group rr-clients {
+        hold-time 180
+        capability { route-refresh enable; }
+
+        peer 10.0.0.1 {
+            name router-east
+            peer-as 65001
+            local-address 10.0.0.1
+        }
+        peer 10.0.0.2 {
+            peer-as 65002
+            local-address 10.0.0.2
+            hold-time 90               # Overrides group's 180
+        }
+    }
+
+    group edge-peers {
+        hold-time 30
+        peer 192.168.1.1 {
+            peer-as 64500
+            local-address 192.168.1.254
+        }
+    }
 }
 ```
 
-#### Pattern Matching
+#### Peer Name Rules
 
-Glob patterns match peer IP addresses:
+| Rule | Detail |
+|------|--------|
+| Optional | Peers may have no name |
+| Unique | Two peers with the same name produce a config validation error |
+| Characters | Alphanumeric, hyphens, underscores. No spaces, dots, colons, commas, or `*` |
+| CLI usage | `peer <name> <command>` works identically to `peer <ip> <command>` |
+| Disambiguation | A name must not parse as a valid IP address |
 
-| Pattern | Matches |
-|---------|---------|
-| `*` | Any peer |
-| `10.0.0.*` | 10.0.0.0-10.0.0.255 |
-| `10.0.0.0/8` | CIDR notation |
-| `2001:db8::*` | IPv6 glob |
+#### Migration
 
-#### Inheritance Rules
-
-1. `inherit <name>` in `bgp.peer` looks up `template.bgp.peer` with matching `inherit-name`
-2. Pattern must match peer IP (glob `*` matches everything)
-3. If no `inherit-name`, pattern matching applies automatically without explicit `inherit`
-4. If peer IP doesn't match pattern, inheritance fails with error
+`ze bgp config migrate` converts old syntax:
+- `template { bgp { peer <pattern> { inherit-name X; } } }` becomes `group X { }`
+- `inherit X` in peers moves the peer into `group X`
+- `neighbor` blocks become `peer` blocks inside groups
 
 ### bgp
 
-Container for all BGP-related configuration (peers, global settings).
+Container for all BGP-related configuration (peers, groups, global settings).
 
 ```
 bgp {
-    router-id <ip>;         # Global router-id (optional, can be per-peer)
-    local-as <asn>;         # Global local-as (optional, can be per-peer)
+    router-id <ip>;         # Global router-id (inherited by all peers)
+    local-as <asn>;         # Global local-as (inherited by all peers)
 
-    peer <ip-address> {
-        inherit <template-name>;    # Inherit from named template
-
-        # Session settings
-        router-id <ip>;
-        local-address <ip>;
-        local-as <asn>;
-        peer-as <asn>;
+    group <name> {
+        # Group-level defaults (inherited by all peers in group)
         hold-time <seconds>;
-
-        # Capabilities
         capability { ... }
-
-        # Address families
         family { ... }
 
-        # Process bindings
-        process <plugin-name> { ... }
+        peer <ip-address> {
+            name <display-name>;    # Optional CLI selector
 
-        # Route announcements
-        update { ... }
+            # Peer-level overrides
+            router-id <ip>;
+            local-address <ip>;
+            local-as <asn>;
+            peer-as <asn>;
+            hold-time <seconds>;
+
+            # Capabilities
+            capability { ... }
+
+            # Address families
+            family { ... }
+
+            # Process bindings
+            process <plugin-name> { ... }
+
+            # Route announcements
+            update { ... }
+        }
     }
 }
 ```
 
 **Migration:** `ze bgp config migrate` converts old syntax:
-- `neighbor` to `bgp { peer }`
-- `peer` at root to `bgp { peer }`
-- `template { group/match }` to `template { bgp { peer } }`
+- `neighbor` to `bgp { group <name> { peer } }`
+- `template { inherit-name X }` to `group X { }`
+- `inherit X` in peers moves peer into `group X`
 
 ---
 
@@ -708,58 +726,52 @@ incomplete
 
 ## Inheritance
 
-### Named Templates
+### Peer Group Inheritance
 
 ```
-template {
-    bgp {
-        peer * {
-            inherit-name rr-client;     # Name this template "rr-client"
-            hold-time 90;
-            family {
-                ipv4/unicast;
-            }
-        }
-    }
-}
-
 bgp {
-    peer 192.168.1.2 {
-        inherit rr-client;              # Inherit from "rr-client"
-        local-as 65001;
-        peer-as 65002;
+    router-id 1.2.3.4         # BGP-level global
+    local-as 65000             # BGP-level global
+
+    group rr-clients {
+        hold-time 90           # Group default
+        family {
+            ipv4/unicast
+        }
+
+        peer 192.168.1.2 {
+            peer-as 65002      # Peer override
+            local-address 192.168.1.1
+        }
     }
 }
 ```
 
 ### Key Concepts
 
-| Keyword | Location | Purpose |
-|---------|----------|---------|
-| `inherit-name <name>` | `template.bgp.peer` | Defines a named template |
-| `inherit <name>` | `bgp.peer` | References a named template |
-| `<pattern>` | `template.bgp.peer <pattern>` | Glob that limits which peers can use this template |
+| Concept | Description |
+|---------|-------------|
+| BGP globals | `local-as` and `router-id` at bgp level, inherited by all peers |
+| Group defaults | Any `peer-fields` set on the group, inherited by all peers in that group |
+| Peer overrides | Any `peer-fields` set on the peer, takes highest precedence |
+| Deep merge | Containers (e.g., `capability`) merge keys from both group and peer |
+| Leaf override | Scalar values (e.g., `hold-time`) at peer level replace group values |
 
-### Pattern Enforcement
+### Standalone Peers
 
-The peer pattern acts as a constraint:
+Peers directly under `bgp` (not inside a group) inherit only BGP-level globals:
 
 ```
-template {
-    bgp {
-        peer 10.0.0.* {                 # Only peers matching 10.0.0.* can inherit
-            inherit-name internal;
-        }
+bgp {
+    local-as 65000
+
+    peer 10.0.0.5 {
+        peer-as 65001
+        local-address 10.0.0.1
+        hold-time 180
     }
 }
-
-bgp {
-    peer 10.0.0.5 { inherit internal; }     # OK - matches pattern
-    peer 192.168.1.1 { inherit internal; }  # ERROR - doesn't match pattern
-}
 ```
-
-Using `peer *` allows any peer to inherit from the template.
 
 ---
 

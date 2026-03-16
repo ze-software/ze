@@ -29,7 +29,7 @@ func init() {
 }
 
 // filterPeersBySelector returns peers matching the context's peer selector.
-// If the selector is "*", all peers are returned. Otherwise, filters by IP.
+// If the selector is "*", all peers are returned. Otherwise, filters by IP or peer name.
 func filterPeersBySelector(ctx *pluginserver.CommandContext) ([]plugin.PeerInfo, *plugin.Response, error) {
 	if ctx.Reactor() == nil {
 		return nil, &plugin.Response{Status: plugin.StatusError, Data: "reactor not available"}, fmt.Errorf("reactor not available")
@@ -41,16 +41,20 @@ func filterPeersBySelector(ctx *pluginserver.CommandContext) ([]plugin.PeerInfo,
 		return allPeers, nil, nil
 	}
 
+	// Try IP address match first.
 	filterIP, err := netip.ParseAddr(selector)
-	if err != nil {
-		return nil, &plugin.Response{
-			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("invalid IP address: %s", selector),
-		}, fmt.Errorf("invalid peer address %s: %w", selector, err)
+	if err == nil {
+		for i := range allPeers {
+			if allPeers[i].Address == filterIP {
+				return []plugin.PeerInfo{allPeers[i]}, nil, nil
+			}
+		}
+		return nil, nil, nil
 	}
 
+	// Not a valid IP -- try peer name match.
 	for i := range allPeers {
-		if allPeers[i].Address == filterIP {
+		if allPeers[i].Name == selector {
 			return []plugin.PeerInfo{allPeers[i]}, nil, nil
 		}
 	}
@@ -70,11 +74,18 @@ func handleBgpPeerList(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 	result := make(map[string]any, len(peers))
 	for i := range peers {
 		p := &peers[i]
-		result[p.Address.String()] = map[string]any{
+		row := map[string]any{
 			"peer-as": p.PeerAS,
 			"state":   p.State,
 			"uptime":  p.Uptime.String(),
 		}
+		if p.Name != "" {
+			row["name"] = p.Name
+		}
+		if p.GroupName != "" {
+			row["group"] = p.GroupName
+		}
+		result[p.Address.String()] = row
 	}
 
 	return &plugin.Response{
@@ -114,6 +125,12 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 			"keepalives-sent":     p.KeepalivesSent,
 			"eor-received":        p.EORReceived,
 			"eor-sent":            p.EORSent,
+		}
+		if p.Name != "" {
+			row["name"] = p.Name
+		}
+		if p.GroupName != "" {
+			row["group"] = p.GroupName
 		}
 		if p.LocalAddress.IsValid() {
 			row["local-address"] = p.LocalAddress.String()

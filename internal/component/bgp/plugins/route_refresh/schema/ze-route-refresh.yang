@@ -12,10 +12,7 @@ module ze-route-refresh {
         description "Initial revision.";
     }
 
-    augment "/bgp:bgp/bgp:peer/bgp:capability" {
-        container route-refresh {
-            presence "Route Refresh capability enabled";
-            description "Route Refresh capability (code 2, RFC 2918).";
-        }
-    }
+    // NOTE: route-refresh container is defined in peer-fields grouping (ze-bgp-conf.yang).
+    // These augments are no-ops since the container already exists via uses peer-fields,
+    // but they're kept for documentation and forward compatibility.
 }

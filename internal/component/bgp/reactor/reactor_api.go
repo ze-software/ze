@@ -43,6 +43,8 @@ func (o *apiStateObserver) OnPeerEstablished(peer *Peer) {
 	peerInfo := plugin.PeerInfo{
 		Address:      s.Address,
 		LocalAddress: s.LocalAddress,
+		Name:         s.Name,
+		GroupName:    s.GroupName,
 		LocalAS:      s.LocalAS,
 		PeerAS:       s.PeerAS,
 		RouterID:     s.RouterID,
@@ -59,6 +61,8 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
 	peerInfo := plugin.PeerInfo{
 		Address:      s.Address,
 		LocalAddress: s.LocalAddress,
+		Name:         s.Name,
+		GroupName:    s.GroupName,
 		LocalAS:      s.LocalAS,
 		PeerAS:       s.PeerAS,
 		RouterID:     s.RouterID,
@@ -84,6 +88,8 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 		info := plugin.PeerInfo{
 			Address:            s.Address,
 			LocalAddress:       s.LocalAddress,
+			Name:               s.Name,
+			GroupName:          s.GroupName,
 			LocalAS:            s.LocalAS,
 			PeerAS:             s.PeerAS,
 			RouterID:           s.RouterID,

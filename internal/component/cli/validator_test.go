@@ -499,10 +499,10 @@ func TestValidateMissingPeerAS(t *testing.T) {
 	}
 }
 
-// TestValidatePeerASInheritance verifies peer-as can be inherited from template.
+// TestValidatePeerASInheritance verifies peer-as can be inherited from group.
 //
-// VALIDATES: Inherited peer-as satisfies mandatory field requirement.
-// PREVENTS: False positives when peer-as comes from template.
+// VALIDATES: Group-level peer-as satisfies mandatory field requirement for group peers.
+// PREVENTS: False positives when peer-as comes from group defaults.
 func TestValidatePeerASInheritance(t *testing.T) {
 	v, err := NewConfigValidator()
 	require.NoError(t, err)
@@ -516,96 +516,66 @@ func TestValidatePeerASInheritance(t *testing.T) {
 	}{
 		{
 			name: "peer-as_inherited_from_group",
-			content: `template {
+			content: `bgp {
+  router-id 1.1.1.1
+  local-as 65000
   group ibgp {
     peer-as 65000
     hold-time 60
-  }
-}
-bgp {
-  router-id 1.1.1.1
-  local-as 65000
-  peer 192.0.2.1 {
-    inherit ibgp
+    peer 192.0.2.1 {
+    }
   }
 }`,
 		},
 		{
-			name: "peer-as_override_inherited",
-			content: `template {
+			name: "peer-as_override_in_group_peer",
+			content: `bgp {
+  router-id 1.1.1.1
+  local-as 65000
   group ibgp {
     peer-as 65000
-  }
-}
-bgp {
-  router-id 1.1.1.1
-  local-as 65000
-  peer 192.0.2.1 {
-    inherit ibgp
-    peer-as 65001
+    peer 192.0.2.1 {
+      peer-as 65001
+    }
   }
 }`,
 		},
 		{
-			name: "inherit_without_peer-as_in_template",
-			content: `template {
+			name: "group_without_peer-as",
+			content: `bgp {
+  router-id 1.1.1.1
+  local-as 65000
   group base {
     hold-time 60
-  }
-}
-bgp {
-  router-id 1.1.1.1
-  local-as 65000
-  peer 192.0.2.1 {
-    inherit base
+    peer 192.0.2.1 {
+    }
   }
 }`,
 			wantWarn:        true,
 			wantMsgContains: "peer-as",
 		},
 		{
-			name: "inherit_nonexistent_template",
+			name: "standalone_peer_missing_peer-as",
 			content: `bgp {
   router-id 1.1.1.1
   local-as 65000
   peer 192.0.2.1 {
-    inherit nonexistent
+    hold-time 90
   }
 }`,
-			wantErr:         true,
-			wantMsgContains: "template",
+			wantWarn:        true,
+			wantMsgContains: "peer-as",
 		},
 		{
-			name: "peer-as_inherited_from_new_syntax",
-			content: `template {
-  bgp {
-    peer * {
-      inherit-name ibgp
-      peer-as 65000
-    }
-  }
-}
-bgp {
+			name: "invalid_hold-time_from_group",
+			content: `bgp {
   router-id 1.1.1.1
   local-as 65000
-  peer 192.0.2.1 {
-    inherit ibgp
-  }
-}`,
-		},
-		{
-			name: "invalid_hold-time_inherited",
-			content: `template {
   group bad {
     peer-as 65001
     hold-time 1
-  }
-}
-bgp {
-  router-id 1.1.1.1
-  local-as 65000
-  peer 192.0.2.1 {
-    inherit bad
+    peer 192.0.2.1 {
+    }
   }
 }`,
 			wantErr:         true,
@@ -638,7 +608,7 @@ bgp {
 				}
 				assert.True(t, found, "expected warning containing %q", tt.wantMsgContains)
 			default:
-				assert.Empty(t, result.Errors, "expected no errors when peer-as is inherited")
+				assert.Empty(t, result.Errors, "expected no errors when peer-as is inherited from group")
 			}
 		})
 	}
