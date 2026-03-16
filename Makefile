@@ -3,7 +3,7 @@
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-interop-test
-.PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json
+.PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-validate-commands ze-validate-commands-json
 .PHONY: check
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
@@ -274,6 +274,14 @@ ze-inventory:
 ze-inventory-json:
 	@go run scripts/inventory.go --json
 
+# Cross-check YANG command tree against registered handlers
+ze-validate-commands:
+	@go run scripts/validate-commands.go
+
+# Cross-check YANG command tree (JSON output)
+ze-validate-commands-json:
+	@go run scripts/validate-commands.go --json
+
 # ─── Utilities ───────────────────────────────────────────────────────────────
 
 # Format code
@@ -353,6 +361,7 @@ help:
 	@echo "  Inventory:"
 	@echo "  ze-inventory          - Generate project inventory (plugins, YANG, RPCs, tests)"
 	@echo "  ze-inventory-json     - Generate project inventory as JSON"
+	@echo "  ze-validate-commands  - Cross-check YANG command tree vs registered handlers"
 	@echo ""
 	@echo "  Utilities:"
 	@echo "  fmt                   - Format code (gofmt + goimports)"

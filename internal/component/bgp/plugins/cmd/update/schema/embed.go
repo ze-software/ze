@@ -5,3 +5,6 @@ import _ "embed"
 
 //go:embed ze-bgp-cmd-update-api.yang
 var ZeBgpCmdUpdateAPIYANG string
+
+//go:embed ze-update-cmd.yang
+var ZeUpdateCmdYANG string

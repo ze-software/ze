@@ -1,0 +1,70 @@
+module ze-meta-cmd {
+    namespace "urn:ze:meta:cmd";
+    prefix metacmd;
+    import ze-extensions { prefix ze; }
+    description "BGP meta/introspection command tree";
+    revision 2026-03-16 { description "Initial revision"; }
+
+    container help {
+        config false;
+        ze:command "ze-bgp:help";
+        description "List bgp subcommands";
+    }
+
+    container command {
+        config false;
+        description "Command introspection";
+
+        container list {
+            config false;
+            ze:command "ze-bgp:command-list";
+            description "List bgp commands";
+        }
+
+        container help {
+            config false;
+            ze:command "ze-bgp:command-help";
+            description "Show command details";
+        }
+
+        container complete {
+            config false;
+            ze:command "ze-bgp:command-complete";
+            description "Complete command/args";
+        }
+    }
+
+    container event {
+        config false;
+        description "Event operations";
+
+        container list {
+            config false;
+            ze:command "ze-bgp:event-list";
+            description "List available BGP event types";
+        }
+    }
+
+    container plugin {
+        config false;
+        description "Plugin configuration";
+
+        container encoding {
+            config false;
+            ze:command "ze-bgp:plugin-encoding";
+            description "Set event encoding (json|text)";
+        }
+
+        container format {
+            config false;
+            ze:command "ze-bgp:plugin-format";
+            description "Set wire format (hex|base64|parsed|full)";
+        }
+
+        container ack {
+            config false;
+            ze:command "ze-bgp:plugin-ack";
+            description "Set ACK timing (sync|async)";
+        }
+    }
+}

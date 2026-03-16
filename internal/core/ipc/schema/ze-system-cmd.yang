@@ -1,0 +1,109 @@
+module ze-system-cmd {
+    namespace "urn:ze:system:cmd";
+    prefix syscmd;
+
+    import ze-extensions { prefix ze; }
+
+    description
+        "System operational command tree for Ze CLI.
+         Covers system introspection and daemon lifecycle commands.";
+
+    revision 2026-03-16 {
+        description "Initial revision";
+    }
+
+    // System group
+
+    container system {
+        config false;
+        description "System operations";
+
+        container help {
+            config false;
+            ze:command "ze-system:help";
+            description "Show available commands";
+        }
+
+        container dispatch {
+            config false;
+            ze:command "ze-system:dispatch";
+            description "Dispatch a text command";
+        }
+
+        container version {
+            config false;
+            description "Version information";
+
+            container software {
+                config false;
+                ze:command "ze-system:version-software";
+                description "Show ze version";
+            }
+
+            container api {
+                config false;
+                ze:command "ze-system:version-api";
+                description "Show IPC protocol version";
+            }
+        }
+
+        container subsystem {
+            config false;
+            description "Subsystem operations";
+
+            container list {
+                config false;
+                ze:command "ze-system:subsystem-list";
+                description "List available subsystems";
+            }
+        }
+
+        container command {
+            config false;
+            description "Command introspection";
+
+            container list {
+                config false;
+                ze:command "ze-system:command-list";
+                description "List all commands";
+            }
+
+            container help {
+                config false;
+                ze:command "ze-system:command-help";
+                description "Show command details";
+            }
+
+            container complete {
+                config false;
+                ze:command "ze-system:command-complete";
+                description "Complete command/args";
+            }
+        }
+    }
+
+    // Daemon group
+
+    container daemon {
+        config false;
+        description "Daemon lifecycle";
+
+        container shutdown {
+            config false;
+            ze:command "ze-system:daemon-shutdown";
+            description "Gracefully shutdown the daemon";
+        }
+
+        container status {
+            config false;
+            ze:command "ze-system:daemon-status";
+            description "Show daemon status";
+        }
+
+        container reload {
+            config false;
+            ze:command "ze-system:daemon-reload";
+            description "Reload the configuration";
+        }
+    }
+}

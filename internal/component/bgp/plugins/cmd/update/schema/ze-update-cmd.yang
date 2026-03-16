@@ -1,0 +1,18 @@
+module ze-update-cmd {
+    namespace "urn:ze:update:cmd";
+    prefix updatecmd;
+    import ze-extensions { prefix ze; }
+    description "BGP update command tree";
+    revision 2026-03-16 { description "Initial revision"; }
+
+    container peer {
+        config false;
+        description "Peer operations";
+
+        container update {
+            config false;
+            ze:command "ze-bgp:peer-update";
+            description "Batch UPDATE with text/hex/b64 encoding";
+        }
+    }
+}

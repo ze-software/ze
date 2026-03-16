@@ -6,4 +6,5 @@ import (
 
 func init() {
 	yang.RegisterModule("ze-bgp-cmd-update-api.yang", ZeBgpCmdUpdateAPIYANG)
+	yang.RegisterModule("ze-update-cmd.yang", ZeUpdateCmdYANG)
 }

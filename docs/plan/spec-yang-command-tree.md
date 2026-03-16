@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 1/5 |
 | Updated | 2026-03-16 |
 
 ## Post-Compaction Recovery
@@ -60,7 +60,7 @@ Not applicable -- this is CLI/YANG architecture, not protocol work.
 - Current `editModeCommands` map in `model_mode.go:97-103` hardcodes 15 keywords. These should be derivable from YANG.
 - `RPCRegistration` has both `WireMethod` (for dispatch) and `CLICommand` (for tree building). After this spec, `CLICommand` is derived from YANG path. `WireMethod` stays for dispatch.
 - `BuildTree()` currently strips `"bgp "` prefix from CLICommand strings. After this spec, the YANG tree already has the right hierarchy -- no prefix stripping needed.
-- ~~54 RPCRegistrations currently exist (counted from grep).~~ Superseded: 57 RPCRegistrations across 15 handler files (audited 2026-03-16).
+- ~~54 RPCRegistrations currently exist (counted from grep).~~ Superseded: 60 RPCRegistrations across 19 handler files (audited 2026-03-16). 109 RPCs in YANG (includes 20 internal plugin protocol RPCs).
 
 ## Current Behavior (MANDATORY)
 
@@ -72,7 +72,7 @@ Not applicable -- this is CLI/YANG architecture, not protocol work.
 - [ ] `internal/component/cli/completer.go` - `Completer` walks `*gyang.Entry.Dir` for config. `mergedRoot()` combines 3 conf modules. `confModules = ["ze-bgp-conf", "ze-hub-conf", "ze-plugin-conf"]`.
 - [ ] `internal/component/cli/completer_command.go` - `CommandCompleter` wraps `command.TreeCompleter`, converts `command.Suggestion` to `cli.Completion`.
 - [ ] `internal/component/config/yang/modules/ze-extensions.yang` - 6 extensions: `syntax`, `key-type`, `route-attributes`, `allow-unknown-fields`, `sensitive`, `validate`.
-- [ ] ~~`internal/component/bgp/schema/ze-bgp-api.yang` - 25 flat RPCs~~ Superseded: 15 YANG API modules with 57 wired RPCRegistrations across per-concern plugins. See full inventory below.
+- [ ] ~~`internal/component/bgp/schema/ze-bgp-api.yang` - 25 flat RPCs~~ Superseded: 15 YANG API modules with 60 wired RPCRegistrations across per-concern plugins. See full inventory below.
 
 **YANG API Module Inventory (audited 2026-03-16):**
 
@@ -82,19 +82,20 @@ Not applicable -- this is CLI/YANG architecture, not protocol work.
 | `ze-plugin-api` | `internal/core/ipc/schema/` | 8 | `ze-plugin:` | `plugin/server/session.go`, `plugin_rpc.go` |
 | `ze-bgp-api` | `bgp/schema/` | 46 | `ze-bgp:` | Distributed across `cmd/*` plugins |
 | `ze-bgp-cmd-peer-api` | `bgp/plugins/cmd/peer/schema/` | 11 | `ze-bgp:` | `cmd/peer/peer.go`, `summary.go` |
-| `ze-bgp-cmd-meta-api` | `bgp/plugins/cmd/meta/schema/` | 8 | `ze-bgp:` | `cmd/meta/help.go`, `plugin_config.go` |
+| `ze-bgp-cmd-meta-api` | `component/cmd/meta/schema/` | 8 | `ze-bgp:` | `cmd/meta/help.go`, `plugin_config.go` |
 | `ze-bgp-cmd-update-api` | `bgp/plugins/cmd/update/schema/` | 2 | `ze-bgp:` | `cmd/update/update_text.go` |
 | `ze-bgp-cmd-raw-api` | `bgp/plugins/cmd/raw/schema/` | 1 | `ze-bgp:` | `cmd/raw/raw.go` |
-| `ze-bgp-cmd-cache-api` | `bgp/plugins/cmd/cache/schema/` | 1 | `ze-bgp:` | `cmd/cache/cache.go` |
-| `ze-bgp-cmd-commit-api` | `bgp/plugins/cmd/commit/schema/` | 1 | `ze-bgp:` | `cmd/commit/commit.go` |
-| `ze-bgp-cmd-subscribe-api` | `bgp/plugins/cmd/subscribe/schema/` | 2 | `ze-bgp:` | `cmd/subscribe/subscribe.go` |
-| `ze-bgp-cmd-metrics-api` | `bgp/plugins/cmd/metrics/schema/` | 2 | `ze-bgp:` | `cmd/metrics/metrics.go` |
-| `ze-bgp-cmd-log-api` | `bgp/plugins/cmd/log/schema/` | 2 | `ze-bgp:` | `cmd/log/log.go` |
+| `ze-bgp-cmd-cache-api` | `component/cmd/cache/schema/` | 1 | `ze-bgp:` | `cmd/cache/cache.go` |
+| `ze-bgp-cmd-commit-api` | `component/cmd/commit/schema/` | 1 | `ze-bgp:` | `cmd/commit/commit.go` |
+| `ze-bgp-cmd-subscribe-api` | `component/cmd/subscribe/schema/` | 2 | `ze-bgp:` | `cmd/subscribe/subscribe.go` |
+| `ze-bgp-cmd-metrics-api` | `component/cmd/metrics/schema/` | 2 | `ze-bgp:` | `cmd/metrics/metrics.go` |
+| `ze-bgp-cmd-log-api` | `component/cmd/log/schema/` | 2 | `ze-bgp:` | `cmd/log/log.go` |
 | `ze-rib-api` | `bgp/plugins/rib/schema/` | 12 | `ze-rib-api:` | `cmd/rib/rib.go` (forwards to bgp-rib plugin) |
 | `ze-route-refresh-api` | `bgp/plugins/route_refresh/schema/` | 4 | `ze-bgp:` | `route_refresh/handler/refresh.go`, `clear_soft.go` |
 | `ze-adj-rib-in-api` | `bgp/plugins/adj_rib_in/schema/` | 0 | N/A | Config-only module |
+| (no YANG module) | `cli/init.go` | 2 | `ze-editor:` | `cli/init.go` (editor mode switching, no Handler) |
 
-**RPCRegistration Inventory (57 wired, sorted by CLICommand):**
+**RPCRegistration Inventory (60 wired, sorted by CLICommand):**
 
 | CLICommand | WireMethod | Handler file | ReadOnly | RequiresSelector | PluginCommand |
 |-----------|-----------|-------------|----------|------------------|---------------|
@@ -139,6 +140,7 @@ Not applicable -- this is CLI/YANG architecture, not protocol work.
 | `daemon reload` | `ze-system:daemon-reload` | `server/system.go` | No | No | - |
 | `daemon shutdown` | `ze-system:daemon-shutdown` | `server/system.go` | No | No | - |
 | `daemon status` | `ze-system:daemon-status` | `server/system.go` | Yes | No | - |
+| `edit` | `ze-editor:mode-edit` | `cli/init.go` | Yes | No | - |
 | `plugin command complete` | `ze-plugin:command-complete` | `server/plugin_rpc.go` | Yes | No | - |
 | `plugin command help` | `ze-plugin:command-help` | `server/plugin_rpc.go` | Yes | No | - |
 | `plugin command list` | `ze-plugin:command-list` | `server/plugin_rpc.go` | Yes | No | - |
@@ -146,6 +148,7 @@ Not applicable -- this is CLI/YANG architecture, not protocol work.
 | `plugin session bye` | `ze-plugin:session-bye` | `server/session.go` | No | No | - |
 | `plugin session ping` | `ze-plugin:session-ping` | `server/session.go` | Yes | No | - |
 | `plugin session ready` | `ze-plugin:session-ready` | `server/session.go` | No | No | - |
+| `run` | `ze-editor:mode-command` | `cli/init.go` | Yes | No | - |
 | `subscribe` | `ze-bgp:subscribe` | `cmd/subscribe/subscribe.go` | No | No | - |
 | `system command complete` | `ze-system:command-complete` | `server/system.go` | Yes | No | - |
 | `system command help` | `ze-system:command-help` | `server/system.go` | Yes | No | - |
@@ -166,12 +169,13 @@ Not applicable -- this is CLI/YANG architecture, not protocol work.
 - Edit mode shortcuts (commit, save, etc.) are syntactic sugar for `run <cmd>` -- made explicit via YANG tag
 
 **Behavior to change:**
-- `CLICommand` string field removed from `RPCRegistration` -- derived from YANG path
+- `CLICommand` string field removed from `RPCRegistration` -- YANG tree is the source of truth for CLI hierarchy
 - `BuildTree()` walks YANG entries instead of splitting strings
-- `editModeCommands` map derived from YANG `ze:edit-shortcut` extension instead of hardcoded
 - Two separate completers merged into one YANG-walking completer with mode awareness
-- YANG API modules restructured from flat RPCs to hierarchical `config false` containers
-- `ze-extensions.yang` extended with `ze:command` and `ze:edit-shortcut`
+- Per-plugin `-cmd.yang` modules define the command tree hierarchy alongside existing `-api.yang` modules
+- `ze-extensions.yang` extended with `ze:command` (with WireMethod handler argument) and `ze:edit-shortcut` (marker, zero current uses)
+- ~~`editModeCommands` map derived from YANG~~ Eliminated: all 15 entries are editor-internal, not YANG-derivable
+- 6 non-BGP command plugins moved from `bgp/plugins/cmd/` to `component/cmd/`
 
 ## Data Flow (MANDATORY)
 
@@ -197,9 +201,9 @@ Not applicable -- this is CLI/YANG architecture, not protocol work.
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| YANG loader -> completer | `GetEntry()` returns unified tree | [ ] |
-| YANG path -> WireMethod | Convention: path `peer > list` in module `ze-bgp-cmd` -> `"ze-bgp:peer.list"` | [ ] |
-| Completer -> handler dispatch | User input matched against YANG path, resolved to WireMethod, dispatched | [ ] |
+| YANG loader -> completer | `GetEntry()` returns unified tree from 13 `-cmd` modules | [ ] |
+| YANG entry -> WireMethod | Explicit `ze:command "wire-method"` argument on entry (no derivation) | `make ze-validate-commands` (58/58) |
+| Completer -> handler dispatch | User input matched against YANG path, `GetCommandExtension()` returns WireMethod, dispatched | [ ] |
 
 ### Integration Points
 - `internal/component/config/yang/modules/ze-extensions.yang` -- add `ze:command` and `ze:edit-shortcut` extensions
@@ -221,10 +225,12 @@ Two new extensions in `ze-extensions.yang`:
 
 | Extension | Argument | Purpose |
 |-----------|----------|---------|
-| `ze:command` | none | Marks a `config false` container as an executable command (not just a grouping node). Leaf children are parameters. |
+| `ze:command` | WireMethod handler (e.g., `"ze-bgp:peer-list"`) | Marks a `config false` container as an executable command and references the handler for dispatch. Eliminates the need for WireMethod derivation conventions -- the reference is explicit. |
 | `ze:edit-shortcut` | none | Marks a command node as available in edit mode as a shortcut. When typed in edit mode, implicitly runs as `run <command>`. Replaces the hardcoded `editModeCommands` map. |
 
-Detection in Go: walk `Entry.Exts` for `ze:command` / `ze:edit-shortcut` statements.
+Detection in Go: `GetCommandExtension(entry)` returns the WireMethod string (or empty). `HasEditShortcutExtension(entry)` returns bool. Both walk `Entry.Exts`.
+
+~~WireMethod derived from YANG path convention~~ Superseded (2026-03-16): WireMethod is declared explicitly as the `ze:command` argument. Existing WireMethod strings (e.g., `ze-bgp:peer-list`) are preserved unchanged -- no renaming needed.
 
 ## YANG Module Restructuring
 
@@ -234,11 +240,31 @@ Detection in Go: walk `Entry.Exts` for `ze:command` / `ze:edit-shortcut` stateme
 
 Each plugin already has its own YANG API module (e.g., `ze-bgp-cmd-peer-api.yang`). The RPCs within each module are flat (e.g., `peer-list`, `peer-add`). The restructuring adds a parallel `-cmd.yang` module per domain that defines hierarchical `config false` containers matching the CLI tree, while the `-api.yang` modules (with flat RPCs and input/output schemas) are preserved for wire protocol documentation.
 
-### After: hierarchical `-cmd.yang` modules alongside existing `-api.yang`
+### After: per-plugin `-cmd.yang` modules alongside existing `-api.yang` (DONE)
 
-Each domain gets a `-cmd.yang` module with `config false` containers defining the command tree. The CLI command hierarchy is the tree structure itself. The `-api.yang` RPCs remain as the wire protocol schema (input/output leaf definitions).
+Each plugin gets its own `-cmd.yang` module (proximity principle). The Go tree walker merges overlapping containers (e.g., multiple plugins contribute `peer > ...` nodes). Non-BGP plugins moved from `bgp/plugins/cmd/` to `component/cmd/`.
 
-**BGP domain (`ze-bgp-cmd.yang` -- new, replaces tree from all BGP plugins' CLICommand strings):**
+**13 per-plugin command modules:**
+
+| Module | Plugin location | Commands |
+|--------|----------------|----------|
+| `ze-peer-cmd` | `bgp/plugins/cmd/peer/schema/` | summary, peer list/detail/add/remove/teardown/pause/resume/save/capabilities/statistics, peer plugin session ready |
+| `ze-rib-cmd` | `bgp/plugins/cmd/rib/schema/` | rib status/routes/best/best-status/clear-in/clear-out |
+| `ze-refresh-cmd` | `bgp/plugins/route_refresh/schema/` | peer refresh/borr/eorr/clear-soft |
+| `ze-raw-cmd` | `bgp/plugins/cmd/raw/schema/` | peer raw |
+| `ze-update-cmd` | `bgp/plugins/cmd/update/schema/` | peer update |
+| `ze-meta-cmd` | `component/cmd/meta/schema/` | help, command list/help/complete, event list, plugin encoding/format/ack |
+| `ze-cache-cmd` | `component/cmd/cache/schema/` | cache |
+| `ze-commit-cmd` | `component/cmd/commit/schema/` | commit (+ ze:edit-shortcut) |
+| `ze-subscribe-cmd` | `component/cmd/subscribe/schema/` | subscribe, unsubscribe |
+| `ze-log-cmd` | `component/cmd/log/schema/` | log levels/set |
+| `ze-metrics-cmd` | `component/cmd/metrics/schema/` | metrics values/list |
+| `ze-system-cmd` | `core/ipc/schema/` | system help/dispatch/version/subsystem/command, daemon shutdown/status/reload |
+| `ze-plugin-cmd` | `core/ipc/schema/` | plugin help/command/session |
+
+~~BGP domain (`ze-bgp-cmd.yang`)~~ Superseded: per-plugin modules replace monolithic file.
+
+**Command-to-YANG mapping (from all plugins):**
 
 | Current CLICommand | New YANG path | Tree depth | Source handler |
 |---|---|---|---|
@@ -320,40 +346,39 @@ Each domain gets a `-cmd.yang` module with `config false` containers defining th
 
 ### WireMethod mapping
 
-YANG path to WireMethod convention:
+~~YANG path to WireMethod convention~~ Superseded (2026-03-16): WireMethod is now an explicit argument to `ze:command`, not derived from a naming convention. Existing WireMethod strings are preserved unchanged.
 
-| YANG module | YANG path | WireMethod |
-|-------------|-----------|------------|
-| `ze-bgp-cmd` | `peer > list` | `ze-bgp:peer.list` |
-| `ze-bgp-cmd` | `peer > clear > soft` | `ze-bgp:peer.clear.soft` |
-| `ze-bgp-cmd` | `rib > best > status` | `ze-rib-api:best.status` |
-| `ze-system-cmd` | `daemon > shutdown` | `ze-system:daemon.shutdown` |
-| `ze-system-cmd` | `system > version > software` | `ze-system:version.software` |
-| `ze-plugin-cmd` | `plugin > session > ready` | `ze-plugin:session.ready` |
+| YANG module | YANG path | ze:command argument (WireMethod) |
+|-------------|-----------|----------------------------------|
+| `ze-bgp-cmd` | `peer > list` | `ze-bgp:peer-list` |
+| `ze-bgp-cmd` | `peer > clear > soft` | `ze-bgp:peer-clear-soft` |
+| `ze-bgp-cmd` | `rib > best > status` | `ze-rib-api:best-status` |
+| `ze-system-cmd` | `daemon > shutdown` | `ze-system:daemon-shutdown` |
+| `ze-system-cmd` | `system > version > software` | `ze-system:version-software` |
+| `ze-plugin-cmd` | `plugin > session > ready` | `ze-plugin:session-ready` |
 
-The `.` separator in WireMethod replaces the current `-` (e.g., `ze-bgp:peer-list` becomes `ze-bgp:peer.list`). Handler dispatch uses WireMethod unchanged. This is a naming convention change that must be applied consistently across all 57 registrations.
+No WireMethod renaming needed. The existing `module:rpc-name` format is preserved verbatim.
 
 ### Edit shortcuts
 
-Commands tagged with `ze:edit-shortcut` in YANG:
+~~Commands tagged with `ze:edit-shortcut` in YANG:~~
 
-| Command | Why it's a shortcut |
-|---------|-----|
-| `commit` | Applies config changes -- natural from edit mode |
-| `save` | Persists config -- natural from edit mode |
-| `rollback` | Restores config -- natural from edit mode |
-| `load` | Loads config -- natural from edit mode |
+~~`commit`, `save`, `rollback`, `load`~~ Superseded (2026-03-16): All 15 commands in the `editModeCommands` map are **editor-internal** commands handled directly by the CLI model (e.g., `cmdCommitConfirmed()`, `cmdLoad()`, `cmdSave()`). They are NOT operational commands dispatched via WireMethod. The `editModeCommands` map controls **mode switching** -- when a command mode user types `commit`, the editor switches to edit mode and executes the editor's internal commit.
 
-These replace the hardcoded `editModeCommands` map. The remaining entries in that map (`set`, `delete`, `edit`, `show`, `top`, `up`, `discard`, `compare`, `errors`, `history`, `who`, `disconnect`) are editor-internal commands, not operational commands -- they stay as they are (not YANG-derived).
+**Revised design:** `ze:edit-shortcut` marks operational commands (dispatched via WireMethod) that should also appear in edit mode completions. Currently no operational commands need this -- the `commit` in the YANG tree (`ze-bgp:commit` -- named route commits) is different from the editor's `commit` (config commit).
+
+`ze:edit-shortcut` is defined in YANG but has **zero current uses**. It remains available for future operational commands that should be accessible from edit mode without the `run` prefix. The `editModeCommands` map stays as-is -- it's editor-internal, not YANG-derivable.
+
+**Note:** `ze-commit-cmd.yang` currently has `ze:edit-shortcut` on the `commit` container. This is wrong -- the `ze-bgp:commit` RPC (named route commits) is not the same as the editor's `commit` command. The `ze:edit-shortcut` should be removed from `ze-commit-cmd.yang`.
 
 ## Wiring Test (MANDATORY)
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
 | Tab completion in command mode | -> | YANG-derived command tree | `test/ui/cli-yang-command-completion.ci` |
-| Tab completion in edit mode for shortcuts | -> | `ze:edit-shortcut` extension | `test/ui/cli-yang-edit-shortcuts.ci` |
+| ~~Tab completion in edit mode for shortcuts~~ | ~~->~~ | ~~`ze:edit-shortcut` extension~~ | ~~Eliminated -- editModeCommands is editor-internal~~ |
 | `ze yang tree` shows unified tree | -> | Unified YANG walk | `test/ui/cli-yang-tree.ci` (from spec-yang-analysis) |
-| Handler dispatch via new WireMethod | -> | Dispatch still works after rename | `test/plugin/yang-wire-dispatch.ci` |
+| Handler dispatch after CLICommand removal | -> | Dispatch still works via WireMethod | `test/plugin/yang-wire-dispatch.ci` |
 
 ## Acceptance Criteria
 
@@ -361,32 +386,42 @@ These replace the hardcoded `editModeCommands` map. The remaining entries in tha
 |-------|-------------------|-------------------|
 | AC-1 | Tab in command mode | Shows command completions from YANG `-cmd` module entries (not from CLICommand strings) |
 | AC-2 | `ze:command` on a `config false` container | Completer offers it as an executable command |
-| AC-3 | `ze:edit-shortcut` on a command | Command appears in edit mode completions without `run` prefix |
-| AC-4 | `commit` typed in edit mode | Executes as `run commit` (same behavior as today, now driven by YANG tag) |
+| ~~AC-3~~ | ~~`ze:edit-shortcut` on a command~~ | ~~Deferred -- no operational commands currently need edit-mode shortcuts. Extension defined but zero uses.~~ |
+| ~~AC-4~~ | ~~`commit` typed in edit mode~~ | ~~Eliminated -- editor `commit` is internal (cmdCommitConfirmed), not the `ze-bgp:commit` RPC~~ |
 | AC-5 | `RPCRegistration` struct | `CLICommand` field removed. YANG path is the source of truth. |
 | AC-6 | `BuildTree()` or equivalent | Walks YANG `config false` entries instead of splitting CLICommand strings |
-| AC-7 | All 57 existing commands | Still reachable and executable after restructuring. No command lost. |
+| AC-7 | All 58 existing commands (excl. 2 editor-internal) | Still reachable and executable after restructuring. No command lost. `make ze-validate-commands` passes. |
 | AC-8 | `ze yang tree` (from spec-yang-analysis) | Shows unified tree with both config and command nodes |
 | AC-9 | `ze yang completion` (from spec-yang-analysis) | Finds collisions in the unified tree |
-| AC-10 | WireMethod format | Uses `.` separator for path hierarchy (`ze-bgp:peer.list`) |
-| AC-11 | Handler dispatch | All handlers still dispatch correctly with new WireMethod format |
-| AC-12 | `editModeCommands` map | Removed or derived from YANG `ze:edit-shortcut` tags. No hardcoded list. |
+| ~~AC-10~~ | ~~WireMethod format~~ | ~~Eliminated -- WireMethod preserved unchanged via explicit `ze:command` argument~~ |
+| ~~AC-11~~ | ~~Handler dispatch after rename~~ | ~~Eliminated -- no rename~~ |
+| ~~AC-12~~ | ~~`editModeCommands` map~~ | ~~Eliminated -- all 15 entries are editor-internal commands, not YANG-derivable. Map stays as-is.~~ |
 
 ## TDD Test Plan
 
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestCommandExtension` | `internal/component/config/yang/extension_test.go` | `ze:command` extension parsed from YANG | |
-| `TestEditShortcutExtension` | `internal/component/config/yang/extension_test.go` | `ze:edit-shortcut` extension parsed from YANG | |
-| `TestBuildTreeFromYANG` | `internal/component/command/node_test.go` | Tree built from YANG entries matches expected structure | |
-| `TestBuildTreeCommandNodes` | `internal/component/command/node_test.go` | Only `ze:command`-tagged nodes become executable tree leaves | |
-| `TestBuildTreeBranches` | `internal/component/command/node_test.go` | Non-command containers become navigable branches | |
-| `TestWireMethodFromPath` | `internal/component/config/yang/rpc_test.go` | YANG path `peer > list` in module `ze-bgp-cmd` produces `ze-bgp:peer.list` | |
-| `TestEditShortcutsFromYANG` | `internal/component/cli/completer_test.go` | Edit mode completions include `ze:edit-shortcut` tagged commands | |
-| `TestCommandModeCompletionsFromYANG` | `internal/component/cli/completer_test.go` | Command mode completions come from YANG walk, not CLICommand strings | |
-| `TestAllCommandsReachable` | `internal/component/plugin/server/dispatch_test.go` | Every handler is reachable via new WireMethod after restructuring | |
-| `TestNoHardcodedEditModeCommands` | `internal/component/cli/model_mode_test.go` | No static map -- shortcuts derived from YANG | |
+| `TestCommandExtension` | `config/yang/command_test.go` | `ze:command` with WireMethod argument parsed from YANG | Done |
+| `TestEditShortcutExtension` | `config/yang/command_test.go` | `ze:edit-shortcut` marker parsed from YANG | Done |
+| `TestExtensionNilEntry` | `config/yang/command_test.go` | Nil safety for extension functions | Done |
+| `TestPeerCmdModule` | `config/yang/command_test.go` | Peer plugin cmd module loads with correct hierarchy + WireMethod refs | Done |
+| `TestRibCmdModule` | `config/yang/command_test.go` | RIB plugin cmd module loads | Done |
+| `TestRefreshCmdModule` | `config/yang/command_test.go` | Route refresh plugin cmd module loads | Done |
+| `TestMetaCmdModule` | `config/yang/command_test.go` | Meta plugin cmd module loads (help, command, event, plugin groups) | Done |
+| `TestSimpleCmdModules` | `config/yang/command_test.go` | cache, commit, subscribe modules load | Done |
+| `TestCommitEditShortcut` | `config/yang/command_test.go` | commit has ze:edit-shortcut | Done |
+| `TestRawCmdModule` | `config/yang/command_test.go` | Raw plugin cmd module loads (peer > raw) | Done |
+| `TestUpdateCmdModule` | `config/yang/command_test.go` | Update plugin cmd module loads (peer > update) | Done |
+| `TestSystemCmdModuleLoads` | `config/yang/command_test.go` | System cmd module loads (system + daemon groups) | Done |
+| `TestPluginCmdModuleLoads` | `config/yang/command_test.go` | Plugin cmd module loads (plugin group) | Done |
+| `TestBuildTreeFromYANG` | `command/node_test.go` | Tree built from YANG entries matches expected structure | Phase 2 |
+| `TestBuildTreeCommandNodes` | `command/node_test.go` | Only `ze:command`-tagged nodes become executable tree leaves | Phase 2 |
+| `TestBuildTreeBranches` | `command/node_test.go` | Non-command containers become navigable branches | Phase 2 |
+| `TestEditShortcutsFromYANG` | `cli/completer_test.go` | Edit mode completions include `ze:edit-shortcut` tagged commands | Phase 4 |
+| `TestCommandModeCompletionsFromYANG` | `cli/completer_test.go` | Command mode completions come from YANG walk | Phase 5 |
+| `TestAllCommandsReachable` | `server/dispatch_test.go` | Every handler reachable after CLICommand removal | Phase 3 |
+| `TestNoHardcodedEditModeCommands` | `cli/model_mode_test.go` | No static map -- shortcuts derived from YANG | Phase 4 |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 Not applicable -- no numeric inputs in this spec.
@@ -402,72 +437,86 @@ Not applicable -- no numeric inputs in this spec.
 - Dedup logic in merged completions (Phase 3 -- single completer)
 - Visual `[cmd]`/`[set]` tags in completion dropdown
 
-## Files to Modify
+## Files to Modify (remaining -- Phase 2-6)
 
-**YANG extensions:**
-- `internal/component/config/yang/modules/ze-extensions.yang` - add `ze:command` and `ze:edit-shortcut` extensions
-
-**Core infrastructure:**
+**Core infrastructure (Phase 2-3):**
 - `internal/component/plugin/server/handler.go` - remove `CLICommand` from `RPCRegistration`
 - `internal/component/command/node.go` - rewrite `BuildTree()` to walk YANG entries
-- `internal/component/cli/model_mode.go` - derive edit shortcuts from YANG instead of hardcoded map
-- `internal/component/cli/model.go` - update `updateCompletions()` for unified tree
-- `internal/component/cli/completer.go` - extend to walk command nodes (`config false` + `ze:command`)
-- `internal/component/cli/completer_command.go` - may be absorbed into completer.go
 
-**System/plugin handlers (WireMethod + CLICommand):**
+**Handler registrations -- remove CLICommand (Phase 3):**
 - `internal/component/plugin/server/system.go` - 11 registrations
 - `internal/component/plugin/server/plugin_rpc.go` - 4 registrations
 - `internal/component/plugin/server/session.go` - 3 registrations
-
-**BGP command handlers (WireMethod + CLICommand):**
-- `internal/component/bgp/plugins/cmd/meta/help.go` - 5 registrations
-- `internal/component/bgp/plugins/cmd/meta/plugin_config.go` - 3 registrations
+- `internal/component/cli/init.go` - 2 registrations
 - `internal/component/bgp/plugins/cmd/peer/peer.go` - 8 registrations
 - `internal/component/bgp/plugins/cmd/peer/summary.go` - 3 registrations
 - `internal/component/bgp/plugins/cmd/peer/session.go` - 1 registration
 - `internal/component/bgp/plugins/cmd/rib/rib.go` - 6 registrations
 - `internal/component/bgp/plugins/cmd/update/update_text.go` - 1 registration
 - `internal/component/bgp/plugins/cmd/raw/raw.go` - 1 registration
-- `internal/component/bgp/plugins/cmd/subscribe/subscribe.go` - 2 registrations
-- `internal/component/bgp/plugins/cmd/cache/cache.go` - 1 registration
-- `internal/component/bgp/plugins/cmd/commit/commit.go` - 1 registration
-- `internal/component/bgp/plugins/cmd/metrics/metrics.go` - 2 registrations
-- `internal/component/bgp/plugins/cmd/log/log.go` - 2 registrations
 - `internal/component/bgp/plugins/route_refresh/handler/refresh.go` - 3 registrations
 - `internal/component/bgp/plugins/route_refresh/handler/clear_soft.go` - 1 registration
+- `internal/component/cmd/meta/help.go` - 5 registrations
+- `internal/component/cmd/meta/plugin_config.go` - 3 registrations
+- `internal/component/cmd/cache/cache.go` - 1 registration
+- `internal/component/cmd/commit/commit.go` - 1 registration
+- `internal/component/cmd/subscribe/subscribe.go` - 2 registrations
+- `internal/component/cmd/metrics/metrics.go` - 2 registrations
+- `internal/component/cmd/log/log.go` - 2 registrations
 
-**CLI/tree building:**
+**Edit shortcuts (Phase 4):**
+- `internal/component/cli/model_mode.go` - derive edit shortcuts from YANG
+
+**Completer unification (Phase 5):**
+- `internal/component/cli/model.go` - update `updateCompletions()` for unified tree
+- `internal/component/cli/completer.go` - extend to walk command nodes
+- `internal/component/cli/completer_command.go` - may be absorbed into completer.go
+
+**CLI/tree building (Phase 2-3):**
 - `cmd/ze/cli/main.go` - update command tree building
 - `cmd/ze/config/cmd_edit.go` - update command tree building
-- `cmd/ze/yang/tree.go` - update unified analysis tree for new YANG structure
+- `cmd/ze/yang/tree.go` - update unified analysis tree
 
-**Existing YANG API modules (preserved, not deleted -- wire protocol schema):**
-- All 15 `-api.yang` modules remain as documentation of RPC input/output schemas
+## Files Created (Phase 1 -- DONE)
 
-### Integration Checklist
-| Integration Point | Needed? | File |
-|-------------------|---------|------|
-| YANG schema (new `-cmd` modules) | Yes | 3 new `-cmd.yang` modules alongside existing `-api.yang` |
-| RPC count in architecture docs | Yes | `docs/architecture/api/commands.md` |
-| CLI commands/flags | No | Commands unchanged, just YANG source changes |
-| CLI usage/help text | No | Help text comes from YANG description |
-| API commands doc | Yes | `docs/architecture/api/commands.md` - update tree structure |
-| Plugin SDK docs | No | SDK unaffected |
-| Editor autocomplete | Yes | Completers restructured |
-| Functional test for new RPC/API | Yes | `.ci` tests in wiring table |
+**YANG extensions:**
+- `internal/component/config/yang/modules/ze-extensions.yang` - added `ze:command` (with handler argument) and `ze:edit-shortcut`
 
-## Files to Create
-- `internal/component/bgp/schema/ze-bgp-cmd.yang` - hierarchical BGP command tree (all 40 BGP CLICommand paths as `config false` containers)
-- `internal/core/ipc/schema/ze-system-cmd.yang` - hierarchical system command tree (11 system/daemon commands)
-- `internal/core/ipc/schema/ze-plugin-cmd.yang` - hierarchical plugin command tree (7 plugin commands)
-- `internal/component/config/yang/command.go` - YANG command tree walker (extracts `ze:command` nodes, builds `command.Node` tree)
-- `internal/component/config/yang/command_test.go` - tests for command tree walker
+**Go extension functions:**
+- `internal/component/config/yang/command.go` - `GetCommandExtension()`, `HasCommandExtension()`, `HasEditShortcutExtension()`
+- `internal/component/config/yang/command_test.go` - 15 tests covering all 13 modules
+
+**Per-plugin command YANG modules (13 files):**
+- `internal/component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang`
+- `internal/component/bgp/plugins/cmd/rib/schema/ze-rib-cmd.yang`
+- `internal/component/bgp/plugins/cmd/raw/schema/ze-raw-cmd.yang`
+- `internal/component/bgp/plugins/cmd/update/schema/ze-update-cmd.yang`
+- `internal/component/bgp/plugins/route_refresh/schema/ze-refresh-cmd.yang`
+- `internal/component/cmd/meta/schema/ze-meta-cmd.yang`
+- `internal/component/cmd/cache/schema/ze-cache-cmd.yang`
+- `internal/component/cmd/commit/schema/ze-commit-cmd.yang`
+- `internal/component/cmd/subscribe/schema/ze-subscribe-cmd.yang`
+- `internal/component/cmd/log/schema/ze-log-cmd.yang`
+- `internal/component/cmd/metrics/schema/ze-metrics-cmd.yang`
+- `internal/core/ipc/schema/ze-system-cmd.yang`
+- `internal/core/ipc/schema/ze-plugin-cmd.yang`
+
+**Validation tooling:**
+- `scripts/validate-commands.go` - cross-checks YANG `ze:command` vs registered handlers
+- `Makefile` - added `make ze-validate-commands` target
+
+**Plugin move (6 non-BGP plugins from `bgp/plugins/cmd/` to `component/cmd/`):**
+- `internal/component/cmd/cache/` (was `bgp/plugins/cmd/cache/`)
+- `internal/component/cmd/commit/` (was `bgp/plugins/cmd/commit/`)
+- `internal/component/cmd/log/` (was `bgp/plugins/cmd/log/`)
+- `internal/component/cmd/meta/` (was `bgp/plugins/cmd/meta/`)
+- `internal/component/cmd/metrics/` (was `bgp/plugins/cmd/metrics/`)
+- `internal/component/cmd/subscribe/` (was `bgp/plugins/cmd/subscribe/`)
+
+## Files Still to Create (Phase 2-6)
 - `test/ui/cli-yang-command-completion.ci` - functional test
 - `test/ui/cli-yang-edit-shortcuts.ci` - functional test
 - `test/plugin/yang-wire-dispatch.ci` - functional test
-
-~~`internal/component/bgp/plugins/rib/schema/ze-rib-cmd.yang`~~ Superseded: RIB commands are in the BGP domain (`bgp rib ...`) so they go in `ze-bgp-cmd.yang` alongside other BGP commands.
 
 ## Implementation Steps
 
@@ -491,67 +540,60 @@ Not applicable -- no numeric inputs in this spec.
 
 Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
-1. **Phase: YANG extensions** -- add `ze:command` and `ze:edit-shortcut` to ze-extensions.yang, verify goyang parses them
-   - Tests: `TestCommandExtension`, `TestEditShortcutExtension`
-   - Files: `ze-extensions.yang`, `extension_test.go`
-   - Verify: tests fail -> implement -> tests pass
+1. **Phase 1: YANG extensions + per-plugin command modules** (DONE)
+   - Added `ze:command` (with WireMethod handler argument) and `ze:edit-shortcut` (marker) to `ze-extensions.yang`
+   - Created 13 per-plugin `-cmd.yang` modules (one per owning plugin, not 3 monolithic)
+   - Moved 6 non-BGP plugins from `bgp/plugins/cmd/` to `component/cmd/` (cache, commit, log, meta, metrics, subscribe)
+   - Created `scripts/validate-commands.go` and `make ze-validate-commands` -- 58/58 validated
+   - Tests: `TestCommandExtension`, `TestEditShortcutExtension`, `TestPeerCmdModule`, `TestRibCmdModule`, `TestRefreshCmdModule`, `TestMetaCmdModule`, `TestSimpleCmdModules`, `TestCommitEditShortcut`, `TestRawCmdModule`, `TestUpdateCmdModule`, `TestSystemCmdModuleLoads`, `TestPluginCmdModuleLoads`
+   - Design changes from original spec: `ze:command` takes WireMethod argument (explicit, no naming convention); per-plugin YANG (proximity); non-BGP plugins moved; no WireMethod renaming
 
-2. **Phase: Command YANG modules** -- create 3 new `-cmd.yang` modules (`ze-bgp-cmd.yang`, `ze-system-cmd.yang`, `ze-plugin-cmd.yang`) with hierarchical `config false` containers matching the CLI tree. Existing `-api.yang` modules preserved as wire protocol schema.
-   - Tests: `TestBuildTreeFromYANG`, `TestWireMethodFromPath`
-   - Files: new `-cmd.yang` modules + register.go, `command.go` walker
-   - Verify: YANG loads and resolves, tree has expected hierarchy
-
-3. **Phase: Build command tree from YANG** -- rewrite `BuildTree()` to walk YANG entries instead of splitting strings
-   - Tests: `TestBuildTreeCommandNodes`, `TestBuildTreeBranches`
+2. **Phase 2: Build command tree from YANG** -- rewrite `BuildTree()` to walk YANG `config false` entries with `ze:command`
+   - Tests: `TestBuildTreeFromYANG`, `TestBuildTreeCommandNodes`, `TestBuildTreeBranches`
    - Files: `command/node.go`, `config/yang/command.go`
    - Verify: command tree matches current tree structure
 
-4. **Phase: Update handler registrations** -- remove `CLICommand` from `RPCRegistration`, update all 57 WireMethod strings to use `.` separator, update dispatch across 18 handler files
+3. **Phase 3: Remove CLICommand** -- remove `CLICommand` field from `RPCRegistration`, update all registration sites
    - Tests: `TestAllCommandsReachable`
-   - Files: `handler.go`, 18 handler registration files (see Files to Modify)
-   - Verify: all handlers dispatch correctly
+   - Files: `handler.go`, all handler registration files, `cmd/ze/cli/main.go`, `cmd/ze/config/cmd_edit.go`, `cmd/ze/yang/tree.go`
+   - Verify: all handlers dispatch correctly, `make ze-validate-commands` passes
 
-5. **Phase: Derive edit shortcuts from YANG** -- replace hardcoded `editModeCommands` with YANG `ze:edit-shortcut` lookup
-   - Tests: `TestEditShortcutsFromYANG`, `TestNoHardcodedEditModeCommands`
-   - Files: `model_mode.go`, `-cmd.yang` modules
-   - Verify: edit shortcuts work as before
+4. ~~**Phase 4: Derive edit shortcuts from YANG**~~ Eliminated: all `editModeCommands` entries are editor-internal, not YANG-derivable
 
-6. **Phase: Unify completers** -- extend config completer to walk command nodes, remove separate CommandCompleter
-   - Tests: `TestCommandModeCompletionsFromYANG`, `TestEditShortcutsFromYANG`
+5. **Phase 4: Unify completers** -- extend config completer to walk command nodes, remove separate `CommandCompleter`
+   - Tests: `TestCommandModeCompletionsFromYANG`
    - Files: `completer.go`, `completer_command.go`, `model.go`
    - Verify: completions in both modes work correctly
 
-7. **Functional tests** -- create `.ci` tests
-   - Files: `test/ui/cli-yang-command-completion.ci`, `test/ui/cli-yang-edit-shortcuts.ci`, `test/plugin/yang-wire-dispatch.ci`
-
-8. **Documentation** -- update `docs/architecture/api/commands.md` tree structure
-
-9. **Full verification** -- `make ze-verify`
-
-10. **Complete spec** -- fill audit tables, write learned summary
+6. **Phase 5: Functional tests, docs, verification**
+   - Functional `.ci` tests
+   - Documentation updates
+   - `make ze-verify`
+   - Audit tables, learned summary
 
 ### Critical Review Checklist (/implement stage 5)
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | All 57 commands still reachable after restructuring |
-| Correctness | WireMethod convention consistently applied (`.` separator) |
+| Completeness | `make ze-validate-commands` passes (58/58 commands + 2 editor-internal skipped) |
 | Correctness | `ze:command` only on executable leaves, not on grouping containers |
 | Correctness | `ze:edit-shortcut` only on commands that make sense from edit mode |
+| Correctness | `ze:command` handler argument matches the `RPCRegistration.WireMethod` exactly |
 | No-layering | Old `CLICommand` field fully removed, not left as dead code |
 | No-layering | `-api.yang` modules preserved (wire schema), `-cmd.yang` modules are new (CLI tree). No duplication -- different concerns. |
-| Naming | YANG node names match current CLI tokens exactly (no renames in this spec -- renames come from analysis tool findings) |
-| Data flow | YANG path -> WireMethod derivation is deterministic and reversible |
+| Proximity | Each `-cmd.yang` lives in its owning plugin's schema/ directory |
+| Proximity | Non-BGP plugins not under `bgp/plugins/` |
+| Naming | YANG node names match current CLI tokens exactly (no renames in this spec) |
 
 ### Deliverables Checklist (/implement stage 9)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| `ze-extensions.yang` has `ze:command` and `ze:edit-shortcut` | `grep "extension command" ze-extensions.yang` |
-| `ze-bgp-cmd.yang` exists with hierarchical structure | `ls internal/component/bgp/schema/ze-bgp-cmd.yang` |
-| `ze-system-cmd.yang` exists | `ls internal/core/ipc/schema/ze-system-cmd.yang` |
-| `ze-plugin-cmd.yang` exists | `ls internal/core/ipc/schema/ze-plugin-cmd.yang` |
+| `ze-extensions.yang` has `ze:command` with handler argument | `grep "extension command" ze-extensions.yang` |
+| 13 per-plugin `-cmd.yang` modules exist | `make ze-validate-commands` finds all 58 |
+| Non-BGP plugins moved out of `bgp/` | `ls internal/component/cmd/` shows 6 plugins |
 | `CLICommand` field removed from `RPCRegistration` | `grep CLICommand handler.go` returns nothing |
-| `editModeCommands` map removed or YANG-derived | `grep editModeCommands model_mode.go` |
-| All commands reachable | `go test ./internal/component/plugin/server/... -run TestAllCommandsReachable` |
+| `editModeCommands` map YANG-derived | `grep editModeCommands model_mode.go` |
+| All commands validated | `make ze-validate-commands` passes (exit 0) |
+| `BuildTree()` walks YANG | `grep CLICommand command/node.go` returns nothing |
 | `.ci` test files exist | `ls test/ui/cli-yang-command-completion.ci test/ui/cli-yang-edit-shortcuts.ci test/plugin/yang-wire-dispatch.ci` |
 
 ### Security Review Checklist (/implement stage 10)
@@ -575,12 +617,21 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 ### Wrong Assumptions
 | What was assumed | What was true | How discovered | Impact |
+| `ze-bgp-api.yang` was monolithic with 25 RPCs | 15 per-concern API modules with 60 registrations already existed | Codebase audit | Spec rewrite of inventory section |
+| `ze:command` needs no argument (boolean marker) | WireMethod should be explicit argument -- eliminates renaming risk | User feedback | Eliminated Phase 4 WireMethod rename (60 files) |
+| 3 monolithic `-cmd.yang` files (BGP, system, plugin) | Each plugin owns its command tree (proximity principle) | User feedback | 13 per-plugin modules instead of 3 |
+| Non-BGP commands (cache, commit, log, etc.) belong in `bgp/plugins/` | They are general daemon commands, not BGP | User feedback | Moved 6 plugins to `component/cmd/` |
+| Commands with "bgp" CLICommand prefix are BGP-specific | The "bgp " prefix is an artifact stripped by BuildTree() | User feedback | All `-cmd.yang` modules drop "bgp" from names |
 
 ### Failed Approaches
 | Approach | Why abandoned | Replacement |
+| `ze:command` as boolean marker + WireMethod derived from naming convention | Convention-based is implicit; requires renaming all 60 WireMethod strings | `ze:command "wire-method"` -- explicit handler reference |
+| Monolithic `ze-bgp-cmd.yang` with all commands | Violates proximity principle; can't "delete the folder" | Per-plugin `-cmd.yang` modules |
+| `ze:edit-shortcut` on `commit` to replace `editModeCommands` map | All 15 `editModeCommands` entries are editor-internal (handled by CLI model methods like `cmdCommitConfirmed`), not operational RPCs. The `ze-bgp:commit` RPC (named route commits) is a different command from the editor's `commit`. | `ze:edit-shortcut` defined but zero uses. `editModeCommands` stays as-is. AC-3/AC-4/AC-12 eliminated. |
 
 ### Escalation Candidates
 | Mistake | Frequency | Proposed rule | Action |
+| Assumed historical "bgp" prefix reflects actual domain | Once but fundamental | When CLICommand has a stripped prefix, the command name is what the user types, not the raw string | Added to this spec's Design Insights |
 
 ## Design Insights
 

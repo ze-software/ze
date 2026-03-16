@@ -11,3 +11,8 @@ var ZeRouteRefreshYANG string
 //
 //go:embed ze-route-refresh-api.yang
 var ZeRouteRefreshAPIYANG string
+
+// ZeRefreshCmdYANG is the embedded YANG command tree for route-refresh.
+//
+//go:embed ze-refresh-cmd.yang
+var ZeRefreshCmdYANG string

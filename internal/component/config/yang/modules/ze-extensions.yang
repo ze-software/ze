@@ -74,4 +74,29 @@ module ze-extensions {
                      The function provides both Validate(path, value) and Complete()
                      for CLI tab-completion of valid values.";
     }
+
+    // Extension: command
+    // Marks a config false container as an executable command and references
+    // the handler's WireMethod for dispatch (e.g., "ze-bgp:peer-list").
+    // Without this extension, a config false container is just a grouping node
+    // in the command tree (navigable but not executable).
+    // The argument is the WireMethod string used for handler dispatch.
+    extension command {
+        argument handler;
+        description "Marks a config false container as an executable CLI command.
+                     The argument is the WireMethod (module:rpc-name) used for
+                     handler dispatch. The YANG tree path defines the CLI hierarchy;
+                     the handler argument connects it to the registered handler.";
+    }
+
+    // Extension: edit-shortcut
+    // Marks a command as available in edit mode as a shortcut.
+    // When typed in edit mode, implicitly runs as 'run <command>'.
+    // Replaces the hardcoded editModeCommands map in model_mode.go.
+    extension edit-shortcut {
+        description "Marks a command as an edit mode shortcut.
+                     Commands with this extension appear in edit mode completions
+                     and execute as operational commands without requiring the
+                     'run' prefix.";
+    }
 }

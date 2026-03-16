@@ -1,0 +1,18 @@
+module ze-raw-cmd {
+    namespace "urn:ze:raw:cmd";
+    prefix rawcmd;
+    import ze-extensions { prefix ze; }
+    description "BGP raw message command tree";
+    revision 2026-03-16 { description "Initial revision"; }
+
+    container peer {
+        config false;
+        description "Peer operations";
+
+        container raw {
+            config false;
+            ze:command "ze-bgp:peer-raw";
+            description "Send raw bytes to peer (no validation)";
+        }
+    }
+}

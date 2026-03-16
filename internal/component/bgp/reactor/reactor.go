@@ -28,18 +28,18 @@ import (
 	"sync"
 	"time"
 
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache"             // init() registers cache command RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/commit"            // init() registers commit command RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/log"               // init() registers log show/set RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/meta"              // init() registers help/discovery RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/metrics"           // init() registers metrics show/list RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"              // init() registers peer management RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw"               // init() registers raw message RPCs
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/subscribe"         // init() registers subscribe/unsubscribe RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update"            // init() registers update parsing RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler" // init() registers route-refresh command RPCs
 	bgpserver "codeberg.org/thomas-mangin/ze/internal/component/bgp/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/cache"     // init() registers cache command RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/commit"    // init() registers commit command RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log"       // init() registers log show/set RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"      // init() registers help/discovery RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics"   // init() registers metrics show/list RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe" // init() registers subscribe/unsubscribe RPCs
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"

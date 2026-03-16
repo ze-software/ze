@@ -1,0 +1,71 @@
+module ze-plugin-cmd {
+    namespace "urn:ze:plugin:cmd";
+    prefix plcmd;
+
+    import ze-extensions { prefix ze; }
+
+    description
+        "Plugin operational command tree for Ze CLI.
+         Covers plugin introspection and session lifecycle commands.";
+
+    revision 2026-03-16 {
+        description "Initial revision";
+    }
+
+    container plugin {
+        config false;
+        description "Plugin operations";
+
+        container help {
+            config false;
+            ze:command "ze-plugin:help";
+            description "List plugin subcommands";
+        }
+
+        container command {
+            config false;
+            description "Command introspection";
+
+            container list {
+                config false;
+                ze:command "ze-plugin:command-list";
+                description "List plugin commands";
+            }
+
+            container help {
+                config false;
+                ze:command "ze-plugin:command-help";
+                description "Show command details";
+            }
+
+            container complete {
+                config false;
+                ze:command "ze-plugin:command-complete";
+                description "Complete command/args";
+            }
+        }
+
+        container session {
+            config false;
+            description "Session lifecycle";
+
+            container ready {
+                config false;
+                ze:command "ze-plugin:session-ready";
+                description "Signal plugin init complete";
+            }
+
+            container ping {
+                config false;
+                ze:command "ze-plugin:session-ping";
+                description "Health check (returns PID)";
+            }
+
+            container bye {
+                config false;
+                ze:command "ze-plugin:session-bye";
+                description "Disconnect";
+            }
+        }
+    }
+}

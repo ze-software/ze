@@ -14,3 +14,9 @@ var ZePluginCallbackYANG string
 
 //go:embed ze-plugin-engine.yang
 var ZePluginEngineYANG string
+
+//go:embed ze-system-cmd.yang
+var ZeSystemCmdYANG string
+
+//go:embed ze-plugin-cmd.yang
+var ZePluginCmdYANG string

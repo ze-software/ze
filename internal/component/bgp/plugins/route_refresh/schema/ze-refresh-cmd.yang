@@ -1,0 +1,41 @@
+module ze-refresh-cmd {
+    namespace "urn:ze:refresh:cmd";
+    prefix refreshcmd;
+    import ze-extensions { prefix ze; }
+    description "BGP route refresh command tree";
+    revision 2026-03-16 { description "Initial revision"; }
+
+    container peer {
+        config false;
+        description "Peer operations";
+
+        container refresh {
+            config false;
+            ze:command "ze-bgp:peer-refresh";
+            description "Send ROUTE-REFRESH to peer (RFC 2918)";
+        }
+
+        container borr {
+            config false;
+            ze:command "ze-bgp:peer-borr";
+            description "Send Beginning of Route Refresh";
+        }
+
+        container eorr {
+            config false;
+            ze:command "ze-bgp:peer-eorr";
+            description "Send End of Route Refresh";
+        }
+
+        container clear {
+            config false;
+            description "Clear operations";
+
+            container soft {
+                config false;
+                ze:command "ze-bgp:peer-clear-soft";
+                description "Soft-clear peer (send ROUTE-REFRESH for all families)";
+            }
+        }
+    }
+}

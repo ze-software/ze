@@ -1,0 +1,19 @@
+module ze-subscribe-cmd {
+    namespace "urn:ze:subscribe:cmd";
+    prefix subcmd;
+    import ze-extensions { prefix ze; }
+    description "BGP subscribe command tree";
+    revision 2026-03-16 { description "Initial revision"; }
+
+    container subscribe {
+        config false;
+        ze:command "ze-bgp:subscribe";
+        description "Subscribe to events";
+    }
+
+    container unsubscribe {
+        config false;
+        ze:command "ze-bgp:unsubscribe";
+        description "Unsubscribe from events";
+    }
+}

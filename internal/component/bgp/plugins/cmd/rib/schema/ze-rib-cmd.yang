@@ -1,0 +1,53 @@
+module ze-rib-cmd {
+    namespace "urn:ze:rib:cmd";
+    prefix ribcmd;
+    import ze-extensions { prefix ze; }
+    description "BGP RIB command tree";
+    revision 2026-03-16 { description "Initial revision"; }
+
+    container rib {
+        config false;
+        description "RIB operations";
+
+        container status {
+            config false;
+            ze:command "ze-rib-api:status";
+            description "RIB summary (peer count, route counts)";
+        }
+
+        container routes {
+            config false;
+            ze:command "ze-rib-api:routes";
+            description "Routes (scope + filters + terminal)";
+        }
+
+        container best {
+            config false;
+            ze:command "ze-rib-api:best";
+            description "Best-path per prefix";
+
+            container status {
+                config false;
+                ze:command "ze-rib-api:best-status";
+                description "Best-path computation status";
+            }
+        }
+
+        container clear {
+            config false;
+            description "Clear operations";
+
+            container in {
+                config false;
+                ze:command "ze-rib-api:clear-in";
+                description "Clear Adj-RIB-In routes";
+            }
+
+            container out {
+                config false;
+                ze:command "ze-rib-api:clear-out";
+                description "Resend Adj-RIB-Out routes";
+            }
+        }
+    }
+}

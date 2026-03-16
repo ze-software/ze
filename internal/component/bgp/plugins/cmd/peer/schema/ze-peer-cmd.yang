@@ -1,0 +1,94 @@
+module ze-peer-cmd {
+    namespace "urn:ze:peer:cmd";
+    prefix peercmd;
+    import ze-extensions { prefix ze; }
+    description "BGP peer command tree (from cmd/peer plugin)";
+    revision 2026-03-16 { description "Initial revision"; }
+
+    container summary {
+        config false;
+        ze:command "ze-bgp:summary";
+        description "Show BGP summary (peer table with statistics)";
+    }
+
+    container peer {
+        config false;
+        description "Peer operations";
+
+        container list {
+            config false;
+            ze:command "ze-bgp:peer-list";
+            description "List peer(s) (brief)";
+        }
+
+        container detail {
+            config false;
+            ze:command "ze-bgp:peer-detail";
+            description "Peer details (config, state, counters)";
+        }
+
+        container capabilities {
+            config false;
+            ze:command "ze-bgp:peer-capabilities";
+            description "Negotiated capabilities for peer(s)";
+        }
+
+        container statistics {
+            config false;
+            ze:command "ze-bgp:peer-statistics";
+            description "Per-peer update statistics with rates";
+        }
+
+        container add {
+            config false;
+            ze:command "ze-bgp:peer-add";
+            description "Add a peer dynamically";
+        }
+
+        container remove {
+            config false;
+            ze:command "ze-bgp:peer-remove";
+            description "Remove a peer dynamically";
+        }
+
+        container teardown {
+            config false;
+            ze:command "ze-bgp:peer-teardown";
+            description "Teardown peer session with cease subcode";
+        }
+
+        container pause {
+            config false;
+            ze:command "ze-bgp:peer-pause";
+            description "Pause peer read loop (flow control)";
+        }
+
+        container resume {
+            config false;
+            ze:command "ze-bgp:peer-resume";
+            description "Resume peer read loop (flow control)";
+        }
+
+        container save {
+            config false;
+            ze:command "ze-bgp:peer-save";
+            description "Save peer(s) to config file (merges into existing config)";
+        }
+
+        container plugin {
+            config false;
+            description "Plugin operations";
+
+            container session {
+                config false;
+                description "Session operations";
+
+                container ready {
+                    config false;
+                    ze:command "ze-plugin:session-peer-ready";
+                    description "Signal peer-specific plugin init complete";
+                }
+            }
+        }
+    }
+}

@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md — custom validation registry
+// Related: command.go — ze:command and ze:edit-shortcut extensions (same pattern)
 
 package yang
 

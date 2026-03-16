@@ -31,18 +31,18 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/schema"                    // ze-plugin-conf
 
 	// Blank imports trigger init() registration for RPC handlers.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/commit"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/log"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/meta"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/metrics"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib"
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/subscribe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cli"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/cache"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/commit"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
 )
 
 // AnalysisNode is a node in the unified analysis tree.

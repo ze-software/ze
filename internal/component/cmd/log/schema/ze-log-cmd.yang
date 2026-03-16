@@ -1,0 +1,24 @@
+module ze-log-cmd {
+    namespace "urn:ze:log:cmd";
+    prefix logcmd;
+    import ze-extensions { prefix ze; }
+    description "BGP log command tree";
+    revision 2026-03-16 { description "Initial revision"; }
+
+    container log {
+        config false;
+        description "Log operations";
+
+        container levels {
+            config false;
+            ze:command "ze-bgp:log-levels";
+            description "Subsystem log levels";
+        }
+
+        container set {
+            config false;
+            ze:command "ze-bgp:log-set";
+            description "Set subsystem log level at runtime";
+        }
+    }
+}

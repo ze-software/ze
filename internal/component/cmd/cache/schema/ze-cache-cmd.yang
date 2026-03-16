@@ -1,0 +1,13 @@
+module ze-cache-cmd {
+    namespace "urn:ze:cache:cmd";
+    prefix cachecmd;
+    import ze-extensions { prefix ze; }
+    description "BGP cache command tree";
+    revision 2026-03-16 { description "Initial revision"; }
+
+    container cache {
+        config false;
+        ze:command "ze-bgp:cache";
+        description "BGP message cache operations";
+    }
+}
