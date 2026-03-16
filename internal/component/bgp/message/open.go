@@ -157,7 +157,8 @@ func (o *Open) writeToExtended(buf []byte, off int) int {
 // Version (1) + My AS (2) + Hold Time (2) + BGP Identifier (4) + Opt Parm Len (1) = 10 octets minimum
 //
 // RFC 9072 Section 2 - Also handles extended optional parameters format:
-// If the first Optional Parameter type is 255, use extended format with 2-byte length.
+// If Non-Ext OP Len (data[9]) is 255 AND Non-Ext OP Type (data[10]) is 255,
+// use extended format with 2-byte length.
 func UnpackOpen(data []byte) (*Open, error) {
 	// RFC 4271 Section 4.2 - Minimum OPEN body is 10 octets (excluding header)
 	// Full message minimum is 29 octets (19-byte header + 10-byte body)

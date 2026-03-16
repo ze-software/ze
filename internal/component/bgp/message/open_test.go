@@ -264,7 +264,22 @@ func TestOpenUnpackExtendedParams(t *testing.T) {
 			wantOptLen: 4,
 		},
 		{
-			name: "extended format - truncated",
+			// Boundary: data[9]=0xFF, data[10]=0xFF, but only 11 bytes total.
+			// Enters extended branch but len(data) < 13 triggers ErrShortRead
+			// before reading the extended length field.
+			name: "extended format - truncated before length field",
+			data: []byte{
+				0x04,       // Version
+				0xFD, 0xE9, // AS
+				0x00, 0xB4, // Hold Time
+				0xC0, 0xA8, 0x01, 0x01, // BGP ID
+				0xFF, // Non-Ext OP Len
+				0xFF, // Non-Ext OP Type (only 11 bytes, no room for extended length)
+			},
+			wantErr: true,
+		},
+		{
+			name: "extended format - truncated after length field",
 			data: []byte{
 				0x04,       // Version
 				0xFD, 0xE9, // AS
@@ -275,6 +290,22 @@ func TestOpenUnpackExtendedParams(t *testing.T) {
 				0x00, 0x10, // Extended len = 16, but no data follows
 			},
 			wantErr: true,
+		},
+		{
+			// Boundary: optLen=254 is the last valid standard format length.
+			// Must NOT trigger extended format detection.
+			name: "standard format - optLen 254 boundary",
+			data: func() []byte {
+				d := make([]byte, 10+254)
+				d[0] = 0x04                                     // Version
+				d[1], d[2] = 0xFD, 0xE9                         // AS
+				d[3], d[4] = 0x00, 0xB4                         // Hold Time
+				d[5], d[6], d[7], d[8] = 0xC0, 0xA8, 0x01, 0x01 // BGP ID
+				d[9] = 0xFE                                     // Opt Params Len = 254
+				// 254 bytes of params (all zeros is fine for length test)
+				return d
+			}(),
+			wantOptLen: 254,
 		},
 	}
 
@@ -381,4 +412,13 @@ func TestOpenPackExtendedParams(t *testing.T) {
 
 	// Verify params are present
 	assert.Equal(t, largeParams, body[13:13+len(largeParams)])
+
+	// Round-trip: unpack the packed extended format message
+	parsed, err := UnpackOpen(body)
+	require.NoError(t, err, "UnpackOpen should parse packed extended format")
+	assert.Equal(t, o.Version, parsed.Version)
+	assert.Equal(t, o.MyAS, parsed.MyAS)
+	assert.Equal(t, o.HoldTime, parsed.HoldTime)
+	assert.Equal(t, o.BGPIdentifier, parsed.BGPIdentifier)
+	assert.Equal(t, largeParams, parsed.OptionalParams, "extended params round-trip")
 }
