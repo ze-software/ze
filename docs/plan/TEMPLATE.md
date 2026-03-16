@@ -141,29 +141,90 @@
 
 ## Implementation Steps
 
-Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
+<!-- Steps must map to /implement stages. Each step should be a concrete phase of work,
+     not a generic process description. The review checklists below are what /implement
+     stages 5, 9, and 10 check against — they MUST be filled with feature-specific items. -->
 
-1. **Write unit tests** → Review: edge cases? Boundary tests?
-2. **Run tests** → Verify FAIL (paste output). Fail for RIGHT reason?
-3. **Implement** → Minimal code to pass. Simplest solution? Follows patterns?
-4. **Run tests** → Verify PASS (paste output). All pass? Any flaky?
-5. **RFC refs** → Add `// RFC NNNN Section X.Y` comments
-6. **RFC constraints** → Add quoted requirement comments above enforcing code
-7. **Functional tests** → Create after feature works. Cover user-visible behavior?
-8. **Verify all** → `make ze-test` (lint + all ze tests including fuzz + exabgp)
-9. **Critical Review** → All 6 checks from `rules/quality.md` must pass (Correctness, Simplicity, Consistency, Completeness, Quality, Tests). Document pass/fail. Any failure = fix before continuing.
-10. **Complete spec** → Fill audit tables, write learned summary to `docs/learned/NNN-<name>.md`, delete spec from `docs/plan/`. BLOCKING: summary is part of the commit, not a follow-up.
+### /implement Stage Mapping
+
+<!-- This table maps /implement stages to spec sections. Fill during design. -->
+| /implement Stage | Spec Section |
+|------------------|--------------|
+| 1. Read spec | This file |
+| 2. Audit | Files to Modify, Files to Create, TDD Test Plan — check what exists |
+| 3. Implement (TDD) | Implementation phases below (write-test-fail-implement-pass per phase) |
+| 4. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` |
+| 5. Critical review | Critical Review Checklist below |
+| 6. Fix issues | Fix every issue from critical review |
+| 7. Re-verify | Re-run stage 4 |
+| 8. Repeat 5-7 | Max 2 review passes |
+| 9. Deliverables review | Deliverables Checklist below |
+| 10. Security review | Security Review Checklist below |
+| 11. Re-verify | Re-run stage 4 |
+| 12. Present summary | Executive Summary Report per `rules/planning.md` |
+
+### Implementation Phases
+
+<!-- List concrete phases of work. Each phase follows TDD: write test → fail → implement → pass.
+     Phases should be ordered by dependency (e.g., schema before resolution, resolution before CLI). -->
+
+Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
+
+1. **Phase: [name]** — [what to implement]
+   - Tests: [test names from TDD Plan]
+   - Files: [files from Files to Modify]
+   - Verify: tests fail → implement → tests pass
+2. **Phase: [name]** — [what to implement]
+   - Tests: [test names from TDD Plan]
+   - Files: [files from Files to Modify]
+   - Verify: tests fail → implement → tests pass
+3. **Functional tests** → Create after feature works. Cover user-visible behavior.
+4. **RFC refs** → Add `// RFC NNNN Section X.Y` comments (protocol work only)
+5. **Full verification** → `make ze-verify` (lint + all ze tests except fuzz)
+6. **Complete spec** → Fill audit tables, write learned summary to `docs/learned/NNN-<name>.md`, delete spec from `docs/plan/`. BLOCKING: summary is part of the commit, not a follow-up.
+
+### Critical Review Checklist (/implement stage 5)
+
+<!-- MANDATORY: Fill with feature-specific checks. /implement uses this table
+     to verify the implementation. Generic checks from rules/quality.md always apply;
+     this table adds what's specific to THIS feature. -->
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every AC-N has implementation with file:line |
+| Correctness | [feature-specific: e.g., "merge order correct", "error messages accurate"] |
+| Naming | [feature-specific: e.g., "JSON keys use kebab-case", "YANG uses kebab-case"] |
+| Data flow | [feature-specific: e.g., "resolution in X only, reactor unaware of Y"] |
+| Rule: no-layering | [if replacing something: "old code fully deleted"] |
+| Rule: [other relevant rule] | [what to check] |
+
+### Deliverables Checklist (/implement stage 9)
+
+<!-- MANDATORY: Every deliverable with a concrete verification method.
+     /implement re-reads the spec and checks each item independently. -->
+| Deliverable | Verification method |
+|-------------|---------------------|
+| [concrete thing that must exist] | [grep/ls/test command to verify] |
+
+### Security Review Checklist (/implement stage 10)
+
+<!-- MANDATORY: Feature-specific security concerns. /implement checks each item.
+     Think about: untrusted input, injection, resource exhaustion, error leakage. -->
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | [what inputs need validation and how] |
+| [other concern] | [what to check] |
 
 ### Failure Routing
 
 | Failure | Route To |
 |---------|----------|
-| Compilation error | Step 3 (fix syntax/types) |
-| Test fails wrong reason | Step 1 (fix test) |
+| Compilation error | Fix in the phase that introduced it |
+| Test fails wrong reason | Fix test assertion or setup |
 | Test fails behavior mismatch | Re-read source from Current Behavior → RESEARCH if misunderstood |
 | Lint failure | Fix inline; if architectural → DESIGN phase |
 | Functional test fails | Check AC; if AC wrong → DESIGN; if AC correct → IMPLEMENT |
-| Audit finds missing AC | Back to IMPLEMENT for that criterion |
+| Audit finds missing AC | Back to relevant phase and implement |
+| 3 fix attempts fail | STOP. Report all 3 approaches. Ask user. |
 
 ## Mistake Log
 
