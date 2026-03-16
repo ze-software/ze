@@ -20,5 +20,5 @@ Create the `rib` namespace with introspection commands and determine correct own
 
 ## Files
 
-- `internal/plugin/handler.go` — added RIB introspection handlers via `RegisterRibHandlers()`
-- `internal/plugin/rib/rib_test.go` — startup protocol tests added
+- `internal/component/plugin/handler.go` — added RIB introspection handlers via `RegisterRibHandlers()`
+- `internal/component/plugin/rib/rib_test.go` — startup protocol tests added

@@ -23,9 +23,9 @@ Implement a 5-stage plugin registration protocol where plugins proactively decla
 
 ## Files
 
-- `internal/plugin/registration.go` — declaration parsing, `CapabilityInjector`, `PluginRegistry`
-- `internal/plugin/startup_coordinator.go` — stage barrier synchronization
-- `internal/plugin/server.go` — coordinator + registry + capInjector wiring, `deliverConfig()`
-- `internal/plugin/bgp/reactor/reactor.go` — `GetPeerCapabilityConfigs()` implementation
-- `internal/plugin/bgp/capability/capability.go` — `ConfigProvider` interface on 8 capabilities
+- `internal/component/plugin/registration.go` — declaration parsing, `CapabilityInjector`, `PluginRegistry`
+- `internal/component/plugin/startup_coordinator.go` — stage barrier synchronization
+- `internal/component/plugin/server.go` — coordinator + registry + capInjector wiring, `deliverConfig()`
+- `internal/component/bgp/reactor/reactor.go` — `GetPeerCapabilityConfigs()` implementation
+- `internal/component/bgp/capability/capability.go` — `ConfigProvider` interface on 8 capabilities
 - `test/data/scripts/ze_bgp_api.py` — Python client with full 5-stage protocol

@@ -3,7 +3,7 @@
 The text format is the high-performance IPC encoding for engine-to-plugin event delivery.
 It is used by bgp-rs (route server) on the hot path. Other plugins use JSON via `shared/event.go`.
 
-Source of truth: `internal/plugins/bgp/format/text.go` (formatter), `internal/plugins/bgp-rs/server.go` (parser).
+Source of truth: `internal/component/bgp/format/text.go` (formatter), `internal/component/bgp/plugins/rs/server.go` (parser).
 
 ## Current Format
 

@@ -14,7 +14,7 @@ Implement per-subsystem logging control using `slog`, with logging disabled by d
 
 ## Patterns
 
-- Plugin stderr relay is wired in `internal/plugin/process.go:relayStderr()` — reads lines from plugin stderr and relays via stderrLogger.
+- Plugin stderr relay is wired in `internal/component/plugin/process.go:relayStderr()` — reads lines from plugin stderr and relays via stderrLogger.
 - `ParseLogLine()` in `parse.go` extracts level/msg/attrs from slog text format, falling back to raw line for malformed input (panics, raw errors).
 
 ## Gotchas

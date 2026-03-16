@@ -8,7 +8,7 @@ Wrap all BGP-specific config in a `bgp {}` top-level block, enabling future mult
 
 - Template design: `template { bgp { peer <pattern> { [inherit-name <name>;] ... } } }`. Without `inherit-name`, template auto-applies to matching peers. With `inherit-name`, it's a named template that peers explicitly `inherit`.
 - Pattern `*` means any peer can inherit; specific patterns (e.g., `10.0.0.*`) restrict which peers can reference that template.
-- Functionality was integrated into existing files rather than creating separate `internal/config/template.go` and `internal/config/validate.go`.
+- Functionality was integrated into existing files rather than creating separate `internal/component/config/template.go` and `internal/component/config/validate.go`.
 
 ## Patterns
 
@@ -20,6 +20,6 @@ Wrap all BGP-specific config in a `bgp {}` top-level block, enabling future mult
 
 ## Files
 
-- `internal/config/bgp.go` — `bgp {}` container added to schema, template schema updated
-- `internal/config/loader.go` — template application with pattern matching and `inherit` resolution
+- `internal/component/config/bgp.go` — `bgp {}` container added to schema, template schema updated
+- `internal/component/config/loader.go` — template application with pattern matching and `inherit` resolution
 - 169 files migrated (91 config + 42 encoding + 24 plugin + 12 parsing tests)

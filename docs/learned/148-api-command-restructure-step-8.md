@@ -19,5 +19,5 @@ None.
 
 ## Files
 
-- `internal/plugin/cache.go` — new, replaces msgid.go and forward.go
-- `internal/plugin/msgid.go`, `internal/plugin/forward.go` — deleted
+- `internal/component/plugin/cache.go` — new, replaces msgid.go and forward.go
+- `internal/component/plugin/msgid.go`, `internal/component/plugin/forward.go` — deleted

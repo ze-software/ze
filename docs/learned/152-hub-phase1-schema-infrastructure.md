@@ -22,7 +22,7 @@ None.
 
 ## Files
 
-- `internal/plugin/schema.go` — SchemaRegistry, Schema types, Register/FindHandler
-- `internal/plugin/registration.go` — added `declare schema` parsing and heredoc handling
-- `internal/plugin/subsystem.go` — schema collection during Stage 1
+- `internal/component/plugin/schema.go` — SchemaRegistry, Schema types, Register/FindHandler
+- `internal/component/plugin/registration.go` — added `declare schema` parsing and heredoc handling
+- `internal/component/plugin/subsystem.go` — schema collection during Stage 1
 - `cmd/ze/bgp/schema.go` — CLI commands for schema discovery

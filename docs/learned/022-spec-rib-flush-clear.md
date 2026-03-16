@@ -22,4 +22,4 @@ Mechanical implementation following existing handler patterns. No novel design d
 ## Files
 
 - `internal/reactor/reactor.go` — ClearRibIn(), ClearRibOut(), FlushRibOut()
-- `internal/plugin/handler.go` — three new handlers + registration
+- `internal/component/plugin/handler.go` — three new handlers + registration

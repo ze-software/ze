@@ -25,5 +25,5 @@ Create a generic sequence-indexed map library and integrate it into adj-rib-in t
 
 - `internal/seqmap/seqmap.go` — generic Map[K,V] with append-only log, binary search Since, auto-compaction
 - `internal/seqmap/seqmap_test.go` — 20 TDD tests
-- `internal/plugins/bgp-adj-rib-in/rib.go` — ribIn type changed, SeqIndex removed, handlers updated
-- `internal/plugins/bgp-adj-rib-in/rib_commands.go` — statusJSON uses Len(), showJSON uses Range()
+- `internal/component/bgp/plugins/adj_rib_in/rib.go` — ribIn type changed, SeqIndex removed, handlers updated
+- `internal/component/bgp/plugins/adj_rib_in/rib_commands.go` — statusJSON uses Len(), showJSON uses Range()

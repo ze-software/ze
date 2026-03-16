@@ -23,6 +23,6 @@ Implement per-process session state commands (`ack enable/disable/silence`, `syn
 
 ## Files
 
-- `internal/plugin/process.go` — SetAck(), SetSync(), AckEnabled(), SyncEnabled() on Process
-- `internal/plugin/handler.go` — 8 session command handlers + registration
-- `internal/plugin/session_test.go` — session state and command tests
+- `internal/component/plugin/process.go` — SetAck(), SetSync(), AckEnabled(), SyncEnabled() on Process
+- `internal/component/plugin/handler.go` — 8 session command handlers + registration
+- `internal/component/plugin/session_test.go` — session state and command tests

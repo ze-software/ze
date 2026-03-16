@@ -20,8 +20,8 @@ Remove all version number references (v6, v7, v2, v3, "legacy", "current") from 
 
 ## Files
 
-- `internal/plugin/types.go` — deleted `APIVersionLegacy`, `APIVersionNLRI`, `ContentConfig.Version`
-- `internal/plugin/text.go` — removed version comparison branches, kept one format
+- `internal/component/plugin/types.go` — deleted `APIVersionLegacy`, `APIVersionNLRI`, `ContentConfig.Version`
+- `internal/component/plugin/text.go` — removed version comparison branches, kept one format
 - `internal/reactor/peersettings.go` — deleted `Version int`
 - `cmd/ze/bgp/config_fmt.go` — `ErrV2Config` → `ErrOldConfig`
 - Multiple test files and docs — version terminology removed from comments

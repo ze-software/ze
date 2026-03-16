@@ -12,7 +12,7 @@ Make the plugin startup stage timeout configurable per-plugin via a `timeout` ke
 
 ## Patterns
 
-- Three `PluginConfig` structs exist: in `internal/config/bgp.go` (parsing), `internal/reactor/reactor.go` (reactor), and `internal/plugin/types.go` (plugin). All three must be updated when adding fields — they are the same concept split across package boundaries.
+- Three `PluginConfig` structs exist: in `internal/component/config/bgp.go` (parsing), `internal/reactor/reactor.go` (reactor), and `internal/component/plugin/types.go` (plugin). All three must be updated when adding fields — they are the same concept split across package boundaries.
 
 ## Gotchas
 
@@ -21,5 +21,5 @@ Make the plugin startup stage timeout configurable per-plugin via a `timeout` ke
 
 ## Files
 
-- `internal/config/bgp.go`, `internal/reactor/reactor.go`, `internal/plugin/types.go` — `StageTimeout time.Duration` added to `PluginConfig`
-- `internal/plugin/server.go` — `stageTransition()` and "ready" handling use `proc.config.StageTimeout`
+- `internal/component/config/bgp.go`, `internal/reactor/reactor.go`, `internal/component/plugin/types.go` — `StageTimeout time.Duration` added to `PluginConfig`
+- `internal/component/plugin/server.go` — `stageTransition()` and "ready" handling use `proc.config.StageTimeout`

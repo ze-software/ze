@@ -24,6 +24,6 @@ Add `ze-plugin-engine:dispatch-command` RPC so plugins can invoke the engine's c
 ## Files
 
 - `internal/yang/modules/ze-plugin-engine.yang` — `dispatch-command` RPC added
-- `internal/plugin/server_dispatch.go` — `handleDispatchCommandRPC` (socket) + `handleDispatchCommandDirect` (bridge) + switch cases
+- `internal/component/plugin/server_dispatch.go` — `handleDispatchCommandRPC` (socket) + `handleDispatchCommandDirect` (bridge) + switch cases
 - `pkg/plugin/sdk/sdk.go` — `DispatchCommand()` method + type alias
 - `pkg/plugin/rpc/types.go` — `DispatchCommandInput`/`DispatchCommandOutput` types

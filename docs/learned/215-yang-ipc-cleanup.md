@@ -23,4 +23,4 @@ Use YANG-driven validation for API text commands, replacing ad-hoc string checks
 ## Files
 
 - `internal/component/config/yang/validator.go` — YANG validator with ValueValidator interface
-- `internal/plugins/bgp/reactor/` — engine wiring in LoadReactorFileWithPlugins
+- `internal/component/bgp/reactor/` — engine wiring in LoadReactorFileWithPlugins

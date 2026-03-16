@@ -25,7 +25,7 @@ Harden the reload coordinator against plugin failures and wire all reload entry 
 
 ## Files
 
-- `internal/plugin/reload.go` — verify crash detection, pre-apply check, apply error aggregation, crash handling docs
-- `internal/plugin/bgp.go` — `handleDaemonReload` coordinator path with fallback
-- `internal/plugin/command.go` — added `Server *Server` field to `CommandContext`
-- `internal/plugin/server.go` — `Context()` accessor, Server wiring in two construction sites
+- `internal/component/plugin/reload.go` — verify crash detection, pre-apply check, apply error aggregation, crash handling docs
+- `internal/component/plugin/bgp.go` — `handleDaemonReload` coordinator path with fallback
+- `internal/component/plugin/command.go` — added `Server *Server` field to `CommandContext`
+- `internal/component/plugin/server.go` — `Context()` accessor, Server wiring in two construction sites

@@ -20,6 +20,6 @@ Remove ~620 lines of duplicate code identified by the `dupl` linter across 22 fi
 
 ## Files
 - `internal/test/decode/decode.go` — new shared BGP message decode types and functions
-- `internal/plugin/bgp/capability/capability.go` — added `ParseFromOptionalParams()`
-- `internal/plugin/server.go` — `ExtractConfigSubtree` exported
-- `internal/config/serialize.go` — `serializeNonSchemaValues()` helper extracted
+- `internal/component/bgp/capability/capability.go` — added `ParseFromOptionalParams()`
+- `internal/component/plugin/server.go` — `ExtractConfigSubtree` exported
+- `internal/component/config/serialize.go` — `serializeNonSchemaValues()` helper extracted

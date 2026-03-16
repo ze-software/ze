@@ -22,6 +22,6 @@ Wrap the BGP session TCP connection with `bufio.Reader` (64KB) to reduce read sy
 
 ## Files
 
-- `internal/plugins/bgp/reactor/session.go` — `bufReader *bufio.Reader` field, initialized in `connectionEstablished()`
-- `internal/plugins/bgp/reactor/session_read.go` — `io.ReadFull(s.bufReader, ...)` replaces direct `conn` reads
-- `internal/plugins/bgp/reactor/session_read_test.go` — `TestSessionReadWithBufio`, `TestSessionReadDeadlineWithBufio`
+- `internal/component/bgp/reactor/session.go` — `bufReader *bufio.Reader` field, initialized in `connectionEstablished()`
+- `internal/component/bgp/reactor/session_read.go` — `io.ReadFull(s.bufReader, ...)` replaces direct `conn` reads
+- `internal/component/bgp/reactor/session_read_test.go` — `TestSessionReadWithBufio`, `TestSessionReadDeadlineWithBufio`

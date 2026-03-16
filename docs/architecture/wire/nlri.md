@@ -25,7 +25,7 @@ NLRI (Network Layer Reachability Information) represents route prefixes in BGP U
 
 ### AFI/SAFI Registry
 
-ExaBGP supports 42 AFI/SAFI combinations. Key ones:
+ExaBGP supports 42 AFI/SAFI combinations. Ze supports ~19 families (17 plugin-registered + IPv4/IPv6 unicast built-in). Key ones:
 
 | AFI | SAFI | Family | Wire Location |
 |-----|------|--------|---------------|
@@ -399,7 +399,7 @@ With ADD-PATH (RFC 7911):
 ### Ze Implementation
 
 ```go
-// internal/plugins/bgp/nlri/labeled.go
+// internal/component/bgp/nlri/labeled.go
 type LabeledUnicast struct {
     PrefixNLRI           // Embeds family, prefix, pathID (Family(), Prefix(), PathID() inherited)
     labels  []uint32     // Label stack (BOS on last)

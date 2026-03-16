@@ -25,7 +25,7 @@ Ze is a Go BGP implementation with a plugin architecture. Key characteristics:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                    BGP Subsystem  (internal/plugins/bgp/)                   │
+│                    BGP Subsystem  (internal/component/bgp/)                   │
 │                                                                             │
 │   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌────────────────────────────┐    │
 │   │ Peer 1  │  │ Peer 2  │  │ Peer N  │  │ Capability Negotiation     │    │
@@ -47,13 +47,13 @@ Ze is a Go BGP implementation with a plugin architecture. Key characteristics:
                                       │  formatted events
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  Config Pipeline  (internal/config/)                                        │
+│  Config Pipeline  (internal/component/config/)                                        │
 │  File → Tree → ResolveBGPTree()                                             │
 │    ├─ PeersFromTree()            → peer definitions → Reactor               │
 │    └─ ExtractPluginsFromTree()   → plugin config   → Plugin Infrastructure  │
 └─────────────────────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│               Plugin Infrastructure  (internal/plugin/)                     │
+│               Plugin Infrastructure  (internal/component/plugin/)                     │
 │    Plugin Registry · Process Manager · Hub · SDK · DirectBridge             │
 └─────────────────────────────────────────────────────────────────────────────┘
                               │                 ▲
@@ -95,21 +95,21 @@ ze/
 │   └── ze-subsystem/           # Subsystem utility
 │
 ├── internal/
-│   ├── config/                 # Configuration pipeline
-│   │   ├── loader.go           # Config loading
-│   │   ├── parser.go           # Config parsing
-│   │   ├── editor/             # Interactive config editor
-│   │   └── migration/          # Config migration
-│   │
-│   ├── plugin/                 # Plugin infrastructure (generic, zero BGP knowledge)
-│   │   ├── server.go           # Plugin server
-│   │   ├── process.go          # External process management
-│   │   ├── hub.go              # Message routing
-│   │   ├── types.go            # Shared types
-│   │   ├── registry/           # Plugin registry
-│   │   └── all/                # Blank imports triggering init()
-│   │
-│   ├── plugins/                # Plugin implementations
+│   ├── component/
+│   │   ├── config/             # Configuration pipeline
+│   │   │   ├── loader.go       # Config loading
+│   │   │   ├── parser.go       # Config parsing
+│   │   │   ├── editor/         # Interactive config editor
+│   │   │   └── migration/      # Config migration
+│   │   │
+│   │   ├── plugin/             # Plugin infrastructure (generic, zero BGP knowledge)
+│   │   │   ├── server.go       # Plugin server
+│   │   │   ├── process.go      # External process management
+│   │   │   ├── hub.go          # Message routing
+│   │   │   ├── types.go        # Shared types
+│   │   │   ├── registry/       # Plugin registry
+│   │   │   └── all/            # Blank imports triggering init()
+│   │   │
 │   │   ├── bgp/                # BGP subsystem (engine core)
 │   │   │   ├── message/        # BGP messages (OPEN, UPDATE, etc.)
 │   │   │   ├── attribute/      # Path attributes
@@ -120,17 +120,11 @@ ze/
 │   │   │   ├── reactor/        # Core event loop
 │   │   │   ├── server/         # EventDispatcher (reactor → plugin bridge)
 │   │   │   ├── wire/           # Wire format utilities
-│   │   │   └── schema/         # YANG schema
+│   │   │   ├── schema/         # YANG schema
+│   │   │   └── plugins/        # Plugin implementations (rib, rs, gr, role, etc.)
 │   │   │
-│   │   ├── bgp-rib/            # RIB storage + dedup plugin
-│   │   ├── bgp-rs/             # Route server plugin
-│   │   ├── bgp-gr/             # Graceful restart plugin
-│   │   ├── bgp-role/           # Leak prevention plugin
-│   │   ├── bgp-adj-rib-in/     # Adj-RIB-In plugin
-│   │   └── bgp-nlri-*/         # NLRI plugins (VPN, FlowSpec, EVPN, BGP-LS, etc.)
-│   │
-│   ├── hub/                    # Hub architecture
-│   │   └── schema/             # Hub schema
+│   │   └── hub/                # Hub architecture
+│   │       └── schema/         # Hub schema
 │   │
 │   ├── attrpool/               # Memory pools
 │   │   ├── pool.go             # Core Pool type
@@ -172,40 +166,40 @@ ze/
 
 ## 4. Core Components
 
-### 4.1 Plugin Server (`internal/plugin/server.go`)
+### 4.1 Plugin Server (`internal/component/plugin/server.go`)
 
 Manages plugin lifecycle and communication:
 - Starts/stops external processes
 - Routes commands to appropriate plugins
 - Handles JSON events from reactor
 
-### 4.2 Reactor (`internal/plugins/bgp/reactor/`)
+### 4.2 Reactor (`internal/component/bgp/reactor/`)
 
 Core event loop:
 - Manages peer FSM instances
 - Routes BGP messages
 - Maintains message cache for zero-copy forwarding
 
-### 4.3 FSM (`internal/plugins/bgp/fsm/`)
+### 4.3 FSM (`internal/component/bgp/fsm/`)
 
 RFC 4271 state machine:
 - IDLE → CONNECT → ACTIVE → OPENSENT → OPENCONFIRM → ESTABLISHED
 - Timer management (hold, keepalive, connect retry)
 
-### 4.4 Messages (`internal/plugins/bgp/message/`)
+### 4.4 Messages (`internal/component/bgp/message/`)
 
 BGP message types:
 - OPEN, UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH
 - Header parsing and validation
 
-### 4.5 Attributes (`internal/plugins/bgp/attribute/`)
+### 4.5 Attributes (`internal/component/bgp/attribute/`)
 
 Path attributes:
 - ORIGIN, AS_PATH, NEXT_HOP, MED, LOCAL_PREF
 - Communities (standard, extended, large)
 - MP_REACH_NLRI, MP_UNREACH_NLRI
 
-### 4.6 NLRI (`internal/plugins/bgp/nlri/`)
+### 4.6 NLRI (`internal/component/bgp/nlri/`)
 
 Network Layer Reachability Information:
 - INET (IPv4/IPv6 unicast)
@@ -215,7 +209,7 @@ Network Layer Reachability Information:
 - BGP-LS
 - MUP (Mobile User Plane)
 
-### 4.7 Capabilities (`internal/plugins/bgp/capability/`)
+### 4.7 Capabilities (`internal/component/bgp/capability/`)
 
 BGP capabilities and negotiation:
 - Multiprotocol, ASN4, ADD-PATH

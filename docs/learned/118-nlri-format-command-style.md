@@ -24,8 +24,8 @@ Change the UPDATE event NLRI JSON format from ExaBGP-style (announce/withdraw wi
 
 ## Files
 
-- `internal/plugin/text.go` — `formatFilterResultJSON()`, `familyOperation` struct, family-specific formatters
-- `internal/plugin/rib/event.go` — `FamilyOperation` struct for new format parsing
+- `internal/component/plugin/text.go` — `formatFilterResultJSON()`, `familyOperation` struct, family-specific formatters
+- `internal/component/plugin/rib/event.go` — `FamilyOperation` struct for new format parsing
 - `internal/bgp/nlri/ipvpn.go` — RD String() with type prefix
 - `docs/architecture/api/architecture.md` — updated JSON format examples
 - `docs/exabgp/exabgp-migration.md` — migration guide (renamed from `exabgp-compatibility.md`)

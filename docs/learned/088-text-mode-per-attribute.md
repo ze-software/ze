@@ -17,6 +17,6 @@ Fix the text mode parser to use attribute names directly as keywords (`origin se
 
 ## Files
 
-- `internal/plugin/update_text.go` — per-attribute keyword parsing
-- `internal/plugin/update_text_test.go` — 50+ tests updated to new syntax
+- `internal/component/plugin/update_text.go` — per-attribute keyword parsing
+- `internal/component/plugin/update_text_test.go` — 50+ tests updated to new syntax
 - `test/data/api/*.run` — re-migrated

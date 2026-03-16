@@ -25,7 +25,7 @@ Fix the data loss bug where peers connecting late miss routes forwarded before t
 
 ## Files
 
-- `internal/plugins/bgp-rr/server.go` — handleStateUp (replay+delta via DispatchCommand in lifecycle goroutine), replayForPeer, withdrawal map, handleStateDown (reads withdrawal map)
-- `internal/plugins/bgp-rr/peer.go` — Replaying field added
-- `internal/plugins/bgp-rr/rib.go` — deleted (local RIB replaced by withdrawal map + bgp-adj-rib-in)
-- `internal/plugins/bgp-rr/rib_test.go` — deleted (tests for deleted RIB)
+- `internal/component/bgp/plugins/rs/server.go` — handleStateUp (replay+delta via DispatchCommand in lifecycle goroutine), replayForPeer, withdrawal map, handleStateDown (reads withdrawal map)
+- `internal/component/bgp/plugins/rs/peer.go` — Replaying field added
+- `internal/component/bgp/plugins/rs/rib.go` — deleted (local RIB replaced by withdrawal map + bgp-adj-rib-in)
+- `internal/component/bgp/plugins/rs/rib_test.go` — deleted (tests for deleted RIB)

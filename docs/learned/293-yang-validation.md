@@ -33,5 +33,5 @@ Add systematic YANG data validation replacing ad-hoc per-field checks: fix schem
 - `internal/component/config/validators.go` — `AddressFamilyValidator`, `NonzeroIPv4Validator`, `CommunityRangeValidator`
 - `internal/component/config/validators_register.go` — `RegisterValidators()`
 - `internal/component/config/yang_schema.go` — registry creation + integrity check in `YANGValidatorWithPlugins`
-- `internal/plugins/bgp/schema/ze-bgp-conf.yang` — 4 leaves converted string→enum
+- `internal/component/bgp/schema/ze-bgp-conf.yang` — 4 leaves converted string→enum
 - `internal/yang/modules/ze-extensions.yang` — added `validate` extension

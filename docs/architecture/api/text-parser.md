@@ -1,9 +1,9 @@
 # Text Parser Architecture
 
-The text parser lives in `internal/plugins/bgp-rs/server.go`. It is the only consumer of the text format
+The text parser lives in `internal/component/bgp/plugins/rs/server.go`. It is the only consumer of the text format
 on the hot path (route server forwarding). Other plugins use JSON via `shared/event.go`.
 
-Source of truth: `internal/plugins/bgp-rs/server.go` (all `parse*` functions).
+Source of truth: `internal/component/bgp/plugins/rs/server.go` (all `parse*` functions).
 
 ## Current Parser
 

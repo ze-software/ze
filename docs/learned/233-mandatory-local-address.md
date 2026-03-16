@@ -17,6 +17,6 @@ Make `local-address` a required field for all BGP peers so TCP source IP selecti
 - Two existing functional tests (`graceful-restart-no-process.ci`, `route-refresh-no-process.ci`) broke because they lacked `local-address` — mandatory validation fires first. Fix by adding the field to their test configs.
 
 ## Files
-- `internal/plugin/bgp/reactor/config.go` — mandatory check in `parsePeerFromTree()`
-- `internal/plugin/bgp/schema/ze-bgp-conf.yang` — `mandatory true;` on local-address leaf
+- `internal/component/bgp/reactor/config.go` — mandatory check in `parsePeerFromTree()`
+- `internal/component/bgp/schema/ze-bgp-conf.yang` — `mandatory true;` on local-address leaf
 - `test/parse/missing-local-address.ci` — functional rejection test

@@ -24,6 +24,6 @@ Add `environment { }` block support to ZeBGP config files, allowing environment 
 
 ## Files
 
-- `internal/config/environment.go` — `SetConfigValue()`, `LoadEnvironmentWithConfig()`, strict parsing helpers
-- `internal/config/schema.go` — `parseEnvironment()` block parser
+- `internal/component/config/environment.go` — `SetConfigValue()`, `LoadEnvironmentWithConfig()`, strict parsing helpers
+- `internal/component/config/schema.go` — `parseEnvironment()` block parser
 - `cmd/ze/bgp/config_check.go` — `--env` flag

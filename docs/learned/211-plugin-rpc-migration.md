@@ -20,4 +20,4 @@ Convert all internal plugins from raw text-protocol parsing to the SDK callback-
 
 ## Files
 
-- `internal/plugins/bgp-gr/`, `bgp-role/`, `bgp-route-refresh/`, `bgp-softver/`, `bgp-hostname/`, `bgp-rib/`, `bgp-rs/`, `bgp-rr/` — all plugin implementations converted
+- `internal/component/bgp/plugins/gr/`, `bgp-role/`, `bgp-route-refresh/`, `bgp-softver/`, `bgp-hostname/`, `bgp-rib/`, `bgp-rs/`, `bgp-rr/` — all plugin implementations converted

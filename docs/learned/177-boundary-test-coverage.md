@@ -21,4 +21,4 @@ Audit and fill gaps in boundary tests for numeric inputs following a TDD rule up
 
 ## Files
 
-- `internal/plugin/bgp/nlri/inet_test.go` — added `TestINETPrefixLengthBoundary` (IPv4 32/33, IPv6 128/129)
+- `internal/component/bgp/nlri/inet_test.go` — added `TestINETPrefixLengthBoundary` (IPv4 32/33, IPv6 128/129)

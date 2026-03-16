@@ -24,6 +24,6 @@ Replace sleep-based timing in ExaBGP test scripts with explicit commit semantics
 
 ## Files
 
-- `internal/plugin/commit.go` — CommitManager, Transaction, handleCommit dispatch
-- `internal/plugin/commit_manager.go` — concurrent commit tracking
-- `internal/plugin/process.go` — process I/O race fix
+- `internal/component/plugin/commit.go` — CommitManager, Transaction, handleCommit dispatch
+- `internal/component/plugin/commit_manager.go` — concurrent commit tracking
+- `internal/component/plugin/process.go` — process I/O race fix

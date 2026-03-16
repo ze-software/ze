@@ -27,5 +27,5 @@ Remove per-peer Adj-RIB-Out tracking from the reactor and delegate route persist
 
 - `internal/reactor/peer.go` — removed adjRIBOut field and all MarkSent/RemoveFromSent calls
 - `internal/reactor/reactor.go` — simplified AnnounceRoute, WithdrawRoute, ForwardUpdate
-- `internal/plugin/handler.go` — removed `rib show out`, `rib clear out`, `rib flush out` commands
+- `internal/component/plugin/handler.go` — removed `rib show out`, `rib clear out`, `rib flush out` commands
 - Deleted: `internal/reactor/adjribout_forward_test.go`

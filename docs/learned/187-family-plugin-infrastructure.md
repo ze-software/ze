@@ -21,5 +21,5 @@ Add a registry mapping AFI/SAFI families to the plugin that claims them, enablin
 
 ## Files
 
-- `internal/plugin/registry/registry.go` — families map, LookupFamily, RegisterFamily
-- `internal/plugin/registry/parse.go` — parseFamily with decode keyword
+- `internal/component/plugin/registry/registry.go` — families map, LookupFamily, RegisterFamily
+- `internal/component/plugin/registry/parse.go` — parseFamily with decode keyword

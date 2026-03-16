@@ -19,5 +19,5 @@ Create VPN (IPv4/IPv6 VPN) family plugins by moving VPN-specific types out of `n
 
 ## Files
 
-- `internal/plugins/vpn/` — IPVPN type, decode/encode
+- `internal/component/bgp/plugins/nlri/vpn/` — IPVPN type, decode/encode
 - `internal/bgp/nlri/` — RouteDistinguisher remains

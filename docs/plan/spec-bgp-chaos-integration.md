@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | blocked |
-| Depends | spec-bgp-chaos |
+| Depends | - |
 | Phase | - |
 | Updated | 2026-03-03 |
 

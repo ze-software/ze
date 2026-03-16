@@ -88,7 +88,7 @@ Output shows the exact line sent to plugins:
 
 ### Config Delivery Tests
 
-Location: `internal/plugin/server_config_test.go`
+Location: `internal/component/plugin/server_config_test.go`
 
 | Test | Validates |
 |------|-----------|
@@ -98,12 +98,12 @@ Location: `internal/plugin/server_config_test.go`
 
 Run:
 ```bash
-go test -v ./internal/plugin/... -run "TestConfigTree|TestHostname|TestParseCap"
+go test -v ./internal/component/plugin/... -run "TestConfigTree|TestHostname|TestParseCap"
 ```
 
 ### Hostname Plugin Tests
 
-Location: `internal/plugin/hostname/hostname_test.go`
+Location: `internal/component/plugin/hostname/hostname_test.go`
 
 | Test | Validates |
 |------|-----------|
@@ -115,12 +115,12 @@ Location: `internal/plugin/hostname/hostname_test.go`
 
 Run:
 ```bash
-go test -v ./internal/plugin/hostname/...
+go test -v ./internal/component/plugin/hostname/...
 ```
 
 ### Capability Injection Tests
 
-Location: `internal/plugin/capability_injection_test.go`
+Location: `internal/component/plugin/capability_injection_test.go`
 
 | Test | Validates |
 |------|-----------|
@@ -130,7 +130,7 @@ Location: `internal/plugin/capability_injection_test.go`
 
 Run:
 ```bash
-go test -v ./internal/plugin/... -run "Capability"
+go test -v ./internal/component/plugin/... -run "Capability"
 ```
 
 ## Debug Logging
@@ -180,8 +180,8 @@ When plugin capabilities aren't appearing in OPEN messages:
 
 4. **Run unit tests:**
    ```bash
-   go test -v ./internal/plugin/hostname/...
-   go test -v ./internal/plugin/... -run "Capability"
+   go test -v ./internal/component/plugin/hostname/...
+   go test -v ./internal/component/plugin/... -run "Capability"
    ```
 
 5. **Enable debug logging:**

@@ -25,6 +25,6 @@ Reduce write syscalls on the BGP forwarding hot path by adding a `bufio.Writer` 
 
 ## Files
 
-- `internal/plugins/bgp/reactor/session.go`, `session_test.go`
-- `internal/plugins/bgp/reactor/forward_pool.go`, `forward_pool_test.go`, `forward_update_test.go`
-- `internal/plugins/bgp/reactor/reactor.go`
+- `internal/component/bgp/reactor/session.go`, `session_test.go`
+- `internal/component/bgp/reactor/forward_pool.go`, `forward_pool_test.go`, `forward_update_test.go`
+- `internal/component/bgp/reactor/reactor.go`

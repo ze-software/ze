@@ -21,6 +21,6 @@ Fix flaky teardown test that sometimes completed in ~6s and sometimes took ~17s,
 
 ## Files
 
-- `internal/plugin/process.go` — `SendShutdown()` (synchronous write, bypasses async queue)
+- `internal/component/plugin/process.go` — `SendShutdown()` (synchronous write, bypasses async queue)
 - `internal/test/runner/runner.go` — SIGTERM + 2s grace period
 - `test/data/api/teardown.ci` — Adjusted timeout to 18s

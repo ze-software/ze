@@ -18,6 +18,6 @@ None.
 
 ## Files
 
-- `internal/plugin/json.go` — `setMessageDirection()` helper, updated all message types
-- `internal/plugin/text.go` — `formatFilterResultJSON()`, `formatRawFromResult()`
-- `internal/plugin/rib/event.go` — `Direction` moved into `MessageInfo`, `GetDirection()` added
+- `internal/component/plugin/json.go` — `setMessageDirection()` helper, updated all message types
+- `internal/component/plugin/text.go` — `formatFilterResultJSON()`, `formatRawFromResult()`
+- `internal/component/plugin/rib/event.go` — `Direction` moved into `MessageInfo`, `GetDirection()` added

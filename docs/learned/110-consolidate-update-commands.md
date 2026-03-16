@@ -13,7 +13,7 @@ Remove all redundant `announce`/`withdraw` command handlers (24 handlers) and ad
 
 ## Patterns
 
-- 929 lines removed from `internal/plugin/route.go` and 808 from `handler_test.go`. After removal, `RegisterRouteHandlers()` only registers `update` and the two watchdog handlers.
+- 929 lines removed from `internal/component/plugin/route.go` and 808 from `handler_test.go`. After removal, `RegisterRouteHandlers()` only registers `update` and the two watchdog handlers.
 
 ## Gotchas
 
@@ -22,6 +22,6 @@ Remove all redundant `announce`/`withdraw` command handlers (24 handlers) and ad
 
 ## Files
 
-- `internal/plugin/route.go` — 929 lines removed; only `update` + watchdog remain
-- `internal/plugin/update_text.go` — EOR action, VPLS/EVPN family parsers added
+- `internal/component/plugin/route.go` — 929 lines removed; only `update` + watchdog remain
+- `internal/component/plugin/update_text.go` — EOR action, VPLS/EVPN family parsers added
 - `cmd/ze/bgp/encode.go` — local VPLS/EVPN parsers for CLI

@@ -22,5 +22,5 @@ Implement inter-plugin communication in the hub: command routing by handler pref
 
 ## Files
 
-- `internal/hub/router.go` — command and event routing
-- `internal/hub/socket.go` — Unix socket for CLI
+- `internal/component/hub/router.go` — command and event routing
+- `internal/component/hub/socket.go` — Unix socket for CLI

@@ -19,5 +19,5 @@ None beyond: always verify command names and JSON formats against the actual imp
 
 ## Files
 
-- `internal/plugin/rib/rib_test.go` — added `TestHandleRequest_RIBAdjacentOutboundResend_DownPeer`
+- `internal/component/plugin/rib/rib_test.go` — added `TestHandleRequest_RIBAdjacentOutboundResend_DownPeer`
 - `test/plugin/rib-withdrawal.ci` — verifies withdrawn routes not replayed on reconnect

@@ -20,5 +20,5 @@ Create a BGP-LS family plugin for decode/encode of Link-State NLRI.
 
 ## Files
 
-- `internal/plugins/bgpls/` — BGP-LS plugin
+- `internal/component/bgp/plugins/nlri/ls/` — BGP-LS plugin
 - `internal/bgp/nlri/` — Link-State types (via alias)

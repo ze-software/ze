@@ -23,4 +23,4 @@ Extract `wire.UpdateSections` to share UPDATE section boundary parsing across th
 
 - `internal/bgp/wire/update_sections.go` — UpdateSections type, Valid()
 - `internal/bgp/wire/decode.go` — updated to return UpdateSections
-- `internal/plugins/bgp/reactor/` — updated consumers
+- `internal/component/bgp/reactor/` — updated consumers

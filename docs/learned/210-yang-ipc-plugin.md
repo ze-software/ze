@@ -27,8 +27,8 @@ Replace the plugin startup protocol from stdin/stdout text pipes to YANG RPC cal
 
 ## Files
 
-- `internal/plugin/socketpair.go` — dual socket pair creation for internal and external plugins
-- `internal/plugin/rpc_plugin.go` — `PluginConn` with typed methods for all 5 startup stages + runtime RPCs
+- `internal/component/plugin/socketpair.go` — dual socket pair creation for internal and external plugins
+- `internal/component/plugin/rpc_plugin.go` — `PluginConn` with typed methods for all 5 startup stages + runtime RPCs
 - `pkg/plugin/rpc/conn.go` — shared NUL-framed JSON RPC connection (used by engine and SDK)
 - `pkg/plugin/rpc/types.go` — canonical shared RPC types
 - `pkg/plugin/sdk/sdk.go` — plugin SDK with callback-based API and `Run()` lifecycle

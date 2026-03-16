@@ -8,7 +8,7 @@ Split the monolithic `ReactorInterface` (68 methods) into `ReactorLifecycle` (17
 
 - "Expand then contract" pattern: add `RequireBGPReactor()` first while keeping old types, migrate all callers, then narrow type signatures — prevents goimports cascade during cross-file refactoring.
 - BGP callback methods stay as direct methods on `server_bgp.go` via `ServerBGPCallbacks` struct rather than adding to interface.
-- `rib_handler.go` stayed in `internal/plugin/` — belongs to separate rib-command-unification spec.
+- `rib_handler.go` stayed in `internal/component/plugin/` — belongs to separate rib-command-unification spec.
 
 ## Patterns
 
@@ -22,5 +22,5 @@ Split the monolithic `ReactorInterface` (68 methods) into `ReactorLifecycle` (17
 
 ## Files
 
-- `internal/plugin/server.go` — ReactorLifecycle interface
-- `internal/plugins/bgp/bgpserver/` — BGPReactor interface, ServerBGPCallbacks
+- `internal/component/plugin/server.go` — ReactorLifecycle interface
+- `internal/component/bgp/bgpserver/` — BGPReactor interface, ServerBGPCallbacks

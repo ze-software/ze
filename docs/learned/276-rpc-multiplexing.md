@@ -28,5 +28,5 @@ Eliminate the `callMu` serialization bottleneck in `pkg/plugin/rpc/conn.go` that
 - `pkg/plugin/rpc/mux.go` — `MuxConn` type with background reader and `CallRPC`
 - `pkg/plugin/rpc/mux_test.go` — 7 tests covering concurrency, cancellation, close, reader errors
 - `pkg/plugin/sdk/sdk.go` — `engineMux` field, `callEngineRaw` dispatch, `Close` cleanup
-- `internal/plugin/server.go` — `wg.Go` concurrent dispatch in `handleSingleProcessCommandsRPC`
-- `internal/plugins/bgp-rr/server.go` — `updateRouteTimeout` constant, 10s→60s
+- `internal/component/plugin/server.go` — `wg.Go` concurrent dispatch in `handleSingleProcessCommandsRPC`
+- `internal/component/bgp/plugins/rs/server.go` — `updateRouteTimeout` constant, 10s→60s

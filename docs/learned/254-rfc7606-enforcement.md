@@ -23,5 +23,5 @@ Close the gap between RFC 7606 error detection and enforcement: move validation 
 
 ## Files
 
-- `internal/plugins/bgp/reactor/` — RFC 7606 enforcement point (before callback dispatch)
-- `internal/plugins/bgp/message/` — error action iota
+- `internal/component/bgp/reactor/` — RFC 7606 enforcement point (before callback dispatch)
+- `internal/component/bgp/message/` — error action iota

@@ -24,6 +24,6 @@ Reduce lock contention in `RecentUpdateCache` by moving the gap-based safety val
 
 ## Files
 
-- `internal/plugins/bgp/reactor/recent_cache.go` — seqmap entries, background goroutine, Start/Stop, Since-based ack
-- `internal/plugins/bgp/reactor/recent_cache_test.go` — 8 new tests, defer Stop to all existing tests
-- `internal/plugins/bgp/reactor/reactor.go` — cache.Start() in StartWithContext, cache.Stop() in cleanup
+- `internal/component/bgp/reactor/recent_cache.go` — seqmap entries, background goroutine, Start/Stop, Since-based ack
+- `internal/component/bgp/reactor/recent_cache_test.go` — 8 new tests, defer Stop to all existing tests
+- `internal/component/bgp/reactor/reactor.go` — cache.Start() in StartWithContext, cache.Stop() in cleanup

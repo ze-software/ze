@@ -21,6 +21,6 @@ Add `encode json nlri <family> <json>` command so callers can encode NLRI from s
 
 ## Files
 
-- `internal/plugins/flowspec/encode.go` — JSON-to-NLRI encoding
-- `internal/plugins/bgp/encode/` — encode protocol handler
-- `internal/plugins/vpn/` — RD special handling
+- `internal/component/bgp/plugins/nlri/flowspec/encode.go` — JSON-to-NLRI encoding
+- `internal/component/bgp/encode/` — encode protocol handler
+- `internal/component/bgp/plugins/nlri/vpn/` — RD special handling

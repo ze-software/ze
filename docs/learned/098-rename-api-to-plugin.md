@@ -21,5 +21,5 @@ Rename the CLI command from `zebgp api` to `ze bgp plugin` to clarify that "api"
 ## Files
 
 - `cmd/ze/bgp/plugin.go` (renamed from `api.go`), `plugin_rr.go`, `plugin_persist.go`
-- `internal/plugin/` package — 66 files `package api` → `package plugin`
+- `internal/component/plugin/` package — 66 files `package api` → `package plugin`
 - 18 import path updates across consumers

@@ -24,9 +24,9 @@ Remove the accumulator model (`set`/`add`/`del` on attributes, mid-stream modifi
 
 ## Files
 
-- `internal/plugins/bgp/textparse/keywords.go` — shared keyword constants, alias map, resolution
-- `internal/plugins/bgp/handler/update_text.go` — accumulator removed, flat parsing, alias resolution
-- `internal/plugins/bgp/handler/update_text_nlri.go` — path-id as per-NLRI-section modifier
-- `internal/plugins/bgp/format/text.go` — short aliases in API text output
-- `internal/plugins/bgp-rs/server.go` — shared keyword tables from textparse/
-- `internal/plugin/bgp/shared/format.go` — FormatRouteCommand updated to flat grammar (not in original plan)
+- `internal/component/bgp/textparse/keywords.go` — shared keyword constants, alias map, resolution
+- `internal/component/bgp/handler/update_text.go` — accumulator removed, flat parsing, alias resolution
+- `internal/component/bgp/handler/update_text_nlri.go` — path-id as per-NLRI-section modifier
+- `internal/component/bgp/format/text.go` — short aliases in API text output
+- `internal/component/bgp/plugins/rs/server.go` — shared keyword tables from textparse/
+- `internal/component/bgp/shared/format.go` — FormatRouteCommand updated to flat grammar (not in original plan)

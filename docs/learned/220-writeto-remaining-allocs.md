@@ -20,5 +20,5 @@ Eliminate remaining heap allocations in the BGP UPDATE encoding path by converti
 
 ## Files
 
-- `internal/plugins/bgp/wire/` — UPDATE builder and attribute encoding
+- `internal/component/bgp/wire/` — UPDATE builder and attribute encoding
 - `internal/bgp/message/` — attribute WriteTo implementations

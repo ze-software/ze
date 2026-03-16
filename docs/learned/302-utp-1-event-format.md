@@ -7,7 +7,7 @@ Implement a tokenizer-friendly text event format: uniform headers, comma-separat
 ## Decisions
 
 - Event format uses `nlri <family> add/del` (matches command format) instead of a separate `family` keyword — rejected the `family <afi/safi>` prefix because it was inconsistent with the command grammar
-- `TextScanner` lives in `internal/plugins/bgp/textparse/` as a shared zero-alloc whitespace tokenizer; bgp-rr imports it rather than each plugin duplicating a scanner
+- `TextScanner` lives in `internal/component/bgp/textparse/` as a shared zero-alloc whitespace tokenizer; bgp-rr imports it rather than each plugin duplicating a scanner
 - INET `String()` drops path-id entirely — formatter handles it via `nlri path-id N add`; `Key()` returns bare CIDR for map keys
 - Parser unit tests replaced by handler integration tests (`TestHandleUpdate_ZeBGPFormat`) — stronger coverage than standalone parse function tests
 - BGP-LS `Prefix` renamed to `Reachability` (String() outputs `reachability`)
@@ -26,7 +26,7 @@ Implement a tokenizer-friendly text event format: uniform headers, comma-separat
 
 ## Files
 
-- `internal/plugins/bgp/format/text.go` — formatter (uniform header, comma lists, nlri add/del)
-- `internal/plugins/bgp/textparse/scanner.go` — shared TextScanner
-- `internal/plugins/bgp-rr/server.go` — parser rewrite (all 5 parse functions)
+- `internal/component/bgp/format/text.go` — formatter (uniform header, comma lists, nlri add/del)
+- `internal/component/bgp/textparse/scanner.go` — shared TextScanner
+- `internal/component/bgp/plugins/rs/server.go` — parser rewrite (all 5 parse functions)
 - All 10+ NLRI plugin `types.go` files — dropped `set` keyword from `String()`

@@ -22,5 +22,5 @@ Add `ze-plugin-engine:decode-nlri` and `ze-plugin-engine:encode-nlri` RPCs so pl
 
 ## Files
 
-- `internal/plugins/bgp/handler/` — decode-nlri, encode-nlri RPC handlers
-- `internal/plugin/registry/` — Snapshot/Restore for test isolation
+- `internal/component/bgp/handler/` — decode-nlri, encode-nlri RPC handlers
+- `internal/component/plugin/registry/` — Snapshot/Restore for test isolation

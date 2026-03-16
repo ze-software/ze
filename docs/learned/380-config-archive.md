@@ -29,7 +29,7 @@ Add VyOS-inspired remote config archival — fan-out upload to file:// and http(
 
 ## Files
 
-- `internal/component/config/editor/archive.go` — core archive logic (NEW)
+- `internal/component/config/archive/archive.go` — core archive logic (NEW)
 - `internal/component/config/editor/archive_test.go` — 19 unit tests (NEW)
 - `cmd/ze/config/cmd_archive.go` — CLI subcommand (NEW)
 - `cmd/ze/config/cmd_archive_test.go` — 8 CLI tests (NEW)

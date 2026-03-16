@@ -29,4 +29,4 @@ Add an in-process execution mode where the chaos tool and Ze's reactor run in th
 - `cmd/ze-bgp-chaos/inprocess/mocknet.go` — ConnPairManager, MockDialer, MockListener (TCP loopback)
 - `cmd/ze-bgp-chaos/inprocess/runner.go` — In-process execution engine
 - `cmd/ze-bgp-chaos/peer/simulator.go` — Added optional Conn + Clock fields to SimulatorConfig
-- `internal/plugins/bgp/reactor/reactor.go` — SetClock now propagates to all existing peers
+- `internal/component/bgp/reactor/reactor.go` — SetClock now propagates to all existing peers

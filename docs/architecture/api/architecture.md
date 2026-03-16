@@ -8,19 +8,19 @@
 
 | Feature | Status | Code Location |
 |---------|--------|---------------|
-| Process management | ✅ Done | `internal/plugin/process.go` |
-| Backpressure (1000/100) | ✅ Done | `internal/plugin/process.go` |
-| Respawn limits (5/60s) | ✅ Done | `internal/plugin/process.go` |
-| Command dispatch | ✅ Done | `internal/plugin/command.go`, `internal/ipc/dispatch.go` |
-| YANG API schema | ✅ Done | `internal/component/bgp/schema/`, `internal/ipc/schema/`, `internal/plugin/rib/schema/` |
-| Plugin commands | ✅ Done | `internal/plugin/registry.go`, `internal/plugin/plugin.go` |
-| Route injection | ✅ Done | `internal/plugin/rib/` |
-| BGP cache commands | ✅ Done | `internal/plugin/cache.go` |
-| Session sync | ✅ Done | `internal/plugin/session.go` |
-| JSON/text encoding | ✅ Done | `internal/plugin/json.go` |
-| RR plugin | ✅ Done | `internal/plugin/rr/` |
-| RIB plugin | ✅ Done | `internal/plugins/bgp-rib/` |
-| Adj-RIB-In plugin | ✅ Done | `internal/plugins/bgp-adj-rib-in/` |
+| Process management | ✅ Done | `internal/component/plugin/process.go` |
+| Backpressure (1000/100) | ✅ Done | `internal/component/plugin/process.go` |
+| Respawn limits (5/60s) | ✅ Done | `internal/component/plugin/process.go` |
+| Command dispatch | ✅ Done | `internal/component/plugin/command.go`, `internal/ipc/dispatch.go` |
+| YANG API schema | ✅ Done | `internal/component/bgp/schema/`, `internal/ipc/schema/`, `internal/component/plugin/rib/schema/` |
+| Plugin commands | ✅ Done | `internal/component/plugin/registry.go`, `internal/component/plugin/plugin.go` |
+| Route injection | ✅ Done | `internal/component/plugin/rib/` |
+| BGP cache commands | ✅ Done | `internal/component/plugin/cache.go` |
+| Session sync | ✅ Done | `internal/component/plugin/session.go` |
+| JSON/text encoding | ✅ Done | `internal/component/plugin/json.go` |
+| RR plugin | ✅ Done | `internal/component/plugin/rr/` |
+| RIB plugin | ✅ Done | `internal/component/bgp/plugins/rib/` |
+| Adj-RIB-In plugin | ✅ Done | `internal/component/bgp/plugins/adj_rib_in/` |
 | Shared BGP types | ✅ Done | `internal/component/bgp/` |
 | borr/eorr markers | ✅ Done | RFC 7313 full support |
 
@@ -34,7 +34,7 @@
 | **API Role** | RIB storage, policy, best-path, GR state |
 | **Communication** | JSON events + base64 wire bytes |
 | **Key Types** | `Server`, `Client`, `Process`, `Dispatcher` |
-| **RIB** | Owned by API program (use `internal/plugins/bgp/rib/` as reference) |
+| **RIB** | Owned by API program (use `internal/component/bgp/rib/` as reference) |
 | **Polyglot** | API programs can be Go, Python, Rust, etc. |
 | **Cache Control** | API controls cache via `bgp cache` commands |
 
@@ -60,7 +60,7 @@
 
 | Component | Description |
 |-----------|-------------|
-| RIB | Route storage (use `internal/plugins/bgp/rib/` as reference) |
+| RIB | Route storage (use `internal/component/bgp/rib/` as reference) |
 | Pool | Attribute deduplication (see `POOL_ARCHITECTURE.md`) |
 | Policy | Import/export filters, route manipulation |
 | Best-path | Selection algorithm (if needed) |
@@ -196,7 +196,7 @@ The Ze API system enables external route injection and daemon control via:
 ## Package Structure
 
 ```
-internal/plugin/
+internal/component/plugin/
 ├── server.go         # Server, Client, socket listener, plugin response handling
 ├── process.go        # Process, subprocess management
 ├── command.go        # Dispatcher, CommandContext, AllBuiltinRPCs()
@@ -238,7 +238,7 @@ Each YANG module defines RPCs and notifications for a domain. Every RPC maps 1:1
 | `ze-bgp-cmd-metrics-api` | `internal/component/bgp/plugins/cmd/metrics/schema/` | 2 | 0 |
 | `ze-system-api` | `internal/ipc/schema/` | 8 | 0 |
 | `ze-plugin-api` | `internal/ipc/schema/` | 8 | 0 |
-| `ze-rib-api` | `internal/plugin/rib/schema/` | 9 | 1 |
+| `ze-rib-api` | `internal/component/plugin/rib/schema/` | 9 | 1 |
 | `ze-plugin-engine` | `internal/yang/modules/` | 11 | 0 |
 | `ze-plugin-callback` | `internal/yang/modules/` | 8 | 0 |
 
@@ -311,7 +311,7 @@ pkg/plugin/rpc/
 pkg/plugin/sdk/
 └── sdk.go            # Plugin SDK — callback-based API for plugin authors
 
-internal/plugin/
+internal/component/plugin/
 ├── socketpair.go     # DualSocketPair (internal: net.Pipe, external: socketpair)
 └── rpc_plugin.go     # PluginConn (embeds *rpc.Conn, typed stage methods)
 
@@ -438,7 +438,7 @@ type PathAttributes struct {
 
 ### Next-Hop Resolution
 
-`RouteNextHop` is resolved at **peer level** in `internal/plugins/bgp/reactor/peer.go` via `resolveNextHop()`:
+`RouteNextHop` is resolved at **peer level** in `internal/component/bgp/reactor/peer.go` via `resolveNextHop()`:
 
 | Policy | Behavior |
 |--------|----------|
@@ -904,7 +904,7 @@ See `PROCESS_PROTOCOL.md` for full protocol details.
 > **Note:** Adj-RIB-Out is now owned by API programs, not the engine.
 > The engine has no route storage - it delegates to API.
 
-API programs use `internal/plugins/bgp/rib/` as reference implementation:
+API programs use `internal/component/bgp/rib/` as reference implementation:
 
 ```go
 // In API program
@@ -1131,7 +1131,7 @@ Process stdin
 
 ## RIB Plugin and Route Replay
 
-The RIB plugin (`internal/plugin/rib/`) tracks routes received from peers (Adj-RIB-In) and sent to peers (Adj-RIB-Out), replaying outgoing routes on session re-establishment.
+The RIB plugin (`internal/component/plugin/rib/`) tracks routes received from peers (Adj-RIB-In) and sent to peers (Adj-RIB-Out), replaying outgoing routes on session re-establishment.
 
 ### RIB Plugin Features
 
@@ -1192,23 +1192,23 @@ if needsAPIWait {
 
 | File | Purpose |
 |------|---------|
-| `internal/plugin/server.go` | Server, Client, socket handling |
-| `internal/plugin/process.go` | Subprocess management |
-| `internal/plugin/command.go` | Dispatcher, AllBuiltinRPCs() |
-| `internal/plugin/handler.go` | RPCRegistration struct, constants |
-| `internal/plugin/bgp.go` | BGP handlers (daemon, peer, introspection) |
-| `internal/plugin/system.go` | System handlers (help, version, command) |
-| `internal/plugin/rib_handler.go` | RIB handlers (show/clear, introspection) |
-| `internal/plugin/session.go` | Session handlers (ready, ping, bye) |
-| `internal/plugin/schema.go` | SchemaRegistry (YANG RPC/notification indexing) |
-| `internal/plugins/bgp/route/route.go` | Route attribute/NLRI parsing |
-| `internal/plugin/types.go` | ReactorInterface, RouteSpec |
-| `internal/plugin/text.go` | Text/JSON formatting including FormatStateChange |
-| `internal/plugin/commit_manager.go` | Transaction management |
+| `internal/component/plugin/server.go` | Server, Client, socket handling |
+| `internal/component/plugin/process.go` | Subprocess management |
+| `internal/component/plugin/command.go` | Dispatcher, AllBuiltinRPCs() |
+| `internal/component/plugin/handler.go` | RPCRegistration struct, constants |
+| `internal/component/plugin/bgp.go` | BGP handlers (daemon, peer, introspection) |
+| `internal/component/plugin/system.go` | System handlers (help, version, command) |
+| `internal/component/plugin/rib_handler.go` | RIB handlers (show/clear, introspection) |
+| `internal/component/plugin/session.go` | Session handlers (ready, ping, bye) |
+| `internal/component/plugin/schema.go` | SchemaRegistry (YANG RPC/notification indexing) |
+| `internal/component/bgp/route/route.go` | Route attribute/NLRI parsing |
+| `internal/component/plugin/types.go` | ReactorInterface, RouteSpec |
+| `internal/component/plugin/text.go` | Text/JSON formatting including FormatStateChange |
+| `internal/component/plugin/commit_manager.go` | Transaction management |
 | `internal/ipc/dispatch.go` | RPCDispatcher (wire-method exact-match) |
 | `internal/yang/rpc.go` | YANG RPC/notification extraction |
-| `internal/plugin/rib/rib.go` | RIB plugin (Adj-RIB-In/Out, route replay) |
-| `internal/plugins/bgp/reactor/reactor.go` | AnnounceRoute, PeerLifecycleObserver |
-| `internal/plugins/bgp/reactor/peer.go` | FSM callback, reactor notification, API sync |
-| `internal/plugins/bgp/reactor/session.go` | Session lifecycle, teardown handling |
-| `internal/plugins/bgp/rib/outgoing.go` | Adj-RIB-Out structure |
+| `internal/component/plugin/rib/rib.go` | RIB plugin (Adj-RIB-In/Out, route replay) |
+| `internal/component/bgp/reactor/reactor.go` | AnnounceRoute, PeerLifecycleObserver |
+| `internal/component/bgp/reactor/peer.go` | FSM callback, reactor notification, API sync |
+| `internal/component/bgp/reactor/session.go` | Session lifecycle, teardown handling |
+| `internal/component/bgp/rib/outgoing.go` | Adj-RIB-Out structure |

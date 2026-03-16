@@ -27,7 +27,7 @@ Eliminate pause/resume oscillation and reduce per-UPDATE syscall cost in `bgp-rr
 
 ## Files
 
-- `internal/plugins/bgp-rr/worker.go` — capacity, thresholds
-- `internal/plugins/bgp-rr/server.go` — pre-parsed payload, deferred RIB, async release, batch accumulation, async forward, two-level parse
-- `internal/plugins/bgp/handler/cache.go` — comma-separated batch command parsing
+- `internal/component/bgp/plugins/rs/worker.go` — capacity, thresholds
+- `internal/component/bgp/plugins/rs/server.go` — pre-parsed payload, deferred RIB, async release, batch accumulation, async forward, two-level parse
+- `internal/component/bgp/handler/cache.go` — comma-separated batch command parsing
 - `docs/architecture/api/commands.md` — batch forward/release syntax documented

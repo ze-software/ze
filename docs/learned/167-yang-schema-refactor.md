@@ -25,5 +25,5 @@ Replace hardcoded Go validation and completion logic in the config editor with Y
 
 - `internal/yang/loader.go` — added `GetEntry()` for processed entry access
 - `internal/yang/validator.go` — added `findInEntry()`, `AsValidationError()`, use entry tree for mandatory detection
-- `internal/config/editor/validator.go` — wired YANG validator, removed hardcoded `validateHoldTime()`
-- `internal/config/editor/completer.go` — rewritten to use YANG tree directly
+- `internal/component/config/editor/validator.go` — wired YANG validator, removed hardcoded `validateHoldTime()`
+- `internal/component/config/editor/completer.go` — rewritten to use YANG tree directly

@@ -20,6 +20,6 @@ None.
 
 ## Files
 
-- `internal/config/bgp.go` — nexthop moved from peer schema to capability schema, parsing updated in both `applyTreeSettings` and `parsePeerConfig`
+- `internal/component/config/bgp.go` — nexthop moved from peer schema to capability schema, parsing updated in both `applyTreeSettings` and `parsePeerConfig`
 - `internal/exabgp/migrate.go` — `migrateCapability()` now places nexthop block inside capability
 - Config files: `etc/ze/bgp/*.conf`, `test/data/encode/`, `test/data/plugin/`

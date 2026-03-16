@@ -26,11 +26,11 @@ Wire end-to-end flow control so the route reflector achieves 100% route reflecti
 
 ## Files
 
-- `internal/plugins/bgp/handler/bgp.go` — `bgp peer pause/resume` handlers + `peerFlowControl` shared impl
-- `internal/plugins/bgp-rr/worker.go` — `onLowWater`, `inBackpressure`, configurable chanSize
-- `internal/plugins/bgp-rr/server.go` — `wireFlowControl`, `resumeAllPaused`, dispatch backpressure, `ZE_RR_CHAN_SIZE`
-- `internal/plugins/bgp/reactor/recent_cache.go` — `SetSafetyValveDuration`
+- `internal/component/bgp/handler/bgp.go` — `bgp peer pause/resume` handlers + `peerFlowControl` shared impl
+- `internal/component/bgp/plugins/rs/worker.go` — `onLowWater`, `inBackpressure`, configurable chanSize
+- `internal/component/bgp/plugins/rs/server.go` — `wireFlowControl`, `resumeAllPaused`, dispatch backpressure, `ZE_RR_CHAN_SIZE`
+- `internal/component/bgp/reactor/recent_cache.go` — `SetSafetyValveDuration`
 - `cmd/ze-chaos/peer/ringbuf.go` — `EventBuffer` (unbounded push/drain)
 - `cmd/ze-chaos/peer/simulator.go` — `EventBuffer` in readLoop with Drain goroutine lifecycle
-- `internal/plugins/bgp/reactor/reactor.go` — `ZE_CACHE_SAFETY_VALVE` + `ZE_FWD_CHAN_SIZE` env vars
+- `internal/component/bgp/reactor/reactor.go` — `ZE_CACHE_SAFETY_VALVE` + `ZE_FWD_CHAN_SIZE` env vars
 - `test/plugin/rr-backpressure.ci` — functional test: single-peer RR with `ZE_RR_CHAN_SIZE=1`

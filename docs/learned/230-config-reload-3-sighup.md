@@ -19,6 +19,6 @@ Wire SIGHUP through a reload coordinator and split `reactor.Reload()` into separ
 - `parsePeersFromTree` is a test-only fallback; never use it in production paths that call `peerSettingsEqual`.
 
 ## Files
-- `internal/plugin/bgp/reactor/reactor.go` — VerifyConfig, ApplyConfigDiff, reconcilePeers, loadPeersFullOrTree, SIGHUP guard
-- `internal/plugin/reload.go` — HasConfigLoader, SetConfigLoader, ReloadFromDisk, reloadConfig
-- `internal/plugin/types.go` — ReactorInterface extended with VerifyConfig/ApplyConfigDiff
+- `internal/component/bgp/reactor/reactor.go` — VerifyConfig, ApplyConfigDiff, reconcilePeers, loadPeersFullOrTree, SIGHUP guard
+- `internal/component/plugin/reload.go` — HasConfigLoader, SetConfigLoader, ReloadFromDisk, reloadConfig
+- `internal/component/plugin/types.go` — ReactorInterface extended with VerifyConfig/ApplyConfigDiff

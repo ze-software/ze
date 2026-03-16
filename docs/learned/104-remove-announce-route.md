@@ -20,6 +20,6 @@ Complete migration from `announce route` to `update text` syntax, removing the o
 
 ## Files
 
-- `internal/plugin/route.go` — removed `handleAnnounceRoute`
-- `internal/plugin/commit.go` — removed `commit announce route` handler
-- `internal/plugin/rib/rib.go`, `internal/plugin/rr/server.go` — updated output to `update text` syntax
+- `internal/component/plugin/route.go` — removed `handleAnnounceRoute`
+- `internal/component/plugin/commit.go` — removed `commit announce route` handler
+- `internal/component/plugin/rib/rib.go`, `internal/component/plugin/rr/server.go` — updated output to `update text` syntax

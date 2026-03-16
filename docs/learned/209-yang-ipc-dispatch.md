@@ -25,9 +25,9 @@ Replace the text `RegisterBuiltin()` dispatch pattern with YANG-driven RPC dispa
 
 ## Files
 
-- `internal/plugin/schema.go` — extended with `RegisterRPCs`, `RegisterNotifications`, `FindRPCByCommand`
+- `internal/component/plugin/schema.go` — extended with `RegisterRPCs`, `RegisterNotifications`, `FindRPCByCommand`
 - `internal/yang/rpc.go` — `RPCs()`, `Notifications()`, `WireModule()` extractions from YANG entry tree
 - `internal/ipc/dispatch.go` — wire-method-based RPC dispatch (coexists with text dispatch until Spec 3)
-- `internal/plugin/bgp.go`, `system.go`, `rib_handler.go`, `session.go`, `plugin.go` — domain handler files
-- `internal/plugin/handler.go` — reduced to `RPCRegistration` struct + constants
+- `internal/component/plugin/bgp.go`, `system.go`, `rib_handler.go`, `session.go`, `plugin.go` — domain handler files
+- `internal/component/plugin/handler.go` — reduced to `RPCRegistration` struct + constants
 - `test/parse/cli-schema-methods.ci`, `test/parse/cli-schema-events.ci` — functional tests

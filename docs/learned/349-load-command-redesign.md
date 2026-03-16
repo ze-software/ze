@@ -21,5 +21,5 @@ Replace the two-variant `load <file>` / `load merge <file>` editor commands with
 
 ## Files
 
-- `internal/config/editor/model.go` — `parseLoadArgs()`, `cmdLoadNew()`, `applyLoadAbsolute()`, `applyLoadRelative()`, paste mode state
+- `internal/component/config/editor/model.go` — `parseLoadArgs()`, `cmdLoadNew()`, `applyLoadAbsolute()`, `applyLoadRelative()`, paste mode state
 - `test/editor/lifecycle/` — new `.et` test files, deleted old `load-file.et` and `load-merge.et`

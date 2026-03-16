@@ -25,7 +25,7 @@ Replace the `passive bool` peer option with a `connection` enum (`both`, `passiv
 
 ## Files
 
-- `internal/plugins/bgp/reactor/peersettings.go` — `ConnectionMode` type (created)
+- `internal/component/bgp/reactor/peersettings.go` — `ConnectionMode` type (created)
 - `ze-bgp-conf.yang`, `ze-bgp-api.yang`, `ze-hub-conf.yang` — connection leaf added
 - `reactor.go`, `peer.go`, `session.go`, `config.go`, `environment.go` — updated
 - `handler/bgp.go`, `validate/main.go`, `migrate.go`, `scenario/config.go` — updated

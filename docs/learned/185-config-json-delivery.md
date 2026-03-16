@@ -27,9 +27,9 @@ roots they want (`declare wants config bgp`), receive JSON at Stage 2 and on rel
 
 ## Files
 
-- `internal/plugin/registration.go` — `WantsConfigRoots`, `DecodeCapabilities`, parsing
-- `internal/plugin/server.go` — `deliverConfig()` rewritten, `notifyConfigReload()`
-- `internal/config/diff.go` — `DiffMaps()`, `ConfigDiff`, `DiffPair`
-- `internal/config/diff_test.go` — full diff coverage
-- `internal/config/bgp.go` — `ParsedTree` field added
+- `internal/component/plugin/registration.go` — `WantsConfigRoots`, `DecodeCapabilities`, parsing
+- `internal/component/plugin/server.go` — `deliverConfig()` rewritten, `notifyConfigReload()`
+- `internal/component/config/diff.go` — `DiffMaps()`, `ConfigDiff`, `DiffPair`
+- `internal/component/config/diff_test.go` — full diff coverage
+- `internal/component/config/bgp.go` — `ParsedTree` field added
 - `cmd/ze/bgp/decode.go` — `--plugin` flag, plugin decode invocation

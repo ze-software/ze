@@ -17,5 +17,5 @@ Build a CLI tool (`ze bgp config migrate`) to convert ExaBGP config files to ZeB
 - `migrate.go` transforms peer/neighbor names; `static.go` extracts route blocks; `api.go` handles API syntax — keep concerns separated.
 
 ## Files
-- `internal/config/migration/helpers.go`, `static.go`, `api.go`, `migrate.go`, `detect.go` — migration logic
+- `internal/component/config/migration/helpers.go`, `static.go`, `api.go`, `migrate.go`, `detect.go` — migration logic
 - `cmd/ze/bgp/config_check.go`, `cmd/ze/bgp/config_migrate.go` — CLI entry points

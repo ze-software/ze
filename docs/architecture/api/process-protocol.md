@@ -209,7 +209,7 @@ as plain text lines; `bye` signals shutdown.
 
 **Implementation:** `pkg/plugin/rpc/text.go` (format/parse), `pkg/plugin/rpc/text_conn.go`
 (framing + PeekMode), `pkg/plugin/rpc/text_mux.go` (TextMuxConn),
-`internal/plugin/subsystem_text.go` (engine side), `pkg/plugin/sdk/sdk_text.go` (SDK side).
+`internal/component/plugin/subsystem_text.go` (engine side), `pkg/plugin/sdk/sdk_text.go` (SDK side).
 
 ### Tier-Ordered Startup
 
@@ -765,9 +765,9 @@ between SDK bridge activation and engine readiness.
 | File | Purpose |
 |------|---------|
 | `pkg/plugin/rpc/bridge.go` | `DirectBridge`, `BridgedConn`, `Bridger` interface |
-| `internal/plugin/process.go` | Bridge creation in `startInternal()`, bridge check in `deliverBatch()` |
-| `internal/plugin/server_dispatch.go` | `dispatchPluginRPCDirect()`, `wireBridgeDispatch()` |
-| `internal/plugin/server_startup.go` | `wireBridgeDispatch()` called before Stage 5 OK |
+| `internal/component/plugin/process.go` | Bridge creation in `startInternal()`, bridge check in `deliverBatch()` |
+| `internal/component/plugin/server_dispatch.go` | `dispatchPluginRPCDirect()`, `wireBridgeDispatch()` |
+| `internal/component/plugin/server_startup.go` | `wireBridgeDispatch()` called before Stage 5 OK |
 | `pkg/plugin/sdk/sdk.go` | Bridge discovery, `callEngineRaw()` bridge path, `SetReady()` |
 
 ### Mode 2: Subprocess (fork/exec)
@@ -1022,10 +1022,10 @@ Loop forever:
 
 | File | Purpose |
 |------|---------|
-| `internal/plugin/registration.go` | Family registry, conflict detection |
-| `internal/plugin/server.go` | `EncodeNLRI()`, `DecodeNLRI()` routing |
-| `internal/plugin/flowspec/plugin.go` | FlowSpec plugin implementation |
-| `internal/plugin/update_text.go` | Direct plugin calls for known families |
+| `internal/component/plugin/registration.go` | Family registry, conflict detection |
+| `internal/component/plugin/server.go` | `EncodeNLRI()`, `DecodeNLRI()` routing |
+| `internal/component/plugin/flowspec/plugin.go` | FlowSpec plugin implementation |
+| `internal/component/plugin/update_text.go` | Direct plugin calls for known families |
 
 ---
 
@@ -1111,10 +1111,10 @@ Completion timeout: 500ms (non-configurable).
 
 | File | Purpose |
 |------|---------|
-| `internal/plugin/registry.go` | CommandRegistry type |
-| `internal/plugin/pending.go` | PendingRequests tracker |
-| `internal/plugin/plugin.go` | Parse register/unregister/response |
-| `internal/plugin/server.go` | handleRegisterCommand, handlePluginResponse |
+| `internal/component/plugin/registry.go` | CommandRegistry type |
+| `internal/component/plugin/pending.go` | PendingRequests tracker |
+| `internal/component/plugin/plugin.go` | Parse register/unregister/response |
+| `internal/component/plugin/server.go` | handleRegisterCommand, handlePluginResponse |
 
 ---
 
@@ -1343,7 +1343,7 @@ The engine uses two different mechanisms:
 | **Config Delivery** (Stage 2) | Startup only | Pattern matching against ALL peers |
 | **Event Delivery** (Runtime) | After startup | Process bindings per peer |
 
-**Config delivery** (`internal/plugin/server.go:deliverConfig`):
+**Config delivery** (`internal/component/plugin/server.go:deliverConfig`):
 ```go
 peerConfigs := s.reactor.GetPeerCapabilityConfigs()  // ALL peers
 for _, peerCfg := range peerConfigs {
@@ -1354,7 +1354,7 @@ for _, peerCfg := range peerConfigs {
 }
 ```
 
-**Event delivery** (`internal/plugin/server.go:dispatchEvent`):
+**Event delivery** (`internal/component/plugin/server.go:dispatchEvent`):
 ```go
 bindings := s.reactor.GetPeerProcessBindings(peer.Address)
 for _, binding := range bindings {
@@ -1483,8 +1483,8 @@ Future: Plugins will declare decodable capabilities via `declare decode capabili
 | `cmd/ze/bgp/decode.go` | Invokes plugin decode API |
 | `cmd/ze/bgp/plugin_hostname.go` | `--decode` flag handling (hostname) |
 | `cmd/ze/bgp/plugin_flowspec.go` | `--decode` flag handling (flowspec) |
-| `internal/plugin/hostname/hostname.go` | `RunDecodeMode()` - hostname capability |
-| `internal/plugin/flowspec/plugin.go` | `RunFlowSpecDecode()` - FlowSpec NLRI |
+| `internal/component/plugin/hostname/hostname.go` | `RunDecodeMode()` - hostname capability |
+| `internal/component/plugin/flowspec/plugin.go` | `RunFlowSpecDecode()` - FlowSpec NLRI |
 
 ---
 

@@ -24,7 +24,7 @@ All new code MUST follow these patterns.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                    BGP Subsystem  (internal/plugins/bgp/)                   │
+│                    BGP Subsystem  (internal/component/bgp/)                   │
 │                                                                             │
 │   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌────────────────────────────┐    │
 │   │ Peer 1  │  │ Peer 2  │  │ Peer N  │  │ Capability Negotiation     │    │
@@ -46,13 +46,13 @@ All new code MUST follow these patterns.
                                       │  formatted events
                                       ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  Config Pipeline  (internal/config/)                                        │
+│  Config Pipeline  (internal/component/config/)                                        │
 │  File → Tree → ResolveBGPTree()                                             │
 │    ├─ PeersFromTree()            → peer definitions → Reactor               │
 │    └─ ExtractPluginsFromTree()   → plugin config   → Plugin Infrastructure  │
 └─────────────────────────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│               Plugin Infrastructure  (internal/plugin/)                     │
+│               Plugin Infrastructure  (internal/component/plugin/)                     │
 │    Plugin Registry · Process Manager · Hub · SDK · DirectBridge             │
 └─────────────────────────────────────────────────────────────────────────────┘
                               │                 ▲
@@ -83,7 +83,7 @@ All new code MUST follow these patterns.
 Decoding/encoding BGP messages requires **negotiated capabilities** from OPEN exchange:
 
 ```go
-// Simplified view - see internal/plugins/bgp/capability/negotiated.go for full struct
+// Simplified view - see internal/component/bgp/capability/negotiated.go for full struct
 type Negotiated struct {
     ASN4            bool                   // AS_PATH: 2-byte or 4-byte ASNs
     AddPath         map[Family]AddPathMode // NLRI: Receive/Send/Both path-id
@@ -105,7 +105,7 @@ type Negotiated struct {
 - Different ContextID = must re-encode for target peer's capabilities
 
 ```go
-// internal/plugins/bgp/context/registry.go
+// internal/component/bgp/context/registry.go
 type ContextID uint16  // Unique ID per distinct capability set (65535 max)
 
 // Zero-copy decision
@@ -211,7 +211,7 @@ type RIB struct {
 ### Route Entry (Pool Handles, Not Copies)
 
 ```go
-// internal/plugin/rib/storage/routeentry.go
+// internal/component/plugin/rib/storage/routeentry.go
 type RouteEntry struct {
     // All fields are opaque handles into attribute pools (not copies)
     // Use pool.Handle for indirection - enables refcounting and deduplication
@@ -279,7 +279,7 @@ type CheckedBufWriter interface {
     Len() int
 }
 
-// NLRI interface (internal/plugins/bgp/nlri/nlri.go)
+// NLRI interface (internal/component/bgp/nlri/nlri.go)
 type NLRI interface {
     Family() Family
     Bytes() []byte                    // Wire-format encoding (payload only)

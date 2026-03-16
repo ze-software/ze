@@ -20,5 +20,5 @@ None.
 
 ## Files
 
-- `internal/plugin/handler.go` — `APIVersion` const, `handleSystemVersionSoftware()`, `handleSystemVersionAPI()`, `handleSystemShutdown()`, `handleSystemSubsystemList()`, updated registrations
-- `internal/plugin/handler_test.go` — 6 new tests
+- `internal/component/plugin/handler.go` — `APIVersion` const, `handleSystemVersionSoftware()`, `handleSystemVersionAPI()`, `handleSystemShutdown()`, `handleSystemSubsystemList()`, updated registrations
+- `internal/component/plugin/handler_test.go` — 6 new tests

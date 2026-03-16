@@ -25,11 +25,11 @@ Move RouteRefresh (code 2, RFC 2918) and GracefulRestart (code 64, RFC 4724) cap
 
 ## Files
 
-- `internal/plugins/bgp-route-refresh/routerefresh.go` — `RunDecodeMode`, `RunCLIDecode`, `RunRouteRefreshPlugin`
-- `internal/plugins/bgp-route-refresh/register.go` — init() registration with codes 2, 70
-- `internal/plugins/bgp-route-refresh/schema/ze-routerefresh.yang` — YANG schema
-- `internal/plugins/bgp-gr/gr.go` — added `RunDecodeMode`, `writeOut`
-- `internal/plugins/bgp-gr/register.go` — added `CapabilityCodes: []uint8{64}`, `InProcessDecoder`, `RunDecode`
+- `internal/component/bgp/plugins/route_refresh/routerefresh.go` — `RunDecodeMode`, `RunCLIDecode`, `RunRouteRefreshPlugin`
+- `internal/component/bgp/plugins/route_refresh/register.go` — init() registration with codes 2, 70
+- `internal/component/bgp/plugins/route_refresh/schema/ze-routerefresh.yang` — YANG schema
+- `internal/component/bgp/plugins/gr/gr.go` — added `RunDecodeMode`, `writeOut`
+- `internal/component/bgp/plugins/gr/register.go` — added `CapabilityCodes: []uint8{64}`, `InProcessDecoder`, `RunDecode`
 - `cmd/ze/bgp/decode_open.go` — removed RR and GR inline cases
-- `internal/plugins/bgp/format/decode.go` — removed RR, ERR, GR, FQDN cases
+- `internal/component/bgp/format/decode.go` — removed RR, ERR, GR, FQDN cases
 - `test/decode/bgp-open-route-refresh.ci`, `test/decode/bgp-open-graceful-restart.ci` — functional tests

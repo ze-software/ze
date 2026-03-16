@@ -25,7 +25,7 @@ the spec was created. Fixed persist EOR bug discovered during review.
 - **Persist EOR format was wrong:** used `bgp eor <family> <peer>` which is not a registered engine command.
   Correct format is `update text nlri <family> eor` (same as RS). Test only checked `Contains("eor")` so
   it didn't catch the bug — strengthened test to validate `update text nlri` prefix.
-- **Spec file paths stale:** spec referenced `internal/plugins/bgp-rs/` but actual code at
+- **Spec file paths stale:** spec referenced `internal/component/bgp/plugins/rs/` but actual code at
   `internal/component/bgp/plugins/bgp-rs/` — path restructuring happened after spec was written.
 - **Test framework limitation:** single $PORT per .ci test. Multi-peer scenarios (A→B forwarding)
   would require framework extension ($PORT2, multiple ze-peer instances).

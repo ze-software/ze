@@ -21,4 +21,4 @@ None documented — spec was a planning document; actual implementation tracked 
 
 ## Files
 
-- `internal/hub/config.go` — 3-section config parser (env, plugin, blocks)
+- `internal/component/hub/config.go` — 3-section config parser (env, plugin, blocks)

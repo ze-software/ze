@@ -24,8 +24,8 @@ Move `daemon-reload`, `daemon-shutdown`, and `daemon-status` RPCs from the `ze-b
 
 ## Files
 
-- `internal/plugin/bgp.go` — removed 3 daemon handler registrations
-- `internal/plugin/system.go` — added 3 daemon handlers, removed duplicate `handleSystemShutdown`
-- `internal/plugin/bgp/schema/ze-bgp-api.yang` — removed daemon RPC definitions
+- `internal/component/plugin/bgp.go` — removed 3 daemon handler registrations
+- `internal/component/plugin/system.go` — added 3 daemon handlers, removed duplicate `handleSystemShutdown`
+- `internal/component/bgp/schema/ze-bgp-api.yang` — removed daemon RPC definitions
 - `internal/ipc/schema/ze-system-api.yang` — added daemon RPCs, removed standalone shutdown
 - `internal/component/config/editor/reload.go` — wire method updated to `ze-system:daemon-reload`

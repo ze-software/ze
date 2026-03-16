@@ -23,6 +23,6 @@ None.
 
 ## Files
 
-- `internal/config/migration/migrate.go` — `Transformation`, `Migrate()`, `DryRun()`, `NeedsMigration()`
-- `internal/config/migration/detect.go` — extracted detection functions
+- `internal/component/config/migration/migrate.go` — `Transformation`, `Migrate()`, `DryRun()`, `NeedsMigration()`
+- `internal/component/config/migration/detect.go` — extracted detection functions
 - `cmd/ze/bgp/config_migrate.go` — added `--dry-run`, `--list` flags

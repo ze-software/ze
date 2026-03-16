@@ -21,4 +21,4 @@ Extract shared value parsers into `internal/parse/` to eliminate duplication acr
 
 - `internal/parse/origin.go` — unified Origin parser
 - `internal/component/config/` — updated to use parse.Origin
-- `internal/plugins/bgp/encode/` — updated to use parse.Origin
+- `internal/component/bgp/encode/` — updated to use parse.Origin

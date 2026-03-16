@@ -24,5 +24,5 @@ Implement wire-level UPDATE splitting (`SplitWireUpdate`) without parsing to Rou
 
 ## Files
 
-- `internal/plugin/wire_update_split.go` — SplitWireUpdate, separateMPAttributes, buildCombinedUpdates
+- `internal/component/plugin/wire_update_split.go` — SplitWireUpdate, separateMPAttributes, buildCombinedUpdates
 - `internal/reactor/reactor.go` — ForwardUpdate uses SplitWireUpdate

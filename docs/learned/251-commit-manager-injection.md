@@ -19,8 +19,8 @@ Change `CommitManager` field in `ServerConfig`/`Server` from `*commit.CommitMana
 
 ## Files
 
-- `internal/plugin/types.go` — `CommitManager any` field added to `ServerConfig`
-- `internal/plugin/server.go` — field type changed to `any`, getter returns `any`, `commit` import removed
-- `internal/plugin/command.go` — `CommitManager()` delegate returns `any`, `commit` import removed
-- `internal/plugins/bgp/handler/commit.go` — `requireCommitManager()` helper with nil-check + type assert
-- `internal/plugins/bgp/reactor/reactor.go` — injects `commit.NewCommitManager()` in `ServerConfig`
+- `internal/component/plugin/types.go` — `CommitManager any` field added to `ServerConfig`
+- `internal/component/plugin/server.go` — field type changed to `any`, getter returns `any`, `commit` import removed
+- `internal/component/plugin/command.go` — `CommitManager()` delegate returns `any`, `commit` import removed
+- `internal/component/bgp/handler/commit.go` — `requireCommitManager()` helper with nil-check + type assert
+- `internal/component/bgp/reactor/reactor.go` — injects `commit.NewCommitManager()` in `ServerConfig`

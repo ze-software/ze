@@ -27,7 +27,7 @@ Allow external plugin processes to extend ZeBGP's command set at runtime, so CLI
 
 ## Files
 
-- `internal/plugin/registry.go` — `CommandRegistry` type
-- `internal/plugin/pending.go` — `PendingRequests` with alpha serial counter
-- `internal/plugin/command.go` — `Dispatcher` extended with registry + pending
-- `internal/plugin/server.go` — `register`/`unregister`/`@serial` parsing in `handleOutput`
+- `internal/component/plugin/registry.go` — `CommandRegistry` type
+- `internal/component/plugin/pending.go` — `PendingRequests` with alpha serial counter
+- `internal/component/plugin/command.go` — `Dispatcher` extended with registry + pending
+- `internal/component/plugin/server.go` — `register`/`unregister`/`@serial` parsing in `handleOutput`

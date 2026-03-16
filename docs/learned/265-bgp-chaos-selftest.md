@@ -29,4 +29,4 @@ Add a self-testing mode to Ze itself: `--chaos-seed N` wraps Ze's real Clock, Di
 - `cmd/ze/main.go` — Global `--chaos-seed` and `--chaos-rate` flags
 - `cmd/ze/hub/main.go` — Chaos wrapper injection in runBGPInProcess
 - `cmd/ze/bgp/childmode.go` — Env var injection + injectChaosFromEnv helper
-- `internal/config/environment.go` — ChaosEnv struct + config section
+- `internal/component/config/environment.go` — ChaosEnv struct + config section

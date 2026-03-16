@@ -21,4 +21,4 @@ Wire SIGHUP config reload in the hub orchestrator path: re-read config, diff plu
 
 ## Files
 
-- `internal/hub/reload.go` — hub orchestrator reload logic
+- `internal/component/hub/reload.go` — hub orchestrator reload logic

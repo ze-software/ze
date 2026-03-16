@@ -20,4 +20,4 @@ Convert static route construction to use UpdateBuilder, and document why the sam
 
 ## Files
 
-- `internal/plugin/bgp/reactor/` — `buildStaticRouteUpdateNew()` using UpdateBuilder
+- `internal/component/bgp/reactor/` — `buildStaticRouteUpdateNew()` using UpdateBuilder

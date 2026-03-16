@@ -22,4 +22,4 @@ Extend MPLS label fields from single `uint32` to `[]uint32` throughout the confi
 
 - `internal/reactor/peersettings.go` — StaticRoute.Labels []uint32
 - `internal/bgp/message/update_build.go` — VPNParams.Labels, LabeledUnicastParams.Labels, wire encoding
-- `internal/config/loader.go`, `bgp.go` — labels array syntax + backward compat
+- `internal/component/config/loader.go`, `bgp.go` — labels array syntax + backward compat

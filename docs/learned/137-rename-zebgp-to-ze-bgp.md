@@ -22,5 +22,5 @@ Mechanical rename, no design decisions.
 - `go.mod` — module path updated
 - `cmd/ze/main.go` — new top-level entry point
 - `cmd/ze/exabgp/main.go` — ExaBGP subcommand
-- `internal/config/env/env.go` — prefix `zebgp.*` → `ze.bgp.*`
+- `internal/component/config/env/env.go` — prefix `zebgp.*` → `ze.bgp.*`
 - 511 files modified total

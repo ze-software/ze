@@ -20,5 +20,5 @@ Replace the `plugin.PathAttributes` intermediate struct with `attribute.Builder`
 ## Files
 
 - `internal/bgp/attribute/builder.go` — text parse methods added
-- `internal/plugin/types.go` — `PathAttributes` removed, replaced by `Builder`
-- `internal/plugin/route.go` — `parseCommonAttributeBuilder`, MUP keyword ordering fix
+- `internal/component/plugin/types.go` — `PathAttributes` removed, replaced by `Builder`
+- `internal/component/plugin/route.go` — `parseCommonAttributeBuilder`, MUP keyword ordering fix

@@ -565,9 +565,9 @@ The scheduler is wired into the RIB plugin via `OnStarted`:
 | Route churn | Dead bytes accumulate, scheduler triggers compaction |
 | Plugin shutdown (context cancel) | Scheduler exits, goroutine stops |
 
-Implementation: `internal/plugins/bgp-rib/compaction.go` (thin wiring), `rib.go` (OnStarted callback).
+Implementation: `internal/component/bgp/plugins/rib/compaction.go` (thin wiring), `rib.go` (OnStarted callback).
 
-`pool.AllPools()` in `internal/plugins/bgp-rib/pool/attributes.go` returns all 13 attribute pools.
+`pool.AllPools()` in `internal/component/bgp/plugins/rib/pool/attributes.go` returns all 13 attribute pools.
 
 ---
 
@@ -771,7 +771,7 @@ func (p *Pool) IsIdle(d time.Duration) bool
 
 ## Global Pool Instances
 
-Ze provides pre-configured global pools in `internal/plugins/bgp-rib/pool/attributes.go`:
+Ze provides pre-configured global pools in `internal/component/bgp/plugins/rib/pool/attributes.go`:
 
 ### Per-Attribute-Type Pools
 
@@ -810,8 +810,8 @@ entry, _ := storage.ParseAttributes(attrBytes)  // Parses into per-type handles
 
 - `docs/architecture/rib-transition.md` - Overall architecture (RIB in API)
 - `internal/component/bgp/attrpool/` - Pool implementation
-- `internal/plugin/rib/storage/` - RIB storage using pool
-- `internal/plugin/rib/storage/familyrib_perattr.go` - Per-attribute RIB storage
+- `internal/component/plugin/rib/storage/` - RIB storage using pool
+- `internal/component/plugin/rib/storage/familyrib_perattr.go` - Per-attribute RIB storage
 
 ---
 

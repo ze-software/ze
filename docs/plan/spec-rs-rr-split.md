@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | deferred |
-| Depends | spec-rib-04 |
+| Depends | - |
 | Phase | - |
 | Updated | 2026-03-03 |
 
@@ -11,9 +11,9 @@
 
 **Re-read these after context compaction:**
 1. This spec file
-2. `internal/plugins/bgp-rs/server.go` — current implementation to decompose
-3. `internal/plugins/bgp-rs/worker.go` — worker pool to move
-4. `internal/plugins/bgp-role/role.go` — role system to extend
+2. `internal/component/bgp/plugins/rs/server.go` — current implementation to decompose
+3. `internal/component/bgp/plugins/rs/worker.go` — worker pool to move
+4. `internal/component/bgp/plugins/role/role.go` — role system to extend
 5. `rfc/short/rfc4456.md` — Route Reflector (to be created)
 
 ## Task
@@ -52,14 +52,14 @@ Split the current `bgp-rs` plugin into two plugins with shared forwarding infras
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must complete before implementation)
-- [ ] `internal/plugins/bgp-rs/server.go` (1194L) — full forwarding server, to decompose
-- [ ] `internal/plugins/bgp-rs/worker.go` (398L) — worker pool, move unchanged
-- [ ] `internal/plugins/bgp-rs/peer.go` (34L) — PeerState, extend with Role
-- [ ] `internal/plugins/bgp-role/role.go` — current role values
-- [ ] `internal/plugins/bgp-role/config.go` — per-peer config parsing pattern
-- [ ] `internal/plugins/bgp/wireu/aspath_rewrite.go` — pattern for wire rewrite
-- [ ] `internal/plugins/bgp/reactor/reactor_api_forward.go:359` — pattern for ForwardReflectedUpdate
-- [ ] `internal/plugins/bgp/reactor/received_update.go:91` — pattern for ReflectorWire
+- [ ] `internal/component/bgp/plugins/rs/server.go` (1194L) — full forwarding server, to decompose
+- [ ] `internal/component/bgp/plugins/rs/worker.go` (398L) — worker pool, move unchanged
+- [ ] `internal/component/bgp/plugins/rs/peer.go` (34L) — PeerState, extend with Role
+- [ ] `internal/component/bgp/plugins/role/role.go` — current role values
+- [ ] `internal/component/bgp/plugins/role/config.go` — per-peer config parsing pattern
+- [ ] `internal/component/bgp/wireu/aspath_rewrite.go` — pattern for wire rewrite
+- [ ] `internal/component/bgp/reactor/reactor_api_forward.go:359` — pattern for ForwardReflectedUpdate
+- [ ] `internal/component/bgp/reactor/received_update.go:91` — pattern for ReflectorWire
 
 **Behavior to preserve:**
 - All existing Route Server forwarding behavior
@@ -69,7 +69,7 @@ Split the current `bgp-rs` plugin into two plugins with shared forwarding infras
 
 **Behavior to change:**
 - ~~Rename current bgp-rr to bgp-rs (it's a Route Server)~~ Done — bgp-rs rename already applied
-- Extract shared infrastructure to `internal/plugin/forward/`
+- Extract shared infrastructure to `internal/component/plugin/forward/`
 - Create new bgp-rr with Route Reflector policy
 - Add engine `cache reflect` command with ORIGINATOR_ID/CLUSTER_LIST handling
 
@@ -120,21 +120,21 @@ Split the current `bgp-rs` plugin into two plugins with shared forwarding infras
 
 | Package | File | Purpose |
 |---------|------|---------|
-| `internal/plugin/forward/` | `server.go` | ForwardingServer, ForwardingPolicy interface |
-| `internal/plugin/forward/` | `worker.go` | workerPool (moved from bgp-rs, unchanged) |
-| `internal/plugin/forward/` | `peer.go` | PeerState (extended with Role) |
-| `internal/plugin/forward/` | `event.go` | Event types, JSON parsing (extracted from server.go) |
-| `internal/plugin/forward/` | `batch.go` | Batch accumulation, async release/forward loops |
-| `internal/plugins/bgp-rs/` | `server.go` | ~50 lines: RS policy (forward-all) |
-| `internal/plugins/bgp-rs/` | `register.go` | Registers as "bgp-rs" |
-| `internal/plugins/bgp-rs/` | `server_test.go` | Existing tests (adapted) |
-| `internal/plugins/bgp-rs/` | `propagation_test.go` | Existing propagation tests (adapted) |
-| `internal/plugins/bgp-rr/` | `server.go` | ~80 lines: RR policy (rr-client/rr-server selection) |
-| `internal/plugins/bgp-rr/` | `config.go` | ~60 lines: cluster-id parsing |
-| `internal/plugins/bgp-rr/` | `register.go` | Registers as "bgp-rr" |
-| `internal/plugins/bgp-rr/` | `server_test.go` | RR-specific tests |
-| `internal/plugins/bgp-rr/` | `schema/ze-rr.yang` | YANG schema (cluster-id only; roles via bgp-role) |
-| `internal/plugins/bgp-rr/` | `schema/embed.go` | Embed |
+| `internal/component/plugin/forward/` | `server.go` | ForwardingServer, ForwardingPolicy interface |
+| `internal/component/plugin/forward/` | `worker.go` | workerPool (moved from bgp-rs, unchanged) |
+| `internal/component/plugin/forward/` | `peer.go` | PeerState (extended with Role) |
+| `internal/component/plugin/forward/` | `event.go` | Event types, JSON parsing (extracted from server.go) |
+| `internal/component/plugin/forward/` | `batch.go` | Batch accumulation, async release/forward loops |
+| `internal/component/bgp/plugins/rs/` | `server.go` | ~50 lines: RS policy (forward-all) |
+| `internal/component/bgp/plugins/rs/` | `register.go` | Registers as "bgp-rs" |
+| `internal/component/bgp/plugins/rs/` | `server_test.go` | Existing tests (adapted) |
+| `internal/component/bgp/plugins/rs/` | `propagation_test.go` | Existing propagation tests (adapted) |
+| `internal/component/bgp/plugins/rr/` | `server.go` | ~80 lines: RR policy (rr-client/rr-server selection) |
+| `internal/component/bgp/plugins/rr/` | `config.go` | ~60 lines: cluster-id parsing |
+| `internal/component/bgp/plugins/rr/` | `register.go` | Registers as "bgp-rr" |
+| `internal/component/bgp/plugins/rr/` | `server_test.go` | RR-specific tests |
+| `internal/component/bgp/plugins/rr/` | `schema/ze-rr.yang` | YANG schema (cluster-id only; roles via bgp-role) |
+| `internal/component/bgp/plugins/rr/` | `schema/embed.go` | Embed |
 
 ### ForwardingPolicy Interface
 
@@ -247,19 +247,19 @@ RFC 4456 §3: "When an RR receives a ROUTE-REFRESH from an iBGP peer, it should 
 
 ## Files to Modify
 
-- `internal/plugins/bgp-rs/server.go` (1194L) — decompose into shared + RS-specific
-- `internal/plugins/bgp-rs/worker.go` (398L) — move unchanged to `forward/worker.go`
-- `internal/plugins/bgp-rs/peer.go` (34L) — move + extend to `forward/peer.go`
-- `internal/plugins/bgp/wireu/aspath_rewrite.go` — pattern for `reflector_rewrite.go`
-- `internal/plugins/bgp/reactor/reactor_api_forward.go:359` — pattern for `ForwardReflectedUpdate`
-- `internal/plugins/bgp/reactor/received_update.go:91` — pattern for `ReflectorWire`
-- `internal/plugins/bgp-role/role.go` — extend with `rr-client` / `rr-server` local-only roles (used by bgp-rr)
-- `internal/plugins/bgp-role/config.go` — pattern for per-peer config parsing
+- `internal/component/bgp/plugins/rs/server.go` (1194L) — decompose into shared + RS-specific
+- `internal/component/bgp/plugins/rs/worker.go` (398L) — move unchanged to `forward/worker.go`
+- `internal/component/bgp/plugins/rs/peer.go` (34L) — move + extend to `forward/peer.go`
+- `internal/component/bgp/wireu/aspath_rewrite.go` — pattern for `reflector_rewrite.go`
+- `internal/component/bgp/reactor/reactor_api_forward.go:359` — pattern for `ForwardReflectedUpdate`
+- `internal/component/bgp/reactor/received_update.go:91` — pattern for `ReflectorWire`
+- `internal/component/bgp/plugins/role/role.go` — extend with `rr-client` / `rr-server` local-only roles (used by bgp-rr)
+- `internal/component/bgp/plugins/role/config.go` — pattern for per-peer config parsing
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema | [x] | `internal/plugins/bgp-rr/schema/ze-rr.yang` — cluster-id |
+| YANG schema | [x] | `internal/component/bgp/plugins/rr/schema/ze-rr.yang` — cluster-id |
 | bgp-role YANG | [x] | Extend with rr-client/rr-server role values |
 | CLI commands/flags | [ ] | `rr status`, `rr peers` commands |
 | Plugin SDK docs | [ ] | `.claude/rules/plugin-design.md` |
@@ -267,29 +267,29 @@ RFC 4456 §3: "When an RR receives a ROUTE-REFRESH from an iBGP peer, it should 
 
 ## Files to Create
 
-- `internal/plugin/forward/server.go` — ForwardingServer, ForwardingPolicy interface
-- `internal/plugin/forward/worker.go` — workerPool (moved from bgp-rs)
-- `internal/plugin/forward/peer.go` — PeerState with Role
-- `internal/plugin/forward/event.go` — Event types, JSON parsing
-- `internal/plugin/forward/batch.go` — Batch accumulation, async loops
-- `internal/plugins/bgp-rs/server.go` — RS policy
-- `internal/plugins/bgp-rs/register.go` — Registration
-- `internal/plugins/bgp-rr/server.go` — RR policy
-- `internal/plugins/bgp-rr/register.go` — RR registration
-- `internal/plugins/bgp-rr/config.go` — cluster-id parsing
-- `internal/plugins/bgp-rr/schema/ze-rr.yang` — YANG schema
-- `internal/plugins/bgp-rr/schema/embed.go` — Embed
-- `internal/plugins/bgp/wireu/reflector_rewrite.go` — wire-level ORIGINATOR_ID/CLUSTER_LIST
+- `internal/component/plugin/forward/server.go` — ForwardingServer, ForwardingPolicy interface
+- `internal/component/plugin/forward/worker.go` — workerPool (moved from bgp-rs)
+- `internal/component/plugin/forward/peer.go` — PeerState with Role
+- `internal/component/plugin/forward/event.go` — Event types, JSON parsing
+- `internal/component/plugin/forward/batch.go` — Batch accumulation, async loops
+- `internal/component/bgp/plugins/rs/server.go` — RS policy
+- `internal/component/bgp/plugins/rs/register.go` — Registration
+- `internal/component/bgp/plugins/rr/server.go` — RR policy
+- `internal/component/bgp/plugins/rr/register.go` — RR registration
+- `internal/component/bgp/plugins/rr/config.go` — cluster-id parsing
+- `internal/component/bgp/plugins/rr/schema/ze-rr.yang` — YANG schema
+- `internal/component/bgp/plugins/rr/schema/embed.go` — Embed
+- `internal/component/bgp/wireu/reflector_rewrite.go` — wire-level ORIGINATOR_ID/CLUSTER_LIST
 
 ## Implementation Steps
 
 ### Phase 1: Extract shared package (no behavior change)
 1. Create `rfc/short/rfc4456.md`
-2. Create `internal/plugin/forward/` with server, worker, peer, event, batch
-3. Refactor `internal/plugins/bgp-rs/` to wrap ForwardingServer with RS policy
+2. Create `internal/component/plugin/forward/` with server, worker, peer, event, batch
+3. Refactor `internal/component/bgp/plugins/rs/` to wrap ForwardingServer with RS policy
 4. All existing tests pass via bgp-rs
 5. Remove extracted code from bgp-rs (now in forward/)
-6. Update `internal/plugin/all/all.go` (make generate)
+6. Update `internal/component/plugin/all/all.go` (make generate)
 
 ### Phase 2: Engine reflect command
 7. `wireu/reflector_rewrite.go` — wire-level ORIGINATOR_ID/CLUSTER_LIST insertion

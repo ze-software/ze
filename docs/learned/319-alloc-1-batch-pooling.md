@@ -23,9 +23,9 @@ Replace per-burst slice allocations in five drain/selection functions with per-w
 
 ## Files
 
-- `internal/plugins/bgp/reactor/delivery.go` — `drainDeliveryBatch` signature change
-- `internal/plugins/bgp/reactor/forward_pool.go` — `batchBuf` on `fwdWorker`
-- `internal/plugin/process_delivery.go` — local vars for both drain and events buffers
-- `internal/plugins/bgp-rs/server.go` — `targetBuf` on `forwardBatch`
-- `internal/plugins/bgp/reactor/delivery_test.go` — new tests
-- `internal/plugin/process_delivery_test.go` — new tests
+- `internal/component/bgp/reactor/delivery.go` — `drainDeliveryBatch` signature change
+- `internal/component/bgp/reactor/forward_pool.go` — `batchBuf` on `fwdWorker`
+- `internal/component/plugin/process_delivery.go` — local vars for both drain and events buffers
+- `internal/component/bgp/plugins/rs/server.go` — `targetBuf` on `forwardBatch`
+- `internal/component/bgp/reactor/delivery_test.go` — new tests
+- `internal/component/plugin/process_delivery_test.go` — new tests

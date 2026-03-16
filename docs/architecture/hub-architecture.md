@@ -53,7 +53,7 @@ bgp {
 | Component | Status | Location |
 |-----------|--------|----------|
 | Forked subsystem processes | ✅ Done | `cmd/ze-subsystem/main.go` |
-| 5-stage protocol | ✅ Done | `internal/plugin/subsystem.go` |
+| 5-stage protocol | ✅ Done | `internal/component/plugin/subsystem.go` |
 | Bidirectional pipe communication | ✅ Done | `SubsystemHandler`, `Process` |
 | Command routing to processes | ✅ Done | `SubsystemManager.FindHandler()` |
 | Dynamic command registration | ✅ Done | `declare cmd <name>` in protocol |
@@ -136,7 +136,7 @@ Configuration changes go through two phases:
 
 ### Current 5-Stage Protocol (Already Implemented)
 
-The existing subsystem infrastructure uses this protocol (see `internal/plugin/subsystem.go`):
+The existing subsystem infrastructure uses this protocol (see `internal/component/plugin/subsystem.go`):
 
 ```
 Stage 1: DECLARATION    Plugin → Engine: declare cmd/encoding/...
@@ -361,7 +361,7 @@ Hub                                        Plugin (BGP)
 **Key points:**
 - Hub notifies plugin to verify/apply
 - Plugin queries hub for live and edit config
-- Plugin computes diff using shared library (`internal/config/diff/`)
+- Plugin computes diff using shared library (`internal/component/config/diff/`)
 - Plugin validates and applies
 - Plugins processed in priority order (lower = first)
 
@@ -369,7 +369,7 @@ Hub                                        Plugin (BGP)
 
 **SubsystemHandler extension (hub-side):**
 
-The existing `SubsystemHandler.completeProtocol()` in `internal/plugin/subsystem.go` needs extension:
+The existing `SubsystemHandler.completeProtocol()` in `internal/component/plugin/subsystem.go` needs extension:
 
 1. Stage 1 loop already parses `declare cmd <name>`
 2. Add parsing for `declare schema module <name>`
@@ -523,7 +523,7 @@ Plugins implement verify and apply handlers. They query hub for config, compute 
 1. Receive `#serial config verify`
 2. Query hub for live config: `#N query config live path "<handler-path>"`
 3. Query hub for edit config: `#N query config edit path "<handler-path>"`
-4. Compute diff using shared library (`internal/config/diff/`)
+4. Compute diff using shared library (`internal/component/config/diff/`)
 5. Perform semantic validation (YANG already validated types)
 6. Return `@serial done` or `@serial error <message>`
 
@@ -988,10 +988,10 @@ Phase 1: Hub Foundation ──────► Phase 2: Config Parsing
 
 ### Foundation ✅ COMPLETE
 
-**Already implemented** (see `internal/plugin/`):
+**Already implemented** (see `internal/component/plugin/`):
 
 - ✅ Forked subsystem processes (`cmd/ze-subsystem/`)
-- ✅ 5-stage protocol via pipes (`internal/plugin/subsystem.go`)
+- ✅ 5-stage protocol via pipes (`internal/component/plugin/subsystem.go`)
 - ✅ Bidirectional communication (`callEngine()` in subsystem)
 - ✅ `SubsystemHandler` and `SubsystemManager`
 - ✅ Command routing to forked processes
@@ -1002,7 +1002,7 @@ Phase 1: Hub Foundation ──────► Phase 2: Config Parsing
 
 | Phase | Spec | Description |
 |-------|------|-------------|
-| 1 | `spec-hub-phase1-foundation.md` | Create `internal/hub/`, basic fork/pipe |
+| 1 | `spec-hub-phase1-foundation.md` | Create `internal/component/hub/`, basic fork/pipe |
 | 2 | `spec-hub-phase2-config.md` | Parse 3-section config, env handling |
 | 3 | `spec-hub-phase3-schema-routing.md` | YANG validation, JSON delivery, query protocol |
 | 4 | `spec-hub-phase4-bgp-process.md` | Move BGP code, ze bgp as child |
@@ -1039,9 +1039,9 @@ Phase 1: Hub Foundation ──────► Phase 2: Config Parsing
 ### Source Code
 
 - `cmd/ze-subsystem/main.go` - Forked subsystem binary
-- `internal/plugin/subsystem.go` - SubsystemHandler/Manager
-- `internal/plugin/process.go` - Process pipe communication
-- `internal/plugin/registration.go` - 5-stage protocol parsing
+- `internal/component/plugin/subsystem.go` - SubsystemHandler/Manager
+- `internal/component/plugin/process.go` - Process pipe communication
+- `internal/component/plugin/registration.go` - 5-stage protocol parsing
 
 ---
 

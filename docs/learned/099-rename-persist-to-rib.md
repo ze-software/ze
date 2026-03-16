@@ -20,6 +20,6 @@ Rename the `persist` plugin to `rib` and add Adj-RIB-In support (routes received
 
 ## Files
 
-- `internal/plugin/rib/rib.go` (renamed from `persist/persist.go`) — Adj-RIB-In handling
-- `internal/plugin/rib/event.go` — unified event parsing for both received and sent formats
+- `internal/component/plugin/rib/rib.go` (renamed from `persist/persist.go`) — Adj-RIB-In handling
+- `internal/component/plugin/rib/event.go` — unified event parsing for both received and sent formats
 - `cmd/ze/bgp/plugin_rib.go` (renamed from `plugin_persist.go`)

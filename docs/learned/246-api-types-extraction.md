@@ -2,7 +2,7 @@
 
 ## Objective
 
-Extract `RawMessage` and `ContentConfig` from `internal/plugin/types.go`, and move `update_text.go`, `update_wire.go`, `route_watchdog.go` to `handler/`.
+Extract `RawMessage` and `ContentConfig` from `internal/component/plugin/types.go`, and move `update_text.go`, `update_wire.go`, `route_watchdog.go` to `handler/`.
 
 ## Decisions
 
@@ -20,5 +20,5 @@ Extract `RawMessage` and `ContentConfig` from `internal/plugin/types.go`, and mo
 
 ## Files
 
-- `internal/plugins/bgp/types/` — RawMessage, ContentConfig, RIBStatsInfo
-- `internal/plugins/bgp/handler/` — update_text.go, update_wire.go, route_watchdog.go
+- `internal/component/bgp/types/` — RawMessage, ContentConfig, RIBStatsInfo
+- `internal/component/bgp/handler/` — update_text.go, update_wire.go, route_watchdog.go

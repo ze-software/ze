@@ -24,8 +24,8 @@ Migrate all plugin IPC to a single unified text grammar — converging event del
 
 ## Files
 
-- `internal/plugins/bgp/textparse/keywords.go` — shared keyword constants, alias tables, `ResolveAlias()`
+- `internal/component/bgp/textparse/keywords.go` — shared keyword constants, alias tables, `ResolveAlias()`
 - `pkg/plugin/rpc/text.go`, `text_conn.go`, `text_mux.go` — text handshake serialization and framing (utp-3)
 - `pkg/plugin/sdk/sdk_text.go` — SDK text mode (utp-3)
-- `internal/plugin/subsystem_text.go`, `server_startup_text.go` — engine-side text paths (utp-3)
+- `internal/component/plugin/subsystem_text.go`, `server_startup_text.go` — engine-side text paths (utp-3)
 - Child specs: `302-utp-1-event-format.md`, `306-utp-2-command-format.md`, `315-utp-3-handshake.md`

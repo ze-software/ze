@@ -20,5 +20,5 @@ None.
 
 ## Files
 
-- `internal/config/routeattr.go` — `parseExtCommunityHex()` + prefix check in `parseOneExtCommunity()`
-- `internal/config/routeattr_test.go` — `TestParseExtendedCommunityHex`
+- `internal/component/config/routeattr.go` — `parseExtCommunityHex()` + prefix check in `parseOneExtCommunity()`
+- `internal/component/config/routeattr_test.go` — `TestParseExtendedCommunityHex`

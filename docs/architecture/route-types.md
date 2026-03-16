@@ -8,14 +8,14 @@ Ze has multiple route representations serving different purposes in the data flo
 
 | Struct | Location | Purpose | Key Fields |
 |--------|----------|---------|------------|
-| `RouteSpec` | `internal/plugin/types.go` | API input for announce/withdraw | Prefix, NextHop, PathAttributes |
-| `PathAttributes` | `internal/plugin/types.go` | Shared BGP attributes | Origin, ASPath, MED, LocalPref, Communities |
-| `rib.Route` | `internal/plugin/rib/rib.go` | Plugin storage for replay/resend | All attributes as strings + MsgID |
-| `rr.Route` | `internal/plugin/rr/rib.go` | Minimal for zero-copy forwarding | MsgID, Family, Prefix only |
-| `RIBRoute` | `internal/plugin/types.go` | Query output | Peer, Prefix, NextHop, ASPath (strings) |
-| `rib.Route` | `internal/plugins/bgp/rib/route.go` | Core engine storage | NLRI, Attrs, ASPath, wire cache, refcount |
+| `RouteSpec` | `internal/component/plugin/types.go` | API input for announce/withdraw | Prefix, NextHop, PathAttributes |
+| `PathAttributes` | `internal/component/plugin/types.go` | Shared BGP attributes | Origin, ASPath, MED, LocalPref, Communities |
+| `rib.Route` | `internal/component/plugin/rib/rib.go` | Plugin storage for replay/resend | All attributes as strings + MsgID |
+| `rr.Route` | `internal/component/plugin/rr/rib.go` | Minimal for zero-copy forwarding | MsgID, Family, Prefix only |
+| `RIBRoute` | `internal/component/plugin/types.go` | Query output | Peer, Prefix, NextHop, ASPath (strings) |
+| `rib.Route` | `internal/component/bgp/rib/route.go` | Core engine storage | NLRI, Attrs, ASPath, wire cache, refcount |
 
-**Note:** Two different `rib.Route` types exist - one in `internal/plugin/rib/` (plugin) and one in `internal/plugins/bgp/rib/` (core engine).
+**Note:** Two different `rib.Route` types exist - one in `internal/component/plugin/rib/` (plugin) and one in `internal/component/bgp/rib/` (core engine).
 
 ## Route Type Families
 
@@ -78,7 +78,7 @@ Routes with separate structure:
 ## Package Organization
 
 ```
-internal/plugin/
+internal/component/plugin/
 ├── types.go          # RouteSpec, PathAttributes, RIBRoute, route families
 ├── nexthop.go        # RouteNextHop (policy: explicit/self)
 ├── route.go          # Parsing: ParseRouteAttributes(), parseCommonAttribute()
@@ -93,7 +93,7 @@ internal/plugin/
 internal/selector/
 └── selector.go       # Peer selectors (*, IP, !IP, ip,ip,ip)
 
-internal/plugins/bgp/attribute/
+internal/component/bgp/attribute/
 ├── text.go           # Text formatting: FormatASPath(), FormatCommunities()
 └── *.go              # Wire format encoding/decoding
 ```

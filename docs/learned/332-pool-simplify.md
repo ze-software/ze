@@ -24,6 +24,6 @@ Remove unused 2-bit Flags field from the pool Handle (designed for NLRI pooling 
 ## Files
 
 - `internal/component/bgp/attrpool/handle.go` — Flags removed, Slot expanded to 26 bits
-- `internal/plugins/bgp-rib/compaction.go` — thin wiring (new file)
-- `internal/plugins/bgp-rib/pool/attributes.go` — added `AllPools()`
+- `internal/component/bgp/plugins/rib/compaction.go` — thin wiring (new file)
+- `internal/component/bgp/plugins/rib/pool/attributes.go` — added `AllPools()`
 - `docs/architecture/pool-architecture.md` — handle layout and scheduler wiring updated

@@ -25,9 +25,9 @@ plus in-process execution of built-in plugins via goroutine + `io.Pipe`.
 
 ## Files
 
-- `internal/plugin/inprocess.go` — registry + `InternalPluginRunner` type
-- `internal/plugin/process.go` — `startInternal()` / `startExternal()` split, `Stop()` fix
-- `internal/plugin/resolve.go` — resolution rules (ze.X, path, cmd)
-- `internal/config/loader.go` — `LoadReactorFileWithPlugins()`, `mergeCliPlugins()`
+- `internal/component/plugin/inprocess.go` — registry + `InternalPluginRunner` type
+- `internal/component/plugin/process.go` — `startInternal()` / `startExternal()` split, `Stop()` fix
+- `internal/component/plugin/resolve.go` — resolution rules (ze.X, path, cmd)
+- `internal/component/config/loader.go` — `LoadReactorFileWithPlugins()`, `mergeCliPlugins()`
 - `cmd/ze/bgp/server.go` — `--plugin` flag
 - `cmd/ze/bgp/plugin_{rib,gr,rr}.go` — `--yang` flag

@@ -24,4 +24,4 @@ Eliminate the typed `BGPConfig` intermediate struct from the config pipeline, re
 
 - `internal/component/config/resolve.go` — ResolveBGPTree() producing map[string]any (new file)
 - `internal/component/config/peers.go` — peer parsing from map[string]any (new file)
-- `internal/plugins/bgp/reactor/api_sync.go` — nil channel bug fix
+- `internal/component/bgp/reactor/api_sync.go` — nil channel bug fix

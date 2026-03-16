@@ -25,4 +25,4 @@ Add `PeerLifecycleObserver` interface to the reactor so components (initially th
 
 - `internal/reactor/reactor.go` — PeerLifecycleObserver interface, peerObservers, notifyPeerEstablished/Closed, apiStateObserver, AddPeerObserver
 - `internal/reactor/peer.go` — reactor field, SetReactor(), modified FSM callback
-- `internal/plugin/server.go` — EmitPeerState()
+- `internal/component/plugin/server.go` — EmitPeerState()

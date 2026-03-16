@@ -18,5 +18,5 @@ None.
 
 ## Files
 
-- `internal/plugin/route.go` — `FlowSpecKeywords`, `VPLSKeywords`, `L2VPNKeywords` sets + handler validation
-- `internal/plugin/route_parse_test.go` — validation tests
+- `internal/component/plugin/route.go` — `FlowSpecKeywords`, `VPLSKeywords`, `L2VPNKeywords` sets + handler validation
+- `internal/component/plugin/route_parse_test.go` — validation tests

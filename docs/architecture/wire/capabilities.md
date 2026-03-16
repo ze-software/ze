@@ -301,7 +301,7 @@ draft-abraitis-bgp-version-capability
 
 ### Negotiated State
 
-Defined in `internal/plugins/bgp/capability/negotiated.go`:
+Defined in `internal/component/bgp/capability/negotiated.go`:
 
 ```go
 type Negotiated struct {
@@ -450,7 +450,7 @@ sendNotification(OpenMessageError, UnsupportedCapability, data)
 
 ### Capability Interface
 
-Defined in `internal/plugins/bgp/capability/capability.go`:
+Defined in `internal/component/bgp/capability/capability.go`:
 
 ```go
 type Capability interface {

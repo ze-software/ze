@@ -8,7 +8,7 @@ Provide two migration tools: `ze exabgp plugin` (runtime bridge wrapping ExaBGP 
 
 - Bridge handles 5-stage startup internally on behalf of the ExaBGP plugin, which knows nothing about Ze's protocol. After `ready`, switches to JSON translation mode.
 - Scanner is reused between startup and JSON phases to prevent buffered data loss at the phase transition.
-- Two separate migration systems exist: `internal/config/migration/` (Ze BGP internal syntax evolution) and `internal/exabgp/migrate.go` (ExaBGP→Ze BGP conversion). These are separate concerns.
+- Two separate migration systems exist: `internal/component/config/migration/` (Ze BGP internal syntax evolution) and `internal/exabgp/migrate.go` (ExaBGP→Ze BGP conversion). These are separate concerns.
 - RIB plugin auto-injected when ExaBGP config has graceful-restart or route-refresh: Ze BGP delegates RIB to plugins, so these features require an explicit RIB plugin.
 - Chose native `log/syslog` over external slog-syslog library to avoid go.mod changes.
 

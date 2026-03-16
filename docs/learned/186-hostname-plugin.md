@@ -20,6 +20,6 @@ Extract FQDN/hostname capability (code 73) from core BGP code into a self-contai
 - Capability decode belongs in plugins, not core `decode.go` — keep the decode dispatch extensible.
 
 ## Files
-- `internal/plugin/hostname/hostname.go` — plugin implementation + embedded YANG
-- `internal/plugin/inprocess.go` — registers in-process runner
+- `internal/component/plugin/hostname/hostname.go` — plugin implementation + embedded YANG
+- `internal/component/plugin/inprocess.go` — registers in-process runner
 - `cmd/ze/bgp/plugin_hostname.go` — CLI entry with `--yang` flag

@@ -23,6 +23,6 @@ Implement the `ParseUpdateText` parser for `update text attr set|add|del ... nlr
 
 ## Files
 
-- `internal/plugin/update_text.go` — ParseUpdateText, parseAttrSection, parseNLRISection
-- `internal/plugin/types.go` — NLRIGroup, UpdateTextResult
-- `internal/plugin/errors.go` — parser error sentinels
+- `internal/component/plugin/update_text.go` — ParseUpdateText, parseAttrSection, parseNLRISection
+- `internal/component/plugin/types.go` — NLRIGroup, UpdateTextResult
+- `internal/component/plugin/errors.go` — parser error sentinels

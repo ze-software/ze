@@ -128,7 +128,7 @@ RPC definitions live in YANG API modules, separate from config modules:
 |--------|------|----------|
 | ze-bgp-api | `internal/component/bgp/schema/ze-bgp-api.yang` | BGP RPCs + notifications |
 | ze-system-api | `internal/ipc/schema/ze-system-api.yang` | System RPCs |
-| ze-rib-api | `internal/plugin/rib/schema/ze-rib-api.yang` | RIB RPCs + notifications |
+| ze-rib-api | `internal/component/plugin/rib/schema/ze-rib-api.yang` | RIB RPCs + notifications |
 | ze-plugin-api | `internal/ipc/schema/ze-plugin-api.yang` | Plugin lifecycle RPCs |
 
 Shared IPC types (typedefs, groupings) live in `ze-types` (`internal/yang/modules/ze-types.yang`).

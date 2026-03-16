@@ -21,7 +21,7 @@ Add `"type"` field to all JSON messages and nest event data under a typed payloa
 
 ## Files
 
-- `internal/plugin/types.go` — `ResponseWrapper`, `WrapResponse()`, `NewResponse()`, `NewErrorResponse()`
-- `internal/plugin/server.go` — all 6 response serialization points wrapped
-- `internal/plugin/json.go` — `marshal()` outputs IPC Protocol format
-- `internal/plugin/rib/event.go` — `parseEvent` updated for IPC Protocol wrapper
+- `internal/component/plugin/types.go` — `ResponseWrapper`, `WrapResponse()`, `NewResponse()`, `NewErrorResponse()`
+- `internal/component/plugin/server.go` — all 6 response serialization points wrapped
+- `internal/component/plugin/json.go` — `marshal()` outputs IPC Protocol format
+- `internal/component/plugin/rib/event.go` — `parseEvent` updated for IPC Protocol wrapper

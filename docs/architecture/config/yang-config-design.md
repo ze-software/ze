@@ -472,8 +472,8 @@ Each validator registers a `ValidateFn(path, value) error` and optional `Complet
 |-----------|----------|
 | Extension definition | `internal/yang/modules/ze-extensions.yang` |
 | Registry + integrity check | `internal/yang/register.go`, `internal/yang/validator_registry.go` |
-| Custom validators | `internal/config/validators.go` |
-| Registration | `internal/config/validators_register.go` |
+| Custom validators | `internal/component/config/validators.go` |
+| Registration | `internal/component/config/validators_register.go` |
 | Recursive tree walk | `internal/yang/validator.go` (`ValidateTree`/`walkTree`) |
 
 Ze uses goyang (not libyang). `ValidateTree` recursively validates config trees against YANG schema entries,

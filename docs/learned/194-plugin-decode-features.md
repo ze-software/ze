@@ -20,5 +20,5 @@ Eliminate per-plugin CLI boilerplate by introducing a data-driven `PluginConfig`
 
 ## Files
 
-- `internal/plugin/cli/plugin_common.go` — PluginConfig, RunPlugin
-- `internal/plugins/*/` — updated to use RunPlugin
+- `internal/component/plugin/cli/plugin_common.go` — PluginConfig, RunPlugin
+- `internal/component/bgp/plugins/*/` — updated to use RunPlugin

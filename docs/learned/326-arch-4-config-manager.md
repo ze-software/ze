@@ -6,7 +6,7 @@ Build the standalone `internal/configmgr/` implementation satisfying `ze.ConfigP
 
 ## Decisions
 
-- `internal/config/` YANG-aware parsing wiring deferred to Phase 5 — `plugin.Hub` has deep coupling to SchemaRegistry, SubsystemManager, and RPC dispatch. Same standalone-first approach as Phases 2 and 3.
+- `internal/component/config/` YANG-aware parsing wiring deferred to Phase 5 — `plugin.Hub` has deep coupling to SchemaRegistry, SubsystemManager, and RPC dispatch. Same standalone-first approach as Phases 2 and 3.
 - JSON-based `Load`/`Save` in this phase — simple stub that Phase 5 replaces with YANG-aware parsing
 - Type named `ConfigManager` (not `Manager`) to avoid hook collision with `pluginmgr.Manager`
 - Watch channels buffered at capacity 1 with "drop oldest, send newest" pattern — prevents blocking publisher; latest config is what matters

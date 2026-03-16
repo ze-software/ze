@@ -16,7 +16,7 @@ Add `ze bgp encode` CLI command (API command text → BGP wire hex) and round-tr
 ## Patterns
 
 - Round-trip tests use encode → `ze bgp decode` → check JSON fields — proves internal consistency without reference to a specific external tool
-- `ParseRouteAttributes()` and `ParseL2VPNArgs()` exported from `internal/plugin/route.go` to support the CLI
+- `ParseRouteAttributes()` and `ParseL2VPNArgs()` exported from `internal/component/plugin/route.go` to support the CLI
 
 ## Gotchas
 

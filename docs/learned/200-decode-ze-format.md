@@ -18,5 +18,5 @@ Mechanical format conversion, no design decisions. Key field changes: envelope `
 
 ## Files
 
-- `internal/plugins/bgp/decode/` — Ze JSON formatter replacing ExaBGP formatter
+- `internal/component/bgp/decode/` — Ze JSON formatter replacing ExaBGP formatter
 - `test/decode/` — updated .ci expectations

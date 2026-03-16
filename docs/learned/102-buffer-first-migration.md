@@ -25,5 +25,5 @@ Migrate ZeBGP to a buffer-first architecture by adding iterator types and direct
 - `internal/bgp/nlri/iterator.go` — `NLRIIterator`
 - `internal/bgp/attribute/iterator.go` — `AttrIterator`
 - `internal/bgp/attribute/aspath_iter.go` — `ASPathIterator`
-- `internal/plugin/format_buffer.go` — direct buffer formatting functions
-- `internal/plugin/wire_update.go` — iterator methods on `WireUpdate`
+- `internal/component/plugin/format_buffer.go` — direct buffer formatting functions
+- `internal/component/plugin/wire_update.go` — iterator methods on `WireUpdate`

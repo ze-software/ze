@@ -21,4 +21,4 @@ None.
 
 - `internal/selector/selector.go` — reusable peer selector
 - `internal/bgp/attribute/text.go` — attribute text formatters (consolidated from `internal/parse/`)
-- `internal/plugin/rib/rib.go` — `rib adjacent inbound/outbound show/empty/resend` commands
+- `internal/component/plugin/rib/rib.go` — `rib adjacent inbound/outbound show/empty/resend` commands

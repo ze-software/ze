@@ -26,7 +26,7 @@ Add per-destination-peer long-lived worker goroutines to the reactor's `ForwardU
 
 ## Files
 
-- `internal/plugins/bgp/reactor/forward_pool.go` — `fwdPool` type, per-peer workers, `fwdHandler`, `fwdItem`
-- `internal/plugins/bgp/reactor/forward_pool_test.go` — 10 pool lifecycle tests
-- `internal/plugins/bgp/reactor/forward_update_test.go` — 3 integration tests for ForwardUpdate
-- `internal/plugins/bgp/reactor/reactor.go` — `fwdPool` field, `New()`, `cleanup()` Phase 1, `ForwardUpdate` refactor
+- `internal/component/bgp/reactor/forward_pool.go` — `fwdPool` type, per-peer workers, `fwdHandler`, `fwdItem`
+- `internal/component/bgp/reactor/forward_pool_test.go` — 10 pool lifecycle tests
+- `internal/component/bgp/reactor/forward_update_test.go` — 3 integration tests for ForwardUpdate
+- `internal/component/bgp/reactor/reactor.go` — `fwdPool` field, `New()`, `cleanup()` Phase 1, `ForwardUpdate` refactor

@@ -7,7 +7,7 @@ Define the IPC wire format (NUL-terminated JSON) and create the `internal/ipc/` 
 ## Decisions
 
 - NUL (`\x00`) as message terminator instead of newline — BGP and JSON payloads can legitimately contain newlines; NUL cannot appear in valid JSON or BGP wire bytes.
-- API YANG modules placed near their domain code (e.g., `internal/hub/schema/`, `internal/bgp/schema/`) rather than centrally in `internal/yang/modules/` — schema belongs to the subsystem that owns the API.
+- API YANG modules placed near their domain code (e.g., `internal/component/hub/schema/`, `internal/bgp/schema/`) rather than centrally in `internal/yang/modules/` — schema belongs to the subsystem that owns the API.
 - `ze-ipc` CLI and functional tests deferred to Spec 3 (spec-yang-ipc-3).
 
 ## Patterns
@@ -21,4 +21,4 @@ Define the IPC wire format (NUL-terminated JSON) and create the `internal/ipc/` 
 ## Files
 
 - `internal/ipc/` — NUL framing, message types, method parsing
-- `internal/hub/schema/`, `internal/bgp/schema/`, etc. — domain-local API YANG
+- `internal/component/hub/schema/`, `internal/bgp/schema/`, etc. — domain-local API YANG

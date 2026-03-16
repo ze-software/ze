@@ -24,6 +24,6 @@ Replace config-driven event routing (`PeerProcessBinding.Receive*` fields) with 
 
 ## Files
 
-- `internal/plugin/subscribe.go` — new, subscription types, manager, handlers
-- `internal/plugin/server.go` — parallel routing through both config and subscription paths
-- `internal/plugin/session.go` — added `sendCtxID` for encoding context on sent messages
+- `internal/component/plugin/subscribe.go` — new, subscription types, manager, handlers
+- `internal/component/plugin/server.go` — parallel routing through both config and subscription paths
+- `internal/component/plugin/session.go` — added `sendCtxID` for encoding context on sent messages

@@ -24,6 +24,6 @@ Add FlowSpec NLRI support to the text mode parser, enabling API commands like `n
 
 ## Files
 
-- `internal/plugin/update_text.go` — +550 lines: FlowSpec parsing, bitmask operators, value validation
-- `internal/plugin/route.go` — extended community function constructors
+- `internal/component/plugin/update_text.go` — +550 lines: FlowSpec parsing, bitmask operators, value validation
+- `internal/component/plugin/route.go` — extended community function constructors
 - `internal/bgp/nlri/flowspec.go` — FlowOpNot, FlowOpMatch, NewFlowFragmentMatchComponent added

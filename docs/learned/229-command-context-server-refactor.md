@@ -22,7 +22,7 @@ Remove 6 redundant/dead fields from `CommandContext` and route all handler acces
 
 ## Files
 
-- `internal/plugin/command.go` — struct reduced to 3 fields, 4 nil-safe accessor methods added
-- `internal/plugin/server.go` — 4 accessor methods added, 2 construction sites simplified
+- `internal/component/plugin/command.go` — struct reduced to 3 fields, 4 nil-safe accessor methods added
+- `internal/component/plugin/server.go` — 4 accessor methods added, 2 construction sites simplified
 - 12 handler files — all `ctx.Field` → `ctx.Method()` access updated
 - 8 test files — all 111 construction sites updated

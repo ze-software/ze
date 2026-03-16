@@ -32,7 +32,7 @@ Current code uses `append()` extensively:
 ### WireWriter Interface
 
 ```go
-// WireWriter is in internal/plugins/bgp/context/context.go (not wire package due to import cycle).
+// WireWriter is in internal/component/bgp/context/context.go (not wire package due to import cycle).
 // Implemented by all wire types (Message, Attribute, NLRI).
 // Uses EncodingContext for capability-dependent encoding (ASN4, ADD-PATH, etc.)
 type WireWriter interface {
@@ -48,7 +48,7 @@ type WireWriter interface {
 }
 ```
 
-**Note:** Attribute interface has separate methods (`Len()`, `WriteTo()`, `WriteToWithContext()`) rather than embedding WireWriter directly. See `internal/plugins/bgp/attribute/attribute.go`.
+**Note:** Attribute interface has separate methods (`Len()`, `WriteTo()`, `WriteToWithContext()`) rather than embedding WireWriter directly. See `internal/component/bgp/attribute/attribute.go`.
 
 All wire types implement WireWriter:
 - `Attribute` types (Origin, ASPath, NextHop, etc.)
@@ -200,7 +200,7 @@ Ze has never been released. No backwards compatibility needed:
 `CheckedWriteTo()` provides a safe path with explicit error handling:
 
 ```go
-// CheckedBufWriter (internal/plugins/bgp/wire/writer.go)
+// CheckedBufWriter (internal/component/bgp/wire/writer.go)
 type CheckedBufWriter interface {
     BufWriter
     CheckedWriteTo(buf []byte, off int) (int, error)
@@ -213,7 +213,7 @@ type CheckedBufWriter interface {
 ### Error Types
 
 ```go
-// internal/plugins/bgp/wire/errors.go
+// internal/component/bgp/wire/errors.go
 var ErrBufferTooSmall = errors.New("wire: buffer too small")
 ```
 

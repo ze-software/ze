@@ -186,16 +186,16 @@ Shell-compatible: `ze_log_bgp_routes=debug` also works (dot→underscore)
 ### Logging Locations
 
 Currently instrumented:
-- `internal/config/loader.go`: Config parsing, peer routes (configLogger)
-- `internal/plugins/bgp/reactor/peer.go`: FSM, session, route operations (peerLogger, routesLogger)
-- `internal/plugins/bgp/reactor/session.go`: RFC 7606 handling (sessionLogger)
-- `internal/plugins/bgp/reactor/reactor.go`: Reload, route operations (reactorLogger, routesLogger)
+- `internal/component/config/loader.go`: Config parsing, peer routes (configLogger)
+- `internal/component/bgp/reactor/peer.go`: FSM, session, route operations (peerLogger, routesLogger)
+- `internal/component/bgp/reactor/session.go`: RFC 7606 handling (sessionLogger)
+- `internal/component/bgp/reactor/reactor.go`: Reload, route operations (reactorLogger, routesLogger)
 
 ---
 
 ## 5. Parser Warnings
 
-**Location:** `internal/config/parser.go`
+**Location:** `internal/component/config/parser.go`
 
 The parser now collects warnings for potentially problematic patterns, accessible via `Parser.Warnings()`.
 
@@ -320,8 +320,8 @@ Subsystem naming convention: `ze.log.` + simplified package path (e.g., `bgp.rea
 | `internal/slogutil/slogutil.go` | Logging infrastructure |
 | `cmd/ze/bgp/configdump.go` | config-dump command |
 | `cmd/ze-peer/main.go` | --decode flag |
-| `internal/config/parser.go` | Parser warnings |
-| `internal/config/loader.go` | Config logging (configLogger) |
-| `internal/plugins/bgp/reactor/peer.go` | Peer/route logging (peerLogger, routesLogger) |
-| `internal/plugins/bgp/reactor/session.go` | Session logging (sessionLogger) |
-| `internal/plugins/bgp/reactor/reactor.go` | Reactor logging (reactorLogger, routesLogger) |
+| `internal/component/config/parser.go` | Parser warnings |
+| `internal/component/config/loader.go` | Config logging (configLogger) |
+| `internal/component/bgp/reactor/peer.go` | Peer/route logging (peerLogger, routesLogger) |
+| `internal/component/bgp/reactor/session.go` | Session logging (sessionLogger) |
+| `internal/component/bgp/reactor/reactor.go` | Reactor logging (reactorLogger, routesLogger) |

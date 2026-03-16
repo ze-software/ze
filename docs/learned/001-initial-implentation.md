@@ -22,7 +22,7 @@ Foundation plan for rewriting ExaBGP in Go ("ZeBGP"). Shaped all subsequent stru
 
 ## Gotchas
 
-- `internal/reactor/` in the plan became `internal/plugins/bgp/` — reactor is inside the BGP subsystem, not top-level
+- `internal/reactor/` in the plan became `internal/component/bgp/` — reactor is inside the BGP subsystem, not top-level
 - Plan used cobra+viper for CLI; actual implementation uses stdlib `flag.FlagSet` per subcommand
 - Freeform config parsing was broken at plan close: nested data not extracted, block syntax required schema change — drove the YANG-based config redesign
 - AS-PATH-as-NLRI was identified as risky and abandoned; production uses separate per-type attribute pools
@@ -31,7 +31,7 @@ Foundation plan for rewriting ExaBGP in Go ("ZeBGP"). Shaped all subsequent stru
 
 Planned structure that shaped actual layout:
 - `cmd/ze/` (planned as `cmd/ze/bgp/`)
-- `internal/plugins/bgp/` (planned as `internal/bgp/` + `internal/reactor/`)
-- `internal/component/config/` (planned as `internal/config/`)
-- `internal/plugin/` (planned as `internal/plugin/` + `internal/api/`)
+- `internal/component/bgp/` (planned as `internal/bgp/` + `internal/reactor/`)
+- `internal/component/config/` (planned as `internal/component/config/`)
+- `internal/component/plugin/` (planned as `internal/component/plugin/` + `internal/api/`)
 - `internal/exabgp/` (planned as migration guide only)

@@ -20,6 +20,6 @@ Move the `graceful-restart` YANG schema from the core `ze-bgp.yang` into the GR 
 
 ## Files
 
-- `internal/plugins/bgp-gr/` — GR plugin with YANG schema
-- `internal/plugins/bgp/subsystem.go` — always-load internal plugin YANG
+- `internal/component/bgp/plugins/gr/` — GR plugin with YANG schema
+- `internal/component/bgp/subsystem.go` — always-load internal plugin YANG
 - `internal/component/config/yang/` — YANG merge at startup

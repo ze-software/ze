@@ -29,8 +29,8 @@ Replace the boolean `retained` flag and TTL-based eviction in the BGP UPDATE cac
 
 ## Files
 
-- `internal/plugins/bgp/reactor/recent_cache.go` — core implementation (both phases)
-- `internal/plugins/bgp/reactor/reactor_api_forward.go` — `ForwardUpdate` deferred `Ack()`, `ReleaseUpdate`, consumer registration hooks
-- `internal/plugins/bgp/server/events.go` — returns cache-consumer count (not total subscriber count)
+- `internal/component/bgp/reactor/recent_cache.go` — core implementation (both phases)
+- `internal/component/bgp/reactor/reactor_api_forward.go` — `ForwardUpdate` deferred `Ack()`, `ReleaseUpdate`, consumer registration hooks
+- `internal/component/bgp/server/events.go` — returns cache-consumer count (not total subscriber count)
 - `pkg/plugin/rpc/types.go` — `CacheConsumer` and `CacheConsumerUnordered` registration fields
 - `pkg/plugin/rpc/text.go` — `cache-consumer` and `cache-consumer-unordered` text protocol keywords

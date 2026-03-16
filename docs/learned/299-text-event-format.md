@@ -25,10 +25,10 @@ Eliminate JSON serialization overhead on the event delivery hot path: fix Format
 
 ## Files
 
-- `internal/plugins/bgp/format/text.go` — FormatHex case added in `formatFromFilterResult`
-- `internal/plugins/bgp/server/events.go` — encoding-aware event delivery, per-process state events
-- `internal/plugin/process.go` — default format changed to FormatParsed
-- `internal/plugins/bgp-rr/server.go` — text parsing, `dispatchText`, `forwardCtx.textPayload`
-- `internal/plugin/server_dispatch.go` — Encoding in `registerSubscriptions`
+- `internal/component/bgp/format/text.go` — FormatHex case added in `formatFromFilterResult`
+- `internal/component/bgp/server/events.go` — encoding-aware event delivery, per-process state events
+- `internal/component/plugin/process.go` — default format changed to FormatParsed
+- `internal/component/bgp/plugins/rs/server.go` — text parsing, `dispatchText`, `forwardCtx.textPayload`
+- `internal/component/plugin/server_dispatch.go` — Encoding in `registerSubscriptions`
 - `pkg/plugin/rpc/types.go` — Encoding field in `SubscribeEventsInput`
 - `pkg/plugin/sdk/sdk.go` — `SetEncoding()` method

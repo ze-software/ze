@@ -21,5 +21,5 @@ Eliminate the central `RegisterDefaultHandlers()` that required knowledge of all
 
 ## Files
 
-- `internal/plugin/command.go` — added global builtin registry, `RegisterBuiltin()`, `LoadBuiltins()`
+- `internal/component/plugin/command.go` — added global builtin registry, `RegisterBuiltin()`, `LoadBuiltins()`
 - All handler files (`handler.go`, `cache.go`, `route.go`, `bgp.go`, etc.) — converted to `init()` self-registration

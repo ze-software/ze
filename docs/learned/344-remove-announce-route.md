@@ -21,5 +21,5 @@ None.
 ## Files
 
 - ~30 `.ci` files in `test/data/encode/` and `test/data/plugin/` — `:cmd:` lines updated
-- `internal/plugin/route.go`, `commit_test.go`, `types.go` — dead comments removed
+- `internal/component/plugin/route.go`, `commit_test.go`, `types.go` — dead comments removed
 - ~15 documentation files — active docs updated, historical specs untouched

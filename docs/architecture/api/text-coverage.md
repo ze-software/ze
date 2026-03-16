@@ -2,7 +2,7 @@
 
 Current implementation coverage of the text format across message types, attributes, and NLRI families.
 
-Source of truth: `internal/plugins/bgp/format/text.go` (formatter), `internal/plugins/bgp-rs/server.go` (parser).
+Source of truth: `internal/component/bgp/format/text.go` (formatter), `internal/component/bgp/plugins/rs/server.go` (parser).
 
 ## Message Type Coverage
 

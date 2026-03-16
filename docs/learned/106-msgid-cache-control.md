@@ -20,6 +20,6 @@ None.
 ## Files
 
 - `internal/reactor/recent_cache.go` — `retained` flag, `Retain()`, `Release()`, `List()` methods
-- `internal/plugin/msgid.go` — command handler implementations
-- `internal/plugin/handler.go` — `RegisterMsgIDHandlers` registration
-- `internal/plugin/types.go` — `RetainUpdate`, `ReleaseUpdate`, `ListUpdates` added to `ReactorInterface`
+- `internal/component/plugin/msgid.go` — command handler implementations
+- `internal/component/plugin/handler.go` — `RegisterMsgIDHandlers` registration
+- `internal/component/plugin/types.go` — `RetainUpdate`, `ReleaseUpdate`, `ListUpdates` added to `ReactorInterface`

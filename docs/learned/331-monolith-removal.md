@@ -1,8 +1,8 @@
-# 331 — Monolith Removal: Decompose internal/plugin/
+# 331 — Monolith Removal: Decompose internal/component/plugin/
 
 ## Objective
 
-Break `internal/plugin/` (~31 files, ~18K LOC) into focused sub-packages with clear responsibility boundaries, without any behavior changes.
+Break `internal/component/plugin/` (~31 files, ~18K LOC) into focused sub-packages with clear responsibility boundaries, without any behavior changes.
 
 ## Decisions
 
@@ -26,6 +26,6 @@ Break `internal/plugin/` (~31 files, ~18K LOC) into focused sub-packages with cl
 
 ## Files
 
-- `internal/plugin/ipc/` — socketpair + PluginConn (2 source files)
-- `internal/plugin/process/` — Process, ProcessManager, EventDelivery (6 files)
-- `internal/plugin/server/` — Server, protocol startup, dispatch, handlers, schema, reload (40 files)
+- `internal/component/plugin/ipc/` — socketpair + PluginConn (2 source files)
+- `internal/component/plugin/process/` — Process, ProcessManager, EventDelivery (6 files)
+- `internal/component/plugin/server/` — Server, protocol startup, dispatch, handlers, schema, reload (40 files)

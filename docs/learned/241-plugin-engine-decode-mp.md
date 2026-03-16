@@ -23,5 +23,5 @@ Add three more decode RPCs to the plugin→engine interface: `decode-mp-reach`, 
 
 ## Files
 
-- `internal/plugins/bgp/handler/` — decode-mp-reach, decode-mp-unreach, decode-update handlers
+- `internal/component/bgp/handler/` — decode-mp-reach, decode-mp-unreach, decode-update handlers
 - `test/plugin/` — Python functional tests for codec RPCs

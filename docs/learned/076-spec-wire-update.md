@@ -24,7 +24,7 @@ Implement zero-copy UPDATE message parsing using concrete wire types (`WireUpdat
 
 ## Files
 
-- `internal/plugin/wire_update.go` — WireUpdate, MPReachWire, MPUnreachWire
-- `internal/plugin/types.go` — WireUpdate field added to RawMessage
+- `internal/component/plugin/wire_update.go` — WireUpdate, MPReachWire, MPUnreachWire
+- `internal/component/plugin/types.go` — WireUpdate field added to RawMessage
 - `internal/reactor/reactor.go` — WireUpdate creation in notifyMessageReceiver
 - `internal/reactor/session.go` — readBufPool, buffer ownership transfer

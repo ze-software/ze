@@ -26,6 +26,6 @@ Unify config route sending and API route sending under a single `CommitService` 
 ## Files
 
 - `internal/reactor/peer.go` — sendInitialRoutes() refactored to use CommitService
-- `internal/plugin/commit.go` — CommitManager, Transaction, handleNamedCommitEnd
-- `internal/plugin/types.go` — ReactorInterface.SendRoutes()
+- `internal/component/plugin/commit.go` — CommitManager, Transaction, handleNamedCommitEnd
+- `internal/component/plugin/types.go` — ReactorInterface.SendRoutes()
 - `internal/reactor/reactor.go` — SendRoutes() implementation

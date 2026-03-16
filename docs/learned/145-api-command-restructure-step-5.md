@@ -20,5 +20,5 @@ Move all BGP-related commands under the `bgp` namespace and update the dispatche
 
 ## Files
 
-- `internal/plugin/command.go` — dispatcher updated for `bgp peer <sel>` prefix extraction
-- `internal/plugin/handler.go`, `route.go`, `commit.go`, `raw.go`, `refresh.go` — handlers renamed and re-registered
+- `internal/component/plugin/command.go` — dispatcher updated for `bgp peer <sel>` prefix extraction
+- `internal/component/plugin/handler.go`, `route.go`, `commit.go`, `raw.go`, `refresh.go` — handlers renamed and re-registered

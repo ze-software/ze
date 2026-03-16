@@ -20,7 +20,7 @@ Add proactive backpressure to the BGP engine: pause reading from peers under str
 
 ## Gotchas
 
-- **Spec had stale paths:** `internal/plugins/bgp/reactor/` should be `internal/component/bgp/reactor/` — the package was relocated during arch-0 restructuring.
+- **Spec had stale paths:** `internal/component/bgp/reactor/` should be `internal/component/bgp/reactor/` — the package was relocated during arch-0 restructuring.
 - **Threshold mismatch:** spec said 90%/50%, implementation uses 100%/10%. The wider band (90% of capacity between high and low) significantly reduces pause/resume oscillation. The tests validate the actual thresholds.
 - **waitForResume must re-check closeReason:** after `resumeCh` is closed, it could be a real resume or a shutdown-triggered unblock. Must check `closeReason` to distinguish.
 

@@ -31,7 +31,7 @@ The current architecture has unclear boundaries between components:
 | `plugin.Server` is a god object | Event dispatch, plugin lifecycle, RPC routing, BGP hooks, startup coordination, cache tracking — all in one struct |
 | No interfaces at component boundaries | Components coupled through concrete types, not contracts |
 | Bus is not content-agnostic | `BGPHooks` callbacks, `EventUpdate`/`EventOpen` constants, `bgptypes.RawMessage` type assertions — all inside the generic plugin infrastructure |
-| BGP daemon conflated with plugins | Reactor lives in `internal/plugins/bgp/` but is a first-class subsystem, not a plugin |
+| BGP daemon conflated with plugins | Reactor lives in `internal/component/bgp/` but is a first-class subsystem, not a plugin |
 | No topic/channel concept | Hardcoded namespace strings (`"bgp"`, `"rib"`) with no way for new subsystems to define their own |
 | Config delivery is ad-hoc | Plugins get config pushed during 5-stage startup, but subsystems load config through a completely different path |
 
@@ -59,28 +59,28 @@ The BGP daemon is a **subsystem**. It listens on TCP, runs FSMs, parses wire byt
 - [ ] `docs/architecture/hub-architecture.md` — hub mode design aspirations
   → Constraint: hub mode is partially implemented — new design replaces it, not layers on top
 - [ ] `docs/architecture/overview.md` — package layout
-  → Constraint: `internal/plugin/` (infra) vs `internal/plugins/` (implementations) distinction preserved
+  → Constraint: `internal/component/plugin/` (infra) vs `internal/component/bgp/plugins/` (implementations) distinction preserved
 
 ### Source Files (current boundaries)
-- [ ] `internal/plugin/types.go` — `ReactorLifecycle` (17 methods), `BGPHooks`, `PeerInfo`, `RPCRegistration`
+- [ ] `internal/component/plugin/types.go` — `ReactorLifecycle` (17 methods), `BGPHooks`, `PeerInfo`, `RPCRegistration`
   → Constraint: `ReactorLifecycle` is the existing boundary between generic infra and BGP — it must evolve into the Subsystem interface
-- [ ] `internal/plugin/server.go` — `Server` struct (god object: 15+ fields across 6 concerns)
+- [ ] `internal/component/plugin/server.go` — `Server` struct (god object: 15+ fields across 6 concerns)
   → Constraint: this is what gets decomposed into Bus + PluginManager
-- [ ] `internal/plugin/subscribe.go` — `SubscriptionManager`, `Subscription` (namespace/eventType/direction/peer matching)
+- [ ] `internal/component/plugin/subscribe.go` — `SubscriptionManager`, `Subscription` (namespace/eventType/direction/peer matching)
   → Constraint: subscription matching logic is correct — it moves into the Bus, not rewritten
-- [ ] `internal/plugin/events.go` — hardcoded event type constants (`EventUpdate`, `EventOpen`, etc.)
+- [ ] `internal/component/plugin/events.go` — hardcoded event type constants (`EventUpdate`, `EventOpen`, etc.)
   → Decision: event types become opaque strings owned by subsystems, not by the bus
-- [ ] `internal/plugin/process.go` — `Process` struct (5-stage lifecycle, `eventChan`, `DirectBridge`)
+- [ ] `internal/component/plugin/process.go` — `Process` struct (5-stage lifecycle, `eventChan`, `DirectBridge`)
   → Constraint: 5-stage protocol preserved — it's plugin lifecycle, separate from bus
-- [ ] `internal/plugin/hub.go` — `Hub` struct (config command routing via `SchemaRegistry`)
+- [ ] `internal/component/plugin/hub.go` — `Hub` struct (config command routing via `SchemaRegistry`)
   → Decision: config routing becomes part of Config Manager
 - [ ] `internal/hub/hub.go` — `Orchestrator` (forks external processes)
   → Decision: replaced by Engine supervisor
-- [ ] `internal/plugins/bgp/reactor/reactor.go` — `Reactor` struct, holds `*plugin.Server` as `api` field
+- [ ] `internal/component/bgp/reactor/reactor.go` — `Reactor` struct, holds `*plugin.Server` as `api` field
   → Constraint: reactor becomes a Subsystem implementation — receives Bus + ConfigProvider, no longer holds Server
-- [ ] `internal/plugins/bgp/server/hooks.go` — `NewBGPHooks()` creating callback table
+- [ ] `internal/component/bgp/server/hooks.go` — `NewBGPHooks()` creating callback table
   → Decision: BGPHooks disappear — BGP subsystem publishes to bus directly
-- [ ] `internal/plugins/bgp/server/events.go` — event delivery logic (`onMessageReceived`, etc.)
+- [ ] `internal/component/bgp/server/events.go` — event delivery logic (`onMessageReceived`, etc.)
   → Constraint: delivery logic moves into the bus; formatting stays in the BGP subsystem
 - [ ] `pkg/plugin/sdk/sdk.go` — `Plugin` SDK (5-stage, callbacks, `OnEvent`/`OnStructuredEvent`)
   → Constraint: SDK preserved — plugins still use it; SDK receives bus reference after Stage 5
@@ -88,23 +88,23 @@ The BGP daemon is a **subsystem**. It listens on TCP, runs FSMs, parses wire byt
 **Key insights:**
 - `plugin.Server` does six jobs: plugin lifecycle, event subscription, event dispatch, RPC routing, BGP hook injection, startup coordination
 - The bus behavior (subscribe, match, deliver) is in `SubscriptionManager` + `process.deliveryLoop()` — extractable
-- `BGPHooks` exists solely because `internal/plugin/` cannot import `internal/plugins/bgp/` — with a content-agnostic bus this indirection is unnecessary
+- `BGPHooks` exists solely because `internal/component/plugin/` cannot import `internal/component/bgp/` — with a content-agnostic bus this indirection is unnecessary
 - The 5-stage protocol is plugin lifecycle, not bus behavior — it belongs in Plugin Manager
 - Config delivery during Stage 2 (`deliverConfigToProcess`) is a Plugin Manager concern, not a bus concern
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugin/types.go` — ReactorLifecycle (17 methods), BGPHooks callback struct, PeerInfo, RPCRegistration
-- [ ] `internal/plugin/server.go` — Server struct (god object: reactor, dispatcher, rpcDispatcher, bgpHooks, procManager, subscriptions, coordinator, registry, capInjector, listener, clients)
-- [ ] `internal/plugin/subscribe.go` — SubscriptionManager, Subscription (namespace/eventType/direction/peer matching)
-- [ ] `internal/plugin/events.go` — hardcoded event constants (EventUpdate, EventOpen, EventState, etc.)
-- [ ] `internal/plugin/process.go` — Process struct (5-stage lifecycle, eventChan cap 64, DirectBridge, deliveryLoop)
-- [ ] `internal/plugin/hub.go` — Hub struct (config command routing via SchemaRegistry + SubsystemManager)
+- [ ] `internal/component/plugin/types.go` — ReactorLifecycle (17 methods), BGPHooks callback struct, PeerInfo, RPCRegistration
+- [ ] `internal/component/plugin/server.go` — Server struct (god object: reactor, dispatcher, rpcDispatcher, bgpHooks, procManager, subscriptions, coordinator, registry, capInjector, listener, clients)
+- [ ] `internal/component/plugin/subscribe.go` — SubscriptionManager, Subscription (namespace/eventType/direction/peer matching)
+- [ ] `internal/component/plugin/events.go` — hardcoded event constants (EventUpdate, EventOpen, EventState, etc.)
+- [ ] `internal/component/plugin/process.go` — Process struct (5-stage lifecycle, eventChan cap 64, DirectBridge, deliveryLoop)
+- [ ] `internal/component/plugin/hub.go` — Hub struct (config command routing via SchemaRegistry + SubsystemManager)
 - [ ] `internal/hub/hub.go` — Orchestrator (forks external processes, composes SubsystemManager + SchemaRegistry + Hub)
-- [ ] `internal/plugins/bgp/reactor/reactor.go` — Reactor struct (holds api *plugin.Server, messageReceiver, peers, listeners, fwdPool)
-- [ ] `internal/plugins/bgp/server/hooks.go` — NewBGPHooks() creating BGPHooks callback table
-- [ ] `internal/plugins/bgp/server/events.go` — onMessageReceived, onPeerStateChange delivery implementations
+- [ ] `internal/component/bgp/reactor/reactor.go` — Reactor struct (holds api *plugin.Server, messageReceiver, peers, listeners, fwdPool)
+- [ ] `internal/component/bgp/server/hooks.go` — NewBGPHooks() creating BGPHooks callback table
+- [ ] `internal/component/bgp/server/events.go` — onMessageReceived, onPeerStateChange delivery implementations
 - [ ] `pkg/plugin/sdk/sdk.go` — Plugin SDK (5-stage, OnEvent/OnStructuredEvent/OnConfigure callbacks, MuxConn, DirectBridge)
 
 **Behavior to preserve:**
@@ -484,10 +484,10 @@ Move `SubscriptionManager`, subscription matching, and `Process.deliveryLoop()` 
 
 | What moves | From | To |
 |-----------|------|-----|
-| `SubscriptionManager` | `internal/plugin/subscribe.go` | Bus implementation |
+| `SubscriptionManager` | `internal/component/plugin/subscribe.go` | Bus implementation |
 | Subscription matching | `Subscription.Matches()` | Bus implementation |
 | Delivery loop | `Process.deliveryLoop()` | Bus consumer adapter |
-| Event type constants | `internal/plugin/events.go` | BGP subsystem (or deleted — subsystems own their topic names) |
+| Event type constants | `internal/component/plugin/events.go` | BGP subsystem (or deleted — subsystems own their topic names) |
 
 ### Phase 3 — Extract Plugin Manager (`spec-arch-3-plugin-manager.md`)
 
@@ -503,7 +503,7 @@ Create `Engine` implementation that composes Bus + PluginManager + ConfigProvide
 
 ### Phase 6 — Eliminate BGPHooks (`spec-arch-6-eliminate-hooks.md`)
 
-BGP subsystem publishes to bus directly instead of through `BGPHooks` callback injection. `internal/plugin/` no longer has any BGP-specific code. This is the final decoupling.
+BGP subsystem publishes to bus directly instead of through `BGPHooks` callback injection. `internal/component/plugin/` no longer has any BGP-specific code. This is the final decoupling.
 
 ### Phase Summary
 
@@ -540,7 +540,7 @@ Wiring tests are defined per child spec. The umbrella requires:
 | AC-4 | `ConfigProvider.Get("bgp")` called by subsystem | Returns the BGP config subtree as `map[string]any` |
 | AC-5 | Plugin completes 5-stage startup | Plugin is connected to Bus and can subscribe/publish |
 | AC-6 | Engine.Start() called with BGP subsystem registered | Bus created → plugins started → BGP subsystem started → events flow |
-| AC-7 | `internal/plugin/` package | Zero imports from `internal/plugins/bgp/` or any subsystem package |
+| AC-7 | `internal/component/plugin/` package | Zero imports from `internal/component/bgp/` or any subsystem package |
 | AC-8 | Bus implementation | Zero type assertions on event payload — payload is `[]byte`, never cast |
 | AC-9 | DirectBridge in-process plugin | Same Bus interface, events delivered via function call (no serialization) |
 | AC-10 | SIGHUP sent to process | Config Manager re-reads file, subsystem receives updated config via `Reload()` |
@@ -614,16 +614,16 @@ Tests are defined per child spec. The umbrella lists the top-level tests that pr
 
 ## Files to Modify
 
-- `internal/plugin/server.go` — decompose into Bus + PluginManager (Phases 2, 3)
-- `internal/plugin/types.go` — extract interfaces to `pkg/ze/` (Phase 1)
-- `internal/plugin/subscribe.go` — move subscription logic to Bus (Phase 2)
-- `internal/plugin/events.go` — move event constants to BGP subsystem (Phase 2)
-- `internal/plugin/process.go` — extract lifecycle to PluginManager, delivery to Bus (Phases 2, 3)
-- `internal/plugin/hub.go` — absorb into Config Manager (Phase 4)
+- `internal/component/plugin/server.go` — decompose into Bus + PluginManager (Phases 2, 3)
+- `internal/component/plugin/types.go` — extract interfaces to `pkg/ze/` (Phase 1)
+- `internal/component/plugin/subscribe.go` — move subscription logic to Bus (Phase 2)
+- `internal/component/plugin/events.go` — move event constants to BGP subsystem (Phase 2)
+- `internal/component/plugin/process.go` — extract lifecycle to PluginManager, delivery to Bus (Phases 2, 3)
+- `internal/component/plugin/hub.go` — absorb into Config Manager (Phase 4)
 - `internal/hub/hub.go` — replace with Engine (Phase 5)
-- `internal/plugins/bgp/reactor/reactor.go` — implement Subsystem interface (Phase 5)
-- `internal/plugins/bgp/server/hooks.go` — eliminate BGPHooks (Phase 6)
-- `internal/plugins/bgp/server/events.go` — BGP publishes to bus directly (Phase 6)
+- `internal/component/bgp/reactor/reactor.go` — implement Subsystem interface (Phase 5)
+- `internal/component/bgp/server/hooks.go` — eliminate BGPHooks (Phase 6)
+- `internal/component/bgp/server/events.go` — BGP publishes to bus directly (Phase 6)
 - `cmd/ze/hub/main.go` — use Engine instead of manual startup (Phase 5)
 
 ## Files to Create

@@ -23,11 +23,11 @@ Reduce debug log noise and improve event delivery performance by consolidating r
 
 ## Files
 
-- `internal/plugins/bgp/reactor/delivery.go` — `drainDeliveryBatch`
-- `internal/plugins/bgp/reactor/peer.go` — updated delivery goroutine to batch-drain
-- `internal/plugins/bgp/reactor/reactor.go` — `OnMessageBatchReceived` added to `MessageReceiver` interface
-- `internal/plugin/server_events.go` — `Server.OnMessageBatchReceived`
-- `internal/plugin/types.go` — `OnMessageBatchReceived` in `BGPHooks`
-- `internal/plugins/bgp/server/events.go` — `onMessageBatchReceived`, removed per-process "writing" debug logs
-- `internal/plugin/subscribe.go` — removed `GetMatching` debug log
-- `internal/plugins/bgp/reactor/session.go` — merged two SendUpdate debug lines into one
+- `internal/component/bgp/reactor/delivery.go` — `drainDeliveryBatch`
+- `internal/component/bgp/reactor/peer.go` — updated delivery goroutine to batch-drain
+- `internal/component/bgp/reactor/reactor.go` — `OnMessageBatchReceived` added to `MessageReceiver` interface
+- `internal/component/plugin/server_events.go` — `Server.OnMessageBatchReceived`
+- `internal/component/plugin/types.go` — `OnMessageBatchReceived` in `BGPHooks`
+- `internal/component/bgp/server/events.go` — `onMessageBatchReceived`, removed per-process "writing" debug logs
+- `internal/component/plugin/subscribe.go` — removed `GetMatching` debug log
+- `internal/component/bgp/reactor/session.go` — merged two SendUpdate debug lines into one

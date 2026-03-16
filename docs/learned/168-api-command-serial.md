@@ -21,6 +21,6 @@ None — this was a documentation-only spec for existing implemented behaviour.
 
 ## Files
 
-- `internal/plugin/server.go` — `parseSerial()`, `encodeAlphaSerial()`, `isAlphaSerial()`
-- `internal/plugin/process.go` — `SendRequest()`, `parseResponseSerial()`
-- `internal/plugin/types.go` — `Response.Serial`
+- `internal/component/plugin/server.go` — `parseSerial()`, `encodeAlphaSerial()`, `isAlphaSerial()`
+- `internal/component/plugin/process.go` — `SendRequest()`, `parseResponseSerial()`
+- `internal/component/plugin/types.go` — `Response.Serial`

@@ -25,5 +25,5 @@ Add optional serial numbers to the process↔ZeBGP protocol for command/response
 
 ## Files
 
-- `internal/plugin/process.go` — serial parsing, `nextAlphaSerial()`, response formatting
-- `internal/plugin/types.go` — Response struct (Serial, Status, Data)
+- `internal/component/plugin/process.go` — serial parsing, `nextAlphaSerial()`, response formatting
+- `internal/component/plugin/types.go` — Response struct (Serial, Status, Data)

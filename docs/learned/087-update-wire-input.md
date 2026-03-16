@@ -25,6 +25,6 @@ Implement `peer X update hex|b64 attr set <bytes> nhop set <addr> nlri <family> 
 
 - `internal/bgp/context/api.go` — APIContextID
 - `internal/bgp/nlri/wire.go` — WireNLRI type
-- `internal/plugin/update_wire.go` — ParseUpdateWire, hex/b64 handlers
-- `internal/plugin/types.go` — PathAttributes.Wire field
+- `internal/component/plugin/update_wire.go` — ParseUpdateWire, hex/b64 handlers
+- `internal/component/plugin/types.go` — PathAttributes.Wire field
 - `internal/reactor/announce.go` — wire mode in AnnounceNLRIBatch/WithdrawNLRIBatch

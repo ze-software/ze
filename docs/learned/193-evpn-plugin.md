@@ -21,5 +21,5 @@ Create an EVPN family plugin and resolve the import cycle caused by `nlri/evpn.g
 
 ## Files
 
-- `internal/plugins/evpn/` — EVPN plugin with types
+- `internal/component/bgp/plugins/nlri/evpn/` — EVPN plugin with types
 - `internal/bgp/nlri/` — RouteDistinguisher stays; nlri/evpn.go deleted

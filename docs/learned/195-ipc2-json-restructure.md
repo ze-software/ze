@@ -18,5 +18,5 @@ Mechanical refactor, no design decisions.
 
 ## Files
 
-- `internal/plugins/bgp/event/` — JSON envelope restructure
+- `internal/component/bgp/event/` — JSON envelope restructure
 - `internal/ipc/` — updated consumers

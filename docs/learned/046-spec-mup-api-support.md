@@ -13,7 +13,7 @@ Add MUP SAFI (draft-mpmz-bess-mup-safi, SAFI 85) to the API parser so `announce 
 
 ## Patterns
 
-- The existing `convertMUPRoute()` in `internal/config/loader.go` and `buildMUPNLRI()` in `reactor/peer.go` were the reference for how MUP routes should be structured.
+- The existing `convertMUPRoute()` in `internal/component/config/loader.go` and `buildMUPNLRI()` in `reactor/peer.go` were the reference for how MUP routes should be structured.
 
 ## Gotchas
 
@@ -22,6 +22,6 @@ Add MUP SAFI (draft-mpmz-bess-mup-safi, SAFI 85) to the API parser so `announce 
 
 ## Files
 
-- `internal/plugin/route.go` — `SAFINameMUP` constant, `announceMUPImpl()`, `withdrawMUPImpl()`
-- `internal/plugin/types.go` — `MUPRouteSpec`, `AnnounceMUPRoute` in `ReactorInterface`
+- `internal/component/plugin/route.go` — `SAFINameMUP` constant, `announceMUPImpl()`, `withdrawMUPImpl()`
+- `internal/component/plugin/types.go` — `MUPRouteSpec`, `AnnounceMUPRoute` in `ReactorInterface`
 - `internal/reactor/reactor.go` — `AnnounceMUPRoute()` implementation

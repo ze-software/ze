@@ -29,5 +29,5 @@ Eradicate all Go-based schema definitions so YANG becomes the sole source of sch
 - `internal/yang/modules/ze-types.yang` — `route-attributes` grouping
 - `internal/yang/modules/ze-bgp.yang` — complete BGP schema with extensions
 - `internal/yang/modules/ze-hub.yang` — environment block schema
-- `internal/config/yang_schema.go` — extension processing, deleted `syntaxHints`
-- `internal/config/bgp.go` — deleted `BGPSchema()`, kept `LegacyBGPSchema()` + helpers
+- `internal/component/config/yang_schema.go` — extension processing, deleted `syntaxHints`
+- `internal/component/config/bgp.go` — deleted `BGPSchema()`, kept `LegacyBGPSchema()` + helpers

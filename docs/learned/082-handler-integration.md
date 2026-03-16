@@ -22,7 +22,7 @@ Wire the update text parser (spec 081) to the reactor via `peer <addr> update te
 
 ## Files
 
-- `internal/plugin/types.go` — NLRIBatch, ReactorInterface additions
-- `internal/plugin/update_text.go` — handleUpdateText, handler functions
-- `internal/plugin/route.go` — "update" command registered
+- `internal/component/plugin/types.go` — NLRIBatch, ReactorInterface additions
+- `internal/component/plugin/update_text.go` — handleUpdateText, handler functions
+- `internal/component/plugin/route.go` — "update" command registered
 - `internal/reactor/reactor.go` — AnnounceNLRIBatch, WithdrawNLRIBatch

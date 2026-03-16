@@ -17,7 +17,7 @@ Remove duplicate `UpdateID` from `ReceivedUpdate` (same value as `WireUpdate.mes
 
 ## Files
 
-- `internal/plugin/wire_update.go` — messageID field, SetMessageID()
+- `internal/component/plugin/wire_update.go` — messageID field, SetMessageID()
 - `internal/reactor/received_update.go` — removed UpdateID field
 - `internal/reactor/recent_cache.go` — cache key changed to WireUpdate.MessageID()
-- `internal/plugin/json.go` — all message type encoders restructured
+- `internal/component/plugin/json.go` — all message type encoders restructured

@@ -28,11 +28,11 @@ Fix silent degradation in bgp-rr when bgp-adj-rib-in is absent (replayDisabled p
 
 ## Files
 
-- `internal/plugin/registry/registry.go` — Dependencies field, validation, `ResolveDependencies()`, `detectCycles()`
-- `internal/plugin/server_startup.go` — stage 1 dependency validation (production path)
-- `internal/plugin/server.go` — `hasConfiguredPlugin()` helper
-- `internal/config/loader.go` — `expandDependencies()` + wired into 3 loading paths
-- `internal/plugins/bgp-rr/register.go` — `Dependencies: []string{"bgp-adj-rib-in"}`
-- `internal/plugins/bgp-rr/server.go` — `replayDisabled` completely removed
-- `internal/plugins/bgp/reactor/reactor.go` — `PluginNames()` accessor
+- `internal/component/plugin/registry/registry.go` — Dependencies field, validation, `ResolveDependencies()`, `detectCycles()`
+- `internal/component/plugin/server_startup.go` — stage 1 dependency validation (production path)
+- `internal/component/plugin/server.go` — `hasConfiguredPlugin()` helper
+- `internal/component/config/loader.go` — `expandDependencies()` + wired into 3 loading paths
+- `internal/component/bgp/plugins/rs/register.go` — `Dependencies: []string{"bgp-adj-rib-in"}`
+- `internal/component/bgp/plugins/rs/server.go` — `replayDisabled` completely removed
+- `internal/component/bgp/reactor/reactor.go` — `PluginNames()` accessor
 - `.golangci.yml` — hugeParam threshold 256→280

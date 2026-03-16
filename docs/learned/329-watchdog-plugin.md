@@ -26,6 +26,6 @@ Extract all watchdog state and logic from the engine reactor into a new `bgp-wat
 
 ## Files
 
-- `internal/plugins/bgp-watchdog/` — new plugin (watchdog.go, pool.go, config.go, command.go, server.go, register.go)
-- `internal/plugins/bgp/reactor/watchdog.go` — deleted, moved to plugin
-- `internal/plugins/bgp/handler/route_watchdog.go` — deleted, moved to plugin OnExecuteCommand
+- `internal/component/bgp/plugins/watchdog/` — new plugin (watchdog.go, pool.go, config.go, command.go, server.go, register.go)
+- `internal/component/bgp/reactor/watchdog.go` — deleted, moved to plugin
+- `internal/component/bgp/handler/route_watchdog.go` — deleted, moved to plugin OnExecuteCommand

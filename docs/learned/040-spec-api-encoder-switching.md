@@ -25,6 +25,6 @@ Redesign process API configuration to properly separate WHAT messages a peer sen
 
 ## Files
 
-- `internal/config/bgp.go` — new API binding parsing, `GetPeerAPIBindings()`
+- `internal/component/config/bgp.go` — new API binding parsing, `GetPeerAPIBindings()`
 - `internal/reactor/reactor.go` — `APIBinding` struct, dispatch logic
-- `internal/plugin/route.go` — per-binding format/encoding awareness
+- `internal/component/plugin/route.go` — per-binding format/encoding awareness

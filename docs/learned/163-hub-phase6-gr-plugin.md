@@ -23,4 +23,4 @@ Complete the GR plugin by creating `ze-gr.yang` (augmenting ze-bgp), removing gr
 
 - `yang/ze-gr.yang` — GR YANG module augmenting ze-bgp
 - `yang/ze-bgp.yang` — removed graceful-restart leaf
-- `internal/plugin/gr/gr.go` — updated for hub integration
+- `internal/component/plugin/gr/gr.go` — updated for hub integration

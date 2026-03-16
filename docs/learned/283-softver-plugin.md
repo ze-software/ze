@@ -22,7 +22,7 @@ Extract capability code 75 (draft-ietf-idr-software-version) from the core BGP r
 
 ## Files
 
-- `internal/plugins/bgp-softver/softver.go` — encode, decode, config extraction
-- `internal/plugins/bgp-softver/register.go` — `init()` registration with code 75
-- `internal/plugins/bgp-softver/schema/ze-softver.yang` — augments `bgp:capability`
+- `internal/component/bgp/plugins/softver/softver.go` — encode, decode, config extraction
+- `internal/component/bgp/plugins/softver/register.go` — `init()` registration with code 75
+- `internal/component/bgp/plugins/softver/schema/ze-softver.yang` — augments `bgp:capability`
 - Removed from: `capability/capability.go`, `reactor/config.go`, `format/decode.go`, `cmd/ze/bgp/decode.go`, `ze-bgp-conf.yang`

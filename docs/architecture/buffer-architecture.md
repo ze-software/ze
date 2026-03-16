@@ -139,7 +139,7 @@ The core type wrapping raw BGP message bytes:
 
 ```go
 // WireUpdate wraps UPDATE message payload (after BGP header)
-// Location: internal/plugin/wire_update.go
+// Location: internal/component/plugin/wire_update.go
 type WireUpdate struct {
     payload     []byte
     sourceCtxID ContextID      // For zero-copy decisions
@@ -259,7 +259,7 @@ func (b *UpdateBuilder) Reset()
 Routes store wire bytes as source of truth:
 
 ```go
-// internal/plugins/bgp/rib/route.go
+// internal/component/bgp/rib/route.go
 type Route struct {
     // Wire bytes (source of truth)
     wireBytes     []byte           // packed path attributes

@@ -24,8 +24,8 @@ Add a `"summary"` subscription format that extracts lightweight NLRI metadata (s
 
 ## Files
 
-- `internal/plugins/bgp/format/summary.go` — `formatSummary`, `scanMPFamilies`, `buildSummaryJSON` (133 lines, created)
-- `internal/plugins/bgp/format/summary_test.go` — 10 unit tests (351 lines, created)
-- `internal/plugin/types.go` — `FormatSummary` constant added
-- `internal/plugins/bgp/format/text.go` — summary dispatch + 7 pre-existing lint fixes
+- `internal/component/bgp/format/summary.go` — `formatSummary`, `scanMPFamilies`, `buildSummaryJSON` (133 lines, created)
+- `internal/component/bgp/format/summary_test.go` — 10 unit tests (351 lines, created)
+- `internal/component/plugin/types.go` — `FormatSummary` constant added
+- `internal/component/bgp/format/text.go` — summary dispatch + 7 pre-existing lint fixes
 - `test/plugin/summary-format.ci` — functional end-to-end test (166 lines, created)

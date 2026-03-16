@@ -29,5 +29,5 @@ Complete labeled-unicast API to match the `AnnounceRoute` pattern: create `nlri.
 - `internal/bgp/nlri/labeled_test.go` — NLRI tests
 - `internal/bgp/message/labeled_wire_test.go` — wire consistency tests
 - `internal/bgp/message/update_build.go` — fixed ADD-PATH pathID=0 bug
-- `internal/plugin/types.go` — `PathID` field added to `LabeledUnicastRoute`
+- `internal/component/plugin/types.go` — `PathID` field added to `LabeledUnicastRoute`
 - `internal/reactor/reactor.go` — `AnnounceLabeledUnicast` refactored with 3-way switch

@@ -20,5 +20,5 @@ Propagate RFC 7911 ADD-PATH path-id through the plugin event format so RIB and o
 
 ## Files
 
-- `internal/plugin/mpwire.go` — `MPReachWire.NLRIs(hasAddPath)`, `IPv4Reach.NLRIs(hasAddPath)`, etc.
-- `internal/plugin/rib/rib.go` — route key with path-id, `parseNLRIValue` handles both formats
+- `internal/component/plugin/mpwire.go` — `MPReachWire.NLRIs(hasAddPath)`, `IPv4Reach.NLRIs(hasAddPath)`, etc.
+- `internal/component/plugin/rib/rib.go` — route key with path-id, `parseNLRIValue` handles both formats

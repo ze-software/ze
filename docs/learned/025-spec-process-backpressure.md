@@ -23,6 +23,6 @@ Implement write queue backpressure for API processes (drop events when queue ful
 
 ## Files
 
-- `internal/plugin/process.go` — writeQueue, queueDropped, QueueSize(), QueueDropped(), WriteEvent() backpressure
-- `internal/plugin/types.go` — ProcessConfig.RespawnEnabled
-- `internal/plugin/` — ProcessManager respawn tracking, disabled map
+- `internal/component/plugin/process.go` — writeQueue, queueDropped, QueueSize(), QueueDropped(), WriteEvent() backpressure
+- `internal/component/plugin/types.go` — ProcessConfig.RespawnEnabled
+- `internal/component/plugin/` — ProcessManager respawn tracking, disabled map

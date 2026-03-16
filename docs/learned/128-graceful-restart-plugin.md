@@ -22,7 +22,7 @@ Create a standalone `bgp-gr` plugin that injects GR capability (RFC 4724) per-pe
 
 ## Files
 
-- `internal/plugin/gr/gr.go` — GR plugin, 5-stage startup, RFC 4724 wire encoding
-- `internal/plugin/gr/gr_test.go` — config parsing, wire format, startup tests
+- `internal/component/plugin/gr/gr.go` — GR plugin, 5-stage startup, RFC 4724 wire encoding
+- `internal/component/plugin/gr/gr_test.go` — config parsing, wire format, startup tests
 - `cmd/ze/bgp/plugin_gr.go` — CLI dispatch
-- `internal/plugin/rib/rib.go` — GR code removed
+- `internal/component/plugin/rib/rib.go` — GR code removed

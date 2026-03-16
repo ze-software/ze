@@ -7,7 +7,7 @@ Move all library code from `pkg/` to `internal/` to make clear Ze BGP is a binar
 ## Decisions
 
 - `pkg/pool/` (double-buffer design) moved to `internal/pool/` and the old `internal/pool/` (single-buffer with metrics) renamed to `internal/delete-pool/` to preserve scheduler/metrics ideas for potential future merge.
-- `pkg/editor` grouped under `internal/config/editor` (not `internal/editor/`) since the editor is a config concern.
+- `pkg/editor` grouped under `internal/component/config/editor` (not `internal/editor/`) since the editor is a config concern.
 - `pkg/testpeer` → `internal/test/peer`, `pkg/testsyslog` → `internal/test/syslog`, `test/functional` → `internal/test/runner`, `test/ciformat` → `internal/test/ci` — all test infrastructure consolidated under one path.
 
 ## Patterns

@@ -28,13 +28,13 @@ Remove all custom `ze:syntax` YANG extensions from ze configuration and replace 
 
 ## Files
 
-- `internal/plugins/bgp/schema/ze-bgp-conf.yang` — dead nodes removed, freeform→list, ~35 annotations removed, dead import cleaned
+- `internal/component/bgp/schema/ze-bgp-conf.yang` — dead nodes removed, freeform→list, ~35 annotations removed, dead import cleaned
 - `internal/component/config/schema.go` — `Presence bool` added to `ContainerNode`
 - `internal/component/config/yang_schema.go` — leaf-list default, presence detection, flex→presence mapping
 - `internal/component/config/parser.go` — presence container parsing, enum leaf-list
 - `internal/component/config/parser_list.go` — last-child-absorbs-remaining for inline list
 - `internal/component/config/bgp_routes.go` — mandatory op enforcement, list iteration for NLRI
-- `internal/plugins/bgp/reactor/config.go` — structured nexthop/add-path/process parsing
+- `internal/component/bgp/reactor/config.go` — structured nexthop/add-path/process parsing
 - `internal/exabgp/migrate.go` — `checkUnsupported()`, dead capability removal
 - `docs/architecture/config/syntax.md` — standard YANG approach documented
 - `test/encode/*.ci` (40 files) + `test/parse/*.ci` (16 files) + `test/plugin/*.ci` (16 files) — updated for new syntax

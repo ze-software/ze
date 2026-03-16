@@ -11,7 +11,7 @@ Change WireUpdate accessor methods to return `(value, error)` so callers can dis
 
 ## Patterns
 
-- Sentinel errors in `internal/plugin/errors.go`, wrapped with location context: `return nil, fmt.Errorf("withdrawn: %w", ErrUpdateTruncated)`.
+- Sentinel errors in `internal/component/plugin/errors.go`, wrapped with location context: `return nil, fmt.Errorf("withdrawn: %w", ErrUpdateTruncated)`.
 - `nil, nil` is the valid-empty return (empty section), not an error: callers must handle both empty and error explicitly.
 
 ## Gotchas
@@ -21,6 +21,6 @@ Change WireUpdate accessor methods to return `(value, error)` so callers can dis
 
 ## Files
 
-- `internal/plugin/wire_update.go` — changed signatures, removed attrsOnce/attrs fields
-- `internal/plugin/errors.go` — new: ErrUpdateTruncated, ErrUpdateMalformed
-- All callers in `internal/reactor/` and `internal/plugin/` updated
+- `internal/component/plugin/wire_update.go` — changed signatures, removed attrsOnce/attrs fields
+- `internal/component/plugin/errors.go` — new: ErrUpdateTruncated, ErrUpdateMalformed
+- All callers in `internal/reactor/` and `internal/component/plugin/` updated

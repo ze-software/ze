@@ -27,8 +27,8 @@ with the native `update { attribute {} nlri {} }` syntax implemented in spec 180
 
 ## Files
 
-- `internal/plugin/bgp/schema/ze-bgp.yang` — ExaBGP blocks removed
-- `internal/config/bgp.go` — `LegacyBGPSchema()` and helper functions deleted
+- `internal/component/bgp/schema/ze-bgp.yang` — ExaBGP blocks removed
+- `internal/component/config/bgp.go` — `LegacyBGPSchema()` and helper functions deleted
 - `internal/exabgp/migrate.go` — template expansion added
 - `cmd/ze/bgp/config_migrate.go` — ExaBGP fallback wired in
 - `test/exabgp-compat/` — ExaBGP QA harness (38 CI tests)

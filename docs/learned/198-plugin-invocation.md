@@ -20,6 +20,6 @@ Implement three plugin invocation modes: Fork (`name`/`/path`), Internal (`ze.na
 
 ## Files
 
-- `internal/plugin/process/` — Fork, Internal, Direct mode dispatch
-- `internal/plugin/bridge/` — DirectBridge
-- `internal/plugin/cli/plugin_common.go` — mode flag handling
+- `internal/component/plugin/process/` — Fork, Internal, Direct mode dispatch
+- `internal/component/plugin/bridge/` — DirectBridge
+- `internal/component/plugin/cli/plugin_common.go` — mode flag handling

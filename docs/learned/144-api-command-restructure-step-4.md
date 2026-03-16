@@ -22,6 +22,6 @@ Create the `bgp` namespace with introspection commands and move plugin configura
 
 ## Files
 
-- `internal/plugin/bgp.go` — new, BGP namespace handlers
-- `internal/plugin/types.go` — removed CBOR, added Format constants
-- `internal/plugin/process.go` — added encoding/format fields and accessors
+- `internal/component/plugin/bgp.go` — new, BGP namespace handlers
+- `internal/component/plugin/types.go` — removed CBOR, added Format constants
+- `internal/component/plugin/process.go` — added encoding/format fields and accessors

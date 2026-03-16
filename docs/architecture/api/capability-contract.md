@@ -4,13 +4,13 @@
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| `msg-id` in events | ✅ Done | `internal/plugin/json.go` |
-| `bgp cache <id> forward` | ✅ Done | `internal/plugin/cache.go` |
-| `capability route-refresh` | ✅ Done | `internal/plugin/rr/` |
-| `plugin session ready` | ✅ Done | `internal/plugin/plugin.go` |
-| Refresh event handling | ✅ Done | `internal/plugin/rr/` |
-| `bgp cache <id> retain/release/expire` | ✅ Done | `internal/plugin/cache.go` |
-| `bgp cache list` | ✅ Done | `internal/plugin/cache.go` |
+| `msg-id` in events | ✅ Done | `internal/component/plugin/json.go` |
+| `bgp cache <id> forward` | ✅ Done | `internal/component/plugin/cache.go` |
+| `capability route-refresh` | ✅ Done | `internal/component/plugin/rr/` |
+| `plugin session ready` | ✅ Done | `internal/component/plugin/plugin.go` |
+| Refresh event handling | ✅ Done | `internal/component/plugin/rr/` |
+| `bgp cache <id> retain/release/expire` | ✅ Done | `internal/component/plugin/cache.go` |
+| `bgp cache list` | ✅ Done | `internal/component/plugin/cache.go` |
 | Stage timeout | ✅ Done | Configurable per-plugin, default 5s |
 | Config validation (GR/RR→API) | ✅ Done | Config validation |
 | `borr`/`eorr` markers | ✅ Done | RFC 7313 full support, RIB plugin responds to refresh |
@@ -129,7 +129,7 @@ See `docs/architecture/config/syntax.md` for full plugin config options.
 
 ## Config Validation (✅ DONE)
 
-> **Status:** Implemented in `internal/config/bgp.go:validateProcessCapabilities`.
+> **Status:** Implemented in `internal/component/config/bgp.go:validateProcessCapabilities`.
 
 If peer has `graceful-restart` or `route-refresh` but no process with `send { update; }`:
 

@@ -22,4 +22,4 @@ Add fail-fast config-time validation: if a peer enables `route-refresh` or `grac
 
 ## Files
 
-- `internal/config/bgp.go` — `validateProcessCapabilities()` function at line 833-874
+- `internal/component/config/bgp.go` — `validateProcessCapabilities()` function at line 833-874

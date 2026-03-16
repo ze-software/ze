@@ -28,7 +28,7 @@ Replace per-event IPC writes (1 syscall + 1 ack + 2 goroutines per event) with a
 - `internal/ipc/batch.go` — `WriteBatchFrame`, `ParseBatchEvents`, `batchBufPool`
 - `internal/ipc/framing.go` — `WriteRaw`, `RawWriter` added; `// Related:` cross-reference to batch.go
 - `pkg/plugin/rpc/conn.go` — `CallBatchRPC`, `WriteRawFrame`, `writeBatchFrame`
-- `internal/plugin/process.go` — drain-and-batch `deliveryLoop`
+- `internal/component/plugin/process.go` — drain-and-batch `deliveryLoop`
 - `pkg/plugin/sdk/sdk.go` — `handleDeliverBatch` + `deliver-batch` dispatch case
 - `test/scripts/ze_api.py` — `deliver-batch` handler + `_pending_events` queue
 - `docs/architecture/api/process-protocol.md` — event delivery section updated

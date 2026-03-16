@@ -22,4 +22,4 @@ None.
 
 - Umbrella only — see sub-specs 222–234 for implementation details.
 - `internal/component/config/` — config coordinator
-- `internal/plugins/bgp/reactor/` — BGP reload handler
+- `internal/component/bgp/reactor/` — BGP reload handler

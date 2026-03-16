@@ -7,7 +7,7 @@ migrate printf-style `internal/trace/` package to slog, add config-file log sett
 
 ## Decisions
 
-- Subsystem names follow package path without `internal/plugin/` prefix: `bgp.reactor.peer`, `bgp.routes`, `config`, etc.
+- Subsystem names follow package path without `internal/component/plugin/` prefix: `bgp.reactor.peer`, `bgp.routes`, `config`, etc.
 - Hierarchical resolution: `ze.log.bgp.fsm` → `ze.log.bgp` → `ze.log`; dot notation beats underscore at same level.
 - `LazyLogger()` wraps `sync.Once` — defers logger creation until first use so config-file settings take effect before any logger initialises.
 - Config-file `environment { log { } }` block calls `os.Setenv()` early in `main()` so the existing env-var lookup requires no change.
@@ -29,8 +29,8 @@ migrate printf-style `internal/trace/` package to slog, add config-file log sett
 
 - `internal/slogutil/slogutil.go` — hierarchical lookup, `PluginLogger`, `LazyLogger`, `ApplyLogConfig`
 - `internal/slogutil/slogutil_test.go` — 35 tests including 15 new
-- `internal/plugin/` (server, process, filter, subscribe, coordinator) — subsystem names updated
-- `internal/plugin/bgp/reactor/` (reactor, peer, session) — trace replaced, loggers added
-- `internal/config/loader.go` — trace replaced, configLogger added
+- `internal/component/plugin/` (server, process, filter, subscribe, coordinator) — subsystem names updated
+- `internal/component/bgp/reactor/` (reactor, peer, session) — trace replaced, loggers added
+- `internal/component/config/loader.go` — trace replaced, configLogger added
 - `internal/trace/` — deleted
 - `.claude/rules/go-standards.md` — logging section rewritten

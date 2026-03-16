@@ -8,7 +8,7 @@ Phase 4 of ze-bgp-chaos: add multi-family route generation support (IPv6, VPN, E
 
 - `UpdateBuilder.BuildUnicast()` auto-detects IPv6 prefixes via address family — no separate IPv6 sender method needed.
 - Validation model unchanged: `netip.Prefix` handles IPv4+IPv6 unicast; non-unicast families use count-based tracking only.
-- `cmd/ze-bgp-chaos/` can import plugin packages directly — import restriction applies only to `internal/plugin/`, `internal/plugins/bgp/`, `internal/component/config/`, and `cmd/ze/`.
+- `cmd/ze-bgp-chaos/` can import plugin packages directly — import restriction applies only to `internal/component/plugin/`, `internal/component/bgp/`, `internal/component/config/`, and `cmd/ze/`.
 - Receive-side MP_REACH_NLRI parsing for non-unicast families left out of scope — chaos tool read loop parses IPv4 unicast NLRI only.
 - Go 1.20+ `[6]byte(slice[2:])` slice-to-array conversion used directly for EVPN MAC bytes.
 

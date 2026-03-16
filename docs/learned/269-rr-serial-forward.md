@@ -24,5 +24,5 @@ Fix a ~98% route loss bug in the bgp-rr plugin under full-table load by replacin
 
 ## Files
 
-- `internal/plugins/bgp-rr/server.go` — `forwardWork` type, `workCh`, `runForwardWorker`, modified `handleUpdate` and `RunRouteServer`
-- `internal/plugins/bgp-rr/propagation_test.go` — 3 new worker tests, 1 replaced ordering test
+- `internal/component/bgp/plugins/rs/server.go` — `forwardWork` type, `workCh`, `runForwardWorker`, modified `handleUpdate` and `RunRouteServer`
+- `internal/component/bgp/plugins/rs/propagation_test.go` — 3 new worker tests, 1 replaced ordering test

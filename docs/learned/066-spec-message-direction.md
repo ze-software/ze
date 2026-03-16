@@ -20,6 +20,6 @@ Add `direction` ("sent"/"received") to BGP message API output for OPEN, NOTIFICA
 ## Files
 
 - `internal/reactor/session.go` — MessageCallback signature, pass "sent"/"received" at call sites
-- `internal/plugin/types.go` — `Direction string` field in RawMessage
-- `internal/plugin/text.go` — `FormatOpen`, `FormatNotification`, `FormatKeepalive` use direction
-- `internal/plugin/server.go` — pass `msg.Direction` to formatters
+- `internal/component/plugin/types.go` — `Direction string` field in RawMessage
+- `internal/component/plugin/text.go` — `FormatOpen`, `FormatNotification`, `FormatKeepalive` use direction
+- `internal/component/plugin/server.go` — pass `msg.Direction` to formatters

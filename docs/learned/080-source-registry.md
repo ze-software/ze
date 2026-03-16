@@ -23,5 +23,5 @@ Create a compact source registry assigning `uint32` IDs to message sources (peer
 
 - `internal/source/source.go` — SourceID, SourceType, Source types
 - `internal/source/registry.go` — thread-safe registry
-- `internal/plugin/wire_update.go` — sourceID field, SetSourceID()
+- `internal/component/plugin/wire_update.go` — sourceID field, SetSourceID()
 - `internal/reactor/peer.go` — peer registration at creation

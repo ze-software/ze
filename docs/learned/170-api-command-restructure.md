@@ -26,8 +26,8 @@ Restructure the IPC command namespace into `plugin`, `bgp`, `rib`, and `system` 
 
 ## Files
 
-- `internal/plugin/handler.go` — restructured dispatch
-- `internal/plugin/session.go` — `plugin session` namespace
-- `internal/plugin/subscribe.go` — subscription handlers (new)
-- `internal/plugin/msgid.go`, `internal/plugin/forward.go` — removed (plugin-provided)
-- `internal/plugin/rib/rib.go` — registers `bgp cache` + `rib show/clear` commands
+- `internal/component/plugin/handler.go` — restructured dispatch
+- `internal/component/plugin/session.go` — `plugin session` namespace
+- `internal/component/plugin/subscribe.go` — subscription handlers (new)
+- `internal/component/plugin/msgid.go`, `internal/component/plugin/forward.go` — removed (plugin-provided)
+- `internal/component/plugin/rib/rib.go` — registers `bgp cache` + `rib show/clear` commands

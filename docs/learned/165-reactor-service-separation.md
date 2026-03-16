@@ -8,7 +8,7 @@ Refactor the monolithic reactor into a hub/orchestrator model where `ze` is a pr
 
 - Chose process-per-subsystem over in-process services: crash isolation, language freedom (BGP could be rewritten in Rust), per-process resource limits, independent debugging.
 - All plugins are equal peers — no "built-in" vs "third-party" distinction; all use identical 5-stage stdin/stdout protocol.
-- Two RIB packages coexist: `internal/plugin/bgp/rib/` for peer-to-peer route propagation (low-latency, inside `ze bgp`), and `internal/plugin/rib/` for Adj-RIB tracking and replay (separate `ze rib` process).
+- Two RIB packages coexist: `internal/component/bgp/rib/` for peer-to-peer route propagation (low-latency, inside `ze bgp`), and `internal/component/plugin/rib/` for Adj-RIB tracking and replay (separate `ze rib` process).
 - Config routing uses longest-prefix match on handler paths: `bgp.peer.capability.graceful-restart` → ze gr; `bgp.peer.timers` falls through to `bgp` prefix → ze bgp.
 - Hub does full config parsing (VyOS-style): parse entire file, validate against combined YANG schema, route JSON subtrees to correct processes.
 
@@ -25,6 +25,6 @@ Refactor the monolithic reactor into a hub/orchestrator model where `ze` is a pr
 
 ## Files
 
-- `internal/hub/` — hub orchestrator, process management, routing, config parsing
-- `internal/plugin/bgp/` — BGP engine moved from `internal/bgp/` and `internal/reactor/`
+- `internal/component/hub/` — hub orchestrator, process management, routing, config parsing
+- `internal/component/bgp/` — BGP engine moved from `internal/bgp/` and `internal/reactor/`
 - `cmd/ze/main.go`, `cmd/ze/bgp/main.go`

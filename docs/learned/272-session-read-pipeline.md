@@ -27,10 +27,10 @@ Eliminate three performance bottlenecks in the BGP session read path: 100ms dead
 
 ## Files
 
-- `internal/plugins/bgp/reactor/delivery.go` — `deliveryItem` struct + `deliveryChannelCapacity` (created)
-- `internal/plugins/bgp/reactor/peer.go` — `deliverChan` field + lifecycle in `runOnce`
-- `internal/plugins/bgp/reactor/reactor.go` — async enqueue in `notifyMessageReceiver`
-- `internal/plugins/bgp/reactor/session.go`, `listener.go` — close-on-cancel
-- `internal/plugins/bgp/server/events.go` — parallel fan-out + pre-format map
-- `internal/plugins/bgp/server/events_test.go` — 3 Phase 2 tests (created)
-- `internal/plugins/bgp/reactor/reactor_test.go` — 7 Phase 3 tests added
+- `internal/component/bgp/reactor/delivery.go` — `deliveryItem` struct + `deliveryChannelCapacity` (created)
+- `internal/component/bgp/reactor/peer.go` — `deliverChan` field + lifecycle in `runOnce`
+- `internal/component/bgp/reactor/reactor.go` — async enqueue in `notifyMessageReceiver`
+- `internal/component/bgp/reactor/session.go`, `listener.go` — close-on-cancel
+- `internal/component/bgp/server/events.go` — parallel fan-out + pre-format map
+- `internal/component/bgp/server/events_test.go` — 3 Phase 2 tests (created)
+- `internal/component/bgp/reactor/reactor_test.go` — 7 Phase 3 tests added

@@ -26,9 +26,9 @@ Eliminate text serialize→deserialize overhead for DirectBridge consumers (bgp-
 
 ## Files
 
-- `internal/plugins/bgp/server/events.go` — all three event functions rewritten
-- `internal/plugins/bgp-rs/server.go` — structured path fully rewritten with wire types
-- `internal/plugin/process_delivery.go` — `Event any` field added to `EventDelivery`
+- `internal/component/bgp/server/events.go` — all three event functions rewritten
+- `internal/component/bgp/plugins/rs/server.go` — structured path fully rewritten with wire types
+- `internal/component/plugin/process_delivery.go` — `Event any` field added to `EventDelivery`
 - `pkg/plugin/rpc/bridge.go` — `StructuredUpdate` type added
-- `internal/plugin/process.go` — `HasStructuredHandler()` added
-- `internal/plugins/bgp/format/structured.go` — deleted (eager approach)
+- `internal/component/plugin/process.go` — `HasStructuredHandler()` added
+- `internal/component/bgp/format/structured.go` — deleted (eager approach)

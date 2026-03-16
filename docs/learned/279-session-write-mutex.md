@@ -22,5 +22,5 @@ Fix a data race on `Session.writeBuf` that caused the `fast.ci` functional test 
 
 ## Files
 
-- `internal/plugins/bgp/reactor/session.go` — `writeMu` field + lock in `writeMessage`, `SendUpdate`, `SendAnnounce`, `SendWithdraw`, `SendRawUpdateBody`, `SendRawMessage`, `negotiateWith`
-- `internal/plugins/bgp/reactor/session_test.go` — `TestSendUpdateConcurrentNoRace` (10 goroutines × 50 sends, `-race`)
+- `internal/component/bgp/reactor/session.go` — `writeMu` field + lock in `writeMessage`, `SendUpdate`, `SendAnnounce`, `SendWithdraw`, `SendRawUpdateBody`, `SendRawMessage`, `negotiateWith`
+- `internal/component/bgp/reactor/session_test.go` — `TestSendUpdateConcurrentNoRace` (10 goroutines × 50 sends, `-race`)

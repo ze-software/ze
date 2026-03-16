@@ -28,7 +28,7 @@ Eliminate JSON serialization and socket I/O overhead for internal plugins by rep
 ## Files
 
 - `pkg/plugin/rpc/bridge.go` — `DirectBridge`, `BridgedConn`, `Bridger` interface
-- `internal/plugin/process.go` — bridge field, startInternal() creates bridge, deliverBatch() uses bridge
-- `internal/plugin/server_dispatch.go` — direct handler extraction, `wireBridgeDispatch()`
-- `internal/plugin/server_startup.go` — `wireBridgeDispatch` call before Stage 5 OK
+- `internal/component/plugin/process.go` — bridge field, startInternal() creates bridge, deliverBatch() uses bridge
+- `internal/component/plugin/server_dispatch.go` — direct handler extraction, `wireBridgeDispatch()`
+- `internal/component/plugin/server_startup.go` — `wireBridgeDispatch` call before Stage 5 OK
 - `pkg/plugin/sdk/sdk.go` — bridge discovery, `callEngineRaw()` uses bridge when ready

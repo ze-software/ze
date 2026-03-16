@@ -28,6 +28,6 @@ Replace the single global BGP listener (+ `TCP.Bind` env var) with per-peer list
 ## Files
 
 - `internal/reactor/reactor.go` — `listeners map[netip.Addr]*Listener`, `startListenerForAddress()`, `handleConnectionWithContext()`
-- `internal/config/environment.go` — removed `TCPEnv.Bind`
+- `internal/component/config/environment.go` — removed `TCPEnv.Bind`
 - `internal/reactor/peersettings.go` — `LocalAddress` documented as required
-- `internal/config/loader.go` — validation for missing/invalid `LocalAddress`
+- `internal/component/config/loader.go` — validation for missing/invalid `LocalAddress`

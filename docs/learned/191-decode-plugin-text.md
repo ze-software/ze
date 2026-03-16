@@ -19,7 +19,7 @@ Extend the decode protocol to support native text output from plugins (`decode t
 
 ## Files
 
-- `internal/plugins/bgp/decode/` — protocol extension, text response type
-- `internal/plugins/hostname/` — text formatter
-- `internal/plugins/flowspec/` — text formatter
+- `internal/component/bgp/decode/` — protocol extension, text response type
+- `internal/component/bgp/plugins/hostname/` — text formatter
+- `internal/component/bgp/plugins/nlri/flowspec/` — text formatter
 - `test/decode/` — .ci files with cmd= prefix

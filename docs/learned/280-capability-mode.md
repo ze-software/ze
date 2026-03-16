@@ -26,10 +26,10 @@ Add `require` and `refuse` enforcement modes to all BGP capabilities, unifying t
 
 ## Files
 
-- `internal/plugins/bgp/reactor/config.go` — `capMode`, `applyCapMode`, `parseCapabilitiesFromTree`, `parseAddPathFromTree` with mode support
-- `internal/plugins/bgp/reactor/peersettings.go` — `RequiredCapabilities`, `RefusedCapabilities` fields
-- `internal/plugins/bgp/capability/negotiated.go` — `peerCodes`, `CheckRequiredCodes`, `CheckRefusedCodes`
-- `internal/plugins/bgp/reactor/session.go` — `validateCapabilityModes` helper, enforcement in `processOpen`/`handleOpen`
+- `internal/component/bgp/reactor/config.go` — `capMode`, `applyCapMode`, `parseCapabilitiesFromTree`, `parseAddPathFromTree` with mode support
+- `internal/component/bgp/reactor/peersettings.go` — `RequiredCapabilities`, `RefusedCapabilities` fields
+- `internal/component/bgp/capability/negotiated.go` — `peerCodes`, `CheckRequiredCodes`, `CheckRefusedCodes`
+- `internal/component/bgp/reactor/session.go` — `validateCapabilityModes` helper, enforcement in `processOpen`/`handleOpen`
 - `internal/component/config/schema.go` — `TypeBool` accepts require/refuse
 - `internal/test/peer/peer.go` — `CapabilityOverride`, `applyCapabilityOverrides`, drop/add-capability
 - `test/encode/cap-require-asn4.ci`, `test/encode/cap-refuse-asn4.ci` — functional tests

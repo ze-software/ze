@@ -32,7 +32,7 @@ if !kept: s.returnReadBuffer(buf) ← Return only if not cached
 
 **Buffer pools (size-appropriate):**
 ```go
-// internal/plugins/bgp/reactor/session.go
+// internal/component/bgp/reactor/session.go
 var readBufPool4K = sync.Pool{...}   // 4096 bytes (before Extended Message)
 var readBufPool64K = sync.Pool{...}  // 65535 bytes (after Extended Message)
 
@@ -40,20 +40,20 @@ func ReturnReadBuffer(buf []byte)    // Exported for cache eviction
 ```
 
 **Files involved:**
-- `internal/plugins/bgp/reactor/session.go` - `getReadBuffer()`, `returnReadBuffer()`, `ReturnReadBuffer()`, `readAndProcessMessage()`, `processMessage()`
-- `internal/plugin/wire_update.go` - `WireUpdate` struct with derived accessors
-- `internal/plugins/bgp/reactor/reactor.go` - `notifyMessageReceiver()` takes buf ownership when caching
-- `internal/plugins/bgp/reactor/recent_cache.go` - Returns buf to pool on eviction
+- `internal/component/bgp/reactor/session.go` - `getReadBuffer()`, `returnReadBuffer()`, `ReturnReadBuffer()`, `readAndProcessMessage()`, `processMessage()`
+- `internal/component/plugin/wire_update.go` - `WireUpdate` struct with derived accessors
+- `internal/component/bgp/reactor/reactor.go` - `notifyMessageReceiver()` takes buf ownership when caching
+- `internal/component/bgp/reactor/recent_cache.go` - Returns buf to pool on eviction
 
 **Key types:**
 ```go
-// internal/plugin/wire_update.go
+// internal/component/plugin/wire_update.go
 type WireUpdate struct {
     payload     []byte           // UPDATE body (slice into pool buffer)
     sourceCtxID bgpctx.ContextID
 }
 
-// internal/plugins/bgp/reactor/received_update.go
+// internal/component/bgp/reactor/received_update.go
 type ReceivedUpdate struct {
     WireUpdate   *api.WireUpdate  // Slices into poolBuf
     poolBuf      []byte           // Returned to pool on eviction
@@ -104,10 +104,10 @@ Config/API → Domain Object → *Params → UpdateBuilder.Build*() → Update
 ```
 
 **Files involved:**
-- `internal/config/loader.go` - Config parsing, creates domain objects
-- `internal/plugins/bgp/reactor/peersettings.go` - Domain objects (FlowSpecRoute, StaticRoute, etc.)
-- `internal/plugins/bgp/reactor/peer.go` - Conversion functions (toFlowSpecParams, etc.)
-- `internal/plugins/bgp/message/update_build.go` - UpdateBuilder, *Params structs, Build*() methods
+- `internal/component/config/loader.go` - Config parsing, creates domain objects
+- `internal/component/bgp/reactor/peersettings.go` - Domain objects (FlowSpecRoute, StaticRoute, etc.)
+- `internal/component/bgp/reactor/peer.go` - Conversion functions (toFlowSpecParams, etc.)
+- `internal/component/bgp/message/update_build.go` - UpdateBuilder, *Params structs, Build*() methods
 
 **Flow example (FlowSpec):**
 ```go
@@ -140,8 +140,8 @@ Receive UPDATE → Parse → Route{wireBytes, sourceCtxID} → Forward
 ```
 
 **Files involved:**
-- `internal/plugins/bgp/rib/route.go` - Route struct with wireBytes cache
-- `internal/plugins/bgp/context/` - EncodingContext, ContextID, Registry
+- `internal/component/bgp/rib/route.go` - Route struct with wireBytes cache
+- `internal/component/bgp/context/` - EncodingContext, ContextID, Registry
 - `ENCODING_CONTEXT.md` - Detailed context system docs
 
 **Flow example (route reflection):**
@@ -216,7 +216,7 @@ type FlowSpecParams struct {
 | *Params | Build UPDATE message | `FlowSpecParams`, `UnicastParams` |
 | Update | Wire format container | `Update{PathAttributes []byte}` |
 
-**Conversion functions in `internal/plugins/bgp/reactor/peer.go`:**
+**Conversion functions in `internal/component/bgp/reactor/peer.go`:**
 ```go
 func toFlowSpecParams(r FlowSpecRoute) message.FlowSpecParams
 func toStaticRouteUnicastParams(r StaticRoute, nf bool) message.UnicastParams
@@ -277,10 +277,10 @@ adj-rib-out Routes → GroupByAttributesTwoLevel() → ASPathGroups → BuildGro
 | IPv6/VPN | `sendGroupedMPFamily()` | Packs into MP_REACH_NLRI |
 
 **Files involved:**
-- `internal/plugins/bgp/rib/grouping.go` - `GroupByAttributesTwoLevel()`, `RouteGroup`, `ASPathGroup`
-- `internal/plugins/bgp/reactor/reactor.go` - `sendRoutesWithLimit()`, `sendGroupedIPv4Unicast()`, `sendGroupedMPFamily()`
-- `internal/plugins/bgp/message/update_build.go` - `BuildGroupedUnicastWithLimit()`
-- `internal/plugins/bgp/message/chunk_mp_nlri.go` - `ChunkMPNLRI()` for MP family splitting
+- `internal/component/bgp/rib/grouping.go` - `GroupByAttributesTwoLevel()`, `RouteGroup`, `ASPathGroup`
+- `internal/component/bgp/reactor/reactor.go` - `sendRoutesWithLimit()`, `sendGroupedIPv4Unicast()`, `sendGroupedMPFamily()`
+- `internal/component/bgp/message/update_build.go` - `BuildGroupedUnicastWithLimit()`
+- `internal/component/bgp/message/chunk_mp_nlri.go` - `ChunkMPNLRI()` for MP family splitting
 
 **Config:** `group-updates true` (default) in peer settings.
 
@@ -352,9 +352,9 @@ peer.sendUpdateWithSplit(update, maxSize, family)
 > to non-Extended Message peers. See `docs/learned/078-wireupdate-split.md`.
 
 **Files involved:**
-- `internal/plugins/bgp/message/update_split.go` - `SplitUpdate()`, `SplitUpdateWithAddPath()`
-- `internal/plugins/bgp/message/chunk_mp_nlri.go` - `ChunkMPNLRI()` for family-aware NLRI parsing
-- `internal/plugins/bgp/reactor/peer.go` - `sendUpdateWithSplit()` integration
+- `internal/component/bgp/message/update_split.go` - `SplitUpdate()`, `SplitUpdateWithAddPath()`
+- `internal/component/bgp/message/chunk_mp_nlri.go` - `ChunkMPNLRI()` for family-aware NLRI parsing
+- `internal/component/bgp/reactor/peer.go` - `sendUpdateWithSplit()` integration
 
 **NLRI formats handled by ChunkMPNLRI:**
 | SAFI | Format |

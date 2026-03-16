@@ -23,5 +23,5 @@ Implement the reload coordinator that orchestrates the verify→apply two-phase 
 
 ## Files
 
-- `internal/plugin/coordinator/` — reload coordinator implementation
-- `internal/plugin/coordinator/diff.go` — local diffMaps (duplicated from config package)
+- `internal/component/plugin/coordinator/` — reload coordinator implementation
+- `internal/component/plugin/coordinator/diff.go` — local diffMaps (duplicated from config package)

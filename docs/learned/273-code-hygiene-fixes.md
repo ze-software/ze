@@ -24,7 +24,7 @@ Fix plugin import violations, MUP helper duplication, and a naming collision in 
 
 ## Files
 
-- `internal/plugins/bgp-nlri-mup/helpers.go` — `WriteMUPPrefix`, `MUPPrefixLen`, `TEIDFieldLen` (created)
-- `internal/plugins/bgp/reactor/reactor.go`, `internal/component/config/loader.go`, `peers.go` — updated
+- `internal/component/bgp/plugins/nlri/mup/helpers.go` — `WriteMUPPrefix`, `MUPPrefixLen`, `TEIDFieldLen` (created)
+- `internal/component/bgp/reactor/reactor.go`, `internal/component/config/loader.go`, `peers.go` — updated
 - `.golangci.yml` — v1→v2 migration (`linters-settings:` → `linters.settings:`)
 - 150+ files — gosec G115, gocritic, gofmt, octal literal, errcheck fixes

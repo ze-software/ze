@@ -441,7 +441,7 @@ Format: GlobalAdmin:LocalData1:LocalData2 (e.g., 4294967295:100:200)
 
 ### Attribute Interface
 
-Defined in `internal/plugins/bgp/attribute/attribute.go`:
+Defined in `internal/component/bgp/attribute/attribute.go`:
 
 ```go
 type Attribute interface {
@@ -469,7 +469,7 @@ const (
 
 ### WireWriter Interface
 
-Defined in `internal/plugins/bgp/context/context.go` - used by messages, not directly embedded by Attribute:
+Defined in `internal/component/bgp/context/context.go` - used by messages, not directly embedded by Attribute:
 
 ```go
 type WireWriter interface {
@@ -480,7 +480,7 @@ type WireWriter interface {
 
 ### Attribute Parsing
 
-Parsing uses `AttributesWire` (lazy parsing, `internal/plugins/bgp/attribute/wire.go`) or `ParseAttributes` (`internal/plugin/rib/storage/attrparse.go`).
+Parsing uses `AttributesWire` (lazy parsing, `internal/component/bgp/attribute/wire.go`) or `ParseAttributes` (`internal/component/plugin/rib/storage/attrparse.go`).
 
 Simplified parsing logic (pseudocode):
 

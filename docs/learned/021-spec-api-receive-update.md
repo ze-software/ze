@@ -22,6 +22,6 @@ Forward received BGP UPDATEs to API processes that have opted in via `api { rece
 ## Files
 
 - `internal/reactor/session.go` — handleUpdate() hook for forwarding
-- `internal/plugin/process.go` — WriteEvent() for sending to process stdin
-- `internal/plugin/types.go` — ProcessConfig.ReceiveUpdate field
+- `internal/component/plugin/process.go` — WriteEvent() for sending to process stdin
+- `internal/component/plugin/types.go` — ProcessConfig.ReceiveUpdate field
 - `internal/reactor/reactor.go` — APIProcessConfig.ReceiveUpdate, ForwardUpdate()

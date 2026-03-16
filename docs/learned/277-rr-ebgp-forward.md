@@ -25,9 +25,9 @@ Make the reactor's `ForwardUpdate` RFC 4271-compliant by prepending the local AS
 
 ## Files
 
-- `internal/plugins/bgp/wireu/aspath_rewrite.go` — `RewriteASPath` byte-patching function (135 lines)
-- `internal/plugins/bgp/wireu/aspath_rewrite_test.go` — 10 unit tests + fuzz
-- `internal/plugins/bgp/reactor/received_update.go` — EBGP fields + `EBGPWire()` + `getReadBuf()`
-- `internal/plugins/bgp/reactor/received_update_test.go` — 4 EBGP wire tests
-- `internal/plugins/bgp/reactor/recent_cache.go` — EBGP pool buffer returns in evict/delete/safety
-- `internal/plugins/bgp/reactor/reactor.go` — `ForwardUpdate` IBGP/EBGP branching
+- `internal/component/bgp/wireu/aspath_rewrite.go` — `RewriteASPath` byte-patching function (135 lines)
+- `internal/component/bgp/wireu/aspath_rewrite_test.go` — 10 unit tests + fuzz
+- `internal/component/bgp/reactor/received_update.go` — EBGP fields + `EBGPWire()` + `getReadBuf()`
+- `internal/component/bgp/reactor/received_update_test.go` — 4 EBGP wire tests
+- `internal/component/bgp/reactor/recent_cache.go` — EBGP pool buffer returns in evict/delete/safety
+- `internal/component/bgp/reactor/reactor.go` — `ForwardUpdate` IBGP/EBGP branching

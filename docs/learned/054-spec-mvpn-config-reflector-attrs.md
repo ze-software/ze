@@ -22,6 +22,6 @@ Expose the OriginatorID and ClusterList fields added to MVPNRoute (spec-053) at 
 
 ## Files
 
-- `internal/config/bgp.go` — MVPNRouteConfig (added OriginatorID, ClusterList string fields)
-- `internal/config/loader.go` — `convertMVPNRoute()` (added parsing following VPLSRoute pattern)
-- `internal/config/loader_test.go` — 4 new conversion tests
+- `internal/component/config/bgp.go` — MVPNRouteConfig (added OriginatorID, ClusterList string fields)
+- `internal/component/config/loader.go` — `convertMVPNRoute()` (added parsing following VPLSRoute pattern)
+- `internal/component/config/loader_test.go` — 4 new conversion tests

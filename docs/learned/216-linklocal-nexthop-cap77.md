@@ -19,5 +19,5 @@ Implement RFC 5549 / Capability 77 (Extended Next-Hop Encoding) as a plugin, all
 
 ## Files
 
-- `internal/plugins/bgp-llnh/` — link-local next-hop plugin
-- `internal/plugins/bgp-llnh/register.go` — plugin registration with capability code 5 (Extended Next-Hop)
+- `internal/component/bgp/plugins/llnh/` — link-local next-hop plugin
+- `internal/component/bgp/plugins/llnh/register.go` — plugin registration with capability code 5 (Extended Next-Hop)

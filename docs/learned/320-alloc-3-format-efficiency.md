@@ -25,5 +25,5 @@ Eliminate per-call heap allocations in the text formatting hot path by replacing
 
 ## Files
 
-- `internal/plugins/bgp/format/text.go` — hot-path formatting rewrites
-- `internal/plugins/bgp/nlri/inet.go` — `AppendKey`, `AppendString` methods added
+- `internal/component/bgp/format/text.go` — hot-path formatting rewrites
+- `internal/component/bgp/nlri/inet.go` — `AppendKey`, `AppendString` methods added

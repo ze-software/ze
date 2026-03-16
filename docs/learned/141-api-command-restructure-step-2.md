@@ -20,7 +20,7 @@ None.
 
 ## Files
 
-- `internal/plugin/plugin.go` — `RegisterPluginHandlers()`, introspection handlers
-- `internal/plugin/session.go` — `handlePluginSession*` handlers, old session handlers removed
-- `internal/plugin/handler.go` — `RegisterPluginHandlers()` call added
-- `internal/plugin/rib/rib.go` — `session api ready` → `plugin session ready`
+- `internal/component/plugin/plugin.go` — `RegisterPluginHandlers()`, introspection handlers
+- `internal/component/plugin/session.go` — `handlePluginSession*` handlers, old session handlers removed
+- `internal/component/plugin/handler.go` — `RegisterPluginHandlers()` call added
+- `internal/component/plugin/rib/rib.go` — `session api ready` → `plugin session ready`

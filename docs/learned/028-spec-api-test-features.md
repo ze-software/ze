@@ -21,6 +21,6 @@ Implement remaining API features (teardown, notification, watchdog) to reach Exa
 
 ## Files
 
-- `internal/plugin/command.go` — teardown handler
-- `internal/plugin/watchdog.go` — watchdog subsystem
+- `internal/component/plugin/command.go` — teardown handler
+- `internal/component/plugin/watchdog.go` — watchdog subsystem
 - `internal/reactor/reactor.go` — teardown/watchdog integration

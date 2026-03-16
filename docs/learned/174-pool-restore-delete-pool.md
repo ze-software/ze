@@ -26,4 +26,4 @@ Restore the delete-pool implementation, add double-buffer non-blocking compactio
 - `internal/pool/handle.go` — hybrid handle layout: bufferBit + poolIdx(5) + flags + slot
 - `internal/pool/pool.go` — double-buffer, AddRef, GetBySlot, ReleaseBySlot, StartCompaction, MigrateBatch
 - `internal/pool/attributes.go` — global pools: Attributes (idx=0, 1MB), NLRI (idx=1, 256KB)
-- `internal/plugin/rib/storage/nlriset.go` — fixed swap-remove index corruption bug
+- `internal/component/plugin/rib/storage/nlriset.go` — fixed swap-remove index corruption bug

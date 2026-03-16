@@ -23,4 +23,4 @@ Fix flaky plugin stage tests where the barrier timeout fired before all plugins 
 
 ## Files
 
-- `internal/plugin/` — stage timeout barrier logic
+- `internal/component/plugin/` — stage timeout barrier logic

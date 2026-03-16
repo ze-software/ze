@@ -31,7 +31,7 @@ Add a text-format alternative for the 5-stage JSON-RPC plugin handshake, auto-de
 - `pkg/plugin/rpc/text_conn.go` (created, 182L) — `TextConn`, `PeekMode`, `peekConn`
 - `pkg/plugin/rpc/text_mux.go` (created, 155L) — `TextMuxConn` with `#N` serial prefix
 - `pkg/plugin/sdk/sdk_text.go` (created, 234L) — text startup, event loop, close
-- `internal/plugin/subsystem_text.go` (created, 117L) — engine-side subsystem text handshake
-- `internal/plugin/server_startup_text.go` (created, 247L) — server text handshake with barriers
+- `internal/component/plugin/subsystem_text.go` (created, 117L) — engine-side subsystem text handshake
+- `internal/component/plugin/server_startup_text.go` (created, 247L) — server text handshake with barriers
 - `cmd/ze-test/text_plugin.go` (created) — minimal text-mode plugin test binary
 - `test/plugin/text-handshake.ci` (created) — end-to-end functional test

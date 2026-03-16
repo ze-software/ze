@@ -2,7 +2,7 @@
 
 ## Objective
 
-Extract all non-INET NLRI types from `internal/plugins/bgp/nlri/` into 9 self-contained `bgp-nlri-*` plugins (4 tiers), leaving the core `nlri/` as a slim shared-types library with only 4 INET families native.
+Extract all non-INET NLRI types from `internal/component/bgp/nlri/` into 9 self-contained `bgp-nlri-*` plugins (4 tiers), leaving the core `nlri/` as a slim shared-types library with only 4 INET families native.
 
 ## Decisions
 
@@ -27,8 +27,8 @@ Extract all non-INET NLRI types from `internal/plugins/bgp/nlri/` into 9 self-co
 
 ## Files
 
-- `internal/plugins/bgp/nlri/` — slim library: `nlri.go`, `inet.go`, `base.go`, `iterator.go`, `wire.go`, `rd.go`, `constants.go`, `helpers.go`
-- `internal/plugins/bgp-nlri-evpn/`, `bgp-nlri-flowspec/`, `bgp-nlri-vpn/`, `bgp-nlri-ls/` — renamed from old names
-- `internal/plugins/bgp-nlri-labeled/`, `bgp-nlri-mvpn/`, `bgp-nlri-vpls/`, `bgp-nlri-rtc/`, `bgp-nlri-mup/` — 5 new plugins
-- `internal/plugins/bgp/message/common_attrs.go` — exported `CommonAttrs` + `ExtractAttrsFromWire`
+- `internal/component/bgp/nlri/` — slim library: `nlri.go`, `inet.go`, `base.go`, `iterator.go`, `wire.go`, `rd.go`, `constants.go`, `helpers.go`
+- `internal/component/bgp/plugins/nlri/evpn/`, `bgp-nlri-flowspec/`, `bgp-nlri-vpn/`, `bgp-nlri-ls/` — renamed from old names
+- `internal/component/bgp/plugins/nlri/labeled/`, `bgp-nlri-mvpn/`, `bgp-nlri-vpls/`, `bgp-nlri-rtc/`, `bgp-nlri-mup/` — 5 new plugins
+- `internal/component/bgp/message/common_attrs.go` — exported `CommonAttrs` + `ExtractAttrsFromWire`
 - `cmd/ze/bgp/encode.go` — 253 lines, registry dispatch, zero `bgp-nlri-*` imports

@@ -24,7 +24,7 @@ Fix two bugs causing "rpc error: unknown command" in ze-chaos: (1) plugins with 
 
 ## Files
 
-- `internal/plugin/registry/registry.go` — TopologicalTiers() added
-- `internal/plugin/server_startup.go` — runPluginPhase refactored (single PM, per-tier coordinator, async handlers after all tiers)
-- `internal/plugin/types.go` and `internal/plugins/bgp/reactor/reactor.go` — Dependencies field added
-- `internal/plugins/bgp-adj-rib-in/rib.go` — OnExecuteCommand args passthrough fixed
+- `internal/component/plugin/registry/registry.go` — TopologicalTiers() added
+- `internal/component/plugin/server_startup.go` — runPluginPhase refactored (single PM, per-tier coordinator, async handlers after all tiers)
+- `internal/component/plugin/types.go` and `internal/component/bgp/reactor/reactor.go` — Dependencies field added
+- `internal/component/bgp/plugins/adj_rib_in/rib.go` — OnExecuteCommand args passthrough fixed

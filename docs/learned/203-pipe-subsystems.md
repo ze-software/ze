@@ -20,4 +20,4 @@ Run subsystems as forked processes communicating over pipes, replacing `init()` 
 ## Files
 
 - `cmd/ze-subsystem/` — single binary, --mode dispatch
-- `internal/plugin/process/` — subsystem fork + pipe management
+- `internal/component/plugin/process/` — subsystem fork + pipe management

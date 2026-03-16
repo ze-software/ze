@@ -21,4 +21,4 @@ Write functional tests proving the complete reload path works from SIGHUP throug
 ## Files
 
 - `test/` — functional test cases for config reload
-- `internal/plugins/bgp/reactor/server.go` — Session.Run() connection leak fix
+- `internal/component/bgp/reactor/server.go` — Session.Run() connection leak fix

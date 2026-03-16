@@ -265,13 +265,13 @@ When Extended Message capability is negotiated:
 Message embeds WireWriter for zero-allocation encoding:
 
 ```go
-// WireWriter in internal/plugins/bgp/context/context.go (not wire package due to import cycle)
+// WireWriter in internal/component/bgp/context/context.go (not wire package due to import cycle)
 type WireWriter interface {
     Len(ctx *EncodingContext) int
     WriteTo(buf []byte, off int, ctx *EncodingContext) int
 }
 
-// Message in internal/plugins/bgp/message/message.go
+// Message in internal/component/bgp/message/message.go
 type Message interface {
     context.WireWriter
     Type() MessageType

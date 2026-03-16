@@ -25,6 +25,6 @@ Add config option to limit which attributes are parsed and output in API message
 
 ## Files
 
-- `internal/plugin/filter.go` — AttributeFilter type, FilterMode enum, Apply()
-- `internal/plugin/types.go` — AttrsWire field in RawMessage, Attributes in ContentConfig
-- `internal/config/bgp.go` — PeerContentConfig.Attributes
+- `internal/component/plugin/filter.go` — AttributeFilter type, FilterMode enum, Apply()
+- `internal/component/plugin/types.go` — AttrsWire field in RawMessage, Attributes in ContentConfig
+- `internal/component/config/bgp.go` — PeerContentConfig.Attributes

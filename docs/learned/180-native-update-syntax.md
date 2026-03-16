@@ -23,6 +23,6 @@ Add `update { attribute { } nlri { } }` config syntax as Ze's native replacement
 
 ## Files
 
-- `internal/plugin/bgp/schema/ze-bgp.yang` — added `list update` with `attribute` and `nlri` containers
+- `internal/component/bgp/schema/ze-bgp.yang` — added `list update` with `attribute` and `nlri` containers
 - `internal/component/config/bgp.go` — `extractRoutesFromUpdateBlock()`, `applyAttributesFromTree()` shared helper
 - `internal/component/config/bgp_test.go` — 11 unit tests

@@ -2,7 +2,7 @@
 
 ## Objective
 
-Extract 30 BGP-specific types from `internal/plugin/types.go` into `internal/plugins/bgp/types/` as phase 3 of the plugin restructure.
+Extract 30 BGP-specific types from `internal/component/plugin/types.go` into `internal/component/bgp/types/` as phase 3 of the plugin restructure.
 
 ## Decisions
 
@@ -19,5 +19,5 @@ Extract 30 BGP-specific types from `internal/plugin/types.go` into `internal/plu
 
 ## Files
 
-- `internal/plugins/bgp/types/` — BGP-specific plugin types (30 types)
-- `internal/plugin/types.go` — now contains only generic plugin types
+- `internal/component/bgp/types/` — BGP-specific plugin types (30 types)
+- `internal/component/plugin/types.go` — now contains only generic plugin types

@@ -18,6 +18,6 @@ Replace the dual-field pattern (`NextHop netip.Addr` + `NextHopSelf bool`) with 
 
 ## Files
 
-- `internal/plugin/nexthop.go` — RouteNextHop, NextHopPolicy, constructors
+- `internal/component/plugin/nexthop.go` — RouteNextHop, NextHopPolicy, constructors
 - `internal/reactor/peer.go` — resolveNextHop(), canUseNextHopFor(), error vars
-- `internal/plugin/types.go`, `internal/reactor/peersettings.go` — dual-field pattern removed
+- `internal/component/plugin/types.go`, `internal/reactor/peersettings.go` — dual-field pattern removed

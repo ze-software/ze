@@ -153,9 +153,9 @@ Configured via: `environment { reactor { cache-max N; } }` or `ze_reactor_cache_
 
 | File | Purpose |
 |------|---------|
-| `internal/plugins/bgp/reactor/recent_cache.go` | Cache implementation (Add, Activate, Ack, eviction) |
+| `internal/component/bgp/reactor/recent_cache.go` | Cache implementation (Add, Activate, Ack, eviction) |
 | `internal/component/bgp/plugins/bgp-cmd-cache/cache.go` | Command dispatch (list, retain, release) |
-| `internal/plugins/bgp/server/events.go` | Event delivery + cache consumer filtering |
-| `internal/plugin/process.go` | `IsCacheConsumer()` / `SetCacheConsumer()` on Process |
-| `internal/plugin/server.go` | Stage 1 reads `cache-consumer` from registration |
+| `internal/component/bgp/server/events.go` | Event delivery + cache consumer filtering |
+| `internal/component/plugin/process.go` | `IsCacheConsumer()` / `SetCacheConsumer()` on Process |
+| `internal/component/plugin/server.go` | Stage 1 reads `cache-consumer` from registration |
 | `pkg/plugin/rpc/types.go` | `CacheConsumer` field on `DeclareRegistrationInput` |

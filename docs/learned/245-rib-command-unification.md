@@ -20,6 +20,6 @@ Unify two parallel RIB command sets by removing engine-side builtin data handler
 
 ## Files
 
-- `internal/plugins/bgp/handler/` — RIB command handlers removed
-- `internal/plugins/bgp-rib/` — plugin now owns RIB data commands
+- `internal/component/bgp/handler/` — RIB command handlers removed
+- `internal/component/bgp/plugins/rib/` — plugin now owns RIB data commands
 - `cmd/ze/cli/main_test.go` — command tree test updated

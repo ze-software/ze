@@ -21,7 +21,7 @@ Replace raw text as the config editor's source of truth with `config.Tree`, elim
 - `cmdDelete` was a stub in the original code (marked dirty but did nothing). Tree-canonical implementation made it actually work.
 
 ## Files
-- `internal/config/setparser.go` — `Tree.Delete(name)` added
-- `internal/config/editor/editor.go` — tree-canonical model, WalkPath, SetValue, DeleteValue, DeleteContainer, DeleteListEntry, DeleteByPath, ContentAtPath
-- `internal/config/editor/model_commands.go` — all commands rewritten, dead text-surgery code removed
-- `internal/config/editor/model_render.go` — `filterContentByContextPath` removed
+- `internal/component/config/setparser.go` — `Tree.Delete(name)` added
+- `internal/component/config/editor/editor.go` — tree-canonical model, WalkPath, SetValue, DeleteValue, DeleteContainer, DeleteListEntry, DeleteByPath, ContentAtPath
+- `internal/component/config/editor/model_commands.go` — all commands rewritten, dead text-surgery code removed
+- `internal/component/config/editor/model_render.go` — `filterContentByContextPath` removed

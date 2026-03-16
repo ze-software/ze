@@ -12,8 +12,8 @@
 **Re-read these after context compaction:**
 1. This spec file
 2. `docs/architecture/route-types.md` — current route type analysis
-3. `internal/plugin/types.go` — RouteSpec, PathAttributes, RIBRoute
-4. `internal/plugin/rib/rib.go` — plugin rib.Route
+3. `internal/component/plugin/types.go` — RouteSpec, PathAttributes, RIBRoute
+4. `internal/component/plugin/rib/rib.go` — plugin rib.Route
 
 ## Task
 
@@ -25,11 +25,11 @@ Consolidate multiple Route struct representations into a unified architecture. L
 
 | Struct | Location | Purpose | Issue |
 |--------|----------|---------|-------|
-| `RouteSpec` | `internal/plugin/types.go` | API input | Full attributes (parsed) |
-| `PathAttributes` | `internal/plugin/types.go` | Embedded attrs | Shared by RouteSpec, L3VPNRoute, etc. |
-| `rib.Route` | `internal/plugin/rib/rib.go` | Plugin storage | Full attributes as strings |
-| `rr.Route` | `internal/plugin/rr/rib.go` | Zero-copy | Minimal (MsgID, Family, Prefix) |
-| `RIBRoute` | `internal/plugin/types.go` | Query output | Minimal strings for JSON |
+| `RouteSpec` | `internal/component/plugin/types.go` | API input | Full attributes (parsed) |
+| `PathAttributes` | `internal/component/plugin/types.go` | Embedded attrs | Shared by RouteSpec, L3VPNRoute, etc. |
+| `rib.Route` | `internal/component/plugin/rib/rib.go` | Plugin storage | Full attributes as strings |
+| `rr.Route` | `internal/component/plugin/rr/rib.go` | Zero-copy | Minimal (MsgID, Family, Prefix) |
+| `RIBRoute` | `internal/component/plugin/types.go` | Query output | Minimal strings for JSON |
 | `rib.Route` | `internal/rib/route.go` | Core engine | NLRI, Attrs, wire cache, refcount |
 
 **Note:** Two different `rib.Route` types exist in different packages.
@@ -50,9 +50,9 @@ Consolidate multiple Route struct representations into a unified architecture. L
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must read BEFORE writing this spec)
-- [ ] `internal/plugin/types.go` - RouteSpec, PathAttributes, RIBRoute definitions
-- [ ] `internal/plugin/rib/rib.go` - plugin rib.Route definition
-- [ ] `internal/plugin/rr/rib.go` - rr.Route zero-copy definition
+- [ ] `internal/component/plugin/types.go` - RouteSpec, PathAttributes, RIBRoute definitions
+- [ ] `internal/component/plugin/rib/rib.go` - plugin rib.Route definition
+- [ ] `internal/component/plugin/rr/rib.go` - rr.Route zero-copy definition
 - [ ] `internal/rib/route.go` - core engine rib.Route definition
 
 **Behavior to preserve:**
@@ -132,7 +132,7 @@ Create unified `rib.Route` with view methods:
 
 **Question:** Given `docs/architecture/rib-transition.md` (RIB moves to API programs), should this consolidation:
 
-1. **Plugin-only** - Consolidate `internal/plugin/` routes only (RouteSpec, rib.Route, rr.Route, RIBRoute)
+1. **Plugin-only** - Consolidate `internal/component/plugin/` routes only (RouteSpec, rib.Route, rr.Route, RIBRoute)
 2. **Full** - Also include `internal/rib/route.go` (core engine Route)
 
 The RIB transition suggests plugin routes become the primary storage, making option 1 more relevant.
@@ -152,9 +152,9 @@ The RIB transition suggests plugin routes become the primary storage, making opt
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRouteForZeroCopy` | `internal/plugin/rib/route_test.go` | Zero-copy view | |
-| `TestRouteForAPI` | `internal/plugin/rib/route_test.go` | API view | |
-| `TestRouteMarshalJSON` | `internal/plugin/rib/route_test.go` | JSON encoding | |
+| `TestRouteForZeroCopy` | `internal/component/plugin/rib/route_test.go` | Zero-copy view | |
+| `TestRouteForAPI` | `internal/component/plugin/rib/route_test.go` | API view | |
+| `TestRouteMarshalJSON` | `internal/component/plugin/rib/route_test.go` | JSON encoding | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -166,9 +166,9 @@ The RIB transition suggests plugin routes become the primary storage, making opt
 
 ## Files to Modify
 
-- `internal/plugin/rib/rib.go` - Add view methods to Route
-- `internal/plugin/rr/rib.go` - Use rib.Route.ForZeroCopy()
-- `internal/plugin/types.go` - Possibly remove duplicate RIBRoute
+- `internal/component/plugin/rib/rib.go` - Add view methods to Route
+- `internal/component/plugin/rr/rib.go` - Use rib.Route.ForZeroCopy()
+- `internal/component/plugin/types.go` - Possibly remove duplicate RIBRoute
 - `internal/rib/route.go` - (if full scope) Align with plugin Route
 
 ### Integration Checklist

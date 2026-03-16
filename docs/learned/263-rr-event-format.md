@@ -22,5 +22,5 @@ Fix the route-reflector/route-server plugin's event parsing, which was completel
 
 ## Files
 
-- `internal/plugins/bgp-rr/server.go` — Rewritten Event struct, parseEvent, all 4 handlers
-- `internal/plugins/bgp-rr/server_test.go` — Rewritten with 21 tests, all parsing real ze-bgp JSON
+- `internal/component/bgp/plugins/rs/server.go` — Rewritten Event struct, parseEvent, all 4 handlers
+- `internal/component/bgp/plugins/rs/server_test.go` — Rewritten with 21 tests, all parsing real ze-bgp JSON

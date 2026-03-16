@@ -20,5 +20,5 @@ Add `config-verify` and `config-apply` RPC types to the plugin protocol so the r
 
 ## Files
 
-- `internal/plugin/server/` — RPC server with config-verify and config-apply handlers
+- `internal/component/plugin/server/` — RPC server with config-verify and config-apply handlers
 - `pkg/plugin/rpc/` — RPC type definitions

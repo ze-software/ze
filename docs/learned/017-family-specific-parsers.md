@@ -21,6 +21,6 @@ Add family-specific keyword validation to the API route parser so that invalid k
 
 ## Files
 
-- `internal/plugin/route_keywords.go` — UnicastKeywords, MPLSKeywords, VPNKeywords
-- `internal/plugin/route.go` — parseRouteAttributes(), parseLabeledUnicastAttributes(), parseL3VPNAttributes(), parseCommonAttribute()
-- `internal/plugin/route_parse_test.go`, `handler_test.go` — 40+ tests for keyword rejection
+- `internal/component/plugin/route_keywords.go` — UnicastKeywords, MPLSKeywords, VPNKeywords
+- `internal/component/plugin/route.go` — parseRouteAttributes(), parseLabeledUnicastAttributes(), parseL3VPNAttributes(), parseCommonAttribute()
+- `internal/component/plugin/route_parse_test.go`, `handler_test.go` — 40+ tests for keyword rejection

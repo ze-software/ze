@@ -21,8 +21,8 @@ None beyond cleanup.
 
 ## Files
 
-- `internal/plugin/types.go` — `ReactorInterface` deleted, 3 aliases deleted, `BGPHooks` callbacks widened to `any`
-- `internal/plugin/server.go` — `OnMessageReceived`/`OnMessageSent` params widened to `any`
-- `internal/plugins/bgp/server/hooks.go` — closures accept `any`, type-assert to `bgptypes.RawMessage`
-- `internal/plugins/bgp/reactor/reactor.go` — `MessageReceiver` interface widened, all `plugin.RawMessage` → `bgptypes.RawMessage`
-- `internal/plugin/mock_reactor_test.go` — 351 → 87 lines (all `BGPReactor` methods removed)
+- `internal/component/plugin/types.go` — `ReactorInterface` deleted, 3 aliases deleted, `BGPHooks` callbacks widened to `any`
+- `internal/component/plugin/server.go` — `OnMessageReceived`/`OnMessageSent` params widened to `any`
+- `internal/component/bgp/server/hooks.go` — closures accept `any`, type-assert to `bgptypes.RawMessage`
+- `internal/component/bgp/reactor/reactor.go` — `MessageReceiver` interface widened, all `plugin.RawMessage` → `bgptypes.RawMessage`
+- `internal/component/plugin/mock_reactor_test.go` — 351 → 87 lines (all `BGPReactor` methods removed)

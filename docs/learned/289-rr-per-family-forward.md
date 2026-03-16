@@ -27,6 +27,6 @@ Replace bgp-rr's synchronous single-goroutine OnEvent dispatcher with a per-sour
 
 ## Files
 
-- `internal/plugins/bgp-rr/worker.go` — lazy per-source-peer goroutines, backpressure, peer-down drain
-- `internal/plugins/bgp-rr/rib.go` — `peerRIB` type with per-peer `sync.Mutex`
-- `internal/plugins/bgp-rr/server.go` — thin `dispatch()` dispatcher, `processForward` in workers
+- `internal/component/bgp/plugins/rs/worker.go` — lazy per-source-peer goroutines, backpressure, peer-down drain
+- `internal/component/bgp/plugins/rs/rib.go` — `peerRIB` type with per-peer `sync.Mutex`
+- `internal/component/bgp/plugins/rs/server.go` — thin `dispatch()` dispatcher, `processForward` in workers

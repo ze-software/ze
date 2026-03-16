@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | deferred |
-| Depends | spec-rib-02 |
+| Depends | - |
 | Phase | - |
 | Updated | 2026-03-06 |
 
@@ -12,7 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file
 2. `docs/plan/spec-rib-02-adj-rib-in.md` — prerequisite spec
-3. `internal/plugins/bgp-rib/rib.go` - current bgp-rib (to be modified)
+3. `internal/component/bgp/plugins/rib/rib.go` - current bgp-rib (to be modified)
 4. `docs/architecture/pool-architecture.md` - current pool design
 
 ## Task
@@ -64,10 +64,10 @@ This is the fourth plugin in the RFC 4271 Section 3.2 architecture:
 ## Current Behavior (MANDATORY)
 
 **Source files read:** (must complete before implementation)
-- [ ] `internal/plugins/bgp-rib/rib.go` - RIBManager with ribInPool + ribOut
-- [ ] `internal/plugins/bgp-rib/storage/routeentry.go` - RouteEntry with per-attribute pool handles
-- [ ] `internal/plugins/bgp-rib/storage/familyrib.go` - per-family NLRI → RouteEntry
-- [ ] `internal/plugins/bgp-rib/pool/attributes.go` - 13 per-attribute-type pools
+- [ ] `internal/component/bgp/plugins/rib/rib.go` - RIBManager with ribInPool + ribOut
+- [ ] `internal/component/bgp/plugins/rib/storage/routeentry.go` - RouteEntry with per-attribute pool handles
+- [ ] `internal/component/bgp/plugins/rib/storage/familyrib.go` - per-family NLRI → RouteEntry
+- [ ] `internal/component/bgp/plugins/rib/pool/attributes.go` - 13 per-attribute-type pools
 - [ ] `internal/component/bgp/attrpool/` - generic pool implementation
 
 **Behavior to preserve:**
@@ -165,15 +165,15 @@ This is the fourth plugin in the RFC 4271 Section 3.2 architecture:
 
 ## Files to Modify
 
-- `internal/plugins/bgp-rib/rib.go` — remove ribInPool/ribOut, add candidate sets + best-path
-- `internal/plugins/bgp-rib/rib_commands.go` — update commands, add notification handlers
-- `internal/plugins/bgp-rib/register.go` — update command declarations
-- `internal/plugins/bgp-adj-rib-in/rib.go` — add notification dispatch on route add/remove
+- `internal/component/bgp/plugins/rib/rib.go` — remove ribInPool/ribOut, add candidate sets + best-path
+- `internal/component/bgp/plugins/rib/rib_commands.go` — update commands, add notification handlers
+- `internal/component/bgp/plugins/rib/register.go` — update command declarations
+- `internal/component/bgp/plugins/adj_rib_in/rib.go` — add notification dispatch on route add/remove
 
 ## Files to Create
 
-- `internal/plugins/bgp-rib/bestpath.go` — pure function best-path selection
-- `internal/plugins/bgp-rib/bestpath_test.go` — extensive tests for all criteria
+- `internal/component/bgp/plugins/rib/bestpath.go` — pure function best-path selection
+- `internal/component/bgp/plugins/rib/bestpath_test.go` — extensive tests for all criteria
 
 ### Integration Checklist
 | Integration Point | Needed? | File |

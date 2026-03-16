@@ -24,6 +24,6 @@ Create a FlowSpec NLRI plugin that handles decode/encode, then generalise the pa
 
 ## Files
 
-- `internal/plugins/flowspec/` — FlowSpec plugin implementation
-- `internal/plugin/registry/` — family lookup, auto-load logic
-- `internal/plugins/bgp/subsystem.go` — capability inference from declared families
+- `internal/component/bgp/plugins/nlri/flowspec/` — FlowSpec plugin implementation
+- `internal/component/plugin/registry/` — family lookup, auto-load logic
+- `internal/component/bgp/subsystem.go` — capability inference from declared families

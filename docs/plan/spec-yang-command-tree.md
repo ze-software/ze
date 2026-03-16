@@ -2,8 +2,8 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
-| Depends | spec-yang-analysis |
+| Status | ready |
+| Depends | - |
 | Phase | - |
 | Updated | 2026-03-16 |
 
@@ -12,7 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `docs/plan/spec-yang-analysis.md` - sibling spec (analysis tool)
+3. `docs/learned/394-yang-analysis.md` - sibling spec learned summary (analysis tool)
 4. `internal/component/config/yang/modules/ze-extensions.yang` - current extensions
 5. `internal/component/plugin/server/handler.go` - RPCRegistration struct
 6. `internal/component/command/node.go` - current BuildTree
@@ -60,7 +60,7 @@ Not applicable -- this is CLI/YANG architecture, not protocol work.
 - Current `editModeCommands` map in `model_mode.go:97-103` hardcodes 15 keywords. These should be derivable from YANG.
 - `RPCRegistration` has both `WireMethod` (for dispatch) and `CLICommand` (for tree building). After this spec, `CLICommand` is derived from YANG path. `WireMethod` stays for dispatch.
 - `BuildTree()` currently strips `"bgp "` prefix from CLICommand strings. After this spec, the YANG tree already has the right hierarchy -- no prefix stripping needed.
-- 54 RPCRegistrations currently exist (counted from grep).
+- ~~54 RPCRegistrations currently exist (counted from grep).~~ Superseded: 57 RPCRegistrations across 15 handler files (audited 2026-03-16).
 
 ## Current Behavior (MANDATORY)
 
@@ -72,7 +72,90 @@ Not applicable -- this is CLI/YANG architecture, not protocol work.
 - [ ] `internal/component/cli/completer.go` - `Completer` walks `*gyang.Entry.Dir` for config. `mergedRoot()` combines 3 conf modules. `confModules = ["ze-bgp-conf", "ze-hub-conf", "ze-plugin-conf"]`.
 - [ ] `internal/component/cli/completer_command.go` - `CommandCompleter` wraps `command.TreeCompleter`, converts `command.Suggestion` to `cli.Completion`.
 - [ ] `internal/component/config/yang/modules/ze-extensions.yang` - 6 extensions: `syntax`, `key-type`, `route-attributes`, `allow-unknown-fields`, `sensitive`, `validate`.
-- [ ] `internal/component/bgp/schema/ze-bgp-api.yang` - 25 flat RPCs: `help`, `command-list`, `command-help`, `command-complete`, `plugin-encoding`, `plugin-format`, `plugin-ack`, `peer-list`, `peer-show`, `summary`, `peer-show-capabilities`, `peer-show-statistics`, `peer-clear-soft`, `peer-add`, `peer-remove`, `peer-teardown`, `peer-update`, `peer-borr`, `peer-eorr`, `peer-raw`, `cache`, `commit`, `subscribe`, `unsubscribe`, `event-list`.
+- [ ] ~~`internal/component/bgp/schema/ze-bgp-api.yang` - 25 flat RPCs~~ Superseded: 15 YANG API modules with 57 wired RPCRegistrations across per-concern plugins. See full inventory below.
+
+**YANG API Module Inventory (audited 2026-03-16):**
+
+| Module | Path | RPCs | WireMethod prefix | Handler location |
+|--------|------|------|-------------------|------------------|
+| `ze-system-api` | `internal/core/ipc/schema/` | 11 | `ze-system:` | `plugin/server/system.go` |
+| `ze-plugin-api` | `internal/core/ipc/schema/` | 8 | `ze-plugin:` | `plugin/server/session.go`, `plugin_rpc.go` |
+| `ze-bgp-api` | `bgp/schema/` | 46 | `ze-bgp:` | Distributed across `cmd/*` plugins |
+| `ze-bgp-cmd-peer-api` | `bgp/plugins/cmd/peer/schema/` | 11 | `ze-bgp:` | `cmd/peer/peer.go`, `summary.go` |
+| `ze-bgp-cmd-meta-api` | `bgp/plugins/cmd/meta/schema/` | 8 | `ze-bgp:` | `cmd/meta/help.go`, `plugin_config.go` |
+| `ze-bgp-cmd-update-api` | `bgp/plugins/cmd/update/schema/` | 2 | `ze-bgp:` | `cmd/update/update_text.go` |
+| `ze-bgp-cmd-raw-api` | `bgp/plugins/cmd/raw/schema/` | 1 | `ze-bgp:` | `cmd/raw/raw.go` |
+| `ze-bgp-cmd-cache-api` | `bgp/plugins/cmd/cache/schema/` | 1 | `ze-bgp:` | `cmd/cache/cache.go` |
+| `ze-bgp-cmd-commit-api` | `bgp/plugins/cmd/commit/schema/` | 1 | `ze-bgp:` | `cmd/commit/commit.go` |
+| `ze-bgp-cmd-subscribe-api` | `bgp/plugins/cmd/subscribe/schema/` | 2 | `ze-bgp:` | `cmd/subscribe/subscribe.go` |
+| `ze-bgp-cmd-metrics-api` | `bgp/plugins/cmd/metrics/schema/` | 2 | `ze-bgp:` | `cmd/metrics/metrics.go` |
+| `ze-bgp-cmd-log-api` | `bgp/plugins/cmd/log/schema/` | 2 | `ze-bgp:` | `cmd/log/log.go` |
+| `ze-rib-api` | `bgp/plugins/rib/schema/` | 12 | `ze-rib-api:` | `cmd/rib/rib.go` (forwards to bgp-rib plugin) |
+| `ze-route-refresh-api` | `bgp/plugins/route_refresh/schema/` | 4 | `ze-bgp:` | `route_refresh/handler/refresh.go`, `clear_soft.go` |
+| `ze-adj-rib-in-api` | `bgp/plugins/adj_rib_in/schema/` | 0 | N/A | Config-only module |
+
+**RPCRegistration Inventory (57 wired, sorted by CLICommand):**
+
+| CLICommand | WireMethod | Handler file | ReadOnly | RequiresSelector | PluginCommand |
+|-----------|-----------|-------------|----------|------------------|---------------|
+| `bgp cache` | `ze-bgp:cache` | `cmd/cache/cache.go` | No | No | - |
+| `bgp command complete` | `ze-bgp:command-complete` | `cmd/meta/help.go` | Yes | No | - |
+| `bgp command help` | `ze-bgp:command-help` | `cmd/meta/help.go` | Yes | No | - |
+| `bgp command list` | `ze-bgp:command-list` | `cmd/meta/help.go` | Yes | No | - |
+| `bgp commit` | `ze-bgp:commit` | `cmd/commit/commit.go` | No | No | - |
+| `bgp event list` | `ze-bgp:event-list` | `cmd/meta/help.go` | Yes | No | - |
+| `bgp help` | `ze-bgp:help` | `cmd/meta/help.go` | Yes | No | - |
+| `bgp log levels` | `ze-bgp:log-levels` | `cmd/log/log.go` | Yes | No | - |
+| `bgp log set` | `ze-bgp:log-set` | `cmd/log/log.go` | No | No | - |
+| `bgp metrics list` | `ze-bgp:metrics-list` | `cmd/metrics/metrics.go` | Yes | No | - |
+| `bgp metrics values` | `ze-bgp:metrics-values` | `cmd/metrics/metrics.go` | Yes | No | - |
+| `bgp peer add` | `ze-bgp:peer-add` | `cmd/peer/peer.go` | No | Yes | - |
+| `bgp peer borr` | `ze-bgp:peer-borr` | `route_refresh/handler/refresh.go` | No | Yes | - |
+| `bgp peer capabilities` | `ze-bgp:peer-capabilities` | `cmd/peer/summary.go` | Yes | No | - |
+| `bgp peer clear soft` | `ze-bgp:peer-clear-soft` | `route_refresh/handler/clear_soft.go` | No | Yes | - |
+| `bgp peer detail` | `ze-bgp:peer-detail` | `cmd/peer/peer.go` | Yes | No | - |
+| `bgp peer eorr` | `ze-bgp:peer-eorr` | `route_refresh/handler/refresh.go` | No | Yes | - |
+| `bgp peer list` | `ze-bgp:peer-list` | `cmd/peer/peer.go` | Yes | No | - |
+| `bgp peer pause` | `ze-bgp:peer-pause` | `cmd/peer/peer.go` | No | Yes | - |
+| `bgp peer plugin session ready` | `ze-plugin:session-peer-ready` | `cmd/peer/session.go` | No | No | - |
+| `bgp peer raw` | `ze-bgp:peer-raw` | `cmd/raw/raw.go` | No | Yes | - |
+| `bgp peer refresh` | `ze-bgp:peer-refresh` | `route_refresh/handler/refresh.go` | No | Yes | - |
+| `bgp peer remove` | `ze-bgp:peer-remove` | `cmd/peer/peer.go` | No | Yes | - |
+| `bgp peer resume` | `ze-bgp:peer-resume` | `cmd/peer/peer.go` | No | Yes | - |
+| `bgp peer save` | `ze-bgp:peer-save` | `cmd/peer/peer.go` | No | Yes | - |
+| `bgp peer statistics` | `ze-bgp:peer-statistics` | `cmd/peer/summary.go` | Yes | No | - |
+| `bgp peer teardown` | `ze-bgp:peer-teardown` | `cmd/peer/peer.go` | No | Yes | - |
+| `bgp peer update` | `ze-bgp:peer-update` | `cmd/update/update_text.go` | No | Yes | - |
+| `bgp plugin ack` | `ze-bgp:plugin-ack` | `cmd/meta/plugin_config.go` | No | No | - |
+| `bgp plugin encoding` | `ze-bgp:plugin-encoding` | `cmd/meta/plugin_config.go` | No | No | - |
+| `bgp plugin format` | `ze-bgp:plugin-format` | `cmd/meta/plugin_config.go` | No | No | - |
+| `bgp rib best` | `ze-rib-api:best` | `cmd/rib/rib.go` | Yes | No | `rib best` |
+| `bgp rib best status` | `ze-rib-api:best-status` | `cmd/rib/rib.go` | Yes | No | `rib best status` |
+| `bgp rib clear in` | `ze-rib-api:clear-in` | `cmd/rib/rib.go` | No | No | `rib clear in` |
+| `bgp rib clear out` | `ze-rib-api:clear-out` | `cmd/rib/rib.go` | No | No | `rib clear out` |
+| `bgp rib routes` | `ze-rib-api:routes` | `cmd/rib/rib.go` | Yes | No | `rib show` |
+| `bgp rib status` | `ze-rib-api:status` | `cmd/rib/rib.go` | Yes | No | `rib status` |
+| `bgp summary` | `ze-bgp:summary` | `cmd/peer/summary.go` | Yes | No | - |
+| `daemon reload` | `ze-system:daemon-reload` | `server/system.go` | No | No | - |
+| `daemon shutdown` | `ze-system:daemon-shutdown` | `server/system.go` | No | No | - |
+| `daemon status` | `ze-system:daemon-status` | `server/system.go` | Yes | No | - |
+| `plugin command complete` | `ze-plugin:command-complete` | `server/plugin_rpc.go` | Yes | No | - |
+| `plugin command help` | `ze-plugin:command-help` | `server/plugin_rpc.go` | Yes | No | - |
+| `plugin command list` | `ze-plugin:command-list` | `server/plugin_rpc.go` | Yes | No | - |
+| `plugin help` | `ze-plugin:help` | `server/plugin_rpc.go` | Yes | No | - |
+| `plugin session bye` | `ze-plugin:session-bye` | `server/session.go` | No | No | - |
+| `plugin session ping` | `ze-plugin:session-ping` | `server/session.go` | Yes | No | - |
+| `plugin session ready` | `ze-plugin:session-ready` | `server/session.go` | No | No | - |
+| `subscribe` | `ze-bgp:subscribe` | `cmd/subscribe/subscribe.go` | No | No | - |
+| `system command complete` | `ze-system:command-complete` | `server/system.go` | Yes | No | - |
+| `system command help` | `ze-system:command-help` | `server/system.go` | Yes | No | - |
+| `system command list` | `ze-system:command-list` | `server/system.go` | Yes | No | - |
+| `system dispatch` | `ze-system:dispatch` | `server/system.go` | No | No | - |
+| `system help` | `ze-system:help` | `server/system.go` | Yes | No | - |
+| `system subsystem list` | `ze-system:subsystem-list` | `server/system.go` | Yes | No | - |
+| `system version api` | `ze-system:version-api` | `server/system.go` | Yes | No | - |
+| `system version software` | `ze-system:version-software` | `server/system.go` | Yes | No | - |
+| `unsubscribe` | `ze-bgp:unsubscribe` | `cmd/subscribe/subscribe.go` | No | No | - |
 
 **Behavior to preserve:**
 - Wire protocol `WireMethod` format (`"module:rpc-name"`) used for handler dispatch -- unchanged
@@ -145,44 +228,95 @@ Detection in Go: walk `Entry.Exts` for `ze:command` / `ze:edit-shortcut` stateme
 
 ## YANG Module Restructuring
 
-### Current: flat RPCs in `ze-bgp-api.yang`
+~~### Current: flat RPCs in `ze-bgp-api.yang`~~ Superseded (2026-03-16).
 
-All 25 RPCs are at module level with flat names like `peer-list`, `peer-show-capabilities`, `plugin-encoding`.
+### Actual current state: 15 per-concern `-api.yang` modules with flat RPCs
 
-### After: hierarchical containers in `ze-bgp-cmd.yang`
+Each plugin already has its own YANG API module (e.g., `ze-bgp-cmd-peer-api.yang`). The RPCs within each module are flat (e.g., `peer-list`, `peer-add`). The restructuring adds a parallel `-cmd.yang` module per domain that defines hierarchical `config false` containers matching the CLI tree, while the `-api.yang` modules (with flat RPCs and input/output schemas) are preserved for wire protocol documentation.
 
-| Current flat RPC | New YANG path | Tree depth |
+### After: hierarchical `-cmd.yang` modules alongside existing `-api.yang`
+
+Each domain gets a `-cmd.yang` module with `config false` containers defining the command tree. The CLI command hierarchy is the tree structure itself. The `-api.yang` RPCs remain as the wire protocol schema (input/output leaf definitions).
+
+**BGP domain (`ze-bgp-cmd.yang` -- new, replaces tree from all BGP plugins' CLICommand strings):**
+
+| Current CLICommand | New YANG path | Tree depth | Source handler |
+|---|---|---|---|
+| `bgp help` | `help` | 1 | `cmd/meta/help.go` |
+| `bgp summary` | `summary` | 1 | `cmd/peer/summary.go` |
+| `bgp commit` | `commit` | 1 | `cmd/commit/commit.go` |
+| `bgp cache` | `cache` | 1 | `cmd/cache/cache.go` |
+| `bgp command list` | `command > list` | 2 | `cmd/meta/help.go` |
+| `bgp command help` | `command > help` | 2 | `cmd/meta/help.go` |
+| `bgp command complete` | `command > complete` | 2 | `cmd/meta/help.go` |
+| `bgp event list` | `event > list` | 2 | `cmd/meta/help.go` |
+| `bgp plugin encoding` | `plugin > encoding` | 2 | `cmd/meta/plugin_config.go` |
+| `bgp plugin format` | `plugin > format` | 2 | `cmd/meta/plugin_config.go` |
+| `bgp plugin ack` | `plugin > ack` | 2 | `cmd/meta/plugin_config.go` |
+| `bgp log levels` | `log > levels` | 2 | `cmd/log/log.go` |
+| `bgp log set` | `log > set` | 2 | `cmd/log/log.go` |
+| `bgp metrics values` | `metrics > values` | 2 | `cmd/metrics/metrics.go` |
+| `bgp metrics list` | `metrics > list` | 2 | `cmd/metrics/metrics.go` |
+| `bgp peer list` | `peer > list` | 2 | `cmd/peer/peer.go` |
+| `bgp peer detail` | `peer > detail` | 2 | `cmd/peer/peer.go` |
+| `bgp peer capabilities` | `peer > capabilities` | 2 | `cmd/peer/summary.go` |
+| `bgp peer statistics` | `peer > statistics` | 2 | `cmd/peer/summary.go` |
+| `bgp peer add` | `peer > add` | 2 | `cmd/peer/peer.go` |
+| `bgp peer remove` | `peer > remove` | 2 | `cmd/peer/peer.go` |
+| `bgp peer teardown` | `peer > teardown` | 2 | `cmd/peer/peer.go` |
+| `bgp peer pause` | `peer > pause` | 2 | `cmd/peer/peer.go` |
+| `bgp peer resume` | `peer > resume` | 2 | `cmd/peer/peer.go` |
+| `bgp peer save` | `peer > save` | 2 | `cmd/peer/peer.go` |
+| `bgp peer update` | `peer > update` | 2 | `cmd/update/update_text.go` |
+| `bgp peer raw` | `peer > raw` | 2 | `cmd/raw/raw.go` |
+| `bgp peer refresh` | `peer > refresh` | 2 | `route_refresh/handler/refresh.go` |
+| `bgp peer borr` | `peer > borr` | 2 | `route_refresh/handler/refresh.go` |
+| `bgp peer eorr` | `peer > eorr` | 2 | `route_refresh/handler/refresh.go` |
+| `bgp peer clear soft` | `peer > clear > soft` | 3 | `route_refresh/handler/clear_soft.go` |
+| `bgp peer plugin session ready` | `peer > plugin > session > ready` | 4 | `cmd/peer/session.go` |
+| `bgp rib status` | `rib > status` | 2 | `cmd/rib/rib.go` |
+| `bgp rib routes` | `rib > routes` | 2 | `cmd/rib/rib.go` |
+| `bgp rib best` | `rib > best` | 2 | `cmd/rib/rib.go` |
+| `bgp rib best status` | `rib > best > status` | 3 | `cmd/rib/rib.go` |
+| `bgp rib clear in` | `rib > clear > in` | 3 | `cmd/rib/rib.go` |
+| `bgp rib clear out` | `rib > clear > out` | 3 | `cmd/rib/rib.go` |
+| `subscribe` | (top-level, no bgp prefix) | 1 | `cmd/subscribe/subscribe.go` |
+| `unsubscribe` | (top-level, no bgp prefix) | 1 | `cmd/subscribe/subscribe.go` |
+
+**System domain (`ze-system-cmd.yang` -- new):**
+
+| Current CLICommand | New YANG path | Tree depth |
 |---|---|---|
-| `help` | `help` | 1 |
-| `summary` | `summary` | 1 |
-| `commit` | `commit` | 1 |
-| `command-list` | `command > list` | 2 |
-| `command-help` | `command > help` | 2 |
-| `command-complete` | `command > complete` | 2 |
-| `plugin-encoding` | `plugin > encoding` | 2 |
-| `plugin-format` | `plugin > format` | 2 |
-| `plugin-ack` | `plugin > ack` | 2 |
-| `event-list` | `event > list` | 2 |
-| `peer-list` | `peer > list` | 2 |
-| `peer-show` | `peer > show` | 2 |
-| `peer-show-capabilities` | `peer > capabilities` | 2 |
-| `peer-show-statistics` | `peer > statistics` | 2 |
-| `peer-add` | `peer > add` | 2 |
-| `peer-remove` | `peer > remove` | 2 |
-| `peer-teardown` | `peer > teardown` | 2 |
-| `peer-update` | `peer > update` | 2 |
-| `peer-pause` | `peer > pause` | 2 |
-| `peer-resume` | `peer > resume` | 2 |
-| `peer-save` | `peer > save` | 2 |
-| `peer-clear-soft` | `peer > clear > soft` | 3 |
-| `peer-raw` | `peer > raw` | 2 |
-| `peer-borr` | `peer > borr` | 2 |
-| `peer-eorr` | `peer > eorr` | 2 |
-| `cache` | `cache` | 1 |
-| `subscribe` | `subscribe` | 1 |
-| `unsubscribe` | `unsubscribe` | 1 |
+| `system help` | `system > help` | 2 |
+| `system version software` | `system > version > software` | 3 |
+| `system version api` | `system > version > api` | 3 |
+| `system subsystem list` | `system > subsystem > list` | 3 |
+| `system command list` | `system > command > list` | 3 |
+| `system command help` | `system > command > help` | 3 |
+| `system command complete` | `system > command > complete` | 3 |
+| `system dispatch` | `system > dispatch` | 2 |
+| `daemon shutdown` | `daemon > shutdown` | 2 |
+| `daemon status` | `daemon > status` | 2 |
+| `daemon reload` | `daemon > reload` | 2 |
 
-Similar restructuring for `ze-system-api.yang`, `ze-plugin-api.yang`, `ze-rib-api.yang`, `ze-route-refresh-api.yang`.
+**Plugin domain (`ze-plugin-cmd.yang` -- new):**
+
+| Current CLICommand | New YANG path | Tree depth |
+|---|---|---|
+| `plugin help` | `plugin > help` | 2 |
+| `plugin command list` | `plugin > command > list` | 3 |
+| `plugin command help` | `plugin > command > help` | 3 |
+| `plugin command complete` | `plugin > command > complete` | 3 |
+| `plugin session ready` | `plugin > session > ready` | 3 |
+| `plugin session ping` | `plugin > session > ping` | 3 |
+| `plugin session bye` | `plugin > session > bye` | 3 |
+
+**Top-level commands (in `ze-bgp-cmd.yang` or dedicated module):**
+
+| Current CLICommand | Notes |
+|---|---|
+| `subscribe` | No domain prefix -- top-level in command tree |
+| `unsubscribe` | No domain prefix -- top-level in command tree |
 
 ### WireMethod mapping
 
@@ -192,9 +326,12 @@ YANG path to WireMethod convention:
 |-------------|-----------|------------|
 | `ze-bgp-cmd` | `peer > list` | `ze-bgp:peer.list` |
 | `ze-bgp-cmd` | `peer > clear > soft` | `ze-bgp:peer.clear.soft` |
+| `ze-bgp-cmd` | `rib > best > status` | `ze-rib-api:best.status` |
 | `ze-system-cmd` | `daemon > shutdown` | `ze-system:daemon.shutdown` |
+| `ze-system-cmd` | `system > version > software` | `ze-system:version.software` |
+| `ze-plugin-cmd` | `plugin > session > ready` | `ze-plugin:session.ready` |
 
-The `.` separator in WireMethod replaces the current `-` (e.g., `ze-bgp:peer-list` becomes `ze-bgp:peer.list`). Handler dispatch uses WireMethod unchanged. This is a naming convention change that must be applied consistently.
+The `.` separator in WireMethod replaces the current `-` (e.g., `ze-bgp:peer-list` becomes `ze-bgp:peer.list`). Handler dispatch uses WireMethod unchanged. This is a naming convention change that must be applied consistently across all 57 registrations.
 
 ### Edit shortcuts
 
@@ -228,7 +365,7 @@ These replace the hardcoded `editModeCommands` map. The remaining entries in tha
 | AC-4 | `commit` typed in edit mode | Executes as `run commit` (same behavior as today, now driven by YANG tag) |
 | AC-5 | `RPCRegistration` struct | `CLICommand` field removed. YANG path is the source of truth. |
 | AC-6 | `BuildTree()` or equivalent | Walks YANG `config false` entries instead of splitting CLICommand strings |
-| AC-7 | All 54 existing commands | Still reachable and executable after restructuring. No command lost. |
+| AC-7 | All 57 existing commands | Still reachable and executable after restructuring. No command lost. |
 | AC-8 | `ze yang tree` (from spec-yang-analysis) | Shows unified tree with both config and command nodes |
 | AC-9 | `ze yang completion` (from spec-yang-analysis) | Finds collisions in the unified tree |
 | AC-10 | WireMethod format | Uses `.` separator for path hierarchy (`ze-bgp:peer.list`) |
@@ -266,27 +403,52 @@ Not applicable -- no numeric inputs in this spec.
 - Visual `[cmd]`/`[set]` tags in completion dropdown
 
 ## Files to Modify
+
+**YANG extensions:**
 - `internal/component/config/yang/modules/ze-extensions.yang` - add `ze:command` and `ze:edit-shortcut` extensions
+
+**Core infrastructure:**
 - `internal/component/plugin/server/handler.go` - remove `CLICommand` from `RPCRegistration`
 - `internal/component/command/node.go` - rewrite `BuildTree()` to walk YANG entries
 - `internal/component/cli/model_mode.go` - derive edit shortcuts from YANG instead of hardcoded map
 - `internal/component/cli/model.go` - update `updateCompletions()` for unified tree
 - `internal/component/cli/completer.go` - extend to walk command nodes (`config false` + `ze:command`)
 - `internal/component/cli/completer_command.go` - may be absorbed into completer.go
-- `internal/component/bgp/schema/ze-bgp-api.yang` - restructure to hierarchical
-- `internal/component/plugin/server/system.go` - update WireMethod strings
-- `internal/component/plugin/server/plugin_rpc.go` - update WireMethod strings
-- `internal/component/plugin/server/session.go` - update WireMethod strings
-- All handler files under `internal/component/bgp/plugins/cmd/` - update WireMethod strings, remove CLICommand
-- `internal/component/bgp/plugins/route_refresh/handler/` - update WireMethod strings
-- `cmd/ze/schema/main.go` - update for new YANG module names
+
+**System/plugin handlers (WireMethod + CLICommand):**
+- `internal/component/plugin/server/system.go` - 11 registrations
+- `internal/component/plugin/server/plugin_rpc.go` - 4 registrations
+- `internal/component/plugin/server/session.go` - 3 registrations
+
+**BGP command handlers (WireMethod + CLICommand):**
+- `internal/component/bgp/plugins/cmd/meta/help.go` - 5 registrations
+- `internal/component/bgp/plugins/cmd/meta/plugin_config.go` - 3 registrations
+- `internal/component/bgp/plugins/cmd/peer/peer.go` - 8 registrations
+- `internal/component/bgp/plugins/cmd/peer/summary.go` - 3 registrations
+- `internal/component/bgp/plugins/cmd/peer/session.go` - 1 registration
+- `internal/component/bgp/plugins/cmd/rib/rib.go` - 6 registrations
+- `internal/component/bgp/plugins/cmd/update/update_text.go` - 1 registration
+- `internal/component/bgp/plugins/cmd/raw/raw.go` - 1 registration
+- `internal/component/bgp/plugins/cmd/subscribe/subscribe.go` - 2 registrations
+- `internal/component/bgp/plugins/cmd/cache/cache.go` - 1 registration
+- `internal/component/bgp/plugins/cmd/commit/commit.go` - 1 registration
+- `internal/component/bgp/plugins/cmd/metrics/metrics.go` - 2 registrations
+- `internal/component/bgp/plugins/cmd/log/log.go` - 2 registrations
+- `internal/component/bgp/plugins/route_refresh/handler/refresh.go` - 3 registrations
+- `internal/component/bgp/plugins/route_refresh/handler/clear_soft.go` - 1 registration
+
+**CLI/tree building:**
 - `cmd/ze/cli/main.go` - update command tree building
 - `cmd/ze/config/cmd_edit.go` - update command tree building
+- `cmd/ze/yang/tree.go` - update unified analysis tree for new YANG structure
+
+**Existing YANG API modules (preserved, not deleted -- wire protocol schema):**
+- All 15 `-api.yang` modules remain as documentation of RPC input/output schemas
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new modules) | Yes | `-cmd` modules replacing `-api` modules |
+| YANG schema (new `-cmd` modules) | Yes | 3 new `-cmd.yang` modules alongside existing `-api.yang` |
 | RPC count in architecture docs | Yes | `docs/architecture/api/commands.md` |
 | CLI commands/flags | No | Commands unchanged, just YANG source changes |
 | CLI usage/help text | No | Help text comes from YANG description |
@@ -296,15 +458,16 @@ Not applicable -- no numeric inputs in this spec.
 | Functional test for new RPC/API | Yes | `.ci` tests in wiring table |
 
 ## Files to Create
-- `internal/component/bgp/schema/ze-bgp-cmd.yang` - hierarchical BGP command tree (replaces flat RPCs in ze-bgp-api.yang)
-- `internal/core/ipc/schema/ze-system-cmd.yang` - hierarchical system command tree
-- `internal/core/ipc/schema/ze-plugin-cmd.yang` - hierarchical plugin command tree
-- `internal/component/bgp/plugins/rib/schema/ze-rib-cmd.yang` - hierarchical RIB command tree
-- `internal/component/config/yang/command.go` - YANG command tree walker (extracts `ze:command` nodes)
+- `internal/component/bgp/schema/ze-bgp-cmd.yang` - hierarchical BGP command tree (all 40 BGP CLICommand paths as `config false` containers)
+- `internal/core/ipc/schema/ze-system-cmd.yang` - hierarchical system command tree (11 system/daemon commands)
+- `internal/core/ipc/schema/ze-plugin-cmd.yang` - hierarchical plugin command tree (7 plugin commands)
+- `internal/component/config/yang/command.go` - YANG command tree walker (extracts `ze:command` nodes, builds `command.Node` tree)
 - `internal/component/config/yang/command_test.go` - tests for command tree walker
 - `test/ui/cli-yang-command-completion.ci` - functional test
 - `test/ui/cli-yang-edit-shortcuts.ci` - functional test
 - `test/plugin/yang-wire-dispatch.ci` - functional test
+
+~~`internal/component/bgp/plugins/rib/schema/ze-rib-cmd.yang`~~ Superseded: RIB commands are in the BGP domain (`bgp rib ...`) so they go in `ze-bgp-cmd.yang` alongside other BGP commands.
 
 ## Implementation Steps
 
@@ -333,9 +496,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: `ze-extensions.yang`, `extension_test.go`
    - Verify: tests fail -> implement -> tests pass
 
-2. **Phase: Command YANG modules** -- restructure `ze-bgp-api.yang` into hierarchical `ze-bgp-cmd.yang`. Same for system, plugin, rib, route-refresh.
+2. **Phase: Command YANG modules** -- create 3 new `-cmd.yang` modules (`ze-bgp-cmd.yang`, `ze-system-cmd.yang`, `ze-plugin-cmd.yang`) with hierarchical `config false` containers matching the CLI tree. Existing `-api.yang` modules preserved as wire protocol schema.
    - Tests: `TestBuildTreeFromYANG`, `TestWireMethodFromPath`
-   - Files: new `-cmd.yang` modules, `command.go` walker
+   - Files: new `-cmd.yang` modules + register.go, `command.go` walker
    - Verify: YANG loads and resolves, tree has expected hierarchy
 
 3. **Phase: Build command tree from YANG** -- rewrite `BuildTree()` to walk YANG entries instead of splitting strings
@@ -343,9 +506,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: `command/node.go`, `config/yang/command.go`
    - Verify: command tree matches current tree structure
 
-4. **Phase: Update handler registrations** -- remove `CLICommand` from `RPCRegistration`, update all WireMethod strings to use `.` separator, update dispatch
+4. **Phase: Update handler registrations** -- remove `CLICommand` from `RPCRegistration`, update all 57 WireMethod strings to use `.` separator, update dispatch across 18 handler files
    - Tests: `TestAllCommandsReachable`
-   - Files: `handler.go`, all handler registration sites
+   - Files: `handler.go`, 18 handler registration files (see Files to Modify)
    - Verify: all handlers dispatch correctly
 
 5. **Phase: Derive edit shortcuts from YANG** -- replace hardcoded `editModeCommands` with YANG `ze:edit-shortcut` lookup
@@ -370,12 +533,12 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 ### Critical Review Checklist (/implement stage 5)
 | Check | What to verify for this spec |
 |-------|------------------------------|
-| Completeness | All 54 commands still reachable after restructuring |
+| Completeness | All 57 commands still reachable after restructuring |
 | Correctness | WireMethod convention consistently applied (`.` separator) |
 | Correctness | `ze:command` only on executable leaves, not on grouping containers |
 | Correctness | `ze:edit-shortcut` only on commands that make sense from edit mode |
 | No-layering | Old `CLICommand` field fully removed, not left as dead code |
-| No-layering | Old flat RPC YANG modules deleted, not kept alongside new ones |
+| No-layering | `-api.yang` modules preserved (wire schema), `-cmd.yang` modules are new (CLI tree). No duplication -- different concerns. |
 | Naming | YANG node names match current CLI tokens exactly (no renames in this spec -- renames come from analysis tool findings) |
 | Data flow | YANG path -> WireMethod derivation is deterministic and reversible |
 
@@ -383,7 +546,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | `ze-extensions.yang` has `ze:command` and `ze:edit-shortcut` | `grep "extension command" ze-extensions.yang` |
-| `ze-bgp-cmd.yang` exists with hierarchical structure | `ls ze-bgp-cmd.yang` |
+| `ze-bgp-cmd.yang` exists with hierarchical structure | `ls internal/component/bgp/schema/ze-bgp-cmd.yang` |
+| `ze-system-cmd.yang` exists | `ls internal/core/ipc/schema/ze-system-cmd.yang` |
+| `ze-plugin-cmd.yang` exists | `ls internal/core/ipc/schema/ze-plugin-cmd.yang` |
 | `CLICommand` field removed from `RPCRegistration` | `grep CLICommand handler.go` returns nothing |
 | `editModeCommands` map removed or YANG-derived | `grep editModeCommands model_mode.go` |
 | All commands reachable | `go test ./internal/component/plugin/server/... -run TestAllCommandsReachable` |

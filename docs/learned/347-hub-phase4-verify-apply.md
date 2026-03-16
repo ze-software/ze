@@ -22,5 +22,5 @@ Implement the Hub-side two-phase commit for configuration: Config Reader sends `
 
 ## Files
 
-- `internal/plugin/hub.go` — Hub struct with `RouteVerify()`, `RouteApply()`, `ProcessConfig()`
-- `internal/plugin/schema.go` — `stripPredicates()` added to FindHandler path
+- `internal/component/plugin/hub.go` — Hub struct with `RouteVerify()`, `RouteApply()`, `ProcessConfig()`
+- `internal/component/plugin/schema.go` — `stripPredicates()` added to FindHandler path

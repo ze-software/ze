@@ -25,9 +25,9 @@ Add raw wire bytes (`raw-attributes`, `raw-nlri`) to engine JSON events, then mi
 
 ## Files
 
-- `internal/plugin/wire_extract.go` — `ExtractRawAttributes`, `ExtractRawNLRI`, `ExtractRawWithdrawn`
-- `internal/plugin/text.go` — raw fields added to JSON (format=full)
-- `internal/plugin/rib/storage/nlriset.go` — `NLRISet` interface, `DirectNLRISet`, `PooledNLRISet`
-- `internal/plugin/rib/storage/familyrib.go` — forward + reverse index
-- `internal/plugin/rib/storage/peerrib.go` — thread-safe multi-family wrapper
-- `internal/plugin/rib/event.go` — `RawAttributes`, `RawNLRI`, `RawWithdrawn` fields
+- `internal/component/plugin/wire_extract.go` — `ExtractRawAttributes`, `ExtractRawNLRI`, `ExtractRawWithdrawn`
+- `internal/component/plugin/text.go` — raw fields added to JSON (format=full)
+- `internal/component/plugin/rib/storage/nlriset.go` — `NLRISet` interface, `DirectNLRISet`, `PooledNLRISet`
+- `internal/component/plugin/rib/storage/familyrib.go` — forward + reverse index
+- `internal/component/plugin/rib/storage/peerrib.go` — thread-safe multi-family wrapper
+- `internal/component/plugin/rib/event.go` — `RawAttributes`, `RawNLRI`, `RawWithdrawn` fields

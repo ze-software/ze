@@ -21,8 +21,8 @@ None.
 
 ## Files
 
-- `internal/plugin/bgp/shared/format.go`, `format_test.go`, `route.go`
-- `internal/plugins/bgp-rib/event.go`
-- `internal/plugins/bgp-watchdog/config.go`, `config_test.go`, `server.go`
-- `internal/plugins/bgp-watchdog/command.go` — deleted
-- `internal/plugins/bgp-watchdog/command_test.go` — deleted
+- `internal/component/bgp/shared/format.go`, `format_test.go`, `route.go`
+- `internal/component/bgp/plugins/rib/event.go`
+- `internal/component/bgp/plugins/watchdog/config.go`, `config_test.go`, `server.go`
+- `internal/component/bgp/plugins/watchdog/command.go` — deleted
+- `internal/component/bgp/plugins/watchdog/command_test.go` — deleted
