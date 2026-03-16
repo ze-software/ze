@@ -25,6 +25,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/show"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/validate"
+	zeyang "codeberg.org/thomas-mangin/ze/cmd/ze/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -178,6 +179,8 @@ dispatch:
 		os.Exit(validate.Run(args[1:]))
 	case "schema":
 		os.Exit(schema.Run(args[1:], plugins))
+	case "yang":
+		os.Exit(zeyang.Run(args[1:]))
 	case "exabgp":
 		os.Exit(exabgp.Run(args[1:]))
 	case "signal":
@@ -234,7 +237,7 @@ dispatch:
 	// Unknown command
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
 	commands := []string{
-		"bgp", "plugin", "cli", "config", "db", "validate", "schema",
+		"bgp", "plugin", "cli", "config", "db", "validate", "schema", "yang",
 		"exabgp", "signal", "status", "show", "run", "completion", "version", "help",
 	}
 	if suggestion := suggest.Command(arg, commands); suggestion != "" {
@@ -323,33 +326,34 @@ Options:
   --chaos-rate <0-1>    Fault probability per operation (default: 0.1)
 
 Commands:
-  validate  Validate configuration file
-  config    Configuration management
-  db        Blob store management
-  schema    Schema discovery
-  cli      Interactive CLI for running daemons
-  show     Show daemon state (read-only commands)
-  run      Execute daemon command (all commands)
-  status   Check if daemon is running
-  bgp      BGP protocol tools (decode, encode)
-  plugin   Plugin system (rib, rr, gr, etc.)
-  signal   Send signals to running daemon (reload, stop, quit)
+  validate     Validate configuration file
+  config       Configuration management
+  db           Blob store management
+  schema       Schema discovery
+  yang         YANG tree analysis and command docs
+  cli          Interactive CLI for running daemons
+  show         Show daemon state (read-only commands)
+  run          Execute daemon command (all commands)
+  status       Check if daemon is running
+  bgp          BGP protocol tools (decode, encode)
+  plugin       Plugin system (rib, rr, gr, etc.)
+  signal       Send signals to running daemon (reload, stop, quit)
   exabgp       ExaBGP bridge tools
   completion   Generate shell completion scripts
   version      Show version
   help         Show this help
 
 Examples:
-  ze config.conf                      Start with config
-  ze --plugin ze.hostname config.conf Start with hostname plugin
-  ze --plugins                        List available plugins
-  ze cli                              Interactive CLI
-  ze cli --run "peer list"            Execute CLI command
+  ze config.conf                       Start with config
+  ze --plugin ze.hostname config.conf  Start with hostname plugin
+  ze --plugins                         List available plugins
+  ze cli                               Interactive CLI
+  ze cli --run "peer list"             Execute CLI command
   ze show help                         List read-only commands
   ze show <command>                    Show daemon state
   ze run help                          List all commands
   ze run <command>                     Execute daemon command
-  ze bgp help                         Show BGP commands
+  ze bgp help                          Show BGP commands
 `)
 }
 

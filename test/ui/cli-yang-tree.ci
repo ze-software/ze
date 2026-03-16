@@ -1,0 +1,8 @@
+# Test: ze yang tree -- unified tree display
+# VALIDATES: AC-4 -- tree shows config and command nodes
+
+cmd=foreground:seq=1:exec=ze yang tree
+expect=exit:code=0
+expect=stdout:contains=bgp
+expect=stdout:contains=config
+expect=stdout:contains=command

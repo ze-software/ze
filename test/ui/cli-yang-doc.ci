@@ -1,0 +1,7 @@
+# Test: ze yang doc --list -- command documentation listing
+# VALIDATES: AC-8 -- lists all commands with descriptions
+
+cmd=foreground:seq=1:exec=ze yang doc --list
+expect=exit:code=0
+expect=stdout:contains=bgp peer list
+expect=stdout:contains=daemon shutdown

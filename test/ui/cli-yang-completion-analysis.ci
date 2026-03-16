@@ -1,0 +1,8 @@
+# Test: ze yang completion -- prefix collision analysis
+# VALIDATES: AC-1 -- collision report contains known collisions
+
+cmd=foreground:seq=1:exec=ze yang completion
+expect=exit:code=0
+expect=stdout:contains=collision groups
+expect=stdout:contains=local-as
+expect=stdout:contains=local-address
