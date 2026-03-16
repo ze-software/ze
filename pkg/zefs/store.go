@@ -1,8 +1,6 @@
 // Design: docs/architecture/zefs-format.md -- ZeFS file format and netcapstring framing
 // Detail: guard.go -- WriteGuard and ReadGuard interfaces
-// Detail: lock.go -- advisory locking (ReadLock, WriteLock)
-// Detail: flock_unix.go -- flock on persistent fd (single-process; retained for standalone use)
-// Detail: flock_other.go -- no-op flock fallback for non-unix
+// Detail: lock.go -- in-process locking (ReadLock, WriteLock)
 // Detail: netcapstring.go -- netcapstring encoding/decoding
 // Detail: tree.go -- in-memory tree for ReadDir
 // Detail: file.go -- fs.File and fs.DirEntry wrappers
@@ -49,7 +47,6 @@ type BlobStore struct {
 	slots   map[string]slotInfo // per-key slot capacities
 	backing []byte              // mmap'd region or heap buffer; tree nodes reference this
 	fd      *os.File            // non-nil when backing is mmap'd (must stay open)
-	lockFd  *os.File            // persistent fd for flock (survives flush; single-process model in ze)
 }
 
 // Create creates a new empty store at the given path.
@@ -62,11 +59,6 @@ func Create(path string) (*BlobStore, error) {
 	if err := s.flush(); err != nil {
 		return nil, fmt.Errorf("zefs: create %s: %w", path, err)
 	}
-	lockFd, err := openLockFd(path)
-	if err != nil {
-		return nil, err
-	}
-	s.lockFd = lockFd
 	return s, nil
 }
 
@@ -80,26 +72,15 @@ func Open(path string) (*BlobStore, error) {
 	if err := s.load(); err != nil {
 		return nil, fmt.Errorf("zefs: open %s: %w", path, err)
 	}
-	lockFd, err := openLockFd(path)
-	if err != nil {
-		_ = s.unload()
-		return nil, err
-	}
-	s.lockFd = lockFd
 	return s, nil
 }
 
-// Close releases the memory mapping, lock fd, and any associated resources.
+// Close releases the memory mapping and any associated resources.
 // After Close, slices returned by ReadFile or Open are no longer valid.
 func (s *BlobStore) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	err := s.unload()
-	if lockErr := closeLockFd(s.lockFd); lockErr != nil && err == nil {
-		err = lockErr
-	}
-	s.lockFd = nil
-	return err
+	return s.unload()
 }
 
 // ReadFile returns a copy of the named file's contents.
@@ -181,7 +162,7 @@ func (s *BlobStore) readDir(name string) ([]fs.DirEntry, error) {
 
 // WriteFile creates or updates the named file.
 // The perm argument is accepted for Go proposal #67002 compatibility but ignored.
-// For cross-process safety, use Lock() to acquire a WriteLock instead.
+// For goroutine safety, use Lock() to acquire a WriteLock for batched writes.
 func (s *BlobStore) WriteFile(name string, data []byte, perm fs.FileMode) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -216,7 +197,7 @@ func (s *BlobStore) writeFileNoFlush(name string, data []byte, _ fs.FileMode) er
 }
 
 // Remove deletes the named file.
-// For cross-process safety, use Lock() to acquire a WriteLock instead.
+// For goroutine safety, use Lock() to acquire a WriteLock for batched writes.
 func (s *BlobStore) Remove(name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -290,7 +271,7 @@ const maxEntryCount = 100_000
 // Import replaces the store contents from r.
 // The input is validated into temporary structures before committing,
 // so the store is unchanged if the input is malformed.
-// For cross-process safety, use Lock() to acquire a WriteLock instead.
+// For goroutine safety, use Lock() to acquire a WriteLock for batched writes.
 func (s *BlobStore) Import(r io.Reader) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

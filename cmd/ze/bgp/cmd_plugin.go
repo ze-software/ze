@@ -4,18 +4,14 @@
 package bgp
 
 import (
-	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"net"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/sshclient"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // cmdPlugin dispatches plugin subcommands.
@@ -50,21 +46,19 @@ Commands:
 
 Examples:
   ze bgp plugin cli                          Enter interactive plugin command mode
-  ze bgp plugin cli --socket /tmp/ze.sock    Connect to specific daemon socket
 `)
 }
 
 // cmdPluginCLI runs the interactive plugin CLI.
-// Connects to the daemon API socket and enters interactive command mode
-// with plugin SDK method completion. Sends commands as JSON-RPC.
+// Connects to the daemon via SSH and enters interactive command mode
+// with plugin SDK method completion.
 func cmdPluginCLI(args []string) int {
 	fs := flag.NewFlagSet("plugin cli", flag.ExitOnError)
-	socketPath := fs.String("socket", config.DefaultSocketPath(), "Path to API socket")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze bgp plugin cli [options]
 
-Interactive plugin CLI. Connects to the daemon API socket and enters
+Interactive plugin CLI. Connects to the daemon via SSH and enters
 command mode with tab completion for plugin SDK methods.
 
 Commands:
@@ -85,37 +79,19 @@ Options:
 		return 1
 	}
 
-	// Connect to daemon
-	var d net.Dialer
-	conn, err := d.DialContext(context.Background(), "unix", *socketPath)
+	// Load SSH credentials
+	creds, err := sshclient.LoadCredentials()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: cannot connect to %s: %v\n", *socketPath, err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		fmt.Fprintf(os.Stderr, "hint: is the daemon running?\n")
 		return 1
 	}
-	defer conn.Close() //nolint:errcheck // best-effort cleanup
-
-	reader := rpc.NewFrameReader(conn)
-	writer := rpc.NewFrameWriter(conn)
 
 	// Create unified model in command-only mode with plugin SDK method completions
 	m := cli.NewCommandModel()
 	m.SetCommandCompleter(cli.NewPluginCompleter())
 	m.SetCommandExecutor(func(input string) (string, error) {
-		// Send as JSON-RPC to daemon (plugin commands are forwarded)
-		req := rpc.Request{Method: "ze-plugin-engine:" + input}
-		reqBytes, merr := json.Marshal(req)
-		if merr != nil {
-			return "", fmt.Errorf("marshal: %w", merr)
-		}
-		if werr := writer.Write(reqBytes); werr != nil {
-			return "", fmt.Errorf("send: %w", werr)
-		}
-		respBytes, rerr := reader.Read()
-		if rerr != nil {
-			return "", fmt.Errorf("receive: %w", rerr)
-		}
-		return string(respBytes), nil
+		return sshclient.ExecCommand(creds, input)
 	})
 
 	// Run the bubbletea program

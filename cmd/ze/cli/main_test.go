@@ -1,155 +1,16 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"io"
-	"net"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	unicli "codeberg.org/thomas-mangin/ze/internal/component/cli"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
-
-// mockServer simulates the API server using NUL-framed JSON RPC.
-type mockServer struct {
-	listener net.Listener
-	path     string
-	done     chan struct{}
-	commands []any // Override ze-system:command-list response (nil = use default)
-}
-
-func newMockServer(t *testing.T) *mockServer {
-	t.Helper()
-
-	tmpDir := t.TempDir()
-	sockPath := filepath.Join(tmpDir, "test.sock")
-
-	var lc net.ListenConfig
-	listener, err := lc.Listen(context.Background(), "unix", sockPath)
-	if err != nil {
-		t.Fatalf("failed to create listener: %v", err)
-	}
-
-	s := &mockServer{
-		listener: listener,
-		path:     sockPath,
-		done:     make(chan struct{}),
-	}
-
-	go s.serve()
-
-	return s
-}
-
-func (s *mockServer) serve() {
-	defer close(s.done)
-
-	for {
-		conn, err := s.listener.Accept()
-		if err != nil {
-			return
-		}
-		go s.handleConn(conn)
-	}
-}
-
-func (s *mockServer) handleConn(conn net.Conn) {
-	defer conn.Close() //nolint:forcetypeassert,errcheck // test cleanup
-
-	reader := rpc.NewFrameReader(conn)
-	writer := rpc.NewFrameWriter(conn)
-
-	for {
-		msg, err := reader.Read()
-		if err != nil {
-			return
-		}
-
-		var req rpc.Request
-		if err := json.Unmarshal(msg, &req); err != nil {
-			resp := rpc.NewError(nil, "invalid-json", "invalid JSON request")
-			data, merr := json.Marshal(resp)
-			if merr != nil {
-				return
-			}
-			if werr := writer.Write(data); werr != nil {
-				return
-			}
-			continue
-		}
-
-		result := s.handleRPC(req.Method)
-		data, err := json.Marshal(result)
-		if err != nil {
-			return
-		}
-		if err := writer.Write(data); err != nil {
-			return
-		}
-	}
-}
-
-func (s *mockServer) handleRPC(method string) any {
-	switch method {
-	case "ze-system:version-software":
-		v, d := pluginserver.GetVersion()
-		return &rpc.RPCResult{Result: mustJSON(map[string]any{"version": v, "build-date": d})}
-	case "ze-system:help":
-		return &rpc.RPCResult{Result: mustJSON(map[string]any{
-			"commands": []string{"daemon shutdown", "peer list", "system help"},
-		})}
-	case "ze-system:daemon-status":
-		return &rpc.RPCResult{Result: mustJSON(map[string]any{
-			"uptime":     "1h30m",
-			"peer-count": 2,
-		})}
-	case "ze-bgp:peer-list":
-		return &rpc.RPCResult{Result: mustJSON(map[string]any{
-			"peers": []any{
-				map[string]any{"Address": "10.0.0.1", "State": "established"},
-				map[string]any{"Address": "10.0.0.2", "State": "idle"},
-			},
-		})}
-	case "ze-system:command-list":
-		return &rpc.RPCResult{Result: mustJSON(s.commandListResponse())}
-	default:
-		return rpc.NewError(nil, "unknown-method", "unknown method")
-	}
-}
-
-// commandListResponse returns the command list for ze-system:command-list.
-// By default includes "rib status" but omits "rib show" to test proxy filtering.
-func (s *mockServer) commandListResponse() map[string]any {
-	if s.commands != nil {
-		return map[string]any{"commands": s.commands}
-	}
-	// Default: only "rib status" is available (not "rib show")
-	return map[string]any{
-		"commands": []any{
-			map[string]any{"value": "rib status"},
-		},
-	}
-}
-
-func mustJSON(v any) json.RawMessage {
-	data, err := json.Marshal(v)
-	if err != nil {
-		panic("mustJSON: " + err.Error())
-	}
-	return data
-}
-
-func (s *mockServer) Close() {
-	s.listener.Close() //nolint:errcheck,gosec // test cleanup
-	<-s.done
-}
 
 // captureOutput captures stdout or stderr during a function call.
 func captureOutput(t *testing.T, isStderr bool, fn func()) string {
@@ -185,352 +46,80 @@ func captureOutput(t *testing.T, isStderr bool, fn func()) string {
 	return string(out)
 }
 
-// TestCLIClient_SendCommand verifies the CLI sends JSON RPC and receives responses.
+// TestPrintFormatted verifies response formatting.
 //
-// VALIDATES: CLI correctly maps text commands to wire methods and decodes responses.
-// PREVENTS: Protocol mismatch between CLI and API server.
-func TestCLIClient_SendCommand(t *testing.T) {
-	server := newMockServer(t)
-	defer server.Close()
-
-	client, err := newCLIClient(server.path)
-	if err != nil {
-		t.Fatalf("failed to connect: %v", err)
-	}
-	defer client.Close() //nolint:forcetypeassert,errcheck // test cleanup
-
-	tests := []struct {
-		name     string
-		command  string
-		wantErr  string // non-empty means expect this error
-		wantData bool   // expect result data
-	}{
-		{"help", "system help", "", true},
-		{"status", "daemon status", "", true},
-		{"peers", "peer list", "", true},
-		{"unknown", "nonexistent command", "unknown command", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resp, err := client.SendCommand(tt.command)
-			if err != nil {
-				t.Fatalf("SendCommand() unexpected error: %v", err)
-			}
-			if tt.wantErr != "" {
-				if !strings.Contains(resp.Error, tt.wantErr) {
-					t.Errorf("SendCommand() error = %q, want containing %q", resp.Error, tt.wantErr)
-				}
-			} else {
-				if resp.Error != "" {
-					t.Errorf("SendCommand() unexpected error: %s", resp.Error)
-				}
-				if tt.wantData && len(resp.Result) == 0 {
-					t.Error("SendCommand() expected result data, got none")
-				}
-			}
-		})
-	}
-}
-
-func TestCLIClient_Execute(t *testing.T) {
-	server := newMockServer(t)
-	defer server.Close()
-
-	client, err := newCLIClient(server.path)
-	if err != nil {
-		t.Fatalf("failed to connect: %v", err)
-	}
-	defer client.Close() //nolint:forcetypeassert,errcheck // test cleanup
-
-	var code int
-	output := captureOutput(t, false, func() {
-		code = client.Execute("system help", "yaml")
-	})
-
-	if code != 0 {
-		t.Errorf("Execute() returned %d, want 0", code)
-	}
-
-	if !strings.Contains(output, "commands") {
-		t.Errorf("Execute() output = %q, want to contain 'commands'", output)
-	}
-}
-
-func TestCLIClient_ExecuteError(t *testing.T) {
-	server := newMockServer(t)
-	defer server.Close()
-
-	client, err := newCLIClient(server.path)
-	if err != nil {
-		t.Fatalf("failed to connect: %v", err)
-	}
-	defer client.Close() //nolint:forcetypeassert,errcheck // test cleanup
-
-	var code int
-	output := captureOutput(t, true, func() {
-		code = client.Execute("nonexistent command", "yaml")
-	})
-
-	if code != 1 {
-		t.Errorf("Execute() returned %d, want 1", code)
-	}
-
-	if !strings.Contains(output, "error") {
-		t.Errorf("Execute() stderr = %q, want to contain 'error'", output)
-	}
-}
-
-func TestCLIClient_ConnectionError(t *testing.T) {
-	_, err := newCLIClient("/nonexistent/socket.sock")
-	if err == nil {
-		t.Error("newCLIClient() should fail for nonexistent socket")
-	}
-}
-
-func TestCLIClient_MultipleCommands(t *testing.T) {
-	server := newMockServer(t)
-	defer server.Close()
-
-	client, err := newCLIClient(server.path)
-	if err != nil {
-		t.Fatalf("failed to connect: %v", err)
-	}
-	defer client.Close() //nolint:forcetypeassert,errcheck // test cleanup
-
-	// Send multiple commands on same connection
-	commands := []string{"system help", "daemon status", "peer list"}
-
-	for _, cmd := range commands {
-		resp, err := client.SendCommand(cmd)
-		if err != nil {
-			t.Errorf("SendCommand(%q) error = %v", cmd, err)
-		}
-		if resp.Error != "" {
-			t.Errorf("SendCommand(%q) unexpected error: %s", cmd, resp.Error)
-		}
-	}
-}
-
-// TestRun_RunFlag verifies cli --run executes a single command and exits.
-//
-// VALIDATES: cli --run "<command>" executes command and returns result.
-// PREVENTS: regression when run command is merged into cli.
-func TestRun_RunFlag(t *testing.T) {
-	server := newMockServer(t)
-	defer server.Close()
-
-	// Test successful command
-	var code int
-	output := captureOutput(t, false, func() {
-		code = Run([]string{"--socket", server.path, "--run", "system help"})
-	})
-
-	if code != 0 {
-		t.Errorf("Run(--run) returned %d, want 0", code)
-	}
-
-	if !strings.Contains(output, "commands") {
-		t.Errorf("Run(--run) output = %q, want to contain 'commands'", output)
-	}
-}
-
-// TestRun_RunFlagError verifies cli --run returns error code on failure.
-//
-// VALIDATES: cli --run returns non-zero on error.
-// PREVENTS: error status being swallowed.
-func TestRun_RunFlagError(t *testing.T) {
-	server := newMockServer(t)
-	defer server.Close()
-
-	var code int
-	captureOutput(t, true, func() {
-		code = Run([]string{"--socket", server.path, "--run", "nonexistent command"})
-	})
-
-	if code != 1 {
-		t.Errorf("Run(--run error) returned %d, want 1", code)
-	}
-}
-
-// TestRun_BgpSubsystem verifies explicit bgp subsystem works.
-//
-// VALIDATES: ze cli bgp --run works with explicit subsystem.
-// PREVENTS: subsystem dispatch breaking.
-func TestRun_BgpSubsystem(t *testing.T) {
-	server := newMockServer(t)
-	defer server.Close()
-
-	var code int
-	output := captureOutput(t, false, func() {
-		code = Run([]string{"bgp", "--socket", server.path, "--run", "system help"})
-	})
-
-	if code != 0 {
-		t.Errorf("Run(bgp --run) returned %d, want 0", code)
-	}
-
-	if !strings.Contains(output, "commands") {
-		t.Errorf("Run(bgp --run) output = %q, want to contain 'commands'", output)
-	}
-}
-
-// TestRun_HelpFlags verifies all help flag variants work.
-//
-// VALIDATES: ze cli help, ze cli --help, ze cli -h all show usage.
-// PREVENTS: help flags being mishandled or causing errors.
-func TestRun_HelpFlags(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-	}{
-		{"help", []string{"help"}},
-		{"--help", []string{"--help"}},
-		{"-h", []string{"-h"}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var code int
-			output := captureOutput(t, true, func() {
-				code = Run(tt.args)
-			})
-
-			if code != 0 {
-				t.Errorf("Run(%v) returned %d, want 0", tt.args, code)
-			}
-
-			if !strings.Contains(output, "Usage:") {
-				t.Errorf("Run(%v) output = %q, want to contain 'Usage:'", tt.args, output)
-			}
-
-			if !strings.Contains(output, "ze cli") {
-				t.Errorf("Run(%v) output = %q, want to contain 'ze cli'", tt.args, output)
-			}
-		})
-	}
-}
-
-// TestRun_ConnectionFailure verifies error handling when daemon not running.
-//
-// VALIDATES: Graceful error message when socket connection fails.
-// PREVENTS: Cryptic errors or panics on connection failure.
-func TestRun_ConnectionFailure(t *testing.T) {
-	var code int
-	output := captureOutput(t, true, func() {
-		code = Run([]string{"--socket", "/nonexistent/socket.sock", "--run", "test"})
-	})
-
-	if code != 1 {
-		t.Errorf("Run() with bad socket returned %d, want 1", code)
-	}
-
-	if !strings.Contains(output, "cannot connect") {
-		t.Errorf("Run() stderr = %q, want to contain 'cannot connect'", output)
-	}
-
-	if !strings.Contains(output, "hint:") {
-		t.Errorf("Run() stderr = %q, want to contain 'hint:'", output)
-	}
-}
-
-// TestRun_BgpSubsystemConnectionFailure verifies error with explicit subsystem.
-//
-// VALIDATES: ze cli bgp handles connection failure gracefully.
-// PREVENTS: Subsystem dispatch masking connection errors.
-func TestRun_BgpSubsystemConnectionFailure(t *testing.T) {
-	var code int
-	output := captureOutput(t, true, func() {
-		code = Run([]string{"bgp", "--socket", "/nonexistent/socket.sock", "--run", "test"})
-	})
-
-	if code != 1 {
-		t.Errorf("Run(bgp) with bad socket returned %d, want 1", code)
-	}
-
-	if !strings.Contains(output, "cannot connect") {
-		t.Errorf("Run(bgp) stderr = %q, want to contain 'cannot connect'", output)
-	}
-}
-
-// TestCLIClient_PrintResponse verifies response formatting.
-//
-// VALIDATES: Different response types format correctly.
+// VALIDATES: Different output formats render correctly.
 // PREVENTS: Formatting bugs causing garbled output.
-func TestCLIClient_PrintResponse(t *testing.T) {
-	client := &cliClient{}
-
+func TestPrintFormatted(t *testing.T) {
 	tests := []struct {
 		name     string
-		resp     *rpcResponse
-		wantErr  bool
+		output   string
+		format   string
 		contains []string
 	}{
 		{
-			name:     "ok_no_data",
-			resp:     &rpcResponse{},
+			name:     "empty_output",
+			output:   "",
+			format:   "yaml",
 			contains: []string{"OK"},
 		},
 		{
-			name:     "with_data",
-			resp:     &rpcResponse{Result: mustJSON(map[string]any{"version": "1.0"})},
+			name:     "json_data_yaml_format",
+			output:   `{"version":"1.0"}`,
+			format:   "yaml",
 			contains: []string{"version", "1.0"},
 		},
 		{
-			name:     "error_response",
-			resp:     &rpcResponse{Error: "something failed"},
-			wantErr:  true,
-			contains: []string{"error", "something failed"},
+			name:     "json_data_json_format",
+			output:   `{"version":"1.0"}`,
+			format:   "json",
+			contains: []string{"version", "1.0"},
+		},
+		{
+			name:     "plain_text",
+			output:   "some plain text",
+			format:   "yaml",
+			contains: []string{"some plain text"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var output string
-			if tt.wantErr {
-				output = captureOutput(t, true, func() {
-					client.printFormatted(tt.resp, "yaml")
-				})
-			} else {
-				output = captureOutput(t, false, func() {
-					client.printFormatted(tt.resp, "yaml")
-				})
-			}
+			output := captureOutput(t, false, func() {
+				printFormatted(tt.output, tt.format)
+			})
 
 			for _, want := range tt.contains {
 				if !strings.Contains(output, want) {
-					t.Errorf("PrintResponse() output = %q, want to contain %q", output, want)
+					t.Errorf("printFormatted() output = %q, want to contain %q", output, want)
 				}
 			}
 		})
 	}
 }
 
-// TestCLIClient_PrintResponseNestedData verifies nested data formatting.
+// TestPrintFormattedNestedData verifies nested data formatting.
 //
 // VALIDATES: Nested maps and arrays format with proper indentation.
 // PREVENTS: Nested data being flattened or misformatted.
-func TestCLIClient_PrintResponseNestedData(t *testing.T) {
-	client := &cliClient{}
-
-	resp := &rpcResponse{
-		Result: mustJSON(map[string]any{
-			"peers": []any{
-				map[string]any{"Address": "10.0.0.1", "State": "established"},
-				map[string]any{"Address": "10.0.0.2", "State": "idle"},
-			},
-			"config": map[string]any{
-				"local-as": 65000,
-			},
-			"empty-list": []any{},
-		}),
+func TestPrintFormattedNestedData(t *testing.T) {
+	data := map[string]any{
+		"peers": []any{
+			map[string]any{"Address": "10.0.0.1", "State": "established"},
+			map[string]any{"Address": "10.0.0.2", "State": "idle"},
+		},
+		"config": map[string]any{
+			"local-as": 65000,
+		},
+		"empty-list": []any{},
 	}
+	jsonBytes, _ := json.Marshal(data)
 
 	output := captureOutput(t, false, func() {
-		client.printFormatted(resp, "yaml")
+		printFormatted(string(jsonBytes), "yaml")
 	})
 
-	// Check peer formatting (special case with Address)
+	// Check peer formatting
 	if !strings.Contains(output, "10.0.0.1") {
 		t.Errorf("output missing peer address: %q", output)
 	}
@@ -546,6 +135,33 @@ func TestCLIClient_PrintResponseNestedData(t *testing.T) {
 	}
 }
 
+// TestPrintFormattedStringList verifies string list formatting.
+//
+// VALIDATES: String arrays format as bullet points.
+// PREVENTS: String lists being printed as Go slice syntax.
+func TestPrintFormattedStringList(t *testing.T) {
+	data := map[string]any{
+		"commands": []any{
+			"daemon shutdown",
+			"peer list",
+			"system help",
+		},
+	}
+	jsonBytes, _ := json.Marshal(data)
+
+	output := captureOutput(t, false, func() {
+		printFormatted(string(jsonBytes), "yaml")
+	})
+
+	if !strings.Contains(output, "daemon shutdown") {
+		t.Errorf("output missing command in list: %q", output)
+	}
+
+	if !strings.Contains(output, "- ") {
+		t.Errorf("output should format list items with '- ': %q", output)
+	}
+}
+
 // TestCommandTree verifies command tree structure.
 //
 // VALIDATES: Command tree has expected commands and hierarchy.
@@ -555,9 +171,9 @@ func TestCommandTree(t *testing.T) {
 
 	// Check top-level commands exist
 	topLevel := []string{"daemon", "peer", "rib", "system"}
-	for _, cmd := range topLevel {
-		if _, ok := tree.Children[cmd]; !ok {
-			t.Errorf("missing top-level command: %s", cmd)
+	for _, c := range topLevel {
+		if _, ok := tree.Children[c]; !ok {
+			t.Errorf("missing top-level command: %s", c)
 		}
 	}
 
@@ -600,77 +216,62 @@ func TestCommandTree(t *testing.T) {
 	}
 }
 
-// TestCLIClient_ResponseWithStringList verifies string list formatting.
+// TestRun_HelpFlags verifies all help flag variants work.
 //
-// VALIDATES: String arrays format as bullet points.
-// PREVENTS: String lists being printed as Go slice syntax.
-func TestCLIClient_ResponseWithStringList(t *testing.T) {
-	client := &cliClient{}
-
-	resp := &rpcResponse{
-		Result: mustJSON(map[string]any{
-			"commands": []any{
-				"daemon shutdown",
-				"peer list",
-				"system help",
-			},
-		}),
-	}
-
-	output := captureOutput(t, false, func() {
-		client.printFormatted(resp, "yaml")
-	})
-
-	// Should contain list items formatted as "- item"
-	if !strings.Contains(output, "daemon shutdown") {
-		t.Errorf("output missing command in list: %q", output)
-	}
-
-	if !strings.Contains(output, "- ") {
-		t.Errorf("output should format list items with '- ': %q", output)
-	}
-}
-
-// TestErrorMessage verifies rpcResponse.ErrorMessage prefers Params.message over Error code.
-//
-// VALIDATES: Structured error detail is used for display when available.
-// PREVENTS: Kebab-case error codes shown to users instead of readable messages.
-func TestErrorMessage(t *testing.T) {
+// VALIDATES: ze cli help, ze cli --help, ze cli -h all show usage.
+// PREVENTS: help flags being mishandled or causing errors.
+func TestRun_HelpFlags(t *testing.T) {
 	tests := []struct {
 		name string
-		resp rpcResponse
-		want string
+		args []string
 	}{
-		{
-			name: "params_message",
-			resp: rpcResponse{
-				Error:  "command-not-available",
-				Params: json.RawMessage(`{"message":"command \"bgp rib routes\" not available (plugin may not be running)"}`),
-			},
-			want: `command "bgp rib routes" not available (plugin may not be running)`,
-		},
-		{
-			name: "fallback_to_error",
-			resp: rpcResponse{Error: "unknown-method"},
-			want: "unknown-method",
-		},
-		{
-			name: "empty_params_message",
-			resp: rpcResponse{
-				Error:  "some-error",
-				Params: json.RawMessage(`{"message":""}`),
-			},
-			want: "some-error",
-		},
+		{"help", []string{"help"}},
+		{"--help", []string{"--help"}},
+		{"-h", []string{"-h"}},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.resp.ErrorMessage()
-			if got != tt.want {
-				t.Errorf("ErrorMessage() = %q, want %q", got, tt.want)
+			var code int
+			output := captureOutput(t, true, func() {
+				code = Run(tt.args)
+			})
+
+			if code != 0 {
+				t.Errorf("Run(%v) returned %d, want 0", tt.args, code)
+			}
+
+			if !strings.Contains(output, "Usage:") {
+				t.Errorf("Run(%v) output = %q, want to contain 'Usage:'", tt.args, output)
+			}
+
+			if !strings.Contains(output, "ze cli") {
+				t.Errorf("Run(%v) output = %q, want to contain 'ze cli'", tt.args, output)
 			}
 		})
+	}
+}
+
+// TestBuildRuntimeTree_FallbackToStatic verifies that buildRuntimeTree falls back
+// to the static command tree when the daemon is unreachable.
+//
+// VALIDATES: buildRuntimeTree returns static tree on SSH error.
+// PREVENTS: nil tree or panic when daemon not reachable.
+func TestBuildRuntimeTree_FallbackToStatic(t *testing.T) {
+	// Client with invalid credentials — SendCommand will fail
+	client := &cliClient{}
+
+	tree := buildRuntimeTree(client)
+	if tree == nil {
+		t.Fatal("buildRuntimeTree returned nil")
+	}
+
+	// Should fall back to static tree which has standard commands
+	if _, ok := tree.Children["peer"]; !ok {
+		t.Error("expected 'peer' in fallback tree")
+	}
+	if _, ok := tree.Children["daemon"]; !ok {
+		t.Error("expected 'daemon' in fallback tree")
 	}
 }
 
@@ -686,8 +287,8 @@ func TestHistoryUpDown(t *testing.T) {
 	enterKey := tea.KeyMsg{Type: tea.KeyEnter}
 
 	// Populate history by executing commands.
-	for _, cmd := range []string{"peer list", "daemon status", "system help"} {
-		m.SetInput(cmd)
+	for _, c := range []string{"peer list", "daemon status", "system help"} {
+		m.SetInput(c)
 		updated, _ := m.Update(enterKey)
 		m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
 	}
@@ -856,99 +457,3 @@ func TestHistoryDedup(t *testing.T) {
 // with ghost text). Equivalent behavior is tested in
 // internal/component/cli/model_test.go (TestTabOnListKeyShowsChildrenImmediately
 // and the headless .et functional tests).
-
-// TestResolveCommand verifies text command to wire method mapping.
-//
-// VALIDATES: CLI commands resolve to correct wire methods.
-// PREVENTS: Wrong RPC method being called for a text command.
-func TestResolveCommand(t *testing.T) {
-	client := &cliClient{
-		cmdMap: map[string]string{
-			"bgp peer list":           "ze-bgp:peer-list",
-			"bgp peer detail":         "ze-bgp:peer-detail",
-			"daemon status":           "ze-system:daemon-status",
-			"system help":             "ze-system:help",
-			"system version software": "ze-system:version-software",
-		},
-	}
-	// Build sorted keys (longest first)
-	keys := make([]string, 0, len(client.cmdMap))
-	for k := range client.cmdMap {
-		keys = append(keys, k)
-	}
-	for i := range keys {
-		for j := i + 1; j < len(keys); j++ {
-			if len(keys[j]) > len(keys[i]) {
-				keys[i], keys[j] = keys[j], keys[i]
-			}
-		}
-	}
-	client.cmdKeys = keys
-
-	tests := []struct {
-		name       string
-		input      string
-		wantMethod string
-		wantArgs   []string
-	}{
-		{"peer_list", "peer list", "ze-bgp:peer-list", nil},
-		{"peer_detail_with_arg", "peer detail 10.0.0.1", "ze-bgp:peer-detail", []string{"10.0.0.1"}},
-		{"daemon_status", "daemon status", "ze-system:daemon-status", nil},
-		{"system_help", "system help", "ze-system:help", nil},
-		{"unknown", "nonexistent", "", nil},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			method, args := client.resolveCommand(tt.input)
-			if method != tt.wantMethod {
-				t.Errorf("resolveCommand(%q) method = %q, want %q", tt.input, method, tt.wantMethod)
-			}
-			if len(args) != len(tt.wantArgs) {
-				t.Errorf("resolveCommand(%q) args = %v, want %v", tt.input, args, tt.wantArgs)
-			}
-		})
-	}
-}
-
-// TestBuildRuntimeTree verifies proxy commands are filtered when plugin is not running.
-//
-// VALIDATES: buildRuntimeTree excludes proxy commands whose PluginCommand is not in daemon's command list.
-// PREVENTS: Completions offered for commands that will fail because plugin is not running.
-func TestBuildRuntimeTree(t *testing.T) {
-	server := newMockServer(t)
-	defer server.Close()
-
-	client, err := newCLIClient(server.path)
-	if err != nil {
-		t.Fatalf("failed to connect: %v", err)
-	}
-	defer client.Close() //nolint:forcetypeassert,errcheck // test cleanup
-
-	tree := buildRuntimeTree(client)
-	if tree == nil {
-		t.Fatal("buildRuntimeTree returned nil")
-	}
-
-	// "rib status" is in the mock's command list → rib.status should be present
-	rib := tree.Children["rib"]
-	if rib == nil {
-		t.Fatal("expected 'rib' in runtime tree")
-	}
-	if _, ok := rib.Children["status"]; !ok {
-		t.Error("expected 'rib status' in runtime tree (plugin command available)")
-	}
-
-	// "rib show" is NOT in the mock's command list → rib.routes should be absent
-	if _, ok := rib.Children["routes"]; ok {
-		t.Error("expected 'rib routes' to be filtered out (plugin command 'rib show' not available)")
-	}
-
-	// Non-proxy commands should always be present
-	if _, ok := tree.Children["peer"]; !ok {
-		t.Error("expected 'peer' in runtime tree (not a proxy command)")
-	}
-	if _, ok := tree.Children["daemon"]; !ok {
-		t.Error("expected 'daemon' in runtime tree (not a proxy command)")
-	}
-}

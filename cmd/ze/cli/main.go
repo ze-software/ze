@@ -7,16 +7,14 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
-	"net"
 	"os"
-	"sort"
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/sshclient"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/cache"             // init() registers cache command RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/commit"            // init() registers commit command RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/meta"              // init() registers help/discovery RPCs
@@ -28,9 +26,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler" // init() registers route-refresh command RPCs
 	unicli "codeberg.org/thomas-mangin/ze/internal/component/cli"
 	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -62,7 +58,6 @@ Subsystems:
   bgp    BGP daemon (default)
 
 Options:
-  --socket <path>    Path to API socket (default: auto-detected)
   --run <command>    Execute single command and exit
 
 Pipe operators (interactive mode only, Tab completes after |):
@@ -84,25 +79,24 @@ Examples:
 // runBGP runs the BGP CLI using the unified cli.Model.
 func runBGP(args []string) int {
 	fs := flag.NewFlagSet("cli", flag.ExitOnError)
-	socketPath := fs.String("socket", config.DefaultSocketPath(), "Path to API socket")
 	runCmd := fs.String("run", "", "Execute single command and exit")
 	format := fs.String("format", "yaml", "Output format: yaml, json, table")
-	user := fs.String("user", "", "Username for authorization (simulates authenticated user)")
 
 	if err := fs.Parse(args); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 
-	// Try to connect to daemon
-	client, err := newCLIClient(*socketPath)
+	// Load SSH credentials to connect to daemon
+	creds, err := sshclient.LoadCredentials()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: cannot connect to %s: %v\n", *socketPath, err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		fmt.Fprintf(os.Stderr, "hint: is the daemon running?\n")
 		return 1
 	}
-	defer func() { _ = client.Close() }()
-	client.username = *user
+
+	// Create SSH-based client
+	client := newCLIClient(creds)
 
 	// If --run specified, execute single command and exit
 	if *runCmd != "" {
@@ -112,20 +106,10 @@ func runBGP(args []string) int {
 	// Create unified model in command-only mode
 	m := unicli.NewCommandModel()
 
-	// Wire command executor: sends commands to daemon, returns raw JSON.
+	// Wire command executor: sends commands to daemon via SSH, returns response.
 	// Pipe processing (| table, | json, etc.) is handled by the unified model.
 	m.SetCommandExecutor(func(input string) (string, error) {
-		resp, err := client.SendCommand(input)
-		if err != nil {
-			return "", err
-		}
-		if resp.Error != "" {
-			return "", fmt.Errorf("%s", resp.ErrorMessage())
-		}
-		if len(resp.Result) == 0 || string(resp.Result) == "null" {
-			return "OK", nil
-		}
-		return string(resp.Result), nil
+		return client.SendCommand(input)
 	})
 
 	// Wire command completer from runtime-filtered command tree.
@@ -142,204 +126,53 @@ func runBGP(args []string) int {
 	return 0
 }
 
-// rpcResponse covers both success and error JSON RPC wire formats.
-type rpcResponse struct {
-	Result json.RawMessage `json:"result,omitempty"`
-	Error  string          `json:"error,omitempty"`
-	Params json.RawMessage `json:"params,omitempty"` // Error detail from server (message field)
-}
-
-// ErrorMessage returns the human-readable error message.
-// Prefers Params.message (structured detail) over the kebab-case Error code.
-func (r *rpcResponse) ErrorMessage() string {
-	if len(r.Params) > 0 {
-		var detail struct {
-			Message string `json:"message"`
-		}
-		if json.Unmarshal(r.Params, &detail) == nil && detail.Message != "" {
-			return detail.Message
-		}
-	}
-	return r.Error
-}
-
-// cliClient handles communication with the API server using NUL-framed JSON RPC.
+// cliClient handles communication with the daemon via SSH exec.
 type cliClient struct {
-	conn     net.Conn
-	reader   *rpc.FrameReader
-	writer   *rpc.FrameWriter
-	cmdMap   map[string]string // lowercase CLI command → wire method
-	cmdKeys  []string          // sorted by length descending for longest-match
-	username string            // authenticated username for authorization (empty = no auth)
+	creds sshclient.Credentials
 }
 
-func newCLIClient(socketPath string) (*cliClient, error) {
-	var d net.Dialer
-	conn, err := d.DialContext(context.Background(), "unix", socketPath)
-	if err != nil {
-		return nil, err
-	}
-
-	// Build command map from all registered RPCs (builtins + BGP handlers)
-	cmdMap := make(map[string]string)
-	for _, reg := range AllCLIRPCs() {
-		cmdMap[strings.ToLower(reg.CLICommand)] = reg.WireMethod
-	}
-
-	// Sort keys by length descending for longest-match
-	keys := make([]string, 0, len(cmdMap))
-	for k := range cmdMap {
-		keys = append(keys, k)
-	}
-	sort.Slice(keys, func(i, j int) bool {
-		return len(keys[i]) > len(keys[j])
-	})
-
-	return &cliClient{
-		conn:    conn,
-		reader:  rpc.NewFrameReader(conn),
-		writer:  rpc.NewFrameWriter(conn),
-		cmdMap:  cmdMap,
-		cmdKeys: keys,
-	}, nil
+func newCLIClient(creds sshclient.Credentials) *cliClient {
+	return &cliClient{creds: creds}
 }
 
-func (c *cliClient) Close() error {
-	return c.conn.Close()
-}
-
-// resolveCommand finds the wire method for a text command.
-// Tries "bgp <input>" first (default subsystem), then raw input.
-// Returns wire method and any remaining args after the matched prefix.
-func (c *cliClient) resolveCommand(input string) (method string, args []string) {
-	// Try with "bgp " prefix first (default subsystem)
-	if m, a := c.matchCommand("bgp " + input); m != "" {
-		return m, a
-	}
-	// Try raw input for system/rib/plugin commands
-	return c.matchCommand(input)
-}
-
-// matchCommand does longest-prefix matching against registered CLI commands.
-func (c *cliClient) matchCommand(input string) (method string, args []string) {
-	lower := strings.ToLower(strings.TrimSpace(input))
-	for _, key := range c.cmdKeys {
-		if strings.HasPrefix(lower, key) {
-			// Check word boundary
-			if len(lower) == len(key) || lower[len(key)] == ' ' {
-				remaining := strings.TrimSpace(input[len(key):])
-				if remaining != "" {
-					args = strings.Fields(remaining)
-				}
-				return c.cmdMap[key], args
-			}
-		}
-	}
-	return "", nil
-}
-
-// Execute sends a command and prints the response in the given format.
+// Execute sends a command via SSH and prints the response in the given format.
 // Valid formats: "yaml" (default), "json", "table".
 func (c *cliClient) Execute(command, format string) int {
-	resp, err := c.SendCommand(command)
+	output, err := c.SendCommand(command)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 
-	c.printFormatted(resp, format)
-
-	if resp.Error != "" {
-		return 1
-	}
+	printFormatted(output, format)
 	return 0
 }
 
-// SendCommand sends a command as JSON RPC and returns the response.
-func (c *cliClient) SendCommand(command string) (*rpcResponse, error) {
-	method, args := c.resolveCommand(command)
-	if method == "" {
-		return &rpcResponse{Error: "unknown command: " + command}, nil
-	}
-
-	// Build JSON RPC request.
-	// Extract peer selector from args: if the first arg looks like an IP/glob,
-	// it's a peer selector that the server expects in params.selector.
-	req := rpc.Request{Method: method}
-	var selector string
-	if len(args) > 0 && looksLikePeerSelector(args[0]) {
-		selector = args[0]
-		args = args[1:]
-	}
-	if len(args) > 0 || selector != "" || c.username != "" {
-		params := struct {
-			Selector string   `json:"selector,omitempty"`
-			Args     []string `json:"args,omitempty"`
-			Username string   `json:"username,omitempty"`
-		}{Selector: selector, Args: args, Username: c.username}
-		paramBytes, err := json.Marshal(params)
-		if err != nil {
-			return nil, fmt.Errorf("marshal params: %w", err)
-		}
-		req.Params = paramBytes
-	}
-
-	// Send NUL-framed JSON
-	reqBytes, err := json.Marshal(req)
-	if err != nil {
-		return nil, fmt.Errorf("marshal request: %w", err)
-	}
-	if err := c.writer.Write(reqBytes); err != nil {
-		return nil, fmt.Errorf("send: %w", err)
-	}
-
-	// Read NUL-framed response
-	respBytes, err := c.reader.Read()
-	if err != nil {
-		return nil, fmt.Errorf("receive: %w", err)
-	}
-
-	var resp rpcResponse
-	if err := json.Unmarshal(respBytes, &resp); err != nil {
-		return nil, fmt.Errorf("parse response: %w", err)
-	}
-
-	return &resp, nil
+// SendCommand sends a command to the daemon via SSH exec and returns the response.
+func (c *cliClient) SendCommand(command string) (string, error) {
+	return sshclient.ExecCommand(c.creds, command)
 }
 
-// printFormatted formats and prints a response in the given format.
-func (c *cliClient) printFormatted(resp *rpcResponse, format string) {
-	if resp.Error != "" {
-		fmt.Fprintf(os.Stderr, "error: %s\n", resp.ErrorMessage())
-		return
-	}
-
-	if len(resp.Result) == 0 || string(resp.Result) == "null" {
+// printFormatted formats and prints output in the given format.
+func printFormatted(output, format string) {
+	if output == "" {
 		fmt.Println("OK")
 		return
 	}
 
 	switch format {
 	case "json":
-		fmt.Println(cmd.ApplyJSON(string(resp.Result), "pretty"))
+		fmt.Println(cmd.ApplyJSON(output, "pretty"))
 	case "table":
-		fmt.Print(cmd.ApplyTable(string(resp.Result)))
+		fmt.Print(cmd.ApplyTable(output))
 	default: // yaml
 		var data any
-		if err := json.Unmarshal(resp.Result, &data); err != nil {
-			fmt.Println(string(resp.Result))
+		if err := json.Unmarshal([]byte(output), &data); err != nil {
+			fmt.Println(output)
 			return
 		}
 		fmt.Print(cmd.RenderYAML(data))
 	}
-}
-
-// looksLikePeerSelector returns true if the string looks like an IP address or glob.
-func looksLikePeerSelector(s string) bool {
-	if s == "*" {
-		return true
-	}
-	return strings.ContainsAny(s, ".:")
 }
 
 // AllCLIRPCs returns all RPCs needed for CLI command mapping.
@@ -376,8 +209,8 @@ var commandTree = BuildCommandTree(false)
 // Falls back to the static commandTree on any error.
 func buildRuntimeTree(client *cliClient) *Command {
 	// Query daemon for runtime command list
-	resp, err := client.SendCommand("system command list")
-	if err != nil || resp.Error != "" {
+	output, err := client.SendCommand("system command list")
+	if err != nil {
 		return commandTree
 	}
 
@@ -387,7 +220,7 @@ func buildRuntimeTree(client *cliClient) *Command {
 			Value string `json:"value"`
 		} `json:"commands"`
 	}
-	if json.Unmarshal(resp.Result, &data) != nil {
+	if json.Unmarshal([]byte(output), &data) != nil {
 		return commandTree
 	}
 
@@ -444,8 +277,8 @@ func fetchPeerSelectors(client *cliClient) []cmd.Suggestion {
 		return peerCache.suggestions
 	}
 
-	resp, err := client.SendCommand("bgp peer * list")
-	if err != nil || resp.Error != "" {
+	output, err := client.SendCommand("bgp peer * list")
+	if err != nil {
 		return nil
 	}
 
@@ -454,7 +287,7 @@ func fetchPeerSelectors(client *cliClient) []cmd.Suggestion {
 			Name string `json:"name"`
 		} `json:"peers"`
 	}
-	if json.Unmarshal(resp.Result, &data) != nil {
+	if json.Unmarshal([]byte(output), &data) != nil {
 		return nil
 	}
 

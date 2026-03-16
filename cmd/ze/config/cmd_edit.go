@@ -5,8 +5,6 @@ package config
 
 import (
 	"bufio"
-	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -20,6 +18,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/sshclient"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -27,135 +26,115 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
-	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // defaultConfigName is the config name used when no argument is given.
 const defaultConfigName = "ze.conf"
 
-// wireCommandExecutor tries to connect to the daemon socket and sets up the command executor.
-// If the daemon is not running, command mode will show an error on Enter (best-effort).
-// Returns the connection (caller must close) or nil if no daemon.
-func wireCommandExecutor(m *cli.Model, socketPath string) net.Conn {
-	var d net.Dialer
-	conn, err := d.DialContext(context.Background(), "unix", socketPath)
+// ephemeralPollInterval is the interval between SSH port readiness checks.
+const ephemeralPollInterval = 100 * time.Millisecond
+
+// ephemeralPollTimeout is the maximum time to wait for the ephemeral daemon to start.
+const ephemeralPollTimeout = 10 * time.Second
+
+// startEphemeralDaemon starts a background ze daemon for the given config.
+// Waits for the SSH port to become reachable before returning.
+// Returns the process (caller must stop and wait) or an error.
+func startEphemeralDaemon(configPath, host, port string) (*os.Process, error) {
+	exe, err := os.Executable()
 	if err != nil {
-		return nil // No daemon — command mode will report "no daemon connection"
+		return nil, fmt.Errorf("find ze binary: %w", err)
 	}
 
-	reader := rpc.NewFrameReader(conn)
-	writer := rpc.NewFrameWriter(conn)
+	// Open devnull for the daemon's stdin so it doesn't compete with the editor's terminal.
+	devnull, err := os.Open(os.DevNull)
+	if err != nil {
+		return nil, fmt.Errorf("open devnull: %w", err)
+	}
 
-	// Build command map for resolving CLI text → wire method
-	cmdMap, cmdKeys := buildCommandMap()
+	// Start ze with the config file as a background daemon.
+	proc, err := os.StartProcess(exe, []string{exe, configPath}, &os.ProcAttr{
+		Env:   os.Environ(),
+		Files: []*os.File{devnull, nil, os.Stderr},
+	})
+	devnull.Close() //nolint:errcheck // devnull close is non-fatal
+	if err != nil {
+		return nil, fmt.Errorf("start ephemeral daemon: %w", err)
+	}
 
-	// Pipe processing (| table, | json, etc.) is handled by the unified model's
-	// executeOperationalCommand — executor receives pre-pipe commands, returns raw JSON.
+	// Wait for SSH port to become reachable (short timeout per probe for fast polling)
+	deadline := time.Now().Add(ephemeralPollTimeout)
+	for time.Now().Before(deadline) {
+		if probeSSHWithTimeout(host, port, 200*time.Millisecond) {
+			return proc, nil
+		}
+		time.Sleep(ephemeralPollInterval)
+	}
+
+	// Timeout — kill the process and report failure
+	if killErr := proc.Kill(); killErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: kill ephemeral daemon: %v\n", killErr)
+	}
+	if _, waitErr := proc.Wait(); waitErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: wait ephemeral daemon: %v\n", waitErr)
+	}
+	return nil, fmt.Errorf("ephemeral daemon failed to start within %v", ephemeralPollTimeout)
+}
+
+// stopEphemeralDaemon sends a stop command via SSH and waits for the process to exit.
+// If the process doesn't exit within 5 seconds, it is killed.
+func stopEphemeralDaemon(proc *os.Process, creds sshclient.Credentials) {
+	// Best-effort stop via SSH
+	if _, err := sshclient.ExecCommand(creds, "stop"); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: stop ephemeral daemon: %v\n", err)
+	}
+
+	// Wait for process to exit with timeout.
+	// Single goroutine owns proc.Wait to avoid race between Wait and Kill.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		// Wait blocks until the process exits (from SSH stop or kill below).
+		if _, err := proc.Wait(); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: wait ephemeral daemon: %v\n", err)
+		}
+	}()
+
+	select {
+	case <-done:
+		return
+	case <-time.After(5 * time.Second):
+		// Process didn't exit after SSH stop — force kill, then wait for goroutine.
+		if err := proc.Signal(os.Kill); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: kill ephemeral daemon: %v\n", err)
+		}
+		<-done // wait for goroutine to finish after kill
+	}
+}
+
+// probeDaemonSSH checks if a daemon is reachable at host:port via TCP dial.
+// Uses the provided timeout (0 means default 2s).
+func probeDaemonSSH(host, port string) bool {
+	return probeSSHWithTimeout(host, port, 2*time.Second)
+}
+
+func probeSSHWithTimeout(host, port string, timeout time.Duration) bool {
+	addr := net.JoinHostPort(host, port)
+	d := net.Dialer{Timeout: timeout}
+	conn, err := d.Dial("tcp", addr)
+	if err != nil {
+		return false
+	}
+	conn.Close() //nolint:errcheck // probe connection
+	return true
+}
+
+// wireSSHCommandExecutor sets up a command executor that dispatches via SSH exec.
+// If credentials are unavailable, command mode will show an error on Enter (best-effort).
+func wireSSHCommandExecutor(m *cli.Model, creds sshclient.Credentials) {
 	m.SetCommandExecutor(func(input string) (string, error) {
-		method, args := resolveEditorCommand(cmdMap, cmdKeys, input)
-		if method == "" {
-			return "", fmt.Errorf("unknown command: %s", input)
-		}
-
-		req := rpc.Request{Method: method}
-		if len(args) > 0 {
-			params := struct {
-				Args []string `json:"args,omitempty"`
-			}{Args: args}
-			paramBytes, err := json.Marshal(params)
-			if err != nil {
-				return "", fmt.Errorf("marshal params: %w", err)
-			}
-			req.Params = paramBytes
-		}
-
-		reqBytes, err := json.Marshal(req)
-		if err != nil {
-			return "", fmt.Errorf("marshal request: %w", err)
-		}
-		if err := writer.Write(reqBytes); err != nil {
-			return "", fmt.Errorf("send: %w", err)
-		}
-
-		respBytes, err := reader.Read()
-		if err != nil {
-			return "", fmt.Errorf("receive: %w", err)
-		}
-
-		var resp struct {
-			Result json.RawMessage `json:"result,omitempty"`
-			Error  string          `json:"error,omitempty"`
-			Params json.RawMessage `json:"params,omitempty"`
-		}
-		if err := json.Unmarshal(respBytes, &resp); err != nil {
-			return "", fmt.Errorf("parse response: %w", err)
-		}
-
-		if resp.Error != "" {
-			if msg := rpc.ExtractMessage(resp.Params); msg != "" {
-				return "", fmt.Errorf("%s", msg)
-			}
-			return "", fmt.Errorf("%s", resp.Error)
-		}
-
-		if len(resp.Result) == 0 || string(resp.Result) == "null" {
-			return "OK", nil
-		}
-
-		return string(resp.Result), nil
+		return sshclient.ExecCommand(creds, input)
 	})
-
-	return conn
-}
-
-// buildCommandMap builds the CLI command → wire method mapping from registered RPCs.
-func buildCommandMap() (map[string]string, []string) {
-	cmdMap := make(map[string]string)
-	for _, reg := range allEditorRPCs() {
-		cmdMap[strings.ToLower(reg.CLICommand)] = reg.WireMethod
-	}
-
-	keys := make([]string, 0, len(cmdMap))
-	for k := range cmdMap {
-		keys = append(keys, k)
-	}
-	sort.Slice(keys, func(i, j int) bool {
-		return len(keys[i]) > len(keys[j])
-	})
-
-	return cmdMap, keys
-}
-
-// allEditorRPCs returns all RPCs for command resolution.
-func allEditorRPCs() []pluginserver.RPCRegistration {
-	return pluginserver.AllBuiltinRPCs()
-}
-
-// resolveEditorCommand finds the wire method for a text command.
-// Tries "bgp <input>" first (default subsystem), then raw input.
-func resolveEditorCommand(cmdMap map[string]string, cmdKeys []string, input string) (string, []string) {
-	if m, a := matchEditorCommand(cmdMap, cmdKeys, "bgp "+input); m != "" {
-		return m, a
-	}
-	return matchEditorCommand(cmdMap, cmdKeys, input)
-}
-
-// matchEditorCommand does longest-prefix matching against registered CLI commands.
-func matchEditorCommand(cmdMap map[string]string, cmdKeys []string, input string) (string, []string) {
-	lower := strings.ToLower(strings.TrimSpace(input))
-	for _, key := range cmdKeys {
-		if strings.HasPrefix(lower, key) {
-			if len(lower) == len(key) || lower[len(key)] == ' ' {
-				remaining := strings.TrimSpace(input[len(key):])
-				var args []string
-				if remaining != "" {
-					args = strings.Fields(remaining)
-				}
-				return cmdMap[key], args
-			}
-		}
-	}
-	return "", nil
 }
 
 const createPromptTimeout = 10 * time.Second
@@ -394,13 +373,34 @@ Examples:
 func runEditor(ed *cli.Editor, configPath string) int {
 	defer ed.Close() //nolint:errcheck // Best effort cleanup
 
-	// Probe daemon socket at startup: only wire reload if daemon is reachable
-	socketPath := config.DefaultSocketPath()
-	probeCtx, probeCancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer probeCancel()
-	if conn, err := (&net.Dialer{}).DialContext(probeCtx, "unix", socketPath); err == nil {
-		conn.Close() //nolint:errcheck,gosec // Probe connection, close error is irrelevant
-		ed.SetReloadNotifier(cli.NewSocketReloadNotifier(socketPath))
+	// Probe daemon SSH port at startup.
+	// If no daemon is running and credentials are available, start an ephemeral daemon.
+	creds, credsErr := sshclient.LoadCredentials()
+	var ephemeralProc *os.Process
+	daemonReachable := false
+	if credsErr == nil {
+		if probeDaemonSSH(creds.Host, creds.Port) {
+			daemonReachable = true
+		} else {
+			// No daemon — start ephemeral daemon for command execution
+			proc, ephErr := startEphemeralDaemon(configPath, creds.Host, creds.Port)
+			if ephErr != nil {
+				fmt.Fprintf(os.Stderr, "warning: ephemeral daemon: %v\n", ephErr)
+			} else {
+				ephemeralProc = proc
+				daemonReachable = true
+			}
+		}
+		if daemonReachable {
+			ed.SetReloadNotifier(func() error {
+				_, err := sshclient.ExecCommand(creds, "reload")
+				return err
+			})
+		}
+	}
+	// Stop ephemeral daemon when editor exits
+	if ephemeralProc != nil {
+		defer stopEphemeralDaemon(ephemeralProc, creds)
 	}
 
 	// Wire archive notifier if config has commit-triggered archive blocks
@@ -457,11 +457,11 @@ func runEditor(ed *cli.Editor, configPath string) int {
 		return 1
 	}
 
-	// Wire command mode: completer from RPC registrations, executor from daemon socket.
+	// Wire command mode: completer from RPC registrations, executor via SSH.
 	// Command mode is best-effort — works without a running daemon (completions only).
 	m.SetCommandCompleter(cli.NewCommandCompleter(buildEditorCommandTree()))
-	if conn := wireCommandExecutor(&m, config.DefaultSocketPath()); conn != nil {
-		defer conn.Close() //nolint:errcheck // best-effort cleanup
+	if credsErr == nil && daemonReachable {
+		wireSSHCommandExecutor(&m, creds)
 	}
 
 	// Run Bubble Tea program

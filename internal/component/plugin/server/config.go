@@ -10,7 +10,6 @@ import (
 
 // ServerConfig holds API server configuration.
 type ServerConfig struct {
-	SocketPath         string                                          // Path to Unix socket
 	ConfigPath         string                                          // Path to config file (for peer save)
 	Plugins            []plugin.PluginConfig                           // External plugins to spawn
 	ConfiguredFamilies []string                                        // Families configured on peers (for deferred auto-load)

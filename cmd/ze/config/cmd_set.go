@@ -9,8 +9,8 @@ import (
 	"os"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/sshclient"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
-	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
@@ -115,11 +115,17 @@ Examples:
 
 	fmt.Fprintf(os.Stderr, "set %s = %s\n", displayPath, value)
 
-	// Notify daemon (best-effort)
+	// Notify daemon (best-effort) via SSH
 	if !*noReload {
-		ed.SetReloadNotifier(cli.NewSocketReloadNotifier(config.DefaultSocketPath()))
-		if err := ed.NotifyReload(); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: could not notify daemon: %v\n", err)
+		creds, credErr := sshclient.LoadCredentials()
+		if credErr == nil {
+			ed.SetReloadNotifier(func() error {
+				_, reloadErr := sshclient.ExecCommand(creds, "reload")
+				return reloadErr
+			})
+			if notifyErr := ed.NotifyReload(); notifyErr != nil {
+				fmt.Fprintf(os.Stderr, "warning: could not notify daemon: %v\n", notifyErr)
+			}
 		}
 	}
 

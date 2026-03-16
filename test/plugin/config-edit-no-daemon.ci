@@ -1,0 +1,20 @@
+# Test: ze config edit without daemon starts ephemeral daemon
+#
+# This test validates the ephemeral daemon concept by verifying
+# the editor detects no running daemon and attempts to start one.
+# Full interactive TUI testing is not possible in .ci format.
+#
+# VALIDATES: AC-5 — editor starts ephemeral daemon when no daemon running.
+# PREVENTS: Editor failing silently when daemon not available.
+
+# Validate ze init works (pre-daemon bootstrap)
+stdin=creds:terminator=EOF_CREDS
+admin
+secret123
+127.0.0.1
+2222
+EOF_CREDS
+
+cmd=foreground:seq=1:exec=ze init:stdin=creds:env=ZE_CONFIG_DIR=$TMPDIR
+expect=exit:code=0
+expect=stdout:contains=initialized

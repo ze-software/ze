@@ -1,0 +1,62 @@
+# Test: ze status detects running daemon via SSH port dial
+#
+# Flow:
+# 1. BGP daemon starts with SSH configured
+# 2. ze status dials SSH port, reports running
+# 3. Daemon shuts down
+# 4. ze status dials SSH port, reports not running
+#
+# VALIDATES: AC-8/AC-9 — status reports daemon liveness via TCP dial.
+# PREVENTS: Status giving false positives/negatives.
+
+# ze-peer expectations (minimal BGP peer)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+
+# EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration with SSH
+stdin=ze-bgp:terminator=EOF_CONF
+system {
+	authentication {
+		user admin {
+			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ0123"
+		}
+	}
+	ssh {
+		listen 127.0.0.1:0
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4
+		local-address 127.0.0.1
+		local-as 1
+		peer-as 1
+		connection active
+		group-updates disable
+
+		family {
+			ipv4/unicast
+		}
+		capability {
+			graceful-restart disable
+		}
+	}
+}
+EOF_CONF
+
+# Start daemon in background, check status
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

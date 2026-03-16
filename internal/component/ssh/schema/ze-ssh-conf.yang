@@ -40,7 +40,7 @@ module ze-ssh-conf {
         container ssh {
             description "SSH server settings";
 
-            leaf listen {
+            leaf-list listen {
                 type string;
                 description "Listen address and port (e.g. 0.0.0.0:2222)";
             }

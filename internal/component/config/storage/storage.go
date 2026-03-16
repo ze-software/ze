@@ -12,7 +12,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"syscall"
+	"sync"
 )
 
 // Storage provides abstracted file operations for config, draft, and backup files.
@@ -58,15 +58,19 @@ type WriteGuard interface {
 }
 
 // IsBlobStorage returns true if the given storage is backed by a zefs blob store.
-// Used by callers that need mode-specific behavior (PID files, host keys).
+// Used by callers that need mode-specific behavior (host keys).
 func IsBlobStorage(s Storage) bool {
 	_, ok := s.(*blobStorage)
 	return ok
 }
 
 // filesystemStorage wraps os calls for direct filesystem I/O.
-// This preserves current ze behavior with no changes.
-type filesystemStorage struct{}
+// The mu field serializes AcquireLock callers within the same process.
+// Cross-process serialization is not provided (filesystem mode is used
+// with the -f flag which explicitly bypasses the daemon).
+type filesystemStorage struct {
+	mu sync.Mutex
+}
 
 // NewFilesystem returns a Storage backed by the real filesystem.
 func NewFilesystem() Storage {
@@ -108,22 +112,16 @@ func (s *filesystemStorage) List(prefix string) ([]string, error) {
 	return result, nil
 }
 
-func (s *filesystemStorage) AcquireLock(name string) (WriteGuard, error) {
-	lockPath := name + ".lock"
-	f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDONLY, 0o600) //nolint:gosec // lock file path from config
-	if err != nil {
-		return nil, fmt.Errorf("storage: open lock %s: %w", lockPath, err)
-	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX); err != nil {
-		f.Close() //nolint:errcheck // best-effort close on lock failure
-		return nil, fmt.Errorf("storage: flock %s: %w", lockPath, err)
-	}
-	return &filesystemGuard{lockFile: f}, nil
+// AcquireLock acquires the in-process mutex for exclusive write access.
+// Serializes concurrent goroutines within the same process.
+func (s *filesystemStorage) AcquireLock(_ string) (WriteGuard, error) {
+	s.mu.Lock()
+	return &filesystemGuard{mu: &s.mu}, nil
 }
 
-// filesystemGuard holds a flock and delegates I/O to os calls.
+// filesystemGuard holds the mutex and delegates I/O to os calls.
 type filesystemGuard struct {
-	lockFile *os.File
+	mu *sync.Mutex
 }
 
 func (g *filesystemGuard) ReadFile(name string) ([]byte, error) {
@@ -139,16 +137,11 @@ func (g *filesystemGuard) Remove(name string) error {
 }
 
 func (g *filesystemGuard) Release() error {
-	if g.lockFile == nil {
-		return nil
+	if g.mu != nil {
+		g.mu.Unlock()
+		g.mu = nil
 	}
-	err := syscall.Flock(int(g.lockFile.Fd()), syscall.LOCK_UN)
-	closeErr := g.lockFile.Close()
-	g.lockFile = nil
-	if err != nil {
-		return fmt.Errorf("storage: unlock: %w", err)
-	}
-	return closeErr
+	return nil
 }
 
 // atomicWriteFile writes data to path via a temp file and rename.

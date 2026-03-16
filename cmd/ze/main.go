@@ -18,6 +18,7 @@ import (
 	zedb "codeberg.org/thomas-mangin/ze/cmd/ze/db"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
+	zeinit "codeberg.org/thomas-mangin/ze/cmd/ze/init"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	zeplugin "codeberg.org/thomas-mangin/ze/cmd/ze/plugin"
 	zerun "codeberg.org/thomas-mangin/ze/cmd/ze/run"
@@ -173,6 +174,8 @@ dispatch:
 		code := zeconfig.RunWithStorage(store, args[1:])
 		store.Close() //nolint:errcheck // best-effort cleanup before exit
 		os.Exit(code)
+	case "init":
+		os.Exit(zeinit.Run(args[1:]))
 	case "db":
 		os.Exit(zedb.Run(args[1:]))
 	case "validate":
@@ -237,7 +240,7 @@ dispatch:
 	// Unknown command
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
 	commands := []string{
-		"bgp", "plugin", "cli", "config", "db", "validate", "schema", "yang",
+		"bgp", "plugin", "cli", "config", "db", "init", "validate", "schema", "yang",
 		"exabgp", "signal", "status", "show", "run", "completion", "version", "help",
 	}
 	if suggestion := suggest.Command(arg, commands); suggestion != "" {
@@ -326,6 +329,7 @@ Options:
   --chaos-rate <0-1>    Fault probability per operation (default: 0.1)
 
 Commands:
+  init         Bootstrap database with SSH credentials
   validate     Validate configuration file
   config       Configuration management
   db           Blob store management

@@ -1,208 +1,144 @@
 package signal
 
 import (
-	"fmt"
+	"net"
 	"os"
-	"path/filepath"
-	"syscall"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
-	"codeberg.org/thomas-mangin/ze/internal/core/pidfile"
 )
 
-// TestSignalCommandReload verifies "reload" maps to SIGHUP.
-//
-// VALIDATES: reload command sends SIGHUP to the running process.
-// PREVENTS: Wrong signal mapping breaking config reload.
-func TestSignalCommandReload(t *testing.T) {
-	assert.Equal(t, syscall.SIGHUP, signalMap["reload"])
-}
+// VALIDATES: resolveHost returns flag value when set
+// PREVENTS: env vars overriding explicit flag
 
-// TestSignalCommandStop verifies "stop" maps to SIGTERM.
-//
-// VALIDATES: stop command sends SIGTERM for graceful shutdown.
-// PREVENTS: Wrong signal causing immediate kill instead of graceful.
-func TestSignalCommandStop(t *testing.T) {
-	assert.Equal(t, syscall.SIGTERM, signalMap["stop"])
-}
-
-// TestSignalCommandQuit verifies "quit" maps to SIGQUIT.
-//
-// VALIDATES: quit command sends SIGQUIT for immediate shutdown.
-// PREVENTS: Quit not being available as an escape hatch.
-func TestSignalCommandQuit(t *testing.T) {
-	assert.Equal(t, syscall.SIGQUIT, signalMap["quit"])
-}
-
-// TestSignalCommandStatus verifies status checks process alive via kill(0).
-//
-// VALIDATES: Status returns 0 for running process, 1 for dead.
-// PREVENTS: Status command giving false positives.
-func TestSignalCommandStatus(t *testing.T) {
-	// Our own process should be alive
-	info := &pidfile.Info{
-		PID:        os.Getpid(),
-		ConfigPath: "/etc/ze/test.conf",
-		StartTime:  "2026-01-31T10:30:00Z",
+func TestResolveHostFlag(t *testing.T) {
+	got := resolveHost("10.0.0.1")
+	if got != "10.0.0.1" {
+		t.Errorf("resolveHost with flag: got %q, want %q", got, "10.0.0.1")
 	}
-	code := cmdStatus(info)
-	assert.Equal(t, ExitSuccess, code)
-
-	// PID that doesn't exist (use a high unlikely PID)
-	infoDown := &pidfile.Info{
-		PID:        99999999,
-		ConfigPath: "/etc/ze/test.conf",
-		StartTime:  "2026-01-31T10:30:00Z",
-	}
-	code = cmdStatus(infoDown)
-	assert.Equal(t, ExitNotRunning, code)
 }
 
-// TestSignalCommandMissingArgs verifies usage is printed for missing arguments.
-//
-// VALIDATES: Run returns error exit code when args are missing.
-// PREVENTS: Panic on empty args slice.
+// VALIDATES: resolveHost falls back to env var
+// PREVENTS: env var not being read
+
+func TestResolveHostEnv(t *testing.T) {
+	t.Setenv("ze_ssh_host", "10.0.0.2")
+	got := resolveHost("")
+	if got != "10.0.0.2" {
+		t.Errorf("resolveHost with env: got %q, want %q", got, "10.0.0.2")
+	}
+}
+
+// VALIDATES: resolveHost returns default when no flag or env
+// PREVENTS: empty host causing connection failure
+
+func TestResolveHostDefault(t *testing.T) {
+	t.Setenv("ze_ssh_host", "")
+	t.Setenv("ze.ssh.host", "")
+	got := resolveHost("")
+	if got != defaultHost {
+		t.Errorf("resolveHost default: got %q, want %q", got, defaultHost)
+	}
+}
+
+// VALIDATES: resolvePort returns flag value when set
+// PREVENTS: env vars overriding explicit flag
+
+func TestResolvePortFlag(t *testing.T) {
+	got := resolvePort("3333")
+	if got != "3333" {
+		t.Errorf("resolvePort with flag: got %q, want %q", got, "3333")
+	}
+}
+
+// VALIDATES: resolvePort falls back to env var
+// PREVENTS: env var not being read
+
+func TestResolvePortEnv(t *testing.T) {
+	t.Setenv("ze_ssh_port", "4444")
+	got := resolvePort("")
+	if got != "4444" {
+		t.Errorf("resolvePort with env: got %q, want %q", got, "4444")
+	}
+}
+
+// VALIDATES: resolvePort returns default when no flag or env
+// PREVENTS: empty port causing connection failure
+
+func TestResolvePortDefault(t *testing.T) {
+	t.Setenv("ze_ssh_port", "")
+	t.Setenv("ze.ssh.port", "")
+	got := resolvePort("")
+	if got != defaultPort {
+		t.Errorf("resolvePort default: got %q, want %q", got, defaultPort)
+	}
+}
+
+// VALIDATES: RunStatus detects running daemon by TCP dial
+// PREVENTS: false negative when daemon is reachable
+
+func TestRunStatusDaemonRunning(t *testing.T) {
+	// Start a TCP listener to simulate a running daemon
+	var lc net.ListenConfig
+	ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close() //nolint:errcheck // test cleanup
+
+	_, port, _ := net.SplitHostPort(ln.Addr().String())
+
+	code := RunStatus([]string{"--host", "127.0.0.1", "--port", port})
+	if code != ExitSuccess {
+		t.Errorf("expected ExitSuccess (0), got %d", code)
+	}
+}
+
+// VALIDATES: RunStatus detects no daemon by TCP dial failure
+// PREVENTS: false positive when daemon is not running
+
+func TestRunStatusDaemonNotRunning(t *testing.T) {
+	// Use a port that's definitely not listening
+	code := RunStatus([]string{"--host", "127.0.0.1", "--port", "1"})
+	if code != ExitNotRunning {
+		t.Errorf("expected ExitNotRunning (1), got %d", code)
+	}
+}
+
+// VALIDATES: Run requires at least one argument (command)
+// PREVENTS: panic on empty args
+
 func TestSignalCommandMissingArgs(t *testing.T) {
-	tests := []struct {
-		name string
-		args []string
-	}{
-		{"no_args", []string{}},
-		{"command_only", []string{"reload"}},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			code := Run(tt.args)
-			assert.Equal(t, ExitNotRunning, code)
-		})
+	code := Run([]string{})
+	if code != ExitNotRunning {
+		t.Errorf("expected ExitNotRunning, got %d", code)
 	}
 }
 
-// TestRunStatusExplicitPIDFile verifies --pid-file overrides config-derived path.
-//
-// VALIDATES: Explicit PID file path is used when provided via RunStatus.
-// PREVENTS: Ignoring user-specified PID file location.
-func TestRunStatusExplicitPIDFile(t *testing.T) {
-	dir := t.TempDir()
-	explicit := filepath.Join(dir, "explicit.pid")
+// VALIDATES: Run rejects unknown commands
+// PREVENTS: silent failure on typos
 
-	// Create a PID file at the explicit path
-	pf, err := pidfile.Acquire(explicit, "/etc/ze/test.conf")
-	require.NoError(t, err)
-	defer pf.Release()
-
-	// RunStatus with explicit --pid-file pointing to our PID
-	code := RunStatus([]string{"--pid-file", explicit, "/etc/ze/test.conf"})
-	assert.Equal(t, ExitSuccess, code)
-}
-
-// TestRunStatusNoPIDFile verifies correct exit code when PID file doesn't exist.
-//
-// VALIDATES: Returns ExitNoPIDFile when PID file is missing via RunStatus.
-// PREVENTS: Confusing error message when daemon isn't running.
-func TestRunStatusNoPIDFile(t *testing.T) {
-	code := RunStatus([]string{"--pid-file", "/nonexistent/path/test.pid", "/etc/ze/test.conf"})
-	assert.Equal(t, ExitNoPIDFile, code)
-}
-
-// TestResolvePIDFileExplicit verifies explicit path takes priority.
-//
-// VALIDATES: Explicit path returned unchanged.
-// PREVENTS: Config-derived path overriding user's explicit choice.
-func TestResolvePIDFileExplicit(t *testing.T) {
-	path, err := resolvePIDFile("/run/ze/test.pid", "/etc/ze/test.conf")
-	require.NoError(t, err)
-	assert.Equal(t, "/run/ze/test.pid", path)
-}
-
-// TestResolvePIDFileFromConfig verifies config-derived path when no explicit.
-//
-// VALIDATES: Location() is called when no explicit path.
-// PREVENTS: Empty PID file path causing nil pointer.
-func TestResolvePIDFileFromConfig(t *testing.T) {
-	configDir := t.TempDir()
-	configPath := filepath.Join(configDir, "test.conf")
-
-	// Write a dummy config so filepath.Abs works
-	err := os.WriteFile(configPath, []byte("# test"), 0o644)
-	require.NoError(t, err)
-
-	t.Setenv("XDG_RUNTIME_DIR", "")
-
-	path, err := resolvePIDFile("", configPath)
-	require.NoError(t, err)
-
-	// With XDG unset (non-root), falls back to os.TempDir()/ze/<hash>.pid
-	absConfig, _ := filepath.Abs(configPath)
-	hash := pidfile.ConfigHash(absConfig)
-	expected := filepath.Join(os.TempDir(), "ze", hash+".pid")
-	assert.Equal(t, expected, path)
-}
-
-// TestSignalCommandSendToSelf verifies sending a signal to our own process.
-//
-// VALIDATES: Signal delivery works end-to-end via cmdSignal.
-// PREVENTS: Signal mapping existing but delivery failing.
-func TestSignalCommandSendToSelf(t *testing.T) {
-	dir := t.TempDir()
-	pidPath := filepath.Join(dir, "self.pid")
-
-	pf, err := pidfile.Acquire(pidPath, "/etc/ze/test.conf")
-	require.NoError(t, err)
-	defer pf.Release()
-
-	// We can't easily test reload/stop/quit on ourselves without side effects,
-	// but we can verify the signalMap coverage and that cmdSignal returns
-	// the right code for an unknown command.
-	info := &pidfile.Info{
-		PID:        os.Getpid(),
-		ConfigPath: "/etc/ze/test.conf",
-		StartTime:  "2026-01-31T10:30:00Z",
+func TestSignalCommandUnknown(t *testing.T) {
+	// Set env to avoid actual connections
+	t.Setenv("ze_ssh_host", "127.0.0.1")
+	t.Setenv("ze_ssh_port", "1")
+	code := Run([]string{"unknown"})
+	if code != ExitNotRunning {
+		t.Errorf("expected ExitNotRunning, got %d", code)
 	}
-
-	code := cmdSignal("unknown", info)
-	assert.Equal(t, ExitSignalFailed, code)
 }
 
-// TestSignalMapCompleteness verifies all documented commands are in signalMap.
-//
-// VALIDATES: reload, stop, quit are all mapped.
-// PREVENTS: Adding a command to CLI without mapping its signal.
-func TestSignalMapCompleteness(t *testing.T) {
-	expected := []string{"reload", "stop", "quit"}
-	for _, cmd := range expected {
-		_, ok := signalMap[cmd]
-		assert.True(t, ok, "missing signal mapping for %q", cmd)
+// VALIDATES: env var with dot notation (ze.ssh.host) works
+// PREVENTS: only underscore variant being recognized
+
+func TestResolveHostDotEnv(t *testing.T) {
+	// Clear underscore variant, set dot variant
+	t.Setenv("ze_ssh_host", "")
+	if err := os.Setenv("ze.ssh.host", "10.0.0.3"); err != nil {
+		t.Skip("cannot set env with dots on this platform")
 	}
-	assert.Len(t, signalMap, len(expected), "unexpected entries in signalMap")
-}
+	defer os.Unsetenv("ze.ssh.host") //nolint:errcheck // test cleanup
 
-// TestRunStatusWithPIDFile verifies full RunStatus() flow.
-//
-// VALIDATES: End-to-end: RunStatus → parse args → resolve PID file → check status.
-// PREVENTS: Integration gaps between argument parsing and PID file lookup.
-func TestRunStatusWithPIDFile(t *testing.T) {
-	dir := t.TempDir()
-	configPath := filepath.Join(dir, "test.conf")
-	err := os.WriteFile(configPath, []byte("# test"), 0o644)
-	require.NoError(t, err)
-
-	t.Setenv("XDG_RUNTIME_DIR", "")
-
-	// Acquire PID file at the location Run() will look for it
-	pidPath, err := pidfile.Location(configPath)
-	require.NoError(t, err)
-	pf, err := pidfile.Acquire(pidPath, configPath)
-	require.NoError(t, err)
-	defer pf.Release()
-
-	// RunStatus — should find our PID file and report running
-	code := RunStatus([]string{configPath})
-
-	assert.Equal(t, ExitSuccess, code, fmt.Sprintf(
-		"expected success checking status of pid %d", os.Getpid()))
+	got := resolveHost("")
+	if got != "10.0.0.3" {
+		t.Errorf("resolveHost dot env: got %q, want %q", got, "10.0.0.3")
+	}
 }

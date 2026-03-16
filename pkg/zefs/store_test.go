@@ -4422,3 +4422,67 @@ func equalStrings(a, b []string) bool {
 	}
 	return true
 }
+
+// VALIDATES: BlobStore does not create .lock files (single-writer daemon model)
+// PREVENTS: stale .lock files left after operations
+
+func TestBlobStoreNoFlock(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "test.zefs")
+
+	// Create should not produce a .lock file
+	s, err := Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := os.Stat(path + ".lock"); err == nil {
+		t.Error("Create produced a .lock file")
+	}
+
+	// Write + Lock/Release should not produce a .lock file
+	wl, err := s.Lock()
+	if err != nil {
+		t.Fatalf("Lock: %v", err)
+	}
+	if err := wl.WriteFile("key", []byte("value"), 0); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	if err := wl.Release(); err != nil {
+		t.Fatalf("Release: %v", err)
+	}
+
+	if _, err := os.Stat(path + ".lock"); err == nil {
+		t.Error("Lock/Release produced a .lock file")
+	}
+
+	// RWMutex still works: concurrent reads don't panic
+	rl := s.RLock()
+	data, err := rl.ReadFile("key")
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	if string(data) != "value" {
+		t.Errorf("got %q, want %q", data, "value")
+	}
+	rl.Release()
+
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Reopen should not produce a .lock file
+	s2, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := s2.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	if _, err := os.Stat(path + ".lock"); err == nil {
+		t.Error("Open produced a .lock file")
+	}
+}

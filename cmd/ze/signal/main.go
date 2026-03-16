@@ -1,17 +1,19 @@
 // Design: docs/architecture/behavior/signals.md — signal handling CLI
 //
-// Package signal provides the `ze signal` CLI command for sending OS signals
-// to running Ze daemon instances via PID file lookup.
+// Package signal provides the `ze signal` and `ze status` CLI commands.
+// Commands are sent to the daemon via SSH. Status is checked by dialing
+// the SSH port (TCP connect).
 package signal
 
 import (
 	"flag"
 	"fmt"
+	"net"
 	"os"
-	"syscall"
+	"time"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/sshclient"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
-	"codeberg.org/thomas-mangin/ze/internal/core/pidfile"
 )
 
 // Exit codes for signal command.
@@ -23,109 +25,41 @@ const (
 	ExitSignalFailed = 4
 )
 
-// signalMap maps command names to OS signals.
-var signalMap = map[string]syscall.Signal{
-	"reload": syscall.SIGHUP,
-	"stop":   syscall.SIGTERM,
-	"quit":   syscall.SIGQUIT,
-}
+// Default SSH connection target.
+const (
+	defaultHost = "127.0.0.1"
+	defaultPort = "2222"
+	dialTimeout = 2 * time.Second
+)
 
 // Run executes the ze signal command with the given arguments.
 // Returns an exit code.
 func Run(args []string) int {
 	fs := flag.NewFlagSet("signal", flag.ContinueOnError)
-	pidFilePath := fs.String("pid-file", "", "Explicit PID file path (overrides config-derived)")
+	host := fs.String("host", "", "SSH host (default from env or 127.0.0.1)")
+	port := fs.String("port", "", "SSH port (default from env or 2222)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze signal <command> [options] <config>
+		fmt.Fprintf(os.Stderr, `Usage: ze signal <command> [options]
 
-Send signals to a running Ze daemon.
+Send commands to a running Ze daemon via SSH.
 
 Commands:
-  reload    Send SIGHUP - reload configuration
-  stop      Send SIGTERM - graceful shutdown
-  quit      Send SIGQUIT - goroutine dump + immediate exit
+  reload    Reload configuration
+  stop      Graceful shutdown
 
 Options:
 `)
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
-Arguments:
-  <config>  Config file path (used to derive PID file location)
+Environment:
+  ze_ssh_host / ze.ssh.host   Override connection host
+  ze_ssh_port / ze.ssh.port   Override connection port
 
 Examples:
-  ze signal reload config.conf
-  ze signal stop --pid-file /run/ze/daemon.pid config.conf
-`)
-	}
-
-	if err := fs.Parse(args); err != nil {
-		return ExitNotRunning
-	}
-
-	remaining := fs.Args()
-	if len(remaining) < 2 {
-		fmt.Fprintf(os.Stderr, "error: requires <command> and <config>\n")
-		fs.Usage()
-		return ExitNotRunning
-	}
-
-	command := remaining[0]
-	configPath := remaining[1]
-
-	// Resolve PID file location
-	pidPath, err := resolvePIDFile(*pidFilePath, configPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return ExitNoPIDFile
-	}
-
-	// Read PID file info
-	info, err := pidfile.ReadInfo(pidPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return ExitNoPIDFile
-	}
-
-	switch command {
-	case "reload", "stop", "quit":
-		return cmdSignal(command, info)
-	default:
-		fmt.Fprintf(os.Stderr, "unknown signal command: %s\n", command)
-		if s := suggest.Command(command, []string{"reload", "stop", "quit"}); s != "" {
-			fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
-		}
-		fs.Usage()
-		return ExitNotRunning
-	}
-}
-
-// RunStatus executes the ze status command with the given arguments.
-// Returns an exit code.
-func RunStatus(args []string) int {
-	fs := flag.NewFlagSet("status", flag.ContinueOnError)
-	pidFilePath := fs.String("pid-file", "", "Explicit PID file path (overrides config-derived)")
-
-	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze status [options] <config>
-
-Check if a Ze daemon is running.
-
-Exit codes:
-  0  Process is running
-  1  Process is not running
-  2  PID file not found
-
-Options:
-`)
-		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, `
-Arguments:
-  <config>  Config file path (used to derive PID file location)
-
-Examples:
-  ze status config.conf
-  ze status --pid-file /run/ze/daemon.pid config.conf
+  ze signal reload
+  ze signal stop
+  ze signal stop --host 10.0.0.1 --port 2222
 `)
 	}
 
@@ -135,74 +69,129 @@ Examples:
 
 	remaining := fs.Args()
 	if len(remaining) < 1 {
-		fmt.Fprintf(os.Stderr, "error: requires <config>\n")
+		fmt.Fprintf(os.Stderr, "error: requires <command>\n")
 		fs.Usage()
 		return ExitNotRunning
 	}
 
-	configPath := remaining[0]
+	command := remaining[0]
 
-	pidPath, err := resolvePIDFile(*pidFilePath, configPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return ExitNoPIDFile
-	}
+	// Resolve SSH target
+	h := resolveHost(*host)
+	p := resolvePort(*port)
+	addr := net.JoinHostPort(h, p)
 
-	info, err := pidfile.ReadInfo(pidPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return ExitNoPIDFile
-	}
-
-	return cmdStatus(info)
-}
-
-// cmdStatus checks if the process is running.
-func cmdStatus(info *pidfile.Info) int {
-	// Check if process is alive via kill(pid, 0)
-	err := syscall.Kill(info.PID, 0)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "process %d is not running\n", info.PID)
-		return ExitNotRunning
-	}
-	fmt.Printf("process %d is running (config: %s, started: %s)\n",
-		info.PID, info.ConfigPath, info.StartTime)
-	return ExitSuccess
-}
-
-// cmdSignal sends an OS signal to the daemon.
-func cmdSignal(command string, info *pidfile.Info) int {
-	sig, ok := signalMap[command]
-	if !ok {
-		fmt.Fprintf(os.Stderr, "unknown command: %s\n", command)
-		return ExitSignalFailed
-	}
-
-	// Check process is alive first
-	if err := syscall.Kill(info.PID, 0); err != nil {
-		fmt.Fprintf(os.Stderr, "process %d is not running\n", info.PID)
-		return ExitNotRunning
-	}
-
-	// Send the signal
-	if err := syscall.Kill(info.PID, sig); err != nil {
-		if os.IsPermission(err) {
-			fmt.Fprintf(os.Stderr, "permission denied sending %s to pid %d\n", command, info.PID)
-			return ExitPermission
+	switch command {
+	case "reload", "stop":
+		return cmdSSHExec(addr, command)
+	default:
+		fmt.Fprintf(os.Stderr, "unknown signal command: %s\n", command)
+		if s := suggest.Command(command, []string{"reload", "stop"}); s != "" {
+			fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
 		}
-		fmt.Fprintf(os.Stderr, "error sending %s to pid %d: %v\n", command, info.PID, err)
-		return ExitSignalFailed
+		fs.Usage()
+		return ExitNotRunning
+	}
+}
+
+// RunStatus executes the ze status command with the given arguments.
+// Checks daemon liveness by dialing the SSH port.
+// Returns an exit code.
+func RunStatus(args []string) int {
+	fs := flag.NewFlagSet("status", flag.ContinueOnError)
+	host := fs.String("host", "", "SSH host (default from env or 127.0.0.1)")
+	port := fs.String("port", "", "SSH port (default from env or 2222)")
+
+	fs.Usage = func() {
+		fmt.Fprintf(os.Stderr, `Usage: ze status [options]
+
+Check if a Ze daemon is running by dialing the SSH port.
+
+Exit codes:
+  0  Daemon is running (SSH port reachable)
+  1  Daemon is not running
+
+Options:
+`)
+		fs.PrintDefaults()
+		fmt.Fprintf(os.Stderr, `
+Environment:
+  ze_ssh_host / ze.ssh.host   Override connection host
+  ze_ssh_port / ze.ssh.port   Override connection port
+
+Examples:
+  ze status
+  ze status --host 10.0.0.1 --port 2222
+`)
 	}
 
-	fmt.Printf("sent %s to pid %d\n", command, info.PID)
+	if err := fs.Parse(args); err != nil {
+		return ExitNotRunning
+	}
+
+	// Resolve SSH target
+	h := resolveHost(*host)
+	p := resolvePort(*port)
+	addr := net.JoinHostPort(h, p)
+
+	// Dial SSH port to check liveness
+	d := net.Dialer{Timeout: dialTimeout}
+	conn, err := d.Dial("tcp", addr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "daemon is not running (%s)\n", addr)
+		return ExitNotRunning
+	}
+	conn.Close() //nolint:errcheck // probe connection
+
+	fmt.Printf("daemon is running (%s)\n", addr)
 	return ExitSuccess
 }
 
-// resolvePIDFile determines the PID file path from either explicit flag or config path.
-func resolvePIDFile(explicit, configPath string) (string, error) {
-	if explicit != "" {
-		return explicit, nil
+// cmdSSHExec sends a command to the daemon via SSH exec.
+func cmdSSHExec(addr, command string) int {
+	creds, err := sshclient.LoadCredentials()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "hint: run 'ze init' to set up credentials\n")
+		return ExitNoPIDFile
 	}
 
-	return pidfile.Location(configPath)
+	// Override addr from loaded credentials
+	creds.Host, creds.Port, _ = net.SplitHostPort(addr)
+
+	result, err := sshclient.ExecCommand(creds, command)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return ExitSignalFailed
+	}
+	if result != "" {
+		fmt.Println(result)
+	}
+	return ExitSuccess
+}
+
+// resolveHost returns the SSH host from flag, env var, or default.
+func resolveHost(flagVal string) string {
+	if flagVal != "" {
+		return flagVal
+	}
+	for _, key := range []string{"ze.ssh.host", "ze_ssh_host"} {
+		if v := os.Getenv(key); v != "" {
+			return v
+		}
+	}
+	return defaultHost
+}
+
+// resolvePort returns the SSH port from flag, env var, or default.
+func resolvePort(flagVal string) string {
+	if flagVal != "" {
+		return flagVal
+	}
+	for _, key := range []string{"ze.ssh.port", "ze_ssh_port"} {
+		if v := os.Getenv(key); v != "" {
+			return v
+		}
+	}
+	return defaultPort
 }

@@ -9,7 +9,6 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -20,7 +19,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
-	"codeberg.org/thomas-mangin/ze/internal/core/pidfile"
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
@@ -95,32 +93,6 @@ func readStdinConfig() (data []byte, stdinOpen bool, err error) {
 	}
 }
 
-// acquirePIDFile attempts to acquire a PID file for the given config path.
-// Returns the PIDFile (caller must Release) or an error if another instance
-// holds the lock. Returns a no-op PIDFile for stdin configs or when the
-// PID file location cannot be determined.
-// When store is non-nil, the PID is stored in the blob with kill(0) mutual exclusion.
-// When store is nil, uses filesystem flock (current behavior).
-func acquirePIDFile(store storage.Storage, configPath string) (*pidfile.PIDFile, error) {
-	if configPath == "-" {
-		return pidfile.Noop(), nil
-	}
-	if storage.IsBlobStorage(store) {
-		pidKey := strings.TrimPrefix(configPath, "/") + ".pid"
-		return pidfile.AcquireWithStorage(store, pidKey, configPath)
-	}
-	pidPath, err := pidfile.Location(configPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "warning: PID file location: %v\n", err)
-		return pidfile.Noop(), nil
-	}
-	pf, err := pidfile.Acquire(pidPath, configPath)
-	if err != nil {
-		return nil, fmt.Errorf("PID file: %w", err)
-	}
-	return pf, nil
-}
-
 // runBGPInProcess loads BGP config using YANG parser and runs reactor in-process.
 // When stdinOpen is true, a background goroutine monitors stdin for EOF and
 // triggers shutdown when the upstream process exits (pipe mode).
@@ -156,14 +128,6 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 			"rate", chaosRate,
 		)
 	}
-
-	// Acquire PID file (prevents duplicate instances)
-	pf, err := acquirePIDFile(store, configPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return 1
-	}
-	defer pf.Release()
 
 	// Setup signal handling
 	sigCh := make(chan os.Signal, 1)
@@ -266,14 +230,6 @@ func runOrchestratorWithData(store storage.Storage, configPath string, data []by
 		return 1
 	}
 	cfg.ConfigPath = configPath
-
-	// Acquire PID file (prevents duplicate instances)
-	pf, err := acquirePIDFile(store, configPath)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		return 1
-	}
-	defer pf.Release()
 
 	o := hub.NewOrchestrator(cfg)
 	o.SetStorage(store)

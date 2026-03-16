@@ -425,9 +425,6 @@ func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reacto
 		RecentUpdateMax:    env.Reactor.CacheMax,
 	}
 
-	// Always set API socket path so CLI can connect to the daemon
-	reactorCfg.APISocketPath = env.SocketPath()
-
 	r := reactor.New(reactorCfg)
 
 	// Start pprof HTTP server from config environment block.
@@ -510,6 +507,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reacto
 						return formatResponseData(resp.Data), nil
 					}
 				})
+				sshSrv.SetShutdownFunc(func() { r.Stop() })
 				configLogger().Info("SSH command executor wired")
 			}
 		})
@@ -787,8 +785,9 @@ func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
 	// which is wrong for host key placement.
 	var cfg zessh.Config
 
-	if v, ok := sshContainer.Get("listen"); ok {
-		cfg.Listen = v
+	if addrs := sshContainer.GetSlice("listen"); len(addrs) > 0 {
+		cfg.Listen = addrs[0]
+		cfg.ListenAddrs = addrs
 	}
 	if v, ok := sshContainer.Get("host-key"); ok {
 		cfg.HostKeyPath = v

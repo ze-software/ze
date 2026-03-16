@@ -192,9 +192,9 @@ func TestFilesystemStorageLockCycle(t *testing.T) {
 		t.Fatalf("guard.Release: %v", err)
 	}
 
-	// Verify lock file was created
-	if _, err := os.Stat(configPath + ".lock"); err != nil {
-		t.Errorf("lock file should exist: %v", err)
+	// No .lock file should be created (single-writer daemon model)
+	if _, err := os.Stat(configPath + ".lock"); err == nil {
+		t.Error("lock file should not exist (flock removed)")
 	}
 }
 

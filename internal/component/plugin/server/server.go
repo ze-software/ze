@@ -1,6 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
 // Detail: startup.go — 5-stage plugin startup protocol
-// Detail: client.go — API client connections
 // Detail: dispatch.go — command dispatch routing
 // Detail: events.go — event delivery to plugins
 
@@ -11,7 +10,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -75,10 +73,6 @@ type Server struct {
 	registry    *plugin.PluginRegistry     // Command/capability registry
 	capInjector *plugin.CapabilityInjector // Capability injection for OPEN
 
-	listener net.Listener
-	clients  map[string]*Client
-	clientID atomic.Uint64
-
 	running atomic.Bool
 
 	configLoader ConfigLoader // Loads new config tree for ReloadFromDisk
@@ -86,7 +80,6 @@ type Server struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
-	mu     sync.RWMutex
 
 	reloadMu sync.Mutex // Prevents concurrent config reloads
 }
@@ -150,7 +143,6 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) *Server {
 		subscriptions: NewSubscriptionManager(),
 		registry:      plugin.NewPluginRegistry(),
 		capInjector:   plugin.NewCapabilityInjector(),
-		clients:       make(map[string]*Client),
 	}
 
 	// Register core handlers (text dispatcher for plugin protocol)
@@ -222,58 +214,16 @@ func (s *Server) Running() bool {
 	return s.running.Load()
 }
 
-// ClientCount returns the number of connected clients.
-func (s *Server) ClientCount() int {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return len(s.clients)
-}
-
 // Start begins accepting connections.
 func (s *Server) Start() error {
 	return s.StartWithContext(context.Background())
 }
 
 // StartWithContext begins accepting connections with the given context.
+// External access is via SSH; the plugin server handles only in-process dispatch.
 func (s *Server) StartWithContext(ctx context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(ctx)
-
-	// Only start socket listener if socket path is configured
-	if s.config.SocketPath != "" {
-		// Remove existing socket if present
-		if err := os.Remove(s.config.SocketPath); err != nil && !os.IsNotExist(err) {
-			return err
-		}
-
-		// Set restrictive umask before socket creation to eliminate the TOCTOU
-		// window between Listen() and Chmod(). The socket is created with 0600
-		// permissions from the start instead of briefly being world-accessible.
-		oldMask := setUmask(0o177) // owner rw only (0600)
-
-		var lc net.ListenConfig
-		listener, err := lc.Listen(ctx, "unix", s.config.SocketPath)
-
-		setUmask(oldMask) // restore immediately after socket creation
-
-		if err != nil {
-			return err
-		}
-
-		// Belt-and-suspenders: chmod in case umask was not effective (non-POSIX).
-		if err := os.Chmod(s.config.SocketPath, 0o600); err != nil {
-			listener.Close() //nolint:errcheck,gosec // cleanup on chmod failure
-			return fmt.Errorf("set socket permissions: %w", err)
-		}
-
-		s.listener = listener
-		s.running.Store(true)
-
-		// Start accept loop
-		s.wg.Add(1)
-		go s.acceptLoop()
-	} else {
-		s.running.Store(true)
-	}
+	s.running.Store(true)
 
 	// Start plugin phases asynchronously (non-blocking)
 	// Phase 1: Explicit plugins
@@ -291,11 +241,12 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	return nil
 }
 
-// Stop signals the server to stop.
+// Stop signals the server to stop and cleans up resources.
 func (s *Server) Stop() {
 	if s.cancel != nil {
 		s.cancel()
 	}
+	s.cleanup()
 }
 
 // Wait waits for the server to stop.
@@ -303,74 +254,13 @@ func (s *Server) Wait(ctx context.Context) error {
 	return syncutil.WaitGroupWait(ctx, &s.wg)
 }
 
-// acceptLoop accepts incoming connections.
-func (s *Server) acceptLoop() {
-	defer s.wg.Done()
-	defer s.cleanup()
-
-	for {
-		// Check for shutdown
-		select {
-		case <-s.ctx.Done():
-			return
-		default: // non-blocking shutdown check
-		}
-
-		// Accept with timeout to check for shutdown
-		if ul, ok := s.listener.(*net.UnixListener); ok {
-			if err := ul.SetDeadline(time.Now().Add(100 * time.Millisecond)); err != nil {
-				logger().Debug("accept loop: set deadline failed", "error", err)
-			}
-		}
-
-		conn, err := s.listener.Accept()
-		if err != nil {
-			// Check if we're shutting down
-			select {
-			case <-s.ctx.Done():
-				return
-			default: // transient error, retry accept
-				continue
-			}
-		}
-
-		// Handle new client
-		s.handleClient(conn)
-	}
-}
-
-// cleanup closes listener and removes socket.
+// cleanup stops processes.
 func (s *Server) cleanup() {
 	s.running.Store(false)
 
 	// Stop processes
 	if s.procManager != nil {
 		s.procManager.Stop()
-	}
-
-	// Close listener
-	if s.listener != nil {
-		if err := s.listener.Close(); err != nil {
-			logger().Debug("cleanup: close listener", "error", err)
-		}
-	}
-
-	// Close all clients
-	s.mu.Lock()
-	for _, client := range s.clients {
-		client.cancel()
-		if err := client.conn.Close(); err != nil {
-			logger().Debug("cleanup: close client", "id", client.id, "error", err)
-		}
-	}
-	s.clients = make(map[string]*Client)
-	s.mu.Unlock()
-
-	// Remove socket file
-	if s.config.SocketPath != "" {
-		if err := os.Remove(s.config.SocketPath); err != nil && !os.IsNotExist(err) {
-			logger().Debug("cleanup: remove socket", "path", s.config.SocketPath, "error", err)
-		}
 	}
 }
 

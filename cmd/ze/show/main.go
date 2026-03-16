@@ -48,9 +48,6 @@ func usage() {
 Show daemon state (read-only commands only).
 For all commands including destructive operations, use "ze run".
 
-Options:
-  --socket <path>  Path to API socket (default: auto-detected)
-
 Available commands:
 `)
 

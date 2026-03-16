@@ -15,6 +15,7 @@ import (
 	"log/slog"
 	"net"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -54,6 +55,7 @@ type CommandExecutorFactory func(username string) CommandExecutor
 // Config holds SSH server configuration parsed from the config file.
 type Config struct {
 	Listen      string
+	ListenAddrs []string // all listen addresses (first == Listen)
 	HostKeyPath string
 	ConfigDir   string          // directory of the config file; used for host-key default
 	Storage     storage.Storage // when set, host key is read from/stored to blob
@@ -63,16 +65,22 @@ type Config struct {
 	Executor    CommandExecutor // injected by daemon, not from config
 }
 
+// ShutdownFunc is called when the SSH server receives a "stop" exec command.
+type ShutdownFunc func()
+
 // Server is the SSH server subsystem.
 // It serves the config editor over SSH with password authentication.
+// Exec commands (non-interactive) are dispatched through the executor.
 type Server struct {
 	config          Config
-	mu              sync.Mutex // protects wish field and executorFactory
+	mu              sync.Mutex // protects wish field, executorFactory, and shutdownFunc
 	wish            *ssh.Server
-	listener        net.Listener // bound listener (for address resolution)
+	listener        net.Listener   // bound listener (for address resolution)
+	extraListeners  []net.Listener // additional listeners for multi-address binding
 	logger          *slog.Logger
 	activeSessions  atomic.Int32
 	executorFactory CommandExecutorFactory // set after reactor starts; creates per-session executors
+	shutdownFunc    ShutdownFunc           // set by daemon; called on "stop" exec command
 }
 
 // NewServer creates a new SSH server with the given configuration.
@@ -148,6 +156,14 @@ func (s *Server) SetExecutorFactory(f CommandExecutorFactory) {
 	s.executorFactory = f
 }
 
+// SetShutdownFunc sets the callback for "stop" exec commands.
+// Called by the daemon to wire graceful shutdown via SSH.
+func (s *Server) SetShutdownFunc(f ShutdownFunc) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.shutdownFunc = f
+}
+
 // Start launches the SSH server. It implements ze.Subsystem.
 // The listener is created synchronously so bind failures are reported immediately.
 func (s *Server) Start(ctx context.Context, _ ze.Bus, _ ze.ConfigProvider) error {
@@ -173,6 +189,7 @@ func (s *Server) Start(ctx context.Context, _ ze.Bus, _ ze.ConfigProvider) error
 		wish.WithMaxTimeout(time.Duration(s.config.IdleTimeout) * time.Second),
 		wish.WithMiddleware(
 			s.maxSessionsMiddleware(),
+			s.execMiddleware(),
 			bubbletea.Middleware(s.teaHandler),
 			activeterm.Middleware(),
 		),
@@ -212,6 +229,29 @@ func (s *Server) Start(ctx context.Context, _ ze.Bus, _ ze.ConfigProvider) error
 		}
 	}()
 
+	// Bind additional listen addresses (if configured).
+	// The first address is already bound above via config.Listen.
+	if len(s.config.ListenAddrs) > 1 {
+		for _, addr := range s.config.ListenAddrs[1:] {
+			extraLn, listenErr := lc.Listen(ctx, "tcp", addr)
+			if listenErr != nil {
+				s.logger.Error("SSH extra listener failed to bind", "address", addr, "error", listenErr)
+				continue
+			}
+			s.extraListeners = append(s.extraListeners, extraLn)
+
+			// Serve each extra listener in its own lifecycle goroutine.
+			go func() {
+				s.logger.Info("SSH server listening", "address", extraLn.Addr().String())
+				if err := srv.Serve(extraLn); err != nil {
+					if !errors.Is(err, ssh.ErrServerClosed) {
+						s.logger.Error("SSH server error", "address", extraLn.Addr().String(), "error", err)
+					}
+				}
+			}()
+		}
+	}
+
 	return nil
 }
 
@@ -227,6 +267,7 @@ func (s *Server) Stop(ctx context.Context) error {
 	err := s.wish.Shutdown(ctx)
 	s.wish = nil
 	s.listener = nil
+	s.extraListeners = nil
 	return err
 }
 
@@ -286,6 +327,62 @@ func (s *Server) maxSessionsMiddleware() wish.Middleware {
 				return
 			}
 			next(sess)
+		}
+	}
+}
+
+// execMiddleware handles non-interactive SSH exec commands (e.g., "ssh daemon stop").
+// If the session has a command, it dispatches through the executor.
+// Interactive sessions (no command) pass through to the next middleware (BubbleTea).
+func (s *Server) execMiddleware() wish.Middleware {
+	return func(next ssh.Handler) ssh.Handler {
+		return func(sess ssh.Session) {
+			cmd := sess.Command()
+			if len(cmd) == 0 {
+				next(sess) // interactive session
+				return
+			}
+
+			input := strings.Join(cmd, " ")
+			s.logger.Info("SSH exec command", "user", sess.User(), "command", input, "remote", sess.RemoteAddr().String())
+
+			// Handle lifecycle commands directly
+			if strings.ToLower(strings.TrimSpace(input)) == "stop" {
+				s.mu.Lock()
+				fn := s.shutdownFunc
+				s.mu.Unlock()
+				if fn != nil {
+					fmt.Fprintln(sess, "stopping daemon") //nolint:errcheck // best-effort response
+					fn()
+				} else {
+					fmt.Fprintln(sess.Stderr(), "error: shutdown not available") //nolint:errcheck // best-effort
+					sess.Exit(1)                                                 //nolint:errcheck // best-effort
+				}
+				return
+			}
+
+			// Dispatch through command executor
+			s.mu.Lock()
+			factory := s.executorFactory
+			s.mu.Unlock()
+
+			if factory == nil {
+				fmt.Fprintln(sess.Stderr(), "error: command executor not ready") //nolint:errcheck // best-effort
+				sess.Exit(1)                                                     //nolint:errcheck // best-effort
+				return
+			}
+
+			executor := factory(sess.User())
+			result, err := executor(input)
+			if err != nil {
+				fmt.Fprintf(sess.Stderr(), "error: %v\n", err) //nolint:errcheck // best-effort
+				sess.Exit(1)                                   //nolint:errcheck // best-effort
+				return
+			}
+
+			if result != "" {
+				fmt.Fprintln(sess, result) //nolint:errcheck // best-effort
+			}
 		}
 	}
 }

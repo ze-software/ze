@@ -91,10 +91,6 @@ type Config struct {
 	// LocalAS is the local AS number.
 	LocalAS uint32
 
-	// APISocketPath is the path to the Unix socket for API communication.
-	// If empty, API server is not started.
-	APISocketPath string
-
 	// Plugins defines external plugin processes for API communication.
 	Plugins []PluginConfig
 
@@ -582,10 +578,9 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		}
 	}
 
-	// Start API server if configured
-	if r.config.APISocketPath != "" {
+	// Start API server
+	{
 		apiConfig := &pluginserver.ServerConfig{
-			SocketPath:         r.config.APISocketPath,
 			ConfigPath:         r.config.ConfigPath,
 			ConfiguredFamilies: r.config.ConfiguredFamilies,
 			RPCFallback:        bgpserver.CodecRPCHandler,

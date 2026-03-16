@@ -294,77 +294,19 @@ func TestRunUnknown(t *testing.T) {
 
 // TestRunConnectionFailure verifies error handling when daemon not running.
 //
-// VALIDATES: Graceful error when socket connection fails.
+// VALIDATES: Graceful error when SSH connection fails.
 // PREVENTS: Cryptic errors or panics on connection failure.
 func TestRunConnectionFailure(t *testing.T) {
 	var code int
 	output := captureStderr(t, func() {
-		code = Run([]string{"summary", "--socket", "/nonexistent/socket.sock"})
+		code = Run([]string{"summary"})
 	})
 
 	if code != 1 {
-		t.Errorf("Run() with bad socket returned %d, want 1", code)
+		t.Errorf("Run() with no daemon returned %d, want 1", code)
 	}
 
-	if !strings.Contains(output, "cannot connect") {
-		t.Errorf("Run() stderr = %q, want 'cannot connect'", output)
-	}
-}
-
-// TestRunSocketFlag verifies --socket flag is forwarded.
-//
-// VALIDATES: ze run summary --socket /path uses specified path.
-// PREVENTS: --socket flag being ignored.
-func TestRunSocketFlag(t *testing.T) {
-	var code int
-	output := captureStderr(t, func() {
-		code = Run([]string{"summary", "--socket", "/tmp/test-ze.sock"})
-	})
-
-	if code != 1 {
-		t.Errorf("Run() returned %d, want 1 (no daemon)", code)
-	}
-
-	if !strings.Contains(output, "cannot connect") {
-		t.Errorf("Run() stderr = %q, want connection error", output)
-	}
-}
-
-// TestRunSocketMissingValue verifies --socket without value gives clear error.
-//
-// VALIDATES: ze run --socket (no value) gives explicit error.
-// PREVENTS: confusing errors from nil socket path.
-func TestRunSocketMissingValue(t *testing.T) {
-	var code int
-	output := captureStderr(t, func() {
-		code = Run([]string{"--socket"})
-	})
-
-	if code != 1 {
-		t.Errorf("Run([--socket]) returned %d, want 1", code)
-	}
-
-	if !strings.Contains(output, "--socket requires") {
-		t.Errorf("Run([--socket]) stderr = %q, want '--socket requires'", output)
-	}
-}
-
-// TestRunSocketInterleaved verifies --socket interleaved with command words.
-//
-// VALIDATES: ze run peer --socket /path list correctly separates flag from command.
-// PREVENTS: --socket being treated as a command word.
-func TestRunSocketInterleaved(t *testing.T) {
-	var code int
-	output := captureStderr(t, func() {
-		code = Run([]string{"peer", "--socket", "/tmp/test-ze.sock", "list"})
-	})
-
-	// Should attempt connection (not reject as unknown command)
-	if code != 1 {
-		t.Errorf("Run() returned %d, want 1 (no daemon)", code)
-	}
-
-	if !strings.Contains(output, "cannot connect") {
-		t.Errorf("Run() stderr = %q, want connection error (not unknown command)", output)
+	if !strings.Contains(output, "cannot connect") && !strings.Contains(output, "error") {
+		t.Errorf("Run() stderr = %q, want connection or error message", output)
 	}
 }

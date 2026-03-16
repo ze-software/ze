@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -487,5 +488,32 @@ func TestSelectConfigFiltersNonConf(t *testing.T) {
 	}
 	if strings.Contains(output, "ssh_host") {
 		t.Error("ssh host key should not appear in selection list")
+	}
+}
+
+// VALIDATES: Live SSH port detected, returns true (daemon running)
+// PREVENTS: False negative causing unnecessary ephemeral daemon start
+
+func TestLivePortDetection(t *testing.T) {
+	var lc net.ListenConfig
+	ln, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close() //nolint:errcheck // test cleanup
+
+	_, port, _ := net.SplitHostPort(ln.Addr().String())
+
+	if !probeDaemonSSH("127.0.0.1", port) {
+		t.Error("expected true for live port")
+	}
+}
+
+// VALIDATES: Dead SSH port detected, returns false (no daemon)
+// PREVENTS: False positive causing editor to skip ephemeral daemon
+
+func TestStalePortDetection(t *testing.T) {
+	if probeDaemonSSH("127.0.0.1", "1") {
+		t.Error("expected false for unreachable port")
 	}
 }

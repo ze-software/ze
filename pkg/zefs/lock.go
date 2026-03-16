@@ -5,7 +5,6 @@
 package zefs
 
 import (
-	"fmt"
 	"io/fs"
 	"sync/atomic"
 )
@@ -58,15 +57,13 @@ type WriteLock struct {
 	released atomic.Bool
 }
 
-// Release flushes any pending writes to disk and releases both
-// the in-process mutex and the cross-process flock.
+// Release flushes any pending writes to disk and releases the in-process mutex.
 // Safe to call multiple times and from concurrent goroutines;
 // subsequent calls return nil.
 func (wl *WriteLock) Release() error {
 	if !wl.released.CompareAndSwap(false, true) {
 		return nil
 	}
-	defer flockUnlock(wl.s.lockFd) //nolint:errcheck // best-effort flock release
 	defer wl.s.mu.Unlock()
 	if wl.dirty {
 		return wl.s.flush()
@@ -119,12 +116,9 @@ func (s *BlobStore) RLock() *ReadLock {
 	return &ReadLock{s: s}
 }
 
-// Lock acquires a cross-process flock and an exclusive in-process write lock,
-// then returns a WriteLock guard. Release must be called to release both locks.
+// Lock acquires an exclusive in-process write lock and returns a WriteLock guard.
+// Release must be called to release the lock.
 func (s *BlobStore) Lock() (*WriteLock, error) {
-	if err := flockExclusive(s.lockFd); err != nil {
-		return nil, fmt.Errorf("zefs: flock: %w", err)
-	}
 	s.mu.Lock()
 	return &WriteLock{s: s}, nil
 }
