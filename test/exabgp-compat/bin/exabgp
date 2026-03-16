@@ -5,7 +5,7 @@ ExaBGP compatibility wrapper for ZeBGP.
 This script pretends to be ExaBGP but actually:
 1. Converts ExaBGP config to Ze format using `ze exabgp migrate`
 2. Runs `ze` with the migrated config
-3. Bridges ExaBGP processes (e.g., watchdog) via Ze's API socket
+3. Bridges ExaBGP processes (e.g., watchdog) via Ze's SSH exec interface
 
 Usage:
     ./exabgp config.conf [options]
@@ -16,15 +16,19 @@ Environment variables (ExaBGP compatible):
 """
 
 import argparse
-import json
 import os
-import socket
 import subprocess
 import sys
 import tempfile
 import threading
 import time
 from pathlib import Path
+
+# SSH credentials injected into migrated configs for process bridging.
+# The bcrypt hash matches password "ze-test" (cost=4 for test speed).
+_SSH_USER = 'ze-test'
+_SSH_PASS = 'ze-test'
+_SSH_HASH = '$2a$04$7an2xuyUkE94D4FwxauYPOILpSYl08/IR3nqLIWWfprP5pcplMviu'
 
 
 def find_ze_binary() -> str:
@@ -107,56 +111,82 @@ def get_exabgp_env_vars() -> dict:
     return env_vars
 
 
-def connect_api_socket(socket_path: str, timeout: float = 10.0) -> socket.socket:
-    """Wait for Ze API socket and connect."""
+def inject_ssh_config(config_text: str, ssh_port: int) -> str:
+    """Inject SSH server config into migrated Ze config for process bridging.
+
+    Adds a system block with SSH credentials so the process bridge can
+    send commands (e.g., watchdog announce/withdraw) to the running daemon.
+    """
+    ssh_block = f"""
+system {{
+\tauthentication {{
+\t\tuser {_SSH_USER} {{
+\t\t\tpassword "{_SSH_HASH}"
+\t\t}}
+\t}}
+\tssh {{
+\t\tlisten 127.0.0.1:{ssh_port}
+\t}}
+}}
+"""
+    return ssh_block + config_text
+
+
+def wait_for_ssh(host: str, port: int, timeout: float = 15.0) -> bool:
+    """Wait for SSH server to accept connections."""
+    import socket as sock_mod
     start = time.time()
     while time.time() - start < timeout:
-        if os.path.exists(socket_path):
-            try:
-                sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-                sock.connect(socket_path)
-                return sock
-            except (ConnectionRefusedError, FileNotFoundError, OSError):
-                pass
-        time.sleep(0.02)
-    return None
+        try:
+            s = sock_mod.create_connection((host, port), timeout=1.0)
+            # Read the SSH banner to confirm it's actually SSH
+            data = s.recv(256)
+            s.close()
+            if data.startswith(b'SSH-'):
+                return True
+        except (ConnectionRefusedError, OSError, TimeoutError):
+            pass
+        time.sleep(0.1)
+    return False
 
 
-def send_rpc(sock: socket.socket, method: str, params: dict = None) -> dict:
-    """Send NUL-framed JSON RPC request to Ze API socket."""
-    request = {'method': method}
-    if params:
-        request['params'] = params
-    msg = json.dumps(request).encode() + b'\0'
-    sock.sendall(msg)
-
-    # Read NUL-framed response
-    response = b''
-    while b'\0' not in response:
-        chunk = sock.recv(4096)
-        if not chunk:
-            break
-        response += chunk
-    if b'\0' in response:
-        response = response[:response.index(b'\0')]
-    if response:
-        return json.loads(response)
-    return {}
-
-
-def run_process_bridge(config_dir: str, run_cmd: str, api_socket_path: str,
-                       ze_process: subprocess.Popen, debug: bool = False):
-    """Run an ExaBGP process and bridge its commands to Ze via API socket.
-
-    Translates ExaBGP stdout commands to Ze YANG RPC calls:
-    - "announce watchdog <name>" -> ze-bgp:watchdog-announce
-    - "withdraw watchdog <name>" -> ze-bgp:watchdog-withdraw
-    """
-    sock = connect_api_socket(api_socket_path)
-    if not sock:
+def send_ssh_command(host: str, port: int, command: str, debug: bool = False) -> str:
+    """Send a command to ze daemon via SSH exec."""
+    import paramiko
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        client.connect(host, port=port, username=_SSH_USER, password=_SSH_PASS,
+                       timeout=5.0, look_for_keys=False, allow_agent=False)
+        _, stdout, stderr = client.exec_command(command)
+        out = stdout.read().decode('utf-8', errors='replace').strip()
+        err = stderr.read().decode('utf-8', errors='replace').strip()
         if debug:
-            print("Warning: could not connect to API socket", file=sys.stderr)
+            if out:
+                print(f"  SSH response: {out}", file=sys.stderr)
+            if err:
+                print(f"  SSH error: {err}", file=sys.stderr)
+        return out
+    finally:
+        client.close()
+
+
+def run_process_bridge(config_dir: str, run_cmd: str, ssh_host: str, ssh_port: int,
+                       ze_process: subprocess.Popen, debug: bool = False):
+    """Run an ExaBGP process and bridge its commands to Ze via SSH.
+
+    Translates ExaBGP stdout commands to Ze CLI commands over SSH exec:
+    - "announce watchdog <name>" -> "bgp watchdog announce <name>"
+    - "withdraw watchdog <name>" -> "bgp watchdog withdraw <name>"
+    """
+    # Wait for SSH server to be ready
+    if not wait_for_ssh(ssh_host, ssh_port):
+        if debug:
+            print(f"Warning: SSH server not ready at {ssh_host}:{ssh_port}", file=sys.stderr)
         return
+
+    if debug:
+        print(f"SSH bridge connected to {ssh_host}:{ssh_port}", file=sys.stderr)
 
     try:
         # Resolve the run command relative to config directory
@@ -190,14 +220,12 @@ def run_process_bridge(config_dir: str, run_cmd: str, api_socket_path: str,
 
                 if line.startswith('announce watchdog '):
                     group = line.split(None, 2)[2]
-                    resp = send_rpc(sock, 'ze-system:dispatch', {'args': ['bgp watchdog announce ' + group]})
-                    if debug and resp:
-                        print(f"  RPC response: {resp}", file=sys.stderr)
+                    send_ssh_command(ssh_host, ssh_port,
+                                    'bgp watchdog announce ' + group, debug)
                 elif line.startswith('withdraw watchdog '):
                     group = line.split(None, 2)[2]
-                    resp = send_rpc(sock, 'ze-system:dispatch', {'args': ['bgp watchdog withdraw ' + group]})
-                    if debug and resp:
-                        print(f"  RPC response: {resp}", file=sys.stderr)
+                    send_ssh_command(ssh_host, ssh_port,
+                                    'bgp watchdog withdraw ' + group, debug)
                 # Other ExaBGP commands could be translated here in the future
 
         finally:
@@ -207,8 +235,9 @@ def run_process_bridge(config_dir: str, run_cmd: str, api_socket_path: str,
             except subprocess.TimeoutExpired:
                 proc.kill()
                 proc.wait()
-    finally:
-        sock.close()
+    except Exception as e:
+        if debug:
+            print(f"Process bridge error: {e}", file=sys.stderr)
 
 
 def main():
@@ -238,6 +267,15 @@ def main():
     if args.dry_run:
         print(migrated_config)
         return 0
+
+    # If external processes need bridging, inject SSH config for command dispatch.
+    # Derive SSH port from BGP port to avoid collisions between parallel tests.
+    ssh_port = 0
+    if external_processes:
+        env_vars = get_exabgp_env_vars()
+        bgp_port = int(env_vars.get('port', '0'))
+        ssh_port = bgp_port + 20000 if bgp_port > 0 else 22222
+        migrated_config = inject_ssh_config(migrated_config, ssh_port)
 
     # Write migrated config to temp file
     with tempfile.NamedTemporaryFile(mode='w', suffix='.conf', delete=False) as f:
@@ -278,7 +316,7 @@ def main():
         if external_processes:
             ze_proc = subprocess.Popen(cmd)
 
-            # Start process bridges in background threads
+            # Start process bridges in background threads using SSH
             config_dir = os.path.dirname(os.path.abspath(args.config))
             bridge_threads = []
             for name, run_cmd in external_processes:
@@ -286,7 +324,7 @@ def main():
                     print(f"Bridging process: {name} -> {run_cmd}", file=sys.stderr)
                 t = threading.Thread(
                     target=run_process_bridge,
-                    args=(config_dir, run_cmd, api_socket_path, ze_proc, args.debug),
+                    args=(config_dir, run_cmd, '127.0.0.1', ssh_port, ze_proc, args.debug),
                     daemon=True,
                 )
                 t.start()

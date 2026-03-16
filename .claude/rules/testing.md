@@ -7,6 +7,10 @@ paths:
 
 Rationale: `.claude/rationale/testing.md`
 
+## Fix Code, Not Tests
+
+**BLOCKING:** When a test fails, fix the code to make the test pass. NEVER weaken or simplify test expectations to match broken code. Tests are ground truth. Even if an underlying mechanism changed (e.g., Unix sockets replaced by SSH), the test expectations stay and the replacement mechanism must satisfy them.
+
 ## No Throw-Away Tests
 
 **BLOCKING:** Never write temporary test code. Add functional or unit tests that run in CI.
