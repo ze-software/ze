@@ -51,7 +51,7 @@ def main():
 
     # Dispatch a read-only command to verify executor path
     resp = api._call_engine(
-        'ze-plugin-engine:dispatch-command', {'command': 'bgp peer list'})
+        'ze-plugin-engine:dispatch-command', {'command': 'peer list'})
     status = resp.get('result', {}).get('status')
     if status != 'done':
         print(f'FAIL: dispatch status={status}', file=sys.stderr)

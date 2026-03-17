@@ -2,7 +2,7 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=asn:value=1
-cmd=api:conn=1:seq=1:text=bgp peer * update text nlri bgp-ls/bgp-ls eor
+cmd=api:conn=1:seq=1:text=peer * update text nlri bgp-ls/bgp-ls eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003400447
 EOF_PEER
 

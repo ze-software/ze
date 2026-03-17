@@ -38,7 +38,7 @@ def main() -> None:
     ready()
 
     # Send one route - triggers connection A
-    send('bgp peer * update text nhop 1.1.1.1 nlri ipv4/unicast add 1.1.0.0/16')
+    send('peer * update text nhop 1.1.1.1 nlri ipv4/unicast add 1.1.0.0/16')
     time.sleep(0.5)
 
     # Wait for ACK

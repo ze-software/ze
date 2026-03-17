@@ -3,15 +3,15 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=update:value=send-default-route
-cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
+cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv6/unicast eor
+cmd=api:conn=1:seq=1:text=peer * update text nlri ipv6/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
-cmd=api:conn=1:seq=1:text=bgp peer * update text origin igp local-preference 100 nhop ::1 nlri ipv6/unicast add ::1/128
+cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop ::1 nlri ipv6/unicast add ::1/128
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E02000000374001010040020040050400000064800E260002011000000000000000000000000000000001008000000000000000000000000000000001
-cmd=api:conn=1:seq=1:text=bgp peer * update text origin igp local-preference 100 nhop 127.0.0.2 nlri ipv4/unicast add 127.0.0.1/32
+cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 127.0.0.2 nlri ipv4/unicast add 127.0.0.1/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003047F00000240050400000064207F000001
-cmd=api:conn=1:seq=1:text=bgp peer * update text origin igp local-preference 100 nhop 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32
+cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003102000000154001010040020040030405060708400504000000642001020304
 EOF_PEER
 
@@ -93,12 +93,12 @@ def main() -> None:
 
         if '0.0.0.0/32' in nlris:
             # Got expected UPDATE, send response route
-            send('bgp peer 127.0.0.1 update text origin igp local-preference 100 nhop 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32')
+            send('peer 127.0.0.1 update text origin igp local-preference 100 nhop 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32')
             wait_for_ack()
             break
     else:
         # Timeout - send error signal route
-        send('bgp peer 127.0.0.1 update text nhop 255.255.255.255 nlri ipv4/unicast add 0.0.0.0/0')
+        send('peer 127.0.0.1 update text nhop 255.255.255.255 nlri ipv4/unicast add 0.0.0.0/0')
         time.sleep(1)
         return
 

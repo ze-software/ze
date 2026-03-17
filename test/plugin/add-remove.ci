@@ -2,15 +2,15 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
+cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-cmd=api:conn=1:seq=1:text=bgp peer * update text origin igp local-preference 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24
+cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304650165014005040000006418010100
-cmd=api:conn=1:seq=1:text=bgp peer * update text origin igp local-preference 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/25
+cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/25
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003102000000154001010040020040030465016501400504000000641901010000
-cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast del 1.1.0.0/24
+cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/unicast del 1.1.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180101000000
-cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast del 1.1.0.0/25
+cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/unicast del 1.1.0.0/25
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C02000519010100000000
 EOF_PEER
 
@@ -27,11 +27,11 @@ def main() -> None:
     ready()
 
     messages = [
-        'bgp peer * update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24',
-        'bgp peer * update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/25',
+        'peer * update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24',
+        'peer * update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/25',
         'sleep',
-        'bgp peer * update text nlri ipv4/unicast del 1.1.0.0/24',
-        'bgp peer * update text nlri ipv4/unicast del 1.1.0.0/25',
+        'peer * update text nlri ipv4/unicast del 1.1.0.0/24',
+        'peer * update text nlri ipv4/unicast del 1.1.0.0/25',
     ]
 
     for message in messages:

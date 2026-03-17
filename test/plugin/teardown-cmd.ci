@@ -21,14 +21,14 @@ def main() -> None:
     ready()
 
     # Send a route first
-    send('bgp peer * update text nhop 1.1.1.1 nlri ipv4/unicast add 1.1.0.0/16')
+    send('peer * update text nhop 1.1.1.1 nlri ipv4/unicast add 1.1.0.0/16')
 
     # Wait for route to be processed
     wait_for_ack(expected_count=1)
 
     # Send teardown command - ZeBGP should send NOTIFICATION to peer
     # Step 5: neighbor prefix changed to bgp peer
-    send('bgp peer 127.0.0.1 teardown 4')
+    send('peer 127.0.0.1 teardown 4')
 
     # The connection will close after teardown, script exits
     try:

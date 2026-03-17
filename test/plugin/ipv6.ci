@@ -4,12 +4,12 @@
 stdin=peer:terminator=EOF_PEER
 # Test: IPv6 unicast announce/withdraw with JSON format documentation
 # JSON format: {"ipv6/unicast":[{"next-hop":"...","action":"add|del","nlri":["..."]}]}
-cmd=api:conn=1:seq=1:text=bgp peer * update text origin igp local-preference 200 nhop 2001::11 nlri ipv6/unicast add fc00:1::/64
+cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 200 nhop 2001::11 nlri ipv6/unicast add fc00:1::/64
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0046020000002F40010100400200400504000000C8800E1E00020110200100000000000000000000000000110040FC00000100000000
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":200,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["fc00:1::/64"],"next-hop":"2001::11"}]}
-cmd=api:conn=1:seq=2:text=bgp peer * update text nlri ipv6/unicast eor
+cmd=api:conn=1:seq=2:text=peer * update text nlri ipv6/unicast eor
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
-cmd=api:conn=1:seq=3:text=bgp peer * update text nlri ipv6/unicast del fc00:1::/64
+cmd=api:conn=1:seq=3:text=peer * update text nlri ipv6/unicast del fc00:1::/64
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0026020000000F800F0C00020140FC00000100000000
 expect=json:conn=1:seq=3:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","ipv6/unicast":[{"action":"del","nlri":["fc00:1::/64"]}]}
 EOF_PEER
@@ -27,8 +27,8 @@ def main() -> None:
     ready()
 
     # Test unicast functionality using update text syntax
-    announce_unicast = 'bgp peer * update text origin igp local-preference 200 nhop 2001::11 nlri ipv6/unicast add fc00:1::/64'
-    withdraw_unicast = 'bgp peer * update text nlri ipv6/unicast del fc00:1::/64'
+    announce_unicast = 'peer * update text origin igp local-preference 200 nhop 2001::11 nlri ipv6/unicast add fc00:1::/64'
+    withdraw_unicast = 'peer * update text nlri ipv6/unicast del fc00:1::/64'
 
     messages = [
         announce_unicast,

@@ -75,7 +75,7 @@ def main() -> None:
         msg = bgp.get('message', {})
         if msg.get('type') == 'state' and bgp.get('state') == 'up':
             # Send route with all required attributes matching expected hex
-            api.send('bgp peer * update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24')
+            api.send('peer * update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24')
             break
 
     # Wait for shutdown

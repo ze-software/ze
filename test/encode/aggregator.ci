@@ -1,6 +1,6 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-cmd=api:conn=1:seq=1:text=bgp peer * update text origin igp as-path [57821 6939] local-preference 100 atomic-aggregate aggregator 18144:219.118.225.189 nhop 192.168.1.254 nlri ipv4/unicast add 1.0.64.0/18
+cmd=api:conn=1:seq=1:text=peer * update text origin igp as-path [57821 6939] local-preference 100 atomic-aggregate aggregator 18144:219.118.225.189 nhop 192.168.1.254 nlri ipv4/unicast add 1.0.64.0/18
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0048020000002D4001010040020A02020000E1DD00001B1B400304C0A801FE40050400000064400600C00708000046E0DB76E1BD12010040
 EOF_PEER
 

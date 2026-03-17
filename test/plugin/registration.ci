@@ -5,7 +5,7 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 # Plugin sends EOR after successful registration
-cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
+cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
@@ -46,7 +46,7 @@ def main() -> None:
 
     # Normal operation - send EOR to verify registration worked
     time.sleep(0.1)
-    api.send('bgp peer * update text nlri ipv4/unicast eor')
+    api.send('peer * update text nlri ipv4/unicast eor')
     time.sleep(0.2)
 
     api.wait_for_ack(expected_count=1)

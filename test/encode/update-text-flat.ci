@@ -1,11 +1,11 @@
 # Test flat-attribute grammar (no set keyword) — validates AC-7
 # Uses long-form keywords and comma-separated lists without brackets.
 stdin=peer:terminator=EOF_PEER
-cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
+cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv6/unicast eor
+cmd=api:conn=1:seq=1:text=peer * update text nlri ipv6/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
-cmd=api:conn=1:seq=1:text=bgp peer * update text origin igp local-preference 100 large-community 1:2:3,10:11:12 next-hop 255.255.255.255 nlri ipv4/unicast add 10.0.0.7/32
+cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 large-community 1:2:3,10:11:12 next-hop 255.255.255.255 nlri ipv4/unicast add 10.0.0.7/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004C020000003040010100400200400304FFFFFFFF40050400000064C020180000000100000002000000030000000A0000000B0000000C200A000007
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.0.7/32"],"next-hop":"255.255.255.255"}]}
 EOF_PEER

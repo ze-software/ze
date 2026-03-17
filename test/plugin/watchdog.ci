@@ -5,19 +5,19 @@ stdin=peer:terminator=EOF_PEER
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001540010100400200400304010203044005040000006420424242422058585858
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0031020000001540010100400200400304C0A80164400504000000642064646464
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-cmd=api:conn=1:seq=1:text=bgp watchdog announce dnsr
+cmd=api:conn=1:seq=1:text=watchdog announce dnsr
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003040102030440050400000064204D4D4D4D
-cmd=api:conn=1:seq=2:text=bgp watchdog withdraw dnsr
+cmd=api:conn=1:seq=2:text=watchdog withdraw dnsr
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C020005204D4D4D4D0000
 
-cmd=api:conn=1:seq=3:text=bgp watchdog announce dnsr
+cmd=api:conn=1:seq=3:text=watchdog announce dnsr
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003040102030440050400000064204D4D4D4D
-cmd=api:conn=1:seq=4:text=bgp watchdog withdraw dnsr
+cmd=api:conn=1:seq=4:text=watchdog withdraw dnsr
 expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C020005204D4D4D4D0000
 
-cmd=api:conn=1:seq=5:text=bgp watchdog announce dnsr
+cmd=api:conn=1:seq=5:text=watchdog announce dnsr
 expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003040102030440050400000064204D4D4D4D
-cmd=api:conn=1:seq=6:text=bgp watchdog withdraw dnsr
+cmd=api:conn=1:seq=6:text=watchdog withdraw dnsr
 expect=bgp:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C020005204D4D4D4D0000
 EOF_PEER
 
@@ -41,10 +41,10 @@ def main() -> None:
     time.sleep(1)
 
     while os.getppid() != 1:
-        send('bgp watchdog announce dnsr')
+        send('watchdog announce dnsr')
         time.sleep(0.2)
 
-        send('bgp watchdog withdraw dnsr')
+        send('watchdog withdraw dnsr')
         time.sleep(0.2)
 
     time.sleep(1)  # time for configuration routes to pass

@@ -6,7 +6,7 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 # Plugin sends EOR after successful decode-mp-unreach validation
-cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
+cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
@@ -46,7 +46,7 @@ def main() -> None:
         sys.exit(1)
 
     # Success: send EOR to signal completion
-    api.send('bgp peer * update text nlri ipv4/unicast eor')
+    api.send('peer * update text nlri ipv4/unicast eor')
     time.sleep(0.2)
     api.wait_for_ack(expected_count=1)
     api.wait_for_shutdown()

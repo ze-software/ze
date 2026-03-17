@@ -49,7 +49,7 @@ def main():
     time.sleep(1.0)
 
     # Test: bgp metrics values should return Prometheus text
-    r = dispatch(api, 'bgp metrics values')
+    r = dispatch(api, 'metrics values')
     status = r.get('status')
     if status != 'done':
         print(f'FAIL: expected status=done, got={status}', file=sys.stderr)

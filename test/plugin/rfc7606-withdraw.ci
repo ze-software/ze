@@ -63,13 +63,13 @@ def main() -> None:
             break
 
     # Route 1: sent immediately after peer up
-    api.send('bgp peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24')
+    api.send('peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24')
 
     # Wait for malformed UPDATE from peer to be processed by ze
     time.sleep(1.0)
 
     # Route 2: proves session survived the malformed UPDATE
-    api.send('bgp peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24')
+    api.send('peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24')
 
     api.wait_for_shutdown()
 

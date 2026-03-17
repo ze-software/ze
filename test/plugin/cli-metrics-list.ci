@@ -49,7 +49,7 @@ def main():
     time.sleep(1.0)
 
     # Test: bgp metrics list should return metric names
-    r = dispatch(api, 'bgp metrics list')
+    r = dispatch(api, 'metrics list')
     status = r.get('status')
     if status != 'done':
         print(f'FAIL: expected status=done, got={status}', file=sys.stderr)

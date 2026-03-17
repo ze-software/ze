@@ -59,7 +59,7 @@ def main():
     time.sleep(1.0)
 
     # Get initial levels to find a subsystem to modify
-    r = dispatch(api, 'bgp log levels')
+    r = dispatch(api, 'log levels')
     data = parse_data(r)
     levels = data.get('levels', {})
 
@@ -73,14 +73,14 @@ def main():
     print(f'INFO: changing {subsystem} from {original_level} to debug', file=sys.stderr)
 
     # Set level to debug
-    r = dispatch(api, f'bgp log set {subsystem} debug')
+    r = dispatch(api, f'log set {subsystem} debug')
     status = r.get('status')
     if status != 'done':
         print(f'FAIL: set returned status={status}', file=sys.stderr)
         sys.exit(1)
 
     # Verify the change via log levels
-    r = dispatch(api, 'bgp log levels')
+    r = dispatch(api, 'log levels')
     data = parse_data(r)
     new_levels = data.get('levels', {})
 
@@ -91,7 +91,7 @@ def main():
     print(f'OK: {subsystem} level changed to debug', file=sys.stderr)
 
     # Test error case: unknown subsystem
-    r = dispatch(api, 'bgp log set nonexistent info')
+    r = dispatch(api, 'log set nonexistent info')
     if r.get('status') != 'error':
         print(f'FAIL: expected error for unknown subsystem', file=sys.stderr)
         sys.exit(1)

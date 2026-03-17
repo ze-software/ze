@@ -53,7 +53,7 @@ def main() -> None:
     ready()
 
     # Send one route - RIB will store it and replay on reconnect
-    send('bgp peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24')
+    send('peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24')
     time.sleep(0.5)
 
     # Wait for ACK
