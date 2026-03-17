@@ -1,0 +1,16 @@
+bgp {
+	peer 127.0.0.1 {
+		local-as 145
+		peer-as 145
+	}
+	peer 127.0.0.2 {
+		local-address 1.2.3.4
+		peer-as 12345
+	}
+	peer 127.0.0.3 {
+		peer-as 1134
+	}
+	peer 127.0.0.4 {
+		peer-as 435435
+	}
+}

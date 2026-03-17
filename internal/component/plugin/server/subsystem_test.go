@@ -140,9 +140,9 @@ func TestSubsystemRPCProtocol(t *testing.T) {
 
 	mock := &mockPluginCommands{
 		decls: []rpc.CommandDecl{
-			{Name: "bgp cache list", Description: "List cache entries"},
-			{Name: "bgp cache retain", Description: "Retain cache entry"},
-			{Name: "bgp cache release", Description: "Release cache entry"},
+			{Name: "cache list", Description: "List cache entries"},
+			{Name: "cache retain", Description: "Retain cache entry"},
+			{Name: "cache release", Description: "Release cache entry"},
 		},
 	}
 
@@ -150,9 +150,9 @@ func TestSubsystemRPCProtocol(t *testing.T) {
 
 	// Verify commands were extracted from registration
 	commands := handler.Commands()
-	assert.Contains(t, commands, "bgp cache list")
-	assert.Contains(t, commands, "bgp cache retain")
-	assert.Contains(t, commands, "bgp cache release")
+	assert.Contains(t, commands, "cache list")
+	assert.Contains(t, commands, "cache retain")
+	assert.Contains(t, commands, "cache release")
 }
 
 // TestSubsystemRPCCommand verifies command execution through the RPC protocol.
@@ -164,10 +164,10 @@ func TestSubsystemRPCCommand(t *testing.T) {
 
 	mock := &mockPluginCommands{
 		decls: []rpc.CommandDecl{
-			{Name: "bgp session ping", Description: "Ping session"},
+			{Name: "plugin session ping", Description: "Ping session"},
 		},
 		handler: func(command string) (string, string) {
-			if command == "bgp session ping" {
+			if command == "plugin session ping" {
 				return "done", `{"pong":true}`
 			}
 			return "error", "unknown command: " + command
@@ -179,7 +179,7 @@ func TestSubsystemRPCCommand(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := handler.Handle(ctx, "bgp session ping")
+	resp, err := handler.Handle(ctx, "plugin session ping")
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 
@@ -221,14 +221,14 @@ func TestSubsystemHandler(t *testing.T) {
 
 	mock := &mockPluginCommands{
 		decls: []rpc.CommandDecl{
-			{Name: "bgp session ping", Description: "Ping session"},
-			{Name: "bgp session bye", Description: "Session goodbye"},
+			{Name: "plugin session ping", Description: "Ping session"},
+			{Name: "plugin session bye", Description: "Session goodbye"},
 		},
 		handler: func(command string) (string, string) {
 			switch command {
-			case "bgp session ping":
+			case "plugin session ping":
 				return "done", `{"pong":true}`
-			case "bgp session bye":
+			case "plugin session bye":
 				return "done", `{"status":"goodbye"}`
 			default:
 				return "error", "unknown command: " + command
@@ -240,14 +240,14 @@ func TestSubsystemHandler(t *testing.T) {
 
 	// Verify commands were declared
 	commands := handler.Commands()
-	assert.Contains(t, commands, "bgp session ping")
-	assert.Contains(t, commands, "bgp session bye")
+	assert.Contains(t, commands, "plugin session ping")
+	assert.Contains(t, commands, "plugin session bye")
 
 	// Send a command
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	resp, err := handler.Handle(ctx, "bgp session ping")
+	resp, err := handler.Handle(ctx, "plugin session ping")
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 }
@@ -261,10 +261,10 @@ func TestSubsystemManager(t *testing.T) {
 
 	cacheMock := &mockPluginCommands{
 		decls: []rpc.CommandDecl{
-			{Name: "bgp cache list", Description: "List cache entries"},
+			{Name: "cache list", Description: "List cache entries"},
 		},
 		handler: func(command string) (string, string) {
-			if command == "bgp cache list" {
+			if command == "cache list" {
 				return "done", "[]"
 			}
 			return "error", "unknown"
@@ -273,10 +273,10 @@ func TestSubsystemManager(t *testing.T) {
 
 	sessionMock := &mockPluginCommands{
 		decls: []rpc.CommandDecl{
-			{Name: "bgp session ping", Description: "Ping session"},
+			{Name: "plugin session ping", Description: "Ping session"},
 		},
 		handler: func(command string) (string, string) {
-			if command == "bgp session ping" {
+			if command == "plugin session ping" {
 				return "done", `{"pong":true}`
 			}
 			return "error", "unknown"
@@ -297,18 +297,18 @@ func TestSubsystemManager(t *testing.T) {
 	assert.NotNil(t, manager.Get("session"))
 
 	// Find handler for command
-	h := manager.FindHandler("bgp cache list")
+	h := manager.FindHandler("cache list")
 	require.NotNil(t, h)
 	assert.Equal(t, "cache", h.Name())
 
-	h = manager.FindHandler("bgp session ping")
+	h = manager.FindHandler("plugin session ping")
 	require.NotNil(t, h)
 	assert.Equal(t, "session", h.Name())
 
 	// All commands
 	allCmds := manager.AllCommands()
-	assert.Contains(t, allCmds, "bgp cache list")
-	assert.Contains(t, allCmds, "bgp session ping")
+	assert.Contains(t, allCmds, "cache list")
+	assert.Contains(t, allCmds, "plugin session ping")
 }
 
 // TestDispatcherSubsystemIntegration verifies Dispatcher routes to subsystems.
@@ -320,10 +320,10 @@ func TestDispatcherSubsystemIntegration(t *testing.T) {
 
 	mock := &mockPluginCommands{
 		decls: []rpc.CommandDecl{
-			{Name: "bgp session ping", Description: "Ping session"},
+			{Name: "plugin session ping", Description: "Ping session"},
 		},
 		handler: func(command string) (string, string) {
-			if command == "bgp session ping" {
+			if command == "plugin session ping" {
 				return "done", `{"pong":true}`
 			}
 			return "error", "unknown"
@@ -340,7 +340,7 @@ func TestDispatcherSubsystemIntegration(t *testing.T) {
 	d.SetSubsystems(manager)
 
 	// Dispatch command to subsystem
-	resp, err := d.Dispatch(nil, "bgp session ping")
+	resp, err := d.Dispatch(nil, "plugin session ping")
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)

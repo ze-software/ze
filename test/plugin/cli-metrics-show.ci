@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. BGP session establishes with telemetry enabled
-# 2. Python plugin dispatches "bgp metrics values" via dispatch-command
+# 2. Python plugin dispatches "metrics values" via dispatch-command
 # 3. Verifies response contains Prometheus text output
 # 4. Shuts down daemon
 #

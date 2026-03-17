@@ -37,11 +37,11 @@ system {
 				default-action deny
 				entry 10 {
 					action allow
-					match "bgp peer list"
+					match "peer list"
 				}
 				entry 20 {
 					action allow
-					match "bgp summary"
+					match "summary"
 				}
 			}
 			edit {

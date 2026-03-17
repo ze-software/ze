@@ -278,7 +278,7 @@ func fetchPeerSelectors(client *cliClient) []cmd.Suggestion {
 		return peerCache.suggestions
 	}
 
-	output, err := client.SendCommand("bgp peer * list")
+	output, err := client.SendCommand("peer * list")
 	if err != nil {
 		return nil
 	}

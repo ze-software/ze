@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. BGP session establishes with telemetry enabled
-# 2. Python plugin dispatches "bgp metrics list" via dispatch-command
+# 2. Python plugin dispatches "metrics list" via dispatch-command
 # 3. Verifies response contains metric names array
 # 4. Shuts down daemon
 #

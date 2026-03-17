@@ -17,7 +17,7 @@ Simple usage:
     from ze_api import ready, send, wait_for_shutdown
 
     ready()
-    send('bgp peer * update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24')
+    send('peer * update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24')
     wait_for_shutdown()
 
 Full protocol usage:
@@ -41,7 +41,7 @@ Full protocol usage:
     api.ready()
 
     # Normal operation
-    api.send('bgp peer * update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24')
+    api.send('peer * update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24')
 """
 
 from __future__ import annotations
@@ -478,7 +478,7 @@ class API:
         """Send a command to ZeBGP.
 
         Routes to the appropriate RPC based on command prefix:
-        - 'bgp peer ...' -> ze-plugin-engine:update-route
+        - 'peer ...' -> ze-plugin-engine:update-route
         - 'subscribe ...' -> accumulates for ready RPC
 
         Args:
@@ -490,7 +490,7 @@ class API:
 
         if command.startswith('subscribe '):
             self._handle_subscribe_command(command)
-        elif command.startswith('bgp peer ') or command.startswith('update '):
+        elif command.startswith('peer ') or command.startswith('update '):
             self._send_update_route(command)
         else:
             # Unknown command type — try as update-route
@@ -499,14 +499,14 @@ class API:
     def _handle_subscribe_command(self, command: str) -> None:
         """Parse subscribe text command and accumulate for ready RPC.
 
-        Format: 'subscribe bgp event <event1> [<event2> ...]'
+        Format: 'subscribe event <event1> [<event2> ...]'
         """
         parts = command.split()
-        # Skip 'subscribe' and optional 'bgp' and 'event' prefixes
+        # Skip 'subscribe' and optional 'event' prefix
         events = []
         i = 1
         while i < len(parts):
-            if parts[i] in ('bgp', 'event'):
+            if parts[i] == 'event':
                 i += 1
                 continue
             events.append(parts[i])
@@ -540,13 +540,13 @@ class API:
         """Send ze-plugin-engine:update-route RPC.
 
         Args:
-            command: Full command string (e.g., 'bgp peer * update text ...')
+            command: Full command string (e.g., 'peer * update text ...')
         """
-        # Extract peer selector from 'bgp peer <selector> <rest>'
+        # Extract peer selector from 'peer <selector> <rest>'
         peer_selector = '*'
         cmd = command
-        if command.startswith('bgp peer '):
-            rest = command[len('bgp peer '):]
+        if command.startswith('peer '):
+            rest = command[len('peer '):]
             # Find the next space-separated token as peer selector
             parts = rest.split(' ', 1)
             peer_selector = parts[0]

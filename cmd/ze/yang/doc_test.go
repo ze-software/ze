@@ -12,11 +12,11 @@ import (
 // PREVENTS: Missing command documentation.
 func TestDocCommand(t *testing.T) {
 	var buf bytes.Buffer
-	err := FormatDocCommand(&buf, "bgp peer list")
+	err := FormatDocCommand(&buf, "peer list")
 	require.NoError(t, err)
 
 	out := buf.String()
-	assert.Contains(t, out, "bgp peer list")
+	assert.Contains(t, out, "peer list")
 	assert.Contains(t, out, "read-only")
 	assert.Contains(t, out, "Parameters (input):", "should show YANG parameter details")
 }
@@ -38,7 +38,7 @@ func TestDocList(t *testing.T) {
 	require.NoError(t, err)
 
 	out := buf.String()
-	assert.Contains(t, out, "bgp peer list", "should list bgp peer list")
+	assert.Contains(t, out, "peer list", "should list peer list")
 	assert.Contains(t, out, "daemon shutdown", "should list daemon shutdown")
 	assert.Contains(t, out, "Command", "should have header")
 }
@@ -46,7 +46,7 @@ func TestDocList(t *testing.T) {
 // PREVENTS: Doc output missing output parameters.
 func TestDocCommandWithOutputParams(t *testing.T) {
 	var buf bytes.Buffer
-	err := FormatDocCommand(&buf, "bgp summary")
+	err := FormatDocCommand(&buf, "peer list")
 	require.NoError(t, err)
 
 	out := buf.String()
@@ -70,7 +70,7 @@ func TestDocCommandCaseInsensitive(t *testing.T) {
 	var buf bytes.Buffer
 	err := FormatDocCommand(&buf, "BGP PEER LIST")
 	require.NoError(t, err)
-	assert.Contains(t, buf.String(), "bgp peer list")
+	assert.Contains(t, buf.String(), "peer list")
 }
 
 // PREVENTS: Empty command string treated as valid.

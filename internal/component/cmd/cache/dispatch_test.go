@@ -20,14 +20,14 @@ func newDispatchContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandCo
 	return &pluginserver.CommandContext{Server: server}
 }
 
-// TestDispatchBGPCacheList verifies "bgp cache list" dispatches through init() registration.
+// TestDispatchBGPCacheList verifies "cache list" dispatches through init() registration.
 //
 // VALIDATES: Dispatch chain reaches handleBgpCache via injected init() registration.
 // PREVENTS: Cache handler not registered in dispatcher.
 func TestDispatchBGPCacheList(t *testing.T) {
 	ctx := newDispatchContext(&mockReactor{})
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "bgp cache list")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "cache list")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 

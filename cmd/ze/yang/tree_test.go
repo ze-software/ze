@@ -45,7 +45,7 @@ func TestUnifiedTreeCommandNodes(t *testing.T) {
 	root, err := BuildUnifiedTree()
 	require.NoError(t, err)
 
-	// "peer" from command tree (stripped "bgp " prefix) should exist
+	// "peer" from command tree should exist
 	peer, ok := root.Children["peer"]
 	require.True(t, ok, "peer should be in unified tree from commands")
 	assert.Contains(t, peer.Source, SourceCommand)
@@ -64,15 +64,7 @@ func TestUnifiedTreeCrossDomain(t *testing.T) {
 
 	// At top level, commands have "peer", "cache", "summary", "daemon", "system", etc.
 	// Config has "bgp", "environment", "plugin".
-	// Check that "peer" exists -- it comes from commands (bgp peer list -> peer list).
-	// Config has bgp > peer, but at root level it's "bgp" not "peer".
-	// So "peer" at root should be SourceCommand only.
-
-	// But inside bgp, "peer" exists in config. And commands after stripping "bgp " also
-	// produce "peer". If we merge into bgp, it would be SourceBoth.
-	// The current architecture strips "bgp " from command CLICommand strings,
-	// placing command "peer" at root level, while config "peer" is under bgp.
-	// They don't collide at the same level.
+	// "peer" at root is SourceCommand (config peer is under bgp container).
 
 	// Verify the tree has nodes from both domains at root
 	hasConfig := false
@@ -204,12 +196,12 @@ func TestAllRPCDocsHaveParams(t *testing.T) {
 	docs, err := AllRPCDocs()
 	require.NoError(t, err)
 
-	// "bgp peer list" has a "selector" input parameter in ze-bgp-api.yang
+	// "peer list" has a "selector" input parameter in ze-bgp-api.yang
 	for _, d := range docs {
-		if d.CLICommand != "bgp peer list" {
+		if d.CLICommand != "peer list" {
 			continue
 		}
-		assert.NotEmpty(t, d.Input, "bgp peer list should have input parameters")
+		assert.NotEmpty(t, d.Input, "peer list should have input parameters")
 		found := false
 		for _, leaf := range d.Input {
 			if leaf.Name == "selector" {
@@ -217,15 +209,15 @@ func TestAllRPCDocsHaveParams(t *testing.T) {
 				break
 			}
 		}
-		assert.True(t, found, "bgp peer list should have 'selector' input parameter")
+		assert.True(t, found, "peer list should have 'selector'' input parameter")
 		return
 	}
-	t.Fatal("bgp peer list not found in docs")
+	t.Fatal("peer list not found in docs")
 }
 
 // PREVENTS: SourceBoth merge logic not working when command node precedes config node.
 // The "plugin" node exists at root in both domains:
-// - command: "bgp plugin encoding" -> after stripping "bgp " -> "plugin > encoding"
+// - command: "plugin encoding" -> "plugin > encoding"
 // - config: ze-plugin-conf defines "plugin" container.
 func TestUnifiedTreeSourceBothMerge(t *testing.T) {
 	root, err := BuildUnifiedTree()

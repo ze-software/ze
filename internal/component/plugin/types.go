@@ -63,7 +63,7 @@ type ReactorStats struct {
 }
 
 // DynamicPeerConfig contains minimal configuration for adding a peer dynamically.
-// Used by "bgp peer <ip> add" command to add peers at runtime.
+// Used by "peer <ip> add" command to add peers at runtime.
 type DynamicPeerConfig struct {
 	Address      netip.Addr    // Peer IP address (required)
 	PeerAS       uint32        // Peer AS number (required)

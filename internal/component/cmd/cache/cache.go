@@ -92,11 +92,11 @@ func bgpCacheHelp() (*plugin.Response, error) {
 		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"commands": []map[string]string{
-				{"command": "bgp cache list", "description": "List cached message IDs"},
-				{"command": "bgp cache <id> retain", "description": "Prevent eviction of cached message"},
-				{"command": "bgp cache <id> release", "description": "Ack without forwarding (plugin) or undo retain (API)"},
-				{"command": "bgp cache <id> expire", "description": "Remove from cache immediately"},
-				{"command": "bgp cache <id> forward <sel>", "description": "Forward cached UPDATE to peers"},
+				{"command": "cache list", "description": "List cached message IDs"},
+				{"command": "cache <id> retain", "description": "Prevent eviction of cached message"},
+				{"command": "cache <id> release", "description": "Ack without forwarding (plugin) or undo retain (API)"},
+				{"command": "cache <id> expire", "description": "Remove from cache immediately"},
+				{"command": "cache <id> forward <sel>", "description": "Forward cached UPDATE to peers"},
 			},
 		},
 	}, nil

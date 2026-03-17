@@ -41,7 +41,7 @@ system {
 				default-action deny
 				entry 10 {
 					action allow
-					match "bgp peer list"
+					match "peer list"
 				}
 			}
 			edit {
@@ -89,7 +89,7 @@ trap 'rm -rf "$OP_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/nu
 printf 'operator\noppass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$OP_DIR" ze init >/dev/null
 
 # Test 1: restricted user denied for command not in allow list
-# "bgp peer detail" is NOT in the restricted profile's allow entries
+# "peer detail" is NOT in the restricted profile's allow entries
 OUTPUT=$(ZE_CONFIG_DIR="$OP_DIR" ze cli --run "peer detail" 2>&1) && {
 	echo "FAIL: operator should be denied 'peer detail' but command succeeded" >&2
 	echo "OUTPUT: $OUTPUT" >&2

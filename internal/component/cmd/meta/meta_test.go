@@ -163,15 +163,15 @@ func TestHandlerHelp(t *testing.T) {
 	require.True(t, ok)
 	assert.NotEmpty(t, commands, "should list registered bgp commands")
 
-	// At least "bgp help" itself should be listed (registered by init())
+	// At least "help" itself should be listed (registered by init())
 	found := false
 	for _, c := range commands {
-		if strings.HasPrefix(c, "bgp help") {
+		if strings.HasPrefix(c, "help") {
 			found = true
 			break
 		}
 	}
-	assert.True(t, found, "bgp help command should appear in help output")
+	assert.True(t, found, "help command should appear in help output")
 }
 
 // TestHandlerHelpNilDispatcher verifies bgp help handles nil dispatcher without panic.
@@ -209,7 +209,7 @@ func TestHandlerCommandList(t *testing.T) {
 	// Verify completions have Value and Help populated
 	for _, c := range commands {
 		assert.NotEmpty(t, c.Value, "completion value should not be empty")
-		assert.True(t, strings.HasPrefix(c.Value, "bgp "), "command should start with 'bgp '")
+		assert.True(t, c.Value != "", "command should be non-empty")
 		// Source should be empty in non-verbose mode
 		assert.Empty(t, c.Source, "source should be empty in non-verbose mode")
 	}
@@ -242,13 +242,13 @@ func TestHandlerCommandListVerbose(t *testing.T) {
 // PREVENTS: Command help failing for validly registered commands.
 func TestHandlerCommandHelp(t *testing.T) {
 	ctx := newTestContext()
-	resp, err := handleBgpCommandHelp(ctx, []string{"bgp help"})
+	resp, err := handleBgpCommandHelp(ctx, []string{"help"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
 	data, ok := resp.Data.(map[string]any)
 	require.True(t, ok)
-	assert.Equal(t, "bgp help", data["command"])
+	assert.Equal(t, "help", data["command"])
 	assert.NotEmpty(t, data["description"])
 	assert.Equal(t, "builtin", data["source"])
 }
@@ -268,7 +268,7 @@ func TestHandlerCommandHelpMissingArg(t *testing.T) {
 // VALIDATES: Command help returns error for non-existent command names.
 // PREVENTS: Returning empty help data for unknown commands.
 func TestHandlerCommandHelpUnknown(t *testing.T) {
-	_, err := handleBgpCommandHelp(newTestContext(), []string{"bgp nonexistent-command-xyz"})
+	_, err := handleBgpCommandHelp(newTestContext(), []string{"nonexistent-command-xyz"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown bgp command")
 }
@@ -279,7 +279,7 @@ func TestHandlerCommandHelpUnknown(t *testing.T) {
 // PREVENTS: Completion returning no results for valid partial matches.
 func TestHandlerCommandComplete(t *testing.T) {
 	ctx := newTestContext()
-	resp, err := handleBgpCommandComplete(ctx, []string{"bgp h"})
+	resp, err := handleBgpCommandComplete(ctx, []string{"h"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -291,7 +291,7 @@ func TestHandlerCommandComplete(t *testing.T) {
 
 	found := false
 	for _, c := range completions {
-		if c.Value == "bgp help" {
+		if c.Value == "help" {
 			found = true
 			break
 		}

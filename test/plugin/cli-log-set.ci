@@ -2,9 +2,9 @@
 #
 # Flow:
 # 1. BGP session establishes
-# 2. Python plugin dispatches "bgp log levels" to see initial levels
-# 3. Dispatches "bgp log set <subsystem> debug" to change a level
-# 4. Dispatches "bgp log levels" again to verify the change
+# 2. Python plugin dispatches "log levels" to see initial levels
+# 3. Dispatches "log set <subsystem> debug" to change a level
+# 4. Dispatches "log levels" again to verify the change
 # 5. Shuts down daemon
 #
 # VALIDATES: AC-2 — bgp log set changes subsystem to specified level.

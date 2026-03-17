@@ -111,7 +111,7 @@ _ze() {
             ;;
         cli)
             if [[ ${depth} -eq 1 ]]; then
-                COMPREPLY=($(compgen -W "bgp help" -- "${cur}"))
+                COMPREPLY=($(compgen -W "help" -- "${cur}"))
             fi
             ;;
         validate)

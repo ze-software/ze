@@ -21,7 +21,7 @@ func newDispatchContext() *pluginserver.CommandContext {
 	return &pluginserver.CommandContext{Server: server}
 }
 
-// TestDispatchBGPLogLevels verifies "bgp log levels" dispatches through init() registration.
+// TestDispatchBGPLogLevels verifies "log levels" dispatches through init() registration.
 //
 // VALIDATES: AC-6 — log levels registered and dispatchable.
 // PREVENTS: Log levels handler not registered in dispatcher.
@@ -30,12 +30,12 @@ func TestDispatchBGPLogLevels(t *testing.T) {
 	defer slogutil.ResetLevelRegistry()
 
 	ctx := newDispatchContext()
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "bgp log levels")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "log levels")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 }
 
-// TestDispatchBGPLogSet verifies "bgp log set" dispatches through init() registration.
+// TestDispatchBGPLogSet verifies "log set" dispatches through init() registration.
 //
 // VALIDATES: AC-7 — log set registered and dispatchable.
 // PREVENTS: Log set handler not registered in dispatcher.
@@ -47,7 +47,7 @@ func TestDispatchBGPLogSet(t *testing.T) {
 	_ = slogutil.Logger("dispatchsettest")
 
 	ctx := newDispatchContext()
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "bgp log set dispatchsettest debug")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "log set dispatchsettest debug")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 }

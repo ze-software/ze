@@ -272,14 +272,14 @@ func TestDispatcherPluginMatch(t *testing.T) {
 
 	// Register plugin command with full prefix — plugins that handle
 	// commands arriving via update-route RPC must include the domain prefix
-	// (e.g., "bgp watchdog announce" not "watchdog announce").
+	// (e.g., "watchdog announce" not "watchdog announce").
 	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-watchdog"})
 	d.Registry().Register(proc, []CommandDef{
-		{Name: "bgp watchdog announce", Description: "Announce watchdog group"},
+		{Name: "watchdog announce", Description: "Announce watchdog group"},
 	})
 
 	// Prefixed command matches (process not running → error, but not ErrUnknownCommand)
-	_, err := d.Dispatch(nil, "bgp watchdog announce dnsr")
+	_, err := d.Dispatch(nil, "watchdog announce dnsr")
 	require.Error(t, err)
 	assert.False(t, errors.Is(err, ErrUnknownCommand),
 		"plugin command should match, got: %v", err)
@@ -313,37 +313,37 @@ func TestDispatcherCaseInsensitive(t *testing.T) {
 // TestDispatchRejectsNoSelector verifies that mutating peer commands
 // without a peer selector are rejected at the dispatcher level.
 //
-// VALIDATES: spec-editor-3 AC-1: "bgp peer eorr ipv4/unicast" → error.
+// VALIDATES: spec-editor-3 AC-1: "peer eorr ipv4/unicast" → error.
 // PREVENTS: Destructive commands silently operating on all peers.
 func TestDispatchRejectsNoSelector(t *testing.T) {
 	d := NewDispatcher()
 
-	d.RegisterWithOptions("bgp peer eorr", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	d.RegisterWithOptions("peer eorr", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		t.Fatal("handler should not be called without selector")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Send EoRR", RegisterOptions{RequiresSelector: true})
 
 	ctx := &CommandContext{}
-	_, err := d.Dispatch(ctx, "bgp peer eorr ipv4/unicast")
+	_, err := d.Dispatch(ctx, "peer eorr ipv4/unicast")
 	require.Error(t, err, "mutating command without selector must be rejected")
 	assert.Contains(t, err.Error(), "requires a peer selector")
 }
 
 // TestDispatchWithSelector verifies that mutating peer commands work with a selector.
 //
-// VALIDATES: spec-editor-3 AC-2: "bgp peer 1.1.1.1 eorr ipv4/unicast" → works.
+// VALIDATES: spec-editor-3 AC-2: "peer 1.1.1.1 eorr ipv4/unicast" → works.
 // PREVENTS: Selector-requiring commands broken when selector is provided.
 func TestDispatchWithSelector(t *testing.T) {
 	d := NewDispatcher()
 
 	var calledWithPeer string
-	d.RegisterWithOptions("bgp peer eorr", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	d.RegisterWithOptions("peer eorr", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
 		calledWithPeer = ctx.PeerSelector()
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Send EoRR", RegisterOptions{RequiresSelector: true})
 
 	ctx := &CommandContext{}
-	resp, err := d.Dispatch(ctx, "bgp peer 1.1.1.1 eorr ipv4/unicast")
+	resp, err := d.Dispatch(ctx, "peer 1.1.1.1 eorr ipv4/unicast")
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 	assert.Equal(t, "1.1.1.1", calledWithPeer)
@@ -352,19 +352,19 @@ func TestDispatchWithSelector(t *testing.T) {
 // TestDispatchReadOnlyNoSelector verifies that read-only peer commands
 // default to all peers when no selector is provided.
 //
-// VALIDATES: spec-editor-3 AC-5: "bgp peer list" → works (defaults to *).
+// VALIDATES: spec-editor-3 AC-5: "peer list" → works (defaults to *).
 // PREVENTS: Read-only commands broken by selector enforcement.
 func TestDispatchReadOnlyNoSelector(t *testing.T) {
 	d := NewDispatcher()
 
 	called := false
-	d.RegisterWithOptions("bgp peer list", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	d.RegisterWithOptions("peer list", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		called = true
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "List peers", RegisterOptions{RequiresSelector: false})
 
 	ctx := &CommandContext{}
-	resp, err := d.Dispatch(ctx, "bgp peer list")
+	resp, err := d.Dispatch(ctx, "peer list")
 	require.NoError(t, err)
 	assert.True(t, called)
 	assert.Equal(t, "done", resp.Status)
@@ -372,18 +372,18 @@ func TestDispatchReadOnlyNoSelector(t *testing.T) {
 
 // TestDispatchTeardownNoSelector verifies teardown without selector is rejected.
 //
-// VALIDATES: spec-editor-3 AC-4: "bgp peer teardown 3" → error.
+// VALIDATES: spec-editor-3 AC-4: "peer teardown 3" → error.
 // PREVENTS: Teardown operating on all peers silently.
 func TestDispatchTeardownNoSelector(t *testing.T) {
 	d := NewDispatcher()
 
-	d.RegisterWithOptions("bgp peer teardown", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	d.RegisterWithOptions("peer teardown", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		t.Fatal("handler should not be called without selector")
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Teardown peer", RegisterOptions{RequiresSelector: true})
 
 	ctx := &CommandContext{}
-	_, err := d.Dispatch(ctx, "bgp peer teardown 3")
+	_, err := d.Dispatch(ctx, "peer teardown 3")
 	require.Error(t, err, "teardown without selector must be rejected")
 	assert.Contains(t, err.Error(), "requires a peer selector")
 }
@@ -396,7 +396,7 @@ func TestDispatchWildcardSelector(t *testing.T) {
 	d := NewDispatcher()
 
 	var calledWithPeer string
-	d.RegisterWithOptions("bgp peer eorr", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+	d.RegisterWithOptions("peer eorr", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
 		calledWithPeer = ctx.PeerSelector()
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "Send EoRR", RegisterOptions{RequiresSelector: true})
@@ -450,15 +450,15 @@ func TestForwardToPluginRegistered(t *testing.T) {
 }
 
 // TestForwardToPluginNoBuiltinConflict verifies that registering a builtin
-// with "bgp rib status" does not conflict with a plugin command "rib status".
+// with "rib status" does not conflict with a plugin command "rib status".
 //
-// VALIDATES: Builtin proxy "bgp rib status" and plugin "rib status" coexist.
+// VALIDATES: Builtin proxy "rib status" and plugin "rib status" coexist.
 // PREVENTS: Builtin registration accidentally blocking plugin command lookup.
 func TestForwardToPluginNoBuiltinConflict(t *testing.T) {
 	d := NewDispatcher()
 
-	// Register builtin "bgp rib status" (what the proxy does)
-	d.Register("bgp rib status", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	// Register builtin "rib status" (what the proxy does)
+	d.Register("rib status", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "RIB summary")
 
@@ -629,13 +629,13 @@ func (u *usernameCapture) Authorize(username, _ string, _ bool) authz.Action {
 func TestDispatcherWithAuthzStore(t *testing.T) {
 	store := authz.NewStore()
 
-	// Create a restrictive profile: allow "bgp peer show", deny everything else
+	// Create a restrictive profile: allow "peer show", deny everything else
 	store.AddProfile(authz.Profile{
 		Name: "noc",
 		Run: authz.Section{
 			Default: authz.Deny,
 			Entries: []authz.Entry{
-				{Number: 10, Action: authz.Allow, Match: "bgp peer show"},
+				{Number: 10, Action: authz.Allow, Match: "peer show"},
 			},
 		},
 		Edit: authz.Section{Default: authz.Deny},
@@ -646,7 +646,7 @@ func TestDispatcherWithAuthzStore(t *testing.T) {
 	d.SetAuthorizer(store)
 
 	showCalled := false
-	d.RegisterWithOptions("bgp peer show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+	d.RegisterWithOptions("peer show", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		showCalled = true
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "", RegisterOptions{ReadOnly: true})
@@ -660,7 +660,7 @@ func TestDispatcherWithAuthzStore(t *testing.T) {
 	ctx := &CommandContext{Username: "operator"}
 
 	// Allowed command
-	resp, err := d.Dispatch(ctx, "bgp peer show")
+	resp, err := d.Dispatch(ctx, "peer show")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 	assert.True(t, showCalled)

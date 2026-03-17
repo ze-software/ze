@@ -24,7 +24,7 @@ func newDispatchContext() *pluginserver.CommandContext {
 	return &pluginserver.CommandContext{Server: server}
 }
 
-// TestDispatchBGPMetricsValues verifies "bgp metrics values" dispatches through init() registration.
+// TestDispatchBGPMetricsValues verifies "metrics values" dispatches through init() registration.
 //
 // VALIDATES: AC-5 — metrics values registered and dispatchable.
 // PREVENTS: Metrics values handler not registered in dispatcher.
@@ -37,12 +37,12 @@ func TestDispatchBGPMetricsValues(t *testing.T) {
 	defer registry.SetMetricsRegistry(old)
 
 	ctx := newDispatchContext()
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "bgp metrics values")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "metrics values")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 }
 
-// TestDispatchBGPMetricsList verifies "bgp metrics list" dispatches through init() registration.
+// TestDispatchBGPMetricsList verifies "metrics list" dispatches through init() registration.
 //
 // VALIDATES: AC-5 — metrics list registered and dispatchable.
 // PREVENTS: Metrics list handler not registered in dispatcher.
@@ -55,7 +55,7 @@ func TestDispatchBGPMetricsList(t *testing.T) {
 	defer registry.SetMetricsRegistry(old)
 
 	ctx := newDispatchContext()
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "bgp metrics list")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "metrics list")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 }

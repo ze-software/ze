@@ -122,7 +122,7 @@ func TestRPCDispatchCodedError(t *testing.T) {
 	d := NewRPCDispatcher()
 
 	err := d.Register("ze-bgp:peer-teardown", func(_ string, _ json.RawMessage) (any, error) {
-		return nil, rpc.NewCodedError("command-not-available", `command "bgp rib routes" not available (plugin may not be running)`)
+		return nil, rpc.NewCodedError("command-not-available", `command "rib routes" not available (plugin may not be running)`)
 	})
 	require.NoError(t, err)
 
@@ -140,7 +140,7 @@ func TestRPCDispatchCodedError(t *testing.T) {
 		Message string `json:"message"`
 	}
 	require.NoError(t, json.Unmarshal(errResp.Params, &detail))
-	assert.Equal(t, `command "bgp rib routes" not available (plugin may not be running)`, detail.Message)
+	assert.Equal(t, `command "rib routes" not available (plugin may not be running)`, detail.Message)
 }
 
 // TestRPCDispatchInvalidMethod verifies error for malformed method names.

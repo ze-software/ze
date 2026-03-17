@@ -2,7 +2,7 @@
 #
 # Flow:
 # 1. BGP session establishes
-# 2. Python plugin dispatches "bgp log levels" via dispatch-command
+# 2. Python plugin dispatches "log levels" via dispatch-command
 # 3. Verifies response contains levels map with subsystem entries
 # 4. Shuts down daemon
 #
