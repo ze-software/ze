@@ -64,7 +64,7 @@ Examples:
   ze yang tree --config
   ze yang tree --json
   ze yang doc --list
-  ze yang doc "bgp peer list"
+  ze yang doc "peer list"
 `)
 }
 

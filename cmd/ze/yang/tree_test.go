@@ -209,7 +209,7 @@ func TestAllRPCDocsHaveParams(t *testing.T) {
 				break
 			}
 		}
-		assert.True(t, found, "peer list should have 'selector'' input parameter")
+		assert.True(t, found, "peer list should have 'selector' input parameter")
 		return
 	}
 	t.Fatal("peer list not found in docs")

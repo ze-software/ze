@@ -209,7 +209,7 @@ func TestHandlerCommandList(t *testing.T) {
 	// Verify completions have Value and Help populated
 	for _, c := range commands {
 		assert.NotEmpty(t, c.Value, "completion value should not be empty")
-		assert.True(t, c.Value != "", "command should be non-empty")
+		assert.False(t, strings.HasPrefix(c.Value, "bgp "), "command should not have bgp prefix")
 		// Source should be empty in non-verbose mode
 		assert.Empty(t, c.Source, "source should be empty in non-verbose mode")
 	}
@@ -287,7 +287,7 @@ func TestHandlerCommandComplete(t *testing.T) {
 	require.True(t, ok)
 	completions, ok := data["completions"].([]pluginserver.Completion)
 	require.True(t, ok)
-	assert.NotEmpty(t, completions, "should match at least 'bgp help'")
+	assert.NotEmpty(t, completions, "should match at least 'help'")
 
 	found := false
 	for _, c := range completions {

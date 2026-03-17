@@ -160,13 +160,24 @@ func NewDispatcher() *Dispatcher {
 	}
 }
 
-// HasCommandPrefix returns true if the input matches any registered command prefix.
-// Used by dispatch routing to distinguish top-level commands from peer subcommands.
+// HasCommandPrefix returns true if the input matches any registered command prefix
+// (builtin or plugin). Used by dispatch routing to distinguish top-level commands
+// from peer subcommands that need "peer <selector> " prepended.
 func (d *Dispatcher) HasCommandPrefix(input string) bool {
 	lower := strings.ToLower(strings.TrimSpace(input))
+	// Check builtin commands.
 	for _, key := range d.sortedKeys {
 		if strings.HasPrefix(lower, key) && (len(lower) == len(key) || lower[len(key)] == ' ') {
 			return true
+		}
+	}
+	// Check plugin registry commands.
+	if d.registry != nil {
+		for _, cmd := range d.registry.All() {
+			key := strings.ToLower(cmd.Name)
+			if strings.HasPrefix(lower, key) && (len(lower) == len(key) || lower[len(key)] == ' ') {
+				return true
+			}
 		}
 	}
 	return false

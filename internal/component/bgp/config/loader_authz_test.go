@@ -216,7 +216,7 @@ system {
 
 	// Operator can run "peer show" (allowed by entry 10)
 	assert.Equal(t, authz.Allow, store.Authorize("operator", "peer show", true),
-		"operator should be allowed to run 'bgp peer show'")
+		"operator should be allowed to run 'peer show'")
 
 	// Operator cannot run "restart" (no matching entry, default deny)
 	assert.Equal(t, authz.Deny, store.Authorize("operator", "restart", true),
@@ -329,7 +329,7 @@ system {
 
 	// "peer restart" matches entry 30 (deny "peer") — denied.
 	assert.Equal(t, authz.Deny, store.Authorize("tester", "peer restart", true),
-		"entry 30 (deny 'bgp peer') should deny 'bgp peer restart'")
+		"entry 30 (deny 'peer') should deny 'peer restart'")
 }
 
 // TestValidateAuthzConfig_UndefinedProfileReference verifies that referencing

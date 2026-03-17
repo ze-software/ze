@@ -76,8 +76,8 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*plugin.Response, error)
 		commands = []string{
 			"daemon shutdown - Gracefully shutdown the daemon",
 			"daemon status - Show daemon status",
-			"bgp peer <selector> list - List peer(s) (brief)",
-			"bgp peer <selector> show - Show peer(s) details",
+			"peer <selector> list - List peer(s) (brief)",
+			"peer <selector> show - Show peer(s) details",
 			"system help - Show available commands",
 			"system version software - Show ze version",
 			"system version api - Show IPC protocol version",
