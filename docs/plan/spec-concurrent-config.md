@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 6/8 |
+| Phase | 7/8 |
 | Updated | 2026-03-17 |
 
 ## Post-Compaction Recovery
@@ -396,22 +396,30 @@ Same protocol. Step 5 removes the value from the tree. Step 8 omits the deleted 
 
 ### Concurrent read by other editors
 
-**Status: not yet implemented (assigned to Phase 6).**
+**Status: implemented (Phase 6).**
 
-Each editor caches the `mtime` of `config.draft`. A periodic `tea.Tick` in `model.go` checks the draft file's mtime:
+Each editor caches the `mtime` of `config.draft`. A periodic `tea.Tick` in `model.go` (every 2s) checks the draft file's mtime via `Storage.Stat()`:
 
 | `mtime` changed? | Action |
 |-------------------|--------|
 | No | Proceed with cached tree |
-| Yes | Re-read `config.draft`, re-parse tree, update display, show notification of changes by other sessions |
+| Yes | Re-read `config.draft`, re-parse tree, update display, show notification with modifier identity |
 
-Implementation in `model.go`:
+Implementation split across Editor and Model:
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| `draftMtime` field | `Model` struct | Cached mtime of `config.draft` |
-| `draftPollMsg` | Tick message | Fires every 2 seconds to check mtime |
-| `checkDraftMtime()` | `Update` handler | Stats draft file, compares with cached mtime, triggers re-read if changed |
+| `draftMtime` field | `Editor` struct | Cached mtime of `config.draft` |
+| `CheckDraftChanged()` | `Editor` method | Calls `store.Stat()`, compares mtime, re-reads + re-parses on change |
+| `draftPollMsg` | Tick message in `model.go` | Fires every 2 seconds |
+| `handleDraftPoll()` | `Model` method | Calls `editor.CheckDraftChanged()`, displays notification |
+
+Storage interface used (no direct OS calls in Editor/Model):
+
+| Method | FS implementation | Blob implementation |
+|--------|-------------------|---------------------|
+| `Stat(name) (FileMeta, error)` | `os.Stat().ModTime()` | In-memory `metas` map, auto-set on `WriteFile` |
+| `WriteGuard.SetModifier(sessionID)` | No-op (OS tracks mtime) | Sets modifier for subsequent `WriteFile` metadata |
 
 The notification shows recent changes from other sessions (entries whose `@timestamp` is newer than our last read and whose `%session` differs from ours):
 
@@ -1200,7 +1208,7 @@ SSH sessions get editors. Remove legacy startup prompt. Add same-user adoption. 
 
 **Note:** `cmd_edit.go` already has session creation (`NewEditSession`), `SetSession`, draft auto-load, and active session display (implemented in earlier phases). Phase 6 completes the remaining wiring. After the SSH-only migration (`cd44239e`), SSH is now the only external interface -- all sessions are in-process, and `ssh.Config` already has `Storage` and `ConfigDir`.
 
-**Status (2026-03-17 audit):** Not started. `ssh.Config` lacks `ConfigPath` field. `createSessionModel` still calls `NewCommandModel()` (command-only, no editor). `loader.go` does not pass config path to SSH. `cmd_edit.go` still has `PromptPendingEdit()` fallback. `model.go` has no `draftMtime`/`draftPollMsg`/`checkDraftMtime` (AC-5 not met). No `.ci` or `.et` tests created.
+**Status (2026-03-17):** Steps 3-9 done. `AdoptSession` in `editor_draft.go`. `ssh.Config.ConfigPath` added. `createSessionModel` creates Editor with session identity (with logging on fallback). `loader.go` passes configPath through `CreateReactorFromTree`. `cmd_edit.go` has adoption prompt for same-user orphaned sessions (prefix match fixed to `user@origin:`). Legacy `PromptPendingEdit` kept for `.edit` files only. Mtime polling via `Storage.Stat()` + `draftPollMsg` tick every 2s (AC-5). `FileMeta` struct on Storage interface, `SetModifier` on WriteGuard. Remaining: step 11 (`config-edit-ssh-session.ci` functional test).
 
 1. **Write unit tests** for `Editor.AdoptSession` (rewrite `%session` entries), exit prompt logic (pending changes detection, quit intercept), mtime draft polling (AC-5)
 2. **Run tests** -> Verify FAIL
@@ -1294,7 +1302,7 @@ N/A -- this is an internal config format change, not a protocol change.
 
 ### What Was Implemented
 
-**Phases 1-5 code complete (no functional tests):**
+**Phases 1-6 code complete:**
 
 | Component | Files | Lines | Tests |
 |-----------|-------|-------|-------|
@@ -1303,18 +1311,22 @@ N/A -- this is an internal config format change, not a protocol change.
 | Blame serializer | `config/serialize_blame.go` | 518 | (in serialize_set_test) |
 | MetaTree | `config/meta.go` | 284 | 17 unit |
 | Session identity | `cli/editor_session.go` | 45 | - |
-| Write-through, commit, discard, disconnect | `cli/editor_draft.go` | 1,049 | (in editor_test) |
-| Session-aware editor | `cli/editor.go` | 1,160 | (in editor_test) |
-| Session commands (blame, changes, who, etc.) | `cli/model_commands.go` | 869 | - |
-| Session-aware exit prompt | `cli/model.go` | 1,079 | - |
+| Write-through + adopt + mtime | `cli/editor_draft.go` | ~270 | (in editor_test) |
+| Commit, discard, disconnect | `cli/editor_commit.go` | 496 | (in editor_test) |
+| Schema-aware walking | `cli/editor_walk.go` | 367 | (in editor_test) |
+| Session-aware editor | `cli/editor.go` | ~1,150 | (in editor_test) |
+| Session commands | `cli/model_commands.go` | 869 | - |
+| Session-aware model + mtime poll | `cli/model.go` | ~1,100 | - |
+| .et session test infra | `cli/testing/{parser,runner,headless,expect}.go` | ~100 added | 6 unit + 13 .et |
+| SSH editor wiring | `ssh/session.go` | 55 | (in ssh_test) |
+| Storage mtime API | `config/storage/{storage,blob}.go` | ~50 added | (in storage_test) |
+| Adoption prompt | `cmd/ze/config/cmd_edit.go` | ~30 added | - |
 
 **Not yet implemented:**
-- Phase 5b: `.et` test infrastructure for sessions (0/5 files)
-- Phase 6: SSH editor wiring, mtime polling, adoption, PromptPendingEdit removal (0/7 steps)
-- Phase 7 remainder: `commit confirmed` session routing (deferred), 2 functional tests
-- All 13 `.et` functional tests and 2 `.ci` functional tests
+- Phase 7 remainder: `commit confirmed` session routing (AC-37, deferred), `set-format-migration.et` functional test
+- `test/plugin/config-edit-ssh-session.ci` -- SSH daemon functional test
 
-**File size warnings (>1000L):** `editor.go` (1,160L), `editor_draft.go` (1,049L), `model.go` (1,079L). Spec notes natural split candidates: `editor_commit.go`, `editor_walk.go`.
+**File size warnings (>1000L):** `editor.go` (~1,150L), `model.go` (~1,100L). Split candidates identified but deferred (editor_draft.go already split into 3 files).
 
 ### Bugs Found/Fixed
 
@@ -1356,6 +1368,11 @@ N/A -- this is an internal config format change, not a protocol change.
 - **`who`/`disconnect` guarded and filtered without session:** Both commands return explicit errors when no editing session is active. Completion filtering extended from `blame`/`changes` to also hide `who` and `disconnect` when no session is active.
 - **flock replaced by `Storage.AcquireLock()` -> `WriteGuard`:** Original spec designed around POSIX `flock(2)` for cross-process advisory locking. After the SSH-only migration (`cd44239e`), all sessions are in-process. Locking now uses `Storage.AcquireLock()` which returns a `WriteGuard` backed by `sync.Mutex` (filesystem) or blob-level lock (zefs). `editor_lock.go` was never created. The `config.conf.lock` file does not exist. Spec protocol sections updated to reflect `WriteGuard` pattern.
 - **Functional tests changed from `.ci` to `.et` format:** Original spec listed 13 `.ci` functional tests in `test/config/` and `test/parse/`. Analysis showed the `.ci` format has no interactive/keystroke capabilities -- it is designed for non-interactive daemon testing. Ze already has an `.et` (editor test) framework with ~90 headless replay tests. The `.et` framework needed session and multi-session extensions (Phase 5b). 13 tests became: 13 `.et` files in `test/editor/session/` + 2 `.ci` files (`test/plugin/config-edit-ssh-session.ci` for SSH daemon integration, `test/parse/set-format-migration-cmd.ci` for CLI command). Phase counter changed from 6/7 to 5b/8 to reflect the new prerequisite phase.
+- **Mtime polling via `Storage.Stat` instead of sidecar files:** Original design planned `draftMtime` on Model and `checkDraftMtime()` calling `os.Stat` directly. Implemented as: `Stat(name) (FileMeta, error)` on Storage interface, `CheckDraftChanged()` on Editor (handles check + re-read + re-parse), `handleDraftPoll()` on Model (just calls Editor + shows notification). For FS: `os.Stat()`. For blob: in-memory per-key metadata map auto-populated on `WriteFile`. `SetModifier(sessionID)` on WriteGuard sets `ModifiedBy`. No sidecar files. No OS calls outside storage layer. `draftMtime` field moved from Model to Editor.
+- **`editor_draft.go` split into 3 files:** `editor_draft.go` (write-through + adopt + mtime, ~270L), `editor_commit.go` (commit/discard/disconnect, 496L), `editor_walk.go` (schema walking, 367L). Split done before Phase 5b to keep files under 600 lines.
+- **Adoption prefix match fixed:** Original `cmd_edit.go` used `username + "@"` which matched unintended users (e.g., "thomas@" matches "thomasmore@local:..."). Fixed to `session.UserAtOrigin() + ":"` to match exact `"thomas@local:"` prefix.
+- **Adoption scanner reuse:** Original code created `bufio.NewScanner(os.Stdin)` per loop iteration, causing piped input to fail after first adoption. Fixed to create scanner once before the loop.
+- **`AdoptSession` sets dirty flag:** Initially missing `e.dirty.Store(true)` after adoption, inconsistent with writeThroughSet/Delete. Fixed.
 
 ## Implementation Audit
 

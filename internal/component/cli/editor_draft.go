@@ -8,6 +8,7 @@ package cli
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -49,6 +50,7 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 		return fmt.Errorf("write-through lock: %w", err)
 	}
 	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
+	guard.SetModifier(e.session.ID)
 
 	// Read draft (or config.conf if no draft exists).
 	draftPath := DraftPath(e.originalPath)
@@ -107,6 +109,7 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 		return fmt.Errorf("write-through lock: %w", err)
 	}
 	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
+	guard.SetModifier(e.session.ID)
 
 	// Read draft (or config.conf if no draft exists).
 	draftPath := DraftPath(e.originalPath)
@@ -188,6 +191,114 @@ func (e *Editor) readCommittedTree(guard storage.WriteGuard) *config.Tree {
 		return nil
 	}
 	return tree
+}
+
+// AdoptSession rewrites all entries belonging to oldSessionID to the current session.
+// Used when a user reconnects and wants to take over an orphaned session's changes.
+func (e *Editor) AdoptSession(oldSessionID string) error {
+	if e.session == nil {
+		return fmt.Errorf("no session set")
+	}
+
+	guard, err := e.store.AcquireLock(e.originalPath)
+	if err != nil {
+		return fmt.Errorf("adopt lock: %w", err)
+	}
+	defer guard.Release() //nolint:errcheck // Best effort unlock
+
+	draftPath := DraftPath(e.originalPath)
+	draftData, err := guard.ReadFile(draftPath)
+	if err != nil {
+		return fmt.Errorf("read draft: %w", err)
+	}
+
+	setParser := config.NewSetParser(e.schema)
+	tree, meta, err := setParser.ParseWithMeta(string(draftData))
+	if err != nil {
+		return fmt.Errorf("parse draft: %w", err)
+	}
+
+	// Find all entries for the old session and rewrite to current session.
+	oldEntries := meta.SessionEntries(oldSessionID)
+	if len(oldEntries) == 0 {
+		return nil // Nothing to adopt.
+	}
+
+	for _, se := range oldEntries {
+		pathParts := strings.Fields(se.Path)
+		if len(pathParts) == 0 {
+			continue
+		}
+		leafName := pathParts[len(pathParts)-1]
+		parentPath := pathParts[:len(pathParts)-1]
+
+		metaTarget := walkOrCreateMeta(meta, e.schema, parentPath)
+		metaTarget.RemoveSessionEntry(leafName, oldSessionID)
+		metaTarget.SetEntry(leafName, config.MetaEntry{
+			User:     e.session.UserAtOrigin(),
+			Time:     time.Now(),
+			Session:  e.session.ID,
+			Previous: se.Entry.Previous,
+			Value:    se.Entry.Value,
+		})
+	}
+
+	// Serialize and write updated draft.
+	output := config.SerializeSetWithMeta(tree, meta, e.schema)
+	if err := guard.WriteFile(draftPath, []byte(output), 0o600); err != nil {
+		return fmt.Errorf("write draft: %w", err)
+	}
+
+	// Update in-memory state.
+	e.tree = tree
+	e.meta = meta
+	e.dirty.Store(true)
+	return nil
+}
+
+// CheckDraftChanged checks if the draft file has been modified by another session.
+// Uses Storage.Stat for both filesystem (OS mtime) and blob (tracked mtime).
+// Returns true if the draft mtime is newer than the last known mtime.
+// Also re-reads and re-parses the draft on change to update in-memory state.
+func (e *Editor) CheckDraftChanged() (changed bool, notification string) {
+	if e.session == nil {
+		return false, ""
+	}
+
+	draftPath := DraftPath(e.originalPath)
+	meta, err := e.store.Stat(draftPath)
+	if err != nil || meta.ModTime.IsZero() {
+		return false, ""
+	}
+
+	if e.draftMtime.IsZero() {
+		e.draftMtime = meta.ModTime
+		return false, ""
+	}
+
+	if !meta.ModTime.After(e.draftMtime) {
+		return false, ""
+	}
+
+	e.draftMtime = meta.ModTime
+
+	// Re-read and re-parse the draft to update in-memory state.
+	data, readErr := e.store.ReadFile(draftPath)
+	if readErr != nil {
+		return false, ""
+	}
+	tree, draftMeta, parseErr := parseConfigWithFormat(string(data), e.schema)
+	if parseErr != nil {
+		return false, ""
+	}
+	e.tree = tree
+	e.meta = draftMeta
+
+	msg := "Draft updated by another session"
+	if meta.ModifiedBy != "" {
+		msg += " (" + meta.ModifiedBy + ")"
+	}
+	return true, msg
 }
 
 // parseConfigWithFormat reads config content using format auto-detection.

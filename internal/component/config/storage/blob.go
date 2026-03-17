@@ -10,9 +10,19 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
+
+// fileMeta tracks per-key modification metadata for blob storage.
+// All sessions are in-process (SSH-only interface), so in-memory tracking
+// is sufficient. The mtime is set automatically on every WriteFile.
+type fileMeta struct {
+	modTime    time.Time
+	modifiedBy string
+}
 
 // blobStorage wraps a zefs BlobStore for config file I/O.
 // All paths are absolute filesystem paths; the leading "/" is stripped to form blob keys.
@@ -20,6 +30,8 @@ type blobStorage struct {
 	store     *zefs.BlobStore
 	blobPath  string
 	configDir string
+	mu        sync.RWMutex         // protects metas
+	metas     map[string]*fileMeta // per-key metadata
 }
 
 // NewBlob returns a Storage backed by a zefs blob store at blobPath.
@@ -41,7 +53,12 @@ func NewBlob(blobPath, configDir string) (Storage, error) {
 		return nil, fmt.Errorf("storage: blob %s: %w", blobPath, err)
 	}
 
-	return &blobStorage{store: store, blobPath: blobPath, configDir: configDir}, nil
+	return &blobStorage{
+		store:     store,
+		blobPath:  blobPath,
+		configDir: configDir,
+		metas:     make(map[string]*fileMeta),
+	}, nil
 }
 
 // Close closes the underlying blob store.
@@ -54,15 +71,48 @@ func (s *blobStorage) ReadFile(name string) ([]byte, error) {
 }
 
 func (s *blobStorage) WriteFile(name string, data []byte, _ fs.FileMode) error {
-	return s.store.WriteFile(resolveKey(name, s.configDir), data, 0)
+	key := resolveKey(name, s.configDir)
+	if err := s.store.WriteFile(key, data, 0); err != nil {
+		return err
+	}
+	// Auto-track mtime on every write.
+	s.mu.Lock()
+	if s.metas[key] == nil {
+		s.metas[key] = &fileMeta{}
+	}
+	s.metas[key].modTime = time.Now()
+	s.mu.Unlock()
+	return nil
 }
 
 func (s *blobStorage) Remove(name string) error {
-	return s.store.Remove(resolveKey(name, s.configDir))
+	key := resolveKey(name, s.configDir)
+	s.mu.Lock()
+	delete(s.metas, key)
+	s.mu.Unlock()
+	return s.store.Remove(key)
 }
 
 func (s *blobStorage) Exists(name string) bool {
 	return s.store.Has(resolveKey(name, s.configDir))
+}
+
+// Stat returns per-key metadata tracked in memory.
+// ModTime is set automatically on every WriteFile.
+// ModifiedBy is set via SetModifier on the WriteGuard.
+func (s *blobStorage) Stat(name string) (FileMeta, error) {
+	key := resolveKey(name, s.configDir)
+	if !s.store.Has(key) {
+		return FileMeta{}, fmt.Errorf("storage: blob key not found: %s", key)
+	}
+	s.mu.RLock()
+	m := s.metas[key]
+	s.mu.RUnlock()
+	if m == nil {
+		// File exists but no metadata tracked (e.g., loaded from disk before any write).
+		return FileMeta{}, nil
+	}
+	return FileMeta{ModTime: m.modTime, ModifiedBy: m.modifiedBy}, nil
 }
 
 func (s *blobStorage) List(prefix string) ([]string, error) {
@@ -87,13 +137,17 @@ func (s *blobStorage) AcquireLock(_ string) (WriteGuard, error) {
 	if err != nil {
 		return nil, fmt.Errorf("storage: blob lock: %w", err)
 	}
-	return &blobGuard{wl: wl, configDir: s.configDir}, nil
+	return &blobGuard{wl: wl, configDir: s.configDir, parent: s}, nil
 }
 
 // blobGuard wraps a zefs WriteLock as a WriteGuard.
+// Lock ordering: WriteLock is acquired first (via AcquireLock), then parent.mu
+// for metadata updates in WriteFile/Remove. Nothing acquires them in reverse.
 type blobGuard struct {
 	wl        *zefs.WriteLock
 	configDir string
+	parent    *blobStorage
+	modifier  string // session ID set via SetModifier
 }
 
 func (g *blobGuard) ReadFile(name string) ([]byte, error) {
@@ -101,15 +155,35 @@ func (g *blobGuard) ReadFile(name string) ([]byte, error) {
 }
 
 func (g *blobGuard) WriteFile(name string, data []byte, _ fs.FileMode) error {
-	return g.wl.WriteFile(resolveKey(name, g.configDir), data, 0)
+	key := resolveKey(name, g.configDir)
+	if err := g.wl.WriteFile(key, data, 0); err != nil {
+		return err
+	}
+	// Auto-track mtime + modifier on every guarded write.
+	g.parent.mu.Lock()
+	if g.parent.metas[key] == nil {
+		g.parent.metas[key] = &fileMeta{}
+	}
+	g.parent.metas[key].modTime = time.Now()
+	g.parent.metas[key].modifiedBy = g.modifier
+	g.parent.mu.Unlock()
+	return nil
 }
 
 func (g *blobGuard) Remove(name string) error {
-	return g.wl.Remove(resolveKey(name, g.configDir))
+	key := resolveKey(name, g.configDir)
+	g.parent.mu.Lock()
+	delete(g.parent.metas, key)
+	g.parent.mu.Unlock()
+	return g.wl.Remove(key)
 }
 
 func (g *blobGuard) Release() error {
 	return g.wl.Release()
+}
+
+func (g *blobGuard) SetModifier(sessionID string) {
+	g.modifier = sessionID
 }
 
 // pathToKey converts an absolute filesystem path to a blob key

@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 )
 
 // Storage provides abstracted file operations for config, draft, and backup files.
@@ -42,9 +43,21 @@ type Storage interface {
 	// Release must be called to release the lock.
 	AcquireLock(name string) (WriteGuard, error)
 
+	// Stat returns metadata about the named file.
+	// For filesystem: uses os.Stat for ModTime.
+	// For blob: reads from per-key metadata tracked internally.
+	// Returns zero FileMeta and an error if the file does not exist.
+	Stat(name string) (FileMeta, error)
+
 	// Close releases resources held by the storage.
 	// For filesystem: no-op. For blob: closes the BlobStore.
 	Close() error
+}
+
+// FileMeta holds metadata about a file in storage.
+type FileMeta struct {
+	ModTime    time.Time // Last modification time.
+	ModifiedBy string    // Session ID of last modifier (empty if unknown).
 }
 
 // WriteGuard provides locked read/write/remove operations.
@@ -55,6 +68,12 @@ type WriteGuard interface {
 	WriteFile(name string, data []byte, perm fs.FileMode) error
 	Remove(name string) error
 	Release() error
+
+	// SetModifier records which session is performing writes through this guard.
+	// Subsequent WriteFile calls through this guard will associate the modifier
+	// with each written file for Stat().ModifiedBy. No-op for filesystem storage
+	// (OS does not track modifier identity).
+	SetModifier(sessionID string)
 }
 
 // IsBlobStorage returns true if the given storage is backed by a zefs blob store.
@@ -87,6 +106,14 @@ func (s *filesystemStorage) WriteFile(name string, data []byte, perm fs.FileMode
 
 func (s *filesystemStorage) Remove(name string) error {
 	return os.Remove(name)
+}
+
+func (s *filesystemStorage) Stat(name string) (FileMeta, error) {
+	info, err := os.Stat(name)
+	if err != nil {
+		return FileMeta{}, err
+	}
+	return FileMeta{ModTime: info.ModTime()}, nil
 }
 
 func (s *filesystemStorage) Close() error {
@@ -142,6 +169,10 @@ func (g *filesystemGuard) Release() error {
 		g.mu = nil
 	}
 	return nil
+}
+
+func (g *filesystemGuard) SetModifier(_ string) {
+	// No-op for filesystem: OS tracks mtime via WriteFile; modifier identity not available.
 }
 
 // atomicWriteFile writes data to path via a temp file and rename.

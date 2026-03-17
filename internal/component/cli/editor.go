@@ -44,6 +44,7 @@ type Editor struct {
 	hasPendingEdit  bool             // true if .edit file exists
 	session         *EditSession     // Optional: concurrent editing session
 	meta            *config.MetaTree // Optional: metadata tree for write-through
+	draftMtime      time.Time        // Last known draft file mtime (for polling)
 	onReload        ReloadNotifier   // Optional: called after successful save
 	onArchive       archive.Notifier // Optional: called after successful save to archive config
 }

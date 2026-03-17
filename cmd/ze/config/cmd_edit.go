@@ -412,14 +412,47 @@ func runEditor(ed *cli.Editor, configPath string) int {
 	session := cli.NewEditSession(username, "local")
 	ed.SetSession(session)
 
-	// Auto-load draft if it exists (replaces PromptPendingEdit).
+	// Auto-load draft if it exists.
 	draftPath := cli.DraftPath(configPath)
 	if _, statErr := os.Stat(draftPath); statErr == nil {
-		// Draft exists: display active sessions.
+		// Draft exists: check for same-user orphaned sessions.
+		// Match on "user@origin:" to avoid "thomas@" matching "thomasmore@".
 		activeSessions := ed.ActiveSessions()
-		if len(activeSessions) > 0 {
-			fmt.Fprintf(os.Stderr, "Active sessions:\n") //nolint:errcheck // terminal output
-			for _, sid := range activeSessions {
+		myPrefix := session.UserAtOrigin() + ":"
+		stdinScanner := bufio.NewScanner(os.Stdin)
+		for _, sid := range activeSessions {
+			if !strings.HasPrefix(sid, myPrefix) || sid == session.ID {
+				continue
+			}
+			// Same user, different session -- offer adoption.
+			entries := ed.SessionChanges(sid)
+			fmt.Fprintf(os.Stderr, "Found pending changes from previous session (%s, %d changes):\n", sid, len(entries)) //nolint:errcheck // terminal output
+			for _, e := range entries {
+				fmt.Fprintf(os.Stderr, "  %s\n", e.Path) //nolint:errcheck // terminal output
+			}
+			fmt.Fprintf(os.Stderr, "Adopt these changes? (yes/no) ") //nolint:errcheck // terminal output
+
+			if !stdinScanner.Scan() {
+				break // stdin closed or error
+			}
+			if strings.TrimSpace(stdinScanner.Text()) == "yes" {
+				if adoptErr := ed.AdoptSession(sid); adoptErr != nil {
+					fmt.Fprintf(os.Stderr, "error adopting session: %v\n", adoptErr) //nolint:errcheck // terminal output
+				}
+			}
+		}
+
+		// Display remaining active sessions (other users).
+		remaining := ed.ActiveSessions()
+		otherSessions := make([]string, 0)
+		for _, sid := range remaining {
+			if sid != session.ID {
+				otherSessions = append(otherSessions, sid)
+			}
+		}
+		if len(otherSessions) > 0 {
+			fmt.Fprintf(os.Stderr, "Active editing sessions:\n") //nolint:errcheck // terminal output
+			for _, sid := range otherSessions {
 				fmt.Fprintf(os.Stderr, "  %s\n", sid) //nolint:errcheck // terminal output
 			}
 		}

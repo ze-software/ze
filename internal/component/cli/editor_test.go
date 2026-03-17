@@ -4701,3 +4701,76 @@ func TestEditorFilesystemOverride(t *testing.T) {
 	assert.False(t, ed.Dirty())
 	assert.Equal(t, configPath, ed.OriginalPath())
 }
+
+// TestEditorAdoptSession verifies that AdoptSession rewrites session entries.
+//
+// VALIDATES: AdoptSession moves orphaned entries to the current session.
+// PREVENTS: Orphaned sessions persisting after reconnect.
+func TestEditorAdoptSession(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	// Session 1 (old) makes a change, simulating an orphaned session.
+	ed1, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
+
+	oldSession := NewEditSession("thomas", "local")
+	ed1.SetSession(oldSession)
+	err = ed1.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
+	require.NoError(t, err)
+
+	// Verify draft has old session.
+	draftData, err := os.ReadFile(DraftPath(configPath))
+	require.NoError(t, err)
+	assert.Contains(t, string(draftData), oldSession.ID)
+
+	// Session 2 (new) adopts the old session's entries.
+	// Use "ssh" origin so the session ID differs even within the same second.
+	ed2, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
+
+	newSession := NewEditSession("thomas", "ssh")
+	ed2.SetSession(newSession)
+
+	err = ed2.AdoptSession(oldSession.ID)
+	require.NoError(t, err)
+
+	// Draft should now have new session ID, not old.
+	draftData, err = os.ReadFile(DraftPath(configPath))
+	require.NoError(t, err)
+	draftContent := string(draftData)
+	assert.NotContains(t, draftContent, oldSession.ID, "old session should be gone")
+	assert.Contains(t, draftContent, newSession.ID, "new session should be present")
+}
+
+// TestEditorAdoptDeclined verifies that declining adoption leaves entries unchanged.
+//
+// VALIDATES: Not calling AdoptSession preserves orphaned entries.
+// PREVENTS: Orphaned entries accidentally modified without explicit adoption.
+func TestEditorAdoptDeclined(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	// Old session makes a change.
+	ed1, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
+
+	oldSession := NewEditSession("thomas", "local")
+	ed1.SetSession(oldSession)
+	err = ed1.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
+	require.NoError(t, err)
+
+	// New session does NOT adopt.
+	ed2, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
+
+	newSession := NewEditSession("thomas", "local")
+	ed2.SetSession(newSession)
+
+	// Draft should still have old session.
+	draftData, err := os.ReadFile(DraftPath(configPath))
+	require.NoError(t, err)
+	assert.Contains(t, string(draftData), oldSession.ID, "old session should remain")
+}

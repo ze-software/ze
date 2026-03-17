@@ -207,6 +207,9 @@ type (
 
 	// confirmCountdownMsg fires every second during a "commit confirmed" window.
 	confirmCountdownMsg struct{}
+
+	// draftPollMsg fires every 2 seconds to check if another session modified the draft.
+	draftPollMsg struct{}
 )
 
 // NewModel creates a new editor model.
@@ -280,8 +283,14 @@ func (m Model) hasEditor() bool {
 	return m.editor != nil
 }
 
+// draftPollInterval is how often the model checks for draft changes by other sessions.
+const draftPollInterval = 2 * time.Second
+
 // Init implements tea.Model.
 func (m Model) Init() tea.Cmd {
+	if m.hasEditor() && m.editor.HasSession() {
+		return tea.Batch(textinput.Blink, tea.Tick(draftPollInterval, func(time.Time) tea.Msg { return draftPollMsg{} }))
+	}
 	return textinput.Blink
 }
 
@@ -342,6 +351,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case confirmCountdownMsg:
 		return m.handleConfirmCountdown()
+
+	case draftPollMsg:
+		return m.handleDraftPoll()
 	}
 
 	m.textInput, cmd = m.textInput.Update(msg)
@@ -972,6 +984,23 @@ func (m Model) hasPendingChanges() bool {
 		return m.editor.HasPendingSessionChanges()
 	}
 	return m.editor.Dirty()
+}
+
+// handleDraftPoll checks if the draft file was modified by another session.
+// Editor.CheckDraftChanged handles re-read internally. Reschedules the next poll.
+func (m Model) handleDraftPoll() (tea.Model, tea.Cmd) {
+	if !m.hasEditor() || !m.editor.HasSession() {
+		return m, nil
+	}
+
+	changed, notification := m.editor.CheckDraftChanged()
+	if changed {
+		m.statusMessage = notification
+		m.showConfigContent()
+	}
+
+	// Reschedule next poll.
+	return m, tea.Tick(draftPollInterval, func(time.Time) tea.Msg { return draftPollMsg{} })
 }
 
 // autoSaveOnQuit saves a .edit snapshot when force-quitting with unsaved changes.
