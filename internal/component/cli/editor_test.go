@@ -1316,7 +1316,7 @@ func TestEditorWriteThroughListEntry(t *testing.T) {
 
 // TestEditorConcurrentWrite verifies two editors can write without corruption.
 //
-// VALIDATES: Concurrent writes under flock produce valid draft files.
+// VALIDATES: Concurrent writes under Storage.AcquireLock() produce valid draft files.
 // PREVENTS: File corruption from overlapping writes.
 func TestEditorConcurrentWrite(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
