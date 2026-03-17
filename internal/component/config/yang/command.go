@@ -4,6 +4,7 @@
 package yang
 
 import (
+	"sort"
 	"strings"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
@@ -22,10 +23,16 @@ const cmdModuleSuffix = "-cmd"
 func BuildCommandTree(loader *Loader) *command.Node {
 	root := &command.Node{Children: make(map[string]*command.Node)}
 
+	// Collect and sort -cmd module names for deterministic merge order.
+	var cmdModules []string
 	for _, name := range loader.ModuleNames() {
-		if !strings.HasSuffix(name, cmdModuleSuffix) {
-			continue
+		if strings.HasSuffix(name, cmdModuleSuffix) {
+			cmdModules = append(cmdModules, name)
 		}
+	}
+	sort.Strings(cmdModules)
+
+	for _, name := range cmdModules {
 		entry := loader.GetEntry(name)
 		if entry == nil || entry.Dir == nil {
 			continue
@@ -45,6 +52,8 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 	}
 	for name, child := range entry.Dir {
 		// Only walk config false containers (command tree nodes).
+		// Note: -cmd.yang files must explicitly mark every container as config false.
+		// goyang may not propagate inherited config false to all descendants.
 		if child.Config != gyang.TSFalse {
 			continue
 		}
@@ -59,9 +68,11 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 			node.Children[name] = target
 		}
 
-		// ze:command nodes get their description (executable commands).
-		// Grouping containers (no ze:command) stay description-less.
-		if HasCommandExtension(child) && target.Description == "" {
+		// ze:command nodes get their WireMethod and description (executable commands).
+		// Grouping containers (no ze:command) stay empty.
+		wm := GetCommandExtension(child)
+		if wm != "" && target.WireMethod == "" {
+			target.WireMethod = wm
 			target.Description = child.Description
 		}
 

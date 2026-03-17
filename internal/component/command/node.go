@@ -12,6 +12,7 @@ package command
 type Node struct {
 	Name        string
 	Description string
+	WireMethod  string // Handler dispatch key (from ze:command argument). Empty for grouping nodes.
 	Children    map[string]*Node
 
 	// DynamicChildren returns additional completion suggestions at this node.

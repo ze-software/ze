@@ -53,6 +53,7 @@ import (
 )
 
 // cmdModuleSuffix identifies YANG command tree modules by name convention.
+// Canonical definition: internal/component/config/yang/command.go
 const cmdModuleSuffix = "-cmd"
 
 // CommandEntry represents a ze:command found in the YANG tree.
