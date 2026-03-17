@@ -27,6 +27,9 @@ __pycache__/
 # macOS
 .DS_Store
 
+# Obsidian
+.obsidian/
+
 # Claude session state (per-session, not committed)
 .claude/selected-spec
 .claude/session-state.md
