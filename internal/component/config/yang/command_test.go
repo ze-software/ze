@@ -7,6 +7,8 @@ import (
 	gyang "github.com/openconfig/goyang/pkg/yang"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 )
 
 // loadCmdModule is a test helper that loads a -cmd.yang file by path into a loader.
@@ -371,6 +373,114 @@ func TestUpdateCmdModule(t *testing.T) {
 	entry := loader.GetEntry("ze-update-cmd")
 	require.NotNil(t, entry)
 	assert.Equal(t, "ze-bgp:peer-update", GetCommandExtension(entry.Dir["peer"].Dir["update"]))
+}
+
+// TestBuildCommandTree verifies BuildCommandTree merges multiple -cmd modules into one command.Node tree.
+//
+// VALIDATES: Multiple YANG modules with overlapping containers merge correctly into command.Node.
+// PREVENTS: Commands missing or duplicated when multiple plugins contribute to the same tree branch.
+func TestBuildCommandTree(t *testing.T) {
+	loader := NewLoader()
+	err := loader.LoadEmbedded()
+	require.NoError(t, err)
+
+	// Load 3 modules that all contribute to the "peer" container
+	loadCmdModule(t, loader, cmdPluginBase+"cmd/peer/schema/ze-peer-cmd.yang")
+	loadCmdModule(t, loader, cmdPluginBase+"cmd/raw/schema/ze-raw-cmd.yang")
+	loadCmdModule(t, loader, cmdPluginBase+"route_refresh/schema/ze-refresh-cmd.yang")
+	// Load a non-overlapping module
+	loadCmdModule(t, loader, cmdBase+"cache/schema/ze-cache-cmd.yang")
+
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	tree := BuildCommandTree(loader)
+	require.NotNil(t, tree)
+
+	// "cache" from ze-cache-cmd
+	cache := tree.Children["cache"]
+	require.NotNil(t, cache, "cache should exist")
+	assert.Equal(t, "BGP message cache operations", cache.Description)
+
+	// "peer" merged from 3 modules
+	peer := tree.Children["peer"]
+	require.NotNil(t, peer, "peer should exist (merged)")
+	assert.Equal(t, "", peer.Description, "peer is a grouping, no description from ze:command")
+
+	// From ze-peer-cmd
+	assert.NotNil(t, peer.Children["list"], "peer.list from ze-peer-cmd")
+	assert.NotNil(t, peer.Children["add"], "peer.add from ze-peer-cmd")
+
+	// From ze-raw-cmd
+	assert.NotNil(t, peer.Children["raw"], "peer.raw from ze-raw-cmd")
+
+	// From ze-refresh-cmd
+	assert.NotNil(t, peer.Children["refresh"], "peer.refresh from ze-refresh-cmd")
+	assert.NotNil(t, peer.Children["borr"], "peer.borr from ze-refresh-cmd")
+
+	// Deep merge: peer > clear > soft from ze-refresh-cmd
+	clearNode := peer.Children["clear"]
+	require.NotNil(t, clearNode, "peer.clear should exist")
+	assert.NotNil(t, clearNode.Children["soft"], "peer.clear.soft from ze-refresh-cmd")
+
+	// "summary" from ze-peer-cmd (top-level, not under peer)
+	summary := tree.Children["summary"]
+	require.NotNil(t, summary, "summary should exist")
+}
+
+// TestBuildCommandTreeEmpty verifies BuildCommandTree handles no -cmd modules.
+//
+// VALIDATES: Empty tree returned when no command modules are loaded.
+// PREVENTS: Nil panic when no plugins are registered.
+func TestBuildCommandTreeEmpty(t *testing.T) {
+	loader := NewLoader()
+	err := loader.LoadEmbedded()
+	require.NoError(t, err)
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	tree := BuildCommandTree(loader)
+	require.NotNil(t, tree)
+	assert.Empty(t, tree.Children)
+}
+
+// TestBuildCommandTreeCommandNodes verifies only ze:command nodes become leaves with descriptions.
+//
+// VALIDATES: Grouping containers (no ze:command) have no description; command nodes have their YANG description.
+// PREVENTS: Grouping nodes showing up as executable commands in completions.
+func TestBuildCommandTreeCommandNodes(t *testing.T) {
+	loader := NewLoader()
+	err := loader.LoadEmbedded()
+	require.NoError(t, err)
+	loadCmdModule(t, loader, cmdPluginBase+"cmd/rib/schema/ze-rib-cmd.yang")
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	tree := BuildCommandTree(loader)
+	require.NotNil(t, tree)
+
+	rib := tree.Children["rib"]
+	require.NotNil(t, rib)
+	assert.Equal(t, "", rib.Description, "rib is a grouping -- no ze:command, no description in tree")
+
+	status := rib.Children["status"]
+	require.NotNil(t, status)
+	assert.Equal(t, "RIB summary (peer count, route counts)", status.Description, "status has ze:command")
+
+	// rib > best is both a command AND has children
+	best := rib.Children["best"]
+	require.NotNil(t, best)
+	assert.Equal(t, "Best-path per prefix", best.Description, "best has ze:command")
+	assert.NotNil(t, best.Children["status"], "best also has child status")
+
+	// rib > clear is a grouping (no ze:command), has children
+	clear := rib.Children["clear"]
+	require.NotNil(t, clear)
+	assert.Equal(t, "", clear.Description, "clear is a grouping")
+	assert.NotNil(t, clear.Children["in"], "clear has child in")
+
+	// Verify command package is used (tree is *command.Node from BuildCommandTree)
+	require.IsType(t, &command.Node{}, tree)
 }
 
 // TestSystemCmdModuleLoads verifies ze-system-cmd.yang loads and has expected structure.

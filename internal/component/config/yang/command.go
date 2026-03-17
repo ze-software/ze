@@ -7,7 +7,68 @@ import (
 	"strings"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 )
+
+// cmdModuleSuffix identifies YANG command tree modules by naming convention.
+const cmdModuleSuffix = "-cmd"
+
+// BuildCommandTree walks all -cmd YANG modules in the loader and builds
+// a merged command.Node tree. Multiple modules contributing to the same
+// container path (e.g., 4 modules defining peer > ...) are merged.
+// Only nodes with ze:command get a Description (from the YANG description).
+// Grouping containers (no ze:command) become navigation-only branches.
+func BuildCommandTree(loader *Loader) *command.Node {
+	root := &command.Node{Children: make(map[string]*command.Node)}
+
+	for _, name := range loader.ModuleNames() {
+		if !strings.HasSuffix(name, cmdModuleSuffix) {
+			continue
+		}
+		entry := loader.GetEntry(name)
+		if entry == nil || entry.Dir == nil {
+			continue
+		}
+		mergeYANGEntry(root, entry)
+	}
+
+	return root
+}
+
+// mergeYANGEntry recursively walks a YANG entry's children and merges them
+// into the command.Node tree. config false containers become tree nodes.
+// Nodes with ze:command get their YANG description as the node Description.
+func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
+	if entry == nil || entry.Dir == nil {
+		return
+	}
+	for name, child := range entry.Dir {
+		// Only walk config false containers (command tree nodes).
+		if child.Config != gyang.TSFalse {
+			continue
+		}
+
+		if node.Children == nil {
+			node.Children = make(map[string]*command.Node)
+		}
+
+		target, exists := node.Children[name]
+		if !exists {
+			target = &command.Node{Name: name}
+			node.Children[name] = target
+		}
+
+		// ze:command nodes get their description (executable commands).
+		// Grouping containers (no ze:command) stay description-less.
+		if HasCommandExtension(child) && target.Description == "" {
+			target.Description = child.Description
+		}
+
+		// Recurse into children (merge overlapping branches from multiple modules).
+		mergeYANGEntry(target, child)
+	}
+}
 
 // GetCommandExtension reads the ze:command extension from a YANG entry.
 // Returns the WireMethod handler string (e.g., "ze-bgp:peer-list"), or empty
