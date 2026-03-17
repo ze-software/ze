@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 6/7 |
-| Updated | 2026-03-13 |
+| Phase | 5b/8 |
+| Updated | 2026-03-16 |
 
 ## Post-Compaction Recovery
 
@@ -26,7 +26,7 @@ Replace the hierarchical text configuration format with a flat, line-oriented fo
 
 1. **New config format:** Each line = optional metadata + a `set` command. The file is both human-readable and machine-parseable. Metadata is optional so hand-written files work without it.
 2. **Write-through:** Every `set`/`delete` writes immediately to disk. No accumulation in memory.
-3. **Concurrent editing:** Multiple editors (terminal + SSH) work on a shared draft file with advisory locking. Each editor detects changes made by others.
+3. **Concurrent editing:** Multiple editors (terminal + SSH) work on a shared draft file with in-process mutex locking via `Storage.AcquireLock()`. Each editor detects changes made by others.
 4. **Per-session commit:** Each editing session has an identity. `commit` applies only the current session's changes to the committed config. Other sessions' pending changes are preserved.
 5. **Conflict detection:** Two conflict types: (a) two active sessions disagree on the same YANG path, (b) the committed value changed since the editor's last `set` at that path. Any conflict blocks the entire commit (not just the conflicting keys).
 6. **Authorship tracking:** Every value carries who changed it and when. Survives schema migrations because metadata keys follow YANG paths, not line numbers.
@@ -56,7 +56,7 @@ Replace the hierarchical text configuration format with a flat, line-oriented fo
 ### Source Files
 - [ ] `internal/component/cli/editor.go` - Editor struct, NewEditor, Save, Discard, SetValue, DeleteValue, SaveEditState, LoadPendingEdit, PromptPendingEdit
   -> Constraint: Editor currently holds an in-memory tree and writes only on explicit save/commit. Must change to write-through.
-  -> Decision: Editor gains a lock file handle, session identity, and write-through methods
+  -> Decision: Editor gains session identity and write-through methods; locking via `Storage.AcquireLock()` -> `WriteGuard`
 - [ ] `internal/component/cli/model_commands.go` - cmdSet, cmdDelete, cmdCommit, cmdDiscard, cmdSave
   -> Constraint: cmdSet calls editor.SetValue then returns. Must now also trigger write-through.
   -> Decision: editor.SetValue becomes the write-through entry point (lock, read, apply, write, unlock)
@@ -81,7 +81,7 @@ Replace the hierarchical text configuration format with a flat, line-oriented fo
 - The YANG schema drives both parsing and serialization, so adding a new serialization format is straightforward
 - The Tree data structure is format-agnostic -- it can be populated from hierarchical text or flat set commands
 - SSH sessions are command-only today; giving them an Editor is the main wiring change for concurrent access
-- Advisory file locking (flock) is the simplest cross-process synchronization on Unix
+- All sessions are in-process (SSH-only interface); `Storage.AcquireLock()` provides mutex-based synchronization
 
 ## Current Behavior (MANDATORY)
 
@@ -109,7 +109,7 @@ Replace the hierarchical text configuration format with a flat, line-oriented fo
 - Editor write model: from in-memory accumulation to write-through
 - Startup flow: from interactive prompt to automatic draft loading with same-user adoption prompt
 - SSH sessions: from command-only to editor-capable
-- Add file locking for concurrent access
+- Add in-process locking for concurrent access via `Storage.AcquireLock()` -> `WriteGuard`
 - Add session identity and per-session commit
 - Add multiple display views (tree, set, blame, changes)
 - Separate `save` (persist draft) from `commit` (apply to running config)
@@ -270,20 +270,20 @@ Comments (lines starting with `# ` -- hash followed by space) are preserved duri
 |------|---------|---------------------|------------|-------------|
 | `config.conf` | Committed config (daemon uses this) | Never | `commit` command | Never (user's config) |
 | `config.conf.draft` | Working config (all editors' pending changes) | Yes, for pending changes | First `set`/`delete` in any session | All sessions committed or discarded |
-| `config.conf.lock` | Advisory lock file | N/A | First editor to write | Never (empty file, reused) |
 
-### Lock File Protocol
+### Locking Protocol
 
-The lock file `config.conf.lock` is an empty file used with POSIX `flock(2)` for advisory locking:
+~~Lock file `config.conf.lock` with POSIX `flock(2)` -- removed after SSH-only migration (all sessions are in-process).~~
 
-| Step | syscall | Mode | Purpose |
-|------|---------|------|---------|
-| 1 | `OpenFile(lockPath, O_CREATE\|O_RDWR, 0o600)` | - | Create/open lock file |
-| 2 | `flock(fd, LOCK_EX)` | Blocking exclusive | Acquire lock (blocks if held by another process) |
-| 3 | Read, modify, write draft | - | Critical section |
-| 4 | `flock(fd, LOCK_UN)` | Unlock | Release lock |
+All editing sessions now run in the same process (SSH server). Locking uses `Storage.AcquireLock()` which returns a `WriteGuard`:
 
-The lock is held for the duration of a single read-modify-write cycle (milliseconds). It is never held while waiting for user input.
+| Step | Action | Purpose |
+|------|--------|---------|
+| 1 | `store.AcquireLock(configPath)` | Acquire in-process mutex (blocks if held by another goroutine) |
+| 2 | Read, modify, write draft via `WriteGuard` methods | Critical section |
+| 3 | `guard.Release()` (deferred) | Release mutex |
+
+The lock is held for the duration of a single read-modify-write cycle (milliseconds). It is never held while waiting for user input. For `filesystemStorage` the lock is a `sync.Mutex`; for `blobStorage` it is a blob-level lock.
 
 ### Draft Lifecycle
 
@@ -376,19 +376,19 @@ When the user types `set bgp peer 10.0.0.1 hold-time 90`:
 | Step | Action |
 |------|--------|
 | 1 | Validate the command against YANG schema (existing validation, no change) |
-| 2 | `flock(config.lock, LOCK_EX)` |
-| 3 | Read `config.draft` from disk (or `config.conf` if no draft) |
+| 2 | `store.AcquireLock(configPath)` -> `guard` |
+| 3 | Read `config.draft` from disk via `guard` (or `config.conf` if no draft) |
 | 4 | Parse file into Tree + MetaTree |
 | 5 | Apply the `set` to the tree (existing `SetValue`) |
 | 6 | Record metadata: `MetaEntry{User: session.user, Time: now, Session: session.id}` |
-| 6a | Read `config.conf` to get the committed value at this YANG path |
+| 6a | Read `config.conf` via `guard` to get the committed value at this YANG path |
 | 7 | Record the committed value as `Previous` in the MetaEntry (always from `config.conf`, never from draft) |
 | 8 | Serialize tree to flat set format with metadata: `SerializeSetWithMeta()` |
-| 9 | Write `config.draft` atomically (temp file + rename) |
-| 10 | `funlock(config.lock)` |
+| 9 | Write `config.draft` atomically via `guard` |
+| 10 | `guard.Release()` |
 | 11 | Update in-memory tree and display |
 
-The lock is held from step 2 to step 10 (a few milliseconds). No I/O to network or user during the lock.
+The guard is held from step 2 to step 10 (a few milliseconds). No I/O to network or user during the lock.
 
 ### For `delete` commands
 
@@ -425,23 +425,23 @@ When the user types `commit`:
 
 | Step | Action |
 |------|--------|
-| 1 | `flock(config.lock, LOCK_EX)` |
-| 2 | Read `config.conf` (committed) and `config.draft` |
+| 1 | `store.AcquireLock(configPath)` -> `guard` |
+| 2 | Read `config.conf` (committed) and `config.draft` via `guard` |
 | 3 | Parse both into trees |
 | 4 | Identify my changes: all draft lines where `%session == my_session_id` |
 | 5 | **For each of my changes, check for two types of conflicts:** |
 | 5a | **Live disagreement:** check if another active session in the draft has a pending change at the same YANG path with a different value. If same value: no conflict (they agree). |
 | 5b | **Stale Previous:** read the YANG path's current value in `config.conf`. Compare with `Previous` recorded in my MetaEntry. If `config.conf` value != `Previous`: the committed value changed since my edit. **CONFLICT.** |
 | 5c | If both sessions set the same value (agreement), no conflict -- first to commit wins. |
-| 6 | **If any conflict (either type):** report ALL conflicts to user, do not commit ANY changes, release lock. The entire commit is blocked, not just conflicting keys. |
+| 6 | **If any conflict (either type):** report ALL conflicts to user, do not commit ANY changes, release guard. The entire commit is blocked, not just conflicting keys. |
 | 7 | **If no conflicts:** |
 | 7a | Apply my changes to the committed tree. For each session entry: retrieve the value from the draft tree at that YANG path. If the value is non-empty, `Set` it in the committed tree. If the value is empty (the session deleted this path -- the draft tree has no value but metadata exists via `delete` line), `Delete` it from the committed tree. |
-| 7b | Serialize committed tree to `config.conf` (with `#user @timestamp`, no `%session`) |
+| 7b | Serialize committed tree to `config.conf` (with `#user @timestamp`, no `%session`) via `guard` |
 | 7c | Create backup in `rollback/` |
 | 7d | Remove my `%session` entries from the draft tree |
-| 7e | If other sessions still have pending changes: regenerate `config.draft` without my entries |
-| 7f | If no pending changes remain: delete `config.draft` |
-| 8 | `funlock(config.lock)` |
+| 7e | If other sessions still have pending changes: regenerate `config.draft` without my entries via `guard` |
+| 7f | If no pending changes remain: delete `config.draft` via `guard` |
+| 8 | `guard.Release()` |
 | 9 | Notify daemon (reload notifier, existing mechanism) |
 | 10 | Archive (archive notifier, existing mechanism) |
 
@@ -481,13 +481,13 @@ When the user types `discard <path>` or `discard all`:
 
 | Step | Action |
 |------|--------|
-| 1 | `flock(config.lock, LOCK_EX)` |
-| 2 | Read `config.draft` and `config.conf` |
+| 1 | `store.AcquireLock(configPath)` -> `guard` |
+| 2 | Read `config.draft` and `config.conf` via `guard` |
 | 3 | Identify lines to discard: matching `%session == my_session_id` at the given path (or all paths for `discard all`) |
 | 4 | For each discarded line: restore the value from `config.conf` (or remove if it was an addition not in `config.conf`) |
-| 5 | If other sessions still have pending changes: write updated `config.draft` |
-| 6 | If no pending changes remain: delete `config.draft` |
-| 7 | `funlock(config.lock)` |
+| 5 | If other sessions still have pending changes: write updated `config.draft` via `guard` |
+| 6 | If no pending changes remain: delete `config.draft` via `guard` |
+| 7 | `guard.Release()` |
 
 ## Display Views
 
@@ -725,7 +725,7 @@ The SSH `Server` needs the config file path to create Editors. Add `ConfigPath s
 
 | Field | Source | Purpose |
 |-------|--------|---------|
-| `ConfigPath` | Set by daemon loader at startup | Passed to `cli.NewEditor()` for each SSH session |
+| `ConfigPath` | Set by daemon loader at startup | Passed to `cli.NewEditorWithStorage(s.config.Storage, configPath)` for each SSH session |
 
 ### New State
 
@@ -733,7 +733,7 @@ SSH sessions receive an `Editor` connected to the same config file. The `createS
 
 | Step | Action |
 |------|--------|
-| 1 | Call `cli.NewEditor(s.config.ConfigPath)` to create an Editor for the shared config file |
+| 1 | Call `cli.NewEditorWithStorage(s.config.Storage, s.config.ConfigPath)` to create an Editor for the shared config file |
 | 2 | If `NewEditor` fails, fall back to `cli.NewCommandModel()` (command-only, no editing) |
 | 3 | Call `ed.SetSession(cli.NewEditSession(username, "ssh"))` to set SSH session identity |
 | 4 | Call `ed.SetReloadNotifier(...)` to enable daemon reload on commit (same as terminal) |
@@ -744,8 +744,9 @@ SSH sessions receive an `Editor` connected to the same config file. The `createS
 
 The SSH session's `Editor` has:
 - Same config file path as the terminal editor (from `ssh.Config.ConfigPath`)
+- Same Storage backend (from `ssh.Config.Storage`) -- shares the in-process mutex with terminal editor
 - Session identity: `username@ssh` (via `SetSession` post-construction, same pattern as `cmd_edit.go`)
-- Same write-through protocol (shared lock file)
+- Same write-through protocol (shared `Storage.AcquireLock()` mutex)
 - Same draft file
 
 ### SSH Session Lifecycle
@@ -816,14 +817,14 @@ The transforms are identical because both structures use the same YANG path as k
 2. **Write-through** (`editor.go`): acquire lock, read draft from disk, parse into Tree+MetaTree
 3. **Tree mutation** (`tree.go`): `SetValue()` or `DeleteValue()` modifies Tree, update MetaTree
 4. **Serialization** (`serialize_set.go`): `SerializeSetWithMeta(Tree, MetaTree, Schema)` emits flat set lines with metadata
-5. **Atomic write** (`editor.go`): temp file + rename to `config.draft`
-6. **Lock release** (`editor.go`): `funlock`
+5. **Atomic write** (`editor_draft.go`): write via `WriteGuard` to `config.draft`
+6. **Lock release** (`editor_draft.go`): `guard.Release()`
 7. **Display update** (`model.go`): re-render viewport from updated Tree
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Editor -> Disk | Atomic write under flock | [ ] |
+| Editor -> Disk | Atomic write under `Storage.AcquireLock()` -> `WriteGuard` | [ ] |
 | Editor A -> Editor B | mtime polling on draft file | [ ] |
 | Draft -> Committed | Per-session commit with dual conflict check (live + stale) | [ ] |
 | SSH -> Editor | Editor created per SSH session, shared config path | [ ] |
@@ -834,32 +835,36 @@ The transforms are identical because both structures use the same YANG path as k
 - `SerializeSet()` - new, used for set view and file writing
 - `Parser.Parse()` - gains format auto-detection
 - `ParseSet()` - new, parses flat set format into Tree+MetaTree
-- `NewEditor()` - gains session identity parameter and lock file
+- `NewEditor()` / `NewEditorWithStorage()` - gains session identity; locking via `Storage.AcquireLock()`
 - `createSessionModel()` in SSH server - gains Editor creation
 
 ### Architectural Verification
 - [ ] No bypassed layers (write-through goes through same Editor.SetValue path)
-- [ ] No unintended coupling (lock file is per-config-file, not global)
+- [ ] No unintended coupling (lock is per-Storage instance, not global)
 - [ ] No duplicated functionality (reuses existing Tree, Parser, Serialize)
 - [ ] Zero-copy preserved where applicable (config files are small, not a hot path)
 
 ## Wiring Test (MANDATORY)
 
-| Entry Point | -> | Feature Code | Test |
-|-------------|---|--------------|------|
-| `ze config edit` + type `set` | -> | Write-through to draft file | `test/config/concurrent-write-through.ci` |
-| `ze config edit` + type `commit` | -> | Per-session commit to config.conf (dual conflict check) | `test/config/concurrent-commit.ci` |
-| `ze config edit` on flat-format file | -> | SetParser parses set commands | `test/parse/set-format.ci` |
-| `ze config edit` on hierarchical file + `set` + `commit` | -> | Auto-detect + format conversion + tree structure migration | `test/parse/set-format-migration.ci` |
-| Two editors + conflicting `commit` (live) | -> | Live disagreement conflict detection | `test/config/concurrent-conflict-live.ci` |
-| Editor commits after another committed same path (stale) | -> | Stale Previous conflict detection | `test/config/concurrent-conflict-stale.ci` |
-| `show blame` command | -> | Annotated tree view with gutter | `test/config/show-blame.ci` |
-| `who` command | -> | List active sessions | `test/config/who.ci` |
-| `disconnect` command | -> | Remove session entries | `test/config/disconnect.ci` |
-| Same-user reconnect with orphaned session | -> | Adoption prompt | `test/config/session-adopt.ci` |
-| SSH session connects + `set` + `commit` | -> | SSH editor with session identity, write-through, commit | `test/config/ssh-editor.ci` |
-| Exit editor with pending changes | -> | Exit prompt (save/discard/cancel) | `test/config/exit-prompt.ci` |
-| `ze config migrate` on hierarchical file | -> | Output is set format (default), tree migrations applied | `test/parse/set-format-migration-cmd.ci` |
+**Test format key:** `.et` = headless editor replay (single-session or multi-session), `.ci` = functional test with daemon/CLI. See "Test Infrastructure for Sessions" section below for `.et` multi-session extensions.
+
+| Entry Point | -> | Feature Code | Test | Format |
+|-------------|---|--------------|------|--------|
+| Editor + type `set` | -> | Write-through to draft file | `test/editor/session/write-through.et` | `.et` single-session |
+| Editor + type `commit` | -> | Per-session commit to config.conf (dual conflict check) | `test/editor/session/commit.et` | `.et` single-session |
+| Editor on flat-format file | -> | SetParser parses set commands | `test/editor/session/set-format-parse.et` | `.et` single-session |
+| Editor on hierarchical file + `set` + `commit` | -> | Auto-detect + format conversion + tree structure migration | `test/editor/session/set-format-migration.et` | `.et` single-session |
+| Two sessions + conflicting `commit` (live) | -> | Live disagreement conflict detection | `test/editor/session/conflict-live.et` | `.et` multi-session |
+| Session commits after another committed same path (stale) | -> | Stale Previous conflict detection | `test/editor/session/conflict-stale.et` | `.et` multi-session |
+| `show blame` command | -> | Annotated tree view with gutter | `test/editor/session/show-blame.et` | `.et` single-session |
+| `who` command | -> | List active sessions | `test/editor/session/who.et` | `.et` multi-session |
+| `disconnect` command | -> | Remove session entries | `test/editor/session/disconnect.et` | `.et` multi-session |
+| Same-user reconnect with orphaned session | -> | Adoption prompt | `test/editor/session/adopt.et` | `.et` multi-session |
+| SSH session connects + `set` + `commit` | -> | SSH editor with session identity, write-through, commit | `test/plugin/config-edit-ssh-session.ci` | `.ci` daemon |
+| Exit editor with pending changes | -> | Exit prompt (save/discard/cancel) | `test/editor/session/exit-prompt.et` | `.et` single-session |
+| `ze config migrate` on hierarchical file | -> | Output is set format (default), tree migrations applied | `test/parse/set-format-migration-cmd.ci` | `.ci` command |
+| `discard <path>` in session | -> | Discard restores committed value at path | `test/editor/session/discard-path.et` | `.et` single-session |
+| `show changes` / `show changes all` | -> | Session-scoped and all-session change display | `test/editor/session/show-changes.et` | `.et` multi-session |
 
 ## Acceptance Criteria
 
@@ -889,7 +894,7 @@ The transforms are identical because both structures use the same YANG path as k
 | AC-22 | SSH session connects | Gets editor with session identity, can set/commit |
 | AC-23 | `# comment` lines in config | Preserved through read/write cycle |
 | AC-24 | `save` command in session mode | No-op confirmation (draft already on disk via write-through), no effect on running config |
-| AC-25 | Lock contention (two writes at same instant) | Second writer blocks briefly on flock, then succeeds |
+| AC-25 | Lock contention (two writes at same instant) | Second writer blocks briefly on `Storage.AcquireLock()` mutex, then succeeds |
 | AC-26 | Editor starts with existing draft | No interactive prompt, loads draft automatically, displays other sessions |
 | AC-27 | Same-user reconnect with orphaned session | Prompted to adopt previous session's changes |
 | AC-28 | `who` command | Lists all active/orphaned sessions with change counts |
@@ -961,34 +966,36 @@ The transforms are identical because both structures use the same YANG path as k
 
 ### Functional Tests
 
-| Test | Location | End-User Scenario | Status |
-|------|----------|-------------------|--------|
-| `test-set-format-parse` | `test/parse/set-format.ci` | Config in set format parsed, ze starts | |
-| `test-set-format-meta` | `test/parse/set-format-meta.ci` | Config with metadata parsed, ze starts | |
-| `test-set-format-migration` | `test/parse/set-format-migration.ci` | Hierarchical config auto-detected, migrated on commit | |
-| `test-set-format-migration-cmd` | `test/parse/set-format-migration-cmd.ci` | `ze config migrate` on hierarchical file outputs set format | |
-| `test-concurrent-write` | `test/config/concurrent-write-through.ci` | `set` writes to draft immediately | |
-| `test-concurrent-commit` | `test/config/concurrent-commit.ci` | `commit` applies only my session | |
-| `test-concurrent-conflict-live` | `test/config/concurrent-conflict-live.ci` | Live disagreement conflict detected and reported | |
-| `test-concurrent-conflict-stale` | `test/config/concurrent-conflict-stale.ci` | Stale Previous conflict detected and reported | |
-| `test-show-blame` | `test/config/show-blame.ci` | `show blame` displays annotated tree | |
-| `test-who` | `test/config/who.ci` | `who` lists active sessions | |
-| `test-disconnect` | `test/config/disconnect.ci` | `disconnect` removes session entries | |
-| `test-session-adopt` | `test/config/session-adopt.ci` | Same-user reconnect adoption prompt | |
-| `test-ssh-editor` | `test/config/ssh-editor.ci` | SSH session gets editor, can set/commit | |
-| `test-exit-prompt` | `test/config/exit-prompt.ci` | Exit with pending changes shows prompt | |
-| `test-discard-path` | `test/config/discard-path.ci` | `discard <path>` restores committed value | |
+**Format:** `.et` = headless editor replay (session/multi-session), `.ci` = daemon/CLI functional test.
+
+| Test | Location | End-User Scenario | Format | Status |
+|------|----------|-------------------|--------|--------|
+| `test-write-through` | `test/editor/session/write-through.et` | `set` writes to draft immediately, file contains metadata | `.et` single | |
+| `test-commit` | `test/editor/session/commit.et` | `commit` applies only my session, config.conf updated | `.et` single | |
+| `test-set-format-parse` | `test/editor/session/set-format-parse.et` | Config in set format parsed, editor works | `.et` single | |
+| `test-set-format-migration` | `test/editor/session/set-format-migration.et` | Hierarchical config auto-detected, migrated on commit | `.et` single | |
+| `test-set-format-migration-cmd` | `test/parse/set-format-migration-cmd.ci` | `ze config migrate` on hierarchical file outputs set format | `.ci` | |
+| `test-conflict-live` | `test/editor/session/conflict-live.et` | Live disagreement conflict detected and reported | `.et` multi | |
+| `test-conflict-stale` | `test/editor/session/conflict-stale.et` | Stale Previous conflict detected and reported | `.et` multi | |
+| `test-show-blame` | `test/editor/session/show-blame.et` | `show blame` displays annotated tree with gutter | `.et` single | |
+| `test-show-changes` | `test/editor/session/show-changes.et` | `show changes` / `show changes all` displays session entries | `.et` multi | |
+| `test-who` | `test/editor/session/who.et` | `who` lists active sessions with counts | `.et` multi | |
+| `test-disconnect` | `test/editor/session/disconnect.et` | `disconnect` removes session entries | `.et` multi | |
+| `test-session-adopt` | `test/editor/session/adopt.et` | Same-user reconnect adoption prompt | `.et` multi | |
+| `test-ssh-editor` | `test/plugin/config-edit-ssh-session.ci` | SSH session gets editor, can set/commit | `.ci` | |
+| `test-exit-prompt` | `test/editor/session/exit-prompt.et` | Exit with pending changes shows prompt | `.et` single | |
+| `test-discard-path` | `test/editor/session/discard-path.et` | `discard <path>` restores committed value | `.et` single | |
 
 ## Files to Modify
 
 - `internal/component/config/tree.go` - no structural change, Tree remains as-is
 - `internal/component/config/parser.go` - unchanged (auto-detection is in `serialize_set.go` via `DetectFormat`, called from `editor_draft.go`'s `parseConfigWithFormat`)
 - `internal/component/config/serialize.go` - unchanged (tree view generation stays)
-- `internal/component/cli/editor.go` - major rewrite: session identity, lock file, write-through, draft management, adoption
+- `internal/component/cli/editor.go` - major rewrite: session identity, write-through (via `Storage.AcquireLock()`), draft management, adoption
 - `internal/component/cli/model_commands.go` - update cmdSet/cmdDelete for write-through return, add cmdShowBlame, cmdShowChanges, cmdShowSet, cmdSave, cmdWho, cmdDisconnect; update cmdDiscard to require path or `all`
 - `internal/component/cli/model.go` - mtime polling for draft changes, notification display, exit prompt intercept in `Update` for quit key messages
 - `cmd/ze/config/cmd_edit.go` - remove legacy `.edit` fallback (PromptPendingEdit), add adoption prompt for same-user orphaned sessions (session identity and auto-load already implemented)
-- `internal/component/ssh/ssh.go` - add `ConfigPath` to `Config` struct
+- `internal/component/ssh/ssh.go` - add `ConfigPath` to `Config` struct (Config already has `Storage` and `ConfigDir`)
 - `internal/component/ssh/session.go` - create Editor for SSH sessions with username identity, full wiring (session, reload, archive, command executor)
 
 ### Integration Checklist
@@ -1002,8 +1009,8 @@ The transforms are identical because both structures use the same YANG path as k
 | API commands doc | [ ] | N/A |
 | Plugin SDK docs | [ ] | N/A |
 | Editor autocomplete | [x] | Add completions for `show blame`, `show changes`, `show changes all`, `show set`, `save`, `who`, `disconnect`, `discard all` |
-| SSH config path wiring | [x] | `internal/component/bgp/config/loader.go` (pass config path to `ssh.Config.ConfigPath`) |
-| Functional test for new RPC/API | [x] | `test/parse/set-format*.ci`, `test/config/concurrent*.ci`, `test/config/ssh-editor.ci` |
+| SSH config path wiring | [x] | `internal/component/bgp/config/loader.go` (pass config path to `ssh.Config.ConfigPath`; `Storage` already set) |
+| Functional test for new RPC/API | [x] | `test/editor/session/*.et` (session tests), `test/plugin/config-edit-ssh-session.ci`, `test/parse/set-format-migration-cmd.ci` |
 
 ## Files to Create
 
@@ -1014,22 +1021,23 @@ The transforms are identical because both structures use the same YANG path as k
 - `internal/component/config/serialize_set_test.go` - unit tests for set serializers
 - `internal/component/config/meta.go` - MetaEntry, MetaTree, session operations
 - `internal/component/config/meta_test.go` - unit tests for MetaTree
-- `internal/component/cli/editor_lock.go` - file locking helpers (acquireLock, releaseLock)
+- ~~`internal/component/cli/editor_lock.go`~~ - ~~file locking helpers~~ Removed: locking handled by `Storage.AcquireLock()` -> `WriteGuard`
 - `internal/component/cli/editor_session.go` - session identity, draft management
-- `test/parse/set-format.ci` - functional test: set-format config
-- `test/parse/set-format-meta.ci` - functional test: set-format with metadata
-- `test/parse/set-format-migration.ci` - functional test: migration from hierarchical
-- `test/config/concurrent-write-through.ci` - functional test: write-through
-- `test/config/concurrent-commit.ci` - functional test: per-session commit
-- `test/config/concurrent-conflict-live.ci` - functional test: live disagreement conflict
-- `test/config/concurrent-conflict-stale.ci` - functional test: stale Previous conflict
-- `test/config/show-blame.ci` - functional test: blame view
-- `test/config/who.ci` - functional test: who command
-- `test/config/disconnect.ci` - functional test: disconnect command
-- `test/config/session-adopt.ci` - functional test: same-user adoption
-- `test/config/ssh-editor.ci` - functional test: SSH session gets editor with set/commit
-- `test/config/exit-prompt.ci` - functional test: exit with pending changes shows prompt
-- `test/config/discard-path.ci` - functional test: discard with path
+- `internal/component/cli/testing/session_test.go` - unit tests for `.et` session and multi-session extensions
+- `test/editor/session/write-through.et` - editor test: write-through to draft with session metadata
+- `test/editor/session/commit.et` - editor test: per-session commit
+- `test/editor/session/set-format-parse.et` - editor test: set-format config parsed
+- `test/editor/session/set-format-migration.et` - editor test: hierarchical auto-detect and migration on commit
+- `test/editor/session/conflict-live.et` - editor test: live disagreement conflict (multi-session)
+- `test/editor/session/conflict-stale.et` - editor test: stale Previous conflict (multi-session)
+- `test/editor/session/show-blame.et` - editor test: blame view with gutter
+- `test/editor/session/show-changes.et` - editor test: show changes / show changes all (multi-session)
+- `test/editor/session/who.et` - editor test: who command (multi-session)
+- `test/editor/session/disconnect.et` - editor test: disconnect command (multi-session)
+- `test/editor/session/adopt.et` - editor test: same-user adoption (multi-session)
+- `test/editor/session/exit-prompt.et` - editor test: exit with pending changes shows prompt
+- `test/editor/session/discard-path.et` - editor test: discard with path restores committed value
+- `test/plugin/config-edit-ssh-session.ci` - functional test: SSH session gets editor with set/commit
 - `test/parse/set-format-migration-cmd.ci` - functional test: `ze config migrate` outputs set format
 
 ## Implementation Steps
@@ -1047,7 +1055,7 @@ Parse flat set commands into Tree. Serialize Tree to flat set commands. Round-tr
 5. **Run tests** -> Verify PASS
 6. **Add round-trip test:** parse hierarchical -> serialize to set -> parse set -> serialize to set -> compare
 7. **Add format auto-detection** in `parser.go`
-8. **Functional tests:** `test/parse/set-format.ci`
+8. **Functional tests:** ~~`test/parse/set-format.ci`~~ -> `test/editor/session/set-format-parse.et` (moved to `.et` format)
 
 ### Phase 2: Metadata Parsing and Serialization
 
@@ -1060,17 +1068,17 @@ Add metadata prefix handling. MetaTree. Blame view.
 5. **Implement** metadata prefix serialization in `serialize_set.go`
 6. **Implement** blame view serialization with fixed-width gutter
 7. **Run tests** -> Verify PASS
-8. **Functional tests:** `test/parse/set-format-meta.ci`
+8. **Functional tests:** ~~`test/parse/set-format-meta.ci`~~ (coverage merged into `test/editor/session/write-through.et` and `test/editor/session/commit.et`)
 
 ### Phase 3: Write-Through and Locking
 
-Editor writes to disk on every set/delete. File locking.
+Editor writes to disk on every set/delete. In-process locking via `Storage.AcquireLock()`.
 
 1. **Write unit tests** for `EditorWriteThrough`, `EditorConcurrentWrite`
 2. **Run tests** -> Verify FAIL
-3. **Implement** `editor_lock.go`: flock helpers
+3. **Implement** write-through in `editor_draft.go` using `store.AcquireLock()` -> `WriteGuard`
 4. **Implement** `editor_session.go`: session identity, draft path
-5. **Modify** `editor.go`: `SetValue` becomes write-through (lock, read, apply, write, unlock)
+5. **Modify** `editor.go`: `SetValue` becomes write-through (acquire guard, read, apply, write, release)
 6. **Run tests** -> Verify PASS
 
 ### Phase 4: Per-Session Commit and Conflict Detection
@@ -1084,7 +1092,7 @@ Commit applies only current session. Dual conflict detection: live disagreement 
 5. **Run tests** -> Verify FAIL
 6. **Modify** `model_commands.go`: `cmdCommit` uses `CommitSession()`, `cmdDiscard` requires path or `all`
 7. **Run tests** -> Verify PASS
-8. **Functional tests:** `test/config/concurrent-commit.ci`, `test/config/concurrent-conflict-live.ci`, `test/config/concurrent-conflict-stale.ci`, `test/config/discard-path.ci`
+8. **Functional tests:** ~~`test/config/concurrent-commit.ci`, `test/config/concurrent-conflict-live.ci`, `test/config/concurrent-conflict-stale.ci`, `test/config/discard-path.ci`~~ -> `test/editor/session/commit.et`, `test/editor/session/conflict-live.et`, `test/editor/session/conflict-stale.et`, `test/editor/session/discard-path.et` (moved to `.et` format)
 
 ### Phase 5: Display Views, Session Management, and Commands
 
@@ -1095,25 +1103,91 @@ Add show blame, show changes (mine/all), show set, save, who, disconnect command
 3. **Implement** view commands in `model_commands.go`: `cmdShowBlame`, `cmdShowChanges` (mine default, `all` subcommand), `cmdShowSet`, `cmdSave`, `cmdWho`, `cmdDisconnect`
 4. **Add completions** for new commands
 5. **Run tests** -> Verify PASS
-6. **Functional tests:** `test/config/show-blame.ci`, `test/config/who.ci`, `test/config/disconnect.ci`
+6. **Functional tests:** `test/editor/session/show-blame.et`, `test/editor/session/who.et`, `test/editor/session/disconnect.et`, `test/editor/session/show-changes.et`
+
+### Phase 5b: Test Infrastructure for Sessions (PREREQUISITE for Phase 6 functional tests)
+
+The existing `.et` (editor test) framework in `internal/component/cli/testing/` provides headless editor replay with keystroke simulation and state expectations. However, it has no session support -- `NewHeadlessModel` never calls `SetSession()`, and there is no way to run multiple sessions against the same config file. This phase adds the minimum infrastructure needed for session and concurrent editing tests.
+
+**Current `.et` capabilities:** ~90 existing tests for navigation, completion, commands, validation, workflows. Single-session, no session identity, no file content checks.
+
+**Required extensions:**
+
+1. **Session activation in `.et` runner**
+
+   New option directive to activate a session on the headless model:
+
+   | Directive | Purpose |
+   |-----------|---------|
+   | `option=session:user=<name>,origin=<type>` | Create session and call `ed.SetSession()` before model creation |
+
+   Implementation: ~15 lines in `runner.go` -- parse option, call `cli.NewEditSession(user, origin)`, then `ed.SetSession(session)` before `cli.NewModel(ed)`.
+
+2. **Multi-session support in `.et` runner**
+
+   New directives to create and switch between named sessions sharing the same config file:
+
+   | Directive | Purpose |
+   |-----------|---------|
+   | `session=<name>:user=<user>,origin=<type>` | Create a new headless model with its own session on the same config file |
+   | `session=<name>` | Switch active model to a previously created session |
+
+   Implementation: ~60 lines in `runner.go` -- maintain `map[string]*HeadlessModel`, all sharing the same `tmpDir`. Each model created via `NewHeadlessModelWithSession(configPath, user, origin)`. Inputs and expectations route to the active model.
+
+   New constructor in `headless.go`:
+
+   | Function | Purpose |
+   |----------|---------|
+   | `NewHeadlessModelWithSession(configPath, user, origin string)` | Creates headless model with session identity activated |
+
+3. **File content expectations**
+
+   New expectation type to verify on-disk file content (draft, committed config):
+
+   | Directive | Purpose |
+   |-----------|---------|
+   | `expect=file:path=<relative>,contains=<text>` | Verify file content contains text |
+   | `expect=file:path=<relative>,not-contains=<text>` | Verify file content does not contain text |
+   | `expect=file:path=<relative>,absent` | Verify file does not exist (draft deleted after commit) |
+
+   Implementation: ~30 lines in `expect.go` -- read file from tmpDir, check content. The runner passes tmpDir to the expectation checker via an extended `State` interface or a separate `FileState` helper.
+
+**TDD cycle:**
+
+1. **Write tests** for the new `.et` directives: `TestETSessionOption`, `TestETMultiSession`, `TestETFileExpectation`
+2. **Run tests** -> Verify FAIL
+3. **Implement** the three extensions in `headless.go`, `runner.go`, `expect.go`
+4. **Run tests** -> Verify PASS
+5. **Write one end-to-end `.et` test** using all three features to validate: `test/editor/session/write-through.et` (type `set`, check draft file contains metadata, check status)
+
+**Files to modify:**
+
+- `internal/component/cli/testing/headless.go` -- add `NewHeadlessModelWithSession`
+- `internal/component/cli/testing/runner.go` -- add session option parsing, multi-session map, file expectation tmpDir passing
+- `internal/component/cli/testing/expect.go` -- add `checkFile` expectation handler
+- `internal/component/cli/testing/parser.go` -- add `session=` step type parsing
+
+**Files to create:**
+
+- `internal/component/cli/testing/session_test.go` -- unit tests for session `.et` extensions
 
 ### Phase 6: SSH Integration, Startup Flow, and Session Adoption
 
 SSH sessions get editors. Remove legacy startup prompt. Add same-user adoption. Add exit prompt. Add mtime polling for draft changes.
 
-**Note:** `cmd_edit.go` already has session creation (`NewEditSession`), `SetSession`, draft auto-load, and active session display (implemented in earlier phases). Phase 6 completes the remaining wiring.
+**Note:** `cmd_edit.go` already has session creation (`NewEditSession`), `SetSession`, draft auto-load, and active session display (implemented in earlier phases). Phase 6 completes the remaining wiring. After the SSH-only migration (`cd44239e`), SSH is now the only external interface -- all sessions are in-process, and `ssh.Config` already has `Storage` and `ConfigDir`.
 
 1. **Write unit tests** for `Editor.AdoptSession` (rewrite `%session` entries), exit prompt logic (pending changes detection, quit intercept), mtime draft polling (AC-5)
 2. **Run tests** -> Verify FAIL
-3. **Implement** `Editor.AdoptSession(oldSessionID string) error` in `editor_draft.go`: acquire lock, read draft, rewrite matching `%session` entries to current session ID, serialize, write draft, release lock
-4. **Modify** `cmd/ze/config/cmd_edit.go`: remove legacy `.edit` fallback (lines 330-346 with `PromptPendingEdit`), add adoption prompt for same-user orphaned sessions (check `ActiveSessions` for matching username with different session ID, call `AdoptSession` on "yes")
-5. **Modify** `internal/component/ssh/ssh.go`: add `ConfigPath string` field to `Config` struct
-6. **Modify** `internal/component/ssh/session.go`: rewrite `createSessionModel` to create `cli.NewEditor(s.config.ConfigPath)` + `ed.SetSession(cli.NewEditSession(username, "ssh"))` + `ed.SetReloadNotifier(...)` + `ed.SetArchiveNotifier(...)` + `cli.NewModel(ed)` + `m.SetCommandExecutor(executor)` + `m.SetCommandCompleter(...)`. Fall back to `cli.NewCommandModel()` if `NewEditor` fails.
-7. **Modify** `internal/component/bgp/config/loader.go`: pass config file path to `ssh.Config.ConfigPath` when creating the SSH server
-8. **Modify** `model.go`: intercept quit key messages (`tea.KeyCtrlC`, `exit`, `quit`) in `Update`, check for pending session entries, display save/discard/cancel prompt, handle response
+3. **Implement** `Editor.AdoptSession(oldSessionID string) error` in `editor_draft.go`: acquire guard via `store.AcquireLock()`, read draft, rewrite matching `%session` entries to current session ID, serialize, write draft, release guard
+4. **Modify** `cmd/ze/config/cmd_edit.go`: remove legacy `.edit` fallback (`PromptPendingEdit`), add adoption prompt for same-user orphaned sessions (check `ActiveSessions` for matching username with different session ID, call `AdoptSession` on "yes")
+5. **Modify** `internal/component/ssh/ssh.go`: add `ConfigPath string` field to `Config` struct (alongside existing `Storage` and `ConfigDir`)
+6. **Modify** `internal/component/ssh/session.go`: rewrite `createSessionModel` to create `cli.NewEditorWithStorage(s.config.Storage, s.config.ConfigPath)` + `ed.SetSession(cli.NewEditSession(username, "ssh"))` + `ed.SetReloadNotifier(...)` + `ed.SetArchiveNotifier(...)` + `cli.NewModel(ed)` + `m.SetCommandExecutor(executor)` + `m.SetCommandCompleter(...)`. Fall back to `cli.NewCommandModel()` if `NewEditorWithStorage` fails.
+7. **Modify** `internal/component/bgp/config/loader.go`: pass config file path to `ssh.Config.ConfigPath` in `extractSSHConfig()` (Storage is already passed)
+8. **Modify** `model.go`: intercept quit key messages (`tea.KeyCtrlC`, `exit`, `quit`) in `Update`, check for pending session entries, display save/discard/cancel prompt, handle response *(partially done: detection exists, but no interactive save/discard/cancel dialog)*
 9. **Modify** `model.go`: add `draftMtime` field + `draftPollMsg` tick (every 2s) + `checkDraftMtime()` handler that stats draft file, compares mtime, re-reads and re-parses if changed, shows notification of other sessions' changes (AC-5)
 10. **Run tests** -> Verify PASS
-11. **Functional tests:** `test/config/session-adopt.ci`, `test/config/ssh-editor.ci`, `test/config/exit-prompt.ci`
+11. **Functional tests:** `test/editor/session/adopt.et` (multi-session), `test/plugin/config-edit-ssh-session.ci` (daemon), `test/editor/session/exit-prompt.et`
 
 ### Phase 7: Format Migration
 
@@ -1145,13 +1219,13 @@ SSH sessions get editors. Remove legacy startup prompt. Add same-user adoption. 
 
 ~~6. **`cmd_migrate.go` default output format**: Done. `cmd_migrate.go` has `--format` flag with set format as default.~~
 
-7. **Functional tests:** `test/parse/set-format-migration.ci` -- not yet created.
+7. **Functional tests:** `test/editor/session/set-format-migration.et` -- not yet created.
 
 ~~**TDD cycle:**~~ *(Items 1-3, 5-6 already implemented and tested. Remaining: Item 4 deferred, Item 7 functional test.)*
 
 **Remaining TDD:**
 
-1. **Functional test:** `test/parse/set-format-migration.ci` -- open hierarchical config, `set` a value, `commit`, verify config.conf is set format
+1. **Functional test:** `test/editor/session/set-format-migration.et` -- open hierarchical config with session, `set` a value, `commit`, verify config.conf is set format via `expect=file:` directive
 
 ### Failure Routing
 
@@ -1231,6 +1305,8 @@ N/A -- this is an internal config format change, not a protocol change.
 - **Conflict display format is compact:** Spec shows a multi-line format with "Your value:", "Committed value:", etc. Implementation uses a single-line format (`LIVE path: you=val, other=val`). Same information, more compact. Cosmetic deviation.
 - **`show blame`/`show changes` error without session:** Previously fell through silently when no session was active. Now returns explicit error ("show blame requires an active editing session").
 - **`who`/`disconnect` guarded and filtered without session:** Both commands return explicit errors when no editing session is active. Completion filtering extended from `blame`/`changes` to also hide `who` and `disconnect` when no session is active.
+- **flock replaced by `Storage.AcquireLock()` -> `WriteGuard`:** Original spec designed around POSIX `flock(2)` for cross-process advisory locking. After the SSH-only migration (`cd44239e`), all sessions are in-process. Locking now uses `Storage.AcquireLock()` which returns a `WriteGuard` backed by `sync.Mutex` (filesystem) or blob-level lock (zefs). `editor_lock.go` was never created. The `config.conf.lock` file does not exist. Spec protocol sections updated to reflect `WriteGuard` pattern.
+- **Functional tests changed from `.ci` to `.et` format:** Original spec listed 13 `.ci` functional tests in `test/config/` and `test/parse/`. Analysis showed the `.ci` format has no interactive/keystroke capabilities -- it is designed for non-interactive daemon testing. Ze already has an `.et` (editor test) framework with ~90 headless replay tests. The `.et` framework needed session and multi-session extensions (Phase 5b). 13 tests became: 13 `.et` files in `test/editor/session/` + 2 `.ci` files (`test/plugin/config-edit-ssh-session.ci` for SSH daemon integration, `test/parse/set-format-migration-cmd.ci` for CLI command). Phase counter changed from 6/7 to 5b/8 to reflect the new prerequisite phase.
 
 ## Implementation Audit
 
