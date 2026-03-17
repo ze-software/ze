@@ -27,6 +27,8 @@ ZE_PACKAGES = $$(go list ./... | grep -v /cmd/ze-chaos)
 CHAOS_PACKAGES = ./cmd/ze-chaos/...
 
 # Default target
+.DEFAULT_GOAL := help
+
 all: ze-lint ze-unit-test build
 
 # Generate code (plugin imports, etc.)
