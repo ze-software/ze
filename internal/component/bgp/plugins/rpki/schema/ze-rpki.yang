@@ -1,0 +1,64 @@
+module ze-rpki {
+  namespace "urn:ze:rpki";
+  prefix rpki;
+
+  import ze-bgp-conf {
+    prefix bgp;
+  }
+
+  grouping rpki-config {
+    container rpki {
+      presence "RPKI origin validation enabled";
+
+      list cache-server {
+        key "address";
+        leaf address {
+          type string;
+          description "Cache server IP or hostname";
+        }
+        leaf port {
+          type uint16;
+          default "323";
+          description "RTR TCP port";
+        }
+        leaf preference {
+          type uint8;
+          default "100";
+          description "Server preference (lower = preferred)";
+        }
+      }
+
+      leaf validation-timeout {
+        type uint16;
+        default "30";
+        units "seconds";
+        description "Fail-open timeout for pending routes";
+      }
+
+      container policy {
+        leaf invalid-action {
+          type enumeration {
+            enum reject;
+            enum log-only;
+            enum accept;
+          }
+          default "reject";
+          description "Action for routes with Invalid validation state";
+        }
+        leaf not-found-action {
+          type enumeration {
+            enum accept;
+            enum reject;
+            enum log-only;
+          }
+          default "accept";
+          description "Action for routes with NotFound validation state";
+        }
+      }
+    }
+  }
+
+  augment "/bgp:bgp" {
+    uses rpki-config;
+  }
+}
