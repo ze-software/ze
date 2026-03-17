@@ -1,5 +1,6 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — RTR PDU wire format (RFC 8210)
 // Overview: rpki.go — plugin entry point consuming RTR data
+// Related: rtr_session.go — RTR session using these PDU types
 package rpki
 
 import (
