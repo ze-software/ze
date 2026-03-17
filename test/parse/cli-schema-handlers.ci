@@ -1,0 +1,19 @@
+# Test: ze schema handlers lists handler-to-module mappings
+# VALIDATES: schema handlers shows registered YANG handler paths
+# PREVENTS: handler registration broken or missing BGP handlers
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer 127.0.0.1 {
+		local-address 127.0.0.1
+		local-as 65533
+		peer-as 65533
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze schema handlers
+expect=exit:code=0
+expect=stdout:contains=Handler
+expect=stdout:contains=Module
+expect=stdout:contains=bgp
+expect=stdout:contains=ze.

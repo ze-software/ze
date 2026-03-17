@@ -1,0 +1,100 @@
+# Test: route-refresh command sends ROUTE-REFRESH message to peer
+# VALIDATES: route-refresh dispatch sends correct RFC 2918 wire message
+# PREVENTS: route-refresh silently failing or sending malformed message
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# ROUTE-REFRESH: marker(16) + length(0017=23) + type(05) + AFI(0001) + reserved(00) + SAFI(01)
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001
+EOF_PEER
+
+# Python test plugin: exercises dispatch-command for route-refresh
+tmpfs=route-refresh-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(1.0)
+
+    try:
+        result = dispatch(api, 'peer 127.0.0.1 refresh ipv4/unicast')
+        if result.get('status') != 'done':
+            print(f'FAIL: refresh status={result.get("status")}', file=sys.stderr)
+            sys.exit(1)
+        print('OK: route-refresh sent', file=sys.stderr)
+        time.sleep(1.0)
+    finally:
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external route-refresh-test {
+		run ./route-refresh-test.run
+		encoder json
+	}
+	external route-refresh {
+		run "ze plugin bgp-route-refresh"
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4
+		local-address 127.0.0.1
+		local-as 1
+		peer-as 1
+		connection active
+		group-updates disable
+
+		family {
+			ipv4/unicast
+		}
+		capability {
+			route-refresh enable
+			graceful-restart disable
+		}
+		process route-refresh-test {
+		}
+		process route-refresh {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

@@ -1,0 +1,18 @@
+# Test: ze schema protocol shows protocol version info
+# VALIDATES: schema protocol displays hub architecture details
+# PREVENTS: protocol version or declaration format regression
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer 127.0.0.1 {
+		local-address 127.0.0.1
+		local-as 65533
+		peer-as 65533
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze schema protocol
+expect=exit:code=0
+expect=stdout:contains=Version: 1.0
+expect=stdout:contains=Schema Declaration Format
+expect=stdout:contains=Handler Routing

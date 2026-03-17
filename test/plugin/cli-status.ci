@@ -1,0 +1,7 @@
+# Test: ze status with no running daemon
+# VALIDATES: status command reports daemon not running with exit 1
+# PREVENTS: status falsely reporting daemon is running
+
+cmd=foreground:seq=1:exec=ze status --port 19999
+expect=exit:code=1
+expect=stderr:contains=daemon is not running

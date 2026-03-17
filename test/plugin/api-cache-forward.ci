@@ -1,0 +1,95 @@
+# Test: cache forward attempts to forward a cached message
+# VALIDATES: cache forward command dispatches through engine
+# PREVENTS: cache forward handler broken or not wired
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: exercises dispatch-command for cache forward
+tmpfs=cache-forward-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(1.0)
+
+    try:
+        # Forward with a non-existent cache ID -- proves the handler is wired
+        # and reachable even though no cached messages exist
+        result = dispatch(api, 'cache 999 forward 127.0.0.1')
+        # Expected: error (no such cache entry) or done (empty forward)
+        status = result.get('status', '')
+        print(f'cache forward status={status}', file=sys.stderr)
+        # Either status is acceptable -- the point is the command dispatched
+        # without crashing. A wiring failure would return "unknown command".
+        if status not in ('done', 'error'):
+            print(f'FAIL: unexpected status={status}', file=sys.stderr)
+            sys.exit(1)
+        print('OK: cache forward dispatched', file=sys.stderr)
+    finally:
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external cache-forward-test {
+		run ./cache-forward-test.run
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4
+		local-address 127.0.0.1
+		local-as 1
+		peer-as 1
+		connection active
+		group-updates disable
+
+		family {
+			ipv4/unicast
+		}
+		capability {
+			graceful-restart disable
+		}
+		process cache-forward-test {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

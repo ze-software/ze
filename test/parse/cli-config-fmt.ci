@@ -1,0 +1,29 @@
+# Test: ze config fmt outputs formatted config
+# VALIDATES: fmt command normalizes config to stdout with proper structure
+# PREVENTS: fmt command losing config structure or values
+stdin=config:terminator=EOF_STDIN
+bgp {
+	peer 127.0.0.1 {
+		local-address 127.0.0.1
+		local-as 65533
+		peer-as 65533
+	}
+}
+EOF_STDIN
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1
+	local-as 65533
+	peer 127.0.0.1 {
+		local-address 127.0.0.1
+		peer-as 65534
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config fmt test.conf
+expect=exit:code=0
+expect=stdout:contains=bgp {
+expect=stdout:contains=peer 127.0.0.1 {
+expect=stdout:contains=peer-as 65534

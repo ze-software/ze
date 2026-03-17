@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Depends | - |
-| Phase | 0/5 |
-| Updated | 2026-03-09 |
+| Phase | 1/5 |
+| Updated | 2026-03-17 |
 
 ## Post-Compaction Recovery
 
@@ -103,7 +103,7 @@ Write .ci functional tests for all 42 features identified in `docs/ci-test-cover
 | `ze config set` | → | `cmd/ze/config/` set handler | `test/parse/cli-config-set.ci` |
 | `ze schema handlers` | → | `cmd/ze/schema/` handlers | `test/parse/cli-schema-handlers.ci` |
 | `ze schema protocol` | → | `cmd/ze/schema/` protocol | `test/parse/cli-schema-protocol.ci` |
-| `ze status <config>` | → | `cmd/ze/signal/` RunStatus | `test/parse/cli-status.ci` |
+| `ze status <config>` | → | `cmd/ze/signal/` RunStatus | `test/plugin/cli-status.ci` |
 | `ze cli --run` | → | `cmd/ze/cli/` Execute | `test/plugin/cli-run-command.ci` |
 | `ze show <cmd>` | → | `cmd/ze/show/` dispatch | `test/plugin/cli-show.ci` |
 | `ze run <cmd>` | → | `cmd/ze/run/` dispatch | `test/plugin/cli-run.ci` |
@@ -168,17 +168,17 @@ No new numeric inputs — tests validate existing feature boundaries.
 
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `cli-config-check` | `test/parse/cli-config-check.ci` | User runs `ze config check` on valid config → exit 0, on deprecated config → exit 1 with hint | |
-| `cli-config-fmt` | `test/parse/cli-config-fmt.ci` | User runs `ze config fmt` → formatted output on stdout | |
-| `cli-config-set` | `test/parse/cli-config-set.ci` | User runs `ze config set` to change a value → modified config | |
-| `cli-schema-handlers` | `test/parse/cli-schema-handlers.ci` | User runs `ze schema handlers` → table of handler→module mappings | |
-| `cli-schema-protocol` | `test/parse/cli-schema-protocol.ci` | User runs `ze schema protocol` → protocol version info | |
-| `cli-status` | `test/parse/cli-status.ci` | User runs `ze status config.conf` → exit 1 (no daemon running) | |
-| `cli-run-command` | `test/plugin/cli-run-command.ci` | User runs `ze cli --run "help"` against running daemon → command output | |
-| `cli-show` | `test/plugin/cli-show.ci` | User runs `ze show help` → list of read-only commands | |
-| `cli-run` | `test/plugin/cli-run.ci` | User runs `ze run help` → list of all commands | |
-| `cli-exabgp-migrate` | `test/parse/cli-exabgp-migrate.ci` | User runs `ze exabgp migrate` on ExaBGP config → ze format output | |
-| `cli-signal-quit` | `test/reload/signal-quit.ci` | Send SIGQUIT to daemon → process exits (exit code captured) | |
+| `cli-config-check` | `test/parse/cli-config-check.ci` | User runs `ze config check` on valid config → exit 0, on deprecated config → exit 1 with hint | ~~Done~~ |
+| `cli-config-fmt` | `test/parse/cli-config-fmt.ci` | User runs `ze config fmt` → formatted output on stdout | ~~Done~~ |
+| `cli-config-set` | `test/parse/cli-config-set.ci` | User runs `ze config set` to change a value → modified config | ~~Done~~ |
+| `cli-schema-handlers` | `test/parse/cli-schema-handlers.ci` | User runs `ze schema handlers` → table of handler→module mappings | ~~Done~~ |
+| `cli-schema-protocol` | `test/parse/cli-schema-protocol.ci` | User runs `ze schema protocol` → protocol version info | ~~Done~~ |
+| `cli-status` | `test/plugin/cli-status.ci` | User runs `ze status` → exit 1 (no daemon running) | ~~Done~~ (moved to test/plugin/) |
+| `cli-run-command` | `test/plugin/cli-run-command.ci` | Plugin dispatches "help" command via engine → response received | ~~Done~~ (tests dispatch-command path) |
+| `cli-show` | `test/plugin/cli-show.ci` | User runs `ze show help` → list of read-only commands | ~~Done~~ |
+| `cli-run` | `test/plugin/cli-run.ci` | User runs `ze run help` → list of all commands | ~~Done~~ |
+| `cli-exabgp-migrate` | `test/parse/cli-exabgp-migrate.ci` | User runs `ze exabgp migrate` on ExaBGP config → ze format output | ~~Done~~ |
+| `cli-signal-quit` | `test/reload/signal-quit.ci` | Send SIGQUIT to daemon → process exits (exit code captured) | ~~Skipped~~ (`ze signal` has no quit handler; test framework has no action=sigquit) |
 
 #### Phase 2 — API Peer Management (10 tests)
 
@@ -270,12 +270,12 @@ No new numeric inputs — tests validate existing feature boundaries.
 - `test/parse/cli-config-set.ci`
 - `test/parse/cli-schema-handlers.ci`
 - `test/parse/cli-schema-protocol.ci`
-- `test/parse/cli-status.ci`
+- `test/plugin/cli-status.ci` (moved from test/parse/ -- parse runner imposes validation semantics)
 - `test/plugin/cli-run-command.ci`
 - `test/plugin/cli-show.ci`
 - `test/plugin/cli-run.ci`
 - `test/parse/cli-exabgp-migrate.ci`
-- `test/reload/signal-quit.ci`
+- ~~`test/reload/signal-quit.ci`~~ — skipped: `ze signal` has no quit handler, test framework has no `action=sigquit`
 
 ### Phase 2 — API Peer Management
 - `test/plugin/api-peer-list.ci`

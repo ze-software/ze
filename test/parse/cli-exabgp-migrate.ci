@@ -1,0 +1,28 @@
+# Test: ze exabgp migrate converts ExaBGP config to ze format
+# VALIDATES: exabgp migrate translates neighbor to peer
+# PREVENTS: migration dropping peer address or ASN values
+stdin=config:terminator=EOF_STDIN
+bgp {
+	peer 127.0.0.1 {
+		local-address 127.0.0.1
+		local-as 65533
+		peer-as 65533
+	}
+}
+EOF_STDIN
+
+tmpfs=exabgp.conf:terminator=EOF_CONF
+neighbor 10.0.0.1 {
+	router-id 1.1.1.1
+	local-address 10.0.0.2
+	local-as 65001
+	peer-as 65002
+	hold-time 180
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze exabgp migrate exabgp.conf
+expect=exit:code=0
+expect=stdout:contains=peer 10.0.0.1
+expect=stdout:contains=local-as 65001
+expect=stdout:contains=peer-as 65002

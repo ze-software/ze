@@ -1,0 +1,9 @@
+# Test: ze show help lists available read-only commands
+# VALIDATES: show command dispatch is wired and lists commands from YANG RPCs
+# PREVENTS: show command dispatch broken or missing command list
+
+cmd=foreground:seq=1:exec=ze show help
+expect=exit:code=0
+expect=stderr:contains=ze show
+expect=stderr:contains=read-only
+expect=stderr:contains=Available commands

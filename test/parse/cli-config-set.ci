@@ -1,0 +1,32 @@
+# Test: ze config set modifies a configuration value
+# VALIDATES: set command changes value and saves file
+# PREVENTS: set command silently failing to persist value
+stdin=config:terminator=EOF_STDIN
+bgp {
+	peer 127.0.0.1 {
+		local-address 127.0.0.1
+		local-as 65533
+		peer-as 65533
+	}
+}
+EOF_STDIN
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1
+	local-as 65533
+	peer 127.0.0.1 {
+		local-address 127.0.0.1
+		peer-as 65534
+	}
+}
+EOF_CONF
+
+# Set the value
+cmd=foreground:seq=1:exec=ze config set --no-reload test.conf bgp local-as 65000
+expect=exit:code=0
+
+# Verify the value was actually changed by dumping the config
+cmd=foreground:seq=2:exec=ze config dump test.conf
+expect=exit:code=0
+expect=stdout:contains=local-as: 65000

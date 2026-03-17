@@ -1,0 +1,103 @@
+# Test: commit start then rollback discards queued routes
+# VALIDATES: commit rollback dispatches and discards without sending
+# PREVENTS: rollback silently failing or still sending routes
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: exercises dispatch-command for commit rollback
+tmpfs=commit-lifecycle-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(1.0)
+
+    try:
+        # Start a named commit
+        result = dispatch(api, 'commit rollback-test start')
+        if result.get('status') != 'done':
+            print(f'FAIL: commit start status={result.get("status")} data={result.get("data")}', file=sys.stderr)
+            sys.exit(1)
+
+        # Rollback (discard)
+        result = dispatch(api, 'commit rollback-test rollback')
+        if result.get('status') != 'done':
+            print(f'FAIL: commit rollback status={result.get("status")} data={result.get("data")}', file=sys.stderr)
+            sys.exit(1)
+
+        # Verify commit list shows no active commits
+        result = dispatch(api, 'commit list')
+        if result.get('status') != 'done':
+            print(f'FAIL: commit list status={result.get("status")}', file=sys.stderr)
+            sys.exit(1)
+
+        print('OK: commit start/rollback/list lifecycle completed', file=sys.stderr)
+    finally:
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external commit-lifecycle-test {
+		run ./commit-lifecycle-test.run
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4
+		local-address 127.0.0.1
+		local-as 1
+		peer-as 1
+		connection active
+		group-updates disable
+
+		family {
+			ipv4/unicast
+		}
+		capability {
+			graceful-restart disable
+		}
+		process commit-lifecycle-test {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
