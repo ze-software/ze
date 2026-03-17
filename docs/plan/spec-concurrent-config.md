@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Depends | - |
 | Phase | 5b/8 |
-| Updated | 2026-03-16 |
+| Updated | 2026-03-17 |
 
 ## Post-Compaction Recovery
 
@@ -1044,7 +1044,7 @@ The transforms are identical because both structures use the same YANG path as k
 
 This is a large spec. Implementation should proceed in phases, each independently testable.
 
-### Phase 1: Set Format Parser and Serializer
+### Phase 1: Set Format Parser and Serializer -- DONE
 
 Parse flat set commands into Tree. Serialize Tree to flat set commands. Round-trip test. No metadata yet, no write-through, no concurrency.
 
@@ -1055,9 +1055,11 @@ Parse flat set commands into Tree. Serialize Tree to flat set commands. Round-tr
 5. **Run tests** -> Verify PASS
 6. **Add round-trip test:** parse hierarchical -> serialize to set -> parse set -> serialize to set -> compare
 7. **Add format auto-detection** in `parser.go`
-8. **Functional tests:** ~~`test/parse/set-format.ci`~~ -> `test/editor/session/set-format-parse.et` (moved to `.et` format)
+8. **Functional tests:** ~~`test/parse/set-format.ci`~~ -> `test/editor/session/set-format-parse.et` (moved to `.et` format, not yet created -- requires Phase 5b)
 
-### Phase 2: Metadata Parsing and Serialization
+**Status:** Code complete. `setparser.go` (896L), `serialize_set.go` (769L). 23 unit tests in `setparser_test.go`, 32 in `serialize_set_test.go`. Functional `.et` test deferred to Phase 5b.
+
+### Phase 2: Metadata Parsing and Serialization -- DONE
 
 Add metadata prefix handling. MetaTree. Blame view.
 
@@ -1068,9 +1070,11 @@ Add metadata prefix handling. MetaTree. Blame view.
 5. **Implement** metadata prefix serialization in `serialize_set.go`
 6. **Implement** blame view serialization with fixed-width gutter
 7. **Run tests** -> Verify PASS
-8. **Functional tests:** ~~`test/parse/set-format-meta.ci`~~ (coverage merged into `test/editor/session/write-through.et` and `test/editor/session/commit.et`)
+8. **Functional tests:** ~~`test/parse/set-format-meta.ci`~~ (coverage merged into `test/editor/session/write-through.et` and `test/editor/session/commit.et`, not yet created -- requires Phase 5b)
 
-### Phase 3: Write-Through and Locking
+**Status:** Code complete. `meta.go` (284L), `serialize_blame.go` (518L). 17 unit tests in `meta_test.go`. Functional `.et` tests deferred to Phase 5b.
+
+### Phase 3: Write-Through and Locking -- DONE (code)
 
 Editor writes to disk on every set/delete. In-process locking via `Storage.AcquireLock()`.
 
@@ -1081,7 +1085,9 @@ Editor writes to disk on every set/delete. In-process locking via `Storage.Acqui
 5. **Modify** `editor.go`: `SetValue` becomes write-through (acquire guard, read, apply, write, release)
 6. **Run tests** -> Verify PASS
 
-### Phase 4: Per-Session Commit and Conflict Detection
+**Status:** Code complete. `editor_draft.go` (1,049L), `editor_session.go` (45L). Write-through in `editor.go` SetValue/DeleteValue. No unit tests for EditorWriteThrough/EditorConcurrentWrite found -- need verification. Functional `.et` test deferred to Phase 5b.
+
+### Phase 4: Per-Session Commit and Conflict Detection -- DONE (code)
 
 Commit applies only current session. Dual conflict detection: live disagreement + stale Previous. Any conflict blocks entire commit.
 
@@ -1092,9 +1098,11 @@ Commit applies only current session. Dual conflict detection: live disagreement 
 5. **Run tests** -> Verify FAIL
 6. **Modify** `model_commands.go`: `cmdCommit` uses `CommitSession()`, `cmdDiscard` requires path or `all`
 7. **Run tests** -> Verify PASS
-8. **Functional tests:** ~~`test/config/concurrent-commit.ci`, `test/config/concurrent-conflict-live.ci`, `test/config/concurrent-conflict-stale.ci`, `test/config/discard-path.ci`~~ -> `test/editor/session/commit.et`, `test/editor/session/conflict-live.et`, `test/editor/session/conflict-stale.et`, `test/editor/session/discard-path.et` (moved to `.et` format)
+8. **Functional tests:** ~~`test/config/concurrent-commit.ci`, `test/config/concurrent-conflict-live.ci`, `test/config/concurrent-conflict-stale.ci`, `test/config/discard-path.ci`~~ -> `test/editor/session/commit.et`, `test/editor/session/conflict-live.et`, `test/editor/session/conflict-stale.et`, `test/editor/session/discard-path.et` (moved to `.et` format, not yet created -- requires Phase 5b)
 
-### Phase 5: Display Views, Session Management, and Commands
+**Status:** Code complete. `CommitSession()`, `DiscardSessionPath()`, `DisconnectSession()` all in `editor_draft.go`. `cmdCommitSession` in `model_commands.go`. Unit tests for commit/conflict/discard need verification. Functional `.et` tests deferred to Phase 5b.
+
+### Phase 5: Display Views, Session Management, and Commands -- DONE (code)
 
 Add show blame, show changes (mine/all), show set, save, who, disconnect commands.
 
@@ -1103,11 +1111,15 @@ Add show blame, show changes (mine/all), show set, save, who, disconnect command
 3. **Implement** view commands in `model_commands.go`: `cmdShowBlame`, `cmdShowChanges` (mine default, `all` subcommand), `cmdShowSet`, `cmdSave`, `cmdWho`, `cmdDisconnect`
 4. **Add completions** for new commands
 5. **Run tests** -> Verify PASS
-6. **Functional tests:** `test/editor/session/show-blame.et`, `test/editor/session/who.et`, `test/editor/session/disconnect.et`, `test/editor/session/show-changes.et`
+6. **Functional tests:** `test/editor/session/show-blame.et`, `test/editor/session/who.et`, `test/editor/session/disconnect.et`, `test/editor/session/show-changes.et` (not yet created -- requires Phase 5b)
 
-### Phase 5b: Test Infrastructure for Sessions (PREREQUISITE for Phase 6 functional tests)
+**Status:** Code complete. All commands in `model_commands.go` (869L). Session-aware exit prompt in `model.go` (1,079L) via `hasPendingChanges()`. Unit tests complete: `TestEditorActiveSessions` covers `who`, `TestEditorSessionCommit` + `TestEditorDiscardAll` cover draft cleanup, `TestDetectFormatEmptyFile` added (serialize_set_test.go), `TestMigrateDefaultOutputSet` + `TestMigrateExplicitHierarchical` added (cmd_migrate_test.go), `TestBlameGutterWidth` in serialize_set_test.go. Functional `.et` tests deferred to Phase 5b.
+
+### Phase 5b: Test Infrastructure for Sessions (PREREQUISITE for Phase 6 functional tests) -- NOT STARTED
 
 The existing `.et` (editor test) framework in `internal/component/cli/testing/` provides headless editor replay with keystroke simulation and state expectations. However, it has no session support -- `NewHeadlessModel` never calls `SetSession()`, and there is no way to run multiple sessions against the same config file. This phase adds the minimum infrastructure needed for session and concurrent editing tests.
+
+**Status (2026-03-17 audit):** Not started. `headless.go` has only `NewHeadlessModel(configPath)`. `runner.go` does not parse `session=` options. `expect.go` has no `file:` expectation type. `parser.go` does not recognize `session=` steps. `session_test.go` does not exist. `test/editor/session/` directory does not exist.
 
 **Current `.et` capabilities:** ~90 existing tests for navigation, completion, commands, validation, workflows. Single-session, no session identity, no file content checks.
 
@@ -1171,11 +1183,13 @@ The existing `.et` (editor test) framework in `internal/component/cli/testing/` 
 
 - `internal/component/cli/testing/session_test.go` -- unit tests for session `.et` extensions
 
-### Phase 6: SSH Integration, Startup Flow, and Session Adoption
+### Phase 6: SSH Integration, Startup Flow, and Session Adoption -- NOT STARTED
 
 SSH sessions get editors. Remove legacy startup prompt. Add same-user adoption. Add exit prompt. Add mtime polling for draft changes.
 
 **Note:** `cmd_edit.go` already has session creation (`NewEditSession`), `SetSession`, draft auto-load, and active session display (implemented in earlier phases). Phase 6 completes the remaining wiring. After the SSH-only migration (`cd44239e`), SSH is now the only external interface -- all sessions are in-process, and `ssh.Config` already has `Storage` and `ConfigDir`.
+
+**Status (2026-03-17 audit):** Not started. `ssh.Config` lacks `ConfigPath` field. `createSessionModel` still calls `NewCommandModel()` (command-only, no editor). `loader.go` does not pass config path to SSH. `cmd_edit.go` still has `PromptPendingEdit()` fallback. `model.go` has no `draftMtime`/`draftPollMsg`/`checkDraftMtime` (AC-5 not met). No `.ci` or `.et` tests created.
 
 1. **Write unit tests** for `Editor.AdoptSession` (rewrite `%session` entries), exit prompt logic (pending changes detection, quit intercept), mtime draft polling (AC-5)
 2. **Run tests** -> Verify FAIL
@@ -1189,7 +1203,7 @@ SSH sessions get editors. Remove legacy startup prompt. Add same-user adoption. 
 10. **Run tests** -> Verify PASS
 11. **Functional tests:** `test/editor/session/adopt.et` (multi-session), `test/plugin/config-edit-ssh-session.ci` (daemon), `test/editor/session/exit-prompt.et`
 
-### Phase 7: Format Migration
+### Phase 7: Format Migration -- MOSTLY DONE (code, no functional tests)
 
 ~~Hierarchical text auto-migration on first commit.~~
 ~~1. Write unit tests for `TestHierarchicalToSetMigration` in `internal/component/config/migrate_test.go`~~
@@ -1269,7 +1283,31 @@ N/A -- this is an internal config format change, not a protocol change.
 
 ### What Was Implemented
 
+**Phases 1-5 code complete (no functional tests):**
+
+| Component | Files | Lines | Tests |
+|-----------|-------|-------|-------|
+| Set format parser | `config/setparser.go` | 896 | 23 unit |
+| Set format serializer | `config/serialize_set.go` | 769 | 32 unit |
+| Blame serializer | `config/serialize_blame.go` | 518 | (in serialize_set_test) |
+| MetaTree | `config/meta.go` | 284 | 17 unit |
+| Session identity | `cli/editor_session.go` | 45 | - |
+| Write-through, commit, discard, disconnect | `cli/editor_draft.go` | 1,049 | (in editor_test) |
+| Session-aware editor | `cli/editor.go` | 1,160 | (in editor_test) |
+| Session commands (blame, changes, who, etc.) | `cli/model_commands.go` | 869 | - |
+| Session-aware exit prompt | `cli/model.go` | 1,079 | - |
+
+**Not yet implemented:**
+- Phase 5b: `.et` test infrastructure for sessions (0/5 files)
+- Phase 6: SSH editor wiring, mtime polling, adoption, PromptPendingEdit removal (0/7 steps)
+- Phase 7 remainder: `commit confirmed` session routing (deferred), 2 functional tests
+- All 13 `.et` functional tests and 2 `.ci` functional tests
+
+**File size warnings (>1000L):** `editor.go` (1,160L), `editor_draft.go` (1,049L), `model.go` (1,079L). Spec notes natural split candidates: `editor_commit.go`, `editor_walk.go`.
+
 ### Bugs Found/Fixed
+
+(see Deviations from Plan section for 30+ fixes discovered during implementation)
 
 ### Documentation Updates
 
@@ -1285,7 +1323,7 @@ N/A -- this is an internal config format change, not a protocol change.
 - **Phase 7 rewritten after critical review:** Original Phase 7 was 3 steps (implement migration, update cmd_migrate, functional tests). Critical review found: (a) `CommitSession()` already does format conversion implicitly, (b) format migration and tree structure migration are distinct concerns that were conflated, (c) non-session `Save()` path still writes hierarchical, (d) `WorkingContent()` format doesn't match commit output, (e) `DetectFormat` mishandles empty files, (f) `cmd_migrate.go` preserves input format instead of defaulting to set format, (g) `commit confirmed` path bypasses `CommitSession()`. Phase 7 expanded to 7 items + 5 new ACs (AC-33 through AC-37).
 - **Known limitation: commit validation scope.** Pre-commit validation in `cmdCommitSession` checks the full draft tree (all sessions combined), but commit only applies this session's changes. If two sessions' changes are individually invalid but valid together, validation passes but the committed result may be invalid. Acceptable because single-user editing is the common case, and full draft validation catches most errors.
 - **`delete` command in set format:** The serializer emits `delete <path>` lines with metadata for keys that have metadata entries but no tree value. The parser recognizes `delete` lines and records metadata via `walkAndRecordDeleteMeta`. This enables Previous to survive the serialize/parse round-trip for deleted keys, making stale conflict detection work symmetrically for both set and delete operations.
-- **`editor_draft.go` at 958 lines:** Exceeds the 600-line review threshold. Contains write-through, commit, discard, disconnect, and tree/meta walking utilities. Candidate for splitting at completion (file-modularity check in Completion Checklist step 3). Natural split: commit/discard/disconnect into `editor_commit.go`, tree/meta walking utilities into `editor_walk.go`.
+- **`editor_draft.go` at 1,049 lines:** Exceeds the 1,000-line split threshold. Contains write-through, commit, discard, disconnect, and tree/meta walking utilities. Candidate for splitting at completion (file-modularity check in Completion Checklist step 3). Natural split: commit/discard/disconnect into `editor_commit.go`, tree/meta walking utilities into `editor_walk.go`. Also `editor.go` at 1,160 lines and `model.go` at 1,079 lines exceed the threshold.
 - **Filename deviation: `setparser.go` instead of `parse_set.go`:** Original spec planned `parse_set.go`; implemented as `setparser.go` to follow the naming pattern of existing parsers in the `config` package (e.g., `parser.go`). Tests similarly: `setparser_test.go` instead of `parse_set_test.go`.
 - **`DetectFormat` location:** Spec originally placed format auto-detection in `parser.go`. Implemented in `serialize_set.go` alongside the `ConfigFormat` constants. Called from `editor_draft.go`'s `parseConfigWithFormat`.
 - **Mtime polling not yet implemented:** AC-5 (other editors detect changes) requires draft file mtime polling in `model.go`. Design specified in Write-Through Protocol section. Assigned to Phase 6.

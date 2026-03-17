@@ -952,3 +952,31 @@ func TestSerializeSetWithMetaPresenceContainer(t *testing.T) {
 	assert.Contains(t, output, "#alice %alice:100 set router-id 1.2.3.4\n")
 	assert.Contains(t, output, "#alice %alice:100 set passive\n")
 }
+
+// TestDetectFormatEmptyFile verifies that empty and comment-only files are detected as FormatSet.
+//
+// VALIDATES: DetectFormat returns FormatSet for empty/comment-only input (not FormatHierarchical).
+// PREVENTS: Empty config files triggering migration or being misidentified as hierarchical.
+func TestDetectFormatEmptyFile(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  ConfigFormat
+	}{
+		{name: "empty string", input: "", want: FormatSet},
+		{name: "whitespace only", input: "   \n\n  \n", want: FormatSet},
+		{name: "single comment", input: "# this is a comment\n", want: FormatSet},
+		{name: "multiple comments", input: "# comment 1\n# comment 2\n", want: FormatSet},
+		{name: "comments and blank lines", input: "# header\n\n# another\n\n", want: FormatSet},
+		{name: "set line", input: "set router-id 1.2.3.4\n", want: FormatSet},
+		{name: "metadata line", input: "#alice @2026-03-12T14:30:00 set router-id 1.2.3.4\n", want: FormatSetMeta},
+		{name: "hierarchical line", input: "router-id 1.2.3.4\n", want: FormatHierarchical},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := DetectFormat(tt.input)
+			assert.Equal(t, tt.want, got, "DetectFormat(%q)", tt.input)
+		})
+	}
+}
