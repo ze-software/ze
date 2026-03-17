@@ -5,6 +5,7 @@
 package sshclient
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -62,6 +63,57 @@ func ExecCommand(creds Credentials, command string) (string, error) {
 	}
 
 	return strings.TrimSpace(string(output)), nil
+}
+
+// StreamCommand connects to the daemon via SSH and runs a streaming command.
+// It reads stdout line-by-line and calls the callback for each line.
+// The callback receives the raw JSON event line. If the callback returns an error,
+// streaming stops. The function blocks until the session ends (disconnect or callback error).
+func StreamCommand(creds Credentials, command string, callback func(line string) error) error {
+	config := &ssh.ClientConfig{
+		User: creds.Username,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(creds.Auth),
+		},
+		HostKeyCallback: hostKeyCallback(creds.Host),
+		Timeout:         dialTimeout,
+	}
+
+	addr := creds.Host + ":" + creds.Port
+	client, err := ssh.Dial("tcp", addr, config)
+	if err != nil {
+		return fmt.Errorf("connect to %s: %w", addr, err)
+	}
+	defer client.Close() //nolint:errcheck // best-effort cleanup
+
+	session, err := client.NewSession()
+	if err != nil {
+		return fmt.Errorf("create session: %w", err)
+	}
+	defer session.Close() //nolint:errcheck // best-effort cleanup
+
+	stdout, err := session.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("stdout pipe: %w", err)
+	}
+
+	if err := session.Start(command); err != nil {
+		return fmt.Errorf("start command: %w", err)
+	}
+
+	scanner := bufio.NewScanner(stdout)
+	for scanner.Scan() {
+		if err := callback(scanner.Text()); err != nil {
+			return err
+		}
+	}
+
+	// Wait for session to complete (server closed connection).
+	waitErr := session.Wait()
+	if scanErr := scanner.Err(); scanErr != nil {
+		return scanErr
+	}
+	return waitErr
 }
 
 // ReadCredentials reads SSH credentials from a zefs database.

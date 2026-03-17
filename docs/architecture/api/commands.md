@@ -37,6 +37,7 @@ See [JSON_FORMAT.md](JSON_FORMAT.md#exabgp-differences) for output format differ
 | Log | levels, set (runtime log levels) |
 | Metrics | values, list (Prometheus metrics) |
 | Group | start, end (batching) |
+| Monitor | bgp monitor (live event streaming) |
 | Subscribe | subscribe, unsubscribe (event filtering) |
 
 ---
@@ -116,6 +117,28 @@ subscribe peer * bgp event state                        # All peers, state chang
 subscribe peer !10.0.0.1 bgp event update direction sent  # Exclude one peer
 subscribe rib event route                               # RIB route events
 ```
+
+### Monitor Command
+
+Stream live BGP events. The session stays open and events are written line-by-line as they occur. Read-only.
+
+```
+bgp monitor                                          # All events, all peers
+bgp monitor peer <addr>                              # Filter by peer address
+bgp monitor peer *                                   # Explicit all peers
+bgp monitor event <type>,<type>                      # Filter by event type(s)
+bgp monitor direction received                       # Received events only
+bgp monitor direction sent                           # Sent events only
+bgp monitor peer <addr> event update direction received  # Combined filters
+```
+
+| Keyword | Values | Default |
+|---------|--------|---------|
+| `peer` | IP address or `*` | `*` (all peers) |
+| `event` | Comma-separated event types (update, open, notification, keepalive, refresh, state, negotiated) | All types |
+| `direction` | `received`, `sent` | Both directions |
+
+Wire method: `ze-bgp:monitor`. Supports pipe operators: `| json`, `| table`, `| match`.
 
 ### System Commands
 
@@ -617,6 +640,7 @@ bgp
 ├── metrics
 │   ├── values            # Show Prometheus metrics (text format)
 │   └── list              # List metric names
+├── monitor               # Stream live BGP events (keeps session open)
 └── plugin
     ├── encoding
     ├── format

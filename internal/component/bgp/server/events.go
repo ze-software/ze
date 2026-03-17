@@ -24,6 +24,9 @@ import (
 // logger is the bgp.server subsystem logger.
 var logger = slogutil.LazyLogger("bgp.server")
 
+// monitorFormatKey is the format+encoding cache key for CLI monitors (always json+parsed).
+const monitorFormatKey = "parsed+json"
+
 // onMessageReceived handles raw BGP messages from peers.
 // Forwards to processes based on API subscriptions.
 // Returns the count of cache-consumer plugins that successfully received the event.
@@ -50,7 +53,8 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 
 	peerAddr := peer.Address.String()
 	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, eventType, msg.Direction, peerAddr)
-	if len(procs) == 0 {
+	hasMonitors := s.Monitors().Count() > 0
+	if len(procs) == 0 && !hasMonitors {
 		return 0
 	}
 	logger().Debug("OnMessageReceived", "peer", peerAddr, "event", eventType, "dir", msg.Direction, "count", len(procs))
@@ -108,6 +112,14 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 		}
 	}
 
+	// Deliver to CLI monitors. Reuse json+parsed from format cache if available.
+	monitorKey := monitorFormatKey
+	jsonOutput, ok := formatOutputs[monitorKey]
+	if !ok {
+		jsonOutput = formatMessageForSubscription(encoder, peer, msg, "parsed", "json")
+	}
+	monitorDeliver(s, eventType, msg.Direction, peerAddr, jsonOutput)
+
 	return cacheCount
 }
 
@@ -129,15 +141,16 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 		return counts
 	}
 
-	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, eventType, msgs[0].Direction, peer.Address.String())
-	if len(procs) == 0 {
+	peerAddr := peer.Address.String()
+	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, eventType, msgs[0].Direction, peerAddr)
+	hasMonitors := s.Monitors().Count() > 0
+	if len(procs) == 0 && !hasMonitors {
 		return counts
 	}
-	logger().Debug("OnMessageBatchReceived", "peer", peer.Address.String(), "event", eventType, "dir", msgs[0].Direction, "procs", len(procs), "msgs", len(msgs))
+	logger().Debug("OnMessageBatchReceived", "peer", peerAddr, "event", eventType, "dir", msgs[0].Direction, "procs", len(procs), "msgs", len(msgs))
 
 	// Check if this is an UPDATE batch (only UPDATEs use DirectBridge structured delivery).
 	isUpdate := msgs[0].Type == message.TypeUPDATE
-	peerAddr := peer.Address.String()
 
 	// Deliver each message: pre-format text for text/JSON consumers,
 	// pass RawMessage directly for DirectBridge consumers.
@@ -190,6 +203,14 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 				onEORReceived(s, peer, family.String())
 			}
 		}
+
+		// Deliver to CLI monitors per message.
+		monitorKey := monitorFormatKey
+		jsonOutput, ok := formatOutputs[monitorKey]
+		if !ok {
+			jsonOutput = formatMessageForSubscription(encoder, peer, *msg, "parsed", "json")
+		}
+		monitorDeliver(s, eventType, msg.Direction, peerAddr, jsonOutput)
 	}
 
 	return counts
@@ -256,6 +277,14 @@ func formatMessageForSubscription(encoder *format.JSONEncoder, peer plugin.PeerI
 	default: // Unsupported type — filtered by messageTypeToEventType before reaching here
 		return ""
 	}
+}
+
+// monitorDeliver delivers a pre-formatted JSON event to matching CLI monitors.
+// Called after plugin delivery in each event function. The output must be the
+// json+parsed format string. This is a no-op if no monitors match.
+// All events in this package are BGP namespace, so namespace is hardcoded.
+func monitorDeliver(s *pluginserver.Server, eventType, direction, peer, jsonOutput string) {
+	s.Monitors().Deliver(plugin.NamespaceBGP, eventType, direction, peer, jsonOutput)
 }
 
 // deliverToProcs enqueues events to long-lived per-process delivery goroutines and
@@ -336,15 +365,17 @@ func onPeerStateChange(s *pluginserver.Server, peer plugin.PeerInfo, state, reas
 		return // Server shutting down, skip event delivery
 	}
 
-	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, plugin.EventState, "", peer.Address.String())
-	if len(procs) == 0 {
+	peerAddr := peer.Address.String()
+	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, plugin.EventState, "", peerAddr)
+	hasMonitors := s.Monitors().Count() > 0
+	if len(procs) == 0 && !hasMonitors {
 		return
 	}
 
 	// Sort by reverse dependency tier: dependents first, dependencies last.
 	sortByReverseDependencyTier(procs)
 
-	logger().Debug("OnPeerStateChange", "peer", peer.Address.String(), "state", state, "reason", reason, "count", len(procs))
+	logger().Debug("OnPeerStateChange", "peer", peerAddr, "state", state, "reason", reason, "count", len(procs))
 
 	// Pre-format once per distinct encoding.
 	formatOutputs := make(map[string]string, 2)
@@ -368,6 +399,13 @@ func onPeerStateChange(s *pluginserver.Server, peer plugin.PeerInfo, state, reas
 			logger().Warn("OnPeerStateChange write failed", "proc", r.ProcName, "err", r.Err)
 		}
 	}
+
+	// Deliver to CLI monitors.
+	jsonOutput, ok := formatOutputs["json"]
+	if !ok {
+		jsonOutput = format.FormatStateChange(peer, state, reason, "json")
+	}
+	monitorDeliver(s, plugin.EventState, "", peerAddr, jsonOutput)
 }
 
 // onPeerNegotiated handles capability negotiation completion.
@@ -384,12 +422,20 @@ func onPeerNegotiated(s *pluginserver.Server, encoder *format.JSONEncoder, peer 
 		return
 	}
 
-	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, plugin.EventNegotiated, "", peer.Address.String())
+	peerAddr := peer.Address.String()
+	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, plugin.EventNegotiated, "", peerAddr)
+	hasMonitors := s.Monitors().Count() > 0
+	if len(procs) == 0 && !hasMonitors {
+		return
+	}
 
-	// Format once — negotiated output is identical for all plugins.
+	// Format once — negotiated output is identical for all plugins (always JSON).
 	output := format.FormatNegotiated(peer, decoded, encoder)
 
 	deliverToProcs(s, procs, output, "OnPeerNegotiated")
+
+	// Deliver to CLI monitors (negotiated is always JSON format).
+	monitorDeliver(s, plugin.EventNegotiated, "", peerAddr, output)
 }
 
 // onEORReceived handles End-of-RIB marker detection.
@@ -402,15 +448,17 @@ func onEORReceived(s *pluginserver.Server, peer plugin.PeerInfo, family string) 
 		return // Server shutting down, skip event delivery
 	}
 
-	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, plugin.EventEOR, plugin.DirectionReceived, peer.Address.String())
-	if len(procs) == 0 {
+	peerAddr := peer.Address.String()
+	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, plugin.EventEOR, plugin.DirectionReceived, peerAddr)
+	hasMonitors := s.Monitors().Count() > 0
+	if len(procs) == 0 && !hasMonitors {
 		return
 	}
 
 	// Sort by reverse dependency tier: dependents first, dependencies last.
 	sortByReverseDependencyTier(procs)
 
-	logger().Debug("OnEORReceived", "peer", peer.Address.String(), "family", family, "count", len(procs))
+	logger().Debug("OnEORReceived", "peer", peerAddr, "family", family, "count", len(procs))
 
 	// Pre-format once per distinct encoding.
 	formatOutputs := make(map[string]string, 2)
@@ -433,6 +481,13 @@ func onEORReceived(s *pluginserver.Server, peer plugin.PeerInfo, family string) 
 			logger().Warn("OnEORReceived write failed", "proc", r.ProcName, "err", r.Err)
 		}
 	}
+
+	// Deliver to CLI monitors.
+	jsonOutput, ok := formatOutputs["json"]
+	if !ok {
+		jsonOutput = format.FormatEOR(peer, family, "json")
+	}
+	monitorDeliver(s, plugin.EventEOR, plugin.DirectionReceived, peerAddr, jsonOutput)
 }
 
 // onMessageSent handles BGP messages sent to peers.
@@ -452,15 +507,16 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer plu
 		return
 	}
 
-	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, eventType, plugin.DirectionSent, peer.Address.String())
-	if len(procs) == 0 {
+	peerAddr := peer.Address.String()
+	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, eventType, plugin.DirectionSent, peerAddr)
+	hasMonitors := s.Monitors().Count() > 0
+	if len(procs) == 0 && !hasMonitors {
 		return
 	}
-	logger().Debug("OnMessageSent", "peer", peer.Address.String(), "type", eventType, "count", len(procs))
+	logger().Debug("OnMessageSent", "peer", peerAddr, "type", eventType, "count", len(procs))
 
 	// Check if this is an UPDATE (only UPDATEs use DirectBridge structured delivery).
 	isUpdate := msg.Type == message.TypeUPDATE
-	peerAddr := peer.Address.String()
 
 	// Pre-format: encode once per distinct format+encoding combination.
 	// DirectBridge consumers skip text formatting entirely.
@@ -504,4 +560,17 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer plu
 			logger().Warn("OnMessageSent write failed", "proc", r.ProcName, "err", r.Err)
 		}
 	}
+
+	// Deliver to CLI monitors. Reuse json+parsed from format cache if available.
+	monitorKey := monitorFormatKey
+	jsonOutput, ok := formatOutputs[monitorKey]
+	if !ok {
+		if isUpdate {
+			content := bgptypes.ContentConfig{Encoding: "json", Format: "parsed"}
+			jsonOutput = format.FormatSentMessage(peer, msg, content)
+		} else {
+			jsonOutput = formatMessageForSubscription(encoder, peer, msg, "parsed", "json")
+		}
+	}
+	monitorDeliver(s, eventType, plugin.DirectionSent, peerAddr, jsonOutput)
 }

@@ -1,0 +1,14 @@
+module ze-bgp-cmd-monitor-api {
+    namespace "urn:ze:bgp:cmd:monitor:api";
+    prefix "bgp-mon-api";
+
+    organization "Ze Project";
+    description "BGP live event monitor RPCs.";
+    revision 2026-03-17 {
+        description "Initial revision.";
+    }
+
+    rpc monitor {
+        description "Stream live BGP events with optional filters.";
+    }
+}

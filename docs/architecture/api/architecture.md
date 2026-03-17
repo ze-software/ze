@@ -233,7 +233,7 @@ Each YANG module defines RPCs and notifications for a domain. Every RPC maps 1:1
 
 | Module | Location | RPCs | Notifications |
 |--------|----------|------|---------------|
-| `ze-bgp-api` | `internal/component/bgp/schema/` | 24 | 7 |
+| `ze-bgp-api` | `internal/component/bgp/schema/` | 25 | 7 |
 | `ze-bgp-cmd-log-api` | `internal/component/cmd/log/schema/` | 2 | 0 |
 | `ze-bgp-cmd-metrics-api` | `internal/component/cmd/metrics/schema/` | 2 | 0 |
 | `ze-system-api` | `internal/ipc/schema/` | 8 | 0 |
@@ -258,6 +258,18 @@ Handlers are organized by domain, each file providing a `*RPCs()` function:
 | `plugin.go` | `pluginRPCs()` | ze-plugin |
 
 `AllBuiltinRPCs()` in `command.go` aggregates all 51 handlers into a flat `[]RPCRegistration` slice.
+
+## Monitor Streaming
+
+The `ze-bgp:monitor` RPC provides live BGP event streaming over SSH sessions. Unlike request/response RPCs, monitor keeps the SSH session open and writes events line-by-line as they occur.
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `StreamingExecutorFactory` | SSH server | Detects monitor commands and returns a streaming executor instead of a one-shot executor |
+| `MonitorManager` | `internal/component/plugin/` (Server) | Manages active monitor clients (add, remove, broadcast) |
+| Event delivery | All 6 event functions | After delivering events to plugins, each event function also delivers to active monitor clients |
+
+Monitor supports filtering by peer address, event type, and direction. Pipe operators (`| json`, `| table`, `| match`) are applied server-side before streaming to the client.
 
 ## Connection Types
 

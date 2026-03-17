@@ -112,6 +112,10 @@ type Model struct {
 	modeStates       map[EditorMode]modeState     // Saved screen state per mode
 	commandCompleter CommandModeCompleter         // Completer for command mode (nil if no daemon)
 	commandExecutor  func(string) (string, error) // Executes operational commands via RPC (nil if no daemon)
+
+	// Monitor streaming state
+	monitorFactory MonitorFactory  // Creates monitor sessions (nil if unavailable)
+	monitorSession *MonitorSession // Active monitor session (nil when not monitoring)
 }
 
 // PipeFilter represents a filter in a pipe chain.
@@ -354,6 +358,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case draftPollMsg:
 		return m.handleDraftPoll()
+
+	case monitorPollMsg:
+		return m.handleMonitorPoll()
 	}
 
 	m.textInput, cmd = m.textInput.Update(msg)
@@ -453,6 +460,11 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	switch msg.Type { //nolint:exhaustive // only handle specific keys
 	case tea.KeyCtrlC, tea.KeyEsc:
+		// Stop active monitor session before considering quit.
+		if m.monitorSession != nil {
+			m.stopMonitorSession()
+			return m, nil
+		}
 		if m.hasEditor() && m.hasPendingChanges() {
 			m.confirmQuit = true
 			m.statusMessage = "Pending changes. Use 'commit', 'discard all', or Esc to force quit."
@@ -675,6 +687,10 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		m.selected = -1
 		m.ghostText = ""
 		m.completions = nil
+		if m.monitorFactory != nil && isMonitorCommand(args) {
+			cmd := m.startMonitorSession(extractMonitorCmdArgs(args))
+			return m, cmd
+		}
 		return m, m.executeOperationalCommand(args)
 	}
 	if m.mode == ModeCommand && input == cmdEdit {
@@ -728,6 +744,10 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	// Execute command — dispatch based on mode
 	if m.mode == ModeCommand {
 		m.lastCommand = input
+		if m.monitorFactory != nil && isMonitorCommand(input) {
+			cmd := m.startMonitorSession(extractMonitorCmdArgs(input))
+			return m, cmd
+		}
 		return m, m.executeOperationalCommand(input)
 	}
 	return m, m.executeCommand(input)

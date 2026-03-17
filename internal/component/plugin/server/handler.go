@@ -2,6 +2,29 @@
 
 package server
 
+import (
+	"context"
+	"io"
+)
+
+// StreamingHandler handles streaming commands (e.g., monitor).
+// ctx is the session context, s is the plugin server, w is the output writer,
+// username is the authenticated SSH user (for authorization), args are command arguments.
+type StreamingHandler func(ctx context.Context, s *Server, w io.Writer, username string, args []string) error
+
+var registeredStreamingHandler StreamingHandler
+
+// RegisterStreamingHandler registers the streaming command handler.
+// Called from monitor plugin's init().
+func RegisterStreamingHandler(h StreamingHandler) {
+	registeredStreamingHandler = h
+}
+
+// GetStreamingHandler returns the registered streaming handler, or nil.
+func GetStreamingHandler() StreamingHandler {
+	return registeredStreamingHandler
+}
+
 // version is ze application version string, set by main at startup via SetVersion.
 var version = "dev"
 

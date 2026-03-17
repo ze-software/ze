@@ -509,6 +509,14 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 						return formatResponseData(resp.Data), nil
 					}
 				})
+				// Wire streaming executor for monitor commands via registry.
+				if handler := pluginserver.GetStreamingHandler(); handler != nil {
+					sshSrv.SetStreamingExecutorFactory(func(username string) zessh.StreamingExecutor {
+						return func(ctx context.Context, w io.Writer, args []string) error {
+							return handler(ctx, apiServer, w, username, args)
+						}
+					})
+				}
 				sshSrv.SetShutdownFunc(func() { r.Stop() })
 				configLogger().Info("SSH command executor wired")
 			}

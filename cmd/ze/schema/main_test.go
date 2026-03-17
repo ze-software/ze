@@ -465,8 +465,8 @@ func TestCmdMethods(t *testing.T) {
 	if modules["ze-bgp-api"] != 25 {
 		t.Errorf("expected 25 BGP RPCs, got %d", modules["ze-bgp-api"])
 	}
-	if modules["ze-system-api"] != 11 {
-		t.Errorf("expected 11 system RPCs, got %d", modules["ze-system-api"])
+	if modules["ze-system-api"] != 12 {
+		t.Errorf("expected 12 system RPCs, got %d", modules["ze-system-api"])
 	}
 	if modules["ze-plugin-api"] != 8 {
 		t.Errorf("expected 8 plugin RPCs, got %d", modules["ze-plugin-api"])

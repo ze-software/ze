@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/sshclient"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/monitor"           // init() registers monitor streaming RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"              // init() registers peer management RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw"               // init() registers raw message RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/rib"               // init() registers RIB proxy RPCs
@@ -102,8 +103,12 @@ func runBGP(args []string) int {
 	// Create SSH-based client
 	client := newCLIClient(creds)
 
-	// If --run specified, execute single command and exit
+	// If --run specified, execute single command and exit.
 	if *runCmd != "" {
+		// Streaming commands (bgp monitor) use StreamCommand for line-by-line output.
+		if isMonitorCommand(*runCmd) {
+			return client.StreamMonitor(*runCmd)
+		}
 		return client.Execute(*runCmd, *format)
 	}
 
@@ -177,6 +182,32 @@ func printFormatted(output, format string) {
 		}
 		fmt.Print(cmd.RenderYAML(data))
 	}
+}
+
+// isMonitorCommand returns true if the command is a streaming monitor command.
+func isMonitorCommand(command string) bool {
+	lower := strings.ToLower(strings.TrimSpace(command))
+	return lower == "bgp monitor" || strings.HasPrefix(lower, "bgp monitor ")
+}
+
+// StreamMonitor runs a streaming monitor command, printing each event line.
+func (c *cliClient) StreamMonitor(command string) int {
+	// Pipe operators are extracted before streaming.
+	cmdStr, formatFn := cmd.ProcessPipesDefaultTable(command)
+
+	err := sshclient.StreamCommand(c.creds, cmdStr, func(line string) error {
+		// Apply formatting (pipe operators or default text rendering).
+		formatted := formatFn(line)
+		if formatted != "" {
+			fmt.Println(formatted)
+		}
+		return nil
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+	return 0
 }
 
 // AllCLIRPCs returns all RPCs needed for CLI command mapping.

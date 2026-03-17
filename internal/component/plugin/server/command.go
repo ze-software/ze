@@ -280,6 +280,12 @@ func (d *Dispatcher) Commands() []*Command {
 	return result
 }
 
+// IsAuthorized checks if the user is allowed to execute the command.
+// Exported for use by streaming handlers (e.g., monitor) that bypass the normal dispatch path.
+func (d *Dispatcher) IsAuthorized(ctx *CommandContext, input string, readOnly bool) bool {
+	return d.isAuthorized(ctx, input, readOnly)
+}
+
 // isAuthorized checks if the user is allowed to execute the command.
 func (d *Dispatcher) isAuthorized(ctx *CommandContext, input string, readOnly bool) bool {
 	if d.authorizer == nil {

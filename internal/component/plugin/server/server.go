@@ -2,6 +2,7 @@
 // Detail: startup.go — 5-stage plugin startup protocol
 // Detail: dispatch.go — command dispatch routing
 // Detail: events.go — event delivery to plugins
+// Detail: monitor.go — CLI monitor client management
 
 package server
 
@@ -68,6 +69,7 @@ type Server struct {
 	commitManager any
 	procManager   *process.ProcessManager
 	subscriptions *SubscriptionManager // API-driven event subscriptions
+	monitors      *MonitorManager      // CLI monitor subscriptions
 
 	// Plugin registration protocol
 	coordinator *plugin.StartupCoordinator // Stage synchronization
@@ -142,6 +144,7 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) *Server {
 		rpcFallback:   config.RPCFallback,
 		commitManager: config.CommitManager,
 		subscriptions: NewSubscriptionManager(),
+		monitors:      NewMonitorManager(),
 		registry:      plugin.NewPluginRegistry(),
 		capInjector:   plugin.NewCapabilityInjector(),
 	}
@@ -216,6 +219,11 @@ func (s *Server) CommitManager() any {
 // Subscriptions returns the subscription manager.
 func (s *Server) Subscriptions() *SubscriptionManager {
 	return s.subscriptions
+}
+
+// Monitors returns the monitor manager for CLI monitor sessions.
+func (s *Server) Monitors() *MonitorManager {
+	return s.monitors
 }
 
 // ProcessManager returns the process manager.
