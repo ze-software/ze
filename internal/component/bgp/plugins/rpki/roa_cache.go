@@ -170,6 +170,72 @@ func (c *ROACache) Count() (int, int) {
 	return v4, v6
 }
 
+// ApplyDelta atomically removes and adds VRPs in a single lock acquisition.
+// This prevents concurrent readers from seeing a partial update.
+func (c *ROACache) ApplyDelta(dels, adds []VRP) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for _, vrp := range dels {
+		c.removeLocked(vrp)
+	}
+	for _, vrp := range adds {
+		c.addLocked(vrp)
+	}
+}
+
+// addLocked inserts a VRP. Caller must hold write lock.
+func (c *ROACache) addLocked(vrp VRP) {
+	if vrp.Prefix.IP == nil {
+		return
+	}
+	key := vrp.Prefix.String()
+	entry := vrpEntry{MaxLength: vrp.MaxLength, ASN: vrp.ASN}
+
+	if vrp.Prefix.IP.To4() != nil {
+		for _, e := range c.ipv4[key] {
+			if e.ASN == entry.ASN && e.MaxLength == entry.MaxLength {
+				return
+			}
+		}
+		if c.totalLocked() >= maxVRPs {
+			return
+		}
+		c.ipv4[key] = append(c.ipv4[key], entry)
+	} else {
+		for _, e := range c.ipv6[key] {
+			if e.ASN == entry.ASN && e.MaxLength == entry.MaxLength {
+				return
+			}
+		}
+		if c.totalLocked() >= maxVRPs {
+			return
+		}
+		c.ipv6[key] = append(c.ipv6[key], entry)
+	}
+}
+
+// removeLocked deletes a VRP. Caller must hold write lock.
+func (c *ROACache) removeLocked(vrp VRP) {
+	if vrp.Prefix.IP == nil {
+		return
+	}
+	key := vrp.Prefix.String()
+	entry := vrpEntry{MaxLength: vrp.MaxLength, ASN: vrp.ASN}
+
+	if vrp.Prefix.IP.To4() != nil {
+		c.ipv4[key] = removeEntry(c.ipv4[key], entry)
+		if len(c.ipv4[key]) == 0 {
+			delete(c.ipv4, key)
+		}
+	} else {
+		c.ipv6[key] = removeEntry(c.ipv6[key], entry)
+		if len(c.ipv6[key]) == 0 {
+			delete(c.ipv6, key)
+		}
+	}
+}
+
 // Clear removes all VRP entries.
 func (c *ROACache) Clear() {
 	c.mu.Lock()

@@ -61,14 +61,7 @@ func NewRTRSession(address string, port uint16, pref uint8, cache *ROACache, sto
 // Run is the long-lived goroutine for this RTR session.
 // It connects, queries, receives VRPs, and reconnects on failure.
 func (s *RTRSession) Run() {
-	for {
-		select {
-		case <-s.stopCh:
-			s.close()
-			return
-		default:
-		}
-
+	for !s.stopped() {
 		err := s.connectAndSync()
 		if err != nil {
 			logger().Warn("rtr: session error, will retry",
@@ -76,12 +69,22 @@ func (s *RTRSession) Run() {
 		}
 		s.close()
 
-		// Wait before retry.
+		// Wait before retry, or exit on stop signal.
 		select {
 		case <-s.stopCh:
 			return
 		case <-time.After(s.retryInterval):
 		}
+	}
+}
+
+// stopped returns true if the stop channel has been closed.
+func (s *RTRSession) stopped() bool {
+	select {
+	case <-s.stopCh:
+		return true
+	default: //nolint:gosimple // non-blocking channel check
+		return false
 	}
 }
 

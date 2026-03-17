@@ -150,28 +150,39 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 	}
 }
 
-// issueValidationDecision sends accept-routes or reject-routes to adj-rib-in.
-func (rp *RPKIPlugin) issueValidationDecision(peerAddr, family, prefix string, state uint8) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+// validationRetries is the number of retries for validation commands.
+// Retries handle the event ordering race where rpki may process an UPDATE
+// before adj-rib-in has stored the route as pending.
+const validationRetries = 3
 
+// issueValidationDecision sends accept-routes or reject-routes to adj-rib-in.
+// Retries on "no pending route" errors to handle event delivery ordering.
+func (rp *RPKIPlugin) issueValidationDecision(peerAddr, family, prefix string, state uint8) {
+	var cmd string
 	if state == ValidationInvalid {
-		cmd := "adj-rib-in reject-routes " + peerAddr + " " + family + " " + prefix
-		_, _, err := rp.plugin.DispatchCommand(ctx, cmd)
-		if err != nil {
-			logger().Warn("rpki: reject-routes failed", "error", err, "prefix", prefix)
-		}
+		cmd = "adj-rib-in reject-routes " + peerAddr + " " + family + " " + prefix
 	} else {
-		// Valid or NotFound -- accept with the validation state.
 		stateStr := "2" // NotFound
 		if state == ValidationValid {
 			stateStr = "1"
 		}
-		cmd := "adj-rib-in accept-routes " + peerAddr + " " + family + " " + prefix + " " + stateStr
+		cmd = "adj-rib-in accept-routes " + peerAddr + " " + family + " " + prefix + " " + stateStr
+	}
+
+	for attempt := range validationRetries {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		_, _, err := rp.plugin.DispatchCommand(ctx, cmd)
-		if err != nil {
-			logger().Warn("rpki: accept-routes failed", "error", err, "prefix", prefix)
+		cancel()
+		if err == nil {
+			return
 		}
+		// Retry if adj-rib-in hasn't stored the route yet (event ordering race).
+		if attempt < validationRetries-1 {
+			time.Sleep(10 * time.Millisecond)
+			continue
+		}
+		logger().Warn("rpki: validation command failed after retries",
+			"command", cmd, "error", err, "attempts", validationRetries)
 	}
 }
 
