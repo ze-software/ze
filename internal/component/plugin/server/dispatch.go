@@ -112,21 +112,19 @@ func (s *Server) handleUpdateRouteRPC(proc *process.Process, connA *plugipc.Plug
 	}
 
 	// Reconstruct the full command for the dispatcher.
-	// Commands from "bgp peer <sel> <cmd>" arrive with the peer selector stripped
-	// and command as just "<cmd>" (e.g., "update text ..."). These need "bgp peer "
-	// prepended for the dispatcher to match "bgp peer update", "bgp peer teardown", etc.
+	// Commands from "peer <sel> <cmd>" arrive with the peer selector stripped
+	// and command as just "<cmd>" (e.g., "update text ..."). These need "peer "
+	// prepended for the dispatcher to match "peer update", "peer teardown", etc.
 	// The peer selector is included so the dispatcher sees it as explicit
 	// (required for RequiresSelector commands).
 	//
-	// Commands that aren't peer-targeted (e.g., "bgp watchdog announce dnsr",
-	// "bgp cache list") arrive with the full "bgp ..." prefix intact and must be
-	// passed through directly -- prepending "bgp peer " would create an unmatchable
-	// "bgp peer bgp watchdog ..." command.
+	// Commands that already start with a known top-level token (e.g., "peer ...",
+	// "cache list") arrive intact and are passed through directly.
 	var dispatchCmd string
-	if strings.HasPrefix(strings.ToLower(input.Command), "bgp ") {
+	if strings.HasPrefix(strings.ToLower(input.Command), "peer ") {
 		dispatchCmd = input.Command
 	} else {
-		dispatchCmd = "bgp peer " + cmdCtx.Peer + " " + input.Command
+		dispatchCmd = "peer " + cmdCtx.Peer + " " + input.Command
 	}
 
 	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
@@ -376,10 +374,10 @@ func (s *Server) handleUpdateRouteDirect(proc *process.Process, params json.RawM
 	}
 
 	var dispatchCmd string
-	if strings.HasPrefix(strings.ToLower(input.Command), "bgp ") {
+	if strings.HasPrefix(strings.ToLower(input.Command), "peer ") {
 		dispatchCmd = input.Command
 	} else {
-		dispatchCmd = "bgp peer " + cmdCtx.Peer + " " + input.Command
+		dispatchCmd = "peer " + cmdCtx.Peer + " " + input.Command
 	}
 
 	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)

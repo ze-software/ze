@@ -255,7 +255,7 @@ func (d *Dispatcher) isAuthorized(ctx *CommandContext, input string, readOnly bo
 }
 
 // Dispatch parses and executes a command.
-// Supports bgp peer prefix: "bgp peer <addr> <command>" or "bgp peer * <command>".
+// Supports peer selector prefix: "peer <addr|name|*> <command>".
 // If no peer prefix, defaults to all peers ("*").
 // Priority: 1) builtin commands, 2) forked subsystems, 3) plugin registry.
 func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Response, error) {
@@ -264,21 +264,21 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		return nil, ErrEmptyCommand
 	}
 
-	// Check for "bgp peer <selector>" prefix
-	// Format: bgp peer <addr|name|*> <command>
+	// Check for "peer <selector>" prefix
+	// Format: peer <addr|name|*> <command>
 	// Selector can be an IP address, glob pattern, peer name, or "*" for all.
 	peerSelector := "*"
 	hasExplicitSelector := false
-	if len(tokens) >= 4 && strings.EqualFold(tokens[0], "bgp") && strings.EqualFold(tokens[1], "peer") {
+	if len(tokens) >= 3 && strings.EqualFold(tokens[0], "peer") {
 		// Accept IP/glob directly, or check against known peer names via reactor.
-		if looksLikeIPOrGlob(tokens[2]) || isKnownPeerName(ctx, tokens[2]) {
-			peerSelector = tokens[2]
+		if looksLikeIPOrGlob(tokens[1]) || isKnownPeerName(ctx, tokens[1]) {
+			peerSelector = tokens[1]
 			hasExplicitSelector = true
 			if ctx != nil {
 				ctx.Peer = peerSelector
 			}
-			// Rebuild input: "bgp peer <command>" (without the selector)
-			input = "bgp peer " + strings.Join(tokens[3:], " ")
+			// Rebuild input: "peer <command>" (without the selector)
+			input = "peer " + strings.Join(tokens[2:], " ")
 		}
 	}
 
@@ -303,9 +303,9 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 
 	// Enforce peer selector for commands that require it
 	if matchedCmd != nil && matchedCmd.RequiresSelector && !hasExplicitSelector {
-		return nil, fmt.Errorf("%s requires a peer selector: %s <address> %s",
-			matchedCmd.Name, "bgp peer",
-			strings.TrimPrefix(strings.ToLower(matchedCmd.Name), "bgp peer "))
+		return nil, fmt.Errorf("%s requires a peer selector: peer <address> %s",
+			matchedCmd.Name,
+			strings.TrimPrefix(strings.ToLower(matchedCmd.Name), "peer "))
 	}
 
 	// Authorization check — after command resolution, before execution

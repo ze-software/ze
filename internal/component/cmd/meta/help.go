@@ -1,5 +1,5 @@
-// Design: docs/architecture/api/commands.md — BGP command discovery handlers
-// Overview: doc.go — bgp-cmd-meta plugin overview
+// Design: docs/architecture/api/commands.md — command discovery handlers
+// Overview: doc.go — cmd-meta plugin overview
 
 package meta
 
@@ -13,8 +13,8 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:help", CLICommand: "help", Handler: handleBgpHelp, Help: "List bgp subcommands", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-list", CLICommand: "command list", Handler: handleBgpCommandList, Help: "List bgp commands", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:help", CLICommand: "help", Handler: handleBgpHelp, Help: "List subcommands", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-list", CLICommand: "command list", Handler: handleBgpCommandList, Help: "List commands", ReadOnly: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-help", CLICommand: "command help", Handler: handleBgpCommandHelp, Help: "Show command details", ReadOnly: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-complete", CLICommand: "command complete", Handler: handleBgpCommandComplete, Help: "Complete command/args", ReadOnly: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:event-list", CLICommand: "event list", Handler: handleBgpEventList, Help: "List available BGP event types", ReadOnly: true},
@@ -27,15 +27,13 @@ var bgpEventTypes = []string{
 	"refresh", "state", "negotiated",
 }
 
-// handleBgpHelp returns list of bgp subcommands.
+// handleBgpHelp returns list of all available commands.
 func handleBgpHelp(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	var commands []string
 
 	if ctx.Dispatcher() != nil {
 		for _, cmd := range ctx.Dispatcher().Commands() {
-			if strings.HasPrefix(cmd.Name, "bgp ") {
-				commands = append(commands, cmd.Name+" - "+cmd.Help)
-			}
+			commands = append(commands, cmd.Name+" - "+cmd.Help)
 		}
 	}
 
@@ -47,7 +45,7 @@ func handleBgpHelp(ctx *pluginserver.CommandContext, _ []string) (*plugin.Respon
 	}, nil
 }
 
-// handleBgpCommandList returns commands in bgp namespace.
+// handleBgpCommandList returns all registered commands.
 func handleBgpCommandList(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	verbose := len(args) > 0 && args[0] == argVerbose
 
@@ -55,16 +53,14 @@ func handleBgpCommandList(ctx *pluginserver.CommandContext, args []string) (*plu
 
 	if ctx.Dispatcher() != nil {
 		for _, cmd := range ctx.Dispatcher().Commands() {
-			if strings.HasPrefix(cmd.Name, "bgp ") {
-				c := pluginserver.Completion{
-					Value: cmd.Name,
-					Help:  cmd.Help,
-				}
-				if verbose {
-					c.Source = sourceBuiltin
-				}
-				commands = append(commands, c)
+			c := pluginserver.Completion{
+				Value: cmd.Name,
+				Help:  cmd.Help,
 			}
+			if verbose {
+				c.Source = sourceBuiltin
+			}
+			commands = append(commands, c)
 		}
 	}
 
@@ -76,36 +72,34 @@ func handleBgpCommandList(ctx *pluginserver.CommandContext, args []string) (*plu
 	}, nil
 }
 
-// handleBgpCommandHelp returns detailed help for a bgp command.
+// handleBgpCommandHelp returns detailed help for a command.
 func handleBgpCommandHelp(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
-		return nil, fmt.Errorf("usage: bgp command help \"<name>\"")
+		return nil, fmt.Errorf("usage: command help \"<name>\"")
 	}
 
 	name := args[0]
 
 	if ctx.Dispatcher() != nil {
 		if cmd := ctx.Dispatcher().Lookup(name); cmd != nil {
-			if strings.HasPrefix(cmd.Name, "bgp ") {
-				return &plugin.Response{
-					Status: plugin.StatusDone,
-					Data: map[string]any{
-						"command":     cmd.Name,
-						"description": cmd.Help,
-						"source":      sourceBuiltin,
-					},
-				}, nil
-			}
+			return &plugin.Response{
+				Status: plugin.StatusDone,
+				Data: map[string]any{
+					"command":     cmd.Name,
+					"description": cmd.Help,
+					"source":      sourceBuiltin,
+				},
+			}, nil
 		}
 	}
 
-	return nil, fmt.Errorf("unknown bgp command: %s", name)
+	return nil, fmt.Errorf("unknown command: %s", name)
 }
 
-// handleBgpCommandComplete returns completions for bgp commands.
+// handleBgpCommandComplete returns completions for commands.
 func handleBgpCommandComplete(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) < 1 {
-		return nil, fmt.Errorf("usage: bgp command complete \"<partial>\"")
+		return nil, fmt.Errorf("usage: command complete \"<partial>\"")
 	}
 
 	partial := args[0]
@@ -114,8 +108,7 @@ func handleBgpCommandComplete(ctx *pluginserver.CommandContext, args []string) (
 	if ctx.Dispatcher() != nil {
 		lowerPartial := strings.ToLower(partial)
 		for _, cmd := range ctx.Dispatcher().Commands() {
-			if strings.HasPrefix(cmd.Name, "bgp ") &&
-				strings.HasPrefix(strings.ToLower(cmd.Name), lowerPartial) {
+			if strings.HasPrefix(strings.ToLower(cmd.Name), lowerPartial) {
 				completions = append(completions, pluginserver.Completion{
 					Value: cmd.Name,
 					Help:  cmd.Help,

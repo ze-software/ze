@@ -30,7 +30,6 @@ type RPCInfo struct {
 }
 
 // BuildTree creates a command tree from RPC registrations.
-// Strips the "bgp " prefix for BGP commands so the user types "peer list" not "bgp peer list".
 // If readOnly is true, only RPCs marked ReadOnly are included.
 func BuildTree(rpcs []RPCInfo, readOnly bool) *Node {
 	root := &Node{Children: make(map[string]*Node)}
@@ -40,13 +39,7 @@ func BuildTree(rpcs []RPCInfo, readOnly bool) *Node {
 			continue
 		}
 
-		cmd := rpc.CLICommand
-		// Strip "bgp " prefix for BGP commands (user types "peer list", not "bgp peer list")
-		if len(cmd) > 4 && cmd[:4] == "bgp " {
-			cmd = cmd[4:]
-		}
-
-		parts := splitFields(cmd)
+		parts := splitFields(rpc.CLICommand)
 		if len(parts) == 0 {
 			continue
 		}

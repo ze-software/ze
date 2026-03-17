@@ -140,7 +140,6 @@ func wireSSHCommandExecutor(m *cli.Model, creds sshclient.Credentials) {
 const createPromptTimeout = 10 * time.Second
 
 // buildEditorCommandTree builds a command.Node tree from all registered RPCs.
-// Strips the "bgp " prefix for BGP commands so the user types "peer list" not "bgp peer list".
 func buildEditorCommandTree() *command.Node {
 	rpcs := pluginserver.AllBuiltinRPCs()
 	infos := make([]command.RPCInfo, len(rpcs))
