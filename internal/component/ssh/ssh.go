@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"path/filepath"
@@ -52,6 +53,15 @@ type CommandExecutor func(input string) (string, error)
 // can use it for authorization context.
 type CommandExecutorFactory func(username string) CommandExecutor
 
+// StreamingExecutor executes a streaming command, writing output line-by-line
+// to the writer until the context is canceled or a write error occurs.
+// Used by the monitor command to stream live BGP events over SSH.
+type StreamingExecutor func(ctx context.Context, w io.Writer, args []string) error
+
+// StreamingExecutorFactory creates a StreamingExecutor.
+// Called when execMiddleware detects a streaming command (e.g., "bgp monitor").
+type StreamingExecutorFactory func(username string) StreamingExecutor
+
 // Config holds SSH server configuration parsed from the config file.
 type Config struct {
 	Listen      string
@@ -73,15 +83,16 @@ type ShutdownFunc func()
 // It serves the config editor over SSH with password authentication.
 // Exec commands (non-interactive) are dispatched through the executor.
 type Server struct {
-	config          Config
-	mu              sync.Mutex // protects wish field, executorFactory, and shutdownFunc
-	wish            *ssh.Server
-	listener        net.Listener   // bound listener (for address resolution)
-	extraListeners  []net.Listener // additional listeners for multi-address binding
-	logger          *slog.Logger
-	activeSessions  atomic.Int32
-	executorFactory CommandExecutorFactory // set after reactor starts; creates per-session executors
-	shutdownFunc    ShutdownFunc           // set by daemon; called on "stop" exec command
+	config                   Config
+	mu                       sync.Mutex // protects wish field, executorFactory, and shutdownFunc
+	wish                     *ssh.Server
+	listener                 net.Listener   // bound listener (for address resolution)
+	extraListeners           []net.Listener // additional listeners for multi-address binding
+	logger                   *slog.Logger
+	activeSessions           atomic.Int32
+	executorFactory          CommandExecutorFactory   // set after reactor starts; creates per-session executors
+	streamingExecutorFactory StreamingExecutorFactory // set after reactor starts; for monitor commands
+	shutdownFunc             ShutdownFunc             // set by daemon; called on "stop" exec command
 }
 
 // NewServer creates a new SSH server with the given configuration.
@@ -155,6 +166,14 @@ func (s *Server) SetExecutorFactory(f CommandExecutorFactory) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.executorFactory = f
+}
+
+// SetStreamingExecutorFactory sets the factory for streaming commands (e.g., monitor).
+// Called after the reactor starts, alongside SetExecutorFactory.
+func (s *Server) SetStreamingExecutorFactory(f StreamingExecutorFactory) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.streamingExecutorFactory = f
 }
 
 // SetShutdownFunc sets the callback for "stop" exec commands.
@@ -369,11 +388,30 @@ func (s *Server) execMiddleware() wish.Middleware {
 				return
 			}
 
-			// Dispatch through command executor
 			s.mu.Lock()
 			factory := s.executorFactory
+			streamFactory := s.streamingExecutorFactory
 			s.mu.Unlock()
 
+			// Check for streaming commands (e.g., "bgp monitor ...").
+			if streamFactory != nil && isStreamingCommand(input) {
+				streamExec := streamFactory(sess.User())
+				// Extract args after "bgp monitor" prefix.
+				monitorArgs := extractMonitorArgs(input)
+				if err := streamExec(sess.Context(), sess, monitorArgs); err != nil {
+					fmt.Fprintf(sess.Stderr(), "error: %v\n", err) //nolint:errcheck // best-effort
+					sess.Exit(1)                                   //nolint:errcheck // best-effort
+				}
+				return
+			}
+
+			if streamFactory == nil && isStreamingCommand(input) {
+				fmt.Fprintln(sess.Stderr(), "error: monitor not available (daemon still starting)") //nolint:errcheck // best-effort
+				sess.Exit(1)                                                                        //nolint:errcheck // best-effort
+				return
+			}
+
+			// Dispatch through command executor.
 			if factory == nil {
 				fmt.Fprintln(sess.Stderr(), "error: command executor not ready") //nolint:errcheck // best-effort
 				sess.Exit(1)                                                     //nolint:errcheck // best-effort
@@ -393,6 +431,29 @@ func (s *Server) execMiddleware() wish.Middleware {
 			}
 		}
 	}
+}
+
+// monitorPrefix is the command prefix that triggers streaming mode.
+const monitorPrefix = "bgp monitor"
+
+// isStreamingCommand returns true if the input is a streaming command.
+func isStreamingCommand(input string) bool {
+	lower := strings.ToLower(strings.TrimSpace(input))
+	return lower == monitorPrefix || strings.HasPrefix(lower, monitorPrefix+" ")
+}
+
+// extractMonitorArgs extracts the arguments after "bgp monitor" from the input.
+func extractMonitorArgs(input string) []string {
+	trimmed := strings.ToLower(strings.TrimSpace(input))
+	// Skip the "bgp monitor" prefix (case-insensitive).
+	if len(trimmed) <= len(monitorPrefix) {
+		return nil
+	}
+	rest := strings.TrimSpace(trimmed[len(monitorPrefix):])
+	if rest == "" {
+		return nil
+	}
+	return strings.Fields(rest)
 }
 
 // teaHandler creates a per-session Bubble Tea model using the unified cli.Model.

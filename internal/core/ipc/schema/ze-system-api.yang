@@ -39,6 +39,10 @@ module ze-system-api {
         description "Gracefully shutdown the daemon";
     }
 
+    rpc daemon-quit {
+        description "Dump goroutine stacks and shutdown";
+    }
+
     rpc daemon-status {
         description "Query daemon status";
         output {

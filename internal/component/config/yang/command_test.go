@@ -576,6 +576,7 @@ func TestSystemCmdModuleLoads(t *testing.T) {
 	daemon := entry.Dir["daemon"]
 	require.NotNil(t, daemon)
 	assert.Equal(t, "ze-system:daemon-shutdown", GetCommandExtension(daemon.Dir["shutdown"]))
+	assert.Equal(t, "ze-system:daemon-quit", GetCommandExtension(daemon.Dir["quit"]))
 	assert.Equal(t, "ze-system:daemon-status", GetCommandExtension(daemon.Dir["status"]))
 	assert.Equal(t, "ze-system:daemon-reload", GetCommandExtension(daemon.Dir["reload"]))
 }

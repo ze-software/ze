@@ -6,6 +6,8 @@ package server
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"runtime"
 	"strings"
 
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -17,6 +19,7 @@ func init() {
 		RPCRegistration{WireMethod: "ze-system:version-software", Handler: handleSystemVersionSoftware, Help: "Show ze version", ReadOnly: true},
 		RPCRegistration{WireMethod: "ze-system:version-api", Handler: handleSystemVersionAPI, Help: "Show IPC protocol version", ReadOnly: true},
 		RPCRegistration{WireMethod: "ze-system:daemon-shutdown", Handler: handleDaemonShutdown, Help: "Gracefully shutdown the daemon"},
+		RPCRegistration{WireMethod: "ze-system:daemon-quit", Handler: handleDaemonQuit, Help: "Goroutine dump + shutdown"},
 		RPCRegistration{WireMethod: "ze-system:daemon-status", Handler: handleDaemonStatus, Help: "Show daemon status", ReadOnly: true},
 		RPCRegistration{WireMethod: "ze-system:daemon-reload", Handler: handleDaemonReload, Help: "Reload the configuration"},
 		RPCRegistration{WireMethod: "ze-system:subsystem-list", Handler: handleSystemSubsystemList, Help: "List available subsystems", ReadOnly: true},
@@ -124,6 +127,24 @@ func handleDaemonShutdown(ctx *CommandContext, _ []string) (*plugin.Response, er
 		Status: plugin.StatusDone,
 		Data: map[string]any{
 			"message": "shutdown initiated",
+		},
+	}, nil
+}
+
+// handleDaemonQuit dumps all goroutine stacks then shuts down.
+func handleDaemonQuit(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+	_, errResp, err := RequireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+	buf := make([]byte, 1<<20) // 1MB
+	n := runtime.Stack(buf, true)
+	slog.Warn("goroutine dump (quit)", "stacks", string(buf[:n]))
+	ctx.Reactor().Stop()
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: map[string]any{
+			"message": "quit initiated (goroutines dumped)",
 		},
 	}, nil
 }

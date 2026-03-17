@@ -59,7 +59,7 @@ func TestRPCRegistrationTable(t *testing.T) {
 
 	// Only server-package init() RPCs are visible here (handler/editor register
 	// from their own packages and can't be imported due to cycle).
-	assert.Len(t, rpcs, 18, "expected 18 server RPCs (system 11 + session 3 + plugin-rpc 4)")
+	assert.Len(t, rpcs, 19, "expected 19 server RPCs (system 12 + session 3 + plugin-rpc 4)")
 
 	// Track uniqueness
 	wireMethodsSeen := make(map[string]bool)
@@ -99,7 +99,7 @@ func TestRPCRegistrationPerModule(t *testing.T) {
 	}
 
 	assert.Equal(t, 0, counts["ze-bgp"], "ze-bgp RPCs registered from bgp/plugins/bgp-cmd-*, not here")
-	assert.Equal(t, 11, counts["ze-system"], "ze-system RPCs")
+	assert.Equal(t, 12, counts["ze-system"], "ze-system RPCs")
 	assert.Equal(t, 7, counts["ze-plugin"], "ze-plugin RPCs (session-peer-ready in bgp/plugins/cmd/peer)")
 	assert.Equal(t, 0, counts["ze-editor"], "ze-editor RPCs registered from editor package, not here")
 	assert.Equal(t, 0, counts["ze-rib"], "ze-rib RPCs live in bgp-rib plugin, not here")
@@ -121,6 +121,7 @@ func TestRPCRegistrationExpectedMethods(t *testing.T) {
 	// BGP handler RPCs (subscribe, rib, peer ops) are tested in handler_test.go.
 	expectedMethods := []string{
 		"ze-system:daemon-shutdown",
+		"ze-system:daemon-quit",
 		"ze-system:daemon-status",
 		"ze-system:daemon-reload",
 		"ze-system:help",

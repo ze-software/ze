@@ -94,6 +94,12 @@ module ze-system-cmd {
             description "Gracefully shutdown the daemon";
         }
 
+        container quit {
+            config false;
+            ze:command "ze-system:daemon-quit";
+            description "Dump goroutine stacks and shutdown";
+        }
+
         container status {
             config false;
             ze:command "ze-system:daemon-status";
