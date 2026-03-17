@@ -73,11 +73,14 @@ Do NOT flag these as "identity wrappers adding no value."
 
 ## Mistake Log
 
-### Feature Not Wired (RECURRING — multiple specs)
+### Feature Not Wired (RECURRING — multiple specs, ZERO TOLERANCE)
 - Write logic + unit tests, claim "done", but feature is NOT reachable from reactor/CLI/config.
 - User cannot use the feature. Tests pass in isolation but nothing calls the code.
+- Has happened on: SSH transport, and other specs. User is furious. This is the #1 failure mode.
 - Root cause: treat unit tests as proof of completion. Skip wiring into reactor, skip functional tests.
-- **Rule:** `rules/integration-completeness.md` already says this. FOLLOW IT. Before claiming done: can a user reach this feature through config/CLI/API? If not, it is not done. A unit test is not a wiring test.
+- **BEFORE saying "done":** answer "Can a user reach this through config/CLI/API?" If no: say "not wired yet", never "done".
+- **REQUIRED evidence:** name the user entry point + show .ci test or live demonstration. No evidence = not done.
+- **Rule:** `rules/integration-completeness.md`. A unit test is not a wiring test. Library code is dead code until wired.
 
 ### Wrong Production Path (rib-04)
 - Wrote spec pointing at `subsystem.go` stage-1 handler. Production path is `server_startup.go`.
