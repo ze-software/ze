@@ -299,3 +299,46 @@ func TestSSHUsesUnifiedModel(t *testing.T) {
 	assert.True(t, executorCalled, "executor should be called via async command")
 	assert.Contains(t, m.ViewportContent(), "result:test-command")
 }
+
+// TestSSHSessionGetsEditor verifies that createSessionModel creates an editor-capable
+// model when ConfigPath and Storage are set.
+//
+// VALIDATES: AC-22 -- SSH session connects, gets editor with session identity.
+// PREVENTS: SSH sessions stuck in command-only mode when config editing should work.
+func TestSSHSessionGetsEditor(t *testing.T) {
+	// Write a valid config file.
+	configPath := filepath.Join(t.TempDir(), "test.conf")
+	store := storage.NewFilesystem()
+	err := store.WriteFile(configPath, []byte("bgp {\n  local-as 65000\n  router-id 1.2.3.4\n}\n"), 0o600)
+	require.NoError(t, err)
+
+	cfg := Config{
+		HostKeyPath: t.TempDir() + "/test_host_key",
+		ConfigPath:  configPath,
+		Storage:     store,
+	}
+	srv, err := NewServer(cfg)
+	require.NoError(t, err)
+
+	model := srv.createSessionModel("alice")
+
+	// With ConfigPath + Storage, model should start in ModeEdit (editor-capable).
+	assert.Equal(t, cli.ModeEdit, model.Mode(), "SSH session with ConfigPath should start in edit mode")
+}
+
+// TestSSHSessionFallbackWithoutConfig verifies command-only fallback when no ConfigPath.
+//
+// VALIDATES: SSH session without ConfigPath gets command-only model.
+// PREVENTS: Panic or error when SSH is configured without config editing support.
+func TestSSHSessionFallbackWithoutConfig(t *testing.T) {
+	cfg := Config{
+		HostKeyPath: t.TempDir() + "/test_host_key",
+		// No ConfigPath or Storage -- should fall back to command-only.
+	}
+	srv, err := NewServer(cfg)
+	require.NoError(t, err)
+
+	model := srv.createSessionModel("alice")
+
+	assert.Equal(t, cli.ModeCommand, model.Mode(), "SSH session without ConfigPath should be command-only")
+}
