@@ -1,5 +1,6 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — Adj-RIB-In raw hex storage
-// Detail: rib_commands.go — command handlers (status, show, replay)
+// Detail: rib_commands.go — command handlers (status, show, replay, validation)
+// Detail: rib_validation.go — RPKI validation gate (pending routes, timeout, state constants)
 //
 // Package bgp_adj_rib_in implements an Adj-RIB-In plugin for ze.
 // It stores all received routes per source peer as raw hex wire bytes
@@ -56,10 +57,11 @@ func setLogger(l *slog.Logger) {
 // NLRIHex is the individual NLRI wire bytes in hex.
 // Sequence numbers are tracked by the seqmap, not stored in RawRoute.
 type RawRoute struct {
-	Family  string // Address family (e.g. "ipv4/unicast")
-	AttrHex string // Raw path attributes hex from format=full
-	NHopHex string // Next-hop as wire hex (e.g. "0a000001" for 10.0.0.1)
-	NLRIHex string // Individual NLRI wire bytes hex
+	Family          string // Address family (e.g. "ipv4/unicast")
+	AttrHex         string // Raw path attributes hex from format=full
+	NHopHex         string // Next-hop as wire hex (e.g. "0a000001" for 10.0.0.1)
+	NLRIHex         string // Individual NLRI wire bytes hex
+	ValidationState uint8  // RPKI validation state (0=NotValidated, 1=Valid, 2=NotFound, 3=Invalid)
 }
 
 // AdjRIBInManager implements the Adj-RIB-In plugin.
@@ -77,7 +79,24 @@ type AdjRIBInManager struct {
 	// seqCounter is the monotonic sequence counter for incremental replay.
 	seqCounter uint64
 
+	// pending stores routes awaiting RPKI validation.
+	// Key: "peerAddr|family|prefix". Empty when validation is disabled.
+	pending map[string]*PendingRoute
+
+	// validationEnabled is set by "adj-rib-in enable-validation" command.
+	// When true, received routes are stored as pending instead of installed.
+	validationEnabled bool
+
+	// validationTimeout is the fail-open timeout for pending routes.
+	// Zero means use defaultValidationTimeout (30s).
+	validationTimeout time.Duration
+
 	mu sync.RWMutex
+}
+
+// newSeqMap creates a new seqmap for route storage.
+func newSeqMap() *seqmap.Map[string, *RawRoute] {
+	return seqmap.New[string, *RawRoute]()
 }
 
 // RunAdjRIBInPlugin runs the Adj-RIB-In plugin using the SDK RPC protocol.
@@ -88,9 +107,10 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	r := &AdjRIBInManager{
-		plugin: p,
-		ribIn:  make(map[string]*seqmap.Map[string, *RawRoute]),
-		peerUp: make(map[string]bool),
+		plugin:  p,
+		ribIn:   make(map[string]*seqmap.Map[string, *RawRoute]),
+		peerUp:  make(map[string]bool),
+		pending: make(map[string]*PendingRoute),
 	}
 
 	p.OnEvent(func(jsonStr string) error {
@@ -107,6 +127,11 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 		return r.handleCommand(command, strings.Join(args, " "))
 	})
 
+	// Start the timeout scanner for pending validation routes (fail-open).
+	stopCh := make(chan struct{})
+	r.startTimeoutScanner(stopCh)
+	defer close(stopCh)
+
 	// Subscribe to received events with format=full (includes raw hex bytes).
 	p.SetStartupSubscriptions([]string{"update direction received", "state"}, nil, "full")
 
@@ -116,6 +141,10 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 			{Name: "adj-rib-in status"},
 			{Name: "adj-rib-in show"},
 			{Name: "adj-rib-in replay"},
+			{Name: "adj-rib-in enable-validation"},
+			{Name: "adj-rib-in accept-routes"},
+			{Name: "adj-rib-in reject-routes"},
+			{Name: "adj-rib-in revalidate"},
 		},
 	})
 	if err != nil {
@@ -176,10 +205,6 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 		for _, op := range ops {
 			switch op.Action {
 			case "add":
-				if r.ribIn[peerAddr] == nil {
-					r.ribIn[peerAddr] = seqmap.New[string, *RawRoute]()
-				}
-
 				nhopHex := nhopToHex(op.NextHop)
 
 				for i, nlriVal := range op.NLRIs {
@@ -187,7 +212,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 					if prefix == "" {
 						continue
 					}
-					key := bgp.RouteKey(family, prefix, pathID)
+					routeKey := bgp.RouteKey(family, prefix, pathID)
 
 					// Get individual NLRI hex from the correct source:
 					// - Simple families: split raw bytes give per-prefix hex
@@ -210,26 +235,48 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 						nlriHex = prefixToWireHex(family, prefix, pathID)
 					}
 
-					r.seqCounter++
-					r.ribIn[peerAddr].Put(key, r.seqCounter, &RawRoute{
+					route := &RawRoute{
 						Family:  family,
 						AttrHex: event.RawAttributes,
 						NHopHex: nhopHex,
 						NLRIHex: nlriHex,
-					})
+					}
+
+					if r.validationEnabled {
+						// Store as pending — validator will accept or reject.
+						pKey := pendingKey(peerAddr, family, prefix)
+						r.pending[pKey] = &PendingRoute{
+							peerAddr:   peerAddr,
+							family:     family,
+							prefix:     prefix,
+							routeKey:   routeKey,
+							route:      route,
+							receivedAt: time.Now(),
+							state:      ValidationPending,
+						}
+					} else {
+						// No validation — install immediately (zero overhead path).
+						if r.ribIn[peerAddr] == nil {
+							r.ribIn[peerAddr] = newSeqMap()
+						}
+						r.seqCounter++
+						r.ribIn[peerAddr].Put(routeKey, r.seqCounter, route)
+					}
 				}
 
 			case "del":
-				if r.ribIn[peerAddr] == nil {
-					continue
-				}
 				for _, nlriVal := range op.NLRIs {
 					prefix, pathID := bgp.ParseNLRIValue(nlriVal)
 					if prefix == "" {
 						continue
 					}
-					key := bgp.RouteKey(family, prefix, pathID)
-					r.ribIn[peerAddr].Delete(key)
+					routeKey := bgp.RouteKey(family, prefix, pathID)
+					// Remove from pending if present.
+					r.removePending(peerAddr, family, prefix)
+					// Remove from installed if present.
+					if r.ribIn[peerAddr] != nil {
+						r.ribIn[peerAddr].Delete(routeKey)
+					}
 				}
 			}
 		}
@@ -248,8 +295,9 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 	r.peerUp[peerAddr] = isUp
 
 	if !isUp {
-		// Peer went down — clear its routes.
+		// Peer went down — clear installed and pending routes.
 		delete(r.ribIn, peerAddr)
+		r.clearPeerPending(peerAddr)
 	}
 }
 

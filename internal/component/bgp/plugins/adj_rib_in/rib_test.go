@@ -26,9 +26,10 @@ func newTestManager(t *testing.T) *AdjRIBInManager {
 	p := sdk.NewWithConn("adj-rib-in-test", pluginEnd)
 	t.Cleanup(func() { _ = p.Close() })
 	return &AdjRIBInManager{
-		plugin: p,
-		ribIn:  make(map[string]*seqmap.Map[string, *RawRoute]),
-		peerUp: make(map[string]bool),
+		plugin:  p,
+		ribIn:   make(map[string]*seqmap.Map[string, *RawRoute]),
+		peerUp:  make(map[string]bool),
+		pending: make(map[string]*PendingRoute),
 	}
 }
 

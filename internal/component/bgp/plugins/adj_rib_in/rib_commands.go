@@ -19,6 +19,14 @@ func (r *AdjRIBInManager) handleCommand(command, selector string) (string, strin
 		return statusDone, r.showJSON(selector), nil
 	case "adj-rib-in replay":
 		return r.replayCommand(selector)
+	case "adj-rib-in enable-validation":
+		return r.enableValidationCommand()
+	case "adj-rib-in accept-routes":
+		return r.acceptRoutesCommand(selector)
+	case "adj-rib-in reject-routes":
+		return r.rejectRoutesCommand(selector)
+	case "adj-rib-in revalidate":
+		return r.revalidateCommand(selector)
 	} // unknown commands return error below
 	return statusError, "", fmt.Errorf("unknown command: %s", command)
 }
@@ -104,6 +112,117 @@ func (r *AdjRIBInManager) replayCommand(selector string) (string, string, error)
 
 	data := fmt.Sprintf(`{"last-index":%d,"replayed":%d}`, maxSeq, len(cmds))
 	return statusDone, data, nil
+}
+
+// enableValidationCommand handles "adj-rib-in enable-validation".
+// Sets the validationEnabled flag so subsequent routes use pending state.
+func (r *AdjRIBInManager) enableValidationCommand() (string, string, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.validationEnabled = true
+	logger().Info("validation gate enabled")
+	return statusDone, `{"validation-enabled":true}`, nil
+}
+
+// acceptRoutesCommand handles "adj-rib-in accept-routes <peer> <family> <prefix> <state>".
+// Promotes a pending route to installed with the given validation state.
+func (r *AdjRIBInManager) acceptRoutesCommand(selector string) (string, string, error) {
+	parts := strings.Fields(selector)
+	if len(parts) < 4 {
+		return statusError, "", fmt.Errorf("accept-routes requires: <peer> <family> <prefix> <state>")
+	}
+
+	peerAddr := parts[0]
+	family := parts[1]
+	prefix := parts[2]
+	valState, err := parseValidationState(parts[3])
+	if err != nil {
+		return statusError, "", err
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	key := pendingKey(peerAddr, family, prefix)
+	pr, ok := r.pending[key]
+	if !ok {
+		return statusError, "", fmt.Errorf("no pending route for %s %s %s", peerAddr, family, prefix)
+	}
+
+	r.promoteToInstalled(pr, valState)
+	delete(r.pending, key)
+
+	return statusDone, `{"status":"ok"}`, nil
+}
+
+// rejectRoutesCommand handles "adj-rib-in reject-routes <peer> <family> <prefix>".
+// Discards a pending route (does not install it).
+func (r *AdjRIBInManager) rejectRoutesCommand(selector string) (string, string, error) {
+	parts := strings.Fields(selector)
+	if len(parts) < 3 {
+		return statusError, "", fmt.Errorf("reject-routes requires: <peer> <family> <prefix>")
+	}
+
+	peerAddr := parts[0]
+	family := parts[1]
+	prefix := parts[2]
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	key := pendingKey(peerAddr, family, prefix)
+	if _, ok := r.pending[key]; !ok {
+		return statusError, "", fmt.Errorf("no pending route for %s %s %s", peerAddr, family, prefix)
+	}
+
+	delete(r.pending, key)
+	logger().Debug("rejected pending route", "peer", peerAddr, "family", family, "prefix", prefix)
+
+	return statusDone, `{"status":"ok"}`, nil
+}
+
+// revalidateCommand handles "adj-rib-in revalidate <family> <prefix>".
+// Returns installed route data for the given prefix so the validator can re-validate.
+func (r *AdjRIBInManager) revalidateCommand(selector string) (string, string, error) {
+	parts := strings.Fields(selector)
+	if len(parts) < 2 {
+		return statusError, "", fmt.Errorf("revalidate requires: <family> <prefix>")
+	}
+
+	family := parts[0]
+	prefix := parts[1]
+
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var routes []map[string]any
+	allPrefixes := prefix == "*"
+	for peer, peerRoutes := range r.ribIn {
+		peerRoutes.Range(func(key string, _ uint64, rt *RawRoute) bool {
+			if rt.Family != family {
+				return true
+			}
+			// Match exact prefix via RouteKey, or all prefixes with "*".
+			if !allPrefixes && !strings.HasPrefix(key, family+":"+prefix+":") &&
+				key != family+":"+prefix {
+				return true
+			}
+			routes = append(routes, map[string]any{
+				"peer":             peer,
+				"family":           rt.Family,
+				"prefix":           prefix,
+				"attr-hex":         rt.AttrHex,
+				"nhop-hex":         rt.NHopHex,
+				"nlri-hex":         rt.NLRIHex,
+				"validation-state": rt.ValidationState,
+			})
+			return true
+		})
+	}
+
+	data, _ := json.Marshal(map[string]any{"routes": routes})
+	return statusDone, string(data), nil
 }
 
 // matchesPeer returns true if peerAddr matches the selector string.
