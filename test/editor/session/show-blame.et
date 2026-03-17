@@ -1,0 +1,27 @@
+# Test: Show blame displays annotated tree with authorship
+# VALIDATES: spec-concurrent-config AC-16: show blame displays tree with left gutter
+# VALIDATES: Blame gutter includes username of session that made the change
+# PREVENTS: Blame view missing metadata or not showing authorship
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  local-as 65000;
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=local
+
+# Make a change to create session metadata
+input=type:text=set bgp local-as 65001
+input=enter
+expect=dirty:true
+expect=error:none
+
+# Show blame view -- should contain username in gutter
+input=type:text=show blame
+input=enter
+expect=viewport:contains=thomas
+expect=error:none

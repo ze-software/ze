@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 5b/8 |
+| Phase | 6/8 |
 | Updated | 2026-03-17 |
 
 ## Post-Compaction Recovery
@@ -1119,7 +1119,18 @@ Add show blame, show changes (mine/all), show set, save, who, disconnect command
 
 The existing `.et` (editor test) framework in `internal/component/cli/testing/` provides headless editor replay with keystroke simulation and state expectations. However, it has no session support -- `NewHeadlessModel` never calls `SetSession()`, and there is no way to run multiple sessions against the same config file. This phase adds the minimum infrastructure needed for session and concurrent editing tests.
 
-**Status (2026-03-17 audit):** Not started. `headless.go` has only `NewHeadlessModel(configPath)`. `runner.go` does not parse `session=` options. `expect.go` has no `file:` expectation type. `parser.go` does not recognize `session=` steps. `session_test.go` does not exist. `test/editor/session/` directory does not exist.
+**Status (2026-03-17):** Infrastructure implemented. `NewHeadlessModelWithSession` in headless.go. `session=` parsing in parser.go. `expect=file:` handler in expect.go. Multi-session map + `StepSession` dispatch in runner.go. `TmpDir()` added to State interface. 4 unit tests in `session_test.go` all pass. Remaining: create `test/editor/session/` directory with `.et` functional tests (Phase 5b item 5 + Phase 1-5 functional tests).
+
+**Actual directive syntax** (`:` separators, not `,`):
+
+| Directive | Example |
+|-----------|---------|
+| Session option | `option=session:user=thomas:origin=local` |
+| Session create | `session=alice:user=alice,origin=ssh` |
+| Session switch | `session=alice` |
+| File contains | `expect=file:path=test.conf.draft:contains=alice@ssh` |
+| File not-contains | `expect=file:path=test.conf.draft:not-contains=bob` |
+| File absent | `expect=file:path=test.conf.draft:absent` |
 
 **Current `.et` capabilities:** ~90 existing tests for navigation, completion, commands, validation, workflows. Single-session, no session identity, no file content checks.
 

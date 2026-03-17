@@ -1,0 +1,45 @@
+# Test: Two sessions coexist with independent changes
+# VALIDATES: Multi-session coexistence -- each session's changes are independent
+# PREVENTS: One session's edits interfering with another session
+# NOTE: Full adoption testing requires Phase 6 (orphaned session detection).
+#       This test verifies the prerequisite: two sessions can coexist and each
+#       session sees its own changes via show changes.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Alice makes a change
+session=alice:user=alice,origin=ssh
+input=type:text=set bgp local-as 65001
+input=enter
+expect=status:contains=Set
+
+# Bob makes a different change
+session=bob:user=bob,origin=ssh
+input=type:text=set bgp router-id 5.6.7.8
+input=enter
+expect=status:contains=Set
+
+# Verify both sessions appear in draft
+expect=file:path=test.conf.draft:contains=alice@ssh
+expect=file:path=test.conf.draft:contains=bob@ssh
+
+# Bob sees his own changes via show changes
+input=type:text=show changes
+input=enter
+expect=viewport:contains=router-id
+expect=error:none
+
+# Bob sees all changes via show changes all
+input=type:text=show changes all
+input=enter
+expect=viewport:contains=alice@ssh
+expect=viewport:contains=bob@ssh
+expect=error:none

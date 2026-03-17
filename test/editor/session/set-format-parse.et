@@ -1,0 +1,17 @@
+# Test: Set-format config file parsed correctly
+# VALIDATES: spec-concurrent-config Phase 1: SetParser parses flat set commands
+# VALIDATES: Editor loads set-format config and content is accessible
+# PREVENTS: Set-format files rejected or parsed incorrectly
+
+tmpfs=test.conf:terminator=EOF_CONF
+set bgp local-as 65000
+set bgp router-id 1.2.3.4
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=local
+
+# Verify content loaded from set-format file
+expect=content:contains=65000
+expect=error:none

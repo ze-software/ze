@@ -1,0 +1,29 @@
+# Test: Exit blocked by pending session changes
+# VALIDATES: spec-concurrent-config: exit with pending changes shows prompt
+# VALIDATES: Session-aware pending detection blocks exit
+# PREVENTS: Losing uncommitted session changes on exit
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  local-as 65000;
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=local
+
+# Start clean
+expect=dirty:false
+
+# Make a change to create pending session entry
+input=type:text=set bgp local-as 65001
+input=enter
+expect=dirty:true
+expect=error:none
+
+# Try to exit -- should be blocked by pending changes
+input=type:text=exit
+input=enter
+expect=status:contains=Pending

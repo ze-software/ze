@@ -4,6 +4,8 @@ package testing
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -27,6 +29,7 @@ type State interface {
 	ConfirmTimerActive() bool
 	TriggerCompletions()
 	Mode() cli.EditorMode
+	TmpDir() string // Temp directory for file expectations
 }
 
 // validExpectationTypes lists all recognized expectation types.
@@ -46,6 +49,7 @@ var validExpectationTypes = map[string]func(Expectation, State) error{
 	"viewport":   checkViewport,
 	"timer":      checkTimer,
 	"mode":       checkMode,
+	"file":       checkFile,
 }
 
 // CheckExpectation verifies a single expectation against the current state.
@@ -444,6 +448,59 @@ func checkTimer(exp Expectation, state State) error {
 	}
 
 	return fmt.Errorf("timer expectation requires 'active' or 'inactive' key")
+}
+
+// checkFile verifies on-disk file content relative to TmpDir.
+// Supports: contains=, not-contains=, absent.
+func checkFile(exp Expectation, state State) error {
+	dir := state.TmpDir()
+	if dir == "" {
+		return fmt.Errorf("file expectation requires TmpDir")
+	}
+
+	path, ok := exp.Values["path"]
+	if !ok {
+		return fmt.Errorf("file expectation requires 'path' key")
+	}
+	if filepath.IsAbs(path) || strings.Contains(path, "..") {
+		return fmt.Errorf("file expectation path must be relative without '..': %s", path)
+	}
+	fullPath := filepath.Join(dir, path)
+
+	// Check absent first (file should not exist).
+	if _, hasAbsent := exp.Values["absent"]; hasAbsent {
+		if _, err := os.Stat(fullPath); err == nil {
+			return fmt.Errorf("expected file %s to be absent, but it exists", path)
+		}
+		return nil
+	}
+
+	data, err := os.ReadFile(fullPath) //nolint:gosec // Test infrastructure: path from .et file
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", path, err)
+	}
+	content := string(data)
+
+	if needle, ok := exp.Values["contains"]; ok {
+		if !strings.Contains(content, needle) {
+			return fmt.Errorf("file %s does not contain %q (content: %s)", path, needle, truncate(content, 200))
+		}
+	}
+
+	if needle, ok := exp.Values["not-contains"]; ok {
+		if strings.Contains(content, needle) {
+			return fmt.Errorf("file %s contains %q but should not", path, needle)
+		}
+	}
+
+	return nil
+}
+
+func truncate(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }
 
 // CheckExpectations verifies multiple expectations against state.

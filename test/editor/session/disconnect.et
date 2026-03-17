@@ -1,0 +1,37 @@
+# Test: Two sessions coexist and their changes are tracked in the draft
+# VALIDATES: AC-29 -- session entries visible in draft, multi-session coexistence
+# PREVENTS: Session metadata lost or not written to draft
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Alice makes a change
+session=alice:user=alice,origin=ssh
+input=type:text=set bgp local-as 65001
+input=enter
+expect=status:contains=Set
+
+# Bob makes a change
+session=bob:user=bob,origin=ssh
+input=type:text=set bgp router-id 5.6.7.8
+input=enter
+expect=status:contains=Set
+
+# Verify draft contains both sessions' metadata
+expect=file:path=test.conf.draft:contains=alice@ssh
+expect=file:path=test.conf.draft:contains=bob@ssh
+
+# Bob checks who is editing (Bob has latest draft state)
+session=bob
+input=type:text=who
+input=enter
+expect=viewport:contains=alice@ssh
+expect=viewport:contains=bob@ssh
+expect=error:none

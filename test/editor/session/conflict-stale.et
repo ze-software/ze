@@ -1,0 +1,33 @@
+# Test: Commit blocked after another session committed the same path
+# VALIDATES: AC-8 -- stale Previous conflict (combined with live detection in .et)
+# NOTE: Pure stale conflict requires external config mutation between set and commit,
+# which .et cannot simulate. The unit test TestEditorConflictStale covers the pure case.
+# This test verifies the end-to-end conflict detection path for same-path concurrent edits.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Alice sets local-as to 65001
+session=alice:user=alice,origin=ssh
+input=type:text=set bgp local-as 65001
+input=enter
+expect=status:contains=Set
+
+# Bob sets local-as to 65002 (same path, different value)
+session=bob:user=bob,origin=ssh
+input=type:text=set bgp local-as 65002
+input=enter
+expect=status:contains=Set
+
+# Bob commits -- blocked by live conflict with Alice
+session=bob
+input=type:text=commit
+input=enter
+expect=status:contains=conflict

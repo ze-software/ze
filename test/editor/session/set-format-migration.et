@@ -1,0 +1,32 @@
+# Test: Hierarchical config migrated to set format on session commit
+# VALIDATES: Phase 7 -- hierarchical format auto-converted to set format on commit
+# PREVENTS: Config file staying in hierarchical format after session commit
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Activate a session -- required for set-format write-through
+session=alice:user=alice,origin=ssh
+
+# Make a change to create a dirty state
+input=type:text=set bgp router-id 5.6.7.8
+input=enter
+expect=status:contains=Set
+expect=dirty:true
+
+# Commit -- should write config.conf in set format
+input=type:text=commit
+input=enter
+expect=status:contains=committed
+expect=dirty:false
+
+# Verify config.conf now contains set-format lines (not hierarchical braces)
+expect=file:path=test.conf:contains=set bgp
+expect=file:path=test.conf:not-contains={

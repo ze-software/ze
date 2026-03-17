@@ -1,0 +1,27 @@
+# Test: Write-through creates draft file with session metadata
+# VALIDATES: spec-concurrent-config AC-1: set writes to draft immediately
+# VALIDATES: Draft file contains session identity (user@origin)
+# PREVENTS: Set accumulates in memory without persisting to disk
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  local-as 65000;
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=local
+
+# Initial state not dirty
+expect=dirty:false
+
+# Set a value -- should write through to draft
+input=type:text=set bgp local-as 65001
+input=enter
+expect=dirty:true
+expect=error:none
+
+# Verify draft file exists with session metadata
+expect=file:path=test.conf.draft:contains=thomas@local

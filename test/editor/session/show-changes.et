@@ -1,0 +1,42 @@
+# Test: show changes displays session-scoped pending changes
+# VALIDATES: AC-17 -- show changes displays current session's pending changes
+# VALIDATES: AC-18 -- show changes all displays all sessions' pending changes
+# PREVENTS: Changes from other sessions leaking into default show changes view
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local-as 65000;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Alice sets local-as
+session=alice:user=alice,origin=ssh
+input=type:text=set bgp local-as 65001
+input=enter
+expect=status:contains=Set
+
+# Bob sets router-id
+session=bob:user=bob,origin=ssh
+input=type:text=set bgp router-id 5.6.7.8
+input=enter
+expect=status:contains=Set
+
+# Bob checks his own changes (should see router-id)
+session=bob
+input=type:text=show changes
+input=enter
+expect=viewport:contains=router-id
+expect=error:none
+
+# Bob checks all sessions' changes (Bob has latest draft with both sessions)
+input=type:text=show changes all
+input=enter
+expect=viewport:contains=alice@ssh
+expect=viewport:contains=bob@ssh
+expect=viewport:contains=local-as
+expect=viewport:contains=router-id
+expect=error:none

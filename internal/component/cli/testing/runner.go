@@ -95,6 +95,8 @@ func runTestCase(tc *TestCase) *TestResult {
 	width := 80
 	height := 24
 	reloadMode := "" // "success", "fail", or "" (standalone)
+	sessionUser := ""
+	sessionOrigin := ""
 
 	for _, opt := range tc.Options {
 		switch opt.Type {
@@ -124,6 +126,13 @@ func runTestCase(tc *TestCase) *TestResult {
 			if mode, ok := opt.Values["mode"]; ok {
 				reloadMode = mode
 			}
+		case "session":
+			if user, ok := opt.Values["user"]; ok {
+				sessionUser = user
+			}
+			if origin, ok := opt.Values["origin"]; ok {
+				sessionOrigin = origin
+			}
 		}
 	}
 
@@ -138,12 +147,28 @@ func runTestCase(tc *TestCase) *TestResult {
 		return result
 	}
 
-	// Create headless model
-	hm, err := NewHeadlessModel(configPath)
-	if err != nil {
-		result.Error = fmt.Sprintf("creating editor: %v", err)
-		return result
+	// Create headless model (with or without session)
+	var hm *HeadlessModel
+	if sessionUser != "" {
+		var hmErr error
+		hm, hmErr = NewHeadlessModelWithSession(configPath, sessionUser, sessionOrigin)
+		if hmErr != nil {
+			result.Error = fmt.Sprintf("creating session editor: %v", hmErr)
+			return result
+		}
+	} else {
+		var hmErr error
+		hm, hmErr = NewHeadlessModel(configPath)
+		if hmErr != nil {
+			result.Error = fmt.Sprintf("creating editor: %v", hmErr)
+			return result
+		}
 	}
+	hm.SetTmpDir(tmpDir)
+
+	// Multi-session map: session name -> headless model.
+	// SEQUENTIAL: test steps run serially; no concurrent map access.
+	sessions := map[string]*HeadlessModel{}
 
 	// Configure mock reload notifier if requested
 	switch reloadMode {
@@ -158,9 +183,31 @@ func runTestCase(tc *TestCase) *TestResult {
 	_ = height
 	_ = timeout
 
-	// Process steps in order (inputs, expectations, waits interleaved)
+	// Process steps in order (inputs, expectations, waits, sessions interleaved)
 	for stepIdx, step := range tc.Steps {
 		switch step.Type {
+		case StepSession:
+			sa := tc.Sessions[step.SessionIndex]
+			if sa.User != "" {
+				// Create new session model.
+				newHM, sessionErr := NewHeadlessModelWithSession(configPath, sa.User, sa.Origin)
+				if sessionErr != nil {
+					result.Error = fmt.Sprintf("step %d (session %s): %v", stepIdx+1, sa.Name, sessionErr)
+					return result
+				}
+				newHM.SetTmpDir(tmpDir)
+				sessions[sa.Name] = newHM
+				hm = newHM
+			} else {
+				// Switch to existing session.
+				existing, ok := sessions[sa.Name]
+				if !ok {
+					result.Error = fmt.Sprintf("step %d: unknown session %q", stepIdx+1, sa.Name)
+					return result
+				}
+				hm = existing
+			}
+
 		case StepInput:
 			inp := tc.Inputs[step.InputIndex]
 			input := inp.ToInput()

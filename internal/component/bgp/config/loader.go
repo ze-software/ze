@@ -108,7 +108,7 @@ func LoadReactor(input string) (*reactor.Reactor, error) {
 	if err != nil {
 		return nil, err
 	}
-	return CreateReactorFromTree(tree, "", plugins, nil)
+	return CreateReactorFromTree(tree, "", "", plugins, nil)
 }
 
 // LoadReactorWithPlugins parses config with CLI plugins and creates Reactor.
@@ -156,7 +156,7 @@ func LoadReactorWithPlugins(store storage.Storage, input, configPath string, cli
 		configDir = cwd
 	}
 
-	r, err := CreateReactorFromTree(tree, configDir, plugins, store)
+	r, err := CreateReactorFromTree(tree, configDir, configPath, plugins, store)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +252,7 @@ func LoadReactorFileWithPlugins(store storage.Storage, path string, cliPlugins [
 	}
 
 	// Create reactor from tree
-	r, err := CreateReactorFromTree(tree, configDir, plugins, store)
+	r, err := CreateReactorFromTree(tree, configDir, absPath, plugins, store)
 	if err != nil {
 		return nil, err
 	}
@@ -357,7 +357,7 @@ func expandDependencies(plugins []reactor.PluginConfig) ([]reactor.PluginConfig,
 }
 
 // CreateReactorFromTree creates a Reactor directly from a parsed config tree.
-func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reactor.PluginConfig, store storage.Storage) (*reactor.Reactor, error) {
+func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plugins []reactor.PluginConfig, store storage.Storage) (*reactor.Reactor, error) {
 	// Load environment with config block values (if any)
 	envValues := config.ExtractEnvironment(tree)
 	env, err := config.LoadEnvironmentWithConfig(envValues)
@@ -463,6 +463,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir string, plugins []reacto
 	var sshSrv *zessh.Server
 	if sshCfg, ok := extractSSHConfig(tree); ok {
 		sshCfg.Storage = store
+		sshCfg.ConfigPath = configPath
 		srv, sshErr := zessh.NewServer(sshCfg)
 		if sshErr != nil {
 			configLogger().Warn("SSH server config error", "error", sshErr)

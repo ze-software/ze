@@ -16,24 +16,34 @@ const (
 	StepInput StepType = iota
 	StepExpect
 	StepWait
+	StepSession
 )
 
-// Step represents a single ordered step in the test (input, expect, or wait).
+// Step represents a single ordered step in the test (input, expect, wait, or session).
 type Step struct {
-	Type        StepType
-	InputIndex  int // Index into Inputs slice (if Type == StepInput)
-	ExpectIndex int // Index into Expects slice (if Type == StepExpect)
-	WaitIndex   int // Index into Waits slice (if Type == StepWait)
+	Type         StepType
+	InputIndex   int // Index into Inputs slice (if Type == StepInput)
+	ExpectIndex  int // Index into Expects slice (if Type == StepExpect)
+	WaitIndex    int // Index into Waits slice (if Type == StepWait)
+	SessionIndex int // Index into Sessions slice (if Type == StepSession)
 }
 
 // TestCase represents a parsed .et (Editor Test) file.
 type TestCase struct {
-	Tmpfs   []TmpfsBlock  // Embedded files
-	Options []Option      // Test options
-	Inputs  []InputAction // User input actions (in order)
-	Expects []Expectation // Expectations (in order)
-	Waits   []WaitAction  // Wait actions
-	Steps   []Step        // Ordered sequence of steps (preserves interleaving)
+	Tmpfs    []TmpfsBlock    // Embedded files
+	Options  []Option        // Test options
+	Inputs   []InputAction   // User input actions (in order)
+	Expects  []Expectation   // Expectations (in order)
+	Waits    []WaitAction    // Wait actions
+	Sessions []SessionAction // Session create/switch actions
+	Steps    []Step          // Ordered sequence of steps (preserves interleaving)
+}
+
+// SessionAction represents a session creation or switch directive.
+type SessionAction struct {
+	Name   string // Session name (for switching)
+	User   string // Username (empty for switch-only)
+	Origin string // Origin type (empty for switch-only)
 }
 
 // TmpfsBlock represents an embedded file.
@@ -85,23 +95,31 @@ var shorthandKeys = map[string]bool{
 }
 
 // validActions lists the recognized action types for .et files.
+// multiKeyExpect lists expectation types that use multiple colon-separated key=value pairs.
+// Other types join remaining segments to preserve colons in values.
+var multiKeyExpect = map[string]bool{
+	"file": true,
+}
+
 var validActions = map[string]bool{
-	"tmpfs":  true,
-	"option": true,
-	"input":  true,
-	"expect": true,
-	"wait":   true,
+	"tmpfs":   true,
+	"option":  true,
+	"input":   true,
+	"expect":  true,
+	"wait":    true,
+	"session": true,
 }
 
 // ParseETFile parses an .et (Editor Test) file content.
 func ParseETFile(content string) (*TestCase, error) {
 	tc := &TestCase{
-		Tmpfs:   make([]TmpfsBlock, 0),
-		Options: make([]Option, 0),
-		Inputs:  make([]InputAction, 0),
-		Expects: make([]Expectation, 0),
-		Waits:   make([]WaitAction, 0),
-		Steps:   make([]Step, 0),
+		Tmpfs:    make([]TmpfsBlock, 0),
+		Options:  make([]Option, 0),
+		Inputs:   make([]InputAction, 0),
+		Expects:  make([]Expectation, 0),
+		Waits:    make([]WaitAction, 0),
+		Sessions: make([]SessionAction, 0),
+		Steps:    make([]Step, 0),
 	}
 
 	scanner := bufio.NewScanner(strings.NewReader(content))
@@ -161,6 +179,9 @@ func (tc *TestCase) parseLine(line string, scanner *bufio.Scanner, lineNum *int)
 	}
 	if action == "wait" {
 		return tc.parseWait(rest)
+	}
+	if action == "session" {
+		return tc.parseSession(rest)
 	}
 
 	// Should never reach here due to validActions check above
@@ -318,19 +339,28 @@ func (tc *TestCase) parseExpect(rest string) error {
 
 	exp.Type = segments[0]
 
-	// Parse key=value pairs
-	// For some types, the value may contain colons, so handle specially
+	// Parse key=value pairs.
+	// Types with multi-key expectations (file) parse each segment individually.
+	// Other types join remaining segments to preserve colons in values (e.g., contains=http://...).
 	if len(segments) >= 2 {
-		// Check if this is a type that needs special handling (contains= might have colons in value)
-		restPart := strings.Join(segments[1:], ":")
-
-		// Try to parse as key=value first
-		kv := strings.SplitN(restPart, "=", 2)
-		if len(kv) == 2 {
-			exp.Values[kv[0]] = kv[1]
+		if multiKeyExpect[exp.Type] {
+			for _, seg := range segments[1:] {
+				kv := strings.SplitN(seg, "=", 2)
+				if len(kv) == 2 {
+					exp.Values[kv[0]] = kv[1]
+				} else {
+					exp.Values[kv[0]] = ""
+				}
+			}
 		} else {
-			// Flag without value (e.g., "root", "empty", "none", "true", "false", "active", "inactive", "visible", "hidden")
-			exp.Values[kv[0]] = ""
+			restPart := strings.Join(segments[1:], ":")
+			kv := strings.SplitN(restPart, "=", 2)
+			if len(kv) == 2 {
+				exp.Values[kv[0]] = kv[1]
+			} else {
+				// Flag without value (e.g., "root", "empty", "none", "true", "false")
+				exp.Values[kv[0]] = ""
+			}
 		}
 	}
 
@@ -367,5 +397,50 @@ func (tc *TestCase) parseWait(rest string) error {
 
 	tc.Waits = append(tc.Waits, w)
 	tc.Steps = append(tc.Steps, Step{Type: StepWait, WaitIndex: len(tc.Waits) - 1})
+	return nil
+}
+
+// parseSession parses a session creation or switch directive.
+// Format: session=name:user=X,origin=Y (create) or session=name (switch).
+func (tc *TestCase) parseSession(rest string) error {
+	// Split name from params: "alice:user=alice,origin=ssh" or just "alice"
+	parts := strings.SplitN(rest, ":", 2)
+	name := parts[0]
+	if name == "" {
+		return fmt.Errorf("session requires a name")
+	}
+
+	sa := SessionAction{Name: name}
+
+	if len(parts) == 2 {
+		// Parse key=value pairs separated by commas.
+		for pair := range strings.SplitSeq(parts[1], ",") {
+			if pair == "" {
+				continue
+			}
+			kv := strings.SplitN(pair, "=", 2)
+			if len(kv) != 2 {
+				return fmt.Errorf("session parameter must be key=value: %s", pair)
+			}
+			if kv[0] != "user" && kv[0] != "origin" {
+				return fmt.Errorf("unknown session parameter: %s", kv[0])
+			}
+			if kv[0] == "user" {
+				sa.User = kv[1]
+			}
+			if kv[0] == "origin" {
+				sa.Origin = kv[1]
+			}
+		}
+		if sa.User == "" {
+			return fmt.Errorf("session creation requires user parameter")
+		}
+		if sa.Origin == "" {
+			return fmt.Errorf("session creation requires origin parameter")
+		}
+	}
+
+	tc.Sessions = append(tc.Sessions, sa)
+	tc.Steps = append(tc.Steps, Step{Type: StepSession, SessionIndex: len(tc.Sessions) - 1})
 	return nil
 }

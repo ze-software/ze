@@ -58,6 +58,7 @@ type Config struct {
 	ListenAddrs []string // all listen addresses (first == Listen)
 	HostKeyPath string
 	ConfigDir   string          // directory of the config file; used for host-key default
+	ConfigPath  string          // path to config file; used by SSH sessions for concurrent editing
 	Storage     storage.Storage // when set, host key is read from/stored to blob
 	IdleTimeout uint32
 	MaxSessions int

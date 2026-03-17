@@ -1,0 +1,35 @@
+# Test: Discard with path restores committed value
+# VALIDATES: spec-concurrent-config AC-12: discard path restores committed value
+# VALIDATES: Dirty flag reflects remaining pending changes
+# PREVENTS: Discard path leaving stale session entries
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  local-as 65000;
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=local
+
+# Start clean
+expect=dirty:false
+
+# Set a value to make it dirty
+input=type:text=set bgp local-as 65001
+input=enter
+expect=dirty:true
+expect=error:none
+
+# Discard only the changed path
+input=type:text=discard bgp local-as
+input=enter
+expect=dirty:false
+expect=error:none
+
+# Verify content reverted -- show to refresh viewport
+input=type:text=show
+input=enter
+expect=viewport:contains=65000

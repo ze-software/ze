@@ -18,6 +18,7 @@ type HeadlessModel struct {
 	model   cli.Model
 	editor  *cli.Editor
 	pending []<-chan tea.Msg // commands that timed out but may still complete
+	tmpDir  string           // temp directory for file expectations
 }
 
 // NewHeadlessModel creates a headless model from a config file path.
@@ -48,6 +49,46 @@ func NewHeadlessModel(configPath string) (*HeadlessModel, error) {
 	hm.model.UpdateCompletions()
 
 	return hm, nil
+}
+
+// NewHeadlessModelWithSession creates a headless model with session identity activated.
+func NewHeadlessModelWithSession(configPath, user, origin string) (*HeadlessModel, error) {
+	ed, err := cli.NewEditor(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("creating editor: %w", err)
+	}
+
+	session := cli.NewEditSession(user, origin)
+	ed.SetSession(session)
+
+	model, err := cli.NewModel(ed)
+	if err != nil {
+		return nil, fmt.Errorf("creating model: %w", err)
+	}
+
+	newModel, _ := model.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	if m, ok := newModel.(cli.Model); ok {
+		model = m
+	}
+
+	hm := &HeadlessModel{
+		model:  model,
+		editor: ed,
+	}
+
+	hm.model.UpdateCompletions()
+
+	return hm, nil
+}
+
+// TmpDir returns the temp directory for file expectations.
+func (hm *HeadlessModel) TmpDir() string {
+	return hm.tmpDir
+}
+
+// SetTmpDir sets the temp directory for file expectations.
+func (hm *HeadlessModel) SetTmpDir(dir string) {
+	hm.tmpDir = dir
 }
 
 // Model returns the underlying cli.Model.

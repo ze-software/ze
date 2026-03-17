@@ -1,0 +1,37 @@
+# Test: Commit applies session changes to config file
+# VALIDATES: spec-concurrent-config AC-6: commit applies only current session changes
+# VALIDATES: Draft file deleted after commit (no remaining pending changes)
+# VALIDATES: Dirty flag cleared after commit
+# PREVENTS: Config file not updated on commit, draft lingering after commit
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  local-as 65000;
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=local
+
+# Initial state clean
+expect=dirty:false
+
+# Set a value
+input=type:text=set bgp local-as 65001
+input=enter
+expect=dirty:true
+expect=error:none
+
+# Commit the change
+input=type:text=commit
+input=enter
+expect=dirty:false
+expect=error:none
+
+# Verify config file updated with new value
+expect=file:path=test.conf:contains=65001
+
+# Verify draft file deleted (no pending changes remain)
+expect=file:path=test.conf.draft:absent
