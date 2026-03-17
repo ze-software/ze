@@ -73,7 +73,7 @@ func newIntegrationRouteServer(t *testing.T) (*RouteServer, *rpc.Conn) {
 // arrive at the engine side of the connection.
 //
 // VALIDATES: Full path: event → parse → handleUpdate → channel → worker →
-// forwardUpdate → SDK RPC → engine receives "bgp cache N forward peer1,peer2".
+// forwardUpdate → SDK RPC → engine receives "cache N forward peer1,peer2".
 // PREVENTS: Silent RPC failures masking a broken redistribution path.
 func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 	rs, engineConn := newIntegrationRouteServer(t)
@@ -104,7 +104,7 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 	}
 
 	// Read RPCs from the engine side. With batch accumulation, the 3 UPDATEs
-	// may arrive as a single batch RPC (e.g., "bgp cache 1,2,3 forward ...").
+	// may arrive as a single batch RPC (e.g., "cache 1,2,3 forward ...").
 	// Read until all 3 message IDs are accounted for.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -125,7 +125,7 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 			t.Fatalf("unmarshal params: %v", err)
 		}
 
-		// Parse "bgp cache <ids> forward <selector>" — ids may be comma-separated.
+		// Parse "cache <ids> forward <selector>" — ids may be comma-separated.
 		parts := strings.Fields(input.Command)
 		if len(parts) < 4 || parts[0] != "bgp" || parts[1] != "cache" || parts[3] != "forward" {
 			t.Fatalf("unexpected command format: %q", input.Command)
@@ -194,8 +194,8 @@ func TestRedistribution_ReleaseReachesEngine(t *testing.T) {
 		t.Fatalf("unmarshal params: %v", err)
 	}
 
-	if rpcInput.Command != "bgp cache 42 release" {
-		t.Errorf("command = %q, want %q", rpcInput.Command, "bgp cache 42 release")
+	if rpcInput.Command != "cache 42 release" {
+		t.Errorf("command = %q, want %q", rpcInput.Command, "cache 42 release")
 	}
 
 	if err := engineConn.SendResult(ctx, req.ID, rpc.UpdateRouteOutput{}); err != nil {
@@ -245,7 +245,7 @@ func TestRedistribution_FamilyFiltering(t *testing.T) {
 	}
 
 	// Should forward to 10.0.0.2 only (not 10.0.0.3 which lacks ipv6/unicast).
-	expected := "bgp cache 7 forward 10.0.0.2"
+	expected := "cache 7 forward 10.0.0.2"
 	if rpcInput.Command != expected {
 		t.Errorf("command = %q, want %q", rpcInput.Command, expected)
 	}
@@ -468,7 +468,7 @@ func TestForwardOrdering_SequentialPreservesOrder(t *testing.T) {
 
 		if len(targets) > 0 {
 			sel := strings.Join(targets, ",")
-			cmd := fmt.Sprintf("bgp cache %d forward %s", msgID, sel)
+			cmd := fmt.Sprintf("cache %d forward %s", msgID, sel)
 			commands = append(commands, cmd)
 		}
 	}
@@ -480,10 +480,10 @@ func TestForwardOrdering_SequentialPreservesOrder(t *testing.T) {
 	// Verify ordering: each command should have strictly increasing msg ID
 	for i := 1; i < len(commands); i++ {
 		var prevID, currID uint64
-		if _, err := fmt.Sscanf(commands[i-1], "bgp cache %d", &prevID); err != nil {
+		if _, err := fmt.Sscanf(commands[i-1], "cache %d", &prevID); err != nil {
 			t.Fatalf("parse command[%d]: %v", i-1, err)
 		}
-		if _, err := fmt.Sscanf(commands[i], "bgp cache %d", &currID); err != nil {
+		if _, err := fmt.Sscanf(commands[i], "cache %d", &currID); err != nil {
 			t.Fatalf("parse command[%d]: %v", i, err)
 		}
 		if currID <= prevID {

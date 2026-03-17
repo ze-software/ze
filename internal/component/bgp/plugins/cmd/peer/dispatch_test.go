@@ -22,7 +22,7 @@ func newDispatchContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandCo
 	return &pluginserver.CommandContext{Server: server}
 }
 
-// TestDispatchBGPPeerList verifies "bgp peer list" dispatches through init() registration.
+// TestDispatchBGPPeerList verifies "peer list" dispatches through init() registration.
 //
 // VALIDATES: Dispatch chain reaches handleBgpPeerList via injected init() registration.
 // PREVENTS: init() registration registration silently failing for peer list.
@@ -34,7 +34,7 @@ func TestDispatchBGPPeerList(t *testing.T) {
 	}
 	ctx := newDispatchContext(reactor)
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "bgp peer list")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "peer list")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -46,7 +46,7 @@ func TestDispatchBGPPeerList(t *testing.T) {
 	assert.Contains(t, peers, "192.0.2.1")
 }
 
-// TestDispatchBGPPeerDetail verifies "bgp peer detail" dispatches through init() registration.
+// TestDispatchBGPPeerDetail verifies "peer detail" dispatches through init() registration.
 //
 // VALIDATES: Dispatch chain reaches handleBgpPeerDetail via injected init() registration.
 // PREVENTS: init() registration silently failing for peer detail.
@@ -58,12 +58,12 @@ func TestDispatchBGPPeerDetail(t *testing.T) {
 	}
 	ctx := newDispatchContext(reactor)
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "bgp peer detail")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "peer detail")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 }
 
-// TestDispatchBGPPeerTeardown verifies "bgp peer <addr> teardown" dispatches correctly.
+// TestDispatchBGPPeerTeardown verifies "peer <addr> teardown" dispatches correctly.
 //
 // VALIDATES: Dispatch chain reaches handleBgpPeerTeardown with peer selector.
 // PREVENTS: Peer selector not propagated through dispatch.
@@ -71,7 +71,7 @@ func TestDispatchBGPPeerTeardown(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newDispatchContext(reactor)
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "bgp peer 192.0.2.1 teardown 2")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "peer 192.0.2.1 teardown 2")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -88,7 +88,7 @@ func TestDispatchBGPNilReactor(t *testing.T) {
 	ctx := newDispatchContext(nil)
 
 	// Peer list calls RequireReactor
-	_, err := ctx.Server.Dispatcher().Dispatch(ctx, "bgp peer list")
+	_, err := ctx.Server.Dispatcher().Dispatch(ctx, "peer list")
 	require.Error(t, err)
 }
 
@@ -99,6 +99,6 @@ func TestDispatchBGPNilReactor(t *testing.T) {
 func TestDispatchBGPUnknownCommand(t *testing.T) {
 	ctx := newDispatchContext(&mockReactor{})
 
-	_, err := ctx.Server.Dispatcher().Dispatch(ctx, "bgp nonexistent command")
+	_, err := ctx.Server.Dispatcher().Dispatch(ctx, "nonexistent command")
 	require.Error(t, err)
 }

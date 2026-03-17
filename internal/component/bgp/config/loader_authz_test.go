@@ -32,11 +32,11 @@ system {
                 default-action deny
                 entry 10 {
                     action allow
-                    match "bgp peer show"
+                    match "peer show"
                 }
                 entry 20 {
                     action allow
-                    match "bgp peer summary"
+                    match "peer summary"
                 }
             }
             edit {
@@ -198,7 +198,7 @@ system {
                 default-action deny
                 entry 10 {
                     action allow
-                    match "bgp peer show"
+                    match "peer show"
                 }
             }
             edit {
@@ -214,8 +214,8 @@ system {
 	store := extractAuthzConfig(tree)
 	require.NotNil(t, store)
 
-	// Operator can run "bgp peer show" (allowed by entry 10)
-	assert.Equal(t, authz.Allow, store.Authorize("operator", "bgp peer show", true),
+	// Operator can run "peer show" (allowed by entry 10)
+	assert.Equal(t, authz.Allow, store.Authorize("operator", "peer show", true),
 		"operator should be allowed to run 'bgp peer show'")
 
 	// Operator cannot run "restart" (no matching entry, default deny)
@@ -223,7 +223,7 @@ system {
 		"operator should be denied 'restart' (default deny)")
 
 	// Operator cannot edit anything (edit section default deny)
-	assert.Equal(t, authz.Deny, store.Authorize("operator", "bgp peer set", false),
+	assert.Equal(t, authz.Deny, store.Authorize("operator", "peer set", false),
 		"operator should be denied edit commands")
 
 	// Unknown user (no assignment) gets admin default (allow all)
@@ -271,7 +271,7 @@ system {
 	require.NotNil(t, store)
 
 	assert.Equal(t, authz.Allow, store.Authorize("boss", "restart", true))
-	assert.Equal(t, authz.Allow, store.Authorize("boss", "bgp peer set something", false))
+	assert.Equal(t, authz.Allow, store.Authorize("boss", "peer set something", false))
 }
 
 // TestExtractAuthzConfig_EntryOrder verifies entries are sorted by number
@@ -302,11 +302,11 @@ system {
                 default-action deny
                 entry 30 {
                     action deny
-                    match "bgp peer"
+                    match "peer"
                 }
                 entry 10 {
                     action allow
-                    match "bgp peer show"
+                    match "peer show"
                 }
             }
             edit {
@@ -322,13 +322,13 @@ system {
 	store := extractAuthzConfig(tree)
 	require.NotNil(t, store)
 
-	// Entry 10 (allow "bgp peer show") comes before entry 30 (deny "bgp peer").
-	// First match wins, so "bgp peer show" should be allowed.
-	assert.Equal(t, authz.Allow, store.Authorize("tester", "bgp peer show", true),
+	// Entry 10 (allow "peer show") comes before entry 30 (deny "peer").
+	// First match wins, so "peer show" should be allowed.
+	assert.Equal(t, authz.Allow, store.Authorize("tester", "peer show", true),
 		"entry 10 (allow) should match before entry 30 (deny)")
 
-	// "bgp peer restart" matches entry 30 (deny "bgp peer") — denied.
-	assert.Equal(t, authz.Deny, store.Authorize("tester", "bgp peer restart", true),
+	// "peer restart" matches entry 30 (deny "peer") — denied.
+	assert.Equal(t, authz.Deny, store.Authorize("tester", "peer restart", true),
 		"entry 30 (deny 'bgp peer') should deny 'bgp peer restart'")
 }
 

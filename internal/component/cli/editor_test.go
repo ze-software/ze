@@ -2118,7 +2118,7 @@ func TestEditorDiscardBareRejected(t *testing.T) {
 }
 
 // TestEditorDiscardPathBoundary verifies discard uses word boundaries, not raw prefix.
-// "bgp peer" must NOT match "bgp peer-group".
+// "peer" must NOT match "bgp peer-group".
 //
 // VALIDATES: Discard path uses word-boundary matching.
 // PREVENTS: Discarding unrelated paths that share a prefix.
@@ -2132,21 +2132,21 @@ func TestEditorDiscardPathBoundary(t *testing.T) {
 	session := NewEditSession("thomas", "local")
 	ed.SetSession(session)
 
-	// Set two values: one under "bgp peer 1.1.1.1" and one under "bgp" (router-id).
-	// The YANG path "bgp peer 1.1.1.1 hold-time" starts with "bgp peer",
-	// while "bgp router-id" does not -- but raw prefix "bgp peer" could match
+	// Set two values: one under "peer 1.1.1.1" and one under "bgp" (router-id).
+	// The YANG path "peer 1.1.1.1 hold-time" starts with "peer",
+	// while "bgp router-id" does not -- but raw prefix "peer" could match
 	// a hypothetical "bgp peer-group" if boundary matching is broken.
 	err = ed.SetValue([]string{"bgp", "peer", "1.1.1.1"}, "hold-time", "180")
 	require.NoError(t, err)
 	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err)
 
-	// Discard only "bgp peer" subtree.
+	// Discard only "peer" subtree.
 	err = ed.DiscardSessionPath([]string{"bgp", "peer"})
 	require.NoError(t, err)
 
 	// The peer entry's hold-time should be restored, but "bgp router-id" should
-	// still be pending. This also confirms that "bgp peer" doesn't accidentally
+	// still be pending. This also confirms that "peer" doesn't accidentally
 	// match "bgp router-id" (it wouldn't with the old code either, but exercises
 	// the boundary logic for space-separated YANG paths).
 	draftPath := DraftPath(configPath)

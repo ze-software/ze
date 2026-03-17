@@ -270,7 +270,7 @@ func TestHandlerCommandHelpMissingArg(t *testing.T) {
 func TestHandlerCommandHelpUnknown(t *testing.T) {
 	_, err := handleBgpCommandHelp(newTestContext(), []string{"nonexistent-command-xyz"})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown bgp command")
+	assert.Contains(t, err.Error(), "unknown command")
 }
 
 // TestHandlerCommandComplete verifies completion matching for partial input.

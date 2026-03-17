@@ -246,7 +246,7 @@ func TestModelCmdEditExactMatch(t *testing.T) {
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	// Edit "bgp peer 1.1.1.1" using full path (JUNOS-style)
+	// Edit "peer 1.1.1.1" using full path (JUNOS-style)
 	result, err := model.cmdEdit([]string{"bgp", "peer", "1.1.1.1"})
 	require.NoError(t, err)
 
@@ -307,7 +307,7 @@ func TestModelCmdUpFromTemplate(t *testing.T) {
 	model.contextPath = []string{"bgp", "peer", "*"}
 	model.isTemplate = true
 
-	// Call up - should go to bgp level (skipping invalid "bgp peer" context)
+	// Call up - should go to bgp level (skipping invalid "peer" context)
 	result, err := model.cmdUp()
 	require.NoError(t, err)
 

@@ -1120,8 +1120,8 @@ bgp {
 // matches the subcommand keywords derived from registered RPCs.
 // This test imports plugin/all so all init() registrations have run.
 //
-// VALIDATES: Hardcoded reserved names stay in sync with registered "bgp peer" RPCs.
-// PREVENTS: New "bgp peer <subcommand>" RPC added without updating reservedPeerNames.
+// VALIDATES: Hardcoded reserved names stay in sync with registered "peer" RPCs.
+// PREVENTS: New "peer <subcommand>" RPC added without updating reservedPeerNames.
 func TestReservedPeerNamesSyncWithRPCs(t *testing.T) {
 	dynamicKeywords := pluginserver.PeerSubcommandKeywords()
 	require.NotEmpty(t, dynamicKeywords, "plugin/all should register bgp peer RPCs")

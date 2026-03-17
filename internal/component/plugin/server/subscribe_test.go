@@ -17,7 +17,7 @@ import (
 
 // TestParseSubscriptionBasic verifies basic subscription parsing.
 //
-// VALIDATES: Simple "bgp event update" parses correctly.
+// VALIDATES: Simple "event update" parses correctly.
 // PREVENTS: Basic subscription parsing failures.
 func TestParseSubscriptionBasic(t *testing.T) {
 	sub, err := ParseSubscription([]string{"bgp", "event", "update"})
@@ -79,7 +79,7 @@ func TestParseSubscriptionWithPlugin(t *testing.T) {
 
 // TestParseSubscriptionWithDirection verifies direction filter.
 //
-// VALIDATES: "bgp event update direction received" extracts direction.
+// VALIDATES: "event update direction received" extracts direction.
 // PREVENTS: Direction filter not parsed.
 func TestParseSubscriptionWithDirection(t *testing.T) {
 	tests := []struct {

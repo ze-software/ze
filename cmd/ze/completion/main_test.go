@@ -64,7 +64,7 @@ func TestBashContainsSubcommands(t *testing.T) {
 	}{
 		{"bgp)", []string{"decode", "encode"}},
 		{"config)", []string{"edit", "check", "migrate", "fmt", "dump", "diff", "completion"}},
-		{"cli)", []string{"bgp"}},
+		{"cli)", []string{"help"}},
 		{"schema)", []string{"list", "show", "handlers", "methods", "events", "protocol"}},
 		{"signal)", []string{"reload", "stop", "quit"}},
 		{"exabgp)", []string{"plugin", "migrate"}},

@@ -46,7 +46,7 @@ func TestDocList(t *testing.T) {
 // PREVENTS: Doc output missing output parameters.
 func TestDocCommandWithOutputParams(t *testing.T) {
 	var buf bytes.Buffer
-	err := FormatDocCommand(&buf, "peer list")
+	err := FormatDocCommand(&buf, "summary")
 	require.NoError(t, err)
 
 	out := buf.String()
@@ -68,7 +68,7 @@ func TestDocCommandNoParams(t *testing.T) {
 // PREVENTS: Case-insensitive matching failure.
 func TestDocCommandCaseInsensitive(t *testing.T) {
 	var buf bytes.Buffer
-	err := FormatDocCommand(&buf, "BGP PEER LIST")
+	err := FormatDocCommand(&buf, "PEER LIST")
 	require.NoError(t, err)
 	assert.Contains(t, buf.String(), "peer list")
 }

@@ -20,7 +20,7 @@ func newDispatchContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandCo
 	return &pluginserver.CommandContext{Server: server}
 }
 
-// TestDispatchBGPPeerRaw verifies "bgp peer <addr> raw" dispatches correctly.
+// TestDispatchBGPPeerRaw verifies "peer <addr> raw" dispatches correctly.
 //
 // VALIDATES: Dispatch chain reaches handleRaw with peer selector.
 // PREVENTS: Raw message handler broken by dispatch chain.
@@ -28,7 +28,7 @@ func TestDispatchBGPPeerRaw(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := newDispatchContext(reactor)
 
-	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "bgp peer 192.0.2.1 raw update hex DEADBEEF")
+	resp, err := ctx.Server.Dispatcher().Dispatch(ctx, "peer 192.0.2.1 raw update hex DEADBEEF")
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 

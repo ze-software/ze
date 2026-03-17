@@ -390,7 +390,7 @@ func TestDispatchTeardownNoSelector(t *testing.T) {
 
 // TestDispatchWildcardSelector verifies that "*" counts as a valid selector.
 //
-// VALIDATES: spec-editor-3 AC-3: "bgp peer * eorr ipv4/unicast" → works.
+// VALIDATES: spec-editor-3 AC-3: "peer * eorr ipv4/unicast" → works.
 // PREVENTS: Explicit wildcard rejected when it should be allowed.
 func TestDispatchWildcardSelector(t *testing.T) {
 	d := NewDispatcher()
@@ -402,7 +402,7 @@ func TestDispatchWildcardSelector(t *testing.T) {
 	}, "Send EoRR", RegisterOptions{RequiresSelector: true})
 
 	ctx := &CommandContext{}
-	resp, err := d.Dispatch(ctx, "bgp peer * eorr ipv4/unicast")
+	resp, err := d.Dispatch(ctx, "peer * eorr ipv4/unicast")
 	require.NoError(t, err)
 	assert.Equal(t, "done", resp.Status)
 	assert.Equal(t, "*", calledWithPeer)
@@ -452,28 +452,23 @@ func TestForwardToPluginRegistered(t *testing.T) {
 // TestForwardToPluginNoBuiltinConflict verifies that registering a builtin
 // with "rib status" does not conflict with a plugin command "rib status".
 //
-// VALIDATES: Builtin proxy "rib status" and plugin "rib status" coexist.
-// PREVENTS: Builtin registration accidentally blocking plugin command lookup.
-func TestForwardToPluginNoBuiltinConflict(t *testing.T) {
+// VALIDATES: Builtin proxy "rib status" blocks plugin registration of same name.
+// PREVENTS: Duplicate command name confusion in dispatch.
+func TestForwardToPluginBuiltinConflict(t *testing.T) {
 	d := NewDispatcher()
 
-	// Register builtin "rib status" (what the proxy does)
+	// Register builtin "rib status" (the proxy handler)
 	d.Register("rib status", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
 		return &plugin.Response{Status: plugin.StatusDone}, nil
 	}, "RIB summary")
 
-	// Register plugin command "rib status" (what bgp-rib does at runtime)
+	// Plugin tries to register same name -- should be rejected
 	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-rib"})
 	results := d.Registry().Register(proc, []CommandDef{
 		{Name: "rib status", Description: "RIB summary"},
 	})
-	assert.True(t, results[0].OK, "plugin 'rib status' should not conflict with builtin 'bgp rib status'")
-
-	// ForwardToPlugin should find the plugin command
-	_, err := d.ForwardToPlugin("rib status", nil, "*")
-	// Error because process not running, but NOT ErrUnknownCommand
-	require.Error(t, err)
-	assert.False(t, errors.Is(err, ErrUnknownCommand))
+	assert.False(t, results[0].OK, "plugin 'rib status' should conflict with builtin 'rib status'")
+	assert.Contains(t, results[0].Error, "conflicts with builtin")
 }
 
 // mockAuthorizer implements Authorizer for testing.

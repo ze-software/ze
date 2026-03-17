@@ -13,12 +13,12 @@ func RegisterRPCs(rpcs ...RPCRegistration) {
 	registeredRPCs = append(registeredRPCs, rpcs...)
 }
 
-// PeerSubcommandKeywords returns the set of first words that follow "bgp peer"
+// PeerSubcommandKeywords returns the set of first words that follow "peer"
 // in registered CLI commands. Used by config validation to reject peer names
 // that would collide with subcommand dispatch.
 // Derived dynamically from registeredRPCs so the set stays in sync automatically.
 func PeerSubcommandKeywords() map[string]bool {
-	const prefix = "bgp peer "
+	const prefix = "peer "
 	keywords := make(map[string]bool)
 	for _, rpc := range registeredRPCs {
 		cmd := strings.ToLower(rpc.CLICommand)

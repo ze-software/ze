@@ -61,11 +61,11 @@ func BenchmarkDispatch(b *testing.B) {
 		name string
 		cmd  string
 	}{
-		{"peer_list", "bgp peer list"},
+		{"peer_list", "peer list"},
 		{"daemon_status", "daemon status"},
 		{"system_version", "system version software"},
 		{"system_command_list", "system command list"},
-		{"peer_show_selector", "bgp peer 10.0.0.1 show"},
+		{"peer_show_selector", "peer 10.0.0.1 show"},
 		{"rib_help", "rib help"},
 	}
 
@@ -86,7 +86,7 @@ func BenchmarkDispatchLookup(b *testing.B) {
 	RegisterDefaultHandlers(d)
 
 	commands := []string{
-		"bgp peer list",
+		"peer list",
 		"daemon status",
 		"system version software",
 		"system command list",
@@ -108,8 +108,8 @@ func BenchmarkTokenize(b *testing.B) {
 		name  string
 		input string
 	}{
-		{"simple", "bgp peer list"},
-		{"with_selector", "bgp peer 10.0.0.1 show"},
+		{"simple", "peer list"},
+		{"with_selector", "peer 10.0.0.1 show"},
 		{"quoted", `bgp peer 10.0.0.1 update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24`},
 		{"long_update", `update text origin set igp as-path set [ 65001 65002 65003 ] nhop set 192.168.1.1 nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24 10.0.2.0/24`},
 	}
@@ -164,7 +164,7 @@ func BenchmarkPluginStartup(b *testing.B) {
 	for b.Loop() {
 		d := NewDispatcher()
 		RegisterDefaultHandlers(d)
-		benchCmd = d.Lookup("bgp peer list")
+		benchCmd = d.Lookup("peer list")
 	}
 }
 
@@ -209,7 +209,7 @@ func BenchmarkMemoryPerConnection(b *testing.B) {
 			Server: &Server{reactor: reactor, dispatcher: d},
 			Peer:   "*",
 		}
-		benchResp, benchErr = d.Dispatch(ctx, "bgp peer list")
+		benchResp, benchErr = d.Dispatch(ctx, "peer list")
 	}
 }
 

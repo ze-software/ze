@@ -57,7 +57,7 @@ func TestPersist_SentUpdate_StoresRoute(t *testing.T) {
 
 	hasRetain := false
 	for _, cmd := range commands {
-		if strings.Contains(cmd, "bgp cache 42 retain") {
+		if strings.Contains(cmd, "cache 42 retain") {
 			hasRetain = true
 		}
 	}
@@ -101,7 +101,7 @@ func TestPersist_SentWithdrawal_RemovesRoute(t *testing.T) {
 
 	hasRelease := false
 	for _, cmd := range commands {
-		if strings.Contains(cmd, "bgp cache 42 release") {
+		if strings.Contains(cmd, "cache 42 release") {
 			hasRelease = true
 		}
 	}
@@ -338,10 +338,10 @@ func TestPersist_RouteReplacement_ReleasesOld(t *testing.T) {
 	hasRelease42 := false
 	hasRetain43 := false
 	for _, cmd := range commands {
-		if strings.Contains(cmd, "bgp cache 42 release") {
+		if strings.Contains(cmd, "cache 42 release") {
 			hasRelease42 = true
 		}
-		if strings.Contains(cmd, "bgp cache 43 retain") {
+		if strings.Contains(cmd, "cache 43 retain") {
 			hasRetain43 = true
 		}
 	}

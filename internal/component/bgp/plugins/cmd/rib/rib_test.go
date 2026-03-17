@@ -46,10 +46,10 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 		wire string
 		cli  string
 	}{
-		{"ze-rib-api:status", "bgp rib status"},
-		{"ze-rib-api:routes", "bgp rib routes"},
-		{"ze-rib-api:best", "bgp rib best"},
-		{"ze-rib-api:best-status", "bgp rib best status"},
+		{"ze-rib-api:status", "rib status"},
+		{"ze-rib-api:routes", "rib routes"},
+		{"ze-rib-api:best", "rib best"},
+		{"ze-rib-api:best-status", "rib best status"},
 	} {
 		r, ok := byWire[tc.wire]
 		assert.True(t, ok, "missing RPC: %s", tc.wire)
@@ -64,8 +64,8 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 		wire string
 		cli  string
 	}{
-		{"ze-rib-api:clear-in", "bgp rib clear in"},
-		{"ze-rib-api:clear-out", "bgp rib clear out"},
+		{"ze-rib-api:clear-in", "rib clear in"},
+		{"ze-rib-api:clear-out", "rib clear out"},
 	} {
 		r, ok := byWire[tc.wire]
 		assert.True(t, ok, "missing RPC: %s", tc.wire)
