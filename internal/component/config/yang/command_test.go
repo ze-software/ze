@@ -341,6 +341,48 @@ func TestCommitNoEditShortcut(t *testing.T) {
 	assert.False(t, HasEditShortcutExtension(entry.Dir["commit"]), "ze-bgp:commit is NOT an edit shortcut")
 }
 
+// TestLogCmdModule verifies ze-log-cmd.yang (log operations from cmd/log plugin).
+//
+// VALIDATES: Log command YANG module loads with log > levels and log > set nodes.
+// PREVENTS: Log commands missing from the command tree.
+func TestLogCmdModule(t *testing.T) {
+	loader := NewLoader()
+	err := loader.LoadEmbedded()
+	require.NoError(t, err)
+	loadCmdModule(t, loader, cmdBase+"log/schema/ze-log-cmd.yang")
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	entry := loader.GetEntry("ze-log-cmd")
+	require.NotNil(t, entry)
+
+	log := entry.Dir["log"]
+	require.NotNil(t, log)
+	assert.Equal(t, "ze-bgp:log-levels", GetCommandExtension(log.Dir["levels"]))
+	assert.Equal(t, "ze-bgp:log-set", GetCommandExtension(log.Dir["set"]))
+}
+
+// TestMetricsCmdModule verifies ze-metrics-cmd.yang (metrics operations from cmd/metrics plugin).
+//
+// VALIDATES: Metrics command YANG module loads with metrics > values and metrics > list nodes.
+// PREVENTS: Metrics commands missing from the command tree.
+func TestMetricsCmdModule(t *testing.T) {
+	loader := NewLoader()
+	err := loader.LoadEmbedded()
+	require.NoError(t, err)
+	loadCmdModule(t, loader, cmdBase+"metrics/schema/ze-metrics-cmd.yang")
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	entry := loader.GetEntry("ze-metrics-cmd")
+	require.NotNil(t, entry)
+
+	metrics := entry.Dir["metrics"]
+	require.NotNil(t, metrics)
+	assert.Equal(t, "ze-bgp:metrics-values", GetCommandExtension(metrics.Dir["values"]))
+	assert.Equal(t, "ze-bgp:metrics-list", GetCommandExtension(metrics.Dir["list"]))
+}
+
 // TestRawCmdModule verifies ze-raw-cmd.yang (peer raw from cmd/raw plugin).
 //
 // VALIDATES: Raw command YANG module loads with peer > raw node.
@@ -409,25 +451,32 @@ func TestBuildCommandTree(t *testing.T) {
 	assert.Equal(t, "", peer.Description, "peer is a grouping, no description from ze:command")
 	assert.Equal(t, "", peer.WireMethod, "peer grouping has no WireMethod")
 
-	// From ze-peer-cmd
-	assert.NotNil(t, peer.Children["list"], "peer.list from ze-peer-cmd")
-	assert.NotNil(t, peer.Children["add"], "peer.add from ze-peer-cmd")
+	// From ze-peer-cmd -- verify WireMethod on merged leaves
+	require.NotNil(t, peer.Children["list"], "peer.list from ze-peer-cmd")
+	assert.Equal(t, "ze-bgp:peer-list", peer.Children["list"].WireMethod)
+	require.NotNil(t, peer.Children["add"], "peer.add from ze-peer-cmd")
+	assert.Equal(t, "ze-bgp:peer-add", peer.Children["add"].WireMethod)
 
 	// From ze-raw-cmd
-	assert.NotNil(t, peer.Children["raw"], "peer.raw from ze-raw-cmd")
+	require.NotNil(t, peer.Children["raw"], "peer.raw from ze-raw-cmd")
+	assert.Equal(t, "ze-bgp:peer-raw", peer.Children["raw"].WireMethod)
 
 	// From ze-refresh-cmd
-	assert.NotNil(t, peer.Children["refresh"], "peer.refresh from ze-refresh-cmd")
+	require.NotNil(t, peer.Children["refresh"], "peer.refresh from ze-refresh-cmd")
+	assert.Equal(t, "ze-bgp:peer-refresh", peer.Children["refresh"].WireMethod)
 	assert.NotNil(t, peer.Children["borr"], "peer.borr from ze-refresh-cmd")
 
 	// Deep merge: peer > clear > soft from ze-refresh-cmd
 	clearNode := peer.Children["clear"]
 	require.NotNil(t, clearNode, "peer.clear should exist")
-	assert.NotNil(t, clearNode.Children["soft"], "peer.clear.soft from ze-refresh-cmd")
+	assert.Equal(t, "", clearNode.WireMethod, "peer.clear is grouping")
+	require.NotNil(t, clearNode.Children["soft"], "peer.clear.soft from ze-refresh-cmd")
+	assert.Equal(t, "ze-bgp:peer-clear-soft", clearNode.Children["soft"].WireMethod)
 
 	// "summary" from ze-peer-cmd (top-level, not under peer)
 	summary := tree.Children["summary"]
 	require.NotNil(t, summary, "summary should exist")
+	assert.Equal(t, "ze-bgp:summary", summary.WireMethod)
 }
 
 // TestBuildCommandTreeEmpty verifies BuildCommandTree handles no -cmd modules.

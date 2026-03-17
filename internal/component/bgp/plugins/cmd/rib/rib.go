@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/commands.md — RIB CLI proxy handlers
+// Overview: doc.go — bgp-cmd-rib plugin registration
 //
 // Package rib registers CLI proxy handlers that forward RIB commands to
 // the bgp-rib plugin process. Each handler bridges the compile-time builtin

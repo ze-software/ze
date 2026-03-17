@@ -198,6 +198,10 @@ func walkEntry(entry *gyang.Entry, path, module string, commands *[]CommandEntry
 		return
 	}
 	for name, child := range entry.Dir {
+		// Match BuildCommandTree: only walk config false containers.
+		if child.Config != gyang.TSFalse {
+			continue
+		}
 		childPath := path + name
 		wm := yang.GetCommandExtension(child)
 		if wm != "" {
