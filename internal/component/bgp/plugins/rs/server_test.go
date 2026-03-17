@@ -989,7 +989,7 @@ func TestBatchForwardAccumulation(t *testing.T) {
 			forwardCount++
 			// Check if the ID portion contains a comma (batch).
 			parts := strings.Fields(cmd)
-			if len(parts) >= 3 && strings.Contains(parts[2], ",") {
+			if len(parts) >= 2 && strings.Contains(parts[1], ",") {
 				hasBatch = true
 			}
 		}

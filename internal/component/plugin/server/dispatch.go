@@ -112,16 +112,14 @@ func (s *Server) handleUpdateRouteRPC(proc *process.Process, connA *plugipc.Plug
 	}
 
 	// Reconstruct the full command for the dispatcher.
-	// Commands from "peer <sel> <cmd>" arrive with the peer selector stripped
-	// and command as just "<cmd>" (e.g., "update text ..."). These need "peer "
-	// prepended for the dispatcher to match "peer update", "peer teardown", etc.
-	// The peer selector is included so the dispatcher sees it as explicit
-	// (required for RequiresSelector commands).
+	// Commands arrive in two forms:
+	// 1. Peer subcommands: just "<cmd>" (e.g., "update text ...") -- need "peer <sel> " prepended
+	// 2. Top-level commands: "cache ...", "peer ...", "commit ..." -- pass through directly
 	//
-	// Commands that already start with a known top-level token (e.g., "peer ...",
-	// "cache list") arrive intact and are passed through directly.
+	// Detect form by checking if the command matches a registered dispatch prefix.
+	// If it does, pass through. If not, it's a peer subcommand.
 	var dispatchCmd string
-	if strings.HasPrefix(strings.ToLower(input.Command), "peer ") {
+	if s.dispatcher.HasCommandPrefix(input.Command) {
 		dispatchCmd = input.Command
 	} else {
 		dispatchCmd = "peer " + cmdCtx.Peer + " " + input.Command
@@ -374,7 +372,7 @@ func (s *Server) handleUpdateRouteDirect(proc *process.Process, params json.RawM
 	}
 
 	var dispatchCmd string
-	if strings.HasPrefix(strings.ToLower(input.Command), "peer ") {
+	if s.dispatcher.HasCommandPrefix(input.Command) {
 		dispatchCmd = input.Command
 	} else {
 		dispatchCmd = "peer " + cmdCtx.Peer + " " + input.Command

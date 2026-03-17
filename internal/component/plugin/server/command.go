@@ -160,6 +160,18 @@ func NewDispatcher() *Dispatcher {
 	}
 }
 
+// HasCommandPrefix returns true if the input matches any registered command prefix.
+// Used by dispatch routing to distinguish top-level commands from peer subcommands.
+func (d *Dispatcher) HasCommandPrefix(input string) bool {
+	lower := strings.ToLower(strings.TrimSpace(input))
+	for _, key := range d.sortedKeys {
+		if strings.HasPrefix(lower, key) && (len(lower) == len(key) || lower[len(key)] == ' ') {
+			return true
+		}
+	}
+	return false
+}
+
 // SetAuthorizer sets the authorization checker for the dispatcher.
 // When set, all commands are checked against the authorizer before execution.
 func (d *Dispatcher) SetAuthorizer(a Authorizer) {

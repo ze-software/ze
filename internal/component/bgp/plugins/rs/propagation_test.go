@@ -125,14 +125,14 @@ func TestRedistribution_ForwardReachesEngine(t *testing.T) {
 			t.Fatalf("unmarshal params: %v", err)
 		}
 
-		// Parse "cache <ids> forward <selector>" — ids may be comma-separated.
+		// Parse "cache <ids> forward <selector>" -- ids may be comma-separated.
 		parts := strings.Fields(input.Command)
-		if len(parts) < 4 || parts[0] != "bgp" || parts[1] != "cache" || parts[3] != "forward" {
+		if len(parts) < 3 || parts[0] != "cache" || parts[2] != "forward" {
 			t.Fatalf("unexpected command format: %q", input.Command)
 		}
 
-		idStr := parts[2]
-		selectorStr := parts[4]
+		idStr := parts[1]
+		selectorStr := parts[3]
 
 		for s := range strings.SplitSeq(idStr, ",") {
 			id, parseErr := strconv.ParseUint(s, 10, 64)

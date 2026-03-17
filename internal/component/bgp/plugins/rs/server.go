@@ -315,7 +315,7 @@ func (rs *RouteServer) releaseCache(msgID uint64) {
 	case rs.releaseCh <- msgID:
 	default: // Channel full — release synchronously to avoid dropping.
 		logger().Warn("release channel full, falling back to sync", "msgID", msgID)
-		rs.updateRoute("*", fmt.Sprintf("bgp cache %d release", msgID))
+		rs.updateRoute("*", fmt.Sprintf("cache %d release", msgID))
 	}
 }
 
@@ -332,13 +332,13 @@ func (rs *RouteServer) startReleaseLoop() {
 		for {
 			select {
 			case msgID := <-rs.releaseCh:
-				rs.updateRoute("*", fmt.Sprintf("bgp cache %d release", msgID))
+				rs.updateRoute("*", fmt.Sprintf("cache %d release", msgID))
 			case <-rs.releaseStop:
 				// Drain remaining buffered items before exiting.
 				for {
 					select {
 					case msgID := <-rs.releaseCh:
-						rs.updateRoute("*", fmt.Sprintf("bgp cache %d release", msgID))
+						rs.updateRoute("*", fmt.Sprintf("cache %d release", msgID))
 					default: // buffer empty — drain complete
 						return
 					}
@@ -436,9 +436,9 @@ func isConnectionError(err error) bool {
 // pause/resume RPCs. Called once after worker pool creation.
 //
 // High-water (channel full): dispatch() checks BackpressureDetected() after each
-// Dispatch and sends "bgp peer pause <addr>" to the engine.
+// Dispatch and sends "peer pause <addr>" to the engine.
 // Low-water (<10%): the onLowWater callback fires in the worker goroutine
-// and sends "bgp peer resume <addr>" to the engine.
+// and sends "peer resume <addr>" to the engine.
 func (rs *RouteServer) wireFlowControl() {
 	rs.pausedPeers = make(map[string]bool)
 
@@ -452,7 +452,7 @@ func (rs *RouteServer) wireFlowControl() {
 
 		if wasPaused {
 			logger().Info("resuming peer", "source-peer", key.sourcePeer)
-			rs.updateRoute("*", "bgp peer "+key.sourcePeer+" resume")
+			rs.updateRoute("*", "peer "+key.sourcePeer+" resume")
 		}
 	}
 }
@@ -470,7 +470,7 @@ func (rs *RouteServer) resumeAllPaused() {
 
 	for _, addr := range paused {
 		logger().Info("shutdown: resuming peer", "source-peer", addr)
-		rs.updateRoute("*", "bgp peer "+addr+" resume")
+		rs.updateRoute("*", "peer "+addr+" resume")
 	}
 }
 
@@ -522,7 +522,7 @@ func (rs *RouteServer) dispatchText(text string) {
 				rs.pausedPeers[peerAddr] = true
 				rs.mu.Unlock()
 				logger().Debug("pausing peer", "source-peer", peerAddr)
-				rs.updateRoute("*", "bgp peer "+peerAddr+" pause")
+				rs.updateRoute("*", "peer "+peerAddr+" pause")
 			} else {
 				rs.mu.Unlock()
 			}
@@ -578,7 +578,7 @@ func (rs *RouteServer) dispatchStructured(peerAddr string, msg *bgptypes.RawMess
 			rs.pausedPeers[peerAddr] = true
 			rs.mu.Unlock()
 			logger().Debug("pausing peer", "source-peer", peerAddr)
-			rs.updateRoute("*", "bgp peer "+peerAddr+" pause")
+			rs.updateRoute("*", "peer "+peerAddr+" pause")
 		} else {
 			rs.mu.Unlock()
 		}

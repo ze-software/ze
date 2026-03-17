@@ -105,7 +105,7 @@ func (rs *RouteServer) flushBatch(batch *forwardBatch) {
 
 	// Single ID — use existing format (no comma).
 	if len(batch.ids) == 1 {
-		rs.asyncForward("*", fmt.Sprintf("bgp cache %d forward %s", batch.ids[0], batch.selector))
+		rs.asyncForward("*", fmt.Sprintf("cache %d forward %s", batch.ids[0], batch.selector))
 		return
 	}
 
@@ -114,7 +114,7 @@ func (rs *RouteServer) flushBatch(batch *forwardBatch) {
 	for i, id := range batch.ids {
 		idStrs[i] = strconv.FormatUint(id, 10)
 	}
-	rs.asyncForward("*", fmt.Sprintf("bgp cache %s forward %s", strings.Join(idStrs, ","), batch.selector))
+	rs.asyncForward("*", fmt.Sprintf("cache %s forward %s", strings.Join(idStrs, ","), batch.selector))
 }
 
 // flushWorkerBatch flushes the batch for a given worker key.
