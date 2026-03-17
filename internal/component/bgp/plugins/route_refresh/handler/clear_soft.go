@@ -14,7 +14,7 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-clear-soft", CLICommand: "bgp peer clear soft", Handler: handleBgpPeerClearSoft, Help: "Soft-clear peer (send ROUTE-REFRESH for all families)", RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-clear-soft", CLICommand: "peer clear soft", Handler: handleBgpPeerClearSoft, Help: "Soft-clear peer (send ROUTE-REFRESH for all families)", RequiresSelector: true},
 	)
 }
 

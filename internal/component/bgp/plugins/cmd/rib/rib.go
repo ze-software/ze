@@ -29,13 +29,13 @@ const (
 func init() {
 	pluginserver.RegisterRPCs(
 		// Read-only commands (exposed via "ze show")
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:status", CLICommand: "bgp rib status", Handler: forwardRibStatus, Help: "RIB summary (peer count, route counts)", ReadOnly: true, PluginCommand: cmdRibStatus},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:routes", CLICommand: "bgp rib routes", Handler: forwardRibRoutes, Help: "Routes (scope + filters + terminal)", ReadOnly: true, PluginCommand: cmdRibShow},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:best", CLICommand: "bgp rib best", Handler: forwardRibBest, Help: "Best-path per prefix", ReadOnly: true, PluginCommand: cmdRibBest},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:best-status", CLICommand: "bgp rib best status", Handler: forwardRibBestStatus, Help: "Best-path computation status", ReadOnly: true, PluginCommand: cmdRibBestStatus},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:status", CLICommand: "rib status", Handler: forwardRibStatus, Help: "RIB summary (peer count, route counts)", ReadOnly: true, PluginCommand: cmdRibStatus},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:routes", CLICommand: "rib routes", Handler: forwardRibRoutes, Help: "Routes (scope + filters + terminal)", ReadOnly: true, PluginCommand: cmdRibShow},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:best", CLICommand: "rib best", Handler: forwardRibBest, Help: "Best-path per prefix", ReadOnly: true, PluginCommand: cmdRibBest},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:best-status", CLICommand: "rib best status", Handler: forwardRibBestStatus, Help: "Best-path computation status", ReadOnly: true, PluginCommand: cmdRibBestStatus},
 		// Write commands (exposed via "ze run" only)
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:clear-in", CLICommand: "bgp rib clear in", Handler: forwardRibClearIn, Help: "Clear Adj-RIB-In routes", PluginCommand: cmdRibClearIn},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:clear-out", CLICommand: "bgp rib clear out", Handler: forwardRibClearOut, Help: "Resend Adj-RIB-Out routes", PluginCommand: cmdRibClearOut},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:clear-in", CLICommand: "rib clear in", Handler: forwardRibClearIn, Help: "Clear Adj-RIB-In routes", PluginCommand: cmdRibClearIn},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:clear-out", CLICommand: "rib clear out", Handler: forwardRibClearOut, Help: "Resend Adj-RIB-Out routes", PluginCommand: cmdRibClearOut},
 	)
 }
 

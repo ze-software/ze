@@ -13,11 +13,11 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:help", CLICommand: "bgp help", Handler: handleBgpHelp, Help: "List bgp subcommands", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-list", CLICommand: "bgp command list", Handler: handleBgpCommandList, Help: "List bgp commands", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-help", CLICommand: "bgp command help", Handler: handleBgpCommandHelp, Help: "Show command details", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-complete", CLICommand: "bgp command complete", Handler: handleBgpCommandComplete, Help: "Complete command/args", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:event-list", CLICommand: "bgp event list", Handler: handleBgpEventList, Help: "List available BGP event types", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:help", CLICommand: "help", Handler: handleBgpHelp, Help: "List bgp subcommands", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-list", CLICommand: "command list", Handler: handleBgpCommandList, Help: "List bgp commands", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-help", CLICommand: "command help", Handler: handleBgpCommandHelp, Help: "Show command details", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-complete", CLICommand: "command complete", Handler: handleBgpCommandComplete, Help: "Complete command/args", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:event-list", CLICommand: "event list", Handler: handleBgpEventList, Help: "List available BGP event types", ReadOnly: true},
 	)
 }
 

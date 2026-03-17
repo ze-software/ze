@@ -13,9 +13,9 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:plugin-encoding", CLICommand: "bgp plugin encoding", Handler: handleBgpPluginEncoding, Help: "Set event encoding (json|text)"},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:plugin-format", CLICommand: "bgp plugin format", Handler: handleBgpPluginFormat, Help: "Set wire format (hex|base64|parsed|full)"},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:plugin-ack", CLICommand: "bgp plugin ack", Handler: handleBgpPluginAck, Help: "Set ACK timing (sync|async)"},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:plugin-encoding", CLICommand: "plugin encoding", Handler: handleBgpPluginEncoding, Help: "Set event encoding (json|text)"},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:plugin-format", CLICommand: "plugin format", Handler: handleBgpPluginFormat, Help: "Set wire format (hex|base64|parsed|full)"},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:plugin-ack", CLICommand: "plugin ack", Handler: handleBgpPluginAck, Help: "Set ACK timing (sync|async)"},
 	)
 }
 

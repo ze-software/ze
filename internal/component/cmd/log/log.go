@@ -11,8 +11,8 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:log-levels", CLICommand: "bgp log levels", Handler: handleLogLevels, Help: "Subsystem log levels", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:log-set", CLICommand: "bgp log set", Handler: handleLogSet, Help: "Set subsystem log level at runtime"},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:log-levels", CLICommand: "log levels", Handler: handleLogLevels, Help: "Subsystem log levels", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:log-set", CLICommand: "log set", Handler: handleLogSet, Help: "Set subsystem log level at runtime"},
 	)
 }
 
