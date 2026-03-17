@@ -449,8 +449,82 @@ func TestForwardToPluginRegistered(t *testing.T) {
 	assert.Nil(t, resp)
 }
 
-// TestForwardToPluginNoBuiltinConflict verifies that registering a builtin
-// with "rib status" does not conflict with a plugin command "rib status".
+// TestHasCommandPrefix verifies the prefix matching for dispatch routing.
+//
+// VALIDATES: HasCommandPrefix correctly identifies registered builtin and plugin commands.
+// PREVENTS: Dispatch routing misclassifying commands as peer subcommands.
+func TestHasCommandPrefix(t *testing.T) {
+	d := NewDispatcher()
+	nop := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+	d.Register("peer list", nop, "List peers")
+	d.Register("peer teardown", nop, "Teardown peer")
+	d.Register("cache", nop, "Cache ops")
+	d.Register("summary", nop, "Summary")
+
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		// Exact matches
+		{"peer list", true},
+		{"cache", true},
+		{"summary", true},
+
+		// Prefix with args
+		{"peer list --verbose", true},
+		{"cache 7 forward 10.0.0.2", true},
+		{"summary --json", true},
+
+		// Case insensitive
+		{"PEER LIST", true},
+		{"Cache", true},
+
+		// Not a word boundary
+		{"peerlist", false},
+		{"cacheX", false},
+		{"summaryX", false},
+
+		// Unknown commands
+		{"unknown", false},
+		{"update text nhop set 1.1.1.1", false},
+
+		// Empty / whitespace
+		{"", false},
+		{"   ", false},
+
+		// Peer with IP (not a registered command prefix)
+		{"peer 10.0.0.1 teardown", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			assert.Equal(t, tt.want, d.HasCommandPrefix(tt.input))
+		})
+	}
+}
+
+// TestHasCommandPrefixPluginRegistry verifies plugin commands are also checked.
+//
+// VALIDATES: HasCommandPrefix checks plugin registry, not just builtins.
+// PREVENTS: Plugin commands being misrouted as peer subcommands.
+func TestHasCommandPrefixPluginRegistry(t *testing.T) {
+	d := NewDispatcher()
+	// No builtins registered
+
+	// Register a plugin command
+	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-watchdog"})
+	d.Registry().Register(proc, []CommandDef{
+		{Name: "watchdog announce", Description: "Announce watchdog route"},
+	})
+
+	assert.True(t, d.HasCommandPrefix("watchdog announce dnsr"), "plugin command should match")
+	assert.False(t, d.HasCommandPrefix("unknown command"), "non-registered should not match")
+}
+
+// TestForwardToPluginBuiltinConflict verifies that registering a builtin
+// with "rib status" conflicts with a plugin command "rib status".
 //
 // VALIDATES: Builtin proxy "rib status" blocks plugin registration of same name.
 // PREVENTS: Duplicate command name confusion in dispatch.

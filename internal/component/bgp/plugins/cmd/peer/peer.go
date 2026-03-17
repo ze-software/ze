@@ -63,7 +63,7 @@ func filterPeersBySelector(ctx *pluginserver.CommandContext) ([]plugin.PeerInfo,
 }
 
 // handleBgpPeerList returns a brief list of peer(s) indexed by IP.
-// Used by "bgp peer <selector> list" - filters to matching peers.
+// Used by "peer <selector> list" - filters to matching peers.
 // The selector is extracted by dispatcher into ctx.Peer.
 func handleBgpPeerList(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	peers, errResp, err := filterPeersBySelector(ctx)
@@ -97,7 +97,7 @@ func handleBgpPeerList(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 }
 
 // handleBgpPeerDetail returns detailed peer information indexed by IP.
-// Used by "bgp peer <selector> detail" - filters to matching peers.
+// Used by "peer <selector> detail" - filters to matching peers.
 // The selector is extracted by dispatcher into ctx.Peer.
 func handleBgpPeerDetail(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	peers, errResp, err := filterPeersBySelector(ctx)
@@ -146,7 +146,7 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 	}, nil
 }
 
-// handleTeardown handles "bgp peer <ip> teardown <subcode>" command.
+// handleTeardown handles "peer <ip> teardown <subcode>" command.
 // The peer IP is extracted by the dispatcher into ctx.Peer.
 // Subcode is the Cease subcode per RFC 4486.
 func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
@@ -158,7 +158,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: bgp peer <ip> teardown <subcode>",
+			Data:   "usage: peer <ip> teardown <subcode>",
 		}, fmt.Errorf("missing cease subcode")
 	}
 
@@ -167,7 +167,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 	if peer == "*" || peer == "" {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "teardown requires specific peer: bgp peer <ip> teardown <subcode>",
+			Data:   "teardown requires specific peer: peer <ip> teardown <subcode>",
 		}, fmt.Errorf("no peer specified")
 	}
 
@@ -226,7 +226,7 @@ func parseUint(s string) (uint64, error) {
 	return n, nil
 }
 
-// handleBgpPeerAdd handles "bgp peer <ip> add asn <asn> [options...]" command.
+// handleBgpPeerAdd handles "peer <ip> add asn <asn> [options...]" command.
 // Adds a peer dynamically at runtime.
 //
 // Options:
@@ -248,7 +248,7 @@ func handleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	if peer == "*" || peer == "" {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "add requires specific peer: bgp peer <ip> add asn <asn>",
+			Data:   "add requires specific peer: peer <ip> add asn <asn>",
 		}, fmt.Errorf("no peer specified")
 	}
 
@@ -355,7 +355,7 @@ func handleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	if config.PeerAS == 0 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "asn is required: bgp peer <ip> add asn <asn>",
+			Data:   "asn is required: peer <ip> add asn <asn>",
 		}, fmt.Errorf("missing required asn")
 	}
 
@@ -377,7 +377,7 @@ func handleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	}, nil
 }
 
-// handleBgpPeerRemove handles "bgp peer <ip> remove" command.
+// handleBgpPeerRemove handles "peer <ip> remove" command.
 // Removes a peer dynamically at runtime.
 func handleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	_, errResp, err := pluginserver.RequireReactor(ctx)
@@ -390,7 +390,7 @@ func handleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 	if peer == "*" || peer == "" {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "remove requires specific peer: bgp peer <ip> remove",
+			Data:   "remove requires specific peer: peer <ip> remove",
 		}, fmt.Errorf("no peer specified")
 	}
 
@@ -419,7 +419,7 @@ func handleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 	}, nil
 }
 
-// handleBgpPeerPause handles "bgp peer <ip> pause" command.
+// handleBgpPeerPause handles "peer <ip> pause" command.
 // Pauses the peer's read loop for flow control (backpressure from plugins).
 func handleBgpPeerPause(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	return peerFlowControl(ctx, "pause", func(r plugin.ReactorLifecycle, addr netip.Addr) error {
@@ -427,7 +427,7 @@ func handleBgpPeerPause(ctx *pluginserver.CommandContext, _ []string) (*plugin.R
 	})
 }
 
-// handleBgpPeerResume handles "bgp peer <ip> resume" command.
+// handleBgpPeerResume handles "peer <ip> resume" command.
 // Resumes the peer's read loop after a flow-control pause.
 func handleBgpPeerResume(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	return peerFlowControl(ctx, "resume", func(r plugin.ReactorLifecycle, addr netip.Addr) error {
@@ -446,7 +446,7 @@ func peerFlowControl(ctx *pluginserver.CommandContext, action string, fn func(pl
 	if peer == "*" || peer == "" {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("%s requires specific peer: bgp peer <ip> %s", action, action),
+			Data:   fmt.Sprintf("%s requires specific peer: peer <ip> %s", action, action),
 		}, fmt.Errorf("no peer specified")
 	}
 
