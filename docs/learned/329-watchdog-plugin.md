@@ -9,7 +9,7 @@ Extract all watchdog state and logic from the engine reactor into a new `bgp-wat
 - Chose `update text` commands over internal wire builders: makes the plugin polyglot-compatible and removes wire encoding concerns from the plugin entirely.
 - Per-peer config WatchdogGroups and global API pools extracted together — they share command handler, adapter, and reconnect path; splitting them would leave the reconnect path broken.
 - Plugin parses config JSON tree independently (same pattern as bgp-gr), no shared types needed between engine and plugin.
-- Plugin commands registered with full `bgp watchdog` prefix, not just `watchdog` — dispatcher uses longest-prefix match on the full command string including domain.
+- Plugin commands registered as `watchdog announce`/`watchdog withdraw` — dispatcher uses longest-prefix match on the full command string. The `bgp` prefix was removed from all commands.
 - Global API pool commands (bgp watchdog route add) deferred: config-based per-peer pools cover the use case; pool data structure is in place for future addition.
 
 ## Patterns
@@ -20,9 +20,9 @@ Extract all watchdog state and logic from the engine reactor into a new `bgp-wat
 
 ## Gotchas
 
-- Plugin command names must include domain prefix for dispatcher matching. Commands registered as `watchdog announce` will NOT be found when the dispatcher receives `bgp watchdog announce`. Register as `bgp watchdog announce`.
+- After the `bgp` prefix removal, plugin commands must match what the user types: `watchdog announce`, not `bgp watchdog announce`.
 - `buildStaticRouteWithdraw` became dead code after extraction (sole caller was `WithdrawWatchdog`). Always grep for dead code after removing callers.
-- ExaBGP wrapper sends `bgp watchdog announce/withdraw` via `ze-system:dispatch` RPC — needed updating when the command prefix changed.
+- ExaBGP wrapper sends `watchdog announce/withdraw` via SSH exec -- must match the registered command names.
 
 ## Files
 

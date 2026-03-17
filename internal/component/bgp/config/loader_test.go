@@ -1124,10 +1124,8 @@ bgp {
 // VALIDATES: Hardcoded reserved names stay in sync with registered "peer" RPCs.
 // PREVENTS: New "peer <subcommand>" RPC added without updating reservedPeerNames.
 func TestReservedPeerNamesSyncWithRPCs(t *testing.T) {
-	loader := yang.NewLoader()
-	require.NoError(t, loader.LoadEmbedded())
-	require.NoError(t, loader.LoadRegistered())
-	require.NoError(t, loader.Resolve())
+	loader, err := yang.DefaultLoader()
+	require.NoError(t, err)
 	wireToPath := yang.WireMethodToPath(loader)
 
 	dynamicKeywords := pluginserver.PeerSubcommandKeywords(wireToPath)

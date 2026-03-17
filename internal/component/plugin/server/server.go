@@ -146,14 +146,10 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) *Server {
 		capInjector:   plugin.NewCapabilityInjector(),
 	}
 
-	// Build WireMethod -> CLI path mapping from YANG command tree.
-	// Creates a loader from registered modules when none is provided.
-	loader := config.Loader
-	if loader == nil {
-		loader = yang.NewLoader()
-		_ = loader.LoadEmbedded()
-		_ = loader.LoadRegistered()
-		_ = loader.Resolve()
+	// Build WireMethod -> CLI path mapping from shared YANG loader.
+	loader, err := yang.DefaultLoader()
+	if err != nil {
+		logger().Error("YANG command tree unavailable, text dispatch disabled", "error", err)
 	}
 	wireToPath := yang.WireMethodToPath(loader)
 
@@ -162,7 +158,13 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) *Server {
 
 	// Register all builtin RPCs with wire method dispatcher (for socket clients)
 	for _, reg := range AllBuiltinRPCs() {
+		if reg.Handler == nil {
+			continue // Skip editor-internal RPCs with nil handlers
+		}
 		cliPath := wireToPath[reg.WireMethod] // YANG-derived CLI path for authz/errors
+		if cliPath == "" {
+			continue // Skip RPCs without YANG path (no authz possible)
+		}
 		if err := s.rpcDispatcher.Register(reg.WireMethod, s.wrapHandler(reg.Handler, cliPath, reg.ReadOnly)); err != nil {
 			logger().Error("rpc dispatcher: registration failed", "method", reg.WireMethod, "error", err)
 		}

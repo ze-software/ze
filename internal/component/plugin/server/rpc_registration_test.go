@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,6 +12,43 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+// TestEveryRPCHasYANGPath verifies every non-editor RPC has a YANG-derived CLI path.
+//
+// VALIDATES: All builtin RPCs (except editor-internal) have YANG path mappings.
+// PREVENTS: RPCs registered without YANG schema, invisible to CLI dispatch and authz.
+func TestEveryRPCHasYANGPath(t *testing.T) {
+	wireToPath := buildTestWireToPath()
+
+	for _, reg := range AllBuiltinRPCs() {
+		// Editor-internal RPCs (ze-editor:*) have no YANG entry -- skip them.
+		if strings.HasPrefix(reg.WireMethod, "ze-editor:") {
+			continue
+		}
+		path := wireToPath[reg.WireMethod]
+		assert.NotEmpty(t, path, "RPC %s has no YANG path mapping", reg.WireMethod)
+	}
+}
+
+// TestYANGPathsAreUnique verifies no two RPCs share the same YANG CLI path.
+//
+// VALIDATES: YANG-derived CLI paths are unique across all builtin RPCs.
+// PREVENTS: Two RPCs mapping to the same CLI path, causing dispatch ambiguity.
+func TestYANGPathsAreUnique(t *testing.T) {
+	wireToPath := buildTestWireToPath()
+
+	pathToWire := make(map[string]string)
+	for _, reg := range AllBuiltinRPCs() {
+		path := wireToPath[reg.WireMethod]
+		if path == "" {
+			continue
+		}
+		if existing, ok := pathToWire[path]; ok {
+			t.Errorf("duplicate YANG path %q: used by both %s and %s", path, existing, reg.WireMethod)
+		}
+		pathToWire[path] = reg.WireMethod
+	}
+}
 
 // TestRPCRegistrationTable verifies the builtin RPC registration table.
 //
@@ -32,8 +70,6 @@ func TestRPCRegistrationTable(t *testing.T) {
 			_, _, err := ipc.ParseMethod(reg.WireMethod)
 			require.NoError(t, err, "invalid wire method format")
 
-			// Non-empty CLI command
-
 			// All server-package RPCs must have handlers (editor RPCs moved to editor package)
 			assert.NotNil(t, reg.Handler, "nil handler for %s", reg.WireMethod)
 
@@ -43,8 +79,6 @@ func TestRPCRegistrationTable(t *testing.T) {
 			// Unique wire method
 			assert.False(t, wireMethodsSeen[reg.WireMethod], "duplicate wire method: %s", reg.WireMethod)
 			wireMethodsSeen[reg.WireMethod] = true
-
-			// Unique CLI command
 		})
 	}
 }

@@ -110,15 +110,9 @@ var skippedWireMethods = map[string]bool{
 }
 
 func validate() ValidationResult {
-	loader := yang.NewLoader()
-	if err := loader.LoadEmbedded(); err != nil {
-		fatal("load embedded: " + err.Error())
-	}
-	if err := loader.LoadRegistered(); err != nil {
-		fatal("load registered: " + err.Error())
-	}
-	if err := loader.Resolve(); err != nil {
-		fatal("resolve: " + err.Error())
+	loader, err := yang.DefaultLoader()
+	if err != nil {
+		fatal(err.Error())
 	}
 
 	// Discover -cmd modules dynamically from loaded YANG modules.

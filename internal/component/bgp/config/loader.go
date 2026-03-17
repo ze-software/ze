@@ -699,10 +699,7 @@ func extractAuthzConfig(tree *config.Tree) *authz.Store {
 // any known builtin command prefix. This is a best-effort check because
 // plugins register commands dynamically at runtime.
 func validateMatchEntries(store *authz.Store) {
-	loader := yang.NewLoader()
-	_ = loader.LoadEmbedded()
-	_ = loader.LoadRegistered()
-	_ = loader.Resolve()
+	loader, _ := yang.DefaultLoader()
 	wireToPath := yang.WireMethodToPath(loader)
 
 	cmds := make([]string, 0, len(wireToPath))

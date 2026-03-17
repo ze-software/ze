@@ -138,9 +138,9 @@ func isValidPeerNameChar(ch rune) bool {
 // Limits JSON response size and prevents DoS via long names.
 const maxPeerNameLen = 255
 
-// reservedPeerNames contains names that collide with "bgp peer <subcommand>"
+// reservedPeerNames contains names that collide with "peer <subcommand>"
 // keywords. A peer named "list" would cause dispatch ambiguity: the dispatcher
-// cannot tell if "bgp peer list detail" means "show detail for peer named list"
+// cannot tell if "peer list detail" means "show detail for peer named list"
 // or a syntax error. Reject these at config validation time.
 var reservedPeerNames = map[string]bool{
 	"list": true, "detail": true, "add": true, "remove": true,
@@ -154,7 +154,7 @@ var reservedPeerNames = map[string]bool{
 // Names must be ASCII alphanumeric with hyphens and underscores only.
 // Names must not parse as IP addresses or look like glob patterns.
 // Names must start with a letter or digit (not punctuation-only).
-// Names must not collide with "bgp peer" subcommand keywords.
+// Names must not collide with "peer" subcommand keywords.
 func validatePeerName(name string) error {
 	if name == "*" {
 		return fmt.Errorf("invalid peer name %q: reserved wildcard", name)
@@ -166,7 +166,7 @@ func validatePeerName(name string) error {
 
 	// Reject names that collide with CLI subcommand keywords.
 	if reservedPeerNames[name] {
-		return fmt.Errorf("invalid peer name %q: conflicts with \"bgp peer\" subcommand", name)
+		return fmt.Errorf("invalid peer name %q: conflicts with \"peer\" subcommand", name)
 	}
 
 	// Reject names containing invalid characters.

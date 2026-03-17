@@ -7,11 +7,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 )
 
-// buildTestWireToPath creates a WireMethod->path map from the YANG loader for tests.
+// buildTestWireToPath creates a WireMethod->path map from the shared YANG loader.
 func buildTestWireToPath() map[string]string {
-	loader := yang.NewLoader()
-	_ = loader.LoadEmbedded()
-	_ = loader.LoadRegistered()
-	_ = loader.Resolve()
+	loader, _ := yang.DefaultLoader()
 	return yang.WireMethodToPath(loader)
 }

@@ -327,8 +327,8 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 
 | Command | Description |
 |---------|-------------|
-| `bgp watchdog announce <name>` | Send all routes in pool |
-| `bgp watchdog withdraw <name>` | Withdraw all routes in pool |
+| `watchdog announce <name>` | Send all routes in pool |
+| `watchdog withdraw <name>` | Withdraw all routes in pool |
 
 **Commits (Batching):**
 

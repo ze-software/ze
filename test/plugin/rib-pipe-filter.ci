@@ -126,8 +126,18 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for BGP session to establish, routes to arrive, and RIB to process
-    time.sleep(2.0)
+    # Wait for BGP session to establish, routes to arrive, and RIB to process.
+    # Poll rib status until the forked rib plugin has completed startup and
+    # registered its commands (ForwardToPlugin fails if commands aren't registered).
+    time.sleep(1.0)
+    for _ in range(20):
+        r = dispatch(api, 'rib status')
+        if r.get('status') == 'done':
+            break
+        time.sleep(0.5)
+    else:
+        print('FAIL: rib plugin did not become ready', file=sys.stderr)
+        failures += 1
 
     # --- Scope routing with content verification ---
 

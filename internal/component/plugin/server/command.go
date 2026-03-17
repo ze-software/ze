@@ -53,6 +53,7 @@ func LoadBuiltins(d *Dispatcher, wireToPath map[string]string) {
 		d.RegisterWithOptions(name, reg.Handler, reg.Help, RegisterOptions{
 			ReadOnly:         reg.ReadOnly,
 			RequiresSelector: reg.RequiresSelector,
+			PluginProxy:      reg.PluginCommand != "",
 		})
 	}
 }
@@ -145,6 +146,7 @@ type Command struct {
 type RegisterOptions struct {
 	ReadOnly         bool // True if command only reads state
 	RequiresSelector bool // True if "bgp peer <command>" must have an explicit peer selector
+	PluginProxy      bool // True if this builtin proxies to a plugin command (allows plugin to register same name)
 }
 
 // Dispatcher routes commands to handlers.
@@ -243,7 +245,13 @@ func (d *Dispatcher) RegisterWithOptions(name string, handler Handler, help stri
 		RequiresSelector: opts.RequiresSelector,
 	}
 	d.updateSortedKeys()
-	d.registry.AddBuiltin(name)
+
+	// Plugin proxy handlers must not block the plugin from registering
+	// the same command name in the CommandRegistry. ForwardToPlugin needs
+	// the plugin's own registration to route the command to the process.
+	if !opts.PluginProxy {
+		d.registry.AddBuiltin(name)
+	}
 }
 
 // updateSortedKeys rebuilds the sorted key list for longest-match lookup.

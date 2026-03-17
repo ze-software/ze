@@ -176,8 +176,8 @@ def run_process_bridge(config_dir: str, run_cmd: str, ssh_host: str, ssh_port: i
     """Run an ExaBGP process and bridge its commands to Ze via SSH.
 
     Translates ExaBGP stdout commands to Ze CLI commands over SSH exec:
-    - "announce watchdog <name>" -> "bgp watchdog announce <name>"
-    - "withdraw watchdog <name>" -> "bgp watchdog withdraw <name>"
+    - "announce watchdog <name>" -> "watchdog announce <name>"
+    - "withdraw watchdog <name>" -> "watchdog withdraw <name>"
     """
     # Wait for SSH server to be ready
     if not wait_for_ssh(ssh_host, ssh_port):
@@ -221,11 +221,11 @@ def run_process_bridge(config_dir: str, run_cmd: str, ssh_host: str, ssh_port: i
                 if line.startswith('announce watchdog '):
                     group = line.split(None, 2)[2]
                     send_ssh_command(ssh_host, ssh_port,
-                                    'bgp watchdog announce ' + group, debug)
+                                    'watchdog announce ' + group, debug)
                 elif line.startswith('withdraw watchdog '):
                     group = line.split(None, 2)[2]
                     send_ssh_command(ssh_host, ssh_port,
-                                    'bgp watchdog withdraw ' + group, debug)
+                                    'watchdog withdraw ' + group, debug)
                 # Other ExaBGP commands could be translated here in the future
 
         finally:

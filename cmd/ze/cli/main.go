@@ -187,12 +187,12 @@ func AllCLIRPCs() []pluginserver.RPCRegistration {
 }
 
 // cliWireToPath is the YANG-derived WireMethod -> CLI path mapping.
-// Built once at package init from embedded YANG schemas.
+// Built once at package init from the shared DefaultLoader.
 var cliWireToPath = func() map[string]string {
-	loader := yang.NewLoader()
-	_ = loader.LoadEmbedded()
-	_ = loader.LoadRegistered()
-	_ = loader.Resolve()
+	loader, err := yang.DefaultLoader()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "cli: %v\n", err)
+	}
 	return yang.WireMethodToPath(loader)
 }()
 

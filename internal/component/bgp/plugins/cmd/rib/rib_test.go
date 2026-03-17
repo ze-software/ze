@@ -40,34 +40,28 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 	}
 
 	// Read-only commands
-	for _, tc := range []struct {
-		wire string
-		cli  string
-	}{
-		{"ze-rib-api:status", "rib status"},
-		{"ze-rib-api:routes", "rib routes"},
-		{"ze-rib-api:best", "rib best"},
-		{"ze-rib-api:best-status", "rib best status"},
+	for _, wire := range []string{
+		"ze-rib-api:status",
+		"ze-rib-api:routes",
+		"ze-rib-api:best",
+		"ze-rib-api:best-status",
 	} {
-		r, ok := byWire[tc.wire]
-		assert.True(t, ok, "missing RPC: %s", tc.wire)
+		r, ok := byWire[wire]
+		assert.True(t, ok, "missing RPC: %s", wire)
 		if ok {
-			assert.True(t, r.ReadOnly, "%s should be read-only", tc.wire)
+			assert.True(t, r.ReadOnly, "%s should be read-only", wire)
 		}
 	}
 
 	// Write commands
-	for _, tc := range []struct {
-		wire string
-		cli  string
-	}{
-		{"ze-rib-api:clear-in", "rib clear in"},
-		{"ze-rib-api:clear-out", "rib clear out"},
+	for _, wire := range []string{
+		"ze-rib-api:clear-in",
+		"ze-rib-api:clear-out",
 	} {
-		r, ok := byWire[tc.wire]
-		assert.True(t, ok, "missing RPC: %s", tc.wire)
+		r, ok := byWire[wire]
+		assert.True(t, ok, "missing RPC: %s", wire)
 		if ok {
-			assert.False(t, r.ReadOnly, "%s should NOT be read-only", tc.wire)
+			assert.False(t, r.ReadOnly, "%s should NOT be read-only", wire)
 		}
 	}
 }

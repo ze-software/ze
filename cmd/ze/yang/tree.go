@@ -81,15 +81,9 @@ func BuildUnifiedTree() (*AnalysisNode, error) {
 
 // addConfigNodes loads YANG conf modules and walks them into the tree.
 func addConfigNodes(root *AnalysisNode) error {
-	loader := yang.NewLoader()
-	if err := loader.LoadEmbedded(); err != nil {
-		return fmt.Errorf("load embedded: %w", err)
-	}
-	if err := loader.LoadRegistered(); err != nil {
-		return fmt.Errorf("load registered: %w", err)
-	}
-	if err := loader.Resolve(); err != nil {
-		return fmt.Errorf("resolve: %w", err)
+	loader, err := yang.DefaultLoader()
+	if err != nil {
+		return fmt.Errorf("YANG loader: %w", err)
 	}
 
 	for _, modName := range confModules {
@@ -162,11 +156,7 @@ func walkYANGEntry(parent *AnalysisNode, name string, entry *gyang.Entry) {
 
 // addCommandNodes builds the command tree from YANG -cmd modules and merges it.
 func addCommandNodes(root *AnalysisNode) {
-	loader := yang.NewLoader()
-	_ = loader.LoadEmbedded()
-	_ = loader.LoadRegistered()
-	_ = loader.Resolve()
-
+	loader, _ := yang.DefaultLoader()
 	cmdTree := yang.BuildCommandTree(loader)
 	if cmdTree == nil || cmdTree.Children == nil {
 		return
@@ -307,10 +297,10 @@ func yangNodeKind(entry *gyang.Entry) string {
 // AllRPCDocs returns documentation for all registered operational commands.
 // It loads YANG API modules to extract input/output parameter metadata.
 func AllRPCDocs() ([]RPCDoc, error) {
-	loader := yang.NewLoader()
-	_ = loader.LoadEmbedded()
-	_ = loader.LoadRegistered()
-	_ = loader.Resolve()
+	loader, err := yang.DefaultLoader()
+	if err != nil {
+		return nil, fmt.Errorf("YANG loader: %w", err)
+	}
 	wireToPath := yang.WireMethodToPath(loader)
 
 	rpcs := pluginserver.AllBuiltinRPCs()
@@ -370,15 +360,9 @@ func apiYANGModules() []struct {
 
 // loadRPCParams loads YANG API modules and returns a map of wire method to parameters.
 func loadRPCParams() (map[string]rpcParams, error) {
-	loader := yang.NewLoader()
-	if err := loader.LoadEmbedded(); err != nil {
-		return nil, fmt.Errorf("load embedded: %w", err)
-	}
-	if err := loader.LoadRegistered(); err != nil {
-		return nil, fmt.Errorf("load registered: %w", err)
-	}
-	if err := loader.Resolve(); err != nil {
-		return nil, fmt.Errorf("resolve: %w", err)
+	loader, err := yang.DefaultLoader()
+	if err != nil {
+		return nil, fmt.Errorf("YANG loader: %w", err)
 	}
 
 	result := make(map[string]rpcParams)

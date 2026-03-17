@@ -141,10 +141,7 @@ const createPromptTimeout = 10 * time.Second
 
 // buildEditorCommandTree builds a command.Node tree from YANG command modules.
 func buildEditorCommandTree() *command.Node {
-	loader := yang.NewLoader()
-	_ = loader.LoadEmbedded()
-	_ = loader.LoadRegistered()
-	_ = loader.Resolve()
+	loader, _ := yang.DefaultLoader()
 	return yang.BuildCommandTree(loader)
 }
 

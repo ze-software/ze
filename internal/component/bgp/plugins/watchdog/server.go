@@ -50,10 +50,10 @@ var ErrWatchdogNotFound = errors.New("watchdog group not found")
 // handleCommand dispatches watchdog commands.
 // Called from OnExecuteCommand with the command name, arguments, and peer selector.
 func (s *watchdogServer) handleCommand(command string, args []string, peer string) (string, string, error) {
-	if command == "bgp watchdog announce" {
+	if command == "watchdog announce" {
 		return s.handlePoolAction(args, peer, true)
 	}
-	if command == "bgp watchdog withdraw" {
+	if command == "watchdog withdraw" {
 		return s.handlePoolAction(args, peer, false)
 	}
 	return statusError, "", fmt.Errorf("unknown watchdog command: %s", command)

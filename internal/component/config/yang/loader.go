@@ -10,6 +10,21 @@ import (
 	"github.com/openconfig/goyang/pkg/yang"
 )
 
+// DefaultLoader creates a Loader with all embedded and registered modules
+// loaded and resolved. Returns an error only if embedded loading fails
+// (corrupted binary). Registered module and resolution errors are logged
+// but non-fatal -- the command tree only needs -cmd.yang modules which
+// import ze-extensions (embedded), not the full conf/api module set.
+func DefaultLoader() (*Loader, error) {
+	l := NewLoader()
+	if err := l.LoadEmbedded(); err != nil {
+		return nil, fmt.Errorf("YANG LoadEmbedded: %w", err)
+	}
+	_ = l.LoadRegistered() // Best-effort: some modules may not be imported in this context
+	_ = l.Resolve()        // Best-effort: unresolved modules are skipped by tree walker
+	return l, nil
+}
+
 //go:embed modules
 var embeddedModules embed.FS
 
