@@ -14,14 +14,14 @@ func RegisterRPCs(rpcs ...RPCRegistration) {
 }
 
 // PeerSubcommandKeywords returns the set of first words that follow "peer"
-// in registered CLI commands. Used by config validation to reject peer names
+// in CLI command paths. Used by config validation to reject peer names
 // that would collide with subcommand dispatch.
-// Derived dynamically from registeredRPCs so the set stays in sync automatically.
-func PeerSubcommandKeywords() map[string]bool {
+// The wireToPath map is typically built via yang.WireMethodToPath(loader).
+func PeerSubcommandKeywords(wireToPath map[string]string) map[string]bool {
 	const prefix = "peer "
 	keywords := make(map[string]bool)
-	for _, rpc := range registeredRPCs {
-		cmd := strings.ToLower(rpc.CLICommand)
+	for _, path := range wireToPath {
+		cmd := strings.ToLower(path)
 		if !strings.HasPrefix(cmd, prefix) {
 			continue
 		}

@@ -15,7 +15,7 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:cache", CLICommand: "cache", Handler: handleBgpCache, Help: "BGP message cache operations"},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:cache", Handler: handleBgpCache, Help: "BGP message cache operations"},
 	)
 }
 

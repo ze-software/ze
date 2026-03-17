@@ -25,7 +25,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
-	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 )
 
 // defaultConfigName is the config name used when no argument is given.
@@ -139,18 +139,13 @@ func wireSSHCommandExecutor(m *cli.Model, creds sshclient.Credentials) {
 
 const createPromptTimeout = 10 * time.Second
 
-// buildEditorCommandTree builds a command.Node tree from all registered RPCs.
+// buildEditorCommandTree builds a command.Node tree from YANG command modules.
 func buildEditorCommandTree() *command.Node {
-	rpcs := pluginserver.AllBuiltinRPCs()
-	infos := make([]command.RPCInfo, len(rpcs))
-	for i, reg := range rpcs {
-		infos[i] = command.RPCInfo{
-			CLICommand: reg.CLICommand,
-			Help:       reg.Help,
-			ReadOnly:   reg.ReadOnly,
-		}
-	}
-	return command.BuildTree(infos, false)
+	loader := yang.NewLoader()
+	_ = loader.LoadEmbedded()
+	_ = loader.LoadRegistered()
+	_ = loader.Resolve()
+	return yang.BuildCommandTree(loader)
 }
 
 // promptCreateConfig asks the user whether to create a missing config file.

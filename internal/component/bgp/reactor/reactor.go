@@ -40,6 +40,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"      // init() registers help/discovery RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics"   // init() registers metrics show/list RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe" // init() registers subscribe/unsubscribe RPCs
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
@@ -580,8 +581,14 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 
 	// Start API server
 	{
+		loader := yang.NewLoader()
+		_ = loader.LoadEmbedded()
+		_ = loader.LoadRegistered()
+		_ = loader.Resolve()
+
 		apiConfig := &pluginserver.ServerConfig{
 			ConfigPath:         r.config.ConfigPath,
+			Loader:             loader,
 			ConfiguredFamilies: r.config.ConfiguredFamilies,
 			RPCFallback:        bgpserver.CodecRPCHandler,
 			CommitManager:      transaction.NewCommitManager(),

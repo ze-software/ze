@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
@@ -145,12 +146,24 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) *Server {
 		capInjector:   plugin.NewCapabilityInjector(),
 	}
 
+	// Build WireMethod -> CLI path mapping from YANG command tree.
+	// Creates a loader from registered modules when none is provided.
+	loader := config.Loader
+	if loader == nil {
+		loader = yang.NewLoader()
+		_ = loader.LoadEmbedded()
+		_ = loader.LoadRegistered()
+		_ = loader.Resolve()
+	}
+	wireToPath := yang.WireMethodToPath(loader)
+
 	// Register core handlers (text dispatcher for plugin protocol)
-	RegisterDefaultHandlers(s.dispatcher)
+	RegisterDefaultHandlers(s.dispatcher, wireToPath)
 
 	// Register all builtin RPCs with wire method dispatcher (for socket clients)
 	for _, reg := range AllBuiltinRPCs() {
-		if err := s.rpcDispatcher.Register(reg.WireMethod, s.wrapHandler(reg.Handler, reg.CLICommand, reg.ReadOnly)); err != nil {
+		cliPath := wireToPath[reg.WireMethod] // YANG-derived CLI path for authz/errors
+		if err := s.rpcDispatcher.Register(reg.WireMethod, s.wrapHandler(reg.Handler, cliPath, reg.ReadOnly)); err != nil {
 			logger().Error("rpc dispatcher: registration failed", "method", reg.WireMethod, "error", err)
 		}
 	}

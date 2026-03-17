@@ -11,10 +11,10 @@ import (
 
 func init() {
 	RegisterRPCs(
-		RPCRegistration{WireMethod: "ze-plugin:help", CLICommand: "plugin help", Handler: handlePluginHelp, Help: "List plugin subcommands", ReadOnly: true},
-		RPCRegistration{WireMethod: "ze-plugin:command-list", CLICommand: "plugin command list", Handler: handlePluginCommandList, Help: "List plugin commands", ReadOnly: true},
-		RPCRegistration{WireMethod: "ze-plugin:command-help", CLICommand: "plugin command help", Handler: handlePluginCommandHelp, Help: "Show command details", ReadOnly: true},
-		RPCRegistration{WireMethod: "ze-plugin:command-complete", CLICommand: "plugin command complete", Handler: handlePluginCommandComplete, Help: "Complete command/args", ReadOnly: true},
+		RPCRegistration{WireMethod: "ze-plugin:help", Handler: handlePluginHelp, Help: "List plugin subcommands", ReadOnly: true},
+		RPCRegistration{WireMethod: "ze-plugin:command-list", Handler: handlePluginCommandList, Help: "List plugin commands", ReadOnly: true},
+		RPCRegistration{WireMethod: "ze-plugin:command-help", Handler: handlePluginCommandHelp, Help: "Show command details", ReadOnly: true},
+		RPCRegistration{WireMethod: "ze-plugin:command-complete", Handler: handlePluginCommandComplete, Help: "Complete command/args", ReadOnly: true},
 	)
 }
 

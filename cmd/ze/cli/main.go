@@ -28,6 +28,8 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics"   // init() registers metrics show/list RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe" // init() registers subscribe/unsubscribe RPCs
 	cmd "codeberg.org/thomas-mangin/ze/internal/component/command"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all" // init() registers all YANG schemas
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -184,19 +186,36 @@ func AllCLIRPCs() []pluginserver.RPCRegistration {
 	return pluginserver.AllBuiltinRPCs()
 }
 
+// cliWireToPath is the YANG-derived WireMethod -> CLI path mapping.
+// Built once at package init from embedded YANG schemas.
+var cliWireToPath = func() map[string]string {
+	loader := yang.NewLoader()
+	_ = loader.LoadEmbedded()
+	_ = loader.LoadRegistered()
+	_ = loader.Resolve()
+	return yang.WireMethodToPath(loader)
+}()
+
 // BuildCommandTree builds the command tree from registered RPCs.
 // If readOnly is true, only includes RPCs marked ReadOnly (for "ze show").
 func BuildCommandTree(readOnly bool) *Command {
 	rpcs := AllCLIRPCs()
-	infos := make([]cmd.RPCInfo, len(rpcs))
-	for i, reg := range rpcs {
-		infos[i] = cmd.RPCInfo{
-			CLICommand: reg.CLICommand,
+	infos := make([]cmd.RPCInfo, 0, len(rpcs))
+	for _, reg := range rpcs {
+		cliPath := cliWireToPath[reg.WireMethod]
+		if cliPath == "" {
+			continue
+		}
+		if readOnly && !reg.ReadOnly {
+			continue
+		}
+		infos = append(infos, cmd.RPCInfo{
+			CLICommand: cliPath,
 			Help:       reg.Help,
 			ReadOnly:   reg.ReadOnly,
-		}
+		})
 	}
-	return cmd.BuildTree(infos, readOnly)
+	return cmd.BuildTree(infos, false) // readOnly already filtered above
 }
 
 // Command is an alias for command.Node. Use command.Node directly in new code.
@@ -237,8 +256,12 @@ func buildRuntimeTree(client *cliClient) *Command {
 		if reg.PluginCommand != "" && !available[strings.ToLower(reg.PluginCommand)] {
 			continue // Plugin not running — skip this proxy command
 		}
+		cliPath := cliWireToPath[reg.WireMethod]
+		if cliPath == "" {
+			continue
+		}
 		filtered = append(filtered, cmd.RPCInfo{
-			CLICommand: reg.CLICommand,
+			CLICommand: cliPath,
 			Help:       reg.Help,
 			ReadOnly:   reg.ReadOnly,
 		})

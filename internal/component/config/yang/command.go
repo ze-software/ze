@@ -15,6 +15,36 @@ import (
 // cmdModuleSuffix identifies YANG command tree modules by naming convention.
 const cmdModuleSuffix = "-cmd"
 
+// WireMethodToPath walks all -cmd YANG modules and builds a map from
+// WireMethod (ze:command argument) to CLI path (space-joined tree path).
+// Used by LoadBuiltins to derive dispatch keys from YANG instead of CLICommand.
+func WireMethodToPath(loader *Loader) map[string]string {
+	result := make(map[string]string)
+	if loader == nil {
+		return result
+	}
+	tree := BuildCommandTree(loader)
+	collectPaths(tree, "", result)
+	return result
+}
+
+// collectPaths recursively walks the command tree and collects WireMethod -> path mappings.
+func collectPaths(node *command.Node, prefix string, result map[string]string) {
+	if node == nil {
+		return
+	}
+	for name, child := range node.Children {
+		path := name
+		if prefix != "" {
+			path = prefix + " " + name
+		}
+		if child.WireMethod != "" {
+			result[child.WireMethod] = path
+		}
+		collectPaths(child, path, result)
+	}
+}
+
 // BuildCommandTree walks all -cmd YANG modules in the loader and builds
 // a merged command.Node tree. Multiple modules contributing to the same
 // container path (e.g., 4 modules defining peer > ...) are merged.

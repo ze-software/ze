@@ -25,7 +25,6 @@ func TestRPCRegistrationTable(t *testing.T) {
 
 	// Track uniqueness
 	wireMethodsSeen := make(map[string]bool)
-	cliCommandsSeen := make(map[string]bool)
 
 	for _, reg := range rpcs {
 		t.Run(reg.WireMethod, func(t *testing.T) {
@@ -34,7 +33,6 @@ func TestRPCRegistrationTable(t *testing.T) {
 			require.NoError(t, err, "invalid wire method format")
 
 			// Non-empty CLI command
-			assert.NotEmpty(t, reg.CLICommand, "missing CLI command")
 
 			// All server-package RPCs must have handlers (editor RPCs moved to editor package)
 			assert.NotNil(t, reg.Handler, "nil handler for %s", reg.WireMethod)
@@ -47,8 +45,6 @@ func TestRPCRegistrationTable(t *testing.T) {
 			wireMethodsSeen[reg.WireMethod] = true
 
 			// Unique CLI command
-			assert.False(t, cliCommandsSeen[reg.CLICommand], "duplicate CLI command: %s", reg.CLICommand)
-			cliCommandsSeen[reg.CLICommand] = true
 		})
 	}
 }

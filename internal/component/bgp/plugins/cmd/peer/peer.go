@@ -17,14 +17,14 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-list", CLICommand: "peer list", Handler: handleBgpPeerList, Help: "List peer(s) (brief)", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-detail", CLICommand: "peer detail", Handler: handleBgpPeerDetail, Help: "Peer details (config, state, counters)", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-teardown", CLICommand: "peer teardown", Handler: handleTeardown, Help: "Teardown peer session with cease subcode", RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-add", CLICommand: "peer add", Handler: handleBgpPeerAdd, Help: "Add a peer dynamically", RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-remove", CLICommand: "peer remove", Handler: handleBgpPeerRemove, Help: "Remove a peer dynamically", RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-pause", CLICommand: "peer pause", Handler: handleBgpPeerPause, Help: "Pause peer read loop (flow control)", RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-resume", CLICommand: "peer resume", Handler: handleBgpPeerResume, Help: "Resume peer read loop (flow control)", RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-save", CLICommand: "peer save", Handler: handleBgpPeerSave, Help: "Save peer(s) to config file (merges into existing config)", RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-list", Handler: handleBgpPeerList, Help: "List peer(s) (brief)", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-detail", Handler: handleBgpPeerDetail, Help: "Peer details (config, state, counters)", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-teardown", Handler: handleTeardown, Help: "Teardown peer session with cease subcode", RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-add", Handler: handleBgpPeerAdd, Help: "Add a peer dynamically", RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-remove", Handler: handleBgpPeerRemove, Help: "Remove a peer dynamically", RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-pause", Handler: handleBgpPeerPause, Help: "Pause peer read loop (flow control)", RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-resume", Handler: handleBgpPeerResume, Help: "Resume peer read loop (flow control)", RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-save", Handler: handleBgpPeerSave, Help: "Save peer(s) to config file (merges into existing config)", RequiresSelector: true},
 	)
 }
 

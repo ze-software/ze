@@ -13,17 +13,17 @@ import (
 
 func init() {
 	RegisterRPCs(
-		RPCRegistration{WireMethod: "ze-system:help", CLICommand: "system help", Handler: handleSystemHelp, Help: "Show available commands", ReadOnly: true},
-		RPCRegistration{WireMethod: "ze-system:version-software", CLICommand: "system version software", Handler: handleSystemVersionSoftware, Help: "Show ze version", ReadOnly: true},
-		RPCRegistration{WireMethod: "ze-system:version-api", CLICommand: "system version api", Handler: handleSystemVersionAPI, Help: "Show IPC protocol version", ReadOnly: true},
-		RPCRegistration{WireMethod: "ze-system:daemon-shutdown", CLICommand: "daemon shutdown", Handler: handleDaemonShutdown, Help: "Gracefully shutdown the daemon"},
-		RPCRegistration{WireMethod: "ze-system:daemon-status", CLICommand: "daemon status", Handler: handleDaemonStatus, Help: "Show daemon status", ReadOnly: true},
-		RPCRegistration{WireMethod: "ze-system:daemon-reload", CLICommand: "daemon reload", Handler: handleDaemonReload, Help: "Reload the configuration"},
-		RPCRegistration{WireMethod: "ze-system:subsystem-list", CLICommand: "system subsystem list", Handler: handleSystemSubsystemList, Help: "List available subsystems", ReadOnly: true},
-		RPCRegistration{WireMethod: "ze-system:command-list", CLICommand: "system command list", Handler: handleSystemCommandList, Help: "List all commands", ReadOnly: true},
-		RPCRegistration{WireMethod: "ze-system:command-help", CLICommand: "system command help", Handler: handleSystemCommandHelp, Help: "Show command details", ReadOnly: true},
-		RPCRegistration{WireMethod: "ze-system:command-complete", CLICommand: "system command complete", Handler: handleSystemCommandComplete, Help: "Complete command/args", ReadOnly: true},
-		RPCRegistration{WireMethod: "ze-system:dispatch", CLICommand: "system dispatch", Handler: handleSystemDispatch, Help: "Dispatch a text command"},
+		RPCRegistration{WireMethod: "ze-system:help", Handler: handleSystemHelp, Help: "Show available commands", ReadOnly: true},
+		RPCRegistration{WireMethod: "ze-system:version-software", Handler: handleSystemVersionSoftware, Help: "Show ze version", ReadOnly: true},
+		RPCRegistration{WireMethod: "ze-system:version-api", Handler: handleSystemVersionAPI, Help: "Show IPC protocol version", ReadOnly: true},
+		RPCRegistration{WireMethod: "ze-system:daemon-shutdown", Handler: handleDaemonShutdown, Help: "Gracefully shutdown the daemon"},
+		RPCRegistration{WireMethod: "ze-system:daemon-status", Handler: handleDaemonStatus, Help: "Show daemon status", ReadOnly: true},
+		RPCRegistration{WireMethod: "ze-system:daemon-reload", Handler: handleDaemonReload, Help: "Reload the configuration"},
+		RPCRegistration{WireMethod: "ze-system:subsystem-list", Handler: handleSystemSubsystemList, Help: "List available subsystems", ReadOnly: true},
+		RPCRegistration{WireMethod: "ze-system:command-list", Handler: handleSystemCommandList, Help: "List all commands", ReadOnly: true},
+		RPCRegistration{WireMethod: "ze-system:command-help", Handler: handleSystemCommandHelp, Help: "Show command details", ReadOnly: true},
+		RPCRegistration{WireMethod: "ze-system:command-complete", Handler: handleSystemCommandComplete, Help: "Complete command/args", ReadOnly: true},
+		RPCRegistration{WireMethod: "ze-system:dispatch", Handler: handleSystemDispatch, Help: "Dispatch a text command"},
 	)
 }
 

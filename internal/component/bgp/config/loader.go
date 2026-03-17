@@ -23,6 +23,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -698,14 +699,15 @@ func extractAuthzConfig(tree *config.Tree) *authz.Store {
 // any known builtin command prefix. This is a best-effort check because
 // plugins register commands dynamically at runtime.
 func validateMatchEntries(store *authz.Store) {
-	rpcs := pluginserver.AllBuiltinRPCs()
-	if len(rpcs) == 0 {
-		return
-	}
+	loader := yang.NewLoader()
+	_ = loader.LoadEmbedded()
+	_ = loader.LoadRegistered()
+	_ = loader.Resolve()
+	wireToPath := yang.WireMethodToPath(loader)
 
-	cmds := make([]string, 0, len(rpcs))
-	for _, r := range rpcs {
-		cmds = append(cmds, strings.ToLower(r.CLICommand))
+	cmds := make([]string, 0, len(wireToPath))
+	for _, path := range wireToPath {
+		cmds = append(cmds, strings.ToLower(path))
 	}
 
 	store.WalkEntries(func(profileName, section string, e authz.Entry) {

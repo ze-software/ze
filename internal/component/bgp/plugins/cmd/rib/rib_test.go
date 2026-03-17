@@ -19,7 +19,6 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 	// Collect RIB RPCs (wire method starts with "ze-rib-api:")
 	type ribRPC struct {
 		WireMethod string
-		CLICommand string
 		ReadOnly   bool
 	}
 	var found []ribRPC
@@ -27,7 +26,6 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 		if len(reg.WireMethod) > 11 && reg.WireMethod[:11] == "ze-rib-api:" {
 			found = append(found, ribRPC{
 				WireMethod: reg.WireMethod,
-				CLICommand: reg.CLICommand,
 				ReadOnly:   reg.ReadOnly,
 			})
 		}
@@ -54,7 +52,6 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 		r, ok := byWire[tc.wire]
 		assert.True(t, ok, "missing RPC: %s", tc.wire)
 		if ok {
-			assert.Equal(t, tc.cli, r.CLICommand, "wrong CLI command for %s", tc.wire)
 			assert.True(t, r.ReadOnly, "%s should be read-only", tc.wire)
 		}
 	}
@@ -70,7 +67,6 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 		r, ok := byWire[tc.wire]
 		assert.True(t, ok, "missing RPC: %s", tc.wire)
 		if ok {
-			assert.Equal(t, tc.cli, r.CLICommand, "wrong CLI command for %s", tc.wire)
 			assert.False(t, r.ReadOnly, "%s should NOT be read-only", tc.wire)
 		}
 	}

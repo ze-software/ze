@@ -41,9 +41,16 @@ func BuiltinCount() int {
 }
 
 // LoadBuiltins registers all builtin handlers with the dispatcher.
-func LoadBuiltins(d *Dispatcher) {
+// The wireToPath map provides the dispatch key for each handler, derived from
+// the YANG command tree (WireMethod -> CLI path). Handlers without a YANG
+// entry (e.g., editor-internal "run"/"edit") are skipped.
+func LoadBuiltins(d *Dispatcher, wireToPath map[string]string) {
 	for _, reg := range AllBuiltinRPCs() {
-		d.RegisterWithOptions(reg.CLICommand, reg.Handler, reg.Help, RegisterOptions{
+		name := wireToPath[reg.WireMethod]
+		if name == "" {
+			continue // No YANG tree entry (editor-internal)
+		}
+		d.RegisterWithOptions(name, reg.Handler, reg.Help, RegisterOptions{
 			ReadOnly:         reg.ReadOnly,
 			RequiresSelector: reg.RequiresSelector,
 		})
@@ -51,8 +58,8 @@ func LoadBuiltins(d *Dispatcher) {
 }
 
 // RegisterDefaultHandlers registers all builtin handlers with the dispatcher.
-func RegisterDefaultHandlers(d *Dispatcher) {
-	LoadBuiltins(d)
+func RegisterDefaultHandlers(d *Dispatcher, wireToPath map[string]string) {
+	LoadBuiltins(d, wireToPath)
 }
 
 // Handler processes a command and returns a response.

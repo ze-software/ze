@@ -32,7 +32,6 @@ func TestBgpHandlerRPCs(t *testing.T) {
 		}
 
 		bgpCount++
-		assert.NotEmpty(t, reg.CLICommand, "missing CLI command")
 		assert.NotNil(t, reg.Handler, "missing handler for %s", reg.WireMethod)
 		assert.NotEmpty(t, reg.Help, "missing help for %s", reg.WireMethod)
 

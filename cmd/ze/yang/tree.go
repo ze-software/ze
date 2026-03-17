@@ -160,19 +160,14 @@ func walkYANGEntry(parent *AnalysisNode, name string, entry *gyang.Entry) {
 	}
 }
 
-// addCommandNodes builds the command tree from RPC registrations and merges it.
+// addCommandNodes builds the command tree from YANG -cmd modules and merges it.
 func addCommandNodes(root *AnalysisNode) {
-	rpcs := pluginserver.AllBuiltinRPCs()
-	infos := make([]command.RPCInfo, len(rpcs))
-	for i, reg := range rpcs {
-		infos[i] = command.RPCInfo{
-			CLICommand: reg.CLICommand,
-			Help:       reg.Help,
-			ReadOnly:   reg.ReadOnly,
-		}
-	}
+	loader := yang.NewLoader()
+	_ = loader.LoadEmbedded()
+	_ = loader.LoadRegistered()
+	_ = loader.Resolve()
 
-	cmdTree := command.BuildTree(infos, false)
+	cmdTree := yang.BuildCommandTree(loader)
 	if cmdTree == nil || cmdTree.Children == nil {
 		return
 	}
@@ -312,11 +307,21 @@ func yangNodeKind(entry *gyang.Entry) string {
 // AllRPCDocs returns documentation for all registered operational commands.
 // It loads YANG API modules to extract input/output parameter metadata.
 func AllRPCDocs() ([]RPCDoc, error) {
+	loader := yang.NewLoader()
+	_ = loader.LoadEmbedded()
+	_ = loader.LoadRegistered()
+	_ = loader.Resolve()
+	wireToPath := yang.WireMethodToPath(loader)
+
 	rpcs := pluginserver.AllBuiltinRPCs()
 	docs := make([]RPCDoc, 0, len(rpcs))
 	for _, reg := range rpcs {
+		cliPath := wireToPath[reg.WireMethod]
+		if cliPath == "" {
+			continue
+		}
 		docs = append(docs, RPCDoc{
-			CLICommand: reg.CLICommand,
+			CLICommand: cliPath,
 			Help:       reg.Help,
 			ReadOnly:   reg.ReadOnly,
 			WireMethod: reg.WireMethod,

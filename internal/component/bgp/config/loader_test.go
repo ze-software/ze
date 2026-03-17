@@ -13,6 +13,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -1123,8 +1124,14 @@ bgp {
 // VALIDATES: Hardcoded reserved names stay in sync with registered "peer" RPCs.
 // PREVENTS: New "peer <subcommand>" RPC added without updating reservedPeerNames.
 func TestReservedPeerNamesSyncWithRPCs(t *testing.T) {
-	dynamicKeywords := pluginserver.PeerSubcommandKeywords()
-	require.NotEmpty(t, dynamicKeywords, "plugin/all should register bgp peer RPCs")
+	loader := yang.NewLoader()
+	require.NoError(t, loader.LoadEmbedded())
+	require.NoError(t, loader.LoadRegistered())
+	require.NoError(t, loader.Resolve())
+	wireToPath := yang.WireMethodToPath(loader)
+
+	dynamicKeywords := pluginserver.PeerSubcommandKeywords(wireToPath)
+	require.NotEmpty(t, dynamicKeywords, "YANG cmd modules should define peer commands")
 
 	// Every dynamically discovered keyword must be in the hardcoded set.
 	for keyword := range dynamicKeywords {
