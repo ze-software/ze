@@ -1,7 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md — config editor
-// Detail: editor_draft.go — write-through draft protocol
-// Detail: editor_commit.go — commit/discard/disconnect protocol
-// Detail: editor_walk.go — schema-aware tree/meta walking
+// Detail: editor_draft.go — write-through draft protocol (sub-hub for commit/walk)
 // Detail: editor_session.go — session identity for concurrent editing
 //
 // Package editor provides an interactive configuration editor.

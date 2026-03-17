@@ -62,7 +62,7 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 	// Apply the set to the draft tree.
 	target, err := e.walkOrCreateIn(tree, path)
 	if err != nil {
-		return err
+		return fmt.Errorf("write-through set path: %w", err)
 	}
 	target.Set(key, value)
 
