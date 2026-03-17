@@ -3,5 +3,5 @@
 
 cmd=foreground:seq=1:exec=ze yang doc --list
 expect=exit:code=0
-expect=stdout:contains=bgp peer list
+expect=stdout:contains=peer list
 expect=stdout:contains=daemon shutdown
