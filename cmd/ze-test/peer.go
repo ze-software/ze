@@ -8,9 +8,9 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/test/peer"
 )
 
@@ -80,17 +80,7 @@ func parsePeerFlags() (*peer.Config, bool) {
 		return nil, true
 	}
 
-	port := 179
-	if p := os.Getenv("ze.bgp.tcp.port"); p != "" {
-		if v, err := strconv.Atoi(p); err == nil {
-			port = v
-		}
-	}
-	if p := os.Getenv("ze_bgp_tcp_port"); p != "" {
-		if v, err := strconv.Atoi(p); err == nil {
-			port = v
-		}
-	}
+	port := env.GetInt("ze.bgp.tcp.port", 179)
 
 	config := &peer.Config{Output: os.Stdout}
 

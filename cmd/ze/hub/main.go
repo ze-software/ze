@@ -18,10 +18,14 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
+
+// Env var registration for hub readiness signal.
+var _ = env.MustRegister(env.EnvEntry{Key: "ze.ready.file", Type: "string", Description: "Write signal file when hub is ready (test infrastructure)"})
 
 // Run executes the hub with the given config file path and optional CLI plugins.
 // store provides the I/O backend (filesystem or blob); used for config reads and reload.
@@ -167,7 +171,7 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 
 	// Signal readiness to test infrastructure. Written after signal.Notify
 	// and reactor.Start so the test runner knows the daemon is fully operational.
-	if readyFile := os.Getenv("ZE_READY_FILE"); readyFile != "" {
+	if readyFile := env.Get("ze.ready.file"); readyFile != "" {
 		if f, err := os.Create(readyFile); err == nil { //nolint:gosec // test infrastructure path from env
 			f.Close() //nolint:errcheck,gosec // best-effort readiness signal
 		}
@@ -274,7 +278,7 @@ func runOrchestratorWithData(store storage.Storage, configPath string, data []by
 
 	// Signal readiness to test infrastructure. Written after signal.Notify
 	// and o.Start so the test runner knows signal handlers are registered.
-	if readyFile := os.Getenv("ZE_READY_FILE"); readyFile != "" {
+	if readyFile := env.Get("ze.ready.file"); readyFile != "" {
 		if f, err := os.Create(readyFile); err == nil { //nolint:gosec // test infrastructure path from env
 			f.Close() //nolint:errcheck,gosec // best-effort readiness signal
 		}

@@ -23,6 +23,14 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
+)
+
+// Env var registrations for plugin CLI.
+var (
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.name", Type: "string", Default: "go-plugin", Description: "Plugin name for identification during auth"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.engine.fd", Type: "int", Default: "3", Description: "File descriptor for engine socket (FD mode)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.callback.fd", Type: "int", Default: "4", Description: "File descriptor for callback socket (FD mode)"})
 )
 
 // BaseConfig creates a PluginConfig pre-filled with common fields from a Registration.
@@ -216,20 +224,20 @@ func availableFeatures(cfg PluginConfig) string {
 }
 
 // connsFromEnv returns connections for RPC communication with the engine.
-// Tries TLS mode first (ZE_PLUGIN_HUB_TOKEN set), then falls back to inherited FDs.
+// Tries TLS mode first (ze.plugin.hub.token set), then falls back to inherited FDs.
 // In TLS mode, both returned connections are the same TLS socket (single-conn mux).
 func connsFromEnv() (net.Conn, net.Conn, error) {
 	// TLS mode: connect back to engine via TLS.
-	if token := os.Getenv("ZE_PLUGIN_HUB_TOKEN"); token != "" {
-		host := os.Getenv("ZE_PLUGIN_HUB_HOST")
+	if token := env.Get("ze.plugin.hub.token"); token != "" {
+		host := env.Get("ze.plugin.hub.host")
 		if host == "" {
 			host = "127.0.0.1"
 		}
-		port := os.Getenv("ZE_PLUGIN_HUB_PORT")
+		port := env.Get("ze.plugin.hub.port")
 		if port == "" {
 			port = "12700"
 		}
-		name := os.Getenv("ZE_PLUGIN_NAME")
+		name := env.Get("ze.plugin.name")
 		if name == "" {
 			name = "go-plugin"
 		}
@@ -269,11 +277,11 @@ func connsFromEnv() (net.Conn, net.Conn, error) {
 	}
 
 	// FD mode: inherited socket pairs.
-	engineFD, err := envFDInt("ZE_ENGINE_FD")
+	engineFD, err := envFDInt("ze.engine.fd")
 	if err != nil {
 		return nil, nil, err
 	}
-	callbackFD, err := envFDInt("ZE_CALLBACK_FD")
+	callbackFD, err := envFDInt("ze.callback.fd")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -293,6 +301,7 @@ func connsFromEnv() (net.Conn, net.Conn, error) {
 }
 
 // envFDInt reads an environment variable as a file descriptor number.
+// Uses os.Getenv directly since FD env vars are system-level (not Ze config).
 func envFDInt(name string) (int, error) {
 	s := os.Getenv(name)
 	if s == "" {

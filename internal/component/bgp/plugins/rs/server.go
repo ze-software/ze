@@ -13,8 +13,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,10 +20,14 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/textparse"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+// Env var registration for route server tuning.
+var _ = env.MustRegister(env.EnvEntry{Key: "ze.rs.chan.size", Type: "int", Default: "4096", Description: "Per-source-peer route server worker channel capacity"})
 
 // statusDone is the command response status for successful operations.
 const statusDone = "done"
@@ -170,8 +172,8 @@ type RouteServer struct {
 
 // RunRouteServer runs the Route Server plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
-func RunRouteServer(engineConn, callbackConn net.Conn) int {
-	p := sdk.NewWithConn("bgp-rs", engineConn, callbackConn)
+func RunRouteServer(conn net.Conn) int {
+	p := sdk.NewWithConn("bgp-rs", conn)
 	defer func() { _ = p.Close() }()
 
 	rs := &RouteServer{
@@ -180,16 +182,9 @@ func RunRouteServer(engineConn, callbackConn net.Conn) int {
 		withdrawals: make(map[string]map[string]withdrawalInfo),
 	}
 
-	// ZE_RS_CHAN_SIZE overrides the per-source-peer worker channel capacity.
+	// ze.rs.chan.size overrides the per-source-peer worker channel capacity.
 	// Default: 4096. Invalid/zero/negative values use default (guard in newWorkerPool).
-	rrChanSize := 4096
-	if v := os.Getenv("ZE_RS_CHAN_SIZE"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			rrChanSize = n
-		} else if err != nil {
-			logger().Warn("ignoring invalid ZE_RS_CHAN_SIZE", "value", v, "error", err)
-		}
-	}
+	rrChanSize := env.GetInt("ze.rs.chan.size", 4096)
 
 	// Start async cache release goroutine before worker pool (workers call releaseCache).
 	rs.startReleaseLoop()

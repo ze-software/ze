@@ -7,15 +7,21 @@ package bgpconfig
 import (
 	"fmt"
 	"net/netip"
-	"os"
 	"strconv"
 	"strings"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
+)
+
+// Env var registrations for BGP config overrides.
+var (
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.tcp.port", Type: "int", Default: "179", Description: "Override BGP TCP port for all peers"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.bgp.connection", Type: "string", Description: "Override peer connection mode (connect/listen/both)"})
 )
 
 // PeersFromConfigTree builds PeerSettings from a config tree.
@@ -328,9 +334,9 @@ func ValidatePeerProcessCaps(peers []*reactor.PeerSettings) error {
 	return nil
 }
 
-// applyPortOverride overrides peer port from the ze_bgp_tcp_port environment variable.
+// applyPortOverride overrides peer port from ze.bgp.tcp.port (dot or underscore notation).
 func applyPortOverride(peers []*reactor.PeerSettings) {
-	p := os.Getenv("ze_bgp_tcp_port")
+	p := env.Get("ze.bgp.tcp.port")
 	if p == "" {
 		return
 	}
@@ -344,13 +350,10 @@ func applyPortOverride(peers []*reactor.PeerSettings) {
 	}
 }
 
-// applyConnectionOverride overrides peer connection mode from the
-// ze.bgp.bgp.connection (or ze_bgp_bgp_connection) environment variable.
+// applyConnectionOverride overrides peer connection mode from
+// ze.bgp.bgp.connection (dot or underscore notation).
 func applyConnectionOverride(peers []*reactor.PeerSettings) {
-	v := os.Getenv("ze.bgp.bgp.connection")
-	if v == "" {
-		v = os.Getenv("ze_bgp_bgp_connection")
-	}
+	v := env.Get("ze.bgp.bgp.connection")
 	if v == "" {
 		return
 	}

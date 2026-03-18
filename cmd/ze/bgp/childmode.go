@@ -18,9 +18,17 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+)
+
+// Env var registrations for child mode and chaos testing.
+var (
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.child.mode", Type: "bool", Description: "Run as hub child process"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.chaos.seed", Type: "string", Description: "Chaos testing random seed"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.chaos.rate", Type: "string", Description: "Chaos testing failure rate"})
 )
 
 // isChildMode returns true if ze bgp should run as a hub child process.
@@ -33,8 +41,8 @@ func isChildMode(args []string) bool {
 		return true
 	}
 
-	// Check environment variable
-	if os.Getenv("ZE_CHILD_MODE") == "1" {
+	// Check environment variable (dot or underscore notation).
+	if env.IsEnabled("ze.child.mode") {
 		return true
 	}
 
@@ -186,10 +194,8 @@ func runChildModeWithArgs(args []string) int {
 
 	// Inject chaos wrappers from environment variables (child processes
 	// inherit env vars from the parent, but not CLI flags).
-	if seed := os.Getenv("ze.bgp.chaos.seed"); seed != "" {
-		injectChaosFromEnv(reactor, seed, os.Getenv("ze.bgp.chaos.rate"))
-	} else if seed := os.Getenv("ze_chaos_seed"); seed != "" {
-		injectChaosFromEnv(reactor, seed, os.Getenv("ze_chaos_rate"))
+	if seed := env.Get("ze.bgp.chaos.seed"); seed != "" {
+		injectChaosFromEnv(reactor, seed, env.Get("ze.bgp.chaos.rate"))
 	}
 
 	if err := reactor.Start(); err != nil {

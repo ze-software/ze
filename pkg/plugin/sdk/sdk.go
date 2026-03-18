@@ -29,11 +29,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"os"
 	"sync"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -113,29 +113,36 @@ func NewFromEnv(name string) (*Plugin, error) {
 	return NewFromTLSEnv(name)
 }
 
+// Env var registrations for plugin transport.
+var (
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.host", Type: "string", Default: "127.0.0.1", Description: "TLS host for plugin-to-engine connection"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.port", Type: "string", Default: "12700", Description: "TLS port for plugin-to-engine connection"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.token", Type: "string", Description: "Auth token for plugin-to-engine TLS (required for external plugins)"})
+)
+
 // Default plugin transport address (matches hub config default listen address).
 const (
 	DefaultPluginHost = "127.0.0.1"
 	DefaultPluginPort = "12700"
 )
 
-// NewFromTLSEnv creates a plugin by reading ZE_PLUGIN_HUB_HOST, ZE_PLUGIN_HUB_PORT,
-// and ZE_PLUGIN_HUB_TOKEN env vars. Connects to the engine via TLS, authenticates,
-// and returns a single-conn plugin.
-// ZE_PLUGIN_HUB_HOST defaults to 127.0.0.1, ZE_PLUGIN_HUB_PORT defaults to 12700.
-// ZE_PLUGIN_HUB_TOKEN is required.
+// NewFromTLSEnv creates a plugin by reading ze.plugin.hub.host, ze.plugin.hub.port,
+// and ze.plugin.hub.token env vars (dot or underscore notation).
+// Connects to the engine via TLS, authenticates, and returns a single-conn plugin.
+// ze.plugin.hub.host defaults to 127.0.0.1, ze.plugin.hub.port defaults to 12700.
+// ze.plugin.hub.token is required.
 func NewFromTLSEnv(name string) (*Plugin, error) {
-	host := os.Getenv("ZE_PLUGIN_HUB_HOST")
+	host := env.Get("ze.plugin.hub.host")
 	if host == "" {
 		host = DefaultPluginHost
 	}
-	port := os.Getenv("ZE_PLUGIN_HUB_PORT")
+	port := env.Get("ze.plugin.hub.port")
 	if port == "" {
 		port = DefaultPluginPort
 	}
-	token := os.Getenv("ZE_PLUGIN_HUB_TOKEN")
+	token := env.Get("ze.plugin.hub.token")
 	if token == "" {
-		return nil, fmt.Errorf("ZE_PLUGIN_HUB_TOKEN must be set")
+		return nil, fmt.Errorf("ze.plugin.hub.token must be set")
 	}
 
 	addr := net.JoinHostPort(host, port)

@@ -8,11 +8,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"runtime/debug"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
+
+// Env var registration for delivery timeout.
+var _ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.delivery.timeout", Type: "duration", Default: "5s", Description: "Timeout for event delivery to plugins"})
 
 // ErrConnectionClosed is returned when the plugin connection is closed during event delivery.
 var ErrConnectionClosed = errors.New("connection closed")
@@ -82,23 +86,12 @@ var (
 	deliveryTimeoutOnce sync.Once
 )
 
-// deliveryTimeoutFromEnv reads ze.plugin.delivery.timeout (or ze_plugin_delivery_timeout)
+// deliveryTimeoutFromEnv reads ze.plugin.delivery.timeout (dot or underscore notation)
 // and returns the parsed duration. Falls back to defaultDeliveryTimeout on missing
 // or invalid values. Result is cached via sync.Once.
 func deliveryTimeoutFromEnv() time.Duration {
 	deliveryTimeoutOnce.Do(func() {
-		deliveryTimeout = defaultDeliveryTimeout
-		for _, key := range []string{"ze.plugin.delivery.timeout", "ze_plugin_delivery_timeout"} {
-			if v := os.Getenv(key); v != "" {
-				d, err := time.ParseDuration(v)
-				if err != nil {
-					logger().Warn("invalid delivery timeout env var", "key", key, "value", v, "error", err)
-					return
-				}
-				deliveryTimeout = d
-				return
-			}
-		}
+		deliveryTimeout = env.GetDuration("ze.plugin.delivery.timeout", defaultDeliveryTimeout)
 	})
 	return deliveryTimeout
 }

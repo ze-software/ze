@@ -33,6 +33,17 @@ import (
 	"os"
 	"strings"
 	"sync"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
+)
+
+// Env var registrations for logging.
+var (
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.log", Type: "string", Default: "warn", Description: "Base log level for all subsystems"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.<subsystem>", Type: "string", Description: "Log level for specific subsystem (e.g. ze.log.bgp.fsm)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.backend", Type: "string", Default: "stderr", Description: "Log output backend (stderr/stdout/syslog)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.destination", Type: "string", Description: "Syslog address (when backend=syslog)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.relay", Type: "string", Description: "Plugin stderr relay level"})
 )
 
 // Log level and backend string constants.
@@ -49,7 +60,7 @@ var levelRegistry sync.Map // map[string]*slog.LevelVar
 
 // getLogEnv returns the log level for a subsystem using hierarchical lookup.
 // Walks from most specific to least specific: ze.log.bgp.fsm → ze.log.bgp → ze.log
-// At each level, dot notation takes precedence over underscore.
+// At each level, checks dot, lowercase underscore, and uppercase underscore notation.
 func getLogEnv(subsystem string) string {
 	// Build path segments: ["bgp", "fsm"] for "bgp.fsm"
 	parts := strings.Split(subsystem, ".")
@@ -63,14 +74,7 @@ func getLogEnv(subsystem string) string {
 			key = "ze.log." + strings.Join(parts[:i], ".")
 		}
 
-		// Dot notation first (higher priority)
-		if v := os.Getenv(key); v != "" {
-			return v
-		}
-
-		// Underscore notation (shell-compatible)
-		underKey := strings.ReplaceAll(key, ".", "_")
-		if v := os.Getenv(underKey); v != "" {
+		if v := env.Get(key); v != "" {
 			return v
 		}
 	}
@@ -81,12 +85,7 @@ func getLogEnv(subsystem string) string {
 // getSpecialEnv returns a special (non-hierarchical) env var value.
 // Used for backend, destination, relay which don't use hierarchical lookup.
 func getSpecialEnv(key string) string {
-	dotKey := "ze.log." + key
-	if v := os.Getenv(dotKey); v != "" {
-		return v
-	}
-	underKey := strings.ReplaceAll(dotKey, ".", "_")
-	return os.Getenv(underKey)
+	return env.Get("ze.log." + key)
 }
 
 // Logger returns a logger for an engine subsystem.
@@ -315,9 +314,9 @@ func applyLogConfigTo(configValues map[string]map[string]string, warnWriter io.W
 		}
 
 		// Priority: OS env var > config file
-		// Only set if not already set by OS
-		if os.Getenv(envKey) == "" {
-			_ = os.Setenv(envKey, value)
+		// Only set if not already set by OS (any notation)
+		if env.Get(envKey) == "" {
+			_ = env.Set(envKey, value)
 		}
 	}
 }

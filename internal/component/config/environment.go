@@ -12,6 +12,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // Environment constants.
@@ -276,17 +278,9 @@ func ResolveConfigPath(path string) string {
 }
 
 // getEnv returns the environment variable value.
-// Checks both dot notation (ze.bgp.section.option) and underscore (ze_bgp_section_option).
+// Checks dot, lowercase underscore, and uppercase underscore notation.
 func getEnv(section, option string) string {
-	// Dot notation first (higher priority)
-	dotKey := "ze.bgp." + section + "." + option
-	if v := os.Getenv(dotKey); v != "" {
-		return v
-	}
-
-	// Underscore notation
-	underKey := strings.ReplaceAll(dotKey, ".", "_")
-	return os.Getenv(underKey)
+	return env.Get("ze.bgp." + section + "." + option)
 }
 
 // =============================================================================

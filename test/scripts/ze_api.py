@@ -5,8 +5,11 @@ Provides YANG RPC communication with ZeBGP daemon.
 Uses newline-delimited #id verb [json] framing.
 
 Transport modes (auto-detected from environment):
-  - TLS: single connection via ZE_PLUGIN_HUB_HOST/PORT/TOKEN (preferred)
-  - FD:  dual Unix socket pairs via ZE_ENGINE_FD/ZE_CALLBACK_FD (legacy)
+  - TLS: single connection via ze.plugin.hub.host/port/token (preferred)
+  - FD:  dual Unix socket pairs via ze.engine.fd/ze.callback.fd (legacy)
+
+Environment variables support dot, underscore, and uppercase notation:
+  ze.plugin.hub.host / ze_plugin_hub_host / ZE_PLUGIN_HUB_HOST
 
 5-stage plugin registration protocol (YANG RPC):
   - Stage 1: declare-registration (plugin -> engine)
@@ -59,6 +62,21 @@ import sys
 from typing import Any
 
 
+def _ze_env(key: str, default: str = '') -> str:
+    """Look up a Ze environment variable in dot, lowercase underscore, and uppercase underscore notation.
+
+    Priority: ze.foo.bar > ze_foo_bar > ZE_FOO_BAR
+    """
+    v = os.environ.get(key, '')
+    if v:
+        return v
+    under = key.replace('.', '_')
+    v = os.environ.get(under, '')
+    if v:
+        return v
+    return os.environ.get(under.upper(), default)
+
+
 class API:
     """ZeBGP API client using YANG RPC protocol.
 
@@ -83,14 +101,14 @@ class API:
         self._engine_fd = -1
         self._callback_fd = -1
 
-        token = os.environ.get('ZE_PLUGIN_HUB_TOKEN', '')
+        token = _ze_env('ze.plugin.hub.token')
         if token:
             self._init_tls(token)
         else:
             if engine_fd is None:
-                engine_fd = int(os.environ.get('ZE_ENGINE_FD', '3'))
+                engine_fd = int(_ze_env('ze.engine.fd', '3'))
             if callback_fd is None:
-                callback_fd = int(os.environ.get('ZE_CALLBACK_FD', '4'))
+                callback_fd = int(_ze_env('ze.callback.fd', '4'))
             self._engine_fd = engine_fd
             self._callback_fd = callback_fd
 
@@ -100,7 +118,7 @@ class API:
         self._shutdown = False
 
         # Plugin name (set during TLS auth or registry sharing)
-        self._name = os.environ.get('ZE_PLUGIN_NAME', 'python-plugin')
+        self._name = _ze_env('ze.plugin.name', 'python-plugin')
 
         # Accumulated declarations for Stage 1
         self._families: list[dict[str, str]] = []
@@ -127,8 +145,8 @@ class API:
 
     def _init_tls(self, token: str) -> None:
         """Connect to engine via TLS and authenticate."""
-        host = os.environ.get('ZE_PLUGIN_HUB_HOST', '127.0.0.1')
-        port = int(os.environ.get('ZE_PLUGIN_HUB_PORT', '12700'))
+        host = _ze_env('ze.plugin.hub.host', '127.0.0.1')
+        port = int(_ze_env('ze.plugin.hub.port', '12700'))
 
         ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         ctx.check_hostname = False
@@ -140,7 +158,7 @@ class API:
         self._tls_mode = True
 
         # Auth: send #0 auth {"token":"...","name":"..."}
-        name = os.environ.get('ZE_PLUGIN_NAME', 'python-plugin')
+        name = _ze_env('ze.plugin.name', 'python-plugin')
         auth_line = self._format_line(0, 'auth', {'token': token, 'name': name})
         self._tls_sock.sendall(auth_line)
 

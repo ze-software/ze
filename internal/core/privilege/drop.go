@@ -9,9 +9,16 @@ package privilege
 
 import (
 	"fmt"
-	"os"
 	"os/user"
 	"strconv"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
+)
+
+// Env var registrations for privilege dropping.
+var (
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.user", Type: "string", Description: "User to drop privileges to after port binding"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.group", Type: "string", Description: "Group to drop privileges to after port binding"})
 )
 
 // DropConfig holds the user/group to drop privileges to.
@@ -20,23 +27,14 @@ type DropConfig struct {
 	Group string // Group name to switch to (empty = primary group of User)
 }
 
-// DropConfigFromEnv reads ze.user and ze.group from environment variables.
-// Returns empty User if neither ze.user nor ze_user is set (caller should skip drop).
+// DropConfigFromEnv reads ze.user and ze.group from environment variables
+// (dot or underscore notation).
+// Returns empty User if not set (caller should skip drop).
 func DropConfigFromEnv() DropConfig {
 	return DropConfig{
-		User:  envLookup("ze.user", "ze_user"),
-		Group: envLookup("ze.group", "ze_group"),
+		User:  env.Get("ze.user"),
+		Group: env.Get("ze.group"),
 	}
-}
-
-// envLookup returns the first non-empty env var value.
-func envLookup(keys ...string) string {
-	for _, k := range keys {
-		if v := os.Getenv(k); v != "" {
-			return v
-		}
-	}
-	return ""
 }
 
 // resolveIDs resolves username and group name to numeric uid/gid and

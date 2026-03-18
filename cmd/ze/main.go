@@ -16,6 +16,7 @@ import (
 	zecompletion "codeberg.org/thomas-mangin/ze/cmd/ze/completion"
 	zeconfig "codeberg.org/thomas-mangin/ze/cmd/ze/config"
 	zedb "codeberg.org/thomas-mangin/ze/cmd/ze/db"
+	zeenv "codeberg.org/thomas-mangin/ze/cmd/ze/environ"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
 	zeinit "codeberg.org/thomas-mangin/ze/cmd/ze/init"
@@ -31,12 +32,19 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 
 	// Import all plugins to trigger init() registration.
 	// Must happen at the binary entry point (not in internal/plugin)
 	// to avoid import cycles: format → plugin → all → bgp-rs → format.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+)
+
+// Env var registrations for storage and config.
+var (
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.storage.blob", Type: "bool", Default: "true", Description: "Use blob storage (false = filesystem)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.config.dir", Type: "string", Description: "Override default config directory"})
 )
 
 // version and buildDate are set via ldflags at build time.
@@ -192,6 +200,8 @@ dispatch:
 		os.Exit(zesignal.RunStatus(args[1:]))
 	case "show":
 		os.Exit(show.Run(args[1:]))
+	case "env":
+		os.Exit(zeenv.Run(args[1:]))
 	case "run":
 		os.Exit(zerun.Run(args[1:]))
 	case "completion":
@@ -292,10 +302,10 @@ func detectConfigType(store storage.Storage, path string) config.ConfigType {
 // Default: blob storage at {configDir}/database.zefs.
 // Fallback: filesystem if blob cannot be created or ZE_STORAGE_BLOB=false.
 func resolveStorage() storage.Storage {
-	if v := os.Getenv("ZE_STORAGE_BLOB"); strings.EqualFold(v, "false") {
+	if v := env.Get("ze.storage.blob"); strings.EqualFold(v, "false") {
 		return storage.NewFilesystem()
 	}
-	configDir := os.Getenv("ZE_CONFIG_DIR")
+	configDir := env.Get("ze.config.dir")
 	if configDir == "" {
 		configDir = paths.DefaultConfigDir()
 	}

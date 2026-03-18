@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"os"
 	"runtime"
 	"strconv"
 	"sync"
@@ -46,10 +45,17 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
+)
+
+// Env var registrations for reactor tuning.
+var (
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.chan.size", Type: "int", Default: "64", Description: "Per-destination forward worker channel capacity"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.safety.valve", Type: "duration", Default: "5m", Description: "Safety valve duration for UPDATE cache gap-based eviction"})
 )
 
 // reactorLogger is the reactor subsystem logger (lazy initialization).
@@ -273,16 +279,9 @@ func New(config *Config) *Reactor {
 		maxEntries = 1000000 // Default: 1M entries
 	}
 
-	// ZE_FWD_CHAN_SIZE overrides the per-destination forward pool channel capacity.
+	// ze.fwd.chan.size overrides the per-destination forward pool channel capacity.
 	// Default: 64. Invalid/zero/negative values use default.
-	fwdChanSize := 0
-	if v := os.Getenv("ZE_FWD_CHAN_SIZE"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			fwdChanSize = n
-		} else {
-			reactorLogger().Warn("ignoring invalid ZE_FWD_CHAN_SIZE", "value", v, "error", err)
-		}
-	}
+	fwdChanSize := env.GetInt("ze.fwd.chan.size", 0)
 
 	r := &Reactor{
 		config:          config,
@@ -296,14 +295,10 @@ func New(config *Config) *Reactor {
 		configTree:      config.ConfigTree,
 	}
 
-	// ZE_CACHE_SAFETY_VALVE overrides the safety valve duration for gap-based eviction.
-	// Default: 5 minutes. Invalid values are ignored.
-	if v := os.Getenv("ZE_CACHE_SAFETY_VALVE"); v != "" {
-		if d, err := time.ParseDuration(v); err == nil {
-			r.recentUpdates.SetSafetyValveDuration(d)
-		} else {
-			reactorLogger().Warn("ignoring invalid ZE_CACHE_SAFETY_VALVE", "value", v, "error", err)
-		}
+	// ze.cache.safety.valve overrides the safety valve duration for gap-based eviction.
+	// Default: 5 minutes. Invalid values use default.
+	if d := env.GetDuration("ze.cache.safety.valve", 0); d != 0 {
+		r.recentUpdates.SetSafetyValveDuration(d)
 	}
 
 	return r

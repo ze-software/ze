@@ -14,6 +14,7 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
@@ -197,7 +198,7 @@ func hostKeyCallback(host string) ssh.HostKeyCallback {
 
 // ResolveDBPath determines the database.zefs path from env or default config dir.
 func ResolveDBPath() string {
-	if dir := os.Getenv("ZE_CONFIG_DIR"); dir != "" {
+	if dir := env.Get("ze.config.dir"); dir != "" {
 		return filepath.Join(dir, "database.zefs")
 	}
 	dir := paths.DefaultConfigDir()
