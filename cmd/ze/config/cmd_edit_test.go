@@ -232,13 +232,41 @@ func TestPromptCreateConfigOutputFormat(t *testing.T) {
 	}
 }
 
-// TestDefaultConfigName verifies the default config name constant.
+// TestDefaultConfigName verifies the default config name fallback and identity-based naming.
 //
-// VALIDATES: Default config name is ze.conf.
-// PREVENTS: Accidental change of default config name.
+// VALIDATES: Default config name is ze.conf without identity, <name>.conf with identity.
+// PREVENTS: Accidental change of default config name logic.
 func TestDefaultConfigName(t *testing.T) {
-	if defaultConfigName != "ze.conf" {
-		t.Errorf("defaultConfigName = %q, want %q", defaultConfigName, "ze.conf")
+	if fallbackConfigName != "ze.conf" {
+		t.Errorf("fallbackConfigName = %q, want %q", fallbackConfigName, "ze.conf")
+	}
+
+	// Filesystem storage: always falls back to ze.conf
+	fsStore := storage.NewFilesystem()
+	if got := defaultConfigName(fsStore); got != "ze.conf" {
+		t.Errorf("defaultConfigName(filesystem) = %q, want %q", got, "ze.conf")
+	}
+
+	// Blob storage with identity name
+	dir := t.TempDir()
+	blobPath := filepath.Join(dir, "database.zefs")
+	blobStore, err := storage.NewBlob(blobPath, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer blobStore.Close() //nolint:errcheck // test cleanup
+
+	// No identity set: falls back to ze.conf
+	if got := defaultConfigName(blobStore); got != "ze.conf" {
+		t.Errorf("defaultConfigName(blob, no identity) = %q, want %q", got, "ze.conf")
+	}
+
+	// Set identity name
+	if err := blobStore.WriteFile("meta/instance/name", []byte("ze-first"), 0); err != nil {
+		t.Fatal(err)
+	}
+	if got := defaultConfigName(blobStore); got != "ze-first.conf" {
+		t.Errorf("defaultConfigName(blob, identity=ze-first) = %q, want %q", got, "ze-first.conf")
 	}
 }
 
@@ -284,8 +312,8 @@ func TestSelectConfigAC6(t *testing.T) {
 
 	// Verify prompt was shown
 	output := errBuf.String()
-	if !strings.Contains(output, "ze.conf not found") {
-		t.Errorf("expected 'ze.conf not found' in output, got: %s", output)
+	if !strings.Contains(output, "not found in store") {
+		t.Errorf("expected 'not found in store' in output, got: %s", output)
 	}
 	if !strings.Contains(output, "site-a.conf") {
 		t.Errorf("expected 'site-a.conf' listed, got: %s", output)
@@ -326,9 +354,9 @@ func TestSelectConfigAC6SecondChoice(t *testing.T) {
 	}
 }
 
-// TestSelectConfigAC7 verifies ze.conf creation when blob is empty (AC-7).
+// TestSelectConfigAC7 verifies default config creation when blob is empty (AC-7).
 //
-// VALIDATES: Empty blob triggers creation of ze.conf.
+// VALIDATES: Empty blob triggers creation of default config.
 // PREVENTS: Error or hang when blob has no configs at all.
 func TestSelectConfigAC7(t *testing.T) {
 	dir := t.TempDir()
@@ -349,12 +377,12 @@ func TestSelectConfigAC7(t *testing.T) {
 	selected := doSelectConfig(store, configDir, defaultPath, in, &errBuf, time.Second)
 
 	if selected != defaultPath {
-		t.Errorf("expected %q (created ze.conf), got %q", defaultPath, selected)
+		t.Errorf("expected %q (created default config), got %q", defaultPath, selected)
 	}
 
-	// Verify ze.conf was created in blob
+	// Verify config was created in blob
 	if !store.Exists(defaultPath) {
-		t.Error("ze.conf should exist in blob after AC-7 creation")
+		t.Error("default config should exist in blob after AC-7 creation")
 	}
 
 	// Verify creation message

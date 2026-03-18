@@ -117,7 +117,7 @@ No external RFCs apply. Internal protocol over existing transport.
 ### Transformation Path
 
 #### First Boot (After `ze init`)
-1. `ze daemon` -- reads blob: `meta/identity/name`=edge-01, `meta/managed`=true, hub server, hub token
+1. `ze daemon` -- reads blob: `meta/instance/name`=edge-01, `meta/instance/managed`=true, hub server, hub token
 2. Client connects to hub via TLS, sends `#0 auth` with token and name
 3. Hub validates token against `client edge-01 { secret }` in its config
 4. Client sends `config-fetch {"version":""}` (no cached version)

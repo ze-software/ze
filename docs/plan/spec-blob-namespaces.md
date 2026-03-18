@@ -24,9 +24,9 @@
 Introduce structured key namespaces in the ZeFS blob. Keys follow `<namespace>/<qualifier>/<path>` convention. Two namespaces: `meta/` for instance metadata, `file/` for config files. The qualifier enables future versioning (`active`, `draft`, date stamps) without format changes.
 
 Deliverables:
-1. `meta/` namespace for instance metadata (`meta/ssh/username`, `meta/identity/name`, `meta/managed`)
+1. `meta/` namespace for instance metadata (`meta/ssh/username`, `meta/instance/name`, `meta/instance/managed`)
 2. `file/` namespace with qualifier for config files (`file/active/etc/ze/router.conf`)
-3. `ze init` extended: sets `meta/identity/name` and `meta/managed` (value: `true`/`false`)
+3. `ze init` extended: sets `meta/instance/name` and `meta/instance/managed` (value: `true`/`false`)
 4. `ze db import` stores as `file/active/ze.conf`
 5. `resolveKey()` idempotent: already-namespaced keys pass through unchanged
 6. `List()` returns full blob key names (callers see namespaces)
@@ -39,8 +39,8 @@ Deliverables:
 | `meta/ssh/password` | SSH credential |
 | `meta/ssh/host` | SSH credential |
 | `meta/ssh/port` | SSH credential |
-| `meta/identity/name` | Instance name |
-| `meta/managed` | Fleet-managed flag (`true`/`false`) |
+| `meta/instance/name` | Instance name |
+| `meta/instance/managed` | Fleet-managed flag (`true`/`false`) |
 | `file/active/etc/ze/router.conf` | Current committed config |
 | `file/active/etc/ze/ssh_host_ed25519_key` | SSH host key |
 
@@ -87,7 +87,7 @@ No external RFCs apply.
   -> Decision: `migrateExistingFiles()` writes `file/active/` prefixed keys.
 - [ ] `internal/component/config/storage/storage.go` - Storage interface: `ReadFile`, `WriteFile`, `Exists`, `List`, `Remove`, `AcquireLock`, `Stat`, `Close`. No signature changes needed.
 - [ ] `cmd/ze/init/main.go` - Constants `keyUsername = "ssh/username"`, etc. (lines 21-25). `runInit()` writes 4 entries directly to zefs.BlobStore (not through Storage).
-  -> Decision: change constants to `meta/ssh/username`, etc. Add `meta/identity/name` and `meta/managed`.
+  -> Decision: change constants to `meta/ssh/username`, etc. Add `meta/instance/name` and `meta/instance/managed`.
 - [ ] `cmd/ze/internal/sshclient/sshclient.go` - `ReadCredentials()` hardcodes `"ssh/username"`, `"ssh/password"`, `"ssh/host"`, `"ssh/port"` (lines 132-148). Reads directly from `zefs.BlobStore`, not through Storage. Every CLI command uses this to SSH-connect to daemon.
   -> Decision: change hardcoded keys to `meta/ssh/username`, etc. CRITICAL: if init changes but this doesn't, all CLI commands break.
 - [ ] `cmd/ze/db/main.go` - `ls`, `cat`, `rm` use raw blob keys (no changes needed). `import` uses `filePathToKey()` which strips `/` to produce bare keys.
@@ -102,7 +102,7 @@ No external RFCs apply.
 
 **Behavior to change:**
 - `ze init` writes keys with `meta/` prefix
-- `ze init` gains `meta/identity/name` (optional, prompted) and `meta/managed` (`--managed` flag, default `false`)
+- `ze init` gains `meta/instance/name` (optional, prompted) and `meta/instance/managed` (`--managed` flag, default `false`)
 - SSH client (`sshclient.go`) reads `meta/ssh/*` instead of `ssh/*`
 - `resolveKey()` prepends `file/active/` for filesystem paths, passes through already-namespaced keys
 - `List()` returns full blob keys (namespace included, no leading `/`)
@@ -132,7 +132,7 @@ No external RFCs apply.
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
 | `ze init` | -> | Blob contains `meta/ssh/username` (not `ssh/username`) | `test/managed/init-meta-keys.ci` |
-| `ze init --managed` | -> | Blob contains `meta/managed` with value `true` | `test/managed/init-managed-key.ci` |
+| `ze init --managed` | -> | Blob contains `meta/instance/managed` with value `true` | `test/managed/init-managed-key.ci` |
 | `ze config` (any CLI command) | -> | `sshclient.ReadCredentials()` reads `meta/ssh/*` keys | `test/managed/cli-reads-meta-keys.ci` |
 | `ze daemon config.conf` | -> | Config stored under `file/active/` prefix | `test/managed/file-namespace.ci` |
 | `ze db import /path/to/file` | -> | Key stored as `file/active/ze.conf` | Unit test |
@@ -142,8 +142,8 @@ No external RFCs apply.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | `ze init` | Blob keys: `meta/ssh/username`, `meta/ssh/password`, `meta/ssh/host`, `meta/ssh/port` |
-| AC-2 | `ze init` with name prompted | Blob contains `meta/identity/name` with prompted value |
-| AC-3 | `ze init --managed` | Blob contains `meta/managed` with value `true`. Without flag: `false`. |
+| AC-2 | `ze init` with name prompted | Blob contains `meta/instance/name` with prompted value |
+| AC-3 | `ze init --managed` | Blob contains `meta/instance/managed` with value `true`. Without flag: `false`. |
 | AC-4 | Config written via Storage layer | Key uses `file/active/` prefix (e.g., `file/active/etc/ze/router.conf`) |
 | AC-5 | Any CLI command after `ze init` | `sshclient.ReadCredentials()` reads `meta/ssh/*` keys successfully |
 | AC-6 | `ze db import /path/to/file` | Key stored as `file/active/ze.conf` |
@@ -158,8 +158,8 @@ No external RFCs apply.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestZeInitMetaKeys` | `cmd/ze/init/main_test.go` | Init writes `meta/ssh/username` not `ssh/username` (AC-1) | |
-| `TestZeInitIdentityName` | `cmd/ze/init/main_test.go` | Init writes `meta/identity/name` (AC-2) | |
-| `TestZeInitManagedKey` | `cmd/ze/init/main_test.go` | Init writes `meta/managed` `true` with flag, `false` without (AC-3) | |
+| `TestZeInitIdentityName` | `cmd/ze/init/main_test.go` | Init writes `meta/instance/name` (AC-2) | |
+| `TestZeInitManagedKey` | `cmd/ze/init/main_test.go` | Init writes `meta/instance/managed` `true` with flag, `false` without (AC-3) | |
 | `TestReadCredentialsMeta` | `cmd/ze/internal/sshclient/sshclient_test.go` | `ReadCredentials()` reads `meta/ssh/*` keys (AC-5) | |
 | `TestBlobStorageFilePrefix` | `internal/component/config/storage/storage_test.go` | Config paths get `file/active/` prefix in blob (AC-4) | |
 | `TestDbImportFilePrefix` | `cmd/ze/db/main_test.go` | `ze db import` stores as `file/active/ze.conf` (AC-6) | |
@@ -172,12 +172,12 @@ No external RFCs apply.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `init-meta-keys` | `test/managed/init-meta-keys.ci` | `ze init` creates blob with `meta/ssh/*` keys, `ze db ls meta/` shows them | |
-| `init-managed-key` | `test/managed/init-managed-key.ci` | `ze init --managed` stores `meta/managed` as `true` | |
+| `init-managed-key` | `test/managed/init-managed-key.ci` | `ze init --managed` stores `meta/instance/managed` as `true` | |
 | `cli-reads-meta-keys` | `test/managed/cli-reads-meta-keys.ci` | CLI command connects via `meta/ssh/*` credentials after init | |
 | `file-namespace` | `test/managed/file-namespace.ci` | Config stored under `file/active/` prefix, visible via `ze db ls file/` | |
 
 ## Files to Modify
-- `cmd/ze/init/main.go` - change key constants to `meta/ssh/*`, add `--managed` flag, add name prompt, add `meta/identity/name` and `meta/managed` entries
+- `cmd/ze/init/main.go` - change key constants to `meta/ssh/*`, add `--managed` flag, add name prompt, add `meta/instance/name` and `meta/instance/managed` entries
 - `cmd/ze/init/main_test.go` - update existing tests for new key names, add tests for identity/managed
 - `cmd/ze/internal/sshclient/sshclient.go` - change hardcoded `"ssh/username"` etc. to `"meta/ssh/username"` etc.
 - `internal/component/config/storage/blob.go` - `resolveKey()` prepends `file/active/` (idempotent), `migrateExistingFiles()` writes `file/active/` prefixed keys, `List()` returns full blob keys
@@ -197,7 +197,7 @@ No external RFCs apply.
 - Update `cmd/ze/init/main_test.go`: change existing assertions from `ssh/username` to `meta/ssh/username` etc. Add `TestZeInitIdentityName` and `TestZeInitManagedKey`.
 - Add `TestReadCredentialsMeta` in `cmd/ze/internal/sshclient/sshclient_test.go`: verify `ReadCredentials()` reads `meta/ssh/*` keys.
 - Tests: run and confirm FAIL
-- Update `cmd/ze/init/main.go`: change constants to `meta/ssh/*`, add `--managed` flag, add name prompt, add entries for `meta/identity/name` and `meta/managed`
+- Update `cmd/ze/init/main.go`: change constants to `meta/ssh/*`, add `--managed` flag, add name prompt, add entries for `meta/instance/name` and `meta/instance/managed`
 - Update `cmd/ze/internal/sshclient/sshclient.go`: change hardcoded keys to `meta/ssh/*`
 - Tests: run and confirm PASS
 
@@ -235,8 +235,8 @@ No external RFCs apply.
 | Deliverable | Verification method |
 |-------------|---------------------|
 | `meta/ssh/*` keys written by init | `grep "meta/ssh/" cmd/ze/init/main.go` |
-| `meta/identity/name` key written by init | `grep "meta/identity/name" cmd/ze/init/main.go` |
-| `meta/managed` key written by init | `grep "meta/managed" cmd/ze/init/main.go` |
+| `meta/instance/name` key written by init | `grep "meta/instance/name" cmd/ze/init/main.go` |
+| `meta/instance/managed` key written by init | `grep "meta/instance/managed" cmd/ze/init/main.go` |
 | `sshclient.go` reads `meta/ssh/*` | `grep "meta/ssh/" cmd/ze/internal/sshclient/sshclient.go` |
 | `resolveKey()` prepends `file/active/` | `grep "file/active" internal/component/config/storage/blob.go` |
 | `resolveKey()` idempotent | `TestResolveKeyIdempotent` passes |
@@ -250,7 +250,7 @@ No external RFCs apply.
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | `resolveKey()` must not allow path traversal (`../`) to escape namespace |
-| Key injection | Verify user-prompted `meta/identity/name` value cannot contain `/` or other key separators that would create unexpected keys |
+| Key injection | Verify user-prompted `meta/instance/name` value cannot contain `/` or other key separators that would create unexpected keys |
 | Credential exposure | `meta/ssh/password` must not appear in logs, error messages, or `ze db ls` output format |
 
 ## Mistake Log

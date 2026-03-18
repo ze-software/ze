@@ -149,9 +149,9 @@ The managed client's local ZeFS blob caches the config received from the hub. Th
 | Auth token | `secret` in the same block |
 | BGP config | `bgp { }` block |
 | Local plugins | `server local { }` block |
-| Managed mode toggle | `meta/managed` in blob (see `spec-blob-namespaces`) |
+| Managed mode toggle | `meta/instance/managed` in blob (see `spec-blob-namespaces`) |
 
-The `meta/managed` flag controls whether the client actually connects to the hub. Toggling it severs or establishes the hub connection without changing the config.
+The `meta/instance/managed` flag controls whether the client actually connects to the hub. Toggling it severs or establishes the hub connection without changing the config.
 
 ---
 
@@ -209,7 +209,7 @@ The client controls timing. A router in the middle of graceful restart or conver
 | Step | Action |
 |------|--------|
 | 1 | `ze daemon` |
-| 2 | Read blob: `meta/identity/name`, `meta/managed`=true, hub host/port, token |
+| 2 | Read blob: `meta/instance/name`, `meta/instance/managed`=true, hub host/port, token |
 | 3 | Connect to hub, authenticate |
 | 4 | Fetch config (includes `server local { }` + `client edge-01 { }` + `bgp { }`) |
 | 5 | Write config to local blob |
@@ -271,7 +271,7 @@ Two sources of hub connection info, used at different stages:
 
 | Stage | Source | Contains |
 |-------|--------|----------|
-| First boot (after `ze init`) | Blob metadata | `meta/identity/name`, hub host/port, token |
+| First boot (after `ze init`) | Blob metadata | `meta/instance/name`, hub host/port, token |
 | Subsequent boots | Cached config | `client <name> { host; port; secret }` block |
 
 The cached config takes over once fetched. The blob metadata from `ze init` is the bootstrap that gets the first config.

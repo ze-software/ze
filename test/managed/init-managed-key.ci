@@ -1,4 +1,4 @@
-# Test: ze init --managed sets meta/managed to true
+# Test: ze init --managed sets meta/instance/managed to true
 #
 # VALIDATES: AC-3 -- managed flag stored in database.
 # PREVENTS: managed mode not persisted after init.
@@ -15,11 +15,11 @@ trap 'rm -rf "$INIT_DIR"' EXIT
 # Init with --managed flag
 printf 'admin\nsecret123\n127.0.0.1\n2222\n\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init --managed
 
-# Verify meta/managed is true
-MANAGED=$(ZE_CONFIG_DIR="$INIT_DIR" ze db cat meta/managed)
-[ "$MANAGED" = "true" ] || { echo "FAIL: meta/managed expected 'true', got '$MANAGED'" >&2; exit 1; }
+# Verify meta/instance/managed is true
+MANAGED=$(ZE_CONFIG_DIR="$INIT_DIR" ze db cat meta/instance/managed)
+[ "$MANAGED" = "true" ] || { echo "FAIL: meta/instance/managed expected 'true', got '$MANAGED'" >&2; exit 1; }
 
-echo "OK: ze init --managed sets meta/managed=true" >&2
+echo "OK: ze init --managed sets meta/instance/managed=true" >&2
 exit 0
 EOF_SH
 

@@ -28,8 +28,29 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 )
 
-// defaultConfigName is the config name used when no argument is given.
-const defaultConfigName = "ze.conf"
+// fallbackConfigName is used when meta/instance/name is not set.
+const fallbackConfigName = "ze.conf"
+
+// identityNameKey is the blob key for the instance name.
+const identityNameKey = "meta/instance/name"
+
+// defaultConfigName returns the default config filename from the blob's
+// meta/instance/name (e.g. "ze-first" -> "ze-first.conf"), falling back
+// to "ze.conf" when the key is absent or the storage is not blob-backed.
+func defaultConfigName(store storage.Storage) string {
+	if !storage.IsBlobStorage(store) {
+		return fallbackConfigName
+	}
+	data, err := store.ReadFile(identityNameKey)
+	if err != nil || len(data) == 0 {
+		return fallbackConfigName
+	}
+	name := strings.TrimSpace(string(data))
+	if name == "" {
+		return fallbackConfigName
+	}
+	return name + ".conf"
+}
 
 // ephemeralPollInterval is the interval between SSH port readiness checks.
 const ephemeralPollInterval = 100 * time.Millisecond
@@ -220,7 +241,7 @@ func doSelectConfig(store storage.Storage, configDir, defaultPath string, in io.
 	}
 	sort.Strings(configs)
 
-	// AC-7: no configs exist, create ze.conf
+	// AC-7: no configs exist, create default config
 	if len(configs) == 0 {
 		fmt.Fprintf(errw, "no configs found, creating %s\n", filepath.Base(defaultPath)) //nolint:errcheck // terminal output
 		if writeErr := store.WriteFile(defaultPath, []byte{}, 0o600); writeErr != nil {
@@ -231,7 +252,7 @@ func doSelectConfig(store storage.Storage, configDir, defaultPath string, in io.
 	}
 
 	// AC-6: list available configs and prompt for selection
-	fmt.Fprintf(errw, "ze.conf not found in store. Available configs:\n") //nolint:errcheck // terminal output
+	fmt.Fprintf(errw, "%s not found in store. Available configs:\n", filepath.Base(defaultPath)) //nolint:errcheck // terminal output
 	for i, c := range configs {
 		fmt.Fprintf(errw, "  %d) %s\n", i+1, filepath.Base(c)) //nolint:errcheck // terminal output
 	}
@@ -267,7 +288,7 @@ func doSelectConfig(store storage.Storage, configDir, defaultPath string, in io.
 }
 
 // cmdEditWithStorage handles the edit command with a given storage backend.
-// Supports -f flag to override to filesystem and defaults to ze.conf.
+// Supports -f flag to override to filesystem. Defaults to <identity>.conf from blob.
 func cmdEditWithStorage(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config edit", flag.ExitOnError)
 	fileOverride := fs.Bool("f", false, "Use filesystem directly, bypass blob store")
@@ -276,7 +297,7 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 		fmt.Fprintf(os.Stderr, `Usage: ze config edit [options] [config-file]
 
 Interactive configuration editor with VyOS-like set commands.
-Config file defaults to ze.conf when not specified.
+Config file defaults to <name>.conf (from meta/instance/name) or ze.conf.
 
 Options:
 `)
@@ -307,7 +328,7 @@ Tab completion:
   Ghost text shows best match in gray
 
 Examples:
-  ze config edit                         Edit default ze.conf
+  ze config edit                         Edit default config (<identity>.conf)
   ze config edit router.conf             Edit specific config
   ze config edit -f /etc/ze/config.conf  Edit from filesystem
 `)
@@ -323,8 +344,8 @@ Examples:
 		store = storage.NewFilesystem()
 	}
 
-	// Default to ze.conf when no config name given
-	configPath := defaultConfigName
+	// Default config name from meta/instance/name, fall back to ze.conf
+	configPath := defaultConfigName(store)
 	userProvided := fs.NArg() >= 1
 	if userProvided {
 		configPath = fs.Arg(0)
@@ -341,7 +362,7 @@ Examples:
 		}
 	}
 
-	// For blob storage with default config name, handle missing ze.conf (AC-6/AC-7)
+	// For blob storage with default config name, handle missing config (AC-6/AC-7)
 	if storage.IsBlobStorage(store) && !userProvided && !store.Exists(configPath) {
 		selected := selectConfig(store, filepath.Dir(configPath), configPath)
 		if selected == "" {

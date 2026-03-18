@@ -24,9 +24,9 @@ echo "$META_KEYS" | grep -q "meta/ssh/password" || { echo "FAIL: meta/ssh/passwo
 echo "$META_KEYS" | grep -q "meta/ssh/host" || { echo "FAIL: meta/ssh/host not found" >&2; exit 1; }
 echo "$META_KEYS" | grep -q "meta/ssh/port" || { echo "FAIL: meta/ssh/port not found" >&2; exit 1; }
 
-# Verify meta/managed exists
-MANAGED=$(ZE_CONFIG_DIR="$INIT_DIR" ze db cat meta/managed)
-[ "$MANAGED" = "false" ] || { echo "FAIL: meta/managed expected 'false', got '$MANAGED'" >&2; exit 1; }
+# Verify meta/instance/managed exists
+MANAGED=$(ZE_CONFIG_DIR="$INIT_DIR" ze db cat meta/instance/managed)
+[ "$MANAGED" = "false" ] || { echo "FAIL: meta/instance/managed expected 'false', got '$MANAGED'" >&2; exit 1; }
 
 echo "OK: ze init writes meta/ssh/* keys" >&2
 exit 0

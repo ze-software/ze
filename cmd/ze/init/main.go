@@ -26,8 +26,8 @@ const (
 	keyHost     = "meta/ssh/host"
 	keyPort     = "meta/ssh/port"
 
-	keyIdentityName = "meta/identity/name"
-	keyManaged      = "meta/managed"
+	keyIdentityName = "meta/instance/name"
+	keyManaged      = "meta/instance/managed"
 
 	defaultHost = "127.0.0.1"
 	defaultPort = "2222"

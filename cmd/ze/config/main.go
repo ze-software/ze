@@ -114,7 +114,7 @@ func usage() {
 Configuration management commands.
 
 Commands:
-  edit [file]       Interactive configuration editor (default: ze.conf)
+  edit [file]       Interactive configuration editor (default: <identity>.conf)
   check <file>      Check config status and deprecated patterns
   migrate <file>    Convert configuration to current format
   fmt <file>        Format and normalize configuration file
@@ -131,7 +131,7 @@ Options:
   -f                Use filesystem directly, bypass blob store
 
 Examples:
-  ze config edit                         Edit default ze.conf from blob
+  ze config edit                         Edit default config from blob
   ze config edit router.conf             Edit router.conf from blob
   ze config edit -f router.conf          Edit router.conf from filesystem
   ze config check config.conf

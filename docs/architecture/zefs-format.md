@@ -166,7 +166,7 @@ Keys follow a `<namespace>/<qualifier>/<path>` convention to prevent collisions 
 
 | Namespace | Purpose | Example |
 |-----------|---------|---------|
-| `meta/` | Instance metadata (credentials, identity, flags) | `meta/ssh/username`, `meta/managed` |
+| `meta/` | Instance metadata (credentials, identity, flags) | `meta/ssh/username`, `meta/instance/managed` |
 | `file/active/` | Current committed config files | `file/active/etc/ze/router.conf` |
 | `file/draft/` | Live edits in progress (future) | `file/draft/etc/ze/router.conf` |
 | `file/<date>/` | Historical config versions (future) | `file/20260318-100000/etc/ze/router.conf` |

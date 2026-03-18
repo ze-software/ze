@@ -172,7 +172,7 @@ func TestZeInitInteractive(t *testing.T) {
 	assertBcryptPassword(t, store, "meta/ssh/password", "secret123")
 }
 
-// VALIDATES: ze init writes meta/identity/name when provided
+// VALIDATES: ze init writes meta/instance/name when provided
 // PREVENTS: missing instance identity in managed deployments
 
 func TestZeInitIdentityName(t *testing.T) {
@@ -193,10 +193,10 @@ func TestZeInitIdentityName(t *testing.T) {
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
-	assertStoreFile(t, store, "meta/identity/name", "my-router")
+	assertStoreFile(t, store, "meta/instance/name", "my-router")
 }
 
-// VALIDATES: ze init does NOT write meta/identity/name when name is empty (#4)
+// VALIDATES: ze init does NOT write meta/instance/name when name is empty (#4)
 // PREVENTS: empty identity key polluting the blob
 
 func TestZeInitEmptyName(t *testing.T) {
@@ -217,8 +217,8 @@ func TestZeInitEmptyName(t *testing.T) {
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
-	// meta/identity/name should NOT exist when name is empty
-	assertKeyAbsent(t, store, "meta/identity/name")
+	// meta/instance/name should NOT exist when name is empty
+	assertKeyAbsent(t, store, "meta/instance/name")
 }
 
 // VALIDATES: ze init stores name with special characters as opaque value (#10)
@@ -252,12 +252,12 @@ func TestZeInitNameSpecialChars(t *testing.T) {
 			defer store.Close() //nolint:errcheck // test cleanup
 
 			// Name is stored as a VALUE under a fixed key, not as a key path
-			assertStoreFile(t, store, "meta/identity/name", tt.want)
+			assertStoreFile(t, store, "meta/instance/name", tt.want)
 		})
 	}
 }
 
-// VALIDATES: ze init writes meta/managed with managed flag
+// VALIDATES: ze init writes meta/instance/managed with managed flag
 // PREVENTS: managed mode not stored in database
 
 func TestZeInitManagedKey(t *testing.T) {
@@ -275,7 +275,7 @@ func TestZeInitManagedKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Open: %v", err)
 	}
-	assertStoreFile(t, store, "meta/managed", "false")
+	assertStoreFile(t, store, "meta/instance/managed", "false")
 	store.Close() //nolint:errcheck // test cleanup
 
 	// With managed=true
@@ -293,7 +293,7 @@ func TestZeInitManagedKey(t *testing.T) {
 	}
 	defer store2.Close() //nolint:errcheck // test cleanup
 
-	assertStoreFile(t, store2, "meta/managed", "true")
+	assertStoreFile(t, store2, "meta/instance/managed", "true")
 }
 
 func assertStoreFile(t *testing.T, store *zefs.BlobStore, key, expected string) {
