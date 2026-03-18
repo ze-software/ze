@@ -7,7 +7,6 @@ package client
 import (
 	"bufio"
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -19,8 +18,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
-// Env var registration for config directory override.
-var _ = env.MustRegister(env.EnvEntry{Key: "ze.config.dir", Type: "string", Description: "Override default config directory"})
+// Env var registration for config directory and SSH overrides.
+var (
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.config.dir", Type: "string", Description: "Override default config directory"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.host", Type: "string", Description: "Override SSH host"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.port", Type: "string", Description: "Override SSH port"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.ssh.password", Type: "string", Description: "SSH password (zefs stores bcrypt hash)"})
+)
 
 // dialTimeout is the maximum time to establish an SSH connection.
 const dialTimeout = 10 * time.Second
@@ -122,6 +126,7 @@ func StreamCommand(creds Credentials, command string, callback func(line string)
 
 // ReadCredentials reads SSH credentials from a zefs database.
 // Host and port can be overridden by env vars (ze_ssh_host, ze_ssh_port).
+// Password can be set via ze_ssh_password env var (zefs stores bcrypt hash, not plaintext).
 func ReadCredentials(dbPath string) (Credentials, error) {
 	store, err := zefs.Open(dbPath)
 	if err != nil {
@@ -133,20 +138,29 @@ func ReadCredentials(dbPath string) (Credentials, error) {
 	if err != nil {
 		return Credentials{}, err
 	}
-	password, err := readKey(store, "meta/ssh/password")
-	if err != nil {
-		return Credentials{}, err
-	}
 
-	host := envOr("ze.ssh.host", "ze_ssh_host", "127.0.0.1")
-	port := envOr("ze.ssh.port", "ze_ssh_port", "2222")
+	// Password from env var (zefs stores bcrypt hash, not usable as plaintext).
+	password := env.Get("ze.ssh.password")
 
-	// Override from store if not set by env
-	if h, hErr := readKey(store, "meta/ssh/host"); hErr == nil && !hasEnv("ze.ssh.host", "ze_ssh_host") {
-		host = h
+	// Host and port: env var takes priority, then zefs, then defaults.
+	host := env.Get("ze.ssh.host")
+	port := env.Get("ze.ssh.port")
+
+	if host == "" {
+		if h, hErr := readKey(store, "meta/ssh/host"); hErr == nil {
+			host = h
+		}
 	}
-	if p, pErr := readKey(store, "meta/ssh/port"); pErr == nil && !hasEnv("ze.ssh.port", "ze_ssh_port") {
-		port = p
+	if port == "" {
+		if p, pErr := readKey(store, "meta/ssh/port"); pErr == nil {
+			port = p
+		}
+	}
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	if port == "" {
+		port = "2222"
 	}
 
 	return Credentials{
@@ -165,29 +179,10 @@ func readKey(store *zefs.BlobStore, key string) (string, error) {
 	return string(data), nil
 }
 
-func envOr(keys ...string) string {
-	def := keys[len(keys)-1]
-	for _, key := range keys[:len(keys)-1] {
-		if v := os.Getenv(key); v != "" {
-			return v
-		}
-	}
-	return def
-}
-
-func hasEnv(keys ...string) bool {
-	for _, key := range keys {
-		if os.Getenv(key) != "" {
-			return true
-		}
-	}
-	return false
-}
-
 // hostKeyCallback returns an appropriate host key callback for the given host.
 // Localhost connections (127.0.0.1, ::1, localhost) skip host key verification
 // since the daemon runs on the same machine. Remote connections also skip
-// verification but log a warning -- the user explicitly opts in via ze_ssh_host.
+// verification but log a warning -- the user explicitly opts in via ze.ssh.host.
 func hostKeyCallback(host string) ssh.HostKeyCallback {
 	switch host {
 	case "127.0.0.1", "::1", "localhost":

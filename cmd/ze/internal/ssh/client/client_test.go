@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
@@ -41,8 +42,10 @@ func TestReadCredentialsMeta(t *testing.T) {
 	if creds.Username != "admin" {
 		t.Errorf("Username: got %q, want %q", creds.Username, "admin")
 	}
-	if creds.Auth != "secret123" {
-		t.Errorf("Auth: got %q, want %q", creds.Auth, "secret123")
+	// Password comes from env var, not zefs (zefs stores bcrypt hash).
+	// No env var set, so Auth should be empty.
+	if creds.Auth != "" {
+		t.Errorf("Auth: got %q, want empty (no env var set)", creds.Auth)
 	}
 	if creds.Host != "10.0.0.1" {
 		t.Errorf("Host: got %q, want %q", creds.Host, "10.0.0.1")
@@ -78,8 +81,7 @@ func TestReadCredentialsEnvOverride(t *testing.T) {
 
 	// Set env var to override host (t.Setenv auto-restores after test)
 	t.Setenv("ze_ssh_host", "override.example.com")
-	// Clear the other form to avoid interference
-	t.Setenv("ze.ssh.host", "")
+	env.ResetCache()
 
 	creds, err := ReadCredentials(dbPath)
 	if err != nil {

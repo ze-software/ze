@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"golang.org/x/crypto/bcrypt"
+
 	zeinit "codeberg.org/thomas-mangin/ze/cmd/ze/init"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
@@ -38,7 +40,7 @@ func TestZeInitPipedStdin(t *testing.T) {
 	defer store.Close() //nolint:errcheck // test cleanup
 
 	assertStoreFile(t, store, "meta/ssh/username", "admin")
-	assertStoreFile(t, store, "meta/ssh/password", "secret123")
+	assertBcryptPassword(t, store, "meta/ssh/password", "secret123")
 	assertStoreFile(t, store, "meta/ssh/host", "127.0.0.1")
 	assertStoreFile(t, store, "meta/ssh/port", "2222")
 
@@ -167,7 +169,7 @@ func TestZeInitInteractive(t *testing.T) {
 	defer store.Close() //nolint:errcheck // test cleanup
 
 	assertStoreFile(t, store, "meta/ssh/username", "admin")
-	assertStoreFile(t, store, "meta/ssh/password", "secret123")
+	assertBcryptPassword(t, store, "meta/ssh/password", "secret123")
 }
 
 // VALIDATES: ze init writes meta/identity/name when provided
@@ -310,5 +312,22 @@ func assertKeyAbsent(t *testing.T, store *zefs.BlobStore, key string) {
 	t.Helper()
 	if store.Has(key) {
 		t.Errorf("key %q should not exist but does", key)
+	}
+}
+
+func assertBcryptPassword(t *testing.T, store *zefs.BlobStore, key, plaintext string) {
+	t.Helper()
+	data, err := store.ReadFile(key)
+	if err != nil {
+		t.Errorf("ReadFile(%s): %v", key, err)
+		return
+	}
+	hash := string(data)
+	if !strings.HasPrefix(hash, "$2a$") {
+		t.Errorf("ReadFile(%s): expected bcrypt hash, got %q", key, hash)
+		return
+	}
+	if err := bcrypt.CompareHashAndPassword(data, []byte(plaintext)); err != nil {
+		t.Errorf("ReadFile(%s): bcrypt hash does not match plaintext %q", key, plaintext)
 	}
 }

@@ -32,7 +32,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
+	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 // configLogger is the config subsystem logger (lazy initialization).
@@ -475,6 +477,11 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	// via SetExecutorFactory after the reactor's API server starts (post-start hook).
 	var sshSrv *zessh.Server
 	if sshCfg, ok := extractSSHConfig(tree); ok {
+		// Merge users from zefs database (ze init) with config-based users.
+		// Zefs users have bcrypt hashes stored by ze init.
+		if zefsUsers, err := loadZefsUsers(); err == nil {
+			sshCfg.Users = append(sshCfg.Users, zefsUsers...)
+		}
 		sshCfg.Storage = store
 		sshCfg.ConfigPath = configPath
 		srv, sshErr := zessh.NewServer(sshCfg)
@@ -837,6 +844,37 @@ func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
 	}
 
 	return cfg, true
+}
+
+// loadZefsUsers reads SSH credentials from the zefs database (written by ze init).
+// Opens database.zefs directly rather than using the storage abstraction,
+// because storage may be filesystem-based (stdin mode) which can't read zefs keys.
+// Returns a single UserConfig with the bcrypt hash. Returns nil if keys are missing.
+func loadZefsUsers() ([]zessh.UserConfig, error) {
+	dir := paths.DefaultConfigDir()
+	if dir == "" {
+		return nil, fmt.Errorf("cannot resolve config dir")
+	}
+	dbPath := filepath.Join(dir, "database.zefs")
+	db, err := zefs.Open(dbPath)
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close() //nolint:errcheck // read-only access
+
+	username, err := db.ReadFile("meta/ssh/username")
+	if err != nil {
+		return nil, err
+	}
+	password, err := db.ReadFile("meta/ssh/password")
+	if err != nil {
+		return nil, err
+	}
+	name := string(username)
+	if name == "" {
+		return nil, fmt.Errorf("empty username in zefs")
+	}
+	return []zessh.UserConfig{{Name: name, Hash: string(password)}}, nil
 }
 
 // formatResponseData converts a command response Data value to a human-readable string.
