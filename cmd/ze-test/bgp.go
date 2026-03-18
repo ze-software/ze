@@ -345,16 +345,18 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 	r.Display().UlimitInfo(limitCheck)
 
 	// Allocate ports
-	pr, shifted, err := runner.AllocatePorts(cli.port, tests.Count())
+	// Reserve 2 ports per test: $PORT for the main process and $PORT2 ($PORT+1)
+	// for tests that need a second port (e.g., RPKI cache mock).
+	pr, shifted, err := runner.AllocatePorts(cli.port, tests.Count()*2)
 	if err != nil {
 		return fmt.Errorf("allocate ports: %w", err)
 	}
 
-	// Update test ports based on allocation
+	// Update test ports based on allocation, spacing by 2 to avoid overlap.
 	basePort := pr.Start
 	for _, rr := range tests.Registered() {
 		rr.Port = basePort
-		basePort++
+		basePort += 2
 	}
 
 	r.Display().PortInfo(pr, shifted)

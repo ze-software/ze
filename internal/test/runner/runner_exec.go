@@ -191,7 +191,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	if !peerStdout.WaitFor(waitCtx) {
 		waitCancel()
 		_ = peerCmd.Process.Kill()
-		rec.Error = fmt.Errorf("peer did not start listening within timeout")
+		rec.Error = fmt.Errorf("peer did not start listening within 5s (stderr=%q, stdout=%q)", peerStderr.String(), peerStdout.String())
 		return false
 	}
 	waitCancel()
@@ -564,7 +564,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				waitCtx, waitCancel := context.WithTimeout(testCtx, 5*time.Second)
 				if !peerStdout.WaitFor(waitCtx) {
 					waitCancel()
-					rec.Error = fmt.Errorf("peer did not start listening within timeout")
+					stderr := peerStderr.String()
+					stdout := peerStdout.String()
+					rec.Error = fmt.Errorf("peer did not start listening within 5s (stderr=%q, stdout=%q)", stderr, stdout)
 					return false
 				}
 				waitCancel()
