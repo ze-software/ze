@@ -98,6 +98,11 @@ func (hm *HeadlessModel) Model() *cli.Model {
 
 // SendMsg sends a tea.Msg to the model and processes it.
 func (hm *HeadlessModel) SendMsg(msg tea.Msg) error {
+	// Drain any completed pending commands before model.Update() to
+	// prevent data races between orphaned cmd goroutines (still
+	// accessing editor state) and the upcoming Update call.
+	hm.Settle()
+
 	newModel, cmd := hm.model.Update(msg)
 	model, ok := newModel.(cli.Model)
 	if !ok {
@@ -150,33 +155,28 @@ func (hm *HeadlessModel) processCmdWithDepth(cmd tea.Cmd, depth int) {
 
 	// Slow path: command didn't complete during yields — likely a blocking
 	// timer (cursor blink ~530ms, validation tick ~100ms, confirm
-	// countdown ~1s). Previously a flat 50ms timeout here accumulated to
-	// ~5 minutes across all ET tests; 15ms is sufficient since blocking
-	// commands never complete within this window.
+	// countdown ~1s). 50ms catches file I/O that takes longer under
+	// concurrent test load with race detector overhead. Only pure timer
+	// commands (which sit in time.After, not accessing model state)
+	// should exceed this window.
 	select {
 	case msg := <-done:
 		if msg != nil {
 			hm.processMsg(msg, depth)
 		}
-	case <-time.After(15 * time.Millisecond):
-		// Command didn't complete in time. Usually a blocking timer
-		// (cursor blink, countdown), but under concurrent test load
-		// legitimate commands (Save with file I/O) can also exceed
-		// 15ms. Save the channel so Settle() can drain the result
+	case <-time.After(50 * time.Millisecond):
+		// Command didn't complete in time — likely a blocking timer.
+		// Save the channel so SettleWait() can drain the result
 		// before expectation checks.
 		hm.pending = append(hm.pending, done)
 		return
 	}
 }
 
-// Settle drains any commands that timed out in processCmdWithDepth
-// but may have since completed. Under concurrent test load, file I/O
-// commands like Save() can exceed the 15ms processCmd timeout. Without
-// Settle, their results are lost and the model state never updates.
-//
-// Called by the runner before expectation checks. Non-blocking for each
-// channel: if the command hasn't completed yet (likely a timer), it
-// stays in the pending list.
+// Settle non-blocking drains any commands that timed out in
+// processCmdWithDepth but have since completed. Called before
+// model.Update() in SendMsg to prevent data races between orphaned
+// goroutines and new Update calls.
 func (hm *HeadlessModel) Settle() {
 	if len(hm.pending) == 0 {
 		return
@@ -188,11 +188,48 @@ func (hm *HeadlessModel) Settle() {
 			if msg != nil {
 				hm.processMsg(msg, 0)
 			}
-		default: // not ready yet (timer) -- keep in pending
+		default: // channel not ready: timer goroutine still in time.After — retain for later drain
 			remaining = append(remaining, ch)
 		}
 	}
 	hm.pending = remaining
+}
+
+// SettleWait blocks until pending commands complete or timeout expires.
+// Under concurrent test load with race detector, file I/O commands can
+// exceed the processCmdWithDepth timeout. SettleWait polls pending
+// channels with brief sleeps, giving goroutines time to finish.
+// Timer commands (cursor blink ~530ms) will not complete within the
+// deadline and remain in pending — this is expected and safe since
+// they only sit in time.After, not accessing model state.
+func (hm *HeadlessModel) SettleWait() {
+	if len(hm.pending) == 0 {
+		return
+	}
+
+	deadline := time.Now().Add(500 * time.Millisecond)
+
+	for len(hm.pending) > 0 && time.Now().Before(deadline) {
+		drained := false
+		remaining := hm.pending[:0]
+		for _, ch := range hm.pending {
+			select {
+			case msg := <-ch:
+				if msg != nil {
+					hm.processMsg(msg, 0)
+				}
+				drained = true
+			default: // channel not ready: timer goroutine still in time.After — retain for later drain
+				remaining = append(remaining, ch)
+			}
+		}
+		hm.pending = remaining
+
+		if !drained && len(hm.pending) > 0 {
+			// Yield to let goroutines complete, then retry.
+			time.Sleep(time.Millisecond)
+		}
+	}
 }
 
 // processMsg processes a message from a command.

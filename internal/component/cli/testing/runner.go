@@ -224,30 +224,18 @@ func runTestCase(tc *TestCase) *TestResult {
 			}
 
 		case StepExpect:
-			// Drain any command results that completed after their
-			// processCmd timeout (common under concurrent test load
-			// where file I/O exceeds the 15ms window).
-			hm.Settle()
+			// Block until pending commands complete (file I/O that
+			// exceeded the 15ms processCmdWithDepth timeout). Under
+			// concurrent test load with race detector, this wait is
+			// essential — non-blocking Settle alone is insufficient.
+			hm.SettleWait()
 			exp := tc.Expects[step.ExpectIndex]
 			if err := CheckExpectation(exp, hm); err != nil {
-				// Command may still be in-flight under heavy load.
-				// Retry with backoff before declaring failure.
-				settled := false
-				for _, wait := range []time.Duration{
-					5 * time.Millisecond,
-					10 * time.Millisecond,
-					25 * time.Millisecond,
-					50 * time.Millisecond,
-				} {
-					time.Sleep(wait)
-					hm.Settle()
-					if CheckExpectation(exp, hm) == nil {
-						settled = true
-						break
-					}
-				}
-				if !settled {
-					result.Error = fmt.Sprintf("step %d (expect %s): %v", stepIdx+1, exp.Type, err)
+				// Command may still be in-flight under extreme load.
+				// One more blocking settle as safety net.
+				hm.SettleWait()
+				if retryErr := CheckExpectation(exp, hm); retryErr != nil {
+					result.Error = fmt.Sprintf("step %d (expect %s): %v", stepIdx+1, exp.Type, retryErr)
 					return result
 				}
 			}
