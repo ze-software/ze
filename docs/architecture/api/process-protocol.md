@@ -775,7 +775,7 @@ between SDK bridge activation and engine readiness.
 For external plugins (Python, Rust, etc.) -- runs as separate process:
 
 1. Engine starts TLS listener from `plugin { hub { listen ...; secret ...; } }` config
-2. `startExternalTLS()` forks child with `ZE_PLUGIN_HUB_HOST`/`ZE_PLUGIN_HUB_PORT`/`ZE_PLUGIN_TOKEN` env vars
+2. `startExternalTLS()` forks child with `ZE_PLUGIN_HUB_HOST`/`ZE_PLUGIN_HUB_PORT`/`ZE_PLUGIN_HUB_TOKEN` env vars
 3. Child connects back to engine via TLS, authenticates with `#0 auth {"token":"...","name":"..."}`
 4. Single bidirectional connection using `MuxConn` (responses routed by `#id`, requests via `Requests()` channel)
 5. No `DirectBridge` -- always uses JSON-RPC over TLS
@@ -1503,7 +1503,7 @@ Transport: single TLS connection per plugin.
 
 1. Engine reads `plugin { hub { listen ...; secret ...; } }` from config
 2. Engine starts TLS listener(s), creates `PluginAcceptor`
-3. Engine forks child with `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_TOKEN` env vars
+3. Engine forks child with `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` env vars
 4. Child connects to engine via TLS, sends `#0 auth {"token":"...","name":"..."}`
 5. Engine authenticates (constant-time token comparison, plugin name validation)
 6. Single `MuxConn` handles bidirectional RPC (responses by `#id`, requests via `Requests()` channel)

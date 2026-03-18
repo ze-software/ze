@@ -10,6 +10,9 @@ package cli
 
 import (
 	"bufio"
+	"bytes"
+	"context"
+	"crypto/tls"
 	"flag"
 	"fmt"
 	"io"
@@ -18,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
@@ -142,7 +146,7 @@ func RunPlugin(cfg PluginConfig, args []string) int {
 		return cfg.RunDecode(os.Stdin, os.Stdout)
 	}
 
-	// Engine Mode (RPC over inherited socket pairs).
+	// Engine Mode: connect to engine via TLS (preferred) or inherited FDs (legacy).
 	engineConn, callbackConn, err := connsFromEnv()
 	if err != nil {
 		writeError(os.Stderr, "error: %v", err)
@@ -211,9 +215,60 @@ func availableFeatures(cfg PluginConfig) string {
 	return strings.Join(parts, ", ")
 }
 
-// connsFromEnv reads ZE_ENGINE_FD and ZE_CALLBACK_FD environment variables
-// and returns net.Conn connections for the RPC protocol.
+// connsFromEnv returns connections for RPC communication with the engine.
+// Tries TLS mode first (ZE_PLUGIN_HUB_TOKEN set), then falls back to inherited FDs.
+// In TLS mode, both returned connections are the same TLS socket (single-conn mux).
 func connsFromEnv() (net.Conn, net.Conn, error) {
+	// TLS mode: connect back to engine via TLS.
+	if token := os.Getenv("ZE_PLUGIN_HUB_TOKEN"); token != "" {
+		host := os.Getenv("ZE_PLUGIN_HUB_HOST")
+		if host == "" {
+			host = "127.0.0.1"
+		}
+		port := os.Getenv("ZE_PLUGIN_HUB_PORT")
+		if port == "" {
+			port = "12700"
+		}
+		name := os.Getenv("ZE_PLUGIN_NAME")
+		if name == "" {
+			name = "go-plugin"
+		}
+
+		addr := net.JoinHostPort(host, port)
+		tlsConf := &tls.Config{
+			InsecureSkipVerify: true, //nolint:gosec // engine uses self-signed cert
+			MinVersion:         tls.VersionTLS13,
+		}
+		conn, dialErr := (&tls.Dialer{Config: tlsConf}).DialContext(
+			context.Background(), "tcp", addr,
+		)
+		if dialErr != nil {
+			return nil, nil, fmt.Errorf("TLS dial %s: %w", addr, dialErr)
+		}
+
+		// Auth: send #0 auth, read response.
+		if authErr := ipc.SendAuth(context.Background(), conn, token, name); authErr != nil {
+			conn.Close() //nolint:errcheck,gosec // cleanup
+			return nil, nil, fmt.Errorf("auth: %w", authErr)
+		}
+
+		// Read auth response (raw, no rpc.Conn to avoid reader goroutine).
+		buf := make([]byte, 256)
+		n, readErr := conn.Read(buf)
+		if readErr != nil {
+			conn.Close() //nolint:errcheck,gosec // cleanup
+			return nil, nil, fmt.Errorf("auth response: %w", readErr)
+		}
+		if !bytes.Contains(buf[:n], []byte("ok")) {
+			conn.Close() //nolint:errcheck,gosec // cleanup
+			return nil, nil, fmt.Errorf("auth rejected: %s", string(buf[:n]))
+		}
+
+		// Single connection for both engine and callback (MuxConn handles mux).
+		return conn, conn, nil
+	}
+
+	// FD mode: inherited socket pairs.
 	engineFD, err := envFDInt("ZE_ENGINE_FD")
 	if err != nil {
 		return nil, nil, err

@@ -656,9 +656,9 @@ When `ze.user` is not set, no privilege dropping occurs.
 
 Implementation: `internal/core/privilege/` -- calls `setgid` then `setuid` after `reactor.Start()` binds port 179.
 
-### FD Passing via SCM_RIGHTS
+### Plugin TLS Transport
 
-Ze binds BGP port 179 centrally in the engine, then passes the listening file descriptor to the BGP plugin via SCM_RIGHTS over Unix domain sockets. Plugins never bind privileged ports themselves. This means plugins have no need for elevated privileges.
+External plugins connect back to the engine via TLS. The engine binds a TLS listener (configured via `plugin { hub { listen ...; secret ...; } }`), forks child processes with `ZE_PLUGIN_HUB_HOST`/`ZE_PLUGIN_HUB_PORT`/`ZE_PLUGIN_HUB_TOKEN` env vars, and waits for authenticated connect-back. Each plugin uses a single bidirectional TLS connection with MuxConn for concurrent RPCs.
 
 ### Plugin Process Isolation
 

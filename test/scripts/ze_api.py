@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """Shared library for ZeBGP API test scripts.
 
-Provides YANG RPC communication with ZeBGP daemon over socket pair FDs.
-Uses newline-delimited #id verb [json] framing over Unix socket pairs:
-  - Socket A (FD from ZE_ENGINE_FD, default 3): plugin -> engine RPCs
-  - Socket B (FD from ZE_CALLBACK_FD, default 4): engine -> plugin callbacks
+Provides YANG RPC communication with ZeBGP daemon.
+Uses newline-delimited #id verb [json] framing.
+
+Transport modes (auto-detected from environment):
+  - TLS: single connection via ZE_PLUGIN_HUB_HOST/PORT/TOKEN (preferred)
+  - FD:  dual Unix socket pairs via ZE_ENGINE_FD/ZE_CALLBACK_FD (legacy)
 
 5-stage plugin registration protocol (YANG RPC):
-  - Stage 1: declare-registration (plugin -> engine, Socket A)
-  - Stage 2: configure (engine -> plugin, Socket B)
-  - Stage 3: declare-capabilities (plugin -> engine, Socket A)
-  - Stage 4: share-registry (engine -> plugin, Socket B)
-  - Stage 5: ready (plugin -> engine, Socket A)
+  - Stage 1: declare-registration (plugin -> engine)
+  - Stage 2: configure (engine -> plugin)
+  - Stage 3: declare-capabilities (plugin -> engine)
+  - Stage 4: share-registry (engine -> plugin)
+  - Stage 5: ready (plugin -> engine)
 
 Simple usage:
     from ze_api import ready, send, wait_for_shutdown
@@ -52,16 +54,17 @@ import os
 import select
 import signal
 import socket
+import ssl
 import sys
 from typing import Any
 
 
 class API:
-    """ZeBGP API client using YANG RPC over socket pair FDs.
+    """ZeBGP API client using YANG RPC protocol.
 
-    Communicates with the engine via two Unix sockets:
-      - Socket A (engine_fd): plugin -> engine RPCs (registration, routes, subscribe)
-      - Socket B (callback_fd): engine -> plugin callbacks (config, events, bye)
+    Transport is auto-detected from environment:
+      - TLS mode (ZE_PLUGIN_HUB_TOKEN set): single TLS connection, bidirectional mux
+      - FD mode (ZE_ENGINE_FD set): dual Unix socket pairs
 
     Messages are newline-delimited lines: #<id> <verb> [<json-payload>]
     """
@@ -69,21 +72,35 @@ class API:
     def __init__(self, engine_fd: int | None = None, callback_fd: int | None = None):
         """Initialize API client.
 
-        Args:
-            engine_fd: File descriptor for Socket A (default: ZE_ENGINE_FD env or 3)
-            callback_fd: File descriptor for Socket B (default: ZE_CALLBACK_FD env or 4)
+        Auto-detects transport from environment variables:
+          - ZE_PLUGIN_HUB_TOKEN -> TLS mode (single connection)
+          - ZE_ENGINE_FD/ZE_CALLBACK_FD -> FD mode (dual sockets)
         """
-        if engine_fd is None:
-            engine_fd = int(os.environ.get('ZE_ENGINE_FD', '3'))
-        if callback_fd is None:
-            callback_fd = int(os.environ.get('ZE_CALLBACK_FD', '4'))
+        self._tls_sock: ssl.SSLSocket | None = None
+        self._tls_mode = False
+        self._read_buf = b''
+        self._pending_requests: list[tuple[int, str, dict | None]] = []
+        self._engine_fd = -1
+        self._callback_fd = -1
 
-        self._engine_fd = engine_fd
-        self._callback_fd = callback_fd
+        token = os.environ.get('ZE_PLUGIN_HUB_TOKEN', '')
+        if token:
+            self._init_tls(token)
+        else:
+            if engine_fd is None:
+                engine_fd = int(os.environ.get('ZE_ENGINE_FD', '3'))
+            if callback_fd is None:
+                callback_fd = int(os.environ.get('ZE_CALLBACK_FD', '4'))
+            self._engine_fd = engine_fd
+            self._callback_fd = callback_fd
+
         self._engine_buf = b''
         self._callback_buf = b''
         self._req_id = 0
         self._shutdown = False
+
+        # Plugin name (set during TLS auth or registry sharing)
+        self._name = os.environ.get('ZE_PLUGIN_NAME', 'python-plugin')
 
         # Accumulated declarations for Stage 1
         self._families: list[dict[str, str]] = []
@@ -107,6 +124,60 @@ class API:
 
         # Install SIGPIPE handler
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+
+    def _init_tls(self, token: str) -> None:
+        """Connect to engine via TLS and authenticate."""
+        host = os.environ.get('ZE_PLUGIN_HUB_HOST', '127.0.0.1')
+        port = int(os.environ.get('ZE_PLUGIN_HUB_PORT', '12700'))
+
+        ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        ctx.minimum_version = ssl.TLSVersion.TLSv1_3
+
+        raw_sock = socket.create_connection((host, port), timeout=10)
+        self._tls_sock = ctx.wrap_socket(raw_sock, server_hostname=host)
+        self._tls_mode = True
+
+        # Auth: send #0 auth {"token":"...","name":"..."}
+        name = os.environ.get('ZE_PLUGIN_NAME', 'python-plugin')
+        auth_line = self._format_line(0, 'auth', {'token': token, 'name': name})
+        self._tls_sock.sendall(auth_line)
+
+        # Read auth response
+        resp_line = self._read_tls_line(timeout=10.0)
+        if resp_line is None:
+            raise RuntimeError('no auth response from engine')
+        _, verb, payload = self._parse_line(resp_line)
+        if verb == 'error':
+            msg = payload.get('message', '') if payload else ''
+            raise RuntimeError(f'auth rejected: {msg}')
+
+        # In TLS mode, use the TLS socket fd for both engine and callback.
+        self._engine_fd = self._tls_sock.fileno()
+        self._callback_fd = self._tls_sock.fileno()
+
+    def _read_tls_line(self, timeout: float | None = None) -> str | None:
+        """Read a newline-terminated line from the TLS socket."""
+        while True:
+            nl_pos = self._read_buf.find(b'\n')
+            if nl_pos >= 0:
+                line_bytes = self._read_buf[:nl_pos]
+                self._read_buf = self._read_buf[nl_pos + 1:]
+                return line_bytes.decode('utf-8')
+
+            if timeout is not None:
+                ready_fds, _, _ = select.select([self._tls_sock], [], [], timeout)
+                if not ready_fds:
+                    return None
+
+            try:
+                chunk = self._tls_sock.recv(65536)
+            except (OSError, ssl.SSLError):
+                return None
+            if not chunk:
+                return None
+            self._read_buf += chunk
 
     # ==================================================================
     # Low-level newline-framed line transport
@@ -137,7 +208,10 @@ class API:
     def _send_rpc(self, fd: int, req_id: int, method: str, params: dict | None = None) -> None:
         """Send a newline-terminated RPC line: #<id> <method> [<json-params>]."""
         line = self._format_line(req_id, method, params)
-        os.write(fd, line)
+        if self._tls_mode:
+            self._tls_sock.sendall(line)
+        else:
+            os.write(fd, line)
 
     def _read_line(self, fd: int, buf_attr: str, timeout: float | None = None) -> str | None:
         """Read a newline-terminated line from fd.
@@ -188,60 +262,68 @@ class API:
         return self._req_id
 
     def _call_engine(self, method: str, params: Any = None) -> dict | None:
-        """Send RPC to engine on Socket A and wait for response.
+        """Send RPC to engine and wait for response.
 
         Sends: #<id> <method> [<json-params>]
         Expects: #<id> ok [<json>] or #<id> error [<json>]
 
-        Args:
-            method: RPC method name (e.g., 'ze-plugin-engine:declare-registration')
-            params: Optional parameters dict
-
-        Returns:
-            Response payload dict, or None
-
-        Raises:
-            RuntimeError: If the engine returns an error response
+        In TLS mode, reads from the shared connection. If an inbound request
+        arrives instead of the expected response, it is queued for _serve_one.
         """
         req_id = self._next_id()
         self._send_rpc(self._engine_fd, req_id, method, params)
 
-        line = self._read_line(self._engine_fd, '_engine_buf')
-        if line is None:
-            raise RuntimeError(f'no response for {method}')
+        # Read lines until we get the response for our request.
+        while True:
+            if self._tls_mode:
+                line = self._read_tls_line(timeout=30.0)
+            else:
+                line = self._read_line(self._engine_fd, '_engine_buf')
+            if line is None:
+                raise RuntimeError(f'no response for {method}')
 
-        resp_id, verb, payload = self._parse_line(line)
-        if verb == 'error':
-            msg = ''
-            if payload:
-                msg = payload.get('message', str(payload))
-            raise RuntimeError(f'RPC error from {method}: {msg}')
-        # Wrap payload in {"result": ...} envelope for backward compatibility
-        # with test scripts that access resp.get('result', {}).
-        return {'result': payload}
+            resp_id, verb, payload = self._parse_line(line)
+
+            # In TLS mode, we might receive inbound requests (engine calling us)
+            # while waiting for our response. Queue them.
+            if self._tls_mode and verb not in ('ok', 'error'):
+                self._pending_requests.append((resp_id, verb, payload))
+                continue
+
+            if verb == 'error':
+                msg = ''
+                if payload:
+                    msg = payload.get('message', str(payload))
+                raise RuntimeError(f'RPC error from {method}: {msg}')
+            # Wrap payload in {"result": ...} envelope for backward compatibility.
+            return {'result': payload}
 
     def _respond_ok(self, req_id: int) -> None:
-        """Send OK response on Socket B: #<id> ok"""
+        """Send OK response: #<id> ok."""
         line = self._format_line(req_id, 'ok')
-        os.write(self._callback_fd, line)
+        if self._tls_mode:
+            self._tls_sock.sendall(line)
+        else:
+            os.write(self._callback_fd, line)
 
     def _serve_one(self, expected_method: str, timeout: float = 10.0) -> dict | None:
-        """Read one RPC request from Socket B, verify method, respond OK.
+        """Read one RPC request, verify method, respond OK.
 
-        Reads: #<id> <method> [<json-params>]
-        Sends: #<id> ok
-
-        Args:
-            expected_method: Expected RPC method name
-            timeout: Seconds to wait
-
-        Returns:
-            The params from the request, or None
-
-        Raises:
-            RuntimeError: If unexpected method received
+        In TLS mode, checks the pending request queue first (requests that
+        arrived while _call_engine was waiting for a response).
         """
-        line = self._read_line(self._callback_fd, '_callback_buf', timeout=timeout)
+        # Check pending queue first (TLS mode muxing).
+        if self._tls_mode and self._pending_requests:
+            req_id, method, params = self._pending_requests.pop(0)
+            if method != expected_method:
+                raise RuntimeError(f'expected {expected_method}, got {method}')
+            self._respond_ok(req_id)
+            return params
+
+        if self._tls_mode:
+            line = self._read_tls_line(timeout=timeout)
+        else:
+            line = self._read_line(self._callback_fd, '_callback_buf', timeout=timeout)
         if line is None:
             raise RuntimeError(f'timeout waiting for {expected_method}')
 
@@ -614,7 +696,10 @@ class API:
         if self._pending_events:
             return self._pending_events.pop(0)
 
-        raw = self._read_line(self._callback_fd, '_callback_buf', timeout=timeout)
+        if self._tls_mode:
+            raw = self._read_tls_line(timeout=timeout)
+        else:
+            raw = self._read_line(self._callback_fd, '_callback_buf', timeout=timeout)
         if raw is None:
             return None
 

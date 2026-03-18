@@ -11,7 +11,7 @@ Replace Unix socketpairs with TLS-over-TCP for external plugin communication. In
 - **Config under `plugin { hub { listen ...; secret ...; } }`**. Hub config is extracted alongside plugin config during tree parsing.
 - **PluginConn method shadowing** makes single-conn transparent to server code. `ReadRequest`, `CallRPC`, `SendResult`, etc. delegate to MuxConn when set. Server dispatch (startup.go, subsystem.go, dispatch.go) unchanged.
 - **PluginAcceptor** manages TLS accept loop with per-name routing via `sync.Map`. `WaitForPlugin(ctx, name)` blocks until the named plugin connects and authenticates.
-- **Default ports**: Hub TLS = 12700, SSH = 22000. Env vars: `ZE_PLUGIN_HUB_HOST` (default 127.0.0.1), `ZE_PLUGIN_HUB_PORT` (default 12700), `ZE_PLUGIN_TOKEN` (required).
+- **Default ports**: Hub TLS = 12700, SSH = 22000. Env vars: `ZE_PLUGIN_HUB_HOST` (default 127.0.0.1), `ZE_PLUGIN_HUB_PORT` (default 12700), `ZE_PLUGIN_HUB_TOKEN` (required).
 - **fdpass.go deleted**: SCM_RIGHTS FD passing only works over Unix domain sockets. With TLS transport, the connection handler feature needs a different mechanism if needed in the future.
 
 ## Patterns

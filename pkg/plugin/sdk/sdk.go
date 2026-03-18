@@ -107,45 +107,8 @@ func NewWithConn(name string, engineConn, callbackConn net.Conn) *Plugin {
 	return p
 }
 
-// NewFromFDs creates a plugin from inherited file descriptors.
-// engineFD is the plugin's end of Socket A (plugin->engine calls).
-// callbackFD is the plugin's end of Socket B (engine->plugin calls).
-func NewFromFDs(name string, engineFD, callbackFD int) (*Plugin, error) {
-	engineConn, err := connFromFD(engineFD, "ze-engine")
-	if err != nil {
-		return nil, fmt.Errorf("engine fd %d: %w", engineFD, err)
-	}
-
-	callbackConn, err := connFromFD(callbackFD, "ze-callback")
-	if err != nil {
-		engineConn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
-		return nil, fmt.Errorf("callback fd %d: %w", callbackFD, err)
-	}
-
-	return NewWithConn(name, engineConn, callbackConn), nil
-}
-
-// connFromFD wraps an inherited file descriptor as a net.Conn.
-func connFromFD(fd int, name string) (net.Conn, error) {
-	f := os.NewFile(uintptr(fd), name)
-	if f == nil {
-		return nil, fmt.Errorf("invalid fd %d", fd)
-	}
-	conn, err := net.FileConn(f)
-	if closeErr := f.Close(); closeErr != nil && err == nil {
-		if conn != nil {
-			conn.Close() //nolint:errcheck,gosec // best-effort cleanup
-		}
-		return nil, fmt.Errorf("close file: %w", closeErr)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return conn, nil
-}
-
 // NewFromEnv creates a plugin by reading ZE_PLUGIN_HUB_HOST, ZE_PLUGIN_HUB_PORT, and
-// ZE_PLUGIN_TOKEN environment variables. Connects to the engine via TLS.
+// ZE_PLUGIN_HUB_TOKEN environment variables. Connects to the engine via TLS.
 func NewFromEnv(name string) (*Plugin, error) {
 	return NewFromTLSEnv(name)
 }
@@ -157,10 +120,10 @@ const (
 )
 
 // NewFromTLSEnv creates a plugin by reading ZE_PLUGIN_HUB_HOST, ZE_PLUGIN_HUB_PORT,
-// and ZE_PLUGIN_TOKEN env vars. Connects to the engine via TLS, authenticates,
+// and ZE_PLUGIN_HUB_TOKEN env vars. Connects to the engine via TLS, authenticates,
 // and returns a single-conn plugin.
 // ZE_PLUGIN_HUB_HOST defaults to 127.0.0.1, ZE_PLUGIN_HUB_PORT defaults to 12700.
-// ZE_PLUGIN_TOKEN is required.
+// ZE_PLUGIN_HUB_TOKEN is required.
 func NewFromTLSEnv(name string) (*Plugin, error) {
 	host := os.Getenv("ZE_PLUGIN_HUB_HOST")
 	if host == "" {
@@ -170,9 +133,9 @@ func NewFromTLSEnv(name string) (*Plugin, error) {
 	if port == "" {
 		port = DefaultPluginPort
 	}
-	token := os.Getenv("ZE_PLUGIN_TOKEN")
+	token := os.Getenv("ZE_PLUGIN_HUB_TOKEN")
 	if token == "" {
-		return nil, fmt.Errorf("ZE_PLUGIN_TOKEN must be set")
+		return nil, fmt.Errorf("ZE_PLUGIN_HUB_TOKEN must be set")
 	}
 
 	addr := net.JoinHostPort(host, port)

@@ -557,20 +557,13 @@ func (p *Process) startInternal() error {
 }
 
 // startExternal starts an external plugin via exec.Command.
-// When an acceptor is set (TLS mode), passes ZE_PLUGIN_HUB_HOST/PORT/TOKEN env vars
-// and waits for the child to connect back. Otherwise falls back to socketpairs.
+// Passes ZE_PLUGIN_HUB_HOST/PORT/TOKEN env vars and waits for TLS connect-back.
 func (p *Process) startExternal() error {
-	if p.acceptor != nil {
-		return p.startExternalTLS()
-	}
-	return p.startExternalSocketpair()
-}
-
-// startExternalTLS starts an external plugin that connects back via TLS.
-// Forks child with env vars, then waits for connect-back on the acceptor.
-func (p *Process) startExternalTLS() error {
 	if p.config.Run == "" {
 		return fmt.Errorf("plugin %s: empty run command", p.config.Name)
+	}
+	if p.acceptor == nil {
+		return fmt.Errorf("plugin %s: no TLS acceptor configured (hub config required for external plugins)", p.config.Name)
 	}
 
 	// Extract host:port from acceptor address.
@@ -590,7 +583,7 @@ func (p *Process) startExternalTLS() error {
 	p.cmd.Env = append(os.Environ(),
 		"ZE_PLUGIN_HUB_HOST="+host,
 		"ZE_PLUGIN_HUB_PORT="+port,
-		"ZE_PLUGIN_TOKEN="+p.acceptor.Token(),
+		"ZE_PLUGIN_HUB_TOKEN="+p.acceptor.Token(),
 	)
 
 	p.stderr, err = p.cmd.StderrPipe()
@@ -627,77 +620,6 @@ func (p *Process) startExternalTLS() error {
 	p.rawSingleConn = conn
 
 	return nil
-}
-
-// startExternalSocketpair starts an external plugin via inherited socket pair FDs.
-// Used when no TLS acceptor is configured (tests, legacy).
-func (p *Process) startExternalSocketpair() error {
-	pairs, err := ipc.NewExternalSocketPairs()
-	if err != nil {
-		return fmt.Errorf("creating socket pairs: %w", err)
-	}
-	pluginEngineFile, pluginCallbackFile, err := pairs.PluginFiles()
-	if err != nil {
-		pairs.Close()
-		return fmt.Errorf("getting plugin files: %w", err)
-	}
-
-	if p.config.Run == "" {
-		closeFiles(pluginEngineFile, pluginCallbackFile)
-		pairs.Close()
-		return fmt.Errorf("plugin %s: empty run command", p.config.Name)
-	}
-
-	// #nosec G204 - Run command is from trusted configuration, not user input
-	p.cmd = exec.CommandContext(p.ctx, "/bin/sh", "-c", p.config.Run)
-	if p.config.WorkDir != "" {
-		p.cmd.Dir = p.config.WorkDir
-	}
-
-	p.cmd.ExtraFiles = []*os.File{pluginEngineFile, pluginCallbackFile}
-	p.cmd.Env = append(os.Environ(), "ZE_ENGINE_FD=3", "ZE_CALLBACK_FD=4")
-
-	p.stderr, err = p.cmd.StderrPipe()
-	if err != nil {
-		closeFiles(pluginEngineFile, pluginCallbackFile)
-		pairs.Close()
-		return err
-	}
-
-	p.cmd.SysProcAttr = newSysProcAttr()
-
-	if err := p.cmd.Start(); err != nil {
-		p.stderr.Close() //nolint:errcheck,gosec // cleanup on error
-		closeFiles(pluginEngineFile, pluginCallbackFile)
-		pairs.Close()
-		return err
-	}
-
-	closeFiles(pluginEngineFile, pluginCallbackFile)
-	pairs.Engine.PluginSide.Close()   //nolint:errcheck,gosec // subprocess owns these now
-	pairs.Callback.PluginSide.Close() //nolint:errcheck,gosec // subprocess owns these now
-
-	p.sockets = pairs
-	p.rawEngineA = pairs.Engine.EngineSide
-	p.rawCallbackB = pairs.Callback.EngineSide
-
-	p.running.Store(true)
-
-	stderr := p.stderr
-	cmd := p.cmd
-	p.wg.Go(func() { p.relayStderrFrom(stderr) })
-	p.wg.Go(func() { p.monitorCmd(cmd) })
-
-	return nil
-}
-
-// closeFiles closes os.File handles, ignoring nil values.
-func closeFiles(files ...*os.File) {
-	for _, f := range files {
-		if f != nil {
-			f.Close() //nolint:errcheck,gosec // best-effort cleanup
-		}
-	}
 }
 
 // relayStderrFrom reads plugin stderr and relays to engine logs.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"os"
 	"path/filepath"
 	"sync"
@@ -15,8 +16,51 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+func init() {
+	// Register test-only plugin runners for process lifecycle tests.
+	// "sleep" blocks until context is canceled (simulates long-running plugin).
+	// "crash" exits immediately with code 1 (simulates crashing plugin).
+	_ = registry.Register(registry.Registration{
+		Name:        "sleep",
+		Description: "test: blocks until connection closed",
+		RunEngine: func(a, _ net.Conn) int {
+			buf := make([]byte, 1)
+			if _, err := a.Read(buf); err != nil {
+				return 0 // conn closed = shutdown
+			}
+			return 0
+		},
+		CLIHandler: func([]string) int { return 0 },
+	})
+	_ = registry.Register(registry.Registration{
+		Name:        "crash",
+		Description: "test: exits immediately with error",
+		RunEngine:   func(a, b net.Conn) int { return 1 },
+		CLIHandler:  func([]string) int { return 1 },
+	})
+	_ = registry.Register(registry.Registration{
+		Name:        "cycle",
+		Description: "test: exits immediately (for respawn cycle tests)",
+		RunEngine:   func(a, b net.Conn) int { return 1 },
+		CLIHandler:  func([]string) int { return 1 },
+	})
+	_ = registry.Register(registry.Registration{
+		Name:        "run",
+		Description: "test: blocks until connection closed (for respawn success tests)",
+		RunEngine: func(a, _ net.Conn) int {
+			buf := make([]byte, 1)
+			if _, err := a.Read(buf); err != nil {
+				return 0
+			}
+			return 0
+		},
+		CLIHandler: func([]string) int { return 0 },
+	})
+}
 
 // writeScript writes a test script with executable permissions.
 // #nosec G306 - Test scripts must be executable
@@ -26,13 +70,11 @@ func writeScript(t *testing.T, path, content string) {
 	require.NoError(t, err)
 }
 
-// TestProcessStart verifies process spawning.
+// TestProcessStartRequiresAcceptor verifies external process requires TLS acceptor.
 //
-// VALIDATES: Process starts with correct command.
-//
-// PREVENTS: Process spawn failures blocking API functionality.
-func TestProcessStart(t *testing.T) {
-	// Create a simple script that exits immediately
+// VALIDATES: External process without acceptor returns clear error.
+// PREVENTS: Nil panic when hub config is not set.
+func TestProcessStartRequiresAcceptor(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "test.sh")
 	writeScript(t, script, "#!/bin/sh\nexit 0\n")
 
@@ -43,61 +85,42 @@ func TestProcessStart(t *testing.T) {
 	})
 
 	err := proc.Start()
-	require.NoError(t, err)
-	assert.True(t, proc.Running())
-
-	// Wait for process to exit
-	time.Sleep(50 * time.Millisecond)
-	proc.Stop()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no TLS acceptor")
 }
 
-// TestProcessShutdown verifies clean process termination.
+// TestProcessShutdown verifies clean process termination via internal plugin.
 //
-// VALIDATES: Process receives signal and terminates.
-//
-// PREVENTS: Orphaned processes after API shutdown.
+// VALIDATES: Process stop terminates the plugin goroutine.
+// PREVENTS: Orphaned goroutines after API shutdown.
 func TestProcessShutdown(t *testing.T) {
-	// Create a script that sleeps forever
-	script := filepath.Join(t.TempDir(), "sleep.sh")
-	writeScript(t, script, "#!/bin/sh\nsleep 3600\n")
-
 	proc := NewProcess(plugin.PluginConfig{
-		Name:    "sleep",
-		Run:     script,
-		Encoder: "json",
+		Name:     "sleep",
+		Internal: true,
+		Encoder:  "json",
 	})
 
 	err := proc.Start()
 	require.NoError(t, err)
 	assert.True(t, proc.Running())
 
-	// Stop should terminate the process
+	// Stop should terminate the process.
 	proc.Stop()
 
-	// Wait should complete quickly
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	err = proc.Wait(ctx)
-	require.NoError(t, err)
+	require.NoError(t, proc.Wait(ctx))
 	assert.False(t, proc.Running())
 }
 
 // TestProcessManagerStartAll verifies all processes start.
 //
 // VALIDATES: ProcessManager starts all configured processes.
-//
 // PREVENTS: Some processes not starting.
 func TestProcessManagerStartAll(t *testing.T) {
-	// Create test scripts
-	script1 := filepath.Join(t.TempDir(), "p1.sh")
-	script2 := filepath.Join(t.TempDir(), "p2.sh")
-	for _, s := range []string{script1, script2} {
-		writeScript(t, s, "#!/bin/sh\nsleep 10\n")
-	}
-
 	pm := NewProcessManager([]plugin.PluginConfig{
-		{Name: "p1", Run: script1, Encoder: "json"},
-		{Name: "p2", Run: script2, Encoder: "json"},
+		{Name: "sleep", Internal: true, Encoder: "json"},
+		{Name: "run", Internal: true, Encoder: "json"},
 	})
 
 	err := pm.Start()
@@ -105,8 +128,8 @@ func TestProcessManagerStartAll(t *testing.T) {
 	defer pm.Stop()
 
 	assert.Equal(t, 2, pm.ProcessCount())
-	assert.True(t, pm.IsRunning("p1"))
-	assert.True(t, pm.IsRunning("p2"))
+	assert.True(t, pm.IsRunning("sleep"))
+	assert.True(t, pm.IsRunning("run"))
 }
 
 // TestProcessManagerStopAll verifies all processes stop.
@@ -115,12 +138,9 @@ func TestProcessManagerStartAll(t *testing.T) {
 //
 // PREVENTS: Orphaned processes.
 func TestProcessManagerStopAll(t *testing.T) {
-	script := filepath.Join(t.TempDir(), "sleep.sh")
-	writeScript(t, script, "#!/bin/sh\nsleep 3600\n")
-
 	pm := NewProcessManager([]plugin.PluginConfig{
-		{Name: "p1", Run: script, Encoder: "json"},
-		{Name: "p2", Run: script, Encoder: "json"},
+		{Name: "sleep", Internal: true, Encoder: "json"},
+		{Name: "run", Internal: true, Encoder: "json"},
 	})
 
 	err := pm.Start()
@@ -148,17 +168,10 @@ func TestProcessNotFound(t *testing.T) {
 		Encoder: "json",
 	})
 
-	// Start will succeed because /bin/sh -c starts
-	// but the script will fail immediately
+	// Without an acceptor, external plugins fail at start.
 	err := proc.Start()
-	if err != nil {
-		// Some systems may fail at start
-		assert.False(t, proc.Running())
-		return
-	}
-
-	// Wait for process to exit due to missing script
-	require.Eventually(t, func() bool { return !proc.Running() }, time.Second, 10*time.Millisecond, "process should exit when script not found")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no TLS acceptor")
 }
 
 // TestProcessManagerNoProcesses verifies empty config handling.
@@ -209,12 +222,9 @@ func TestProcessSyncState(t *testing.T) {
 //
 // PREVENTS: Infinite respawn loops consuming resources from crashing processes.
 func TestProcessManagerRespawnLimit(t *testing.T) {
-	// Create a script that exits immediately
-	script := filepath.Join(t.TempDir(), "crash.sh")
-	writeScript(t, script, "#!/bin/sh\nexit 1\n")
-
+	// Internal plugin with unknown name exits immediately (simulates crash).
 	pm := NewProcessManager([]plugin.PluginConfig{
-		{Name: "crash", Run: script, Encoder: "json", RespawnEnabled: true},
+		{Name: "crash", Internal: true, Encoder: "json", RespawnEnabled: true},
 	})
 
 	err := pm.Start()
@@ -240,11 +250,8 @@ func TestProcessManagerRespawnLimit(t *testing.T) {
 // VALIDATES: Cumulative respawn counter prevents indefinite cycling across time windows.
 // PREVENTS: Plugin cycling forever by staying just under per-window limit.
 func TestProcessManagerCumulativeRespawnLimit(t *testing.T) {
-	script := filepath.Join(t.TempDir(), "crash.sh")
-	writeScript(t, script, "#!/bin/sh\nexit 1\n")
-
 	pm := NewProcessManager([]plugin.PluginConfig{
-		{Name: "cycle", Run: script, Encoder: "json", RespawnEnabled: true},
+		{Name: "cycle", Internal: true, Encoder: "json", RespawnEnabled: true},
 	})
 
 	err := pm.Start()
@@ -301,12 +308,8 @@ func TestProcessManagerRespawnNotStarted(t *testing.T) {
 //
 // PREVENTS: Valid respawn attempts being rejected.
 func TestProcessManagerRespawnSuccess(t *testing.T) {
-	// Create a script that runs until stopped
-	script := filepath.Join(t.TempDir(), "run.sh")
-	writeScript(t, script, "#!/bin/sh\nsleep 3600\n")
-
 	pm := NewProcessManager([]plugin.PluginConfig{
-		{Name: "run", Run: script, Encoder: "json", RespawnEnabled: true},
+		{Name: "run", Internal: true, Encoder: "json", RespawnEnabled: true},
 	})
 
 	err := pm.Start()

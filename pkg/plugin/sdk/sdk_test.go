@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"os"
-	"syscall"
 	"testing"
 	"time"
 
@@ -1083,48 +1081,6 @@ func TestSDKDispatchCommand(t *testing.T) {
 	}
 }
 
-// TestNewFromFDs verifies plugin creation from file descriptors.
-//
-// VALIDATES: NewFromFDs creates a working plugin from socketpair FDs.
-// PREVENTS: External plugin SDK constructor not working.
-func TestNewFromFDs(t *testing.T) {
-	t.Parallel()
-
-	// Create real socketpairs
-	pairs, err := newExternalTestPairs(t)
-	require.NoError(t, err)
-
-	engineFD := pairs.engineFD
-	callbackFD := pairs.callbackFD
-
-	p, err := NewFromFDs("test-plugin", engineFD, callbackFD)
-	require.NoError(t, err)
-	t.Cleanup(func() {
-		if closeErr := p.Close(); closeErr != nil {
-			t.Logf("close plugin: %v", closeErr)
-		}
-	})
-
-	// Verify we can communicate — send a frame from engine side, read from plugin
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	// Engine writes a request on callback socket (Socket B)
-	go func() {
-		paramsJSON, _ := json.Marshal(map[string]string{"reason": "test"}) //nolint:errcheck // test helper
-		frame := rpc.FormatRequest(1, "ze-plugin-callback:bye", paramsJSON)
-		frame = append(frame, '\n')
-		if writeErr := pairs.callbackEngine.WriteRawFrame(frame); writeErr != nil {
-			t.Logf("WriteRawFrame: %v", writeErr)
-		}
-	}()
-
-	// Plugin reads it
-	req, err := p.callbackConn.ReadRequest(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, "ze-plugin-callback:bye", req.Method)
-}
-
 // TestSDKCloseUnblocksRead verifies that Close() unblocks goroutines waiting on Read().
 //
 // VALIDATES: Close() causes blocked ReadRequest to return an error promptly.
@@ -1204,65 +1160,6 @@ func TestSDKConnectionCloseCleanShutdown(t *testing.T) {
 		require.NoError(t, err)
 	case <-time.After(2 * time.Second):
 		t.Fatal("plugin did not exit after connection close")
-	}
-}
-
-// externalTestPairs holds real socketpair FDs for testing NewFromFDs.
-type externalTestPairs struct {
-	engineFD       int       // Plugin's end of Socket A (FD for plugin→engine)
-	callbackFD     int       // Plugin's end of Socket B (FD for engine→plugin)
-	callbackEngine *rpc.Conn // Engine's end of Socket B (for writing requests)
-}
-
-// newExternalTestPairs creates real Unix socketpairs for testing external plugin FD passing.
-func newExternalTestPairs(t *testing.T) (*externalTestPairs, error) {
-	t.Helper()
-
-	// Socket A: Plugin→Engine
-	aFDs, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
-	if err != nil {
-		return nil, fmt.Errorf("socketpair A: %w", err)
-	}
-
-	// Socket B: Engine→Plugin
-	bFDs, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
-	if err != nil {
-		closeFDs(t, aFDs[0], aFDs[1])
-		return nil, fmt.Errorf("socketpair B: %w", err)
-	}
-
-	// Engine's end of Socket B → wrap as net.Conn for writing
-	bEngineFile := os.NewFile(uintptr(bFDs[0]), "callback-engine")
-	bEngineConn, err := net.FileConn(bEngineFile)
-	if closeErr := bEngineFile.Close(); closeErr != nil {
-		t.Logf("close bEngineFile: %v", closeErr)
-	}
-	if err != nil {
-		closeFDs(t, aFDs[0], aFDs[1], bFDs[1])
-		return nil, fmt.Errorf("fileconn B engine: %w", err)
-	}
-
-	t.Cleanup(func() {
-		closeFDs(t, aFDs[0])
-		if closeErr := bEngineConn.Close(); closeErr != nil {
-			t.Logf("close bEngineConn: %v", closeErr)
-		}
-	})
-
-	return &externalTestPairs{
-		engineFD:       aFDs[1],
-		callbackFD:     bFDs[1],
-		callbackEngine: rpc.NewConn(bEngineConn, bEngineConn),
-	}, nil
-}
-
-// closeFDs closes file descriptors, logging any errors.
-func closeFDs(t *testing.T, fds ...int) {
-	t.Helper()
-	for _, fd := range fds {
-		if err := syscall.Close(fd); err != nil {
-			t.Logf("close fd %d: %v", fd, err)
-		}
 	}
 }
 
