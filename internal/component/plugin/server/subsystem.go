@@ -118,25 +118,24 @@ func (h *SubsystemHandler) completeProtocol(ctx context.Context) error {
 		return fmt.Errorf("init connections: %w", err)
 	}
 
-	connA := h.proc.ConnA()
-	connB := h.proc.ConnB()
-	if connB == nil {
+	conn := h.proc.Conn()
+	if conn == nil {
 		return fmt.Errorf("subsystem connection closed before protocol")
 	}
 
-	// Stage 1: Read declare-registration from plugin (Socket A)
-	req, err := connA.ReadRequest(ctx)
+	// Stage 1: Read declare-registration from plugin (plugin-initiated)
+	req, err := conn.ReadRequest(ctx)
 	if err != nil {
 		return fmt.Errorf("stage 1 read: %w", err)
 	}
 	if req.Method != "ze-plugin-engine:declare-registration" {
-		_ = connA.SendError(ctx, req.ID, "expected declare-registration, got "+req.Method)
+		_ = conn.SendError(ctx, req.ID, "expected declare-registration, got "+req.Method)
 		return fmt.Errorf("stage 1: expected declare-registration, got %s", req.Method)
 	}
 
 	var regInput rpc.DeclareRegistrationInput
 	if err := json.Unmarshal(req.Params, &regInput); err != nil {
-		_ = connA.SendError(ctx, req.ID, "invalid registration: "+err.Error())
+		_ = conn.SendError(ctx, req.ID, "invalid registration: "+err.Error())
 		return fmt.Errorf("stage 1 parse: %w", err)
 	}
 
@@ -157,43 +156,43 @@ func (h *SubsystemHandler) completeProtocol(ctx context.Context) error {
 	}
 
 	// Send OK response
-	if err := connA.SendResult(ctx, req.ID, nil); err != nil {
+	if err := conn.SendResult(ctx, req.ID, nil); err != nil {
 		return fmt.Errorf("stage 1 respond: %w", err)
 	}
 
-	// Stage 2: Send configure to plugin (Socket B)
-	if err := connB.SendConfigure(ctx, nil); err != nil {
+	// Stage 2: Send configure to plugin (engine-initiated)
+	if err := conn.SendConfigure(ctx, nil); err != nil {
 		return fmt.Errorf("stage 2 configure: %w", err)
 	}
 
-	// Stage 3: Read declare-capabilities from plugin (Socket A)
-	req, err = connA.ReadRequest(ctx)
+	// Stage 3: Read declare-capabilities from plugin (plugin-initiated)
+	req, err = conn.ReadRequest(ctx)
 	if err != nil {
 		return fmt.Errorf("stage 3 read: %w", err)
 	}
 	if req.Method != "ze-plugin-engine:declare-capabilities" {
-		_ = connA.SendError(ctx, req.ID, "expected declare-capabilities, got "+req.Method)
+		_ = conn.SendError(ctx, req.ID, "expected declare-capabilities, got "+req.Method)
 		return fmt.Errorf("stage 3: expected declare-capabilities, got %s", req.Method)
 	}
-	if err := connA.SendResult(ctx, req.ID, nil); err != nil {
+	if err := conn.SendResult(ctx, req.ID, nil); err != nil {
 		return fmt.Errorf("stage 3 respond: %w", err)
 	}
 
-	// Stage 4: Send share-registry to plugin (Socket B)
-	if err := connB.SendShareRegistry(ctx, nil); err != nil {
+	// Stage 4: Send share-registry to plugin (engine-initiated)
+	if err := conn.SendShareRegistry(ctx, nil); err != nil {
 		return fmt.Errorf("stage 4 share-registry: %w", err)
 	}
 
-	// Stage 5: Read ready from plugin (Socket A)
-	req, err = connA.ReadRequest(ctx)
+	// Stage 5: Read ready from plugin (plugin-initiated)
+	req, err = conn.ReadRequest(ctx)
 	if err != nil {
 		return fmt.Errorf("stage 5 read: %w", err)
 	}
 	if req.Method != "ze-plugin-engine:ready" {
-		_ = connA.SendError(ctx, req.ID, "expected ready, got "+req.Method)
+		_ = conn.SendError(ctx, req.ID, "expected ready, got "+req.Method)
 		return fmt.Errorf("stage 5: expected ready, got %s", req.Method)
 	}
-	if err := connA.SendResult(ctx, req.ID, nil); err != nil {
+	if err := conn.SendResult(ctx, req.ID, nil); err != nil {
 		return fmt.Errorf("stage 5 respond: %w", err)
 	}
 
@@ -244,11 +243,11 @@ func (h *SubsystemHandler) Handle(ctx context.Context, command string) (*plugin.
 	}
 
 	// Send command via RPC execute-command
-	connB := proc.ConnB()
-	if connB == nil {
+	conn := proc.Conn()
+	if conn == nil {
 		return nil, ErrSubsystemConnectionClosed
 	}
-	out, err := connB.SendExecuteCommand(ctx, "", command, nil, "")
+	out, err := conn.SendExecuteCommand(ctx, "", command, nil, "")
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Data: err.Error()}, err
 	}

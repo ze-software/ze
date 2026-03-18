@@ -14,11 +14,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
-// TestProcessSingleConnInitConns verifies that SetSingleConn + InitConns creates
-// working MuxPluginConns that handle bidirectional RPC on a single connection.
+// TestProcessSingleConnInitConns verifies that rawConn + InitConns creates
+// a working MuxPluginConn for bidirectional RPC on a single connection.
 //
-// VALIDATES: Single-conn mode produces ConnA and ConnB backed by MuxConn.
-// PREVENTS: Nil ConnA/ConnB or wrong wiring in single-conn mode.
+// VALIDATES: InitConns produces a working Conn backed by MuxConn.
+// PREVENTS: Nil Conn or wrong wiring after InitConns.
 func TestProcessSingleConnInitConns(t *testing.T) {
 	t.Parallel()
 
@@ -30,13 +30,11 @@ func TestProcessSingleConnInitConns(t *testing.T) {
 	defer cancel()
 
 	proc := NewProcess(plugin.PluginConfig{Name: "test-single-conn"})
-	proc.SetSingleConn(engineEnd)
+	proc.rawConn = engineEnd
 	require.NoError(t, proc.InitConns())
 
-	connA := proc.ConnA()
-	connB := proc.ConnB()
-	require.NotNil(t, connA, "ConnA should not be nil in single-conn mode")
-	require.NotNil(t, connB, "ConnB should not be nil in single-conn mode")
+	conn := proc.Conn()
+	require.NotNil(t, conn, "Conn should not be nil after InitConns")
 
 	// Plugin side: send a request (simulating plugin->engine RPC).
 	pluginConn := rpc.NewConn(pluginEnd, pluginEnd)
@@ -46,7 +44,7 @@ func TestProcessSingleConnInitConns(t *testing.T) {
 	}()
 
 	// Engine side: read from ConnA (should receive the plugin's request via MuxConn).
-	req, err := connA.ReadRequest(ctx)
+	req, err := conn.ReadRequest(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
 	assert.Equal(t, uint64(1), req.ID)
@@ -63,7 +61,7 @@ func TestProcessSingleConnInitConns(t *testing.T) {
 	}()
 
 	// Engine side: respond via ConnA.
-	require.NoError(t, connA.SendOK(ctx, req.ID))
+	require.NoError(t, conn.SendOK(ctx, req.ID))
 
 	// Plugin side: verify the response arrived.
 	select {
@@ -74,10 +72,10 @@ func TestProcessSingleConnInitConns(t *testing.T) {
 	}
 }
 
-// TestProcessSingleConnBidirectional verifies that ConnB can call the plugin
-// while ConnA reads plugin requests, all on the same underlying connection.
+// TestProcessSingleConnBidirectional verifies that the engine can call the plugin
+// via the single MuxConn connection.
 //
-// VALIDATES: Engine can send callbacks via ConnB while reading requests via ConnA.
+// VALIDATES: Engine can send callbacks while reading requests on the same connection.
 // PREVENTS: Deadlock or data corruption from bidirectional traffic on single conn.
 func TestProcessSingleConnBidirectional(t *testing.T) {
 	t.Parallel()
@@ -90,10 +88,10 @@ func TestProcessSingleConnBidirectional(t *testing.T) {
 	defer cancel()
 
 	proc := NewProcess(plugin.PluginConfig{Name: "test-bidir"})
-	proc.SetSingleConn(engineEnd)
+	proc.rawConn = engineEnd
 	require.NoError(t, proc.InitConns())
 
-	connB := proc.ConnB()
+	conn := proc.Conn()
 	pluginConn := rpc.NewConn(pluginEnd, pluginEnd)
 	pluginMux := rpc.NewMuxConn(pluginConn)
 	defer pluginMux.Close() //nolint:errcheck // test cleanup
@@ -108,7 +106,7 @@ func TestProcessSingleConnBidirectional(t *testing.T) {
 	}()
 
 	// Engine side: send callback via ConnB (e.g., configure).
-	result, err := connB.CallRPC(ctx, "ze-plugin-callback:configure", map[string]any{"sections": []any{}})
+	result, err := conn.CallRPC(ctx, "ze-plugin-callback:configure", map[string]any{"sections": []any{}})
 	require.NoError(t, err)
 
 	var resp struct {

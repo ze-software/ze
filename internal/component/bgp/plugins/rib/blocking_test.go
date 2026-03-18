@@ -17,82 +17,81 @@ import (
 // in the rib plugin's event loop.
 //
 // VALIDATES: The rib plugin's synchronous updateRoute calls from within the
-// onEvent callback (Socket B) block the entire event loop while waiting for
-// the engine to respond on Socket A.
+// onEvent callback (engine-to-plugin) block the entire event loop while waiting for
+// the engine to respond on plugin-to-engine.
 //
 // PREVENTS: Regression if the blocking pattern is fixed — the test documents
 // the expected latency characteristic. When fixed, the second event delivery
-// should complete promptly regardless of Socket A response time.
+// should complete promptly regardless of plugin-to-engine response time.
 //
 // Architecture:
 //
 //	Plugin (goroutine)          Fake Engine (test)
-//	  Socket A (plugin→engine)    engineA (reads requests, sends responses)
-//	  Socket B (engine→plugin)    engineB (sends deliver-event RPCs)
+//	  plugin-to-engine (plugin→engine)    engineEnd (reads requests, sends responses)
+//	  engine-to-plugin (engine→plugin)    engineEnd (sends deliver-event RPCs)
 //
 // The blocking occurs because:
-// 1. Engine sends "state up" event via Socket B deliver-event
+// 1. Engine sends "state up" event via engine-to-plugin deliver-event
 // 2. Plugin's onEvent callback calls handleState → replayRoutes → updateRoute
-// 3. updateRoute calls plugin.UpdateRoute which sends RPC on Socket A and WAITS
-// 4. While waiting, Socket B's event loop can't process any new events
-// 5. Engine's next deliver-event on Socket B blocks on callMu (serialized writes).
+// 3. updateRoute calls plugin.UpdateRoute which sends RPC on plugin-to-engine and WAITS
+// 4. While waiting, engine-to-plugin's event loop can't process any new events
+// 5. Engine's next deliver-event on engine-to-plugin blocks on callMu (serialized writes).
 func TestRIBPluginEventLoopBlocking(t *testing.T) {
-	// Create two net.Pipe pairs for Socket A and Socket B.
+	// Create two net.Pipe pairs for plugin-to-engine and engine-to-plugin.
 	// Plugin gets one end, fake engine gets the other.
-	pluginA, engineA := net.Pipe()
-	pluginB, engineB := net.Pipe()
+	pluginEnd, engineEnd := net.Pipe()
 
 	// Wrap engine ends in rpc.Conn for structured RPC communication.
-	connA := rpc.NewConn(engineA, engineA) // Engine reads/writes on Socket A
-	connB := rpc.NewConn(engineB, engineB) // Engine reads/writes on Socket B
+	engineConn := rpc.NewConn(engineEnd, engineEnd)
+	mux := rpc.NewMuxConn(engineConn)
 
 	// Start the rib plugin in a goroutine — it will run the 5-stage protocol
 	// then enter the event loop.
 	pluginDone := make(chan int, 1)
 	go func() {
-		pluginDone <- RunRIBPlugin(pluginA, pluginB)
+		pluginDone <- RunRIBPlugin(pluginEnd)
 	}()
 
 	ctx := context.Background()
 
 	// ── 5-Stage Handshake (fake engine side) ─────────────────────────────
 
-	// Stage 1: Read declare-registration from Socket A, send OK.
-	stage1Req := readRequestTimeout(t, ctx, connA)
+	// Stage 1: Read declare-registration from plugin-to-engine, send OK.
+	stage1Req := readMuxRequestTimeout(t, ctx, mux)
 	require.Equal(t, "ze-plugin-engine:declare-registration", stage1Req.Method)
-	require.NoError(t, connA.SendOK(ctx, stage1Req.ID))
+	require.NoError(t, mux.SendOK(ctx, stage1Req.ID))
 
-	// Stage 2: Send configure on Socket B (empty config is fine).
+	// Stage 2: Send configure on engine-to-plugin (empty config is fine).
 	configInput := &rpc.ConfigureInput{Sections: []rpc.ConfigSection{}}
-	raw, err := connB.CallRPC(ctx, "ze-plugin-callback:configure", configInput)
+	raw, err := mux.CallRPC(ctx, "ze-plugin-callback:configure", configInput)
 	require.NoError(t, err)
 	_ = raw // CallRPC returns errors directly; result unused for ok-only RPCs
 
-	// Stage 3: Read declare-capabilities from Socket A, send OK.
-	stage3Req := readRequestTimeout(t, ctx, connA)
+	// Stage 3: Read declare-capabilities from plugin-to-engine, send OK.
+	stage3Req := readMuxRequestTimeout(t, ctx, mux)
 	require.Equal(t, "ze-plugin-engine:declare-capabilities", stage3Req.Method)
-	require.NoError(t, connA.SendOK(ctx, stage3Req.ID))
+	require.NoError(t, mux.SendOK(ctx, stage3Req.ID))
 
-	// Stage 4: Send share-registry on Socket B (empty registry).
+	// Stage 4: Send share-registry on engine-to-plugin (empty registry).
 	registryInput := &rpc.ShareRegistryInput{Commands: []rpc.RegistryCommand{}}
-	raw, err = connB.CallRPC(ctx, "ze-plugin-callback:share-registry", registryInput)
+	raw, err = mux.CallRPC(ctx, "ze-plugin-callback:share-registry", registryInput)
 	require.NoError(t, err)
 	_ = raw // CallRPC returns errors directly; result unused for ok-only RPCs
 
-	// Stage 5: Read ready from Socket A, send OK.
+	// Stage 5: Read ready from plugin-to-engine, send OK.
 	// The ready RPC includes startup subscriptions (events: update direction sent, state, refresh).
-	stage5Req := readRequestTimeout(t, ctx, connA)
+	stage5Req := readMuxRequestTimeout(t, ctx, mux)
 	require.Equal(t, "ze-plugin-engine:ready", stage5Req.Method)
-	require.NoError(t, connA.SendOK(ctx, stage5Req.ID))
+	require.NoError(t, mux.SendOK(ctx, stage5Req.ID))
 
 	// ── Plugin is now in event loop ──────────────────────────────────────
 
 	// Step 1: Send a "sent" event to populate ribOut with a route.
 	// This is a "type":"sent" event — the rib plugin stores it in ribOut.
 	sentEvent := `{"type":"sent","msg-id":1,"peer":{"address":"10.0.0.1","asn":65001},"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}`
-	deliverEventSync(t, ctx, connB, sentEvent)
+	deliverEventSync(t, ctx, mux, sentEvent)
 
-	// Step 2: Start a goroutine to handle update-route requests on Socket A.
+	// Step 2: Start a goroutine to handle update-route requests on plugin-to-engine.
 	// We add a deliberate delay to simulate real engine response time.
 	// This delay is what causes the head-of-line blocking.
 	const updateRouteDelay = 500 * time.Millisecond
@@ -102,9 +101,15 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 
 	go func() {
 		for {
-			req, readErr := connA.ReadRequest(handlerCtx)
-			if readErr != nil {
-				return // Connection closed or context canceled
+			var req *rpc.Request
+			select {
+			case r, ok := <-mux.Requests():
+				if !ok {
+					return
+				}
+				req = r
+			case <-handlerCtx.Done():
+				return
 			}
 
 			if req.Method == "ze-plugin-engine:update-route" {
@@ -113,12 +118,12 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 				time.Sleep(updateRouteDelay)
 				updateRouteCount.Add(1)
 				result := &rpc.UpdateRouteOutput{PeersAffected: 1, RoutesSent: 1}
-				if sendErr := connA.SendResult(handlerCtx, req.ID, result); sendErr != nil {
+				if sendErr := mux.SendResult(handlerCtx, req.ID, result); sendErr != nil {
 					t.Logf("SendResult failed: %v", sendErr)
 					return
 				}
 			} else {
-				if sendErr := connA.SendOK(handlerCtx, req.ID); sendErr != nil {
+				if sendErr := mux.SendOK(handlerCtx, req.ID); sendErr != nil {
 					t.Logf("SendOK failed: %v", sendErr)
 					return
 				}
@@ -128,9 +133,9 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 
 	// Step 3: Deliver "state up" event and "probe" event concurrently.
 	//
-	// The state-up event triggers replayRoutes → updateRoute (synchronous RPC on Socket A).
+	// The state-up event triggers replayRoutes → updateRoute (synchronous RPC on plugin-to-engine).
 	// While that blocks, the probe event can't be delivered because:
-	//   (a) connB.CallRPC serializes via callMu (engine-side blocking)
+	//   (a) mux.CallRPC serializes via callMu (engine-side blocking)
 	//   (b) SDK's eventLoop is single-threaded (plugin-side blocking)
 	//
 	// Both effects compound, but (b) is the root cause we're testing:
@@ -151,7 +156,7 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 	// Goroutine 1: deliver state-up event (triggers blocking replayRoutes)
 	go func() {
 		start := time.Now()
-		callErr := deliverEvent(connB, stateUpEvent)
+		callErr := deliverEvent(mux, stateUpEvent)
 		stateUpDone <- deliverResult{duration: time.Since(start), err: callErr}
 	}()
 
@@ -161,7 +166,7 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 	// Goroutine 2: deliver probe event — blocked by head-of-line blocking
 	go func() {
 		start := time.Now()
-		callErr := deliverEvent(connB, probeEvent)
+		callErr := deliverEvent(mux, probeEvent)
 		probeDone <- deliverResult{duration: time.Since(start), err: callErr}
 	}()
 
@@ -199,7 +204,7 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 	// for replayRoutes to finish all its synchronous updateRoute calls.
 	assert.Greater(t, probeResult.duration, updateRouteDelay,
 		"probe event should be delayed by head-of-line blocking: "+
-			"the event loop is blocked while updateRoute waits for Socket A response")
+			"the event loop is blocked while updateRoute waits for plugin-to-engine response")
 
 	// Verify that update-route RPCs were actually processed.
 	// replayRoutes sends: N routes + 1 "plugin session ready" command.
@@ -210,17 +215,11 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 	// ── Cleanup ──────────────────────────────────────────────────────────
 	cancelHandler()
 
-	if closeErr := connA.Close(); closeErr != nil {
-		t.Logf("connA close: %v", closeErr)
+	if closeErr := mux.Close(); closeErr != nil {
+		t.Logf("mux close: %v", closeErr)
 	}
-	if closeErr := connB.Close(); closeErr != nil {
-		t.Logf("connB close: %v", closeErr)
-	}
-	if closeErr := engineA.Close(); closeErr != nil {
-		t.Logf("engineA close: %v", closeErr)
-	}
-	if closeErr := engineB.Close(); closeErr != nil {
-		t.Logf("engineB close: %v", closeErr)
+	if closeErr := engineEnd.Close(); closeErr != nil {
+		t.Logf("engineEnd close: %v", closeErr)
 	}
 
 	select {
@@ -231,31 +230,34 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 	}
 }
 
-// deliverEvent sends a deliver-event RPC on Socket B and waits for the response.
+// deliverEvent sends a deliver-event RPC on engine-to-plugin and waits for the response.
 // Returns an error rather than failing the test, so it's safe for goroutine use.
-func deliverEvent(conn *rpc.Conn, event string) error {
+func deliverEvent(mux *rpc.MuxConn, event string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	input := &rpc.DeliverEventInput{Event: event}
-	_, err := conn.CallRPC(ctx, "ze-plugin-callback:deliver-event", input)
+	_, err := mux.CallRPC(ctx, "ze-plugin-callback:deliver-event", input)
 	return err
 }
 
 // deliverEventSync sends a deliver-event RPC and fails the test on error.
-// Only call from the main test goroutine (not from spawned goroutines).
-func deliverEventSync(t *testing.T, ctx context.Context, conn *rpc.Conn, event string) {
+func deliverEventSync(t *testing.T, ctx context.Context, mux *rpc.MuxConn, event string) {
 	t.Helper()
 	input := &rpc.DeliverEventInput{Event: event}
-	_, err := conn.CallRPC(ctx, "ze-plugin-callback:deliver-event", input)
+	_, err := mux.CallRPC(ctx, "ze-plugin-callback:deliver-event", input)
 	require.NoError(t, err, "deliver-event should succeed")
 }
 
-// readRequestTimeout reads the next RPC request with a 5-second timeout.
-func readRequestTimeout(t *testing.T, ctx context.Context, conn *rpc.Conn) *rpc.Request {
+// readMuxRequestTimeout reads the next plugin request with a 5-second timeout.
+func readMuxRequestTimeout(t *testing.T, ctx context.Context, mux *rpc.MuxConn) *rpc.Request {
 	t.Helper()
-	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	timeout, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	req, err := conn.ReadRequest(timeoutCtx)
-	require.NoError(t, err, "should read RPC request within timeout")
-	return req
+	select {
+	case req := <-mux.Requests():
+		return req
+	case <-timeout.Done():
+		t.Fatal("timed out waiting for plugin request")
+		return nil
+	}
 }

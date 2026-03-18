@@ -43,8 +43,8 @@ const defaultWriteDeadline = 30 * time.Second
 //
 // Conn supports two wiring modes:
 //   - Single-socket: NewConn(conn, conn) -- read and write on the same socket.
-//   - Cross-socket: NewConn(readConn, writeConn) -- read from one socket,
-//     write to another. Used in tests to simulate the two-socket architecture.
+//   - Cross-socket: NewConn(readConn, writeConn) -- read from one connection,
+//     write to another. Used in tests with separate read/write endpoints.
 //
 // Callers must call Close() to release resources. Close() unblocks the
 // persistent reader by closing the read connection.
@@ -357,12 +357,4 @@ func parseResponse(data []byte, expectedID uint64) (json.RawMessage, error) {
 		return nil, parseRPCError(payload)
 	}
 	return nil, fmt.Errorf("unexpected response verb %q", verb)
-}
-
-// writeDeadline extracts a deadline from ctx, falling back to defaultWriteDeadline.
-func writeDeadline(ctx context.Context) time.Time {
-	if dl, ok := ctx.Deadline(); ok {
-		return dl
-	}
-	return time.Now().Add(defaultWriteDeadline)
 }

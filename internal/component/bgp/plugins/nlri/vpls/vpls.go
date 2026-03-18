@@ -33,10 +33,10 @@ func SetLogger(l *slog.Logger) {
 }
 
 // RunVPLSPlugin runs the VPLS plugin using the SDK RPC protocol.
-func RunVPLSPlugin(engineConn, callbackConn net.Conn) int {
+func RunVPLSPlugin(conn net.Conn) int {
 	logger.Debug("vpls plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-vpls", engineConn, callbackConn)
+	p := sdk.NewWithConn("bgp-vpls", conn)
 	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()

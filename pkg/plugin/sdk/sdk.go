@@ -5,11 +5,11 @@
 // Detail: sdk_types.go — re-exported RPC type aliases
 //
 // Package sdk provides a high-level SDK for creating ze plugins using the
-// YANG RPC protocol over dual socket pairs.
+// YANG RPC protocol over a single bidirectional connection.
 //
-// Plugins communicate with the ze engine via two Unix sockets:
-//   - Socket A (engine conn): plugin calls engine (registration, routes, subscribe)
-//   - Socket B (callback conn): engine calls plugin (config, events, encode/decode, bye)
+// Plugins communicate with the ze engine via a single connection (net.Pipe
+// for internal plugins, TLS for external). MuxConn multiplexes bidirectional
+// RPCs by distinguishing responses (verb=ok/error) from requests (verb=method).
 //
 // The SDK handles the 5-stage startup protocol and event loop automatically.
 //
@@ -41,17 +41,13 @@ import (
 type Plugin struct {
 	name string
 
-	// Two bidirectional connections (one per socket).
-	engineConn   *rpc.Conn    // Socket A: plugin -> engine RPCs
-	callbackConn *rpc.Conn    // Socket B: engine -> plugin RPCs
-	engineMux    *rpc.MuxConn // Multiplexed Socket A for concurrent post-startup RPCs
-
-	// Underlying Socket B net.Conn (dual-conn mode only).
-	rawCallbackB net.Conn
+	// Single bidirectional connection, multiplexed for concurrent RPCs.
+	engineConn *rpc.Conn    // Underlying connection (reads/writes)
+	engineMux  *rpc.MuxConn // Multiplexed for concurrent RPCs + inbound request routing
 
 	// Direct transport bridge for internal plugins (nil for external).
-	// Discovered via type assertion on engineConn in NewWithConn.
-	// After startup, DeliverEvents bypasses socket B and callEngineRaw
+	// Discovered via type assertion on conn in NewWithConn.
+	// After startup, DeliverEvents bypasses the connection and callEngineRaw
 	// dispatches through bridge.DispatchRPC instead of engineMux.CallRPC.
 	bridge *rpc.DirectBridge
 
@@ -70,7 +66,7 @@ type Plugin struct {
 	onBye              func(string)
 
 	// Post-startup callback (runs after Stage 5, before event loop).
-	// Safe to make engine calls (Socket A) here -- startup is complete.
+	// Safe to make engine calls here -- startup is complete.
 	onStarted func(context.Context) error
 
 	// Startup subscriptions: included in the "ready" RPC so the engine
@@ -89,19 +85,19 @@ type Plugin struct {
 	mu sync.Mutex
 }
 
-// NewWithConn creates a plugin with explicit connections (for testing).
-// engineConn is the plugin side of Socket A, callbackConn is the plugin side of Socket B.
-// For internal plugins, engineConn may be a BridgedConn carrying a DirectBridge
+// NewWithConn creates a plugin with a single bidirectional connection.
+// MuxConn is created immediately for bidirectional RPC multiplexing.
+// For internal plugins, conn may be a BridgedConn carrying a DirectBridge
 // reference for post-startup direct transport.
-func NewWithConn(name string, engineConn, callbackConn net.Conn) *Plugin {
+func NewWithConn(name string, conn net.Conn) *Plugin {
+	rc := rpc.NewConn(conn, conn)
 	p := &Plugin{
-		name:         name,
-		engineConn:   rpc.NewConn(engineConn, engineConn),
-		callbackConn: rpc.NewConn(callbackConn, callbackConn),
-		rawCallbackB: callbackConn,
+		name:       name,
+		engineConn: rc,
+		engineMux:  rpc.NewMuxConn(rc),
 	}
 	// Discover bridge via type assertion (internal plugins only).
-	if bridger, ok := engineConn.(rpc.Bridger); ok {
+	if bridger, ok := conn.(rpc.Bridger); ok {
 		p.bridge = bridger.Bridge()
 	}
 	return p
@@ -166,8 +162,8 @@ func NewFromTLSEnv(name string) (*Plugin, error) {
 	}
 
 	// Create ONE rpc.Conn for this connection. ReadRequest starts the
-	// persistent reader. MuxConn (created in NewWithSingleConn) reuses
-	// the same reader via sync.Once -- no competing goroutines.
+	// persistent reader. MuxConn reuses the same reader via sync.Once
+	// -- no competing goroutines.
 	engineConn := rpc.NewConn(conn, conn)
 	resp, readErr := engineConn.ReadRequest(ctx)
 	if readErr != nil {
@@ -186,19 +182,6 @@ func NewFromTLSEnv(name string) (*Plugin, error) {
 		engineConn: engineConn,
 		engineMux:  engineMux,
 	}, nil
-}
-
-// NewWithSingleConn creates a plugin with a single bidirectional connection.
-// Used for TLS external plugins. MuxConn is created immediately to handle
-// bidirectional RPC from the start (both engine calls and callbacks).
-func NewWithSingleConn(name string, conn net.Conn) *Plugin {
-	engineConn := rpc.NewConn(conn, conn)
-	engineMux := rpc.NewMuxConn(engineConn)
-	return &Plugin{
-		name:       name,
-		engineConn: engineConn,
-		engineMux:  engineMux,
-	}
 }
 
 // Listeners returns listen sockets received from the engine during startup.
@@ -225,13 +208,7 @@ func (p *Plugin) Close() error {
 			return err
 		}
 	}
-	engineErr := p.engineConn.Close()
-	if p.callbackConn != nil {
-		if callbackErr := p.callbackConn.Close(); callbackErr != nil && engineErr == nil {
-			return callbackErr
-		}
-	}
-	return engineErr
+	return p.engineConn.Close()
 }
 
 // Run executes the 5-stage startup protocol and enters the event loop.
@@ -280,16 +257,9 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 		return fmt.Errorf("stage 5 (ready): %w", err)
 	}
 
-	// Startup complete: create MuxConn for concurrent engine calls.
-	// In single-conn mode, engineMux was created in the constructor.
-	// In dual-conn mode, create it now from the sequential engineConn.
-	if p.engineMux == nil {
-		p.engineMux = rpc.NewMuxConn(p.engineConn)
-	}
-
 	// Activate direct transport bridge if discovered during construction.
 	// Register the plugin's event handler so the engine can call it directly
-	// instead of going through socket B. Signal ready so the engine side
+	// instead of going through the connection. Signal ready so the engine side
 	// switches from SendDeliverBatch to bridge.DeliverEvents.
 	if p.bridge != nil {
 		p.mu.Lock()
@@ -314,9 +284,9 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 		p.bridge.SetReady()
 	}
 
-	// Post-startup: safe to make engine calls (Socket A is free).
-	// The engine's runtime handler starts reading Socket A after all
-	// plugins complete startup, so writes are buffered briefly then handled.
+	// Post-startup: safe to make engine calls.
+	// The engine's runtime handler starts reading after all plugins
+	// complete startup, so writes are buffered briefly then handled.
 	p.mu.Lock()
 	startedFn := p.onStarted
 	p.mu.Unlock()
@@ -333,25 +303,20 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 	return p.eventLoop(ctx)
 }
 
-// callEngine sends an RPC to the engine via Socket A and waits for response.
-// Uses MuxConn when available (post-startup), falls back to Conn (during startup).
-// Since CallRPC returns RPC errors as *rpc.RPCCallError, this just forwards the error.
+// callEngine sends an RPC to the engine and waits for response.
+// Dispatches via DirectBridge (internal) or MuxConn (external).
 func (p *Plugin) callEngine(ctx context.Context, method string, params any) error {
 	_, err := p.callEngineRaw(ctx, method, params)
 	return err
 }
 
 // callEngineWithResult sends an RPC to the engine and returns the result payload.
-// Uses MuxConn when available (post-startup), falls back to Conn (during startup).
-// Since CallRPC returns the result payload directly (RPC errors as Go errors),
-// this just forwards the return values.
 func (p *Plugin) callEngineWithResult(ctx context.Context, method string, params any) (json.RawMessage, error) {
 	return p.callEngineRaw(ctx, method, params)
 }
 
 // callEngineRaw sends an RPC and returns the result payload.
-// Dispatches to: DirectBridge (direct function call, internal plugins post-startup),
-// MuxConn (concurrent socket, post-startup), or Conn (sequential socket, startup).
+// Dispatches to: DirectBridge (internal plugins post-startup) or MuxConn.
 func (p *Plugin) callEngineRaw(ctx context.Context, method string, params any) (json.RawMessage, error) {
 	// Direct bridge path: bypass JSON framing and socket I/O entirely.
 	// Params are still marshaled to json.RawMessage for the bridge handler.
@@ -366,10 +331,7 @@ func (p *Plugin) callEngineRaw(ctx context.Context, method string, params any) (
 		}
 		return p.bridge.DispatchRPC(method, paramsRaw)
 	}
-	if p.engineMux != nil {
-		return p.engineMux.CallRPC(ctx, method, params)
-	}
-	return p.engineConn.CallRPC(ctx, method, params)
+	return p.engineMux.CallRPC(ctx, method, params)
 }
 
 // --- Callback handlers ---

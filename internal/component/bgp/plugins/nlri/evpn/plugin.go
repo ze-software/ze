@@ -36,10 +36,10 @@ func SetEVPNLogger(l *slog.Logger) {
 
 // RunEVPNPlugin runs the EVPN plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
-func RunEVPNPlugin(engineConn, callbackConn net.Conn) int {
+func RunEVPNPlugin(conn net.Conn) int {
 	evpnLogger.Debug("evpn plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-evpn", engineConn, callbackConn)
+	p := sdk.NewWithConn("bgp-evpn", conn)
 	defer func() { _ = p.Close() }()
 
 	p.OnDecodeNLRI(DecodeNLRIHex)

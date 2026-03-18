@@ -77,23 +77,24 @@ func TestNoUnixSocket(t *testing.T) {
 func TestHandleProcessStartupRPC(t *testing.T) {
 	t.Parallel()
 
-	// Create socket pairs
-	pairs, err := plugipc.NewInternalSocketPairs()
-	require.NoError(t, err)
-	defer pairs.Close()
+	// Create single pipe for bidirectional IPC.
+	engineEnd, pluginEnd := net.Pipe()
+	defer engineEnd.Close() //nolint:errcheck // test cleanup
+	defer pluginEnd.Close() //nolint:errcheck // test cleanup
 
-	// Set up process with RPC connections (per-socket wiring)
+	// Engine side: MuxPluginConn for the Process.
+	engineConn := rpc.NewConn(engineEnd, engineEnd)
+	engineMux := rpc.NewMuxConn(engineConn)
+	defer engineMux.Close() //nolint:errcheck // test cleanup
+
 	proc := process.NewProcess(plugin.PluginConfig{
 		Name:     "test-rpc",
 		Internal: true,
 		Encoder:  "json",
 	})
-	proc.SetSockets(pairs)
-	proc.SetConnA(plugipc.NewPluginConn(pairs.Engine.EngineSide, pairs.Engine.EngineSide))
-	proc.SetConnB(plugipc.NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide))
+	proc.SetConn(plugipc.NewMuxPluginConn(engineMux))
 	proc.SetRunning(true)
 
-	// Set up server with mock reactor
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -102,40 +103,49 @@ func TestHandleProcessStartupRPC(t *testing.T) {
 	server.ctx, server.cancel = context.WithCancel(ctx)
 	server.coordinator = plugin.NewStartupCoordinator(1)
 
-	// Plugin side: per-socket PluginConns (simulates SDK pattern)
-	pluginConnA := plugipc.NewPluginConn(pairs.Engine.PluginSide, pairs.Engine.PluginSide)
-	pluginConnB := plugipc.NewPluginConn(pairs.Callback.PluginSide, pairs.Callback.PluginSide)
+	// Plugin side: single MuxConn for bidirectional RPC.
+	pluginConn := rpc.NewConn(pluginEnd, pluginEnd)
+	pluginMux := rpc.NewMuxConn(pluginConn)
+	defer pluginMux.Close() //nolint:errcheck // test cleanup
 
-	// Run plugin protocol in goroutine (simulates SDK 5-stage startup)
+	// Run plugin protocol in goroutine (simulates SDK 5-stage startup via MuxConn)
 	pluginDone := make(chan struct{})
 	go func() {
 		defer close(pluginDone)
 
-		// Stage 1: Send declare-registration on Socket A
-		_ = pluginConnA.SendDeclareRegistration(ctx, &rpc.DeclareRegistrationInput{
+		// Stage 1: Send declare-registration
+		if _, err := pluginMux.CallRPC(ctx, "ze-plugin-engine:declare-registration", &rpc.DeclareRegistrationInput{
 			Families:    []rpc.FamilyDecl{{Name: "ipv4/unicast", Mode: "both"}},
 			WantsConfig: []string{"bgp"},
-		})
-
-		// Stage 2: Receive configure on Socket B, respond OK
-		req, err := pluginConnB.ReadRequest(ctx)
-		if err != nil {
+		}); err != nil {
 			return
 		}
-		_ = pluginConnB.SendResult(ctx, req.ID, nil)
 
-		// Stage 3: Send declare-capabilities on Socket A
-		_ = pluginConnA.SendDeclareCapabilities(ctx, &rpc.DeclareCapabilitiesInput{})
-
-		// Stage 4: Receive share-registry on Socket B, respond OK
-		req, err = pluginConnB.ReadRequest(ctx)
-		if err != nil {
+		// Stage 2: Receive configure, respond OK
+		select {
+		case req := <-pluginMux.Requests():
+			_ = pluginMux.SendOK(ctx, req.ID)
+		case <-ctx.Done():
 			return
 		}
-		_ = pluginConnB.SendResult(ctx, req.ID, nil)
 
-		// Stage 5: Send ready on Socket A
-		_ = pluginConnA.SendReady(ctx)
+		// Stage 3: Send declare-capabilities
+		if _, err := pluginMux.CallRPC(ctx, "ze-plugin-engine:declare-capabilities", &rpc.DeclareCapabilitiesInput{}); err != nil {
+			return
+		}
+
+		// Stage 4: Receive share-registry, respond OK
+		select {
+		case req := <-pluginMux.Requests():
+			_ = pluginMux.SendOK(ctx, req.ID)
+		case <-ctx.Done():
+			return
+		}
+
+		// Stage 5: Send ready
+		if _, err := pluginMux.CallRPC(ctx, "ze-plugin-engine:ready", nil); err != nil {
+			return
+		}
 	}()
 
 	// Run engine-side RPC startup handler
@@ -165,24 +175,24 @@ func TestHandleProcessStartupRPC(t *testing.T) {
 func TestStartupRPC_DependencyValidation(t *testing.T) {
 	t.Parallel()
 
-	pairs, err := plugipc.NewInternalSocketPairs()
-	require.NoError(t, err)
-	defer pairs.Close()
+	engineEnd, pluginEnd := net.Pipe()
+	defer engineEnd.Close() //nolint:errcheck // test cleanup
+	defer pluginEnd.Close() //nolint:errcheck // test cleanup
+
+	engineMux := rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))
+	defer engineMux.Close() //nolint:errcheck // test cleanup
 
 	proc := process.NewProcess(plugin.PluginConfig{
 		Name:     "test-dep-missing",
 		Internal: true,
 		Encoder:  "json",
 	})
-	proc.SetSockets(pairs)
-	proc.SetConnA(plugipc.NewPluginConn(pairs.Engine.EngineSide, pairs.Engine.EngineSide))
-	proc.SetConnB(plugipc.NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide))
+	proc.SetConn(plugipc.NewMuxPluginConn(engineMux))
 	proc.SetRunning(true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Server configured with only "bgp-rs" — "bgp-adj-rib-in" is missing.
 	reactor := &mockReactor{}
 	server := NewServer(&ServerConfig{
 		Plugins: []plugin.PluginConfig{
@@ -192,20 +202,20 @@ func TestStartupRPC_DependencyValidation(t *testing.T) {
 	server.ctx, server.cancel = context.WithCancel(ctx)
 	server.coordinator = plugin.NewStartupCoordinator(1)
 
-	pluginConnA := plugipc.NewPluginConn(pairs.Engine.PluginSide, pairs.Engine.PluginSide)
+	pluginMux := rpc.NewMuxConn(rpc.NewConn(pluginEnd, pluginEnd))
+	defer pluginMux.Close() //nolint:errcheck // test cleanup
 
 	pluginDone := make(chan struct{})
 	go func() {
 		defer close(pluginDone)
-		// Stage 1: Send declare-registration with dependency on bgp-adj-rib-in
-		_ = pluginConnA.SendDeclareRegistration(ctx, &rpc.DeclareRegistrationInput{
+		if _, err := pluginMux.CallRPC(ctx, "ze-plugin-engine:declare-registration", &rpc.DeclareRegistrationInput{
 			Dependencies: []string{"bgp-adj-rib-in"},
-		})
+		}); err != nil {
+			return // expected: server rejects
+		}
 	}()
 
 	server.handleProcessStartupRPC(proc)
-
-	// Plugin should NOT have reached StageRunning — rejected at stage 1.
 	assert.Less(t, proc.Stage(), plugin.StageRunning)
 
 	cancel()
@@ -220,24 +230,24 @@ func TestStartupRPC_DependencyValidation(t *testing.T) {
 func TestStartupRPC_DependencySatisfied(t *testing.T) {
 	t.Parallel()
 
-	pairs, err := plugipc.NewInternalSocketPairs()
-	require.NoError(t, err)
-	defer pairs.Close()
+	engineEnd, pluginEnd := net.Pipe()
+	defer engineEnd.Close() //nolint:errcheck // test cleanup
+	defer pluginEnd.Close() //nolint:errcheck // test cleanup
+
+	engineMux := rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))
+	defer engineMux.Close() //nolint:errcheck // test cleanup
 
 	proc := process.NewProcess(plugin.PluginConfig{
 		Name:     "test-dep-ok",
 		Internal: true,
 		Encoder:  "json",
 	})
-	proc.SetSockets(pairs)
-	proc.SetConnA(plugipc.NewPluginConn(pairs.Engine.EngineSide, pairs.Engine.EngineSide))
-	proc.SetConnB(plugipc.NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide))
+	proc.SetConn(plugipc.NewMuxPluginConn(engineMux))
 	proc.SetRunning(true)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Server configured with both plugins — dependency is satisfied.
 	reactor := &mockReactor{}
 	server := NewServer(&ServerConfig{
 		Plugins: []plugin.PluginConfig{
@@ -248,42 +258,43 @@ func TestStartupRPC_DependencySatisfied(t *testing.T) {
 	server.ctx, server.cancel = context.WithCancel(ctx)
 	server.coordinator = plugin.NewStartupCoordinator(1)
 
-	pluginConnA := plugipc.NewPluginConn(pairs.Engine.PluginSide, pairs.Engine.PluginSide)
-	pluginConnB := plugipc.NewPluginConn(pairs.Callback.PluginSide, pairs.Callback.PluginSide)
+	pluginMux := rpc.NewMuxConn(rpc.NewConn(pluginEnd, pluginEnd))
+	defer pluginMux.Close() //nolint:errcheck // test cleanup
 
 	pluginDone := make(chan struct{})
 	go func() {
 		defer close(pluginDone)
 
-		// Stage 1: Send declare-registration with satisfied dependency
-		_ = pluginConnA.SendDeclareRegistration(ctx, &rpc.DeclareRegistrationInput{
+		if _, err := pluginMux.CallRPC(ctx, "ze-plugin-engine:declare-registration", &rpc.DeclareRegistrationInput{
 			Dependencies: []string{"bgp-adj-rib-in"},
-		})
-
-		// Stage 2: Receive configure, respond OK
-		req, err := pluginConnB.ReadRequest(ctx)
-		if err != nil {
+		}); err != nil {
 			return
 		}
-		_ = pluginConnB.SendResult(ctx, req.ID, nil)
 
-		// Stage 3: Send declare-capabilities
-		_ = pluginConnA.SendDeclareCapabilities(ctx, &rpc.DeclareCapabilitiesInput{})
-
-		// Stage 4: Receive share-registry, respond OK
-		req, err = pluginConnB.ReadRequest(ctx)
-		if err != nil {
+		select {
+		case req := <-pluginMux.Requests():
+			_ = pluginMux.SendOK(ctx, req.ID) //nolint:errcheck // test
+		case <-ctx.Done():
 			return
 		}
-		_ = pluginConnB.SendResult(ctx, req.ID, nil)
 
-		// Stage 5: Send ready
-		_ = pluginConnA.SendReady(ctx)
+		if _, err := pluginMux.CallRPC(ctx, "ze-plugin-engine:declare-capabilities", &rpc.DeclareCapabilitiesInput{}); err != nil {
+			return
+		}
+
+		select {
+		case req := <-pluginMux.Requests():
+			_ = pluginMux.SendOK(ctx, req.ID) //nolint:errcheck // test
+		case <-ctx.Done():
+			return
+		}
+
+		if _, err := pluginMux.CallRPC(ctx, "ze-plugin-engine:ready", nil); err != nil {
+			return
+		}
 	}()
 
 	server.handleProcessStartupRPC(proc)
-
-	// Plugin should reach StageRunning — dependency satisfied.
 	assert.Equal(t, plugin.StageRunning, proc.Stage())
 
 	cancel()

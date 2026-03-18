@@ -19,15 +19,11 @@ import (
 // allowing tests to verify internal state (withdrawal map, peers) without RPC side effects.
 func newTestRouteServer(t *testing.T) *RouteServer {
 	t.Helper()
-	engineConn, engineRemote := net.Pipe()
-	callbackConn, callbackRemote := net.Pipe()
-	if err := engineRemote.Close(); err != nil {
-		t.Logf("close engineRemote: %v", err)
+	pluginEnd, remoteEnd := net.Pipe()
+	if err := remoteEnd.Close(); err != nil {
+		t.Logf("close remoteEnd: %v", err)
 	}
-	if err := callbackRemote.Close(); err != nil {
-		t.Logf("close callbackRemote: %v", err)
-	}
-	p := sdk.NewWithConn("rr-test", engineConn, callbackConn)
+	p := sdk.NewWithConn("rr-test", pluginEnd)
 	t.Cleanup(func() {
 		if err := p.Close(); err != nil {
 			t.Logf("cleanup: %v", err)

@@ -14,47 +14,52 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
-// engineSide wraps two rpc.Conns for the engine's perspective:
-//   - server: reads requests from Socket A (plugin→engine), responds on Socket A
-//   - client: sends requests on Socket B (engine→plugin), reads responses from Socket B
+// engineSide wraps a MuxConn for the engine's perspective on a single connection.
+// Uses MuxConn for bidirectional RPC: reads plugin requests via Requests(),
+// sends engine callbacks via CallRPC.
 type engineSide struct {
-	server *rpc.Conn // Socket A: engine is server
-	client *rpc.Conn // Socket B: engine is client
+	mux *rpc.MuxConn
 }
 
-// newTestPair creates a connected plugin SDK + engine side using net.Pipe.
-// Returns the SDK plugin and the engine-side helper.
+// newTestPair creates a connected plugin SDK + engine side using a single net.Pipe.
+// Returns the SDK plugin and the engine-side MuxConn helper.
 func newTestPair(t *testing.T) (*Plugin, *engineSide) {
 	t.Helper()
 
-	// Socket A: Plugin → Engine
-	aPlugin, aEngine := net.Pipe()
-	// Socket B: Engine → Plugin
-	bPlugin, bEngine := net.Pipe()
-
+	pluginEnd, engineEnd := net.Pipe()
 	t.Cleanup(func() {
-		for _, c := range []net.Conn{aPlugin, aEngine, bPlugin, bEngine} {
-			if err := c.Close(); err != nil {
-				t.Logf("cleanup close: %v", err)
-			}
-		}
+		pluginEnd.Close() //nolint:errcheck // test cleanup
+		engineEnd.Close() //nolint:errcheck // test cleanup
 	})
 
-	p := NewWithConn("test-plugin", aPlugin, bPlugin)
+	p := NewWithConn("test-plugin", pluginEnd)
 
-	engine := &engineSide{
-		server: rpc.NewConn(aEngine, aEngine),
-		client: rpc.NewConn(bEngine, bEngine),
-	}
+	engineConn := rpc.NewConn(engineEnd, engineEnd)
+	engineMux := rpc.NewMuxConn(engineConn)
+	t.Cleanup(func() {
+		engineMux.Close() //nolint:errcheck // test cleanup
+	})
 
-	return p, engine
+	return p, &engineSide{mux: engineMux}
 }
 
 // callAndExpectOK sends an RPC request and expects a successful response.
 // CallRPC returns RPC errors as Go errors, so this just forwards the error.
-func callAndExpectOK(ctx context.Context, c *rpc.Conn, method string, params any) error {
-	_, err := c.CallRPC(ctx, method, params)
+func callAndExpectOK(ctx context.Context, mux *rpc.MuxConn, method string, params any) error {
+	_, err := mux.CallRPC(ctx, method, params)
 	return err
+}
+
+// readEngineRequest reads the next plugin-to-engine request from the MuxConn.
+func readEngineRequest(t *testing.T, ctx context.Context, mux *rpc.MuxConn) *rpc.Request {
+	t.Helper()
+	select {
+	case req := <-mux.Requests():
+		return req
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for plugin request")
+		return nil
+	}
 }
 
 // TestSDKStartup verifies the full 5-stage startup protocol via SDK.
@@ -98,8 +103,7 @@ func TestSDKStartup(t *testing.T) {
 	}()
 
 	// === Stage 1: Engine reads declare-registration ===
-	req, err := engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
 
 	var regInput Registration
@@ -110,7 +114,7 @@ func TestSDKStartup(t *testing.T) {
 	assert.Equal(t, []string{"bgp"}, regInput.WantsConfig)
 
 	// Respond
-	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	// === Stage 2: Engine sends configure ===
 	sections := []ConfigSection{
@@ -119,7 +123,7 @@ func TestSDKStartup(t *testing.T) {
 	configInput := struct {
 		Sections []ConfigSection `json:"sections"`
 	}{Sections: sections}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:configure", configInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:configure", configInput))
 
 	// Verify callback was called
 	select {
@@ -131,10 +135,9 @@ func TestSDKStartup(t *testing.T) {
 	}
 
 	// === Stage 3: Engine reads declare-capabilities ===
-	req, err = engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	req = readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:declare-capabilities", req.Method)
-	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	// === Stage 4: Engine sends share-registry ===
 	commands := []RegistryCommand{
@@ -143,7 +146,7 @@ func TestSDKStartup(t *testing.T) {
 	registryInput := struct {
 		Commands []RegistryCommand `json:"commands"`
 	}{Commands: commands}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:share-registry", registryInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:share-registry", registryInput))
 
 	select {
 	case got := <-registryReceived:
@@ -154,16 +157,15 @@ func TestSDKStartup(t *testing.T) {
 	}
 
 	// === Stage 5: Engine reads ready ===
-	req, err = engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	req = readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:ready", req.Method)
-	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	// === Shutdown: Engine sends bye ===
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "test-complete"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	// Plugin should exit cleanly
 	select {
@@ -205,7 +207,7 @@ func TestSDKEventDelivery(t *testing.T) {
 	eventInput := struct {
 		Event string `json:"event"`
 	}{Event: eventJSON}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", eventInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:deliver-event", eventInput))
 
 	select {
 	case got := <-eventReceived:
@@ -218,7 +220,7 @@ func TestSDKEventDelivery(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -256,7 +258,7 @@ func TestSDKByeCallback(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "shutdown"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case reason := <-byeReason:
@@ -278,34 +280,31 @@ func completeStartup(t *testing.T, ctx context.Context, engine *engineSide) {
 	t.Helper()
 
 	// Stage 1: read and respond to declare-registration
-	req, err := engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
-	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	// Stage 2: send configure
 	configInput := struct {
 		Sections []ConfigSection `json:"sections"`
 	}{}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:configure", configInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:configure", configInput))
 
 	// Stage 3: read and respond to declare-capabilities
-	req, err = engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	req = readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:declare-capabilities", req.Method)
-	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	// Stage 4: send share-registry
 	registryInput := struct {
 		Commands []RegistryCommand `json:"commands"`
 	}{}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:share-registry", registryInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:share-registry", registryInput))
 
 	// Stage 5: read and respond to ready
-	req, err = engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	req = readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:ready", req.Method)
-	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 }
 
 // TestSDKEncodeNLRI verifies encode-nlri dispatch in the event loop.
@@ -337,7 +336,7 @@ func TestSDKEncodeNLRI(t *testing.T) {
 		Args   []string `json:"args,omitempty"`
 	}{Family: "ipv4/unicast", Args: []string{"10.0.0.0/24"}}
 
-	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:encode-nlri", encInput)
+	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:encode-nlri", encInput)
 	require.NoError(t, err)
 
 	// CallRPC returns the result payload directly
@@ -351,7 +350,7 @@ func TestSDKEncodeNLRI(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -390,7 +389,7 @@ func TestSDKDecodeNLRI(t *testing.T) {
 		Hex    string `json:"hex"`
 	}{Family: "ipv4/unicast", Hex: "180a0000"}
 
-	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:decode-nlri", decInput)
+	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:decode-nlri", decInput)
 	require.NoError(t, err)
 
 	// CallRPC returns the result payload directly
@@ -404,7 +403,7 @@ func TestSDKDecodeNLRI(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -443,20 +442,18 @@ func TestSDKCapabilities(t *testing.T) {
 	}()
 
 	// Stage 1: read declare-registration
-	req, err := engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
-	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	// Stage 2: send configure
 	configInput := struct {
 		Sections []ConfigSection `json:"sections"`
 	}{}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:configure", configInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:configure", configInput))
 
 	// Stage 3: read declare-capabilities — should contain our caps
-	req, err = engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	req = readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:declare-capabilities", req.Method)
 
 	var capsInput DeclareCapabilitiesInput
@@ -466,25 +463,24 @@ func TestSDKCapabilities(t *testing.T) {
 	assert.Equal(t, "hex", capsInput.Capabilities[0].Encoding)
 	assert.Equal(t, "0001", capsInput.Capabilities[0].Payload)
 
-	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	// Stage 4: send share-registry
 	registryInput := struct {
 		Commands []RegistryCommand `json:"commands"`
 	}{}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:share-registry", registryInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:share-registry", registryInput))
 
 	// Stage 5: read ready
-	req, err = engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	req = readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:ready", req.Method)
-	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	// Shutdown
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -523,7 +519,7 @@ func TestSDKDecodeCapability(t *testing.T) {
 		Hex  string `json:"hex"`
 	}{Code: 73, Hex: "07686f73746e616d65"}
 
-	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:decode-capability", decCapInput)
+	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:decode-capability", decCapInput)
 	require.NoError(t, err)
 
 	// CallRPC returns the result payload directly
@@ -537,7 +533,7 @@ func TestSDKDecodeCapability(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -578,7 +574,7 @@ func TestSDKExecuteCommand(t *testing.T) {
 		Peer    string   `json:"peer,omitempty"`
 	}{Serial: "abc123", Command: "show-routes", Args: []string{"ipv4"}, Peer: "10.0.0.1"}
 
-	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:execute-command", execInput)
+	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:execute-command", execInput)
 	require.NoError(t, err)
 
 	// CallRPC returns the result payload directly
@@ -594,7 +590,7 @@ func TestSDKExecuteCommand(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -634,7 +630,7 @@ func TestSDKDispatchConfigVerify(t *testing.T) {
 		Sections []ConfigSection `json:"sections"`
 	}{Sections: []ConfigSection{{Root: "bgp", Data: `{"router-id":"1.2.3.4"}`}}}
 
-	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-verify", verifyInput)
+	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:config-verify", verifyInput)
 	require.NoError(t, err)
 
 	// CallRPC returns the result payload directly
@@ -657,7 +653,7 @@ func TestSDKDispatchConfigVerify(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -697,7 +693,7 @@ func TestSDKDispatchConfigApply(t *testing.T) {
 		Sections []ConfigDiffSection `json:"sections"`
 	}{Sections: []ConfigDiffSection{{Root: "bgp", Added: `{"peer":{"p1":{}}}`, Changed: `{"router-id":"5.6.7.8"}`}}}
 
-	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-apply", applyInput)
+	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:config-apply", applyInput)
 	require.NoError(t, err)
 
 	// CallRPC returns the result payload directly
@@ -721,7 +717,7 @@ func TestSDKDispatchConfigApply(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -759,7 +755,7 @@ func TestSDKConfigVerifyReject(t *testing.T) {
 		Sections []ConfigSection `json:"sections"`
 	}{Sections: []ConfigSection{{Root: "bgp", Data: `{"invalid":true}`}}}
 
-	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-verify", verifyInput)
+	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:config-verify", verifyInput)
 	require.NoError(t, err, "rejection should be in result status, not RPC error")
 
 	// CallRPC returns the result payload directly -- rejection is status "error" in the payload
@@ -775,7 +771,7 @@ func TestSDKConfigVerifyReject(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -813,7 +809,7 @@ func TestSDKConfigApplyReject(t *testing.T) {
 		Sections []ConfigDiffSection `json:"sections"`
 	}{Sections: []ConfigDiffSection{{Root: "bgp", Added: `{"peer":{"p99":{}}}`}}}
 
-	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-apply", applyInput)
+	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:config-apply", applyInput)
 	require.NoError(t, err, "rejection should be in result status, not RPC error")
 
 	// CallRPC returns the result payload directly -- rejection is status "error" in the payload
@@ -829,7 +825,7 @@ func TestSDKConfigApplyReject(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -864,7 +860,7 @@ func TestSDKConfigVerifyNoHandler(t *testing.T) {
 		Sections []ConfigSection `json:"sections"`
 	}{Sections: []ConfigSection{{Root: "bgp", Data: `{}`}}}
 
-	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-verify", verifyInput)
+	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:config-verify", verifyInput)
 	require.NoError(t, err, "no-handler config-verify should succeed, not error")
 
 	// CallRPC returns the result payload directly
@@ -878,7 +874,7 @@ func TestSDKConfigVerifyNoHandler(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -913,7 +909,7 @@ func TestSDKConfigApplyNoHandler(t *testing.T) {
 		Sections []ConfigDiffSection `json:"sections"`
 	}{Sections: []ConfigDiffSection{{Root: "bgp", Added: `{}`}}}
 
-	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-apply", applyInput)
+	raw, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:config-apply", applyInput)
 	require.NoError(t, err, "no-handler config-apply should succeed, not error")
 
 	// CallRPC returns the result payload directly
@@ -927,7 +923,7 @@ func TestSDKConfigApplyNoHandler(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -962,7 +958,7 @@ func TestSDKUpdateRoute(t *testing.T) {
 	syncEvent := struct {
 		Event string `json:"event"`
 	}{Event: "{}"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:deliver-event", syncEvent))
 
 	// Plugin calls UpdateRoute in background (during event loop, we need
 	// to handle the engine's response while also keeping the event loop alive)
@@ -980,9 +976,8 @@ func TestSDKUpdateRoute(t *testing.T) {
 		routeDone <- nil
 	}()
 
-	// Engine reads update-route request on Socket A
-	req, err := engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	// Engine reads update-route request via MuxConn
+	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:update-route", req.Method)
 
 	// Respond with result
@@ -990,7 +985,7 @@ func TestSDKUpdateRoute(t *testing.T) {
 		PeersAffected uint32 `json:"peers-affected"`
 		RoutesSent    uint32 `json:"routes-sent"`
 	}{PeersAffected: 3, RoutesSent: 1}
-	require.NoError(t, engine.server.SendResult(ctx, req.ID, routeResult))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, routeResult))
 
 	require.NoError(t, <-routeDone)
 
@@ -998,7 +993,7 @@ func TestSDKUpdateRoute(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -1032,7 +1027,7 @@ func TestSDKDispatchCommand(t *testing.T) {
 	syncEvent := struct {
 		Event string `json:"event"`
 	}{Event: "{}"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:deliver-event", syncEvent))
 
 	// Plugin calls DispatchCommand in background
 	dispatchDone := make(chan error, 1)
@@ -1053,9 +1048,8 @@ func TestSDKDispatchCommand(t *testing.T) {
 		dispatchDone <- nil
 	}()
 
-	// Engine reads dispatch-command request on Socket A
-	req, err := engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	// Engine reads dispatch-command request via MuxConn
+	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:dispatch-command", req.Method)
 
 	// Respond with result
@@ -1063,7 +1057,7 @@ func TestSDKDispatchCommand(t *testing.T) {
 		Status: rpc.StatusDone,
 		Data:   `{"last-index":42}`,
 	}
-	require.NoError(t, engine.server.SendResult(ctx, req.ID, dispatchResult))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, dispatchResult))
 
 	require.NoError(t, <-dispatchDone)
 
@@ -1071,7 +1065,7 @@ func TestSDKDispatchCommand(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -1093,10 +1087,10 @@ func TestSDKCloseUnblocksRead(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Start a goroutine that blocks on ReadRequest (no data will ever arrive).
+	// Start a goroutine that blocks on readCallback (no data will ever arrive).
 	readDone := make(chan error, 1)
 	go func() {
-		_, err := p.callbackConn.ReadRequest(ctx)
+		_, err := p.readCallback(ctx)
 		readDone <- err
 	}()
 
@@ -1123,22 +1117,15 @@ func TestSDKCloseUnblocksRead(t *testing.T) {
 func TestSDKConnectionCloseCleanShutdown(t *testing.T) {
 	t.Parallel()
 
-	// Use raw net.Pipe so we can close the engine side independently.
-	aPlugin, aEngine := net.Pipe()
-	bPlugin, bEngine := net.Pipe()
+	pluginEnd, engineEnd := net.Pipe()
 	t.Cleanup(func() {
-		for _, c := range []net.Conn{aPlugin, aEngine, bPlugin, bEngine} {
-			if err := c.Close(); err != nil {
-				t.Logf("cleanup close: %v", err)
-			}
-		}
+		pluginEnd.Close() //nolint:errcheck // test cleanup
+		engineEnd.Close() //nolint:errcheck // test cleanup
 	})
 
-	p := NewWithConn("test-plugin", aPlugin, bPlugin)
-	engine := &engineSide{
-		server: rpc.NewConn(aEngine, aEngine),
-		client: rpc.NewConn(bEngine, bEngine),
-	}
+	p := NewWithConn("test-plugin", pluginEnd)
+	engine := &engineSide{mux: rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))}
+	t.Cleanup(func() { engine.mux.Close() }) //nolint:errcheck // test cleanup
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -1150,13 +1137,12 @@ func TestSDKConnectionCloseCleanShutdown(t *testing.T) {
 
 	completeStartup(t, ctx, engine)
 
-	// Simulate engine shutdown: close the callback connection (Socket B engine side).
-	// This is what Process.Stop() does for internal plugins.
-	require.NoError(t, bEngine.Close())
+	// Simulate engine shutdown: close the connection.
+	require.NoError(t, engine.mux.Close())
 
 	select {
 	case err := <-errCh:
-		// Must be nil — connection close is a clean shutdown, not an error.
+		// Must be nil -- connection close is a clean shutdown, not an error.
 		require.NoError(t, err)
 	case <-time.After(2 * time.Second):
 		t.Fatal("plugin did not exit after connection close")
@@ -1191,33 +1177,30 @@ func TestSDKDispatchValidateOpen(t *testing.T) {
 	}()
 
 	// Verify WantsValidateOpen is auto-set in Stage 1
-	req, err := engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
 
 	var regInput rpc.DeclareRegistrationInput
 	require.NoError(t, json.Unmarshal(req.Params, &regInput))
 	assert.True(t, regInput.WantsValidateOpen, "WantsValidateOpen should be auto-set")
-	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	// Complete remaining startup stages (2-5)
 	configInput := struct {
 		Sections []ConfigSection `json:"sections"`
 	}{}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:configure", configInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:configure", configInput))
 
-	req, err = engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
-	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+	req = readEngineRequest(t, ctx, engine.mux)
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	registryInput := struct {
 		Commands []RegistryCommand `json:"commands"`
 	}{}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:share-registry", registryInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:share-registry", registryInput))
 
-	req, err = engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
-	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+	req = readEngineRequest(t, ctx, engine.mux)
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
 
 	// Send validate-open request
 	voInput := rpc.ValidateOpenInput{
@@ -1239,7 +1222,7 @@ func TestSDKDispatchValidateOpen(t *testing.T) {
 			},
 		},
 	}
-	result, err := engine.client.CallRPC(ctx, "ze-plugin-callback:validate-open", voInput)
+	result, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:validate-open", voInput)
 	require.NoError(t, err)
 
 	var output rpc.ValidateOpenOutput
@@ -1260,7 +1243,7 @@ func TestSDKDispatchValidateOpen(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -1310,7 +1293,7 @@ func TestSDKValidateOpenReject(t *testing.T) {
 			Capabilities: []rpc.ValidateOpenCapability{{Code: 9, Hex: "03"}},
 		},
 	}
-	result, err := engine.client.CallRPC(ctx, "ze-plugin-callback:validate-open", voInput)
+	result, err := engine.mux.CallRPC(ctx, "ze-plugin-callback:validate-open", voInput)
 	require.NoError(t, err)
 
 	var output rpc.ValidateOpenOutput
@@ -1324,7 +1307,7 @@ func TestSDKValidateOpenReject(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -1357,7 +1340,7 @@ func TestSDKDecodeNLRIEngineCall(t *testing.T) {
 	syncEvent := struct {
 		Event string `json:"event"`
 	}{Event: "{}"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:deliver-event", syncEvent))
 
 	// Plugin calls DecodeNLRI in background
 	decodeDone := make(chan struct {
@@ -1372,9 +1355,8 @@ func TestSDKDecodeNLRIEngineCall(t *testing.T) {
 		}{j, err}
 	}()
 
-	// Engine reads decode-nlri request on Socket A
-	req, err := engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	// Engine reads decode-nlri request via MuxConn
+	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:decode-nlri", req.Method)
 
 	// Verify params
@@ -1387,7 +1369,7 @@ func TestSDKDecodeNLRIEngineCall(t *testing.T) {
 	decodeResult := struct {
 		JSON string `json:"json"`
 	}{JSON: `[{"source":"10.0.0.0/24"}]`}
-	require.NoError(t, engine.server.SendResult(ctx, req.ID, decodeResult))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, decodeResult))
 
 	r := <-decodeDone
 	require.NoError(t, r.err)
@@ -1397,7 +1379,7 @@ func TestSDKDecodeNLRIEngineCall(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -1430,7 +1412,7 @@ func TestSDKEncodeNLRIEngineCall(t *testing.T) {
 	syncEvent := struct {
 		Event string `json:"event"`
 	}{Event: "{}"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:deliver-event", syncEvent))
 
 	// Plugin calls EncodeNLRI in background
 	encodeDone := make(chan struct {
@@ -1445,9 +1427,8 @@ func TestSDKEncodeNLRIEngineCall(t *testing.T) {
 		}{h, err}
 	}()
 
-	// Engine reads encode-nlri request on Socket A
-	req, err := engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	// Engine reads encode-nlri request via MuxConn
+	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:encode-nlri", req.Method)
 
 	// Verify params
@@ -1460,7 +1441,7 @@ func TestSDKEncodeNLRIEngineCall(t *testing.T) {
 	encodeResult := struct {
 		Hex string `json:"hex"`
 	}{Hex: "0701180A0000"}
-	require.NoError(t, engine.server.SendResult(ctx, req.ID, encodeResult))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, encodeResult))
 
 	r := <-encodeDone
 	require.NoError(t, r.err)
@@ -1470,7 +1451,7 @@ func TestSDKEncodeNLRIEngineCall(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -1503,7 +1484,7 @@ func TestSDKDecodeMPReachEngineCall(t *testing.T) {
 	syncEvent := struct {
 		Event string `json:"event"`
 	}{Event: "{}"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:deliver-event", syncEvent))
 
 	// Plugin calls DecodeMPReach in background
 	type mpReachResult struct {
@@ -1516,9 +1497,8 @@ func TestSDKDecodeMPReachEngineCall(t *testing.T) {
 		decodeDone <- mpReachResult{out, err}
 	}()
 
-	// Engine reads decode-mp-reach request on Socket A
-	req, err := engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	// Engine reads decode-mp-reach request via MuxConn
+	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:decode-mp-reach", req.Method)
 
 	// Verify params
@@ -1533,7 +1513,7 @@ func TestSDKDecodeMPReachEngineCall(t *testing.T) {
 		NextHop: "192.168.1.1",
 		NLRI:    json.RawMessage(`["10.0.0.0/24"]`),
 	}
-	require.NoError(t, engine.server.SendResult(ctx, req.ID, decodeResult))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, decodeResult))
 
 	mpR := <-decodeDone
 	require.NoError(t, mpR.err)
@@ -1545,7 +1525,7 @@ func TestSDKDecodeMPReachEngineCall(t *testing.T) {
 	byeInput2 := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput2))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput2))
 
 	select {
 	case err := <-errCh:
@@ -1577,7 +1557,7 @@ func TestSDKDecodeMPUnreachEngineCall(t *testing.T) {
 	syncEvent := struct {
 		Event string `json:"event"`
 	}{Event: "{}"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:deliver-event", syncEvent))
 
 	// Plugin calls DecodeMPUnreach in background
 	type mpUnreachResult struct {
@@ -1590,9 +1570,8 @@ func TestSDKDecodeMPUnreachEngineCall(t *testing.T) {
 		decodeDone <- mpUnreachResult{out, err}
 	}()
 
-	// Engine reads decode-mp-unreach request on Socket A
-	req, err := engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	// Engine reads decode-mp-unreach request via MuxConn
+	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:decode-mp-unreach", req.Method)
 
 	var input rpc.DecodeMPUnreachInput
@@ -1604,7 +1583,7 @@ func TestSDKDecodeMPUnreachEngineCall(t *testing.T) {
 		Family: "ipv4/unicast",
 		NLRI:   json.RawMessage(`["192.168.0.0/24"]`),
 	}
-	require.NoError(t, engine.server.SendResult(ctx, req.ID, decodeResult))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, decodeResult))
 
 	mpR := <-decodeDone
 	require.NoError(t, mpR.err)
@@ -1615,7 +1594,7 @@ func TestSDKDecodeMPUnreachEngineCall(t *testing.T) {
 	byeInput2 := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput2))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput2))
 
 	select {
 	case err := <-errCh:
@@ -1647,7 +1626,7 @@ func TestSDKDecodeUpdateEngineCall(t *testing.T) {
 	syncEvent := struct {
 		Event string `json:"event"`
 	}{Event: "{}"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:deliver-event", syncEvent))
 
 	// Plugin calls DecodeUpdate in background
 	type updateResult struct {
@@ -1660,9 +1639,8 @@ func TestSDKDecodeUpdateEngineCall(t *testing.T) {
 		decodeDone <- updateResult{j, err}
 	}()
 
-	// Engine reads decode-update request on Socket A
-	req, err := engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	// Engine reads decode-update request via MuxConn
+	req := readEngineRequest(t, ctx, engine.mux)
 	assert.Equal(t, "ze-plugin-engine:decode-update", req.Method)
 
 	var input rpc.DecodeUpdateInput
@@ -1674,7 +1652,7 @@ func TestSDKDecodeUpdateEngineCall(t *testing.T) {
 	decodeResult := struct {
 		JSON string `json:"json"`
 	}{JSON: `{"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}`}
-	require.NoError(t, engine.server.SendResult(ctx, req.ID, decodeResult))
+	require.NoError(t, engine.mux.SendResult(ctx, req.ID, decodeResult))
 
 	upR := <-decodeDone
 	require.NoError(t, upR.err)
@@ -1685,7 +1663,7 @@ func TestSDKDecodeUpdateEngineCall(t *testing.T) {
 	byeInput2 := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput2))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput2))
 
 	select {
 	case err := <-errCh:
@@ -1702,31 +1680,21 @@ func newBridgedTestPair(t *testing.T) (*Plugin, *engineSide, *rpc.DirectBridge) 
 
 	bridge := rpc.NewDirectBridge()
 
-	// Socket A: Plugin → Engine
-	aPlugin, aEngine := net.Pipe()
-	// Socket B: Engine → Plugin
-	bPlugin, bEngine := net.Pipe()
-
+	pluginEnd, engineEnd := net.Pipe()
 	t.Cleanup(func() {
-		for _, c := range []net.Conn{aPlugin, aEngine, bPlugin, bEngine} {
-			if err := c.Close(); err != nil {
-				t.Logf("cleanup close: %v", err)
-			}
-		}
+		pluginEnd.Close() //nolint:errcheck // test cleanup
+		engineEnd.Close() //nolint:errcheck // test cleanup
 	})
 
-	// Wrap plugin-side connections with bridge
-	aPluginBridged := rpc.NewBridgedConn(aPlugin, bridge)
-	bPluginBridged := rpc.NewBridgedConn(bPlugin, bridge)
+	// Wrap plugin-side connection with bridge reference.
+	bridgedConn := rpc.NewBridgedConn(pluginEnd, bridge)
+	p := NewWithConn("test-bridged", bridgedConn)
 
-	p := NewWithConn("test-bridged", aPluginBridged, bPluginBridged)
+	engineConn := rpc.NewConn(engineEnd, engineEnd)
+	engineMux := rpc.NewMuxConn(engineConn)
+	t.Cleanup(func() { engineMux.Close() }) //nolint:errcheck // test cleanup
 
-	engine := &engineSide{
-		server: rpc.NewConn(aEngine, aEngine),
-		client: rpc.NewConn(bEngine, bEngine),
-	}
-
-	return p, engine, bridge
+	return p, &engineSide{mux: engineMux}, bridge
 }
 
 // TestCallEngineRawDirect verifies callEngineRaw dispatches through bridge.
@@ -1764,7 +1732,7 @@ func TestCallEngineRawDirect(t *testing.T) {
 	syncEvent := struct {
 		Event string `json:"event"`
 	}{Event: "{}"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:deliver-event", syncEvent))
 
 	// Call UpdateRoute — should go through bridge, not socket
 	routeDone := make(chan error, 1)
@@ -1785,7 +1753,7 @@ func TestCallEngineRawDirect(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -1822,7 +1790,7 @@ func TestCallEngineRawDirectError(t *testing.T) {
 	syncEvent := struct {
 		Event string `json:"event"`
 	}{Event: "{}"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:deliver-event", syncEvent))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:deliver-event", syncEvent))
 
 	// Call UpdateRoute — bridge returns error response
 	routeDone := make(chan error, 1)
@@ -1843,7 +1811,7 @@ func TestCallEngineRawDirectError(t *testing.T) {
 	byeInput := struct {
 		Reason string `json:"reason"`
 	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:bye", byeInput))
 
 	select {
 	case err := <-errCh:
@@ -1853,7 +1821,7 @@ func TestCallEngineRawDirectError(t *testing.T) {
 	}
 }
 
-// TestSDKSingleConnStartup verifies that NewWithSingleConn creates a plugin
+// TestSDKSingleConnStartup verifies that NewWithConn creates a plugin
 // that completes the full 5-stage startup over a single bidirectional connection.
 //
 // VALIDATES: Single-conn mode works end-to-end with MuxConn.
@@ -1868,7 +1836,7 @@ func TestSDKSingleConnStartup(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	p := NewWithSingleConn("test-single-conn", pluginEnd)
+	p := NewWithConn("test-single-conn", pluginEnd)
 
 	var receivedEvent string
 	p.OnEvent(func(event string) error {

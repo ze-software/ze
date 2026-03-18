@@ -33,10 +33,10 @@ func SetBGPLSLogger(l *slog.Logger) {
 
 // RunBGPLSPlugin runs the BGP-LS plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
-func RunBGPLSPlugin(engineConn, callbackConn net.Conn) int {
+func RunBGPLSPlugin(conn net.Conn) int {
 	bgplsLogger.Debug("bgpls plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-ls", engineConn, callbackConn)
+	p := sdk.NewWithConn("bgp-ls", conn)
 	defer func() { _ = p.Close() }()
 
 	p.OnDecodeNLRI(func(family string, hexStr string) (string, error) {

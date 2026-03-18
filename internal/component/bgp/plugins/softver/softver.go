@@ -59,10 +59,10 @@ func encodeValue() string {
 }
 
 // RunSoftverPlugin runs the softver plugin using the SDK RPC protocol.
-func RunSoftverPlugin(engineConn, callbackConn net.Conn) int {
+func RunSoftverPlugin(conn net.Conn) int {
 	Logger.Debug("softver plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-softver", engineConn, callbackConn)
+	p := sdk.NewWithConn("bgp-softver", conn)
 	defer func() { _ = p.Close() }()
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {

@@ -23,31 +23,20 @@ import (
 // connections and an engine-side RPC conn for verifying RPCs.
 func newIntegrationRouteServer(t *testing.T) (*RouteServer, *rpc.Conn) {
 	t.Helper()
-	enginePluginEnd, engineServerEnd := net.Pipe()
-	callbackPluginEnd, callbackServerEnd := net.Pipe()
+	pluginEnd, engineEnd := net.Pipe()
 	t.Cleanup(func() {
-		if err := enginePluginEnd.Close(); err != nil {
-			t.Logf("cleanup: %v", err)
-		}
-		if err := engineServerEnd.Close(); err != nil {
-			t.Logf("cleanup: %v", err)
-		}
-		if err := callbackPluginEnd.Close(); err != nil {
-			t.Logf("cleanup: %v", err)
-		}
-		if err := callbackServerEnd.Close(); err != nil {
-			t.Logf("cleanup: %v", err)
-		}
+		pluginEnd.Close() //nolint:errcheck // test cleanup
+		engineEnd.Close() //nolint:errcheck // test cleanup
 	})
 
-	p := sdk.NewWithConn("rr-integration", enginePluginEnd, callbackPluginEnd)
+	p := sdk.NewWithConn("rr-integration", pluginEnd)
 	t.Cleanup(func() {
 		if err := p.Close(); err != nil {
 			t.Logf("cleanup: %v", err)
 		}
 	})
 
-	engineConn := rpc.NewConn(engineServerEnd, engineServerEnd)
+	engineConn := rpc.NewConn(engineEnd, engineEnd)
 
 	rs := &RouteServer{
 		plugin:      p,

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"os"
 	"testing"
 	"time"
@@ -15,22 +16,18 @@ import (
 )
 
 // helper: create a connected PluginConn pair (engine side + plugin side)
-// using internal socket pairs (net.Pipe).
+// using a single net.Pipe.
 func newTestPluginConn(t *testing.T) (engineConn, pluginConn *PluginConn) {
 	t.Helper()
 
-	pairs, err := NewInternalSocketPairs()
-	require.NoError(t, err)
+	engineEnd, pluginEnd := net.Pipe()
+	t.Cleanup(func() {
+		engineEnd.Close() //nolint:errcheck // test cleanup
+		pluginEnd.Close() //nolint:errcheck // test cleanup
+	})
 
-	t.Cleanup(func() { pairs.Close() })
-
-	// Engine side: reads from Engine.EngineSide (Socket A server),
-	// writes to Callback.EngineSide (Socket B client)
-	engineConn = NewPluginConn(pairs.Engine.EngineSide, pairs.Callback.EngineSide)
-
-	// Plugin side: reads from Callback.PluginSide (Socket B server),
-	// writes to Engine.PluginSide (Socket A client)
-	pluginConn = NewPluginConn(pairs.Callback.PluginSide, pairs.Engine.PluginSide)
+	engineConn = NewPluginConn(engineEnd, engineEnd)
+	pluginConn = NewPluginConn(pluginEnd, pluginEnd)
 
 	return engineConn, pluginConn
 }
@@ -60,13 +57,13 @@ func TestRPCDeclareRegistration(t *testing.T) {
 		},
 	}
 
-	// Plugin sends declare-registration on Socket A (write side)
+	// Plugin sends declare-registration via plugin conn (write side)
 	done := make(chan error, 1)
 	go func() {
 		done <- pluginConn.SendDeclareRegistration(context.Background(), regInput)
 	}()
 
-	// Engine receives on Socket A (read side)
+	// Engine receives via plugin conn (read side)
 	req, err := engineConn.ReadRequest(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
@@ -102,13 +99,13 @@ func TestRPCConfigure(t *testing.T) {
 		{Root: "bgp", Data: `{"router-id":"1.2.3.4"}`},
 	}
 
-	// Engine sends configure on Socket B (callback write side)
+	// Engine sends configure via engine conn (callback write side)
 	done := make(chan error, 1)
 	go func() {
 		done <- engineConn.SendConfigure(context.Background(), sections)
 	}()
 
-	// Plugin receives on Socket B (callback read side)
+	// Plugin receives via engine conn (callback read side)
 	req, err := pluginConn.ReadRequest(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, "ze-plugin-callback:configure", req.Method)

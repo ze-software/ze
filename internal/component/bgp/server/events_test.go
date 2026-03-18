@@ -30,7 +30,7 @@ func newTestProcWithConn(t *testing.T, name string) (*process.Process, *plugipc.
 
 	proc := process.NewProcess(plugin.PluginConfig{Name: name})
 	engineConn := plugipc.NewPluginConn(engineSide, engineSide)
-	proc.SetConnB(engineConn)
+	proc.SetConn(engineConn)
 	proc.StartDelivery(t.Context())
 
 	t.Cleanup(func() {

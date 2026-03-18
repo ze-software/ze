@@ -8,7 +8,7 @@ import (
 )
 
 // dummyEngine is a stub RunEngine handler for testing.
-func dummyEngine(_, _ net.Conn) int { return 0 }
+func dummyEngine(_ net.Conn) int { return 0 }
 
 // dummyCLI is a stub CLIHandler for testing.
 func dummyCLI(_ []string) int { return 0 }

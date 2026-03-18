@@ -29,10 +29,10 @@ func SetLogger(l *slog.Logger) {
 }
 
 // RunMVPNPlugin runs the MVPN plugin using the SDK RPC protocol.
-func RunMVPNPlugin(engineConn, callbackConn net.Conn) int {
+func RunMVPNPlugin(conn net.Conn) int {
 	logger.Debug("mvpn plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-mvpn", engineConn, callbackConn)
+	p := sdk.NewWithConn("bgp-mvpn", conn)
 	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()

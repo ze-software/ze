@@ -165,13 +165,13 @@ func broadcastValidateOpen(s *pluginserver.Server, peerAddr string, local, remot
 			continue
 		}
 
-		connB := proc.ConnB()
-		if connB == nil {
+		conn := proc.Conn()
+		if conn == nil {
 			continue
 		}
 
 		ctx, cancel := context.WithTimeout(s.Context(), validateOpenTimeout)
-		output, err := connB.SendValidateOpen(ctx, input)
+		output, err := conn.SendValidateOpen(ctx, input)
 		cancel()
 
 		if err != nil {

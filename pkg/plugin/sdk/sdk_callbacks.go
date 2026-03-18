@@ -108,10 +108,10 @@ func (p *Plugin) OnValidateOpen(fn func(*ValidateOpenInput) *ValidateOpenOutput)
 
 // OnStarted sets a callback that runs after the 5-stage startup completes
 // but before the event loop begins. This is the safe place to make engine
-// calls (e.g., SubscribeEvents) because Socket A is no longer blocked by
-// the startup coordinator. Do NOT make engine calls inside OnShareRegistry
-// or OnConfigure — those run while the engine is waiting on Socket B,
-// causing a cross-socket deadlock.
+// calls (e.g., SubscribeEvents) because the connection is no longer blocked
+// by the startup coordinator. Do NOT make engine calls inside OnShareRegistry
+// or OnConfigure -- those run while the engine is waiting for the response,
+// causing a deadlock.
 func (p *Plugin) OnStarted(fn func(ctx context.Context) error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

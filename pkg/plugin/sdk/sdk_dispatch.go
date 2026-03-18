@@ -14,8 +14,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
-// serveOne reads one request from the callback path, dispatches it, and sends the response.
-// In single-conn mode, reads from engineMux.Requests(). In dual-conn mode, reads from callbackConn.
+// serveOne reads one request from the MuxConn, dispatches it, and sends the response.
 func (p *Plugin) serveOne(ctx context.Context, expectedMethod string, handler func(json.RawMessage) error) error {
 	req, err := p.readCallback(ctx)
 	if err != nil {
@@ -33,49 +32,34 @@ func (p *Plugin) serveOne(ctx context.Context, expectedMethod string, handler fu
 	return p.sendCallbackOK(ctx, req.ID)
 }
 
-// readCallback reads the next inbound request from the engine.
-// In single-conn mode, reads from engineMux.Requests() channel.
-// In dual-conn mode, reads from callbackConn.
+// readCallback reads the next inbound request from the engine via MuxConn.
 func (p *Plugin) readCallback(ctx context.Context) (*rpc.Request, error) {
-	if p.callbackConn == nil {
-		// Single-conn mode: read from MuxConn's request channel.
-		select {
-		case req, ok := <-p.engineMux.Requests():
-			if !ok {
-				return nil, rpc.ErrMuxConnClosed
-			}
-			return req, nil
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		case <-p.engineMux.Done():
+	select {
+	case req, ok := <-p.engineMux.Requests():
+		if !ok {
 			return nil, rpc.ErrMuxConnClosed
 		}
+		return req, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-p.engineMux.Done():
+		return nil, rpc.ErrMuxConnClosed
 	}
-	return p.callbackConn.ReadRequest(ctx)
 }
 
 // sendCallbackOK sends a successful response to an engine-initiated request.
 func (p *Plugin) sendCallbackOK(ctx context.Context, id uint64) error {
-	if p.callbackConn == nil {
-		return p.engineMux.SendOK(ctx, id)
-	}
-	return p.callbackConn.SendOK(ctx, id)
+	return p.engineMux.SendOK(ctx, id)
 }
 
 // sendCallbackError sends an error response to an engine-initiated request.
 func (p *Plugin) sendCallbackError(ctx context.Context, id uint64, message string) error {
-	if p.callbackConn == nil {
-		return p.engineMux.SendError(ctx, id, message)
-	}
-	return p.callbackConn.SendError(ctx, id, message)
+	return p.engineMux.SendError(ctx, id, message)
 }
 
 // sendCallbackResult sends a result response to an engine-initiated request.
 func (p *Plugin) sendCallbackResult(ctx context.Context, id uint64, data any) error {
-	if p.callbackConn == nil {
-		return p.engineMux.SendResult(ctx, id, data)
-	}
-	return p.callbackConn.SendResult(ctx, id, data)
+	return p.engineMux.SendResult(ctx, id, data)
 }
 
 // isConnectionClosed reports whether err indicates a closed connection.
@@ -90,7 +74,7 @@ func isConnectionClosed(err error) bool {
 }
 
 // eventLoop handles runtime RPCs from the engine.
-// In single-conn mode, reads from engineMux.Requests(). In dual-conn, reads from callbackConn.
+// Reads from engineMux.Requests() for inbound requests.
 func (p *Plugin) eventLoop(ctx context.Context) error {
 	for {
 		req, err := p.readCallback(ctx)

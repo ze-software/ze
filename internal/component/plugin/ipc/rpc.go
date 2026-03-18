@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
-// Related: socketpair.go — socket pair creation for plugin IPC
+// Related: socketpair.go — package marker for plugin IPC
 // Related: tls.go — TLS transport for external plugins
 
 package ipc
@@ -17,10 +17,9 @@ import (
 // It embeds *rpc.Conn for low-level newline-framed JSON RPC and adds typed methods
 // for each YANG RPC in the plugin protocol.
 //
-// PluginConn supports three wiring modes:
-//   - Per-socket: NewPluginConn(conn, conn) — read and write on the same socket.
-//   - Cross-socket: NewPluginConn(readConn, writeConn) — read/write on different sockets.
-//   - Single-conn (mux): NewMuxPluginConn(mux) — all traffic via MuxConn.
+// PluginConn supports two wiring modes:
+//   - Direct: NewPluginConn(conn, conn) -- read and write on the same connection.
+//   - Muxed: NewMuxPluginConn(mux) -- all traffic via MuxConn (production path).
 //     ReadRequest reads from MuxConn.Requests(), CallRPC/SendResult delegate to MuxConn.
 type PluginConn struct {
 	*rpc.Conn
@@ -40,8 +39,8 @@ func NewMuxPluginConn(mux *rpc.MuxConn) *PluginConn {
 	return &PluginConn{mux: mux}
 }
 
-// ReadRequest reads the next plugin request. In single-conn mode, reads from
-// MuxConn.Requests() channel. In dual-conn mode, reads from the underlying socket.
+// ReadRequest reads the next plugin request. In muxed mode, reads from
+// MuxConn.Requests() channel. In direct mode, reads from the underlying connection.
 func (pc *PluginConn) ReadRequest(ctx context.Context) (*rpc.Request, error) {
 	if pc.mux == nil {
 		return pc.Conn.ReadRequest(ctx)

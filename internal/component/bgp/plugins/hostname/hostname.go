@@ -71,10 +71,10 @@ func (c *fqdnConfig) encodeValue() string {
 // This is the in-process entry point called via InternalPluginRunner.
 // It receives per-peer hostname/domain config during Stage 2 and registers
 // per-peer FQDN capabilities (code 73) during Stage 3.
-func RunHostnamePlugin(engineConn, callbackConn net.Conn) int {
+func RunHostnamePlugin(conn net.Conn) int {
 	Logger.Debug("hostname plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-hostname", engineConn, callbackConn)
+	p := sdk.NewWithConn("bgp-hostname", conn)
 	defer func() { _ = p.Close() }()
 
 	// OnConfigure callback: parse bgp config, extract per-peer hostname/domain,

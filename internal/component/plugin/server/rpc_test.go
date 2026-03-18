@@ -24,7 +24,7 @@ import (
 // request can't be read until the first handler returns — deadlock. With
 // concurrent dispatch, both handlers run in parallel and unblock each other.
 //
-// VALIDATES: AC-4 — Engine receives two requests on Socket A from same plugin;
+// VALIDATES: AC-4 — Engine receives two requests from same plugin;
 //
 //	both dispatched and processed; responses sent with correct IDs.
 //
@@ -36,12 +36,12 @@ import (
 func TestConcurrentPluginDispatch(t *testing.T) {
 	t.Parallel()
 
-	// Create socket pair for Socket A.
+	// Create pipe for plugin RPC connection.
 	pluginSide, engineSide := net.Pipe()
 
-	// Create Process with engineConnA.
+	// Create Process with engine-side connection.
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-concurrent"})
-	proc.SetConnA(ipc.NewPluginConn(engineSide, engineSide))
+	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 
 	// Barrier: both handlers must be active simultaneously for either to proceed.
 	var barrier sync.WaitGroup

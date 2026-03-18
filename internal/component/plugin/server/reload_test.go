@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"sync"
 	"testing"
 	"time"
@@ -134,15 +135,14 @@ func newTestReloadServer(t *testing.T, reactor *mockReloadReactor, plugins []plu
 	for i := range plugins {
 		pd := &plugins[i]
 
-		pairs, err := ipc.NewInternalSocketPairs()
-		require.NoError(t, err)
-		t.Cleanup(func() { pairs.Close() })
+		engineEnd, pluginEnd := net.Pipe()
+		t.Cleanup(func() {
+			engineEnd.Close() //nolint:errcheck // test cleanup
+			pluginEnd.Close() //nolint:errcheck // test cleanup
+		})
 
-		// Engine side ConnB: engine writes to callback.EngineSide
-		engineConnB := ipc.NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide)
-
-		// Plugin side: reads from callback.PluginSide
-		pluginConn := ipc.NewPluginConn(pairs.Callback.PluginSide, pairs.Callback.PluginSide)
+		engineConn := ipc.NewPluginConn(engineEnd, engineEnd)
+		pluginConn := ipc.NewPluginConn(pluginEnd, pluginEnd)
 
 		proc := process.NewProcess(plugin.PluginConfig{Name: pd.name})
 		proc.SetIndex(i)
@@ -150,7 +150,7 @@ func newTestReloadServer(t *testing.T, reactor *mockReloadReactor, plugins []plu
 			WantsConfigRoots: pd.roots,
 		})
 		proc.SetCapabilities(&plugin.PluginCapabilities{})
-		proc.SetConnB(engineConnB)
+		proc.SetConn(engineConn)
 		proc.SetRunning(true)
 
 		pm.AddProcess(pd.name, proc)
@@ -614,10 +614,10 @@ func TestBuildDiffSections(t *testing.T) {
 	assert.Empty(t, envSection.Changed)
 }
 
-// TestReloadVerifyCrashedPlugin verifies that a crashed plugin (connB==nil)
+// TestReloadVerifyCrashedPlugin verifies that a crashed plugin (conn==nil)
 // during verify phase causes a verify error.
 //
-// VALIDATES: connB==nil during verify → verify error returned with plugin name.
+// VALIDATES: conn==nil during verify → verify error returned with plugin name.
 // PREVENTS: Silent skip of crashed plugins during verify.
 func TestReloadVerifyCrashedPlugin(t *testing.T) {
 	t.Parallel()
@@ -631,12 +631,12 @@ func TestReloadVerifyCrashedPlugin(t *testing.T) {
 	}
 	s := newTestReloadServer(t, reactor, plugins)
 
-	// Simulate crash: close connB so ConnB() returns nil.
+	// Simulate crash: close conn so Conn() returns nil.
 	proc := s.procManager.GetProcess("crashed-plugin")
-	proc.CloseConnB()
+	proc.CloseConn()
 
 	err := s.ReloadConfig(context.Background(), newTree)
-	require.Error(t, err, "should fail when plugin connB is nil during verify")
+	require.Error(t, err, "should fail when plugin conn is nil during verify")
 	assert.Contains(t, err.Error(), "crashed-plugin")
 	assert.Contains(t, err.Error(), "verify")
 
@@ -681,7 +681,7 @@ func TestReloadApplyErrorReturned(t *testing.T) {
 }
 
 // TestReloadVerifyCrashedPluginMultiple verifies that when one of several plugins
-// has connB==nil, the verify phase catches it and aborts reload.
+// has conn==nil, the verify phase catches it and aborts reload.
 //
 // VALIDATES: One crashed plugin among many → verify error with crashed plugin name.
 // PREVENTS: Partial verify when one plugin in a group has died.
@@ -692,25 +692,25 @@ func TestReloadVerifyCrashedPluginMultiple(t *testing.T) {
 	newTree := map[string]any{"bgp": map[string]any{"router-id": "5.6.7.8"}}
 	reactor := &mockReloadReactor{tree: oldTree}
 
-	// Two plugins: first responds normally, second has connB niled before reload.
-	// Verify phase will see connB==nil on the second and fail.
+	// Two plugins: first responds normally, second has conn niled before reload.
+	// Verify phase will see conn==nil on the second and fail.
 	plugins := []pluginDef{
 		{name: "healthy", roots: []string{"bgp"}},
 		{name: "crashed", roots: []string{"bgp"}},
 	}
 	s := newTestReloadServer(t, reactor, plugins)
 
-	// Nil connB for "crashed" before reload — verify phase catches this.
+	// Nil conn for "crashed" before reload — verify phase catches this.
 	proc := s.procManager.GetProcess("crashed")
-	proc.CloseConnB()
+	proc.CloseConn()
 
 	err := s.ReloadConfig(context.Background(), newTree)
-	require.Error(t, err, "should fail when plugin connB is nil during verify")
+	require.Error(t, err, "should fail when plugin conn is nil during verify")
 	assert.Contains(t, err.Error(), "crashed")
 	assert.Contains(t, err.Error(), "verify")
 }
 
-// TestReloadProcessDiedBetweenVerifyAndApply verifies that if a plugin's connB
+// TestReloadProcessDiedBetweenVerifyAndApply verifies that if a plugin's conn
 // becomes nil after verify succeeds but before apply starts, the reload aborts.
 //
 // VALIDATES: Process death between verify and apply → reload aborted.
@@ -730,14 +730,14 @@ func TestReloadProcessDiedBetweenVerifyAndApply(t *testing.T) {
 
 	proc := s.procManager.GetProcess("dies-after-verify")
 
-	// Use beforeVerifyRsp to deterministically nil engineConnB BEFORE the verify
+	// Use beforeVerifyRsp to deterministically nil engineConn BEFORE the verify
 	// response is sent. Only nil the pointer — do NOT close the underlying connection,
 	// because the coordinator's in-flight SendConfigVerify still needs to read the
-	// response through the old reference. The pre-apply alive check calls ConnB()
+	// response through the old reference. The pre-apply alive check calls Conn()
 	// which returns nil, triggering the abort.
 	plugins[0].responder.mu.Lock()
 	plugins[0].responder.beforeVerifyRsp = func() {
-		proc.ClearConnB()
+		proc.ClearConn()
 	}
 	plugins[0].responder.mu.Unlock()
 

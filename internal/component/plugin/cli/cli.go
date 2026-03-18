@@ -18,7 +18,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
@@ -29,8 +28,6 @@ import (
 // Env var registrations for plugin CLI.
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.name", Type: "string", Default: "go-plugin", Description: "Plugin name for identification during auth"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.engine.fd", Type: "int", Default: "3", Description: "File descriptor for engine socket (FD mode)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.callback.fd", Type: "int", Default: "4", Description: "File descriptor for callback socket (FD mode)"})
 )
 
 // BaseConfig creates a PluginConfig pre-filled with common fields from a Registration.
@@ -60,7 +57,7 @@ type PluginConfig struct {
 	ConfigLogger  func(level string)                                                     // Configures plugin logger.
 	RunCLIDecode  func(hex string, text bool, out, errW io.Writer) int                   // CLI decode handler.
 	RunDecode     func(in io.Reader, out io.Writer) int                                  // Engine decode handler (optional).
-	RunEngine     func(engineConn, callbackConn net.Conn) int                            // Engine mode handler (RPC).
+	RunEngine     func(conn net.Conn) int                                                // Engine mode handler (single-conn RPC).
 	ExtraFlags    func(fs *flag.FlagSet)                                                 // Register extra flags (optional).
 	RunCLIWithCtx func(hex string, text bool, out, errW io.Writer, fs *flag.FlagSet) int // CLI decode with flag context (optional).
 }
@@ -155,12 +152,12 @@ func RunPlugin(cfg PluginConfig, args []string) int {
 	}
 
 	// Engine Mode: connect to engine via TLS (preferred) or inherited FDs (legacy).
-	engineConn, callbackConn, err := connsFromEnv()
+	conn, err := connFromEnv()
 	if err != nil {
 		writeError(os.Stderr, "error: %v", err)
 		return 1
 	}
-	return cfg.RunEngine(engineConn, callbackConn)
+	return cfg.RunEngine(conn)
 }
 
 // readHexFromStdin reads a single line of hex from stdin.
@@ -223,107 +220,55 @@ func availableFeatures(cfg PluginConfig) string {
 	return strings.Join(parts, ", ")
 }
 
-// connsFromEnv returns connections for RPC communication with the engine.
-// Tries TLS mode first (ze.plugin.hub.token set), then falls back to inherited FDs.
-// In TLS mode, both returned connections are the same TLS socket (single-conn mux).
-func connsFromEnv() (net.Conn, net.Conn, error) {
-	// TLS mode: connect back to engine via TLS.
-	if token := env.Get("ze.plugin.hub.token"); token != "" {
-		host := env.Get("ze.plugin.hub.host")
-		if host == "" {
-			host = "127.0.0.1"
-		}
-		port := env.Get("ze.plugin.hub.port")
-		if port == "" {
-			port = "12700"
-		}
-		name := env.Get("ze.plugin.name")
-		if name == "" {
-			name = "go-plugin"
-		}
-
-		addr := net.JoinHostPort(host, port)
-		tlsConf := &tls.Config{
-			InsecureSkipVerify: true, //nolint:gosec // engine uses self-signed cert
-			MinVersion:         tls.VersionTLS13,
-		}
-		conn, dialErr := (&tls.Dialer{Config: tlsConf}).DialContext(
-			context.Background(), "tcp", addr,
-		)
-		if dialErr != nil {
-			return nil, nil, fmt.Errorf("TLS dial %s: %w", addr, dialErr)
-		}
-
-		// Auth: send #0 auth, read response.
-		if authErr := ipc.SendAuth(context.Background(), conn, token, name); authErr != nil {
-			conn.Close() //nolint:errcheck,gosec // cleanup
-			return nil, nil, fmt.Errorf("auth: %w", authErr)
-		}
-
-		// Read auth response (raw, no rpc.Conn to avoid reader goroutine).
-		buf := make([]byte, 256)
-		n, readErr := conn.Read(buf)
-		if readErr != nil {
-			conn.Close() //nolint:errcheck,gosec // cleanup
-			return nil, nil, fmt.Errorf("auth response: %w", readErr)
-		}
-		if !bytes.Contains(buf[:n], []byte("ok")) {
-			conn.Close() //nolint:errcheck,gosec // cleanup
-			return nil, nil, fmt.Errorf("auth rejected: %s", string(buf[:n]))
-		}
-
-		// Single connection for both engine and callback (MuxConn handles mux).
-		return conn, conn, nil
+// connFromEnv returns a connection for RPC communication with the engine.
+// Connects to the engine via TLS using ze.plugin.hub.token/host/port env vars.
+func connFromEnv() (net.Conn, error) {
+	token := env.Get("ze.plugin.hub.token")
+	if token == "" {
+		return nil, fmt.Errorf("ze.plugin.hub.token must be set")
+	}
+	host := env.Get("ze.plugin.hub.host")
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	port := env.Get("ze.plugin.hub.port")
+	if port == "" {
+		port = "12700"
+	}
+	name := env.Get("ze.plugin.name")
+	if name == "" {
+		name = "go-plugin"
 	}
 
-	// FD mode: inherited socket pairs.
-	engineFD, err := envFDInt("ze.engine.fd")
-	if err != nil {
-		return nil, nil, err
+	addr := net.JoinHostPort(host, port)
+	tlsConf := &tls.Config{
+		InsecureSkipVerify: true, //nolint:gosec // engine uses self-signed cert
+		MinVersion:         tls.VersionTLS13,
 	}
-	callbackFD, err := envFDInt("ze.callback.fd")
-	if err != nil {
-		return nil, nil, err
-	}
-
-	engineConn, err := fdToConn(engineFD, "ze-engine")
-	if err != nil {
-		return nil, nil, fmt.Errorf("engine conn: %w", err)
+	conn, dialErr := (&tls.Dialer{Config: tlsConf}).DialContext(
+		context.Background(), "tcp", addr,
+	)
+	if dialErr != nil {
+		return nil, fmt.Errorf("TLS dial %s: %w", addr, dialErr)
 	}
 
-	callbackConn, err := fdToConn(callbackFD, "ze-callback")
-	if err != nil {
-		engineConn.Close() //nolint:errcheck,gosec // cleanup on error
-		return nil, nil, fmt.Errorf("callback conn: %w", err)
+	// Auth: send #0 auth, read response.
+	if authErr := ipc.SendAuth(context.Background(), conn, token, name); authErr != nil {
+		conn.Close() //nolint:errcheck,gosec // cleanup
+		return nil, fmt.Errorf("auth: %w", authErr)
 	}
 
-	return engineConn, callbackConn, nil
-}
+	// Read auth response (raw, no rpc.Conn to avoid reader goroutine).
+	buf := make([]byte, 256)
+	n, readErr := conn.Read(buf)
+	if readErr != nil {
+		conn.Close() //nolint:errcheck,gosec // cleanup
+		return nil, fmt.Errorf("auth response: %w", readErr)
+	}
+	if !bytes.Contains(buf[:n], []byte("ok")) {
+		conn.Close() //nolint:errcheck,gosec // cleanup
+		return nil, fmt.Errorf("auth rejected: %s", string(buf[:n]))
+	}
 
-// envFDInt reads an environment variable as a file descriptor number.
-// Uses os.Getenv directly since FD env vars are system-level (not Ze config).
-func envFDInt(name string) (int, error) {
-	s := os.Getenv(name)
-	if s == "" {
-		return 0, fmt.Errorf("%s not set", name)
-	}
-	fd, err := strconv.Atoi(s)
-	if err != nil {
-		return 0, fmt.Errorf("%s: %w", name, err)
-	}
-	return fd, nil
-}
-
-// fdToConn wraps a file descriptor as a net.Conn.
-func fdToConn(fd int, name string) (net.Conn, error) {
-	f := os.NewFile(uintptr(fd), name)
-	if f == nil {
-		return nil, fmt.Errorf("invalid fd %d", fd)
-	}
-	conn, err := net.FileConn(f)
-	f.Close() //nolint:errcheck,gosec // FD ownership transferred.
-	if err != nil {
-		return nil, err
-	}
 	return conn, nil
 }

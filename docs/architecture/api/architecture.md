@@ -313,18 +313,18 @@ Features:
 
 ### Plugin IPC Protocol (YANG RPC)
 
-The plugin IPC layer replaces stdin/stdout text pipes with YANG RPC calls over two Unix socket pairs per plugin. Infrastructure is in place; individual plugin migration is incremental.
+The plugin IPC layer replaces stdin/stdout text pipes with YANG RPC calls over a single bidirectional connection per plugin. MuxConn multiplexes plugin-initiated and engine-initiated RPCs by distinguishing responses (verb=ok/error) from requests (verb=method name).
 
 ```
 pkg/plugin/rpc/
-├── conn.go           # rpc.Conn — shared NUL-framed JSON RPC connection
+├── conn.go           # rpc.Conn -- newline-framed RPC connection
+├── mux.go            # MuxConn -- bidirectional RPC multiplexer
 └── types.go          # Canonical wire-format types (DeclareRegistrationInput, etc.)
 
 pkg/plugin/sdk/
-└── sdk.go            # Plugin SDK — callback-based API for plugin authors
+└── sdk.go            # Plugin SDK -- callback-based API for plugin authors
 
 internal/component/plugin/ipc/
-├── socketpair.go     # DualSocketPair (internal: net.Pipe)
 ├── tls.go            # TLS transport, auth, PluginAcceptor (external)
 └── rpc.go            # PluginConn (typed stage methods, MuxConn shadowing)
 
@@ -337,7 +337,7 @@ internal/yang/modules/
 
 | Plugin Type | Transport | Connection Model |
 |-------------|-----------|------------------|
-| Internal (goroutine) | net.Pipe + DirectBridge | Dual connection (Socket A + B) |
+| Internal (goroutine) | net.Pipe + DirectBridge | Single MuxConn (bidirectional) |
 | External (subprocess) | TLS connect-back | Single MuxConn (bidirectional) |
 
 **5-stage startup preserved as typed RPCs:**

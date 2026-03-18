@@ -147,13 +147,13 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 	//
 	// Three crash detection points protect the verify→apply protocol:
 	//
-	// 1. Verify phase (below): ConnB()==nil → verify error. A crashed plugin that
+	// 1. Verify phase (below): Conn()==nil means verify error. A crashed plugin that
 	//    registered WantsConfigRoots cannot validate the change, so we abort.
 	//
-	// 2. Pre-apply alive check: After all plugins pass verify, re-check ConnB().
-	//    A plugin can die between verify and apply — applying to a subset is unsafe.
+	// 2. Pre-apply alive check: After all plugins pass verify, re-check Conn().
+	//    A plugin can die between verify and apply -- applying to a subset is unsafe.
 	//
-	// 3. Apply phase: ConnB()==nil → apply error collected and returned.
+	// 3. Apply phase: Conn()==nil means apply error collected and returned.
 	//    At this point some plugins may have already applied, so we continue
 	//    and collect errors rather than aborting.
 
@@ -162,13 +162,13 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 		logger().Info("config reload: verify phase", "plugins", len(affected))
 		var verifyErrors []string
 		for _, ap := range affected {
-			connB := ap.proc.ConnB()
-			if connB == nil {
+			conn := ap.proc.Conn()
+			if conn == nil {
 				verifyErrors = append(verifyErrors, fmt.Sprintf("%s: verify failed: plugin connection closed (crashed?)", ap.proc.Name()))
 				continue
 			}
 
-			out, err := connB.SendConfigVerify(ctx, ap.sections)
+			out, err := conn.SendConfigVerify(ctx, ap.sections)
 			if err != nil {
 				verifyErrors = append(verifyErrors, fmt.Sprintf("%s: %v", ap.proc.Name(), err))
 				continue
@@ -184,12 +184,12 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 		}
 	}
 
-	// Pre-apply alive check: re-verify all affected plugins still have connB.
+	// Pre-apply alive check: re-verify all affected plugins still have a connection.
 	// A plugin could die between verify and apply — sending apply to a subset is unsafe.
 	if len(affected) > 0 {
 		var deadPlugins []string
 		for _, ap := range affected {
-			if ap.proc.ConnB() == nil {
+			if ap.proc.Conn() == nil {
 				deadPlugins = append(deadPlugins, ap.proc.Name())
 			}
 		}
@@ -208,8 +208,8 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 		diffSections := buildDiffSections(diff)
 
 		for _, ap := range affected {
-			connB := ap.proc.ConnB()
-			if connB == nil {
+			conn := ap.proc.Conn()
+			if conn == nil {
 				applyErrors = append(applyErrors, fmt.Sprintf("%s: apply failed: plugin connection closed (crashed?)", ap.proc.Name()))
 				continue
 			}
@@ -229,7 +229,7 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 				continue
 			}
 
-			out, err := connB.SendConfigApply(ctx, pluginDiffSections)
+			out, err := conn.SendConfigApply(ctx, pluginDiffSections)
 			if err != nil {
 				logger().Error("config apply RPC failed", "plugin", ap.proc.Name(), "error", err)
 				applyErrors = append(applyErrors, fmt.Sprintf("%s: %v", ap.proc.Name(), err))

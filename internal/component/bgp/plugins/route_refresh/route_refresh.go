@@ -50,8 +50,8 @@ var capNames = map[string]string{
 }
 
 // RunRouteRefreshPlugin runs the route-refresh plugin using the SDK RPC protocol.
-func RunRouteRefreshPlugin(engineConn, callbackConn net.Conn) int {
-	p := sdk.NewWithConn("bgp-route-refresh", engineConn, callbackConn)
+func RunRouteRefreshPlugin(conn net.Conn) int {
+	p := sdk.NewWithConn("bgp-route-refresh", conn)
 	defer func() {
 		if err := p.Close(); err != nil {
 			logger().Debug("close failed", "err", err)

@@ -246,7 +246,7 @@ func RunRouteServer(conn net.Conn) int {
 	// Subscribe to received-direction only for UPDATE events. Subscribing to
 	// "both" (the default) creates a circular deadlock: ForwardUpdate sends
 	// UPDATEs to peers → onMessageSent fires → tries to deliver sent-event
-	// to RR on Socket B → blocks on callMu → Socket A handler blocks →
+	// to RR via MuxConn → blocks on callMu → request handler blocks →
 	// forward worker blocks → workCh fills → OnEvent blocks → deadlock.
 	//
 	// The "refresh" subscription also delivers "borr" and "eorr" events (RFC 7313)

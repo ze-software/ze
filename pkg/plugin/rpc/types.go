@@ -6,11 +6,11 @@
 // Both the engine (internal/plugin) and the SDK (pkg/plugin/sdk) import these types
 // to ensure a single source of truth for the RPC message structures.
 //
-// The two-socket architecture uses these types in JSON-RPC messages:
-//   - Socket A (plugin → engine): declare-registration, declare-capabilities, ready,
+// RPCs are multiplexed over a single bidirectional connection via MuxConn:
+//   - Plugin-initiated: declare-registration, declare-capabilities, ready,
 //     update-route, dispatch-command, subscribe/unsubscribe-events, decode/encode-nlri,
 //     decode-mp-reach, decode-mp-unreach, decode-update
-//   - Socket B (engine → plugin): configure, share-registry, deliver-event,
+//   - Engine-initiated: configure, share-registry, deliver-event,
 //     decode/encode-nlri, decode-capability, execute-command, bye
 package rpc
 

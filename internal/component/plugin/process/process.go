@@ -44,27 +44,15 @@ type Process struct {
 
 	stderr io.ReadCloser
 
-	// Socket pairs for IPC (internal plugins use net.Pipe, external use socketpair)
-	sockets *ipc.DualSocketPair
-
-	// Raw engine-side connections for dual-conn mode (internal plugins).
-	// Stored during startup; consumed by InitConns() which wraps them in PluginConns.
-	rawEngineA   net.Conn // Socket A engine side (plugin->engine)
-	rawCallbackB net.Conn // Socket B engine side (engine->plugin)
-
-	// Single raw connection for TLS external plugins (set by SetSingleConn).
-	// When non-nil, InitConns creates a MuxConn and two MuxPluginConns.
-	rawSingleConn net.Conn
+	// Raw connection for IPC. Set during startup, consumed by InitConns().
+	rawConn net.Conn
 
 	// TLS acceptor for external plugin connect-back (set by SetAcceptor).
-	// When set, startExternal() uses TLS instead of socketpairs.
 	acceptor *ipc.PluginAcceptor
 
-	// RPC connections for YANG RPC protocol (per-socket wiring).
-	// Created by InitConns() from raw connections, or set directly by tests.
-	// In single-conn mode, both point to MuxPluginConns backed by the same MuxConn.
-	engineConnA *ipc.PluginConn // Socket A: reads/writes plugin->engine RPCs
-	engineConnB *ipc.PluginConn // Socket B: reads/writes engine->plugin callbacks
+	// RPC connection for YANG RPC protocol.
+	// Created by InitConns() from rawConn, or set directly by tests via SetConn.
+	conn *ipc.PluginConn
 
 	running atomic.Bool
 
@@ -171,42 +159,23 @@ func (p *Process) Running() bool {
 	return p.running.Load()
 }
 
-// ConnA returns the plugin→engine RPC connection under the mutex.
+// Conn returns the plugin RPC connection under the mutex.
 // Returns nil if the connection has been closed (e.g. by Stop() or monitor()).
 // Callers must check for nil before use to avoid racing with shutdown.
-func (p *Process) ConnA() *ipc.PluginConn {
+func (p *Process) Conn() *ipc.PluginConn {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return p.engineConnA
+	return p.conn
 }
 
-// ConnB returns the engine→plugin callback connection under the mutex.
-// Returns nil if the connection has been closed (e.g. by Stop() or monitor()).
-// Callers must check for nil before use to avoid racing with shutdown.
-func (p *Process) ConnB() *ipc.PluginConn {
+// SetConn sets the plugin RPC connection. Used by test code.
+func (p *Process) SetConn(conn *ipc.PluginConn) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return p.engineConnB
-}
-
-// SetConnB sets the engine→plugin callback connection.
-// Used by test code to inject mock connections.
-func (p *Process) SetConnB(conn *ipc.PluginConn) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.engineConnB = conn
-}
-
-// SetSingleConn sets a single bidirectional connection for TLS external plugins.
-// InitConns will create a MuxConn and two MuxPluginConns from this connection.
-func (p *Process) SetSingleConn(conn net.Conn) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.rawSingleConn = conn
+	p.conn = conn
 }
 
 // SetAcceptor sets the TLS acceptor for external plugin connect-back.
-// When set, startExternal() uses TLS instead of socketpairs.
 func (p *Process) SetAcceptor(a *ipc.PluginAcceptor) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -217,43 +186,25 @@ func (p *Process) SetAcceptor(a *ipc.PluginAcceptor) {
 // If PluginConns already exist (set directly by tests), returns immediately.
 // Must be called exactly once before any reads from the connections.
 //
-// In single-conn mode (rawSingleConn set), creates a MuxConn and wraps it
-// in two MuxPluginConns so the server dispatch code works unchanged.
+// InitConns creates a MuxPluginConn from the raw connection.
+// If already initialized (conn set by test), returns immediately.
 func (p *Process) InitConns() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// Single-conn mode: TLS external plugins.
-	if p.rawSingleConn != nil {
-		conn := p.rawSingleConn
-		p.rawSingleConn = nil
-
-		rpcConn := rpc.NewConn(conn, conn)
-		mux := rpc.NewMuxConn(rpcConn)
-
-		// Both ConnA and ConnB are backed by the same MuxConn.
-		// ConnA reads inbound requests via mux.Requests().
-		// ConnB sends outbound callbacks via mux.CallRPC().
-		p.engineConnA = ipc.NewMuxPluginConn(mux)
-		p.engineConnB = ipc.NewMuxPluginConn(mux)
-		return nil
-	}
-
-	// Dual-conn mode: internal plugins (net.Pipe).
-	if p.rawEngineA == nil {
-		if p.engineConnA != nil {
-			return nil // already initialized
+	if p.rawConn == nil {
+		if p.conn != nil {
+			return nil // already initialized (e.g., set by test)
 		}
-		return fmt.Errorf("no raw connections available")
+		return fmt.Errorf("no raw connection available")
 	}
 
-	rawA := p.rawEngineA
-	rawB := p.rawCallbackB
-	p.rawEngineA = nil
-	p.rawCallbackB = nil
+	raw := p.rawConn
+	p.rawConn = nil
 
-	p.engineConnA = ipc.NewPluginConn(rawA, rawA)
-	p.engineConnB = ipc.NewPluginConn(rawB, rawB)
+	rpcConn := rpc.NewConn(raw, raw)
+	mux := rpc.NewMuxConn(rpcConn)
+	p.conn = ipc.NewMuxPluginConn(mux)
 	return nil
 }
 
@@ -414,50 +365,27 @@ func (p *Process) Bridge() *rpc.DirectBridge {
 	return p.bridge
 }
 
-// SetSockets sets the socket pairs for IPC.
-func (p *Process) SetSockets(s *ipc.DualSocketPair) {
-	p.sockets = s
-}
-
-// Sockets returns the socket pairs for IPC.
-func (p *Process) Sockets() *ipc.DualSocketPair {
-	return p.sockets
-}
-
-// SetConnA sets the plugin→engine RPC connection under the mutex.
-func (p *Process) SetConnA(conn *ipc.PluginConn) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.engineConnA = conn
-}
-
 // SetRunning sets the running state of the process.
 func (p *Process) SetRunning(running bool) {
 	p.running.Store(running)
 }
 
-// SetRawConns sets the raw engine-side connections for protocol mode auto-detection.
-func (p *Process) SetRawConns(engineA, callbackB net.Conn) {
-	p.rawEngineA = engineA
-	p.rawCallbackB = callbackB
-}
-
-// CloseConnB closes and nils the engine→plugin callback connection under the mutex.
-func (p *Process) CloseConnB() {
+// CloseConn closes and nils the RPC connection under the mutex.
+func (p *Process) CloseConn() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.engineConnB != nil {
-		p.engineConnB.Close() //nolint:errcheck,gosec // best-effort shutdown
-		p.engineConnB = nil
+	if p.conn != nil {
+		p.conn.Close() //nolint:errcheck,gosec // best-effort shutdown
+		p.conn = nil
 	}
 }
 
-// ClearConnB nils the ConnB pointer without closing the underlying connection.
+// ClearConn nils the connection pointer without closing the underlying connection.
 // Used in tests to simulate a process dying between verify and apply phases.
-func (p *Process) ClearConnB() {
+func (p *Process) ClearConn() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.engineConnB = nil
+	p.conn = nil
 }
 
 // Start spawns the process.
@@ -485,9 +413,8 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 	return p.startExternal()
 }
 
-// startInternal starts an internal plugin as a goroutine with socket pairs.
-// Uses NewInternalSocketPairs() for in-memory bidirectional connections.
-// Creates per-socket PluginConns for YANG RPC protocol.
+// startInternal starts an internal plugin as a goroutine with a single net.Pipe.
+// Creates a MuxPluginConn for bidirectional YANG RPC protocol.
 func (p *Process) startInternal() error {
 	name := p.config.Name
 	// If run specifies an internal plugin (ze.X or ze plugin X), use that name
@@ -504,32 +431,23 @@ func (p *Process) startInternal() error {
 		return fmt.Errorf("unknown internal plugin: %s", name)
 	}
 
-	// Create socket pairs for bidirectional IPC
-	pairs, err := ipc.NewInternalSocketPairs()
-	if err != nil {
-		return fmt.Errorf("creating socket pairs: %w", err)
-	}
-	p.sockets = pairs
+	// Create single bidirectional pipe for IPC.
+	engineSide, pluginSide := net.Pipe()
 	p.stderr = nil // Internal plugins don't have stderr
 	p.running.Store(true)
 
-	// Store raw engine-side connections for protocol mode auto-detection.
-	// PluginConns are created later by initConns() after peeking Socket A
-	// to detect JSON vs text mode.
-	p.rawEngineA = pairs.Engine.EngineSide
-	p.rawCallbackB = pairs.Callback.EngineSide
+	// Store raw connection for InitConns (creates MuxConn + MuxPluginConns).
+	p.rawConn = engineSide
 
 	// Create direct transport bridge for post-startup hot path.
 	// The bridge carries through BridgedConn so the SDK can discover it
 	// via type assertion after the 5-stage startup completes.
 	p.bridge = rpc.NewDirectBridge()
 
-	// Wrap plugin-side connections with bridge reference.
-	enginePluginSide := rpc.NewBridgedConn(pairs.Engine.PluginSide, p.bridge)
-	callbackPluginSide := rpc.NewBridgedConn(pairs.Callback.PluginSide, p.bridge)
+	// Wrap plugin-side connection with bridge reference.
+	bridgedPluginSide := rpc.NewBridgedConn(pluginSide, p.bridge)
 
-	// Start the plugin in a goroutine
-	// Plugin side: read from callback socket, write to engine socket
+	// Start the plugin in a goroutine.
 	p.wg.Go(func() {
 		defer p.running.Store(false)
 		defer func() {
@@ -538,17 +456,12 @@ func (p *Process) startInternal() error {
 			}
 		}()
 		defer func() {
-			if err := enginePluginSide.Close(); err != nil {
-				logger().Debug("close engine plugin side", "error", err)
-			}
-		}()
-		defer func() {
-			if err := callbackPluginSide.Close(); err != nil {
-				logger().Debug("close callback plugin side", "error", err)
+			if err := bridgedPluginSide.Close(); err != nil {
+				logger().Debug("close plugin side", "error", err)
 			}
 		}()
 
-		if code := runner(enginePluginSide, callbackPluginSide); code != 0 {
+		if code := runner(bridgedPluginSide); code != 0 {
 			logger().Warn("internal plugin exited with non-zero code", "plugin", p.config.Name, "code", code)
 		}
 	})
@@ -579,11 +492,12 @@ func (p *Process) startExternal() error {
 		p.cmd.Dir = p.config.WorkDir
 	}
 
-	// Pass TLS connection info via env vars (no FD passing).
+	// Pass TLS connection info and plugin name via env vars.
 	p.cmd.Env = append(os.Environ(),
 		"ZE_PLUGIN_HUB_HOST="+host,
 		"ZE_PLUGIN_HUB_PORT="+port,
 		"ZE_PLUGIN_HUB_TOKEN="+p.acceptor.Token(),
+		"ZE_PLUGIN_NAME="+p.config.Name,
 	)
 
 	p.stderr, err = p.cmd.StderrPipe()
@@ -617,7 +531,7 @@ func (p *Process) startExternal() error {
 		}
 		return fmt.Errorf("plugin %s: TLS connect-back: %w", p.config.Name, waitErr)
 	}
-	p.rawSingleConn = conn
+	p.rawConn = conn
 
 	return nil
 }
@@ -678,21 +592,13 @@ func (p *Process) Stop() {
 func (p *Process) closeConns() {
 	p.cleanupOnce.Do(func() {
 		p.mu.Lock()
-		if p.engineConnA != nil {
-			p.engineConnA.Close() //nolint:errcheck,gosec // best-effort shutdown
-			p.engineConnA = nil
+		if p.conn != nil {
+			p.conn.Close() //nolint:errcheck,gosec // best-effort shutdown
+			p.conn = nil
 		}
-		if p.engineConnB != nil {
-			p.engineConnB.Close() //nolint:errcheck,gosec // best-effort shutdown
-			p.engineConnB = nil
-		}
-		if p.rawEngineA != nil {
-			p.rawEngineA.Close() //nolint:errcheck,gosec // best-effort shutdown
-			p.rawEngineA = nil
-		}
-		if p.rawCallbackB != nil {
-			p.rawCallbackB.Close() //nolint:errcheck,gosec // best-effort shutdown
-			p.rawCallbackB = nil
+		if p.rawConn != nil {
+			p.rawConn.Close() //nolint:errcheck,gosec // best-effort shutdown
+			p.rawConn = nil
 		}
 		p.mu.Unlock()
 	})
@@ -708,11 +614,11 @@ func (p *Process) SendShutdown() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	connB := p.ConnB()
-	if connB == nil {
+	conn := p.Conn()
+	if conn == nil {
 		return true
 	}
-	_ = connB.SendBye(ctx, "shutdown") //nolint:errcheck // best-effort graceful signal
+	_ = conn.SendBye(ctx, "shutdown") //nolint:errcheck // best-effort graceful signal
 	return true
 }
 

@@ -30,10 +30,10 @@ func SetLogger(l *slog.Logger) {
 }
 
 // RunRTCPlugin runs the RTC plugin using the SDK RPC protocol.
-func RunRTCPlugin(engineConn, callbackConn net.Conn) int {
+func RunRTCPlugin(conn net.Conn) int {
 	logger.Debug("rtc plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-rtc", engineConn, callbackConn)
+	p := sdk.NewWithConn("bgp-rtc", conn)
 	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()

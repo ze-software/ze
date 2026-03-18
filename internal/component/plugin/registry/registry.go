@@ -31,10 +31,10 @@ import (
 // Each plugin registers exactly one Registration via its init() function.
 type Registration struct {
 	// Required fields.
-	Name        string                                      // Plugin name (e.g., "flowspec", "gr")
-	Description string                                      // Human-readable description for help text
-	RunEngine   func(engineConn, callbackConn net.Conn) int // Engine mode handler (RPC)
-	CLIHandler  func(args []string) int                     // CLI handler for `ze plugin <name>`
+	Name        string                  // Plugin name (e.g., "flowspec", "gr")
+	Description string                  // Human-readable description for help text
+	RunEngine   func(conn net.Conn) int // Engine mode handler (single-conn RPC)
+	CLIHandler  func(args []string) int // CLI handler for `ze plugin <name>`
 
 	// Optional metadata.
 	RFCs            []string // Related RFC numbers (e.g., ["8955", "8956"])

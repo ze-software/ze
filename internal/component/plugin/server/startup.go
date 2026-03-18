@@ -5,6 +5,8 @@ package server
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -168,33 +170,44 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 	pm := process.NewProcessManager(plugins)
 	s.procManager = pm
 
-	// Set up TLS acceptor for external plugins if hub config exists.
+	// Set up TLS acceptor for external plugins.
+	// If hub config is missing but external plugins exist, auto-generate one
+	// with a random port and secret so external plugins work without explicit config.
 	var acceptor *pluginipc.PluginAcceptor
-	if s.config.Hub != nil {
-		hasExternal := false
-		for _, p := range plugins {
-			if !p.Internal {
-				hasExternal = true
-				break
+	hasExternal := false
+	for _, p := range plugins {
+		if !p.Internal {
+			hasExternal = true
+			break
+		}
+	}
+	if hasExternal {
+		hubConf := s.config.Hub
+		if hubConf == nil {
+			var tokenBytes [32]byte
+			if _, err := rand.Read(tokenBytes[:]); err != nil {
+				return fmt.Errorf("generate hub token: %w", err)
+			}
+			hubConf = &plugin.HubConfig{
+				Listen: []string{"127.0.0.1:0"},
+				Secret: hex.EncodeToString(tokenBytes[:]),
 			}
 		}
-		if hasExternal {
-			cert, certErr := pluginipc.GenerateSelfSignedCert()
-			if certErr != nil {
-				return fmt.Errorf("generate TLS cert: %w", certErr)
-			}
-			listeners, lnErr := pluginipc.StartListeners(s.config.Hub.Listen, cert)
-			if lnErr != nil {
-				return fmt.Errorf("start TLS listeners: %w", lnErr)
-			}
-			// Use the first listener for the acceptor.
-			acceptor = pluginipc.NewPluginAcceptor(listeners[0], s.config.Hub.Secret)
-			acceptor.Start()
-			pm.SetAcceptor(acceptor)
-			// Close extra listeners (acceptor owns the first one).
-			for _, ln := range listeners[1:] {
-				ln.Close() //nolint:errcheck,gosec // extra listeners not used yet
-			}
+		cert, certErr := pluginipc.GenerateSelfSignedCert()
+		if certErr != nil {
+			return fmt.Errorf("generate TLS cert: %w", certErr)
+		}
+		listeners, lnErr := pluginipc.StartListeners(hubConf.Listen, cert)
+		if lnErr != nil {
+			return fmt.Errorf("start TLS listeners: %w", lnErr)
+		}
+		// Use the first listener for the acceptor.
+		acceptor = pluginipc.NewPluginAcceptor(listeners[0], hubConf.Secret)
+		acceptor.Start()
+		pm.SetAcceptor(acceptor)
+		// Close extra listeners (acceptor owns the first one).
+		for _, ln := range listeners[1:] {
+			ln.Close() //nolint:errcheck,gosec // extra listeners not used yet
 		}
 	}
 
@@ -317,7 +330,7 @@ func (s *Server) getUnclaimedFamilyPlugins() []plugin.PluginConfig {
 }
 
 // handleProcessStartupRPC handles the 5-stage plugin startup via YANG RPC protocol.
-// Reads plugin->engine RPCs from engineConnA, sends engine->plugin callbacks via engineConnB.
+// Reads plugin-initiated RPCs and sends engine-initiated callbacks over a single MuxConn.
 // Returns when startup is complete (StageRunning) or on error.
 func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 	proc.SetStage(plugin.StageRegistration)
@@ -336,20 +349,20 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 		return
 	}
 
-	connA := proc.ConnA()
-	if connA == nil {
+	conn := proc.Conn()
+	if conn == nil {
 		logger().Debug("rpc startup: no connection (startup failed?)", "plugin", proc.Name())
 		return
 	}
 
-	// Stage 1: Read declare-registration from plugin (Socket A)
-	req, err := connA.ReadRequest(s.ctx)
+	// Stage 1: Read declare-registration from plugin (plugin-initiated)
+	req, err := conn.ReadRequest(s.ctx)
 	if err != nil {
 		logger().Error("rpc startup: read registration failed", "plugin", proc.Name(), "error", err)
 		return
 	}
 	if req.Method != "ze-plugin-engine:declare-registration" {
-		if err := connA.SendError(s.ctx, req.ID, "expected declare-registration, got "+req.Method); err != nil {
+		if err := conn.SendError(s.ctx, req.ID, "expected declare-registration, got "+req.Method); err != nil {
 			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", err)
 		}
 		return
@@ -357,7 +370,7 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 
 	var regInput rpc.DeclareRegistrationInput
 	if err := json.Unmarshal(req.Params, &regInput); err != nil {
-		if sendErr := connA.SendError(s.ctx, req.ID, "invalid registration: "+err.Error()); sendErr != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, "invalid registration: "+err.Error()); sendErr != nil {
 			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
 		}
 		return
@@ -378,7 +391,7 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 	for _, dep := range regInput.Dependencies {
 		if !s.hasConfiguredPlugin(dep) {
 			errMsg := fmt.Sprintf("missing dependency: plugin %q requires %q", proc.Config().Name, dep)
-			if sendErr := connA.SendError(s.ctx, req.ID, errMsg); sendErr != nil {
+			if sendErr := conn.SendError(s.ctx, req.ID, errMsg); sendErr != nil {
 				logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
 			}
 			logger().Error("rpc startup: dependency not configured", "plugin", proc.Name(), "dependency", dep)
@@ -388,7 +401,7 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 
 	// Register with registry
 	if err := s.registry.Register(reg); err != nil {
-		if sendErr := connA.SendError(s.ctx, req.ID, "registration conflict: "+err.Error()); sendErr != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, "registration conflict: "+err.Error()); sendErr != nil {
 			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
 		}
 		s.handlePluginConflict(proc, reg.Name, "plugin registration conflict", err)
@@ -396,7 +409,7 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 	}
 
 	// Send OK response
-	if err := connA.SendResult(s.ctx, req.ID, nil); err != nil {
+	if err := conn.SendResult(s.ctx, req.ID, nil); err != nil {
 		return
 	}
 
@@ -410,14 +423,14 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 		return // Stage transition failed
 	}
 
-	// Stage 3: Read declare-capabilities from plugin (Socket A)
-	req, err = connA.ReadRequest(s.ctx)
+	// Stage 3: Read declare-capabilities from plugin (plugin-initiated)
+	req, err = conn.ReadRequest(s.ctx)
 	if err != nil {
 		logger().Error("rpc startup: read capabilities failed", "plugin", proc.Name(), "error", err)
 		return
 	}
 	if req.Method != "ze-plugin-engine:declare-capabilities" {
-		if err := connA.SendError(s.ctx, req.ID, "expected declare-capabilities, got "+req.Method); err != nil {
+		if err := conn.SendError(s.ctx, req.ID, "expected declare-capabilities, got "+req.Method); err != nil {
 			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", err)
 		}
 		return
@@ -426,7 +439,7 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 	var capsInput rpc.DeclareCapabilitiesInput
 	if req.Params != nil {
 		if err := json.Unmarshal(req.Params, &capsInput); err != nil {
-			if sendErr := connA.SendError(s.ctx, req.ID, "invalid capabilities: "+err.Error()); sendErr != nil {
+			if sendErr := conn.SendError(s.ctx, req.ID, "invalid capabilities: "+err.Error()); sendErr != nil {
 				logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
 			}
 			return
@@ -439,7 +452,7 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 	proc.SetCapabilities(caps)
 
 	if err := s.capInjector.AddPluginCapabilities(caps); err != nil {
-		if sendErr := connA.SendError(s.ctx, req.ID, "capability conflict: "+err.Error()); sendErr != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, "capability conflict: "+err.Error()); sendErr != nil {
 			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", sendErr)
 		}
 		s.handlePluginConflict(proc, caps.PluginName, "plugin capability conflict", err)
@@ -447,7 +460,7 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 	}
 
 	// Send OK response
-	if err := connA.SendResult(s.ctx, req.ID, nil); err != nil {
+	if err := conn.SendResult(s.ctx, req.ID, nil); err != nil {
 		return
 	}
 
@@ -461,14 +474,14 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 		return // Stage transition failed
 	}
 
-	// Stage 5: Read ready from plugin (Socket A)
-	req, err = connA.ReadRequest(s.ctx)
+	// Stage 5: Read ready from plugin (plugin-initiated)
+	req, err = conn.ReadRequest(s.ctx)
 	if err != nil {
 		logger().Error("rpc startup: read ready failed", "plugin", proc.Name(), "error", err)
 		return
 	}
 	if req.Method != "ze-plugin-engine:ready" {
-		if err := connA.SendError(s.ctx, req.ID, "expected ready, got "+req.Method); err != nil {
+		if err := conn.SendError(s.ctx, req.ID, "expected ready, got "+req.Method); err != nil {
 			logger().Debug("rpc startup: send error failed", "plugin", proc.Name(), "error", err)
 		}
 		return
@@ -536,17 +549,17 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 	}
 
 	// Send OK response
-	if err := connA.SendResult(s.ctx, req.ID, nil); err != nil {
+	if err := conn.SendResult(s.ctx, req.ID, nil); err != nil {
 		return
 	}
 }
 
 // deliverConfigRPC sends configuration to a plugin via RPC (Stage 2).
-// Uses engineConnB to send ze-plugin-callback:configure RPC.
+// Sends ze-plugin-callback:configure RPC to the plugin.
 func (s *Server) deliverConfigRPC(proc *process.Process) {
 	reg := proc.Registration()
-	connB := proc.ConnB()
-	if connB == nil {
+	conn := proc.Conn()
+	if conn == nil {
 		logger().Error("deliverConfigRPC: connection closed", "plugin", proc.Name())
 		return
 	}
@@ -571,13 +584,13 @@ func (s *Server) deliverConfigRPC(proc *process.Process) {
 		}
 	}
 
-	if err := connB.SendConfigure(s.ctx, sections); err != nil {
+	if err := conn.SendConfigure(s.ctx, sections); err != nil {
 		logger().Error("deliverConfigRPC failed", "plugin", proc.Name(), "error", err)
 	}
 }
 
 // deliverRegistryRPC sends the command registry to a plugin via RPC (Stage 4).
-// Uses engineConnB to send ze-plugin-callback:share-registry RPC.
+// Sends ze-plugin-callback:share-registry RPC to the plugin.
 func (s *Server) deliverRegistryRPC(proc *process.Process) {
 	allCommands := s.registry.BuildCommandInfo()
 
@@ -596,12 +609,12 @@ func (s *Server) deliverRegistryRPC(proc *process.Process) {
 		}
 	}
 
-	connB := proc.ConnB()
-	if connB == nil {
+	conn := proc.Conn()
+	if conn == nil {
 		logger().Error("deliverRegistryRPC: connection closed", "plugin", proc.Name())
 		return
 	}
-	if err := connB.SendShareRegistry(s.ctx, commands); err != nil {
+	if err := conn.SendShareRegistry(s.ctx, commands); err != nil {
 		logger().Error("deliverRegistryRPC failed", "plugin", proc.Name(), "error", err)
 	}
 }

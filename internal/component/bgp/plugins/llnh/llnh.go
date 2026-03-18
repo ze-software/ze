@@ -54,10 +54,10 @@ func SetLLNHLogger(l *slog.Logger) {
 // RunLLNHPlugin runs the link-local-nexthop plugin using the SDK RPC protocol.
 // It receives per-peer config during Stage 2 and registers capability 77
 // for peers that have link-local-nexthop enabled during Stage 3.
-func RunLLNHPlugin(engineConn, callbackConn net.Conn) int {
+func RunLLNHPlugin(conn net.Conn) int {
 	logger().Debug("llnh plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-llnh", engineConn, callbackConn)
+	p := sdk.NewWithConn("bgp-llnh", conn)
 	defer func() { _ = p.Close() }()
 
 	// OnConfigure callback: parse bgp config, find peers with link-local-nexthop,

@@ -27,15 +27,15 @@ func (s *Server) EncodeNLRI(family string, args []string) ([]byte, error) {
 		return nil, fmt.Errorf("plugin %s not running", pluginName)
 	}
 
-	connB := proc.ConnB()
-	if connB == nil {
+	conn := proc.Conn()
+	if conn == nil {
 		return nil, fmt.Errorf("plugin %s connection closed", pluginName)
 	}
 
 	ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
 	defer cancel()
 
-	hexStr, err := connB.SendEncodeNLRI(ctx, family, args)
+	hexStr, err := conn.SendEncodeNLRI(ctx, family, args)
 	if err != nil {
 		return nil, fmt.Errorf("plugin request failed: %w", err)
 	}
@@ -65,15 +65,15 @@ func (s *Server) DecodeNLRI(family, hexData string) (string, error) {
 		return "", fmt.Errorf("plugin %s not running", pluginName)
 	}
 
-	connB := proc.ConnB()
-	if connB == nil {
+	conn := proc.Conn()
+	if conn == nil {
 		return "", fmt.Errorf("plugin %s connection closed", pluginName)
 	}
 
 	ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
 	defer cancel()
 
-	jsonResult, err := connB.SendDecodeNLRI(ctx, family, hexData)
+	jsonResult, err := conn.SendDecodeNLRI(ctx, family, hexData)
 	if err != nil {
 		return "", fmt.Errorf("plugin request failed: %w", err)
 	}

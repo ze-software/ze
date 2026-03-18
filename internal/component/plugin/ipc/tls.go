@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — TLS transport for external plugins
 // Related: rpc.go — PluginConn typed RPC wrapper
-// Related: socketpair.go — net.Pipe transport for internal plugins
+// Related: socketpair.go — package marker for plugin IPC
 
 package ipc
 

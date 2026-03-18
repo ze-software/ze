@@ -6,7 +6,7 @@ Uses newline-delimited #id verb [json] framing.
 
 Transport modes (auto-detected from environment):
   - TLS: single connection via ze.plugin.hub.host/port/token (preferred)
-  - FD:  dual Unix socket pairs via ze.engine.fd/ze.callback.fd (legacy)
+  - FD:  inherited file descriptors via ze.engine.fd/ze.callback.fd (legacy)
 
 Environment variables support dot, underscore, and uppercase notation:
   ze.plugin.hub.host / ze_plugin_hub_host / ZE_PLUGIN_HUB_HOST
@@ -82,7 +82,7 @@ class API:
 
     Transport is auto-detected from environment:
       - TLS mode (ZE_PLUGIN_HUB_TOKEN set): single TLS connection, bidirectional mux
-      - FD mode (ZE_ENGINE_FD set): dual Unix socket pairs
+      - FD mode (ZE_ENGINE_FD set): inherited file descriptors (legacy)
 
     Messages are newline-delimited lines: #<id> <verb> [<json-payload>]
     """
@@ -92,7 +92,7 @@ class API:
 
         Auto-detects transport from environment variables:
           - ZE_PLUGIN_HUB_TOKEN -> TLS mode (single connection)
-          - ZE_ENGINE_FD/ZE_CALLBACK_FD -> FD mode (dual sockets)
+          - ZE_ENGINE_FD/ZE_CALLBACK_FD -> FD mode (legacy)
         """
         self._tls_sock: ssl.SSLSocket | None = None
         self._tls_mode = False
@@ -185,9 +185,13 @@ class API:
                 return line_bytes.decode('utf-8')
 
             if timeout is not None:
-                ready_fds, _, _ = select.select([self._tls_sock], [], [], timeout)
-                if not ready_fds:
-                    return None
+                # TLS may have decrypted data buffered internally that
+                # select() can't see on the raw socket. Check pending()
+                # before falling through to select.
+                if not self._tls_sock.pending():
+                    ready_fds, _, _ = select.select([self._tls_sock], [], [], timeout)
+                    if not ready_fds:
+                        return None
 
             try:
                 chunk = self._tls_sock.recv(65536)
@@ -403,7 +407,7 @@ class API:
         """Declare a connection handler for listen socket handoff (Stage 1).
 
         The engine will create a listen socket on the specified port and
-        send the fd via SCM_RIGHTS on Socket B after Stage 1.
+        send the fd via SCM_RIGHTS on callback connection after Stage 1.
         Call receive_listener() after declare_done() to receive the fd.
 
         Args:
@@ -436,7 +440,7 @@ class API:
         self._call_engine('ze-plugin-engine:declare-registration', params)
 
     def receive_listener(self) -> socket.socket:
-        """Receive a listen socket fd from the engine via SCM_RIGHTS on Socket B.
+        """Receive a listen socket fd from the engine via SCM_RIGHTS on callback connection.
 
         Must be called after declare_done() and before wait_for_config().
         The engine sends one fd per connection-handler declared in Stage 1.
@@ -493,7 +497,7 @@ class API:
     def wait_for_config(self, timeout: float = 10.0) -> list[dict]:
         """Wait for config delivery from ZeBGP (Stage 2).
 
-        Reads ze-plugin-callback:configure RPC from Socket B.
+        Reads ze-plugin-callback:configure RPC from callback connection.
 
         Args:
             timeout: Maximum time to wait
@@ -550,7 +554,7 @@ class API:
     def wait_for_registry(self, timeout: float = 10.0) -> dict:
         """Wait for registry sharing from ZeBGP (Stage 4).
 
-        Reads ze-plugin-callback:share-registry RPC from Socket B.
+        Reads ze-plugin-callback:share-registry RPC from callback connection.
 
         Args:
             timeout: Maximum time to wait
@@ -694,7 +698,7 @@ class API:
     # ==================================================================
 
     def read_line(self, timeout: float = 0.1) -> str | None:
-        """Read the next event from Socket B.
+        """Read the next event from callback connection.
 
         Handles incoming RPC callbacks:
         - deliver-event: extracts event JSON string, responds OK, returns event
@@ -839,7 +843,7 @@ class API:
     def wait_for_shutdown(self, timeout: float = 5.0) -> None:
         """Wait for shutdown signal from ZeBGP.
 
-        Processes incoming RPC callbacks on Socket B until bye is received,
+        Processes incoming RPC callbacks on callback connection until bye is received,
         parent dies, or timeout expires.
 
         Args:

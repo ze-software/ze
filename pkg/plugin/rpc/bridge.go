@@ -13,10 +13,10 @@ import (
 // DirectBridge mediates direct function calls between engine and plugin sides
 // for internal plugins, bypassing JSON serialization and socket I/O.
 //
-// After the 5-stage startup completes over sockets, both sides register their
-// handlers and signal ready. Once ready, the engine calls DeliverEvents directly
-// (instead of connB.SendDeliverBatch) and the plugin calls DispatchRPC directly
-// (instead of engineMux.CallRPC).
+// After the 5-stage startup completes, both sides register their handlers and
+// signal ready. Once ready, the engine calls DeliverEvents directly (bypassing
+// SendDeliverBatch) and the plugin calls DispatchRPC directly (bypassing
+// engineMux.CallRPC).
 type DirectBridge struct {
 	deliverEvents     func(events []string) error
 	deliverStructured func(events []any) error

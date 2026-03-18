@@ -36,10 +36,10 @@ func SetVPNLogger(l *slog.Logger) {
 
 // RunVPNPlugin runs the VPN plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
-func RunVPNPlugin(engineConn, callbackConn net.Conn) int {
+func RunVPNPlugin(conn net.Conn) int {
 	vpnLogger.Debug("vpn plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-vpn", engineConn, callbackConn)
+	p := sdk.NewWithConn("bgp-vpn", conn)
 	defer func() { _ = p.Close() }()
 
 	p.OnDecodeNLRI(DecodeNLRIHex)

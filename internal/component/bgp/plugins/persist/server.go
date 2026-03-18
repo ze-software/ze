@@ -84,8 +84,8 @@ type PersistServer struct {
 }
 
 // RunPersistServer runs the persist plugin using the SDK RPC protocol.
-func RunPersistServer(engineConn, callbackConn net.Conn) int {
-	p := sdk.NewWithConn("bgp-persist", engineConn, callbackConn)
+func RunPersistServer(conn net.Conn) int {
+	p := sdk.NewWithConn("bgp-persist", conn)
 	defer func() { _ = p.Close() }()
 
 	ps := &PersistServer{

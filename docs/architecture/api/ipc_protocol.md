@@ -12,7 +12,7 @@ Ze uses a line-delimited protocol for communication between the engine and exter
 - Request-response with correlation IDs
 - Streaming responses with partial results
 - Event subscription model
-- Bidirectional communication over Unix sockets or stdin/stdout pipes
+- Bidirectional communication over TLS (external) or net.Pipe (internal)
 
 ---
 

@@ -16,16 +16,14 @@ import (
 )
 
 // handleSingleProcessCommandsRPC handles runtime commands for an RPC-mode plugin.
-// Reads from engineConnA and dispatches plugin->engine RPCs (update-route, subscribe, etc.)
+// Reads plugin-initiated RPCs (update-route, subscribe, etc.) and dispatches them
 // concurrently. Each request is dispatched in its own goroutine so that slow handlers
 // (e.g., update-route) don't block the read loop and starve other requests.
-// Event delivery to plugins is handled directly via engineConnB.SendDeliverEvent
-// in OnMessageReceived, OnPeerStateChange, etc.
 func (s *Server) handleSingleProcessCommandsRPC(proc *process.Process) {
 	defer s.cleanupProcess(proc)
 
-	connA := proc.ConnA()
-	if connA == nil {
+	conn := proc.Conn()
+	if conn == nil {
 		logger().Debug("rpc runtime: no connection (startup failed?)", "plugin", proc.Name())
 		return
 	}
@@ -34,9 +32,9 @@ func (s *Server) handleSingleProcessCommandsRPC(proc *process.Process) {
 	var wg sync.WaitGroup
 	defer wg.Wait()
 
-	// Plugin->engine RPC loop: read from engineConnA, dispatch in goroutines.
+	// Plugin->engine RPC loop: read requests, dispatch in goroutines.
 	for {
-		req, err := connA.ReadRequest(s.ctx)
+		req, err := conn.ReadRequest(s.ctx)
 		if err != nil {
 			if s.ctx.Err() != nil {
 				return // Server shutting down
@@ -46,7 +44,7 @@ func (s *Server) handleSingleProcessCommandsRPC(proc *process.Process) {
 		}
 
 		wg.Go(func() {
-			s.dispatchPluginRPC(proc, connA, req)
+			s.dispatchPluginRPC(proc, conn, req)
 		})
 	}
 }
@@ -55,19 +53,19 @@ func (s *Server) handleSingleProcessCommandsRPC(proc *process.Process) {
 // Unknown or empty methods get an explicit error per ze's fail-on-unknown rule.
 // Generic RPCs (update-route, subscribe, unsubscribe) are handled directly.
 // Codec RPCs (decode-nlri, encode-nlri, etc.) are delegated via rpcFallback.
-func (s *Server) dispatchPluginRPC(proc *process.Process, connA *plugipc.PluginConn, req *rpc.Request) {
+func (s *Server) dispatchPluginRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
 	switch req.Method {
 	case "ze-plugin-engine:update-route":
-		s.handleUpdateRouteRPC(proc, connA, req)
+		s.handleUpdateRouteRPC(proc, conn, req)
 		return
 	case "ze-plugin-engine:dispatch-command":
-		s.handleDispatchCommandRPC(proc, connA, req)
+		s.handleDispatchCommandRPC(proc, conn, req)
 		return
 	case "ze-plugin-engine:subscribe-events":
-		s.handleSubscribeEventsRPC(proc, connA, req)
+		s.handleSubscribeEventsRPC(proc, conn, req)
 		return
 	case "ze-plugin-engine:unsubscribe-events":
-		s.handleUnsubscribeEventsRPC(proc, connA, req)
+		s.handleUnsubscribeEventsRPC(proc, conn, req)
 		return
 	}
 
@@ -75,22 +73,22 @@ func (s *Server) dispatchPluginRPC(proc *process.Process, connA *plugipc.PluginC
 	if s.rpcFallback != nil {
 		codec := s.rpcFallback(req.Method)
 		if codec != nil {
-			s.handleCodecRPC(proc, connA, req, codec)
+			s.handleCodecRPC(proc, conn, req, codec)
 			return
 		}
 	}
 
-	if err := connA.SendError(s.ctx, req.ID, "unknown method: "+req.Method); err != nil {
+	if err := conn.SendError(s.ctx, req.ID, "unknown method: "+req.Method); err != nil {
 		logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", err)
 	}
 }
 
 // handleUpdateRouteRPC handles ze-plugin-engine:update-route from a plugin.
 // Dispatches the command string through the standard command dispatcher.
-func (s *Server) handleUpdateRouteRPC(proc *process.Process, connA *plugipc.PluginConn, req *rpc.Request) {
+func (s *Server) handleUpdateRouteRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
 	var input rpc.UpdateRouteInput
 	if err := json.Unmarshal(req.Params, &input); err != nil {
-		if sendErr := connA.SendError(s.ctx, req.ID, "invalid update-route params: "+err.Error()); sendErr != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, "invalid update-route params: "+err.Error()); sendErr != nil {
 			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
 		}
 		return
@@ -122,12 +120,12 @@ func (s *Server) handleUpdateRouteRPC(proc *process.Process, connA *plugipc.Plug
 	resp, err := s.dispatcher.Dispatch(cmdCtx, dispatchCmd)
 	if err != nil {
 		if errors.Is(err, ErrSilent) {
-			if sendErr := connA.SendResult(s.ctx, req.ID, &rpc.UpdateRouteOutput{}); sendErr != nil {
+			if sendErr := conn.SendResult(s.ctx, req.ID, &rpc.UpdateRouteOutput{}); sendErr != nil {
 				logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
 			}
 			return
 		}
-		if sendErr := connA.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
 			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
 		}
 		return
@@ -150,7 +148,7 @@ func (s *Server) handleUpdateRouteRPC(proc *process.Process, connA *plugipc.Plug
 		}
 	}
 
-	if sendErr := connA.SendResult(s.ctx, req.ID, output); sendErr != nil {
+	if sendErr := conn.SendResult(s.ctx, req.ID, output); sendErr != nil {
 		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
 	}
 }
@@ -158,10 +156,10 @@ func (s *Server) handleUpdateRouteRPC(proc *process.Process, connA *plugipc.Plug
 // handleDispatchCommandRPC handles ze-plugin-engine:dispatch-command from a plugin.
 // Dispatches the command string through the standard command dispatcher and returns
 // the full {status, data} response, enabling inter-plugin communication.
-func (s *Server) handleDispatchCommandRPC(proc *process.Process, connA *plugipc.PluginConn, req *rpc.Request) {
+func (s *Server) handleDispatchCommandRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
 	var input rpc.DispatchCommandInput
 	if err := json.Unmarshal(req.Params, &input); err != nil {
-		if sendErr := connA.SendError(s.ctx, req.ID, "invalid dispatch-command params: "+err.Error()); sendErr != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, "invalid dispatch-command params: "+err.Error()); sendErr != nil {
 			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
 		}
 		return
@@ -179,7 +177,7 @@ func (s *Server) handleDispatchCommandRPC(proc *process.Process, connA *plugipc.
 	resp, err := s.dispatcher.Dispatch(cmdCtx, input.Command)
 	if err != nil {
 		if errors.Is(err, ErrSilent) {
-			if sendErr := connA.SendResult(s.ctx, req.ID, &rpc.DispatchCommandOutput{Status: plugin.StatusDone}); sendErr != nil {
+			if sendErr := conn.SendResult(s.ctx, req.ID, &rpc.DispatchCommandOutput{Status: plugin.StatusDone}); sendErr != nil {
 				logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
 			}
 			return
@@ -189,14 +187,14 @@ func (s *Server) handleDispatchCommandRPC(proc *process.Process, connA *plugipc.
 		} else {
 			logger().Error("dispatch-command failed", "plugin", proc.Name(), "command", input.Command, "error", err)
 		}
-		if sendErr := connA.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
 			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
 		}
 		return
 	}
 
 	output := responseToDispatchOutput(resp)
-	if sendErr := connA.SendResult(s.ctx, req.ID, output); sendErr != nil {
+	if sendErr := conn.SendResult(s.ctx, req.ID, output); sendErr != nil {
 		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
 	}
 }
@@ -262,39 +260,39 @@ func (s *Server) registerSubscriptions(proc *process.Process, input *rpc.Subscri
 }
 
 // handleSubscribeEventsRPC handles ze-plugin-engine:subscribe-events from a plugin.
-func (s *Server) handleSubscribeEventsRPC(proc *process.Process, connA *plugipc.PluginConn, req *rpc.Request) {
+func (s *Server) handleSubscribeEventsRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
 	var input rpc.SubscribeEventsInput
 	if err := json.Unmarshal(req.Params, &input); err != nil {
-		if sendErr := connA.SendError(s.ctx, req.ID, "invalid subscribe params: "+err.Error()); sendErr != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, "invalid subscribe params: "+err.Error()); sendErr != nil {
 			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
 		}
 		return
 	}
 
 	if s.subscriptions == nil {
-		if sendErr := connA.SendError(s.ctx, req.ID, "subscription manager not available"); sendErr != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, "subscription manager not available"); sendErr != nil {
 			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
 		}
 		return
 	}
 
 	s.registerSubscriptions(proc, &input)
-	if sendErr := connA.SendResult(s.ctx, req.ID, nil); sendErr != nil {
+	if sendErr := conn.SendResult(s.ctx, req.ID, nil); sendErr != nil {
 		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
 	}
 }
 
 // handleUnsubscribeEventsRPC handles ze-plugin-engine:unsubscribe-events from a plugin.
-func (s *Server) handleUnsubscribeEventsRPC(proc *process.Process, connA *plugipc.PluginConn, req *rpc.Request) {
+func (s *Server) handleUnsubscribeEventsRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
 	if s.subscriptions == nil {
-		if sendErr := connA.SendError(s.ctx, req.ID, "subscription manager not available"); sendErr != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, "subscription manager not available"); sendErr != nil {
 			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
 		}
 		return
 	}
 
 	s.subscriptions.ClearProcess(proc)
-	if sendErr := connA.SendResult(s.ctx, req.ID, nil); sendErr != nil {
+	if sendErr := conn.SendResult(s.ctx, req.ID, nil); sendErr != nil {
 		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
 	}
 }
@@ -302,18 +300,18 @@ func (s *Server) handleUnsubscribeEventsRPC(proc *process.Process, connA *plugip
 // handleCodecRPC is a shared helper for plugin->engine codec RPCs (decode-nlri, encode-nlri).
 // The codec callback unmarshals params and calls the registry; it returns the result to send
 // or an error to relay back to the plugin.
-func (s *Server) handleCodecRPC(proc *process.Process, connA *plugipc.PluginConn, req *rpc.Request,
+func (s *Server) handleCodecRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request,
 	codec func(json.RawMessage) (any, error),
 ) {
 	result, err := codec(req.Params)
 	if err != nil {
-		if sendErr := connA.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
 			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
 		}
 		return
 	}
 
-	if sendErr := connA.SendResult(s.ctx, req.ID, result); sendErr != nil {
+	if sendErr := conn.SendResult(s.ctx, req.ID, result); sendErr != nil {
 		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
 	}
 }

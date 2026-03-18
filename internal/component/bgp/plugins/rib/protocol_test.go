@@ -25,15 +25,14 @@ import (
 // after ready, allowing a window where events (sent routes, state changes) are
 // missed by the rib plugin.
 func TestRIBPluginFiveStageProtocol(t *testing.T) {
-	pluginA, engineA := net.Pipe()
-	pluginB, engineB := net.Pipe()
+	pluginEnd, engineEnd := net.Pipe()
 
-	connA := rpc.NewConn(engineA, engineA)
-	connB := rpc.NewConn(engineB, engineB)
+	engineConn := rpc.NewConn(engineEnd, engineEnd)
+	mux := rpc.NewMuxConn(engineConn)
 
 	pluginDone := make(chan int, 1)
 	go func() {
-		pluginDone <- RunRIBPlugin(pluginA, pluginB)
+		pluginDone <- RunRIBPlugin(pluginEnd)
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -41,7 +40,7 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 
 	// ── Stage 1: declare-registration ───────────────────────────────────
 	// The rib plugin declares its commands (14 total: 7 short + 5 long + 2 GR).
-	stage1 := readRequestTimeout(t, ctx, connA)
+	stage1 := readMuxRequestTimeout(t, ctx, mux)
 	require.Equal(t, "ze-plugin-engine:declare-registration", stage1.Method)
 
 	var regInput rpc.DeclareRegistrationInput
@@ -72,28 +71,28 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	assert.Contains(t, commandNames, "rib event list")
 	assert.Len(t, regInput.Commands, 14, "rib registers exactly 14 commands")
 
-	require.NoError(t, connA.SendOK(ctx, stage1.ID))
+	require.NoError(t, mux.SendOK(ctx, stage1.ID))
 
 	// ── Stage 2: configure ──────────────────────────────────────────────
 	// Rib plugin has no OnConfigure handler, so empty config is fine.
 	configInput := &rpc.ConfigureInput{Sections: []rpc.ConfigSection{}}
-	_, err := connB.CallRPC(ctx, "ze-plugin-callback:configure", configInput)
+	_, err := mux.CallRPC(ctx, "ze-plugin-callback:configure", configInput)
 	require.NoError(t, err)
 
 	// ── Stage 3: declare-capabilities ───────────────────────────────────
 	// Rib plugin declares no BGP capabilities.
-	stage3 := readRequestTimeout(t, ctx, connA)
+	stage3 := readMuxRequestTimeout(t, ctx, mux)
 	require.Equal(t, "ze-plugin-engine:declare-capabilities", stage3.Method)
 
 	var capsInput rpc.DeclareCapabilitiesInput
 	require.NoError(t, json.Unmarshal(stage3.Params, &capsInput))
 	assert.Empty(t, capsInput.Capabilities, "rib plugin declares no capabilities")
 
-	require.NoError(t, connA.SendOK(ctx, stage3.ID))
+	require.NoError(t, mux.SendOK(ctx, stage3.ID))
 
 	// ── Stage 4: share-registry ─────────────────────────────────────────
 	registryInput := &rpc.ShareRegistryInput{Commands: []rpc.RegistryCommand{}}
-	_, err = connB.CallRPC(ctx, "ze-plugin-callback:share-registry", registryInput)
+	_, err = mux.CallRPC(ctx, "ze-plugin-callback:share-registry", registryInput)
 	require.NoError(t, err)
 
 	// ── Stage 5: ready (with atomic subscriptions) ──────────────────────
@@ -101,7 +100,7 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	// subscriptions so the engine registers them BEFORE SignalAPIReady.
 	// Without atomic subscriptions, there is a race between the engine
 	// sending initial routes and the rib plugin subscribing to events.
-	stage5 := readRequestTimeout(t, ctx, connA)
+	stage5 := readMuxRequestTimeout(t, ctx, mux)
 	require.Equal(t, "ze-plugin-engine:ready", stage5.Method)
 
 	var readyInput rpc.ReadyInput
@@ -116,25 +115,19 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	assert.Equal(t, "full", readyInput.Subscribe.Format,
 		"rib uses full format for events")
 
-	require.NoError(t, connA.SendOK(ctx, stage5.ID))
+	require.NoError(t, mux.SendOK(ctx, stage5.ID))
 
 	// ── Plugin is now in event loop ─────────────────────────────────────
 	// Verify the plugin can process an event after startup.
 	sentEvent := `{"type":"sent","msg-id":1,"peer":{"address":"10.0.0.1","asn":65001},"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}`
-	deliverEventSync(t, ctx, connB, sentEvent)
+	deliverEventSync(t, ctx, mux, sentEvent)
 
 	// ── Cleanup ─────────────────────────────────────────────────────────
-	if closeErr := connA.Close(); closeErr != nil {
-		t.Logf("connA close: %v", closeErr)
+	if closeErr := mux.Close(); closeErr != nil {
+		t.Logf("mux close: %v", closeErr)
 	}
-	if closeErr := connB.Close(); closeErr != nil {
-		t.Logf("connB close: %v", closeErr)
-	}
-	if closeErr := engineA.Close(); closeErr != nil {
-		t.Logf("engineA close: %v", closeErr)
-	}
-	if closeErr := engineB.Close(); closeErr != nil {
-		t.Logf("engineB close: %v", closeErr)
+	if closeErr := engineEnd.Close(); closeErr != nil {
+		t.Logf("engineEnd close: %v", closeErr)
 	}
 
 	select {
@@ -153,65 +146,58 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 // order, which would break assumptions about what state is available at each
 // stage (e.g., config must be received before ready).
 func TestRIBPluginStageOrdering(t *testing.T) {
-	pluginA, engineA := net.Pipe()
-	pluginB, engineB := net.Pipe()
+	pluginEnd, engineEnd := net.Pipe()
 
-	connA := rpc.NewConn(engineA, engineA)
-	connB := rpc.NewConn(engineB, engineB)
+	engineConn := rpc.NewConn(engineEnd, engineEnd)
+	mux := rpc.NewMuxConn(engineConn)
 
 	pluginDone := make(chan int, 1)
 	go func() {
-		pluginDone <- RunRIBPlugin(pluginA, pluginB)
+		pluginDone <- RunRIBPlugin(pluginEnd)
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Stage 1: Plugin sends declare-registration on Socket A first.
+	// Stage 1: Plugin sends declare-registration on plugin-initiated first.
 	// Verify this is always the first message (no other RPC before it).
-	stage1 := readRequestTimeout(t, ctx, connA)
+	stage1 := readMuxRequestTimeout(t, ctx, mux)
 	assert.Equal(t, "ze-plugin-engine:declare-registration", stage1.Method,
-		"Stage 1 must be declare-registration (first message on Socket A)")
-	require.NoError(t, connA.SendOK(ctx, stage1.ID))
+		"Stage 1 must be declare-registration (first message on plugin-initiated)")
+	require.NoError(t, mux.SendOK(ctx, stage1.ID))
 
-	// Stage 2: Engine sends configure on Socket B.
+	// Stage 2: Engine sends configure on engine-initiated.
 	// Plugin waits for this — it blocks until configure arrives.
 	configInput := &rpc.ConfigureInput{Sections: []rpc.ConfigSection{}}
-	_, err := connB.CallRPC(ctx, "ze-plugin-callback:configure", configInput)
+	_, err := mux.CallRPC(ctx, "ze-plugin-callback:configure", configInput)
 	require.NoError(t, err)
 
-	// Stage 3: Plugin sends declare-capabilities on Socket A.
+	// Stage 3: Plugin sends declare-capabilities on plugin-initiated.
 	// Must come after configure (Stage 2) completes.
-	stage3 := readRequestTimeout(t, ctx, connA)
+	stage3 := readMuxRequestTimeout(t, ctx, mux)
 	assert.Equal(t, "ze-plugin-engine:declare-capabilities", stage3.Method,
 		"Stage 3 must be declare-capabilities (after configure)")
-	require.NoError(t, connA.SendOK(ctx, stage3.ID))
+	require.NoError(t, mux.SendOK(ctx, stage3.ID))
 
-	// Stage 4: Engine sends share-registry on Socket B.
+	// Stage 4: Engine sends share-registry on engine-initiated.
 	registryInput := &rpc.ShareRegistryInput{Commands: []rpc.RegistryCommand{}}
-	_, err = connB.CallRPC(ctx, "ze-plugin-callback:share-registry", registryInput)
+	_, err = mux.CallRPC(ctx, "ze-plugin-callback:share-registry", registryInput)
 	require.NoError(t, err)
 
-	// Stage 5: Plugin sends ready on Socket A.
+	// Stage 5: Plugin sends ready on plugin-initiated.
 	// Must come after share-registry (Stage 4) completes.
-	stage5 := readRequestTimeout(t, ctx, connA)
+	stage5 := readMuxRequestTimeout(t, ctx, mux)
 	assert.Equal(t, "ze-plugin-engine:ready", stage5.Method,
 		"Stage 5 must be ready (after share-registry)")
-	require.NoError(t, connA.SendOK(ctx, stage5.ID))
+	require.NoError(t, mux.SendOK(ctx, stage5.ID))
 
 	// After Stage 5, the event loop is running — no more stage RPCs.
 	// Close connections to trigger clean shutdown.
-	if closeErr := connA.Close(); closeErr != nil {
-		t.Logf("connA close: %v", closeErr)
+	if closeErr := mux.Close(); closeErr != nil {
+		t.Logf("mux close: %v", closeErr)
 	}
-	if closeErr := connB.Close(); closeErr != nil {
-		t.Logf("connB close: %v", closeErr)
-	}
-	if closeErr := engineA.Close(); closeErr != nil {
-		t.Logf("engineA close: %v", closeErr)
-	}
-	if closeErr := engineB.Close(); closeErr != nil {
-		t.Logf("engineB close: %v", closeErr)
+	if closeErr := engineEnd.Close(); closeErr != nil {
+		t.Logf("engineEnd close: %v", closeErr)
 	}
 
 	select {

@@ -34,7 +34,7 @@ func TestDispatchCommandToPlugin(t *testing.T) {
 	pluginSide, engineSide := net.Pipe()
 
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-dispatch"})
-	proc.SetConnA(ipc.NewPluginConn(engineSide, engineSide))
+	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 
 	d := NewDispatcher()
 	d.Register("test command", func(_ *CommandContext, args []string) (*plugin.Response, error) {
@@ -97,7 +97,7 @@ func TestDispatchCommandNotFound(t *testing.T) {
 	pluginSide, engineSide := net.Pipe()
 
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-dispatch-notfound"})
-	proc.SetConnA(ipc.NewPluginConn(engineSide, engineSide))
+	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 
 	s := &Server{
 		subscriptions: NewSubscriptionManager(),
@@ -146,7 +146,7 @@ func TestDispatchCommandPluginError(t *testing.T) {
 	pluginSide, engineSide := net.Pipe()
 
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-dispatch-error"})
-	proc.SetConnA(ipc.NewPluginConn(engineSide, engineSide))
+	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 
 	d := NewDispatcher()
 	d.Register("failing command", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
@@ -207,7 +207,7 @@ func TestDispatchCommandEmptyCommand(t *testing.T) {
 	pluginSide, engineSide := net.Pipe()
 
 	proc := process.NewProcess(plugin.PluginConfig{Name: "test-dispatch-empty"})
-	proc.SetConnA(ipc.NewPluginConn(engineSide, engineSide))
+	proc.SetConn(ipc.NewPluginConn(engineSide, engineSide))
 
 	s := &Server{
 		subscriptions: NewSubscriptionManager(),

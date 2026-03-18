@@ -211,10 +211,10 @@ func (r *RIBManager) updateMetrics() {
 
 // RunRIBPlugin runs the RIB plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
-func RunRIBPlugin(engineConn, callbackConn net.Conn) int {
+func RunRIBPlugin(conn net.Conn) int {
 	logger().Debug("rib plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-rib", engineConn, callbackConn)
+	p := sdk.NewWithConn("bgp-rib", conn)
 	defer func() { _ = p.Close() }()
 
 	r := &RIBManager{

@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"net"
 	"testing"
 	"time"
 
@@ -27,17 +28,20 @@ type mockPluginCommands struct {
 func startTestHandler(t *testing.T, name string, mock *mockPluginCommands) *SubsystemHandler {
 	t.Helper()
 
-	pairs, err := ipc.NewInternalSocketPairs()
-	require.NoError(t, err)
-	t.Cleanup(func() { pairs.Close() })
+	engineEnd, pluginEnd := net.Pipe()
+	t.Cleanup(func() {
+		engineEnd.Close() //nolint:errcheck // test cleanup
+		pluginEnd.Close() //nolint:errcheck // test cleanup
+	})
+
+	engineMux := rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))
+	t.Cleanup(func() { engineMux.Close() }) //nolint:errcheck // test cleanup
 
 	proc := process.NewProcess(plugin.PluginConfig{
 		Name:     "subsystem-" + name,
 		Internal: true,
 	})
-	proc.SetSockets(pairs)
-	proc.SetConnA(ipc.NewPluginConn(pairs.Engine.EngineSide, pairs.Engine.EngineSide))
-	proc.SetConnB(ipc.NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide))
+	proc.SetConn(ipc.NewMuxPluginConn(engineMux))
 	proc.SetRunning(true)
 
 	handler := &SubsystemHandler{
@@ -45,17 +49,11 @@ func startTestHandler(t *testing.T, name string, mock *mockPluginCommands) *Subs
 		proc:   proc,
 	}
 
-	// Plugin side connections
-	pluginConnA := ipc.NewPluginConn(pairs.Engine.PluginSide, pairs.Engine.PluginSide)
-	pluginConnB := ipc.NewPluginConn(pairs.Callback.PluginSide, pairs.Callback.PluginSide)
+	pluginMux := rpc.NewMuxConn(rpc.NewConn(pluginEnd, pluginEnd))
+	t.Cleanup(func() { pluginMux.Close() }) //nolint:errcheck // test cleanup
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 
-	// Run mock plugin protocol in goroutine.
-	// NOTE: Do NOT defer cancel() here — the engine-side completeProtocol uses
-	// the same ctx. If the goroutine exits before completeProtocol finishes its
-	// stage 5 SendResult, cancel() would kill the context mid-write, causing
-	// "stage 5 respond: context canceled". The t.Cleanup below handles cancel.
 	protocolDone := make(chan struct{})
 	go func() {
 		defer close(protocolDone)
@@ -65,63 +63,63 @@ func startTestHandler(t *testing.T, name string, mock *mockPluginCommands) *Subs
 		if mock != nil {
 			reg.Commands = mock.decls
 		}
-		if err := pluginConnA.SendDeclareRegistration(ctx, reg); err != nil {
+		if _, err := pluginMux.CallRPC(ctx, "ze-plugin-engine:declare-registration", reg); err != nil {
 			return
 		}
 
 		// Stage 2: Receive configure, respond OK
-		req, err := pluginConnB.ReadRequest(ctx)
-		if err != nil {
-			return
-		}
-		if err := pluginConnB.SendResult(ctx, req.ID, nil); err != nil {
+		select {
+		case req := <-pluginMux.Requests():
+			if err := pluginMux.SendOK(ctx, req.ID); err != nil {
+				return
+			}
+		case <-ctx.Done():
 			return
 		}
 
 		// Stage 3: Send declare-capabilities
-		if err := pluginConnA.SendDeclareCapabilities(ctx, &rpc.DeclareCapabilitiesInput{}); err != nil {
+		if _, err := pluginMux.CallRPC(ctx, "ze-plugin-engine:declare-capabilities", &rpc.DeclareCapabilitiesInput{}); err != nil {
 			return
 		}
 
 		// Stage 4: Receive share-registry, respond OK
-		req, err = pluginConnB.ReadRequest(ctx)
-		if err != nil {
-			return
-		}
-		if err := pluginConnB.SendResult(ctx, req.ID, nil); err != nil {
+		select {
+		case req := <-pluginMux.Requests():
+			if err := pluginMux.SendOK(ctx, req.ID); err != nil {
+				return
+			}
+		case <-ctx.Done():
 			return
 		}
 
 		// Stage 5: Send ready
-		if err := pluginConnA.SendReady(ctx); err != nil {
+		if _, err := pluginMux.CallRPC(ctx, "ze-plugin-engine:ready", nil); err != nil {
 			return
 		}
 
 		// Command loop (if handler provided)
 		if mock != nil && mock.handler != nil {
 			for {
-				req, err := pluginConnB.ReadRequest(ctx)
-				if err != nil {
-					return
-				}
-
-				var input rpc.ExecuteCommandInput
-				if err := json.Unmarshal(req.Params, &input); err != nil {
-					return
-				}
-
-				status, data := mock.handler(input.Command)
-				out := &rpc.ExecuteCommandOutput{Status: status, Data: data}
-				if err := pluginConnB.SendResult(ctx, req.ID, out); err != nil {
+				select {
+				case req := <-pluginMux.Requests():
+					var input rpc.ExecuteCommandInput
+					if err := json.Unmarshal(req.Params, &input); err != nil {
+						return
+					}
+					status, data := mock.handler(input.Command)
+					out := &rpc.ExecuteCommandOutput{Status: status, Data: data}
+					if err := pluginMux.SendResult(ctx, req.ID, out); err != nil {
+						return
+					}
+				case <-ctx.Done():
 					return
 				}
 			}
 		}
 	}()
 
-	// Complete engine-side protocol
-	err = handler.completeProtocol(ctx)
-	require.NoError(t, err)
+	completeErr := handler.completeProtocol(ctx)
+	require.NoError(t, completeErr)
 
 	t.Cleanup(func() {
 		cancel()

@@ -45,8 +45,8 @@ func setLogger(l *slog.Logger) {
 //  2. SetStartupSubscriptions — subscribes to state events
 //  3. OnEvent — handles peer up/down, resends announced routes
 //  4. OnExecuteCommand — handles watchdog announce/withdraw commands
-func RunWatchdogPlugin(engineConn, callbackConn net.Conn) int {
-	p := sdk.NewWithConn("bgp-watchdog", engineConn, callbackConn)
+func RunWatchdogPlugin(conn net.Conn) int {
+	p := sdk.NewWithConn("bgp-watchdog", conn)
 	defer func() { _ = p.Close() }()
 
 	srv := newWatchdogServer(func(peer, cmd string) {

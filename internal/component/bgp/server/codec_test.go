@@ -54,7 +54,7 @@ func TestHandleDecodeNLRI(t *testing.T) {
 		InProcessNLRIDecoder: func(family, hex string) (string, error) {
 			return fmt.Sprintf(`[{"family":%q,"hex":%q}]`, family, hex), nil
 		},
-		RunEngine:  func(_, _ net.Conn) int { return 0 },
+		RunEngine:  func(_ net.Conn) int { return 0 },
 		CLIHandler: func([]string) int { return 0 },
 	}))
 
@@ -88,7 +88,7 @@ func TestHandleEncodeNLRI(t *testing.T) {
 		InProcessNLRIEncoder: func(family string, args []string) (string, error) {
 			return "DEADBEEF", nil
 		},
-		RunEngine:  func(_, _ net.Conn) int { return 0 },
+		RunEngine:  func(_ net.Conn) int { return 0 },
 		CLIHandler: func([]string) int { return 0 },
 	}))
 

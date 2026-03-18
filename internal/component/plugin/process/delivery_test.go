@@ -60,7 +60,7 @@ func TestDeliverBatchReusesEventsSlice(t *testing.T) {
 	proc.ctx, proc.cancel = context.WithCancel(context.Background())
 	defer proc.cancel()
 
-	// No bridge or connB set — deliverBatch will error with "connection closed",
+	// No bridge or conn set — deliverBatch will error with "connection closed",
 	// but the eventsBuf slice is still constructed and returned.
 	batch1 := []EventDelivery{
 		{Output: "event-1"},

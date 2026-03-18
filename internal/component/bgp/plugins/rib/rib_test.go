@@ -19,15 +19,11 @@ import (
 // will fail silently. This is appropriate for testing internal state changes.
 func newTestRIBManager(t *testing.T) *RIBManager {
 	t.Helper()
-	engineConn, engineRemote := net.Pipe()
-	callbackConn, callbackRemote := net.Pipe()
-	if err := engineRemote.Close(); err != nil {
-		t.Logf("close engineRemote: %v", err)
+	pluginEnd, remoteEnd := net.Pipe()
+	if err := remoteEnd.Close(); err != nil {
+		t.Logf("close remoteEnd: %v", err)
 	}
-	if err := callbackRemote.Close(); err != nil {
-		t.Logf("close callbackRemote: %v", err)
-	}
-	p := sdk.NewWithConn("rib-test", engineConn, callbackConn)
+	p := sdk.NewWithConn("rib-test", pluginEnd)
 	t.Cleanup(func() { _ = p.Close() })
 	return &RIBManager{
 		plugin:        p,

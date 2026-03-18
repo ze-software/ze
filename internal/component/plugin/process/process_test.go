@@ -27,9 +27,9 @@ func init() {
 	_ = registry.Register(registry.Registration{
 		Name:        "sleep",
 		Description: "test: blocks until connection closed",
-		RunEngine: func(a, _ net.Conn) int {
+		RunEngine: func(conn net.Conn) int {
 			buf := make([]byte, 1)
-			if _, err := a.Read(buf); err != nil {
+			if _, readErr := conn.Read(buf); readErr != nil {
 				return 0 // conn closed = shutdown
 			}
 			return 0
@@ -39,21 +39,21 @@ func init() {
 	_ = registry.Register(registry.Registration{
 		Name:        "crash",
 		Description: "test: exits immediately with error",
-		RunEngine:   func(a, b net.Conn) int { return 1 },
+		RunEngine:   func(conn net.Conn) int { return 1 },
 		CLIHandler:  func([]string) int { return 1 },
 	})
 	_ = registry.Register(registry.Registration{
 		Name:        "cycle",
 		Description: "test: exits immediately (for respawn cycle tests)",
-		RunEngine:   func(a, b net.Conn) int { return 1 },
+		RunEngine:   func(conn net.Conn) int { return 1 },
 		CLIHandler:  func([]string) int { return 1 },
 	})
 	_ = registry.Register(registry.Registration{
 		Name:        "run",
 		Description: "test: blocks until connection closed (for respawn success tests)",
-		RunEngine: func(a, _ net.Conn) int {
+		RunEngine: func(conn net.Conn) int {
 			buf := make([]byte, 1)
-			if _, err := a.Read(buf); err != nil {
+			if _, readErr := conn.Read(buf); readErr != nil {
 				return 0
 			}
 			return 0
@@ -394,36 +394,6 @@ func TestProcessInternalPluginStop(t *testing.T) {
 	assert.False(t, proc.Running())
 }
 
-// TestProcessInternalPluginSocketPairs verifies internal plugins use socket pairs.
-//
-// VALIDATES: Internal plugin transport uses DualSocketPair instead of io.Pipe.
-// PREVENTS: Regression to io.Pipe transport after socket pair migration.
-func TestProcessInternalPluginSocketPairs(t *testing.T) {
-	proc := NewProcess(plugin.PluginConfig{
-		Name:     "bgp-rib",
-		Internal: true,
-		Encoder:  "json",
-	})
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	err := proc.StartWithContext(ctx)
-	require.NoError(t, err)
-	assert.True(t, proc.Running())
-
-	// Socket pairs should be allocated for internal plugins
-	assert.NotNil(t, proc.sockets, "internal plugin should use socket pairs")
-
-	proc.Stop()
-
-	waitCtx, waitCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer waitCancel()
-
-	err = proc.Wait(waitCtx)
-	require.NoError(t, err)
-}
-
 // TestDeliveryLoopBatching verifies that multiple queued events are delivered in a single batch.
 //
 // VALIDATES: AC-2 — N events queued (burst) delivered in one batch write.
@@ -431,12 +401,17 @@ func TestProcessInternalPluginSocketPairs(t *testing.T) {
 func TestDeliveryLoopBatching(t *testing.T) {
 	t.Parallel()
 
-	pairs, err := ipc.NewInternalSocketPairs()
-	require.NoError(t, err)
-	t.Cleanup(func() { pairs.Close() })
+	engineEnd, pluginEnd := net.Pipe()
+	t.Cleanup(func() {
+		engineEnd.Close() //nolint:errcheck // test cleanup
+		pluginEnd.Close() //nolint:errcheck // test cleanup
+	})
+
+	engineMux := rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))
+	t.Cleanup(func() { engineMux.Close() }) //nolint:errcheck // test cleanup
 
 	proc := NewProcess(plugin.PluginConfig{Name: "test-batch", Encoder: "json"})
-	proc.SetConnB(ipc.NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide))
+	proc.SetConn(ipc.NewMuxPluginConn(engineMux))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -456,26 +431,28 @@ func TestDeliveryLoopBatching(t *testing.T) {
 		require.True(t, ok, "event %d should be enqueued", i)
 	}
 
-	// Plugin side: read and respond to batch RPCs.
-	// Under load (race detector, full suite), events may arrive in multiple batches
-	// because drainBatch's non-blocking drain can fire before all events are enqueued.
-	pluginConn := ipc.NewPluginConn(pairs.Callback.PluginSide, pairs.Callback.PluginSide)
+	// Plugin side: read and respond to batch RPCs via MuxConn.
+	pluginMux := rpc.NewMuxConn(rpc.NewConn(pluginEnd, pluginEnd))
+	defer pluginMux.Close() //nolint:errcheck // test cleanup
+
 	delivered := 0
 	for delivered < len(events) {
-		req, readErr := pluginConn.ReadRequest(ctx)
-		require.NoError(t, readErr)
-		assert.Equal(t, "ze-plugin-callback:deliver-batch", req.Method)
+		select {
+		case req := <-pluginMux.Requests():
+			assert.Equal(t, "ze-plugin-callback:deliver-batch", req.Method)
 
-		var input struct {
-			Events []json.RawMessage `json:"events"`
+			var input struct {
+				Events []json.RawMessage `json:"events"`
+			}
+			require.NoError(t, json.Unmarshal(req.Params, &input))
+			delivered += len(input.Events)
+
+			require.NoError(t, pluginMux.SendOK(ctx, req.ID))
+		case <-ctx.Done():
+			t.Fatal("timeout waiting for batch delivery")
 		}
-		require.NoError(t, json.Unmarshal(req.Params, &input))
-		delivered += len(input.Events)
-
-		require.NoError(t, pluginConn.SendResult(ctx, req.ID, nil))
 	}
 
-	// All 3 results should complete without error
 	for i := range 3 {
 		select {
 		case r := <-results[i]:
@@ -493,19 +470,23 @@ func TestDeliveryLoopBatching(t *testing.T) {
 func TestDeliveryLoopSingleEvent(t *testing.T) {
 	t.Parallel()
 
-	pairs, err := ipc.NewInternalSocketPairs()
-	require.NoError(t, err)
-	t.Cleanup(func() { pairs.Close() })
+	engineEnd, pluginEnd := net.Pipe()
+	t.Cleanup(func() {
+		engineEnd.Close() //nolint:errcheck // test cleanup
+		pluginEnd.Close() //nolint:errcheck // test cleanup
+	})
+
+	engineMux := rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))
+	t.Cleanup(func() { engineMux.Close() }) //nolint:errcheck // test cleanup
 
 	proc := NewProcess(plugin.PluginConfig{Name: "test-single", Encoder: "json"})
-	proc.SetConnB(ipc.NewPluginConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide))
+	proc.SetConn(ipc.NewMuxPluginConn(engineMux))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	proc.StartDelivery(ctx)
 	defer proc.Stop()
 
-	// Enqueue 1 event
 	result := make(chan EventResult, 1)
 	ok := proc.Deliver(EventDelivery{
 		Output: `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1"}}}`,
@@ -513,21 +494,24 @@ func TestDeliveryLoopSingleEvent(t *testing.T) {
 	})
 	require.True(t, ok)
 
-	// Plugin side: read the batch RPC request
-	pluginConn := ipc.NewPluginConn(pairs.Callback.PluginSide, pairs.Callback.PluginSide)
-	req, err := pluginConn.ReadRequest(ctx)
-	require.NoError(t, err)
-	assert.Equal(t, "ze-plugin-callback:deliver-batch", req.Method)
+	// Plugin side: read via MuxConn.
+	pluginMux := rpc.NewMuxConn(rpc.NewConn(pluginEnd, pluginEnd))
+	defer pluginMux.Close() //nolint:errcheck // test cleanup
 
-	// Verify it's a batch of 1
-	var input struct {
-		Events []json.RawMessage `json:"events"`
+	select {
+	case req := <-pluginMux.Requests():
+		assert.Equal(t, "ze-plugin-callback:deliver-batch", req.Method)
+
+		var input struct {
+			Events []json.RawMessage `json:"events"`
+		}
+		require.NoError(t, json.Unmarshal(req.Params, &input))
+		assert.Len(t, input.Events, 1)
+
+		require.NoError(t, pluginMux.SendOK(ctx, req.ID))
+	case <-ctx.Done():
+		t.Fatal("timeout waiting for batch delivery")
 	}
-	require.NoError(t, json.Unmarshal(req.Params, &input))
-	assert.Len(t, input.Events, 1)
-
-	// Respond OK
-	require.NoError(t, pluginConn.SendResult(ctx, req.ID, nil))
 
 	select {
 	case r := <-result:
@@ -644,13 +628,11 @@ func TestDeliverBatchDirectError(t *testing.T) {
 // VALIDATES: H3 — Stop/monitorCmd double-close race eliminated.
 // PREVENTS: Panic or double-close when Stop() and monitorCmd() race.
 func TestCloseConnsIdempotent(t *testing.T) {
-	// Create a process with real internal socket pairs.
-	pairs, err := ipc.NewInternalSocketPairs()
-	require.NoError(t, err)
+	engineEnd, pluginEnd := net.Pipe()
+	defer pluginEnd.Close() //nolint:errcheck // test cleanup
 
 	proc := NewProcess(plugin.PluginConfig{Name: "test-close-idempotent"})
-	proc.rawEngineA = pairs.Engine.EngineSide
-	proc.rawCallbackB = pairs.Callback.EngineSide
+	proc.rawConn = engineEnd
 
 	// First close — should work normally.
 	proc.closeConns()
@@ -672,12 +654,11 @@ func TestCloseConnsIdempotent(t *testing.T) {
 func TestCloseConnsConcurrent(t *testing.T) {
 	const goroutines = 10
 
-	pairs, err := ipc.NewInternalSocketPairs()
-	require.NoError(t, err)
+	engineEnd, pluginEnd := net.Pipe()
+	defer pluginEnd.Close() //nolint:errcheck // test cleanup
 
 	proc := NewProcess(plugin.PluginConfig{Name: "test-close-concurrent"})
-	proc.rawEngineA = pairs.Engine.EngineSide
-	proc.rawCallbackB = pairs.Callback.EngineSide
+	proc.rawConn = engineEnd
 
 	// Hammer closeConns from many goroutines.
 	var wg sync.WaitGroup
@@ -704,11 +685,8 @@ func TestInternalPluginRunnerPanicRecovery(t *testing.T) {
 	proc := NewProcess(plugin.PluginConfig{Name: "test-panic-runner"})
 	proc.running.Store(true)
 
-	pairs, err := ipc.NewInternalSocketPairs()
-	require.NoError(t, err)
-
-	enginePluginSide := rpc.NewBridgedConn(pairs.Engine.PluginSide, rpc.NewDirectBridge())
-	callbackPluginSide := rpc.NewBridgedConn(pairs.Callback.PluginSide, rpc.NewDirectBridge())
+	_, pluginSide := net.Pipe()
+	bridgedPluginSide := rpc.NewBridgedConn(pluginSide, rpc.NewDirectBridge())
 
 	// Replicate the exact goroutine structure from startInternal.
 	proc.wg.Go(func() {
@@ -720,13 +698,8 @@ func TestInternalPluginRunnerPanicRecovery(t *testing.T) {
 			}
 		}()
 		defer func() {
-			if err := enginePluginSide.Close(); err != nil {
-				logger().Debug("close engine plugin side", "error", err)
-			}
-		}()
-		defer func() {
-			if err := callbackPluginSide.Close(); err != nil {
-				logger().Debug("close callback plugin side", "error", err)
+			if err := bridgedPluginSide.Close(); err != nil {
+				logger().Debug("close plugin side", "error", err)
 			}
 		}()
 
@@ -737,8 +710,8 @@ func TestInternalPluginRunnerPanicRecovery(t *testing.T) {
 	// Wait for the goroutine to complete — must not hang or crash.
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	err = proc.Wait(ctx)
-	require.NoError(t, err, "Wait should succeed after panic recovery")
+	waitErr := proc.Wait(ctx)
+	require.NoError(t, waitErr, "Wait should succeed after panic recovery")
 
 	// Verify the process is no longer running.
 	assert.False(t, proc.Running(), "process should not be running after panic")

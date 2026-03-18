@@ -125,7 +125,7 @@ func (rs *RouteServer) replayForPeer(peerAddr string, gen uint64) {
 	// Convergent delta replay: catch routes that adj-rib-in received after
 	// the full replay snapshot. For internal plugins, events arrive via
 	// DirectBridge on the engine's delivery goroutine while replay commands
-	// arrive on Socket B — these are concurrent, so adj-rib-in may not have
+	// arrive via MuxConn — these are concurrent, so adj-rib-in may not have
 	// stored recently-delivered routes when the full replay ran. Repeat until
 	// no new routes appear (replayed==0), with a brief pause between attempts
 	// to let adj-rib-in's event handler process pending deliveries.

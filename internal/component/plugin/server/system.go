@@ -400,14 +400,14 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 	}
 
 	// Send completion request via RPC
-	connB := proc.ConnB()
-	if connB == nil {
+	conn := proc.Conn()
+	if conn == nil {
 		ctx.Dispatcher().Pending().Complete(serial, emptyResult)
 		return <-respCh, nil
 	}
 	rpcCtx, cancel := context.WithTimeout(context.Background(), CompletionTimeout)
 	defer cancel()
-	rpcOut, rpcErr := connB.SendExecuteCommand(rpcCtx, serial, cmd.Name, completedArgs, partial)
+	rpcOut, rpcErr := conn.SendExecuteCommand(rpcCtx, serial, cmd.Name, completedArgs, partial)
 	switch {
 	case rpcErr != nil:
 		ctx.Dispatcher().Pending().Complete(serial, emptyResult)

@@ -188,28 +188,7 @@ If any plugin fails to complete a stage, startup aborts for all plugins.
 
 ### Text Mode Handshake (Alternative to JSON-RPC)
 
-Plugins may speak a text-based framing instead of NUL-delimited JSON-RPC during
-the 5-stage startup. The engine auto-detects the mode by peeking the first byte
-on Socket A: `{` selects JSON-RPC, any letter selects text mode.
-
-**Text framing:** Each stage message is newline-delimited lines terminated by a
-blank line. Responses are single lines (`ok` or `error <message>`).
-
-| Stage | Socket | Text Format |
-|-------|--------|-------------|
-| 1. Registration | A (plugin→engine) | `register` header + `family`, `command`, `wants-config`, `dependency` lines |
-| 2. Config | B (engine→plugin) | `configure` header + `root <name> json << END` heredoc per config section |
-| 3. Capabilities | A (plugin→engine) | `capabilities` header + `capability <code> <encoding> <payload>` lines |
-| 4. Registry | B (engine→plugin) | `registry` header + `command <name> <plugin> <encoding>` lines |
-| 5. Ready | A (plugin→engine) | `ready` header + optional `subscribe` lines |
-
-**Post-stage-5:** Socket A uses `TextMuxConn` with `#N` serial prefixes for
-concurrent RPCs (same semantics as JSON `MuxConn`). Socket B delivers events
-as plain text lines; `bye` signals shutdown.
-
-**Implementation:** `pkg/plugin/rpc/text.go` (format/parse), `pkg/plugin/rpc/text_conn.go`
-(framing + PeekMode), `pkg/plugin/rpc/text_mux.go` (TextMuxConn),
-`internal/component/plugin/subsystem_text.go` (engine side), `pkg/plugin/sdk/sdk_text.go` (SDK side).
+~~Text mode has been removed. All plugins use the `#id verb [json]` newline-delimited framing over a single MuxConn connection.~~
 
 ### Tier-Ordered Startup
 
@@ -734,8 +713,8 @@ encoded hex 0501180A0000
 
 For Go plugins (`ze.pluginname`) — runs in same process:
 
-1. `startInternal()` creates `net.Pipe` socket pairs for bidirectional YANG RPC
-2. Creates a `DirectBridge` and wraps plugin-side connections in `BridgedConn`
+1. `startInternal()` creates a single `net.Pipe` for bidirectional YANG RPC
+2. Creates a `DirectBridge` and wraps the plugin-side connection in `BridgedConn`
 3. Runner goroutine receives `BridgedConn` (implements `net.Conn`) transparently
 4. SDK discovers bridge via `Bridger` type assertion in `NewWithConn()`
 5. 5-stage startup runs over sockets (cold path, 5 round-trips total)
@@ -1372,7 +1351,7 @@ events into a batch and sends them in a single `deliver-batch` RPC, reducing sys
 goroutine churn. Single events are delivered as a batch of 1.
 
 For internal plugins with an active `DirectBridge`, `deliverBatch()` calls
-`bridge.DeliverEvents(events)` directly instead of `connB.SendDeliverBatch()`,
+`bridge.DeliverEvents(events)` directly instead of `conn.SendDeliverBatch()`,
 bypassing JSON-RPC envelope construction, NUL framing, and pipe I/O. The plugin's
 `onEvent` handler is called synchronously in the delivery goroutine.
 
@@ -1522,9 +1501,9 @@ Transport: single TLS connection per plugin.
 |------|---------|
 | `internal/component/plugin/ipc/tls.go` | TLS listener, auth, cert gen, PluginAcceptor |
 | `internal/component/plugin/ipc/rpc.go` | PluginConn with MuxConn shadowing for single-conn |
-| `internal/component/plugin/ipc/socketpair.go` | net.Pipe for internal plugins |
-| `internal/component/plugin/process/process.go` | startExternalTLS, SetSingleConn, InitConns |
-| `pkg/plugin/sdk/sdk.go` | NewFromTLSEnv, NewWithSingleConn |
+| `internal/component/plugin/ipc/rpc.go` | PluginConn with MuxConn shadowing |
+| `internal/component/plugin/process/process.go` | startInternal, startExternal, InitConns |
+| `pkg/plugin/sdk/sdk.go` | NewFromTLSEnv, NewWithConn |
 
 ---
 

@@ -30,10 +30,10 @@ func SetLogger(l *slog.Logger) {
 }
 
 // RunMUPPlugin runs the MUP plugin using the SDK RPC protocol.
-func RunMUPPlugin(engineConn, callbackConn net.Conn) int {
+func RunMUPPlugin(conn net.Conn) int {
 	logger.Debug("mup plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-mup", engineConn, callbackConn)
+	p := sdk.NewWithConn("bgp-mup", conn)
 	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()

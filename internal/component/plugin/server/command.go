@@ -459,15 +459,15 @@ func (d *Dispatcher) routeToProcess(cmd *RegisteredCommand, args []string, peerS
 		return nil, ErrPluginProcessNotRunning
 	}
 
-	connB := proc.ConnB()
-	if connB == nil {
+	conn := proc.Conn()
+	if conn == nil {
 		return nil, ErrPluginConnectionClosed
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), cmd.Timeout)
 	defer cancel()
 
-	rpcOut, err := connB.SendExecuteCommand(ctx, "", cmd.Name, args, peerSelector)
+	rpcOut, err := conn.SendExecuteCommand(ctx, "", cmd.Name, args, peerSelector)
 	if err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Data: "failed to send request: " + err.Error()}, nil
 	}

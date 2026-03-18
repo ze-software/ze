@@ -9,9 +9,8 @@ import (
 )
 
 // InternalPluginRunner is a function that runs a plugin in-process using SDK RPC.
-// engineConn = Socket A plugin side (plugin → engine RPCs).
-// callbackConn = Socket B plugin side (engine → plugin callbacks).
-type InternalPluginRunner func(engineConn, callbackConn net.Conn) int
+// conn is the single bidirectional connection for all RPCs.
+type InternalPluginRunner func(conn net.Conn) int
 
 // GetInternalPluginWantsConfig returns the config roots an internal plugin wants.
 // Returns nil if the plugin doesn't declare any config roots.
@@ -74,7 +73,7 @@ func GetInternalPluginRunner(name string) InternalPluginRunner {
 	if reg == nil {
 		return nil
 	}
-	return func(engineConn, callbackConn net.Conn) int {
+	return func(conn net.Conn) int {
 		if reg.ConfigureEngineLogger != nil {
 			reg.ConfigureEngineLogger(name)
 		}
@@ -83,7 +82,7 @@ func GetInternalPluginRunner(name string) InternalPluginRunner {
 				reg.ConfigureMetrics(mr)
 			}
 		}
-		return reg.RunEngine(engineConn, callbackConn)
+		return reg.RunEngine(conn)
 	}
 }
 

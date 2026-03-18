@@ -177,7 +177,7 @@ func (p *Process) startDeliveryLocked() {
 }
 
 // StartDelivery starts only the event delivery goroutine.
-// Used by tests that inject connections via SetConnB without starting a real process.
+// Used by tests that inject connections via SetConn without starting a real process.
 func (p *Process) StartDelivery(ctx context.Context) {
 	p.eventMu.Lock()
 	if p.eventChan != nil {
@@ -233,11 +233,11 @@ func (p *Process) deliverMixedBatch(batch []EventDelivery) error {
 
 // deliverViaConn sends events through the socket connection.
 func (p *Process) deliverViaConn(events []string, timeout time.Duration) error {
-	connB := p.ConnB()
-	if connB == nil {
+	conn := p.Conn()
+	if conn == nil {
 		return ErrConnectionClosed
 	}
 	ctx, cancel := context.WithTimeout(p.ctx, timeout)
 	defer cancel()
-	return connB.SendDeliverBatch(ctx, events)
+	return conn.SendDeliverBatch(ctx, events)
 }

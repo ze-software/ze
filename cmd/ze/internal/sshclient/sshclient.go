@@ -19,6 +19,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
+// Env var registration for config directory override.
+var _ = env.MustRegister(env.EnvEntry{Key: "ze.config.dir", Type: "string", Description: "Override default config directory"})
+
 // dialTimeout is the maximum time to establish an SSH connection.
 const dialTimeout = 10 * time.Second
 

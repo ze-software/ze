@@ -5,12 +5,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
-// VALIDATES: Pure functions in cli.go (resolveHexInput, envFDInt, availableFeatures, writeError, BaseConfig).
+// VALIDATES: Pure functions in cli.go (resolveHexInput, availableFeatures, writeError, BaseConfig).
 // PREVENTS: Regressions in plugin CLI flag handling and feature detection.
 
 // TestResolveHexInput_DirectValue verifies direct hex string passes through.
@@ -25,30 +24,6 @@ func TestResolveHexInput_EmptyString(t *testing.T) {
 	hex, ok := resolveHexInput("")
 	assert.True(t, ok)
 	assert.Equal(t, "", hex)
-}
-
-// TestEnvFDInt_ValidValue verifies numeric env var parsing.
-func TestEnvFDInt_ValidValue(t *testing.T) {
-	t.Setenv("TEST_FD", "42")
-	fd, err := envFDInt("TEST_FD")
-	require.NoError(t, err)
-	assert.Equal(t, 42, fd)
-}
-
-// TestEnvFDInt_NotSet verifies error when env var is missing.
-func TestEnvFDInt_NotSet(t *testing.T) {
-	// Use a name that is extremely unlikely to be set in the environment.
-	_, err := envFDInt("ZE_TEST_FD_DEFINITELY_NOT_SET_12345")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "not set")
-}
-
-// TestEnvFDInt_NonNumeric verifies error for non-integer value.
-func TestEnvFDInt_NonNumeric(t *testing.T) {
-	t.Setenv("TEST_FD_BAD", "abc")
-	_, err := envFDInt("TEST_FD_BAD")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "TEST_FD_BAD")
 }
 
 // TestAvailableFeatures_NLRIOnly verifies feature string when only NLRI is supported.

@@ -71,8 +71,8 @@ func roleValueToName(value uint8) (string, bool) {
 
 // RunRolePlugin runs the Role plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
-func RunRolePlugin(engineConn, callbackConn net.Conn) int {
-	p := sdk.NewWithConn("bgp-role", engineConn, callbackConn)
+func RunRolePlugin(conn net.Conn) int {
+	p := sdk.NewWithConn("bgp-role", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 
 	// Store peer role configs from OnConfigure for validate-open.

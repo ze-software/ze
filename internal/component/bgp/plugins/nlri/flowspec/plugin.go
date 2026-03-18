@@ -39,10 +39,10 @@ func SetFlowSpecLogger(l *slog.Logger) {
 
 // RunFlowSpecPlugin runs the FlowSpec plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
-func RunFlowSpecPlugin(engineConn, callbackConn net.Conn) int {
+func RunFlowSpecPlugin(conn net.Conn) int {
 	flowLogger.Debug("flowspec plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-flowspec", engineConn, callbackConn)
+	p := sdk.NewWithConn("bgp-flowspec", conn)
 	defer func() { _ = p.Close() }()
 
 	p.OnEncodeNLRI(EncodeNLRIHex)

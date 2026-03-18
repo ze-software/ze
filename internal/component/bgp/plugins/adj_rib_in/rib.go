@@ -81,10 +81,10 @@ type AdjRIBInManager struct {
 }
 
 // RunAdjRIBInPlugin runs the Adj-RIB-In plugin using the SDK RPC protocol.
-func RunAdjRIBInPlugin(engineConn, callbackConn net.Conn) int {
+func RunAdjRIBInPlugin(conn net.Conn) int {
 	logger().Debug("adj-rib-in plugin starting")
 
-	p := sdk.NewWithConn("bgp-adj-rib-in", engineConn, callbackConn)
+	p := sdk.NewWithConn("bgp-adj-rib-in", conn)
 	defer func() { _ = p.Close() }()
 
 	r := &AdjRIBInManager{

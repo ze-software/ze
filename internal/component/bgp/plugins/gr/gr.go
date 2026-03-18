@@ -68,8 +68,8 @@ type grPlugin struct {
 // It receives per-peer GR config during Stage 2, registers per-peer
 // GR capabilities (code 64) during Stage 3, and runs RFC 4724
 // Receiving Speaker procedures during the event loop.
-func RunGRPlugin(engineConn, callbackConn net.Conn) int {
-	p := sdk.NewWithConn("bgp-gr", engineConn, callbackConn)
+func RunGRPlugin(conn net.Conn) int {
+	p := sdk.NewWithConn("bgp-gr", conn)
 	defer func() { _ = p.Close() }()
 
 	gp := &grPlugin{
