@@ -13,7 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
@@ -1957,162 +1956,99 @@ func TestCallEngineRawDirectError(t *testing.T) {
 	}
 }
 
-// newExternalTestPair creates a connected plugin SDK + engine side using real Unix sockets.
-// Required for tests that need SCM_RIGHTS fd passing (connection handoff).
-// Returns the SDK plugin, engine helper, and the raw engine-side Socket B for fd sending.
-func newExternalTestPair(t *testing.T) (*Plugin, *engineSide, net.Conn) {
-	t.Helper()
-
-	// Socket A: Plugin → Engine
-	fdsA, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
-	require.NoError(t, err)
-	aPlugin := fileConn(t, fdsA[0], "socketA-plugin")
-	aEngine := fileConn(t, fdsA[1], "socketA-engine")
-
-	// Socket B: Engine → Plugin
-	fdsB, err := syscall.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
-	require.NoError(t, err)
-	bPlugin := fileConn(t, fdsB[0], "socketB-plugin")
-	bEngine := fileConn(t, fdsB[1], "socketB-engine")
-
-	t.Cleanup(func() {
-		for _, c := range []net.Conn{aPlugin, aEngine, bPlugin, bEngine} {
-			if closeErr := c.Close(); closeErr != nil {
-				t.Logf("cleanup close: %v", closeErr)
-			}
-		}
-	})
-
-	p := NewWithConn("test-plugin", aPlugin, bPlugin)
-
-	engine := &engineSide{
-		server: rpc.NewConn(aEngine, aEngine),
-		client: rpc.NewConn(bEngine, bEngine),
-	}
-
-	return p, engine, bEngine
-}
-
-// fileConn converts a raw fd to a net.Conn via os.NewFile + net.FileConn.
-func fileConn(t *testing.T, fd int, name string) net.Conn {
-	t.Helper()
-	f := os.NewFile(uintptr(fd), name)
-	require.NotNil(t, f)
-	conn, err := net.FileConn(f)
-	require.NoError(t, f.Close())
-	require.NoError(t, err)
-	return conn
-}
-
-// TestSDKAutoReceiveListeners verifies that Run() auto-receives listen socket fds
-// between Stage 1 and Stage 2 when connection-handlers are declared.
+// TestSDKSingleConnStartup verifies that NewWithSingleConn creates a plugin
+// that completes the full 5-stage startup over a single bidirectional connection.
 //
-// VALIDATES: SDK auto-receives listener fds from engine via SCM_RIGHTS during startup.
-// PREVENTS: Plugin using Run() with connection-handlers gets stuck or misses fds.
-func TestSDKAutoReceiveListeners(t *testing.T) {
+// VALIDATES: Single-conn mode works end-to-end with MuxConn.
+// PREVENTS: Single-conn plugin failing during startup or event loop.
+func TestSDKSingleConnStartup(t *testing.T) {
 	t.Parallel()
 
-	p, engine, rawEngineB := newExternalTestPair(t)
+	pluginEnd, engineEnd := net.Pipe()
+	defer pluginEnd.Close() //nolint:errcheck // test cleanup
+	defer engineEnd.Close() //nolint:errcheck // test cleanup
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Find a free port.
-	var lc net.ListenConfig
-	tmpLn, err := lc.Listen(ctx, "tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	tcpAddr, ok := tmpLn.Addr().(*net.TCPAddr)
-	require.True(t, ok)
-	port := tcpAddr.Port
-	require.NoError(t, tmpLn.Close())
+	p := NewWithSingleConn("test-single-conn", pluginEnd)
 
-	// Registration with connection-handler.
-	reg := Registration{
-		ConnectionHandlers: []ConnectionHandlerDecl{
-			{Type: "listen", Port: port, Address: "127.0.0.1"},
-		},
-	}
+	var receivedEvent string
+	p.OnEvent(func(event string) error {
+		receivedEvent = event
+		return nil
+	})
 
 	errCh := make(chan error, 1)
 	go func() {
-		errCh <- p.Run(ctx, reg)
+		errCh <- p.Run(ctx, Registration{})
 	}()
 
-	// === Stage 1: Engine reads declare-registration ===
-	req, err := engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
+	// Engine side: single connection, use MuxConn for bidirectional.
+	engineConn := rpc.NewConn(engineEnd, engineEnd)
+	engineMux := rpc.NewMuxConn(engineConn)
+	defer engineMux.Close() //nolint:errcheck // test cleanup
+
+	// Stage 1: Read declare-registration from plugin.
+	req := readMuxRequest(t, ctx, engineMux)
 	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
-	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+	require.NoError(t, engineMux.SendOK(ctx, req.ID))
 
-	// Engine creates listen socket and sends fd to plugin via SCM_RIGHTS.
-	ln, err := lc.Listen(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", port))
-	require.NoError(t, err)
-	tcpLn, ok := ln.(*net.TCPListener)
-	require.True(t, ok)
-	lnFile, err := tcpLn.File()
-	require.NoError(t, err)
-	ln.Close() //nolint:errcheck,gosec // fd ownership transferred to lnFile
-
-	require.NoError(t, ipc.SendFD(rawEngineB, lnFile))
-	lnFile.Close() //nolint:errcheck,gosec // engine closes its copy after send
-
-	// === Stage 2: Engine sends configure ===
+	// Stage 2: Send configure to plugin.
 	configInput := struct {
 		Sections []ConfigSection `json:"sections"`
 	}{}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:configure", configInput))
+	_, configErr := engineMux.CallRPC(ctx, "ze-plugin-callback:configure", configInput)
+	require.NoError(t, configErr)
 
-	// === Stage 3: Engine reads declare-capabilities ===
-	req, err = engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
-	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+	// Stage 3: Read declare-capabilities from plugin.
+	req = readMuxRequest(t, ctx, engineMux)
+	assert.Equal(t, "ze-plugin-engine:declare-capabilities", req.Method)
+	require.NoError(t, engineMux.SendOK(ctx, req.ID))
 
-	// === Stage 4: Engine sends share-registry ===
+	// Stage 4: Send share-registry to plugin.
 	registryInput := struct {
 		Commands []RegistryCommand `json:"commands"`
 	}{}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:share-registry", registryInput))
+	_, regErr := engineMux.CallRPC(ctx, "ze-plugin-callback:share-registry", registryInput)
+	require.NoError(t, regErr)
 
-	// === Stage 5: Engine reads ready ===
-	req, err = engine.server.ReadRequest(ctx)
-	require.NoError(t, err)
-	require.NoError(t, engine.server.SendOK(ctx, req.ID))
+	// Stage 5: Read ready from plugin.
+	req = readMuxRequest(t, ctx, engineMux)
+	assert.Equal(t, "ze-plugin-engine:ready", req.Method)
+	require.NoError(t, engineMux.SendOK(ctx, req.ID))
 
-	// Verify plugin received the listener via auto-receive.
-	require.Len(t, p.Listeners(), 1)
-	receivedLn := p.Listeners()[0]
-	defer receivedLn.Close() //nolint:errcheck,gosec // test cleanup
+	// Post-startup: send an event to the plugin.
+	eventInput := struct {
+		Event string `json:"event"`
+	}{Event: `{"type":"bgp","peer":"1.2.3.4"}`}
+	_, eventErr := engineMux.CallRPC(ctx, "ze-plugin-callback:deliver-event", eventInput)
+	require.NoError(t, eventErr)
+	assert.Equal(t, `{"type":"bgp","peer":"1.2.3.4"}`, receivedEvent)
 
-	// Verify the received listener can accept connections.
-	acceptDone := make(chan error, 1)
-	go func() {
-		conn, acceptErr := receivedLn.Accept()
-		if acceptErr != nil {
-			acceptDone <- acceptErr
-			return
-		}
-		conn.Close() //nolint:errcheck,gosec // test cleanup
-		acceptDone <- nil
-	}()
-
-	addr := fmt.Sprintf("127.0.0.1:%d", port)
-	var dialer net.Dialer
-	client, dialErr := dialer.DialContext(ctx, "tcp", addr)
-	require.NoError(t, dialErr)
-	client.Close() //nolint:errcheck,gosec // test cleanup
-
-	require.NoError(t, <-acceptDone, "received listener must accept connections")
-
-	// Shutdown
+	// Shutdown.
 	byeInput := struct {
 		Reason string `json:"reason"`
-	}{Reason: "done"}
-	require.NoError(t, callAndExpectOK(ctx, engine.client, "ze-plugin-callback:bye", byeInput))
+	}{Reason: "test-done"}
+	_, byeErr := engineMux.CallRPC(ctx, "ze-plugin-callback:bye", byeInput)
+	require.NoError(t, byeErr)
 
 	select {
 	case err := <-errCh:
 		require.NoError(t, err)
 	case <-time.After(2 * time.Second):
 		t.Fatal("plugin did not exit after bye")
+	}
+}
+
+// readMuxRequest reads the next inbound request from MuxConn.Requests().
+func readMuxRequest(t *testing.T, ctx context.Context, mux *rpc.MuxConn) *rpc.Request {
+	t.Helper()
+	select {
+	case req := <-mux.Requests():
+		return req
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for request from plugin")
+		return nil
 	}
 }

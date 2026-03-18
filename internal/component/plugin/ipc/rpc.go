@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
 // Related: socketpair.go — socket pair creation for plugin IPC
+// Related: tls.go — TLS transport for external plugins
 
 package ipc
 
@@ -12,17 +13,18 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
-// PluginConn provides typed RPC communication over a dual-socket connection.
+// PluginConn provides typed RPC communication over a plugin connection.
 // It embeds *rpc.Conn for low-level newline-framed JSON RPC and adds typed methods
 // for each YANG RPC in the plugin protocol.
 //
-// PluginConn supports two wiring modes via the embedded rpc.Conn:
+// PluginConn supports three wiring modes:
 //   - Per-socket: NewPluginConn(conn, conn) — read and write on the same socket.
-//     Used by the engine for internal plugins.
-//   - Cross-socket: NewPluginConn(readConn, writeConn) — read from one socket,
-//     write to another. Used in tests to simulate the two-socket architecture.
+//   - Cross-socket: NewPluginConn(readConn, writeConn) — read/write on different sockets.
+//   - Single-conn (mux): NewMuxPluginConn(mux) — all traffic via MuxConn.
+//     ReadRequest reads from MuxConn.Requests(), CallRPC/SendResult delegate to MuxConn.
 type PluginConn struct {
 	*rpc.Conn
+	mux *rpc.MuxConn // Non-nil for single-conn mode.
 }
 
 // NewPluginConn creates a PluginConn that reads from readConn and writes to writeConn.
@@ -30,6 +32,96 @@ type PluginConn struct {
 // For cross-socket wiring (test scenarios), pass different conns.
 func NewPluginConn(readConn, writeConn net.Conn) *PluginConn {
 	return &PluginConn{Conn: rpc.NewConn(readConn, writeConn)}
+}
+
+// NewMuxPluginConn creates a PluginConn backed by a MuxConn for single-connection mode.
+// ReadRequest reads from MuxConn.Requests(), all outbound calls go through MuxConn.CallRPC().
+func NewMuxPluginConn(mux *rpc.MuxConn) *PluginConn {
+	return &PluginConn{mux: mux}
+}
+
+// ReadRequest reads the next plugin request. In single-conn mode, reads from
+// MuxConn.Requests() channel. In dual-conn mode, reads from the underlying socket.
+func (pc *PluginConn) ReadRequest(ctx context.Context) (*rpc.Request, error) {
+	if pc.mux == nil {
+		return pc.Conn.ReadRequest(ctx)
+	}
+	select {
+	case req, ok := <-pc.mux.Requests():
+		if !ok {
+			return nil, rpc.ErrMuxConnClosed
+		}
+		return req, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-pc.mux.Done():
+		return nil, rpc.ErrMuxConnClosed
+	}
+}
+
+// CallRPC sends an RPC and waits for the response. In single-conn mode,
+// routes through MuxConn. All typed methods (SendDeliverEvent, etc.) call this.
+func (pc *PluginConn) CallRPC(ctx context.Context, method string, params any) (json.RawMessage, error) {
+	if pc.mux != nil {
+		return pc.mux.CallRPC(ctx, method, params)
+	}
+	return pc.Conn.CallRPC(ctx, method, params)
+}
+
+// CallBatchRPC sends a batch delivery frame. In single-conn mode, converts
+// [][]byte events to []json.RawMessage to preserve raw JSON embedding.
+func (pc *PluginConn) CallBatchRPC(ctx context.Context, events [][]byte) (json.RawMessage, error) {
+	if pc.mux != nil {
+		// Convert [][]byte to []json.RawMessage so json.Marshal embeds
+		// them as raw JSON values instead of base64-encoding byte slices.
+		rawEvents := make([]json.RawMessage, len(events))
+		for i, e := range events {
+			rawEvents[i] = json.RawMessage(e)
+		}
+		return pc.mux.CallRPC(ctx, "ze-plugin-callback:deliver-batch", map[string]any{"events": rawEvents})
+	}
+	return pc.Conn.CallBatchRPC(ctx, events)
+}
+
+// SendResult sends a successful RPC response.
+func (pc *PluginConn) SendResult(ctx context.Context, id uint64, data any) error {
+	if pc.mux != nil {
+		return pc.mux.SendResult(ctx, id, data)
+	}
+	return pc.Conn.SendResult(ctx, id, data)
+}
+
+// SendOK sends an empty successful RPC response.
+func (pc *PluginConn) SendOK(ctx context.Context, id uint64) error {
+	if pc.mux != nil {
+		return pc.mux.SendOK(ctx, id)
+	}
+	return pc.Conn.SendOK(ctx, id)
+}
+
+// SendError sends an error RPC response.
+func (pc *PluginConn) SendError(ctx context.Context, id uint64, message string) error {
+	if pc.mux != nil {
+		return pc.mux.SendError(ctx, id, message)
+	}
+	return pc.Conn.SendError(ctx, id, message)
+}
+
+// SendCodedError sends an error RPC response with a specific error code.
+func (pc *PluginConn) SendCodedError(ctx context.Context, id uint64, code, message string) error {
+	if pc.mux != nil {
+		// MuxConn doesn't have SendCodedError, delegate to underlying conn.
+		return pc.mux.SendError(ctx, id, code+": "+message)
+	}
+	return pc.Conn.SendCodedError(ctx, id, code, message)
+}
+
+// Close closes the underlying connection.
+func (pc *PluginConn) Close() error {
+	if pc.mux != nil {
+		return pc.mux.Close()
+	}
+	return pc.Conn.Close()
 }
 
 // --- Stage RPCs ---

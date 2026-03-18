@@ -60,7 +60,7 @@ Ze is a Go BGP implementation with a plugin architecture. Key characteristics:
           JSON events (down)  │                 │  commands (up)
           + base64 wire bytes │                 │  update/forward/withdraw
                               ▼                 │
-═══════════════════════ PROCESS BOUNDARY (Unix socket pairs) ═══════════════
+═══════════════════════ PROCESS BOUNDARY (TLS / net.Pipe) ═══════════════
                               │                 ▲
                               ▼                 │
                       ┌───────────────┐

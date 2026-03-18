@@ -389,6 +389,160 @@ func TestMuxConn_ReaderError(t *testing.T) {
 	}
 }
 
+// TestMuxConn_InboundRequest verifies that MuxConn routes inbound requests
+// (verb is a method name, not ok/error) to the Requests() channel.
+//
+// VALIDATES: Bidirectional MuxConn routes inbound requests to Requests() channel.
+// PREVENTS: Inbound requests being dropped as orphaned responses.
+func TestMuxConn_InboundRequest(t *testing.T) {
+	t.Parallel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "pluginEnd", pluginEnd)
+	defer closePipe(t, "engineEnd", engineEnd)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn := NewConn(pluginEnd, pluginEnd)
+	mux := NewMuxConn(conn)
+	defer func() {
+		if err := mux.Close(); err != nil {
+			t.Logf("mux close: %v", err)
+		}
+	}()
+
+	engineConn := NewConn(engineEnd, engineEnd)
+
+	// Engine sends a request to the plugin.
+	go func() {
+		line := FormatRequest(1, "ze-plugin-callback:configure", json.RawMessage(`{"sections":[]}`))
+		_ = engineConn.writeLineWithContext(ctx, line)
+	}()
+
+	// Plugin receives the request via Requests() channel.
+	select {
+	case req := <-mux.Requests():
+		assert.Equal(t, uint64(1), req.ID)
+		assert.Equal(t, "ze-plugin-callback:configure", req.Method)
+		assert.JSONEq(t, `{"sections":[]}`, string(req.Params))
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for inbound request")
+	}
+}
+
+// TestMuxConn_MixedTraffic verifies MuxConn correctly separates interleaved
+// responses (to our outbound calls) and requests (from the other side).
+//
+// VALIDATES: Responses routed to CallRPC callers, requests routed to Requests().
+// PREVENTS: Responses and requests being confused when interleaved on one connection.
+func TestMuxConn_MixedTraffic(t *testing.T) {
+	t.Parallel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "pluginEnd", pluginEnd)
+	defer closePipe(t, "engineEnd", engineEnd)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn := NewConn(pluginEnd, pluginEnd)
+	mux := NewMuxConn(conn)
+	defer func() {
+		if err := mux.Close(); err != nil {
+			t.Logf("mux close: %v", err)
+		}
+	}()
+
+	engineConn := NewConn(engineEnd, engineEnd)
+
+	// Engine: read our outbound request, send back a response AND an inbound request.
+	go func() {
+		// Read the outbound request from the plugin.
+		req, err := engineConn.ReadRequest(ctx)
+		if err != nil {
+			return
+		}
+		// Send response to the outbound request.
+		_ = engineConn.SendResult(ctx, req.ID, map[string]string{"status": "ok"})
+		// Also send an inbound request from engine to plugin.
+		line := FormatRequest(100, "ze-plugin-callback:deliver-batch", json.RawMessage(`{"events":["e1"]}`))
+		_ = engineConn.writeLineWithContext(ctx, line)
+	}()
+
+	// Plugin sends an outbound call.
+	raw, err := mux.CallRPC(ctx, "ze-plugin-engine:declare-registration", nil)
+	require.NoError(t, err)
+	var result struct {
+		Status string `json:"status"`
+	}
+	require.NoError(t, json.Unmarshal(raw, &result))
+	assert.Equal(t, "ok", result.Status)
+
+	// Plugin should also receive the inbound request on Requests().
+	select {
+	case req := <-mux.Requests():
+		assert.Equal(t, uint64(100), req.ID)
+		assert.Equal(t, "ze-plugin-callback:deliver-batch", req.Method)
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for inbound request in mixed traffic")
+	}
+}
+
+// TestMuxConn_SendResultToInbound verifies that SendResult/SendOK/SendError
+// can respond to inbound requests received via Requests().
+//
+// VALIDATES: Plugin can respond to engine-initiated requests on a single connection.
+// PREVENTS: Deadlock or failure when responding to inbound requests.
+func TestMuxConn_SendResultToInbound(t *testing.T) {
+	t.Parallel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "pluginEnd", pluginEnd)
+	defer closePipe(t, "engineEnd", engineEnd)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	conn := NewConn(pluginEnd, pluginEnd)
+	mux := NewMuxConn(conn)
+	defer func() {
+		if err := mux.Close(); err != nil {
+			t.Logf("mux close: %v", err)
+		}
+	}()
+
+	engineConn := NewConn(engineEnd, engineEnd)
+
+	// Engine sends a request and expects a response.
+	responseCh := make(chan json.RawMessage, 1)
+	go func() {
+		raw, callErr := engineConn.CallRPC(ctx, "ze-plugin-callback:configure", nil)
+		if callErr != nil {
+			return
+		}
+		responseCh <- raw
+	}()
+
+	// Plugin receives the inbound request.
+	select {
+	case req := <-mux.Requests():
+		assert.Equal(t, "ze-plugin-callback:configure", req.Method)
+		// Respond via MuxConn.
+		require.NoError(t, mux.SendOK(ctx, req.ID))
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for inbound request")
+	}
+
+	// Engine should receive the response.
+	select {
+	case <-responseCh:
+		// Success -- engine got the response.
+	case <-ctx.Done():
+		t.Fatal("engine timed out waiting for response from plugin")
+	}
+}
+
 // TestMuxConn_UnexpectedID verifies that orphan responses don't crash or deadlock.
 //
 // VALIDATES: AC-9 -- MuxConn response ID mismatch (unexpected ID arrives); logged as warning; does not crash or deadlock.

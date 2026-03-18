@@ -1,0 +1,23 @@
+# Test: plugin hub config with multiple listen addresses
+# VALIDATES: leaf-list listen accepts multiple addresses
+# PREVENTS: Only first listen address being parsed
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    hub {
+        listen [ 127.0.0.1:12700 192.168.1.1:12700 ];
+        secret abcdefghijklmnopqrstuvwxyz012345;
+    }
+}
+bgp {
+    peer 127.0.0.1 {
+        router-id 1.2.3.4
+        local-address 127.0.0.1
+        local-as 1
+        peer-as 1
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze bgp validate -:stdin=ze-bgp
+expect=exit:code=0

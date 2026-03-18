@@ -323,28 +323,29 @@ pkg/plugin/rpc/
 pkg/plugin/sdk/
 └── sdk.go            # Plugin SDK — callback-based API for plugin authors
 
-internal/component/plugin/
-├── socketpair.go     # DualSocketPair (internal: net.Pipe, external: socketpair)
-└── rpc_plugin.go     # PluginConn (embeds *rpc.Conn, typed stage methods)
+internal/component/plugin/ipc/
+├── socketpair.go     # DualSocketPair (internal: net.Pipe)
+├── tls.go            # TLS transport, auth, PluginAcceptor (external)
+└── rpc.go            # PluginConn (typed stage methods, MuxConn shadowing)
 
 internal/yang/modules/
 ├── ze-plugin-engine.yang    # RPCs engine serves (12: startup, routes, dispatch, subscriptions, decode/encode)
 └── ze-plugin-callback.yang  # RPCs plugin serves (8: configure, deliver-event, bye, etc.)
 ```
 
-**Two-socket architecture:**
+**Transport:**
 
-| Socket | Engine Role | Plugin Role | RPCs |
-|--------|-------------|-------------|------|
-| A | Server | Client | declare-registration, declare-capabilities, ready, update-route, dispatch-command, subscribe/unsubscribe, decode/encode-nlri, decode-mp-reach/unreach, decode-update |
-| B | Client | Server | configure, share-registry, deliver-event, encode/decode-nlri, decode-capability, execute-command, bye |
+| Plugin Type | Transport | Connection Model |
+|-------------|-----------|------------------|
+| Internal (goroutine) | net.Pipe + DirectBridge | Dual connection (Socket A + B) |
+| External (subprocess) | TLS connect-back | Single MuxConn (bidirectional) |
 
 **5-stage startup preserved as typed RPCs:**
-1. Plugin calls `declare-registration` (Socket A)
-2. Engine calls `configure` (Socket B)
-3. Plugin calls `declare-capabilities` (Socket A)
-4. Engine calls `share-registry` (Socket B)
-5. Plugin calls `ready` (Socket A)
+1. Plugin calls `declare-registration`
+2. Engine calls `configure`
+3. Plugin calls `declare-capabilities`
+4. Engine calls `share-registry`
+5. Plugin calls `ready`
 
 ## Route Injection Flow
 

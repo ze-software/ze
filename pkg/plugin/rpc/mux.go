@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // ErrMuxConnClosed is returned when CallRPC is called on a closed MuxConn.
@@ -22,9 +23,12 @@ var ErrMuxConnClosed = fmt.Errorf("mux conn closed")
 // plugin flooding the engine with junk.
 const maxConsecutiveBadLines = 100
 
-// MuxConn wraps a *Conn to support concurrent CallRPC calls.
-// A background reader goroutine routes responses to callers by #<id> prefix,
-// eliminating the callMu serialization bottleneck in Conn.CallRPC.
+// MuxConn wraps a *Conn to support concurrent CallRPC calls and inbound
+// request dispatching on a single bidirectional connection.
+//
+// A background reader goroutine reads all incoming lines and routes them:
+//   - Responses (verb is "ok" or "error") are routed to waiting CallRPC callers by #<id>.
+//   - Requests (verb is a method name) are pushed to the Requests() channel.
 //
 // MuxConn owns the Conn's reader exclusively -- do not call ReadRequest
 // on the underlying Conn after creating a MuxConn.
@@ -34,6 +38,10 @@ type MuxConn struct {
 	// pending maps request ID (string) to a buffered channel for the response.
 	// Written by CallRPC, read+deleted by the background reader.
 	pending sync.Map
+
+	// requestCh receives inbound requests from the remote side.
+	// The readLoop pushes requests here when the verb is not "ok" or "error".
+	requestCh chan *Request
 
 	// done is closed when the background reader exits.
 	done chan struct{}
@@ -50,14 +58,38 @@ type MuxConn struct {
 }
 
 // NewMuxConn creates a MuxConn wrapping the given Conn.
-// Starts a background reader goroutine that routes responses by #<id> prefix.
+// Starts a background reader goroutine that routes responses by #<id> prefix
+// and inbound requests to the Requests() channel.
 func NewMuxConn(conn *Conn) *MuxConn {
 	m := &MuxConn{
-		conn: conn,
-		done: make(chan struct{}),
+		conn:      conn,
+		requestCh: make(chan *Request, 16),
+		done:      make(chan struct{}),
 	}
 	go m.readLoop()
 	return m
+}
+
+// Requests returns a channel of inbound requests from the remote side.
+// Requests are lines where the verb is a method name (not "ok" or "error").
+// The caller should read from this channel in a dispatch loop.
+func (m *MuxConn) Requests() <-chan *Request {
+	return m.requestCh
+}
+
+// SendResult sends a successful RPC response for an inbound request.
+func (m *MuxConn) SendResult(ctx context.Context, id uint64, data any) error {
+	return m.conn.SendResult(ctx, id, data)
+}
+
+// SendOK sends an empty successful RPC response for an inbound request.
+func (m *MuxConn) SendOK(ctx context.Context, id uint64) error {
+	return m.conn.SendOK(ctx, id)
+}
+
+// SendError sends an error RPC response for an inbound request.
+func (m *MuxConn) SendError(ctx context.Context, id uint64, message string) error {
+	return m.conn.SendError(ctx, id, message)
 }
 
 // Close stops the background reader and closes the underlying connection.
@@ -129,7 +161,13 @@ func (m *MuxConn) CallRPC(ctx context.Context, method string, params any) (json.
 //
 // Uses conn.readFrame() to consume from the persistent reader's channel,
 // ensuring only one goroutine ever reads from the underlying FrameReader.
+// Done returns a channel that is closed when the background reader exits.
+func (m *MuxConn) Done() <-chan struct{} {
+	return m.done
+}
+
 func (m *MuxConn) readLoop() {
+	defer close(m.requestCh) // Unblock ReadRequest callers.
 	defer close(m.done)
 
 	for {
@@ -165,29 +203,73 @@ func (m *MuxConn) readLoop() {
 			continue
 		}
 
-		// Look up and deliver to the waiting caller.
-		val, found := m.pending.LoadAndDelete(idStr)
-		if !found {
-			slog.Warn("mux conn: orphaned response", "id", idStr)
-			m.consecutiveBad++
-			if m.consecutiveBad > maxConsecutiveBadLines {
-				err := fmt.Errorf("mux conn: %d consecutive malformed lines, closing", m.consecutiveBad)
-				m.readerErr.Store(&err)
-				return
+		// Determine if this is a response or an inbound request.
+		// Responses have verb "ok" or "error"; requests have a method name.
+		verb, _, _ := strings.Cut(body, " ")
+		isResponse := verb == StatusOK || verb == StatusError
+
+		if isResponse {
+			// Route response to the waiting CallRPC caller.
+			val, found := m.pending.LoadAndDelete(idStr)
+			if !found {
+				slog.Warn("mux conn: orphaned response", "id", idStr)
+				m.consecutiveBad++
+				if m.consecutiveBad > maxConsecutiveBadLines {
+					err := fmt.Errorf("mux conn: %d consecutive malformed lines, closing", m.consecutiveBad)
+					m.readerErr.Store(&err)
+					return
+				}
+				continue
 			}
-			continue
+
+			ch, chOK := val.(chan []byte)
+			if !chOK {
+				continue
+			}
+
+			m.consecutiveBad = 0
+			ch <- []byte(body)
+		} else {
+			// Inbound request from the remote side -- parse and dispatch.
+			id, parseErr := strconv.ParseUint(idStr, 10, 64)
+			if parseErr != nil {
+				slog.Warn("mux conn: bad request ID", "id", idStr)
+				m.consecutiveBad++
+				if m.consecutiveBad > maxConsecutiveBadLines {
+					err := fmt.Errorf("mux conn: %d consecutive malformed lines, closing", m.consecutiveBad)
+					m.readerErr.Store(&err)
+					return
+				}
+				continue
+			}
+
+			_, payload, _ := strings.Cut(body, " ")
+			req := &Request{
+				ID:     id,
+				Method: verb,
+			}
+			if payload != "" {
+				req.Params = json.RawMessage(payload)
+			}
+
+			m.consecutiveBad = 0
+			if !m.sendRequest(req) {
+				slog.Warn("mux conn: request channel full, dropping inbound request",
+					"id", id, "method", verb)
+			}
 		}
+	}
+}
 
-		ch, ok := val.(chan []byte)
-		if !ok {
-			continue
-		}
-
-		// Valid response routed successfully -- reset bad counter.
-		m.consecutiveBad = 0
-
-		// Send the body (verb + payload) to the caller.
-		ch <- []byte(body)
+// sendRequest attempts a non-blocking send to requestCh. Returns false if the
+// channel is full (consumer is stalled). This prevents readLoop from blocking
+// and starving all pending CallRPC callers.
+func (m *MuxConn) sendRequest(req *Request) bool {
+	select {
+	case m.requestCh <- req:
+		return true
+	case <-time.After(time.Second):
+		return false
 	}
 }
 
@@ -197,13 +279,13 @@ func interpretResponse(body []byte) (json.RawMessage, error) {
 	s := string(body)
 	verb, payload, _ := strings.Cut(s, " ")
 
-	if verb == "ok" {
+	if verb == StatusOK {
 		if payload == "" {
 			return nil, nil
 		}
 		return json.RawMessage(payload), nil
 	}
-	if verb == "error" {
+	if verb == StatusError {
 		return nil, parseRPCError([]byte(payload))
 	}
 	return nil, fmt.Errorf("unexpected response verb %q", verb)

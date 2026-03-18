@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 )
 
 const (
@@ -47,9 +48,18 @@ type ProcessManager struct {
 	// Disabled processes (respawn limit exceeded)
 	disabled map[string]bool
 
+	// TLS acceptor for external plugin connect-back (nil = use socketpairs).
+	acceptor *ipc.PluginAcceptor
+
 	ctx    context.Context
 	cancel context.CancelFunc
 	mu     sync.RWMutex
+}
+
+// SetAcceptor sets the TLS acceptor for external plugin connect-back.
+// Must be called before StartWithContext.
+func (pm *ProcessManager) SetAcceptor(a *ipc.PluginAcceptor) {
+	pm.acceptor = a
 }
 
 // NewProcessManager creates a new process manager.
@@ -74,6 +84,10 @@ func (pm *ProcessManager) StartWithContext(ctx context.Context) error {
 
 	for _, cfg := range pm.configs {
 		proc := NewProcess(cfg)
+		// Pass TLS acceptor to external plugins for connect-back.
+		if pm.acceptor != nil && !cfg.Internal {
+			proc.SetAcceptor(pm.acceptor)
+		}
 		if err := proc.StartWithContext(pm.ctx); err != nil {
 			// Stop already started processes
 			pm.Stop()
@@ -100,6 +114,11 @@ func (pm *ProcessManager) Stop() {
 	// For external plugins: context cancellation kills the subprocess.
 	if pm.cancel != nil {
 		pm.cancel()
+	}
+
+	// Stop TLS acceptor if running (closes listener, cancels accept loop).
+	if pm.acceptor != nil {
+		pm.acceptor.Stop()
 	}
 
 	pm.mu.Lock()
@@ -285,8 +304,11 @@ func (pm *ProcessManager) Respawn(name string) error {
 		cancel()
 	}
 
-	// Start new process
+	// Start new process with acceptor if configured.
 	newProc := NewProcess(*cfg)
+	if pm.acceptor != nil && !cfg.Internal {
+		newProc.SetAcceptor(pm.acceptor)
+	}
 	if err := newProc.StartWithContext(pm.ctx); err != nil {
 		return err
 	}

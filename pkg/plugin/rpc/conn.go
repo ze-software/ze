@@ -154,7 +154,11 @@ func (c *Conn) writeLineWithContext(ctx context.Context, line []byte) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	deadline := writeDeadline(ctx)
+	dl, hasDeadline := ctx.Deadline()
+	deadline := dl
+	if !hasDeadline {
+		deadline = time.Now().Add(defaultWriteDeadline)
+	}
 
 	c.mu.Lock()
 	if err := c.writeConn.SetWriteDeadline(deadline); err != nil {
@@ -165,13 +169,23 @@ func (c *Conn) writeLineWithContext(ctx context.Context, line []byte) error {
 	clearErr := c.writeConn.SetWriteDeadline(time.Time{})
 	c.mu.Unlock()
 
+	if writeErr != nil {
+		// When the write deadline came from the context, a write timeout
+		// IS a context deadline exceeded. Check ctx.Err() but also handle
+		// the race where the kernel fires the write timeout before Go's
+		// context timer updates ctx.Err().
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+		if hasDeadline {
+			return context.DeadlineExceeded
+		}
+		return writeErr
+	}
 	if clearErr != nil {
 		return fmt.Errorf("clear write deadline: %w", clearErr)
 	}
-	if writeErr != nil && ctx.Err() != nil {
-		return ctx.Err()
-	}
-	return writeErr
+	return nil
 }
 
 // ReadRequest reads the next incoming RPC request from the read connection.
@@ -283,7 +297,11 @@ func (c *Conn) CallBatchRPC(ctx context.Context, events [][]byte) (json.RawMessa
 // The deadline set, write, and deadline clear are all performed under c.mu
 // to prevent interleaving when multiple goroutines write concurrently.
 func (c *Conn) writeBatchWithDeadline(ctx context.Context, id uint64, events [][]byte) error {
-	deadline := writeDeadline(ctx)
+	dl, hasDeadline := ctx.Deadline()
+	deadline := dl
+	if !hasDeadline {
+		deadline = time.Now().Add(defaultWriteDeadline)
+	}
 
 	c.mu.Lock()
 	if err := c.writeConn.SetWriteDeadline(deadline); err != nil {
@@ -294,14 +312,20 @@ func (c *Conn) writeBatchWithDeadline(ctx context.Context, id uint64, events [][
 	clearErr := c.writeConn.SetWriteDeadline(time.Time{})
 	c.mu.Unlock()
 
+	// Match writeLineWithContext: prioritize writeErr, translate to ctx error.
+	if writeErr != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return ctxErr
+		}
+		if hasDeadline {
+			return context.DeadlineExceeded
+		}
+		return writeErr
+	}
 	if clearErr != nil {
 		return fmt.Errorf("clear write deadline: %w", clearErr)
 	}
-	// Translate timeout to context error when context is also done.
-	if writeErr != nil && ctx.Err() != nil {
-		return ctx.Err()
-	}
-	return writeErr
+	return nil
 }
 
 // WriteRawFrame writes pre-framed data (including newline terminator) directly.
@@ -323,13 +347,13 @@ func parseResponse(data []byte, expectedID uint64) (json.RawMessage, error) {
 		return nil, fmt.Errorf("response id mismatch: sent %d, got %d", expectedID, id)
 	}
 
-	if verb == "ok" {
+	if verb == StatusOK {
 		if len(payload) == 0 {
 			return nil, nil
 		}
 		return json.RawMessage(payload), nil
 	}
-	if verb == "error" {
+	if verb == StatusError {
 		return nil, parseRPCError(payload)
 	}
 	return nil, fmt.Errorf("unexpected response verb %q", verb)

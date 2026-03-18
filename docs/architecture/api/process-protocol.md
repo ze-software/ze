@@ -770,14 +770,16 @@ between SDK bridge activation and engine readiness.
 | `internal/component/plugin/server_startup.go` | `wireBridgeDispatch()` called before Stage 5 OK |
 | `pkg/plugin/sdk/sdk.go` | Bridge discovery, `callEngineRaw()` bridge path, `SetReady()` |
 
-### Mode 2: Subprocess (fork/exec)
+### Mode 2: Subprocess (TLS connect-back)
 
-For external plugins (Python, Rust, etc.) — runs as separate process:
+For external plugins (Python, Rust, etc.) -- runs as separate process:
 
-1. `startExternal()` creates real Unix `socketpair` FDs
-2. Subprocess inherits FDs via `ZE_ENGINE_FD`/`ZE_CALLBACK_FD` env vars
-3. No `DirectBridge` — always uses JSON-RPC over sockets
-4. Same YANG RPC protocol, same 5-stage startup
+1. Engine starts TLS listener from `plugin { hub { listen ...; secret ...; } }` config
+2. `startExternalTLS()` forks child with `ZE_PLUGIN_HUB_HOST`/`ZE_PLUGIN_HUB_PORT`/`ZE_PLUGIN_TOKEN` env vars
+3. Child connects back to engine via TLS, authenticates with `#0 auth {"token":"...","name":"..."}`
+4. Single bidirectional connection using `MuxConn` (responses routed by `#id`, requests via `Requests()` channel)
+5. No `DirectBridge` -- always uses JSON-RPC over TLS
+6. Same YANG RPC protocol, same 5-stage startup
 
 ### Benefits of Long-Lived Design
 
@@ -1488,94 +1490,42 @@ Future: Plugins will declare decodable capabilities via `declare decode capabili
 
 ---
 
-## Connection Handoff (Listen Socket Passing)
+## Plugin Transport
 
-Plugins can request listen sockets from the engine via SCM_RIGHTS fd passing.
-The engine creates the socket, binds it, and passes the file descriptor to the
-plugin over the existing Unix socket pair. This is similar to systemd socket
-activation.
+### Internal Plugins (goroutine)
 
-### When to Use
+Transport: `net.Pipe()` for 5-stage startup, then `DirectBridge` for hot path.
+No network, no TLS, no auth. Fastest path.
 
-- Plugin needs to accept TCP connections (e.g., BGP listen on port 179)
-- Engine should own the socket lifecycle (bind on privileged port, manage across restarts)
-- Plugin should only receive connections, not manage socket creation
+### External Plugins (TLS connect-back)
 
-### How It Works
+Transport: single TLS connection per plugin.
 
-1. Plugin declares `connection-handlers` in Stage 1 registration
-2. Engine creates listen socket(s) and sends fd(s) via SCM_RIGHTS on Socket B
-3. Plugin receives fd(s) between Stage 1 OK and Stage 2 (config delivery)
-4. After Stage 5 (ready), plugin calls `Accept()` on the received listener
+1. Engine reads `plugin { hub { listen ...; secret ...; } }` from config
+2. Engine starts TLS listener(s), creates `PluginAcceptor`
+3. Engine forks child with `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_TOKEN` env vars
+4. Child connects to engine via TLS, sends `#0 auth {"token":"...","name":"..."}`
+5. Engine authenticates (constant-time token comparison, plugin name validation)
+6. Single `MuxConn` handles bidirectional RPC (responses by `#id`, requests via `Requests()` channel)
+7. Standard 5-stage handshake proceeds over the same connection
 
-### Configuration (Plugin Side)
+### Config
 
-#### Go SDK
-
-```go
-p := sdk.NewFromEnv("my-plugin")
-reg := sdk.Registration{
-    ConnectionHandlers: []sdk.ConnectionHandlerDecl{
-        {Type: "listen", Port: 179, Address: "0.0.0.0"},
-    },
-}
-p.Run(ctx, reg)
-
-// After startup, listeners are available:
-for _, ln := range p.Listeners() {
-    go acceptLoop(ln)
-}
-```
-
-The SDK auto-receives listener fds between Stage 1 and Stage 2. Access them
-via `p.Listeners()` after `Run()` completes startup.
-
-#### Python SDK (ze_api.py)
-
-```python
-from ze_api import API
-
-api = API()
-api.declare_connection_handler('listen', port=179, address='0.0.0.0')
-api.declare_done()
-
-# Receive listener fd — must be called after declare_done(), before wait_for_config()
-listener = api.receive_listener()
-
-api.wait_for_config()
-api.capability_done()
-api.wait_for_registry()
-api.ready()
-
-# Accept connections on the received listener
-conn, addr = listener.accept()
-```
-
-### Connection Handler Fields
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `type` | string | Yes | `"listen"` (other types reserved for future use) |
-| `port` | integer | Yes | TCP port (1–65535) |
-| `address` | string | No | Bind address (empty = all interfaces) |
-
-### Limitations
-
-- Only external plugins (real Unix sockets) — internal plugins use `net.Pipe` which
-  does not support SCM_RIGHTS
-- Text-mode plugins do not support connection-handoff (connection-handlers are
-  ignored with a warning)
-- Port 0 is not supported (engine validates port range 1–65535)
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `plugin.hub.listen` | leaf-list | `127.0.0.1:12700` | TLS listener addresses |
+| `plugin.hub.secret` | string | (required, min 32 chars) | Auth token |
 
 ### Files
 
 | File | Purpose |
 |------|---------|
-| `internal/component/plugin/ipc/fdpass.go` | `SendFD()` / `ReceiveFD()` over Unix sockets |
-| `internal/component/plugin/server/startup.go` | `handoffListenSockets()` — engine-side handoff |
-| `pkg/plugin/sdk/sdk.go` | `ReceiveListener()`, `Listeners()` — SDK auto-receive |
-| `test/scripts/ze_api.py` | `declare_connection_handler()`, `receive_listener()` — Python SDK |
+| `internal/component/plugin/ipc/tls.go` | TLS listener, auth, cert gen, PluginAcceptor |
+| `internal/component/plugin/ipc/rpc.go` | PluginConn with MuxConn shadowing for single-conn |
+| `internal/component/plugin/ipc/socketpair.go` | net.Pipe for internal plugins |
+| `internal/component/plugin/process/process.go` | startExternalTLS, SetSingleConn, InitConns |
+| `pkg/plugin/sdk/sdk.go` | NewFromTLSEnv, NewWithSingleConn |
 
 ---
 
-**Last Updated:** 2026-03-09
+**Last Updated:** 2026-03-18

@@ -25,12 +25,13 @@ package sdk
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net"
 	"os"
-	"strconv"
 	"sync"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -45,7 +46,7 @@ type Plugin struct {
 	callbackConn *rpc.Conn    // Socket B: engine -> plugin RPCs
 	engineMux    *rpc.MuxConn // Multiplexed Socket A for concurrent post-startup RPCs
 
-	// Underlying Socket B net.Conn for SCM_RIGHTS fd passing (ReceiveListener).
+	// Underlying Socket B net.Conn (dual-conn mode only).
 	rawCallbackB net.Conn
 
 	// Direct transport bridge for internal plugins (nil for external).
@@ -143,53 +144,94 @@ func connFromFD(fd int, name string) (net.Conn, error) {
 	return conn, nil
 }
 
-// NewFromEnv creates a plugin by reading ZE_ENGINE_FD and ZE_CALLBACK_FD
-// environment variables. This is the primary constructor for external plugins
-// launched as subprocesses by the ze engine.
+// NewFromEnv creates a plugin by reading ZE_PLUGIN_HUB_HOST, ZE_PLUGIN_HUB_PORT, and
+// ZE_PLUGIN_TOKEN environment variables. Connects to the engine via TLS.
 func NewFromEnv(name string) (*Plugin, error) {
-	engineFD, err := envFD("ZE_ENGINE_FD")
-	if err != nil {
-		return nil, err
-	}
-	callbackFD, err := envFD("ZE_CALLBACK_FD")
-	if err != nil {
-		return nil, err
-	}
-	return NewFromFDs(name, engineFD, callbackFD)
+	return NewFromTLSEnv(name)
 }
 
-func envFD(name string) (int, error) {
-	s := os.Getenv(name)
-	if s == "" {
-		return 0, fmt.Errorf("environment variable %s not set", name)
+// Default plugin transport address (matches hub config default listen address).
+const (
+	DefaultPluginHost = "127.0.0.1"
+	DefaultPluginPort = "12700"
+)
+
+// NewFromTLSEnv creates a plugin by reading ZE_PLUGIN_HUB_HOST, ZE_PLUGIN_HUB_PORT,
+// and ZE_PLUGIN_TOKEN env vars. Connects to the engine via TLS, authenticates,
+// and returns a single-conn plugin.
+// ZE_PLUGIN_HUB_HOST defaults to 127.0.0.1, ZE_PLUGIN_HUB_PORT defaults to 12700.
+// ZE_PLUGIN_TOKEN is required.
+func NewFromTLSEnv(name string) (*Plugin, error) {
+	host := os.Getenv("ZE_PLUGIN_HUB_HOST")
+	if host == "" {
+		host = DefaultPluginHost
 	}
-	fd, err := strconv.Atoi(s)
+	port := os.Getenv("ZE_PLUGIN_HUB_PORT")
+	if port == "" {
+		port = DefaultPluginPort
+	}
+	token := os.Getenv("ZE_PLUGIN_TOKEN")
+	if token == "" {
+		return nil, fmt.Errorf("ZE_PLUGIN_TOKEN must be set")
+	}
+
+	addr := net.JoinHostPort(host, port)
+	tlsConf := &tls.Config{
+		InsecureSkipVerify: true, //nolint:gosec // engine uses self-signed cert
+		MinVersion:         tls.VersionTLS13,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	conn, err := (&tls.Dialer{Config: tlsConf}).DialContext(ctx, "tcp", addr)
 	if err != nil {
-		return 0, fmt.Errorf("environment variable %s: %w", name, err)
+		return nil, fmt.Errorf("TLS dial %s: %w", addr, err)
 	}
-	return fd, nil
+
+	// Send auth request directly (no rpc.Conn to avoid reader goroutine leak).
+	if authErr := ipc.SendAuth(ctx, conn, token, name); authErr != nil {
+		conn.Close() //nolint:errcheck,gosec // cleanup on auth failure
+		return nil, fmt.Errorf("auth: %w", authErr)
+	}
+
+	// Create ONE rpc.Conn for this connection. ReadRequest starts the
+	// persistent reader. MuxConn (created in NewWithSingleConn) reuses
+	// the same reader via sync.Once -- no competing goroutines.
+	engineConn := rpc.NewConn(conn, conn)
+	resp, readErr := engineConn.ReadRequest(ctx)
+	if readErr != nil {
+		conn.Close() //nolint:errcheck,gosec // cleanup on read failure
+		return nil, fmt.Errorf("read auth response: %w", readErr)
+	}
+	if resp.Method == "error" {
+		conn.Close() //nolint:errcheck,gosec // cleanup on auth rejection
+		return nil, fmt.Errorf("auth rejected: %s", string(resp.Params))
+	}
+
+	// Pass the existing rpc.Conn to MuxConn (reuses reader, no new goroutine).
+	engineMux := rpc.NewMuxConn(engineConn)
+	return &Plugin{
+		name:       name,
+		engineConn: engineConn,
+		engineMux:  engineMux,
+	}, nil
 }
 
-// ReceiveListener receives a listen socket fd from the engine via SCM_RIGHTS
-// on the callback connection (Socket B) and returns it as a net.Listener.
-// This is used after Stage 1 when the plugin declared connection-handlers.
-// Only works for external plugins (real Unix sockets, not net.Pipe).
-func (p *Plugin) ReceiveListener() (net.Listener, error) {
-	received, err := ipc.ReceiveFD(p.rawCallbackB)
-	if err != nil {
-		return nil, fmt.Errorf("receive listener fd: %w", err)
+// NewWithSingleConn creates a plugin with a single bidirectional connection.
+// Used for TLS external plugins. MuxConn is created immediately to handle
+// bidirectional RPC from the start (both engine calls and callbacks).
+func NewWithSingleConn(name string, conn net.Conn) *Plugin {
+	engineConn := rpc.NewConn(conn, conn)
+	engineMux := rpc.NewMuxConn(engineConn)
+	return &Plugin{
+		name:       name,
+		engineConn: engineConn,
+		engineMux:  engineMux,
 	}
-	ln, err := net.FileListener(received)
-	received.Close() //nolint:errcheck,gosec // fd ownership transferred to listener
-	if err != nil {
-		return nil, fmt.Errorf("convert fd to listener: %w", err)
-	}
-	return ln, nil
 }
 
-// Listeners returns the listen sockets received from the engine during startup.
-// The engine creates these sockets and sends them via SCM_RIGHTS between
-// Stage 1 and Stage 2, one per connection-handler declared in the registration.
+// Listeners returns listen sockets received from the engine during startup.
 // Returns nil if no connection-handlers were declared.
 func (p *Plugin) Listeners() []net.Listener {
 	return p.listeners
@@ -214,11 +256,12 @@ func (p *Plugin) Close() error {
 		}
 	}
 	engineErr := p.engineConn.Close()
-	callbackErr := p.callbackConn.Close()
-	if engineErr != nil {
-		return engineErr
+	if p.callbackConn != nil {
+		if callbackErr := p.callbackConn.Close(); callbackErr != nil && engineErr == nil {
+			return callbackErr
+		}
 	}
-	return callbackErr
+	return engineErr
 }
 
 // Run executes the 5-stage startup protocol and enters the event loop.
@@ -234,17 +277,6 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 	// Stage 1: declare-registration
 	if err := p.callEngine(ctx, "ze-plugin-engine:declare-registration", &reg); err != nil {
 		return fmt.Errorf("stage 1 (declare-registration): %w", err)
-	}
-
-	// Auto-receive listen socket fds sent by engine between Stage 1 and Stage 2.
-	// The engine sends one fd per connection-handler via SCM_RIGHTS on Socket B.
-	// Must happen before Stage 2 (which starts FrameReader on callbackConn).
-	for range reg.ConnectionHandlers {
-		ln, err := p.ReceiveListener()
-		if err != nil {
-			return fmt.Errorf("receive connection handler listener: %w", err)
-		}
-		p.listeners = append(p.listeners, ln)
 	}
 
 	// Stage 2: wait for configure from engine
@@ -279,9 +311,11 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 	}
 
 	// Startup complete: create MuxConn for concurrent engine calls.
-	// The 5-stage startup uses engineConn.CallRPC (sequential, one-at-a-time).
-	// MuxConn takes ownership of the reader for concurrent multiplexed RPCs.
-	p.engineMux = rpc.NewMuxConn(p.engineConn)
+	// In single-conn mode, engineMux was created in the constructor.
+	// In dual-conn mode, create it now from the sequential engineConn.
+	if p.engineMux == nil {
+		p.engineMux = rpc.NewMuxConn(p.engineConn)
+	}
 
 	// Activate direct transport bridge if discovered during construction.
 	// Register the plugin's event handler so the engine can call it directly

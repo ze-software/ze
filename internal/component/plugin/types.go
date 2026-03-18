@@ -253,6 +253,13 @@ func NewErrorResponse(message string) *Response {
 	}
 }
 
+// HubConfig holds plugin transport configuration.
+// Extracted from: plugin { hub { listen ...; secret ...; } }.
+type HubConfig struct {
+	Listen []string // TLS listener addresses (host:port)
+	Secret string   `json:"-"` // Auth token for plugin connections
+}
+
 // PluginConfig holds plugin configuration.
 type PluginConfig struct {
 	Name           string        // Plugin identifier

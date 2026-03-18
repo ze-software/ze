@@ -14,9 +14,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
-// serveOne reads one request from Socket B, dispatches it, and sends the response.
+// serveOne reads one request from the callback path, dispatches it, and sends the response.
+// In single-conn mode, reads from engineMux.Requests(). In dual-conn mode, reads from callbackConn.
 func (p *Plugin) serveOne(ctx context.Context, expectedMethod string, handler func(json.RawMessage) error) error {
-	req, err := p.callbackConn.ReadRequest(ctx)
+	req, err := p.readCallback(ctx)
 	if err != nil {
 		return fmt.Errorf("read request: %w", err)
 	}
@@ -26,10 +27,55 @@ func (p *Plugin) serveOne(ctx context.Context, expectedMethod string, handler fu
 	}
 
 	if err := handler(req.Params); err != nil {
-		return p.callbackConn.SendError(ctx, req.ID, err.Error())
+		return p.sendCallbackError(ctx, req.ID, err.Error())
 	}
 
-	return p.callbackConn.SendOK(ctx, req.ID)
+	return p.sendCallbackOK(ctx, req.ID)
+}
+
+// readCallback reads the next inbound request from the engine.
+// In single-conn mode, reads from engineMux.Requests() channel.
+// In dual-conn mode, reads from callbackConn.
+func (p *Plugin) readCallback(ctx context.Context) (*rpc.Request, error) {
+	if p.callbackConn == nil {
+		// Single-conn mode: read from MuxConn's request channel.
+		select {
+		case req, ok := <-p.engineMux.Requests():
+			if !ok {
+				return nil, rpc.ErrMuxConnClosed
+			}
+			return req, nil
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-p.engineMux.Done():
+			return nil, rpc.ErrMuxConnClosed
+		}
+	}
+	return p.callbackConn.ReadRequest(ctx)
+}
+
+// sendCallbackOK sends a successful response to an engine-initiated request.
+func (p *Plugin) sendCallbackOK(ctx context.Context, id uint64) error {
+	if p.callbackConn == nil {
+		return p.engineMux.SendOK(ctx, id)
+	}
+	return p.callbackConn.SendOK(ctx, id)
+}
+
+// sendCallbackError sends an error response to an engine-initiated request.
+func (p *Plugin) sendCallbackError(ctx context.Context, id uint64, message string) error {
+	if p.callbackConn == nil {
+		return p.engineMux.SendError(ctx, id, message)
+	}
+	return p.callbackConn.SendError(ctx, id, message)
+}
+
+// sendCallbackResult sends a result response to an engine-initiated request.
+func (p *Plugin) sendCallbackResult(ctx context.Context, id uint64, data any) error {
+	if p.callbackConn == nil {
+		return p.engineMux.SendResult(ctx, id, data)
+	}
+	return p.callbackConn.SendResult(ctx, id, data)
 }
 
 // isConnectionClosed reports whether err indicates a closed connection.
@@ -43,15 +89,16 @@ func isConnectionClosed(err error) bool {
 	return strings.Contains(err.Error(), "use of closed network connection")
 }
 
-// eventLoop handles runtime RPCs from the engine on Socket B.
+// eventLoop handles runtime RPCs from the engine.
+// In single-conn mode, reads from engineMux.Requests(). In dual-conn, reads from callbackConn.
 func (p *Plugin) eventLoop(ctx context.Context) error {
 	for {
-		req, err := p.callbackConn.ReadRequest(ctx)
+		req, err := p.readCallback(ctx)
 		if err != nil {
 			// Context canceled or connection closed = clean shutdown.
 			// The engine closes the socket to signal internal plugins to exit;
 			// this races with context cancellation, so check both.
-			if ctx.Err() == nil && !isConnectionClosed(err) {
+			if ctx.Err() == nil && !isConnectionClosed(err) && !errors.Is(err, rpc.ErrMuxConnClosed) {
 				return fmt.Errorf("event loop read: %w", err)
 			}
 			return nil //nolint:nilerr // EOF/context-cancel during shutdown is not an error
@@ -73,15 +120,15 @@ func (p *Plugin) dispatchCallback(ctx context.Context, req *rpc.Request) error {
 	switch req.Method {
 	case "ze-plugin-callback:deliver-event":
 		if handleErr := p.handleDeliverEvent(req.Params); handleErr != nil {
-			return p.callbackConn.SendError(ctx, req.ID, handleErr.Error())
+			return p.sendCallbackError(ctx, req.ID, handleErr.Error())
 		}
-		return p.callbackConn.SendOK(ctx, req.ID)
+		return p.sendCallbackOK(ctx, req.ID)
 
 	case "ze-plugin-callback:deliver-batch":
 		if handleErr := p.handleDeliverBatch(req.Params); handleErr != nil {
-			return p.callbackConn.SendError(ctx, req.ID, handleErr.Error())
+			return p.sendCallbackError(ctx, req.ID, handleErr.Error())
 		}
-		return p.callbackConn.SendOK(ctx, req.ID)
+		return p.sendCallbackOK(ctx, req.ID)
 
 	case "ze-plugin-callback:encode-nlri":
 		return p.handleNLRICallback(ctx, req, p.encodeNLRIHandler())
@@ -110,13 +157,13 @@ func (p *Plugin) dispatchCallback(ctx context.Context, req *rpc.Request) error {
 
 	// Ze's fail-on-unknown rule: reject unknown methods with an error response.
 	errMsg := fmt.Sprintf("unknown method: %s", req.Method)
-	return p.callbackConn.SendError(ctx, req.ID, errMsg)
+	return p.sendCallbackError(ctx, req.ID, errMsg)
 }
 
 // handleByeAndRespond handles bye by responding first, then invoking callback.
 func (p *Plugin) handleByeAndRespond(ctx context.Context, req *rpc.Request) error {
 	// Send response before invoking callback
-	if err := p.callbackConn.SendOK(ctx, req.ID); err != nil {
+	if err := p.sendCallbackOK(ctx, req.ID); err != nil {
 		return err
 	}
 
@@ -232,15 +279,15 @@ func (p *Plugin) handleDeliverBatch(params json.RawMessage) error {
 // a handler function, and sending either the result or an error response.
 func (p *Plugin) handleNLRICallback(ctx context.Context, req *rpc.Request, handler func(json.RawMessage) (any, error)) error {
 	if handler == nil {
-		return p.callbackConn.SendError(ctx, req.ID, req.Method+" not supported")
+		return p.sendCallbackError(ctx, req.ID, req.Method+" not supported")
 	}
 
 	result, err := handler(req.Params)
 	if err != nil {
-		return p.callbackConn.SendError(ctx, req.ID, err.Error())
+		return p.sendCallbackError(ctx, req.ID, err.Error())
 	}
 
-	return p.callbackConn.SendResult(ctx, req.ID, result)
+	return p.sendCallbackResult(ctx, req.ID, result)
 }
 
 func (p *Plugin) encodeNLRIHandler() func(json.RawMessage) (any, error) {
@@ -321,20 +368,20 @@ func (p *Plugin) handleExecuteCommand(ctx context.Context, req *rpc.Request) err
 	p.mu.Unlock()
 
 	if fn == nil {
-		return p.callbackConn.SendError(ctx, req.ID, "execute-command not supported")
+		return p.sendCallbackError(ctx, req.ID, "execute-command not supported")
 	}
 
 	var input rpc.ExecuteCommandInput
 	if err := json.Unmarshal(req.Params, &input); err != nil {
-		return p.callbackConn.SendError(ctx, req.ID, fmt.Sprintf("unmarshal execute-command: %v", err))
+		return p.sendCallbackError(ctx, req.ID, fmt.Sprintf("unmarshal execute-command: %v", err))
 	}
 
 	status, data, err := fn(input.Serial, input.Command, input.Args, input.Peer)
 	if err != nil {
-		return p.callbackConn.SendError(ctx, req.ID, err.Error())
+		return p.sendCallbackError(ctx, req.ID, err.Error())
 	}
 
-	return p.callbackConn.SendResult(ctx, req.ID, &rpc.ExecuteCommandOutput{
+	return p.sendCallbackResult(ctx, req.ID, &rpc.ExecuteCommandOutput{
 		Status: status,
 		Data:   data,
 	})
@@ -346,19 +393,19 @@ func (p *Plugin) handleExecuteCommand(ctx context.Context, req *rpc.Request) err
 func (p *Plugin) handleConfigRPC(ctx context.Context, req *rpc.Request, handler func(json.RawMessage) error) error {
 	if handler == nil {
 		// No handler = graceful no-op (not all plugins care about config).
-		return p.callbackConn.SendResult(ctx, req.ID, &struct {
+		return p.sendCallbackResult(ctx, req.ID, &struct {
 			Status string `json:"status"`
 		}{Status: rpc.StatusOK})
 	}
 
 	if err := handler(req.Params); err != nil {
-		return p.callbackConn.SendResult(ctx, req.ID, &struct {
+		return p.sendCallbackResult(ctx, req.ID, &struct {
 			Status string `json:"status"`
 			Error  string `json:"error,omitempty"`
 		}{Status: rpc.StatusError, Error: err.Error()})
 	}
 
-	return p.callbackConn.SendResult(ctx, req.ID, &struct {
+	return p.sendCallbackResult(ctx, req.ID, &struct {
 		Status string `json:"status"`
 	}{Status: rpc.StatusOK})
 }
@@ -408,16 +455,16 @@ func (p *Plugin) handleValidateOpen(ctx context.Context, req *rpc.Request) error
 
 	if fn == nil {
 		// No handler = accept (no-op).
-		return p.callbackConn.SendResult(ctx, req.ID, &rpc.ValidateOpenOutput{Accept: true})
+		return p.sendCallbackResult(ctx, req.ID, &rpc.ValidateOpenOutput{Accept: true})
 	}
 
 	var input rpc.ValidateOpenInput
 	if err := json.Unmarshal(req.Params, &input); err != nil {
-		return p.callbackConn.SendResult(ctx, req.ID, &rpc.ValidateOpenOutput{
+		return p.sendCallbackResult(ctx, req.ID, &rpc.ValidateOpenOutput{
 			Accept: false, Reason: fmt.Sprintf("unmarshal validate-open: %v", err),
 		})
 	}
 
 	output := fn(&input)
-	return p.callbackConn.SendResult(ctx, req.ID, output)
+	return p.sendCallbackResult(ctx, req.ID, output)
 }

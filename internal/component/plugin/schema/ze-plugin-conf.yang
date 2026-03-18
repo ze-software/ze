@@ -14,6 +14,20 @@ module ze-plugin-conf {
     container plugin {
         description "Plugin configuration";
 
+        container hub {
+            description "Plugin transport and auth configuration";
+
+            leaf-list listen {
+                type string;
+                description "TLS listener addresses (host:port)";
+            }
+
+            leaf secret {
+                type string;
+                description "Auth token for plugin connections";
+            }
+        }
+
         list external {
             key "name";
             description "External plugin process";
@@ -58,8 +72,6 @@ module ze-plugin-conf {
             leaf respawn { type boolean; }
             leaf terminate { type boolean; }
             leaf cli { type boolean; }
-            leaf pipename { type string; }
-            leaf socketname { type string; }
         }
     }
 }

@@ -118,6 +118,9 @@ type Config struct {
 	// ConfiguredFamilies lists all address families configured on peers.
 	// Used for deferred auto-loading of family plugins after explicit plugins register.
 	ConfiguredFamilies []string
+
+	// Hub holds TLS transport config for external plugins (nil = no TLS listener).
+	Hub *plugin.HubConfig
 }
 
 // PluginConfig holds plugin configuration.
@@ -583,6 +586,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		apiConfig := &pluginserver.ServerConfig{
 			ConfigPath:         r.config.ConfigPath,
 			ConfiguredFamilies: r.config.ConfiguredFamilies,
+			Hub:                r.config.Hub,
 			RPCFallback:        bgpserver.CodecRPCHandler,
 			CommitManager:      transaction.NewCommitManager(),
 		}

@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
 // Related: rpc.go — typed RPC over socket pairs
-// Related: fdpass.go — SCM_RIGHTS fd passing over Unix sockets
+// Related: tls.go — TLS transport for external plugins
 
 package ipc
 

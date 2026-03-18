@@ -1,6 +1,7 @@
 // Design: docs/architecture/config/syntax.md — config file loading and reactor creation
 // Detail: loader_routes.go — BGP route type conversion
 // Detail: loader_prefix.go — prefix expansion for route splitting
+// Detail: plugins.go — plugin extraction from config tree
 
 package bgpconfig
 
@@ -413,6 +414,17 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		}
 	}
 
+	// Extract hub config for TLS plugin transport.
+	hubConfig, hubErr := ExtractHubConfig(tree)
+	if hubErr != nil {
+		return nil, fmt.Errorf("hub config: %w", hubErr)
+	}
+	// Convert to pointer: nil when not configured (empty Secret).
+	var hubPtr *plugin.HubConfig
+	if hubConfig.Secret != "" {
+		hubPtr = &hubConfig
+	}
+
 	// Build reactor config
 	reactorCfg := &reactor.Config{
 		ListenAddr:         listen,
@@ -423,6 +435,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		MaxSessions:        env.TCP.Attempts, // tcp.attempts: exit after N sessions (0=unlimited)
 		ConfiguredFamilies: configuredFamilies,
 		Plugins:            plugins,
+		Hub:                hubPtr,
 		RecentUpdateMax:    env.Reactor.CacheMax,
 	}
 

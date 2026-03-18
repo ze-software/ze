@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/syntax.md — BGP plugin extraction from config
+// Overview: loader.go — reactor loading calls plugin extraction
 
 package bgpconfig
 
@@ -82,6 +83,43 @@ func ExtractPluginsFromTree(tree *config.Tree) ([]reactor.PluginConfig, error) {
 	}
 
 	return plugins, nil
+}
+
+// minTokenLength is the minimum length for hub auth tokens.
+const minTokenLength = 32
+
+// ExtractHubConfig extracts plugin hub transport config from a parsed config tree.
+// Returns zero-value HubConfig with empty Secret if no hub block is present.
+// Returns error if secret is configured but too short (minimum 32 characters).
+// Reads from: plugin { hub { listen ...; secret ...; } }.
+func ExtractHubConfig(tree *config.Tree) (plugin.HubConfig, error) {
+	pluginContainer := tree.GetContainer("plugin")
+	if pluginContainer == nil {
+		return plugin.HubConfig{}, nil
+	}
+	hubContainer := pluginContainer.GetContainer("hub")
+	if hubContainer == nil {
+		return plugin.HubConfig{}, nil
+	}
+
+	secret, hasSecret := hubContainer.Get("secret")
+	if !hasSecret || secret == "" {
+		return plugin.HubConfig{}, nil
+	}
+
+	if len(secret) < minTokenLength {
+		return plugin.HubConfig{}, fmt.Errorf("hub secret too short: minimum %d characters, got %d", minTokenLength, len(secret))
+	}
+
+	hub := plugin.HubConfig{
+		Secret: secret,
+	}
+
+	if listen, ok := hubContainer.Get("listen"); ok && listen != "" {
+		hub.Listen = strings.Fields(listen)
+	}
+
+	return hub, nil
 }
 
 // extractInlinePluginsFromMap finds inline plugins in the resolved bgpTree map.

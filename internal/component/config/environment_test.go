@@ -60,10 +60,6 @@ func TestLoadEnvironmentDefaults(t *testing.T) {
 	if env.API.Encoder != "json" {
 		t.Errorf("API.Encoder = %q, want %q", env.API.Encoder, "json")
 	}
-	const defaultSocketName = "ze-bgp"
-	if env.API.SocketName != defaultSocketName {
-		t.Errorf("API.SocketName = %q, want %q", env.API.SocketName, defaultSocketName)
-	}
 }
 
 func TestLoadEnvironmentFromEnv(t *testing.T) {
@@ -71,8 +67,6 @@ func TestLoadEnvironmentFromEnv(t *testing.T) {
 	t.Setenv("ze.bgp.log.level", "DEBUG")
 	t.Setenv("ze.bgp.tcp.port", "1179")
 	t.Setenv("ze.bgp.bgp.connection", "passive")
-	t.Setenv("ze.bgp.api.socketname", "test-socket")
-
 	env, err := LoadEnvironment()
 	if err != nil {
 		t.Fatal(err)
@@ -86,9 +80,6 @@ func TestLoadEnvironmentFromEnv(t *testing.T) {
 	}
 	if env.BGP.Connection != "passive" {
 		t.Errorf("BGP.Connection = %q, want %q", env.BGP.Connection, "passive")
-	}
-	if env.API.SocketName != "test-socket" {
-		t.Errorf("API.SocketName = %q, want %q", env.API.SocketName, "test-socket")
 	}
 }
 

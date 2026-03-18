@@ -47,16 +47,24 @@ type Process struct {
 	// Socket pairs for IPC (internal plugins use net.Pipe, external use socketpair)
 	sockets *ipc.DualSocketPair
 
-	// Raw engine-side connections for protocol mode auto-detection.
-	// Stored during startup; consumed by initConns() which peeks the
-	// first byte on Socket A to detect JSON vs text mode.
-	rawEngineA   net.Conn // Socket A engine side (plugin→engine)
-	rawCallbackB net.Conn // Socket B engine side (engine→plugin)
+	// Raw engine-side connections for dual-conn mode (internal plugins).
+	// Stored during startup; consumed by InitConns() which wraps them in PluginConns.
+	rawEngineA   net.Conn // Socket A engine side (plugin->engine)
+	rawCallbackB net.Conn // Socket B engine side (engine->plugin)
+
+	// Single raw connection for TLS external plugins (set by SetSingleConn).
+	// When non-nil, InitConns creates a MuxConn and two MuxPluginConns.
+	rawSingleConn net.Conn
+
+	// TLS acceptor for external plugin connect-back (set by SetAcceptor).
+	// When set, startExternal() uses TLS instead of socketpairs.
+	acceptor *ipc.PluginAcceptor
 
 	// RPC connections for YANG RPC protocol (per-socket wiring).
 	// Created by InitConns() from raw connections, or set directly by tests.
-	engineConnA *ipc.PluginConn // Socket A: reads/writes plugin→engine RPCs
-	engineConnB *ipc.PluginConn // Socket B: reads/writes engine→plugin callbacks
+	// In single-conn mode, both point to MuxPluginConns backed by the same MuxConn.
+	engineConnA *ipc.PluginConn // Socket A: reads/writes plugin->engine RPCs
+	engineConnB *ipc.PluginConn // Socket B: reads/writes engine->plugin callbacks
 
 	running atomic.Bool
 
@@ -189,13 +197,49 @@ func (p *Process) SetConnB(conn *ipc.PluginConn) {
 	p.engineConnB = conn
 }
 
+// SetSingleConn sets a single bidirectional connection for TLS external plugins.
+// InitConns will create a MuxConn and two MuxPluginConns from this connection.
+func (p *Process) SetSingleConn(conn net.Conn) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.rawSingleConn = conn
+}
+
+// SetAcceptor sets the TLS acceptor for external plugin connect-back.
+// When set, startExternal() uses TLS instead of socketpairs.
+func (p *Process) SetAcceptor(a *ipc.PluginAcceptor) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.acceptor = a
+}
+
 // InitConns creates PluginConn connections from the raw engine-side connections.
 // If PluginConns already exist (set directly by tests), returns immediately.
 // Must be called exactly once before any reads from the connections.
+//
+// In single-conn mode (rawSingleConn set), creates a MuxConn and wraps it
+// in two MuxPluginConns so the server dispatch code works unchanged.
 func (p *Process) InitConns() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	// Single-conn mode: TLS external plugins.
+	if p.rawSingleConn != nil {
+		conn := p.rawSingleConn
+		p.rawSingleConn = nil
+
+		rpcConn := rpc.NewConn(conn, conn)
+		mux := rpc.NewMuxConn(rpcConn)
+
+		// Both ConnA and ConnB are backed by the same MuxConn.
+		// ConnA reads inbound requests via mux.Requests().
+		// ConnB sends outbound callbacks via mux.CallRPC().
+		p.engineConnA = ipc.NewMuxPluginConn(mux)
+		p.engineConnB = ipc.NewMuxPluginConn(mux)
+		return nil
+	}
+
+	// Dual-conn mode: internal plugins (net.Pipe).
 	if p.rawEngineA == nil {
 		if p.engineConnA != nil {
 			return nil // already initialized
@@ -513,11 +557,81 @@ func (p *Process) startInternal() error {
 }
 
 // startExternal starts an external plugin via exec.Command.
-// All external plugins use YANG RPC protocol via inherited socket pair FDs
-// (ZE_ENGINE_FD/ZE_CALLBACK_FD env vars).
+// When an acceptor is set (TLS mode), passes ZE_PLUGIN_HUB_HOST/PORT/TOKEN env vars
+// and waits for the child to connect back. Otherwise falls back to socketpairs.
 func (p *Process) startExternal() error {
-	// Create Unix socketpairs before starting the process.
-	// These have real FDs that can be inherited by the subprocess via ExtraFiles.
+	if p.acceptor != nil {
+		return p.startExternalTLS()
+	}
+	return p.startExternalSocketpair()
+}
+
+// startExternalTLS starts an external plugin that connects back via TLS.
+// Forks child with env vars, then waits for connect-back on the acceptor.
+func (p *Process) startExternalTLS() error {
+	if p.config.Run == "" {
+		return fmt.Errorf("plugin %s: empty run command", p.config.Name)
+	}
+
+	// Extract host:port from acceptor address.
+	addr := p.acceptor.Addr()
+	host, port, err := net.SplitHostPort(addr.String())
+	if err != nil {
+		return fmt.Errorf("plugin %s: parse acceptor address %s: %w", p.config.Name, addr, err)
+	}
+
+	// #nosec G204 - Run command is from trusted configuration, not user input
+	p.cmd = exec.CommandContext(p.ctx, "/bin/sh", "-c", p.config.Run)
+	if p.config.WorkDir != "" {
+		p.cmd.Dir = p.config.WorkDir
+	}
+
+	// Pass TLS connection info via env vars (no FD passing).
+	p.cmd.Env = append(os.Environ(),
+		"ZE_PLUGIN_HUB_HOST="+host,
+		"ZE_PLUGIN_HUB_PORT="+port,
+		"ZE_PLUGIN_TOKEN="+p.acceptor.Token(),
+	)
+
+	p.stderr, err = p.cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("plugin %s: stderr pipe: %w", p.config.Name, err)
+	}
+
+	p.cmd.SysProcAttr = newSysProcAttr()
+
+	if err := p.cmd.Start(); err != nil {
+		p.stderr.Close() //nolint:errcheck,gosec // cleanup on error
+		return fmt.Errorf("plugin %s: start: %w", p.config.Name, err)
+	}
+
+	p.running.Store(true)
+
+	stderr := p.stderr
+	cmd := p.cmd
+	p.wg.Go(func() { p.relayStderrFrom(stderr) })
+	p.wg.Go(func() { p.monitorCmd(cmd) })
+
+	// Wait for the child to connect back via TLS (bounded timeout).
+	waitCtx, waitCancel := context.WithTimeout(p.ctx, 30*time.Second)
+	defer waitCancel()
+
+	conn, waitErr := p.acceptor.WaitForPlugin(waitCtx, p.config.Name)
+	if waitErr != nil {
+		// Kill the child process to prevent orphaning.
+		if p.cmd != nil && p.cmd.Process != nil {
+			p.cmd.Process.Kill() //nolint:errcheck,gosec // cleanup on connect-back failure
+		}
+		return fmt.Errorf("plugin %s: TLS connect-back: %w", p.config.Name, waitErr)
+	}
+	p.rawSingleConn = conn
+
+	return nil
+}
+
+// startExternalSocketpair starts an external plugin via inherited socket pair FDs.
+// Used when no TLS acceptor is configured (tests, legacy).
+func (p *Process) startExternalSocketpair() error {
 	pairs, err := ipc.NewExternalSocketPairs()
 	if err != nil {
 		return fmt.Errorf("creating socket pairs: %w", err)
@@ -528,24 +642,18 @@ func (p *Process) startExternal() error {
 		return fmt.Errorf("getting plugin files: %w", err)
 	}
 
-	// Validate Run command is not empty
 	if p.config.Run == "" {
 		closeFiles(pluginEngineFile, pluginCallbackFile)
 		pairs.Close()
 		return fmt.Errorf("plugin %s: empty run command", p.config.Name)
 	}
 
-	// Create command
 	// #nosec G204 - Run command is from trusted configuration, not user input
 	p.cmd = exec.CommandContext(p.ctx, "/bin/sh", "-c", p.config.Run)
-
-	// Set working directory if specified
 	if p.config.WorkDir != "" {
 		p.cmd.Dir = p.config.WorkDir
 	}
 
-	// Pass socket FDs via ExtraFiles and env vars.
-	// ExtraFiles[0] = FD 3 (engine socket), ExtraFiles[1] = FD 4 (callback socket).
 	p.cmd.ExtraFiles = []*os.File{pluginEngineFile, pluginCallbackFile}
 	p.cmd.Env = append(os.Environ(), "ZE_ENGINE_FD=3", "ZE_CALLBACK_FD=4")
 
@@ -556,10 +664,8 @@ func (p *Process) startExternal() error {
 		return err
 	}
 
-	// Apply process resource limits (platform-specific)
 	p.cmd.SysProcAttr = newSysProcAttr()
 
-	// Start process
 	if err := p.cmd.Start(); err != nil {
 		p.stderr.Close() //nolint:errcheck,gosec // cleanup on error
 		closeFiles(pluginEngineFile, pluginCallbackFile)
@@ -567,31 +673,19 @@ func (p *Process) startExternal() error {
 		return err
 	}
 
-	// After Start(), close plugin-side FD handles (subprocess inherited copies via ExtraFiles).
 	closeFiles(pluginEngineFile, pluginCallbackFile)
 	pairs.Engine.PluginSide.Close()   //nolint:errcheck,gosec // subprocess owns these now
 	pairs.Callback.PluginSide.Close() //nolint:errcheck,gosec // subprocess owns these now
 
-	// Store raw engine-side connections for protocol mode auto-detection.
-	// PluginConns are created later by initConns() after peeking Socket A.
 	p.sockets = pairs
 	p.rawEngineA = pairs.Engine.EngineSide
 	p.rawCallbackB = pairs.Callback.EngineSide
 
 	p.running.Store(true)
 
-	// Capture stderr and cmd locally before starting goroutines.
-	// relayStderr and monitor both access p.stderr — capturing here avoids
-	// a data race between relayStderr reading the field and monitor nil-ing it.
-	// Similarly, cmd is captured so monitor() doesn't race on p.cmd.
 	stderr := p.stderr
 	cmd := p.cmd
-
-	// Relay plugin stderr based on ze.log.relay setting.
-	// Tracked by wg so Wait() blocks until relay drains.
 	p.wg.Go(func() { p.relayStderrFrom(stderr) })
-
-	// Monitor process — tracked by wg so Wait() blocks until cleanup completes.
 	p.wg.Go(func() { p.monitorCmd(cmd) })
 
 	return nil

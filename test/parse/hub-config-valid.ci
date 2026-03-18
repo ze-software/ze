@@ -1,0 +1,23 @@
+# Test: plugin hub config with listen and secret is valid
+# VALIDATES: hub config block is accepted by YANG schema parser
+# PREVENTS: hub config being rejected as unknown key
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    hub {
+        listen 127.0.0.1:12700;
+        secret abcdefghijklmnopqrstuvwxyz012345;
+    }
+}
+bgp {
+    peer 127.0.0.1 {
+        router-id 1.2.3.4
+        local-address 127.0.0.1
+        local-as 1
+        peer-as 1
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze bgp validate -:stdin=ze-bgp
+expect=exit:code=0

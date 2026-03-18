@@ -59,7 +59,7 @@ All new code MUST follow these patterns.
           JSON events (down)  │                 │  commands (up)
           + base64 wire bytes │                 │  update/forward/withdraw
                               ▼                 │
-═══════════════════════ PROCESS BOUNDARY (Unix socket pairs) ═══════════════
+═══════════════════════ PROCESS BOUNDARY (TLS / net.Pipe) ══════════════════
                               │                 ▲
                               ▼                 │
                       ┌───────────────┐

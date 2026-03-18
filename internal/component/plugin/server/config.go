@@ -13,6 +13,7 @@ type ServerConfig struct {
 	ConfigPath         string                                          // Path to config file (for peer save)
 	Plugins            []plugin.PluginConfig                           // External plugins to spawn
 	ConfiguredFamilies []string                                        // Families configured on peers (for deferred auto-load)
+	Hub                *plugin.HubConfig                               // TLS transport config (nil = no TLS listener)
 	RPCFallback        func(string) func(json.RawMessage) (any, error) // Resolves RPC methods not in core dispatch
 	CommitManager      any                                             // Commit manager instance (injected by reactor, type-asserted by handlers)
 }

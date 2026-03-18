@@ -96,15 +96,13 @@ type CacheEnv struct {
 
 // APIEnv holds API-related settings.
 type APIEnv struct {
-	ACK        bool   // Acknowledge API commands
-	Chunk      int    // Max lines before yield
-	Encoder    string // Encoder type: json
-	Compact    bool   // Compact JSON for INET
-	Respawn    bool   // Respawn dead processes
-	Terminate  bool   // Terminate if process dies
-	CLI        bool   // Create CLI named pipe
-	PipeName   string // Name for CLI pipe
-	SocketName string // Name for Unix socket
+	ACK       bool   // Acknowledge API commands
+	Chunk     int    // Max lines before yield
+	Encoder   string // Encoder type: json
+	Compact   bool   // Compact JSON for INET
+	Respawn   bool   // Respawn dead processes
+	Terminate bool   // Terminate if process dies
+	CLI       bool   // Create CLI named pipe
 }
 
 // ReactorEnv holds reactor-related settings.
@@ -176,9 +174,6 @@ func (e *Environment) loadDefaults() {
 	e.API.Encoder = "json"
 	e.API.Respawn = true
 	e.API.CLI = true
-	e.API.PipeName = "ze-bgp"   //nolint:goconst // Default name, not worth a constant
-	e.API.SocketName = "ze-bgp" //nolint:goconst // Default name, not worth a constant
-
 	// Reactor defaults
 	e.Reactor.Speed = 1.0
 	e.Reactor.CacheTTL = 60      // 60 seconds
@@ -566,15 +561,13 @@ var envOptions = map[string]map[string]envOption{
 		"attributes": {setter: setBoolField(func(e *Environment) *bool { return &e.Cache.Attributes })},
 	},
 	"api": {
-		"ack":        {setter: setBoolField(func(e *Environment) *bool { return &e.API.ACK })},
-		"chunk":      {setter: setIntField(func(e *Environment) *int { return &e.API.Chunk })},
-		"encoder":    {setter: func(e *Environment, v string) error { e.API.Encoder = strings.ToLower(v); return nil }, validate: validateEncoder},
-		"compact":    {setter: setBoolField(func(e *Environment) *bool { return &e.API.Compact })},
-		"respawn":    {setter: setBoolField(func(e *Environment) *bool { return &e.API.Respawn })},
-		"terminate":  {setter: setBoolField(func(e *Environment) *bool { return &e.API.Terminate })},
-		"cli":        {setter: setBoolField(func(e *Environment) *bool { return &e.API.CLI })},
-		"pipename":   {setter: func(e *Environment, v string) error { e.API.PipeName = v; return nil }},
-		"socketname": {setter: func(e *Environment, v string) error { e.API.SocketName = v; return nil }},
+		"ack":       {setter: setBoolField(func(e *Environment) *bool { return &e.API.ACK })},
+		"chunk":     {setter: setIntField(func(e *Environment) *int { return &e.API.Chunk })},
+		"encoder":   {setter: func(e *Environment, v string) error { e.API.Encoder = strings.ToLower(v); return nil }, validate: validateEncoder},
+		"compact":   {setter: setBoolField(func(e *Environment) *bool { return &e.API.Compact })},
+		"respawn":   {setter: setBoolField(func(e *Environment) *bool { return &e.API.Respawn })},
+		"terminate": {setter: setBoolField(func(e *Environment) *bool { return &e.API.Terminate })},
+		"cli":       {setter: setBoolField(func(e *Environment) *bool { return &e.API.CLI })},
 	},
 	"reactor": {
 		"speed": {
