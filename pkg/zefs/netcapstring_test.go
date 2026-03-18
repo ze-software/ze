@@ -20,29 +20,29 @@ func TestNetcapstringEncode(t *testing.T) {
 			name:     "simple data with padding",
 			data:     []byte("hello"),
 			capacity: 16,
-			// number=2 (digitCount(16)=2), header=:2:16:05:
-			want: ":2:16:05:hello           ",
+			// number=2, header=2:16:05:
+			want: "2:16:05:hello,          :",
 		},
 		{
 			name:     "empty data",
 			data:     []byte{},
 			capacity: 8,
-			// number=1, header=:1:8:0:
-			want: ":1:8:0:        ",
+			// number=1, header=1:8:0: -- comma marks data end, then spaces
+			want: "1:8:0:,       :",
 		},
 		{
 			name:     "data fills capacity exactly",
 			data:     []byte("abcd"),
 			capacity: 4,
-			// number=1, header=:1:4:4:
-			want: ":1:4:4:abcd",
+			// number=1, header=1:4:4: -- no padding, : wins over ,
+			want: "1:4:4:abcd:",
 		},
 		{
 			name:     "large capacity three digits",
 			data:     []byte("x"),
 			capacity: 100,
-			// number=3 (digitCount(100)=3), header=:3:100:001:
-			want: ":3:100:001:x" + strings.Repeat(" ", 99),
+			// number=3, header=3:100:001:
+			want: "3:100:001:x," + strings.Repeat(" ", 98) + ":",
 		},
 	}
 	for _, tt := range tests {
@@ -71,79 +71,86 @@ func TestNetcapstringDecode(t *testing.T) {
 		wantErr  bool
 	}{
 		{
-			name:     "simple",
-			input:    []byte(":2:16:05:hello\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"),
+			name:     "simple with colon terminator",
+			input:    []byte("2:16:05:hello,          :"),
 			wantData: []byte("hello"),
 			wantCap:  16,
-			wantNext: netcapstringHeaderLen(16) + 16,
+			wantNext: netcapstringTotalLen(16),
+		},
+		{
+			name:     "simple with comma terminator",
+			input:    []byte("2:16:05:hello,          ,"),
+			wantData: []byte("hello"),
+			wantCap:  16,
+			wantNext: netcapstringTotalLen(16),
 		},
 		{
 			name:     "empty data",
-			input:    []byte(":1:8:0:\x00\x00\x00\x00\x00\x00\x00\x00"),
+			input:    []byte("1:8:0:,       :"),
 			wantData: []byte{},
 			wantCap:  8,
-			wantNext: netcapstringHeaderLen(8) + 8,
+			wantNext: netcapstringTotalLen(8),
 		},
 		{
 			name:     "exact fill",
-			input:    []byte(":1:4:4:abcd"),
+			input:    []byte("1:4:4:abcd:"),
 			wantData: []byte("abcd"),
 			wantCap:  4,
-			wantNext: netcapstringHeaderLen(4) + 4,
+			wantNext: netcapstringTotalLen(4),
 		},
 		{
 			name:    "truncated header",
-			input:   []byte(":2"),
-			wantErr: true,
-		},
-		{
-			name:    "missing leading colon",
-			input:   []byte("2:16:05:hello"),
+			input:   []byte("2"),
 			wantErr: true,
 		},
 		{
 			name:    "invalid number field",
-			input:   []byte(":abc:16:05:hello"),
+			input:   []byte("abc:16:05:hello:"),
 			wantErr: true,
 		},
 		{
 			name:    "zero number field",
-			input:   []byte(":0:16:05:hello"),
+			input:   []byte("0:16:05:hello:"),
 			wantErr: true,
 		},
 		{
 			name:    "truncated data",
-			input:   []byte(":2:16:05:hel"),
+			input:   []byte("2:16:05:hel"),
+			wantErr: true,
+		},
+		{
+			name:    "missing trailing terminator",
+			input:   []byte("1:4:4:abcdX"),
 			wantErr: true,
 		},
 		{
 			name:    "used exceeds capacity",
-			input:   []byte(":2:04:10:abcdefghij"),
+			input:   []byte("2:04:10:abcdefghij:"),
 			wantErr: true,
 		},
 		{
 			name:    "truncated capacity field",
-			input:   []byte(":2:1"),
+			input:   []byte("2:1"),
 			wantErr: true,
 		},
 		{
 			name:    "missing colon after capacity",
-			input:   []byte(":2:16X05:hello"),
+			input:   []byte("2:16X05:hello:"),
 			wantErr: true,
 		},
 		{
 			name:    "missing colon after used",
-			input:   []byte(":2:16:05Xhello"),
+			input:   []byte("2:16:05Xhello:"),
 			wantErr: true,
 		},
 		{
 			name:    "invalid capacity digits",
-			input:   []byte(":2:ab:05:hello"),
+			input:   []byte("2:ab:05:hello:"),
 			wantErr: true,
 		},
 		{
 			name:    "invalid used digits",
-			input:   []byte(":2:16:xy:hello"),
+			input:   []byte("2:16:xy:hello:"),
 			wantErr: true,
 		},
 	}
@@ -328,13 +335,13 @@ func TestNetcapstringDecodeRefErrors(t *testing.T) {
 		input []byte
 		off   int
 	}{
-		{"truncated at colon", []byte(":"), 0},
-		{"missing leading colon", []byte("2:16:05:hello"), 0},
-		{"truncated number", []byte(":2"), 0},
-		{"truncated data", []byte(":2:16:05:hel"), 0},
-		{"offset past end", []byte(":1:8:5:hello\x00\x00\x00"), 100},
-		{"used exceeds capacity", []byte(":2:04:10:abcdefghij"), 0},
-		{"number too large", []byte(":99:"), 0},
+		{"empty buffer", []byte{}, 0},
+		{"truncated number", []byte("2"), 0},
+		{"truncated data", []byte("2:16:05:hel"), 0},
+		{"missing trailing terminator", []byte("1:8:5:helloXXX"), 0},
+		{"offset past end", []byte("1:8:5:hello   :"), 100},
+		{"used exceeds capacity", []byte("2:04:10:abcdefghij:"), 0},
+		{"number too large", []byte("99:"), 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -452,7 +459,7 @@ func TestNetcapstringEncodeExactCapacity(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantLen := netcapstringHeaderLen(capacity) + capacity
+	wantLen := netcapstringTotalLen(capacity)
 	if len(encoded) != wantLen {
 		t.Errorf("encoded length: got %d, want %d", len(encoded), wantLen)
 	}
@@ -474,11 +481,11 @@ func TestNetcapstringEncodeExactCapacity(t *testing.T) {
 
 func TestNetcapstringDecodeOffsetTruncatedData(t *testing.T) {
 	// Build a valid netcapstring header with cap=16, used=5, but provide only 8 bytes of data
-	hdr := []byte(":2:16:05:")
+	hdr := []byte("2:16:05:")
 	var buf []byte
 	buf = append(buf, make([]byte, 10)...)
 	buf = append(buf, hdr...)
-	buf = append(buf, []byte("12345678")...) // only 8, need 16
+	buf = append(buf, []byte("12345678")...) // only 8, need 16+1 (data+comma)
 
 	_, _, _, err := decodeNetcapstring(buf, 10)
 	if err == nil {
@@ -524,9 +531,9 @@ func TestNetcapstringHeaderLen(t *testing.T) {
 		if err != nil {
 			t.Fatalf("encode cap=%d: %v", cap_, err)
 		}
-		wantLen := netcapstringHeaderLen(cap_) + cap_
+		wantLen := netcapstringTotalLen(cap_)
 		if len(encoded) != wantLen {
-			t.Errorf("cap=%d: len(encoded)=%d, headerLen+cap=%d", cap_, len(encoded), wantLen)
+			t.Errorf("cap=%d: len(encoded)=%d, totalLen=%d", cap_, len(encoded), wantLen)
 		}
 	}
 }
@@ -662,14 +669,20 @@ func TestWriteNetcapstringSpacePadding(t *testing.T) {
 		t.Errorf("data: got %q, want %q", data, "hi")
 	}
 
-	// Verify padding bytes are spaces (not 0xFF)
+	// Verify padding: ',' after data, spaces, ':' terminator
 	hdrLen := netcapstringHeaderLen(capacity)
 	dataEnd := hdrLen + 2 // "hi" = 2 bytes
-	for i := dataEnd; i < total; i++ {
+	if buf[dataEnd] != ',' {
+		t.Errorf("data-end marker byte %d is 0x%02X, want 0x2C (',')", dataEnd, buf[dataEnd])
+	}
+	for i := dataEnd + 1; i < total-1; i++ {
 		if buf[i] != ' ' {
 			t.Errorf("padding byte %d is 0x%02X, want 0x20 (space)", i, buf[i])
 			break
 		}
+	}
+	if buf[total-1] != ':' {
+		t.Errorf("trailing byte is 0x%02X, want 0x3A (':')", buf[total-1])
 	}
 }
 
@@ -686,9 +699,10 @@ func TestWriteNetcapstringHeader(t *testing.T) {
 		t.Errorf("header wrote %d bytes, want %d", n, hdrLen)
 	}
 
-	// Parse the header by decoding (with fake data region)
-	full := make([]byte, hdrLen+capacity)
+	// Parse the header by decoding (with fake data region + trailing terminator)
+	full := make([]byte, netcapstringTotalLen(capacity))
 	copy(full, buf)
+	full[len(full)-1] = ':' // trailing terminator
 	_, cap_, _, err := decodeNetcapstringRef(full, 0)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
@@ -1018,7 +1032,7 @@ func TestDecodeNetcapstringRefEmptyBuffer(t *testing.T) {
 // PREVENTS: index out of range when offset equals length
 
 func TestDecodeNetcapstringRefOffsetAtEnd(t *testing.T) {
-	buf := []byte(":1:8:3:abc\x00\x00\x00\x00\x00")
+	buf := []byte("1:8:3:abc,    :")
 	_, _, _, err := decodeNetcapstringRef(buf, len(buf))
 	if err == nil {
 		t.Error("expected error for offset at end of buffer")
@@ -1085,7 +1099,7 @@ func TestDecodeNetcapstringRefOverflowCapacity(t *testing.T) {
 	// This exercises the overflow-safe check: cap_ > len(buf) - off
 	// On 64-bit, strconv.Atoi("9999999999999999999") = 9999999999999999999 (valid int64).
 	// The subtraction check catches it without overflow.
-	crafted := ":19:9999999999999999999:0000000000000000000:"
+	crafted := "19:9999999999999999999:0000000000000000000:"
 	_, _, _, err := decodeNetcapstringRef([]byte(crafted), 0)
 	if err == nil {
 		t.Error("expected error for capacity exceeding buffer size")
@@ -1097,7 +1111,7 @@ func TestDecodeNetcapstringRefOverflowCapacity(t *testing.T) {
 
 func TestDecodeNetcapstringRefCraftedUsedExceedsCap(t *testing.T) {
 	// Header says used=9, cap=4. Format is valid but used > cap.
-	crafted := ":1:4:9:abcdefghi"
+	crafted := "1:4:9:abcdefghi:"
 	_, _, _, err := decodeNetcapstringRef([]byte(crafted), 0)
 	if err == nil {
 		t.Error("expected error for used exceeding capacity")

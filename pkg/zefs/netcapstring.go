@@ -12,7 +12,7 @@ import (
 // 19 digits covers the full range of int64.
 const maxNumberWidth = 19
 
-// writeNetcapstringHeader writes the header :<number>:<cap>:<dataLen>: into buf at off.
+// writeNetcapstringHeader writes the header <number>:<cap>:<used>: into buf at off.
 // Capacity first, then dataLen (derived from data). Returns bytes written.
 // Caller must ensure buf has sufficient space.
 func writeNetcapstringHeader(buf []byte, off, capacity, dataLen int) int {
@@ -20,8 +20,6 @@ func writeNetcapstringHeader(buf []byte, off, capacity, dataLen int) int {
 	number := digitCount(capacity)
 	numberStr := strconv.Itoa(number)
 
-	buf[off] = ':'
-	off++
 	off += copy(buf[off:], numberStr)
 	buf[off] = ':'
 	off++
@@ -36,29 +34,36 @@ func writeNetcapstringHeader(buf []byte, off, capacity, dataLen int) int {
 }
 
 // writeNetcapstring writes a complete netcapstring into buf at off.
-// Format: :<number>:<cap>:<used>:<data><space-padding>
-// Used is calculated from len(data). Returns bytes written.
+// Format: <number>:<cap>:<used>:<data>,<space-padding>:
+// The ',' immediately follows the data (data-end marker, djb convention).
+// Remaining padding is space-filled. Trailing ':' is the section terminator
+// (colon wins over comma when both would occupy the same position).
+// The container's terminator is overwritten to ',' by the caller.
 // Caller must ensure buf has sufficient space.
-// Padding bytes are space-filled (human-readable, safe for in-place overwrites).
 func writeNetcapstring(buf []byte, off int, data []byte, capacity int) int {
 	start := off
 	off += writeNetcapstringHeader(buf, off, capacity, len(data))
 	off += copy(buf[off:], data)
 
-	// Space-fill padding (required for in-place writes into non-zeroed buffers).
-	// Spaces instead of NUL bytes keep the file human-readable.
+	// Data-end marker ',' then space-fill remaining padding.
 	padding := capacity - len(data)
-	for i := range padding {
-		buf[off+i] = ' '
+	if padding > 0 {
+		buf[off] = ','
+		for i := 1; i < padding; i++ {
+			buf[off+i] = ' '
+		}
 	}
 	off += padding
+
+	buf[off] = ':' // section terminator (colon wins over comma)
+	off++
 
 	return off - start
 }
 
-// netcapstringTotalLen returns the total on-disk size of a netcapstring (header + capacity).
+// netcapstringTotalLen returns the total on-disk size of a netcapstring (header + capacity + terminator).
 func netcapstringTotalLen(capacity int) int {
-	return netcapstringHeaderLen(capacity) + capacity
+	return netcapstringHeaderLen(capacity) + capacity + 1
 }
 
 // encodeNetcapstring allocates a buffer and writes a netcapstring into it.
@@ -94,11 +99,9 @@ func decodeNetcapstring(buf []byte, off int) (data []byte, capacity, next int, e
 func decodeNetcapstringRef(buf []byte, off int) (data []byte, capacity, next int, err error) {
 	start := off
 
-	// Expect leading ':'
-	if off >= len(buf) || buf[off] != ':' {
-		return nil, 0, 0, fmt.Errorf("zefs: expected ':' at offset %d", start)
+	if off >= len(buf) {
+		return nil, 0, 0, fmt.Errorf("zefs: unexpected end of buffer at offset %d", start)
 	}
-	off++
 
 	// Scan for number field (digits until next ':')
 	numStart := off
@@ -154,13 +157,19 @@ func decodeNetcapstringRef(buf []byte, off int) (data []byte, capacity, next int
 		return nil, 0, 0, fmt.Errorf("zefs: used %d exceeds capacity %d at offset %d", used, cap_, start)
 	}
 
-	// Check data region fits in buffer (subtraction avoids int overflow on crafted cap_ values)
-	if cap_ > len(buf)-off {
-		return nil, 0, 0, fmt.Errorf("zefs: truncated data at offset %d: need %d, have %d", start, cap_, len(buf)-off)
+	// Check data region + trailing colon fits in buffer (subtraction avoids int overflow on crafted cap_ values)
+	if cap_+1 > len(buf)-off {
+		return nil, 0, 0, fmt.Errorf("zefs: truncated data at offset %d: need %d, have %d", start, cap_+1, len(buf)-off)
+	}
+
+	// Expect trailing ',' or ':' (colon wins when both occupy the same position)
+	endOff := off + cap_
+	if buf[endOff] != ',' && buf[endOff] != ':' {
+		return nil, 0, 0, fmt.Errorf("zefs: expected trailing ',' or ':' at offset %d, got 0x%02X", endOff, buf[endOff])
 	}
 
 	// Zero-copy: return sub-slice with capped length to prevent access to padding
-	return buf[off : off+used : off+used], cap_, off + cap_, nil
+	return buf[off : off+used : off+used], cap_, endOff + 1, nil
 }
 
 // writeZeroPadded writes n as a zero-padded decimal of the given width into buf.
@@ -186,17 +195,17 @@ func digitCount(n int) int {
 }
 
 // netcapstringHeaderLen returns the header length for a netcapstring with the given capacity.
-// Header format: colon-number-colon-cap-colon-used-colon.
+// Header format: number-colon-cap-colon-used-colon.
 func netcapstringHeaderLen(capacity int) int {
 	number := digitCount(capacity)
 	numberWidth := digitCount(number)
-	return 4 + numberWidth + 2*number
+	return 3 + numberWidth + 2*number
 }
 
 // netcapSlot describes a single netcapstring's on-disk layout.
 // Tracks position, capacity, and current used length within the backing buffer.
 type netcapSlot struct {
-	offset   int // byte offset of the netcapstring header (the ':') in the backing buffer
+	offset   int // byte offset of the netcapstring header in the backing buffer
 	capacity int // allocated data capacity (from header)
 	used     int // current data length (from header, updated on writes)
 }

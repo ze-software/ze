@@ -356,14 +356,14 @@ func (s *BlobStore) encode() []byte {
 	}
 	entriesSize++ // trailing '\n'
 
-	// Phase 2: compute container + total size
+	// Phase 2: compute magic + container total size
 	containerCap := growCapacity(entriesSize, entriesSize)
-	containerHdrLen := netcapstringHeaderLen(containerCap)
-	totalSize := len(magic) + containerHdrLen + containerCap
+	magicLen := netcapstringTotalLen(len(magic))
+	totalSize := magicLen + netcapstringTotalLen(containerCap)
 
 	// Phase 3: single allocation, write everything in place
 	result := make([]byte, totalSize)
-	off := copy(result, magic)
+	off := writeNetcapstring(result, 0, []byte(magic), len(magic))
 
 	// Container header
 	off += writeNetcapstringHeader(result, off, containerCap, entriesSize)
@@ -380,10 +380,12 @@ func (s *BlobStore) encode() []byte {
 	}
 	result[off] = '\n'
 	off++
-	// Space-fill container padding (human-readable)
-	for i := off; i < len(result); i++ {
+	// Space-fill container padding (human-readable), then trailing ',' for container
+	containerEnd := len(result) - 1
+	for i := off; i < containerEnd; i++ {
 		result[i] = ' '
 	}
+	result[containerEnd] = ','
 
 	return result
 }
@@ -392,18 +394,23 @@ func (s *BlobStore) encode() []byte {
 // Returns the tree, keys, and slots without modifying any BlobStore.
 // Used by Import to validate before committing, and by decode for normal loading.
 func decodeInto(data []byte) (*node, []string, map[string]slotInfo, error) {
-	if len(data) < len(magic) || string(data[:len(magic)]) != magic {
-		return nil, nil, nil, fmt.Errorf("zefs: invalid magic: %q", data[:min(len(data), len(magic))])
+	// Decode magic netcapstring
+	magicData, _, magicNext, err := decodeNetcapstringRef(data, 0)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("zefs: magic: %w", err)
+	}
+	if string(magicData) != magic {
+		return nil, nil, nil, fmt.Errorf("zefs: invalid magic: %q", magicData)
 	}
 
-	containerData, containerCap, _, err := decodeNetcapstringRef(data, len(magic))
+	containerData, containerCap, _, err := decodeNetcapstringRef(data, magicNext)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("zefs: container: %w", err)
 	}
 
 	// Compute where container data starts in the backing buffer.
 	// Entry offsets within containerData are relative; add this base to get backing-absolute offsets.
-	containerDataBase := len(magic) + netcapstringHeaderLen(containerCap)
+	containerDataBase := magicNext + netcapstringHeaderLen(containerCap)
 
 	root := newDirNode()
 	var keys []string
@@ -411,7 +418,7 @@ func decodeInto(data []byte) (*node, []string, map[string]slotInfo, error) {
 
 	off := 0
 	for off < len(containerData) {
-		if containerData[off] == '\n' || containerData[off] == 0 || containerData[off] == ' ' {
+		if containerData[off] == '\n' || containerData[off] == 0 || containerData[off] == ' ' || containerData[off] == ',' {
 			break
 		}
 

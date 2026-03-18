@@ -8,13 +8,22 @@ A netcapstring is a self-describing, capacity-aware binary frame. It encodes a b
 
 ### Format
 
+With padding (cap > used):
+
 ```
-:<number>:<cap>:<used>:<data><padding>
+<number>:<cap>:<used>:<data>,<space padding>:
 ```
+
+Exact fit (cap == used):
+
+```
+<number>:<cap>:<used>:<data>:
+```
+
+All header separators are `:`. Within the data region, `,` marks end of data, followed by space padding. `:` closes the capacity region. When cap == used, `,` and `:` would share the same position -- `:` wins, so `,` is not written.
 
 | Field | Content | Size (bytes) |
 |-------|---------|-------------|
-| `:` | Entry marker | 1 |
 | `<number>` | Digit count of `<cap>` (decimal ASCII, no leading zeros) | variable (typically 1-2) |
 | `:` | Separator | 1 |
 | `<cap>` | Capacity in bytes (decimal ASCII, zero-padded to `<number>` digits) | `<number>` |
@@ -22,7 +31,9 @@ A netcapstring is a self-describing, capacity-aware binary frame. It encodes a b
 | `<used>` | Used bytes (decimal ASCII, zero-padded to `<number>` digits) | `<number>` |
 | `:` | Separator | 1 |
 | `<data>` | Actual content | `<used>` |
-| `<padding>` | Zero bytes | `<cap>` - `<used>` |
+| `,` | Data-end marker | 1 (only when `<cap>` > `<used>`) |
+| `<padding>` | Space bytes | `<cap>` - `<used>` - 1 (or 0 when `<cap>` == `<used>`) |
+| `:` or `,` | Terminator (`:` wins when both share the position) | 1 |
 
 ### Properties
 
@@ -34,21 +45,21 @@ A netcapstring is a self-describing, capacity-aware binary frame. It encodes a b
 
 | Data | Cap | On disk |
 |------|-----|---------|
-| "hello" (5 bytes), cap 16 | 16 | `:2:16:05:hello<11 zero bytes>` |
-| empty, cap 8 | 8 | `:1:8:0:<8 zero bytes>` |
-| "abcd" (4 bytes), cap 4 | 4 | `:1:4:4:abcd` |
-| "x" (1 byte), cap 100 | 100 | `:3:100:001:x<99 zero bytes>` |
+| "hello" (5 bytes), cap 16 | 16 | `2:16:05:hello,<10 spaces>:` |
+| empty, cap 8 | 8 | `1:8:0:,<7 spaces>:` |
+| "abcd" (4 bytes), cap 4 | 4 | `1:4:4:abcd:` |
+| "x" (1 byte), cap 100 | 100 | `3:100:001:x,<98 spaces>:` |
 
 ### Header length
 
-The total header length for a given capacity is: `4 + digitCount(digitCount(cap)) + 2 * digitCount(cap)`.
+The total header length for a given capacity is: `3 + digitCount(digitCount(cap)) + 2 * digitCount(cap)`.
 
 | Capacity range | Header bytes |
 |---------------|-------------|
-| 0-9 | 7 |
-| 10-99 | 9 |
-| 100-999 | 11 |
-| 1000-9999 | 13 |
+| 0-9 | 6 |
+| 10-99 | 8 |
+| 100-999 | 10 |
+| 1000-9999 | 12 |
 
 ### Capacity growth
 
@@ -56,39 +67,39 @@ When data is first written, capacity is allocated with at least 10% spare (minim
 
 ### Parsing
 
-1. Read `:` (1 byte)
-2. Scan forward until next `:` to get the `<number>` field (parse as integer N)
-3. Read N bytes for `<cap>` (parse as integer)
-4. Read `:` (verify separator)
-5. Read N bytes for `<used>` (parse as integer)
-6. Read `:` (verify separator)
-7. Read `<used>` bytes of data
-8. Skip `<cap>` - `<used>` bytes of padding
-9. Next entry starts at the byte after padding
+1. Scan forward until next `:` to get the `<number>` field (parse as integer N)
+2. Read N bytes for `<cap>` (parse as integer)
+3. Read `:` (verify separator)
+4. Read N bytes for `<used>` (parse as integer)
+5. Read `:` (verify separator)
+6. Read `<used>` bytes of data
+7. Skip `<cap>` - `<used>` bytes of padding (contains `,` data-end marker then spaces)
+8. Read `,` or `:` (verify terminator; `:` wins when both share a position)
+9. Next entry starts at the byte after the terminator
 
 ## ZeFS File
 
-A ZeFS file is a container netcapstring prefixed with the magic bytes `ZeFS`.
+A ZeFS file is a sequence of two netcapstrings: a magic identifier followed by the container.
 
 ### Format
 
 ```
-ZeFS:<number>:<cap>:<used>:<entries...><padding>
+1:4:4:ZeFS:<N>:<cap>:<used>:<entries...><padding>,
 ```
 
-The `ZeFS` magic is prepended before the container netcapstring. The container starts with its own `:` at offset 4. The result reads naturally: `ZeFS:4:5000:3200:...`.
+The first netcapstring contains the magic `ZeFS`. Its terminator is `:` (not `,`) because the container follows -- `:` wins over `,` at that position. The entire file is pure netcapstrings.
 
 ### Container content
 
 Inside the container, entries are stored as consecutive pairs of netcapstrings (key + value):
 
 ```
-ZeFS:<N>:<cap>:<used>:
-  :<kN>:<kCap>:<kUsed>:<key><kPad>:<vN>:<vCap>:<vUsed>:<value><vPad>
-  :<kN>:<kCap>:<kUsed>:<key><kPad>:<vN>:<vCap>:<vUsed>:<value><vPad>
+1:4:4:ZeFS:<N>:<cap>:<used>:
+  <kN>:<kCap>:<kUsed>:<key>,<kPad>:<vN>:<vCap>:<vUsed>:<value>,<vPad>:
+  <kN>:<kCap>:<kUsed>:<key>,<kPad>:<vN>:<vCap>:<vUsed>:<value>,<vPad>:
   ...
   \n
-<container padding>
+<container padding>,
 ```
 
 Each entry consists of:
@@ -103,16 +114,17 @@ Keys are hierarchical paths using `/` as separator. They must be valid `fs.Valid
 
 ### Parsing a ZeFS file
 
-1. Verify first 4 bytes are `ZeFS`
-2. Decode the container netcapstring starting at offset 4 (the `:` after `ZeFS`)
-3. Within the container data, decode entry pairs until `\n` or null byte
+1. Decode the first netcapstring (magic)
+2. Verify its data is `ZeFS`
+3. Decode the second netcapstring (container)
+4. Within the container data, decode entry pairs until `\n`, null, or space byte
 
 ### Magic detection
 
 | Bytes | Meaning |
 |-------|---------|
-| `ZeFS:` followed by digits | Valid ZeFS file |
-| Anything else in first 4 bytes | Not a ZeFS file |
+| `1:4:4:ZeFS:` at offset 0 | Valid ZeFS file |
+| Anything else | Not a ZeFS file |
 
 ## Memory mapping
 
