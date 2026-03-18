@@ -54,13 +54,9 @@ type Process struct {
 	rawCallbackB net.Conn // Socket B engine side (engine→plugin)
 
 	// RPC connections for YANG RPC protocol (per-socket wiring).
-	// Created by initConns() after protocol mode detection, or set directly by tests.
+	// Created by InitConns() from raw connections, or set directly by tests.
 	engineConnA *ipc.PluginConn // Socket A: reads/writes plugin→engine RPCs
 	engineConnB *ipc.PluginConn // Socket B: reads/writes engine→plugin callbacks
-
-	// Text-mode Socket B connection for event delivery (nil for JSON-mode plugins).
-	// Set by handleTextProcessStartup() after text handshake completes.
-	textConnB *rpc.TextConn
 
 	running atomic.Bool
 
@@ -185,22 +181,6 @@ func (p *Process) ConnB() *ipc.PluginConn {
 	return p.engineConnB
 }
 
-// TextConnB returns the text-mode Socket B connection for event delivery.
-// Returns nil for JSON-mode plugins. Callers must check for nil.
-func (p *Process) TextConnB() *rpc.TextConn {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	return p.textConnB
-}
-
-// SetTextConnB sets the text-mode Socket B connection for event delivery.
-// Called by handleTextProcessStartup after the text handshake completes.
-func (p *Process) SetTextConnB(tc *rpc.TextConn) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.textConnB = tc
-}
-
 // SetConnB sets the engine→plugin callback connection.
 // Used by test code to inject mock connections.
 func (p *Process) SetConnB(conn *ipc.PluginConn) {
@@ -209,42 +189,28 @@ func (p *Process) SetConnB(conn *ipc.PluginConn) {
 	p.engineConnB = conn
 }
 
-// initConns detects the protocol mode by peeking the first byte on Socket A,
-// then creates the appropriate typed connections.
-//
-// For JSON mode: creates PluginConns, stores them in the Process. Returns ModeJSON.
-// For text mode: returns ModeText and the raw conns for the caller to wrap as TextConns.
-//
-// If PluginConns already exist (set directly by tests), returns ModeJSON immediately.
+// InitConns creates PluginConn connections from the raw engine-side connections.
+// If PluginConns already exist (set directly by tests), returns immediately.
 // Must be called exactly once before any reads from the connections.
-func (p *Process) InitConns() (rpc.ConnMode, net.Conn, net.Conn, error) {
+func (p *Process) InitConns() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	if p.rawEngineA == nil {
 		if p.engineConnA != nil {
-			return rpc.ModeJSON, nil, nil, nil // already initialized
+			return nil // already initialized
 		}
-		return "", nil, nil, fmt.Errorf("no raw connections available")
+		return fmt.Errorf("no raw connections available")
 	}
 
-	mode, peekedA, err := rpc.PeekMode(p.rawEngineA)
-	if err != nil {
-		return "", nil, nil, fmt.Errorf("detect protocol mode: %w", err)
-	}
-
+	rawA := p.rawEngineA
 	rawB := p.rawCallbackB
 	p.rawEngineA = nil
 	p.rawCallbackB = nil
 
-	if mode == rpc.ModeJSON {
-		p.engineConnA = ipc.NewPluginConn(peekedA, peekedA)
-		p.engineConnB = ipc.NewPluginConn(rawB, rawB)
-		return rpc.ModeJSON, nil, nil, nil
-	}
-
-	// Text mode: return raw conns for caller to create TextConns.
-	return rpc.ModeText, peekedA, rawB, nil
+	p.engineConnA = ipc.NewPluginConn(rawA, rawA)
+	p.engineConnB = ipc.NewPluginConn(rawB, rawB)
+	return nil
 }
 
 // SyncEnabled returns true if sync mode is enabled for this process.
@@ -704,10 +670,6 @@ func (p *Process) closeConns() {
 			p.engineConnB.Close() //nolint:errcheck,gosec // best-effort shutdown
 			p.engineConnB = nil
 		}
-		if p.textConnB != nil {
-			p.textConnB.Close() //nolint:errcheck,gosec // best-effort shutdown
-			p.textConnB = nil
-		}
 		if p.rawEngineA != nil {
 			p.rawEngineA.Close() //nolint:errcheck,gosec // best-effort shutdown
 			p.rawEngineA = nil
@@ -723,7 +685,6 @@ func (p *Process) closeConns() {
 // SendShutdown sends a graceful shutdown signal (bye RPC) to the plugin.
 // Returns true if the process was running. The bye RPC gives the plugin a
 // chance to clean up before Stop() closes connections and kills the process.
-// For text-mode plugins, sends "bye shutdown" as a plain text line.
 func (p *Process) SendShutdown() bool {
 	if !p.running.Load() {
 		return false
@@ -731,13 +692,6 @@ func (p *Process) SendShutdown() bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 	defer cancel()
 
-	// Text-mode: send "bye" line on textConnB.
-	if tc := p.TextConnB(); tc != nil {
-		_ = tc.WriteLine(ctx, "bye shutdown") //nolint:errcheck // best-effort graceful signal
-		return true
-	}
-
-	// JSON-mode: send bye RPC on connB.
 	connB := p.ConnB()
 	if connB == nil {
 		return true

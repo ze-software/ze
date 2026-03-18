@@ -13,7 +13,7 @@ import (
 )
 
 // PluginConn provides typed RPC communication over a dual-socket connection.
-// It embeds *rpc.Conn for low-level NUL-framed JSON RPC and adds typed methods
+// It embeds *rpc.Conn for low-level newline-framed JSON RPC and adds typed methods
 // for each YANG RPC in the plugin protocol.
 //
 // PluginConn supports two wiring modes via the embedded rpc.Conn:
@@ -36,49 +36,34 @@ func NewPluginConn(readConn, writeConn net.Conn) *PluginConn {
 
 // SendDeclareRegistration sends Stage 1: declare-registration to the engine.
 func (pc *PluginConn) SendDeclareRegistration(ctx context.Context, input *rpc.DeclareRegistrationInput) error {
-	raw, err := pc.CallRPC(ctx, "ze-plugin-engine:declare-registration", input)
-	if err != nil {
-		return err
-	}
-	return rpc.CheckResponse(raw)
+	_, err := pc.CallRPC(ctx, "ze-plugin-engine:declare-registration", input)
+	return err
 }
 
 // SendConfigure sends Stage 2: configure to the plugin.
 func (pc *PluginConn) SendConfigure(ctx context.Context, sections []rpc.ConfigSection) error {
 	input := &rpc.ConfigureInput{Sections: sections}
-	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:configure", input)
-	if err != nil {
-		return err
-	}
-	return rpc.CheckResponse(raw)
+	_, err := pc.CallRPC(ctx, "ze-plugin-callback:configure", input)
+	return err
 }
 
 // SendDeclareCapabilities sends Stage 3: declare-capabilities to the engine.
 func (pc *PluginConn) SendDeclareCapabilities(ctx context.Context, input *rpc.DeclareCapabilitiesInput) error {
-	raw, err := pc.CallRPC(ctx, "ze-plugin-engine:declare-capabilities", input)
-	if err != nil {
-		return err
-	}
-	return rpc.CheckResponse(raw)
+	_, err := pc.CallRPC(ctx, "ze-plugin-engine:declare-capabilities", input)
+	return err
 }
 
 // SendShareRegistry sends Stage 4: share-registry to the plugin.
 func (pc *PluginConn) SendShareRegistry(ctx context.Context, commands []rpc.RegistryCommand) error {
 	input := &rpc.ShareRegistryInput{Commands: commands}
-	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:share-registry", input)
-	if err != nil {
-		return err
-	}
-	return rpc.CheckResponse(raw)
+	_, err := pc.CallRPC(ctx, "ze-plugin-callback:share-registry", input)
+	return err
 }
 
 // SendReady sends Stage 5: ready to the engine.
 func (pc *PluginConn) SendReady(ctx context.Context) error {
-	raw, err := pc.CallRPC(ctx, "ze-plugin-engine:ready", nil)
-	if err != nil {
-		return err
-	}
-	return rpc.CheckResponse(raw)
+	_, err := pc.CallRPC(ctx, "ze-plugin-engine:ready", nil)
+	return err
 }
 
 // --- Runtime RPCs ---
@@ -86,11 +71,8 @@ func (pc *PluginConn) SendReady(ctx context.Context) error {
 // SendDeliverEvent sends a BGP event to the plugin via callback.
 func (pc *PluginConn) SendDeliverEvent(ctx context.Context, eventJSON string) error {
 	input := &rpc.DeliverEventInput{Event: eventJSON}
-	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:deliver-event", input)
-	if err != nil {
-		return err
-	}
-	return rpc.CheckResponse(raw)
+	_, err := pc.CallRPC(ctx, "ze-plugin-callback:deliver-event", input)
+	return err
 }
 
 // SendDeliverBatch sends multiple BGP events to the plugin in a single batch.
@@ -105,21 +87,14 @@ func (pc *PluginConn) SendDeliverBatch(ctx context.Context, events []string) err
 		}
 		rawEvents[i] = b
 	}
-	raw, err := pc.CallBatchRPC(ctx, rawEvents)
-	if err != nil {
-		return err
-	}
-	return rpc.CheckResponse(raw)
+	_, err := pc.CallBatchRPC(ctx, rawEvents)
+	return err
 }
 
 // SendEncodeNLRI requests NLRI encoding from the plugin. Returns hex result.
 func (pc *PluginConn) SendEncodeNLRI(ctx context.Context, family string, args []string) (string, error) {
 	input := &rpc.EncodeNLRIInput{Family: family, Args: args}
-	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:encode-nlri", input)
-	if err != nil {
-		return "", err
-	}
-	result, err := rpc.ParseResponse(raw)
+	result, err := pc.CallRPC(ctx, "ze-plugin-callback:encode-nlri", input)
 	if err != nil {
 		return "", err
 	}
@@ -135,11 +110,7 @@ func (pc *PluginConn) SendEncodeNLRI(ctx context.Context, family string, args []
 // SendDecodeNLRI requests NLRI decoding from the plugin. Returns JSON result.
 func (pc *PluginConn) SendDecodeNLRI(ctx context.Context, family, hex string) (string, error) {
 	input := &rpc.DecodeNLRIInput{Family: family, Hex: hex}
-	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:decode-nlri", input)
-	if err != nil {
-		return "", err
-	}
-	result, err := rpc.ParseResponse(raw)
+	result, err := pc.CallRPC(ctx, "ze-plugin-callback:decode-nlri", input)
 	if err != nil {
 		return "", err
 	}
@@ -155,11 +126,7 @@ func (pc *PluginConn) SendDecodeNLRI(ctx context.Context, family, hex string) (s
 // SendDecodeCapability requests capability decoding from the plugin. Returns JSON result.
 func (pc *PluginConn) SendDecodeCapability(ctx context.Context, code uint8, hex string) (string, error) {
 	input := &rpc.DecodeCapabilityInput{Code: code, Hex: hex}
-	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:decode-capability", input)
-	if err != nil {
-		return "", err
-	}
-	result, err := rpc.ParseResponse(raw)
+	result, err := pc.CallRPC(ctx, "ze-plugin-callback:decode-capability", input)
 	if err != nil {
 		return "", err
 	}
@@ -175,11 +142,7 @@ func (pc *PluginConn) SendDecodeCapability(ctx context.Context, code uint8, hex 
 // SendExecuteCommand requests command execution from the plugin.
 func (pc *PluginConn) SendExecuteCommand(ctx context.Context, serial, command string, args []string, peer string) (*rpc.ExecuteCommandOutput, error) {
 	input := &rpc.ExecuteCommandInput{Serial: serial, Command: command, Args: args, Peer: peer}
-	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:execute-command", input)
-	if err != nil {
-		return nil, err
-	}
-	result, err := rpc.ParseResponse(raw)
+	result, err := pc.CallRPC(ctx, "ze-plugin-callback:execute-command", input)
 	if err != nil {
 		return nil, err
 	}
@@ -194,11 +157,7 @@ func (pc *PluginConn) SendExecuteCommand(ctx context.Context, serial, command st
 // Returns the plugin's validation result (status + optional error).
 func (pc *PluginConn) SendConfigVerify(ctx context.Context, sections []rpc.ConfigSection) (*rpc.ConfigVerifyOutput, error) {
 	input := &rpc.ConfigVerifyInput{Sections: sections}
-	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:config-verify", input)
-	if err != nil {
-		return nil, err
-	}
-	result, err := rpc.ParseResponse(raw)
+	result, err := pc.CallRPC(ctx, "ze-plugin-callback:config-verify", input)
 	if err != nil {
 		return nil, err
 	}
@@ -213,11 +172,7 @@ func (pc *PluginConn) SendConfigVerify(ctx context.Context, sections []rpc.Confi
 // Returns the plugin's apply result (status + optional error).
 func (pc *PluginConn) SendConfigApply(ctx context.Context, sections []rpc.ConfigDiffSection) (*rpc.ConfigApplyOutput, error) {
 	input := &rpc.ConfigApplyInput{Sections: sections}
-	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:config-apply", input)
-	if err != nil {
-		return nil, err
-	}
-	result, err := rpc.ParseResponse(raw)
+	result, err := pc.CallRPC(ctx, "ze-plugin-callback:config-apply", input)
 	if err != nil {
 		return nil, err
 	}
@@ -231,11 +186,7 @@ func (pc *PluginConn) SendConfigApply(ctx context.Context, sections []rpc.Config
 // SendValidateOpen sends a validate-open request to the plugin.
 // Returns the plugin's validation result (accept/reject with optional NOTIFICATION codes).
 func (pc *PluginConn) SendValidateOpen(ctx context.Context, input *rpc.ValidateOpenInput) (*rpc.ValidateOpenOutput, error) {
-	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:validate-open", input)
-	if err != nil {
-		return nil, err
-	}
-	result, err := rpc.ParseResponse(raw)
+	result, err := pc.CallRPC(ctx, "ze-plugin-callback:validate-open", input)
 	if err != nil {
 		return nil, err
 	}
@@ -249,9 +200,6 @@ func (pc *PluginConn) SendValidateOpen(ctx context.Context, input *rpc.ValidateO
 // SendBye sends a shutdown request to the plugin.
 func (pc *PluginConn) SendBye(ctx context.Context, reason string) error {
 	input := &rpc.ByeInput{Reason: reason}
-	raw, err := pc.CallRPC(ctx, "ze-plugin-callback:bye", input)
-	if err != nil {
-		return err
-	}
-	return rpc.CheckResponse(raw)
+	_, err := pc.CallRPC(ctx, "ze-plugin-callback:bye", input)
+	return err
 }

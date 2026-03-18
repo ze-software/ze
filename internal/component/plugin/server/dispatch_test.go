@@ -63,10 +63,7 @@ func TestDispatchCommandToPlugin(t *testing.T) {
 	defer cancel()
 
 	input := &rpc.DispatchCommandInput{Command: "test command"}
-	raw, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:dispatch-command", input)
-	require.NoError(t, err)
-
-	result, err := rpc.ParseResponse(raw)
+	result, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:dispatch-command", input)
 	require.NoError(t, err)
 
 	var output rpc.DispatchCommandOutput
@@ -121,11 +118,7 @@ func TestDispatchCommandNotFound(t *testing.T) {
 	defer cancel()
 
 	input := &rpc.DispatchCommandInput{Command: "nonexistent command"}
-	raw, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:dispatch-command", input)
-	require.NoError(t, err)
-
-	// Should get an error in the JSON-RPC response
-	_, err = rpc.ParseResponse(raw)
+	_, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:dispatch-command", input)
 	require.Error(t, err, "should return error for unknown command")
 
 	if err := pluginSide.Close(); err != nil {
@@ -182,10 +175,7 @@ func TestDispatchCommandPluginError(t *testing.T) {
 	defer cancel()
 
 	input := &rpc.DispatchCommandInput{Command: "failing command"}
-	raw, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:dispatch-command", input)
-	require.NoError(t, err)
-
-	result, err := rpc.ParseResponse(raw)
+	result, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:dispatch-command", input)
 	require.NoError(t, err)
 
 	var output rpc.DispatchCommandOutput
@@ -238,10 +228,7 @@ func TestDispatchCommandEmptyCommand(t *testing.T) {
 	defer cancel()
 
 	input := &rpc.DispatchCommandInput{Command: ""}
-	raw, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:dispatch-command", input)
-	require.NoError(t, err)
-
-	_, err = rpc.ParseResponse(raw)
+	_, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:dispatch-command", input)
 	require.Error(t, err, "empty command should return error")
 
 	if err := pluginSide.Close(); err != nil {
@@ -290,11 +277,9 @@ func TestDispatchCommandDirectBridge(t *testing.T) {
 	raw, err := s.dispatchPluginRPCDirect(proc, "ze-plugin-engine:dispatch-command", params)
 	require.NoError(t, err)
 
-	result, err := rpc.ParseResponse(raw)
-	require.NoError(t, err)
-
+	// DirectBridge returns marshaled result directly (no envelope).
 	var output rpc.DispatchCommandOutput
-	require.NoError(t, json.Unmarshal(result, &output))
+	require.NoError(t, json.Unmarshal(raw, &output))
 
 	assert.Equal(t, "done", output.Status)
 	assert.Contains(t, output.Data, "bridge-ok")

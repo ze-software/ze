@@ -96,3 +96,8 @@ Do NOT flag these as "identity wrappers adding no value."
 - Attempt 2: `UpdateHandle` wrapped raw data with lazy methods + cached fields (identity wrapper)
 - Root cause: defaulted to "struct with accessor methods" instead of ze pattern: pass raw bytes, use existing iterators
 - **Rule:** before creating any new type for data access, ask "can the consumer use existing wire types directly?"
+
+### Plugin Placement Anchor Bias (jsonrpc gateway)
+- Placed cross-cutting JSON-RPC gateway under `bgp/plugins/` by pattern-matching recently-read files.
+- Root cause: anchored on "where I just read code" instead of reasoning from architecture.
+- **Rule:** Before placing any new plugin, apply the "delete the folder" test: if the parent were deleted, should this plugin disappear? Domain plugins → `bgp/plugins/`. Cross-cutting services → `internal/component/<name>/`. Core infra → `internal/core/`.

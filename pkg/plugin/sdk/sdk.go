@@ -1,5 +1,4 @@
 // Design: docs/architecture/api/process-protocol.md — plugin SDK
-// Detail: sdk_text.go — text-mode startup and event loop
 // Detail: sdk_callbacks.go — On*/Set* callback registration methods
 // Detail: sdk_engine.go — plugin-to-engine RPC methods
 // Detail: sdk_dispatch.go — event loop and callback dispatch
@@ -42,18 +41,12 @@ type Plugin struct {
 	name string
 
 	// Two bidirectional connections (one per socket).
-	engineConn   *rpc.Conn    // Socket A: plugin → engine RPCs
-	callbackConn *rpc.Conn    // Socket B: engine → plugin RPCs
+	engineConn   *rpc.Conn    // Socket A: plugin -> engine RPCs
+	callbackConn *rpc.Conn    // Socket B: engine -> plugin RPCs
 	engineMux    *rpc.MuxConn // Multiplexed Socket A for concurrent post-startup RPCs
 
-	// Text mode: line-based framing instead of NUL-delimited JSON-RPC.
-	// When textMode is true, text* fields are used instead of engineConn/callbackConn.
-	textMode     bool
-	textConnA    *rpc.TextConn    // Socket A text framing (startup + textMux owner)
-	textConnB    *rpc.TextConn    // Socket B text framing (event loop)
-	textMux      *rpc.TextMuxConn // Multiplexed Socket A for concurrent post-startup text RPCs
-	rawEngineA   net.Conn         // Underlying Socket A (for Close)
-	rawCallbackB net.Conn         // Underlying Socket B (for Close)
+	// Underlying Socket B net.Conn for SCM_RIGHTS fd passing (ReceiveListener).
+	rawCallbackB net.Conn
 
 	// Direct transport bridge for internal plugins (nil for external).
 	// Discovered via type assertion on engineConn in NewWithConn.
@@ -76,7 +69,7 @@ type Plugin struct {
 	onBye              func(string)
 
 	// Post-startup callback (runs after Stage 5, before event loop).
-	// Safe to make engine calls (Socket A) here — startup is complete.
+	// Safe to make engine calls (Socket A) here -- startup is complete.
 	onStarted func(context.Context) error
 
 	// Startup subscriptions: included in the "ready" RPC so the engine
@@ -114,8 +107,8 @@ func NewWithConn(name string, engineConn, callbackConn net.Conn) *Plugin {
 }
 
 // NewFromFDs creates a plugin from inherited file descriptors.
-// engineFD is the plugin's end of Socket A (plugin→engine calls).
-// callbackFD is the plugin's end of Socket B (engine→plugin calls).
+// engineFD is the plugin's end of Socket A (plugin->engine calls).
+// callbackFD is the plugin's end of Socket B (engine->plugin calls).
 func NewFromFDs(name string, engineFD, callbackFD int) (*Plugin, error) {
 	engineConn, err := connFromFD(engineFD, "ze-engine")
 	if err != nil {
@@ -207,16 +200,13 @@ func (p *Plugin) Listeners() []net.Listener {
 // plugin is done to prevent goroutine and socket leaks.
 // Safe to call multiple times.
 func (p *Plugin) Close() error {
-	if p.textMode {
-		return p.closeText()
-	}
-	// Close received listeners first — they hold open TCP sockets.
+	// Close received listeners first -- they hold open TCP sockets.
 	for _, ln := range p.listeners {
 		ln.Close() //nolint:errcheck,gosec // best-effort cleanup of handed-off listeners
 	}
 	p.listeners = nil
 
-	// Close MuxConn first — its background reader must stop before
+	// Close MuxConn first -- its background reader must stop before
 	// closing the underlying engineConn (which it reads from).
 	if p.engineMux != nil {
 		if err := p.engineMux.Close(); err != nil {
@@ -234,11 +224,6 @@ func (p *Plugin) Close() error {
 // Run executes the 5-stage startup protocol and enters the event loop.
 // Returns nil on clean shutdown (bye received), or error on failure.
 func (p *Plugin) Run(ctx context.Context, reg Registration) error {
-	// Text mode: delegate to text-specific startup and event loop.
-	if p.textMode {
-		return p.runText(ctx, reg)
-	}
-
 	// Auto-set WantsValidateOpen if callback is registered.
 	p.mu.Lock()
 	if p.onValidateOpen != nil {
@@ -346,25 +331,21 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 
 // callEngine sends an RPC to the engine via Socket A and waits for response.
 // Uses MuxConn when available (post-startup), falls back to Conn (during startup).
+// Since CallRPC returns RPC errors as *rpc.RPCCallError, this just forwards the error.
 func (p *Plugin) callEngine(ctx context.Context, method string, params any) error {
-	raw, err := p.callEngineRaw(ctx, method, params)
-	if err != nil {
-		return err
-	}
-	return rpc.CheckResponse(raw)
+	_, err := p.callEngineRaw(ctx, method, params)
+	return err
 }
 
 // callEngineWithResult sends an RPC to the engine and returns the result payload.
 // Uses MuxConn when available (post-startup), falls back to Conn (during startup).
+// Since CallRPC returns the result payload directly (RPC errors as Go errors),
+// this just forwards the return values.
 func (p *Plugin) callEngineWithResult(ctx context.Context, method string, params any) (json.RawMessage, error) {
-	raw, err := p.callEngineRaw(ctx, method, params)
-	if err != nil {
-		return nil, err
-	}
-	return rpc.ParseResponse(raw)
+	return p.callEngineRaw(ctx, method, params)
 }
 
-// callEngineRaw sends an RPC and returns the raw response frame.
+// callEngineRaw sends an RPC and returns the result payload.
 // Dispatches to: DirectBridge (direct function call, internal plugins post-startup),
 // MuxConn (concurrent socket, post-startup), or Conn (sequential socket, startup).
 func (p *Plugin) callEngineRaw(ctx context.Context, method string, params any) (json.RawMessage, error) {

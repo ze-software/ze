@@ -1,4 +1,4 @@
-// Design: docs/architecture/testing/ci-format.md — text-mode test plugin
+// Design: docs/architecture/testing/ci-format.md — test plugin
 
 package main
 
@@ -12,11 +12,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
-// textPluginCmd runs a minimal text-mode external plugin for functional testing.
-// Uses the SDK's text protocol path (NewTextFromEnv → Run with text framing).
+// textPluginCmd runs a minimal external plugin for functional testing.
+// Uses the unified #id verb [json] protocol.
 // Registers for update events and logs them to stderr.
 func textPluginCmd() int {
-	p, err := sdk.NewTextFromEnv("text-test")
+	p, err := sdk.NewFromEnv("text-test")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "text-plugin: init: %v\n", err)
 		return 1

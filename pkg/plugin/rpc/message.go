@@ -1,28 +1,43 @@
 // Design: docs/architecture/api/ipc_protocol.md — RPC wire message types
-// Related: conn.go — Conn uses Request/RPCResult/RPCError for RPC framing
-// Related: framing.go — NUL-delimited frame reader/writer
+// Related: conn.go — Conn uses line format for RPC framing
+// Related: framing.go — newline-delimited frame reader/writer
 // Related: types.go — domain-specific RPC input/output types
 
 package rpc
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
+)
 
-// NewError creates an RPCError with an explicit short code and human-readable detail.
-// The code is a short kebab-case identifier (e.g., "unknown-command", "unauthorized").
-// The message is preserved in Params.message for human display.
-func NewError(id json.RawMessage, code, message string) *RPCError {
-	params, _ := json.Marshal(map[string]string{"message": message})
+// Request represents a parsed incoming RPC request line: #<id> <method> [<json>].
+type Request struct {
+	ID     uint64          // Correlation ID from #<id> prefix
+	Method string          // module:rpc-name
+	Params json.RawMessage // JSON payload (may be nil)
+}
 
-	return &RPCError{
-		Error:  code,
-		Params: params,
-		ID:     id,
+// RPCCallError represents an error returned by the remote side via #<id> error [<json>].
+type RPCCallError struct {
+	Code    string // Short kebab-case identifier (may be empty)
+	Message string // Human-readable detail
+}
+
+func (e *RPCCallError) Error() string {
+	if e.Message != "" {
+		return "rpc error: " + e.Message
 	}
+	if e.Code != "" {
+		return "rpc error: " + e.Code
+	}
+	return "rpc error: (no message)"
 }
 
 // CodedError is a Go error that carries a short machine-readable code.
 // Used to pass structured error information through the dispatch chain
-// so that Dispatch can construct an RPCError with a proper code.
+// so that Dispatch can construct an error response with a proper code.
 type CodedError struct {
 	Code    string // Short kebab-case identifier (e.g., "unknown-command")
 	message string
@@ -35,40 +50,132 @@ func NewCodedError(code, message string) *CodedError {
 
 func (e *CodedError) Error() string { return e.message }
 
-// ExtractMessage extracts the human-readable message from RPCError params JSON.
+// ExtractErrorMessage extracts the human-readable message from error payload JSON.
 // Returns the message if present, or empty string.
-func ExtractMessage(params json.RawMessage) string {
-	if len(params) == 0 {
+func ExtractErrorMessage(payload json.RawMessage) string {
+	if len(payload) == 0 {
 		return ""
 	}
 	var detail struct {
 		Message string `json:"message"`
 	}
-	if json.Unmarshal(params, &detail) == nil {
+	if json.Unmarshal(payload, &detail) == nil {
 		return detail.Message
 	}
 	return ""
 }
 
-// Request represents an IPC request on the wire.
-// Method uses "module:rpc-name" format (e.g., "ze-bgp:peer-list").
-type Request struct {
-	Method string          `json:"method"`           // module:rpc-name
-	Params json.RawMessage `json:"params,omitempty"` // Input parameters
-	ID     json.RawMessage `json:"id,omitempty"`     // Correlation ID (string or number)
-	More   bool            `json:"more,omitempty"`   // Request streaming responses
+// ParseLine parses a wire line into id, verb, and payload.
+// Format: #<id> <verb> [<payload>].
+func ParseLine(line []byte) (id uint64, verb string, payload []byte, err error) {
+	s := string(line)
+	if !strings.HasPrefix(s, "#") {
+		return 0, "", nil, fmt.Errorf("line missing # prefix: %q", truncate(s, 80))
+	}
+	s = s[1:] // strip #
+
+	// Extract ID
+	idStr, rest, hasRest := strings.Cut(s, " ")
+	id, err = strconv.ParseUint(idStr, 10, 64)
+	if err != nil {
+		return 0, "", nil, fmt.Errorf("invalid id %q: %w", idStr, err)
+	}
+
+	if !hasRest || rest == "" {
+		return 0, "", nil, fmt.Errorf("line has no verb after #%d", id)
+	}
+
+	// Extract verb and optional payload
+	verb, payloadStr, _ := strings.Cut(rest, " ")
+	if payloadStr != "" {
+		payload = []byte(payloadStr)
+	}
+
+	return id, verb, payload, nil
 }
 
-// RPCResult represents a successful IPC response on the wire.
-type RPCResult struct {
-	Result    json.RawMessage `json:"result"`              // Output data
-	ID        json.RawMessage `json:"id,omitempty"`        // Echoed from request
-	Continues bool            `json:"continues,omitempty"` // More responses follow
+// FormatRequest formats a request line: #<id> <method> [<json>].
+func FormatRequest(id uint64, method string, params json.RawMessage) []byte {
+	if len(params) == 0 || string(params) == "null" {
+		return fmt.Appendf(nil, "#%d %s", id, method)
+	}
+	buf := make([]byte, 0, 2+20+1+len(method)+1+len(params))
+	buf = append(buf, '#')
+	buf = strconv.AppendUint(buf, id, 10)
+	buf = append(buf, ' ')
+	buf = append(buf, method...)
+	buf = append(buf, ' ')
+	buf = append(buf, params...)
+	return buf
 }
 
-// RPCError represents an IPC error response on the wire.
-type RPCError struct {
-	Error  string          `json:"error"`            // Error identity name
-	Params json.RawMessage `json:"params,omitempty"` // Error parameters
-	ID     json.RawMessage `json:"id,omitempty"`     // Echoed from request
+// FormatResult formats a success response: #<id> ok [<json>].
+func FormatResult(id uint64, result json.RawMessage) []byte {
+	if len(result) == 0 || string(result) == "null" {
+		return FormatOK(id)
+	}
+	buf := make([]byte, 0, 2+20+4+len(result))
+	buf = append(buf, '#')
+	buf = strconv.AppendUint(buf, id, 10)
+	buf = append(buf, ' ', 'o', 'k', ' ')
+	buf = append(buf, result...)
+	return buf
+}
+
+// FormatOK formats an empty success response: #<id> ok.
+func FormatOK(id uint64) []byte {
+	buf := make([]byte, 0, 2+20+3)
+	buf = append(buf, '#')
+	buf = strconv.AppendUint(buf, id, 10)
+	buf = append(buf, ' ', 'o', 'k')
+	return buf
+}
+
+// FormatError formats an error response: #<id> error [<json>].
+func FormatError(id uint64, errPayload json.RawMessage) []byte {
+	if len(errPayload) == 0 {
+		buf := make([]byte, 0, 2+20+6)
+		buf = append(buf, '#')
+		buf = strconv.AppendUint(buf, id, 10)
+		buf = append(buf, " error"...)
+		return buf
+	}
+	buf := make([]byte, 0, 2+20+7+len(errPayload))
+	buf = append(buf, '#')
+	buf = strconv.AppendUint(buf, id, 10)
+	buf = append(buf, " error "...)
+	buf = append(buf, errPayload...)
+	return buf
+}
+
+// NewErrorPayload creates a JSON error payload with code and message fields.
+func NewErrorPayload(code, message string) json.RawMessage {
+	data, _ := json.Marshal(struct {
+		Code    string `json:"code,omitempty"`
+		Message string `json:"message"`
+	}{Code: code, Message: message})
+	return data
+}
+
+// parseRPCError parses an error payload JSON into an RPCCallError.
+func parseRPCError(payload []byte) *RPCCallError {
+	if len(payload) == 0 {
+		return &RPCCallError{}
+	}
+	var detail struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	}
+	if json.Unmarshal(payload, &detail) == nil {
+		return &RPCCallError{Code: detail.Code, Message: detail.Message}
+	}
+	// Payload is not JSON — use it as the message directly.
+	return &RPCCallError{Message: string(payload)}
+}
+
+func truncate(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n] + "..."
 }

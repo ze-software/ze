@@ -1,13 +1,12 @@
-// Design: docs/architecture/api/ipc_protocol.md — NUL-delimited frame I/O
+// Design: docs/architecture/api/ipc_protocol.md — newline-delimited frame I/O
 // Detail: batch.go — batched event delivery frame construction
 // Related: conn.go — Conn uses FrameReader/FrameWriter for RPC framing
-// Related: message.go — RPC wire message types
+// Related: message.go — RPC wire message types and line parsing
 
 package rpc
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -19,21 +18,21 @@ const MaxMessageSize = 16 * 1024 * 1024
 // initialBufSize is the initial read buffer size (64 KB).
 const initialBufSize = 64 * 1024
 
-// FrameReader reads NUL-terminated messages from an io.Reader.
+// FrameReader reads newline-delimited messages from an io.Reader.
 type FrameReader struct {
 	scanner *bufio.Scanner
 }
 
-// NewFrameReader creates a FrameReader that reads NUL-terminated messages.
+// NewFrameReader creates a FrameReader that reads newline-delimited messages.
 func NewFrameReader(r io.Reader) *FrameReader {
 	scanner := bufio.NewScanner(r)
 	// MaxMessageSize+1 because bufio.Scanner's max is exclusive (token must be < max)
 	scanner.Buffer(make([]byte, initialBufSize), MaxMessageSize+1)
-	scanner.Split(splitNUL)
+	// Default split func is bufio.ScanLines (splits on \n, strips \r\n)
 	return &FrameReader{scanner: scanner}
 }
 
-// Read returns the next NUL-terminated message.
+// Read returns the next newline-delimited message.
 // Returns io.EOF when no more messages are available.
 func (fr *FrameReader) Read() ([]byte, error) {
 	if fr.scanner.Scan() {
@@ -53,28 +52,12 @@ func (fr *FrameReader) Read() ([]byte, error) {
 	return nil, io.EOF
 }
 
-// splitNUL is a bufio.SplitFunc that splits on NUL bytes.
-func splitNUL(data []byte, atEOF bool) (advance int, token []byte, err error) {
-	if atEOF && len(data) == 0 {
-		return 0, nil, nil
-	}
-	if i := bytes.IndexByte(data, 0); i >= 0 {
-		return i + 1, data[:i], nil
-	}
-	if atEOF {
-		// No trailing NUL — return remaining data as partial message
-		return len(data), data, nil
-	}
-	// Request more data
-	return 0, nil, nil
-}
-
-// FrameWriter writes NUL-terminated messages to an io.Writer.
+// FrameWriter writes newline-terminated messages to an io.Writer.
 type FrameWriter struct {
 	w io.Writer
 }
 
-// NewFrameWriter creates a FrameWriter that writes NUL-terminated messages.
+// NewFrameWriter creates a FrameWriter that writes newline-terminated messages.
 func NewFrameWriter(w io.Writer) *FrameWriter {
 	return &FrameWriter{w: w}
 }
@@ -85,11 +68,14 @@ func (fw *FrameWriter) RawWriter() io.Writer {
 	return fw.w
 }
 
-// Write sends a message followed by a NUL terminator.
+// Write sends a message followed by a newline terminator.
 func (fw *FrameWriter) Write(msg []byte) error {
+	if len(msg) > MaxMessageSize {
+		return fmt.Errorf("message exceeds maximum size %d", MaxMessageSize)
+	}
 	buf := make([]byte, len(msg)+1)
 	copy(buf, msg)
-	buf[len(msg)] = 0
+	buf[len(msg)] = '\n'
 	_, err := fw.w.Write(buf)
 	if err != nil {
 		return fmt.Errorf("write frame: %w", err)
@@ -97,7 +83,7 @@ func (fw *FrameWriter) Write(msg []byte) error {
 	return nil
 }
 
-// WriteRaw writes pre-framed data directly. The caller must include the NUL
+// WriteRaw writes pre-framed data directly. The caller must include the newline
 // terminator. Used by batch delivery to bypass the per-frame allocation.
 func (fw *FrameWriter) WriteRaw(data []byte) error {
 	_, err := fw.w.Write(data)

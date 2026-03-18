@@ -5,22 +5,20 @@ package ipc
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 // MapResponse converts the current plugin Response fields to an IPC wire message.
-// Returns either *rpc.RPCResult (success) or *rpc.RPCError (error).
+// Returns either *DispatchResult (success) or *DispatchError (error).
 func MapResponse(status, serial string, partial bool, data any) any {
-	var id json.RawMessage
+	var id uint64
 	if serial != "" {
-		// Validate serial is a valid JSON number before using as raw JSON
-		if json.Valid([]byte(serial)) {
-			id = json.RawMessage(serial)
-		} else {
-			// Quote invalid values as JSON strings to prevent corrupt output
-			quoted, _ := json.Marshal(serial)
-			id = json.RawMessage(quoted)
+		// Parse serial as uint64. If invalid, use 0.
+		parsed, parseErr := strconv.ParseUint(serial, 10, 64)
+		if parseErr == nil {
+			id = parsed
 		}
 	}
 
@@ -32,7 +30,11 @@ func MapResponse(status, serial string, partial bool, data any) any {
 		if e, ok := data.(error); ok {
 			msg = e.Error()
 		}
-		return rpc.NewError(id, "error", msg)
+		return &DispatchError{
+			Error:  "error",
+			Params: rpc.NewErrorPayload("error", msg),
+			ID:     id,
+		}
 	}
 
 	// Marshal data to JSON for the result field
@@ -46,10 +48,10 @@ func MapResponse(status, serial string, partial bool, data any) any {
 		}
 	}
 
-	resp := &rpc.RPCResult{
-		Result:    result,
-		ID:        id,
-		Continues: partial,
+	resp := &DispatchResult{
+		Result: result,
+		ID:     id,
 	}
+	_ = partial // partial/streaming no longer used in new wire format
 	return resp
 }

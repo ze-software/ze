@@ -13,8 +13,21 @@ import (
 
 // RPCHandler processes an RPC method call.
 // Receives the full wire method name and raw JSON params.
-// Returns result data (marshaled into RPCResult) or an error (converted to RPCError).
+// Returns result data (marshaled into DispatchResult) or an error (converted to DispatchError).
 type RPCHandler func(method string, params json.RawMessage) (any, error)
+
+// DispatchResult holds a successful dispatch result for wire serialization.
+type DispatchResult struct {
+	Result json.RawMessage // JSON-encoded result data
+	ID     uint64          // Correlation ID
+}
+
+// DispatchError holds a dispatch error for wire serialization.
+type DispatchError struct {
+	Error  string          // Short error code (e.g., "unknown-method", "handler-error")
+	Params json.RawMessage // Structured error detail ({"code":"...","message":"..."})
+	ID     uint64          // Correlation ID
+}
 
 // RPCDispatcher routes wire method calls to registered handlers.
 // Methods use "module:rpc-name" format (e.g., "ze-bgp:peer-list").
@@ -56,11 +69,20 @@ func (d *RPCDispatcher) HasMethod(method string) bool {
 	return exists
 }
 
-// Dispatch routes a Request to the registered handler and returns an RPCResult or RPCError.
+// newDispatchError creates a DispatchError with structured detail payload.
+func newDispatchError(id uint64, code, message string) *DispatchError {
+	return &DispatchError{
+		Error:  code,
+		Params: rpc.NewErrorPayload(code, message),
+		ID:     id,
+	}
+}
+
+// Dispatch routes a Request to the registered handler and returns a DispatchResult or DispatchError.
 func (d *RPCDispatcher) Dispatch(req *rpc.Request) any {
 	// Validate method format
 	if _, _, err := ParseMethod(req.Method); err != nil {
-		return rpc.NewError(req.ID, "invalid-method", err.Error())
+		return newDispatchError(req.ID, "invalid-method", err.Error())
 	}
 
 	// Find handler
@@ -69,7 +91,7 @@ func (d *RPCDispatcher) Dispatch(req *rpc.Request) any {
 	d.mu.RUnlock()
 
 	if !exists {
-		return rpc.NewError(req.ID, "unknown-method", "unknown method")
+		return newDispatchError(req.ID, "unknown-method", "unknown method")
 	}
 
 	// Call handler
@@ -79,9 +101,9 @@ func (d *RPCDispatcher) Dispatch(req *rpc.Request) any {
 		// Otherwise fall back to a generic "handler-error" code.
 		var coded *rpc.CodedError
 		if errors.As(err, &coded) {
-			return rpc.NewError(req.ID, coded.Code, coded.Error())
+			return newDispatchError(req.ID, coded.Code, coded.Error())
 		}
-		return rpc.NewError(req.ID, "handler-error", err.Error())
+		return newDispatchError(req.ID, "handler-error", err.Error())
 	}
 
 	// Marshal result
@@ -90,11 +112,11 @@ func (d *RPCDispatcher) Dispatch(req *rpc.Request) any {
 		var marshalErr error
 		resultJSON, marshalErr = json.Marshal(result)
 		if marshalErr != nil {
-			return rpc.NewError(req.ID, "marshal-error", marshalErr.Error())
+			return newDispatchError(req.ID, "marshal-error", marshalErr.Error())
 		}
 	}
 
-	return &rpc.RPCResult{
+	return &DispatchResult{
 		Result: resultJSON,
 		ID:     req.ID,
 	}

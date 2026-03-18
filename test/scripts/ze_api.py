@@ -2,7 +2,7 @@
 """Shared library for ZeBGP API test scripts.
 
 Provides YANG RPC communication with ZeBGP daemon over socket pair FDs.
-Uses NUL-terminated JSON framing over Unix socket pairs:
+Uses newline-delimited #id verb [json] framing over Unix socket pairs:
   - Socket A (FD from ZE_ENGINE_FD, default 3): plugin -> engine RPCs
   - Socket B (FD from ZE_CALLBACK_FD, default 4): engine -> plugin callbacks
 
@@ -63,7 +63,7 @@ class API:
       - Socket A (engine_fd): plugin -> engine RPCs (registration, routes, subscribe)
       - Socket B (callback_fd): engine -> plugin callbacks (config, events, bye)
 
-    Messages are NUL-terminated JSON frames.
+    Messages are newline-delimited lines: #<id> <verb> [<json-payload>]
     """
 
     def __init__(self, engine_fd: int | None = None, callback_fd: int | None = None):
@@ -109,16 +109,38 @@ class API:
         signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
     # ==================================================================
-    # Low-level NUL-framed JSON transport
+    # Low-level newline-framed line transport
     # ==================================================================
 
-    def _send_frame(self, fd: int, data: dict) -> None:
-        """Send a NUL-terminated JSON frame."""
-        frame = json.dumps(data, separators=(',', ':')).encode('utf-8') + b'\x00'
-        os.write(fd, frame)
+    def _format_line(self, req_id: int, verb: str, payload: dict | None = None) -> bytes:
+        """Format #<id> <verb> [<json-payload>] newline-terminated line."""
+        if payload is not None:
+            json_str = json.dumps(payload, separators=(',', ':'))
+            return f'#{req_id} {verb} {json_str}\n'.encode('utf-8')
+        return f'#{req_id} {verb}\n'.encode('utf-8')
 
-    def _read_frame(self, fd: int, buf_attr: str, timeout: float | None = None) -> dict | None:
-        """Read a NUL-terminated JSON frame from fd.
+    def _parse_line(self, line: str) -> tuple[int, str, dict | None]:
+        """Parse #<id> <verb> [<json-payload>] from a raw line.
+
+        Returns:
+            Tuple of (request_id, verb, payload_dict_or_None)
+        """
+        if not line.startswith('#'):
+            raise RuntimeError(f'line missing # prefix: {line[:80]}')
+        rest = line[1:]
+        id_str, _, body = rest.partition(' ')
+        req_id = int(id_str)
+        verb, _, payload_str = body.partition(' ')
+        payload = json.loads(payload_str) if payload_str else None
+        return req_id, verb, payload
+
+    def _send_rpc(self, fd: int, req_id: int, method: str, params: dict | None = None) -> None:
+        """Send a newline-terminated RPC line: #<id> <method> [<json-params>]."""
+        line = self._format_line(req_id, method, params)
+        os.write(fd, line)
+
+    def _read_line(self, fd: int, buf_attr: str, timeout: float | None = None) -> str | None:
+        """Read a newline-terminated line from fd.
 
         Args:
             fd: File descriptor to read from
@@ -126,17 +148,17 @@ class API:
             timeout: Seconds to wait (None = block forever)
 
         Returns:
-            Parsed JSON dict, or None on timeout/EOF
+            Raw line (without newline), or None on timeout/EOF
         """
         buf = getattr(self, buf_attr)
 
         while True:
-            # Check buffer for complete frame
-            nul_pos = buf.find(b'\x00')
-            if nul_pos >= 0:
-                frame_bytes = buf[:nul_pos]
-                setattr(self, buf_attr, buf[nul_pos + 1:])
-                return json.loads(frame_bytes.decode('utf-8'))
+            # Check buffer for complete line
+            nl_pos = buf.find(b'\n')
+            if nl_pos >= 0:
+                line_bytes = buf[:nl_pos]
+                setattr(self, buf_attr, buf[nl_pos + 1:])
+                return line_bytes.decode('utf-8')
 
             # Wait for data
             if timeout is not None:
@@ -168,36 +190,46 @@ class API:
     def _call_engine(self, method: str, params: Any = None) -> dict | None:
         """Send RPC to engine on Socket A and wait for response.
 
+        Sends: #<id> <method> [<json-params>]
+        Expects: #<id> ok [<json>] or #<id> error [<json>]
+
         Args:
             method: RPC method name (e.g., 'ze-plugin-engine:declare-registration')
             params: Optional parameters dict
 
         Returns:
-            Response dict
+            Response payload dict, or None
 
         Raises:
             RuntimeError: If the engine returns an error response
         """
         req_id = self._next_id()
-        req: dict[str, Any] = {'method': method, 'id': req_id}
-        if params is not None:
-            req['params'] = params
-        self._send_frame(self._engine_fd, req)
+        self._send_rpc(self._engine_fd, req_id, method, params)
 
-        resp = self._read_frame(self._engine_fd, '_engine_buf')
-        if resp is None:
+        line = self._read_line(self._engine_fd, '_engine_buf')
+        if line is None:
             raise RuntimeError(f'no response for {method}')
-        if 'error' in resp:
-            raise RuntimeError(f"RPC error from {method}: {resp['error']}")
-        return resp
 
-    def _respond_ok(self, req_id: Any) -> None:
-        """Send OK response on Socket B."""
-        resp = {'result': None, 'id': req_id}
-        self._send_frame(self._callback_fd, resp)
+        resp_id, verb, payload = self._parse_line(line)
+        if verb == 'error':
+            msg = ''
+            if payload:
+                msg = payload.get('message', str(payload))
+            raise RuntimeError(f'RPC error from {method}: {msg}')
+        # Wrap payload in {"result": ...} envelope for backward compatibility
+        # with test scripts that access resp.get('result', {}).
+        return {'result': payload}
+
+    def _respond_ok(self, req_id: int) -> None:
+        """Send OK response on Socket B: #<id> ok"""
+        line = self._format_line(req_id, 'ok')
+        os.write(self._callback_fd, line)
 
     def _serve_one(self, expected_method: str, timeout: float = 10.0) -> dict | None:
         """Read one RPC request from Socket B, verify method, respond OK.
+
+        Reads: #<id> <method> [<json-params>]
+        Sends: #<id> ok
 
         Args:
             expected_method: Expected RPC method name
@@ -209,16 +241,15 @@ class API:
         Raises:
             RuntimeError: If unexpected method received
         """
-        req = self._read_frame(self._callback_fd, '_callback_buf', timeout=timeout)
-        if req is None:
+        line = self._read_line(self._callback_fd, '_callback_buf', timeout=timeout)
+        if line is None:
             raise RuntimeError(f'timeout waiting for {expected_method}')
 
-        method = req.get('method', '')
+        req_id, method, params = self._parse_line(line)
         if method != expected_method:
             raise RuntimeError(f'expected {expected_method}, got {method}')
 
-        params = req.get('params')
-        self._respond_ok(req.get('id'))
+        self._respond_ok(req_id)
         return params
 
     # ==================================================================
@@ -314,7 +345,7 @@ class API:
             A socket object wrapping the received listen socket fd.
         """
         # Create a socket object from the raw callback fd for recvmsg.
-        # socket.fromfd() dups the fd — we must close this socket after use.
+        # socket.fromfd() dups the fd -- we must close this socket after use.
         sock = socket.fromfd(self._callback_fd, socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             # Read 1 framing byte + ancillary data (SCM_RIGHTS carrying one fd).
@@ -352,7 +383,7 @@ class API:
                     return listener
             raise RuntimeError('no fd in control message')
         finally:
-            # Close the dup'd socket — the original _callback_fd is unaffected.
+            # Close the dup'd socket -- the original _callback_fd is unaffected.
             sock.close()
 
     # ==================================================================
@@ -493,7 +524,7 @@ class API:
         elif command.startswith('peer ') or command.startswith('update '):
             self._send_update_route(command)
         else:
-            # Unknown command type — try as update-route
+            # Unknown command type -- try as update-route
             self._send_update_route(command)
 
     def _handle_subscribe_command(self, command: str) -> None:
@@ -583,13 +614,11 @@ class API:
         if self._pending_events:
             return self._pending_events.pop(0)
 
-        req = self._read_frame(self._callback_fd, '_callback_buf', timeout=timeout)
-        if req is None:
+        raw = self._read_line(self._callback_fd, '_callback_buf', timeout=timeout)
+        if raw is None:
             return None
 
-        method = req.get('method', '')
-        req_id = req.get('id')
-        params = req.get('params')
+        req_id, method, params = self._parse_line(raw)
 
         if method == 'ze-plugin-callback:deliver-event':
             self._respond_ok(req_id)
@@ -615,7 +644,7 @@ class API:
             self._shutdown = True
             return None
 
-        # Other callbacks — respond OK and skip
+        # Other callbacks -- respond OK and skip
         self._respond_ok(req_id)
         return self.read_line(timeout)
 
@@ -647,7 +676,7 @@ class API:
         """Wait for route delivery after send().
 
         In YANG RPC, send() gets an RPC response synchronously, but that only
-        means "command dispatched" — NOT "route delivered to peer". The BGP
+        means "command dispatched" -- NOT "route delivered to peer". The BGP
         session may still be establishing (OPENSENT/OPENCONFIRM) when the RPC
         returns, and queued routes are flushed asynchronously on ESTABLISHED.
 

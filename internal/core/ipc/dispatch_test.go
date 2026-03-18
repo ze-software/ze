@@ -13,7 +13,7 @@ import (
 
 // TestRPCDispatchSimple verifies basic method routing to handler.
 //
-// VALIDATES: Registered handler receives dispatch and result is wrapped in RPCResult.
+// VALIDATES: Registered handler receives dispatch and result is wrapped in DispatchResult.
 // PREVENTS: Dispatch table not routing methods to handlers.
 func TestRPCDispatchSimple(t *testing.T) {
 	d := NewRPCDispatcher()
@@ -25,14 +25,14 @@ func TestRPCDispatchSimple(t *testing.T) {
 
 	req := &rpc.Request{
 		Method: "ze-bgp:peer-list",
-		ID:     json.RawMessage(`1`),
+		ID:     1,
 	}
 
 	resp := d.Dispatch(req)
-	result, ok := resp.(*rpc.RPCResult)
-	require.True(t, ok, "expected RPCResult, got %T", resp)
+	result, ok := resp.(*DispatchResult)
+	require.True(t, ok, "expected DispatchResult, got %T", resp)
 	assert.NotNil(t, result.Result)
-	assert.Equal(t, json.RawMessage(`1`), result.ID)
+	assert.Equal(t, uint64(1), result.ID)
 }
 
 // TestRPCDispatchWithParams verifies parameters are passed to handler.
@@ -54,11 +54,11 @@ func TestRPCDispatchWithParams(t *testing.T) {
 	req := &rpc.Request{
 		Method: "ze-bgp:peer-teardown",
 		Params: json.RawMessage(`{"selector":"10.0.0.1","subcode":2}`),
-		ID:     json.RawMessage(`2`),
+		ID:     2,
 	}
 
 	resp := d.Dispatch(req)
-	_, ok := resp.(*rpc.RPCResult)
+	_, ok := resp.(*DispatchResult)
 	require.True(t, ok)
 	assert.Equal(t, "ze-bgp:peer-teardown", receivedMethod)
 	assert.JSONEq(t, `{"selector":"10.0.0.1","subcode":2}`, string(receivedParams))
@@ -66,26 +66,26 @@ func TestRPCDispatchWithParams(t *testing.T) {
 
 // TestRPCDispatchUnknownMethod verifies error for unregistered method.
 //
-// VALIDATES: Unknown method returns RPCError with descriptive message.
+// VALIDATES: Unknown method returns DispatchError with descriptive message.
 // PREVENTS: Silent failures or panics on unknown methods.
 func TestRPCDispatchUnknownMethod(t *testing.T) {
 	d := NewRPCDispatcher()
 
 	req := &rpc.Request{
 		Method: "ze-bgp:nonexistent",
-		ID:     json.RawMessage(`3`),
+		ID:     3,
 	}
 
 	resp := d.Dispatch(req)
-	errResp, ok := resp.(*rpc.RPCError)
-	require.True(t, ok, "expected RPCError, got %T", resp)
+	errResp, ok := resp.(*DispatchError)
+	require.True(t, ok, "expected DispatchError, got %T", resp)
 	assert.Contains(t, errResp.Error, "unknown")
-	assert.Equal(t, json.RawMessage(`3`), errResp.ID)
+	assert.Equal(t, uint64(3), errResp.ID)
 }
 
 // TestRPCDispatchHandlerError verifies plain Go errors get generic code with readable Params.
 //
-// VALIDATES: Plain errors produce RPCError with "handler-error" code and human-readable Params.
+// VALIDATES: Plain errors produce DispatchError with "handler-error" code and human-readable Params.
 // PREVENTS: Raw Go errors leaking to wire protocol without structured detail.
 func TestRPCDispatchHandlerError(t *testing.T) {
 	d := NewRPCDispatcher()
@@ -97,14 +97,14 @@ func TestRPCDispatchHandlerError(t *testing.T) {
 
 	req := &rpc.Request{
 		Method: "ze-bgp:peer-teardown",
-		ID:     json.RawMessage(`4`),
+		ID:     4,
 	}
 
 	resp := d.Dispatch(req)
-	errResp, ok := resp.(*rpc.RPCError)
-	require.True(t, ok, "expected RPCError, got %T", resp)
+	errResp, ok := resp.(*DispatchError)
+	require.True(t, ok, "expected DispatchError, got %T", resp)
 	assert.Equal(t, "handler-error", errResp.Error)
-	assert.Equal(t, json.RawMessage(`4`), errResp.ID)
+	assert.Equal(t, uint64(4), errResp.ID)
 
 	// Params carries the human-readable message
 	var detail struct {
@@ -116,7 +116,7 @@ func TestRPCDispatchHandlerError(t *testing.T) {
 
 // TestRPCDispatchCodedError verifies CodedError passes explicit code through dispatch.
 //
-// VALIDATES: CodedError's code is used as the RPCError.Error field, not a generic fallback.
+// VALIDATES: CodedError's code is used as the DispatchError.Error field, not a generic fallback.
 // PREVENTS: Loss of specific error codes when handlers use CodedError.
 func TestRPCDispatchCodedError(t *testing.T) {
 	d := NewRPCDispatcher()
@@ -128,12 +128,12 @@ func TestRPCDispatchCodedError(t *testing.T) {
 
 	req := &rpc.Request{
 		Method: "ze-bgp:peer-teardown",
-		ID:     json.RawMessage(`5`),
+		ID:     5,
 	}
 
 	resp := d.Dispatch(req)
-	errResp, ok := resp.(*rpc.RPCError)
-	require.True(t, ok, "expected RPCError, got %T", resp)
+	errResp, ok := resp.(*DispatchError)
+	require.True(t, ok, "expected DispatchError, got %T", resp)
 	assert.Equal(t, "command-not-available", errResp.Error)
 
 	var detail struct {
@@ -164,11 +164,11 @@ func TestRPCDispatchInvalidMethod(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := &rpc.Request{
 				Method: tt.method,
-				ID:     json.RawMessage(`99`),
+				ID:     99,
 			}
 			resp := d.Dispatch(req)
-			errResp, ok := resp.(*rpc.RPCError)
-			require.True(t, ok, "expected RPCError for method %q, got %T", tt.method, resp)
+			errResp, ok := resp.(*DispatchError)
+			require.True(t, ok, "expected DispatchError for method %q, got %T", tt.method, resp)
 			assert.NotEmpty(t, errResp.Error)
 		})
 	}
@@ -209,7 +209,7 @@ func TestRPCDispatchHasMethod(t *testing.T) {
 
 // TestRPCDispatchNilResult verifies nil result from handler produces valid response.
 //
-// VALIDATES: Handler returning nil result produces RPCResult with null.
+// VALIDATES: Handler returning nil result produces DispatchResult with null.
 // PREVENTS: Nil pointer in result marshaling.
 func TestRPCDispatchNilResult(t *testing.T) {
 	d := NewRPCDispatcher()
@@ -221,11 +221,11 @@ func TestRPCDispatchNilResult(t *testing.T) {
 
 	req := &rpc.Request{
 		Method: "ze-system:daemon-shutdown",
-		ID:     json.RawMessage(`7`),
+		ID:     7,
 	}
 
 	resp := d.Dispatch(req)
-	result, ok := resp.(*rpc.RPCResult)
+	result, ok := resp.(*DispatchResult)
 	require.True(t, ok)
-	assert.Equal(t, json.RawMessage(`7`), result.ID)
+	assert.Equal(t, uint64(7), result.ID)
 }

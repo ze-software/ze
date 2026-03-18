@@ -2,23 +2,30 @@
 
 ## Transport
 
-Messages are UTF-8 JSON objects terminated by a NUL byte (0x00).
-NUL cannot appear in valid JSON, making it an unambiguous frame delimiter.
+Messages are UTF-8 lines terminated by a newline byte (0x0A).
+Compact JSON never contains unescaped newlines, making newline an unambiguous frame delimiter.
 
 ```
-{"method":"ze-bgp:peer-list","id":1}\x00{"method":"ze-bgp:subscribe","more":true,"id":2}\x00
+#1 ze-bgp:peer-list {"selector":"10.0.0.1"}
+#1 ok {"peers":[{"address":"10.0.0.1","state":"established"}]}
 ```
 
 ### Framing
 
 | Property | Value |
 |----------|-------|
-| Delimiter | NUL byte (0x00) |
-| Encoding | UTF-8 JSON |
+| Delimiter | Newline (0x0A) |
+| Encoding | UTF-8 |
 | Max message size | 16 MB (16,777,216 bytes) |
 | Initial buffer | 64 KB |
 
-Implementation: `internal/ipc/framing.go`
+Each line has the format: `#<id> <verb> [<json-payload>]`
+
+- `#<id>` is a decimal integer (monotonically increasing per connection).
+- `<verb>` is a method name (requests) or `ok`/`error` (responses).
+- `<json-payload>` is optional compact JSON.
+
+Implementation: `pkg/plugin/rpc/framing.go`, `pkg/plugin/rpc/message.go`
 
 ## Method Naming
 
@@ -37,88 +44,62 @@ defines the RPC. The RPC name uses kebab-case.
 
 Max method name length: 256 characters.
 
-Implementation: `internal/ipc/method.go`
-
 ## Request
 
-```json
-{
-  "method": "ze-bgp:peer-list",
-  "params": {"selector": "10.0.0.1"},
-  "id": 42
-}
+```
+#42 ze-bgp:peer-list {"selector":"10.0.0.1"}
+#43 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/unicast","mode":"both"}]}
+#44 ze-bgp:subscribe {"events":["update"]}
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `method` | string | yes | `module:rpc-name` |
-| `params` | object | no | RPC input parameters |
-| `id` | string or number | no | Correlation ID, echoed in response |
-| `more` | boolean | no | Request streaming responses |
+| Component | Description |
+|-----------|-------------|
+| `#<id>` | Correlation ID (decimal integer) |
+| `<method>` | `module:rpc-name` |
+| `<json>` | Optional JSON params |
 
 ## Successful Response
 
-```json
-{
-  "result": {"peers": [{"address": "10.0.0.1", "state": "established"}]},
-  "id": 42
-}
+```
+#42 ok {"peers":[{"address":"10.0.0.1","state":"established"}]}
+#43 ok
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `result` | any | yes | RPC output data |
-| `id` | string or number | no | Echoed from request |
-| `continues` | boolean | no | More responses follow (streaming) |
+| Component | Description |
+|-----------|-------------|
+| `#<id>` | Echoed from request |
+| `ok` | Success verb |
+| `<json>` | Optional JSON result (absent for void responses) |
 
 ## Error Response
 
-```json
-{
-  "error": "peer-not-found",
-  "params": {"address": "10.0.0.99"},
-  "id": 42
-}
+```
+#42 error {"code":"peer-not-found","message":"no peer at 10.0.0.99"}
+#43 error {"message":"unknown method"}
 ```
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `error` | string | yes | Kebab-case error identity |
-| `params` | object | no | Error detail parameters |
-| `id` | string or number | no | Echoed from request |
+| Component | Description |
+|-----------|-------------|
+| `#<id>` | Echoed from request |
+| `error` | Error verb |
+| `<json>` | Optional JSON with `code` and/or `message` fields |
 
-Error identities are normalized to kebab-case (spaces become hyphens, lowercased).
+## Batch Event Delivery
 
-## Streaming Protocol
-
-For event subscriptions and streaming responses:
-
-1. Client sends request with `"more": true`
-2. Server sends responses with `"continues": true` for each event
-3. Server sends final response without `"continues"` when stream ends
+Events are delivered in batches for efficiency using a pooled buffer.
 
 ```
-Client → {"method":"ze-bgp:subscribe","params":{"events":["update"]},"id":1,"more":true}\x00
-Server → {"result":{"event":"update","peer":"10.0.0.1"},"id":1,"continues":true}\x00
-Server → {"result":{"event":"update","peer":"10.0.0.2"},"id":1,"continues":true}\x00
-Server → {"result":{"event":"update","peer":"10.0.0.3"},"id":1}\x00
+#7 ze-plugin-callback:deliver-batch {"events":["event1-json","event2-json"]}
+#7 ok
 ```
 
-The absence of `"continues"` (or `"continues": false`) signals the final response.
+Implementation: `pkg/plugin/rpc/batch.go`
 
 ## Response Mapping
 
-The `MapResponse()` function converts existing plugin Response fields to IPC wire format:
+The `MapResponse()` function converts plugin Response fields to wire format.
 
-| Plugin Field | IPC Mapping |
-|-------------|-------------|
-| `status = "done"` | `RPCResult` with `result` |
-| `status = "error"` | `RPCError` with `error` |
-| `serial` | `id` (raw JSON number) |
-| `partial = true` | `continues: true` |
-| `data` | `result` (JSON-marshaled) or `error` (normalized) |
-
-Implementation: `internal/ipc/message.go`
+Implementation: `internal/core/ipc/message.go`
 
 ## YANG API Modules
 
@@ -137,7 +118,6 @@ Shared IPC types (typedefs, groupings) live in `ze-types` (`internal/yang/module
 
 All JSON follows Ze conventions (see `rules/json-format.md`):
 
-- Keys use kebab-case (`"peer-count"`, not `"peerCount"`)
-- Error identities use kebab-case (`"peer-not-found"`)
-- Address families use `"afi/safi"` format (`"ipv4/unicast"`)
-- Numeric IDs passed as raw JSON numbers (not quoted)
+- Keys use kebab-case (`"peer-count"`, not `"peerCount"`).
+- Error identities use kebab-case (`"peer-not-found"`).
+- Address families use `"afi/safi"` format (`"ipv4/unicast"`).

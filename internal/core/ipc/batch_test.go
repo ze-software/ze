@@ -12,11 +12,10 @@ import (
 	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
-// TestBatchRoundTrip verifies write batch frame → read with FrameReader → parse events.
+// TestBatchRoundTrip verifies write batch frame -> read with FrameReader -> parse events.
 //
-// VALIDATES: Batch frame is a valid NUL-delimited frame parseable by FrameReader,
+// VALIDATES: Batch frame is a valid newline-delimited frame parseable by FrameReader,
 // and events round-trip correctly through WriteBatchFrame + ParseBatchEvents.
-// PREVENTS: Batch frames breaking existing NUL-framed protocol.
 func TestBatchRoundTrip(t *testing.T) {
 	events := [][]byte{
 		[]byte(`{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1"}}}`),
@@ -28,23 +27,19 @@ func TestBatchRoundTrip(t *testing.T) {
 	err := rpc.WriteBatchFrame(&buf, 42, events)
 	require.NoError(t, err)
 
-	// Read back with FrameReader — batch frame must be a valid NUL-delimited frame
+	// Read back with FrameReader.
 	reader := rpc.NewFrameReader(&buf)
 	frame, err := reader.Read()
 	require.NoError(t, err)
 
-	// Frame should be valid JSON
-	var rpcReq struct {
-		Method string          `json:"method"`
-		Params json.RawMessage `json:"params"`
-		ID     uint64          `json:"id"`
-	}
-	require.NoError(t, json.Unmarshal(frame, &rpcReq))
-	assert.Equal(t, "ze-plugin-callback:deliver-batch", rpcReq.Method)
-	assert.Equal(t, uint64(42), rpcReq.ID)
+	// Frame should be: #42 ze-plugin-callback:deliver-batch {"events":[...]}
+	id, verb, payload, err := rpc.ParseLine(frame)
+	require.NoError(t, err)
+	assert.Equal(t, uint64(42), id)
+	assert.Equal(t, "ze-plugin-callback:deliver-batch", verb)
 
-	// Parse events from params
-	got, err := rpc.ParseBatchEvents(rpcReq.Params)
+	// Parse events from payload.
+	got, err := rpc.ParseBatchEvents(payload)
 	require.NoError(t, err)
 	require.Len(t, got, 3)
 
@@ -52,14 +47,14 @@ func TestBatchRoundTrip(t *testing.T) {
 		assert.JSONEq(t, string(event), string(got[i]))
 	}
 
-	// No more frames
+	// No more frames.
 	_, err = reader.Read()
 	assert.ErrorIs(t, err, io.EOF)
 }
 
 // TestBatchSingleEvent verifies a batch of 1 works correctly.
 //
-// VALIDATES: AC-1 — single event in channel delivered as batch of 1.
+// VALIDATES: AC-1 -- single event in channel delivered as batch of 1.
 // PREVENTS: Off-by-one when batch contains exactly one event.
 func TestBatchSingleEvent(t *testing.T) {
 	event := []byte(`{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1"}}}`)
@@ -72,12 +67,10 @@ func TestBatchSingleEvent(t *testing.T) {
 	frame, err := reader.Read()
 	require.NoError(t, err)
 
-	var rpcReq struct {
-		Params json.RawMessage `json:"params"`
-	}
-	require.NoError(t, json.Unmarshal(frame, &rpcReq))
+	_, _, payload, err := rpc.ParseLine(frame)
+	require.NoError(t, err)
 
-	got, err := rpc.ParseBatchEvents(rpcReq.Params)
+	got, err := rpc.ParseBatchEvents(payload)
 	require.NoError(t, err)
 	require.Len(t, got, 1)
 	assert.JSONEq(t, string(event), string(got[0]))
@@ -85,7 +78,7 @@ func TestBatchSingleEvent(t *testing.T) {
 
 // TestBatchParseEvents verifies ParseBatchEvents with raw JSON params.
 //
-// VALIDATES: AC-7 — events extracted correctly from params.
+// VALIDATES: AC-7 -- events extracted correctly from params.
 // PREVENTS: Event boundaries being misidentified.
 func TestBatchParseEvents(t *testing.T) {
 	tests := []struct {
@@ -142,14 +135,14 @@ func TestBatchParseEventsError(t *testing.T) {
 
 // TestBatchFramePooledBuffer verifies WriteBatchFrame uses pooled buffers.
 //
-// VALIDATES: AC-10 — batch write uses pooled buffer, no per-frame make([]byte).
+// VALIDATES: AC-10 -- batch write uses pooled buffer, no per-frame make([]byte).
 // PREVENTS: Allocation per batch write degrading GC performance.
 func TestBatchFramePooledBuffer(t *testing.T) {
 	events := [][]byte{
 		[]byte(`{"type":"bgp"}`),
 	}
 
-	// Call WriteBatchFrame multiple times — should reuse pool buffers
+	// Call WriteBatchFrame multiple times -- should reuse pool buffers.
 	for range 100 {
 		var buf bytes.Buffer
 		err := rpc.WriteBatchFrame(&buf, 1, events)
@@ -160,10 +153,9 @@ func TestBatchFramePooledBuffer(t *testing.T) {
 
 // TestBatchFrameLargePayload verifies batching many events.
 //
-// VALIDATES: AC-2 — N events queued delivered in one batch.
+// VALIDATES: AC-2 -- N events queued delivered in one batch.
 // PREVENTS: Large batches overflowing or being truncated.
 func TestBatchFrameLargePayload(t *testing.T) {
-	// 64 events (channel capacity)
 	events := make([][]byte, 64)
 	for i := range events {
 		events[i] = []byte(`{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1"},"update":{"attr":{"origin":"igp"}}}}`)
@@ -177,25 +169,23 @@ func TestBatchFrameLargePayload(t *testing.T) {
 	frame, err := reader.Read()
 	require.NoError(t, err)
 
-	var rpcReq struct {
-		Params json.RawMessage `json:"params"`
-	}
-	require.NoError(t, json.Unmarshal(frame, &rpcReq))
+	_, _, payload, err := rpc.ParseLine(frame)
+	require.NoError(t, err)
 
-	got, err := rpc.ParseBatchEvents(rpcReq.Params)
+	got, err := rpc.ParseBatchEvents(payload)
 	require.NoError(t, err)
 	assert.Len(t, got, 64)
 }
 
-// TestBatchTextEventRoundTrip verifies text events survive WriteBatchFrame → ParseBatchEvents.
+// TestBatchTextEventRoundTrip verifies text events survive WriteBatchFrame -> ParseBatchEvents.
 //
 // VALIDATES: Text-format events (not valid JSON values) round-trip through batch framing.
-// PREVENTS: Text events producing invalid JSON in batch frame (broken pipe crash).
+// PREVENTS: Text events producing invalid JSON in batch frame.
 func TestBatchTextEventRoundTrip(t *testing.T) {
 	// Text events are plain strings, NOT valid JSON values.
 	// They must be JSON-quoted before insertion into the events array.
-	textEvent1, _ := json.Marshal("peer 10.0.0.1 received update 42 announce origin igp ipv4/unicast next-hop 10.0.0.1 nlri 192.168.1.0/24\n")
-	textEvent2, _ := json.Marshal("peer 10.0.0.2 state up\n")
+	textEvent1, _ := json.Marshal("peer 10.0.0.1 received update 42 announce origin igp ipv4/unicast next-hop 10.0.0.1 nlri 192.168.1.0/24")
+	textEvent2, _ := json.Marshal("peer 10.0.0.2 state up")
 	events := [][]byte{textEvent1, textEvent2}
 
 	var buf bytes.Buffer
@@ -206,17 +196,14 @@ func TestBatchTextEventRoundTrip(t *testing.T) {
 	frame, err := reader.Read()
 	require.NoError(t, err)
 
-	// Frame must be valid JSON
-	var rpcReq struct {
-		Params json.RawMessage `json:"params"`
-	}
-	require.NoError(t, json.Unmarshal(frame, &rpcReq))
+	_, _, payload, err := rpc.ParseLine(frame)
+	require.NoError(t, err)
 
-	got, err := rpc.ParseBatchEvents(rpcReq.Params)
+	got, err := rpc.ParseBatchEvents(payload)
 	require.NoError(t, err)
 	require.Len(t, got, 2)
 
-	// Each event should be unwrappable as a JSON string
+	// Each event should be unwrappable as a JSON string.
 	for i, raw := range got {
 		var eventStr string
 		require.NoError(t, json.Unmarshal(raw, &eventStr), "event %d should be a valid JSON string", i)
@@ -240,11 +227,9 @@ func TestBatchFrameIDIncrement(t *testing.T) {
 		frame, err := reader.Read()
 		require.NoError(t, err)
 
-		var rpcReq struct {
-			ID uint64 `json:"id"`
-		}
-		require.NoError(t, json.Unmarshal(frame, &rpcReq))
-		assert.False(t, ids[rpcReq.ID], "duplicate ID: %d", rpcReq.ID)
-		ids[rpcReq.ID] = true
+		id, _, _, err := rpc.ParseLine(frame)
+		require.NoError(t, err)
+		assert.False(t, ids[id], "duplicate ID: %d", id)
+		ids[id] = true
 	}
 }

@@ -1,6 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — 5-stage plugin startup protocol
 // Overview: server.go — Server struct and lifecycle
-// Detail: startup_text.go — text-mode handleTextProcessStartup
 
 package server
 
@@ -300,16 +299,9 @@ func (s *Server) handleProcessStartupRPC(proc *process.Process) {
 		}
 	}()
 
-	// Detect protocol mode and create typed connections.
-	mode, rawA, rawB, initErr := proc.InitConns()
-	if initErr != nil {
-		logger().Error("rpc startup: init conns failed", "plugin", proc.Name(), "error", initErr)
-		return
-	}
-	if mode == rpc.ModeText {
-		tcA := rpc.NewTextConn(rawA, rawA)
-		tcB := rpc.NewTextConn(rawB, rawB)
-		s.handleTextProcessStartup(proc, tcA, tcB)
+	// Initialize connections from raw sockets (creates PluginConn wrappers).
+	if err := proc.InitConns(); err != nil {
+		logger().Error("rpc startup: init connections failed", "plugin", proc.Name(), "error", err)
 		return
 	}
 

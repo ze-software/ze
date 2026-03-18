@@ -800,14 +800,10 @@ func TestDispatchDecodeMPReach_Malformed(t *testing.T) {
 	}
 	done := make(chan errResult, 1)
 	go func() {
-		raw, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:decode-mp-reach", &rpc.DecodeMPReachInput{
+		// CallRPC returns RPC errors as Go errors directly.
+		_, err := pluginConn.CallRPC(ctx, "ze-plugin-engine:decode-mp-reach", &rpc.DecodeMPReachInput{
 			Hex: "0001",
 		})
-		if err != nil {
-			done <- errResult{err}
-			return
-		}
-		_, err = rpc.ParseResponse(raw)
 		done <- errResult{err}
 	}()
 

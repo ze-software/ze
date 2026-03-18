@@ -9,7 +9,7 @@ Rationale: `.claude/rationale/plugin-design.md`
 |-------|----------|---------|
 | Registry | `internal/plugin/registry/` | Central registry (leaf package, no plugin deps) |
 | Public SDK | `pkg/plugin/sdk/` | Callback abstraction for external plugins |
-| RPC Types | `pkg/plugin/rpc/` | Shared YANG RPC types + `MuxConn`/`TextMuxConn` for concurrent RPCs |
+| RPC Types | `pkg/plugin/rpc/` | Shared YANG RPC types + `MuxConn` for concurrent RPCs |
 | Internal | `internal/plugins/<name>/` | Plugin implementations + `register.go` |
 | All imports | `internal/plugin/all/` | Blank imports triggering all `init()` |
 | CLI shared | `internal/plugin/cli/` | `PluginConfig` + `RunPlugin()` |
@@ -57,9 +57,7 @@ Infrastructure MUST NOT import plugin implementations directly — use registry 
 | 4. Registry | Engine→Plugin (B) | `ze-plugin-callback:share-registry` |
 | 5. Ready | Plugin→Engine (A) | `ze-plugin-engine:ready`, enter event loop |
 
-After Stage 5: SDK wraps Socket A in `MuxConn` (JSON) or `TextMuxConn` (text) for concurrent RPCs. Engine dispatches Socket A requests in goroutines.
-
-**Text mode:** Auto-detected from first byte on Socket A (`{` → JSON, letter → text). Same 5 stages, text framing instead of NUL-delimited JSON-RPC. SDK constructor: `sdk.NewTextPlugin()`. Engine side: `process.go` `initConns()` + `subsystem_text.go` `completeTextProtocol()`.
+After Stage 5: SDK wraps Socket A in `MuxConn` for concurrent RPCs. Engine dispatches Socket A requests in goroutines. Wire format: `#<id> <verb> [<json>]\n` (see `docs/architecture/api/wire-format.md`).
 
 ## Registration Fields
 

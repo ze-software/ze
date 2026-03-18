@@ -26,13 +26,7 @@ func (s *Server) handleSingleProcessCommandsRPC(proc *process.Process) {
 
 	connA := proc.ConnA()
 	if connA == nil {
-		// Text-mode plugins have no post-startup RPC on Socket A.
-		// Wait for server shutdown so cleanup runs at the right time.
-		if proc.TextConnB() != nil {
-			<-s.ctx.Done()
-		} else {
-			logger().Debug("rpc runtime: no connection (startup failed?)", "plugin", proc.Name())
-		}
+		logger().Debug("rpc runtime: no connection (startup failed?)", "plugin", proc.Name())
 		return
 	}
 
@@ -325,41 +319,40 @@ func (s *Server) handleCodecRPC(proc *process.Process, connA *plugipc.PluginConn
 }
 
 // dispatchPluginRPCDirect handles a plugin→engine RPC without socket I/O.
-// Used by DirectBridge for internal plugins. Returns the result as a JSON-RPC
-// response envelope (matching what callEngineRaw/CheckResponse/ParseResponse expect).
-// Handlers return json.RawMessage only — all errors are encoded in the envelope,
-// never as Go errors — so the second return is always nil.
+// Used by DirectBridge for internal plugins. Returns the marshaled result JSON
+// directly (not wrapped in a {"result":...} envelope). Errors are returned as
+// *rpc.RPCCallError, matching the SDK's CallRPC protocol.
 func (s *Server) dispatchPluginRPCDirect(proc *process.Process, method string, params json.RawMessage) (json.RawMessage, error) {
 	// Known plugin→engine RPCs
 	switch method {
 	case "ze-plugin-engine:update-route":
-		return s.handleUpdateRouteDirect(proc, params), nil
+		return s.handleUpdateRouteDirect(proc, params)
 	case "ze-plugin-engine:dispatch-command":
-		return s.handleDispatchCommandDirect(proc, params), nil
+		return s.handleDispatchCommandDirect(proc, params)
 	case "ze-plugin-engine:subscribe-events":
-		return s.handleSubscribeEventsDirect(proc, params), nil
+		return s.handleSubscribeEventsDirect(proc, params)
 	case "ze-plugin-engine:unsubscribe-events":
-		return s.handleUnsubscribeEventsDirect(proc), nil
+		return s.handleUnsubscribeEventsDirect(proc)
 	}
 
 	// Try RPC fallback for remaining methods (codec RPCs, etc.)
 	if s.rpcFallback != nil {
 		codec := s.rpcFallback(method)
 		if codec != nil {
-			return handleCodecRPCDirect(codec, params), nil
+			return handleCodecRPCDirect(codec, params)
 		}
 	}
 
 	// Unknown methods get an explicit error per ze's fail-on-unknown rule
-	return directErrorResponse("unknown method: " + method), nil
+	return nil, &rpc.RPCCallError{Message: "unknown method: " + method}
 }
 
 // handleUpdateRouteDirect handles update-route without socket I/O.
-// Returns a JSON-RPC envelope; errors are encoded in the envelope, not as Go errors.
-func (s *Server) handleUpdateRouteDirect(proc *process.Process, params json.RawMessage) json.RawMessage {
+// Returns marshaled result JSON on success, or *rpc.RPCCallError on failure.
+func (s *Server) handleUpdateRouteDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
 	var input rpc.UpdateRouteInput
 	if err := json.Unmarshal(params, &input); err != nil {
-		return directErrorResponse("invalid update-route params: " + err.Error())
+		return nil, &rpc.RPCCallError{Message: "invalid update-route params: " + err.Error()}
 	}
 
 	cmdCtx := &CommandContext{
@@ -383,7 +376,7 @@ func (s *Server) handleUpdateRouteDirect(proc *process.Process, params json.RawM
 		if errors.Is(err, ErrSilent) {
 			return directResultResponse(&rpc.UpdateRouteOutput{})
 		}
-		return directErrorResponse(err.Error())
+		return nil, &rpc.RPCCallError{Message: err.Error()}
 	}
 
 	output := &rpc.UpdateRouteOutput{}
@@ -406,11 +399,11 @@ func (s *Server) handleUpdateRouteDirect(proc *process.Process, params json.RawM
 }
 
 // handleDispatchCommandDirect handles dispatch-command without socket I/O.
-// Returns a JSON-RPC envelope; errors are encoded in the envelope, not as Go errors.
-func (s *Server) handleDispatchCommandDirect(proc *process.Process, params json.RawMessage) json.RawMessage {
+// Returns marshaled result JSON on success, or *rpc.RPCCallError on failure.
+func (s *Server) handleDispatchCommandDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
 	var input rpc.DispatchCommandInput
 	if err := json.Unmarshal(params, &input); err != nil {
-		return directErrorResponse("invalid dispatch-command params: " + err.Error())
+		return nil, &rpc.RPCCallError{Message: "invalid dispatch-command params: " + err.Error()}
 	}
 
 	// Set plugin name as username so authorization rules apply (see handleDispatchCommandRPC).
@@ -430,22 +423,22 @@ func (s *Server) handleDispatchCommandDirect(proc *process.Process, params json.
 		} else {
 			logger().Error("dispatch-command failed", "plugin", proc.Name(), "command", input.Command, "error", err)
 		}
-		return directErrorResponse(err.Error())
+		return nil, &rpc.RPCCallError{Message: err.Error()}
 	}
 
 	return directResultResponse(responseToDispatchOutput(resp))
 }
 
 // handleSubscribeEventsDirect handles subscribe-events without socket I/O.
-// Returns a JSON-RPC envelope; errors are encoded in the envelope, not as Go errors.
-func (s *Server) handleSubscribeEventsDirect(proc *process.Process, params json.RawMessage) json.RawMessage {
+// Returns marshaled result JSON on success, or *rpc.RPCCallError on failure.
+func (s *Server) handleSubscribeEventsDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
 	var input rpc.SubscribeEventsInput
 	if err := json.Unmarshal(params, &input); err != nil {
-		return directErrorResponse("invalid subscribe params: " + err.Error())
+		return nil, &rpc.RPCCallError{Message: "invalid subscribe params: " + err.Error()}
 	}
 
 	if s.subscriptions == nil {
-		return directErrorResponse("subscription manager not available")
+		return nil, &rpc.RPCCallError{Message: "subscription manager not available"}
 	}
 
 	s.registerSubscriptions(proc, &input)
@@ -453,10 +446,10 @@ func (s *Server) handleSubscribeEventsDirect(proc *process.Process, params json.
 }
 
 // handleUnsubscribeEventsDirect handles unsubscribe-events without socket I/O.
-// Returns a JSON-RPC envelope; errors are encoded in the envelope, not as Go errors.
-func (s *Server) handleUnsubscribeEventsDirect(proc *process.Process) json.RawMessage {
+// Returns marshaled result JSON on success, or *rpc.RPCCallError on failure.
+func (s *Server) handleUnsubscribeEventsDirect(proc *process.Process) (json.RawMessage, error) {
 	if s.subscriptions == nil {
-		return directErrorResponse("subscription manager not available")
+		return nil, &rpc.RPCCallError{Message: "subscription manager not available"}
 	}
 
 	s.subscriptions.ClearProcess(proc)
@@ -464,34 +457,25 @@ func (s *Server) handleUnsubscribeEventsDirect(proc *process.Process) json.RawMe
 }
 
 // handleCodecRPCDirect handles codec RPCs without socket I/O.
-// Returns a JSON-RPC envelope; errors are encoded in the envelope, not as Go errors.
-func handleCodecRPCDirect(codec func(json.RawMessage) (any, error), params json.RawMessage) json.RawMessage {
+// Returns marshaled result JSON on success, or *rpc.RPCCallError on failure.
+func handleCodecRPCDirect(codec func(json.RawMessage) (any, error), params json.RawMessage) (json.RawMessage, error) {
 	result, err := codec(params)
 	if err != nil {
-		return directErrorResponse(err.Error())
+		return nil, &rpc.RPCCallError{Message: err.Error()}
 	}
 	return directResultResponse(result)
 }
 
-// directResultResponse builds a JSON-RPC result envelope.
-func directResultResponse(data any) json.RawMessage {
+// directResultResponse marshals data to JSON. Returns nil for nil data.
+func directResultResponse(data any) (json.RawMessage, error) {
 	if data == nil {
-		return json.RawMessage(`{"result":null}`)
+		return nil, nil
 	}
 	result, err := json.Marshal(data)
 	if err != nil {
-		return json.RawMessage(`{"error":"marshal result: ` + err.Error() + `"}`)
+		return nil, &rpc.RPCCallError{Message: "marshal result: " + err.Error()}
 	}
-	return json.RawMessage(`{"result":` + string(result) + `}`)
-}
-
-// directErrorResponse builds a JSON-RPC error envelope.
-func directErrorResponse(msg string) json.RawMessage {
-	escaped, err := json.Marshal(msg)
-	if err != nil {
-		return json.RawMessage(`{"error":"internal error"}`)
-	}
-	return json.RawMessage(`{"error":` + string(escaped) + `}`)
+	return result, nil
 }
 
 // wireBridgeDispatch sets up the DirectBridge's DispatchRPC handler for an internal

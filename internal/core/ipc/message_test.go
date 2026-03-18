@@ -11,224 +11,47 @@ import (
 	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
-// TestWireFormatRequest verifies Request JSON parsing and serialization.
+// TestWireFormatRequest verifies Request fields match the new wire format.
 //
-// VALIDATES: Request fields match spec wire format (method, params, id, more).
+// VALIDATES: Request fields (ID uint64, Method, Params) are correctly set.
 // PREVENTS: Request deserialization failures breaking IPC dispatch.
 func TestWireFormatRequest(t *testing.T) {
 	tests := []struct {
-		name    string
-		json    string
-		want    rpc.Request
-		wantErr bool
+		name   string
+		req    rpc.Request
+		method string
+		id     uint64
 	}{
 		{
-			name: "simple_request",
-			json: `{"method":"ze-bgp:peer-list"}`,
-			want: rpc.Request{Method: "ze-bgp:peer-list"},
+			name:   "simple_request",
+			req:    rpc.Request{Method: "ze-bgp:peer-list", ID: 1},
+			method: "ze-bgp:peer-list",
+			id:     1,
 		},
 		{
 			name: "with_params",
-			json: `{"method":"ze-bgp:peer-teardown","params":{"selector":"10.0.0.1","subcode":2}}`,
-			want: rpc.Request{
+			req: rpc.Request{
 				Method: "ze-bgp:peer-teardown",
 				Params: json.RawMessage(`{"selector":"10.0.0.1","subcode":2}`),
+				ID:     2,
 			},
-		},
-		{
-			name: "with_id_string",
-			json: `{"method":"ze-bgp:peer-list","id":"abc"}`,
-			want: rpc.Request{
-				Method: "ze-bgp:peer-list",
-				ID:     json.RawMessage(`"abc"`),
-			},
-		},
-		{
-			name: "with_id_number",
-			json: `{"method":"ze-bgp:peer-list","id":42}`,
-			want: rpc.Request{
-				Method: "ze-bgp:peer-list",
-				ID:     json.RawMessage(`42`),
-			},
-		},
-		{
-			name: "streaming_request",
-			json: `{"method":"ze-bgp:subscribe","params":{"events":["update"]},"id":1,"more":true}`,
-			want: rpc.Request{
-				Method: "ze-bgp:subscribe",
-				Params: json.RawMessage(`{"events":["update"]}`),
-				ID:     json.RawMessage(`1`),
-				More:   true,
-			},
+			method: "ze-bgp:peer-teardown",
+			id:     2,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var got rpc.Request
-			err := json.Unmarshal([]byte(tt.json), &got)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Equal(t, tt.want.Method, got.Method)
-			assert.Equal(t, tt.want.More, got.More)
-
-			// Compare RawMessage fields as JSON
-			if tt.want.Params != nil {
-				assert.JSONEq(t, string(tt.want.Params), string(got.Params))
-			}
-			if tt.want.ID != nil {
-				assert.Equal(t, string(tt.want.ID), string(got.ID))
-			}
+			assert.Equal(t, tt.method, tt.req.Method)
+			assert.Equal(t, tt.id, tt.req.ID)
 		})
 	}
 }
 
-// TestWireFormatResponse verifies RPCResult JSON formatting.
+// TestResponseMapping verifies mapping from current plugin.Response to IPC DispatchResult/DispatchError.
 //
-// VALIDATES: RPCResult fields match spec wire format (result, id, continues).
-// PREVENTS: RPCResult serialization producing invalid JSON for clients.
-func TestWireFormatResponse(t *testing.T) {
-	tests := []struct {
-		name string
-		resp rpc.RPCResult
-		want string
-	}{
-		{
-			name: "simple_result",
-			resp: rpc.RPCResult{
-				Result: json.RawMessage(`{"peers":[]}`),
-			},
-			want: `{"result":{"peers":[]}}`,
-		},
-		{
-			name: "with_id",
-			resp: rpc.RPCResult{
-				Result: json.RawMessage(`{"version":"0.1.0"}`),
-				ID:     json.RawMessage(`1`),
-			},
-			want: `{"result":{"version":"0.1.0"},"id":1}`,
-		},
-		{
-			name: "streaming_response",
-			resp: rpc.RPCResult{
-				Result:    json.RawMessage(`{"peer":"10.0.0.1"}`),
-				ID:        json.RawMessage(`1`),
-				Continues: true,
-			},
-			want: `{"result":{"peer":"10.0.0.1"},"id":1,"continues":true}`,
-		},
-		{
-			name: "final_streaming_response",
-			resp: rpc.RPCResult{
-				Result: json.RawMessage(`{"peer":"10.0.0.2"}`),
-				ID:     json.RawMessage(`1`),
-			},
-			want: `{"result":{"peer":"10.0.0.2"},"id":1}`,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			data, err := json.Marshal(tt.resp)
-			require.NoError(t, err)
-			assert.JSONEq(t, tt.want, string(data))
-		})
-	}
-}
-
-// TestWireFormatError verifies Error response JSON formatting.
-//
-// VALIDATES: Error fields match spec wire format (error, params, id).
-// PREVENTS: Error responses not matching the expected wire format.
-func TestWireFormatError(t *testing.T) {
-	tests := []struct {
-		name string
-		resp rpc.RPCError
-		want string
-	}{
-		{
-			name: "simple_error",
-			resp: rpc.RPCError{
-				Error: "peer-not-found",
-			},
-			want: `{"error":"peer-not-found"}`,
-		},
-		{
-			name: "error_with_params",
-			resp: rpc.RPCError{
-				Error:  "peer-not-found",
-				Params: json.RawMessage(`{"address":"10.0.0.99"}`),
-			},
-			want: `{"error":"peer-not-found","params":{"address":"10.0.0.99"}}`,
-		},
-		{
-			name: "error_with_id",
-			resp: rpc.RPCError{
-				Error: "invalid-parameter",
-				ID:    json.RawMessage(`42`),
-			},
-			want: `{"error":"invalid-parameter","id":42}`,
-		},
-		{
-			name: "error_with_all_fields",
-			resp: rpc.RPCError{
-				Error:  "invalid-family",
-				Params: json.RawMessage(`{"family":"ipv99/unicast"}`),
-				ID:     json.RawMessage(`"req-1"`),
-			},
-			want: `{"error":"invalid-family","params":{"family":"ipv99/unicast"},"id":"req-1"}`,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			data, err := json.Marshal(tt.resp)
-			require.NoError(t, err)
-			assert.JSONEq(t, tt.want, string(data))
-		})
-	}
-}
-
-// TestWireFormatStreaming verifies more/continues flag semantics.
-//
-// VALIDATES: Streaming request (more:true) and response (continues:true) flags.
-// PREVENTS: Streaming protocol breaking due to incorrect flag handling.
-func TestWireFormatStreaming(t *testing.T) {
-	// Client sends streaming request
-	reqJSON := `{"method":"ze-bgp:subscribe","params":{"events":["update"]},"id":1,"more":true}`
-	var req rpc.Request
-	err := json.Unmarshal([]byte(reqJSON), &req)
-	require.NoError(t, err)
-	assert.True(t, req.More, "streaming request should have more=true")
-	assert.Equal(t, "ze-bgp:subscribe", req.Method)
-
-	// Server sends streaming response (continues=true)
-	streamResp := rpc.RPCResult{
-		Result:    json.RawMessage(`{"event":"update","peer":"10.0.0.1"}`),
-		ID:        json.RawMessage(`1`),
-		Continues: true,
-	}
-	data, err := json.Marshal(streamResp)
-	require.NoError(t, err)
-	assert.Contains(t, string(data), `"continues":true`)
-
-	// Server sends final response (no continues)
-	finalResp := rpc.RPCResult{
-		Result: json.RawMessage(`{"event":"update","peer":"10.0.0.2"}`),
-		ID:     json.RawMessage(`1`),
-	}
-	data, err = json.Marshal(finalResp)
-	require.NoError(t, err)
-	assert.NotContains(t, string(data), "continues")
-}
-
-// TestResponseMapping verifies mapping from current plugin.Response to IPC RPCResult/RPCError.
-//
-// VALIDATES: Current Response struct fields map correctly to JSON wire format.
-// PREVENTS: Existing handler responses being incorrectly translated to IPC.
+// VALIDATES: Current Response struct fields map correctly to dispatch types.
+// PREVENTS: Existing handler responses being incorrectly translated.
 func TestResponseMapping(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -236,9 +59,8 @@ func TestResponseMapping(t *testing.T) {
 		serial      string
 		partial     bool
 		data        any
-		wantResp    bool // true = RPCResult, false = RPCError
-		wantID      string
-		wantCont    bool
+		wantResp    bool // true = DispatchResult, false = DispatchError
+		wantID      uint64
 		wantResult  string
 		wantError   string
 		wantMessage string // Expected Params.message (for error responses)
@@ -256,7 +78,7 @@ func TestResponseMapping(t *testing.T) {
 			serial:     "42",
 			data:       map[string]any{"count": 5},
 			wantResp:   true,
-			wantID:     "42",
+			wantID:     42,
 			wantResult: `{"count":5}`,
 		},
 		{
@@ -265,7 +87,7 @@ func TestResponseMapping(t *testing.T) {
 			serial:      "7",
 			data:        "peer not found",
 			wantResp:    false,
-			wantID:      "7",
+			wantID:      7,
 			wantError:   "error",
 			wantMessage: "peer not found",
 		},
@@ -276,8 +98,7 @@ func TestResponseMapping(t *testing.T) {
 			partial:    true,
 			data:       map[string]any{"peer": "10.0.0.1"},
 			wantResp:   true,
-			wantID:     "1",
-			wantCont:   true,
+			wantID:     1,
 			wantResult: `{"peer":"10.0.0.1"}`,
 		},
 		{
@@ -308,7 +129,7 @@ func TestResponseMapping(t *testing.T) {
 			serial:     "hello",
 			data:       map[string]any{"ok": true},
 			wantResp:   true,
-			wantID:     `"hello"`,
+			wantID:     0, // non-numeric serial produces id 0
 			wantResult: `{"ok":true}`,
 		},
 	}
@@ -319,55 +140,29 @@ func TestResponseMapping(t *testing.T) {
 			require.NotNil(t, result)
 
 			if tt.wantResp {
-				resp, ok := result.(*rpc.RPCResult)
-				require.True(t, ok, "expected *RPCResult")
-				assert.Equal(t, tt.wantCont, resp.Continues)
-				if tt.wantID != "" {
-					assert.Equal(t, tt.wantID, string(resp.ID))
+				resp, ok := result.(*DispatchResult)
+				require.True(t, ok, "expected *DispatchResult")
+				if tt.wantID != 0 {
+					assert.Equal(t, tt.wantID, resp.ID)
 				}
 				if tt.wantResult != "" {
 					assert.JSONEq(t, tt.wantResult, string(resp.Result))
 				}
 			} else {
-				errResp, ok := result.(*rpc.RPCError)
-				require.True(t, ok, "expected *RPCError type")
+				errResp, ok := result.(*DispatchError)
+				require.True(t, ok, "expected *DispatchError type")
 				assert.NotEmpty(t, errResp.Error)
 				if tt.wantError != "" {
 					assert.Equal(t, tt.wantError, errResp.Error)
 				}
 				if tt.wantMessage != "" {
-					msg := rpc.ExtractMessage(errResp.Params)
+					msg := rpc.ExtractErrorMessage(errResp.Params)
 					assert.Equal(t, tt.wantMessage, msg)
 				}
-				if tt.wantID != "" {
-					assert.Equal(t, tt.wantID, string(errResp.ID))
+				if tt.wantID != 0 {
+					assert.Equal(t, tt.wantID, errResp.ID)
 				}
 			}
 		})
 	}
-}
-
-// TestRequestRoundTrip verifies Request JSON round-trip.
-//
-// VALIDATES: Request marshals and unmarshals to identical values.
-// PREVENTS: Data loss during JSON serialization.
-func TestRequestRoundTrip(t *testing.T) {
-	original := rpc.Request{
-		Method: "ze-bgp:peer-teardown",
-		Params: json.RawMessage(`{"selector":"10.0.0.1","subcode":2}`),
-		ID:     json.RawMessage(`"req-42"`),
-		More:   true,
-	}
-
-	data, err := json.Marshal(original)
-	require.NoError(t, err)
-
-	var decoded rpc.Request
-	err = json.Unmarshal(data, &decoded)
-	require.NoError(t, err)
-
-	assert.Equal(t, original.Method, decoded.Method)
-	assert.Equal(t, original.More, decoded.More)
-	assert.JSONEq(t, string(original.Params), string(decoded.Params))
-	assert.Equal(t, string(original.ID), string(decoded.ID))
 }

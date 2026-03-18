@@ -54,13 +54,10 @@ func newTestPair(t *testing.T) (*Plugin, *engineSide) {
 }
 
 // callAndExpectOK sends an RPC request and expects a successful response.
-// This is a test-only helper that wraps CallRPC + CheckResponse.
+// CallRPC returns RPC errors as Go errors, so this just forwards the error.
 func callAndExpectOK(ctx context.Context, c *rpc.Conn, method string, params any) error {
-	raw, err := c.CallRPC(ctx, method, params)
-	if err != nil {
-		return err
-	}
-	return rpc.CheckResponse(raw)
+	_, err := c.CallRPC(ctx, method, params)
+	return err
 }
 
 // TestSDKStartup verifies the full 5-stage startup protocol via SDK.
@@ -346,18 +343,11 @@ func TestSDKEncodeNLRI(t *testing.T) {
 	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:encode-nlri", encInput)
 	require.NoError(t, err)
 
-	// Parse response — should contain hex result
-	var probe struct {
-		Error  string          `json:"error,omitempty"`
-		Result json.RawMessage `json:"result,omitempty"`
-	}
-	require.NoError(t, json.Unmarshal(raw, &probe))
-	assert.Empty(t, probe.Error)
-
+	// CallRPC returns the result payload directly
 	var result struct {
 		Hex string `json:"hex"`
 	}
-	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	require.NoError(t, json.Unmarshal(raw, &result))
 	assert.Equal(t, "180a0000", result.Hex)
 
 	// Shutdown
@@ -406,18 +396,11 @@ func TestSDKDecodeNLRI(t *testing.T) {
 	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:decode-nlri", decInput)
 	require.NoError(t, err)
 
-	// Parse response — should contain json result
-	var probe struct {
-		Error  string          `json:"error,omitempty"`
-		Result json.RawMessage `json:"result,omitempty"`
-	}
-	require.NoError(t, json.Unmarshal(raw, &probe))
-	assert.Empty(t, probe.Error)
-
+	// CallRPC returns the result payload directly
 	var result struct {
 		JSON string `json:"json"`
 	}
-	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	require.NoError(t, json.Unmarshal(raw, &result))
 	assert.Equal(t, `["10.0.0.0/24"]`, result.JSON)
 
 	// Shutdown
@@ -546,17 +529,11 @@ func TestSDKDecodeCapability(t *testing.T) {
 	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:decode-capability", decCapInput)
 	require.NoError(t, err)
 
-	var probe struct {
-		Error  string          `json:"error,omitempty"`
-		Result json.RawMessage `json:"result,omitempty"`
-	}
-	require.NoError(t, json.Unmarshal(raw, &probe))
-	assert.Empty(t, probe.Error)
-
+	// CallRPC returns the result payload directly
 	var result struct {
 		JSON string `json:"json"`
 	}
-	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	require.NoError(t, json.Unmarshal(raw, &result))
 	assert.Equal(t, `{"hostname":"router1"}`, result.JSON)
 
 	// Shutdown
@@ -607,18 +584,12 @@ func TestSDKExecuteCommand(t *testing.T) {
 	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:execute-command", execInput)
 	require.NoError(t, err)
 
-	var probe struct {
-		Error  string          `json:"error,omitempty"`
-		Result json.RawMessage `json:"result,omitempty"`
-	}
-	require.NoError(t, json.Unmarshal(raw, &probe))
-	assert.Empty(t, probe.Error)
-
+	// CallRPC returns the result payload directly
 	var result struct {
 		Status string `json:"status"`
 		Data   string `json:"data"`
 	}
-	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	require.NoError(t, json.Unmarshal(raw, &result))
 	assert.Equal(t, "done", result.Status)
 	assert.Equal(t, `{"routes":[]}`, result.Data)
 
@@ -669,18 +640,11 @@ func TestSDKDispatchConfigVerify(t *testing.T) {
 	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-verify", verifyInput)
 	require.NoError(t, err)
 
-	// Parse response — should be OK with status
-	var probe struct {
-		Error  string          `json:"error,omitempty"`
-		Result json.RawMessage `json:"result,omitempty"`
-	}
-	require.NoError(t, json.Unmarshal(raw, &probe))
-	assert.Empty(t, probe.Error)
-
+	// CallRPC returns the result payload directly
 	var result struct {
 		Status string `json:"status"`
 	}
-	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	require.NoError(t, json.Unmarshal(raw, &result))
 	assert.Equal(t, "ok", result.Status)
 
 	// Verify callback was invoked
@@ -739,17 +703,11 @@ func TestSDKDispatchConfigApply(t *testing.T) {
 	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-apply", applyInput)
 	require.NoError(t, err)
 
-	var probe struct {
-		Error  string          `json:"error,omitempty"`
-		Result json.RawMessage `json:"result,omitempty"`
-	}
-	require.NoError(t, json.Unmarshal(raw, &probe))
-	assert.Empty(t, probe.Error)
-
+	// CallRPC returns the result payload directly
 	var result struct {
 		Status string `json:"status"`
 	}
-	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	require.NoError(t, json.Unmarshal(raw, &result))
 	assert.Equal(t, "ok", result.Status)
 
 	// Verify callback was invoked
@@ -805,21 +763,14 @@ func TestSDKConfigVerifyReject(t *testing.T) {
 	}{Sections: []ConfigSection{{Root: "bgp", Data: `{"invalid":true}`}}}
 
 	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-verify", verifyInput)
-	require.NoError(t, err)
+	require.NoError(t, err, "rejection should be in result status, not RPC error")
 
-	// Response should be a result (not RPC error) with status "error"
-	var probe struct {
-		Error  string          `json:"error,omitempty"`
-		Result json.RawMessage `json:"result,omitempty"`
-	}
-	require.NoError(t, json.Unmarshal(raw, &probe))
-	assert.Empty(t, probe.Error, "rejection should be in result, not RPC error")
-
+	// CallRPC returns the result payload directly -- rejection is status "error" in the payload
 	var result struct {
 		Status string `json:"status"`
 		Error  string `json:"error"`
 	}
-	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	require.NoError(t, json.Unmarshal(raw, &result))
 	assert.Equal(t, "error", result.Status)
 	assert.Equal(t, "invalid config: missing router-id", result.Error)
 
@@ -866,20 +817,14 @@ func TestSDKConfigApplyReject(t *testing.T) {
 	}{Sections: []ConfigDiffSection{{Root: "bgp", Added: `{"peer":{"p99":{}}}`}}}
 
 	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-apply", applyInput)
-	require.NoError(t, err)
+	require.NoError(t, err, "rejection should be in result status, not RPC error")
 
-	var probe struct {
-		Error  string          `json:"error,omitempty"`
-		Result json.RawMessage `json:"result,omitempty"`
-	}
-	require.NoError(t, json.Unmarshal(raw, &probe))
-	assert.Empty(t, probe.Error, "rejection should be in result, not RPC error")
-
+	// CallRPC returns the result payload directly -- rejection is status "error" in the payload
 	var result struct {
 		Status string `json:"status"`
 		Error  string `json:"error"`
 	}
-	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	require.NoError(t, json.Unmarshal(raw, &result))
 	assert.Equal(t, "error", result.Status)
 	assert.Equal(t, "cannot apply: peer limit exceeded", result.Error)
 
@@ -923,19 +868,13 @@ func TestSDKConfigVerifyNoHandler(t *testing.T) {
 	}{Sections: []ConfigSection{{Root: "bgp", Data: `{}`}}}
 
 	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-verify", verifyInput)
-	require.NoError(t, err)
+	require.NoError(t, err, "no-handler config-verify should succeed, not error")
 
-	var probe struct {
-		Error  string          `json:"error,omitempty"`
-		Result json.RawMessage `json:"result,omitempty"`
-	}
-	require.NoError(t, json.Unmarshal(raw, &probe))
-	assert.Empty(t, probe.Error, "no-handler config-verify should succeed, not error")
-
+	// CallRPC returns the result payload directly
 	var result struct {
 		Status string `json:"status"`
 	}
-	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	require.NoError(t, json.Unmarshal(raw, &result))
 	assert.Equal(t, "ok", result.Status)
 
 	// Shutdown
@@ -978,19 +917,13 @@ func TestSDKConfigApplyNoHandler(t *testing.T) {
 	}{Sections: []ConfigDiffSection{{Root: "bgp", Added: `{}`}}}
 
 	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:config-apply", applyInput)
-	require.NoError(t, err)
+	require.NoError(t, err, "no-handler config-apply should succeed, not error")
 
-	var probe struct {
-		Error  string          `json:"error,omitempty"`
-		Result json.RawMessage `json:"result,omitempty"`
-	}
-	require.NoError(t, json.Unmarshal(raw, &probe))
-	assert.Empty(t, probe.Error, "no-handler config-apply should succeed, not error")
-
+	// CallRPC returns the result payload directly
 	var result struct {
 		Status string `json:"status"`
 	}
-	require.NoError(t, json.Unmarshal(probe.Result, &result))
+	require.NoError(t, json.Unmarshal(raw, &result))
 	assert.Equal(t, "ok", result.Status)
 
 	// Shutdown
@@ -1179,12 +1112,11 @@ func TestNewFromFDs(t *testing.T) {
 
 	// Engine writes a request on callback socket (Socket B)
 	go func() {
-		if writeErr := pairs.callbackEngine.WriteFrame(map[string]any{
-			"method": "ze-plugin-callback:bye",
-			"params": map[string]string{"reason": "test"},
-			"id":     1,
-		}); writeErr != nil {
-			t.Logf("WriteFrame: %v", writeErr)
+		paramsJSON, _ := json.Marshal(map[string]string{"reason": "test"}) //nolint:errcheck // test helper
+		frame := rpc.FormatRequest(1, "ze-plugin-callback:bye", paramsJSON)
+		frame = append(frame, '\n')
+		if writeErr := pairs.callbackEngine.WriteRawFrame(frame); writeErr != nil {
+			t.Logf("WriteRawFrame: %v", writeErr)
 		}
 	}()
 
@@ -1411,11 +1343,7 @@ func TestSDKDispatchValidateOpen(t *testing.T) {
 			},
 		},
 	}
-	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:validate-open", voInput)
-	require.NoError(t, err)
-
-	// Parse response
-	result, err := rpc.ParseResponse(raw)
+	result, err := engine.client.CallRPC(ctx, "ze-plugin-callback:validate-open", voInput)
 	require.NoError(t, err)
 
 	var output rpc.ValidateOpenOutput
@@ -1486,10 +1414,7 @@ func TestSDKValidateOpenReject(t *testing.T) {
 			Capabilities: []rpc.ValidateOpenCapability{{Code: 9, Hex: "03"}},
 		},
 	}
-	raw, err := engine.client.CallRPC(ctx, "ze-plugin-callback:validate-open", voInput)
-	require.NoError(t, err)
-
-	result, err := rpc.ParseResponse(raw)
+	result, err := engine.client.CallRPC(ctx, "ze-plugin-callback:validate-open", voInput)
 	require.NoError(t, err)
 
 	var output rpc.ValidateOpenOutput
@@ -1984,7 +1909,7 @@ func TestCallEngineRawDirectError(t *testing.T) {
 	p, engine, bridge := newBridgedTestPair(t)
 
 	bridge.SetDispatchRPC(func(method string, params json.RawMessage) (json.RawMessage, error) {
-		return json.RawMessage(`{"error":"dispatch failed"}`), nil
+		return nil, fmt.Errorf("dispatch failed")
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
-	"strings"
 	"sync"
 	"time"
 )
@@ -149,50 +148,7 @@ func (p *Process) deliverBatch(batch []EventDelivery, eventsBuf []string, timeou
 	}
 	events := eventsBuf
 
-	var batchErr error
-	if p.bridge != nil && p.bridge.Ready() && p.bridge.HasStructuredHandler() {
-		// Mixed batches can contain both structured events (UPDATE via DirectBridge)
-		// and text events (state-down, open, refresh). Deliver each through its
-		// correct path — using batch[0] to choose for the whole batch loses events.
-		var structuredBuf []any
-		var textBuf []string
-		for _, req := range batch {
-			if req.Event != nil {
-				structuredBuf = append(structuredBuf, req.Event)
-			} else if req.Output != "" {
-				textBuf = append(textBuf, req.Output)
-			}
-		}
-		if len(structuredBuf) > 0 {
-			batchErr = safeBridgeCall(func() error { return p.bridge.DeliverStructured(structuredBuf) })
-		}
-		if batchErr == nil && len(textBuf) > 0 {
-			batchErr = safeBridgeCall(func() error { return p.bridge.DeliverEvents(textBuf) })
-		}
-	} else if p.bridge != nil && p.bridge.Ready() {
-		batchErr = safeBridgeCall(func() error { return p.bridge.DeliverEvents(events) })
-	} else if tc := p.TextConnB(); tc != nil {
-		// Text-mode: write each event as a plain text line (fire-and-forget).
-		// WriteLine adds \n, so strip any trailing newline from event text.
-		ctx, cancel := context.WithTimeout(p.ctx, timeout)
-		for _, event := range events {
-			event = strings.TrimRight(event, "\n")
-			if err := tc.WriteLine(ctx, event); err != nil {
-				batchErr = err
-				break
-			}
-		}
-		cancel()
-	} else {
-		connB := p.ConnB()
-		if connB == nil {
-			batchErr = ErrConnectionClosed
-		} else {
-			ctx, cancel := context.WithTimeout(p.ctx, timeout)
-			batchErr = connB.SendDeliverBatch(ctx, events)
-			cancel()
-		}
-	}
+	batchErr := p.sendBatch(batch, events, timeout)
 
 	isCacheConsumer := p.IsCacheConsumer()
 	for _, req := range batch {
@@ -245,4 +201,50 @@ func (p *Process) StartDelivery(ctx context.Context) {
 	}
 
 	p.startDeliveryLocked()
+}
+
+// sendBatch sends events through the appropriate transport path.
+func (p *Process) sendBatch(batch []EventDelivery, events []string, timeout time.Duration) error {
+	bridgeReady := p.bridge != nil && p.bridge.Ready()
+
+	if bridgeReady && p.bridge.HasStructuredHandler() {
+		return p.deliverMixedBatch(batch)
+	}
+	if bridgeReady {
+		return safeBridgeCall(func() error { return p.bridge.DeliverEvents(events) })
+	}
+	return p.deliverViaConn(events, timeout)
+}
+
+// deliverMixedBatch handles batches with both structured and text events.
+func (p *Process) deliverMixedBatch(batch []EventDelivery) error {
+	var structuredBuf []any
+	var textBuf []string
+	for _, req := range batch {
+		if req.Event != nil {
+			structuredBuf = append(structuredBuf, req.Event)
+		} else if req.Output != "" {
+			textBuf = append(textBuf, req.Output)
+		}
+	}
+	if len(structuredBuf) > 0 {
+		if err := safeBridgeCall(func() error { return p.bridge.DeliverStructured(structuredBuf) }); err != nil {
+			return err
+		}
+	}
+	if len(textBuf) > 0 {
+		return safeBridgeCall(func() error { return p.bridge.DeliverEvents(textBuf) })
+	}
+	return nil
+}
+
+// deliverViaConn sends events through the socket connection.
+func (p *Process) deliverViaConn(events []string, timeout time.Duration) error {
+	connB := p.ConnB()
+	if connB == nil {
+		return ErrConnectionClosed
+	}
+	ctx, cancel := context.WithTimeout(p.ctx, timeout)
+	defer cancel()
+	return connB.SendDeliverBatch(ctx, events)
 }

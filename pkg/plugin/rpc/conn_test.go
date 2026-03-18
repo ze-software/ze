@@ -15,13 +15,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// sendFrame sends a NUL-terminated JSON frame on conn.
-func sendFrame(t *testing.T, conn net.Conn, v any) {
+// writeLine writes a newline-terminated line to conn.
+func writeLine(t *testing.T, conn net.Conn, line string) {
 	t.Helper()
-	data, err := json.Marshal(v)
-	require.NoError(t, err)
-	data = append(data, 0)
-	_, err = conn.Write(data)
+	_, err := io.WriteString(conn, line+"\n")
 	require.NoError(t, err)
 }
 
@@ -36,7 +33,7 @@ func closeConn(t *testing.T, c *Conn) {
 // TestConn_ReadRequest_PersistentReader verifies that ReadRequest uses a
 // persistent reader goroutine rather than spawning one per call.
 //
-// VALIDATES: AC-1 — ReadRequest returns next frame from persistent reader.
+// VALIDATES: AC-1 -- ReadRequest returns next frame from persistent reader.
 // PREVENTS: Per-call goroutine spawning in hot path.
 func TestConn_ReadRequest_PersistentReader(t *testing.T) {
 	t.Parallel()
@@ -51,17 +48,14 @@ func TestConn_ReadRequest_PersistentReader(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Send frames from a goroutine — net.Pipe is synchronous, so writes
+	// Send frames from a goroutine -- net.Pipe is synchronous, so writes
 	// block until the reader consumes. The persistent reader starts on
 	// first ReadRequest, so we must not block the test goroutine on Write.
 	const count = 10
 	go func() {
-		sendFrame(t, serverEnd, &Request{Method: "test-method", ID: json.RawMessage(`1`)})
+		writeLine(t, serverEnd, "#1 test-method")
 		for i := range count {
-			sendFrame(t, serverEnd, &Request{
-				Method: "ping",
-				ID:     json.RawMessage(fmt.Sprintf("%d", i+2)),
-			})
+			writeLine(t, serverEnd, fmt.Sprintf("#%d ping", i+2))
 		}
 	}()
 
@@ -79,7 +73,7 @@ func TestConn_ReadRequest_PersistentReader(t *testing.T) {
 // TestConn_ReadRequest_Sequential verifies multiple sequential ReadRequest
 // calls each get the correct next frame in order.
 //
-// VALIDATES: AC-11 — Each call gets the next frame in order; persistent reader stays alive.
+// VALIDATES: AC-11 -- Each call gets the next frame in order; persistent reader stays alive.
 // PREVENTS: Frame reordering or duplication.
 func TestConn_ReadRequest_Sequential(t *testing.T) {
 	t.Parallel()
@@ -94,14 +88,11 @@ func TestConn_ReadRequest_Sequential(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Send frames from goroutine — net.Pipe is synchronous.
+	// Send frames from goroutine -- net.Pipe is synchronous.
 	methods := []string{"alpha", "beta", "gamma", "delta"}
 	go func() {
-		for _, m := range methods {
-			sendFrame(t, serverEnd, &Request{
-				Method: m,
-				ID:     json.RawMessage(`"` + m + `"`),
-			})
+		for i, m := range methods {
+			writeLine(t, serverEnd, fmt.Sprintf("#%d %s", i+1, m))
 		}
 	}()
 
@@ -115,7 +106,7 @@ func TestConn_ReadRequest_Sequential(t *testing.T) {
 // TestConn_ReadRequest_ContextCancel verifies that canceling the context
 // returns promptly while the persistent reader survives for future calls.
 //
-// VALIDATES: AC-5 — Context canceled during ReadRequest returns ctx.Err();
+// VALIDATES: AC-5 -- Context canceled during ReadRequest returns ctx.Err();
 // persistent reader continues for future calls.
 // PREVENTS: Goroutine leaks on context cancellation.
 func TestConn_ReadRequest_ContextCancel(t *testing.T) {
@@ -128,7 +119,7 @@ func TestConn_ReadRequest_ContextCancel(t *testing.T) {
 	conn := NewConn(clientEnd, clientEnd)
 	defer closeConn(t, conn)
 
-	// Use a context that expires quickly — no data will be sent.
+	// Use a context that expires quickly -- no data will be sent.
 	shortCtx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
 
@@ -140,8 +131,8 @@ func TestConn_ReadRequest_ContextCancel(t *testing.T) {
 	longCtx, longCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer longCancel()
 
-	// Send from goroutine — net.Pipe is synchronous.
-	go sendFrame(t, serverEnd, &Request{Method: "after-cancel", ID: json.RawMessage(`2`)})
+	// Send from goroutine -- net.Pipe is synchronous.
+	go writeLine(t, serverEnd, "#2 after-cancel")
 
 	got, err := conn.ReadRequest(longCtx)
 	require.NoError(t, err)
@@ -151,7 +142,7 @@ func TestConn_ReadRequest_ContextCancel(t *testing.T) {
 // TestConn_ReadRequest_CloseUnblocks verifies that Close() unblocks a
 // pending ReadRequest.
 //
-// VALIDATES: AC-7 — Close() while ReadRequest is blocked returns error;
+// VALIDATES: AC-7 -- Close() while ReadRequest is blocked returns error;
 // persistent reader exits cleanly.
 // PREVENTS: Goroutine leaks when connection is closed during blocking read.
 func TestConn_ReadRequest_CloseUnblocks(t *testing.T) {
@@ -186,7 +177,7 @@ func TestConn_ReadRequest_CloseUnblocks(t *testing.T) {
 // TestConn_ReaderError_Propagates verifies that an I/O error on the
 // underlying connection is propagated to all subsequent reads.
 //
-// VALIDATES: AC-10 — Reader encounters I/O error; error stored;
+// VALIDATES: AC-10 -- Reader encounters I/O error; error stored;
 // all subsequent reads return stored error.
 // PREVENTS: Silent failures after connection break.
 func TestConn_ReaderError_Propagates(t *testing.T) {
@@ -201,13 +192,13 @@ func TestConn_ReaderError_Propagates(t *testing.T) {
 	defer cancel()
 
 	// Send one frame from goroutine (net.Pipe is synchronous), then close.
-	go sendFrame(t, serverEnd, &Request{Method: "before-break", ID: json.RawMessage(`1`)})
+	go writeLine(t, serverEnd, "#1 before-break")
 
 	got, err := conn.ReadRequest(ctx)
 	require.NoError(t, err)
 	assert.Equal(t, "before-break", got.Method)
 
-	// Close the server end — next reader.Read() will fail.
+	// Close the server end -- next reader.Read() will fail.
 	require.NoError(t, serverEnd.Close())
 
 	// Subsequent reads should return error.
@@ -222,7 +213,7 @@ func TestConn_ReaderError_Propagates(t *testing.T) {
 // TestConn_NoGoroutineLeak verifies that many ReadRequest calls don't
 // accumulate goroutines.
 //
-// VALIDATES: AC-1, AC-11 — Goroutine count stable across many calls.
+// VALIDATES: AC-1, AC-11 -- Goroutine count stable across many calls.
 // PREVENTS: Goroutine leak from per-call spawning.
 func TestConn_NoGoroutineLeak(t *testing.T) {
 
@@ -238,18 +229,15 @@ func TestConn_NoGoroutineLeak(t *testing.T) {
 
 	const n = 50
 
-	// Send all frames from a goroutine — net.Pipe is synchronous.
+	// Send all frames from a goroutine -- net.Pipe is synchronous.
 	go func() {
-		sendFrame(t, serverEnd, &Request{Method: "warmup", ID: json.RawMessage(`0`)})
+		writeLine(t, serverEnd, "#0 warmup")
 		for i := range n {
-			sendFrame(t, serverEnd, &Request{
-				Method: "test",
-				ID:     json.RawMessage(fmt.Sprintf("%d", i+1)),
-			})
+			writeLine(t, serverEnd, fmt.Sprintf("#%d test", i+1))
 		}
 	}()
 
-	// Warm up — trigger persistent reader start.
+	// Warm up -- trigger persistent reader start.
 	_, err := conn.ReadRequest(ctx)
 	require.NoError(t, err)
 
@@ -276,7 +264,7 @@ func TestConn_NoGoroutineLeak(t *testing.T) {
 // TestConn_CallRPC_DeadlineWrite verifies CallRPC sends and receives correctly
 // using deadline-based writes and persistent reader.
 //
-// VALIDATES: AC-2 — CallRPC uses deadline write + persistent read; no goroutines spawned.
+// VALIDATES: AC-2 -- CallRPC uses deadline write + persistent read; no goroutines spawned.
 // PREVENTS: Regression in CallRPC behavior.
 func TestConn_CallRPC_DeadlineWrite(t *testing.T) {
 	t.Parallel()
@@ -299,19 +287,18 @@ func TestConn_CallRPC_DeadlineWrite(t *testing.T) {
 	raw, err := conn.CallRPC(ctx, "test-method", nil)
 	require.NoError(t, err)
 
-	var resp struct {
-		Result struct {
-			Method string `json:"method"`
-		} `json:"result"`
+	// CallRPC now returns the result payload directly (not wrapped in {"result":...}).
+	var result struct {
+		Method string `json:"method"`
 	}
-	require.NoError(t, json.Unmarshal(raw, &resp))
-	assert.Equal(t, "test-method", resp.Result.Method)
+	require.NoError(t, json.Unmarshal(raw, &result))
+	assert.Equal(t, "test-method", result.Method)
 }
 
 // TestConn_CallBatchRPC_DeadlineWrite verifies CallBatchRPC works with
 // deadline-based writes and persistent reader.
 //
-// VALIDATES: AC-3 — CallBatchRPC uses deadline write + persistent read.
+// VALIDATES: AC-3 -- CallBatchRPC uses deadline write + persistent read.
 // PREVENTS: Regression in batch delivery.
 func TestConn_CallBatchRPC_DeadlineWrite(t *testing.T) {
 	t.Parallel()
@@ -326,19 +313,12 @@ func TestConn_CallBatchRPC_DeadlineWrite(t *testing.T) {
 	// Engine reads the batch request and sends back an OK response.
 	go func() {
 		engineConn := NewConn(engineEnd, engineEnd)
-		data, readErr := engineConn.reader.Read()
+		req, readErr := engineConn.ReadRequest(ctx)
 		if readErr != nil {
 			return
 		}
-		// Extract ID from batch request.
-		var probe struct {
-			ID json.RawMessage `json:"id"`
-		}
-		if unmarshalErr := json.Unmarshal(data, &probe); unmarshalErr != nil {
-			return
-		}
-		resp := &RPCResult{ID: probe.ID}
-		if writeErr := engineConn.WriteFrame(resp); writeErr != nil {
+		// Send OK response with matching ID.
+		if sendErr := engineConn.SendOK(ctx, req.ID); sendErr != nil {
 			return
 		}
 	}()
@@ -350,18 +330,17 @@ func TestConn_CallBatchRPC_DeadlineWrite(t *testing.T) {
 		[]byte(`{"type":"bgp","bgp":{"type":"state","peer":{"address":"10.0.0.1","asn":65001},"state":"up"}}`),
 	}
 
-	raw, err := conn.CallBatchRPC(ctx, events)
+	_, err := conn.CallBatchRPC(ctx, events)
 	require.NoError(t, err)
-	require.NotNil(t, raw)
 }
 
-// TestConn_WriteWithContext_Deadline verifies WriteWithContext uses
+// TestConn_WriteLineWithContext_Deadline verifies writeLineWithContext uses
 // SetWriteDeadline instead of goroutine bridge.
 //
-// VALIDATES: AC-4 — Uses SetWriteDeadline on writeConn; no goroutine spawned.
-// VALIDATES: AC-12 — Context without deadline uses default 30s safety deadline.
+// VALIDATES: AC-4 -- Uses SetWriteDeadline on writeConn; no goroutine spawned.
+// VALIDATES: AC-12 -- Context without deadline uses default 30s safety deadline.
 // PREVENTS: Per-write goroutine spawning.
-func TestConn_WriteWithContext_Deadline(t *testing.T) {
+func TestConn_WriteLineWithContext_Deadline(t *testing.T) {
 	t.Parallel()
 
 	clientEnd, serverEnd := net.Pipe()
@@ -387,27 +366,28 @@ func TestConn_WriteWithContext_Deadline(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	msg := &Request{Method: "test-write", ID: json.RawMessage(`1`)}
-	err := conn.WriteWithContext(ctx, msg)
+	line := FormatRequest(1, "test-write", nil)
+	err := conn.writeLineWithContext(ctx, line)
 	require.NoError(t, err)
 
 	select {
 	case data := <-readDone:
 		require.NotNil(t, data)
-		var got Request
-		require.NoError(t, json.Unmarshal(data, &got))
-		assert.Equal(t, "test-write", got.Method)
+		id, verb, _, parseErr := ParseLine(data)
+		require.NoError(t, parseErr)
+		assert.Equal(t, uint64(1), id)
+		assert.Equal(t, "test-write", verb)
 	case <-time.After(2 * time.Second):
 		t.Fatal("server did not receive written frame")
 	}
 }
 
-// TestConn_WriteWithContext_ContextCancel verifies that a canceled context
+// TestConn_WriteLineWithContext_ContextCancel verifies that a canceled context
 // causes the write to return promptly.
 //
-// VALIDATES: AC-6 — Context canceled → deadline-triggered write error.
+// VALIDATES: AC-6 -- Context canceled -> deadline-triggered write error.
 // PREVENTS: Writes blocking indefinitely on canceled context.
-func TestConn_WriteWithContext_ContextCancel(t *testing.T) {
+func TestConn_WriteLineWithContext_ContextCancel(t *testing.T) {
 	t.Parallel()
 
 	clientEnd, serverEnd := net.Pipe()
@@ -420,14 +400,14 @@ func TestConn_WriteWithContext_ContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	msg := &Request{Method: "should-fail", ID: json.RawMessage(`1`)}
-	err := conn.WriteWithContext(ctx, msg)
+	line := FormatRequest(1, "should-fail", nil)
+	err := conn.writeLineWithContext(ctx, line)
 	require.Error(t, err)
 }
 
 // TestConn_CallRPC_CloseUnblocks verifies Close() unblocks a pending CallRPC.
 //
-// VALIDATES: AC-8 — Close() while CallRPC waiting for response returns error.
+// VALIDATES: AC-8 -- Close() while CallRPC waiting for response returns error.
 // PREVENTS: Goroutine leak when connection closed during CallRPC.
 func TestConn_CallRPC_CloseUnblocks(t *testing.T) {
 	t.Parallel()
@@ -441,7 +421,7 @@ func TestConn_CallRPC_CloseUnblocks(t *testing.T) {
 		if _, readErr := engineConn.ReadRequest(context.Background()); readErr != nil {
 			return
 		}
-		// Deliberately don't respond — block forever.
+		// Deliberately don't respond -- block forever.
 		select {}
 	}()
 
@@ -467,7 +447,7 @@ func TestConn_CallRPC_CloseUnblocks(t *testing.T) {
 // TestConn_CallRPC_Serialization verifies that callMu still serializes
 // concurrent CallRPC calls correctly.
 //
-// VALIDATES: AC-13 — Concurrent callers serialize via callMu; no races.
+// VALIDATES: AC-13 -- Concurrent callers serialize via callMu; no races.
 // PREVENTS: Race conditions from concurrent CallRPC access.
 func TestConn_CallRPC_Serialization(t *testing.T) {
 	t.Parallel()
@@ -502,16 +482,15 @@ func TestConn_CallRPC_Serialization(t *testing.T) {
 				errs[idx] = callErr
 				return
 			}
-			var resp struct {
-				Result struct {
-					Method string `json:"method"`
-				} `json:"result"`
+			// CallRPC returns result payload directly.
+			var result struct {
+				Method string `json:"method"`
 			}
-			if unmarshalErr := json.Unmarshal(raw, &resp); unmarshalErr != nil {
+			if unmarshalErr := json.Unmarshal(raw, &result); unmarshalErr != nil {
 				errs[idx] = unmarshalErr
 				return
 			}
-			results[idx] = resp.Result.Method
+			results[idx] = result.Method
 		}(i)
 	}
 
@@ -524,10 +503,156 @@ func TestConn_CallRPC_Serialization(t *testing.T) {
 	}
 }
 
+// TestParseResponse verifies parseResponse handles ok, error, mismatched ID,
+// and unknown verb cases.
+//
+// VALIDATES: parseResponse correctly extracts payload or returns typed errors.
+// PREVENTS: Silent mishandling of response lines in CallRPC/CallBatchRPC.
+func TestParseResponse(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		line       string
+		expectedID uint64
+		wantData   string // expected JSON payload ("" means nil)
+		wantErr    bool
+		wantRPCErr bool // true if error should be *RPCCallError
+	}{
+		{
+			name:       "ok with payload",
+			line:       `#1 ok {"key":"val"}`,
+			expectedID: 1,
+			wantData:   `{"key":"val"}`,
+		},
+		{
+			name:       "ok without payload",
+			line:       "#1 ok",
+			expectedID: 1,
+			wantData:   "",
+		},
+		{
+			name:       "error with payload",
+			line:       `#1 error {"message":"bad"}`,
+			expectedID: 1,
+			wantErr:    true,
+			wantRPCErr: true,
+		},
+		{
+			name:       "error without payload",
+			line:       "#1 error",
+			expectedID: 1,
+			wantErr:    true,
+			wantRPCErr: true,
+		},
+		{
+			name:       "mismatched id",
+			line:       "#2 ok",
+			expectedID: 1,
+			wantErr:    true,
+		},
+		{
+			name:       "unknown verb",
+			line:       "#1 foobar",
+			expectedID: 1,
+			wantErr:    true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := parseResponse([]byte(tt.line), tt.expectedID)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.wantRPCErr {
+					var rpcErr *RPCCallError
+					require.ErrorAs(t, err, &rpcErr, "error should be *RPCCallError")
+				}
+				return
+			}
+			require.NoError(t, err)
+			if tt.wantData == "" {
+				assert.Nil(t, got)
+			} else {
+				assert.JSONEq(t, tt.wantData, string(got))
+			}
+		})
+	}
+}
+
+// TestInterpretResponse verifies interpretResponse handles ok, error, and
+// unknown verb after the #<id> prefix has been stripped by MuxConn.
+//
+// VALIDATES: interpretResponse correctly extracts payload or returns typed errors.
+// PREVENTS: Silent mishandling of response bodies in MuxConn.CallRPC.
+func TestInterpretResponse(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		body       string
+		wantData   string // expected JSON payload ("" means nil)
+		wantErr    bool
+		wantRPCErr bool
+	}{
+		{
+			name:     "ok with payload",
+			body:     `ok {"key":"val"}`,
+			wantData: `{"key":"val"}`,
+		},
+		{
+			name:     "ok without payload",
+			body:     "ok",
+			wantData: "",
+		},
+		{
+			name:       "error with payload",
+			body:       `error {"message":"bad"}`,
+			wantErr:    true,
+			wantRPCErr: true,
+		},
+		{
+			name:       "error without payload",
+			body:       "error",
+			wantErr:    true,
+			wantRPCErr: true,
+		},
+		{
+			name:    "unknown verb",
+			body:    "foobar",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := interpretResponse([]byte(tt.body))
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.wantRPCErr {
+					var rpcErr *RPCCallError
+					require.ErrorAs(t, err, &rpcErr, "error should be *RPCCallError")
+				}
+				return
+			}
+			require.NoError(t, err)
+			if tt.wantData == "" {
+				assert.Nil(t, got)
+			} else {
+				assert.JSONEq(t, tt.wantData, string(got))
+			}
+		})
+	}
+}
+
 // TestConn_MuxConn_Compatibility verifies that MuxConn still works correctly
 // after Conn's internal changes.
 //
-// VALIDATES: AC-9 — MuxConn wrapping Conn works correctly.
+// VALIDATES: AC-9 -- MuxConn wrapping Conn works correctly.
 // PREVENTS: Breaking MuxConn which bypasses Conn's persistent reader.
 func TestConn_MuxConn_Compatibility(t *testing.T) {
 	t.Parallel()
@@ -555,73 +680,10 @@ func TestConn_MuxConn_Compatibility(t *testing.T) {
 	raw, err := mux.CallRPC(ctx, "compat-test", nil)
 	require.NoError(t, err)
 
-	var resp struct {
-		Result struct {
-			Method string `json:"method"`
-		} `json:"result"`
+	// MuxConn.CallRPC returns result payload directly.
+	var result struct {
+		Method string `json:"method"`
 	}
-	require.NoError(t, json.Unmarshal(raw, &resp))
-	assert.Equal(t, "compat-test", resp.Result.Method)
-}
-
-// TestAutoDetectMode verifies first-byte protocol mode detection.
-//
-// VALIDATES: AC-8 — First byte { → JSON mode, letter → text mode. Peeked byte not consumed.
-// PREVENTS: Mode misdetection or consumed bytes breaking subsequent reads.
-func TestAutoDetectMode(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name      string
-		send      string
-		wantMode  ConnMode
-		wantFirst byte
-	}{
-		{
-			name:      "JSON mode from opening brace",
-			send:      `{"method":"declare-registration","id":1}`,
-			wantMode:  ModeJSON,
-			wantFirst: '{',
-		},
-		{
-			name:      "text mode from register verb",
-			send:      "register\nfamily ipv4/unicast mode both\n\n",
-			wantMode:  ModeText,
-			wantFirst: 'r',
-		},
-		{
-			name:      "text mode from capabilities verb",
-			send:      "capabilities\ncode 65 encoding hex\n\n",
-			wantMode:  ModeText,
-			wantFirst: 'c',
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			clientEnd, serverEnd := net.Pipe()
-			defer closePipe(t, "clientEnd", clientEnd)
-			defer closePipe(t, "serverEnd", serverEnd)
-
-			// Writer goroutine may see broken pipe when test closes the
-			// pipe after reading just the peeked byte. Error is expected.
-			go func() {
-				if _, writeErr := io.WriteString(serverEnd, tt.send); writeErr != nil {
-					return
-				}
-			}()
-
-			mode, wrapped, err := PeekMode(clientEnd)
-			require.NoError(t, err)
-			assert.Equal(t, tt.wantMode, mode)
-
-			// Verify peeked byte not consumed — first read returns the peeked byte
-			var buf [1]byte
-			_, readErr := wrapped.Read(buf[:])
-			require.NoError(t, readErr)
-			assert.Equal(t, tt.wantFirst, buf[0], "peeked byte should still be available")
-		})
-	}
+	require.NoError(t, json.Unmarshal(raw, &result))
+	assert.Equal(t, "compat-test", result.Method)
 }

@@ -66,7 +66,7 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 	configInput := &rpc.ConfigureInput{Sections: []rpc.ConfigSection{}}
 	raw, err := connB.CallRPC(ctx, "ze-plugin-callback:configure", configInput)
 	require.NoError(t, err)
-	require.NoError(t, rpc.CheckResponse(raw))
+	_ = raw // CallRPC returns errors directly; result unused for ok-only RPCs
 
 	// Stage 3: Read declare-capabilities from Socket A, send OK.
 	stage3Req := readRequestTimeout(t, ctx, connA)
@@ -77,7 +77,7 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 	registryInput := &rpc.ShareRegistryInput{Commands: []rpc.RegistryCommand{}}
 	raw, err = connB.CallRPC(ctx, "ze-plugin-callback:share-registry", registryInput)
 	require.NoError(t, err)
-	require.NoError(t, rpc.CheckResponse(raw))
+	_ = raw // CallRPC returns errors directly; result unused for ok-only RPCs
 
 	// Stage 5: Read ready from Socket A, send OK.
 	// The ready RPC includes startup subscriptions (events: update direction sent, state, refresh).
@@ -237,11 +237,8 @@ func deliverEvent(conn *rpc.Conn, event string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	input := &rpc.DeliverEventInput{Event: event}
-	raw, err := conn.CallRPC(ctx, "ze-plugin-callback:deliver-event", input)
-	if err != nil {
-		return err
-	}
-	return rpc.CheckResponse(raw)
+	_, err := conn.CallRPC(ctx, "ze-plugin-callback:deliver-event", input)
+	return err
 }
 
 // deliverEventSync sends a deliver-event RPC and fails the test on error.
@@ -249,9 +246,8 @@ func deliverEvent(conn *rpc.Conn, event string) error {
 func deliverEventSync(t *testing.T, ctx context.Context, conn *rpc.Conn, event string) {
 	t.Helper()
 	input := &rpc.DeliverEventInput{Event: event}
-	raw, err := conn.CallRPC(ctx, "ze-plugin-callback:deliver-event", input)
+	_, err := conn.CallRPC(ctx, "ze-plugin-callback:deliver-event", input)
 	require.NoError(t, err, "deliver-event should succeed")
-	require.NoError(t, rpc.CheckResponse(raw), "deliver-event response should be OK")
 }
 
 // readRequestTimeout reads the next RPC request with a 5-second timeout.

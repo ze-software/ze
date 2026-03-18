@@ -77,9 +77,8 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 	// ── Stage 2: configure ──────────────────────────────────────────────
 	// Rib plugin has no OnConfigure handler, so empty config is fine.
 	configInput := &rpc.ConfigureInput{Sections: []rpc.ConfigSection{}}
-	raw, err := connB.CallRPC(ctx, "ze-plugin-callback:configure", configInput)
+	_, err := connB.CallRPC(ctx, "ze-plugin-callback:configure", configInput)
 	require.NoError(t, err)
-	require.NoError(t, rpc.CheckResponse(raw))
 
 	// ── Stage 3: declare-capabilities ───────────────────────────────────
 	// Rib plugin declares no BGP capabilities.
@@ -94,9 +93,8 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 
 	// ── Stage 4: share-registry ─────────────────────────────────────────
 	registryInput := &rpc.ShareRegistryInput{Commands: []rpc.RegistryCommand{}}
-	raw, err = connB.CallRPC(ctx, "ze-plugin-callback:share-registry", registryInput)
+	_, err = connB.CallRPC(ctx, "ze-plugin-callback:share-registry", registryInput)
 	require.NoError(t, err)
-	require.NoError(t, rpc.CheckResponse(raw))
 
 	// ── Stage 5: ready (with atomic subscriptions) ──────────────────────
 	// This is the critical stage: the ready RPC MUST include the event
@@ -179,9 +177,8 @@ func TestRIBPluginStageOrdering(t *testing.T) {
 	// Stage 2: Engine sends configure on Socket B.
 	// Plugin waits for this — it blocks until configure arrives.
 	configInput := &rpc.ConfigureInput{Sections: []rpc.ConfigSection{}}
-	raw, err := connB.CallRPC(ctx, "ze-plugin-callback:configure", configInput)
+	_, err := connB.CallRPC(ctx, "ze-plugin-callback:configure", configInput)
 	require.NoError(t, err)
-	require.NoError(t, rpc.CheckResponse(raw))
 
 	// Stage 3: Plugin sends declare-capabilities on Socket A.
 	// Must come after configure (Stage 2) completes.
@@ -192,9 +189,8 @@ func TestRIBPluginStageOrdering(t *testing.T) {
 
 	// Stage 4: Engine sends share-registry on Socket B.
 	registryInput := &rpc.ShareRegistryInput{Commands: []rpc.RegistryCommand{}}
-	raw, err = connB.CallRPC(ctx, "ze-plugin-callback:share-registry", registryInput)
+	_, err = connB.CallRPC(ctx, "ze-plugin-callback:share-registry", registryInput)
 	require.NoError(t, err)
-	require.NoError(t, rpc.CheckResponse(raw))
 
 	// Stage 5: Plugin sends ready on Socket A.
 	// Must come after share-registry (Stage 4) completes.

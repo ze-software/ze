@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -26,19 +25,7 @@ func fakeEngine(ctx context.Context, conn net.Conn, handler func(*Request) any) 
 				return
 			}
 			result := handler(req)
-			var resultRaw json.RawMessage
-			if result != nil {
-				b, marshalErr := json.Marshal(result)
-				if marshalErr != nil {
-					return
-				}
-				resultRaw = b
-			}
-			resp := &RPCResult{
-				Result: resultRaw,
-				ID:     req.ID,
-			}
-			if err := rpcConn.WriteFrame(resp); err != nil {
+			if sendErr := rpcConn.SendResult(ctx, req.ID, result); sendErr != nil {
 				return
 			}
 		}
@@ -56,19 +43,7 @@ func fakeEngineWithDelay(ctx context.Context, conn net.Conn, delay time.Duration
 			}
 			time.Sleep(delay)
 			result := handler(req)
-			var resultRaw json.RawMessage
-			if result != nil {
-				b, marshalErr := json.Marshal(result)
-				if marshalErr != nil {
-					return
-				}
-				resultRaw = b
-			}
-			resp := &RPCResult{
-				Result: resultRaw,
-				ID:     req.ID,
-			}
-			if err := rpcConn.WriteFrame(resp); err != nil {
+			if sendErr := rpcConn.SendResult(ctx, req.ID, result); sendErr != nil {
 				return
 			}
 		}
@@ -85,7 +60,7 @@ func closePipe(t *testing.T, name string, c net.Conn) {
 
 // TestMuxConn_SequentialCallRPC verifies that sequential calls work correctly.
 //
-// VALIDATES: AC-11 — Conn.CallRPC behavior preserved; sequential MuxConn calls work.
+// VALIDATES: AC-11 -- Conn.CallRPC behavior preserved; sequential MuxConn calls work.
 // PREVENTS: Regression in basic call/response matching.
 func TestMuxConn_SequentialCallRPC(t *testing.T) {
 	t.Parallel()
@@ -110,31 +85,27 @@ func TestMuxConn_SequentialCallRPC(t *testing.T) {
 		}
 	}()
 
-	// Two sequential calls.
+	// Two sequential calls. CallRPC returns result payload directly.
 	raw1, err := mux.CallRPC(ctx, "test-method-1", nil)
 	require.NoError(t, err)
 	var result1 struct {
-		Result struct {
-			Method string `json:"method"`
-		} `json:"result"`
+		Method string `json:"method"`
 	}
 	require.NoError(t, json.Unmarshal(raw1, &result1))
-	assert.Equal(t, "test-method-1", result1.Result.Method)
+	assert.Equal(t, "test-method-1", result1.Method)
 
 	raw2, err := mux.CallRPC(ctx, "test-method-2", nil)
 	require.NoError(t, err)
 	var result2 struct {
-		Result struct {
-			Method string `json:"method"`
-		} `json:"result"`
+		Method string `json:"method"`
 	}
 	require.NoError(t, json.Unmarshal(raw2, &result2))
-	assert.Equal(t, "test-method-2", result2.Result.Method)
+	assert.Equal(t, "test-method-2", result2.Method)
 }
 
 // TestMuxConn_ConcurrentCallRPC verifies two concurrent calls get correct responses.
 //
-// VALIDATES: AC-1 — Two goroutines call MuxConn.CallRPC concurrently; each receives its own response.
+// VALIDATES: AC-1 -- Two goroutines call MuxConn.CallRPC concurrently; each receives its own response.
 // PREVENTS: Response misrouting when multiple callers share a connection.
 func TestMuxConn_ConcurrentCallRPC(t *testing.T) {
 	t.Parallel()
@@ -146,7 +117,7 @@ func TestMuxConn_ConcurrentCallRPC(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Engine responds with the request method — allows verifying correct routing.
+	// Engine responds with the request method -- allows verifying correct routing.
 	// Add small delay so both requests are in-flight simultaneously.
 	fakeEngineWithDelay(ctx, engineEnd, 50*time.Millisecond, func(req *Request) any {
 		return map[string]string{"method": req.Method}
@@ -175,16 +146,14 @@ func TestMuxConn_ConcurrentCallRPC(t *testing.T) {
 			ch1 <- callResult{err: callErr}
 			return
 		}
-		var resp struct {
-			Result struct {
-				Method string `json:"method"`
-			} `json:"result"`
+		var result struct {
+			Method string `json:"method"`
 		}
-		if unmarshalErr := json.Unmarshal(raw, &resp); unmarshalErr != nil {
+		if unmarshalErr := json.Unmarshal(raw, &result); unmarshalErr != nil {
 			ch1 <- callResult{err: unmarshalErr}
 			return
 		}
-		ch1 <- callResult{method: resp.Result.Method}
+		ch1 <- callResult{method: result.Method}
 	}()
 
 	go func() {
@@ -193,16 +162,14 @@ func TestMuxConn_ConcurrentCallRPC(t *testing.T) {
 			ch2 <- callResult{err: callErr}
 			return
 		}
-		var resp struct {
-			Result struct {
-				Method string `json:"method"`
-			} `json:"result"`
+		var result struct {
+			Method string `json:"method"`
 		}
-		if unmarshalErr := json.Unmarshal(raw, &resp); unmarshalErr != nil {
+		if unmarshalErr := json.Unmarshal(raw, &result); unmarshalErr != nil {
 			ch2 <- callResult{err: unmarshalErr}
 			return
 		}
-		ch2 <- callResult{method: resp.Result.Method}
+		ch2 <- callResult{method: result.Method}
 	}()
 
 	r1 := <-ch1
@@ -216,7 +183,7 @@ func TestMuxConn_ConcurrentCallRPC(t *testing.T) {
 
 // TestMuxConn_ContextCancellation verifies that context cancellation unblocks waiting callers.
 //
-// VALIDATES: AC-2 — CallRPC with canceled context returns context error; pending entry cleaned up.
+// VALIDATES: AC-2 -- CallRPC with canceled context returns context error; pending entry cleaned up.
 // PREVENTS: Goroutine leaks when callers time out or cancel.
 func TestMuxConn_ContextCancellation(t *testing.T) {
 	t.Parallel()
@@ -225,7 +192,7 @@ func TestMuxConn_ContextCancellation(t *testing.T) {
 	defer closePipe(t, "pluginEnd", pluginEnd)
 	defer closePipe(t, "engineEnd", engineEnd)
 
-	// Engine that never responds — simulates timeout.
+	// Engine that never responds -- simulates timeout.
 	go func() {
 		rpcConn := NewConn(engineEnd, engineEnd)
 		for {
@@ -255,7 +222,7 @@ func TestMuxConn_ContextCancellation(t *testing.T) {
 
 // TestMuxConn_CloseUnblocksPending verifies that Close() unblocks all waiting callers.
 //
-// VALIDATES: AC-3 — Close() while CallRPC is waiting; waiting callers unblock with connection-closed error.
+// VALIDATES: AC-3 -- Close() while CallRPC is waiting; waiting callers unblock with connection-closed error.
 // PREVENTS: Goroutine leaks when MuxConn is closed during active RPCs.
 func TestMuxConn_CloseUnblocksPending(t *testing.T) {
 	t.Parallel()
@@ -288,7 +255,7 @@ func TestMuxConn_CloseUnblocksPending(t *testing.T) {
 	// Give the call time to reach the waiting state.
 	time.Sleep(50 * time.Millisecond)
 
-	// Close the mux — should unblock the caller.
+	// Close the mux -- should unblock the caller.
 	require.NoError(t, mux.Close())
 
 	select {
@@ -301,7 +268,7 @@ func TestMuxConn_CloseUnblocksPending(t *testing.T) {
 
 // TestMuxConn_ManyConcurrent verifies 100 concurrent calls all succeed.
 //
-// VALIDATES: AC-5 — 100 concurrent MuxConn.CallRPC calls complete without deadlock; each response matches its request ID.
+// VALIDATES: AC-5 -- 100 concurrent MuxConn.CallRPC calls complete without deadlock; each response matches its request ID.
 // PREVENTS: Deadlocks or response misrouting under high concurrency.
 func TestMuxConn_ManyConcurrent(t *testing.T) {
 	t.Parallel()
@@ -341,16 +308,15 @@ func TestMuxConn_ManyConcurrent(t *testing.T) {
 				errs[idx] = callErr
 				return
 			}
-			var resp struct {
-				Result struct {
-					Method string `json:"method"`
-				} `json:"result"`
+			// CallRPC returns result payload directly.
+			var result struct {
+				Method string `json:"method"`
 			}
-			if unmarshalErr := json.Unmarshal(raw, &resp); unmarshalErr != nil {
+			if unmarshalErr := json.Unmarshal(raw, &result); unmarshalErr != nil {
 				errs[idx] = unmarshalErr
 				return
 			}
-			results[idx] = resp.Result.Method
+			results[idx] = result.Method
 		}(i)
 	}
 
@@ -364,7 +330,7 @@ func TestMuxConn_ManyConcurrent(t *testing.T) {
 
 // TestMuxConn_ReaderError verifies that a connection error unblocks all pending callers.
 //
-// VALIDATES: AC-6 — MuxConn background reader encounters connection error; all pending callers unblock with the error; no goroutine leak.
+// VALIDATES: AC-6 -- MuxConn background reader encounters connection error; all pending callers unblock with the error; no goroutine leak.
 // PREVENTS: Goroutine leaks when the underlying connection breaks.
 func TestMuxConn_ReaderError(t *testing.T) {
 	t.Parallel()
@@ -425,7 +391,7 @@ func TestMuxConn_ReaderError(t *testing.T) {
 
 // TestMuxConn_UnexpectedID verifies that orphan responses don't crash or deadlock.
 //
-// VALIDATES: AC-9 — MuxConn response ID mismatch (unexpected ID arrives); logged as warning; does not crash or deadlock.
+// VALIDATES: AC-9 -- MuxConn response ID mismatch (unexpected ID arrives); logged as warning; does not crash or deadlock.
 // PREVENTS: Panics or deadlocks when the engine sends a response for an already-canceled request.
 func TestMuxConn_UnexpectedID(t *testing.T) {
 	t.Parallel()
@@ -447,18 +413,12 @@ func TestMuxConn_UnexpectedID(t *testing.T) {
 		}
 
 		// Send a spurious response with a different ID.
-		spurious := &RPCResult{
-			ID: json.RawMessage(`999`),
-		}
-		if err := engineConn.WriteFrame(spurious); err != nil {
+		if sendErr := engineConn.SendOK(ctx, 999); sendErr != nil {
 			return
 		}
 
 		// Then send the real response.
-		realResp := &RPCResult{
-			ID: req.ID,
-		}
-		if err := engineConn.WriteFrame(realResp); err != nil {
+		if sendErr := engineConn.SendOK(ctx, req.ID); sendErr != nil {
 			return
 		}
 	}()
@@ -472,125 +432,6 @@ func TestMuxConn_UnexpectedID(t *testing.T) {
 	}()
 
 	// The call should succeed despite the spurious response.
-	raw, err := mux.CallRPC(ctx, "test-method", nil)
+	_, err := mux.CallRPC(ctx, "test-method", nil)
 	require.NoError(t, err)
-	require.NotNil(t, raw)
-}
-
-// --- TextMuxConn tests ---
-
-// TestTextMuxConnConcurrent verifies concurrent text RPCs route responses by #N ID.
-//
-// VALIDATES: 10 concurrent #N requests on net.Pipe, responses routed to correct callers.
-// PREVENTS: Response misrouting or deadlock under concurrent text RPCs.
-func TestTextMuxConnConcurrent(t *testing.T) {
-	t.Parallel()
-
-	pluginEnd, engineEnd := net.Pipe()
-	defer closePipe(t, "pluginEnd", pluginEnd)
-	defer closePipe(t, "engineEnd", engineEnd)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// Fake text engine: reads "#N method [args]", responds "#N ok method"
-	engineTC := NewTextConn(engineEnd, engineEnd)
-	go func() {
-		for {
-			line, readErr := engineTC.ReadLine(ctx)
-			if readErr != nil {
-				return
-			}
-			// Line format: "#N method [args]"
-			rest := strings.TrimPrefix(line, "#")
-			idStr, methodAndArgs, found := strings.Cut(rest, " ")
-			if !found {
-				return
-			}
-			method, _, _ := strings.Cut(methodAndArgs, " ")
-			resp := fmt.Sprintf("#%s ok %s", idStr, method)
-			if writeErr := engineTC.WriteLine(ctx, resp); writeErr != nil {
-				return
-			}
-		}
-	}()
-
-	pluginTC := NewTextConn(pluginEnd, pluginEnd)
-	mux := NewTextMuxConn(pluginTC)
-	defer func() {
-		if closeErr := mux.Close(); closeErr != nil {
-			t.Logf("mux close: %v", closeErr)
-		}
-	}()
-
-	const n = 10
-	var wg sync.WaitGroup
-	results := make([]string, n)
-	errs := make([]error, n)
-
-	for i := range n {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-			method := fmt.Sprintf("method-%d", idx)
-			result, callErr := mux.CallRPC(ctx, method, "")
-			if callErr != nil {
-				errs[idx] = callErr
-				return
-			}
-			results[idx] = result
-		}(i)
-	}
-
-	wg.Wait()
-
-	for i := range n {
-		require.NoError(t, errs[i], "call %d should succeed", i)
-		expected := fmt.Sprintf("method-%d", i)
-		assert.Equal(t, expected, results[i], "call %d should get correct response", i)
-	}
-}
-
-// TestTextMuxConnClose verifies that Close() unblocks pending text RPC callers.
-//
-// VALIDATES: Close TextMuxConn → pending callers get ErrMuxConnClosed.
-// PREVENTS: Goroutine leaks when text MuxConn is closed during active RPCs.
-func TestTextMuxConnClose(t *testing.T) {
-	t.Parallel()
-
-	pluginEnd, engineEnd := net.Pipe()
-	defer closePipe(t, "engineEnd", engineEnd)
-
-	// Engine reads but never responds.
-	engineTC := NewTextConn(engineEnd, engineEnd)
-	go func() {
-		for {
-			if _, readErr := engineTC.ReadLine(context.Background()); readErr != nil {
-				return
-			}
-		}
-	}()
-
-	pluginTC := NewTextConn(pluginEnd, pluginEnd)
-	mux := NewTextMuxConn(pluginTC)
-
-	ctx := context.Background()
-
-	errCh := make(chan error, 1)
-	go func() {
-		_, callErr := mux.CallRPC(ctx, "will-be-closed", "")
-		errCh <- callErr
-	}()
-
-	// Give the call time to reach the waiting state.
-	time.Sleep(50 * time.Millisecond)
-
-	require.NoError(t, mux.Close())
-
-	select {
-	case closeErr := <-errCh:
-		require.Error(t, closeErr, "CallRPC should return error after Close()")
-	case <-time.After(2 * time.Second):
-		t.Fatal("CallRPC did not unblock after Close()")
-	}
 }

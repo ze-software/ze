@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -376,9 +375,8 @@ func TestRPCRequestIDRoundTrip(t *testing.T) {
 	req, err := engineConn.ReadRequest(context.Background())
 	require.NoError(t, err)
 
-	// Verify request has an ID
-	assert.NotNil(t, req.ID)
-	assert.True(t, len(req.ID) > 0)
+	// Verify request has a non-zero ID
+	assert.NotZero(t, req.ID)
 
 	// Send response with same ID
 	require.NoError(t, engineConn.SendResult(context.Background(), req.ID, nil))
@@ -560,8 +558,7 @@ func TestEngineCallRPCIDVerification(t *testing.T) {
 	require.NoError(t, err)
 
 	// Plugin responds with WRONG ID (original ID + 999)
-	wrongID := json.RawMessage(`999`)
-	_ = req.ID // suppress unused
+	wrongID := req.ID + 999
 	require.NoError(t, pluginConn.SendResult(ctx, wrongID, nil))
 
 	// Engine should detect the mismatch
@@ -1048,243 +1045,4 @@ func TestRPCDeliverBatchTimeout(t *testing.T) {
 	isCtxTimeout := errors.Is(err, context.DeadlineExceeded)
 	isIOTimeout := errors.Is(err, os.ErrDeadlineExceeded)
 	assert.True(t, isCtxTimeout || isIOTimeout, "expected timeout error, got: %v", err)
-}
-
-// TestTextHandshakeRoundTrip verifies a full 5-stage text handshake over socket pairs.
-// Engine side reads text stages 1,3,5 from Socket A; sends text stages 2,4 on Socket B.
-// Plugin side formats text, sends, and reads responses.
-//
-// VALIDATES: AC-1 (text handshake completes all 5 stages), AC-3 (families round-trip),
-//
-//	AC-4 (config heredoc round-trip), AC-5 (capability injection from text),
-//	AC-6 (registry sharing in text), AC-7 (event subscription in ready).
-//
-// PREVENTS: Protocol mismatch between format/parse functions and TextConn framing.
-func TestTextHandshakeRoundTrip(t *testing.T) {
-	t.Parallel()
-
-	pairs, err := NewInternalSocketPairs()
-	require.NoError(t, err)
-	t.Cleanup(func() { pairs.Close() })
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	// Engine side: per-socket TextConns.
-	engineA := rpc.NewTextConn(pairs.Engine.EngineSide, pairs.Engine.EngineSide)
-	engineB := rpc.NewTextConn(pairs.Callback.EngineSide, pairs.Callback.EngineSide)
-
-	// Plugin side: per-socket TextConns.
-	pluginA := rpc.NewTextConn(pairs.Engine.PluginSide, pairs.Engine.PluginSide)
-	pluginB := rpc.NewTextConn(pairs.Callback.PluginSide, pairs.Callback.PluginSide)
-
-	// Test data for all stages.
-	regInput := rpc.DeclareRegistrationInput{
-		Families: []rpc.FamilyDecl{
-			{Name: "ipv4/unicast", Mode: "both"},
-			{Name: "ipv4/flow", Mode: "decode"},
-		},
-		Commands: []rpc.CommandDecl{
-			{Name: "show-routes", Description: "Show routes", Args: []string{"family", "prefix"}, Completable: true},
-		},
-		WantsConfig: []string{"bgp"},
-	}
-
-	sections := []rpc.ConfigSection{
-		{Root: "bgp", Data: `{"router-id":"1.2.3.4","asn":65000}`},
-	}
-
-	capsInput := rpc.DeclareCapabilitiesInput{
-		Capabilities: []rpc.CapabilityDecl{
-			{Code: 64, Encoding: "hex", Payload: "40780078"},
-			{Code: 2},
-		},
-	}
-
-	registryInput := rpc.ShareRegistryInput{
-		Commands: []rpc.RegistryCommand{
-			{Name: "show-routes", Plugin: "test-plugin", Encoding: "text"},
-		},
-	}
-
-	readyInput := rpc.ReadyInput{
-		Subscribe: &rpc.SubscribeEventsInput{
-			Events:   []string{"update", "state"},
-			Encoding: "text",
-			Peers:    []string{"10.0.0.1"},
-		},
-	}
-
-	// Plugin side goroutine — formats and sends text stages.
-	errCh := make(chan error, 1)
-	go func() {
-		// Stage 1: plugin sends registration on Socket A
-		text, fmtErr := rpc.FormatRegistrationText(regInput)
-		if fmtErr != nil {
-			errCh <- fmt.Errorf("format reg: %w", fmtErr)
-			return
-		}
-		if writeErr := pluginA.WriteMessage(ctx, text); writeErr != nil {
-			errCh <- fmt.Errorf("write reg: %w", writeErr)
-			return
-		}
-		resp, readErr := pluginA.ReadLine(ctx)
-		if readErr != nil {
-			errCh <- fmt.Errorf("read reg resp: %w", readErr)
-			return
-		}
-		if resp != "ok" {
-			errCh <- fmt.Errorf("stage 1 resp: expected ok, got %q", resp)
-			return
-		}
-
-		// Stage 2: plugin reads configure from Socket B
-		configText, readErr := pluginB.ReadMessage(ctx)
-		if readErr != nil {
-			errCh <- fmt.Errorf("read config: %w", readErr)
-			return
-		}
-		parsed, parseErr := rpc.ParseConfigureText(configText)
-		if parseErr != nil {
-			errCh <- fmt.Errorf("parse config: %w", parseErr)
-			return
-		}
-		if len(parsed.Sections) != 1 || parsed.Sections[0].Root != "bgp" {
-			errCh <- fmt.Errorf("unexpected config: %+v", parsed.Sections)
-			return
-		}
-		if writeErr := pluginB.WriteLine(ctx, "ok"); writeErr != nil {
-			errCh <- fmt.Errorf("write config resp: %w", writeErr)
-			return
-		}
-
-		// Stage 3: plugin sends capabilities on Socket A
-		capsText, fmtErr := rpc.FormatCapabilitiesText(capsInput)
-		if fmtErr != nil {
-			errCh <- fmt.Errorf("format caps: %w", fmtErr)
-			return
-		}
-		if writeErr := pluginA.WriteMessage(ctx, capsText); writeErr != nil {
-			errCh <- fmt.Errorf("write caps: %w", writeErr)
-			return
-		}
-		resp, readErr = pluginA.ReadLine(ctx)
-		if readErr != nil {
-			errCh <- fmt.Errorf("read caps resp: %w", readErr)
-			return
-		}
-		if resp != "ok" {
-			errCh <- fmt.Errorf("stage 3 resp: expected ok, got %q", resp)
-			return
-		}
-
-		// Stage 4: plugin reads registry from Socket B
-		regText, readErr := pluginB.ReadMessage(ctx)
-		if readErr != nil {
-			errCh <- fmt.Errorf("read registry: %w", readErr)
-			return
-		}
-		regParsed, parseErr := rpc.ParseRegistryText(regText)
-		if parseErr != nil {
-			errCh <- fmt.Errorf("parse registry: %w", parseErr)
-			return
-		}
-		if len(regParsed.Commands) != 1 || regParsed.Commands[0].Name != "show-routes" {
-			errCh <- fmt.Errorf("unexpected registry: %+v", regParsed.Commands)
-			return
-		}
-		if writeErr := pluginB.WriteLine(ctx, "ok"); writeErr != nil {
-			errCh <- fmt.Errorf("write registry resp: %w", writeErr)
-			return
-		}
-
-		// Stage 5: plugin sends ready on Socket A
-		readyText, fmtErr := rpc.FormatReadyText(readyInput)
-		if fmtErr != nil {
-			errCh <- fmt.Errorf("format ready: %w", fmtErr)
-			return
-		}
-		if writeErr := pluginA.WriteMessage(ctx, readyText); writeErr != nil {
-			errCh <- fmt.Errorf("write ready: %w", writeErr)
-			return
-		}
-		resp, readErr = pluginA.ReadLine(ctx)
-		if readErr != nil {
-			errCh <- fmt.Errorf("read ready resp: %w", readErr)
-			return
-		}
-		if resp != "ok" {
-			errCh <- fmt.Errorf("stage 5 resp: expected ok, got %q", resp)
-			return
-		}
-
-		errCh <- nil
-	}()
-
-	// Engine side: reads text stages from Socket A, sends on Socket B.
-
-	// Stage 1: read registration from Socket A
-	regText, err := engineA.ReadMessage(ctx)
-	require.NoError(t, err, "engine read stage 1")
-	receivedReg, err := rpc.ParseRegistrationText(regText)
-	require.NoError(t, err, "engine parse stage 1")
-	assert.Equal(t, 2, len(receivedReg.Families))
-	assert.Equal(t, "ipv4/unicast", receivedReg.Families[0].Name)
-	assert.Equal(t, "both", receivedReg.Families[0].Mode)
-	assert.Equal(t, "ipv4/flow", receivedReg.Families[1].Name)
-	assert.Equal(t, "decode", receivedReg.Families[1].Mode)
-	assert.Equal(t, 1, len(receivedReg.Commands))
-	assert.Equal(t, "show-routes", receivedReg.Commands[0].Name)
-	assert.Equal(t, "Show routes", receivedReg.Commands[0].Description)
-	assert.Equal(t, []string{"family", "prefix"}, receivedReg.Commands[0].Args)
-	assert.True(t, receivedReg.Commands[0].Completable)
-	assert.Equal(t, []string{"bgp"}, receivedReg.WantsConfig)
-	require.NoError(t, engineA.WriteLine(ctx, "ok"))
-
-	// Stage 2: send configure on Socket B
-	configText, err := rpc.FormatConfigureText(rpc.ConfigureInput{Sections: sections})
-	require.NoError(t, err, "engine format stage 2")
-	require.NoError(t, engineB.WriteMessage(ctx, configText))
-	resp, err := engineB.ReadLine(ctx)
-	require.NoError(t, err, "engine read stage 2 resp")
-	assert.Equal(t, "ok", resp)
-
-	// Stage 3: read capabilities from Socket A
-	capsText, err := engineA.ReadMessage(ctx)
-	require.NoError(t, err, "engine read stage 3")
-	receivedCaps, err := rpc.ParseCapabilitiesText(capsText)
-	require.NoError(t, err, "engine parse stage 3")
-	assert.Equal(t, 2, len(receivedCaps.Capabilities))
-	assert.Equal(t, uint8(64), receivedCaps.Capabilities[0].Code)
-	assert.Equal(t, "hex", receivedCaps.Capabilities[0].Encoding)
-	assert.Equal(t, "40780078", receivedCaps.Capabilities[0].Payload)
-	assert.Equal(t, uint8(2), receivedCaps.Capabilities[1].Code)
-	require.NoError(t, engineA.WriteLine(ctx, "ok"))
-
-	// Stage 4: send registry on Socket B
-	regText2, err := rpc.FormatRegistryText(registryInput)
-	require.NoError(t, err, "engine format stage 4")
-	require.NoError(t, engineB.WriteMessage(ctx, regText2))
-	resp, err = engineB.ReadLine(ctx)
-	require.NoError(t, err, "engine read stage 4 resp")
-	assert.Equal(t, "ok", resp)
-
-	// Stage 5: read ready from Socket A
-	readyText, err := engineA.ReadMessage(ctx)
-	require.NoError(t, err, "engine read stage 5")
-	receivedReady, err := rpc.ParseReadyText(readyText)
-	require.NoError(t, err, "engine parse stage 5")
-	require.NotNil(t, receivedReady.Subscribe)
-	assert.Equal(t, []string{"update", "state"}, receivedReady.Subscribe.Events)
-	assert.Equal(t, "text", receivedReady.Subscribe.Encoding)
-	assert.Equal(t, []string{"10.0.0.1"}, receivedReady.Subscribe.Peers)
-	require.NoError(t, engineA.WriteLine(ctx, "ok"))
-
-	// Wait for plugin side
-	select {
-	case pluginErr := <-errCh:
-		require.NoError(t, pluginErr, "plugin side error")
-	case <-time.After(3 * time.Second):
-		t.Fatal("plugin did not complete handshake")
-	}
 }

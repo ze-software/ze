@@ -13,42 +13,36 @@ import (
 	rpc "codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
-// TestNULFramingRead verifies reading NUL-terminated messages.
+// TestLineFramingRead verifies reading newline-delimited messages.
 //
-// VALIDATES: Reader correctly splits on NUL byte boundaries.
-// PREVENTS: Messages merged or truncated at NUL delimiters.
-func TestNULFramingRead(t *testing.T) {
+// VALIDATES: Reader correctly splits on newline boundaries.
+// PREVENTS: Messages merged or truncated at newline delimiters.
+func TestLineFramingRead(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
 		wantMsgs []string
-		wantErr  bool
 	}{
 		{
 			name:     "single_message",
-			input:    `{"method":"ze-bgp:peer-list"}` + "\x00",
-			wantMsgs: []string{`{"method":"ze-bgp:peer-list"}`},
-		},
-		{
-			name:     "trailing_empty_segment",
-			input:    `{"method":"ping"}` + "\x00" + "\x00",
-			wantMsgs: []string{`{"method":"ping"}`, ""},
+			input:    "#1 ze-bgp:peer-list\n",
+			wantMsgs: []string{"#1 ze-bgp:peer-list"},
 		},
 		{
 			name:  "two_messages",
-			input: `{"method":"a"}` + "\x00" + `{"method":"b"}` + "\x00",
+			input: "#1 ok\n#2 ok {\"peers\":[]}\n",
 			wantMsgs: []string{
-				`{"method":"a"}`,
-				`{"method":"b"}`,
+				"#1 ok",
+				`#2 ok {"peers":[]}`,
 			},
 		},
 		{
 			name:  "three_messages",
-			input: `{"id":1}` + "\x00" + `{"id":2}` + "\x00" + `{"id":3}` + "\x00",
+			input: "#1 ok\n#2 ok\n#3 ok\n",
 			wantMsgs: []string{
-				`{"id":1}`,
-				`{"id":2}`,
-				`{"id":3}`,
+				"#1 ok",
+				"#2 ok",
+				"#3 ok",
 			},
 		},
 		{
@@ -67,10 +61,6 @@ func TestNULFramingRead(t *testing.T) {
 				if errors.Is(err, io.EOF) {
 					break
 				}
-				if tt.wantErr {
-					require.Error(t, err)
-					return
-				}
 				require.NoError(t, err)
 				got = append(got, string(msg))
 			}
@@ -79,11 +69,11 @@ func TestNULFramingRead(t *testing.T) {
 	}
 }
 
-// TestNULFramingWrite verifies writing NUL-terminated messages.
+// TestLineFramingWrite verifies writing newline-terminated messages.
 //
-// VALIDATES: Writer appends NUL byte after each message.
-// PREVENTS: Missing NUL terminator causing message merging.
-func TestNULFramingWrite(t *testing.T) {
+// VALIDATES: Writer appends newline after each message.
+// PREVENTS: Missing newline causing message merging.
+func TestLineFramingWrite(t *testing.T) {
 	tests := []struct {
 		name string
 		msgs [][]byte
@@ -91,21 +81,21 @@ func TestNULFramingWrite(t *testing.T) {
 	}{
 		{
 			name: "single_message",
-			msgs: [][]byte{[]byte(`{"method":"ping"}`)},
-			want: `{"method":"ping"}` + "\x00",
+			msgs: [][]byte{[]byte("#1 ok")},
+			want: "#1 ok\n",
 		},
 		{
 			name: "two_messages",
 			msgs: [][]byte{
-				[]byte(`{"method":"a"}`),
-				[]byte(`{"method":"b"}`),
+				[]byte("#1 ok"),
+				[]byte(`#2 ok {"result":true}`),
 			},
-			want: `{"method":"a"}` + "\x00" + `{"method":"b"}` + "\x00",
+			want: "#1 ok\n#2 ok {\"result\":true}\n",
 		},
 		{
 			name: "empty_message",
 			msgs: [][]byte{[]byte("")},
-			want: "\x00",
+			want: "\n",
 		},
 	}
 
@@ -122,37 +112,35 @@ func TestNULFramingWrite(t *testing.T) {
 	}
 }
 
-// TestNULFramingMultiple verifies multiple messages buffered together.
+// TestLineFramingMultiple verifies multiple messages buffered together.
 //
-// VALIDATES: Scanner handles multiple NUL-delimited messages in a single buffer.
+// VALIDATES: Scanner handles multiple newline-delimited messages in a single buffer.
 // PREVENTS: Only first message being read from a batch.
-func TestNULFramingMultiple(t *testing.T) {
-	// Simulate a batch of messages arriving together
-	batch := `{"id":1}` + "\x00" + `{"id":2}` + "\x00" + `{"id":3}` + "\x00"
+func TestLineFramingMultiple(t *testing.T) {
+	batch := "#1 ok\n#2 ok\n#3 ok\n"
 	reader := rpc.NewFrameReader(strings.NewReader(batch))
 
 	msg1, err := reader.Read()
 	require.NoError(t, err)
-	assert.Equal(t, `{"id":1}`, string(msg1))
+	assert.Equal(t, "#1 ok", string(msg1))
 
 	msg2, err := reader.Read()
 	require.NoError(t, err)
-	assert.Equal(t, `{"id":2}`, string(msg2))
+	assert.Equal(t, "#2 ok", string(msg2))
 
 	msg3, err := reader.Read()
 	require.NoError(t, err)
-	assert.Equal(t, `{"id":3}`, string(msg3))
+	assert.Equal(t, "#3 ok", string(msg3))
 
 	_, err = reader.Read()
 	assert.ErrorIs(t, err, io.EOF)
 }
 
-// TestNULFramingPartial verifies partial message buffering.
+// TestLineFramingPartial verifies partial message buffering.
 //
 // VALIDATES: Reader handles messages split across multiple reads.
-// PREVENTS: Partial messages returned before NUL terminator arrives.
-func TestNULFramingPartial(t *testing.T) {
-	// Use a pipe to simulate slow arrival
+// PREVENTS: Partial messages returned before newline arrives.
+func TestLineFramingPartial(t *testing.T) {
 	pr, pw := io.Pipe()
 
 	reader := rpc.NewFrameReader(pr)
@@ -167,27 +155,27 @@ func TestNULFramingPartial(t *testing.T) {
 		done <- msg
 	}()
 
-	// Send message in two parts
-	_, err := pw.Write([]byte(`{"meth`))
+	// Send message in two parts.
+	_, err := pw.Write([]byte("#1 ze-bgp"))
 	require.NoError(t, err)
-	_, err = pw.Write([]byte(`od":"ping"}` + "\x00"))
+	_, err = pw.Write([]byte(":peer-list\n"))
 	require.NoError(t, err)
 
 	msg := <-done
-	assert.Equal(t, `{"method":"ping"}`, string(msg))
+	assert.Equal(t, "#1 ze-bgp:peer-list", string(msg))
 
 	require.NoError(t, pw.Close())
 }
 
-// TestNULFramingRoundTrip verifies write then read produces same messages.
+// TestLineFramingRoundTrip verifies write then read produces same messages.
 //
 // VALIDATES: FrameWriter output is correctly parsed by FrameReader.
 // PREVENTS: Encoding/decoding mismatch in framing layer.
-func TestNULFramingRoundTrip(t *testing.T) {
+func TestLineFramingRoundTrip(t *testing.T) {
 	messages := []string{
-		`{"method":"ze-bgp:peer-list","id":1}`,
-		`{"result":{"peers":[]},"id":1}`,
-		`{"method":"ze-bgp:subscribe","more":true,"id":2}`,
+		`#1 ze-bgp:peer-list {"selector":"*"}`,
+		`#1 ok {"peers":[]}`,
+		`#2 ze-bgp:subscribe {"events":["update"]}`,
 	}
 
 	var buf bytes.Buffer
@@ -208,18 +196,17 @@ func TestNULFramingRoundTrip(t *testing.T) {
 	assert.ErrorIs(t, err, io.EOF)
 }
 
-// TestNULFramingMaxSize verifies message size limit enforcement.
+// TestLineFramingMaxSize verifies message size limit enforcement.
 //
 // VALIDATES: Messages exceeding MaxMessageSize are rejected.
 // PREVENTS: Memory exhaustion from oversized messages.
 // BOUNDARY: 16 MB (16777216) is last valid, 16777217 is first invalid.
-func TestNULFramingMaxSize(t *testing.T) {
-	// Message at exactly MaxMessageSize should succeed
+func TestLineFramingMaxSize(t *testing.T) {
 	t.Run("at_limit", func(t *testing.T) {
 		msg := bytes.Repeat([]byte("x"), rpc.MaxMessageSize)
 		var buf bytes.Buffer
 		buf.Write(msg)
-		buf.WriteByte(0)
+		buf.WriteByte('\n')
 
 		reader := rpc.NewFrameReader(&buf)
 		got, err := reader.Read()
@@ -227,12 +214,11 @@ func TestNULFramingMaxSize(t *testing.T) {
 		assert.Len(t, got, rpc.MaxMessageSize)
 	})
 
-	// Message exceeding MaxMessageSize should fail
 	t.Run("over_limit", func(t *testing.T) {
 		msg := bytes.Repeat([]byte("x"), rpc.MaxMessageSize+1)
 		var buf bytes.Buffer
 		buf.Write(msg)
-		buf.WriteByte(0)
+		buf.WriteByte('\n')
 
 		reader := rpc.NewFrameReader(&buf)
 		_, err := reader.Read()

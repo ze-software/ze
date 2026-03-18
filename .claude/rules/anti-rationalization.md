@@ -17,13 +17,12 @@ Rationale: `.claude/rationale/anti-rationalization.md`
 | Excuse | Answer |
 |--------|--------|
 | "Transient" / "resource contention" | Investigate. A failure happened |
-| "Not related to our changes" | **ASK the user.** You do not get to decide this. Show the failure, explain your analysis, and ask "Is this from my changes or pre-existing?" |
-| "Passed on retry" | Retry is not evidence |
+| "Not related to our changes" | Always report visibly. Pre-existing or not, it needs fixing |
+| "Passed on retry" | Retry is not evidence. Investigate the failure |
 | "Timing-dependent" | Race condition. Fix it |
-| "Pre-existing issue" | Prove it: `git stash && make ze-verify` — if it fails without your changes, it's pre-existing. Otherwise it's yours |
-| "The test was already broken" | Show the test passing on the parent commit. No proof = assume your fault |
+| "Pre-existing issue" | Report it. Pre-existing does not block committing current work, but the issue should be tracked for fixing |
 
-**Default assumption:** test failures after your changes are caused by your changes. You must PROVE otherwise before dismissing. Never self-diagnose "not my fault" — present evidence and let the user decide.
+**Every test failure matters.** Always report failures visibly so the user does not miss them. A pre-existing failure does not block committing unrelated work (it does not make things worse), but it should always be flagged for resolution. Zero bugs is impossible but every known bug should be tracked.
 
 ## Completion
 

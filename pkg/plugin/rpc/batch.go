@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/ipc_protocol.md — batched event delivery
-// Overview: framing.go — NUL-delimited frame reader/writer
+// Overview: framing.go — newline-delimited frame reader/writer
 
 package rpc
 
@@ -11,6 +11,11 @@ import (
 	"sync"
 )
 
+// maxPoolBufSize is the maximum buffer capacity returned to batchBufPool.
+// Buffers that grew beyond this (16x the initial 4KB) are dropped to prevent
+// a single large batch from permanently inflating the pool.
+const maxPoolBufSize = 64 * 1024
+
 // batchBufPool provides reusable buffers for constructing batch RPC frames.
 // Initial capacity 4KB matches buildBufPool used elsewhere.
 var batchBufPool = sync.Pool{
@@ -20,13 +25,11 @@ var batchBufPool = sync.Pool{
 	},
 }
 
-// WriteBatchFrame writes a deliver-batch JSON-RPC frame to w using a pooled buffer.
-// Events must be valid JSON values (strings, objects, arrays, etc.) — they are
+// WriteBatchFrame writes a deliver-batch line to w using a pooled buffer.
+// Events must be valid JSON values (strings, objects, arrays, etc.) -- they are
 // embedded directly into the events array. Callers must JSON-quote plain text
 // events (e.g., via json.Marshal) before passing them here.
-// The frame is NUL-terminated, compatible with the existing FrameReader.
-//
-// Frame format: JSON-RPC envelope with events array, NUL-terminated.
+// The frame is newline-terminated.
 func WriteBatchFrame(w io.Writer, id uint64, events [][]byte) error {
 	bp, ok := batchBufPool.Get().(*[]byte)
 	if !ok {
@@ -35,24 +38,25 @@ func WriteBatchFrame(w io.Writer, id uint64, events [][]byte) error {
 	}
 	buf := (*bp)[:0]
 
-	// Build JSON-RPC envelope manually — avoids json.Marshal allocation.
-	buf = append(buf, `{"method":"ze-plugin-callback:deliver-batch","params":{"events":[`...)
+	// Build line: #<id> ze-plugin-callback:deliver-batch {"events":[...]}
+	buf = append(buf, '#')
+	buf = strconv.AppendUint(buf, id, 10)
+	buf = append(buf, ` ze-plugin-callback:deliver-batch {"events":[`...)
 	for i, event := range events {
 		if i > 0 {
 			buf = append(buf, ',')
 		}
 		buf = append(buf, event...)
 	}
-	buf = append(buf, `]},"id":`...)
-	buf = strconv.AppendUint(buf, id, 10)
-	// Close JSON envelope + NUL terminator for FrameReader compatibility
-	buf = append(buf, '}', 0)
+	buf = append(buf, "]}\n"...)
 
 	_, err := w.Write(buf)
 
-	// Return buffer to pool (keep capacity, reset length)
-	*bp = buf[:0]
-	batchBufPool.Put(bp)
+	// Don't return oversized buffers to pool (prevents memory leak from large batches).
+	if cap(buf) <= maxPoolBufSize {
+		*bp = buf[:0]
+		batchBufPool.Put(bp)
+	}
 
 	if err != nil {
 		return fmt.Errorf("write batch frame: %w", err)

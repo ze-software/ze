@@ -64,7 +64,7 @@ func NewSocketReloadNotifier(socketPath string) ReloadNotifier {
 			Params json.RawMessage `json:"params,omitempty"`
 		}
 		if err := json.Unmarshal(respBytes, &errResp); err == nil && errResp.Error != "" {
-			if msg := rpc.ExtractMessage(errResp.Params); msg != "" {
+			if msg := rpc.ExtractErrorMessage(errResp.Params); msg != "" {
 				return fmt.Errorf("daemon reload failed: %s", msg)
 			}
 			return fmt.Errorf("daemon reload failed: %s", errResp.Error)

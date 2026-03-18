@@ -1,5 +1,4 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
-// Detail: subsystem_text.go — text-mode completeTextProtocol and textProtocolResult
 
 package server
 
@@ -112,40 +111,13 @@ func (h *SubsystemHandler) Start(ctx context.Context) error {
 	return nil
 }
 
-// completeProtocol detects the protocol mode (JSON or text) from the first byte
-// on Socket A, then runs the appropriate 5-stage startup protocol.
+// completeProtocol runs the 5-stage startup protocol with the subsystem process.
 func (h *SubsystemHandler) completeProtocol(ctx context.Context) error {
-	// Detect protocol mode from first byte on Socket A.
-	mode, rawA, rawB, err := h.proc.InitConns()
-	if err != nil {
+	// Initialize connections from raw sockets (creates PluginConn wrappers).
+	if err := h.proc.InitConns(); err != nil {
 		return fmt.Errorf("init connections: %w", err)
 	}
 
-	if mode == rpc.ModeText {
-		tcA := rpc.NewTextConn(rawA, rawA)
-		tcB := rpc.NewTextConn(rawB, rawB)
-		result, textErr := completeTextProtocol(ctx, tcA, tcB)
-		if textErr != nil {
-			return textErr
-		}
-		// Extract commands from text registration (same as JSON path).
-		for _, cmd := range result.reg.Commands {
-			h.commands = append(h.commands, cmd.Name)
-		}
-		// Extract schema from text registration.
-		if result.reg.Schema != nil {
-			if h.schema == nil {
-				h.schema = &plugin.PluginSchemaDecl{}
-			}
-			h.schema.Yang = result.reg.Schema.YANGText
-			h.schema.Module = result.reg.Schema.Module
-			h.schema.Namespace = result.reg.Schema.Namespace
-			h.schema.Handlers = result.reg.Schema.Handlers
-		}
-		return nil
-	}
-
-	// JSON mode — existing protocol.
 	connA := h.proc.ConnA()
 	connB := h.proc.ConnB()
 	if connB == nil {
