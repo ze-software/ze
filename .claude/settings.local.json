@@ -112,7 +112,8 @@
       "Bash(mkdir:*)",
       "Bash(sed:*)",
       "Bash(gofmt:*)",
-      "Bash(./scripts/worktree-update.sh:*)"
+      "Bash(./scripts/worktree-update.sh:*)",
+      "Bash(gh issue:*)"
     ],
     "deny": [
       "Bash(git reset:*)",

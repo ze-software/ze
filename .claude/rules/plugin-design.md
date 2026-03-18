@@ -93,7 +93,17 @@ Auto-populated: CLI dispatch, plugin runners, YANG schemas, config roots, family
 
 | Mode | Syntax | Implementation |
 |------|--------|----------------|
-| Fork (default) | `pluginname` | Subprocess via exec |
-| Internal | `ze.pluginname` | Goroutine + socket pair + DirectBridge (hot path bypasses sockets) |
+| Fork (default) | `pluginname` | Subprocess via exec, TLS connect-back |
+| Internal | `ze.pluginname` | Goroutine + net.Pipe + DirectBridge (hot path bypasses pipes) |
 | Direct | `ze-pluginname` | Sync in-process call |
-| Path | `/path/to/binary` | External binary |
+| Path | `/path/to/binary` | External binary, TLS connect-back |
+
+## Transport
+
+| Plugin type | Transport | Auth | Config |
+|-------------|-----------|------|--------|
+| Internal (goroutine) | `net.Pipe()` then DirectBridge | N/A | implicit |
+| External (local) | TLS over TCP (single connection) | Token via `ZE_PLUGIN_HUB_TOKEN` env | `plugin { hub { listen ...; secret ...; } }` |
+| External (remote) | TLS over TCP (single connection) | Token via out-of-band config | `plugin { hub { listen ...; secret ...; } }` |
+
+External plugins connect back to the engine's TLS listener. Auth is stage 0: `#0 auth {"token":"...","name":"..."}`. After auth, the standard 5-stage handshake proceeds over the same single MuxConn connection.
