@@ -20,11 +20,7 @@ import (
 	"sync"
 )
 
-const (
-	magic          = "ZeFS"
-	initialNameCap = 64
-	initialDataCap = 256
-)
+const magic = "ZeFS"
 
 // slotInfo tracks a key-value entry's disk layout (two netcapstrings).
 type slotInfo struct {
@@ -182,13 +178,13 @@ func (s *BlobStore) writeFileNoFlush(name string, data []byte, _ fs.FileMode) er
 	if !s.root.has(name) {
 		s.keys = append(s.keys, name)
 		s.slots[name] = slotInfo{
-			name: netcapSlot{capacity: growCapacity(len(name), initialNameCap)},
-			data: netcapSlot{capacity: growCapacity(len(data), initialDataCap)},
+			name: netcapSlot{capacity: len(name)},
+			data: netcapSlot{capacity: growCapacity(len(data))},
 		}
 	} else {
 		sl := s.slots[name]
 		if len(data) > sl.data.capacity {
-			sl.data.capacity = growCapacity(len(data), sl.data.capacity)
+			sl.data.capacity = growCapacity(len(data))
 			s.slots[name] = sl
 		}
 	}
@@ -357,7 +353,7 @@ func (s *BlobStore) encode() []byte {
 	entriesSize++ // trailing '\n'
 
 	// Phase 2: compute magic + container total size
-	containerCap := growCapacity(entriesSize, entriesSize)
+	containerCap := entriesSize
 	magicLen := netcapstringTotalLen(len(magic))
 	totalSize := magicLen + netcapstringTotalLen(containerCap)
 

@@ -374,7 +374,7 @@ func TestBlobStorageList(t *testing.T) {
 		}
 	}
 
-	matches, err := s.List("/etc/ze")
+	matches, err := s.List("file/active")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -383,9 +383,9 @@ func TestBlobStorageList(t *testing.T) {
 	}
 	// Verify specific keys, not just count (#15)
 	expected := map[string]bool{
-		"file/active/etc/ze/a.conf":       false,
-		"file/active/etc/ze/b.conf":       false,
-		"file/active/etc/ze/c.conf.draft": false,
+		"file/active/a.conf":       false,
+		"file/active/b.conf":       false,
+		"file/active/c.conf.draft": false,
 	}
 	for _, m := range matches {
 		if !strings.HasPrefix(m, "file/active/") {
@@ -654,7 +654,7 @@ func TestBlobStorageListConfigs(t *testing.T) {
 		}
 	}
 
-	matches, err := s.List("/etc/ze")
+	matches, err := s.List("file/active")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -703,12 +703,12 @@ func TestBlobStorageFilePrefix(t *testing.T) {
 	keys := bs.store.List("")
 	found := false
 	for _, k := range keys {
-		if k == "file/active/etc/ze/router.conf" {
+		if k == "file/active/router.conf" {
 			found = true
 		}
 	}
 	if !found {
-		t.Errorf("expected blob key 'file/active/etc/ze/router.conf', got keys: %v", keys)
+		t.Errorf("expected blob key 'file/active/router.conf', got keys: %v", keys)
 	}
 }
 
@@ -721,10 +721,10 @@ func TestResolveKeyIdempotent(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"filesystem absolute", "/etc/ze/router.conf", "file/active/etc/ze/router.conf"},
-		{"file namespace", "file/active/etc/ze/router.conf", "file/active/etc/ze/router.conf"},
+		{"filesystem absolute", "/etc/ze/router.conf", "file/active/router.conf"},
+		{"file namespace", "file/active/router.conf", "file/active/router.conf"},
 		{"meta namespace", "meta/ssh/username", "meta/ssh/username"},
-		{"leading slash file ns", "/file/active/etc/ze/router.conf", "file/active/etc/ze/router.conf"},
+		{"leading slash file ns", "/file/active/router.conf", "file/active/router.conf"},
 		{"leading slash meta ns", "/meta/ssh/username", "meta/ssh/username"},
 		{"file draft qualifier", "file/draft/etc/ze/router.conf", "file/draft/etc/ze/router.conf"},
 	}
@@ -739,14 +739,13 @@ func TestResolveKeyIdempotent(t *testing.T) {
 	}
 
 	// Test relative path with configDir (#5)
+	// With flat-key storage, resolvePathToKey returns filepath.Base(name),
+	// so relative paths also resolve to just the filename.
 	t.Run("relative with configDir", func(t *testing.T) {
 		got := resolveKey("router.conf", "/etc/ze")
-		// filepath.Abs resolves against cwd, so just verify it has the prefix and suffix
-		if !strings.HasPrefix(got, "file/active/") {
-			t.Errorf("resolveKey(\"router.conf\", \"/etc/ze\"): got %q, want file/active/ prefix", got)
-		}
-		if !strings.HasSuffix(got, "etc/ze/router.conf") {
-			t.Errorf("resolveKey(\"router.conf\", \"/etc/ze\"): got %q, want etc/ze/router.conf suffix", got)
+		want := "file/active/router.conf"
+		if got != want {
+			t.Errorf("resolveKey(\"router.conf\", \"/etc/ze\"): got %q, want %q", got, want)
 		}
 	})
 }
@@ -761,7 +760,7 @@ func TestBlobStorageListReturnsFullKeys(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	matches, err := s.List("/etc/ze")
+	matches, err := s.List("file/active")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
@@ -793,7 +792,7 @@ func TestBlobStorageListRoundTrip(t *testing.T) {
 		}
 	}
 
-	matches, err := s.List("/etc/ze")
+	matches, err := s.List("file/active")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}

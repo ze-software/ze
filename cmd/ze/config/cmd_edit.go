@@ -364,7 +364,7 @@ Examples:
 
 	// For blob storage with default config name, handle missing config (AC-6/AC-7)
 	if storage.IsBlobStorage(store) && !userProvided && !store.Exists(configPath) {
-		selected := selectConfig(store, filepath.Dir(configPath), configPath)
+		selected := selectConfig(store, "file/active", configPath)
 		if selected == "" {
 			return 1
 		}

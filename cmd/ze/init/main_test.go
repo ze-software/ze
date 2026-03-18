@@ -196,14 +196,14 @@ func TestZeInitIdentityName(t *testing.T) {
 	assertStoreFile(t, store, "meta/instance/name", "my-router")
 }
 
-// VALIDATES: ze init does NOT write meta/instance/name when name is empty (#4)
-// PREVENTS: empty identity key polluting the blob
+// VALIDATES: ze init defaults meta/instance/name to hostname when name is empty
+// PREVENTS: missing instance identity when name not provided
 
 func TestZeInitEmptyName(t *testing.T) {
 	dir := t.TempDir()
 	dbPath := filepath.Join(dir, "database.zefs")
 
-	// Provide credentials but empty name
+	// Provide credentials but empty name -- should default to hostname
 	input := "admin\nsecret123\n127.0.0.1\n2222\n\n"
 
 	code := zeinit.RunWithReader(strings.NewReader(input), dbPath, false)
@@ -217,8 +217,9 @@ func TestZeInitEmptyName(t *testing.T) {
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
-	// meta/instance/name should NOT exist when name is empty
-	assertKeyAbsent(t, store, "meta/instance/name")
+	// meta/instance/name should be the hostname when name is empty
+	hostname, _ := os.Hostname()
+	assertStoreFile(t, store, "meta/instance/name", hostname)
 }
 
 // VALIDATES: ze init stores name with special characters as opaque value (#10)

@@ -284,22 +284,18 @@ func TestSelectConfigAC6(t *testing.T) {
 	defer store.Close() //nolint:errcheck // test cleanup
 
 	// Write two configs into blob (not ze.conf)
-	configDir := filepath.Join(dir, "etc", "ze")
-	pathA := filepath.Join(configDir, "site-a.conf")
-	pathB := filepath.Join(configDir, "site-b.conf")
-	if err := store.WriteFile(pathA, []byte("config-a"), 0o600); err != nil {
+	if err := store.WriteFile("site-a.conf", []byte("config-a"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.WriteFile(pathB, []byte("config-b"), 0o600); err != nil {
+	if err := store.WriteFile("site-b.conf", []byte("config-b"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
 	// Simulate user selecting option 1
 	in := strings.NewReader("1\n")
 	var errBuf bytes.Buffer
-	defaultPath := filepath.Join(configDir, "ze.conf")
 
-	selected := doSelectConfig(store, configDir, defaultPath, in, &errBuf, time.Second)
+	selected := doSelectConfig(store, "file/active", "ze.conf", in, &errBuf, time.Second)
 
 	if selected == "" {
 		t.Fatalf("expected a selection, got empty string. stderr: %s", errBuf.String())
@@ -333,21 +329,17 @@ func TestSelectConfigAC6SecondChoice(t *testing.T) {
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
-	configDir := filepath.Join(dir, "etc", "ze")
-	pathA := filepath.Join(configDir, "site-a.conf")
-	pathB := filepath.Join(configDir, "site-b.conf")
-	if err := store.WriteFile(pathA, []byte("config-a"), 0o600); err != nil {
+	if err := store.WriteFile("site-a.conf", []byte("config-a"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.WriteFile(pathB, []byte("config-b"), 0o600); err != nil {
+	if err := store.WriteFile("site-b.conf", []byte("config-b"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
 	in := strings.NewReader("2\n")
 	var errBuf bytes.Buffer
-	defaultPath := filepath.Join(configDir, "ze.conf")
 
-	selected := doSelectConfig(store, configDir, defaultPath, in, &errBuf, time.Second)
+	selected := doSelectConfig(store, "file/active", "ze.conf", in, &errBuf, time.Second)
 
 	if !strings.HasSuffix(selected, "site-b.conf") {
 		t.Errorf("expected site-b.conf (second option), got %q", selected)
@@ -368,20 +360,17 @@ func TestSelectConfigAC7(t *testing.T) {
 	defer store.Close() //nolint:errcheck // test cleanup
 
 	// Don't write any configs - blob is empty
-	configDir := filepath.Join(dir, "etc", "ze")
-	defaultPath := filepath.Join(configDir, "ze.conf")
-
 	in := strings.NewReader("") // no input needed for AC-7
 	var errBuf bytes.Buffer
 
-	selected := doSelectConfig(store, configDir, defaultPath, in, &errBuf, time.Second)
+	selected := doSelectConfig(store, "file/active", "ze.conf", in, &errBuf, time.Second)
 
-	if selected != defaultPath {
-		t.Errorf("expected %q (created default config), got %q", defaultPath, selected)
+	if selected != "ze.conf" {
+		t.Errorf("expected %q (created default config), got %q", "ze.conf", selected)
 	}
 
 	// Verify config was created in blob
-	if !store.Exists(defaultPath) {
+	if !store.Exists("ze.conf") {
 		t.Error("default config should exist in blob after AC-7 creation")
 	}
 
@@ -404,11 +393,9 @@ func TestSelectConfigInvalidInput(t *testing.T) {
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
-	configDir := filepath.Join(dir, "etc", "ze")
-	if err := store.WriteFile(filepath.Join(configDir, "test.conf"), []byte("x"), 0o600); err != nil {
+	if err := store.WriteFile("test.conf", []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	defaultPath := filepath.Join(configDir, "ze.conf")
 
 	tests := []struct {
 		name  string
@@ -424,7 +411,7 @@ func TestSelectConfigInvalidInput(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			in := strings.NewReader(tt.input)
 			var errBuf bytes.Buffer
-			selected := doSelectConfig(store, configDir, defaultPath, in, &errBuf, time.Second)
+			selected := doSelectConfig(store, "file/active", "ze.conf", in, &errBuf, time.Second)
 			if selected != "" {
 				t.Errorf("expected empty for %q, got %q", tt.input, selected)
 			}
@@ -445,11 +432,9 @@ func TestSelectConfigTimeout(t *testing.T) {
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
-	configDir := filepath.Join(dir, "etc", "ze")
-	if err := store.WriteFile(filepath.Join(configDir, "test.conf"), []byte("x"), 0o600); err != nil {
+	if err := store.WriteFile("test.conf", []byte("x"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	defaultPath := filepath.Join(configDir, "ze.conf")
 
 	// Reader that blocks forever
 	r, w, err := os.Pipe()
@@ -460,7 +445,7 @@ func TestSelectConfigTimeout(t *testing.T) {
 	defer w.Close() //nolint:errcheck // test cleanup
 
 	var errBuf bytes.Buffer
-	selected := doSelectConfig(store, configDir, defaultPath, r, &errBuf, 50*time.Millisecond)
+	selected := doSelectConfig(store, "file/active", "ze.conf", r, &errBuf, 50*time.Millisecond)
 
 	if selected != "" {
 		t.Errorf("expected empty on timeout, got %q", selected)
@@ -483,26 +468,24 @@ func TestSelectConfigFiltersNonConf(t *testing.T) {
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
-	configDir := filepath.Join(dir, "etc", "ze")
 	// Write a mix of file types
-	if err := store.WriteFile(filepath.Join(configDir, "router.conf"), []byte("config"), 0o600); err != nil {
+	if err := store.WriteFile("router.conf", []byte("config"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.WriteFile(filepath.Join(configDir, "router.conf.draft"), []byte("draft"), 0o600); err != nil {
+	if err := store.WriteFile("router.conf.draft", []byte("draft"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.WriteFile(filepath.Join(configDir, "router.conf.lock"), []byte("lock"), 0o600); err != nil {
+	if err := store.WriteFile("router.conf.lock", []byte("lock"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := store.WriteFile(filepath.Join(configDir, "ssh_host_ed25519_key"), []byte("key"), 0o600); err != nil {
+	if err := store.WriteFile("ssh_host_ed25519_key", []byte("key"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
 	in := strings.NewReader("1\n")
 	var errBuf bytes.Buffer
-	defaultPath := filepath.Join(configDir, "ze.conf")
 
-	selected := doSelectConfig(store, configDir, defaultPath, in, &errBuf, time.Second)
+	selected := doSelectConfig(store, "file/active", "ze.conf", in, &errBuf, time.Second)
 
 	// Should only show router.conf (the only .conf file)
 	if !strings.HasSuffix(selected, "router.conf") {

@@ -363,23 +363,38 @@ func TestStoreGrowthSpare(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	// Write data that exceeds initial slot capacity
-	big := make([]byte, 8192)
-	for i := range big {
-		big[i] = 'x'
+	// First write: exact fit
+	data := make([]byte, 100)
+	for i := range data {
+		data[i] = 'x'
 	}
-	if err := s.WriteFile("big.conf", big, 0); err != nil {
+	if err := s.WriteFile("test.conf", data, 0); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
-
-	// The slot capacity should be at least 10% larger than used
-	sl, ok := s.slot("big.conf")
+	sl, ok := s.slot("test.conf")
 	if !ok {
 		t.Fatal("slot not found")
 	}
-	minCap := len(big) + len(big)/10
-	if sl.data.capacity < minCap {
-		t.Errorf("slot capacity %d should be >= %d (used %d + 10%% spare)", sl.data.capacity, minCap, len(big))
+	wantFirst := len(data) + len(data)/10
+	if sl.data.capacity != wantFirst {
+		t.Errorf("first write: capacity %d should be %d (used %d + 10%%)", sl.data.capacity, wantFirst, len(data))
+	}
+
+	// Second write with larger data: triggers 10% growth
+	bigger := make([]byte, 200)
+	for i := range bigger {
+		bigger[i] = 'y'
+	}
+	if err := s.WriteFile("test.conf", bigger, 0); err != nil {
+		t.Fatalf("WriteFile bigger: %v", err)
+	}
+	sl, ok = s.slot("test.conf")
+	if !ok {
+		t.Fatal("slot not found after regrowth")
+	}
+	wantCap := len(bigger) + len(bigger)/10
+	if sl.data.capacity != wantCap {
+		t.Errorf("regrowth: capacity %d should be %d (used %d + 10%%)", sl.data.capacity, wantCap, len(bigger))
 	}
 	if err := s.Close(); err != nil {
 		t.Fatal(err)

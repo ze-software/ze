@@ -292,35 +292,26 @@ func TestNetcapstringDecodeRefZeroCopy(t *testing.T) {
 	}
 }
 
-// VALIDATES: growCapacity produces correct sizes for edge cases
-// PREVENTS: incorrect spare capacity or unbounded growth
+// VALIDATES: growCapacity adds 10% to dataLen
+// PREVENTS: incorrect growth or undersized allocation
 
 func TestGrowCapacity(t *testing.T) {
 	tests := []struct {
-		name       string
-		dataLen    int
-		currentCap int
-		wantMin    int // result must be >= this
-		wantMax    int // result must be <= this
+		name    string
+		dataLen int
+		want    int
 	}{
-		{"zero data", 0, 0, 64, 64},
-		{"small data below minimum", 10, 0, 64, 64},
-		{"data at minimum", 64, 64, 71, 128},
-		{"data requiring doubling", 200, 64, 221, 256},
-		{"large data", 8192, 256, 9012, 16384},
-		{"very large", 1_000_000, 0, 1_100_001, 2_097_152},
+		{"zero data", 0, 0},
+		{"small data", 10, 11},
+		{"medium data", 100, 110},
+		{"large data", 1000, 1100},
+		{"very large", 1_000_000, 1_100_000},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := growCapacity(tt.dataLen, tt.currentCap)
-			if got < tt.wantMin {
-				t.Errorf("growCapacity(%d, %d) = %d, want >= %d", tt.dataLen, tt.currentCap, got, tt.wantMin)
-			}
-			if got > tt.wantMax {
-				t.Errorf("growCapacity(%d, %d) = %d, want <= %d", tt.dataLen, tt.currentCap, got, tt.wantMax)
-			}
-			if got < tt.dataLen {
-				t.Errorf("growCapacity(%d, %d) = %d, must be >= dataLen", tt.dataLen, tt.currentCap, got)
+			got := growCapacity(tt.dataLen)
+			if got != tt.want {
+				t.Errorf("growCapacity(%d) = %d, want %d", tt.dataLen, got, tt.want)
 			}
 		})
 	}
@@ -543,9 +534,9 @@ func TestNetcapstringHeaderLen(t *testing.T) {
 
 func TestGrowCapacityAlwaysFits(t *testing.T) {
 	for _, dataLen := range []int{0, 1, 63, 64, 65, 100, 1000, 100000, 1000000} {
-		cap_ := growCapacity(dataLen, 0)
+		cap_ := growCapacity(dataLen)
 		if cap_ < dataLen {
-			t.Errorf("growCapacity(%d, 0) = %d, must be >= dataLen", dataLen, cap_)
+			t.Errorf("growCapacity(%d) = %d, must be >= dataLen", dataLen, cap_)
 		}
 	}
 }

@@ -63,7 +63,7 @@ The total header length for a given capacity is: `3 + digitCount(digitCount(cap)
 
 ### Capacity growth
 
-When data is first written, capacity is allocated with at least 10% spare (minimum 64 bytes). When an update exceeds current capacity, the capacity doubles until it exceeds the data length plus 10% spare.
+Keys are exact fit (keys never change). Data capacity is data length + 10%, both on first write and on growth.
 
 ### Parsing
 

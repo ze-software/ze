@@ -50,7 +50,7 @@ Reads from stdin (piped) or prompts interactively:
   Line 2: password
   Line 3: host (default: 127.0.0.1)
   Line 4: port (default: 2222)
-  Line 5: name (optional instance name)
+  Line 5: name (default: hostname)
 
 Options:
 `)
@@ -107,7 +107,8 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool) int {
 	password := promptAndRead(scanner, promptW, "password: ")
 	host := promptAndRead(scanner, promptW, "host [127.0.0.1]: ")
 	port := promptAndRead(scanner, promptW, "port [2222]: ")
-	name := promptAndRead(scanner, promptW, "name []: ")
+	defaultName, _ := os.Hostname()
+	name := promptAndRead(scanner, promptW, fmt.Sprintf("name [%s]: ", defaultName))
 
 	// Check for I/O errors during reading
 	if err := scanner.Err(); err != nil {
@@ -138,6 +139,9 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool) int {
 	}
 	if port == "" {
 		port = defaultPort
+	}
+	if name == "" {
+		name = defaultName
 	}
 
 	// Create parent directory if needed

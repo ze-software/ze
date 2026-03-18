@@ -220,18 +220,13 @@ func resolveKey(name, configDir string) string {
 }
 
 // resolvePathToKey resolves a filesystem path to a bare key (no namespace prefix).
-func resolvePathToKey(name, configDir string) string {
+// Absolute paths are stripped to their base filename.
+// Relative paths are used as-is (typically just a filename like "laptop.conf").
+func resolvePathToKey(name, _ string) string {
 	if filepath.IsAbs(name) {
-		return pathToKey(name)
+		return filepath.Base(name)
 	}
-	if configDir == "" {
-		return pathToKey(name)
-	}
-	abs, err := filepath.Abs(filepath.Join(configDir, name))
-	if err != nil {
-		return pathToKey(name)
-	}
-	return pathToKey(abs)
+	return filepath.Base(name)
 }
 
 // migrateExistingFiles imports config files from configDir into a newly created blob.
@@ -264,7 +259,7 @@ func migrateExistingFiles(store *zefs.BlobStore, configDir string) {
 			if absErr != nil {
 				continue
 			}
-			key := "file/active/" + pathToKey(abs)
+			key := "file/active/" + filepath.Base(abs)
 			if wl.Has(key) {
 				continue // idempotent: skip if already in blob
 			}

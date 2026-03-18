@@ -266,12 +266,8 @@ func (s *netcapSlot) writeAt(buf []byte, localOff int, data []byte) error {
 	return nil
 }
 
-// growCapacity returns a new capacity that fits dataLen with at least 10% spare.
-func growCapacity(dataLen, currentCap int) int {
-	needed := max(dataLen+dataLen/10, dataLen+1)
-	cap_ := max(currentCap, 64)
-	for cap_ < needed {
-		cap_ *= 2
-	}
-	return cap_
+// growCapacity returns a new capacity for data that outgrew currentCap.
+// Adds 10% to dataLen so the entry has room to grow before the next reallocation.
+func growCapacity(dataLen int) int {
+	return dataLen + dataLen/10
 }

@@ -105,12 +105,9 @@ func openOrCreateStore(dbPath string) (*zefs.BlobStore, error) {
 }
 
 // filePathToKey converts a filesystem path to a blob key under the file/active/ namespace.
+// Only the base filename is used as the key (not the full path).
 func filePathToKey(path string) (string, error) {
-	abs, err := filepath.Abs(path)
-	if err != nil {
-		return "", fmt.Errorf("resolve %s: %w", path, err)
-	}
-	return "file/active/" + strings.TrimPrefix(abs, "/"), nil
+	return "file/active/" + filepath.Base(path), nil
 }
 
 func cmdImport(dbPath string, args []string) int {
