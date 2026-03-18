@@ -95,7 +95,7 @@ Each entry consists of:
 1. A netcapstring containing the key (hierarchical path, e.g., `etc/ze/router.conf`)
 2. A netcapstring containing the value (file content)
 
-The entry list ends with a `\n` byte. The container may have additional zero padding after the newline (reserved capacity for future entries).
+The entry list ends with a `\n` byte. The container may have additional space padding after the newline (reserved capacity for future entries).
 
 ### Keys
 

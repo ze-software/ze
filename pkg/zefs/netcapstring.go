@@ -36,19 +36,20 @@ func writeNetcapstringHeader(buf []byte, off, capacity, dataLen int) int {
 }
 
 // writeNetcapstring writes a complete netcapstring into buf at off.
-// Format: :<number>:<cap>:<used>:<data><zero-padding>
+// Format: :<number>:<cap>:<used>:<data><space-padding>
 // Used is calculated from len(data). Returns bytes written.
 // Caller must ensure buf has sufficient space.
-// Padding bytes are explicitly zeroed (safe for in-place overwrites).
+// Padding bytes are space-filled (human-readable, safe for in-place overwrites).
 func writeNetcapstring(buf []byte, off int, data []byte, capacity int) int {
 	start := off
 	off += writeNetcapstringHeader(buf, off, capacity, len(data))
 	off += copy(buf[off:], data)
 
-	// Explicitly zero padding (required for in-place writes into non-zeroed buffers)
+	// Space-fill padding (required for in-place writes into non-zeroed buffers).
+	// Spaces instead of NUL bytes keep the file human-readable.
 	padding := capacity - len(data)
 	for i := range padding {
-		buf[off+i] = 0
+		buf[off+i] = ' '
 	}
 	off += padding
 
@@ -222,7 +223,7 @@ func (s netcapSlot) data(buf []byte) []byte {
 }
 
 // writeData writes data into this slot's position in buf.
-// Updates used from len(data). Writes header, data, and zeroed padding.
+// Updates used from len(data). Writes header, data, and space padding.
 // Returns an error if len(data) exceeds capacity.
 func (s *netcapSlot) writeData(buf, data []byte) error {
 	if len(data) > s.capacity {

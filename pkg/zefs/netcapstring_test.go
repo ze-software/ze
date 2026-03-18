@@ -2,10 +2,11 @@ package zefs
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 )
 
-// VALIDATES: netcapstring encoding produces self-describing header + data + zero padding
+// VALIDATES: netcapstring encoding produces self-describing header + data + space padding
 // PREVENTS: malformed headers that break parsing
 
 func TestNetcapstringEncode(t *testing.T) {
@@ -20,14 +21,14 @@ func TestNetcapstringEncode(t *testing.T) {
 			data:     []byte("hello"),
 			capacity: 16,
 			// number=2 (digitCount(16)=2), header=:2:16:05:
-			want: ":2:16:05:hello\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
+			want: ":2:16:05:hello           ",
 		},
 		{
 			name:     "empty data",
 			data:     []byte{},
 			capacity: 8,
 			// number=1, header=:1:8:0:
-			want: ":1:8:0:\x00\x00\x00\x00\x00\x00\x00\x00",
+			want: ":1:8:0:        ",
 		},
 		{
 			name:     "data fills capacity exactly",
@@ -41,7 +42,7 @@ func TestNetcapstringEncode(t *testing.T) {
 			data:     []byte("x"),
 			capacity: 100,
 			// number=3 (digitCount(100)=3), header=:3:100:001:
-			want: ":3:100:001:x" + string(make([]byte, 99)),
+			want: ":3:100:001:x" + strings.Repeat(" ", 99),
 		},
 	}
 	for _, tt := range tests {
@@ -441,7 +442,7 @@ func TestNetcapstringEncodeCapacityLessThanData(t *testing.T) {
 }
 
 // VALIDATES: encodeNetcapstring with capacity exactly equal to data length
-// PREVENTS: off-by-one in zero-padding (no padding needed)
+// PREVENTS: off-by-one in space padding (no padding needed)
 
 func TestNetcapstringEncodeExactCapacity(t *testing.T) {
 	data := []byte("exact")
@@ -636,10 +637,10 @@ func TestWriteNetcapstringMatchesEncode(t *testing.T) {
 	}
 }
 
-// VALIDATES: writeNetcapstring zeros padding on overwrite
+// VALIDATES: writeNetcapstring space-fills padding on overwrite
 // PREVENTS: stale data leaking through padding on in-place writes
 
-func TestWriteNetcapstringZerosPadding(t *testing.T) {
+func TestWriteNetcapstringSpacePadding(t *testing.T) {
 	capacity := 16
 	total := netcapstringTotalLen(capacity)
 
@@ -661,12 +662,12 @@ func TestWriteNetcapstringZerosPadding(t *testing.T) {
 		t.Errorf("data: got %q, want %q", data, "hi")
 	}
 
-	// Verify padding bytes are zero (not 0xFF)
+	// Verify padding bytes are spaces (not 0xFF)
 	hdrLen := netcapstringHeaderLen(capacity)
 	dataEnd := hdrLen + 2 // "hi" = 2 bytes
 	for i := dataEnd; i < total; i++ {
-		if buf[i] != 0 {
-			t.Errorf("padding byte %d is 0x%02X, want 0x00", i, buf[i])
+		if buf[i] != ' ' {
+			t.Errorf("padding byte %d is 0x%02X, want 0x20 (space)", i, buf[i])
 			break
 		}
 	}

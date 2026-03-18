@@ -47,3 +47,4 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/watchdog"
 )
+

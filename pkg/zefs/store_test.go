@@ -3673,8 +3673,8 @@ func TestWriteLockWriteFileRejectsInvalidKeys(t *testing.T) {
 	}
 }
 
-// VALIDATES: decode stops at null byte in container data (not just newline)
-// PREVENTS: null-byte padding in container misinterpreted as entry data
+// VALIDATES: decode stops at null byte or space in container data (not just newline)
+// PREVENTS: padding in container misinterpreted as entry data
 
 func TestStoreDecodeNullTermination(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "test.zefs")
@@ -3687,7 +3687,7 @@ func TestStoreDecodeNullTermination(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Reopen and verify the store is readable (container has \n + null padding)
+	// Reopen and verify the store is readable (container has \n + space padding)
 	s2, err := Open(path)
 	if err != nil {
 		t.Fatal(err)

@@ -379,7 +379,11 @@ func (s *BlobStore) encode() []byte {
 		off += writeNetcapstring(result, off, data, sl.data.capacity)
 	}
 	result[off] = '\n'
-	// Remaining bytes are zero (container padding from make)
+	off++
+	// Space-fill container padding (human-readable)
+	for i := off; i < len(result); i++ {
+		result[i] = ' '
+	}
 
 	return result
 }
@@ -407,7 +411,7 @@ func decodeInto(data []byte) (*node, []string, map[string]slotInfo, error) {
 
 	off := 0
 	for off < len(containerData) {
-		if containerData[off] == '\n' || containerData[off] == 0 {
+		if containerData[off] == '\n' || containerData[off] == 0 || containerData[off] == ' ' {
 			break
 		}
 
