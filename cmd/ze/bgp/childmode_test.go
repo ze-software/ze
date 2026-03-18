@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // TestChildModeDetection verifies child mode detection logic.
@@ -45,9 +47,13 @@ func TestChildModeDetection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			env.ResetCache()
+			t.Cleanup(env.ResetCache)
+
 			// Set env var if specified
 			if tt.envChild != "" {
 				t.Setenv("ZE_CHILD_MODE", tt.envChild)
+				env.ResetCache()
 			}
 
 			got := isChildMode(tt.args)

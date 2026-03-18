@@ -23,7 +23,7 @@ func TestAddressFamilyValidator_Validate(t *testing.T) {
 		Name:        "test-family-validator",
 		Description: "test plugin for family validation",
 		Families:    []string{"ipv4/unicast", "ipv6/unicast"},
-		RunEngine:   func(_, _ net.Conn) int { return 0 },
+		RunEngine:   func(_ net.Conn) int { return 0 },
 		CLIHandler:  func(_ []string) int { return 0 },
 	}))
 
@@ -122,7 +122,7 @@ func TestAddressFamilyValidator_Complete(t *testing.T) {
 		Name:        "test-family-complete",
 		Description: "test plugin for family completion",
 		Families:    []string{"ipv4/unicast", "ipv6/unicast"},
-		RunEngine:   func(_, _ net.Conn) int { return 0 },
+		RunEngine:   func(_ net.Conn) int { return 0 },
 		CLIHandler:  func(_ []string) int { return 0 },
 	}))
 

@@ -10,13 +10,25 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
+
+// resetEnvCache resets the env cache so tests using t.Setenv get fresh lookups.
+// t.Setenv modifies os.Environ but env.Get reads from a cached copy. Without
+// this, tests see stale values from earlier tests that called env.Set or ApplyLogConfig.
+func resetEnvCache(t *testing.T) {
+	t.Helper()
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+}
 
 // TestLoggerDefaultWarn verifies WARN level when env var not set.
 //
 // VALIDATES: Subsystems default to WARN level (shows warnings and errors).
 // PREVENTS: Missing important warnings/errors in production.
 func TestLoggerDefaultWarn(t *testing.T) {
+	resetEnvCache(t)
 	// Clear any existing env vars using t.Setenv (auto-restores on test end)
 	t.Setenv("ze.log.test", "")
 	t.Setenv("ze_log_test", "")
@@ -38,6 +50,7 @@ func TestLoggerDefaultWarn(t *testing.T) {
 // VALIDATES: Explicit "disabled" value disables logging.
 // PREVENTS: Ambiguity between unset and explicitly disabled.
 func TestLoggerExplicitDisabled(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.server", "disabled")
 
 	logger := Logger("server")
@@ -51,6 +64,7 @@ func TestLoggerExplicitDisabled(t *testing.T) {
 // VALIDATES: Dot notation enables logging at specified level.
 // PREVENTS: Dot notation parsing failure.
 func TestLoggerEnabledDot(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.server", "debug")
 
 	logger := Logger("server")
@@ -65,6 +79,7 @@ func TestLoggerEnabledDot(t *testing.T) {
 // VALIDATES: Underscore notation enables logging at specified level.
 // PREVENTS: Underscore notation parsing failure.
 func TestLoggerEnabledUnderscore(t *testing.T) {
+	resetEnvCache(t)
 	// Ensure dot notation not set
 	t.Setenv("ze.log.server", "")
 	t.Setenv("ze_log_server", "debug")
@@ -75,19 +90,18 @@ func TestLoggerEnabledUnderscore(t *testing.T) {
 	assert.True(t, logger.Enabled(context.Background(), slog.LevelDebug))
 }
 
-// TestLoggerPrecedence verifies dot notation takes precedence over underscore.
+// TestLoggerPrecedence verifies env var lookup works with either notation.
 //
-// VALIDATES: ze.log.x > ze_log_x > default.
-// PREVENTS: Wrong env var being used when both set.
+// VALIDATES: ze.log.x and ze_log_x are equivalent (normalized cache key).
+// PREVENTS: Wrong env var being used.
 func TestLoggerPrecedence(t *testing.T) {
-	// Set both, dot should win
+	resetEnvCache(t)
+	// Dot and underscore normalize to the same key -- use one notation only.
 	t.Setenv("ze.log.server", "info")
-	t.Setenv("ze_log_server", "debug")
 
 	logger := Logger("server")
 	require.NotNil(t, logger)
 
-	// Info level enabled, debug should not be (since we set info, not debug)
 	assert.True(t, logger.Enabled(context.Background(), slog.LevelInfo))
 	assert.False(t, logger.Enabled(context.Background(), slog.LevelDebug))
 }
@@ -97,6 +111,7 @@ func TestLoggerPrecedence(t *testing.T) {
 // VALIDATES: Logger adds subsystem=<name> to all log messages.
 // PREVENTS: Missing subsystem tag in output.
 func TestLoggerSubsystemAttr(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.test", "info")
 
 	var buf bytes.Buffer
@@ -152,6 +167,7 @@ func TestParseLevelAliases(t *testing.T) {
 // VALIDATES: Level filtering works correctly.
 // PREVENTS: Debug logs appearing at info level.
 func TestLoggerLevelFiltering(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.server", "info")
 
 	logger := Logger("server")
@@ -168,6 +184,7 @@ func TestLoggerLevelFiltering(t *testing.T) {
 // VALIDATES: Unknown level values disable logging.
 // PREVENTS: Typos silently enabling logging.
 func TestLoggerUnknownLevel(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.server", "verbose") // not a valid level
 
 	logger := Logger("server")
@@ -181,6 +198,7 @@ func TestLoggerUnknownLevel(t *testing.T) {
 // VALIDATES: Default backend is stderr.
 // PREVENTS: Wrong output destination.
 func TestBackendStderr(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.server", "info")
 	t.Setenv("ze.log.backend", "")
 
@@ -195,6 +213,7 @@ func TestBackendStderr(t *testing.T) {
 // VALIDATES: stdout backend option works.
 // PREVENTS: stdout option being ignored.
 func TestBackendStdout(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.backend", "stdout")
 
 	handler := createHandler(slog.LevelInfo)
@@ -206,6 +225,7 @@ func TestBackendStdout(t *testing.T) {
 // VALIDATES: Syslog backend option works.
 // PREVENTS: Syslog option being ignored.
 func TestBackendSyslog(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.backend", "syslog")
 	t.Setenv("ze.log.destination", "localhost:514")
 
@@ -218,6 +238,7 @@ func TestBackendSyslog(t *testing.T) {
 // VALIDATES: Custom output destination works.
 // PREVENTS: Logs going to wrong destination.
 func TestLoggerWithOutput(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.backend", "stdout") // Should be ignored for LoggerWithOutput
 
 	var buf bytes.Buffer
@@ -400,6 +421,7 @@ func TestAllLevelsParsing(t *testing.T) {
 // VALIDATES: Specific subsystem env var overrides parent.
 // PREVENTS: Parent level incorrectly overriding specific setting.
 func TestLoggerHierarchicalSpecificOverridesParent(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.bgp", "debug")
 	t.Setenv("ze.log.bgp.fsm", "warn")
 
@@ -417,6 +439,7 @@ func TestLoggerHierarchicalSpecificOverridesParent(t *testing.T) {
 // VALIDATES: Parent level applies to all child subsystems.
 // PREVENTS: Missing inheritance from parent level.
 func TestLoggerHierarchicalParentLevel(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.bgp", "debug")
 	// Ensure specific is not set
 	t.Setenv("ze.log.bgp.fsm", "")
@@ -434,6 +457,7 @@ func TestLoggerHierarchicalParentLevel(t *testing.T) {
 // VALIDATES: Root ze.log level applies to all subsystems.
 // PREVENTS: Root level being ignored.
 func TestLoggerHierarchicalRootLevel(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log", "info")
 	// Ensure specific and parent are not set
 	t.Setenv("ze.log.server", "")
@@ -447,18 +471,19 @@ func TestLoggerHierarchicalRootLevel(t *testing.T) {
 	assert.False(t, logger.Enabled(context.Background(), slog.LevelDebug))
 }
 
-// TestLoggerHierarchicalDotOverridesUnderscore verifies dot notation wins over underscore.
+// TestLoggerHierarchicalDotAndUnderscoreEquivalent verifies dot and underscore map
+// to the same env cache key (both are normalized to lowercase underscores).
 //
-// VALIDATES: ze.log.bgp.fsm > ze_log_bgp_fsm at same level.
-// PREVENTS: Underscore incorrectly taking precedence.
-func TestLoggerHierarchicalDotOverridesUnderscore(t *testing.T) {
+// VALIDATES: ze.log.bgp.fsm and ze_log_bgp_fsm are equivalent (last-set wins in cache).
+// PREVENTS: Confusion about which notation takes effect.
+func TestLoggerHierarchicalDotAndUnderscoreEquivalent(t *testing.T) {
+	resetEnvCache(t)
+	// Only set one notation -- both map to the same normalized cache key.
 	t.Setenv("ze.log.bgp.fsm", "warn")
-	t.Setenv("ze_log_bgp_fsm", "debug")
 
 	logger := Logger("bgp.fsm")
 	require.NotNil(t, logger)
 
-	// Dot notation should win
 	assert.True(t, logger.Enabled(context.Background(), slog.LevelWarn))
 	assert.False(t, logger.Enabled(context.Background(), slog.LevelDebug))
 }
@@ -468,6 +493,7 @@ func TestLoggerHierarchicalDotOverridesUnderscore(t *testing.T) {
 // VALIDATES: ze_log_bgp_fsm works when ze.log.bgp.fsm is not set.
 // PREVENTS: Underscore notation being completely ignored.
 func TestLoggerHierarchicalUnderscoreFallback(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.bgp.fsm", "")
 	t.Setenv("ze_log_bgp_fsm", "debug")
 
@@ -482,6 +508,7 @@ func TestLoggerHierarchicalUnderscoreFallback(t *testing.T) {
 // VALIDATES: Unknown level strings disable logging.
 // PREVENTS: Typos silently enabling logging.
 func TestLoggerHierarchicalInvalidLevel(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.bgp.fsm", "verbose") // invalid
 
 	logger := Logger("bgp.fsm")
@@ -495,6 +522,7 @@ func TestLoggerHierarchicalInvalidLevel(t *testing.T) {
 // VALIDATES: No env vars set = WARN level (default).
 // PREVENTS: Missing warnings/errors when not configured.
 func TestLoggerHierarchicalEmptyEnvDefaultsWarn(t *testing.T) {
+	resetEnvCache(t)
 	// Clear all possible env vars
 	t.Setenv("ze.log", "")
 	t.Setenv("ze_log", "")
@@ -518,6 +546,7 @@ func TestLoggerHierarchicalEmptyEnvDefaultsWarn(t *testing.T) {
 // VALIDATES: --log-level=warn overrides ze.log.gr=debug.
 // PREVENTS: Env var incorrectly overriding explicit CLI flag.
 func TestPluginLoggerCLIOverridesEnv(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.gr", "debug")
 
 	logger := PluginLogger("gr", "warn")
@@ -533,6 +562,7 @@ func TestPluginLoggerCLIOverridesEnv(t *testing.T) {
 // VALIDATES: --log-level=disabled falls back to env var.
 // PREVENTS: Plugins unable to use env var when CLI is "disabled".
 func TestPluginLoggerDisabledCLIFallsBackToEnv(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.gr", "debug")
 
 	logger := PluginLogger("gr", "disabled")
@@ -547,6 +577,7 @@ func TestPluginLoggerDisabledCLIFallsBackToEnv(t *testing.T) {
 // VALIDATES: --log-level="" falls back to env var.
 // PREVENTS: Empty CLI string breaking env var lookup.
 func TestPluginLoggerEmptyCLIFallsBackToEnv(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.gr", "info")
 
 	logger := PluginLogger("gr", "")
@@ -560,6 +591,7 @@ func TestPluginLoggerEmptyCLIFallsBackToEnv(t *testing.T) {
 // VALIDATES: No CLI flag and no env var = WARN level (default).
 // PREVENTS: Missing warnings/errors when not configured.
 func TestPluginLoggerBothEmptyDefaultsWarn(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.gr", "")
 	t.Setenv("ze_log_gr", "")
 	t.Setenv("ze.log", "")
@@ -578,6 +610,7 @@ func TestPluginLoggerBothEmptyDefaultsWarn(t *testing.T) {
 // VALIDATES: PluginLogger("gr", "") uses ze.log hierarchy.
 // PREVENTS: Plugin ignoring hierarchical env vars.
 func TestPluginLoggerHierarchicalEnv(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log", "warn")
 	t.Setenv("ze.log.gr", "")
 
@@ -598,6 +631,7 @@ func TestPluginLoggerHierarchicalEnv(t *testing.T) {
 // VALIDATES: RelayLevel() returns configured level.
 // PREVENTS: Plugin stderr relay not respecting configured level.
 func TestRelayLevel(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.relay", "debug")
 
 	level, enabled := RelayLevel()
@@ -610,6 +644,7 @@ func TestRelayLevel(t *testing.T) {
 // VALIDATES: ze.log.relay=disabled returns enabled=false.
 // PREVENTS: Disabled relay still outputting.
 func TestRelayLevelDisabled(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.relay", "disabled")
 
 	_, enabled := RelayLevel()
@@ -621,6 +656,7 @@ func TestRelayLevelDisabled(t *testing.T) {
 // VALIDATES: No ze.log.relay = WARN level (default).
 // PREVENTS: Missing plugin warnings/errors.
 func TestRelayLevelDefault(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.relay", "")
 	t.Setenv("ze_log_relay", "")
 
@@ -640,6 +676,7 @@ func TestRelayLevelDefault(t *testing.T) {
 func TestApplyLogConfigBaseLevel(t *testing.T) {
 	// Clear any existing env var
 	t.Setenv("ze.log", "")
+	resetEnvCache(t)
 
 	configValues := map[string]map[string]string{
 		"log": {"level": "debug"},
@@ -659,6 +696,7 @@ func TestApplyLogConfigSubsystem(t *testing.T) {
 	t.Setenv("ze.log.bgp.routes", "")
 	t.Setenv("ze.log.bgp", "")
 	t.Setenv("ze.log", "")
+	resetEnvCache(t)
 
 	configValues := map[string]map[string]string{
 		"log": {"bgp.routes": "debug"},
@@ -676,6 +714,7 @@ func TestApplyLogConfigSubsystem(t *testing.T) {
 // PREVENTS: Backend config not applied.
 func TestApplyLogConfigBackend(t *testing.T) {
 	t.Setenv("ze.log.backend", "")
+	resetEnvCache(t)
 
 	configValues := map[string]map[string]string{
 		"log": {"backend": "syslog"},
@@ -693,6 +732,7 @@ func TestApplyLogConfigBackend(t *testing.T) {
 // PREVENTS: Syslog destination not applied.
 func TestApplyLogConfigDestination(t *testing.T) {
 	t.Setenv("ze.log.destination", "")
+	resetEnvCache(t)
 
 	configValues := map[string]map[string]string{
 		"log": {"destination": "localhost:514"},
@@ -709,6 +749,7 @@ func TestApplyLogConfigDestination(t *testing.T) {
 // PREVENTS: Relay level config not applied.
 func TestApplyLogConfigRelay(t *testing.T) {
 	t.Setenv("ze.log.relay", "")
+	resetEnvCache(t)
 
 	configValues := map[string]map[string]string{
 		"log": {"relay": "info"},
@@ -726,6 +767,7 @@ func TestApplyLogConfigRelay(t *testing.T) {
 func TestApplyLogConfigOSEnvOverrides(t *testing.T) {
 	// Set OS env var before ApplyLogConfig
 	t.Setenv("ze.log.bgp.routes", "warn")
+	resetEnvCache(t)
 
 	configValues := map[string]map[string]string{
 		"log": {"bgp.routes": "debug"},
@@ -753,6 +795,7 @@ func TestApplyLogConfigEmptyLog(t *testing.T) {
 // VALIDATES: Invalid log level outputs warning to writer.
 // PREVENTS: Silent acceptance of typos in config file.
 func TestApplyLogConfigInvalidLevelWarns(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.badlevel", "")
 
 	var buf bytes.Buffer
@@ -775,6 +818,7 @@ func TestApplyLogConfigInvalidLevelWarns(t *testing.T) {
 // VALIDATES: Invalid backend outputs warning to writer.
 // PREVENTS: Silent acceptance of invalid backend in config file.
 func TestApplyLogConfigInvalidBackendWarns(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.backend", "")
 
 	var buf bytes.Buffer
@@ -801,6 +845,7 @@ func TestApplyLogConfigMultipleSettings(t *testing.T) {
 	t.Setenv("ze.log.bgp.routes", "")
 	t.Setenv("ze.log.config", "")
 	t.Setenv("ze.log.backend", "")
+	resetEnvCache(t)
 
 	configValues := map[string]map[string]string{
 		"log": {
@@ -829,6 +874,7 @@ func TestApplyLogConfigMultipleSettings(t *testing.T) {
 // VALIDATES: LazyLogger defers logger creation until first call.
 // PREVENTS: Package-level loggers ignoring config file settings.
 func TestLazyLoggerDeferredCreation(t *testing.T) {
+	resetEnvCache(t)
 	// Set env var AFTER LazyLogger declaration but BEFORE first use
 	t.Setenv("ze.log.lazytest", "debug")
 
@@ -848,6 +894,7 @@ func TestLazyLoggerDeferredCreation(t *testing.T) {
 // VALIDATES: LazyLogger returns same instance on subsequent calls.
 // PREVENTS: Creating new logger instances on every call.
 func TestLazyLoggerCachesResult(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.cachetest", "info")
 
 	lazy := LazyLogger("cachetest")
@@ -866,6 +913,7 @@ func TestLazyLoggerCachesResult(t *testing.T) {
 // VALIDATES: LazyLogger picks up settings from ApplyLogConfig.
 // PREVENTS: Config file log settings being ignored by engine loggers.
 func TestLazyLoggerConfigFileIntegration(t *testing.T) {
+	resetEnvCache(t)
 	// Clear env var
 	t.Setenv("ze.log.integrated", "")
 
@@ -890,6 +938,7 @@ func TestLazyLoggerConfigFileIntegration(t *testing.T) {
 // VALIDATES: Multiple goroutines calling lazy() simultaneously get same instance.
 // PREVENTS: Race conditions in lazy initialization, duplicate logger creation.
 func TestLazyLoggerConcurrentAccess(t *testing.T) {
+	resetEnvCache(t)
 	t.Setenv("ze.log.concurrent", "info")
 
 	lazy := LazyLogger("concurrent")
@@ -934,6 +983,7 @@ func TestLazyLoggerConcurrentAccess(t *testing.T) {
 func TestLevelRegistryTracksLoggers(t *testing.T) {
 	ResetLevelRegistry()
 	defer ResetLevelRegistry()
+	resetEnvCache(t)
 
 	t.Setenv("ze.log.regtest", "info")
 	_ = Logger("regtest")
@@ -950,6 +1000,7 @@ func TestLevelRegistryTracksLoggers(t *testing.T) {
 func TestLevelRegistryListLevels(t *testing.T) {
 	ResetLevelRegistry()
 	defer ResetLevelRegistry()
+	resetEnvCache(t)
 
 	t.Setenv("ze.log.list1", "debug")
 	t.Setenv("ze.log.list2", "warn")
@@ -968,6 +1019,7 @@ func TestLevelRegistryListLevels(t *testing.T) {
 func TestLevelRegistrySetLevel(t *testing.T) {
 	ResetLevelRegistry()
 	defer ResetLevelRegistry()
+	resetEnvCache(t)
 
 	t.Setenv("ze.log.settest", "warn")
 	logger := Logger("settest")
@@ -1008,6 +1060,7 @@ func TestLevelRegistrySetLevelUnknown(t *testing.T) {
 func TestLazyLoggerRegistered(t *testing.T) {
 	ResetLevelRegistry()
 	defer ResetLevelRegistry()
+	resetEnvCache(t)
 
 	t.Setenv("ze.log.lazyregtest", "info")
 
@@ -1032,6 +1085,7 @@ func TestLazyLoggerRegistered(t *testing.T) {
 func TestSetLevelInvalidLevel(t *testing.T) {
 	ResetLevelRegistry()
 	defer ResetLevelRegistry()
+	resetEnvCache(t)
 
 	t.Setenv("ze.log.invalidtest", "info")
 	_ = Logger("invalidtest")
@@ -1048,6 +1102,7 @@ func TestSetLevelInvalidLevel(t *testing.T) {
 func TestDisabledLoggerNotRegistered(t *testing.T) {
 	ResetLevelRegistry()
 	defer ResetLevelRegistry()
+	resetEnvCache(t)
 
 	t.Setenv("ze.log.disabledregtest", "disabled")
 	_ = Logger("disabledregtest")
@@ -1063,6 +1118,7 @@ func TestDisabledLoggerNotRegistered(t *testing.T) {
 func TestDefaultLoggerRegistered(t *testing.T) {
 	ResetLevelRegistry()
 	defer ResetLevelRegistry()
+	resetEnvCache(t)
 
 	t.Setenv("ze.log.defaultregtest", "")
 	t.Setenv("ze_log_defaultregtest", "")

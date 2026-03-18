@@ -8,18 +8,23 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 // TestLogLevelsHandler verifies handler returns subsystem list from registry.
 //
-// VALIDATES: AC-1 — bgp log levels returns JSON map of subsystem names to levels.
+// VALIDATES: AC-1 -- bgp log levels returns JSON map of subsystem names to levels.
 // PREVENTS: Handler returning empty when loggers exist.
 func TestLogLevelsHandler(t *testing.T) {
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
 	slogutil.ResetLevelRegistry()
 	defer slogutil.ResetLevelRegistry()
 
 	t.Setenv("ze.log.showtest", "info")
+	env.ResetCache()
 	_ = slogutil.Logger("showtest")
 
 	ctx := &pluginserver.CommandContext{}
@@ -38,13 +43,17 @@ func TestLogLevelsHandler(t *testing.T) {
 
 // TestLogSetHandler verifies handler changes level via SetLevel().
 //
-// VALIDATES: AC-2 — bgp log set changes subsystem to specified level.
+// VALIDATES: AC-2 -- bgp log set changes subsystem to specified level.
 // PREVENTS: Level change having no effect.
 func TestLogSetHandler(t *testing.T) {
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
 	slogutil.ResetLevelRegistry()
 	defer slogutil.ResetLevelRegistry()
 
 	t.Setenv("ze.log.sethandlertest", "warn")
+	env.ResetCache()
 	_ = slogutil.Logger("sethandlertest")
 
 	ctx := &pluginserver.CommandContext{}
@@ -64,7 +73,7 @@ func TestLogSetHandler(t *testing.T) {
 
 // TestLogSetMissingArgs verifies handler returns usage error with no args.
 //
-// VALIDATES: AC-5 — bgp log set with missing args returns usage error.
+// VALIDATES: AC-5 -- bgp log set with missing args returns usage error.
 // PREVENTS: Panic on missing arguments.
 func TestLogSetMissingArgs(t *testing.T) {
 	ctx := &pluginserver.CommandContext{}
@@ -84,13 +93,17 @@ func TestLogSetMissingArgs(t *testing.T) {
 
 // TestLogSetInvalidLevel verifies handler returns error for bad level string.
 //
-// VALIDATES: AC-4 — bgp log set with invalid level returns error.
+// VALIDATES: AC-4 -- bgp log set with invalid level returns error.
 // PREVENTS: Accepting typos silently.
 func TestLogSetInvalidLevel(t *testing.T) {
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
 	slogutil.ResetLevelRegistry()
 	defer slogutil.ResetLevelRegistry()
 
 	t.Setenv("ze.log.invalidsettest", "info")
+	env.ResetCache()
 	_ = slogutil.Logger("invalidsettest")
 
 	ctx := &pluginserver.CommandContext{}
@@ -102,7 +115,7 @@ func TestLogSetInvalidLevel(t *testing.T) {
 
 // TestLogSetUnknownSubsystem verifies handler returns error for unknown subsystem.
 //
-// VALIDATES: AC-3 — bgp log set with unknown subsystem returns error.
+// VALIDATES: AC-3 -- bgp log set with unknown subsystem returns error.
 // PREVENTS: Silent no-op for wrong subsystem name.
 func TestLogSetUnknownSubsystem(t *testing.T) {
 	slogutil.ResetLevelRegistry()

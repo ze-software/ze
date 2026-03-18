@@ -16,6 +16,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
+// Env var prefix registration for all ze.bgp.* environment variables.
+// The pattern ze.bgp.<section>.<option> matches any key starting with "ze.bgp.".
+var _ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.<section>.<option>", Type: "string", Description: "BGP environment configuration (section.option)"})
+
 // Environment constants.
 const (
 	LogLevelInfo = "INFO"

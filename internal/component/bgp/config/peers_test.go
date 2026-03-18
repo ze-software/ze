@@ -8,6 +8,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // TestPeersFromConfigTreeBasic verifies basic peer extraction without routes.
@@ -119,7 +120,11 @@ func TestPeersFromConfigTreeGroupWithRoutes(t *testing.T) {
 // VALIDATES: ze_bgp_tcp_port environment variable overrides peer port.
 // PREVENTS: Port override being lost when migrating to PeersFromConfigTree.
 func TestPeersFromConfigTreePortOverride(t *testing.T) {
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
 	t.Setenv("ze_bgp_tcp_port", "1790")
+	env.ResetCache()
 
 	tree := config.NewTree()
 	bgp := config.NewTree()

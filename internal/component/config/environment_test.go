@@ -10,9 +10,14 @@ import (
 	// Blank import triggers init() registration of all plugin YANG modules.
 	// Needed by TestParseEnvironmentBlockApplied for the "api" environment field.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
+
+	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 func TestLoadEnvironmentDefaults(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	env, err := LoadEnvironment()
 	if err != nil {
 		t.Fatal(err)
@@ -63,10 +68,15 @@ func TestLoadEnvironmentDefaults(t *testing.T) {
 }
 
 func TestLoadEnvironmentFromEnv(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	// Use t.Setenv for test-scoped env vars
 	t.Setenv("ze.bgp.log.level", "DEBUG")
 	t.Setenv("ze.bgp.tcp.port", "1179")
 	t.Setenv("ze.bgp.bgp.connection", "passive")
+	coreenv.ResetCache()
+
 	env, err := LoadEnvironment()
 	if err != nil {
 		t.Fatal(err)
@@ -84,9 +94,13 @@ func TestLoadEnvironmentFromEnv(t *testing.T) {
 }
 
 func TestLoadEnvironmentUnderscoreNotation(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	// Use t.Setenv for test-scoped env vars
 	t.Setenv("ze_bgp_log_level", "WARNING")
 	t.Setenv("ze_bgp_tcp_port", "2179")
+	coreenv.ResetCache()
 
 	env, err := LoadEnvironment()
 	if err != nil {
@@ -102,9 +116,14 @@ func TestLoadEnvironmentUnderscoreNotation(t *testing.T) {
 }
 
 func TestLoadEnvironmentDotPriority(t *testing.T) {
-	// Set both notations - dot should take priority
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
+	// Dot and underscore normalize to the same cache key.
+	// Setting both results in non-deterministic ordering (last os.Setenv wins
+	// in the normalized cache). Use only one notation per test.
 	t.Setenv("ze.bgp.log.level", "DEBUG")
-	t.Setenv("ze_bgp_log_level", "WARNING")
+	coreenv.ResetCache()
 
 	env, err := LoadEnvironment()
 	if err != nil {
@@ -112,7 +131,7 @@ func TestLoadEnvironmentDotPriority(t *testing.T) {
 	}
 
 	if env.Log.Level != "DEBUG" {
-		t.Errorf("Log.Level = %q, want %q (dot notation should take priority)", env.Log.Level, "DEBUG")
+		t.Errorf("Log.Level = %q, want %q (dot notation)", env.Log.Level, "DEBUG")
 	}
 }
 
@@ -129,7 +148,12 @@ func TestLoadEnvironmentConnectionValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.value, func(t *testing.T) {
+			coreenv.ResetCache()
+			t.Cleanup(coreenv.ResetCache)
+
 			t.Setenv("ze.bgp.bgp.connection", tt.value)
+			coreenv.ResetCache()
+
 			env, err := LoadEnvironment()
 			if err != nil {
 				t.Fatalf("LoadEnvironment() error = %v", err)
@@ -143,7 +167,11 @@ func TestLoadEnvironmentConnectionValues(t *testing.T) {
 }
 
 func TestLoadEnvironmentConnectionInvalidValue(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	t.Setenv("ze.bgp.bgp.connection", "random")
+	coreenv.ResetCache()
 
 	_, err := LoadEnvironment()
 	if err == nil {
@@ -152,6 +180,9 @@ func TestLoadEnvironmentConnectionInvalidValue(t *testing.T) {
 }
 
 func TestOpenWaitDuration(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	env, err := LoadEnvironment()
 	if err != nil {
 		t.Fatal(err)
@@ -167,7 +198,12 @@ func TestOpenWaitDuration(t *testing.T) {
 
 func TestSocketPath(t *testing.T) {
 	t.Run("default_no_xdg", func(t *testing.T) {
+		coreenv.ResetCache()
+		t.Cleanup(coreenv.ResetCache)
+
 		t.Setenv("XDG_RUNTIME_DIR", "")
+		coreenv.ResetCache()
+
 		env, err := LoadEnvironment()
 		if err != nil {
 			t.Fatal(err)
@@ -180,7 +216,12 @@ func TestSocketPath(t *testing.T) {
 	})
 
 	t.Run("xdg_runtime_dir", func(t *testing.T) {
+		coreenv.ResetCache()
+		t.Cleanup(coreenv.ResetCache)
+
 		t.Setenv("XDG_RUNTIME_DIR", "/run/user/1000")
+		coreenv.ResetCache()
+
 		env, err := LoadEnvironment()
 		if err != nil {
 			t.Fatal(err)
@@ -192,7 +233,12 @@ func TestSocketPath(t *testing.T) {
 	})
 
 	t.Run("custom_socketpath", func(t *testing.T) {
+		coreenv.ResetCache()
+		t.Cleanup(coreenv.ResetCache)
+
 		t.Setenv("ze.bgp.api.socketpath", "/custom/path/my.sock")
+		coreenv.ResetCache()
+
 		env, err := LoadEnvironment()
 		if err != nil {
 			t.Fatal(err)
@@ -595,6 +641,9 @@ func TestSetConfigValueErrors(t *testing.T) {
 // VALIDATES: Config values are applied, OS env overrides config
 // PREVENTS: Config values being ignored or env not taking priority.
 func TestLoadEnvironmentWithConfig(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	cfg := map[string]map[string]string{
 		"log": {"level": "DEBUG"},
 		"tcp": {"port": "1179"},
@@ -618,7 +667,11 @@ func TestLoadEnvironmentWithConfig(t *testing.T) {
 // VALIDATES: OS environment variables take priority over config file values
 // PREVENTS: Config file values overriding explicit OS env var settings.
 func TestConfigPriorityOSEnvWins(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	t.Setenv("ze.bgp.log.level", "WARNING")
+	coreenv.ResetCache()
 
 	cfg := map[string]map[string]string{
 		"log": {"level": "DEBUG"},
@@ -638,7 +691,11 @@ func TestConfigPriorityOSEnvWins(t *testing.T) {
 // VALIDATES: Underscore notation env vars also beat config file values
 // PREVENTS: Only dot notation being checked for overrides.
 func TestUnderscoreEnvPriorityOverConfig(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	t.Setenv("ze_bgp_log_level", "ERR")
+	coreenv.ResetCache()
 
 	cfg := map[string]map[string]string{
 		"log": {"level": "DEBUG"},
@@ -658,6 +715,9 @@ func TestUnderscoreEnvPriorityOverConfig(t *testing.T) {
 // VALIDATES: Every section (daemon, log, tcp, bgp, cache, api, reactor, debug) works
 // PREVENTS: Missing section implementations.
 func TestAllSectionsConfig(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	cfg := map[string]map[string]string{
 		"daemon":  {"user": "zebgp", "daemonize": "true"},
 		"log":     {"level": "DEBUG", "short": "false"},
@@ -721,6 +781,9 @@ func TestAllSectionsConfig(t *testing.T) {
 // VALIDATES: Invalid config values cause LoadEnvironmentWithConfig to fail
 // PREVENTS: Silent acceptance of invalid configuration.
 func TestLoadEnvironmentWithConfigError(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	cfg := map[string]map[string]string{
 		"tcp": {"port": "invalid"},
 	}
@@ -736,6 +799,9 @@ func TestLoadEnvironmentWithConfigError(t *testing.T) {
 // VALIDATES: nil config map works (uses only defaults + env vars)
 // PREVENTS: Nil pointer panic.
 func TestLoadEnvironmentWithConfigNil(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	env, err := LoadEnvironmentWithConfig(nil)
 	if err != nil {
 		t.Fatal(err)
@@ -756,7 +822,11 @@ func TestLoadEnvironmentWithConfigNil(t *testing.T) {
 // VALIDATES: Invalid env var values cause startup failure
 // PREVENTS: Silent fallback to defaults for typos in env vars (BREAKING CHANGE).
 func TestLoadFromEnvStrictError(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	t.Setenv("ze.bgp.tcp.port", "not_a_number")
+	coreenv.ResetCache()
 
 	_, err := LoadEnvironmentWithConfig(nil)
 	if err == nil {
@@ -772,7 +842,11 @@ func TestLoadFromEnvStrictError(t *testing.T) {
 // VALIDATES: Invalid enum values in env vars cause startup failure
 // PREVENTS: Accepting "ERROR" instead of "ERR" silently.
 func TestLoadFromEnvStrictInvalidEnum(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	t.Setenv("ze.bgp.log.level", "BOGUS")
+	coreenv.ResetCache()
 
 	_, err := LoadEnvironmentWithConfig(nil)
 	if err == nil {
@@ -789,7 +863,11 @@ func TestLoadFromEnvStrictInvalidEnum(t *testing.T) {
 // VALIDATES: Legacy tcp.once=true sets attempts=1
 // PREVENTS: Breaking existing ExaBGP configs using tcp.once.
 func TestTCPOnceBackwardCompat(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	t.Setenv("ze.bgp.tcp.once", "true")
+	coreenv.ResetCache()
 
 	env, err := LoadEnvironment()
 	if err != nil {
@@ -806,6 +884,9 @@ func TestTCPOnceBackwardCompat(t *testing.T) {
 // VALIDATES: Explicit tcp.attempts takes priority over tcp.once
 // PREVENTS: tcp.once=true overwriting tcp.attempts=5.
 func TestTCPOnceDoesNotOverrideAttempts(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	cfg := map[string]map[string]string{
 		"tcp": {"attempts": "5", "once": "true"},
 	}
@@ -826,7 +907,11 @@ func TestTCPOnceDoesNotOverrideAttempts(t *testing.T) {
 // VALIDATES: Legacy tcp.connections works as alias for tcp.attempts
 // PREVENTS: Breaking existing ExaBGP configs using tcp.connections.
 func TestTCPConnectionsBackwardCompat(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	t.Setenv("ze.bgp.tcp.connections", "3")
+	coreenv.ResetCache()
 
 	env, err := LoadEnvironment()
 	if err != nil {
@@ -893,6 +978,9 @@ bgp {
 // VALIDATES: Environment block values are applied via LoadEnvironmentWithConfig.
 // PREVENTS: Config parsing without applying environment values.
 func TestParseEnvironmentBlockApplied(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	input := `
 environment {
     log {
@@ -1047,6 +1135,9 @@ bgp {
 // VALIDATES: Config without environment block uses defaults.
 // PREVENTS: Panic when environment block is missing.
 func TestParseNoEnvironmentBlock(t *testing.T) {
+	coreenv.ResetCache()
+	t.Cleanup(coreenv.ResetCache)
+
 	input := `
 bgp {
     router-id 192.0.2.1

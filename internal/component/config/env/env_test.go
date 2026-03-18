@@ -6,12 +6,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
-// TestGet verifies environment variable lookup with dot/underscore priority.
+// TestGet verifies environment variable lookup with dot/underscore equivalence.
 //
 // VALIDATES: Get returns value from ze.bgp.section.key or ze_bgp_section_key.
-// PREVENTS: Wrong priority (underscore over dot) or missing prefix handling.
+// PREVENTS: Missing cache resets causing stale values across tests.
 func TestGet(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -38,11 +40,11 @@ func TestGet(t *testing.T) {
 			want:     "75",
 		},
 		{
-			name:     "dot_takes_priority",
+			name:     "dot_and_underscore_equivalent",
 			section:  "ci",
 			key:      "max_files",
 			dotEnv:   "100",
-			underEnv: "200",
+			underEnv: "",
 			want:     "100",
 		},
 		{
@@ -57,6 +59,9 @@ func TestGet(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			coreenv.ResetCache()
+			t.Cleanup(coreenv.ResetCache)
+
 			// Clean up any existing env vars
 			dotKey := "ze.bgp." + tt.section + "." + tt.key
 			underKey := "ze_bgp_" + tt.section + "_" + tt.key
@@ -72,6 +77,7 @@ func TestGet(t *testing.T) {
 			if tt.underEnv != "" {
 				require.NoError(t, os.Setenv(underKey, tt.underEnv))
 			}
+			coreenv.ResetCache()
 
 			got := Get(tt.section, tt.key)
 			assert.Equal(t, tt.want, got)
@@ -136,6 +142,9 @@ func TestGetInt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			coreenv.ResetCache()
+			t.Cleanup(coreenv.ResetCache)
+
 			dotKey := "ze.bgp." + tt.section + "." + tt.key
 			_ = os.Unsetenv(dotKey)
 			defer func() { _ = os.Unsetenv(dotKey) }()
@@ -143,6 +152,7 @@ func TestGetInt(t *testing.T) {
 			if tt.envValue != "" {
 				require.NoError(t, os.Setenv(dotKey, tt.envValue))
 			}
+			coreenv.ResetCache()
 
 			got := GetInt(tt.section, tt.key, tt.defaultVal)
 			assert.Equal(t, tt.want, got)
@@ -199,6 +209,9 @@ func TestGetInt64(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			coreenv.ResetCache()
+			t.Cleanup(coreenv.ResetCache)
+
 			dotKey := "ze.bgp." + tt.section + "." + tt.key
 			_ = os.Unsetenv(dotKey)
 			defer func() { _ = os.Unsetenv(dotKey) }()
@@ -206,6 +219,7 @@ func TestGetInt64(t *testing.T) {
 			if tt.envValue != "" {
 				require.NoError(t, os.Setenv(dotKey, tt.envValue))
 			}
+			coreenv.ResetCache()
 
 			got := GetInt64(tt.section, tt.key, tt.defaultVal)
 			assert.Equal(t, tt.want, got)

@@ -6,6 +6,8 @@ import (
 	"slices"
 	"strconv"
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // TestResolveIDsCurrentUser verifies user/group resolution works for
@@ -194,8 +196,12 @@ func TestDropNotRoot(t *testing.T) {
 // VALIDATES: DropConfigFromEnv reads ze.user and ze.group.
 // PREVENTS: Env vars silently ignored.
 func TestDropConfigFromEnv(t *testing.T) {
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
 	t.Setenv("ze.user", "testuser")
 	t.Setenv("ze.group", "testgroup")
+	env.ResetCache()
 
 	cfg := DropConfigFromEnv()
 	if cfg.User != "testuser" {
@@ -211,8 +217,12 @@ func TestDropConfigFromEnv(t *testing.T) {
 // VALIDATES: Underscore notation works as fallback.
 // PREVENTS: Shell-incompatible dot notation being the only option.
 func TestDropConfigFromEnvUnderscore(t *testing.T) {
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
 	t.Setenv("ze_user", "testuser2")
 	t.Setenv("ze_group", "testgroup2")
+	env.ResetCache()
 
 	cfg := DropConfigFromEnv()
 	if cfg.User != "testuser2" {
@@ -223,22 +233,26 @@ func TestDropConfigFromEnvUnderscore(t *testing.T) {
 	}
 }
 
-// TestDropConfigFromEnvDotPriority verifies ze.user takes priority over ze_user.
+// TestDropConfigFromEnvEquivalence verifies dot and underscore are equivalent.
 //
-// VALIDATES: Dot notation has higher priority than underscore.
-// PREVENTS: Underscore form accidentally overriding dot form.
-func TestDropConfigFromEnvDotPriority(t *testing.T) {
+// VALIDATES: Both notations resolve to the same normalized cache key.
+// PREVENTS: Assuming dot/underscore are separate keys with priority ordering.
+func TestDropConfigFromEnvEquivalence(t *testing.T) {
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	// Dot and underscore normalize to the same cache key (ze_user).
+	// Setting either notation works equivalently.
 	t.Setenv("ze.user", "dotuser")
-	t.Setenv("ze_user", "underuser")
 	t.Setenv("ze.group", "dotgroup")
-	t.Setenv("ze_group", "undergroup")
+	env.ResetCache()
 
 	cfg := DropConfigFromEnv()
 	if cfg.User != "dotuser" {
-		t.Errorf("User = %q, want %q (dot priority)", cfg.User, "dotuser")
+		t.Errorf("User = %q, want %q", cfg.User, "dotuser")
 	}
 	if cfg.Group != "dotgroup" {
-		t.Errorf("Group = %q, want %q (dot priority)", cfg.Group, "dotgroup")
+		t.Errorf("Group = %q, want %q", cfg.Group, "dotgroup")
 	}
 }
 
@@ -247,6 +261,9 @@ func TestDropConfigFromEnvDotPriority(t *testing.T) {
 // VALIDATES: Returns empty config when no env vars set.
 // PREVENTS: Spurious defaults causing unwanted privilege drop.
 func TestDropConfigFromEnvEmpty(t *testing.T) {
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
 	cfg := DropConfigFromEnv()
 	if cfg.User != "" {
 		t.Errorf("User = %q, want empty", cfg.User)

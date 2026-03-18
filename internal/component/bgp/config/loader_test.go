@@ -920,13 +920,13 @@ func TestExpandDependencies(t *testing.T) {
 		Name:         "plugin-a",
 		Description:  "test A",
 		Dependencies: []string{"plugin-b"},
-		RunEngine:    func(_, _ net.Conn) int { return 0 },
+		RunEngine:    func(_ net.Conn) int { return 0 },
 		CLIHandler:   func(_ []string) int { return 0 },
 	}
 	regB := registry.Registration{
 		Name:        "plugin-b",
 		Description: "test B",
-		RunEngine:   func(_, _ net.Conn) int { return 0 },
+		RunEngine:   func(_ net.Conn) int { return 0 },
 		CLIHandler:  func(_ []string) int { return 0 },
 	}
 	require.NoError(t, registry.Register(regA))
@@ -965,13 +965,13 @@ func TestExpandDependencies_NoDuplicate(t *testing.T) {
 		Name:         "plugin-a",
 		Description:  "test A",
 		Dependencies: []string{"plugin-b"},
-		RunEngine:    func(_, _ net.Conn) int { return 0 },
+		RunEngine:    func(_ net.Conn) int { return 0 },
 		CLIHandler:   func(_ []string) int { return 0 },
 	}
 	regB := registry.Registration{
 		Name:        "plugin-b",
 		Description: "test B",
-		RunEngine:   func(_, _ net.Conn) int { return 0 },
+		RunEngine:   func(_ net.Conn) int { return 0 },
 		CLIHandler:  func(_ []string) int { return 0 },
 	}
 	require.NoError(t, registry.Register(regA))
