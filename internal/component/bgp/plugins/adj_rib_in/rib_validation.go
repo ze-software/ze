@@ -32,8 +32,9 @@ type PendingRoute struct {
 }
 
 // pendingKey builds a lookup key for the pending routes map.
-func pendingKey(peerAddr, family, prefix string) string {
-	return peerAddr + "|" + family + "|" + prefix
+// Uses peerAddr + routeKey (which includes pathID for ADD-PATH).
+func pendingKey(peerAddr, routeKey string) string {
+	return peerAddr + "|" + routeKey
 }
 
 // promoteToInstalled moves a pending route to the installed ribIn map.
@@ -80,10 +81,10 @@ func (r *AdjRIBInManager) clearPeerPending(peerAddr string) {
 	}
 }
 
-// removePending removes a specific pending route by family and prefix.
+// removePending removes a specific pending route by routeKey.
 // Caller must hold r.mu write lock.
-func (r *AdjRIBInManager) removePending(peerAddr, family, prefix string) {
-	key := pendingKey(peerAddr, family, prefix)
+func (r *AdjRIBInManager) removePending(peerAddr, routeKey string) {
+	key := pendingKey(peerAddr, routeKey)
 	delete(r.pending, key)
 }
 

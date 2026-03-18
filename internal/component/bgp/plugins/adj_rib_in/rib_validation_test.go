@@ -55,7 +55,7 @@ func TestPendingRouteStorage(t *testing.T) {
 	assert.Empty(t, r.ribIn, "route should not be in installed ribIn when validation enabled")
 	require.Equal(t, 1, len(r.pending), "route should be in pending map")
 
-	key := pendingKey("10.0.0.1", "ipv4/unicast", "10.0.0.0/24")
+	key := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	pr, ok := r.pending[key]
 	require.True(t, ok, "pending route should exist for key %s", key)
 	assert.Equal(t, "ipv4/unicast", pr.route.Family)
@@ -75,7 +75,7 @@ func TestAcceptPendingRoute(t *testing.T) {
 
 	// Add a pending route
 	r.mu.Lock()
-	key := pendingKey("10.0.0.1", "ipv4/unicast", "10.0.0.0/24")
+	key := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	r.pending[key] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
 		family:     "ipv4/unicast",
@@ -121,7 +121,7 @@ func TestRejectPendingRoute(t *testing.T) {
 
 	// Add a pending route
 	r.mu.Lock()
-	key := pendingKey("10.0.0.1", "ipv4/unicast", "10.0.0.0/24")
+	key := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	r.pending[key] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
 		family:     "ipv4/unicast",
@@ -190,7 +190,7 @@ func TestPendingTimeout(t *testing.T) {
 
 	// Add a pending route with old receivedAt
 	r.mu.Lock()
-	key := pendingKey("10.0.0.1", "ipv4/unicast", "10.0.0.0/24")
+	key := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	r.pending[key] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
 		family:     "ipv4/unicast",
@@ -300,7 +300,7 @@ func TestMultiplePendingRoutes(t *testing.T) {
 
 	// Add two pending routes
 	r.mu.Lock()
-	key1 := pendingKey("10.0.0.1", "ipv4/unicast", "10.0.0.0/24")
+	key1 := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	r.pending[key1] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
 		family:     "ipv4/unicast",
@@ -310,7 +310,7 @@ func TestMultiplePendingRoutes(t *testing.T) {
 		receivedAt: now,
 		state:      ValidationPending,
 	}
-	key2 := pendingKey("10.0.0.1", "ipv4/unicast", "10.0.1.0/24")
+	key2 := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.1.0/24", 0))
 	r.pending[key2] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
 		family:     "ipv4/unicast",
@@ -367,7 +367,7 @@ func TestValidationStateField(t *testing.T) {
 			r.validationEnabled = true
 
 			r.mu.Lock()
-			key := pendingKey("10.0.0.1", "ipv4/unicast", "10.0.0.0/24")
+			key := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 			r.pending[key] = &PendingRoute{
 				peerAddr:   "10.0.0.1",
 				family:     "ipv4/unicast",
@@ -414,7 +414,7 @@ func TestPeerDownClearsPending(t *testing.T) {
 
 	// Add a pending route
 	r.mu.Lock()
-	key := pendingKey("10.0.0.1", "ipv4/unicast", "10.0.0.0/24")
+	key := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	r.pending[key] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
 		family:     "ipv4/unicast",
@@ -483,7 +483,7 @@ func TestSweepExpiredMixed(t *testing.T) {
 
 	r.mu.Lock()
 	// Expired route
-	key1 := pendingKey("10.0.0.1", "ipv4/unicast", "10.0.0.0/24")
+	key1 := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	r.pending[key1] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
 		family:     "ipv4/unicast",
@@ -494,7 +494,7 @@ func TestSweepExpiredMixed(t *testing.T) {
 		state:      ValidationPending,
 	}
 	// Not-yet-expired route
-	key2 := pendingKey("10.0.0.1", "ipv4/unicast", "10.0.1.0/24")
+	key2 := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.1.0/24", 0))
 	r.pending[key2] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
 		family:     "ipv4/unicast",
@@ -532,7 +532,7 @@ func TestClearPeerPendingPreservesOthers(t *testing.T) {
 
 	r.mu.Lock()
 	// Pending route for peer 1
-	key1 := pendingKey("10.0.0.1", "ipv4/unicast", "10.0.0.0/24")
+	key1 := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	r.pending[key1] = &PendingRoute{
 		peerAddr: "10.0.0.1", family: "ipv4/unicast", prefix: "10.0.0.0/24",
 		routeKey: bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0),
@@ -540,7 +540,7 @@ func TestClearPeerPendingPreservesOthers(t *testing.T) {
 		state:    ValidationPending,
 	}
 	// Pending route for peer 2
-	key2 := pendingKey("10.0.0.2", "ipv4/unicast", "10.0.1.0/24")
+	key2 := pendingKey("10.0.0.2", bgp.RouteKey("ipv4/unicast", "10.0.1.0/24", 0))
 	r.pending[key2] = &PendingRoute{
 		peerAddr: "10.0.0.2", family: "ipv4/unicast", prefix: "10.0.1.0/24",
 		routeKey: bgp.RouteKey("ipv4/unicast", "10.0.1.0/24", 0),
@@ -576,7 +576,7 @@ func TestWithdrawalRemovesPending(t *testing.T) {
 
 	// Add a pending route
 	r.mu.Lock()
-	key := pendingKey("10.0.0.1", "ipv4/unicast", "10.0.0.0/24")
+	key := pendingKey("10.0.0.1", bgp.RouteKey("ipv4/unicast", "10.0.0.0/24", 0))
 	r.pending[key] = &PendingRoute{
 		peerAddr:   "10.0.0.1",
 		family:     "ipv4/unicast",

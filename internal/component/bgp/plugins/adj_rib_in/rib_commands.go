@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+
+	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
 )
 
 // handleCommand processes command requests via SDK execute-command callback.
@@ -44,11 +46,14 @@ func (r *AdjRIBInManager) statusJSON() string {
 		totalRoutes += routes.Len()
 	}
 
-	data, _ := json.Marshal(map[string]any{
+	data, err := json.Marshal(map[string]any{
 		"running":      true,
 		"total-routes": totalRoutes,
 		"peers":        peers,
 	})
+	if err != nil {
+		return `{"error":"marshal failed"}`
+	}
 	return string(data)
 }
 
@@ -66,12 +71,13 @@ func (r *AdjRIBInManager) showJSON(selector string) string {
 		routeList := make([]map[string]any, 0, routes.Len())
 		routes.Range(func(key string, seq uint64, rt *RawRoute) bool {
 			routeMap := map[string]any{
-				"family":    rt.Family,
-				"key":       key,
-				"nhop-hex":  rt.NHopHex,
-				"attr-hex":  rt.AttrHex,
-				"nlri-hex":  rt.NLRIHex,
-				"seq-index": seq,
+				"family":           rt.Family,
+				"key":              key,
+				"nhop-hex":         rt.NHopHex,
+				"attr-hex":         rt.AttrHex,
+				"nlri-hex":         rt.NLRIHex,
+				"seq-index":        seq,
+				"validation-state": rt.ValidationState,
 			}
 			routeList = append(routeList, routeMap)
 			return true
@@ -81,7 +87,10 @@ func (r *AdjRIBInManager) showJSON(selector string) string {
 		}
 	}
 
-	data, _ := json.Marshal(map[string]any{"adj-rib-in": result})
+	data, err := json.Marshal(map[string]any{"adj-rib-in": result})
+	if err != nil {
+		return `{"error":"marshal failed"}`
+	}
 	return string(data)
 }
 
@@ -145,7 +154,8 @@ func (r *AdjRIBInManager) acceptRoutesCommand(selector string) (string, string, 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	key := pendingKey(peerAddr, family, prefix)
+	rKey := bgp.RouteKey(family, prefix, 0)
+	key := pendingKey(peerAddr, rKey)
 	pr, ok := r.pending[key]
 	if !ok {
 		return statusError, "", fmt.Errorf("no pending route for %s %s %s", peerAddr, family, prefix)
@@ -172,7 +182,8 @@ func (r *AdjRIBInManager) rejectRoutesCommand(selector string) (string, string, 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	key := pendingKey(peerAddr, family, prefix)
+	rKey := bgp.RouteKey(family, prefix, 0)
+	key := pendingKey(peerAddr, rKey)
 	if _, ok := r.pending[key]; !ok {
 		return statusError, "", fmt.Errorf("no pending route for %s %s %s", peerAddr, family, prefix)
 	}
@@ -222,7 +233,10 @@ func (r *AdjRIBInManager) revalidateCommand(selector string) (string, string, er
 		})
 	}
 
-	data, _ := json.Marshal(map[string]any{"routes": routes})
+	data, err := json.Marshal(map[string]any{"routes": routes})
+	if err != nil {
+		return statusError, "", fmt.Errorf("marshal revalidate response: %w", err)
+	}
 	return statusDone, string(data), nil
 }
 

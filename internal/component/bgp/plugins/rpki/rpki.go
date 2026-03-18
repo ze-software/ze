@@ -41,6 +41,14 @@ const (
 	statusError = "error"
 )
 
+// validationRequest is a pending validation decision to be processed by the worker.
+type validationRequest struct {
+	peerAddr string
+	family   string
+	prefix   string
+	state    uint8
+}
+
 // RPKIPlugin implements the bgp-rpki plugin.
 // It manages RTR sessions to RPKI cache servers, maintains the ROA cache,
 // and validates received routes against VRPs.
@@ -51,6 +59,11 @@ type RPKIPlugin struct {
 
 	// sessions holds active RTR sessions to cache servers.
 	sessions []*RTRSession
+
+	// validateCh receives validation decisions for async dispatch.
+	// The worker goroutine drains this channel and issues DispatchCommand calls,
+	// preventing blocking the SDK event callback goroutine.
+	validateCh chan validationRequest
 
 	// stopCh signals all background goroutines to stop.
 	stopCh chan struct{}
@@ -64,11 +77,15 @@ func RunRPKIPlugin(engineConn, callbackConn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	rp := &RPKIPlugin{
-		plugin: p,
-		cache:  NewROACache(),
-		stopCh: make(chan struct{}),
+		plugin:     p,
+		cache:      NewROACache(),
+		validateCh: make(chan validationRequest, 4096),
+		stopCh:     make(chan struct{}),
 	}
 	defer close(rp.stopCh)
+
+	// Start async validation worker (long-lived goroutine per Ze rules).
+	go rp.validationWorker()
 
 	p.OnEvent(func(jsonStr string) error {
 		event, err := bgp.ParseEvent([]byte(jsonStr))
@@ -117,6 +134,7 @@ func RunRPKIPlugin(engineConn, callbackConn net.Conn) int {
 }
 
 // handleEvent processes BGP events (UPDATE received).
+// Enqueues validation decisions to the async worker channel (never blocks).
 func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 	eventType := event.GetEventType()
 	if eventType != "update" {
@@ -128,14 +146,19 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 		return
 	}
 
+	// Use parsed AS_PATH (already ASN4-normalized) when available.
+	// Fall back to raw attribute parsing only if ASPath is empty.
+	originAS := originASFromParsed(event.ASPath)
+	if originAS == OriginNone && event.RawAttributes != "" {
+		originAS = extractOriginAS(event.RawAttributes)
+	}
+
 	// Validate each NLRI prefix against the ROA cache.
 	for family, ops := range event.FamilyOps {
 		for _, op := range ops {
 			if op.Action != "add" {
 				continue
 			}
-			// Extract origin AS from AS_PATH in raw attributes.
-			originAS := extractOriginAS(event.RawAttributes)
 
 			for _, nlriVal := range op.NLRIs {
 				prefix, _ := bgp.ParseNLRIValue(nlriVal)
@@ -144,29 +167,50 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 				}
 
 				state := rp.cache.Validate(prefix, originAS)
-				rp.issueValidationDecision(peerAddr, family, prefix, state)
+				// Non-blocking enqueue to async worker.
+				select {
+				case rp.validateCh <- validationRequest{
+					peerAddr: peerAddr,
+					family:   family,
+					prefix:   prefix,
+					state:    state,
+				}:
+				case <-rp.stopCh:
+					return
+				}
 			}
 		}
 	}
 }
 
 // validationRetries is the number of retries for validation commands.
-// Retries handle the event ordering race where rpki may process an UPDATE
-// before adj-rib-in has stored the route as pending.
 const validationRetries = 3
 
-// issueValidationDecision sends accept-routes or reject-routes to adj-rib-in.
-// Retries on "no pending route" errors to handle event delivery ordering.
-func (rp *RPKIPlugin) issueValidationDecision(peerAddr, family, prefix string, state uint8) {
+// validationWorker is a long-lived goroutine that processes validation decisions.
+// It drains validateCh and issues DispatchCommand calls with retry logic,
+// keeping the SDK event callback goroutine free from blocking I/O.
+func (rp *RPKIPlugin) validationWorker() {
+	for {
+		select {
+		case <-rp.stopCh:
+			return
+		case req := <-rp.validateCh:
+			rp.dispatchValidation(req)
+		}
+	}
+}
+
+// dispatchValidation sends a single accept/reject command with retry.
+func (rp *RPKIPlugin) dispatchValidation(req validationRequest) {
 	var cmd string
-	if state == ValidationInvalid {
-		cmd = "adj-rib-in reject-routes " + peerAddr + " " + family + " " + prefix
+	if req.state == ValidationInvalid {
+		cmd = "adj-rib-in reject-routes " + req.peerAddr + " " + req.family + " " + req.prefix
 	} else {
 		stateStr := "2" // NotFound
-		if state == ValidationValid {
+		if req.state == ValidationValid {
 			stateStr = "1"
 		}
-		cmd = "adj-rib-in accept-routes " + peerAddr + " " + family + " " + prefix + " " + stateStr
+		cmd = "adj-rib-in accept-routes " + req.peerAddr + " " + req.family + " " + req.prefix + " " + stateStr
 	}
 
 	for attempt := range validationRetries {
@@ -176,14 +220,24 @@ func (rp *RPKIPlugin) issueValidationDecision(peerAddr, family, prefix string, s
 		if err == nil {
 			return
 		}
-		// Retry if adj-rib-in hasn't stored the route yet (event ordering race).
+		// Retry with exponential backoff for event ordering race.
 		if attempt < validationRetries-1 {
-			time.Sleep(10 * time.Millisecond)
+			backoff := time.Duration(10*(1<<attempt)) * time.Millisecond // 10ms, 20ms
+			time.Sleep(backoff)
 			continue
 		}
 		logger().Warn("rpki: validation command failed after retries",
 			"command", cmd, "error", err, "attempts", validationRetries)
 	}
+}
+
+// originASFromParsed extracts origin AS from a pre-parsed AS_PATH ([]uint32).
+// Returns the last ASN in the slice, or OriginNone if empty.
+func originASFromParsed(asPath []uint32) uint32 {
+	if len(asPath) == 0 {
+		return OriginNone
+	}
+	return asPath[len(asPath)-1]
 }
 
 // handleCommand processes RPKI CLI commands.

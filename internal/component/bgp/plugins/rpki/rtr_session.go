@@ -228,15 +228,10 @@ func (s *RTRSession) handlePDU(hdr RTRHeader, buf []byte) (bool, error) {
 		if params.ExpireInterval > 0 {
 			s.expireInterval = time.Duration(params.ExpireInterval) * time.Second
 		}
-		// Apply accumulated VRPs to cache.
+		// Apply accumulated VRPs to cache atomically.
 		announced := len(s.pendingVRPs)
 		withdrawn := len(s.pendingDels)
-		for _, vrp := range s.pendingDels {
-			s.cache.Remove(vrp)
-		}
-		for _, vrp := range s.pendingVRPs {
-			s.cache.Add(vrp)
-		}
+		s.cache.ApplyDelta(s.pendingDels, s.pendingVRPs)
 		s.pendingVRPs = nil
 		s.pendingDels = nil
 		s.mu.Unlock()

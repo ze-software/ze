@@ -41,6 +41,9 @@ const maxVRPs = 1_000_000
 
 // Add inserts a VRP into the cache. Silently drops if cache is full or duplicate.
 func (c *ROACache) Add(vrp VRP) {
+	if vrp.Prefix.IP == nil {
+		return
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -87,6 +90,9 @@ func (c *ROACache) totalLocked() int {
 
 // Remove deletes a VRP from the cache.
 func (c *ROACache) Remove(vrp VRP) {
+	if vrp.Prefix.IP == nil {
+		return
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

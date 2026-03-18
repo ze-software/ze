@@ -244,7 +244,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 
 					if r.validationEnabled {
 						// Store as pending — validator will accept or reject.
-						pKey := pendingKey(peerAddr, family, prefix)
+						pKey := pendingKey(peerAddr, routeKey)
 						r.pending[pKey] = &PendingRoute{
 							peerAddr:   peerAddr,
 							family:     family,
@@ -272,7 +272,7 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 					}
 					routeKey := bgp.RouteKey(family, prefix, pathID)
 					// Remove from pending if present.
-					r.removePending(peerAddr, family, prefix)
+					r.removePending(peerAddr, routeKey)
 					// Remove from installed if present.
 					if r.ribIn[peerAddr] != nil {
 						r.ribIn[peerAddr].Delete(routeKey)
