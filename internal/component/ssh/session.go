@@ -5,7 +5,16 @@ package ssh
 
 import (
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 )
+
+// buildCommandTree builds a command.Node tree from YANG command modules.
+// Used to wire command-mode tab completion in SSH sessions.
+func buildCommandTree() *command.Node {
+	loader, _ := yang.DefaultLoader()
+	return yang.BuildCommandTree(loader)
+}
 
 // createSessionModel builds a unified cli.Model for an SSH session.
 // If ConfigPath and Storage are set, the model gets an Editor with session identity
@@ -22,6 +31,9 @@ func (s *Server) createSessionModel(username string) cli.Model {
 		executor = s.config.Executor
 	}
 
+	// Build command tree for tab completion in command mode.
+	cmdCompleter := cli.NewCommandCompleter(buildCommandTree())
+
 	// Try to create an editor-capable model for concurrent config editing.
 	if s.config.ConfigPath != "" && s.config.Storage != nil {
 		ed, err := cli.NewEditorWithStorage(s.config.Storage, s.config.ConfigPath)
@@ -37,6 +49,7 @@ func (s *Server) createSessionModel(username string) cli.Model {
 				s.logger.Warn("SSH session model creation failed, using command-only mode",
 					"user", username, "error", modelErr)
 			} else {
+				m.SetCommandCompleter(cmdCompleter)
 				if executor != nil {
 					m.SetCommandExecutor(executor)
 				}
@@ -47,6 +60,7 @@ func (s *Server) createSessionModel(username string) cli.Model {
 
 	// Fallback: command-only model (no editor, no config editing).
 	m := cli.NewCommandModel()
+	m.SetCommandCompleter(cmdCompleter)
 	if executor != nil {
 		m.SetCommandExecutor(executor)
 	}

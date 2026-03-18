@@ -366,14 +366,16 @@ func runEditor(ed *cli.Editor, configPath string) int {
 
 	// Probe daemon SSH port at startup.
 	// If no daemon is running and credentials are available, start an ephemeral daemon.
+	// Skip ephemeral daemon when config has no recognized block (bgp, plugin) — the
+	// daemon would reject it with "no recognized block" and exit immediately.
 	creds, credsErr := sshclient.LoadCredentials()
 	var ephemeralProc *os.Process
 	daemonReachable := false
 	if credsErr == nil {
 		if probeDaemonSSH(creds.Host, creds.Port) {
 			daemonReachable = true
-		} else {
-			// No daemon — start ephemeral daemon for command execution
+		} else if config.ProbeConfigType(ed.OriginalContent()) != config.ConfigTypeUnknown {
+			// Only start ephemeral daemon when config has a recognized block
 			proc, ephErr := startEphemeralDaemon(configPath, creds.Host, creds.Port)
 			if ephErr != nil {
 				fmt.Fprintf(os.Stderr, "warning: ephemeral daemon: %v\n", ephErr)
