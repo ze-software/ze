@@ -1,5 +1,6 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — Adj-RIB-In command handlers
 // Overview: rib.go — core types, event handlers, and raw hex storage
+// Related: rib_validation.go — RPKI validation gate (pending routes, timeout, state constants)
 package adj_rib_in
 
 import (

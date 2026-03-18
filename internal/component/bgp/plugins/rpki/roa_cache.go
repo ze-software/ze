@@ -39,7 +39,7 @@ func NewROACache() *ROACache {
 // Global ROA table is typically 200K-500K entries; 1M provides ample headroom.
 const maxVRPs = 1_000_000
 
-// Add inserts a VRP into the cache. Returns false if the cache is full.
+// Add inserts a VRP into the cache. Silently drops if cache is full or duplicate.
 func (c *ROACache) Add(vrp VRP) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
