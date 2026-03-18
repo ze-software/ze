@@ -15,6 +15,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime/debug"
 	"sync"
 	"sync/atomic"
@@ -493,7 +494,15 @@ func (p *Process) startExternal() error {
 	}
 
 	// Pass TLS connection info and plugin name via env vars.
-	p.cmd.Env = append(os.Environ(),
+	// Prepend the engine binary's directory to PATH so that run commands
+	// like "ze plugin bgp-rib" can find the ze binary even when it is
+	// not installed system-wide (e.g., running from ./bin/ze in dev/test).
+	p.cmd.Env = os.Environ()
+	if exe, exeErr := os.Executable(); exeErr == nil {
+		binDir := filepath.Dir(exe)
+		p.cmd.Env = append(p.cmd.Env, "PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	}
+	p.cmd.Env = append(p.cmd.Env,
 		"ZE_PLUGIN_HUB_HOST="+host,
 		"ZE_PLUGIN_HUB_PORT="+port,
 		"ZE_PLUGIN_HUB_TOKEN="+p.acceptor.Token(),
