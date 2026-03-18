@@ -22,8 +22,11 @@ import (
 // errTestsFailed is returned when tests fail (not an error, but indicates exit code 1).
 var errTestsFailed = errors.New("tests failed")
 
-// cmdChaosWeb is the command name for chaos web tests.
-const cmdChaosWeb = "chaos-web"
+// Command name constants for test suites.
+const (
+	cmdPlugin   = "plugin"
+	cmdChaosWeb = "chaos-web"
+)
 
 func bgpCmd() int {
 	if err := bgpMain(); err != nil {
@@ -61,7 +64,7 @@ func bgpMain() error {
 
 	// Route to appropriate handler
 	switch cli.command {
-	case "encode", "plugin", "reload", cmdChaosWeb:
+	case "encode", cmdPlugin, "reload", cmdChaosWeb:
 		return runEncodingOrAPI(ctx, cli, baseDir)
 	case "decode":
 		return runSimpleTests(ctx, cli, baseDir, newDecodingTestSuite)
@@ -253,7 +256,7 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 	tests := runner.NewEncodingTests(baseDir)
 	testDir := filepath.Join(baseDir, "test", "encode")
 	switch cli.command {
-	case "plugin":
+	case cmdPlugin:
 		testDir = filepath.Join(baseDir, "test", "plugin")
 	case "reload":
 		testDir = filepath.Join(baseDir, "test", "reload")
@@ -317,10 +320,15 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 	}
 	defer r.Cleanup()
 
-	// chaos-web tests need ze-chaos binary built alongside ze.
-	if cli.command == cmdChaosWeb {
+	// Extra binaries needed by specific test suites.
+	switch cli.command {
+	case cmdChaosWeb:
 		r.SetExtraBinaries(map[string]string{
 			"ze-chaos": "./cmd/ze-chaos",
+		})
+	case cmdPlugin:
+		r.SetExtraBinaries(map[string]string{
+			"ze-rtr-mock": "./cmd/ze-rtr-mock",
 		})
 	}
 
@@ -564,7 +572,7 @@ func parseRunCLI() *runCLIFlags {
 
 	validCommands := map[string]bool{
 		"encode":    true,
-		"plugin":    true,
+		cmdPlugin:   true,
 		"decode":    true,
 		"parse":     true,
 		"reload":    true,

@@ -34,6 +34,8 @@ This is an umbrella spec for a set of child specs:
 | `spec-rpki-2-rtr-client.md` | RTR protocol client (RFC 8210), ROA cache management | Planned |
 | `spec-rpki-3-origin-validation.md` | ROA validation logic (RFC 6811), per-prefix validation | Planned |
 | `spec-rpki-4-config-yang.md` | YANG schema, config pipeline, CLI commands | Planned |
+| `spec-rpki-5-wiring.md` | Config wiring, OnConfigure, functional tests | In Progress |
+| `spec-rpki-6-container-test.md` | Container integration test with stayrtr + real RPKI data | Skeleton |
 
 ## Required Reading
 

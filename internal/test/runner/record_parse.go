@@ -70,7 +70,7 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 	name := strings.TrimSuffix(filepath.Base(ciFile), ".ci")
 	r := et.Add(name)
 	r.Port = et.port
-	et.port++
+	et.port += 2 // Reserve 2 ports per test ($PORT and $PORT2)
 	r.CIFile = ciFile
 	r.Files = append(r.Files, ciFile)
 

@@ -1,0 +1,130 @@
+# Test: RPKI cache server connection via RTR protocol
+# VALIDATES: RTR session connects to cache server, VRPs are populated (AC-1)
+# PREVENTS: RPKI plugin not receiving config or not starting RTR sessions
+
+# ze-peer expectations (minimal -- just accept connection)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: queries rpki status after RTR sync
+tmpfs=rpki-cache-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for RTR session to sync VRPs
+    time.sleep(3.0)
+
+    try:
+        # Query rpki status to verify VRPs loaded
+        result = dispatch(api, 'rpki status')
+        if result.get('status') != 'done':
+            print(f'FAIL: rpki status={result.get("status")}', file=sys.stderr)
+            sys.exit(1)
+
+        data = json.loads(result.get('data', '{}'))
+        vrp_count = data.get('vrp-count-ipv4', 0)
+        sessions = data.get('sessions', 0)
+
+        if vrp_count < 1:
+            print(f'FAIL: vrp-count-ipv4={vrp_count}, expected >= 1', file=sys.stderr)
+            sys.exit(1)
+
+        if sessions < 1:
+            print(f'FAIL: sessions={sessions}, expected >= 1', file=sys.stderr)
+            sys.exit(1)
+
+        print(f'OK: rpki status vrp-count-ipv4={vrp_count} sessions={sessions}', file=sys.stderr)
+    finally:
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration with RPKI plugin
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	hub {
+		listen 127.0.0.1:0;
+		secret rpki-test-secret-key-01234567890;
+	}
+	external rpki-cache-test {
+		run ./rpki-cache-test.run
+		encoder json
+	}
+	external rpki {
+		run "ze plugin bgp-rpki"
+		encoder json
+	}
+	external adj-rib-in {
+		run "ze plugin bgp-adj-rib-in"
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	rpki {
+		cache-server 127.0.0.1 {
+			port $PORT2
+		}
+	}
+	peer 127.0.0.1 {
+		router-id 1.2.3.4
+		local-address 127.0.0.1
+		local-as 1
+		peer-as 1
+		connection active
+		group-updates disable
+
+		family {
+			ipv4/unicast
+		}
+		capability {
+			graceful-restart disable
+		}
+		process rpki-cache-test {
+		}
+		process rpki {
+			receive [ update ]
+		}
+		process adj-rib-in {
+			receive [ update state ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-rtr-mock --port $PORT2 --vrp 10.0.0.0/8,24,65001
+cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0

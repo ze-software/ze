@@ -114,7 +114,11 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	if len(rec.TmpfsFiles) > 0 {
 		v := tmpfs.New()
 		for path, content := range rec.TmpfsFiles {
-			v.AddFile(path, content)
+			// Expand $PORT2 before $PORT in tmpfs content (scripts, configs)
+			s := string(content)
+			s = strings.ReplaceAll(s, "$PORT2", fmt.Sprintf("%d", rec.Port+1))
+			s = strings.ReplaceAll(s, "$PORT", fmt.Sprintf("%d", rec.Port))
+			v.AddFile(path, []byte(s))
 		}
 		tmpfsTempDir, cleanup, err := v.WriteToTemp()
 		if err != nil {
@@ -382,8 +386,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 	// Execute commands in order
 	for _, cmd := range cmds {
-		// Expand $PORT in exec string
-		execStr := strings.ReplaceAll(cmd.Exec, "$PORT", fmt.Sprintf("%d", rec.Port))
+		// Expand $PORT2 before $PORT to avoid partial match ("$PORT2" contains "$PORT")
+		execStr := strings.ReplaceAll(cmd.Exec, "$PORT2", fmt.Sprintf("%d", rec.Port+1))
+		execStr = strings.ReplaceAll(execStr, "$PORT", fmt.Sprintf("%d", rec.Port))
 
 		// Parse command and args
 		cmdParts := strings.Fields(execStr)
@@ -426,6 +431,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				rec.Error = fmt.Errorf("stdin block %q not found", cmd.Stdin)
 				return false
 			}
+			// Expand $PORT2 before $PORT in stdin content (config files, scripts)
+			s := string(stdinContent)
+			s = strings.ReplaceAll(s, "$PORT2", fmt.Sprintf("%d", rec.Port+1))
+			s = strings.ReplaceAll(s, "$PORT", fmt.Sprintf("%d", rec.Port))
+			stdinContent = []byte(s)
 		}
 
 		// ze-peer reads from file argument, not stdin.

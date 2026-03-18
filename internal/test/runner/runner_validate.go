@@ -269,7 +269,8 @@ func (r *Runner) executeHTTPChecks(ctx context.Context, rec *Record) error {
 	client := &http.Client{Timeout: 5 * time.Second}
 
 	for _, chk := range checks {
-		url := strings.ReplaceAll(chk.URL, "$PORT", fmt.Sprintf("%d", rec.Port))
+		url := strings.ReplaceAll(chk.URL, "$PORT2", fmt.Sprintf("%d", rec.Port+1))
+		url = strings.ReplaceAll(url, "$PORT", fmt.Sprintf("%d", rec.Port))
 		if err := r.executeOneHTTPCheck(ctx, client, chk, url); err != nil {
 			return err
 		}

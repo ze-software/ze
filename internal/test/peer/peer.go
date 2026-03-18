@@ -107,6 +107,8 @@ type Config struct {
 	SendUnknownCapability bool
 	// SendDefaultRoute: send a default route (0.0.0.0/0) UPDATE after OPEN
 	SendDefaultRoute bool
+	// SendRoutes: custom routes to send after OPEN (option=update:value=send-route:...)
+	SendRoutes []RouteToSend
 	// InspectOpenMessage: validate received OPEN message against expectations
 	InspectOpenMessage bool
 	// SendUnknownMessage: send an unknown message type (255) after OPEN
@@ -294,6 +296,18 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 		p.printf("sending default-route\n")
 		if _, err := conn.Write(DefaultRouteMsg()); err != nil {
 			return Result{Success: false, Error: fmt.Errorf("write default route: %w", err)}
+		}
+	}
+
+	// Send custom routes if configured.
+	for _, route := range p.config.SendRoutes {
+		p.printf("sending route %s origin-as=%d\n", route.Prefix, route.OriginAS)
+		msg, err := BuildRouteMsg(route)
+		if err != nil {
+			return Result{Success: false, Error: fmt.Errorf("build route %s: %w", route.Prefix, err)}
+		}
+		if _, err := conn.Write(msg); err != nil {
+			return Result{Success: false, Error: fmt.Errorf("write route %s: %w", route.Prefix, err)}
 		}
 	}
 

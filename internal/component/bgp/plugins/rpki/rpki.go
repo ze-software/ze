@@ -1,4 +1,5 @@
 // Design: docs/architecture/plugin/rib-storage-design.md — RPKI origin validation plugin
+// Detail: rpki_config.go — config parsing from OnConfigure JSON
 // Detail: rtr_pdu.go — RTR PDU wire format types and parsing
 // Detail: rtr_session.go — RTR session lifecycle management
 // Detail: roa_cache.go — ROA cache VRP storage and covering-prefix lookup
@@ -70,10 +71,10 @@ type RPKIPlugin struct {
 }
 
 // RunRPKIPlugin runs the bgp-rpki plugin using the SDK RPC protocol.
-func RunRPKIPlugin(engineConn, callbackConn net.Conn) int {
+func RunRPKIPlugin(conn net.Conn) int {
 	logger().Debug("bgp-rpki plugin starting")
 
-	p := sdk.NewWithConn("bgp-rpki", engineConn, callbackConn)
+	p := sdk.NewWithConn("bgp-rpki", conn)
 	defer func() { _ = p.Close() }()
 
 	rp := &RPKIPlugin{
@@ -101,6 +102,23 @@ func RunRPKIPlugin(engineConn, callbackConn net.Conn) int {
 		return rp.handleCommand(command, strings.Join(args, " "))
 	})
 
+	// OnConfigure: parse RPKI config and start RTR sessions to cache servers.
+	// Called during Stage 2 of the 5-stage plugin startup protocol.
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		for _, section := range sections {
+			if section.Root != "bgp" {
+				continue
+			}
+			cfg, err := parseRPKIConfig(section.Data)
+			if err != nil {
+				logger().Error("rpki: config parse failed", "error", err)
+				return err
+			}
+			rp.startSessions(cfg)
+		}
+		return nil
+	})
+
 	// Enable validation gate in adj-rib-in after plugin startup completes.
 	p.OnStarted(func(startCtx context.Context) error {
 		enableCtx, cancel := context.WithTimeout(startCtx, 10*time.Second)
@@ -124,6 +142,7 @@ func RunRPKIPlugin(engineConn, callbackConn net.Conn) int {
 			{Name: "rpki roa"},
 			{Name: "rpki summary"},
 		},
+		WantsConfig: []string{"bgp"},
 	})
 	if err != nil {
 		logger().Error("bgp-rpki plugin failed", "error", err)
@@ -131,6 +150,25 @@ func RunRPKIPlugin(engineConn, callbackConn net.Conn) int {
 	}
 
 	return 0
+}
+
+// startSessions creates and starts RTR sessions from parsed config.
+// Each cache server gets a long-lived goroutine running RTRSession.Run().
+func (rp *RPKIPlugin) startSessions(cfg *rpkiConfig) {
+	if cfg == nil || len(cfg.CacheServers) == 0 {
+		logger().Info("rpki: no cache servers configured")
+		return
+	}
+
+	rp.mu.Lock()
+	defer rp.mu.Unlock()
+
+	for _, cs := range cfg.CacheServers {
+		session := NewRTRSession(cs.Address, cs.Port, cs.Preference, rp.cache, rp.stopCh)
+		rp.sessions = append(rp.sessions, session)
+		go session.Run()
+		logger().Info("rpki: started RTR session", "address", cs.Address, "port", cs.Port)
+	}
 }
 
 // handleEvent processes BGP events (UPDATE received).

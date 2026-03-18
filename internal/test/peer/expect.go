@@ -151,8 +151,18 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) {
 		}
 
 	case "update":
-		if kv["value"] == "send-default-route" {
+		switch kv["value"] {
+		case "send-default-route":
 			config.SendDefaultRoute = true
+		case "send-route":
+			asn, _ := strconv.ParseUint(kv["origin-as"], 10, 32)
+			route := RouteToSend{
+				Prefix:   kv["prefix"],
+				OriginAS: uint32(asn), //nolint:gosec // range checked by ParseUint
+				NextHop:  kv["next-hop"],
+				ASSet:    kv["as-set"] == "true",
+			}
+			config.SendRoutes = append(config.SendRoutes, route)
 		}
 
 	case "timeout", "env":

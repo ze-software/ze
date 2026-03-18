@@ -124,6 +124,91 @@ func DefaultRouteMsg() []byte {
 	}
 }
 
+// RouteToSend describes a custom route for ze-peer to send after OPEN.
+// Parsed from option=update:value=send-route:prefix=X:origin-as=Y:next-hop=Z.
+type RouteToSend struct {
+	Prefix   string // CIDR prefix (e.g. "10.0.1.0/24")
+	OriginAS uint32 // Origin ASN for AS_PATH
+	NextHop  string // Next-hop IP (e.g. "10.0.0.1")
+	ASSet    bool   // Use AS_SET instead of AS_SEQUENCE
+}
+
+// BuildRouteMsg constructs a BGP UPDATE message with the given route.
+// Uses 4-byte ASN encoding (ASN4 capability assumed).
+func BuildRouteMsg(route RouteToSend) ([]byte, error) {
+	// Parse prefix
+	prefixIP, prefixNet, err := net.ParseCIDR(route.Prefix)
+	if err != nil {
+		return nil, fmt.Errorf("invalid prefix %q: %w", route.Prefix, err)
+	}
+	_ = prefixIP
+	prefixLen, _ := prefixNet.Mask.Size()
+
+	// Parse next-hop
+	nhIP := net.ParseIP(route.NextHop)
+	if nhIP == nil {
+		return nil, fmt.Errorf("invalid next-hop %q", route.NextHop)
+	}
+	nhIP = nhIP.To4()
+	if nhIP == nil {
+		return nil, fmt.Errorf("next-hop must be IPv4: %q", route.NextHop)
+	}
+
+	// Build path attributes
+	// ORIGIN: IGP (0) - flags=0x40, type=1, len=1, value=0
+	origin := []byte{0x40, 0x01, 0x01, 0x00}
+
+	// AS_PATH with 4-byte ASN
+	segType := byte(0x02) // AS_SEQUENCE
+	if route.ASSet {
+		segType = 0x01 // AS_SET
+	}
+	asPath := []byte{
+		0x40, 0x02, 0x06, // flags, type, length=6
+		segType, 0x01, // segment type, count=1
+		byte(route.OriginAS >> 24), byte(route.OriginAS >> 16),
+		byte(route.OriginAS >> 8), byte(route.OriginAS),
+	}
+
+	// NEXT_HOP - flags=0x40, type=3, len=4
+	nextHop := make([]byte, 0, 7)
+	nextHop = append(nextHop, 0x40, 0x03, 0x04)
+	nextHop = append(nextHop, nhIP...)
+
+	// LOCAL_PREF: 100 - flags=0x40, type=5, len=4
+	localPref := []byte{0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64}
+
+	// Total path attributes
+	attrs := make([]byte, 0, len(origin)+len(asPath)+len(nextHop)+len(localPref))
+	attrs = append(attrs, origin...)
+	attrs = append(attrs, asPath...)
+	attrs = append(attrs, nextHop...)
+	attrs = append(attrs, localPref...)
+
+	// NLRI: prefix-length byte + prefix bytes (ceiling division)
+	nlriBytes := (prefixLen + 7) / 8
+	nlri := make([]byte, 1+nlriBytes)
+	nlri[0] = byte(prefixLen) //nolint:gosec // prefixLen is 0-32 for IPv4
+	copy(nlri[1:], prefixNet.IP.To4()[:nlriBytes])
+
+	// Build UPDATE body: withdrawn(2) + attr-len(2) + attrs + nlri
+	bodyLen := 2 + 2 + len(attrs) + len(nlri)
+	body := make([]byte, 0, bodyLen)
+	body = append(body, 0x00, 0x00, byte(len(attrs)>>8), byte(len(attrs))) //nolint:gosec // len(attrs) < 256
+	body = append(body, attrs...)
+	body = append(body, nlri...)
+
+	// Build full message: header + body
+	msgLen := HeaderLen + len(body)
+	msg := make([]byte, 0, msgLen)
+	msg = append(msg, Marker...)
+	header := []byte{byte(msgLen >> 8), byte(msgLen), MsgUPDATE} //nolint:gosec // msgLen < 4096
+	msg = append(msg, header...)
+	msg = append(msg, body...)
+
+	return msg, nil
+}
+
 // NotificationMsg builds a BGP NOTIFICATION message with Cease/Administrative Shutdown.
 // RFC 4271 Section 4.5 - NOTIFICATION Message Format.
 // RFC 9003 - Extended BGP Administrative Shutdown Communication.
