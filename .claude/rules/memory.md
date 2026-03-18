@@ -97,6 +97,12 @@ Do NOT flag these as "identity wrappers adding no value."
 - Root cause: defaulted to "struct with accessor methods" instead of ze pattern: pass raw bytes, use existing iterators
 - **Rule:** before creating any new type for data access, ask "can the consumer use existing wire types directly?"
 
+### Dismissing Test Failures as "Pre-existing" (RECURRING, ZERO TOLERANCE)
+- Said "pre-existing slogutil failures unrelated" and proposed committing with failing tests.
+- Has happened MANY times across multiple sessions. User explicitly said it causes distress.
+- Root cause: treating "I didn't cause it" as permission to ignore it. The rules are explicit: investigate and fix.
+- **Rule:** NEVER say "pre-existing" or "unrelated" to justify not fixing a test failure. Investigate every failure. Fix it. Then commit.
+
 ### Plugin Placement Anchor Bias (jsonrpc gateway)
 - Placed cross-cutting JSON-RPC gateway under `bgp/plugins/` by pattern-matching recently-read files.
 - Root cause: anchored on "where I just read code" instead of reasoning from architecture.
