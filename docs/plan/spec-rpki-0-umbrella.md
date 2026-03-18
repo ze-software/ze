@@ -36,6 +36,7 @@ This is an umbrella spec for a set of child specs:
 | `spec-rpki-4-config-yang.md` | YANG schema, config pipeline, CLI commands | Planned |
 | `spec-rpki-5-wiring.md` | Config wiring, OnConfigure, functional tests | In Progress |
 | `spec-rpki-6-container-test.md` | Container integration test with stayrtr + real RPKI data | Skeleton |
+| `spec-rpki-7-decoration.md` | Event decoration: plugins subscribe to RPKI-enriched UPDATEs | Design |
 
 ## Required Reading
 
