@@ -14,6 +14,16 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/test/peer"
 )
 
+// Register ze.bgp.tcp.port so env.GetInt doesn't abort.
+// The full ze.bgp.* prefix is registered in internal/component/config,
+// but ze-test doesn't import that package.
+var _ = env.MustRegister(env.EnvEntry{
+	Key:         "ze.bgp.tcp.port",
+	Type:        "int",
+	Default:     "179",
+	Description: "BGP TCP port (used by ze-test peer)",
+})
+
 func peerCmd() int {
 	config, ok := parsePeerFlags()
 	if config == nil {
