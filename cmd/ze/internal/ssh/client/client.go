@@ -1,8 +1,8 @@
 // Design: docs/architecture/system-architecture.md — SSH client helper for CLI tools
 
-// Package sshclient provides SSH client connectivity for ze CLI tools.
+// Package client provides SSH client connectivity for ze CLI tools.
 // CLI tools connect to the daemon via SSH instead of Unix sockets.
-package sshclient
+package client
 
 import (
 	"bufio"
@@ -129,11 +129,11 @@ func ReadCredentials(dbPath string) (Credentials, error) {
 	}
 	defer store.Close() //nolint:errcheck // read-only access
 
-	username, err := readKey(store, "ssh/username")
+	username, err := readKey(store, "meta/ssh/username")
 	if err != nil {
 		return Credentials{}, err
 	}
-	password, err := readKey(store, "ssh/password")
+	password, err := readKey(store, "meta/ssh/password")
 	if err != nil {
 		return Credentials{}, err
 	}
@@ -142,10 +142,10 @@ func ReadCredentials(dbPath string) (Credentials, error) {
 	port := envOr("ze.ssh.port", "ze_ssh_port", "2222")
 
 	// Override from store if not set by env
-	if h, hErr := readKey(store, "ssh/host"); hErr == nil && !hasEnv("ze.ssh.host", "ze_ssh_host") {
+	if h, hErr := readKey(store, "meta/ssh/host"); hErr == nil && !hasEnv("ze.ssh.host", "ze_ssh_host") {
 		host = h
 	}
-	if p, pErr := readKey(store, "ssh/port"); pErr == nil && !hasEnv("ze.ssh.port", "ze_ssh_port") {
+	if p, pErr := readKey(store, "meta/ssh/port"); pErr == nil && !hasEnv("ze.ssh.port", "ze_ssh_port") {
 		port = p
 	}
 

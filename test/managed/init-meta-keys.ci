@@ -1,0 +1,36 @@
+# Test: ze init writes meta/ssh/* keys (not flat ssh/*)
+#
+# VALIDATES: AC-1 -- init creates namespaced credential keys.
+# PREVENTS: flat ssh/* keys colliding with future meta/ namespace.
+
+tmpfs=test-init-meta-keys.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+touch daemon.ready
+
+INIT_DIR=$(mktemp -d)
+trap 'rm -rf "$INIT_DIR"' EXIT
+
+# Init with credentials and empty name
+printf 'admin\nsecret123\n127.0.0.1\n2222\n\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init
+
+# Verify meta/ssh/* keys exist via ze db ls
+META_KEYS=$(ZE_CONFIG_DIR="$INIT_DIR" ze db ls meta/ssh)
+echo "$META_KEYS" >&2
+
+echo "$META_KEYS" | grep -q "meta/ssh/username" || { echo "FAIL: meta/ssh/username not found" >&2; exit 1; }
+echo "$META_KEYS" | grep -q "meta/ssh/password" || { echo "FAIL: meta/ssh/password not found" >&2; exit 1; }
+echo "$META_KEYS" | grep -q "meta/ssh/host" || { echo "FAIL: meta/ssh/host not found" >&2; exit 1; }
+echo "$META_KEYS" | grep -q "meta/ssh/port" || { echo "FAIL: meta/ssh/port not found" >&2; exit 1; }
+
+# Verify meta/managed exists
+MANAGED=$(ZE_CONFIG_DIR="$INIT_DIR" ze db cat meta/managed)
+[ "$MANAGED" = "false" ] || { echo "FAIL: meta/managed expected 'false', got '$MANAGED'" >&2; exit 1; }
+
+echo "OK: ze init writes meta/ssh/* keys" >&2
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-init-meta-keys.sh:timeout=10s
+expect=exit:code=0

@@ -20,7 +20,7 @@ func TestZeInitPipedStdin(t *testing.T) {
 	// Pipe credentials via stdin: username, password, host, port
 	input := "admin\nsecret123\n127.0.0.1\n2222\n"
 
-	code := zeinit.RunWithReader(strings.NewReader(input), dbPath)
+	code := zeinit.RunWithReader(strings.NewReader(input), dbPath, false)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
@@ -37,10 +37,16 @@ func TestZeInitPipedStdin(t *testing.T) {
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
-	assertStoreFile(t, store, "ssh/username", "admin")
-	assertStoreFile(t, store, "ssh/password", "secret123")
-	assertStoreFile(t, store, "ssh/host", "127.0.0.1")
-	assertStoreFile(t, store, "ssh/port", "2222")
+	assertStoreFile(t, store, "meta/ssh/username", "admin")
+	assertStoreFile(t, store, "meta/ssh/password", "secret123")
+	assertStoreFile(t, store, "meta/ssh/host", "127.0.0.1")
+	assertStoreFile(t, store, "meta/ssh/port", "2222")
+
+	// Verify old ssh/* keys do NOT exist (#16)
+	assertKeyAbsent(t, store, "ssh/username")
+	assertKeyAbsent(t, store, "ssh/password")
+	assertKeyAbsent(t, store, "ssh/host")
+	assertKeyAbsent(t, store, "ssh/port")
 }
 
 // VALIDATES: ze init refuses to overwrite existing database
@@ -55,14 +61,14 @@ func TestZeInitAlreadyExists(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if err := store.WriteFile("ssh/username", []byte("existing"), 0); err != nil {
+	if err := store.WriteFile("meta/ssh/username", []byte("existing"), 0); err != nil {
 		t.Fatalf("WriteFile: %v", err)
 	}
 	store.Close() //nolint:errcheck // test setup
 
-	// Try to init again — should fail
+	// Try to init again -- should fail
 	input := "admin\nsecret123\n127.0.0.1\n2222\n"
-	code := zeinit.RunWithReader(strings.NewReader(input), dbPath)
+	code := zeinit.RunWithReader(strings.NewReader(input), dbPath, false)
 	if code == 0 {
 		t.Fatal("expected non-zero exit code when database already exists")
 	}
@@ -74,7 +80,7 @@ func TestZeInitAlreadyExists(t *testing.T) {
 	}
 	defer store2.Close() //nolint:errcheck // test cleanup
 
-	assertStoreFile(t, store2, "ssh/username", "existing")
+	assertStoreFile(t, store2, "meta/ssh/username", "existing")
 }
 
 // VALIDATES: ze init with default host/port when not provided
@@ -87,7 +93,7 @@ func TestZeInitDefaults(t *testing.T) {
 	// Only provide username and password, empty lines for host and port
 	input := "admin\nsecret123\n\n\n"
 
-	code := zeinit.RunWithReader(strings.NewReader(input), dbPath)
+	code := zeinit.RunWithReader(strings.NewReader(input), dbPath, false)
 	if code != 0 {
 		t.Fatalf("expected exit code 0, got %d", code)
 	}
@@ -98,8 +104,8 @@ func TestZeInitDefaults(t *testing.T) {
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
-	assertStoreFile(t, store, "ssh/host", "127.0.0.1")
-	assertStoreFile(t, store, "ssh/port", "2222")
+	assertStoreFile(t, store, "meta/ssh/host", "127.0.0.1")
+	assertStoreFile(t, store, "meta/ssh/port", "2222")
 }
 
 // VALIDATES: ze init requires username and password
@@ -110,13 +116,13 @@ func TestZeInitRequiresCredentials(t *testing.T) {
 	dbPath := filepath.Join(dir, "database.zefs")
 
 	// Empty username
-	code := zeinit.RunWithReader(strings.NewReader("\nsecret\n\n\n"), dbPath)
+	code := zeinit.RunWithReader(strings.NewReader("\nsecret\n\n\n"), dbPath, false)
 	if code == 0 {
 		t.Fatal("expected non-zero exit code for empty username")
 	}
 
 	// Empty password
-	code = zeinit.RunWithReader(strings.NewReader("admin\n\n\n\n"), dbPath)
+	code = zeinit.RunWithReader(strings.NewReader("admin\n\n\n\n"), dbPath, false)
 	if code == 0 {
 		t.Fatal("expected non-zero exit code for empty password")
 	}
@@ -160,8 +166,132 @@ func TestZeInitInteractive(t *testing.T) {
 	}
 	defer store.Close() //nolint:errcheck // test cleanup
 
-	assertStoreFile(t, store, "ssh/username", "admin")
-	assertStoreFile(t, store, "ssh/password", "secret123")
+	assertStoreFile(t, store, "meta/ssh/username", "admin")
+	assertStoreFile(t, store, "meta/ssh/password", "secret123")
+}
+
+// VALIDATES: ze init writes meta/identity/name when provided
+// PREVENTS: missing instance identity in managed deployments
+
+func TestZeInitIdentityName(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "database.zefs")
+
+	// Provide all fields: username, password, host, port, name
+	input := "admin\nsecret123\n127.0.0.1\n2222\nmy-router\n"
+
+	code := zeinit.RunWithReader(strings.NewReader(input), dbPath, false)
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d", code)
+	}
+
+	store, err := zefs.Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer store.Close() //nolint:errcheck // test cleanup
+
+	assertStoreFile(t, store, "meta/identity/name", "my-router")
+}
+
+// VALIDATES: ze init does NOT write meta/identity/name when name is empty (#4)
+// PREVENTS: empty identity key polluting the blob
+
+func TestZeInitEmptyName(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "database.zefs")
+
+	// Provide credentials but empty name
+	input := "admin\nsecret123\n127.0.0.1\n2222\n\n"
+
+	code := zeinit.RunWithReader(strings.NewReader(input), dbPath, false)
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d", code)
+	}
+
+	store, err := zefs.Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer store.Close() //nolint:errcheck // test cleanup
+
+	// meta/identity/name should NOT exist when name is empty
+	assertKeyAbsent(t, store, "meta/identity/name")
+}
+
+// VALIDATES: ze init stores name with special characters as opaque value (#10)
+// PREVENTS: path separators in name creating unexpected blob keys
+
+func TestZeInitNameSpecialChars(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"with slash", "admin\nsecret123\n\n\nmy/router\n", "my/router"},
+		{"with dots", "admin\nsecret123\n\n\n../escape\n", "../escape"},
+		{"with spaces", "admin\nsecret123\n\n\nmy router\n", "my router"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			dbPath := filepath.Join(dir, "database.zefs")
+
+			code := zeinit.RunWithReader(strings.NewReader(tt.input), dbPath, false)
+			if code != 0 {
+				t.Fatalf("expected exit code 0, got %d", code)
+			}
+
+			store, err := zefs.Open(dbPath)
+			if err != nil {
+				t.Fatalf("Open: %v", err)
+			}
+			defer store.Close() //nolint:errcheck // test cleanup
+
+			// Name is stored as a VALUE under a fixed key, not as a key path
+			assertStoreFile(t, store, "meta/identity/name", tt.want)
+		})
+	}
+}
+
+// VALIDATES: ze init writes meta/managed with managed flag
+// PREVENTS: managed mode not stored in database
+
+func TestZeInitManagedKey(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "database.zefs")
+
+	// Without managed: default false
+	input := "admin\nsecret123\n127.0.0.1\n2222\n\n"
+	code := zeinit.RunWithReader(strings.NewReader(input), dbPath, false)
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d", code)
+	}
+
+	store, err := zefs.Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	assertStoreFile(t, store, "meta/managed", "false")
+	store.Close() //nolint:errcheck // test cleanup
+
+	// With managed=true
+	dir2 := t.TempDir()
+	dbPath2 := filepath.Join(dir2, "database.zefs")
+
+	code = zeinit.RunWithReader(strings.NewReader(input), dbPath2, true)
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d", code)
+	}
+
+	store2, err := zefs.Open(dbPath2)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer store2.Close() //nolint:errcheck // test cleanup
+
+	assertStoreFile(t, store2, "meta/managed", "true")
 }
 
 func assertStoreFile(t *testing.T, store *zefs.BlobStore, key, expected string) {
@@ -173,5 +303,12 @@ func assertStoreFile(t *testing.T, store *zefs.BlobStore, key, expected string) 
 	}
 	if string(data) != expected {
 		t.Errorf("ReadFile(%s): got %q, want %q", key, string(data), expected)
+	}
+}
+
+func assertKeyAbsent(t *testing.T, store *zefs.BlobStore, key string) {
+	t.Helper()
+	if store.Has(key) {
+		t.Errorf("key %q should not exist but does", key)
 	}
 }

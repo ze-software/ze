@@ -104,15 +104,13 @@ func openOrCreateStore(dbPath string) (*zefs.BlobStore, error) {
 	return zefs.Create(dbPath)
 }
 
-// filePathToKey converts a filesystem path to a blob key.
-// Resolves to absolute path, then strips the leading slash.
+// filePathToKey converts a filesystem path to a blob key under the file/active/ namespace.
 func filePathToKey(path string) (string, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return "", fmt.Errorf("resolve %s: %w", path, err)
 	}
-	// Strip leading / to make it a valid fs.ValidPath key
-	return strings.TrimPrefix(abs, "/"), nil
+	return "file/active/" + strings.TrimPrefix(abs, "/"), nil
 }
 
 func cmdImport(dbPath string, args []string) int {
@@ -270,9 +268,10 @@ Flags:
 Examples:
   ze db import /etc/ze/router.conf /etc/ze/site-b.conf
   ze db ls
-  ze db ls etc/ze
-  ze db cat etc/ze/router.conf
-  ze db rm etc/ze/old-router.conf
+  ze db ls file/active/
+  ze db ls meta/
+  ze db cat file/active/etc/ze/router.conf
+  ze db rm file/active/etc/ze/old-router.conf
   ze db --db /tmp/test.zefs import router.conf
 `)
 }

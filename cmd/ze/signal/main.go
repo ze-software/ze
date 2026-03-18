@@ -12,7 +12,7 @@ import (
 	"os"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/sshclient"
+	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 )
 

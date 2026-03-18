@@ -126,7 +126,10 @@ func (s *blobStorage) List(prefix string) ([]string, error) {
 	result := make([]string, 0, len(entries))
 	for _, e := range entries {
 		if !e.IsDir() {
-			result = append(result, string(filepath.Separator)+filepath.Join(key, e.Name()))
+			// Return full blob key (including namespace prefix).
+			// Callers can pass these directly to ReadFile/Remove
+			// because resolveKey is idempotent for namespaced keys.
+			result = append(result, filepath.Join(key, e.Name()))
 		}
 	}
 	return result, nil
@@ -192,9 +195,32 @@ func pathToKey(path string) string {
 	return strings.TrimPrefix(path, "/")
 }
 
+// isNamespaced returns true if the key already has a meta/ or file/ namespace prefix.
+func isNamespaced(key string) bool {
+	return strings.HasPrefix(key, "file/") || strings.HasPrefix(key, "meta/")
+}
+
 // resolveKey converts a path to a blob key, resolving relative paths
-// against configDir to match the keys created during migration.
+// against configDir. Idempotent: already-namespaced keys pass through unchanged.
+// Filesystem paths get the file/active/ prefix.
+//
+// NOTE: Keys starting with "meta/" or "file/" pass through unchanged.
+// This means Storage callers passing namespaced keys (e.g., from List results)
+// can read/write them without double-prefixing. It also means a caller
+// passing "meta/ssh/password" as a name accesses the raw meta key.
 func resolveKey(name, configDir string) string {
+	trimmed := pathToKey(name)
+	if isNamespaced(trimmed) {
+		return trimmed
+	}
+
+	key := resolvePathToKey(name, configDir)
+
+	return "file/active/" + key
+}
+
+// resolvePathToKey resolves a filesystem path to a bare key (no namespace prefix).
+func resolvePathToKey(name, configDir string) string {
 	if filepath.IsAbs(name) {
 		return pathToKey(name)
 	}
@@ -238,7 +264,7 @@ func migrateExistingFiles(store *zefs.BlobStore, configDir string) {
 			if absErr != nil {
 				continue
 			}
-			key := pathToKey(abs)
+			key := "file/active/" + pathToKey(abs)
 			if wl.Has(key) {
 				continue // idempotent: skip if already in blob
 			}

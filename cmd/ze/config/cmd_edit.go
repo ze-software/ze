@@ -18,7 +18,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/sshclient"
+	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"

@@ -381,9 +381,21 @@ func TestBlobStorageList(t *testing.T) {
 	if len(matches) != 3 {
 		t.Errorf("List: got %d matches, want 3: %v", len(matches), matches)
 	}
+	// Verify specific keys, not just count (#15)
+	expected := map[string]bool{
+		"file/active/etc/ze/a.conf":       false,
+		"file/active/etc/ze/b.conf":       false,
+		"file/active/etc/ze/c.conf.draft": false,
+	}
 	for _, m := range matches {
-		if !strings.HasPrefix(m, "/") {
-			t.Errorf("List result should be absolute path: %q", m)
+		if !strings.HasPrefix(m, "file/active/") {
+			t.Errorf("List result should have file/active/ namespace prefix: %q", m)
+		}
+		expected[m] = true
+	}
+	for k, found := range expected {
+		if !found {
+			t.Errorf("expected key %q not found in List results", k)
 		}
 	}
 }
@@ -661,5 +673,178 @@ func TestBlobStorageListConfigs(t *testing.T) {
 	}
 	if confCount != 2 {
 		t.Errorf("expected 2 .conf files, got %d", confCount)
+	}
+}
+
+// --- Blob namespace tests ---
+
+// VALIDATES: config paths written via Storage get file/active/ prefix in blob
+// PREVENTS: namespace collision between metadata and config files
+
+func TestBlobStorageFilePrefix(t *testing.T) {
+	dir := t.TempDir()
+	blobPath := filepath.Join(dir, "test.zefs")
+	s, err := NewBlob(blobPath, dir)
+	if err != nil {
+		t.Fatalf("NewBlob: %v", err)
+	}
+	bs, ok := s.(*blobStorage)
+	if !ok {
+		t.Fatal("expected blobStorage type")
+	}
+	defer bs.Close() //nolint:errcheck // test cleanup
+
+	// Write via Storage (filesystem path)
+	if err := s.WriteFile("/etc/ze/router.conf", []byte("config"), 0); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	// Verify internal blob key has file/active/ prefix
+	keys := bs.store.List("")
+	found := false
+	for _, k := range keys {
+		if k == "file/active/etc/ze/router.conf" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected blob key 'file/active/etc/ze/router.conf', got keys: %v", keys)
+	}
+}
+
+// VALIDATES: resolveKey is idempotent for already-namespaced keys
+// PREVENTS: double-prefixing when List() results are passed back to ReadFile()
+
+func TestResolveKeyIdempotent(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"filesystem absolute", "/etc/ze/router.conf", "file/active/etc/ze/router.conf"},
+		{"file namespace", "file/active/etc/ze/router.conf", "file/active/etc/ze/router.conf"},
+		{"meta namespace", "meta/ssh/username", "meta/ssh/username"},
+		{"leading slash file ns", "/file/active/etc/ze/router.conf", "file/active/etc/ze/router.conf"},
+		{"leading slash meta ns", "/meta/ssh/username", "meta/ssh/username"},
+		{"file draft qualifier", "file/draft/etc/ze/router.conf", "file/draft/etc/ze/router.conf"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := resolveKey(tt.input, "")
+			if got != tt.want {
+				t.Errorf("resolveKey(%q, \"\"): got %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+
+	// Test relative path with configDir (#5)
+	t.Run("relative with configDir", func(t *testing.T) {
+		got := resolveKey("router.conf", "/etc/ze")
+		// filepath.Abs resolves against cwd, so just verify it has the prefix and suffix
+		if !strings.HasPrefix(got, "file/active/") {
+			t.Errorf("resolveKey(\"router.conf\", \"/etc/ze\"): got %q, want file/active/ prefix", got)
+		}
+		if !strings.HasSuffix(got, "etc/ze/router.conf") {
+			t.Errorf("resolveKey(\"router.conf\", \"/etc/ze\"): got %q, want etc/ze/router.conf suffix", got)
+		}
+	})
+}
+
+// VALIDATES: List returns full blob keys including namespace prefix
+// PREVENTS: callers seeing stripped keys that can't round-trip to ReadFile
+
+func TestBlobStorageListReturnsFullKeys(t *testing.T) {
+	s := newBlobStorage(t)
+
+	if err := s.WriteFile("/etc/ze/router.conf", []byte("config"), 0); err != nil {
+		t.Fatal(err)
+	}
+
+	matches, err := s.List("/etc/ze")
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(matches) != 1 {
+		t.Fatalf("List: got %d matches, want 1: %v", len(matches), matches)
+	}
+
+	key := matches[0]
+	if !strings.HasPrefix(key, "file/active/") {
+		t.Errorf("List result should have file/active/ prefix, got: %q", key)
+	}
+}
+
+// VALIDATES: List results can be passed directly to ReadFile
+// PREVENTS: broken round-trip due to namespace prefix mismatch
+
+func TestBlobStorageListRoundTrip(t *testing.T) {
+	s := newBlobStorage(t)
+
+	// Write multiple files (#11)
+	files := map[string]string{
+		"/etc/ze/router.conf": "config-1",
+		"/etc/ze/site-a.conf": "config-2",
+		"/etc/ze/site-b.conf": "config-3",
+	}
+	for path, content := range files {
+		if err := s.WriteFile(path, []byte(content), 0); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	matches, err := s.List("/etc/ze")
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(matches) != 3 {
+		t.Fatalf("List: got %d matches, want 3: %v", len(matches), matches)
+	}
+
+	// Pass each List result directly to ReadFile -- all must round-trip
+	for _, key := range matches {
+		data, readErr := s.ReadFile(key)
+		if readErr != nil {
+			t.Fatalf("ReadFile(%s): %v", key, readErr)
+		}
+		if len(data) == 0 {
+			t.Errorf("ReadFile(%s): empty data", key)
+		}
+	}
+}
+
+// VALIDATES: filesystem migration writes file/active/ prefixed keys
+// PREVENTS: migrated files landing in flat namespace
+
+func TestBlobMigrateFilesystemPrefixed(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a config file to be migrated
+	if err := os.WriteFile(filepath.Join(dir, "router.conf"), []byte("migrated"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create blob -- triggers migrateExistingFiles
+	blobPath := filepath.Join(dir, "database.zefs")
+	s, err := NewBlob(blobPath, dir)
+	if err != nil {
+		t.Fatalf("NewBlob: %v", err)
+	}
+	bs, ok := s.(*blobStorage)
+	if !ok {
+		t.Fatal("expected blobStorage type")
+	}
+	defer bs.Close() //nolint:errcheck // test cleanup
+
+	// Check that the migrated key has file/active/ prefix
+	keys := bs.store.List("")
+	found := false
+	for _, k := range keys {
+		if strings.HasPrefix(k, "file/active/") && strings.HasSuffix(k, "router.conf") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected migrated key with 'file/active/' prefix, got: %v", keys)
 	}
 }

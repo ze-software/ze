@@ -13,16 +13,19 @@ import (
 	"path/filepath"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/sshclient"
+	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
-// SSH credential keys stored in zefs.
+// SSH credential keys stored in zefs under meta/ namespace.
 const (
-	keyUsername = "ssh/username"
-	keyPassword = "ssh/password"
-	keyHost     = "ssh/host"
-	keyPort     = "ssh/port"
+	keyUsername = "meta/ssh/username"
+	keyPassword = "meta/ssh/password" //nolint:gosec // key name, not a credential
+	keyHost     = "meta/ssh/host"
+	keyPort     = "meta/ssh/port"
+
+	keyIdentityName = "meta/identity/name"
+	keyManaged      = "meta/managed"
 
 	defaultHost = "127.0.0.1"
 	defaultPort = "2222"
@@ -32,6 +35,7 @@ const (
 // Returns exit code.
 func Run(args []string) int {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
+	managedFlag := fs.Bool("managed", false, "Enable managed (fleet) mode")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze init [options]
@@ -44,14 +48,15 @@ Reads from stdin (piped) or prompts interactively:
   Line 2: password
   Line 3: host (default: 127.0.0.1)
   Line 4: port (default: 2222)
+  Line 5: name (optional instance name)
 
 Options:
 `)
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
 Examples:
-  echo -e "admin\nsecret\n127.0.0.1\n2222" | ze init
-  ze init  (interactive prompts)
+  echo -e "admin\nsecret\n127.0.0.1\n2222\nmy-router" | ze init
+  ze init --managed  (interactive prompts, managed mode)
 `)
 	}
 
@@ -67,27 +72,25 @@ Examples:
 
 	// Use interactive prompts when stdin is a terminal
 	if isTerminal(os.Stdin) {
-		return RunInteractive(os.Stdin, os.Stderr, dbPath)
+		return runInit(os.Stdin, os.Stderr, dbPath, *managedFlag)
 	}
-	return RunWithReader(os.Stdin, dbPath)
+	return runInit(os.Stdin, nil, dbPath, *managedFlag)
 }
 
 // RunWithReader creates a zefs database with SSH credentials read from r.
-// Format: one line each for username, password, host, port.
+// Format: one line each for username, password, host, port, name.
 // Empty host defaults to 127.0.0.1, empty port defaults to 2222.
-// When w is non-nil, interactive prompts are written to w.
-// Returns exit code.
-func RunWithReader(r io.Reader, dbPath string) int {
-	return runInit(r, nil, dbPath)
+func RunWithReader(r io.Reader, dbPath string, managed bool) int {
+	return runInit(r, nil, dbPath, managed)
 }
 
 // RunInteractive creates a zefs database with interactive prompts.
 // Prompts are written to w (typically os.Stderr).
 func RunInteractive(r io.Reader, w io.Writer, dbPath string) int {
-	return runInit(r, w, dbPath)
+	return runInit(r, w, dbPath, false)
 }
 
-func runInit(r io.Reader, promptW io.Writer, dbPath string) int {
+func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool) int {
 	// Check if database already exists
 	if _, err := os.Stat(dbPath); err == nil {
 		fmt.Fprintf(os.Stderr, "error: database already exists: %s\n", dbPath)
@@ -102,6 +105,13 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string) int {
 	password := promptAndRead(scanner, promptW, "password: ")
 	host := promptAndRead(scanner, promptW, "host [127.0.0.1]: ")
 	port := promptAndRead(scanner, promptW, "port [2222]: ")
+	name := promptAndRead(scanner, promptW, "name []: ")
+
+	// Check for I/O errors during reading
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: read input: %v\n", err)
+		return 1
+	}
 
 	// Validate required fields
 	if username == "" {
@@ -140,16 +150,27 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string) int {
 	type entry struct {
 		key, value string
 	}
+	managedValue := "false"
+	if managed {
+		managedValue = "true"
+	}
+
 	entries := []entry{
 		{keyUsername, username},
 		{keyPassword, password},
 		{keyHost, host},
 		{keyPort, port},
+		{keyManaged, managedValue},
+	}
+	if name != "" {
+		entries = append(entries, entry{keyIdentityName, name})
 	}
 
 	for _, e := range entries {
 		if err := store.WriteFile(e.key, []byte(e.value), 0); err != nil {
-			store.Close() //nolint:errcheck // best-effort cleanup after write failure
+			fmt.Fprintf(os.Stderr, "error: write %s: %v\n", e.key, err)
+			store.Close()     //nolint:errcheck // best-effort cleanup after write failure
+			os.Remove(dbPath) //nolint:errcheck // best-effort cleanup of partial database
 			return 1
 		}
 	}

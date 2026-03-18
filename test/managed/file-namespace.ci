@@ -1,0 +1,36 @@
+# Test: config files stored under file/active/ namespace prefix
+#
+# VALIDATES: AC-4 -- Storage layer prepends file/active/ to config paths.
+# PREVENTS: config files stored in flat namespace colliding with metadata.
+
+# This test uses ze db import to store a config file, then verifies the
+# blob key has the file/active/ prefix via ze db ls.
+
+tmpfs=test-file-namespace.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+touch daemon.ready
+
+INIT_DIR=$(mktemp -d)
+trap 'rm -rf "$INIT_DIR"' EXIT
+
+# Bootstrap database first
+printf 'admin\nsecret123\n127.0.0.1\n2222\n\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init
+
+# Import a config file
+echo "router-id 1.1.1.1" > "$INIT_DIR/test-router.conf"
+ZE_CONFIG_DIR="$INIT_DIR" ze db import "$INIT_DIR/test-router.conf"
+
+# Verify file/ namespace keys exist
+FILE_KEYS=$(ZE_CONFIG_DIR="$INIT_DIR" ze db ls file/)
+echo "$FILE_KEYS" >&2
+
+echo "$FILE_KEYS" | grep -q "file/active/" || { echo "FAIL: no file/active/ key found" >&2; exit 1; }
+
+echo "OK: config stored under file/active/ namespace" >&2
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-file-namespace.sh:timeout=10s
+expect=exit:code=0

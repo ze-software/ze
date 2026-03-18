@@ -148,6 +148,21 @@ When the daemon is running, terminal processes connect via SSH and send commands
 | Daemon running | SSH client to daemon |
 | No daemon | Ephemeral daemon started, then SSH client |
 
+## Key Namespaces
+
+Keys follow a `<namespace>/<qualifier>/<path>` convention to prevent collisions between metadata and config files.
+
+| Namespace | Purpose | Example |
+|-----------|---------|---------|
+| `meta/` | Instance metadata (credentials, identity, flags) | `meta/ssh/username`, `meta/managed` |
+| `file/active/` | Current committed config files | `file/active/etc/ze/router.conf` |
+| `file/draft/` | Live edits in progress (future) | `file/draft/etc/ze/router.conf` |
+| `file/<date>/` | Historical config versions (future) | `file/20260318-100000/etc/ze/router.conf` |
+
+The Storage interface (`internal/component/config/storage/`) translates filesystem paths to namespaced keys via `resolveKey()`. The function is idempotent: already-namespaced keys pass through unchanged, so `List()` results can be fed back to `ReadFile()` without double-prefixing.
+
+`ze db` operates on raw blob keys. `ze init` writes `meta/` keys directly.
+
 ## Implementation
 
 Reference implementation: `pkg/zefs/` in the ze repository.
