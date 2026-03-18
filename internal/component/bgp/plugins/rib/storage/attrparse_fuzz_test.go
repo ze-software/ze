@@ -35,6 +35,7 @@ func FuzzParseAttributes(f *testing.F) {
 		// If successful, entry must be valid and releasable.
 		if entry == nil {
 			t.Fatal("ParseAttributes returned nil entry without error")
+			return
 		}
 		entry.Release()
 	})

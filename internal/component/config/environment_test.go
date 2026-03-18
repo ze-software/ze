@@ -960,6 +960,7 @@ bgp {
 	envValues := ExtractEnvironment(tree)
 	if envValues == nil {
 		t.Fatal("ExtractEnvironment returned nil")
+		return
 	}
 
 	// Check log.level
@@ -1078,6 +1079,7 @@ bgp {
 	envValues := ExtractEnvironment(tree)
 	if envValues == nil {
 		t.Fatal("ExtractEnvironment returned nil")
+		return
 	}
 
 	// Empty log section should not appear in result

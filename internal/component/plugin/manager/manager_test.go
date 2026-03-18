@@ -65,6 +65,7 @@ func TestRegisterDuplicate(t *testing.T) {
 	err := mgr.Register(ze.PluginConfig{Name: "bgp-rib"})
 	if err == nil {
 		t.Fatal("expected error for duplicate, got nil")
+		return
 	}
 }
 
@@ -86,6 +87,7 @@ func TestRegisterAfterStart(t *testing.T) {
 	err := mgr.Register(ze.PluginConfig{Name: "bgp-rs"})
 	if err == nil {
 		t.Fatal("expected error for register after start, got nil")
+		return
 	}
 }
 

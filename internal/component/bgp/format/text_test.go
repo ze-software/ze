@@ -440,6 +440,7 @@ func TestFilterResultZeroValues(t *testing.T) {
 	}
 	if wire == nil {
 		t.Fatal("Failed to extract attribute bytes")
+		return
 	}
 
 	filter := bgpfilter.NewFilterAll()
@@ -485,6 +486,7 @@ func TestFilterResultBothNextHops(t *testing.T) {
 	}
 	if wire == nil {
 		t.Fatal("Failed to extract attribute bytes")
+		return
 	}
 
 	filter := bgpfilter.NewFilterAll()
@@ -546,6 +548,7 @@ func TestFilterResultCommunities(t *testing.T) {
 	}
 	if wire == nil {
 		t.Fatal("Failed to extract attribute bytes")
+		return
 	}
 
 	filter := bgpfilter.NewFilterAll()

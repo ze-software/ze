@@ -16,6 +16,7 @@ func TestAPIContextID(t *testing.T) {
 	ctx := Registry.Get(APIContextID)
 	if ctx == nil {
 		t.Fatal("APIContextID lookup returned nil")
+		return
 	}
 
 	// ASN4 must be true for API input (modern encoding)

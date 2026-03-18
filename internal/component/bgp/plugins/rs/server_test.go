@@ -195,6 +195,7 @@ func TestHandleState_Down_ZeBGPFormat(t *testing.T) {
 	rs.mu.RUnlock()
 	if peer == nil {
 		t.Fatal("peer state not created")
+		return
 	}
 	if peer.Up {
 		t.Error("expected peer to be down")
@@ -222,6 +223,7 @@ func TestHandleState_Up_ZeBGPFormat(t *testing.T) {
 	rs.mu.RUnlock()
 	if peer == nil {
 		t.Fatal("peer state not created")
+		return
 	}
 	if !peer.Up {
 		t.Error("expected peer to be up")
@@ -252,6 +254,7 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 	rs.mu.RUnlock()
 	if peer == nil {
 		t.Fatal("peer not created")
+		return
 	}
 	if !peer.Up {
 		t.Error("expected peer to be up")
@@ -283,6 +286,7 @@ func TestHandleOpen_ZeBGPFormat(t *testing.T) {
 
 	if peer == nil {
 		t.Fatal("peer not created")
+		return
 	}
 	if peer.ASN != 65001 {
 		t.Errorf("expected ASN 65001, got %d", peer.ASN)
@@ -437,6 +441,7 @@ func TestFilterReplayByFamily(t *testing.T) {
 	rs.mu.RUnlock()
 	if peer == nil {
 		t.Fatal("peer not created")
+		return
 	}
 	if !peer.Up {
 		t.Error("expected peer to be up")
@@ -498,6 +503,7 @@ func TestHandleCommand_Unknown(t *testing.T) {
 	status, _, err := rs.handleCommand("rr unknown")
 	if err == nil {
 		t.Fatal("expected error for unknown command")
+		return
 	}
 	if status != statusError {
 		t.Errorf("expected status error, got %q", status)
@@ -1550,12 +1556,14 @@ func TestTextOpenEventParseable(t *testing.T) {
 	event := parseTextOpen(payload)
 	if event == nil {
 		t.Fatal("parseTextOpen returned nil")
+		return
 	}
 	if event.PeerASN != 65001 {
 		t.Errorf("ASN = %d, want 65001", event.PeerASN)
 	}
 	if event.Open == nil {
 		t.Fatal("Open is nil")
+		return
 	}
 	if len(event.Open.Capabilities) != 2 {
 		t.Errorf("capabilities = %d, want 2", len(event.Open.Capabilities))

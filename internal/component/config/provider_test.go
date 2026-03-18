@@ -37,6 +37,7 @@ func TestLoad(t *testing.T) {
 	}
 	if tree == nil {
 		t.Fatal("Get('bgp') returned nil after Load")
+		return
 	}
 	if tree["router-id"] != "1.2.3.4" {
 		t.Errorf("router-id = %v, want '1.2.3.4'", tree["router-id"])
@@ -125,6 +126,7 @@ func TestRegisterSchemaDuplicate(t *testing.T) {
 	err := mgr.RegisterSchema("bgp-rib", "module bgp-rib {}")
 	if err == nil {
 		t.Fatal("expected error for duplicate schema, got nil")
+		return
 	}
 }
 
@@ -179,6 +181,7 @@ func TestWatch(t *testing.T) {
 	ch := mgr.Watch("bgp")
 	if ch == nil {
 		t.Fatal("Watch returned nil channel")
+		return
 	}
 
 	// Load config — watchers for "bgp" should be notified.

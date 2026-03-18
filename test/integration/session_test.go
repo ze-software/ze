@@ -256,6 +256,7 @@ func TestRequiredFamilyRejection(t *testing.T) {
 	case err := <-errChan1:
 		if err == nil {
 			t.Fatal("expected session1 to fail, but got nil error")
+			return
 		}
 		if !strings.Contains(err.Error(), "required families not negotiated") {
 			t.Fatalf("expected 'required families not negotiated' error, got: %v", err)
@@ -411,9 +412,11 @@ func TestOpenNegotiation(t *testing.T) {
 
 	if neg1 == nil {
 		t.Fatal("session1 Negotiated() is nil after Established")
+		return
 	}
 	if neg2 == nil {
 		t.Fatal("session2 Negotiated() is nil after Established")
+		return
 	}
 
 	// RFC 6793: ASN4 — both advertise (implicit via DisableASN4=false default).

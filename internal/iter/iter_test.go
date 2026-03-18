@@ -89,6 +89,7 @@ func TestElements_SingleElement(t *testing.T) {
 	elem := e.Next()
 	if elem == nil {
 		t.Fatal("got nil, want element")
+		return
 	}
 	if len(elem) != 4 {
 		t.Errorf("element length = %d, want 4", len(elem))
@@ -261,6 +262,7 @@ func TestElements_ResetClearsError(t *testing.T) {
 	e.Next() // error (truncated)
 	if e.Err() == nil {
 		t.Fatal("expected error")
+		return
 	}
 
 	e.Reset()

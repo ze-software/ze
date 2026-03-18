@@ -18,6 +18,7 @@ func TestNewWireNLRI(t *testing.T) {
 	}
 	if w == nil {
 		t.Fatal("NewWireNLRI returned nil")
+		return
 	}
 	if w.Family() != IPv4Unicast {
 		t.Errorf("Family: want %s, got %s", IPv4Unicast, w.Family())

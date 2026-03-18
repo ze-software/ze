@@ -150,12 +150,14 @@ func TestSetTCPMD5SigPlatform(t *testing.T) {
 		// On Linux/FreeBSD: expect syscall error (bad fd), not "unsupported"
 		if err == nil {
 			t.Fatal("expected error for fd=0, got nil")
+			return
 		}
 		t.Logf("supported platform error (expected): %v", err)
 	} else {
 		// On macOS/other: expect "not supported" error
 		if err == nil {
 			t.Fatal("expected unsupported error, got nil")
+			return
 		}
 		t.Logf("unsupported platform error (expected): %v", err)
 	}

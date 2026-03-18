@@ -253,6 +253,7 @@ func TestChaosListenerAcceptDelay(t *testing.T) {
 	}
 	if ln == nil {
 		t.Fatal("could not create listener after 20 attempts")
+		return
 	}
 	t.Cleanup(func() {
 		if cerr := ln.Close(); cerr != nil {
@@ -408,6 +409,7 @@ func TestChaosClockNewTimerJitter(t *testing.T) {
 	ch := timer.C()
 	if ch == nil {
 		t.Fatal("NewTimer.C() returned nil")
+		return
 	}
 
 	select {

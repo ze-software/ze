@@ -147,6 +147,7 @@ func TestNLRIStore_GetOrCreate(t *testing.T) {
 	s1 := store.GetOrCreate(1)
 	if s1 == nil {
 		t.Fatal("GetOrCreate should return non-nil")
+		return
 	}
 
 	// Second call returns same

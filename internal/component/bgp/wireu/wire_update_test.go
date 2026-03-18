@@ -67,6 +67,7 @@ func TestWireUpdate_Derived(t *testing.T) {
 	}
 	if gotAttrs == nil {
 		t.Fatal("Attrs() returned nil, want *AttributesWire")
+		return
 	}
 	packed := gotAttrs.Packed()
 	if len(packed) != len(attrs) {
@@ -193,6 +194,7 @@ func TestWireUpdate_ErrorContext(t *testing.T) {
 
 			if err == nil {
 				t.Fatalf("%s() should return error", tt.method)
+				return
 			}
 			if !errors.Is(err, ErrUpdateTruncated) {
 				t.Errorf("%s() error = %v, want ErrUpdateTruncated", tt.method, err)
@@ -325,6 +327,7 @@ func TestWireUpdate_MPReach(t *testing.T) {
 	}
 	if mpr == nil {
 		t.Fatal("MPReach() returned nil")
+		return
 	}
 
 	if mpr.AFI() != 2 {
@@ -367,6 +370,7 @@ func TestWireUpdate_MPUnreach(t *testing.T) {
 	}
 	if mpu == nil {
 		t.Fatal("MPUnreach() returned nil")
+		return
 	}
 
 	if mpu.AFI() != 2 {
@@ -448,6 +452,7 @@ func TestWireUpdate_AttrsConsistent(t *testing.T) {
 	}
 	if attrs1 == nil {
 		t.Fatal("Attrs() returned nil")
+		return
 	}
 	packed1 := attrs1.Packed()
 
@@ -483,6 +488,7 @@ func TestWireUpdate_Withdrawn_Error(t *testing.T) {
 	_, err := wu.Withdrawn()
 	if err == nil {
 		t.Fatal("Withdrawn() should return error for truncated payload")
+		return
 	}
 	if !errors.Is(err, ErrUpdateTruncated) {
 		t.Errorf("Withdrawn() error = %v, want ErrUpdateTruncated", err)
@@ -521,6 +527,7 @@ func TestWireUpdate_Attrs_Error(t *testing.T) {
 	_, err := wu.Attrs()
 	if err == nil {
 		t.Fatal("Attrs() should return error for truncated payload")
+		return
 	}
 	if !errors.Is(err, ErrUpdateTruncated) {
 		t.Errorf("Attrs() error = %v, want ErrUpdateTruncated", err)
@@ -559,6 +566,7 @@ func TestWireUpdate_NLRI_Error(t *testing.T) {
 	_, err := wu.NLRI()
 	if err == nil {
 		t.Fatal("NLRI() should return error for truncated payload")
+		return
 	}
 	if !errors.Is(err, ErrUpdateTruncated) {
 		t.Errorf("NLRI() error = %v, want ErrUpdateTruncated", err)
@@ -628,6 +636,7 @@ func TestWireUpdate_MPReach_Malformed(t *testing.T) {
 	_, err := wu.MPReach()
 	if err == nil {
 		t.Fatal("MPReach() should return error for malformed attribute")
+		return
 	}
 	if !errors.Is(err, ErrUpdateMalformed) {
 		t.Errorf("MPReach() error = %v, want ErrUpdateMalformed", err)
@@ -647,6 +656,7 @@ func TestWireUpdate_MPReach_AttrsError(t *testing.T) {
 	_, err := wu.MPReach()
 	if err == nil {
 		t.Fatal("MPReach() should return error when Attrs() fails")
+		return
 	}
 	if !errors.Is(err, ErrUpdateTruncated) {
 		t.Errorf("MPReach() error = %v, want ErrUpdateTruncated", err)
@@ -666,6 +676,7 @@ func TestWireUpdate_MPUnreach_AttrsError(t *testing.T) {
 	_, err := wu.MPUnreach()
 	if err == nil {
 		t.Fatal("MPUnreach() should return error when Attrs() fails")
+		return
 	}
 	if !errors.Is(err, ErrUpdateTruncated) {
 		t.Errorf("MPUnreach() error = %v, want ErrUpdateTruncated", err)
@@ -716,6 +727,7 @@ func TestWireUpdate_MPUnreach_Malformed(t *testing.T) {
 	_, err := wu.MPUnreach()
 	if err == nil {
 		t.Fatal("MPUnreach() should return error for malformed attribute")
+		return
 	}
 	if !errors.Is(err, ErrUpdateMalformed) {
 		t.Errorf("MPUnreach() error = %v, want ErrUpdateMalformed", err)
@@ -775,6 +787,7 @@ func TestWireUpdate_Attrs_TruncatedByOne(t *testing.T) {
 	_, err := wu.Attrs()
 	if err == nil {
 		t.Fatal("Attrs() should fail when attrs truncated by one byte")
+		return
 	}
 	if !errors.Is(err, ErrUpdateTruncated) {
 		t.Errorf("Attrs() error = %v, want ErrUpdateTruncated", err)
@@ -854,6 +867,7 @@ func TestWireUpdate_NLRI_AttrLenTruncated(t *testing.T) {
 	_, err := wu.NLRI()
 	if err == nil {
 		t.Fatal("NLRI() should fail when attrLen exceeds payload")
+		return
 	}
 	if !errors.Is(err, ErrUpdateTruncated) {
 		t.Errorf("NLRI() error = %v, want ErrUpdateTruncated", err)
@@ -896,6 +910,7 @@ func TestWireUpdate_AllSections(t *testing.T) {
 	}
 	if gotAttrs == nil {
 		t.Fatal("Attrs() = nil, want non-nil")
+		return
 	}
 	if len(gotAttrs.Packed()) != len(attrs) {
 		t.Errorf("Attrs().Packed() len = %d, want %d", len(gotAttrs.Packed()), len(attrs))
@@ -934,6 +949,7 @@ func TestWireUpdate_NLRIIterator(t *testing.T) {
 	}
 	if iter == nil {
 		t.Fatal("NLRIIterator() returned nil")
+		return
 	}
 
 	// First prefix: 10.0.0.0/8
@@ -1005,6 +1021,7 @@ func TestWireUpdate_WithdrawnIterator(t *testing.T) {
 	}
 	if iter == nil {
 		t.Fatal("WithdrawnIterator() returned nil")
+		return
 	}
 
 	// First: 10.0.0.0/8
@@ -1184,6 +1201,7 @@ func TestWireUpdate_CachedError(t *testing.T) {
 	_, err1 := wu.Withdrawn()
 	if err1 == nil {
 		t.Fatal("Withdrawn() should fail on malformed payload")
+		return
 	}
 	if !errors.Is(err1, ErrUpdateTruncated) {
 		t.Errorf("Withdrawn() error = %v, want ErrUpdateTruncated", err1)
@@ -1193,6 +1211,7 @@ func TestWireUpdate_CachedError(t *testing.T) {
 	_, err2 := wu.Attrs()
 	if err2 == nil {
 		t.Fatal("Attrs() should fail on malformed payload")
+		return
 	}
 	if !errors.Is(err2, ErrUpdateTruncated) {
 		t.Errorf("Attrs() error = %v, want ErrUpdateTruncated", err2)
@@ -1202,6 +1221,7 @@ func TestWireUpdate_CachedError(t *testing.T) {
 	_, err3 := wu.NLRI()
 	if err3 == nil {
 		t.Fatal("NLRI() should fail on malformed payload")
+		return
 	}
 	if !errors.Is(err3, ErrUpdateTruncated) {
 		t.Errorf("NLRI() error = %v, want ErrUpdateTruncated", err3)

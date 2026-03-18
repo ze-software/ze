@@ -646,6 +646,7 @@ func TestMPReachWireNLRIIterator(t *testing.T) {
 
 	if iter == nil {
 		t.Fatal("NLRIIterator() returned nil")
+		return
 	}
 
 	// Count prefixes via iterator
@@ -712,6 +713,7 @@ func TestMPUnreachWireNLRIIterator(t *testing.T) {
 
 	if iter == nil {
 		t.Fatal("NLRIIterator() returned nil")
+		return
 	}
 
 	count := 0
@@ -739,6 +741,7 @@ func TestIPv4ReachNLRIIterator(t *testing.T) {
 
 	if iter == nil {
 		t.Fatal("NLRIIterator() returned nil")
+		return
 	}
 
 	count := 0
@@ -765,6 +768,7 @@ func TestIPv4WithdrawNLRIIterator(t *testing.T) {
 
 	if iter == nil {
 		t.Fatal("NLRIIterator() returned nil")
+		return
 	}
 
 	count := 0

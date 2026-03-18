@@ -135,6 +135,7 @@ func TestMockDialerNoConn(t *testing.T) {
 	conn, err := md.DialContext(ctx, "tcp", "127.0.0.1:1790")
 	if err == nil {
 		t.Fatal("DialContext should return error for unregistered address")
+		return
 	}
 	if conn != nil {
 		t.Error("DialContext should return nil conn on error")
@@ -154,6 +155,7 @@ func TestMockDialerContextcanceled(t *testing.T) {
 	_, err := md.DialContext(ctx, "tcp", "127.0.0.1:1790")
 	if err == nil {
 		t.Fatal("DialContext should return error for canceled context")
+		return
 	}
 }
 
@@ -246,6 +248,7 @@ func TestMockListenerClose(t *testing.T) {
 	case acceptErr := <-done:
 		if acceptErr == nil {
 			t.Fatal("Accept should return error after Close")
+			return
 		}
 	case <-time.After(time.Second):
 		t.Fatal("Accept blocked after Close")

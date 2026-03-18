@@ -264,6 +264,7 @@ func TestBuildRuntimeTree_FallbackToStatic(t *testing.T) {
 	tree := buildRuntimeTree(client)
 	if tree == nil {
 		t.Fatal("buildRuntimeTree returned nil")
+		return
 	}
 
 	// Should fall back to static tree which has standard commands

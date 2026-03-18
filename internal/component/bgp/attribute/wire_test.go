@@ -57,6 +57,7 @@ func TestAttributesWireGet(t *testing.T) {
 	}
 	if attr == nil {
 		t.Fatal("Get(ORIGIN) returned nil")
+		return
 	}
 	if attr.Code() != AttrOrigin {
 		t.Errorf("Get(ORIGIN) code = %v, want ORIGIN", attr.Code())
@@ -386,6 +387,7 @@ func TestAttributesWireUnknownAttribute(t *testing.T) {
 	}
 	if attr == nil {
 		t.Fatal("Get(unknown) returned nil")
+		return
 	}
 
 	opaque, ok := attr.(*OpaqueAttribute)
@@ -491,6 +493,7 @@ func TestAttributesWireOriginatorID(t *testing.T) {
 	}
 	if attr == nil {
 		t.Fatal("Get(ORIGINATOR_ID) returned nil")
+		return
 	}
 	if attr.Code() != AttrOriginatorID {
 		t.Errorf("Code() = %v, want ORIGINATOR_ID", attr.Code())
@@ -560,6 +563,7 @@ func TestAttributesWireExtendedLength(t *testing.T) {
 	}
 	if attr == nil {
 		t.Fatal("Get(LARGE_COMMUNITY) returned nil")
+		return
 	}
 }
 
@@ -602,18 +606,21 @@ func TestAttributesWireErrorRecovery(t *testing.T) {
 	_, err1 := aw.Get(AttrOrigin)
 	if err1 == nil {
 		t.Fatal("First Get should return error for truncated data")
+		return
 	}
 
 	// Second Get should ALSO fail (not silently succeed with partial index)
 	_, err2 := aw.Get(AttrOrigin)
 	if err2 == nil {
 		t.Fatal("Second Get should also return error (index must not be partially built)")
+		return
 	}
 
 	// Has should also fail consistently
 	_, err3 := aw.Has(AttrLocalPref)
 	if err3 == nil {
 		t.Fatal("Has should return error for truncated data")
+		return
 	}
 }
 
@@ -634,18 +641,21 @@ func TestAttributesWireErrorOnFirstAttribute(t *testing.T) {
 	_, err1 := aw.Get(AttrOrigin)
 	if err1 == nil {
 		t.Fatal("First Get should return error for truncated first attribute")
+		return
 	}
 
 	// Second Get should also fail (not return nil with empty index)
 	_, err2 := aw.Get(AttrOrigin)
 	if err2 == nil {
 		t.Fatal("Second Get should return error, not nil (empty index bug)")
+		return
 	}
 
 	// All should also fail
 	_, err3 := aw.All()
 	if err3 == nil {
 		t.Fatal("All should return error for truncated data")
+		return
 	}
 }
 
@@ -735,6 +745,7 @@ func TestAttributesWireGetRaw(t *testing.T) {
 	}
 	if raw == nil {
 		t.Fatal("GetRaw(MP_REACH_NLRI) returned nil")
+		return
 	}
 
 	if !bytes.Equal(raw, mpReachValue) {

@@ -38,6 +38,7 @@ func TestPersist_SentUpdate_StoresRoute(t *testing.T) {
 	peerRoutes := ps.ribOut["10.0.0.1"]
 	if peerRoutes == nil {
 		t.Fatal("expected ribOut entry for 10.0.0.1")
+		return
 	}
 
 	route, exists := peerRoutes["ipv4/unicast|prefix 192.168.1.0/24"]
@@ -265,6 +266,7 @@ func TestPersist_HandleOpen(t *testing.T) {
 	peer := ps.peers["10.0.0.1"]
 	if peer == nil {
 		t.Fatal("expected peer state for 10.0.0.1")
+		return
 	}
 	if !peer.Families["ipv4/unicast"] {
 		t.Error("missing ipv4/unicast family")
@@ -294,6 +296,7 @@ func TestPersist_HandleOpen_ImplicitIPv4(t *testing.T) {
 	peer := ps.peers["10.0.0.1"]
 	if peer == nil {
 		t.Fatal("expected peer state")
+		return
 	}
 	if !peer.Families["ipv4/unicast"] {
 		t.Error("expected implicit ipv4/unicast family")
@@ -327,6 +330,7 @@ func TestPersist_RouteReplacement_ReleasesOld(t *testing.T) {
 
 	if route == nil {
 		t.Fatal("expected route in ribOut")
+		return
 	}
 	if route.MsgID != 43 {
 		t.Errorf("MsgID = %d, want 43 (replacement)", route.MsgID)

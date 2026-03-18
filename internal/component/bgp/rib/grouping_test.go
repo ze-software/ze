@@ -629,6 +629,7 @@ func TestGroupByAttributesTwoLevel_ASPathInBothLocations(t *testing.T) {
 	aspGroup := groups[0].ByASPath[0]
 	if aspGroup.ASPath == nil {
 		t.Fatal("ASPathGroup.ASPath is nil, expected fieldASPath")
+		return
 	}
 	if len(aspGroup.ASPath.Segments) != 1 {
 		t.Fatalf("expected 1 segment, got %d", len(aspGroup.ASPath.Segments))

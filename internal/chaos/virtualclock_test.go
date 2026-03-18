@@ -157,6 +157,7 @@ func TestVirtualClockNewTimerFires(t *testing.T) {
 	timer := vc.NewTimer(5 * time.Second)
 	if timer.C() == nil {
 		t.Fatal("NewTimer.C() returned nil")
+		return
 	}
 
 	vc.Advance(6 * time.Second)

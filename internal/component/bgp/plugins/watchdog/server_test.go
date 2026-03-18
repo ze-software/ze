@@ -104,6 +104,7 @@ func TestCommandUnknownGroup(t *testing.T) {
 	status, _, err := mgr.handleCommand("watchdog announce", []string{"nonexistent"}, "10.0.0.1")
 	if err == nil {
 		t.Fatal("expected error for nonexistent group")
+		return
 	}
 	if status != statusError {
 		t.Errorf("status = %q, want error", status)

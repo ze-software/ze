@@ -107,6 +107,7 @@ func TestPoolSetAddRemove(t *testing.T) {
 				pool := ps.GetPool(tt.poolName)
 				if pool == nil {
 					t.Fatal("GetPool returned nil")
+					return
 				}
 				routes := pool.Routes()
 				if len(routes) != tt.wantRoutes {
@@ -307,6 +308,7 @@ func TestPoolSetConcurrency(t *testing.T) {
 	pool := ps.GetPool("dns")
 	if pool == nil {
 		t.Fatal("pool should exist after concurrent operations")
+		return
 	}
 	routes := pool.Routes()
 	if len(routes) != 10 {

@@ -105,6 +105,7 @@ func TestSafeBridgeCallRecoversPanic(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("expected error from panicking bridge call, got nil")
+		return
 	}
 	if !strings.Contains(err.Error(), "plugin panic") {
 		t.Errorf("error should mention 'plugin panic', got: %v", err)

@@ -101,6 +101,7 @@ func TestRealClockNewTimer(t *testing.T) {
 	ch := timer.C()
 	if ch == nil {
 		t.Fatal("NewTimer.C() returned nil")
+		return
 	}
 
 	select {
@@ -174,6 +175,7 @@ func TestRealClockNewTicker(t *testing.T) {
 	ch := ticker.C()
 	if ch == nil {
 		t.Fatal("NewTicker.C() returned nil")
+		return
 	}
 
 	select {

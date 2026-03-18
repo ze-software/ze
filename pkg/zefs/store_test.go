@@ -139,6 +139,7 @@ func TestStoreReadMissing(t *testing.T) {
 	_, err = s.ReadFile("nonexistent")
 	if err == nil {
 		t.Fatal("expected error for missing key")
+		return
 	}
 }
 
@@ -694,6 +695,7 @@ func TestStoreInvalidKeyRejected(t *testing.T) {
 	err = s.WriteFile(".", []byte("bad"), 0)
 	if err == nil {
 		t.Fatal("expected error for invalid key")
+		return
 	}
 
 	// Store should still be usable after the rejected write
@@ -804,6 +806,7 @@ func TestStoreOpenNonexistent(t *testing.T) {
 	_, err := Open(filepath.Join(t.TempDir(), "does-not-exist.zefs"))
 	if err == nil {
 		t.Fatal("expected error opening nonexistent file")
+		return
 	}
 }
 
@@ -1146,6 +1149,7 @@ func TestStoreFSOpenMissing(t *testing.T) {
 	_, err = s.Open("nonexistent")
 	if err == nil {
 		t.Fatal("expected error for missing path")
+		return
 	}
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
@@ -1363,6 +1367,7 @@ func TestStoreCreateInNonexistentDir(t *testing.T) {
 	_, err := Create(filepath.Join(t.TempDir(), "no", "such", "dir", "test.zefs"))
 	if err == nil {
 		t.Fatal("expected error creating store in nonexistent directory")
+		return
 	}
 }
 
@@ -2111,6 +2116,7 @@ func TestStoreWriteFileConflictsWithDirectory(t *testing.T) {
 	err = s.WriteFile("a", []byte("leaf"), 0)
 	if err == nil {
 		t.Fatal("expected error writing file over existing directory, got nil")
+		return
 	}
 
 	// "a/b" should be unaffected
@@ -2145,6 +2151,7 @@ func TestStoreWriteFileLeafBecomesDirectory(t *testing.T) {
 	err = s.WriteFile("a/b", []byte("nested"), 0)
 	if err == nil {
 		t.Fatal("expected error writing nested key through existing leaf, got nil")
+		return
 	}
 
 	// Original leaf should be unaffected
@@ -2584,6 +2591,7 @@ func TestStoreEmptyKeyName(t *testing.T) {
 	// WriteFile with empty key must fail (invalid fs.ValidPath)
 	if err := s.WriteFile("", []byte("empty-key"), 0); err == nil {
 		t.Fatal("WriteFile with empty key should fail")
+		return
 	}
 
 	if err := s.Close(); err != nil {
@@ -2669,6 +2677,7 @@ func TestStoreEmptyKeyPersistence(t *testing.T) {
 	// Empty key is rejected
 	if err := s.WriteFile("", []byte("empty-key-data"), 0); err == nil {
 		t.Fatal("WriteFile with empty key should fail")
+		return
 	}
 	// Normal key still works after rejection
 	if err := s.WriteFile("normal", []byte("ok"), 0); err != nil {
@@ -3338,6 +3347,7 @@ func TestStoreWriteFileRejectsPathConflict(t *testing.T) {
 	err = s.WriteFile("a", []byte("leaf"), 0)
 	if err == nil {
 		t.Fatal("expected error writing file over directory, got nil")
+		return
 	}
 
 	// Original child should still be reachable
@@ -3356,6 +3366,7 @@ func TestStoreWriteFileRejectsPathConflict(t *testing.T) {
 	err = s.WriteFile("a/child/deeper", []byte("nope"), 0)
 	if err == nil {
 		t.Fatal("expected error writing through file, got nil")
+		return
 	}
 
 	if err := s.Close(); err != nil {
@@ -3573,6 +3584,7 @@ func TestStoreDirReadReturnsPathError(t *testing.T) {
 	_, readErr := f.Read(buf)
 	if readErr == nil {
 		t.Fatal("Read on directory should fail")
+		return
 	}
 	var pathErr *fs.PathError
 	if !errors.As(readErr, &pathErr) {
@@ -4107,6 +4119,7 @@ func TestStoreOpenDotReadError(t *testing.T) {
 	_, readErr := f.Read(buf)
 	if readErr == nil {
 		t.Fatal("Read on root dir should fail")
+		return
 	}
 	var pathErr *fs.PathError
 	if !errors.As(readErr, &pathErr) {

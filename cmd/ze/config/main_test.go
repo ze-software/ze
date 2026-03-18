@@ -92,6 +92,7 @@ func TestConfigFmtRejectsOld(t *testing.T) {
 	_, _, err := ConfigFmtBytes([]byte(input))
 	if err == nil {
 		t.Fatal("expected error for old config")
+		return
 	}
 
 	// Old syntax results in parse error (unknown field "neighbor")

@@ -229,6 +229,7 @@ func TestReceivedUpdate_EBGPWireLazyASN4(t *testing.T) {
 	}
 	if ebgpWire == nil {
 		t.Fatal("EBGPWire() returned nil")
+		return
 	}
 
 	// Verify the patched wire has localASN prepended

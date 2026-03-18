@@ -52,6 +52,7 @@ func TestShowCommandTreeReadOnly(t *testing.T) {
 	peer := tree.Children["peer"]
 	if peer == nil {
 		t.Fatal("peer missing from show tree")
+		return
 	}
 	for _, sub := range []string{"list", "detail"} {
 		if _, ok := peer.Children[sub]; !ok {
@@ -68,6 +69,7 @@ func TestShowCommandTreeReadOnly(t *testing.T) {
 	rib := tree.Children["rib"]
 	if rib == nil {
 		t.Fatal("rib missing from show tree")
+		return
 	}
 	for _, sub := range []string{"status", "routes", "best"} {
 		if _, ok := rib.Children[sub]; !ok {

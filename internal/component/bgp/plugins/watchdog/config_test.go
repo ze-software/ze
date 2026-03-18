@@ -49,6 +49,7 @@ func TestParseConfigBasic(t *testing.T) {
 	pool := pools.GetPool("dnsr")
 	if pool == nil {
 		t.Fatal("no pool named dnsr")
+		return
 	}
 
 	routes := pool.Routes()
@@ -192,11 +193,13 @@ func TestParseConfigSkipsNonWatchdog(t *testing.T) {
 	pools := peerPools["10.0.0.1"]
 	if pools == nil {
 		t.Fatal("no pools for 10.0.0.1")
+		return
 	}
 
 	pool := pools.GetPool("dns")
 	if pool == nil {
 		t.Fatal("missing dns pool")
+		return
 	}
 
 	routes := pool.Routes()
@@ -442,6 +445,7 @@ func TestParseConfigGroupAndPeerBothHaveWatchdog(t *testing.T) {
 	healthPool := pools.GetPool("health")
 	if healthPool == nil {
 		t.Fatal("missing 'health' pool from group-level watchdog")
+		return
 	}
 	if len(healthPool.Routes()) != 1 {
 		t.Fatalf("health pool: want 1 route, got %d", len(healthPool.Routes()))
@@ -450,6 +454,7 @@ func TestParseConfigGroupAndPeerBothHaveWatchdog(t *testing.T) {
 	dnsPool := pools.GetPool("dns")
 	if dnsPool == nil {
 		t.Fatal("missing 'dns' pool from peer-level watchdog")
+		return
 	}
 	if len(dnsPool.Routes()) != 1 {
 		t.Fatalf("dns pool: want 1 route, got %d", len(dnsPool.Routes()))
@@ -494,6 +499,7 @@ func TestParseConfigGroupWatchdogPeerNoUpdate(t *testing.T) {
 	healthPool := pools.GetPool("health")
 	if healthPool == nil {
 		t.Fatal("missing 'health' pool from group-level watchdog")
+		return
 	}
 	if len(healthPool.Routes()) != 1 {
 		t.Fatalf("health pool: want 1 route, got %d", len(healthPool.Routes()))

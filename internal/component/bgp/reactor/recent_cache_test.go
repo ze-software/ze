@@ -248,6 +248,7 @@ func TestCacheNoTTLConstructor(t *testing.T) {
 	defer cache.Stop()
 	if cache == nil {
 		t.Fatal("NewRecentUpdateCache(100) returned nil")
+		return
 	}
 }
 

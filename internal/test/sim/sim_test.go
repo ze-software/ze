@@ -83,6 +83,7 @@ func TestFakeClockAfterFuncReturnsTimer(t *testing.T) {
 	timer := c.AfterFunc(time.Second, func() {})
 	if timer == nil {
 		t.Fatal("AfterFunc returned nil")
+		return
 	}
 	timer.Stop()
 }
@@ -96,6 +97,7 @@ func TestFakeClockNewTimerReturnsTimer(t *testing.T) {
 	timer := c.NewTimer(time.Second)
 	if timer == nil {
 		t.Fatal("NewTimer returned nil")
+		return
 	}
 	if timer.C() == nil {
 		t.Error("NewTimer.C() returned nil, expected non-nil channel")
@@ -164,6 +166,7 @@ func TestFakeClockNewTickerReturnsTicker(t *testing.T) {
 	ticker := c.NewTicker(time.Second)
 	if ticker == nil {
 		t.Fatal("NewTicker returned nil")
+		return
 	}
 	if ticker.C() == nil {
 		t.Error("NewTicker.C() returned nil, expected non-nil channel")

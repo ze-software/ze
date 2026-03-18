@@ -53,6 +53,7 @@ func TestRunCommandTree(t *testing.T) {
 	peer := tree.Children["peer"]
 	if peer == nil {
 		t.Fatal("peer command missing from tree")
+		return
 	}
 	for _, sub := range []string{"list", "detail", "teardown", "add", "remove"} {
 		if _, ok := peer.Children[sub]; !ok {
@@ -64,6 +65,7 @@ func TestRunCommandTree(t *testing.T) {
 	daemon := tree.Children["daemon"]
 	if daemon == nil {
 		t.Fatal("daemon command missing from tree")
+		return
 	}
 	for _, sub := range []string{"status", "shutdown", "reload"} {
 		if _, ok := daemon.Children[sub]; !ok {
@@ -121,6 +123,7 @@ func TestFindNodeGroupCommand(t *testing.T) {
 	node := cmdutil.FindNode([]string{"peer"}, tree)
 	if node == nil {
 		t.Fatal("FindNode(peer) returned nil")
+		return
 	}
 	if node.Description != "" {
 		t.Errorf("peer should be a group (no Description), got %q", node.Description)
@@ -133,6 +136,7 @@ func TestFindNodeGroupCommand(t *testing.T) {
 	detailNode := cmdutil.FindNode([]string{"peer", "detail"}, tree)
 	if detailNode == nil {
 		t.Fatal("FindNode(peer detail) returned nil")
+		return
 	}
 	if detailNode.Description == "" {
 		t.Error("peer detail should have a Description")

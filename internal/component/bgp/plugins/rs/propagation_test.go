@@ -758,9 +758,11 @@ func TestOpenCreatesEmptyFamilies(t *testing.T) {
 
 	if peer == nil {
 		t.Fatal("peer not created")
+		return
 	}
 	if peer.Families == nil {
 		t.Fatal("expected non-nil Families after OPEN")
+		return
 	}
 	// RFC 4271: ipv4/unicast is always implicitly negotiated, even with no
 	// multiprotocol capabilities in the OPEN message.
@@ -811,6 +813,7 @@ func TestStateUpBeforeOpen_FamiliesNil(t *testing.T) {
 
 	if peer == nil {
 		t.Fatal("peer not created")
+		return
 	}
 	if !peer.Up {
 		t.Error("expected peer to be up")

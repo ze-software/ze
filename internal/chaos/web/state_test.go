@@ -422,6 +422,7 @@ func TestPeerStateNewAndDefaults(t *testing.T) {
 	}
 	if ps.Events == nil {
 		t.Fatal("Events ring buffer should not be nil")
+		return
 	}
 	if ps.Events.Cap() != 100 {
 		t.Fatalf("Events capacity = %d, want 100", ps.Events.Cap())

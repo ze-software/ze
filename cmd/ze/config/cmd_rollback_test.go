@@ -23,6 +23,7 @@ func TestCmdRollbackDispatch(t *testing.T) {
 	}
 	if handler == nil {
 		t.Fatal("'rollback' handler is nil")
+		return
 	}
 }
 

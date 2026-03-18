@@ -82,6 +82,7 @@ func TestRegistryGet_Exists(t *testing.T) {
 
 	if retrieved == nil {
 		t.Fatal("Get returned nil for registered context")
+		return
 	}
 
 	if retrieved.ASN4() != ctx.ASN4() {

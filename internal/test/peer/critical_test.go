@@ -331,6 +331,7 @@ func TestParseExpectRuleValidation(t *testing.T) {
 			_, err := NewChecker([]string{tt.input})
 			if err == nil {
 				t.Fatalf("expected error containing %q, got nil", tt.wantErr)
+				return
 			}
 			if !strings.Contains(err.Error(), tt.wantErr) {
 				t.Errorf("error = %q, want containing %q", err.Error(), tt.wantErr)

@@ -347,6 +347,7 @@ func TestWriteLockRejectsInvalidKey(t *testing.T) {
 	err = wl.WriteFile(".", []byte("bad-key"), 0)
 	if err == nil {
 		t.Fatal("expected error for invalid key")
+		return
 	}
 
 	// The good write should still succeed on Release
@@ -600,6 +601,7 @@ func TestReadLockReadFileMissing(t *testing.T) {
 
 	if err == nil {
 		t.Fatal("expected error for missing key")
+		return
 	}
 	var pathErr *fs.PathError
 	if !errors.As(err, &pathErr) {
@@ -626,6 +628,7 @@ func TestReadLockReadDirMissing(t *testing.T) {
 
 	if err == nil {
 		t.Fatal("expected error for missing directory")
+		return
 	}
 	if err := s.Close(); err != nil {
 		t.Fatal(err)
@@ -646,6 +649,7 @@ func TestWriteLockReadFileMissing(t *testing.T) {
 	_, err = wl.ReadFile("nonexistent")
 	if err == nil {
 		t.Fatal("expected error for missing key")
+		return
 	}
 	var pathErr *fs.PathError
 	if !errors.As(err, &pathErr) {
@@ -673,6 +677,7 @@ func TestWriteLockReadDirMissing(t *testing.T) {
 	_, err = wl.ReadDir("nonexistent")
 	if err == nil {
 		t.Fatal("expected error for missing directory")
+		return
 	}
 	if err := wl.Release(); err != nil {
 		t.Fatal(err)
@@ -1250,6 +1255,7 @@ func TestWriteLockRemoveErrorPreservesDirty(t *testing.T) {
 	// Remove nonexistent key fails, but dirty should remain true
 	if removeErr := wl.Remove("nonexistent"); removeErr == nil {
 		t.Fatal("Remove nonexistent should fail")
+		return
 	}
 
 	// Release should flush (dirty=true from the write)

@@ -122,6 +122,7 @@ func TestBgpRSDependsOnAdjRibIn(t *testing.T) {
 	reg := registry.Lookup("bgp-rs")
 	if reg == nil {
 		t.Fatal("bgp-rs not registered")
+		return
 	}
 
 	if !slices.Contains(reg.Dependencies, "bgp-adj-rib-in") {

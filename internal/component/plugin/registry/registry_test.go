@@ -497,6 +497,7 @@ func TestRegisterWithDependencies(t *testing.T) {
 	got := Lookup("plugin-a")
 	if got == nil {
 		t.Fatal("expected registration, got nil")
+		return
 	}
 	if len(got.Dependencies) != 1 || got.Dependencies[0] != "plugin-b" {
 		t.Errorf("expected Dependencies=[plugin-b], got %v", got.Dependencies)

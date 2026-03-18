@@ -90,6 +90,7 @@ func TestCreateTopicDuplicate(t *testing.T) {
 	_, err = b.CreateTopic("bgp/update")
 	if err == nil {
 		t.Fatal("expected error for duplicate topic, got nil")
+		return
 	}
 	if !strings.Contains(err.Error(), "exists") {
 		t.Fatalf("error should mention 'exists', got: %v", err)

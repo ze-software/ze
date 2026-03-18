@@ -68,6 +68,7 @@ func TestUpdateBuilder_BuildUnicast_IPv4(t *testing.T) {
 	update := ub.BuildUnicast(&params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
+		return
 	}
 
 	// IPv4 unicast should have inline NLRI, not MP_REACH
@@ -99,6 +100,7 @@ func TestUpdateBuilder_BuildUnicast_IPv6(t *testing.T) {
 	update := ub.BuildUnicast(&params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
+		return
 	}
 
 	// IPv6 unicast should NOT have inline NLRI
@@ -133,6 +135,7 @@ func TestUpdateBuilder_BuildUnicast_IPv6_LinkLocal(t *testing.T) {
 	update := ub.BuildUnicast(&params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
+		return
 	}
 
 	// IPv6 should use MP_REACH_NLRI, not inline NLRI
@@ -214,6 +217,7 @@ func TestUpdateBuilder_BuildUnicast_IPv6_NoLinkLocal(t *testing.T) {
 	update := ub.BuildUnicast(&params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
+		return
 	}
 
 	// Find MP_REACH_NLRI and check NH_LEN = 16 (global only)
@@ -259,6 +263,7 @@ func TestUpdateBuilder_BuildUnicast_IPv4_IgnoresLinkLocal(t *testing.T) {
 	update := ub.BuildUnicast(&params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
+		return
 	}
 
 	// IPv4 should use inline NLRI, not MP_REACH_NLRI
@@ -322,6 +327,7 @@ func TestUpdateBuilder_BuildUnicast_AttributeOrder(t *testing.T) {
 	update := ub.BuildUnicast(&params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
+		return
 	}
 
 	// Parse attributes and verify ordering
@@ -373,6 +379,7 @@ func TestUpdateBuilder_BuildUnicast_ASPath_EBGP(t *testing.T) {
 	update := ub.BuildUnicast(&params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
+		return
 	}
 
 	// Find AS_PATH attribute and parse it
@@ -436,6 +443,7 @@ func TestUpdateBuilder_BuildUnicast_ASPath_IBGP(t *testing.T) {
 	update := ub.BuildUnicast(&params)
 	if update == nil {
 		t.Fatal("BuildUnicast returned nil")
+		return
 	}
 
 	// Parse the AS_PATH to verify no local AS prepend
@@ -488,6 +496,7 @@ func TestUpdateBuilder_BuildVPN_IPv4(t *testing.T) {
 	update := ub.BuildVPN(&params)
 	if update == nil {
 		t.Fatal("BuildVPN returned nil")
+		return
 	}
 
 	// VPN routes should NOT have inline NLRI
@@ -527,6 +536,7 @@ func TestUpdateBuilder_BuildVPN_IPv6(t *testing.T) {
 	update := ub.BuildVPN(&params)
 	if update == nil {
 		t.Fatal("BuildVPN returned nil")
+		return
 	}
 
 	// VPN routes should NOT have inline NLRI
@@ -562,6 +572,7 @@ func TestUpdateBuilder_BuildVPN_AttributeOrder(t *testing.T) {
 	update := ub.BuildVPN(&params)
 	if update == nil {
 		t.Fatal("BuildVPN returned nil")
+		return
 	}
 
 	codes, err := extractAttributeCodes(update.PathAttributes)
@@ -602,6 +613,7 @@ func TestUpdateBuilder_BuildVPN_ExtCommunity(t *testing.T) {
 	update := ub.BuildVPN(&params)
 	if update == nil {
 		t.Fatal("BuildVPN returned nil")
+		return
 	}
 
 	codes, err := extractAttributeCodes(update.PathAttributes)
@@ -637,6 +649,7 @@ func TestUpdateBuilder_BuildMVPN_Basic(t *testing.T) {
 	update := ub.BuildMVPN([]MVPNParams{params})
 	if update == nil {
 		t.Fatal("BuildMVPN returned nil")
+		return
 	}
 
 	// MVPN routes should NOT have inline NLRI
@@ -679,6 +692,7 @@ func TestUpdateBuilder_BuildMVPN_AttributeOrder(t *testing.T) {
 	update := ub.BuildMVPN([]MVPNParams{params})
 	if update == nil {
 		t.Fatal("BuildMVPN returned nil")
+		return
 	}
 
 	codes, err := extractAttributeCodes(update.PathAttributes)
@@ -717,6 +731,7 @@ func TestUpdateBuilder_BuildVPLS_Basic(t *testing.T) {
 	update := ub.BuildVPLS(params)
 	if update == nil {
 		t.Fatal("BuildVPLS returned nil")
+		return
 	}
 
 	if len(update.NLRI) != 0 {
@@ -753,6 +768,7 @@ func TestUpdateBuilder_BuildFlowSpec_Basic(t *testing.T) {
 	update := ub.BuildFlowSpec(params)
 	if update == nil {
 		t.Fatal("BuildFlowSpec returned nil")
+		return
 	}
 
 	if len(update.NLRI) != 0 {
@@ -789,6 +805,7 @@ func TestUpdateBuilder_BuildMUP_Basic(t *testing.T) {
 	update := ub.BuildMUP(params)
 	if update == nil {
 		t.Fatal("BuildMUP returned nil")
+		return
 	}
 
 	if len(update.NLRI) != 0 {
@@ -982,6 +999,7 @@ func TestBuildGroupedUnicast_MultipleNLRIs(t *testing.T) {
 
 	if update == nil {
 		t.Fatal("BuildGroupedUnicast returned nil")
+		return
 	}
 
 	// Verify NLRI contains all 3 prefixes (each /24 = 4 bytes: 1 len + 3 prefix)
@@ -1023,6 +1041,7 @@ func TestBuildGroupedUnicast_IncludesReflectorAttrs(t *testing.T) {
 	update := mustBuildGrouped(t, ub, routes)
 	if update == nil {
 		t.Fatal("BuildGroupedUnicast returned nil")
+		return
 	}
 
 	// Verify ORIGINATOR_ID (type 9) present
@@ -1067,6 +1086,7 @@ func TestBuildGroupedUnicast_WithAddPath(t *testing.T) {
 	update := mustBuildGrouped(t, ub, routes)
 	if update == nil {
 		t.Fatal("BuildGroupedUnicast returned nil")
+		return
 	}
 
 	// With ADD-PATH: each NLRI = 4-byte PathID + 1-byte len + 3-byte prefix = 8 bytes
@@ -1393,6 +1413,7 @@ func TestBuildVPLS_Aggregator_ASN4Disabled(t *testing.T) {
 	update := ub.BuildVPLS(params)
 	if update == nil {
 		t.Fatal("BuildVPLS returned nil")
+		return
 	}
 }
 
@@ -1774,6 +1795,7 @@ func TestBuildFlowSpec_MaxSize_Fits(t *testing.T) {
 	}
 	if update == nil {
 		t.Fatal("expected non-nil UPDATE")
+		return
 	}
 }
 
@@ -1796,6 +1818,7 @@ func TestBuildFlowSpec_MaxSize_TooLarge(t *testing.T) {
 	_, err := ub.BuildFlowSpecWithMaxSize(params, 30)
 	if err == nil {
 		t.Fatal("expected ErrUpdateTooLarge, got nil")
+		return
 	}
 	if !errors.Is(err, ErrUpdateTooLarge) {
 		t.Errorf("expected ErrUpdateTooLarge, got %v", err)
@@ -1899,6 +1922,7 @@ func TestBuildUnicast_MaxSize_TooLarge(t *testing.T) {
 	_, err := ub.BuildUnicastWithMaxSize(&params, 30)
 	if err == nil {
 		t.Fatal("expected ErrUpdateTooLarge, got nil")
+		return
 	}
 	if !errors.Is(err, ErrUpdateTooLarge) {
 		t.Errorf("expected ErrUpdateTooLarge, got %v", err)
@@ -1926,6 +1950,7 @@ func TestBuildUnicast_MaxSize_Fits(t *testing.T) {
 	}
 	if update == nil {
 		t.Fatal("expected non-nil UPDATE")
+		return
 	}
 }
 
@@ -1951,6 +1976,7 @@ func TestBuildVPN_MaxSize_Fits(t *testing.T) {
 	}
 	if update == nil {
 		t.Fatal("expected non-nil UPDATE")
+		return
 	}
 }
 
@@ -1973,6 +1999,7 @@ func TestBuildVPN_MaxSize_TooLarge(t *testing.T) {
 	_, err := ub.BuildVPNWithMaxSize(&params, 30)
 	if err == nil {
 		t.Fatal("expected ErrUpdateTooLarge, got nil")
+		return
 	}
 	if !errors.Is(err, ErrUpdateTooLarge) {
 		t.Errorf("expected ErrUpdateTooLarge, got %v", err)
@@ -2000,6 +2027,7 @@ func TestBuildLabeledUnicast_MaxSize_Fits(t *testing.T) {
 	}
 	if update == nil {
 		t.Fatal("expected non-nil UPDATE")
+		return
 	}
 }
 
@@ -2021,6 +2049,7 @@ func TestBuildLabeledUnicast_MaxSize_TooLarge(t *testing.T) {
 	_, err := ub.BuildLabeledUnicastWithMaxSize(&params, 30)
 	if err == nil {
 		t.Fatal("expected ErrUpdateTooLarge, got nil")
+		return
 	}
 	if !errors.Is(err, ErrUpdateTooLarge) {
 		t.Errorf("expected ErrUpdateTooLarge, got %v", err)
@@ -2051,6 +2080,7 @@ func TestBuildVPLS_MaxSize_Fits(t *testing.T) {
 	}
 	if update == nil {
 		t.Fatal("expected non-nil UPDATE")
+		return
 	}
 }
 
@@ -2075,6 +2105,7 @@ func TestBuildVPLS_MaxSize_TooLarge(t *testing.T) {
 	_, err := ub.BuildVPLSWithMaxSize(params, 30)
 	if err == nil {
 		t.Fatal("expected ErrUpdateTooLarge, got nil")
+		return
 	}
 	if !errors.Is(err, ErrUpdateTooLarge) {
 		t.Errorf("expected ErrUpdateTooLarge, got %v", err)
@@ -2102,6 +2133,7 @@ func TestBuildEVPN_MaxSize_Fits(t *testing.T) {
 	}
 	if update == nil {
 		t.Fatal("expected non-nil UPDATE")
+		return
 	}
 }
 
@@ -2123,6 +2155,7 @@ func TestBuildEVPN_MaxSize_TooLarge(t *testing.T) {
 	_, err := ub.BuildEVPNWithMaxSize(params, 30)
 	if err == nil {
 		t.Fatal("expected ErrUpdateTooLarge, got nil")
+		return
 	}
 	if !errors.Is(err, ErrUpdateTooLarge) {
 		t.Errorf("expected ErrUpdateTooLarge, got %v", err)
@@ -2150,6 +2183,7 @@ func TestBuildMUP_MaxSize_Fits(t *testing.T) {
 	}
 	if update == nil {
 		t.Fatal("expected non-nil UPDATE")
+		return
 	}
 }
 
@@ -2171,6 +2205,7 @@ func TestBuildMUP_MaxSize_TooLarge(t *testing.T) {
 	_, err := ub.BuildMUPWithMaxSize(params, 30)
 	if err == nil {
 		t.Fatal("expected ErrUpdateTooLarge, got nil")
+		return
 	}
 	if !errors.Is(err, ErrUpdateTooLarge) {
 		t.Errorf("expected ErrUpdateTooLarge, got %v", err)

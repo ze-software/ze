@@ -22,6 +22,7 @@ func TestCmdHistoryDispatch(t *testing.T) {
 	}
 	if handler == nil {
 		t.Fatal("'history' handler is nil")
+		return
 	}
 }
 

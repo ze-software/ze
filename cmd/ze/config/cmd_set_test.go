@@ -175,6 +175,7 @@ func TestCmdSetDispatch(t *testing.T) {
 	}
 	if handler == nil {
 		t.Fatal("'set' handler is nil")
+		return
 	}
 }
 

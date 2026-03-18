@@ -96,6 +96,7 @@ func TestRegisterSubsystemDuplicate(t *testing.T) {
 	err := eng.RegisterSubsystem(newStubSubsystem("bgp", rec))
 	if err == nil {
 		t.Fatal("expected error for duplicate subsystem, got nil")
+		return
 	}
 }
 
@@ -114,6 +115,7 @@ func TestRegisterAfterStart(t *testing.T) {
 	err := eng.RegisterSubsystem(newStubSubsystem("bgp", rec))
 	if err == nil {
 		t.Fatal("expected error for register after start, got nil")
+		return
 	}
 }
 
@@ -254,6 +256,7 @@ func TestBusAccessor(t *testing.T) {
 
 	if eng.Bus() == nil {
 		t.Fatal("Bus() returned nil")
+		return
 	}
 }
 
@@ -264,6 +267,7 @@ func TestConfigAccessor(t *testing.T) {
 
 	if eng.Config() == nil {
 		t.Fatal("Config() returned nil")
+		return
 	}
 }
 
@@ -274,6 +278,7 @@ func TestPluginsAccessor(t *testing.T) {
 
 	if eng.Plugins() == nil {
 		t.Fatal("Plugins() returned nil")
+		return
 	}
 }
 
