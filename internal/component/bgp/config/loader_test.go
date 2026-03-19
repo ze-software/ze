@@ -1126,6 +1126,43 @@ bgp {
 	require.Len(t, r2.Peers(), 2, "reloaded config should have 2 peers")
 }
 
+// TestResolveSSHStorage verifies that SSH storage always resolves to blob when zefs exists.
+//
+// VALIDATES: SSH host key goes into blob store even when main store is filesystem.
+// PREVENTS: Host key written as plain file when config loaded from filesystem.
+func TestResolveSSHStorage(t *testing.T) {
+	dir := t.TempDir()
+	blobPath := filepath.Join(dir, "database.zefs")
+
+	t.Run("blob store passed through", func(t *testing.T) {
+		blob, err := storage.NewBlob(blobPath, dir)
+		require.NoError(t, err)
+		defer blob.Close() //nolint:errcheck // test
+
+		got := resolveSSHStorage(blob, dir)
+		assert.True(t, storage.IsBlobStorage(got), "blob storage should pass through")
+		got.Close() //nolint:errcheck // test
+	})
+
+	t.Run("filesystem upgraded to blob when zefs exists", func(t *testing.T) {
+		// Create zefs database first
+		blob, err := storage.NewBlob(blobPath, dir)
+		require.NoError(t, err)
+		blob.Close() //nolint:errcheck // just creating
+
+		fs := storage.NewFilesystem()
+		got := resolveSSHStorage(fs, dir)
+		assert.True(t, storage.IsBlobStorage(got), "filesystem should be upgraded to blob when zefs exists")
+		got.Close() //nolint:errcheck // test
+	})
+
+	t.Run("filesystem kept when no config dir", func(t *testing.T) {
+		fs := storage.NewFilesystem()
+		got := resolveSSHStorage(fs, "")
+		assert.False(t, storage.IsBlobStorage(got), "should stay filesystem when no config dir")
+	})
+}
+
 // TestReservedPeerNamesSyncWithRPCs verifies that reservedPeerNames in resolve.go
 // matches the subcommand keywords derived from registered RPCs.
 // This test imports plugin/all so all init() registrations have run.

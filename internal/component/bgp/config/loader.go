@@ -485,7 +485,7 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		if zefsUsers, err := loadZefsUsers(); err == nil {
 			sshCfg.Users = append(zefsUsers, sshCfg.Users...)
 		}
-		sshCfg.Storage = store
+		sshCfg.Storage = resolveSSHStorage(store, configDir)
 		sshCfg.ConfigPath = configPath
 		srv, sshErr := zessh.NewServer(sshCfg)
 		if sshErr != nil {
@@ -847,6 +847,30 @@ func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
 	}
 
 	return cfg, true
+}
+
+// resolveSSHStorage returns blob storage for SSH host key persistence.
+// When the main storage is already blob-backed, it is used directly.
+// Otherwise, opens the zefs database independently so SSH host keys
+// always go into the blob store rather than the filesystem.
+// Falls back to the passed store if zefs is not available.
+func resolveSSHStorage(mainStore storage.Storage, configDir string) storage.Storage {
+	if storage.IsBlobStorage(mainStore) {
+		return mainStore
+	}
+	dir := configDir
+	if dir == "" {
+		dir = paths.DefaultConfigDir()
+	}
+	if dir == "" {
+		return mainStore
+	}
+	dbPath := filepath.Join(dir, "database.zefs")
+	blobStore, err := storage.NewBlob(dbPath, dir)
+	if err != nil {
+		return mainStore
+	}
+	return blobStore
 }
 
 // loadZefsUsers reads SSH credentials from the zefs database (written by ze init).
