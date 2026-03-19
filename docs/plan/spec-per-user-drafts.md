@@ -20,6 +20,14 @@
 
 Replace the single shared draft file (`config.conf.draft`) with per-user change files (`config.conf.change.<user>`). Each user's edits are written immediately to their own change file. A shared draft file (`config.conf.draft`) serves as a saved checkpoint between edits and commit.
 
+### Commit backup via key rename
+
+On commit, the current `config.conf` is backed up by renaming the blob key to `config.conf-YYYYMMDD-HHMMSS.mmm`. This is an in-place key rewrite (no data copy) if the key's netcapstring capacity has room for the suffix.
+
+To ensure this, `BlobStore.writeFileNoFlush` must allocate key capacity with 16 extra bytes (length of `-YYYYMMDD-HHMMSS.mmm`) when creating keys under `file/active/`. This allows the backup rename to update only the key's used-length and data bytes without reallocating the entire entry.
+
+The Storage interface needs a `Rename(oldKey, newKey string) error` method. For filesystem storage: `os.Rename`. For blob storage: in-place key rewrite if capacity allows, otherwise realloc.
+
 ### Three-layer model
 
 | Layer | File | Purpose |
@@ -42,8 +50,8 @@ Replace the single shared draft file (`config.conf.draft`) with per-user change 
 Each change file contains only the changed entries (not a full tree). One entry per leaf, last write wins (replace on same leaf). Uses existing set+meta format:
 
 ```
-set bgp router-id 5.6.7.8 #thomas@local @2026-03-19T12:00:00Z %thomas@local:123 ^1.2.3.4
-set bgp local-as 65001 #thomas@local @2026-03-19T12:01:00Z %thomas@local:123 ^65000
+set bgp router-id 5.6.7.8 #thomas @local %2026-03-19T12:00:00Z ^1.2.3.4
+set bgp local-as 65001 #thomas @local %2026-03-19T12:01:00Z ^65000
 ```
 
 ### Conflict detection (on load and on each edit)
@@ -100,7 +108,7 @@ N/A (not protocol work)
 
 **Behavior to preserve:**
 - In-memory tree always in sync with on-disk state (write-through on each edit)
-- Metadata format: `#user @time %session ^previous` prefixes
+- Metadata format: `#user @source %time ^previous` prefixes
 - Lock-based concurrency for file writes
 - `walkOrCreateIn`, `walkOrCreateMeta`, `walkPath` navigation helpers unchanged
 - `parseConfigWithFormat` auto-detection unchanged
@@ -174,6 +182,8 @@ N/A (not protocol work)
 | AC-9 | Change file format | Contains only changed entries, not full tree |
 | AC-10 | Conflict with dead SSH session | Ignored silently, reported on reconnect |
 | AC-11 | `save` when committed config changed since editing started | Conflict detected and reported |
+| AC-13 | `commit` applies draft to config.conf | Current config.conf renamed to `config.conf-<date>` as backup before overwrite |
+| AC-14 | Blob key for config.conf created | Key netcapstring capacity includes room for `-YYYYMMDD-HHMMSS.mmm` suffix (16 extra bytes) so rename is in-place, no realloc |
 
 ## 🧪 TDD Test Plan
 
@@ -201,10 +211,13 @@ N/A (not protocol work)
 ## Files to Modify
 - `internal/component/cli/editor_session.go` - add `ChangePath`, `ChangePrefix` helpers
 - `internal/component/cli/editor_draft.go` - redirect write-through to change file, add `SaveDraft`, `DetectConflicts`
-- `internal/component/cli/editor_commit.go` - update `CommitSession` (save+commit), `DiscardSessionPath` (delete change file)
+- `internal/component/cli/editor_commit.go` - update `CommitSession` (save+commit, rename backup), `DiscardSessionPath` (delete change file)
 - `internal/component/cli/editor.go` - add fields for change file tracking
 - `internal/component/cli/model_commands.go` - update `cmdSave` to call `SaveDraft`, propagate conflicts from `cmdSet`/`cmdDelete`
 - `internal/component/cli/model.go` - update `autoSaveOnQuit`
+- `internal/component/config/storage/storage.go` - add `Rename(old, new string) error` to Storage interface
+- `internal/component/config/storage/blob.go` - implement Rename for blob storage (in-place key rewrite)
+- `pkg/zefs/store.go` - key capacity pre-allocation for `file/active/` keys (+16 bytes for date suffix), add `Rename` method
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
