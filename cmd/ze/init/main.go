@@ -9,9 +9,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -38,6 +40,7 @@ const (
 func Run(args []string) int {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	managedFlag := fs.Bool("managed", false, "Enable managed (fleet) mode")
+	forceFlag := fs.Bool("force", false, "Replace existing database (moves old to .replaced-<date>)")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze init [options]
@@ -59,6 +62,7 @@ Options:
 Examples:
   echo -e "admin\nsecret\n127.0.0.1\n2222\nmy-router" | ze init
   ze init --managed  (interactive prompts, managed mode)
+  ze init --force    (replace existing database)
 `)
 	}
 
@@ -70,6 +74,24 @@ Examples:
 	if dbPath == "" {
 		fmt.Fprintf(os.Stderr, "error: cannot determine database location\n")
 		return 1
+	}
+
+	// Handle --force: move existing database aside after confirmation.
+	if *forceFlag {
+		if _, err := os.Stat(dbPath); err == nil {
+			if daemonRunning(dbPath) {
+				fmt.Fprintf(os.Stderr, "error: daemon is running -- stop it before replacing the database\n")
+				return 1
+			}
+			if !confirmForceReplace(dbPath) {
+				fmt.Fprintf(os.Stderr, "aborted\n")
+				return 1
+			}
+			if err := moveAsideDB(dbPath); err != nil {
+				fmt.Fprintf(os.Stderr, "error: %v\n", err)
+				return 1
+			}
+		}
 	}
 
 	// Use interactive prompts when stdin is a terminal
@@ -84,6 +106,17 @@ Examples:
 // Empty host defaults to 127.0.0.1, empty port defaults to 2222.
 func RunWithReader(r io.Reader, dbPath string, managed bool) int {
 	return runInit(r, nil, dbPath, managed)
+}
+
+// RunWithReaderForce is like RunWithReader but moves an existing database aside first.
+// Used by tests and non-interactive callers where confirmation is handled externally.
+func RunWithReaderForce(r io.Reader, dbPath string, managed bool) (int, error) {
+	if _, err := os.Stat(dbPath); err == nil {
+		if err := moveAsideDB(dbPath); err != nil {
+			return 1, err
+		}
+	}
+	return runInit(r, nil, dbPath, managed), nil
 }
 
 // RunInteractive creates a zefs database with interactive prompts.
@@ -220,4 +253,70 @@ func promptAndRead(scanner *bufio.Scanner, w io.Writer, prompt string) string {
 		fmt.Fprint(w, prompt) //nolint:errcheck // terminal prompt
 	}
 	return readLine(scanner)
+}
+
+// confirmForceReplace prompts the user for confirmation before replacing an existing database.
+// Returns true only if the user types "yes" (case-insensitive). Non-interactive stdin aborts.
+func confirmForceReplace(dbPath string) bool {
+	if !isTerminal(os.Stdin) {
+		fmt.Fprintf(os.Stderr, "error: --force requires interactive confirmation (stdin is not a terminal)\n")
+		return false
+	}
+
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "  +-------------------------------------------------------+\n")
+	fmt.Fprintf(os.Stderr, "  |  WARNING: replacing the existing database              |\n")
+	fmt.Fprintf(os.Stderr, "  +-------------------------------------------------------+\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "  Database : %s\n", dbPath)
+	fmt.Fprintf(os.Stderr, "  Backup to: %s.replaced-<date>\n", filepath.Base(dbPath))
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "  SSH credentials, instance metadata, and config state\n")
+	fmt.Fprintf(os.Stderr, "  in the current database will be replaced.\n")
+	fmt.Fprintf(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "  Type 'yes' to proceed: ")
+
+	scanner := bufio.NewScanner(os.Stdin)
+	if !scanner.Scan() {
+		return false
+	}
+	return strings.EqualFold(strings.TrimSpace(scanner.Text()), "yes")
+}
+
+// daemonRunning checks if a ze daemon is reachable by reading host/port
+// from the existing database and dialing the SSH port.
+func daemonRunning(dbPath string) bool {
+	store, err := zefs.Open(dbPath)
+	if err != nil {
+		return false
+	}
+	defer store.Close() //nolint:errcheck // probe only
+
+	host := defaultHost
+	if data, err := store.ReadFile(keyHost); err == nil && len(data) > 0 {
+		host = string(data)
+	}
+	port := defaultPort
+	if data, err := store.ReadFile(keyPort); err == nil && len(data) > 0 {
+		port = string(data)
+	}
+
+	d := net.Dialer{Timeout: 2 * time.Second}
+	conn, err := d.Dial("tcp", net.JoinHostPort(host, port))
+	if err != nil {
+		return false
+	}
+	conn.Close() //nolint:errcheck // probe connection
+	return true
+}
+
+// moveAsideDB renames the existing database to <path>.replaced-<date>.
+func moveAsideDB(dbPath string) error {
+	stamp := time.Now().Format("2006-01-02T150405")
+	dest := dbPath + ".replaced-" + stamp
+	if err := os.Rename(dbPath, dest); err != nil {
+		return fmt.Errorf("move database: %w", err)
+	}
+	fmt.Fprintf(os.Stderr, "moved %s to %s\n", filepath.Base(dbPath), filepath.Base(dest))
+	return nil
 }

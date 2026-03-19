@@ -297,6 +297,91 @@ func TestZeInitManagedKey(t *testing.T) {
 	assertStoreFile(t, store2, "meta/instance/managed", "true")
 }
 
+// VALIDATES: ze init --force moves existing database aside and creates new one
+// PREVENTS: no way to reinitialize without manual file deletion
+
+func TestZeInitForce(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "database.zefs")
+
+	// Create existing database with a known value
+	store, err := zefs.Create(dbPath)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if err := store.WriteFile("meta/ssh/username", []byte("old-admin"), 0); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+	store.Close() //nolint:errcheck // test setup
+
+	// Force reinitialize
+	input := "new-admin\nnewpass\n127.0.0.1\n2222\n"
+	code, err := zeinit.RunWithReaderForce(strings.NewReader(input), dbPath, false)
+	if err != nil {
+		t.Fatalf("RunWithReaderForce: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d", code)
+	}
+
+	// New database should have new credentials
+	store2, err := zefs.Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open new: %v", err)
+	}
+	defer store2.Close() //nolint:errcheck // test cleanup
+	assertStoreFile(t, store2, "meta/ssh/username", "new-admin")
+
+	// Old database should exist as .replaced-<date>
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("ReadDir: %v", err)
+	}
+	var found bool
+	for _, e := range entries {
+		if !strings.HasPrefix(e.Name(), "database.zefs.replaced-") {
+			continue
+		}
+		found = true
+		// Verify old data is in the backup
+		backupPath := filepath.Join(dir, e.Name())
+		old, err := zefs.Open(backupPath)
+		if err != nil {
+			t.Fatalf("Open backup: %v", err)
+		}
+		assertStoreFile(t, old, "meta/ssh/username", "old-admin")
+		old.Close() //nolint:errcheck // test cleanup
+		break
+	}
+	if !found {
+		t.Fatal("old database was not moved to .replaced-<date> backup")
+	}
+}
+
+// VALIDATES: ze init --force with no existing database succeeds normally
+// PREVENTS: --force failing when there is nothing to replace
+
+func TestZeInitForceNoExisting(t *testing.T) {
+	dir := t.TempDir()
+	dbPath := filepath.Join(dir, "database.zefs")
+
+	input := "admin\nsecret\n127.0.0.1\n2222\n"
+	code, err := zeinit.RunWithReaderForce(strings.NewReader(input), dbPath, false)
+	if err != nil {
+		t.Fatalf("RunWithReaderForce: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d", code)
+	}
+
+	store, err := zefs.Open(dbPath)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer store.Close() //nolint:errcheck // test cleanup
+	assertStoreFile(t, store, "meta/ssh/username", "admin")
+}
+
 func assertStoreFile(t *testing.T, store *zefs.BlobStore, key, expected string) {
 	t.Helper()
 	data, err := store.ReadFile(key)
