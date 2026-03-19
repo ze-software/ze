@@ -94,6 +94,10 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 		return fmt.Errorf("write-through write: %w", err)
 	}
 
+	// Advance draftMtime so CheckDraftChanged does not false-positive on own writes.
+	// Uses time.Now() rather than Stat() to avoid re-acquiring the blob lock.
+	e.draftMtime = time.Now()
+
 	// Update in-memory state.
 	e.tree = tree
 	e.meta = meta
@@ -151,6 +155,9 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 	if err := guard.WriteFile(draftPath, []byte(output), 0o600); err != nil {
 		return fmt.Errorf("write-through write: %w", err)
 	}
+
+	// Advance draftMtime so CheckDraftChanged does not false-positive on own writes.
+	e.draftMtime = time.Now()
 
 	// Update in-memory state.
 	e.tree = tree
@@ -281,6 +288,11 @@ func (e *Editor) CheckDraftChanged() (changed bool, notification string) {
 	}
 
 	e.draftMtime = meta.ModTime
+
+	// If the current session made the change, silently update mtime and skip notification.
+	if meta.ModifiedBy != "" && meta.ModifiedBy == e.session.ID {
+		return false, ""
+	}
 
 	// Re-read and re-parse the draft to update in-memory state.
 	data, readErr := e.store.ReadFile(draftPath)

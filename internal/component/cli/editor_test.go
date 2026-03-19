@@ -4774,3 +4774,137 @@ func TestEditorAdoptDeclined(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(draftData), oldSession.ID, "old session should remain")
 }
+
+// TestCheckDraftChangedOwnWriteNotReported verifies that CheckDraftChanged does NOT
+// report changes made by the current session as "another session".
+//
+// VALIDATES: Own writes are not flagged as external changes.
+// PREVENTS: False "Draft updated by another session" notification after own set command.
+func TestCheckDraftChangedOwnWriteNotReported(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "test.conf")
+	err := os.WriteFile(configPath, []byte(validBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	blobPath := filepath.Join(dir, "database.zefs")
+	store, err := storage.NewBlob(blobPath, dir)
+	require.NoError(t, err)
+	defer store.Close() //nolint:errcheck // test cleanup
+
+	// Remove filesystem copy to prove reads come from blob.
+	err = os.Remove(configPath)
+	require.NoError(t, err)
+
+	ed, err := NewEditorWithStorage(store, configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("thomas", "local")
+	ed.SetSession(session)
+
+	// First set: creates draft via write-through. Seed the poll mtime.
+	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
+	require.NoError(t, err)
+
+	// Seed the draftMtime by polling once.
+	changed, _ := ed.CheckDraftChanged()
+	assert.False(t, changed, "first poll should seed mtime, not report change")
+
+	// Second set: advances draft mtime via write-through.
+	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err)
+
+	// Poll again: this is the bug scenario. The current session wrote the draft,
+	// but CheckDraftChanged must NOT report it as another session's change.
+	changed, notification := ed.CheckDraftChanged()
+	assert.False(t, changed, "own write should not be reported as external change")
+	assert.Empty(t, notification, "no notification for own writes")
+}
+
+// TestCheckDraftChangedOtherSessionReported verifies that CheckDraftChanged DOES
+// report changes made by a different session.
+//
+// VALIDATES: External writes are correctly flagged as another session's change.
+// PREVENTS: Missing notifications when another session modifies the draft.
+func TestCheckDraftChangedOtherSessionReported(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "test.conf")
+	err := os.WriteFile(configPath, []byte(validBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	blobPath := filepath.Join(dir, "database.zefs")
+	store, err := storage.NewBlob(blobPath, dir)
+	require.NoError(t, err)
+	defer store.Close() //nolint:errcheck // test cleanup
+
+	err = os.Remove(configPath)
+	require.NoError(t, err)
+
+	// Session 1: creates draft via write-through.
+	ed1, err := NewEditorWithStorage(store, configPath)
+	require.NoError(t, err)
+	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
+
+	session1 := NewEditSession("alice", "ssh")
+	ed1.SetSession(session1)
+
+	err = ed1.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
+	require.NoError(t, err)
+
+	// Session 2: shares the same store, different session.
+	ed2, err := NewEditorWithStorage(store, configPath)
+	require.NoError(t, err)
+	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
+
+	session2 := NewEditSession("bob", "ssh")
+	ed2.SetSession(session2)
+
+	// Seed ed2's draftMtime.
+	changed, _ := ed2.CheckDraftChanged()
+	assert.False(t, changed, "first poll should seed mtime")
+
+	// Session 1 writes again via write-through.
+	err = ed1.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err)
+
+	// Session 2 polls: should detect the change.
+	changed, notification := ed2.CheckDraftChanged()
+	assert.True(t, changed, "other session's write should be reported")
+	assert.Contains(t, notification, session1.ID, "notification should identify the other session")
+}
+
+// TestCheckDraftChangedFilesystemOwnWrite verifies that filesystem storage also
+// does not false-positive on own writes.
+//
+// VALIDATES: Own writes not flagged on filesystem storage (ModifiedBy is empty).
+// PREVENTS: False notification on filesystem storage where SetModifier is no-op.
+func TestCheckDraftChangedFilesystemOwnWrite(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("thomas", "local")
+	ed.SetSession(session)
+
+	// First set.
+	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
+	require.NoError(t, err)
+
+	// Seed mtime.
+	changed, _ := ed.CheckDraftChanged()
+	assert.False(t, changed, "first poll should seed mtime")
+
+	// Need a small delay to ensure filesystem mtime granularity advances.
+	time.Sleep(10 * time.Millisecond)
+
+	// Second set.
+	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err)
+
+	// Poll: must not report own write as external.
+	changed, notification := ed.CheckDraftChanged()
+	assert.False(t, changed, "own write should not be reported on filesystem storage")
+	assert.Empty(t, notification, "no notification for own writes")
+}
