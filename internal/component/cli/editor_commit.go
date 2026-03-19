@@ -148,7 +148,7 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 
 	// Write committed tree to config.conf (with user/time metadata, no session).
 	now := time.Now()
-	commitMeta := buildCommitMeta(existingMeta, draftMeta, myEntries, e.session.UserAtOrigin(), now, e.schema)
+	commitMeta := buildCommitMeta(existingMeta, draftMeta, myEntries, e.session.User, now, e.schema)
 	committedOutput := config.SerializeSetWithMeta(committedTree, commitMeta, e.schema)
 	if err := guard.WriteFile(e.originalPath, []byte(committedOutput), 0o600); err != nil {
 		return nil, fmt.Errorf("write config: %w", err)
@@ -407,10 +407,10 @@ func checkLiveConflicts(meta *config.MetaTree, mySessionID, yangPath string, pat
 
 	// Check all entries for other-session disagreements.
 	// Both myValue and otherValue come from Entry.Value (session intent).
-	// Empty Value with non-empty Session = delete intent.
+	// Empty Value with non-empty SessionKey = delete intent.
 	var conflicts []Conflict
 	for _, entry := range entries {
-		if entry.Session != mySessionID && entry.Session != "" {
+		if entry.SessionKey() != mySessionID && entry.SessionKey() != "" {
 			otherValue := entry.Value
 			if otherValue != myValue {
 				conflicts = append(conflicts, Conflict{
@@ -450,8 +450,8 @@ func buildCommitMeta(existingMeta, draftMeta *config.MetaTree, myEntries []confi
 		parentPath := pathParts[:len(pathParts)-1]
 		target := walkOrCreateMeta(commitMeta, schema, parentPath)
 		if se.Entry.Value == "" {
-			// Delete: remove metadata rather than creating a tombstone.
-			target.RemoveSessionEntry(leafName, "")
+			// Delete: remove all metadata for this leaf (not a tombstone).
+			target.RemoveEntry(leafName)
 		} else {
 			target.SetEntry(leafName, config.MetaEntry{
 				User: user,
@@ -476,7 +476,7 @@ func copyNonSessionMeta(dst, src *config.MetaTree) {
 
 	for name, entries := range src.AllEntries() {
 		for _, entry := range entries {
-			if entry.Session == "" {
+			if entry.Source == "" {
 				if _, exists := dst.GetEntry(name); !exists {
 					dst.SetEntry(name, entry)
 				}

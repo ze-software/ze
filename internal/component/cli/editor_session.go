@@ -13,18 +13,18 @@ import (
 type EditSession struct {
 	User      string    // User identifier (e.g., "thomas")
 	Origin    string    // Origin: "local" for terminal, "ssh" for SSH sessions
-	ID        string    // Full session ID: "user@origin:unix-ts"
+	ID        string    // Full session ID matching MetaEntry.SessionKey(): "user@origin:RFC3339time"
 	StartTime time.Time // When the session was created
 }
 
 // NewEditSession creates a new editing session with the given user and origin.
-// The session ID is formatted as "user@origin:unix-ts" using the current time.
+// The session ID matches MetaEntry.SessionKey() format: "user@origin:RFC3339time".
 func NewEditSession(user, origin string) *EditSession {
 	now := time.Now()
 	return &EditSession{
 		User:      user,
 		Origin:    origin,
-		ID:        fmt.Sprintf("%s@%s:%d", user, origin, now.Unix()),
+		ID:        fmt.Sprintf("%s@%s%%%s", user, origin, now.UTC().Format(time.RFC3339)),
 		StartTime: now,
 	}
 }

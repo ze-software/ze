@@ -1114,10 +1114,11 @@ func TestEditorWriteThrough(t *testing.T) {
 	assert.Contains(t, draftContent, "5.6.7.8", "draft should contain updated value")
 
 	// Draft should contain metadata with user.
-	assert.Contains(t, draftContent, "#thomas@local", "draft should contain user metadata")
+	assert.Contains(t, draftContent, "#thomas @local", "draft should contain user metadata")
 
 	// Draft should contain session metadata.
-	assert.Contains(t, draftContent, "%"+session.ID, "draft should contain session metadata")
+	assert.Contains(t, draftContent, "@"+session.Origin, "draft should contain source metadata")
+	assert.Contains(t, draftContent, "%"+session.StartTime.UTC().Format(time.RFC3339), "draft should contain time metadata")
 
 	// Draft should contain the unchanged value too.
 	assert.Contains(t, draftContent, "65000", "draft should preserve unchanged values")
@@ -1212,10 +1213,10 @@ func TestEditorWriteThroughPreservesSessions(t *testing.T) {
 	draftContent := string(draftData)
 
 	// Both sessions' metadata should be present.
-	assert.Contains(t, draftContent, "#alice@ssh", "alice's metadata should be preserved")
-	assert.Contains(t, draftContent, "#thomas@local", "thomas's metadata should be present")
-	assert.Contains(t, draftContent, "%"+session1.ID, "alice's session should be preserved")
-	assert.Contains(t, draftContent, "%"+session2.ID, "thomas's session should be present")
+	assert.Contains(t, draftContent, "#alice @ssh", "alice's metadata should be preserved")
+	assert.Contains(t, draftContent, "#thomas @local", "thomas's metadata should be present")
+	assert.Contains(t, draftContent, "@"+session1.Origin, "alice's source should be preserved")
+	assert.Contains(t, draftContent, "@"+session2.Origin, "thomas's source should be present")
 
 	// Both values should be present.
 	assert.Contains(t, draftContent, "10.0.0.1", "alice's value should be preserved")
@@ -1293,7 +1294,7 @@ func TestEditorWriteThroughListEntry(t *testing.T) {
 	// This is the critical check: if walkOrCreateMeta doesn't use schema-aware
 	// navigation, metadata gets stored in containers instead of lists, and the
 	// serializer can't find it.
-	assert.Contains(t, draftContent, "#thomas@local", "draft should contain user metadata for list entry leaf")
+	assert.Contains(t, draftContent, "#thomas @local", "draft should contain user metadata for list entry leaf")
 
 	// Verify metadata is correctly structured by re-parsing.
 	schema := config.YANGSchema()
@@ -1310,7 +1311,7 @@ func TestEditorWriteThroughListEntry(t *testing.T) {
 	require.NotNil(t, entryMeta, "peer 1.1.1.1 metadata list entry should exist")
 	entry, ok := entryMeta.GetEntry("hold-time")
 	require.True(t, ok, "hold-time metadata should exist under peer list entry")
-	assert.Equal(t, session.ID, entry.Session, "session ID should be recorded")
+	assert.Equal(t, session.ID, entry.SessionKey(), "session key should match session ID")
 	assert.Equal(t, "90", entry.Previous, "Previous should record committed hold-time value")
 }
 
@@ -1397,8 +1398,9 @@ func TestEditorCommitSession(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(configData), "5.6.7.8", "config should have committed value")
 
-	// Config.conf should NOT contain %session tokens.
-	assert.NotContains(t, string(configData), "%", "config should not contain session tokens")
+	// Config.conf should NOT contain @source tokens (committed entries have no active session source).
+	assert.NotContains(t, string(configData), "@local", "config should not contain source metadata")
+	assert.NotContains(t, string(configData), "@ssh", "config should not contain source metadata")
 
 	// Draft file should be deleted (no other sessions).
 	draftPath := DraftPath(configPath)
@@ -1733,9 +1735,9 @@ func TestEditorDiscardPreservesOtherSessions(t *testing.T) {
 	require.NoError(t, err, "draft should exist with alice's changes")
 
 	draftContent := string(draftData)
-	assert.Contains(t, draftContent, "#alice@ssh", "alice's metadata should be preserved")
+	assert.Contains(t, draftContent, "#alice @ssh", "alice's metadata should be preserved")
 	assert.Contains(t, draftContent, "10.0.0.1", "alice's value should be preserved")
-	assert.NotContains(t, draftContent, "%"+session2.ID, "thomas's session should be removed")
+	assert.NotContains(t, draftContent, "#thomas", "thomas's metadata should be removed")
 }
 
 // TestEditorConflictBlocksEntireCommit verifies that any conflict blocks the entire commit.
@@ -1866,7 +1868,7 @@ func TestEditorBlameView(t *testing.T) {
 	require.NoError(t, err)
 
 	blame := ed.BlameView()
-	assert.Contains(t, blame, "alice@ssh", "blame should include user")
+	assert.Contains(t, blame, "alice", "blame should include user")
 	assert.Contains(t, blame, "10.0.0.1", "blame should include value")
 }
 
@@ -1973,8 +1975,8 @@ func TestEditorDisconnectSession(t *testing.T) {
 	require.NoError(t, err)
 	draftContent := string(draftData)
 
-	assert.NotContains(t, draftContent, "alice@ssh", "alice should be removed")
-	assert.Contains(t, draftContent, "thomas@local", "thomas should remain")
+	assert.NotContains(t, draftContent, "#alice", "alice should be removed")
+	assert.Contains(t, draftContent, "#thomas", "thomas should remain")
 	assert.Contains(t, draftContent, "65001", "thomas's value should remain")
 }
 
@@ -2485,9 +2487,9 @@ func TestEditorCommitPreservesOtherSessions(t *testing.T) {
 	require.NoError(t, err, "draft should survive when other sessions remain")
 
 	draftContent := string(draftData)
-	assert.Contains(t, draftContent, "thomas@local", "thomas's metadata should remain")
+	assert.Contains(t, draftContent, "#thomas", "thomas's metadata should remain")
 	assert.Contains(t, draftContent, "65001", "thomas's value should remain in draft")
-	assert.NotContains(t, draftContent, "%"+session1.ID, "alice's session should be removed from draft")
+	assert.NotContains(t, draftContent, "#alice", "alice's metadata should be removed from draft")
 }
 
 // TestEditorCommitNoChanges verifies CommitSession with no pending changes.
@@ -3274,9 +3276,10 @@ func TestCommitMetadataUserInConfig(t *testing.T) {
 	configContent := string(configData)
 
 	// Should contain user annotation from commit metadata.
-	assert.Contains(t, configContent, "#thomas@local", "committed config should have user metadata")
-	// Should NOT contain session tokens.
-	assert.NotContains(t, configContent, "%", "committed config should not have session tokens")
+	assert.Contains(t, configContent, "#thomas", "committed config should have user metadata")
+	// Should NOT contain source metadata (committed entries have no active session source).
+	assert.NotContains(t, configContent, "@local", "committed config should not have source metadata")
+	assert.NotContains(t, configContent, "@ssh", "committed config should not have source metadata")
 	// Should NOT contain Previous markers.
 	assert.NotContains(t, configContent, "^", "committed config should not have Previous markers")
 }
@@ -3499,7 +3502,7 @@ func TestSecondCommitReadsSetMetaFormat(t *testing.T) {
 	// Verify config.conf is now in set+meta format.
 	configData, err := os.ReadFile(configPath)
 	require.NoError(t, err)
-	assert.Contains(t, string(configData), "#thomas@local",
+	assert.Contains(t, string(configData), "#thomas",
 		"first commit should write set+meta format with user annotation")
 
 	// Second commit: must correctly parse the set+meta format.
@@ -4192,7 +4195,7 @@ func TestWalkOrCreateMetaFlexNode(t *testing.T) {
 	target := walkOrCreateMeta(meta, schema, []string{"opts"})
 	require.NotNil(t, target)
 
-	target.SetEntry("timeout", config.MetaEntry{Session: "alice:100", Value: "30"})
+	target.SetEntry("timeout", config.MetaEntry{User: "alice", Source: "100", Value: "30"})
 	got, ok := target.GetEntry("timeout")
 	require.True(t, ok)
 	assert.Equal(t, "30", got.Value)
@@ -4211,7 +4214,7 @@ func TestWalkOrCreateMetaInlineListNode(t *testing.T) {
 	target := walkOrCreateMeta(meta, schema, []string{"routes", "10.0.0.0/24"})
 	require.NotNil(t, target)
 
-	target.SetEntry("next-hop", config.MetaEntry{Session: "alice:100", Value: "192.168.1.1"})
+	target.SetEntry("next-hop", config.MetaEntry{User: "alice", Source: "s1", Value: "192.168.1.1"})
 	got, ok := target.GetEntry("next-hop")
 	require.True(t, ok)
 	assert.Equal(t, "192.168.1.1", got.Value)
@@ -4230,7 +4233,7 @@ func TestWalkOrCreateMetaUnknownSchema(t *testing.T) {
 	target := walkOrCreateMeta(meta, schema, []string{"unknown-element"})
 	require.NotNil(t, target, "unknown path should create container as best-effort")
 
-	target.SetEntry("value", config.MetaEntry{Session: "alice:100"})
+	target.SetEntry("value", config.MetaEntry{User: "alice", Source: "s1"})
 	_, ok := target.GetEntry("value")
 	assert.True(t, ok)
 }
@@ -4259,7 +4262,7 @@ func TestWalkMetaReadOnlyFlexNode(t *testing.T) {
 	meta := config.NewMetaTree()
 
 	target := walkOrCreateMeta(meta, schema, []string{"opts"})
-	target.SetEntry("timeout", config.MetaEntry{Session: "alice:100", Value: "30"})
+	target.SetEntry("timeout", config.MetaEntry{User: "alice", Source: "100", Value: "30"})
 
 	result := walkMetaReadOnly(meta, schema, []string{"opts"})
 	require.NotNil(t, result)
@@ -4278,7 +4281,7 @@ func TestWalkMetaReadOnlyInlineListNode(t *testing.T) {
 	meta := config.NewMetaTree()
 
 	target := walkOrCreateMeta(meta, schema, []string{"routes", "10.0.0.0/24"})
-	target.SetEntry("next-hop", config.MetaEntry{Session: "alice:100", Value: "1.1.1.1"})
+	target.SetEntry("next-hop", config.MetaEntry{User: "alice", Source: "s1", Value: "1.1.1.1"})
 
 	result := walkMetaReadOnly(meta, schema, []string{"routes", "10.0.0.0/24"})
 	require.NotNil(t, result)
@@ -4501,9 +4504,9 @@ func TestCopyNonSessionMetaSkipsSessionEntries(t *testing.T) {
 	src := config.NewMetaTree()
 
 	src.SetEntry("router-id", config.MetaEntry{
-		User:    "alice",
-		Session: "alice:100",
-		Value:   "1.2.3.4",
+		User:   "alice",
+		Source: "s1",
+		Value:  "1.2.3.4",
 	})
 	src.SetEntry("local-as", config.MetaEntry{
 		User: "hand-written",
@@ -4536,16 +4539,17 @@ func TestBuildCommitMetaPreservesExisting(t *testing.T) {
 
 	draftMeta := config.NewMetaTree()
 	draftMeta.SetEntry("router-id", config.MetaEntry{
-		Session: "alice:100",
-		Value:   "1.2.3.4",
+		User:   "alice",
+		Source: "s1",
+		Value:  "1.2.3.4",
 	})
 
 	myEntries := []config.SessionEntry{
-		{Path: "router-id", Entry: config.MetaEntry{Session: "alice:100", Value: "1.2.3.4"}},
+		{Path: "router-id", Entry: config.MetaEntry{User: "alice", Source: "s1", Value: "1.2.3.4"}},
 	}
 
 	commitTime := time.Date(2026, 3, 12, 14, 0, 0, 0, time.UTC)
-	result := buildCommitMeta(existingMeta, draftMeta, myEntries, "alice@ssh", commitTime, schema)
+	result := buildCommitMeta(existingMeta, draftMeta, myEntries, "alice", commitTime, schema)
 
 	got, ok := result.GetEntry("local-as")
 	require.True(t, ok, "prior commit metadata should be preserved")
@@ -4553,9 +4557,9 @@ func TestBuildCommitMetaPreservesExisting(t *testing.T) {
 
 	got, ok = result.GetEntry("router-id")
 	require.True(t, ok)
-	assert.Equal(t, "alice@ssh", got.User)
+	assert.Equal(t, "alice", got.User)
 	assert.Equal(t, commitTime, got.Time)
-	assert.Equal(t, "", got.Session, "committed metadata should have no session ID")
+	assert.Equal(t, "", got.Source, "committed metadata should have no source (not from active session)")
 }
 
 // TestBuildCommitMetaDeleteRemoves verifies that buildCommitMeta removes metadata
@@ -4574,11 +4578,11 @@ func TestBuildCommitMetaDeleteRemoves(t *testing.T) {
 
 	draftMeta := config.NewMetaTree()
 	myEntries := []config.SessionEntry{
-		{Path: "router-id", Entry: config.MetaEntry{Session: "alice:100", Value: ""}},
+		{Path: "router-id", Entry: config.MetaEntry{User: "alice", Source: "s1", Value: ""}},
 	}
 
 	commitTime := time.Date(2026, 3, 12, 14, 0, 0, 0, time.UTC)
-	result := buildCommitMeta(existingMeta, draftMeta, myEntries, "alice@ssh", commitTime, schema)
+	result := buildCommitMeta(existingMeta, draftMeta, myEntries, "alice", commitTime, schema)
 
 	_, ok := result.GetEntry("router-id")
 	assert.False(t, ok, "delete should remove metadata, not create tombstone")
@@ -4594,16 +4598,16 @@ func TestBuildCommitMetaNilExisting(t *testing.T) {
 
 	draftMeta := config.NewMetaTree()
 	myEntries := []config.SessionEntry{
-		{Path: "router-id", Entry: config.MetaEntry{Session: "alice:100", Value: "1.2.3.4"}},
+		{Path: "router-id", Entry: config.MetaEntry{User: "alice", Source: "s1", Value: "1.2.3.4"}},
 	}
 
 	commitTime := time.Date(2026, 3, 12, 14, 0, 0, 0, time.UTC)
-	result := buildCommitMeta(nil, draftMeta, myEntries, "alice@ssh", commitTime, schema)
+	result := buildCommitMeta(nil, draftMeta, myEntries, "alice", commitTime, schema)
 	require.NotNil(t, result)
 
 	got, ok := result.GetEntry("router-id")
 	require.True(t, ok)
-	assert.Equal(t, "alice@ssh", got.User)
+	assert.Equal(t, "alice", got.User)
 }
 
 // TestCopyNonSessionMetaRecursive verifies copyNonSessionMeta traverses
@@ -4722,7 +4726,7 @@ func TestEditorAdoptSession(t *testing.T) {
 	// Verify draft has old session.
 	draftData, err := os.ReadFile(DraftPath(configPath))
 	require.NoError(t, err)
-	assert.Contains(t, string(draftData), oldSession.ID)
+	assert.Contains(t, string(draftData), "@"+oldSession.Origin, "draft should have old session origin")
 
 	// Session 2 (new) adopts the old session's entries.
 	// Use "ssh" origin so the session ID differs even within the same second.
@@ -4736,12 +4740,12 @@ func TestEditorAdoptSession(t *testing.T) {
 	err = ed2.AdoptSession(oldSession.ID)
 	require.NoError(t, err)
 
-	// Draft should now have new session ID, not old.
+	// Draft should now have new session's origin, not old.
 	draftData, err = os.ReadFile(DraftPath(configPath))
 	require.NoError(t, err)
 	draftContent := string(draftData)
-	assert.NotContains(t, draftContent, oldSession.ID, "old session should be gone")
-	assert.Contains(t, draftContent, newSession.ID, "new session should be present")
+	assert.NotContains(t, draftContent, "@"+oldSession.Origin+" ", "old session origin should be gone")
+	assert.Contains(t, draftContent, "@"+newSession.Origin, "new session origin should be present")
 }
 
 // TestEditorAdoptDeclined verifies that declining adoption leaves entries unchanged.
@@ -4772,7 +4776,7 @@ func TestEditorAdoptDeclined(t *testing.T) {
 	// Draft should still have old session.
 	draftData, err := os.ReadFile(DraftPath(configPath))
 	require.NoError(t, err)
-	assert.Contains(t, string(draftData), oldSession.ID, "old session should remain")
+	assert.Contains(t, string(draftData), "#"+oldSession.User, "old session user should remain")
 }
 
 // TestCheckDraftChangedOwnWriteNotReported verifies that CheckDraftChanged does NOT

@@ -29,7 +29,7 @@ option=session:user=thomas:origin=local
 input=type:text=set bgp local-as 65001
 input=enter
 expect=dirty:true
-expect=file:path=test.conf.draft:contains=thomas@local
+expect=file:path=test.conf.draft:contains=#thomas @local
 `
 	result := RunETTest(et)
 	if !result.Passed {
@@ -61,8 +61,8 @@ input=type:text=set bgp router-id 5.6.7.8
 input=enter
 expect=dirty:true
 
-expect=file:path=test.conf.draft:contains=alice@ssh
-expect=file:path=test.conf.draft:contains=bob@ssh
+expect=file:path=test.conf.draft:contains=#alice @ssh
+expect=file:path=test.conf.draft:contains=#bob @ssh
 `
 	result := RunETTest(et)
 	if !result.Passed {

@@ -270,21 +270,21 @@ func TestSerializeSetWithMeta(t *testing.T) {
 
 	meta := NewMetaTree()
 	meta.SetEntry("router-id", MetaEntry{
-		User:    "thomas@local",
-		Time:    time.Date(2026, 3, 12, 14, 30, 1, 0, time.UTC),
-		Session: "thomas@local:1741783801",
+		User:   "thomas",
+		Source: "local",
+		Time:   time.Date(2026, 3, 12, 14, 30, 1, 0, time.UTC),
 	})
 	meta.SetEntry("local-as", MetaEntry{
-		User:    "alice@ssh",
-		Time:    time.Date(2026, 3, 12, 14, 31, 0, 0, time.UTC),
-		Session: "alice@ssh:1741783860",
+		User:   "alice",
+		Source: "ssh",
+		Time:   time.Date(2026, 3, 12, 14, 31, 0, 0, time.UTC),
 	})
 
 	schema := testSchema()
 	output := SerializeSetWithMeta(tree, meta, schema)
 
-	assert.Contains(t, output, "#thomas@local @2026-03-12T14:30:01Z %thomas@local:1741783801 set router-id 1.2.3.4\n")
-	assert.Contains(t, output, "#alice@ssh @2026-03-12T14:31:00Z %alice@ssh:1741783860 set local-as 65000\n")
+	assert.Contains(t, output, "#thomas @local %2026-03-12T14:30:01Z set router-id 1.2.3.4\n")
+	assert.Contains(t, output, "#alice @ssh %2026-03-12T14:31:00Z set local-as 65000\n")
 }
 
 // TestSerializeSetWithMetaNested verifies metadata serialization for nested paths.
@@ -302,15 +302,15 @@ func TestSerializeSetWithMetaNested(t *testing.T) {
 	neighbor := meta.GetOrCreateContainer("neighbor")
 	peer := neighbor.GetOrCreateListEntry("192.0.2.1")
 	peer.SetEntry("local-as", MetaEntry{
-		User:    "thomas@local",
-		Time:    time.Date(2026, 3, 12, 14, 30, 1, 0, time.UTC),
-		Session: "thomas@local:1741783801",
+		User:   "thomas",
+		Source: "local",
+		Time:   time.Date(2026, 3, 12, 14, 30, 1, 0, time.UTC),
 	})
 
 	schema := testSchema()
 	output := SerializeSetWithMeta(tree, meta, schema)
 
-	assert.Contains(t, output, "#thomas@local @2026-03-12T14:30:01Z %thomas@local:1741783801 set neighbor 192.0.2.1 local-as 65000\n")
+	assert.Contains(t, output, "#thomas @local %2026-03-12T14:30:01Z set neighbor 192.0.2.1 local-as 65000\n")
 }
 
 // TestSerializeSetWithMetaMixed verifies lines without metadata emit bare set commands.
@@ -326,15 +326,15 @@ func TestSerializeSetWithMetaMixed(t *testing.T) {
 	meta := NewMetaTree()
 	// Only router-id has metadata
 	meta.SetEntry("router-id", MetaEntry{
-		User:    "thomas@local",
-		Time:    time.Date(2026, 3, 12, 14, 30, 1, 0, time.UTC),
-		Session: "thomas@local:1741783801",
+		User:   "thomas",
+		Source: "local",
+		Time:   time.Date(2026, 3, 12, 14, 30, 1, 0, time.UTC),
 	})
 
 	schema := testSchema()
 	output := SerializeSetWithMeta(tree, meta, schema)
 
-	assert.Contains(t, output, "#thomas@local @2026-03-12T14:30:01Z %thomas@local:1741783801 set router-id 1.2.3.4\n")
+	assert.Contains(t, output, "#thomas @local %2026-03-12T14:30:01Z set router-id 1.2.3.4\n")
 	// local-as should be a bare set line without metadata prefix
 	assert.Contains(t, output, "\nset local-as 65000\n")
 }
@@ -351,8 +351,9 @@ func TestSerializeBlame(t *testing.T) {
 
 	meta := NewMetaTree()
 	meta.SetEntry("router-id", MetaEntry{
-		User: "thomas@local",
-		Time: time.Date(2026, 3, 12, 14, 30, 1, 0, time.UTC),
+		User:   "thomas",
+		Source: "local",
+		Time:   time.Date(2026, 3, 12, 14, 30, 1, 0, time.UTC),
 	})
 
 	schema := testSchema()
@@ -364,7 +365,7 @@ func TestSerializeBlame(t *testing.T) {
 	// Line with metadata: fixed-width gutter (29 chars) + content
 	assert.Equal(t, blameGutterWidth, 29, "gutter width constant")
 	routerLine := lines[0]
-	assert.Equal(t, "thomas@local  03-12 14:30  + router-id 1.2.3.4", routerLine)
+	assert.Equal(t, "thomas        03-12 14:30  + router-id 1.2.3.4", routerLine)
 	// Gutter portion is exactly blameGutterWidth characters
 	assert.Equal(t, blameGutterWidth, len(routerLine)-len("router-id 1.2.3.4"))
 
@@ -488,7 +489,7 @@ func TestFormatAutoDetect(t *testing.T) {
 		},
 		{
 			name:   "metadata prefix",
-			input:  "#thomas@local @2026-03-12T14:30:01 set router-id 1.2.3.4\n",
+			input:  "#thomas @local %2026-03-12T14:30:01Z set router-id 1.2.3.4\n",
 			expect: FormatSetMeta,
 		},
 		{
@@ -644,23 +645,25 @@ func TestSerializeSetWithMetaContested(t *testing.T) {
 	meta := NewMetaTree()
 	// Session A set the value first
 	meta.SetEntry("router-id", MetaEntry{
-		User:    "alice",
-		Session: "alice:100",
-		Value:   "10.0.0.1",
+		User:   "alice",
+		Source: "local",
+		Time:   time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC),
+		Value:  "10.0.0.1",
 	})
 	// Session B set a different value (overwrites in tree, but meta keeps both)
 	meta.SetEntry("router-id", MetaEntry{
-		User:    "bob",
-		Session: "bob:200",
-		Value:   "1.2.3.4",
+		User:   "bob",
+		Source: "ssh",
+		Time:   time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC),
+		Value:  "1.2.3.4",
 	})
 
 	schema := testSchema()
 	output := SerializeSetWithMeta(tree, meta, schema)
 
 	// Should have two lines for router-id, one per session
-	assert.Contains(t, output, "#alice %alice:100 set router-id 10.0.0.1\n")
-	assert.Contains(t, output, "#bob %bob:200 set router-id 1.2.3.4\n")
+	assert.Contains(t, output, "#alice @local %2026-01-01T10:00:00Z set router-id 10.0.0.1\n")
+	assert.Contains(t, output, "#bob @ssh %2026-01-01T11:00:00Z set router-id 1.2.3.4\n")
 }
 
 // TestSerializeSetWithMetaContestedDelete verifies contested leaf where one
@@ -676,22 +679,24 @@ func TestSerializeSetWithMetaContestedDelete(t *testing.T) {
 	meta := NewMetaTree()
 	// Session A sets the value
 	meta.SetEntry("router-id", MetaEntry{
-		User:    "alice",
-		Session: "alice:100",
-		Value:   "1.2.3.4",
+		User:   "alice",
+		Source: "local",
+		Time:   time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC),
+		Value:  "1.2.3.4",
 	})
-	// Session B deletes the value (Value="" with Session)
+	// Session B deletes the value (Value="" with Source+Time)
 	meta.SetEntry("router-id", MetaEntry{
-		User:    "bob",
-		Session: "bob:200",
-		Value:   "",
+		User:   "bob",
+		Source: "ssh",
+		Time:   time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC),
+		Value:  "",
 	})
 
 	schema := testSchema()
 	output := SerializeSetWithMeta(tree, meta, schema)
 
-	assert.Contains(t, output, "#alice %alice:100 set router-id 1.2.3.4\n")
-	assert.Contains(t, output, "#bob %bob:200 delete router-id\n")
+	assert.Contains(t, output, "#alice @local %2026-01-01T10:00:00Z set router-id 1.2.3.4\n")
+	assert.Contains(t, output, "#bob @ssh %2026-01-01T11:00:00Z delete router-id\n")
 }
 
 // TestSerializeSetWithMetaOrphanDelete verifies orphan metadata (meta entry
@@ -707,15 +712,17 @@ func TestSerializeSetWithMetaOrphanDelete(t *testing.T) {
 
 	meta := NewMetaTree()
 	meta.SetEntry("local-as", MetaEntry{
-		User:    "alice",
-		Session: "alice:100",
-		Value:   "65000",
+		User:   "alice",
+		Source: "local",
+		Time:   time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC),
+		Value:  "65000",
 	})
 	// Orphan: session deleted router-id, metadata remains
 	meta.SetEntry("router-id", MetaEntry{
-		User:    "bob",
-		Session: "bob:200",
-		Value:   "",
+		User:   "bob",
+		Source: "ssh",
+		Time:   time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC),
+		Value:  "",
 	})
 
 	schema := testSchema()
@@ -724,7 +731,7 @@ func TestSerializeSetWithMetaOrphanDelete(t *testing.T) {
 	// local-as should be a normal set line
 	assert.Contains(t, output, "set local-as 65000")
 	// router-id should appear as a delete line from orphan metadata
-	assert.Contains(t, output, "#bob %bob:200 delete router-id\n")
+	assert.Contains(t, output, "#bob @ssh %2026-01-01T11:00:00Z delete router-id\n")
 }
 
 // TestSerializeSetWithMetaOrphanRoundTrip verifies orphan delete metadata
@@ -739,14 +746,16 @@ func TestSerializeSetWithMetaOrphanRoundTrip(t *testing.T) {
 
 	meta := NewMetaTree()
 	meta.SetEntry("local-as", MetaEntry{
-		User:    "alice",
-		Session: "alice:100",
-		Value:   "65000",
+		User:   "alice",
+		Source: "local",
+		Time:   time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC),
+		Value:  "65000",
 	})
 	meta.SetEntry("router-id", MetaEntry{
-		User:    "bob",
-		Session: "bob:200",
-		Value:   "",
+		User:   "bob",
+		Source: "ssh",
+		Time:   time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC),
+		Value:  "",
 	})
 
 	schema := testSchema()
@@ -776,25 +785,26 @@ func TestSerializeSetWithMetaContestedWithCommitted(t *testing.T) {
 	tree.Set("router-id", "1.2.3.4")
 
 	meta := NewMetaTree()
-	// Committed entry (no session, no value -- tree value is the committed value)
+	// Committed entry (no source/time session info, no value -- tree value is the committed value)
 	meta.SetEntry("router-id", MetaEntry{
 		User: "alice",
 		Time: time.Date(2026, 3, 12, 10, 0, 0, 0, time.UTC),
 	})
 	// Session entry with different value
 	meta.SetEntry("router-id", MetaEntry{
-		User:    "bob",
-		Session: "bob:200",
-		Value:   "10.0.0.1",
+		User:   "bob",
+		Source: "ssh",
+		Time:   time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC),
+		Value:  "10.0.0.1",
 	})
 
 	schema := testSchema()
 	output := SerializeSetWithMeta(tree, meta, schema)
 
 	// Committed entry should use tree value "1.2.3.4"
-	assert.Contains(t, output, "#alice @2026-03-12T10:00:00Z set router-id 1.2.3.4\n")
+	assert.Contains(t, output, "#alice %2026-03-12T10:00:00Z set router-id 1.2.3.4\n")
 	// Session entry should use its own value
-	assert.Contains(t, output, "#bob %bob:200 set router-id 10.0.0.1\n")
+	assert.Contains(t, output, "#bob @ssh %2026-01-01T11:00:00Z set router-id 10.0.0.1\n")
 }
 
 // TestFormatAutoDetectMetaPrefixes verifies format detection for all metadata prefix types.
@@ -807,8 +817,8 @@ func TestFormatAutoDetectMetaPrefixes(t *testing.T) {
 		name  string
 		input string
 	}{
-		{name: "timestamp prefix", input: "@2026-03-12T14:30:01Z set router-id 1.2.3.4\n"},
-		{name: "session prefix", input: "%thomas@local:123 set router-id 1.2.3.4\n"},
+		{name: "source prefix", input: "@local set router-id 1.2.3.4\n"},
+		{name: "timestamp prefix", input: "%2026-03-12T14:30:01Z set router-id 1.2.3.4\n"},
 		{name: "previous prefix", input: "^oldvalue set router-id 1.2.3.4\n"},
 		{name: "user hash no space", input: "#thomas set router-id 1.2.3.4\n"},
 	}
@@ -840,9 +850,9 @@ func TestBlameGutterWidth(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			entry := MetaEntry{
-				User:    tt.user,
-				Time:    time.Date(2026, 3, 12, 14, 30, 0, 0, time.UTC),
-				Session: tt.user + "@local:12345",
+				User:   tt.user,
+				Source: "local",
+				Time:   time.Date(2026, 3, 12, 14, 30, 0, 0, time.UTC),
 			}
 
 			var b strings.Builder
@@ -881,16 +891,17 @@ func TestWriteDeleteMetaLinesSessionSetTreeDeleted(t *testing.T) {
 	meta := NewMetaTree()
 	// alice set router-id to 10.0.0.1, but the tree value was removed by bob
 	meta.SetEntry("router-id", MetaEntry{
-		User:    "alice",
-		Session: "alice:100",
-		Value:   "10.0.0.1",
+		User:   "alice",
+		Source: "local",
+		Time:   time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC),
+		Value:  "10.0.0.1",
 	})
 
 	schema := testSchema()
 	output := SerializeSetWithMeta(tree, meta, schema)
 
 	// Should emit a "set" line with alice's value (not "delete")
-	assert.Contains(t, output, "#alice %alice:100 set router-id 10.0.0.1\n",
+	assert.Contains(t, output, "#alice @local %2026-01-01T10:00:00Z set router-id 10.0.0.1\n",
 		"orphan meta with Value should emit set line preserving session's intent")
 	assert.NotContains(t, output, "delete router-id",
 		"should not emit delete when session's intent was to set")
@@ -909,21 +920,23 @@ func TestWriteDeleteMetaLinesMixedOrphans(t *testing.T) {
 	meta := NewMetaTree()
 	// alice wants to set, bob wants to delete
 	meta.SetEntry("router-id", MetaEntry{
-		User:    "alice",
-		Session: "alice:100",
-		Value:   "10.0.0.1",
+		User:   "alice",
+		Source: "local",
+		Time:   time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC),
+		Value:  "10.0.0.1",
 	})
 	meta.SetEntry("router-id", MetaEntry{
-		User:    "bob",
-		Session: "bob:200",
-		Value:   "",
+		User:   "bob",
+		Source: "ssh",
+		Time:   time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC),
+		Value:  "",
 	})
 
 	schema := testSchema()
 	output := SerializeSetWithMeta(tree, meta, schema)
 
-	assert.Contains(t, output, "#alice %alice:100 set router-id 10.0.0.1\n")
-	assert.Contains(t, output, "#bob %bob:200 delete router-id\n")
+	assert.Contains(t, output, "#alice @local %2026-01-01T10:00:00Z set router-id 10.0.0.1\n")
+	assert.Contains(t, output, "#bob @ssh %2026-01-01T11:00:00Z delete router-id\n")
 }
 
 // TestSerializeSetWithMetaPresenceContainer verifies metadata on presence
@@ -945,12 +958,12 @@ func TestSerializeSetWithMetaPresenceContainer(t *testing.T) {
 	tree.Set("passive", configTrue)
 
 	meta := NewMetaTree()
-	meta.SetEntry("router-id", MetaEntry{User: "alice", Session: "alice:100", Value: "1.2.3.4"})
-	meta.SetEntry("passive", MetaEntry{User: "alice", Session: "alice:100"})
+	meta.SetEntry("router-id", MetaEntry{User: "alice", Source: "local", Time: time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC), Value: "1.2.3.4"})
+	meta.SetEntry("passive", MetaEntry{User: "alice", Source: "local", Time: time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC)})
 
 	output := SerializeSetWithMeta(tree, meta, schema)
-	assert.Contains(t, output, "#alice %alice:100 set router-id 1.2.3.4\n")
-	assert.Contains(t, output, "#alice %alice:100 set passive\n")
+	assert.Contains(t, output, "#alice @local %2026-01-01T10:00:00Z set router-id 1.2.3.4\n")
+	assert.Contains(t, output, "#alice @local %2026-01-01T10:00:00Z set passive\n")
 }
 
 // TestDetectFormatEmptyFile verifies that empty and comment-only files are detected as FormatSet.

@@ -56,7 +56,7 @@ func DetectFormat(content string) ConfigFormat {
 			return FormatSetMeta
 		}
 
-		// @timestamp, %session, ^previous are also metadata prefixes
+		// @source, %timestamp, ^previous are also metadata prefixes
 		if line[0] == '@' || line[0] == '%' || line[0] == '^' {
 			return FormatSetMeta
 		}
@@ -375,21 +375,21 @@ func SerializeSetWithMeta(tree *Tree, meta *MetaTree, schema *Schema) string {
 }
 
 // writeMetaPrefix writes the metadata prefix for a leaf entry.
-// Format: #user @ISO8601 %session ^previous (each present only if non-empty).
+// Format: #user @source %ISO8601 ^previous (each present only if non-empty).
 func writeMetaPrefix(b *strings.Builder, e MetaEntry) {
 	if e.User != "" {
 		b.WriteString("#")
 		b.WriteString(e.User)
 		b.WriteString(" ")
 	}
-	if !e.Time.IsZero() {
+	if e.Source != "" {
 		b.WriteString("@")
-		b.WriteString(e.Time.UTC().Format(time.RFC3339))
+		b.WriteString(e.Source)
 		b.WriteString(" ")
 	}
-	if e.Session != "" {
+	if !e.Time.IsZero() {
 		b.WriteString("%")
-		b.WriteString(e.Session)
+		b.WriteString(e.Time.UTC().Format(time.RFC3339))
 		b.WriteString(" ")
 	}
 	if e.Previous != "" {
@@ -504,8 +504,8 @@ func writeMetaLeafLine(b *strings.Builder, meta *MetaTree, name, pathPrefix, val
 			// Contested leaf: emit one line per session entry with its own value.
 			for _, e := range entries {
 				writeMetaPrefix(b, e)
-				if e.Value == "" && e.Session != "" {
-					// This session deleted the value.
+				if e.Value == "" && e.Source != "" {
+					// Active session deleted the value (committed entries have no Source).
 					b.WriteString("delete ")
 					b.WriteString(strings.TrimRight(pathPrefix, " "))
 					b.WriteString("\n")

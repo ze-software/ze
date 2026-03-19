@@ -17,17 +17,17 @@ func TestMetaTreeSetGet(t *testing.T) {
 	mt := NewMetaTree()
 
 	entry := MetaEntry{
-		User:    "thomas@local",
-		Time:    time.Date(2026, 3, 12, 14, 30, 1, 0, time.UTC),
-		Session: "thomas@local:1741783801",
+		User:   "thomas",
+		Source: "local",
+		Time:   time.Date(2026, 3, 12, 14, 30, 1, 0, time.UTC),
 	}
 
 	mt.SetEntry("router-id", entry)
 
 	got, ok := mt.GetEntry("router-id")
 	require.True(t, ok)
-	assert.Equal(t, "thomas@local", got.User)
-	assert.Equal(t, "thomas@local:1741783801", got.Session)
+	assert.Equal(t, "thomas", got.User)
+	assert.Equal(t, "thomas@local%2026-03-12T14:30:01Z", got.SessionKey())
 }
 
 // TestMetaTreeNestedPath verifies metadata for nested paths.
@@ -39,9 +39,9 @@ func TestMetaTreeNestedPath(t *testing.T) {
 	mt := NewMetaTree()
 
 	entry := MetaEntry{
-		User:    "alice@ssh",
-		Time:    time.Date(2026, 3, 12, 14, 31, 0, 0, time.UTC),
-		Session: "alice@ssh:1741783860",
+		User:   "alice",
+		Source: "ssh",
+		Time:   time.Date(2026, 3, 12, 14, 31, 0, 0, time.UTC),
 	}
 
 	// Set metadata for a nested path: neighbor -> 192.0.2.1 -> hold-time
@@ -52,7 +52,7 @@ func TestMetaTreeNestedPath(t *testing.T) {
 	// Retrieve it
 	got, ok := listChild.GetEntry("hold-time")
 	require.True(t, ok)
-	assert.Equal(t, "alice@ssh", got.User)
+	assert.Equal(t, "alice", got.User)
 }
 
 // TestMetaTreeSessionFilter verifies filtering entries by session ID.
@@ -64,22 +64,24 @@ func TestMetaTreeSessionFilter(t *testing.T) {
 	mt := NewMetaTree()
 
 	thomas := MetaEntry{
-		User:    "thomas@local",
-		Session: "thomas@local:1741783801",
+		User:   "thomas",
+		Source: "local",
+		Time:   time.Date(2026, 3, 12, 14, 30, 1, 0, time.UTC),
 	}
 	alice := MetaEntry{
-		User:    "alice@ssh",
-		Session: "alice@ssh:1741783860",
+		User:   "alice",
+		Source: "ssh",
+		Time:   time.Date(2026, 3, 12, 14, 31, 0, 0, time.UTC),
 	}
 
 	mt.SetEntry("router-id", thomas)
 	mt.SetEntry("local-as", alice)
 
-	thomasEntries := mt.SessionEntries("thomas@local:1741783801")
+	thomasEntries := mt.SessionEntries(thomas.SessionKey())
 	assert.Len(t, thomasEntries, 1)
 	assert.Equal(t, "router-id", thomasEntries[0].Path)
 
-	aliceEntries := mt.SessionEntries("alice@ssh:1741783860")
+	aliceEntries := mt.SessionEntries(alice.SessionKey())
 	assert.Len(t, aliceEntries, 1)
 	assert.Equal(t, "local-as", aliceEntries[0].Path)
 }
@@ -93,18 +95,20 @@ func TestMetaTreeRemoveSession(t *testing.T) {
 	mt := NewMetaTree()
 
 	thomas := MetaEntry{
-		User:    "thomas@local",
-		Session: "thomas@local:1741783801",
+		User:   "thomas",
+		Source: "local",
+		Time:   time.Date(2026, 3, 12, 14, 30, 1, 0, time.UTC),
 	}
 	alice := MetaEntry{
-		User:    "alice@ssh",
-		Session: "alice@ssh:1741783860",
+		User:   "alice",
+		Source: "ssh",
+		Time:   time.Date(2026, 3, 12, 14, 31, 0, 0, time.UTC),
 	}
 
 	mt.SetEntry("router-id", thomas)
 	mt.SetEntry("local-as", alice)
 
-	mt.RemoveSession("thomas@local:1741783801")
+	mt.RemoveSession(thomas.SessionKey())
 
 	// Thomas's entry should be gone
 	_, ok := mt.GetEntry("router-id")
@@ -113,7 +117,7 @@ func TestMetaTreeRemoveSession(t *testing.T) {
 	// Alice's entry should remain
 	got, ok := mt.GetEntry("local-as")
 	assert.True(t, ok)
-	assert.Equal(t, "alice@ssh", got.User)
+	assert.Equal(t, "alice", got.User)
 }
 
 // TestMetaTreeAllSessions verifies listing all unique session IDs.
@@ -124,14 +128,25 @@ func TestMetaTreeRemoveSession(t *testing.T) {
 func TestMetaTreeAllSessions(t *testing.T) {
 	mt := NewMetaTree()
 
-	mt.SetEntry("router-id", MetaEntry{Session: "thomas@local:1741783801"})
-	mt.SetEntry("local-as", MetaEntry{Session: "thomas@local:1741783801"})
-	mt.SetEntry("hold-time", MetaEntry{Session: "alice@ssh:1741783860"})
+	thomas := MetaEntry{
+		User:   "thomas",
+		Source: "local",
+		Time:   time.Date(2026, 3, 12, 14, 30, 1, 0, time.UTC),
+	}
+	alice := MetaEntry{
+		User:   "alice",
+		Source: "ssh",
+		Time:   time.Date(2026, 3, 12, 14, 31, 0, 0, time.UTC),
+	}
+
+	mt.SetEntry("router-id", thomas)
+	mt.SetEntry("local-as", thomas)
+	mt.SetEntry("hold-time", alice)
 
 	sessions := mt.AllSessions()
 	assert.Len(t, sessions, 2)
-	assert.Contains(t, sessions, "thomas@local:1741783801")
-	assert.Contains(t, sessions, "alice@ssh:1741783860")
+	assert.Contains(t, sessions, thomas.SessionKey())
+	assert.Contains(t, sessions, alice.SessionKey())
 }
 
 // TestMetaTreeHasSession verifies checking if any entries exist for a session.
@@ -141,13 +156,18 @@ func TestMetaTreeAllSessions(t *testing.T) {
 // PREVENTS: Draft not cleaned up when all sessions done.
 func TestMetaTreeHasSession(t *testing.T) {
 	mt := NewMetaTree()
-	mt.SetEntry("router-id", MetaEntry{Session: "thomas@local:1741783801"})
+	thomas := MetaEntry{
+		User:   "thomas",
+		Source: "local",
+		Time:   time.Date(2026, 3, 12, 14, 30, 1, 0, time.UTC),
+	}
+	mt.SetEntry("router-id", thomas)
 
-	assert.True(t, mt.HasSession("thomas@local:1741783801"))
-	assert.False(t, mt.HasSession("alice@ssh:1741783860"))
+	assert.True(t, mt.HasSession(thomas.SessionKey()))
+	assert.False(t, mt.HasSession("alice@ssh:2026-03-12T14:31:00Z"))
 
-	mt.RemoveSession("thomas@local:1741783801")
-	assert.False(t, mt.HasSession("thomas@local:1741783801"))
+	mt.RemoveSession(thomas.SessionKey())
+	assert.False(t, mt.HasSession(thomas.SessionKey()))
 }
 
 // TestMetaTreeEmpty verifies empty MetaTree behavior.
@@ -176,14 +196,16 @@ func TestMetaTreeContestedLeaf(t *testing.T) {
 	mt := NewMetaTree()
 
 	alice := MetaEntry{
-		User:    "alice",
-		Session: "alice:100",
-		Value:   "10.0.0.1",
+		User:   "alice",
+		Source: "local",
+		Time:   time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC),
+		Value:  "10.0.0.1",
 	}
 	bob := MetaEntry{
-		User:    "bob",
-		Session: "bob:200",
-		Value:   "1.2.3.4",
+		User:   "bob",
+		Source: "ssh",
+		Time:   time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC),
+		Value:  "1.2.3.4",
 	}
 
 	mt.SetEntry("router-id", alice)
@@ -210,13 +232,22 @@ func TestMetaTreeContestedLeaf(t *testing.T) {
 func TestMetaTreeSetEntrySameSessionReplaces(t *testing.T) {
 	mt := NewMetaTree()
 
+	alice := MetaEntry{
+		User:   "alice",
+		Source: "local",
+		Time:   time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC),
+	}
 	mt.SetEntry("router-id", MetaEntry{
-		Session: "alice:100",
-		Value:   "first",
+		User:   alice.User,
+		Source: alice.Source,
+		Time:   alice.Time,
+		Value:  "first",
 	})
 	mt.SetEntry("router-id", MetaEntry{
-		Session: "alice:100",
-		Value:   "second",
+		User:   alice.User,
+		Source: alice.Source,
+		Time:   alice.Time,
+		Value:  "second",
 	})
 
 	all := mt.GetAllEntries("router-id")
@@ -233,19 +264,24 @@ func TestMetaTreeSetEntrySameSessionReplaces(t *testing.T) {
 func TestMetaTreeRemoveSessionEntryContested(t *testing.T) {
 	mt := NewMetaTree()
 
-	mt.SetEntry("router-id", MetaEntry{
-		User:    "alice",
-		Session: "alice:100",
-		Value:   "10.0.0.1",
-	})
-	mt.SetEntry("router-id", MetaEntry{
-		User:    "bob",
-		Session: "bob:200",
-		Value:   "1.2.3.4",
-	})
+	alice := MetaEntry{
+		User:   "alice",
+		Source: "local",
+		Time:   time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC),
+		Value:  "10.0.0.1",
+	}
+	bob := MetaEntry{
+		User:   "bob",
+		Source: "ssh",
+		Time:   time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC),
+		Value:  "1.2.3.4",
+	}
+
+	mt.SetEntry("router-id", alice)
+	mt.SetEntry("router-id", bob)
 
 	// Remove alice's entry only
-	mt.RemoveSessionEntry("router-id", "alice:100")
+	mt.RemoveSessionEntry("router-id", alice.SessionKey())
 
 	all := mt.GetAllEntries("router-id")
 	require.Len(t, all, 1, "only bob's entry should remain")
@@ -261,18 +297,26 @@ func TestMetaTreeRemoveSessionEntryContested(t *testing.T) {
 func TestMetaTreeRemoveSessionEntryNonExistent(t *testing.T) {
 	mt := NewMetaTree()
 
-	mt.SetEntry("router-id", MetaEntry{
-		User:    "alice",
-		Session: "alice:100",
-	})
+	alice := MetaEntry{
+		User:   "alice",
+		Source: "local",
+		Time:   time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC),
+	}
+	mt.SetEntry("router-id", alice)
+
+	bob := MetaEntry{
+		User:   "bob",
+		Source: "ssh",
+		Time:   time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC),
+	}
 
 	// Remove non-existent session -- should be a no-op
-	mt.RemoveSessionEntry("router-id", "bob:200")
+	mt.RemoveSessionEntry("router-id", bob.SessionKey())
 	all := mt.GetAllEntries("router-id")
 	assert.Len(t, all, 1)
 
 	// Remove non-existent leaf -- should be a no-op
-	mt.RemoveSessionEntry("missing-leaf", "alice:100")
+	mt.RemoveSessionEntry("missing-leaf", alice.SessionKey())
 	all = mt.GetAllEntries("router-id")
 	assert.Len(t, all, 1, "unrelated leaf removal should not affect existing entries")
 }
@@ -286,20 +330,29 @@ func TestMetaTreeRemoveSessionEntryNonExistent(t *testing.T) {
 func TestMetaTreeSessionEntriesNested(t *testing.T) {
 	mt := NewMetaTree()
 
-	sessionID := "alice:100"
+	alice := MetaEntry{
+		User:   "alice",
+		Source: "local",
+		Time:   time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC),
+	}
+	bob := MetaEntry{
+		User:   "bob",
+		Source: "ssh",
+		Time:   time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC),
+	}
 
 	// Top-level entry
-	mt.SetEntry("router-id", MetaEntry{Session: sessionID, Value: "1.2.3.4"})
+	mt.SetEntry("router-id", MetaEntry{User: alice.User, Source: alice.Source, Time: alice.Time, Value: "1.2.3.4"})
 
 	// Nested in container
 	neighbor := mt.GetOrCreateContainer("neighbor")
 	peer := neighbor.GetOrCreateListEntry("192.0.2.1")
-	peer.SetEntry("peer-as", MetaEntry{Session: sessionID, Value: "65001"})
+	peer.SetEntry("peer-as", MetaEntry{User: alice.User, Source: alice.Source, Time: alice.Time, Value: "65001"})
 
 	// Different session at a different leaf (should not be collected)
-	peer.SetEntry("local-as", MetaEntry{Session: "bob:200", Value: "65000"})
+	peer.SetEntry("local-as", MetaEntry{User: bob.User, Source: bob.Source, Time: bob.Time, Value: "65000"})
 
-	entries := mt.SessionEntries(sessionID)
+	entries := mt.SessionEntries(alice.SessionKey())
 	require.Len(t, entries, 2)
 
 	// Build map of path -> value for easy assertion
@@ -321,13 +374,24 @@ func TestMetaTreeSessionEntriesNested(t *testing.T) {
 func TestMetaTreeHasSessionNested(t *testing.T) {
 	mt := NewMetaTree()
 
+	alice := MetaEntry{
+		User:   "alice",
+		Source: "local",
+		Time:   time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC),
+	}
+	bob := MetaEntry{
+		User:   "bob",
+		Source: "ssh",
+		Time:   time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC),
+	}
+
 	// No top-level entries for the session -- only nested
 	child := mt.GetOrCreateContainer("neighbor")
 	entry := child.GetOrCreateListEntry("192.0.2.1")
-	entry.SetEntry("peer-as", MetaEntry{Session: "alice:100"})
+	entry.SetEntry("peer-as", alice)
 
-	assert.True(t, mt.HasSession("alice:100"), "should find session in nested structure")
-	assert.False(t, mt.HasSession("bob:200"), "should not find absent session")
+	assert.True(t, mt.HasSession(alice.SessionKey()), "should find session in nested structure")
+	assert.False(t, mt.HasSession(bob.SessionKey()), "should not find absent session")
 }
 
 // TestMetaTreeAllSessionsNested verifies AllSessions collects from nested structures.
@@ -338,18 +402,29 @@ func TestMetaTreeHasSessionNested(t *testing.T) {
 func TestMetaTreeAllSessionsNested(t *testing.T) {
 	mt := NewMetaTree()
 
+	alice := MetaEntry{
+		User:   "alice",
+		Source: "local",
+		Time:   time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC),
+	}
+	bob := MetaEntry{
+		User:   "bob",
+		Source: "ssh",
+		Time:   time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC),
+	}
+
 	// Session at top level
-	mt.SetEntry("router-id", MetaEntry{Session: "alice:100"})
+	mt.SetEntry("router-id", alice)
 
 	// Different session only at nested level
 	child := mt.GetOrCreateContainer("neighbor")
 	entry := child.GetOrCreateListEntry("192.0.2.1")
-	entry.SetEntry("peer-as", MetaEntry{Session: "bob:200"})
+	entry.SetEntry("peer-as", bob)
 
 	sessions := mt.AllSessions()
 	assert.Len(t, sessions, 2)
-	assert.Contains(t, sessions, "alice:100")
-	assert.Contains(t, sessions, "bob:200")
+	assert.Contains(t, sessions, alice.SessionKey())
+	assert.Contains(t, sessions, bob.SessionKey())
 }
 
 // TestMetaTreeGetContainerNil verifies read-only container navigation returns nil for missing.
@@ -391,23 +466,33 @@ func TestMetaTreeGetListEntryNil(t *testing.T) {
 func TestMetaTreeRemoveSessionNested(t *testing.T) {
 	mt := NewMetaTree()
 
-	sessionID := "alice:100"
-	mt.SetEntry("router-id", MetaEntry{Session: sessionID})
+	alice := MetaEntry{
+		User:   "alice",
+		Source: "local",
+		Time:   time.Date(2026, 1, 1, 10, 0, 0, 0, time.UTC),
+	}
+	bob := MetaEntry{
+		User:   "bob",
+		Source: "ssh",
+		Time:   time.Date(2026, 1, 1, 11, 0, 0, 0, time.UTC),
+	}
+
+	mt.SetEntry("router-id", alice)
 	child := mt.GetOrCreateContainer("neighbor")
 	entry := child.GetOrCreateListEntry("192.0.2.1")
-	entry.SetEntry("peer-as", MetaEntry{Session: sessionID})
-	entry.SetEntry("local-as", MetaEntry{Session: "bob:200"})
+	entry.SetEntry("peer-as", alice)
+	entry.SetEntry("local-as", bob)
 
-	mt.RemoveSession(sessionID)
+	mt.RemoveSession(alice.SessionKey())
 
 	// Alice's entries should be gone everywhere
-	assert.False(t, mt.HasSession(sessionID))
+	assert.False(t, mt.HasSession(alice.SessionKey()))
 	_, ok := mt.GetEntry("router-id")
 	assert.False(t, ok)
 
 	// Bob's entry should survive
-	assert.True(t, mt.HasSession("bob:200"))
+	assert.True(t, mt.HasSession(bob.SessionKey()))
 	got, ok := entry.GetEntry("local-as")
 	assert.True(t, ok)
-	assert.Equal(t, "bob:200", got.Session)
+	assert.Equal(t, bob.SessionKey(), got.SessionKey())
 }

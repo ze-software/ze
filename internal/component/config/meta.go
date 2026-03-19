@@ -10,12 +10,32 @@ import (
 )
 
 // MetaEntry records who changed a config leaf and when.
+//
+// Serialized prefixes: #user @source %time ^previous
+//   - # username (e.g., "thomas")
+//   - @ connection source (e.g., "local", "192.168.1.5")
+//   - % session start time (ISO 8601, same for all edits in a session)
+//   - ^ previous value (before this change)
 type MetaEntry struct {
-	User     string
-	Time     time.Time
-	Session  string
-	Previous string // Value from config.conf before this session's change.
-	Value    string // The value this session set (for contested leaves in draft).
+	User     string    // Username only (e.g., "thomas"). Serialized as #user.
+	Source   string    // Connection origin (e.g., "local", "192.168.1.5"). Serialized as @source.
+	Time     time.Time // Session start time. Serialized as %ISO8601. Same for all edits in a session.
+	Previous string    // Value from config.conf before this session's change.
+	Value    string    // The value this session set (for contested leaves in draft).
+}
+
+// SessionKey returns the grouping key for concurrent editing.
+// Concatenates user + source + session-start-time to produce a stable key
+// that is unique per editing session but shared across all edits within it.
+func (e MetaEntry) SessionKey() string {
+	key := e.User
+	if e.Source != "" {
+		key += "@" + e.Source
+	}
+	if !e.Time.IsZero() {
+		key += "%" + e.Time.UTC().Format(time.RFC3339)
+	}
+	return key
 }
 
 // SessionEntry pairs a YANG path with its metadata entry,
@@ -52,7 +72,7 @@ func (mt *MetaTree) SetEntry(name string, entry MetaEntry) {
 	var updated []MetaEntry
 	replaced := false
 	for _, e := range existing {
-		if e.Session == entry.Session {
+		if e.SessionKey() == entry.SessionKey() {
 			// Replace same-session entry (including sessionless overwrites).
 			updated = append(updated, entry)
 			replaced = true
@@ -75,13 +95,18 @@ func (mt *MetaTree) GetEntry(name string) (MetaEntry, bool) {
 	return entries[len(entries)-1], true
 }
 
+// RemoveEntry removes all metadata entries for a leaf, regardless of session.
+func (mt *MetaTree) RemoveEntry(name string) {
+	delete(mt.entries, name)
+}
+
 // RemoveSessionEntry removes entries for a specific session from a leaf.
 // Preserves entries from other sessions. If no entries remain, the key is deleted.
 func (mt *MetaTree) RemoveSessionEntry(name, sessionID string) {
 	entries := mt.entries[name]
 	var kept []MetaEntry
 	for _, e := range entries {
-		if e.Session != sessionID {
+		if e.SessionKey() != sessionID {
 			kept = append(kept, e)
 		}
 	}
@@ -173,7 +198,7 @@ func (mt *MetaTree) SessionEntries(sessionID string) []SessionEntry {
 func (mt *MetaTree) collectSession(sessionID, prefix string, result *[]SessionEntry) {
 	for name, entries := range mt.entries {
 		for _, entry := range entries {
-			if entry.Session == sessionID {
+			if entry.SessionKey() == sessionID {
 				path := name
 				if prefix != "" {
 					path = prefix + " " + name
@@ -206,7 +231,7 @@ func (mt *MetaTree) RemoveSession(sessionID string) {
 	for name, entries := range mt.entries {
 		var kept []MetaEntry
 		for _, e := range entries {
-			if e.Session != sessionID {
+			if e.SessionKey() != sessionID {
 				kept = append(kept, e)
 			}
 		}
@@ -243,8 +268,8 @@ func (mt *MetaTree) AllSessions() []string {
 func (mt *MetaTree) collectSessions(seen map[string]bool) {
 	for _, entries := range mt.entries {
 		for _, entry := range entries {
-			if entry.Session != "" {
-				seen[entry.Session] = true
+			if key := entry.SessionKey(); key != "" {
+				seen[key] = true
 			}
 		}
 	}
@@ -262,7 +287,7 @@ func (mt *MetaTree) collectSessions(seen map[string]bool) {
 func (mt *MetaTree) HasSession(sessionID string) bool {
 	for _, entries := range mt.entries {
 		for _, entry := range entries {
-			if entry.Session == sessionID {
+			if entry.SessionKey() == sessionID {
 				return true
 			}
 		}

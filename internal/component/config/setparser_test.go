@@ -347,8 +347,8 @@ delete neighbor 192.0.2.1 peer-as
 //
 // PREVENTS: Lost metadata when parsing draft files.
 func TestParseSetWithMetaSimple(t *testing.T) {
-	input := "#thomas@local @2026-03-12T14:30:01Z %thomas@local:1741783801 set router-id 1.2.3.4\n" +
-		"#alice@ssh @2026-03-12T14:31:00Z %alice@ssh:1741783860 set local-as 65000\n"
+	input := "#thomas @local %2026-03-12T14:30:01Z set router-id 1.2.3.4\n" +
+		"#alice @ssh %2026-03-12T14:31:00Z set local-as 65000\n"
 
 	p := NewSetParser(testSchema())
 	tree, meta, err := p.ParseWithMeta(input)
@@ -367,15 +367,15 @@ func TestParseSetWithMetaSimple(t *testing.T) {
 	// Metadata correct
 	e, ok := meta.GetEntry("router-id")
 	require.True(t, ok)
-	assert.Equal(t, "thomas@local", e.User)
-	assert.Equal(t, "thomas@local:1741783801", e.Session)
+	assert.Equal(t, "thomas", e.User)
+	assert.Equal(t, "local", e.Source)
 	assert.Equal(t, 2026, e.Time.Year())
 	assert.Equal(t, time.Month(3), e.Time.Month())
 
 	e, ok = meta.GetEntry("local-as")
 	require.True(t, ok)
-	assert.Equal(t, "alice@ssh", e.User)
-	assert.Equal(t, "alice@ssh:1741783860", e.Session)
+	assert.Equal(t, "alice", e.User)
+	assert.Equal(t, "ssh", e.Source)
 }
 
 // TestParseSetWithMetaNested verifies metadata for nested paths.
@@ -384,7 +384,7 @@ func TestParseSetWithMetaSimple(t *testing.T) {
 //
 // PREVENTS: Metadata misplaced in tree hierarchy.
 func TestParseSetWithMetaNested(t *testing.T) {
-	input := "#thomas@local @2026-03-12T14:30:01Z set neighbor 192.0.2.1 local-as 65000\n"
+	input := "#thomas @local %2026-03-12T14:30:01Z set neighbor 192.0.2.1 local-as 65000\n"
 
 	p := NewSetParser(testSchema())
 	_, meta, err := p.ParseWithMeta(input)
@@ -398,7 +398,8 @@ func TestParseSetWithMetaNested(t *testing.T) {
 	require.NotNil(t, entryMeta)
 	e, ok := entryMeta.GetEntry("local-as")
 	require.True(t, ok)
-	assert.Equal(t, "thomas@local", e.User)
+	assert.Equal(t, "thomas", e.User)
+	assert.Equal(t, "local", e.Source)
 }
 
 // TestParseSetWithMetaMixed verifies lines with and without metadata.
@@ -407,7 +408,7 @@ func TestParseSetWithMetaNested(t *testing.T) {
 //
 // PREVENTS: Spurious metadata for hand-written config lines.
 func TestParseSetWithMetaMixed(t *testing.T) {
-	input := "#thomas@local @2026-03-12T14:30:01Z set router-id 1.2.3.4\n" +
+	input := "#thomas @local %2026-03-12T14:30:01Z set router-id 1.2.3.4\n" +
 		"set local-as 65000\n"
 
 	p := NewSetParser(testSchema())
@@ -435,7 +436,7 @@ func TestParseSetWithMetaMixed(t *testing.T) {
 // PREVENTS: Comments confused with user metadata.
 func TestParseSetWithMetaComments(t *testing.T) {
 	input := "# This is a comment\n" +
-		"#thomas@local set router-id 1.2.3.4\n" +
+		"#thomas @local set router-id 1.2.3.4\n" +
 		"# Another comment\n"
 
 	p := NewSetParser(testSchema())
@@ -449,7 +450,8 @@ func TestParseSetWithMetaComments(t *testing.T) {
 
 	e, ok := meta.GetEntry("router-id")
 	require.True(t, ok)
-	assert.Equal(t, "thomas@local", e.User)
+	assert.Equal(t, "thomas", e.User)
+	assert.Equal(t, "local", e.Source)
 }
 
 // TestParseSetWithMetaRoundTrip verifies parse -> serialize -> parse with metadata.
@@ -458,8 +460,8 @@ func TestParseSetWithMetaComments(t *testing.T) {
 //
 // PREVENTS: Metadata loss through serialization.
 func TestParseSetWithMetaRoundTrip(t *testing.T) {
-	input := "#thomas@local @2026-03-12T14:30:01Z %thomas@local:1741783801 set router-id 1.2.3.4\n" +
-		"#alice@ssh @2026-03-12T14:31:00Z %alice@ssh:1741783860 set local-as 65000\n"
+	input := "#thomas @local %2026-03-12T14:30:01Z set router-id 1.2.3.4\n" +
+		"#alice @ssh %2026-03-12T14:31:00Z set local-as 65000\n"
 
 	schema := testSchema()
 	p := NewSetParser(schema)
@@ -482,8 +484,8 @@ func TestParseSetWithMetaRoundTrip(t *testing.T) {
 	// Verify metadata survived
 	e, ok := meta2.GetEntry("router-id")
 	require.True(t, ok)
-	assert.Equal(t, "thomas@local", e.User)
-	assert.Equal(t, "thomas@local:1741783801", e.Session)
+	assert.Equal(t, "thomas", e.User)
+	assert.Equal(t, "local", e.Source)
 }
 
 // TestParseSetWithMetaDelete verifies metadata parsing for delete commands.
@@ -492,8 +494,8 @@ func TestParseSetWithMetaRoundTrip(t *testing.T) {
 //
 // PREVENTS: Lost session metadata for delete operations.
 func TestParseSetWithMetaDelete(t *testing.T) {
-	input := "#bob @2026-03-12T15:00:00Z %bob:200 set router-id 1.2.3.4\n" +
-		"#alice @2026-03-12T16:00:00Z %alice:100 delete router-id\n"
+	input := "#bob @local %2026-03-12T15:00:00Z set router-id 1.2.3.4\n" +
+		"#alice @ssh %2026-03-12T16:00:00Z delete router-id\n"
 
 	p := NewSetParser(testSchema())
 	tree, meta, err := p.ParseWithMeta(input)
@@ -509,11 +511,11 @@ func TestParseSetWithMetaDelete(t *testing.T) {
 
 	// Bob's set entry
 	assert.Equal(t, "bob", all[0].User)
-	assert.Equal(t, "bob:200", all[0].Session)
+	assert.Equal(t, "local", all[0].Source)
 
 	// Alice's delete entry (Value should be empty since it's a delete)
 	assert.Equal(t, "alice", all[1].User)
-	assert.Equal(t, "alice:100", all[1].Session)
+	assert.Equal(t, "ssh", all[1].Source)
 }
 
 // TestParseSetWithMetaValueField verifies that Entry.Value is populated
@@ -523,8 +525,8 @@ func TestParseSetWithMetaDelete(t *testing.T) {
 //
 // PREVENTS: Empty Value field preventing contested leaf serialization.
 func TestParseSetWithMetaValueField(t *testing.T) {
-	input := "#alice %alice:100 set router-id 10.0.0.1\n" +
-		"#bob %bob:200 set router-id 1.2.3.4\n"
+	input := "#alice @local %2026-01-01T10:00:00Z set router-id 10.0.0.1\n" +
+		"#bob @local %2026-01-01T10:01:00Z set router-id 1.2.3.4\n"
 
 	p := NewSetParser(testSchema())
 	_, meta, err := p.ParseWithMeta(input)
@@ -543,8 +545,8 @@ func TestParseSetWithMetaValueField(t *testing.T) {
 //
 // PREVENTS: Delete metadata stored at wrong MetaTree level.
 func TestParseSetWithMetaDeleteNested(t *testing.T) {
-	input := "#alice %alice:100 set neighbor 192.0.2.1 peer-as 65001\n" +
-		"#bob %bob:200 delete neighbor 192.0.2.1 peer-as\n"
+	input := "#alice @local %2026-01-01T10:00:00Z set neighbor 192.0.2.1 peer-as 65001\n" +
+		"#bob @ssh %2026-01-01T10:01:00Z delete neighbor 192.0.2.1 peer-as\n"
 
 	p := NewSetParser(testSchema())
 	_, meta, err := p.ParseWithMeta(input)
@@ -558,8 +560,8 @@ func TestParseSetWithMetaDeleteNested(t *testing.T) {
 
 	all := peerMeta.GetAllEntries("peer-as")
 	require.Len(t, all, 2)
-	assert.Equal(t, "alice:100", all[0].Session)
-	assert.Equal(t, "bob:200", all[1].Session)
+	assert.Equal(t, "local", all[0].Source)
+	assert.Equal(t, "ssh", all[1].Source)
 }
 
 // TestParseSetWithMetaPartialFields verifies metadata with only some fields present.
@@ -572,28 +574,26 @@ func TestParseSetWithMetaPartialFields(t *testing.T) {
 		name    string
 		input   string
 		user    string
-		session string
+		source  string
 		hasTime bool
 	}{
 		{
-			name:    "only user",
-			input:   "#alice set router-id 1.2.3.4\n",
-			user:    "alice",
-			session: "",
-			hasTime: false,
+			name:   "only user",
+			input:  "#alice set router-id 1.2.3.4\n",
+			user:   "alice",
+			source: "",
 		},
 		{
-			name:    "only session",
-			input:   "%alice:100 set router-id 1.2.3.4\n",
-			user:    "",
-			session: "alice:100",
-			hasTime: false,
+			name:   "only source",
+			input:  "@local set router-id 1.2.3.4\n",
+			user:   "",
+			source: "local",
 		},
 		{
 			name:    "user and time only",
-			input:   "#alice @2026-03-12T10:00:00Z set router-id 1.2.3.4\n",
+			input:   "#alice %2026-03-12T10:00:00Z set router-id 1.2.3.4\n",
 			user:    "alice",
-			session: "",
+			source:  "",
 			hasTime: true,
 		},
 	}
@@ -611,7 +611,7 @@ func TestParseSetWithMetaPartialFields(t *testing.T) {
 			e, ok := meta.GetEntry("router-id")
 			require.True(t, ok)
 			assert.Equal(t, tt.user, e.User)
-			assert.Equal(t, tt.session, e.Session)
+			assert.Equal(t, tt.source, e.Source)
 			if tt.hasTime {
 				assert.False(t, e.Time.IsZero())
 			} else {
@@ -651,9 +651,9 @@ func TestPreviousQuoteEscapeRoundTrip(t *testing.T) {
 
 			meta := NewMetaTree()
 			meta.SetEntry("router-id", MetaEntry{
-				User:     "thomas@local",
+				User:     "thomas",
+				Source:   "local",
 				Time:     time.Date(2026, 3, 12, 14, 30, 1, 0, time.UTC),
-				Session:  "thomas@local:1741783801",
 				Previous: tt.previous,
 				Value:    "1.2.3.4",
 			})

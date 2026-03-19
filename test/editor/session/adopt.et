@@ -28,8 +28,8 @@ input=enter
 expect=status:contains=Set
 
 # Verify both sessions appear in draft
-expect=file:path=test.conf.draft:contains=alice@ssh
-expect=file:path=test.conf.draft:contains=bob@ssh
+expect=file:path=test.conf.draft:contains=#alice @ssh
+expect=file:path=test.conf.draft:contains=#bob @ssh
 
 # Bob sees his own changes via show changes
 input=type:text=show changes

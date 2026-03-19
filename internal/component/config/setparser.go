@@ -401,9 +401,9 @@ func (t *Tree) DeleteList(name string) {
 // Returns both the config Tree and a MetaTree with authorship information.
 //
 // Metadata tokens are consumed before the set/delete command:
-//   - #user (hash + non-space identifier) -> MetaEntry.User
-//   - @ISO8601 -> MetaEntry.Time
-//   - %session-id -> MetaEntry.Session
+//   - #user -> MetaEntry.User
+//   - @source -> MetaEntry.Source (connection origin)
+//   - %ISO8601 -> MetaEntry.Time (session start time)
 //   - "# text" (hash + space) -> comment, line skipped
 func (p *SetParser) ParseWithMeta(input string) (*Tree, *MetaTree, error) {
 	tree := NewTree()
@@ -449,7 +449,7 @@ func extractMeta(line string) (MetaEntry, string) {
 
 	for remaining != "" {
 		if remaining[0] == '#' && len(remaining) > 1 && remaining[1] != ' ' {
-			// User metadata: #user@origin
+			// User metadata: #user
 			end := strings.IndexByte(remaining, ' ')
 			if end == -1 {
 				entry.User = remaining[1:]
@@ -462,7 +462,20 @@ func extractMeta(line string) (MetaEntry, string) {
 		}
 
 		if remaining[0] == '@' {
-			// Time metadata: @ISO8601
+			// Source metadata: @origin (e.g., "local", "192.168.1.5")
+			end := strings.IndexByte(remaining, ' ')
+			if end == -1 {
+				entry.Source = remaining[1:]
+				remaining = ""
+			} else {
+				entry.Source = remaining[1:end]
+				remaining = strings.TrimSpace(remaining[end+1:])
+			}
+			continue
+		}
+
+		if remaining[0] == '%' {
+			// Time metadata: %ISO8601 (session start time)
 			end := strings.IndexByte(remaining, ' ')
 			var timeStr string
 			if end == -1 {
@@ -478,19 +491,6 @@ func extractMeta(line string) (MetaEntry, string) {
 				entry.Time = t
 			} else if t, err := time.Parse("2006-01-02T15:04:05", timeStr); err == nil {
 				entry.Time = t
-			}
-			continue
-		}
-
-		if remaining[0] == '%' {
-			// Session metadata: %session-id
-			end := strings.IndexByte(remaining, ' ')
-			if end == -1 {
-				entry.Session = remaining[1:]
-				remaining = ""
-			} else {
-				entry.Session = remaining[1:end]
-				remaining = strings.TrimSpace(remaining[end+1:])
 			}
 			continue
 		}
@@ -593,7 +593,7 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 		return fmt.Errorf("line %d: unknown field: %s", lineNum, name)
 	}
 
-	hasMetadata := entry.User != "" || !entry.Time.IsZero() || entry.Session != ""
+	hasMetadata := entry.User != "" || !entry.Time.IsZero() || entry.Source != ""
 
 	// setLeafMeta records metadata and sets the value for a leaf-like node.
 	setLeafMeta := func(value string) {
@@ -715,7 +715,7 @@ func (p *SetParser) walkAndSetWithMeta(tree *Tree, meta *MetaTree, parent Node, 
 // and records metadata at the leaf. Called after parseDelete has already applied
 // the deletion to the tree.
 func (p *SetParser) recordDeleteMeta(meta *MetaTree, entry MetaEntry, tokens []string) {
-	hasMetadata := entry.User != "" || !entry.Time.IsZero() || entry.Session != ""
+	hasMetadata := entry.User != "" || !entry.Time.IsZero() || entry.Source != ""
 	if !hasMetadata || len(tokens) == 0 {
 		return
 	}

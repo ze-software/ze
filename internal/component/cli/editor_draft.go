@@ -77,11 +77,10 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 	}
 
 	// Record metadata at the leaf.
-	now := time.Now()
 	entry := config.MetaEntry{
-		User:     e.session.UserAtOrigin(),
-		Time:     now,
-		Session:  e.session.ID,
+		User:     e.session.User,
+		Source:   e.session.Origin,
+		Time:     e.session.StartTime,
 		Previous: previous,
 		Value:    value,
 	}
@@ -140,11 +139,10 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 	// Record metadata for the delete. The serializer emits "delete" lines
 	// for metadata entries without corresponding tree values, so Previous
 	// survives the serialize->parse round-trip.
-	now := time.Now()
 	entry := config.MetaEntry{
-		User:     e.session.UserAtOrigin(),
-		Time:     now,
-		Session:  e.session.ID,
+		User:     e.session.User,
+		Source:   e.session.Origin,
+		Time:     e.session.StartTime,
 		Previous: previous,
 	}
 	metaTarget := walkOrCreateMeta(meta, e.schema, path)
@@ -242,9 +240,9 @@ func (e *Editor) AdoptSession(oldSessionID string) error {
 		metaTarget := walkOrCreateMeta(meta, e.schema, parentPath)
 		metaTarget.RemoveSessionEntry(leafName, oldSessionID)
 		metaTarget.SetEntry(leafName, config.MetaEntry{
-			User:     e.session.UserAtOrigin(),
-			Time:     time.Now(),
-			Session:  e.session.ID,
+			User:     e.session.User,
+			Source:   e.session.Origin,
+			Time:     e.session.StartTime,
 			Previous: se.Entry.Previous,
 			Value:    se.Entry.Value,
 		})

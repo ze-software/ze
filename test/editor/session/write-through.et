@@ -24,4 +24,4 @@ expect=dirty:true
 expect=error:none
 
 # Verify draft file exists with session metadata
-expect=file:path=test.conf.draft:contains=thomas@local
+expect=file:path=test.conf.draft:contains=#thomas @local
