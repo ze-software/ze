@@ -45,7 +45,7 @@ func TestCmdArchive_FileNotFound(t *testing.T) {
 func TestCmdArchive_NoArchiveBlocks(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
-	require.NoError(t, os.WriteFile(configPath, []byte("bgp {\n\tlocal-as 65000;\n}\n"), 0o600))
+	require.NoError(t, os.WriteFile(configPath, []byte("bgp {\n\tlocal {\n\t\tas 65000;\n\t}\n}\n"), 0o600))
 
 	code := cmdArchive([]string{"backup", configPath})
 	assert.Equal(t, exitError, code)
@@ -58,7 +58,7 @@ func TestCmdArchive_NoArchiveBlocks(t *testing.T) {
 func TestCmdArchive_NameNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
-	content := "system {\n\tarchive local {\n\t\tlocation file:///backups;\n\t}\n}\nbgp {\n\tlocal-as 65000;\n}\n"
+	content := "system {\n\tarchive local {\n\t\tlocation file:///backups;\n\t}\n}\nbgp {\n\tlocal {\n\t\tas 65000;\n\t}\n}\n"
 	require.NoError(t, os.WriteFile(configPath, []byte(content), 0o600))
 
 	code := cmdArchive([]string{"nonexistent", configPath})
@@ -73,7 +73,7 @@ func TestCmdArchive_FileLocation(t *testing.T) {
 	destDir := t.TempDir()
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
-	content := "system {\n\thost router1;\n\tarchive local {\n\t\tlocation file://" + destDir + ";\n\t}\n}\nbgp {\n\tlocal-as 65000;\n}\n"
+	content := "system {\n\thost router1;\n\tarchive local {\n\t\tlocation file://" + destDir + ";\n\t}\n}\nbgp {\n\tlocal {\n\t\tas 65000;\n\t}\n}\n"
 	require.NoError(t, os.WriteFile(configPath, []byte(content), 0o600))
 
 	code := cmdArchive([]string{"local", configPath})
@@ -99,7 +99,7 @@ func TestCmdArchive_HTTPLocation(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
-	content := "system {\n\tarchive remote {\n\t\tlocation " + server.URL + ";\n\t}\n}\nbgp {\n\tlocal-as 65000;\n}\n"
+	content := "system {\n\tarchive remote {\n\t\tlocation " + server.URL + ";\n\t}\n}\nbgp {\n\tlocal {\n\t\tas 65000;\n\t}\n}\n"
 	require.NoError(t, os.WriteFile(configPath, []byte(content), 0o600))
 
 	code := cmdArchive([]string{"remote", configPath})

@@ -14,11 +14,16 @@ import (
 // PREVENTS: Formatter producing invalid or non-idempotent output.
 func TestConfigFmtFormatsConfig(t *testing.T) {
 	// Create a badly formatted but valid config
-	input := `bgp{peer 127.0.0.1{local-as 1;peer-as 2;}}`
+	input := `bgp{peer peer1{remote{ip 127.0.0.1;as 2;}local{as 1;}}}`
 	expected := `bgp {
-	peer 127.0.0.1 {
-		local-as 1
-		peer-as 2
+	peer peer1 {
+		local {
+			as 1
+		}
+		remote {
+			as 2
+			ip 127.0.0.1
+		}
 	}
 }
 `
@@ -44,9 +49,14 @@ func TestConfigFmtFormatsConfig(t *testing.T) {
 // PREVENTS: Non-idempotent formatting that would fail --check after -w.
 func TestConfigFmtIdempotent(t *testing.T) {
 	input := `bgp {
-	peer 127.0.0.1 {
-		local-as 1
-		peer-as 2
+	peer peer1 {
+		local {
+			as 1
+		}
+		remote {
+			as 2
+			ip 127.0.0.1
+		}
 	}
 }
 `
@@ -107,7 +117,7 @@ func TestConfigFmtRejectsOld(t *testing.T) {
 //
 // PREVENTS: Formatting errors on real-world configs.
 func TestConfigFmtComplexConfig(t *testing.T) {
-	input := `bgp{group defaults{hold-time 90;peer 192.0.2.1{local-as 65000;peer-as 65001;family{ipv4/unicast;}}}}`
+	input := `bgp{group defaults{hold-time 90;peer upstream{remote{ip 192.0.2.1;as 65001;}local{as 65000;}family{ipv4/unicast;}}}}`
 
 	output, hasChanges, err := ConfigFmtBytes([]byte(input))
 	if err != nil {
@@ -143,9 +153,14 @@ func TestConfigCheckCurrentConfig(t *testing.T) {
 	config := `
 bgp {
 	group rr {
-		peer-as 65000
-		peer 192.0.2.1 {
-			peer-as 65001
+		remote {
+			as 65000;
+		}
+		peer upstream {
+			remote {
+				ip 192.0.2.1;
+				as 65001;
+			}
 		}
 	}
 }
@@ -198,8 +213,11 @@ neighbor 192.0.2.1 {
 func TestConfigMigrateNativeConfig(t *testing.T) {
 	input := `
 bgp {
-	peer 192.0.2.1 {
-		peer-as 65001
+	peer peer1 {
+		remote {
+			ip 192.0.2.1;
+			as 65001;
+		}
 	}
 }
 `
@@ -242,8 +260,9 @@ invalid { syntax }
 //
 // PREVENTS: Set-format configs failing to parse because hierarchical parser is used.
 func TestConfigMigrateSetFormatInput(t *testing.T) {
-	input := `set bgp local-as 65000
-set bgp peer 192.0.2.1 peer-as 65001
+	input := `set bgp local as 65000
+set bgp peer peer1 remote ip 192.0.2.1
+set bgp peer peer1 remote as 65001
 `
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
@@ -257,10 +276,10 @@ set bgp peer 192.0.2.1 peer-as 65001
 	}
 
 	// Output should still be set format and contain the original values.
-	if !strings.Contains(output, "set bgp local-as") {
+	if !strings.Contains(output, "set bgp local as") {
 		t.Errorf("expected set-format output, got:\n%s", output)
 	}
-	if !strings.Contains(output, "set bgp peer 192.0.2.1 peer-as") {
+	if !strings.Contains(output, "set bgp peer peer1 remote") {
 		t.Errorf("expected peer in output, got:\n%s", output)
 	}
 }
@@ -271,8 +290,9 @@ set bgp peer 192.0.2.1 peer-as 65001
 //
 // PREVENTS: --format hierarchical flag ignored.
 func TestConfigMigrateHierarchicalOutput(t *testing.T) {
-	input := `set bgp local-as 65000
-set bgp peer 192.0.2.1 peer-as 65001
+	input := `set bgp local as 65000
+set bgp peer peer1 remote ip 192.0.2.1
+set bgp peer peer1 remote as 65001
 `
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
@@ -289,8 +309,8 @@ set bgp peer 192.0.2.1 peer-as 65001
 	if !strings.Contains(output, "{") {
 		t.Errorf("expected hierarchical output with braces, got:\n%s", output)
 	}
-	if !strings.Contains(output, "local-as") {
-		t.Errorf("expected local-as in output, got:\n%s", output)
+	if !strings.Contains(output, "local") {
+		t.Errorf("expected local in output, got:\n%s", output)
 	}
 }
 
@@ -301,8 +321,11 @@ set bgp peer 192.0.2.1 peer-as 65001
 // PREVENTS: Output file not created or empty.
 func TestConfigMigrateOutputToFile(t *testing.T) {
 	input := `bgp {
-	peer 192.0.2.1 {
-		peer-as 65001
+	peer peer1 {
+		remote {
+			ip 192.0.2.1;
+			as 65001;
+		}
 	}
 }
 `
@@ -323,7 +346,7 @@ func TestConfigMigrateOutputToFile(t *testing.T) {
 		t.Fatalf("read output file: %v", err)
 	}
 
-	if !strings.Contains(string(data), "set bgp peer 192.0.2.1 peer-as") {
+	if !strings.Contains(string(data), "set bgp peer peer1 remote") {
 		t.Errorf("expected set-format in output file, got:\n%s", string(data))
 	}
 }

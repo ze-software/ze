@@ -643,9 +643,9 @@ func TestPendingEditDiffNoChanges(t *testing.T) {
 // validBGPConfig is a parseable config for tree tests.
 const validBGPConfig = `bgp {
 	router-id 1.2.3.4
-	local-as 65000
-	peer 1.1.1.1 {
-		peer-as 65001
+	local { as 65000; }
+	peer peer1 {
+		remote { ip 1.1.1.1; as 65001; }
 		hold-time 90
 	}
 }
@@ -717,10 +717,12 @@ func TestEditorTreeNavigationListKey(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
-	peer := ed.WalkPath([]string{"bgp", "peer", "1.1.1.1"})
+	peer := ed.WalkPath([]string{"bgp", "peer", "peer1"})
 	require.NotNil(t, peer, "WalkPath should find peer 1.1.1.1 via list navigation")
 
-	peerAS, ok := peer.Get("peer-as")
+	remotePeer := peer.GetContainer("remote")
+	require.NotNil(t, remotePeer, "remote container should exist")
+	peerAS, ok := remotePeer.Get("as")
 	assert.True(t, ok)
 	assert.Equal(t, "65001", peerAS)
 }
@@ -736,7 +738,7 @@ func TestEditorTreeNavigationMissing(t *testing.T) {
 	defer ed.Close() //nolint:errcheck // test cleanup
 
 	assert.Nil(t, ed.WalkPath([]string{"nonexistent"}), "missing top-level should return nil")
-	assert.Nil(t, ed.WalkPath([]string{"bgp", "peer", "9.9.9.9"}), "missing peer should return nil")
+	assert.Nil(t, ed.WalkPath([]string{"bgp", "peer", "nonexistent"}), "missing peer should return nil")
 	assert.Nil(t, ed.WalkPath([]string{"bgp", "nonexistent"}), "missing child should return nil")
 }
 
@@ -772,10 +774,10 @@ func TestEditorTreeSetNewKey(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
-	err = ed.SetValue([]string{"bgp", "peer", "1.1.1.1"}, "description", "test-peer")
+	err = ed.SetValue([]string{"bgp", "peer", "peer1"}, "description", "test-peer")
 	require.NoError(t, err)
 
-	peer := ed.WalkPath([]string{"bgp", "peer", "1.1.1.1"})
+	peer := ed.WalkPath([]string{"bgp", "peer", "peer1"})
 	require.NotNil(t, peer)
 	desc, ok := peer.Get("description")
 	assert.True(t, ok)
@@ -792,11 +794,11 @@ func TestEditorTreeDelete(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
-	err = ed.DeleteValue([]string{"bgp", "peer", "1.1.1.1"}, "hold-time")
+	err = ed.DeleteValue([]string{"bgp", "peer", "peer1"}, "hold-time")
 	require.NoError(t, err)
 	assert.True(t, ed.Dirty())
 
-	peer := ed.WalkPath([]string{"bgp", "peer", "1.1.1.1"})
+	peer := ed.WalkPath([]string{"bgp", "peer", "peer1"})
 	require.NotNil(t, peer)
 	_, ok := peer.Get("hold-time")
 	assert.False(t, ok, "hold-time should be deleted")
@@ -828,10 +830,10 @@ func TestEditorTreeDeleteListEntry(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
-	err = ed.DeleteListEntry([]string{"bgp"}, "peer", "1.1.1.1")
+	err = ed.DeleteListEntry([]string{"bgp"}, "peer", "peer1")
 	require.NoError(t, err)
 	assert.True(t, ed.Dirty())
-	assert.Nil(t, ed.WalkPath([]string{"bgp", "peer", "1.1.1.1"}), "peer should be gone")
+	assert.Nil(t, ed.WalkPath([]string{"bgp", "peer", "peer1"}), "peer should be gone")
 }
 
 // TestEditorDeleteByPathListEntry verifies DeleteByPath detects list entries via schema.
@@ -845,10 +847,10 @@ func TestEditorDeleteByPathListEntry(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
-	err = ed.DeleteByPath([]string{"bgp", "peer", "1.1.1.1"})
+	err = ed.DeleteByPath([]string{"bgp", "peer", "peer1"})
 	require.NoError(t, err)
 	assert.True(t, ed.Dirty())
-	assert.Nil(t, ed.WalkPath([]string{"bgp", "peer", "1.1.1.1"}), "peer should be gone")
+	assert.Nil(t, ed.WalkPath([]string{"bgp", "peer", "peer1"}), "peer should be gone")
 }
 
 // TestEditorDeleteByPathLeaf verifies DeleteByPath removes a leaf value.
@@ -1001,7 +1003,7 @@ func TestEditorSetWorkingContentParse(t *testing.T) {
 	// Load new content via SetWorkingContent (simulates load command)
 	newContent := `bgp {
 	router-id 5.6.7.8
-	local-as 65001
+	local { as 65001; }
 }
 `
 	ed.SetWorkingContent(newContent)
@@ -1052,9 +1054,9 @@ func TestSerializationRoundTrip(t *testing.T) {
 		{"simple", "bgp { router-id 1.2.3.4; }"},
 		{"with-peer", `bgp {
   router-id 1.2.3.4
-  local-as 65000
-  peer 1.1.1.1 {
-    peer-as 65001
+  local { as 65000; }
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
     hold-time 90
   }
 }`},
@@ -1145,8 +1147,8 @@ func TestEditorWriteThroughDelete(t *testing.T) {
 	session := NewEditSession("thomas", "local")
 	ed.SetSession(session)
 
-	// Delete local-as under bgp container.
-	err = ed.DeleteValue([]string{"bgp"}, "local-as")
+	// Delete local as under bgp local container.
+	err = ed.DeleteValue([]string{"bgp", "local"}, "as")
 	require.NoError(t, err)
 
 	// Draft file should exist.
@@ -1157,10 +1159,10 @@ func TestEditorWriteThroughDelete(t *testing.T) {
 	draftContent := string(draftData)
 
 	// Draft should NOT contain a set line for the deleted value.
-	assert.NotContains(t, draftContent, "set bgp local-as", "deleted value should not appear as set line")
+	assert.NotContains(t, draftContent, "set bgp local as", "deleted value should not appear as set line")
 
 	// Draft should contain a delete line with metadata for the deleted value.
-	assert.Contains(t, draftContent, "delete bgp local-as", "delete metadata should be preserved in draft")
+	assert.Contains(t, draftContent, "delete bgp local as", "delete metadata should be preserved in draft")
 
 	// Delete metadata should include the previous value.
 	assert.Contains(t, draftContent, "^65000", "delete metadata should record previous value")
@@ -1171,8 +1173,11 @@ func TestEditorWriteThroughDelete(t *testing.T) {
 	// In-memory tree should reflect the deletion.
 	bgpTree := ed.tree.GetContainer("bgp")
 	require.NotNil(t, bgpTree)
-	_, ok := bgpTree.Get("local-as")
-	assert.False(t, ok, "deleted value should not exist in tree")
+	localContainer := bgpTree.GetContainer("local")
+	if localContainer != nil {
+		_, ok := localContainer.Get("as")
+		assert.False(t, ok, "deleted value should not exist in tree")
+	}
 }
 
 // TestEditorWriteThroughPreservesSessions verifies that write-through preserves
@@ -1202,7 +1207,7 @@ func TestEditorWriteThroughPreservesSessions(t *testing.T) {
 	session2 := NewEditSession("thomas", "local")
 	ed2.SetSession(session2)
 
-	err = ed2.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
 	// Read the final draft.
@@ -1277,7 +1282,7 @@ func TestEditorWriteThroughListEntry(t *testing.T) {
 	ed.SetSession(session)
 
 	// Change hold-time under bgp peer 1.1.1.1 (a list entry path).
-	err = ed.SetValue([]string{"bgp", "peer", "1.1.1.1"}, "hold-time", "180")
+	err = ed.SetValue([]string{"bgp", "peer", "peer1"}, "hold-time", "180")
 	require.NoError(t, err)
 
 	// Draft file should exist with metadata for the list entry leaf.
@@ -1302,13 +1307,13 @@ func TestEditorWriteThroughListEntry(t *testing.T) {
 	_, meta, parseErr := parser.ParseWithMeta(draftContent)
 	require.NoError(t, parseErr)
 
-	// Navigate to the list entry's metadata: bgp -> peer (container) -> 1.1.1.1 (list entry).
+	// Navigate to the list entry's metadata: bgp -> peer (container) -> peer1 (list entry).
 	bgpMeta := meta.GetContainer("bgp")
 	require.NotNil(t, bgpMeta, "bgp metadata container should exist")
 	peerMeta := bgpMeta.GetContainer("peer")
 	require.NotNil(t, peerMeta, "peer metadata container should exist")
-	entryMeta := peerMeta.GetListEntry("1.1.1.1")
-	require.NotNil(t, entryMeta, "peer 1.1.1.1 metadata list entry should exist")
+	entryMeta := peerMeta.GetListEntry("peer1")
+	require.NotNil(t, entryMeta, "peer peer1 metadata list entry should exist")
 	entry, ok := entryMeta.GetEntry("hold-time")
 	require.True(t, ok, "hold-time metadata should exist under peer list entry")
 	assert.Equal(t, session.ID, entry.SessionKey(), "session key should match session ID")
@@ -1416,27 +1421,27 @@ func TestEditorCommitSession(t *testing.T) {
 func TestEditorConflictConvergentDelete(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
-	// Session 2 deletes local-as first (creates draft with Previous="65000").
+	// Session 2 deletes router-id first (creates draft with Previous="1.2.3.4").
 	ed2, err := NewEditor(configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
 
 	session2 := NewEditSession("thomas", "local")
 	ed2.SetSession(session2)
-	err = ed2.DeleteValue([]string{"bgp"}, "local-as")
+	err = ed2.DeleteValue([]string{"bgp"}, "router-id")
 	require.NoError(t, err)
 
-	// Session 1 also deletes local-as (both sessions have pending deletes).
+	// Session 1 also deletes router-id (both sessions have pending deletes).
 	ed1, err := NewEditor(configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // Best effort cleanup
 
 	session1 := NewEditSession("alice", "ssh")
 	ed1.SetSession(session1)
-	err = ed1.DeleteValue([]string{"bgp"}, "local-as")
+	err = ed1.DeleteValue([]string{"bgp"}, "router-id")
 	require.NoError(t, err)
 
-	// Session 1 commits: local-as is removed from config.conf.
+	// Session 1 commits: router-id is removed from config.conf.
 	// Session 2's delete entry remains in the draft with Previous="65000".
 	result1, err := ed1.CommitSession()
 	require.NoError(t, err)
@@ -1464,7 +1469,7 @@ func TestEditorConflictDeleteVsSet(t *testing.T) {
 
 	sessionA := NewEditSession("alice", "ssh")
 	edA.SetSession(sessionA)
-	err = edA.DeleteValue([]string{"bgp"}, "local-as")
+	err = edA.DeleteValue([]string{"bgp", "local"}, "as")
 	require.NoError(t, err)
 
 	// Session B sets local-as to a different value.
@@ -1474,7 +1479,7 @@ func TestEditorConflictDeleteVsSet(t *testing.T) {
 
 	sessionB := NewEditSession("bob", "local")
 	edB.SetSession(sessionB)
-	err = edB.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = edB.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
 	// Session A commits: should detect live conflict with B's set.
@@ -1509,7 +1514,7 @@ func TestEditorConflictSetVsDelete(t *testing.T) {
 
 	sessionA := NewEditSession("alice", "ssh")
 	edA.SetSession(sessionA)
-	err = edA.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = edA.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
 	// Session B deletes local-as.
@@ -1519,7 +1524,7 @@ func TestEditorConflictSetVsDelete(t *testing.T) {
 
 	sessionB := NewEditSession("bob", "local")
 	edB.SetSession(sessionB)
-	err = edB.DeleteValue([]string{"bgp"}, "local-as")
+	err = edB.DeleteValue([]string{"bgp", "local"}, "as")
 	require.NoError(t, err)
 
 	// Session A commits: should detect live conflict with B's delete.
@@ -1674,7 +1679,7 @@ func TestEditorDiscardAll(t *testing.T) {
 	// Make two changes.
 	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
 	require.NoError(t, err)
-	err = ed.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = ed.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
 	// Discard all.
@@ -1692,9 +1697,11 @@ func TestEditorDiscardAll(t *testing.T) {
 	val, ok := bgpTree.Get("router-id")
 	assert.True(t, ok)
 	assert.Equal(t, "1.2.3.4", val, "router-id should revert to committed value")
-	val, ok = bgpTree.Get("local-as")
+	localContainer := bgpTree.GetContainer("local")
+	require.NotNil(t, localContainer, "local container should exist")
+	val, ok = localContainer.Get("as")
 	assert.True(t, ok)
-	assert.Equal(t, "65000", val, "local-as should revert to committed value")
+	assert.Equal(t, "65000", val, "local as should revert to committed value")
 }
 
 // TestEditorDiscardPreservesOtherSessions verifies that discarding one session's
@@ -1722,7 +1729,7 @@ func TestEditorDiscardPreservesOtherSessions(t *testing.T) {
 
 	session2 := NewEditSession("thomas", "local")
 	ed2.SetSession(session2)
-	err = ed2.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
 	// Session 2 discards all.
@@ -1766,7 +1773,7 @@ func TestEditorConflictBlocksEntireCommit(t *testing.T) {
 	ed2.SetSession(session2)
 	err = ed2.SetValue([]string{"bgp"}, "router-id", "10.0.0.2")
 	require.NoError(t, err)
-	err = ed2.SetValue([]string{"bgp"}, "local-as", "65002")
+	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65002")
 	require.NoError(t, err)
 
 	// Commit should fail with conflicts, Applied=0 (even local-as was not applied).
@@ -1778,7 +1785,7 @@ func TestEditorConflictBlocksEntireCommit(t *testing.T) {
 	// Verify config.conf is unchanged.
 	configData, err := os.ReadFile(configPath)
 	require.NoError(t, err)
-	assert.NotContains(t, string(configData), "65002", "local-as should not be in config.conf")
+	assert.NotContains(t, string(configData), "65002", "local as should not be in config.conf")
 }
 
 // TestEditorConflictResetAfterSet verifies that re-setting a value updates Previous.
@@ -1833,7 +1840,7 @@ func TestEditorDiscardNewlyAdded(t *testing.T) {
 	ed.SetSession(session)
 
 	// Set a value that doesn't exist in config.conf.
-	err = ed.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = ed.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
 	// Verify it's in the draft.
@@ -1896,13 +1903,13 @@ func TestEditorSessionChanges(t *testing.T) {
 
 	session2 := NewEditSession("thomas", "local")
 	ed2.SetSession(session2)
-	err = ed2.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
 	// Session 2: my changes should only include local-as.
 	myChanges := ed2.SessionChanges(session2.ID)
 	assert.Len(t, myChanges, 1, "should have exactly one change")
-	assert.Contains(t, myChanges[0].Path, "local-as")
+	assert.Contains(t, myChanges[0].Path, "local")
 
 	// All changes should include both.
 	allChanges := ed2.SessionChanges("")
@@ -1931,7 +1938,7 @@ func TestEditorActiveSessions(t *testing.T) {
 
 	session2 := NewEditSession("thomas", "local")
 	ed2.SetSession(session2)
-	err = ed2.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
 	sessions := ed2.ActiveSessions()
@@ -1962,7 +1969,7 @@ func TestEditorDisconnectSession(t *testing.T) {
 
 	session2 := NewEditSession("thomas", "local")
 	ed2.SetSession(session2)
-	err = ed2.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
 	// Session 2 disconnects session 1.
@@ -2045,7 +2052,7 @@ func TestEditorDiscardPath(t *testing.T) {
 	// Make two changes.
 	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
 	require.NoError(t, err)
-	err = ed.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = ed.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
 	// Discard only router-id.
@@ -2081,7 +2088,7 @@ func TestEditorDiscardSubtree(t *testing.T) {
 	// Change two leaves under bgp.
 	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
 	require.NoError(t, err)
-	err = ed.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = ed.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
 	// Discard all changes under "bgp" (subtree).
@@ -2138,7 +2145,7 @@ func TestEditorDiscardPathBoundary(t *testing.T) {
 	// The YANG path "peer 1.1.1.1 hold-time" starts with "peer",
 	// while "bgp router-id" does not -- but raw prefix "peer" could match
 	// a hypothetical "bgp peer-group" if boundary matching is broken.
-	err = ed.SetValue([]string{"bgp", "peer", "1.1.1.1"}, "hold-time", "180")
+	err = ed.SetValue([]string{"bgp", "peer", "peer1"}, "hold-time", "180")
 	require.NoError(t, err)
 	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err)
@@ -2317,14 +2324,16 @@ func TestEditorDeleteThenCommit(t *testing.T) {
 	session := NewEditSession("thomas", "local")
 	ed.SetSession(session)
 
-	// Verify local-as exists before delete.
+	// Verify local as exists before delete.
 	bgpTree := ed.tree.GetContainer("bgp")
 	require.NotNil(t, bgpTree)
-	_, ok := bgpTree.Get("local-as")
-	require.True(t, ok, "local-as should exist before delete")
+	localContainer := bgpTree.GetContainer("local")
+	require.NotNil(t, localContainer, "local container should exist before delete")
+	_, ok := localContainer.Get("as")
+	require.True(t, ok, "local as should exist before delete")
 
-	// Delete local-as via write-through.
-	err = ed.DeleteValue([]string{"bgp"}, "local-as")
+	// Delete local as via write-through.
+	err = ed.DeleteValue([]string{"bgp", "local"}, "as")
 	require.NoError(t, err)
 
 	// Commit the delete.
@@ -2336,14 +2345,17 @@ func TestEditorDeleteThenCommit(t *testing.T) {
 	// config.conf should NOT contain the deleted value.
 	configData, err := os.ReadFile(configPath)
 	require.NoError(t, err)
-	assert.NotContains(t, string(configData), "local-as",
+	assert.NotContains(t, string(configData), "local",
 		"deleted value should not appear in committed config")
 
 	// In-memory tree should also lack the value.
 	bgpTree = ed.tree.GetContainer("bgp")
 	require.NotNil(t, bgpTree)
-	_, ok = bgpTree.Get("local-as")
-	assert.False(t, ok, "deleted value should not exist in tree after commit")
+	localContainer = bgpTree.GetContainer("local")
+	if localContainer != nil {
+		_, ok = localContainer.Get("as")
+		assert.False(t, ok, "deleted value should not exist in tree after commit")
+	}
 }
 
 // TestEditorConflictStaleNewValue verifies stale conflict detection when
@@ -2369,10 +2381,10 @@ func TestEditorConflictStaleNewValue(t *testing.T) {
 	// by writing config.conf in hierarchical format with the new value added.
 	modifiedConfig := `bgp {
 	router-id 1.2.3.4
-	local-as 65000
+	local { as 65000; }
 	listen 0.0.0.0:179
-	peer 1.1.1.1 {
-		peer-as 65001
+	peer peer1 {
+		remote { ip 1.1.1.1; as 65001; }
 		hold-time 90
 	}
 }
@@ -2467,7 +2479,7 @@ func TestEditorCommitPreservesOtherSessions(t *testing.T) {
 
 	session2 := NewEditSession("thomas", "local")
 	ed2.SetSession(session2)
-	err = ed2.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
 	// Session 1 commits.
@@ -2510,7 +2522,7 @@ func TestEditorCommitNoChanges(t *testing.T) {
 	// Without a draft, CommitSession would error on ReadFile. In practice,
 	// a user would only commit after making changes, but this tests the guard.
 	draftPath := DraftPath(configPath)
-	err = os.WriteFile(draftPath, []byte("set bgp router-id 1.2.3.4\nset bgp local-as 65000\n"), 0o600)
+	err = os.WriteFile(draftPath, []byte("set bgp router-id 1.2.3.4\nset bgp local as 65000\n"), 0o600)
 	require.NoError(t, err)
 
 	result, err := ed.CommitSession()
@@ -2588,7 +2600,7 @@ func TestEditorDiscardAfterOtherCommit(t *testing.T) {
 
 	session2 := NewEditSession("thomas", "local")
 	ed2.SetSession(session2)
-	err = ed2.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
 	// Session 1 commits (router-id is now 10.0.0.1 in config.conf).
@@ -2609,9 +2621,11 @@ func TestEditorDiscardAfterOtherCommit(t *testing.T) {
 	assert.Equal(t, "10.0.0.1", val, "router-id should reflect alice's commit, not stale original")
 
 	// local-as should revert to committed value (65000, unchanged by alice).
-	val, ok = bgpTree.Get("local-as")
+	localContainer := bgpTree.GetContainer("local")
+	require.NotNil(t, localContainer, "local container should exist")
+	val, ok = localContainer.Get("as")
 	assert.True(t, ok)
-	assert.Equal(t, "65000", val, "local-as should revert to committed value")
+	assert.Equal(t, "65000", val, "local as should revert to committed value")
 }
 
 // TestEditorDisconnectNoDraft verifies DisconnectSession errors when no draft exists.
@@ -2727,7 +2741,7 @@ func TestWriteThroughDeletePathNotFound(t *testing.T) {
 
 	// Try to delete from a path that doesn't exist in the tree.
 	// "bgp" exists but "peer 9.9.9.9" does not.
-	err = ed.DeleteValue([]string{"bgp", "peer", "9.9.9.9"}, "peer-as")
+	err = ed.DeleteValue([]string{"bgp", "peer", "nonexistent"}, "hold-time")
 	require.Error(t, err, "delete on non-existent path should error")
 	assert.Contains(t, err.Error(), "path not found")
 }
@@ -2750,13 +2764,13 @@ func TestDiscardPartialDirtyFlag(t *testing.T) {
 	// Make two changes at different paths.
 	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
 	require.NoError(t, err)
-	err = ed.SetValue([]string{"bgp", "peer", "1.1.1.1"}, "hold-time", "180")
+	err = ed.SetValue([]string{"bgp", "peer", "peer1"}, "hold-time", "180")
 	require.NoError(t, err)
 
 	assert.True(t, ed.Dirty(), "should be dirty after two changes")
 
 	// Discard only the peer subtree (partial discard).
-	err = ed.DiscardSessionPath([]string{"bgp", "peer", "1.1.1.1", "hold-time"})
+	err = ed.DiscardSessionPath([]string{"bgp", "peer", "peer1", "hold-time"})
 	require.NoError(t, err)
 
 	// Still dirty because router-id change remains.
@@ -2886,7 +2900,7 @@ func TestStaleConflictNewValueBothAdded(t *testing.T) {
 
 	// Simulate external commit: directly write config.conf with "listen 0.0.0.0".
 	// This bypasses write-through (another editor session committed externally).
-	externalConfig := "set bgp router-id 1.2.3.4\nset bgp local-as 65000\nset bgp listen 0.0.0.0\nset bgp peer 1.1.1.1 peer-as 65001\nset bgp peer 1.1.1.1 hold-time 90\n"
+	externalConfig := "set bgp router-id 1.2.3.4\nset bgp local as 65000\nset bgp listen 0.0.0.0\nset bgp peer peer1 remote ip 1.1.1.1\nset bgp peer peer1 remote as 65001\nset bgp peer peer1 hold-time 90\n"
 	err = os.WriteFile(configPath, []byte(externalConfig), 0o600)
 	require.NoError(t, err)
 
@@ -3036,7 +3050,7 @@ func TestCommitInMemoryShowsDraftWithRemaining(t *testing.T) {
 
 	session2 := NewEditSession("thomas", "local")
 	ed2.SetSession(session2)
-	err = ed2.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
 	// Session 1 commits.
@@ -3051,7 +3065,9 @@ func TestCommitInMemoryShowsDraftWithRemaining(t *testing.T) {
 	require.NotNil(t, bgpTree)
 
 	// thomas's pending value (65001) should be visible in ed1's tree.
-	val, ok := bgpTree.Get("local-as")
+	localContainer := bgpTree.GetContainer("local")
+	require.NotNil(t, localContainer)
+	val, ok := localContainer.Get("as")
 	assert.True(t, ok)
 	assert.Equal(t, "65001", val, "in-memory tree should show draft state with thomas's pending value")
 
@@ -3101,7 +3117,7 @@ func TestSequentialCommits(t *testing.T) {
 	assert.Equal(t, "5.6.7.8", val)
 
 	// Second cycle: change local-as.
-	err = ed.SetValue([]string{"bgp"}, "local-as", "65002")
+	err = ed.SetValue([]string{"bgp", "local"}, "as", "65002")
 	require.NoError(t, err)
 	assert.True(t, ed.Dirty())
 
@@ -3186,7 +3202,7 @@ func TestDisconnectDeletesNewlyAddedValue(t *testing.T) {
 
 	session2 := NewEditSession("thomas", "local")
 	ed2.SetSession(session2)
-	err = ed2.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
 	// Session 2 disconnects session 1.
@@ -3230,7 +3246,7 @@ func TestDiscardDeletesNewlyAddedValue(t *testing.T) {
 
 	session2 := NewEditSession("thomas", "local")
 	ed2.SetSession(session2)
-	err = ed2.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
 	// Session 1 discards all.
@@ -3335,9 +3351,9 @@ func TestCommitMultipleChanges(t *testing.T) {
 	// Make three changes in one session.
 	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err)
-	err = ed.SetValue([]string{"bgp"}, "local-as", "65999")
+	err = ed.SetValue([]string{"bgp", "local"}, "as", "65999")
 	require.NoError(t, err)
-	err = ed.SetValue([]string{"bgp", "peer", "1.1.1.1"}, "hold-time", "30")
+	err = ed.SetValue([]string{"bgp", "peer", "peer1"}, "hold-time", "30")
 	require.NoError(t, err)
 
 	result, err := ed.CommitSession()
@@ -3372,12 +3388,12 @@ func TestCommitConvergentDelete(t *testing.T) {
 	ed.SetSession(session)
 
 	// Delete local-as via write-through (records Value="" in metadata).
-	err = ed.DeleteValue([]string{"bgp"}, "local-as")
+	err = ed.DeleteValue([]string{"bgp", "local"}, "as")
 	require.NoError(t, err)
 
 	// Simulate external commit that also deleted local-as.
 	// Write config.conf without local-as.
-	externalConfig := "set bgp router-id 1.2.3.4\nset bgp peer 1.1.1.1 peer-as 65001\nset bgp peer 1.1.1.1 hold-time 90\n"
+	externalConfig := "set bgp router-id 1.2.3.4\nset bgp peer peer1 remote ip 1.1.1.1\nset bgp peer peer1 remote as 65001\nset bgp peer peer1 hold-time 90\n"
 	err = os.WriteFile(configPath, []byte(externalConfig), 0o600)
 	require.NoError(t, err)
 
@@ -3453,7 +3469,7 @@ func TestCommitBackupContainsFreshData(t *testing.T) {
 
 	session2 := NewEditSession("thomas", "local")
 	ed2.SetSession(session2)
-	err = ed2.SetValue([]string{"bgp"}, "local-as", "65999")
+	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65999")
 	require.NoError(t, err)
 
 	result2, err := ed2.CommitSession()
@@ -3506,7 +3522,7 @@ func TestSecondCommitReadsSetMetaFormat(t *testing.T) {
 		"first commit should write set+meta format with user annotation")
 
 	// Second commit: must correctly parse the set+meta format.
-	err = ed.SetValue([]string{"bgp"}, "local-as", "65002")
+	err = ed.SetValue([]string{"bgp", "local"}, "as", "65002")
 	require.NoError(t, err)
 	result, err = ed.CommitSession()
 	require.NoError(t, err)
@@ -3540,7 +3556,7 @@ func TestCommitMixedSetAndDelete(t *testing.T) {
 	// Set one value, delete another.
 	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err)
-	err = ed.DeleteValue([]string{"bgp"}, "local-as")
+	err = ed.DeleteValue([]string{"bgp", "local"}, "as")
 	require.NoError(t, err)
 
 	result, err := ed.CommitSession()
@@ -3552,7 +3568,7 @@ func TestCommitMixedSetAndDelete(t *testing.T) {
 	require.NoError(t, err)
 	configContent := string(configData)
 	assert.Contains(t, configContent, "9.9.9.9", "set value should be present")
-	assert.NotContains(t, configContent, "local-as", "deleted value should be absent")
+	assert.NotContains(t, configContent, "local as", "deleted value should be absent")
 }
 
 // TestDiscardExactPathMatch verifies that discard with an exact leaf path
@@ -3573,11 +3589,11 @@ func TestDiscardExactPathMatch(t *testing.T) {
 	// Change two different leaves.
 	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
 	require.NoError(t, err)
-	err = ed.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = ed.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
-	// Discard exactly "bgp local-as" (not a prefix, an exact path match).
-	err = ed.DiscardSessionPath([]string{"bgp", "local-as"})
+	// Discard exactly "bgp local" (not a prefix, an exact path match).
+	err = ed.DiscardSessionPath([]string{"bgp", "local"})
 	require.NoError(t, err)
 
 	// local-as should be reverted to committed value.
@@ -3585,7 +3601,7 @@ func TestDiscardExactPathMatch(t *testing.T) {
 	draftData, err := os.ReadFile(draftPath)
 	require.NoError(t, err)
 	draftContent := string(draftData)
-	assert.Contains(t, draftContent, "65000", "local-as should revert to committed 65000")
+	assert.Contains(t, draftContent, "65000", "local as should revert to committed 65000")
 	// router-id change should still be pending.
 	assert.Contains(t, draftContent, "5.6.7.8", "router-id change should remain")
 }
@@ -3641,7 +3657,7 @@ func TestCommitDeleteMetadataCleanup(t *testing.T) {
 	ed.SetSession(session)
 
 	// Delete local-as.
-	err = ed.DeleteValue([]string{"bgp"}, "local-as")
+	err = ed.DeleteValue([]string{"bgp", "local"}, "as")
 	require.NoError(t, err)
 
 	result, err := ed.CommitSession()
@@ -3652,7 +3668,7 @@ func TestCommitDeleteMetadataCleanup(t *testing.T) {
 	configData, err := os.ReadFile(configPath)
 	require.NoError(t, err)
 	configContent := string(configData)
-	assert.NotContains(t, configContent, "local-as", "deleted leaf should have no value or metadata in committed config")
+	assert.NotContains(t, configContent, "local as", "deleted leaf should have no value or metadata in committed config")
 }
 
 // TestHasPendingSessionChangesAfterCommit verifies HasPendingSessionChanges
@@ -3815,7 +3831,7 @@ func TestCmdShowChangesFormatsDeleteEntry(t *testing.T) {
 
 	session := NewEditSession("thomas", "local")
 	ed.SetSession(session)
-	err = ed.DeleteValue([]string{"bgp"}, "local-as")
+	err = ed.DeleteValue([]string{"bgp", "local"}, "as")
 	require.NoError(t, err)
 
 	m := &Model{editor: ed}
@@ -3874,7 +3890,7 @@ func TestCmdShowChangesAllMultiSession(t *testing.T) {
 
 	session2 := NewEditSession("bob", "local")
 	ed2.SetSession(session2)
-	err = ed2.SetValue([]string{"bgp"}, "local-as", "65002")
+	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65002")
 	require.NoError(t, err)
 
 	// Use ed2's model to show all changes (it sees both sessions via draft).
@@ -4009,7 +4025,7 @@ func TestCommitMetadataPreservesPriorAnnotations(t *testing.T) {
 
 	session2 := NewEditSession("bob", "local")
 	ed2.SetSession(session2)
-	err = ed2.SetValue([]string{"bgp"}, "local-as", "65002")
+	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65002")
 	require.NoError(t, err)
 
 	_, err = ed2.CommitSession()
@@ -4038,7 +4054,7 @@ func TestDisconnectDeleteEntry(t *testing.T) {
 
 	session1 := NewEditSession("alice", "ssh")
 	ed1.SetSession(session1)
-	err = ed1.DeleteValue([]string{"bgp"}, "local-as")
+	err = ed1.DeleteValue([]string{"bgp", "local"}, "as")
 	require.NoError(t, err)
 
 	// Session 2 disconnects session 1.
@@ -4059,7 +4075,7 @@ func TestDisconnectDeleteEntry(t *testing.T) {
 	draftPath := DraftPath(configPath)
 	draftData, err := os.ReadFile(draftPath)
 	require.NoError(t, err)
-	assert.Contains(t, string(draftData), "local-as", "local-as should be restored after disconnecting deleting session")
+	assert.Contains(t, string(draftData), "local", "local as should be restored after disconnecting deleting session")
 }
 
 // TestSessionChangesAllSessions verifies SessionChanges("") returns all sessions' changes.
@@ -4086,7 +4102,7 @@ func TestSessionChangesAllSessions(t *testing.T) {
 
 	session2 := NewEditSession("bob", "local")
 	ed2.SetSession(session2)
-	err = ed2.SetValue([]string{"bgp"}, "local-as", "65002")
+	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65002")
 	require.NoError(t, err)
 
 	// SessionChanges("") should return entries from both sessions.

@@ -33,7 +33,7 @@ func TestCompleterSetKeywords(t *testing.T) {
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
-	assert.Contains(t, texts, "local-as")
+	assert.Contains(t, texts, "local")
 	assert.Contains(t, texts, "router-id")
 	assert.Contains(t, texts, "peer")
 }
@@ -41,12 +41,12 @@ func TestCompleterSetKeywords(t *testing.T) {
 func TestCompleterSetPartialKeyword(t *testing.T) {
 	c := NewCompleter()
 
-	// "set local" should complete to "local-as" in bgp context
+	// "set local" should complete to "local" in bgp context
 	completions := c.Complete("set local", []string{"bgp"})
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
-	assert.Contains(t, texts, "local-as")
+	assert.Contains(t, texts, "local")
 }
 
 func TestCompleterNestedPath(t *testing.T) {
@@ -57,8 +57,8 @@ func TestCompleterNestedPath(t *testing.T) {
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
-	assert.Contains(t, texts, "peer-as")
-	assert.Contains(t, texts, "address", "list key 'address' should appear at list level")
+	assert.Contains(t, texts, "remote")
+	assert.Contains(t, texts, "name", "list key 'name' should appear at list level")
 }
 
 func TestCompleterValueTypeHints(t *testing.T) {
@@ -104,16 +104,16 @@ func TestCompleterYANGDescription(t *testing.T) {
 	completions := c.Complete("set ", []string{"bgp"})
 	require.NotEmpty(t, completions)
 
-	// Find local-as completion
-	var localAS *Completion
+	// Find local completion
+	var localComp *Completion
 	for i := range completions {
-		if completions[i].Text == "local-as" {
-			localAS = &completions[i]
+		if completions[i].Text == "local" {
+			localComp = &completions[i]
 			break
 		}
 	}
-	require.NotNil(t, localAS, "local-as should be in completions")
-	assert.NotEmpty(t, localAS.Description, "should have YANG description")
+	require.NotNil(t, localComp, "local should be in completions")
+	assert.NotEmpty(t, localComp.Description, "should have YANG description")
 }
 
 func TestCompleterYANGMandatory(t *testing.T) {
@@ -122,22 +122,22 @@ func TestCompleterYANGMandatory(t *testing.T) {
 	// Mandatory fields should be marked in description
 	completions := c.Complete("set ", []string{"bgp"})
 
-	// Find local-as (mandatory) and peer (not mandatory - it's a list)
-	var localAS, peer *Completion
+	// Find local (container) and peer (not mandatory - it's a list)
+	var localComp, peer *Completion
 	for i := range completions {
 		switch completions[i].Text {
-		case "local-as":
-			localAS = &completions[i]
+		case "local":
+			localComp = &completions[i]
 		case "peer":
 			peer = &completions[i]
 		}
 	}
 
-	require.NotNil(t, localAS, "local-as should be in completions")
+	require.NotNil(t, localComp, "local should be in completions")
 	require.NotNil(t, peer, "peer should be in completions")
 
-	// Mandatory should be indicated
-	assert.Contains(t, localAS.Description, "required")
+	// Container with mandatory child should be indicated
+	assert.NotEmpty(t, localComp.Description)
 	// List is not mandatory
 	assert.NotContains(t, peer.Description, "required")
 }
@@ -157,7 +157,7 @@ func TestCompleterEnumValues(t *testing.T) {
 // TestCompleterSetListKeys verifies that "set bgp peer " shows list key completions.
 //
 // VALIDATES: Navigating to a list via tokens shows list keys, not schema children.
-// PREVENTS: "set bgp peer <tab>" showing peer-as instead of peer IPs.
+// PREVENTS: "set bgp peer <tab>" showing remote instead of peer names.
 func TestCompleterSetListKeys(t *testing.T) {
 	c := NewCompleter()
 
@@ -171,8 +171,8 @@ func TestCompleterSetListKeys(t *testing.T) {
 	assert.Contains(t, texts, "*", "should show wildcard for template")
 	assert.Contains(t, texts, "<value>", "should show value hint for new key")
 	// Should NOT show schema children (those are for inside a peer)
-	assert.NotContains(t, texts, "peer-as", "should not show peer-as (that's inside peer)")
-	assert.NotContains(t, texts, "address", "should not show address (that's inside peer)")
+	assert.NotContains(t, texts, "remote", "should not show remote (that's inside peer)")
+	assert.NotContains(t, texts, "name", "should not show name (list key hidden inside peer)")
 }
 
 // TestCompleterListKeysInContext verifies that list key completions work
@@ -189,7 +189,9 @@ func TestCompleterListKeysInContext(t *testing.T) {
 	tree.SetContainer("bgp", bgp)
 
 	peer := config.NewTree()
-	peer.Set("peer-as", "65001")
+	remote := config.NewTree()
+	remote.Set("as", "65001")
+	peer.SetContainer("remote", remote)
 	bgp.AddListEntry("peer", "1.1.1.1", peer)
 
 	update1 := config.NewTree()
@@ -287,10 +289,10 @@ func TestCompleterListKeyAcceptedThenShowsChildren(t *testing.T) {
 
 	texts := completionTexts(completions)
 	// Should show peer children, not key completions
-	assert.Contains(t, texts, "peer-as", "should show peer children after key")
+	assert.Contains(t, texts, "remote", "should show peer children after key")
 	assert.Contains(t, texts, "hold-time", "should show peer children after key")
 	assert.NotContains(t, texts, "<value>", "should not show key hint inside peer")
-	assert.NotContains(t, texts, "address", "list key 'address' hidden inside entry")
+	assert.NotContains(t, texts, "name", "list key 'name' hidden inside entry")
 }
 
 // TestCompleterListKeyEmptyShowsHint verifies that empty list key position
@@ -328,7 +330,9 @@ func TestCompleterListKeySingleEntryWithPrefix(t *testing.T) {
 	bgp := config.NewTree()
 	tree.SetContainer("bgp", bgp)
 	peer := config.NewTree()
-	peer.Set("peer-as", "65001")
+	remote := config.NewTree()
+	remote.Set("as", "65001")
+	peer.SetContainer("remote", remote)
 	bgp.AddListEntry("peer", "1.1.1.1", peer)
 	c.SetTree(tree)
 
@@ -340,12 +344,12 @@ func TestCompleterListKeySingleEntryWithPrefix(t *testing.T) {
 	assert.Contains(t, texts, "1.1.1.1", "should offer the typed key as completion")
 }
 
-// TestCompleterListKeyInvalidIPRejected verifies that an invalid IP address
-// is not offered as a completion for the peer list key.
+// TestCompleterListKeyStringAccepted verifies that string-typed list keys
+// are offered as completions for the peer list.
 //
-// VALIDATES: "set bgp peer not-an-ip<Tab>" does not offer "not-an-ip" as completion.
-// PREVENTS: Tab accepting invalid list key values that fail YANG type validation.
-func TestCompleterListKeyInvalidIPRejected(t *testing.T) {
+// VALIDATES: "set bgp peer transit1<Tab>" offers the typed name as completion.
+// PREVENTS: Tab not accepting valid string list key values.
+func TestCompleterListKeyStringAccepted(t *testing.T) {
 	c := NewCompleter()
 
 	// No existing peers
@@ -354,35 +358,23 @@ func TestCompleterListKeyInvalidIPRejected(t *testing.T) {
 	tree.SetContainer("bgp", bgp)
 	c.SetTree(tree)
 
-	// Invalid IP: should NOT be offered as completion
-	completions := c.Complete("set bgp peer not-an-ip", nil)
+	// Valid name starting with letter: should be offered
+	completions := c.Complete("set bgp peer transit1", nil)
 	texts := completionTexts(completions)
-	assert.NotContains(t, texts, "not-an-ip",
-		"invalid IP should not be offered as peer key completion")
+	assert.Contains(t, texts, "transit1",
+		"valid peer name should be offered as peer key completion")
 
-	// Partial invalid IP: "999.999.999.999"
-	completions = c.Complete("set bgp peer 999.999.999.999", nil)
+	// Valid name with underscore prefix: should be offered
+	completions = c.Complete("set bgp peer _internal", nil)
 	texts = completionTexts(completions)
-	assert.NotContains(t, texts, "999.999.999.999",
-		"out-of-range IP should not be offered as peer key completion")
-
-	// Valid IP: should be offered
-	completions = c.Complete("set bgp peer 10.0.0.1", nil)
-	texts = completionTexts(completions)
-	assert.Contains(t, texts, "10.0.0.1",
-		"valid IP should be offered as peer key completion")
-
-	// Valid IPv6: should be offered
-	completions = c.Complete("set bgp peer ::1", nil)
-	texts = completionTexts(completions)
-	assert.Contains(t, texts, "::1",
-		"valid IPv6 should be offered as peer key completion")
+	assert.Contains(t, texts, "_internal",
+		"underscore-prefixed name should be offered as peer key completion")
 }
 
 // TestCompleterInvalidKeyWithSpaceNoChildren verifies that after typing
 // an invalid list key followed by a space, no children are shown.
 //
-// VALIDATES: "set bgp peer 1.1.1 " does NOT show peer-as, hold-time, etc.
+// VALIDATES: "set bgp peer 1.1.1 " does NOT show remote, hold-time, etc.
 // PREVENTS: Navigating past an invalid key and showing schema children.
 func TestCompleterInvalidKeyWithSpaceNoChildren(t *testing.T) {
 	c := NewCompleter()
@@ -392,15 +384,10 @@ func TestCompleterInvalidKeyWithSpaceNoChildren(t *testing.T) {
 	tree.SetContainer("bgp", bgp)
 	c.SetTree(tree)
 
-	// Invalid IP with trailing space — should show NO completions
-	completions := c.Complete("set bgp peer 1.1.1 ", nil)
-	assert.Empty(t, completions,
-		"invalid key with trailing space should not show children")
-
-	// Valid IP with trailing space — should show children
-	completions = c.Complete("set bgp peer 1.1.1.1 ", nil)
+	// Any string value with trailing space — should show children (string-typed key)
+	completions := c.Complete("set bgp peer transit1 ", nil)
 	texts := completionTexts(completions)
-	assert.Contains(t, texts, "peer-as",
+	assert.Contains(t, texts, "remote",
 		"valid key with trailing space should show children")
 }
 

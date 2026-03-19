@@ -34,8 +34,8 @@ func TestValidateSyntaxMissingSemicolon(t *testing.T) {
 		{
 			name: "block_no_semicolon_needed",
 			content: `bgp {
-  peer 1.1.1.1 {
-    peer-as 65001
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
   }
 }`,
 			wantErr: false,
@@ -43,8 +43,8 @@ func TestValidateSyntaxMissingSemicolon(t *testing.T) {
 		{
 			name: "auto_semicolon_at_newline",
 			content: `bgp {
-  peer 1.1.1.1 {
-    peer-as 65001
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
   }
 }`,
 			wantErr: false,
@@ -79,8 +79,8 @@ func TestValidateSyntaxUnclosedBrace(t *testing.T) {
 		{
 			name: "balanced_braces",
 			content: `bgp {
-  peer 1.1.1.1 {
-    peer-as 65001
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
   }
 }`,
 			wantErr: false,
@@ -89,15 +89,15 @@ func TestValidateSyntaxUnclosedBrace(t *testing.T) {
 			name: "unclosed_brace",
 			content: `bgp {
   peer 1.1.1.1 {
-    peer-as 65001
+    remote { as 65001; }
 `,
 			wantErr: true,
 		},
 		{
 			name: "extra_close_brace",
 			content: `bgp {
-  peer 1.1.1.1 {
-    peer-as 65001
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
   }
 }}`,
 			wantErr: true,
@@ -105,11 +105,11 @@ func TestValidateSyntaxUnclosedBrace(t *testing.T) {
 		{
 			name: "nested_balanced",
 			content: `bgp {
-  peer 1.1.1.1 {
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
     capability {
       route-refresh
     }
-    peer-as 65001
   }
 }`,
 			wantErr: false,
@@ -128,10 +128,10 @@ func TestValidateSyntaxUnclosedBrace(t *testing.T) {
 	}
 }
 
-// TestValidateSemanticPeerAsLocalAs verifies peer-as validation.
+// TestValidateSemanticPeerAsLocalAs verifies remote as validation.
 //
-// VALIDATES: peer-as is parsed correctly.
-// NOTE: iBGP validation (peer-as == local-as) is deferred until
+// VALIDATES: remote as is parsed correctly.
+// NOTE: iBGP validation (remote as == local as) is deferred until
 // route-reflector-client is added to schema.
 func TestValidateSemanticPeerAsLocalAs(t *testing.T) {
 	v, err := NewConfigValidator()
@@ -145,9 +145,9 @@ func TestValidateSemanticPeerAsLocalAs(t *testing.T) {
 		{
 			name: "different_as",
 			content: `bgp {
-  local-as 65000
-  peer 1.1.1.1 {
-    peer-as 65001
+  local { as 65000; }
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
   }
 }`,
 			wantErr: false,
@@ -155,12 +155,12 @@ func TestValidateSemanticPeerAsLocalAs(t *testing.T) {
 		{
 			name: "same_as_ibgp",
 			content: `bgp {
-  local-as 65000
-  peer 1.1.1.1 {
-    peer-as 65000
+  local { as 65000; }
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65000; }
   }
 }`,
-			// iBGP (peer-as == local-as) is valid config.
+			// iBGP (remote as == local as) is valid config.
 			// Full iBGP validation requires route-reflector-client in schema.
 			wantErr: false,
 		},
@@ -194,11 +194,11 @@ func TestValidateSemanticDuplicatePeer(t *testing.T) {
 		{
 			name: "unique_peers",
 			content: `bgp {
-  peer 1.1.1.1 {
-    peer-as 65001
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
   }
   peer 2.2.2.2 {
-    peer-as 65002
+    remote { as 65002; }
   }
 }`,
 			wantErr: false,
@@ -278,32 +278,32 @@ func TestValidateSemanticHoldTime(t *testing.T) {
 	}{
 		{
 			name:    "hold_time_0_valid",
-			content: "bgp { peer 1.1.1.1 { peer-as 65001; hold-time 0; } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } hold-time 0; } }",
 			wantErr: false,
 		},
 		{
 			name:    "hold_time_1_invalid",
-			content: "bgp { peer 1.1.1.1 { peer-as 65001; hold-time 1; } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } hold-time 1; } }",
 			wantErr: true,
 		},
 		{
 			name:    "hold_time_2_invalid",
-			content: "bgp { peer 1.1.1.1 { peer-as 65001; hold-time 2; } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } hold-time 2; } }",
 			wantErr: true,
 		},
 		{
 			name:    "hold_time_3_valid",
-			content: "bgp { peer 1.1.1.1 { peer-as 65001; hold-time 3; } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } hold-time 3; } }",
 			wantErr: false,
 		},
 		{
 			name:    "hold_time_90_valid",
-			content: "bgp { peer 1.1.1.1 { peer-as 65001; hold-time 90; } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } hold-time 90; } }",
 			wantErr: false,
 		},
 		{
 			name:    "hold_time_65535_valid",
-			content: "bgp { peer 1.1.1.1 { peer-as 65001; hold-time 65535; } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } hold-time 65535; } }",
 			wantErr: false,
 		},
 	}
@@ -331,9 +331,9 @@ func TestValidateAll(t *testing.T) {
 	// Valid config
 	validConfig := `bgp {
   router-id 1.2.3.4
-  local-as 65000
-  peer 1.1.1.1 {
-    peer-as 65001
+  local { as 65000; }
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
     hold-time 90
   }
 }`
@@ -343,9 +343,9 @@ func TestValidateAll(t *testing.T) {
 	// Config with semantic error (invalid hold-time)
 	invalidConfig := `bgp {
   router-id 1.2.3.4
-  local-as 65000
-  peer 1.1.1.1 {
-    peer-as 65001
+  local { as 65000; }
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
     hold-time 1
   }
 }`
@@ -365,8 +365,8 @@ func TestValidationErrorFormat(t *testing.T) {
 
 	content := `bgp {
   router-id 1.2.3.4
-  peer 1.1.1.1 {
-    peer-as 65001
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
     hold-time 1
   }
 }`
@@ -395,8 +395,8 @@ func TestValidatePeerAddress(t *testing.T) {
 		{
 			name: "valid_ipv4_peer",
 			content: `bgp {
-  peer 192.168.1.1 {
-    peer-as 65001
+  peer peer1 {
+    remote { ip 192.168.1.1; as 65001; }
   }
 }`,
 			wantErr: false,
@@ -404,8 +404,8 @@ func TestValidatePeerAddress(t *testing.T) {
 		{
 			name: "valid_ipv6_peer",
 			content: `bgp {
-  peer 2001:db8::1 {
-    peer-as 65001
+  peer peer1 {
+    remote { ip 2001:db8::1; as 65001; }
   }
 }`,
 			wantErr: false,
@@ -443,7 +443,7 @@ func TestValidateUnknownKeyword(t *testing.T) {
 
 // TestValidateMissingPeerAS verifies mandatory field validation.
 //
-// VALIDATES: Missing peer-as in peer block causes error.
+// VALIDATES: Missing remote as in peer block causes error.
 // PREVENTS: Peers configured without required ASN.
 func TestValidateMissingPeerAS(t *testing.T) {
 	v, err := NewConfigValidator()
@@ -455,22 +455,23 @@ func TestValidateMissingPeerAS(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "peer_with_peer-as",
+			name: "peer_with_remote_as",
 			content: `bgp {
   router-id 1.1.1.1
-  local-as 65000
-  peer 192.0.2.1 {
-    peer-as 65001
+  local { as 65000; }
+  peer peer1 {
+    remote { ip 192.0.2.1; as 65001; }
   }
 }`,
 			wantErr: false,
 		},
 		{
-			name: "peer_missing_peer-as",
+			name: "peer_missing_remote_as",
 			content: `bgp {
   router-id 1.1.1.1
-  local-as 65000
-  peer 192.0.2.1 {
+  local { as 65000; }
+  peer peer1 {
+    remote { ip 192.0.2.1; }
     hold-time 90
   }
 }`,
@@ -484,25 +485,25 @@ func TestValidateMissingPeerAS(t *testing.T) {
 			if tt.wantErr {
 				var found bool
 				for _, w := range result.Warnings {
-					if strings.Contains(w.Message, "peer-as") {
+					if strings.Contains(w.Message, "remote") {
 						found = true
 						break
 					}
 				}
-				assert.True(t, found, "expected warning containing peer-as")
+				assert.True(t, found, "expected warning containing remote")
 			} else {
 				for _, w := range result.Warnings {
-					assert.NotContains(t, w.Message, "peer-as", "unexpected peer-as warning")
+					assert.NotContains(t, w.Message, "remote", "unexpected remote warning")
 				}
 			}
 		})
 	}
 }
 
-// TestValidatePeerASInheritance verifies peer-as can be inherited from group.
+// TestValidatePeerASInheritance verifies remote as can be inherited from group.
 //
-// VALIDATES: Group-level peer-as satisfies mandatory field requirement for group peers.
-// PREVENTS: False positives when peer-as comes from group defaults.
+// VALIDATES: Group-level remote as satisfies mandatory field requirement for group peers.
+// PREVENTS: False positives when remote as comes from group defaults.
 func TestValidatePeerASInheritance(t *testing.T) {
 	v, err := NewConfigValidator()
 	require.NoError(t, err)
@@ -515,66 +516,70 @@ func TestValidatePeerASInheritance(t *testing.T) {
 		wantMsgContains string // what error/warning message should contain
 	}{
 		{
-			name: "peer-as_inherited_from_group",
+			name: "remote_as_inherited_from_group",
 			content: `bgp {
   router-id 1.1.1.1
-  local-as 65000
+  local { as 65000; }
   group ibgp {
-    peer-as 65000
+    remote { as 65000; }
     hold-time 60
-    peer 192.0.2.1 {
+    peer peer1 {
+      remote { ip 192.0.2.1; }
     }
   }
 }`,
 		},
 		{
-			name: "peer-as_override_in_group_peer",
+			name: "remote_as_override_in_group_peer",
 			content: `bgp {
   router-id 1.1.1.1
-  local-as 65000
+  local { as 65000; }
   group ibgp {
-    peer-as 65000
-    peer 192.0.2.1 {
-      peer-as 65001
+    remote { as 65000; }
+    peer peer1 {
+      remote { ip 192.0.2.1; as 65001; }
     }
   }
 }`,
 		},
 		{
-			name: "group_without_peer-as",
+			name: "group_without_remote_as",
 			content: `bgp {
   router-id 1.1.1.1
-  local-as 65000
+  local { as 65000; }
   group base {
     hold-time 60
-    peer 192.0.2.1 {
+    peer peer1 {
+      remote { ip 192.0.2.1; }
     }
   }
 }`,
 			wantWarn:        true,
-			wantMsgContains: "peer-as",
+			wantMsgContains: "remote",
 		},
 		{
-			name: "standalone_peer_missing_peer-as",
+			name: "standalone_peer_missing_remote_as",
 			content: `bgp {
   router-id 1.1.1.1
-  local-as 65000
-  peer 192.0.2.1 {
+  local { as 65000; }
+  peer peer1 {
+    remote { ip 192.0.2.1; }
     hold-time 90
   }
 }`,
 			wantWarn:        true,
-			wantMsgContains: "peer-as",
+			wantMsgContains: "remote",
 		},
 		{
 			name: "invalid_hold-time_from_group",
 			content: `bgp {
   router-id 1.1.1.1
-  local-as 65000
+  local { as 65000; }
   group bad {
-    peer-as 65001
+    remote { as 65001; }
     hold-time 1
-    peer 192.0.2.1 {
+    peer peer1 {
+      remote { ip 192.0.2.1; }
     }
   }
 }`,
@@ -608,7 +613,7 @@ func TestValidatePeerASInheritance(t *testing.T) {
 				}
 				assert.True(t, found, "expected warning containing %q", tt.wantMsgContains)
 			default:
-				assert.Empty(t, result.Errors, "expected no errors when peer-as is inherited from group")
+				assert.Empty(t, result.Errors, "expected no errors when remote as is inherited from group")
 			}
 		})
 	}
@@ -629,17 +634,17 @@ func TestValidateASNBoundary(t *testing.T) {
 	}{
 		{
 			name:    "asn_min_valid",
-			content: "bgp { local-as 1; }",
+			content: "bgp { local { as 1; } }",
 			wantErr: false,
 		},
 		{
 			name:    "asn_max_valid",
-			content: "bgp { local-as 4294967295; }",
+			content: "bgp { local { as 4294967295; } }",
 			wantErr: false,
 		},
 		{
 			name:    "asn_typical",
-			content: "bgp { local-as 65000; }",
+			content: "bgp { local { as 65000; } }",
 			wantErr: false,
 		},
 		// Note: ASN 0 is technically reserved but parser accepts it as valid number.
@@ -673,12 +678,12 @@ func TestValidateSetFormat(t *testing.T) {
 	}{
 		{
 			name:    "set_format_valid",
-			content: "set bgp router-id 1.2.3.4\nset bgp local-as 65000\nset bgp peer 192.0.2.1 peer-as 65001\nset bgp peer 192.0.2.1 local-address auto\n",
+			content: "set bgp router-id 1.2.3.4\nset bgp local as 65000\nset bgp peer peer1 remote ip 192.0.2.1\nset bgp peer peer1 remote as 65001\nset bgp peer peer1 local ip auto\n",
 			wantErr: false,
 		},
 		{
 			name:    "set_meta_format_valid",
-			content: "#user@local @2025-01-01T00:00:00Z set bgp router-id 1.2.3.4\n#user@local @2025-01-01T00:00:00Z set bgp local-as 65000\n#user@local @2025-01-01T00:00:00Z set bgp peer 192.0.2.1 peer-as 65001\n#user@local @2025-01-01T00:00:00Z set bgp peer 192.0.2.1 local-address auto\n",
+			content: "#user@local @2025-01-01T00:00:00Z set bgp router-id 1.2.3.4\n#user@local @2025-01-01T00:00:00Z set bgp local as 65000\n#user@local @2025-01-01T00:00:00Z set bgp peer peer1 remote ip 192.0.2.1\n#user@local @2025-01-01T00:00:00Z set bgp peer peer1 remote as 65001\n#user@local @2025-01-01T00:00:00Z set bgp peer peer1 local ip auto\n",
 			wantErr: false,
 		},
 		{

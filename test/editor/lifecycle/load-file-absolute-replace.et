@@ -12,7 +12,9 @@ EOF_CONF
 tmpfs=other.conf:terminator=EOF_OTHER
 bgp {
   router-id 5.6.7.8;
-  local-as 65000;
+  local {
+  	as 65000
+  }
 }
 EOF_OTHER
 
@@ -24,5 +26,5 @@ input=type:text=load file absolute replace other.conf
 input=enter
 expect=dirty:true
 expect=viewport:contains=5.6.7.8
-expect=viewport:contains=local-as
+expect=viewport:contains=local
 expect=error:none

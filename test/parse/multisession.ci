@@ -7,12 +7,17 @@ plugin {
 	}
 }
 bgp {
-	peer 10.0.0.3 {
+	peer peer3 {
+		remote {
+			ip 10.0.0.3
+			as 123456
+		}
+		local {
+			as 123456
+			ip 10.0.0.2
+		}
 		description "will pass received routes to the program"
 		router-id 10.0.0.2
-		local-address 10.0.0.2
-		local-as 123456
-		peer-as 123456
 		hold-time 180
 		update {
 			attribute {

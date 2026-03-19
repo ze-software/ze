@@ -6,8 +6,11 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  peer 1.1.1.1 {
-    peer-as 65001;
+  peer peer1 {
+  	remote {
+  		ip 1.1.1.1
+  		as 65001;
+  	}
     hold-time 65536;
   }
 }

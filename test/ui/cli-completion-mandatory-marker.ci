@@ -1,13 +1,16 @@
-# Test: ze config completion — mandatory fields marked as required
+# Test: ze config completion -- mandatory fields marked as required
 # VALIDATES: Mandatory YANG fields show (required) in description
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
 	router-id 1.2.3.4
-	local-as 65000
+	local {
+		as 65000
+	}
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context bgp --input set+local test.conf
+# router-id is mandatory at bgp level
+cmd=foreground:seq=1:exec=ze config completion --context bgp --input set+router-id test.conf
 expect=exit:code=0
 expect=stdout:contains=required

@@ -8,11 +8,13 @@ import (
 // PREVENTS: Config delivery produces empty or wrong route store
 
 func TestParseConfigBasic(t *testing.T) {
-	// Mimics the JSON produced by ResolveBGPTree + ToMap for a peer with one watchdog update block
+	// Mimics the JSON produced by ResolveBGPTree + ToMap for a peer with one watchdog update block.
+	// Peers are keyed by name with remote.ip inside.
 	jsonData := `{
 		"bgp": {
 			"peer": {
-			"127.0.0.1": {
+			"peer1": {
+				"remote": {"ip": "127.0.0.1", "as": "65533"},
 				"update": {
 					"default": {
 						"attribute": {
@@ -41,6 +43,7 @@ func TestParseConfigBasic(t *testing.T) {
 		t.Fatalf("parseConfig: %v", err)
 	}
 
+	// Pool key is the remote IP, not the peer name.
 	pools, ok := peerPools["127.0.0.1"]
 	if !ok {
 		t.Fatal("no pools for 127.0.0.1")
@@ -81,7 +84,8 @@ func TestParseConfigWithdrawFlag(t *testing.T) {
 	jsonData := `{
 		"bgp": {
 			"peer": {
-			"10.0.0.1": {
+			"peer1": {
+				"remote": {"ip": "10.0.0.1"},
 				"update": {
 					"default": {
 						"attribute": {"origin": "igp", "next-hop": "10.0.0.1"},
@@ -116,7 +120,8 @@ func TestParseConfigMultiplePeers(t *testing.T) {
 	jsonData := `{
 		"bgp": {
 			"peer": {
-			"10.0.0.1": {
+			"peer1": {
+				"remote": {"ip": "10.0.0.1"},
 				"update": {
 					"default": {
 						"attribute": {"origin": "igp", "next-hop": "10.0.0.1"},
@@ -125,7 +130,8 @@ func TestParseConfigMultiplePeers(t *testing.T) {
 					}
 				}
 			},
-			"10.0.0.2": {
+			"peer2": {
+				"remote": {"ip": "10.0.0.2"},
 				"update": {
 					"default": {
 						"attribute": {"origin": "igp", "next-hop": "10.0.0.2"},
@@ -147,7 +153,7 @@ func TestParseConfigMultiplePeers(t *testing.T) {
 		t.Fatalf("peer count = %d, want 2", len(peerPools))
 	}
 
-	// Peer 1 has dns group
+	// Pools keyed by remote IP
 	if peerPools["10.0.0.1"].GetPool("dns") == nil {
 		t.Error("10.0.0.1 missing dns pool")
 	}
@@ -155,7 +161,6 @@ func TestParseConfigMultiplePeers(t *testing.T) {
 		t.Error("10.0.0.1 should not have web pool")
 	}
 
-	// Peer 2 has web group
 	if peerPools["10.0.0.2"].GetPool("web") == nil {
 		t.Error("10.0.0.2 missing web pool")
 	}
@@ -168,7 +173,8 @@ func TestParseConfigSkipsNonWatchdog(t *testing.T) {
 	jsonData := `{
 		"bgp": {
 			"peer": {
-			"10.0.0.1": {
+			"peer1": {
+				"remote": {"ip": "10.0.0.1"},
 				"update": {
 					"default": {
 						"attribute": {"origin": "igp", "next-hop": "10.0.0.1"},
@@ -215,7 +221,8 @@ func TestParseConfigMultiplePrefixes(t *testing.T) {
 	jsonData := `{
 		"bgp": {
 			"peer": {
-			"10.0.0.1": {
+			"peer1": {
+				"remote": {"ip": "10.0.0.1"},
 				"update": {
 					"default": {
 						"attribute": {"origin": "igp", "next-hop": "1.2.3.4"},
@@ -249,7 +256,8 @@ func TestParseConfigNhopSelf(t *testing.T) {
 	jsonData := `{
 		"bgp": {
 			"peer": {
-			"10.0.0.1": {
+			"peer1": {
+				"remote": {"ip": "10.0.0.1"},
 				"update": {
 					"default": {
 						"attribute": {"origin": "igp", "next-hop": "self"},
@@ -282,7 +290,8 @@ func TestParseConfigBareIPNormalized(t *testing.T) {
 	jsonData := `{
 		"bgp": {
 			"peer": {
-			"127.0.0.1": {
+			"peer1": {
+				"remote": {"ip": "127.0.0.1"},
 				"update": {
 					"default": {
 						"attribute": {"origin": "igp", "next-hop": "1.2.3.4"},
@@ -326,7 +335,8 @@ func TestParseConfigBareIPv6Normalized(t *testing.T) {
 	jsonData := `{
 		"bgp": {
 			"peer": {
-			"10.0.0.1": {
+			"peer1": {
+				"remote": {"ip": "10.0.0.1"},
 				"update": {
 					"default": {
 						"attribute": {"origin": "igp", "next-hop": "::1"},
@@ -359,7 +369,8 @@ func TestParseConfigAllAttributes(t *testing.T) {
 	jsonData := `{
 		"bgp": {
 			"peer": {
-			"10.0.0.1": {
+			"peer1": {
+				"remote": {"ip": "10.0.0.1"},
 				"update": {
 					"default": {
 						"attribute": {
@@ -416,7 +427,8 @@ func TestParseConfigGroupAndPeerBothHaveWatchdog(t *testing.T) {
 						}
 					},
 					"peer": {
-						"10.0.0.1": {
+						"peer1": {
+							"remote": {"ip": "10.0.0.1"},
 							"update": {
 								"default": {
 									"attribute": {"origin": "igp", "next-hop": "2.2.2.2"},
@@ -479,7 +491,9 @@ func TestParseConfigGroupWatchdogPeerNoUpdate(t *testing.T) {
 						}
 					},
 					"peer": {
-						"10.0.0.1": {}
+						"peer1": {
+							"remote": {"ip": "10.0.0.1"}
+						}
 					}
 				}
 			}

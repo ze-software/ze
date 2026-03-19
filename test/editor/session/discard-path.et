@@ -5,7 +5,9 @@
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
-  local-as 65000;
+  local {
+  	as 65000
+  }
   router-id 1.2.3.4;
 }
 EOF_CONF
@@ -18,13 +20,13 @@ option=session:user=thomas:origin=local
 expect=dirty:false
 
 # Set a value to make it dirty
-input=type:text=set bgp local-as 65001
+input=type:text=set bgp local as 65001
 input=enter
 expect=dirty:true
 expect=error:none
 
 # Discard only the changed path
-input=type:text=discard bgp local-as
+input=type:text=discard bgp local as
 input=enter
 expect=dirty:false
 expect=error:none

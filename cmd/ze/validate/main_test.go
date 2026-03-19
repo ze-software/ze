@@ -13,10 +13,15 @@ import (
 
 // validConfig is a minimal valid BGP configuration for testing.
 const validConfig = `bgp {
-	peer 127.0.0.1 {
-		local-address 127.0.0.1;
-		local-as 65533;
-		peer-as 65533;
+	peer peer1 {
+		remote {
+			ip 127.0.0.1;
+			as 65533;
+		}
+		local {
+			ip 127.0.0.1;
+			as 65533;
+		}
 	}
 }`
 

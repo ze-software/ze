@@ -68,7 +68,7 @@ func TestBgpSummaryFormat(t *testing.T) {
 
 	// First peer should have stats
 	assert.Equal(t, "192.0.2.1", peers[0]["address"])
-	assert.Equal(t, uint32(65001), peers[0]["peer-as"])
+	assert.Equal(t, uint32(65001), peers[0]["remote-as"])
 	assert.Equal(t, "established", peers[0]["state"])
 	assert.Equal(t, uint32(10), peers[0]["updates-received"])
 	assert.Equal(t, uint32(5), peers[0]["updates-sent"])

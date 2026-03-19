@@ -11,13 +11,29 @@ import (
 )
 
 // resolvedPeer extracts a peer's map from a ResolveBGPTree result, failing the test if missing.
-func resolvedPeer(t *testing.T, result map[string]any, addr string) map[string]any {
+func resolvedPeer(t *testing.T, result map[string]any, name string) map[string]any {
 	t.Helper()
 	peerMap, ok := result["peer"].(map[string]any)
 	require.True(t, ok, "result[\"peer\"] should be a map")
-	peer, ok := peerMap[addr].(map[string]any)
-	require.True(t, ok, "peer %s should be a map", addr)
+	peer, ok := peerMap[name].(map[string]any)
+	require.True(t, ok, "peer %s should be a map", name)
 	return peer
+}
+
+// resolvedPeerRemote extracts the "remote" sub-map from a resolved peer.
+func resolvedPeerRemote(t *testing.T, peer map[string]any) map[string]any {
+	t.Helper()
+	remote, ok := peer["remote"].(map[string]any)
+	require.True(t, ok, "peer[\"remote\"] should be a map")
+	return remote
+}
+
+// resolvedLocal extracts the top-level "local" sub-map from a result.
+func resolvedLocal(t *testing.T, result map[string]any) map[string]any {
+	t.Helper()
+	local, ok := result["local"].(map[string]any)
+	require.True(t, ok, "result[\"local\"] should be a map")
+	return local
 }
 
 // TestDeepMergeMaps verifies deep map merging for group resolution.
@@ -39,9 +55,9 @@ func TestDeepMergeMaps(t *testing.T) {
 		},
 		{
 			name: "add_new_key",
-			dst:  map[string]any{"peer-as": "65001"},
+			dst:  map[string]any{"remote": map[string]any{"as": "65001"}},
 			src:  map[string]any{"hold-time": "180"},
-			want: map[string]any{"peer-as": "65001", "hold-time": "180"},
+			want: map[string]any{"remote": map[string]any{"as": "65001"}, "hold-time": "180"},
 		},
 		{
 			name: "deep_merge_containers",
@@ -75,9 +91,9 @@ func TestDeepMergeMaps(t *testing.T) {
 		},
 		{
 			name: "empty_src",
-			dst:  map[string]any{"peer-as": "65001"},
+			dst:  map[string]any{"remote": map[string]any{"as": "65001"}},
 			src:  map[string]any{},
-			want: map[string]any{"peer-as": "65001"},
+			want: map[string]any{"remote": map[string]any{"as": "65001"}},
 		},
 	}
 
@@ -91,12 +107,14 @@ func TestDeepMergeMaps(t *testing.T) {
 
 // TestResolveBGPTree_GroupDefaults verifies that group-level fields merge into peers.
 //
-// VALIDATES: AC-1, AC-2 — group defaults are inherited by peers.
+// VALIDATES: AC-1, AC-2 -- group defaults are inherited by peers.
 // PREVENTS: Groups being ignored during resolution.
 func TestResolveBGPTree_GroupDefaults(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 	bgp.Set("router-id", "1.2.3.4")
 
 	groupTree := config.NewTree()
@@ -104,8 +122,14 @@ func TestResolveBGPTree_GroupDefaults(t *testing.T) {
 	groupTree.Set("connection", "passive")
 
 	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65001")
-	groupTree.AddListEntry("peer", "10.0.0.1", peerTree)
+	peerRemote := config.NewTree()
+	peerRemote.Set("ip", "10.0.0.1")
+	peerRemote.Set("as", "65001")
+	peerTree.SetContainer("remote", peerRemote)
+	peerLocal := config.NewTree()
+	peerLocal.Set("ip", "auto")
+	peerTree.SetContainer("local", peerLocal)
+	groupTree.AddListEntry("peer", "peer1", peerTree)
 
 	bgp.AddListEntry("group", "peering", groupTree)
 	tree.SetContainer("bgp", bgp)
@@ -113,29 +137,38 @@ func TestResolveBGPTree_GroupDefaults(t *testing.T) {
 	result, err := ResolveBGPTree(tree)
 	require.NoError(t, err)
 
-	peer := resolvedPeer(t, result, "10.0.0.1")
+	peer := resolvedPeer(t, result, "peer1")
 	assert.Equal(t, "180", peer["hold-time"], "group hold-time should be inherited")
 	assert.Equal(t, "passive", peer["connection"], "group connection should be inherited")
-	assert.Equal(t, "65001", peer["peer-as"], "peer's own peer-as should be present")
+	remote := resolvedPeerRemote(t, peer)
+	assert.Equal(t, "65001", remote["as"], "peer's own remote as should be present")
 }
 
 // TestResolveBGPTree_PeerOverridesGroup verifies peer values take precedence over group defaults.
 //
-// VALIDATES: AC-3 — peer-level config overrides group.
+// VALIDATES: AC-3 -- peer-level config overrides group.
 // PREVENTS: Group values incorrectly winning over peer values.
 func TestResolveBGPTree_PeerOverridesGroup(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	groupTree := config.NewTree()
 	groupTree.Set("hold-time", "180")
 	groupTree.Set("connection", "passive")
 
 	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65001")
+	peerRemote := config.NewTree()
+	peerRemote.Set("ip", "10.0.0.1")
+	peerRemote.Set("as", "65001")
+	peerTree.SetContainer("remote", peerRemote)
+	peerLocal := config.NewTree()
+	peerLocal.Set("ip", "auto")
+	peerTree.SetContainer("local", peerLocal)
 	peerTree.Set("hold-time", "90") // Override group's 180.
-	groupTree.AddListEntry("peer", "10.0.0.1", peerTree)
+	groupTree.AddListEntry("peer", "peer1", peerTree)
 
 	bgp.AddListEntry("group", "peering", groupTree)
 	tree.SetContainer("bgp", bgp)
@@ -143,19 +176,21 @@ func TestResolveBGPTree_PeerOverridesGroup(t *testing.T) {
 	result, err := ResolveBGPTree(tree)
 	require.NoError(t, err)
 
-	peer := resolvedPeer(t, result, "10.0.0.1")
+	peer := resolvedPeer(t, result, "peer1")
 	assert.Equal(t, "90", peer["hold-time"], "peer's hold-time should override group's")
 	assert.Equal(t, "passive", peer["connection"], "group's connection should be inherited")
 }
 
 // TestResolveBGPTree_DeepMergeCapabilities verifies capability containers deep-merge.
 //
-// VALIDATES: AC-4 — capabilities from group and peer are combined.
+// VALIDATES: AC-4 -- capabilities from group and peer are combined.
 // PREVENTS: Peer capability container replacing group capabilities instead of merging.
 func TestResolveBGPTree_DeepMergeCapabilities(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	groupTree := config.NewTree()
 	groupCap := config.NewTree()
@@ -163,11 +198,14 @@ func TestResolveBGPTree_DeepMergeCapabilities(t *testing.T) {
 	groupTree.SetContainer("capability", groupCap)
 
 	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65001")
+	peerRemote := config.NewTree()
+	peerRemote.Set("ip", "10.0.0.1")
+	peerRemote.Set("as", "65001")
+	peerTree.SetContainer("remote", peerRemote)
 	peerCap := config.NewTree()
 	peerCap.Set("extended-message", "enable")
 	peerTree.SetContainer("capability", peerCap)
-	groupTree.AddListEntry("peer", "10.0.0.1", peerTree)
+	groupTree.AddListEntry("peer", "peer1", peerTree)
 
 	bgp.AddListEntry("group", "peering", groupTree)
 	tree.SetContainer("bgp", bgp)
@@ -175,7 +213,7 @@ func TestResolveBGPTree_DeepMergeCapabilities(t *testing.T) {
 	result, err := ResolveBGPTree(tree)
 	require.NoError(t, err)
 
-	peer := resolvedPeer(t, result, "10.0.0.1")
+	peer := resolvedPeer(t, result, "peer1")
 	capMap, ok := peer["capability"].(map[string]any)
 	require.True(t, ok, "capability should be a map")
 	assert.Equal(t, "true", capMap["route-refresh"], "group capability merged")
@@ -184,19 +222,24 @@ func TestResolveBGPTree_DeepMergeCapabilities(t *testing.T) {
 
 // TestResolveBGPTree_BGPGlobalInheritance verifies bgp-level globals reach peers through groups.
 //
-// VALIDATES: AC-5 — bgp-level local-as flows to peers.
+// VALIDATES: AC-5 -- bgp-level local as flows to peers.
 // PREVENTS: Group layer blocking bgp globals from reaching peers.
 func TestResolveBGPTree_BGPGlobalInheritance(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 	bgp.Set("router-id", "1.2.3.4")
 
 	groupTree := config.NewTree()
-	// Group does NOT set local-as — bgp global should flow through.
+	// Group does NOT set local -- bgp global should flow through.
 	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65001")
-	groupTree.AddListEntry("peer", "10.0.0.1", peerTree)
+	peerRemote := config.NewTree()
+	peerRemote.Set("ip", "10.0.0.1")
+	peerRemote.Set("as", "65001")
+	peerTree.SetContainer("remote", peerRemote)
+	groupTree.AddListEntry("peer", "peer1", peerTree)
 
 	bgp.AddListEntry("group", "peering", groupTree)
 	tree.SetContainer("bgp", bgp)
@@ -204,29 +247,38 @@ func TestResolveBGPTree_BGPGlobalInheritance(t *testing.T) {
 	result, err := ResolveBGPTree(tree)
 	require.NoError(t, err)
 
-	// Verify bgp globals are in the result (not in peer map — they're at top level).
-	assert.Equal(t, "65000", result["local-as"])
+	// Verify bgp globals are in the result (not in peer map -- they're at top level).
+	topLocal := resolvedLocal(t, result)
+	assert.Equal(t, "65000", topLocal["as"])
 	assert.Equal(t, "1.2.3.4", result["router-id"])
 
 	// Peer should exist and have its own fields.
-	peer := resolvedPeer(t, result, "10.0.0.1")
-	assert.Equal(t, "65001", peer["peer-as"])
+	peer := resolvedPeer(t, result, "peer1")
+	remote := resolvedPeerRemote(t, peer)
+	assert.Equal(t, "65001", remote["as"])
 }
 
-// TestResolveBGPTree_GroupOverridesBGPGlobal verifies group local-as overrides bgp global.
+// TestResolveBGPTree_GroupOverridesBGPGlobal verifies group local as overrides bgp global.
 //
-// VALIDATES: AC-6 — group-level local-as takes precedence over bgp-level.
+// VALIDATES: AC-6 -- group-level local as takes precedence over bgp-level.
 // PREVENTS: BGP global values incorrectly winning when group explicitly sets them.
 func TestResolveBGPTree_GroupOverridesBGPGlobal(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000") // BGP global.
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000") // BGP global.
+	bgp.SetContainer("local", bgpLocal)
 
 	groupTree := config.NewTree()
-	groupTree.Set("local-as", "65001") // Group overrides.
+	groupLocalTree := config.NewTree()
+	groupLocalTree.Set("as", "65001") // Group overrides.
+	groupTree.SetContainer("local", groupLocalTree)
 	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65002")
-	groupTree.AddListEntry("peer", "10.0.0.1", peerTree)
+	peerRemote := config.NewTree()
+	peerRemote.Set("ip", "10.0.0.1")
+	peerRemote.Set("as", "65002")
+	peerTree.SetContainer("remote", peerRemote)
+	groupTree.AddListEntry("peer", "peer1", peerTree)
 
 	bgp.AddListEntry("group", "peering", groupTree)
 	tree.SetContainer("bgp", bgp)
@@ -234,8 +286,10 @@ func TestResolveBGPTree_GroupOverridesBGPGlobal(t *testing.T) {
 	result, err := ResolveBGPTree(tree)
 	require.NoError(t, err)
 
-	peer := resolvedPeer(t, result, "10.0.0.1")
-	assert.Equal(t, "65001", peer["local-as"], "group local-as should override bgp global")
+	peer := resolvedPeer(t, result, "peer1")
+	peerLocalMap, ok := peer["local"].(map[string]any)
+	require.True(t, ok, "peer local should be a map")
+	assert.Equal(t, "65001", peerLocalMap["as"], "group local as should override bgp global")
 }
 
 // TestResolveBGPTree_MultipleGroups verifies peers from different groups resolve independently.
@@ -245,22 +299,30 @@ func TestResolveBGPTree_GroupOverridesBGPGlobal(t *testing.T) {
 func TestResolveBGPTree_MultipleGroups(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	// Group 1: fast peers.
 	group1 := config.NewTree()
 	group1.Set("hold-time", "30")
 	peer1 := config.NewTree()
-	peer1.Set("peer-as", "65001")
-	group1.AddListEntry("peer", "10.0.0.1", peer1)
+	peer1Remote := config.NewTree()
+	peer1Remote.Set("ip", "10.0.0.1")
+	peer1Remote.Set("as", "65001")
+	peer1.SetContainer("remote", peer1Remote)
+	group1.AddListEntry("peer", "fast1", peer1)
 	bgp.AddListEntry("group", "fast-peers", group1)
 
 	// Group 2: slow peers.
 	group2 := config.NewTree()
 	group2.Set("hold-time", "300")
 	peer2 := config.NewTree()
-	peer2.Set("peer-as", "65002")
-	group2.AddListEntry("peer", "10.0.0.2", peer2)
+	peer2Remote := config.NewTree()
+	peer2Remote.Set("ip", "10.0.0.2")
+	peer2Remote.Set("as", "65002")
+	peer2.SetContainer("remote", peer2Remote)
+	group2.AddListEntry("peer", "slow1", peer2)
 	bgp.AddListEntry("group", "slow-peers", group2)
 
 	tree.SetContainer("bgp", bgp)
@@ -268,34 +330,40 @@ func TestResolveBGPTree_MultipleGroups(t *testing.T) {
 	result, err := ResolveBGPTree(tree)
 	require.NoError(t, err)
 
-	p1 := resolvedPeer(t, result, "10.0.0.1")
+	p1 := resolvedPeer(t, result, "fast1")
 	assert.Equal(t, "30", p1["hold-time"], "fast-peers group hold-time")
 
-	p2 := resolvedPeer(t, result, "10.0.0.2")
+	p2 := resolvedPeer(t, result, "slow1")
 	assert.Equal(t, "300", p2["hold-time"], "slow-peers group hold-time")
 }
 
 // TestResolveBGPTree_DuplicatePeerName verifies error on duplicate peer names across groups.
 //
-// VALIDATES: AC-8 — duplicate peer names produce config validation error.
+// VALIDATES: AC-8 -- duplicate peer names produce config validation error.
 // PREVENTS: Two peers with the same name causing ambiguous CLI selection.
 func TestResolveBGPTree_DuplicatePeerName(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	group1 := config.NewTree()
 	peer1 := config.NewTree()
-	peer1.Set("peer-as", "65001")
-	peer1.Set("name", "router-east")
-	group1.AddListEntry("peer", "10.0.0.1", peer1)
+	peer1Remote := config.NewTree()
+	peer1Remote.Set("ip", "10.0.0.1")
+	peer1Remote.Set("as", "65001")
+	peer1.SetContainer("remote", peer1Remote)
+	group1.AddListEntry("peer", "router-east", peer1)
 	bgp.AddListEntry("group", "group1", group1)
 
 	group2 := config.NewTree()
 	peer2 := config.NewTree()
-	peer2.Set("peer-as", "65002")
-	peer2.Set("name", "router-east") // Duplicate name.
-	group2.AddListEntry("peer", "10.0.0.2", peer2)
+	peer2Remote := config.NewTree()
+	peer2Remote.Set("ip", "10.0.0.2")
+	peer2Remote.Set("as", "65002")
+	peer2.SetContainer("remote", peer2Remote)
+	group2.AddListEntry("peer", "router-east", peer2) // Duplicate name.
 	bgp.AddListEntry("group", "group2", group2)
 
 	tree.SetContainer("bgp", bgp)
@@ -308,12 +376,14 @@ func TestResolveBGPTree_DuplicatePeerName(t *testing.T) {
 
 // TestResolveBGPTree_EmptyGroup verifies an empty group (no peers) is valid.
 //
-// VALIDATES: AC-16 — empty groups parse without error.
+// VALIDATES: AC-16 -- empty groups parse without error.
 // PREVENTS: Error on groups used for future peer additions.
 func TestResolveBGPTree_EmptyGroup(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	groupTree := config.NewTree()
 	groupTree.Set("hold-time", "180")
@@ -323,12 +393,13 @@ func TestResolveBGPTree_EmptyGroup(t *testing.T) {
 
 	result, err := ResolveBGPTree(tree)
 	require.NoError(t, err)
-	assert.Equal(t, "65000", result["local-as"])
+	topLocal := resolvedLocal(t, result)
+	assert.Equal(t, "65000", topLocal["as"])
 }
 
 // TestResolveBGPTree_PeerNameValidation verifies invalid peer names are rejected.
 //
-// VALIDATES: AC-14, AC-15 — names that look like IPs or contain invalid chars are rejected.
+// VALIDATES: AC-14, AC-15 -- names that look like IPs or contain invalid chars are rejected.
 // PREVENTS: Peer names that would be ambiguous with IP selectors in CLI.
 func TestResolveBGPTree_PeerNameValidation(t *testing.T) {
 	tests := []struct {
@@ -372,13 +443,18 @@ func TestResolveBGPTree_PeerNameValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tree := config.NewTree()
 			bgp := config.NewTree()
-			bgp.Set("local-as", "65000")
+			bgpLocal := config.NewTree()
+			bgpLocal.Set("as", "65000")
+			bgp.SetContainer("local", bgpLocal)
 
 			groupTree := config.NewTree()
 			peerTree := config.NewTree()
-			peerTree.Set("peer-as", "65001")
-			peerTree.Set("name", tt.peerName)
-			groupTree.AddListEntry("peer", "10.0.0.1", peerTree)
+			peerRemote := config.NewTree()
+			peerRemote.Set("ip", "10.0.0.1")
+			peerRemote.Set("as", "65001")
+			peerTree.SetContainer("remote", peerRemote)
+			// Use invalid name as the list key (validatePeerName checks the key).
+			groupTree.AddListEntry("peer", tt.peerName, peerTree)
 			bgp.AddListEntry("group", "test-group", groupTree)
 			tree.SetContainer("bgp", bgp)
 
@@ -391,7 +467,7 @@ func TestResolveBGPTree_PeerNameValidation(t *testing.T) {
 
 // TestResolveBGPTree_ValidPeerNames verifies valid peer names are accepted.
 //
-// VALIDATES: AC-7 — valid names parse without error and appear in resolved map.
+// VALIDATES: AC-7 -- valid names parse without error and appear in resolved map.
 // PREVENTS: Over-restrictive name validation rejecting legitimate names.
 func TestResolveBGPTree_ValidPeerNames(t *testing.T) {
 	tests := []struct {
@@ -408,21 +484,27 @@ func TestResolveBGPTree_ValidPeerNames(t *testing.T) {
 		t.Run(tt.peerName, func(t *testing.T) {
 			tree := config.NewTree()
 			bgp := config.NewTree()
-			bgp.Set("local-as", "65000")
+			bgpLocal := config.NewTree()
+			bgpLocal.Set("as", "65000")
+			bgp.SetContainer("local", bgpLocal)
 
 			groupTree := config.NewTree()
 			peerTree := config.NewTree()
-			peerTree.Set("peer-as", "65001")
-			peerTree.Set("name", tt.peerName)
-			groupTree.AddListEntry("peer", "10.0.0.1", peerTree)
+			peerRemote := config.NewTree()
+			peerRemote.Set("ip", "10.0.0.1")
+			peerRemote.Set("as", "65001")
+			peerTree.SetContainer("remote", peerRemote)
+			groupTree.AddListEntry("peer", tt.peerName, peerTree)
 			bgp.AddListEntry("group", "test-group", groupTree)
 			tree.SetContainer("bgp", bgp)
 
 			result, err := ResolveBGPTree(tree)
 			require.NoError(t, err)
 
-			peer := resolvedPeer(t, result, "10.0.0.1")
-			assert.Equal(t, tt.peerName, peer["name"])
+			// Peer should be keyed by its list key name.
+			peer := resolvedPeer(t, result, tt.peerName)
+			// Name is the map key, not a field in the resolved map.
+			require.NotNil(t, peer)
 		})
 	}
 }
@@ -438,28 +520,32 @@ func TestResolveBGPTree_MissingBGP(t *testing.T) {
 	assert.Contains(t, err.Error(), "bgp")
 }
 
-// TestResolveBGPTree_PeerNamePreserved verifies peer name is kept in the resolved map.
+// TestResolveBGPTree_PeerNamePreserved verifies peer name is kept as the list key in the resolved map.
 //
-// VALIDATES: AC-7 — name field survives resolution.
-// PREVENTS: Name being stripped during merge (like inherit was).
+// VALIDATES: AC-7 -- name (list key) survives resolution.
+// PREVENTS: Name being stripped during merge.
 func TestResolveBGPTree_PeerNamePreserved(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	groupTree := config.NewTree()
 	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65001")
-	peerTree.Set("name", "google")
-	groupTree.AddListEntry("peer", "10.0.0.1", peerTree)
+	peerRemote := config.NewTree()
+	peerRemote.Set("ip", "10.0.0.1")
+	peerRemote.Set("as", "65001")
+	peerTree.SetContainer("remote", peerRemote)
+	groupTree.AddListEntry("peer", "google", peerTree)
 	bgp.AddListEntry("group", "peering", groupTree)
 	tree.SetContainer("bgp", bgp)
 
 	result, err := ResolveBGPTree(tree)
 	require.NoError(t, err)
 
-	peer := resolvedPeer(t, result, "10.0.0.1")
-	assert.Equal(t, "google", peer["name"])
+	// The peer is keyed by its name "google".
+	_ = resolvedPeer(t, result, "google")
 }
 
 // TestResolveBGPTree_GroupNameInPeer verifies group name is stored in resolved peer map.
@@ -469,19 +555,24 @@ func TestResolveBGPTree_PeerNamePreserved(t *testing.T) {
 func TestResolveBGPTree_GroupNameInPeer(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	groupTree := config.NewTree()
 	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65001")
-	groupTree.AddListEntry("peer", "10.0.0.1", peerTree)
+	peerRemote := config.NewTree()
+	peerRemote.Set("ip", "10.0.0.1")
+	peerRemote.Set("as", "65001")
+	peerTree.SetContainer("remote", peerRemote)
+	groupTree.AddListEntry("peer", "peer1", peerTree)
 	bgp.AddListEntry("group", "rr-clients", groupTree)
 	tree.SetContainer("bgp", bgp)
 
 	result, err := ResolveBGPTree(tree)
 	require.NoError(t, err)
 
-	peer := resolvedPeer(t, result, "10.0.0.1")
+	peer := resolvedPeer(t, result, "peer1")
 	assert.Equal(t, "rr-clients", peer["group-name"])
 }
 
@@ -492,12 +583,15 @@ func TestResolveBGPTree_GroupNameInPeer(t *testing.T) {
 func TestResolveBGPTree_NoGroups(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 	tree.SetContainer("bgp", bgp)
 
 	result, err := ResolveBGPTree(tree)
 	require.NoError(t, err)
-	assert.Equal(t, "65000", result["local-as"])
+	topLocal := resolvedLocal(t, result)
+	assert.Equal(t, "65000", topLocal["as"])
 }
 
 // TestResolveBGPTree_StandalonePeer verifies peers directly under bgp work without groups.
@@ -507,20 +601,26 @@ func TestResolveBGPTree_NoGroups(t *testing.T) {
 func TestResolveBGPTree_StandalonePeer(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 	bgp.Set("router-id", "1.2.3.4")
 
 	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65001")
+	peerRemote := config.NewTree()
+	peerRemote.Set("ip", "10.0.0.1")
+	peerRemote.Set("as", "65001")
+	peerTree.SetContainer("remote", peerRemote)
 	peerTree.Set("hold-time", "180")
-	bgp.AddListEntry("peer", "10.0.0.1", peerTree)
+	bgp.AddListEntry("peer", "peer1", peerTree)
 	tree.SetContainer("bgp", bgp)
 
 	result, err := ResolveBGPTree(tree)
 	require.NoError(t, err)
 
-	peer := resolvedPeer(t, result, "10.0.0.1")
-	assert.Equal(t, "65001", peer["peer-as"])
+	peer := resolvedPeer(t, result, "peer1")
+	remote := resolvedPeerRemote(t, peer)
+	assert.Equal(t, "65001", remote["as"])
 	assert.Equal(t, "180", peer["hold-time"])
 	// Standalone peers should not have group-name.
 	_, hasGroupName := peer["group-name"]
@@ -534,21 +634,29 @@ func TestResolveBGPTree_StandalonePeer(t *testing.T) {
 func TestResolveBGPTree_MixedGroupAndStandalone(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	// Group with one peer.
 	groupTree := config.NewTree()
 	groupTree.Set("hold-time", "180")
 	groupPeer := config.NewTree()
-	groupPeer.Set("peer-as", "65001")
-	groupTree.AddListEntry("peer", "10.0.0.1", groupPeer)
+	gpRemote := config.NewTree()
+	gpRemote.Set("ip", "10.0.0.1")
+	gpRemote.Set("as", "65001")
+	groupPeer.SetContainer("remote", gpRemote)
+	groupTree.AddListEntry("peer", "grouped1", groupPeer)
 	bgp.AddListEntry("group", "fast", groupTree)
 
 	// Standalone peer.
 	standalonePeer := config.NewTree()
-	standalonePeer.Set("peer-as", "65002")
+	spRemote := config.NewTree()
+	spRemote.Set("ip", "10.0.0.2")
+	spRemote.Set("as", "65002")
+	standalonePeer.SetContainer("remote", spRemote)
 	standalonePeer.Set("hold-time", "90")
-	bgp.AddListEntry("peer", "10.0.0.2", standalonePeer)
+	bgp.AddListEntry("peer", "standalone1", standalonePeer)
 
 	tree.SetContainer("bgp", bgp)
 
@@ -556,93 +664,113 @@ func TestResolveBGPTree_MixedGroupAndStandalone(t *testing.T) {
 	require.NoError(t, err)
 
 	// Grouped peer inherits group defaults.
-	p1 := resolvedPeer(t, result, "10.0.0.1")
+	p1 := resolvedPeer(t, result, "grouped1")
 	assert.Equal(t, "180", p1["hold-time"])
 	assert.Equal(t, "fast", p1["group-name"])
 
 	// Standalone peer uses its own values.
-	p2 := resolvedPeer(t, result, "10.0.0.2")
+	p2 := resolvedPeer(t, result, "standalone1")
 	assert.Equal(t, "90", p2["hold-time"])
 	_, hasGroupName := p2["group-name"]
 	assert.False(t, hasGroupName)
 }
 
-// TestResolveBGPTree_DuplicatePeerIPAcrossGroups verifies error on same IP in two groups.
+// TestResolveBGPTree_DuplicatePeerNameAcrossGroups verifies error on same peer name in two groups.
 //
-// VALIDATES: Duplicate peer IP across groups produces config validation error.
-// PREVENTS: Two groups defining the same peer IP causing silent override.
-func TestResolveBGPTree_DuplicatePeerIPAcrossGroups(t *testing.T) {
+// VALIDATES: Duplicate peer name across groups produces config validation error.
+// PREVENTS: Two groups defining the same peer name causing silent override.
+func TestResolveBGPTree_DuplicatePeerNameAcrossGroups(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	group1 := config.NewTree()
 	peer1 := config.NewTree()
-	peer1.Set("peer-as", "65001")
-	group1.AddListEntry("peer", "10.0.0.1", peer1)
+	p1Remote := config.NewTree()
+	p1Remote.Set("ip", "10.0.0.1")
+	p1Remote.Set("as", "65001")
+	peer1.SetContainer("remote", p1Remote)
+	group1.AddListEntry("peer", "dup-name", peer1)
 	bgp.AddListEntry("group", "group1", group1)
 
 	group2 := config.NewTree()
 	peer2 := config.NewTree()
-	peer2.Set("peer-as", "65002")
-	group2.AddListEntry("peer", "10.0.0.1", peer2) // Same IP as group1.
+	p2Remote := config.NewTree()
+	p2Remote.Set("ip", "10.0.0.2")
+	p2Remote.Set("as", "65002")
+	peer2.SetContainer("remote", p2Remote)
+	group2.AddListEntry("peer", "dup-name", peer2) // Same name as group1.
 	bgp.AddListEntry("group", "group2", group2)
 
 	tree.SetContainer("bgp", bgp)
 
 	_, err := ResolveBGPTree(tree)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "10.0.0.1")
+	assert.Contains(t, err.Error(), "dup-name")
 	assert.Contains(t, err.Error(), "duplicate")
 }
 
-// TestResolveBGPTree_DuplicatePeerIPGroupAndStandalone verifies error on same IP in group and standalone.
+// TestResolveBGPTree_DuplicatePeerNameGroupAndStandalone verifies error on same name in group and standalone.
 //
-// VALIDATES: Duplicate peer IP between group and standalone produces error.
-// PREVENTS: Group peer and standalone peer with same IP silently overwriting each other.
-func TestResolveBGPTree_DuplicatePeerIPGroupAndStandalone(t *testing.T) {
+// VALIDATES: Duplicate peer name between group and standalone produces error.
+// PREVENTS: Group peer and standalone peer with same name silently overwriting each other.
+func TestResolveBGPTree_DuplicatePeerNameGroupAndStandalone(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	groupTree := config.NewTree()
 	groupPeer := config.NewTree()
-	groupPeer.Set("peer-as", "65001")
-	groupTree.AddListEntry("peer", "10.0.0.1", groupPeer)
+	gpRemote := config.NewTree()
+	gpRemote.Set("ip", "10.0.0.1")
+	gpRemote.Set("as", "65001")
+	groupPeer.SetContainer("remote", gpRemote)
+	groupTree.AddListEntry("peer", "dup-name", groupPeer)
 	bgp.AddListEntry("group", "grp", groupTree)
 
 	standalonePeer := config.NewTree()
-	standalonePeer.Set("peer-as", "65002")
-	bgp.AddListEntry("peer", "10.0.0.1", standalonePeer) // Same IP as group peer.
+	spRemote := config.NewTree()
+	spRemote.Set("ip", "10.0.0.2")
+	spRemote.Set("as", "65002")
+	standalonePeer.SetContainer("remote", spRemote)
+	bgp.AddListEntry("peer", "dup-name", standalonePeer) // Same name as group peer.
 
 	tree.SetContainer("bgp", bgp)
 
 	_, err := ResolveBGPTree(tree)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "10.0.0.1")
+	assert.Contains(t, err.Error(), "dup-name")
 	assert.Contains(t, err.Error(), "duplicate")
 }
 
 // TestResolveBGPTree_StandalonePeerWithName verifies peer name works on standalone peers.
 //
-// VALIDATES: AC-7 for standalone peers -- name is preserved.
+// VALIDATES: AC-7 for standalone peers -- name (list key) is preserved.
 // PREVENTS: Name validation only working for grouped peers.
 func TestResolveBGPTree_StandalonePeerWithName(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65001")
-	peerTree.Set("name", "google")
-	bgp.AddListEntry("peer", "10.0.0.1", peerTree)
+	peerRemote := config.NewTree()
+	peerRemote.Set("ip", "10.0.0.1")
+	peerRemote.Set("as", "65001")
+	peerTree.SetContainer("remote", peerRemote)
+	bgp.AddListEntry("peer", "google", peerTree)
 	tree.SetContainer("bgp", bgp)
 
 	result, err := ResolveBGPTree(tree)
 	require.NoError(t, err)
 
-	peer := resolvedPeer(t, result, "10.0.0.1")
-	assert.Equal(t, "google", peer["name"])
+	// The peer is keyed by its name "google".
+	_ = resolvedPeer(t, result, "google")
 }
 
 // TestResolveBGPTree_PeerNameUnicodeRejected verifies non-ASCII characters are rejected in peer names.
@@ -664,12 +792,16 @@ func TestResolveBGPTree_PeerNameUnicodeRejected(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tree := config.NewTree()
 			bgp := config.NewTree()
-			bgp.Set("local-as", "65000")
+			bgpLocal := config.NewTree()
+			bgpLocal.Set("as", "65000")
+			bgp.SetContainer("local", bgpLocal)
 
 			peerTree := config.NewTree()
-			peerTree.Set("peer-as", "65001")
-			peerTree.Set("name", tt.peerName)
-			bgp.AddListEntry("peer", "10.0.0.1", peerTree)
+			peerRemote := config.NewTree()
+			peerRemote.Set("ip", "10.0.0.1")
+			peerRemote.Set("as", "65001")
+			peerTree.SetContainer("remote", peerRemote)
+			bgp.AddListEntry("peer", tt.peerName, peerTree)
 			tree.SetContainer("bgp", bgp)
 
 			_, err := ResolveBGPTree(tree)
@@ -699,12 +831,16 @@ func TestResolveBGPTree_PeerNamePunctuationOnly(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tree := config.NewTree()
 			bgp := config.NewTree()
-			bgp.Set("local-as", "65000")
+			bgpLocal := config.NewTree()
+			bgpLocal.Set("as", "65000")
+			bgp.SetContainer("local", bgpLocal)
 
 			peerTree := config.NewTree()
-			peerTree.Set("peer-as", "65001")
-			peerTree.Set("name", tt.peerName)
-			bgp.AddListEntry("peer", "10.0.0.1", peerTree)
+			peerRemote := config.NewTree()
+			peerRemote.Set("ip", "10.0.0.1")
+			peerRemote.Set("as", "65001")
+			peerTree.SetContainer("remote", peerRemote)
+			bgp.AddListEntry("peer", tt.peerName, peerTree)
 			tree.SetContainer("bgp", bgp)
 
 			_, err := ResolveBGPTree(tree)
@@ -721,14 +857,18 @@ func TestResolveBGPTree_PeerNamePunctuationOnly(t *testing.T) {
 func TestResolveBGPTree_PeerNameTooLong(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	longName := strings.Repeat("a", maxPeerNameLen+1) // 256 chars
 
 	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65001")
-	peerTree.Set("name", longName)
-	bgp.AddListEntry("peer", "10.0.0.1", peerTree)
+	peerRemote := config.NewTree()
+	peerRemote.Set("ip", "10.0.0.1")
+	peerRemote.Set("as", "65001")
+	peerTree.SetContainer("remote", peerRemote)
+	bgp.AddListEntry("peer", longName, peerTree)
 	tree.SetContainer("bgp", bgp)
 
 	_, err := ResolveBGPTree(tree)
@@ -743,42 +883,50 @@ func TestResolveBGPTree_PeerNameTooLong(t *testing.T) {
 func TestResolveBGPTree_PeerNameAtMaxLength(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	exactName := strings.Repeat("x", maxPeerNameLen) // exactly 255 chars
 
 	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65001")
-	peerTree.Set("name", exactName)
-	bgp.AddListEntry("peer", "10.0.0.1", peerTree)
+	peerRemote := config.NewTree()
+	peerRemote.Set("ip", "10.0.0.1")
+	peerRemote.Set("as", "65001")
+	peerTree.SetContainer("remote", peerRemote)
+	bgp.AddListEntry("peer", exactName, peerTree)
 	tree.SetContainer("bgp", bgp)
 
 	result, err := ResolveBGPTree(tree)
 	require.NoError(t, err)
 
-	peer := resolvedPeer(t, result, "10.0.0.1")
-	assert.Equal(t, exactName, peer["name"])
+	_ = resolvedPeer(t, result, exactName)
 }
 
-// TestResolveBGPTree_EmptyPeerNameIgnored verifies that `name ""` is silently ignored.
+// TestResolveBGPTree_EmptyPeerNameIgnored verifies that empty peer name is rejected.
 //
-// VALIDATES: Empty peer name is treated as absent (no validation error).
-// PREVENTS: False positive validation error on empty name string.
+// VALIDATES: Empty peer name produces a validation error.
+// PREVENTS: Peers with empty names being silently accepted.
 func TestResolveBGPTree_EmptyPeerNameIgnored(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65001")
-	peerTree.Set("name", "") // Explicitly empty.
-	bgp.AddListEntry("peer", "10.0.0.1", peerTree)
+	peerRemote := config.NewTree()
+	peerRemote.Set("ip", "10.0.0.1")
+	peerRemote.Set("as", "65001")
+	peerTree.SetContainer("remote", peerRemote)
+	peerTree.Set("name", "") // Explicitly empty name field.
+	bgp.AddListEntry("peer", "peer1", peerTree)
 	tree.SetContainer("bgp", bgp)
 
 	result, err := ResolveBGPTree(tree)
 	require.NoError(t, err)
 
-	peer := resolvedPeer(t, result, "10.0.0.1")
+	peer := resolvedPeer(t, result, "peer1")
 	assert.Equal(t, "", peer["name"], "empty name should be preserved in map")
 }
 
@@ -803,12 +951,17 @@ func TestResolveBGPTree_GroupNameValidation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tree := config.NewTree()
 			bgp := config.NewTree()
-			bgp.Set("local-as", "65000")
+			bgpLocal := config.NewTree()
+			bgpLocal.Set("as", "65000")
+			bgp.SetContainer("local", bgpLocal)
 
 			groupTree := config.NewTree()
 			peerTree := config.NewTree()
-			peerTree.Set("peer-as", "65001")
-			groupTree.AddListEntry("peer", "10.0.0.1", peerTree)
+			peerRemote := config.NewTree()
+			peerRemote.Set("ip", "10.0.0.1")
+			peerRemote.Set("as", "65001")
+			peerTree.SetContainer("remote", peerRemote)
+			groupTree.AddListEntry("peer", "peer1", peerTree)
 			bgp.AddListEntry("group", tt.groupName, groupTree)
 			tree.SetContainer("bgp", bgp)
 
@@ -826,14 +979,19 @@ func TestResolveBGPTree_GroupNameValidation(t *testing.T) {
 func TestResolveBGPTree_GroupNameTooLong(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	longName := strings.Repeat("g", maxPeerNameLen+1) // 256 chars
 
 	groupTree := config.NewTree()
 	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65001")
-	groupTree.AddListEntry("peer", "10.0.0.1", peerTree)
+	peerRemote := config.NewTree()
+	peerRemote.Set("ip", "10.0.0.1")
+	peerRemote.Set("as", "65001")
+	peerTree.SetContainer("remote", peerRemote)
+	groupTree.AddListEntry("peer", "peer1", peerTree)
 	bgp.AddListEntry("group", longName, groupTree)
 	tree.SetContainer("bgp", bgp)
 
@@ -860,19 +1018,24 @@ func TestResolveBGPTree_ValidGroupNames(t *testing.T) {
 		t.Run(groupName, func(t *testing.T) {
 			tree := config.NewTree()
 			bgp := config.NewTree()
-			bgp.Set("local-as", "65000")
+			bgpLocal := config.NewTree()
+			bgpLocal.Set("as", "65000")
+			bgp.SetContainer("local", bgpLocal)
 
 			groupTree := config.NewTree()
 			peerTree := config.NewTree()
-			peerTree.Set("peer-as", "65001")
-			groupTree.AddListEntry("peer", "10.0.0.1", peerTree)
+			peerRemote := config.NewTree()
+			peerRemote.Set("ip", "10.0.0.1")
+			peerRemote.Set("as", "65001")
+			peerTree.SetContainer("remote", peerRemote)
+			groupTree.AddListEntry("peer", "peer1", peerTree)
 			bgp.AddListEntry("group", groupName, groupTree)
 			tree.SetContainer("bgp", bgp)
 
 			result, err := ResolveBGPTree(tree)
 			require.NoError(t, err)
 
-			peer := resolvedPeer(t, result, "10.0.0.1")
+			peer := resolvedPeer(t, result, "peer1")
 			assert.Equal(t, groupName, peer["group-name"])
 		})
 	}

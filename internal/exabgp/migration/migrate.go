@@ -185,6 +185,9 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[s
 	// Track which group each peer belongs to.
 	groups := make(map[string]*config.Tree) // group name -> group tree
 
+	// Counter for generating peer names when no description is available.
+	peerCounter := 0
+
 	// Use ordered iteration for deterministic output.
 	for _, entry := range tree.GetListOrdered("neighbor") {
 		addr := entry.Key
@@ -199,11 +202,22 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[s
 		// Check for template inheritance and expand if found.
 		expandedTree := expandInheritance(neighborTree, templates)
 
+		// Derive peer name from description or generate "peer-N".
+		peerName := derivePeerName(expandedTree, &peerCounter)
+
 		// Convert neighbor to peer.
 		peer, err := migrateSingleNeighbor(expandedTree, result)
 		if err != nil {
 			return fmt.Errorf("neighbor %s: %w", addr, err)
 		}
+
+		// Store the neighbor IP address as remote > ip.
+		remoteContainer := peer.GetContainer("remote")
+		if remoteContainer == nil {
+			remoteContainer = config.NewTree()
+			peer.SetContainer("remote", remoteContainer)
+		}
+		remoteContainer.Set("ip", addr)
 
 		// If RIB was injected, bind it to this peer.
 		if needsRIB {
@@ -220,8 +234,8 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[s
 			groups[groupName] = groupTree
 		}
 
-		// Add peer to group.
-		groupTree.AddListEntry("peer", addr, peer)
+		// Add peer to group using derived name (not IP address).
+		groupTree.AddListEntry("peer", peerName, peer)
 	}
 
 	// Add all groups to result tree (sorted for deterministic output).
@@ -235,6 +249,39 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[s
 	}
 
 	return nil
+}
+
+// derivePeerName generates a peer name from the neighbor's description field,
+// or falls back to "peer-N" with an incrementing counter.
+// The name is sanitized to contain only ASCII alphanumerics, hyphens, and underscores.
+func derivePeerName(neighborTree *config.Tree, counter *int) string {
+	if desc, ok := neighborTree.Get("description"); ok && desc != "" {
+		name := sanitizePeerName(strings.Trim(desc, `"'`))
+		if name != "" {
+			return name
+		}
+	}
+	*counter++
+	return fmt.Sprintf("peer-%d", *counter)
+}
+
+// sanitizePeerName converts a description into a valid peer name.
+// Replaces spaces and invalid characters with hyphens, collapses runs of hyphens,
+// and trims leading/trailing hyphens.
+func sanitizePeerName(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	prevHyphen := false
+	for _, ch := range s {
+		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_' {
+			b.WriteRune(ch)
+			prevHyphen = false
+		} else if !prevHyphen {
+			b.WriteByte('-')
+			prevHyphen = true
+		}
+	}
+	return strings.Trim(b.String(), "-")
 }
 
 // expandInheritance merges template properties into neighbor if inherit is specified.
@@ -314,29 +361,56 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 }
 
 // copySimpleFields copies simple leaf values from neighbor to peer.
+// Fields that move into containers:
+//   - peer-as -> remote > as
+//   - local-as -> local > as
+//   - local-address -> local > ip
 func copySimpleFields(src, dst *config.Tree) {
-	fields := []string{
-		"description", "router-id", "local-address", "local-link-local", "local-as", "peer-as",
-		"hold-time", "passive", "listen", "connect", "ttl-security",
+	// Fields that remain as direct leaves on the peer.
+	directFields := []string{
+		"description", "router-id",
+		"hold-time", "listen", "connect", "ttl-security",
 		"md5-password", "md5-base64", "group-updates", "auto-flush",
 	}
 
-	for _, field := range fields {
+	for _, field := range directFields {
 		if v, ok := src.Get(field); ok {
-			// ExaBGP "local-link-local" → Ze "link-local"
-			outField := field
-			if field == "local-link-local" {
-				outField = "link-local"
-			}
-			// ExaBGP "passive true" → Ze "connection passive"
-			if field == "passive" {
-				if v == configTrue {
-					dst.Set("connection", "passive")
-				}
-				continue
-			}
-			dst.Set(outField, v)
+			dst.Set(field, v)
 		}
+	}
+
+	// ExaBGP "passive true" -> Ze "connection passive"
+	if v, ok := src.Get("passive"); ok && v == configTrue {
+		dst.Set("connection", "passive")
+	}
+
+	// ExaBGP "local-link-local" -> Ze "link-local"
+	if v, ok := src.Get("local-link-local"); ok {
+		dst.Set("link-local", v)
+	}
+
+	// Fields that move into the "local" container: local-as -> as, local-address -> ip.
+	localAS, hasLocalAS := src.Get("local-as")
+	localAddr, hasLocalAddr := src.Get("local-address")
+	if hasLocalAS || hasLocalAddr {
+		localContainer := config.NewTree()
+		if hasLocalAS {
+			localContainer.Set("as", localAS)
+		}
+		if hasLocalAddr {
+			localContainer.Set("ip", localAddr)
+		}
+		dst.SetContainer("local", localContainer)
+	}
+
+	// Fields that move into the "remote" container: peer-as -> as.
+	if peerAS, ok := src.Get("peer-as"); ok {
+		remoteContainer := dst.GetContainer("remote")
+		if remoteContainer == nil {
+			remoteContainer = config.NewTree()
+			dst.SetContainer("remote", remoteContainer)
+		}
+		remoteContainer.Set("as", peerAS)
 	}
 }
 

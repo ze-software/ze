@@ -5,8 +5,11 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  peer 2001:db8::1 {
-    peer-as 65001;
+  peer peer-v6-1 {
+  	remote {
+  		ip 2001:db8::1
+  		as 65001;
+  	}
   }
 }
 EOF_CONF
@@ -15,12 +18,12 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Verify IPv6 peer is navigable
-input=type:text=edit bgp peer 2001:db8::1
+input=type:text=edit bgp peer peer-v6-1
 input=enter
-expect=context:path=bgp.peer.2001:db8::1
+expect=context:path=bgp.peer.peer-v6-1
 expect=error:none
 
 # Completions should work in IPv6 peer context
 input=type:text=set
 input=space
-expect=completion:contains=peer-as,hold-time,connection
+expect=completion:contains=remote,hold-time,connection

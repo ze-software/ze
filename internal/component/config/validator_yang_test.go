@@ -34,13 +34,20 @@ func TestValidateTree_ValidConfig(t *testing.T) {
 
 	data := map[string]any{
 		"router-id": "192.0.2.1",
-		"local-as":  uint32(65001),
+		"local": map[string]any{
+			"as": uint32(65001),
+		},
 		"peer": map[string]any{
-			"192.0.2.2": map[string]any{
-				"peer-as":       uint32(65002),
-				"local-address": "192.0.2.1",
-				"hold-time":     uint16(90),
-				"connection":    "passive",
+			"peer1": map[string]any{
+				"remote": map[string]any{
+					"ip": "192.0.2.2",
+					"as": uint32(65002),
+				},
+				"local": map[string]any{
+					"ip": "192.0.2.1",
+				},
+				"hold-time":  uint16(90),
+				"connection": "passive",
 			},
 		},
 	}
@@ -58,12 +65,19 @@ func TestValidateTree_EnumViolation(t *testing.T) {
 
 	data := map[string]any{
 		"router-id": "192.0.2.1",
-		"local-as":  uint32(65001),
+		"local": map[string]any{
+			"as": uint32(65001),
+		},
 		"peer": map[string]any{
-			"192.0.2.2": map[string]any{
-				"peer-as":       uint32(65002),
-				"local-address": "192.0.2.1",
-				"connection":    "invalid-value",
+			"peer1": map[string]any{
+				"remote": map[string]any{
+					"ip": "192.0.2.2",
+					"as": uint32(65002),
+				},
+				"local": map[string]any{
+					"ip": "192.0.2.1",
+				},
+				"connection": "invalid-value",
 			},
 		},
 	}
@@ -90,12 +104,19 @@ func TestValidateTree_RangeViolation(t *testing.T) {
 			name: "hold_time_2_invalid",
 			data: map[string]any{
 				"router-id": "192.0.2.1",
-				"local-as":  uint32(65001),
+				"local": map[string]any{
+					"as": uint32(65001),
+				},
 				"peer": map[string]any{
-					"192.0.2.2": map[string]any{
-						"peer-as":       uint32(65002),
-						"local-address": "192.0.2.1",
-						"hold-time":     uint16(2),
+					"peer1": map[string]any{
+						"remote": map[string]any{
+							"ip": "192.0.2.2",
+							"as": uint32(65002),
+						},
+						"local": map[string]any{
+							"ip": "192.0.2.1",
+						},
+						"hold-time": uint16(2),
 					},
 				},
 			},
@@ -105,12 +126,19 @@ func TestValidateTree_RangeViolation(t *testing.T) {
 			name: "port_0_invalid",
 			data: map[string]any{
 				"router-id": "192.0.2.1",
-				"local-as":  uint32(65001),
+				"local": map[string]any{
+					"as": uint32(65001),
+				},
 				"peer": map[string]any{
-					"192.0.2.2": map[string]any{
-						"peer-as":       uint32(65002),
-						"local-address": "192.0.2.1",
-						"port":          uint16(0),
+					"peer1": map[string]any{
+						"remote": map[string]any{
+							"ip": "192.0.2.2",
+							"as": uint32(65002),
+						},
+						"local": map[string]any{
+							"ip": "192.0.2.1",
+						},
+						"port": uint16(0),
 					},
 				},
 			},
@@ -137,7 +165,9 @@ func TestValidateTree_PatternViolation(t *testing.T) {
 
 	data := map[string]any{
 		"router-id": "not-an-ip",
-		"local-as":  uint32(65001),
+		"local": map[string]any{
+			"as": uint32(65001),
+		},
 	}
 
 	errs := v.ValidateTree("bgp", data)
@@ -155,7 +185,9 @@ func TestValidateTree_MandatoryMissing(t *testing.T) {
 
 	// Missing router-id (mandatory at bgp level)
 	data := map[string]any{
-		"local-as": uint32(65001),
+		"local": map[string]any{
+			"as": uint32(65001),
+		},
 	}
 
 	errs := v.ValidateTree("bgp", data)
@@ -176,9 +208,11 @@ func TestValidateTree_MandatoryMissing(t *testing.T) {
 func TestValidateTree_MultipleErrors(t *testing.T) {
 	v := newTestValidator(t)
 
-	// Missing router-id AND invalid local-as
+	// Missing router-id AND invalid local.as
 	data := map[string]any{
-		"local-as": uint32(0), // range violation: 1..4294967295
+		"local": map[string]any{
+			"as": uint32(0), // range violation: 1..4294967295
+		},
 		// router-id missing: mandatory violation
 	}
 
@@ -195,11 +229,18 @@ func TestValidateTree_NestedContainers(t *testing.T) {
 
 	data := map[string]any{
 		"router-id": "192.0.2.1",
-		"local-as":  uint32(65001),
+		"local": map[string]any{
+			"as": uint32(65001),
+		},
 		"peer": map[string]any{
-			"192.0.2.2": map[string]any{
-				"peer-as":       uint32(65002),
-				"local-address": "192.0.2.1",
+			"peer1": map[string]any{
+				"remote": map[string]any{
+					"ip": "192.0.2.2",
+					"as": uint32(65002),
+				},
+				"local": map[string]any{
+					"ip": "192.0.2.1",
+				},
 				"capability": map[string]any{
 					"add-path": map[string]any{
 						"send":    true,
@@ -224,17 +265,29 @@ func TestValidateTree_ListEntries(t *testing.T) {
 	// Two peers: one valid, one with invalid hold-time
 	data := map[string]any{
 		"router-id": "192.0.2.1",
-		"local-as":  uint32(65001),
+		"local": map[string]any{
+			"as": uint32(65001),
+		},
 		"peer": map[string]any{
-			"192.0.2.2": map[string]any{
-				"peer-as":       uint32(65002),
-				"local-address": "192.0.2.1",
-				"hold-time":     uint16(90),
+			"peer1": map[string]any{
+				"remote": map[string]any{
+					"ip": "192.0.2.2",
+					"as": uint32(65002),
+				},
+				"local": map[string]any{
+					"ip": "192.0.2.1",
+				},
+				"hold-time": uint16(90),
 			},
-			"192.0.2.3": map[string]any{
-				"peer-as":       uint32(65003),
-				"local-address": "192.0.2.1",
-				"hold-time":     uint16(1), // invalid
+			"peer2": map[string]any{
+				"remote": map[string]any{
+					"ip": "192.0.2.3",
+					"as": uint32(65003),
+				},
+				"local": map[string]any{
+					"ip": "192.0.2.1",
+				},
+				"hold-time": uint16(1), // invalid
 			},
 		},
 	}
@@ -268,11 +321,18 @@ func TestValidateTree_FamilyModeEnum(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			data := map[string]any{
 				"router-id": "192.0.2.1",
-				"local-as":  uint32(65001),
+				"local": map[string]any{
+					"as": uint32(65001),
+				},
 				"peer": map[string]any{
-					"192.0.2.2": map[string]any{
-						"peer-as":       uint32(65002),
-						"local-address": "192.0.2.1",
+					"peer1": map[string]any{
+						"remote": map[string]any{
+							"ip": "192.0.2.2",
+							"as": uint32(65002),
+						},
+						"local": map[string]any{
+							"ip": "192.0.2.1",
+						},
 						"family": map[string]any{
 							"ipv4/unicast": map[string]any{
 								"mode": tt.mode,
@@ -315,11 +375,18 @@ func TestValidateTree_AddPathDirectionEnum(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			data := map[string]any{
 				"router-id": "192.0.2.1",
-				"local-as":  uint32(65001),
+				"local": map[string]any{
+					"as": uint32(65001),
+				},
 				"peer": map[string]any{
-					"192.0.2.2": map[string]any{
-						"peer-as":       uint32(65002),
-						"local-address": "192.0.2.1",
+					"peer1": map[string]any{
+						"remote": map[string]any{
+							"ip": "192.0.2.2",
+							"as": uint32(65002),
+						},
+						"local": map[string]any{
+							"ip": "192.0.2.1",
+						},
 						"add-path": map[string]any{
 							"ipv4/unicast": map[string]any{
 								"direction": tt.dir,
@@ -356,8 +423,8 @@ func TestValidator_ValidateString(t *testing.T) {
 		wantErr bool
 	}{
 		// peer.address is type ip-address
-		{"valid_ip", "bgp.peer.address", "192.0.2.1", false},
-		{"empty_ip", "bgp.peer.address", "", false}, // Validation may fail but type is string
+		{"valid_ip", "bgp.peer.remote.ip", "192.0.2.1", false},
+		{"empty_ip", "bgp.peer.remote.ip", "", false}, // Validation may fail but type is string
 	}
 
 	for _, tt := range tests {
@@ -383,10 +450,10 @@ func TestValidator_ValidateUint32(t *testing.T) {
 		value   any
 		wantErr bool
 	}{
-		// local-as uses ze-types:asn which has range 1..4294967295
-		{"min_asn", "bgp.local-as", uint32(1), false},
-		{"max_asn", "bgp.local-as", uint32(4294967295), false},
-		{"mid_asn", "bgp.local-as", uint32(65001), false},
+		// local.as uses ze-types:asn which has range 1..4294967295
+		{"min_asn", "bgp.local.as", uint32(1), false},
+		{"max_asn", "bgp.local.as", uint32(4294967295), false},
+		{"mid_asn", "bgp.local.as", uint32(65001), false},
 	}
 
 	for _, tt := range tests {
@@ -415,9 +482,9 @@ func TestValidator_ValidateUint32Range(t *testing.T) {
 		wantErr bool
 	}{
 		// ASN boundary: range 1..4294967295
-		{"asn_last_valid", "bgp.local-as", uint32(4294967295), false},
-		{"asn_first_valid", "bgp.local-as", uint32(1), false},
-		{"asn_below_range", "bgp.local-as", uint32(0), true},
+		{"asn_last_valid", "bgp.local.as", uint32(4294967295), false},
+		{"asn_first_valid", "bgp.local.as", uint32(1), false},
+		{"asn_below_range", "bgp.local.as", uint32(0), true},
 	}
 
 	for _, tt := range tests {
@@ -463,7 +530,7 @@ func TestValidator_ValidateUint32_WrongType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := v.Validate("bgp.local-as", tt.value)
+			err := v.Validate("bgp.local.as", tt.value)
 			if tt.wantErr {
 				require.Error(t, err, "expected error for %T(%v)", tt.value, tt.value)
 				var valErr *yang.ValidationError
@@ -549,10 +616,10 @@ func TestValidator_ErrorMessages(t *testing.T) {
 	v := newTestValidator(t)
 
 	// Test range error message
-	err := v.Validate("bgp.local-as", uint32(0))
+	err := v.Validate("bgp.local.as", uint32(0))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "range")
-	assert.Contains(t, err.Error(), "local-as")
+	assert.Contains(t, err.Error(), "as")
 }
 
 // TestValidator_HoldTimeRange verifies hold-time special range (0 | 3..65535).
@@ -605,16 +672,18 @@ func TestValidator_MandatoryField(t *testing.T) {
 			name: "all_mandatory_present",
 			path: "bgp",
 			data: map[string]any{
-				"local-as":  uint32(65001),
+				"local": map[string]any{
+					"as": uint32(65001),
+				},
 				"router-id": "192.0.2.1",
 			},
 			wantErr: false,
 		},
 		{
-			name: "missing_mandatory_local_as",
-			path: "bgp",
+			name: "missing_mandatory_as_in_local",
+			path: "bgp.local",
 			data: map[string]any{
-				"router-id": "192.0.2.1",
+				// "as" is mandatory in local container but missing
 			},
 			wantErr: true,
 			errType: yang.ErrTypeMissing,
@@ -623,7 +692,9 @@ func TestValidator_MandatoryField(t *testing.T) {
 			name: "missing_mandatory_router_id",
 			path: "bgp",
 			data: map[string]any{
-				"local-as": uint32(65001),
+				"local": map[string]any{
+					"as": uint32(65001),
+				},
 			},
 			wantErr: true,
 			errType: yang.ErrTypeMissing,

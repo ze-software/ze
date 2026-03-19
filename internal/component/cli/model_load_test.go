@@ -143,7 +143,7 @@ func TestModelAbortRollsBack(t *testing.T) {
 
 	originalContent := `bgp {
   router-id 1.2.3.4
-  local-as 65000
+  local { as 65000; }
 }`
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
@@ -187,7 +187,7 @@ func TestModelLoadFile(t *testing.T) {
 	loadPath := filepath.Join(tmpDir, "load.conf")
 
 	originalContent := `bgp { router-id 1.2.3.4; }`
-	loadContent := `bgp { router-id 5.6.7.8; local-as 65000; }`
+	loadContent := `bgp { router-id 5.6.7.8; local { as 65000; } }`
 
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
@@ -207,7 +207,7 @@ func TestModelLoadFile(t *testing.T) {
 
 	// Content should be replaced
 	assert.Contains(t, ed.WorkingContent(), "5.6.7.8", "content should have new router-id")
-	assert.Contains(t, ed.WorkingContent(), "local-as", "content should have local-as")
+	assert.Contains(t, ed.WorkingContent(), "local", "content should have local")
 	assert.NotContains(t, ed.WorkingContent(), "1.2.3.4", "old content should be gone")
 
 	// Should be marked dirty
@@ -226,11 +226,11 @@ func TestModelLoadMerge(t *testing.T) {
 
 	originalContent := `bgp {
   router-id 1.2.3.4
-  local-as 65000
+  local { as 65000; }
 }`
 	mergeContent := `bgp {
-  peer 1.1.1.1 {
-    peer-as 65001
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
   }
 }`
 
@@ -252,11 +252,11 @@ func TestModelLoadMerge(t *testing.T) {
 
 	// Original content should be preserved
 	assert.Contains(t, ed.WorkingContent(), "router-id", "original router-id should be preserved")
-	assert.Contains(t, ed.WorkingContent(), "local-as", "original local-as should be preserved")
+	assert.Contains(t, ed.WorkingContent(), "local", "original local should be preserved")
 
 	// New content should be added
-	assert.Contains(t, ed.WorkingContent(), "peer 1.1.1.1", "new peer should be added")
-	assert.Contains(t, ed.WorkingContent(), "peer-as", "peer-as should be added")
+	assert.Contains(t, ed.WorkingContent(), "peer peer1", "new peer should be added")
+	assert.Contains(t, ed.WorkingContent(), "remote", "remote should be added")
 
 	assert.True(t, ed.Dirty(), "should be marked dirty after merge")
 	assert.Contains(t, result.statusMessage, "merged", "status should mention merged")
@@ -490,7 +490,7 @@ func TestLoadFileAbsoluteReplace(t *testing.T) {
 	loadPath := filepath.Join(tmpDir, "load.conf")
 
 	originalContent := `bgp { router-id 1.2.3.4; }`
-	loadContent := `bgp { router-id 5.6.7.8; local-as 65000; }`
+	loadContent := `bgp { router-id 5.6.7.8; local { as 65000; } }`
 
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
@@ -510,7 +510,7 @@ func TestLoadFileAbsoluteReplace(t *testing.T) {
 
 	// Content should be fully replaced
 	assert.Contains(t, ed.WorkingContent(), "5.6.7.8", "should have new router-id")
-	assert.Contains(t, ed.WorkingContent(), "local-as", "should have local-as")
+	assert.Contains(t, ed.WorkingContent(), "local", "should have local")
 	assert.NotContains(t, ed.WorkingContent(), "1.2.3.4", "old router-id should be gone")
 	assert.True(t, ed.Dirty(), "should be marked dirty")
 	assert.Contains(t, result.statusMessage, "loaded", "status should mention loaded")
@@ -527,11 +527,11 @@ func TestLoadFileAbsoluteMerge(t *testing.T) {
 
 	originalContent := `bgp {
   router-id 1.2.3.4
-  local-as 65000
+  local { as 65000; }
 }`
 	mergeContent := `bgp {
-  peer 1.1.1.1 {
-    peer-as 65001
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
   }
 }`
 
@@ -553,10 +553,10 @@ func TestLoadFileAbsoluteMerge(t *testing.T) {
 
 	// Original preserved
 	assert.Contains(t, ed.WorkingContent(), "router-id", "original router-id preserved")
-	assert.Contains(t, ed.WorkingContent(), "local-as", "original local-as preserved")
+	assert.Contains(t, ed.WorkingContent(), "local", "original local-as preserved")
 
 	// New content added
-	assert.Contains(t, ed.WorkingContent(), "peer 1.1.1.1", "peer added")
+	assert.Contains(t, ed.WorkingContent(), "peer peer1", "peer added")
 	assert.True(t, ed.Dirty(), "should be marked dirty")
 	assert.Contains(t, result.statusMessage, "merged", "status should mention merged")
 }
@@ -572,14 +572,14 @@ func TestLoadFileRelativeReplace(t *testing.T) {
 
 	originalContent := `bgp {
   router-id 1.2.3.4
-  local-as 65000
-  peer 1.1.1.1 {
-    peer-as 65001
+  local { as 65000; }
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
     hold-time 90
   }
 }`
 	// Content to replace the peer block with
-	loadContent := `peer-as 65002
+	loadContent := `remote { ip 1.1.1.1; as 65002; }
 description "new peer"`
 
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
@@ -595,7 +595,7 @@ description "new peer"`
 	require.NoError(t, err)
 
 	// Enter peer context
-	editResult, err := model.cmdEdit([]string{"bgp", "peer", "1.1.1.1"})
+	editResult, err := model.cmdEdit([]string{"bgp", "peer", "peer1"})
 	require.NoError(t, err)
 	model.ApplyResult(editResult)
 
@@ -605,10 +605,10 @@ description "new peer"`
 
 	// Root config should be preserved
 	assert.Contains(t, ed.WorkingContent(), "router-id", "root router-id preserved")
-	assert.Contains(t, ed.WorkingContent(), "local-as", "root local-as preserved")
+	assert.Contains(t, ed.WorkingContent(), "local", "root local preserved")
 
 	// Peer content should be replaced
-	assert.Contains(t, ed.WorkingContent(), "65002", "new peer-as present")
+	assert.Contains(t, ed.WorkingContent(), "65002", "new remote as present")
 	assert.Contains(t, ed.WorkingContent(), "description", "new description present")
 	assert.NotContains(t, ed.WorkingContent(), "hold-time", "old hold-time removed")
 	assert.True(t, ed.Dirty(), "should be marked dirty")
@@ -626,8 +626,8 @@ func TestLoadFileRelativeMerge(t *testing.T) {
 
 	originalContent := `bgp {
   router-id 1.2.3.4
-  peer 1.1.1.1 {
-    peer-as 65001
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
   }
 }`
 	mergeContent := `description "merged peer"
@@ -646,7 +646,7 @@ hold-time 180`
 	require.NoError(t, err)
 
 	// Enter peer context
-	editResult, err := model.cmdEdit([]string{"bgp", "peer", "1.1.1.1"})
+	editResult, err := model.cmdEdit([]string{"bgp", "peer", "peer1"})
 	require.NoError(t, err)
 	model.ApplyResult(editResult)
 
@@ -655,7 +655,7 @@ hold-time 180`
 	require.NoError(t, err)
 
 	// Original peer content preserved
-	assert.Contains(t, ed.WorkingContent(), "peer-as 65001", "original peer-as preserved")
+	assert.Contains(t, ed.WorkingContent(), "65001", "original remote as preserved")
 
 	// Merged content added
 	assert.Contains(t, ed.WorkingContent(), "description", "description merged")
@@ -752,12 +752,12 @@ func TestLoadFileRelativeReplaceSingleContext(t *testing.T) {
 
 	originalContent := `bgp {
   router-id 1.2.3.4
-  local-as 65000
+  local { as 65000; }
 }`
 	// Content to replace the bgp block with
 	loadContent := `router-id 5.6.7.8
-peer 1.1.1.1 {
-  peer-as 65001
+peer peer1 {
+  remote { ip 1.1.1.1; as 65001; }
 }`
 
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
@@ -786,11 +786,11 @@ peer 1.1.1.1 {
 
 	// Verify NEW content is present
 	assert.Contains(t, ed.WorkingContent(), "5.6.7.8", "new router-id present")
-	assert.Contains(t, ed.WorkingContent(), "peer 1.1.1.1", "new peer present")
+	assert.Contains(t, ed.WorkingContent(), "peer peer1", "new peer present")
 
 	// Verify OLD content was removed (critical - proves replace worked, not append)
 	assert.NotContains(t, ed.WorkingContent(), "1.2.3.4", "old router-id should be gone")
-	assert.NotContains(t, ed.WorkingContent(), "local-as 65000", "old local-as should be gone")
+	assert.NotContains(t, ed.WorkingContent(), "local", "old local should be gone")
 
 	// Verify STRUCTURE: bgp block is preserved (content inside braces)
 	content := ed.WorkingContent()
@@ -817,7 +817,7 @@ func TestLoadFileRelativeMergeSingleContext(t *testing.T) {
   router-id 1.2.3.4
 }`
 	// Content to merge into the bgp block
-	mergeContent := `local-as 65000
+	mergeContent := `local { as 65000; }
 description "merged content"`
 
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
@@ -848,14 +848,14 @@ description "merged content"`
 	assert.Contains(t, ed.WorkingContent(), "router-id 1.2.3.4", "original router-id preserved")
 
 	// Verify NEW content merged
-	assert.Contains(t, ed.WorkingContent(), "local-as 65000", "merged local-as present")
+	assert.Contains(t, ed.WorkingContent(), "local", "merged local present")
 	assert.Contains(t, ed.WorkingContent(), "merged content", "merged description present")
 
 	// Verify STRUCTURE: merged content is INSIDE the bgp block (before final brace)
 	content := ed.WorkingContent()
-	localAsPos := strings.Index(content, "local-as 65000")
+	localPos := strings.Index(content, "local")
 	lastBracePos := strings.LastIndex(content, "}")
-	assert.True(t, localAsPos < lastBracePos, "merged content should be inside bgp block, not after it")
+	assert.True(t, localPos < lastBracePos, "merged content should be inside bgp block, not after it")
 
 	assert.True(t, ed.Dirty(), "should be marked dirty")
 	assert.True(t, result.revalidate, "should trigger revalidation")

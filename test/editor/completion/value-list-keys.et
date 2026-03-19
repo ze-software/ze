@@ -5,14 +5,23 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  peer 10.0.0.1 {
-    peer-as 65001;
+  peer peer1 {
+  	remote {
+  		ip 10.0.0.1
+  		as 65001;
+  	}
   }
-  peer 10.0.0.2 {
-    peer-as 65002;
+  peer peer2 {
+  	remote {
+  		ip 10.0.0.2
+  		as 65002;
+  	}
   }
-  peer 10.0.0.3 {
-    peer-as 65003;
+  peer peer3 {
+  	remote {
+  		ip 10.0.0.3
+  		as 65003;
+  	}
   }
 }
 EOF_CONF
@@ -28,4 +37,4 @@ expect=context:path=bgp
 # Edit peer should show all three existing keys
 input=type:text=edit peer
 input=space
-expect=completion:contains=10.0.0.1,10.0.0.2,10.0.0.3,*
+expect=completion:contains=peer1,peer2,peer3,*

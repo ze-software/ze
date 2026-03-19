@@ -15,8 +15,8 @@ import (
 func TestParseUpdateBlock_InvalidMED(t *testing.T) {
 	input := `
 bgp {
-    peer 192.0.2.1 {
-        peer-as 65001;
+    peer transit1 {
+        remote { ip 192.0.2.1; as 65001; }
         update {
             attribute {
                 origin igp;
@@ -45,9 +45,9 @@ bgp {
 func TestNLRIListStorage(t *testing.T) {
 	input := `
 bgp {
-    local-as 65000;
-    peer 192.168.1.1 {
-        peer-as 65001;
+    local { as 65000; }
+    peer mypeer {
+        remote { ip 192.168.1.1; as 65001; }
         update {
             attribute {
                 origin igp;
@@ -68,7 +68,7 @@ bgp {
 
 	bgp := tree.GetContainer("bgp")
 	require.NotNil(t, bgp)
-	peer := bgp.GetList("peer")["192.168.1.1"]
+	peer := bgp.GetList("peer")["mypeer"]
 	require.NotNil(t, peer)
 	updates := peer.GetListOrdered("update")
 	require.Len(t, updates, 1)
@@ -120,9 +120,9 @@ func TestNLRIMandatoryOperation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `
 bgp {
-    local-as 65000;
-    peer 192.168.1.1 {
-        peer-as 65001;
+    local { as 65000; }
+    peer mypeer {
+        remote { ip 192.168.1.1; as 65001; }
         update {
             attribute {
                 origin igp;
@@ -143,7 +143,7 @@ bgp {
 			bgp := tree.GetContainer("bgp")
 			require.NotNil(t, bgp)
 			peers := bgp.GetList("peer")
-			peer := peers["192.168.1.1"]
+			peer := peers["mypeer"]
 			require.NotNil(t, peer)
 
 			_, err = extractRoutesFromTree(peer)
@@ -170,9 +170,9 @@ func TestNLRIWithAdd(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `
 bgp {
-    local-as 65000;
-    peer 192.168.1.1 {
-        peer-as 65001;
+    local { as 65000; }
+    peer mypeer {
+        remote { ip 192.168.1.1; as 65001; }
         update {
             attribute {
                 origin igp;
@@ -199,9 +199,9 @@ bgp {
 func TestNLRIBracketList(t *testing.T) {
 	input := `
 bgp {
-    local-as 65000;
-    peer 192.168.1.1 {
-        peer-as 65001;
+    local { as 65000; }
+    peer mypeer {
+        remote { ip 192.168.1.1; as 65001; }
         update {
             attribute {
                 origin igp;
@@ -226,9 +226,9 @@ bgp {
 func TestNLRIVPNWithAdd(t *testing.T) {
 	input := `
 bgp {
-    local-as 65000;
-    peer 192.168.1.1 {
-        peer-as 65001;
+    local { as 65000; }
+    peer mypeer {
+        remote { ip 192.168.1.1; as 65001; }
         update {
             attribute {
                 origin igp;
@@ -253,9 +253,9 @@ bgp {
 func TestNLRIFlowSpecWithAdd(t *testing.T) {
 	input := `
 bgp {
-    local-as 65000;
-    peer 192.168.1.1 {
-        peer-as 65001;
+    local { as 65000; }
+    peer mypeer {
+        remote { ip 192.168.1.1; as 65001; }
         update {
             attribute {
                 origin igp;
@@ -292,9 +292,9 @@ func TestNLRIDelAndEor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `
 bgp {
-    local-as 65000;
-    peer 192.168.1.1 {
-        peer-as 65001;
+    local { as 65000; }
+    peer mypeer {
+        remote { ip 192.168.1.1; as 65001; }
         update {
             attribute {
                 origin igp;
@@ -322,9 +322,9 @@ bgp {
 func TestWatchdogUpdateBlocksFilteredFromStaticRoutes(t *testing.T) {
 	input := `
 bgp {
-    peer 127.0.0.1 {
-        local-as 65533;
-        peer-as 65533;
+    peer loopback {
+        remote { ip 127.0.0.1; as 65533; }
+        local { as 65533; }
         update {
             attribute {
                 next-hop 1.2.3.4;
@@ -365,7 +365,7 @@ bgp {
 	bgp := tree.GetContainer("bgp")
 	require.NotNil(t, bgp)
 	peers := bgp.GetList("peer")
-	peer := peers["127.0.0.1"]
+	peer := peers["loopback"]
 	require.NotNil(t, peer)
 
 	routes, err := extractRoutesFromTree(peer)

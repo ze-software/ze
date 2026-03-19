@@ -51,7 +51,7 @@ func TestReadStdinConfigWithNUL(t *testing.T) {
 	}
 
 	os.Stdin = r
-	config := "bgp {\n  local-as 65000;\n}\n"
+	config := "bgp {\n  local {\n    as 65000;\n  }\n}\n"
 
 	// Keep the write end open until test completes (simulates long-lived upstream).
 	done := make(chan struct{})
@@ -95,7 +95,7 @@ func TestReadStdinConfigEOF(t *testing.T) {
 	}
 
 	// Write and close before reading — pipe buffer holds the data.
-	config := "bgp {\n  local-as 65000;\n}\n"
+	config := "bgp {\n  local {\n    as 65000;\n  }\n}\n"
 	if _, wErr := w.WriteString(config); wErr != nil {
 		t.Fatal(wErr)
 	}

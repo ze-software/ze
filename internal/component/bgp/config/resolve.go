@@ -33,7 +33,7 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 	peerMap := make(map[string]any)
 	peerNames := make(map[string]string) // name -> addr (for uniqueness check)
 
-	// Resolve grouped peers: bgp { group <name> { peer <ip> { } } }
+	// Resolve grouped peers: bgp { group <name> { peer <name> { } } }
 	for _, groupEntry := range bgp.GetListOrdered("group") {
 		groupName := groupEntry.Key
 		groupTree := groupEntry.Value
@@ -49,8 +49,17 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 
 		// Resolve each peer in this group.
 		for _, peerEntry := range groupTree.GetListOrdered("peer") {
-			addr := peerEntry.Key
+			peerName := peerEntry.Key
 			peerTree := peerEntry.Value
+
+			// Validate peer name (the list key).
+			if err := validatePeerName(peerName); err != nil {
+				return nil, fmt.Errorf("bgp.group %s peer %s: %w", groupName, peerName, err)
+			}
+			if existingAddr, exists := peerNames[peerName]; exists {
+				return nil, fmt.Errorf("bgp.group %s peer %s: duplicate peer name (already used by %s)", groupName, peerName, existingAddr)
+			}
+			peerNames[peerName] = peerName
 
 			resolved := make(map[string]any)
 
@@ -63,32 +72,33 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 			// Inject group name so PeersFromTree can populate PeerSettings.GroupName.
 			resolved["group-name"] = groupName
 
-			if err := validateAndTrackPeerName(resolved, groupName, addr, peerNames); err != nil {
-				return nil, err
+			if _, exists := peerMap[peerName]; exists {
+				return nil, fmt.Errorf("bgp.group %s: duplicate peer name %s (already defined in another group or as standalone)", groupName, peerName)
 			}
-
-			if _, exists := peerMap[addr]; exists {
-				return nil, fmt.Errorf("bgp.group %s: duplicate peer IP %s (already defined in another group or as standalone)", groupName, addr)
-			}
-			peerMap[addr] = resolved
+			peerMap[peerName] = resolved
 		}
 	}
 
-	// Resolve standalone peers: bgp { peer <ip> { } }
+	// Resolve standalone peers: bgp { peer <name> { } }
 	for _, peerEntry := range bgp.GetListOrdered("peer") {
-		addr := peerEntry.Key
+		peerName := peerEntry.Key
 		peerTree := peerEntry.Value
 
 		resolved := peerTree.ToMap()
 
-		if err := validateAndTrackPeerName(resolved, "", addr, peerNames); err != nil {
-			return nil, err
+		// Validate peer name (the list key).
+		if err := validatePeerName(peerName); err != nil {
+			return nil, fmt.Errorf("bgp.peer %s: %w", peerName, err)
 		}
+		if existingAddr, exists := peerNames[peerName]; exists {
+			return nil, fmt.Errorf("bgp.peer %s: duplicate peer name (already used by %s)", peerName, existingAddr)
+		}
+		peerNames[peerName] = peerName
 
-		if _, exists := peerMap[addr]; exists {
-			return nil, fmt.Errorf("bgp.peer %s: duplicate peer IP (already defined in a group or as standalone)", addr)
+		if _, exists := peerMap[peerName]; exists {
+			return nil, fmt.Errorf("bgp.peer %s: duplicate peer name (already defined in a group or as standalone)", peerName)
 		}
-		peerMap[addr] = resolved
+		peerMap[peerName] = resolved
 	}
 
 	if len(peerMap) > 0 {
@@ -98,28 +108,8 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 	return result, nil
 }
 
-// validateAndTrackPeerName validates and registers a peer name for uniqueness.
-// groupName may be empty for standalone peers.
-func validateAndTrackPeerName(resolved map[string]any, groupName, addr string, peerNames map[string]string) error {
-	name, ok := resolved["name"].(string)
-	if !ok || name == "" {
-		return nil
-	}
-	if err := validatePeerName(name); err != nil {
-		if groupName != "" {
-			return fmt.Errorf("bgp.group %s peer %s: %w", groupName, addr, err)
-		}
-		return fmt.Errorf("bgp.peer %s: %w", addr, err)
-	}
-	if existingAddr, exists := peerNames[name]; exists {
-		if groupName != "" {
-			return fmt.Errorf("bgp.group %s peer %s: duplicate peer name %q (already used by %s)", groupName, addr, name, existingAddr)
-		}
-		return fmt.Errorf("bgp.peer %s: duplicate peer name %q (already used by %s)", addr, name, existingAddr)
-	}
-	peerNames[name] = addr
-	return nil
-}
+// Note: validateAndTrackPeerName was removed. Peer name validation is now done
+// directly in the resolve loops since the name IS the list key, not a field in resolved.
 
 // isASCIILetterOrDigit returns true if the character is an ASCII letter or digit.
 func isASCIILetterOrDigit(ch rune) bool {

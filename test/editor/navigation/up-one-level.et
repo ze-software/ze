@@ -5,8 +5,11 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  peer 1.1.1.1 {
-    peer-as 65001;
+  peer peer1 {
+  	remote {
+  		ip 1.1.1.1
+  		as 65001;
+  	}
   }
 }
 EOF_CONF
@@ -15,9 +18,9 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Navigate to peer first
-input=type:text=edit bgp peer 1.1.1.1
+input=type:text=edit bgp peer peer1
 input=enter
-expect=context:path=bgp.peer.1.1.1.1
+expect=context:path=bgp.peer.peer1
 
 # Go up one level
 input=type:text=up

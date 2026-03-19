@@ -1,12 +1,17 @@
 # Valid config: IPv6 peer with IPv4 and IPv6 routes
 stdin=config:terminator=EOF_CONF
 bgp {
-	peer 2a02:b80::2 {
+	peer peer-v6-1 {
+		remote {
+			ip 2a02:b80::2
+			as 65533
+		}
+		local {
+			as 65533
+			ip 2a02:b80::1
+		}
 		description "a quagga test peer over ipv6"
 		router-id 10.0.0.2
-		local-address 2a02:b80::1
-		local-as 65533
-		peer-as 65533
 		update {
 			attribute {
 				origin igp

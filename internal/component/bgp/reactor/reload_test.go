@@ -481,16 +481,32 @@ func TestCapabilitiesEqualEmpty(t *testing.T) {
 
 // --- VerifyConfig / ApplyConfigDiff tests ---
 
+// testPeer defines a peer for makeBGPTree.
+type testPeer struct {
+	remoteIP string
+	remoteAS string
+	localAS  string
+	localIP  string // defaults to "auto"
+	holdTime string // optional
+}
+
 // makeBGPTree builds a bgp config tree with the given peers.
-// Each peer is defined by address key → field map (strings, matching config tree format).
-func makeBGPTree(peers map[string]map[string]string) map[string]any {
+// Each peer is defined by name → testPeer struct, matching the new config tree format.
+func makeBGPTree(peers map[string]testPeer) map[string]any {
 	peerMap := make(map[string]any, len(peers))
-	for addr, fields := range peers {
-		m := make(map[string]any, len(fields))
-		for k, v := range fields {
-			m[k] = v
+	for name, p := range peers {
+		localIP := p.localIP
+		if localIP == "" {
+			localIP = "auto"
 		}
-		peerMap[addr] = m
+		m := map[string]any{
+			"remote": map[string]any{"ip": p.remoteIP, "as": p.remoteAS},
+			"local":  map[string]any{"ip": localIP, "as": p.localAS},
+		}
+		if p.holdTime != "" {
+			m["hold-time"] = p.holdTime
+		}
+		peerMap[name] = m
 	}
 	return map[string]any{
 		"peer": peerMap,
@@ -508,9 +524,9 @@ func TestReactorVerifyConfigValid(t *testing.T) {
 	defer r.Stop()
 
 	adapter := &reactorAPIAdapter{r: r}
-	bgpTree := makeBGPTree(map[string]map[string]string{
-		"10.0.0.1": {"peer-as": "65001", "local-as": "65000"},
-		"10.0.0.2": {"peer-as": "65002", "local-as": "65000"},
+	bgpTree := makeBGPTree(map[string]testPeer{
+		"peer1": {remoteIP: "10.0.0.1", remoteAS: "65001", localAS: "65000"},
+		"peer2": {remoteIP: "10.0.0.2", remoteAS: "65002", localAS: "65000"},
 	})
 
 	err := adapter.VerifyConfig(bgpTree)
@@ -528,8 +544,8 @@ func TestReactorVerifyConfigInvalidAddress(t *testing.T) {
 	defer r.Stop()
 
 	adapter := &reactorAPIAdapter{r: r}
-	bgpTree := makeBGPTree(map[string]map[string]string{
-		"not-an-ip": {"peer-as": "65001", "local-as": "65000"},
+	bgpTree := makeBGPTree(map[string]testPeer{
+		"peer1": {remoteIP: "not-an-ip", remoteAS: "65001", localAS: "65000"},
 	})
 
 	err := adapter.VerifyConfig(bgpTree)
@@ -558,8 +574,8 @@ func TestReactorVerifyConfigNoMutation(t *testing.T) {
 
 	adapter := &reactorAPIAdapter{r: r}
 	// Verify a config that would add a new peer and remove existing one.
-	bgpTree := makeBGPTree(map[string]map[string]string{
-		"10.0.0.99": {"peer-as": "65099", "local-as": "65000"},
+	bgpTree := makeBGPTree(map[string]testPeer{
+		"peer99": {remoteIP: "10.0.0.99", remoteAS: "65099", localAS: "65000"},
 	})
 
 	err := adapter.VerifyConfig(bgpTree)
@@ -583,8 +599,8 @@ func TestReactorApplyConfigDiffAddPeer(t *testing.T) {
 	assert.Empty(t, r.Peers(), "should start with no peers")
 
 	adapter := &reactorAPIAdapter{r: r}
-	bgpTree := makeBGPTree(map[string]map[string]string{
-		"10.0.0.1": {"peer-as": "65001", "local-as": "65000"},
+	bgpTree := makeBGPTree(map[string]testPeer{
+		"peer1": {remoteIP: "10.0.0.1", remoteAS: "65001", localAS: "65000"},
 	})
 
 	err := adapter.ApplyConfigDiff(bgpTree)
@@ -613,7 +629,7 @@ func TestReactorApplyConfigDiffRemovePeer(t *testing.T) {
 
 	adapter := &reactorAPIAdapter{r: r}
 	// Empty peer map — peer should be removed.
-	bgpTree := makeBGPTree(map[string]map[string]string{})
+	bgpTree := makeBGPTree(map[string]testPeer{})
 
 	err := adapter.ApplyConfigDiff(bgpTree)
 	require.NoError(t, err)
@@ -643,8 +659,8 @@ func TestReactorApplyConfigDiffChangedPeer(t *testing.T) {
 
 	adapter := &reactorAPIAdapter{r: r}
 	// Same peer, different hold time.
-	bgpTree := makeBGPTree(map[string]map[string]string{
-		"10.0.0.1": {"peer-as": "65002", "local-as": "65001", "hold-time": "30"},
+	bgpTree := makeBGPTree(map[string]testPeer{
+		"peer1": {remoteIP: "10.0.0.1", remoteAS: "65002", localAS: "65001", holdTime: "30"},
 	})
 
 	err := adapter.ApplyConfigDiff(bgpTree)

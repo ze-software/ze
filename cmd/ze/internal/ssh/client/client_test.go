@@ -42,10 +42,9 @@ func TestReadCredentialsMeta(t *testing.T) {
 	if creds.Username != "admin" {
 		t.Errorf("Username: got %q, want %q", creds.Username, "admin")
 	}
-	// Password comes from env var, not zefs (zefs stores bcrypt hash).
-	// No env var set, so Auth should be empty.
-	if creds.Auth != "" {
-		t.Errorf("Auth: got %q, want empty (no env var set)", creds.Auth)
+	// Password is read from zefs (plaintext, for SSH password auth).
+	if creds.Auth != "secret123" {
+		t.Errorf("Auth: got %q, want %q", creds.Auth, "secret123")
 	}
 	if creds.Host != "10.0.0.1" {
 		t.Errorf("Host: got %q, want %q", creds.Host, "10.0.0.1")

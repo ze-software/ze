@@ -5,10 +5,17 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local-as 65000;
-  peer 1.1.1.1 {
-    peer-as 65001;
-    local-address auto;
+  local {
+  	as 65000
+  }
+  peer peer1 {
+  	remote {
+  		ip 1.1.1.1
+  		as 65001;
+  	}
+  	local {
+  		ip auto;
+  	}
     hold-time 90;
   }
 }
@@ -24,12 +31,12 @@ expect=status:contains=Set
 expect=dirty:true
 
 # Change hold-time through list
-input=type:text=set bgp peer 1.1.1.1 hold-time 120
+input=type:text=set bgp peer peer1 hold-time 120
 input=enter
 expect=status:contains=Set
 
-# Change local-as
-input=type:text=set bgp local-as 65100
+# Change local as
+input=type:text=set bgp local as 65100
 input=enter
 expect=status:contains=Set
 

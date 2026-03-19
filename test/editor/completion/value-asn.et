@@ -16,8 +16,8 @@ input=type:text=edit bgp
 input=enter
 expect=context:path=bgp
 
-# After "set local-as " should show value type hint (uint32 range)
-input=type:text=set local-as
+# After "set local as " should show value type hint (uint32 range)
+input=type:text=set local as
 input=space
 expect=completion:contains=<0-4294967295>
 expect=error:none

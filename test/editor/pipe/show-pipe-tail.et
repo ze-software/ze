@@ -6,13 +6,21 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local-as 65000;
-  peer 1.1.1.1 {
-    peer-as 65001;
+  local {
+  	as 65000
+  }
+  peer peer1 {
+  	remote {
+  		ip 1.1.1.1
+  		as 65001;
+  	}
     hold-time 90;
   }
-  peer 2.2.2.2 {
-    peer-as 65002;
+  peer peer2 {
+  	remote {
+  		ip 2.2.2.2
+  		as 65002;
+  	}
     hold-time 180;
   }
 }
@@ -30,5 +38,5 @@ expect=error:none
 expect=viewport:contains=}
 
 # Earlier content should be excluded (local-as and first peer are early in serialized output)
-expect=viewport:not-contains=local-as
-expect=viewport:not-contains=peer-as 65001
+expect=viewport:not-contains=local
+expect=viewport:not-contains=as 65001

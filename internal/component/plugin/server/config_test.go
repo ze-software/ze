@@ -18,17 +18,16 @@ func TestConfigTreeStructure(t *testing.T) {
 	configTree := map[string]any{
 		"bgp": map[string]any{
 			"peer": map[string]any{
-				"127.0.0.1": map[string]any{
+				"peer1": map[string]any{
 					"capability": map[string]any{
 						"hostname": map[string]any{
 							"host":   "my-host-name",
 							"domain": "my-domain-name.com",
 						},
 					},
-					"router-id":     "10.0.0.2",
-					"local-address": "127.0.0.1",
-					"local-as":      "65533",
-					"peer-as":       "65533",
+					"router-id": "10.0.0.2",
+					"remote":    map[string]any{"ip": "127.0.0.1", "as": "65533"},
+					"local":     map[string]any{"ip": "127.0.0.1", "as": "65533"},
 				},
 			},
 		},
@@ -41,8 +40,8 @@ func TestConfigTreeStructure(t *testing.T) {
 	peers, ok := bgp["peer"].(map[string]any)
 	require.True(t, ok, "peer should be a map")
 
-	peer, ok := peers["127.0.0.1"].(map[string]any)
-	require.True(t, ok, "peer 127.0.0.1 should be a map")
+	peer, ok := peers["peer1"].(map[string]any)
+	require.True(t, ok, "peer peer1 should be a map")
 
 	cap, ok := peer["capability"].(map[string]any)
 	require.True(t, ok, "capability should be a map")
@@ -62,8 +61,8 @@ func TestExtractConfigSubtree(t *testing.T) {
 	configTree := map[string]any{
 		"bgp": map[string]any{
 			"peer": map[string]any{
-				"127.0.0.1": map[string]any{
-					"peer-as": "65533",
+				"peer1": map[string]any{
+					"remote": map[string]any{"ip": "127.0.0.1", "as": "65533"},
 				},
 			},
 		},
@@ -97,7 +96,7 @@ func TestExtractConfigSubtree(t *testing.T) {
 		},
 		{
 			name:     "deep_path_wrapped",
-			path:     "bgp/peer/127.0.0.1",
+			path:     "bgp/peer/peer1",
 			wantKeys: []string{"bgp"}, // Wrapped from root
 		},
 		{
@@ -145,8 +144,8 @@ func TestExtractConfigSubtreePreservesPath(t *testing.T) {
 	configTree := map[string]any{
 		"bgp": map[string]any{
 			"peer": map[string]any{
-				"127.0.0.1": map[string]any{
-					"peer-as": "65533",
+				"peer1": map[string]any{
+					"remote": map[string]any{"ip": "127.0.0.1", "as": "65533"},
 				},
 			},
 		},
@@ -166,10 +165,12 @@ func TestExtractConfigSubtreePreservesPath(t *testing.T) {
 	peer, ok := bgp["peer"].(map[string]any)
 	require.True(t, ok, "expected peer key under bgp")
 
-	peerData, ok := peer["127.0.0.1"].(map[string]any)
-	require.True(t, ok, "expected 127.0.0.1 key under peer")
+	peerData, ok := peer["peer1"].(map[string]any)
+	require.True(t, ok, "expected peer1 key under peer")
 
-	assert.Equal(t, "65533", peerData["peer-as"])
+	remote, ok := peerData["remote"].(map[string]any)
+	require.True(t, ok, "expected remote key under peer1")
+	assert.Equal(t, "65533", remote["as"])
 }
 
 // TestHostnamePluginCapabilityInjection verifies capability injection for per-peer capabilities.

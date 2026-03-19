@@ -5,10 +5,17 @@
 tmpfs=ze.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local-as 65000;
-  peer 1.1.1.1 {
-    peer-as 65001;
-    local-address auto;
+  local {
+  	as 65000
+  }
+  peer peer1 {
+  	remote {
+  		ip 1.1.1.1
+  		as 65001;
+  	}
+  	local {
+  		ip auto;
+  	}
     hold-time 90;
   }
 }
@@ -25,5 +32,5 @@ expect=dirty:false
 input=type:text=show
 input=enter
 expect=viewport:contains=router-id
-expect=viewport:contains=local-as
+expect=viewport:contains=local
 expect=error:none

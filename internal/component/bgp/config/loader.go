@@ -378,9 +378,11 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 				routerID = ipToUint32(ip)
 			}
 		}
-		if v, ok := bgpContainer.Get("local-as"); ok {
-			if n, parseErr := strconv.ParseUint(v, 10, 32); parseErr == nil {
-				localAS = uint32(n)
+		if localContainer := bgpContainer.GetContainer("local"); localContainer != nil {
+			if v, ok := localContainer.Get("as"); ok {
+				if n, parseErr := strconv.ParseUint(v, 10, 32); parseErr == nil {
+					localAS = uint32(n)
+				}
 			}
 		}
 		if v, ok := bgpContainer.Get("listen"); ok {
@@ -478,9 +480,10 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	var sshSrv *zessh.Server
 	if sshCfg, ok := extractSSHConfig(tree); ok {
 		// Merge users from zefs database (ze init) with config-based users.
-		// Zefs users have bcrypt hashes stored by ze init.
+		// Zefs users prepended so hash-as-token auth finds them first when
+		// the same username appears in both config and zefs.
 		if zefsUsers, err := loadZefsUsers(); err == nil {
-			sshCfg.Users = append(sshCfg.Users, zefsUsers...)
+			sshCfg.Users = append(zefsUsers, sshCfg.Users...)
 		}
 		sshCfg.Storage = store
 		sshCfg.ConfigPath = configPath
@@ -849,7 +852,9 @@ func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
 // loadZefsUsers reads SSH credentials from the zefs database (written by ze init).
 // Opens database.zefs directly rather than using the storage abstraction,
 // because storage may be filesystem-based (stdin mode) which can't read zefs keys.
-// Returns a single UserConfig with the bcrypt hash. Returns nil if keys are missing.
+// The zefs stores a bcrypt hash (written by ze init). This function uses the
+// hash directly as UserConfig.Hash -- no re-hashing needed.
+// Returns nil if keys are missing.
 func loadZefsUsers() ([]zessh.UserConfig, error) {
 	dir := paths.DefaultConfigDir()
 	if dir == "" {
@@ -866,7 +871,7 @@ func loadZefsUsers() ([]zessh.UserConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	password, err := db.ReadFile("meta/ssh/password")
+	hash, err := db.ReadFile("meta/ssh/password")
 	if err != nil {
 		return nil, err
 	}
@@ -874,7 +879,7 @@ func loadZefsUsers() ([]zessh.UserConfig, error) {
 	if name == "" {
 		return nil, fmt.Errorf("empty username in zefs")
 	}
-	return []zessh.UserConfig{{Name: name, Hash: string(password)}}, nil
+	return []zessh.UserConfig{{Name: name, Hash: string(hash)}}, nil
 }
 
 // formatResponseData converts a command response Data value to a human-readable string.

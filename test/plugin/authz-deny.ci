@@ -20,10 +20,15 @@ touch daemon.ready
 # Generate config with SSH on port 0 (OS-assigned)
 cat > authz-deny.conf << 'ZECONF'
 bgp {
-	peer 127.0.0.1 {
-		local-address 127.0.0.1
-		local-as 65533
-		peer-as 65533
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65533
+		}
+		local {
+			as 65533
+			ip 127.0.0.1
+		}
 		connection active
 	}
 }
@@ -90,7 +95,7 @@ printf 'operator\noppass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$OP_DIR"
 
 # Test 1: restricted user denied for command not in allow list
 # "peer detail" is NOT in the restricted profile's allow entries
-OUTPUT=$(ZE_CONFIG_DIR="$OP_DIR" ze cli --run "peer detail" 2>&1) && {
+OUTPUT=$(ZE_CONFIG_DIR="$OP_DIR" ZE_SSH_PASSWORD="oppass" ze cli --run "peer detail" 2>&1) && {
 	echo "FAIL: operator should be denied 'peer detail' but command succeeded" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1
@@ -109,7 +114,7 @@ case "$OUTPUT" in
 esac
 
 # Test 2: restricted user denied for metrics command (not in allow list)
-ZE_CONFIG_DIR="$OP_DIR" ze cli --run "metrics list" 2>/dev/null && {
+ZE_CONFIG_DIR="$OP_DIR" ZE_SSH_PASSWORD="oppass" ze cli --run "metrics list" 2>/dev/null && {
 	echo "FAIL: operator should be denied 'metrics list'" >&2
 	exit 1
 }

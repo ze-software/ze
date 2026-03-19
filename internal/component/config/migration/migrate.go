@@ -242,7 +242,7 @@ func collectPeerGlobs(tree *config.Tree) []struct {
 
 // hasBGPElementsAtRoot returns true if BGP elements are at root level (not wrapped in bgp {}).
 func hasBGPElementsAtRoot(tree *config.Tree) bool {
-	// Check if peer, router-id, local-as, or listen exist at root level
+	// Check if peer, router-id, local-as, local container, or listen exist at root level.
 	if len(tree.GetListOrdered("peer")) > 0 {
 		return true
 	}
@@ -250,6 +250,9 @@ func hasBGPElementsAtRoot(tree *config.Tree) bool {
 		return true
 	}
 	if _, ok := tree.Get("local-as"); ok {
+		return true
+	}
+	if tree.GetContainer("local") != nil {
 		return true
 	}
 	if _, ok := tree.Get("listen"); ok {
@@ -271,10 +274,24 @@ func wrapBGPBlock(tree *config.Tree) (*config.Tree, error) {
 		result.Delete("router-id")
 	}
 
-	// Move local-as
+	// Move local-as into local { as ... } container.
 	if val, ok := result.Get("local-as"); ok {
-		bgpContainer.Set("local-as", val)
+		localContainer := bgpContainer.GetContainer("local")
+		if localContainer == nil {
+			localContainer = config.NewTree()
+		}
+		localContainer.Set("as", val)
+		bgpContainer.SetContainer("local", localContainer)
 		result.Delete("local-as")
+	}
+
+	// Move existing local container (if source already uses new format).
+	if localContainer := result.GetContainer("local"); localContainer != nil {
+		existing := bgpContainer.GetContainer("local")
+		if existing == nil {
+			bgpContainer.SetContainer("local", localContainer)
+		}
+		result.RemoveContainer("local")
 	}
 
 	// Move listen

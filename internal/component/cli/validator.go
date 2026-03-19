@@ -259,12 +259,16 @@ func (v *ConfigValidator) validatePeer(peerAddr string, peerTree, groupTree *con
 		}
 	}
 
-	// Custom check: peer-as is required for peers (not mandatory in YANG because
+	// Custom check: remote > as is required for peers (not mandatory in YANG because
 	// groups can set it at group level, but every peer must have it resolved).
-	if _, hasPeerAS := resolved.Get("peer-as"); !hasPeerAS {
+	hasRemoteAS := false
+	if remoteContainer := resolved.GetContainer("remote"); remoteContainer != nil {
+		_, hasRemoteAS = remoteContainer.Get("as")
+	}
+	if !hasRemoteAS {
 		*warns = append(*warns, ConfigValidationError{
 			Line:     findPeerLine(lines, peerAddr),
-			Message:  fmt.Sprintf("peer %s: missing required field \"peer-as\"", peerAddr),
+			Message:  fmt.Sprintf("peer %s: missing required field \"remote as\"", peerAddr),
 			Severity: severityWarning,
 		})
 	}

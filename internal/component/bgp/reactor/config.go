@@ -30,27 +30,39 @@ const (
 // parsePeerFromTree parses a peer's settings from a flattened config tree.
 // The tree is the peer subtree from a map[string]any config,
 // already resolved with template inheritance.
-// addr is the peer's IP address (the list key in the config).
+// name is the peer's name (the list key in the config).
 // localAS and routerID are global defaults from the bgp block.
-func parsePeerFromTree(addr string, tree map[string]any, localAS, routerID uint32) (*PeerSettings, error) {
-	ip, err := netip.ParseAddr(addr)
-	if err != nil {
-		return nil, fmt.Errorf("invalid peer address %q: %w", addr, err)
+func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint32) (*PeerSettings, error) {
+	// Remote container (required: ip and as).
+	remoteMap, hasRemote := mapMap(tree, "remote")
+	if !hasRemote {
+		return nil, fmt.Errorf("peer %s: missing required remote container", name)
 	}
 
-	// Peer AS (required).
-	peerAS, ok := mapUint32(tree, "peer-as")
+	remoteIPStr, ok := mapString(remoteMap, "ip")
 	if !ok {
-		return nil, fmt.Errorf("peer %s: missing required peer-as", addr)
+		return nil, fmt.Errorf("peer %s: missing required remote ip", name)
+	}
+	ip, err := netip.ParseAddr(remoteIPStr)
+	if err != nil {
+		return nil, fmt.Errorf("peer %s: invalid remote ip %q: %w", name, remoteIPStr, err)
 	}
 
-	// Local AS (peer-level overrides global; at least one must be set).
+	peerAS, ok := mapUint32(remoteMap, "as")
+	if !ok {
+		return nil, fmt.Errorf("peer %s: missing required remote as", name)
+	}
+
+	// Local container (optional per-peer overrides).
 	peerLocalAS := localAS
-	if v, ok := mapUint32(tree, "local-as"); ok {
-		peerLocalAS = v
+	localMap, _ := mapMap(tree, "local")
+	if localMap != nil {
+		if v, ok := mapUint32(localMap, "as"); ok {
+			peerLocalAS = v
+		}
 	}
 	if peerLocalAS == 0 {
-		return nil, fmt.Errorf("peer %s: missing required local-as (neither global nor peer-level)", addr)
+		return nil, fmt.Errorf("peer %s: missing required local as (neither global nor peer-level)", name)
 	}
 
 	// Router ID (peer-level overrides global).
@@ -58,7 +70,7 @@ func parsePeerFromTree(addr string, tree map[string]any, localAS, routerID uint3
 	if v, ok := mapString(tree, "router-id"); ok {
 		rid, err := netip.ParseAddr(v)
 		if err != nil {
-			return nil, fmt.Errorf("peer %s: invalid router-id: %w", addr, err)
+			return nil, fmt.Errorf("peer %s: invalid router-id: %w", name, err)
 		}
 		peerRouterID = ipToUint32(rid)
 	}
@@ -70,7 +82,7 @@ func parsePeerFromTree(addr string, tree map[string]any, localAS, routerID uint3
 		ht := v
 		// RFC 4271 Section 4.2: Hold Time MUST be either zero or at least three seconds.
 		if ht >= 1 && ht <= 2 {
-			return nil, fmt.Errorf("peer %s: invalid hold-time %d: RFC 4271 requires 0 or >= 3 seconds", addr, ht)
+			return nil, fmt.Errorf("peer %s: invalid hold-time %d: RFC 4271 requires 0 or >= 3 seconds", name, ht)
 		}
 		ps.HoldTime = time.Duration(ht) * time.Second
 	}
@@ -79,7 +91,7 @@ func parsePeerFromTree(addr string, tree map[string]any, localAS, routerID uint3
 	if v, ok := mapString(tree, "connection"); ok {
 		mode, err := ParseConnectionMode(v)
 		if err != nil {
-			return nil, fmt.Errorf("peer %s: %w", addr, err)
+			return nil, fmt.Errorf("peer %s: %w", name, err)
 		}
 		ps.Connection = mode
 	}
@@ -87,7 +99,7 @@ func parsePeerFromTree(addr string, tree map[string]any, localAS, routerID uint3
 	// Per-peer listen port (overrides global tcp.port for this peer).
 	if v, ok := mapUint32(tree, "port"); ok {
 		if v < 1 || v > 65535 {
-			return nil, fmt.Errorf("peer %s: port must be 1-65535, got %d", addr, v)
+			return nil, fmt.Errorf("peer %s: port must be 1-65535, got %d", name, v)
 		}
 		ps.Port = uint16(v)
 	}
@@ -97,15 +109,18 @@ func parsePeerFromTree(addr string, tree map[string]any, localAS, routerID uint3
 		ps.GroupUpdates = v
 	}
 
-	// Local address (required).
-	v, hasLocalAddr := mapString(tree, "local-address")
-	if !hasLocalAddr {
-		return nil, fmt.Errorf("peer %s: local-address is required (use IP address or \"auto\")", addr)
+	// Local address from local > ip (required).
+	var localAddrStr string
+	if localMap != nil {
+		localAddrStr, _ = mapString(localMap, "ip")
 	}
-	if v != "auto" {
-		la, err := netip.ParseAddr(v)
+	if localAddrStr == "" {
+		return nil, fmt.Errorf("peer %s: local ip is required (use IP address or \"auto\")", name)
+	}
+	if localAddrStr != "auto" {
+		la, err := netip.ParseAddr(localAddrStr)
 		if err != nil {
-			return nil, fmt.Errorf("peer %s: invalid local-address: %w", addr, err)
+			return nil, fmt.Errorf("peer %s: invalid local ip: %w", name, err)
 		}
 		ps.LocalAddress = la
 	}
@@ -114,14 +129,14 @@ func parsePeerFromTree(addr string, tree map[string]any, localAS, routerID uint3
 	if v, ok := mapString(tree, "link-local"); ok {
 		ll, err := netip.ParseAddr(v)
 		if err != nil {
-			return nil, fmt.Errorf("peer %s: invalid link-local: %w", addr, err)
+			return nil, fmt.Errorf("peer %s: invalid link-local: %w", name, err)
 		}
 		ps.LinkLocal = ll
 	}
 
 	// Parse families.
 	if err := parseFamiliesFromTree(tree, ps); err != nil {
-		return nil, fmt.Errorf("peer %s: %w", addr, err)
+		return nil, fmt.Errorf("peer %s: %w", name, err)
 	}
 
 	// Parse capabilities.
@@ -134,18 +149,18 @@ func parsePeerFromTree(addr string, tree map[string]any, localAS, routerID uint3
 	if md5, ok := mapString(tree, "md5-password"); ok {
 		if !network.TCPMD5Supported() {
 			reactorLogger().Warn("md5-password configured but TCP MD5 is not supported on this platform; connections will fail",
-				"peer", addr)
+				"peer", name)
 		}
 		ps.MD5Key = md5
 		if md5ip, ok := mapString(tree, "md5-ip"); ok {
 			a, err := netip.ParseAddr(md5ip)
 			if err != nil {
-				return nil, fmt.Errorf("peer %s: invalid md5-ip: %w", addr, err)
+				return nil, fmt.Errorf("peer %s: invalid md5-ip: %w", name, err)
 			}
 			ps.MD5IP = a
 		}
 	} else if _, hasMD5IP := mapString(tree, "md5-ip"); hasMD5IP {
-		return nil, fmt.Errorf("peer %s: md5-ip requires md5-password", addr)
+		return nil, fmt.Errorf("peer %s: md5-ip requires md5-password", name)
 	}
 
 	return ps, nil
@@ -156,12 +171,16 @@ func parsePeerFromTree(addr string, tree map[string]any, localAS, routerID uint3
 // already applied and flattened via Tree.ToMap().
 // Returns the list of PeerSettings and an error if any peer fails to parse.
 //
-// Global local-as and router-id are optional defaults. Each peer can override
-// them or provide its own. If neither global nor peer-level local-as is set,
+// Global local > as and router-id are optional defaults. Each peer can override
+// them or provide its own. If neither global nor peer-level local as is set,
 // parsePeerFromTree returns an error for that peer.
 func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
-	// Extract global defaults (both optional — peers can provide their own).
-	localAS, _ := mapUint32(bgpTree, "local-as")
+	// Extract global defaults (both optional -- peers can provide their own).
+	// Global local AS is under bgp > local > as.
+	var localAS uint32
+	if localMap, ok := mapMap(bgpTree, "local"); ok {
+		localAS, _ = mapUint32(localMap, "as")
+	}
 
 	var routerID uint32
 	if v, ok := mapString(bgpTree, "router-id"); ok {
@@ -172,27 +191,27 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 		routerID = ipToUint32(rid)
 	}
 
-	// Parse peers.
+	// Parse peers. Key is now peer name (not IP address).
 	peerMap, ok := mapMap(bgpTree, "peer")
 	if !ok {
 		return nil, nil
 	}
 
 	var peers []*PeerSettings
-	for addr, val := range peerMap {
+	for peerName, val := range peerMap {
 		peerTree, ok := val.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("peer %s: invalid config (expected map)", addr)
+			return nil, fmt.Errorf("peer %s: invalid config (expected map)", peerName)
 		}
-		ps, err := parsePeerFromTree(addr, peerTree, localAS, routerID)
+		ps, err := parsePeerFromTree(peerName, peerTree, localAS, routerID)
 		if err != nil {
 			return nil, err
 		}
 
-		// Extract peer name and group name (set by ResolveBGPTree).
-		if name, ok := mapString(peerTree, "name"); ok {
-			ps.Name = name
-		}
+		// The peer name is the list key itself.
+		ps.Name = peerName
+
+		// Extract group name (set by ResolveBGPTree).
 		if groupName, ok := mapString(peerTree, "group-name"); ok {
 			ps.GroupName = groupName
 		}

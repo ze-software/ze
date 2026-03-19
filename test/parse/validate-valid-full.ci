@@ -3,10 +3,17 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	router-id 1.2.3.4
-	local-as 65000
-	peer 192.0.2.1 {
-		local-address 192.0.2.2
-		peer-as 65001
+	local {
+		as 65000
+	}
+	peer peer1 {
+		remote {
+			ip 192.0.2.1
+			as 65001
+		}
+		local {
+			ip 192.0.2.2
+		}
 		hold-time 90
 	}
 }

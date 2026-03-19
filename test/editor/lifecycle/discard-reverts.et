@@ -17,7 +17,7 @@ expect=content:contains=router-id 1.2.3.4
 expect=dirty:false
 
 # Make a change that would add new content
-input=type:text=set bgp local-as 65000
+input=type:text=set bgp local as 65000
 input=enter
 expect=dirty:true
 expect=status:contains=Set

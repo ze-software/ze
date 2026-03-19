@@ -193,9 +193,9 @@ func TestParseExpectContext(t *testing.T) {
 	}{
 		{
 			name:      "context path",
-			line:      "expect=context:path=bgp.peer.1.1.1.1",
+			line:      "expect=context:path=bgp.peer.peer1",
 			wantType:  "context",
-			wantValue: "bgp.peer.1.1.1.1",
+			wantValue: "bgp.peer.peer1",
 		},
 		{
 			name:      "context root",
@@ -294,9 +294,9 @@ func TestParseExpectContent(t *testing.T) {
 	}{
 		{
 			name:    "contains",
-			line:    "expect=content:contains=peer-as 65001",
+			line:    "expect=content:contains=as 65001",
 			wantKey: "contains",
-			wantVal: "peer-as 65001",
+			wantVal: "as 65001",
 		},
 		{
 			name:    "not-contains",
@@ -413,7 +413,9 @@ func TestParseExpectGhost(t *testing.T) {
 func TestParseTmpfs(t *testing.T) {
 	content := `tmpfs=test.conf:terminator=EOF_CONF
 bgp {
-  local-as 65000
+  local {
+    as 65000
+  }
   router-id 1.2.3.4
 }
 EOF_CONF`
@@ -425,7 +427,7 @@ EOF_CONF`
 	tf := tc.Tmpfs[0]
 	assert.Equal(t, "test.conf", tf.Path)
 	assert.Contains(t, tf.Content, "bgp {")
-	assert.Contains(t, tf.Content, "local-as 65000")
+	assert.Contains(t, tf.Content, "as 65000")
 	assert.Contains(t, tf.Content, "router-id 1.2.3.4")
 }
 
@@ -435,11 +437,11 @@ EOF_CONF`
 // PREVENTS: Only first file captured.
 func TestParseTmpfsMultiple(t *testing.T) {
 	content := `tmpfs=original.conf:terminator=EOF_ORIG
-bgp { local-as 65000; }
+bgp { local { as 65000; } }
 EOF_ORIG
 
 tmpfs=merge.conf:terminator=EOF_MERGE
-bgp { peer 1.1.1.1 { peer-as 65001; } }
+bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } } }
 EOF_MERGE`
 
 	tc, err := ParseETFile(content)
@@ -447,10 +449,10 @@ EOF_MERGE`
 	require.Len(t, tc.Tmpfs, 2)
 
 	assert.Equal(t, "original.conf", tc.Tmpfs[0].Path)
-	assert.Contains(t, tc.Tmpfs[0].Content, "local-as 65000")
+	assert.Contains(t, tc.Tmpfs[0].Content, "as 65000")
 
 	assert.Equal(t, "merge.conf", tc.Tmpfs[1].Path)
-	assert.Contains(t, tc.Tmpfs[1].Content, "peer 1.1.1.1")
+	assert.Contains(t, tc.Tmpfs[1].Content, "peer peer1")
 }
 
 // TestParseTmpfsWithMode verifies mode option parsing.
@@ -529,10 +531,15 @@ func TestParseCompleteExample(t *testing.T) {
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
-  local-as 65000
+  local {
+    as 65000
+  }
   router-id 1.2.3.4
-  peer 1.1.1.1 {
-    peer-as 65001
+  peer peer1 {
+    remote {
+      ip 1.1.1.1
+      as 65001
+    }
   }
 }
 EOF_CONF
@@ -549,7 +556,7 @@ expect=context:path=bgp
 expect=error:none
 
 input=type:text=set
-expect=completion:contains=local-as,router-id,peer`
+expect=completion:contains=local,router-id,peer`
 
 	tc, err := ParseETFile(content)
 	require.NoError(t, err)
@@ -581,7 +588,7 @@ func TestParseInvalidLine(t *testing.T) {
 // PREVENTS: Content bleeding into next section.
 func TestParseMissingTerminator(t *testing.T) {
 	content := `tmpfs=test.conf:terminator=EOF_CONF
-bgp { local-as 65000; }
+bgp { local { as 65000; } }
 # Missing EOF_CONF terminator`
 
 	_, err := ParseETFile(content)

@@ -90,19 +90,19 @@ func TestUnifiedTreeCollisions(t *testing.T) {
 	allGroups := CollectCollisions(root, 1)
 
 	// We know bgp > peer config children have collisions:
-	// local-as, local-address, link-local all start with "l"
+	// local, link-local both start with "l"
 	found := false
 	for _, g := range allGroups {
 		if g.Prefix == "l" {
 			for _, s := range g.Siblings {
-				if s.Name == "local-as" {
+				if s.Name == "local" {
 					found = true
 					break
 				}
 			}
 		}
 	}
-	assert.True(t, found, "should find local-as/local-address/link-local collision in bgp > peer")
+	assert.True(t, found, "should find local/link-local collision in bgp > peer")
 
 	// peer commands have collisions: raw, refresh, remove, resume start with "r"
 	foundR := false
@@ -172,9 +172,9 @@ func TestUnifiedTreeListKeySkipped(t *testing.T) {
 	peer := bgp.Children["peer"]
 	require.NotNil(t, peer)
 
-	// "address" is the list key for peer -- it should be skipped.
-	_, hasAddress := peer.Children["address"]
-	assert.False(t, hasAddress, "list key 'address' should be skipped in peer children")
+	// "name" is the list key for peer -- it should be skipped.
+	_, hasName := peer.Children["name"]
+	assert.False(t, hasName, "list key 'name' should be skipped in peer children")
 }
 
 // PREVENTS: AllRPCDocs returning wrong count or missing commands.

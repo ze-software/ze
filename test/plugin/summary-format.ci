@@ -147,11 +147,16 @@ bgp {
 			send [ update ]
 		}
 
-		peer 127.0.0.1 {
+		peer peer1 {
+			remote {
+				ip 127.0.0.1
+				as 65512
+			}
+			local {
+				as 65512
+				ip 127.0.0.1
+			}
 			router-id 10.0.0.139
-			local-address 127.0.0.1
-			local-as 65512
-			peer-as 65512
 			connection active
 			hold-time 30
 		}

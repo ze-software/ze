@@ -58,7 +58,7 @@ func TestReader_FindHandler(t *testing.T) {
 		{"bgp.peer", "ze-bgp-peer"},
 		{"bgp.peer[key=192.0.2.1]", "ze-bgp-peer"},
 		{"bgp.peer.timers", "ze-bgp-peer"},
-		{"bgp.local-as", "ze-bgp"},
+		{"bgp.local", "ze-bgp"},
 		{"rib", "ze-rib"},
 	}
 
@@ -98,9 +98,14 @@ func TestReader_ParseBlocks(t *testing.T) {
 
 	configContent := `
 bgp {
-    local-as 65000
-    peer 192.0.2.1 {
-        peer-as 65001
+    local {
+        as 65000
+    }
+    peer upstream {
+        remote {
+            ip 192.0.2.1
+            as 65001
+        }
     }
 }
 `
@@ -115,12 +120,12 @@ bgp {
 	// "bgp" handler should have a default-keyed block.
 	bgpBlock := state.Get("bgp", "_default")
 	require.NotNil(t, bgpBlock, "bgp block should exist")
-	assert.Contains(t, bgpBlock.Data, "local-as")
+	// walkMap stores only flat fields; "local" is a container processed separately.
 
-	// "bgp.peer" handler should have a block keyed by "192.0.2.1".
-	peerBlock := state.Get("bgp.peer", "192.0.2.1")
+	// "bgp.peer" handler should have a block keyed by "upstream".
+	peerBlock := state.Get("bgp.peer", "upstream")
 	require.NotNil(t, peerBlock, "bgp.peer block should exist")
-	assert.Contains(t, peerBlock.Data, "peer-as")
+	// walkMap stores only flat fields; "remote" is a container processed separately.
 }
 
 // TestReader_DiffConfig_Create verifies new blocks produce "create" changes.
@@ -275,9 +280,14 @@ func TestReader_Reload(t *testing.T) {
 	// Initial config.
 	initial := `
 bgp {
-    local-as 65000
-    peer 192.0.2.1 {
-        peer-as 65001
+    local {
+        as 65000
+    }
+    peer upstream {
+        remote {
+            ip 192.0.2.1
+            as 65001
+        }
     }
 }
 `
@@ -290,12 +300,20 @@ bgp {
 	// Modify config: change peer AS and add a second peer.
 	modified := `
 bgp {
-    local-as 65000
-    peer 192.0.2.1 {
-        peer-as 65099
+    local {
+        as 65000
     }
-    peer 192.0.2.2 {
-        peer-as 65002
+    peer upstream {
+        remote {
+            ip 192.0.2.1
+            as 65099
+        }
+    }
+    peer downstream {
+        remote {
+            ip 192.0.2.2
+            as 65002
+        }
     }
 }
 `
@@ -305,10 +323,10 @@ bgp {
 	require.NoError(t, err)
 
 	// Expect 2 changes:
-	// - bgp.peer[key=192.0.2.1] modified (peer-as changed)
-	// - bgp.peer[key=192.0.2.2] created (new peer)
+	// - bgp.peer[key=upstream] modified (remote as changed)
+	// - bgp.peer[key=downstream] created (new peer)
 	// Note: bgp._default is NOT modified because walkMap stores only flat
-	// fields (local-as) which didn't change between initial and modified configs.
+	// fields which didn't change between initial and modified configs.
 	require.Len(t, changes, 2)
 
 	actions := make(map[string]int)
@@ -326,7 +344,7 @@ bgp {
 		}
 	}
 	require.NotNil(t, create)
-	assert.Contains(t, create.Path, "192.0.2.2")
+	assert.Contains(t, create.Path, "downstream")
 }
 
 // TestReader_Load_MissingFile verifies Load returns error for nonexistent file.
@@ -376,10 +394,17 @@ func TestReader_ValidateBlock_ValidTypes(t *testing.T) {
 	configContent := `
 bgp {
     router-id 192.0.2.1
-    local-as 65001
-    peer 10.0.0.1 {
-        peer-as 65002
-        local-address auto
+    local {
+        as 65001
+    }
+    peer peer1 {
+        remote {
+            ip 10.0.0.1
+            as 65002
+        }
+        local {
+            ip auto
+        }
     }
 }
 `
@@ -395,7 +420,7 @@ bgp {
 	// Verify blocks were stored.
 	bgpBlock := state.Get("bgp", "_default")
 	require.NotNil(t, bgpBlock)
-	assert.Contains(t, bgpBlock.Data, "local-as")
+	assert.Contains(t, bgpBlock.Data, "router-id")
 }
 
 // TestReader_ValidateBlock_InvalidRange verifies YANG validator rejects out-of-range values.
@@ -411,7 +436,9 @@ func TestReader_ValidateBlock_InvalidRange(t *testing.T) {
 	configContent := `
 bgp {
     router-id 192.0.2.1
-    local-as 0
+    local {
+        as 0
+    }
 }
 `
 	dir := t.TempDir()
@@ -437,7 +464,9 @@ func TestReader_ValidateBlock_InvalidPattern(t *testing.T) {
 	configContent := `
 bgp {
     router-id not-an-ip
-    local-as 65001
+    local {
+        as 65001
+    }
 }
 `
 	dir := t.TempDir()
@@ -462,7 +491,7 @@ func TestReader_ValidateBlock_MandatoryMissing(t *testing.T) {
 
 	configContent := `
 bgp {
-    local-as 65001
+    listen 0.0.0.0:179
 }
 `
 	dir := t.TempDir()
@@ -487,7 +516,9 @@ func TestReader_Load_NoValidator(t *testing.T) {
 	configContent := `
 bgp {
     router-id not-an-ip
-    local-as 0
+    local {
+        as 0
+    }
 }
 `
 	dir := t.TempDir()
@@ -518,7 +549,9 @@ func TestReader_Reload_WithValidator(t *testing.T) {
 	initial := `
 bgp {
     router-id 192.0.2.1
-    local-as 65001
+    local {
+        as 65001
+    }
 }
 `
 	require.NoError(t, os.WriteFile(confPath, []byte(initial), 0o644))
@@ -531,7 +564,9 @@ bgp {
 	invalid := `
 bgp {
     router-id 192.0.2.1
-    local-as 0
+    local {
+        as 0
+    }
 }
 `
 	require.NoError(t, os.WriteFile(confPath, []byte(invalid), 0o644))
@@ -681,13 +716,15 @@ func TestFrontend_SetParser_YANGValidation(t *testing.T) {
 	// Must be nested under "bgp" to match handler routing.
 	content := `
 set bgp router-id 192.0.2.1
-set bgp local-as 0
+set bgp local as 0
 `
 	// Build a schema that matches the YANG module structure for SetParser.
 	setSchema := NewSchema()
 	setSchema.Define("bgp", Container(
 		Field("router-id", Leaf(TypeString)),
-		Field("local-as", Leaf(TypeString)), // String type — YANG validates range.
+		Field("local", Container(
+			Field("as", Leaf(TypeString)), // String type — YANG validates range.
+		)),
 	))
 
 	dir := t.TempDir()

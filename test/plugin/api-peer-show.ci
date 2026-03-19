@@ -34,7 +34,7 @@ def main():
     time.sleep(1.0)
 
     try:
-        result = dispatch(api, 'peer 127.0.0.1 detail')
+        result = dispatch(api, 'peer peer1 detail')
         if result.get('status') != 'done':
             print(f'FAIL: detail status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
@@ -52,11 +52,11 @@ def main():
         if 'state' not in peer:
             print(f'FAIL: no state in peer detail', file=sys.stderr)
             sys.exit(1)
-        if 'peer-as' not in peer:
-            print(f'FAIL: no peer-as in peer detail', file=sys.stderr)
+        if 'remote-as' not in peer:
+            print(f'FAIL: no remote-as in peer detail', file=sys.stderr)
             sys.exit(1)
 
-        print(f'OK: peer detail has state={peer["state"]} peer-as={peer["peer-as"]}', file=sys.stderr)
+        print(f'OK: peer detail has state={peer["state"]} remote-as={peer["remote-as"]}', file=sys.stderr)
     finally:
         dispatch(api, 'daemon shutdown')
         api.wait_for_shutdown()
@@ -81,11 +81,16 @@ environment {
 }
 
 bgp {
-	peer 127.0.0.1 {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
 		router-id 1.2.3.4
-		local-address 127.0.0.1
-		local-as 1
-		peer-as 1
 		connection active
 		group-updates disable
 

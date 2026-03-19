@@ -23,10 +23,10 @@ func TestParseCommand(t *testing.T) {
 	}{
 		{
 			name:        "basic_create",
-			input:       `bgp peer create {"peer-as":65002,"address":"192.0.2.1"}`,
+			input:       `bgp peer create {"remote":{"as":65002,"ip":"192.0.2.1"}}`,
 			wantHandler: "bgp.peer",
 			wantAction:  "create",
-			wantData:    `{"peer-as":65002,"address":"192.0.2.1"}`,
+			wantData:    `{"remote":{"as":65002,"ip":"192.0.2.1"}}`,
 		},
 		{
 			name:        "modify_action",
@@ -187,13 +187,13 @@ func TestConfigBlock(t *testing.T) {
 		Handler: "bgp.peer",
 		Action:  "create",
 		Path:    "bgp.peer[address=192.0.2.1]",
-		Data:    `{"peer-as":65002}`,
+		Data:    `{"remote":{"as":65002}}`,
 	}
 
 	assert.Equal(t, "bgp.peer", block.Handler)
 	assert.Equal(t, "create", block.Action)
 	assert.Equal(t, "bgp.peer[address=192.0.2.1]", block.Path)
-	assert.Contains(t, block.Data, "peer-as")
+	assert.Contains(t, block.Data, "remote")
 }
 
 // TestSplitHandler verifies handler splitting.

@@ -1,15 +1,21 @@
-# Peer name accepted by config parser (validates YANG schema accepts name field)
+# Peer name is the list key (validates YANG schema accepts name-keyed peers)
 # Note: full CLI dispatch (peer <name> list) requires a running daemon;
 # unit test TestFilterPeersBySelectorByName covers the dispatch path.
 stdin=config:terminator=EOF_CONF
 bgp {
 	router-id 1.2.3.4
-	local-as 65000
+	local {
+		as 65000
+	}
 	group peering {
-		peer 127.0.0.1 {
-			name router-east
-			peer-as 65001
-			local-address 127.0.0.1
+		peer router-east {
+			remote {
+				ip 127.0.0.1
+				as 65001
+			}
+			local {
+				ip 127.0.0.1
+			}
 		}
 	}
 }

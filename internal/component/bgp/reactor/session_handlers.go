@@ -85,7 +85,12 @@ func (s *Session) handleOpen(body []byte) error {
 	s.mu.RUnlock()
 
 	if s.openValidator != nil && localOpen != nil {
-		if err := s.openValidator(s.settings.Address.String(), localOpen, open); err != nil {
+		// Use peer name for plugin lookup (plugins key by name from config).
+		peerID := s.settings.Name
+		if peerID == "" {
+			peerID = s.settings.Address.String()
+		}
+		if err := s.openValidator(peerID, localOpen, open); err != nil {
 			s.mu.RLock()
 			valConn := s.conn
 			s.mu.RUnlock()

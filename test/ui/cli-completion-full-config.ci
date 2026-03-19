@@ -12,10 +12,17 @@ environment {
 }
 bgp {
 	router-id 10.0.0.1
-	local-as 65000
-	peer 192.168.1.1 {
-		peer-as 65001
-		local-address 192.168.1.254
+	local {
+		as 65000
+	}
+	peer peer1 {
+		remote {
+			ip 192.168.1.1
+			as 65001
+		}
+		local {
+			ip 192.168.1.254
+		}
 		hold-time 90
 		connection passive
 		role {
@@ -31,9 +38,14 @@ bgp {
 			mode enable
 		}
 	}
-	peer 192.168.2.1 {
-		peer-as 65002
-		local-address 192.168.2.254
+	peer peer1-2 {
+		remote {
+			ip 192.168.2.1
+			as 65002
+		}
+		local {
+			ip 192.168.2.254
+		}
 		role {
 			name provider
 		}

@@ -159,7 +159,8 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool) int {
 		return 1
 	}
 
-	// Hash password with bcrypt before storing -- never store plaintext.
+	// Hash password with bcrypt before storing -- zefs holds the hash,
+	// which the CLI sends as an opaque auth token over SSH.
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: hash password: %v\n", err)

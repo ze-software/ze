@@ -6,12 +6,20 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local-as 65000;
-  peer 1.1.1.1 {
-    peer-as 65001;
+  local {
+  	as 65000
   }
-  peer 2.2.2.2 {
-    peer-as 65002;
+  peer peer1 {
+  	remote {
+  		ip 1.1.1.1
+  		as 65001;
+  	}
+  }
+  peer peer2 {
+  	remote {
+  		ip 2.2.2.2
+  		as 65002;
+  	}
   }
 }
 EOF_CONF
@@ -27,5 +35,5 @@ expect=context:path=bgp
 # "edit peer " should show existing peers and wildcard
 input=type:text=edit peer
 input=space
-expect=completion:contains=1.1.1.1,2.2.2.2,*
+expect=completion:contains=peer1,peer2,*
 expect=error:none

@@ -113,7 +113,7 @@ func PeerSummary(params ConfigParams) string {
 			portInfo = fmt.Sprintf("  port=%-5d", p.ZePort)
 		}
 
-		fmt.Fprintf(&b, "  peer %d  %s  local-as=%-5d peer-as=%-5d  %s  hold=%-3d%s  families=[%s]  routes=%d%s\n",
+		fmt.Fprintf(&b, "  peer %d  %s  local-as=%-5d remote-as=%-5d  %s  hold=%-3d%s  families=[%s]  routes=%d%s\n",
 			p.Index, peerAddr, params.LocalAS, p.ASN, peerType, p.HoldTime, portInfo,
 			strings.Join(families, ", "), p.RouteCount, mode)
 	}
@@ -127,12 +127,17 @@ func writeFullPeerBlock(b *strings.Builder, params ConfigParams, p PeerProfile) 
 	if p.Address.IsValid() {
 		peerAddr = p.Address.String()
 	}
-	fmt.Fprintf(b, "    peer %s {\n", peerAddr)
+	fmt.Fprintf(b, "    peer chaos-peer-%d {\n", p.Index)
 	fmt.Fprintf(b, "        description \"chaos-peer-%d\";\n", p.Index)
 	fmt.Fprintf(b, "        router-id %s;\n", params.RouterID)
-	fmt.Fprintf(b, "        local-address %s;\n", params.LocalAddr)
-	fmt.Fprintf(b, "        local-as %d;\n", params.LocalAS)
-	fmt.Fprintf(b, "        peer-as %d;\n", p.ASN)
+	fmt.Fprintf(b, "        remote {\n")
+	fmt.Fprintf(b, "            ip %s;\n", peerAddr)
+	fmt.Fprintf(b, "            as %d;\n", p.ASN)
+	fmt.Fprintf(b, "        }\n")
+	fmt.Fprintf(b, "        local {\n")
+	fmt.Fprintf(b, "            as %d;\n", params.LocalAS)
+	fmt.Fprintf(b, "            ip %s;\n", params.LocalAddr)
+	fmt.Fprintf(b, "        }\n")
 	fmt.Fprintf(b, "        hold-time %d;\n", p.HoldTime)
 
 	// Per-peer port: Ze listens on a unique port for each peer.

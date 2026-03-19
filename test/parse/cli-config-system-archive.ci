@@ -13,10 +13,17 @@ system {
 }
 bgp {
 	router-id 10.0.0.1
-	local-as 65533
-	peer 127.0.0.1 {
-		local-address 127.0.0.1
-		peer-as 65534
+	local {
+		as 65533
+	}
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65534
+		}
+		local {
+			ip 127.0.0.1
+		}
 	}
 }
 EOF_CONF

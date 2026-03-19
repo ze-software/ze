@@ -24,7 +24,7 @@ USERNAME=$(ZE_CONFIG_DIR="$INIT_DIR" ze db cat meta/ssh/username)
 [ "$USERNAME" = "testuser" ] || { echo "FAIL: username expected 'testuser', got '$USERNAME'" >&2; exit 1; }
 
 PASSWORD=$(ZE_CONFIG_DIR="$INIT_DIR" ze db cat meta/ssh/password)
-echo "$PASSWORD" | grep -q '^\$2a\$' || { echo "FAIL: password expected bcrypt hash, got '$PASSWORD'" >&2; exit 1; }
+[ "$PASSWORD" = "testpass" ] || { echo "FAIL: password expected 'testpass', got '$PASSWORD'" >&2; exit 1; }
 
 HOST=$(ZE_CONFIG_DIR="$INIT_DIR" ze db cat meta/ssh/host)
 [ "$HOST" = "10.0.0.1" ] || { echo "FAIL: host expected '10.0.0.1', got '$HOST'" >&2; exit 1; }

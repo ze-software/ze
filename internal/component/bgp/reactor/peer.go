@@ -405,9 +405,11 @@ func (p *Peer) getPluginCapabilities() []capability.Capability {
 		return nil
 	}
 
-	// Use peer address to get per-peer capabilities
-	peerAddr := settings.Address.String()
-	injected := r.api.GetPluginCapabilitiesForPeer(peerAddr)
+	// Try peer name first, then IP address (plugins may key by either).
+	injected := r.api.GetPluginCapabilitiesForPeer(settings.Name)
+	if len(injected) == 0 {
+		injected = r.api.GetPluginCapabilitiesForPeer(settings.Address.String())
+	}
 	if len(injected) == 0 {
 		return nil
 	}

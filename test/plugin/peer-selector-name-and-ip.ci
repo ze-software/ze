@@ -1,0 +1,71 @@
+# Test: peer commands work with both peer name and IP address as selectors
+# VALIDATES: getMatchingPeersLocked resolves peers by name and by bare IP
+# PREVENTS: Name-based peer selection silently failing in the dispatch path
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+cmd=api:conn=1:seq=1:text=peer peer1 update text origin igp local-preference 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304650165014005040000006418010100
+cmd=api:conn=1:seq=1:text=peer 127.0.0.1 update text origin igp local-preference 100 nhop 101.1.101.1 nlri ipv4/unicast add 2.2.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304650165014005040000006418020200
+EOF_PEER
+
+# Python plugin: sends updates using both name and IP selectors
+tmpfs=peer-selector.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import time
+from ze_api import flush, ready, wait_for_shutdown
+
+def main() -> None:
+    ready()
+
+    # Select peer by NAME "peer1"
+    flush('peer peer1 update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24\n')
+    time.sleep(0.1)
+
+    # Select peer by IP "127.0.0.1"
+    flush('peer 127.0.0.1 update text nhop 101.1.101.1 nlri ipv4/unicast add 2.2.0.0/24\n')
+
+    wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external peer-selector {
+		run ./peer-selector.run
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		connection active
+		group-updates disable
+
+		family {
+			ipv4/unicast
+		}
+		capability {
+			graceful-restart
+		}
+		process peer-selector {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

@@ -23,11 +23,16 @@ EOF_PEER
 # Plugin declares decode for flowspec families, engine should auto-add Multiprotocol caps
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
-	peer 127.0.0.1 {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
 		router-id 1.2.3.4
-		local-address 127.0.0.1
-		local-as 1
-		peer-as 1
 		connection active
 
 		# NOTE: No explicit family block - relying on plugin to inject capabilities

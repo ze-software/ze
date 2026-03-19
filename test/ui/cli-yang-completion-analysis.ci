@@ -4,5 +4,5 @@
 cmd=foreground:seq=1:exec=ze yang completion
 expect=exit:code=0
 expect=stdout:contains=collision groups
-expect=stdout:contains=local-as
-expect=stdout:contains=local-address
+expect=stdout:contains=local
+expect=stdout:contains=local

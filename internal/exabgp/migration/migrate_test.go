@@ -12,14 +12,17 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
-// findPeerInGroups finds a peer by address in any group of the result tree.
+// findPeerByRemoteIP finds a peer by its remote > ip field in any group of the result tree.
 // Returns the peer tree or nil if not found.
-func findPeerInGroups(t *testing.T, tree *config.Tree, addr string) *config.Tree {
+func findPeerByRemoteIP(t *testing.T, tree *config.Tree, addr string) *config.Tree {
 	t.Helper()
 	for _, groupEntry := range tree.GetListOrdered("group") {
-		peers := groupEntry.Value.GetList("peer")
-		if peerTree, ok := peers[addr]; ok {
-			return peerTree
+		for _, peerEntry := range groupEntry.Value.GetListOrdered("peer") {
+			if remote := peerEntry.Value.GetContainer("remote"); remote != nil {
+				if ip, ok := remote.Get("ip"); ok && ip == addr {
+					return peerEntry.Value
+				}
+			}
 		}
 	}
 	return nil
@@ -201,7 +204,7 @@ neighbor 10.0.0.1 {
 	require.NoError(t, err, "migrate")
 
 	// Check peer exists inside a group
-	peerTree := findPeerInGroups(t, result.Tree, "10.0.0.1")
+	peerTree := findPeerByRemoteIP(t, result.Tree, "10.0.0.1")
 	assert.NotNil(t, peerTree, "expected peer 10.0.0.1 in a group")
 
 	// Check neighbor removed
@@ -236,7 +239,7 @@ neighbor 10.0.0.1 {
 	assert.True(t, ok, "expected plugin rib to be injected for GR")
 
 	// Check peer has RIB process binding (peer is inside a group)
-	peerTree := findPeerInGroups(t, result.Tree, "10.0.0.1")
+	peerTree := findPeerByRemoteIP(t, result.Tree, "10.0.0.1")
 	require.NotNil(t, peerTree, "expected peer 10.0.0.1 in a group")
 
 	processes := peerTree.GetList("process")
@@ -301,7 +304,7 @@ neighbor 10.0.0.1 {
 	assert.True(t, ok, "expected plugin rib to be injected for route-refresh")
 
 	// Check process binding includes refresh (peer is inside a group)
-	peerTree := findPeerInGroups(t, result.Tree, "10.0.0.1")
+	peerTree := findPeerByRemoteIP(t, result.Tree, "10.0.0.1")
 	require.NotNil(t, peerTree, "expected peer 10.0.0.1 in a group")
 	processes := peerTree.GetList("process")
 	ribProcess := processes["rib"]
@@ -455,11 +458,13 @@ neighbor 10.0.0.1 {
 
 	output := SerializeTree(result.Tree)
 
-	// Peer should have inherited local-as from template.
-	assert.Contains(t, output, "local-as 65001", "expected inherited local-as")
+	// Peer should have inherited local-as inside local container.
+	assert.Contains(t, output, "local {", "expected local container")
+	assert.Contains(t, output, "as 65001", "expected inherited local-as in local container")
 
-	// Peer should have its own peer-as.
-	assert.Contains(t, output, "peer-as 65002")
+	// Peer should have its own peer-as inside remote container.
+	assert.Contains(t, output, "remote {", "expected remote container")
+	assert.Contains(t, output, "as 65002", "expected peer-as in remote container")
 
 	// Template should NOT appear in output (expanded inline).
 	assert.NotContains(t, output, "template", "template block should be expanded")
@@ -786,8 +791,9 @@ neighbor 10.0.0.1 {
 	// Should NOT have nexthop block (none in input).
 	assert.NotContains(t, output, "nexthop {", "no nexthop block in input")
 
-	// Should still have peer block.
-	assert.Contains(t, output, "peer 10.0.0.1", "expected peer block")
+	// Should still have peer block with remote IP.
+	assert.Contains(t, output, "peer peer-1", "expected peer block")
+	assert.Contains(t, output, "ip 10.0.0.1", "expected remote ip")
 }
 
 // TestMigrateNexthopBothCapabilityAndBlock verifies behavior when both are present.
@@ -885,8 +891,9 @@ neighbor 10.0.0.1 {
 	// Template should NOT appear (expanded inline).
 	assert.NotContains(t, output, "peer base", "template should be expanded")
 
-	// Inherited local-as should be present.
-	assert.Contains(t, output, "local-as 65001", "expected inherited local-as")
+	// Inherited local-as should be present inside local container.
+	assert.Contains(t, output, "local {", "expected local container")
+	assert.Contains(t, output, "as 65001", "expected inherited local-as in local container")
 
 	// Nexthop block should be inside capability.
 	assert.Contains(t, output, "capability {", "expected capability block")
@@ -988,8 +995,9 @@ func validateMigrationResult(t *testing.T, testName, got string, result *Migrate
 
 	switch testName {
 	case "simple":
-		// Should have peer, not neighbor.
-		assert.Contains(t, got, "peer 10.0.0.1")
+		// Should have peer with name, remote IP, and local/remote containers.
+		assert.Contains(t, got, "peer peer-1")
+		assert.Contains(t, got, "ip 10.0.0.1")
 
 	case "graceful-restart":
 		// Should have RIB plugin injected.
@@ -1280,4 +1288,52 @@ neighbor 10.0.0.1 {
 
 	output := SerializeTree(result.Tree)
 	assert.Contains(t, output, "route-refresh enable")
+}
+
+// TestSanitizePeerName verifies that descriptions with spaces and special characters
+// are converted to valid peer names (ASCII alphanumeric, hyphens, underscores).
+func TestSanitizePeerName(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{"simple", "router1", "router1"},
+		{"spaces to hyphens", "a quagga test peer", "a-quagga-test-peer"},
+		{"special chars", "m7i-4 router", "m7i-4-router"},
+		{"multiple spaces", "router  with   gaps", "router-with-gaps"},
+		{"leading trailing spaces", " leading ", "leading"},
+		{"all special", "!@#$%", ""},
+		{"mixed", "test (peer) #1", "test-peer-1"},
+		{"underscores kept", "my_peer_name", "my_peer_name"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := sanitizePeerName(tt.input)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+// TestDerivePeerNameFromDescription verifies that migration uses sanitized description
+// as peer name, falling back to peer-N when description is empty or all-special.
+func TestDerivePeerNameFromDescription(t *testing.T) {
+	input := `
+neighbor 10.0.0.1 {
+	description "a quagga test peer";
+	router-id 10.0.0.2;
+	local-address 127.0.0.1;
+	local-as 65533;
+	peer-as 65000;
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	require.NoError(t, err, "parse")
+
+	result, err := MigrateFromExaBGP(tree)
+	require.NoError(t, err, "migrate")
+
+	output := SerializeTree(result.Tree)
+	assert.Contains(t, output, "peer a-quagga-test-peer {", "description sanitized to peer name")
+	assert.NotContains(t, output, "peer a quagga", "spaces must not appear in peer name")
 }

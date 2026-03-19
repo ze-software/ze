@@ -114,7 +114,7 @@ func TestChildModeReady(t *testing.T) {
 // PREVENTS: Config parsing errors from hub.
 func TestChildModeParseConfig(t *testing.T) {
 	// Hub sends config as single line: config {...}
-	configJSON := `config {"router-id": "1.2.3.4", "local-as": 65000, "peer": {"peer1": {"address": "192.0.2.1", "remote-as": 65001}}}
+	configJSON := `config {"router-id": "1.2.3.4", "local": {"as": 65000}, "peer": {"peer1": {"remote": {"ip": "192.0.2.1", "as": 65001}}}}
 `
 
 	reader := strings.NewReader(configJSON)
@@ -122,7 +122,9 @@ func TestChildModeParseConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "1.2.3.4", cfg["router-id"])
-	assert.Equal(t, float64(65000), cfg["local-as"]) // JSON numbers are float64
+	localMap, ok := cfg["local"].(map[string]any)
+	require.True(t, ok, "local should be a map")
+	assert.Equal(t, float64(65000), localMap["as"]) // JSON numbers are float64
 }
 
 // TestChildModeParseConfigDone verifies "config done" marker handling.

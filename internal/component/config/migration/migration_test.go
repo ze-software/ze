@@ -535,7 +535,10 @@ func TestWrapBGPBlock(t *testing.T) {
 	rid, ok := bgp.Get("router-id")
 	assert.True(t, ok)
 	assert.Equal(t, "1.2.3.4", rid)
-	las, ok := bgp.Get("local-as")
+	// local-as is now nested inside local { as ... }
+	localContainer := bgp.GetContainer("local")
+	require.NotNil(t, localContainer, "local container should exist in bgp block")
+	las, ok := localContainer.Get("as")
 	assert.True(t, ok)
 	assert.Equal(t, "65001", las)
 	assert.Contains(t, bgp.GetList("peer"), "10.0.0.1")

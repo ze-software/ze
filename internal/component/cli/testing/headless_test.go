@@ -11,10 +11,15 @@ import (
 )
 
 const testConfig = `bgp {
-  local-as 65000
+  local {
+    as 65000
+  }
   router-id 1.2.3.4
-  peer 1.1.1.1 {
-    peer-as 65001
+  peer peer1 {
+    remote {
+      ip 1.1.1.1
+      as 65001
+    }
   }
 }
 `
@@ -251,7 +256,7 @@ func TestHeadlessModelWorkingContent(t *testing.T) {
 	// Should have the original content
 	content := hm.WorkingContent()
 	assert.Contains(t, content, "bgp")
-	assert.Contains(t, content, "local-as 65000")
+	assert.Contains(t, content, "as 65000")
 }
 
 // TestHeadlessModelTypeAndEnter verifies helper methods.

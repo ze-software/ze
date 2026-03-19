@@ -4,10 +4,15 @@
 # PREVENTS: check command regression on migration detection
 stdin=config:terminator=EOF_STDIN
 bgp {
-	peer 127.0.0.1 {
-		local-address 127.0.0.1
-		local-as 65533
-		peer-as 65533
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65533
+		}
+		local {
+			as 65533
+			ip 127.0.0.1
+		}
 	}
 }
 EOF_STDIN
@@ -15,10 +20,17 @@ EOF_STDIN
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
 	router-id 10.0.0.1
-	local-as 65533
-	peer 127.0.0.1 {
-		local-address 127.0.0.1
-		peer-as 65534
+	local {
+		as 65533
+	}
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65534
+		}
+		local {
+			ip 127.0.0.1
+		}
 	}
 }
 EOF_CONF
@@ -27,7 +39,7 @@ cmd=foreground:seq=1:exec=ze config check test.conf
 expect=exit:code=0
 expect=stdout:contains=Config is current
 
-# Deprecated config: uses "neighbor" keyword instead of "peer"
+# Deprecated config: uses "neighbor" keyword (ExaBGP legacy format)
 tmpfs=old.conf:terminator=EOF_OLD
 neighbor 127.0.0.1 {
 	router-id 10.0.0.1

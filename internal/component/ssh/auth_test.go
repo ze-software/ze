@@ -83,6 +83,48 @@ func TestAuthenticateUserNoUsersRejectsAll(t *testing.T) {
 	assert.False(t, AuthenticateUser(users, "", ""), "should reject empty credentials")
 }
 
+// VALIDATES: hash-as-token — sending the bcrypt hash itself authenticates.
+// PREVENTS: ze cli unable to authenticate when zefs stores bcrypt hash.
+func TestCheckPasswordHashAsToken(t *testing.T) {
+	hash, err := bcrypt.GenerateFromPassword([]byte("secret123"), bcrypt.DefaultCost)
+	if err != nil {
+		t.Fatalf("generate hash: %v", err)
+	}
+
+	// Sending the hash itself should succeed (constant-time comparison).
+	assert.True(t, CheckPassword(string(hash), string(hash)), "hash-as-token should pass")
+}
+
+// VALIDATES: duplicate user entries — auth tries all matching entries.
+// PREVENTS: zefs user shadowed by config user with different hash.
+func TestAuthenticateUserDuplicateEntries(t *testing.T) {
+	hash1, err := bcrypt.GenerateFromPassword([]byte("pass"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("generate hash1: %v", err)
+	}
+	hash2, err := bcrypt.GenerateFromPassword([]byte("pass"), bcrypt.MinCost)
+	if err != nil {
+		t.Fatalf("generate hash2: %v", err)
+	}
+	// hash1 != hash2 (different salts) but both verify "pass".
+	assert.NotEqual(t, string(hash1), string(hash2), "sanity: different salts produce different hashes")
+
+	// User appears twice (zefs entry + config entry).
+	users := []UserConfig{
+		{Name: "admin", Hash: string(hash1)}, // zefs entry
+		{Name: "admin", Hash: string(hash2)}, // config entry
+	}
+
+	// Sending hash1 as token should match the first entry.
+	assert.True(t, AuthenticateUser(users, "admin", string(hash1)), "hash1 as token should match first entry")
+
+	// Sending hash2 as token should match the second entry.
+	assert.True(t, AuthenticateUser(users, "admin", string(hash2)), "hash2 as token should match second entry")
+
+	// Plaintext should match via bcrypt on either entry.
+	assert.True(t, AuthenticateUser(users, "admin", "pass"), "plaintext should match via bcrypt")
+}
+
 // VALIDATES: Bug 5 — timing-safe auth prevents username enumeration.
 // PREVENTS: attackers distinguishing known from unknown usernames via response timing.
 func TestAuthenticateUserTimingSafe(t *testing.T) {

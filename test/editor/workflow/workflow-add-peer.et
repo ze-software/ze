@@ -1,4 +1,4 @@
-# Test: Add peer workflow — set peer-as and hold-time, commit
+# Test: Add peer workflow — set remote as and hold-time, commit
 # VALIDATES: spec-editor-4 AC-1: complete add-peer workflow
 # VALIDATES: spec-editor-4 AC-5: exit after workflow
 # PREVENTS: Multi-step peer creation failing silently
@@ -6,7 +6,9 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local-as 65000;
+  local {
+  	as 65000
+  }
 }
 EOF_CONF
 
@@ -17,14 +19,14 @@ option=timeout:value=10s
 expect=dirty:false
 
 # Add a new peer with required attributes
-input=type:text=set bgp peer 10.0.0.1 peer-as 65001
+input=type:text=set bgp peer 10.0.0.1 remote as 65001
 input=enter
 expect=status:contains=Set
 expect=dirty:true
 expect=error:none
 
-# Set local-address on the same peer
-input=type:text=set bgp peer 10.0.0.1 local-address auto
+# Set local ip on the same peer
+input=type:text=set bgp peer 10.0.0.1 local ip auto
 input=enter
 expect=status:contains=Set
 expect=error:none

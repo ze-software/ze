@@ -75,9 +75,9 @@ func handleBgpPeerList(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 	for i := range peers {
 		p := &peers[i]
 		row := map[string]any{
-			"peer-as": p.PeerAS,
-			"state":   p.State,
-			"uptime":  p.Uptime.String(),
+			"remote-as": p.PeerAS,
+			"state":     p.State,
+			"uptime":    p.Uptime.String(),
 		}
 		if p.Name != "" {
 			row["name"] = p.Name
@@ -112,7 +112,7 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 		routerID := netip.AddrFrom4([4]byte{byte(rid >> 24), byte(rid >> 16), byte(rid >> 8), byte(rid)}).String()
 
 		row := map[string]any{
-			"peer-as":             p.PeerAS,
+			"remote-as":           p.PeerAS,
 			"local-as":            p.LocalAS,
 			"router-id":           routerID,
 			"hold-time":           int(p.HoldTime.Seconds()),
@@ -133,7 +133,7 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 			row["group"] = p.GroupName
 		}
 		if p.LocalAddress.IsValid() {
-			row["local-address"] = p.LocalAddress.String()
+			row["local-ip"] = p.LocalAddress.String()
 		}
 		result[p.Address.String()] = row
 	}
@@ -162,21 +162,34 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 		}, fmt.Errorf("missing cease subcode")
 	}
 
-	// Parse peer address from context
+	// Parse peer selector from context (name or IP).
 	peer := ctx.PeerSelector()
 	if peer == "*" || peer == "" {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "teardown requires specific peer: peer <ip> teardown <subcode>",
+			Data:   "teardown requires specific peer: peer <name> teardown <subcode>",
 		}, fmt.Errorf("no peer specified")
 	}
 
+	// Resolve peer selector to address (supports both name and IP).
 	addr, err := netip.ParseAddr(peer)
 	if err != nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("invalid peer address: %s", peer),
-		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
+		// Not an IP -- try resolving as a name via peer list.
+		found := false
+		peers := ctx.Reactor().Peers()
+		for i := range peers {
+			if peers[i].Name == peer {
+				addr = peers[i].Address
+				found = true
+				break
+			}
+		}
+		if !found {
+			return &plugin.Response{
+				Status: plugin.StatusError,
+				Data:   fmt.Sprintf("unknown peer: %s", peer),
+			}, fmt.Errorf("unknown peer %s", peer)
+		}
 	}
 
 	// Parse subcode
@@ -233,7 +246,7 @@ func parseUint(s string) (uint64, error) {
 //
 //	asn <asn>           - Required: peer AS number
 //	local-as <asn>      - Optional: local AS (default: reactor's LocalAS)
-//	local-address <ip>  - Optional: local IP for this session
+//	local-ip <ip>       - Optional: local IP for this session
 //	router-id <id>      - Optional: router ID (default: reactor's RouterID)
 //	hold-time <seconds> - Optional: hold time in seconds (default: 90)
 //	passive             - Optional: listen-only mode (no outgoing connections)
@@ -293,14 +306,14 @@ func handleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.
 			}
 			config.LocalAS = uint32(asn)
 
-		case "local-address":
+		case "local-ip":
 			if i+1 >= len(args) {
-				return &plugin.Response{Status: plugin.StatusError, Data: "missing value for local-address"}, fmt.Errorf("missing local-address value")
+				return &plugin.Response{Status: plugin.StatusError, Data: "missing value for local-ip"}, fmt.Errorf("missing local-ip value")
 			}
 			i++
 			localAddr, err := netip.ParseAddr(args[i])
 			if err != nil {
-				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid local-address: %s", args[i])}, fmt.Errorf("invalid local-address %s: %w", args[i], err)
+				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid local-ip: %s", args[i])}, fmt.Errorf("invalid local-ip %s: %w", args[i], err)
 			}
 			config.LocalAddress = localAddr
 

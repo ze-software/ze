@@ -6,9 +6,14 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local-as 65000;
-  peer 1.1.1.1 {
-    peer-as 65001;
+  local {
+  	as 65000
+  }
+  peer peer1 {
+  	remote {
+  		ip 1.1.1.1
+  		as 65001;
+  	}
   }
 }
 EOF_CONF
@@ -17,14 +22,14 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Set hold-time through list from root context
-input=type:text=set bgp peer 1.1.1.1 hold-time 120
+input=type:text=set bgp peer peer1 hold-time 120
 input=enter
 expect=status:contains=Set
 expect=dirty:true
 expect=error:none
 
 # Set description through list from root context
-input=type:text=set bgp peer 1.1.1.1 description "my peer"
+input=type:text=set bgp peer peer1 description "my peer"
 input=enter
 expect=status:contains=Set
 expect=error:none

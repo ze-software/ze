@@ -18,10 +18,9 @@ import (
 func TestExtractAuthzConfig(t *testing.T) {
 	input := `
 bgp {
-    peer 127.0.0.1 {
-        local-address 127.0.0.1
-        local-as 65533
-        peer-as 65533
+    peer loopback {
+        remote { ip 127.0.0.1; as 65533; }
+        local { as 65533; ip 127.0.0.1; }
     }
 }
 
@@ -69,10 +68,9 @@ system {
 func TestExtractAuthzConfig_NoSystem(t *testing.T) {
 	input := `
 bgp {
-    peer 127.0.0.1 {
-        local-address 127.0.0.1
-        local-as 65533
-        peer-as 65533
+    peer loopback {
+        remote { ip 127.0.0.1; as 65533; }
+        local { as 65533; ip 127.0.0.1; }
     }
 }
 `
@@ -90,10 +88,9 @@ bgp {
 func TestExtractAuthzConfig_NoAuthorization(t *testing.T) {
 	input := `
 bgp {
-    peer 127.0.0.1 {
-        local-address 127.0.0.1
-        local-as 65533
-        peer-as 65533
+    peer loopback {
+        remote { ip 127.0.0.1; as 65533; }
+        local { as 65533; ip 127.0.0.1; }
     }
 }
 
@@ -119,10 +116,9 @@ system {
 func TestExtractAuthzConfig_UserAssignments(t *testing.T) {
 	input := `
 bgp {
-    peer 127.0.0.1 {
-        local-address 127.0.0.1
-        local-as 65533
-        peer-as 65533
+    peer loopback {
+        remote { ip 127.0.0.1; as 65533; }
+        local { as 65533; ip 127.0.0.1; }
     }
 }
 
@@ -178,10 +174,9 @@ system {
 func TestExtractAuthzConfig_DeniesRestrictedCommand(t *testing.T) {
 	input := `
 bgp {
-    peer 127.0.0.1 {
-        local-address 127.0.0.1
-        local-as 65533
-        peer-as 65533
+    peer loopback {
+        remote { ip 127.0.0.1; as 65533; }
+        local { as 65533; ip 127.0.0.1; }
     }
 }
 
@@ -238,10 +233,9 @@ system {
 func TestExtractAuthzConfig_AdminAllowsAll(t *testing.T) {
 	input := `
 bgp {
-    peer 127.0.0.1 {
-        local-address 127.0.0.1
-        local-as 65533
-        peer-as 65533
+    peer loopback {
+        remote { ip 127.0.0.1; as 65533; }
+        local { as 65533; ip 127.0.0.1; }
     }
 }
 
@@ -282,10 +276,9 @@ system {
 func TestExtractAuthzConfig_EntryOrder(t *testing.T) {
 	input := `
 bgp {
-    peer 127.0.0.1 {
-        local-address 127.0.0.1
-        local-as 65533
-        peer-as 65533
+    peer loopback {
+        remote { ip 127.0.0.1; as 65533; }
+        local { as 65533; ip 127.0.0.1; }
     }
 }
 
@@ -340,10 +333,9 @@ system {
 func TestValidateAuthzConfig_UndefinedProfileReference(t *testing.T) {
 	input := `
 bgp {
-    peer 127.0.0.1 {
-        local-address 127.0.0.1
-        local-as 65533
-        peer-as 65533
+    peer loopback {
+        remote { ip 127.0.0.1; as 65533; }
+        local { as 65533; ip 127.0.0.1; }
     }
 }
 
@@ -382,10 +374,9 @@ system {
 func TestValidateAuthzConfig_ValidReferences(t *testing.T) {
 	input := `
 bgp {
-    peer 127.0.0.1 {
-        local-address 127.0.0.1
-        local-as 65533
-        peer-as 65533
+    peer loopback {
+        remote { ip 127.0.0.1; as 65533; }
+        local { as 65533; ip 127.0.0.1; }
     }
 }
 
@@ -423,10 +414,9 @@ system {
 func TestValidateAuthzConfig_InvalidRegex(t *testing.T) {
 	input := `
 bgp {
-    peer 127.0.0.1 {
-        local-address 127.0.0.1
-        local-as 65533
-        peer-as 65533
+    peer loopback {
+        remote { ip 127.0.0.1; as 65533; }
+        local { as 65533; ip 127.0.0.1; }
     }
 }
 

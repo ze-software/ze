@@ -42,7 +42,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, _ []string) (*plugin.Res
 		}
 		peerRows[i] = map[string]any{
 			"address":             p.Address.String(),
-			"peer-as":             p.PeerAS,
+			"remote-as":           p.PeerAS,
 			"state":               p.State,
 			"uptime":              p.Uptime.String(),
 			"updates-received":    p.UpdatesReceived,
@@ -63,7 +63,7 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, _ []string) (*plugin.Res
 		Data: map[string]any{
 			"summary": map[string]any{
 				"router-id":         routerID,
-				"local-as":          stats.LocalAS,
+				"local-as":          stats.LocalAS, // global BGP local AS, kept as "local-as" for summary context
 				"uptime":            stats.Uptime.String(),
 				"peers-configured":  len(allPeers),
 				"peers-established": established,
@@ -154,7 +154,7 @@ func handleBgpPeerStatistics(ctx *pluginserver.CommandContext, _ []string) (*plu
 
 		entry := map[string]any{
 			"address":             p.Address.String(),
-			"peer-as":             p.PeerAS,
+			"remote-as":           p.PeerAS,
 			"state":               p.State,
 			"uptime":              p.Uptime.String(),
 			"updates-received":    p.UpdatesReceived,

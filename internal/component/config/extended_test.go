@@ -27,9 +27,14 @@ func extendedSchemaWithGR() *Schema {
 func TestFlagSyntax(t *testing.T) {
 	input := `
 bgp {
-    peer 192.0.2.1 {
-        local-as 65000
-        peer-as 65001
+    peer peer1 {
+        remote {
+            ip 192.0.2.1
+            as 65001
+        }
+        local {
+            as 65000
+        }
         capability {
             graceful-restart
             route-refresh
@@ -45,7 +50,7 @@ bgp {
 	bgpContainer := tree.GetContainer("bgp")
 	require.NotNil(t, bgpContainer)
 	neighbors := bgpContainer.GetList("peer")
-	n := neighbors["192.0.2.1"]
+	n := neighbors["peer1"]
 
 	cap := n.GetContainer("capability")
 	require.NotNil(t, cap)
@@ -68,9 +73,14 @@ bgp {
 func TestFlagWithValue(t *testing.T) {
 	input := `
 bgp {
-    peer 192.0.2.1 {
-        local-as 65000
-        peer-as 65001
+    peer peer1 {
+        remote {
+            ip 192.0.2.1
+            as 65001
+        }
+        local {
+            as 65000
+        }
         capability {
             graceful-restart 120
         }
@@ -85,7 +95,7 @@ bgp {
 	bgpContainer := tree.GetContainer("bgp")
 	require.NotNil(t, bgpContainer)
 	neighbors := bgpContainer.GetList("peer")
-	n := neighbors["192.0.2.1"]
+	n := neighbors["peer1"]
 
 	cap := n.GetContainer("capability")
 	val, ok := cap.GetFlex("graceful-restart")
@@ -101,9 +111,14 @@ bgp {
 func TestFlagWithBlock(t *testing.T) {
 	input := `
 bgp {
-    peer 192.0.2.1 {
-        local-as 65000
-        peer-as 65001
+    peer peer1 {
+        remote {
+            ip 192.0.2.1
+            as 65001
+        }
+        local {
+            as 65000
+        }
         capability {
             graceful-restart {
                 restart-time 120
@@ -120,7 +135,7 @@ bgp {
 	bgpContainer := tree.GetContainer("bgp")
 	require.NotNil(t, bgpContainer)
 	neighbors := bgpContainer.GetList("peer")
-	n := neighbors["192.0.2.1"]
+	n := neighbors["peer1"]
 
 	cap := n.GetContainer("capability")
 	gr := cap.GetContainer("graceful-restart")
@@ -139,9 +154,14 @@ bgp {
 func TestEnableDisable(t *testing.T) {
 	input := `
 bgp {
-    peer 192.0.2.1 {
-        local-as 65000
-        peer-as 65001
+    peer peer1 {
+        remote {
+            ip 192.0.2.1
+            as 65001
+        }
+        local {
+            as 65000
+        }
         capability {
             asn4 enable
         }
@@ -156,7 +176,7 @@ bgp {
 	bgpContainer := tree.GetContainer("bgp")
 	require.NotNil(t, bgpContainer)
 	neighbors := bgpContainer.GetList("peer")
-	n := neighbors["192.0.2.1"]
+	n := neighbors["peer1"]
 
 	cap := n.GetContainer("capability")
 	val, ok := cap.Get("asn4")
@@ -179,9 +199,14 @@ plugin {
 }
 
 bgp {
-    peer 192.0.2.1 {
-        local-as 65000
-        peer-as 65001
+    peer peer1 {
+        remote {
+            ip 192.0.2.1
+            as 65001
+        }
+        local {
+            as 65000
+        }
         process {
             processes [ watcher ]
         }
@@ -196,7 +221,7 @@ bgp {
 	bgpContainer := tree.GetContainer("bgp")
 	require.NotNil(t, bgpContainer)
 	neighbors := bgpContainer.GetList("peer")
-	n := neighbors["192.0.2.1"]
+	n := neighbors["peer1"]
 
 	// process is now List(TypeString, ...), so use GetList with KeyDefault key
 	processList := n.GetList("process")
@@ -217,9 +242,14 @@ bgp {
 func TestArrayMultipleValues(t *testing.T) {
 	input := `
 bgp {
-    peer 192.0.2.1 {
-        local-as 65000
-        peer-as 65001
+    peer peer1 {
+        remote {
+            ip 192.0.2.1
+            as 65001
+        }
+        local {
+            as 65000
+        }
         process {
             processes [ watcher announcer receiver ]
         }
@@ -234,7 +264,7 @@ bgp {
 	bgpContainer := tree.GetContainer("bgp")
 	require.NotNil(t, bgpContainer)
 	neighbors := bgpContainer.GetList("peer")
-	n := neighbors["192.0.2.1"]
+	n := neighbors["peer1"]
 
 	// api is now List(TypeString, ...), so use GetList with KeyDefault key
 	apiList := n.GetList("process")
@@ -255,9 +285,14 @@ bgp {
 func TestArrayRoundtrip(t *testing.T) {
 	input := `
 bgp {
-    peer 192.0.2.1 {
-        local-as 65000
-        peer-as 65001
+    peer peer1 {
+        remote {
+            ip 192.0.2.1
+            as 65001
+        }
+        local {
+            as 65000
+        }
         process {
             processes [ watcher ]
         }

@@ -109,7 +109,7 @@ func TestPrintFormattedNestedData(t *testing.T) {
 			map[string]any{"Address": "10.0.0.2", "State": "idle"},
 		},
 		"config": map[string]any{
-			"local-as": 65000,
+			"local": map[string]any{"as": 65000},
 		},
 		"empty-list": []any{},
 	}
@@ -130,7 +130,7 @@ func TestPrintFormattedNestedData(t *testing.T) {
 	}
 
 	// Check nested map
-	if !strings.Contains(output, "local-as") {
+	if !strings.Contains(output, "local") {
 		t.Errorf("output missing nested config: %q", output)
 	}
 }

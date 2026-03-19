@@ -26,7 +26,9 @@ func serializeSchemaWithGR() *Schema {
 func TestSerializeSimple(t *testing.T) {
 	input := `bgp {
     router-id 1.2.3.4
-    local-as 65000
+    local {
+        as 65000
+    }
 }
 `
 	schema := YANGSchema()
@@ -52,9 +54,14 @@ func TestSerializeSimple(t *testing.T) {
 // PREVENTS: Lost neighbor settings.
 func TestSerializeNeighbor(t *testing.T) {
 	input := `bgp {
-    peer 192.0.2.1 {
-        local-as 65000
-        peer-as 65001
+    peer peer1 {
+        remote {
+            ip 192.0.2.1
+            as 65001
+        }
+        local {
+            as 65000
+        }
         router-id 1.2.3.4
         hold-time 90
     }
@@ -81,9 +88,14 @@ func TestSerializeNeighbor(t *testing.T) {
 // PREVENTS: Lost address families.
 func TestSerializeFamily(t *testing.T) {
 	input := `bgp {
-    peer 192.0.2.1 {
-        local-as 65000
-        peer-as 65001
+    peer peer1 {
+        remote {
+            ip 192.0.2.1
+            as 65001
+        }
+        local {
+            as 65000
+        }
         family {
             ipv4/unicast
             ipv6/unicast
@@ -137,9 +149,14 @@ func TestSerializePlugin(t *testing.T) {
 // PREVENTS: Lost capability settings.
 func TestSerializeCapability(t *testing.T) {
 	input := `bgp {
-    peer 192.0.2.1 {
-        local-as 65000
-        peer-as 65001
+    peer peer1 {
+        remote {
+            ip 192.0.2.1
+            as 65001
+        }
+        local {
+            as 65000
+        }
         capability {
             asn4 true
             route-refresh true
@@ -368,9 +385,14 @@ func TestSerializeArray(t *testing.T) {
 // PREVENTS: Broken serialization of descriptions.
 func TestSerializeQuotedStrings(t *testing.T) {
 	input := `bgp {
-    peer 192.0.2.1 {
-        local-as 65000
-        peer-as 65001
+    peer peer1 {
+        remote {
+            ip 192.0.2.1
+            as 65001
+        }
+        local {
+            as 65000
+        }
         description "My BGP Peer"
     }
 }

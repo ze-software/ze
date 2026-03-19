@@ -49,7 +49,7 @@ func TestCmdHistoryMissingFile(t *testing.T) {
 // VALIDATES: History command works with no backups.
 // PREVENTS: Crash on empty rollback directory.
 func TestCmdHistoryNoBackups(t *testing.T) {
-	configPath := writeTestConfig(t, "bgp {\n\tpeer 127.0.0.1 {\n\t\tlocal-as 1;\n\t\tpeer-as 2;\n\t}\n}\n")
+	configPath := writeTestConfig(t, "bgp {\n\tpeer peer1 {\n\t\tremote {\n\t\t\tip 127.0.0.1;\n\t\t\tas 2;\n\t\t}\n\t\tlocal {\n\t\t\tas 1;\n\t\t}\n\t}\n}\n")
 	code := cmdHistory([]string{configPath})
 	assert.Equal(t, exitOK, code)
 }
@@ -59,7 +59,7 @@ func TestCmdHistoryNoBackups(t *testing.T) {
 // VALIDATES: History lists rollback revisions in the correct directory.
 // PREVENTS: Failure to find backups in rollback/ subdirectory.
 func TestCmdHistoryListsBackups(t *testing.T) {
-	configPath := writeTestConfig(t, "bgp {\n\tpeer 127.0.0.1 {\n\t\tlocal-as 1;\n\t\tpeer-as 2;\n\t}\n}\n")
+	configPath := writeTestConfig(t, "bgp {\n\tpeer peer1 {\n\t\tremote {\n\t\t\tip 127.0.0.1;\n\t\t\tas 2;\n\t\t}\n\t\tlocal {\n\t\t\tas 1;\n\t\t}\n\t}\n}\n")
 
 	// Create rollback dir with a fake backup
 	rollbackDir := filepath.Join(filepath.Dir(configPath), "rollback")

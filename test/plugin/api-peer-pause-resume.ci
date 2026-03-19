@@ -35,13 +35,13 @@ def main():
 
     try:
         # Pause peer
-        result = dispatch(api, 'peer 127.0.0.1 pause')
+        result = dispatch(api, 'peer peer1 pause')
         if result.get('status') != 'done':
             print(f'FAIL: pause status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
 
         # Check peer state after pause
-        result = dispatch(api, 'peer 127.0.0.1 detail')
+        result = dispatch(api, 'peer peer1 detail')
         data = result.get('data', {})
         if isinstance(data, str):
             data = json.loads(data)
@@ -50,7 +50,7 @@ def main():
         print(f'peer state after pause: {state}', file=sys.stderr)
 
         # Resume peer
-        result = dispatch(api, 'peer 127.0.0.1 resume')
+        result = dispatch(api, 'peer peer1 resume')
         if result.get('status') != 'done':
             print(f'FAIL: resume status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
@@ -80,11 +80,16 @@ environment {
 }
 
 bgp {
-	peer 127.0.0.1 {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
 		router-id 1.2.3.4
-		local-address 127.0.0.1
-		local-as 1
-		peer-as 1
 		connection active
 		group-updates disable
 

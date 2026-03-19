@@ -128,7 +128,7 @@ func highlightValidationIssues(content string, errors, warnings []ConfigValidati
 }
 
 // shortDiagnostic extracts a concise message for inline display.
-// e.g. `peer 1.1.1.1: missing required field "local-address"` → `missing: local-address`
+// e.g. `peer 1.1.1.1: missing required field "remote as"` → `missing: remote as`
 // e.g. `hold-time must be 0 or >= 3` → kept as-is.
 func shortDiagnostic(msg string) string {
 	// Strip "peer X.X.X.X: " prefix if present

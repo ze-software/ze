@@ -20,8 +20,12 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	group test {
-		local-as 65533
-		peer-as 65533
+		local {
+			as 65533
+		}
+		remote {
+			as 65533
+		}
 		connection active
 		hold-time 180
 		group-updates disable
@@ -69,10 +73,15 @@ bgp {
 			}
 		}
 
-		peer 127.0.0.1 {
+		peer peer1 {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
 			description "router 2 with four routes"
 			router-id 127.0.0.0
-			local-address 127.0.0.1
 		}
 	}
 }

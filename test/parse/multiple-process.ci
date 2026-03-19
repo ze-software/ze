@@ -19,12 +19,17 @@ bgp {
 			receive [ state ]
 		}
 
-		peer 10.0.0.3 {
+		peer peer3 {
+			remote {
+				ip 10.0.0.3
+				as 65533
+			}
+			local {
+				as 65533
+				ip 10.0.0.2
+			}
 			description "will pass received routes to the program"
 			router-id 10.0.0.2
-			local-address 10.0.0.2
-			local-as 65533
-			peer-as 65533
 			hold-time 180
 		}
 	}

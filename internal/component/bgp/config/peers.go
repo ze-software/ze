@@ -59,10 +59,11 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 		return peers, nil
 	}
 
-	// Build address -> PeerSettings index for matching.
+	// Build name -> PeerSettings index for matching.
+	// The peer list key is now the peer name (not the IP address).
 	peerIndex := make(map[string]*reactor.PeerSettings, len(peers))
 	for _, ps := range peers {
-		peerIndex[ps.Address.String()] = ps
+		peerIndex[ps.Name] = ps
 	}
 
 	// Grouped peers: routes from group + peer layers.

@@ -121,15 +121,15 @@ func TestModelCmdEditHierarchical(t *testing.T) {
 	require.NoError(t, err)
 
 	// Edit a nested block using full path (JUNOS-style: relative to context)
-	result, err := model.cmdEdit([]string{"bgp", "peer", "1.1.1.1"})
+	result, err := model.cmdEdit([]string{"bgp", "peer", "peer1"})
 	require.NoError(t, err)
 
 	// Should build hierarchical path
-	assert.Equal(t, []string{"bgp", "peer", "1.1.1.1"}, result.newContext, "should have hierarchical path")
+	assert.Equal(t, []string{"bgp", "peer", "peer1"}, result.newContext, "should have hierarchical path")
 
 	// Should show config content (full serialized tree in Part 1)
 	assert.NotNil(t, result.configView, "should have config view")
-	assert.Contains(t, result.configView.content, "peer-as", "should contain peer block content")
+	assert.Contains(t, result.configView.content, "remote", "should contain peer block content")
 }
 
 // TestModelCmdEditWildcardTemplate verifies edit with wildcard creates template context.
@@ -191,8 +191,8 @@ func TestModelCmdEditFromContext(t *testing.T) {
 	// Config with nested structure
 	content := `bgp {
   router-id 1.2.3.4
-  peer 1.1.1.1 {
-    peer-as 65001
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
     capability {
       route-refresh
     }
@@ -212,16 +212,16 @@ func TestModelCmdEditFromContext(t *testing.T) {
 	model.contextPath = []string{"bgp"}
 
 	// Edit peer from within bgp context - should still find it
-	result, err := model.cmdEdit([]string{"peer", "1.1.1.1"})
+	result, err := model.cmdEdit([]string{"peer", "peer1"})
 	require.NoError(t, err)
 
 	// Should have full hierarchical path
-	assert.Equal(t, []string{"bgp", "peer", "1.1.1.1"}, result.newContext)
+	assert.Equal(t, []string{"bgp", "peer", "peer1"}, result.newContext)
 }
 
 // TestModelCmdEditExactMatch verifies edit uses exact block matching.
 //
-// VALIDATES: Edit doesn't match prefix (e.g., "peer" shouldn't match "peer-as").
+// VALIDATES: Edit doesn't match prefix (e.g., "peer" shouldn't match "remote").
 // PREVENTS: Wrong block selected due to prefix matching.
 func TestModelCmdEditExactMatch(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -229,11 +229,11 @@ func TestModelCmdEditExactMatch(t *testing.T) {
 
 	// Config with multiple peer blocks
 	content := `bgp {
-  peer 2.2.2.2 {
-    peer-as 65001
+  peer transit1 {
+    remote { ip 2.2.2.2; as 65001; }
   }
-  peer 1.1.1.1 {
-    peer-as 65002
+  peer transit2 {
+    remote { ip 1.1.1.1; as 65002; }
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
@@ -246,13 +246,13 @@ func TestModelCmdEditExactMatch(t *testing.T) {
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	// Edit "peer 1.1.1.1" using full path (JUNOS-style)
-	result, err := model.cmdEdit([]string{"bgp", "peer", "1.1.1.1"})
+	// Edit "peer transit2" using full path (JUNOS-style)
+	result, err := model.cmdEdit([]string{"bgp", "peer", "transit2"})
 	require.NoError(t, err)
 
 	// Should find the correct peer block
-	assert.Equal(t, []string{"bgp", "peer", "1.1.1.1"}, result.newContext)
-	assert.Contains(t, result.configView.content, "65002", "should contain peer 1.1.1.1 content")
+	assert.Equal(t, []string{"bgp", "peer", "transit2"}, result.newContext)
+	assert.Contains(t, result.configView.content, "65002", "should contain peer transit2 content")
 }
 
 // TestModelCmdUp verifies up command goes up one context level.
@@ -356,12 +356,12 @@ func TestModelPipeShowGrep(t *testing.T) {
 
 	content := `bgp {
   router-id 1.2.3.4
-  local-as 65000
-  peer 1.1.1.1 {
-    peer-as 65001
+  local { as 65000; }
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
   }
-  peer 2.2.2.2 {
-    peer-as 65002
+  peer peer2 {
+    remote { ip 2.2.2.2; as 65002; }
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
@@ -375,14 +375,14 @@ func TestModelPipeShowGrep(t *testing.T) {
 	require.NoError(t, err)
 
 	// Show with grep for specific peer
-	result, err := model.cmdShowPipe(nil, []PipeFilter{{Type: "grep", Arg: "1.1.1.1"}})
+	result, err := model.cmdShowPipe(nil, []PipeFilter{{Type: "grep", Arg: "peer1"}})
 	require.NoError(t, err)
 
 	// Should contain matched content
-	assert.Contains(t, result.output, "1.1.1.1", "should contain matched peer")
+	assert.Contains(t, result.output, "peer1", "should contain matched peer")
 
 	// Should not contain unmatched content
-	assert.NotContains(t, result.output, "2.2.2.2", "should not contain other peer")
+	assert.NotContains(t, result.output, "peer2", "should not contain other peer")
 }
 
 // TestModelPipeShowHead verifies "show | head N" limits output.
@@ -395,9 +395,9 @@ func TestModelPipeShowHead(t *testing.T) {
 
 	content := `bgp {
   router-id 1.2.3.4
-  local-as 65000
-  peer 1.1.1.1 {
-    peer-as 65001
+  local { as 65000; }
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
@@ -428,10 +428,10 @@ func TestModelPipeChain(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	content := `bgp {
-  peer 1.1.1.1 { peer-as 65001; }
-  peer 1.1.1.2 { peer-as 65002; }
-  peer 1.1.1.3 { peer-as 65003; }
-  peer 2.2.2.1 { peer-as 65004; }
+  peer a1 { remote { ip 1.1.1.1; as 65001; } }
+  peer a2 { remote { ip 1.1.1.2; as 65002; } }
+  peer a3 { remote { ip 1.1.1.3; as 65003; } }
+  peer b1 { remote { ip 2.2.2.1; as 65004; } }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
@@ -469,8 +469,8 @@ func TestSetCommandModifiesConfig(t *testing.T) {
 
 	originalContent := `bgp {
 	router-id 1.2.3.4
-	peer 1.1.1.1 {
-		peer-as 65001
+	peer peer1 {
+		remote { ip 1.1.1.1; as 65001; }
 	}
 }`
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
@@ -484,7 +484,7 @@ func TestSetCommandModifiesConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	// Enter peer context
-	editResult, err := model.cmdEdit([]string{"bgp", "peer", "1.1.1.1"})
+	editResult, err := model.cmdEdit([]string{"bgp", "peer", "peer1"})
 	require.NoError(t, err)
 	model.ApplyResult(editResult)
 
@@ -574,8 +574,8 @@ func TestSetCommandUpdatesExistingValue(t *testing.T) {
 
 	originalContent := `bgp {
 	router-id 1.2.3.4
-	peer 1.1.1.1 {
-		peer-as 65001
+	peer peer1 {
+		remote { ip 1.1.1.1; as 65001; }
 		description "old value"
 	}
 }`
@@ -590,7 +590,7 @@ func TestSetCommandUpdatesExistingValue(t *testing.T) {
 	require.NoError(t, err)
 
 	// Enter peer context
-	editResult, err := model.cmdEdit([]string{"bgp", "peer", "1.1.1.1"})
+	editResult, err := model.cmdEdit([]string{"bgp", "peer", "peer1"})
 	require.NoError(t, err)
 	model.ApplyResult(editResult)
 
@@ -627,7 +627,7 @@ func TestSetCommandRejectsInvalidValue(t *testing.T) {
 	require.NoError(t, err)
 
 	// Enter peer context
-	editResult, err := model.cmdEdit([]string{"bgp", "peer", "1.1.1.1"})
+	editResult, err := model.cmdEdit([]string{"bgp", "peer", "peer1"})
 	require.NoError(t, err)
 	model.ApplyResult(editResult)
 
@@ -702,7 +702,7 @@ func TestEditQuotedListKey(t *testing.T) {
 	// bgp.group is a string-keyed list (key "name")
 	originalContent := `bgp {
 	group "my group" {
-		peer-as 65001
+		remote { as 65001; }
 	}
 }`
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
@@ -724,7 +724,7 @@ func TestEditQuotedListKey(t *testing.T) {
 
 	// Verify config content includes the group block (full tree in Part 1)
 	assert.NotNil(t, editResult.configView)
-	assert.Contains(t, editResult.configView.content, "peer-as 65001")
+	assert.Contains(t, editResult.configView.content, "65001")
 }
 
 // TestSetInQuotedListEntry verifies set command works inside string-keyed list entries.
@@ -738,7 +738,7 @@ func TestSetInQuotedListEntry(t *testing.T) {
 	// bgp.group is a string-keyed list (key "name")
 	originalContent := `bgp {
 	group "my group" {
-		peer-as 65001
+		remote { as 65001; }
 	}
 }`
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
@@ -757,14 +757,14 @@ func TestSetInQuotedListEntry(t *testing.T) {
 	model.ApplyResult(editResult)
 
 	// Set a value inside the group block
-	setResult, err := model.cmdSet([]string{"peer-as", "65002"})
+	setResult, err := model.cmdSet([]string{"remote", "as", "65002"})
 	require.NoError(t, err)
 
 	// Verify the content was modified correctly
 	assert.Contains(t, setResult.statusMessage, "Set")
 	content := ed.WorkingContent()
-	assert.Contains(t, content, "peer-as 65002")
-	assert.NotContains(t, content, "peer-as 65001", "old value should be replaced")
+	assert.Contains(t, content, "65002")
+	assert.NotContains(t, content, "65001", "old value should be replaced")
 	// Verify the group block structure is preserved
 	assert.Contains(t, content, `group "my group" {`)
 }
@@ -923,7 +923,7 @@ func TestSetThroughList(t *testing.T) {
 	require.NoError(t, err)
 
 	// Set hold-time through list from root — no edit context
-	result, err := model.dispatchCommand("set bgp peer 1.1.1.1 hold-time 120")
+	result, err := model.dispatchCommand("set bgp peer peer1 hold-time 120")
 	require.NoError(t, err, "set through list should succeed")
 	assert.Contains(t, result.statusMessage, "Set")
 
@@ -971,7 +971,7 @@ func TestSetInContextPreserved(t *testing.T) {
 	require.NoError(t, err)
 
 	// Enter peer context
-	editResult, err := model.cmdEdit([]string{"bgp", "peer", "1.1.1.1"})
+	editResult, err := model.cmdEdit([]string{"bgp", "peer", "peer1"})
 	require.NoError(t, err)
 	model.ApplyResult(editResult)
 
@@ -1001,7 +1001,7 @@ func TestSetThroughListDescription(t *testing.T) {
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	result, err := model.dispatchCommand(`set bgp peer 1.1.1.1 description "my peer"`)
+	result, err := model.dispatchCommand(`set bgp peer peer1 description "my peer"`)
 	require.NoError(t, err, "set description through list should succeed")
 	assert.Contains(t, result.statusMessage, "Set")
 
@@ -1150,11 +1150,11 @@ func TestFormatChangeEntryNew(t *testing.T) {
 func TestFormatChangeEntryModified(t *testing.T) {
 	var b strings.Builder
 	formatChangeEntry(&b, config.SessionEntry{
-		Path:  "bgp peer-as",
+		Path:  "bgp remote as",
 		Entry: config.MetaEntry{Value: "65002", Previous: "65001"},
 	})
 	line := b.String()
-	assert.Contains(t, line, "  * set bgp peer-as 65002")
+	assert.Contains(t, line, "  * set bgp remote as 65002")
 	assert.Contains(t, line, "(was: 65001)")
 }
 
@@ -1474,7 +1474,7 @@ func TestCmdShowChangesAllGrouping(t *testing.T) {
 
 	session2 := NewEditSession("bob", "local")
 	ed2.SetSession(session2)
-	err = ed2.SetValue([]string{"bgp"}, "local-as", "65001")
+	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
 	model, err := NewModel(ed2)

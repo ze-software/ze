@@ -126,7 +126,8 @@ func StreamCommand(creds Credentials, command string, callback func(line string)
 
 // ReadCredentials reads SSH credentials from a zefs database.
 // Host and port can be overridden by env vars (ze_ssh_host, ze_ssh_port).
-// Password can be set via ze_ssh_password env var (zefs stores bcrypt hash, not plaintext).
+// Auth credential: env var ze_ssh_password overrides zefs. The zefs stores a
+// bcrypt hash (written by ze init) which is sent as-is (hash-as-token auth).
 func ReadCredentials(dbPath string) (Credentials, error) {
 	store, err := zefs.Open(dbPath)
 	if err != nil {
@@ -139,8 +140,14 @@ func ReadCredentials(dbPath string) (Credentials, error) {
 		return Credentials{}, err
 	}
 
-	// Password from env var (zefs stores bcrypt hash, not usable as plaintext).
+	// Password: env var overrides zefs.
 	password := env.Get("ze.ssh.password")
+	if password == "" {
+		password, err = readKey(store, "meta/ssh/password")
+		if err != nil {
+			return Credentials{}, err
+		}
+	}
 
 	// Host and port: env var takes priority, then zefs, then defaults.
 	host := env.Get("ze.ssh.host")

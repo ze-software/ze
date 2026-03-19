@@ -61,7 +61,7 @@ func TestCmdRollbackZero(t *testing.T) {
 // VALIDATES: Out-of-range revision returns error.
 // PREVENTS: Index-out-of-bounds panic.
 func TestCmdRollbackOutOfRange(t *testing.T) {
-	configPath := writeTestConfig(t, "bgp {\n\tpeer 127.0.0.1 {\n\t\tlocal-as 1;\n\t\tpeer-as 2;\n\t}\n}\n")
+	configPath := writeTestConfig(t, "bgp {\n\tpeer peer1 {\n\t\tremote {\n\t\t\tip 127.0.0.1;\n\t\t\tas 2;\n\t\t}\n\t\tlocal {\n\t\t\tas 1;\n\t\t}\n\t}\n}\n")
 	code := cmdRollback([]string{"99", configPath})
 	assert.Equal(t, exitError, code)
 }
@@ -71,8 +71,8 @@ func TestCmdRollbackOutOfRange(t *testing.T) {
 // VALIDATES: Rollback restores from rollback/ subdirectory.
 // PREVENTS: Rollback silently succeeding without actually restoring.
 func TestCmdRollbackRestores(t *testing.T) {
-	originalContent := "bgp {\n\tpeer 127.0.0.1 {\n\t\tlocal-as 1;\n\t\tpeer-as 2;\n\t}\n}\n"
-	configPath := writeTestConfig(t, "bgp {\n\tpeer 127.0.0.1 {\n\t\tlocal-as 99;\n\t\tpeer-as 2;\n\t}\n}\n")
+	originalContent := "bgp {\n\tpeer peer1 {\n\t\tremote {\n\t\t\tip 127.0.0.1;\n\t\t\tas 2;\n\t\t}\n\t\tlocal {\n\t\t\tas 1;\n\t\t}\n\t}\n}\n"
+	configPath := writeTestConfig(t, "bgp {\n\tpeer peer1 {\n\t\tremote {\n\t\t\tip 127.0.0.1;\n\t\t\tas 2;\n\t\t}\n\t\tlocal {\n\t\t\tas 99;\n\t\t}\n\t}\n}\n")
 
 	// Create rollback dir with a backup containing original content
 	rollbackDir := filepath.Join(filepath.Dir(configPath), "rollback")
@@ -82,7 +82,7 @@ func TestCmdRollbackRestores(t *testing.T) {
 	backupName := "test-" + stamp + ".conf"
 	require.NoError(t, os.WriteFile(filepath.Join(rollbackDir, backupName), []byte(originalContent), 0o600))
 
-	currentContent := "bgp {\n\tpeer 127.0.0.1 {\n\t\tlocal-as 99;\n\t\tpeer-as 2;\n\t}\n}\n"
+	currentContent := "bgp {\n\tpeer peer1 {\n\t\tremote {\n\t\t\tip 127.0.0.1;\n\t\t\tas 2;\n\t\t}\n\t\tlocal {\n\t\t\tas 99;\n\t\t}\n\t}\n}\n"
 
 	code := cmdRollback([]string{"1", configPath})
 	assert.Equal(t, exitOK, code)

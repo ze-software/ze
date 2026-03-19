@@ -40,10 +40,10 @@ Options:
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
 Examples:
-  ze config set config.conf bgp local-as 65000
-  ze config set config.conf bgp peer 1.1.1.1 local-as 65001
-  ze config set config.conf bgp peer 1.1.1.1 description "my peer"
-  ze config set --dry-run config.conf bgp hold-time 90
+  ze config set config.conf bgp local as 65000
+  ze config set config.conf bgp peer peer1 remote as 65001
+  ze config set config.conf bgp peer peer1 description "my peer"
+  ze config set --dry-run config.conf bgp peer peer1 hold-time 90
 `)
 	}
 

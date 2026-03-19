@@ -10,24 +10,34 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// minimal ze config: router-id + local-as + one peer with peer-as.
+// minimal ze config: router-id + local as + one peer with remote as.
 const testConfigBase = `
 bgp {
     router-id 1.1.1.1;
-    local-as 65000;
-    peer 10.0.0.1 {
-        peer-as 65001;
+    local {
+        as 65000;
+    }
+    peer peer1 {
+        remote {
+            ip 10.0.0.1;
+            as 65001;
+        }
     }
 }
 `
 
-// same as base but peer-as changed.
+// same as base but remote as changed.
 const testConfigChanged = `
 bgp {
     router-id 1.1.1.1;
-    local-as 65000;
-    peer 10.0.0.1 {
-        peer-as 65002;
+    local {
+        as 65000;
+    }
+    peer peer1 {
+        remote {
+            ip 10.0.0.1;
+            as 65002;
+        }
     }
 }
 `
@@ -36,12 +46,20 @@ bgp {
 const testConfigAdded = `
 bgp {
     router-id 1.1.1.1;
-    local-as 65000;
-    peer 10.0.0.1 {
-        peer-as 65001;
+    local {
+        as 65000;
     }
-    peer 10.0.0.2 {
-        peer-as 65003;
+    peer peer1 {
+        remote {
+            ip 10.0.0.1;
+            as 65001;
+        }
+    }
+    peer peer2 {
+        remote {
+            ip 10.0.0.2;
+            as 65003;
+        }
     }
 }
 `
@@ -60,7 +78,7 @@ func TestConfigDiffIdentical(t *testing.T) {
 
 // TestConfigDiffChanged verifies changed values are detected.
 //
-// VALIDATES: AC-10 — changed peer-as appears in diff output.
+// VALIDATES: AC-10 — changed remote as appears in diff output.
 // PREVENTS: Missing changes in diff.
 func TestConfigDiffChanged(t *testing.T) {
 	file1 := writeTestConfig(t, testConfigBase)

@@ -4,22 +4,29 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
 	router-id 1.2.3.4
-	local-as 65000
-	peer 1.1.1.1 {
-		peer-as 65001
-		local-address 127.0.0.1
+	local {
+		as 65000
+	}
+	peer peer1 {
+		remote {
+			ip 1.1.1.1
+			as 65001
+		}
+		local {
+			ip 127.0.0.1
+		}
 	}
 }
 EOF_CONF
 
 # Role container should show name and strict children
-cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/1.1.1.1/role --input set+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/role --input set+ test.conf
 expect=exit:code=0
 expect=stdout:contains=name
 expect=stdout:contains=strict
 
 # Role name should show enum values
-cmd=foreground:seq=2:exec=ze config completion --context bgp/peer/1.1.1.1/role --input set+name+ test.conf
+cmd=foreground:seq=2:exec=ze config completion --context bgp/peer/peer1/role --input set+name+ test.conf
 expect=exit:code=0
 expect=stdout:contains=provider
 expect=stdout:contains=customer

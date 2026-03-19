@@ -6,16 +6,18 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local-as 65000;
+  local {
+  	as 65000
+  }
 }
 EOF_CONF
 
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Alice sets local-as
+# Alice sets local as
 session=alice:user=alice,origin=ssh
-input=type:text=set bgp local-as 65001
+input=type:text=set bgp local as 65001
 input=enter
 expect=status:contains=Set
 
@@ -37,6 +39,6 @@ input=type:text=show changes all
 input=enter
 expect=viewport:contains=alice@ssh
 expect=viewport:contains=bob@ssh
-expect=viewport:contains=local-as
+expect=viewport:contains=local
 expect=viewport:contains=router-id
 expect=error:none

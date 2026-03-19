@@ -944,9 +944,14 @@ environment {
 
 bgp {
     router-id 192.0.2.1
-    local-as 65000
-    peer 192.0.2.2 {
-        peer-as 65001
+    local {
+        as 65000
+    }
+    peer peer1 {
+        remote {
+            ip 192.0.2.2
+            as 65001
+        }
     }
 }
 `
@@ -997,9 +1002,14 @@ environment {
 
 bgp {
     router-id 192.0.2.1
-    local-as 65000
-    peer 192.0.2.2 {
-        peer-as 65001
+    local {
+        as 65000
+    }
+    peer peer1 {
+        remote {
+            ip 192.0.2.2
+            as 65001
+        }
     }
 }
 `
@@ -1036,7 +1046,9 @@ environment { }
 
 bgp {
     router-id 192.0.2.1
-    local-as 65000
+    local {
+        as 65000
+    }
 }
 `
 	p := NewParser(YANGSchema())
@@ -1067,7 +1079,9 @@ environment {
 
 bgp {
     router-id 192.0.2.1
-    local-as 65000
+    local {
+        as 65000
+    }
 }
 `
 	p := NewParser(YANGSchema())
@@ -1112,7 +1126,9 @@ environment {
 
 bgp {
     router-id 192.0.2.1
-    local-as 65000
+    local {
+        as 65000
+    }
 }
 `
 	p := NewParser(YANGSchema())
@@ -1143,9 +1159,14 @@ func TestParseNoEnvironmentBlock(t *testing.T) {
 	input := `
 bgp {
     router-id 192.0.2.1
-    local-as 65000
-    peer 192.0.2.2 {
-        peer-as 65001
+    local {
+        as 65000
+    }
+    peer peer1 {
+        remote {
+            ip 192.0.2.2
+            as 65001
+        }
     }
 }
 `

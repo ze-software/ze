@@ -21,7 +21,7 @@ const defaultHoldTime = 90 * time.Second
 // handleBgpPeerSave handles "bgp peer <selector> save" command.
 // Saves selected peer(s) to the config file, merging into existing config.
 // Creates a backup before writing. Only writes optional fields that differ
-// from reactor defaults (local-as, router-id) or protocol defaults (hold-time, connection).
+// from reactor defaults (local as, router-id) or protocol defaults (hold-time, connection).
 func handleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
@@ -64,26 +64,38 @@ func handleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 
 	// Add/update each peer in the config tree.
 	// SetValue navigates through list keys, creating entries as needed:
-	// path ["bgp", "peer", "10.0.0.1"] creates the peer list entry with key "10.0.0.1".
+	// path ["bgp", "peer", "<name>"] creates the peer list entry keyed by peer name.
 	var saved []string
 	for i := range peers {
 		p := &peers[i]
-		peerPath := []string{"bgp", "peer", p.Address.String()}
+		// Peer key is the name; fall back to IP string if unnamed.
+		peerKey := p.Name
+		if peerKey == "" {
+			peerKey = p.Address.String()
+		}
+		peerPath := []string{"bgp", "peer", peerKey}
+		remotePath := []string{"bgp", "peer", peerKey, "remote"}
+		localPath := []string{"bgp", "peer", peerKey, "local"}
 
-		// peer-as is required
-		if err := ed.SetValue(peerPath, "peer-as", fmt.Sprintf("%d", p.PeerAS)); err != nil {
-			return saveFieldError(p.Address, "peer-as", err)
+		// remote > as is required
+		if err := ed.SetValue(remotePath, "as", fmt.Sprintf("%d", p.PeerAS)); err != nil {
+			return saveFieldError(p.Address, "remote as", err)
+		}
+
+		// remote > ip is required
+		if err := ed.SetValue(remotePath, "ip", p.Address.String()); err != nil {
+			return saveFieldError(p.Address, "remote ip", err)
 		}
 
 		// Only write optional fields if they differ from defaults
 		if p.LocalAS != 0 && p.LocalAS != stats.LocalAS {
-			if err := ed.SetValue(peerPath, "local-as", fmt.Sprintf("%d", p.LocalAS)); err != nil {
-				return saveFieldError(p.Address, "local-as", err)
+			if err := ed.SetValue(localPath, "as", fmt.Sprintf("%d", p.LocalAS)); err != nil {
+				return saveFieldError(p.Address, "local as", err)
 			}
 		}
 		if p.LocalAddress.IsValid() {
-			if err := ed.SetValue(peerPath, "local-address", p.LocalAddress.String()); err != nil {
-				return saveFieldError(p.Address, "local-address", err)
+			if err := ed.SetValue(localPath, "ip", p.LocalAddress.String()); err != nil {
+				return saveFieldError(p.Address, "local ip", err)
 			}
 		}
 		if p.RouterID != 0 && p.RouterID != stats.RouterID {
@@ -107,7 +119,7 @@ func handleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 			}
 		}
 
-		saved = append(saved, p.Address.String())
+		saved = append(saved, peerKey)
 	}
 
 	// Save config (creates backup, writes atomically)

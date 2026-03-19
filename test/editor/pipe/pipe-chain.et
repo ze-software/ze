@@ -6,15 +6,26 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local-as 65000;
-  peer 1.1.1.1 {
-    peer-as 65001;
+  local {
+  	as 65000
   }
-  peer 2.2.2.2 {
-    peer-as 65002;
+  peer peer1 {
+  	remote {
+  		ip 1.1.1.1
+  		as 65001;
+  	}
   }
-  peer 3.3.3.3 {
-    peer-as 65003;
+  peer peer2 {
+  	remote {
+  		ip 2.2.2.2
+  		as 65002;
+  	}
+  }
+  peer peer3 {
+  	remote {
+  		ip 3.3.3.3
+  		as 65003;
+  	}
   }
 }
 EOF_CONF
@@ -29,5 +40,5 @@ input=enter
 # Should apply both filters
 expect=viewport:contains=peer
 expect=viewport:not-contains=router-id
-expect=viewport:not-contains=local-as
+expect=viewport:not-contains=local
 expect=error:none

@@ -6,7 +6,9 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local-as 65000;
+  local {
+  	as 65000
+  }
 }
 EOF_CONF
 
@@ -25,4 +27,4 @@ expect=error:none
 
 # Viewport should show bgp block content
 expect=viewport:contains=router-id
-expect=viewport:contains=local-as
+expect=viewport:contains=local

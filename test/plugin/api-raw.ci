@@ -37,7 +37,7 @@ def main():
 
     try:
         # Send a KEEPALIVE via raw (full packet mode: marker + length + type)
-        result = dispatch(api, 'peer 127.0.0.1 raw hex FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304')
+        result = dispatch(api, 'peer peer1 raw hex FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304')
         if result.get('status') != 'done':
             print(f'FAIL: raw status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)
@@ -67,11 +67,16 @@ environment {
 }
 
 bgp {
-	peer 127.0.0.1 {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
 		router-id 1.2.3.4
-		local-address 127.0.0.1
-		local-as 1
-		peer-as 1
 		connection active
 		group-updates disable
 

@@ -73,11 +73,16 @@ environment {
 }
 
 bgp {
-	peer 127.0.0.1 {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
 		router-id 1.2.3.4
-		local-address 127.0.0.1
-		local-as 1
-		peer-as 1
 		connection active
 		group-updates disable
 

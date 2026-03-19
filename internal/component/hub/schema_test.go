@@ -87,7 +87,7 @@ func TestHubConfigStore(t *testing.T) {
 	editCfg := map[string]any{
 		"bgp": map[string]any{
 			"router-id": "1.2.3.4",
-			"local-as":  "65000",
+			"local":     map[string]any{"as": "65000"},
 		},
 	}
 	store.SetEdit(editCfg)
@@ -158,7 +158,7 @@ func TestHubDeliversJSON(t *testing.T) {
 	cfg := map[string]any{
 		"bgp": map[string]any{
 			"router-id": "1.2.3.4",
-			"local-as":  65000,
+			"local":     map[string]any{"as": 65000},
 		},
 	}
 	store.SetEdit(cfg)

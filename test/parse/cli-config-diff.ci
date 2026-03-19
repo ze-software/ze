@@ -4,10 +4,17 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	router-id 1.1.1.1
-	local-as 65000
-	peer 10.0.0.1 {
-		local-address 10.0.0.254
-		peer-as 65001
+	local {
+		as 65000
+	}
+	peer peer1 {
+		remote {
+			ip 10.0.0.1
+			as 65001
+		}
+		local {
+			ip 10.0.0.254
+		}
 	}
 }
 EOF_CONF
@@ -15,10 +22,17 @@ EOF_CONF
 tmpfs=old.conf:terminator=EOF_OLD
 bgp {
 	router-id 1.1.1.1
-	local-as 65000
-	peer 10.0.0.1 {
-		local-address 10.0.0.254
-		peer-as 65001
+	local {
+		as 65000
+	}
+	peer peer1 {
+		remote {
+			ip 10.0.0.1
+			as 65001
+		}
+		local {
+			ip 10.0.0.254
+		}
 	}
 }
 EOF_OLD
@@ -26,19 +40,31 @@ EOF_OLD
 tmpfs=new.conf:terminator=EOF_NEW
 bgp {
 	router-id 1.1.1.1
-	local-as 65000
-	peer 10.0.0.1 {
-		local-address 10.0.0.254
-		peer-as 65002
+	local {
+		as 65000
 	}
-	peer 10.0.0.2 {
-		local-address 10.0.0.254
-		peer-as 65003
+	peer peer1 {
+		remote {
+			ip 10.0.0.1
+			as 65002
+		}
+		local {
+			ip 10.0.0.254
+		}
+	}
+	peer peer2 {
+		remote {
+			ip 10.0.0.2
+			as 65003
+		}
+		local {
+			ip 10.0.0.254
+		}
 	}
 }
 EOF_NEW
 
 cmd=foreground:seq=1:exec=ze config diff old.conf new.conf
 expect=exit:code=0
-expect=stdout:contains=peer-as
+expect=stdout:contains=remote
 expect=stdout:contains=10.0.0.2

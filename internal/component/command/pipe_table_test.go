@@ -115,7 +115,7 @@ func TestApplyTableEmptyObject(t *testing.T) {
 // VALIDATES: integer numbers display without decimals.
 // PREVENTS: JSON float64 showing as "65001.000000" in table cells.
 func TestApplyTableNumbers(t *testing.T) {
-	input := `{"peer-as":65001,"med":100}`
+	input := `{"remote-as":65001,"med":100}`
 	result := ApplyTable(input)
 	if strings.Contains(result, ".") {
 		t.Errorf("integers should not have decimals:\n%s", result)
@@ -206,9 +206,9 @@ func TestApplyPipesTable(t *testing.T) {
 // PREVENTS: regressions in real-world output formatting.
 func TestApplyTableBGPPeerList(t *testing.T) {
 	input := `[
-		{"address":"192.168.1.2","peer-as":65002,"state":"established","routes-received":45},
-		{"address":"10.0.0.1","peer-as":65003,"state":"idle","routes-received":0},
-		{"address":"172.16.0.5","peer-as":65004,"state":"established","routes-received":128}
+		{"address":"192.168.1.2","remote-as":65002,"state":"established","routes-received":45},
+		{"address":"10.0.0.1","remote-as":65003,"state":"idle","routes-received":0},
+		{"address":"172.16.0.5","remote-as":65004,"state":"established","routes-received":128}
 	]`
 	result := ApplyTable(input)
 	t.Logf("BGP peer list table:\n%s", result)

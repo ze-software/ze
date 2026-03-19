@@ -22,12 +22,11 @@ func schemaWithGR() *config.Schema {
 func TestBGPSchemaNeighbor(t *testing.T) {
 	input := `
 bgp {
-    peer 192.0.2.1 {
+    peer transit1 {
         description "Transit Provider";
         router-id 1.2.3.4;
-        local-address 192.0.2.2;
-        local-as 65000;
-        peer-as 65001;
+        remote { ip 192.0.2.1; as 65001; }
+        local { as 65000; ip 192.0.2.2; }
         hold-time 90;
         connection both;
     }
@@ -43,16 +42,20 @@ bgp {
 	neighbors := bgpContainer.GetList("peer")
 	require.Len(t, neighbors, 1)
 
-	n := neighbors["192.0.2.1"]
+	n := neighbors["transit1"]
 	require.NotNil(t, n)
 
 	val, _ := n.Get("description")
 	require.Equal(t, "Transit Provider", val)
 
-	val, _ = n.Get("local-as")
+	localContainer := n.GetContainer("local")
+	require.NotNil(t, localContainer)
+	val, _ = localContainer.Get("as")
 	require.Equal(t, "65000", val)
 
-	val, _ = n.Get("peer-as")
+	remoteContainer := n.GetContainer("remote")
+	require.NotNil(t, remoteContainer)
+	val, _ = remoteContainer.Get("as")
 	require.Equal(t, "65001", val)
 
 	val, _ = n.Get("hold-time")
@@ -69,9 +72,9 @@ bgp {
 func TestBGPSchemaFamily(t *testing.T) {
 	input := `
 bgp {
-    peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
+    peer transit1 {
+        remote { ip 192.0.2.1; as 65001; }
+        local { as 65000; }
         family {
             ipv4/unicast;
             ipv4/multicast;
@@ -86,7 +89,7 @@ bgp {
 
 	bgpContainer := tree.GetContainer("bgp")
 	neighbors := bgpContainer.GetList("peer")
-	n := neighbors["192.0.2.1"]
+	n := neighbors["transit1"]
 
 	// Family is now a list, not a container
 	families := n.GetList("family")
@@ -106,9 +109,9 @@ bgp {
 func TestBGPSchemaFamilyWithMode(t *testing.T) {
 	input := `
 bgp {
-    peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
+    peer transit1 {
+        remote { ip 192.0.2.1; as 65001; }
+        local { as 65000; }
         family {
             ipv4/unicast;
             ipv6/unicast require;
@@ -122,7 +125,7 @@ bgp {
 	require.NoError(t, err)
 
 	bgpContainer := tree.GetContainer("bgp")
-	n := bgpContainer.GetList("peer")["192.0.2.1"]
+	n := bgpContainer.GetList("peer")["transit1"]
 
 	families := n.GetList("family")
 	require.Len(t, families, 3)
@@ -153,9 +156,9 @@ bgp {
 func TestBGPSchemaFamilyInline(t *testing.T) {
 	input := `
 bgp {
-    peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
+    peer transit1 {
+        remote { ip 192.0.2.1; as 65001; }
+        local { as 65000; }
         family ipv4/unicast;
         family ipv6/unicast require;
     }
@@ -165,7 +168,7 @@ bgp {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	n := tree.GetContainer("bgp").GetList("peer")["192.0.2.1"]
+	n := tree.GetContainer("bgp").GetList("peer")["transit1"]
 	families := n.GetList("family")
 	require.Len(t, families, 2)
 
@@ -229,9 +232,9 @@ func TestFamilyModeString(t *testing.T) {
 func TestBGPSchemaCapability(t *testing.T) {
 	input := `
 bgp {
-    peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
+    peer transit1 {
+        remote { ip 192.0.2.1; as 65001; }
+        local { as 65000; }
         capability {
             asn4 true;
             route-refresh;
@@ -254,7 +257,7 @@ bgp {
 	require.NotNil(t, bgpContainer)
 
 	neighbors := bgpContainer.GetList("peer")
-	n := neighbors["192.0.2.1"]
+	n := neighbors["transit1"]
 
 	cap := n.GetContainer("capability")
 	require.NotNil(t, cap)
@@ -283,9 +286,9 @@ bgp {
 func TestBGPSchemaNexthopList(t *testing.T) {
 	input := `
 bgp {
-    peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
+    peer transit1 {
+        remote { ip 192.0.2.1; as 65001; }
+        local { as 65000; }
         capability {
             nexthop {
                 ipv4/unicast ipv6;
@@ -299,7 +302,7 @@ bgp {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	cap := tree.GetContainer("bgp").GetList("peer")["192.0.2.1"].GetContainer("capability")
+	cap := tree.GetContainer("bgp").GetList("peer")["transit1"].GetContainer("capability")
 	nhList := cap.GetList("nexthop")
 	require.Len(t, nhList, 2)
 
@@ -327,9 +330,9 @@ bgp {
 func TestBGPSchemaPeerAddPathList(t *testing.T) {
 	input := `
 bgp {
-    peer 192.0.2.1 {
-        local-as 65000;
-        peer-as 65001;
+    peer transit1 {
+        remote { ip 192.0.2.1; as 65001; }
+        local { as 65000; }
         add-path {
             ipv4/unicast send;
             ipv6/unicast send/receive require;
@@ -341,7 +344,7 @@ bgp {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	n := tree.GetContainer("bgp").GetList("peer")["192.0.2.1"]
+	n := tree.GetContainer("bgp").GetList("peer")["transit1"]
 	apList := n.GetList("add-path")
 	require.Len(t, apList, 2)
 
@@ -406,7 +409,7 @@ func TestBGPSchemaGlobal(t *testing.T) {
 	input := `
 bgp {
     router-id 1.2.3.4;
-    local-as 65000;
+    local { as 65000; }
     listen 0.0.0.0:179;
 }
 `
@@ -421,7 +424,9 @@ bgp {
 	require.True(t, ok)
 	require.Equal(t, "1.2.3.4", val)
 
-	val, ok = bgpContainer.Get("local-as")
+	localContainer := bgpContainer.GetContainer("local")
+	require.NotNil(t, localContainer)
+	val, ok = localContainer.Get("as")
 	require.True(t, ok)
 	require.Equal(t, "65000", val)
 

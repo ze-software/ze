@@ -1,12 +1,17 @@
 # Test: Peer-as is required
-# VALIDATES: Missing peer-as generates error
+# VALIDATES: Missing remote as generates error
 # PREVENTS: Incomplete peer config being accepted
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local-as 65000;
-  peer 1.1.1.1 {
+  local {
+  	as 65000
+  }
+  peer peer1 {
+  	remote {
+  		ip 1.1.1.1
+  	}
     hold-time 90;
   }
 }
@@ -15,5 +20,5 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Missing peer-as is a warning (YANG mandatory-missing), not an error
-expect=warnings:contains=peer-as
+# Missing remote as is a warning (YANG mandatory-missing), not an error
+expect=warnings:contains=remote

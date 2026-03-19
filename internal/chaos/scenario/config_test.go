@@ -31,9 +31,9 @@ func TestConfigGenStructure(t *testing.T) {
 	config := GenerateConfig(params)
 
 	assert.Contains(t, config, "bgp {")
-	assert.Contains(t, config, "peer 127.0.0.1")
+	assert.Contains(t, config, "peer chaos-peer-")
 	// Should have 2 peer blocks
-	assert.Equal(t, 2, strings.Count(config, "peer 127.0.0.1 {"), "expected 2 peer blocks")
+	assert.Equal(t, 2, strings.Count(config, "remote {"), "expected 2 peer blocks with remote containers")
 }
 
 // TestConfigGenPeerBlock verifies each peer block has correct ASN, families,
@@ -57,12 +57,12 @@ func TestConfigGenPeerBlock(t *testing.T) {
 
 	config := GenerateConfig(params)
 
-	// eBGP peer (index 0): peer-as should be 65001
-	assert.Contains(t, config, "peer-as 65001;")
-	// iBGP peer (index 1): peer-as should be 65000
-	assert.Contains(t, config, "peer-as 65000;")
-	// local-as always present
-	assert.Contains(t, config, "local-as 65000;")
+	// eBGP peer (index 0): remote as should be 65001
+	assert.Contains(t, config, "as 65001;")
+	// iBGP peer (index 1): remote as should be 65000
+	assert.Contains(t, config, "as 65000;")
+	// local container always present
+	assert.Contains(t, config, "local {")
 	// Family block
 	assert.Contains(t, config, "ipv4/unicast;")
 	// Passive peer should have passive flag
@@ -165,8 +165,8 @@ func TestConfigGenMultiplePeers(t *testing.T) {
 
 	config := GenerateConfig(params)
 
-	// Count peer blocks
-	count := strings.Count(config, "peer 127.0.0.1 {")
+	// Count peer blocks (each has a remote container)
+	count := strings.Count(config, "peer chaos-peer-")
 	require.Equal(t, 10, count, "expected 10 peer blocks")
 }
 

@@ -427,7 +427,7 @@ func (a *reactorAPIAdapter) reconcilePeers(newPeers []*PeerSettings, label strin
 }
 
 // parsePeersFromTree extracts PeerSettings from a BGP config tree.
-// The tree uses "peer" as the key, with peer addresses as sub-keys.
+// The tree uses "peer" as the key, with peer names as sub-keys.
 // Field values are strings (from config parser's Tree.ToMap()).
 func parsePeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 	peerSection, ok := bgpTree["peer"]
@@ -441,26 +441,42 @@ func parsePeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 	}
 
 	var peers []*PeerSettings
-	for addrStr, peerData := range peerMap {
-		addr, err := netip.ParseAddr(addrStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid peer address %q: %w", addrStr, err)
-		}
-
+	for peerName, peerData := range peerMap {
 		fields, ok := peerData.(map[string]any)
 		if !ok {
-			return nil, fmt.Errorf("invalid peer data for %s: %T", addrStr, peerData)
+			return nil, fmt.Errorf("invalid peer data for %s: %T", peerName, peerData)
 		}
 
-		var localAS, peerAS uint32
-		if v, ok := fields["local-as"].(string); ok {
-			parseUint32FromString(v, &localAS)
+		// Read remote > ip and remote > as.
+		remoteMap, _ := fields["remote"].(map[string]any)
+		if remoteMap == nil {
+			return nil, fmt.Errorf("peer %s: missing required remote container", peerName)
 		}
-		if v, ok := fields["peer-as"].(string); ok {
+
+		addrStr, _ := remoteMap["ip"].(string)
+		if addrStr == "" {
+			return nil, fmt.Errorf("peer %s: missing required remote ip", peerName)
+		}
+		addr, err := netip.ParseAddr(addrStr)
+		if err != nil {
+			return nil, fmt.Errorf("peer %s: invalid remote ip %q: %w", peerName, addrStr, err)
+		}
+
+		var peerAS uint32
+		if v, ok := remoteMap["as"].(string); ok {
 			parseUint32FromString(v, &peerAS)
 		}
 
+		// Read local > as (optional per-peer override).
+		var localAS uint32
+		if localMap, ok := fields["local"].(map[string]any); ok {
+			if v, ok := localMap["as"].(string); ok {
+				parseUint32FromString(v, &localAS)
+			}
+		}
+
 		settings := NewPeerSettings(addr, localAS, peerAS, 0)
+		settings.Name = peerName
 
 		// Parse optional fields.
 		if v, ok := fields["hold-time"].(string); ok {
@@ -473,7 +489,7 @@ func parsePeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 		if v, ok := fields["connection"].(string); ok {
 			mode, err := ParseConnectionMode(v)
 			if err != nil {
-				reactorLogger().Warn("invalid connection mode in peer config, using default", "peer", addr, "value", v, "error", err)
+				reactorLogger().Warn("invalid connection mode in peer config, using default", "peer", peerName, "value", v, "error", err)
 			} else {
 				settings.Connection = mode
 			}
@@ -748,17 +764,24 @@ func (a *reactorAPIAdapter) getMatchingPeersLocked(selector string) []*Peer {
 		return []*Peer{peer}
 	}
 
-	// Try selector as bare IP with default port (API selectors are typically IPs)
+	// Try selector as bare IP with default port (API selectors may be IPs).
 	if !strings.Contains(selector, "*") {
 		if peer, ok := a.r.peers[selector+":"+strconv.Itoa(int(DefaultBGPPort))]; ok {
 			return []*Peer{peer}
 		}
 	}
 
-	// Glob pattern match against the IP portion of each key
+	// Try selector as peer name or bare IP (peers are selectable by either).
+	for _, peer := range a.r.peers {
+		if peer.settings.Name == selector || peer.settings.Address.String() == selector {
+			return []*Peer{peer}
+		}
+	}
+
+	// Glob pattern match against the IP portion of each key.
 	var peers []*Peer
 	for key, peer := range a.r.peers {
-		// Extract IP from "addr:port" key for glob matching
+		// Extract IP from "addr:port" key for glob matching.
 		addr := key
 		if idx := strings.LastIndex(key, ":"); idx >= 0 {
 			addr = key[:idx]

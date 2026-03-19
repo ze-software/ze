@@ -136,6 +136,6 @@ Examples:
   ze config edit -f router.conf          Edit router.conf from filesystem
   ze config check config.conf
   ze config migrate config.conf -o new.conf
-  ze config set config.conf bgp local-as 65000
+  ze config set config.conf bgp local as 65000
 `)
 }

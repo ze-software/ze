@@ -1,13 +1,18 @@
 # Test: Errors command shows semantic validation issues
 # VALIDATES: YANG semantic constraints reported
 # VALIDATES: Error message includes field name
-# RFC 4271: peer-as is mandatory for peers
+# RFC 4271: remote as is mandatory for peers
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local-as 65000;
-  peer 1.1.1.1 {
+  local {
+  	as 65000
+  }
+  peer peer1 {
+  	remote {
+  		ip 1.1.1.1
+  	}
     hold-time 90;
   }
 }
@@ -16,12 +21,12 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Missing peer-as should be a semantic warning (YANG mandatory-missing)
-expect=warnings:contains=peer-as
+# Missing remote as should be a semantic warning (YANG mandatory-missing)
+expect=warnings:contains=remote
 
 # Errors command shows the issue (unified issue list)
 input=type:text=errors
 input=enter
 expect=viewport:contains=issue
-expect=viewport:contains=peer-as
+expect=viewport:contains=remote
 expect=error:none

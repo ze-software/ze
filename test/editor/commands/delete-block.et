@@ -6,9 +6,14 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local-as 65000;
-  peer 1.1.1.1 {
-    peer-as 65001;
+  local {
+  	as 65000
+  }
+  peer peer1 {
+  	remote {
+  		ip 1.1.1.1
+  		as 65001;
+  	}
   }
 }
 EOF_CONF
@@ -17,7 +22,7 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Delete a peer block
-input=type:text=delete bgp peer 1.1.1.1
+input=type:text=delete bgp peer peer1
 input=enter
 expect=dirty:true
 expect=status:contains=Deleted

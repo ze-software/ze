@@ -190,14 +190,16 @@ func buildSummary(bgpTree map[string]any, tree *config.Tree) *ValidationSummary 
 	if rid, ok := bgpTree["router-id"]; ok {
 		summary.RouterID = fmt.Sprint(rid)
 	}
-	summary.LocalAS = treeUint32(bgpTree["local-as"])
+	if localMap, ok := bgpTree["local"].(map[string]any); ok {
+		summary.LocalAS = treeUint32(localMap["as"])
+	}
 	if listen, ok := bgpTree["listen"]; ok {
 		summary.Listen = fmt.Sprint(listen)
 	}
 
 	if peers, ok := bgpTree["peer"].(map[string]any); ok {
 		summary.Peers = len(peers)
-		for addr, v := range peers {
+		for name, v := range peers {
 			peer, ok := v.(map[string]any)
 			if !ok {
 				continue
@@ -206,9 +208,18 @@ func buildSummary(bgpTree map[string]any, tree *config.Tree) *ValidationSummary 
 			if v, ok := peer["connection"]; ok {
 				conn = fmt.Sprint(v)
 			}
+			var peerAS uint32
+			var addr string
+			if remoteMap, ok := peer["remote"].(map[string]any); ok {
+				peerAS = treeUint32(remoteMap["as"])
+				if ip, ok := remoteMap["ip"]; ok {
+					addr = fmt.Sprint(ip)
+				}
+			}
+			_ = name // peer name is the map key
 			summary.PeerDetails = append(summary.PeerDetails, PeerSummary{
 				Address:    addr,
-				PeerAS:     treeUint32(peer["peer-as"]),
+				PeerAS:     peerAS,
 				Connection: conn,
 			})
 		}
@@ -244,7 +255,10 @@ func semanticValidation(bgpTree map[string]any) []ValidationWarning {
 	}
 
 	// Check for missing local-as.
-	globalLocalAS := treeUint32(bgpTree["local-as"])
+	var globalLocalAS uint32
+	if localMap, ok := bgpTree["local"].(map[string]any); ok {
+		globalLocalAS = treeUint32(localMap["as"])
+	}
 	if globalLocalAS == 0 {
 		warnings = append(warnings, ValidationWarning{
 			Message: "local-as not configured globally",
@@ -253,25 +267,33 @@ func semanticValidation(bgpTree map[string]any) []ValidationWarning {
 
 	// Check each peer.
 	peers, _ := bgpTree["peer"].(map[string]any)
-	for addr, v := range peers {
+	for name, v := range peers {
 		peer, ok := v.(map[string]any)
 		if !ok {
 			continue
 		}
-		if treeUint32(peer["local-as"]) == 0 && globalLocalAS == 0 {
+		var peerLocalAS uint32
+		if localMap, ok := peer["local"].(map[string]any); ok {
+			peerLocalAS = treeUint32(localMap["as"])
+		}
+		if peerLocalAS == 0 && globalLocalAS == 0 {
 			warnings = append(warnings, ValidationWarning{
-				Message: fmt.Sprintf("peer %s: local-as not configured", addr),
+				Message: fmt.Sprintf("peer %s: local-as not configured", name),
 			})
 		}
-		if treeUint32(peer["peer-as"]) == 0 {
+		var peerAS uint32
+		if remoteMap, ok := peer["remote"].(map[string]any); ok {
+			peerAS = treeUint32(remoteMap["as"])
+		}
+		if peerAS == 0 {
 			warnings = append(warnings, ValidationWarning{
-				Message: fmt.Sprintf("peer %s: peer-as not configured", addr),
+				Message: fmt.Sprintf("peer %s: remote as not configured", name),
 			})
 		}
 		holdTime := treeUint32(peer["hold-time"])
 		if holdTime > 0 && holdTime < 3 {
 			warnings = append(warnings, ValidationWarning{
-				Message: fmt.Sprintf("peer %s: hold-time %d too low (minimum 3)", addr, holdTime),
+				Message: fmt.Sprintf("peer %s: hold-time %d too low (minimum 3)", name, holdTime),
 			})
 		}
 	}

@@ -85,18 +85,23 @@ func TestExtractPluginsFromTree_UnknownInternalPlugin(t *testing.T) {
 func TestValidatePluginReferences_GroupPeerUndefinedPlugin(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	groupTree := config.NewTree()
 	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65001")
+	peerRemote := config.NewTree()
+	peerRemote.Set("ip", "10.0.0.1")
+	peerRemote.Set("as", "65001")
+	peerTree.SetContainer("remote", peerRemote)
 
 	// Add process binding referencing undefined plugin.
 	processTree := config.NewTree()
 	processTree.Set("send", "update")
 	peerTree.AddListEntry("process", "nonexistent-plugin", processTree)
 
-	groupTree.AddListEntry("peer", "10.0.0.1", peerTree)
+	groupTree.AddListEntry("peer", "peer1", peerTree)
 	bgp.AddListEntry("group", "test-group", groupTree)
 	tree.SetContainer("bgp", bgp)
 
@@ -116,17 +121,22 @@ func TestValidatePluginReferences_GroupPeerUndefinedPlugin(t *testing.T) {
 func TestValidatePluginReferences_GroupPeerValidPlugin(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	groupTree := config.NewTree()
 	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65001")
+	peerRemote := config.NewTree()
+	peerRemote.Set("ip", "10.0.0.1")
+	peerRemote.Set("as", "65001")
+	peerTree.SetContainer("remote", peerRemote)
 
 	processTree := config.NewTree()
 	processTree.Set("send", "update")
 	peerTree.AddListEntry("process", "my-plugin", processTree)
 
-	groupTree.AddListEntry("peer", "10.0.0.1", peerTree)
+	groupTree.AddListEntry("peer", "peer1", peerTree)
 	bgp.AddListEntry("group", "test-group", groupTree)
 	tree.SetContainer("bgp", bgp)
 
@@ -144,18 +154,23 @@ func TestValidatePluginReferences_GroupPeerValidPlugin(t *testing.T) {
 func TestValidatePluginReferences_GroupPeerInlinePlugin(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgp.Set("local-as", "65000")
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
 
 	groupTree := config.NewTree()
 	peerTree := config.NewTree()
-	peerTree.Set("peer-as", "65001")
+	peerRemote := config.NewTree()
+	peerRemote.Set("ip", "10.0.0.1")
+	peerRemote.Set("as", "65001")
+	peerTree.SetContainer("remote", peerRemote)
 
 	processTree := config.NewTree()
 	processTree.Set("run", "/usr/local/bin/my-process")
 	processTree.Set("send", "update")
 	peerTree.AddListEntry("process", "inline-proc", processTree)
 
-	groupTree.AddListEntry("peer", "10.0.0.1", peerTree)
+	groupTree.AddListEntry("peer", "peer1", peerTree)
 	bgp.AddListEntry("group", "test-group", groupTree)
 	tree.SetContainer("bgp", bgp)
 

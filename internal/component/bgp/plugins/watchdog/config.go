@@ -66,10 +66,20 @@ func parseConfig(jsonData string) (map[string]*PoolSet, error) {
 // groupMap is the enclosing group's config (nil for standalone peers).
 // Both group-level and peer-level update blocks are processed: group first
 // (defaults), then peer (additions/overrides). Duplicate routes log a warning.
+//
+// The result map is keyed by peer IP address (from remote.ip), not by peer name,
+// because state events and the engine identify peers by IP address.
 func parseWatchdogPeers(peerMap, groupMap map[string]any, result map[string]*PoolSet) {
-	for peerAddr, peerData := range peerMap {
+	for _, peerData := range peerMap {
 		peerTree, ok := peerData.(map[string]any)
 		if !ok {
+			continue
+		}
+
+		// Use remote.ip as the peer identifier. State events use peer.Address (IP),
+		// so the pool key must match. Peers without remote.ip are skipped (invalid config).
+		peerAddr := extractRemoteIP(peerTree)
+		if peerAddr == "" {
 			continue
 		}
 
@@ -91,6 +101,16 @@ func parseWatchdogPeers(peerMap, groupMap map[string]any, result map[string]*Poo
 			result[peerAddr] = pools
 		}
 	}
+}
+
+// extractRemoteIP extracts the remote IP address from a peer config tree.
+// Returns empty string if the remote container or ip field is missing.
+func extractRemoteIP(peerTree map[string]any) string {
+	remoteMap, ok := getMap(peerTree, "remote")
+	if !ok {
+		return ""
+	}
+	return getString(remoteMap, "ip")
 }
 
 // collectWatchdogRoutes scans update blocks for watchdog containers and adds

@@ -22,10 +22,13 @@ module ze-bgp-conf {
             description "BGP Router ID (required)";
         }
 
-        leaf local-as {
-            type zt:asn;
-            mandatory true;
-            description "Local Autonomous System Number (required)";
+        container local {
+            description "Local BGP identity";
+            leaf as {
+                type zt:asn;
+                mandatory true;
+                description "Local Autonomous System Number (required)";
+            }
         }
 
         leaf listen {
@@ -46,17 +49,14 @@ module ze-bgp-conf {
             uses peer-fields;
 
             list peer {
-                key "address";
+                key "name";
                 description "BGP peer in this group";
 
-                leaf address {
-                    type zt:ip-address;
-                    description "Peer IP address";
-                }
-
                 leaf name {
-                    type string;
-                    description "Human-readable peer name for CLI selector";
+                    type string {
+                        pattern '[a-zA-Z_].*';
+                    }
+                    description "Peer name (must start with a letter, not a digit)";
                 }
 
                 uses peer-fields;
@@ -65,26 +65,41 @@ module ze-bgp-conf {
 
         // Standalone peers (not in a group)
         list peer {
-            key "address";
+            key "name";
             description "BGP peer configuration (standalone, no group)";
 
-            leaf address {
-                type zt:ip-address;
-                description "Peer IP address";
-            }
-
             leaf name {
-                type string;
-                description "Human-readable peer name for CLI selector";
+                type string {
+                    pattern '[a-zA-Z_].*';
+                }
+                description "Peer name (must start with a letter, not a digit)";
             }
 
             uses peer-fields;
         }
     }
 
-    // Grouping for peer configuration fields
+    // Shared fields for both groups and peers (no IP addresses).
     grouping peer-fields {
-        description "Common peer configuration fields";
+        description "Common peer/group configuration fields";
+
+        // Remote ASN default (group level sets default for child peers)
+        container remote {
+            description "Remote peer identity defaults";
+            leaf as {
+                type zt:asn;
+                description "Peer Autonomous System Number";
+            }
+        }
+
+        // Local identity overrides
+        container local {
+            description "Local identity overrides";
+            leaf as {
+                type zt:asn;
+                description "Local AS (overrides global)";
+            }
+        }
 
         // Basic peer identification
         leaf description {
@@ -97,29 +112,9 @@ module ze-bgp-conf {
             description "Override router ID for this peer";
         }
 
-        leaf local-address {
-            type union {
-                type zt:ip-address;
-                type enumeration {
-                    enum auto;
-                }
-            }
-            description "Local address for connection (use IP address or 'auto')";
-        }
-
         leaf link-local {
             type zt:ipv6-address;
             description "IPv6 link-local address for next-hop (RFC 2545 Section 3)";
-        }
-
-        leaf local-as {
-            type zt:asn;
-            description "Local AS for this peer";
-        }
-
-        leaf peer-as {
-            type zt:asn;
-            description "Peer Autonomous System Number";
         }
 
         leaf hold-time {
@@ -445,6 +440,48 @@ module ze-bgp-conf {
             }
         }
 
+    }
+
+    // Peer-level IP addresses — augmented into peer remote/local containers.
+    // Groups do NOT get these (remote > ip makes no sense at group level).
+
+    // Standalone peer: remote > ip
+    augment "/bgp:bgp/bgp:peer/bgp:remote" {
+        leaf ip {
+            type zt:ip-address;
+            description "Peer IP address (required at peer level)";
+        }
+    }
+    // Standalone peer: local > ip
+    augment "/bgp:bgp/bgp:peer/bgp:local" {
+        leaf ip {
+            type union {
+                type zt:ip-address;
+                type enumeration {
+                    enum auto;
+                }
+            }
+            description "Local address for connection (use IP address or 'auto')";
+        }
+    }
+    // Grouped peer: remote > ip
+    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:remote" {
+        leaf ip {
+            type zt:ip-address;
+            description "Peer IP address (required at peer level)";
+        }
+    }
+    // Grouped peer: local > ip
+    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:local" {
+        leaf ip {
+            type union {
+                type zt:ip-address;
+                type enumeration {
+                    enum auto;
+                }
+            }
+            description "Local address for connection (use IP address or 'auto')";
+        }
     }
 
     // BGP-owned environment settings — augment hub's environment container

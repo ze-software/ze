@@ -11,8 +11,8 @@ import (
 func TestPrefixCollisions(t *testing.T) {
 	siblings := []SiblingInfo{
 		{Name: "link-local", Source: SourceConfig},
-		{Name: "local-address", Source: SourceConfig},
-		{Name: "local-as", Source: SourceConfig},
+		{Name: "local", Source: SourceConfig},
+		{Name: "listen", Source: SourceConfig},
 		{Name: "hold-time", Source: SourceConfig},
 	}
 
@@ -29,7 +29,7 @@ func TestPrefixCollisionsNone(t *testing.T) {
 	siblings := []SiblingInfo{
 		{Name: "add-path", Source: SourceConfig},
 		{Name: "hold-time", Source: SourceConfig},
-		{Name: "peer-as", Source: SourceConfig},
+		{Name: "remote", Source: SourceConfig},
 	}
 
 	groups := FindCollisions(siblings, 1)
@@ -42,9 +42,9 @@ func TestPrefixCollisionsNone(t *testing.T) {
 func TestPrefixCollisionsMinPrefix(t *testing.T) {
 	siblings := []SiblingInfo{
 		{Name: "link-local", Source: SourceConfig},
-		{Name: "local-address", Source: SourceConfig},
-		{Name: "local-as", Source: SourceConfig},
+		{Name: "local", Source: SourceConfig},
 		{Name: "listen", Source: SourceConfig},
+		{Name: "log-level", Source: SourceConfig},
 	}
 
 	// With min-prefix 1: "l" group has 4 members
@@ -53,9 +53,9 @@ func TestPrefixCollisionsMinPrefix(t *testing.T) {
 
 	// With min-prefix 3: only report if 3+ chars needed to disambiguate
 	// "li" vs "lo" disambiguates at 2 chars, so min-prefix=3 should still report
-	// because "local-address" vs "local-as" needs 7 chars
+	// because "link-local" vs "listen" needs 4 chars, "local" vs "log-level" needs 3
 	groups3 := FindCollisions(siblings, 3)
-	assert.Len(t, groups3, 1, "local-address vs local-as needs 7 chars, above threshold 3")
+	assert.Len(t, groups3, 1, "link-local vs listen needs 4 chars, above threshold 3")
 
 	// With min-prefix 10: nothing needs 10+ chars
 	groups10 := FindCollisions(siblings, 10)

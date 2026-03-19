@@ -41,12 +41,16 @@ func TestYANGSchemaLeafTypes(t *testing.T) {
 	bgp, ok := bgpNode.(*ContainerNode)
 	require.True(t, ok, "bgp should be ContainerNode")
 
-	// local-as should be uint32
-	localAS := bgp.Get("local-as")
+	// local.as should be uint32 (nested in local container)
+	localNode := bgp.Get("local")
+	require.NotNil(t, localNode)
+	localContainer, ok := localNode.(*ContainerNode)
+	require.True(t, ok, "local should be ContainerNode")
+	localAS := localContainer.Get("as")
 	require.NotNil(t, localAS)
 	leaf, ok := localAS.(*LeafNode)
 	require.True(t, ok)
-	assert.Equal(t, TypeUint32, leaf.Type, "local-as type: got %v", leaf.Type)
+	assert.Equal(t, TypeUint32, leaf.Type, "local.as type: got %v", leaf.Type)
 
 	// router-id should be IPv4 - check actual type for debugging
 	routerID := bgp.Get("router-id")
@@ -79,12 +83,16 @@ func TestYANGSchemaSensitiveExtension(t *testing.T) {
 	require.True(t, ok, "md5-password should be LeafNode")
 	assert.True(t, md5Leaf.Sensitive, "md5-password should be marked sensitive")
 
-	// peer-as should NOT be sensitive
-	peerAS := peer.Get("peer-as")
-	require.NotNil(t, peerAS, "peer should have peer-as")
+	// remote.as should NOT be sensitive
+	remoteNode := peer.Get("remote")
+	require.NotNil(t, remoteNode, "peer should have remote")
+	remote, ok := remoteNode.(*ContainerNode)
+	require.True(t, ok, "remote should be ContainerNode")
+	peerAS := remote.Get("as")
+	require.NotNil(t, peerAS, "remote should have as")
 	peerASLeaf, ok := peerAS.(*LeafNode)
 	require.True(t, ok)
-	assert.False(t, peerASLeaf.Sensitive, "peer-as should not be sensitive")
+	assert.False(t, peerASLeaf.Sensitive, "remote.as should not be sensitive")
 }
 
 func TestYANGSchemaSyntaxHints(t *testing.T) {
@@ -123,10 +131,15 @@ func TestYANGSchemaCanParse(t *testing.T) {
 
 	// Test that parser works with YANG-derived schema
 	config := `bgp {
-    local-as 65000
+    local {
+        as 65000
+    }
     router-id 1.2.3.4
-    peer 192.168.1.1 {
-        peer-as 65001
+    peer upstream {
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
     }
 }`
 
@@ -139,7 +152,9 @@ func TestYANGSchemaCanParse(t *testing.T) {
 	bgp := tree.GetContainer("bgp")
 	require.NotNil(t, bgp)
 
-	localAS, ok := bgp.Get("local-as")
+	localContainer := bgp.GetContainer("local")
+	require.NotNil(t, localContainer)
+	localAS, ok := localContainer.Get("as")
 	assert.True(t, ok)
 	assert.Equal(t, "65000", localAS)
 
@@ -149,9 +164,11 @@ func TestYANGSchemaCanParse(t *testing.T) {
 
 	peers := bgp.GetList("peer")
 	assert.Len(t, peers, 1)
-	peerTree := peers["192.168.1.1"]
+	peerTree := peers["upstream"]
 	require.NotNil(t, peerTree)
-	peerAS, ok := peerTree.Get("peer-as")
+	remoteContainer := peerTree.GetContainer("remote")
+	require.NotNil(t, remoteContainer)
+	peerAS, ok := remoteContainer.Get("as")
 	assert.True(t, ok)
 	assert.Equal(t, "65001", peerAS)
 }
@@ -166,10 +183,15 @@ func TestYANGSchema_NoAnnounce(t *testing.T) {
 
 	// ExaBGP-style announce block should be rejected
 	config := `bgp {
-    local-as 65000
+    local {
+        as 65000
+    }
     router-id 1.2.3.4
-    peer 192.168.1.1 {
-        peer-as 65001
+    peer upstream {
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
         announce {
             ipv4 {
                 unicast 10.0.0.0/24 next-hop 10.0.0.1
@@ -194,10 +216,15 @@ func TestYANGSchema_NoStatic(t *testing.T) {
 
 	// ExaBGP-style static block should be rejected
 	config := `bgp {
-    local-as 65000
+    local {
+        as 65000
+    }
     router-id 1.2.3.4
-    peer 192.168.1.1 {
-        peer-as 65001
+    peer upstream {
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
         static {
             route 10.0.0.0/24 next-hop 10.0.0.1
         }
@@ -297,9 +324,14 @@ func TestPresenceContainerParsesAllForms(t *testing.T) {
 		{
 			name: "flag form",
 			input: `bgp {
-    local-as 65000
-    peer 192.168.1.1 {
-        peer-as 65001
+    local {
+        as 65000
+    }
+    peer upstream {
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
         capability {
             route-refresh
         }
@@ -314,9 +346,14 @@ func TestPresenceContainerParsesAllForms(t *testing.T) {
 		{
 			name: "value form",
 			input: `bgp {
-    local-as 65000
-    peer 192.168.1.1 {
-        peer-as 65001
+    local {
+        as 65000
+    }
+    peer upstream {
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
         capability {
             route-refresh true
         }
@@ -331,9 +368,14 @@ func TestPresenceContainerParsesAllForms(t *testing.T) {
 		{
 			name: "block form with children",
 			input: `bgp {
-    local-as 65000
-    peer 192.168.1.1 {
-        peer-as 65001
+    local {
+        as 65000
+    }
+    peer upstream {
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
         capability {
             add-path {
                 send true
@@ -362,7 +404,7 @@ func TestPresenceContainerParsesAllForms(t *testing.T) {
 			require.NotNil(t, bgp)
 			peers := bgp.GetList("peer")
 			require.Len(t, peers, 1)
-			peer := peers["192.168.1.1"]
+			peer := peers["upstream"]
 			require.NotNil(t, peer)
 			cap := peer.GetContainer("capability")
 			require.NotNil(t, cap)
@@ -388,9 +430,14 @@ func TestPresenceContainerSerializesAllForms(t *testing.T) {
 		{
 			name: "flag form roundtrip",
 			input: `bgp {
-    local-as 65000
-    peer 192.168.1.1 {
-        peer-as 65001
+    local {
+        as 65000
+    }
+    peer upstream {
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
         capability {
             route-refresh
         }
@@ -400,9 +447,14 @@ func TestPresenceContainerSerializesAllForms(t *testing.T) {
 		{
 			name: "block form roundtrip",
 			input: `bgp {
-    local-as 65000
-    peer 192.168.1.1 {
-        peer-as 65001
+    local {
+        as 65000
+    }
+    peer upstream {
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
         capability {
             extended-message
             software-version
@@ -443,9 +495,14 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
 		{
 			name: "bracket form",
 			input: `bgp {
-    local-as 65000
-    peer 192.168.1.1 {
-        peer-as 65001
+    local {
+        as 65000
+    }
+    peer upstream {
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
         process rib {
             receive [ update state ]
         }
@@ -456,9 +513,14 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
 		{
 			name: "single value",
 			input: `bgp {
-    local-as 65000
-    peer 192.168.1.1 {
-        peer-as 65001
+    local {
+        as 65000
+    }
+    peer upstream {
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
         process rib {
             receive all
         }
@@ -469,9 +531,14 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
 		{
 			name: "space-separated values",
 			input: `bgp {
-    local-as 65000
-    peer 192.168.1.1 {
-        peer-as 65001
+    local {
+        as 65000
+    }
+    peer upstream {
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
         process rib {
             receive update state
         }
@@ -491,7 +558,7 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
 			require.NotNil(t, bgp)
 			peers := bgp.GetList("peer")
 			require.Len(t, peers, 1)
-			peer := peers["192.168.1.1"]
+			peer := peers["upstream"]
 			require.NotNil(t, peer)
 			processes := peer.GetList("process")
 			require.Len(t, processes, 1)
@@ -525,9 +592,14 @@ func TestDeadCapabilityRejected(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `bgp {
-    local-as 65000
-    peer 192.168.1.1 {
-        peer-as 65001
+    local {
+        as 65000
+    }
+    peer upstream {
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
         capability {
             ` + tt.capability + `
         }
@@ -550,9 +622,14 @@ func TestDeadPeerLeafRejected(t *testing.T) {
 	require.NotNil(t, schema)
 
 	input := `bgp {
-    local-as 65000
-    peer 192.168.1.1 {
-        peer-as 65001
+    local {
+        as 65000
+    }
+    peer upstream {
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
         multi-session
     }
 }`
@@ -596,9 +673,14 @@ func TestProcessReceiveInvalidEnum(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `bgp {
-    local-as 65000
-    peer 192.168.1.1 {
-        peer-as 65001
+    local {
+        as 65000
+    }
+    peer upstream {
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
         process rib {
             ` + tt.field + `
         }

@@ -67,12 +67,12 @@ func TestDetectConfigType(t *testing.T) {
 	}{
 		{
 			name:    "bgp_block",
-			content: "bgp {\n\tpeer 127.0.0.1 { }\n}",
+			content: "bgp {\n\tpeer peer1 { }\n}",
 			want:    config.ConfigTypeBGP,
 		},
 		{
 			name:    "bgp_with_environment",
-			content: "environment { }\nbgp { peer 127.0.0.1 { } }",
+			content: "environment { }\nbgp { peer peer1 { } }",
 			want:    config.ConfigTypeBGP,
 		},
 		{
@@ -97,7 +97,7 @@ func TestDetectConfigType(t *testing.T) {
 		},
 		{
 			name:    "bgp_precedence_over_plugin",
-			content: "plugin { external x { } }\nbgp { peer 1.2.3.4 { } }",
+			content: "plugin { external x { } }\nbgp { peer peer1 { } }",
 			want:    config.ConfigTypeBGP,
 		},
 	}

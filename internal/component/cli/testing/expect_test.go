@@ -34,10 +34,10 @@ func TestExpectContextRoot(t *testing.T) {
 // VALIDATES: expect=context:path= matches exact path.
 // PREVENTS: Context navigation tests failing incorrectly.
 func TestExpectContextPath(t *testing.T) {
-	exp := Expectation{Type: "context", Values: map[string]string{"path": "bgp.peer.1.1.1.1"}}
+	exp := Expectation{Type: "context", Values: map[string]string{"path": "bgp.peer.peer1"}}
 
 	// Matching path should pass
-	err := CheckExpectation(exp, &MockState{contextPath: []string{"bgp", "peer", "1.1.1.1"}})
+	err := CheckExpectation(exp, &MockState{contextPath: []string{"bgp", "peer", "peer1"}})
 	assert.NoError(t, err)
 
 	// Wrong path should fail
@@ -214,13 +214,13 @@ func TestExpectErrorsCount(t *testing.T) {
 // VALIDATES: expect=content:contains= checks text in content.
 // PREVENTS: Content checks failing incorrectly.
 func TestExpectContentContains(t *testing.T) {
-	exp := Expectation{Type: "content", Values: map[string]string{"contains": "peer-as 65001"}}
+	exp := Expectation{Type: "content", Values: map[string]string{"contains": "as 65001"}}
 
-	content := "bgp {\n  peer 1.1.1.1 {\n    peer-as 65001;\n  }\n}"
+	content := "bgp {\n  peer peer1 {\n    remote {\n      ip 1.1.1.1\n      as 65001\n    }\n  }\n}"
 	err := CheckExpectation(exp, &MockState{workingContent: content})
 	assert.NoError(t, err)
 
-	content = "bgp {\n  peer 1.1.1.1 {\n    peer-as 65002;\n  }\n}"
+	content = "bgp {\n  peer peer1 {\n    remote {\n      ip 1.1.1.1\n      as 65002\n    }\n  }\n}"
 	err = CheckExpectation(exp, &MockState{workingContent: content})
 	assert.Error(t, err)
 }
@@ -232,7 +232,7 @@ func TestExpectContentContains(t *testing.T) {
 func TestExpectContentNotContains(t *testing.T) {
 	exp := Expectation{Type: "content", Values: map[string]string{"not-contains": "error"}}
 
-	err := CheckExpectation(exp, &MockState{workingContent: "bgp { local-as 65000; }"})
+	err := CheckExpectation(exp, &MockState{workingContent: "bgp { local { as 65000; } }"})
 	assert.NoError(t, err)
 
 	err = CheckExpectation(exp, &MockState{workingContent: "error: something wrong"})

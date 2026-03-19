@@ -4,7 +4,9 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
 	router-id 1.2.3.4
-	local-as 65000
+	local {
+		as 65000
+	}
 }
 EOF_CONF
 
@@ -14,4 +16,4 @@ expect=stdout:contains="Text"
 expect=stdout:contains="Description"
 expect=stdout:contains="Type"
 expect=stdout:contains=router-id
-expect=stdout:contains=local-as
+expect=stdout:contains=local

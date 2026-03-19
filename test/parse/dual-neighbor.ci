@@ -1,12 +1,17 @@
 # Valid config: two peers with various community formats
 stdin=config:terminator=EOF_CONF
 bgp {
-	peer 10.0.0.3 {
+	peer peer3 {
+		remote {
+			ip 10.0.0.3
+			as 65533
+		}
+		local {
+			as 65533
+			ip 192.0.2.92
+		}
 		description "a quagga test peer"
 		router-id 192.0.2.92
-		local-address 192.0.2.92
-		local-as 65533
-		peer-as 65533
 		group-updates disable
 		update {
 			attribute {
@@ -22,12 +27,17 @@ bgp {
 	}
 }
 bgp {
-	peer 10.0.0.4 {
+	peer peer4 {
+		remote {
+			ip 10.0.0.4
+			as 65500
+		}
+		local {
+			as 65500
+			ip 10.0.0.2
+		}
 		description "a quagga test peer"
 		router-id 10.0.0.2
-		local-address 10.0.0.2
-		local-as 65500
-		peer-as 65500
 		update {
 			attribute {
 				origin igp

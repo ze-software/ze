@@ -17,17 +17,16 @@ import (
 // PREVENTS: Wrong field mapping between config keys and PeerSettings fields.
 func TestParsePeerFromTree(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-as":      "65000",
+		"remote":        map[string]any{"ip": "192.0.2.1", "as": "65001"},
+		"local":         map[string]any{"as": "65000", "ip": "192.168.1.1"},
 		"router-id":     "10.0.0.1",
 		"hold-time":     "180",
 		"connection":    "passive",
 		"group-updates": "false",
-		"local-address": "192.168.1.1",
 		"link-local":    "fe80::1",
 	}
 
-	ps, err := parsePeerFromTree("192.0.2.1", tree, 64999, 0x0a000001)
+	ps, err := parsePeerFromTree("peer1", tree, 64999, 0x0a000001)
 	require.NoError(t, err)
 
 	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), ps.Address)
@@ -44,15 +43,15 @@ func TestParsePeerFromTree(t *testing.T) {
 
 // TestParsePeerFromTreeDefaults verifies default values when optional fields are absent.
 //
-// VALIDATES: Minimal tree (only peer-as) produces valid PeerSettings with correct defaults.
+// VALIDATES: Minimal tree (only remote as/ip and local ip) produces valid PeerSettings with correct defaults.
 // PREVENTS: Nil pointer or missing defaults on minimal config.
 func TestParsePeerFromTreeDefaults(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65002",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "10.0.0.2", "as": "65002"},
+		"local":  map[string]any{"ip": "auto"},
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.2", tree, 65000, 0x01020304)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0x01020304)
 	require.NoError(t, err)
 
 	assert.Equal(t, uint32(65002), ps.PeerAS)
@@ -71,52 +70,64 @@ func TestParsePeerFromTreeDefaults(t *testing.T) {
 // PREVENTS: Silent acceptance of invalid config data.
 func TestParsePeerFromTreeInvalid(t *testing.T) {
 	tests := []struct {
-		name    string
-		addr    string
-		tree    map[string]any
-		wantErr string
+		name     string
+		peerName string
+		tree     map[string]any
+		wantErr  string
 	}{
 		{
-			name:    "invalid_peer_address",
-			addr:    "not-an-ip",
-			tree:    map[string]any{"peer-as": "65001"},
-			wantErr: "invalid peer address",
+			name:     "invalid_remote_ip",
+			peerName: "peer1",
+			tree:     map[string]any{"remote": map[string]any{"ip": "not-an-ip", "as": "65001"}, "local": map[string]any{"ip": "auto"}},
+			wantErr:  "invalid remote ip",
 		},
 		{
-			name:    "missing_peer_as",
-			addr:    "10.0.0.1",
-			tree:    map[string]any{},
-			wantErr: "missing required peer-as",
+			name:     "missing_remote_container",
+			peerName: "peer1",
+			tree:     map[string]any{},
+			wantErr:  "missing required remote container",
 		},
 		{
-			name:    "invalid_router_id",
-			addr:    "10.0.0.1",
-			tree:    map[string]any{"peer-as": "65001", "local-address": "auto", "router-id": "not-an-ip"},
-			wantErr: "invalid router-id",
+			name:     "missing_remote_as",
+			peerName: "peer1",
+			tree:     map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}, "local": map[string]any{"ip": "auto"}},
+			wantErr:  "missing required remote as",
 		},
 		{
-			name:    "invalid_local_address",
-			addr:    "10.0.0.1",
-			tree:    map[string]any{"peer-as": "65001", "local-address": "bad"},
-			wantErr: "invalid local-address",
+			name:     "missing_remote_ip",
+			peerName: "peer1",
+			tree:     map[string]any{"remote": map[string]any{"as": "65001"}, "local": map[string]any{"ip": "auto"}},
+			wantErr:  "missing required remote ip",
 		},
 		{
-			name:    "invalid_link_local",
-			addr:    "10.0.0.1",
-			tree:    map[string]any{"peer-as": "65001", "local-address": "auto", "link-local": "bad"},
-			wantErr: "invalid link-local",
+			name:     "invalid_router_id",
+			peerName: "peer1",
+			tree:     map[string]any{"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"}, "local": map[string]any{"ip": "auto"}, "router-id": "not-an-ip"},
+			wantErr:  "invalid router-id",
 		},
 		{
-			name:    "invalid_connection_mode",
-			addr:    "10.0.0.1",
-			tree:    map[string]any{"peer-as": "65001", "local-address": "auto", "connection": "maybe"},
-			wantErr: "invalid connection mode",
+			name:     "invalid_local_ip",
+			peerName: "peer1",
+			tree:     map[string]any{"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"}, "local": map[string]any{"ip": "bad"}},
+			wantErr:  "invalid local ip",
+		},
+		{
+			name:     "invalid_link_local",
+			peerName: "peer1",
+			tree:     map[string]any{"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"}, "local": map[string]any{"ip": "auto"}, "link-local": "bad"},
+			wantErr:  "invalid link-local",
+		},
+		{
+			name:     "invalid_connection_mode",
+			peerName: "peer1",
+			tree:     map[string]any{"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"}, "local": map[string]any{"ip": "auto"}, "connection": "maybe"},
+			wantErr:  "invalid connection mode",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := parsePeerFromTree(tt.addr, tt.tree, 65000, 0)
+			_, err := parsePeerFromTree(tt.peerName, tt.tree, 65000, 0)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
@@ -145,11 +156,11 @@ func TestParsePeerFromTreeHoldTimeBoundary(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tree := map[string]any{
-				"peer-as":       "65001",
-				"local-address": "auto",
-				"hold-time":     tt.ht,
+				"remote":    map[string]any{"ip": "10.0.0.1", "as": "65001"},
+				"local":     map[string]any{"ip": "auto"},
+				"hold-time": tt.ht,
 			}
-			ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+			ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "invalid hold-time")
@@ -167,8 +178,8 @@ func TestParsePeerFromTreeHoldTimeBoundary(t *testing.T) {
 // PREVENTS: Wrong AFI/SAFI mapping or missed family modes.
 func TestParsePeerFamilies(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
 		"family": map[string]any{
 			"ipv4/unicast":   map[string]any{"mode": "enable"},
 			"ipv6/unicast":   map[string]any{"mode": "require"},
@@ -177,7 +188,7 @@ func TestParsePeerFamilies(t *testing.T) {
 		},
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
 	// 3 families enabled (disable skipped).
@@ -206,15 +217,15 @@ func TestParsePeerFamilies(t *testing.T) {
 // PREVENTS: Missing the special-case key in the family map.
 func TestParsePeerFamilyIgnoreMismatch(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
 		"family": map[string]any{
 			"ipv4/unicast":    map[string]any{"mode": "enable"},
 			"ignore-mismatch": map[string]any{"mode": "true"},
 		},
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 	assert.True(t, ps.IgnoreFamilyMismatch)
 }
@@ -225,14 +236,14 @@ func TestParsePeerFamilyIgnoreMismatch(t *testing.T) {
 // PREVENTS: Silently ignoring typos in family names.
 func TestParsePeerFamilyInvalid(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
 		"family": map[string]any{
 			"bogus/family": map[string]any{"mode": "enable"},
 		},
 	}
 
-	_, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	_, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown address family")
 }
@@ -244,8 +255,8 @@ func TestParsePeerFamilyInvalid(t *testing.T) {
 // PREVENTS: Missing or misconfigured capabilities after config parsing.
 func TestParsePeerCapabilities(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
 		"family": map[string]any{
 			"ipv4/unicast": map[string]any{},
 		},
@@ -256,7 +267,7 @@ func TestParsePeerCapabilities(t *testing.T) {
 		},
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
 	assert.False(t, ps.DisableASN4)
@@ -284,14 +295,14 @@ func TestParsePeerCapabilities(t *testing.T) {
 // PREVENTS: Ignoring explicit ASN4 disable in config.
 func TestParsePeerCapabilityASN4Disabled(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
 		"capability": map[string]any{
 			"asn4": "false",
 		},
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 	assert.True(t, ps.DisableASN4)
 }
@@ -302,8 +313,8 @@ func TestParsePeerCapabilityASN4Disabled(t *testing.T) {
 // PREVENTS: Lost GR config when converting from tree to PeerSettings.
 func TestParsePeerCapabilityGracefulRestart(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
 		"capability": map[string]any{
 			"graceful-restart": map[string]any{
 				"restart-time": "120",
@@ -311,7 +322,7 @@ func TestParsePeerCapabilityGracefulRestart(t *testing.T) {
 		},
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
 	require.NotNil(t, ps.RawCapabilityConfig)
@@ -325,8 +336,8 @@ func TestParsePeerCapabilityGracefulRestart(t *testing.T) {
 // PREVENTS: ADD-PATH not applied to configured families.
 func TestParsePeerCapabilityAddPathGlobal(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
 		"family": map[string]any{
 			"ipv4/unicast": map[string]any{},
 			"ipv6/unicast": map[string]any{},
@@ -336,7 +347,7 @@ func TestParsePeerCapabilityAddPathGlobal(t *testing.T) {
 		},
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
 	// Find AddPath capability.
@@ -363,8 +374,8 @@ func TestParsePeerCapabilityAddPathGlobal(t *testing.T) {
 // PREVENTS: Block-style add-path config not being parsed.
 func TestParsePeerCapabilityAddPathBlock(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
 		"family": map[string]any{
 			"ipv4/unicast": map[string]any{},
 		},
@@ -376,7 +387,7 @@ func TestParsePeerCapabilityAddPathBlock(t *testing.T) {
 		},
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
 	var addPath *capability.AddPath
@@ -397,8 +408,8 @@ func TestParsePeerCapabilityAddPathBlock(t *testing.T) {
 // PREVENTS: Wrong mode when only send is requested.
 func TestParsePeerCapabilityAddPathSendOnly(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
 		"family": map[string]any{
 			"ipv4/unicast": map[string]any{},
 		},
@@ -407,7 +418,7 @@ func TestParsePeerCapabilityAddPathSendOnly(t *testing.T) {
 		},
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
 	var addPath *capability.AddPath
@@ -428,8 +439,8 @@ func TestParsePeerCapabilityAddPathSendOnly(t *testing.T) {
 // PREVENTS: Lost extended next-hop config.
 func TestParsePeerCapabilityExtendedNextHop(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
 		"capability": map[string]any{
 			"nexthop": map[string]any{
 				"ipv4/unicast": map[string]any{"nhafi": "ipv6"},
@@ -437,7 +448,7 @@ func TestParsePeerCapabilityExtendedNextHop(t *testing.T) {
 		},
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
 	var extNH *capability.ExtendedNextHop
@@ -503,14 +514,14 @@ func TestParsePeerCapabilityExtendedNextHopInlineMode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tree := map[string]any{
-				"peer-as":       "65001",
-				"local-address": "auto",
+				"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+				"local":  map[string]any{"ip": "auto"},
 				"capability": map[string]any{
 					"nexthop": tt.nhMap,
 				},
 			}
 
-			ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+			ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 			require.NoError(t, err)
 
 			var extNH *capability.ExtendedNextHop
@@ -538,8 +549,8 @@ func TestParsePeerCapabilityExtendedNextHopInlineMode(t *testing.T) {
 // PREVENTS: Lost hostname config when parsing capabilities.
 func TestParsePeerCapabilityHostname(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
 		"capability": map[string]any{
 			"hostname": map[string]any{
 				"host":   "router1",
@@ -548,7 +559,7 @@ func TestParsePeerCapabilityHostname(t *testing.T) {
 		},
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
 	require.NotNil(t, ps.RawCapabilityConfig)
@@ -564,14 +575,14 @@ func TestParsePeerCapabilityHostname(t *testing.T) {
 // PREVENTS: Plugin-augmented fields being ignored.
 func TestParsePeerCapabilityHostnameTopLevel(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
-		"host-name":     "myhost",
-		"domain-name":   "mydomain.net",
-		"capability":    map[string]any{},
+		"remote":      map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":       map[string]any{"ip": "auto"},
+		"host-name":   "myhost",
+		"domain-name": "mydomain.net",
+		"capability":  map[string]any{},
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
 	require.NotNil(t, ps.RawCapabilityConfig)
@@ -585,8 +596,8 @@ func TestParsePeerCapabilityHostnameTopLevel(t *testing.T) {
 // PREVENTS: Lost process config or wrong flag mapping.
 func TestParsePeerProcessBindings(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
 		"process": map[string]any{
 			"my-rib": map[string]any{
 				"content": map[string]any{
@@ -599,7 +610,7 @@ func TestParsePeerProcessBindings(t *testing.T) {
 		},
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
 	require.Len(t, ps.ProcessBindings, 1)
@@ -623,8 +634,8 @@ func TestParsePeerProcessBindings(t *testing.T) {
 // PREVENTS: Missing flags when using shorthand notation.
 func TestParsePeerProcessBindingsReceiveAll(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
 		"process": map[string]any{
 			"my-plugin": map[string]any{
 				"receive": "all",
@@ -633,7 +644,7 @@ func TestParsePeerProcessBindingsReceiveAll(t *testing.T) {
 		},
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
 	require.Len(t, ps.ProcessBindings, 1)
@@ -656,15 +667,15 @@ func TestParsePeerProcessBindingsReceiveAll(t *testing.T) {
 // PREVENTS: Plugins not receiving capability config they need.
 func TestParsePeerCapabilityConfigJSON(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
 		"capability": map[string]any{
 			"asn4":          "true",
 			"route-refresh": "enable",
 		},
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, ps.CapabilityConfigJSON)
@@ -672,31 +683,32 @@ func TestParsePeerCapabilityConfigJSON(t *testing.T) {
 	assert.Contains(t, ps.CapabilityConfigJSON, `"route-refresh"`)
 }
 
-// TestParsePeerMissingLocalAddress verifies that a peer without local-address is rejected.
+// TestParsePeerMissingLocalIP verifies that a peer without local ip is rejected.
 //
-// VALIDATES: parsePeerFromTree requires local-address to be present in config.
+// VALIDATES: parsePeerFromTree requires local > ip to be present in config.
 // PREVENTS: Silent OS-dependent source IP selection causing inconsistent behavior.
-func TestParsePeerMissingLocalAddress(t *testing.T) {
+func TestParsePeerMissingLocalIP(t *testing.T) {
 	tree := map[string]any{
-		"peer-as": "65001",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"as": "65000"},
 	}
 
-	_, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	_, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "local-address is required")
+	assert.Contains(t, err.Error(), "local ip is required")
 }
 
-// TestParsePeerLocalAddressAuto verifies "auto" local-address is treated as unset.
+// TestParsePeerLocalIPAuto verifies "auto" local ip is treated as unset.
 //
-// VALIDATES: local-address "auto" does not set LocalAddress.
+// VALIDATES: local > ip "auto" does not set LocalAddress.
 // PREVENTS: Trying to parse "auto" as an IP address.
-func TestParsePeerLocalAddressAuto(t *testing.T) {
+func TestParsePeerLocalIPAuto(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 	assert.Equal(t, netip.Addr{}, ps.LocalAddress)
 }
@@ -707,11 +719,11 @@ func TestParsePeerLocalAddressAuto(t *testing.T) {
 // PREVENTS: IPv4-only assumption in address parsing.
 func TestParsePeerIPv6Address(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "2001:db8::1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
 	}
 
-	ps, err := parsePeerFromTree("2001:db8::1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 	assert.Equal(t, netip.MustParseAddr("2001:db8::1"), ps.Address)
 }
@@ -725,20 +737,20 @@ func TestParsePeerIPv6Address(t *testing.T) {
 func TestPeersFromTree(t *testing.T) {
 	bgpTree := map[string]any{
 		"router-id": "10.0.0.1",
-		"local-as":  "65000",
+		"local":     map[string]any{"as": "65000"},
 		"peer": map[string]any{
-			"192.0.2.1": map[string]any{
-				"peer-as":       "65001",
-				"local-address": "192.0.2.100",
-				"hold-time":     "180",
+			"peer1": map[string]any{
+				"remote":    map[string]any{"ip": "192.0.2.1", "as": "65001"},
+				"local":     map[string]any{"ip": "192.0.2.100"},
+				"hold-time": "180",
 				"family": map[string]any{
 					"ipv4/unicast": map[string]any{},
 				},
 			},
-			"192.0.2.2": map[string]any{
-				"peer-as":       "65002",
-				"local-address": "auto",
-				"connection":    "passive",
+			"peer2": map[string]any{
+				"remote":     map[string]any{"ip": "192.0.2.2", "as": "65002"},
+				"local":      map[string]any{"ip": "auto"},
+				"connection": "passive",
 			},
 		},
 	}
@@ -777,7 +789,7 @@ func TestPeersFromTree(t *testing.T) {
 func TestPeersFromTreeNoPeers(t *testing.T) {
 	bgpTree := map[string]any{
 		"router-id": "10.0.0.1",
-		"local-as":  "65000",
+		"local":     map[string]any{"as": "65000"},
 	}
 
 	peers, err := PeersFromTree(bgpTree)
@@ -793,15 +805,16 @@ func TestPeersFromTreeMissingLocalAS(t *testing.T) {
 	bgpTree := map[string]any{
 		"router-id": "10.0.0.1",
 		"peer": map[string]any{
-			"192.0.2.1": map[string]any{
-				"peer-as": "65001",
+			"peer1": map[string]any{
+				"remote": map[string]any{"ip": "192.0.2.1", "as": "65001"},
+				"local":  map[string]any{"ip": "auto"},
 			},
 		},
 	}
 
 	_, err := PeersFromTree(bgpTree)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "local-as")
+	assert.Contains(t, err.Error(), "local as")
 }
 
 // TestPeersFromTreePeerLocalASOverride verifies per-peer local-as override.
@@ -811,12 +824,11 @@ func TestPeersFromTreeMissingLocalAS(t *testing.T) {
 func TestPeersFromTreePeerLocalASOverride(t *testing.T) {
 	bgpTree := map[string]any{
 		"router-id": "10.0.0.1",
-		"local-as":  "65000",
+		"local":     map[string]any{"as": "65000"},
 		"peer": map[string]any{
-			"192.0.2.1": map[string]any{
-				"peer-as":       "65001",
-				"local-address": "auto",
-				"local-as":      "65100",
+			"peer1": map[string]any{
+				"remote": map[string]any{"ip": "192.0.2.1", "as": "65001"},
+				"local":  map[string]any{"ip": "auto", "as": "65100"},
 			},
 		},
 	}
@@ -834,19 +846,19 @@ func TestPeersFromTreePeerLocalASOverride(t *testing.T) {
 func TestPeersFromTreeConfiguredFamilies(t *testing.T) {
 	bgpTree := map[string]any{
 		"router-id": "10.0.0.1",
-		"local-as":  "65000",
+		"local":     map[string]any{"as": "65000"},
 		"peer": map[string]any{
-			"192.0.2.1": map[string]any{
-				"peer-as":       "65001",
-				"local-address": "auto",
+			"peer1": map[string]any{
+				"remote": map[string]any{"ip": "192.0.2.1", "as": "65001"},
+				"local":  map[string]any{"ip": "auto"},
 				"family": map[string]any{
 					"ipv4/unicast": map[string]any{},
 					"ipv6/unicast": map[string]any{},
 				},
 			},
-			"192.0.2.2": map[string]any{
-				"peer-as":       "65002",
-				"local-address": "auto",
+			"peer2": map[string]any{
+				"remote": map[string]any{"ip": "192.0.2.2", "as": "65002"},
+				"local":  map[string]any{"ip": "auto"},
 				"family": map[string]any{
 					"ipv4/unicast": map[string]any{},
 				},
@@ -877,18 +889,18 @@ func TestPeersFromTreeConfiguredFamilies(t *testing.T) {
 func TestPeersFromTreePeerError(t *testing.T) {
 	bgpTree := map[string]any{
 		"router-id": "10.0.0.1",
-		"local-as":  "65000",
+		"local":     map[string]any{"as": "65000"},
 		"peer": map[string]any{
-			"192.0.2.1": map[string]any{
-				// Missing peer-as → should error.
+			"peer1": map[string]any{
+				// Missing remote container -> should error.
 			},
 		},
 	}
 
 	_, err := PeersFromTree(bgpTree)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "192.0.2.1")
-	assert.Contains(t, err.Error(), "peer-as")
+	assert.Contains(t, err.Error(), "peer1")
+	assert.Contains(t, err.Error(), "remote")
 }
 
 // TestFamilyModeParsing verifies all family mode string values.
@@ -1139,12 +1151,12 @@ func TestParseCapabilityMode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tree := map[string]any{
-				"peer-as":       "65001",
-				"local-address": "auto",
-				"capability":    tt.capConfig,
+				"remote":     map[string]any{"ip": "10.0.0.1", "as": "65001"},
+				"local":      map[string]any{"ip": "auto"},
+				"capability": tt.capConfig,
 			}
 
-			ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+			ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.wantDisableASN4, ps.DisableASN4, "DisableASN4")
@@ -1208,12 +1220,12 @@ func TestParseCapabilityModeBackwardsCompat(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tree := map[string]any{
-				"peer-as":       "65001",
-				"local-address": "auto",
-				"capability":    tt.capConfig,
+				"remote":     map[string]any{"ip": "10.0.0.1", "as": "65001"},
+				"local":      map[string]any{"ip": "auto"},
+				"capability": tt.capConfig,
 			}
 
-			ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+			ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.wantDisableASN4, ps.DisableASN4)
@@ -1243,61 +1255,61 @@ func TestParseAddPathWithMode(t *testing.T) {
 		{
 			name: "global add-path require",
 			tree: map[string]any{
-				"peer-as":       "65001",
-				"local-address": "auto",
-				"family":        map[string]any{"ipv4/unicast": map[string]any{}},
-				"capability":    map[string]any{"add-path": "send/receive require"},
+				"remote":     map[string]any{"ip": "10.0.0.1", "as": "65001"},
+				"local":      map[string]any{"ip": "auto"},
+				"family":     map[string]any{"ipv4/unicast": map[string]any{}},
+				"capability": map[string]any{"add-path": "send/receive require"},
 			},
 			wantRequired: []capability.Code{capability.CodeAddPath},
 		},
 		{
 			name: "per-family add-path require",
 			tree: map[string]any{
-				"peer-as":       "65001",
-				"local-address": "auto",
-				"family":        map[string]any{"ipv4/unicast": map[string]any{}},
-				"capability":    map[string]any{},
-				"add-path":      map[string]any{"ipv4/unicast": map[string]any{"direction": "send", "mode": "require"}},
+				"remote":     map[string]any{"ip": "10.0.0.1", "as": "65001"},
+				"local":      map[string]any{"ip": "auto"},
+				"family":     map[string]any{"ipv4/unicast": map[string]any{}},
+				"capability": map[string]any{},
+				"add-path":   map[string]any{"ipv4/unicast": map[string]any{"direction": "send", "mode": "require"}},
 			},
 			wantRequired: []capability.Code{capability.CodeAddPath},
 		},
 		{
 			name: "global add-path refuse",
 			tree: map[string]any{
-				"peer-as":       "65001",
-				"local-address": "auto",
-				"family":        map[string]any{"ipv4/unicast": map[string]any{}},
-				"capability":    map[string]any{"add-path": "send/receive refuse"},
+				"remote":     map[string]any{"ip": "10.0.0.1", "as": "65001"},
+				"local":      map[string]any{"ip": "auto"},
+				"family":     map[string]any{"ipv4/unicast": map[string]any{}},
+				"capability": map[string]any{"add-path": "send/receive refuse"},
 			},
 			wantRefused: []capability.Code{capability.CodeAddPath},
 		},
 		{
 			name: "global add-path no mode means enable",
 			tree: map[string]any{
-				"peer-as":       "65001",
-				"local-address": "auto",
-				"family":        map[string]any{"ipv4/unicast": map[string]any{}},
-				"capability":    map[string]any{"add-path": "send/receive"},
+				"remote":     map[string]any{"ip": "10.0.0.1", "as": "65001"},
+				"local":      map[string]any{"ip": "auto"},
+				"family":     map[string]any{"ipv4/unicast": map[string]any{}},
+				"capability": map[string]any{"add-path": "send/receive"},
 			},
 			// No mode specified = enable (default) — no require/refuse entries.
 		},
 		{
 			name: "global add-path disable suppresses capability",
 			tree: map[string]any{
-				"peer-as":       "65001",
-				"local-address": "auto",
-				"family":        map[string]any{"ipv4/unicast": map[string]any{}},
-				"capability":    map[string]any{"add-path": "send/receive disable"},
+				"remote":     map[string]any{"ip": "10.0.0.1", "as": "65001"},
+				"local":      map[string]any{"ip": "auto"},
+				"family":     map[string]any{"ipv4/unicast": map[string]any{}},
+				"capability": map[string]any{"add-path": "send/receive disable"},
 			},
 			// disable = don't advertise, no enforcement.
 		},
 		{
 			name: "global add-path refuse suppresses capability",
 			tree: map[string]any{
-				"peer-as":       "65001",
-				"local-address": "auto",
-				"family":        map[string]any{"ipv4/unicast": map[string]any{}},
-				"capability":    map[string]any{"add-path": "send/receive refuse"},
+				"remote":     map[string]any{"ip": "10.0.0.1", "as": "65001"},
+				"local":      map[string]any{"ip": "auto"},
+				"family":     map[string]any{"ipv4/unicast": map[string]any{}},
+				"capability": map[string]any{"add-path": "send/receive refuse"},
 			},
 			wantRefused: []capability.Code{capability.CodeAddPath},
 		},
@@ -1305,7 +1317,7 @@ func TestParseAddPathWithMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ps, err := parsePeerFromTree("10.0.0.1", tt.tree, 65000, 0)
+			ps, err := parsePeerFromTree("peer1", tt.tree, 65000, 0)
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.wantRequired, ps.RequiredCapabilities, "RequiredCapabilities")
@@ -1357,14 +1369,14 @@ func TestParseGracefulRestartWithMode(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tree := map[string]any{
-				"peer-as":       "65001",
-				"local-address": "auto",
+				"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+				"local":  map[string]any{"ip": "auto"},
 				"capability": map[string]any{
 					"graceful-restart": tt.grConfig,
 				},
 			}
 
-			ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+			ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 			require.NoError(t, err)
 
 			assert.Equal(t, tt.wantRequired, ps.RequiredCapabilities, "RequiredCapabilities")
@@ -1379,13 +1391,13 @@ func TestParseGracefulRestartWithMode(t *testing.T) {
 // PREVENTS: MD5 config silently ignored during parsing.
 func TestParsePeerMD5FieldsParsed(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
-		"md5-password":  "bgp-secret-key",
-		"md5-ip":        "192.0.2.100",
+		"remote":       map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":        map[string]any{"ip": "auto"},
+		"md5-password": "bgp-secret-key",
+		"md5-ip":       "192.0.2.100",
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 	assert.Equal(t, "bgp-secret-key", ps.MD5Key)
 	assert.Equal(t, netip.MustParseAddr("192.0.2.100"), ps.MD5IP)
@@ -1397,13 +1409,13 @@ func TestParsePeerMD5FieldsParsed(t *testing.T) {
 // PREVENTS: Broken MD5 configuration silently accepted.
 func TestParsePeerMD5InvalidIP(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
-		"md5-password":  "secret",
-		"md5-ip":        "not-an-ip",
+		"remote":       map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":        map[string]any{"ip": "auto"},
+		"md5-password": "secret",
+		"md5-ip":       "not-an-ip",
 	}
 
-	_, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	_, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid md5-ip")
 }
@@ -1414,11 +1426,11 @@ func TestParsePeerMD5InvalidIP(t *testing.T) {
 // PREVENTS: False positive MD5 activation.
 func TestParsePeerNoMD5FieldsWhenAbsent(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
 	}
 
-	ps, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.NoError(t, err)
 	assert.Empty(t, ps.MD5Key)
 	assert.False(t, ps.MD5IP.IsValid())
@@ -1430,12 +1442,12 @@ func TestParsePeerNoMD5FieldsWhenAbsent(t *testing.T) {
 // PREVENTS: Orphaned md5-ip silently ignored.
 func TestParsePeerMD5IPWithoutPassword(t *testing.T) {
 	tree := map[string]any{
-		"peer-as":       "65001",
-		"local-address": "auto",
-		"md5-ip":        "10.0.0.99",
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
+		"md5-ip": "10.0.0.99",
 	}
 
-	_, err := parsePeerFromTree("10.0.0.1", tree, 65000, 0)
+	_, err := parsePeerFromTree("peer1", tree, 65000, 0)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "md5-ip requires md5-password")
 }
@@ -1446,13 +1458,12 @@ func TestParsePeerMD5IPWithoutPassword(t *testing.T) {
 // PREVENTS: Name field silently dropped during parsing.
 func TestParsePeerFromTree_Name(t *testing.T) {
 	peers, err := PeersFromTree(map[string]any{
-		"local-as":  "65000",
+		"local":     map[string]any{"as": "65000"},
 		"router-id": "1.2.3.4",
 		"peer": map[string]any{
-			"10.0.0.1": map[string]any{
-				"peer-as":       "65001",
-				"local-address": "auto",
-				"name":          "router-east",
+			"router-east": map[string]any{
+				"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+				"local":  map[string]any{"ip": "auto"},
 			},
 		},
 	})
@@ -1467,13 +1478,13 @@ func TestParsePeerFromTree_Name(t *testing.T) {
 // PREVENTS: GroupName field silently dropped during parsing.
 func TestParsePeerFromTree_GroupName(t *testing.T) {
 	peers, err := PeersFromTree(map[string]any{
-		"local-as":  "65000",
+		"local":     map[string]any{"as": "65000"},
 		"router-id": "1.2.3.4",
 		"peer": map[string]any{
-			"10.0.0.1": map[string]any{
-				"peer-as":       "65001",
-				"local-address": "auto",
-				"group-name":    "rr-clients",
+			"peer1": map[string]any{
+				"remote":     map[string]any{"ip": "10.0.0.1", "as": "65001"},
+				"local":      map[string]any{"ip": "auto"},
+				"group-name": "rr-clients",
 			},
 		},
 	})

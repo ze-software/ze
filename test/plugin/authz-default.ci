@@ -19,10 +19,15 @@ touch daemon.ready
 # Generate config with SSH on port 0 (OS-assigned)
 cat > authz-default.conf << 'ZECONF'
 bgp {
-	peer 127.0.0.1 {
-		local-address 127.0.0.1
-		local-as 65533
-		peer-as 65533
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65533
+		}
+		local {
+			as 65533
+			ip 127.0.0.1
+		}
 		connection active
 	}
 }
@@ -92,7 +97,7 @@ printf 'unknown\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$UNK_DI
 
 # Test 1: unknown user (no profile assignment) can run any read-only command
 # Store.Authorize returns Allow for users with no assignment (built-in admin)
-OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ze cli --run "peer list" 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ZE_SSH_PASSWORD="testpass" ze cli --run "peer list" 2>&1) || {
 	echo "FAIL: unknown user should get admin default (allow 'peer list')" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1
@@ -100,7 +105,7 @@ OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ze cli --run "peer list" 2>&1) || {
 echo "OK: unknown user allowed peer list (admin default)" >&2
 
 # Test 2: unknown user can also run commands that restricted profile would deny
-OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ze cli --run "peer detail" 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ZE_SSH_PASSWORD="testpass" ze cli --run "peer detail" 2>&1) || {
 	echo "FAIL: unknown user should get admin default (allow 'peer detail')" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1

@@ -21,12 +21,17 @@ EOF_PEER
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
-	peer 127.0.0.1 {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65500
+		}
+		local {
+			as 65500
+			ip 127.0.0.1
+		}
 		description "m7i-4 router"
 		router-id 10.0.0.1
-		local-address 127.0.0.1
-		local-as 65500
-		peer-as 65500
 		connection active
 		group-updates disable
 

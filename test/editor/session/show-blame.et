@@ -5,7 +5,9 @@
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
-  local-as 65000;
+  local {
+  	as 65000
+  }
   router-id 1.2.3.4;
 }
 EOF_CONF
@@ -15,7 +17,7 @@ option=timeout:value=10s
 option=session:user=thomas:origin=local
 
 # Make a change to create session metadata
-input=type:text=set bgp local-as 65001
+input=type:text=set bgp local as 65001
 input=enter
 expect=dirty:true
 expect=error:none

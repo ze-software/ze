@@ -6,9 +6,14 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local-as 65000;
-  peer 1.1.1.1 {
-    peer-as 65001;
+  local {
+  	as 65000
+  }
+  peer peer1 {
+  	remote {
+  		ip 1.1.1.1
+  		as 65001;
+  	}
     hold-time 90;
   }
 }
@@ -18,16 +23,16 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Enter peer context
-input=type:text=edit bgp peer 1.1.1.1
+input=type:text=edit bgp peer peer1
 input=enter
-expect=context:path=bgp.peer.1.1.1.1
+expect=context:path=bgp.peer.peer1
 
 # Show in context
 input=type:text=show
 input=enter
 
 # Should show peer content only
-expect=content:contains=peer-as
+expect=content:contains=remote
 expect=content:contains=hold-time
 
 expect=error:none

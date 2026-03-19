@@ -131,6 +131,24 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		}
 	}
 
+	// Write local container (local > as, local > ip).
+	if local := tree.GetContainer("local"); local != nil {
+		buf.WriteString(indent)
+		buf.WriteString("local {\n")
+		serializeTreeIndent(local, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Write remote container (remote > as, remote > ip).
+	if remote := tree.GetContainer("remote"); remote != nil {
+		buf.WriteString(indent)
+		buf.WriteString("remote {\n")
+		serializeTreeIndent(remote, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
 	// Write nested containers.
 	if cap := tree.GetContainer("capability"); cap != nil {
 		buf.WriteString(indent)

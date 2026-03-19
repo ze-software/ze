@@ -136,10 +136,16 @@ func maskValue(v string, mode config.DisplayMode) string {
 
 func printConfig(bgpTree map[string]any, tree *config.Tree, sensitiveKeys map[string]bool, mode config.DisplayMode) {
 	// Global BGP settings.
-	for _, key := range []string{"router-id", "local-as", "listen"} {
-		if v, ok := bgpTree[key]; ok {
-			fmt.Printf("%s: %s\n", key, v)
+	if v, ok := bgpTree["router-id"]; ok {
+		fmt.Printf("router-id: %s\n", v)
+	}
+	if localMap, ok := bgpTree["local"].(map[string]any); ok {
+		if v, ok := localMap["as"]; ok {
+			fmt.Printf("local-as: %s\n", v)
 		}
+	}
+	if v, ok := bgpTree["listen"]; ok {
+		fmt.Printf("listen: %s\n", v)
 	}
 	fmt.Println()
 
