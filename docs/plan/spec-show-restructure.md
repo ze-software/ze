@@ -57,20 +57,19 @@ N/A - not protocol work.
   → Constraint: fixed-width 29-char gutter (user 14 + date 5 + time 5 + marker 1 + spacing)
   → Decision: opening brace inherits first child entry, closing brace inherits last child entry
 - [ ] `internal/component/config/serialize_set.go` - set+meta serializer
-  → Constraint: writeMetaPrefix emits `#user @time %session ^previous` tokens
+  → Constraint: DONE -- writeMetaPrefix now emits `#user @source %time ^previous` tokens
 - [ ] `internal/component/config/meta.go` - MetaEntry struct, MetaTree navigation
-  → Constraint: MetaEntry.Session is compound ID `user@origin:unixtime`
-  → Constraint: MetaEntry.User is `user@origin` (compound)
-- [ ] `internal/component/cli/editor_session.go` - EditSession, UserAtOrigin
-  → Constraint: session ID format `user@origin:unixtime`, UserAtOrigin returns `user@origin`
+  → Constraint: DONE -- MetaEntry has User, Source, Time fields. SessionKey() = `user@source%RFC3339time`
+- [ ] `internal/component/cli/editor_session.go` - EditSession
+  → Constraint: DONE -- ID format `user@origin%RFC3339time`. UserAtOrigin() is dead code.
 - [ ] `internal/component/cli/editor_draft.go` - writeThroughSet, writeThroughDelete
-  → Constraint: builds MetaEntry with User=UserAtOrigin(), Session=session.ID
+  → Constraint: DONE -- builds MetaEntry with User=session.User, Source=session.Origin, Time=session.StartTime
 - [ ] `internal/component/cli/editor.go` - WorkingContent, ContentAtPath, BlameView, SetView
-  → Constraint: WorkingContent returns SerializeSetWithMeta when session active
+  → Constraint: WorkingContent still returns SerializeSetWithMeta when session active (to change for show restructure)
 - [ ] `internal/component/cli/model_render.go` - setViewportData, configViewAtPath
-  → Constraint: diff gutter applied when hasOriginal && original != content
-- [ ] `internal/component/config/setparser.go` - extractMeta parses `#user @time %session ^prev`
-  → Constraint: `#` token stores into User, `%` token stores into Session
+  → Constraint: diff gutter applied when hasOriginal && original != content (unchanged)
+- [ ] `internal/component/config/setparser.go` - extractMeta parses `#user @source %time ^prev`
+  → Constraint: DONE -- `#` stores User, `@` stores Source, `%` parses Time
 
 **Behavior to preserve:**
 - `show changes` and `show changes all` - display pending session changes (list format)
@@ -85,7 +84,7 @@ N/A - not protocol work.
 - `show` default: currently set+meta when session active, change to hierarchical tree always
 - `show set`: replaced by `show | format config`
 - `show save`: gone (use `show author enable` + `show source enable` + `show date enable` + `show | format config`)
-- Metadata format: `#user@origin` becomes `#user`, `%user@origin:unixtime` becomes `%origin`
+- ~~Metadata format: `#user@origin` becomes `#user`, `%user@origin:unixtime` becomes `%origin`~~ DONE: `#user @source %time`
 - Display columns independently togglable via DB preferences
 - Show accepts pipe operators `| format` and `| compare`
 
@@ -130,27 +129,29 @@ N/A - not protocol work.
 
 ### Metadata Format Change
 
-Current format (save/draft):
+~~Current format (save/draft):~~
 
-| Prefix | Current meaning | Current example |
-|--------|----------------|-----------------|
-| `#` | user@origin (compound) | `#thomas@local` |
-| `@` | change timestamp | `@2026-03-18T23:52:58Z` |
-| `%` | session ID (compound) | `%thomas@local:1773877970` |
-| `^` | previous value | `^oldvalue` |
+~~| Prefix | Current meaning | Current example |~~
+~~|--------|----------------|-----------------|~~
+~~| `#` | user@origin (compound) | `#thomas@local` |~~
+~~| `@` | change timestamp | `@2026-03-18T23:52:58Z` |~~
+~~| `%` | session ID (compound) | `%thomas@local:1773877970` |~~
+~~| `^` | previous value | `^oldvalue` |~~
 
-New format:
+Implemented format (commit `e856ff2a`):
 
-| Prefix | New meaning | New example |
-|--------|------------|-------------|
+| Prefix | Meaning | Example |
+|--------|---------|---------|
 | `#` | username only | `#thomas` |
-| `@` | change timestamp | `@2026-03-18T23:52:58Z` |
-| `%` | connection source (origin) | `%local` or `%192.168.1.5` |
-| `^` | previous value (unchanged) | `^oldvalue` |
+| `@` | connection source (host/origin) | `@local` or `@192.168.1.5` |
+| `%` | session start time (ISO 8601) | `%2026-03-18T23:00:00Z` |
+| `^` | previous value | `^oldvalue` |
 
 Save format line example:
 
-`#thomas @2026-03-18T23:52:58Z %local set bgp peer 127.0.0.4 peer-as 3245`
+`#thomas @local %2026-03-18T23:00:00Z set bgp peer 127.0.0.4 peer-as 3245`
+
+Session key derived from all three fields: `user@source%RFC3339time` (e.g., `thomas@local%2026-03-18T23:00:00Z`). Used internally for grouping concurrent edits. `%` separator chosen to avoid conflict with netcapstring which uses `:`.
 
 ### Display Columns
 
@@ -159,8 +160,8 @@ Four independently togglable columns, each stored in blob DB:
 | Column | DB Key | Default | Width | Content |
 |--------|--------|---------|-------|---------|
 | author | `/meta/show/author` | disable | 14 chars (padded) | Username from `#` field |
-| date | `/meta/show/date` | disable | 11 chars (`MM-DD HH:MM`) | Formatted from `@` field |
-| source | `/meta/show/source` | disable | variable | Origin from `%` field |
+| date | `/meta/show/date` | disable | 11 chars (`MM-DD HH:MM`) | Formatted from `%` field (session start time) |
+| source | `/meta/show/source` | disable | variable | Origin from `@` field |
 | changes | `/meta/show/changes` | disable | 1 char | `+`/`-`/`*` diff marker |
 
 Column order is always: author, date, source, changes, then config content.
@@ -282,43 +283,48 @@ The `changes` column shows diff markers (`+`/`-`/`*`). The diff baseline depends
 
 When `changes` is disabled AND no `| compare` pipe is present, no diff annotation occurs. When `| compare` is used, it implicitly enables diff markers for that invocation regardless of the sticky `changes` setting.
 
-### MetaEntry Struct Change
+### MetaEntry Struct Change (DONE)
 
-Current fields: User, Time, Session, Previous, Value
+~~Current fields: User, Time, Session, Previous, Value~~
 
-New fields: User (username only), Time, Source (origin), Previous, Value
+Implemented fields: User (username only), Source (origin), Time (session start), Previous, Value
 
-The Session field is removed. The compound `user@origin` in User becomes just `user`. The compound `user@origin:unixtime` in Session is decomposed: origin goes to Source, the session concept is dropped.
+The Session field is removed. `SessionKey()` method derives the grouping key as `user@source%RFC3339time`. Active session entries have Source set; committed entries have User+Time but no Source. Detection of active vs committed uses `Source != ""`.
 
-### EditSession Change
+Added `RemoveEntry(name)` method to MetaTree for unconditional leaf metadata removal (used by commit delete path).
 
-Current: User, Origin, ID (`user@origin:unixtime`), StartTime
+### EditSession Change (DONE)
 
-The session ID is no longer stored in metadata. EditSession.User and EditSession.Origin are used directly when building MetaEntry:
-- MetaEntry.User = EditSession.User (not UserAtOrigin)
+~~Current: User, Origin, ID (`user@origin:unixtime`), StartTime~~
+
+Implemented: User, Origin, ID (`user@origin%RFC3339time`), StartTime
+
+MetaEntry built from EditSession:
+- MetaEntry.User = EditSession.User
 - MetaEntry.Source = EditSession.Origin
+- MetaEntry.Time = EditSession.StartTime (not time.Now())
 
 ### Gutter Strategy
 
 The new `SerializeAnnotatedTree` reuses the blame serializer's tree-walking logic with a configurable gutter. Instead of the fixed 29-char blame gutter, it writes only the enabled columns:
 
-| Column | Gutter segment |
-|--------|---------------|
-| author | username left-padded to 14 chars + 2 spaces |
-| date | `MM-DD HH:MM` (11 chars) + 2 spaces |
-| source | origin string + 2 spaces |
-| changes | marker char + 2 spaces |
+| Column | Field | Gutter segment |
+|--------|-------|---------------|
+| author | `#` User | username left-padded to 14 chars + 2 spaces |
+| date | `%` Time | `MM-DD HH:MM` (11 chars) + 2 spaces |
+| source | `@` Source | origin string + 2 spaces |
+| changes | (computed) | marker char + 2 spaces |
 
 Each segment is only emitted when its column is enabled. The tree-walking logic (container/list/leaf dispatch) is shared.
 
 ### Backward Compatibility of Save Format
 
-The save format changes from `#user@origin @time %user@origin:unixtime` to `#user @time %origin`. Existing draft files must be parseable. The `extractMeta` parser already handles each prefix independently. Migration:
-- `#user@origin` on load: if User contains `@`, split at last `@` to extract origin
-- `%user@origin:unixtime` on load: if Session contains `:`, extract origin part (between `@` and `:`)
-- On next save: new format is written
+The save format changed from `#user@origin @ISO8601 %user@origin:unixtime` to `#user @source %ISO8601`. Legacy migration is NOT yet implemented. Existing draft files with the old format will:
+- `#user@origin` loads into User as `user@origin` (compound, not split)
+- Old `@ISO8601` loads into Source (now means source, not time)
+- Old `%session-id` loads into Time parse (will fail, ignored)
 
-The parser gracefully handles both old and new formats.
+This means old drafts will not round-trip correctly. Legacy migration needs to detect old format and split fields. Deferred to implementation phase.
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -347,14 +353,14 @@ The parser gracefully handles both old and new formats.
 | AC-9 | `show \| compare saved` | Diff markers shown against saved draft file |
 | AC-10a | `show \| compare rollback 1` | Diff markers shown against rollback 1 content |
 | AC-10b | `show \| compare rollback 2 \| format config` | Pipes stack: set format + diff against rollback 2 |
-| AC-11 | Save format uses `#user @time %source` | Draft file written with new metadata prefix format |
-| AC-12 | Load old format `#user@origin @time %user@origin:unixtime` | Parser extracts user, time, source correctly from legacy format |
+| AC-11 | Save format uses `#user @source %time` | Draft file written with new metadata prefix format (DONE: commit `e856ff2a`) |
+| AC-12 | Load old format `#user@origin @time %user@origin:unixtime` | Parser extracts user, time, source correctly from legacy format (NOT DONE: legacy migration deferred) |
 | AC-13 | Lines without metadata | Blank padding maintains column alignment |
 | AC-14 | Container `{` and `}` lines | Opening inherits first child metadata, closing inherits last child metadata |
 | AC-15 | `show` respects `edit` context path | Display scoped to current edit location |
 | AC-16 | `show changes enable` then `show` | Diff markers (+/-/*) shown comparing against committed config by default |
-| AC-17 | `show date enable` | Each line shows `MM-DD HH:MM` formatted timestamp from `@` field |
-| AC-18 | `show source enable` | Each line shows origin (e.g., `local`, `192.168.1.5`) from `%` field |
+| AC-17 | `show date enable` | Each line shows `MM-DD HH:MM` formatted session start time from `%` field |
+| AC-18 | `show source enable` | Each line shows origin (e.g., `local`, `192.168.1.5`) from `@` field |
 | AC-19 | `show \| compare` implicitly shows changes | Diff markers appear even if `changes` column is disabled |
 | AC-20 | `show confirmed` | Displays the committed config (deferred: depends on FS changes) |
 | AC-21 | `show saved` | Displays the saved draft file (deferred: depends on FS changes) |
