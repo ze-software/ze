@@ -14,6 +14,7 @@ import (
 )
 
 // CommitSession commits the current session's changes to config.conf.
+// First saves (change file → draft), then applies draft to config.conf.
 // Returns a CommitResult with conflicts (if any) or the number of applied changes.
 //
 //nolint:cyclop // commit protocol has inherently many steps
@@ -22,15 +23,23 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 		return nil, fmt.Errorf("no session set")
 	}
 
+	// Check for live conflicts before saving (scanning change files).
+	if liveConflicts := e.DetectConflicts(); len(liveConflicts) > 0 {
+		return &CommitResult{Conflicts: liveConflicts}, nil
+	}
+
+	// Save: apply change file → draft.
+	if err := e.SaveDraft(); err != nil {
+		return nil, fmt.Errorf("commit save: %w", err)
+	}
+
 	guard, err := e.store.AcquireLock(e.originalPath)
 	if err != nil {
 		return nil, fmt.Errorf("commit lock: %w", err)
 	}
 	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
 
-	// Read and parse config.conf (committed), detecting format to handle
-	// both hierarchical and set+meta formats (config.conf becomes set+meta
-	// after the first session commit).
+	// Read and parse config.conf (committed).
 	committedData, err := guard.ReadFile(e.originalPath)
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
@@ -41,9 +50,7 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
-	// Apply tree structure migrations if the committed config is hierarchical
-	// (e.g., neighbor->peer renaming). This runs once on the first session commit
-	// of a legacy config; subsequent commits read set+meta and skip this.
+	// Apply tree structure migrations if the committed config is hierarchical.
 	var migrationWarning string
 	if config.DetectFormat(committedContent) == config.FormatHierarchical {
 		if migration.NeedsMigration(committedTree) {
@@ -51,18 +58,17 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 			if migrateErr == nil {
 				committedTree = result.Tree
 			} else {
-				// Format conversion still happens (set+meta output),
-				// but tree transforms were skipped. Surface the warning.
 				migrationWarning = fmt.Sprintf("tree migration skipped: %v", migrateErr)
 			}
 		}
 	}
 
-	// Read and parse config.draft.
+	// Read and parse draft (created by SaveDraft above).
 	draftPath := DraftPath(e.originalPath)
 	draftData, err := guard.ReadFile(draftPath)
 	if err != nil {
-		return nil, fmt.Errorf("read draft: %w", err)
+		// No draft means SaveDraft had nothing to save.
+		return &CommitResult{Applied: 0}, nil
 	}
 	setParser := config.NewSetParser(e.schema)
 	draftTree, draftMeta, err := setParser.ParseWithMeta(string(draftData))
@@ -70,30 +76,18 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 		return nil, fmt.Errorf("parse draft: %w", err)
 	}
 
-	// Find my changes.
+	// Find my changes from the draft metadata.
 	myEntries := draftMeta.SessionEntries(e.session.ID)
 	if len(myEntries) == 0 {
 		return &CommitResult{Applied: 0}, nil
 	}
 
-	// Check for conflicts.
+	// Check for stale conflicts (committed changed since editing).
 	var conflicts []Conflict
 	for _, se := range myEntries {
 		pathParts := strings.Fields(se.Path)
-
-		// Use session metadata for this session's intent, not the draft tree.
-		// The draft tree holds the merged state of all sessions (last writer wins),
-		// which may not reflect this session's actual intent (e.g., if another
-		// session set a value after this session deleted it).
 		myValue := se.Entry.Value
 
-		// Check stale Previous: compare config.conf current value with recorded Previous.
-		// Three checks:
-		// 1. Convergent agreement: if committed already matches my intent, no conflict
-		//    (handles concurrent delete: both sessions deleted the same value).
-		// 2. Previous != "" and committed changed: the value I edited was modified by another commit.
-		// 3. Previous == "" and committed != "": I added a new value, but someone else also
-		//    added and committed a value at the same path -- stale conflict.
 		committedValue := getValueAtPath(committedTree, e.schema, pathParts)
 		isStale := myValue != committedValue &&
 			((se.Entry.Previous != "" && committedValue != se.Entry.Previous) ||
@@ -107,9 +101,6 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 				PreviousValue: se.Entry.Previous,
 			})
 		}
-
-		// Check live disagreement: another session has a pending change at same path.
-		conflicts = append(conflicts, checkLiveConflicts(draftMeta, e.session.ID, se.Path, pathParts, myValue, e.schema)...)
 	}
 
 	if len(conflicts) > 0 {
@@ -117,8 +108,6 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 	}
 
 	// No conflicts: apply my changes to committed tree.
-	// Use session metadata (Entry.Value) for each change, not the draft tree.
-	// Empty Value with a session ID means delete.
 	applied := 0
 	for _, se := range myEntries {
 		pathParts := strings.Fields(se.Path)
@@ -139,14 +128,12 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 		}
 	}
 
-	// Create backup before overwriting config.conf. Use freshly-read data
-	// (not cached originalContent) in case another session committed since
-	// this editor was created.
+	// Create backup before overwriting config.conf.
 	if err := e.createBackup(string(committedData), guard); err != nil {
 		return nil, fmt.Errorf("backup: %w", err)
 	}
 
-	// Write committed tree to config.conf (with user/time metadata, no session).
+	// Write committed tree to config.conf.
 	now := time.Now()
 	commitMeta := buildCommitMeta(existingMeta, draftMeta, myEntries, e.session.User, now, e.schema)
 	committedOutput := config.SerializeSetWithMeta(committedTree, commitMeta, e.schema)
@@ -154,42 +141,34 @@ func (e *Editor) CommitSession() (*CommitResult, error) {
 		return nil, fmt.Errorf("write config: %w", err)
 	}
 
-	// Remove my session from draft.
+	// Remove my session from draft and clean up.
 	draftMeta.RemoveSession(e.session.ID)
-
-	// Check if other sessions remain.
 	remainingSessions := draftMeta.AllSessions()
 	if len(remainingSessions) == 0 {
-		// No more pending changes: delete draft.
 		guard.Remove(draftPath) //nolint:errcheck // Best effort
 	} else {
-		// Regenerate draft without my entries.
+		// Rewrite draft without my entries so other sessions' metadata stays current.
 		draftOutput := config.SerializeSetWithMeta(draftTree, draftMeta, e.schema)
 		if err := guard.WriteFile(draftPath, []byte(draftOutput), 0o600); err != nil {
 			return nil, fmt.Errorf("write draft: %w", err)
 		}
 	}
 
-	// Update in-memory state: originalContent always tracks config.conf.
+	// Also clean up change file (should already be gone from SaveDraft, belt and suspenders).
+	changePath := ChangePath(e.originalPath, e.session.User)
+	guard.Remove(changePath) //nolint:errcheck // Best effort
+
+	// Update in-memory state.
 	e.originalContent = committedOutput
-	if len(remainingSessions) == 0 {
-		// No pending changes: show committed state.
-		e.tree = committedTree
-		e.meta = commitMeta
-	} else {
-		// Other sessions have pending changes: show draft state so
-		// show/blame/changes commands are consistent (tree and meta
-		// both reflect the draft, not a mix of committed + draft).
-		e.tree = draftTree
-		e.meta = draftMeta
-	}
+	e.tree = committedTree
+	e.meta = commitMeta
 	e.dirty.Store(false)
 
 	return &CommitResult{Applied: applied, MigrationWarning: migrationWarning}, nil
 }
 
 // DiscardSessionPath discards this session's changes at the given path.
-// If path is nil, discards all changes for this session.
+// If path is nil, discards all changes (deletes change file, reloads from base).
 func (e *Editor) DiscardSessionPath(path []string) error {
 	if e.session == nil {
 		return fmt.Errorf("no session set")
@@ -201,185 +180,130 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 	}
 	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
 
-	draftPath := DraftPath(e.originalPath)
-	draftData, err := guard.ReadFile(draftPath)
-	if err != nil {
-		return fmt.Errorf("read draft: %w", err)
-	}
-	setParser := config.NewSetParser(e.schema)
-	draftTree, draftMeta, err := setParser.ParseWithMeta(string(draftData))
-	if err != nil {
-		return fmt.Errorf("parse draft: %w", err)
-	}
-
-	// Read committed config under lock (not cached originalContent) to capture
-	// external commits since the editor was created. Spec: "restore committed
-	// value (from config.conf)".
-	committedData, readErr := guard.ReadFile(e.originalPath)
-	if readErr != nil {
-		return fmt.Errorf("read config: %w", readErr)
-	}
-	committedTree, _, err := parseConfigWithFormat(string(committedData), e.schema)
-	if err != nil {
-		return fmt.Errorf("parse config: %w", err)
-	}
-
-	// Find my entries to discard.
-	myEntries := draftMeta.SessionEntries(e.session.ID)
+	changePath := ChangePath(e.originalPath, e.session.User)
 	pathPrefix := strings.Join(path, " ")
 
-	for _, se := range myEntries {
-		// Filter by path prefix (empty prefix = discard all).
-		// Use prefix + space boundary to avoid "bgp peer" matching "bgp peer-group".
-		if pathPrefix != "" && se.Path != pathPrefix && !strings.HasPrefix(se.Path, pathPrefix+" ") {
-			continue
+	if pathPrefix == "" {
+		// Discard all: delete change file entirely.
+		guard.Remove(changePath) //nolint:errcheck // Best effort
+	} else {
+		// Partial discard: remove matching entries from change file.
+		changeTree, changeMeta, readErr := e.readChangeFile(guard, changePath)
+		if readErr != nil {
+			return fmt.Errorf("discard read change: %w", readErr)
 		}
 
-		pathParts := strings.Fields(se.Path)
-		if len(pathParts) == 0 {
-			continue
+		myEntries := changeMeta.SessionEntries(e.session.ID)
+		for _, se := range myEntries {
+			if se.Path != pathPrefix && !strings.HasPrefix(se.Path, pathPrefix+" ") {
+				continue
+			}
+			pathParts := strings.Fields(se.Path)
+			if len(pathParts) == 0 {
+				continue
+			}
+			leafName := pathParts[len(pathParts)-1]
+			parentPath := pathParts[:len(pathParts)-1]
+			metaTarget := walkOrCreateMeta(changeMeta, e.schema, parentPath)
+			metaTarget.RemoveSessionEntry(leafName, e.session.ID)
+			// Also remove the value from the change tree so it is not serialized back.
+			if treeTarget := walkPath(changeTree, e.schema, parentPath); treeTarget != nil {
+				treeTarget.Delete(leafName)
+			}
 		}
-		leafName := pathParts[len(pathParts)-1]
-		parentPath := pathParts[:len(pathParts)-1]
 
-		// Remove this session's metadata entry (preserves other sessions' entries).
-		metaTarget := walkOrCreateMeta(draftMeta, e.schema, parentPath)
-		metaTarget.RemoveSessionEntry(leafName, e.session.ID)
-
-		// If another session still has a pending value at this leaf,
-		// restore that session's value (not the committed value).
-		target, walkErr := e.walkOrCreateIn(draftTree, parentPath)
-		if walkErr != nil {
-			continue
-		}
-		remaining := metaTarget.GetAllEntries(leafName)
-		if len(remaining) > 0 && remaining[len(remaining)-1].Value != "" {
-			target.Set(leafName, remaining[len(remaining)-1].Value)
+		// Check if any sessions have remaining entries (not just this session —
+		// ChangePath is per-user, so multiple sessions from the same user share a file).
+		if len(changeMeta.AllSessions()) == 0 {
+			guard.Remove(changePath) //nolint:errcheck // Best effort
 		} else {
-			// No other session has a pending value: restore committed value.
-			committedValue := getValueAtPath(committedTree, e.schema, pathParts)
-			if committedValue != "" {
-				target.Set(leafName, committedValue)
-			} else {
-				target.Delete(leafName)
+			output := config.SerializeSetWithMeta(changeTree, changeMeta, e.schema)
+			if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
+				return fmt.Errorf("discard write change: %w", err)
 			}
 		}
 	}
 
-	// Remove my session from draft metadata.
-	if pathPrefix == "" {
-		draftMeta.RemoveSession(e.session.ID)
-	}
-
-	// Check if other sessions remain.
-	remainingSessions := draftMeta.AllSessions()
-	if len(remainingSessions) == 0 {
-		guard.Remove(draftPath) //nolint:errcheck // Best effort
+	// Reload in-memory state from base (draft if exists, else committed config).
+	// Cannot use readDraftOrConfig here because its fallback clones e.tree which
+	// still has the user's changes. Read committed config directly instead.
+	draftPath := DraftPath(e.originalPath)
+	var baseTree *config.Tree
+	var baseMeta *config.MetaTree
+	if draftData, draftErr := guard.ReadFile(draftPath); draftErr == nil {
+		baseTree, baseMeta, err = config.NewSetParser(e.schema).ParseWithMeta(string(draftData))
+		if err != nil {
+			return fmt.Errorf("discard parse draft: %w", err)
+		}
 	} else {
-		draftOutput := config.SerializeSetWithMeta(draftTree, draftMeta, e.schema)
-		if err := guard.WriteFile(draftPath, []byte(draftOutput), 0o600); err != nil {
-			return fmt.Errorf("write draft: %w", err)
+		committedData, readErr := guard.ReadFile(e.originalPath)
+		if readErr != nil {
+			return fmt.Errorf("discard read config: %w", readErr)
+		}
+		baseTree, baseMeta, err = parseConfigWithFormat(string(committedData), e.schema)
+		if err != nil {
+			return fmt.Errorf("discard parse config: %w", err)
 		}
 	}
 
-	// Update in-memory state. Refresh originalContent from disk to capture
-	// external commits since this editor was created (prevents stale backup
-	// content in subsequent operations).
-	e.tree = draftTree
-	e.meta = draftMeta
+	// Re-apply remaining changes from change file (if partial discard).
+	if pathPrefix != "" {
+		changeTree, changeMeta, readErr := e.readChangeFile(guard, changePath)
+		if readErr == nil {
+			for _, sid := range changeMeta.AllSessions() {
+				for _, se := range changeMeta.SessionEntries(sid) {
+					pathParts := strings.Fields(se.Path)
+					if len(pathParts) == 0 {
+						continue
+					}
+					leafName := pathParts[len(pathParts)-1]
+					parentPath := pathParts[:len(pathParts)-1]
+					if se.Entry.Value != "" {
+						target, walkErr := e.walkOrCreateIn(baseTree, parentPath)
+						if walkErr == nil {
+							target.Set(leafName, se.Entry.Value)
+						}
+					} else {
+						// Delete operation: remove leaf from base tree.
+						if target := walkPath(baseTree, e.schema, parentPath); target != nil {
+							target.Delete(leafName)
+						}
+					}
+					metaTarget := walkOrCreateMeta(baseMeta, e.schema, parentPath)
+					metaTarget.SetEntry(leafName, se.Entry)
+				}
+			}
+			_ = changeTree // metadata-only scan; tree not needed
+		}
+	}
+
+	// Refresh originalContent from disk to capture external commits.
+	committedData, readErr := guard.ReadFile(e.originalPath)
+	if readErr != nil {
+		return fmt.Errorf("discard read config: %w", readErr)
+	}
 	e.originalContent = string(committedData)
-	// Mark dirty only if this session still has pending entries (partial discard
-	// keeps other entries alive; discard-all clears everything).
-	e.dirty.Store(len(draftMeta.SessionEntries(e.session.ID)) > 0)
+
+	e.tree = baseTree
+	e.meta = baseMeta
+	// Dirty if change file still has entries (partial discard).
+	e.dirty.Store(e.store.Exists(changePath))
 	return nil
 }
 
-// DisconnectSession removes all entries for another session from the draft.
-// Restores committed values where the disconnected session was the only editor.
+// DisconnectSession removes another user's change file.
+// In the per-user change file model, each user has their own file,
+// so disconnect simply deletes the other user's change file.
 func (e *Editor) DisconnectSession(sessionID string) error {
 	if e.session == nil {
 		return fmt.Errorf("no session set")
 	}
 
-	guard, err := e.store.AcquireLock(e.originalPath)
-	if err != nil {
-		return fmt.Errorf("disconnect lock: %w", err)
-	}
-	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
+	// Extract user from session ID (format: "user@origin%time").
+	otherUser, _, _ := strings.Cut(sessionID, "@")
 
-	draftPath := DraftPath(e.originalPath)
-	draftData, err := guard.ReadFile(draftPath)
-	if err != nil {
-		return fmt.Errorf("read draft: %w", err)
-	}
-	setParser := config.NewSetParser(e.schema)
-	draftTree, draftMeta, err := setParser.ParseWithMeta(string(draftData))
-	if err != nil {
-		return fmt.Errorf("parse draft: %w", err)
-	}
-
-	// Parse committed config for restoring values.
-	committedData, readErr := guard.ReadFile(e.originalPath)
-	if readErr != nil {
-		return fmt.Errorf("read config: %w", readErr)
-	}
-	committedTree, _, parseErr := parseConfigWithFormat(string(committedData), e.schema)
-	if parseErr != nil {
-		return fmt.Errorf("parse config: %w", parseErr)
-	}
-
-	// Restore values for the disconnected session's entries.
-	// Remove metadata first, then check if another session has pending values.
-	entries := draftMeta.SessionEntries(sessionID)
-	for _, se := range entries {
-		pathParts := strings.Fields(se.Path)
-		if len(pathParts) == 0 {
-			continue
-		}
-		leafName := pathParts[len(pathParts)-1]
-		parentPath := pathParts[:len(pathParts)-1]
-
-		// Remove this session's metadata entry first (preserves other sessions').
-		metaTarget := walkOrCreateMeta(draftMeta, e.schema, parentPath)
-		metaTarget.RemoveSessionEntry(leafName, sessionID)
-
-		// If another session still has a pending value, use that instead.
-		target, walkErr := e.walkOrCreateIn(draftTree, parentPath)
-		if walkErr != nil {
-			continue
-		}
-		remaining := metaTarget.GetAllEntries(leafName)
-		if len(remaining) > 0 && remaining[len(remaining)-1].Value != "" {
-			target.Set(leafName, remaining[len(remaining)-1].Value)
-		} else {
-			// No other session has a pending value: restore committed value.
-			committedValue := getValueAtPath(committedTree, e.schema, pathParts)
-			if committedValue != "" {
-				target.Set(leafName, committedValue)
-			} else {
-				target.Delete(leafName)
-			}
-		}
-	}
-
-	draftMeta.RemoveSession(sessionID)
-
-	// Check if any sessions remain.
-	remainingSessions := draftMeta.AllSessions()
-	if len(remainingSessions) == 0 {
-		guard.Remove(draftPath) //nolint:errcheck // Best effort
-	} else {
-		draftOutput := config.SerializeSetWithMeta(draftTree, draftMeta, e.schema)
-		if err := guard.WriteFile(draftPath, []byte(draftOutput), 0o600); err != nil {
-			return fmt.Errorf("write draft: %w", err)
-		}
-	}
-
-	// Update in-memory state. Refresh originalContent from disk to capture
-	// external commits since this editor was created (matching DiscardSessionPath).
-	e.tree = draftTree
-	e.meta = draftMeta
-	e.originalContent = string(committedData)
+	changePath := ChangePath(e.originalPath, otherUser)
+	_ = e.store.Remove(changePath) // Best effort — file may not exist.
 	return nil
 }
 

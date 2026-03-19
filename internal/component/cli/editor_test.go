@@ -1086,9 +1086,9 @@ func TestSerializationRoundTrip(t *testing.T) {
 	}
 }
 
-// TestEditorWriteThrough verifies that SetValue with a session creates a draft file.
+// TestEditorWriteThrough verifies that SetValue with a session creates a per-user change file.
 //
-// VALIDATES: Write-through protocol creates draft with metadata on SetValue.
+// VALIDATES: Write-through protocol creates change file with metadata on SetValue.
 // PREVENTS: SetValue silently staying in-memory when session is set.
 func TestEditorWriteThrough(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
@@ -1105,25 +1105,22 @@ func TestEditorWriteThrough(t *testing.T) {
 	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
 	require.NoError(t, err)
 
-	// Draft file should exist.
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
-	require.NoError(t, err, "draft file should exist after write-through")
+	// Change file should exist (not draft — draft is only created by SaveDraft).
+	changePath := ChangePath(configPath, session.User)
+	changeData, err := os.ReadFile(changePath)
+	require.NoError(t, err, "change file should exist after write-through")
 
-	draftContent := string(draftData)
+	changeContent := string(changeData)
 
-	// Draft should contain the new value.
-	assert.Contains(t, draftContent, "5.6.7.8", "draft should contain updated value")
+	// Change file should contain the new value.
+	assert.Contains(t, changeContent, "5.6.7.8", "change file should contain updated value")
 
-	// Draft should contain metadata with user.
-	assert.Contains(t, draftContent, "#thomas @local", "draft should contain user metadata")
+	// Change file should contain metadata with user.
+	assert.Contains(t, changeContent, "#thomas @local", "change file should contain user metadata")
 
-	// Draft should contain session metadata.
-	assert.Contains(t, draftContent, "@"+session.Origin, "draft should contain source metadata")
-	assert.Contains(t, draftContent, "%"+session.StartTime.UTC().Format(time.RFC3339), "draft should contain time metadata")
-
-	// Draft should contain the unchanged value too.
-	assert.Contains(t, draftContent, "65000", "draft should preserve unchanged values")
+	// Change file should contain session metadata.
+	assert.Contains(t, changeContent, "@"+session.Origin, "change file should contain source metadata")
+	assert.Contains(t, changeContent, "%"+session.StartTime.UTC().Format(time.RFC3339), "change file should contain time metadata")
 
 	// In-memory tree should reflect the change.
 	bgpTree := ed.tree.GetContainer("bgp")
@@ -1133,7 +1130,7 @@ func TestEditorWriteThrough(t *testing.T) {
 	assert.Equal(t, "5.6.7.8", val)
 }
 
-// TestEditorWriteThroughDelete verifies delete with a session updates the draft.
+// TestEditorWriteThroughDelete verifies delete with a session updates the change file.
 //
 // VALIDATES: Write-through protocol works for DeleteValue.
 // PREVENTS: Deletes staying in-memory only when session is set.
@@ -1151,24 +1148,21 @@ func TestEditorWriteThroughDelete(t *testing.T) {
 	err = ed.DeleteValue([]string{"bgp", "local"}, "as")
 	require.NoError(t, err)
 
-	// Draft file should exist.
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
-	require.NoError(t, err, "draft file should exist after write-through delete")
+	// Change file should exist (not draft — draft is only created by SaveDraft).
+	changePath := ChangePath(configPath, session.User)
+	changeData, err := os.ReadFile(changePath)
+	require.NoError(t, err, "change file should exist after write-through delete")
 
-	draftContent := string(draftData)
+	changeContent := string(changeData)
 
-	// Draft should NOT contain a set line for the deleted value.
-	assert.NotContains(t, draftContent, "set bgp local as", "deleted value should not appear as set line")
+	// Change file should NOT contain a set line for the deleted value.
+	assert.NotContains(t, changeContent, "set bgp local as", "deleted value should not appear as set line")
 
-	// Draft should contain a delete line with metadata for the deleted value.
-	assert.Contains(t, draftContent, "delete bgp local as", "delete metadata should be preserved in draft")
+	// Change file should contain a delete line with metadata for the deleted value.
+	assert.Contains(t, changeContent, "delete bgp local as", "delete metadata should be preserved in change file")
 
 	// Delete metadata should include the previous value.
-	assert.Contains(t, draftContent, "^65000", "delete metadata should record previous value")
-
-	// Draft should still have the remaining values.
-	assert.Contains(t, draftContent, "1.2.3.4", "draft should preserve non-deleted values")
+	assert.Contains(t, changeContent, "^65000", "delete metadata should record previous value")
 
 	// In-memory tree should reflect the deletion.
 	bgpTree := ed.tree.GetContainer("bgp")
@@ -1180,11 +1174,11 @@ func TestEditorWriteThroughDelete(t *testing.T) {
 	}
 }
 
-// TestEditorWriteThroughPreservesSessions verifies that write-through preserves
-// other sessions' metadata in the draft file.
+// TestEditorWriteThroughPreservesSessions verifies that write-through creates separate
+// per-user change files for each session.
 //
-// VALIDATES: Concurrent editing preserves other sessions' changes in draft.
-// PREVENTS: One session overwriting another's pending changes.
+// VALIDATES: Concurrent editing uses per-user change files — each session's changes are isolated.
+// PREVENTS: One session's change file overwriting another's.
 func TestEditorWriteThroughPreservesSessions(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
@@ -1210,27 +1204,32 @@ func TestEditorWriteThroughPreservesSessions(t *testing.T) {
 	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
-	// Read the final draft.
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
-	require.NoError(t, err)
+	// Read alice's change file.
+	aliceChangePath := ChangePath(configPath, "alice")
+	aliceData, err := os.ReadFile(aliceChangePath)
+	require.NoError(t, err, "alice's change file should exist")
+	aliceContent := string(aliceData)
 
-	draftContent := string(draftData)
+	// Read thomas's change file.
+	thomasChangePath := ChangePath(configPath, "thomas")
+	thomasData, err := os.ReadFile(thomasChangePath)
+	require.NoError(t, err, "thomas's change file should exist")
+	thomasContent := string(thomasData)
 
-	// Both sessions' metadata should be present.
-	assert.Contains(t, draftContent, "#alice @ssh", "alice's metadata should be preserved")
-	assert.Contains(t, draftContent, "#thomas @local", "thomas's metadata should be present")
-	assert.Contains(t, draftContent, "@"+session1.Origin, "alice's source should be preserved")
-	assert.Contains(t, draftContent, "@"+session2.Origin, "thomas's source should be present")
+	// Alice's change file should contain her metadata and value.
+	assert.Contains(t, aliceContent, "#alice @ssh", "alice's metadata should be in her change file")
+	assert.Contains(t, aliceContent, "@"+session1.Origin, "alice's source should be in her change file")
+	assert.Contains(t, aliceContent, "10.0.0.1", "alice's value should be in her change file")
 
-	// Both values should be present.
-	assert.Contains(t, draftContent, "10.0.0.1", "alice's value should be preserved")
-	assert.Contains(t, draftContent, "65001", "thomas's value should be present")
+	// Thomas's change file should contain his metadata and value.
+	assert.Contains(t, thomasContent, "#thomas @local", "thomas's metadata should be in his change file")
+	assert.Contains(t, thomasContent, "@"+session2.Origin, "thomas's source should be in his change file")
+	assert.Contains(t, thomasContent, "65001", "thomas's value should be in his change file")
 }
 
 // TestEditorWriteThroughPrevious verifies that Previous field records the committed value.
 //
-// VALIDATES: Write-through records Previous from config.conf for conflict detection.
+// VALIDATES: Write-through records Previous from config.conf in the change file for conflict detection.
 // PREVENTS: Missing Previous field that breaks stale conflict detection.
 func TestEditorWriteThroughPrevious(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
@@ -1246,15 +1245,15 @@ func TestEditorWriteThroughPrevious(t *testing.T) {
 	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
 	require.NoError(t, err)
 
-	// Read the draft and parse to check Previous.
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
+	// Read the change file and parse to check Previous.
+	changePath := ChangePath(configPath, session.User)
+	changeData, err := os.ReadFile(changePath)
 	require.NoError(t, err)
 
-	// Parse draft to extract metadata.
+	// Parse change file to extract metadata.
 	schema := config.YANGSchema()
 	parser := config.NewSetParser(schema)
-	_, meta, err := parser.ParseWithMeta(string(draftData))
+	_, meta, err := parser.ParseWithMeta(string(changeData))
 	require.NoError(t, err)
 
 	// The metadata for router-id is under the bgp container in MetaTree.
@@ -1285,26 +1284,26 @@ func TestEditorWriteThroughListEntry(t *testing.T) {
 	err = ed.SetValue([]string{"bgp", "peer", "peer1"}, "hold-time", "180")
 	require.NoError(t, err)
 
-	// Draft file should exist with metadata for the list entry leaf.
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
-	require.NoError(t, err, "draft file should exist after write-through")
+	// Change file should exist with metadata for the list entry leaf.
+	changePath := ChangePath(configPath, session.User)
+	changeData, err := os.ReadFile(changePath)
+	require.NoError(t, err, "change file should exist after write-through")
 
-	draftContent := string(draftData)
+	changeContent := string(changeData)
 
-	// Draft should contain the new value.
-	assert.Contains(t, draftContent, "180", "draft should contain updated hold-time")
+	// Change file should contain the new value.
+	assert.Contains(t, changeContent, "180", "change file should contain updated hold-time")
 
-	// Draft should contain user metadata for the list entry leaf.
+	// Change file should contain user metadata for the list entry leaf.
 	// This is the critical check: if walkOrCreateMeta doesn't use schema-aware
 	// navigation, metadata gets stored in containers instead of lists, and the
 	// serializer can't find it.
-	assert.Contains(t, draftContent, "#thomas @local", "draft should contain user metadata for list entry leaf")
+	assert.Contains(t, changeContent, "#thomas @local", "change file should contain user metadata for list entry leaf")
 
 	// Verify metadata is correctly structured by re-parsing.
 	schema := config.YANGSchema()
 	parser := config.NewSetParser(schema)
-	_, meta, parseErr := parser.ParseWithMeta(draftContent)
+	_, meta, parseErr := parser.ParseWithMeta(changeContent)
 	require.NoError(t, parseErr)
 
 	// Navigate to the list entry's metadata: bgp -> peer (container) -> peer1 (list entry).
@@ -1320,9 +1319,9 @@ func TestEditorWriteThroughListEntry(t *testing.T) {
 	assert.Equal(t, "90", entry.Previous, "Previous should record committed hold-time value")
 }
 
-// TestEditorConcurrentWrite verifies two editors can write without corruption.
+// TestEditorConcurrentWrite verifies concurrent editors can write without corruption.
 //
-// VALIDATES: Concurrent writes under Storage.AcquireLock() produce valid draft files.
+// VALIDATES: Concurrent writes under Storage.AcquireLock() produce valid per-user change files.
 // PREVENTS: File corruption from overlapping writes.
 func TestEditorConcurrentWrite(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
@@ -1334,6 +1333,11 @@ func TestEditorConcurrentWrite(t *testing.T) {
 	wg.Add(goroutines)
 	errCh := make(chan error, goroutines*writesPerGoroutine)
 
+	sessions := make([]*EditSession, goroutines)
+	for i := range goroutines {
+		sessions[i] = NewEditSession(fmt.Sprintf("user%d", i), "local")
+	}
+
 	for i := range goroutines {
 		go func(idx int) {
 			defer wg.Done()
@@ -1344,8 +1348,7 @@ func TestEditorConcurrentWrite(t *testing.T) {
 			}
 			defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-			session := NewEditSession(fmt.Sprintf("user%d", idx), "local")
-			ed.SetSession(session)
+			ed.SetSession(sessions[idx])
 
 			for j := range writesPerGoroutine {
 				value := fmt.Sprintf("%d.%d.%d.%d", idx, j, idx, j)
@@ -1363,15 +1366,16 @@ func TestEditorConcurrentWrite(t *testing.T) {
 		require.NoError(t, writeErr, "concurrent write should not error")
 	}
 
-	// Draft should be parseable (not corrupted).
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
-	require.NoError(t, err, "draft file should exist")
-
+	// Each per-user change file should be parseable (not corrupted).
 	schema := config.YANGSchema()
 	parser := config.NewSetParser(schema)
-	_, _, parseErr := parser.ParseWithMeta(string(draftData))
-	assert.NoError(t, parseErr, "draft should parse without errors (no corruption)")
+	for i := range goroutines {
+		changePath := ChangePath(configPath, fmt.Sprintf("user%d", i))
+		changeData, err := os.ReadFile(changePath)
+		require.NoError(t, err, "change file for user%d should exist", i)
+		_, _, parseErr := parser.ParseWithMeta(string(changeData))
+		assert.NoError(t, parseErr, "change file for user%d should parse without errors", i)
+	}
 }
 
 // TestEditorCommitSession verifies successful commit with no conflicts.
@@ -1736,15 +1740,20 @@ func TestEditorDiscardPreservesOtherSessions(t *testing.T) {
 	err = ed2.DiscardSessionPath(nil)
 	require.NoError(t, err)
 
-	// Draft should still exist (alice's changes remain).
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
-	require.NoError(t, err, "draft should exist with alice's changes")
+	// Thomas's change file should be deleted.
+	thomasChangePath := ChangePath(configPath, "thomas")
+	_, statErr := os.Stat(thomasChangePath)
+	assert.True(t, os.IsNotExist(statErr), "thomas's change file should be deleted after discard")
 
-	draftContent := string(draftData)
-	assert.Contains(t, draftContent, "#alice @ssh", "alice's metadata should be preserved")
-	assert.Contains(t, draftContent, "10.0.0.1", "alice's value should be preserved")
-	assert.NotContains(t, draftContent, "#thomas", "thomas's metadata should be removed")
+	// Alice's change file should still exist with her changes.
+	aliceChangePath := ChangePath(configPath, "alice")
+	changeData, err := os.ReadFile(aliceChangePath)
+	require.NoError(t, err, "alice's change file should exist with her changes")
+
+	changeContent := string(changeData)
+	assert.Contains(t, changeContent, "#alice @ssh", "alice's metadata should be preserved")
+	assert.Contains(t, changeContent, "10.0.0.1", "alice's value should be preserved")
+	assert.NotContains(t, changeContent, "#thomas", "thomas's metadata should not be in alice's file")
 }
 
 // TestEditorConflictBlocksEntireCommit verifies that any conflict blocks the entire commit.
@@ -1825,10 +1834,10 @@ func TestEditorConflictResetAfterSet(t *testing.T) {
 	assert.Equal(t, 1, result.Applied)
 }
 
-// TestEditorDiscardNewlyAdded verifies discarding a newly-added leaf removes it from draft.
+// TestEditorDiscardNewlyAdded verifies discarding a newly-added leaf removes it from change file.
 //
-// VALIDATES: Discard of a leaf not in config.conf deletes it from the draft tree.
-// PREVENTS: Newly-added leaves lingering in draft after discard.
+// VALIDATES: Discard of a leaf not in config.conf deletes it from the change file.
+// PREVENTS: Newly-added leaves lingering in change file after discard.
 func TestEditorDiscardNewlyAdded(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
@@ -1843,19 +1852,19 @@ func TestEditorDiscardNewlyAdded(t *testing.T) {
 	err = ed.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
-	// Verify it's in the draft.
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
+	// Verify it's in the change file.
+	changePath := ChangePath(configPath, session.User)
+	changeData, err := os.ReadFile(changePath)
 	require.NoError(t, err)
-	assert.Contains(t, string(draftData), "65001")
+	assert.Contains(t, string(changeData), "65001")
 
 	// Discard all.
 	err = ed.DiscardSessionPath(nil)
 	require.NoError(t, err)
 
-	// Draft should be deleted (no other sessions).
-	_, err = os.Stat(draftPath)
-	assert.True(t, os.IsNotExist(err), "draft should be deleted after discarding only session")
+	// Change file should be deleted (no remaining entries).
+	_, err = os.Stat(changePath)
+	assert.True(t, os.IsNotExist(err), "change file should be deleted after discarding only session")
 }
 
 // TestEditorBlameView verifies blame-annotated output includes user and timestamp.
@@ -1976,15 +1985,20 @@ func TestEditorDisconnectSession(t *testing.T) {
 	err = ed2.DisconnectSession(session1.ID)
 	require.NoError(t, err)
 
-	// Draft should still exist (session 2 remains).
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
-	require.NoError(t, err)
-	draftContent := string(draftData)
+	// Alice's change file should be deleted.
+	aliceChangePath := ChangePath(configPath, "alice")
+	_, statErr := os.Stat(aliceChangePath)
+	assert.True(t, os.IsNotExist(statErr), "alice's change file should be deleted after disconnect")
 
-	assert.NotContains(t, draftContent, "#alice", "alice should be removed")
-	assert.Contains(t, draftContent, "#thomas", "thomas should remain")
-	assert.Contains(t, draftContent, "65001", "thomas's value should remain")
+	// Thomas's change file should still exist with his changes.
+	thomasChangePath := ChangePath(configPath, "thomas")
+	changeData, err := os.ReadFile(thomasChangePath)
+	require.NoError(t, err, "thomas's change file should survive")
+	changeContent := string(changeData)
+
+	assert.NotContains(t, changeContent, "#alice", "alice should not be in thomas's change file")
+	assert.Contains(t, changeContent, "#thomas", "thomas should remain in his change file")
+	assert.Contains(t, changeContent, "65001", "thomas's value should remain")
 }
 
 // TestEditorSessionCommit verifies the happy-path per-session commit.
@@ -2005,12 +2019,12 @@ func TestEditorSessionCommit(t *testing.T) {
 	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
 	require.NoError(t, err)
 
-	// Draft should exist.
-	draftPath := DraftPath(configPath)
-	_, err = os.Stat(draftPath)
-	require.NoError(t, err, "draft should exist before commit")
+	// Change file should exist before commit.
+	changePath := ChangePath(configPath, session.User)
+	_, err = os.Stat(changePath)
+	require.NoError(t, err, "change file should exist before commit")
 
-	// Commit.
+	// Commit (CommitSession calls SaveDraft internally, creating and then cleaning up the draft).
 	result, err := ed.CommitSession()
 	require.NoError(t, err)
 	assert.Empty(t, result.Conflicts, "no conflicts expected")
@@ -2023,6 +2037,7 @@ func TestEditorSessionCommit(t *testing.T) {
 	assert.NotContains(t, string(configData), "1.2.3.4", "old value should be gone")
 
 	// Draft should be deleted (no other sessions).
+	draftPath := DraftPath(configPath)
 	_, err = os.Stat(draftPath)
 	assert.True(t, os.IsNotExist(err), "draft should be deleted after sole session commits")
 
@@ -2059,16 +2074,23 @@ func TestEditorDiscardPath(t *testing.T) {
 	err = ed.DiscardSessionPath([]string{"bgp", "router-id"})
 	require.NoError(t, err)
 
-	// Draft should still exist (local-as change remains).
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
+	// Change file should still exist (local-as change remains).
+	changePath := ChangePath(configPath, session.User)
+	changeData, err := os.ReadFile(changePath)
 	require.NoError(t, err)
-	draftContent := string(draftData)
+	changeContent := string(changeData)
 
-	// router-id should be reverted to committed value.
-	assert.Contains(t, draftContent, "1.2.3.4", "router-id should be restored to committed")
+	// router-id should not appear in the change file (discarded).
+	assert.NotContains(t, changeContent, "5.6.7.8", "router-id change should be gone after discard")
 	// local-as change should remain.
-	assert.Contains(t, draftContent, "65001", "local-as change should be preserved")
+	assert.Contains(t, changeContent, "65001", "local-as change should be preserved")
+
+	// In-memory tree should have router-id restored to committed value.
+	bgpTree := ed.tree.GetContainer("bgp")
+	require.NotNil(t, bgpTree)
+	val, ok := bgpTree.Get("router-id")
+	assert.True(t, ok)
+	assert.Equal(t, "1.2.3.4", val, "router-id should be restored to committed value in tree")
 }
 
 // TestEditorDiscardSubtree verifies discarding all leaves under a container path.
@@ -2095,10 +2117,10 @@ func TestEditorDiscardSubtree(t *testing.T) {
 	err = ed.DiscardSessionPath([]string{"bgp"})
 	require.NoError(t, err)
 
-	// Draft should be deleted (no remaining session entries).
-	draftPath := DraftPath(configPath)
-	_, err = os.Stat(draftPath)
-	assert.True(t, os.IsNotExist(err), "draft should be deleted after subtree discard removes all entries")
+	// Change file should be deleted (no remaining session entries).
+	changePath := ChangePath(configPath, session.User)
+	_, err = os.Stat(changePath)
+	assert.True(t, os.IsNotExist(err), "change file should be deleted after subtree discard removes all entries")
 }
 
 // TestEditorDiscardBareRejected verifies that bare discard (no args) is rejected in session mode.
@@ -2158,12 +2180,12 @@ func TestEditorDiscardPathBoundary(t *testing.T) {
 	// still be pending. This also confirms that "peer" doesn't accidentally
 	// match "bgp router-id" (it wouldn't with the old code either, but exercises
 	// the boundary logic for space-separated YANG paths).
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
-	require.NoError(t, err, "draft should still exist (router-id change remains)")
+	changePath := ChangePath(configPath, session.User)
+	changeData, err := os.ReadFile(changePath)
+	require.NoError(t, err, "change file should still exist (router-id change remains)")
 
-	draftContent := string(draftData)
-	assert.Contains(t, draftContent, "9.9.9.9",
+	changeContent := string(changeData)
+	assert.Contains(t, changeContent, "9.9.9.9",
 		"bgp router-id change should NOT be discarded by 'bgp peer' discard")
 }
 
@@ -2441,10 +2463,10 @@ func TestEditorDisconnectLastSession(t *testing.T) {
 	err = ed2.DisconnectSession(session1.ID)
 	require.NoError(t, err)
 
-	// Draft should be deleted (no remaining sessions).
-	draftPath := DraftPath(configPath)
-	_, err = os.Stat(draftPath)
-	assert.True(t, os.IsNotExist(err), "draft should be deleted after disconnecting last session")
+	// Alice's change file should be deleted (disconnect removes it).
+	aliceChangePath := ChangePath(configPath, "alice")
+	_, err = os.Stat(aliceChangePath)
+	assert.True(t, os.IsNotExist(err), "alice's change file should be deleted after disconnect")
 
 	// In-memory tree should have committed value (alice's change was reverted).
 	bgpTree := ed2.tree.GetContainer("bgp")
@@ -2493,15 +2515,15 @@ func TestEditorCommitPreservesOtherSessions(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(configData), "10.0.0.1", "alice's value should be committed")
 
-	// Draft should still exist with thomas's changes.
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
-	require.NoError(t, err, "draft should survive when other sessions remain")
+	// Thomas's change file should still exist with his pending changes.
+	thomasChangePath := ChangePath(configPath, "thomas")
+	changeData, err := os.ReadFile(thomasChangePath)
+	require.NoError(t, err, "thomas's change file should survive when other sessions remain")
 
-	draftContent := string(draftData)
-	assert.Contains(t, draftContent, "#thomas", "thomas's metadata should remain")
-	assert.Contains(t, draftContent, "65001", "thomas's value should remain in draft")
-	assert.NotContains(t, draftContent, "#alice", "alice's metadata should be removed from draft")
+	changeContent := string(changeData)
+	assert.Contains(t, changeContent, "#thomas", "thomas's metadata should remain")
+	assert.Contains(t, changeContent, "65001", "thomas's value should remain in change file")
+	assert.NotContains(t, changeContent, "#alice", "alice's metadata should not be in thomas's change file")
 }
 
 // TestEditorCommitNoChanges verifies CommitSession with no pending changes.
@@ -2518,13 +2540,10 @@ func TestEditorCommitNoChanges(t *testing.T) {
 	session := NewEditSession("thomas", "local")
 	ed.SetSession(session)
 
-	// No write-through calls. Create draft manually so CommitSession can read it.
-	// Without a draft, CommitSession would error on ReadFile. In practice,
-	// a user would only commit after making changes, but this tests the guard.
-	draftPath := DraftPath(configPath)
-	err = os.WriteFile(draftPath, []byte("set bgp router-id 1.2.3.4\nset bgp local as 65000\n"), 0o600)
-	require.NoError(t, err)
-
+	// No write-through calls -- no change file exists.
+	// CommitSession calls SaveDraft first. With no change file, SaveDraft returns
+	// nil (no entries). CommitSession then reads the draft (also absent) and
+	// returns Applied=0. No error.
 	result, err := ed.CommitSession()
 	require.NoError(t, err)
 	assert.Equal(t, 0, result.Applied, "should apply nothing when session has no entries")
@@ -2628,10 +2647,10 @@ func TestEditorDiscardAfterOtherCommit(t *testing.T) {
 	assert.Equal(t, "65000", val, "local as should revert to committed value")
 }
 
-// TestEditorDisconnectNoDraft verifies DisconnectSession errors when no draft exists.
+// TestEditorDisconnectNoDraft verifies DisconnectSession succeeds even when no change file exists.
 //
-// VALIDATES: DisconnectSession returns error if draft file is missing.
-// PREVENTS: Panic on missing draft during disconnect.
+// VALIDATES: DisconnectSession is a no-op when the other user has no change file.
+// PREVENTS: Error on disconnect when other user made no changes.
 func TestEditorDisconnectNoDraft(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
@@ -2642,10 +2661,10 @@ func TestEditorDisconnectNoDraft(t *testing.T) {
 	session := NewEditSession("thomas", "local")
 	ed.SetSession(session)
 
-	// No draft exists (no write-through calls made).
+	// No change file exists for alice (she made no changes).
+	// DisconnectSession should succeed (best-effort file removal).
 	err = ed.DisconnectSession("alice@ssh:12345")
-	require.Error(t, err, "disconnect without draft should error")
-	assert.Contains(t, err.Error(), "read draft", "error should mention draft read failure")
+	require.NoError(t, err, "disconnect with no change file should succeed (no-op)")
 }
 
 // TestCommitSessionNilSession verifies CommitSession errors when no session is set.
@@ -2816,22 +2835,24 @@ func TestDiscardRestoresOtherSessionValue(t *testing.T) {
 	err = ed2.SetValue([]string{"bgp"}, "router-id", "10.0.0.2")
 	require.NoError(t, err)
 
-	// Session 2 discards. Alice's value (10.0.0.1) should be restored in draft,
-	// NOT the committed value (1.2.3.4).
+	// Session 2 discards. Thomas's change file is deleted.
+	// Alice's change file should still exist with her value.
 	err = ed2.DiscardSessionPath(nil)
 	require.NoError(t, err)
 
-	// Draft should still exist (alice's session remains).
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
-	require.NoError(t, err, "draft should exist with alice's changes")
+	// Thomas's change file should be deleted.
+	thomasChangePath := ChangePath(configPath, "thomas")
+	_, statErr := os.Stat(thomasChangePath)
+	assert.True(t, os.IsNotExist(statErr), "thomas's change file should be deleted after discard")
 
-	draftContent := string(draftData)
-	assert.Contains(t, draftContent, "set bgp router-id 10.0.0.1", "alice's value should be the tree value in draft")
-	assert.NotContains(t, draftContent, "10.0.0.2", "thomas's value should be gone")
-	// Draft should NOT have the committed value as a tree value (alice's 10.0.0.1 takes priority).
-	// Note: "^1.2.3.4" will appear in metadata (Previous field), which is correct.
-	assert.NotContains(t, draftContent, "set bgp router-id 1.2.3.4", "committed value should NOT replace alice's pending value")
+	// Alice's change file should still exist with her value.
+	aliceChangePath := ChangePath(configPath, "alice")
+	draftData, err := os.ReadFile(aliceChangePath)
+	require.NoError(t, err, "alice's change file should exist with her changes")
+
+	changeContent := string(draftData)
+	assert.Contains(t, changeContent, "10.0.0.1", "alice's value should be in her change file")
+	assert.NotContains(t, changeContent, "10.0.0.2", "thomas's value should not be in alice's change file")
 }
 
 // TestDisconnectRestoresOtherSessionValue verifies that disconnecting a session
@@ -2862,19 +2883,24 @@ func TestDisconnectRestoresOtherSessionValue(t *testing.T) {
 	err = ed2.SetValue([]string{"bgp"}, "router-id", "10.0.0.2")
 	require.NoError(t, err)
 
-	// Session 2 disconnects session 1 (alice). Thomas's value (10.0.0.2) should
-	// remain in draft, NOT the committed value (1.2.3.4).
+	// Session 2 disconnects session 1 (alice). Alice's change file is deleted.
+	// Thomas's change file still has his value (10.0.0.2).
 	err = ed2.DisconnectSession(session1.ID)
 	require.NoError(t, err)
 
-	// Draft should still exist (thomas's session remains).
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
-	require.NoError(t, err, "draft should exist with thomas's changes")
+	// Alice's change file should be gone.
+	aliceChangePath := ChangePath(configPath, "alice")
+	_, statErr := os.Stat(aliceChangePath)
+	assert.True(t, os.IsNotExist(statErr), "alice's change file should be deleted after disconnect")
 
-	draftContent := string(draftData)
-	assert.Contains(t, draftContent, "10.0.0.2", "thomas's value should remain in draft")
-	assert.NotContains(t, draftContent, "10.0.0.1", "alice's disconnected value should be gone")
+	// Thomas's change file should still have his value.
+	thomasChangePath := ChangePath(configPath, "thomas")
+	changeData, err := os.ReadFile(thomasChangePath)
+	require.NoError(t, err, "thomas's change file should exist")
+
+	changeContent := string(changeData)
+	assert.Contains(t, changeContent, "10.0.0.2", "thomas's value should remain in his change file")
+	assert.NotContains(t, changeContent, "10.0.0.1", "alice's disconnected value should not be in thomas's change file")
 }
 
 // TestStaleConflictNewValueBothAdded verifies stale conflict when a session
@@ -2917,10 +2943,10 @@ func TestStaleConflictNewValueBothAdded(t *testing.T) {
 }
 
 // TestDiscardFullCleansUpDraft verifies that discard-all (nil path) removes the
-// draft file when no other sessions are present.
+// change file when no other sessions are present.
 //
-// VALIDATES: DiscardSessionPath(nil) calls RemoveSession and cleans up draft.
-// PREVENTS: Orphaned draft files after full discard.
+// VALIDATES: DiscardSessionPath(nil) deletes per-user change file.
+// PREVENTS: Orphaned change files after full discard.
 func TestDiscardFullCleansUpDraft(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
@@ -2934,18 +2960,18 @@ func TestDiscardFullCleansUpDraft(t *testing.T) {
 	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
 	require.NoError(t, err)
 
-	// Verify draft exists before discard.
-	draftPath := DraftPath(configPath)
-	_, err = os.Stat(draftPath)
-	require.NoError(t, err, "draft should exist before discard")
+	// Verify change file exists before discard.
+	changePath := ChangePath(configPath, session.User)
+	_, err = os.Stat(changePath)
+	require.NoError(t, err, "change file should exist before discard")
 
 	// Discard all changes.
 	err = ed.DiscardSessionPath(nil)
 	require.NoError(t, err)
 
-	// Draft should be gone.
-	_, err = os.Stat(draftPath)
-	assert.True(t, os.IsNotExist(err), "draft should be deleted after full discard")
+	// Change file should be gone.
+	_, err = os.Stat(changePath)
+	assert.True(t, os.IsNotExist(err), "change file should be deleted after full discard")
 
 	// Dirty should be false.
 	assert.False(t, ed.Dirty(), "should be clean after full discard")
@@ -2958,10 +2984,10 @@ func TestDiscardFullCleansUpDraft(t *testing.T) {
 	assert.Equal(t, "1.2.3.4", val, "should revert to committed value")
 }
 
-// TestCommitSessionNoDraft verifies CommitSession errors when no draft file exists.
+// TestCommitSessionNoDraft verifies CommitSession with no change file returns Applied=0.
 //
-// VALIDATES: CommitSession returns error on missing draft (line 585-587).
-// PREVENTS: Panic or undefined behavior when committing without write-through changes.
+// VALIDATES: CommitSession with no pending changes returns Applied=0, not an error.
+// PREVENTS: Panic or unexpected error when committing without any write-through changes.
 func TestCommitSessionNoDraft(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
@@ -2972,17 +2998,20 @@ func TestCommitSessionNoDraft(t *testing.T) {
 	session := NewEditSession("thomas", "local")
 	ed.SetSession(session)
 
-	// No write-through calls -- no draft file exists.
+	// No write-through calls -- no change file exists.
+	// CommitSession calls SaveDraft first. SaveDraft finds no change file entries
+	// and returns nil. CommitSession then finds no draft and returns Applied=0.
 	result, err := ed.CommitSession()
-	require.Error(t, err, "commit without draft should error")
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "read draft")
+	require.NoError(t, err, "commit with no changes should not error")
+	require.NotNil(t, result)
+	assert.Equal(t, 0, result.Applied)
+	assert.Empty(t, result.Conflicts)
 }
 
-// TestDiscardSessionNoDraft verifies DiscardSessionPath errors when no draft file exists.
+// TestDiscardSessionNoDraft verifies DiscardSessionPath with no change file is a no-op.
 //
-// VALIDATES: DiscardSessionPath returns error on missing draft (line 728-730).
-// PREVENTS: Panic when discarding without any write-through changes.
+// VALIDATES: DiscardSessionPath(nil) succeeds even when no change file exists.
+// PREVENTS: Error on discard when user made no changes.
 func TestDiscardSessionNoDraft(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
@@ -2993,16 +3022,18 @@ func TestDiscardSessionNoDraft(t *testing.T) {
 	session := NewEditSession("thomas", "local")
 	ed.SetSession(session)
 
-	// No write-through calls -- no draft file exists.
+	// No write-through calls -- no change file exists.
+	// DiscardSessionPath(nil) attempts to remove the change file (best effort)
+	// and reloads from committed config. No error.
 	err = ed.DiscardSessionPath(nil)
-	require.Error(t, err, "discard without draft should error")
-	assert.Contains(t, err.Error(), "read draft")
+	require.NoError(t, err, "discard with no change file should succeed (no-op)")
+	assert.False(t, ed.Dirty(), "should remain clean after discarding nothing")
 }
 
-// TestWriteThroughCorruptDraft verifies write-through fails gracefully on corrupt draft.
+// TestWriteThroughCorruptDraft verifies write-through fails gracefully on corrupt change file.
 //
-// VALIDATES: readDraftOrConfig parse error path (line 170-171).
-// PREVENTS: Silent data corruption when draft file is malformed.
+// VALIDATES: readChangeFile parse error path.
+// PREVENTS: Silent data corruption when change file is malformed.
 func TestWriteThroughCorruptDraft(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
@@ -3013,23 +3044,24 @@ func TestWriteThroughCorruptDraft(t *testing.T) {
 	session := NewEditSession("thomas", "local")
 	ed.SetSession(session)
 
-	// Write a corrupt draft file (invalid set format).
-	draftPath := DraftPath(configPath)
-	err = os.WriteFile(draftPath, []byte("this is not valid set format {{{{"), 0o600)
+	// Write a corrupt change file (invalid set format).
+	changePath := ChangePath(configPath, session.User)
+	err = os.WriteFile(changePath, []byte("this is not valid set format {{{{"), 0o600) //nolint:gosec // test file
 	require.NoError(t, err)
 
-	// Write-through set should fail with parse error.
+	// Write-through set should fail with parse error from readChangeFile.
 	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
-	require.Error(t, err, "write-through should fail on corrupt draft")
+	require.Error(t, err, "write-through should fail on corrupt change file")
 	assert.Contains(t, err.Error(), "write-through read")
 }
 
-// TestCommitInMemoryShowsDraftWithRemaining verifies that after commit with other
-// sessions remaining, the committing editor's in-memory tree reflects draft state.
+// TestCommitInMemoryShowsDraftWithRemaining verifies that after commit, the committing
+// editor's in-memory tree reflects the committed state (alice's changes applied).
+// In the per-user change file model, the draft only contains the committing session's
+// changes; other sessions' pending changes remain in their own change files.
 //
-// VALIDATES: In-memory state switch to draft view (lines 701-706).
-// PREVENTS: Editor showing committed state while other sessions have pending changes,
-// causing inconsistency between show/blame/changes commands and actual draft.
+// VALIDATES: After commit, in-memory tree reflects committed values.
+// PREVENTS: Editor showing stale state after commit.
 func TestCommitInMemoryShowsDraftWithRemaining(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
@@ -3043,7 +3075,7 @@ func TestCommitInMemoryShowsDraftWithRemaining(t *testing.T) {
 	err = ed1.SetValue([]string{"bgp"}, "router-id", "10.0.0.1")
 	require.NoError(t, err)
 
-	// Session 2 (thomas) changes local-as.
+	// Session 2 (thomas) changes local-as (stored in thomas's change file).
 	ed2, err := NewEditor(configPath)
 	require.NoError(t, err)
 	defer ed2.Close() //nolint:errcheck,gosec // Best effort cleanup
@@ -3053,28 +3085,26 @@ func TestCommitInMemoryShowsDraftWithRemaining(t *testing.T) {
 	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65001")
 	require.NoError(t, err)
 
-	// Session 1 commits.
+	// Session 1 commits: SaveDraft creates draft from alice's change file,
+	// CommitSession applies it to config.conf, then updates in-memory state.
 	result, err := ed1.CommitSession()
 	require.NoError(t, err)
 	assert.Equal(t, 1, result.Applied)
 
-	// ed1's in-memory tree should reflect the DRAFT state (thomas's pending
-	// changes visible), not the committed state alone. This ensures show/blame
-	// commands are consistent.
+	// ed1's in-memory tree should reflect alice's committed value.
 	bgpTree := ed1.tree.GetContainer("bgp")
 	require.NotNil(t, bgpTree)
 
-	// thomas's pending value (65001) should be visible in ed1's tree.
-	localContainer := bgpTree.GetContainer("local")
-	require.NotNil(t, localContainer)
-	val, ok := localContainer.Get("as")
+	// alice's committed value should be present.
+	val, ok := bgpTree.Get("router-id")
 	assert.True(t, ok)
-	assert.Equal(t, "65001", val, "in-memory tree should show draft state with thomas's pending value")
+	assert.Equal(t, "10.0.0.1", val, "alice's committed value should be in the in-memory tree")
 
-	// alice's committed value should also be present.
-	val, ok = bgpTree.Get("router-id")
-	assert.True(t, ok)
-	assert.Equal(t, "10.0.0.1", val, "alice's committed value should be in draft tree too")
+	// Thomas's change file should still exist with his pending changes.
+	thomasChangePath := ChangePath(configPath, "thomas")
+	changeData, readErr := os.ReadFile(thomasChangePath)
+	require.NoError(t, readErr, "thomas's change file should survive after alice commits")
+	assert.Contains(t, string(changeData), "65001", "thomas's pending value should be in his change file")
 
 	// dirty should be false after commit.
 	assert.False(t, ed1.Dirty())
@@ -3166,15 +3196,15 @@ func TestWriteThroughPreviousTracksCommits(t *testing.T) {
 	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err)
 
-	// The draft should now record Previous=5.6.7.8 (from the committed config),
+	// The change file should now record Previous=5.6.7.8 (from the committed config),
 	// NOT Previous=1.2.3.4 (the original before the first commit).
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
+	changePath := ChangePath(configPath, session.User)
+	changeData, err := os.ReadFile(changePath)
 	require.NoError(t, err)
 
-	draftContent := string(draftData)
-	assert.Contains(t, draftContent, "^5.6.7.8", "Previous should be the committed value from first commit")
-	assert.NotContains(t, draftContent, "^1.2.3.4", "Previous should NOT be the original value before any commits")
+	changeContent := string(changeData)
+	assert.Contains(t, changeContent, "^5.6.7.8", "Previous should be the committed value from first commit")
+	assert.NotContains(t, changeContent, "^1.2.3.4", "Previous should NOT be the original value before any commits")
 }
 
 // TestDisconnectDeletesNewlyAddedValue verifies that disconnecting a session that
@@ -3209,16 +3239,21 @@ func TestDisconnectDeletesNewlyAddedValue(t *testing.T) {
 	err = ed2.DisconnectSession(session1.ID)
 	require.NoError(t, err)
 
-	// Draft should exist (thomas's changes remain).
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
-	require.NoError(t, err)
+	// Alice's change file should be deleted.
+	aliceChangePath := ChangePath(configPath, "alice")
+	_, statErr := os.Stat(aliceChangePath)
+	assert.True(t, os.IsNotExist(statErr), "alice's change file should be deleted after disconnect")
 
-	draftContent := string(draftData)
-	// alice's "listen" should be deleted (not in committed config).
-	assert.NotContains(t, draftContent, "listen", "newly added value should be deleted after disconnect")
+	// Thomas's change file should still have his value.
+	thomasChangePath := ChangePath(configPath, "thomas")
+	changeData, err := os.ReadFile(thomasChangePath)
+	require.NoError(t, err, "thomas's change file should survive")
+
+	changeContent := string(changeData)
+	// alice's "listen" is gone (her change file deleted).
+	assert.NotContains(t, changeContent, "listen", "alice's newly added value should be gone after disconnect")
 	// thomas's change should remain.
-	assert.Contains(t, draftContent, "65001", "thomas's value should remain in draft")
+	assert.Contains(t, changeContent, "65001", "thomas's value should remain in his change file")
 }
 
 // TestDiscardDeletesNewlyAddedValue verifies that discarding a session's change
@@ -3253,16 +3288,21 @@ func TestDiscardDeletesNewlyAddedValue(t *testing.T) {
 	err = ed1.DiscardSessionPath(nil)
 	require.NoError(t, err)
 
-	// Draft should exist (thomas's session remains).
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
-	require.NoError(t, err)
+	// Alice's change file should be deleted.
+	aliceChangePath := ChangePath(configPath, "alice")
+	_, statErr := os.Stat(aliceChangePath)
+	assert.True(t, os.IsNotExist(statErr), "alice's change file should be deleted after discard")
 
-	draftContent := string(draftData)
-	// alice's "listen" should be gone (not in committed, so deleted from draft tree).
-	assert.NotContains(t, draftContent, "listen", "newly added value should be deleted after discard")
+	// Thomas's change file should still have his value.
+	thomasChangePath := ChangePath(configPath, "thomas")
+	changeData, err := os.ReadFile(thomasChangePath)
+	require.NoError(t, err, "thomas's change file should survive after alice discards")
+
+	changeContent := string(changeData)
+	// alice's "listen" is gone (her change file deleted).
+	assert.NotContains(t, changeContent, "listen", "alice's newly added value should be gone after discard")
 	// thomas's change should remain.
-	assert.Contains(t, draftContent, "65001", "thomas's value should remain")
+	assert.Contains(t, changeContent, "65001", "thomas's value should remain in his change file")
 }
 
 // TestCommitMetadataUserInConfig verifies that after commit, config.conf contains
@@ -3596,14 +3636,24 @@ func TestDiscardExactPathMatch(t *testing.T) {
 	err = ed.DiscardSessionPath([]string{"bgp", "local"})
 	require.NoError(t, err)
 
-	// local-as should be reverted to committed value.
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
-	require.NoError(t, err)
-	draftContent := string(draftData)
-	assert.Contains(t, draftContent, "65000", "local as should revert to committed 65000")
+	// Change file should still exist (router-id change remains).
+	changePath := ChangePath(configPath, session.User)
+	changeData, err := os.ReadFile(changePath)
+	require.NoError(t, err, "change file should still exist after partial discard")
+	changeContent := string(changeData)
 	// router-id change should still be pending.
-	assert.Contains(t, draftContent, "5.6.7.8", "router-id change should remain")
+	assert.Contains(t, changeContent, "5.6.7.8", "router-id change should remain in change file")
+	// local-as should not be in the change file anymore (discarded).
+	assert.NotContains(t, changeContent, "65001", "local-as change should be discarded")
+
+	// In-memory tree should have local-as reverted to committed value.
+	bgpTree := ed.tree.GetContainer("bgp")
+	require.NotNil(t, bgpTree)
+	localContainer := bgpTree.GetContainer("local")
+	require.NotNil(t, localContainer, "local container should exist")
+	val, ok := localContainer.Get("as")
+	assert.True(t, ok)
+	assert.Equal(t, "65000", val, "local as should revert to committed 65000 in memory")
 }
 
 // TestLiveConflictAgreementSameValue verifies that two sessions setting the same
@@ -4071,11 +4121,18 @@ func TestDisconnectDeleteEntry(t *testing.T) {
 	err = ed2.DisconnectSession(session1.ID)
 	require.NoError(t, err)
 
-	// Verify local-as is restored in the draft (read from disk).
-	draftPath := DraftPath(configPath)
-	draftData, err := os.ReadFile(draftPath)
-	require.NoError(t, err)
-	assert.Contains(t, string(draftData), "local", "local as should be restored after disconnecting deleting session")
+	// Alice's change file should be deleted (disconnect removed it).
+	aliceChangePath := ChangePath(configPath, "alice")
+	_, statErr := os.Stat(aliceChangePath)
+	assert.True(t, os.IsNotExist(statErr), "alice's change file should be deleted after disconnect")
+
+	// In-memory tree for ed2 should still have local-as (alice's delete was abandoned).
+	bgpTree := ed2.tree.GetContainer("bgp")
+	require.NotNil(t, bgpTree)
+	localContainer := bgpTree.GetContainer("local")
+	require.NotNil(t, localContainer, "local container should exist after alice's delete is abandoned")
+	_, hasAS := localContainer.Get("as")
+	assert.True(t, hasAS, "local as should remain after disconnecting the session that deleted it")
 }
 
 // TestSessionChangesAllSessions verifies SessionChanges("") returns all sessions' changes.
@@ -4739,6 +4796,12 @@ func TestEditorAdoptSession(t *testing.T) {
 	err = ed1.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
 	require.NoError(t, err)
 
+	// In the per-user model, write-through writes to the change file, not the draft.
+	// AdoptSession reads from the draft. SaveDraft must be called first to move
+	// the old session's changes from change file → draft.
+	err = ed1.SaveDraft()
+	require.NoError(t, err)
+
 	// Verify draft has old session.
 	draftData, err := os.ReadFile(DraftPath(configPath))
 	require.NoError(t, err)
@@ -4781,6 +4844,10 @@ func TestEditorAdoptDeclined(t *testing.T) {
 	err = ed1.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
 	require.NoError(t, err)
 
+	// SaveDraft moves change file → draft so it can be seen as "orphaned".
+	err = ed1.SaveDraft()
+	require.NoError(t, err)
+
 	// New session does NOT adopt.
 	ed2, err := NewEditor(configPath)
 	require.NoError(t, err)
@@ -4789,10 +4856,10 @@ func TestEditorAdoptDeclined(t *testing.T) {
 	newSession := NewEditSession("thomas", "local")
 	ed2.SetSession(newSession)
 
-	// Draft should still have old session.
+	// Draft should still have old session's user (not adopted, not changed).
 	draftData, err := os.ReadFile(DraftPath(configPath))
 	require.NoError(t, err)
-	assert.Contains(t, string(draftData), "#"+oldSession.User, "old session user should remain")
+	assert.Contains(t, string(draftData), "#"+oldSession.User, "old session user should remain in draft")
 }
 
 // TestCheckDraftChangedOwnWriteNotReported verifies that CheckDraftChanged does NOT
@@ -4822,30 +4889,34 @@ func TestCheckDraftChangedOwnWriteNotReported(t *testing.T) {
 	session := NewEditSession("thomas", "local")
 	ed.SetSession(session)
 
-	// First set: creates draft via write-through. Seed the poll mtime.
+	// First SaveDraft: creates draft from change file. Seed the poll mtime.
 	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
+	require.NoError(t, err)
+	err = ed.SaveDraft()
 	require.NoError(t, err)
 
 	// Seed the draftMtime by polling once.
 	changed, _ := ed.CheckDraftChanged()
 	assert.False(t, changed, "first poll should seed mtime, not report change")
 
-	// Second set: advances draft mtime via write-through.
+	// Second SaveDraft: advances draft mtime.
 	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err)
+	err = ed.SaveDraft()
+	require.NoError(t, err)
 
-	// Poll again: this is the bug scenario. The current session wrote the draft,
+	// Poll again: this is the bug scenario. The current session saved the draft,
 	// but CheckDraftChanged must NOT report it as another session's change.
 	changed, notification := ed.CheckDraftChanged()
-	assert.False(t, changed, "own write should not be reported as external change")
-	assert.Empty(t, notification, "no notification for own writes")
+	assert.False(t, changed, "own SaveDraft should not be reported as external change")
+	assert.Empty(t, notification, "no notification for own draft saves")
 }
 
 // TestCheckDraftChangedOtherSessionReported verifies that CheckDraftChanged DOES
-// report changes made by a different session.
+// report changes made by a different session via SaveDraft.
 //
-// VALIDATES: External writes are correctly flagged as another session's change.
-// PREVENTS: Missing notifications when another session modifies the draft.
+// VALIDATES: External SaveDraft calls are correctly flagged as another session's change.
+// PREVENTS: Missing notifications when another session saves the draft.
 func TestCheckDraftChangedOtherSessionReported(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "test.conf")
@@ -4860,7 +4931,7 @@ func TestCheckDraftChangedOtherSessionReported(t *testing.T) {
 	err = os.Remove(configPath)
 	require.NoError(t, err)
 
-	// Session 1: creates draft via write-through.
+	// Session 1: writes to change file via write-through, then saves draft.
 	ed1, err := NewEditorWithStorage(store, configPath)
 	require.NoError(t, err)
 	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
@@ -4869,6 +4940,8 @@ func TestCheckDraftChangedOtherSessionReported(t *testing.T) {
 	ed1.SetSession(session1)
 
 	err = ed1.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
+	require.NoError(t, err)
+	err = ed1.SaveDraft()
 	require.NoError(t, err)
 
 	// Session 2: shares the same store, different session.
@@ -4883,22 +4956,24 @@ func TestCheckDraftChangedOtherSessionReported(t *testing.T) {
 	changed, _ := ed2.CheckDraftChanged()
 	assert.False(t, changed, "first poll should seed mtime")
 
-	// Session 1 writes again via write-through.
+	// Session 1 writes again and saves draft (updates draft mtime with alice's session ID).
 	err = ed1.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err)
+	err = ed1.SaveDraft()
+	require.NoError(t, err)
 
-	// Session 2 polls: should detect the change.
+	// Session 2 polls: should detect the change (draft was modified by alice's SaveDraft).
 	changed, notification := ed2.CheckDraftChanged()
-	assert.True(t, changed, "other session's write should be reported")
+	assert.True(t, changed, "other session's SaveDraft should be reported")
 	assert.Contains(t, notification, session1.ID, "notification should identify the other session")
 }
 
-// TestCheckDraftChangedFilesystemOwnWrite verifies that filesystem storage also
-// does not false-positive on own writes.
+// TestCheckDraftChangedFilesystemMtimeDetection verifies that CheckDraftChanged
+// detects a newer draft mtime on filesystem storage.
 //
-// VALIDATES: Own writes not flagged on filesystem storage (ModifiedBy is empty).
-// PREVENTS: False notification on filesystem storage where SetModifier is no-op.
-func TestCheckDraftChangedFilesystemOwnWrite(t *testing.T) {
+// VALIDATES: CheckDraftChanged returns true when draft mtime advances on filesystem storage.
+// PREVENTS: Silent failure to detect draft changes on filesystem storage.
+func TestCheckDraftChangedFilesystemMtimeDetection(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
 	ed, err := NewEditor(configPath)
@@ -4908,23 +4983,442 @@ func TestCheckDraftChangedFilesystemOwnWrite(t *testing.T) {
 	session := NewEditSession("thomas", "local")
 	ed.SetSession(session)
 
-	// First set.
-	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
+	// Create an initial draft by writing directly (simulating another user's save).
+	draftPath := DraftPath(configPath)
+	err = os.WriteFile(draftPath, []byte("set bgp router-id 5.6.7.8\n"), 0o600)
 	require.NoError(t, err)
 
-	// Seed mtime.
+	// Seed mtime (first poll).
 	changed, _ := ed.CheckDraftChanged()
-	assert.False(t, changed, "first poll should seed mtime")
+	assert.False(t, changed, "first poll should seed mtime, not report change")
 
 	// Need a small delay to ensure filesystem mtime granularity advances.
 	time.Sleep(10 * time.Millisecond)
 
-	// Second set.
+	// Write a newer draft (simulating another user's update).
+	err = os.WriteFile(draftPath, []byte("set bgp router-id 9.9.9.9\n"), 0o600)
+	require.NoError(t, err)
+
+	// Poll: should detect the newer mtime.
+	// On filesystem storage, ModifiedBy is empty so notifications don't include session ID.
+	changed, _ = ed.CheckDraftChanged()
+	assert.True(t, changed, "newer draft mtime should be detected on filesystem storage")
+}
+
+// --- Per-user change file tests ---
+
+// TestWriteThroughToChangeFile verifies that set with an active session writes
+// to config.conf.change.<user> instead of config.conf.draft.
+//
+// VALIDATES: AC-1: set writes to per-user change file, not shared draft.
+// PREVENTS: Edits going to shared draft (old model).
+func TestWriteThroughToChangeFile(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("thomas", "local")
+	ed.SetSession(session)
+
+	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
+	require.NoError(t, err)
+
+	// Change file should exist.
+	changePath := ChangePath(configPath, "thomas")
+	_, statErr := os.Stat(changePath)
+	assert.False(t, os.IsNotExist(statErr), "change file should exist after set")
+
+	// Change file should contain the set entry with metadata.
+	data, readErr := os.ReadFile(changePath) //nolint:gosec // test file
+	require.NoError(t, readErr)
+	content := string(data)
+	assert.Contains(t, content, "router-id")
+	assert.Contains(t, content, "5.6.7.8")
+	assert.Contains(t, content, "#thomas")
+
+	// Draft should NOT exist (no longer written on each set).
+	draftPath := DraftPath(configPath)
+	_, draftStatErr := os.Stat(draftPath)
+	assert.True(t, os.IsNotExist(draftStatErr), "draft should not exist after set (only change file)")
+}
+
+// TestDeleteToChangeFile verifies that delete with an active session writes
+// to config.conf.change.<user>.
+//
+// VALIDATES: AC-2: delete entry written to per-user change file.
+// PREVENTS: Deletes going to shared draft.
+func TestDeleteToChangeFile(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("thomas", "local")
+	ed.SetSession(session)
+
+	err = ed.DeleteValue([]string{"bgp", "peer", "peer1"}, "hold-time")
+	require.NoError(t, err)
+
+	// Change file should exist with delete entry.
+	changePath := ChangePath(configPath, "thomas")
+	data, readErr := os.ReadFile(changePath) //nolint:gosec // test file
+	require.NoError(t, readErr)
+	content := string(data)
+	assert.Contains(t, content, "hold-time")
+	assert.Contains(t, content, "#thomas")
+}
+
+// TestChangeFileReplacesSameLeaf verifies that setting the same leaf twice
+// replaces the entry in the change file instead of appending.
+//
+// VALIDATES: AC-3: second entry replaces first in change file.
+// PREVENTS: Unbounded growth of change file from repeated edits.
+func TestChangeFileReplacesSameLeaf(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("thomas", "local")
+	ed.SetSession(session)
+
+	// Set router-id twice.
+	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
+	require.NoError(t, err)
 	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err)
 
-	// Poll: must not report own write as external.
-	changed, notification := ed.CheckDraftChanged()
-	assert.False(t, changed, "own write should not be reported on filesystem storage")
-	assert.Empty(t, notification, "no notification for own writes")
+	// Change file should contain only the latest value.
+	changePath := ChangePath(configPath, "thomas")
+	data, readErr := os.ReadFile(changePath) //nolint:gosec // test file
+	require.NoError(t, readErr)
+	content := string(data)
+	assert.Contains(t, content, "9.9.9.9", "latest value should be present")
+	assert.NotContains(t, content, "5.6.7.8", "old value should not be present in change file")
+}
+
+// TestDetectConflictSameLeaf verifies that two users editing the same leaf
+// with different values produces a conflict.
+//
+// VALIDATES: AC-4: both users see conflict warning after their edit.
+// PREVENTS: Silent overwrite of another user's pending change.
+func TestDetectConflictSameLeaf(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	// Alice sets router-id.
+	ed1, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
+	session1 := NewEditSession("alice", "ssh")
+	ed1.SetSession(session1)
+	err = ed1.SetValue([]string{"bgp"}, "router-id", "10.0.0.1")
+	require.NoError(t, err)
+
+	// Bob sets same leaf to different value.
+	ed2, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
+	session2 := NewEditSession("bob", "ssh")
+	ed2.SetSession(session2)
+	err = ed2.SetValue([]string{"bgp"}, "router-id", "10.0.0.2")
+	require.NoError(t, err)
+
+	// Bob should detect conflict with Alice.
+	conflicts := ed2.DetectConflicts()
+	require.NotEmpty(t, conflicts, "should detect conflict on same leaf")
+	assert.Equal(t, "bgp router-id", conflicts[0].Path)
+	assert.Equal(t, "10.0.0.2", conflicts[0].MyValue)
+	assert.Equal(t, "10.0.0.1", conflicts[0].OtherValue)
+}
+
+// TestNoConflictDifferentLeaves verifies that two users editing different leaves
+// does not produce a conflict.
+//
+// VALIDATES: AC-5: no false conflict on different leaves.
+// PREVENTS: False positive conflict detection.
+func TestNoConflictDifferentLeaves(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	// Alice sets router-id.
+	ed1, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
+	session1 := NewEditSession("alice", "ssh")
+	ed1.SetSession(session1)
+	err = ed1.SetValue([]string{"bgp"}, "router-id", "10.0.0.1")
+	require.NoError(t, err)
+
+	// Bob sets a different leaf.
+	ed2, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
+	session2 := NewEditSession("bob", "ssh")
+	ed2.SetSession(session2)
+	err = ed2.SetValue([]string{"bgp", "peer", "peer1"}, "hold-time", "180")
+	require.NoError(t, err)
+
+	// Bob should NOT detect any conflict.
+	conflicts := ed2.DetectConflicts()
+	assert.Empty(t, conflicts, "different leaves should not conflict")
+}
+
+// TestSaveDraftAppliesToDraft verifies that the save command applies changes
+// from the change file to config.conf.draft and deletes the change file.
+//
+// VALIDATES: AC-6: save creates draft from change file, change file deleted.
+// PREVENTS: Save being a no-op, change file lingering after save.
+func TestSaveDraftAppliesToDraft(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("thomas", "local")
+	ed.SetSession(session)
+
+	// Make a change.
+	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
+	require.NoError(t, err)
+
+	// Change file should exist.
+	changePath := ChangePath(configPath, "thomas")
+	assert.FileExists(t, changePath, "change file should exist before save")
+
+	// Save should create draft and delete change file.
+	err = ed.SaveDraft()
+	require.NoError(t, err)
+
+	// Draft should exist with the change applied.
+	draftPath := DraftPath(configPath)
+	assert.FileExists(t, draftPath, "draft should exist after save")
+	draftData, readErr := os.ReadFile(draftPath) //nolint:gosec // test file
+	require.NoError(t, readErr)
+	assert.Contains(t, string(draftData), "5.6.7.8", "draft should contain saved value")
+
+	// Change file should be deleted.
+	_, statErr := os.Stat(changePath)
+	assert.True(t, os.IsNotExist(statErr), "change file should be deleted after save")
+}
+
+// TestCommitSavesThenApplies verifies that commit saves first (creating draft),
+// then applies draft to config.conf.
+//
+// VALIDATES: AC-7: commit = save + apply.
+// PREVENTS: Commit without saving, config.conf not updated.
+func TestCommitSavesThenApplies(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("thomas", "local")
+	ed.SetSession(session)
+
+	// Make a change.
+	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
+	require.NoError(t, err)
+
+	// Commit should apply the change to config.conf.
+	result, commitErr := ed.CommitSession()
+	require.NoError(t, commitErr)
+	require.NotNil(t, result)
+	assert.Empty(t, result.Conflicts, "no conflicts expected")
+	assert.Equal(t, 1, result.Applied)
+
+	// Config.conf should have the new value.
+	data, readErr := os.ReadFile(configPath) //nolint:gosec // test file
+	require.NoError(t, readErr)
+	assert.Contains(t, string(data), "5.6.7.8", "config.conf should contain committed value")
+
+	// Both change file and draft should be cleaned up.
+	changePath := ChangePath(configPath, "thomas")
+	_, changeStatErr := os.Stat(changePath)
+	assert.True(t, os.IsNotExist(changeStatErr), "change file should be deleted after commit")
+
+	draftPath := DraftPath(configPath)
+	_, draftStatErr := os.Stat(draftPath)
+	assert.True(t, os.IsNotExist(draftStatErr), "draft should be deleted after commit")
+}
+
+// TestDiscardDeletesChangeFile verifies that discard deletes the own change file
+// and reloads from base state.
+//
+// VALIDATES: AC-8: discard cleans up change file and reloads base.
+// PREVENTS: Change file lingering after discard, stale in-memory state.
+func TestDiscardDeletesChangeFile(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("thomas", "local")
+	ed.SetSession(session)
+
+	// Make a change.
+	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
+	require.NoError(t, err)
+	assert.True(t, ed.Dirty(), "should be dirty after set")
+
+	// Discard all.
+	err = ed.DiscardSessionPath(nil)
+	require.NoError(t, err)
+
+	// Change file should be deleted.
+	changePath := ChangePath(configPath, "thomas")
+	_, statErr := os.Stat(changePath)
+	assert.True(t, os.IsNotExist(statErr), "change file should be deleted after discard")
+
+	// In-memory tree should be back to original.
+	assert.False(t, ed.Dirty(), "should not be dirty after discard")
+	assert.Equal(t, "1.2.3.4", getValueAtPath(ed.tree, ed.schema, []string{"bgp", "router-id"}),
+		"router-id should be restored to original value")
+}
+
+// TestChangeFileFormatChangesOnly verifies that the change file contains only
+// changed entries, not a full tree dump.
+//
+// VALIDATES: AC-9: change file is sparse (only changes).
+// PREVENTS: Change file duplicating the full config.
+func TestChangeFileFormatChangesOnly(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	session := NewEditSession("thomas", "local")
+	ed.SetSession(session)
+
+	// Set one leaf.
+	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
+	require.NoError(t, err)
+
+	// Change file should contain ONLY the changed entry.
+	changePath := ChangePath(configPath, "thomas")
+	data, readErr := os.ReadFile(changePath) //nolint:gosec // test file
+	require.NoError(t, readErr)
+	content := string(data)
+
+	// Should contain the changed entry.
+	assert.Contains(t, content, "router-id")
+	assert.Contains(t, content, "5.6.7.8")
+
+	// Should NOT contain unchanged entries from the original config.
+	assert.NotContains(t, content, "65000", "change file should not contain unchanged local-as")
+	assert.NotContains(t, content, "hold-time", "change file should not contain unchanged hold-time")
+	assert.NotContains(t, content, "peer1", "change file should not contain unchanged peer entries")
+}
+
+// TestSanitizeUser verifies path traversal prevention in user identifiers.
+//
+// VALIDATES: sanitizeUser strips dangerous characters from user strings.
+// PREVENTS: Path traversal via malicious USER environment variable.
+func TestSanitizeUser(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{name: "normal", input: "thomas", expected: "thomas"},
+		{name: "hyphen", input: "thomas-m", expected: "thomas-m"},
+		{name: "underscore", input: "thomas_m", expected: "thomas_m"},
+		{name: "dots in name", input: "thomas.mangin", expected: "thomas.mangin"},
+		{name: "path traversal", input: "../../../etc/passwd", expected: "passwd"},
+		{name: "double dot", input: "..", expected: "unknown"},
+		{name: "dot slash", input: "./local", expected: "local"},
+		{name: "nested traversal", input: "a/../b", expected: "b"},
+		{name: "slash in name", input: "user/evil", expected: "evil"},
+		{name: "slashes only", input: "///", expected: "unknown"},
+		{name: "empty", input: "", expected: "unknown"},
+		{name: "spaces", input: "a b c", expected: "a b c"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, sanitizeUser(tt.input))
+		})
+	}
+}
+
+// TestValidateUser verifies that ValidateUser rejects usernames with .., /, or \.
+//
+// VALIDATES: Input boundary rejects path traversal characters.
+// PREVENTS: Malicious USER env var creating files outside config directory.
+func TestValidateUser(t *testing.T) {
+	// Valid usernames.
+	for _, valid := range []string{"thomas", "thomas.mangin", "thomas-m", "thomas_m"} {
+		assert.NoError(t, ValidateUser(valid), "should accept %q", valid)
+	}
+	// Invalid usernames: empty, .., /, \, spaces.
+	for _, invalid := range []string{"", "..", ".", "user/evil", "../../../etc/passwd", "a\\b", "///", "a/../b", "a b"} {
+		assert.Error(t, ValidateUser(invalid), "should reject %q", invalid)
+	}
+}
+
+// TestDetectConflictsNilSession verifies DetectConflicts returns nil for nil session.
+//
+// VALIDATES: No panic when session is nil.
+// PREVENTS: Nil pointer dereference in conflict detection.
+func TestDetectConflictsNilSession(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // test cleanup
+
+	// No session set — should return nil, not panic.
+	assert.Nil(t, ed.DetectConflicts())
+}
+
+// TestDetectConflictsSameValue verifies no false positive when two users set same value.
+//
+// VALIDATES: Same path + same value = no conflict.
+// PREVENTS: False positive conflict detection.
+func TestDetectConflictsSameValue(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	ed1, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
+	session1 := NewEditSession("alice", "ssh")
+	ed1.SetSession(session1)
+	err = ed1.SetValue([]string{"bgp"}, "router-id", "10.0.0.1")
+	require.NoError(t, err)
+
+	ed2, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
+	session2 := NewEditSession("bob", "ssh")
+	ed2.SetSession(session2)
+	err = ed2.SetValue([]string{"bgp"}, "router-id", "10.0.0.1")
+	require.NoError(t, err)
+
+	// Same value at same path — should NOT conflict.
+	conflicts := ed2.DetectConflicts()
+	assert.Empty(t, conflicts, "same value at same path should not conflict")
+}
+
+// TestChangePathHelpers verifies ChangePath, ChangePrefix, ChangeUser round-trip.
+//
+// VALIDATES: Path helpers produce consistent, parseable paths.
+// PREVENTS: Mismatched path construction/parsing in change file scanning.
+func TestChangePathHelpers(t *testing.T) {
+	configPath := "/etc/ze/config.conf"
+
+	cp := ChangePath(configPath, "thomas")
+	assert.Equal(t, "/etc/ze/config.conf.change.thomas", cp)
+
+	prefix := ChangePrefix(configPath)
+	assert.Equal(t, "config.conf.change.", prefix)
+
+	user := ChangeUser(configPath, cp)
+	assert.Equal(t, "thomas", user)
+
+	// Non-change-file path returns empty.
+	assert.Equal(t, "", ChangeUser(configPath, "/etc/ze/config.conf.draft"))
 }

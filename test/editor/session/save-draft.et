@@ -1,0 +1,37 @@
+# Test: Save applies per-user changes to shared draft
+# VALIDATES: spec-per-user-drafts AC-6: save creates draft from change file
+# PREVENTS: Save being a no-op, change file lingering after save
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  local {
+  	as 65000
+  }
+  router-id 1.2.3.4;
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=session:user=thomas:origin=local
+
+# Set a value -- writes to change file
+input=type:text=set bgp local as 65001
+input=enter
+expect=dirty:true
+expect=error:none
+
+# Change file should exist
+expect=file:path=test.conf.change.thomas:contains=#thomas @local
+
+# Save should create draft and delete change file
+input=type:text=save
+input=enter
+expect=status:contains=saved
+expect=error:none
+
+# Draft should exist with saved value
+expect=file:path=test.conf.draft:contains=65001
+
+# Change file should be gone
+expect=file:path=test.conf.change.thomas:absent

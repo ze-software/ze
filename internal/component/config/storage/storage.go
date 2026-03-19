@@ -49,6 +49,10 @@ type Storage interface {
 	// Returns zero FileMeta and an error if the file does not exist.
 	Stat(name string) (FileMeta, error)
 
+	// Rename renames a file. For filesystem: os.Rename.
+	// For blob: in-place key rewrite if capacity allows, otherwise realloc.
+	Rename(oldName, newName string) error
+
 	// Close releases resources held by the storage.
 	// For filesystem: no-op. For blob: closes the BlobStore.
 	Close() error
@@ -114,6 +118,10 @@ func (s *filesystemStorage) Stat(name string) (FileMeta, error) {
 		return FileMeta{}, err
 	}
 	return FileMeta{ModTime: info.ModTime()}, nil
+}
+
+func (s *filesystemStorage) Rename(oldName, newName string) error {
+	return os.Rename(oldName, newName)
 }
 
 func (s *filesystemStorage) Close() error {

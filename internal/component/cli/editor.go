@@ -698,28 +698,123 @@ func (e *Editor) SetView() string {
 }
 
 // SessionChanges returns the changes for a specific session, or all sessions.
-// If sessionID is empty, returns changes for all sessions.
+// If sessionID is empty, returns changes for all sessions (scanning change files).
 func (e *Editor) SessionChanges(sessionID string) []config.SessionEntry {
-	if e.meta == nil {
-		return nil
+	if sessionID != "" {
+		// Specific session: check own metadata first, then scan change files.
+		if e.meta != nil {
+			if entries := e.meta.SessionEntries(sessionID); len(entries) > 0 {
+				return entries
+			}
+		}
+		return e.readOtherSessionEntries(sessionID)
 	}
-	if sessionID == "" {
-		// All sessions: collect from all known sessions.
-		var all []config.SessionEntry
+
+	// All sessions: own entries + scan all change files.
+	var all []config.SessionEntry
+	if e.meta != nil {
 		for _, sid := range e.meta.AllSessions() {
 			all = append(all, e.meta.SessionEntries(sid)...)
 		}
-		return all
 	}
-	return e.meta.SessionEntries(sessionID)
+
+	// Scan other users' change files.
+	for _, cf := range e.listOtherChangeFiles() {
+		data, err := e.store.ReadFile(cf)
+		if err != nil {
+			continue
+		}
+		_, otherMeta, err := config.NewSetParser(e.schema).ParseWithMeta(string(data))
+		if err != nil {
+			continue
+		}
+		for _, sid := range otherMeta.AllSessions() {
+			all = append(all, otherMeta.SessionEntries(sid)...)
+		}
+	}
+	return all
 }
 
 // ActiveSessions returns all session IDs with pending changes.
+// Scans change files to include other users' sessions.
 func (e *Editor) ActiveSessions() []string {
-	if e.meta == nil {
+	seen := make(map[string]bool)
+	var sessions []string
+
+	// Own sessions from metadata.
+	if e.meta != nil {
+		for _, sid := range e.meta.AllSessions() {
+			if !seen[sid] {
+				seen[sid] = true
+				sessions = append(sessions, sid)
+			}
+		}
+	}
+
+	// Other users' sessions from change files.
+	for _, cf := range e.listOtherChangeFiles() {
+		data, err := e.store.ReadFile(cf)
+		if err != nil {
+			continue
+		}
+		_, otherMeta, err := config.NewSetParser(e.schema).ParseWithMeta(string(data))
+		if err != nil {
+			continue
+		}
+		for _, sid := range otherMeta.AllSessions() {
+			if !seen[sid] {
+				seen[sid] = true
+				sessions = append(sessions, sid)
+			}
+		}
+	}
+	return sessions
+}
+
+// listOtherChangeFiles returns change file paths for other users (not the current session's user).
+func (e *Editor) listOtherChangeFiles() []string {
+	dir := filepath.Dir(e.originalPath)
+	files, err := e.store.List(dir)
+	if err != nil {
 		return nil
 	}
-	return e.meta.AllSessions()
+
+	prefix := ChangePrefix(e.originalPath)
+	myUser := ""
+	if e.session != nil {
+		myUser = e.session.User
+	}
+
+	var result []string
+	for _, f := range files {
+		base := filepath.Base(f)
+		if !strings.HasPrefix(base, prefix) {
+			continue
+		}
+		user := strings.TrimPrefix(base, prefix)
+		if user != myUser {
+			result = append(result, f)
+		}
+	}
+	return result
+}
+
+// readOtherSessionEntries reads a specific session's entries from change files.
+func (e *Editor) readOtherSessionEntries(sessionID string) []config.SessionEntry {
+	for _, cf := range e.listOtherChangeFiles() {
+		data, err := e.store.ReadFile(cf)
+		if err != nil {
+			continue
+		}
+		_, otherMeta, err := config.NewSetParser(e.schema).ParseWithMeta(string(data))
+		if err != nil {
+			continue
+		}
+		if entries := otherMeta.SessionEntries(sessionID); len(entries) > 0 {
+			return entries
+		}
+	}
+	return nil
 }
 
 // SetSession sets the concurrent editing session identity.

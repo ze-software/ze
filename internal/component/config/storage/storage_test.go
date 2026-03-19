@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // VALIDATES: filesystem storage read/write/remove round-trip
@@ -846,4 +849,66 @@ func TestBlobMigrateFilesystemPrefixed(t *testing.T) {
 	if !found {
 		t.Errorf("expected migrated key with 'file/active/' prefix, got: %v", keys)
 	}
+}
+
+// TestFilesystemStorageRename verifies Rename on filesystem storage.
+//
+// VALIDATES: Rename moves file atomically.
+// PREVENTS: Rename silently failing or leaving source behind.
+func TestFilesystemStorageRename(t *testing.T) {
+	dir := t.TempDir()
+	s := NewFilesystem()
+
+	oldPath := filepath.Join(dir, "old.conf")
+	newPath := filepath.Join(dir, "new.conf")
+
+	require.NoError(t, s.WriteFile(oldPath, []byte("content"), 0o600))
+	require.NoError(t, s.Rename(oldPath, newPath))
+
+	// Old should be gone, new should exist.
+	assert.False(t, s.Exists(oldPath), "old file should not exist after rename")
+	assert.True(t, s.Exists(newPath), "new file should exist after rename")
+
+	data, err := s.ReadFile(newPath)
+	require.NoError(t, err)
+	assert.Equal(t, "content", string(data))
+}
+
+// TestFilesystemStorageRenameNonExistent verifies Rename fails for missing source.
+//
+// VALIDATES: Rename returns error when source does not exist.
+// PREVENTS: Silent no-op on missing file.
+func TestFilesystemStorageRenameNonExistent(t *testing.T) {
+	dir := t.TempDir()
+	s := NewFilesystem()
+
+	err := s.Rename(filepath.Join(dir, "missing"), filepath.Join(dir, "dest"))
+	require.Error(t, err)
+}
+
+// TestBlobStorageRename verifies Rename on blob storage.
+//
+// VALIDATES: Rename works for blob-backed storage.
+// PREVENTS: Data loss during blob key rename.
+func TestBlobStorageRename(t *testing.T) {
+	dir := t.TempDir()
+	blobPath := filepath.Join(dir, "test.zefs")
+
+	s, err := NewBlob(blobPath, dir)
+	require.NoError(t, err)
+	defer s.Close() //nolint:errcheck // test cleanup
+
+	oldPath := filepath.Join(dir, "old.conf")
+	newPath := filepath.Join(dir, "new.conf")
+
+	require.NoError(t, s.WriteFile(oldPath, []byte("blob content"), 0o600))
+	require.NoError(t, s.Rename(oldPath, newPath))
+
+	// Old should be gone, new should exist.
+	assert.False(t, s.Exists(oldPath), "old key should not exist after rename")
+	assert.True(t, s.Exists(newPath), "new key should exist after rename")
+
+	data, err := s.ReadFile(newPath)
+	require.NoError(t, err)
+	assert.Equal(t, "blob content", string(data))
 }

@@ -1365,11 +1365,11 @@ func TestCmdDisconnectNoArgs(t *testing.T) {
 	assert.Contains(t, err.Error(), "usage:")
 }
 
-// TestCmdSaveSessionModeNoOp verifies save is a no-op in session mode.
+// TestCmdSaveSessionMode verifies save in session mode calls SaveDraft.
 //
-// VALIDATES: "save" in session mode returns confirmation without I/O (AC-24).
-// PREVENTS: Redundant .edit snapshot when write-through already persists draft.
-func TestCmdSaveSessionModeNoOp(t *testing.T) {
+// VALIDATES: "save" in session mode applies change file to draft (AC-24).
+// PREVENTS: Redundant .edit snapshot when write-through already persists change file.
+func TestCmdSaveSessionMode(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
@@ -1382,12 +1382,27 @@ func TestCmdSaveSessionModeNoOp(t *testing.T) {
 	session := NewEditSession("alice", "local")
 	ed.SetSession(session)
 
+	// Make a change so SaveDraft has something to save.
+	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
+	require.NoError(t, err)
+
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
 	result, err := model.cmdSave()
 	require.NoError(t, err)
-	assert.Contains(t, result.statusMessage, "already saved")
+	assert.Contains(t, result.statusMessage, "Changes saved to draft",
+		"save in session mode should call SaveDraft and report success")
+
+	// Draft file should now exist (SaveDraft created it).
+	draftPath := DraftPath(configPath)
+	_, statErr := os.Stat(draftPath)
+	assert.False(t, os.IsNotExist(statErr), "draft should exist after save in session mode")
+
+	// Change file should be gone (SaveDraft consumed it).
+	changePath := ChangePath(configPath, "alice")
+	_, statErr = os.Stat(changePath)
+	assert.True(t, os.IsNotExist(statErr), "change file should be deleted after save")
 }
 
 // TestCmdWhoOutputFormat verifies who command output format.

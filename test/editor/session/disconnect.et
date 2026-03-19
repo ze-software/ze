@@ -26,9 +26,9 @@ input=type:text=set bgp router-id 5.6.7.8
 input=enter
 expect=status:contains=Set
 
-# Verify draft contains both sessions' metadata
-expect=file:path=test.conf.draft:contains=#alice @ssh
-expect=file:path=test.conf.draft:contains=#bob @ssh
+# Verify each session has its own change file
+expect=file:path=test.conf.change.alice:contains=#alice @ssh
+expect=file:path=test.conf.change.bob:contains=#bob @ssh
 
 # Bob checks who is editing (Bob has latest draft state)
 session=bob

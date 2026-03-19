@@ -8,6 +8,7 @@ package cli
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -43,7 +44,8 @@ type CommitResult struct {
 }
 
 // writeThroughSet implements the write-through protocol for set commands.
-// Steps: lock -> read draft -> parse -> apply set -> record metadata -> serialize -> write draft -> unlock.
+// Writes to the per-user change file (not shared draft). The change file
+// contains only changed entries (sparse tree), not a full config dump.
 func (e *Editor) writeThroughSet(path []string, key, value string) error {
 	guard, err := e.store.AcquireLock(e.originalPath)
 	if err != nil {
@@ -52,31 +54,36 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
 	guard.SetModifier(e.session.ID)
 
-	// Read draft (or config.conf if no draft exists).
-	draftPath := DraftPath(e.originalPath)
-	tree, meta, err := e.readDraftOrConfig(guard, draftPath)
-	if err != nil {
-		return fmt.Errorf("write-through read: %w", err)
+	// Validate the path against the schema before mutating anything.
+	// Use a temporary tree to check walkOrCreateIn succeeds.
+	if _, walkErr := e.walkOrCreateIn(e.tree.Clone(), path); walkErr != nil {
+		return fmt.Errorf("write-through set path: %w", walkErr)
 	}
 
-	// Apply the set to the draft tree.
-	target, err := e.walkOrCreateIn(tree, path)
+	// Read change file (sparse tree of this user's changes).
+	changePath := ChangePath(e.originalPath, e.session.User)
+	changeTree, changeMeta, err := e.readChangeFile(guard, changePath)
 	if err != nil {
-		return fmt.Errorf("write-through set path: %w", err)
+		return fmt.Errorf("write-through read change: %w", err)
 	}
-	target.Set(key, value)
+
+	// Apply the set to the change tree.
+	changeTarget, err := e.walkOrCreateIn(changeTree, path)
+	if err != nil {
+		return fmt.Errorf("write-through set change path: %w", err)
+	}
+	changeTarget.Set(key, value)
 
 	// Build the YANG path for metadata recording.
 	metaPath := append(path, key) //nolint:gocritic // intentional new slice
 
-	// Read committed value for Previous field (re-read under lock
-	// to capture external commits; reuses getValueAtPath for navigation).
+	// Read committed value for Previous field.
 	previous := ""
 	if committedTree := e.readCommittedTree(guard); committedTree != nil {
 		previous = getValueAtPath(committedTree, e.schema, metaPath)
 	}
 
-	// Record metadata at the leaf.
+	// Record metadata in change file.
 	entry := config.MetaEntry{
 		User:     e.session.User,
 		Source:   e.session.Origin,
@@ -84,28 +91,27 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 		Previous: previous,
 		Value:    value,
 	}
-	metaTarget := walkOrCreateMeta(meta, e.schema, path)
-	metaTarget.SetEntry(key, entry)
+	changeMetaTarget := walkOrCreateMeta(changeMeta, e.schema, path)
+	changeMetaTarget.SetEntry(key, entry)
 
-	// Serialize and write draft through the guard.
-	output := config.SerializeSetWithMeta(tree, meta, e.schema)
-	if err := guard.WriteFile(draftPath, []byte(output), 0o600); err != nil {
+	// Serialize and write change file.
+	output := config.SerializeSetWithMeta(changeTree, changeMeta, e.schema)
+	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
 		return fmt.Errorf("write-through write: %w", err)
 	}
 
-	// Advance draftMtime so CheckDraftChanged does not false-positive on own writes.
-	// Uses time.Now() rather than Stat() to avoid re-acquiring the blob lock.
-	e.draftMtime = time.Now()
+	// Update in-memory tree directly (base + own changes).
+	target, _ := e.walkOrCreateIn(e.tree, path)
+	target.Set(key, value)
+	metaTarget := walkOrCreateMeta(e.meta, e.schema, path)
+	metaTarget.SetEntry(key, entry)
 
-	// Update in-memory state.
-	e.tree = tree
-	e.meta = meta
 	e.dirty.Store(true)
 	return nil
 }
 
 // writeThroughDelete implements the write-through protocol for delete commands.
-// Steps: lock -> read draft -> parse -> apply delete -> serialize -> write draft -> unlock.
+// Writes to the per-user change file (not shared draft).
 func (e *Editor) writeThroughDelete(path []string, key string) error {
 	guard, err := e.store.AcquireLock(e.originalPath)
 	if err != nil {
@@ -114,54 +120,226 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
 	guard.SetModifier(e.session.ID)
 
-	// Read draft (or config.conf if no draft exists).
-	draftPath := DraftPath(e.originalPath)
-	tree, meta, err := e.readDraftOrConfig(guard, draftPath)
-	if err != nil {
-		return fmt.Errorf("write-through read: %w", err)
-	}
-
-	// Apply the delete to the draft tree.
-	target := walkPath(tree, e.schema, path)
+	// Verify path exists in in-memory tree before mutating.
+	target := walkPath(e.tree, e.schema, path)
 	if target == nil {
 		return fmt.Errorf("path not found")
 	}
-	target.Delete(key)
 
-	// Read committed value for Previous field (re-read under lock
-	// to capture external commits, matching writeThroughSet behavior).
+	// Read change file.
+	changePath := ChangePath(e.originalPath, e.session.User)
+	changeTree, changeMeta, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return fmt.Errorf("write-through read change: %w", err)
+	}
+
+	// Read committed value for Previous field.
 	metaPath := append(path, key) //nolint:gocritic // intentional new slice
 	previous := ""
 	if committedTree := e.readCommittedTree(guard); committedTree != nil {
 		previous = getValueAtPath(committedTree, e.schema, metaPath)
 	}
 
-	// Record metadata for the delete. The serializer emits "delete" lines
-	// for metadata entries without corresponding tree values, so Previous
-	// survives the serialize->parse round-trip.
+	// Create the parent path in the change tree so the serializer can navigate
+	// to the metadata node. The leaf itself is NOT set (it's a delete).
+	if _, walkErr := e.walkOrCreateIn(changeTree, path); walkErr != nil {
+		return fmt.Errorf("write-through delete change path: %w", walkErr)
+	}
+
+	// Record delete metadata in change file. The serializer emits "delete" lines
+	// for metadata entries without corresponding tree values.
 	entry := config.MetaEntry{
 		User:     e.session.User,
 		Source:   e.session.Origin,
 		Time:     e.session.StartTime,
 		Previous: previous,
 	}
-	metaTarget := walkOrCreateMeta(meta, e.schema, path)
-	metaTarget.SetEntry(key, entry)
+	changeMetaTarget := walkOrCreateMeta(changeMeta, e.schema, path)
+	changeMetaTarget.SetEntry(key, entry)
 
-	// Serialize and write draft through the guard.
-	output := config.SerializeSetWithMeta(tree, meta, e.schema)
-	if err := guard.WriteFile(draftPath, []byte(output), 0o600); err != nil {
+	// Serialize and write change file.
+	output := config.SerializeSetWithMeta(changeTree, changeMeta, e.schema)
+	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
 		return fmt.Errorf("write-through write: %w", err)
 	}
 
-	// Advance draftMtime so CheckDraftChanged does not false-positive on own writes.
-	e.draftMtime = time.Now()
+	// Update in-memory tree.
+	target.Delete(key)
+	metaTarget := walkOrCreateMeta(e.meta, e.schema, path)
+	metaTarget.SetEntry(key, entry)
 
-	// Update in-memory state.
-	e.tree = tree
-	e.meta = meta
 	e.dirty.Store(true)
 	return nil
+}
+
+// readChangeFile reads and parses a per-user change file.
+// Returns empty tree and meta if the file does not exist.
+func (e *Editor) readChangeFile(guard storage.WriteGuard, changePath string) (*config.Tree, *config.MetaTree, error) {
+	data, readErr := guard.ReadFile(changePath)
+	if readErr != nil {
+		// No change file: start with empty sparse tree.
+		return config.NewTree(), config.NewMetaTree(), nil //nolint:nilerr // file-not-found is expected, start fresh
+	}
+	parser := config.NewSetParser(e.schema)
+	tree, meta, parseErr := parser.ParseWithMeta(string(data))
+	if parseErr != nil {
+		return nil, nil, fmt.Errorf("parse change file: %w", parseErr)
+	}
+	return tree, meta, nil
+}
+
+// SaveDraft applies changes from the per-user change file to config.conf.draft.
+// Creates a new draft (base + own changes), then deletes the change file.
+func (e *Editor) SaveDraft() error {
+	if e.session == nil {
+		return fmt.Errorf("no session set")
+	}
+
+	guard, err := e.store.AcquireLock(e.originalPath)
+	if err != nil {
+		return fmt.Errorf("save lock: %w", err)
+	}
+	defer guard.Release() //nolint:errcheck // Best effort unlock
+
+	// Read the change file.
+	changePath := ChangePath(e.originalPath, e.session.User)
+	_, changeMeta, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return fmt.Errorf("save read change: %w", err)
+	}
+
+	myEntries := changeMeta.SessionEntries(e.session.ID)
+	if len(myEntries) == 0 {
+		return nil // Nothing to save.
+	}
+
+	// Read base (draft if exists, else committed).
+	draftPath := DraftPath(e.originalPath)
+	baseTree, baseMeta, err := e.readDraftOrConfig(guard, draftPath)
+	if err != nil {
+		return fmt.Errorf("save read base: %w", err)
+	}
+
+	// Apply changes to base.
+	for _, se := range myEntries {
+		pathParts := strings.Fields(se.Path)
+		if len(pathParts) == 0 {
+			continue
+		}
+		leafName := pathParts[len(pathParts)-1]
+		parentPath := pathParts[:len(pathParts)-1]
+
+		if se.Entry.Value != "" {
+			target, walkErr := e.walkOrCreateIn(baseTree, parentPath)
+			if walkErr != nil {
+				return fmt.Errorf("save apply %s: %w", se.Path, walkErr)
+			}
+			target.Set(leafName, se.Entry.Value)
+		} else {
+			target := walkPath(baseTree, e.schema, parentPath)
+			if target != nil {
+				target.Delete(leafName)
+			}
+		}
+
+		// Record metadata in draft.
+		metaTarget := walkOrCreateMeta(baseMeta, e.schema, parentPath)
+		metaTarget.SetEntry(leafName, se.Entry)
+	}
+
+	// Write draft, tagging the modifier so CheckDraftChanged can identify the author.
+	guard.SetModifier(e.session.ID)
+	draftOutput := config.SerializeSetWithMeta(baseTree, baseMeta, e.schema)
+	if err := guard.WriteFile(draftPath, []byte(draftOutput), 0o600); err != nil {
+		return fmt.Errorf("save write draft: %w", err)
+	}
+
+	// Delete change file. If removal fails, return error to prevent in-memory
+	// state update — an orphaned change file would cause duplicate application.
+	if err := guard.Remove(changePath); err != nil {
+		return fmt.Errorf("save remove change file: %w", err)
+	}
+
+	// Update in-memory state to draft.
+	e.tree = baseTree
+	e.meta = baseMeta
+	e.draftMtime = time.Now()
+	return nil
+}
+
+// DetectConflicts scans all change files for other users and returns conflicts
+// where another user has a pending change at the same path with a different value.
+func (e *Editor) DetectConflicts() []Conflict {
+	if e.session == nil || e.meta == nil {
+		return nil
+	}
+
+	// List files in config directory.
+	dir := filepath.Dir(e.originalPath)
+	files, err := e.store.List(dir)
+	if err != nil {
+		return nil
+	}
+
+	prefix := ChangePrefix(e.originalPath)
+	myUser := e.session.User
+
+	// Collect this session's entries from in-memory meta.
+	myEntries := e.meta.SessionEntries(e.session.ID)
+	if len(myEntries) == 0 {
+		return nil
+	}
+
+	// Build lookup of my entries by path.
+	myByPath := make(map[string]string, len(myEntries))
+	for _, se := range myEntries {
+		myByPath[se.Path] = se.Entry.Value
+	}
+
+	var conflicts []Conflict
+
+	for _, f := range files {
+		base := filepath.Base(f)
+		if !strings.HasPrefix(base, prefix) {
+			continue
+		}
+		otherUser := strings.TrimPrefix(base, prefix)
+		if otherUser == myUser {
+			continue
+		}
+
+		// Read and parse the other user's change file.
+		data, readErr := e.store.ReadFile(f)
+		if readErr != nil {
+			continue
+		}
+		parser := config.NewSetParser(e.schema)
+		_, otherMeta, parseErr := parser.ParseWithMeta(string(data))
+		if parseErr != nil {
+			continue
+		}
+
+		// Check for overlapping paths with different values.
+		for _, sid := range otherMeta.AllSessions() {
+			for _, otherEntry := range otherMeta.SessionEntries(sid) {
+				myValue, overlap := myByPath[otherEntry.Path]
+				if !overlap {
+					continue
+				}
+				if myValue != otherEntry.Entry.Value {
+					conflicts = append(conflicts, Conflict{
+						Path:       otherEntry.Path,
+						Type:       ConflictLive,
+						MyValue:    myValue,
+						OtherValue: otherEntry.Entry.Value,
+						OtherUser:  otherUser,
+					})
+				}
+			}
+		}
+	}
+
+	return conflicts
 }
 
 // readDraftOrConfig reads and parses the draft file, falling back to config.conf.

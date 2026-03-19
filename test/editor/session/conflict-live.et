@@ -1,5 +1,5 @@
 # Test: Live disagreement conflict blocks commit
-# VALIDATES: AC-7 -- commit when another active session has different value at same path
+# VALIDATES: spec-per-user-drafts AC-4 -- commit when another user has different value at same path
 # PREVENTS: Two sessions silently overwriting each other's changes
 
 tmpfs=test.conf:terminator=EOF_CONF
@@ -14,21 +14,21 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Alice sets local as to 65001
+# Alice sets local as to 65001 (writes to test.conf.change.alice)
 session=alice:user=alice,origin=ssh
 input=type:text=set bgp local as 65001
 input=enter
 expect=status:contains=Set
 expect=dirty:true
 
-# Bob sets local as to 65002 (different value, same path)
+# Bob sets local as to 65002 (writes to test.conf.change.bob)
 session=bob:user=bob,origin=ssh
 input=type:text=set bgp local as 65002
 input=enter
 expect=status:contains=Set
 expect=dirty:true
 
-# Bob tries to commit -- should be blocked by live conflict
+# Bob tries to commit -- should be blocked by live conflict with Alice's change file
 input=type:text=commit
 input=enter
 expect=status:contains=conflict

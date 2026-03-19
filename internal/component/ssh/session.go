@@ -40,6 +40,9 @@ func (s *Server) createSessionModel(username string) cli.Model {
 		if err != nil {
 			s.logger.Warn("SSH session editor creation failed, using command-only mode",
 				"user", username, "error", err)
+		} else if err := cli.ValidateUser(username); err != nil {
+			s.logger.Warn("SSH session invalid username, using command-only mode",
+				"user", username, "error", err)
 		} else {
 			session := cli.NewEditSession(username, "ssh")
 			ed.SetSession(session)

@@ -372,8 +372,15 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	m.completer.SetTree(m.editor.Tree())
 
 	displayPath := append(append([]string{}, containerPath...), key)
+	msg := fmt.Sprintf("Set %s = %s", strings.Join(displayPath, " "), value)
+
+	// Detect conflicts with other users' change files after each edit.
+	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
+		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
+	}
+
 	return commandResult{
-		statusMessage: fmt.Sprintf("Set %s = %s", strings.Join(displayPath, " "), value),
+		statusMessage: msg,
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
@@ -483,8 +490,15 @@ func (m *Model) cmdDelete(args []string) (commandResult, error) {
 	// Update completer with mutated tree
 	m.completer.SetTree(m.editor.Tree())
 
+	msg := fmt.Sprintf("Deleted %s", strings.Join(fullPath, " "))
+
+	// Detect conflicts with other users' change files after each edit.
+	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
+		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
+	}
+
 	return commandResult{
-		statusMessage: fmt.Sprintf("Deleted %s", strings.Join(fullPath, " ")),
+		statusMessage: msg,
 		configView:    m.configViewAtPath(m.contextPath),
 		revalidate:    true,
 	}, nil
@@ -512,12 +526,14 @@ func (m *Model) scheduleValidation() tea.Cmd {
 	})
 }
 
-// cmdSave persists work-in-progress. In session mode, write-through already
-// keeps the draft on disk, so this is a no-op confirmation. In non-session mode,
-// it writes a .edit snapshot.
+// cmdSave persists work-in-progress. In session mode, applies changes from the
+// per-user change file to config.conf.draft. In non-session mode, writes a .edit snapshot.
 func (m *Model) cmdSave() (commandResult, error) {
 	if m.editor.HasSession() {
-		return commandResult{statusMessage: "Draft already saved (write-through keeps draft on disk)"}, nil
+		if err := m.editor.SaveDraft(); err != nil {
+			return commandResult{}, err
+		}
+		return commandResult{statusMessage: "Changes saved to draft"}, nil
 	}
 	if err := m.editor.SaveEditState(); err != nil {
 		return commandResult{}, err

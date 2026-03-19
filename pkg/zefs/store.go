@@ -177,8 +177,14 @@ func (s *BlobStore) writeFileNoFlush(name string, data []byte, _ fs.FileMode) er
 
 	if !s.root.has(name) {
 		s.keys = append(s.keys, name)
+		// Pre-allocate 20 extra bytes of key capacity for file/active/ keys
+		// so backup renames (appending "-YYYYMMDD-HHMMSS.mmm") fit in-place.
+		keyCap := len(name)
+		if strings.HasPrefix(name, "file/active/") {
+			keyCap += 20
+		}
 		s.slots[name] = slotInfo{
-			name: netcapSlot{capacity: len(name)},
+			name: netcapSlot{capacity: keyCap},
 			data: netcapSlot{capacity: growCapacity(len(data))},
 		}
 	} else {

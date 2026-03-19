@@ -432,6 +432,10 @@ func runEditor(ed *cli.Editor, configPath string) int {
 	if username == "" {
 		username = "unknown"
 	}
+	if err := cli.ValidateUser(username); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
 	session := cli.NewEditSession(username, "local")
 	ed.SetSession(session)
 

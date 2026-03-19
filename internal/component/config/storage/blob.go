@@ -61,6 +61,30 @@ func NewBlob(blobPath, configDir string) (Storage, error) {
 	}, nil
 }
 
+// Rename renames a blob key. Reads old data, writes to new key, removes old.
+func (s *blobStorage) Rename(oldName, newName string) error {
+	oldKey := resolveKey(oldName, s.configDir)
+	newKey := resolveKey(newName, s.configDir)
+	data, err := s.store.ReadFile(oldKey)
+	if err != nil {
+		return fmt.Errorf("storage: rename read %s: %w", oldKey, err)
+	}
+	if err := s.store.WriteFile(newKey, data, 0); err != nil {
+		return fmt.Errorf("storage: rename write %s: %w", newKey, err)
+	}
+	if err := s.store.Remove(oldKey); err != nil {
+		return fmt.Errorf("storage: rename remove %s: %w", oldKey, err)
+	}
+	// Transfer metadata from old key to new key.
+	s.mu.Lock()
+	if m := s.metas[oldKey]; m != nil {
+		s.metas[newKey] = m
+		delete(s.metas, oldKey)
+	}
+	s.mu.Unlock()
+	return nil
+}
+
 // Close closes the underlying blob store.
 func (s *blobStorage) Close() error {
 	return s.store.Close()

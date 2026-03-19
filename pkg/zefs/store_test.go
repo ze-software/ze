@@ -4514,3 +4514,59 @@ func TestBlobStoreNoFlock(t *testing.T) {
 		t.Error("Open produced a .lock file")
 	}
 }
+
+// TestKeyCapacityFileActive verifies that file/active/ keys get extra capacity
+// for in-place rename (backup timestamp suffix).
+//
+// VALIDATES: Key capacity pre-allocation for file/active/ keys.
+// PREVENTS: Rename requiring reallocation for backup suffix.
+func TestKeyCapacityFileActive(t *testing.T) {
+	s, err := Create(filepath.Join(t.TempDir(), "cap.zefs"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close() //nolint:errcheck // test cleanup
+
+	key := "file/active/config.conf"
+	if err := s.WriteFile(key, []byte("data"), 0); err != nil {
+		t.Fatal(err)
+	}
+
+	sl, ok := s.slots[key]
+	if !ok {
+		t.Fatal("slot not found for key")
+	}
+
+	// Key capacity should be len(key) + 20 for the date suffix.
+	expectedCap := len(key) + 20
+	if sl.name.capacity != expectedCap {
+		t.Errorf("key capacity = %d, want %d (len %d + 20)", sl.name.capacity, expectedCap, len(key))
+	}
+}
+
+// TestKeyCapacityNonFileActive verifies that non-file/active/ keys have exact capacity.
+//
+// VALIDATES: Only file/active/ keys get extra capacity.
+// PREVENTS: Wasting space on meta/ or other namespace keys.
+func TestKeyCapacityNonFileActive(t *testing.T) {
+	s, err := Create(filepath.Join(t.TempDir(), "cap2.zefs"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close() //nolint:errcheck // test cleanup
+
+	key := "meta/ssh/password"
+	if err := s.WriteFile(key, []byte("secret"), 0); err != nil {
+		t.Fatal(err)
+	}
+
+	sl, ok := s.slots[key]
+	if !ok {
+		t.Fatal("slot not found for key")
+	}
+
+	// Non-file/active/ key should have exact capacity.
+	if sl.name.capacity != len(key) {
+		t.Errorf("key capacity = %d, want %d (exact)", sl.name.capacity, len(key))
+	}
+}
