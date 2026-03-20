@@ -270,6 +270,26 @@ func (e *Editor) SaveDraft() error {
 	return nil
 }
 
+// LoadDraft reads the draft file and loads its content into the editor's in-memory tree.
+// Called on startup to restore previously saved work. Returns false if no draft exists.
+func (e *Editor) LoadDraft() bool {
+	draftPath := DraftPath(e.originalPath)
+	data, err := e.store.ReadFile(draftPath)
+	if err != nil {
+		return false
+	}
+	parser := config.NewSetParser(e.schema)
+	tree, meta, err := parser.ParseWithMeta(string(data))
+	if err != nil {
+		return false
+	}
+	e.tree = tree
+	e.meta = meta
+	e.treeValid = true
+	e.draftSaved = true
+	return true
+}
+
 // DetectConflicts scans all change files for other users and returns conflicts
 // where another user has a pending change at the same path with a different value.
 func (e *Editor) DetectConflicts() []Conflict {

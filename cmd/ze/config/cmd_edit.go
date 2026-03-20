@@ -441,7 +441,7 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath string) int {
 
 	// Auto-load draft if it exists.
 	draftPath := cli.DraftPath(configPath)
-	if _, statErr := os.Stat(draftPath); statErr == nil {
+	if store.Exists(draftPath) {
 		// Draft exists: check for same-user orphaned sessions.
 		// Match on "user@origin:" to avoid "thomas@" matching "thomasmore@".
 		activeSessions := ed.ActiveSessions()
@@ -483,6 +483,9 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath string) int {
 				fmt.Fprintf(os.Stderr, "  %s\n", sid) //nolint:errcheck // terminal output
 			}
 		}
+
+		// Load draft content into editor so previously saved work is visible.
+		ed.LoadDraft()
 	} else if ed.HasPendingEdit() {
 		// Legacy pending edit file (pre-session format).
 		switch ed.PromptPendingEdit() {
