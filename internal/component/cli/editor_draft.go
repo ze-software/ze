@@ -287,6 +287,11 @@ func (e *Editor) LoadDraft() bool {
 	e.meta = meta
 	e.treeValid = true
 	e.draftSaved = true
+
+	// Set draftMtime so CheckDraftChanged doesn't false-trigger.
+	if fi, statErr := e.store.Stat(draftPath); statErr == nil {
+		e.draftMtime = fi.ModTime
+	}
 	return true
 }
 

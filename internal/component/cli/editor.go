@@ -343,20 +343,23 @@ func (e *Editor) SetWorkingContent(content string) {
 }
 
 // OriginalContentAtPath returns the serialized content from the original (on-disk)
-// config at the given context path. Re-parses originalContent on each call (config
-// files are small, and this is only called on user interaction, not hot path).
+// config at the given context path in tree format. Re-parses originalContent on each
+// call (config files are small, and this is only called on user interaction, not hot path).
+// Always returns tree format to match ContentAtPath, regardless of the stored format.
 // Returns empty string if path doesn't resolve in the original config.
 func (e *Editor) OriginalContentAtPath(path []string) string {
-	if len(path) == 0 {
+	if e.schema == nil {
+		if len(path) == 0 {
+			return e.originalContent
+		}
+		return ""
+	}
+	origTree, _, err := parseConfigWithFormat(e.originalContent, e.schema)
+	if err != nil {
 		return e.originalContent
 	}
-	if e.schema == nil {
-		return ""
-	}
-	parser := config.NewParser(e.schema)
-	origTree, err := parser.Parse(e.originalContent)
-	if err != nil {
-		return ""
+	if len(path) == 0 {
+		return config.Serialize(origTree, e.schema)
 	}
 	subtree, schemaNode := e.walkPathWithSchemaFrom(origTree, path)
 	if subtree == nil || schemaNode == nil {
