@@ -346,10 +346,10 @@ func (r *RIBManager) releaseRoutesJSON(selector string) string {
 // markStaleCommand handles "rib mark-stale <peer> <restart-time>".
 // Marks all routes for the peer as stale and stores GR metadata.
 // RFC 4724 Section 4.2: mark routes stale on GR-capable peer session drop.
-// Args: [0]=peer address, [1]=restart time in seconds.
+// Args: [0]=peer address, [1]=restart time in seconds, [2]=optional stale level (default 1).
 func (r *RIBManager) markStaleCommand(args []string) (string, string, error) {
 	if len(args) < 2 {
-		return statusError, "", fmt.Errorf("mark-stale requires <peer> <restart-time>")
+		return statusError, "", fmt.Errorf("mark-stale requires <peer> <restart-time> [level]")
 	}
 
 	peerAddr := args[0]
@@ -358,13 +358,23 @@ func (r *RIBManager) markStaleCommand(args []string) (string, string, error) {
 		return statusError, "", fmt.Errorf("invalid restart-time %q: %w", args[1], err)
 	}
 
+	// Stale level: plugin-defined, defaults to 1.
+	staleLevel := uint8(1)
+	if len(args) >= 3 {
+		lvl, lvlErr := strconv.ParseUint(args[2], 10, 8)
+		if lvlErr != nil {
+			return statusError, "", fmt.Errorf("invalid stale level %q: %w", args[2], lvlErr)
+		}
+		staleLevel = uint8(lvl)
+	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	marked := 0
 	peerRIB := r.ribInPool[peerAddr]
 	if peerRIB != nil {
-		peerRIB.MarkAllStale()
+		peerRIB.MarkAllStale(staleLevel)
 		marked = peerRIB.StaleCount()
 	}
 
@@ -528,7 +538,7 @@ func (r *RIBManager) extractCandidate(peerAddr string, entry *storage.RouteEntry
 	}
 
 	// RFC 9494: LLGR-stale flag for best-path depreference.
-	c.LLGRStale = entry.LLGRStale
+	c.StaleLevel = entry.StaleLevel
 
 	return c
 }
@@ -574,7 +584,7 @@ func (r *RIBManager) enterLLGRCommand(args []string) (string, string, error) {
 	var toDelete [][]byte
 
 	peerRIB.IterateFamily(family, func(nlriBytes []byte, entry *storage.RouteEntry) bool {
-		if !entry.Stale {
+		if entry.StaleLevel == storage.StaleLevelFresh {
 			return true // skip non-stale routes
 		}
 
@@ -593,7 +603,7 @@ func (r *RIBManager) enterLLGRCommand(args []string) (string, string, error) {
 
 		// Attach LLGR_STALE community; only depreference if attachment succeeded
 		if r.attachLLGRStaleCommunity(entry) {
-			entry.LLGRStale = true
+			entry.StaleLevel = storage.DepreferenceThreshold
 			entered++
 		}
 		return true
@@ -691,8 +701,8 @@ func (r *RIBManager) depreferenceStaleCommand(args []string) (string, string, er
 
 	depreferenced := 0
 	peerRIB.Iterate(func(_ nlri.Family, _ []byte, entry *storage.RouteEntry) bool {
-		if entry.Stale && !entry.LLGRStale {
-			entry.LLGRStale = true
+		if entry.StaleLevel > storage.StaleLevelFresh && entry.StaleLevel < storage.DepreferenceThreshold {
+			entry.StaleLevel = storage.DepreferenceThreshold
 			depreferenced++
 		}
 		return true

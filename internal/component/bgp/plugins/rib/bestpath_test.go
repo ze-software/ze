@@ -565,7 +565,7 @@ func TestBestPath_PeerAddressNumeric(t *testing.T) {
 func TestSelectBest_LLGRStaleDepreference(t *testing.T) {
 	t.Parallel()
 	// LLGR-stale route has higher LOCAL_PREF but should still lose
-	stale := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 300, LLGRStale: true}
+	stale := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 300, StaleLevel: 2}
 	normal := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100}
 
 	best := SelectBest([]*Candidate{stale, normal})
@@ -586,8 +586,8 @@ func TestSelectBest_LLGRStaleDepreference(t *testing.T) {
 // PREVENTS: All LLGR-stale routes treated as equal.
 func TestSelectBest_BothLLGRStale(t *testing.T) {
 	t.Parallel()
-	a := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 200, LLGRStale: true}
-	b := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, LLGRStale: true}
+	a := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 200, StaleLevel: 2}
+	b := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, StaleLevel: 2}
 
 	best := SelectBest([]*Candidate{a, b})
 	if best.PeerAddr != "10.0.0.1" {
@@ -602,9 +602,9 @@ func TestSelectBest_BothLLGRStale(t *testing.T) {
 func TestSelectBest_OnlyLLGRStale(t *testing.T) {
 	t.Parallel()
 	candidates := []*Candidate{
-		{PeerAddr: "10.0.0.3", LocalPref: 100, ASPathLen: 3, LLGRStale: true},
-		{PeerAddr: "10.0.0.2", LocalPref: 100, ASPathLen: 1, LLGRStale: true}, // shortest path
-		{PeerAddr: "10.0.0.1", LocalPref: 100, ASPathLen: 2, LLGRStale: true},
+		{PeerAddr: "10.0.0.3", LocalPref: 100, ASPathLen: 3, StaleLevel: 2},
+		{PeerAddr: "10.0.0.2", LocalPref: 100, ASPathLen: 1, StaleLevel: 2}, // shortest path
+		{PeerAddr: "10.0.0.1", LocalPref: 100, ASPathLen: 2, StaleLevel: 2},
 	}
 
 	best := SelectBest(candidates)
@@ -620,7 +620,7 @@ func TestSelectBest_OnlyLLGRStale(t *testing.T) {
 func TestComparePair_LLGRStale(t *testing.T) {
 	t.Parallel()
 	normal := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100}
-	stale := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, LLGRStale: true}
+	stale := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, StaleLevel: 2}
 
 	if got := ComparePair(normal, stale); got != -1 {
 		t.Errorf("normal vs LLGR-stale: want -1, got %d", got)
@@ -629,7 +629,7 @@ func TestComparePair_LLGRStale(t *testing.T) {
 		t.Errorf("LLGR-stale vs normal: want 1, got %d", got)
 	}
 	// Both LLGR-stale: falls through to normal comparison
-	stale2 := &Candidate{PeerAddr: "10.0.0.3", LocalPref: 100, LLGRStale: true}
+	stale2 := &Candidate{PeerAddr: "10.0.0.3", LocalPref: 100, StaleLevel: 2}
 	if got := ComparePair(stale, stale2); got != -1 {
 		t.Errorf("both LLGR-stale, lower peer addr: want -1, got %d", got)
 	}

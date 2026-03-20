@@ -565,7 +565,7 @@ func TestEnterLLGR_AttachesLLGRStale(t *testing.T) {
 	// Verify LLGRStale flag is set
 	entry, found := r.ribInPool["192.0.2.1"].Lookup(ipv4Family, []byte{24, 10, 0, 0})
 	require.True(t, found)
-	assert.True(t, entry.LLGRStale, "route should have LLGRStale=true")
+	assert.True(t, entry.StaleLevel >= storage.DepreferenceThreshold, "route should have LLGRStale=true")
 
 	// Verify LLGR_STALE community attached
 	assert.True(t, entry.HasCommunities(), "route should have communities")
@@ -670,12 +670,12 @@ func TestDepreferenceStaleCommand(t *testing.T) {
 	// Verify stale routes have LLGRStale=true
 	entry, found := r.ribInPool["192.0.2.1"].Lookup(ipv4Family, []byte{24, 10, 0, 0})
 	require.True(t, found)
-	assert.True(t, entry.LLGRStale, "stale route should have LLGRStale=true")
+	assert.True(t, entry.StaleLevel >= storage.DepreferenceThreshold, "stale route should have LLGRStale=true")
 
 	// Verify fresh route does NOT have LLGRStale
 	freshEntry, found := r.ribInPool["192.0.2.1"].Lookup(ipv4Family, []byte{24, 192, 168, 0})
 	require.True(t, found)
-	assert.False(t, freshEntry.LLGRStale, "fresh route should have LLGRStale=false")
+	assert.False(t, freshEntry.StaleLevel >= storage.DepreferenceThreshold, "fresh route should have LLGRStale=false")
 }
 
 // TestReadvertiseLLGRStaleCommand verifies readvertise-llgr-stale resends routes.

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	grschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
@@ -12,6 +13,19 @@ import (
 )
 
 func init() {
+	// Register LLGR well-known community names (RFC 9494).
+	for _, c := range []struct {
+		value attribute.Community
+		name  string
+	}{
+		{attribute.CommunityLLGRStale, "LLGR_STALE"},
+		{attribute.CommunityNoLLGR, "NO_LLGR"},
+	} {
+		if err := attribute.RegisterCommunityName(c.value, c.name); err != nil {
+			logger().Error("community registration failed", "error", err)
+		}
+	}
+
 	reg := registry.Registration{
 		Name:            "bgp-gr",
 		Description:     "Graceful Restart capability and mechanism plugin",

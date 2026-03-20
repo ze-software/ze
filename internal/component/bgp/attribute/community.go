@@ -63,24 +63,41 @@ const (
 	CommunityNoLLGR Community = 0xFFFF0007 // NO_LLGR (RFC 9494)
 )
 
-// String returns the community in ASN:value format.
+// communityNames maps well-known community values to display names.
+// Pre-populated with RFC 1997/3765 built-ins. Plugins register additional
+// names via RegisterCommunityName during init().
+// Read-only after init phase completes; no mutex needed.
+var communityNames = map[Community]string{
+	CommunityNoExport:          "NO_EXPORT",
+	CommunityNoAdvertise:       "NO_ADVERTISE",
+	CommunityNoExportSubconfed: "NO_EXPORT_SUBCONFED",
+	CommunityNoPeer:            "NOPEER",
+}
+
+// RegisterCommunityName registers a display name for a well-known community value.
+// Called by plugins during init() to add their community names without modifying
+// the attribute package. Idempotent: re-registering the same value+name is a no-op.
+// Returns an error if the value is already registered with a different name.
+// Must only be called during init() (not thread-safe for concurrent writes).
+func RegisterCommunityName(value Community, name string) error {
+	if existing, ok := communityNames[value]; ok {
+		if existing == name {
+			return nil // idempotent
+		}
+		return fmt.Errorf("community 0x%08X already registered as %q, cannot re-register as %q", uint32(value), existing, name)
+	}
+	communityNames[value] = name
+	return nil
+}
+
+// String returns the community in human-readable format.
+// Checks the community name registry first, then falls back to ASN:value format.
 //
 // RFC 1997: Community values encode an AS number in the first two octets
 // and a locally defined value in the last two octets, displayed as ASN:value.
 func (c Community) String() string {
-	switch c {
-	case CommunityNoExport:
-		return "NO_EXPORT"
-	case CommunityNoAdvertise:
-		return "NO_ADVERTISE"
-	case CommunityNoExportSubconfed:
-		return "NO_EXPORT_SUBCONFED"
-	case CommunityNoPeer:
-		return "NOPEER"
-	case CommunityLLGRStale:
-		return "LLGR_STALE"
-	case CommunityNoLLGR:
-		return "NO_LLGR"
+	if name, ok := communityNames[c]; ok {
+		return name
 	}
 	return fmt.Sprintf("%d:%d", c>>16, c&0xFFFF)
 }

@@ -51,7 +51,7 @@ func (r *FamilyRIB) Insert(attrBytes, nlriBytes []byte) {
 		if entriesEqual(oldEntry, newEntry) {
 			// Same attributes - release the new entry, keep old.
 			// RFC 4724: clear stale flag — re-announcement means route is still valid.
-			oldEntry.Stale = false
+			oldEntry.StaleLevel = StaleLevelFresh
 			newEntry.Release()
 			return
 		}
@@ -117,21 +117,20 @@ func (r *FamilyRIB) HasAddPath() bool {
 	return r.addPath
 }
 
-// MarkStale sets Stale=true on all routes in this family.
-// RFC 4724 Section 4.2: mark routes as stale when GR-capable peer's session drops.
-func (r *FamilyRIB) MarkStale() {
+// MarkStale sets StaleLevel on all routes in this family.
+// The level is plugin-defined (e.g., 1 for GR, 2 for LLGR).
+func (r *FamilyRIB) MarkStale(level uint8) {
 	for _, entry := range r.routes {
-		entry.Stale = true
+		entry.StaleLevel = level
 	}
 }
 
-// PurgeStale deletes all routes where Stale=true, releasing pool handles.
+// PurgeStale deletes all routes where StaleLevel > 0, releasing pool handles.
 // Returns the number of routes purged.
-// RFC 4724 Section 4.2: remove stale routes on EOR receipt or timer expiry.
 func (r *FamilyRIB) PurgeStale() int {
 	purged := 0
 	for key, entry := range r.routes {
-		if entry.Stale {
+		if entry.StaleLevel > StaleLevelFresh {
 			entry.Release()
 			delete(r.routes, key)
 			purged++
@@ -140,11 +139,11 @@ func (r *FamilyRIB) PurgeStale() int {
 	return purged
 }
 
-// StaleCount returns the number of routes marked as stale.
+// StaleCount returns the number of routes with StaleLevel > 0.
 func (r *FamilyRIB) StaleCount() int {
 	count := 0
 	for _, entry := range r.routes {
-		if entry.Stale {
+		if entry.StaleLevel > StaleLevelFresh {
 			count++
 		}
 	}

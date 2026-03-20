@@ -36,20 +36,59 @@ func TestCommunitiesParse(t *testing.T) {
 	assert.Equal(t, Communities{Community(0xFDE90064), CommunityNoExport}, comms)
 }
 
-// VALIDATES: LLGR_STALE well-known community constant (RFC 9494).
+// VALIDATES: LLGR_STALE well-known community constant value (RFC 9494).
 // PREVENTS: Wrong community value breaking LLGR interop.
 func TestCommunityLLGRStale(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, Community(0xFFFF0006), CommunityLLGRStale)
-	assert.Equal(t, "LLGR_STALE", CommunityLLGRStale.String())
+	// String() name is registered by bgp-gr plugin; in isolated unit tests
+	// it falls back to ASN:value format. Constant value is the ground truth.
 }
 
-// VALIDATES: NO_LLGR well-known community constant (RFC 9494).
+// VALIDATES: NO_LLGR well-known community constant value (RFC 9494).
 // PREVENTS: Wrong community value breaking LLGR route filtering.
 func TestCommunityNoLLGR(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, Community(0xFFFF0007), CommunityNoLLGR)
-	assert.Equal(t, "NO_LLGR", CommunityNoLLGR.String())
+}
+
+// VALIDATES: RegisterCommunityName allows plugins to register names for display.
+// PREVENTS: Plugin-registered community names not appearing in String() output.
+// Not parallel: writes to package-level communityNames map (init-time-only in production).
+func TestCommunityRegistryLookup(t *testing.T) {
+	testComm := Community(0xFFFE0001)
+	err := RegisterCommunityName(testComm, "TEST_COMMUNITY")
+	require.NoError(t, err)
+	assert.Equal(t, "TEST_COMMUNITY", testComm.String())
+}
+
+// VALIDATES: RegisterCommunityName rejects duplicate with different name.
+// PREVENTS: Conflicting community name registrations.
+func TestCommunityRegistryDuplicate(t *testing.T) {
+	testComm := Community(0xFFFE0002)
+	err := RegisterCommunityName(testComm, "FIRST_NAME")
+	require.NoError(t, err)
+	// Same name: idempotent
+	err = RegisterCommunityName(testComm, "FIRST_NAME")
+	assert.NoError(t, err)
+	// Different name: error
+	err = RegisterCommunityName(testComm, "SECOND_NAME")
+	assert.Error(t, err)
+}
+
+// VALIDATES: Built-in community names cannot be overridden.
+// PREVENTS: Plugins hijacking NO_EXPORT, NO_ADVERTISE, etc.
+func TestCommunityRegistryBuiltinProtected(t *testing.T) {
+	err := RegisterCommunityName(CommunityNoExport, "HIJACKED")
+	assert.Error(t, err)
+}
+
+// VALIDATES: Unregistered community falls back to ASN:value format.
+// PREVENTS: Panic or empty string for unknown communities.
+func TestCommunityRegistryFallback(t *testing.T) {
+	t.Parallel()
+	unknown := Community(0xFDE90064)
+	assert.Equal(t, "65001:100", unknown.String())
 }
 
 func TestCommunitiesContains(t *testing.T) {

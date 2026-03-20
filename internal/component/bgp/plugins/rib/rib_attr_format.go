@@ -16,8 +16,9 @@ import (
 // enrichRouteMapFromEntry adds path attributes from a pool-based RouteEntry to a route map.
 // Only adds attributes that are present (valid handle) — missing attributes are omitted.
 func enrichRouteMapFromEntry(routeMap map[string]any, entry *storage.RouteEntry) {
-	if entry.Stale {
+	if entry.StaleLevel > storage.StaleLevelFresh {
 		routeMap["stale"] = true
+		routeMap["stale-level"] = entry.StaleLevel
 	}
 	if entry.HasNextHop() {
 		if data, err := pool.NextHop.Get(entry.NextHop); err == nil {

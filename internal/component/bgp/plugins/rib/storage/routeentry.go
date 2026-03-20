@@ -16,18 +16,24 @@ import (
 //
 // Limitation: Attribute flags (especially Partial bit 0x20) are not preserved.
 // For exact wire reproduction, use msg-id cache forwarding instead.
-type RouteEntry struct {
-	// Stale is true when this route was marked stale during Graceful Restart.
-	// RFC 4724 Section 4.2: routes from a restarting peer are marked stale
-	// until replaced by a fresh UPDATE or purged on EOR/timer expiry.
-	// Per-route metadata, not pooled -- each route has independent stale state.
-	Stale bool
+// StaleLevelFresh is the default stale level: route is not stale.
+// Plugins define their own non-zero levels and pass them via RIB commands.
+// The RIB is level-agnostic: it stores, compares, and filters by level
+// without knowing what each level means.
+const StaleLevelFresh uint8 = 0
 
-	// LLGRStale is true when this route entered the LLGR period.
-	// RFC 9494: LLGR_STALE routes are treated as least preferred in best-path selection.
-	// Any non-LLGR-stale route beats any LLGR-stale route regardless of other attributes.
-	// Between two LLGR-stale routes, normal tiebreaking applies.
-	LLGRStale bool
+// DepreferenceThreshold is the stale level at which best-path deprioritizes routes.
+// Routes at or above this level lose to routes below it.
+// Plugins that need depreference should use levels >= this value.
+// Set via RegisterDepreferenceThreshold during init; defaults to 2.
+var DepreferenceThreshold uint8 = 2
+
+type RouteEntry struct {
+	// StaleLevel tracks route freshness. 0 = fresh (not stale).
+	// Per-route metadata, not pooled -- each route has independent stale state.
+	// RFC 4724: GR-stale routes (level 1) compete normally in best-path.
+	// RFC 9494: LLGR-stale routes (level 2+) are least preferred.
+	StaleLevel uint8
 	// Well-known mandatory (RFC 4271 Section 5.1)
 	Origin  attrpool.Handle // ORIGIN (type 1) - IGP, EGP, INCOMPLETE
 	ASPath  attrpool.Handle // AS_PATH (type 2)
@@ -247,8 +253,7 @@ rollback:
 // Returns nil if AddRef fails (e.g., pool shutdown).
 func (e *RouteEntry) Clone() *RouteEntry {
 	clone := &RouteEntry{
-		Stale:            e.Stale,
-		LLGRStale:        e.LLGRStale,
+		StaleLevel:       e.StaleLevel,
 		Origin:           e.Origin,
 		ASPath:           e.ASPath,
 		NextHop:          e.NextHop,

@@ -160,26 +160,24 @@ func (r *PeerRIB) Families() []nlri.Family {
 	return result
 }
 
-// MarkFamilyStale marks all routes in a specific family as stale.
+// MarkFamilyStale marks all routes in a specific family at the given stale level.
 // No-op if the family doesn't exist.
-// RFC 4724 Section 4.2: mark routes stale on GR-capable peer session drop.
-func (r *PeerRIB) MarkFamilyStale(family nlri.Family) {
+func (r *PeerRIB) MarkFamilyStale(family nlri.Family, level uint8) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if rib, exists := r.families[family]; exists {
-		rib.MarkStale()
+		rib.MarkStale(level)
 	}
 }
 
-// MarkAllStale marks all routes across all families as stale.
-// RFC 4724 Section 4.2: mark all routes stale on GR-capable peer session drop.
-func (r *PeerRIB) MarkAllStale() {
+// MarkAllStale marks all routes across all families at the given stale level.
+func (r *PeerRIB) MarkAllStale(level uint8) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	for _, rib := range r.families {
-		rib.MarkStale()
+		rib.MarkStale(level)
 	}
 }
 

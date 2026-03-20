@@ -11,6 +11,8 @@ package rib
 import (
 	"bytes"
 	"net"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 )
 
 // ORIGIN values per RFC 4271 §4.3.
@@ -32,7 +34,7 @@ type Candidate struct {
 	Origin       byte   // ORIGIN: 0=IGP, 1=EGP, 2=INCOMPLETE
 	MED          uint32 // MED value (default 0 if absent)
 	OriginatorID string // ORIGINATOR_ID as IP string (RFC 4456, Router ID tiebreak)
-	LLGRStale    bool   // RFC 9494: true if route is in LLGR period (least preferred)
+	StaleLevel   uint8  // Route staleness level (0=fresh; plugin-defined higher levels)
 }
 
 // SelectBest selects the best route from a list of candidates.
@@ -52,18 +54,28 @@ func SelectBest(candidates []*Candidate) *Candidate {
 }
 
 // ComparePair compares two candidates using RFC 4271 §9.1.2 Phase 2 steps,
-// with RFC 9494 LLGR depreference applied first.
+// with stale-level depreference applied first.
 // Returns -1 if a is better, 1 if b is better, 0 if equal (should not happen
 // with peer address tiebreak, but returned for defensive correctness).
 func ComparePair(a, b *Candidate) int {
-	// Step 0: RFC 9494 LLGR depreference.
-	// Any non-LLGR-stale route beats any LLGR-stale route regardless of other attributes.
-	// Between two LLGR-stale routes, normal tiebreaking applies.
-	if a.LLGRStale != b.LLGRStale {
-		if !a.LLGRStale {
-			return -1 // a is normal, b is LLGR-stale: a wins
+	// Step 0: Stale-level depreference.
+	// Routes at or above DepreferenceThreshold lose to routes below it.
+	// Between two routes on the same side of the threshold, lower level wins.
+	// Between two routes both below threshold, normal tiebreaking applies.
+	aDepref := a.StaleLevel >= storage.DepreferenceThreshold
+	bDepref := b.StaleLevel >= storage.DepreferenceThreshold
+	if aDepref != bDepref {
+		if !aDepref {
+			return -1 // a is normal, b is deprioritized: a wins
 		}
-		return 1 // a is LLGR-stale, b is normal: b wins
+		return 1 // a is deprioritized, b is normal: b wins
+	}
+	// Both deprioritized: lower stale level wins
+	if aDepref && a.StaleLevel != b.StaleLevel {
+		if a.StaleLevel < b.StaleLevel {
+			return -1
+		}
+		return 1
 	}
 
 	// Step 1: Highest LOCAL_PREF wins.
