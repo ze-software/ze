@@ -209,6 +209,8 @@ dispatch:
 	case "version":
 		printVersion()
 		os.Exit(0)
+	case "start":
+		os.Exit(cmdStart(plugins, chaosSeed, chaosRate))
 	case "help", "-h", "--help":
 		usage()
 		os.Exit(0)
@@ -250,7 +252,7 @@ dispatch:
 	// Unknown command
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
 	commands := []string{
-		"bgp", "plugin", "cli", "config", "db", "init", "validate", "schema", "yang",
+		"bgp", "plugin", "cli", "config", "db", "init", "start", "validate", "schema", "yang",
 		"exabgp", "signal", "status", "show", "run", "completion", "version", "help",
 	}
 	if suggestion := suggest.Command(arg, commands); suggestion != "" {
@@ -321,6 +323,44 @@ func resolveStorage() storage.Storage {
 	return store
 }
 
+// cmdStart resolves the default config from zefs and starts the daemon.
+func cmdStart(plugins []string, chaosSeed int64, chaosRate float64) int {
+	store := resolveStorage()
+	defer store.Close() //nolint:errcheck // best-effort cleanup
+
+	if !storage.IsBlobStorage(store) {
+		fmt.Fprintf(os.Stderr, "error: ze start requires blob storage (run ze init first)\n")
+		return 1
+	}
+
+	configName := resolveDefaultConfig(store)
+	if !store.Exists(configName) {
+		fmt.Fprintf(os.Stderr, "error: no config found in database (run ze config edit first)\n")
+		return 1
+	}
+
+	ct := detectConfigType(store, configName)
+	if ct == config.ConfigTypeUnknown {
+		fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
+		return 1
+	}
+
+	return hub.Run(store, configName, plugins, chaosSeed, chaosRate)
+}
+
+// resolveDefaultConfig returns the config name from meta/instance/name or the fallback.
+func resolveDefaultConfig(store storage.Storage) string {
+	data, err := store.ReadFile("meta/instance/name")
+	if err != nil || len(data) == 0 {
+		return "ze.conf"
+	}
+	name := strings.TrimSpace(string(data))
+	if name == "" {
+		return "ze.conf"
+	}
+	return name + ".conf"
+}
+
 func usage() {
 	fmt.Fprintf(os.Stderr, `ze - Ze toolchain
 
@@ -339,6 +379,7 @@ Options:
   --chaos-rate <0-1>    Fault probability per operation (default: 0.1)
 
 Commands:
+  start        Start daemon using config from database
   init         Bootstrap database with SSH credentials
   validate     Validate configuration file
   config       Configuration management
