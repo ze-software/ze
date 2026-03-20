@@ -55,7 +55,7 @@ def build_images(frr_image, no_build=False):
         capture_output=True, text=True, timeout=600,
     )
     if result.returncode != 0:
-        print("  warning: GoBGP image build failed (GoBGP scenarios will be skipped)")
+        print("  warning: GoBGP image build failed (GoBGP scenarios will fail)")
 
     print("Pulling FRR image...")
     subprocess.run(

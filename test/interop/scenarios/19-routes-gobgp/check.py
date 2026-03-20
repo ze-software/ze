@@ -11,7 +11,7 @@ Both sides verify receipt.
 import time
 import os, sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
-from interop import GoBGP, Ze, ZE_IP, log_pass, log_info
+from interop import GoBGP, Ze, ZE_IP, log_pass, log_info, log_fail
 
 
 def check():
@@ -31,7 +31,6 @@ def check():
         paths = data[0].get("paths", [])
         if paths:
             path = paths[0]
-            # GoBGP JSON includes attrs with origin, as_path, nexthop, etc.
             attrs = path.get("attrs", [])
             attr_types = [a.get("type", 0) for a in attrs]
             # Type 1 = ORIGIN, Type 2 = AS_PATH, Type 3 = NEXT_HOP
@@ -39,6 +38,12 @@ def check():
             assert 3 in attr_types or any("nexthop" in str(a).lower() for a in attrs), \
                 "NEXT_HOP attribute missing from GoBGP route"
             log_pass("GoBGP route has expected attributes (ORIGIN, NEXT_HOP)")
+        else:
+            log_fail("GoBGP route has no paths (cannot verify attributes)")
+            raise AssertionError("no paths in GoBGP route JSON")
+    else:
+        log_fail("GoBGP route JSON unavailable (cannot verify attributes)")
+        raise AssertionError("route_json returned no data")
 
     log_pass("GoBGP received Ze's routes")
 
@@ -47,17 +52,14 @@ def check():
     gobgp.inject_route("10.20.0.0/24")
     gobgp.inject_route("10.20.1.0/24")
 
-    # Poll Ze's RIB instead of fixed sleep.
+    # Poll Ze's RIB quietly (rib_count doesn't log on failure).
     deadline = time.time() + 30
     while time.time() < deadline:
-        try:
-            ze.rib_received(2)
+        if ze.rib_count() >= 2:
             break
-        except AssertionError:
-            time.sleep(2)
-    else:
-        ze.rib_received(2)  # Final attempt, let it raise.
-
+        time.sleep(2)
+    # Final assertion with logging.
+    ze.rib_received(2)
     log_pass("Ze received GoBGP's routes")
 
     assert gobgp.session_established(ZE_IP), "session dropped after route exchange"

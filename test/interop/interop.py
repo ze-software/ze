@@ -379,14 +379,14 @@ class GoBGP:
         return docker_exec_quiet(self.container, ["gobgp"] + args)
 
     def _gobgp_json(self, args):
-        """Run a gobgp command with -j (JSON), return parsed dict or {}."""
+        """Run a gobgp command with -j (JSON), return parsed data or None."""
         output = self._gobgp_quiet(args + ["-j"])
         if not output.strip():
-            return {}
+            return None
         try:
             return json.loads(output)
         except json.JSONDecodeError:
-            return {}
+            return None
 
     def wait_session(self, neighbor, timeout=None):
         """Poll until BGP session with neighbor reaches Established."""
@@ -407,25 +407,21 @@ class GoBGP:
         raise AssertionError("GoBGP session with %s not Established" % neighbor)
 
     def route_json(self, prefix, family="ipv4 unicast"):
-        """Get route info as parsed JSON from gobgp."""
+        """Get route info as parsed JSON from gobgp. Returns list or None."""
         afi = family.split("/")[0] if "/" in family else family.split()[0]
-        data = self._gobgp_json(["global", "rib", "-a", afi, prefix])
-        return data
+        return self._gobgp_json(["global", "rib", "-a", afi, prefix])
 
     def has_route(self, prefix, family="ipv4 unicast"):
         """Check if prefix exists in GoBGP's RIB via JSON."""
-        afi = family.split("/")[0] if "/" in family else family.split()[0]
-        data = self._gobgp_json(["global", "rib", "-a", afi, prefix])
-        if not data:
+        data = self.route_json(prefix, family)
+        if data is None:
             return False
-        # GoBGP JSON returns a list of destinations. Check if any match the prefix.
         if isinstance(data, list):
             for dest in data:
                 paths = dest.get("paths", [])
                 if paths:
                     return True
             return False
-        # Fallback: non-empty dict means something was found.
         return bool(data)
 
     def check_route(self, prefix, family="ipv4 unicast"):
@@ -466,18 +462,21 @@ class Ze:
     def __init__(self, container=ZE_CONTAINER):
         self.container = container
 
-    def rib_received(self, minimum):
-        """Assert RIB has >= minimum received routes."""
+    def rib_count(self):
+        """Return the number of received routes in Ze's RIB, or 0 on failure."""
         output = docker_exec_quiet(self.container, ["ze", "show", "rib", "status"])
-        count = 0
         m = re.search(r'"routes-in"\s*:\s*(\d+)', output)
         if m:
-            count = int(m.group(1))
+            return int(m.group(1))
+        return 0
+
+    def rib_received(self, minimum):
+        """Assert RIB has >= minimum received routes."""
+        count = self.rib_count()
         if count >= minimum:
             log_pass("Ze RIB has %d received routes (expected >= %d)" % (count, minimum))
             return
         log_fail("Ze RIB has %d received routes (expected >= %d)" % (count, minimum))
-        log_info("rib status: %s" % output.strip())
         raise AssertionError("Ze RIB has %d routes, expected >= %d" % (count, minimum))
 
     def logs(self, lines=30):
