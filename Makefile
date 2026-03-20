@@ -254,7 +254,7 @@ INTEROP_SCENARIO ?=
 
 ze-interop-test:
 	@echo "Running interop tests (requires Docker)..."
-	@test/interop/run.sh $(INTEROP_SCENARIO)
+	@python3 test/interop/run.py $(INTEROP_SCENARIO)
 
 # ─── Spec status ─────────────────────────────────────────────────────────────
 
