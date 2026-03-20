@@ -2440,7 +2440,7 @@ func TestSessionTeardownStillWorks(t *testing.T) {
 		}
 	}()
 
-	_ = session.Teardown(message.NotifyCeaseAdminShutdown)
+	_ = session.Teardown(message.NotifyCeaseAdminShutdown, "")
 
 	select {
 	case err := <-resultCh:

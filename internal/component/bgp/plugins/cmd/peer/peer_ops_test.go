@@ -88,6 +88,53 @@ func TestHandlerTeardown(t *testing.T) {
 	assert.Equal(t, uint8(2), reactor.teardownCalls[0].subcode)
 }
 
+// TestHandlerTeardownWithMessage verifies RFC 8203 shutdown message is forwarded.
+//
+// VALIDATES: Teardown handler passes shutdown message to reactor.
+// PREVENTS: Shutdown communication message being silently dropped.
+func TestHandlerTeardownWithMessage(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "192.0.2.1"
+
+	resp, err := handleTeardown(ctx, []string{"2", "maintenance", "window"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	require.Len(t, reactor.teardownCalls, 1)
+	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), reactor.teardownCalls[0].addr)
+	assert.Equal(t, uint8(2), reactor.teardownCalls[0].subcode)
+	assert.Equal(t, "maintenance window", reactor.teardownCalls[0].message)
+
+	// Verify response includes the truncated wire message with kebab-case key
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "maintenance window", data["shutdown-message"])
+}
+
+// TestHandlerTeardownWithoutMessage verifies teardown without message still works.
+//
+// VALIDATES: Empty message is valid (backwards compatible).
+// PREVENTS: Regression on existing teardown behavior.
+func TestHandlerTeardownWithoutMessage(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "192.0.2.1"
+
+	resp, err := handleTeardown(ctx, []string{"2"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	require.Len(t, reactor.teardownCalls, 1)
+	assert.Empty(t, reactor.teardownCalls[0].message)
+
+	// Verify response does not include shutdown-message key when empty
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	_, hasMessage := data["shutdown-message"]
+	assert.False(t, hasMessage, "empty message should not appear in response")
+}
+
 // TestHandlerTeardownMissingSubcode verifies teardown rejects missing subcode.
 //
 // VALIDATES: Teardown requires subcode argument.
@@ -549,4 +596,63 @@ func TestBgpPeerCapabilitiesNotFound(t *testing.T) {
 	resp, err := handleBgpPeerCapabilities(ctx, nil)
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
+}
+
+// TestHandlerTeardownByName verifies teardown resolves peer by name.
+//
+// VALIDATES: Teardown handler resolves peer name to IP address via reactor peers list.
+//
+// PREVENTS: Name-based teardown silently failing or resolving to wrong peer.
+func TestHandlerTeardownByName(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{Name: "router-east", Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001},
+		},
+	}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "router-east"
+
+	resp, err := handleTeardown(ctx, []string{"2"})
+	require.NoError(t, err)
+	assert.Equal(t, plugin.StatusDone, resp.Status)
+
+	require.Len(t, reactor.teardownCalls, 1)
+	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), reactor.teardownCalls[0].addr)
+	assert.Equal(t, uint8(2), reactor.teardownCalls[0].subcode)
+}
+
+// TestHandlerTeardownUnknownName verifies teardown rejects unknown peer name.
+//
+// VALIDATES: Teardown returns error when peer name is not found in reactor peers.
+//
+// PREVENTS: Silent no-op when operator typos a peer name.
+func TestHandlerTeardownUnknownName(t *testing.T) {
+	reactor := &mockReactor{
+		peers: []plugin.PeerInfo{
+			{Name: "router-east", Address: netip.MustParseAddr("192.0.2.1"), PeerAS: 65001},
+		},
+	}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "nonexistent"
+
+	resp, err := handleTeardown(ctx, []string{"2"})
+	require.Error(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "unknown peer")
+}
+
+// TestHandlerTeardownSubcodeOutOfRange verifies teardown rejects subcode > 255.
+//
+// VALIDATES: Subcode must fit in a uint8 (0-255).
+//
+// PREVENTS: Truncated subcode reaching reactor on out-of-range input.
+func TestHandlerTeardownSubcodeOutOfRange(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := newTestContext(reactor)
+	ctx.Peer = "192.0.2.1"
+
+	resp, err := handleTeardown(ctx, []string{"256"})
+	require.Error(t, err)
+	assert.Equal(t, plugin.StatusError, resp.Status)
+	assert.Contains(t, resp.Data, "invalid subcode")
 }

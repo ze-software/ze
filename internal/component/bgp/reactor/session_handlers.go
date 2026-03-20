@@ -200,11 +200,26 @@ func (s *Session) handleUpdate(wu *wireu.WireUpdate) error {
 }
 
 // handleNotification processes a received NOTIFICATION message.
+// RFC 8203: logs shutdown communication for Cease/Admin Shutdown and Admin Reset.
 func (s *Session) handleNotification(body []byte) error {
 	notif, err := message.UnpackNotification(body)
 	if err != nil {
 		_ = s.fsm.Event(fsm.EventNotifMsgVerErr)
 		return fmt.Errorf("unpack NOTIFICATION: %w", err)
+	}
+
+	// RFC 8203 Section 2: log shutdown communication message if present.
+	if msg, msgErr := notif.ShutdownMessage(); msgErr == nil && msg != "" {
+		sessionLogger().Info("peer shutdown communication",
+			"peer", s.settings.Address,
+			"subcode", message.CeaseSubcodeString(notif.ErrorSubcode),
+			"message", msg,
+		)
+	} else if msgErr != nil {
+		sessionLogger().Warn("invalid shutdown communication",
+			"peer", s.settings.Address,
+			"error", msgErr,
+		)
 	}
 
 	s.timers.StopAll()

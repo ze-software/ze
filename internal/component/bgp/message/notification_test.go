@@ -271,6 +271,94 @@ func TestShutdownCommunication(t *testing.T) {
 	}
 }
 
+// TestBuildShutdownData verifies RFC 8203 shutdown communication data building.
+//
+// RFC 8203 Section 2: The Data field contains a 1-byte length followed by
+// a UTF-8 encoded string of up to 128 bytes.
+//
+// VALIDATES: Shutdown data correctly built with length prefix and UTF-8 truncation.
+//
+// PREVENTS: Sending oversized or malformed shutdown messages to peers.
+func TestBuildShutdownData(t *testing.T) {
+	tests := []struct {
+		name    string
+		message string
+		wantLen int // expected length byte value
+		wantMsg string
+	}{
+		{
+			name:    "empty message",
+			message: "",
+			wantLen: 0,
+			wantMsg: "",
+		},
+		{
+			name:    "short ASCII message",
+			message: "maintenance window",
+			wantLen: 18,
+			wantMsg: "maintenance window",
+		},
+		{
+			name:    "exactly 128 bytes",
+			message: string(make([]byte, 128)),
+			wantLen: 128,
+			wantMsg: string(make([]byte, 128)),
+		},
+		{
+			name:    "over 128 bytes truncated",
+			message: string(append(make([]byte, 128), "overflow"...)),
+			wantLen: 128,
+			wantMsg: string(make([]byte, 128)),
+		},
+		{
+			name:    "UTF-8 truncation at character boundary",
+			message: string(append(make([]byte, 126), "日"...)), // 126 + 3 = 129, must truncate
+			wantLen: 126,                                       // can't fit the 3-byte char
+			wantMsg: string(make([]byte, 126)),
+		},
+		{
+			name:    "UTF-8 multibyte fits exactly",
+			message: string(append(make([]byte, 125), "日"...)), // 125 + 3 = 128, fits
+			wantLen: 128,
+			wantMsg: string(append(make([]byte, 125), "日"...)),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := BuildShutdownData(tt.message)
+
+			if tt.wantLen == 0 {
+				assert.Equal(t, []byte{0}, data, "empty message should be length-byte only")
+				return
+			}
+
+			require.GreaterOrEqual(t, len(data), 2, "data must have length byte + message")
+			assert.Equal(t, tt.wantLen, int(data[0]), "length byte")
+			assert.Equal(t, tt.wantMsg, string(data[1:]))
+		})
+	}
+}
+
+// TestBuildShutdownDataBoundary verifies RFC 8203 boundary: last valid (128), first invalid (129).
+//
+// VALIDATES: Boundary enforcement at exactly 128 bytes.
+//
+// PREVENTS: Off-by-one in truncation logic.
+func TestBuildShutdownDataBoundary(t *testing.T) {
+	// Last valid: exactly 128 bytes
+	msg128 := string(make([]byte, 128))
+	data := BuildShutdownData(msg128)
+	assert.Equal(t, byte(128), data[0])
+	assert.Len(t, data, 129) // 1 length + 128 message
+
+	// First invalid: 129 bytes, must truncate to 128
+	msg129 := string(make([]byte, 129))
+	data = BuildShutdownData(msg129)
+	assert.Equal(t, byte(128), data[0])
+	assert.Len(t, data, 129) // still 1 + 128
+}
+
 // TestNotificationFSMSubcodes verifies FSM Error subcodes per RFC 6608.
 //
 // RFC 6608 Section 3 defines subcodes for FSM errors:
@@ -343,4 +431,83 @@ func TestNotificationOpenRoleMismatch(t *testing.T) {
 func TestNotificationCeaseBFDDown(t *testing.T) {
 	n := &Notification{ErrorCode: NotifyCease, ErrorSubcode: NotifyCeaseBFDDown}
 	assert.Contains(t, n.String(), "BFD Down")
+}
+
+// TestBuildShutdownDataRoundTrip verifies BuildShutdownData and ShutdownMessage
+// are inverse operations for valid inputs.
+//
+// RFC 8203 Section 2: the Data field is 1-byte length + UTF-8 message.
+// Building data and then parsing it back must yield the original message.
+//
+// VALIDATES: Round-trip symmetry between BuildShutdownData and ShutdownMessage.
+//
+// PREVENTS: Encoding/decoding mismatch losing shutdown communication content.
+func TestBuildShutdownDataRoundTrip(t *testing.T) {
+	tests := []struct {
+		name    string
+		message string
+	}{
+		{"ascii", "maintenance"},
+		{"multibyte", "日本語"},
+		{"empty", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := BuildShutdownData(tt.message)
+
+			n := &Notification{
+				ErrorCode:    NotifyCease,
+				ErrorSubcode: NotifyCeaseAdminShutdown,
+				Data:         data,
+			}
+
+			got, err := n.ShutdownMessage()
+			require.NoError(t, err)
+			assert.Equal(t, tt.message, got)
+		})
+	}
+}
+
+// TestBuildShutdownDataInvalidUTF8 verifies invalid UTF-8 bytes are stripped.
+//
+// RFC 9003 Section 2: message MUST be UTF-8 encoded.
+// Invalid bytes are stripped before encoding, resulting in an empty message
+// when the entire input is invalid.
+//
+// VALIDATES: Invalid UTF-8 input produces a valid zero-length shutdown data.
+//
+// PREVENTS: Sending malformed UTF-8 on the wire to peers.
+func TestBuildShutdownDataInvalidUTF8(t *testing.T) {
+	data := BuildShutdownData(string([]byte{0x80, 0x81}))
+	assert.Equal(t, []byte{0}, data, "invalid UTF-8 stripped to empty should produce length-byte-only")
+}
+
+// TestBuildShutdownDataAllMultibyteTruncation verifies truncation with all-multibyte input.
+//
+// RFC 8203 Section 2: message is truncated at UTF-8 character boundary to 128 bytes max.
+// 43 three-byte CJK characters = 129 bytes, which exceeds the 128-byte limit.
+// Truncation must drop the last character to reach 42 chars = 126 bytes.
+//
+// VALIDATES: Truncation at character boundary for all-multibyte input.
+//
+// PREVENTS: Mid-character truncation producing invalid UTF-8.
+func TestBuildShutdownDataAllMultibyteTruncation(t *testing.T) {
+	// 43 copies of "日" (3 bytes each) = 129 bytes total, exceeds 128-byte limit.
+	var input string
+	for range 43 {
+		input += "日"
+	}
+	require.Len(t, []byte(input), 129, "precondition: input must be 129 bytes")
+
+	data := BuildShutdownData(input)
+
+	// Must truncate to 42 chars = 126 bytes (can't fit the 43rd 3-byte char).
+	require.GreaterOrEqual(t, len(data), 2, "data must have length byte + message")
+	assert.Equal(t, 126, int(data[0]), "length byte should be 126")
+	assert.Len(t, data[1:], 126, "message should be 126 bytes")
+
+	// Verify the result is valid UTF-8 containing exactly 42 characters.
+	msg := string(data[1:])
+	assert.Equal(t, 42, len([]rune(msg)), "should contain exactly 42 CJK characters")
 }

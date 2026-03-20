@@ -499,3 +499,58 @@ func TestShouldIgnoreFamily(t *testing.T) {
 	assert.True(t, s.shouldIgnoreFamily(capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast}))
 	assert.False(t, s.shouldIgnoreFamily(capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}))
 }
+
+// TestHandleNotificationShutdownMessage verifies RFC 8203 shutdown communication
+// is processed without error when present in a Cease/AdminShutdown NOTIFICATION.
+//
+// VALIDATES: handleNotification correctly parses shutdown message and returns
+// an error wrapping ErrNotificationRecv.
+//
+// PREVENTS: Crash or incorrect error when peer sends shutdown with message.
+func TestHandleNotificationShutdownMessage(t *testing.T) {
+	s := newOpenSentSession(t)
+
+	// Cease (6) / Admin Shutdown (2) with 11-byte message "maintenance"
+	body := []byte{0x06, 0x02, 0x0B, 'm', 'a', 'i', 'n', 't', 'e', 'n', 'a', 'n', 'c', 'e'}
+
+	err := s.handleNotification(body)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrNotificationRecv)
+}
+
+// TestHandleNotificationInvalidShutdownUTF8 verifies handleNotification does not
+// crash when the shutdown communication contains invalid UTF-8 bytes.
+//
+// RFC 9003 Section 2: message MUST be UTF-8 encoded. Invalid UTF-8 should be
+// logged as a warning but must not prevent normal NOTIFICATION processing.
+//
+// VALIDATES: Invalid UTF-8 in shutdown data does not panic or prevent error return.
+//
+// PREVENTS: Crash on malformed shutdown communication from misbehaving peer.
+func TestHandleNotificationInvalidShutdownUTF8(t *testing.T) {
+	s := newOpenSentSession(t)
+
+	// Cease (6) / Admin Shutdown (2) with 3-byte claimed length, invalid UTF-8
+	body := []byte{0x06, 0x02, 0x03, 0xFF, 0xFE, 0xFD}
+
+	err := s.handleNotification(body)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrNotificationRecv)
+}
+
+// TestHandleNotificationCeaseNoMessage verifies a Cease/Unspecific NOTIFICATION
+// with no data is handled cleanly.
+//
+// VALIDATES: Cease with subcode 0 (Unspecific) and no data returns ErrNotificationRecv.
+//
+// PREVENTS: Error path diverging for minimal Cease notifications.
+func TestHandleNotificationCeaseNoMessage(t *testing.T) {
+	s := newOpenSentSession(t)
+
+	// Cease (6) / Unspecific (0), no data
+	body := []byte{0x06, 0x00}
+
+	err := s.handleNotification(body)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrNotificationRecv)
+}

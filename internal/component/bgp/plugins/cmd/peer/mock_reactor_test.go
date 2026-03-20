@@ -36,6 +36,7 @@ type mockReactor struct {
 	teardownCalls []struct {
 		addr    netip.Addr
 		subcode uint8
+		message string
 	}
 	addedPeers   []plugin.DynamicPeerConfig
 	removedPeers []netip.Addr
@@ -93,11 +94,12 @@ func (m *mockReactor) ResumePeer(addr netip.Addr) error {
 	return nil
 }
 
-func (m *mockReactor) TeardownPeer(addr netip.Addr, subcode uint8) error {
+func (m *mockReactor) TeardownPeer(addr netip.Addr, subcode uint8, shutdownMsg string) error {
 	m.teardownCalls = append(m.teardownCalls, struct {
 		addr    netip.Addr
 		subcode uint8
-	}{addr, subcode})
+		message string
+	}{addr, subcode, shutdownMsg})
 	return nil
 }
 

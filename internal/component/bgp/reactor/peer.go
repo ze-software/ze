@@ -107,6 +107,7 @@ type PeerOp struct {
 	Route   *rib.Route // For PeerOpAnnounce
 	NLRI    nlri.NLRI  // For PeerOpWithdraw
 	Subcode uint8      // For PeerOpTeardown
+	Message string     // For PeerOpTeardown: RFC 8203 shutdown communication
 }
 
 // MaxOpQueueSize is the maximum number of operations that can be queued
@@ -615,12 +616,18 @@ func (p *Peer) Stop() {
 	}
 }
 
+// ErrOpQueueFull is returned when the operation queue is full and the teardown
+// cannot be queued. This prevents the API from reporting success when the
+// teardown was silently dropped.
+var ErrOpQueueFull = errors.New("operation queue full")
+
 // Teardown sends a Cease NOTIFICATION with the given subcode and closes.
 // The session will send NOTIFICATION before closing the connection.
-// RFC 4486 defines Cease subcodes; RFC 9003 defines the message format.
+// RFC 4486 defines Cease subcodes; RFC 8203 defines the shutdown message.
 // If called when sendInitialRoutes is running, queues the teardown so that
 // EOR can be sent before NOTIFICATION. If not connected, also queues.
-func (p *Peer) Teardown(subcode uint8) {
+// Returns ErrOpQueueFull if the teardown could not be queued.
+func (p *Peer) Teardown(subcode uint8, shutdownMsg string) error {
 	p.mu.Lock()
 	session := p.session
 
@@ -629,32 +636,36 @@ func (p *Peer) Teardown(subcode uint8) {
 	// BGP protocol sequencing: routes + EOR + NOTIFICATION.
 	if p.sendingInitialRoutes.Load() != 0 {
 		if len(p.opQueue) < MaxOpQueueSize {
-			p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpTeardown, Subcode: subcode})
-		} else {
-			routesLogger().Debug("opQueue full, dropping teardown", "peer", p.settings.Address)
+			p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpTeardown, Subcode: subcode, Message: shutdownMsg})
+			p.mu.Unlock()
+			return nil
 		}
 		p.mu.Unlock()
-		return
+		routesLogger().Warn("opQueue full, dropping teardown", "peer", p.settings.Address)
+		return ErrOpQueueFull
 	}
 
 	if session != nil {
 		p.mu.Unlock()
-		if err := session.Teardown(subcode); err != nil {
+		if err := session.Teardown(subcode, shutdownMsg); err != nil {
 			peerLogger().Debug("teardown error", "peer", p.settings.Address, "error", err)
 		}
 		// Set state after teardown - there's a brief race window where
 		// AnnounceRoute might see ESTABLISHED, but SendUpdate will fail
 		// on the closed session (which is correct behavior)
 		p.setState(PeerStateConnecting)
-	} else {
-		// No active session - queue teardown to maintain operation order
-		if len(p.opQueue) < MaxOpQueueSize {
-			p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpTeardown, Subcode: subcode})
-		} else {
-			routesLogger().Debug("opQueue full, dropping teardown", "peer", p.settings.Address)
-		}
-		p.mu.Unlock()
+		return nil
 	}
+
+	// No active session - queue teardown to maintain operation order
+	if len(p.opQueue) < MaxOpQueueSize {
+		p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpTeardown, Subcode: subcode, Message: shutdownMsg})
+		p.mu.Unlock()
+		return nil
+	}
+	p.mu.Unlock()
+	routesLogger().Warn("opQueue full, dropping teardown", "peer", p.settings.Address)
+	return ErrOpQueueFull
 }
 
 // ShouldQueue returns true if routes should be queued rather than sent directly.

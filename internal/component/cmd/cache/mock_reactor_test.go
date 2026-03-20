@@ -38,12 +38,12 @@ func (m *mockReactor) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig  
 
 // --- ReactorPeerController ---
 
-func (m *mockReactor) Stop()                                           {}
-func (m *mockReactor) TeardownPeer(_ netip.Addr, _ uint8) error        { return nil }
-func (m *mockReactor) PausePeer(_ netip.Addr) error                    { return nil }
-func (m *mockReactor) ResumePeer(_ netip.Addr) error                   { return nil }
-func (m *mockReactor) AddDynamicPeer(_ plugin.DynamicPeerConfig) error { return nil }
-func (m *mockReactor) RemovePeer(_ netip.Addr) error                   { return nil }
+func (m *mockReactor) Stop()                                              {}
+func (m *mockReactor) TeardownPeer(_ netip.Addr, _ uint8, _ string) error { return nil }
+func (m *mockReactor) PausePeer(_ netip.Addr) error                       { return nil }
+func (m *mockReactor) ResumePeer(_ netip.Addr) error                      { return nil }
+func (m *mockReactor) AddDynamicPeer(_ plugin.DynamicPeerConfig) error    { return nil }
+func (m *mockReactor) RemovePeer(_ netip.Addr) error                      { return nil }
 
 // --- ReactorConfigurator ---
 

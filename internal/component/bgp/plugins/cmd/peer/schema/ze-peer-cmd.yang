@@ -54,7 +54,8 @@ module ze-peer-cmd {
         container teardown {
             config false;
             ze:command "ze-bgp:peer-teardown";
-            description "Teardown peer session with cease subcode";
+            description "Teardown peer session with cease subcode and optional
+                         shutdown communication message (RFC 8203)";
         }
 
         container pause {

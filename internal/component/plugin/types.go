@@ -110,7 +110,8 @@ type ReactorPeerController interface {
 
 	// TeardownPeer gracefully closes a peer session with NOTIFICATION.
 	// RFC 4486: Cease subcodes (2=Admin Shutdown, 3=Peer De-configured, 4=Admin Reset).
-	TeardownPeer(addr netip.Addr, subcode uint8) error
+	// RFC 8203: shutdownMsg is included for subcodes 2/4 (empty = default message).
+	TeardownPeer(addr netip.Addr, subcode uint8, shutdownMsg string) error
 
 	// PausePeer pauses reading from a specific peer's session.
 	// Used by flow control to apply backpressure when a plugin's worker pool saturates.

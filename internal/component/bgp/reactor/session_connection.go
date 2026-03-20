@@ -273,8 +273,10 @@ func (s *Session) CloseWithNotification(code message.NotifyErrorCode, subcode ui
 // Teardown sends a Cease NOTIFICATION with the given subcode and closes.
 // RFC 4486 defines Cease subcodes: 1=MaxPrefixes, 2=AdminShutdown, 3=PeerDeconfigured,
 // 4=AdminReset, 5=ConnectionRejected, 6=OtherConfigChange, 7=Collision, 8=OutOfResources.
-// RFC 9003 specifies that subcodes 2/4 include a length-prefixed message.
-func (s *Session) Teardown(subcode uint8) error {
+// RFC 8203 specifies that subcodes 2/4 may include a shutdown communication message.
+// If shutdownMsg is non-empty and subcode is 2 or 4, it is included per RFC 8203.
+// If shutdownMsg is empty, the subcode name is used as a default message.
+func (s *Session) Teardown(subcode uint8, shutdownMsg string) error {
 	// Mark session as tearing down to prevent accepting new connections
 	s.tearingDown.Store(true)
 
@@ -285,14 +287,14 @@ func (s *Session) Teardown(subcode uint8) error {
 	s.mu.Unlock()
 
 	if conn != nil {
-		// Build data per RFC 9003: length byte + message for subcodes 2/4
+		// Build data per RFC 8203: length byte + message for subcodes 2/4
 		var data []byte
-		msg := message.CeaseSubcodeString(subcode)
 		if subcode == message.NotifyCeaseAdminShutdown || subcode == message.NotifyCeaseAdminReset {
-			// RFC 9003: length byte + UTF-8 message
-			data = make([]byte, 1+len(msg))
-			data[0] = byte(len(msg))
-			copy(data[1:], msg)
+			msg := shutdownMsg
+			if msg == "" {
+				msg = message.CeaseSubcodeString(subcode)
+			}
+			data = message.BuildShutdownData(msg)
 		}
 
 		_ = s.sendNotification(conn,

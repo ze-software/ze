@@ -9,6 +9,7 @@
 package message
 
 import (
+	"bytes"
 	"fmt"
 	"unicode/utf8"
 )
@@ -271,6 +272,50 @@ func (n *Notification) ShutdownMessage() (string, error) {
 	}
 
 	return string(msg), nil
+}
+
+// MaxShutdownMessageLen is the maximum length of a shutdown communication message
+// in bytes. RFC 8203 specifies 128; RFC 9003 (which obsoletes RFC 8203) raised it
+// to 255. We use 128 for sending (conservative) while the receiver (ShutdownMessage)
+// accepts up to 255 (the maximum a single length byte can encode).
+const MaxShutdownMessageLen = 128
+
+// BuildShutdownData builds the Data field for a Cease NOTIFICATION with
+// a shutdown communication message per RFC 8203 Section 2.
+// Format: 1-byte length + UTF-8 message (up to 128 bytes).
+// Invalid UTF-8 is stripped per RFC 9003 Section 2 ("MUST be encoded using UTF-8").
+// If the message exceeds 128 bytes, it is truncated at a UTF-8 character boundary.
+// An empty message produces a single zero-length byte.
+func BuildShutdownData(msg string) []byte {
+	if msg == "" {
+		return []byte{0}
+	}
+
+	// RFC 9003 Section 2: message MUST be UTF-8 encoded.
+	// Strip any invalid UTF-8 sequences before encoding.
+	b := []byte(msg)
+	if !utf8.Valid(b) {
+		b = bytes.ToValidUTF8(b, nil)
+	}
+
+	// Truncate at UTF-8 character boundary if over max length.
+	if len(b) > MaxShutdownMessageLen {
+		b = b[:MaxShutdownMessageLen]
+		// Walk back to a valid UTF-8 boundary.
+		for len(b) > 0 && !utf8.Valid(b) {
+			b = b[:len(b)-1]
+		}
+	}
+
+	if len(b) == 0 {
+		return []byte{0}
+	}
+
+	data := make([]byte, 1+len(b))
+	data[0] = byte(len(b))
+	copy(data[1:], b)
+
+	return data
 }
 
 // RFC 4271 Section 4.5 - subcodeString returns a human-readable subcode name.

@@ -439,7 +439,7 @@ func TestPeerTeardownQueuesWhenNotConnected(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Teardown with no session should queue
-	peer.Teardown(4) // AdminReset subcode
+	require.NoError(t, peer.Teardown(4, "")) // AdminReset subcode
 
 	peer.mu.RLock()
 	require.Len(t, peer.opQueue, 1, "queue should have 1 item")
@@ -466,7 +466,7 @@ func TestPeerOpQueueMixedOperations(t *testing.T) {
 	route2 := testRoute("20.0.0.0/8")
 
 	peer.QueueAnnounce(route1)
-	peer.Teardown(4)
+	require.NoError(t, peer.Teardown(4, ""))
 	peer.QueueAnnounce(route2)
 
 	peer.mu.RLock()
@@ -497,8 +497,8 @@ func TestPeerOpQueueMultipleTeardowns(t *testing.T) {
 
 	peer := NewPeer(settings)
 
-	peer.Teardown(2) // AdminShutdown
-	peer.Teardown(4) // AdminReset
+	require.NoError(t, peer.Teardown(2, "")) // AdminShutdown
+	require.NoError(t, peer.Teardown(4, "")) // AdminReset
 
 	peer.mu.RLock()
 	require.Len(t, peer.opQueue, 2, "queue should have 2 items")
@@ -532,7 +532,7 @@ func TestPeerOpQueueOverflow(t *testing.T) {
 
 	// Additional operations should be dropped
 	peer.QueueAnnounce(route)
-	peer.Teardown(4)
+	require.ErrorIs(t, peer.Teardown(4, ""), ErrOpQueueFull)
 
 	peer.mu.RLock()
 	require.Len(t, peer.opQueue, MaxOpQueueSize, "queue should not exceed max capacity")
@@ -1429,4 +1429,29 @@ func TestPeerPauseReadingDelegates(t *testing.T) {
 		peer.ResumeReading()
 		require.False(t, peer.IsReadPaused())
 	})
+}
+
+// TestPeerTeardownQueuesMessage verifies that Teardown preserves the RFC 8203
+// shutdown communication message in the operation queue.
+//
+// VALIDATES: Teardown with a non-empty message stores the message in the queued PeerOp.
+//
+// PREVENTS: Shutdown communication message being silently dropped when queued.
+func TestPeerTeardownQueuesMessage(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+
+	peer := NewPeer(settings)
+
+	// Teardown with shutdown message, no session
+	require.NoError(t, peer.Teardown(2, "maintenance"))
+
+	peer.mu.RLock()
+	require.Len(t, peer.opQueue, 1, "queue should have 1 item")
+	require.Equal(t, PeerOpTeardown, peer.opQueue[0].Type)
+	require.Equal(t, uint8(2), peer.opQueue[0].Subcode)
+	require.Equal(t, "maintenance", peer.opQueue[0].Message)
+	peer.mu.RUnlock()
 }
