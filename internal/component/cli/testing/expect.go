@@ -29,7 +29,8 @@ type State interface {
 	ConfirmTimerActive() bool
 	TriggerCompletions()
 	Mode() cli.EditorMode
-	TmpDir() string // Temp directory for file expectations
+	InputValue() string // Current text input value
+	TmpDir() string     // Temp directory for file expectations
 }
 
 // validExpectationTypes lists all recognized expectation types.
@@ -49,6 +50,7 @@ var validExpectationTypes = map[string]func(Expectation, State) error{
 	"viewport":   checkViewport,
 	"timer":      checkTimer,
 	"mode":       checkMode,
+	"input":      checkInput,
 	"file":       checkFile,
 }
 
@@ -448,6 +450,27 @@ func checkTimer(exp Expectation, state State) error {
 	}
 
 	return fmt.Errorf("timer expectation requires 'active' or 'inactive' key")
+}
+
+// checkInput verifies text input value expectations.
+func checkInput(exp Expectation, state State) error {
+	value := state.InputValue()
+
+	if expected, hasValue := exp.Values["value"]; hasValue {
+		if value != expected {
+			return fmt.Errorf("expected input value %q, got %q", expected, value)
+		}
+		return nil
+	}
+
+	if _, hasEmpty := exp.Values["empty"]; hasEmpty {
+		if value != "" {
+			return fmt.Errorf("expected input:empty, got %q", value)
+		}
+		return nil
+	}
+
+	return fmt.Errorf("input expectation requires 'value' or 'empty' key")
 }
 
 // checkFile verifies on-disk file content relative to TmpDir.

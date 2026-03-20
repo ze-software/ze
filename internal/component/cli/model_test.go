@@ -10,6 +10,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 // Test config constants to avoid duplication.
@@ -475,35 +477,32 @@ func TestCommandHistoryRecall(t *testing.T) {
 	model.height = 24
 
 	// Simulate executing two commands by populating history directly
-	model.history = []string{"show", "edit bgp"}
-	model.historyIdx = -1
+	model.history.Append("show")
+	model.history.Append("edit bgp")
 
-	// Press Up — should recall most recent command
+	// Press Up - should recall most recent command
 	m := model.handleHistoryUp()
 	updated, ok := m.(Model)
 	require.True(t, ok)
 	assert.Equal(t, "edit bgp", updated.InputValue(), "first Up should recall most recent")
-	assert.Equal(t, 1, updated.historyIdx)
 
-	// Press Up again — should recall older command
+	// Press Up again - should recall older command
 	m = updated.handleHistoryUp()
 	updated, ok = m.(Model)
 	require.True(t, ok)
 	assert.Equal(t, "show", updated.InputValue(), "second Up should recall older command")
-	assert.Equal(t, 0, updated.historyIdx)
 
-	// Press Down — should return to more recent
+	// Press Down - should return to more recent
 	m = updated.handleHistoryDown()
 	updated, ok = m.(Model)
 	require.True(t, ok)
 	assert.Equal(t, "edit bgp", updated.InputValue(), "Down should go to more recent")
 
-	// Press Down again — should restore original input
+	// Press Down again - should restore original input
 	m = updated.handleHistoryDown()
 	updated, ok = m.(Model)
 	require.True(t, ok)
 	assert.Empty(t, updated.InputValue(), "Down past end restores original input")
-	assert.Equal(t, -1, updated.historyIdx)
 }
 
 // TestCommandHistorySavedOnEnter verifies commands are saved to history when executed.
@@ -531,7 +530,7 @@ func TestCommandHistorySavedOnEnter(t *testing.T) {
 	m, ok := newModel.(Model)
 	require.True(t, ok)
 
-	assert.Equal(t, []string{"show"}, m.history, "command should be saved to history")
+	assert.Equal(t, []string{"show"}, m.history.Entries(), "command should be saved to history")
 }
 
 // TestCommandHistoryNoDuplicates verifies consecutive identical commands are not duplicated.
@@ -564,7 +563,108 @@ func TestCommandHistoryNoDuplicates(t *testing.T) {
 	m, ok = newModel.(Model)
 	require.True(t, ok)
 
-	assert.Equal(t, []string{"show"}, m.history, "duplicate consecutive commands should not be added")
+	assert.Equal(t, []string{"show"}, m.history.Entries(), "duplicate consecutive commands should not be added")
+}
+
+// TestSetHistoryLoadsCurrentMode verifies SetHistory loads saved entries for the active mode.
+//
+// VALIDATES: SetHistory populates current mode history from store.
+// PREVENTS: History empty after restart despite saved entries.
+func TestSetHistoryLoadsCurrentMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
+
+	// Pre-populate store with edit history.
+	storePath := filepath.Join(tmpDir, "test.zefs")
+	store, err := zefs.Create(storePath)
+	require.NoError(t, err)
+	require.NoError(t, store.WriteFile("meta/history/edit", []byte("show\ncommit"), 0))
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	m, err := NewModel(ed) // starts in ModeEdit
+	require.NoError(t, err)
+
+	m.SetHistory(NewHistory(store))
+	store.Close() //nolint:errcheck // test cleanup
+
+	assert.Equal(t, []string{"show", "commit"}, m.history.Entries(), "should load edit history from store")
+}
+
+// TestSetHistoryPreloadsOtherMode verifies SetHistory pre-loads the other mode's history.
+//
+// VALIDATES: Switching to command mode after SetHistory has saved command history.
+// PREVENTS: Other mode history lost on first mode switch.
+func TestSetHistoryPreloadsOtherMode(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
+
+	storePath := filepath.Join(tmpDir, "test.zefs")
+	store, err := zefs.Create(storePath)
+	require.NoError(t, err)
+	require.NoError(t, store.WriteFile("meta/history/edit", []byte("show"), 0))
+	require.NoError(t, store.WriteFile("meta/history/command", []byte("peer list\ndaemon status"), 0))
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	m, err := NewModel(ed)
+	require.NoError(t, err)
+
+	m.SetHistory(NewHistory(store))
+	store.Close() //nolint:errcheck // test cleanup
+
+	// Switch to command mode.
+	m.SwitchMode(ModeCommand)
+	assert.Equal(t, []string{"peer list", "daemon status"}, m.history.Entries(),
+		"command history should be pre-loaded from store")
+
+	// Switch back to edit.
+	m.SwitchMode(ModeEdit)
+	assert.Equal(t, []string{"show"}, m.history.Entries(),
+		"edit history should survive mode round-trip")
+}
+
+// TestModelHistoryPersistOnEnter verifies that Enter persists history through a real store.
+//
+// VALIDATES: Executed commands are saved to the store and survive reload.
+// PREVENTS: History lost on restart because Save was never called.
+func TestModelHistoryPersistOnEnter(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	require.NoError(t, os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600))
+
+	storePath := filepath.Join(tmpDir, "test.zefs")
+	store, err := zefs.Create(storePath)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.width = 80
+	model.height = 24
+	model.SetHistory(NewHistory(store))
+
+	// Execute "show"
+	model.textInput.SetValue("show")
+	newModel, _ := model.handleEnter()
+	_, ok := newModel.(Model)
+	require.True(t, ok)
+
+	// Reload history from the same store.
+	h2 := NewHistory(store)
+	loaded := h2.Load("edit")
+	store.Close() //nolint:errcheck // test cleanup
+
+	assert.Equal(t, []string{"show"}, loaded, "command should be persisted to store via Save")
 }
 
 // TestTabOnListKeyShowsChildrenImmediately verifies that pressing Tab on a typed

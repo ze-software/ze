@@ -1,0 +1,25 @@
+# Test: Up arrow recalls last command from history
+# VALIDATES: AC-8 -- executed commands appear in history
+# PREVENTS: History empty after running commands
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local {
+  	as 65000
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Execute a command
+input=type:text=show
+input=enter
+expect=error:none
+
+# Press Up to recall it
+input=up
+expect=input:value=show
+expect=error:none

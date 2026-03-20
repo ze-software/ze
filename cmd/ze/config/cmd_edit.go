@@ -378,11 +378,11 @@ Examples:
 		return 1
 	}
 
-	return runEditor(ed, configPath)
+	return runEditor(ed, store, configPath)
 }
 
 // runEditor runs the interactive editor TUI after the Editor is created.
-func runEditor(ed *cli.Editor, configPath string) int {
+func runEditor(ed *cli.Editor, store storage.Storage, configPath string) int {
 	defer ed.Close() //nolint:errcheck // Best effort cleanup
 
 	// Probe daemon SSH port at startup.
@@ -508,8 +508,13 @@ func runEditor(ed *cli.Editor, configPath string) int {
 		return 1
 	}
 
+	// Wire persistent command history from blob storage (graceful no-op for filesystem).
+	if storage.IsBlobStorage(store) {
+		m.SetHistory(cli.NewHistory(store))
+	}
+
 	// Wire command mode: completer from RPC registrations, executor via SSH.
-	// Command mode is best-effort — works without a running daemon (completions only).
+	// Command mode is best-effort - works without a running daemon (completions only).
 	m.SetCommandCompleter(cli.NewCommandCompleter(buildEditorCommandTree()))
 	if credsErr == nil && daemonReachable {
 		wireSSHCommandExecutor(&m, creds)

@@ -350,6 +350,7 @@ type MockState struct {
 	viewportContent    string
 	confirmTimerActive bool
 	mode               cli.EditorMode
+	inputValue         string
 }
 
 func (m *MockState) ContextPath() []string                           { return m.contextPath }
@@ -367,6 +368,7 @@ func (m *MockState) ViewportContent() string                         { return m.
 func (m *MockState) ConfirmTimerActive() bool                        { return m.confirmTimerActive }
 func (m *MockState) TriggerCompletions()                             {}
 func (m *MockState) Mode() cli.EditorMode                            { return m.mode }
+func (m *MockState) InputValue() string                              { return m.inputValue }
 func (m *MockState) TmpDir() string                                  { return "" }
 
 // mockError is a simple error type for testing.

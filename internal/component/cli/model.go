@@ -1,5 +1,6 @@
 // Design: docs/architecture/config/yang-config-design.md — config editor
 // Detail: model_mode.go — editor mode switching (edit/command)
+// Detail: history.go — command history persistence to zefs
 
 package cli
 
@@ -98,10 +99,8 @@ type Model struct {
 	pasteModeLocation string          // "absolute" or "relative"
 	pasteModeAction   string          // "replace" or "merge"
 
-	// Command history
-	history    []string // Previous commands (oldest first)
-	historyIdx int      // Current position in history (-1 = not browsing)
-	historyTmp string   // Saved current input when browsing history
+	// Command history (browsing, entries, and persistence)
+	history *History
 
 	// Accumulating output buffer (command-only mode)
 	outputBuf   strings.Builder // Scroll-back buffer for command-only mode
@@ -275,7 +274,7 @@ func NewModel(ed *Editor) (Model, error) {
 		viewport:           vp,
 		contextPath:        nil,
 		selected:           -1,
-		historyIdx:         -1,
+		history:            NewHistory(nil),
 		validationErrors:   result.Errors,
 		validationWarnings: result.Warnings,
 		showHints:          true,
@@ -303,9 +302,9 @@ func NewCommandModel() Model {
 		textInput:  ti,
 		viewport:   vp,
 		selected:   -1,
+		history:    NewHistory(nil),
 		mode:       ModeCommand,
 		modeStates: make(map[EditorMode]modeState),
-		historyIdx: -1,
 	}
 }
 
@@ -512,6 +511,8 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if len(msg.Runes) == 1 && msg.Runes[0] == '?' {
 			return m.handleTab()
 		}
+		// Typing resets history browsing so next Up starts from most recent.
+		m.history.ResetBrowsing()
 		// Otherwise pass to text input
 		m.textInput, cmd = m.textInput.Update(msg)
 		m.updateCompletions()
@@ -522,6 +523,7 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	// All other key types: forward to text input for processing
+	m.history.ResetBrowsing()
 	m.textInput, cmd = m.textInput.Update(msg)
 	m.updateCompletions()
 	return m, tea.Batch(cmd, m.scheduleValidation())
@@ -705,11 +707,9 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		// Save to history and execute.
-		if len(m.history) == 0 || m.history[len(m.history)-1] != args {
-			m.history = append(m.history, args)
+		if m.history.Append(args) {
+			m.history.Save(m.mode.String())
 		}
-		m.historyIdx = -1
-		m.historyTmp = ""
 		m.showDropdown = false
 		m.selected = -1
 		m.ghostText = ""
@@ -755,11 +755,9 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	}
 
 	// Save to history
-	if len(m.history) == 0 || m.history[len(m.history)-1] != input {
-		m.history = append(m.history, input)
+	if m.history.Append(input) {
+		m.history.Save(m.mode.String())
 	}
-	m.historyIdx = -1
-	m.historyTmp = ""
 
 	// Clear input
 	m.textInput.SetValue("")
@@ -860,19 +858,11 @@ func (m Model) finishPasteMode() (tea.Model, tea.Cmd) {
 
 // handleHistoryUp recalls the previous command from history.
 func (m Model) handleHistoryUp() tea.Model {
-	if len(m.history) == 0 {
+	value, ok := m.history.Up(m.textInput.Value())
+	if !ok {
 		return m
 	}
-
-	if m.historyIdx == -1 {
-		// Start browsing: save current input, go to most recent
-		m.historyTmp = m.textInput.Value()
-		m.historyIdx = len(m.history) - 1
-	} else if m.historyIdx > 0 {
-		m.historyIdx--
-	}
-
-	m.textInput.SetValue(m.history[m.historyIdx])
+	m.textInput.SetValue(value)
 	m.textInput.CursorEnd()
 	m.updateCompletions()
 	return m
@@ -880,20 +870,11 @@ func (m Model) handleHistoryUp() tea.Model {
 
 // handleHistoryDown recalls the next command from history, or restores the original input.
 func (m Model) handleHistoryDown() tea.Model {
-	if m.historyIdx == -1 {
+	value, ok := m.history.Down()
+	if !ok {
 		return m
 	}
-
-	if m.historyIdx < len(m.history)-1 {
-		m.historyIdx++
-		m.textInput.SetValue(m.history[m.historyIdx])
-	} else {
-		// Back to current input
-		m.historyIdx = -1
-		m.textInput.SetValue(m.historyTmp)
-		m.historyTmp = ""
-	}
-
+	m.textInput.SetValue(value)
 	m.textInput.CursorEnd()
 	m.updateCompletions()
 	return m
@@ -1106,6 +1087,28 @@ func (m *Model) SetCommandCompleter(cc CommandModeCompleter) {
 // When nil, command mode shows an error on Enter.
 func (m *Model) SetCommandExecutor(fn func(string) (string, error)) {
 	m.commandExecutor = fn
+}
+
+// SetHistory replaces the model's history with a persistent History.
+// Loads saved entries for the current mode and pre-loads the other mode
+// into modeStates so history is available on mode switch.
+func (m *Model) SetHistory(h *History) {
+	m.history = h
+	// Load history for the current mode.
+	if loaded := h.Load(m.mode.String()); len(loaded) > 0 {
+		m.history.entries = loaded
+	}
+	// Pre-load history for the other mode into modeStates so it's
+	// available when the user switches modes.
+	other := ModeCommand
+	if m.mode == ModeCommand {
+		other = ModeEdit
+	}
+	if loaded := h.Load(other.String()); len(loaded) > 0 {
+		saved := m.modeStates[other]
+		saved.histSnap = historySnapshot{entries: loaded, idx: -1}
+		m.modeStates[other] = saved
+	}
 }
 
 // SetInput sets the text input value. Used by external packages (e.g. SSH)

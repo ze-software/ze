@@ -40,13 +40,11 @@ func (m EditorMode) String() string {
 
 // modeState saves the screen state for a mode.
 type modeState struct {
-	viewportContent string   // Content displayed in viewport
-	viewportYOffset int      // Vertical scroll position
-	showViewport    bool     // Whether viewport was active
-	statusMessage   string   // Status message at time of switch
-	history         []string // Command history for this mode
-	historyIdx      int      // Current history position (-1 = not browsing)
-	historyTmp      string   // Saved input when browsing history
+	viewportContent string          // Content displayed in viewport
+	viewportYOffset int             // Vertical scroll position
+	showViewport    bool            // Whether viewport was active
+	statusMessage   string          // Status message at time of switch
+	histSnap        historySnapshot // Command history snapshot for this mode
 }
 
 // Mode returns the current editor mode.
@@ -67,9 +65,7 @@ func (m *Model) SwitchMode(target EditorMode) {
 		viewportYOffset: m.viewport.YOffset,
 		showViewport:    m.showViewport,
 		statusMessage:   m.statusMessage,
-		history:         m.history,
-		historyIdx:      m.historyIdx,
-		historyTmp:      m.historyTmp,
+		histSnap:        m.history.snapshot(),
 	}
 
 	// Switch mode
@@ -80,9 +76,7 @@ func (m *Model) SwitchMode(target EditorMode) {
 	m.viewportContent = saved.viewportContent
 	m.showViewport = saved.showViewport
 	m.statusMessage = saved.statusMessage
-	m.history = saved.history
-	m.historyIdx = saved.historyIdx
-	m.historyTmp = saved.historyTmp
+	m.history.restore(saved.histSnap)
 
 	m.viewport.SetContent(saved.viewportContent)
 	m.viewport.YOffset = saved.viewportYOffset

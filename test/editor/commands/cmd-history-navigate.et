@@ -1,0 +1,38 @@
+# Test: Up/Down navigates through command history
+# VALIDATES: Multiple commands navigable with Up/Down arrows
+# PREVENTS: Off-by-one in history browsing
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local {
+  	as 65000
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Execute two commands
+input=type:text=show
+input=enter
+
+input=type:text=compare
+input=enter
+
+# Up shows most recent
+input=up
+expect=input:value=compare
+
+# Up again shows older
+input=up
+expect=input:value=show
+
+# Down returns to more recent
+input=down
+expect=input:value=compare
+
+# Down past end restores empty input
+input=down
+expect=input:empty

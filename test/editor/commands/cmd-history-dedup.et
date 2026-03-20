@@ -1,0 +1,30 @@
+# Test: Consecutive duplicate commands are not added to history
+# VALIDATES: AC-8 -- dedup preserves single entry
+# PREVENTS: History cluttered with repeated commands
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local {
+  	as 65000
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Execute same command twice
+input=type:text=show
+input=enter
+
+input=type:text=show
+input=enter
+
+# Up should show "show" (only one entry)
+input=up
+expect=input:value=show
+
+# Up again stays at "show" (no older entry)
+input=up
+expect=input:value=show

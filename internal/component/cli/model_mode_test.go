@@ -275,36 +275,39 @@ func TestModeHistoryIsolation(t *testing.T) {
 	m := newTestModel(t)
 
 	// Add history in edit mode
-	m.history = append(m.history, "set bgp local-as 65000", "show")
+	m.history.Append("set bgp local-as 65000")
+	m.history.Append("show")
 
 	// Switch to command mode
 	m.SwitchMode(ModeCommand)
 
-	if len(m.history) != 0 {
-		t.Errorf("expected empty history in fresh command mode, got %v", m.history)
+	if len(m.history.Entries()) != 0 {
+		t.Errorf("expected empty history in fresh command mode, got %v", m.history.Entries())
 	}
 
 	// Add history in command mode
-	m.history = append(m.history, "peer list")
+	m.history.Append("peer list")
 
-	// Switch back to edit — edit history should be restored
+	// Switch back to edit - edit history should be restored
 	m.SwitchMode(ModeEdit)
 
-	if len(m.history) != 2 {
-		t.Fatalf("expected 2 edit history entries, got %d: %v", len(m.history), m.history)
+	entries := m.history.Entries()
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 edit history entries, got %d: %v", len(entries), entries)
 	}
-	if m.history[0] != "set bgp local-as 65000" {
-		t.Errorf("expected first edit history entry 'set bgp local-as 65000', got %q", m.history[0])
+	if entries[0] != "set bgp local-as 65000" {
+		t.Errorf("expected first edit history entry 'set bgp local-as 65000', got %q", entries[0])
 	}
 
-	// Switch back to command — command history should be restored
+	// Switch back to command - command history should be restored
 	m.SwitchMode(ModeCommand)
 
-	if len(m.history) != 1 {
-		t.Fatalf("expected 1 command history entry, got %d: %v", len(m.history), m.history)
+	entries = m.history.Entries()
+	if len(entries) != 1 {
+		t.Fatalf("expected 1 command history entry, got %d: %v", len(entries), entries)
 	}
-	if m.history[0] != "peer list" {
-		t.Errorf("expected command history entry 'peer list', got %q", m.history[0])
+	if entries[0] != "peer list" {
+		t.Errorf("expected command history entry 'peer list', got %q", entries[0])
 	}
 }
 

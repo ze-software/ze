@@ -32,6 +32,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all" // init() registers all YANG schemas
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -114,6 +115,14 @@ func runBGP(args []string) int {
 
 	// Create unified model in command-only mode
 	m := unicli.NewCommandModel()
+
+	// Wire persistent command history from zefs (best-effort, no error on failure).
+	if dbPath := sshclient.ResolveDBPath(); dbPath != "" {
+		if store, storeErr := zefs.Open(dbPath); storeErr == nil {
+			defer store.Close() //nolint:errcheck // best-effort history
+			m.SetHistory(unicli.NewHistory(store))
+		}
+	}
 
 	// Wire command executor: sends commands to daemon via SSH, returns response.
 	// Pipe processing (| table, | json, etc.) is handled by the unified model.
