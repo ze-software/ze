@@ -25,8 +25,7 @@ const StaleLevelFresh uint8 = 0
 // DepreferenceThreshold is the stale level at which best-path deprioritizes routes.
 // Routes at or above this level lose to routes below it.
 // Plugins that need depreference should use levels >= this value.
-// Set via RegisterDepreferenceThreshold during init; defaults to 2.
-var DepreferenceThreshold uint8 = 2
+const DepreferenceThreshold uint8 = 2
 
 type RouteEntry struct {
 	// StaleLevel tracks route freshness. 0 = fresh (not stale).

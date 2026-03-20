@@ -634,3 +634,50 @@ func TestComparePair_LLGRStale(t *testing.T) {
 		t.Errorf("both LLGR-stale, lower peer addr: want -1, got %d", got)
 	}
 }
+
+// TestComparePair_GRStaleCompetesNormally verifies GR-stale (level 1) competes normally.
+//
+// VALIDATES: RFC 4724: GR-stale routes below DepreferenceThreshold are NOT deprioritized.
+// PREVENTS: GR-stale routes losing to fresh routes when they have better attributes.
+func TestComparePair_GRStaleCompetesNormally(t *testing.T) {
+	t.Parallel()
+	// Level 1 (GR-stale) with higher LOCAL_PREF should beat level 0 (fresh)
+	grStale := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 200, StaleLevel: 1}
+	fresh := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, StaleLevel: 0}
+
+	best := SelectBest([]*Candidate{grStale, fresh})
+	if best.PeerAddr != "10.0.0.1" {
+		t.Errorf("GR-stale with higher LOCAL_PREF should win, got %s", best.PeerAddr)
+	}
+}
+
+// TestComparePair_GRStaleBeatsLLGRStale verifies GR-stale beats LLGR-stale across threshold.
+//
+// VALIDATES: Level 1 (below threshold) beats level 2 (at threshold) regardless of attributes.
+// PREVENTS: LLGR-stale winning over GR-stale due to better LOCAL_PREF.
+func TestComparePair_GRStaleBeatsLLGRStale(t *testing.T) {
+	t.Parallel()
+	// Level 1 with worse attributes should still beat level 2
+	grStale := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 50, StaleLevel: 1}
+	llgrStale := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 200, StaleLevel: 2}
+
+	best := SelectBest([]*Candidate{grStale, llgrStale})
+	if best.PeerAddr != "10.0.0.1" {
+		t.Errorf("GR-stale (below threshold) should beat LLGR-stale, got %s", best.PeerAddr)
+	}
+}
+
+// TestComparePair_BothDeprefDifferentLevels verifies lower level wins among deprioritized.
+//
+// VALIDATES: Between two routes both above threshold, lower stale level wins.
+// PREVENTS: All deprioritized routes treated as equal.
+func TestComparePair_BothDeprefDifferentLevels(t *testing.T) {
+	t.Parallel()
+	level2 := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100, StaleLevel: 2}
+	level3 := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, StaleLevel: 3}
+
+	best := SelectBest([]*Candidate{level2, level3})
+	if best.PeerAddr != "10.0.0.1" {
+		t.Errorf("lower stale level should win among deprioritized, got %s", best.PeerAddr)
+	}
+}

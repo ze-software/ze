@@ -59,14 +59,16 @@ type ribCommandEntry struct {
 	Help    string
 }
 
-// registeredCommands is the command dispatch table, populated during init().
-// Read-only after init phase; no mutex needed.
+// registeredCommands is the command dispatch table, populated at startup.
+// Read-only after startup; no mutex needed.
 var registeredCommands = map[string]*ribCommandEntry{}
 
-// RegisterRIBCommand registers a command handler for a given command name.
-// Called by plugins during init() to extend the RIB's command set.
+// builtinsRegistered guards against double-registration of builtin commands.
+var builtinsRegistered bool
+
+// registerCommand adds a command handler to the dispatch table.
 // Returns an error if the command name is already registered.
-func RegisterRIBCommand(name, help string, handler CommandHandler) error {
+func registerCommand(name, help string, handler CommandHandler) error {
 	if _, exists := registeredCommands[name]; exists {
 		return fmt.Errorf("RIB command %q already registered", name)
 	}
@@ -74,12 +76,14 @@ func RegisterRIBCommand(name, help string, handler CommandHandler) error {
 	return nil
 }
 
-// registerBuiltinCommands populates the command table with RIB-native commands.
-// Called from RIB startup (explicit, not init). Idempotent: skips if already populated.
+// registerBuiltinCommands populates the command table with RIB-native commands
+// and LLGR extensions. Called from RIB startup (explicit, not init).
+// Idempotent via bool guard.
 func registerBuiltinCommands() {
-	if _, ok := registeredCommands["rib status"]; ok {
-		return // already registered
+	if builtinsRegistered {
+		return
 	}
+	builtinsRegistered = true
 	builtins := []struct {
 		names   []string
 		help    string
@@ -144,6 +148,11 @@ func registerBuiltinCommands() {
 			registeredCommands[name] = &ribCommandEntry{Handler: b.handler, Help: b.help}
 		}
 	}
+
+	// LLGR extension commands. Registered here (not by bgp-gr) because
+	// handlers access RIBManager internals. The GR plugin sends these
+	// as text commands via DispatchCommand -- no cross-plugin import needed.
+	registerLLGRCommands()
 }
 
 // handleCommand processes command requests via SDK execute-command callback.
@@ -403,12 +412,16 @@ func (r *RIBManager) markStaleCommand(args []string) (string, string, error) {
 		return statusError, "", fmt.Errorf("invalid restart-time %q: %w", args[1], err)
 	}
 
-	// Stale level: plugin-defined, defaults to 1.
+	// Stale level: plugin-defined, defaults to 1. Level 0 is fresh (not stale)
+	// and rejected to prevent accidental unstaling via a "mark-stale" command.
 	staleLevel := uint8(1)
 	if len(args) >= 3 {
 		lvl, lvlErr := strconv.ParseUint(args[2], 10, 8)
 		if lvlErr != nil {
 			return statusError, "", fmt.Errorf("invalid stale level %q: %w", args[2], lvlErr)
+		}
+		if lvl == 0 {
+			return statusError, "", fmt.Errorf("stale level must be > 0 (0 means fresh)")
 		}
 		staleLevel = uint8(lvl)
 	}
@@ -594,14 +607,10 @@ func (r *RIBManager) extractCandidate(peerAddr string, entry *storage.RouteEntry
 //   - Attach LLGR_STALE community (0xFFFF0006) to remaining stale routes
 //   - Set LLGRStale=true for best-path depreference
 //
-// RegisterLLGRCommands registers the LLGR-specific RIB commands.
-// Called by the bgp-gr plugin during init() to extend the RIB command set.
-// The handlers live in the rib package because they access RIBManager internals.
-// Idempotent: safe to call multiple times (e.g., from tests).
-func RegisterLLGRCommands() {
-	if _, ok := registeredCommands["rib enter-llgr"]; ok {
-		return // already registered
-	}
+// registerLLGRCommands registers the LLGR-specific RIB commands.
+// Called from registerBuiltinCommands. Uses registerCommand for uniform
+// collision detection.
+func registerLLGRCommands() {
 	cmds := []struct {
 		name    string
 		help    string
@@ -621,7 +630,9 @@ func RegisterLLGRCommands() {
 			}},
 	}
 	for _, c := range cmds {
-		registeredCommands[c.name] = &ribCommandEntry{Handler: c.handler, Help: c.help}
+		if err := registerCommand(c.name, c.help, c.handler); err != nil {
+			logger().Warn("LLGR command registration failed", "command", c.name, "error", err)
+		}
 	}
 }
 
