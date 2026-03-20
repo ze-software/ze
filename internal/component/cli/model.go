@@ -133,6 +133,7 @@ const validationDebounce = 100 * time.Millisecond
 const (
 	cmdSet        = "set"
 	cmdShow       = "show"
+	cmdOption     = "option"
 	cmdDelete     = "delete"
 	cmdCompare    = "compare"
 	cmdEdit       = "edit"
@@ -174,8 +175,7 @@ const (
 	colChanges = "changes"
 )
 
-// showColumnNames is the fixed set of valid column names.
-var showColumnNames = []string{colAuthor, colDate, colSource, colChanges}
+// Show column names used in model.go constants block above.
 
 // Show format names for the | format pipe.
 const (

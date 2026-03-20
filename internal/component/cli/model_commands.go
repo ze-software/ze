@@ -1,5 +1,6 @@
 // Design: docs/architecture/config/yang-config-design.md — config editor
-// Detail: model_commands_show.go — show command display, column toggles, compare
+// Detail: model_commands_show.go — show command content display
+// Detail: model_commands_option.go — display option settings
 
 package cli
 
@@ -64,6 +65,9 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 
 	case cmdShow:
 		return m.cmdShow(args)
+
+	case cmdOption:
+		return m.cmdOption(args)
 
 	case cmdCompare:
 		return commandResult{output: m.editor.Diff()}, nil

@@ -23,7 +23,7 @@ expect=dirty:true
 expect=error:none
 
 # Show blame view -- should contain username in gutter
-input=type:text=show blame
+input=type:text=option blame
 input=enter
 expect=viewport:contains=thomas
 expect=error:none

@@ -8,9 +8,11 @@ package peer
 import (
 	"fmt"
 	"net/netip"
+	"strconv"
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
@@ -19,7 +21,7 @@ func init() {
 	pluginserver.RegisterRPCs(
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-list", Handler: handleBgpPeerList, Help: "List peer(s) (brief)", ReadOnly: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-detail", Handler: handleBgpPeerDetail, Help: "Peer details (config, state, counters)", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-teardown", Handler: handleTeardown, Help: "Teardown peer session with cease subcode", RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-teardown", Handler: handleTeardown, Help: "Teardown peer session with cease subcode and optional message (RFC 8203)", RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-add", Handler: handleBgpPeerAdd, Help: "Add a peer dynamically", RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-remove", Handler: handleBgpPeerRemove, Help: "Remove a peer dynamically", RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-pause", Handler: handleBgpPeerPause, Help: "Pause peer read loop (flow control)", RequiresSelector: true},
@@ -146,9 +148,10 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 	}, nil
 }
 
-// handleTeardown handles "peer <ip> teardown <subcode>" command.
+// handleTeardown handles "peer <ip> teardown <subcode> [message]" command.
 // The peer IP is extracted by the dispatcher into ctx.Peer.
 // Subcode is the Cease subcode per RFC 4486.
+// RFC 8203: optional message is included in the NOTIFICATION for subcodes 2/4.
 func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
@@ -158,7 +161,7 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 	if len(args) < 1 {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "usage: peer <ip> teardown <subcode>",
+			Data:   "usage: peer <ip> teardown <subcode> [message]",
 		}, fmt.Errorf("missing cease subcode")
 	}
 
@@ -208,35 +211,44 @@ func handleTeardown(ctx *pluginserver.CommandContext, args []string) (*plugin.Re
 	}
 	subcode := uint8(code)
 
-	if err := ctx.Reactor().TeardownPeer(addr, subcode); err != nil {
+	// RFC 8203: optional shutdown communication message (remaining args joined).
+	var shutdownMsg string
+	if len(args) > 1 {
+		shutdownMsg = strings.Join(args[1:], " ")
+	}
+
+	if err := ctx.Reactor().TeardownPeer(addr, subcode, shutdownMsg); err != nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
 			Data:   fmt.Sprintf("teardown failed: %v", err),
 		}, fmt.Errorf("teardown peer %s: %w", addr, err)
 	}
 
+	resp := map[string]any{
+		"peer":    addr.String(),
+		"subcode": subcode,
+	}
+	if shutdownMsg != "" && (subcode == message.NotifyCeaseAdminShutdown || subcode == message.NotifyCeaseAdminReset) {
+		// Show the truncated message that was actually sent on the wire (RFC 8203).
+		wireData := message.BuildShutdownData(shutdownMsg)
+		if wireData[0] > 0 {
+			resp["shutdown-message"] = string(wireData[1:])
+		}
+	}
+
 	return &plugin.Response{
 		Status: plugin.StatusDone,
-		Data: map[string]any{
-			"peer":    addr.String(),
-			"subcode": subcode,
-		},
+		Data:   resp,
 	}, nil
 }
 
 // parseUint parses a string as unsigned integer.
+// Uses strconv.ParseUint for correct overflow detection.
 func parseUint(s string) (uint64, error) {
 	if s == "" {
 		return 0, fmt.Errorf("empty string")
 	}
-	var n uint64
-	for _, c := range s {
-		if c < '0' || c > '9' {
-			return 0, fmt.Errorf("invalid digit: %c", c)
-		}
-		n = n*10 + uint64(c-'0')
-	}
-	return n, nil
+	return strconv.ParseUint(s, 10, 64)
 }
 
 // handleBgpPeerAdd handles "peer <ip> add asn <asn> [options...]" command.

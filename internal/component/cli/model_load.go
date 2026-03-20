@@ -526,7 +526,7 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 // cmdShowPipe executes show with pipe filters.
 // Recognizes show-specific pipes (format, compare) and delegates to cmdShowDisplay,
 // then applies text filters (grep, head, tail) to the result.
-func (m *Model) cmdShowPipe(args []string, filters []PipeFilter) (commandResult, error) {
+func (m *Model) cmdShowPipe(_ []string, filters []PipeFilter) (commandResult, error) {
 	// Extract show-specific pipes (format, compare) from the filter list.
 	// Remaining filters (grep, head, tail) are applied as text transforms.
 	format := fmtTree
@@ -552,24 +552,8 @@ func (m *Model) cmdShowPipe(args []string, filters []PipeFilter) (commandResult,
 		textFilters = append(textFilters, f)
 	}
 
-	// Handle any show args (blame, changes) before pipes.
-	// Capture result rather than returning early so text filters are applied.
-	var result commandResult
-	var err error
-
-	if len(args) > 0 && (args[0] == cmdBlame || args[0] == cmdChanges) {
-		if !m.editor.HasSession() {
-			return commandResult{}, fmt.Errorf("show %s requires an active editing session", args[0])
-		}
-		if args[0] == cmdBlame {
-			result, err = m.cmdShowBlame()
-		} else {
-			result, err = m.cmdShowChanges(args[1:])
-		}
-	} else {
-		// Use cmdShowDisplay for format/compare aware rendering.
-		result, err = m.cmdShowDisplay(format, compareTarget)
-	}
+	// Use cmdShowDisplay for format/compare aware rendering.
+	result, err := m.cmdShowDisplay(format, compareTarget)
 	if err != nil {
 		return result, err
 	}
@@ -797,11 +781,12 @@ func (m *Model) dispatchWithPipe(cmdTokens, pipeTokens []string) (commandResult,
 	// Parse pipe filters
 	filters := parsePipeFilters(pipeTokens)
 
-	// Only show supports piping currently
 	cmd := cmdTokens[0]
 	switch cmd {
 	case cmdShow:
 		return m.cmdShowPipe(cmdTokens[1:], filters)
+	case cmdOption:
+		return m.cmdOptionPipe(cmdTokens[1:], filters)
 	case cmdErrors:
 		result, err := m.cmdErrors(nil)
 		if err != nil {

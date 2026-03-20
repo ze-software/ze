@@ -16,23 +16,23 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Enable all columns
-input=type:text=show all
+input=type:text=option all
 input=enter
 expect=status:contains=All columns enabled
 expect=error:none
 
 # Verify author is now enabled
-input=type:text=show author
+input=type:text=option author
 input=enter
 expect=status:contains=author: enabled
 
 # Disable all columns
-input=type:text=show none
+input=type:text=option none
 input=enter
 expect=status:contains=All columns disabled
 expect=error:none
 
 # Verify author is now disabled
-input=type:text=show author
+input=type:text=option author
 input=enter
 expect=status:contains=author: disabled

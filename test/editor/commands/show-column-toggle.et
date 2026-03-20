@@ -16,25 +16,25 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Enable author column
-input=type:text=show author enable
+input=type:text=option author enable
 input=enter
 expect=status:contains=author column enabled
 expect=error:none
 
 # Query author column state
-input=type:text=show author
+input=type:text=option author
 input=enter
 expect=status:contains=author: enabled
 expect=error:none
 
 # Disable author column
-input=type:text=show author disable
+input=type:text=option author disable
 input=enter
 expect=status:contains=author column disabled
 expect=error:none
 
 # Verify disabled state
-input=type:text=show author
+input=type:text=option author
 input=enter
 expect=status:contains=author: disabled
 expect=error:none

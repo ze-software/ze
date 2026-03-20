@@ -1203,11 +1203,11 @@ func TestFilterOutSessionCommands(t *testing.T) {
 	assert.NotContains(t, texts, cmdDisconnect)
 }
 
-// TestCmdShowBlameRequiresSession verifies show blame errors without session.
+// TestCmdOptionBlameRequiresSession verifies option blame errors without session.
 //
-// VALIDATES: "show blame" returns error when no editing session is active.
+// VALIDATES: "option blame" returns error when no editing session is active.
 // PREVENTS: Nil pointer or empty output when blame called without session.
-func TestCmdShowBlameRequiresSession(t *testing.T) {
+func TestCmdOptionBlameRequiresSession(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
@@ -1220,17 +1220,17 @@ func TestCmdShowBlameRequiresSession(t *testing.T) {
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	// No session set -- show blame should error
-	_, err = model.cmdShow([]string{cmdBlame})
+	// No session set -- option blame should error
+	_, err = model.cmdOption([]string{cmdBlame})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "requires an active editing session")
 }
 
-// TestCmdShowChangesRequiresSession verifies show changes errors without session.
+// TestCmdOptionChangesRequiresSession verifies option changes errors without session.
 //
-// VALIDATES: "show changes" returns error when no editing session is active.
+// VALIDATES: "option changes" returns error when no editing session is active.
 // PREVENTS: Empty or misleading output when changes called without session.
-func TestCmdShowChangesRequiresSession(t *testing.T) {
+func TestCmdOptionChangesRequiresSession(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
@@ -1243,7 +1243,7 @@ func TestCmdShowChangesRequiresSession(t *testing.T) {
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	_, err = model.cmdShow([]string{cmdChanges})
+	_, err = model.cmdOption([]string{cmdChanges})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "requires an active editing session")
 }

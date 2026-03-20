@@ -32,6 +32,54 @@ func testShowModel(t *testing.T) *Model {
 //
 // VALIDATES: AC-1 -- show with no columns enabled displays bare hierarchical tree.
 // PREVENTS: show returning set+meta format when session is active.
+// TestCmdOptionNoArgs verifies option with no arguments returns usage error.
+//
+// VALIDATES: option requires at least one argument.
+// PREVENTS: Silent no-op when user types bare "option".
+func TestCmdOptionNoArgs(t *testing.T) {
+	m := testShowModel(t)
+
+	_, err := m.cmdOption(nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "usage:")
+
+	_, err = m.cmdOption([]string{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "usage:")
+}
+
+// TestCmdOptionUnknownName verifies option with unknown name returns error.
+//
+// VALIDATES: Unknown option names are rejected.
+// PREVENTS: Silent acceptance of invalid option names.
+func TestCmdOptionUnknownName(t *testing.T) {
+	m := testShowModel(t)
+
+	_, err := m.cmdOption([]string{"nonexistent"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown option")
+}
+
+// TestCmdShowRejectsOldSubcommands verifies show rejects moved subcommands with guidance.
+//
+// VALIDATES: Old "show blame" syntax produces helpful error.
+// PREVENTS: Silent wrong output when user uses old syntax.
+func TestCmdShowRejectsOldSubcommands(t *testing.T) {
+	m := testShowModel(t)
+
+	for _, old := range [][]string{
+		{cmdBlame},
+		{cmdChanges},
+		{colAuthor, cmdEnable},
+		{cmdAll},
+		{cmdNone},
+	} {
+		_, err := m.cmdShow(old)
+		require.Error(t, err, "show %v should error", old)
+		assert.Contains(t, err.Error(), "option", "error should mention 'option'")
+	}
+}
+
 func TestCmdShowDefault(t *testing.T) {
 	m := testShowModel(t)
 
@@ -42,40 +90,40 @@ func TestCmdShowDefault(t *testing.T) {
 	assert.Contains(t, result.configView.content, "bgp")
 }
 
-// TestCmdShowColumnToggle verifies column enable/disable.
+// TestCmdOptionColumnToggle verifies column enable/disable via option command.
 //
-// VALIDATES: AC-2 -- show author enable writes preference.
+// VALIDATES: AC-2 -- option author enable writes preference.
 // PREVENTS: Column toggle silently ignored or routed to wrong handler.
-func TestCmdShowColumnToggle(t *testing.T) {
+func TestCmdOptionColumnToggle(t *testing.T) {
 	m := testShowModel(t)
 
 	// Enable author column
-	result, err := m.cmdShow([]string{colAuthor, cmdEnable})
+	result, err := m.cmdOption([]string{colAuthor, cmdEnable})
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "author column enabled")
 	assert.True(t, m.editor.ShowColumnEnabled(colAuthor))
 
 	// Disable author column
-	result, err = m.cmdShow([]string{colAuthor, cmdDisable})
+	result, err = m.cmdOption([]string{colAuthor, cmdDisable})
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "author column disabled")
 	assert.False(t, m.editor.ShowColumnEnabled(colAuthor))
 
 	// Query column state
-	result, err = m.cmdShow([]string{colAuthor})
+	result, err = m.cmdOption([]string{colAuthor})
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "author: disabled")
 }
 
-// TestCmdShowAllNone verifies show all / show none.
+// TestCmdOptionAllNone verifies option all / option none.
 //
-// VALIDATES: AC-4 -- show all enables all columns; AC-5 -- show none disables all.
+// VALIDATES: AC-4 -- option all enables all columns; AC-5 -- option none disables all.
 // PREVENTS: Bulk toggle missing a column.
-func TestCmdShowAllNone(t *testing.T) {
+func TestCmdOptionAllNone(t *testing.T) {
 	m := testShowModel(t)
 
 	// Enable all
-	result, err := m.cmdShow([]string{cmdAll})
+	result, err := m.cmdOption([]string{cmdAll})
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "All columns enabled")
 	assert.True(t, m.editor.ShowColumnEnabled(colAuthor))
@@ -84,7 +132,7 @@ func TestCmdShowAllNone(t *testing.T) {
 	assert.True(t, m.editor.ShowColumnEnabled(colChanges))
 
 	// Disable all
-	result, err = m.cmdShow([]string{cmdNone})
+	result, err = m.cmdOption([]string{cmdNone})
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "All columns disabled")
 	assert.False(t, m.editor.ShowColumnEnabled(colAuthor))
@@ -93,37 +141,36 @@ func TestCmdShowAllNone(t *testing.T) {
 	assert.False(t, m.editor.ShowColumnEnabled(colChanges))
 }
 
-// TestCmdShowChangesEnableDisambiguation verifies "show changes enable" toggles column,
-// while "show changes all" shows pending changes.
+// TestCmdOptionChangesEnableDisambiguation verifies "option changes enable" toggles column,
+// while "option changes" without enable/disable shows pending changes.
 //
-// VALIDATES: "changes" used as column name with enable/disable, vs subcommand with "all".
-// PREVENTS: "show changes enable" interpreted as pending changes subcommand.
-func TestCmdShowChangesEnableDisambiguation(t *testing.T) {
+// VALIDATES: "changes" used as column name with enable/disable, vs view mode without.
+// PREVENTS: "option changes enable" interpreted as pending changes subcommand.
+func TestCmdOptionChangesEnableDisambiguation(t *testing.T) {
 	m := testShowModel(t)
 
-	// "show changes enable" -> column toggle
-	result, err := m.cmdShow([]string{colChanges, cmdEnable})
+	// "option changes enable" -> column toggle
+	result, err := m.cmdOption([]string{colChanges, cmdEnable})
 	require.NoError(t, err)
 	assert.Contains(t, result.statusMessage, "changes column enabled")
 	assert.True(t, m.editor.ShowColumnEnabled(colChanges))
 
-	// "show changes" without enable/disable -> requires session (subcommand)
-	_, err = m.cmdShow([]string{cmdChanges})
+	// "option changes" without enable/disable -> requires session (view mode)
+	_, err = m.cmdOption([]string{cmdChanges})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "requires an active editing session")
 }
 
-// TestCmdShowUnknownArgFallsThrough verifies unknown args show default tree view.
+// TestCmdShowWithArgs verifies show ignores args and displays tree.
 //
-// VALIDATES: Unknown args fall through to default display (like bare "show").
-// PREVENTS: Error on "show bgp" or other non-subcommand args.
-func TestCmdShowUnknownArgFallsThrough(t *testing.T) {
+// VALIDATES: show with args still displays default tree (args reserved for future path filtering).
+// PREVENTS: Error on "show peer" or other schema path args.
+func TestCmdShowWithArgs(t *testing.T) {
 	m := testShowModel(t)
 
-	result, err := m.cmdShow([]string{"nonexistent"})
+	result, err := m.cmdShow([]string{"peer"})
 	require.NoError(t, err)
-	// Falls through to default tree display
-	assert.NotNil(t, result.configView, "unknown arg should fall through to tree display")
+	assert.NotNil(t, result.configView, "show with args should display tree")
 }
 
 // TestCmdShowDisplayNoColumns verifies bare display uses standard serializers.
@@ -355,14 +402,14 @@ func TestCmdShowDisplayWithColumns(t *testing.T) {
 	assert.Contains(t, result.output, "bgp")
 }
 
-// TestCmdShowColumnToggleInvalidArg verifies error for invalid enable/disable arg.
+// TestCmdOptionColumnToggleInvalidArg verifies error for invalid enable/disable arg.
 //
-// VALIDATES: show <column> <invalid> returns usage error.
+// VALIDATES: option <column> <invalid> returns usage error.
 // PREVENTS: Silent acceptance of invalid toggle values.
-func TestCmdShowColumnToggleInvalidArg(t *testing.T) {
+func TestCmdOptionColumnToggleInvalidArg(t *testing.T) {
 	m := testShowModel(t)
 
-	_, err := m.cmdShow([]string{colAuthor, "bogus"})
+	_, err := m.cmdOption([]string{colAuthor, "bogus"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "usage:")
 }

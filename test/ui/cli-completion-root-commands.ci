@@ -1,5 +1,5 @@
 # Test: ze config completion — empty input shows editor commands
-# VALIDATES: Root level returns all 13 editor commands
+# VALIDATES: Root level returns all editor commands including option
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -16,6 +16,7 @@ expect=stdout:contains=set
 expect=stdout:contains=delete
 expect=stdout:contains=edit
 expect=stdout:contains=show
+expect=stdout:contains=option
 expect=stdout:contains=commit
 expect=stdout:contains=discard
 expect=stdout:contains=exit

@@ -89,7 +89,7 @@ func (m *Model) SwitchMode(target EditorMode) {
 
 // editModeCommands lists config commands that trigger a switch from command mode to edit mode.
 var editModeCommands = map[string]bool{
-	cmdSet: true, cmdDelete: true, cmdShow: true, cmdEdit: true,
+	cmdSet: true, cmdDelete: true, cmdShow: true, cmdOption: true, cmdEdit: true,
 	cmdCommit: true, cmdSave: true, cmdDiscard: true, cmdCompare: true,
 	cmdRollback: true, cmdHistory: true, cmdLoad: true,
 	cmdErrors: true, cmdTop: true, cmdUp: true,

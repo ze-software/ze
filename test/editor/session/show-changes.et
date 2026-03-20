@@ -29,14 +29,14 @@ expect=status:contains=set
 
 # Bob checks his own changes (should see tree with router-id)
 session=bob
-input=type:text=show changes
+input=type:text=option changes
 input=enter
 expect=status:contains=1 pending change
 expect=viewport:contains=router-id
 expect=error:none
 
 # Bob checks all sessions' changes summary
-input=type:text=show changes all
+input=type:text=option changes all
 input=enter
 expect=status:contains=2 pending changes across 2 sessions
 expect=viewport:contains=router-id

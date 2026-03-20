@@ -34,13 +34,13 @@ expect=file:path=test.conf.change.alice:contains=#alice @ssh
 expect=file:path=test.conf.change.bob:contains=#bob @ssh
 
 # Bob sees his own changes via show changes
-input=type:text=show changes
+input=type:text=option changes
 input=enter
 expect=viewport:contains=router-id
 expect=error:none
 
 # Bob sees all changes summary via show changes all
-input=type:text=show changes all
+input=type:text=option changes all
 input=enter
 expect=status:contains=2 pending changes across 2 sessions
 expect=error:none

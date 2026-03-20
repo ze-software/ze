@@ -57,6 +57,7 @@ var commands = []Completion{
 	{Text: cmdDelete, Description: "Delete a configuration value", Type: "command"},
 	{Text: cmdEdit, Description: "Enter a subsection context", Type: "command"},
 	{Text: cmdShow, Description: "Display configuration", Type: "command"},
+	{Text: cmdOption, Description: "Display settings (columns, blame)", Type: "command"},
 	{Text: cmdCompare, Description: "Show diff vs original", Type: "command"},
 	{Text: cmdCommit, Description: "Apply config (must be valid)", Type: "command"},
 	{Text: cmdSave, Description: "Snapshot work-in-progress", Type: "command"},
@@ -126,6 +127,8 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 		return c.completeEditPath(tokens[1:], contextPath, endsWithSpace)
 	case cmdShow:
 		return c.completeShowPath(tokens[1:], contextPath, endsWithSpace)
+	case cmdOption:
+		return c.completeOptionPath(tokens[1:], contextPath, endsWithSpace)
 	case cmdDiscard:
 		return c.completeDiscardPath(tokens[1:], contextPath, endsWithSpace)
 	default: // No subcommand completions for other commands
@@ -284,19 +287,7 @@ func (c *Completer) completeEditPath(tokens, contextPath []string, endsWithSpace
 	return nil
 }
 
-// showSubcommands are completions offered when typing "show ".
-// Session-dependent filtering (blame, changes) is done by the Model.
-var showSubcommands = []Completion{
-	{Text: cmdBlame, Description: "Annotated tree view with authorship", Type: "keyword"},
-	{Text: cmdChanges, Description: "Pending changes (mine or all)", Type: "keyword"},
-	{Text: colAuthor, Description: "Toggle author column (enable/disable)", Type: "keyword"},
-	{Text: colDate, Description: "Toggle date column (enable/disable)", Type: "keyword"},
-	{Text: colSource, Description: "Toggle source column (enable/disable)", Type: "keyword"},
-	{Text: cmdAll, Description: "Enable all display columns", Type: "keyword"},
-	{Text: cmdNone, Description: "Disable all display columns", Type: "keyword"},
-}
-
-// completeShowPath completes paths for show command.
+// completeShowPath completes paths for show command (content display).
 func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace bool) []Completion {
 	// Check for pipe: find the last "|" and complete pipe filters after it.
 	pipeIdx := -1
@@ -314,16 +305,46 @@ func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace
 		if len(tokens) == 1 {
 			prefix = tokens[0]
 		}
-		// Offer subcommands, schema children (peer, rib, etc.), and pipe.
-		completions := filterCompletions(showSubcommands, prefix)
-		completions = append(completions, c.matchEditTargets(contextPath, prefix)...)
+		// Offer schema children (peer, rib, etc.) and pipe.
+		completions := c.matchEditTargets(contextPath, prefix)
 		if prefix == "" || prefix == "|" {
 			completions = append(completions, Completion{Text: "|", Description: "Pipe output through filters", Type: "keyword"})
 		}
 		return completions
 	}
 
-	// "show changes " -> offer "all" subcommand and enable/disable.
+	if len(tokens) == 1 && endsWithSpace {
+		listPath := append(append([]string{}, contextPath...), tokens[0])
+		if c.isList(listPath) {
+			return c.listKeyCompletions(tokens[0], "", contextPath)
+		}
+	}
+
+	return nil
+}
+
+// optionSubcommands are completions offered when typing "option ".
+var optionSubcommands = []Completion{
+	{Text: cmdBlame, Description: "Annotated tree view with authorship", Type: "keyword"},
+	{Text: cmdChanges, Description: "Pending changes (mine or all)", Type: "keyword"},
+	{Text: colAuthor, Description: "Toggle author column (enable/disable)", Type: "keyword"},
+	{Text: colDate, Description: "Toggle date column (enable/disable)", Type: "keyword"},
+	{Text: colSource, Description: "Toggle source column (enable/disable)", Type: "keyword"},
+	{Text: cmdAll, Description: "Enable all display columns", Type: "keyword"},
+	{Text: cmdNone, Description: "Disable all display columns", Type: "keyword"},
+}
+
+// completeOptionPath completes paths for option command (display settings).
+func (c *Completer) completeOptionPath(tokens, _ []string, endsWithSpace bool) []Completion {
+	if len(tokens) == 0 || (len(tokens) == 1 && !endsWithSpace) {
+		prefix := ""
+		if len(tokens) == 1 {
+			prefix = tokens[0]
+		}
+		return filterCompletions(optionSubcommands, prefix)
+	}
+
+	// "option changes " -> offer "all" subcommand and enable/disable.
 	if len(tokens) == 1 && tokens[0] == cmdChanges && endsWithSpace {
 		return []Completion{
 			{Text: cmdAll, Description: "All sessions' pending changes", Type: "keyword"},
@@ -332,18 +353,11 @@ func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace
 		}
 	}
 
-	// "show <column> " -> offer enable/disable.
-	if len(tokens) == 1 && endsWithSpace && isShowColumn(tokens[0]) {
+	// "option <column> " -> offer enable/disable.
+	if len(tokens) == 1 && endsWithSpace && isOptionColumn(tokens[0]) {
 		return []Completion{
 			{Text: cmdEnable, Description: "Enable column", Type: "keyword"},
 			{Text: cmdDisable, Description: "Disable column", Type: "keyword"},
-		}
-	}
-
-	if len(tokens) == 1 && endsWithSpace {
-		listPath := append(append([]string{}, contextPath...), tokens[0])
-		if c.isList(listPath) {
-			return c.listKeyCompletions(tokens[0], "", contextPath)
 		}
 	}
 
