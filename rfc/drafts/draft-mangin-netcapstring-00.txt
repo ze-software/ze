@@ -74,8 +74,7 @@ Table of Contents
      3.3.  The Number Field  . . . . . . . . . . . . . . . . . . . .   4
      3.4.  Capacity and Used Fields  . . . . . . . . . . . . . . . .   5
      3.5.  Data Region . . . . . . . . . . . . . . . . . . . . . . .   5
-     3.6.  Terminator  . . . . . . . . . . . . . . . . . . . . . . .   6
-     3.7.  Human Readability . . . . . . . . . . . . . . . . . . . .   6
+     3.6.  Human Readability . . . . . . . . . . . . . . . . . . . .   6
    4.  Header Length Computation . . . . . . . . . . . . . . . . . .   6
    5.  Examples  . . . . . . . . . . . . . . . . . . . . . . . . . .   7
      5.1.  Data with Padding . . . . . . . . . . . . . . . . . . . .   7
@@ -86,10 +85,10 @@ Table of Contents
    7.  In-Place Updates  . . . . . . . . . . . . . . . . . . . . . .   9
      7.1.  Capacity Growth Policy  . . . . . . . . . . . . . . . . .  10
    8.  Concatenation and Streams . . . . . . . . . . . . . . . . . .  10
-   9.  Comparison with Netstrings  . . . . . . . . . . . . . . . . .  11
+   9.  Comparison with Netstrings  . . . . . . . . . . . . . . . . .  10
    10. Security Considerations . . . . . . . . . . . . . . . . . . .  11
-   11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  12
-   12. References  . . . . . . . . . . . . . . . . . . . . . . . . .  12
+   11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  11
+   12. References  . . . . . . . . . . . . . . . . . . . . . . . . .  11
      12.1.  Normative References . . . . . . . . . . . . . . . . . .  12
      12.2.  Informative References . . . . . . . . . . . . . . . . .  12
    Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  12
@@ -102,6 +101,7 @@ Table of Contents
    For example, the string "hello" is encoded as "5:hello,".  This
    format is simple, unambiguous, and immune to delimiter-in-data
    problems.
+
 
 
 
@@ -291,14 +291,7 @@ Internet-Draft                Netcapstring                    March 2026
    When cap equals used, there is no padding.  The terminator
    immediately follows the last data byte.
 
-3.6.  Terminator
-
-   The final byte of a netcapstring is always a newline (0x0A).  There
-   are no exceptions: standalone entries, entries within a sequence, and
-   containers all use the same terminator.  This uniformity means the
-   format has exactly one framing rule regardless of nesting depth.
-
-3.7.  Human Readability
+3.6.  Human Readability
 
    The choice of newline (0x0A) as terminator and space (0x20) as
    padding byte is deliberate: it makes netcapstring-encoded data
@@ -323,6 +316,13 @@ Internet-Draft                Netcapstring                    March 2026
 
    Where digit_count(n) returns the number of decimal digits needed to
    represent the non-negative integer n (with digit_count(0) = 1).
+
+
+
+
+
+
+
 
 
 
@@ -538,29 +538,10 @@ Internet-Draft                Netcapstring                    March 2026
    the next.  No additional framing or separators are needed between
    entries.
 
-   A netcapstring whose data region contains other netcapstrings is
-   called a container.  Containers enable hierarchical structures (e.g.,
-   a file format containing multiple named entries).  The container's
-   capacity encompasses all nested entries plus any reserved space for
-   future entries.
-
-   Applications using containers SHOULD define a sentinel byte to mark
-   the end of the entry list within the container's data region (e.g., a
-   newline byte), so that parsers can distinguish active entries from
-   reserved padding space.
-
-
-
-
-
-
-
-
-
-Mangin                  Expires 21 September 2026              [Page 10]
-
-Internet-Draft                Netcapstring                    March 2026
-
+   The data region is opaque to the framing layer.  It MAY contain other
+   netcapstrings, enabling hierarchical structures, but this is an
+   application-level concern.  The framing rules are the same regardless
+   of what the data region contains.
 
 9.  Comparison with Netstrings
 
@@ -573,6 +554,14 @@ Internet-Draft                Netcapstring                    March 2026
    +---------------+-----------------+---------------------------------+
    |Self-describing|No (length field |Yes (number field tells parser   |
    |width          |is variable-     |how wide cap and used are)       |
+
+
+
+Mangin                  Expires 21 September 2026              [Page 10]
+
+Internet-Draft                Netcapstring                    March 2026
+
+
    |               |width but must   |                                 |
    |               |be fully         |                                 |
    |               |scanned)         |                                 |
@@ -607,17 +596,6 @@ Internet-Draft                Netcapstring                    March 2026
       maximum on the number field (19 digits covers 64-bit integers) and
       reject inputs exceeding it.
 
-
-
-
-
-
-
-Mangin                  Expires 21 September 2026              [Page 11]
-
-Internet-Draft                Netcapstring                    March 2026
-
-
    *  Memory allocation: Implementations that allocate buffers based on
       the cap value MUST validate that the cap value is consistent with
       the actual remaining input before allocating.  A small input
@@ -632,6 +610,13 @@ Internet-Draft                Netcapstring                    March 2026
    This document has no IANA actions.
 
 12.  References
+
+
+
+Mangin                  Expires 21 September 2026              [Page 11]
+
+Internet-Draft                Netcapstring                    March 2026
+
 
 12.1.  Normative References
 
@@ -664,6 +649,21 @@ Author's Address
    Thomas Mangin
    Independent
    Email: thomas.mangin@exa.net.uk
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

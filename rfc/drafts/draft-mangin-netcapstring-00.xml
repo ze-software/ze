@@ -275,16 +275,6 @@
      immediately follows the last data byte.</t>
       </section>
 
-      <section anchor="terminator" numbered="true" toc="default">
-        <name>Terminator</name>
-
-        <t>The final byte of a netcapstring is always a newline
-     (0x0A).  There are no exceptions: standalone entries,
-     entries within a sequence, and containers all use the
-     same terminator.  This uniformity means the format has
-     exactly one framing rule regardless of nesting depth.</t>
-      </section>
-
       <section anchor="human-readability" numbered="true" toc="default">
         <name>Human Readability</name>
 
@@ -521,16 +511,10 @@
    begins decoding the next.  No additional framing or separators
    are needed between entries.</t>
 
-      <t>A netcapstring whose data region contains other netcapstrings
-   is called a container.  Containers enable hierarchical structures
-   (e.g., a file format containing multiple named entries).  The
-   container's capacity encompasses all nested entries plus any
-   reserved space for future entries.</t>
-
-      <t>Applications using containers SHOULD define a sentinel byte
-   to mark the end of the entry list within the container's data
-   region (e.g., a newline byte), so that parsers can distinguish
-   active entries from reserved padding space.</t>
+      <t>The data region is opaque to the framing layer.  It MAY
+   contain other netcapstrings, enabling hierarchical structures,
+   but this is an application-level concern.  The framing rules
+   are the same regardless of what the data region contains.</t>
     </section>
 
     <section anchor="comparison" numbered="true" toc="default">
