@@ -85,12 +85,20 @@ func RunGRPlugin(conn net.Conn) int {
 	gp.state = newGRStateManager(func(peerAddr string) {
 		gp.onTimerExpired(peerAddr)
 	})
-	// RFC 9494: LLGR callbacks for state machine transitions.
+	// RFC 9494: LLGR callbacks compose generic RIB commands.
+	// LLGR_STALE = 0xFFFF0006, NO_LLGR = 0xFFFF0007 (wire hex).
 	gp.state.onLLGREnter = func(peerAddr, family string, llst uint32) {
-		gp.dispatchRIBCommand("rib enter-llgr " + peerAddr + " " + family + " " + strconv.FormatUint(uint64(llst), 10))
+		// 1. Delete routes with NO_LLGR community
+		gp.dispatchRIBCommand("rib delete-with-community " + peerAddr + " " + family + " ffff0007")
+		// 2. Attach LLGR_STALE community to remaining stale routes
+		gp.dispatchRIBCommand("rib attach-community " + peerAddr + " " + family + " ffff0006")
+		// 3. Raise stale level to depreference threshold
+		// Raise stale level to 2 (depreference threshold) via mark-stale
+		// with restart-time=0 (no new timer needed, LLST timer handles expiry).
+		gp.dispatchRIBCommand("rib mark-stale " + peerAddr + " 0 2")
 	}
 	gp.state.onLLGREntryDone = func(peerAddr string) {
-		gp.dispatchRIBCommand("rib readvertise-llgr-stale " + peerAddr)
+		gp.dispatchRIBCommand("rib clear out !" + peerAddr)
 	}
 	gp.state.onLLGRFamilyExpired = func(peerAddr, family string) {
 		gp.dispatchRIBCommand("rib purge-stale " + peerAddr + " " + family)
