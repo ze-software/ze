@@ -282,7 +282,7 @@ func NewModel(ed *Editor) (Model, error) {
 		viewport:           vp,
 		contextPath:        nil,
 		selected:           -1,
-		history:            NewHistory(nil),
+		history:            NewHistory(nil, ""),
 		validationErrors:   result.Errors,
 		validationWarnings: result.Warnings,
 		showHints:          true,
@@ -311,7 +311,7 @@ func NewCommandModel() Model {
 		textInput:  ti,
 		viewport:   vp,
 		selected:   -1,
-		history:    NewHistory(nil),
+		history:    NewHistory(nil, ""),
 		mode:       ModeCommand,
 		modeStates: make(map[EditorMode]modeState),
 	}

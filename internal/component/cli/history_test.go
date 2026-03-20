@@ -17,7 +17,7 @@ func newTestHistory(t *testing.T) (*History, *zefs.BlobStore) {
 	store, err := zefs.Create(path)
 	require.NoError(t, err)
 	t.Cleanup(func() { store.Close() }) //nolint:errcheck // test cleanup
-	h := NewHistory(store)
+	h := NewHistory(store, "testuser")
 	return h, store
 }
 
@@ -32,7 +32,7 @@ func TestHistoryLoadSave(t *testing.T) {
 	h.Save("edit")
 
 	// Reload from store.
-	h2 := NewHistory(store)
+	h2 := NewHistory(store, "testuser")
 	loaded := h2.Load("edit")
 	assert.Equal(t, []string{"show", "set bgp local-as 65000", "commit"}, loaded)
 }
@@ -47,7 +47,7 @@ func TestHistoryRolling(t *testing.T) {
 	}
 	h.Save("edit")
 
-	h2 := NewHistory(store)
+	h2 := NewHistory(store, "testuser")
 	loaded := h2.Load("edit")
 	assert.Len(t, loaded, 100)
 	// After Save, h.Entries() is already trimmed to the newest 100.
@@ -70,7 +70,7 @@ func TestHistoryCustomMax(t *testing.T) {
 	require.NoError(t, store.WriteFile("meta/history/max", []byte("50"), 0))
 
 	// Reload to pick up the new max.
-	h2 := NewHistory(store)
+	h2 := NewHistory(store, "testuser")
 	assert.Equal(t, 50, h2.Max())
 
 	// Append 80 entries, save should trim to 50.
@@ -79,7 +79,7 @@ func TestHistoryCustomMax(t *testing.T) {
 	}
 	h2.Save("edit")
 
-	h3 := NewHistory(store)
+	h3 := NewHistory(store, "testuser")
 	loaded := h3.Load("edit")
 	assert.Len(t, loaded, 50)
 }
@@ -107,7 +107,7 @@ func TestHistoryPerMode(t *testing.T) {
 	h.Append("daemon status")
 	h.Save("command")
 
-	h2 := NewHistory(store)
+	h2 := NewHistory(store, "testuser")
 	assert.Equal(t, []string{"set bgp local-as 65000", "commit"}, h2.Load("edit"))
 	assert.Equal(t, []string{"peer list", "daemon status"}, h2.Load("command"))
 }
@@ -115,7 +115,7 @@ func TestHistoryPerMode(t *testing.T) {
 // VALIDATES: Nil store (no zefs) returns empty on load, save is no-op.
 // PREVENTS: Panic or error when running without blob storage.
 func TestHistoryNilGraceful(t *testing.T) {
-	h := NewHistory(nil)
+	h := NewHistory(nil, "")
 
 	assert.Nil(t, h.Load("edit"))
 	h.Append("show")
@@ -130,7 +130,7 @@ func TestHistoryBoundaryMaxZero(t *testing.T) {
 	_, store := newTestHistory(t)
 	require.NoError(t, store.WriteFile("meta/history/max", []byte("0"), 0))
 
-	h2 := NewHistory(store)
+	h2 := NewHistory(store, "testuser")
 	assert.Equal(t, 1, h2.Max(), "max=0 should clamp to 1")
 }
 
@@ -140,7 +140,7 @@ func TestHistoryBoundaryMaxLarge(t *testing.T) {
 	_, store := newTestHistory(t)
 	require.NoError(t, store.WriteFile("meta/history/max", []byte("10000"), 0))
 
-	h2 := NewHistory(store)
+	h2 := NewHistory(store, "testuser")
 	assert.Equal(t, 10000, h2.Max())
 }
 
@@ -150,14 +150,14 @@ func TestHistoryBoundaryMaxInvalid(t *testing.T) {
 	_, store := newTestHistory(t)
 	require.NoError(t, store.WriteFile("meta/history/max", []byte("abc"), 0))
 
-	h2 := NewHistory(store)
+	h2 := NewHistory(store, "testuser")
 	assert.Equal(t, 100, h2.Max(), "invalid max should fall back to default 100")
 }
 
 // VALIDATES: Consecutive duplicate commands are not added.
 // PREVENTS: History cluttered with repeated identical commands.
 func TestHistoryAppendDedup(t *testing.T) {
-	h := NewHistory(nil)
+	h := NewHistory(nil, "")
 	h.Append("show")
 	assert.True(t, h.Append("commit"), "different command should be added")
 	assert.False(t, h.Append("commit"), "duplicate consecutive should be rejected")
@@ -167,7 +167,7 @@ func TestHistoryAppendDedup(t *testing.T) {
 // VALIDATES: Up/Down browsing navigation works correctly.
 // PREVENTS: History browsing off-by-one or state corruption.
 func TestHistoryUpDown(t *testing.T) {
-	h := NewHistory(nil)
+	h := NewHistory(nil, "")
 	h.Append("first")
 	h.Append("second")
 	h.Append("third")
@@ -199,7 +199,7 @@ func TestHistoryUpDown(t *testing.T) {
 // VALIDATES: Up on empty history returns false.
 // PREVENTS: Panic on Up with no entries.
 func TestHistoryUpEmpty(t *testing.T) {
-	h := NewHistory(nil)
+	h := NewHistory(nil, "")
 	_, ok := h.Up("input")
 	assert.False(t, ok)
 }
@@ -210,7 +210,7 @@ func TestHistoryBoundaryMaxNegative(t *testing.T) {
 	_, store := newTestHistory(t)
 	require.NoError(t, store.WriteFile("meta/history/max", []byte("-5"), 0))
 
-	h2 := NewHistory(store)
+	h2 := NewHistory(store, "testuser")
 	assert.Equal(t, 1, h2.Max(), "negative max should clamp to 1")
 }
 
@@ -220,14 +220,14 @@ func TestHistoryBoundaryMaxAboveCeiling(t *testing.T) {
 	_, store := newTestHistory(t)
 	require.NoError(t, store.WriteFile("meta/history/max", []byte("999999"), 0))
 
-	h2 := NewHistory(store)
+	h2 := NewHistory(store, "testuser")
 	assert.Equal(t, historyMaxCeiling, h2.Max(), "max above ceiling should clamp")
 }
 
 // VALIDATES: Up at top of history stays at oldest entry.
 // PREVENTS: Off-by-one when repeatedly pressing Up at boundary.
 func TestHistoryUpAtTop(t *testing.T) {
-	h := NewHistory(nil)
+	h := NewHistory(nil, "")
 	h.Append("a")
 	h.Append("b")
 	h.Append("c")
@@ -247,7 +247,7 @@ func TestHistoryUpAtTop(t *testing.T) {
 // VALIDATES: Single-entry history navigation.
 // PREVENTS: Edge case with only one history entry.
 func TestHistoryUpDownSingleEntry(t *testing.T) {
-	h := NewHistory(nil)
+	h := NewHistory(nil, "")
 	h.Append("only")
 
 	val, ok := h.Up("current")
@@ -268,7 +268,7 @@ func TestHistoryUpDownSingleEntry(t *testing.T) {
 // VALIDATES: Empty string is rejected by Append.
 // PREVENTS: Empty entries polluting history.
 func TestHistoryAppendEmpty(t *testing.T) {
-	h := NewHistory(nil)
+	h := NewHistory(nil, "")
 	assert.False(t, h.Append(""), "empty command should be rejected")
 	assert.Nil(t, h.Entries())
 }
@@ -280,7 +280,7 @@ func TestHistoryAppendNewlineReplaced(t *testing.T) {
 	h.Append("foo\nbar")
 	h.Save("edit")
 
-	h2 := NewHistory(store)
+	h2 := NewHistory(store, "testuser")
 	loaded := h2.Load("edit")
 	assert.Equal(t, []string{"foo bar"}, loaded)
 }
@@ -288,7 +288,7 @@ func TestHistoryAppendNewlineReplaced(t *testing.T) {
 // VALIDATES: ResetBrowsing clears browsing state.
 // PREVENTS: Stale browse position after typing.
 func TestHistoryResetBrowsing(t *testing.T) {
-	h := NewHistory(nil)
+	h := NewHistory(nil, "")
 	h.Append("a")
 	h.Append("b")
 
@@ -308,7 +308,7 @@ func TestHistoryResetBrowsing(t *testing.T) {
 // VALIDATES: Snapshot isolation after append.
 // PREVENTS: Shared backing array corruption between modes.
 func TestHistorySnapshotIsolation(t *testing.T) {
-	h := NewHistory(nil)
+	h := NewHistory(nil, "")
 	h.Append("a")
 	h.Append("b")
 
@@ -324,7 +324,7 @@ func TestHistorySnapshotIsolation(t *testing.T) {
 // VALIDATES: Restore from zero-value snapshot sets idx to -1.
 // PREVENTS: Spurious Down() result after first mode switch.
 func TestHistoryRestoreZeroValue(t *testing.T) {
-	h := NewHistory(nil)
+	h := NewHistory(nil, "")
 	h.restore(historySnapshot{}) // zero-value: entries=nil, idx=0
 
 	// Should not be browsing (idx corrected to -1).
@@ -342,9 +342,9 @@ func TestHistoryLoadTrimsToMax(t *testing.T) {
 
 	// Manually write 20 entries to the store.
 	entries := "a\nb\nc\nd\ne\nf\ng\nh\ni\nj\nk\nl\nm\nn\no\np\nq\nr\ns\nt"
-	require.NoError(t, store.WriteFile("meta/history/edit", []byte(entries), 0))
+	require.NoError(t, store.WriteFile("meta/history/testuser/edit", []byte(entries), 0))
 
-	h := NewHistory(store)
+	h := NewHistory(store, "testuser")
 	loaded := h.Load("edit")
 	assert.Len(t, loaded, 5)
 	assert.Equal(t, []string{"p", "q", "r", "s", "t"}, loaded, "should keep newest 5")
@@ -354,9 +354,9 @@ func TestHistoryLoadTrimsToMax(t *testing.T) {
 // PREVENTS: Phantom empty entries from whitespace-only store data.
 func TestHistoryLoadOnlyNewlines(t *testing.T) {
 	_, store := newTestHistory(t)
-	require.NoError(t, store.WriteFile("meta/history/edit", []byte("\n\n\n"), 0))
+	require.NoError(t, store.WriteFile("meta/history/testuser/edit", []byte("\n\n\n"), 0))
 
-	h := NewHistory(store)
+	h := NewHistory(store, "testuser")
 	loaded := h.Load("edit")
 	assert.Nil(t, loaded)
 }

@@ -30,6 +30,7 @@ type historyRW interface {
 type History struct {
 	rw      historyRW
 	max     int
+	prefix  string   // Key prefix for storage (includes username)
 	entries []string // Previous commands (oldest first)
 	idx     int      // Current browsing position (-1 = not browsing)
 	tmp     string   // Saved input when browsing history
@@ -37,12 +38,18 @@ type History struct {
 
 // NewHistory creates a History backed by the given reader/writer.
 // Pass nil for no persistence (in-memory only).
+// The username scopes history storage per user (meta/history/<user>/<mode>).
 // The max entry count is read from meta/history/max (default 100).
-func NewHistory(rw historyRW) *History {
+func NewHistory(rw historyRW, username string) *History {
+	prefix := historyKeyPrefix
+	if username != "" {
+		prefix = historyKeyPrefix + username + "/"
+	}
 	h := &History{
-		rw:  rw,
-		max: historyMaxDefault,
-		idx: -1,
+		rw:     rw,
+		max:    historyMaxDefault,
+		prefix: prefix,
+		idx:    -1,
 	}
 	if rw == nil {
 		return h
@@ -181,7 +188,7 @@ func (h *History) Load(mode string) []string {
 		return nil
 	}
 
-	data, err := h.rw.ReadFile(historyKeyPrefix + mode)
+	data, err := h.rw.ReadFile(h.prefix + mode)
 	if err != nil || len(data) == 0 {
 		return nil
 	}
@@ -222,5 +229,5 @@ func (h *History) Save(mode string) {
 	}
 
 	data := []byte(strings.Join(entries, "\n"))
-	_ = h.rw.WriteFile(historyKeyPrefix+mode, data, 0) //nolint:errcheck // best-effort persist
+	_ = h.rw.WriteFile(h.prefix+mode, data, 0) //nolint:errcheck // best-effort persist
 }

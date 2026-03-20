@@ -120,7 +120,7 @@ func runBGP(args []string) int {
 	if dbPath := sshclient.ResolveDBPath(); dbPath != "" {
 		if store, storeErr := zefs.Open(dbPath); storeErr == nil {
 			defer store.Close() //nolint:errcheck // best-effort history
-			m.SetHistory(unicli.NewHistory(store))
+			m.SetHistory(unicli.NewHistory(store, os.Getenv("USER")))
 		}
 	}
 

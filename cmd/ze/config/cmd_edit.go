@@ -513,7 +513,7 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath string) int {
 
 	// Wire persistent command history from blob storage (graceful no-op for filesystem).
 	if storage.IsBlobStorage(store) {
-		m.SetHistory(cli.NewHistory(store))
+		m.SetHistory(cli.NewHistory(store, username))
 	}
 
 	// Wire command mode: completer from RPC registrations, executor via SSH.

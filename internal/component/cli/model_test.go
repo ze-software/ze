@@ -579,7 +579,7 @@ func TestSetHistoryLoadsCurrentMode(t *testing.T) {
 	storePath := filepath.Join(tmpDir, "test.zefs")
 	store, err := zefs.Create(storePath)
 	require.NoError(t, err)
-	require.NoError(t, store.WriteFile("meta/history/edit", []byte("show\ncommit"), 0))
+	require.NoError(t, store.WriteFile("meta/history/testuser/edit", []byte("show\ncommit"), 0))
 
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
@@ -588,7 +588,7 @@ func TestSetHistoryLoadsCurrentMode(t *testing.T) {
 	m, err := NewModel(ed) // starts in ModeEdit
 	require.NoError(t, err)
 
-	m.SetHistory(NewHistory(store))
+	m.SetHistory(NewHistory(store, "testuser"))
 	store.Close() //nolint:errcheck // test cleanup
 
 	assert.Equal(t, []string{"show", "commit"}, m.history.Entries(), "should load edit history from store")
@@ -606,8 +606,8 @@ func TestSetHistoryPreloadsOtherMode(t *testing.T) {
 	storePath := filepath.Join(tmpDir, "test.zefs")
 	store, err := zefs.Create(storePath)
 	require.NoError(t, err)
-	require.NoError(t, store.WriteFile("meta/history/edit", []byte("show"), 0))
-	require.NoError(t, store.WriteFile("meta/history/command", []byte("peer list\ndaemon status"), 0))
+	require.NoError(t, store.WriteFile("meta/history/testuser/edit", []byte("show"), 0))
+	require.NoError(t, store.WriteFile("meta/history/testuser/command", []byte("peer list\ndaemon status"), 0))
 
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
@@ -616,7 +616,7 @@ func TestSetHistoryPreloadsOtherMode(t *testing.T) {
 	m, err := NewModel(ed)
 	require.NoError(t, err)
 
-	m.SetHistory(NewHistory(store))
+	m.SetHistory(NewHistory(store, "testuser"))
 	store.Close() //nolint:errcheck // test cleanup
 
 	// Switch to command mode.
@@ -651,7 +651,7 @@ func TestModelHistoryPersistOnEnter(t *testing.T) {
 	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
-	model.SetHistory(NewHistory(store))
+	model.SetHistory(NewHistory(store, "testuser"))
 
 	// Execute "show"
 	model.textInput.SetValue("show")
@@ -660,7 +660,7 @@ func TestModelHistoryPersistOnEnter(t *testing.T) {
 	require.True(t, ok)
 
 	// Reload history from the same store.
-	h2 := NewHistory(store)
+	h2 := NewHistory(store, "testuser")
 	loaded := h2.Load("edit")
 	store.Close() //nolint:errcheck // test cleanup
 
