@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/term"
 
 	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
@@ -137,7 +138,13 @@ func runInit(r io.Reader, promptW io.Writer, dbPath string, managed bool) int {
 	scanner := bufio.NewScanner(r)
 
 	username := promptAndRead(scanner, promptW, "username: ")
-	password := promptAndRead(scanner, promptW, "password: ")
+
+	var password string
+	if promptW != nil && r == os.Stdin && isTerminal(os.Stdin) {
+		password = readPassword(promptW, "password: ")
+	} else {
+		password = promptAndRead(scanner, promptW, "password: ")
+	}
 	host := promptAndRead(scanner, promptW, "host [127.0.0.1]: ")
 	port := promptAndRead(scanner, promptW, "port [2222]: ")
 	defaultName, _ := os.Hostname()
@@ -246,6 +253,18 @@ func isTerminal(f *os.File) bool {
 		return false
 	}
 	return fi.Mode()&os.ModeCharDevice != 0
+}
+
+// readPassword prompts for a password without echoing input to the terminal.
+// Prints "***" after reading to confirm input was received.
+func readPassword(w io.Writer, prompt string) string {
+	fmt.Fprint(w, prompt) //nolint:errcheck // terminal prompt
+	pw, err := term.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Fprintln(w, "***") //nolint:errcheck // visual confirmation
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(pw))
 }
 
 // promptAndRead optionally writes a prompt to w, then reads a line.
