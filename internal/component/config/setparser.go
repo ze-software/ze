@@ -12,6 +12,11 @@ import (
 	"time"
 )
 
+const (
+	cmdSet    = "set"
+	cmdDelete = "delete"
+)
+
 // SetParser parses set-style configuration.
 //
 // Format:
@@ -69,9 +74,9 @@ func (p *SetParser) parseLine(tree *Tree, line string, lineNum int) error {
 	tokens = tokens[1:]
 
 	switch cmd {
-	case "set":
+	case cmdSet:
 		return p.parseSet(tree, tokens, lineNum)
-	case "delete":
+	case cmdDelete:
 		return p.parseDelete(tree, tokens, lineNum)
 	default:
 		return fmt.Errorf("line %d: unknown command: %s (expected set/delete)", lineNum, cmd)
@@ -566,9 +571,9 @@ func (p *SetParser) parseLineWithMeta(tree *Tree, meta *MetaTree, line string, e
 	tokens = tokens[1:]
 
 	switch cmd {
-	case "set":
+	case cmdSet:
 		return p.parseSetWithMeta(tree, meta, entry, tokens, lineNum)
-	case "delete":
+	case cmdDelete:
 		if err := p.parseDelete(tree, tokens, lineNum); err != nil {
 			return err
 		}

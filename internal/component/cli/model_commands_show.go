@@ -82,17 +82,18 @@ func (m *Model) cmdShowColumnToggle(args []string) (commandResult, error) {
 		return result, nil
 	}
 
-	if args[1] == cmdEnable {
+	switch args[1] {
+	case cmdEnable:
 		m.editor.SetShowColumn(args[0], true)
 		if args[0] == colChanges {
 			m.editor.SetDiffGutter(true)
 		}
-	} else if args[1] == cmdDisable {
+	case cmdDisable:
 		m.editor.SetShowColumn(args[0], false)
 		if args[0] == colChanges {
 			m.editor.SetDiffGutter(false)
 		}
-	} else {
+	default: // reject unknown action
 		return commandResult{}, fmt.Errorf("usage: show %s enable|disable", args[0])
 	}
 

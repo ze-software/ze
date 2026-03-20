@@ -99,7 +99,7 @@ func probeSetFormat(content string) ConfigType {
 		}
 
 		verb := fields[0]
-		if verb != "set" && verb != "delete" {
+		if verb != cmdSet && verb != cmdDelete {
 			continue
 		}
 

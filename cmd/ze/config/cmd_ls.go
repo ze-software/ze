@@ -12,7 +12,7 @@ import (
 )
 
 // cmdLsWithStorage lists config files from both blob storage and filesystem.
-func cmdLsWithStorage(store storage.Storage, args []string) int {
+func cmdLsWithStorage(store storage.Storage, _ []string) int {
 	found := false
 
 	// List from blob storage

@@ -217,10 +217,7 @@ func (e *Editor) SaveDraft() error {
 
 	// Read base (draft if exists, else committed).
 	draftPath := DraftPath(e.originalPath)
-	baseTree, baseMeta, err := e.readDraftOrConfig(guard, draftPath)
-	if err != nil {
-		return fmt.Errorf("save read base: %w", err)
-	}
+	baseTree, baseMeta := e.readDraftOrConfig(guard, draftPath)
 
 	// Apply changes to base.
 	for _, se := range myEntries {
@@ -374,21 +371,21 @@ func (e *Editor) DetectConflicts() []Conflict {
 // Returns the parsed tree and metadata. Uses guard for I/O (called within locked sections).
 // If the draft exists but cannot be parsed (corrupt, outdated schema), falls back to
 // the committed config so that save is never blocked by a bad draft.
-func (e *Editor) readDraftOrConfig(guard storage.WriteGuard, draftPath string) (*config.Tree, *config.MetaTree, error) {
+func (e *Editor) readDraftOrConfig(guard storage.WriteGuard, draftPath string) (*config.Tree, *config.MetaTree) {
 	parser := config.NewSetParser(e.schema)
 
 	data, err := guard.ReadFile(draftPath)
 	if err == nil {
 		tree, meta, parseErr := parser.ParseWithMeta(string(data))
 		if parseErr == nil {
-			return tree, meta, nil
+			return tree, meta
 		}
 		// Draft exists but cannot be parsed (corrupt or schema mismatch).
 		// Fall through to committed config so save is not blocked.
 	}
 
 	// No draft or unparseable draft: clone the in-memory tree and start with empty metadata.
-	return e.tree.Clone(), config.NewMetaTree(), nil
+	return e.tree.Clone(), config.NewMetaTree()
 }
 
 // readCommittedTree reads and parses config.conf under lock.
