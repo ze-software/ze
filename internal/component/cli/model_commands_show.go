@@ -52,7 +52,6 @@ func (m *Model) cmdShow(args []string) (commandResult, error) {
 			return m.cmdShowSet()
 		}
 
-		return commandResult{}, fmt.Errorf("unknown show subcommand: %s", args[0])
 	}
 
 	// Default: display config in tree format with enabled columns.

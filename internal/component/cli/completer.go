@@ -229,10 +229,16 @@ func (c *Completer) isListNeedingKey(path []string) bool {
 	}
 	// Check if the last element is a schema child name (list name) or a key value.
 	// If the parent's schema has the last element as a child, it's the list name itself.
+	// Exception: if the parent is a list and the last element matches its key leaf,
+	// the element is a key value (e.g., "peer name" where "name" is peer's key leaf).
 	lastName := path[len(path)-1]
 	parentEntry := c.getEntry(path[:len(path)-1])
 	if parentEntry != nil && parentEntry.Dir != nil {
 		if _, isSchemaChild := parentEntry.Dir[lastName]; isSchemaChild {
+			// If parent is a list and lastName is its key leaf, it's a key value, not the list name.
+			if parentEntry.IsList() && parentEntry.Key == lastName {
+				return false
+			}
 			return true // Last element IS the list name → needs a key
 		}
 	}
@@ -289,10 +295,8 @@ func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace
 		if len(tokens) == 1 {
 			prefix = tokens[0]
 		}
-		// Offer subcommands alongside path completions.
-		results := filterCompletions(showSubcommands, prefix)
-		results = append(results, c.matchEditTargets(contextPath, prefix)...)
-		return results
+		// Offer subcommands only (not path targets -- show doesn't navigate paths).
+		return filterCompletions(showSubcommands, prefix)
 	}
 
 	// "show changes " -> offer "all" subcommand and enable/disable.
@@ -676,10 +680,15 @@ func (c *Completer) getEntry(path []string) *gyang.Entry {
 		}
 		entry = child
 
-		// If this is a list and there's a next element that's not in Dir, skip the key
+		// If this is a list and there's a next element, check if it's a key value to skip.
+		// A key value is either: (a) not a schema child, or (b) matches the list's key leaf name.
+		// Case (b) handles YANG lists where the key leaf (e.g., "name") is both a schema child
+		// and used as a key value in config paths (e.g., "peer name" where "name" is the key).
 		if entry.IsList() && i+1 < len(path) {
 			nextPart := path[i+1]
-			if _, hasChild := entry.Dir[nextPart]; !hasChild {
+			_, hasChild := entry.Dir[nextPart]
+			isKeyLeaf := entry.Key == nextPart
+			if !hasChild || isKeyLeaf {
 				// Next element is a key value, skip it
 				i++
 			}
@@ -858,14 +867,18 @@ func (c *Completer) validateTokenPath(tokens []string) (*gyang.Entry, error) {
 		entry = child
 
 		// If this is a list, the next token MUST be a key value (not a schema child name).
-		// If the next token is a known child, the user forgot the list key.
+		// If the next token is a known child (and NOT the key leaf), the user forgot the list key.
+		// The key leaf (e.g., "name" for peer list) is always a schema child, so we must
+		// exclude it from the "missing key" check -- it IS the key value.
 		if entry.IsList() {
 			if i+1 >= len(tokens) {
 				return nil, fmt.Errorf("%s is a list — requires a key (e.g., %s <key> ...)", part, part)
 			}
 			nextToken := tokens[i+1]
-			if _, isChild := entry.Dir[nextToken]; isChild {
-				// Next token is a schema child, not a key value — key is missing
+			_, isChild := entry.Dir[nextToken]
+			isKeyLeaf := entry.Key == nextToken
+			if isChild && !isKeyLeaf {
+				// Next token is a non-key schema child — key is missing
 				return nil, fmt.Errorf("%s is a list — requires a key (e.g., %s <key> %s ...)", part, part, nextToken)
 			}
 			// Next token is the key value — skip it

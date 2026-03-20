@@ -113,16 +113,17 @@ func TestCmdShowChangesEnableDisambiguation(t *testing.T) {
 	assert.Contains(t, err.Error(), "requires an active editing session")
 }
 
-// TestCmdShowUnknownSubcommand verifies unknown args produce an error.
+// TestCmdShowUnknownArgFallsThrough verifies unknown args show default tree view.
 //
-// VALIDATES: Unknown show subcommands are rejected.
-// PREVENTS: Silent fallthrough to default display for typos.
-func TestCmdShowUnknownSubcommand(t *testing.T) {
+// VALIDATES: Unknown args fall through to default display (like bare "show").
+// PREVENTS: Error on "show bgp" or other non-subcommand args.
+func TestCmdShowUnknownArgFallsThrough(t *testing.T) {
 	m := testShowModel(t)
 
-	_, err := m.cmdShow([]string{"nonexistent"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown show subcommand")
+	result, err := m.cmdShow([]string{"nonexistent"})
+	require.NoError(t, err)
+	// Falls through to default tree display
+	assert.NotNil(t, result.configView, "unknown arg should fall through to tree display")
 }
 
 // TestCmdShowDisplayNoColumns verifies bare display uses standard serializers.
