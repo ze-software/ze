@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -587,4 +588,241 @@ func TestFwdWorkerIdleRestartFreshBuffer(t *testing.T) {
 		t.Fatal("timeout waiting for restarted worker to process item")
 	}
 	assert.Equal(t, 1, pool.WorkerCount())
+}
+
+// TestFwdPool_TryDispatch verifies TryDispatch is non-blocking: succeeds when
+// channel has space, returns false immediately when channel is full.
+//
+// VALIDATES: AC-2, AC-3
+// PREVENTS: TryDispatch blocking like Dispatch when channel is full.
+func TestFwdPool_TryDispatch(t *testing.T) {
+	blocker := make(chan struct{})
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		<-blocker
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	key := fwdKey{peerAddr: "1.1.1.1"}
+
+	// First dispatch enters handler (blocks on blocker)
+	ok := pool.TryDispatch(key, fwdItem{})
+	require.True(t, ok, "TryDispatch should succeed on empty channel")
+
+	time.Sleep(10 * time.Millisecond) // Let handler start blocking
+
+	// Fill channel (2 items = chanSize)
+	ok = pool.TryDispatch(key, fwdItem{})
+	require.True(t, ok, "TryDispatch should succeed when channel has space")
+	ok = pool.TryDispatch(key, fwdItem{})
+	require.True(t, ok, "TryDispatch should succeed when channel has space")
+
+	// Channel full -- TryDispatch should return false immediately
+	ok = pool.TryDispatch(key, fwdItem{})
+	assert.False(t, ok, "TryDispatch should return false on full channel")
+
+	close(blocker)
+}
+
+// TestFwdPool_DispatchOverflow verifies overflow items are processed after
+// channel items drain.
+//
+// VALIDATES: AC-4, AC-6
+// PREVENTS: Overflow items silently lost.
+func TestFwdPool_DispatchOverflow(t *testing.T) {
+	var processed atomic.Int32
+
+	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		processed.Add(int32(len(items)))
+	}, fwdPoolConfig{chanSize: 4, idleTimeout: time.Second, overflowMax: 16})
+	defer pool.Stop()
+
+	key := fwdKey{peerAddr: "1.1.1.1"}
+
+	// Dispatch some items via overflow
+	pool.DispatchOverflow(key, fwdItem{done: func() {}})
+	pool.DispatchOverflow(key, fwdItem{done: func() {}})
+
+	// Dispatch a normal item to trigger worker creation + processing
+	pool.Dispatch(key, fwdItem{})
+
+	// Wait for processing -- all items including overflow should be processed
+	require.Eventually(t, func() bool {
+		return processed.Load() >= 3
+	}, time.Second, time.Millisecond, "all items including overflow should be processed")
+}
+
+// TestFwdPool_OverflowMax verifies the overflow buffer drops oldest items
+// when it exceeds the maximum size, calling their done callbacks.
+//
+// VALIDATES: AC-5
+// PREVENTS: Unbounded overflow buffer growth.
+func TestFwdPool_OverflowMax(t *testing.T) {
+	blocker := make(chan struct{})
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		<-blocker
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowMax: 3})
+	defer func() {
+		close(blocker)
+		pool.Stop()
+	}()
+
+	key := fwdKey{peerAddr: "1.1.1.1"}
+	var droppedIDs []int
+	var mu sync.Mutex
+
+	// Create worker by dispatching one item (blocks in handler)
+	pool.Dispatch(key, fwdItem{})
+	time.Sleep(10 * time.Millisecond)
+
+	// Fill overflow with 5 items (max is 3, so 2 should be dropped)
+	for i := range 5 {
+		pool.DispatchOverflow(key, fwdItem{
+			done: func() {
+				mu.Lock()
+				droppedIDs = append(droppedIDs, i)
+				mu.Unlock()
+			},
+		})
+	}
+
+	// Items 0 and 1 should have been dropped (oldest first)
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(droppedIDs) >= 2
+	}, time.Second, time.Millisecond, "oldest overflow items should be dropped")
+
+	mu.Lock()
+	assert.Contains(t, droppedIDs, 0, "item 0 should be dropped")
+	assert.Contains(t, droppedIDs, 1, "item 1 should be dropped")
+	mu.Unlock()
+}
+
+// TestFwdPool_StopFiresOverflowDone verifies Stop fires done callbacks
+// for all items remaining in overflow buffers.
+//
+// VALIDATES: AC-7
+// PREVENTS: Cache entry leaks from overflow items on shutdown.
+func TestFwdPool_StopFiresOverflowDone(t *testing.T) {
+	blocker := make(chan struct{})
+	var doneCalled atomic.Int32
+
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		<-blocker
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowMax: 16})
+
+	key := fwdKey{peerAddr: "1.1.1.1"}
+
+	// Create worker (blocks in handler)
+	pool.Dispatch(key, fwdItem{})
+	time.Sleep(10 * time.Millisecond)
+
+	// Add overflow items
+	for range 3 {
+		pool.DispatchOverflow(key, fwdItem{
+			done: func() { doneCalled.Add(1) },
+		})
+	}
+
+	// Stop should fire done for overflow items
+	close(blocker)
+	pool.Stop()
+
+	assert.GreaterOrEqual(t, int(doneCalled.Load()), 3, "done must be called for all overflow items on Stop")
+}
+
+// TestFwdPool_CongestionCallbacks verifies onCongested fires on first TryDispatch
+// failure and onResumed fires when worker drains below low-water mark.
+//
+// VALIDATES: AC-8, AC-9, AC-14
+// PREVENTS: Missing congestion state transitions, callback storms.
+func TestFwdPool_CongestionCallbacks(t *testing.T) {
+	blocker := make(chan struct{})
+	var congestedPeers []string
+	var resumedPeers []string
+	var mu sync.Mutex
+
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		<-blocker
+	}, fwdPoolConfig{chanSize: 4, idleTimeout: time.Second, overflowMax: 16})
+	pool.onCongested = func(peerAddr string) {
+		mu.Lock()
+		congestedPeers = append(congestedPeers, peerAddr)
+		mu.Unlock()
+	}
+	pool.onResumed = func(peerAddr string) {
+		mu.Lock()
+		resumedPeers = append(resumedPeers, peerAddr)
+		mu.Unlock()
+	}
+	defer pool.Stop()
+
+	key := fwdKey{peerAddr: "10.0.0.1"}
+
+	// Fill: 1 in handler + 4 in channel = full
+	pool.Dispatch(key, fwdItem{})
+	time.Sleep(10 * time.Millisecond)
+	for range 4 {
+		pool.Dispatch(key, fwdItem{})
+	}
+
+	// TryDispatch fails -> congested callback should fire
+	ok := pool.TryDispatch(key, fwdItem{})
+	assert.False(t, ok)
+
+	mu.Lock()
+	assert.Equal(t, []string{"10.0.0.1"}, congestedPeers, "onCongested should fire once")
+	mu.Unlock()
+
+	// Second failure should NOT fire again (already congested)
+	ok = pool.TryDispatch(key, fwdItem{})
+	assert.False(t, ok)
+
+	mu.Lock()
+	assert.Equal(t, 1, len(congestedPeers), "onCongested should not fire twice")
+	mu.Unlock()
+
+	// Unblock handler -- worker drains, should fire onResumed
+	close(blocker)
+
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(resumedPeers) == 1
+	}, 2*time.Second, 10*time.Millisecond, "onResumed should fire after drain")
+
+	mu.Lock()
+	assert.Equal(t, []string{"10.0.0.1"}, resumedPeers)
+	mu.Unlock()
+}
+
+// TestFwdPool_DrainOverflowDirectProcess verifies drainOverflow's processDirect
+// path: when overflow items cannot be enqueued (channel full), they are processed
+// directly via safeBatchHandle.
+//
+// VALIDATES: drainOverflow goto processDirect path
+// PREVENTS: Overflow items silently lost when channel refills during drain.
+func TestFwdPool_DrainOverflowDirectProcess(t *testing.T) {
+	var processed atomic.Int32
+
+	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		processed.Add(int32(len(items)))
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowMax: 32})
+	defer pool.Stop()
+
+	key := fwdKey{peerAddr: "1.1.1.1"}
+
+	// Add many overflow items (more than channel capacity).
+	// When drainOverflow runs, some will enqueue, rest will be processed directly.
+	for range 10 {
+		pool.DispatchOverflow(key, fwdItem{done: func() {}})
+	}
+
+	// Trigger worker creation + processing by dispatching a normal item.
+	pool.Dispatch(key, fwdItem{})
+
+	// All 11 items (10 overflow + 1 normal) should be processed.
+	require.Eventually(t, func() bool {
+		return processed.Load() >= 11
+	}, 2*time.Second, time.Millisecond, "all items including overflow direct-processed should complete")
 }

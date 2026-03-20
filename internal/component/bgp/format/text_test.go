@@ -139,6 +139,58 @@ func TestFormatEOR(t *testing.T) {
 	}
 }
 
+// TestFormatCongestion tests congestion event formatting for both encodings.
+//
+// VALIDATES: Congestion events use correct JSON envelope and text format.
+// PREVENTS: Incorrect JSON keys or missing fields in congestion events.
+func TestFormatCongestion(t *testing.T) {
+	peer := plugin.PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	tests := []struct {
+		name      string
+		eventType string
+		encoding  string
+		want      string
+	}{
+		{
+			name:      "congested text",
+			eventType: "congested",
+			encoding:  plugin.EncodingText,
+			want:      "peer 10.0.0.1 asn 65001 congested\n",
+		},
+		{
+			name:      "resumed text",
+			eventType: "resumed",
+			encoding:  plugin.EncodingText,
+			want:      "peer 10.0.0.1 asn 65001 resumed\n",
+		},
+		{
+			name:      "congested json",
+			eventType: "congested",
+			encoding:  plugin.EncodingJSON,
+			want:      `{"type":"bgp","bgp":{"message":{"type":"congested"},"peer":{"address":"10.0.0.1","asn":65001}}}` + "\n",
+		},
+		{
+			name:      "resumed json",
+			eventType: "resumed",
+			encoding:  plugin.EncodingJSON,
+			want:      `{"type":"bgp","bgp":{"message":{"type":"resumed"},"peer":{"address":"10.0.0.1","asn":65001}}}` + "\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FormatCongestion(peer, tt.eventType, tt.encoding)
+			if got != tt.want {
+				t.Errorf("FormatCongestion(%q, %q)\n  got:  %q\n  want: %q", tt.eventType, tt.encoding, got, tt.want)
+			}
+		})
+	}
+}
+
 // TestFormatMessageText tests text format output.
 //
 // VALIDATES: Text format uses "peer X update announce nlri ..." syntax.

@@ -80,6 +80,44 @@ func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
 	}
 }
 
+// emitCongestionEvent emits a congestion state change event to subscribed plugins.
+// Called from fwdPool congestion callbacks. peerAddr is the string form of the
+// destination peer address. eventType is plugin.EventCongested or plugin.EventResumed.
+// Safe to call before the eventDispatcher is initialized (nil check after peer lookup).
+//
+// Validates address and looks up peer before checking eventDispatcher, so that
+// invalid addresses and missing peers are caught independently of dispatcher state.
+func (r *Reactor) emitCongestionEvent(peerAddr, eventType string) {
+	addr, err := netip.ParseAddr(peerAddr)
+	if err != nil {
+		return
+	}
+
+	r.mu.RLock()
+	peer, ok := r.findPeerByAddr(addr)
+	if !ok {
+		r.mu.RUnlock()
+		return
+	}
+	s := peer.Settings()
+	peerInfo := plugin.PeerInfo{
+		Address:      s.Address,
+		LocalAddress: s.LocalAddress,
+		Name:         s.Name,
+		GroupName:    s.GroupName,
+		LocalAS:      s.LocalAS,
+		PeerAS:       s.PeerAS,
+		RouterID:     s.RouterID,
+		State:        peer.State().String(),
+	}
+	r.mu.RUnlock()
+
+	if r.eventDispatcher == nil {
+		return
+	}
+	r.eventDispatcher.OnPeerCongestionChange(peerInfo, eventType)
+}
+
 // notifyMessageReceiver notifies the message receiver of a raw BGP message.
 // Called from session when a BGP message is sent or received.
 // peerAddr is used to look up full PeerInfo from the peers map.

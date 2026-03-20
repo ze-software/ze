@@ -332,12 +332,14 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		item.done = func() { a.r.recentUpdates.Release(updateID) }
 
 		key := fwdKey{peerAddr: peer.Settings().Address.String()}
-		if !a.r.fwdPool.Dispatch(key, item) {
-			// Pool stopped — release cache ref ourselves
-			a.r.recentUpdates.Release(updateID)
-			continue
+		if a.r.fwdPool.TryDispatch(key, item) {
+			dispatchedCount++
+		} else if a.r.fwdPool.DispatchOverflow(key, item) {
+			// Channel full — item buffered in overflow for deferred processing.
+			dispatchedCount++
 		}
-		dispatchedCount++
+		// If DispatchOverflow returned false, pool is stopped — done() was
+		// called immediately (releasing cache ref). Don't count as dispatched.
 	}
 
 	if dispatchedCount == 0 {

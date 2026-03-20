@@ -114,6 +114,16 @@ func (d *EventDispatcher) OnPeerNegotiated(peer plugin.PeerInfo, neg any) {
 	onPeerNegotiated(d.server, d.encoder, peer, neg)
 }
 
+// OnPeerCongestionChange handles forward-path congestion state transitions.
+// eventType is "congested" or "resumed". Called from reactor congestion callbacks.
+// Delivery is parallel via long-lived per-process goroutines.
+func (d *EventDispatcher) OnPeerCongestionChange(peer plugin.PeerInfo, eventType string) {
+	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
+		return
+	}
+	onPeerCongestionChange(d.server, peer, eventType)
+}
+
 // BroadcastValidateOpen validates OPEN messages via all plugins that declared WantsValidateOpen.
 // local and remote are *message.Open (typed as any from reactor).
 // Returns nil if all accept, or an OpenValidationError on first rejection.

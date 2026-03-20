@@ -2305,3 +2305,56 @@ func TestMD5PeersForListener(t *testing.T) {
 	md5None := r.md5PeersForListener(2179)
 	assert.Empty(t, md5None)
 }
+
+// TestEmitCongestionEvent_InvalidAddr verifies emitCongestionEvent handles
+// invalid peer address strings by returning early at ParseAddr.
+//
+// VALIDATES: emitCongestionEvent invalid address early return
+// PREVENTS: Panic or error log spam from malformed peer address.
+func TestEmitCongestionEvent_InvalidAddr(t *testing.T) {
+	r := New(&Config{ListenAddr: "127.0.0.1:0"})
+	// Invalid address: ParseAddr fails, function returns before peer lookup.
+	r.emitCongestionEvent("not-an-ip", "congested")
+}
+
+// TestEmitCongestionEvent_PeerNotFound verifies emitCongestionEvent handles
+// unknown peer addresses by returning early at findPeerByAddr.
+//
+// VALIDATES: emitCongestionEvent peer lookup miss early return
+// PREVENTS: Panic when a worker's peer has been removed between dispatch and callback.
+func TestEmitCongestionEvent_PeerNotFound(t *testing.T) {
+	r := New(&Config{ListenAddr: "127.0.0.1:0"})
+	// Valid address but no matching peer: findPeerByAddr returns false.
+	r.emitCongestionEvent("10.0.0.99", "congested")
+}
+
+// TestEmitCongestionEvent_NilDispatcher verifies emitCongestionEvent exercises
+// peer lookup and PeerInfo construction, then returns safely when eventDispatcher
+// is nil (reactor not fully started).
+//
+// VALIDATES: emitCongestionEvent full path up to dispatcher nil check
+// PREVENTS: Panic during peer lookup or PeerInfo construction.
+func TestEmitCongestionEvent_NilDispatcher(t *testing.T) {
+	r := New(&Config{ListenAddr: "127.0.0.1:0"})
+
+	peerAddr := mustParseAddr("10.0.0.1")
+	settings := NewPeerSettings(peerAddr, 65000, 65001, 0x01010101)
+	err := r.AddPeer(settings)
+	require.NoError(t, err)
+
+	// Peer exists, address valid. Exercises ParseAddr, findPeerByAddr,
+	// PeerInfo construction. Returns at nil dispatcher check.
+	r.emitCongestionEvent("10.0.0.1", "congested")
+	r.emitCongestionEvent("10.0.0.1", "resumed")
+}
+
+// TestEmitCongestionEvent_CallbacksWired verifies the reactor wires
+// onCongested/onResumed callbacks on the fwdPool during construction.
+//
+// VALIDATES: Reactor wires congestion callbacks to emitCongestionEvent
+// PREVENTS: Congestion callbacks not wired, events silently lost.
+func TestEmitCongestionEvent_CallbacksWired(t *testing.T) {
+	r := New(&Config{ListenAddr: "127.0.0.1:0"})
+	assert.NotNil(t, r.fwdPool.onCongested, "onCongested callback should be wired")
+	assert.NotNil(t, r.fwdPool.onResumed, "onResumed callback should be wired")
+}

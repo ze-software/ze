@@ -18,6 +18,8 @@ const (
 	EventState        = "state"
 	EventNegotiated   = "negotiated"
 	EventEOR          = "eor"
+	EventCongested    = "congested"
+	EventResumed      = "resumed"
 )
 
 // RIB event types.
@@ -43,6 +45,8 @@ var ValidBgpEvents = map[string]bool{
 	EventState:        true,
 	EventNegotiated:   true,
 	EventEOR:          true,
+	EventCongested:    true,
+	EventResumed:      true,
 }
 
 // ValidRibEvents is the set of valid RIB event types.

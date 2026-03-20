@@ -27,7 +27,10 @@ import (
 )
 
 // Env var registration for route server tuning.
-var _ = env.MustRegister(env.EnvEntry{Key: "ze.rs.chan.size", Type: "int", Default: "4096", Description: "Per-source-peer route server worker channel capacity"})
+var (
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.rs.chan.size", Type: "int", Default: "4096", Description: "Per-source-peer route server worker channel capacity"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.rs.fwd.senders", Type: "int", Default: "4", Description: "Number of concurrent forward sender goroutines"})
+)
 
 // statusDone is the command response status for successful operations.
 const statusDone = "done"
@@ -349,7 +352,11 @@ func (rs *RouteServer) stopReleaseLoop() {
 	<-rs.releaseDone
 }
 
-// startForwardLoop starts the background goroutine for fire-and-forget cache-forward RPCs.
+// fwdSendersDefault is the default number of concurrent forward sender goroutines.
+const fwdSendersDefault = 4
+
+// startForwardLoop starts N background goroutines for fire-and-forget cache-forward RPCs.
+// N is controlled by env var ze.rs.fwd.senders (default 4).
 // Capacity 16 batches — each batch is up to 50 IDs, so ~800 updates buffered.
 // If the channel fills, workers block (natural backpressure from engine).
 // Uses a separate stop channel (same pattern as releaseLoop) to avoid
@@ -358,27 +365,44 @@ func (rs *RouteServer) startForwardLoop() {
 	rs.forwardCh = make(chan forwardCmd, 16)
 	rs.forwardStop = make(chan struct{})
 	rs.forwardDone = make(chan struct{})
-	go func() {
-		defer close(rs.forwardDone)
-		for {
-			select {
-			case cmd := <-rs.forwardCh:
-				rs.updateRoute(cmd.peer, cmd.cmd)
-			case <-rs.forwardStop:
-				for {
-					select {
-					case cmd := <-rs.forwardCh:
-						rs.updateRoute(cmd.peer, cmd.cmd)
-					default: // buffer empty — drain complete
-						return
+
+	numSenders := env.GetInt("ze.rs.fwd.senders", fwdSendersDefault)
+	if numSenders <= 0 {
+		numSenders = fwdSendersDefault
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(numSenders)
+
+	for range numSenders {
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case cmd := <-rs.forwardCh:
+					rs.updateRoute(cmd.peer, cmd.cmd)
+				case <-rs.forwardStop:
+					// Drain remaining buffered items before exiting.
+					for {
+						select {
+						case cmd := <-rs.forwardCh:
+							rs.updateRoute(cmd.peer, cmd.cmd)
+						default: // buffer empty — drain complete
+							return
+						}
 					}
 				}
 			}
-		}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(rs.forwardDone)
 	}()
 }
 
-// stopForwardLoop signals the forward goroutine to stop and waits for it to exit.
+// stopForwardLoop signals all forward sender goroutines to stop and waits for them to exit.
 func (rs *RouteServer) stopForwardLoop() {
 	close(rs.forwardStop)
 	<-rs.forwardDone

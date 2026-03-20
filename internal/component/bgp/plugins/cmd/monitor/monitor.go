@@ -226,7 +226,7 @@ func parseMonitorArgs(args []string) (*monitorOpts, error) {
 					return nil, fmt.Errorf("empty event type in list")
 				}
 				if !plugin.ValidBgpEvents[t] {
-					return nil, fmt.Errorf("invalid event type: %s (valid: update, open, notification, keepalive, refresh, state, negotiated, eor)", t)
+					return nil, fmt.Errorf("invalid event type: %s (valid: update, open, notification, keepalive, refresh, state, negotiated, eor, congested, resumed)", t)
 				}
 			}
 			opts.eventTypes = types

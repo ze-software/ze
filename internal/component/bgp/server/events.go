@@ -574,3 +574,56 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer plu
 	}
 	monitorDeliver(s, eventType, plugin.DirectionSent, peerAddr, jsonOutput)
 }
+
+// onPeerCongestionChange handles forward-path congestion state transitions.
+// eventType is plugin.EventCongested or plugin.EventResumed.
+// Delivery is parallel via long-lived per-process goroutines (see rules/goroutine-lifecycle.md).
+func onPeerCongestionChange(s *pluginserver.Server, peer plugin.PeerInfo, eventType string) {
+	if s.Context().Err() != nil {
+		return // Server shutting down, skip event delivery
+	}
+
+	peerAddr := peer.Address.String()
+	procs := s.Subscriptions().GetMatching(plugin.NamespaceBGP, eventType, "", peerAddr)
+	hasMonitors := s.Monitors().Count() > 0
+	if len(procs) == 0 && !hasMonitors {
+		return
+	}
+
+	logger().Debug("OnPeerCongestionChange", "peer", peerAddr, "event", eventType, "count", len(procs))
+
+	// Pre-format once per distinct encoding.
+	formatOutputs := make(map[string]string, 2)
+	for _, proc := range procs {
+		enc := proc.Encoding()
+		if _, ok := formatOutputs[enc]; !ok {
+			formatOutputs[enc] = format.FormatCongestion(peer, eventType, enc)
+		}
+	}
+
+	// Enqueue to long-lived per-process delivery goroutines and collect results.
+	results := make(chan process.EventResult, len(procs))
+	sent := 0
+
+	for _, proc := range procs {
+		output := formatOutputs[proc.Encoding()]
+		if !proc.Deliver(process.EventDelivery{Output: output, Result: results}) {
+			continue
+		}
+		sent++
+	}
+
+	for range sent {
+		r := <-results
+		if r.Err != nil && s.Context().Err() == nil {
+			logger().Warn("OnPeerCongestionChange write failed", "proc", r.ProcName, "err", r.Err)
+		}
+	}
+
+	// Deliver to CLI monitors.
+	jsonOutput, ok := formatOutputs["json"]
+	if !ok {
+		jsonOutput = format.FormatCongestion(peer, eventType, "json")
+	}
+	monitorDeliver(s, eventType, "", peerAddr, jsonOutput)
+}

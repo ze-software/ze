@@ -12,6 +12,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
@@ -33,10 +34,18 @@ type fwdItem struct {
 	done      func()            // Called after all ops complete (Release cache entry)
 }
 
+// fwdWriteDeadlineDefault is the default TCP write deadline for forward pool
+// batch writes (30 seconds). Overridable via env var ze.fwd.write.deadline.
+const fwdWriteDeadlineDefault = 30 * time.Second
+
 // fwdBatchHandler executes pre-computed send operations for a batch of fwdItems.
 // Acquires the session write lock once, writes all messages to bufWriter, flushes once.
 // On first write error, remaining items in the batch are skipped.
 // Errors are logged but not propagated — TCP failures trigger FSM disconnect independently.
+//
+// Sets a write deadline on the TCP connection before writing to prevent a stuck
+// peer from blocking the worker goroutine indefinitely. The deadline is cleared
+// after the batch write+flush completes (or fails).
 func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 	if len(items) == 0 {
 		return
@@ -63,6 +72,25 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 
 	session.writeMu.Lock()
 	defer session.writeMu.Unlock()
+
+	// Set write deadline AFTER acquiring writeMu so the full deadline budget
+	// is available for TCP writes (not consumed by mutex contention).
+	// Cleared in defer after write+flush completes.
+	writeDeadline := env.GetDuration("ze.fwd.write.deadline", fwdWriteDeadlineDefault)
+	if writeDeadline <= 0 {
+		writeDeadline = fwdWriteDeadlineDefault
+	}
+	if err := conn.SetWriteDeadline(session.clock.Now().Add(writeDeadline)); err != nil {
+		fwdLogger().Warn("forward set write deadline failed",
+			"peer", peer.Settings().Address,
+			"err", err,
+		)
+		return
+	}
+	defer func() {
+		// Clear write deadline (zero value = no deadline).
+		_ = conn.SetWriteDeadline(time.Time{})
+	}()
 
 	for _, item := range items {
 		for _, body := range item.rawBodies {
@@ -97,7 +125,11 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 type fwdPoolConfig struct {
 	chanSize    int
 	idleTimeout time.Duration
+	overflowMax int // Maximum per-worker overflow buffer size (0 = use default 256)
 }
+
+// fwdOverflowMaxDefault is the default maximum overflow buffer size per worker.
+const fwdOverflowMaxDefault = 256
 
 // fwdWorker is a single long-lived goroutine processing items for one destination peer.
 type fwdWorker struct {
@@ -105,6 +137,17 @@ type fwdWorker struct {
 	done     chan struct{} // closed when goroutine exits
 	pending  atomic.Int32  // items about to be sent (between mu.Unlock and channel send)
 	batchBuf []fwdItem     // reusable drain buffer — owned by runWorker goroutine
+
+	// Overflow buffer for non-blocking dispatch (TryDispatch fallback).
+	// Protected by overflowMu. Items are moved to the channel by the worker
+	// goroutine after processing each batch.
+	overflowMu sync.Mutex
+	overflow   []fwdItem
+
+	// congested tracks whether this worker's channel is full.
+	// Set on TryDispatch failure, cleared when channel drains below low-water.
+	// Transitions fire pool-level onCongested/onResumed callbacks.
+	congested bool
 }
 
 // fwdPool manages per-destination-peer worker goroutines for async UPDATE forwarding.
@@ -132,6 +175,12 @@ type fwdPool struct {
 
 	// count tracks active workers for WorkerCount() without holding mu.
 	count atomic.Int32
+
+	// Congestion callbacks — fire on transitions only (not every item).
+	// Called from the TryDispatch caller goroutine (onCongested) or the
+	// worker goroutine (onResumed). Must not block.
+	onCongested func(peerAddr string) // Called on false->true transition
+	onResumed   func(peerAddr string) // Called on true->false transition
 }
 
 // newFwdPool creates a new forward pool with the given handler and configuration.
@@ -141,6 +190,9 @@ func newFwdPool(handler func(fwdKey, []fwdItem), cfg fwdPoolConfig) *fwdPool {
 	}
 	if cfg.idleTimeout <= 0 {
 		cfg.idleTimeout = 5 * time.Second
+	}
+	if cfg.overflowMax <= 0 {
+		cfg.overflowMax = fwdOverflowMaxDefault
 	}
 	return &fwdPool{
 		workers: make(map[fwdKey]*fwdWorker),
@@ -176,13 +228,7 @@ func (fp *fwdPool) Dispatch(key fwdKey, item fwdItem) bool {
 
 	w, ok := fp.workers[key]
 	if !ok {
-		w = &fwdWorker{
-			ch:   make(chan fwdItem, fp.cfg.chanSize),
-			done: make(chan struct{}),
-		}
-		fp.workers[key] = w
-		fp.count.Add(1)
-		go fp.runWorker(key, w)
+		w = fp.newWorker(key)
 	}
 
 	// Increment pending BEFORE releasing the lock. The idle handler checks
@@ -206,9 +252,116 @@ func (fp *fwdPool) Dispatch(key fwdKey, item fwdItem) bool {
 	return true
 }
 
+// TryDispatch attempts a non-blocking send to the worker for the given key.
+// Creates the worker lazily if it doesn't exist.
+// Returns true if the item was enqueued, false if the channel is full or pool is stopped.
+// On false, the caller should use DispatchOverflow as a fallback.
+//
+// If the send fails because the channel is full:
+//   - Sets the worker's congested flag (if not already set)
+//   - Fires onCongested callback on false->true transition
+func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
+	fp.mu.Lock()
+	if fp.stopped {
+		fp.mu.Unlock()
+		return false
+	}
+
+	// Track this TryDispatch so Stop can wait for all in-flight sends
+	// to exit before closing worker channels (prevents send-on-closed panic).
+	fp.dispatchWG.Add(1)
+	defer fp.dispatchWG.Done()
+
+	w, ok := fp.workers[key]
+	if !ok {
+		w = fp.newWorker(key)
+	}
+	fp.mu.Unlock()
+
+	// Non-blocking send.
+	select {
+	case w.ch <- item:
+		return true
+	default: // channel full — non-blocking fallback
+		// Mark congested and fire callback on transition.
+		w.overflowMu.Lock()
+		wasCongested := w.congested
+		w.congested = true
+		w.overflowMu.Unlock()
+
+		if !wasCongested && fp.onCongested != nil {
+			fp.onCongested(key.peerAddr)
+		}
+		return false
+	}
+}
+
+// DispatchOverflow adds an item to the per-worker overflow buffer.
+// Creates the worker lazily if it doesn't exist. The worker goroutine
+// drains overflow items after each batch from the channel.
+//
+// Returns true if the item was buffered, false if the pool is stopped
+// (in which case done() is called immediately to prevent cache leaks).
+//
+// If the overflow buffer exceeds overflowMax, the oldest item is dropped
+// and its done callback is called (to prevent cache leaks).
+func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
+	fp.mu.Lock()
+	if fp.stopped {
+		fp.mu.Unlock()
+		// Pool stopped — call done immediately to prevent cache leaks.
+		if item.done != nil {
+			item.done()
+		}
+		return false
+	}
+
+	// Track this DispatchOverflow so Stop can wait for all in-flight
+	// overflow appends before draining and closing channels.
+	fp.dispatchWG.Add(1)
+	defer fp.dispatchWG.Done()
+
+	w, ok := fp.workers[key]
+	if !ok {
+		w = fp.newWorker(key)
+	}
+	fp.mu.Unlock()
+
+	w.overflowMu.Lock()
+	w.overflow = append(w.overflow, item)
+
+	// Enforce overflow max: drop oldest items if over limit.
+	for len(w.overflow) > fp.cfg.overflowMax {
+		dropped := w.overflow[0]
+		w.overflow = w.overflow[1:]
+		if dropped.done != nil {
+			dropped.done()
+		}
+		fwdLogger().Warn("overflow buffer full, dropped oldest item",
+			"peer", key.peerAddr,
+		)
+	}
+	w.overflowMu.Unlock()
+	return true
+}
+
+// newWorker creates a new fwdWorker, registers it in the pool, and starts its goroutine.
+// Caller must hold fp.mu.
+func (fp *fwdPool) newWorker(key fwdKey) *fwdWorker {
+	w := &fwdWorker{
+		ch:   make(chan fwdItem, fp.cfg.chanSize),
+		done: make(chan struct{}),
+	}
+	fp.workers[key] = w
+	fp.count.Add(1)
+	go fp.runWorker(key, w)
+	return w
+}
+
 // Stop closes all workers and waits for them to drain.
 // Closes stopCh first to unblock any Dispatch blocked on a full channel,
 // then waits for all in-flight Dispatches to exit before closing channels.
+// Fires done callbacks for all remaining overflow items to prevent cache leaks.
 func (fp *fwdPool) Stop() {
 	fp.mu.Lock()
 	fp.stopped = true
@@ -233,6 +386,19 @@ func (fp *fwdPool) Stop() {
 		delete(fp.workers, key)
 	}
 	fp.mu.Unlock()
+
+	// Fire done callbacks for all overflow items before closing channels.
+	// Workers won't process these since we're about to close their channels.
+	for _, w := range all {
+		w.overflowMu.Lock()
+		for _, item := range w.overflow {
+			if item.done != nil {
+				item.done()
+			}
+		}
+		w.overflow = nil
+		w.overflowMu.Unlock()
+	}
 
 	for _, w := range all {
 		close(w.ch)
@@ -292,6 +458,11 @@ func drainBatch(buf []fwdItem, firstItem fwdItem, ch <-chan fwdItem) []fwdItem {
 // It reads items from the channel using drain-batch (one blocking receive +
 // non-blocking drain of available items), calls the batch handler, and exits
 // on idle timeout or channel close (Stop).
+//
+// After processing each batch from the channel, the worker drains overflow
+// items (added by DispatchOverflow) into the channel or processes them directly.
+// Checks congestion state: clears congested flag when channel occupancy drops
+// below low-water mark (25% of channel capacity).
 func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
 	defer func() {
 		fp.count.Add(-1)
@@ -300,6 +471,8 @@ func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
 
 	idle := fp.clock.NewTimer(fp.cfg.idleTimeout)
 	defer idle.Stop()
+
+	lowWater := fp.cfg.chanSize / 4 // 25% of channel capacity
 
 	for {
 		select {
@@ -313,6 +486,26 @@ func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
 			}
 			w.batchBuf = drainBatch(w.batchBuf, item, w.ch)
 			fp.safeBatchHandle(key, w.batchBuf)
+
+			// Drain overflow items into the channel after processing.
+			fp.drainOverflow(key, w)
+
+			// Check congestion: clear if channel dropped below low-water mark.
+			// Single lock acquisition to atomically decide whether to fire onResumed.
+			if len(w.ch) <= lowWater {
+				var fireResumed bool
+				w.overflowMu.Lock()
+				if w.congested && len(w.overflow) == 0 {
+					w.congested = false
+					fireResumed = true
+				}
+				w.overflowMu.Unlock()
+
+				if fireResumed && fp.onResumed != nil {
+					fp.onResumed(key.peerAddr)
+				}
+			}
+
 			idle.Reset(fp.cfg.idleTimeout)
 
 		case <-idle.C():
@@ -326,6 +519,15 @@ func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
 				idle.Reset(fp.cfg.idleTimeout)
 				continue
 			}
+			// Also check overflow — don't idle-exit with pending overflow items.
+			w.overflowMu.Lock()
+			hasOverflow := len(w.overflow) > 0
+			w.overflowMu.Unlock()
+			if hasOverflow {
+				fp.mu.Unlock()
+				idle.Reset(fp.cfg.idleTimeout)
+				continue
+			}
 			// Only delete if this worker is still the registered one.
 			if fp.workers[key] == w {
 				delete(fp.workers, key)
@@ -334,6 +536,38 @@ func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
 			return
 		}
 	}
+}
+
+// drainOverflow moves items from the overflow buffer into the channel or
+// processes them directly. Called by the worker goroutine after each batch.
+func (fp *fwdPool) drainOverflow(key fwdKey, w *fwdWorker) {
+	w.overflowMu.Lock()
+	if len(w.overflow) == 0 {
+		w.overflowMu.Unlock()
+		return
+	}
+
+	// Take all overflow items under the lock, then release.
+	items := w.overflow
+	w.overflow = nil
+	w.overflowMu.Unlock()
+
+	// Try to enqueue overflow items into the channel.
+	// If channel is full, process remaining items directly as a batch.
+	var remaining []fwdItem
+	for i, item := range items {
+		select {
+		case w.ch <- item:
+			// Enqueued successfully — worker loop will process it.
+		default: // channel full — process rest directly
+			remaining = items[i:]
+			goto processDirect
+		}
+	}
+	return
+
+processDirect:
+	fp.safeBatchHandle(key, remaining)
 }
 
 // fwdDrainTimer drains a stopped timer's channel to prevent stale fires.

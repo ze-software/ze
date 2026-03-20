@@ -920,6 +920,16 @@ func FormatEOR(peer plugin.PeerInfo, family, encoding string) string {
 	return fmt.Sprintf("peer %s asn %d eor %s\n", peer.Address, peer.PeerAS, family)
 }
 
+// FormatCongestion formats a forward-path congestion event.
+// eventType is "congested" or "resumed". peerAddr is the destination peer address.
+func FormatCongestion(peer plugin.PeerInfo, eventType, encoding string) string {
+	if encoding == plugin.EncodingJSON {
+		return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"%s"},"peer":{"address":"%s","asn":%d}}}`+"\n",
+			eventType, peer.Address, peer.PeerAS)
+	}
+	return fmt.Sprintf("peer %s asn %d %s\n", peer.Address, peer.PeerAS, eventType)
+}
+
 // FormatNegotiated formats negotiated capabilities event.
 // Sent after OPEN exchange to inform plugins of negotiated capabilities.
 func FormatNegotiated(peer plugin.PeerInfo, neg DecodedNegotiated, encoder *JSONEncoder) string {

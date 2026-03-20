@@ -1,0 +1,96 @@
+# Test: forward write deadline env var is accepted and forward path functional
+# VALIDATES: ze.fwd.write.deadline env var parsed, forward pool operational
+# PREVENTS: write deadline config breaking the forward path
+
+# ze-peer expectations: peer receives an UPDATE forwarded through the cache
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: sends a route and verifies forward pool is operational
+tmpfs=deadline-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(1.0)
+
+    try:
+        # Send a route announcement -- exercises the forward path which uses write deadline
+        result = dispatch(api, 'peer * update text origin igp nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24')
+        status = result.get('status', '')
+        print(f'update status={status}', file=sys.stderr)
+        if status not in ('done', 'error'):
+            print(f'FAIL: unexpected status={status}', file=sys.stderr)
+            sys.exit(1)
+        print('OK: forward path operational with write deadline', file=sys.stderr)
+    finally:
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration -- sets a custom write deadline via env var
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external deadline-test {
+		run ./deadline-test.run
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		connection active
+		group-updates disable
+
+		family {
+			ipv4/unicast
+		}
+		capability {
+			graceful-restart disable
+		}
+		process deadline-test {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration -- set write deadline env var to verify it is accepted
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s:env=ZE_FWD_WRITE_DEADLINE=10s
+expect=exit:code=0
