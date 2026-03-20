@@ -109,6 +109,15 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 		return cmdCompletions
 	}
 
+	// Check for pipe in any command that supports it.
+	if cmd == cmdErrors {
+		for i, t := range tokens[1:] {
+			if t == "|" {
+				return completePipeFilter(textPipeFilters, tokens[i+2:], endsWithSpace)
+			}
+		}
+	}
+
 	// Dispatch based on command
 	switch cmd {
 	case cmdSet, cmdDelete:
@@ -289,13 +298,28 @@ var showSubcommands = []Completion{
 
 // completeShowPath completes paths for show command.
 func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace bool) []Completion {
+	// Check for pipe: find the last "|" and complete pipe filters after it.
+	pipeIdx := -1
+	for i, t := range tokens {
+		if t == "|" {
+			pipeIdx = i
+		}
+	}
+	if pipeIdx >= 0 {
+		return completePipeFilter(showPipeFilters, tokens[pipeIdx+1:], endsWithSpace)
+	}
+
 	if len(tokens) == 0 || (len(tokens) == 1 && !endsWithSpace) {
 		prefix := ""
 		if len(tokens) == 1 {
 			prefix = tokens[0]
 		}
-		// Offer subcommands only (not path targets -- show doesn't navigate paths).
-		return filterCompletions(showSubcommands, prefix)
+		// Offer subcommands and pipe.
+		completions := filterCompletions(showSubcommands, prefix)
+		if prefix == "" || prefix == "|" {
+			completions = append(completions, Completion{Text: "|", Description: "Pipe output through filters", Type: "keyword"})
+		}
+		return completions
 	}
 
 	// "show changes " -> offer "all" subcommand and enable/disable.
@@ -320,6 +344,65 @@ func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace
 		if c.isList(listPath) {
 			return c.listKeyCompletions(tokens[0], "", contextPath)
 		}
+	}
+
+	return nil
+}
+
+// textPipeFilters are basic text filters available to any piped command.
+var textPipeFilters = []Completion{
+	{Text: cmdMatch, Description: "Filter lines matching pattern", Type: "keyword"},
+	{Text: cmdHead, Description: "Show first N lines", Type: "keyword"},
+	{Text: cmdTail, Description: "Show last N lines", Type: "keyword"},
+}
+
+// showPipeFilters extend text filters with show-specific pipes.
+var showPipeFilters = append([]Completion{
+	{Text: cmdFormat, Description: "Output format (tree or config)", Type: "keyword"},
+	{Text: cmdCompare, Description: "Compare with committed config", Type: "keyword"},
+}, textPipeFilters...)
+
+// completePipeFilter completes pipe filter names and their arguments.
+// The available filters list is passed in so each command can offer different pipes.
+func completePipeFilter(available []Completion, tokens []string, endsWithSpace bool) []Completion {
+	// No tokens after pipe or partial filter name: suggest filter names.
+	if len(tokens) == 0 || (len(tokens) == 1 && !endsWithSpace) {
+		prefix := ""
+		if len(tokens) == 1 {
+			prefix = tokens[0]
+		}
+		return filterCompletions(available, prefix)
+	}
+
+	// After a filter name, suggest arguments.
+	filter := tokens[len(tokens)-1]
+	if !endsWithSpace {
+		if len(tokens) >= 2 {
+			filter = tokens[len(tokens)-2]
+		} else {
+			return nil
+		}
+	}
+
+	switch filter {
+	case cmdFormat:
+		prefix := ""
+		if !endsWithSpace && len(tokens) >= 2 {
+			prefix = tokens[len(tokens)-1]
+		}
+		return filterCompletions([]Completion{
+			{Text: fmtTree, Description: "Hierarchical tree format", Type: "keyword"},
+			{Text: fmtConfig, Description: "Flat set-command format", Type: "keyword"},
+		}, prefix)
+	case cmdCompare:
+		prefix := ""
+		if !endsWithSpace && len(tokens) >= 2 {
+			prefix = tokens[len(tokens)-1]
+		}
+		return filterCompletions([]Completion{
+			{Text: "committed", Description: "Compare with committed config", Type: "keyword"},
+			{Text: "saved", Description: "Compare with saved draft", Type: "keyword"},
+		}, prefix)
 	}
 
 	return nil

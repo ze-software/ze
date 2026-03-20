@@ -152,7 +152,7 @@ const (
 	cmdQuit       = "quit"
 	cmdHelp       = "help"
 	cmdRun        = "run"
-	cmdGrep       = "grep"
+	cmdMatch      = "match"
 	cmdWho        = "who"
 	cmdDisconnect = "disconnect"
 	cmdAll        = "all"

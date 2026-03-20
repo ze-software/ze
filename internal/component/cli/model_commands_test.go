@@ -375,7 +375,7 @@ func TestModelPipeShowGrep(t *testing.T) {
 	require.NoError(t, err)
 
 	// Show with grep for specific peer
-	result, err := model.cmdShowPipe(nil, []PipeFilter{{Type: "grep", Arg: "peer1"}})
+	result, err := model.cmdShowPipe(nil, []PipeFilter{{Type: "match", Arg: "peer1"}})
 	require.NoError(t, err)
 
 	// Should contain matched content
@@ -445,7 +445,7 @@ func TestModelPipeChain(t *testing.T) {
 
 	// Grep for 1.1.1.* then head 2
 	result, err := model.cmdShowPipe(nil, []PipeFilter{
-		{Type: "grep", Arg: "1.1.1"},
+		{Type: "match", Arg: "1.1.1"},
 		{Type: "head", Arg: "2"},
 	})
 	require.NoError(t, err)

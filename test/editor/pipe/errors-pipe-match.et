@@ -1,5 +1,5 @@
-# Test: Errors with grep filter
-# VALIDATES: Pipe grep filters error output
+# Test: Errors with match filter
+# VALIDATES: Pipe match filters error output
 # VALIDATES: Can search for specific error messages
 # PREVENTS: Pipe with errors command broken
 
@@ -29,8 +29,8 @@ option=timeout:value=10s
 # Should have validation errors for both peers
 expect=errors:count=2
 
-# Errors with grep for specific peer name
-input=type:text=errors | grep peer1
+# Errors with match for specific peer name
+input=type:text=errors | match peer1
 input=enter
 expect=error:none
 

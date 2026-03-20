@@ -1,5 +1,5 @@
-# Test: Show with grep filter
-# VALIDATES: Pipe grep filters output to matching lines
+# Test: Show with match filter
+# VALIDATES: Pipe match filters output to matching lines
 # VALIDATES: Non-matching content excluded
 
 tmpfs=test.conf:terminator=EOF_CONF
@@ -26,8 +26,8 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Show with grep to filter for specific peer
-input=type:text=show | grep 1.1.1.1
+# Show with match to filter for specific peer
+input=type:text=show | match 1.1.1.1
 input=enter
 expect=viewport:contains=1.1.1.1
 expect=viewport:not-contains=2.2.2.2

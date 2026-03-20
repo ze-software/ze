@@ -604,7 +604,7 @@ func applyPipeFilter(content string, filter PipeFilter) (string, error) {
 	lines := strings.Split(content, "\n")
 
 	switch filter.Type {
-	case cmdGrep:
+	case cmdMatch:
 		var matched []string
 		for _, line := range lines {
 			if strings.Contains(line, filter.Arg) {
