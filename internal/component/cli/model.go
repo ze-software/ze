@@ -406,9 +406,14 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Quit confirmation takes highest priority
 	if m.confirmQuit {
+		pending := m.hasEditor() && m.hasPendingChanges()
 		switch msg.Type { //nolint:exhaustive // only handle specific keys
 		case tea.KeyEsc, tea.KeyCtrlC:
-			// Second Escape or Ctrl-C confirms quit — auto-save snapshot
+			if pending {
+				// Pending changes: Esc alone is not enough, require y
+				break
+			}
+			// No pending changes: second Esc confirms quit
 			m.autoSaveOnQuit()
 			m.quitting = true
 			return m, tea.Quit
@@ -500,11 +505,11 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		if m.hasEditor() && m.hasPendingChanges() {
 			m.confirmQuit = true
-			m.statusMessage = "Pending changes. Use 'commit', 'discard all', or Esc to force quit."
+			m.statusMessage = "Pending changes. Use 'commit', 'discard all', or type y to force quit."
 			return m, nil
 		}
 		m.confirmQuit = true
-		m.statusMessage = "Quit? (y/Esc to confirm, any other key to cancel)"
+		m.statusMessage = "Quit? (Esc/y to confirm, any other key to cancel)"
 		return m, nil
 
 	case tea.KeyTab:
@@ -758,7 +763,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	if input == cmdExit || input == cmdQuit {
 		if m.hasPendingChanges() {
 			m.textInput.SetValue("")
-			m.statusMessage = "Pending changes. Use 'commit', 'discard all', or Esc to force quit."
+			m.statusMessage = "Pending changes. Use 'commit', 'discard all', or type y to force quit."
 			m.confirmQuit = true
 			return m, nil
 		}
