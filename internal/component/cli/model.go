@@ -19,6 +19,7 @@ import (
 var (
 	promptStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("82"))
+	welcomeStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("226"))
 	ghostStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 	dimStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
@@ -268,6 +269,11 @@ func NewModel(ed *Editor) (Model, error) {
 	// Run initial validation
 	result := val.Validate(ed.WorkingContent())
 
+	welcome := "welcome to ze!"
+	if ed.session != nil && ed.session.User != "" {
+		welcome = "welcome to ze, " + ed.session.User + "!"
+	}
+
 	return Model{
 		editor:             ed,
 		completer:          comp,
@@ -282,6 +288,7 @@ func NewModel(ed *Editor) (Model, error) {
 		showHints:          true,
 		mode:               ModeEdit,
 		modeStates:         make(map[EditorMode]modeState),
+		statusMessage:      welcome,
 	}, nil
 }
 

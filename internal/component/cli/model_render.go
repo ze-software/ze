@@ -211,6 +211,9 @@ func (m Model) messageLines() (string, string) {
 
 	// Status message from last command (e.g., "Configuration committed")
 	if m.statusMessage != "" {
+		if strings.HasPrefix(m.statusMessage, "welcome") {
+			return m.idleInfoLine(), welcomeStyle.Render(m.statusMessage)
+		}
 		return successStyle.Render("► " + m.statusMessage), m.idleInfoLine()
 	}
 
