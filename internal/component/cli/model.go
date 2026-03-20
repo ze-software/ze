@@ -697,6 +697,11 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 
 	input := strings.TrimSpace(m.textInput.Value())
 	if input == "" {
+		// Empty Enter refreshes config view when viewport shows non-config content.
+		if m.hasEditor() {
+			m.showConfigContent()
+			m.statusMessage = ""
+		}
 		return m, nil
 	}
 
