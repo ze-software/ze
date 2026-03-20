@@ -120,7 +120,7 @@ type Model struct {
 
 // PipeFilter represents a filter in a pipe chain.
 type PipeFilter struct {
-	Type string // "grep", "head", "tail"
+	Type string // "grep", "head", "tail", "format", "compare"
 	Arg  string // Pattern or count
 }
 
@@ -158,6 +158,33 @@ const (
 	cmdChanges    = "changes"
 	cmdHead       = "head"
 	cmdTail       = "tail"
+	cmdNone       = "none"
+	cmdFormat     = "format"
+	cmdEnable     = "enable"
+	cmdDisable    = "disable"
+)
+
+// Show column names used as DB keys under /meta/show/<column>.
+const (
+	colAuthor  = "author"
+	colDate    = "date"
+	colSource  = "source"
+	colChanges = "changes"
+)
+
+// showColumnNames is the fixed set of valid column names.
+var showColumnNames = []string{colAuthor, colDate, colSource, colChanges}
+
+// Show format names for the | format pipe.
+const (
+	fmtTree   = "tree"
+	fmtConfig = "config"
+)
+
+// Show source names for selecting which version to display.
+const (
+	srcSaved     = "saved"
+	srcConfirmed = "confirmed"
 )
 
 // Load command keywords.

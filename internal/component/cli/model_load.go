@@ -524,23 +524,78 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 }
 
 // cmdShowPipe executes show with pipe filters.
-func (m *Model) cmdShowPipe(_ []string, filters []PipeFilter) (commandResult, error) {
-	content := m.editor.ContentAtPath(m.contextPath)
-	if content == "" {
-		return commandResult{output: "(empty configuration)"}, nil
+// Recognizes show-specific pipes (format, compare) and delegates to cmdShowDisplay,
+// then applies text filters (grep, head, tail) to the result.
+func (m *Model) cmdShowPipe(args []string, filters []PipeFilter) (commandResult, error) {
+	// Extract show-specific pipes (format, compare) from the filter list.
+	// Remaining filters (grep, head, tail) are applied as text transforms.
+	format := fmtTree
+	compareTarget := ""
+	var textFilters []PipeFilter
+
+	for _, f := range filters {
+		if f.Type == cmdFormat {
+			if f.Arg != fmtTree && f.Arg != fmtConfig {
+				return commandResult{}, fmt.Errorf("unknown format: %s (use tree or config)", f.Arg)
+			}
+			format = f.Arg
+			continue
+		}
+		if f.Type == cmdCompare {
+			compareTarget = f.Arg
+			if compareTarget == "" {
+				compareTarget = srcConfirmed
+			}
+			continue
+		}
+		// Text filters (grep, head, tail) -- applied after rendering.
+		textFilters = append(textFilters, f)
 	}
 
-	// Apply pipe filters
-	output := content
-	for _, filter := range filters {
-		var err error
-		output, err = applyPipeFilter(output, filter)
+	// Handle any show args (blame, changes) before pipes.
+	// Capture result rather than returning early so text filters are applied.
+	var result commandResult
+	var err error
+
+	if len(args) > 0 && (args[0] == cmdBlame || args[0] == cmdChanges) {
+		if !m.editor.HasSession() {
+			return commandResult{}, fmt.Errorf("show %s requires an active editing session", args[0])
+		}
+		if args[0] == cmdBlame {
+			result, err = m.cmdShowBlame()
+		} else {
+			result, err = m.cmdShowChanges(args[1:])
+		}
+	} else {
+		// Use cmdShowDisplay for format/compare aware rendering.
+		result, err = m.cmdShowDisplay(format, compareTarget)
+	}
+	if err != nil {
+		return result, err
+	}
+
+	// When no text filters remain, preserve the result as-is so that
+	// configView (with hasOriginal for diff gutter) reaches the Update handler intact.
+	if len(textFilters) == 0 {
+		return result, nil
+	}
+
+	// Apply text filters to the output. This flattens configView into plain text
+	// since grep/head/tail break the line-by-line diff correspondence.
+	output := result.output
+	if output == "" && result.configView != nil {
+		output = result.configView.content
+		result.configView = nil
+	}
+	for _, f := range textFilters {
+		output, err = applyPipeFilter(output, f)
 		if err != nil {
 			return commandResult{}, err
 		}
 	}
+	result.output = output
 
-	return commandResult{output: output}, nil
+	return result, nil
 }
 
 // applyPipeFilter applies a single pipe filter to content.

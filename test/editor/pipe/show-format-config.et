@@ -1,0 +1,29 @@
+# Test: Show with format config pipe
+# VALIDATES: AC-6 -- show | format config displays flat set-command format
+# PREVENTS: Format pipe ignored or producing tree format
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local {
+  	as 65000
+  }
+  peer peer1 {
+  	remote {
+  		ip 1.1.1.1
+  		as 65001;
+  	}
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Show with format config pipe - should show flat set commands
+input=type:text=show | format config
+input=enter
+expect=viewport:contains=set bgp router-id 1.2.3.4
+expect=viewport:contains=set bgp local as 65000
+expect=viewport:not-contains=bgp {
+expect=error:none

@@ -1,0 +1,40 @@
+# Test: Show column toggle (enable/disable)
+# VALIDATES: AC-2 -- show author enable writes preference, confirms with status message
+# VALIDATES: AC-3 -- show with author column enabled prepends username
+# VALIDATES: AC-5 -- show none disables all columns
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local {
+  	as 65000
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Enable author column
+input=type:text=show author enable
+input=enter
+expect=status:contains=author column enabled
+expect=error:none
+
+# Query author column state
+input=type:text=show author
+input=enter
+expect=viewport:contains=author: enabled
+expect=error:none
+
+# Disable author column
+input=type:text=show author disable
+input=enter
+expect=status:contains=author column disabled
+expect=error:none
+
+# Verify disabled state
+input=type:text=show author
+input=enter
+expect=viewport:contains=author: disabled
+expect=error:none

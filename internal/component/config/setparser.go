@@ -441,6 +441,17 @@ func (p *SetParser) ParseWithMeta(input string) (*Tree, *MetaTree, error) {
 	return tree, meta, scanner.Err()
 }
 
+// maxMetaFieldLen caps metadata field values from change files to prevent abuse.
+const maxMetaFieldLen = 256
+
+// capMetaField truncates a metadata field value to maxMetaFieldLen bytes.
+func capMetaField(s string) string {
+	if len(s) > maxMetaFieldLen {
+		return s[:maxMetaFieldLen]
+	}
+	return s
+}
+
 // extractMeta consumes metadata tokens from the beginning of a line.
 // Returns the MetaEntry and the remaining command string.
 func extractMeta(line string) (MetaEntry, string) {
@@ -449,26 +460,26 @@ func extractMeta(line string) (MetaEntry, string) {
 
 	for remaining != "" {
 		if remaining[0] == '#' && len(remaining) > 1 && remaining[1] != ' ' {
-			// User metadata: #user
+			// User metadata: #user (capped at 256 bytes to prevent abuse)
 			end := strings.IndexByte(remaining, ' ')
 			if end == -1 {
-				entry.User = remaining[1:]
+				entry.User = capMetaField(remaining[1:])
 				remaining = ""
 			} else {
-				entry.User = remaining[1:end]
+				entry.User = capMetaField(remaining[1:end])
 				remaining = strings.TrimSpace(remaining[end+1:])
 			}
 			continue
 		}
 
 		if remaining[0] == '@' {
-			// Source metadata: @origin (e.g., "local", "192.168.1.5")
+			// Source metadata: @origin (e.g., "local", "192.168.1.5") (capped at 256 bytes)
 			end := strings.IndexByte(remaining, ' ')
 			if end == -1 {
-				entry.Source = remaining[1:]
+				entry.Source = capMetaField(remaining[1:])
 				remaining = ""
 			} else {
-				entry.Source = remaining[1:end]
+				entry.Source = capMetaField(remaining[1:end])
 				remaining = strings.TrimSpace(remaining[end+1:])
 			}
 			continue
@@ -517,7 +528,7 @@ func extractMeta(line string) (MetaEntry, string) {
 					prev.WriteByte(remaining[i])
 					i++
 				}
-				entry.Previous = prev.String()
+				entry.Previous = capMetaField(prev.String())
 				if i < len(remaining) {
 					remaining = strings.TrimSpace(remaining[i+1:])
 				} else {
@@ -527,10 +538,10 @@ func extractMeta(line string) (MetaEntry, string) {
 				// Unquoted: ^value
 				end := strings.IndexByte(remaining, ' ')
 				if end == -1 {
-					entry.Previous = remaining[1:]
+					entry.Previous = capMetaField(remaining[1:])
 					remaining = ""
 				} else {
-					entry.Previous = remaining[1:end]
+					entry.Previous = capMetaField(remaining[1:end])
 					remaining = strings.TrimSpace(remaining[end+1:])
 				}
 			}

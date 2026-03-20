@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md — config editor
+// Detail: model_commands_show.go — show command display, column toggles, compare
 
 package cli
 
@@ -230,34 +231,6 @@ func (m *Model) showConfigContent() {
 		return
 	}
 	m.setViewportData(*m.configViewAtPath(m.contextPath))
-}
-
-func (m *Model) cmdShow(args []string) (commandResult, error) {
-	if m.editor == nil {
-		return commandResult{}, fmt.Errorf("command %q requires edit mode (no config file loaded)", cmdShow)
-	}
-
-	if len(args) > 0 {
-		// show set works without a session (exportable format, no metadata).
-		if args[0] == cmdSet {
-			return m.cmdShowSet()
-		}
-		// show blame and show changes require an active session.
-		if args[0] == cmdBlame || args[0] == cmdChanges {
-			if !m.editor.HasSession() {
-				return commandResult{}, fmt.Errorf("show %s requires an active editing session", args[0])
-			}
-			if args[0] == cmdBlame {
-				return m.cmdShowBlame()
-			}
-			return m.cmdShowChanges(args[1:])
-		}
-	}
-
-	if m.editor.ContentAtPath(m.contextPath) == "" {
-		return commandResult{output: "(empty configuration)"}, nil
-	}
-	return commandResult{configView: m.configViewAtPath(m.contextPath)}, nil
 }
 
 func (m *Model) cmdHistory() (commandResult, error) {

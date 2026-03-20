@@ -1,5 +1,6 @@
 // Design: docs/architecture/config/syntax.md — config parsing and loading
 // Related: tree.go — Tree data structure
+// Related: serialize_annotated.go — column-aware annotated serialization
 
 package config
 

@@ -275,6 +275,11 @@ var showSubcommands = []Completion{
 	{Text: cmdSet, Description: "Flat set commands (exportable)", Type: "keyword"},
 	{Text: cmdBlame, Description: "Annotated tree view with authorship", Type: "keyword"},
 	{Text: cmdChanges, Description: "Pending changes (mine or all)", Type: "keyword"},
+	{Text: colAuthor, Description: "Toggle author column (enable/disable)", Type: "keyword"},
+	{Text: colDate, Description: "Toggle date column (enable/disable)", Type: "keyword"},
+	{Text: colSource, Description: "Toggle source column (enable/disable)", Type: "keyword"},
+	{Text: cmdAll, Description: "Enable all display columns", Type: "keyword"},
+	{Text: cmdNone, Description: "Disable all display columns", Type: "keyword"},
 }
 
 // completeShowPath completes paths for show command.
@@ -290,9 +295,21 @@ func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace
 		return results
 	}
 
-	// "show changes " -> offer "all" subcommand.
+	// "show changes " -> offer "all" subcommand and enable/disable.
 	if len(tokens) == 1 && tokens[0] == cmdChanges && endsWithSpace {
-		return []Completion{{Text: cmdAll, Description: "All sessions' pending changes", Type: "keyword"}}
+		return []Completion{
+			{Text: cmdAll, Description: "All sessions' pending changes", Type: "keyword"},
+			{Text: cmdEnable, Description: "Enable changes column", Type: "keyword"},
+			{Text: cmdDisable, Description: "Disable changes column", Type: "keyword"},
+		}
+	}
+
+	// "show <column> " -> offer enable/disable.
+	if len(tokens) == 1 && endsWithSpace && isShowColumn(tokens[0]) {
+		return []Completion{
+			{Text: cmdEnable, Description: "Enable column", Type: "keyword"},
+			{Text: cmdDisable, Description: "Disable column", Type: "keyword"},
+		}
 	}
 
 	if len(tokens) == 1 && endsWithSpace {

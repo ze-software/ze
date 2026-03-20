@@ -502,6 +502,11 @@ func (m Model) renderHelpOverlay(base string) string {
   top                  Return to root context
   up                   Go up one level
   show                 Display configuration (scrollable)
+  show <col> enable    Enable display column (author/date/source/changes)
+  show <col> disable   Disable display column
+  show all / none      Enable/disable all columns
+  show | format config Display as set commands
+  show | compare       Diff against committed config
   compare              Show diff vs original
   commit               Save changes with backup
   commit confirmed <N> Save with auto-revert after N seconds

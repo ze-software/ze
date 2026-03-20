@@ -1,5 +1,6 @@
 // Design: docs/architecture/config/yang-config-design.md — session identity for concurrent editing
 // Related: editor.go — config editor (uses EditSession for write-through)
+// Related: editor_annotated.go — annotated view and show column preferences
 
 package cli
 

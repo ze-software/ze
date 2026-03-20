@@ -1,0 +1,38 @@
+# Test: Show all / show none bulk column toggles
+# VALIDATES: AC-4 -- show all enables all four columns
+# VALIDATES: AC-5 -- show none disables all four columns
+# PREVENTS: Bulk toggle missing a column
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local {
+  	as 65000
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Enable all columns
+input=type:text=show all
+input=enter
+expect=status:contains=All columns enabled
+expect=error:none
+
+# Verify author is now enabled
+input=type:text=show author
+input=enter
+expect=viewport:contains=author: enabled
+
+# Disable all columns
+input=type:text=show none
+input=enter
+expect=status:contains=All columns disabled
+expect=error:none
+
+# Verify author is now disabled
+input=type:text=show author
+input=enter
+expect=viewport:contains=author: disabled

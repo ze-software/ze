@@ -1,6 +1,7 @@
 // Design: docs/architecture/config/yang-config-design.md — config editor
 // Detail: editor_draft.go — write-through draft protocol (sub-hub for commit/walk)
 // Detail: editor_session.go — session identity for concurrent editing
+// Detail: editor_annotated.go — annotated view and show column preferences
 //
 // Package editor provides an interactive configuration editor.
 package cli
@@ -45,6 +46,7 @@ type Editor struct {
 	draftMtime      time.Time        // Last known draft file mtime (for polling)
 	onReload        ReloadNotifier   // Optional: called after successful save
 	onArchive       archive.Notifier // Optional: called after successful save to archive config
+	showColumns     map[string]bool  // In-memory show column preferences (sticky per session)
 }
 
 // BackupInfo describes a backup file.

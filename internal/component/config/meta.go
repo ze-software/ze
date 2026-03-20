@@ -1,6 +1,7 @@
 // Design: docs/architecture/config/syntax.md — metadata tracking for concurrent config editing
 // Related: serialize_set.go — set-format serialization (emits metadata prefixes)
 // Related: tree.go — Tree data structure (MetaTree mirrors its navigation)
+// Related: serialize_annotated.go — column-aware annotated serialization
 
 package config
 

@@ -2,6 +2,7 @@
 // Overview: serialize_set.go — set-format serialization (shares helpers)
 // Related: meta.go — MetaTree for metadata-aware serialization
 // Related: serialize.go — hierarchical text serialization
+// Related: serialize_annotated.go — column-aware annotated serialization
 
 package config
 
@@ -28,10 +29,7 @@ func computeBlameMarker(e MetaEntry) rune {
 // writeMetaEntryGutter writes the full blame gutter for a MetaEntry.
 // Username is truncated to blameUserWidth to keep the gutter fixed-width.
 func writeMetaEntryGutter(b *strings.Builder, e MetaEntry) {
-	user := e.User
-	if len(user) > blameUserWidth {
-		user = user[:blameUserWidth]
-	}
+	user := truncateRunes(sanitizePrintable(e.User), blameUserWidth)
 	date := e.Time.Format("01-02")
 	timeStr := e.Time.Format("15:04")
 	marker := computeBlameMarker(e)

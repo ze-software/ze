@@ -1,0 +1,31 @@
+# Test: Show defaults to hierarchical tree format
+# VALIDATES: AC-1 -- show with no columns displays bare hierarchical tree
+# VALIDATES: AC-22 -- show (no source) equivalent to show edit
+# PREVENTS: show returning set+meta format when session active
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local {
+  	as 65000
+  }
+  peer peer1 {
+  	remote {
+  		ip 1.1.1.1
+  		as 65001;
+  	}
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# Default show displays hierarchical tree
+input=type:text=show
+input=enter
+expect=viewport:contains=bgp {
+expect=viewport:contains=router-id 1.2.3.4
+expect=viewport:contains=peer peer1 {
+expect=viewport:not-contains=set bgp
+expect=error:none

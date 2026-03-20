@@ -3,6 +3,7 @@
 // Related: serialize.go — hierarchical text serialization
 // Related: setparser.go — set-format parsing (inverse of this file)
 // Related: meta.go — MetaTree for metadata-aware serialization
+// Related: serialize_annotated.go — column-aware annotated serialization
 
 package config
 
