@@ -11,7 +11,7 @@ A netcapstring is a self-describing, capacity-aware binary frame. It encodes a b
 With padding (cap > used):
 
 ```
-<number>:<cap>:<used>\n<data>,<space padding>\n
+<number>:<cap>:<used>\n<data><space padding>\n
 ```
 
 Exact fit (cap == used):
@@ -20,7 +20,7 @@ Exact fit (cap == used):
 <number>:<cap>:<used>\n<data>\n
 ```
 
-The header separators are `:` (between number, cap, and used) and `\n` (after used). The header occupies its own line, making it easy to inspect with text tools. Within the data region, `,` marks end of data, followed by space padding. `\n` closes the capacity region. When cap == used, `,` and `\n` would share the same position -- `\n` wins, so `,` is not written.
+The header separators are `:` (between number, cap, and used) and `\n` (after used). The header occupies its own line, making it easy to inspect with text tools. Unused capacity is space-filled. `\n` terminates both the header and the data region.
 
 | Field | Content | Size (bytes) |
 |-------|---------|-------------|
@@ -31,9 +31,8 @@ The header separators are `:` (between number, cap, and used) and `\n` (after us
 | `<used>` | Used bytes (decimal ASCII, zero-padded to `<number>` digits) | `<number>` |
 | `\n` | Header terminator (0x0A) | 1 |
 | `<data>` | Actual content | `<used>` |
-| `,` | Data-end marker | 1 (only when `<cap>` > `<used>`) |
-| `<padding>` | Space bytes | `<cap>` - `<used>` - 1 (or 0 when `<cap>` == `<used>`) |
-| `\n` or `,` | Terminator (`\n` wins when both share the position) | 1 |
+| `<padding>` | Space bytes (0x20) | `<cap>` - `<used>` |
+| `\n` | Terminator (0x0A), or `,` (0x2C) for containers | 1 |
 
 ### Properties
 
@@ -45,10 +44,10 @@ The header separators are `:` (between number, cap, and used) and `\n` (after us
 
 | Data | Cap | On disk |
 |------|-----|---------|
-| "hello" (5 bytes), cap 16 | 16 | `2:16:05\nhello,<10 spaces>\n` |
-| empty, cap 8 | 8 | `1:8:0\n,<7 spaces>\n` |
+| "hello" (5 bytes), cap 16 | 16 | `2:16:05\nhello<11 spaces>\n` |
+| empty, cap 8 | 8 | `1:8:0\n<8 spaces>\n` |
 | "abcd" (4 bytes), cap 4 | 4 | `1:4:4\nabcd\n` |
-| "x" (1 byte), cap 100 | 100 | `3:100:001\nx,<98 spaces>\n` |
+| "x" (1 byte), cap 100 | 100 | `3:100:001\nx<99 spaces>\n` |
 
 ### Header length
 
@@ -73,8 +72,8 @@ Keys are exact fit (keys never change). Data capacity is data length + 10%, both
 4. Read N bytes for `<used>` (parse as integer)
 5. Read `\n` (verify header terminator)
 6. Read `<used>` bytes of data
-7. Skip `<cap>` - `<used>` bytes of padding (contains `,` data-end marker then spaces)
-8. Read `,` or `\n` (verify terminator; `\n` wins when both share a position)
+7. Skip `<cap>` - `<used>` bytes of space padding
+8. Read `\n` (verify terminator; `,` for containers)
 9. Next entry starts at the byte after the terminator
 
 ## ZeFS File

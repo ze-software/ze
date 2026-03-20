@@ -21,20 +21,20 @@ func TestNetcapstringEncode(t *testing.T) {
 			data:     []byte("hello"),
 			capacity: 16,
 			// number=2, header=2:16:05\n
-			want: "2:16:05\nhello,          \n",
+			want: "2:16:05\nhello           \n",
 		},
 		{
 			name:     "empty data",
 			data:     []byte{},
 			capacity: 8,
-			// number=1, header=1:8:0\n -- comma marks data end, then spaces
-			want: "1:8:0\n,       \n",
+			// number=1, header=1:8:0\n -- space-filled padding
+			want: "1:8:0\n        \n",
 		},
 		{
 			name:     "data fills capacity exactly",
 			data:     []byte("abcd"),
 			capacity: 4,
-			// number=1, header=1:4:4\n -- no padding, \n wins over ,
+			// number=1, header=1:4:4\n -- no padding
 			want: "1:4:4\nabcd\n",
 		},
 		{
@@ -42,7 +42,7 @@ func TestNetcapstringEncode(t *testing.T) {
 			data:     []byte("x"),
 			capacity: 100,
 			// number=3, header=3:100:001\n
-			want: "3:100:001\nx," + strings.Repeat(" ", 98) + "\n",
+			want: "3:100:001\nx" + strings.Repeat(" ", 99) + "\n",
 		},
 	}
 	for _, tt := range tests {
@@ -72,21 +72,21 @@ func TestNetcapstringDecode(t *testing.T) {
 	}{
 		{
 			name:     "simple with newline terminator",
-			input:    []byte("2:16:05\nhello,          \n"),
+			input:    []byte("2:16:05\nhello           \n"),
 			wantData: []byte("hello"),
 			wantCap:  16,
 			wantNext: netcapstringTotalLen(16),
 		},
 		{
 			name:     "simple with comma terminator",
-			input:    []byte("2:16:05\nhello,          ,"),
+			input:    []byte("2:16:05\nhello           ,"),
 			wantData: []byte("hello"),
 			wantCap:  16,
 			wantNext: netcapstringTotalLen(16),
 		},
 		{
 			name:     "empty data",
-			input:    []byte("1:8:0\n,       \n"),
+			input:    []byte("1:8:0\n        \n"),
 			wantData: []byte{},
 			wantCap:  8,
 			wantNext: netcapstringTotalLen(8),
@@ -660,13 +660,10 @@ func TestWriteNetcapstringSpacePadding(t *testing.T) {
 		t.Errorf("data: got %q, want %q", data, "hi")
 	}
 
-	// Verify padding: ',' after data, spaces, '\n' terminator
+	// Verify padding: spaces after data, '\n' terminator
 	hdrLen := netcapstringHeaderLen(capacity)
 	dataEnd := hdrLen + 2 // "hi" = 2 bytes
-	if buf[dataEnd] != ',' {
-		t.Errorf("data-end marker byte %d is 0x%02X, want 0x2C (',')", dataEnd, buf[dataEnd])
-	}
-	for i := dataEnd + 1; i < total-1; i++ {
+	for i := dataEnd; i < total-1; i++ {
 		if buf[i] != ' ' {
 			t.Errorf("padding byte %d is 0x%02X, want 0x20 (space)", i, buf[i])
 			break
@@ -1023,7 +1020,7 @@ func TestDecodeNetcapstringRefEmptyBuffer(t *testing.T) {
 // PREVENTS: index out of range when offset equals length
 
 func TestDecodeNetcapstringRefOffsetAtEnd(t *testing.T) {
-	buf := []byte("1:8:3\nabc,    \n")
+	buf := []byte("1:8:3\nabc     \n")
 	_, _, _, err := decodeNetcapstringRef(buf, len(buf))
 	if err == nil {
 		t.Error("expected error for offset at end of buffer")

@@ -34,10 +34,8 @@ func writeNetcapstringHeader(buf []byte, off, capacity, dataLen int) int {
 }
 
 // writeNetcapstring writes a complete netcapstring into buf at off.
-// Format: <number>:<cap>:<used>\n<data>,<space-padding>\n
-// The ',' immediately follows the data (data-end marker, djb convention).
-// Remaining padding is space-filled. Trailing '\n' is the section terminator
-// (newline wins over comma when both would occupy the same position).
+// Format: <number>:<cap>:<used>\n<data><space-padding>\n
+// Padding is space-filled. Trailing '\n' is the section terminator.
 // The container's terminator is overwritten to ',' by the caller.
 // Caller must ensure buf has sufficient space.
 func writeNetcapstring(buf []byte, off int, data []byte, capacity int) int {
@@ -45,17 +43,14 @@ func writeNetcapstring(buf []byte, off int, data []byte, capacity int) int {
 	off += writeNetcapstringHeader(buf, off, capacity, len(data))
 	off += copy(buf[off:], data)
 
-	// Data-end marker ',' then space-fill remaining padding.
+	// Space-fill remaining padding.
 	padding := capacity - len(data)
-	if padding > 0 {
-		buf[off] = ','
-		for i := 1; i < padding; i++ {
-			buf[off+i] = ' '
-		}
+	for i := range padding {
+		buf[off+i] = ' '
 	}
 	off += padding
 
-	buf[off] = '\n' // section terminator (newline wins over comma)
+	buf[off] = '\n' // section terminator
 	off++
 
 	return off - start
@@ -162,10 +157,10 @@ func decodeNetcapstringRef(buf []byte, off int) (data []byte, capacity, next int
 		return nil, 0, 0, fmt.Errorf("zefs: truncated data at offset %d: need %d, have %d", start, cap_+1, len(buf)-off)
 	}
 
-	// Expect trailing ',' or '\n' (newline wins when both occupy the same position)
+	// Expect trailing '\n' (or ',' for containers)
 	endOff := off + cap_
-	if buf[endOff] != ',' && buf[endOff] != '\n' {
-		return nil, 0, 0, fmt.Errorf("zefs: expected trailing ',' or '\\n' at offset %d, got 0x%02X", endOff, buf[endOff])
+	if buf[endOff] != '\n' && buf[endOff] != ',' {
+		return nil, 0, 0, fmt.Errorf("zefs: expected trailing '\\n' at offset %d, got 0x%02X", endOff, buf[endOff])
 	}
 
 	// Zero-copy: return sub-slice with capped length to prevent access to padding
