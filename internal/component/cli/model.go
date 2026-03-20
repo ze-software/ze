@@ -349,9 +349,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.runValidation()
 				}
 			}
-			if m.editor.WorkingContent() != "" {
-				m.showConfigContent()
-			}
+			m.showConfigContent()
 		}
 		return m, nil
 
