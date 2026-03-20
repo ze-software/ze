@@ -218,7 +218,11 @@ func (m Model) messageLines() (string, string) {
 			}
 			return m.idleInfoLine(), welcomeStyle.Render(m.statusMessage)
 		}
-		return successStyle.Render("► " + m.statusMessage), m.idleInfoLine()
+		style := successStyle
+		if strings.HasPrefix(m.statusMessage, "commit blocked") {
+			style = errorStyle
+		}
+		return style.Render("► " + m.statusMessage), m.idleInfoLine()
 	}
 
 	// Idle: show header info + validation status

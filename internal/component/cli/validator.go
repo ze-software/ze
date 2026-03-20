@@ -203,9 +203,10 @@ func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) ([
 	yangErrs := v.yangValidator.ValidateTree("bgp", bgpMap)
 	for i := range yangErrs {
 		field := yangLeafName(yangErrs[i].Path)
+		setPath := strings.ReplaceAll(yangErrs[i].Path, ".", " ")
 		var msg string
 		if yangErrs[i].Type == yang.ErrTypeMissing {
-			msg = fmt.Sprintf("missing required field %q", field)
+			msg = fmt.Sprintf("missing required field %q (set %s <value>)", field, setPath)
 		} else {
 			msg = fmt.Sprintf("%s: %s", field, yangErrs[i].Message)
 		}
@@ -268,7 +269,7 @@ func (v *ConfigValidator) validatePeer(peerAddr string, peerTree, groupTree *con
 	if !hasRemoteAS {
 		*warns = append(*warns, ConfigValidationError{
 			Line:     findPeerLine(lines, peerAddr),
-			Message:  fmt.Sprintf("peer %s: missing required field \"remote as\"", peerAddr),
+			Message:  fmt.Sprintf("peer %s: missing required field \"remote as\" (set bgp peer %s remote as <value>)", peerAddr, peerAddr),
 			Severity: severityWarning,
 		})
 	}
@@ -362,7 +363,9 @@ func yangLeafName(path string) string {
 // formatPeerError formats a YANG validation error for a peer with clear, non-redundant messaging.
 func formatPeerError(peerAddr, field string, yerr yang.ValidationError) string {
 	if yerr.Type == yang.ErrTypeMissing {
-		return fmt.Sprintf("peer %s: missing required field %q", peerAddr, field)
+		setPath := strings.ReplaceAll(yerr.Path, ".", " ")
+		setPath = strings.Replace(setPath, "bgp peer", "bgp peer "+peerAddr, 1)
+		return fmt.Sprintf("peer %s: missing required field %q (set %s <value>)", peerAddr, field, setPath)
 	}
 	if yerr.Type == yang.ErrTypeEnum {
 		if yerr.Expected != "" {
