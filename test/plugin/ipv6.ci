@@ -37,7 +37,7 @@ def main() -> None:
 
     for message in messages:
         send(message)
-        time.sleep(0.2)
+        time.sleep(0.5)
 
     wait_for_ack(expected_count=2)
     wait_for_shutdown()

@@ -42,6 +42,18 @@ type peerConfig struct {
 	connection reactor.ConnectionMode
 }
 
+// cleanupReactors stops both reactors and waits for full cleanup.
+// This prevents port reuse races between tests.
+func cleanupReactors(t *testing.T, r1, r2 *reactor.Reactor) {
+	t.Helper()
+	r1.Stop()
+	r2.Stop()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_ = r1.Wait(ctx)
+	_ = r2.Wait(ctx)
+}
+
 // setupPeers creates two reactors with configured neighbors.
 func setupPeers(t *testing.T, ctx context.Context, cfg1, cfg2 peerConfig) (*reactor.Reactor, *reactor.Reactor) {
 	t.Helper()
@@ -133,8 +145,7 @@ func TestSessionEstablishment(t *testing.T) {
 		peerConfig{localAS: 65001, peerAS: 65002, routerID: 0x01010101, connection: reactor.ConnectionBoth},
 		peerConfig{localAS: 65002, peerAS: 65001, routerID: 0x02020202, connection: reactor.ConnectionPassive},
 	)
-	defer r1.Stop()
-	defer r2.Stop()
+	defer cleanupReactors(t, r1, r2)
 
 	if !waitForEstablished(ctx, t, r1) {
 		t.Fatal("peer 1 did not reach Established state")
@@ -169,8 +180,7 @@ func TestSessionIBGP(t *testing.T) {
 		peerConfig{localAS: 65001, peerAS: 65001, routerID: 0x01010101, connection: reactor.ConnectionBoth},
 		peerConfig{localAS: 65001, peerAS: 65001, routerID: 0x02020202, connection: reactor.ConnectionPassive},
 	)
-	defer r1.Stop()
-	defer r2.Stop()
+	defer cleanupReactors(t, r1, r2)
 
 	if !waitForEstablished(ctx, t, r1) {
 		t.Fatal("iBGP session not established")
@@ -191,8 +201,7 @@ func TestSession4ByteAS(t *testing.T) {
 		peerConfig{localAS: 4200000001, peerAS: 4200000002, routerID: 0x01010101, connection: reactor.ConnectionBoth},
 		peerConfig{localAS: 4200000002, peerAS: 4200000001, routerID: 0x02020202, connection: reactor.ConnectionPassive},
 	)
-	defer r1.Stop()
-	defer r2.Stop()
+	defer cleanupReactors(t, r1, r2)
 
 	if !waitForEstablished(ctx, t, r1) {
 		t.Fatal("4-byte AS session not established")
@@ -255,7 +264,7 @@ func TestSessionReconnect(t *testing.T) {
 	if err := r1.StartWithContext(ctx); err != nil {
 		t.Fatalf("start r1: %v", err)
 	}
-	defer r1.Stop()
+	defer cleanupReactors(t, r1, r2)
 
 	// Wait a bit, then start r2 (r1 should reconnect).
 	time.Sleep(500 * time.Millisecond)
@@ -263,7 +272,6 @@ func TestSessionReconnect(t *testing.T) {
 	if err := r2.StartWithContext(ctx); err != nil {
 		t.Fatalf("start r2: %v", err)
 	}
-	defer r2.Stop()
 
 	// Should establish after reconnect.
 	if !waitForEstablished(ctx, t, r1) {

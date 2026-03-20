@@ -314,8 +314,9 @@ func (c *Completer) completeShowPath(tokens, contextPath []string, endsWithSpace
 		if len(tokens) == 1 {
 			prefix = tokens[0]
 		}
-		// Offer subcommands and pipe.
+		// Offer subcommands, schema children (peer, rib, etc.), and pipe.
 		completions := filterCompletions(showSubcommands, prefix)
+		completions = append(completions, c.matchEditTargets(contextPath, prefix)...)
 		if prefix == "" || prefix == "|" {
 			completions = append(completions, Completion{Text: "|", Description: "Pipe output through filters", Type: "keyword"})
 		}
