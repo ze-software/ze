@@ -442,10 +442,16 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath string) int {
 	// Auto-load draft if it exists.
 	draftPath := cli.DraftPath(configPath)
 	if store.Exists(draftPath) {
+		// Load draft first so ActiveSessions can see draft sessions.
+		if !ed.LoadDraft() {
+			fmt.Fprintf(os.Stderr, "warning: draft file exists but could not be loaded\n") //nolint:errcheck // terminal output
+		}
+
 		// Draft exists: check for same-user orphaned sessions.
-		// Match on "user@origin:" to avoid "thomas@" matching "thomasmore@".
+		// Match on "user@origin%" -- the % is the delimiter before the timestamp
+		// in session IDs (format: "user@origin%RFC3339time").
 		activeSessions := ed.ActiveSessions()
-		myPrefix := session.UserAtOrigin() + ":"
+		myPrefix := session.UserAtOrigin() + "%"
 		stdinScanner := bufio.NewScanner(os.Stdin)
 		for _, sid := range activeSessions {
 			if !strings.HasPrefix(sid, myPrefix) || sid == session.ID {
@@ -483,9 +489,6 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath string) int {
 				fmt.Fprintf(os.Stderr, "  %s\n", sid) //nolint:errcheck // terminal output
 			}
 		}
-
-		// Load draft content into editor so previously saved work is visible.
-		ed.LoadDraft()
 	} else if ed.HasPendingEdit() {
 		// Legacy pending edit file (pre-session format).
 		switch ed.PromptPendingEdit() {

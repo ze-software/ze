@@ -16,12 +16,12 @@ import (
 type EditSession struct {
 	User      string    // User identifier (e.g., "thomas")
 	Origin    string    // Origin: "local" for terminal, "ssh" for SSH sessions
-	ID        string    // Full session ID matching MetaEntry.SessionKey(): "user@origin:RFC3339time"
+	ID        string    // Full session ID matching MetaEntry.SessionKey(): "user@origin%RFC3339time"
 	StartTime time.Time // When the session was created
 }
 
 // NewEditSession creates a new editing session with the given user and origin.
-// The session ID matches MetaEntry.SessionKey() format: "user@origin:RFC3339time".
+// The session ID matches MetaEntry.SessionKey() format: "user@origin%RFC3339time".
 // The user is sanitized via filepath.Base to prevent path traversal.
 // Callers should validate user with ValidateUser at input boundaries.
 func NewEditSession(user, origin string) *EditSession {
