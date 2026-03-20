@@ -3,8 +3,8 @@
 
 FROM golang:1.23-alpine AS builder
 
-RUN go install github.com/osrg/gobgp/v3/cmd/gobgpd@latest && \
-    go install github.com/osrg/gobgp/v3/cmd/gobgp@latest
+RUN go install github.com/osrg/gobgp/v3/cmd/gobgpd@v3.31.0 && \
+    go install github.com/osrg/gobgp/v3/cmd/gobgp@v3.31.0
 
 FROM alpine:3.21
 

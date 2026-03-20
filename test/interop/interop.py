@@ -406,12 +406,27 @@ class GoBGP:
         print(docker_logs(ZE_CONTAINER, 20))
         raise AssertionError("GoBGP session with %s not Established" % neighbor)
 
-    def has_route(self, prefix, family="ipv4 unicast"):
-        """Check if prefix exists in GoBGP's RIB."""
-        # gobgp global rib -a ipv4 <prefix>
+    def route_json(self, prefix, family="ipv4 unicast"):
+        """Get route info as parsed JSON from gobgp."""
         afi = family.split("/")[0] if "/" in family else family.split()[0]
-        output = self._gobgp_quiet(["global", "rib", "-a", afi, prefix])
-        return prefix in output
+        data = self._gobgp_json(["global", "rib", "-a", afi, prefix])
+        return data
+
+    def has_route(self, prefix, family="ipv4 unicast"):
+        """Check if prefix exists in GoBGP's RIB via JSON."""
+        afi = family.split("/")[0] if "/" in family else family.split()[0]
+        data = self._gobgp_json(["global", "rib", "-a", afi, prefix])
+        if not data:
+            return False
+        # GoBGP JSON returns a list of destinations. Check if any match the prefix.
+        if isinstance(data, list):
+            for dest in data:
+                paths = dest.get("paths", [])
+                if paths:
+                    return True
+            return False
+        # Fallback: non-empty dict means something was found.
+        return bool(data)
 
     def check_route(self, prefix, family="ipv4 unicast"):
         """Assert route exists in GoBGP's RIB."""
@@ -437,8 +452,10 @@ class GoBGP:
         return "established" in output.lower()
 
     def inject_route(self, prefix, nexthop="172.30.0.5"):
-        """Inject a route into GoBGP's global RIB."""
-        self._gobgp_quiet(["global", "rib", "add", prefix, "-a", "ipv4", "nexthop", nexthop])
+        """Inject a route into GoBGP's global RIB. Raises on failure."""
+        docker_exec(self.container, [
+            "gobgp", "global", "rib", "add", prefix, "-a", "ipv4", "nexthop", nexthop,
+        ])
 
 
 # --- Ze helpers --------------------------------------------------------------
