@@ -107,6 +107,7 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 	metaTarget.SetEntry(key, entry)
 
 	e.dirty.Store(true)
+	e.draftSaved = false // New edit after save means unsaved changes
 	return nil
 }
 
@@ -169,6 +170,7 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 	metaTarget.SetEntry(key, entry)
 
 	e.dirty.Store(true)
+	e.draftSaved = false // New edit after save means unsaved changes
 	return nil
 }
 
@@ -264,6 +266,7 @@ func (e *Editor) SaveDraft() error {
 	e.tree = baseTree
 	e.meta = baseMeta
 	e.draftMtime = time.Now()
+	e.draftSaved = true
 	return nil
 }
 
@@ -344,20 +347,22 @@ func (e *Editor) DetectConflicts() []Conflict {
 
 // readDraftOrConfig reads and parses the draft file, falling back to config.conf.
 // Returns the parsed tree and metadata. Uses guard for I/O (called within locked sections).
+// If the draft exists but cannot be parsed (corrupt, outdated schema), falls back to
+// the committed config so that save is never blocked by a bad draft.
 func (e *Editor) readDraftOrConfig(guard storage.WriteGuard, draftPath string) (*config.Tree, *config.MetaTree, error) {
 	parser := config.NewSetParser(e.schema)
 
 	data, err := guard.ReadFile(draftPath)
 	if err == nil {
 		tree, meta, parseErr := parser.ParseWithMeta(string(data))
-		if parseErr != nil {
-			return nil, nil, fmt.Errorf("parse draft: %w", parseErr)
+		if parseErr == nil {
+			return tree, meta, nil
 		}
-		return tree, meta, nil
+		// Draft exists but cannot be parsed (corrupt or schema mismatch).
+		// Fall through to committed config so save is not blocked.
 	}
 
-	// No draft exists: clone the in-memory tree (already parsed from any format)
-	// and start with empty metadata.
+	// No draft or unparseable draft: clone the in-memory tree and start with empty metadata.
 	return e.tree.Clone(), config.NewMetaTree(), nil
 }
 

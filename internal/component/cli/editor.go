@@ -48,6 +48,7 @@ type Editor struct {
 	onArchive       archive.Notifier // Optional: called after successful save to archive config
 	showColumns     map[string]bool  // In-memory show column preferences (sticky per session)
 	diffGutter      bool             // Whether diff gutter (+/-) markers are shown (default true)
+	draftSaved      bool             // True when changes have been persisted to draft (reset on new edits)
 }
 
 // BackupInfo describes a backup file.
@@ -679,6 +680,9 @@ func (e *Editor) HasSession() bool {
 func (e *Editor) HasPendingSessionChanges() bool {
 	if e.session == nil || e.meta == nil {
 		return false
+	}
+	if e.draftSaved {
+		return false // Changes persisted to draft, safe to exit
 	}
 	return len(e.meta.SessionEntries(e.session.ID)) > 0
 }
