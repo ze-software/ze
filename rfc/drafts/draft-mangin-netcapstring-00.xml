@@ -109,19 +109,22 @@
      for future growth.  The general format is:</t>
 
         <artwork type="ascii-art"><![CDATA[
-  <number>:<cap>:<used>:<data>,<padding>\n
+  <number>:<cap>:<used>\n<data>,<padding>\n
 ]]></artwork>
 
         <t>When the data fills the capacity exactly (cap equals used),
      the comma and padding are absent:</t>
 
         <artwork type="ascii-art"><![CDATA[
-  <number>:<cap>:<used>:<data>\n
+  <number>:<cap>:<used>\n<data>\n
 ]]></artwork>
 
-        <t>The trailing newline (0x0A) is the section terminator.  When
-     cap equals used, the newline and comma would occupy the same
-     position; the newline wins and the comma is not written.</t>
+        <t>The header (number, cap, used) occupies its own line,
+     terminated by a newline (0x0A).  The data region follows on
+     the next line and is also terminated by a newline.  When
+     cap equals used, the data terminator and the data-end marker
+     would occupy the same position; the newline wins and the
+     comma is not written.</t>
       </section>
 
       <section anchor="fields" numbered="true" toc="default">
@@ -165,8 +168,8 @@
               <td>number</td>
             </tr>
             <tr>
-              <td>:</td>
-              <td>Separator (0x3A)</td>
+              <td>\n</td>
+              <td>Header terminator (0x0A)</td>
               <td>1</td>
             </tr>
             <tr>
@@ -247,9 +250,11 @@
         <t>Because used is always zero-padded to the same width as cap,
      and used is always less than or equal to cap, the header size
      never changes when data grows within the reserved capacity.
-     This is the critical invariant for in-place updates: a writer
-     can update the used field and write new data without modifying
-     the header length or shifting any bytes.</t>
+     This is the critical invariant for in-place updates: the
+     header is a fixed-size buffer that can be overwritten in
+     place when the used count changes.  A writer updates the
+     used field and writes new data without modifying the header
+     length or shifting any bytes.</t>
       </section>
 
       <section anchor="data-region" numbered="true" toc="default">
@@ -356,15 +361,17 @@
         <t>The string "hello" (5 bytes) with capacity 16:</t>
 
         <artwork type="ascii-art"><![CDATA[
-  2:16:05:hello,..........\n
+  2:16:05\n
+  hello,..........\n
 
   number = 2 (cap has 2 digits)
   cap    = 16 (zero-padded to 2 digits)
   used   = 05 (zero-padded to 2 digits)
+  \n     = header terminator
   data   = "hello" (5 bytes)
   ,      = data-end marker
   pad    = 10 space bytes
-  \n     = terminator
+  \n     = data terminator
 ]]></artwork>
       </section>
 
@@ -374,15 +381,17 @@
         <t>Empty data with capacity 8:</t>
 
         <artwork type="ascii-art"><![CDATA[
-  1:8:0:,.......\n
+  1:8:0\n
+  ,.......\n
 
   number = 1
   cap    = 8
   used   = 0
+  \n     = header terminator
   data   = (empty)
-  ,      = data-end marker (immediately after header)
+  ,      = data-end marker (immediately after header terminator)
   pad    = 7 space bytes
-  \n     = terminator
+  \n     = data terminator
 ]]></artwork>
       </section>
 
@@ -392,13 +401,15 @@
         <t>The string "abcd" (4 bytes) with capacity 4:</t>
 
         <artwork type="ascii-art"><![CDATA[
-  1:4:4:abcd\n
+  1:4:4\n
+  abcd\n
 
   number = 1
   cap    = 4
   used   = 4
+  \n     = header terminator
   data   = "abcd" (4 bytes)
-  \n     = terminator (no comma, no padding)
+  \n     = data terminator (no comma, no padding)
 ]]></artwork>
 
         <t>Since cap equals used, the newline terminator occupies the
@@ -411,15 +422,17 @@
         <t>The string "x" (1 byte) with capacity 100:</t>
 
         <artwork type="ascii-art"><![CDATA[
-  3:100:001:x,<98 spaces>\n
+  3:100:001\n
+  x,<98 spaces>\n
 
   number = 3 (cap has 3 digits)
   cap    = 100 (zero-padded to 3 digits)
   used   = 001 (zero-padded to 3 digits)
+  \n     = header terminator
   data   = "x" (1 byte)
   ,      = data-end marker
   pad    = 98 space bytes
-  \n     = terminator
+  \n     = data terminator
 ]]></artwork>
       </section>
     </section>
@@ -447,7 +460,8 @@
        integer used.  If fewer than N bytes remain, the input is
        truncated.</li>
 
-        <li>Verify the next byte is a colon (0x3A).  Advance past it.</li>
+        <li>Verify the next byte is a newline (0x0A).  This is the
+       header terminator.  Advance past it.</li>
 
         <li>Validate: cap MUST be non-negative, used MUST be
        non-negative, used MUST NOT exceed cap.</li>
@@ -550,7 +564,7 @@
           <tr>
             <td>Format</td>
             <td>len:data,</td>
-            <td>number:cap:used:data[,padding]\n</td>
+            <td>number:cap:used\ndata[,padding]\n</td>
           </tr>
           <tr>
             <td>In-place update</td>
