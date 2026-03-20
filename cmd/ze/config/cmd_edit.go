@@ -448,15 +448,10 @@ func runEditor(ed *cli.Editor, store storage.Storage, configPath string) int {
 		}
 
 		// Draft exists: check for same-user orphaned sessions.
-		// Match on "user@origin%" -- the % is the delimiter before the timestamp
-		// in session IDs (format: "user@origin%RFC3339time").
 		activeSessions := ed.ActiveSessions()
-		myPrefix := session.UserAtOrigin() + "%"
+		orphaned := session.OrphanedSessions(activeSessions)
 		stdinScanner := bufio.NewScanner(os.Stdin)
-		for _, sid := range activeSessions {
-			if !strings.HasPrefix(sid, myPrefix) || sid == session.ID {
-				continue
-			}
+		for _, sid := range orphaned {
 			// Same user, different session -- offer adoption.
 			entries := ed.SessionChanges(sid)
 			fmt.Fprintf(os.Stderr, "Found pending changes from previous session (%s, %d changes):\n", sid, len(entries)) //nolint:errcheck // terminal output

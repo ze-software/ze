@@ -5362,6 +5362,126 @@ func TestValidateUser(t *testing.T) {
 	}
 }
 
+// TestOrphanedSessions verifies prefix matching for session adoption.
+//
+// VALIDATES: OrphanedSessions uses % delimiter to avoid similar-prefix confusion.
+// PREVENTS: "thomas@local" matching "thomasmore@local" sessions.
+func TestOrphanedSessions(t *testing.T) {
+	session := NewEditSession("thomas", "local")
+
+	tests := []struct {
+		name       string
+		sessions   []string
+		wantCount  int
+		wantAbsent []string // sessions that must NOT appear in result
+	}{
+		{
+			name:      "own_session_excluded",
+			sessions:  []string{session.ID},
+			wantCount: 0,
+		},
+		{
+			name:      "same_user_different_time",
+			sessions:  []string{"thomas@local%2025-01-01T00:00:00Z"},
+			wantCount: 1,
+		},
+		{
+			name:      "different_origin_excluded",
+			sessions:  []string{"thomas@ssh%2025-01-01T00:00:00Z"},
+			wantCount: 0,
+		},
+		{
+			name:       "similar_prefix_not_matched",
+			sessions:   []string{"thomasmore@local%2025-01-01T00:00:00Z"},
+			wantCount:  0,
+			wantAbsent: []string{"thomasmore@local%2025-01-01T00:00:00Z"},
+		},
+		{
+			name: "mixed_sessions",
+			sessions: []string{
+				session.ID,                              // own session
+				"thomas@local%2025-01-01T00:00:00Z",     // orphaned (same user+origin)
+				"thomas@local%2025-06-15T12:00:00Z",     // orphaned (same user+origin)
+				"thomas@ssh%2025-01-01T00:00:00Z",       // different origin
+				"thomasmore@local%2025-01-01T00:00:00Z", // similar prefix
+				"alice@local%2025-01-01T00:00:00Z",      // different user
+			},
+			wantCount:  2,
+			wantAbsent: []string{"thomasmore@local%2025-01-01T00:00:00Z", "alice@local%2025-01-01T00:00:00Z"},
+		},
+		{
+			name:      "empty_input",
+			sessions:  nil,
+			wantCount: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := session.OrphanedSessions(tt.sessions)
+			assert.Len(t, result, tt.wantCount)
+			for _, absent := range tt.wantAbsent {
+				assert.NotContains(t, result, absent)
+			}
+		})
+	}
+}
+
+// TestLoadDraftRevealsOrphanedSessions verifies the full draft-load -> orphan-detection flow.
+//
+// VALIDATES: LoadDraft populates meta so ActiveSessions sees orphaned sessions.
+// PREVENTS: Regression where LoadDraft is called after ActiveSessions.
+func TestLoadDraftRevealsOrphanedSessions(t *testing.T) {
+	configPath := writeTestConfig(t, validBGPConfig)
+
+	// Old session makes a change and saves to draft.
+	// Use explicit earlier time to guarantee different session ID from new session.
+	ed1, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed1.Close() //nolint:errcheck,gosec // test cleanup
+
+	oldTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	oldSession := &EditSession{
+		User:      "thomas",
+		Origin:    "local",
+		ID:        fmt.Sprintf("thomas@local%%%s", oldTime.Format(time.RFC3339)),
+		StartTime: oldTime,
+	}
+	ed1.SetSession(oldSession)
+	err = ed1.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
+	require.NoError(t, err)
+	err = ed1.SaveDraft()
+	require.NoError(t, err)
+
+	// New session opens a fresh editor (simulating reconnect).
+	ed2, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
+
+	newSession := NewEditSession("thomas", "local")
+	ed2.SetSession(newSession)
+
+	// Before LoadDraft: ActiveSessions should NOT see the old session.
+	sessionsBefore := ed2.ActiveSessions()
+	orphansBefore := newSession.OrphanedSessions(sessionsBefore)
+	assert.Empty(t, orphansBefore, "no orphans visible before LoadDraft")
+
+	// After LoadDraft: ActiveSessions should see the old session.
+	loaded := ed2.LoadDraft()
+	assert.True(t, loaded, "draft should load successfully")
+	sessionsAfter := ed2.ActiveSessions()
+	orphansAfter := newSession.OrphanedSessions(sessionsAfter)
+	assert.Len(t, orphansAfter, 1, "one orphaned session visible after LoadDraft")
+	assert.Equal(t, oldSession.ID, orphansAfter[0])
+
+	// Adopt and verify commit works.
+	err = ed2.AdoptSession(oldSession.ID)
+	require.NoError(t, err)
+	result, err := ed2.CommitSession()
+	require.NoError(t, err)
+	assert.Greater(t, result.Applied, 0, "adopted changes should be committed")
+}
+
 // TestDetectConflictsNilSession verifies DetectConflicts returns nil for nil session.
 //
 // VALIDATES: No panic when session is nil.

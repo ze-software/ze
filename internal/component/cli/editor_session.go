@@ -40,6 +40,21 @@ func (s *EditSession) UserAtOrigin() string {
 	return fmt.Sprintf("%s@%s", s.User, s.Origin)
 }
 
+// OrphanedSessions filters a list of session IDs to those belonging to the same
+// user and origin as this session but with a different timestamp (i.e., from a
+// previous session). Uses "user@origin%" prefix matching -- the % delimiter
+// ensures "thomas@local" does not match "thomasmore@local".
+func (s *EditSession) OrphanedSessions(allSessions []string) []string {
+	prefix := s.UserAtOrigin() + "%"
+	var orphans []string
+	for _, sid := range allSessions {
+		if strings.HasPrefix(sid, prefix) && sid != s.ID {
+			orphans = append(orphans, sid)
+		}
+	}
+	return orphans
+}
+
 // DraftPath returns the draft file path for a given config path (appends ".draft").
 func DraftPath(configPath string) string {
 	return configPath + ".draft"
