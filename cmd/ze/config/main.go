@@ -38,6 +38,8 @@ var storageHandlers = map[string]func(storage.Storage, []string) int{
 	"rollback": cmdRollbackWithStorage,
 	"archive":  cmdArchiveWithStorage,
 	"diff":     cmdDiffWithStorage,
+	"ls":       cmdLsWithStorage,
+	"cat":      cmdCatWithStorage,
 }
 
 // subcommandHandlers maps subcommand names to their handler functions.
@@ -125,7 +127,9 @@ Commands:
   rollback <N> <file>  Restore from rollback revision N
   set <file> <path> <value>  Set a configuration value
   archive <name> <file>  Archive config to named destination
-  completion <file> Query completion engine (testing/debugging)
+  ls [prefix]         List config files in database (default: file/)
+  cat <key>           Print content of a database key
+  completion <file>   Query completion engine (testing/debugging)
 
 Options:
   -f                Use filesystem directly, bypass blob store
