@@ -96,11 +96,11 @@ func TestModelCommitBlockedOnErrors(t *testing.T) {
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	// Commit should fail — issues shown in output, not as Go error
+	// Commit should fail — status message reports the block, config stays in viewport
 	result, err := model.cmdCommit()
 	require.NoError(t, err)
-	assert.Contains(t, result.output, "hold-time")
 	assert.Contains(t, result.statusMessage, "blocked")
+	assert.NotNil(t, result.configView, "config should stay visible on commit failure")
 }
 
 // TestModelCommitSucceedsWhenValid verifies commit works with valid config.

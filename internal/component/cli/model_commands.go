@@ -526,11 +526,9 @@ func (m *Model) cmdCommit() (commandResult, error) {
 	issues = append(issues, result.Errors...)
 	issues = append(issues, result.Warnings...)
 	if len(issues) > 0 {
-		// Show details in viewport (scrollable), brief summary in status.
-		output := "Cannot commit:\n" + formatIssueList(issues) + "\nFix issues and retry. Use 'save' to snapshot work-in-progress."
 		return commandResult{
-			output:        output,
-			statusMessage: fmt.Sprintf("commit blocked: %d issue(s) — 'show' for config", len(issues)),
+			statusMessage: fmt.Sprintf("commit blocked: %d issue(s), type 'errors' for details", len(issues)),
+			configView:    m.configViewAtPath(m.contextPath),
 		}, nil
 	}
 
@@ -572,10 +570,9 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 	issues = append(issues, result.Errors...)
 	issues = append(issues, result.Warnings...)
 	if len(issues) > 0 {
-		output := "Cannot commit:\n" + formatIssueList(issues) + "\nFix issues and retry."
 		return commandResult{
-			output:        output,
-			statusMessage: fmt.Sprintf("commit blocked: %d issue(s)", len(issues)),
+			statusMessage: fmt.Sprintf("commit blocked: %d issue(s), type 'errors' for details", len(issues)),
+			configView:    m.configViewAtPath(m.contextPath),
 		}, nil
 	}
 
