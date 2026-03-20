@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -19,10 +20,16 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
 
+// defaultSlowReadDelay is the read delay applied when ActionSlowRead toggles
+// on a peer that wasn't configured with --slow-read-delay.
+const defaultSlowReadDelay = 1 * time.Second
+
 // executeChaos handles a single chaos action on the simulator's live connection.
 // stopKeepalive stops the keepalive timer/ticker (works with both real and virtual time).
+// readDelayNs is the atomic read delay (nanoseconds) shared with readLoop.
 func executeChaos(ctx context.Context, action engine.ChaosAction, conn net.Conn,
 	stopKeepalive func(), p SimProfile, cfg SimulatorConfig, emit func(Event),
+	readDelayNs *atomic.Int64,
 ) ChaosResult {
 	switch action.Type {
 	case engine.ActionTCPDisconnect:
@@ -81,9 +88,21 @@ func executeChaos(ctx context.Context, action engine.ChaosAction, conn net.Conn,
 		}
 		return ChaosResult{Disconnected: false}
 
-	default:
-		return ChaosResult{}
+	case engine.ActionSlowRead:
+		// Toggle slow reading: if currently reading normally, enable delay;
+		// if already slow, restore normal speed.
+		if readDelayNs.Load() == 0 {
+			delay := defaultSlowReadDelay
+			if p.SlowRead > 0 {
+				delay = p.SlowRead
+			}
+			readDelayNs.Store(int64(delay))
+		} else {
+			readDelayNs.Store(0)
+		}
+		return ChaosResult{Disconnected: false}
 	}
+	return ChaosResult{}
 }
 
 // executeRoute handles a single route dynamics action on the simulator's live connection.

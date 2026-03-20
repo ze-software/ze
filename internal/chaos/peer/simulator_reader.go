@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
@@ -20,7 +21,11 @@ import (
 // readLoop reads BGP messages from conn and emits route events.
 // It runs until the connection closes or ctx is canceled.
 // Uses an unbounded EventBuffer so event emission never blocks TCP reads.
-func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- Event) {
+// readDelayNs is an atomic nanosecond value: when > 0, the reader sleeps
+// between messages to simulate a slow peer, causing TCP backpressure that
+// prevents Ze from sending to this peer. The value can be toggled at runtime
+// via the ActionSlowRead chaos action.
+func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- Event, readDelayNs *atomic.Int64) {
 	// Child context so Drain goroutine stops when readLoop returns
 	// (e.g., connection closed before ctx is canceled).
 	drainCtx, drainCancel := context.WithCancel(ctx)
@@ -39,6 +44,23 @@ func readLoop(ctx context.Context, conn net.Conn, peerIndex int, events chan<- E
 	for {
 		if ctx.Err() != nil {
 			return
+		}
+
+		// Slow-read delay: sleep between reads to simulate a peer with a
+		// slow network link. This fills the TCP recv buffer, causing TCP
+		// flow control to block Ze's writes (backpressure).
+		// The delay is read atomically each iteration so it can be toggled
+		// at runtime via the dashboard's ActionSlowRead trigger.
+		// Uses time.NewTimer (not time.After) so the timer can be stopped
+		// on context cancellation, avoiding a goroutine leak per iteration.
+		if delay := time.Duration(readDelayNs.Load()); delay > 0 {
+			timer := time.NewTimer(delay)
+			select {
+			case <-timer.C:
+			case <-ctx.Done():
+				timer.Stop()
+				return
+			}
 		}
 
 		header := make([]byte, message.HeaderLen)

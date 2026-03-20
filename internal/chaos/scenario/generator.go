@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"net/netip"
 	"slices"
+	"time"
 )
 
 // GeneratorParams holds all inputs needed to generate a scenario.
@@ -20,8 +21,10 @@ type GeneratorParams struct {
 	HeavyRoutes     int
 	BasePort        int
 	ListenBase      int
-	Families        []string // Include filter: only these families (empty = all).
-	ExcludeFamilies []string // Exclude filter: remove these families.
+	Families        []string      // Include filter: only these families (empty = all).
+	ExcludeFamilies []string      // Exclude filter: remove these families.
+	SlowPeers       int           // Number of peers with slow reads (0 = none).
+	SlowReadDelay   time.Duration // Read delay for slow peers (0 = use default 1s).
 }
 
 // Generate creates a deterministic set of PeerProfiles from the given parameters.
@@ -90,6 +93,9 @@ func Generate(params GeneratorParams) ([]PeerProfile, error) {
 	// Assign address families to each peer.
 	pool := buildFamilyPool(params.Families, params.ExcludeFamilies)
 	assignFamilies(rng, profiles, pool)
+
+	// Assign slow-read delays to randomly selected peers.
+	assignSlowPeers(rng, profiles, params.SlowPeers, params.SlowReadDelay)
 
 	return profiles, nil
 }
@@ -281,5 +287,31 @@ func assignHeavyPeers(rng *rand.Rand, profiles []PeerProfile, heavyCount, heavyR
 
 	for _, idx := range indices[:heavyCount] {
 		profiles[idx].RouteCount = heavyRoutes
+	}
+}
+
+// assignSlowPeers selects slowCount peers to read slowly, simulating
+// backpressure on Ze's outbound writes. Uses the same shuffle-and-pick
+// pattern as assignHeavyPeers.
+func assignSlowPeers(rng *rand.Rand, profiles []PeerProfile, slowCount int, delay time.Duration) {
+	if slowCount <= 0 || slowCount > len(profiles) {
+		return
+	}
+
+	if delay == 0 {
+		delay = 1 * time.Second // Default: 1s between reads.
+	}
+
+	indices := make([]int, len(profiles))
+	for i := range indices {
+		indices[i] = i
+	}
+
+	rng.Shuffle(len(indices), func(i, j int) {
+		indices[i], indices[j] = indices[j], indices[i]
+	})
+
+	for _, idx := range indices[:slowCount] {
+		profiles[idx].SlowRead = delay
 	}
 }

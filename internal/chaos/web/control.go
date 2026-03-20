@@ -446,6 +446,7 @@ func chaosActionTypes() []string {
 		engine.NameConnectionCollision,
 		engine.NameMalformedUpdate,
 		engine.NameConfigReload,
+		engine.NameSlowRead,
 	}
 }
 
@@ -469,6 +470,8 @@ func chaosActionImpact(action string) string {
 		return "Sends an UPDATE with invalid attributes. Tests RFC 7606 error handling. Session may or may not drop."
 	case engine.NameConfigReload:
 		return "Sends SIGHUP to the Ze process. Triggers config re-read. Sessions stay up unless config changed."
+	case engine.NameSlowRead:
+		return "Toggles slow reading on this peer. TCP backpressure blocks Ze's writes, testing forward pool overflow and congestion callbacks. Click again to restore normal speed."
 	default:
 		return ""
 	}
@@ -493,6 +496,8 @@ func chaosActionIcon(action string) string {
 		return "\u26a0" // ⚠
 	case engine.NameConfigReload:
 		return "\U0001f504" // 🔄
+	case engine.NameSlowRead:
+		return "\U0001f422" // 🐢
 	default:
 		return "\u2753" // ❓
 	}
@@ -517,6 +522,8 @@ func chaosActionLabel(action string) string {
 		return "Malformed"
 	case engine.NameConfigReload:
 		return "Reload"
+	case engine.NameSlowRead:
+		return "Slow Read"
 	default:
 		return action
 	}

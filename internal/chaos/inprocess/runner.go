@@ -208,6 +208,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 					RouteCount: p.RouteCount,
 					TotalPeers: len(cfg.Profiles),
 					Families:   p.Families,
+					SlowRead:   p.SlowRead,
 				},
 				Seed:   cfg.Seed,
 				Addr:   "", // Not used — Conn is set.
@@ -311,6 +312,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 							RouteCount: p.RouteCount,
 							TotalPeers: len(cfg.Profiles),
 							Families:   p.Families,
+							SlowRead:   p.SlowRead,
 						},
 						Seed:   cfg.Seed,
 						Addr:   "",
@@ -371,6 +373,7 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 							RouteCount: p.RouteCount,
 							TotalPeers: len(cfg.Profiles),
 							Families:   p.Families,
+							SlowRead:   p.SlowRead,
 						},
 						Seed:   cfg.Seed,
 						Addr:   "",

@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/netip"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos/engine"
@@ -36,6 +37,7 @@ type SimProfile struct {
 	RouteCount int
 	TotalPeers int
 	Families   []string
+	SlowRead   time.Duration
 }
 
 // SimulatorConfig holds all parameters for running a single peer simulator.
@@ -412,13 +414,18 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	}
 	emit(Event{Type: EventEORSent, Count: totalSent, Families: families, BytesSent: eorBytes})
 
+	// Atomic read delay: initialized from profile, toggled by ActionSlowRead.
+	// Stored as nanoseconds so atomic.Int64 can hold it.
+	var readDelayNs atomic.Int64
+	readDelayNs.Store(int64(p.SlowRead))
+
 	// Start reader goroutine for incoming messages from RR.
 	// Uses an unbounded EventBuffer so readLoop never blocks on event emission
 	// and no route events are dropped. A drain goroutine feeds the output channel.
 	readerDone := make(chan struct{})
 	go func() {
 		defer close(readerDone)
-		readLoop(ctx, conn, p.Index, cfg.Events)
+		readLoop(ctx, conn, p.Index, cfg.Events, &readDelayNs)
 	}()
 
 	// KEEPALIVE loop with optional chaos handling.
@@ -482,7 +489,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 				return
 			}
 		case action := <-chaosCh:
-			result := executeChaos(ctx, action, conn, keepaliveStop, p, cfg, emit)
+			result := executeChaos(ctx, action, conn, keepaliveStop, p, cfg, emit, &readDelayNs)
 			emit(Event{Type: EventChaosExecuted, ChaosAction: action.Type.String()})
 			if result.Disconnected {
 				conn.Close() //nolint:errcheck,gosec // best-effort close to unblock readLoop

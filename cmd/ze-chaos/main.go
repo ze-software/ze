@@ -59,6 +59,10 @@ func run(args []string) int {
 	heavyRoutes := fs.Int("heavy-routes", 1_000_000, "Routes for heavy peers (default: full table)")
 	churnRate := fs.Float64("churn-rate", 0.01, "Percentage of routes churning per second per peer")
 
+	// Backpressure flags
+	slowPeers := fs.Int("slow-peers", 0, "Number of peers that read slowly (backpressure testing)")
+	slowReadDelay := fs.Duration("slow-read-delay", 1*time.Second, "Read delay for slow peers")
+
 	// Family flags
 	families := fs.String("families", "", "Only these families (comma-sep)")
 	excludeFamilies := fs.String("exclude-families", "", "Exclude these families (comma-sep)")
@@ -130,6 +134,10 @@ Routes:
 Families:
   --families <list>          Only these families (comma-sep, default: all)
   --exclude-families <list>  Exclude these families (comma-sep)
+
+Backpressure:
+  --slow-peers <N>           Number of peers that read slowly (default: 0, disabled)
+  --slow-read-delay <dur>    Read delay for slow peers (default: 1s)
 
 Chaos:
   --chaos-rate <float>       Per-peer probability of chaos per interval (default: 0.1)
@@ -275,6 +283,16 @@ Control:
 		*ibgpRatio = 1
 	}
 
+	// Validate slow-peers and slow-read-delay.
+	if *slowPeers < 0 || *slowPeers > *peers {
+		fmt.Fprintf(os.Stderr, "error: --slow-peers must be 0-%d, got %d\n", *peers, *slowPeers)
+		return 1
+	}
+	if *slowPeers > 0 && *slowReadDelay <= 0 {
+		fmt.Fprintf(os.Stderr, "error: --slow-read-delay must be positive, got %s\n", *slowReadDelay)
+		return 1
+	}
+
 	// Validate port.
 	if *port < 1024 || *port > 65535 {
 		fmt.Fprintf(os.Stderr, "error: --port must be 1024-65535, got %d\n", *port)
@@ -311,6 +329,9 @@ Control:
 	fmt.Fprintf(os.Stderr, "\n══════════════════════════════════════════\n")
 	fmt.Fprintf(os.Stderr, "  ze-chaos | seed: %d\n", *seed)
 	fmt.Fprintf(os.Stderr, "  peers: %d | routes: %d | heavy: %d×%d\n", *peers, *routes, heavyPeers, *heavyRoutes)
+	if *slowPeers > 0 {
+		fmt.Fprintf(os.Stderr, "  slow peers: %d (delay: %s)\n", *slowPeers, *slowReadDelay)
+	}
 	fmt.Fprintf(os.Stderr, "══════════════════════════════════════════\n\n")
 
 	// When --churn-rate is specified but --route-rate is not, derive route-rate
@@ -341,6 +362,8 @@ Control:
 		ListenBase:      *listenBase,
 		Families:        familyList,
 		ExcludeFamilies: excludeList,
+		SlowPeers:       *slowPeers,
+		SlowReadDelay:   *slowReadDelay,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: generating scenario: %v\n", err)
@@ -553,6 +576,8 @@ Control:
 				ListenBase:      *listenBase,
 				Families:        familyList,
 				ExcludeFamilies: excludeList,
+				SlowPeers:       *slowPeers,
+				SlowReadDelay:   *slowReadDelay,
 			})
 			if genErr != nil {
 				fmt.Fprintf(os.Stderr, "error: regenerating scenario: %v\n", genErr)

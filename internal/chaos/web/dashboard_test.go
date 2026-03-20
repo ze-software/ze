@@ -857,9 +857,9 @@ func TestChaosActionLabel(t *testing.T) {
 	}
 }
 
-// TestWriteTriggerButtons verifies button grid renders all 8 action buttons.
+// TestWriteTriggerButtons verifies button grid renders all 9 action buttons.
 //
-// VALIDATES: AC-1 — 8 individual trigger buttons visible.
+// VALIDATES: AC-1 — 9 individual trigger buttons visible.
 // PREVENTS: Missing buttons in the trigger grid.
 func TestWriteTriggerButtons(t *testing.T) {
 	t.Parallel()
@@ -872,10 +872,10 @@ func TestWriteTriggerButtons(t *testing.T) {
 	if !strings.Contains(html, "trigger-grid") {
 		t.Error("missing trigger-grid container")
 	}
-	// Should have 8 trigger buttons (count class="badge trigger-btn").
+	// Should have 9 trigger buttons (count class="badge trigger-btn").
 	count := strings.Count(html, `class="badge trigger-btn"`)
-	if count != 8 {
-		t.Errorf("expected 8 trigger buttons, got %d", count)
+	if count != 9 {
+		t.Errorf("expected 9 trigger buttons, got %d", count)
 	}
 	// No dropdown elements.
 	if strings.Contains(html, "<select") || strings.Contains(html, "<option") {

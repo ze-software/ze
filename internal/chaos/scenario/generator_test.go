@@ -3,6 +3,7 @@ package scenario
 import (
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -419,6 +420,99 @@ func TestFamilyFilterInclude(t *testing.T) {
 			assert.True(t, allowed[f],
 				"peer %d has family %s not in include list", i, f)
 		}
+	}
+}
+
+// TestSlowPeerAssignment verifies that --slow-peers N marks exactly N peers.
+//
+// VALIDATES: Correct number of peers get SlowRead delay.
+// PREVENTS: Slow peer count mismatch or wrong delay value.
+func TestSlowPeerAssignment(t *testing.T) {
+	params := GeneratorParams{
+		Seed: 42, Peers: 10, IBGPRatio: 0.3, LocalAS: 65000,
+		Routes: 100, HeavyPeers: 0, HeavyRoutes: 2000,
+		BasePort: 1790, ListenBase: 1890,
+		SlowPeers: 3, SlowReadDelay: 2 * time.Second,
+	}
+
+	profiles, err := Generate(params)
+	require.NoError(t, err)
+
+	slowCount := 0
+	for _, p := range profiles {
+		if p.SlowRead > 0 {
+			slowCount++
+			assert.Equal(t, 2*time.Second, p.SlowRead, "slow peer should have configured delay")
+		}
+	}
+	assert.Equal(t, 3, slowCount, "expected exactly 3 slow peers")
+}
+
+// TestSlowPeerDefaultDelay verifies that SlowReadDelay=0 uses 1s default.
+//
+// VALIDATES: Default delay is 1s when not specified.
+// PREVENTS: Zero delay being assigned (which would mean no slowdown).
+func TestSlowPeerDefaultDelay(t *testing.T) {
+	params := GeneratorParams{
+		Seed: 42, Peers: 5, IBGPRatio: 0.0, LocalAS: 65000,
+		Routes: 100, HeavyPeers: 0, HeavyRoutes: 2000,
+		BasePort: 1790, ListenBase: 1890,
+		SlowPeers: 2, SlowReadDelay: 0, // Should default to 1s.
+	}
+
+	profiles, err := Generate(params)
+	require.NoError(t, err)
+
+	slowCount := 0
+	for _, p := range profiles {
+		if p.SlowRead > 0 {
+			slowCount++
+			assert.Equal(t, 1*time.Second, p.SlowRead, "default slow read delay should be 1s")
+		}
+	}
+	assert.Equal(t, 2, slowCount, "expected exactly 2 slow peers")
+}
+
+// TestSlowPeerZero verifies that --slow-peers 0 assigns no slow peers.
+//
+// VALIDATES: No peers are slow when feature is disabled.
+// PREVENTS: Accidental slow peer assignment.
+func TestSlowPeerZero(t *testing.T) {
+	params := GeneratorParams{
+		Seed: 42, Peers: 5, IBGPRatio: 0.0, LocalAS: 65000,
+		Routes: 100, HeavyPeers: 0, HeavyRoutes: 2000,
+		BasePort: 1790, ListenBase: 1890,
+		SlowPeers: 0,
+	}
+
+	profiles, err := Generate(params)
+	require.NoError(t, err)
+
+	for i, p := range profiles {
+		assert.Zero(t, p.SlowRead, "peer %d should not be slow when SlowPeers=0", i)
+	}
+}
+
+// TestSlowPeerDeterministic verifies that slow peer assignment is deterministic.
+//
+// VALIDATES: Same seed produces same slow peer selection.
+// PREVENTS: Non-deterministic selection breaking reproducibility.
+func TestSlowPeerDeterministic(t *testing.T) {
+	params := GeneratorParams{
+		Seed: 42, Peers: 10, IBGPRatio: 0.3, LocalAS: 65000,
+		Routes: 100, HeavyPeers: 0, HeavyRoutes: 2000,
+		BasePort: 1790, ListenBase: 1890,
+		SlowPeers: 3, SlowReadDelay: 5 * time.Second,
+	}
+
+	profiles1, err := Generate(params)
+	require.NoError(t, err)
+	profiles2, err := Generate(params)
+	require.NoError(t, err)
+
+	for i := range profiles1 {
+		assert.Equal(t, profiles1[i].SlowRead, profiles2[i].SlowRead,
+			"peer %d slow read should be deterministic", i)
 	}
 }
 

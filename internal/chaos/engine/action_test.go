@@ -23,6 +23,7 @@ func TestActionTypeString(t *testing.T) {
 		{ActionConnectionCollision, "connection-collision"},
 		{ActionMalformedUpdate, "malformed-update"},
 		{ActionConfigReload, "config-reload"},
+		{ActionSlowRead, "slow-read"},
 	}
 
 	for _, tt := range tests {
@@ -59,11 +60,44 @@ func TestActionNeedsReconnect(t *testing.T) {
 		{ActionConnectionCollision, false},
 		{ActionMalformedUpdate, false},
 		{ActionConfigReload, false},
+		{ActionSlowRead, false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.action.String(), func(t *testing.T) {
 			assert.Equal(t, tt.want, tt.action.NeedsReconnect())
+		})
+	}
+}
+
+// TestActionTypeFromString verifies round-trip parsing of action names.
+//
+// VALIDATES: All action names parse to the correct ActionType.
+// PREVENTS: Missing or wrong entries in the actionTypes map.
+func TestActionTypeFromString(t *testing.T) {
+	tests := []struct {
+		name   string
+		want   ActionType
+		wantOK bool
+	}{
+		{NameTCPDisconnect, ActionTCPDisconnect, true},
+		{NameNotificationCease, ActionNotificationCease, true},
+		{NameHoldTimerExpiry, ActionHoldTimerExpiry, true},
+		{NameDisconnectDuringBurst, ActionDisconnectDuringBurst, true},
+		{NameReconnectStorm, ActionReconnectStorm, true},
+		{NameConnectionCollision, ActionConnectionCollision, true},
+		{NameMalformedUpdate, ActionMalformedUpdate, true},
+		{NameConfigReload, ActionConfigReload, true},
+		{NameSlowRead, ActionSlowRead, true},
+		{"unknown-action", 0, false},
+		{"", 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := ActionTypeFromString(tt.name)
+			assert.Equal(t, tt.wantOK, ok)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }

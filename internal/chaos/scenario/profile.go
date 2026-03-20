@@ -4,7 +4,10 @@
 // from a seed value for chaos testing.
 package scenario
 
-import "net/netip"
+import (
+	"net/netip"
+	"time"
+)
 
 // ConnectionMode indicates whether a peer connects to Ze or Ze connects to it.
 type ConnectionMode int
@@ -56,4 +59,10 @@ type PeerProfile struct {
 	// This enables unique per-peer addresses for in-process mode where
 	// the reactor needs distinct peer addresses for its peer map lookup.
 	Address netip.Addr
+
+	// SlowRead is the delay between reads in the simulator's read loop.
+	// When non-zero, the peer reads BGP messages slowly, causing TCP
+	// backpressure that prevents Ze from sending to this peer.
+	// Zero means normal read speed (no artificial delay).
+	SlowRead time.Duration
 }
