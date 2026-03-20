@@ -157,9 +157,9 @@ func decodeNetcapstringRef(buf []byte, off int) (data []byte, capacity, next int
 		return nil, 0, 0, fmt.Errorf("zefs: truncated data at offset %d: need %d, have %d", start, cap_+1, len(buf)-off)
 	}
 
-	// Expect trailing '\n' (or ',' for containers)
+	// Expect trailing '\n'
 	endOff := off + cap_
-	if buf[endOff] != '\n' && buf[endOff] != ',' {
+	if buf[endOff] != '\n' {
 		return nil, 0, 0, fmt.Errorf("zefs: expected trailing '\\n' at offset %d, got 0x%02X", endOff, buf[endOff])
 	}
 

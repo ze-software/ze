@@ -73,27 +73,27 @@ Table of Contents
      3.2.  Field Definitions . . . . . . . . . . . . . . . . . . . .   4
      3.3.  The Number Field  . . . . . . . . . . . . . . . . . . . .   4
      3.4.  Capacity and Used Fields  . . . . . . . . . . . . . . . .   5
-     3.5.  Data Region . . . . . . . . . . . . . . . . . . . . . . .   6
+     3.5.  Data Region . . . . . . . . . . . . . . . . . . . . . . .   5
      3.6.  Terminator  . . . . . . . . . . . . . . . . . . . . . . .   6
      3.7.  Human Readability . . . . . . . . . . . . . . . . . . . .   6
-   4.  Header Length Computation . . . . . . . . . . . . . . . . . .   7
+   4.  Header Length Computation . . . . . . . . . . . . . . . . . .   6
    5.  Examples  . . . . . . . . . . . . . . . . . . . . . . . . . .   7
      5.1.  Data with Padding . . . . . . . . . . . . . . . . . . . .   7
-     5.2.  Empty Data  . . . . . . . . . . . . . . . . . . . . . . .   8
+     5.2.  Empty Data  . . . . . . . . . . . . . . . . . . . . . . .   7
      5.3.  Exact Fit . . . . . . . . . . . . . . . . . . . . . . . .   8
-     5.4.  Large Capacity  . . . . . . . . . . . . . . . . . . . . .   9
-   6.  Parsing Algorithm . . . . . . . . . . . . . . . . . . . . . .   9
-   7.  In-Place Updates  . . . . . . . . . . . . . . . . . . . . . .  10
+     5.4.  Large Capacity  . . . . . . . . . . . . . . . . . . . . .   8
+   6.  Parsing Algorithm . . . . . . . . . . . . . . . . . . . . . .   8
+   7.  In-Place Updates  . . . . . . . . . . . . . . . . . . . . . .   9
      7.1.  Capacity Growth Policy  . . . . . . . . . . . . . . . . .  10
-   8.  Concatenation and Streams . . . . . . . . . . . . . . . . . .  11
+   8.  Concatenation and Streams . . . . . . . . . . . . . . . . . .  10
    9.  Comparison with Netstrings  . . . . . . . . . . . . . . . . .  11
-   10. Security Considerations . . . . . . . . . . . . . . . . . . .  12
+   10. Security Considerations . . . . . . . . . . . . . . . . . . .  11
    11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  12
    12. References  . . . . . . . . . . . . . . . . . . . . . . . . .  12
      12.1.  Normative References . . . . . . . . . . . . . . . . . .  12
      12.2.  Informative References . . . . . . . . . . . . . . . . .  12
-   Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  13
-   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  13
+   Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  12
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  12
 
 1.  Introduction
 
@@ -152,16 +152,16 @@ Internet-Draft                Netcapstring                    March 2026
    A netcapstring encodes a byte sequence with reserved capacity for
    future growth.  The general format is:
 
-     <number>:<cap>:<used>\n<data>,<padding>\n
+     <number>:<cap>:<used>\n<data><space padding>\n
 
-   When the data fills the capacity exactly (cap equals used), the comma
-   and padding are absent:
+   When the data fills the capacity exactly (cap equals used), there is
+   no padding:
 
      <number>:<cap>:<used>\n<data>\n
 
-
-
-
+   The header (number, cap, used) occupies its own line, terminated by a
+   newline (0x0A).  The data region follows on the next line, space-
+   padded to the full capacity, and is also terminated by a newline.
 
 
 
@@ -169,12 +169,6 @@ Mangin                  Expires 21 September 2026               [Page 3]
 
 Internet-Draft                Netcapstring                    March 2026
 
-
-   The header (number, cap, used) occupies its own line, terminated by a
-   newline (0x0A).  The data region follows on the next line and is also
-   terminated by a newline.  When cap equals used, the data terminator
-   and the data-end marker would occupy the same position; the newline
-   wins and the comma is not written.
 
 3.2.  Field Definitions
 
@@ -200,15 +194,9 @@ Internet-Draft                Netcapstring                    March 2026
      +---------+-----------------------------------+-----------------+
      | data    | Actual content (arbitrary bytes)  | used            |
      +---------+-----------------------------------+-----------------+
-     | ,       | Data-end marker (0x2C), only when | 0 or 1          |
-     |         | cap > used                        |                 |
+     | padding | Space bytes (0x20)                | cap - used      |
      +---------+-----------------------------------+-----------------+
-     | padding | Space bytes (0x20)                | cap - used - 1  |
-     |         |                                   | (when cap >     |
-     |         |                                   | used), else 0   |
-     +---------+-----------------------------------+-----------------+
-     | \n      | Terminator (0x0A), or comma       | 1               |
-     |         | (0x2C) for containers             |                 |
+     | \n      | Terminator (0x0A)                 | 1               |
      +---------+-----------------------------------+-----------------+
 
                         Table 1: Netcapstring Fields
@@ -219,13 +207,6 @@ Internet-Draft                Netcapstring                    March 2026
    digits in the cap field.  It MUST NOT have leading zeros.  It MUST be
    a positive integer.
 
-
-
-Mangin                  Expires 21 September 2026               [Page 4]
-
-Internet-Draft                Netcapstring                    March 2026
-
-
    The number field exists because both cap and used are zero-padded to
    a fixed width.  Fixed-width fields are essential for in-place
    updates: when data grows, only the used field changes, and its byte
@@ -235,6 +216,15 @@ Internet-Draft                Netcapstring                    March 2026
    reads by scanning digits until a colon.  With two fixed-width numeric
    fields, the number field tells the parser how many bytes to read for
    each.
+
+
+
+
+
+Mangin                  Expires 21 September 2026               [Page 4]
+
+Internet-Draft                Netcapstring                    March 2026
+
 
    This design also improves parsing efficiency.  A netstring parser
    must read one byte at a time, checking each for a colon, until the
@@ -273,7 +263,17 @@ Internet-Draft                Netcapstring                    March 2026
    writer updates the used field and writes new data without modifying
    the header length or shifting any bytes.
 
+3.5.  Data Region
 
+   The data region contains exactly used bytes of arbitrary content.
+   There are no restrictions on the byte values within the data region:
+   it MAY contain newlines (0x0A), colons (0x3A), commas (0x2C), null
+   bytes (0x00), or any other octet.  No escaping is performed.
+
+   When cap is greater than used, the remaining cap - used bytes are
+   filled with spaces (0x20).  There is no data-end marker: the used
+   field already encodes the data length, so no in-band delimiter is
+   needed.  This design choice has three benefits: it simplifies the
 
 
 
@@ -282,38 +282,21 @@ Mangin                  Expires 21 September 2026               [Page 5]
 Internet-Draft                Netcapstring                    March 2026
 
 
-3.5.  Data Region
+   padding size calculation (always cap - used, no off-by-one for a
+   marker byte), it means the data can always be copied verbatim from
+   the raw file without stripping a trailing delimiter, and it
+   eliminates the ambiguity that arises when cap equals used and the
+   marker and terminator would occupy the same byte position.
 
-   The data region contains exactly used bytes of arbitrary content.
-   There are no restrictions on the byte values within the data region:
-   it MAY contain newlines (0x0A), colons (0x3A), commas (0x2C), null
-   bytes (0x00), or any other octet.  No escaping is performed.
-
-   When cap is greater than used, the byte immediately after the data is
-   a comma (0x2C), which serves as the data-end marker.  The remaining
-   cap - used - 1 bytes are filled with spaces (0x20) for human
-   readability when inspecting raw storage.
-
-   When cap equals used, the entire capacity is consumed by data and no
-   comma or space padding is present.  The terminator immediately
-   follows the last data byte.
+   When cap equals used, there is no padding.  The terminator
+   immediately follows the last data byte.
 
 3.6.  Terminator
 
-   The final byte of a netcapstring is the terminator.  For standalone
-   netcapstrings and entries within a sequence, the terminator is a
-   newline (0x0A).
-
-   Containers (netcapstrings whose data region holds other
-   netcapstrings) MAY use a comma (0x2C) as the terminator instead, to
-   distinguish the container boundary from the entry-list terminator
-   within.  This is an application-level convention; the framing is
-   identical in either case.
-
-   When cap equals used, the terminator and the data-end marker would
-   occupy the same byte position.  The terminator wins: the newline (or
-   comma for containers) is written, and no separate data-end marker
-   appears.
+   The final byte of a netcapstring is always a newline (0x0A).  There
+   are no exceptions: standalone entries, entries within a sequence, and
+   containers all use the same terminator.  This uniformity means the
+   format has exactly one framing rule regardless of nesting depth.
 
 3.7.  Human Readability
 
@@ -331,13 +314,6 @@ Internet-Draft                Netcapstring                    March 2026
    naturally with any text tool, without requiring specialized utilities
    or hex editors.
 
-
-
-Mangin                  Expires 21 September 2026               [Page 6]
-
-Internet-Draft                Netcapstring                    March 2026
-
-
 4.  Header Length Computation
 
    The total header length for a netcapstring with a given capacity is
@@ -347,6 +323,20 @@ Internet-Draft                Netcapstring                    March 2026
 
    Where digit_count(n) returns the number of decimal digits needed to
    represent the non-negative integer n (with digit_count(0) = 1).
+
+
+
+
+
+
+
+
+
+
+Mangin                  Expires 21 September 2026               [Page 6]
+
+Internet-Draft                Netcapstring                    March 2026
+
 
                      +================+==============+
                      | Capacity Range | Header Bytes |
@@ -377,10 +367,20 @@ Internet-Draft                Netcapstring                    March 2026
 
    The string "hello" (5 bytes) with capacity 16:
 
+     2:16:05\n
+     hello...........\n
 
+     number = 2 (cap has 2 digits)
+     cap    = 16 (zero-padded to 2 digits)
+     used   = 05 (zero-padded to 2 digits)
+     \n     = header terminator
+     data   = "hello" (5 bytes)
+     pad    = 11 space bytes
+     \n     = data terminator
 
+5.2.  Empty Data
 
-
+   Empty data with capacity 8:
 
 
 
@@ -394,32 +394,15 @@ Mangin                  Expires 21 September 2026               [Page 7]
 Internet-Draft                Netcapstring                    March 2026
 
 
-     2:16:05\n
-     hello,..........\n
-
-     number = 2 (cap has 2 digits)
-     cap    = 16 (zero-padded to 2 digits)
-     used   = 05 (zero-padded to 2 digits)
-     \n     = header terminator
-     data   = "hello" (5 bytes)
-     ,      = data-end marker
-     pad    = 10 space bytes
-     \n     = data terminator
-
-5.2.  Empty Data
-
-   Empty data with capacity 8:
-
      1:8:0\n
-     ,.......\n
+     ........\n
 
      number = 1
      cap    = 8
      used   = 0
      \n     = header terminator
      data   = (empty)
-     ,      = data-end marker (immediately after header terminator)
-     pad    = 7 space bytes
+     pad    = 8 space bytes
      \n     = data terminator
 
 5.3.  Exact Fit
@@ -434,13 +417,30 @@ Internet-Draft                Netcapstring                    March 2026
      used   = 4
      \n     = header terminator
      data   = "abcd" (4 bytes)
-     \n     = data terminator (no comma, no padding)
+     \n     = data terminator (no padding)
 
-   Since cap equals used, the newline terminator occupies the position
-   where the comma would have been.  The newline wins.
+   Since cap equals used, there is no padding.  The newline terminator
+   immediately follows the data.
 
+5.4.  Large Capacity
 
+   The string "x" (1 byte) with capacity 100:
 
+     3:100:001\n
+     x<99 spaces>\n
+
+     number = 3 (cap has 3 digits)
+     cap    = 100 (zero-padded to 3 digits)
+     used   = 001 (zero-padded to 3 digits)
+     \n     = header terminator
+     data   = "x" (1 byte)
+     pad    = 99 space bytes
+     \n     = data terminator
+
+6.  Parsing Algorithm
+
+   A conforming parser MUST implement the following steps to decode a
+   netcapstring from a byte buffer at a given offset:
 
 
 
@@ -449,27 +449,6 @@ Mangin                  Expires 21 September 2026               [Page 8]
 
 Internet-Draft                Netcapstring                    March 2026
 
-
-5.4.  Large Capacity
-
-   The string "x" (1 byte) with capacity 100:
-
-     3:100:001\n
-     x,<98 spaces>\n
-
-     number = 3 (cap has 3 digits)
-     cap    = 100 (zero-padded to 3 digits)
-     used   = 001 (zero-padded to 3 digits)
-     \n     = header terminator
-     data   = "x" (1 byte)
-     ,      = data-end marker
-     pad    = 98 space bytes
-     \n     = data terminator
-
-6.  Parsing Algorithm
-
-   A conforming parser MUST implement the following steps to decode a
-   netcapstring from a byte buffer at a given offset:
 
    1.   Scan forward from the current offset, collecting ASCII digit
         bytes (0x30-0x39) until a colon (0x3A) is encountered.
@@ -499,17 +478,10 @@ Internet-Draft                Netcapstring                    March 2026
 
    8.   Read used bytes of data from the current position.
 
+   9.   Skip cap - used bytes of space padding.
 
-
-Mangin                  Expires 21 September 2026               [Page 9]
-
-Internet-Draft                Netcapstring                    March 2026
-
-
-   9.   Skip cap - used bytes of padding (the comma and space bytes).
-
-   10.  Verify the byte at offset + cap is a comma (0x2C) or newline
-        (0x0A).  This is the terminator.
+   10.  Verify the byte at offset + cap is a newline (0x0A).  This is
+        the terminator.
 
    11.  The next netcapstring (if any) begins at offset + cap + 1.
 
@@ -526,8 +498,15 @@ Internet-Draft                Netcapstring                    March 2026
 
    1.  Write the new data bytes starting at the data region offset.
 
-   2.  Write a comma (0x2C) immediately after the new data (if the new
-       length is less than cap), followed by space padding.
+
+
+
+Mangin                  Expires 21 September 2026               [Page 9]
+
+Internet-Draft                Netcapstring                    March 2026
+
+
+   2.  Space-fill the remaining capacity after the new data.
 
    3.  Update the used field in the header with the new length, zero-
        padded to the same width.  The header size does not change
@@ -551,17 +530,6 @@ Internet-Draft                Netcapstring                    March 2026
    changes and the entry must be relocated.  Implementations SHOULD
    account for this in their growth policy to minimize relocations.
 
-
-
-
-
-
-
-Mangin                  Expires 21 September 2026              [Page 10]
-
-Internet-Draft                Netcapstring                    March 2026
-
-
 8.  Concatenation and Streams
 
    Multiple netcapstrings MAY be concatenated in a byte stream.  Each
@@ -580,6 +548,19 @@ Internet-Draft                Netcapstring                    March 2026
    the end of the entry list within the container's data region (e.g., a
    newline byte), so that parsers can distinguish active entries from
    reserved padding space.
+
+
+
+
+
+
+
+
+
+Mangin                  Expires 21 September 2026              [Page 10]
+
+Internet-Draft                Netcapstring                    March 2026
+
 
 9.  Comparison with Netstrings
 
@@ -610,14 +591,6 @@ Internet-Draft                Netcapstring                    March 2026
    under 10,000 bytes) is negligible for most applications and is the
    cost of enabling in-place updates.
 
-
-
-
-Mangin                  Expires 21 September 2026              [Page 11]
-
-Internet-Draft                Netcapstring                    March 2026
-
-
 10.  Security Considerations
 
    Implementations parsing netcapstrings from untrusted sources MUST
@@ -633,6 +606,17 @@ Internet-Draft                Netcapstring                    March 2026
       unreasonably wide cap field.  Implementations SHOULD impose a
       maximum on the number field (19 digits covers 64-bit integers) and
       reject inputs exceeding it.
+
+
+
+
+
+
+
+Mangin                  Expires 21 September 2026              [Page 11]
+
+Internet-Draft                Netcapstring                    March 2026
+
 
    *  Memory allocation: Implementations that allocate buffers based on
       the cap value MUST validate that the cap value is consistent with
@@ -666,14 +650,6 @@ Internet-Draft                Netcapstring                    March 2026
               Bernstein, D.J., "Netstrings",
               https://cr.yp.to/proto/netstrings.txt, February 1997.
 
-
-
-
-Mangin                  Expires 21 September 2026              [Page 12]
-
-Internet-Draft                Netcapstring                    March 2026
-
-
 Acknowledgements
 
    The netcapstring format is directly inspired by D.  J.  Bernstein's
@@ -693,36 +669,4 @@ Author's Address
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Mangin                  Expires 21 September 2026              [Page 13]
+Mangin                  Expires 21 September 2026              [Page 12]

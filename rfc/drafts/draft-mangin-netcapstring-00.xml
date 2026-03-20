@@ -109,11 +109,11 @@
      for future growth.  The general format is:</t>
 
         <artwork type="ascii-art"><![CDATA[
-  <number>:<cap>:<used>\n<data>,<padding>\n
+  <number>:<cap>:<used>\n<data><space padding>\n
 ]]></artwork>
 
         <t>When the data fills the capacity exactly (cap equals used),
-     the comma and padding are absent:</t>
+     there is no padding:</t>
 
         <artwork type="ascii-art"><![CDATA[
   <number>:<cap>:<used>\n<data>\n
@@ -121,10 +121,8 @@
 
         <t>The header (number, cap, used) occupies its own line,
      terminated by a newline (0x0A).  The data region follows on
-     the next line and is also terminated by a newline.  When
-     cap equals used, the data terminator and the data-end marker
-     would occupy the same position; the newline wins and the
-     comma is not written.</t>
+     the next line, space-padded to the full capacity, and is
+     also terminated by a newline.</t>
       </section>
 
       <section anchor="fields" numbered="true" toc="default">
@@ -178,18 +176,13 @@
               <td>used</td>
             </tr>
             <tr>
-              <td>,</td>
-              <td>Data-end marker (0x2C), only when cap > used</td>
-              <td>0 or 1</td>
-            </tr>
-            <tr>
               <td>padding</td>
               <td>Space bytes (0x20)</td>
-              <td>cap - used - 1 (when cap > used), else 0</td>
+              <td>cap - used</td>
             </tr>
             <tr>
               <td>\n</td>
-              <td>Terminator (0x0A), or comma (0x2C) for containers</td>
+              <td>Terminator (0x0A)</td>
               <td>1</td>
             </tr>
           </tbody>
@@ -266,33 +259,30 @@
      commas (0x2C), null bytes (0x00), or any other octet.  No
      escaping is performed.</t>
 
-        <t>When cap is greater than used, the byte immediately after the
-     data is a comma (0x2C), which serves as the data-end marker.
-     The remaining cap - used - 1 bytes are filled with spaces
-     (0x20) for human readability when inspecting raw storage.</t>
+        <t>When cap is greater than used, the remaining cap - used
+     bytes are filled with spaces (0x20).  There is no data-end
+     marker: the used field already encodes the data length, so
+     no in-band delimiter is needed.  This design choice has
+     three benefits: it simplifies the padding size calculation
+     (always cap - used, no off-by-one for a marker byte), it
+     means the data can always be copied verbatim from the raw
+     file without stripping a trailing delimiter, and it
+     eliminates the ambiguity that arises when cap equals used
+     and the marker and terminator would occupy the same byte
+     position.</t>
 
-        <t>When cap equals used, the entire capacity is consumed by data
-     and no comma or space padding is present.  The terminator
+        <t>When cap equals used, there is no padding.  The terminator
      immediately follows the last data byte.</t>
       </section>
 
       <section anchor="terminator" numbered="true" toc="default">
         <name>Terminator</name>
 
-        <t>The final byte of a netcapstring is the terminator.  For
-     standalone netcapstrings and entries within a sequence, the
-     terminator is a newline (0x0A).</t>
-
-        <t>Containers (netcapstrings whose data region holds other
-     netcapstrings) MAY use a comma (0x2C) as the terminator
-     instead, to distinguish the container boundary from the
-     entry-list terminator within.  This is an application-level
-     convention; the framing is identical in either case.</t>
-
-        <t>When cap equals used, the terminator and the data-end marker
-     would occupy the same byte position.  The terminator wins:
-     the newline (or comma for containers) is written, and no
-     separate data-end marker appears.</t>
+        <t>The final byte of a netcapstring is always a newline
+     (0x0A).  There are no exceptions: standalone entries,
+     entries within a sequence, and containers all use the
+     same terminator.  This uniformity means the format has
+     exactly one framing rule regardless of nesting depth.</t>
       </section>
 
       <section anchor="human-readability" numbered="true" toc="default">
@@ -362,15 +352,14 @@
 
         <artwork type="ascii-art"><![CDATA[
   2:16:05\n
-  hello,..........\n
+  hello...........\n
 
   number = 2 (cap has 2 digits)
   cap    = 16 (zero-padded to 2 digits)
   used   = 05 (zero-padded to 2 digits)
   \n     = header terminator
   data   = "hello" (5 bytes)
-  ,      = data-end marker
-  pad    = 10 space bytes
+  pad    = 11 space bytes
   \n     = data terminator
 ]]></artwork>
       </section>
@@ -382,15 +371,14 @@
 
         <artwork type="ascii-art"><![CDATA[
   1:8:0\n
-  ,.......\n
+  ........\n
 
   number = 1
   cap    = 8
   used   = 0
   \n     = header terminator
   data   = (empty)
-  ,      = data-end marker (immediately after header terminator)
-  pad    = 7 space bytes
+  pad    = 8 space bytes
   \n     = data terminator
 ]]></artwork>
       </section>
@@ -409,11 +397,11 @@
   used   = 4
   \n     = header terminator
   data   = "abcd" (4 bytes)
-  \n     = data terminator (no comma, no padding)
+  \n     = data terminator (no padding)
 ]]></artwork>
 
-        <t>Since cap equals used, the newline terminator occupies the
-     position where the comma would have been.  The newline wins.</t>
+        <t>Since cap equals used, there is no padding.  The newline
+     terminator immediately follows the data.</t>
       </section>
 
       <section anchor="example-large" numbered="true" toc="default">
@@ -423,15 +411,14 @@
 
         <artwork type="ascii-art"><![CDATA[
   3:100:001\n
-  x,<98 spaces>\n
+  x<99 spaces>\n
 
   number = 3 (cap has 3 digits)
   cap    = 100 (zero-padded to 3 digits)
   used   = 001 (zero-padded to 3 digits)
   \n     = header terminator
   data   = "x" (1 byte)
-  ,      = data-end marker
-  pad    = 98 space bytes
+  pad    = 99 space bytes
   \n     = data terminator
 ]]></artwork>
       </section>
@@ -473,11 +460,10 @@
 
         <li>Read used bytes of data from the current position.</li>
 
-        <li>Skip cap - used bytes of padding (the comma and space
-       bytes).</li>
+        <li>Skip cap - used bytes of space padding.</li>
 
-        <li>Verify the byte at offset + cap is a comma (0x2C) or
-       newline (0x0A).  This is the terminator.</li>
+        <li>Verify the byte at offset + cap is a newline (0x0A).
+       This is the terminator.</li>
 
         <li>The next netcapstring (if any) begins at offset + cap + 1.</li>
       </ol>
@@ -497,8 +483,7 @@
 
       <ol>
         <li>Write the new data bytes starting at the data region offset.</li>
-        <li>Write a comma (0x2C) immediately after the new data (if
-       the new length is less than cap), followed by space padding.</li>
+        <li>Space-fill the remaining capacity after the new data.</li>
         <li>Update the used field in the header with the new length,
        zero-padded to the same width.  The header size does not
        change because used is always zero-padded to number digits

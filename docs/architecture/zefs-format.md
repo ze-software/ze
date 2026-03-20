@@ -32,7 +32,7 @@ The header separators are `:` (between number, cap, and used) and `\n` (after us
 | `\n` | Header terminator (0x0A) | 1 |
 | `<data>` | Actual content | `<used>` |
 | `<padding>` | Space bytes (0x20) | `<cap>` - `<used>` |
-| `\n` | Terminator (0x0A), or `,` (0x2C) for containers | 1 |
+| `\n` | Terminator (0x0A) | 1 |
 
 ### Properties
 
@@ -73,7 +73,7 @@ Keys are exact fit (keys never change). Data capacity is data length + 10%, both
 5. Read `\n` (verify header terminator)
 6. Read `<used>` bytes of data
 7. Skip `<cap>` - `<used>` bytes of space padding
-8. Read `\n` (verify terminator; `,` for containers)
+8. Read `\n` (verify terminator)
 9. Next entry starts at the byte after the terminator
 
 ## ZeFS File
@@ -83,10 +83,10 @@ A ZeFS file is a sequence of two netcapstrings: a magic identifier followed by t
 ### Format
 
 ```
-1:4:4\nZeFS\n<N>:<cap>:<used>\n<entries...><padding>,
+1:4:4\nZeFS\n<N>:<cap>:<used>\n<entries...><padding>\n
 ```
 
-The first netcapstring contains the magic `ZeFS`. Its header ends with `\n` and its terminator is also `\n` (not `,`) because cap == used -- `\n` wins over `,` at that position. The entire file is pure netcapstrings.
+The first netcapstring contains the magic `ZeFS`. Its header ends with `\n` and its terminator is also `\n` because cap == used. The entire file is pure netcapstrings, all terminated by `\n`.
 
 ### Container content
 
@@ -94,11 +94,11 @@ Inside the container, entries are stored as consecutive pairs of netcapstrings (
 
 ```
 1:4:4\nZeFS\n<N>:<cap>:<used>\n
-  <kN>:<kCap>:<kUsed>\n<key>,<kPad>\n<vN>:<vCap>:<vUsed>\n<value>,<vPad>\n
-  <kN>:<kCap>:<kUsed>\n<key>,<kPad>\n<vN>:<vCap>:<vUsed>\n<value>,<vPad>\n
+  <kN>:<kCap>:<kUsed>\n<key><kPad>\n<vN>:<vCap>:<vUsed>\n<value><vPad>\n
+  <kN>:<kCap>:<kUsed>\n<key><kPad>\n<vN>:<vCap>:<vUsed>\n<value><vPad>\n
   ...
   \n
-<container padding>,
+<container padding>\n
 ```
 
 Each entry consists of:

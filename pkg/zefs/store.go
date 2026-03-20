@@ -382,12 +382,12 @@ func (s *BlobStore) encode() []byte {
 	}
 	result[off] = '\n'
 	off++
-	// Space-fill container padding (human-readable), then trailing ',' for container
+	// Space-fill container padding (human-readable), then trailing '\n' for container
 	containerEnd := len(result) - 1
 	for i := off; i < containerEnd; i++ {
 		result[i] = ' '
 	}
-	result[containerEnd] = ','
+	result[containerEnd] = '\n'
 
 	return result
 }

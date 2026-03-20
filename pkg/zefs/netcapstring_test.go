@@ -78,11 +78,9 @@ func TestNetcapstringDecode(t *testing.T) {
 			wantNext: netcapstringTotalLen(16),
 		},
 		{
-			name:     "simple with comma terminator",
-			input:    []byte("2:16:05\nhello           ,"),
-			wantData: []byte("hello"),
-			wantCap:  16,
-			wantNext: netcapstringTotalLen(16),
+			name:    "comma terminator rejected",
+			input:   []byte("2:16:05\nhello           ,"),
+			wantErr: true,
 		},
 		{
 			name:     "empty data",
