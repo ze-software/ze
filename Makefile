@@ -3,7 +3,7 @@
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-interop-test
-.PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-validate-commands ze-validate-commands-json
+.PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-validate-commands ze-validate-commands-json ze-doc-drift
 .PHONY: check
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
@@ -36,8 +36,12 @@ generate:
 	@go run scripts/gen-plugin-imports.go
 
 # Build all binaries
-build: generate bin/ze bin/ze-test bin/ze-chaos
+build: generate bin/ze bin/ze-test bin/ze-chaos docs/comparison.html
 	@echo "All binaries built"
+
+# Regenerate comparison HTML when markdown changes
+docs/comparison.html: docs/comparison.md scripts/comparison-html.py
+	@python3 scripts/comparison-html.py
 
 ze:
 	@mkdir -p bin
@@ -275,6 +279,10 @@ ze-inventory:
 # Generate project inventory as JSON
 ze-inventory-json:
 	@go run scripts/inventory.go --json
+
+# Check documentation drift against live registry and filesystem
+ze-doc-drift:
+	@go run scripts/check-doc-drift.go
 
 # Cross-check YANG command tree against registered handlers
 ze-validate-commands:

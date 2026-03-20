@@ -338,4 +338,5 @@ Contributions, feedback, and bug reports are welcome on the [issue tracker](http
 ## Links
 
 - **Repository:** [codeberg.org/thomas-mangin/ze](https://codeberg.org/thomas-mangin/ze)
+- **Comparison:** [Ze vs other BGP implementations](docs/comparison.md) (FRR, BIRD, GoBGP, OpenBGPd, rustbgpd, RustyBGP)
 - **ExaBGP:** [github.com/Exa-Networks/exabgp](https://github.com/Exa-Networks/exabgp)

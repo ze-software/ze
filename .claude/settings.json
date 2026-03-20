@@ -450,6 +450,16 @@
             "timeout": 10000
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/check-doc-drift.sh",
+            "timeout": 20000
+          }
+        ]
       }
     ],
     "PreCompact": [
