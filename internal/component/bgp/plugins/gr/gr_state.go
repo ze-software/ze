@@ -273,7 +273,7 @@ func (m *grStateManager) onEORReceived(peerAddr, family string) bool {
 }
 
 // llgrPendingActions collects callbacks to fire after releasing the state manager lock.
-// Prevents holding m.mu across blocking RPCs (dispatchRIBCommand).
+// Prevents holding m.mu across blocking RPCs (dispatchCommand).
 type llgrPendingActions struct {
 	entries   []llgrEntryAction // onLLGREnter per family
 	purged    []string          // onLLGRFamilyExpired per family

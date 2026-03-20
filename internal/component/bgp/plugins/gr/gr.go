@@ -89,22 +89,22 @@ func RunGRPlugin(conn net.Conn) int {
 	// LLGR_STALE = 0xFFFF0006, NO_LLGR = 0xFFFF0007 (wire hex).
 	gp.state.onLLGREnter = func(peerAddr, family string, llst uint32) {
 		// 1. Delete routes with NO_LLGR community
-		gp.dispatchRIBCommand("rib delete-with-community " + peerAddr + " " + family + " ffff0007")
+		gp.dispatchCommand("rib delete-with-community " + peerAddr + " " + family + " ffff0007")
 		// 2. Attach LLGR_STALE community to remaining stale routes
-		gp.dispatchRIBCommand("rib attach-community " + peerAddr + " " + family + " ffff0006")
+		gp.dispatchCommand("rib attach-community " + peerAddr + " " + family + " ffff0006")
 		// 3. Raise stale level to depreference threshold
 		// Raise stale level to 2 (depreference threshold) via mark-stale
 		// with restart-time=0 (no new timer needed, LLST timer handles expiry).
-		gp.dispatchRIBCommand("rib mark-stale " + peerAddr + " 0 2")
+		gp.dispatchCommand("rib mark-stale " + peerAddr + " 0 2")
 	}
 	gp.state.onLLGREntryDone = func(peerAddr string) {
-		gp.dispatchRIBCommand("rib clear out !" + peerAddr)
+		gp.dispatchCommand("rib clear out !" + peerAddr)
 	}
 	gp.state.onLLGRFamilyExpired = func(peerAddr, family string) {
-		gp.dispatchRIBCommand("rib purge-stale " + peerAddr + " " + family)
+		gp.dispatchCommand("rib purge-stale " + peerAddr + " " + family)
 	}
 	gp.state.onLLGRComplete = func(peerAddr string) {
-		gp.dispatchRIBCommand("rib release-routes " + peerAddr)
+		gp.dispatchCommand("rib release-routes " + peerAddr)
 	}
 
 	// OnConfigure callback: parse bgp config, extract per-peer restart-time
@@ -284,11 +284,11 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 		if activated {
 			// 3-step session-down sequence (RFC 4724 + consecutive restart handling):
 			// 1. Purge old stale routes from previous GR cycle (no-op on first disconnect)
-			gp.dispatchRIBCommand("rib purge-stale " + peerAddr)
+			gp.dispatchCommand("rib purge-stale " + peerAddr)
 			// 2. Retain routes — prevents bgp-rib from deleting on state=down
-			gp.dispatchRIBCommand("rib retain-routes " + peerAddr)
+			gp.dispatchCommand("rib retain-routes " + peerAddr)
 			// 3. Mark remaining routes as stale for new GR cycle
-			gp.dispatchRIBCommand("rib mark-stale " + peerAddr + " " + strconv.FormatUint(uint64(cap.RestartTime), 10))
+			gp.dispatchCommand("rib mark-stale " + peerAddr + " " + strconv.FormatUint(uint64(cap.RestartTime), 10))
 		}
 
 	case "up":
@@ -300,7 +300,7 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 		purged := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
 		for _, family := range purged {
 			// RFC 4724: purge stale routes for families with F-bit=0 or missing
-			gp.dispatchRIBCommand("rib purge-stale " + peerAddr + " " + family)
+			gp.dispatchCommand("rib purge-stale " + peerAddr + " " + family)
 		}
 	}
 }
@@ -321,7 +321,7 @@ func (gp *grPlugin) handleEOREvent(peerAddr string, payload map[string]any) {
 	shouldPurge := gp.state.onEORReceived(peerAddr, family)
 	if shouldPurge {
 		// RFC 4724: purge only stale routes for this family (selective, not nuclear)
-		gp.dispatchRIBCommand("rib purge-stale " + peerAddr + " " + family)
+		gp.dispatchCommand("rib purge-stale " + peerAddr + " " + family)
 		logger().Debug("gr: EOR received, purging stale routes", "peer", peerAddr, "family", family)
 	}
 }
@@ -335,7 +335,7 @@ func (gp *grPlugin) onTimerExpired(peerAddr string) {
 // releaseRoutes tells bgp-rib to release (delete) retained routes for a peer.
 // Also prunes the cached peer capabilities since GR/LLGR is fully complete.
 func (gp *grPlugin) releaseRoutes(peerAddr string) {
-	gp.dispatchRIBCommand("rib release-routes " + peerAddr)
+	gp.dispatchCommand("rib release-routes " + peerAddr)
 
 	gp.mu.Lock()
 	delete(gp.peerCaps, peerAddr)
@@ -343,9 +343,9 @@ func (gp *grPlugin) releaseRoutes(peerAddr string) {
 	gp.mu.Unlock()
 }
 
-// dispatchRIBCommand sends a command to the engine for inter-plugin coordination.
+// dispatchCommand sends a command to the engine for inter-plugin coordination.
 // Logs errors but does not fail — the GR state machine proceeds regardless.
-func (gp *grPlugin) dispatchRIBCommand(command string) {
+func (gp *grPlugin) dispatchCommand(command string) {
 	if gp.sdk == nil {
 		return // unit test — no SDK available
 	}

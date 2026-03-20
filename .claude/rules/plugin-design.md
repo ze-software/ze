@@ -38,14 +38,28 @@ Rationale: `.claude/rationale/plugin-design.md`
 
 ## Import Rules (BLOCKING)
 
-Infrastructure MUST NOT import plugin implementations directly — use registry lookups.
+Infrastructure MUST NOT import plugin implementations directly -- use registry lookups.
+Plugins MUST NOT import sibling plugin packages -- use text commands via DispatchCommand.
 
-- `internal/plugin/`, `internal/plugins/bgp/`, `internal/component/config/`, `cmd/ze/` → registry
-- NLRI decoding: `registry.NLRIDecoder(family)` → `func(hex) (json, error)`
-- NLRI encoding: `registry.NLRIEncoder(family)` → `func(args) (hex, error)`
+- `internal/plugin/`, `internal/plugins/bgp/`, `internal/component/config/`, `cmd/ze/` -> registry
+- NLRI decoding: `registry.NLRIDecoder(family)` -> `func(hex) (json, error)`
+- NLRI encoding: `registry.NLRIEncoder(family)` -> `func(args) (hex, error)`
 - Plugin `register.go` and `all/all.go` blank imports: allowed
 - Schema imports (`<plugin>/schema/`): allowed (data, not logic)
 - Test imports: tolerated
+
+## Plugin Boundary Naming (BLOCKING)
+
+When a plugin sends commands to the engine via DispatchCommand, name the helper
+for what it does (dispatch a command), not where it sends it (to a specific plugin).
+The engine routes commands by prefix -- the caller should not encode the destination
+in function names, variable names, or type names.
+
+| Banned | Use Instead |
+|--------|-------------|
+| `dispatchRIBCommand` | `dispatchCommand` |
+| `sendToRIB` | `dispatchCommand` |
+| `ribClient` | `sdk.DispatchCommand` directly |
 
 ## 5-Stage Protocol
 
