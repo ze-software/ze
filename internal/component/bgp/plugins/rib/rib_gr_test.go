@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 )
 
@@ -529,4 +530,248 @@ func TestRIBStatusWithStale(t *testing.T) {
 	restartTime, hasRT := peerState["restart-time"]
 	assert.True(t, hasRT, "peer gr-state should include restart-time")
 	assert.Equal(t, float64(120), restartTime, "restart-time should be 120")
+}
+
+// --- LLGR RIB integration tests (RFC 9494) ---
+
+// testWireCommunityNoLLGR is COMMUNITIES attribute with NO_LLGR (0xFFFF0007).
+var testWireCommunityNoLLGR = []byte{0xC0, 0x08, 0x04, 0xFF, 0xFF, 0x00, 0x07}
+
+// TestEnterLLGR_AttachesLLGRStale verifies enter-llgr attaches LLGR_STALE community
+// and sets LLGRStale=true on stale routes.
+//
+// VALIDATES: enter-llgr attaches LLGR_STALE (0xFFFF0006) community to stale routes.
+// PREVENTS: Routes entering LLGR without the community marker for downstream peers.
+func TestEnterLLGR_AttachesLLGRStale(t *testing.T) {
+	t.Parallel()
+	r := setupGRTestRIB(t)
+
+	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+
+	// Mark peer 1 stale
+	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	require.NoError(t, err)
+
+	// Enter LLGR for ipv4/unicast
+	status, data, err := r.handleCommand("rib enter-llgr", "*", []string{"192.0.2.1", "ipv4/unicast", "3600"})
+	require.NoError(t, err)
+	assert.Equal(t, statusDone, status)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	assert.Equal(t, float64(1), result["entered"], "should enter LLGR for 1 stale ipv4 route")
+	assert.Equal(t, float64(0), result["deleted"], "no NO_LLGR routes to delete")
+
+	// Verify LLGRStale flag is set
+	entry, found := r.ribInPool["192.0.2.1"].Lookup(ipv4Family, []byte{24, 10, 0, 0})
+	require.True(t, found)
+	assert.True(t, entry.LLGRStale, "route should have LLGRStale=true")
+
+	// Verify LLGR_STALE community attached
+	assert.True(t, entry.HasCommunities(), "route should have communities")
+	commData, err := pool.Communities.Get(entry.Communities)
+	require.NoError(t, err)
+	assert.True(t, containsCommunity(commData, communityLLGRStale), "community should contain LLGR_STALE")
+}
+
+// TestEnterLLGR_DeletesNoLLGR verifies enter-llgr deletes routes with NO_LLGR community.
+//
+// VALIDATES: RFC 9494: routes with NO_LLGR (0xFFFF0007) deleted on LLGR entry.
+// PREVENTS: NO_LLGR routes persisting into LLGR period.
+func TestEnterLLGR_DeletesNoLLGR(t *testing.T) {
+	t.Parallel()
+	r := newTestRIBManager(t)
+
+	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+
+	// Insert route WITH NO_LLGR community
+	attrWithNoLLGR := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireCommunityNoLLGR)
+	peerRIB := storage.NewPeerRIB("192.0.2.1")
+	peerRIB.Insert(ipv4Family, attrWithNoLLGR, []byte{24, 10, 0, 0})
+	r.ribInPool["192.0.2.1"] = peerRIB
+
+	// Mark stale
+	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	require.NoError(t, err)
+	assert.Equal(t, 1, peerRIB.StaleCount())
+
+	// Enter LLGR
+	status, data, err := r.handleCommand("rib enter-llgr", "*", []string{"192.0.2.1", "ipv4/unicast", "3600"})
+	require.NoError(t, err)
+	assert.Equal(t, statusDone, status)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	assert.Equal(t, float64(0), result["entered"], "NO_LLGR route should not enter LLGR")
+	assert.Equal(t, float64(1), result["deleted"], "NO_LLGR route should be deleted")
+
+	// Verify route is gone
+	assert.Equal(t, 0, peerRIB.Len(), "NO_LLGR route should be deleted from RIB")
+}
+
+// TestAttachLLGRStaleCommunity_Idempotent verifies calling attach twice doesn't duplicate.
+//
+// VALIDATES: attachLLGRStaleCommunity is idempotent.
+// PREVENTS: LLGR_STALE community duplicated on repeated enter-llgr calls.
+func TestAttachLLGRStaleCommunity_Idempotent(t *testing.T) {
+	t.Parallel()
+	r := newTestRIBManager(t)
+
+	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+
+	attrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop)
+	peerRIB := storage.NewPeerRIB("192.0.2.1")
+	peerRIB.Insert(ipv4Family, attrBytes, []byte{24, 10, 0, 0})
+	r.ribInPool["192.0.2.1"] = peerRIB
+
+	entry, found := peerRIB.Lookup(ipv4Family, []byte{24, 10, 0, 0})
+	require.True(t, found)
+
+	// Attach LLGR_STALE twice
+	ok1 := r.attachLLGRStaleCommunity(entry)
+	assert.True(t, ok1, "first attach should succeed")
+
+	ok2 := r.attachLLGRStaleCommunity(entry)
+	assert.True(t, ok2, "second attach should succeed (already present)")
+
+	// Verify only one LLGR_STALE community (4 bytes, not 8)
+	commData, err := pool.Communities.Get(entry.Communities)
+	require.NoError(t, err)
+	assert.Equal(t, 4, len(commData), "community data should be exactly 4 bytes (one LLGR_STALE)")
+}
+
+// TestDepreferenceStaleCommand verifies depreference-stale sets LLGRStale on stale routes.
+//
+// VALIDATES: depreference-stale marks stale routes as least-preferred.
+// PREVENTS: Non-stale routes being deprioritized, or stale routes missed.
+func TestDepreferenceStaleCommand(t *testing.T) {
+	t.Parallel()
+	r := setupGRTestRIB(t)
+
+	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+
+	// Mark peer 1 stale
+	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	require.NoError(t, err)
+
+	// Add a fresh route (should NOT be deprioritized)
+	freshAttr := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop, testWireLocalPref100)
+	r.ribInPool["192.0.2.1"].Insert(ipv4Family, freshAttr, []byte{24, 192, 168, 0})
+
+	// Depreference stale
+	status, data, err := r.handleCommand("rib depreference-stale", "*", []string{"192.0.2.1"})
+	require.NoError(t, err)
+	assert.Equal(t, statusDone, status)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	assert.Equal(t, float64(2), result["depreferenced"], "should depreference 2 stale routes")
+
+	// Verify stale routes have LLGRStale=true
+	entry, found := r.ribInPool["192.0.2.1"].Lookup(ipv4Family, []byte{24, 10, 0, 0})
+	require.True(t, found)
+	assert.True(t, entry.LLGRStale, "stale route should have LLGRStale=true")
+
+	// Verify fresh route does NOT have LLGRStale
+	freshEntry, found := r.ribInPool["192.0.2.1"].Lookup(ipv4Family, []byte{24, 192, 168, 0})
+	require.True(t, found)
+	assert.False(t, freshEntry.LLGRStale, "fresh route should have LLGRStale=false")
+}
+
+// TestReadvertiseLLGRStaleCommand verifies readvertise-llgr-stale resends routes.
+//
+// VALIDATES: readvertise-llgr-stale triggers outbound resend excluding source peer.
+// PREVENTS: Source peer receiving its own routes back.
+func TestReadvertiseLLGRStaleCommand(t *testing.T) {
+	t.Parallel()
+	r := newTestRIBManager(t)
+
+	// No ribOut entries means 0 resent (command is a no-op without routes to send)
+	status, data, err := r.handleCommand("rib readvertise-llgr-stale", "*", []string{"192.0.2.1"})
+	require.NoError(t, err)
+	assert.Equal(t, statusDone, status)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	assert.Equal(t, float64(0), result["resent"], "no routes to resend")
+}
+
+// TestReadvertiseLLGRStaleCommand_MissingArgs verifies error on missing args.
+//
+// VALIDATES: readvertise-llgr-stale rejects missing arguments.
+// PREVENTS: Panic or silent failure on bad input.
+func TestReadvertiseLLGRStaleCommand_MissingArgs(t *testing.T) {
+	t.Parallel()
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib readvertise-llgr-stale", "*", nil)
+	assert.Equal(t, statusError, status)
+	assert.Error(t, err)
+}
+
+// TestContainsCommunity verifies community scanning helper.
+//
+// VALIDATES: containsCommunity correctly identifies 4-byte communities in wire data.
+// PREVENTS: False positives/negatives in NO_LLGR detection.
+func TestContainsCommunity(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		data      []byte
+		community []byte
+		want      bool
+	}{
+		{"empty data", nil, communityLLGRStale, false},
+		{"single match", communityLLGRStale, communityLLGRStale, true},
+		{"single no match", communityNoLLGR, communityLLGRStale, false},
+		{"match at end", append([]byte{0xFD, 0xE8, 0x00, 0x64}, communityNoLLGR...), communityNoLLGR, true},
+		{"match at start", append(communityLLGRStale, 0xFD, 0xE8, 0x00, 0x64), communityLLGRStale, true},
+		{"non-aligned data", []byte{1, 2, 3}, communityLLGRStale, false},
+		{"wrong community size", []byte{0xFF, 0xFF, 0x00, 0x06}, []byte{0xFF, 0xFF}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := containsCommunity(tt.data, tt.community)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestEnterLLGR_NoCommunities verifies LLGR_STALE created when route has no communities.
+//
+// VALIDATES: attachLLGRStaleCommunity creates community from scratch.
+// PREVENTS: Panic when route has no community attribute.
+func TestEnterLLGR_NoCommunities(t *testing.T) {
+	t.Parallel()
+	r := newTestRIBManager(t)
+
+	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+
+	// Route without any communities
+	attrBytes := concatBytes(testWireOriginIGP, testWireASPath65001, testWireNextHop)
+	peerRIB := storage.NewPeerRIB("192.0.2.1")
+	peerRIB.Insert(ipv4Family, attrBytes, []byte{24, 10, 0, 0})
+	r.ribInPool["192.0.2.1"] = peerRIB
+
+	// Mark stale + enter LLGR
+	_, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120"})
+	require.NoError(t, err)
+
+	_, data, err := r.handleCommand("rib enter-llgr", "*", []string{"192.0.2.1", "ipv4/unicast", "3600"})
+	require.NoError(t, err)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	assert.Equal(t, float64(1), result["entered"])
+
+	// Verify community was created from scratch
+	entry, found := peerRIB.Lookup(ipv4Family, []byte{24, 10, 0, 0})
+	require.True(t, found)
+	assert.True(t, entry.HasCommunities(), "community should be created")
+	commData, err := pool.Communities.Get(entry.Communities)
+	require.NoError(t, err)
+	assert.Equal(t, 4, len(commData), "should have exactly LLGR_STALE (4 bytes)")
+	assert.True(t, containsCommunity(commData, communityLLGRStale))
 }

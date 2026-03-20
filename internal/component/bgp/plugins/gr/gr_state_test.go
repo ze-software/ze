@@ -3,6 +3,7 @@ package gr
 import (
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -40,7 +41,7 @@ func TestGRStateManagerRouteRetention(t *testing.T) {
 	})
 
 	cap := testCap(120, famIPv4)
-	activated := mgr.onSessionDown(testPeer, cap, false)
+	activated := mgr.onSessionDown(testPeer, cap, nil, false)
 
 	assert.True(t, activated, "GR should activate for GR-capable peer")
 	assert.True(t, mgr.peerActive(testPeer), "GR should be active for peer")
@@ -60,7 +61,7 @@ func TestGRStateManagerTimerExpiry(t *testing.T) {
 	})
 
 	cap := testCap(0, famIPv4) // restart-time=0 for immediate expiry
-	mgr.onSessionDown(testPeer, cap, false)
+	mgr.onSessionDown(testPeer, cap, nil, false)
 	require.True(t, mgr.peerActive(testPeer))
 
 	// handleTimerExpired is called by time.AfterFunc — simulate it directly
@@ -80,11 +81,11 @@ func TestGRStateManagerReconnectWithFBit(t *testing.T) {
 	mgr := newGRStateManager(nil)
 
 	cap := testCap(120, famIPv4, famIPv6)
-	mgr.onSessionDown(testPeer, cap, false)
+	mgr.onSessionDown(testPeer, cap, nil, false)
 
 	// Peer reconnects with same families, F-bit set
 	newCap := testCap(120, famIPv4, famIPv6)
-	purged := mgr.onSessionReestablished(testPeer, newCap)
+	purged := mgr.onSessionReestablished(testPeer, newCap, nil)
 
 	assert.Empty(t, purged, "no families should be purged when F-bit set")
 	assert.True(t, mgr.peerActive(testPeer), "GR should still be active (waiting for EOR)")
@@ -98,9 +99,9 @@ func TestGRStateManagerReconnectNoGR(t *testing.T) {
 	mgr := newGRStateManager(nil)
 
 	cap := testCap(120, famIPv4)
-	mgr.onSessionDown(testPeer, cap, false)
+	mgr.onSessionDown(testPeer, cap, nil, false)
 
-	purged := mgr.onSessionReestablished(testPeer, nil)
+	purged := mgr.onSessionReestablished(testPeer, nil, nil)
 
 	assert.Contains(t, purged, "ipv4/unicast")
 	assert.False(t, mgr.peerActive(testPeer), "GR state should be cleared")
@@ -114,11 +115,11 @@ func TestGRStateManagerReconnectFBitZero(t *testing.T) {
 	mgr := newGRStateManager(nil)
 
 	cap := testCap(120, famIPv4, famIPv6)
-	mgr.onSessionDown(testPeer, cap, false)
+	mgr.onSessionDown(testPeer, cap, nil, false)
 
 	// Reconnect: IPv4 F-bit=0, IPv6 F-bit=1
 	newCap := testCap(120, famIPv4NoF, famIPv6)
-	purged := mgr.onSessionReestablished(testPeer, newCap)
+	purged := mgr.onSessionReestablished(testPeer, newCap, nil)
 
 	assert.Contains(t, purged, "ipv4/unicast", "IPv4 should be purged (F-bit=0)")
 	assert.NotContains(t, purged, "ipv6/unicast", "IPv6 should be kept (F-bit=1)")
@@ -133,11 +134,11 @@ func TestGRStateManagerReconnectMissingFamily(t *testing.T) {
 	mgr := newGRStateManager(nil)
 
 	cap := testCap(120, famIPv4, famIPv6)
-	mgr.onSessionDown(testPeer, cap, false)
+	mgr.onSessionDown(testPeer, cap, nil, false)
 
 	// Reconnect: only IPv4 (IPv6 missing)
 	newCap := testCap(120, famIPv4)
-	purged := mgr.onSessionReestablished(testPeer, newCap)
+	purged := mgr.onSessionReestablished(testPeer, newCap, nil)
 
 	assert.Contains(t, purged, "ipv6/unicast", "IPv6 should be purged (missing from new cap)")
 	assert.NotContains(t, purged, "ipv4/unicast", "IPv4 should be kept")
@@ -151,11 +152,11 @@ func TestGRStateManagerEORPurge(t *testing.T) {
 	mgr := newGRStateManager(nil)
 
 	cap := testCap(120, famIPv4, famIPv6)
-	mgr.onSessionDown(testPeer, cap, false)
+	mgr.onSessionDown(testPeer, cap, nil, false)
 
 	// Peer reconnects with F-bit set
 	newCap := testCap(120, famIPv4, famIPv6)
-	mgr.onSessionReestablished(testPeer, newCap)
+	mgr.onSessionReestablished(testPeer, newCap, nil)
 
 	// EOR for IPv4 — should purge IPv4 stale, keep IPv6
 	shouldPurge := mgr.onEORReceived(testPeer, "ipv4/unicast")
@@ -180,7 +181,7 @@ func TestGRStateManagerNotificationBypass(t *testing.T) {
 	mgr := newGRStateManager(nil)
 
 	cap := testCap(120, famIPv4)
-	activated := mgr.onSessionDown(testPeer, cap, true) // wasNotification=true
+	activated := mgr.onSessionDown(testPeer, cap, nil, true) // wasNotification=true
 
 	assert.False(t, activated, "GR should not activate on NOTIFICATION")
 	assert.False(t, mgr.peerActive(testPeer), "no GR state for NOTIFICATION teardown")
@@ -194,11 +195,11 @@ func TestGRStateManagerConsecutiveRestarts(t *testing.T) {
 	mgr := newGRStateManager(nil)
 
 	cap := testCap(120, famIPv4)
-	mgr.onSessionDown(testPeer, cap, false)
+	mgr.onSessionDown(testPeer, cap, nil, false)
 	require.True(t, mgr.peerActive(testPeer))
 
 	// Second session down (peer dropped again while GR active)
-	activated := mgr.onSessionDown(testPeer, cap, false)
+	activated := mgr.onSessionDown(testPeer, cap, nil, false)
 	assert.True(t, activated, "GR should activate for new restart cycle")
 	assert.True(t, mgr.peerActive(testPeer))
 }
@@ -210,7 +211,7 @@ func TestGRStateManagerConsecutiveRestarts(t *testing.T) {
 func TestGRStateManagerNoGRCapability(t *testing.T) {
 	mgr := newGRStateManager(nil)
 
-	activated := mgr.onSessionDown(testPeer, nil, false)
+	activated := mgr.onSessionDown(testPeer, nil, nil, false)
 
 	assert.False(t, activated, "GR should not activate for non-GR peer")
 	assert.False(t, mgr.peerActive(testPeer))
@@ -236,7 +237,7 @@ func TestGRStateManagerRestartTimeZero(t *testing.T) {
 	mgr := newGRStateManager(nil)
 
 	cap := testCap(0, famIPv4)
-	activated := mgr.onSessionDown(testPeer, cap, false)
+	activated := mgr.onSessionDown(testPeer, cap, nil, false)
 
 	assert.True(t, activated)
 	assert.True(t, mgr.peerActive(testPeer))
@@ -250,7 +251,7 @@ func TestGRStateManagerRestartTimeMax(t *testing.T) {
 	mgr := newGRStateManager(nil)
 
 	cap := testCap(4095, famIPv4)
-	activated := mgr.onSessionDown(testPeer, cap, false)
+	activated := mgr.onSessionDown(testPeer, cap, nil, false)
 
 	assert.True(t, activated)
 	assert.True(t, mgr.peerActive(testPeer))
@@ -311,4 +312,359 @@ func TestAfiSAFIToFamily(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// --- LLGR state machine tests (RFC 9494) ---
+
+// LLGR test helpers.
+var (
+	llgrCapIPv4 = &llgrPeerCap{
+		Families: []llgrCapFamily{
+			{Family: "ipv4/unicast", ForwardState: true, LLST: 3600},
+		},
+	}
+	llgrCapMulti = &llgrPeerCap{
+		Families: []llgrCapFamily{
+			{Family: "ipv4/unicast", ForwardState: true, LLST: 3600},
+			{Family: "ipv6/unicast", ForwardState: true, LLST: 7200},
+		},
+	}
+	llgrCapPartial = &llgrPeerCap{
+		Families: []llgrCapFamily{
+			{Family: "ipv4/unicast", ForwardState: true, LLST: 3600},
+			// ipv6/unicast not in LLGR cap -> will be purged on LLGR entry
+		},
+	}
+)
+
+// safeCollector collects strings from timer goroutines with synchronization.
+type safeCollector struct {
+	mu    sync.Mutex
+	items []string
+}
+
+func (c *safeCollector) add(s string) { c.mu.Lock(); c.items = append(c.items, s); c.mu.Unlock() }
+func (c *safeCollector) get() []string {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return append([]string{}, c.items...)
+}
+
+// TestOnTimerExpired_WithLLGR verifies GR timer expiry transitions to LLGR.
+//
+// VALIDATES: When GR restart-time expires and LLGR is negotiated, state transitions
+// to LLGR instead of purging. onLLGREnter callback fires per-family.
+// PREVENTS: LLGR routes being purged when GR timer expires.
+func TestOnTimerExpired_WithLLGR(t *testing.T) {
+	t.Parallel()
+
+	llgrEntries := &safeCollector{}
+	expired := &safeCollector{}
+	mgr := newGRStateManager(func(peer string) {
+		expired.add(peer)
+	})
+	mgr.onLLGREnter = func(peer, family string, llst uint32) {
+		llgrEntries.add(family)
+	}
+
+	cap := testCap(1, famIPv4) // restart-time=1s
+	mgr.onSessionDown(testPeer, cap, llgrCapIPv4, false)
+
+	// Wait for GR timer to fire
+	time.Sleep(1500 * time.Millisecond)
+
+	// Should NOT have called onTimerExpired (no purge)
+	assert.Empty(t, expired.get(), "GR timer expiry should not purge when LLGR available")
+	// Should have entered LLGR
+	assert.Equal(t, []string{"ipv4/unicast"}, llgrEntries.get(), "should enter LLGR for ipv4/unicast")
+	// Peer should still be active (in LLGR)
+	assert.True(t, mgr.peerActive(testPeer), "peer should still be active in LLGR")
+}
+
+// TestOnTimerExpired_WithoutLLGR verifies GR timer expiry purges without LLGR.
+//
+// VALIDATES: Existing behavior preserved: GR timer expiry without LLGR purges all stale.
+// PREVENTS: Regression in GR-only behavior.
+func TestOnTimerExpired_WithoutLLGR(t *testing.T) {
+	t.Parallel()
+
+	expired := &safeCollector{}
+	mgr := newGRStateManager(func(peer string) {
+		expired.add(peer)
+	})
+
+	cap := testCap(1, famIPv4)
+	mgr.onSessionDown(testPeer, cap, nil, false) // no LLGR
+
+	time.Sleep(1500 * time.Millisecond)
+
+	assert.Equal(t, []string{testPeer}, expired.get(), "should purge on GR timer expiry without LLGR")
+	assert.False(t, mgr.peerActive(testPeer), "peer should no longer be active")
+}
+
+// TestOnTimerExpired_MixedFamilies verifies mixed LLGR/non-LLGR families on GR expiry.
+//
+// VALIDATES: Families with LLST>0 enter LLGR; families without LLGR cap are purged.
+// PREVENTS: All families entering LLGR when only some have LLST configured.
+func TestOnTimerExpired_MixedFamilies(t *testing.T) {
+	t.Parallel()
+
+	llgrEntries := &safeCollector{}
+	familyExpired := &safeCollector{}
+	mgr := newGRStateManager(nil)
+	mgr.onLLGREnter = func(peer, family string, llst uint32) {
+		llgrEntries.add(family)
+	}
+	mgr.onLLGRFamilyExpired = func(peer, family string) {
+		familyExpired.add(family)
+	}
+
+	// GR cap has both families, LLGR cap only has ipv4
+	cap := testCap(1, famIPv4, famIPv6)
+	mgr.onSessionDown(testPeer, cap, llgrCapPartial, false)
+
+	time.Sleep(1500 * time.Millisecond)
+
+	assert.Equal(t, []string{"ipv4/unicast"}, llgrEntries.get(), "only ipv4 should enter LLGR")
+	assert.Contains(t, familyExpired.get(), "ipv6/unicast", "ipv6 should be purged (no LLGR)")
+	assert.True(t, mgr.peerActive(testPeer), "peer should still be active for ipv4 LLGR")
+}
+
+// TestLLSTTimerExpiry_SingleFamily verifies LLST timer expiry for one family.
+//
+// VALIDATES: When LLST timer fires, that family's stale routes are purged.
+// PREVENTS: All families being purged when only one LLST timer fires.
+func TestLLSTTimerExpiry_SingleFamily(t *testing.T) {
+	t.Parallel()
+
+	familyExpired := &safeCollector{}
+	completed := &safeCollector{}
+	mgr := newGRStateManager(nil)
+	mgr.onLLGREnter = func(peer, family string, llst uint32) {}
+	mgr.onLLGRFamilyExpired = func(peer, family string) {
+		familyExpired.add(family)
+	}
+	mgr.onLLGRComplete = func(peer string) {
+		completed.add(peer)
+	}
+
+	// Both families, different LLST: ipv4=1s, ipv6=100s
+	llgrCap := &llgrPeerCap{
+		Families: []llgrCapFamily{
+			{Family: "ipv4/unicast", ForwardState: true, LLST: 1},
+			{Family: "ipv6/unicast", ForwardState: true, LLST: 100},
+		},
+	}
+	cap := testCap(1, famIPv4, famIPv6)
+	mgr.onSessionDown(testPeer, cap, llgrCap, false)
+
+	// Wait for GR timer (1s) + LLST ipv4 timer (1s) + margin
+	time.Sleep(2500 * time.Millisecond)
+
+	assert.Contains(t, familyExpired.get(), "ipv4/unicast", "ipv4 LLST should have fired")
+	assert.Empty(t, completed.get(), "should not be complete (ipv6 still active)")
+	assert.True(t, mgr.peerActive(testPeer), "peer should still be active for ipv6")
+}
+
+// TestLLSTTimerExpiry_LastFamily verifies cleanup when the last LLST timer fires.
+//
+// VALIDATES: When all LLST timers fire, peer state is cleaned up and onLLGRComplete called.
+// PREVENTS: Peer state leaking after all LLGR families expire.
+func TestLLSTTimerExpiry_LastFamily(t *testing.T) {
+	t.Parallel()
+
+	completed := &safeCollector{}
+	mgr := newGRStateManager(nil)
+	mgr.onLLGREnter = func(peer, family string, llst uint32) {}
+	mgr.onLLGRFamilyExpired = func(peer, family string) {}
+	mgr.onLLGRComplete = func(peer string) {
+		completed.add(peer)
+	}
+
+	llgrCap := &llgrPeerCap{
+		Families: []llgrCapFamily{
+			{Family: "ipv4/unicast", ForwardState: true, LLST: 1},
+		},
+	}
+	cap := testCap(1, famIPv4)
+	mgr.onSessionDown(testPeer, cap, llgrCap, false)
+
+	// Wait for GR (1s) + LLST (1s) + margin
+	time.Sleep(2500 * time.Millisecond)
+
+	assert.Equal(t, []string{testPeer}, completed.get(), "onLLGRComplete should fire")
+	assert.False(t, mgr.peerActive(testPeer), "peer should no longer be active")
+}
+
+// TestOnSessionDown_SkipGR_DirectLLGR verifies restart-time=0 skips GR.
+//
+// VALIDATES: RFC 9494: restart-time=0 + LLST>0 enters LLGR immediately.
+// PREVENTS: Peer being stuck in GR with zero-duration timer.
+func TestOnSessionDown_SkipGR_DirectLLGR(t *testing.T) {
+	t.Parallel()
+
+	var llgrEntries []string
+	mgr := newGRStateManager(nil)
+	mgr.onLLGREnter = func(peer, family string, llst uint32) {
+		llgrEntries = append(llgrEntries, family)
+	}
+
+	cap := testCap(0, famIPv4) // restart-time=0
+	activated := mgr.onSessionDown(testPeer, cap, llgrCapIPv4, false)
+
+	assert.True(t, activated, "should activate with restart-time=0 and LLGR")
+	assert.Equal(t, []string{"ipv4/unicast"}, llgrEntries, "should enter LLGR immediately")
+	assert.True(t, mgr.peerActive(testPeer), "peer should be active in LLGR")
+}
+
+// TestOnSessionDown_ZeroGR_ZeroLLST verifies no GR/LLGR with both zero.
+//
+// VALIDATES: restart-time=0 and LLST=0 means neither GR nor LLGR.
+// PREVENTS: Accidentally entering LLGR with zero LLST.
+func TestOnSessionDown_ZeroGR_ZeroLLST(t *testing.T) {
+	t.Parallel()
+
+	mgr := newGRStateManager(nil)
+
+	llgrCapZero := &llgrPeerCap{
+		Families: []llgrCapFamily{
+			{Family: "ipv4/unicast", ForwardState: true, LLST: 0},
+		},
+	}
+	cap := testCap(0, famIPv4) // restart-time=0
+	activated := mgr.onSessionDown(testPeer, cap, llgrCapZero, false)
+
+	// restart-time=0 triggers immediate LLGR, but LLST=0 means family has no LLGR
+	// So the family gets purged and LLGR completes immediately
+	assert.True(t, activated, "should activate (GR cap present with families)")
+	assert.False(t, mgr.peerActive(testPeer), "peer should not be active (LLST=0)")
+}
+
+// TestOnSessionReestablished_DuringLLGR verifies reconnect during LLGR.
+//
+// VALIDATES: Reconnect during LLGR: stop LLST timers, validate new caps.
+// PREVENTS: LLST timers running after session re-established.
+func TestOnSessionReestablished_DuringLLGR(t *testing.T) {
+	t.Parallel()
+
+	mgr := newGRStateManager(nil)
+	mgr.onLLGREnter = func(peer, family string, llst uint32) {}
+	mgr.onLLGRFamilyExpired = func(peer, family string) {}
+
+	cap := testCap(0, famIPv4) // skip GR, enter LLGR immediately
+	mgr.onSessionDown(testPeer, cap, llgrCapIPv4, false)
+
+	assert.True(t, mgr.peerActive(testPeer), "should be in LLGR")
+
+	// Reconnect with both GR and LLGR caps, F-bit=1
+	newCap := testCap(120, famIPv4)
+	purged := mgr.onSessionReestablished(testPeer, newCap, llgrCapIPv4)
+
+	assert.Empty(t, purged, "F-bit=1 in both caps, nothing to purge")
+}
+
+// TestOnSessionReestablished_DuringLLGR_NoLLGRCap verifies reconnect without LLGR.
+//
+// VALIDATES: Reconnect during LLGR with no LLGR cap: delete all stale.
+// PREVENTS: Stale routes persisting when peer no longer supports LLGR.
+func TestOnSessionReestablished_DuringLLGR_NoLLGRCap(t *testing.T) {
+	t.Parallel()
+
+	mgr := newGRStateManager(nil)
+	mgr.onLLGREnter = func(peer, family string, llst uint32) {}
+	mgr.onLLGRFamilyExpired = func(peer, family string) {}
+
+	cap := testCap(0, famIPv4)
+	mgr.onSessionDown(testPeer, cap, llgrCapIPv4, false)
+
+	// Reconnect with GR only (no LLGR), F-bit=1
+	newCap := testCap(120, famIPv4)
+	purged := mgr.onSessionReestablished(testPeer, newCap, nil)
+
+	// GR F-bit=1 for ipv4, so stale routes are kept until EOR
+	assert.Empty(t, purged, "GR F-bit=1, stale kept until EOR")
+}
+
+// TestOnSessionReestablished_DuringLLGR_NoCaps verifies reconnect with no caps.
+//
+// VALIDATES: Reconnect during LLGR with neither GR nor LLGR: delete all stale.
+// PREVENTS: Stale routes persisting when peer has no GR/LLGR support.
+func TestOnSessionReestablished_DuringLLGR_NoCaps(t *testing.T) {
+	t.Parallel()
+
+	mgr := newGRStateManager(nil)
+	mgr.onLLGREnter = func(peer, family string, llst uint32) {}
+	mgr.onLLGRFamilyExpired = func(peer, family string) {}
+
+	cap := testCap(0, famIPv4)
+	mgr.onSessionDown(testPeer, cap, llgrCapIPv4, false)
+
+	// Reconnect with no GR cap
+	purged := mgr.onSessionReestablished(testPeer, nil, nil)
+
+	assert.Len(t, purged, 1, "all stale should be purged")
+	assert.Contains(t, purged, "ipv4/unicast")
+	assert.False(t, mgr.peerActive(testPeer), "peer should no longer be active")
+}
+
+// TestOnEORReceived_DuringLLGR verifies EOR stops LLST timer.
+//
+// VALIDATES: EOR during LLGR stops LLST timer for that family and purges stale.
+// PREVENTS: LLST timer firing after EOR already received.
+func TestOnEORReceived_DuringLLGR(t *testing.T) {
+	t.Parallel()
+
+	mgr := newGRStateManager(nil)
+	mgr.onLLGREnter = func(peer, family string, llst uint32) {}
+	mgr.onLLGRFamilyExpired = func(peer, family string) {}
+
+	cap := testCap(0, famIPv4, famIPv6)
+	mgr.onSessionDown(testPeer, cap, llgrCapMulti, false)
+
+	shouldPurge := mgr.onEORReceived(testPeer, "ipv4/unicast")
+	assert.True(t, shouldPurge, "should purge stale for EOR family")
+	assert.True(t, mgr.peerActive(testPeer), "peer should still be active (ipv6 remaining)")
+}
+
+// TestOnEORReceived_DuringLLGR_LastFamily verifies EOR for last family completes LLGR.
+//
+// VALIDATES: EOR for last LLGR family cleans up all state.
+// PREVENTS: Peer state leaking after all EORs received during LLGR.
+func TestOnEORReceived_DuringLLGR_LastFamily(t *testing.T) {
+	t.Parallel()
+
+	mgr := newGRStateManager(nil)
+	mgr.onLLGREnter = func(peer, family string, llst uint32) {}
+	mgr.onLLGRFamilyExpired = func(peer, family string) {}
+
+	cap := testCap(0, famIPv4)
+	mgr.onSessionDown(testPeer, cap, llgrCapIPv4, false)
+
+	shouldPurge := mgr.onEORReceived(testPeer, "ipv4/unicast")
+	assert.True(t, shouldPurge, "should purge stale for EOR family")
+	assert.False(t, mgr.peerActive(testPeer), "peer should no longer be active")
+}
+
+// TestConsecutiveRestart_DuringLLGR verifies new session drop while in LLGR.
+//
+// VALIDATES: New session drop during LLGR cleans old LLGR state and starts fresh.
+// PREVENTS: LLST timers from old cycle interfering with new GR cycle.
+func TestConsecutiveRestart_DuringLLGR(t *testing.T) {
+	t.Parallel()
+
+	var llgrCount int
+	mgr := newGRStateManager(nil)
+	mgr.onLLGREnter = func(peer, family string, llst uint32) {
+		llgrCount++
+	}
+	mgr.onLLGRFamilyExpired = func(peer, family string) {}
+
+	cap := testCap(0, famIPv4)
+	mgr.onSessionDown(testPeer, cap, llgrCapIPv4, false)
+	assert.Equal(t, 1, llgrCount, "first LLGR entry")
+
+	// New session drop during LLGR (consecutive restart)
+	mgr.onSessionDown(testPeer, cap, llgrCapIPv4, false)
+	assert.Equal(t, 2, llgrCount, "second LLGR entry after consecutive restart")
+	assert.True(t, mgr.peerActive(testPeer), "peer should still be active")
 }

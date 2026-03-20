@@ -20,8 +20,14 @@ type RouteEntry struct {
 	// Stale is true when this route was marked stale during Graceful Restart.
 	// RFC 4724 Section 4.2: routes from a restarting peer are marked stale
 	// until replaced by a fresh UPDATE or purged on EOR/timer expiry.
-	// Per-route metadata, not pooled — each route has independent stale state.
+	// Per-route metadata, not pooled -- each route has independent stale state.
 	Stale bool
+
+	// LLGRStale is true when this route entered the LLGR period.
+	// RFC 9494: LLGR_STALE routes are treated as least preferred in best-path selection.
+	// Any non-LLGR-stale route beats any LLGR-stale route regardless of other attributes.
+	// Between two LLGR-stale routes, normal tiebreaking applies.
+	LLGRStale bool
 	// Well-known mandatory (RFC 4271 Section 5.1)
 	Origin  attrpool.Handle // ORIGIN (type 1) - IGP, EGP, INCOMPLETE
 	ASPath  attrpool.Handle // AS_PATH (type 2)
@@ -241,6 +247,8 @@ rollback:
 // Returns nil if AddRef fails (e.g., pool shutdown).
 func (e *RouteEntry) Clone() *RouteEntry {
 	clone := &RouteEntry{
+		Stale:            e.Stale,
+		LLGRStale:        e.LLGRStale,
 		Origin:           e.Origin,
 		ASPath:           e.ASPath,
 		NextHop:          e.NextHop,

@@ -1,0 +1,28 @@
+# Valid config: graceful-restart with long-lived-stale-time (RFC 9494)
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		remote {
+			ip 10.0.0.1
+			as 65002
+		}
+		local {
+			as 65001
+			ip 192.0.2.1
+		}
+		router-id 1.2.3.4
+		capability {
+			graceful-restart {
+				restart-time 120
+				long-lived-stale-time 3600
+			}
+		}
+		process gr {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze validate -:stdin=config
+expect=exit:code=0

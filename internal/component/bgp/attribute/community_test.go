@@ -36,6 +36,22 @@ func TestCommunitiesParse(t *testing.T) {
 	assert.Equal(t, Communities{Community(0xFDE90064), CommunityNoExport}, comms)
 }
 
+// VALIDATES: LLGR_STALE well-known community constant (RFC 9494).
+// PREVENTS: Wrong community value breaking LLGR interop.
+func TestCommunityLLGRStale(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, Community(0xFFFF0006), CommunityLLGRStale)
+	assert.Equal(t, "LLGR_STALE", CommunityLLGRStale.String())
+}
+
+// VALIDATES: NO_LLGR well-known community constant (RFC 9494).
+// PREVENTS: Wrong community value breaking LLGR route filtering.
+func TestCommunityNoLLGR(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, Community(0xFFFF0007), CommunityNoLLGR)
+	assert.Equal(t, "NO_LLGR", CommunityNoLLGR.String())
+}
+
 func TestCommunitiesContains(t *testing.T) {
 	t.Parallel()
 	comms := Communities{Community(0xFDE90064), CommunityNoExport}

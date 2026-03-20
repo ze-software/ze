@@ -20,6 +20,17 @@ func TestRouteEntry_StaleDefault(t *testing.T) {
 	assert.False(t, entry.Stale, "new RouteEntry should have Stale=false")
 }
 
+// TestRouteEntry_LLGRStaleDefault verifies new RouteEntry has LLGRStale=false.
+//
+// VALIDATES: New routes are not LLGR-stale.
+// PREVENTS: New routes incorrectly starting as LLGR-stale (least preferred).
+func TestRouteEntry_LLGRStaleDefault(t *testing.T) {
+	t.Parallel()
+
+	entry := NewRouteEntry()
+	assert.False(t, entry.LLGRStale, "new RouteEntry should have LLGRStale=false")
+}
+
 // TestFamilyRIB_MarkStale verifies MarkStale sets Stale=true on all routes.
 //
 // VALIDATES: AC-1 — all routes marked stale after MarkStale.

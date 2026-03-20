@@ -1,11 +1,13 @@
 // Design: docs/architecture/core-design.md — graceful restart plugin
 // RFC: rfc/short/rfc4724.md
+// RFC: rfc/short/rfc9494.md
 // Detail: gr_state.go — GR state machine (per-peer timers, stale family tracking)
+// Detail: gr_llgr.go — LLGR capability decode, config extraction, CLI decode (RFC 9494)
 //
-// Package gr implements a Graceful Restart plugin for ze (RFC 4724).
-// It receives per-peer GR config (restart-time) during Stage 2,
-// registers GR capabilities per-peer during Stage 3, and implements
-// Receiving Speaker procedures during the event loop.
+// Package gr implements a Graceful Restart plugin for ze (RFC 4724, RFC 9494).
+// It receives per-peer GR config (restart-time, long-lived-stale-time) during
+// Stage 2, registers GR (code 64) and LLGR (code 71) capabilities per-peer
+// during Stage 3, and implements Receiving Speaker procedures during the event loop.
 //
 // Event subscriptions: open (received), state, eor.
 // Inter-plugin coordination: DispatchCommand → bgp-rib retain-routes/release-routes/mark-stale/purge-stale.
@@ -58,9 +60,10 @@ func SetLogger(l *slog.Logger) {
 type grPlugin struct {
 	sdk *sdk.Plugin
 
-	mu       sync.Mutex
-	peerCaps map[string]*grPeerCap // peerAddr → last seen GR capability from OPEN
-	state    *grStateManager       // RFC 4724 Receiving Speaker state machine
+	mu           sync.Mutex
+	peerCaps     map[string]*grPeerCap   // peerAddr -> last seen GR capability from OPEN
+	peerLLGRCaps map[string]*llgrPeerCap // peerAddr -> last seen LLGR capability from OPEN
+	state        *grStateManager         // RFC 4724 Receiving Speaker state machine
 }
 
 // RunGRPlugin runs the GR plugin using the SDK RPC protocol.
@@ -73,18 +76,31 @@ func RunGRPlugin(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	gp := &grPlugin{
-		sdk:      p,
-		peerCaps: make(map[string]*grPeerCap),
+		sdk:          p,
+		peerCaps:     make(map[string]*grPeerCap),
+		peerLLGRCaps: make(map[string]*llgrPeerCap),
 	}
 
-	// Create state manager with timer-expiry callback.
-	// When a peer's restart timer fires, release retained routes via bgp-rib.
+	// Create state manager with callbacks for GR and LLGR lifecycle events.
 	gp.state = newGRStateManager(func(peerAddr string) {
 		gp.onTimerExpired(peerAddr)
 	})
+	// RFC 9494: LLGR callbacks for state machine transitions.
+	gp.state.onLLGREnter = func(peerAddr, family string, llst uint32) {
+		gp.dispatchRIBCommand("rib enter-llgr " + peerAddr + " " + family + " " + strconv.FormatUint(uint64(llst), 10))
+	}
+	gp.state.onLLGREntryDone = func(peerAddr string) {
+		gp.dispatchRIBCommand("rib readvertise-llgr-stale " + peerAddr)
+	}
+	gp.state.onLLGRFamilyExpired = func(peerAddr, family string) {
+		gp.dispatchRIBCommand("rib purge-stale " + peerAddr + " " + family)
+	}
+	gp.state.onLLGRComplete = func(peerAddr string) {
+		gp.dispatchRIBCommand("rib release-routes " + peerAddr)
+	}
 
-	// OnConfigure callback: parse bgp config, extract per-peer restart-time,
-	// then set capabilities for Stage 3.
+	// OnConfigure callback: parse bgp config, extract per-peer restart-time
+	// and long-lived-stale-time, then set capabilities for Stage 3.
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		var caps []sdk.CapabilityDecl
 		for _, section := range sections {
@@ -92,6 +108,8 @@ func RunGRPlugin(conn net.Conn) int {
 				continue
 			}
 			caps = append(caps, extractGRCapabilities(section.Data)...)
+			// RFC 9494: LLGR capability (code 71) declared alongside GR (code 64)
+			caps = append(caps, extractLLGRCapabilities(section.Data)...)
 		}
 		p.SetCapabilities(caps)
 		return nil
@@ -158,8 +176,9 @@ func (gp *grPlugin) handleEvent(event string) error {
 	return nil
 }
 
-// handleOpenEvent extracts the GR capability from a received OPEN message.
-// Stores the parsed capability for use when the peer's session later drops.
+// handleOpenEvent extracts GR (code 64) and LLGR (code 71) capabilities from
+// a received OPEN message. Stores both for use when the peer's session drops.
+// RFC 9494: LLGR capability MUST be ignored if GR capability is not also present.
 func (gp *grPlugin) handleOpenEvent(peerAddr string, payload map[string]any) {
 	openObj, ok := payload["open"].(map[string]any)
 	if !ok {
@@ -171,45 +190,67 @@ func (gp *grPlugin) handleOpenEvent(peerAddr string, payload map[string]any) {
 		return
 	}
 
-	// Find GR capability (code 64) in capabilities list
+	var foundGR bool
+	// Scan all capabilities for code 64 (GR) and code 71 (LLGR)
 	for _, capRaw := range caps {
 		capObj, ok := capRaw.(map[string]any)
 		if !ok {
 			continue
 		}
 		code, _ := capObj["code"].(float64)
-		if int(code) != 64 {
-			continue
-		}
 		hexValue, _ := capObj["value"].(string)
 		if hexValue == "" {
 			continue
 		}
 
-		data, err := hex.DecodeString(hexValue)
-		if err != nil {
-			logger().Debug("gr: invalid cap 64 hex", "peer", peerAddr, "err", err)
-			continue
+		switch int(code) {
+		case 64:
+			data, err := hex.DecodeString(hexValue)
+			if err != nil {
+				logger().Debug("gr: invalid cap 64 hex", "peer", peerAddr, "err", err)
+				continue
+			}
+			result, err := decodeGR(data)
+			if err != nil {
+				logger().Debug("gr: failed to decode cap 64", "peer", peerAddr, "err", err)
+				continue
+			}
+			peerCap := grResultToPeerCap(result)
+			gp.mu.Lock()
+			gp.peerCaps[peerAddr] = peerCap
+			gp.mu.Unlock()
+			foundGR = true
+			logger().Debug("gr: stored peer GR capability",
+				"peer", peerAddr,
+				"restart-time", peerCap.RestartTime,
+				"families", len(peerCap.Families))
+
+		case 71:
+			data, err := hex.DecodeString(hexValue)
+			if err != nil {
+				logger().Debug("gr: invalid cap 71 hex", "peer", peerAddr, "err", err)
+				continue
+			}
+			result, err := decodeLLGR(data)
+			if err != nil {
+				logger().Debug("gr: failed to decode cap 71", "peer", peerAddr, "err", err)
+				continue
+			}
+			peerCap := llgrResultToPeerCap(result)
+			gp.mu.Lock()
+			gp.peerLLGRCaps[peerAddr] = peerCap
+			gp.mu.Unlock()
+			logger().Debug("gr: stored peer LLGR capability",
+				"peer", peerAddr,
+				"families", len(peerCap.Families))
 		}
+	}
 
-		result, err := decodeGR(data)
-		if err != nil {
-			logger().Debug("gr: failed to decode cap 64", "peer", peerAddr, "err", err)
-			continue
-		}
-
-		// Convert grResult to grPeerCap for state machine use
-		peerCap := grResultToPeerCap(result)
-
+	// RFC 9494: If GR capability is not present, LLGR MUST be ignored.
+	if !foundGR {
 		gp.mu.Lock()
-		gp.peerCaps[peerAddr] = peerCap
+		delete(gp.peerLLGRCaps, peerAddr)
 		gp.mu.Unlock()
-
-		logger().Debug("gr: stored peer capability",
-			"peer", peerAddr,
-			"restart-time", peerCap.RestartTime,
-			"families", len(peerCap.Families))
-		return // Only one GR capability per OPEN
 	}
 }
 
@@ -228,9 +269,10 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 
 		gp.mu.Lock()
 		cap := gp.peerCaps[peerAddr]
+		llgrCap := gp.peerLLGRCaps[peerAddr]
 		gp.mu.Unlock()
 
-		activated := gp.state.onSessionDown(peerAddr, cap, wasNotification)
+		activated := gp.state.onSessionDown(peerAddr, cap, llgrCap, wasNotification)
 		if activated {
 			// 3-step session-down sequence (RFC 4724 + consecutive restart handling):
 			// 1. Purge old stale routes from previous GR cycle (no-op on first disconnect)
@@ -244,9 +286,10 @@ func (gp *grPlugin) handleStateEvent(peerAddr string, payload map[string]any) {
 	case "up":
 		gp.mu.Lock()
 		newCap := gp.peerCaps[peerAddr]
+		newLLGRCap := gp.peerLLGRCaps[peerAddr]
 		gp.mu.Unlock()
 
-		purged := gp.state.onSessionReestablished(peerAddr, newCap)
+		purged := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
 		for _, family := range purged {
 			// RFC 4724: purge stale routes for families with F-bit=0 or missing
 			gp.dispatchRIBCommand("rib purge-stale " + peerAddr + " " + family)
@@ -282,8 +325,14 @@ func (gp *grPlugin) onTimerExpired(peerAddr string) {
 }
 
 // releaseRoutes tells bgp-rib to release (delete) retained routes for a peer.
+// Also prunes the cached peer capabilities since GR/LLGR is fully complete.
 func (gp *grPlugin) releaseRoutes(peerAddr string) {
 	gp.dispatchRIBCommand("rib release-routes " + peerAddr)
+
+	gp.mu.Lock()
+	delete(gp.peerCaps, peerAddr)
+	delete(gp.peerLLGRCaps, peerAddr)
+	gp.mu.Unlock()
 }
 
 // dispatchRIBCommand sends a command to the engine for inter-plugin coordination.
@@ -406,32 +455,58 @@ func extractGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 
 // RunCLIDecode decodes hex capability data directly from CLI arguments.
 // This is for human use: `ze plugin gr --capa <hex>` or with `--text`.
+// Auto-detects GR (code 64) vs LLGR (code 71) based on wire format structure:
+//   - GR: 2-byte header + 4-byte tuples -> (len-2) % 4 == 0 and len >= 2
+//   - LLGR: 7-byte tuples only -> len % 7 == 0 and len >= 7
+//
 // Returns exit code (0 = success, 1 = error).
 func RunCLIDecode(hexData string, textOutput bool, stdout, stderr io.Writer) int {
-	// Decode hex
 	data, err := hex.DecodeString(hexData)
 	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "error: invalid hex: %v\n", err)
+		writeOut(stderr, fmt.Sprintf("error: invalid hex: %v\n", err))
 		return 1
 	}
 
-	// Parse GR capability value
+	n := len(data)
+	looksLikeGR := n >= 2 && (n-2)%4 == 0
+	looksLikeLLGR := n >= 7 && n%7 == 0
+
+	// If only LLGR structure matches, decode as LLGR directly
+	if looksLikeLLGR && !looksLikeGR {
+		return runCLIDecodeLLGR(hexData, textOutput, stdout, stderr)
+	}
+
+	// If only GR or both structures match, try GR; fall back to LLGR on failure
+	exitCode := runCLIDecodeGR(hexData, textOutput, stdout, stderr)
+	if exitCode == 0 {
+		return 0
+	}
+	return runCLIDecodeLLGR(hexData, textOutput, stdout, stderr)
+}
+
+// runCLIDecodeGR decodes GR capability (code 64) hex from CLI arguments.
+func runCLIDecodeGR(hexData string, textOutput bool, stdout, stderr io.Writer) int {
+	data, err := hex.DecodeString(hexData)
+	if err != nil {
+		writeOut(stderr, fmt.Sprintf("error: invalid hex: %v\n", err))
+		return 1
+	}
+
 	result, err := decodeGR(data)
 	if err != nil {
-		_, _ = fmt.Fprintf(stderr, "error: %v\n", err)
+		writeOut(stderr, fmt.Sprintf("error: %v\n", err))
 		return 1
 	}
 
-	// Output based on format
 	if textOutput {
-		_, _ = fmt.Fprintln(stdout, formatGRText(result))
+		writeOut(stdout, formatGRText(result)+"\n")
 	} else {
-		jsonBytes, err := json.Marshal(result)
-		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "error: JSON encoding: %v\n", err)
+		jsonBytes, jsonErr := json.Marshal(result)
+		if jsonErr != nil {
+			writeOut(stderr, fmt.Sprintf("error: JSON encoding: %v\n", jsonErr))
 			return 1
 		}
-		_, _ = fmt.Fprintln(stdout, string(jsonBytes))
+		writeOut(stdout, string(jsonBytes)+"\n")
 	}
 	return 0
 }
@@ -524,8 +599,14 @@ func writeOut(w io.Writer, s string) {
 	}
 }
 
+// Decode format constants used by RunDecodeMode and helpers.
+const (
+	decodeFormatJSON = "json"
+	decodeFormatText = "text"
+)
+
 // RunDecodeMode runs the plugin in decode mode for ze bgp decode.
-// RFC 4724: Graceful Restart capability code 64.
+// Handles capability code 64 (GR, RFC 4724) and code 71 (LLGR, RFC 9494).
 func RunDecodeMode(input io.Reader, output io.Writer) int {
 	writeUnknown := func() { writeOut(output, "decoded unknown\n") }
 	writeJSON := func(j []byte) { writeOut(output, "decoded json "+string(j)+"\n") }
@@ -544,9 +625,9 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 			continue
 		}
 
-		format := "json"
+		format := decodeFormatJSON
 		capIdx := 1
-		if parts[1] == "json" || parts[1] == "text" {
+		if parts[1] == decodeFormatJSON || parts[1] == decodeFormatText {
 			format = parts[1]
 			capIdx = 2
 			if len(parts) < 5 {
@@ -560,34 +641,44 @@ func RunDecodeMode(input io.Reader, output io.Writer) int {
 			continue
 		}
 
-		if parts[capIdx+1] != "64" {
+		capCode := parts[capIdx+1]
+		if capCode != "64" && capCode != "71" {
 			writeUnknown()
 			continue
 		}
 
 		hexData := parts[capIdx+2]
-		data, hexErr := hex.DecodeString(hexData)
-		if hexErr != nil {
-			writeUnknown()
-			continue
-		}
-
-		result, decErr := decodeGR(data)
-		if decErr != nil {
-			writeUnknown()
-			continue
-		}
-
-		if format == "text" {
-			writeText(formatGRText(result))
+		if capCode == "64" {
+			decodeGRMode(format, hexData, writeJSON, writeText, writeUnknown)
 		} else {
-			jsonBytes, jsonErr := json.Marshal(result)
-			if jsonErr != nil {
-				writeUnknown()
-				continue
-			}
-			writeJSON(jsonBytes)
+			decodeLLGRMode(format, hexData, writeJSON, writeText, writeUnknown)
 		}
 	}
 	return 0
+}
+
+// decodeGRMode handles "decode capability 64 <hex>" in decode mode.
+func decodeGRMode(format, hexData string, writeJSON func([]byte), writeText func(string), writeUnknown func()) {
+	data, err := hex.DecodeString(hexData)
+	if err != nil {
+		writeUnknown()
+		return
+	}
+
+	result, decErr := decodeGR(data)
+	if decErr != nil {
+		writeUnknown()
+		return
+	}
+
+	if format == decodeFormatText {
+		writeText(formatGRText(result))
+	} else {
+		jsonBytes, jsonErr := json.Marshal(result)
+		if jsonErr != nil {
+			writeUnknown()
+			return
+		}
+		writeJSON(jsonBytes)
+	}
 }

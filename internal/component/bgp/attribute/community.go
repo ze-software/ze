@@ -51,6 +51,16 @@ const (
 	// CommunityNoPeer - RFC 3765: Routes with this community should not be
 	// advertised to peers.
 	CommunityNoPeer Community = 0xFFFFFF04 // NOPEER (RFC 3765)
+
+	// CommunityLLGRStale - RFC 9494 Section 3: Routes retained beyond the
+	// Graceful Restart timer are marked with this community. LLGR_STALE routes
+	// are treated as least preferred in route selection.
+	CommunityLLGRStale Community = 0xFFFF0006 // LLGR_STALE (RFC 9494)
+
+	// CommunityNoLLGR - RFC 9494 Section 3: Routes carrying this community
+	// MUST NOT be retained when Long-Lived Graceful Restart procedures are in
+	// effect. They are deleted immediately when the LLGR period begins.
+	CommunityNoLLGR Community = 0xFFFF0007 // NO_LLGR (RFC 9494)
 )
 
 // String returns the community in ASN:value format.
@@ -67,6 +77,10 @@ func (c Community) String() string {
 		return "NO_EXPORT_SUBCONFED"
 	case CommunityNoPeer:
 		return "NOPEER"
+	case CommunityLLGRStale:
+		return "LLGR_STALE"
+	case CommunityNoLLGR:
+		return "NO_LLGR"
 	}
 	return fmt.Sprintf("%d:%d", c>>16, c&0xFFFF)
 }

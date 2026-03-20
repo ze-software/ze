@@ -1,0 +1,9 @@
+# plugin-gr-llgr-capa - verify LLGR capability decode via plugin CLI
+# Tests LLGR capability (code 71) decoding via ze plugin bgp-gr --capa
+# RFC 9494: LLGR capability with ipv4/unicast, F-bit=1, LLST=3600
+# Wire: 0001 (AFI=ipv4) 01 (SAFI=unicast) 80 (F-bit) 000e10 (LLST=3600)
+
+cmd=foreground:seq=1:exec=ze plugin bgp-gr --capa 00010180000e10
+expect=exit:code=0
+expect=stdout:contains=long-lived-graceful-restart
+expect=stdout:contains=3600

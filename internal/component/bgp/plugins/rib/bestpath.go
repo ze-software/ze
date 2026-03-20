@@ -21,7 +21,7 @@ const (
 )
 
 // Candidate holds extracted attribute values for best-path comparison.
-// Built from pool handles by the caller — this struct has no pool dependency.
+// Built from pool handles by the caller -- this struct has no pool dependency.
 type Candidate struct {
 	PeerAddr     string // peer IP address (tiebreak step 8)
 	PeerASN      uint32 // peer's AS number
@@ -32,6 +32,7 @@ type Candidate struct {
 	Origin       byte   // ORIGIN: 0=IGP, 1=EGP, 2=INCOMPLETE
 	MED          uint32 // MED value (default 0 if absent)
 	OriginatorID string // ORIGINATOR_ID as IP string (RFC 4456, Router ID tiebreak)
+	LLGRStale    bool   // RFC 9494: true if route is in LLGR period (least preferred)
 }
 
 // SelectBest selects the best route from a list of candidates.
@@ -50,10 +51,21 @@ func SelectBest(candidates []*Candidate) *Candidate {
 	return best
 }
 
-// ComparePair compares two candidates using RFC 4271 §9.1.2 Phase 2 steps.
+// ComparePair compares two candidates using RFC 4271 §9.1.2 Phase 2 steps,
+// with RFC 9494 LLGR depreference applied first.
 // Returns -1 if a is better, 1 if b is better, 0 if equal (should not happen
 // with peer address tiebreak, but returned for defensive correctness).
 func ComparePair(a, b *Candidate) int {
+	// Step 0: RFC 9494 LLGR depreference.
+	// Any non-LLGR-stale route beats any LLGR-stale route regardless of other attributes.
+	// Between two LLGR-stale routes, normal tiebreaking applies.
+	if a.LLGRStale != b.LLGRStale {
+		if !a.LLGRStale {
+			return -1 // a is normal, b is LLGR-stale: a wins
+		}
+		return 1 // a is LLGR-stale, b is normal: b wins
+	}
+
 	// Step 1: Highest LOCAL_PREF wins.
 	// RFC 4271 §9.1.2: "the route with the highest degree of preference MUST be selected"
 	if a.LocalPref != b.LocalPref {

@@ -2,6 +2,7 @@ package gr
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"strings"
 	"testing"
@@ -459,4 +460,284 @@ func TestExtractGRCapabilities_GroupPeerOverride(t *testing.T) {
 	// 10.0.0.2 should inherit group restart-time (120 = 0x0078).
 	assert.Equal(t, "0078", capByPeer["10.0.0.2"],
 		"peer without GR config should inherit group restart-time 120")
+}
+
+// --- LLGR capability decode tests (RFC 9494) ---
+
+// TestDecodeLLGR_Basic verifies basic LLGR capability wire format decode.
+//
+// VALIDATES: decodeLLGR correctly parses a single 7-byte AFI/SAFI/LLST tuple.
+// PREVENTS: Wrong LLST parsing breaking LLGR timer values.
+func TestDecodeLLGR_Basic(t *testing.T) {
+	t.Parallel()
+	// One tuple: AFI=1 (IPv4), SAFI=1 (unicast), F=1, LLST=3600 (0x000E10)
+	data := []byte{0x00, 0x01, 0x01, 0x80, 0x00, 0x0E, 0x10}
+	result, err := decodeLLGR(data)
+	require.NoError(t, err)
+	assert.Equal(t, "long-lived-graceful-restart", result.Name)
+	require.Len(t, result.Families, 1)
+	assert.Equal(t, uint16(1), result.Families[0].AFI)
+	assert.Equal(t, uint8(1), result.Families[0].SAFI)
+	assert.True(t, result.Families[0].ForwardState)
+	assert.Equal(t, uint32(3600), result.Families[0].LLST)
+}
+
+// TestDecodeLLGR_MultipleFamilies verifies decoding multiple AFI/SAFI tuples.
+//
+// VALIDATES: decodeLLGR correctly parses consecutive 7-byte tuples.
+// PREVENTS: Off-by-one in tuple iteration.
+func TestDecodeLLGR_MultipleFamilies(t *testing.T) {
+	t.Parallel()
+	// Two tuples: ipv4/unicast LLST=3600, ipv6/unicast LLST=7200
+	data := []byte{
+		0x00, 0x01, 0x01, 0x80, 0x00, 0x0E, 0x10, // AFI=1, SAFI=1, F=1, LLST=3600
+		0x00, 0x02, 0x01, 0x80, 0x00, 0x1C, 0x20, // AFI=2, SAFI=1, F=1, LLST=7200
+	}
+	result, err := decodeLLGR(data)
+	require.NoError(t, err)
+	require.Len(t, result.Families, 2)
+	assert.Equal(t, uint16(1), result.Families[0].AFI)
+	assert.Equal(t, uint32(3600), result.Families[0].LLST)
+	assert.Equal(t, uint16(2), result.Families[1].AFI)
+	assert.Equal(t, uint32(7200), result.Families[1].LLST)
+}
+
+// TestDecodeLLGR_MaxLLST verifies 24-bit maximum LLST value.
+//
+// VALIDATES: decodeLLGR handles max 24-bit LLST (16777215 seconds, ~194 days).
+// PREVENTS: Integer overflow or truncation of large LLST values.
+func TestDecodeLLGR_MaxLLST(t *testing.T) {
+	t.Parallel()
+	// LLST=16777215 (0xFFFFFF)
+	data := []byte{0x00, 0x01, 0x01, 0x80, 0xFF, 0xFF, 0xFF}
+	result, err := decodeLLGR(data)
+	require.NoError(t, err)
+	require.Len(t, result.Families, 1)
+	assert.Equal(t, uint32(16777215), result.Families[0].LLST)
+}
+
+// TestDecodeLLGR_Empty verifies empty LLGR capability (zero families).
+//
+// VALIDATES: decodeLLGR handles zero-length data (valid per RFC 9494).
+// PREVENTS: Nil pointer or panic on empty input.
+func TestDecodeLLGR_Empty(t *testing.T) {
+	t.Parallel()
+	result, err := decodeLLGR([]byte{})
+	require.NoError(t, err)
+	assert.Empty(t, result.Families)
+}
+
+// TestDecodeLLGR_TruncatedTuple verifies partial tuple handling.
+//
+// VALIDATES: decodeLLGR returns error for data shorter than one tuple.
+// PREVENTS: Panic on buffer underrun with malformed capability.
+func TestDecodeLLGR_TruncatedTuple(t *testing.T) {
+	t.Parallel()
+	// 5 bytes: less than one complete 7-byte tuple
+	data := []byte{0x00, 0x01, 0x01, 0x80, 0x00}
+	_, err := decodeLLGR(data)
+	assert.Error(t, err)
+}
+
+// TestDecodeLLGR_FBitClear verifies F-bit=0 parsing.
+//
+// VALIDATES: decodeLLGR correctly reports ForwardState=false when F-bit is clear.
+// PREVENTS: F-bit always reading as true.
+func TestDecodeLLGR_FBitClear(t *testing.T) {
+	t.Parallel()
+	// Flags=0x00 (F-bit clear)
+	data := []byte{0x00, 0x01, 0x01, 0x00, 0x00, 0x0E, 0x10}
+	result, err := decodeLLGR(data)
+	require.NoError(t, err)
+	require.Len(t, result.Families, 1)
+	assert.False(t, result.Families[0].ForwardState)
+}
+
+// TestDecodeLLGR_TrailingBytes verifies that trailing bytes after complete tuples are ignored.
+//
+// VALIDATES: decodeLLGR parses complete tuples and ignores trailing partial data.
+// PREVENTS: Incomplete tuples causing parse errors.
+func TestDecodeLLGR_TrailingBytes(t *testing.T) {
+	t.Parallel()
+	// One complete tuple + 3 trailing bytes
+	data := []byte{0x00, 0x01, 0x01, 0x80, 0x00, 0x0E, 0x10, 0xAA, 0xBB, 0xCC}
+	result, err := decodeLLGR(data)
+	require.NoError(t, err)
+	require.Len(t, result.Families, 1)
+	assert.Equal(t, uint32(3600), result.Families[0].LLST)
+}
+
+// TestExtractLLGRCapabilities_Basic verifies LLGR config extraction.
+//
+// VALIDATES: extractLLGRCapabilities produces cap code 71 from config with LLST.
+// PREVENTS: LLGR config silently ignored, no capability declared.
+func TestExtractLLGRCapabilities_Basic(t *testing.T) {
+	t.Parallel()
+	jsonStr := `{"bgp":{"peer":{"192.168.1.1":{"capability":{"graceful-restart":{"restart-time":120,"long-lived-stale-time":3600}}}}}}`
+	caps := extractLLGRCapabilities(jsonStr)
+	require.Len(t, caps, 1)
+	assert.Equal(t, uint8(71), caps[0].Code)
+	assert.Equal(t, "hex", caps[0].Encoding)
+	require.Len(t, caps[0].Peers, 1)
+	assert.Equal(t, "192.168.1.1", caps[0].Peers[0])
+	// Verify payload decodes to correct LLST
+	data, err := hex.DecodeString(caps[0].Payload)
+	require.NoError(t, err)
+	result, err := decodeLLGR(data)
+	require.NoError(t, err)
+	require.Len(t, result.Families, 1)
+	assert.Equal(t, uint32(3600), result.Families[0].LLST)
+}
+
+// TestExtractLLGRCapabilities_NoLLGR verifies no cap 71 without LLST config.
+//
+// VALIDATES: extractLLGRCapabilities returns nil when no LLST configured.
+// PREVENTS: Spurious LLGR capability advertised when not configured.
+func TestExtractLLGRCapabilities_NoLLGR(t *testing.T) {
+	t.Parallel()
+	jsonStr := `{"bgp":{"peer":{"192.168.1.1":{"capability":{"graceful-restart":{"restart-time":120}}}}}}`
+	caps := extractLLGRCapabilities(jsonStr)
+	assert.Empty(t, caps)
+}
+
+// TestRunDecodeMode_LLGR verifies decode mode for LLGR capability code 71.
+//
+// VALIDATES: RunDecodeMode correctly dispatches cap 71 hex to LLGR decoder.
+// PREVENTS: Cap 71 treated as unknown in decode pipeline.
+func TestRunDecodeMode_LLGR(t *testing.T) {
+	t.Parallel()
+	// AFI=1, SAFI=1, F=1, LLST=3600 (0x000E10)
+	input := strings.NewReader("decode capability 71 00010180000e10\n")
+	var output bytes.Buffer
+	exitCode := RunDecodeMode(input, &output)
+	assert.Equal(t, 0, exitCode)
+	assert.Contains(t, output.String(), "decoded json")
+	assert.Contains(t, output.String(), "long-lived-graceful-restart")
+	assert.Contains(t, output.String(), "3600")
+}
+
+// TestRunDecodeMode_LLGR_Text verifies text decode mode for LLGR.
+//
+// VALIDATES: RunDecodeMode text format for cap 71.
+// PREVENTS: Text formatting broken for LLGR capability.
+func TestRunDecodeMode_LLGR_Text(t *testing.T) {
+	t.Parallel()
+	input := strings.NewReader("decode text capability 71 00010180000e10\n")
+	var output bytes.Buffer
+	exitCode := RunDecodeMode(input, &output)
+	assert.Equal(t, 0, exitCode)
+	assert.Contains(t, output.String(), "decoded text")
+	assert.Contains(t, output.String(), "long-lived-graceful-restart")
+	assert.Contains(t, output.String(), "llst=3600")
+}
+
+// TestFormatLLGRText verifies human-readable LLGR capability formatting.
+//
+// VALIDATES: formatLLGRText produces expected output with LLST and F-bit.
+// PREVENTS: Missing LLST or F-bit indicator in text output.
+func TestFormatLLGRText(t *testing.T) {
+	t.Parallel()
+	r := &llgrResult{
+		Name: "long-lived-graceful-restart",
+		Families: []llgrFamily{
+			{AFI: 1, SAFI: 1, ForwardState: true, LLST: 3600},
+			{AFI: 2, SAFI: 1, ForwardState: false, LLST: 7200},
+		},
+	}
+	text := formatLLGRText(r)
+	assert.Contains(t, text, "long-lived-graceful-restart")
+	assert.Contains(t, text, "afi=1/safi=1 llst=3600(F)")
+	assert.Contains(t, text, "afi=2/safi=1 llst=7200")
+	assert.NotContains(t, text, "llst=7200(F)")
+}
+
+// TestDecodeLLGR_BoundaryLengths verifies error for all truncated lengths (1-6 bytes).
+//
+// VALIDATES: decodeLLGR rejects inputs shorter than one complete 7-byte tuple.
+// PREVENTS: Silent parse with partial data.
+func TestDecodeLLGR_BoundaryLengths(t *testing.T) {
+	t.Parallel()
+	for length := 1; length <= 6; length++ {
+		data := make([]byte, length)
+		_, err := decodeLLGR(data)
+		assert.Error(t, err, "length %d should error", length)
+	}
+}
+
+// TestExtractLLGRCapabilities_LLSTClamping verifies LLST > 24-bit max is clamped.
+//
+// VALIDATES: parseLLGRCapValue clamps LLST to 16777215.
+// PREVENTS: LLST overflow in 3-byte wire encoding.
+func TestExtractLLGRCapabilities_LLSTClamping(t *testing.T) {
+	t.Parallel()
+	jsonStr := `{"bgp":{"peer":{"192.168.1.1":{"capability":{"graceful-restart":{"restart-time":120,"long-lived-stale-time":20000000}}}}}}`
+	caps := extractLLGRCapabilities(jsonStr)
+	require.Len(t, caps, 1)
+	// Decode the payload to verify clamped LLST
+	data, err := hex.DecodeString(caps[0].Payload)
+	require.NoError(t, err)
+	result, err := decodeLLGR(data)
+	require.NoError(t, err)
+	require.Len(t, result.Families, 1)
+	assert.Equal(t, uint32(16777215), result.Families[0].LLST, "LLST should be clamped to 24-bit max")
+}
+
+// TestExtractLLGRCapabilities_GroupOverride verifies group-level LLGR with peer override.
+//
+// VALIDATES: Per-peer LLGR config overrides group-level LLGR.
+// PREVENTS: Group config silently ignored or peer override not applied.
+func TestExtractLLGRCapabilities_GroupOverride(t *testing.T) {
+	t.Parallel()
+	jsonStr := `{"bgp":{"group":{"transit":{"capability":{"graceful-restart":{"restart-time":120,"long-lived-stale-time":7200}},"peer":{"10.0.0.1":{"capability":{"graceful-restart":{"restart-time":120,"long-lived-stale-time":3600}}},"10.0.0.2":{"peer-as":65002}}}}}}`
+
+	caps := extractLLGRCapabilities(jsonStr)
+	require.Len(t, caps, 2, "both peers should get LLGR capabilities")
+
+	capByPeer := make(map[string]uint32)
+	for _, cap := range caps {
+		require.Len(t, cap.Peers, 1)
+		data, err := hex.DecodeString(cap.Payload)
+		require.NoError(t, err)
+		result, err := decodeLLGR(data)
+		require.NoError(t, err)
+		require.Len(t, result.Families, 1)
+		capByPeer[cap.Peers[0]] = result.Families[0].LLST
+	}
+
+	assert.Equal(t, uint32(3600), capByPeer["10.0.0.1"], "per-peer LLST 3600 should override group 7200")
+	assert.Equal(t, uint32(7200), capByPeer["10.0.0.2"], "peer without LLGR config should inherit group LLST 7200")
+}
+
+// TestRunCLIDecode_AmbiguousAutoDetect verifies auto-detection when both GR and LLGR match.
+//
+// VALIDATES: 14-byte hex (valid GR: 2+4*3, also LLGR: 7*2) decodes as GR (priority).
+// PREVENTS: Ambiguous input misidentified as wrong capability type.
+func TestRunCLIDecode_AmbiguousAutoDetect(t *testing.T) {
+	t.Parallel()
+	// 14 bytes: valid GR (2-byte header + 3x 4-byte families) AND divisible by 7 (2 LLGR tuples)
+	// GR: restart-time=120, 3 families (ipv4/unicast F=1, ipv6/unicast F=1, ipv4/multicast F=1)
+	hexData := "0078000101800002018000010280"
+
+	var stdout, stderr bytes.Buffer
+	exitCode := RunCLIDecode(hexData, false, &stdout, &stderr)
+	assert.Equal(t, 0, exitCode)
+	// Should decode as GR (has restart-time)
+	assert.Contains(t, stdout.String(), "graceful-restart")
+	assert.Contains(t, stdout.String(), "restart-time")
+}
+
+// TestRunCLIDecode_LLGROnlyStructure verifies 7-byte input detected as LLGR-only.
+//
+// VALIDATES: 7-byte hex (valid LLGR, not valid GR since (7-2)%4!=0) goes to LLGR decoder.
+// PREVENTS: LLGR-only input misidentified as GR.
+func TestRunCLIDecode_LLGROnlyStructure(t *testing.T) {
+	t.Parallel()
+	// 7 bytes: ipv4/unicast F=1 LLST=3600
+	hexData := "00010180000e10"
+
+	var stdout, stderr bytes.Buffer
+	exitCode := RunCLIDecode(hexData, false, &stdout, &stderr)
+	assert.Equal(t, 0, exitCode)
+	assert.Contains(t, stdout.String(), "long-lived-graceful-restart")
+	assert.Contains(t, stdout.String(), "3600")
 }

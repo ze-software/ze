@@ -144,8 +144,8 @@ func TestHandleEventEOR(t *testing.T) {
 			{Family: "ipv6/unicast", ForwardState: true},
 		},
 	}
-	gp.state.onSessionDown("10.0.0.1", cap, false)
-	gp.state.onSessionReestablished("10.0.0.1", cap)
+	gp.state.onSessionDown("10.0.0.1", cap, nil, false)
+	gp.state.onSessionReestablished("10.0.0.1", cap, nil)
 
 	// EOR for IPv4
 	event := `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"10.0.0.1","asn":65001},"eor":{"family":"ipv4/unicast"}}}`
@@ -213,7 +213,7 @@ func TestHandleEventStateUp(t *testing.T) {
 			{Family: "ipv6/unicast", ForwardState: true},
 		},
 	}
-	gp.state.onSessionDown("10.0.0.1", oldCap, false)
+	gp.state.onSessionDown("10.0.0.1", oldCap, nil, false)
 
 	// New OPEN only has IPv4 with F-bit=1 (IPv6 missing)
 	gp.peerCaps["10.0.0.1"] = &grPeerCap{
@@ -273,4 +273,65 @@ func TestHandleOpenEventCapHexDecode(t *testing.T) {
 	require.Len(t, cap.Families, 1)
 	assert.Equal(t, "ipv4/unicast", cap.Families[0].Family)
 	assert.True(t, cap.Families[0].ForwardState)
+}
+
+// TestHandleEventOpenLLGR verifies that OPEN with both GR and LLGR capabilities
+// stores both grPeerCap and llgrPeerCap.
+//
+// VALIDATES: handleOpenEvent parses cap 71 alongside cap 64 from OPEN JSON.
+// PREVENTS: LLGR capability ignored when peer advertises both GR and LLGR.
+func TestHandleEventOpenLLGR(t *testing.T) {
+	gp := &grPlugin{
+		peerCaps:     make(map[string]*grPeerCap),
+		peerLLGRCaps: make(map[string]*llgrPeerCap),
+		state:        newGRStateManager(nil),
+	}
+
+	// GR: restart-time=120, ipv4/unicast F=1
+	// LLGR: ipv4/unicast F=1, LLST=3600 (0x000E10)
+	event := `{"type":"bgp","bgp":{"message":{"type":"open","direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":64,"name":"graceful-restart","value":"007800010180"},{"code":71,"name":"long-lived-graceful-restart","value":"00010180000e10"}]}}}`
+
+	err := gp.handleEvent(event)
+	require.NoError(t, err)
+
+	// Verify GR capability stored
+	gp.mu.Lock()
+	grCap, grOK := gp.peerCaps["10.0.0.1"]
+	llgrCap, llgrOK := gp.peerLLGRCaps["10.0.0.1"]
+	gp.mu.Unlock()
+
+	require.True(t, grOK, "GR capability should be stored")
+	assert.Equal(t, uint16(120), grCap.RestartTime)
+
+	require.True(t, llgrOK, "LLGR capability should be stored")
+	require.Len(t, llgrCap.Families, 1)
+	assert.Equal(t, "ipv4/unicast", llgrCap.Families[0].Family)
+	assert.True(t, llgrCap.Families[0].ForwardState)
+	assert.Equal(t, uint32(3600), llgrCap.Families[0].LLST)
+}
+
+// TestHandleEventOpenLLGR_NoGR verifies that LLGR is ignored without GR capability.
+//
+// VALIDATES: RFC 9494: LLGR MUST be ignored if GR capability is not present.
+// PREVENTS: LLGR state created for peers that only advertise cap 71 without cap 64.
+func TestHandleEventOpenLLGR_NoGR(t *testing.T) {
+	gp := &grPlugin{
+		peerCaps:     make(map[string]*grPeerCap),
+		peerLLGRCaps: make(map[string]*llgrPeerCap),
+		state:        newGRStateManager(nil),
+	}
+
+	// Only LLGR capability, no GR
+	event := `{"type":"bgp","bgp":{"message":{"type":"open","direction":"received"},"peer":{"address":"10.0.0.1","asn":65001},"open":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[{"code":71,"name":"long-lived-graceful-restart","value":"00010180000e10"}]}}}`
+
+	err := gp.handleEvent(event)
+	require.NoError(t, err)
+
+	gp.mu.Lock()
+	_, grOK := gp.peerCaps["10.0.0.1"]
+	_, llgrOK := gp.peerLLGRCaps["10.0.0.1"]
+	gp.mu.Unlock()
+
+	assert.False(t, grOK, "no GR capability should be stored")
+	assert.False(t, llgrOK, "LLGR should be discarded when GR is absent (RFC 9494)")
 }

@@ -69,6 +69,12 @@ func (r *RIBManager) handleCommand(command, selector string, args []string) (str
 		return r.markStaleCommand(args)
 	case "rib purge-stale":
 		return r.purgeStaleCommand(args)
+	case "rib enter-llgr":
+		return r.enterLLGRCommand(args)
+	case "rib depreference-stale":
+		return r.depreferenceStaleCommand(args)
+	case "rib readvertise-llgr-stale":
+		return r.readvertiseLLGRStaleCommand(args)
 	case "rib best":
 		return statusDone, r.bestPipeline(selector, args), nil
 	case "rib best status":
@@ -99,6 +105,9 @@ var ribCommands = []struct {
 	{"rib release-routes", "Release retained peer RIB (GR)"},
 	{"rib mark-stale", "Mark peer routes as stale (GR disconnect)"},
 	{"rib purge-stale", "Purge only stale routes for peer (GR EOR/reconnect)"},
+	{"rib enter-llgr", "Enter LLGR for peer family (attach LLGR_STALE, delete NO_LLGR)"},
+	{"rib depreference-stale", "Mark stale routes as LLGR-stale (least preferred)"},
+	{"rib readvertise-llgr-stale", "Resend LLGR-stale routes from Adj-RIB-Out to up peers"},
 	{"rib help", "Show RIB subcommands"},
 	{"rib command list", "List RIB commands"},
 	{"rib event list", "List RIB event types"},
@@ -518,5 +527,201 @@ func (r *RIBManager) extractCandidate(peerAddr string, entry *storage.RouteEntry
 		}
 	}
 
+	// RFC 9494: LLGR-stale flag for best-path depreference.
+	c.LLGRStale = entry.LLGRStale
+
 	return c
+}
+
+// enterLLGRCommand handles "rib enter-llgr <peer> <family> <llst>".
+// RFC 9494: Transition a family to LLGR period. For each stale route:
+//   - Delete routes with NO_LLGR community (0xFFFF0007)
+//   - Attach LLGR_STALE community (0xFFFF0006) to remaining stale routes
+//   - Set LLGRStale=true for best-path depreference
+//
+// Args: [0]=peer address, [1]=family (e.g., "ipv4/unicast"), [2]=LLST seconds.
+func (r *RIBManager) enterLLGRCommand(args []string) (string, string, error) {
+	if len(args) < 3 {
+		return statusError, "", fmt.Errorf("enter-llgr requires <peer> <family> <llst>")
+	}
+
+	peerAddr := args[0]
+	familyStr := args[1]
+	llstSec, err := strconv.ParseUint(args[2], 10, 32)
+	if err != nil {
+		return statusError, "", fmt.Errorf("invalid llst %q: %w", args[2], err)
+	}
+
+	family, ok := parseFamily(familyStr)
+	if !ok {
+		return statusError, "", fmt.Errorf("invalid family %q", familyStr)
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	peerRIB := r.ribInPool[peerAddr]
+	if peerRIB == nil {
+		data, _ := json.Marshal(map[string]any{"entered": 0, "deleted": 0})
+		return statusDone, string(data), nil
+	}
+
+	entered := 0
+	deleted := 0
+
+	// Walk stale routes for the specified family.
+	// Collect NLRIs to delete (NO_LLGR) separately to avoid modifying during iteration.
+	var toDelete [][]byte
+
+	peerRIB.IterateFamily(family, func(nlriBytes []byte, entry *storage.RouteEntry) bool {
+		if !entry.Stale {
+			return true // skip non-stale routes
+		}
+
+		// Check for NO_LLGR community
+		if entry.HasCommunities() {
+			if data, getErr := pool.Communities.Get(entry.Communities); getErr == nil {
+				if containsCommunity(data, communityNoLLGR) {
+					// Copy NLRI bytes since they may be invalidated after delete
+					nlriCopy := make([]byte, len(nlriBytes))
+					copy(nlriCopy, nlriBytes)
+					toDelete = append(toDelete, nlriCopy)
+					return true
+				}
+			}
+		}
+
+		// Attach LLGR_STALE community; only depreference if attachment succeeded
+		if r.attachLLGRStaleCommunity(entry) {
+			entry.LLGRStale = true
+			entered++
+		}
+		return true
+	})
+
+	// Delete NO_LLGR routes
+	for _, nlriBytes := range toDelete {
+		if peerRIB.Remove(family, nlriBytes) {
+			deleted++
+		}
+	}
+
+	logger().Debug("enter-llgr", "peer", peerAddr, "family", familyStr,
+		"llst", llstSec, "entered", entered, "deleted", deleted)
+
+	data, _ := json.Marshal(map[string]any{"entered": entered, "deleted": deleted})
+	return statusDone, string(data), nil
+}
+
+// communityLLGRStale is the LLGR_STALE well-known community wire value (RFC 9494).
+var communityLLGRStale = []byte{0xFF, 0xFF, 0x00, 0x06}
+
+// communityNoLLGR is the NO_LLGR well-known community wire value (RFC 9494).
+var communityNoLLGR = []byte{0xFF, 0xFF, 0x00, 0x07}
+
+// containsCommunity checks if a community wire blob contains a specific 4-byte community.
+func containsCommunity(data, community []byte) bool {
+	if len(data)%4 != 0 || len(community) != 4 {
+		return false
+	}
+	for i := 0; i+4 <= len(data); i += 4 {
+		if data[i] == community[0] && data[i+1] == community[1] &&
+			data[i+2] == community[2] && data[i+3] == community[3] {
+			return true
+		}
+	}
+	return false
+}
+
+// attachLLGRStaleCommunity appends LLGR_STALE to a route's community attribute.
+// If no community attribute exists, creates one with just LLGR_STALE.
+// Pool handles are updated: old handle released, new handle interned.
+// Returns true if the community was successfully attached (or already present).
+func (r *RIBManager) attachLLGRStaleCommunity(entry *storage.RouteEntry) bool {
+	var newData []byte
+
+	if entry.HasCommunities() {
+		oldData, err := pool.Communities.Get(entry.Communities)
+		if err != nil {
+			return false
+		}
+		// Check if LLGR_STALE already present
+		if containsCommunity(oldData, communityLLGRStale) {
+			return true // already attached
+		}
+		newData = make([]byte, len(oldData)+4)
+		copy(newData, oldData)
+		copy(newData[len(oldData):], communityLLGRStale)
+	} else {
+		newData = make([]byte, 4)
+		copy(newData, communityLLGRStale)
+	}
+
+	newHandle, err := pool.Communities.Intern(newData)
+	if err != nil {
+		return false
+	}
+
+	// Release old handle
+	if entry.HasCommunities() {
+		_ = pool.Communities.Release(entry.Communities)
+	}
+	entry.Communities = newHandle
+	return true
+}
+
+// depreferenceStaleCommand handles "rib depreference-stale <peer>".
+// RFC 9494: Mark all stale routes for a peer as LLGR-stale (least preferred in best-path).
+// Args: [0]=peer address.
+func (r *RIBManager) depreferenceStaleCommand(args []string) (string, string, error) {
+	if len(args) < 1 {
+		return statusError, "", fmt.Errorf("depreference-stale requires <peer>")
+	}
+
+	peerAddr := args[0]
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	peerRIB := r.ribInPool[peerAddr]
+	if peerRIB == nil {
+		data, _ := json.Marshal(map[string]any{"depreferenced": 0})
+		return statusDone, string(data), nil
+	}
+
+	depreferenced := 0
+	peerRIB.Iterate(func(_ nlri.Family, _ []byte, entry *storage.RouteEntry) bool {
+		if entry.Stale && !entry.LLGRStale {
+			entry.LLGRStale = true
+			depreferenced++
+		}
+		return true
+	})
+
+	logger().Debug("depreference-stale", "peer", peerAddr, "depreferenced", depreferenced)
+
+	data, _ := json.Marshal(map[string]any{"depreferenced": depreferenced})
+	return statusDone, string(data), nil
+}
+
+// readvertiseLLGRStaleCommand handles "rib readvertise-llgr-stale <source-peer>".
+// RFC 9494: After entering LLGR, stale routes with LLGR_STALE community need
+// re-advertisement so that downstream peers receive the updated community.
+// Resends Adj-RIB-Out to all up peers except the source peer.
+// The LLGR_STALE community is already attached to pool entries (by enter-llgr),
+// so resent routes will include it in their attributes.
+// Args: [0]=source peer address (whose routes entered LLGR).
+func (r *RIBManager) readvertiseLLGRStaleCommand(args []string) (string, string, error) {
+	if len(args) < 1 {
+		return statusError, "", fmt.Errorf("readvertise-llgr-stale requires <source-peer>")
+	}
+
+	sourcePeer := args[0]
+
+	// Resend ribOut to all up peers except the source.
+	result := r.outboundResendJSON("!" + sourcePeer)
+
+	logger().Debug("readvertise-llgr-stale", "source", sourcePeer, "result", result)
+
+	return statusDone, result, nil
 }

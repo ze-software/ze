@@ -555,3 +555,82 @@ func TestBestPath_PeerAddressNumeric(t *testing.T) {
 		t.Errorf("want 9.0.0.1 (numerically lower), got %s", best.PeerAddr)
 	}
 }
+
+// --- LLGR depreference tests (RFC 9494) ---
+
+// TestSelectBest_LLGRStaleDepreference verifies normal beats LLGR-stale.
+//
+// VALIDATES: RFC 9494: any non-LLGR-stale route beats any LLGR-stale route.
+// PREVENTS: LLGR-stale route winning despite having better LOCAL_PREF.
+func TestSelectBest_LLGRStaleDepreference(t *testing.T) {
+	t.Parallel()
+	// LLGR-stale route has higher LOCAL_PREF but should still lose
+	stale := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 300, LLGRStale: true}
+	normal := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100}
+
+	best := SelectBest([]*Candidate{stale, normal})
+	if best.PeerAddr != "10.0.0.2" {
+		t.Errorf("normal route should beat LLGR-stale, got %s", best.PeerAddr)
+	}
+
+	// Reverse order
+	best = SelectBest([]*Candidate{normal, stale})
+	if best.PeerAddr != "10.0.0.2" {
+		t.Errorf("normal route should beat LLGR-stale (reversed), got %s", best.PeerAddr)
+	}
+}
+
+// TestSelectBest_BothLLGRStale verifies tiebreaking between two LLGR-stale routes.
+//
+// VALIDATES: RFC 9494: between two LLGR-stale routes, normal tiebreaking applies.
+// PREVENTS: All LLGR-stale routes treated as equal.
+func TestSelectBest_BothLLGRStale(t *testing.T) {
+	t.Parallel()
+	a := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 200, LLGRStale: true}
+	b := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, LLGRStale: true}
+
+	best := SelectBest([]*Candidate{a, b})
+	if best.PeerAddr != "10.0.0.1" {
+		t.Errorf("higher LOCAL_PREF should win between two LLGR-stale, got %s", best.PeerAddr)
+	}
+}
+
+// TestSelectBest_OnlyLLGRStale verifies best selected when all are LLGR-stale.
+//
+// VALIDATES: When all candidates are LLGR-stale, best among them is selected.
+// PREVENTS: Nil return when all candidates are LLGR-stale.
+func TestSelectBest_OnlyLLGRStale(t *testing.T) {
+	t.Parallel()
+	candidates := []*Candidate{
+		{PeerAddr: "10.0.0.3", LocalPref: 100, ASPathLen: 3, LLGRStale: true},
+		{PeerAddr: "10.0.0.2", LocalPref: 100, ASPathLen: 1, LLGRStale: true}, // shortest path
+		{PeerAddr: "10.0.0.1", LocalPref: 100, ASPathLen: 2, LLGRStale: true},
+	}
+
+	best := SelectBest(candidates)
+	if best.PeerAddr != "10.0.0.2" {
+		t.Errorf("shortest AS_PATH should win among LLGR-stale, got %s", best.PeerAddr)
+	}
+}
+
+// TestComparePair_LLGRStale verifies pairwise LLGR comparison direction.
+//
+// VALIDATES: ComparePair returns correct values for LLGR-stale combinations.
+// PREVENTS: Inverted LLGR depreference.
+func TestComparePair_LLGRStale(t *testing.T) {
+	t.Parallel()
+	normal := &Candidate{PeerAddr: "10.0.0.1", LocalPref: 100}
+	stale := &Candidate{PeerAddr: "10.0.0.2", LocalPref: 100, LLGRStale: true}
+
+	if got := ComparePair(normal, stale); got != -1 {
+		t.Errorf("normal vs LLGR-stale: want -1, got %d", got)
+	}
+	if got := ComparePair(stale, normal); got != 1 {
+		t.Errorf("LLGR-stale vs normal: want 1, got %d", got)
+	}
+	// Both LLGR-stale: falls through to normal comparison
+	stale2 := &Candidate{PeerAddr: "10.0.0.3", LocalPref: 100, LLGRStale: true}
+	if got := ComparePair(stale, stale2); got != -1 {
+		t.Errorf("both LLGR-stale, lower peer addr: want -1, got %d", got)
+	}
+}
