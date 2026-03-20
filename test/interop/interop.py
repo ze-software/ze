@@ -18,11 +18,13 @@ NETWORK = "ze-iop-%s" % _SUFFIX
 ZE_CONTAINER = "ze-iop-ze-%s" % _SUFFIX
 FRR_CONTAINER = "ze-iop-frr-%s" % _SUFFIX
 BIRD_CONTAINER = "ze-iop-bird-%s" % _SUFFIX
+GOBGP_CONTAINER = "ze-iop-gobgp-%s" % _SUFFIX
 
 # IP addresses on the test network.
 ZE_IP = "172.30.0.2"
 FRR_IP = "172.30.0.3"
 BIRD_IP = "172.30.0.4"
+GOBGP_IP = "172.30.0.5"
 
 # Default timeout for session establishment (seconds).
 try:
@@ -363,6 +365,82 @@ class BIRD:
         return False
 
 
+# --- GoBGP helpers -----------------------------------------------------------
+
+class GoBGP:
+    """Helpers for querying GoBGP via gobgp CLI."""
+
+    def __init__(self, container=GOBGP_CONTAINER, ip=GOBGP_IP):
+        self.container = container
+        self.ip = ip
+
+    def _gobgp_quiet(self, args):
+        """Run a gobgp command, return stdout or empty string on failure."""
+        return docker_exec_quiet(self.container, ["gobgp"] + args)
+
+    def _gobgp_json(self, args):
+        """Run a gobgp command with -j (JSON), return parsed dict or {}."""
+        output = self._gobgp_quiet(args + ["-j"])
+        if not output.strip():
+            return {}
+        try:
+            return json.loads(output)
+        except json.JSONDecodeError:
+            return {}
+
+    def wait_session(self, neighbor, timeout=None):
+        """Poll until BGP session with neighbor reaches Established."""
+        if timeout is None:
+            timeout = SESSION_TIMEOUT
+        log_info("waiting for GoBGP session with %s (timeout %ds)..." % (neighbor, timeout))
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            output = self._gobgp_quiet(["neighbor", neighbor])
+            if "established" in output.lower():
+                log_pass("GoBGP session with %s is Established" % neighbor)
+                return
+            time.sleep(2)
+        log_fail("GoBGP session with %s did not reach Established within %ds" % (neighbor, timeout))
+        output = self._gobgp_quiet(["neighbor"])
+        print("  %s" % output[:500])
+        print(docker_logs(ZE_CONTAINER, 20))
+        raise AssertionError("GoBGP session with %s not Established" % neighbor)
+
+    def has_route(self, prefix, family="ipv4 unicast"):
+        """Check if prefix exists in GoBGP's RIB."""
+        # gobgp global rib -a ipv4 <prefix>
+        afi = family.split("/")[0] if "/" in family else family.split()[0]
+        output = self._gobgp_quiet(["global", "rib", "-a", afi, prefix])
+        return prefix in output
+
+    def check_route(self, prefix, family="ipv4 unicast"):
+        """Assert route exists in GoBGP's RIB."""
+        if self.has_route(prefix, family):
+            log_pass("GoBGP has route %s" % prefix)
+            return
+        log_fail("GoBGP does not have route %s" % prefix)
+        raise AssertionError("GoBGP missing route %s" % prefix)
+
+    def wait_route(self, prefix, timeout=30, family="ipv4 unicast"):
+        """Poll until route appears."""
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if self.has_route(prefix, family):
+                return
+            time.sleep(2)
+        log_fail("GoBGP route %s did not appear within %ds" % (prefix, timeout))
+        raise AssertionError("GoBGP route %s not found" % prefix)
+
+    def session_established(self, neighbor):
+        """Check if session is currently Established."""
+        output = self._gobgp_quiet(["neighbor", neighbor])
+        return "established" in output.lower()
+
+    def inject_route(self, prefix, nexthop="172.30.0.5"):
+        """Inject a route into GoBGP's global RIB."""
+        self._gobgp_quiet(["global", "rib", "add", prefix, "-a", "ipv4", "nexthop", nexthop])
+
+
 # --- Ze helpers --------------------------------------------------------------
 
 class Ze:
@@ -431,6 +509,10 @@ def wait_containers_healthy(timeout=30):
 
         if _check_container_running(BIRD_CONTAINER):
             if not _check_container_responsive(BIRD_CONTAINER, ["birdc", "show status"]):
+                all_ready = False
+
+        if _check_container_running(GOBGP_CONTAINER):
+            if not _check_container_responsive(GOBGP_CONTAINER, ["gobgp", "neighbor"]):
                 all_ready = False
 
         if all_ready:
@@ -512,6 +594,17 @@ class Scenario:
                 caps=["NET_ADMIN"],
             )
 
+        # Start GoBGP if config exists.
+        gobgp_conf = os.path.join(self.scenario_dir, "gobgp.toml")
+        if os.path.isfile(gobgp_conf):
+            docker_run(
+                GOBGP_CONTAINER, "gobgp-interop", GOBGP_IP,
+                volumes=[
+                    "%s:/etc/gobgp/gobgp.toml:ro" % os.path.abspath(gobgp_conf),
+                ],
+                caps=["NET_ADMIN"],
+            )
+
         # Wait for containers to be healthy.
         wait_containers_healthy(30)
 
@@ -520,6 +613,7 @@ class Scenario:
         docker_rm(ZE_CONTAINER)
         docker_rm(FRR_CONTAINER)
         docker_rm(BIRD_CONTAINER)
+        docker_rm(GOBGP_CONTAINER)
         subprocess.run(
             ["docker", "network", "rm", NETWORK],
             capture_output=True, text=True, timeout=30,
@@ -547,7 +641,7 @@ class Scenario:
 
 def global_cleanup():
     """Remove all containers and network on exit."""
-    for name in [ZE_CONTAINER, FRR_CONTAINER, BIRD_CONTAINER]:
+    for name in [ZE_CONTAINER, FRR_CONTAINER, BIRD_CONTAINER, GOBGP_CONTAINER]:
         subprocess.run(["docker", "rm", "-f", name], capture_output=True, text=True, timeout=30)
     subprocess.run(["docker", "network", "rm", NETWORK], capture_output=True, text=True, timeout=30)
 

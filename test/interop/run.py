@@ -47,6 +47,14 @@ def build_images(frr_image, no_build=False):
         check=True, timeout=600,
     )
 
+    print("Building GoBGP image...")
+    subprocess.run(
+        ["docker", "build", "-t", "gobgp-interop",
+         "-f", os.path.join(SCRIPT_DIR, "Dockerfile.gobgp"),
+         SCRIPT_DIR, "--quiet"],
+        check=True, timeout=600,
+    )
+
     print("Pulling FRR image...")
     subprocess.run(
         ["docker", "pull", frr_image, "--quiet"],

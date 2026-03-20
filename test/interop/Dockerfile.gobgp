@@ -1,0 +1,17 @@
+# GoBGP daemon for interoperability testing.
+# Uses the official GoBGP binary from the golang image.
+
+FROM golang:1.23-alpine AS builder
+
+RUN go install github.com/osrg/gobgp/v3/cmd/gobgpd@latest && \
+    go install github.com/osrg/gobgp/v3/cmd/gobgp@latest
+
+FROM alpine:3.21
+
+RUN apk add --no-cache tini
+
+COPY --from=builder /go/bin/gobgpd /usr/local/bin/gobgpd
+COPY --from=builder /go/bin/gobgp /usr/local/bin/gobgp
+
+ENTRYPOINT ["tini", "--", "gobgpd"]
+CMD ["-f", "/etc/gobgp/gobgp.toml"]
