@@ -1,0 +1,672 @@
+
+
+
+
+Network Working Group                                          T. Mangin
+Internet-Draft                                               Independent
+Intended status: Informational                             20 March 2026
+Expires: 21 September 2026
+
+
+       Netcapstring: A Self-Describing Capacity-Aware Byte Frame
+                      draft-mangin-netcapstring-00
+
+Abstract
+
+   This document defines the netcapstring, a self-describing capacity-
+   aware binary frame for encoding byte sequences.  A netcapstring
+   extends the netstring concept with a separate capacity field,
+   allowing data to grow in place without shifting subsequent entries in
+   a stream or file.  The format is suitable for memory-mapped storage,
+   append-oriented logs, and any context where in-place updates of
+   variable-length records are desirable.
+
+   The encoding is pure ASCII for the header and newline-terminated,
+   making it easy to inspect with standard tools while remaining
+   efficient for machine parsing.  No escaping is required: the data
+   region may contain arbitrary bytes, including newlines, colons, and
+   null bytes.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 21 September 2026.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+
+
+
+
+Mangin                  Expires 21 September 2026               [Page 1]
+
+Internet-Draft                Netcapstring                    March 2026
+
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+   2.  Requirements Language . . . . . . . . . . . . . . . . . . . .   3
+   3.  Netcapstring Format . . . . . . . . . . . . . . . . . . . . .   3
+     3.1.  Overview  . . . . . . . . . . . . . . . . . . . . . . . .   3
+     3.2.  Field Definitions . . . . . . . . . . . . . . . . . . . .   4
+     3.3.  The Number Field  . . . . . . . . . . . . . . . . . . . .   4
+     3.4.  Capacity and Used Fields  . . . . . . . . . . . . . . . .   5
+     3.5.  Data Region . . . . . . . . . . . . . . . . . . . . . . .   5
+     3.6.  Terminator  . . . . . . . . . . . . . . . . . . . . . . .   6
+     3.7.  Human Readability . . . . . . . . . . . . . . . . . . . .   6
+   4.  Header Length Computation . . . . . . . . . . . . . . . . . .   6
+   5.  Examples  . . . . . . . . . . . . . . . . . . . . . . . . . .   7
+     5.1.  Data with Padding . . . . . . . . . . . . . . . . . . . .   7
+     5.2.  Empty Data  . . . . . . . . . . . . . . . . . . . . . . .   7
+     5.3.  Exact Fit . . . . . . . . . . . . . . . . . . . . . . . .   8
+     5.4.  Large Capacity  . . . . . . . . . . . . . . . . . . . . .   8
+   6.  Parsing Algorithm . . . . . . . . . . . . . . . . . . . . . .   8
+   7.  In-Place Updates  . . . . . . . . . . . . . . . . . . . . . .   9
+     7.1.  Capacity Growth Policy  . . . . . . . . . . . . . . . . .  10
+   8.  Concatenation and Streams . . . . . . . . . . . . . . . . . .  10
+   9.  Comparison with Netstrings  . . . . . . . . . . . . . . . . .  11
+   10. Security Considerations . . . . . . . . . . . . . . . . . . .  11
+   11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  12
+   12. References  . . . . . . . . . . . . . . . . . . . . . . . . .  12
+     12.1.  Normative References . . . . . . . . . . . . . . . . . .  12
+     12.2.  Informative References . . . . . . . . . . . . . . . . .  12
+   Acknowledgements  . . . . . . . . . . . . . . . . . . . . . . . .  12
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .  12
+
+1.  Introduction
+
+   Netstrings, as described by D.  J.  Bernstein, encode a byte sequence
+   as its decimal length, a colon, the raw bytes, and a trailing comma.
+   For example, the string "hello" is encoded as "5:hello,".  This
+   format is simple, unambiguous, and immune to delimiter-in-data
+   problems.
+
+
+
+
+
+
+
+Mangin                  Expires 21 September 2026               [Page 2]
+
+Internet-Draft                Netcapstring                    March 2026
+
+
+   However, netstrings offer no mechanism for in-place updates.  If the
+   data grows by even one byte, every subsequent byte in the stream must
+   shift to accommodate the new length.  In storage systems where
+   entries are written sequentially and may be updated later, this
+   limitation forces either full rewrites or complex indirection layers.
+
+   This document defines the netcapstring ("net capacity string"), which
+   extends netstrings with two additions:
+
+   1.  A capacity field that reserves space beyond the current data
+       length, allowing the data to grow in place up to the reserved
+       capacity without affecting neighboring entries.
+
+   2.  A number field that describes the width of both the capacity and
+       used fields, making the header self-describing without requiring
+       magic constants or fixed-width assumptions.
+
+   These additions preserve the netstring virtues (simplicity, no
+   escaping, unambiguous framing) while enabling a new class of use
+   cases: memory-mapped blob stores, configuration databases with in-
+   place edits, and any system that benefits from pre-allocated growth
+   room in serialized records.
+
+2.  Requirements Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+3.  Netcapstring Format
+
+3.1.  Overview
+
+   A netcapstring encodes a byte sequence with reserved capacity for
+   future growth.  The general format is:
+
+     <number>:<cap>:<used>:<data>,<padding>\n
+
+   When the data fills the capacity exactly (cap equals used), the comma
+   and padding are absent:
+
+     <number>:<cap>:<used>:<data>\n
+
+   The trailing newline (0x0A) is the section terminator.  When cap
+   equals used, the newline and comma would occupy the same position;
+   the newline wins and the comma is not written.
+
+
+
+Mangin                  Expires 21 September 2026               [Page 3]
+
+Internet-Draft                Netcapstring                    March 2026
+
+
+3.2.  Field Definitions
+
+   A netcapstring consists of the following fields, in order:
+
+     +=========+===================================+=================+
+     | Field   | Content                           | Size (bytes)    |
+     +=========+===================================+=================+
+     | number  | Digit count of cap (decimal       | variable        |
+     |         | ASCII, no leading zeros)          | (typically 1-2) |
+     +---------+-----------------------------------+-----------------+
+     | :       | Separator (0x3A)                  | 1               |
+     +---------+-----------------------------------+-----------------+
+     | cap     | Capacity in bytes (decimal ASCII, | number          |
+     |         | zero-padded to number digits)     |                 |
+     +---------+-----------------------------------+-----------------+
+     | :       | Separator (0x3A)                  | 1               |
+     +---------+-----------------------------------+-----------------+
+     | used    | Used bytes (decimal ASCII, zero-  | number          |
+     |         | padded to number digits)          |                 |
+     +---------+-----------------------------------+-----------------+
+     | :       | Separator (0x3A)                  | 1               |
+     +---------+-----------------------------------+-----------------+
+     | data    | Actual content (arbitrary bytes)  | used            |
+     +---------+-----------------------------------+-----------------+
+     | ,       | Data-end marker (0x2C), only when | 0 or 1          |
+     |         | cap > used                        |                 |
+     +---------+-----------------------------------+-----------------+
+     | padding | Space bytes (0x20)                | cap - used - 1  |
+     |         |                                   | (when cap >     |
+     |         |                                   | used), else 0   |
+     +---------+-----------------------------------+-----------------+
+     | \n      | Terminator (0x0A), or comma       | 1               |
+     |         | (0x2C) for containers             |                 |
+     +---------+-----------------------------------+-----------------+
+
+                        Table 1: Netcapstring Fields
+
+3.3.  The Number Field
+
+   The number field is the decimal representation of the number of
+   digits in the cap field.  It MUST NOT have leading zeros.  It MUST be
+   a positive integer.
+
+   The number field exists because both cap and used are zero-padded to
+   a fixed width.  Fixed-width fields are essential for in-place
+   updates: when data grows, only the used field changes, and its byte
+   width must remain constant so the header size is preserved.  But the
+   parser cannot know that width without being told.  A netstring avoids
+
+
+
+Mangin                  Expires 21 September 2026               [Page 4]
+
+Internet-Draft                Netcapstring                    March 2026
+
+
+   this problem because it has only one length field, which the parser
+   reads by scanning digits until a colon.  With two fixed-width numeric
+   fields, the number field tells the parser how many bytes to read for
+   each.
+
+   This design also improves parsing efficiency.  A netstring parser
+   must read one byte at a time, checking each for a colon, until the
+   full length is collected.  A netcapstring parser reads one byte (the
+   number field is almost always a single digit), computes the total
+   header size from that value, and then reads the entire header in a
+   single operation.  The full sequence is three reads: read(1) for the
+   number field, read(header_size) for the rest of the header, and
+   read(cap) for the data and padding.  While operating systems
+   typically cache byte-at-a-time reads, the ability to issue fixed-size
+   reads makes the parsing model simpler and more predictable.
+
+   Implementations SHOULD reject number values larger than 19, which
+   covers the full range of 64-bit integers.
+
+3.4.  Capacity and Used Fields
+
+   The cap field is the total capacity reserved for the data region, in
+   bytes, encoded as a decimal integer and zero-padded to exactly number
+   digits.  The used field is the number of bytes currently occupied by
+   data, encoded identically.
+
+   The following invariants MUST hold:
+
+   *  cap MUST be greater than or equal to zero.
+
+   *  used MUST be greater than or equal to zero.
+
+   *  used MUST be less than or equal to cap.
+
+   Because used is always zero-padded to the same width as cap, and used
+   is always less than or equal to cap, the header size never changes
+   when data grows within the reserved capacity.  This is the critical
+   invariant for in-place updates: a writer can update the used field
+   and write new data without modifying the header length or shifting
+   any bytes.
+
+3.5.  Data Region
+
+   The data region contains exactly used bytes of arbitrary content.
+   There are no restrictions on the byte values within the data region:
+   it MAY contain newlines (0x0A), colons (0x3A), commas (0x2C), null
+   bytes (0x00), or any other octet.  No escaping is performed.
+
+
+
+
+Mangin                  Expires 21 September 2026               [Page 5]
+
+Internet-Draft                Netcapstring                    March 2026
+
+
+   When cap is greater than used, the byte immediately after the data is
+   a comma (0x2C), which serves as the data-end marker.  The remaining
+   cap - used - 1 bytes are filled with spaces (0x20) for human
+   readability when inspecting raw storage.
+
+   When cap equals used, the entire capacity is consumed by data and no
+   comma or space padding is present.  The terminator immediately
+   follows the last data byte.
+
+3.6.  Terminator
+
+   The final byte of a netcapstring is the terminator.  For standalone
+   netcapstrings and entries within a sequence, the terminator is a
+   newline (0x0A).
+
+   Containers (netcapstrings whose data region holds other
+   netcapstrings) MAY use a comma (0x2C) as the terminator instead, to
+   distinguish the container boundary from the entry-list terminator
+   within.  This is an application-level convention; the framing is
+   identical in either case.
+
+   When cap equals used, the terminator and the data-end marker would
+   occupy the same byte position.  The terminator wins: the newline (or
+   comma for containers) is written, and no separate data-end marker
+   appears.
+
+3.7.  Human Readability
+
+   The choice of newline (0x0A) as terminator and space (0x20) as
+   padding byte is deliberate: it makes netcapstring-encoded data
+   inspectable with standard text tools.  Because each entry ends with a
+   newline, utilities such as cat, head, tail, less, and wc -l produce
+   useful output on raw netcapstring files.  The ASCII header (decimal
+   digits and colons) is immediately readable, and the space-filled
+   padding appears as blank space rather than binary noise.
+
+   This is a departure from the original netstring design, which uses a
+   comma as the sole delimiter.  The newline terminator and space
+   padding mean that netcapstring-encoded data can be inspected
+   naturally with any text tool, without requiring specialized utilities
+   or hex editors.
+
+4.  Header Length Computation
+
+   The total header length for a netcapstring with a given capacity is
+   deterministic:
+
+   header_len = 3 + digit_count(digit_count(cap)) + 2 * digit_count(cap)
+
+
+
+Mangin                  Expires 21 September 2026               [Page 6]
+
+Internet-Draft                Netcapstring                    March 2026
+
+
+   Where digit_count(n) returns the number of decimal digits needed to
+   represent the non-negative integer n (with digit_count(0) = 1).
+
+                     +================+==============+
+                     | Capacity Range | Header Bytes |
+                     +================+==============+
+                     | 0 - 9          | 6            |
+                     +----------------+--------------+
+                     | 10 - 99        | 8            |
+                     +----------------+--------------+
+                     | 100 - 999      | 10           |
+                     +----------------+--------------+
+                     | 1000 - 9999    | 12           |
+                     +----------------+--------------+
+                     | 10000 - 99999  | 14           |
+                     +----------------+--------------+
+
+                         Table 2: Header Length by
+                               Capacity Range
+
+   The total on-disk size of a netcapstring is header_len + cap + 1 (the
+   +1 accounts for the terminator byte).
+
+5.  Examples
+
+   The following examples illustrate netcapstring encoding.  Spaces in
+   the padding region are shown as dots for clarity.
+
+5.1.  Data with Padding
+
+   The string "hello" (5 bytes) with capacity 16:
+
+     2:16:05:hello,..........\n
+
+     number = 2 (cap has 2 digits)
+     cap    = 16 (zero-padded to 2 digits)
+     used   = 05 (zero-padded to 2 digits)
+     data   = "hello" (5 bytes)
+     ,      = data-end marker
+     pad    = 10 space bytes
+     \n     = terminator
+
+5.2.  Empty Data
+
+   Empty data with capacity 8:
+
+
+
+
+
+
+Mangin                  Expires 21 September 2026               [Page 7]
+
+Internet-Draft                Netcapstring                    March 2026
+
+
+     1:8:0:,.......\n
+
+     number = 1
+     cap    = 8
+     used   = 0
+     data   = (empty)
+     ,      = data-end marker (immediately after header)
+     pad    = 7 space bytes
+     \n     = terminator
+
+5.3.  Exact Fit
+
+   The string "abcd" (4 bytes) with capacity 4:
+
+     1:4:4:abcd\n
+
+     number = 1
+     cap    = 4
+     used   = 4
+     data   = "abcd" (4 bytes)
+     \n     = terminator (no comma, no padding)
+
+   Since cap equals used, the newline terminator occupies the position
+   where the comma would have been.  The newline wins.
+
+5.4.  Large Capacity
+
+   The string "x" (1 byte) with capacity 100:
+
+     3:100:001:x,<98 spaces>\n
+
+     number = 3 (cap has 3 digits)
+     cap    = 100 (zero-padded to 3 digits)
+     used   = 001 (zero-padded to 3 digits)
+     data   = "x" (1 byte)
+     ,      = data-end marker
+     pad    = 98 space bytes
+     \n     = terminator
+
+6.  Parsing Algorithm
+
+   A conforming parser MUST implement the following steps to decode a
+   netcapstring from a byte buffer at a given offset:
+
+
+
+
+
+
+
+
+Mangin                  Expires 21 September 2026               [Page 8]
+
+Internet-Draft                Netcapstring                    March 2026
+
+
+   1.   Scan forward from the current offset, collecting ASCII digit
+        bytes (0x30-0x39) until a colon (0x3A) is encountered.
+        Interpret the collected digits as the decimal integer N (the
+        number field).  If N is zero, negative, or exceeds the
+        implementation's limit, the input is malformed.
+
+   2.   Read the next N bytes and interpret them as the decimal integer
+        cap (the capacity).  If fewer than N bytes remain, the input is
+        truncated.
+
+   3.   Verify the next byte is a colon (0x3A).  Advance past it.
+
+   4.   Read the next N bytes and interpret them as the decimal integer
+        used.  If fewer than N bytes remain, the input is truncated.
+
+   5.   Verify the next byte is a colon (0x3A).  Advance past it.
+
+   6.   Validate: cap MUST be non-negative, used MUST be non-negative,
+        used MUST NOT exceed cap.
+
+   7.   Verify that at least cap + 1 bytes remain in the buffer (the
+        data/padding region plus the terminator).  This check MUST use
+        subtraction rather than addition to avoid integer overflow on
+        crafted inputs.
+
+   8.   Read used bytes of data from the current position.
+
+   9.   Skip cap - used bytes of padding (the comma and space bytes).
+
+   10.  Verify the byte at offset + cap is a comma (0x2C) or newline
+        (0x0A).  This is the terminator.
+
+   11.  The next netcapstring (if any) begins at offset + cap + 1.
+
+   A parser MUST NOT assume that padding bytes are spaces.  While
+   conforming encoders fill padding with spaces, a parser receiving data
+   from an untrusted source SHOULD treat the padding region as opaque
+   and skip it based on the cap and used values alone.
+
+7.  In-Place Updates
+
+   The primary motivation for netcapstrings is enabling in-place
+   updates.  When data within a netcapstring grows but remains within
+   the reserved capacity, the update procedure is:
+
+   1.  Write the new data bytes starting at the data region offset.
+
+
+
+
+
+Mangin                  Expires 21 September 2026               [Page 9]
+
+Internet-Draft                Netcapstring                    March 2026
+
+
+   2.  Write a comma (0x2C) immediately after the new data (if the new
+       length is less than cap), followed by space padding.
+
+   3.  Update the used field in the header with the new length, zero-
+       padded to the same width.  The header size does not change
+       because used is always zero-padded to number digits and used
+       never exceeds cap.
+
+   No other bytes in the buffer need to move.  This property makes
+   netcapstrings particularly suited for memory-mapped files where
+   random writes are efficient but insertions are expensive.
+
+7.1.  Capacity Growth Policy
+
+   When data outgrows its capacity, the netcapstring must be rewritten
+   with a larger capacity.  This document does not mandate a specific
+   growth policy; implementations MAY choose any strategy.  A common
+   approach is to set the new capacity to the data length plus 10%,
+   providing room for incremental growth while avoiding excessive waste.
+
+   Note that if the new capacity requires more digits than the old
+   capacity (e.g., growing from cap=99 to cap=100), the header width
+   changes and the entry must be relocated.  Implementations SHOULD
+   account for this in their growth policy to minimize relocations.
+
+8.  Concatenation and Streams
+
+   Multiple netcapstrings MAY be concatenated in a byte stream.  Each
+   netcapstring is self-delimiting: a parser decodes one entry, advances
+   to the offset returned by the parsing algorithm, and begins decoding
+   the next.  No additional framing or separators are needed between
+   entries.
+
+   A netcapstring whose data region contains other netcapstrings is
+   called a container.  Containers enable hierarchical structures (e.g.,
+   a file format containing multiple named entries).  The container's
+   capacity encompasses all nested entries plus any reserved space for
+   future entries.
+
+   Applications using containers SHOULD define a sentinel byte to mark
+   the end of the entry list within the container's data region (e.g., a
+   newline byte), so that parsers can distinguish active entries from
+   reserved padding space.
+
+
+
+
+
+
+
+
+Mangin                  Expires 21 September 2026              [Page 10]
+
+Internet-Draft                Netcapstring                    March 2026
+
+
+9.  Comparison with Netstrings
+
+   +===============+=================+================================+
+   |Property       |Netstring        |Netcapstring                    |
+   +===============+=================+================================+
+   |Format         |len:data,        |number:cap:used:data[,padding]\n|
+   +---------------+-----------------+--------------------------------+
+   |In-place update|No               |Yes (within capacity)           |
+   +---------------+-----------------+--------------------------------+
+   |Self-describing|No (length field |Yes (number field tells parser  |
+   |width          |is variable-width|how wide cap and used are)      |
+   |               |but must be fully|                                |
+   |               |scanned)         |                                |
+   +---------------+-----------------+--------------------------------+
+   |Arbitrary data |Yes              |Yes                             |
+   +---------------+-----------------+--------------------------------+
+   |Header overhead|2 +              |4 +                             |
+   |               |digit_count(len) |digit_count(digit_count(cap)) + |
+   |               |                 |2 * digit_count(cap)            |
+   +---------------+-----------------+--------------------------------+
+   |Maximum size   |Unlimited        |Unlimited                       |
+   +---------------+-----------------+--------------------------------+
+
+                   Table 3: Netcapstring vs. Netstring
+
+   The additional header overhead (typically 4-6 extra bytes for entries
+   under 10,000 bytes) is negligible for most applications and is the
+   cost of enabling in-place updates.
+
+10.  Security Considerations
+
+   Implementations parsing netcapstrings from untrusted sources MUST
+   guard against the following:
+
+   *  Integer overflow: The cap field may contain very large values.
+      The buffer-remaining check (step 7 of the parsing algorithm) MUST
+      use subtraction (cap + 1 > len(buf) - off) rather than addition
+      (off + cap + 1 > len(buf)) to avoid integer overflow on crafted
+      inputs where cap approaches the maximum integer value.
+
+   *  Resource exhaustion: A crafted number field could claim an
+      unreasonably wide cap field.  Implementations SHOULD impose a
+      maximum on the number field (19 digits covers 64-bit integers) and
+      reject inputs exceeding it.
+
+
+
+
+
+
+
+Mangin                  Expires 21 September 2026              [Page 11]
+
+Internet-Draft                Netcapstring                    March 2026
+
+
+   *  Memory allocation: Implementations that allocate buffers based on
+      the cap value MUST validate that the cap value is consistent with
+      the actual remaining input before allocating.  A small input
+      claiming a multi-gigabyte capacity MUST be rejected.
+
+   The data region is opaque; the format provides no integrity
+   protection.  Applications requiring data authentication SHOULD layer
+   a MAC or digital signature over the serialized output.
+
+11.  IANA Considerations
+
+   This document has no IANA actions.
+
+12.  References
+
+12.1.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+12.2.  Informative References
+
+   [NETSTRING]
+              Bernstein, D.J., "Netstrings",
+              https://cr.yp.to/proto/netstrings.txt, February 1997.
+
+Acknowledgements
+
+   The netcapstring format is directly inspired by D.  J.  Bernstein's
+   netstrings [NETSTRING].  The core insight of using a length-prefixed,
+   delimiter-terminated frame for arbitrary data originates from that
+   work.  The capacity extension was motivated by the needs of the ZeFS
+   blob store, where configuration entries must support in-place updates
+   in memory-mapped files.
+
+Author's Address
+
+   Thomas Mangin
+   Independent
+   Email: thomas.mangin@exa.net.uk
+
+
+
+
+
+Mangin                  Expires 21 September 2026              [Page 12]

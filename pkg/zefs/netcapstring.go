@@ -12,7 +12,7 @@ import (
 // 19 digits covers the full range of int64.
 const maxNumberWidth = 19
 
-// writeNetcapstringHeader writes the header <number>:<cap>:<used>: into buf at off.
+// writeNetcapstringHeader writes the header <number>:<cap>:<used>\n into buf at off.
 // Capacity first, then dataLen (derived from data). Returns bytes written.
 // Caller must ensure buf has sufficient space.
 func writeNetcapstringHeader(buf []byte, off, capacity, dataLen int) int {
@@ -27,17 +27,17 @@ func writeNetcapstringHeader(buf []byte, off, capacity, dataLen int) int {
 	buf[off] = ':'
 	off++
 	off += writeZeroPadded(buf[off:], dataLen, number)
-	buf[off] = ':'
+	buf[off] = '\n'
 	off++
 
 	return off - start
 }
 
 // writeNetcapstring writes a complete netcapstring into buf at off.
-// Format: <number>:<cap>:<used>:<data>,<space-padding>:
+// Format: <number>:<cap>:<used>\n<data>,<space-padding>\n
 // The ',' immediately follows the data (data-end marker, djb convention).
-// Remaining padding is space-filled. Trailing ':' is the section terminator
-// (colon wins over comma when both would occupy the same position).
+// Remaining padding is space-filled. Trailing '\n' is the section terminator
+// (newline wins over comma when both would occupy the same position).
 // The container's terminator is overwritten to ',' by the caller.
 // Caller must ensure buf has sufficient space.
 func writeNetcapstring(buf []byte, off int, data []byte, capacity int) int {
@@ -55,7 +55,7 @@ func writeNetcapstring(buf []byte, off int, data []byte, capacity int) int {
 	}
 	off += padding
 
-	buf[off] = ':' // section terminator (colon wins over comma)
+	buf[off] = '\n' // section terminator (newline wins over comma)
 	off++
 
 	return off - start
@@ -143,9 +143,9 @@ func decodeNetcapstringRef(buf []byte, off int) (data []byte, capacity, next int
 	}
 	off += number
 
-	// Expect ':'
-	if off >= len(buf) || buf[off] != ':' {
-		return nil, 0, 0, fmt.Errorf("zefs: expected ':' after used at offset %d", start)
+	// Expect '\n'
+	if off >= len(buf) || buf[off] != '\n' {
+		return nil, 0, 0, fmt.Errorf("zefs: expected '\\n' after used at offset %d", start)
 	}
 	off++
 
@@ -162,10 +162,10 @@ func decodeNetcapstringRef(buf []byte, off int) (data []byte, capacity, next int
 		return nil, 0, 0, fmt.Errorf("zefs: truncated data at offset %d: need %d, have %d", start, cap_+1, len(buf)-off)
 	}
 
-	// Expect trailing ',' or ':' (colon wins when both occupy the same position)
+	// Expect trailing ',' or '\n' (newline wins when both occupy the same position)
 	endOff := off + cap_
-	if buf[endOff] != ',' && buf[endOff] != ':' {
-		return nil, 0, 0, fmt.Errorf("zefs: expected trailing ',' or ':' at offset %d, got 0x%02X", endOff, buf[endOff])
+	if buf[endOff] != ',' && buf[endOff] != '\n' {
+		return nil, 0, 0, fmt.Errorf("zefs: expected trailing ',' or '\\n' at offset %d, got 0x%02X", endOff, buf[endOff])
 	}
 
 	// Zero-copy: return sub-slice with capped length to prevent access to padding
@@ -195,7 +195,7 @@ func digitCount(n int) int {
 }
 
 // netcapstringHeaderLen returns the header length for a netcapstring with the given capacity.
-// Header format: number-colon-cap-colon-used-colon.
+// Header format: number-colon-cap-colon-used-newline.
 func netcapstringHeaderLen(capacity int) int {
 	number := digitCount(capacity)
 	numberWidth := digitCount(number)

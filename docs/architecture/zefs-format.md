@@ -11,16 +11,16 @@ A netcapstring is a self-describing, capacity-aware binary frame. It encodes a b
 With padding (cap > used):
 
 ```
-<number>:<cap>:<used>:<data>,<space padding>:
+<number>:<cap>:<used>\n<data>,<space padding>\n
 ```
 
 Exact fit (cap == used):
 
 ```
-<number>:<cap>:<used>:<data>:
+<number>:<cap>:<used>\n<data>\n
 ```
 
-All header separators are `:`. Within the data region, `,` marks end of data, followed by space padding. `:` closes the capacity region. When cap == used, `,` and `:` would share the same position -- `:` wins, so `,` is not written.
+The header separators are `:` (between number, cap, and used) and `\n` (after used). The header occupies its own line, making it easy to inspect with text tools. Within the data region, `,` marks end of data, followed by space padding. `\n` closes the capacity region. When cap == used, `,` and `\n` would share the same position -- `\n` wins, so `,` is not written.
 
 | Field | Content | Size (bytes) |
 |-------|---------|-------------|
@@ -29,11 +29,11 @@ All header separators are `:`. Within the data region, `,` marks end of data, fo
 | `<cap>` | Capacity in bytes (decimal ASCII, zero-padded to `<number>` digits) | `<number>` |
 | `:` | Separator | 1 |
 | `<used>` | Used bytes (decimal ASCII, zero-padded to `<number>` digits) | `<number>` |
-| `:` | Separator | 1 |
+| `\n` | Header terminator (0x0A) | 1 |
 | `<data>` | Actual content | `<used>` |
 | `,` | Data-end marker | 1 (only when `<cap>` > `<used>`) |
 | `<padding>` | Space bytes | `<cap>` - `<used>` - 1 (or 0 when `<cap>` == `<used>`) |
-| `:` or `,` | Terminator (`:` wins when both share the position) | 1 |
+| `\n` or `,` | Terminator (`\n` wins when both share the position) | 1 |
 
 ### Properties
 
@@ -45,10 +45,10 @@ All header separators are `:`. Within the data region, `,` marks end of data, fo
 
 | Data | Cap | On disk |
 |------|-----|---------|
-| "hello" (5 bytes), cap 16 | 16 | `2:16:05:hello,<10 spaces>:` |
-| empty, cap 8 | 8 | `1:8:0:,<7 spaces>:` |
-| "abcd" (4 bytes), cap 4 | 4 | `1:4:4:abcd:` |
-| "x" (1 byte), cap 100 | 100 | `3:100:001:x,<98 spaces>:` |
+| "hello" (5 bytes), cap 16 | 16 | `2:16:05\nhello,<10 spaces>\n` |
+| empty, cap 8 | 8 | `1:8:0\n,<7 spaces>\n` |
+| "abcd" (4 bytes), cap 4 | 4 | `1:4:4\nabcd\n` |
+| "x" (1 byte), cap 100 | 100 | `3:100:001\nx,<98 spaces>\n` |
 
 ### Header length
 
@@ -71,10 +71,10 @@ Keys are exact fit (keys never change). Data capacity is data length + 10%, both
 2. Read N bytes for `<cap>` (parse as integer)
 3. Read `:` (verify separator)
 4. Read N bytes for `<used>` (parse as integer)
-5. Read `:` (verify separator)
+5. Read `\n` (verify header terminator)
 6. Read `<used>` bytes of data
 7. Skip `<cap>` - `<used>` bytes of padding (contains `,` data-end marker then spaces)
-8. Read `,` or `:` (verify terminator; `:` wins when both share a position)
+8. Read `,` or `\n` (verify terminator; `\n` wins when both share a position)
 9. Next entry starts at the byte after the terminator
 
 ## ZeFS File
@@ -84,19 +84,19 @@ A ZeFS file is a sequence of two netcapstrings: a magic identifier followed by t
 ### Format
 
 ```
-1:4:4:ZeFS:<N>:<cap>:<used>:<entries...><padding>,
+1:4:4\nZeFS\n<N>:<cap>:<used>\n<entries...><padding>,
 ```
 
-The first netcapstring contains the magic `ZeFS`. Its terminator is `:` (not `,`) because the container follows -- `:` wins over `,` at that position. The entire file is pure netcapstrings.
+The first netcapstring contains the magic `ZeFS`. Its header ends with `\n` and its terminator is also `\n` (not `,`) because cap == used -- `\n` wins over `,` at that position. The entire file is pure netcapstrings.
 
 ### Container content
 
 Inside the container, entries are stored as consecutive pairs of netcapstrings (key + value):
 
 ```
-1:4:4:ZeFS:<N>:<cap>:<used>:
-  <kN>:<kCap>:<kUsed>:<key>,<kPad>:<vN>:<vCap>:<vUsed>:<value>,<vPad>:
-  <kN>:<kCap>:<kUsed>:<key>,<kPad>:<vN>:<vCap>:<vUsed>:<value>,<vPad>:
+1:4:4\nZeFS\n<N>:<cap>:<used>\n
+  <kN>:<kCap>:<kUsed>\n<key>,<kPad>\n<vN>:<vCap>:<vUsed>\n<value>,<vPad>\n
+  <kN>:<kCap>:<kUsed>\n<key>,<kPad>\n<vN>:<vCap>:<vUsed>\n<value>,<vPad>\n
   ...
   \n
 <container padding>,
@@ -123,7 +123,7 @@ Keys are hierarchical paths using `/` as separator. They must be valid `fs.Valid
 
 | Bytes | Meaning |
 |-------|---------|
-| `1:4:4:ZeFS:` at offset 0 | Valid ZeFS file |
+| `1:4:4\nZeFS\n` at offset 0 | Valid ZeFS file |
 | Anything else | Not a ZeFS file |
 
 ## Memory mapping
