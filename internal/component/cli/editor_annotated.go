@@ -204,6 +204,16 @@ func (e *Editor) SetShowColumn(column string, enabled bool) {
 	e.showColumns[column] = enabled
 }
 
+// DiffGutterEnabled returns whether the diff gutter (+/-) markers are shown.
+func (e *Editor) DiffGutterEnabled() bool {
+	return e.diffGutter
+}
+
+// SetDiffGutter enables or disables the diff gutter (+/-) markers.
+func (e *Editor) SetDiffGutter(enabled bool) {
+	e.diffGutter = enabled
+}
+
 // SavedDraftContent returns the content of the saved draft file on disk.
 // Returns empty string if no draft exists.
 func (e *Editor) SavedDraftContent() string {

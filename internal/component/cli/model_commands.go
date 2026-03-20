@@ -669,14 +669,26 @@ func (m *Model) cmdShowChanges(args []string) (commandResult, error) {
 
 	entries := m.editor.SessionChanges(m.editor.SessionID())
 	if len(entries) == 0 {
-		return commandResult{output: "No pending changes."}, nil
+		return commandResult{
+			statusMessage: "No pending changes",
+			configView:    m.configViewAtPath(m.contextPath),
+		}, nil
 	}
 
-	var b strings.Builder
-	for _, se := range entries {
-		formatChangeEntry(&b, se)
+	msg := fmt.Sprintf("%d pending", len(entries))
+	if len(entries) == 1 {
+		msg += " change"
+	} else {
+		msg += " changes"
 	}
-	return commandResult{output: b.String()}, nil
+
+	// Show tree with diff gutter, even if changes column is disabled.
+	view := m.configViewAtPath(m.contextPath)
+	view.forceChanges = true
+	return commandResult{
+		statusMessage: msg,
+		configView:    view,
+	}, nil
 }
 
 // formatChangeEntry writes a single change entry with appropriate marker and command.
@@ -696,29 +708,31 @@ func formatChangeEntry(b *strings.Builder, se config.SessionEntry) {
 	fmt.Fprintf(b, "  %c set %s %s  %s\n", marker, se.Path, se.Entry.Value, annotation)
 }
 
-// cmdShowChangesAll displays pending changes grouped by session.
+// cmdShowChangesAll displays pending changes summary grouped by session.
 func (m *Model) cmdShowChangesAll() (commandResult, error) {
 	sessions := m.editor.ActiveSessions()
 	if len(sessions) == 0 {
-		return commandResult{output: "No pending changes."}, nil
+		return commandResult{
+			statusMessage: "No pending changes",
+			configView:    m.configViewAtPath(m.contextPath),
+		}, nil
 	}
 
-	var b strings.Builder
-	for i, sid := range sessions {
-		entries := m.editor.SessionChanges(sid)
-		if i > 0 {
-			b.WriteString("\n")
-		}
-		fmt.Fprintf(&b, "Session: %s (%d change", sid, len(entries))
-		if len(entries) != 1 {
-			b.WriteString("s")
-		}
-		b.WriteString(")\n")
-		for _, se := range entries {
-			formatChangeEntry(&b, se)
-		}
+	total := 0
+	for _, sid := range sessions {
+		total += len(m.editor.SessionChanges(sid))
 	}
-	return commandResult{output: b.String()}, nil
+	msg := fmt.Sprintf("%d pending", total)
+	if total == 1 {
+		msg += " change"
+	} else {
+		msg += " changes"
+	}
+	msg += fmt.Sprintf(" across %d sessions", len(sessions))
+	return commandResult{
+		statusMessage: msg,
+		configView:    m.configViewAtPath(m.contextPath),
+	}, nil
 }
 
 // cmdWho lists active sessions with pending changes and change counts.

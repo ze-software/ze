@@ -47,6 +47,7 @@ type Editor struct {
 	onReload        ReloadNotifier   // Optional: called after successful save
 	onArchive       archive.Notifier // Optional: called after successful save to archive config
 	showColumns     map[string]bool  // In-memory show column preferences (sticky per session)
+	diffGutter      bool             // Whether diff gutter (+/-) markers are shown (default true)
 }
 
 // BackupInfo describes a backup file.
@@ -100,6 +101,8 @@ func NewEditorWithStorage(store storage.Storage, configPath string) (*Editor, er
 		schema:          schema,
 		treeValid:       treeValid,
 		hasPendingEdit:  hasPending,
+		showColumns:     newShowColumnDefaults(),
+		diffGutter:      true,
 	}, nil
 }
 

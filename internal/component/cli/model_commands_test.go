@@ -1459,7 +1459,7 @@ func TestCmdShowChangesNoChanges(t *testing.T) {
 
 	result, err := model.cmdShowChanges(nil)
 	require.NoError(t, err)
-	assert.Contains(t, result.output, "No pending changes")
+	assert.Contains(t, result.statusMessage, "No pending changes")
 }
 
 // TestCmdShowChangesAllGrouping verifies show changes all groups by session.
@@ -1498,11 +1498,10 @@ func TestCmdShowChangesAllGrouping(t *testing.T) {
 	result, err := model.cmdShowChangesAll()
 	require.NoError(t, err)
 
-	// Should have session headers
-	assert.Contains(t, result.output, "Session: "+session1.ID)
-	assert.Contains(t, result.output, "Session: "+session2.ID)
-	// Should have change counts
-	assert.Contains(t, result.output, "(1 change)")
+	// Should have summary with session count
+	assert.Contains(t, result.statusMessage, "2 pending changes across 2 sessions")
+	// Should have tree content in configView
+	assert.NotNil(t, result.configView, "should include tree view")
 }
 
 // TestCmdCommitConfirmedRejectedInSession verifies commit confirmed is rejected in session mode.

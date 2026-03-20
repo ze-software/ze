@@ -3865,7 +3865,7 @@ func TestCmdShowChangesEmpty(t *testing.T) {
 	m := &Model{editor: ed}
 	result, cmdErr := m.cmdShowChanges(nil)
 	require.NoError(t, cmdErr)
-	assert.Equal(t, "No pending changes.", result.output)
+	assert.Contains(t, result.statusMessage, "No pending changes")
 }
 
 // TestCmdShowChangesFormatsDeleteEntry verifies delete entries show "- delete" and "(was: X)".
@@ -3887,8 +3887,8 @@ func TestCmdShowChangesFormatsDeleteEntry(t *testing.T) {
 	m := &Model{editor: ed}
 	result, cmdErr := m.cmdShowChanges(nil)
 	require.NoError(t, cmdErr)
-	assert.Contains(t, result.output, "- delete")
-	assert.Contains(t, result.output, "(was:", "delete entry should show previous value")
+	assert.Contains(t, result.statusMessage, "1 pending change")
+	assert.NotNil(t, result.configView, "should include tree view")
 }
 
 // TestCmdShowChangesNewVsModified verifies "+" for new entries and "*" for modified.
@@ -3912,8 +3912,8 @@ func TestCmdShowChangesNewVsModified(t *testing.T) {
 	m := &Model{editor: ed}
 	result, cmdErr := m.cmdShowChanges(nil)
 	require.NoError(t, cmdErr)
-	assert.Contains(t, result.output, "* set", "modified entry should have * marker")
-	assert.Contains(t, result.output, "(was:", "modified entry should show previous value")
+	assert.Contains(t, result.statusMessage, "1 pending change", "should report change count")
+	assert.NotNil(t, result.configView, "should include tree view")
 }
 
 // TestCmdShowChangesAllMultiSession verifies grouping by session with headers.
@@ -3947,7 +3947,8 @@ func TestCmdShowChangesAllMultiSession(t *testing.T) {
 	m := &Model{editor: ed2}
 	result, cmdErr := m.cmdShowChangesAll()
 	require.NoError(t, cmdErr)
-	assert.Contains(t, result.output, "Session:", "should have session headers")
+	assert.Contains(t, result.statusMessage, "2 pending changes across 2 sessions")
+	assert.NotNil(t, result.configView, "should include tree view")
 }
 
 // TestCmdWhoEmpty verifies "who" output when no sessions are active.

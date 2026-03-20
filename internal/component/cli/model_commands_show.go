@@ -62,8 +62,14 @@ func isShowColumn(name string) bool {
 // After toggling, re-renders the viewport with updated column settings.
 func (m *Model) cmdShowColumnToggle(args []string) (commandResult, error) {
 	if len(args) < 2 {
-		// Just "show <column>" -- report current state and refresh viewport
-		enabled := m.editor.ShowColumnEnabled(args[0])
+		// Just "show <column>" -- report current state and refresh viewport.
+		// For changes column, report diff gutter state (the user-visible effect).
+		var enabled bool
+		if args[0] == colChanges {
+			enabled = m.editor.DiffGutterEnabled()
+		} else {
+			enabled = m.editor.ShowColumnEnabled(args[0])
+		}
 		state := cmdDisable + "d"
 		if enabled {
 			state = cmdEnable + "d"
@@ -78,8 +84,14 @@ func (m *Model) cmdShowColumnToggle(args []string) (commandResult, error) {
 
 	if args[1] == cmdEnable {
 		m.editor.SetShowColumn(args[0], true)
+		if args[0] == colChanges {
+			m.editor.SetDiffGutter(true)
+		}
 	} else if args[1] == cmdDisable {
 		m.editor.SetShowColumn(args[0], false)
+		if args[0] == colChanges {
+			m.editor.SetDiffGutter(false)
+		}
 	} else {
 		return commandResult{}, fmt.Errorf("usage: show %s enable|disable", args[0])
 	}
@@ -98,6 +110,7 @@ func (m *Model) cmdShowAllColumns(enable bool) (commandResult, error) {
 	for _, col := range showColumnNames {
 		m.editor.SetShowColumn(col, enable)
 	}
+	m.editor.SetDiffGutter(enable)
 	result, err := m.cmdShowDisplay(fmtTree, "")
 	if err != nil {
 		return result, err

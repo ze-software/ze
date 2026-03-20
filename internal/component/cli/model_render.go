@@ -26,9 +26,11 @@ func (m *Model) setViewportData(data viewportData) {
 	content := data.content
 	lineMapping := data.lineMapping
 
-	// Apply diff gutter when original was explicitly provided and differs from content.
-	// hasOriginal distinguishes "not set" (non-config text) from "empty = new block".
-	if data.hasOriginal && data.originalContent != data.content {
+	// Apply diff gutter when original was explicitly provided, content differs,
+	// and the changes column is enabled. The changes column controls all change indicators
+	// (both diff gutter markers and annotated column markers).
+	changesEnabled := data.forceChanges || !m.hasEditor() || m.editor.DiffGutterEnabled()
+	if changesEnabled && data.hasOriginal && data.originalContent != data.content {
 		if m.hasEditor() && m.editor.schema != nil && len(m.contextPath) == 0 {
 			content, lineMapping = annotateContentWithTreeDiff(data.originalContent, data.content, m.editor.schema)
 		} else {

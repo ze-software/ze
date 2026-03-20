@@ -39,9 +39,8 @@ input=enter
 expect=viewport:contains=router-id
 expect=error:none
 
-# Bob sees all changes via show changes all
+# Bob sees all changes summary via show changes all
 input=type:text=show changes all
 input=enter
-expect=viewport:contains=alice@ssh
-expect=viewport:contains=bob@ssh
+expect=status:contains=2 pending changes across 2 sessions
 expect=error:none

@@ -44,6 +44,7 @@ type viewportData struct {
 	content         string      // The text content to display
 	originalContent string      // Original content for diff gutter
 	hasOriginal     bool        // True when originalContent was explicitly set (distinguishes "not set" from "empty = new block")
+	forceChanges    bool        // Force diff gutter even when changes column is disabled (used by show changes)
 	lineMapping     map[int]int // Maps displayed line (1-based) to original line (1-based), nil for full content
 }
 
