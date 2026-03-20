@@ -345,7 +345,7 @@ func (m *Model) cmdSet(args []string) (commandResult, error) {
 	m.completer.SetTree(m.editor.Tree())
 
 	displayPath := append(append([]string{}, containerPath...), key)
-	msg := fmt.Sprintf("Set %s = %s", strings.Join(displayPath, " "), value)
+	msg := fmt.Sprintf("set %s = %s", strings.Join(displayPath, " "), value)
 
 	// Detect conflicts with other users' change files after each edit.
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
@@ -719,11 +719,6 @@ func (m *Model) cmdShowChangesAll() (commandResult, error) {
 		}
 	}
 	return commandResult{output: b.String()}, nil
-}
-
-// cmdShowSet displays the flat set-format configuration without metadata (exportable).
-func (m *Model) cmdShowSet() (commandResult, error) {
-	return commandResult{output: m.editor.SetView()}, nil
 }
 
 // cmdWho lists active sessions with pending changes and change counts.

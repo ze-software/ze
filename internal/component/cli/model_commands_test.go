@@ -496,7 +496,7 @@ func TestSetCommandModifiesConfig(t *testing.T) {
 	content := ed.WorkingContent()
 	assert.Contains(t, content, `description "test peer"`, "description should be added")
 	assert.True(t, ed.Dirty(), "should be marked dirty")
-	assert.Contains(t, result.statusMessage, "Set", "status should mention Set")
+	assert.Contains(t, result.statusMessage, "set", "status should mention set")
 }
 
 // TestTokenizeCommandQuotedStrings verifies tokenizer handles quoted strings.
@@ -761,7 +761,7 @@ func TestSetInQuotedListEntry(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the content was modified correctly
-	assert.Contains(t, setResult.statusMessage, "Set")
+	assert.Contains(t, setResult.statusMessage, "set")
 	content := ed.WorkingContent()
 	assert.Contains(t, content, "65002")
 	assert.NotContains(t, content, "65001", "old value should be replaced")
@@ -925,7 +925,7 @@ func TestSetThroughList(t *testing.T) {
 	// Set hold-time through list from root — no edit context
 	result, err := model.dispatchCommand("set bgp peer peer1 hold-time 120")
 	require.NoError(t, err, "set through list should succeed")
-	assert.Contains(t, result.statusMessage, "Set")
+	assert.Contains(t, result.statusMessage, "set")
 
 	content := ed.WorkingContent()
 	assert.Contains(t, content, "120", "hold-time should be updated to 120")
@@ -978,7 +978,7 @@ func TestSetInContextPreserved(t *testing.T) {
 	// Set within context — should still work
 	result, err := model.dispatchCommand("set hold-time 120")
 	require.NoError(t, err, "context-relative set should still work")
-	assert.Contains(t, result.statusMessage, "Set")
+	assert.Contains(t, result.statusMessage, "set")
 
 	content := ed.WorkingContent()
 	assert.Contains(t, content, "120", "hold-time should be updated to 120")
@@ -1003,7 +1003,7 @@ func TestSetThroughListDescription(t *testing.T) {
 
 	result, err := model.dispatchCommand(`set bgp peer peer1 description "my peer"`)
 	require.NoError(t, err, "set description through list should succeed")
-	assert.Contains(t, result.statusMessage, "Set")
+	assert.Contains(t, result.statusMessage, "set")
 
 	content := ed.WorkingContent()
 	assert.Contains(t, content, "my peer", "description should contain 'my peer'")
@@ -1248,11 +1248,11 @@ func TestCmdShowChangesRequiresSession(t *testing.T) {
 	assert.Contains(t, err.Error(), "requires an active editing session")
 }
 
-// TestCmdShowSetWithoutSession verifies show set works without session.
+// TestCmdShowFormatConfigWithoutSession verifies show | format config works without session.
 //
-// VALIDATES: "show set" is available without an editing session (AC-15: exportable).
-// PREVENTS: show set incorrectly gated behind session check.
-func TestCmdShowSetWithoutSession(t *testing.T) {
+// VALIDATES: set-format display is available without an editing session via format pipe.
+// PREVENTS: format config incorrectly gated behind session check.
+func TestCmdShowFormatConfigWithoutSession(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
@@ -1265,8 +1265,8 @@ func TestCmdShowSetWithoutSession(t *testing.T) {
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	// No session -- show set should still work
-	result, err := model.cmdShow([]string{cmdSet})
+	// No session -- show | format config should work
+	result, err := model.cmdShowDisplay(fmtConfig, "")
 	require.NoError(t, err)
 	assert.Contains(t, result.output, "set ")
 }

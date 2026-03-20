@@ -33,7 +33,7 @@ expect=context:path=bgp.peer.peer1
 # Update hold-time using context-relative path
 input=type:text=set hold-time 120
 input=enter
-expect=status:contains=Set
+expect=status:contains=set
 expect=dirty:true
 expect=error:none
 

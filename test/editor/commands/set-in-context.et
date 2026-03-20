@@ -29,7 +29,7 @@ expect=context:path=bgp.peer.peer1
 input=type:text=set hold-time 90
 input=enter
 expect=dirty:true
-expect=status:contains=Set
+expect=status:contains=set
 expect=status:contains=bgp
 expect=status:contains=peer
 expect=status:contains=hold-time

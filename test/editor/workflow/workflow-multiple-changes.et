@@ -27,18 +27,18 @@ option=timeout:value=10s
 # Change router-id
 input=type:text=set bgp router-id 5.6.7.8
 input=enter
-expect=status:contains=Set
+expect=status:contains=set
 expect=dirty:true
 
 # Change hold-time through list
 input=type:text=set bgp peer peer1 hold-time 120
 input=enter
-expect=status:contains=Set
+expect=status:contains=set
 
 # Change local as
 input=type:text=set bgp local as 65100
 input=enter
-expect=status:contains=Set
+expect=status:contains=set
 
 # Single commit for all changes
 input=type:text=commit

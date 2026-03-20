@@ -1,5 +1,5 @@
-# Test: Show set displays flat set-format commands after commit
-# VALIDATES: show set produces set-format output from hierarchical config
+# Test: Show | format config displays flat set-format commands after commit
+# VALIDATES: show | format config produces set-format output from hierarchical config
 # PREVENTS: Set-format serialization broken or unreachable from editor
 
 tmpfs=test.conf:terminator=EOF_CONF
@@ -34,8 +34,8 @@ input=enter
 expect=status:contains=committed
 expect=dirty:false
 
-# show set should display flat set commands
-input=type:text=show set
+# show | format config should display flat set commands
+input=type:text=show | format config
 input=enter
 expect=viewport:contains=set bgp router-id
 expect=viewport:contains=set bgp local as

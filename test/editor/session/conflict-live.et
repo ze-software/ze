@@ -18,14 +18,14 @@ option=timeout:value=10s
 session=alice:user=alice,origin=ssh
 input=type:text=set bgp local as 65001
 input=enter
-expect=status:contains=Set
+expect=status:contains=set
 expect=dirty:true
 
 # Bob sets local as to 65002 (writes to test.conf.change.bob)
 session=bob:user=bob,origin=ssh
 input=type:text=set bgp local as 65002
 input=enter
-expect=status:contains=Set
+expect=status:contains=set
 expect=dirty:true
 
 # Bob tries to commit -- should be blocked by live conflict with Alice's change file

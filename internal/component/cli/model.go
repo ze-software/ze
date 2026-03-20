@@ -18,6 +18,7 @@ import (
 // Styles for the editor UI.
 var (
 	promptStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	successStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("82"))
 	ghostStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 	dimStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))

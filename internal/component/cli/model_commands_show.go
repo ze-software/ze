@@ -47,11 +47,6 @@ func (m *Model) cmdShow(args []string) (commandResult, error) {
 			return m.cmdShowAllColumns(false)
 		}
 
-		// Legacy: show set -> flat set commands (exportable, no metadata)
-		if args[0] == cmdSet {
-			return m.cmdShowSet()
-		}
-
 	}
 
 	// Default: display config in tree format with enabled columns.
@@ -64,37 +59,55 @@ func isShowColumn(name string) bool {
 }
 
 // cmdShowColumnToggle handles "show <column> enable|disable".
+// After toggling, re-renders the viewport with updated column settings.
 func (m *Model) cmdShowColumnToggle(args []string) (commandResult, error) {
 	if len(args) < 2 {
-		// Just "show <column>" -- report current state
+		// Just "show <column>" -- report current state and refresh viewport
 		enabled := m.editor.ShowColumnEnabled(args[0])
 		state := cmdDisable + "d"
 		if enabled {
 			state = cmdEnable + "d"
 		}
-		return commandResult{output: fmt.Sprintf("%s: %s", args[0], state)}, nil
+		result, err := m.cmdShowDisplay(fmtTree, "")
+		if err != nil {
+			return result, err
+		}
+		result.statusMessage = fmt.Sprintf("%s: %s", args[0], state)
+		return result, nil
 	}
 
 	if args[1] == cmdEnable {
 		m.editor.SetShowColumn(args[0], true)
-		return commandResult{statusMessage: fmt.Sprintf("%s column enabled", args[0])}, nil
-	}
-	if args[1] == cmdDisable {
+	} else if args[1] == cmdDisable {
 		m.editor.SetShowColumn(args[0], false)
-		return commandResult{statusMessage: fmt.Sprintf("%s column disabled", args[0])}, nil
+	} else {
+		return commandResult{}, fmt.Errorf("usage: show %s enable|disable", args[0])
 	}
-	return commandResult{}, fmt.Errorf("usage: show %s enable|disable", args[0])
+
+	// Re-render viewport with the new column setting
+	result, err := m.cmdShowDisplay(fmtTree, "")
+	if err != nil {
+		return result, err
+	}
+	result.statusMessage = fmt.Sprintf("%s column %sd", args[0], args[1])
+	return result, nil
 }
 
-// cmdShowAllColumns enables or disables all four display columns.
+// cmdShowAllColumns enables or disables all four display columns and refreshes the viewport.
 func (m *Model) cmdShowAllColumns(enable bool) (commandResult, error) {
 	for _, col := range showColumnNames {
 		m.editor.SetShowColumn(col, enable)
 	}
-	if enable {
-		return commandResult{statusMessage: "All columns enabled"}, nil
+	result, err := m.cmdShowDisplay(fmtTree, "")
+	if err != nil {
+		return result, err
 	}
-	return commandResult{statusMessage: "All columns disabled"}, nil
+	if enable {
+		result.statusMessage = "All columns enabled"
+	} else {
+		result.statusMessage = "All columns disabled"
+	}
+	return result, nil
 }
 
 // cmdShowDisplay renders the config with the specified format and optional compare baseline.

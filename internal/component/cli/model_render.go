@@ -209,7 +209,7 @@ func (m Model) messageLines() (string, string) {
 
 	// Status message from last command (e.g., "Configuration committed")
 	if m.statusMessage != "" {
-		return promptStyle.Render("► " + m.statusMessage), m.idleInfoLine()
+		return successStyle.Render("► " + m.statusMessage), m.idleInfoLine()
 	}
 
 	// Idle: show header info + validation status

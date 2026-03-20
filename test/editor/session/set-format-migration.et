@@ -20,7 +20,7 @@ session=alice:user=alice,origin=ssh
 # Make a change to create a dirty state
 input=type:text=set bgp router-id 5.6.7.8
 input=enter
-expect=status:contains=Set
+expect=status:contains=set
 expect=dirty:true
 
 # Commit -- should write config.conf in set format

@@ -24,7 +24,7 @@ expect=error:none
 # Query author column state
 input=type:text=show author
 input=enter
-expect=viewport:contains=author: enabled
+expect=status:contains=author: enabled
 expect=error:none
 
 # Disable author column
@@ -36,5 +36,5 @@ expect=error:none
 # Verify disabled state
 input=type:text=show author
 input=enter
-expect=viewport:contains=author: disabled
+expect=status:contains=author: disabled
 expect=error:none

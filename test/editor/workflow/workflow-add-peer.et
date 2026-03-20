@@ -21,20 +21,20 @@ expect=dirty:false
 # Add a new peer with required attributes
 input=type:text=set bgp peer 10.0.0.1 remote as 65001
 input=enter
-expect=status:contains=Set
+expect=status:contains=set
 expect=dirty:true
 expect=error:none
 
 # Set local ip on the same peer
 input=type:text=set bgp peer 10.0.0.1 local ip auto
 input=enter
-expect=status:contains=Set
+expect=status:contains=set
 expect=error:none
 
 # Set hold-time on the same peer
 input=type:text=set bgp peer 10.0.0.1 hold-time 90
 input=enter
-expect=status:contains=Set
+expect=status:contains=set
 expect=error:none
 
 # Commit the changes

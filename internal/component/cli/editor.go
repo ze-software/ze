@@ -361,12 +361,15 @@ func (e *Editor) OriginalContentAtPath(path []string) string {
 	return config.SerializeSubtree(subtree, schemaNode)
 }
 
-// ContentAtPath returns the serialized content at the given context path.
-// If path is empty, returns the full WorkingContent().
-// If the path doesn't resolve, falls back to full content.
+// ContentAtPath returns the serialized content at the given context path in tree format.
+// Always returns tree (junos-style) format for display, regardless of session state.
+// If the path doesn't resolve, falls back to full tree content.
 func (e *Editor) ContentAtPath(path []string) string {
 	if len(path) == 0 {
-		return e.WorkingContent()
+		if e.treeValid && e.tree != nil && e.schema != nil {
+			return config.Serialize(e.tree, e.schema)
+		}
+		return e.workingContent
 	}
 	if !e.treeValid || e.tree == nil || e.schema == nil {
 		return e.workingContent
@@ -374,7 +377,10 @@ func (e *Editor) ContentAtPath(path []string) string {
 
 	subtree, schemaNode := e.walkPathWithSchema(path)
 	if subtree == nil || schemaNode == nil {
-		return e.WorkingContent()
+		if e.treeValid && e.tree != nil && e.schema != nil {
+			return config.Serialize(e.tree, e.schema)
+		}
+		return e.workingContent
 	}
 	return config.SerializeSubtree(subtree, schemaNode)
 }

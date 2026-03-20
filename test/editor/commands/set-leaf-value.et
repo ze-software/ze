@@ -17,6 +17,6 @@ expect=dirty:false
 # Set a value
 input=type:text=set bgp local as 65000
 input=enter
-expect=status:contains=Set
+expect=status:contains=set
 expect=dirty:true
 expect=error:none

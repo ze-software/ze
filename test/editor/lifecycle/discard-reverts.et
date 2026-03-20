@@ -20,7 +20,7 @@ expect=dirty:false
 input=type:text=set bgp local as 65000
 input=enter
 expect=dirty:true
-expect=status:contains=Set
+expect=status:contains=set
 
 # Discard changes
 input=type:text=discard

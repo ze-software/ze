@@ -24,12 +24,12 @@ option=timeout:value=10s
 # Set hold-time through list from root context
 input=type:text=set bgp peer peer1 hold-time 120
 input=enter
-expect=status:contains=Set
+expect=status:contains=set
 expect=dirty:true
 expect=error:none
 
 # Set description through list from root context
 input=type:text=set bgp peer peer1 description "my peer"
 input=enter
-expect=status:contains=Set
+expect=status:contains=set
 expect=error:none

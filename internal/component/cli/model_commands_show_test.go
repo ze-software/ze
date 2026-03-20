@@ -64,7 +64,7 @@ func TestCmdShowColumnToggle(t *testing.T) {
 	// Query column state
 	result, err = m.cmdShow([]string{colAuthor})
 	require.NoError(t, err)
-	assert.Contains(t, result.output, "author: disabled")
+	assert.Contains(t, result.statusMessage, "author: disabled")
 }
 
 // TestCmdShowAllNone verifies show all / show none.

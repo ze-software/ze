@@ -24,7 +24,7 @@ expect=error:none
 # Verify author is now enabled
 input=type:text=show author
 input=enter
-expect=viewport:contains=author: enabled
+expect=status:contains=author: enabled
 
 # Disable all columns
 input=type:text=show none
@@ -35,4 +35,4 @@ expect=error:none
 # Verify author is now disabled
 input=type:text=show author
 input=enter
-expect=viewport:contains=author: disabled
+expect=status:contains=author: disabled

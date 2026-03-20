@@ -20,13 +20,13 @@ option=timeout:value=10s
 session=alice:user=alice,origin=ssh
 input=type:text=set bgp local as 65001
 input=enter
-expect=status:contains=Set
+expect=status:contains=set
 
 # Bob sets local as to 65002 (same path, different value)
 session=bob:user=bob,origin=ssh
 input=type:text=set bgp local as 65002
 input=enter
-expect=status:contains=Set
+expect=status:contains=set
 
 # Bob commits -- blocked by live conflict with Alice
 session=bob

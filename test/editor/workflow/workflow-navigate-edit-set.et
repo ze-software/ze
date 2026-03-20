@@ -35,7 +35,7 @@ expect=viewport:contains=hold-time
 # Set a value in context
 input=type:text=set hold-time 120
 input=enter
-expect=status:contains=Set
+expect=status:contains=set
 expect=dirty:true
 
 # Go up one level

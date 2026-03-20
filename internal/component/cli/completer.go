@@ -278,7 +278,6 @@ func (c *Completer) completeEditPath(tokens, contextPath []string, endsWithSpace
 // showSubcommands are completions offered when typing "show ".
 // Session-dependent filtering (blame, changes) is done by the Model.
 var showSubcommands = []Completion{
-	{Text: cmdSet, Description: "Flat set commands (exportable)", Type: "keyword"},
 	{Text: cmdBlame, Description: "Annotated tree view with authorship", Type: "keyword"},
 	{Text: cmdChanges, Description: "Pending changes (mine or all)", Type: "keyword"},
 	{Text: colAuthor, Description: "Toggle author column (enable/disable)", Type: "keyword"},
