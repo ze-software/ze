@@ -31,7 +31,16 @@ All JSON keys: lowercase kebab-case. Never camelCase or snake_case.
 
 ## Address Families
 
-Format: `"afi/safi"` — `"ipv4/unicast"`, `"ipv6/unicast"`, `"ipv4/vpn"`, `"ipv6/vpn"`, `"ipv4/flow"`, `"ipv6/flow"`, `"l2vpn/evpn"`, `"bgp-ls/bgp-ls"`
+Format: `"afi/safi"`. Families are registered dynamically by plugins (not a static list). Current inventory:
+
+| AFI | Families |
+|-----|----------|
+| ipv4 | `unicast`, `multicast`, `vpn`, `flow`, `flow-vpn`, `mpls-label`, `mup`, `mvpn`, `rtc` |
+| ipv6 | `unicast`, `multicast`, `vpn`, `flow`, `flow-vpn`, `mpls-label`, `mup`, `mvpn` |
+| l2vpn | `evpn`, `vpls` |
+| bgp-ls | `bgp-ls`, `bgp-ls-vpn` |
+
+Unicast and multicast are builtin (engine). All others registered by `bgp-nlri-*` plugins. Use `make ze-inventory` for the authoritative list.
 
 ## NLRI Operations
 
