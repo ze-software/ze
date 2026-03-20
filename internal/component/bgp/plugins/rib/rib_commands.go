@@ -49,76 +49,119 @@ func (r *RIBManager) autoExpireStale(peerAddr string, owner *peerGRState) {
 	delete(r.grState, peerAddr)
 }
 
-// handleCommand processes command requests via SDK execute-command callback.
-// Returns (status, data, error) for the SDK to send back to the engine.
-func (r *RIBManager) handleCommand(command, selector string, args []string) (string, string, error) {
-	switch command {
-	case "rib status", "rib adjacent status":
-		return statusDone, r.statusJSON(), nil
-	case "rib show":
-		return statusDone, r.showPipeline(selector, args), nil
-	case "rib clear in", "rib adjacent inbound empty":
-		return statusDone, r.inboundEmptyJSON(selector), nil
-	case "rib clear out", "rib adjacent outbound resend":
-		return statusDone, r.outboundResendJSON(selector), nil
-	case "rib retain-routes":
-		return statusDone, r.retainRoutesJSON(selector), nil
-	case "rib release-routes":
-		return statusDone, r.releaseRoutesJSON(selector), nil
-	case "rib mark-stale":
-		return r.markStaleCommand(args)
-	case "rib purge-stale":
-		return r.purgeStaleCommand(args)
-	case "rib enter-llgr":
-		return r.enterLLGRCommand(args)
-	case "rib depreference-stale":
-		return r.depreferenceStaleCommand(args)
-	case "rib readvertise-llgr-stale":
-		return r.readvertiseLLGRStaleCommand(args)
-	case "rib best":
-		return statusDone, r.bestPipeline(selector, args), nil
-	case "rib best status":
-		return statusDone, r.bestPathStatusJSON(), nil
-	case "rib help":
-		return statusDone, ribHelpJSON(), nil
-	case "rib command list":
-		return statusDone, ribCommandListJSON(), nil
-	case "rib event list":
-		return statusDone, ribEventListJSON(), nil
-	default: // fail on unknown command
-		return statusError, "", fmt.Errorf("unknown command: %s", command)
+// CommandHandler is the signature for RIB command handlers.
+// Registered by plugins via RegisterRIBCommand during init().
+type CommandHandler func(r *RIBManager, selector string, args []string) (string, string, error)
+
+// ribCommandEntry holds a registered command handler and its help text.
+type ribCommandEntry struct {
+	Handler CommandHandler
+	Help    string
+}
+
+// registeredCommands is the command dispatch table, populated during init().
+// Read-only after init phase; no mutex needed.
+var registeredCommands = map[string]*ribCommandEntry{}
+
+// RegisterRIBCommand registers a command handler for a given command name.
+// Called by plugins during init() to extend the RIB's command set.
+// Returns an error if the command name is already registered.
+func RegisterRIBCommand(name, help string, handler CommandHandler) error {
+	if _, exists := registeredCommands[name]; exists {
+		return fmt.Errorf("RIB command %q already registered", name)
+	}
+	registeredCommands[name] = &ribCommandEntry{Handler: handler, Help: help}
+	return nil
+}
+
+// registerBuiltinCommands populates the command table with RIB-native commands.
+// Called from RIB startup (explicit, not init). Idempotent: skips if already populated.
+func registerBuiltinCommands() {
+	if _, ok := registeredCommands["rib status"]; ok {
+		return // already registered
+	}
+	builtins := []struct {
+		names   []string
+		help    string
+		handler CommandHandler
+	}{
+		{[]string{"rib status", "rib adjacent status"}, "Show RIB status (peer count, route counts)",
+			func(r *RIBManager, sel string, _ []string) (string, string, error) {
+				return statusDone, r.statusJSON(), nil
+			}},
+		{[]string{"rib show"}, "Show routes (scope: sent|received|sent-received, filters, terminals)",
+			func(r *RIBManager, sel string, args []string) (string, string, error) {
+				return statusDone, r.showPipeline(sel, args), nil
+			}},
+		{[]string{"rib clear in", "rib adjacent inbound empty"}, "Clear Adj-RIB-In routes",
+			func(r *RIBManager, sel string, _ []string) (string, string, error) {
+				return statusDone, r.inboundEmptyJSON(sel), nil
+			}},
+		{[]string{"rib clear out", "rib adjacent outbound resend"}, "Resend Adj-RIB-Out routes",
+			func(r *RIBManager, sel string, _ []string) (string, string, error) {
+				return statusDone, r.outboundResendJSON(sel), nil
+			}},
+		{[]string{"rib retain-routes"}, "Mark peer RIB for retention",
+			func(r *RIBManager, sel string, _ []string) (string, string, error) {
+				return statusDone, r.retainRoutesJSON(sel), nil
+			}},
+		{[]string{"rib release-routes"}, "Release retained peer RIB",
+			func(r *RIBManager, sel string, _ []string) (string, string, error) {
+				return statusDone, r.releaseRoutesJSON(sel), nil
+			}},
+		{[]string{"rib mark-stale"}, "Mark peer routes at stale level",
+			func(r *RIBManager, _ string, args []string) (string, string, error) {
+				return r.markStaleCommand(args)
+			}},
+		{[]string{"rib purge-stale"}, "Purge stale routes for peer",
+			func(r *RIBManager, _ string, args []string) (string, string, error) {
+				return r.purgeStaleCommand(args)
+			}},
+		{[]string{"rib best"}, "Show best-path per prefix",
+			func(r *RIBManager, sel string, args []string) (string, string, error) {
+				return statusDone, r.bestPipeline(sel, args), nil
+			}},
+		{[]string{"rib best status"}, "Show best-path computation status",
+			func(r *RIBManager, _ string, _ []string) (string, string, error) {
+				return statusDone, r.bestPathStatusJSON(), nil
+			}},
+		{[]string{"rib help"}, "Show RIB subcommands",
+			func(_ *RIBManager, _ string, _ []string) (string, string, error) {
+				return statusDone, ribHelpJSON(), nil
+			}},
+		{[]string{"rib command list"}, "List RIB commands",
+			func(_ *RIBManager, _ string, _ []string) (string, string, error) {
+				return statusDone, ribCommandListJSON(), nil
+			}},
+		{[]string{"rib event list"}, "List RIB event types",
+			func(_ *RIBManager, _ string, _ []string) (string, string, error) {
+				return statusDone, ribEventListJSON(), nil
+			}},
+	}
+
+	for _, b := range builtins {
+		for _, name := range b.names {
+			registeredCommands[name] = &ribCommandEntry{Handler: b.handler, Help: b.help}
+		}
 	}
 }
 
-// ribCommands is the authoritative list of RIB plugin commands.
-var ribCommands = []struct {
-	Name string
-	Help string
-}{
-	{"rib status", "Show RIB status (peer count, route counts)"},
-	{"rib show", "Show routes (scope: sent|received|sent-received, filters: path|cidr|community|family|match, terminals: count|json)"},
-	{"rib clear in", "Clear Adj-RIB-In routes"},
-	{"rib clear out", "Resend Adj-RIB-Out routes"},
-	{"rib best", "Show best-path per prefix (RFC 4271 §9.1.2)"},
-	{"rib best status", "Show best-path computation status"},
-	{"rib retain-routes", "Mark peer RIB for retention (GR)"},
-	{"rib release-routes", "Release retained peer RIB (GR)"},
-	{"rib mark-stale", "Mark peer routes as stale (GR disconnect)"},
-	{"rib purge-stale", "Purge only stale routes for peer (GR EOR/reconnect)"},
-	{"rib enter-llgr", "Enter LLGR for peer family (attach LLGR_STALE, delete NO_LLGR)"},
-	{"rib depreference-stale", "Mark stale routes as LLGR-stale (least preferred)"},
-	{"rib readvertise-llgr-stale", "Resend LLGR-stale routes from Adj-RIB-Out to up peers"},
-	{"rib help", "Show RIB subcommands"},
-	{"rib command list", "List RIB commands"},
-	{"rib event list", "List RIB event types"},
+// handleCommand processes command requests via SDK execute-command callback.
+// Dispatches to registered handlers from the command table.
+// Returns (status, data, error) for the SDK to send back to the engine.
+func (r *RIBManager) handleCommand(command, selector string, args []string) (string, string, error) {
+	if entry, ok := registeredCommands[command]; ok {
+		return entry.Handler(r, selector, args)
+	}
+	return statusError, "", fmt.Errorf("unknown command: %s", command)
 }
 
-// ribHelpJSON returns RIB subcommands as JSON.
+// ribHelpJSON returns RIB subcommands as JSON, built from the command registry.
 func ribHelpJSON() string {
 	seen := make(map[string]bool)
 	var subs []string
-	for _, cmd := range ribCommands {
-		after, ok := strings.CutPrefix(cmd.Name, "rib ")
+	for name := range registeredCommands {
+		after, ok := strings.CutPrefix(name, "rib ")
 		if !ok {
 			continue
 		}
@@ -128,20 +171,22 @@ func ribHelpJSON() string {
 			seen[parts[0]] = true
 		}
 	}
+	sort.Strings(subs)
 	data, _ := json.Marshal(map[string]any{"subcommands": subs})
 	return string(data)
 }
 
-// ribCommandListJSON returns all RIB commands as JSON.
+// ribCommandListJSON returns all RIB commands as JSON, built from the command registry.
 func ribCommandListJSON() string {
 	type entry struct {
 		Name string `json:"name"`
 		Help string `json:"help"`
 	}
-	cmds := make([]entry, 0, len(ribCommands))
-	for _, cmd := range ribCommands {
-		cmds = append(cmds, entry{Name: cmd.Name, Help: cmd.Help})
+	cmds := make([]entry, 0, len(registeredCommands))
+	for name, e := range registeredCommands {
+		cmds = append(cmds, entry{Name: name, Help: e.Help})
 	}
+	sort.Slice(cmds, func(i, j int) bool { return cmds[i].Name < cmds[j].Name })
 	data, _ := json.Marshal(map[string]any{"commands": cmds})
 	return string(data)
 }
@@ -549,6 +594,37 @@ func (r *RIBManager) extractCandidate(peerAddr string, entry *storage.RouteEntry
 //   - Attach LLGR_STALE community (0xFFFF0006) to remaining stale routes
 //   - Set LLGRStale=true for best-path depreference
 //
+// RegisterLLGRCommands registers the LLGR-specific RIB commands.
+// Called by the bgp-gr plugin during init() to extend the RIB command set.
+// The handlers live in the rib package because they access RIBManager internals.
+// Idempotent: safe to call multiple times (e.g., from tests).
+func RegisterLLGRCommands() {
+	if _, ok := registeredCommands["rib enter-llgr"]; ok {
+		return // already registered
+	}
+	cmds := []struct {
+		name    string
+		help    string
+		handler CommandHandler
+	}{
+		{"rib enter-llgr", "Enter LLGR for peer family (attach LLGR_STALE, delete NO_LLGR)",
+			func(r *RIBManager, _ string, args []string) (string, string, error) {
+				return r.enterLLGRCommand(args)
+			}},
+		{"rib depreference-stale", "Raise stale level to depreference threshold",
+			func(r *RIBManager, _ string, args []string) (string, string, error) {
+				return r.depreferenceStaleCommand(args)
+			}},
+		{"rib readvertise-llgr-stale", "Resend routes from Adj-RIB-Out excluding source peer",
+			func(r *RIBManager, _ string, args []string) (string, string, error) {
+				return r.readvertiseLLGRStaleCommand(args)
+			}},
+	}
+	for _, c := range cmds {
+		registeredCommands[c.name] = &ribCommandEntry{Handler: c.handler, Help: c.help}
+	}
+}
+
 // Args: [0]=peer address, [1]=family (e.g., "ipv4/unicast"), [2]=LLST seconds.
 func (r *RIBManager) enterLLGRCommand(args []string) (string, string, error) {
 	if len(args) < 3 {

@@ -217,6 +217,10 @@ func RunRIBPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-rib", conn)
 	defer func() { _ = p.Close() }()
 
+	// Populate command table before creating manager.
+	// Built-in commands registered here; plugins register via RegisterRIBCommand.
+	registerBuiltinCommands()
+
 	r := &RIBManager{
 		plugin:        p,
 		ribInPool:     make(map[string]*storage.PeerRIB),

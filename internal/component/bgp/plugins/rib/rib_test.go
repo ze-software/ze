@@ -19,6 +19,8 @@ import (
 // will fail silently. This is appropriate for testing internal state changes.
 func newTestRIBManager(t *testing.T) *RIBManager {
 	t.Helper()
+	registerBuiltinCommands()
+	RegisterLLGRCommands() // LLGR commands needed by GR tests
 	pluginEnd, remoteEnd := net.Pipe()
 	if err := remoteEnd.Close(); err != nil {
 		t.Logf("close remoteEnd: %v", err)

@@ -7,6 +7,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	grschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
@@ -25,6 +26,11 @@ func init() {
 			logger().Error("community registration failed", "error", err)
 		}
 	}
+
+	// Register LLGR-specific RIB commands.
+	// Handler code lives in the rib package (accesses RIB internals);
+	// registration is driven by the GR plugin to make the dependency explicit.
+	rib.RegisterLLGRCommands()
 
 	reg := registry.Registration{
 		Name:            "bgp-gr",
