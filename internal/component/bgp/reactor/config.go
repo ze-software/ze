@@ -15,6 +15,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 )
 
@@ -143,7 +144,9 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 	parseCapabilitiesFromTree(tree, ps)
 
 	// Parse process bindings.
-	parseProcessBindingsFromTree(tree, ps)
+	if err := parseProcessBindingsFromTree(tree, ps); err != nil {
+		return nil, fmt.Errorf("peer %s: %w", name, err)
+	}
 
 	// TCP MD5 authentication (RFC 2385).
 	if md5, ok := mapString(tree, "md5-password"); ok {
@@ -175,6 +178,11 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 // them or provide its own. If neither global nor peer-level local as is set,
 // parsePeerFromTree returns an error for that peer.
 func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
+	// Ensure plugin-registered event types are available for receive validation.
+	// Idempotent -- safe to call multiple times. Needed here because config parsing
+	// happens before NewServer, and receive [ update-rpki ] must be valid.
+	plugin.RegisterPluginEventTypes()
+
 	// Extract global defaults (both optional -- peers can provide their own).
 	// Global local AS is under bgp > local > as.
 	var localAS uint32
@@ -736,10 +744,10 @@ func parseAddPathFromTree(capMap, peerTree map[string]any, ps *PeerSettings) {
 }
 
 // parseProcessBindingsFromTree parses process bindings from the peer tree.
-func parseProcessBindingsFromTree(tree map[string]any, ps *PeerSettings) {
+func parseProcessBindingsFromTree(tree map[string]any, ps *PeerSettings) error {
 	procMap, ok := mapMap(tree, "process")
 	if !ok {
-		return
+		return nil
 	}
 
 	for name, val := range procMap {
@@ -762,7 +770,9 @@ func parseProcessBindingsFromTree(tree map[string]any, ps *PeerSettings) {
 
 		// Receive settings — leaf-list: "update state negotiated".
 		if v, ok := mapStringJoined(pMap, "receive"); ok {
-			parseReceiveFlags(v, &binding)
+			if err := parseReceiveFlags(v, &binding); err != nil {
+				return fmt.Errorf("process %q: %w", name, err)
+			}
 		}
 
 		// Send settings — leaf-list: "update refresh".
@@ -772,40 +782,66 @@ func parseProcessBindingsFromTree(tree map[string]any, ps *PeerSettings) {
 
 		ps.ProcessBindings = append(ps.ProcessBindings, binding)
 	}
+	return nil
 }
 
-// parseReceiveFlags sets receive flags on a ProcessBinding from a space-separated enum list.
-func parseReceiveFlags(s string, b *ProcessBinding) {
+// parseReceiveFlags sets receive flags on a ProcessBinding from a space-separated list.
+// Base event types are mapped to bool fields. Plugin-registered event types (validated
+// against plugin.IsValidEvent) are stored in ReceiveCustom.
+// Unknown event types cause a config parse error (fail-on-unknown per config-design.md).
+func parseReceiveFlags(s string, b *ProcessBinding) error {
 	for token := range strings.FieldsSeq(s) {
-		switch token {
-		case "all":
-			b.ReceiveUpdate = true
-			b.ReceiveOpen = true
-			b.ReceiveNotification = true
-			b.ReceiveKeepalive = true
-			b.ReceiveRefresh = true
-			b.ReceiveState = true
-			b.ReceiveSent = true
-			b.ReceiveNegotiated = true
-			return
-		case "update":
-			b.ReceiveUpdate = true
-		case "open":
-			b.ReceiveOpen = true
-		case "notification":
-			b.ReceiveNotification = true
-		case "keepalive":
-			b.ReceiveKeepalive = true
-		case "refresh":
-			b.ReceiveRefresh = true
-		case "state":
-			b.ReceiveState = true
-		case "sent":
-			b.ReceiveSent = true
-		case "negotiated":
-			b.ReceiveNegotiated = true
+		if err := parseOneReceiveFlag(token, b); err != nil {
+			return err
 		}
 	}
+	return nil
+}
+
+// parseOneReceiveFlag handles a single receive token.
+func parseOneReceiveFlag(token string, b *ProcessBinding) error {
+	switch token {
+	case "all":
+		b.ReceiveUpdate = true
+		b.ReceiveOpen = true
+		b.ReceiveNotification = true
+		b.ReceiveKeepalive = true
+		b.ReceiveRefresh = true
+		b.ReceiveState = true
+		b.ReceiveSent = true
+		b.ReceiveNegotiated = true
+	case "update":
+		b.ReceiveUpdate = true
+	case "open":
+		b.ReceiveOpen = true
+	case "notification":
+		b.ReceiveNotification = true
+	case "keepalive":
+		b.ReceiveKeepalive = true
+	case "refresh":
+		b.ReceiveRefresh = true
+	case "state":
+		b.ReceiveState = true
+	case "sent":
+		b.ReceiveSent = true
+	case "negotiated":
+		b.ReceiveNegotiated = true
+	case plugin.EventRPKI: // rpki events (emitted by rpki plugin)
+		if b.ReceiveCustom == nil {
+			b.ReceiveCustom = make(map[string]bool)
+		}
+		b.ReceiveCustom[token] = true
+	default: // Plugin-registered event types (e.g., "update-rpki"). Fail on truly unknown.
+		if !plugin.IsValidEvent(plugin.NamespaceBGP, token) {
+			return fmt.Errorf("invalid value for receive: %q (valid: %s)",
+				token, plugin.ValidEventNames(plugin.NamespaceBGP))
+		}
+		if b.ReceiveCustom == nil {
+			b.ReceiveCustom = make(map[string]bool)
+		}
+		b.ReceiveCustom[token] = true
+	}
+	return nil
 }
 
 // parseSendFlags sets send flags on a ProcessBinding from a space-separated enum list.

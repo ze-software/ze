@@ -181,6 +181,7 @@ bgp {
 			graceful-restart disable
 		}
 		process rpki-dec-test {
+			receive [ update-rpki ]
 		}
 		process rpki {
 			receive [ update ]

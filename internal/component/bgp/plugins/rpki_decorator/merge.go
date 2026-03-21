@@ -31,7 +31,7 @@ func mergeUpdateRPKI(primary, secondary string) string {
 	if !ok {
 		return ""
 	}
-	msg["type"] = "update-rpki"
+	msg["type"] = eventTypeUpdateRPKI
 
 	// Inject rpki section from secondary (if available and parseable).
 	if secondary != "" {

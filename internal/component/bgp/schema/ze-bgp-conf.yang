@@ -391,18 +391,11 @@ module ze-bgp-conf {
             }
 
             leaf-list receive {
-                type enumeration {
-                    enum all { description "All message types"; }
-                    enum update { description "UPDATE messages"; }
-                    enum open { description "OPEN messages"; }
-                    enum notification { description "NOTIFICATION messages"; }
-                    enum keepalive { description "KEEPALIVE messages"; }
-                    enum refresh { description "ROUTE-REFRESH messages"; }
-                    enum state { description "State change events"; }
-                    enum sent { description "Sent messages"; }
-                    enum negotiated { description "Negotiated capabilities"; }
-                }
-                description "Message types to receive";
+                type string;
+                description "Event types to receive. Base types: all, update, open,
+                    notification, keepalive, refresh, state, sent, negotiated.
+                    Plugins may register additional types (e.g., update-rpki).
+                    Validated at runtime against registered event types.";
             }
 
             leaf-list send {
