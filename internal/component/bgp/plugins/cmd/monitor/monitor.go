@@ -211,6 +211,15 @@ func parseMonitorArgs(args []string) (*monitorOpts, error) {
 			if peer == "" {
 				return nil, fmt.Errorf("empty peer selector")
 			}
+			if peer[0] == '!' {
+				rest := peer[1:]
+				if rest == "" {
+					return nil, fmt.Errorf("invalid peer selector: %s (empty after exclusion)", peer)
+				}
+				if rest[0] == '!' {
+					return nil, fmt.Errorf("invalid peer selector: %s (double exclusion)", peer)
+				}
+			}
 			opts.peer = peer
 
 		case "event":

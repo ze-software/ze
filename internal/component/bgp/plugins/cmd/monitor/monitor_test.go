@@ -179,6 +179,8 @@ func TestParseMonitorArgsInvalid(t *testing.T) {
 		{"invalid_event_in_list", []string{"event", "update,bogus"}},
 		{"empty_event_in_list", []string{"event", "update,,state"}},
 		{"duplicate_keyword", []string{"peer", "10.0.0.1", "peer", "10.0.0.2"}},
+		{"empty_exclusion", []string{"peer", "!"}},
+		{"double_exclusion", []string{"peer", "!!10.0.0.1"}},
 	}
 
 	for _, tt := range tests {

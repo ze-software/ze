@@ -48,6 +48,8 @@ func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
 	peerInfo := plugin.PeerInfo{
 		Address:      peer.settings.Address,
 		LocalAddress: peer.settings.LocalAddress,
+		Name:         peer.settings.Name,
+		GroupName:    peer.settings.GroupName,
 		PeerAS:       peer.settings.PeerAS,
 		LocalAS:      peer.settings.LocalAS,
 	}
@@ -138,6 +140,8 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		peerInfo = plugin.PeerInfo{
 			Address:      s.Address,
 			LocalAddress: s.LocalAddress,
+			Name:         s.Name,
+			GroupName:    s.GroupName,
 			LocalAS:      s.LocalAS,
 			PeerAS:       s.PeerAS,
 			RouterID:     s.RouterID,
