@@ -50,24 +50,50 @@ Exit codes: 0 = valid, 1 = invalid, 2 = file not found.
 
 Configuration management.
 
+**Editing:**
+
 ```
 ze config edit [file]            # Interactive editor
 ze config set <file> <path> <value>
+```
+
+**Storage:**
+
+```
+ze config import <file>...       # Import files into the database
+ze config import --name <n> <file>  # Import under a different name
+ze config rename <old> <new>     # Rename a config in the database
+ze config ls [prefix]            # List files in database
+ze config cat <key>              # Print database entry
+```
+
+**Inspection:**
+
+```
+ze config check <file>           # Check for deprecated patterns
+ze config dump <file>            # Dump parsed configuration
+ze config diff <f1> <f2>         # Compare two configs
+ze config diff <N> <file>        # Compare with rollback revision
+ze config fmt <file>             # Format and normalize
+```
+
+**History:**
+
+```
 ze config history <file>         # List rollback revisions
 ze config rollback <N> <file>    # Restore revision N
 ze config archive <name> <file>  # Archive config
-ze config diff <f1> <f2>         # Compare two configs
-ze config diff <N> <file>        # Compare with rollback revision
-ze config ls [prefix]            # List files in database
-ze config cat <key>              # Print database entry
-ze config check <file>           # Check for deprecated patterns
-ze config migrate <file>         # Convert to current format
-ze config fmt <file>             # Format and normalize
-ze config dump <file>            # Dump parsed configuration
+```
+
+**Migration:**
+
+```
+ze config migrate <file>         # Convert old format to current
 ```
 
 | Flag | Purpose |
 |------|---------|
+| `-f` | Bypass database, use filesystem directly |
 | `-o <output>` | Output file (migrate) |
 
 ### ze signal

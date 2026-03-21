@@ -16,8 +16,10 @@ Ze is a BGP daemon in Go from the creator of [ExaBGP](https://github.com/Exa-Net
 
 ```bash
 git clone https://codeberg.org/thomas-mangin/ze.git && cd ze
-make build    # produces bin/ze
-bin/ze config.conf
+make build              # produces bin/ze
+bin/ze init             # set up SSH credentials (once)
+bin/ze config import router.conf  # or: ze config edit
+bin/ze start
 ```
 
 Requires **Go 1.25+**. See the [Quick Start guide](docs/guide/quickstart.md).

@@ -10,6 +10,8 @@
 // Detail: cmd_rollback.go — rollback subcommand handler
 // Detail: cmd_set.go — set subcommand handler
 // Detail: cmd_archive.go — archive subcommand handler
+// Detail: cmd_import.go — import subcommand handler
+// Detail: cmd_rename.go — rename subcommand handler
 //
 // Package config provides the ze config subcommand.
 package config
@@ -40,6 +42,8 @@ var storageHandlers = map[string]func(storage.Storage, []string) int{
 	"diff":     cmdDiffWithStorage,
 	"ls":       cmdLsWithStorage,
 	"cat":      cmdCatWithStorage,
+	"import":   cmdImportWithStorage,
+	"rename":   cmdRenameWithStorage,
 }
 
 // subcommandHandlers maps subcommand names to their handler functions.
@@ -113,33 +117,41 @@ func loadConfigData(path string) ([]byte, error) {
 func usage() {
 	fmt.Fprintf(os.Stderr, `Usage: ze config <command> [options]
 
-Configuration management commands.
+Create and manage Ze configurations.
 
-Commands:
-  edit [file]       Interactive configuration editor (default: <identity>.conf)
-  check <file>      Check config status and deprecated patterns
-  migrate <file>    Convert configuration to current format
-  fmt <file>        Format and normalize configuration file
-  dump <file>       Dump parsed configuration
-  diff <f1> <f2>    Compare two configuration files
-  diff <N> <file>   Compare rollback revision N against current
-  history <file>    List rollback revisions
-  rollback <N> <file>  Restore from rollback revision N
-  set <file> <path> <value>  Set a configuration value
-  archive <name> <file>  Archive config to named destination
-  ls [prefix]         List config files in database (default: file/)
-  cat <key>           Print content of a database key
-  completion <file>   Query completion engine (testing/debugging)
+Editing:
+  edit [file]              Interactive editor (default: <identity>.conf)
+  set <file> <path> <val>  Set a value by path
+
+Storage:
+  import [--name n] <file>...  Import files into the database
+  rename <old> <new>           Rename a config in the database
+  ls [prefix]                  List configs in the database
+  cat <key>                    Print a database entry
+
+Inspection:
+  check <file>             Validate and check for deprecated patterns
+  dump <file>              Parse and display config
+  diff <f1> <f2>           Compare two configs
+  diff <N> <file>          Compare rollback revision N against current
+  fmt <file>               Format and normalize
+
+History:
+  history <file>           List rollback revisions
+  rollback <N> <file>      Restore from rollback revision N
+  archive <name> <file>    Archive to a named destination
+
+Migration:
+  migrate <file>           Convert old format to current
 
 Options:
-  -f                Use filesystem directly, bypass blob store
+  -f                       Bypass database, use filesystem directly
 
 Examples:
-  ze config edit                         Edit default config from blob
-  ze config edit router.conf             Edit router.conf from blob
-  ze config edit -f router.conf          Edit router.conf from filesystem
-  ze config check config.conf
-  ze config migrate config.conf -o new.conf
-  ze config set config.conf bgp local as 65000
+  ze config edit
+  ze config import router.conf
+  ze config import --name production.conf /etc/ze/router.conf
+  ze config check router.conf
+  ze config set router.conf bgp local as 65000
 `)
 }
