@@ -42,6 +42,7 @@ type Registration struct {
 	CapabilityCodes []uint8  // Capability codes decoded (e.g., [73] for FQDN)
 	ConfigRoots     []string // Config roots wanted (e.g., ["bgp"])
 	Dependencies    []string // Plugin names that must also be loaded (e.g., ["bgp-adj-rib-in"])
+	EventTypes      []string // Event types this plugin produces (e.g., ["update-rpki"]). Registered dynamically at startup.
 	YANG            string   // YANG schema content (empty if none)
 
 	// Optional handlers.
@@ -112,7 +113,7 @@ var (
 // Register adds a plugin to the global registry.
 // Must be called from init() functions only.
 // Returns an error on invalid registration.
-func Register(reg Registration) error {
+func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registration is passed by value for init()-time safety; copied internally.
 	if reg.Name == "" {
 		return ErrEmptyName
 	}

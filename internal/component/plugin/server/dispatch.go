@@ -328,8 +328,7 @@ func (s *Server) emitEvent(emitter *process.Process, params json.RawMessage) (*r
 	}
 
 	// Validate event type exists in the namespace (uses canonical registry).
-	nsEvents, nsOK := plugin.ValidEvents[input.Namespace]
-	if !nsOK || !nsEvents[input.EventType] {
+	if !plugin.IsValidEvent(input.Namespace, input.EventType) {
 		return nil, &rpc.RPCCallError{Message: "unknown event: " + input.Namespace + "/" + input.EventType}
 	}
 

@@ -149,6 +149,9 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) *Server {
 		capInjector:   plugin.NewCapabilityInjector(),
 	}
 
+	// Register plugin-declared event types into ValidEvents before any subscriptions.
+	plugin.RegisterPluginEventTypes()
+
 	// Build WireMethod -> CLI path mapping from shared YANG loader.
 	loader, err := yang.DefaultLoader()
 	if err != nil {

@@ -5,6 +5,7 @@ package plugin
 
 import (
 	"errors"
+	"log/slog"
 	"path/filepath"
 	"strings"
 
@@ -65,6 +66,21 @@ func InternalPluginInfo() []PluginInfo {
 		result = append(result, info)
 	}
 	return result
+}
+
+// RegisterPluginEventTypes iterates all registered plugins and registers
+// their declared EventTypes into ValidEvents. MUST be called once during
+// server startup, before any subscribe-events or emit-event RPCs.
+func RegisterPluginEventTypes() {
+	for _, reg := range registry.All() {
+		for _, et := range reg.EventTypes {
+			// All plugin event types currently go into the BGP namespace.
+			// If a future plugin needs RIB events, EventTypes would need namespace info.
+			if err := RegisterEventType(NamespaceBGP, et); err != nil {
+				slog.Error("register plugin event type failed", "plugin", reg.Name, "event", et, "error", err)
+			}
+		}
+	}
 }
 
 // ErrEmptyPlugin is returned when an empty plugin string is provided.

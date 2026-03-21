@@ -198,7 +198,7 @@ func ParseSubscription(args []string) (*Subscription, error) {
 		return nil, fmt.Errorf("missing namespace")
 	}
 	ns := args[i]
-	if _, ok := plugin.ValidEvents[ns]; !ok {
+	if !plugin.IsValidNamespace(ns) {
 		return nil, fmt.Errorf("invalid namespace: %s (valid: %s)", ns, plugin.ValidNamespaceNames())
 	}
 	sub.Namespace = ns
@@ -268,11 +268,10 @@ func validatePeerSelector(selector string) error {
 // validateEventType validates an event type for a namespace.
 // Both namespaces and event types are derived from plugin.ValidEvents.
 func validateEventType(namespace, eventType string) error {
-	events, ok := plugin.ValidEvents[namespace]
-	if !ok {
+	if !plugin.IsValidNamespace(namespace) {
 		return fmt.Errorf("invalid namespace: %s (valid: %s)", namespace, plugin.ValidNamespaceNames())
 	}
-	if !events[eventType] {
+	if !plugin.IsValidEvent(namespace, eventType) {
 		return fmt.Errorf("invalid %s event type: %s (valid: %s)", namespace, eventType, plugin.ValidEventNames(namespace))
 	}
 	return nil

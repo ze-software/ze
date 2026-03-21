@@ -232,8 +232,8 @@ func parseMonitorArgs(args []string) (*monitorOpts, error) {
 				if t == "" {
 					return nil, fmt.Errorf("empty event type in list")
 				}
-				if !plugin.ValidBgpEvents[t] {
-					return nil, fmt.Errorf("invalid event type: %s (valid: update, open, notification, keepalive, refresh, state, negotiated, eor, congested, resumed)", t)
+				if !plugin.IsValidEvent(plugin.NamespaceBGP, t) {
+					return nil, fmt.Errorf("invalid event type: %s (valid: %s)", t, plugin.ValidEventNames(plugin.NamespaceBGP))
 				}
 			}
 			opts.eventTypes = types
