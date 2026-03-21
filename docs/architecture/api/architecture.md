@@ -227,6 +227,55 @@ internal/yang/
 └── loader.go         # YANG module loader
 ```
 
+### Plugin Auto-Loading
+
+Internal plugins are discovered at compile time through Go's `init()` mechanism, not runtime scanning. The chain has three layers:
+
+```
+cmd/ze/main.go
+  │  _ "internal/component/plugin/all"     (blank import)
+  ▼
+internal/component/plugin/all/all.go       (generated)
+  │  _ "internal/component/bgp/plugins/rib"
+  │  _ "internal/component/bgp/plugins/gr"
+  │  _ ...                                  (one blank import per plugin)
+  ▼
+internal/component/bgp/plugins/<name>/register.go
+  │  func init() { registry.Register(Registration{...}) }
+  ▼
+internal/component/plugin/registry/registry.go
+      plugins map[string]*Registration     (global, query at runtime)
+```
+
+**Why the blank import lives in `cmd/ze/main.go`:** Placing it deeper (e.g., in `internal/component/plugin/`) would create import cycles, because some plugins depend on packages like `format` that themselves depend on `plugin`.
+
+**Registry is a leaf package:** `registry/` has zero dependencies on plugin implementations. Plugins import the registry to register; consumers import the registry to query. This one-directional flow prevents cycles.
+
+**Code generation keeps `all.go` in sync:** `scripts/gen-plugin-imports.go` (invoked via `make generate`) walks `internal/component/bgp/plugins/` for `register.go` files that import `plugin/registry`, and separately discovers infrastructure `schema/register.go` files that import `config/yang`. It writes the sorted blank-import list to `all.go`.
+
+**Adding a new plugin:**
+
+1. Create `internal/component/bgp/plugins/<name>/register.go` with an `init()` calling `registry.Register()`
+2. Run `make generate` to regenerate `all.go`
+3. The plugin is now auto-loaded in every binary that imports `plugin/all`
+
+No other wiring is needed. The engine discovers it through registry queries, the CLI dispatches via `CLIHandler`, YANG schemas are picked up automatically, and dependency resolution handles startup ordering.
+
+**Registration struct fields:** Each plugin provides its name, handlers (`RunEngine`, `CLIHandler`), and optional metadata: address families, capability codes, dependencies, YANG schema, event types, and in-process codec functions. See `registry/registry.go` for the full `Registration` type.
+
+**Key registry queries used at runtime:**
+
+| Function | Consumer | Purpose |
+|----------|----------|---------|
+| `Lookup(name)` | Engine startup | Get a specific plugin's registration |
+| `All()` | CLI help, inventory | All registered plugins (sorted) |
+| `FamilyMap()` | Config loader | Map address families to plugin names |
+| `CapabilityMap()` | Wire decoder | Map capability codes to plugin names |
+| `DecodeNLRIByFamily()` | `ze bgp decode` | Fast-path NLRI decoding (no RPC) |
+| `YANGSchemas()` | YANG loader | All YANG schemas for CLI generation |
+| `ResolveDependencies()` | Engine startup | Expand dependency graph (with cycle detection) |
+| `TopologicalTiers()` | Engine startup | Order plugins for startup (Kahn's algorithm) |
+
 ### YANG API Modules
 
 Each YANG module defines RPCs and notifications for a domain. Every RPC maps 1:1 to a handler function via `RPCRegistration`:
