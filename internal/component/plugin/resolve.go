@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
@@ -68,19 +69,25 @@ func InternalPluginInfo() []PluginInfo {
 	return result
 }
 
+// registerEventTypesOnce ensures plugin event types are registered exactly once.
+var registerEventTypesOnce sync.Once
+
 // RegisterPluginEventTypes iterates all registered plugins and registers
-// their declared EventTypes into ValidEvents. MUST be called once during
-// server startup, before any subscribe-events or emit-event RPCs.
+// their declared EventTypes into ValidEvents. Safe to call multiple times
+// (idempotent via sync.Once). Called from PeersFromTree (config parsing)
+// and NewServer (startup).
 func RegisterPluginEventTypes() {
-	for _, reg := range registry.All() {
-		for _, et := range reg.EventTypes {
-			// All plugin event types currently go into the BGP namespace.
-			// If a future plugin needs RIB events, EventTypes would need namespace info.
-			if err := RegisterEventType(NamespaceBGP, et); err != nil {
-				slog.Error("register plugin event type failed", "plugin", reg.Name, "event", et, "error", err)
+	registerEventTypesOnce.Do(func() {
+		for _, reg := range registry.All() {
+			for _, et := range reg.EventTypes {
+				// All plugin event types currently go into the BGP namespace.
+				// If a future plugin needs RIB events, EventTypes would need namespace info.
+				if err := RegisterEventType(NamespaceBGP, et); err != nil {
+					slog.Error("register plugin event type failed", "plugin", reg.Name, "event", et, "error", err)
+				}
 			}
 		}
-	}
+	})
 }
 
 // ErrEmptyPlugin is returned when an empty plugin string is provided.

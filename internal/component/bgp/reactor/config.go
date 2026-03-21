@@ -810,6 +810,8 @@ func parseOneReceiveFlag(token string, b *ProcessBinding) error {
 		b.ReceiveState = true
 		b.ReceiveSent = true
 		b.ReceiveNegotiated = true
+		// Include all plugin-registered custom event types.
+		b.ReceiveCustom = plugin.CustomEventTypes(plugin.NamespaceBGP)
 	case "update":
 		b.ReceiveUpdate = true
 	case "open":
@@ -826,12 +828,7 @@ func parseOneReceiveFlag(token string, b *ProcessBinding) error {
 		b.ReceiveSent = true
 	case "negotiated":
 		b.ReceiveNegotiated = true
-	case plugin.EventRPKI: // rpki events (emitted by rpki plugin)
-		if b.ReceiveCustom == nil {
-			b.ReceiveCustom = make(map[string]bool)
-		}
-		b.ReceiveCustom[token] = true
-	default: // Plugin-registered event types (e.g., "update-rpki"). Fail on truly unknown.
+	default: // Plugin-registered event types (e.g., "rpki", "update-rpki"). Fail on truly unknown.
 		if !plugin.IsValidEvent(plugin.NamespaceBGP, token) {
 			return fmt.Errorf("invalid value for receive: %q (valid: %s)",
 				token, plugin.ValidEventNames(plugin.NamespaceBGP))
