@@ -732,6 +732,37 @@ func TestParseSendFlagsMixedValidInvalid(t *testing.T) {
 	assert.Contains(t, err.Error(), "bogus")
 }
 
+// TestParseOneSendFlagDynamic verifies that parseOneSendFlag accepts send types
+// registered dynamically by plugins (e.g., "enhanced-refresh").
+//
+// VALIDATES: AC-1: Plugin registers SendTypes and they are accepted in config.
+// PREVENTS: Dynamically registered send types rejected by config parser.
+func TestParseOneSendFlagDynamic(t *testing.T) {
+	// Register a dynamic send type
+	require.NoError(t, plugin.RegisterSendType("enhanced-refresh"))
+	defer func() {
+		// Clean up: unregister by direct map access not possible from outside,
+		// but the test is in reactor package. We accept the side effect for this test.
+	}()
+
+	var b ProcessBinding
+	err := parseOneSendFlag("enhanced-refresh", &b)
+	require.NoError(t, err, "registered send type should be accepted")
+	assert.True(t, b.SendCustom["enhanced-refresh"], "enhanced-refresh should be in SendCustom map")
+}
+
+// TestParseOneSendFlagRejectsUnregistered verifies that parseOneSendFlag rejects
+// send types not registered by any plugin.
+//
+// VALIDATES: AC-2: Unregistered send types rejected with clear error.
+// PREVENTS: Unknown send types silently accepted in config.
+func TestParseOneSendFlagRejectsUnregistered(t *testing.T) {
+	var b ProcessBinding
+	err := parseOneSendFlag("nonexistent-type", &b)
+	require.Error(t, err, "unregistered send type should be rejected")
+	assert.Contains(t, err.Error(), "nonexistent-type")
+}
+
 // TestParseReceiveFlagsRejectsUnknown verifies that parseReceiveFlags returns an error
 // for event types not registered with plugin.RegisterEventType.
 //

@@ -131,6 +131,10 @@ type Config struct {
 	// Used for auto-loading plugins that produce these event types (e.g., "update-rpki" triggers bgp-rpki-decorator).
 	ConfiguredCustomEvents []string
 
+	// ConfiguredCustomSendTypes lists custom send types referenced in peer process send config.
+	// Used for auto-loading plugins that enable these send types (e.g., "enhanced-refresh" triggers bgp-route-refresh).
+	ConfiguredCustomSendTypes []string
+
 	// Hub holds TLS transport config for external plugins (nil = no TLS listener).
 	Hub *plugin.HubConfig
 
@@ -617,12 +621,13 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// Start API server
 	{
 		apiConfig := &pluginserver.ServerConfig{
-			ConfigPath:             r.config.ConfigPath,
-			ConfiguredFamilies:     r.config.ConfiguredFamilies,
-			ConfiguredCustomEvents: r.config.ConfiguredCustomEvents,
-			Hub:                    r.config.Hub,
-			RPCFallback:            bgpserver.CodecRPCHandler,
-			CommitManager:          transaction.NewCommitManager(),
+			ConfigPath:                r.config.ConfigPath,
+			ConfiguredFamilies:        r.config.ConfiguredFamilies,
+			ConfiguredCustomEvents:    r.config.ConfiguredCustomEvents,
+			ConfiguredCustomSendTypes: r.config.ConfiguredCustomSendTypes,
+			Hub:                       r.config.Hub,
+			RPCFallback:               bgpserver.CodecRPCHandler,
+			CommitManager:             transaction.NewCommitManager(),
 		}
 		// Convert plugin configs
 		for _, pc := range r.config.Plugins {

@@ -143,8 +143,9 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) *Server {
 		capInjector:   plugin.NewCapabilityInjector(),
 	}
 
-	// Register plugin-declared event types into ValidEvents before any subscriptions.
+	// Register plugin-declared event and send types before any subscriptions.
 	plugin.RegisterPluginEventTypes()
+	plugin.RegisterPluginSendTypes()
 
 	// Build WireMethod -> CLI path mapping from shared YANG loader.
 	loader, err := yang.DefaultLoader()
@@ -249,7 +250,8 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 	// Phase 1: Explicit plugins
 	// Phase 2: Auto-load plugins for unclaimed families
 	// Phase 3: Auto-load plugins for custom event types (e.g., update-rpki)
-	if len(s.config.Plugins) > 0 || len(s.config.ConfiguredFamilies) > 0 || len(s.config.ConfiguredCustomEvents) > 0 {
+	// Phase 4: Auto-load plugins for custom send types (e.g., enhanced-refresh)
+	if len(s.config.Plugins) > 0 || len(s.config.ConfiguredFamilies) > 0 || len(s.config.ConfiguredCustomEvents) > 0 || len(s.config.ConfiguredCustomSendTypes) > 0 {
 		s.wg.Add(1)
 		go s.runPluginStartup()
 	} else {

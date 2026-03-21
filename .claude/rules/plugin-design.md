@@ -89,6 +89,7 @@ After Stage 5: SDK wraps Socket A in `MuxConn` for concurrent RPCs. Engine dispa
 | `InProcessNLRIDecoder` | func | No | NLRI decode |
 | `InProcessNLRIEncoder` | func | No | NLRI encode |
 | `EventTypes` | []string | No | Event types this plugin produces (registered at startup) |
+| `SendTypes` | []string | No | Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup. |
 | `Features` | string | No | Space-separated flags ("nlri yang capa") |
 
 ## New Plugin Checklist

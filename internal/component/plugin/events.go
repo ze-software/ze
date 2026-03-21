@@ -161,3 +161,56 @@ func validNamespaceNamesLocked() string {
 	sort.Strings(names)
 	return strings.Join(names, ", ")
 }
+
+// sendTypesMu protects ValidSendTypes from concurrent read/write.
+// Writes happen during RegisterSendType (startup).
+// Reads happen during parseOneSendFlag (config parsing).
+var sendTypesMu sync.RWMutex
+
+// ValidSendTypes is the set of plugin-registered send types.
+// Base types (update, refresh) are handled by dedicated bool fields;
+// this map holds only plugin-registered types (e.g., "enhanced-refresh").
+// Protected by sendTypesMu for concurrent access.
+var ValidSendTypes = map[string]bool{}
+
+// RegisterSendType adds a plugin-registered send type to ValidSendTypes.
+// Plugins call this to register send types they enable (e.g., "enhanced-refresh").
+// Duplicate registration is idempotent.
+// Send type names must be non-empty and contain no whitespace.
+// Safe for concurrent use.
+func RegisterSendType(sendType string) error {
+	if sendType == "" {
+		return fmt.Errorf("send type must not be empty")
+	}
+	if strings.ContainsAny(sendType, " \t\n\r") {
+		return fmt.Errorf("send type %q must not contain whitespace", sendType)
+	}
+	sendTypesMu.Lock()
+	defer sendTypesMu.Unlock()
+	ValidSendTypes[sendType] = true
+	return nil
+}
+
+// IsValidSendType returns true if the send type is a registered plugin send type.
+// Safe for concurrent use.
+func IsValidSendType(sendType string) bool {
+	sendTypesMu.RLock()
+	defer sendTypesMu.RUnlock()
+	return ValidSendTypes[sendType]
+}
+
+// ValidSendTypeNames returns a sorted, comma-separated list of valid plugin-registered
+// send types. Used in error messages. Safe for concurrent use.
+func ValidSendTypeNames() string {
+	sendTypesMu.RLock()
+	defer sendTypesMu.RUnlock()
+	if len(ValidSendTypes) == 0 {
+		return ""
+	}
+	names := make([]string, 0, len(ValidSendTypes))
+	for k := range ValidSendTypes {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return strings.Join(names, ", ")
+}

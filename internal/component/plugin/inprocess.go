@@ -98,6 +98,12 @@ func GetPluginForEventType(eventType string) string {
 	return registry.PluginForEventType(eventType)
 }
 
+// GetPluginForSendType returns the internal plugin name that enables a send type.
+// Returns empty string if no plugin declares that send type.
+func GetPluginForSendType(sendType string) string {
+	return registry.PluginForSendType(sendType)
+}
+
 // GetRequiredPlugins returns the list of internal plugins needed for the given families.
 // Only returns plugins that handle known families.
 // Deduplicates the result.

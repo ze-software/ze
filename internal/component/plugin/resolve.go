@@ -90,6 +90,25 @@ func RegisterPluginEventTypes() {
 	})
 }
 
+// registerSendTypesOnce ensures plugin send types are registered exactly once.
+var registerSendTypesOnce sync.Once
+
+// RegisterPluginSendTypes iterates all registered plugins and registers
+// their declared SendTypes into ValidSendTypes. Safe to call multiple times
+// (idempotent via sync.Once). Called from PeersFromTree (config parsing)
+// and NewServer (startup).
+func RegisterPluginSendTypes() {
+	registerSendTypesOnce.Do(func() {
+		for _, reg := range registry.All() {
+			for _, st := range reg.SendTypes {
+				if err := RegisterSendType(st); err != nil {
+					slog.Error("register plugin send type failed", "plugin", reg.Name, "send-type", st, "error", err)
+				}
+			}
+		}
+	})
+}
+
 // ErrEmptyPlugin is returned when an empty plugin string is provided.
 var ErrEmptyPlugin = errors.New("empty plugin string")
 

@@ -1,0 +1,29 @@
+# Test: send [ unknown-type ] rejected when no plugin registers it
+# VALIDATES: AC-2: Unregistered send types rejected at config parse time
+stdin=config:terminator=EOF_CONF
+plugin {
+	external my-process {
+		run ./test.py
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		remote {
+			ip 10.0.0.1
+			as 65001
+		}
+		local {
+			as 65001
+			ip 10.0.0.2
+		}
+		process my-process {
+			send [ unknown-send-type ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=unknown-send-type

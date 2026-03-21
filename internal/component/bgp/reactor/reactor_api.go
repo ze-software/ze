@@ -707,7 +707,7 @@ func (a *reactorAPIAdapter) GetPeerProcessBindings(peerAddr netip.Addr) []plugin
 			ReceiveCustom:       maps.Clone(b.ReceiveCustom),
 			SendUpdate:          b.SendUpdate,
 			SendRefresh:         b.SendRefresh,
-			SendEnhancedRefresh: b.SendEnhancedRefresh,
+			SendCustom:          maps.Clone(b.SendCustom),
 		})
 	}
 	return result

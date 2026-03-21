@@ -108,10 +108,11 @@ func (s *Server) handlePluginConflict(proc *process.Process, name, msg string, e
 	proc.Stop()
 }
 
-// runPluginStartup handles three-phase plugin startup:
+// runPluginStartup handles four-phase plugin startup:
 // Phase 1: Start explicit plugins, wait for registration.
 // Phase 2: Auto-load plugins for unclaimed families.
 // Phase 3: Auto-load plugins for custom event types (e.g., update-rpki triggers bgp-rpki-decorator).
+// Phase 4: Auto-load plugins for custom send types (e.g., enhanced-refresh triggers bgp-route-refresh).
 func (s *Server) runPluginStartup() {
 	defer s.wg.Done()
 
@@ -155,6 +156,24 @@ func (s *Server) runPluginStartup() {
 
 		if err := s.runPluginPhase(autoLoadEvents); err != nil {
 			logger().Error("auto-load event plugin startup failed", "error", err)
+			s.signalStartupComplete()
+			return
+		}
+	}
+
+	// Phase 4: Auto-load plugins for custom send types
+	// Config has send [ enhanced-refresh ] but no explicit route-refresh plugin configured.
+	autoLoadSendTypes := s.getUnclaimedSendTypePlugins()
+	if len(autoLoadSendTypes) > 0 {
+		logger().Debug("auto-loading plugins for custom send types",
+			"count", len(autoLoadSendTypes))
+
+		if s.reactor != nil {
+			s.reactor.AddAPIProcessCount(len(autoLoadSendTypes))
+		}
+
+		if err := s.runPluginPhase(autoLoadSendTypes); err != nil {
+			logger().Error("auto-load send type plugin startup failed", "error", err)
 			s.signalStartupComplete()
 			return
 		}

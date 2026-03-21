@@ -178,10 +178,11 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 // them or provide its own. If neither global nor peer-level local as is set,
 // parsePeerFromTree returns an error for that peer.
 func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
-	// Ensure plugin-registered event types are available for receive validation.
+	// Ensure plugin-registered event and send types are available for validation.
 	// Idempotent -- safe to call multiple times. Needed here because config parsing
-	// happens before NewServer, and receive [ update-rpki ] must be valid.
+	// happens before NewServer, and dynamic types must be valid.
 	plugin.RegisterPluginEventTypes()
+	plugin.RegisterPluginSendTypes()
 
 	// Extract global defaults (both optional -- peers can provide their own).
 	// Global local AS is under bgp > local > as.
@@ -846,6 +847,9 @@ func parseSendFlags(s string, b *ProcessBinding) error {
 }
 
 // parseOneSendFlag handles a single send token.
+// Base types (update, refresh) have dedicated bool fields.
+// Plugin-registered types (e.g., enhanced-refresh) are validated against
+// the dynamic ValidSendTypes registry and stored in the SendCustom map.
 func parseOneSendFlag(token string, b *ProcessBinding) error {
 	switch token {
 	case "update":
@@ -854,11 +858,20 @@ func parseOneSendFlag(token string, b *ProcessBinding) error {
 	case "refresh":
 		b.SendRefresh = true
 		return nil
-	case "enhanced-refresh":
-		b.SendEnhancedRefresh = true
+	}
+	// Plugin-registered send types: validate against dynamic registry.
+	if plugin.IsValidSendType(token) {
+		if b.SendCustom == nil {
+			b.SendCustom = make(map[string]bool)
+		}
+		b.SendCustom[token] = true
 		return nil
 	}
-	return fmt.Errorf("invalid value for send: %q (valid: update, refresh, enhanced-refresh)", token)
+	valid := "update, refresh"
+	if extra := plugin.ValidSendTypeNames(); extra != "" {
+		valid += ", " + extra
+	}
+	return fmt.Errorf("invalid value for send: %q (valid: %s)", token, valid)
 }
 
 // --- Map navigation helpers ---

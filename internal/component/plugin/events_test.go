@@ -92,6 +92,81 @@ func TestValidEventNamesIncludesRegistered(t *testing.T) {
 	}
 }
 
+// unregisterSendType removes a dynamically registered send type. Test helper only.
+func unregisterSendType(sendType string) {
+	sendTypesMu.Lock()
+	defer sendTypesMu.Unlock()
+	delete(ValidSendTypes, sendType)
+}
+
+// VALIDATES: RegisterSendType adds a new send type to ValidSendTypes.
+// PREVENTS: Plugin-registered send types rejected by config validation.
+func TestRegisterSendType(t *testing.T) {
+	if err := RegisterSendType("enhanced-refresh"); err != nil {
+		t.Fatalf("RegisterSendType failed: %v", err)
+	}
+	defer unregisterSendType("enhanced-refresh")
+
+	if !IsValidSendType("enhanced-refresh") {
+		t.Fatal("enhanced-refresh should be a valid send type after registration")
+	}
+}
+
+// VALIDATES: RegisterSendType is idempotent for duplicate registration.
+// PREVENTS: Plugin startup failure when two plugins register the same send type.
+func TestRegisterSendTypeDuplicate(t *testing.T) {
+	if err := RegisterSendType("test-send-dup"); err != nil {
+		t.Fatalf("first registration failed: %v", err)
+	}
+	defer unregisterSendType("test-send-dup")
+
+	if err := RegisterSendType("test-send-dup"); err != nil {
+		t.Fatalf("duplicate registration should be idempotent: %v", err)
+	}
+}
+
+// VALIDATES: RegisterSendType rejects empty names.
+// PREVENTS: Empty string accepted as a valid send type.
+func TestRegisterSendTypeEmpty(t *testing.T) {
+	err := RegisterSendType("")
+	if err == nil {
+		t.Fatal("expected error for empty send type")
+	}
+}
+
+// VALIDATES: RegisterSendType rejects names with whitespace.
+// PREVENTS: Whitespace in send type names causing config parsing issues.
+func TestRegisterSendTypeWhitespace(t *testing.T) {
+	for _, input := range []string{"enhanced refresh", "tab\there", "new\nline"} {
+		err := RegisterSendType(input)
+		if err == nil {
+			t.Fatalf("expected error for send type with whitespace: %q", input)
+		}
+	}
+}
+
+// VALIDATES: ValidSendTypeNames includes dynamically registered types.
+// PREVENTS: Error messages showing stale list after dynamic registration.
+func TestValidSendTypeNamesIncludesRegistered(t *testing.T) {
+	if err := RegisterSendType("enhanced-refresh"); err != nil {
+		t.Fatalf("RegisterSendType failed: %v", err)
+	}
+	defer unregisterSendType("enhanced-refresh")
+
+	names := ValidSendTypeNames()
+	if !strings.Contains(names, "enhanced-refresh") {
+		t.Fatalf("ValidSendTypeNames should include enhanced-refresh, got: %s", names)
+	}
+}
+
+// VALIDATES: IsValidSendType returns false for unregistered types.
+// PREVENTS: Unregistered send types silently accepted.
+func TestIsValidSendTypeRejectsUnregistered(t *testing.T) {
+	if IsValidSendType("nonexistent-send-type") {
+		t.Fatal("nonexistent send type should not be valid")
+	}
+}
+
 // VALIDATES: IsValidNamespace returns correct results.
 // PREVENTS: Namespace validation broken after refactor.
 func TestIsValidNamespace(t *testing.T) {

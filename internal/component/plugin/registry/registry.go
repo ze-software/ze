@@ -43,6 +43,7 @@ type Registration struct {
 	ConfigRoots     []string // Config roots wanted (e.g., ["bgp"])
 	Dependencies    []string // Plugin names that must also be loaded (e.g., ["bgp-adj-rib-in"])
 	EventTypes      []string // Event types this plugin produces (e.g., ["update-rpki"]). Registered dynamically at startup.
+	SendTypes       []string // Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup.
 	YANG            string   // YANG schema content (empty if none)
 
 	// Optional handlers.
@@ -308,6 +309,20 @@ func PluginForEventType(eventType string) string {
 
 	for _, reg := range plugins {
 		if slices.Contains(reg.EventTypes, eventType) {
+			return reg.Name
+		}
+	}
+	return ""
+}
+
+// PluginForSendType returns the plugin name that enables a given send type.
+// Returns empty string if no plugin declares that send type.
+func PluginForSendType(sendType string) string {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	for _, reg := range plugins {
+		if slices.Contains(reg.SendTypes, sendType) {
 			return reg.Name
 		}
 	}

@@ -21,6 +21,7 @@ func init() {
 		ConfigRoots:     []string{"bgp"},
 		YANG:            rrschema.ZeRouteRefreshYANG,
 		CapabilityCodes: []uint8{2, 70},
+		SendTypes:       []string{"enhanced-refresh"},
 		RunEngine:       RunRouteRefreshPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecodeMode(input, output)

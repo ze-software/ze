@@ -1,0 +1,29 @@
+# Test: send [ enhanced-refresh ] accepted via dynamic send type registration
+# VALIDATES: AC-1: Plugin-registered send type "enhanced-refresh" accepted in config
+# VALIDATES: AC-4: No hardcoded enhanced-refresh in engine -- validated dynamically
+stdin=config:terminator=EOF_CONF
+plugin {
+	external my-process {
+		run ./test.py
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		remote {
+			ip 10.0.0.1
+			as 65001
+		}
+		local {
+			as 65001
+			ip 10.0.0.2
+		}
+		process my-process {
+			send [ update refresh enhanced-refresh ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze validate -:stdin=config
+expect=exit:code=0

@@ -435,6 +435,21 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		}
 	}
 
+	// Derive ConfiguredCustomSendTypes from peer process send bindings.
+	// Custom send types (e.g., "enhanced-refresh") trigger auto-loading of enabling plugins.
+	var configuredCustomSendTypes []string
+	customSendSeen := make(map[string]bool)
+	for _, ps := range peers {
+		for _, pb := range ps.ProcessBindings {
+			for st := range pb.SendCustom {
+				if !customSendSeen[st] {
+					customSendSeen[st] = true
+					configuredCustomSendTypes = append(configuredCustomSendTypes, st)
+				}
+			}
+		}
+	}
+
 	// Extract hub config for TLS plugin transport.
 	hubConfig, hubErr := ExtractHubConfig(tree)
 	if hubErr != nil {
@@ -448,17 +463,18 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 
 	// Build reactor config
 	reactorCfg := &reactor.Config{
-		ListenAddr:             listen,
-		RouterID:               routerID,
-		LocalAS:                localAS,
-		ConfigDir:              configDir,
-		ConfigTree:             tree.ToMap(),
-		MaxSessions:            env.TCP.Attempts, // tcp.attempts: exit after N sessions (0=unlimited)
-		ConfiguredFamilies:     configuredFamilies,
-		ConfiguredCustomEvents: configuredCustomEvents,
-		Plugins:                plugins,
-		Hub:                    hubPtr,
-		RecentUpdateMax:        env.Reactor.CacheMax,
+		ListenAddr:                listen,
+		RouterID:                  routerID,
+		LocalAS:                   localAS,
+		ConfigDir:                 configDir,
+		ConfigTree:                tree.ToMap(),
+		MaxSessions:               env.TCP.Attempts, // tcp.attempts: exit after N sessions (0=unlimited)
+		ConfiguredFamilies:        configuredFamilies,
+		ConfiguredCustomEvents:    configuredCustomEvents,
+		ConfiguredCustomSendTypes: configuredCustomSendTypes,
+		Plugins:                   plugins,
+		Hub:                       hubPtr,
+		RecentUpdateMax:           env.Reactor.CacheMax,
 	}
 
 	r := reactor.New(reactorCfg)

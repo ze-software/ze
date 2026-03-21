@@ -618,10 +618,11 @@ when config doesn't specify families.
 **Auto-loading plugins:** When a family is configured but no plugin has claimed it,
 the engine automatically loads the internal plugin for that family (if one exists).
 
-**Three-phase plugin startup:**
+**Four-phase plugin startup:**
 1. **Phase 1:** Explicit plugins start first and register their families
 2. **Phase 2:** After Phase 1 completes, engine checks which configured families are still unclaimed. Internal plugins are auto-loaded ONLY for unclaimed families.
 3. **Phase 3:** After Phase 2 completes, engine checks which custom event types are referenced in peer `receive` config but not produced by any running plugin. Producing plugins (and their transitive dependencies) are auto-loaded. For example, `receive [ update-rpki ]` auto-loads `bgp-rpki-decorator` and its dependency `bgp-rpki`.
+4. **Phase 4:** After Phase 3 completes, engine checks which custom send types are referenced in peer `send` config but not enabled by any running plugin. Enabling plugins (and their transitive dependencies) are auto-loaded. For example, `send [ enhanced-refresh ]` auto-loads `bgp-route-refresh`.
 
 **Family auto-loading** (Phase 2) is **prevented** when:
 1. An explicit plugin declares `decode` for the family (family-based check)
@@ -649,6 +650,17 @@ The check is based on **family claims**, not plugin name. Plugin names are infor
 - `test/plugin/explicit-plugin-precedence.ci` - explicit `--plugin` prevents auto-load
 - `test/plugin/explicit-plugin-config.ci` - config plugin prevents auto-load (sends marker UPDATE 99.99.99.0/24 to prove external plugin is active)
 - `test/plugin/rpki-decorator-autoload.ci` - auto-load for custom event type
+
+**Send type auto-loading** (Phase 4) triggers when a peer process has `send [ <custom-type> ]` and no running plugin enables that send type. The enabling plugin is found via `registry.PluginForSendType()` which matches against `Registration.SendTypes`. Dependencies are resolved transitively.
+
+| Config | Plugin | Result |
+|--------|--------|--------|
+| `send [ enhanced-refresh ]` | None | Auto-loads `bgp-route-refresh` |
+| `send [ enhanced-refresh ]` | `plugin { external route-refresh { ... } }` | Uses explicit plugin (no auto-load) |
+
+**Functional tests:**
+- `test/parse/send-enhanced-refresh.ci` - dynamic send type accepted in config
+- `test/parse/send-unknown-rejected.ci` - unregistered send type rejected
 
 **Ordering:** Plugin families are sorted alphabetically for deterministic OPEN messages.
 

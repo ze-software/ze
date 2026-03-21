@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — plugin auto-loading
 // Overview: startup.go — plugin startup phases
-// Related: config.go — ServerConfig with ConfiguredFamilies and ConfiguredCustomEvents
+// Related: config.go — ServerConfig with ConfiguredFamilies, ConfiguredCustomEvents, ConfiguredCustomSendTypes
 
 package server
 
@@ -54,21 +54,34 @@ func (s *Server) getUnclaimedFamilyPlugins() []plugin.PluginConfig {
 // For example, receive [ update-rpki ] triggers auto-loading bgp-rpki-decorator and its
 // dependency bgp-rpki. Dependencies are resolved transitively via registry.ResolveDependencies.
 func (s *Server) getUnclaimedEventTypePlugins() []plugin.PluginConfig {
-	// Collect producing plugins for each custom event type.
+	return s.getUnclaimedPluginsForTokens(s.config.ConfiguredCustomEvents, plugin.GetPluginForEventType, "event type")
+}
+
+// getUnclaimedSendTypePlugins returns plugins to auto-load for custom send types
+// referenced in peer process send config but not enabled by any explicitly configured plugin.
+// For example, send [ enhanced-refresh ] triggers auto-loading bgp-route-refresh.
+func (s *Server) getUnclaimedSendTypePlugins() []plugin.PluginConfig {
+	return s.getUnclaimedPluginsForTokens(s.config.ConfiguredCustomSendTypes, plugin.GetPluginForSendType, "send type")
+}
+
+// getUnclaimedPluginsForTokens is the shared implementation for auto-loading plugins
+// based on token-to-plugin lookup (event types, send types). The lookupFn maps a token
+// to the plugin name that provides it. The kind string is used in log messages.
+func (s *Server) getUnclaimedPluginsForTokens(tokens []string, lookupFn func(string) string, kind string) []plugin.PluginConfig {
 	var needed []string
 	seen := make(map[string]bool)
 
-	for _, eventType := range s.config.ConfiguredCustomEvents {
-		pluginName := plugin.GetPluginForEventType(eventType)
+	for _, token := range tokens {
+		pluginName := lookupFn(token)
 		if pluginName == "" {
-			logger().Debug("no plugin produces event type, skipping", "event", eventType)
+			logger().Debug("no plugin provides "+kind+", skipping", kind, token)
 			continue
 		}
 
 		// Skip if already configured or running
 		if s.hasConfiguredPlugin(pluginName) || (s.procManager != nil && s.procManager.GetProcess(pluginName) != nil) {
-			logger().Debug("event type plugin already configured, skipping auto-load",
-				"event", eventType, "plugin", pluginName)
+			logger().Debug(kind+" plugin already configured, skipping auto-load",
+				kind, token, "plugin", pluginName)
 			continue
 		}
 
@@ -82,10 +95,10 @@ func (s *Server) getUnclaimedEventTypePlugins() []plugin.PluginConfig {
 		return nil
 	}
 
-	// Resolve transitive dependencies (e.g., bgp-rpki-decorator depends on bgp-rpki).
+	// Resolve transitive dependencies.
 	resolved, err := registry.ResolveDependencies(needed)
 	if err != nil {
-		logger().Warn("event type auto-load: dependency resolution failed, loading without dependencies",
+		logger().Warn(kind+" auto-load: dependency resolution failed, loading without dependencies",
 			"plugins", needed, "error", err)
 		resolved = needed
 	}
@@ -97,7 +110,7 @@ func (s *Server) getUnclaimedEventTypePlugins() []plugin.PluginConfig {
 			continue
 		}
 
-		logger().Debug("auto-loading plugin for custom event type",
+		logger().Debug("auto-loading plugin for custom "+kind,
 			"plugin", name)
 
 		plugins = append(plugins, plugin.PluginConfig{
