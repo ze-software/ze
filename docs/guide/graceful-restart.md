@@ -85,6 +85,79 @@ $ ze cli --run "rib routes received"
 # Shows routes with stale flag when applicable
 ```
 
+## Long-Lived Graceful Restart (RFC 9494)
+
+LLGR extends standard GR with a second, much longer stale period. When the GR restart-time expires without the peer reconnecting, instead of purging all stale routes, LLGR keeps them for up to ~194 days (per-family configurable) with reduced priority.
+
+### Configuration
+
+Add `long-lived-stale-time` under the `graceful-restart` block:
+
+```
+capability {
+    graceful-restart {
+        restart-time 120;
+        long-lived-stale-time 3600;    # LLGR period in seconds (0-16777215)
+    }
+}
+```
+
+| Path | Type | Default | Description |
+|------|------|---------|-------------|
+| `graceful-restart / long-lived-stale-time` | uint32 | -- | Seconds to hold LLGR-stale routes per family (0-16777215, 24-bit) |
+
+LLGR is only active when both peers negotiate it. Ze advertises LLGR capability (code 71) in OPEN when `long-lived-stale-time` is configured. LLGR requires GR capability (code 64) to also be present -- LLGR without GR is ignored per RFC 9494.
+
+### How It Works
+
+1. **GR period expires** -- peer has not reconnected within `restart-time` seconds
+2. **LLGR begins** -- for each family with `long-lived-stale-time > 0`:
+   - Routes carrying the NO_LLGR community (0xFFFF0007) are deleted
+   - LLGR_STALE community (0xFFFF0006) is attached to remaining stale routes
+   - Routes are marked as stale level 2 (deprioritized in best-path selection)
+   - Per-family LLST timer starts
+3. **During LLGR** -- LLGR-stale routes lose to any non-stale route in best-path selection. Between two LLGR-stale routes, normal tiebreaking applies.
+4. **LLST timer expires** -- stale routes for that family are purged
+5. **Peer reconnects during LLGR** -- standard RFC 4724 procedures apply; families with F-bit=0 or missing from the new OPEN are purged
+
+### Stale Levels
+
+Ze uses a graduated stale level system for route prioritization:
+
+| Level | Meaning | Best-path behavior |
+|-------|---------|-------------------|
+| 0 | Fresh | Normal selection |
+| 1 | GR-stale | Normal selection (not deprioritized) |
+| 2+ | LLGR-stale | Loses to any route with level < 2 |
+
+### Special Case: Skip GR
+
+If `restart-time` is 0 but `long-lived-stale-time` is nonzero, the GR period is skipped entirely. On session drop, LLGR begins immediately.
+
+| restart-time | long-lived-stale-time | Behavior |
+|-------------|----------------------|----------|
+| 0 | nonzero | Skip GR, enter LLGR immediately |
+| nonzero | 0 | GR only, no LLGR |
+| 0 | 0 | Neither GR nor LLGR |
+| nonzero | nonzero | GR then LLGR (serial) |
+
+### Well-Known Communities
+
+| Community | Value | Purpose |
+|-----------|-------|---------|
+| LLGR_STALE | 0xFFFF0006 | Attached to stale routes during LLGR period |
+| NO_LLGR | 0xFFFF0007 | Routes with this community are deleted on LLGR entry |
+
+### CLI
+
+Decode LLGR capability from hex:
+
+```
+$ ze plugin bgp-gr --capa 00010180000e10
+```
+
+Shows per-family LLST values and F-bit flags.
+
 ## Without Graceful Restart
 
 When GR is not configured or the peer does not advertise the GR capability, routes are withdrawn immediately on session down. No stale state, no restart timer.

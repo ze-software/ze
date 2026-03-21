@@ -41,6 +41,7 @@ Ze is a BGP daemon written in Go. This document lists all user-facing features.
 | Extended Message | 6 | RFC 8654 | 65535-byte messages |
 | Extended Next Hop | 5 | RFC 8950 | IPv6 next-hop for IPv4 NLRI |
 | Graceful Restart | 64 | RFC 4724 | Session preservation across restarts |
+| Long-Lived GR | 71 | RFC 9494 | Extended stale route retention with LLGR_STALE community and depreference |
 | BGP Role | 9 | RFC 9234 | Peer relationship role |
 | Hostname | 73 | draft | FQDN capability |
 | Software Version | 75 | draft | Software version advertisement |
@@ -94,7 +95,7 @@ Peers are keyed by name (`peer <name> { }`) with IP and AS in nested containers:
 | ADD-PATH | `add-path` | Per-family send/receive/both |
 | Extended Message | `extended-message` | true / false |
 | Extended Next Hop | `nexthop` | Per-family AFI mapping |
-| Graceful Restart | `graceful-restart` | restart-time (0-4095s) |
+| Graceful Restart | `graceful-restart` | restart-time (0-4095s), long-lived-stale-time (0-16777215s) |
 | Role | `role` | provider / rs / rs-client / customer / peer |
 | Role Strict | `role-strict` | true / false |
 
@@ -142,7 +143,7 @@ External processes receive BGP events and send commands:
 
 | Plugin | Description |
 |--------|-------------|
-| bgp-gr | Graceful Restart state machine (RFC 4724) |
+| bgp-gr | Graceful Restart (RFC 4724) and Long-Lived GR (RFC 9494) state machine |
 | bgp-rpki | RPKI origin validation via RTR protocol (RFC 6811, RFC 8210). [Guide](guide/rpki.md) |
 | bgp-rpki-decorator | Merged UPDATE+RPKI events (correlates update and rpki streams into update-rpki) |
 | bgp-route-refresh | Route Refresh handling (RFC 2918, RFC 7313) |

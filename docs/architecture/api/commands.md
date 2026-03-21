@@ -305,6 +305,19 @@ rib clear in                                # Clear Adj-RIB-In
 rib clear out                               # Resend Adj-RIB-Out
 ```
 
+#### Inter-Plugin RIB Commands (GR/LLGR)
+
+These commands are dispatched between plugins (bgp-gr to bgp-rib) and are not intended for direct user invocation:
+
+```
+rib retain-routes <peer>                    # Retain routes for peer (GR activation)
+rib release-routes <peer>                   # Release retained routes
+rib mark-stale <peer> <restart-time> [level]  # Mark routes stale (level: 1=GR, 2=LLGR)
+rib purge-stale <peer> [family]             # Purge stale routes (optionally per-family)
+rib attach-community <peer> <family> <hex>  # Attach community to stale routes in family
+rib delete-with-community <peer> <family> <hex>  # Delete routes carrying community in family
+```
+
 ### Group Commands (Batching)
 
 ```

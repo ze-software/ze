@@ -130,7 +130,7 @@ ze --plugins
 
 | Plugin | Purpose | Typical Binding |
 |--------|---------|----------------|
-| `bgp-gr` | Graceful Restart (RFC 4724) | `receive [ state eor ]` |
+| `bgp-gr` | Graceful Restart (RFC 4724) and Long-Lived GR (RFC 9494) | `receive [ state eor ]` |
 | `bgp-rpki` | RPKI origin validation (RFC 6811) | `receive [ update ]` |
 | `bgp-rpki-decorator` | Merged UPDATE+RPKI events | `receive [ update rpki ]` |
 | `bgp-route-refresh` | Route Refresh (RFC 2918) | `receive [ refresh ]` |

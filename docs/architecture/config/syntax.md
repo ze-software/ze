@@ -323,6 +323,7 @@ capability {
     graceful-restart {
         mode require;              # Reject peers without GR
         restart-time 120;
+        long-lived-stale-time 3600;  # RFC 9494 LLGR period (0-16777215 seconds)
     }
 }
 ```

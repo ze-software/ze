@@ -93,6 +93,7 @@ type Negotiated struct {
     ExtendedNextHop map[Family]AFI         // Per-family next-hop AFI mapping
     Families()      []Family               // Method returning negotiated families
     GracefulRestart *GracefulRestart       // RFC 4724 graceful restart state
+    LongLivedGR     *LongLivedGR           // RFC 9494 LLGR per-family LLST
     RouteRefresh    bool                   // RFC 2918 route refresh support
 }
 ```
