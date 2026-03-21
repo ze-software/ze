@@ -2,7 +2,6 @@
 // Overview: decode.go — top-level decode dispatch
 // Related: decode_mp.go — MP_REACH/MP_UNREACH parsing
 // Related: decode_extcomm.go — extended community parsing
-// Related: decode_bgpls.go — BGP-LS attribute parsing
 
 package bgp
 
@@ -11,6 +10,7 @@ import (
 	"fmt"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/ls"
 )
 
 // decodeUpdateMessage decodes a BGP UPDATE message and returns Ze format.
@@ -187,8 +187,8 @@ func parsePathAttributesZe(data []byte) (attrs map[string]any, mpReach, mpUnreac
 			mpReach = value
 		case 15: // MP_UNREACH_NLRI
 			mpUnreach = value
-		case 29: // BGP-LS Attribute
-			bgplsAttr := parseBGPLSAttribute(value)
+		case 29: // BGP-LS Attribute (RFC 7752 Section 3.3)
+			bgplsAttr := ls.AttrTLVsToJSON(value)
 			if len(bgplsAttr) > 0 {
 				attrs["bgp-ls"] = bgplsAttr
 			}

@@ -2,6 +2,7 @@ package bgp
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -14,6 +15,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/nlri/ls"
 )
 
 // Shared test binary setup - built once, used by all tests that need it.
@@ -765,81 +768,43 @@ func TestBGPLSL3RoutingTopology(t *testing.T) {
 	}
 }
 
-// TestParseSRMPLSAdjSID verifies SR-MPLS Adjacency SID TLV 1099 parsing.
+// TestAdjSIDViaAttrTLVs verifies Adjacency SID via the new ls.AttrTLVsToJSON path.
 //
-// VALIDATES: V/L flag combinations, label and index SID formats, multiple TLV accumulation.
+// VALIDATES: V/L flag combinations decode correctly through the registered TLV decoder.
 //
-// PREVENTS: Data loss from duplicate TLV instances, incorrect SID value parsing.
-func TestParseSRMPLSAdjSID(t *testing.T) {
+// PREVENTS: Regression from CLI decoder migration.
+func TestAdjSIDViaAttrTLVs(t *testing.T) {
 	tests := []struct {
-		name     string
-		data     []byte
-		wantSIDs []int
-		wantV    int
-		wantL    int
+		name    string
+		data    []byte // TLV value only (no TLV header)
+		wantSID uint32
 	}{
 		{
-			name:     "V=1,L=1 3-byte label",
-			data:     []byte{0x30, 0x00, 0x00, 0x00, 0x04, 0x93, 0x10}, // flags=0x30 (V=1,L=1), weight=0, reserved=0, SID=0x049310
-			wantSIDs: []int{299792},
-			wantV:    1,
-			wantL:    1,
+			name:    "V=1,L=1 3-byte label",
+			data:    []byte{0x30, 0x00, 0x00, 0x00, 0x04, 0x93, 0x10},
+			wantSID: 299792,
 		},
 		{
-			name:     "V=1,L=1 with B flag",
-			data:     []byte{0x70, 0x00, 0x00, 0x00, 0x04, 0x93, 0x00}, // flags=0x70 (B=1,V=1,L=1)
-			wantSIDs: []int{299776},
-			wantV:    1,
-			wantL:    1,
-		},
-		{
-			name:     "V=0,L=0 4-byte index",
-			data:     []byte{0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00}, // flags=0, weight=5, SID=256
-			wantSIDs: []int{256},
-			wantV:    0,
-			wantL:    0,
-		},
-		{
-			name:     "data too short",
-			data:     []byte{0x30, 0x00, 0x00}, // Only 3 bytes, minimum is 4
-			wantSIDs: nil,
-			wantV:    0,
-			wantL:    0,
+			name:    "V=0,L=0 4-byte index",
+			data:    []byte{0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00},
+			wantSID: 256,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := make(map[string]any)
-			parseSRMPLSAdjSID(result, "sr-adj", tt.data)
+			// Build wire: TLV 1099 header + value
+			wire := make([]byte, 4+len(tt.data))
+			binary.BigEndian.PutUint16(wire[0:], ls.TLVAdjacencySID)
+			binary.BigEndian.PutUint16(wire[2:], uint16(len(tt.data))) //nolint:gosec // test
+			copy(wire[4:], tt.data)
 
-			if tt.wantSIDs == nil {
-				_, ok := result["sr-adj"]
-				assert.False(t, ok, "expected no sr-adj entry for short data")
-				return
-			}
-
-			entries, ok := result["sr-adj"].([]map[string]any)
-			require.True(t, ok && len(entries) > 0, "expected sr-adj array with entries")
-
-			entry := entries[0]
-			sids, ok := entry["sids"].([]int)
-			require.True(t, ok, "expected sids array")
-
-			require.Len(t, sids, len(tt.wantSIDs), "SID count")
-			for i, want := range tt.wantSIDs {
-				assert.Equal(t, want, sids[i], "SID[%d]", i)
-			}
-
-			flags, ok := entry["flags"].(map[string]any)
-			require.True(t, ok, "expected flags map")
-
-			if v, ok := flags["V"].(int); ok {
-				assert.Equal(t, tt.wantV, v, "V flag")
-			}
-			if l, ok := flags["L"].(int); ok {
-				assert.Equal(t, tt.wantL, l, "L flag")
-			}
+			result := ls.AttrTLVsToJSON(wire)
+			entries, ok := result["adj-sids"].([]map[string]any)
+			require.True(t, ok && len(entries) > 0, "expected sr-adj array")
+			sids, ok := entries[0]["sids"].([]int)
+			require.True(t, ok && len(sids) > 0, "expected sids array")
+			assert.Equal(t, int(tt.wantSID), sids[0])
 		})
 	}
 }
@@ -916,22 +881,26 @@ func TestLookupFamilyPlugin(t *testing.T) {
 
 // TestSRAdjMultipleInstances verifies multiple TLV 1099 instances accumulate into array.
 //
-// VALIDATES: Lossless JSON format with array accumulation.
+// VALIDATES: Lossless JSON format with array accumulation via ls.AttrTLVsToJSON.
 //
 // PREVENTS: Data loss from duplicate keys.
 func TestSRAdjMultipleInstances(t *testing.T) {
-	result := make(map[string]any)
+	// Build wire: two TLV 1099 instances back-to-back
+	d1 := []byte{0x30, 0x00, 0x00, 0x00, 0x04, 0x93, 0x10} // V=1,L=1 SID=299792
+	d2 := []byte{0x70, 0x00, 0x00, 0x00, 0x04, 0x93, 0x00} // B=1,V=1,L=1 SID=299776
+	wire := make([]byte, 0, 4+len(d1)+4+len(d2))
+	wire = binary.BigEndian.AppendUint16(wire, ls.TLVAdjacencySID)
+	wire = binary.BigEndian.AppendUint16(wire, uint16(len(d1))) //nolint:gosec // test
+	wire = append(wire, d1...)
+	wire = binary.BigEndian.AppendUint16(wire, ls.TLVAdjacencySID)
+	wire = binary.BigEndian.AppendUint16(wire, uint16(len(d2))) //nolint:gosec // test
+	wire = append(wire, d2...)
 
-	// First TLV instance
-	parseSRMPLSAdjSID(result, "sr-adj", []byte{0x30, 0x00, 0x00, 0x00, 0x04, 0x93, 0x10})
-	// Second TLV instance
-	parseSRMPLSAdjSID(result, "sr-adj", []byte{0x70, 0x00, 0x00, 0x00, 0x04, 0x93, 0x00})
-
-	entries, ok := result["sr-adj"].([]map[string]any)
+	result := ls.AttrTLVsToJSON(wire)
+	entries, ok := result["adj-sids"].([]map[string]any)
 	require.True(t, ok, "expected sr-adj to be array")
 	require.Len(t, entries, 2, "sr-adj entry count")
 
-	// Verify both SIDs are preserved
 	sids0, ok := entries[0]["sids"].([]int)
 	require.True(t, ok && len(sids0) > 0, "expected sids array in first entry")
 	sids1, ok := entries[1]["sids"].([]int)

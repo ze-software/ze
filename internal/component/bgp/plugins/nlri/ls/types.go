@@ -3,6 +3,7 @@
 // Detail: types_descriptor.go — node, link, and prefix descriptor TLV encoding
 // Detail: types_nlri.go — concrete NLRI types (Node, Link, Prefix)
 // Detail: types_srv6.go — SRv6 SID NLRI and descriptor (RFC 9514)
+// Detail: attr.go — BGP-LS attribute TLV framework (type 29)
 //
 // Package bgp_ls implements BGP-LS family types and plugin for ze.
 // RFC 7752: North-Bound Distribution of Link-State and TE Information Using BGP
@@ -168,6 +169,8 @@ const (
 	TLVBGPLSIdentifier  uint16 = 513 // BGP-LS Identifier (RFC 7752 Section 3.2.1.4)
 	TLVOSPFAreaID       uint16 = 514 // OSPF Area-ID (RFC 7752 Section 3.2.1.4)
 	TLVIGPRouterID      uint16 = 515 // IGP Router-ID (RFC 7752 Section 3.2.1.4)
+	TLVBGPRouterID      uint16 = 516 // BGP Router-ID (RFC 9086 Section 4.1)
+	TLVConfedMember     uint16 = 517 // BGP Confederation Member (RFC 9086 Section 4.2)
 )
 
 // BGP-LS TLV types for link descriptors.
@@ -386,8 +389,10 @@ func parseNodeDescriptorTLVs(data []byte, nd *NodeDescriptor) error {
 		value := data[4 : 4+tlvLen]
 
 		// RFC 7752 Section 3.2.1.2 - Local Node Descriptor container (TLV 256)
+		// Unwrap container by continuing iteration on its contents (avoids recursion).
 		if tlvType == TLVLocalNodeDesc {
-			return parseNodeDescriptorTLVs(value, nd)
+			data = value
+			continue
 		}
 
 		// RFC 7752 Section 3.2.1.4 - Node Descriptor Sub-TLVs
@@ -407,6 +412,18 @@ func parseNodeDescriptorTLVs(data []byte, nd *NodeDescriptor) error {
 		case TLVIGPRouterID: // TLV 515 - variable length
 			nd.IGPRouterID = make([]byte, len(value))
 			copy(nd.IGPRouterID, value)
+		case TLVBGPRouterID: // TLV 516 - 4 bytes (RFC 9086 Section 4.1)
+			if len(value) >= 4 {
+				nd.BGPRouterID = binary.BigEndian.Uint32(value)
+			}
+		case TLVConfedMember: // TLV 517 - 4 bytes (RFC 9086 Section 4.2)
+			if len(value) >= 4 {
+				nd.ConfedMember = binary.BigEndian.Uint32(value)
+			}
+		case TLVSRv6SID: // TLV 518 - 16 bytes (RFC 9514)
+			sid := make([]byte, len(value))
+			copy(sid, value)
+			nd.SRv6SIDs = append(nd.SRv6SIDs, sid)
 		}
 
 		data = data[4+tlvLen:]

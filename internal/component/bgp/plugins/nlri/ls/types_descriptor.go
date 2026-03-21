@@ -14,10 +14,13 @@ import (
 // NodeDescriptor contains node identification information.
 // RFC 7752 Section 3.2.1.4 defines the node descriptor sub-TLVs.
 type NodeDescriptor struct {
-	ASN             uint32 // Autonomous System (TLV 512, RFC 7752 Section 3.2.1.4)
-	BGPLSIdentifier uint32 // BGP-LS Identifier (TLV 513, RFC 7752 Section 3.2.1.4)
-	OSPFAreaID      uint32 // OSPF Area-ID (TLV 514, RFC 7752 Section 3.2.1.4)
-	IGPRouterID     []byte // IGP Router-ID (TLV 515, RFC 7752 Section 3.2.1.4)
+	ASN             uint32   // Autonomous System (TLV 512, RFC 7752 Section 3.2.1.4)
+	BGPLSIdentifier uint32   // BGP-LS Identifier (TLV 513, RFC 7752 Section 3.2.1.4)
+	OSPFAreaID      uint32   // OSPF Area-ID (TLV 514, RFC 7752 Section 3.2.1.4)
+	IGPRouterID     []byte   // IGP Router-ID (TLV 515, RFC 7752 Section 3.2.1.4)
+	BGPRouterID     uint32   // BGP Router-ID (TLV 516, RFC 9086 Section 4.1) — IPv4 as uint32
+	ConfedMember    uint32   // BGP Confederation Member (TLV 517, RFC 9086 Section 4.2)
+	SRv6SIDs        [][]byte // SRv6 SID addresses (TLV 518, RFC 9514) — 16 bytes each
 }
 
 // Bytes encodes the node descriptor as TLVs.
@@ -45,6 +48,21 @@ func (nd *NodeDescriptor) Bytes() []byte {
 		data = append(data, tlv(TLVIGPRouterID, nd.IGPRouterID)...)
 	}
 
+	// BGP Router-ID TLV (516) - RFC 9086 Section 4.1
+	if nd.BGPRouterID != 0 {
+		data = append(data, tlv(TLVBGPRouterID, uint32ToBytes(nd.BGPRouterID))...)
+	}
+
+	// BGP Confederation Member TLV (517) - RFC 9086 Section 4.2
+	if nd.ConfedMember != 0 {
+		data = append(data, tlv(TLVConfedMember, uint32ToBytes(nd.ConfedMember))...)
+	}
+
+	// SRv6 SID TLV (518) - RFC 9514
+	for _, sid := range nd.SRv6SIDs {
+		data = append(data, tlv(TLVSRv6SID, sid)...)
+	}
+
 	return data
 }
 
@@ -62,6 +80,15 @@ func (nd *NodeDescriptor) Len() int {
 	}
 	if len(nd.IGPRouterID) > 0 {
 		n += 4 + len(nd.IGPRouterID)
+	}
+	if nd.BGPRouterID != 0 {
+		n += 4 + 4 // TLV 516 (RFC 9086)
+	}
+	if nd.ConfedMember != 0 {
+		n += 4 + 4 // TLV 517 (RFC 9086)
+	}
+	for _, sid := range nd.SRv6SIDs {
+		n += 4 + len(sid) // TLV 518 (RFC 9514)
 	}
 	return n
 }
@@ -85,6 +112,17 @@ func (nd *NodeDescriptor) WriteTo(buf []byte, off int) int {
 	}
 	if len(nd.IGPRouterID) > 0 {
 		pos += writeTLVBytes(buf, pos, TLVIGPRouterID, nd.IGPRouterID)
+	}
+	if nd.BGPRouterID != 0 {
+		pos += writeTLV(buf, pos, TLVBGPRouterID, 4)
+		binary.BigEndian.PutUint32(buf[pos-4:], nd.BGPRouterID)
+	}
+	if nd.ConfedMember != 0 {
+		pos += writeTLV(buf, pos, TLVConfedMember, 4)
+		binary.BigEndian.PutUint32(buf[pos-4:], nd.ConfedMember)
+	}
+	for _, sid := range nd.SRv6SIDs {
+		pos += writeTLVBytes(buf, pos, TLVSRv6SID, sid)
 	}
 
 	return pos - off
