@@ -348,8 +348,9 @@ type ProcessBinding struct {
 	ReceiveCustom       map[string]bool // Plugin-registered event types (e.g., "update-rpki")
 
 	// Send settings (WHAT message types plugin can send)
-	SendUpdate  bool
-	SendRefresh bool
+	SendUpdate          bool
+	SendRefresh         bool
+	SendEnhancedRefresh bool // Can send BORR/EORR markers (RFC 7313, always paired)
 }
 
 // NewPeerSettings creates a peer settings with default values.

@@ -433,6 +433,7 @@ Plugins may register additional event types (e.g., `rpki`, `update-rpki`) that c
 |-------|-------------|
 | `update` | Can inject routes |
 | `refresh` | Can request route refresh |
+| `enhanced-refresh` | Can send BORR/EORR markers (RFC 7313, always paired) |
 
 **`all` is not accepted.** List send types explicitly.
 

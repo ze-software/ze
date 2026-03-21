@@ -401,7 +401,8 @@ module ze-bgp-conf {
 
             leaf-list send {
                 type string;
-                description "Message types to send. Valid: update, refresh.
+                description "Message types to send. Valid: update, refresh,
+                    enhanced-refresh (BORR/EORR markers, RFC 7313).
                     Validated at runtime against known send types.";
             }
         }

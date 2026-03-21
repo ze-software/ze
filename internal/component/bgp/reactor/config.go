@@ -854,8 +854,11 @@ func parseOneSendFlag(token string, b *ProcessBinding) error {
 	case "refresh":
 		b.SendRefresh = true
 		return nil
+	case "enhanced-refresh":
+		b.SendEnhancedRefresh = true
+		return nil
 	}
-	return fmt.Errorf("invalid value for send: %q (valid: update, refresh)", token)
+	return fmt.Errorf("invalid value for send: %q (valid: update, refresh, enhanced-refresh)", token)
 }
 
 // --- Map navigation helpers ---
