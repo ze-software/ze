@@ -121,7 +121,7 @@ ze --plugins
 | Plugin | Purpose | Typical Binding |
 |--------|---------|----------------|
 | `bgp-rib` | Route Information Base | `receive [ state ] send [ update ]` |
-| `bgp-adj-rib-in` | Adj-RIB-In (raw hex replay) | `receive [ update state ]` |
+| `bgp-adj-rib-in` | Adj-RIB-In (raw hex replay, auto-replays on peer-up) | `receive [ update state ]` |
 | `bgp-persist` | Route persistence across restarts | `receive [ update state ] send [ update ]` |
 | `bgp-rs` | Route server (forward-all) | `receive [ update ] send [ update ]` |
 | `bgp-watchdog` | Deferred route announcement | `receive [ update ]` |

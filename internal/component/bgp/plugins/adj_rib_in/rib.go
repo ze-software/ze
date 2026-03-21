@@ -284,20 +284,33 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 }
 
 // handleState processes peer state changes.
+// On peer-up: marks peer as up, then replays all known routes from other
+// source peers. Replay runs after lock release to avoid deadlock
+// (buildReplayCommands takes RLock, updateRoute does I/O).
 func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 	peerAddr := event.GetPeerAddress()
 	state := event.GetPeerState()
 
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
 	isUp := state == "up"
+
+	r.mu.Lock()
 	r.peerUp[peerAddr] = isUp
 
 	if !isUp {
 		// Peer went down — clear installed and pending routes.
 		delete(r.ribIn, peerAddr)
 		r.clearPeerPending(peerAddr)
+	}
+	r.mu.Unlock()
+
+	if isUp {
+		// Replay all known routes to the newly-up peer.
+		// buildReplayCommands takes RLock internally; updateRoute does I/O.
+		// Both must run outside the write lock to avoid deadlock.
+		cmds, _ := r.buildReplayCommands(peerAddr, 0)
+		for _, cmd := range cmds {
+			r.updateRoute(peerAddr, cmd)
+		}
 	}
 }
 

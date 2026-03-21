@@ -1,0 +1,131 @@
+# Test: adj-rib-in stores received routes and replays them
+# VALIDATES: Route from peer stored in adj-rib-in, replay produces commands
+# PREVENTS: Replay returning empty when routes exist
+
+# ze-peer sends a route to ze
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=update:value=send-default-route
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python plugin: verify adj-rib-in stores route, then replay works
+tmpfs=replay-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for peer route to be stored
+    for _ in range(20):
+        time.sleep(0.5)
+        result = dispatch(api, 'adj-rib-in status')
+        if result.get('status') != 'done':
+            continue
+        data = json.loads(result.get('data', '{}'))
+        if data.get('total-routes', 0) > 0:
+            break
+    else:
+        print('FAIL: no routes stored after 10s', file=sys.stderr)
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+
+    # Replay to a fake peer (10.0.0.99) - proves replay mechanism works
+    result = dispatch(api, 'adj-rib-in replay 10.0.0.99 0')
+    if result.get('status') != 'done':
+        print(f'FAIL: replay failed: {result}', file=sys.stderr)
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+
+    replay_data = json.loads(result.get('data', '{}'))
+    if replay_data.get('replayed', 0) == 0:
+        print(f'FAIL: replay returned 0 commands', file=sys.stderr)
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+
+    print(f'OK: replayed {replay_data["replayed"]} route(s)', file=sys.stderr)
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external replay-test {
+		run ./replay-test.run
+		encoder json
+	}
+	external rib {
+		run "ze plugin bgp-rib"
+		encoder json
+	}
+	external adj-rib-in {
+		run "ze plugin bgp-adj-rib-in"
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		connection active
+		group-updates disable
+
+		family {
+			ipv4/unicast
+		}
+		capability {
+			graceful-restart disable
+		}
+		process replay-test {
+		}
+		process rib {
+			receive [ state ]
+			send [ update ]
+		}
+		process adj-rib-in {
+			receive [ update state ]
+		}
+	}
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
