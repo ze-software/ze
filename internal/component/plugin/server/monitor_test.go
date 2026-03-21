@@ -66,24 +66,24 @@ func TestMonitorManagerGetMatching(t *testing.T) {
 	mm.Add(mc3)
 
 	// Update from 10.0.0.1 should match mc1 and mc3.
-	matches := mm.GetMatching(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1")
+	matches := mm.GetMatching(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1", "")
 	assert.Len(t, matches, 2)
 	ids := matchIDs(matches)
 	assert.Contains(t, ids, "all-updates")
 	assert.Contains(t, ids, "peer-updates")
 
 	// Update from 10.0.0.2 should match mc1 only.
-	matches = mm.GetMatching(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.2")
+	matches = mm.GetMatching(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.2", "")
 	assert.Len(t, matches, 1)
 	assert.Equal(t, "all-updates", matches[0].id)
 
 	// State event should match mc2 only.
-	matches = mm.GetMatching(plugin.NamespaceBGP, plugin.EventState, "", "10.0.0.1")
+	matches = mm.GetMatching(plugin.NamespaceBGP, plugin.EventState, "", "10.0.0.1", "")
 	assert.Len(t, matches, 1)
 	assert.Equal(t, "state-only", matches[0].id)
 
 	// Notification event should match nobody.
-	matches = mm.GetMatching(plugin.NamespaceBGP, plugin.EventNotification, plugin.DirectionReceived, "10.0.0.1")
+	matches = mm.GetMatching(plugin.NamespaceBGP, plugin.EventNotification, plugin.DirectionReceived, "10.0.0.1", "")
 	assert.Len(t, matches, 0)
 }
 
@@ -108,11 +108,11 @@ func TestMonitorManagerCleanup(t *testing.T) {
 	}, 256)
 
 	mm.Add(mc)
-	matches := mm.GetMatching(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1")
+	matches := mm.GetMatching(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1", "")
 	require.Len(t, matches, 1)
 
 	mm.Remove("cleanup-test")
-	matches = mm.GetMatching(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1")
+	matches = mm.GetMatching(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1", "")
 	assert.Len(t, matches, 0)
 }
 
@@ -140,7 +140,7 @@ func TestMonitorDelivery(t *testing.T) {
 	mm.Add(mc2)
 
 	testEvent := `{"type":"bgp","bgp":{"message":{"type":"update"}}}`
-	mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1", testEvent)
+	mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1", "", testEvent)
 
 	// mc1 should receive it.
 	select {
@@ -175,7 +175,7 @@ func TestMonitorBackpressure(t *testing.T) {
 
 	// Send 5 events; buffer holds 2, so 3 should be dropped.
 	for i := range 5 {
-		mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1",
+		mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1", "",
 			fmt.Sprintf(`{"event":%d}`, i))
 	}
 
@@ -211,8 +211,8 @@ func TestMonitorManagerConcurrency(t *testing.T) {
 	for range goroutines {
 		wg.Go(func() {
 			for range 100 {
-				_ = mm.GetMatching(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1")
-				mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1", `{"test":true}`)
+				_ = mm.GetMatching(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1", "")
+				mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1", "", `{"test":true}`)
 			}
 		})
 	}

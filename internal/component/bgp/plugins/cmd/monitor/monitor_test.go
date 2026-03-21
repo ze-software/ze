@@ -91,6 +91,27 @@ func TestParseMonitorArgs(t *testing.T) {
 			wantDir:   "",
 			wantTypes: nil,
 		},
+		{
+			name:      "peer_name",
+			args:      []string{"peer", "upstream-1"},
+			wantPeer:  "upstream-1",
+			wantDir:   "",
+			wantTypes: nil,
+		},
+		{
+			name:      "peer_exclusion",
+			args:      []string{"peer", "!10.0.0.1"},
+			wantPeer:  "!10.0.0.1",
+			wantDir:   "",
+			wantTypes: nil,
+		},
+		{
+			name:      "peer_name_exclusion",
+			args:      []string{"peer", "!upstream-1"},
+			wantPeer:  "!upstream-1",
+			wantDir:   "",
+			wantTypes: nil,
+		},
 	}
 
 	for _, tt := range tests {
@@ -156,7 +177,6 @@ func TestParseMonitorArgsInvalid(t *testing.T) {
 		{"invalid_direction", []string{"direction", "inbound"}},
 		{"invalid_event_type", []string{"event", "unknown"}},
 		{"invalid_event_in_list", []string{"event", "update,bogus"}},
-		{"invalid_peer_ip", []string{"peer", "999.999.999.999"}},
 		{"empty_event_in_list", []string{"event", "update,,state"}},
 		{"duplicate_keyword", []string{"peer", "10.0.0.1", "peer", "10.0.0.2"}},
 	}
@@ -248,10 +268,9 @@ func TestHandleMonitor(t *testing.T) {
 			wantErr:    true,
 		},
 		{
-			name:       "invalid_peer_returns_error",
-			args:       []string{"peer", "not-an-ip"},
-			wantStatus: plugin.StatusError,
-			wantErr:    true,
+			name:       "peer_name_returns_done",
+			args:       []string{"peer", "upstream-1"},
+			wantStatus: plugin.StatusDone,
 		},
 	}
 
@@ -446,7 +465,7 @@ func TestStreamMonitor(t *testing.T) {
 
 	// Deliver an event.
 	eventJSON := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","asn":65001},"message":{"type":"update","direction":"received"}}}`
-	mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1", eventJSON)
+	mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1", "", eventJSON)
 
 	// Wait for the event to appear in output.
 	require.Eventually(t, func() bool {
@@ -490,11 +509,11 @@ func TestStreamMonitorWithFilters(t *testing.T) {
 
 	// Deliver matching event.
 	matchEvent := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","asn":65001},"message":{"type":"update","direction":"received"}}}`
-	mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1", matchEvent)
+	mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1", "", matchEvent)
 
 	// Deliver non-matching event (different peer).
 	noMatchEvent := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.2","asn":65002},"message":{"type":"update","direction":"received"}}}`
-	mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.2", noMatchEvent)
+	mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.2", "", noMatchEvent)
 
 	// Wait for the matching event.
 	require.Eventually(t, func() bool {

@@ -5,7 +5,6 @@ package server
 
 import (
 	"fmt"
-	"net/netip"
 	"sync"
 
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
@@ -25,23 +24,26 @@ type Subscription struct {
 
 // PeerFilter specifies which peers to filter.
 type PeerFilter struct {
-	Selector string // "*", "10.0.0.1", "!10.0.0.1"
+	Selector string // "*", "10.0.0.1", "!10.0.0.1", "my-peer", "!my-peer"
 }
 
 // Matches returns true if the peer matches this filter.
-func (pf *PeerFilter) Matches(peer string) bool {
+// Matches against both the peer address (IP) and peer name.
+func (pf *PeerFilter) Matches(peerAddr, peerName string) bool {
 	if pf.Selector == "*" {
 		return true
 	}
 	if pf.Selector != "" && pf.Selector[0] == '!' {
-		// Exclusion selector
-		return peer != pf.Selector[1:]
+		// Exclusion: reject if either address or name matches the excluded value.
+		excluded := pf.Selector[1:]
+		return peerAddr != excluded && peerName != excluded
 	}
-	return peer == pf.Selector
+	return peerAddr == pf.Selector || peerName == pf.Selector
 }
 
 // Matches returns true if this subscription matches the event.
-func (s *Subscription) Matches(namespace, eventType, direction, peer string) bool {
+// peerAddr is the peer's IP address; peerName is the configured peer name (may be empty).
+func (s *Subscription) Matches(namespace, eventType, direction, peerAddr, peerName string) bool {
 	// Namespace must match
 	if s.Namespace != namespace {
 		return false
@@ -59,7 +61,7 @@ func (s *Subscription) Matches(namespace, eventType, direction, peer string) boo
 
 	// Peer filter
 	if s.PeerFilter != nil {
-		if !s.PeerFilter.Matches(peer) {
+		if !s.PeerFilter.Matches(peerAddr, peerName) {
 			return false
 		}
 	}
@@ -135,14 +137,15 @@ func (sm *SubscriptionManager) ClearProcess(proc *process.Process) {
 }
 
 // GetMatching returns all processes with subscriptions matching the event.
-func (sm *SubscriptionManager) GetMatching(namespace, eventType, direction, peer string) []*process.Process {
+// peerName is the configured peer name (may be empty for non-BGP events or emit-event RPCs).
+func (sm *SubscriptionManager) GetMatching(namespace, eventType, direction, peerAddr, peerName string) []*process.Process {
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
 	var result []*process.Process
 	for proc, subs := range sm.subscriptions {
 		for _, sub := range subs {
-			if sub.Matches(namespace, eventType, direction, peer) {
+			if sub.Matches(namespace, eventType, direction, peerAddr, peerName) {
 				result = append(result, proc)
 				break // Only add proc once, even if multiple subs match
 			}
@@ -236,30 +239,26 @@ func ParseSubscription(args []string) (*Subscription, error) {
 }
 
 // validatePeerSelector validates a peer selector.
+// Accepts: "*" (all), "!<sel>" (exclusion), IP addresses, peer names.
 func validatePeerSelector(selector string) error {
+	if selector == "" {
+		return fmt.Errorf("empty peer selector")
+	}
+
 	if selector == "*" {
 		return nil
 	}
 
 	// Check for exclusion prefix
 	s := selector
-	if s != "" && s[0] == '!' {
+	if s[0] == '!' {
 		s = s[1:]
-		// Check for double exclusion
-		if s != "" && s[0] == '!' {
-			return fmt.Errorf("invalid peer selector: %s (double exclusion)", selector)
+		if s == "" {
+			return fmt.Errorf("invalid peer selector: %s (empty after exclusion)", selector)
 		}
-	}
-
-	// Check for double glob
-	if s == "*" && len(selector) > 1 {
-		return fmt.Errorf("invalid peer selector: %s", selector)
-	}
-
-	// If not glob, must be valid IP
-	if s != "*" {
-		if _, err := netip.ParseAddr(s); err != nil {
-			return fmt.Errorf("invalid peer selector: %s (not a valid IP address)", selector)
+		// Check for double exclusion
+		if s[0] == '!' {
+			return fmt.Errorf("invalid peer selector: %s (double exclusion)", selector)
 		}
 	}
 

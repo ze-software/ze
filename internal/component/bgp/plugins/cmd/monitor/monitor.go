@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"net/netip"
 	"strings"
 	"sync/atomic"
 
@@ -180,13 +179,14 @@ var allBGPEventTypes = []string{
 
 // monitorOpts holds parsed monitor command options.
 type monitorOpts struct {
-	peer       string   // Peer filter: IP address or "*" (empty = all peers)
+	peer       string   // Peer filter: IP, name, "!sel" (exclusion), or "*" (empty = all peers)
 	eventTypes []string // Event type filter (nil = all events)
 	direction  string   // Direction filter: "received", "sent" (empty = both)
 }
 
 // parseMonitorArgs parses keyword arguments for the monitor command.
-// Supported keywords: peer <addr>, event <type>[,<type>], direction received|sent.
+// Supported keywords: peer <selector>, event <type>[,<type>], direction received|sent.
+// Peer selector accepts IP addresses, peer names, "*" (all), or "!sel" (exclusion).
 // Keywords may appear in any order. Each keyword may appear at most once.
 func parseMonitorArgs(args []string) (*monitorOpts, error) {
 	opts := &monitorOpts{}
@@ -208,10 +208,8 @@ func parseMonitorArgs(args []string) (*monitorOpts, error) {
 			}
 			i++
 			peer := args[i]
-			if peer != "*" {
-				if _, err := netip.ParseAddr(peer); err != nil {
-					return nil, fmt.Errorf("invalid peer address: %s", peer)
-				}
+			if peer == "" {
+				return nil, fmt.Errorf("empty peer selector")
 			}
 			opts.peer = peer
 

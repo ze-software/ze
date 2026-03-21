@@ -199,10 +199,8 @@ func TestParseSubscriptionInvalidPeerSelector(t *testing.T) {
 		name string
 		args []string
 	}{
-		{"double_glob", []string{"peer", "**", "bgp", "event", "update"}},
 		{"double_exclude", []string{"peer", "!!10.0.0.1", "bgp", "event", "update"}},
-		{"invalid_ip", []string{"peer", "999.999.999.999", "bgp", "event", "update"}},
-		{"missing_selector", []string{"peer", "bgp", "event", "update"}}, // bgp looks like selector but isn't valid
+		{"empty_exclusion", []string{"peer", "!", "bgp", "event", "update"}},
 	}
 
 	for _, tt := range tests {
@@ -238,6 +236,7 @@ func TestSubscriptionMatches(t *testing.T) {
 		eventType string
 		direction string
 		peer      string
+		peerName  string
 		want      bool
 	}{
 		{
@@ -300,11 +299,41 @@ func TestSubscriptionMatches(t *testing.T) {
 			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1",
 			want: false,
 		},
+		{
+			name:      "peer_name_match",
+			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "upstream-1"}},
+			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1", peerName: "upstream-1",
+			want: true,
+		},
+		{
+			name:      "peer_name_no_match",
+			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "upstream-1"}},
+			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1", peerName: "downstream-2",
+			want: false,
+		},
+		{
+			name:      "peer_name_exclude_by_name",
+			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "!upstream-1"}},
+			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1", peerName: "upstream-1",
+			want: false,
+		},
+		{
+			name:      "peer_name_exclude_passes",
+			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "!upstream-1"}},
+			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1", peerName: "downstream-2",
+			want: true,
+		},
+		{
+			name:      "peer_ip_filter_matches_addr_not_name",
+			sub:       &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "10.0.0.1"}},
+			namespace: "bgp", eventType: "update", direction: "received", peer: "10.0.0.1", peerName: "upstream-1",
+			want: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := tt.sub.Matches(tt.namespace, tt.eventType, tt.direction, tt.peer)
+			got := tt.sub.Matches(tt.namespace, tt.eventType, tt.direction, tt.peer, tt.peerName)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -359,16 +388,16 @@ func TestSubscriptionManagerGetMatching(t *testing.T) {
 	sm.Add(proc3, &Subscription{Namespace: "bgp", EventType: "update", Direction: "both", PeerFilter: &PeerFilter{Selector: "10.0.0.1"}})
 
 	// Update from 10.0.0.1 should match proc1 and proc3
-	matches := sm.GetMatching("bgp", "update", "received", "10.0.0.1")
+	matches := sm.GetMatching("bgp", "update", "received", "10.0.0.1", "")
 	assert.Len(t, matches, 2)
 
 	// Update from 10.0.0.2 should only match proc1
-	matches = sm.GetMatching("bgp", "update", "received", "10.0.0.2")
+	matches = sm.GetMatching("bgp", "update", "received", "10.0.0.2", "")
 	assert.Len(t, matches, 1)
 	assert.Equal(t, "proc1", matches[0].Name())
 
 	// State event should only match proc2
-	matches = sm.GetMatching("bgp", "state", "", "10.0.0.1")
+	matches = sm.GetMatching("bgp", "state", "", "10.0.0.1", "")
 	assert.Len(t, matches, 1)
 	assert.Equal(t, "proc2", matches[0].Name())
 }
@@ -402,7 +431,7 @@ func TestSubscriptionManagerConcurrency(t *testing.T) {
 	for range goroutines {
 		wg.Go(func() {
 			for range iterations {
-				_ = sm.GetMatching("bgp", "update", "received", "10.0.0.1")
+				_ = sm.GetMatching("bgp", "update", "received", "10.0.0.1", "")
 			}
 		})
 	}

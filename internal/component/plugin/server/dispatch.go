@@ -337,7 +337,7 @@ func (s *Server) emitEvent(emitter *process.Process, params json.RawMessage) (*r
 		return &rpc.EmitEventOutput{Delivered: 0}, nil
 	}
 
-	procs := s.subscriptions.GetMatching(input.Namespace, input.EventType, input.Direction, input.PeerAddress)
+	procs := s.subscriptions.GetMatching(input.Namespace, input.EventType, input.Direction, input.PeerAddress, "")
 	delivered := 0
 	for _, p := range procs {
 		// Skip self-delivery to prevent loops.
