@@ -6,25 +6,29 @@ Ze is a BGP daemon written in Go. This document lists all user-facing features.
 
 ### Address Families
 
-| Family | AFI/SAFI | Encode | Decode | Route Config |
-|--------|----------|--------|--------|--------------|
-| IPv4 Unicast | 1/1 | Yes | Yes | Yes |
-| IPv6 Unicast | 2/1 | Yes | Yes | Yes |
-| IPv4 VPN | 1/128 | Yes | Yes | Yes |
-| IPv6 VPN | 2/128 | Yes | Yes | Yes |
-| IPv4 FlowSpec | 1/133 | Yes | Yes | Yes |
-| IPv6 FlowSpec | 2/133 | Yes | Yes | Yes |
-| IPv4 MPLS Label | 1/4 | Yes | Yes | Yes |
-| IPv6 MPLS Label | 2/4 | Yes | Yes | Yes |
-| L2VPN EVPN | 25/70 | Yes | Yes | Yes |
-| L2VPN VPLS | 25/65 | Yes | Yes | Yes |
-| BGP-LS | 16/71 | No | Yes | No |
-| BGP-LS VPN | 16/72 | No | Yes | No |
-| IPv4 MVPN | 1/5 | No | Yes | No |
-| IPv6 MVPN | 2/5 | No | Yes | No |
-| IPv4 RTC | 1/132 | No | Yes | No |
-| IPv4 MUP | 1/85 | Yes | Yes | Yes |
-| IPv6 MUP | 2/85 | Yes | Yes | Yes |
+| Family | Config Name | AFI/SAFI | Encode | Decode | Route Config |
+|--------|-------------|----------|--------|--------|--------------|
+| IPv4 Unicast | `ipv4/unicast` | 1/1 | Yes | Yes | Yes |
+| IPv6 Unicast | `ipv6/unicast` | 2/1 | Yes | Yes | Yes |
+| IPv4 Multicast | `ipv4/multicast` | 1/2 | Yes | Yes | Yes |
+| IPv6 Multicast | `ipv6/multicast` | 2/2 | Yes | Yes | Yes |
+| IPv4 VPN | `ipv4/mpls-vpn` | 1/128 | Yes | Yes | Yes |
+| IPv6 VPN | `ipv6/mpls-vpn` | 2/128 | Yes | Yes | Yes |
+| IPv4 FlowSpec | `ipv4/flow` | 1/133 | Yes | Yes | Yes |
+| IPv6 FlowSpec | `ipv6/flow` | 2/133 | Yes | Yes | Yes |
+| IPv4 FlowSpec VPN | `ipv4/flow-vpn` | 1/134 | Yes | Yes | Yes |
+| IPv6 FlowSpec VPN | `ipv6/flow-vpn` | 2/134 | Yes | Yes | Yes |
+| IPv4 MPLS Label | `ipv4/mpls-label` | 1/4 | Yes | Yes | Yes |
+| IPv6 MPLS Label | `ipv6/mpls-label` | 2/4 | Yes | Yes | Yes |
+| L2VPN EVPN | `l2vpn/evpn` | 25/70 | Yes | Yes | Yes |
+| L2VPN VPLS | `l2vpn/vpls` | 25/65 | Yes | Yes | Yes |
+| BGP-LS | `bgp-ls/bgp-ls` | 16/71 | No | Yes | No |
+| BGP-LS VPN | `bgp-ls/bgp-ls-vpn` | 16/72 | No | Yes | No |
+| IPv4 MVPN | `ipv4/mvpn` | 1/5 | No | Yes | No |
+| IPv6 MVPN | `ipv6/mvpn` | 2/5 | No | Yes | No |
+| IPv4 RTC | `ipv4/rtc` | 1/132 | No | Yes | No |
+| IPv4 MUP | `ipv4/mup` | 1/85 | Yes | Yes | Yes |
+| IPv6 MUP | `ipv6/mup` | 2/85 | Yes | Yes | Yes |
 
 ### Capabilities
 
@@ -66,19 +70,20 @@ Ze is a BGP daemon written in Go. This document lists all user-facing features.
 
 ### Peer Settings
 
+Peers are keyed by name (`peer <name> { }`) with IP and AS in nested containers:
+
 | Setting | Description | Validation |
 |---------|-------------|------------|
-| peer-address | BGP neighbor IP | Required |
-| local-address | Local bind address | Required |
-| local-as | Local AS number | Required |
-| peer-as | Peer AS number | Required |
-| router-id | Per-peer router ID override | Optional |
-| hold-time | Hold timer (0 or 3-65535 seconds) | 1-2 rejected |
-| connection | Connect mode: both / passive / active | Default: both |
-| md5-password | TCP MD5 authentication | Optional |
-| outgoing-ttl | TTL for outgoing packets | Optional |
-| ttl-security | Minimum TTL for incoming packets | Optional |
-| group-updates | Enable/disable UPDATE grouping | Default: enabled |
+| `remote { ip; as; }` | Peer IP and AS number | Required |
+| `local { ip; as; }` | Local bind address and AS | Required (ip can be `auto`) |
+| `router-id` | Per-peer router ID override | Optional (or inherited) |
+| `name` | Peer key (must start with letter) | Required |
+| `hold-time` | Hold timer (0 or 3-65535 seconds) | 1-2 rejected |
+| `connection` | Connect mode: both / passive / active | Default: both |
+| `md5-password` | TCP MD5 authentication | Optional |
+| `outgoing-ttl` | TTL for outgoing packets | Optional |
+| `ttl-security` | Minimum TTL for incoming packets | Optional |
+| `group-updates` | Enable/disable UPDATE grouping | Default: enabled |
 
 ### Capabilities Configuration
 
@@ -127,10 +132,10 @@ External processes receive BGP events and send commands:
 
 | Plugin | Description |
 |--------|-------------|
-| bgp-rib | Route Information Base — stores received/sent routes |
-| bgp-adj-rib-in | Adj-RIB-In — raw hex replay of received routes |
+| bgp-rib | Route Information Base -- stores received/sent routes |
+| bgp-adj-rib-in | Adj-RIB-In -- raw hex replay of received routes |
 | bgp-persist | Route persistence across restarts |
-| bgp-rs | Route server — client-to-client route reflection (RFC 7947) |
+| bgp-rs | Route server -- client-to-client route reflection (RFC 7947) |
 | bgp-watchdog | Deferred route announcement with named watchdog groups |
 
 ### Protocol
@@ -138,8 +143,10 @@ External processes receive BGP events and send commands:
 | Plugin | Description |
 |--------|-------------|
 | bgp-gr | Graceful Restart state machine (RFC 4724) |
+| bgp-rpki | RPKI origin validation via RTR protocol (RFC 6811, RFC 8210). [Guide](guide/rpki.md) |
 | bgp-route-refresh | Route Refresh handling (RFC 2918, RFC 7313) |
 | role | BGP Role capability enforcement (RFC 9234) |
+| bgp-llnh | Link-local next-hop for IPv6 (RFC 2545) |
 | bgp-hostname | FQDN capability for peer identification |
 | bgp-softver | Software version capability advertisement |
 | bgp-llnh | Link-local next-hop for IPv6 (RFC 2545) |
@@ -240,8 +247,8 @@ NLRI operations: `add`, `del`, `eor` per address family.
 
 | Command | Description |
 |---------|-------------|
-| `rib show-in [peer] [family]` | Show Adj-RIB-In |
-| `rib show-out [peer] [family]` | Show Adj-RIB-Out |
+| `rib routes received [peer] [family]` | Show Adj-RIB-In |
+| `rib routes sent [peer] [family]` | Show Adj-RIB-Out |
 | `rib clear-in [peer] [family]` | Clear Adj-RIB-In |
 | `rib clear-out [peer] [family]` | Clear Adj-RIB-Out |
 

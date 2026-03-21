@@ -2,7 +2,9 @@
 
 > **Status: Early Development** — Ze is under heavy active development and is not yet ready for production use. APIs, configuration syntax, and plugin interfaces may change without notice. Feedback and contributions are welcome.
 
-Ze is a BGP daemon written in Go, built by the creator of [ExaBGP](https://github.com/Exa-Networks/exabgp). It uses a **plugin-based architecture** where the engine handles the protocol and plugins implement everything else — RIB storage, route policy, route reflection, and any custom logic you need.
+Ze is a BGP daemon written in Go, built by the creator of [ExaBGP](https://github.com/Exa-Networks/exabgp). Use it to announce routes to your network (traffic engineering, DDoS mitigation, anycast), accept and forward routes (route server at an IXP), monitor BGP sessions, or validate routes against RPKI.
+
+Ze uses a **plugin-based architecture** where the engine handles the protocol and plugins implement everything else -- RIB storage, route policy, route reflection, and any custom logic you need.
 
 ## Why Ze
 
@@ -33,7 +35,7 @@ Revised error handling with treat-as-withdraw (RFC 7606), shutdown communication
 
 ### Plugin Architecture
 
-Ze ships with 19 plugins covering core BGP features and every supported address family:
+Ze ships with 21 plugins covering core BGP features and every supported address family:
 
 **Behavioural plugins:**
 
@@ -42,19 +44,21 @@ Ze ships with 19 plugins covering core BGP features and every supported address 
 | `bgp-rib` | Route Information Base — storage, best-path selection |
 | `bgp-rs` | Route Server (RFC 7947) |
 | `bgp-gr` | Graceful Restart (RFC 4724) |
-| `bgp-role` | Role negotiation and OTC filtering (RFC 9234) |
+| `role` | Role negotiation and OTC filtering (RFC 9234) |
 | `bgp-hostname` | Hostname capability (draft-walton-bgp-hostname-capability) |
 | `bgp-llnh` | Link-local next-hop handling |
 | `bgp-route-refresh` | Route Refresh capability (RFC 2918, 7313) |
 | `bgp-softver` | Software Version capability (draft-ietf-idr-software-version) |
+| `bgp-rpki` | RPKI origin validation via RTR protocol (RFC 6811, 8210) |
 | `bgp-adj-rib-in` | Adj-RIB-In storage (raw hex replay) |
+| `bgp-persist` | Route persistence across restarts |
 | `bgp-watchdog` | Watchdog route management |
 
 **NLRI family plugins:**
 
 | Plugin | Purpose |
 |--------|---------|
-| `bgp-nlri-evpn` | EVPN types 1-5 — MAC-IP, Ethernet Segment, etc. (RFC 7432, 9136) |
+| `bgp-nlri-evpn` | EVPN types 1-5 -- MAC-IP, Ethernet Segment, etc. (RFC 7432, 9136) |
 | `bgp-nlri-vpn` | VPNv4/VPNv6 with Route Distinguisher and label stack (RFC 4364, 4659) |
 | `bgp-nlri-flowspec` | FlowSpec traffic filter rules for IPv4/IPv6/VPN (RFC 8955, 8956) |
 | `bgp-nlri-ls` | BGP-LS link-state topology including SRv6 (RFC 7752, 9085, 9514) |
@@ -93,8 +97,11 @@ All three use the same IPC protocol — switching between modes is a one-line co
 Ze includes a compatibility bridge for ExaBGP plugins:
 
 ```
-process exabgp-compat {
-    run "ze exabgp plugin /path/to/your-exabgp-plugin.py";
+plugin {
+    external exabgp-compat {
+        run "ze exabgp plugin /path/to/your-exabgp-plugin.py"
+        encoder json
+    }
 }
 ```
 
@@ -106,7 +113,7 @@ ze config migrate exabgp.conf > ze.conf
 
 ### Testing
 
-- **4400+ test functions** with race detector (`make ze-unit-test`)
+- **18,000+ test functions** with race detector (`make ze-unit-test`)
 - **26 linters** via golangci-lint (`make ze-lint`)
 - **Functional tests** — encoding, decoding, plugin communication, config parsing, dynamic reload (`make ze-functional-test`)
 - **ExaBGP compatibility tests** — wire format validation against ExaBGP 5.0 (`make ze-exabgp-test`)
@@ -180,7 +187,7 @@ Requires **Go 1.25+**.
 bin/ze config.conf
 
 # Validate a configuration
-bin/ze config check config.conf
+bin/ze validate config.conf
 
 # Decode a BGP message
 bin/ze bgp decode FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF...
@@ -191,89 +198,72 @@ make ze-test
 
 ### Configuration
 
-Ze uses a hierarchical configuration syntax with two styles of template inheritance:
-
-**Named template** — define once, inherit by name:
+Ze uses a JUNOS-like hierarchical configuration with `group` blocks for shared defaults:
 
 ```
 plugin {
     external rib {
-        run "ze plugin bgp-rib";
-    }
-}
-
-template {
-    bgp {
-        peer * {
-            inherit-name rr-client;
-            local-as 65533;
-            capability {
-                graceful-restart 120;
-            }
-            process rib {
-                send {
-                    state;
-                    update;
-                }
-                receive {
-                    update;
-                }
-            }
-        }
+        run "ze plugin bgp-rib"
+        encoder json
     }
 }
 
 bgp {
-    peer 10.0.0.1 {
-        inherit rr-client;
-        router-id 10.0.0.2;
-        local-address 10.0.0.2;
-        peer-as 65533;
-        hold-time 180;
-        update {
-            attribute {
-                origin igp;
-                next-hop 10.0.0.2;
-                community 30740:30740;
-            }
-            nlri {
-                ipv4/unicast add 10.0.1.0/24;
-                ipv4/unicast add 10.0.2.0/24;
+    router-id 10.0.0.254
+    local {
+        as 65533
+    }
+
+    group rr-clients {
+        hold-time 180
+        capability {
+            graceful-restart {
+                restart-time 120
             }
         }
-        update {
-            attribute {
-                origin igp;
-                next-hop 2A02:B80:0:2::1;
-                local-preference 200;
+        process rib {
+            send [ update ]
+            receive [ state ]
+        }
+
+        peer transit-a {
+            remote { ip 10.0.0.1; as 65001; }
+            local { ip 10.0.0.254; }
+            update {
+                attribute {
+                    origin igp
+                    next-hop 10.0.0.254
+                    community 30740:30740
+                }
+                nlri {
+                    ipv4/unicast add 10.0.1.0/24
+                    ipv4/unicast add 10.0.2.0/24
+                }
             }
-            nlri {
-                ipv6/unicast add 2A02:B80:0:1::/64;
+            update {
+                attribute {
+                    origin igp
+                    next-hop 2A02:B80:0:2::1
+                    local-preference 200
+                }
+                nlri {
+                    ipv6/unicast add 2A02:B80:0:1::/64
+                }
             }
         }
+    }
+
+    # Standalone peer (no group)
+    peer monitor {
+        remote { ip 192.168.1.1; as 65000; }
+        local { ip 192.168.1.2; as 65000; }
+        router-id 192.168.1.2
+        family { ipv4/unicast; }
     }
 }
 ```
 
-**Glob template** — applies automatically to matching peers:
-
-```
-template {
-    bgp {
-        peer 10.0.0.* {
-            local-as 65000;
-            peer-as 65001;
-        }
-    }
-}
-
-bgp {
-    peer 10.0.0.5 { }    # inherits config from pattern match
-    peer 10.0.0.6 { }    # same
-}
-```
-
-Multiple `update` blocks allow announcing routes in different address families with distinct attributes. YANG schema validation catches typos and unknown keys at load time — no silent misconfiguration.
+Inheritance flows from BGP globals to group defaults to peer overrides. Multiple `update` blocks allow announcing routes in different address families with distinct attributes. YANG schema validation catches typos and unknown keys at load time -- no silent misconfiguration.
 
 ### Interactive Configuration Editor
 
@@ -330,6 +320,13 @@ That said, it already establishes BGP sessions, exchanges routes across all list
 Ze exists because large-language-model coding assistants made it feasible. Writing a full BGP implementation from scratch — with comprehensive RFC compliance, a plugin architecture, and broad address family support — would be an enormous undertaking for a solo developer. AI tooling (Claude Code) made it realistic to attempt, handling the volume of boilerplate, protocol encoding, and test generation while the author focused on architecture and design decisions informed by over a decade of ExaBGP experience. The project's extensive rule system and spec-driven workflow were developed specifically to keep AI-generated code aligned with production-quality standards.
 
 Contributions, feedback, and bug reports are welcome on the [issue tracker](https://codeberg.org/thomas-mangin/ze/issues).
+
+## Documentation
+
+- **[User Guide](docs/guide/)** -- configuration, plugins, RPKI, graceful restart, route reflection, ADD-PATH, monitoring
+- **[Feature Inventory](docs/features.md)** -- complete list of supported protocols, attributes, and CLI commands
+- **[Architecture](docs/architecture/)** -- internal design, wire format, pool architecture
+- **[Plugin Development](docs/plugin-development/)** -- writing external plugins, IPC protocol, SDK reference
 
 ## License
 

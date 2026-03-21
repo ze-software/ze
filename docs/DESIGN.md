@@ -802,6 +802,7 @@ For a task-oriented "where to change X" guide, see `docs/architecture/overview.m
 | Process protocol | `docs/architecture/api/process-protocol.md` |
 | RFC MAY decisions | `docs/architecture/rfc-may-decisions.md` |
 | .ci test format | `docs/architecture/testing/ci-format.md` |
+| Interop testing | `docs/architecture/testing/interop.md` |
 | Chaos testing | `docs/architecture/chaos-web-dashboard.md` |
 | FSM behavior | `docs/architecture/behavior/fsm.md` |
 | Signal handling | `docs/architecture/behavior/signals.md` |
