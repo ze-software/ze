@@ -53,10 +53,11 @@ func stageTimeoutFromEnv() time.Duration {
 
 // RPCParams is the standard params format for JSON RPC requests from socket clients.
 // Handlers receive Args as positional arguments and Selector as the peer filter.
+// Identity (Username) is never accepted from client JSON -- it MUST be injected by
+// the transport layer (SSH session, plugin process manager, TLS auth).
 type RPCParams struct {
 	Selector string   `json:"selector,omitempty"` // Peer selector (optional)
 	Args     []string `json:"args,omitempty"`     // Command arguments (optional)
-	Username string   `json:"username,omitempty"` // Authenticated username (for authorization)
 }
 
 // Server manages API connections and command dispatch.
@@ -108,7 +109,8 @@ func (s *Server) wrapHandler(handler Handler, cliCommand string, readOnly bool) 
 		if rpcParams.Selector != "" {
 			ctx.Peer = rpcParams.Selector
 		}
-		ctx.Username = rpcParams.Username
+		// Username is NOT read from client params — identity must be injected
+		// by the transport layer (see loader.go SSH wiring, dispatch.go plugin wiring).
 
 		// Authorization check — same path as Dispatch() in command.go
 		if s.dispatcher != nil && !s.dispatcher.isAuthorized(ctx, cliCommand, readOnly) {
