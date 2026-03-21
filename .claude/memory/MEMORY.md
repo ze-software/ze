@@ -15,6 +15,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 - [feedback_no_em_dashes.md](feedback_no_em_dashes.md) - Never use em dashes in English text (AI writing tell)
 - [feedback_never_claim_done_unwired.md](feedback_never_claim_done_unwired.md) - Completion claims require wiring proof: name the entry point, name the .ci test. Hooks enforce at commit time.
 - [feedback_test_failures_always_report.md](feedback_test_failures_always_report.md) - Always report test failures visibly. Pre-existing does not block commits but must be tracked.
+- [feedback_no_git_stash.md](feedback_no_git_stash.md) - Never use git stash in any form; it is disallowed
 
 ## References (cross-project, not in repo)
 
