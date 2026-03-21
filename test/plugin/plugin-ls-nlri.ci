@@ -1,7 +1,7 @@
 # plugin-ls-nlri - verify BGP-LS plugin NLRI decode
 # Tests BGP-LS Link NLRI decoding via plugin CLI
-# Hex from bgp-ls-1.ci: Link NLRI with OSPF protocol-id=3, local/remote node descriptors
-cmd=foreground:seq=1:exec=ze plugin bgp-ls --nlri 0002005103000000000000000001000020020000040000000102010004C0A87A7E0202000400000000020300040A0A0A0A01010020020000040000000102010004C0A87A7E0202000400000000020300040A020202
+# Hex from bgp-nlri-ls-1.ci: Link NLRI with OSPF protocol-id=3, local/remote node descriptors
+cmd=foreground:seq=1:exec=ze plugin bgp-nlri-ls --nlri 0002005103000000000000000001000020020000040000000102010004C0A87A7E0202000400000000020300040A0A0A0A01010020020000040000000102010004C0A87A7E0202000400000000020300040A020202
 expect=exit:code=0
 expect=stdout:contains=bgpls-link
 expect=stdout:contains=router-id

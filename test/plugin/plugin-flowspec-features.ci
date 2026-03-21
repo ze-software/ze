@@ -1,6 +1,6 @@
 # plugin-flowspec-features - verify flowspec plugin --features output
-# Tests that ze plugin bgp-flowspec --features lists supported features
+# Tests that ze plugin bgp-nlri-flowspec --features lists supported features
 
-cmd=foreground:seq=1:exec=ze plugin bgp-flowspec --features
+cmd=foreground:seq=1:exec=ze plugin bgp-nlri-flowspec --features
 expect=exit:code=0
 expect=stdout:contains=nlri

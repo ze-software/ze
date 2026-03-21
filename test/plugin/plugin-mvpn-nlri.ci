@@ -2,7 +2,7 @@
 # Tests MVPN Intra-AS I-PMSI A-D route (type 1) via plugin CLI
 # NLRI: route-type=1, RD type 0 (65001:100), originator 10.0.0.1
 
-cmd=foreground:seq=1:exec=ze plugin bgp-mvpn --nlri 010c0000fde9000000640a000001
+cmd=foreground:seq=1:exec=ze plugin bgp-nlri-mvpn --nlri 010c0000fde9000000640a000001
 expect=exit:code=0
 expect=stdout:contains=route-type
 expect=stdout:contains=rd

@@ -5,7 +5,7 @@
 # Wire: 70 (112 bits), 000641 (label 100, S=1), 0000 (RD type 0),
 #       0000FDE8 (ASN 65000), 00000001 (value 1), 0A0000 (10.0.0.0)
 
-cmd=foreground:seq=1:exec=ze plugin bgp-vpn --nlri 700006410000FDE8000000010A0000
+cmd=foreground:seq=1:exec=ze plugin bgp-nlri-vpn --nlri 700006410000FDE8000000010A0000
 expect=exit:code=0
 expect=stdout:contains=prefix
 expect=stdout:contains=10.0.0.0/24

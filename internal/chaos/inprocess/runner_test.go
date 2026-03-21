@@ -226,9 +226,9 @@ func TestInProcessSpeed(t *testing.T) {
 	elapsed := time.Since(start)
 	require.NoError(t, err)
 
-	// Run() includes a fixed startup overhead: handshakeWait = 5s base + N×500ms
-	// per peer = 7s for 4 peers. The virtual loop is only 30 steps × 10ms = 300ms.
-	// Under -race (instrumentation overhead) the total reaches ~9-10s, so we
+	// Run() includes a fixed startup overhead: handshakeWait = 2s base + N×200ms
+	// per peer = 2.8s for 4 peers. The virtual loop is only 30 steps × 10ms = 300ms.
+	// Under -race (instrumentation overhead) the total reaches ~5-6s, so we
 	// assert <15s to avoid flaky failures while still proving meaningful speedup
 	// (30s virtual in <15s real = at least 2x).
 	assert.Less(t, elapsed, 15*time.Second, "in-process 30s scenario should complete in <15s")
@@ -503,9 +503,10 @@ func TestInProcessScale20(t *testing.T) {
 		}
 	}
 	// At least 80% of peers should establish (some may fail due to timing).
-	// The scaled handshake wait in Run() gives enough time even under -race,
-	// and Duration=30s provides 300ms of additional real time in the virtual
-	// loop for any peers that establish slightly after the handshake wait.
+	// The scaled handshake wait in Run() (2s + N×200ms) gives enough time
+	// even under -race, and Duration=30s provides 300ms of additional real
+	// time in the virtual loop for any peers that establish slightly after
+	// the handshake wait.
 	minExpected := numPeers * 80 / 100
 	assert.GreaterOrEqual(t, len(established), minExpected,
 		"at least %d of %d peers should establish sessions", minExpected, numPeers)

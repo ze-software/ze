@@ -237,16 +237,17 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	}()
 
 	// Give real time for reactor startup and plugin initialization.
-	// The base 5s covers reactor + plugin init under the race detector
-	// with full-suite load. The per-peer 500ms covers each connection
-	// being queued and accepted sequentially.
+	// The base 2s covers reactor + plugin init under the race detector.
+	// The per-peer 200ms covers each connection being queued and accepted
+	// sequentially. Kept short because in-process mode uses DirectBridge
+	// (no external processes) and connections are pre-queued on mock listener.
 	//
 	// NOTE: session.Run() uses s.clock.Sleep(10ms) — a virtual clock sleep —
 	// when waiting for a connection. The handshake cannot complete until the
 	// virtual clock advances (via vc.Advance in the loop below). This wait
 	// is only for reactor/plugin startup; the handshake happens during the
 	// first few virtual time steps.
-	handshakeWait := 5*time.Second + time.Duration(len(cfg.Profiles))*500*time.Millisecond
+	handshakeWait := 2*time.Second + time.Duration(len(cfg.Profiles))*200*time.Millisecond
 	time.Sleep(handshakeWait)
 
 	// Advance virtual time in 1-second steps with real-time pauses

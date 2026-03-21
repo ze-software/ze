@@ -1,7 +1,7 @@
 # plugin-labeled-nlri - verify labeled unicast plugin NLRI decode
 # Tests labeled unicast 10.0.0.0/8 with label=100 via plugin CLI
 # Wire: 20 (32 bits = 24 label + 8 prefix), 000641 (label 100, S=1), 0A (10)
-cmd=foreground:seq=1:exec=ze plugin bgp-labeled --nlri 200006410A
+cmd=foreground:seq=1:exec=ze plugin bgp-nlri-labeled --nlri 200006410A
 expect=exit:code=0
 expect=stdout:contains=10.0.0.0/8
 expect=stdout:contains=100

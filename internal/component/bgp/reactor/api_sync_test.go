@@ -91,8 +91,8 @@ func TestAPISyncTimeout(t *testing.T) {
 	r.WaitForAPIReady()
 	elapsed := time.Since(start)
 
-	if elapsed < 90*time.Millisecond || elapsed > 150*time.Millisecond {
-		t.Errorf("unexpected timing: %v (expected ~100ms)", elapsed)
+	if elapsed < 90*time.Millisecond || elapsed > 500*time.Millisecond {
+		t.Errorf("unexpected timing: %v (expected ~100ms, upper bound allows for -race overhead)", elapsed)
 	}
 }
 

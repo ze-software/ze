@@ -3,7 +3,7 @@
 # CRITICAL TEST: Verifies auto-load uses FAMILY claims, not plugin names.
 #
 # Scenario:
-# - Config has `family { ipv4/flow; }` which would normally auto-load ze.bgp-flowspec
+# - Config has `family { ipv4/flow; }` which would normally auto-load ze.bgp-nlri-flowspec
 # - Config has plugin named "acme-traffic-filter" (unrelated name)
 # - Plugin declares `declare family ipv4 flow decode` (claims the family)
 # - Expected: Only "acme-traffic-filter" runs, internal flowspec NOT loaded

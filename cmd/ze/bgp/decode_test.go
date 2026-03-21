@@ -1154,7 +1154,7 @@ func TestParsePluginNameBoundary(t *testing.T) {
 // VALIDATES: Direct mode (ze-bgp-flowspec) decodes NLRI without subprocess.
 // PREVENTS: Wrong invocation path for ze- prefix.
 func TestInvokePluginDirect(t *testing.T) {
-	result := invokePluginNLRIDecode("ze-bgp-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+	result := invokePluginNLRIDecode("ze-bgp-nlri-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
 	require.NotNil(t, result, "ze-bgp-flowspec direct decode returned nil")
 	assertNonEmptyDecodeResult(t, result)
 }
