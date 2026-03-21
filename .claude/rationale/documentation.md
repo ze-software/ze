@@ -11,8 +11,8 @@ AGENT.md had UPPERCASE doc paths and TOP 5 rules while CLAUDE.md had moved to lo
 3. Architecture/design docs? -> `docs/architecture/`
 4. RFC summaries? -> `rfc/short/`
 5. Wire format reference? -> `docs/architecture/wire/`
-6. Implementation plan? -> `docs/plan/`
-7. Learned summary? -> `docs/learned/`
+6. Implementation plan? -> `plan/`
+7. Learned summary? -> `plan/learned/`
 
 ## Directory Structure
 
@@ -33,11 +33,11 @@ docs/
   commands/                # Slash commands
   hooks/                   # Session hooks
 
-docs/plan/
+plan/
   spec-*.md                # Active specs
   TEMPLATE.md              # Spec template
 
-docs/learned/
+plan/learned/
   NNN-*.md                 # Learned summaries (completed spec knowledge)
 ```
 

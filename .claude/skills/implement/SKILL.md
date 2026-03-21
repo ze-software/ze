@@ -16,7 +16,7 @@ Implement the selected spec end-to-end with built-in review loops.
 
 ## Steps
 
-1. **Read the spec:** Read `.claude/selected-spec`, then read `docs/plan/<spec-name>`
+1. **Read the spec:** Read `.claude/selected-spec`, then read `plan/<spec-name>`
 2. **Audit first:** Run `/spec-audit` logic. Check Files to Modify, Files to Create, and TDD Test Plan against the codebase. Identify what's already implemented, partially done, or missing. Do not redo existing work.
 3. **Implement:** Follow the spec's **Implementation Phases** section in order. For each phase:
    - Write the tests listed for that phase (TDD -- test must fail before implementation)

@@ -8,14 +8,14 @@ Every gate includes a mandatory challenge — surface concerns, not just summari
 ### Step 0: Detect Mode
 
 1. Read `.claude/selected-spec`
-2. If set AND spec file exists in `docs/plan/`: **RESUME mode** — go to Step R
+2. If set AND spec file exists in `plan/`: **RESUME mode** — go to Step R
 3. If empty or spec doesn't exist: **NEW mode** — go to Step 1
 
 ---
 
 ### Step R: Resume Existing Spec
 
-1. Read the spec file from `docs/plan/`
+1. Read the spec file from `plan/`
 2. Read `.claude/session-state.md` for digests
 3. Determine current phase by checking spec completeness:
    - No `→ Decision:` / `→ Constraint:` annotations → still in RESEARCH
@@ -36,8 +36,8 @@ Every gate includes a mandatory challenge — surface concerns, not just summari
 **Goal:** Agree on what we're building.
 
 1. ASK the user what feature/task they want to spec (if not provided as argument)
-2. Search `docs/plan/spec-*.md` for related active specs
-3. Search `docs/learned/*.md` for completed related work
+2. Search `plan/spec-*.md` for related active specs
+3. Search `plan/learned/*.md` for completed related work
 4. Check `.claude/INDEX.md` for relevant architecture docs
 5. Present:
    - Related specs found (if any)
@@ -163,9 +163,9 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
 
 ### Step 4: WRITE (Hard Gate)
 
-**Goal:** Produce the spec file using `docs/plan/TEMPLATE.md`.
+**Goal:** Produce the spec file using `plan/TEMPLATE.md`.
 
-1. Write (or update) spec at `docs/plan/spec-<name>.md` using template format
+1. Write (or update) spec at `plan/spec-<name>.md` using template format
 2. Fill all sections from research and design phases:
    - Required Reading with `→ Decision:` / `→ Constraint:` annotations
    - Current Behavior (from research)
@@ -198,7 +198,7 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
 6. Present spec to user for final review.
 7. **GATE:** ASK user: "Ready to save? The weakest part is [X] — should we strengthen it?"
    Iterate on feedback until approved.
-8. Save and `git add docs/plan/spec-<name>.md`
+8. Save and `git add plan/spec-<name>.md`
 
 ---
 

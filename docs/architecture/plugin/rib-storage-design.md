@@ -1,14 +1,14 @@
 # Plugin RIB Storage Design
 
 **Status:** Design Reference for API Programs
-**Location:** Derived from `docs/learned/059-spec-pool-handle-migration.md`
+**Location:** Derived from `plan/learned/059-spec-pool-handle-migration.md`
 
 This document describes the pool-based RIB storage design for API programs (plugins).
 The Ze engine does NOT implement this - it belongs in API programs like `ze plugin bgp-rs`.
 
 **See also:**
 - `docs/architecture/rib-transition.md` - Architecture overview
-- `docs/plan/spec-plugin-rs.md` - Route Server plugin spec
+- `plan/spec-plugin-rs.md` - Route Server plugin spec
 - `docs/architecture/pool-architecture.md` - Pool system design
 
 ---
@@ -1503,7 +1503,7 @@ RouteEntry {
 
 ### Phase 6 Implementation Plan
 
-See `docs/plan/spec-plugin-rib-pool-storage.md` § "Phase 6: Per-Attribute Deduplication" for:
+See `plan/spec-plugin-rib-pool-storage.md` § "Phase 6: Per-Attribute Deduplication" for:
 - Per-attribute pools (Origin, ASPath, LocalPref, MED, etc.)
 - RouteEntry struct with per-attr handles
 - Attribute parser using existing `AttrIterator`

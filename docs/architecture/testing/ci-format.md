@@ -596,4 +596,4 @@ expect=completion:contains=router-id,local-as,peer
 | Validation | `test/editor/validation/` | hold-time, peer-as |
 | Pipe | `test/editor/pipe/` | grep, head, tail |
 
-Full format specification: `docs/plan/spec-editor-testing-framework.md`
+Full format specification: `plan/spec-editor-testing-framework.md`

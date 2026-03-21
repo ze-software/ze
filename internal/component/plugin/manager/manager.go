@@ -1,5 +1,5 @@
-// Design: docs/plan/spec-arch-0-system-boundaries.md — PluginManager implementation
-// Design: docs/plan/spec-arch-3-plugin-manager.md — PluginManager spec
+// Design: plan/spec-arch-0-system-boundaries.md — PluginManager implementation
+// Design: plan/spec-arch-3-plugin-manager.md — PluginManager spec
 
 package plugin
 

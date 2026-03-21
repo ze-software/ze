@@ -518,7 +518,7 @@ Receive UPDATE → Assign msg-id → Cache WireUpdate → API event
 
 | Current Type | Status | Action |
 |--------------|--------|--------|
-| `message.Update` | Keep | Share parsing with WireUpdate via `wire.UpdateSections` (see `docs/plan/spec-update-shared-parsing.md`) |
+| `message.Update` | Keep | Share parsing with WireUpdate via `wire.UpdateSections` (see `plan/spec-update-shared-parsing.md`) |
 | `rib.Route` with parsed attrs | Refactor | `RouteEntry` with pool refs |
 | `plugin/rib.Route` (strings) | Remove | Use core RIB |
 | `plugin/rr.Route` | Remove | Use core RIB |

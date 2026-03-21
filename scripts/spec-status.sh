@@ -1,12 +1,12 @@
 #!/bin/bash
-# Generate spec status inventory from metadata in docs/plan/spec-*.md
+# Generate spec status inventory from metadata in plan/spec-*.md
 # Usage: scripts/spec-status.sh [--json]
 
 set -e
 
 cd "$(git rev-parse --show-toplevel 2>/dev/null || echo ".")"
 
-PLAN_DIR="docs/plan"
+PLAN_DIR="plan"
 JSON_MODE=false
 [[ "${1:-}" == "--json" ]] && JSON_MODE=true
 

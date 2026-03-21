@@ -5,13 +5,13 @@ Rationale: `.claude/rationale/implementation-audit.md`
 
 ## When
 
-Before: writing summary to `docs/learned/`, claiming "done", asking to commit.
+Before: writing summary to `plan/learned/`, claiming "done", asking to commit.
 
 ## Process
 
 1. Extract all requirements from spec: task items, AC-N assertions, TDD tests, files listed
 2. Verify each with status: ✅ Done (file:line), ⚠️ Partial, ❌ Skipped, 🔄 Changed
-3. Fill audit table in spec (template in `docs/plan/TEMPLATE.md`)
+3. Fill audit table in spec (template in `plan/TEMPLATE.md`)
 
 ## Approval Required
 

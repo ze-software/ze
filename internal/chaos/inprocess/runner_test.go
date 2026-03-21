@@ -413,7 +413,7 @@ func TestInProcessDeterminism(t *testing.T) {
 //
 // NOTE: Uses RouteCount=0 because RouteConsistency and ConvergenceDeadline
 // require RR route forwarding, which is blocked by pre-existing RR format
-// mismatch (see docs/plan/spec-rr-event-format.md).
+// mismatch (see plan/spec-rr-event-format.md).
 func TestInProcessProperties(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")

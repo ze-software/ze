@@ -349,7 +349,7 @@ peer.sendUpdateWithSplit(update, maxSize, family)
 > **Wire-Level Split (Implemented)**
 >
 > Forward path uses `SplitUpdate()` for oversized UPDATEs when forwarding
-> to non-Extended Message peers. See `docs/learned/078-wireupdate-split.md`.
+> to non-Extended Message peers. See `plan/learned/078-wireupdate-split.md`.
 
 **Files involved:**
 - `internal/component/bgp/message/update_split.go` - `SplitUpdate()`, `SplitUpdateWithAddPath()`
@@ -380,10 +380,10 @@ peer.sendUpdateWithSplit(update, maxSize, family)
 
 ## Related Specs
 
-- `docs/learned/057-spec-attributes-wire.md` - Lazy-parsed wire attribute storage (forward path)
-- `docs/learned/059-spec-pool-handle-migration.md` - Pool handle integration (completed)
-- `docs/learned/343-wireupdate-buffer-lifecycle.md` - Buffer pool get/return lifecycle (completed)
-- `docs/learned/078-wireupdate-split.md` - Wire-level UPDATE splitting (completed)
+- `plan/learned/057-spec-attributes-wire.md` - Lazy-parsed wire attribute storage (forward path)
+- `plan/learned/059-spec-pool-handle-migration.md` - Pool handle integration (completed)
+- `plan/learned/343-wireupdate-buffer-lifecycle.md` - Buffer pool get/return lifecycle (completed)
+- `plan/learned/078-wireupdate-split.md` - Wire-level UPDATE splitting (completed)
 
 ---
 

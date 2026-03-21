@@ -17,11 +17,11 @@ fi
 
 # Selected spec - with READ reminder
 SELECTED_SPEC=$(grep -v '^#' .claude/selected-spec 2>/dev/null | grep -v '^$' | head -1)
-SPEC_COUNT=$(find docs/plan -maxdepth 1 -name "spec-*.md" 2>/dev/null | wc -l | tr -d ' ')
+SPEC_COUNT=$(find plan -maxdepth 1 -name "spec-*.md" 2>/dev/null | wc -l | tr -d ' ')
 
-if [ -n "$SELECTED_SPEC" ] && [ -f "docs/plan/$SELECTED_SPEC" ]; then
+if [ -n "$SELECTED_SPEC" ] && [ -f "plan/$SELECTED_SPEC" ]; then
     echo "🎯 SPEC: $SELECTED_SPEC (+$((SPEC_COUNT-1)) others)"
-    echo "   → READ docs/plan/$SELECTED_SPEC BEFORE any work"
+    echo "   → READ plan/$SELECTED_SPEC BEFORE any work"
 elif [ "$SPEC_COUNT" -gt 0 ]; then
     echo "📋 ${SPEC_COUNT} specs, none selected"
 fi
@@ -30,7 +30,7 @@ fi
 if [ "$SPEC_COUNT" -gt 0 ]; then
     COUNTS=""
     for status in in-progress ready design skeleton blocked deferred; do
-        N=$(grep -l "| Status | *${status}" docs/plan/spec-*.md 2>/dev/null | wc -l | tr -d ' ')
+        N=$(grep -l "| Status | *${status}" plan/spec-*.md 2>/dev/null | wc -l | tr -d ' ')
         [ "$N" -gt 0 ] && COUNTS="${COUNTS:+$COUNTS, }${N} ${status}"
     done
     [ -n "$COUNTS" ] && echo "   ($COUNTS)"

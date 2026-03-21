@@ -32,7 +32,7 @@ Default 15000ms. Longer only for `make ze-verify`, `make ze-unit-test`.
 `auto_linter.sh` runs goimports on Edit/Write. Add import + usage in same edit to avoid cascading removals.
 
 ### Architecture Restructuring (arch-0)
-Umbrella spec: `docs/plan/spec-arch-0-system-boundaries.md`. Six phases.
+Umbrella spec: `plan/spec-arch-0-system-boundaries.md`. Six phases.
 Key decisions agreed with user:
 - **5 components:** Engine (supervisor), Bus (content-agnostic pub/sub), ConfigProvider, PluginManager, Subsystem
 - **Subsystem ≠ Plugin:** BGP daemon is a subsystem (owns TCP/FSM), bgp-rib/rs/gr are plugins

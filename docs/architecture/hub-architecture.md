@@ -963,7 +963,7 @@ bgp {
 
 ## Migration Path
 
-**See [`docs/plan/hub-separation-phases.md`](../plan/hub-separation-phases.md) for detailed phase breakdown.**
+**See [`plan/hub-separation-phases.md`](../../plan/hub-separation-phases.md) for detailed phase breakdown.**
 
 ### Dependency Diagram
 
@@ -1033,8 +1033,8 @@ Phase 1: Hub Foundation ──────► Phase 2: Config Parsing
 
 ### Implementation
 
-- [Unified Subsystem Protocol](../plan/done/149-unified-subsystem-protocol.md) - Completed spec for subsystem infrastructure
-- [Pipe-Based Subsystems](../plan/spec-pipe-subsystems.md) - Spec for forked process subsystems
+- [Unified Subsystem Protocol](../../plan/done/149-unified-subsystem-protocol.md) - Completed spec for subsystem infrastructure
+- [Pipe-Based Subsystems](../../plan/spec-pipe-subsystems.md) - Spec for forked process subsystems
 
 ### Source Code
 

@@ -1,4 +1,4 @@
-// Design: docs/plan/spec-arch-0-system-boundaries.md — PluginManager interface
+// Design: plan/spec-arch-0-system-boundaries.md — PluginManager interface
 
 package ze
 

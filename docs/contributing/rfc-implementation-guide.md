@@ -60,7 +60,7 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 0.4 Spec Creation
 
 ```
-[ ] Create spec: docs/plan/spec-rfcNNNN-<feature>.md
+[ ] Create spec: plan/spec-rfcNNNN-<feature>.md
 [ ] Fill Required Reading section with identified docs
 [ ] git add the spec immediately
 ```
@@ -526,7 +526,7 @@ Before marking implementation complete:
 [ ] No backwards-compatibility shims (Ze rule)
 [ ] No version numbers in config (Ze rule)
 [ ] Architecture docs updated
-[ ] Write learned summary to docs/learned/NNN-<name>.md
+[ ] Write learned summary to plan/learned/NNN-<name>.md
 [ ] All changes in single commit
 ```
 

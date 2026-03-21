@@ -1,5 +1,5 @@
-// Design: docs/plan/spec-arch-0-system-boundaries.md — Bus implementation
-// Design: docs/plan/spec-arch-2-bus.md — Bus spec
+// Design: plan/spec-arch-0-system-boundaries.md — Bus implementation
+// Design: plan/spec-arch-2-bus.md — Bus spec
 
 package bus
 

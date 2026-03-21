@@ -4,7 +4,7 @@ Audit the current codebase against the selected spec BEFORE any implementation b
 
 ## Steps
 
-1. **Read the spec:** Read `.claude/selected-spec`, then read `docs/plan/<spec-name>`
+1. **Read the spec:** Read `.claude/selected-spec`, then read `plan/<spec-name>`
 2. **Extract all requirements:** List every item from:
    - Task section (features/requirements)
    - TDD Test Plan (unit + functional tests)

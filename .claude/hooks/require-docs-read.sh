@@ -14,7 +14,7 @@ if [[ "$TOOL_NAME" != "Write" ]]; then
     exit 0
 fi
 
-if [[ ! "$FILE_PATH" =~ docs/plan/spec-.*\.md$ ]]; then
+if [[ ! "$FILE_PATH" =~ plan/spec-.*\.md$ ]]; then
     exit 0
 fi
 

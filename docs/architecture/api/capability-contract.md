@@ -28,7 +28,7 @@
 | **Cache Control** | API retains cache entries for replay, releases when done |
 | **Fail-fast** | GR/RR configured without capable API = refuse to start |
 
-**Full spec:** `docs/learned/172-api-capability-contract.md`
+**Full spec:** `plan/learned/172-api-capability-contract.md`
 
 ---
 
@@ -198,7 +198,7 @@ When `encoding json`:
 | `ze plugin rr` | Route Server (multi-peer) | ribIn (routes FROM peers) |
 | `ze plugin rib` | Full RIB (Adj-RIB-In/Out) | Both ribIn and ribOut |
 
-See `docs/plan/spec-api-rr.md` for implementation details.
+See `plan/spec-api-rr.md` for implementation details.
 
 ---
 

@@ -21,4 +21,4 @@ Go compiles all files in a package as a single unit. There is zero semantic diff
 
 ## Prior Art
 
-`docs/learned/221-file-splitting.md` — first round split 4 files (bgp.go, model.go + their tests). Validated the approach: all tests pass, auto-linter handles imports, no behavioral changes.
+`plan/learned/221-file-splitting.md` — first round split 4 files (bgp.go, model.go + their tests). Validated the approach: all tests pass, auto-linter handles imports, no behavioral changes.

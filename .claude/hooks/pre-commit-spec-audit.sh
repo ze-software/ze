@@ -35,7 +35,7 @@ if [[ -z "$SPEC_NAME" ]]; then
     exit 0
 fi
 
-SPEC_FILE="docs/plan/$SPEC_NAME"
+SPEC_FILE="plan/$SPEC_NAME"
 if [[ ! -f "$SPEC_FILE" ]]; then
     # Spec file doesn't exist (already deleted/moved) — skip
     exit 0
@@ -182,10 +182,10 @@ fi
 
 # === CHECK 8: Learned summary exists and is accurate ===
 SPEC_BASENAME=$(basename "$SPEC_FILE" .md | sed 's/^spec-//')
-LEARNED_FILE=$(ls docs/learned/*-${SPEC_BASENAME}*.md 2>/dev/null | head -1)
+LEARNED_FILE=$(ls plan/learned/*-${SPEC_BASENAME}*.md 2>/dev/null | head -1)
 
 if [[ -z "$LEARNED_FILE" ]]; then
-    ERRORS+=("No learned summary for '$SPEC_BASENAME' in docs/learned/")
+    ERRORS+=("No learned summary for '$SPEC_BASENAME' in plan/learned/")
 elif grep -qiE 'not yet implemented|not wired|infrastructure only|library only|not yet wired|wiring not.*implemented' "$LEARNED_FILE"; then
     ERRORS+=("Learned summary '$LEARNED_FILE' says work is incomplete — fix or finish the work")
 fi

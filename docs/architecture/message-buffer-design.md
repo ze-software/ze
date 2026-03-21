@@ -497,8 +497,8 @@ func (p *Peer) writeLoop() {
 
 ## Related Specs
 
-- `docs/plan/spec-wireupdate-buffer-lifecycle.md` - Buffer pool get/return lifecycle (current impl)
-- `docs/plan/spec-wireupdate-split.md` - Wire-level UPDATE splitting (TODO)
+- `plan/spec-wireupdate-buffer-lifecycle.md` - Buffer pool get/return lifecycle (current impl)
+- `plan/spec-wireupdate-split.md` - Wire-level UPDATE splitting (TODO)
 
 ---
 

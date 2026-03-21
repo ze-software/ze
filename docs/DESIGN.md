@@ -763,8 +763,8 @@ pkg/plugin/rpc/                      Shared RPC types + MuxConn
 pkg/zefs/                            ZeFS blob store library
 test/                                Functional tests (.ci files)
 docs/architecture/                   Architecture deep-dives
-docs/plan/                           Active specs
-docs/learned/                        Completed spec summaries
+plan/                                Active specs
+plan/learned/                        Completed spec summaries
 rfc/short/                           RFC summaries
 rfc/full/                            Full RFC text
 ```

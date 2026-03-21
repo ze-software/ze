@@ -49,7 +49,7 @@ A wiring test proves the feature is reachable from its intended entry point (con
 
 **If the wiring test cannot be written, the feature is not done — it is blocked.**
 
-Every spec MUST have a `## Wiring Test` table (see `docs/plan/TEMPLATE.md`). Every row for a user-facing feature must name a `.ci` test file. The `validate-spec.sh` hook enforces this mechanically (exit 2).
+Every spec MUST have a `## Wiring Test` table (see `plan/TEMPLATE.md`). Every row for a user-facing feature must name a `.ci` test file. The `validate-spec.sh` hook enforces this mechanically (exit 2).
 
 ## Production Path Verification (BLOCKING)
 

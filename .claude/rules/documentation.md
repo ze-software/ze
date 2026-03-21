@@ -29,8 +29,8 @@ Rationale: `.claude/rationale/documentation.md`
 | API docs | `docs/architecture/api/` |
 | Config docs | `docs/architecture/config/` |
 | RFC summaries | `rfc/short/` |
-| Active specs | `docs/plan/` |
-| Learned summaries | `docs/learned/` |
+| Active specs | `plan/` |
+| Learned summaries | `plan/learned/` |
 
 ## Single Source of Truth
 

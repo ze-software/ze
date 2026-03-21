@@ -5,11 +5,11 @@ Rationale: `.claude/rationale/planning.md`
 
 ## Spec Selection
 
-One spec at a time. Tracked in `.claude/selected-spec` (filename only). Clear after writing summary to `docs/learned/`.
+One spec at a time. Tracked in `.claude/selected-spec` (filename only). Clear after writing summary to `plan/learned/`.
 
 ## Plan File Location
 
-Write plan files to project `.claude/plan/ze-plan-<name>`, NOT `~/.claude/plan`. Hook `block-claude-plans.sh` enforces this. Prefer writing a spec (`docs/plan/spec-<task>.md`) over a plan file.
+Write plan files to project `.claude/plan/ze-plan-<name>`, NOT `~/.claude/plan`. Hook `block-claude-plans.sh` enforces this. Prefer writing a spec (`plan/spec-<task>.md`) over a plan file.
 
 ## Pre-Implementation
 
@@ -17,9 +17,9 @@ Write plan files to project `.claude/plan/ze-plan-<name>`, NOT `~/.claude/plan`.
 ── RESEARCH ── (read, search, understand — no code)
    Gate: Name 3 related files + describe current behavior.
 
-[ ] 1. Check existing spec: docs/plan/spec-<task>.md
+[ ] 1. Check existing spec: plan/spec-<task>.md
 [ ] 2. Read .claude/INDEX.md for doc navigation
-[ ] 3. Scan docs/plan/spec-*.md for related specs
+[ ] 3. Scan plan/spec-*.md for related specs
 [ ] 4. Match keywords → docs (INDEX.md tables)
 [ ] 5. Read identified architecture docs
 [ ] 6. RFC check: verify rfc/short/rfcNNNN.md exists; create if missing
@@ -32,8 +32,8 @@ Write plan files to project `.claude/plan/ze-plan-<name>`, NOT `~/.claude/plan`.
 [ ] 10. Document existing behavior (preserve unless user says change)
 [ ] 11. TDD planning — identify tests BEFORE implementation
 [ ] 12. Present plan — WAIT for approval
-[ ] 13. Write spec using docs/plan/TEMPLATE.md — complete Pre-Spec Verification first
-[ ] 14. git add docs/plan/spec-<task>.md
+[ ] 13. Write spec using plan/TEMPLATE.md — complete Pre-Spec Verification first
+[ ] 14. git add plan/spec-<task>.md
 
 ── IMPLEMENT ── (TDD cycle)
 [ ] 15. Test fails → implement → test passes. Log mistakes immediately.
@@ -64,7 +64,7 @@ When multiple specs form a related set (umbrella + child specs), use a shared pr
 | Naming | `spec-<prefix>-<N>-<name>.md` |
 | Umbrella | `spec-utp-0-umbrella.md` |
 | Children | `spec-utp-1-event-format.md`, `spec-utp-2-command-format.md` |
-| Done path | `docs/learned/NNN-<prefix>-<N>-<name>.md` |
+| Done path | `plan/learned/NNN-<prefix>-<N>-<name>.md` |
 
 - **Prefix:** short mnemonic for the effort (e.g., `utp` = unified text protocol)
 - **Number:** 0 = umbrella, 1+ = children in execution order
@@ -127,7 +127,7 @@ Every spec MUST have a metadata table immediately after the `# Spec:` title. Thi
 
 ## Retroactive Specs
 
-If a spec describes work that is **already implemented**, run the full Completion Checklist immediately — audit, write summary to `docs/learned/`, include in the same commit as the code. Never commit a spec in `docs/plan/` for work that's already done.
+If a spec describes work that is **already implemented**, run the full Completion Checklist immediately — audit, write summary to `plan/learned/`, include in the same commit as the code. Never commit a spec in `plan/` for work that's already done.
 
 ## Completion Checklist
 
@@ -155,7 +155,7 @@ If a spec describes work that is **already implemented**, run the full Completio
 [ ] 6. Critical Review (BLOCKING — rules/quality.md)
 [ ] 7. Review Mistake Log — check MEMORY.md, promote if seen before
 [ ] 8. Update spec — Implementation Summary, Documentation Updates, Deviations
-[ ] 9. Write learned summary: docs/learned/NNN-<name>.md (see docs/plan/TEMPLATE.md for summary format)
+[ ] 9. Write learned summary: plan/learned/NNN-<name>.md (see plan/TEMPLATE.md for summary format)
 [ ] 10. Verify: `make ze-verify` + git status + git diff, no unintended changes
 [ ] 11. Executive Summary Report — present to user BEFORE asking to commit
 [ ] 12. Commit (when user approves) — ALL files in ONE commit
@@ -240,13 +240,13 @@ If the receiving spec does not exist: either do the work now, or create the rece
 
 ## Writing Learned Summaries
 
-When a spec is complete, write a concise summary to `docs/learned/` using the next available number:
+When a spec is complete, write a concise summary to `plan/learned/` using the next available number:
 
 ```bash
-LAST=`command ls -1 docs/learned/ 2>/dev/null | sort -n | tail -1 | cut -c1-3`
+LAST=`command ls -1 plan/learned/ 2>/dev/null | sort -n | tail -1 | cut -c1-3`
 test -z "$LAST" && LAST=0
 NEXT=`printf "%03d" \`expr $LAST + 1\``
-# Write summary to docs/learned/${NEXT}-<name>.md (see TEMPLATE.md for format)
+# Write summary to plan/learned/${NEXT}-<name>.md (see TEMPLATE.md for format)
 ```
 
 The summary (~20-30 lines) uses this fixed 5-section format:
@@ -262,5 +262,5 @@ The summary (~20-30 lines) uses this fixed 5-section format:
 
 Quality check: "If I deleted this entry, would a future session miss something that code alone cannot tell them?"
 Source: extract from Implementation Summary, Design Insights, Mistake Log, and Deviations sections of the spec.
-The original spec file in `docs/plan/` is deleted after the summary is written.
+The original spec file in `plan/` is deleted after the summary is written.
 Include the summary in the same commit as code changes.

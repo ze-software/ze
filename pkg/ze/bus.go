@@ -1,4 +1,4 @@
-// Design: docs/plan/spec-arch-0-system-boundaries.md — Bus interface and event types
+// Design: plan/spec-arch-0-system-boundaries.md — Bus interface and event types
 
 // Package ze defines the boundary interfaces for Ze's architecture.
 //

@@ -15,9 +15,9 @@
 | Phase 3 | ✅ Done | Direct formatting functions (FormatPrefixFromBytes, FormatASPathJSON, etc.) |
 | Phase 4 | ✅ Done | RIB migration (Route.AttrIterator, Route.ASPathIterator) |
 | Phase 5 | ✅ Done | Deprecate parsed types (PathAttributes, RouteUpdate, UpdateInfo) |
-| Phase 6 | ✅ Done | RouteJSON, Builder done; PathAttributes removed (see `docs/learned/105-pathattributes-removal.md`) |
+| Phase 6 | ✅ Done | RouteJSON, Builder done; PathAttributes removed (see `plan/learned/105-pathattributes-removal.md`) |
 
-See `docs/learned/102-buffer-first-migration.md` for detailed implementation plan.
+See `plan/learned/102-buffer-first-migration.md` for detailed implementation plan.
 
 ---
 
@@ -425,7 +425,7 @@ Once all consumers migrated:
 - `docs/architecture/encoding-context.md` - Context-dependent encoding
 - `docs/architecture/update-building.md` - Wire format construction
 - `docs/architecture/rib-transition.md` - RIB ownership model
-- `docs/plan/spec-buffer-first-migration.md` - Implementation spec
+- `plan/spec-buffer-first-migration.md` - Implementation spec
 
 ---
 

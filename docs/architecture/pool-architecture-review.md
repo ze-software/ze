@@ -432,7 +432,7 @@ for _, c := range nlriPool.Release(h) {
 - [ ] Consider cross-pool release refactoring (Issue #9)
 - [ ] Consider pool sharding (Issue #10)
 
-**Detailed plan:** `docs/plan/wip-pool-completion.md`
+**Detailed plan:** `plan/wip-pool-completion.md`
 
 ---
 

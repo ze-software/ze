@@ -14,7 +14,7 @@
 
 Check off as you read:
 
-- [ ] Selected spec: `docs/plan/<spec-name>`
+- [ ] Selected spec: `plan/<spec-name>`
 - [ ] Spec's Required Reading docs (list from spec)
 - [ ] `.claude/rules/planning.md`
 - [ ] `.claude/rules/post-compaction.md`

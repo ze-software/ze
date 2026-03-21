@@ -179,7 +179,7 @@ peer <ip> delete         # Delete dynamic peer
 
 ### Cache Commands (Ze)
 
-> **Implementation spec:** `docs/learned/148-api-command-restructure-step-8.md`
+> **Implementation spec:** `plan/learned/148-api-command-restructure-step-8.md`
 
 ```
 bgp cache <id> forward <sel>    # Forward cached UPDATE to peers

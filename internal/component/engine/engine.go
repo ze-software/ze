@@ -1,5 +1,5 @@
-// Design: docs/plan/spec-arch-0-system-boundaries.md — Engine supervisor
-// Design: docs/plan/spec-arch-5-engine.md — Engine spec
+// Design: plan/spec-arch-0-system-boundaries.md — Engine supervisor
+// Design: plan/spec-arch-5-engine.md — Engine spec
 
 package engine
 

@@ -51,7 +51,7 @@ Architecture documentation is in `docs/architecture/`:
 ## Key Workflows
 
 ### Planning
-1. Write spec to `docs/plan/spec-<task>.md`
+1. Write spec to `plan/spec-<task>.md`
 2. Follow template in `.claude/rules/planning.md`
 3. Hook blocks writes to `.claude/plans/` (wrong location)
 

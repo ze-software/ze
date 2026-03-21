@@ -11,8 +11,8 @@ This folder is for Claude-specific documentation.
 | ExaBGP comparison | `docs/exabgp/` |
 | Claude rules | `.claude/rules/` |
 | Claude commands | `.claude/commands/` |
-| Implementation plans | `docs/plan/` |
-| Learned summaries | `docs/learned/` |
+| Implementation plans | `plan/` |
+| Learned summaries | `plan/learned/` |
 
 ## ExaBGP Reference
 

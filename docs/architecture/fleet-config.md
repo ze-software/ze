@@ -332,7 +332,7 @@ Priority: CLI flag > env var > config block > blob metadata.
 
 ## Implementation
 
-Reference spec: `docs/plan/spec-fleet-config.md`
+Reference spec: `plan/spec-fleet-config.md`
 
 | Package | Purpose |
 |---------|---------|

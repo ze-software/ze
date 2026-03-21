@@ -22,8 +22,8 @@ Post-commit: hash, file count, clean state confirmation.
 ```
 [ ] 1. Run `make ze-verify` — capture to tmp/ze-test.log. ANY failure: STOP.
 [ ] 2. Report test result: pass/fail. If failures: list every one. No omissions.
-[ ] 3. Spec completion gate — if work was driven by a spec in docs/plan/:
-      [ ] Learned summary written to docs/learned/NNN-<name>.md
+[ ] 3. Spec completion gate — if work was driven by a spec in plan/:
+      [ ] Learned summary written to plan/learned/NNN-<name>.md
       [ ] Spec file staged for deletion (git rm)
       [ ] Both included in THIS commit (one commit = code + tests + summary)
       If not done: STOP. Do it before proceeding to step 4.

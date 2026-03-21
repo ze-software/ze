@@ -39,14 +39,14 @@ Plugins: bgp-rib, bgp-rs, bgp-gr, bgp-role, bgp-nlri-*, ...
 | IPC/Hub | `internal/hub/`, `internal/ipc/` |
 | Tests | `test/` (.ci functional tests), `*_test.go` (unit) |
 | Architecture docs | `docs/architecture/` (→ see `.claude/INDEX.md` for navigation) |
-| Specs | `docs/plan/spec-*.md` (active), `docs/learned/` (summaries) |
+| Specs | `plan/spec-*.md` (active), `plan/learned/` (summaries) |
 | RFCs | `rfc/short/` (summaries), `rfc/full/` |
 
 ## Navigation
 
 Rules: `.claude/rules/` (auto-loaded). Rationale: `.claude/rationale/` (on-demand).
 Architecture + RFC navigation: `.claude/INDEX.md`.
-Spec template: `docs/plan/TEMPLATE.md`.
+Spec template: `plan/TEMPLATE.md`.
 
 ## Rules
 

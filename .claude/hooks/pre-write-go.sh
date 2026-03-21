@@ -40,7 +40,7 @@ fi
 
 # Check 2: If active spec, session state must confirm it was read
 if [[ -n "$SELECTED_SPEC" ]]; then
-    SPEC_PATH="docs/plan/$SELECTED_SPEC"
+    SPEC_PATH="plan/$SELECTED_SPEC"
     if [[ -f "$SPEC_PATH" ]]; then
         if [[ ! -f "$SESSION_STATE" ]] || ! grep -q "$SELECTED_SPEC" "$SESSION_STATE" 2>/dev/null; then
             ERRORS+=("Active spec '$SELECTED_SPEC' not confirmed read in session-state.md")

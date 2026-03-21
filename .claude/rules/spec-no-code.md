@@ -1,6 +1,6 @@
 ---
 paths:
-  - "docs/plan/spec-*.md"
+  - "plan/spec-*.md"
 ---
 
 # No Code in Specs

@@ -716,7 +716,7 @@ $ kill -TERM $(pgrep -f "ze config.conf")
 - [Hub Architecture](hub-architecture.md) - Hub mode internal design details
 - [Process Protocol](api/process-protocol.md) - 5-stage protocol specification
 - [YANG Config Design](config/yang-config-design.md) - Schema design
-- [Spec: Config Dispatch](../plan/spec-config-dispatch.md) - Mode selection by config content
+- [Spec: Config Dispatch](../../plan/spec-config-dispatch.md) - Mode selection by config content
 
 ---
 

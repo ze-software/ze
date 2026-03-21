@@ -16,7 +16,7 @@ fi
 if [[ "$FILE_PATH" =~ \.claude/plans/ ]]; then
     echo "❌ BLOCKED: Do not use .claude/plans/" >&2
     echo "" >&2
-    echo "Create spec at: docs/plan/spec-<task>.md" >&2
+    echo "Create spec at: plan/spec-<task>.md" >&2
     echo "Use template from: .claude/rules/planning.md" >&2
     exit 2  # BLOCKING
 fi
@@ -39,13 +39,13 @@ if [[ "$FILE_PATH" =~ \.claude/plan/ ]]; then
         echo "Use: \$CLAUDE_PROJECT_DIR/.claude/plan/ze-plan-<name>" >&2
         echo "" >&2
         echo "💡 Consider whether you should write a spec instead:" >&2
-        echo "   docs/plan/spec-<task>.md (template: docs/plan/TEMPLATE.md)" >&2
+        echo "   plan/spec-<task>.md (template: plan/TEMPLATE.md)" >&2
         exit 2  # BLOCKING
     fi
 fi
 
-# Check if writing to docs/plan/spec-*.md - REMIND about required reading
-if [[ "$FILE_PATH" =~ docs/plan/spec-.*\.md ]]; then
+# Check if writing to plan/spec-*.md - REMIND about required reading
+if [[ "$FILE_PATH" =~ plan/spec-.*\.md ]]; then
     echo "📚 REQUIRED READING before writing spec:" >&2
     echo "" >&2
     echo "1. Re-read .claude/rules/planning.md (has keyword→doc mapping)" >&2
