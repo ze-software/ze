@@ -53,7 +53,7 @@ Spec template: `docs/plan/TEMPLATE.md`.
 | Category | Rules |
 |----------|-------|
 | **Session** | `session-start.md`, `post-compaction.md`, `before-writing-code.md` |
-| **Code Quality** | `tdd.md`, `go-standards.md`, `quality.md`, `design-principles.md`, `anti-rationalization.md`, `goroutine-lifecycle.md`, `file-modularity.md` |
+| **Code Quality** | `tdd.md`, `go-standards.md`, `quality.md`, `design-principles.md`, `anti-rationalization.md`, `goroutine-lifecycle.md`, `file-modularity.md`, `api-contracts.md` |
 | **BGP Protocol** | `rfc-compliance.md`, `buffer-first.md`, `json-format.md`, `architecture-summary.md` |
 | **Planning** | `planning.md`, `spec-no-code.md`, `spec-preservation.md`, `implementation-audit.md`, `integration-completeness.md`, `data-flow-tracing.md` |
 | **Infrastructure** | `plugin-design.md`, `cli-patterns.md`, `config-design.md`, `naming.md` |
