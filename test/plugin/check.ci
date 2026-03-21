@@ -59,7 +59,7 @@ def main() -> None:
     # Wait for UPDATE event from peer (default route)
     # Subscription events are delivered in JSON format
     start_time = time.time()
-    while time.time() - start_time < 5:
+    while time.time() - start_time < 8:
         line = api.read_line(0.5)
         if line is None:
             continue

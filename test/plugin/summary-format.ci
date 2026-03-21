@@ -49,7 +49,7 @@ def main() -> None:
 
     # Wait for UPDATE event (default route from ze-peer)
     start_time = time.time()
-    while time.time() - start_time < 5:
+    while time.time() - start_time < 8:
         line = api.read_line(0.5)
         if line is None:
             continue
