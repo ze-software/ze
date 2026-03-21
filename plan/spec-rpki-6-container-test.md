@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Depends | spec-rpki-5-wiring |
+| Depends | - |
 | Phase | - |
 | Updated | 2026-03-18 |
 

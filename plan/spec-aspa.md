@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | skeleton |
-| Depends | spec-rpki-0-umbrella |
+| Depends | - |
 | Phase | - |
 | Updated | 2026-03-21 |
 
