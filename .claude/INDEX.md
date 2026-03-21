@@ -10,6 +10,7 @@
 | Wire formats | `docs/architecture/wire/messages.md` |
 | NLRI types | `docs/architecture/wire/nlri.md` |
 | Attributes | `docs/architecture/wire/attributes.md` |
+| BGP-LS attr naming | `docs/architecture/wire/bgpls-attribute-naming.md` |
 | Capabilities | `docs/architecture/wire/capabilities.md` |
 | UPDATE building | `docs/architecture/update-building.md` |
 | Memory pools | `docs/architecture/pool-architecture.md` |
@@ -53,7 +54,7 @@
 | FlowSpec | `wire/nlri.md`, `wire/nlri-flowspec.md` |
 | VPN, L3VPN, MPLS-VPN, 6PE | `wire/nlri.md` |
 | EVPN, MAC-IP | `wire/nlri.md`, `wire/nlri-evpn.md` |
-| BGP-LS, link-state | `wire/nlri-bgpls.md` |
+| BGP-LS, link-state | `wire/nlri-bgpls.md`, `wire/bgpls-attribute-naming.md` |
 | ExaBGP | `exabgp/exabgp-code-map.md`, `exabgp/exabgp-differences.md` |
 | ASN4, AS4 | `edge-cases/as4.md` |
 | ADD-PATH | `edge-cases/addpath.md` |
