@@ -39,7 +39,7 @@ def main():
     api.wait_for_registry()
 
     # Subscribe to update-rpki events (produced by decorator)
-    api.subscribe(['update-rpki direction received'])
+    # Events delivered via config: receive [ update-rpki ]
     api.ready()
 
     # Wait for RTR sync + BGP UPDATE + rpki validation + decorator merge
@@ -74,10 +74,14 @@ def main():
         for evt in events:
             bgp = evt.get('bgp', {})
 
-            # Must have update section (from primary UPDATE event)
+            # Must have update section with actual route data (from primary UPDATE event)
             update = bgp.get('update')
-            if update is None:
-                print(f'FAIL: update-rpki event missing update section: {json.dumps(evt)}', file=sys.stderr)
+            if not isinstance(update, dict) or len(update) == 0:
+                print(f'FAIL: update-rpki event missing or empty update section: {json.dumps(evt)}', file=sys.stderr)
+                sys.exit(1)
+            # Verify update contains attributes (origin, as-path, etc.)
+            if 'attr' not in update:
+                print(f'FAIL: update section missing attr key: {json.dumps(update)}', file=sys.stderr)
                 sys.exit(1)
 
             # Must have message type = update-rpki
@@ -110,12 +114,19 @@ def main():
         if found_notfound:
             results.append('not-found')
 
+        # Require all three validation states
+        missing = []
         if not found_valid:
-            print(f'FAIL: no valid state for 9.0.1.0/24 in {len(events)} events', file=sys.stderr)
+            missing.append('valid (9.0.1.0/24)')
+        if not found_invalid:
+            missing.append('invalid (10.0.1.0/24)')
+        if not found_notfound:
+            missing.append('not-found (11.0.1.0/24)')
+        if missing:
+            print(f'FAIL: missing states: {", ".join(missing)} in {len(events)} events', file=sys.stderr)
             sys.exit(1)
 
-        # Invalid and NotFound may arrive depending on timing
-        print(f'OK: update-rpki events received with states: {", ".join(results)} ({len(events)} events)', file=sys.stderr)
+        print(f'OK: all 3 validation states found in {len(events)} update-rpki events', file=sys.stderr)
 
     finally:
         dispatch(api, 'daemon shutdown')
@@ -187,7 +198,7 @@ bgp {
 			receive [ update ]
 		}
 		process rpki-decorator {
-			receive [ update ]
+			receive [ update rpki ]
 		}
 		process adj-rib-in {
 			receive [ update state ]
