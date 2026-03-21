@@ -134,9 +134,9 @@ If a spec describes work that is **already implemented**, run the full Completio
 **BLOCKING:** After all tests pass, complete IN ORDER:
 
 ```
-[ ] 1. Architecture docs — check Post-Implementation Updates table below.
-      If code changed documented behavior, docs MUST match. Not optional.
-      Route: subsystem → arch doc, process → rules, knowledge → memory.md
+[ ] 1. Documentation updates — check Documentation Update Checklist below.
+      Every question must be answered Yes/No. Every Yes requires a file path.
+      BLOCKING: code that changes documented behavior without updating docs is not done.
 [ ] 2. Dead code check — search unused functions/types, ASK before removing
 [ ] 3. File modularity check — for each modified .go file:
       Line count: >600 → review concerns, >1000 → split (rules/file-modularity.md)
@@ -221,22 +221,27 @@ If the receiving spec does not exist: either do the work now, or create the rece
 | Risks & observations | Things that might bite later: new coupling, stale references elsewhere, edge cases not covered, follow-up work needed. |
 | Verification | What was run, what passed. Not "make ze-test passes" but actual output or specific test names. |
 
-## Post-Implementation Updates
+## Documentation Update Checklist (BLOCKING)
 
-| Changed | Update |
-|---------|--------|
-| Config schema | `docs/architecture/config/syntax.md` |
-| Wire format | `docs/architecture/wire/messages.md`, `attributes.md` |
-| NLRI types | `docs/architecture/wire/nlri.md` |
-| Capabilities | `docs/architecture/wire/capabilities.md` |
-| UPDATE building | `docs/architecture/update-building.md` |
-| Pool/memory | `docs/architecture/pool-architecture.md` |
-| API commands | `docs/architecture/api/architecture.md` |
-| RPCs (plugin↔engine) | YANG schema + RPC count in arch docs |
-| RPCs (user-facing) | YANG domain schema + handler registration |
-| CLI commands/flags | `cmd/ze/` dispatch + usage + commands.md |
-| Plugin SDK methods | `.claude/rules/plugin-design.md` SDK tables |
-| Test format (.ci) | `docs/functional-tests.md`, `docs/architecture/testing/ci-format.md` |
+**Every row must be answered Yes or No.** Every Yes must name the file to update.
+"Update the docs" is not an answer. Name the specific file and what to add.
+
+| # | Question | If Yes, update | Examples |
+|---|----------|---------------|----------|
+| 1 | Does this add a user-facing feature? | `docs/features.md` | New plugin, new config option, new CLI command |
+| 2 | Does this change how users configure ze? | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` | New config key, changed syntax, new enum value |
+| 3 | Does this add or change a CLI command? | `docs/guide/command-reference.md`, `docs/guide/cli.md` | New subcommand, new flag, changed output |
+| 4 | Does this add or change an API/RPC? | `docs/architecture/api/commands.md`, `docs/architecture/api/architecture.md` | New RPC, changed params, new event type |
+| 5 | Does this add or change a plugin? | `docs/guide/plugins.md`, `docs/plugin-development/` | New plugin, changed SDK, new registration field |
+| 6 | Does this have a user guide page? | `docs/guide/<topic>.md` | rpki.md, graceful-restart.md, monitoring.md |
+| 7 | Does this change wire format or attributes? | `docs/architecture/wire/messages.md`, `attributes.md`, `nlri.md` | New attribute, changed encoding, new NLRI type |
+| 8 | Does this change the plugin SDK or protocol? | `.claude/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` | New Registration field, new RPC, changed startup |
+| 9 | Does this implement or change RFC behavior? | `rfc/short/rfcNNNN.md`, `docs/architecture/rfc-may-decisions.md` | New RFC support, changed compliance |
+| 10 | Does this change test infrastructure? | `docs/functional-tests.md`, `docs/architecture/testing/ci-format.md` | New test tool, new .ci syntax, new test pattern |
+| 11 | Does this affect ze vs other daemons comparison? | `docs/comparison.md` | Feature parity change (RPKI, GR, etc.) |
+| 12 | Does this change internal architecture? | `docs/architecture/core-design.md` or relevant subsystem doc | Event delivery, plugin lifecycle, config pipeline |
+
+Route for non-doc updates: process rules go to `.claude/rules/`, session knowledge to `memory.md`.
 
 ## Writing Learned Summaries
 

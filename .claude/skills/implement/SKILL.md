@@ -13,6 +13,7 @@ Implement the selected spec end-to-end with built-in review loops.
 | 5. Critical review | **Critical Review Checklist** (feature-specific checks) |
 | 9. Deliverables review | **Deliverables Checklist** (verification methods per deliverable) |
 | 10. Security review | **Security Review Checklist** (feature-specific concerns) |
+| 12. Documentation review | **Documentation Update Checklist** (per-category doc updates) |
 
 ## Steps
 
@@ -52,11 +53,17 @@ Implement the selected spec end-to-end with built-in review loops.
       - Any OWASP Top 10 relevant to the code's context
     - Fix every issue found. If a fix requires design changes, present to user before proceeding.
 11. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
-12. **Present summary:** List all changes made (files modified/created, tests added, issues found and fixed). Ask user to commit.
+12. **Documentation review (BLOCKING):** Use the spec's **Documentation Update Checklist** table. For each row:
+    - Answer Yes or No. Every Yes MUST name the file and describe the update needed.
+    - Do NOT say "update the docs." Name the specific file, the specific section, and what to add.
+    - Categories: feature list, user guide, config syntax, CLI reference, API/RPC docs, plugin SDK, wire format, RFC compliance, comparison table, test infrastructure, architecture design.
+    - If the spec has no Documentation Update Checklist, use `rules/planning.md` "Documentation Update Checklist" as the reference and fill it for the spec.
+    - Write the doc updates. Include them in the commit.
+13. **Present summary:** List all changes made (files modified/created, tests added, docs updated, issues found and fixed). Ask user to commit.
 
 ## Rules
 
 - Do NOT skip the audit step -- re-implementing existing code wastes time
 - Do NOT mark items as deferred/external without asking the user
 - If stuck after 2 review passes, list remaining issues and ask for guidance instead of looping
-- If the spec is missing a **Critical Review Checklist**, **Deliverables Checklist**, or **Security Review Checklist**, STOP and inform the user that the spec needs updating before implementation can proceed
+- If the spec is missing a **Critical Review Checklist**, **Deliverables Checklist**, **Security Review Checklist**, or **Documentation Update Checklist**, STOP and inform the user that the spec needs updating before implementation can proceed
