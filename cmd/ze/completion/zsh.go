@@ -18,7 +18,6 @@ _ze() {
         'bgp:BGP protocol tools (decode, encode)'
         'config:Configuration management'
         'cli:Interactive CLI for running daemons'
-        'validate:Validate configuration file'
         'schema:Schema discovery'
         'show:Show daemon state (read-only commands)'
         'run:Execute daemon command (all commands)'
@@ -67,7 +66,7 @@ _ze() {
                     local -a config_commands
                     config_commands=(
                         'edit:Interactive configuration editor'
-                        'check:Check config status'
+                        'validate:Validate configuration file'
                         'migrate:Convert configuration to current format'
                         'fmt:Format and normalize configuration file'
                         'dump:Dump parsed configuration'
@@ -90,9 +89,6 @@ _ze() {
                         )
                         _describe 'cli command' cli_commands
                     fi
-                    ;;
-                validate)
-                    _files -g '*.conf'
                     ;;
                 schema)
                     local -a schema_commands
@@ -172,7 +168,7 @@ _ze() {
                 completion)
                     if (( CURRENT == 2 )); then
                         local -a shells
-                        shells=(bash zsh fish)
+                        shells=(bash zsh fish nushell)
                         _describe 'shell' shells
                     fi
                     ;;

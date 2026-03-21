@@ -166,9 +166,8 @@ External processes receive BGP events and send commands:
 
 | Command | Description |
 |---------|-------------|
-| `ze validate <file>` | Validate configuration file |
+| `ze config validate <file>` | Validate configuration file |
 | `ze config edit` | Interactive configuration editor |
-| `ze config check` | Check config for deprecated patterns |
 | `ze config migrate` | Convert ExaBGP config to ze format |
 | `ze config fmt` | Format and normalize config file |
 | `ze config dump` | Dump parsed configuration tree |
@@ -213,7 +212,7 @@ External processes receive BGP events and send commands:
 | `ze plugin <name>` | Run a registered plugin |
 | `ze exabgp plugin` | Run ExaBGP plugin with ze bridge |
 | `ze exabgp migrate` | Convert ExaBGP config to ze |
-| `ze completion bash/zsh` | Generate shell completion scripts |
+| `ze completion bash/zsh/fish/nushell` | Generate shell completion scripts |
 | `ze --plugins` | List available internal plugins |
 
 ## API Commands

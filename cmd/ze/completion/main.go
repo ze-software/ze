@@ -29,13 +29,15 @@ func Run(args []string) int {
 		return generate("zsh", os.Stdout)
 	case "fish":
 		return generate("fish", os.Stdout)
+	case "nushell", "nu":
+		return generate("nushell", os.Stdout)
 	case "words":
 		return words(args[1:])
 	case "help", "-h", "--help":
 		usage()
 		return 0
 	default:
-		fmt.Fprintf(os.Stderr, "unknown shell: %s (supported: bash, zsh, fish)\n", args[0])
+		fmt.Fprintf(os.Stderr, "unknown shell: %s (supported: bash, zsh, fish, nushell)\n", args[0])
 		usage()
 		return 1
 	}
@@ -47,15 +49,17 @@ func usage() {
 Generate shell completion scripts.
 
 Shells:
-  bash    Generate bash completion script
-  zsh     Generate zsh completion script
-  fish    Generate fish completion script
+  bash      Generate bash completion script
+  zsh       Generate zsh completion script
+  fish      Generate fish completion script
+  nushell   Generate nushell completion script (alias: nu)
 
 Examples:
   eval "$(ze completion bash)"
   ze completion bash > /etc/bash_completion.d/ze
   ze completion zsh > ~/.zsh/completions/_ze
   ze completion fish > ~/.config/fish/completions/ze.fish
+  ze completion nushell | save -f ($nu.default-config-dir | path join "completions" "ze.nu")
 `)
 }
 
@@ -69,6 +73,8 @@ func generate(shell string, w io.Writer) int {
 		s = zshScript()
 	case "fish":
 		s = fishScript()
+	case "nushell":
+		s = nushellScript()
 	default:
 		return 1
 	}

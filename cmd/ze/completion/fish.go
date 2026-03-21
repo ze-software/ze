@@ -199,7 +199,6 @@ complete -c ze -n __ze_needs_command -l chaos-rate -x -d 'Fault probability (0.0
 complete -c ze -n __ze_needs_command -a bgp -d 'BGP protocol tools (decode, encode)'
 complete -c ze -n __ze_needs_command -a config -d 'Configuration management'
 complete -c ze -n __ze_needs_command -a cli -d 'Interactive CLI for running daemons'
-complete -c ze -n __ze_needs_command -a validate -d 'Validate configuration file'
 complete -c ze -n __ze_needs_command -a schema -d 'Schema discovery'
 complete -c ze -n __ze_needs_command -a show -d 'Show daemon state (read-only commands)'
 complete -c ze -n __ze_needs_command -a run -d 'Execute daemon command (all commands)'
@@ -218,7 +217,7 @@ complete -c ze -n 'test (__ze_depth bgp) = 0' -a help -d 'Show help'
 
 # --- config (depth 1 = subcommands, depth 2+ = .conf files) ---
 complete -c ze -n 'test (__ze_depth config) = 0' -a edit -d 'Interactive configuration editor'
-complete -c ze -n 'test (__ze_depth config) = 0' -a check -d 'Check config status'
+complete -c ze -n 'test (__ze_depth config) = 0' -a validate -d 'Validate configuration file'
 complete -c ze -n 'test (__ze_depth config) = 0' -a migrate -d 'Convert configuration to current format'
 complete -c ze -n 'test (__ze_depth config) = 0' -a fmt -d 'Format and normalize configuration file'
 complete -c ze -n 'test (__ze_depth config) = 0' -a dump -d 'Dump parsed configuration'
@@ -230,9 +229,6 @@ complete -c ze -n 'test (__ze_depth config) -ge 1' -F
 # --- cli (depth 1 only) ---
 complete -c ze -n 'test (__ze_depth cli) = 0' -a bgp -d 'BGP daemon (default)'
 complete -c ze -n 'test (__ze_depth cli) = 0' -a help -d 'Show help'
-
-# --- validate (always files) ---
-complete -c ze -n '__ze_under_command validate' -F
 
 # --- schema (depth 1 = subcommands, depth 2 = dynamic module names) ---
 complete -c ze -n 'test (__ze_depth schema) = 0' -a list -d 'List all registered schemas'
@@ -269,5 +265,6 @@ complete -c ze -n 'test (__ze_depth signal) = 0' -a quit -d 'Send SIGQUIT - goro
 complete -c ze -n 'test (__ze_depth completion) = 0' -a bash -d 'Generate bash completion script'
 complete -c ze -n 'test (__ze_depth completion) = 0' -a zsh -d 'Generate zsh completion script'
 complete -c ze -n 'test (__ze_depth completion) = 0' -a fish -d 'Generate fish completion script'
+complete -c ze -n 'test (__ze_depth completion) = 0' -a nushell -d 'Generate nushell completion script'
 `
 }

@@ -42,7 +42,7 @@ func TestBashContainsCommands(t *testing.T) {
 	}
 
 	for _, cmd := range []string{
-		"bgp", "config", "cli", "validate", "schema", "show", "run", "status",
+		"bgp", "config", "cli", "schema", "show", "run", "status",
 		"plugin", "exabgp", "signal", "completion", "version", "help",
 	} {
 		if !strings.Contains(commandsLine, cmd) {
@@ -63,12 +63,12 @@ func TestBashContainsSubcommands(t *testing.T) {
 		subs   []string
 	}{
 		{"bgp)", []string{"decode", "encode"}},
-		{"config)", []string{"edit", "check", "migrate", "fmt", "dump", "diff", "completion"}},
+		{"config)", []string{"edit", "validate", "migrate", "fmt", "dump", "diff", "completion"}},
 		{"cli)", []string{"help"}},
 		{"schema)", []string{"list", "show", "handlers", "methods", "events", "protocol"}},
 		{"signal)", []string{"reload", "stop", "quit"}},
 		{"exabgp)", []string{"plugin", "migrate"}},
-		{"completion)", []string{"bash", "zsh", "fish"}},
+		{"completion)", []string{"bash", "zsh", "fish", "nushell"}},
 	}
 
 	for _, tt := range tests {
@@ -212,7 +212,7 @@ func TestFishCommandDescriptions(t *testing.T) {
 	out := buf.String()
 
 	for _, cmd := range []string{
-		"bgp", "config", "cli", "validate", "schema", "show", "run",
+		"bgp", "config", "cli", "schema", "show", "run",
 		"plugin", "exabgp", "status", "signal", "completion", "version", "help",
 	} {
 		pattern := "-a " + cmd + " -d '"
@@ -274,7 +274,7 @@ func TestZshContainsCommands(t *testing.T) {
 	out := buf.String()
 
 	for _, cmd := range []string{
-		"bgp:", "config:", "cli:", "validate:", "schema:", "show:", "run:", "status:",
+		"bgp:", "config:", "cli:", "schema:", "show:", "run:", "status:",
 		"plugin:", "exabgp:", "signal:", "completion:", "version:", "help:",
 	} {
 		if !strings.Contains(out, "'"+cmd) {
@@ -435,6 +435,109 @@ func TestRunWords(t *testing.T) {
 	code = Run([]string{"words"})
 	if code != 0 {
 		t.Errorf("Run(words) = %d, want 0", code)
+	}
+}
+
+// VALIDATES: nushell script has correct structure.
+func TestRunNushell(t *testing.T) {
+	var buf strings.Builder
+	code := generate("nushell", &buf)
+	if code != 0 {
+		t.Fatalf("expected exit 0, got %d", code)
+	}
+
+	out := buf.String()
+
+	for _, want := range []string{
+		`extern "ze"`,
+		`extern "ze bgp"`,
+		`extern "ze config"`,
+		`extern "ze show"`,
+		`extern "ze run"`,
+		"nu-complete ze plugins",
+		"nu-complete ze schema-modules",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("nushell output missing %q", want)
+		}
+	}
+}
+
+// VALIDATES: nushell top-level extern has all global flags.
+func TestNushellGlobalFlags(t *testing.T) {
+	var buf strings.Builder
+	generate("nushell", &buf)
+	out := buf.String()
+
+	for _, flag := range []string{
+		"--debug(-d)", "--help(-h)", "--version(-V)",
+		"--plugin:", "--plugins", "--pprof:", "--chaos-seed:", "--chaos-rate:",
+	} {
+		if !strings.Contains(out, flag) {
+			t.Errorf("nushell output missing global flag %q", flag)
+		}
+	}
+}
+
+// VALIDATES: nushell has extern definitions for all top-level subcommands.
+func TestNushellContainsSubcommands(t *testing.T) {
+	var buf strings.Builder
+	generate("nushell", &buf)
+	out := buf.String()
+
+	for _, cmd := range []string{
+		"ze bgp", "ze config", "ze cli", "ze schema", "ze show", "ze run",
+		"ze plugin", "ze exabgp", "ze status", "ze signal", "ze completion",
+		"ze version", "ze help",
+	} {
+		want := `extern "` + cmd + `"`
+		if !strings.Contains(out, want) {
+			t.Errorf("nushell output missing extern %q", want)
+		}
+	}
+}
+
+// VALIDATES: nushell show/run completions are dynamic via ze completion words.
+func TestNushellShowRunDynamic(t *testing.T) {
+	var buf strings.Builder
+	generate("nushell", &buf)
+	out := buf.String()
+
+	if !strings.Contains(out, "ze completion words show") {
+		t.Error("nushell show completion should call 'ze completion words show' dynamically")
+	}
+	if !strings.Contains(out, "ze completion words run") {
+		t.Error("nushell run completion should call 'ze completion words run' dynamically")
+	}
+}
+
+// VALIDATES: nushell plugin completion is dynamic.
+func TestNushellDynamicPlugins(t *testing.T) {
+	var buf strings.Builder
+	generate("nushell", &buf)
+	out := buf.String()
+
+	if !strings.Contains(out, "ze --plugins --json") {
+		t.Error("nushell output missing dynamic plugin completion via 'ze --plugins --json'")
+	}
+}
+
+// VALIDATES: nushell schema completion is dynamic.
+func TestNushellSchemaIsDynamic(t *testing.T) {
+	var buf strings.Builder
+	generate("nushell", &buf)
+	out := buf.String()
+
+	if !strings.Contains(out, "ze schema list") {
+		t.Error("nushell schema completion should call 'ze schema list' for dynamic module names")
+	}
+}
+
+// VALIDATES: "nu" alias works as shorthand for "nushell".
+func TestRunNuAlias(t *testing.T) {
+	code := Run([]string{"nu"})
+	if code != 0 {
+		t.Errorf("Run(nu) = %d, want 0", code)
 	}
 }
 

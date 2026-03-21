@@ -64,7 +64,7 @@ _ze() {
         cword=${COMP_CWORD}
     fi
 
-    local commands="bgp config cli validate schema show run status plugin exabgp signal completion version help"
+    local commands="bgp config cli schema show run status plugin exabgp signal completion version help"
 
     # Complete argument for flags that take a value
     case "${prev}" in
@@ -104,7 +104,7 @@ _ze() {
             ;;
         config)
             if [[ ${depth} -eq 1 ]]; then
-                COMPREPLY=($(compgen -W "edit check migrate fmt dump diff completion help" -- "${cur}"))
+                COMPREPLY=($(compgen -W "edit validate migrate fmt dump diff completion help" -- "${cur}"))
             else
                 _ze_filedir conf
             fi
@@ -113,9 +113,6 @@ _ze() {
             if [[ ${depth} -eq 1 ]]; then
                 COMPREPLY=($(compgen -W "help" -- "${cur}"))
             fi
-            ;;
-        validate)
-            _ze_filedir conf
             ;;
         schema)
             if [[ ${depth} -eq 1 ]]; then
@@ -177,7 +174,7 @@ _ze() {
             ;;
         completion)
             if [[ ${depth} -eq 1 ]]; then
-                COMPREPLY=($(compgen -W "bash zsh fish" -- "${cur}"))
+                COMPREPLY=($(compgen -W "bash zsh fish nushell" -- "${cur}"))
             fi
             ;;
     esac

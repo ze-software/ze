@@ -28,14 +28,14 @@ ze start                         # Start daemon from database
 | `--chaos-seed <N>` | Enable chaos self-test mode |
 | `--chaos-rate <0-1>` | Fault probability per operation |
 
-### ze validate
+### ze config validate
 
 Validate a configuration file without starting the daemon.
 
 ```
-ze validate <config-file>
-ze validate -q <config-file>     # Quiet: exit code only
-ze validate --json <config-file> # JSON output
+ze config validate <config-file>
+ze config validate -q <config-file>     # Quiet: exit code only
+ze config validate --json <config-file> # JSON output
 ```
 
 | Flag | Purpose |
@@ -70,7 +70,7 @@ ze config cat <key>              # Print database entry
 **Inspection:**
 
 ```
-ze config check <file>           # Check for deprecated patterns
+ze config validate <file>        # Validate configuration file
 ze config dump <file>            # Dump parsed configuration
 ze config diff <f1> <f2>         # Compare two configs
 ze config diff <N> <file>        # Compare with rollback revision
@@ -250,13 +250,23 @@ ze plugin test                   # Test plugin schema/config
 
 ### ze completion
 
-Shell completion scripts.
+Generate shell completion scripts for bash, zsh, fish, and nushell. The scripts provide tab completion for subcommands, flags, plugin names, YANG schema modules, and `show`/`run` command trees.
 
 ```
 ze completion bash
 ze completion zsh
 ze completion fish
+ze completion nushell
 ```
+
+#### Installation
+
+| Shell | Quick (current session) | Persistent |
+|-------|------------------------|------------|
+| Bash | `eval "$(ze completion bash)"` | `ze completion bash > /etc/bash_completion.d/ze` |
+| Zsh | `eval "$(ze completion zsh)"` | `ze completion zsh > ~/.zsh/completions/_ze && autoload -Uz compinit && compinit` |
+| Fish | `ze completion fish \| source` | `ze completion fish > ~/.config/fish/completions/ze.fish` |
+| Nushell | `ze completion nushell \| save -f ($nu.default-config-dir \| path join "completions" "ze.nu")` | Add `source completions/ze.nu` to `config.nu` |
 
 ### ze env
 
