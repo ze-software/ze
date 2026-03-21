@@ -22,11 +22,14 @@ Everyone can extend Ze by writing a plugin, not by forking a monolith. Internal
 components communicate via `net.Pipe()` with DirectBridge; external ones connect back
 over TLS. CLI access to the running daemon uses SSH.
 
-**Wire-first performance.** BGP messages are byte buffers, not parsed structs. Parsing happens
+**Wire-first design.** BGP messages are byte buffers, not parsed structs. Parsing happens
 lazily through offset-based iterators. Attributes are deduplicated in per-type memory pools
 with refcounted handles. When source and destination peers share the same encoding context
-(ContextID), UPDATE messages are forwarded as raw wire bytes with zero parsing. Ze does the
-hard thing properly -- zero-copy, pool dedup, buffer-first encoding -- and never trades
+(ContextID), UPDATE messages are forwarded as raw wire bytes with zero parsing. This
+design avoids the intermediate struct allocation and GC pressure typical of Go BGP
+implementations, narrowing the performance gap with C and Rust to roughly 10-15%
+(see [Performance Trade-offs](#performance-trade-offs) below). Ze does the hard thing
+properly -- lazy parsing, pool dedup, buffer-first encoding -- and never trades
 correctness for speed of implementation.
 
 **Broad protocol coverage.** 21 address families (IPv4/IPv6 unicast, multicast, VPN,
@@ -710,40 +713,100 @@ runs on schedule.
 
 ---
 
-## Performance Design
+## Performance Trade-offs
 
-### Key Abstractions
+Ze is written in Go. This section describes what Ze does to close the performance gap
+with C (BIRD, FRR, OpenBGPd) and Rust (rustbgpd) implementations, where the remaining
+gap is, and when it matters.
+
+For a full discussion of when Ze is and is not the right choice, see
+[Why Ze / Why Not Ze](why-ze.md).
+
+### What Ze does
+
+**Architectural choices:**
+
+| Technique | What it avoids |
+|-----------|---------------|
+| Lazy-parsed `WireUpdate` | Decoding UPDATEs into intermediate structs |
+| Buffer-first encoding (`WriteTo(buf, off)`) | `append()` and `make([]byte)` in wire writing |
+| Skip-and-backfill | Double traversal (`Len()` then `WriteTo()`) for variable-length sections |
+| ContextID matching | Re-encoding when source and destination peers share capabilities |
+| Per-attribute-type pools with refcounting | Per-route attribute copies; GC pressure from millions of small objects |
+| Double-buffer compaction | Pausing all readers during pool compaction (compacts incrementally instead) |
+| DirectBridge for internal plugins | JSON serialization and IPC overhead on the hot path |
+| Long-lived worker goroutines | Per-event goroutine creation and scheduling overhead |
+| Per-destination forward workers | Head-of-line blocking across peers; write lock contention |
+
+**Allocation reduction on the hot path:**
+
+| Technique | What it avoids |
+|-----------|---------------|
+| `sync.Pool` for event dispatch structs | Per-UPDATE heap allocation |
+| Stack-allocated format cache | Per-event `make(map)` |
+| Precomputed format cache keys | Per-event string concatenation |
+| Batch drain with buffer reuse | Per-batch slice allocation |
+| Pooled read/build buffers | Per-message `make([]byte)` for TCP reads and UPDATE building |
+
+The goal is to minimize heap allocations on the per-UPDATE path so that Go's garbage
+collector has less work to do. Read and write buffers come from pools. Attribute
+storage uses manual refcounting in large arena-style buffers that the GC scans cheaply.
+
+### Where Ze is slower
+
+Ze has not been benchmarked at DFZ scale (1M+ prefixes). The numbers below are
+estimates from code path analysis, not measurements.
+
+| Factor | Estimated overhead vs. C/Rust | Why |
+|--------|------------------------------|-----|
+| Go runtime (GC, scheduling, bounds checks) | ~10-15% | Language choice; mitigated by pools and worker patterns |
+| Plugin architecture (channel hops, batch structs) | Additional overhead on top of Go tax | Logical separation even with DirectBridge |
+| External plugin path (JSON + base64 + socket) | Significant vs. direct call | Price of language-agnostic programmability |
+
+Most of the overhead comes from choosing Go over C or Rust. The plugin architecture
+adds a smaller amount on top. For external plugins (user scripts in Python, Rust,
+etc.), the JSON serialization path adds substantial overhead, comparable to ExaBGP's
+approach.
+
+### When it matters
+
+BGP CPU performance is rarely a bottleneck in operations. For most deployments
+(enterprise, DC fabrics, small-to-medium ISPs), the control plane is idle 99% of the
+time once converged. The 10-15% gap matters in one scenario: **large IXP route servers
+with 1000+ peers during full reconvergence**, where every millisecond of convergence
+time translates to stale routes and potential traffic loss. There, BIRD 3 (C,
+multithreaded) and rustbgpd (Rust, tokio) have the edge. For Ze's primary targets
+-- programmable route injection, monitoring, SDN integration, and moderate-scale route
+servers -- the gap is not operationally significant.
+
+Ze's chaos testing framework validates correctness under fault injection (connection
+drops, delayed messages, malformed packets) but runs with small route counts (tens of
+routes, not millions). Full DFZ-scale benchmarking has not been performed. The overhead
+percentages above are estimates based on code analysis, not measured benchmarks.
+
+### What "zero-copy" means in Ze
+
+Ze uses "zero-copy" to mean zero additional copies within the application after the
+initial TCP read. Go's TCP layer copies bytes from the kernel into a Go-managed buffer;
+Ze cannot avoid this without `io_uring` or `mmap`, which Go does not expose. Within the
+application, `WireUpdate` holds a slice reference into the read buffer, iterators walk
+bytes at offsets without copying, and ContextID-matched forwarding reuses cached wire
+bytes unchanged.
+
+This is not zero-copy in the kernel-bypass sense that Rust with `bytes::Bytes` or C with
+`io_uring` can achieve. The practical impact is small: the TCP read copy is a single
+`memcpy` per message, dwarfed by parsing, policy evaluation, and re-encoding costs.
+
+### Key abstractions
 
 | Abstraction | Purpose |
 |-------------|---------|
-| `WireUpdate` | Lazy-parsed BGP UPDATE (zero-copy iterators over wire bytes) |
+| `WireUpdate` | Lazy-parsed BGP UPDATE (iterators over wire bytes, no intermediate structs) |
 | `PackContext` | Negotiated capabilities that determine encoding (ASN4, ADD-PATH, ExtNH) |
 | `ContextID` | If source and dest peers share ContextID, forward wire bytes unchanged |
-| `Pool[T]` | Per-attribute-type pools with refcounted handles and incremental compaction |
+| `Pool` | Per-attribute-type pools with refcounted handles and incremental compaction |
 | `Handle` | Opaque reference into a pool (buffer bit + pool index + slot) |
-
-### Design Choices
-
-**No goroutine per event.** All goroutines are long-lived workers reading from channels.
-Per-event goroutines in hot paths are forbidden. Pattern: start worker, create channel,
-enqueue on hot path, close channel to stop.
-
-**Skip-and-backfill for UPDATE building.** Write fixed header bytes, skip the length
-field, write variable payload, backfill the length. One pass, no double traversal.
-
-**Double-buffer compaction.** Pools compact incrementally by migrating live entries from
-the active buffer to the alternate. No stop-the-world pause. Handles encode which buffer
-they point to.
-
-**Engine caches, plugins store.** The engine caches WireUpdates by message ID for
-`bgp cache <id> forward` commands (zero-copy forwarding). Plugins own RIB storage
-with per-attribute-type pool dedup. This separation means the engine never parses
-attributes it does not need to.
-
-**Outbound forward backpressure.** Per-destination-peer workers dispatch updates via
-non-blocking channel sends. When a peer's outbound channel is full (slow consumer),
-the update is dropped for that peer rather than blocking the reactor event loop.
-This prevents a single slow peer from stalling updates to all other peers.
+| `DirectBridge` | Bypasses IPC serialization for internal plugins (direct function calls) |
 
 ---
 

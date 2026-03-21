@@ -174,10 +174,13 @@ processes and injects routes from them. It is a route injector/receiver, not a r
 **Ze** is a programmable BGP daemon and the successor to ExaBGP. It targets SDN, route injection,
 monitoring, and route server use cases where external processes need to interact with BGP events.
 A plugin architecture with YANG-modeled schemas allows extending the engine without modifying it.
-Zero-copy wire processing with pooled buffers provides performance at scale. ExaBGP configuration
-files can be migrated via `ze config migrate`. Built-in RPKI validation, Prometheus metrics, and
-structured JSON logging. No FIB integration or built-in policy language -- policy is implemented
-by plugins and external processes via the JSON event and text command protocol.
+Lazy-parsed wire format and pool-based attribute deduplication reduce memory overhead; when
+encoding contexts match, UPDATEs are forwarded without re-parsing. Written in Go with an
+estimated 10-15% overhead vs. C/Rust (not yet benchmarked at scale; see
+[Performance Trade-offs](DESIGN.md#performance-trade-offs)). ExaBGP configuration files can be
+migrated via `ze config migrate`. Built-in RPKI validation, Prometheus metrics, and structured JSON
+logging. No FIB integration or built-in policy language -- policy is implemented by plugins and
+external processes via the JSON event and text command protocol.
 
 **ExaBGP** is the automation specialist. It pioneered the external-process model where BGP events
 are delivered as JSON to stdin/stdout of user scripts in any language. Deployed worldwide for
