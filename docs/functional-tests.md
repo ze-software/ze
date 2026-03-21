@@ -682,7 +682,19 @@ The test passes if:
 
 ### Entry Point: `cmd/ze-test/`
 
-Subcommand-based CLI with `bgp` for BGP test execution and `syslog` for syslog server.
+Subcommand-based CLI with `bgp` for BGP test execution, `syslog` for syslog server, and `rpki` for deterministic RPKI mock RTR server.
+
+### ze-test rpki
+
+Deterministic RTR (RFC 8210) cache server for RPKI functional tests. Auto-generates VRPs for all /8 prefixes based on the first octet modulo 3:
+
+| First octet % 3 | VRP | Result (AS 65001) |
+|-----------------|-----|-------------------|
+| 0 | ASN=65001, maxLen=/32 | Valid |
+| 1 | ASN=65099, maxLen=/32 | Invalid |
+| 2 | No VRP | NotFound |
+
+Usage: `ze-test rpki --port 3323 [--valid-asn 65001] [--invalid-asn 65099]`
 
 ### Security
 

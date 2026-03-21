@@ -142,7 +142,67 @@ When the rpki plugin is loaded, it emits validation events that other plugins ca
 
 When the ROA cache is empty: `"rpki": {"status": "unavailable"}`.
 
-The SDK provides a `Union` helper to correlate UPDATE events with their rpki validation events by message ID. See [plugin-development/](../plugin-development/) for details.
+## Merged Events (bgp-rpki-decorator)
+
+Instead of receiving separate UPDATE and rpki events, you can use the `bgp-rpki-decorator` plugin to get a single `update-rpki` event containing both the UPDATE data and the RPKI validation state:
+
+```
+plugin {
+    external rpki-decorator {
+        run "ze plugin bgp-rpki-decorator"
+        encoder json
+    }
+}
+
+bgp {
+    peer peer1 {
+        process my-consumer {
+            receive [ update-rpki ]
+        }
+        process rpki {
+            receive [ update ]
+        }
+        process rpki-decorator {
+            receive [ update rpki ]
+        }
+        process adj-rib-in {
+            receive [ update state ]
+        }
+    }
+}
+```
+
+The merged event contains the full UPDATE JSON with an `rpki` section injected:
+
+```json
+{
+  "type": "bgp",
+  "bgp": {
+    "peer": {"address": "10.0.0.1", "asn": 65001},
+    "message": {"id": 42, "type": "update-rpki"},
+    "update": {"attr": {"origin": "igp"}, ...},
+    "rpki": {"ipv4/unicast": {"10.0.1.0/24": "valid"}}
+  }
+}
+```
+
+If the RPKI validation does not arrive within the timeout (2 seconds), the event is emitted without the `rpki` section (graceful degradation).
+
+## Testing RPKI Locally
+
+The `ze-test rpki` command starts a deterministic mock RTR server that auto-generates VRPs based on the first octet of each /8 prefix:
+
+```
+ze-test rpki --port 3323
+```
+
+Validation states are predictable (for routes from AS 65001 with default flags):
+
+| First octet | Modulo | State | Example |
+|-------------|--------|-------|---------|
+| 0, 3, 6, 9... | %3 == 0 | Valid | 9.0.1.0/24 |
+| 1, 4, 7, 10... | %3 == 1 | Invalid | 10.0.1.0/24 |
+| 2, 5, 8, 11... | %3 == 2 | NotFound | 11.0.1.0/24 |
 
 ## Without RPKI
 

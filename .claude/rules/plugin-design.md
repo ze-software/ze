@@ -88,6 +88,7 @@ After Stage 5: SDK wraps Socket A in `MuxConn` for concurrent RPCs. Engine dispa
 | `YANG` | string | No | YANG schema content |
 | `InProcessNLRIDecoder` | func | No | NLRI decode |
 | `InProcessNLRIEncoder` | func | No | NLRI encode |
+| `EventTypes` | []string | No | Event types this plugin produces (registered at startup) |
 | `Features` | string | No | Space-separated flags ("nlri yang capa") |
 
 ## New Plugin Checklist
@@ -98,6 +99,7 @@ After Stage 5: SDK wraps Socket A in `MuxConn` for concurrent RPCs. Engine dispa
 [ ] Run make generate (regenerates all.go)
 [ ] Update TestAllPluginsRegistered expected count
 [ ] Add YANG schema if config support (schema/ subdir)
+[ ] Add EventTypes if plugin produces custom event types (e.g., ["update-rpki"])
 [ ] Add functional tests in test/plugin/
 ```
 

@@ -9,6 +9,7 @@ Ze uses a plugin architecture for all features beyond core BGP session managemen
 | Announce routes to upstream | `bgp-rib` | Stores routes and sends them to peers |
 | Route server (IXP) | `bgp-rib` + `bgp-rs` + `bgp-adj-rib-in` | Forward routes between clients, replay on reconnect |
 | With RPKI validation | Add `bgp-rpki` + `bgp-adj-rib-in` | Validate origin AS against ROA cache |
+| With merged RPKI events | Add `bgp-rpki-decorator` (+ above) | Receive UPDATE events pre-merged with RPKI state |
 | With graceful restart | Add `bgp-gr` | Hold routes across restarts (RFC 4724) |
 | Monitor only (no RIB) | None | Ze runs without plugins -- peers connect, events fire, no routes stored |
 
@@ -83,6 +84,10 @@ peer transit-a {
 | `negotiated` | Capability negotiation results |
 | `eor` | End-of-RIB marker |
 | `rpki` | RPKI validation results |
+| `update-rpki` | Merged UPDATE + RPKI validation (from bgp-rpki-decorator) |
+
+Plugins can register custom event types via the `EventTypes` field in their registration.
+These become valid in `receive` config directives and `subscribe-events` RPCs.
 
 ### Directions
 
@@ -127,6 +132,7 @@ ze --plugins
 |--------|---------|----------------|
 | `bgp-gr` | Graceful Restart (RFC 4724) | `receive [ state eor ]` |
 | `bgp-rpki` | RPKI origin validation (RFC 6811) | `receive [ update ]` |
+| `bgp-rpki-decorator` | Merged UPDATE+RPKI events | `receive [ update rpki ]` |
 | `bgp-route-refresh` | Route Refresh (RFC 2918) | `receive [ refresh ]` |
 | `bgp-role` | BGP Role (RFC 9234) | -- |
 | `bgp-hostname` | FQDN capability | -- |

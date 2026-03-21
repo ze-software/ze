@@ -144,6 +144,7 @@ External processes receive BGP events and send commands:
 |--------|-------------|
 | bgp-gr | Graceful Restart state machine (RFC 4724) |
 | bgp-rpki | RPKI origin validation via RTR protocol (RFC 6811, RFC 8210). [Guide](guide/rpki.md) |
+| bgp-rpki-decorator | Merged UPDATE+RPKI events (correlates update and rpki streams into update-rpki) |
 | bgp-route-refresh | Route Refresh handling (RFC 2918, RFC 7313) |
 | role | BGP Role capability enforcement (RFC 9234) |
 | bgp-llnh | Link-local next-hop for IPv6 (RFC 2545) |
@@ -172,6 +173,8 @@ External processes receive BGP events and send commands:
 | `ze config dump` | Dump parsed configuration tree |
 | `ze config diff <a> <b>` | Compare two configuration files |
 | `ze config set` | Set a configuration value programmatically |
+| `ze config import` | Import a configuration file into ze |
+| `ze config rename` | Rename a configuration element |
 
 ### Schema Discovery
 
