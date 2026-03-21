@@ -325,6 +325,24 @@ func (ci *CapabilityInjector) AddPluginCapabilities(caps *PluginCapabilities) er
 	return nil
 }
 
+// AllCapabilities returns all stored capabilities (global + all per-peer).
+// Used to compute max restart-time across all peers for the GR marker.
+func (ci *CapabilityInjector) AllCapabilities() []InjectedCapability {
+	ci.mu.RLock()
+	defer ci.mu.RUnlock()
+
+	total := len(ci.globalCaps)
+	for _, caps := range ci.peerCaps {
+		total += len(caps)
+	}
+	result := make([]InjectedCapability, 0, total)
+	result = append(result, ci.globalCaps...)
+	for _, caps := range ci.peerCaps {
+		result = append(result, caps...)
+	}
+	return result
+}
+
 // GetCapabilitiesForPeer returns capabilities for a specific peer.
 // Returns global capabilities plus any peer-specific capabilities.
 // Per-peer capabilities override global capabilities with the same code.

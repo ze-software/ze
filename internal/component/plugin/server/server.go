@@ -325,6 +325,15 @@ func (s *Server) GetPluginCapabilitiesForPeer(peerAddr string) []plugin.Injected
 	return s.capInjector.GetCapabilitiesForPeer(peerAddr)
 }
 
+// AllPluginCapabilities returns all stored capabilities (global + all per-peer).
+// Used by the restart handler to compute max restart-time for the GR marker.
+func (s *Server) AllPluginCapabilities() []plugin.InjectedCapability {
+	if s.capInjector == nil {
+		return nil
+	}
+	return s.capInjector.AllCapabilities()
+}
+
 // GetDecodeFamilies returns all families that have decode plugins registered.
 // Used by Session to auto-add Multiprotocol capabilities in OPEN.
 // Plugins that can decode a family should advertise that family to peers.

@@ -79,6 +79,10 @@ type Config struct {
 // ShutdownFunc is called when the SSH server receives a "stop" exec command.
 type ShutdownFunc func()
 
+// RestartFunc is called when the SSH server receives a "restart" exec command.
+// It writes the GR marker to zefs, then shuts down the daemon.
+type RestartFunc func()
+
 // Server is the SSH server subsystem.
 // It serves the config editor over SSH with password authentication.
 // Exec commands (non-interactive) are dispatched through the executor.
@@ -93,6 +97,7 @@ type Server struct {
 	executorFactory          CommandExecutorFactory   // set after reactor starts; creates per-session executors
 	streamingExecutorFactory StreamingExecutorFactory // set after reactor starts; for monitor commands
 	shutdownFunc             ShutdownFunc             // set by daemon; called on "stop" exec command
+	restartFunc              RestartFunc              // set by daemon; called on "restart" exec command
 }
 
 // NewServer creates a new SSH server with the given configuration.
@@ -182,6 +187,14 @@ func (s *Server) SetShutdownFunc(f ShutdownFunc) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.shutdownFunc = f
+}
+
+// SetRestartFunc sets the callback for "restart" exec commands.
+// Called by the daemon to wire graceful restart (GR marker + shutdown) via SSH.
+func (s *Server) SetRestartFunc(f RestartFunc) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.restartFunc = f
 }
 
 // Start launches the SSH server. It implements ze.Subsystem.
@@ -371,9 +384,10 @@ func (s *Server) execMiddleware() wish.Middleware {
 			s.logger.Info("SSH exec command", "user", sess.User(), "command", input, "remote", sess.RemoteAddr().String())
 
 			// Handle lifecycle commands directly.
-			// Note: stop bypasses RPC authorization by design -- any authenticated
+			// Note: stop/restart bypass RPC authorization by design -- any authenticated
 			// SSH user can shut down the daemon. Restrict via SSH user config.
-			if strings.ToLower(strings.TrimSpace(input)) == "stop" {
+			lcInput := strings.ToLower(strings.TrimSpace(input))
+			if lcInput == "stop" {
 				s.mu.Lock()
 				fn := s.shutdownFunc
 				s.mu.Unlock()
@@ -384,6 +398,20 @@ func (s *Server) execMiddleware() wish.Middleware {
 				} else {
 					fmt.Fprintln(sess.Stderr(), "error: shutdown not available") //nolint:errcheck // best-effort
 					sess.Exit(1)                                                 //nolint:errcheck // best-effort
+				}
+				return
+			}
+			if lcInput == "restart" {
+				s.mu.Lock()
+				fn := s.restartFunc
+				s.mu.Unlock()
+				if fn != nil {
+					fmt.Fprintln(sess, "restarting daemon") //nolint:errcheck // best-effort response
+					sess.Exit(0)                            //nolint:errcheck // best-effort exit status
+					fn()
+				} else {
+					fmt.Fprintln(sess.Stderr(), "error: restart not available") //nolint:errcheck // best-effort
+					sess.Exit(1)                                                //nolint:errcheck // best-effort
 				}
 				return
 			}

@@ -118,6 +118,14 @@ type Model struct {
 	// Monitor streaming state
 	monitorFactory MonitorFactory  // Creates monitor sessions (nil if unavailable)
 	monitorSession *MonitorSession // Active monitor session (nil when not monitoring)
+
+	// Daemon lifecycle callbacks (set by SSH session for stop/restart commands)
+	shutdownFunc func() // Called on "stop" in interactive CLI (no GR marker)
+	restartFunc  func() // Called on "restart" in interactive CLI (writes GR marker)
+
+	// Lifecycle confirmation state
+	confirmStop    bool // True if waiting for y/n to confirm stop
+	confirmRestart bool // True if waiting for y/n to confirm restart
 }
 
 // PipeFilter represents a filter in a pipe chain.
@@ -158,6 +166,8 @@ const (
 	cmdDisconnect = "disconnect"
 	cmdAll        = "all"
 	cmdBlame      = "blame"
+	cmdStop       = "stop"
+	cmdRestart    = "restart"
 	cmdChanges    = "changes"
 	cmdHead       = "head"
 	cmdTail       = "tail"
@@ -404,28 +414,46 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
-	// Quit confirmation takes highest priority
-	if m.confirmQuit {
-		pending := m.hasEditor() && m.hasPendingChanges()
+	// Lifecycle confirmation takes highest priority (quit, stop, restart).
+	if m.confirmQuit || m.confirmStop || m.confirmRestart {
+		confirmed := false
 		switch msg.Type { //nolint:exhaustive // only handle specific keys
 		case tea.KeyEsc, tea.KeyCtrlC:
-			if pending {
-				// Pending changes: Esc alone is not enough, require y
-				break
+			if m.confirmQuit {
+				pending := m.hasEditor() && m.hasPendingChanges()
+				if !pending {
+					m.autoSaveOnQuit()
+					m.quitting = true
+					return m, tea.Quit
+				}
 			}
-			// No pending changes: second Esc confirms quit
-			m.autoSaveOnQuit()
-			m.quitting = true
-			return m, tea.Quit
+			// Esc cancels stop/restart confirmation (fall through to cancel below)
 		case tea.KeyRunes:
 			if len(msg.Runes) == 1 && (msg.Runes[0] == 'y' || msg.Runes[0] == 'Y') {
+				confirmed = true
+			}
+		}
+		if confirmed {
+			if m.confirmStop && m.shutdownFunc != nil {
+				m.shutdownFunc()
+				m.quitting = true
+				return m, tea.Quit
+			}
+			if m.confirmRestart && m.restartFunc != nil {
+				m.restartFunc()
+				m.quitting = true
+				return m, tea.Quit
+			}
+			if m.confirmQuit {
 				m.autoSaveOnQuit()
 				m.quitting = true
 				return m, tea.Quit
 			}
 		}
-		// Any other key cancels quit
+		// Any other key cancels
 		m.confirmQuit = false
+		m.confirmStop = false
+		m.confirmRestart = false
 		m.statusMessage = ""
 		return m, nil
 	}
@@ -771,6 +799,31 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 	}
 
+	// Handle stop/restart: daemon lifecycle commands with confirmation.
+	// These affect all connected users, so require y/N confirmation.
+	if input == cmdStop {
+		if m.shutdownFunc == nil {
+			m.textInput.SetValue("")
+			m.statusMessage = "stop not available (not connected to daemon)"
+			return m, nil
+		}
+		m.textInput.SetValue("")
+		m.statusMessage = "This will shut down the daemon. Continue? [y/N]"
+		m.confirmStop = true
+		return m, nil
+	}
+	if input == cmdRestart {
+		if m.restartFunc == nil {
+			m.textInput.SetValue("")
+			m.statusMessage = "restart not available (not connected to daemon)"
+			return m, nil
+		}
+		m.textInput.SetValue("")
+		m.statusMessage = "This will restart the daemon (GR marker written). Continue? [y/N]"
+		m.confirmRestart = true
+		return m, nil
+	}
+
 	// Save to history
 	if m.history.Append(input) {
 		m.history.Save(m.mode.String())
@@ -1104,6 +1157,18 @@ func (m *Model) SetCommandCompleter(cc CommandModeCompleter) {
 // When nil, command mode shows an error on Enter.
 func (m *Model) SetCommandExecutor(fn func(string) (string, error)) {
 	m.commandExecutor = fn
+}
+
+// SetShutdownFunc sets the callback for the "stop" interactive CLI command.
+// When set, typing "stop" prompts for confirmation, then calls fn and quits.
+func (m *Model) SetShutdownFunc(fn func()) {
+	m.shutdownFunc = fn
+}
+
+// SetRestartFunc sets the callback for the "restart" interactive CLI command.
+// When set, typing "restart" prompts for confirmation, then calls fn and quits.
+func (m *Model) SetRestartFunc(fn func()) {
+	m.restartFunc = fn
 }
 
 // SetHistory replaces the model's history with a persistent History.

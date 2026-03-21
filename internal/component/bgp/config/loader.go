@@ -16,10 +16,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos"
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -541,6 +543,23 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 					})
 				}
 				sshSrv.SetShutdownFunc(func() { r.Stop() })
+				sshSrv.SetRestartFunc(func() {
+					// Compute max restart-time from all GR capabilities and write marker.
+					apiServer := r.APIServer()
+					if apiServer != nil {
+						allCaps := apiServer.AllPluginCapabilities()
+						maxRT := grmarker.MaxRestartTime(allCaps)
+						if maxRT > 0 {
+							expiresAt := time.Now().Add(time.Duration(maxRT) * time.Second)
+							if writeErr := grmarker.Write(store, expiresAt); writeErr != nil {
+								configLogger().Error("failed to write GR marker", "error", writeErr)
+							} else {
+								configLogger().Info("GR marker written", "expires", expiresAt)
+							}
+						}
+					}
+					r.Stop()
+				})
 				configLogger().Info("SSH command executor wired")
 			}
 		})

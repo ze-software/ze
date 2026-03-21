@@ -1,0 +1,11 @@
+# gr-signal-restart - verify ze signal recognizes restart command
+#
+# Tests that the "restart" command appears in ze signal usage.
+# The actual SSH exec is tested by SSH integration tests.
+#
+# VALIDATES: AC-9 -- ze signal restart is a recognized command.
+# PREVENTS: "restart" missing from signal dispatch.
+
+cmd=foreground:seq=1:exec=ze signal
+expect=exit:code=1
+expect=stderr:contains=restart

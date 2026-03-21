@@ -45,7 +45,8 @@ Send commands to a running Ze daemon via SSH.
 
 Commands:
   reload    Reload configuration
-  stop      Graceful shutdown
+  stop      Graceful shutdown (no GR marker)
+  restart   Graceful restart (writes GR marker, then shuts down)
   quit      Goroutine dump + immediate exit
 
 Options:
@@ -82,11 +83,11 @@ Examples:
 	addr := net.JoinHostPort(h, p)
 
 	switch command {
-	case "reload", "stop", "quit":
+	case "reload", "stop", "restart", "quit":
 		return cmdSSHExec(addr, command)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown signal command: %s\n", command)
-		if s := suggest.Command(command, []string{"reload", "stop", "quit"}); s != "" {
+		if s := suggest.Command(command, []string{"reload", "stop", "restart", "quit"}); s != "" {
 			fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
 		}
 		fs.Usage()

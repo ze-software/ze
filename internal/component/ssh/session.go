@@ -22,6 +22,8 @@ func buildCommandTree() *command.Node {
 func (s *Server) createSessionModel(username string) cli.Model {
 	s.mu.Lock()
 	factory := s.executorFactory
+	shutdownFn := s.shutdownFunc
+	restartFn := s.restartFunc
 	s.mu.Unlock()
 
 	var executor CommandExecutor
@@ -56,6 +58,12 @@ func (s *Server) createSessionModel(username string) cli.Model {
 				if executor != nil {
 					m.SetCommandExecutor(executor)
 				}
+				if shutdownFn != nil {
+					m.SetShutdownFunc(shutdownFn)
+				}
+				if restartFn != nil {
+					m.SetRestartFunc(restartFn)
+				}
 				return m
 			}
 		}
@@ -66,6 +74,12 @@ func (s *Server) createSessionModel(username string) cli.Model {
 	m.SetCommandCompleter(cmdCompleter)
 	if executor != nil {
 		m.SetCommandExecutor(executor)
+	}
+	if shutdownFn != nil {
+		m.SetShutdownFunc(shutdownFn)
+	}
+	if restartFn != nil {
+		m.SetRestartFunc(restartFn)
 	}
 	return m
 }

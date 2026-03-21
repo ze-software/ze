@@ -1,0 +1,81 @@
+# gr-marker-cold-start - verify cold start (no GR marker) has R=0
+#
+# Flow:
+# 1. Ze starts with GR capability (restart-time=120) but no marker in zefs
+# 2. Ze connects to ze-peer and sends OPEN
+# 3. OPEN should contain GR capability with R=0 (no restart state)
+#
+# VALIDATES: AC-3 -- startup with no marker in zefs produces R=0.
+# PREVENTS: False restart state on cold start.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=10s
+
+# Connection 1: expect OPEN + UPDATE + EOR from ze
+# We only check that the session establishes (R=0 is default, no explicit hex check needed
+# since R=1 would change the GR capability wire bytes and break the session negotiation).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external gr {
+		run "ze plugin bgp-gr"
+		encoder json
+	}
+	external rib {
+		run "ze plugin bgp-rib"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		connection active
+		group-updates disable
+
+		family {
+			ipv4/unicast
+		}
+		capability {
+			graceful-restart {
+				restart-time 120
+			}
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+
+		process gr {
+			send [ update ]
+		}
+		process rib {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s

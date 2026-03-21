@@ -14,6 +14,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/chaos"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
@@ -143,6 +144,17 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 	// clean shutdown — no Ctrl-C needed.
 	if stdinOpen {
 		go monitorStdinEOF(sigCh)
+	}
+
+	// RFC 4724 Section 4.1: Read GR marker from storage. If valid (not expired),
+	// set RestartUntil so OPEN messages include R=1 during the restart window.
+	// Marker is consumed (removed) after reading to prevent stale restart on next cold start.
+	if expiry, ok := grmarker.Read(store); ok {
+		reactor.SetRestartUntil(expiry)
+		slogutil.Logger("bgp.gr").Info("GR restart marker found", "expires", expiry)
+	}
+	if removeErr := grmarker.Remove(store); removeErr != nil {
+		slogutil.Logger("bgp.gr").Warn("failed to remove GR marker", "error", removeErr)
 	}
 
 	fmt.Printf("Starting ze BGP with config: %s\n", configPath)

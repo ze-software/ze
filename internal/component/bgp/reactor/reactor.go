@@ -129,6 +129,12 @@ type Config struct {
 
 	// Hub holds TLS transport config for external plugins (nil = no TLS listener).
 	Hub *plugin.HubConfig
+
+	// RestartUntil is the deadline until which this speaker advertises R=1
+	// (Restart State) in GR capabilities. Set from a zefs marker on startup.
+	// Zero value means cold start (R=0).
+	// RFC 4724 Section 4.1: Restarting Speaker sets R-bit in OPEN.
+	RestartUntil time.Time
 }
 
 // PluginConfig holds plugin configuration.
@@ -368,6 +374,12 @@ func (r *Reactor) SetReloadFunc(fn ReloadFunc) {
 // SetConfigPath sets the config file path for reload.
 func (r *Reactor) SetConfigPath(path string) {
 	r.config.ConfigPath = path
+}
+
+// SetRestartUntil sets the GR restart deadline. While the clock reads before
+// this deadline, OPEN messages include R=1 in GR capabilities (RFC 4724 Section 4.1).
+func (r *Reactor) SetRestartUntil(t time.Time) {
+	r.config.RestartUntil = t
 }
 
 // ExecuteCommand dispatches a text command through the API server's dispatcher.

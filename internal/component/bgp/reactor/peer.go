@@ -21,6 +21,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
@@ -396,6 +397,9 @@ func (p *Peer) SetReactor(r *Reactor) {
 // Used as callback for Session.SetPluginCapabilityGetter().
 // Converts plugin.InjectedCapability to capability.Capability for OPEN injection.
 // Queries capabilities for this peer's specific address to support per-peer capabilities.
+//
+// RFC 4724 Section 4.1: If within the restart window (RestartUntil), sets the
+// Restart State bit (R=1) on code-64 capabilities so peers know we restarted.
 func (p *Peer) getPluginCapabilities() []capability.Capability {
 	p.mu.RLock()
 	r := p.reactor
@@ -413,6 +417,12 @@ func (p *Peer) getPluginCapabilities() []capability.Capability {
 	}
 	if len(injected) == 0 {
 		return nil
+	}
+
+	// RFC 4724 Section 4.1: Set R=1 on GR capabilities while within restart window.
+	// After the deadline, new connections get R=0 (cold start behavior).
+	if !r.config.RestartUntil.IsZero() && p.clock.Now().Before(r.config.RestartUntil) {
+		injected = grmarker.SetRBit(injected)
 	}
 
 	caps := make([]capability.Capability, len(injected))
