@@ -14,7 +14,7 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:         "bgp-flowspec",
+		Name:         "bgp-nlri-flowspec",
 		Description:  "FlowSpec NLRI encoding/decoding",
 		RFCs:         []string{"8955", "8956"},
 		SupportsNLRI: true,

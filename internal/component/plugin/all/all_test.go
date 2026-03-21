@@ -16,24 +16,24 @@ import (
 func TestAllPluginsRegistered(t *testing.T) {
 	expected := []string{
 		"bgp-adj-rib-in",
-		"bgp-evpn",
-		"bgp-flowspec",
 		"bgp-gr",
 		"bgp-hostname",
-		"bgp-labeled",
 		"bgp-llnh",
-		"bgp-ls",
-		"bgp-mup",
-		"bgp-mvpn",
+		"bgp-nlri-evpn",
+		"bgp-nlri-flowspec",
+		"bgp-nlri-labeled",
+		"bgp-nlri-ls",
+		"bgp-nlri-mup",
+		"bgp-nlri-mvpn",
+		"bgp-nlri-rtc",
+		"bgp-nlri-vpls",
+		"bgp-nlri-vpn",
 		"bgp-persist",
 		"bgp-rib",
 		"bgp-route-refresh",
 		"bgp-rpki",
 		"bgp-rs",
-		"bgp-rtc",
 		"bgp-softver",
-		"bgp-vpls",
-		"bgp-vpn",
 		"bgp-watchdog",
 		"role",
 	}
@@ -96,15 +96,15 @@ func TestFamilyMappings(t *testing.T) {
 	fm := registry.FamilyMap()
 
 	expected := map[string]string{
-		"ipv4/flow":         "bgp-flowspec",
-		"ipv6/flow":         "bgp-flowspec",
-		"ipv4/flow-vpn":     "bgp-flowspec",
-		"ipv6/flow-vpn":     "bgp-flowspec",
-		"l2vpn/evpn":        "bgp-evpn",
-		"ipv4/vpn":          "bgp-vpn",
-		"ipv6/vpn":          "bgp-vpn",
-		"bgp-ls/bgp-ls":     "bgp-ls",
-		"bgp-ls/bgp-ls-vpn": "bgp-ls",
+		"ipv4/flow":         "bgp-nlri-flowspec",
+		"ipv6/flow":         "bgp-nlri-flowspec",
+		"ipv4/flow-vpn":     "bgp-nlri-flowspec",
+		"ipv6/flow-vpn":     "bgp-nlri-flowspec",
+		"l2vpn/evpn":        "bgp-nlri-evpn",
+		"ipv4/vpn":          "bgp-nlri-vpn",
+		"ipv6/vpn":          "bgp-nlri-vpn",
+		"bgp-ls/bgp-ls":     "bgp-nlri-ls",
+		"bgp-ls/bgp-ls-vpn": "bgp-nlri-ls",
 	}
 
 	for family, wantPlugin := range expected {

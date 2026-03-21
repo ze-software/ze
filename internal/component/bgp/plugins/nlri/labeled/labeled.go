@@ -32,7 +32,7 @@ func SetLogger(l *slog.Logger) {
 func RunLabeledPlugin(conn net.Conn) int {
 	logger.Debug("labeled plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-labeled", conn)
+	p := sdk.NewWithConn("bgp-nlri-labeled", conn)
 	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()

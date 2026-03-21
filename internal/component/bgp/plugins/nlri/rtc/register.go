@@ -14,7 +14,7 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:         "bgp-rtc",
+		Name:         "bgp-nlri-rtc",
 		Description:  "Route Target Constraint family plugin (RFC 4684)",
 		RFCs:         []string{"4684"},
 		SupportsNLRI: true,

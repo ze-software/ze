@@ -14,7 +14,7 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:                  "bgp-labeled",
+		Name:                  "bgp-nlri-labeled",
 		Description:           "Labeled Unicast family plugin (RFC 8277)",
 		RFCs:                  []string{"8277"},
 		Features:              "nlri",

@@ -39,7 +39,7 @@ func SetEVPNLogger(l *slog.Logger) {
 func RunEVPNPlugin(conn net.Conn) int {
 	evpnLogger.Debug("evpn plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-evpn", conn)
+	p := sdk.NewWithConn("bgp-nlri-evpn", conn)
 	defer func() { _ = p.Close() }()
 
 	p.OnDecodeNLRI(DecodeNLRIHex)

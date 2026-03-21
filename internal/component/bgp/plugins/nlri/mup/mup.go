@@ -33,7 +33,7 @@ func SetLogger(l *slog.Logger) {
 func RunMUPPlugin(conn net.Conn) int {
 	logger.Debug("mup plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-mup", conn)
+	p := sdk.NewWithConn("bgp-nlri-mup", conn)
 	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()

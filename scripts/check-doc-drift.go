@@ -309,7 +309,7 @@ func checkComparisonMD(root string, familyNames []string) []issue {
 		"ipv6 flowspec":            "ipv6/flow",
 		"vpn flowspec":             "ipv4/flow-vpn",
 		"bgp-ls (rfc 7752)":        "bgp-ls/bgp-ls",
-		"bgp-ls":                   "bgp-ls/bgp-ls",
+		"bgp-nlri-ls":              "bgp-ls/bgp-ls",
 		"ipv4/ipv6 mup":            "ipv4/mup",
 		"ipv4/ipv6 mvpn":           "ipv4/mvpn",
 	}

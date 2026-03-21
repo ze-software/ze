@@ -14,7 +14,7 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:         "bgp-evpn",
+		Name:         "bgp-nlri-evpn",
 		Description:  "EVPN family plugin",
 		RFCs:         []string{"7432", "9136"},
 		SupportsNLRI: true,

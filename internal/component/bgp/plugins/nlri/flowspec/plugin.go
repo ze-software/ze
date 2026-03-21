@@ -42,7 +42,7 @@ func SetFlowSpecLogger(l *slog.Logger) {
 func RunFlowSpecPlugin(conn net.Conn) int {
 	flowLogger.Debug("flowspec plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-flowspec", conn)
+	p := sdk.NewWithConn("bgp-nlri-flowspec", conn)
 	defer func() { _ = p.Close() }()
 
 	p.OnEncodeNLRI(EncodeNLRIHex)

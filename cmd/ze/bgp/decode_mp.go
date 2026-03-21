@@ -149,7 +149,7 @@ func parseNLRIByFamily(data []byte, afi nlri.AFI, safi nlri.SAFI, _ bool) []any 
 		// EVPN decoding delegated to plugin
 		family := nlri.Family{AFI: afi, SAFI: safi}.String()
 		hexData := fmt.Sprintf("%X", data)
-		result := invokePluginNLRIDecode("bgp-evpn", family, hexData)
+		result := invokePluginNLRIDecode("bgp-nlri-evpn", family, hexData)
 		if result != nil {
 			// Result can be array (multiple NLRIs) or map (single NLRI)
 			if arr, ok := result.([]any); ok {
@@ -165,7 +165,7 @@ func parseNLRIByFamily(data []byte, afi nlri.AFI, safi nlri.SAFI, _ bool) []any 
 		// FlowSpec decoding delegated to plugin
 		family := nlri.Family{AFI: afi, SAFI: safi}.String()
 		hexData := fmt.Sprintf("%X", data)
-		result := invokePluginNLRIDecode("bgp-flowspec", family, hexData)
+		result := invokePluginNLRIDecode("bgp-nlri-flowspec", family, hexData)
 		if result != nil {
 			// Result can be array (multiple NLRIs) or map (single NLRI)
 			if arr, ok := result.([]any); ok {
@@ -181,7 +181,7 @@ func parseNLRIByFamily(data []byte, afi nlri.AFI, safi nlri.SAFI, _ bool) []any 
 		// BGP-LS decoding delegated to plugin
 		family := nlri.Family{AFI: afi, SAFI: safi}.String()
 		hexData := fmt.Sprintf("%X", data)
-		result := invokePluginNLRIDecode("bgp-ls", family, hexData)
+		result := invokePluginNLRIDecode("bgp-nlri-ls", family, hexData)
 		if result != nil {
 			if arr, ok := result.([]any); ok {
 				routes = arr
@@ -195,7 +195,7 @@ func parseNLRIByFamily(data []byte, afi nlri.AFI, safi nlri.SAFI, _ bool) []any 
 		// VPN decoding delegated to plugin (RFC 4364, 4659)
 		family := nlri.Family{AFI: afi, SAFI: safi}.String()
 		hexData := fmt.Sprintf("%X", data)
-		result := invokePluginNLRIDecode("bgp-vpn", family, hexData)
+		result := invokePluginNLRIDecode("bgp-nlri-vpn", family, hexData)
 		if result != nil {
 			if arr, ok := result.([]any); ok {
 				routes = arr

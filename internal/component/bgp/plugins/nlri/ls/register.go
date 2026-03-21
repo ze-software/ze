@@ -14,7 +14,7 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:         "bgp-ls",
+		Name:         "bgp-nlri-ls",
 		Description:  "BGP-LS family plugin",
 		RFCs:         []string{"7752", "9085", "9514"},
 		SupportsNLRI: true,

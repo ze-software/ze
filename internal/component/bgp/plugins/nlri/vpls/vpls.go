@@ -36,7 +36,7 @@ func SetLogger(l *slog.Logger) {
 func RunVPLSPlugin(conn net.Conn) int {
 	logger.Debug("vpls plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-vpls", conn)
+	p := sdk.NewWithConn("bgp-nlri-vpls", conn)
 	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()

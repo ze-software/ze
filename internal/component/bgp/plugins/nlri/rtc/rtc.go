@@ -33,7 +33,7 @@ func SetLogger(l *slog.Logger) {
 func RunRTCPlugin(conn net.Conn) int {
 	logger.Debug("rtc plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-rtc", conn)
+	p := sdk.NewWithConn("bgp-nlri-rtc", conn)
 	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()

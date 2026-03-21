@@ -14,7 +14,7 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:         "bgp-vpls",
+		Name:         "bgp-nlri-vpls",
 		Description:  "VPLS family plugin (RFC 4761)",
 		RFCs:         []string{"4761", "4762"},
 		SupportsNLRI: true,

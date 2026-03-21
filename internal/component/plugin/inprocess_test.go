@@ -118,12 +118,12 @@ func TestGetPluginForFamily(t *testing.T) {
 		want   string
 	}{
 		// FlowSpec families
-		{"ipv4/flow", "bgp-flowspec"},
-		{"ipv6/flow", "bgp-flowspec"},
-		{"ipv4/flow-vpn", "bgp-flowspec"},
-		{"ipv6/flow-vpn", "bgp-flowspec"},
+		{"ipv4/flow", "bgp-nlri-flowspec"},
+		{"ipv6/flow", "bgp-nlri-flowspec"},
+		{"ipv4/flow-vpn", "bgp-nlri-flowspec"},
+		{"ipv6/flow-vpn", "bgp-nlri-flowspec"},
 		// EVPN family
-		{"l2vpn/evpn", "bgp-evpn"},
+		{"l2vpn/evpn", "bgp-nlri-evpn"},
 		// Unknown families
 		{"ipv4/unicast", ""},
 		{"ipv6/unicast", ""},
@@ -150,11 +150,11 @@ func TestGetRequiredPlugins(t *testing.T) {
 		want     []string
 	}{
 		{"empty", []string{}, nil},
-		{"evpn_only", []string{"l2vpn/evpn"}, []string{"bgp-evpn"}},
-		{"flowspec_only", []string{"ipv4/flow"}, []string{"bgp-flowspec"}},
-		{"evpn_and_flowspec", []string{"l2vpn/evpn", "ipv4/flow"}, []string{"bgp-evpn", "bgp-flowspec"}},
-		{"flowspec_dedupe", []string{"ipv4/flow", "ipv6/flow"}, []string{"bgp-flowspec"}},
-		{"unknown_ignored", []string{"ipv4/unicast", "l2vpn/evpn"}, []string{"bgp-evpn"}},
+		{"evpn_only", []string{"l2vpn/evpn"}, []string{"bgp-nlri-evpn"}},
+		{"flowspec_only", []string{"ipv4/flow"}, []string{"bgp-nlri-flowspec"}},
+		{"evpn_and_flowspec", []string{"l2vpn/evpn", "ipv4/flow"}, []string{"bgp-nlri-evpn", "bgp-nlri-flowspec"}},
+		{"flowspec_dedupe", []string{"ipv4/flow", "ipv6/flow"}, []string{"bgp-nlri-flowspec"}},
+		{"unknown_ignored", []string{"ipv4/unicast", "l2vpn/evpn"}, []string{"bgp-nlri-evpn"}},
 		{"all_unknown", []string{"ipv4/unicast", "ipv6/unicast"}, nil},
 	}
 

@@ -14,7 +14,7 @@ import (
 
 func init() {
 	reg := registry.Registration{
-		Name:         "bgp-mup",
+		Name:         "bgp-nlri-mup",
 		Description:  "Mobile User Plane family plugin (draft-mpmz-bess-mup-safi)",
 		SupportsNLRI: true,
 		Features:     "nlri",

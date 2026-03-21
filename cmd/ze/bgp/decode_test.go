@@ -899,11 +899,11 @@ func TestLookupFamilyPlugin(t *testing.T) {
 		family string
 		want   string
 	}{
-		{"ipv4/flow", "bgp-flowspec"},
-		{"IPV4/FLOW", "bgp-flowspec"},
-		{"IPv4/Flow", "bgp-flowspec"},
+		{"ipv4/flow", "bgp-nlri-flowspec"},
+		{"IPV4/FLOW", "bgp-nlri-flowspec"},
+		{"IPv4/Flow", "bgp-nlri-flowspec"},
 		{"ipv4/unicast", ""}, // Unknown family, no plugin
-		{"ipv6/flow-vpn", "bgp-flowspec"},
+		{"ipv6/flow-vpn", "bgp-nlri-flowspec"},
 	}
 
 	for _, tt := range tests {
@@ -1108,19 +1108,19 @@ func TestParsePluginName(t *testing.T) {
 		wantArgs []string
 	}{
 		// Plain names → Fork mode (subprocess)
-		{"bgp-flowspec", "bgp-flowspec", ModeFork, "", nil},
+		{"bgp-nlri-flowspec", "bgp-nlri-flowspec", ModeFork, "", nil},
 		{"bgp-hostname", "bgp-hostname", ModeFork, "", nil},
-		{"bgp-ls", "bgp-ls", ModeFork, "", nil},
+		{"bgp-nlri-ls", "bgp-nlri-ls", ModeFork, "", nil},
 
 		// ze.name → Internal mode (goroutine + pipe)
-		{"ze.bgp-flowspec", "bgp-flowspec", ModeInternal, "", nil},
+		{"ze.bgp-nlri-flowspec", "bgp-nlri-flowspec", ModeInternal, "", nil},
 		{"ze.bgp-hostname", "bgp-hostname", ModeInternal, "", nil},
-		{"ze.bgp-ls", "bgp-ls", ModeInternal, "", nil},
+		{"ze.bgp-nlri-ls", "bgp-nlri-ls", ModeInternal, "", nil},
 
 		// ze-name → Direct mode (sync in-process)
-		{"ze-bgp-flowspec", "bgp-flowspec", ModeDirect, "", nil},
+		{"ze-bgp-nlri-flowspec", "bgp-nlri-flowspec", ModeDirect, "", nil},
 		{"ze-bgp-hostname", "bgp-hostname", ModeDirect, "", nil},
-		{"ze-bgp-ls", "bgp-ls", ModeDirect, "", nil},
+		{"ze-bgp-nlri-ls", "bgp-nlri-ls", ModeDirect, "", nil},
 
 		// Paths → Fork mode with path (no args)
 		{"/usr/bin/plugin", "", ModeFork, "/usr/bin/plugin", nil},
@@ -1208,7 +1208,7 @@ func assertNonEmptyDecodeResult(t *testing.T, result any) {
 // VALIDATES: Internal mode (ze.flowspec) decodes NLRI via plugin protocol.
 // PREVENTS: Wrong invocation path for ze. prefix.
 func TestInvokePluginInternal(t *testing.T) {
-	result := invokePluginNLRIDecode("ze.bgp-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+	result := invokePluginNLRIDecode("ze.bgp-nlri-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
 	require.NotNil(t, result, "ze.flowspec internal decode returned nil")
 	assertNonEmptyDecodeResult(t, result)
 }
@@ -1218,7 +1218,7 @@ func TestInvokePluginInternal(t *testing.T) {
 // VALIDATES: Fork mode (flowspec) attempts subprocess, retries in-process.
 // PREVENTS: Plain names not being handled correctly.
 func TestInvokePluginFork(t *testing.T) {
-	result := invokePluginNLRIDecode("bgp-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+	result := invokePluginNLRIDecode("bgp-nlri-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
 	require.NotNil(t, result, "flowspec fork decode returned nil")
 	assertNonEmptyDecodeResult(t, result)
 }
@@ -1233,7 +1233,7 @@ func TestInvokePluginForkPath(t *testing.T) {
 
 	// Create a wrapper script that calls ze plugin flowspec --decode.
 	wrapperPath := t.TempDir() + "/flowspec-wrapper"
-	wrapperScript := fmt.Sprintf("#!/bin/sh\nexec %s plugin bgp-flowspec \"$@\"\n", binPath)
+	wrapperScript := fmt.Sprintf("#!/bin/sh\nexec %s plugin bgp-nlri-flowspec \"$@\"\n", binPath)
 	require.NoError(t, os.WriteFile(wrapperPath, []byte(wrapperScript), 0o755), "failed to write wrapper") //nolint:gosec // executable script
 
 	// Invoke via path - this should call the wrapper with --decode.
@@ -1247,9 +1247,9 @@ func TestInvokePluginForkPath(t *testing.T) {
 // VALIDATES: Fork, Internal, and Direct modes decode identically.
 // PREVENTS: Mode-dependent decode differences.
 func TestInvokePluginModeConsistency(t *testing.T) {
-	directResult := invokePluginNLRIDecode("ze-bgp-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
-	internalResult := invokePluginNLRIDecode("ze.bgp-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
-	forkResult := invokePluginNLRIDecode("bgp-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+	directResult := invokePluginNLRIDecode("ze-bgp-nlri-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+	internalResult := invokePluginNLRIDecode("ze.bgp-nlri-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
+	forkResult := invokePluginNLRIDecode("bgp-nlri-flowspec", testFlowSpecFamily, testFlowSpecNLRI)
 
 	require.NotNil(t, directResult, "direct returned nil")
 	require.NotNil(t, internalResult, "internal returned nil")

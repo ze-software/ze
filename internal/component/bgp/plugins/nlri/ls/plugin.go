@@ -36,7 +36,7 @@ func SetBGPLSLogger(l *slog.Logger) {
 func RunBGPLSPlugin(conn net.Conn) int {
 	bgplsLogger.Debug("bgpls plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-ls", conn)
+	p := sdk.NewWithConn("bgp-nlri-ls", conn)
 	defer func() { _ = p.Close() }()
 
 	p.OnDecodeNLRI(func(family string, hexStr string) (string, error) {

@@ -32,7 +32,7 @@ func SetLogger(l *slog.Logger) {
 func RunMVPNPlugin(conn net.Conn) int {
 	logger.Debug("mvpn plugin starting (RPC)")
 
-	p := sdk.NewWithConn("bgp-mvpn", conn)
+	p := sdk.NewWithConn("bgp-nlri-mvpn", conn)
 	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()
