@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-03-20 |
+| Phase | 3/4 |
+| Updated | 2026-03-21 |
 
 ## Post-Compaction Recovery
 
@@ -45,12 +45,12 @@ This is an umbrella spec. Implementation is in four child specs executed in orde
 
 ### Child Specs
 
-| Spec | Name | Depends | Description |
-|------|------|---------|-------------|
-| `spec-llgr-1-capability.md` | Capability Wire + Config | - | LLGR capability code 71: wire decode/encode, YANG schema, config extraction, CLI decode |
-| `spec-llgr-2-state-machine.md` | State Machine | llgr-1 | GR-to-LLGR transition, per-family LLST timers, reconnect during LLGR, timer interactions |
-| `spec-llgr-3-rib-integration.md` | RIB Integration | llgr-2 | LLGR_STALE attachment, NO_LLGR deletion, best-path depreference, new RIB commands |
-| `spec-llgr-4-readvertisement.md` | Readvertisement | llgr-3 | Re-advertise stale routes with LLGR_STALE, suppress to non-LLGR peers, partial deployment |
+| Spec | Name | Depends | Status | Description |
+|------|------|---------|--------|-------------|
+| ~~`spec-llgr-1-capability.md`~~ | Capability Wire + Config | - | Done (`plan/learned/401-llgr-1-capability.md`) | LLGR capability code 71: wire decode/encode, YANG schema, config extraction, CLI decode |
+| ~~`spec-llgr-2-state-machine.md`~~ | State Machine | llgr-1 | Done (`plan/learned/402-llgr-2-state-machine.md`) | GR-to-LLGR transition, per-family LLST timers, reconnect during LLGR, timer interactions |
+| ~~`spec-llgr-3-rib-integration.md`~~ | RIB Integration | llgr-2 | Done (`plan/learned/403-llgr-3-rib-integration.md`) | LLGR_STALE attachment, NO_LLGR deletion, best-path depreference, generic RIB commands |
+| `spec-llgr-4-readvertisement.md` | Readvertisement | llgr-3 | design | Re-advertise stale routes with LLGR_STALE, suppress to non-LLGR peers, partial deployment |
 
 ## Required Reading
 
@@ -432,7 +432,9 @@ MUST document: LLGR capability format, LLST timer constraints, community handlin
 - (to be filled)
 
 ### Deviations from Plan
-- (to be filled)
+- AD-3 revised: spec designed `rib enter-llgr` and `rib depreference-stale` as dedicated commands. Implementation uses generic composable commands: `rib attach-community`, `rib delete-with-community`, `rib mark-stale [level]`. Better design -- RIB has no LLGR knowledge.
+- AD-4 revised: spec designed `LLGRStale bool` on RouteEntry. Implementation uses `StaleLevel uint8` (0=fresh, 1=GR-stale, 2+=LLGR-stale) with `DepreferenceThreshold = 2`. More general, supports future extensions.
+- Phases 1-3 completed retroactively (summaries in plan/learned/401-403). Phase 4 (readvertisement) remains.
 
 ## Implementation Audit
 

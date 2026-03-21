@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | design |
-| Depends | spec-llgr-3-rib-integration |
+| Depends | - |
 | Phase | - |
 | Updated | 2026-03-20 |
 
