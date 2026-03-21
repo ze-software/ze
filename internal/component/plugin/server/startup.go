@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — 5-stage plugin startup protocol
 // Overview: server.go — Server struct and lifecycle
+// Detail: startup_autoload.go — auto-loading plugins for families and event types
 
 package server
 
@@ -107,9 +108,10 @@ func (s *Server) handlePluginConflict(proc *process.Process, name, msg string, e
 	proc.Stop()
 }
 
-// runPluginStartup handles two-phase plugin startup:
-// Phase 1: Start explicit plugins, wait for registration
-// Phase 2: Check unclaimed families, start auto-load plugins.
+// runPluginStartup handles three-phase plugin startup:
+// Phase 1: Start explicit plugins, wait for registration.
+// Phase 2: Auto-load plugins for unclaimed families.
+// Phase 3: Auto-load plugins for custom event types (e.g., update-rpki triggers bgp-rpki-decorator).
 func (s *Server) runPluginStartup() {
 	defer s.wg.Done()
 
@@ -124,18 +126,35 @@ func (s *Server) runPluginStartup() {
 
 	// Phase 2: Auto-load plugins for unclaimed families
 	// Now registry has families from explicit plugins - use family-based check
-	autoLoadPlugins := s.getUnclaimedFamilyPlugins()
-	if len(autoLoadPlugins) > 0 {
+	autoLoadFamilies := s.getUnclaimedFamilyPlugins()
+	if len(autoLoadFamilies) > 0 {
 		logger().Debug("auto-loading plugins for unclaimed families",
-			"count", len(autoLoadPlugins))
+			"count", len(autoLoadFamilies))
 
-		// Tell reactor to wait for additional plugins
 		if s.reactor != nil {
-			s.reactor.AddAPIProcessCount(len(autoLoadPlugins))
+			s.reactor.AddAPIProcessCount(len(autoLoadFamilies))
 		}
 
-		if err := s.runPluginPhase(autoLoadPlugins); err != nil {
-			logger().Error("auto-load plugin startup failed", "error", err)
+		if err := s.runPluginPhase(autoLoadFamilies); err != nil {
+			logger().Error("auto-load family plugin startup failed", "error", err)
+			s.signalStartupComplete()
+			return
+		}
+	}
+
+	// Phase 3: Auto-load plugins for custom event types
+	// Config has receive [ update-rpki ] but no explicit decorator plugin configured.
+	autoLoadEvents := s.getUnclaimedEventTypePlugins()
+	if len(autoLoadEvents) > 0 {
+		logger().Debug("auto-loading plugins for custom event types",
+			"count", len(autoLoadEvents))
+
+		if s.reactor != nil {
+			s.reactor.AddAPIProcessCount(len(autoLoadEvents))
+		}
+
+		if err := s.runPluginPhase(autoLoadEvents); err != nil {
+			logger().Error("auto-load event plugin startup failed", "error", err)
 			s.signalStartupComplete()
 			return
 		}
@@ -287,46 +306,6 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 	}
 
 	return nil
-}
-
-// getUnclaimedFamilyPlugins returns plugins to auto-load for configured families
-// that are NOT claimed by any explicit plugin.
-// Uses registry.LookupFamily for family-based detection (not name-based).
-func (s *Server) getUnclaimedFamilyPlugins() []plugin.PluginConfig {
-	seen := make(map[string]bool)
-	var plugins []plugin.PluginConfig
-
-	for _, family := range s.config.ConfiguredFamilies {
-		// Family-based check: skip if already claimed by explicit plugin
-		if s.registry.LookupFamily(family) != "" {
-			logger().Debug("family already claimed, skipping auto-load",
-				"family", family, "claimed_by", s.registry.LookupFamily(family))
-			continue
-		}
-
-		// Get internal plugin for this family
-		pluginName := plugin.GetPluginForFamily(family)
-		if pluginName == "" {
-			continue // No internal plugin for this family
-		}
-
-		// Avoid duplicates
-		if seen[pluginName] {
-			continue
-		}
-		seen[pluginName] = true
-
-		logger().Debug("auto-loading plugin for unclaimed family",
-			"plugin", pluginName, "family", family)
-
-		plugins = append(plugins, plugin.PluginConfig{
-			Name:     pluginName,
-			Encoder:  "json",
-			Internal: true,
-		})
-	}
-
-	return plugins
 }
 
 // handleProcessStartupRPC handles the 5-stage plugin startup via YANG RPC protocol.

@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/core/syncutil"
@@ -34,21 +34,13 @@ var logger = slogutil.LazyLogger("server")
 // Override via ze.plugin.stage.timeout env var or per-plugin config timeout.
 const defaultStageTimeout = 5 * time.Second
 
-// stageTimeoutFromEnv reads ze.plugin.stage.timeout (or ze_plugin_stage_timeout)
-// and returns the parsed duration. Falls back to defaultStageTimeout on missing
-// or invalid values.
+// Env var registration for stage timeout.
+var _ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.stage.timeout", Type: "duration", Default: "5s", Description: "Per-stage timeout for plugin registration protocol"})
+
+// stageTimeoutFromEnv reads ze.plugin.stage.timeout and returns the parsed duration.
+// Falls back to defaultStageTimeout on missing or invalid values.
 func stageTimeoutFromEnv() time.Duration {
-	for _, key := range []string{"ze.plugin.stage.timeout", "ze_plugin_stage_timeout"} {
-		if v := os.Getenv(key); v != "" {
-			d, err := time.ParseDuration(v)
-			if err != nil {
-				logger().Warn("invalid stage timeout env var", "key", key, "value", v, "error", err)
-				return defaultStageTimeout
-			}
-			return d
-		}
-	}
-	return defaultStageTimeout
+	return env.GetDuration("ze.plugin.stage.timeout", defaultStageTimeout)
 }
 
 // RPCParams is the standard params format for JSON RPC requests from socket clients.
@@ -255,8 +247,9 @@ func (s *Server) StartWithContext(ctx context.Context) error {
 
 	// Start plugin phases asynchronously (non-blocking)
 	// Phase 1: Explicit plugins
-	// Phase 2: Auto-load plugins for unclaimed families (after Phase 1 registers)
-	if len(s.config.Plugins) > 0 || len(s.config.ConfiguredFamilies) > 0 {
+	// Phase 2: Auto-load plugins for unclaimed families
+	// Phase 3: Auto-load plugins for custom event types (e.g., update-rpki)
+	if len(s.config.Plugins) > 0 || len(s.config.ConfiguredFamilies) > 0 || len(s.config.ConfiguredCustomEvents) > 0 {
 		s.wg.Add(1)
 		go s.runPluginStartup()
 	} else {

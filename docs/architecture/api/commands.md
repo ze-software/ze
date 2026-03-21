@@ -100,6 +100,10 @@ unsubscribe <namespace> event <type> [direction received|sent|both]
 | `refresh` | ✅ | ROUTE-REFRESH message |
 | `state` | ❌ | Peer state change (up/down) |
 | `negotiated` | ❌ | Capability negotiation complete |
+| `rpki` | ❌ | RPKI validation result (from bgp-rpki plugin) |
+| `update-rpki` | ✅ | UPDATE merged with RPKI validation (from bgp-rpki-decorator) |
+
+Plugins may register additional event types via `Registration.EventTypes`. These are validated at runtime against the dynamic registry.
 
 **RIB event types:**
 

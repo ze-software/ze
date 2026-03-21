@@ -618,12 +618,12 @@ when config doesn't specify families.
 **Auto-loading plugins:** When a family is configured but no plugin has claimed it,
 the engine automatically loads the internal plugin for that family (if one exists).
 
-**Two-phase plugin startup:**
+**Three-phase plugin startup:**
 1. **Phase 1:** Explicit plugins start first and register their families
-2. **Phase 2:** After Phase 1 completes, engine checks which configured families are still unclaimed
-3. Internal plugins are auto-loaded ONLY for unclaimed families
+2. **Phase 2:** After Phase 1 completes, engine checks which configured families are still unclaimed. Internal plugins are auto-loaded ONLY for unclaimed families.
+3. **Phase 3:** After Phase 2 completes, engine checks which custom event types are referenced in peer `receive` config but not produced by any running plugin. Producing plugins (and their transitive dependencies) are auto-loaded. For example, `receive [ update-rpki ]` auto-loads `bgp-rpki-decorator` and its dependency `bgp-rpki`.
 
-Auto-loading is **prevented** when:
+**Family auto-loading** (Phase 2) is **prevented** when:
 1. An explicit plugin declares `decode` for the family (family-based check)
 2. `--plugin ze.<name>` is passed on command line (prevents auto-load for that plugin)
 
@@ -636,11 +636,19 @@ The check is based on **family claims**, not plugin name. Plugin names are infor
 | `family { ipv4/flow; }` | `plugin { external my-traffic { declares ipv4/flow } }` | ✅ Uses config plugin (no auto-load, family claimed) |
 | `family { ipv4/foo; }` | None | ❌ Startup fails (no plugin for family) |
 
+**Event type auto-loading** (Phase 3) triggers when a peer process has `receive [ <custom-type> ]` and no running plugin produces that event type. The producing plugin is found via `registry.PluginForEventType()` which matches against `Registration.EventTypes`. Dependencies are resolved transitively.
+
+| Config | Plugin | Result |
+|--------|--------|--------|
+| `receive [ update-rpki ]` | None | ✅ Auto-loads `bgp-rpki-decorator` + dependency `bgp-rpki` |
+| `receive [ update-rpki ]` | `plugin { external rpki-decorator { ... } }` | ✅ Uses explicit plugin (no auto-load) |
+
 **Functional tests:**
 - `test/plugin/flowspec-open-capability.ci` - auto-load for known family
 - `test/plugin/family-no-plugin-failure.ci` - failure for unknown family
 - `test/plugin/explicit-plugin-precedence.ci` - explicit `--plugin` prevents auto-load
 - `test/plugin/explicit-plugin-config.ci` - config plugin prevents auto-load (sends marker UPDATE 99.99.99.0/24 to prove external plugin is active)
+- `test/plugin/rpki-decorator-autoload.ci` - auto-load for custom event type
 
 **Ordering:** Plugin families are sorted alphabetically for deterministic OPEN messages.
 

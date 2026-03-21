@@ -414,7 +414,6 @@ process <plugin-name> {
 
 | Value | Description |
 |-------|-------------|
-| `all` | Shorthand for all message types |
 | `update` | Route announcements |
 | `open` | Session open messages |
 | `notification` | Error notifications |
@@ -424,13 +423,18 @@ process <plugin-name> {
 | `sent` | Sent UPDATE confirmations |
 | `negotiated` | Capability negotiation results |
 
+Plugins may register additional event types (e.g., `rpki`, `update-rpki`) that can also appear in receive lists. These are validated at runtime against the plugin registry.
+
+**`all` is not accepted.** List event types explicitly. Using `all` would silently include new event types as plugins register them, making config behavior depend on which plugins are loaded. This was an ExaBGP compatibility feature that has been removed.
+
 #### Send enum values
 
 | Value | Description |
 |-------|-------------|
-| `all` | Shorthand for all sendable types |
 | `update` | Can inject routes |
 | `refresh` | Can request route refresh |
+
+**`all` is not accepted.** List send types explicitly.
 
 Invalid enum values are rejected at parse time.
 
@@ -782,4 +786,4 @@ bgp {
 
 ---
 
-**Last Updated:** 2026-02-22
+**Last Updated:** 2026-03-21

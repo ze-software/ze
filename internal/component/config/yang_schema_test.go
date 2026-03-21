@@ -522,11 +522,11 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
             as 65001
         }
         process rib {
-            receive all
+            receive update
         }
     }
 }`,
-			want: []string{"all"},
+			want: []string{"update"},
 		},
 		{
 			name: "space-separated values",
@@ -639,34 +639,30 @@ func TestDeadPeerLeafRejected(t *testing.T) {
 	assert.Contains(t, err.Error(), "multi-session", "error should mention multi-session")
 }
 
-// TestProcessReceiveInvalidEnum verifies that invalid enum values in
-// process receive/send are rejected.
+// TestProcessReceiveAcceptsStrings verifies that receive/send accept arbitrary strings
+// at the YANG level (validation is at runtime via parseReceiveFlags, not YANG enum).
 //
-// VALIDATES: AC-9: receive [ bogus ] rejected by enum validation.
-// PREVENTS: Invalid process event types silently accepted.
-func TestProcessReceiveInvalidEnum(t *testing.T) {
+// VALIDATES: AC-9: receive/send use type string in YANG, runtime validates event types.
+// PREVENTS: YANG rejecting plugin-registered event types like "update-rpki".
+func TestProcessReceiveAcceptsStrings(t *testing.T) {
 	schema := YANGSchema()
 	require.NotNil(t, schema)
 
 	tests := []struct {
-		name    string
-		field   string
-		wantErr string
+		name  string
+		field string
 	}{
 		{
-			name:    "receive bogus",
-			field:   "receive [ bogus ]",
-			wantErr: "bogus",
+			name:  "receive custom event type",
+			field: "receive [ update-rpki ]",
 		},
 		{
-			name:    "send invalid",
-			field:   "send [ invalid ]",
-			wantErr: "invalid",
+			name:  "receive mixed base and custom",
+			field: "receive [ update update-rpki ]",
 		},
 		{
-			name:    "receive update bogus",
-			field:   "receive [ update bogus ]",
-			wantErr: "bogus",
+			name:  "send custom type",
+			field: "send [ update ]",
 		},
 	}
 
@@ -688,8 +684,7 @@ func TestProcessReceiveInvalidEnum(t *testing.T) {
 }`
 			parser := NewParser(schema)
 			_, err := parser.Parse(input)
-			require.Error(t, err, "%s should be rejected", tt.field)
-			assert.Contains(t, err.Error(), tt.wantErr, "error should mention %s", tt.wantErr)
+			require.NoError(t, err, "YANG should accept %s (runtime validates)", tt.field)
 		})
 	}
 }

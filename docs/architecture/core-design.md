@@ -75,6 +75,8 @@ All new code MUST follow these patterns.
 - **Plugins** implement RIB storage, policy, route reflection
 - **Pipes** carry JSON events (with base64 wire bytes) and text commands
 - **BGP cache** enables zero-copy forwarding (`bgp cache 123 forward <sel>`)
+- **Dynamic event types** -- plugins declare event types they produce via `Registration.EventTypes`. Engine registers them into `ValidEvents` at startup, so subscribe-events and emit-event validation accept them. Follows the same pattern as dynamic family registration.
+- **Three-phase startup** -- Phase 1: explicit plugins. Phase 2: auto-load for unclaimed families. Phase 3: auto-load for custom event types referenced in config `receive [ ]` (e.g., `update-rpki` auto-loads `bgp-rpki-decorator` and its dependencies).
 
 ---
 

@@ -889,6 +889,63 @@ func TestTopologicalTiersUnknownPlugin(t *testing.T) {
 	}
 }
 
+// TestPluginForEventType verifies event type lookup returns correct plugin.
+//
+// VALIDATES: PluginForEventType returns the plugin that declares a given event type.
+// PREVENTS: Incorrect event type routing or missing lookups for registered/unregistered types.
+func TestPluginForEventType(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	tests := []struct {
+		name      string
+		setup     func()
+		eventType string
+		want      string
+	}{
+		{
+			name: "returns plugin name when event type matches",
+			setup: func() {
+				reg := validReg("rpki-decorator")
+				reg.EventTypes = []string{"update-rpki", "rpki"}
+				if err := Register(reg); err != nil {
+					t.Fatal(err)
+				}
+			},
+			eventType: "update-rpki",
+			want:      "rpki-decorator",
+		},
+		{
+			name: "returns empty when no plugin has that event type",
+			setup: func() {
+				reg := validReg("some-plugin")
+				reg.EventTypes = []string{"update-rpki"}
+				if err := Register(reg); err != nil {
+					t.Fatal(err)
+				}
+			},
+			eventType: "nonexistent-event",
+			want:      "",
+		},
+		{
+			name:      "returns empty when registry has no plugins with event types",
+			setup:     func() {},
+			eventType: "update-rpki",
+			want:      "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			Reset()
+			tt.setup()
+			got := PluginForEventType(tt.eventType)
+			if got != tt.want {
+				t.Errorf("PluginForEventType(%q) = %q, want %q", tt.eventType, got, tt.want)
+			}
+		})
+	}
+}
+
 // TestResolveDependencies_Diamond verifies diamond deps produce no duplicates.
 //
 // VALIDATES: A→C, B→C: C appears once in result.

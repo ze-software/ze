@@ -49,6 +49,7 @@ const (
 var eventsMu sync.RWMutex
 
 // ValidBgpEvents is the set of valid BGP event types.
+// Includes all types accepted in config receive flags (base + directions).
 var ValidBgpEvents = map[string]bool{
 	EventUpdate:       true,
 	EventOpen:         true,
@@ -61,6 +62,7 @@ var ValidBgpEvents = map[string]bool{
 	EventCongested:    true,
 	EventResumed:      true,
 	EventRPKI:         true,
+	DirectionSent:     true, // "sent" — config receive flag for sent UPDATE events
 }
 
 // ValidRibEvents is the set of valid RIB event types.
@@ -126,37 +128,6 @@ func ValidNamespaceNames() string {
 	}
 	sort.Strings(names)
 	return strings.Join(names, ", ")
-}
-
-// baseEventTypes lists the engine-native event types that have dedicated bool fields
-// on ProcessBinding. Everything else is a plugin-registered custom type.
-var baseEventTypes = map[string]bool{
-	EventUpdate: true, EventOpen: true, EventNotification: true,
-	EventKeepalive: true, EventRefresh: true, EventState: true,
-	EventNegotiated: true, EventCongested: true, EventResumed: true,
-	"sent": true, "all": true,
-}
-
-// CustomEventTypes returns a map of plugin-registered event types for the namespace.
-// These are event types that were added via RegisterEventType (not engine-native).
-// Safe for concurrent use.
-func CustomEventTypes(namespace string) map[string]bool {
-	eventsMu.RLock()
-	defer eventsMu.RUnlock()
-	events := ValidEvents[namespace]
-	if len(events) == 0 {
-		return nil
-	}
-	custom := make(map[string]bool)
-	for k := range events {
-		if !baseEventTypes[k] {
-			custom[k] = true
-		}
-	}
-	if len(custom) == 0 {
-		return nil
-	}
-	return custom
 }
 
 // RegisterEventType adds a custom event type to the given namespace.

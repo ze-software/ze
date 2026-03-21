@@ -420,6 +420,21 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		}
 	}
 
+	// Derive ConfiguredCustomEvents from peer process receive bindings.
+	// Custom event types (e.g., "update-rpki") trigger auto-loading of producing plugins.
+	var configuredCustomEvents []string
+	customEventSeen := make(map[string]bool)
+	for _, ps := range peers {
+		for _, pb := range ps.ProcessBindings {
+			for et := range pb.ReceiveCustom {
+				if !customEventSeen[et] {
+					customEventSeen[et] = true
+					configuredCustomEvents = append(configuredCustomEvents, et)
+				}
+			}
+		}
+	}
+
 	// Extract hub config for TLS plugin transport.
 	hubConfig, hubErr := ExtractHubConfig(tree)
 	if hubErr != nil {
@@ -433,16 +448,17 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 
 	// Build reactor config
 	reactorCfg := &reactor.Config{
-		ListenAddr:         listen,
-		RouterID:           routerID,
-		LocalAS:            localAS,
-		ConfigDir:          configDir,
-		ConfigTree:         tree.ToMap(),
-		MaxSessions:        env.TCP.Attempts, // tcp.attempts: exit after N sessions (0=unlimited)
-		ConfiguredFamilies: configuredFamilies,
-		Plugins:            plugins,
-		Hub:                hubPtr,
-		RecentUpdateMax:    env.Reactor.CacheMax,
+		ListenAddr:             listen,
+		RouterID:               routerID,
+		LocalAS:                localAS,
+		ConfigDir:              configDir,
+		ConfigTree:             tree.ToMap(),
+		MaxSessions:            env.TCP.Attempts, // tcp.attempts: exit after N sessions (0=unlimited)
+		ConfiguredFamilies:     configuredFamilies,
+		ConfiguredCustomEvents: configuredCustomEvents,
+		Plugins:                plugins,
+		Hub:                    hubPtr,
+		RecentUpdateMax:        env.Reactor.CacheMax,
 	}
 
 	r := reactor.New(reactorCfg)

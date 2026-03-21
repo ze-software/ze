@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 // TestParsePeerFromTree verifies basic peer parsing from a map[string]any tree.
@@ -628,18 +629,60 @@ func TestParsePeerProcessBindings(t *testing.T) {
 	assert.False(t, b.SendRefresh)
 }
 
-// TestParsePeerProcessBindingsReceiveAll verifies the "all" shorthand.
+// TestParsePeerProcessBindingsReceiveAllRejected verifies "all" is not accepted.
+// Users must list event types explicitly to avoid silently receiving new types
+// when plugins register them.
 //
-// VALIDATES: receive [ all ]; sets all receive flags to true.
-// PREVENTS: Missing flags when using shorthand notation.
-func TestParsePeerProcessBindingsReceiveAll(t *testing.T) {
+// VALIDATES: receive [ all ] rejected with helpful error.
+// PREVENTS: Silent inclusion of new plugin event types.
+func TestParsePeerProcessBindingsReceiveAllRejected(t *testing.T) {
 	tree := map[string]any{
 		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
 		"local":  map[string]any{"ip": "auto"},
 		"process": map[string]any{
 			"my-plugin": map[string]any{
 				"receive": "all",
-				"send":    "all",
+			},
+		},
+	}
+
+	_, err := parsePeerFromTree("peer1", tree, 65000, 0)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "all")
+}
+
+// TestParsePeerProcessBindingsSendAllRejected verifies "all" is not accepted for send.
+//
+// VALIDATES: send [ all ] rejected with helpful error.
+// PREVENTS: Silent inclusion of future send types.
+func TestParsePeerProcessBindingsSendAllRejected(t *testing.T) {
+	tree := map[string]any{
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
+		"process": map[string]any{
+			"my-plugin": map[string]any{
+				"send": "all",
+			},
+		},
+	}
+
+	_, err := parsePeerFromTree("peer1", tree, 65000, 0)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "all")
+}
+
+// TestParsePeerProcessBindingsExplicitAll verifies explicit listing of all base types.
+//
+// VALIDATES: All base receive/send types accepted when listed explicitly.
+// PREVENTS: Regression from removing "all" shorthand.
+func TestParsePeerProcessBindingsExplicitAll(t *testing.T) {
+	tree := map[string]any{
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
+		"process": map[string]any{
+			"my-plugin": map[string]any{
+				"receive": "update open notification keepalive refresh state sent negotiated",
+				"send":    "update refresh",
 			},
 		},
 	}
@@ -659,6 +702,89 @@ func TestParsePeerProcessBindingsReceiveAll(t *testing.T) {
 	assert.True(t, b.ReceiveNegotiated)
 	assert.True(t, b.SendUpdate)
 	assert.True(t, b.SendRefresh)
+}
+
+// TestParseOneSendFlagRejectsUnknown verifies that parseOneSendFlag returns an error
+// for an unrecognized send token.
+//
+// VALIDATES: parseOneSendFlag rejects typos with a clear error message listing valid values.
+// PREVENTS: Misspelled send flags silently accepted in config.
+func TestParseOneSendFlagRejectsUnknown(t *testing.T) {
+	var b ProcessBinding
+	err := parseOneSendFlag("updat", &b)
+	require.Error(t, err, "typo should be rejected")
+	assert.Contains(t, err.Error(), "updat")
+	assert.Contains(t, err.Error(), "update")
+	assert.Contains(t, err.Error(), "refresh")
+	assert.False(t, b.SendUpdate, "SendUpdate should remain false")
+	assert.False(t, b.SendRefresh, "SendRefresh should remain false")
+}
+
+// TestParseSendFlagsMixedValidInvalid verifies that parseSendFlags fails on the first
+// invalid token even when valid tokens precede it.
+//
+// VALIDATES: parseSendFlags stops at first invalid token and returns error.
+// PREVENTS: Invalid flags silently skipped when mixed with valid ones.
+func TestParseSendFlagsMixedValidInvalid(t *testing.T) {
+	var b ProcessBinding
+	err := parseSendFlags("update bogus refresh", &b)
+	require.Error(t, err, "bogus token should cause failure")
+	assert.Contains(t, err.Error(), "bogus")
+}
+
+// TestParseReceiveFlagsRejectsUnknown verifies that parseReceiveFlags returns an error
+// for event types not registered with plugin.RegisterEventType.
+//
+// VALIDATES: AC-9: unknown event types rejected at runtime (not YANG).
+// PREVENTS: Typos in config silently accepted.
+func TestParseReceiveFlagsRejectsUnknown(t *testing.T) {
+	var b ProcessBinding
+	err := parseReceiveFlags("bogus", &b)
+	require.Error(t, err, "unknown event type should be rejected")
+	assert.Contains(t, err.Error(), "bogus")
+}
+
+// TestParseReceiveFlagsAcceptsRegistered verifies that parseReceiveFlags accepts
+// plugin-registered custom event types and stores them in ReceiveCustom.
+//
+// VALIDATES: AC-1: registered event types accepted in receive config.
+// PREVENTS: Plugin-registered types incorrectly rejected.
+func TestParseReceiveFlagsAcceptsRegistered(t *testing.T) {
+	// Register a custom event type for this test.
+	plugin.RegisterEventType(plugin.NamespaceBGP, "test-custom-event") //nolint:errcheck // test setup
+
+	var b ProcessBinding
+	err := parseReceiveFlags("update test-custom-event", &b)
+	require.NoError(t, err)
+	assert.True(t, b.ReceiveUpdate, "base type should be set")
+	assert.True(t, b.ReceiveCustom["test-custom-event"], "custom type should be in ReceiveCustom")
+}
+
+// TestReceiveCustomMapInit verifies that parseReceiveFlags correctly initializes and
+// reuses the ReceiveCustom map for plugin-registered custom event types.
+//
+// VALIDATES: First custom event type initializes ReceiveCustom from nil; second reuses existing map.
+// PREVENTS: Nil map panic on first custom event or map re-creation losing earlier entries.
+func TestReceiveCustomMapInit(t *testing.T) {
+	plugin.RegisterEventType(plugin.NamespaceBGP, "test-map-init-1") //nolint:errcheck // test setup
+	plugin.RegisterEventType(plugin.NamespaceBGP, "test-map-init-2") //nolint:errcheck // test setup
+
+	var b ProcessBinding
+	// Confirm ReceiveCustom starts nil.
+	assert.Nil(t, b.ReceiveCustom, "ReceiveCustom should be nil before any custom event")
+
+	// First custom event: should initialize the map.
+	err := parseReceiveFlags("test-map-init-1", &b)
+	require.NoError(t, err)
+	require.NotNil(t, b.ReceiveCustom, "ReceiveCustom should be initialized after first custom event")
+	assert.True(t, b.ReceiveCustom["test-map-init-1"])
+
+	// Second custom event: should reuse the same map without losing the first entry.
+	err = parseReceiveFlags("test-map-init-2", &b)
+	require.NoError(t, err)
+	assert.True(t, b.ReceiveCustom["test-map-init-1"], "first custom event should still be present")
+	assert.True(t, b.ReceiveCustom["test-map-init-2"], "second custom event should be added")
+	assert.Len(t, b.ReceiveCustom, 2, "exactly two custom events should be in the map")
 }
 
 // TestParsePeerCapabilityConfigJSON verifies CapabilityConfigJSON is populated.

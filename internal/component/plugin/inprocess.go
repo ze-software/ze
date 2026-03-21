@@ -92,6 +92,12 @@ func GetPluginForFamily(family string) string {
 	return registry.PluginForFamily(family)
 }
 
+// GetPluginForEventType returns the internal plugin name that produces an event type.
+// Returns empty string if no plugin declares that event type.
+func GetPluginForEventType(eventType string) string {
+	return registry.PluginForEventType(eventType)
+}
+
 // GetRequiredPlugins returns the list of internal plugins needed for the given families.
 // Only returns plugins that handle known families.
 // Deduplicates the result.

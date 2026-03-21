@@ -139,6 +139,31 @@ func TestGetPluginForFamily(t *testing.T) {
 	}
 }
 
+// TestGetPluginForEventType verifies event-type-to-plugin mapping.
+//
+// VALIDATES: Each event type maps to the correct producing plugin.
+// PREVENTS: Custom event types not auto-loading their producing plugins.
+func TestGetPluginForEventType(t *testing.T) {
+	tests := []struct {
+		name      string
+		eventType string
+		want      string
+	}{
+		// Known event type registered by bgp-rpki-decorator
+		{"update_rpki", "update-rpki", "bgp-rpki-decorator"},
+		// Unknown event types
+		{"unknown", "unknown-event", ""},
+		{"empty", "", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetPluginForEventType(tt.eventType)
+			assert.Equal(t, tt.want, got, "event type %q should map to plugin %q", tt.eventType, tt.want)
+		})
+	}
+}
+
 // TestGetRequiredPlugins verifies plugin list generation from families.
 //
 // VALIDATES: GetRequiredPlugins returns correct plugins for families.

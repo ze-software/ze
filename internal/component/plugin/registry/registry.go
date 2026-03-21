@@ -300,6 +300,20 @@ func PluginForFamily(family string) string {
 	return ""
 }
 
+// PluginForEventType returns the plugin name that produces a given event type.
+// Returns empty string if no plugin declares that event type.
+func PluginForEventType(eventType string) string {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	for _, reg := range plugins {
+		if slices.Contains(reg.EventTypes, eventType) {
+			return reg.Name
+		}
+	}
+	return ""
+}
+
 // RequiredPlugins returns deduplicated plugin names needed for the given families.
 func RequiredPlugins(families []string) []string {
 	seen := make(map[string]bool)

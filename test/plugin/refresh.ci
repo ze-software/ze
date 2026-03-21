@@ -121,7 +121,7 @@ bgp {
 		process announce-routes {
 		}
 		process rib {
-			send [ update borr eorr ]
+			send [ update refresh ]
 		}
 	}
 }

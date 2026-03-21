@@ -777,7 +777,9 @@ func parseProcessBindingsFromTree(tree map[string]any, ps *PeerSettings) error {
 
 		// Send settings — leaf-list: "update refresh".
 		if v, ok := mapStringJoined(pMap, "send"); ok {
-			parseSendFlags(v, &binding)
+			if err := parseSendFlags(v, &binding); err != nil {
+				return fmt.Errorf("process %q: %w", name, err)
+			}
 		}
 
 		ps.ProcessBindings = append(ps.ProcessBindings, binding)
@@ -799,19 +801,10 @@ func parseReceiveFlags(s string, b *ProcessBinding) error {
 }
 
 // parseOneReceiveFlag handles a single receive token.
+// "all" is not accepted: list event types explicitly to avoid silently receiving
+// new event types when plugins register them (e.g., "rpki", "update-rpki").
 func parseOneReceiveFlag(token string, b *ProcessBinding) error {
 	switch token {
-	case "all":
-		b.ReceiveUpdate = true
-		b.ReceiveOpen = true
-		b.ReceiveNotification = true
-		b.ReceiveKeepalive = true
-		b.ReceiveRefresh = true
-		b.ReceiveState = true
-		b.ReceiveSent = true
-		b.ReceiveNegotiated = true
-		// Include all plugin-registered custom event types.
-		b.ReceiveCustom = plugin.CustomEventTypes(plugin.NamespaceBGP)
 	case "update":
 		b.ReceiveUpdate = true
 	case "open":
@@ -842,19 +835,27 @@ func parseOneReceiveFlag(token string, b *ProcessBinding) error {
 }
 
 // parseSendFlags sets send flags on a ProcessBinding from a space-separated enum list.
-func parseSendFlags(s string, b *ProcessBinding) {
+// "all" is not accepted: list send types explicitly.
+func parseSendFlags(s string, b *ProcessBinding) error {
 	for token := range strings.FieldsSeq(s) {
-		switch token {
-		case "all":
-			b.SendUpdate = true
-			b.SendRefresh = true
-			return
-		case "update":
-			b.SendUpdate = true
-		case "refresh":
-			b.SendRefresh = true
+		if err := parseOneSendFlag(token, b); err != nil {
+			return err
 		}
 	}
+	return nil
+}
+
+// parseOneSendFlag handles a single send token.
+func parseOneSendFlag(token string, b *ProcessBinding) error {
+	switch token {
+	case "update":
+		b.SendUpdate = true
+		return nil
+	case "refresh":
+		b.SendRefresh = true
+		return nil
+	}
+	return fmt.Errorf("invalid value for send: %q (valid: update, refresh)", token)
 }
 
 // --- Map navigation helpers ---

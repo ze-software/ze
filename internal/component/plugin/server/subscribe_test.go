@@ -175,7 +175,6 @@ func TestParseSubscriptionInvalidEventType(t *testing.T) {
 		name string
 		args []string
 	}{
-		{"bgp_sent", []string{"bgp", "event", "sent"}},       // sent is direction, not event
 		{"bgp_unknown", []string{"bgp", "event", "unknown"}}, // not a valid bgp event
 		{"bgp_empty", []string{"bgp", "event"}},              // missing event type
 		{"rib_update", []string{"rib", "event", "update"}},   // update is bgp, not rib

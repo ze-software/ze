@@ -392,21 +392,17 @@ module ze-bgp-conf {
 
             leaf-list receive {
                 type string;
-                description "Event types to receive. Base types: all, update, open,
+                description "Event types to receive. Base types: update, open,
                     notification, keepalive, refresh, state, sent, negotiated.
                     Plugins may register additional types (e.g., update-rpki).
+                    List types explicitly; 'all' is not accepted.
                     Validated at runtime against registered event types.";
             }
 
             leaf-list send {
-                type enumeration {
-                    enum all { description "All message types"; }
-                    enum update { description "UPDATE messages"; }
-                    enum refresh { description "ROUTE-REFRESH messages"; }
-                    enum borr { description "Beginning of Route Refresh (RFC 7313)"; }
-                    enum eorr { description "End of Route Refresh (RFC 7313)"; }
-                }
-                description "Message types to send";
+                type string;
+                description "Message types to send. Valid: update, refresh.
+                    Validated at runtime against known send types.";
             }
         }
 

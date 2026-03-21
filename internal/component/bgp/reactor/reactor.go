@@ -127,6 +127,10 @@ type Config struct {
 	// Used for deferred auto-loading of family plugins after explicit plugins register.
 	ConfiguredFamilies []string
 
+	// ConfiguredCustomEvents lists custom event types referenced in peer process receive config.
+	// Used for auto-loading plugins that produce these event types (e.g., "update-rpki" triggers bgp-rpki-decorator).
+	ConfiguredCustomEvents []string
+
 	// Hub holds TLS transport config for external plugins (nil = no TLS listener).
 	Hub *plugin.HubConfig
 
@@ -613,11 +617,12 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// Start API server
 	{
 		apiConfig := &pluginserver.ServerConfig{
-			ConfigPath:         r.config.ConfigPath,
-			ConfiguredFamilies: r.config.ConfiguredFamilies,
-			Hub:                r.config.Hub,
-			RPCFallback:        bgpserver.CodecRPCHandler,
-			CommitManager:      transaction.NewCommitManager(),
+			ConfigPath:             r.config.ConfigPath,
+			ConfiguredFamilies:     r.config.ConfiguredFamilies,
+			ConfiguredCustomEvents: r.config.ConfiguredCustomEvents,
+			Hub:                    r.config.Hub,
+			RPCFallback:            bgpserver.CodecRPCHandler,
+			CommitManager:          transaction.NewCommitManager(),
 		}
 		// Convert plugin configs
 		for _, pc := range r.config.Plugins {
