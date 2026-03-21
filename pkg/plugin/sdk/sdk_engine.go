@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — plugin-to-engine RPC methods
 // Overview: sdk.go — plugin SDK core
+// Related: union.go — event stream correlation using EmitEvent
 
 package sdk
 
@@ -41,6 +42,28 @@ func (p *Plugin) DispatchCommand(ctx context.Context, command string) (status, d
 		return "", "", fmt.Errorf("unmarshal dispatch-command result: %w", err)
 	}
 	return out.Status, out.Data, nil
+}
+
+// EmitEvent pushes an event into the engine's delivery pipeline.
+// The engine finds subscribers matching the namespace, event type, direction, and peer,
+// then delivers the event string to each. Returns the number of subscribers reached.
+func (p *Plugin) EmitEvent(ctx context.Context, namespace, eventType, direction, peerAddress, event string) (int, error) {
+	input := &rpc.EmitEventInput{
+		Namespace:   namespace,
+		EventType:   eventType,
+		Direction:   direction,
+		PeerAddress: peerAddress,
+		Event:       event,
+	}
+	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:emit-event", input)
+	if err != nil {
+		return 0, err
+	}
+	var out rpc.EmitEventOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return 0, fmt.Errorf("unmarshal emit-event result: %w", err)
+	}
+	return out.Delivered, nil
 }
 
 // SubscribeEvents requests event delivery from the engine.

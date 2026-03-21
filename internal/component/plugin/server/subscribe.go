@@ -195,8 +195,8 @@ func ParseSubscription(args []string) (*Subscription, error) {
 		return nil, fmt.Errorf("missing namespace")
 	}
 	ns := args[i]
-	if ns != plugin.NamespaceBGP && ns != plugin.NamespaceRIB {
-		return nil, fmt.Errorf("invalid namespace: %s (valid: bgp, rib)", ns)
+	if _, ok := plugin.ValidEvents[ns]; !ok {
+		return nil, fmt.Errorf("invalid namespace: %s (valid: %s)", ns, plugin.ValidNamespaceNames())
 	}
 	sub.Namespace = ns
 	i++
@@ -267,18 +267,14 @@ func validatePeerSelector(selector string) error {
 }
 
 // validateEventType validates an event type for a namespace.
+// Both namespaces and event types are derived from plugin.ValidEvents.
 func validateEventType(namespace, eventType string) error {
-	switch namespace {
-	case plugin.NamespaceBGP:
-		if !plugin.ValidBgpEvents[eventType] {
-			return fmt.Errorf("invalid bgp event type: %s (valid: update, open, notification, keepalive, refresh, state, negotiated, eor, congested, resumed)", eventType)
-		}
-	case plugin.NamespaceRIB:
-		if !plugin.ValidRibEvents[eventType] {
-			return fmt.Errorf("invalid rib event type: %s (valid: cache, route)", eventType)
-		}
-	default:
-		return fmt.Errorf("invalid namespace: %s", namespace)
+	events, ok := plugin.ValidEvents[namespace]
+	if !ok {
+		return fmt.Errorf("invalid namespace: %s (valid: %s)", namespace, plugin.ValidNamespaceNames())
+	}
+	if !events[eventType] {
+		return fmt.Errorf("invalid %s event type: %s (valid: %s)", namespace, eventType, plugin.ValidEventNames(namespace))
 	}
 	return nil
 }

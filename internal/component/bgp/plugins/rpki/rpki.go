@@ -4,6 +4,7 @@
 // Detail: rtr_session.go — RTR session lifecycle management
 // Detail: roa_cache.go — ROA cache VRP storage and covering-prefix lookup
 // Detail: validate.go — RFC 6811 origin validation algorithm
+// Detail: emit.go — RPKI validation event JSON building
 package rpki
 
 import (
@@ -61,6 +62,9 @@ type RPKIPlugin struct {
 	// sessions holds active RTR sessions to cache servers.
 	sessions []*RTRSession
 
+	// sessionWg tracks RTR session goroutines for clean shutdown.
+	sessionWg sync.WaitGroup
+
 	// validateCh receives validation decisions for async dispatch.
 	// The worker goroutine drains this channel and issues DispatchCommand calls,
 	// preventing blocking the SDK event callback goroutine.
@@ -83,10 +87,15 @@ func RunRPKIPlugin(conn net.Conn) int {
 		validateCh: make(chan validationRequest, 4096),
 		stopCh:     make(chan struct{}),
 	}
-	defer close(rp.stopCh)
 
 	// Start async validation worker (long-lived goroutine per Ze rules).
-	go rp.validationWorker()
+	var workerWg sync.WaitGroup
+	workerWg.Go(rp.validationWorker)
+	defer func() {
+		close(rp.stopCh)
+		rp.sessionWg.Wait()
+		workerWg.Wait()
+	}()
 
 	p.OnEvent(func(jsonStr string) error {
 		event, err := bgp.ParseEvent([]byte(jsonStr))
@@ -166,13 +175,14 @@ func (rp *RPKIPlugin) startSessions(cfg *rpkiConfig) {
 	for _, cs := range cfg.CacheServers {
 		session := NewRTRSession(cs.Address, cs.Port, cs.Preference, rp.cache, rp.stopCh)
 		rp.sessions = append(rp.sessions, session)
-		go session.Run()
+		rp.sessionWg.Go(session.Run)
 		logger().Info("rpki: started RTR session", "address", cs.Address, "port", cs.Port)
 	}
 }
 
 // handleEvent processes BGP events (UPDATE received).
-// Enqueues validation decisions to the async worker channel (never blocks).
+// Validates each prefix against the ROA cache, enqueues accept/reject decisions
+// to the async worker, and emits an rpki event with per-prefix validation states.
 func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 	eventType := event.GetEventType()
 	if eventType != "update" {
@@ -191,8 +201,15 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 		originAS = extractOriginAS(event.RawAttributes)
 	}
 
+	// Check if ROA cache is empty (unavailable).
+	v4, v6 := rp.cache.Count()
+	cacheEmpty := v4+v6 == 0
+
 	// Validate each NLRI prefix against the ROA cache.
+	// Collect per-family results for rpki event emission.
 	for family, ops := range event.FamilyOps {
+		familyResults := make(map[string]uint8)
+
 		for _, op := range ops {
 			if op.Action != "add" {
 				continue
@@ -205,7 +222,9 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 				}
 
 				state := rp.cache.Validate(prefix, originAS)
-				// Non-blocking enqueue to async worker.
+				familyResults[prefix] = state
+
+				// Blocking enqueue to async worker (backpressure if worker falls behind).
 				select {
 				case rp.validateCh <- validationRequest{
 					peerAddr: peerAddr,
@@ -218,6 +237,29 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 				}
 			}
 		}
+
+		// Emit rpki event only if there were "add" operations (skip pure withdrawals).
+		if len(familyResults) > 0 || cacheEmpty {
+			rp.emitRPKIEvent(peerAddr, event.GetPeerASN(), event.GetMsgID(), family, familyResults, cacheEmpty)
+		}
+	}
+}
+
+// emitRPKIEvent emits an rpki validation event via the SDK EmitEvent RPC.
+// Called after validating all prefixes in a family for a single UPDATE.
+func (rp *RPKIPlugin) emitRPKIEvent(peerAddr string, peerASN uint32, msgID uint64, family string, results map[string]uint8, cacheEmpty bool) {
+	var event string
+	if cacheEmpty {
+		event = buildRPKIEventUnavailable(peerAddr, peerASN, msgID)
+	} else {
+		event = buildRPKIEvent(peerAddr, peerASN, msgID, family, results)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := rp.plugin.EmitEvent(ctx, "bgp", "rpki", "received", peerAddr, event)
+	if err != nil {
+		logger().Warn("rpki: emit event failed", "error", err)
 	}
 }
 
@@ -240,6 +282,20 @@ func (rp *RPKIPlugin) validationWorker() {
 
 // dispatchValidation sends a single accept/reject command with retry.
 func (rp *RPKIPlugin) dispatchValidation(req validationRequest) {
+	// Guard: NotValidated (0) should not reach here; skip silently.
+	if req.state == ValidationNotValidated {
+		return
+	}
+
+	// Validate fields contain no whitespace (prevents command injection).
+	if strings.ContainsAny(req.peerAddr, " \t\n\r") ||
+		strings.ContainsAny(req.family, " \t\n\r") ||
+		strings.ContainsAny(req.prefix, " \t\n\r") {
+		logger().Warn("rpki: invalid characters in validation request fields",
+			"peer", req.peerAddr, "family", req.family, "prefix", req.prefix)
+		return
+	}
+
 	var cmd string
 	if req.state == ValidationInvalid {
 		cmd = "adj-rib-in reject-routes " + req.peerAddr + " " + req.family + " " + req.prefix

@@ -341,6 +341,48 @@ module ze-plugin-engine {
         }
     }
 
+    // Runtime: Event emission (plugin-generated events).
+
+    rpc emit-event {
+        description
+            "Plugin emits a custom event to subscribers.
+             The engine routes the event to all plugins subscribed to the
+             matching namespace and event-type.";
+        input {
+            leaf namespace {
+                type string;
+                mandatory true;
+                description "Event namespace (e.g., bgp, rib)";
+            }
+            leaf event-type {
+                type string;
+                mandatory true;
+                description "Event type (e.g., rpki, update)";
+            }
+            leaf direction {
+                type string;
+                default "received";
+                description "Event direction (received, sent, both)";
+            }
+            leaf peer-address {
+                type string;
+                default "*";
+                description "Peer address for event routing (* for all)";
+            }
+            leaf event {
+                type string;
+                mandatory true;
+                description "JSON-encoded event payload";
+            }
+        }
+        output {
+            leaf delivered {
+                type uint32;
+                description "Number of plugins that received the event";
+            }
+        }
+    }
+
     // Error identities.
 
     identity registration-conflict {

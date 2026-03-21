@@ -1,0 +1,145 @@
+# Test: rpki event emitted with VRP covering the announced prefix
+# VALIDATES: Single UPDATE prefix gets per-prefix rpki validation state (AC-3)
+# PREVENTS: rpki plugin failing to emit validation event for covered prefix
+
+# ze-peer: send 1 route with AS 65001
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=update:value=send-route:prefix=10.0.1.0/24:origin-as=65001:next-hop=10.0.0.1
+# EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: verifies rpki event has per-prefix states
+tmpfs=rpki-event-multi-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.subscribe(['rpki direction received'])
+    api.ready()
+
+    time.sleep(4.0)
+
+    try:
+        # Poll for rpki event with validation state
+        found = False
+        for _ in range(20):
+            event_str = api.read_line(timeout=0.5)
+            if event_str is None:
+                continue
+            try:
+                evt = json.loads(event_str)
+            except (json.JSONDecodeError, TypeError):
+                continue
+            bgp = evt.get('bgp', {})
+            msg = bgp.get('message', {})
+            if msg.get('type') != 'rpki':
+                continue
+            rpki = bgp.get('rpki', {})
+            if not isinstance(rpki, dict) or rpki.get('status') == 'unavailable':
+                continue
+            family = rpki.get('ipv4/unicast', {})
+            # 10.0.1.0/24 from AS 65001 with VRP 10.0.0.0/8,24,65001 -> valid
+            state = family.get('10.0.1.0/24')
+            if state == 'valid':
+                found = True
+                break
+
+        if not found:
+            print('FAIL: no rpki event with valid state for prefix', file=sys.stderr)
+            sys.exit(1)
+
+        print('OK: rpki event has per-prefix validation states', file=sys.stderr)
+    finally:
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	hub {
+		listen 127.0.0.1:0;
+		secret rpki-test-secret-key-01234567890;
+	}
+	external rpki-event-multi-test {
+		run ./rpki-event-multi-test.run
+		encoder json
+	}
+	external rpki {
+		run "ze plugin bgp-rpki"
+		encoder json
+	}
+	external adj-rib-in {
+		run "ze plugin bgp-adj-rib-in"
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	rpki {
+		cache-server 127.0.0.1 {
+			port $PORT2
+		}
+	}
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		connection active
+		group-updates disable
+
+		family {
+			ipv4/unicast
+		}
+		capability {
+			graceful-restart disable
+		}
+		process rpki-event-multi-test {
+		}
+		process rpki {
+			receive [ update ]
+		}
+		process adj-rib-in {
+			receive [ update state ]
+		}
+	}
+}
+EOF_CONF
+
+# VRP: 10.0.0.0/8 maxlen=24 AS=65001 + 172.16.0.0/12 maxlen=24 AS=65002
+cmd=background:seq=1:exec=ze-rtr-mock --port $PORT2 --vrp 10.0.0.0/8,24,65001 --vrp 172.16.0.0/12,24,65002
+cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0

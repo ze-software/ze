@@ -3,6 +3,7 @@
 // Detail: sdk_engine.go — plugin-to-engine RPC methods
 // Detail: sdk_dispatch.go — event loop and callback dispatch
 // Detail: sdk_types.go — re-exported RPC type aliases
+// Detail: union.go — event stream correlation
 //
 // Package sdk provides a high-level SDK for creating ze plugins using the
 // YANG RPC protocol over a single bidirectional connection.

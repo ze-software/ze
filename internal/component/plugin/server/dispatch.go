@@ -67,6 +67,9 @@ func (s *Server) dispatchPluginRPC(proc *process.Process, conn *plugipc.PluginCo
 	case "ze-plugin-engine:unsubscribe-events":
 		s.handleUnsubscribeEventsRPC(proc, conn, req)
 		return
+	case "ze-plugin-engine:emit-event":
+		s.handleEmitEventRPC(proc, conn, req)
+		return
 	}
 
 	// Try RPC fallback for remaining methods (codec RPCs, etc.)
@@ -297,6 +300,58 @@ func (s *Server) handleUnsubscribeEventsRPC(proc *process.Process, conn *plugipc
 	}
 }
 
+// handleEmitEventRPC handles ze-plugin-engine:emit-event from a plugin.
+// Finds matching subscribers and delivers the event string to each.
+func (s *Server) handleEmitEventRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
+	result, err := s.emitEvent(proc, req.Params)
+	if err != nil {
+		if sendErr := conn.SendError(s.ctx, req.ID, err.Error()); sendErr != nil {
+			logger().Debug("rpc runtime: send error failed", "plugin", proc.Name(), "error", sendErr)
+		}
+		return
+	}
+	if sendErr := conn.SendResult(s.ctx, req.ID, result); sendErr != nil {
+		logger().Debug("rpc runtime: send result failed", "plugin", proc.Name(), "error", sendErr)
+	}
+}
+
+// emitEvent is the shared implementation for emit-event (RPC and Direct).
+// The emitting process is excluded from delivery to prevent self-delivery loops.
+func (s *Server) emitEvent(emitter *process.Process, params json.RawMessage) (*rpc.EmitEventOutput, error) {
+	var input rpc.EmitEventInput
+	if err := json.Unmarshal(params, &input); err != nil {
+		return nil, &rpc.RPCCallError{Message: "invalid emit-event params: " + err.Error()}
+	}
+
+	if input.Namespace == "" || input.EventType == "" || input.Event == "" {
+		return nil, &rpc.RPCCallError{Message: "emit-event requires namespace, event-type, and event"}
+	}
+
+	// Validate event type exists in the namespace (uses canonical registry).
+	nsEvents, nsOK := plugin.ValidEvents[input.Namespace]
+	if !nsOK || !nsEvents[input.EventType] {
+		return nil, &rpc.RPCCallError{Message: "unknown event: " + input.Namespace + "/" + input.EventType}
+	}
+
+	if s.subscriptions == nil {
+		return &rpc.EmitEventOutput{Delivered: 0}, nil
+	}
+
+	procs := s.subscriptions.GetMatching(input.Namespace, input.EventType, input.Direction, input.PeerAddress)
+	delivered := 0
+	for _, p := range procs {
+		// Skip self-delivery to prevent loops.
+		if p == emitter {
+			continue
+		}
+		if p.Deliver(process.EventDelivery{Output: input.Event}) {
+			delivered++
+		}
+	}
+
+	return &rpc.EmitEventOutput{Delivered: delivered}, nil
+}
+
 // handleCodecRPC is a shared helper for plugin->engine codec RPCs (decode-nlri, encode-nlri).
 // The codec callback unmarshals params and calls the registry; it returns the result to send
 // or an error to relay back to the plugin.
@@ -331,6 +386,8 @@ func (s *Server) dispatchPluginRPCDirect(proc *process.Process, method string, p
 		return s.handleSubscribeEventsDirect(proc, params)
 	case "ze-plugin-engine:unsubscribe-events":
 		return s.handleUnsubscribeEventsDirect(proc)
+	case "ze-plugin-engine:emit-event":
+		return s.handleEmitEventDirect(proc, params)
 	}
 
 	// Try RPC fallback for remaining methods (codec RPCs, etc.)
@@ -452,6 +509,15 @@ func (s *Server) handleUnsubscribeEventsDirect(proc *process.Process) (json.RawM
 
 	s.subscriptions.ClearProcess(proc)
 	return directResultResponse(nil)
+}
+
+// handleEmitEventDirect handles emit-event without socket I/O.
+func (s *Server) handleEmitEventDirect(proc *process.Process, params json.RawMessage) (json.RawMessage, error) {
+	result, err := s.emitEvent(proc, params)
+	if err != nil {
+		return nil, err
+	}
+	return directResultResponse(result)
 }
 
 // handleCodecRPCDirect handles codec RPCs without socket I/O.

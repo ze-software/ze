@@ -8,8 +8,8 @@
 //
 // RPCs are multiplexed over a single bidirectional connection via MuxConn:
 //   - Plugin-initiated: declare-registration, declare-capabilities, ready,
-//     update-route, dispatch-command, subscribe/unsubscribe-events, decode/encode-nlri,
-//     decode-mp-reach, decode-mp-unreach, decode-update
+//     update-route, dispatch-command, emit-event, subscribe/unsubscribe-events,
+//     decode/encode-nlri, decode-mp-reach, decode-mp-unreach, decode-update
 //   - Engine-initiated: configure, share-registry, deliver-event,
 //     decode/encode-nlri, decode-capability, execute-command, bye
 package rpc
@@ -216,6 +216,22 @@ type DispatchCommandInput struct {
 type DispatchCommandOutput struct {
 	Status string `json:"status"`         // "done" or "error"
 	Data   string `json:"data,omitempty"` // JSON-encoded response data
+}
+
+// EmitEventInput is the input for ze-plugin-engine:emit-event.
+// Plugins use this to push events into the engine's delivery pipeline,
+// enabling plugin-to-plugin event communication (e.g., RPKI validation events).
+type EmitEventInput struct {
+	Namespace   string `json:"namespace"`    // Event namespace (e.g., "bgp")
+	EventType   string `json:"event-type"`   // Event type (e.g., "rpki")
+	Direction   string `json:"direction"`    // Direction for subscriber matching (e.g., "received")
+	PeerAddress string `json:"peer-address"` // Peer address for subscriber matching
+	Event       string `json:"event"`        // Full JSON event string
+}
+
+// EmitEventOutput is the output for ze-plugin-engine:emit-event.
+type EmitEventOutput struct {
+	Delivered int `json:"delivered"` // Number of subscribers that received the event
 }
 
 // SubscribeEventsInput is the input for ze-plugin-engine:subscribe-events.
