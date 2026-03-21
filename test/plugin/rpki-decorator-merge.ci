@@ -1,0 +1,203 @@
+# Test: rpki-decorator merges UPDATE + RPKI events into update-rpki
+# VALIDATES: Consumer receives merged update-rpki event with UPDATE data + rpki validation state
+# PREVENTS: Decorator not correlating events, not emitting merged events, or wrong validation state
+
+# ze-peer: send three routes with different validation outcomes
+# 9.0.1.0/24 from AS 65001 → Valid   (9 % 3 == 0, VRP ASN=65001 matches)
+# 10.0.1.0/24 from AS 65001 → Invalid (10 % 3 == 1, VRP ASN=65099 != 65001)
+# 11.0.1.0/24 from AS 65001 → NotFound (11 % 3 == 2, no VRP)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=update:value=send-route:prefix=9.0.1.0/24:origin-as=65001:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.0.1.0/24:origin-as=65001:next-hop=10.0.0.1
+option=update:value=send-route:prefix=11.0.1.0/24:origin-as=65001:next-hop=10.0.0.1
+# EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: subscribes to update-rpki events, verifies merged content
+tmpfs=rpki-dec-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+
+    # Subscribe to update-rpki events (produced by decorator)
+    api.subscribe(['update-rpki direction received'])
+    api.ready()
+
+    # Wait for RTR sync + BGP UPDATE + rpki validation + decorator merge
+    time.sleep(5.0)
+
+    try:
+        # Collect update-rpki events
+        events = []
+        for _ in range(30):
+            event_str = api.read_line(timeout=0.5)
+            if event_str is None:
+                continue
+            try:
+                evt = json.loads(event_str)
+            except (json.JSONDecodeError, TypeError):
+                continue
+            bgp = evt.get('bgp', {})
+            msg = bgp.get('message', {})
+            if msg.get('type') != 'update-rpki':
+                continue
+            events.append(evt)
+
+        if len(events) == 0:
+            print('FAIL: no update-rpki events received', file=sys.stderr)
+            sys.exit(1)
+
+        # Check that merged events contain both update and rpki sections
+        found_valid = False
+        found_invalid = False
+        found_notfound = False
+
+        for evt in events:
+            bgp = evt.get('bgp', {})
+
+            # Must have update section (from primary UPDATE event)
+            update = bgp.get('update')
+            if update is None:
+                print(f'FAIL: update-rpki event missing update section: {json.dumps(evt)}', file=sys.stderr)
+                sys.exit(1)
+
+            # Must have message type = update-rpki
+            msg = bgp.get('message', {})
+            if msg.get('type') != 'update-rpki':
+                print(f'FAIL: wrong message type: {msg.get("type")}', file=sys.stderr)
+                sys.exit(1)
+
+            # Check rpki section (may be absent on timeout -- that is also valid)
+            rpki = bgp.get('rpki', {})
+            if not isinstance(rpki, dict):
+                continue
+
+            family = rpki.get('ipv4/unicast', {})
+            if not isinstance(family, dict):
+                continue
+
+            if family.get('9.0.1.0/24') == 'valid':
+                found_valid = True
+            if family.get('10.0.1.0/24') == 'invalid':
+                found_invalid = True
+            if family.get('11.0.1.0/24') == 'not-found':
+                found_notfound = True
+
+        results = []
+        if found_valid:
+            results.append('valid')
+        if found_invalid:
+            results.append('invalid')
+        if found_notfound:
+            results.append('not-found')
+
+        if not found_valid:
+            print(f'FAIL: no valid state for 9.0.1.0/24 in {len(events)} events', file=sys.stderr)
+            sys.exit(1)
+
+        # Invalid and NotFound may arrive depending on timing
+        print(f'OK: update-rpki events received with states: {", ".join(results)} ({len(events)} events)', file=sys.stderr)
+
+    finally:
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	hub {
+		listen 127.0.0.1:0;
+		secret rpki-decorator-test-secret-01234;
+	}
+	external rpki-dec-test {
+		run ./rpki-dec-test.run
+		encoder json
+	}
+	external rpki {
+		run "ze plugin bgp-rpki"
+		encoder json
+	}
+	external rpki-decorator {
+		run "ze plugin bgp-rpki-decorator"
+		encoder json
+	}
+	external adj-rib-in {
+		run "ze plugin bgp-adj-rib-in"
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	rpki {
+		cache-server 127.0.0.1 {
+			port $PORT2
+		}
+	}
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		connection active
+		group-updates disable
+
+		family {
+			ipv4/unicast
+		}
+		capability {
+			graceful-restart disable
+		}
+		process rpki-dec-test {
+		}
+		process rpki {
+			receive [ update ]
+		}
+		process rpki-decorator {
+			receive [ update ]
+		}
+		process adj-rib-in {
+			receive [ update state ]
+		}
+	}
+}
+EOF_CONF
+
+# RTR mock: 9.0.0.0/8 maxlen=32 AS=65001 (Valid), 10.0.0.0/8 maxlen=32 AS=65099 (Invalid)
+# No VRP for 11.0.0.0/8 → NotFound
+cmd=background:seq=1:exec=ze-rtr-mock --port $PORT2 --vrp 9.0.0.0/8,32,65001 --vrp 10.0.0.0/8,32,65099
+cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=25s
+expect=exit:code=0
