@@ -71,8 +71,9 @@ type Process struct {
 	wireEncodingOut atomic.Uint32 // Outbound: commands Process→ze
 
 	// High-level encoding and format (bgp plugin encoding/format commands)
-	encoding atomic.Value // string: "json" or "text" (default: "json")
-	format   atomic.Value // string: "hex", "base64", "parsed", "full" (default: "hex")
+	encoding       atomic.Value // string: "json" or "text" (default: "json")
+	format         atomic.Value // string: "hex", "base64", "parsed", "full" (default: "hex")
+	formatCacheKey atomic.Value // string: precomputed "format+encoding" for event dispatch cache lookup
 
 	// Registered plugin commands (tracked for cleanup on death)
 	registeredCommands []string
@@ -282,6 +283,7 @@ func (p *Process) Encoding() string {
 // SetEncoding sets the high-level encoding (json or text).
 func (p *Process) SetEncoding(enc string) {
 	p.encoding.Store(enc)
+	p.recomputeFormatCacheKey()
 }
 
 // Format returns the wire format (hex, base64, parsed, full).
@@ -297,6 +299,27 @@ func (p *Process) Format() string {
 // SetFormat sets the wire format (hex, base64, parsed, full, summary).
 func (p *Process) SetFormat(format string) {
 	p.format.Store(format)
+	p.recomputeFormatCacheKey()
+}
+
+// FormatCacheKey returns the precomputed "format+encoding" string for event dispatch
+// cache lookup. Avoids per-event string concatenation on the hot path.
+func (p *Process) FormatCacheKey() string {
+	if v := p.formatCacheKey.Load(); v != nil {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	// Fallback: compute on first call (before SetFormat/SetEncoding).
+	key := p.Format() + "+" + p.Encoding()
+	p.formatCacheKey.Store(key)
+	return key
+}
+
+// recomputeFormatCacheKey updates the cached format+encoding key.
+// Called by SetFormat and SetEncoding after storing the new value.
+func (p *Process) recomputeFormatCacheKey() {
+	p.formatCacheKey.Store(p.Format() + "+" + p.Encoding())
 }
 
 // AddRegisteredCommand tracks a command registered by this process.

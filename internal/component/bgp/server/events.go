@@ -9,6 +9,7 @@ package server
 import (
 	"fmt"
 	"sort"
+	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
@@ -26,6 +27,70 @@ var logger = slogutil.LazyLogger("bgp.server")
 
 // monitorFormatKey is the format+encoding cache key for CLI monitors (always json+parsed).
 const monitorFormatKey = "parsed+json"
+
+// structuredUpdatePool eliminates per-UPDATE heap allocation of StructuredUpdate
+// on the DirectBridge hot path. Get, fill fields, deliver, then put back.
+var structuredUpdatePool = sync.Pool{
+	New: func() any { return new(rpc.StructuredUpdate) },
+}
+
+// getStructuredUpdate returns a StructuredUpdate from the pool with fields set.
+func getStructuredUpdate(peerAddr string, event any) *rpc.StructuredUpdate {
+	su, ok := structuredUpdatePool.Get().(*rpc.StructuredUpdate)
+	if !ok {
+		su = new(rpc.StructuredUpdate)
+	}
+	su.PeerAddress = peerAddr
+	su.Event = event
+	return su
+}
+
+// putStructuredUpdate returns a StructuredUpdate to the pool after clearing references.
+func putStructuredUpdate(su *rpc.StructuredUpdate) {
+	su.PeerAddress = ""
+	su.Event = nil
+	structuredUpdatePool.Put(su)
+}
+
+// formatCache is a stack-allocated cache for pre-formatted event outputs.
+// Replaces make(map[string]string, 2) to avoid per-event map allocation.
+// The key space is tiny: typically 1-2 distinct format+encoding combinations.
+const formatCacheSlots = 4
+
+type formatCache struct {
+	keys   [formatCacheSlots]string
+	values [formatCacheSlots]string
+	n      int
+}
+
+// get returns the cached value for key, or empty string and false if not found.
+func (c *formatCache) get(key string) (string, bool) {
+	for i := range c.n {
+		if c.keys[i] == key {
+			return c.values[i], true
+		}
+	}
+	return "", false
+}
+
+// set stores a key-value pair. If the cache is full, the entry is silently dropped
+// (caller falls through to format on the spot -- correctness is preserved).
+func (c *formatCache) set(key, value string) {
+	if c.n < formatCacheSlots {
+		c.keys[c.n] = key
+		c.values[c.n] = value
+		c.n++
+	}
+}
+
+// reset clears the cache for reuse across batch iterations.
+func (c *formatCache) reset() {
+	for i := range c.n {
+		c.keys[i] = ""
+		c.values[i] = ""
+	}
+	c.n = 0
+}
 
 // onMessageReceived handles raw BGP messages from peers.
 // Forwards to processes based on API subscriptions.
@@ -64,14 +129,15 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 
 	// Pre-format text for text/JSON consumers per distinct format+encoding key.
 	// DirectBridge consumers skip text formatting entirely.
-	formatOutputs := make(map[string]string, 2)
+	// Stack-allocated cache avoids per-event map allocation.
+	var fmtCache formatCache
 	for _, proc := range procs {
 		if isUpdate && proc.HasStructuredHandler() {
 			continue // DirectBridge — no text formatting needed
 		}
-		cacheKey := proc.Format() + "+" + proc.Encoding()
-		if _, ok := formatOutputs[cacheKey]; !ok {
-			formatOutputs[cacheKey] = formatMessageForSubscription(encoder, peer, msg, proc.Format(), proc.Encoding())
+		cacheKey := proc.FormatCacheKey()
+		if _, ok := fmtCache.get(cacheKey); !ok {
+			fmtCache.set(cacheKey, formatMessageForSubscription(encoder, peer, msg, proc.Format(), proc.Encoding()))
 		}
 	}
 
@@ -79,12 +145,21 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	results := make(chan process.EventResult, len(procs))
 	sent := 0
 
+	// Track pooled StructuredUpdates for return after result collection.
+	var pooled [4]*rpc.StructuredUpdate
+	pooledN := 0
+
 	for _, proc := range procs {
 		var delivery process.EventDelivery
 		if isUpdate && proc.HasStructuredHandler() {
-			delivery = process.EventDelivery{Event: &rpc.StructuredUpdate{PeerAddress: peerAddr, Event: &msg}, Result: results}
+			su := getStructuredUpdate(peerAddr, &msg)
+			delivery = process.EventDelivery{Event: su, Result: results}
+			if pooledN < len(pooled) {
+				pooled[pooledN] = su
+				pooledN++
+			}
 		} else {
-			output := formatOutputs[proc.Format()+"+"+proc.Encoding()]
+			output, _ := fmtCache.get(proc.FormatCacheKey())
 			delivery = process.EventDelivery{Output: output, Result: results}
 		}
 		if !proc.Deliver(delivery) {
@@ -104,6 +179,11 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 		}
 	}
 
+	// Return pooled StructuredUpdates after all consumers are done.
+	for i := range pooledN {
+		putStructuredUpdate(pooled[i])
+	}
+
 	// RFC 4724 Section 2: detect EOR markers in received UPDATEs.
 	// EOR is delivered as a separate event so plugins can subscribe to "eor" independently.
 	if isUpdate && msg.Direction == plugin.DirectionReceived && msg.WireUpdate != nil {
@@ -113,8 +193,7 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	}
 
 	// Deliver to CLI monitors. Reuse json+parsed from format cache if available.
-	monitorKey := monitorFormatKey
-	jsonOutput, ok := formatOutputs[monitorKey]
+	jsonOutput, ok := fmtCache.get(monitorFormatKey)
 	if !ok {
 		jsonOutput = formatMessageForSubscription(encoder, peer, msg, "parsed", "json")
 	}
@@ -154,30 +233,40 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 
 	// Deliver each message: pre-format text for text/JSON consumers,
 	// pass RawMessage directly for DirectBridge consumers.
+	// Stack-allocated cache is reused across batch iterations.
+	var fmtCache formatCache
+	results := make(chan process.EventResult, len(procs))
+
 	for i := range msgs {
 		msg := &msgs[i]
 
 		// Pre-format text for text/JSON consumers per distinct format+encoding key.
 		// DirectBridge consumers skip text formatting entirely.
-		formatOutputs := make(map[string]string, 2)
+		fmtCache.reset()
 		for _, proc := range procs {
 			if isUpdate && proc.HasStructuredHandler() {
 				continue // DirectBridge — no text formatting needed
 			}
-			cacheKey := proc.Format() + "+" + proc.Encoding()
-			if _, ok := formatOutputs[cacheKey]; !ok {
-				formatOutputs[cacheKey] = formatMessageForSubscription(encoder, peer, *msg, proc.Format(), proc.Encoding())
+			cacheKey := proc.FormatCacheKey()
+			if _, ok := fmtCache.get(cacheKey); !ok {
+				fmtCache.set(cacheKey, formatMessageForSubscription(encoder, peer, *msg, proc.Format(), proc.Encoding()))
 			}
 		}
 
-		results := make(chan process.EventResult, len(procs))
+		var pooled [4]*rpc.StructuredUpdate
+		pooledN := 0
 		sent := 0
 		for _, proc := range procs {
 			var delivery process.EventDelivery
 			if isUpdate && proc.HasStructuredHandler() {
-				delivery = process.EventDelivery{Event: &rpc.StructuredUpdate{PeerAddress: peerAddr, Event: msg}, Result: results}
+				su := getStructuredUpdate(peerAddr, msg)
+				delivery = process.EventDelivery{Event: su, Result: results}
+				if pooledN < len(pooled) {
+					pooled[pooledN] = su
+					pooledN++
+				}
 			} else {
-				output := formatOutputs[proc.Format()+"+"+proc.Encoding()]
+				output, _ := fmtCache.get(proc.FormatCacheKey())
 				delivery = process.EventDelivery{Output: output, Result: results}
 			}
 			if !proc.Deliver(delivery) {
@@ -197,6 +286,11 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 		}
 		counts[i] = cacheCount
 
+		// Return pooled StructuredUpdates after all consumers are done.
+		for j := range pooledN {
+			putStructuredUpdate(pooled[j])
+		}
+
 		// RFC 4724 Section 2: detect EOR markers in received UPDATEs.
 		if isUpdate && msg.Direction == plugin.DirectionReceived && msg.WireUpdate != nil {
 			if family, ok := msg.WireUpdate.IsEOR(); ok {
@@ -205,8 +299,7 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 		}
 
 		// Deliver to CLI monitors per message.
-		monitorKey := monitorFormatKey
-		jsonOutput, ok := formatOutputs[monitorKey]
+		jsonOutput, ok := fmtCache.get(monitorFormatKey)
 		if !ok {
 			jsonOutput = formatMessageForSubscription(encoder, peer, *msg, "parsed", "json")
 		}
@@ -378,18 +471,18 @@ func onPeerStateChange(s *pluginserver.Server, peer plugin.PeerInfo, state, reas
 	logger().Debug("OnPeerStateChange", "peer", peerAddr, "state", state, "reason", reason, "count", len(procs))
 
 	// Pre-format once per distinct encoding.
-	formatOutputs := make(map[string]string, 2)
+	var fmtCache formatCache
 	for _, proc := range procs {
 		enc := proc.Encoding()
-		if _, ok := formatOutputs[enc]; !ok {
-			formatOutputs[enc] = format.FormatStateChange(peer, state, reason, enc)
+		if _, ok := fmtCache.get(enc); !ok {
+			fmtCache.set(enc, format.FormatStateChange(peer, state, reason, enc))
 		}
 	}
 
 	// Deliver sequentially in dependency order — each process must complete
 	// before the next starts, enabling inter-plugin coordination.
 	for _, proc := range procs {
-		output := formatOutputs[proc.Encoding()]
+		output, _ := fmtCache.get(proc.Encoding())
 		results := make(chan process.EventResult, 1)
 		if !proc.Deliver(process.EventDelivery{Output: output, Result: results}) {
 			continue
@@ -401,7 +494,7 @@ func onPeerStateChange(s *pluginserver.Server, peer plugin.PeerInfo, state, reas
 	}
 
 	// Deliver to CLI monitors.
-	jsonOutput, ok := formatOutputs["json"]
+	jsonOutput, ok := fmtCache.get("json")
 	if !ok {
 		jsonOutput = format.FormatStateChange(peer, state, reason, "json")
 	}
@@ -461,17 +554,17 @@ func onEORReceived(s *pluginserver.Server, peer plugin.PeerInfo, family string) 
 	logger().Debug("OnEORReceived", "peer", peerAddr, "family", family, "count", len(procs))
 
 	// Pre-format once per distinct encoding.
-	formatOutputs := make(map[string]string, 2)
+	var fmtCache formatCache
 	for _, proc := range procs {
 		enc := proc.Encoding()
-		if _, ok := formatOutputs[enc]; !ok {
-			formatOutputs[enc] = format.FormatEOR(peer, family, enc)
+		if _, ok := fmtCache.get(enc); !ok {
+			fmtCache.set(enc, format.FormatEOR(peer, family, enc))
 		}
 	}
 
 	// Deliver sequentially in dependency order.
 	for _, proc := range procs {
-		output := formatOutputs[proc.Encoding()]
+		output, _ := fmtCache.get(proc.Encoding())
 		results := make(chan process.EventResult, 1)
 		if !proc.Deliver(process.EventDelivery{Output: output, Result: results}) {
 			continue
@@ -483,7 +576,7 @@ func onEORReceived(s *pluginserver.Server, peer plugin.PeerInfo, family string) 
 	}
 
 	// Deliver to CLI monitors.
-	jsonOutput, ok := formatOutputs["json"]
+	jsonOutput, ok := fmtCache.get("json")
 	if !ok {
 		jsonOutput = format.FormatEOR(peer, family, "json")
 	}
@@ -520,18 +613,18 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer plu
 
 	// Pre-format: encode once per distinct format+encoding combination.
 	// DirectBridge consumers skip text formatting entirely.
-	formatOutputs := make(map[string]string, 2)
+	var fmtCache formatCache
 	for _, proc := range procs {
 		if isUpdate && proc.HasStructuredHandler() {
 			continue // DirectBridge — no text formatting needed
 		}
-		cacheKey := proc.Format() + "+" + proc.Encoding()
-		if _, ok := formatOutputs[cacheKey]; !ok {
+		cacheKey := proc.FormatCacheKey()
+		if _, ok := fmtCache.get(cacheKey); !ok {
 			if isUpdate {
 				content := bgptypes.ContentConfig{Encoding: proc.Encoding(), Format: proc.Format()}
-				formatOutputs[cacheKey] = format.FormatSentMessage(peer, msg, content)
+				fmtCache.set(cacheKey, format.FormatSentMessage(peer, msg, content))
 			} else {
-				formatOutputs[cacheKey] = formatMessageForSubscription(encoder, peer, msg, proc.Format(), proc.Encoding())
+				fmtCache.set(cacheKey, formatMessageForSubscription(encoder, peer, msg, proc.Format(), proc.Encoding()))
 			}
 		}
 	}
@@ -540,12 +633,20 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer plu
 	results := make(chan process.EventResult, len(procs))
 	sent := 0
 
+	var pooled [4]*rpc.StructuredUpdate
+	pooledN := 0
+
 	for _, proc := range procs {
 		var delivery process.EventDelivery
 		if isUpdate && proc.HasStructuredHandler() {
-			delivery = process.EventDelivery{Event: &rpc.StructuredUpdate{PeerAddress: peerAddr, Event: &msg}, Result: results}
+			su := getStructuredUpdate(peerAddr, &msg)
+			delivery = process.EventDelivery{Event: su, Result: results}
+			if pooledN < len(pooled) {
+				pooled[pooledN] = su
+				pooledN++
+			}
 		} else {
-			output := formatOutputs[proc.Format()+"+"+proc.Encoding()]
+			output, _ := fmtCache.get(proc.FormatCacheKey())
 			delivery = process.EventDelivery{Output: output, Result: results}
 		}
 		if !proc.Deliver(delivery) {
@@ -561,9 +662,13 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer plu
 		}
 	}
 
+	// Return pooled StructuredUpdates after all consumers are done.
+	for i := range pooledN {
+		putStructuredUpdate(pooled[i])
+	}
+
 	// Deliver to CLI monitors. Reuse json+parsed from format cache if available.
-	monitorKey := monitorFormatKey
-	jsonOutput, ok := formatOutputs[monitorKey]
+	jsonOutput, ok := fmtCache.get(monitorFormatKey)
 	if !ok {
 		if isUpdate {
 			content := bgptypes.ContentConfig{Encoding: "json", Format: "parsed"}
@@ -593,11 +698,11 @@ func onPeerCongestionChange(s *pluginserver.Server, peer plugin.PeerInfo, eventT
 	logger().Debug("OnPeerCongestionChange", "peer", peerAddr, "event", eventType, "count", len(procs))
 
 	// Pre-format once per distinct encoding.
-	formatOutputs := make(map[string]string, 2)
+	var fmtCache formatCache
 	for _, proc := range procs {
 		enc := proc.Encoding()
-		if _, ok := formatOutputs[enc]; !ok {
-			formatOutputs[enc] = format.FormatCongestion(peer, eventType, enc)
+		if _, ok := fmtCache.get(enc); !ok {
+			fmtCache.set(enc, format.FormatCongestion(peer, eventType, enc))
 		}
 	}
 
@@ -606,7 +711,7 @@ func onPeerCongestionChange(s *pluginserver.Server, peer plugin.PeerInfo, eventT
 	sent := 0
 
 	for _, proc := range procs {
-		output := formatOutputs[proc.Encoding()]
+		output, _ := fmtCache.get(proc.Encoding())
 		if !proc.Deliver(process.EventDelivery{Output: output, Result: results}) {
 			continue
 		}
@@ -621,7 +726,7 @@ func onPeerCongestionChange(s *pluginserver.Server, peer plugin.PeerInfo, eventT
 	}
 
 	// Deliver to CLI monitors.
-	jsonOutput, ok := formatOutputs["json"]
+	jsonOutput, ok := fmtCache.get("json")
 	if !ok {
 		jsonOutput = format.FormatCongestion(peer, eventType, "json")
 	}
