@@ -18,6 +18,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze validate -:stdin=config
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
 expect=stderr:contains=graceful-restart requires process with send [ update ]

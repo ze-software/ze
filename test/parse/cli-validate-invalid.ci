@@ -1,4 +1,4 @@
-# Test: ze validate (new path) with invalid config
+# Test: ze config validate (new path) with invalid config
 # This tests error handling for the moved validate command
 stdin=config:terminator=EOF_CONF
 # Invalid: missing bgp block
@@ -9,6 +9,6 @@ environment {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze validate -:stdin=config
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
 expect=stderr:contains=missing required bgp { } block

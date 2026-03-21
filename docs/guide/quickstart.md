@@ -85,7 +85,7 @@ bgp {
 ## Validate
 
 ```bash
-bin/ze validate example.conf
+bin/ze config validate example.conf
 ```
 
 Expected output:

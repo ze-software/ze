@@ -121,7 +121,7 @@ ExaBGP operational messages (ASM, ADM, RPCQ, etc.) are not supported.
 
 ```bash
 # Check what needs migration
-ze bgp config check config.conf
+ze config validate config.conf
 
 # Preview changes
 ze bgp config migrate --dry-run config.conf

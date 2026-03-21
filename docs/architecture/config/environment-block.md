@@ -112,7 +112,7 @@ ze.bgp.bgp.passive=maybe     # Invalid: not a boolean
 Before upgrading, validate your environment variables:
 
 ```bash
-ze bgp config check --env
+ze config validate --limit environment
 ```
 
 This will report any invalid environment variables that would cause startup failure.
@@ -184,7 +184,7 @@ ze bgp run config.conf
 | Environment source | Separate INI file (`exabgp.env`) | Config block + OS env |
 | Invalid values | Silent fallback to default | Strict error, refuse to start |
 | Validation | None | Enums and ranges validated |
-| Migration helper | None | `ze bgp config check --env` |
+| Migration helper | None | `ze config validate --limit environment` |
 
 ## Multiple Environment Blocks
 

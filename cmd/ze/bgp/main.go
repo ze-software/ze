@@ -61,7 +61,7 @@ Commands:
   help                 Show this help
 
 See also:
-  ze validate          Validate configuration
+  ze config validate   Validate configuration
   ze config            Configuration management
   ze plugin            Plugin system (rib, rr, gr, etc.)
   ze schema            Schema discovery

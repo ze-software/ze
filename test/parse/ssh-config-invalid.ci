@@ -1,4 +1,4 @@
-# Test: ze validate with invalid SSH config (unknown field)
+# Test: ze config validate with invalid SSH config (unknown field)
 # Verifies that unknown fields in the ssh block are rejected
 stdin=config:terminator=EOF_CONF
 bgp {
@@ -22,6 +22,6 @@ system {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze validate -:stdin=config
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
 expect=stderr:contains=unknown

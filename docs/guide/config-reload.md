@@ -59,6 +59,6 @@ If a plugin reload fails:
 
 ## Best Practices
 
-- Always validate before reload: `ze validate config.conf`
+- Always validate before reload: `ze config validate config.conf`
 - Use `ze config diff old.conf new.conf` to preview changes
 - Monitor `ze cli bgp monitor event state` during reload to watch sessions

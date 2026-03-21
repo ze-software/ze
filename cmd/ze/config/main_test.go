@@ -144,14 +144,17 @@ func TestConfigFmtComplexConfig(t *testing.T) {
 	}
 }
 
-// TestConfigCheckCurrentConfig tests that current configs pass check.
+// TestConfigValidateCurrentConfig tests that current configs pass validation.
 //
-// VALIDATES: config check works for valid configs.
+// VALIDATES: config validate works for valid configs.
 //
 // PREVENTS: False positives on current syntax.
-func TestConfigCheckCurrentConfig(t *testing.T) {
-	config := `
+func TestConfigValidateCurrentConfig(t *testing.T) {
+	input := `
 bgp {
+	local {
+		as 65000;
+	}
 	group rr {
 		remote {
 			as 65000;
@@ -161,47 +164,38 @@ bgp {
 				ip 192.0.2.1;
 				as 65001;
 			}
+			local {
+				ip 192.0.2.2;
+			}
 		}
 	}
 }
 `
-	// Write config to temp file
-	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "test.conf")
-	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
+	result := runValidation(input, "test.conf")
 
-	// Run check
-	result := configCheckData(configPath)
-
-	if result.err != nil {
-		t.Errorf("unexpected error: %v", result.err)
+	if !result.Valid {
+		for _, e := range result.Errors {
+			t.Errorf("unexpected error: %s", e.Message)
+		}
 	}
 }
 
-// TestConfigCheckRejectsNeighbor tests that old neighbor syntax is rejected.
+// TestConfigValidateRejectsNeighbor tests that old neighbor syntax is rejected.
 //
-// VALIDATES: config check rejects old syntax.
+// VALIDATES: config validate rejects old syntax.
 //
 // PREVENTS: Accepting deprecated configs.
-func TestConfigCheckRejectsNeighbor(t *testing.T) {
-	config := `
+func TestConfigValidateRejectsNeighbor(t *testing.T) {
+	input := `
 neighbor 192.0.2.1 {
 	peer-as 65001
 }
 `
-	tmpDir := t.TempDir()
-	configPath := filepath.Join(tmpDir, "test.conf")
-	if err := os.WriteFile(configPath, []byte(config), 0o600); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
+	result := runValidation(input, "test.conf")
 
-	result := configCheckData(configPath)
-
-	// Old syntax should cause parse error
-	if result.err == nil {
-		t.Error("expected error for old neighbor syntax, got nil")
+	// Old syntax should cause parse error.
+	if result.Valid {
+		t.Error("expected invalid result for old neighbor syntax")
 	}
 }
 

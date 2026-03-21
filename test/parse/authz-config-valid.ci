@@ -1,4 +1,4 @@
-# Test: ze validate with valid authorization profile config
+# Test: ze config validate with valid authorization profile config
 # Verifies that the YANG schema accepts authorization profiles with run/edit sections
 stdin=config:terminator=EOF_CONF
 bgp {
@@ -44,6 +44,6 @@ system {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze validate -:stdin=config
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=0
 expect=stdout:contains=configuration valid

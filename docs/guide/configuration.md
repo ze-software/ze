@@ -182,7 +182,7 @@ environment {
 Validate a configuration file without starting ze:
 
 ```
-ze validate myconfig.conf
+ze config validate myconfig.conf
 ```
 
 Unknown keys are rejected with a suggestion for the closest valid key.

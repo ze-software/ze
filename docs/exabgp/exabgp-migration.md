@@ -120,7 +120,7 @@ When introducing a breaking change:
 
 ```bash
 # Check what needs migration
-ze bgp config check old.conf
+ze config validate old.conf
 
 # Preview changes
 ze bgp config migrate --dry-run old.conf

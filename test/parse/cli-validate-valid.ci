@@ -1,4 +1,4 @@
-# Test: ze validate (new path) with valid config
+# Test: ze config validate (new path) with valid config
 # This tests the moved validate command at root level
 stdin=config:terminator=EOF_CONF
 bgp {
@@ -15,6 +15,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze validate -:stdin=config
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=0
 expect=stdout:contains=configuration valid

@@ -1,6 +1,6 @@
 // Design: docs/architecture/config/syntax.md — config CLI commands
 // Detail: cmd_edit.go — edit subcommand handler
-// Detail: cmd_check.go — check subcommand handler
+// Detail: cmd_validate.go — validate subcommand handler
 // Detail: cmd_migrate.go — migrate subcommand handler
 // Detail: cmd_fmt.go — fmt subcommand handler
 // Detail: cmd_dump.go — dump subcommand handler
@@ -27,9 +27,8 @@ import (
 
 // Exit codes for config commands.
 const (
-	exitOK              = 0 // Success
-	exitMigrationNeeded = 1 // Config needs migration (check command)
-	exitError           = 2 // Error (file not found, parse error, etc.)
+	exitOK    = 0 // Success
+	exitError = 2 // Error (file not found, parse error, etc.)
 )
 
 // storageHandlers maps subcommand names to handler functions that receive storage.
@@ -50,7 +49,7 @@ var storageHandlers = map[string]func(storage.Storage, []string) int{
 // Using a map avoids both if-else chains (gocritic lint) and switch default
 // (hook false positive for /config/ path).
 var subcommandHandlers = map[string]func([]string) int{
-	"check":      cmdCheck,
+	"validate":   cmdValidate,
 	"migrate":    cmdMigrate,
 	"fmt":        cmdFmt,
 	"dump":       cmdDump,
@@ -130,7 +129,7 @@ Storage:
   cat <key>                    Print a database entry
 
 Inspection:
-  check <file>             Validate and check for deprecated patterns
+  validate <file>          Validate configuration file
   dump <file>              Parse and display config
   diff <f1> <f2>           Compare two configs
   diff <N> <file>          Compare rollback revision N against current
@@ -151,7 +150,7 @@ Examples:
   ze config edit
   ze config import router.conf
   ze config import --name production.conf /etc/ze/router.conf
-  ze config check router.conf
+  ze config validate router.conf
   ze config set router.conf bgp local as 65000
 `)
 }

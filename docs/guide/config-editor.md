@@ -31,7 +31,7 @@ The editor starts an ephemeral ze instance in the background for live YANG valid
 
 | Command | Description |
 |---------|-------------|
-| `ze config check <file>` | Validate config, check for deprecated patterns |
+| `ze config validate <file>` | Validate configuration file |
 | `ze config migrate <file>` | Convert ExaBGP config to ze format |
 | `ze config fmt <file>` | Normalize formatting (output to stdout) |
 | `ze config dump <file>` | Dump parsed config as JSON tree |
@@ -59,13 +59,13 @@ The editor automatically saves a rollback revision before each commit. Use `ze c
 | Code | Meaning |
 |------|---------|
 | 0 | Success |
-| 1 | Migration needed (from `check` command) |
+| 1 | Configuration has errors (from `validate` command) |
 | 2 | Error (file not found, parse failure) |
 
 ## Example Workflow
 
 ```bash
-ze config check config.conf         # Pre-flight validation
+ze config validate config.conf      # Pre-flight validation
 ze config edit config.conf          # Interactive editing
 ze config diff 3 config.conf       # Compare with revision 3
 ze config rollback 3 config.conf   # Restore revision 3

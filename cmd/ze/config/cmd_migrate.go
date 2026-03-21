@@ -1,6 +1,5 @@
 // Design: docs/architecture/config/syntax.md — config migrate command
 // Overview: main.go — dispatch and exit codes
-// Related: cmd_check.go — findUnsupportedFeatures used by migrate
 
 package config
 
@@ -191,6 +190,62 @@ func printMigrateWarnings(warnings []string) {
 			fmt.Fprintf(os.Stderr, "  - %s\n", w)
 		}
 	}
+}
+
+func findUnsupportedFeatures(tree *config.Tree) []string {
+	var warnings []string
+
+	for _, entry := range tree.GetListOrdered("peer") {
+		warnings = append(warnings, checkUnsupportedInPeerTree(entry.Key, entry.Value)...)
+	}
+
+	for _, entry := range tree.GetListOrdered("neighbor") {
+		warnings = append(warnings, checkUnsupportedInPeerTree(entry.Key, entry.Value)...)
+	}
+
+	if bgp := tree.GetContainer("bgp"); bgp != nil {
+		for _, entry := range bgp.GetListOrdered("peer") {
+			warnings = append(warnings, checkUnsupportedInPeerTree(entry.Key, entry.Value)...)
+		}
+	}
+
+	if tmpl := tree.GetContainer("template"); tmpl != nil {
+		for _, entry := range tmpl.GetListOrdered("group") {
+			warnings = append(warnings, checkUnsupportedInPeerTree("template.group."+entry.Key, entry.Value)...)
+		}
+		for _, entry := range tmpl.GetListOrdered("match") {
+			warnings = append(warnings, checkUnsupportedInPeerTree("template.match."+entry.Key, entry.Value)...)
+		}
+		for _, entry := range tmpl.GetListOrdered("neighbor") {
+			warnings = append(warnings, checkUnsupportedInPeerTree("template.neighbor."+entry.Key, entry.Value)...)
+		}
+		if bgp := tmpl.GetContainer("bgp"); bgp != nil {
+			for _, entry := range bgp.GetListOrdered("peer") {
+				warnings = append(warnings, checkUnsupportedInPeerTree("template.bgp.peer."+entry.Key, entry.Value)...)
+			}
+		}
+	}
+
+	return warnings
+}
+
+func checkUnsupportedInPeerTree(path string, tree *config.Tree) []string {
+	var warnings []string
+
+	if cap := tree.GetContainer("capability"); cap != nil {
+		if _, ok := cap.GetFlex("multi-session"); ok {
+			warnings = append(warnings, fmt.Sprintf("%s: capability.multi-session not supported", path))
+		}
+		if _, ok := cap.GetFlex("operational"); ok {
+			warnings = append(warnings, fmt.Sprintf("%s: capability.operational not supported", path))
+		}
+	}
+
+	if tree.GetContainer("operational") != nil {
+		warnings = append(warnings, fmt.Sprintf("%s: operational block not supported", path))
+	}
+
+	return warnings
 }
 
 func configMigrateWithWarnings(inputPath, outputPath, outputFormat string) (string, *migration.MigrateResult, []string, error) {

@@ -28,5 +28,5 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config check -
+cmd=foreground:seq=1:exec=ze config validate -
 expect=exit:code=0

@@ -230,7 +230,7 @@ Memory-efficient deduplication:
 ```bash
 # Main daemon
 ze bgp server <config>        # Run BGP server
-ze bgp validate <config>      # Validate config
+ze config validate <config>   # Validate config
 
 # Schema discovery
 ze schema list                # List YANG schemas with namespaces

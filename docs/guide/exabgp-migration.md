@@ -8,7 +8,7 @@ Convert an ExaBGP configuration file to ze-native format:
 
 ```bash
 ze exabgp migrate exabgp.conf > ze.conf
-ze config check ze.conf              # Validate the result
+ze config validate ze.conf              # Validate the result
 ```
 
 ### What Gets Converted
@@ -77,7 +77,7 @@ run "ze exabgp plugin --family ipv4/unicast --family ipv6/unicast /path/to/plugi
 ## Migration Workflow
 
 1. **Convert config:** `ze exabgp migrate old.conf > new.conf`
-2. **Validate:** `ze config check new.conf`
+2. **Validate:** `ze config validate new.conf`
 3. **Bridge plugins:** Update `run` directives to use `ze exabgp plugin`
 4. **Test:** Run ze with the new config and verify sessions establish
 5. **Port plugins:** Gradually rewrite plugins to use the ze SDK directly

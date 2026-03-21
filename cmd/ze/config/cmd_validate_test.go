@@ -1,4 +1,4 @@
-package validate
+package config
 
 import (
 	"bytes"
@@ -25,11 +25,11 @@ const validConfig = `bgp {
 	}
 }`
 
-// TestRunValidConfig verifies valid config returns exit code 0.
+// TestValidateRunValidConfig verifies valid config returns exit code 0.
 //
 // VALIDATES: Valid config produces success exit code.
 // PREVENTS: Regression in config validation acceptance.
-func TestRunValidConfig(t *testing.T) {
+func TestValidateRunValidConfig(t *testing.T) {
 	tmpFile, err := os.CreateTemp("", "ze-validate-test-*.conf")
 	require.NoError(t, err)
 	t.Cleanup(func() { os.Remove(tmpFile.Name()) }) //nolint:errcheck,gosec // test cleanup
@@ -38,15 +38,15 @@ func TestRunValidConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, tmpFile.Close())
 
-	code := Run([]string{"-q", tmpFile.Name()})
+	code := cmdValidate([]string{"-q", tmpFile.Name()})
 	assert.Equal(t, 0, code, "valid config should return exit code 0")
 }
 
-// TestRunInvalidConfig verifies invalid config returns exit code 1.
+// TestValidateRunInvalidConfig verifies invalid config returns exit code 1.
 //
 // VALIDATES: Invalid config produces error exit code.
 // PREVENTS: Silent acceptance of broken configs.
-func TestRunInvalidConfig(t *testing.T) {
+func TestValidateRunInvalidConfig(t *testing.T) {
 	content := `not valid config syntax`
 	tmpFile, err := os.CreateTemp("", "ze-validate-test-*.conf")
 	require.NoError(t, err)
@@ -56,57 +56,57 @@ func TestRunInvalidConfig(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, tmpFile.Close())
 
-	code := Run([]string{"-q", tmpFile.Name()})
+	code := cmdValidate([]string{"-q", tmpFile.Name()})
 	assert.Equal(t, 1, code, "invalid config should return exit code 1")
 }
 
-// TestRunMissingFile verifies missing file returns exit code 2.
+// TestValidateRunMissingFile verifies missing file returns exit code 2.
 //
 // VALIDATES: Missing file produces file error exit code.
 // PREVENTS: Confusing error for missing vs invalid.
-func TestRunMissingFile(t *testing.T) {
-	code := Run([]string{"-q", "/nonexistent/path/config.conf"})
+func TestValidateRunMissingFile(t *testing.T) {
+	code := cmdValidate([]string{"-q", "/nonexistent/path/config.conf"})
 	assert.Equal(t, 2, code, "missing file should return exit code 2")
 }
 
-// TestRunNoArgs verifies missing args returns exit code 1.
+// TestValidateRunNoArgs verifies missing args returns exit code 1.
 //
 // VALIDATES: Missing arguments shows usage.
 // PREVENTS: Panic on empty args.
-func TestRunNoArgs(t *testing.T) {
-	code := Run([]string{})
+func TestValidateRunNoArgs(t *testing.T) {
+	code := cmdValidate([]string{})
 	assert.Equal(t, 1, code, "no args should return exit code 1")
 }
 
-// TestRunStdin verifies reading config from stdin works.
+// TestValidateRunStdin verifies reading config from stdin works.
 //
 // VALIDATES: "-" argument reads from stdin.
 // PREVENTS: Regression in stdin handling.
-func TestRunStdin(t *testing.T) {
-	// Save original stdin
+func TestValidateRunStdin(t *testing.T) {
+	// Save original stdin.
 	oldStdin := os.Stdin
 	t.Cleanup(func() { os.Stdin = oldStdin })
 
-	// Create pipe for stdin
+	// Create pipe for stdin.
 	r, w, err := os.Pipe()
 	require.NoError(t, err)
 	os.Stdin = r
 
-	// Write content in goroutine
+	// Write content in goroutine.
 	go func() {
 		io.Copy(w, bytes.NewReader([]byte(validConfig))) //nolint:errcheck,gosec // test helper
 		w.Close()                                        //nolint:errcheck,gosec // test helper
 	}()
 
-	code := Run([]string{"-q", "-"})
+	code := cmdValidate([]string{"-q", "-"})
 	assert.Equal(t, 0, code, "valid stdin should return exit code 0")
 }
 
-// TestExtractLine verifies line number extraction from error messages.
+// TestValidateExtractLine verifies line number extraction from error messages.
 //
 // VALIDATES: Line numbers extracted correctly from parser errors.
 // PREVENTS: Missing line info in error output.
-func TestExtractLine(t *testing.T) {
+func TestValidateExtractLine(t *testing.T) {
 	tests := []struct {
 		input string
 		want  int
@@ -124,12 +124,12 @@ func TestExtractLine(t *testing.T) {
 	}
 }
 
-// TestValidationResultValid verifies validation result for valid config.
+// TestValidateResultValid verifies validation result for valid config.
 //
 // VALIDATES: Valid config produces Valid=true result.
 // PREVENTS: False negatives in validation.
-func TestValidationResultValid(t *testing.T) {
-	result := validateConfig(validConfig, "test.conf")
+func TestValidateResultValid(t *testing.T) {
+	result := runValidation(validConfig, "test.conf")
 
 	if !result.Valid {
 		for _, e := range result.Errors {
@@ -140,27 +140,27 @@ func TestValidationResultValid(t *testing.T) {
 	assert.Equal(t, "test.conf", result.Path)
 }
 
-// TestValidationResultInvalid verifies validation result for invalid config.
+// TestValidateResultInvalid verifies validation result for invalid config.
 //
 // VALIDATES: Invalid config produces Valid=false with errors.
 // PREVENTS: Silent failures in validation.
-func TestValidationResultInvalid(t *testing.T) {
+func TestValidateResultInvalid(t *testing.T) {
 	content := `invalid syntax here`
-	result := validateConfig(content, "bad.conf")
+	result := runValidation(content, "bad.conf")
 
 	assert.False(t, result.Valid, "expected Valid=false for invalid config")
 	assert.NotEmpty(t, result.Errors, "expected at least one error")
 }
 
-// TestSemanticValidationWarnings verifies semantic checks produce warnings.
+// TestValidateSemanticValidationWarnings verifies semantic checks produce warnings.
 //
-// VALIDATES: Missing router-id and local-as produce warnings.
+// VALIDATES: Missing router-id produces warning.
 // PREVENTS: Silent config issues.
-func TestSemanticValidationWarnings(t *testing.T) {
-	result := validateConfig(validConfig, "test.conf")
+func TestValidateSemanticValidationWarnings(t *testing.T) {
+	result := runValidation(validConfig, "test.conf")
 	require.True(t, result.Valid, "expected valid config")
 
-	// Should have warning about missing router-id
+	// Should have warning about missing router-id.
 	hasRouterIDWarning := false
 	for _, w := range result.Warnings {
 		if strings.Contains(w.Message, "router-id") {

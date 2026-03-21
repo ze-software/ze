@@ -30,7 +30,7 @@ All plugin behavior gaps closed by spec-ci-gaps (2026-03-17):
 
 All gaps closed. 41 new .ci tests added across 5 phases:
 
-- Phase 1: 10 CLI command tests (config check/fmt/set, schema, status, show/run, exabgp migrate)
+- Phase 1: 10 CLI command tests (config validate/fmt/set, schema, status, show/run, exabgp migrate)
 - Phase 2: 10 API peer management tests (list/detail/add/remove/pause/resume/capabilities/subscribe/unsubscribe/route-refresh)
 - Phase 3: 11 API operation tests (rib show/clear, cache, commit, raw, CLI dispatch)
 - Phase 4: 7 config runtime behavior tests (connection mode, router-id, group-updates, addpath, ext-nexthop, role-strict, adj-rib)

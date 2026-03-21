@@ -667,8 +667,8 @@ func detectLegacySyntaxHint(input string, parseErr error) string {
 
 	if hasNeighborKeyword || hasTemplateNeighbor || hasPeerGlobError {
 		return "Hint: This config appears to use deprecated ExaBGP syntax.\n" +
-			"Run 'ze bgp config check <file>' to verify, then\n" +
-			"Run 'ze bgp config migrate <file>' to upgrade."
+			"Run 'ze config validate <file>' to verify, then\n" +
+			"Run 'ze config migrate <file>' to upgrade."
 	}
 
 	return ""
@@ -676,7 +676,7 @@ func detectLegacySyntaxHint(input string, parseErr error) string {
 
 // ValidateAuthzConfig validates authorization config in the parsed tree.
 // Checks: profile entry regex syntax (hard error), user→profile references (AC-8).
-// Exported so ze validate can also call it.
+// Exported so ze config validate can also call it.
 func ValidateAuthzConfig(tree *config.Tree) error {
 	sys := tree.GetContainer("system")
 	if sys == nil {

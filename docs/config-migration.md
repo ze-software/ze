@@ -6,7 +6,7 @@ ZeBGP migrates configurations using named transformations. Each transformation h
 
 ```bash
 # Check config version and what needs migration
-ze bgp config check myconfig.conf
+ze config validate myconfig.conf
 
 # Preview migration changes
 ze bgp config migrate --dry-run myconfig.conf
@@ -112,12 +112,12 @@ peer 192.0.2.1 {
 
 ## CLI Commands
 
-### ze bgp config check
+### ze config migrate --dry-run
 
 Shows if migration is needed:
 
 ```bash
-$ ze bgp config check old.conf
+$ ze config migrate --dry-run old.conf
 ⚠️  Config needs migration
 
 Deprecated patterns found:

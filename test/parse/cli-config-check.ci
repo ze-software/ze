@@ -1,7 +1,6 @@
-# Test: ze config check on valid current config
-# VALIDATES: config check reports current config needs no migration
-# VALIDATES: config check with deprecated patterns returns exit 1
-# PREVENTS: check command regression on migration detection
+# Test: ze config validate on valid current config
+# VALIDATES: config validate reports valid config
+# PREVENTS: validate command regression
 stdin=config:terminator=EOF_STDIN
 bgp {
 	peer peer1 {
@@ -35,19 +34,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config check test.conf
+cmd=foreground:seq=1:exec=ze config validate test.conf
 expect=exit:code=0
-expect=stdout:contains=Config is current
-
-# Deprecated config: uses "neighbor" keyword (ExaBGP legacy format)
-tmpfs=old.conf:terminator=EOF_OLD
-neighbor 127.0.0.1 {
-	router-id 10.0.0.1
-	local-as 65533
-	peer-as 65534
-}
-EOF_OLD
-
-cmd=foreground:seq=2:exec=ze config check old.conf
-expect=exit:code=1
-expect=stdout:contains=needs migration
+expect=stdout:contains=configuration valid

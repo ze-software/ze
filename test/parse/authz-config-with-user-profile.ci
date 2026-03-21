@@ -1,4 +1,4 @@
-# Test: ze validate with authorization profiles assigned to SSH users
+# Test: ze config validate with authorization profiles assigned to SSH users
 # Verifies that the profile leaf-list on user works together with authorization config
 stdin=config:terminator=EOF_CONF
 bgp {
@@ -50,6 +50,6 @@ system {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze validate -:stdin=config
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=0
 expect=stdout:contains=configuration valid

@@ -47,7 +47,7 @@ Examples:
 ## Subcommand Hierarchy
 
 `ze <domain> <command> [subcommand] [options] [args]`
-Examples: `ze bgp server`, `ze bgp decode`, `ze config check`, `ze plugin bgp-gr`
+Examples: `ze bgp server`, `ze bgp decode`, `ze config validate`, `ze plugin bgp-gr`
 
 ## Repeatable Flag Pattern
 

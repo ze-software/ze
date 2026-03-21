@@ -543,7 +543,7 @@ Key commands:
 | `ze <config>` | Start daemon |
 | `ze bgp decode <hex>` | Decode BGP message to JSON |
 | `ze bgp encode <text>` | Encode route to wire hex |
-| `ze validate <file>` | Validate configuration |
+| `ze config validate <file>` | Validate configuration |
 | `ze config edit` | Interactive config editor |
 | `ze config migrate <file>` | Convert ExaBGP config |
 | `ze cli` | Interactive runtime CLI |

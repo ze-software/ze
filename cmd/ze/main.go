@@ -26,7 +26,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/show"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
-	"codeberg.org/thomas-mangin/ze/cmd/ze/validate"
 	zeyang "codeberg.org/thomas-mangin/ze/cmd/ze/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -186,8 +185,6 @@ dispatch:
 		os.Exit(zeinit.Run(args[1:]))
 	case "db":
 		os.Exit(zedb.Run(args[1:]))
-	case "validate":
-		os.Exit(validate.Run(args[1:]))
 	case "schema":
 		os.Exit(schema.Run(args[1:], plugins))
 	case "yang":
@@ -252,7 +249,7 @@ dispatch:
 	// Unknown command
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
 	commands := []string{
-		"bgp", "plugin", "cli", "config", "db", "init", "start", "validate", "schema", "yang",
+		"bgp", "plugin", "cli", "config", "db", "init", "start", "schema", "yang",
 		"exabgp", "signal", "status", "show", "run", "completion", "version", "help",
 	}
 	if suggestion := suggest.Command(arg, commands); suggestion != "" {
@@ -381,8 +378,7 @@ Options:
 Commands:
   start        Start daemon using config from database
   init         Bootstrap database with SSH credentials
-  validate     Validate configuration file
-  config       Configuration management
+  config       Configuration management (validate, edit, migrate, ...)
   db           Blob store management
   schema       Schema discovery
   yang         YANG tree analysis and command docs

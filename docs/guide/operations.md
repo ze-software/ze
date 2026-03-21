@@ -192,7 +192,7 @@ Symptom: peer stays in Connect/Active state
 
 2. **Check config:** Validate before debugging network issues
    ```bash
-   ze validate config.conf
+   ze config validate config.conf
    ```
 
 3. **Enable debug logging:**
@@ -233,7 +233,7 @@ Symptom: session establishes briefly then NOTIFICATION received
 
 ### Daemon Won't Start
 
-1. **Config parse error:** Run `ze validate config.conf` first
+1. **Config parse error:** Run `ze config validate config.conf` first
 2. **Port in use:** Check if another ze instance or BGP daemon holds port 179
 3. **SSH port conflict:** Default SSH is 2222. Check with `netstat -tlnp | grep 2222`
 4. **Missing credentials:** Run `ze init` before starting
@@ -274,7 +274,7 @@ For bug reports, collect:
 
 ```bash
 ze --version                   # ze version
-ze validate config.conf        # config validity
+ze config validate config.conf        # config validity
 ze status                      # daemon state
 ze cli --run "peer list"       # peer states
 ze cli --run "bgp summary"    # session summary
