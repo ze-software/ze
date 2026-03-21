@@ -500,10 +500,16 @@ func TestAdjRibInReplayArgsEmpty(t *testing.T) {
 // TestHandleState_PeerUpTriggersReplay verifies that peer-up triggers automatic replay
 // of routes from all other source peers to the newly-up peer.
 //
-// VALIDATES: handleState on peer-up calls buildReplayCommands and sends routes via updateRoute.
+// VALIDATES: handleState on peer-up calls routeSender/updateRoute with correct peer and commands.
 // PREVENTS: Newly-added peers receiving no routes until other peers send new UPDATEs.
 func TestHandleState_PeerUpTriggersReplay(t *testing.T) {
 	r := newTestManager(t)
+
+	// Spy on route sends to verify handleState actually triggers replay.
+	var sent []struct{ peer, cmd string }
+	r.routeSender = func(peer, cmd string) {
+		sent = append(sent, struct{ peer, cmd string }{peer, cmd})
+	}
 
 	// Pre-populate routes from peer A (10.0.0.1)
 	m1 := seqmap.New[string, *RawRoute]()
@@ -521,7 +527,7 @@ func TestHandleState_PeerUpTriggersReplay(t *testing.T) {
 	})
 	r.ribIn["10.0.0.2"] = m2
 
-	// Peer C (10.0.0.3) comes up — should trigger replay of routes from A and B.
+	// Peer C (10.0.0.3) comes up -- should trigger replay of routes from A and B.
 	upEvent := &bgp.Event{
 		Type:  "state",
 		State: "up",
@@ -533,11 +539,12 @@ func TestHandleState_PeerUpTriggersReplay(t *testing.T) {
 	// Verify peer is marked up.
 	assert.True(t, r.peerUp["10.0.0.3"], "peer should be marked up")
 
-	// buildReplayCommands should produce 2 commands (from A and B).
-	// We verify indirectly via buildReplayCommands since updateRoute
-	// fails silently with closed test connections.
-	cmds, _ := r.buildReplayCommands("10.0.0.3", 0)
-	assert.Len(t, cmds, 2, "should have routes from peers A and B to replay")
+	// Verify handleState actually triggered replay via routeSender.
+	assert.Len(t, sent, 2, "should replay routes from peers A and B")
+	for _, s := range sent {
+		assert.Equal(t, "10.0.0.3", s.peer, "routes should target newly-up peer")
+		assert.True(t, strings.HasPrefix(s.cmd, "update hex "), "replay uses 'update hex' format")
+	}
 }
 
 // TestHandleState_PeerUpEmptyRIB verifies that peer-up with no routes in RIB
@@ -548,7 +555,10 @@ func TestHandleState_PeerUpTriggersReplay(t *testing.T) {
 func TestHandleState_PeerUpEmptyRIB(t *testing.T) {
 	r := newTestManager(t)
 
-	// No routes in ribIn — this is the startup scenario.
+	var sendCount int
+	r.routeSender = func(_, _ string) { sendCount++ }
+
+	// No routes in ribIn -- this is the startup scenario.
 	upEvent := &bgp.Event{
 		Type:  "state",
 		State: "up",
@@ -559,10 +569,7 @@ func TestHandleState_PeerUpEmptyRIB(t *testing.T) {
 	r.handleState(upEvent)
 
 	assert.True(t, r.peerUp["10.0.0.1"], "peer should be marked up")
-
-	// buildReplayCommands should return empty slice.
-	cmds, _ := r.buildReplayCommands("10.0.0.1", 0)
-	assert.Empty(t, cmds, "empty RIB should produce no replay commands")
+	assert.Equal(t, 0, sendCount, "empty RIB should send no replay commands")
 }
 
 // TestHandleState_PeerUpSelfExclusion verifies that a peer's own routes
@@ -572,6 +579,11 @@ func TestHandleState_PeerUpEmptyRIB(t *testing.T) {
 // PREVENTS: Routing loops from replaying a peer's own routes back to it.
 func TestHandleState_PeerUpSelfExclusion(t *testing.T) {
 	r := newTestManager(t)
+
+	var sent []struct{ peer, cmd string }
+	r.routeSender = func(peer, cmd string) {
+		sent = append(sent, struct{ peer, cmd string }{peer, cmd})
+	}
 
 	// Peer 10.0.0.1 has routes from itself (shouldn't happen normally,
 	// but tests the exclusion logic).
@@ -600,10 +612,10 @@ func TestHandleState_PeerUpSelfExclusion(t *testing.T) {
 	r.handleState(upEvent)
 
 	// Only routes from 10.0.0.2 should be replayed, not 10.0.0.1's own routes.
-	cmds, _ := r.buildReplayCommands("10.0.0.1", 0)
-	assert.Len(t, cmds, 1, "should replay only routes from other peers")
-	assert.Contains(t, cmds[0], "0a000002", "should contain peer B's next-hop")
-	assert.NotContains(t, cmds[0], "0a000001", "should NOT contain own next-hop")
+	assert.Len(t, sent, 1, "should replay only routes from other peers")
+	assert.Equal(t, "10.0.0.1", sent[0].peer, "routes target the newly-up peer")
+	assert.Contains(t, sent[0].cmd, "0a000002", "should contain peer B's next-hop")
+	assert.NotContains(t, sent[0].cmd, "0a000001", "should NOT contain own next-hop")
 }
 
 // TestComplexFamilyMultiNLRI verifies that multi-NLRI VPN UPDATEs store

@@ -92,6 +92,10 @@ type AdjRIBInManager struct {
 	validationTimeout time.Duration
 
 	mu sync.RWMutex
+
+	// routeSender, if set, overrides updateRoute for replay delivery.
+	// Used in tests to verify handleState triggers replay.
+	routeSender func(peerSelector, command string)
 }
 
 // newSeqMap creates a new seqmap for route storage.
@@ -205,7 +209,15 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 		for _, op := range ops {
 			switch op.Action {
 			case "add":
+				// Skip adds without essential fields -- routes missing attributes
+				// or next-hop cannot be replayed correctly via "update hex" commands.
+				if event.RawAttributes == "" {
+					continue
+				}
 				nhopHex := nhopToHex(op.NextHop)
+				if nhopHex == "" {
+					continue
+				}
 
 				for i, nlriVal := range op.NLRIs {
 					prefix, pathID := bgp.ParseNLRIValue(nlriVal)
@@ -287,9 +299,21 @@ func (r *AdjRIBInManager) handleReceived(event *bgp.Event) {
 // On peer-up: marks peer as up, then replays all known routes from other
 // source peers. Replay runs after lock release to avoid deadlock
 // (buildReplayCommands takes RLock, updateRoute does I/O).
+// Only processes "up" and "down" states; unknown/intermediate FSM states are ignored.
 func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 	peerAddr := event.GetPeerAddress()
+	if peerAddr == "" {
+		return
+	}
+
 	state := event.GetPeerState()
+
+	// Only process known states. Ignore unknown/intermediate FSM states
+	// to avoid accidentally clearing routes on transient transitions.
+	if state != "up" && state != "down" {
+		logger().Debug("ignoring unknown peer state", "peer", peerAddr, "state", state)
+		return
+	}
 
 	isUp := state == "up"
 
@@ -297,7 +321,7 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 	r.peerUp[peerAddr] = isUp
 
 	if !isUp {
-		// Peer went down — clear installed and pending routes.
+		// Peer went down -- clear installed and pending routes.
 		delete(r.ribIn, peerAddr)
 		r.clearPeerPending(peerAddr)
 	}
@@ -309,7 +333,11 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 		// Both must run outside the write lock to avoid deadlock.
 		cmds, _ := r.buildReplayCommands(peerAddr, 0)
 		for _, cmd := range cmds {
-			r.updateRoute(peerAddr, cmd)
+			if r.routeSender != nil {
+				r.routeSender(peerAddr, cmd)
+			} else {
+				r.updateRoute(peerAddr, cmd)
+			}
 		}
 	}
 }

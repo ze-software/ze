@@ -1,6 +1,8 @@
-# Test: adj-rib-in stores received routes and replays them
-# VALIDATES: Route from peer stored in adj-rib-in, replay produces commands
+# Test: adj-rib-in stores received routes and replay mechanism works end-to-end
+# VALIDATES: Route from peer stored in adj-rib-in, replay produces correct commands
 # PREVENTS: Replay returning empty when routes exist
+# NOTE: Auto-replay trigger (handleState on peer-up) verified by unit tests
+# with routeSender spy; .ci tests cannot use multiple peer IPs (all 127.0.0.1).
 
 # ze-peer sends a route to ze
 stdin=peer:terminator=EOF_PEER
