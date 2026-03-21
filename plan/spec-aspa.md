@@ -209,6 +209,25 @@ This spec fulfills the deferral "D5: ASPA deferred" from `spec-rpki-0-umbrella.m
 - `internal/component/bgp/plugins/rpki/aspa_verify_test.go` - verification unit tests
 - `test/plugin/rpki-aspa-*.ci` - functional tests
 
+### Documentation Update Checklist (BLOCKING)
+<!-- Every row MUST be answered Yes/No during the Completion Checklist (planning.md step 1). -->
+<!-- Every Yes MUST name the file and what to add/change. -->
+<!-- See planning.md "Documentation Update Checklist" for the full table with examples. -->
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature? | [ ] | `docs/features.md` |
+| 2 | Config syntax changed? | [ ] | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` |
+| 3 | CLI command added/changed? | [ ] | `docs/guide/command-reference.md` |
+| 4 | API/RPC added/changed? | [ ] | `docs/architecture/api/commands.md` |
+| 5 | Plugin added/changed? | [ ] | `docs/guide/plugins.md` |
+| 6 | Has a user guide page? | [ ] | `docs/guide/<topic>.md` |
+| 7 | Wire format changed? | [ ] | `docs/architecture/wire/*.md` |
+| 8 | Plugin SDK/protocol changed? | [ ] | `.claude/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` |
+| 9 | RFC behavior implemented? | [ ] | `rfc/short/rfcNNNN.md` |
+| 10 | Test infrastructure changed? | [ ] | `docs/functional-tests.md` |
+| 11 | Affects daemon comparison? | [ ] | `docs/comparison.md` |
+| 12 | Internal architecture changed? | [ ] | `docs/architecture/core-design.md` or subsystem doc |
+
 ## Implementation Steps
 
 ### /implement Stage Mapping
