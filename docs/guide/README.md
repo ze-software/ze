@@ -24,6 +24,7 @@
 | [Configuration](configuration.md) | Config syntax, peer setup, groups, static routes |
 | [Plugins](plugins.md) | Which plugins you need, how to load and bind them |
 | [CLI Reference](cli.md) | Interactive CLI, runtime commands, peer/route/cache operations |
+| [Command Reference](command-reference.md) | Complete reference for all shell and runtime commands |
 | [Config Editor](config-editor.md) | Interactive NOS-like editor with YANG tab completion |
 | [Config Reload](config-reload.md) | Live reload, what changes live vs. requires restart |
 

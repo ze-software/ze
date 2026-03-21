@@ -23,6 +23,10 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
 
 The `ze-chaos` tool is a chaos simulator that runs multiple BGP peers against a ze route server, validates route propagation, and injects faults.
 
+![ze-chaos dashboard](img/ze-chaos-dashboard.png)
+
+The web dashboard shows real-time peer status, per-family route propagation, convergence progress, and fault triggers. Color coding indicates propagation state: green = complete, orange = partial, red = zero.
+
 ```bash
 # Pipeline mode: config on stdout, diagnostics on stderr
 ze-chaos --ze ./bin/ze --seed 42 --peers 8 --duration 60s | ./bin/ze -
