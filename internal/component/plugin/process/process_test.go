@@ -338,7 +338,7 @@ func TestProcessInternalPlugin(t *testing.T) {
 		Encoder:  "json",
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
 	err := proc.StartWithContext(ctx)
@@ -347,6 +347,10 @@ func TestProcessInternalPlugin(t *testing.T) {
 	assert.Nil(t, proc.cmd, "internal plugin should not have exec.Cmd")
 
 	proc.Stop()
+
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer waitCancel()
+	require.NoError(t, proc.Wait(waitCtx), "plugin goroutine should exit after Stop()")
 }
 
 // TestProcessInternalPluginUnknown verifies error for unknown internal plugin.
@@ -386,7 +390,7 @@ func TestProcessInternalPluginStop(t *testing.T) {
 	proc.Stop()
 
 	// Wait for plugin to exit (with timeout)
-	waitCtx, waitCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer waitCancel()
 
 	err = proc.Wait(waitCtx)

@@ -37,7 +37,11 @@ var logger = slogutil.LazyLogger("plugin")
 // Level controlled by ze.log.relay env var.
 var stderrLogger = slogutil.LazyLogger("relay")
 
-// Process represents an external subprocess.
+// Process represents a plugin subprocess (internal goroutine or external fork).
+//
+// Lifecycle: Start (or StartWithContext) -> Stop -> Wait.
+// Stop signals the process to exit; Wait blocks until all goroutines finish.
+// Callers MUST call Wait after Stop to avoid leaking goroutines.
 type Process struct {
 	config plugin.PluginConfig
 	index  int // Plugin index for coordinator (0-based)
@@ -580,9 +584,10 @@ func (p *Process) relayStderrFrom(stderr io.Reader) {
 	}
 }
 
-// Stop terminates the process.
+// Stop signals the process to terminate. Does not block.
 // For external plugins, canceling context kills the process via exec.CommandContext.
 // For internal plugins, closing RPC connections unblocks the plugin's reads and causes it to exit.
+// Callers MUST call Wait after Stop to ensure all goroutines have exited.
 func (p *Process) Stop() {
 	if p.cancel != nil {
 		p.cancel()
@@ -631,7 +636,8 @@ func (p *Process) SendShutdown() bool {
 	return true
 }
 
-// Wait waits for the process to exit.
+// Wait blocks until all process goroutines have exited, or ctx expires.
+// Must be called after Stop to avoid goroutine leaks.
 func (p *Process) Wait(ctx context.Context) error {
 	return syncutil.WaitGroupWait(ctx, &p.wg)
 }

@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
@@ -64,8 +65,8 @@ type ribCommandEntry struct {
 // Read-only after startup; no mutex needed.
 var registeredCommands = map[string]*ribCommandEntry{}
 
-// builtinsRegistered guards against double-registration of builtin commands.
-var builtinsRegistered bool
+// builtinsOnce guards against concurrent/double-registration of builtin commands.
+var builtinsOnce sync.Once
 
 // registerCommand adds a command handler to the dispatch table.
 // Returns an error if the command name is already registered.
@@ -79,12 +80,12 @@ func registerCommand(name, help string, handler CommandHandler) error {
 
 // registerBuiltinCommands populates the command table with RIB-native commands
 // and LLGR extensions. Called from RIB startup (explicit, not init).
-// Idempotent via bool guard.
+// Idempotent via sync.Once (safe for concurrent calls from multiple plugin goroutines).
 func registerBuiltinCommands() {
-	if builtinsRegistered {
-		return
-	}
-	builtinsRegistered = true
+	builtinsOnce.Do(doRegisterBuiltinCommands)
+}
+
+func doRegisterBuiltinCommands() {
 	builtins := []struct {
 		names   []string
 		help    string
