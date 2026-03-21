@@ -531,5 +531,24 @@ index := make([]attrIndex, 0, 8)  // 99.9% of routes fit without reallocation
 
 ---
 
+## BGP-LS Attribute (Type 29)
+
+Code 29, Optional Non-Transitive. Defined by RFC 7752 (BGP Link-State).
+
+The BGP-LS attribute carries node, link, and prefix properties as a sequence of TLVs (Type-Length-Value). Ze decodes 40 TLV sub-types organized into categories:
+
+| Category | TLV codes | Examples |
+|----------|-----------|---------|
+| Node | 263-267, 1024-1029 | ISIS area-id, router-id, SR capabilities, node name |
+| Link | 1028-1036, 1088-1092, 1099-1105, 1114 | admin-group, TE metric, bandwidth, SID label |
+| Prefix | 1152-1159 | prefix metric, OSPF forwarding, IGP flags, SRv6 locator |
+| SRv6 | 1250-1252 | SRv6 SID structure, endpoint behavior, SID information |
+
+Each TLV: 2-byte type + 2-byte length + value. Decoded via offset-based iterators (no allocation). See `docs/architecture/wire/bgpls-attribute-naming.md` for the full naming convention and JSON key mapping.
+
+Source: `internal/component/bgp/plugins/nlri/ls/`.
+
+---
+
 **Created:** 2025-12-19
-**Last Updated: 2026-01-30
+**Last Updated:** 2026-03-21

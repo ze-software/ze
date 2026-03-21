@@ -271,6 +271,19 @@ The `ze-bgp:monitor` RPC provides live BGP event streaming over SSH sessions. Un
 
 Monitor supports filtering by peer address, event type, and direction. Pipe operators (`| json`, `| table`, `| match`) are applied server-side before streaming to the client.
 
+## Identity and Authorization
+
+User identity for authorization is always injected by the transport layer, never accepted from the client payload:
+
+| Transport | Identity source |
+|-----------|----------------|
+| SSH session | SSH authenticated username |
+| Plugin (internal) | Plugin process name (engine-trusted) |
+| Plugin (external) | Plugin auth token (TLS handshake) |
+| Unix socket | OS peer credentials |
+
+The `RPCParams` struct does not carry a username field. Authorization checks use the `CommandContext.Username` set by the server from the transport session, not from client-supplied JSON.
+
 ## Connection Types
 
 ### Socket Clients

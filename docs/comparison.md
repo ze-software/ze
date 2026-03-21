@@ -41,7 +41,7 @@ Last updated: 2026-03-20
 | IPv4 FlowSpec (RFC 8955) | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Yes |
 | IPv6 FlowSpec | Yes | Yes | Yes | No | Yes | Yes | Yes | Yes | Yes |
 | VPN FlowSpec | Yes | No | No | No | No | Yes | No | No | No |
-| BGP-LS (RFC 7752) | Decode | No | No | No | No | Yes | Decode | No | No |
+| BGP-LS (RFC 7752) | Decode (40 TLVs) | No | No | No | No | Yes | Decode | No | No |
 | SR Policy | No | No | No | No | No | Yes | No | No | No |
 | IPv4/IPv6 MUP | Yes | No | No | No | No | No | No | No | No |
 | IPv4/IPv6 MVPN | Decode | No | No | No | No | No | No | No | No |

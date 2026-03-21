@@ -96,6 +96,8 @@
 | 513 | BGP-LS Identifier | 4 |
 | 514 | OSPF Area ID | 4 |
 | 515 | IGP Router ID | Variable |
+| 516 | BGP Router-ID | 4 |
+| 517 | Confederation Member | 4 |
 
 ---
 
