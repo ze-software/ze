@@ -49,11 +49,6 @@ func RunDecorator(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	// Union correlates UPDATE (primary) with RPKI (secondary) events.
-	// The handler receives the peer address captured during OnEvent to avoid
-	// redundant JSON parsing (fix #10).
-	var lastPeerAddr atomic.Value // stores string, set by OnEvent, read by handler
-	lastPeerAddr.Store("")
-
 	u := sdk.NewUnion("update", "rpki", unionTimeout, func(primary, secondary string) {
 		merged := mergeUpdateRPKI(primary, secondary)
 		if merged == "" {
@@ -61,8 +56,8 @@ func RunDecorator(conn net.Conn) int {
 			return
 		}
 
-		// Use peer address captured by OnEvent to avoid re-parsing primary JSON.
-		peerAddr, _ := lastPeerAddr.Load().(string)
+		// Extract peer address from the primary event for emit-event routing.
+		peerAddr := extractPeerAddress(primary)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
@@ -79,8 +74,6 @@ func RunDecorator(conn net.Conn) int {
 			logger().Debug("rpki-decorator: skipping unparseable or zero-ID event")
 			return nil
 		}
-		// Capture peer address for the Union handler (avoids redundant parse).
-		lastPeerAddr.Store(peer)
 		u.OnEvent(eventType, peer, msgID, jsonStr)
 		return nil
 	})
@@ -98,6 +91,21 @@ func RunDecorator(conn net.Conn) int {
 	}
 
 	return 0
+}
+
+// extractPeerAddress extracts the peer address from a JSON event for emit-event routing.
+func extractPeerAddress(jsonStr string) string {
+	var envelope struct {
+		BGP struct {
+			Peer struct {
+				Address string `json:"address"`
+			} `json:"peer"`
+		} `json:"bgp"`
+	}
+	if err := json.Unmarshal([]byte(jsonStr), &envelope); err != nil {
+		return ""
+	}
+	return envelope.BGP.Peer.Address
 }
 
 // parseEventMeta extracts event type, peer address, and message ID from a JSON event string.

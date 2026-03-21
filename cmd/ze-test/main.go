@@ -8,6 +8,7 @@
 //	ze-test ui [flags]             Run UI functional tests (completion, CLI)
 //	ze-test editor [flags]         Run editor functional tests (.et files)
 //	ze-test peer [flags]           BGP test peer (sink/echo/check modes)
+//	ze-test rpki [flags]           Deterministic RPKI mock server (IP modulo)
 //	ze-test syslog [flags]         Run syslog server for testing
 //	ze-test text-plugin            Run minimal text-mode plugin (for .ci tests)
 package main
@@ -45,6 +46,8 @@ func main() {
 		os.Exit(syslogCmd())
 	case "text-plugin":
 		os.Exit(textPluginCmd())
+	case "rpki":
+		os.Exit(rpkiCmd())
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", cmd)
 		printUsage()
@@ -65,6 +68,7 @@ Commands:
   editor       Run editor functional tests (.et files)
   ui           Run UI functional tests (completion, CLI)
   peer         BGP test peer (sink/echo/check modes)
+  rpki         Deterministic RPKI mock server (IP modulo for validation state)
   syslog       Run syslog server for testing
   text-plugin  Run minimal text-mode plugin (for .ci tests)
 
