@@ -62,7 +62,7 @@ func GetValidateExtension(entry *gyang.Entry) string {
 		return ""
 	}
 	for _, ext := range entry.Exts {
-		if ext.Keyword == "ze:validate" || strings.HasSuffix(ext.Keyword, ":validate") {
+		if strings.HasSuffix(ext.Keyword, ":validate") {
 			return ext.Argument
 		}
 	}

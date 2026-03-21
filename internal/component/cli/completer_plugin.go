@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — plugin SDK methods
+// Related: completer.go — YANG-driven config editor completion
 // Related: completer_command.go — operational command completion
 
 package cli

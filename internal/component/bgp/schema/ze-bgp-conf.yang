@@ -392,6 +392,7 @@ module ze-bgp-conf {
 
             leaf-list receive {
                 type string;
+                ze:validate "receive-event-type";
                 description "Event types to receive. Base types: update, open,
                     notification, keepalive, refresh, state, sent, negotiated.
                     Plugins may register additional types (e.g., update-rpki).
@@ -401,6 +402,7 @@ module ze-bgp-conf {
 
             leaf-list send {
                 type string;
+                ze:validate "send-message-type";
                 description "Message types to send. Valid: update, refresh,
                     enhanced-refresh (BORR/EORR markers, RFC 7313).
                     Validated at runtime against known send types.";

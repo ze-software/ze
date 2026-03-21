@@ -109,6 +109,117 @@ func TestCommunityRangeValidator(t *testing.T) {
 	assert.Error(t, v.ValidateFn("bgp.peer.route.community", 42))
 }
 
+// TestReceiveEventValidator_Validate verifies receive event type validation.
+//
+// VALIDATES: Valid BGP events accepted, invalid rejected.
+// PREVENTS: Invalid event types silently accepted in config receive list.
+func TestReceiveEventValidator_Validate(t *testing.T) {
+	v := ReceiveEventValidator()
+
+	// Valid base event types.
+	assert.NoError(t, v.ValidateFn("bgp.peer.process.receive", "update"))
+	assert.NoError(t, v.ValidateFn("bgp.peer.process.receive", "state"))
+	assert.NoError(t, v.ValidateFn("bgp.peer.process.receive", "open"))
+
+	// Invalid event type.
+	err := v.ValidateFn("bgp.peer.process.receive", "nonexistent")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nonexistent")
+	assert.Contains(t, err.Error(), "not a valid receive event type")
+
+	// Non-string rejected.
+	assert.Error(t, v.ValidateFn("bgp.peer.process.receive", 42))
+}
+
+// TestReceiveEventValidator_Complete verifies completion returns event type names.
+//
+// VALIDATES: CompleteFn returns sorted BGP event types.
+// PREVENTS: Missing completion values for receive event types.
+func TestReceiveEventValidator_Complete(t *testing.T) {
+	v := ReceiveEventValidator()
+	require.NotNil(t, v.CompleteFn)
+
+	values := v.CompleteFn()
+	require.NotEmpty(t, values, "should return event type names")
+	assert.Contains(t, values, "update")
+	assert.Contains(t, values, "state")
+	assert.Contains(t, values, "open")
+
+	// Should be sorted.
+	for i := 1; i < len(values); i++ {
+		assert.True(t, values[i-1] <= values[i],
+			"values should be sorted: %q > %q", values[i-1], values[i])
+	}
+}
+
+// TestSendMessageValidator_Validate verifies send message type validation.
+//
+// VALIDATES: Base send types accepted, invalid rejected.
+// PREVENTS: Invalid send types silently accepted in config send list.
+func TestSendMessageValidator_Validate(t *testing.T) {
+	v := SendMessageValidator()
+
+	// Valid base types.
+	assert.NoError(t, v.ValidateFn("bgp.peer.process.send", "update"))
+	assert.NoError(t, v.ValidateFn("bgp.peer.process.send", "refresh"))
+
+	// Invalid type.
+	err := v.ValidateFn("bgp.peer.process.send", "nonexistent")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nonexistent")
+	assert.Contains(t, err.Error(), "not a valid send type")
+
+	// Non-string rejected.
+	assert.Error(t, v.ValidateFn("bgp.peer.process.send", 42))
+}
+
+// TestSendMessageValidator_Complete verifies completion returns send type names.
+//
+// VALIDATES: CompleteFn returns base send types sorted.
+// PREVENTS: Missing completion values for send types.
+func TestSendMessageValidator_Complete(t *testing.T) {
+	v := SendMessageValidator()
+	require.NotNil(t, v.CompleteFn)
+
+	values := v.CompleteFn()
+	require.NotEmpty(t, values, "should return send type names")
+	assert.Contains(t, values, "update")
+	assert.Contains(t, values, "refresh")
+
+	// Should be sorted.
+	for i := 1; i < len(values); i++ {
+		assert.True(t, values[i-1] <= values[i],
+			"values should be sorted: %q > %q", values[i-1], values[i])
+	}
+}
+
+// TestAllBGPEventNames verifies the helper that extracts sorted event names.
+//
+// VALIDATES: Returns sorted, non-empty list from ValidBgpEvents.
+// PREVENTS: Empty or unsorted completion lists.
+func TestAllBGPEventNames(t *testing.T) {
+	names := allBGPEventNames()
+	require.NotEmpty(t, names, "should return event names from ValidBgpEvents")
+	assert.Contains(t, names, "update")
+	assert.Contains(t, names, "state")
+
+	// Verify sorted.
+	for i := 1; i < len(names); i++ {
+		assert.True(t, names[i-1] <= names[i],
+			"names should be sorted: %q > %q", names[i-1], names[i])
+	}
+}
+
+// TestAllSendTypeNames verifies the helper that formats send type names.
+//
+// VALIDATES: Returns comma-separated base types.
+// PREVENTS: Malformed error messages.
+func TestAllSendTypeNames(t *testing.T) {
+	result := allSendTypeNames()
+	assert.Contains(t, result, "update")
+	assert.Contains(t, result, "refresh")
+}
+
 // TestAddressFamilyValidator_Complete verifies completion returns registered families.
 //
 // VALIDATES: Complete() returns all registered families for CLI completion (AC-18).

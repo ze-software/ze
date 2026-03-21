@@ -1,5 +1,6 @@
 // Design: docs/architecture/config/yang-config-design.md — config editor
 // Related: completer_command.go — command mode operational completion
+// Related: completer_plugin.go — plugin SDK method completion
 
 package cli
 
@@ -27,8 +28,9 @@ type Completion struct {
 
 // Completer provides YANG-driven completions.
 type Completer struct {
-	loader *yang.Loader
-	tree   *config.Tree // Config data for list key completion
+	loader   *yang.Loader
+	tree     *config.Tree            // Config data for list key completion
+	registry *yang.ValidatorRegistry // Validator registry for ze:validate completions
 }
 
 // NewCompleter creates a completer using YANG schema.
@@ -43,7 +45,9 @@ func NewCompleter() *Completer {
 	if err := loader.Resolve(); err != nil {
 		return &Completer{}
 	}
-	return &Completer{loader: loader}
+	reg := yang.NewValidatorRegistry()
+	config.RegisterValidators(reg)
+	return &Completer{loader: loader, registry: reg}
 }
 
 // SetTree sets the config tree for data-aware completion.
@@ -660,7 +664,15 @@ func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Comple
 		return []Completion{{Text: "<value>", Description: "value", Type: "hint"}}
 	}
 
-	// Handle enums
+	// Check ze:validate extension for CompleteFn-based completions.
+	// CompleteFn takes priority over enum because it provides runtime-determined
+	// values (e.g., registered address families, event types). If a developer
+	// sets ze:validate on an enum leaf, they want dynamic completion.
+	if completions := c.validateCompletions(entry, prefix); len(completions) > 0 {
+		return completions
+	}
+
+	// Handle enums (static YANG values, used when no ze:validate is present)
 	if entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
 		var completions []Completion
 		for _, name := range entry.Type.Enum.Names() {
@@ -686,6 +698,54 @@ func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Comple
 	// Type hint based on YANG type — hint-only, not applicable by Tab
 	hint := c.typeHint(entry.Type)
 	return []Completion{{Text: "<" + hint + ">", Description: hint + " value", Type: "hint"}}
+}
+
+// validateCompletions returns completions from ze:validate CompleteFn if available.
+// Handles pipe-separated validators by unioning their CompleteFn results.
+// Returns nil if no validator has a CompleteFn.
+func (c *Completer) validateCompletions(entry *gyang.Entry, prefix string) []Completion {
+	if c.registry == nil {
+		return nil
+	}
+
+	arg := yang.GetValidateExtension(entry)
+	if arg == "" {
+		return nil
+	}
+
+	var values []string
+	seen := make(map[string]bool)
+
+	for _, name := range yang.SplitValidatorNames(arg) {
+		cv := c.registry.Get(name)
+		if cv == nil || cv.CompleteFn == nil {
+			continue
+		}
+		for _, v := range cv.CompleteFn() {
+			if !seen[v] {
+				seen[v] = true
+				values = append(values, v)
+			}
+		}
+	}
+
+	if len(values) == 0 {
+		return nil
+	}
+
+	sort.Strings(values)
+
+	var completions []Completion
+	for _, v := range values {
+		if prefix == "" || strings.HasPrefix(v, prefix) {
+			completions = append(completions, Completion{
+				Text:        v,
+				Description: "valid value",
+				Type:        "value",
+			})
+		}
+	}
+	return completions
 }
 
 // typeHint returns a hint string for a YANG type.

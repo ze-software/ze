@@ -738,6 +738,12 @@ func TestCheckAllValidatorsRegistered_AllPresent(t *testing.T) {
 	reg.Register("community-range", yang.CustomValidator{
 		ValidateFn: func(path string, value any) error { return nil },
 	})
+	reg.Register("receive-event-type", yang.CustomValidator{
+		ValidateFn: func(path string, value any) error { return nil },
+	})
+	reg.Register("send-message-type", yang.CustomValidator{
+		ValidateFn: func(path string, value any) error { return nil },
+	})
 
 	err := yang.CheckAllValidatorsRegistered(loader, reg)
 	assert.NoError(t, err)
