@@ -1,6 +1,7 @@
 package raw
 
 import (
+	"context"
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
@@ -44,6 +45,8 @@ func (m *mockReactor) UnregisterCacheConsumer(_ string)       {}
 
 func (m *mockReactor) PausePeer(_ netip.Addr) error                           { return nil }
 func (m *mockReactor) ResumePeer(_ netip.Addr) error                          { return nil }
+func (m *mockReactor) FlushForwardPool(_ context.Context) error               { return nil }
+func (m *mockReactor) FlushForwardPoolPeer(_ context.Context, _ string) error { return nil }
 func (m *mockReactor) TeardownPeer(_ netip.Addr, _ uint8, _ string) error     { return nil }
 func (m *mockReactor) AddDynamicPeer(_ plugin.DynamicPeerConfig) error        { return nil }
 func (m *mockReactor) RemovePeer(_ netip.Addr) error                          { return nil }

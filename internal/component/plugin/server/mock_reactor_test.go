@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"net/netip"
 
@@ -96,6 +97,9 @@ func (m *mockReactor) SignalPeerAPIReady(_ string) {}
 
 func (m *mockReactor) PausePeer(_ netip.Addr) error  { return nil }
 func (m *mockReactor) ResumePeer(_ netip.Addr) error { return nil }
+
+func (m *mockReactor) FlushForwardPool(_ context.Context) error               { return nil }
+func (m *mockReactor) FlushForwardPoolPeer(_ context.Context, _ string) error { return nil }
 
 func (m *mockReactor) RegisterCacheConsumer(_ string, _ bool) {}
 

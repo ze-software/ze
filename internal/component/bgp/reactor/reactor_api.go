@@ -7,6 +7,7 @@ package reactor
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"maps"
@@ -631,6 +632,18 @@ func (a *reactorAPIAdapter) PausePeer(addr netip.Addr) error {
 // ResumePeer resumes reading from a specific peer's session.
 func (a *reactorAPIAdapter) ResumePeer(addr netip.Addr) error {
 	return a.r.ResumePeer(addr)
+}
+
+// FlushForwardPool blocks until all forward pool workers have drained their queued items.
+// Used by plugins to ensure route delivery before proceeding with dependent operations.
+func (a *reactorAPIAdapter) FlushForwardPool(ctx context.Context) error {
+	return a.r.fwdPool.Barrier(ctx)
+}
+
+// FlushForwardPoolPeer blocks until the forward pool worker for a specific peer
+// address has drained its queued items. Returns nil immediately if no worker exists.
+func (a *reactorAPIAdapter) FlushForwardPoolPeer(ctx context.Context, addr string) error {
+	return a.r.fwdPool.BarrierPeer(ctx, addr)
 }
 
 // AddDynamicPeer adds a peer with the given configuration.

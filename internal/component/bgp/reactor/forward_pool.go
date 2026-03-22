@@ -52,6 +52,11 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 	}
 
 	peer := items[0].peer
+	if peer == nil {
+		// Sentinel item (barrier) — no data to write. done() is called
+		// by safeBatchHandle regardless.
+		return
+	}
 
 	peer.mu.RLock()
 	session := peer.session
@@ -125,11 +130,7 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 type fwdPoolConfig struct {
 	chanSize    int
 	idleTimeout time.Duration
-	overflowMax int // Maximum per-worker overflow buffer size (0 = use default 256)
 }
-
-// fwdOverflowMaxDefault is the default maximum overflow buffer size per worker.
-const fwdOverflowMaxDefault = 256
 
 // fwdWorker is a single long-lived goroutine processing items for one destination peer.
 type fwdWorker struct {
@@ -190,9 +191,6 @@ func newFwdPool(handler func(fwdKey, []fwdItem), cfg fwdPoolConfig) *fwdPool {
 	}
 	if cfg.idleTimeout <= 0 {
 		cfg.idleTimeout = 5 * time.Second
-	}
-	if cfg.overflowMax <= 0 {
-		cfg.overflowMax = fwdOverflowMaxDefault
 	}
 	return &fwdPool{
 		workers: make(map[fwdKey]*fwdWorker),
@@ -300,11 +298,12 @@ func (fp *fwdPool) TryDispatch(key fwdKey, item fwdItem) bool {
 // Creates the worker lazily if it doesn't exist. The worker goroutine
 // drains overflow items after each batch from the channel.
 //
+// The overflow buffer is unbounded. Routes are critical data and must
+// never be dropped. Memory growth from a slow peer is preferable to
+// silent routing inconsistency.
+//
 // Returns true if the item was buffered, false if the pool is stopped
 // (in which case done() is called immediately to prevent cache leaks).
-//
-// If the overflow buffer exceeds overflowMax, the oldest item is dropped
-// and its done callback is called (to prevent cache leaks).
 func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 	fp.mu.Lock()
 	if fp.stopped {
@@ -330,15 +329,14 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 	w.overflowMu.Lock()
 	w.overflow = append(w.overflow, item)
 
-	// Enforce overflow max: drop oldest items if over limit.
-	for len(w.overflow) > fp.cfg.overflowMax {
-		dropped := w.overflow[0]
-		w.overflow = w.overflow[1:]
-		if dropped.done != nil {
-			dropped.done()
-		}
-		fwdLogger().Warn("overflow buffer full, dropped oldest item",
+	// Log when overflow grows large (potential slow peer), but never drop.
+	// Routes are critical data — dropping causes silent routing inconsistency
+	// with no automatic recovery. Memory pressure from a slow peer is
+	// preferable to missing routes.
+	if n := len(w.overflow); n == 1000 || n == 10000 || n == 100000 {
+		fwdLogger().Warn("overflow buffer growing",
 			"peer", key.peerAddr,
+			"queued", n,
 		)
 	}
 	w.overflowMu.Unlock()

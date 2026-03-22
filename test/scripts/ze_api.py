@@ -782,25 +782,26 @@ class API:
     def wait_for_ack(self, expected_count: int = 1, timeout: float = 2.0) -> bool:
         """Wait for route delivery after send().
 
-        In YANG RPC, send() gets an RPC response synchronously, but that only
-        means "command dispatched" -- NOT "route delivered to peer". The BGP
-        session may still be establishing (OPENSENT/OPENCONFIRM) when the RPC
-        returns, and queued routes are flushed asynchronously on ESTABLISHED.
-
-        This delay ensures routes have time to be delivered before the plugin
-        proceeds with further commands (e.g., teardown, withdraw) that depend
-        on the routes having reached the peer.
+        Sends a ze-bgp:peer-flush RPC that blocks until all forward pool
+        workers have drained their queued items to peer sockets, then adds
+        a short delay for ze-peer cmd=api command interleaving.
 
         Args:
-            expected_count: Number of routes sent (scales the delay)
+            expected_count: Number of routes sent (scales post-flush delay)
             timeout: Timeout in seconds (unused, kept for API compat)
 
         Returns:
             True (always succeeds)
         """
         import time
-        # Allow time for BGP session establishment + route delivery.
-        # Session establishes in ~1ms typically, but under load it may take longer.
+        try:
+            self._call_engine('ze-bgp:peer-flush', {'selector': '*'})
+        except RuntimeError:
+            pass
+        # After flush confirms forward pool drained, allow time for
+        # ze-peer cmd=api commands to be interleaved and processed.
+        # The flush guarantees OUR routes are on the wire, but ze-peer
+        # may still be sending its own commands (e.g., EOR via cmd=api).
         delay = 0.2 * max(1, expected_count)
         time.sleep(delay)
         return True

@@ -6,6 +6,7 @@
 package peer
 
 import (
+	"context"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -26,6 +27,7 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-remove", Handler: handleBgpPeerRemove, Help: "Remove a peer dynamically", RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-pause", Handler: handleBgpPeerPause, Help: "Pause peer read loop (flow control)", RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-resume", Handler: handleBgpPeerResume, Help: "Resume peer read loop (flow control)", RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-flush", Handler: handleBgpPeerFlush, Help: "Wait for forward pool to drain (barrier)", RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-save", Handler: handleBgpPeerSave, Help: "Save peer(s) to config file (merges into existing config)", RequiresSelector: true},
 	)
 }
@@ -509,6 +511,71 @@ func peerFlowControl(ctx *pluginserver.CommandContext, action string, fn func(pl
 		Data: map[string]any{
 			"peer":   addr.String(),
 			"action": action,
+		},
+	}, nil
+}
+
+// handleBgpPeerFlush handles "peer <selector> flush" command.
+// Blocks until the forward pool has drained all queued items for the targeted peers.
+// If selector is "*", flushes all peers. If a specific peer, flushes only that peer.
+func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+	_, errResp, err := pluginserver.RequireReactor(ctx)
+	if err != nil {
+		return errResp, err
+	}
+
+	selector := ctx.PeerSelector()
+	flushCtx := context.Background()
+
+	if selector == "*" || selector == "" {
+		// Flush all peers.
+		if err := ctx.Reactor().FlushForwardPool(flushCtx); err != nil {
+			return &plugin.Response{
+				Status: plugin.StatusError,
+				Data:   fmt.Sprintf("flush failed: %v", err),
+			}, fmt.Errorf("flush forward pool: %w", err)
+		}
+		return &plugin.Response{
+			Status: plugin.StatusDone,
+			Data: map[string]any{
+				"action": "flush",
+				"peer":   "*",
+			},
+		}, nil
+	}
+
+	// Specific peer: resolve selector to address (supports both name and IP).
+	peerAddr := selector
+	if _, parseErr := netip.ParseAddr(selector); parseErr != nil {
+		// Not an IP -- try resolving as a name via peer list.
+		peers := ctx.Reactor().Peers()
+		found := false
+		for i := range peers {
+			if peers[i].Name == selector {
+				peerAddr = peers[i].Address.String()
+				found = true
+				break
+			}
+		}
+		if !found {
+			// Unknown selector -- flush by selector string anyway.
+			// The forward pool will return immediately if no worker exists.
+			peerAddr = selector
+		}
+	}
+
+	if err := ctx.Reactor().FlushForwardPoolPeer(flushCtx, peerAddr); err != nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Data:   fmt.Sprintf("flush failed: %v", err),
+		}, fmt.Errorf("flush forward pool peer %s: %w", peerAddr, err)
+	}
+
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: map[string]any{
+			"action": "flush",
+			"peer":   peerAddr,
 		},
 	}, nil
 }

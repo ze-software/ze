@@ -134,7 +134,7 @@ const maxPeerNameLen = 255
 // or a syntax error. Reject these at config validation time.
 var reservedPeerNames = map[string]bool{
 	"list": true, "detail": true, "add": true, "remove": true,
-	"pause": true, "resume": true, "save": true, "teardown": true,
+	"pause": true, "resume": true, "flush": true, "save": true, "teardown": true,
 	"capabilities": true, "statistics": true, "update": true,
 	"raw": true, "refresh": true, "borr": true, "eorr": true,
 	"clear": true, "plugin": true,

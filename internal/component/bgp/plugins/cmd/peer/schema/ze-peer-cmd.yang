@@ -70,6 +70,12 @@ module ze-peer-cmd {
             description "Resume peer read loop (flow control)";
         }
 
+        container flush {
+            config false;
+            ze:command "ze-bgp:peer-flush";
+            description "Wait for forward pool to drain (barrier)";
+        }
+
         container save {
             config false;
             ze:command "ze-bgp:peer-save";

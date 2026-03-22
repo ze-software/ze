@@ -10,6 +10,7 @@
 package plugin
 
 import (
+	"context"
 	"fmt"
 	"net/netip"
 	"time"
@@ -126,6 +127,16 @@ type ReactorPeerController interface {
 
 	// RemovePeer removes a peer by address.
 	RemovePeer(addr netip.Addr) error
+
+	// FlushForwardPool blocks until all forward pool workers have drained their
+	// queued items to peer sockets. Used by plugins to ensure route delivery
+	// before proceeding with dependent operations (e.g., teardown, withdraw).
+	FlushForwardPool(ctx context.Context) error
+
+	// FlushForwardPoolPeer blocks until the forward pool worker for a specific
+	// peer address has drained its queued items. Returns nil immediately if no
+	// worker exists for that peer.
+	FlushForwardPoolPeer(ctx context.Context, addr string) error
 }
 
 // ReactorConfigurator handles configuration reload, verification, and application.

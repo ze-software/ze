@@ -1,6 +1,7 @@
 package update
 
 import (
+	"context"
 	"net/netip"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
@@ -91,6 +92,9 @@ func (m *mockReactor) ResumePeer(addr netip.Addr) error {
 	m.resumedPeers = append(m.resumedPeers, addr)
 	return nil
 }
+
+func (m *mockReactor) FlushForwardPool(_ context.Context) error               { return nil }
+func (m *mockReactor) FlushForwardPoolPeer(_ context.Context, _ string) error { return nil }
 
 func (m *mockReactor) TeardownPeer(addr netip.Addr, subcode uint8, shutdownMsg string) error {
 	m.teardownCalls = append(m.teardownCalls, struct {

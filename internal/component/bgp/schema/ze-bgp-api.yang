@@ -187,6 +187,17 @@ module ze-bgp-api {
         }
     }
 
+    rpc peer-flush {
+        description "Wait for forward pool to drain (barrier)";
+        input {
+            leaf selector { type zt:peer-selector; mandatory true; description "Peer filter (* for all)"; }
+        }
+        output {
+            leaf peer { type string; description "Peer selector that was flushed"; }
+            leaf action { type string; description "Always flush"; }
+        }
+    }
+
     // Route operations
 
     rpc peer-update {

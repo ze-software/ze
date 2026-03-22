@@ -307,7 +307,7 @@ func TestExtractRPCs(t *testing.T) {
 				"help", "command-list", "command-help", "command-complete",
 				"plugin-encoding", "plugin-format", "plugin-ack",
 				"summary", "peer-show-capabilities", "peer-show-statistics", "peer-clear-soft",
-				"peer-list", "peer-show", "peer-add", "peer-remove", "peer-teardown",
+				"peer-list", "peer-show", "peer-add", "peer-remove", "peer-teardown", "peer-flush",
 				"peer-update",
 				"peer-borr", "peer-eorr", "peer-raw",
 				"cache", "commit",
