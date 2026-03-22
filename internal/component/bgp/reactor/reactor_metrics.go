@@ -25,6 +25,14 @@ type reactorMetrics struct {
 	peerState   metrics.GaugeVec
 	peerMsgRecv metrics.CounterVec
 	peerMsgSent metrics.CounterVec
+
+	// Prefix limits (labeled by peer + family)
+	prefixCount           metrics.GaugeVec   // Current prefix count per family
+	prefixMaximum         metrics.GaugeVec   // Configured hard maximum per family
+	prefixWarning         metrics.GaugeVec   // Configured warning threshold per family
+	prefixWarningExceeded metrics.GaugeVec   // 1 if count >= warning for this family
+	prefixExceededTotal   metrics.CounterVec // Times this family exceeded maximum
+	prefixTeardownTotal   metrics.CounterVec // Times session torn down for prefix limit (per peer)
 }
 
 // initReactorMetrics creates reactor-level metrics from the registry.
@@ -43,6 +51,14 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 		peerState:   reg.GaugeVec("ze_peer_state", "Peer FSM state (0=stopped, 1=connecting, 2=active, 3=established).", []string{"peer"}),
 		peerMsgRecv: reg.CounterVec("ze_peer_messages_received_total", "BGP messages received from peer.", []string{"peer"}),
 		peerMsgSent: reg.CounterVec("ze_peer_messages_sent_total", "BGP messages sent to peer.", []string{"peer"}),
+
+		// RFC 4486: Prefix limit metrics
+		prefixCount:           reg.GaugeVec("ze_bgp_prefix_count", "Current prefix count per family.", []string{"peer", "family"}),
+		prefixMaximum:         reg.GaugeVec("ze_bgp_prefix_maximum", "Configured hard maximum per family.", []string{"peer", "family"}),
+		prefixWarning:         reg.GaugeVec("ze_bgp_prefix_warning", "Configured warning threshold per family.", []string{"peer", "family"}),
+		prefixWarningExceeded: reg.GaugeVec("ze_bgp_prefix_warning_exceeded", "1 if count >= warning for this family.", []string{"peer", "family"}),
+		prefixExceededTotal:   reg.CounterVec("ze_bgp_prefix_maximum_exceeded_total", "Times this family exceeded maximum.", []string{"peer", "family"}),
+		prefixTeardownTotal:   reg.CounterVec("ze_bgp_prefix_teardown_total", "Times session torn down for prefix limit.", []string{"peer"}),
 	}
 }
 

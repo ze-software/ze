@@ -120,12 +120,18 @@ func (s *Session) mpAddPathReceive(family nlri.Family) bool {
 // applyPrefixDelta adjusts a family's prefix count without checking thresholds.
 // Used for withdrawals which only decrement and never trigger enforcement.
 func (s *Session) applyPrefixDelta(family string, delta int64) {
-	s.prefixCounts.add(family, delta)
+	current := s.prefixCounts.add(family, delta)
 
-	// Reset warning flag when count drops below threshold.
+	// Update Prometheus gauge.
+	s.setPrefixCountMetric(family, current)
+
+	// Reset warning flag and metric when count drops below threshold.
 	warning := s.settings.PrefixWarning[family]
-	if warning > 0 && s.prefixCounts.counts[family] < int64(warning) {
-		s.prefixCounts.warned[family] = false
+	if warning > 0 && current < int64(warning) {
+		if s.prefixCounts.warned[family] {
+			s.prefixCounts.warned[family] = false
+			s.setPrefixWarningExceededMetric(family, 0)
+		}
 	}
 }
 
@@ -133,6 +139,9 @@ func (s *Session) applyPrefixDelta(family string, delta int64) {
 // Returns (notif, false) for teardown, (nil, true) for drop-without-teardown, (nil, false) for OK.
 func (s *Session) applyPrefixCheck(family string, delta int64) (*message.Notification, bool) {
 	current := s.prefixCounts.add(family, delta)
+
+	// Update Prometheus gauge.
+	s.setPrefixCountMetric(family, current)
 
 	maximum, hasMax := s.settings.PrefixMaximum[family]
 	if !hasMax {
@@ -144,6 +153,7 @@ func (s *Session) applyPrefixCheck(family string, delta int64) (*message.Notific
 	if warning > 0 && current >= int64(warning) && current < int64(maximum) {
 		if !s.prefixCounts.warned[family] {
 			s.prefixCounts.warned[family] = true
+			s.setPrefixWarningExceededMetric(family, 1)
 			sessionLogger().Warn("prefix count reached warning threshold",
 				"peer", s.settings.Address,
 				"family", family,
@@ -156,6 +166,7 @@ func (s *Session) applyPrefixCheck(family string, delta int64) (*message.Notific
 
 	// Check maximum.
 	if current > int64(maximum) {
+		s.incrPrefixExceededMetric(family)
 		sessionLogger().Error("prefix count exceeded maximum",
 			"peer", s.settings.Address,
 			"family", family,
@@ -165,6 +176,7 @@ func (s *Session) applyPrefixCheck(family string, delta int64) (*message.Notific
 		)
 
 		if s.settings.PrefixTeardown {
+			s.incrPrefixTeardownMetric()
 			return buildPrefixNotification(family, uint32(current)), false //nolint:gosec // Clamped by prefix maximum (uint32)
 		}
 		// AC-27: teardown=false. Return drop=true to skip plugin delivery.
@@ -251,4 +263,53 @@ func countPrefixEntries(data []byte, addPath bool) int {
 		count++
 	}
 	return count
+}
+
+// --- Prometheus metric helpers ---
+// All are no-ops when prefixMetrics is nil (metrics not enabled).
+
+func (s *Session) peerLabel() string {
+	return s.settings.Address.String()
+}
+
+func (s *Session) setPrefixCountMetric(family string, count int64) {
+	if s.prefixMetrics == nil {
+		return
+	}
+	s.prefixMetrics.prefixCount.With(s.peerLabel(), family).Set(float64(count))
+}
+
+func (s *Session) setPrefixWarningExceededMetric(family string, val float64) {
+	if s.prefixMetrics == nil {
+		return
+	}
+	s.prefixMetrics.prefixWarningExceeded.With(s.peerLabel(), family).Set(val)
+}
+
+func (s *Session) incrPrefixExceededMetric(family string) {
+	if s.prefixMetrics == nil {
+		return
+	}
+	s.prefixMetrics.prefixExceededTotal.With(s.peerLabel(), family).Inc()
+}
+
+func (s *Session) incrPrefixTeardownMetric() {
+	if s.prefixMetrics == nil {
+		return
+	}
+	s.prefixMetrics.prefixTeardownTotal.With(s.peerLabel()).Inc()
+}
+
+// SetPrefixConfigMetrics publishes the static prefix configuration as Prometheus gauges.
+// Called once when the peer is added to the reactor.
+func setPrefixConfigMetrics(m *reactorMetrics, peerAddr string, settings *PeerSettings) {
+	if m == nil {
+		return
+	}
+	for family, maximum := range settings.PrefixMaximum {
+		m.prefixMaximum.With(peerAddr, family).Set(float64(maximum))
+	}
+	for family, warning := range settings.PrefixWarning {
+		m.prefixWarning.With(peerAddr, family).Set(float64(warning))
+	}
 }

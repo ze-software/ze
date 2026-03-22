@@ -101,9 +101,10 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	peer.messageCallback = r.notifyMessageReceiver
 	r.peers[key] = peer
 
-	// Update Prometheus gauge if metrics are configured.
+	// Update Prometheus gauges if metrics are configured.
 	if r.rmetrics != nil {
 		r.rmetrics.peersConfigured.Set(float64(len(r.peers)))
+		setPrefixConfigMetrics(r.rmetrics, settings.Address.String(), settings)
 	}
 
 	// If reactor is running, start the peer and create listener if needed.

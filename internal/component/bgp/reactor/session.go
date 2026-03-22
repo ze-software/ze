@@ -209,6 +209,10 @@ type Session struct {
 	// Initialized in NewSession when PrefixMaximum is configured.
 	// Only accessed from session's read goroutine (no synchronization needed).
 	prefixCounts *prefixCounts
+
+	// prefixMetrics is a reference to reactor-level Prometheus prefix metrics.
+	// Set by Peer in runOnce(). Nil when metrics are not enabled.
+	prefixMetrics *reactorMetrics
 }
 
 // NewSession creates a new BGP session for a peer.

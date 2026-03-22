@@ -860,6 +860,9 @@ func (p *Peer) runOnce() error {
 	session.SetClock(p.clock)
 	session.SetDialer(p.dialer)
 	session.onMessageReceived = p.messageCallback
+	if p.reactor != nil {
+		session.prefixMetrics = p.reactor.rmetrics
+	}
 	session.SetSourceID(p.sourceID)
 	session.SetPluginCapabilityGetter(p.getPluginCapabilities)
 	session.SetPluginFamiliesGetter(p.getPluginFamilies)

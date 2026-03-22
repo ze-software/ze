@@ -2,6 +2,7 @@
 // Overview: session.go — BGP session struct and lifecycle
 // Related: session_write.go — wire write primitives and Send* methods
 // Related: session_connection.go — session connect, accept, teardown
+// Related: session_prefix.go — prefix limit check before plugin delivery
 
 package reactor
 

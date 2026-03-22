@@ -261,18 +261,24 @@ NEXT=`printf "%03d" \`expr $LAST + 1\``
 # Write summary to plan/learned/${NEXT}-<name>.md (see TEMPLATE.md for format)
 ```
 
-The summary (~20-30 lines) uses this fixed 5-section format:
+The summary (~25-35 lines) uses this fixed 5-section format:
 
 | Section | Content |
 |---------|---------|
-| `# NNN — Name` | Title from spec filename |
-| `## Objective` | 1-2 sentences: what was the goal |
-| `## Decisions` | Bullet points: what was decided and why |
-| `## Patterns` | Bullet points: patterns discovered or confirmed |
+| `# NNN -- Name` | Title from spec filename |
+| `## Context` | Short paragraph (3-5 sentences): what problem existed, what was the symptom, what was the goal |
+| `## Decisions` | Bullet points: what was decided, what was rejected, and why |
+| `## Consequences` | Bullet points: what this enables, constrains, or changes going forward |
 | `## Gotchas` | Bullet points: what surprised, failed, or trapped (never skip) |
 | `## Files` | Key files modified/created |
 
-Quality check: "If I deleted this entry, would a future session miss something that code alone cannot tell them?"
-Source: extract from Implementation Summary, Design Insights, Mistake Log, and Deviations sections of the spec.
+**Context** replaces Objective. It preserves the spec's Task section: the problem, the symptom, the goal. Quality check: "Could a future reader reconstruct *why this work was worth doing* from this section alone?"
+
+**Decisions** must include "over" clauses when alternatives were considered: "chose X over Y because Z."
+
+**Consequences** captures forward-looking impact: capabilities unlocked, constraints accepted, future work this interacts with. Quality check: "If someone touches this area next, what do they need to know that the code alone won't tell them?"
+
+General quality check: "If I deleted this entry, would a future session miss something that code alone cannot tell them?"
+Source: extract from Task, Implementation Summary, Design Insights, Mistake Log, and Deviations sections of the spec.
 The original spec file in `plan/` is deleted after the summary is written.
 Include the summary in the same commit as code changes.

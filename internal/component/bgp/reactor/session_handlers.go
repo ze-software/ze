@@ -1,5 +1,6 @@
 // Design: docs/architecture/core-design.md — BGP message type handlers
 // Overview: session.go — BGP session struct, constructor, accessors, run loop
+// Related: session_prefix.go — prefix limit enforcement (RFC 4486)
 
 package reactor
 
