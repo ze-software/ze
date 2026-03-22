@@ -97,6 +97,20 @@ Do NOT flag these as "identity wrappers adding no value."
 - Root cause: defaulted to "struct with accessor methods" instead of ze pattern: pass raw bytes, use existing iterators
 - **Rule:** before creating any new type for data access, ask "can the consumer use existing wire types directly?"
 
+### Tests-Pass-Equals-Done (prefix-limit, RECURRING)
+- Said "all pass" after unit/functional tests, implying work is complete. Waited for user to ask "continue."
+- Docs not written, spec not updated, learned summary not written, audit not filled. Tests are step 10 of 12.
+- Root cause: treating test results as a natural stopping point with completion language.
+- **Rule:** `rules/quality.md`. After tests pass, continue to the next checklist item immediately. Only stop when blocked or when every step is done.
+
+### Mechanism-Not-Behavior Test (prefix-limit)
+- Wrote `TestPrefixExceedWarnOnly` asserting `notif == nil` (no NOTIFICATION). Test passed. Claimed AC-4/AC-27 done.
+- AC-4 says "further prefixes rejected." AC-27 says "NLRIs not installed in RIB." Test checked mechanism (no teardown), not behavior (routes blocked).
+- A no-op implementation would also return `notif == nil`. The test was invalid from the start.
+- Root cause: wrote test for the CODE PATH (teardown=false returns nil) instead of the AC TEXT (routes not delivered).
+- **Rule:** `rules/tdd.md` AC-Linked Tests. Quote the AC. Assert the behavior. If a no-op passes the test, the test is wrong.
+- **BEFORE marking AC done:** Read the AC text aloud. Read the test assertion. Does the assertion verify THAT TEXT? Not a proxy, not an absence, the actual behavior.
+
 ### Dismissing Test Failures as "Pre-existing" (RECURRING, ZERO TOLERANCE)
 - Said "pre-existing slogutil failures unrelated" and proposed committing with failing tests.
 - Has happened MANY times across multiple sessions. User explicitly said it causes distress.

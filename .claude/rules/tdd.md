@@ -42,6 +42,21 @@ All numeric ranges MUST test: last valid, first invalid below, first invalid abo
 | Public functions | 100% |
 | Error paths | 100% |
 
+## AC-Linked Tests (BLOCKING)
+
+Every AC-N MUST have a test whose assertion directly verifies the AC's **expected behavior**, not just the mechanism used to achieve it.
+
+| AC text says | Test MUST assert | Test MUST NOT assert |
+|-------------|-----------------|---------------------|
+| "rejected" / "not installed" | Route is absent from delivery / RIB | No error returned (mechanism) |
+| "session torn down" | Connection closed + NOTIFICATION sent | NOTIFICATION struct returned (mechanism) |
+| "warning logged" | Log entry exists (or counter incremented) | No teardown (absence of something) |
+| "rejected at parse time" | Error returned with specific message | Generic error returned |
+
+**The test:** Quote the AC expected behavior in the `VALIDATES:` comment. Read the test assertion. Does it verify that exact behavior? If the assertion would still pass with a stub implementation that does nothing, the test is invalid.
+
+**Red flag:** Test that asserts the ABSENCE of an action ("no NOTIFICATION", "no error") as proof that a DIFFERENT action happened ("routes rejected"). Absence of X does not prove Y.
+
 ## Rules
 
 - If you debug something, add a test so it's never re-investigated

@@ -36,6 +36,8 @@ Every check answered honestly. "Probably fine" is not a pass — run the code, r
 
 **Never present "version 1" knowing "version 2" is needed.** The first presentation should be the thorough one.
 
+**Tests passing is not completion.** After tests pass, continue to the next checklist item (docs, audit, learned summary). Never stop at "tests pass" and wait for the user to say "continue." The Completion Checklist has 12 steps -- tests are step 10, not the finish line. Only stop when blocked or when every step is done.
+
 **Unanswered questions block work.** If a question was asked and not answered, re-state it before proceeding. Do not silently pick an answer and keep going.
 
 ## Proof

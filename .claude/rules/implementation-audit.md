@@ -39,7 +39,20 @@ Before: writing summary to `plan/learned/`, claiming "done", asking to commit.
 | Feature works | Test name + output | "make ze-verify passes" |
 | Feature is wired in | Wiring test that exercises entry→feature path | Unit test with mock/fake entry point |
 | AC-N done (wiring) | Functional test name exercising full path | Unit test in isolation |
-| AC-N done (logic) | Unit test name + file:line | "should work" |
+| AC-N done (logic) | Unit test name + file:line, assertion matches AC text | "should work" |
+| AC-N done (behavior) | Test asserts the AC's expected behavior directly | Test asserts mechanism (e.g., "no error" as proxy for "rejected") |
+
+## AC Evidence Verification (BLOCKING)
+
+For each AC-N, quote the expected behavior from the AC table, then name the test and its assertion. The assertion must verify the BEHAVIOR, not just the mechanism.
+
+**Mechanical check:** Read the AC text. Read the test assertion. If the test would still pass with a no-op implementation, the evidence is invalid.
+
+| Pattern | Invalid evidence | Valid evidence |
+|---------|-----------------|----------------|
+| AC says "routes not installed" | Test checks no error returned | Test checks route is absent from delivery callback |
+| AC says "session torn down" | Test checks NOTIFICATION struct created | Test checks connection closed |
+| AC says "config rejected" | Test checks error is non-nil | Test checks error message contains expected text |
 
 ## Mechanically Enforced
 
