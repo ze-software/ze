@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -184,9 +185,21 @@ func (s *Server) ConfigPath() string {
 
 // hasConfiguredPlugin returns true if a plugin with the given name is in the
 // server's configured plugin list. Used by stage 1 dependency validation.
+// hasConfiguredPlugin checks whether a plugin with the given registry name is
+// already explicitly configured. Matches by config name OR by checking if the
+// Run command invokes the plugin (e.g., config name "adj-rib-in" with
+// Run "ze plugin bgp-adj-rib-in" matches registry name "bgp-adj-rib-in").
 func (s *Server) hasConfiguredPlugin(name string) bool {
+	if name == "" {
+		return false
+	}
 	for _, p := range s.config.Plugins {
 		if p.Name == name {
+			return true
+		}
+		// External plugins: config name may differ from registry name.
+		// Check if the run command references the registry name.
+		if p.Run != "" && strings.Contains(p.Run, name) {
 			return true
 		}
 	}

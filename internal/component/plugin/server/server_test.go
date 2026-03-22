@@ -533,3 +533,37 @@ func TestDispatchDecodeMPReach_Malformed(t *testing.T) {
 	require.Error(t, malR.err)
 	assert.Contains(t, malR.err.Error(), "too short")
 }
+
+// TestHasConfiguredPluginRunCommand verifies that hasConfiguredPlugin matches
+// external plugins by Run command when config name differs from registry name.
+//
+// VALIDATES: Config "adj-rib-in" with Run "ze plugin bgp-adj-rib-in" matches
+//
+//	registry name "bgp-adj-rib-in".
+//
+// PREVENTS: Auto-loader launching duplicate plugin instances when config uses
+//
+//	short names (e.g., "adj-rib-in") and registry uses full names ("bgp-adj-rib-in").
+func TestHasConfiguredPluginRunCommand(t *testing.T) {
+	s := &Server{
+		config: &ServerConfig{
+			Plugins: []plugin.PluginConfig{
+				{Name: "adj-rib-in", Run: "ze plugin bgp-adj-rib-in", Encoder: "json"},
+				{Name: "rpki-decorator", Run: "ze plugin bgp-rpki-decorator", Encoder: "json"},
+				{Name: "my-custom-plugin", Encoder: "json", Internal: true},
+			},
+		},
+	}
+
+	// Exact name match
+	assert.True(t, s.hasConfiguredPlugin("adj-rib-in"), "exact config name should match")
+	assert.True(t, s.hasConfiguredPlugin("my-custom-plugin"), "exact internal name should match")
+
+	// Registry name match via Run command
+	assert.True(t, s.hasConfiguredPlugin("bgp-adj-rib-in"), "registry name in Run command should match")
+	assert.True(t, s.hasConfiguredPlugin("bgp-rpki-decorator"), "registry name in Run command should match")
+
+	// No match
+	assert.False(t, s.hasConfiguredPlugin("bgp-nonexistent"), "non-existent plugin should not match")
+	assert.False(t, s.hasConfiguredPlugin(""), "empty name should not match")
+}
