@@ -167,6 +167,16 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 			buf.WriteString(indent)
 			buf.WriteString("\t")
 			buf.WriteString(entry.Key)
+			// Serialize family sub-tree (e.g., prefix { maximum N; }) if present.
+			if prefix := entry.Value.GetContainer("prefix"); prefix != nil {
+				buf.WriteString(" { prefix {")
+				if max, ok := prefix.Get("maximum"); ok {
+					buf.WriteString(" maximum ")
+					buf.WriteString(max)
+					buf.WriteString(";")
+				}
+				buf.WriteString(" } }")
+			}
 			buf.WriteString("\n")
 		}
 		buf.WriteString(indent)

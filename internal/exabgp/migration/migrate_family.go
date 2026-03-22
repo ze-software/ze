@@ -22,7 +22,13 @@ func convertFamilyToList(src, dst *config.Tree) {
 	for _, key := range keys {
 		// Convert "ipv4 unicast" → "ipv4/unicast".
 		converted := convertFamilySyntax(key)
-		dst.AddListEntry("family", converted, config.NewTree())
+		// Every family requires prefix { maximum N; } (RFC 4486).
+		// Use 10000 as a sensible default for migrated configs.
+		familyTree := config.NewTree()
+		prefixTree := config.NewTree()
+		prefixTree.Set("maximum", "10000")
+		familyTree.SetContainer("prefix", prefixTree)
+		dst.AddListEntry("family", converted, familyTree)
 	}
 }
 
