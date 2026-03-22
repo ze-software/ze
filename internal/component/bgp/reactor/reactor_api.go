@@ -780,6 +780,19 @@ func (a *reactorAPIAdapter) getMatchingPeersLocked(selector string) []*Peer {
 		}
 	}
 
+	// Try selector as ASN: "as<N>" (case-insensitive) matches all peers with that PeerAS.
+	if len(selector) > 2 && (selector[0] == 'a' || selector[0] == 'A') && (selector[1] == 's' || selector[1] == 'S') {
+		if asn, err := strconv.ParseUint(selector[2:], 10, 32); err == nil {
+			var peers []*Peer
+			for _, peer := range a.r.peers {
+				if uint64(peer.settings.PeerAS) == asn {
+					peers = append(peers, peer)
+				}
+			}
+			return peers
+		}
+	}
+
 	// Glob pattern match against the IP portion of each key.
 	var peers []*Peer
 	for key, peer := range a.r.peers {

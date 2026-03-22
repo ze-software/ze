@@ -147,6 +147,107 @@ func TestPeerSelectorNoMatch(t *testing.T) {
 //
 // VALIDATES: Name match short-circuits before glob evaluation.
 // PREVENTS: Name selectors being interpreted as glob patterns.
+// TestPeerSelectorByASN verifies that a peer can be resolved by ASN selector.
+//
+// VALIDATES: AC-1 — unique ASN selects exactly one peer.
+// PREVENTS: ASN selectors silently returning empty or wrong peers.
+func TestPeerSelectorByASN(t *testing.T) {
+	adapter := setupSelectorReactor()
+
+	peers := adapter.getMatchingPeers("as65001")
+	require.Len(t, peers, 1, "should match exactly one peer by ASN")
+	assert.Equal(t, "upstream", peers[0].settings.Name)
+	assert.Equal(t, uint32(65001), peers[0].settings.PeerAS)
+}
+
+// TestPeerSelectorByASNMultiple verifies that shared ASN selects all matching peers.
+//
+// VALIDATES: AC-2 — multiple peers with same ASN are all returned.
+// PREVENTS: ASN selector only returning first match instead of all.
+func TestPeerSelectorByASNMultiple(t *testing.T) {
+	r := New(&Config{})
+
+	// Two peers with same ASN (iBGP mesh)
+	s1 := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65000, 0x01010101)
+	s1.Name = "ibgp-a"
+	r.peers[s1.PeerKey()] = NewPeer(s1)
+
+	s2 := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65000, 0x02020202)
+	s2.Name = "ibgp-b"
+	r.peers[s2.PeerKey()] = NewPeer(s2)
+
+	// One peer with different ASN
+	s3 := NewPeerSettings(mustParseAddr("10.0.1.1"), 65000, 65001, 0x03030303)
+	s3.Name = "ebgp"
+	r.peers[s3.PeerKey()] = NewPeer(s3)
+
+	adapter := &reactorAPIAdapter{r: r}
+
+	peers := adapter.getMatchingPeers("as65000")
+	assert.Len(t, peers, 2, "should match both iBGP peers with same ASN")
+
+	names := make(map[string]bool)
+	for _, p := range peers {
+		names[p.settings.Name] = true
+	}
+	assert.True(t, names["ibgp-a"], "should include ibgp-a")
+	assert.True(t, names["ibgp-b"], "should include ibgp-b")
+	assert.False(t, names["ebgp"], "should NOT include ebgp")
+}
+
+// TestPeerSelectorByASNNoMatch verifies that unknown ASN returns empty.
+//
+// VALIDATES: AC-3 — non-existent ASN returns empty result.
+// PREVENTS: ASN selector matching wrong peers when no peer has that ASN.
+func TestPeerSelectorByASNNoMatch(t *testing.T) {
+	adapter := setupSelectorReactor()
+
+	peers := adapter.getMatchingPeers("as99999")
+	assert.Empty(t, peers, "unknown ASN should return empty")
+}
+
+// TestPeerSelectorASNExclusion verifies that "!as<N>" excludes ASN-matched peers.
+//
+// VALIDATES: AC-4 — exclusion with ASN selector returns all peers except matching.
+// PREVENTS: Exclusion prefix not working with ASN selectors.
+func TestPeerSelectorASNExclusion(t *testing.T) {
+	adapter := setupSelectorReactor()
+
+	peers := adapter.getMatchingPeers("!as65001")
+	assert.Len(t, peers, 2, "exclusion should return all peers except AS 65001")
+
+	for _, p := range peers {
+		assert.NotEqual(t, uint32(65001), p.settings.PeerAS, "AS 65001 should be excluded")
+	}
+}
+
+// TestPeerSelectorASNNameCollision verifies that a peer named "as65001" is
+// resolved by name (not ASN) because name matching has priority over ASN.
+//
+// VALIDATES: Name match at line 777 runs before ASN match at line 783.
+// PREVENTS: Peer with ASN-like name being resolved as ASN selector.
+func TestPeerSelectorASNNameCollision(t *testing.T) {
+	r := New(&Config{})
+
+	// Peer named "as65001" with PeerAS=65002 (different from the name's number)
+	s1 := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65002, 0x01010101)
+	s1.Name = "as65001"
+	r.peers[s1.PeerKey()] = NewPeer(s1)
+
+	// Another peer with PeerAS=65001 (matches the ASN in the selector)
+	s2 := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x02020202)
+	s2.Name = "other"
+	r.peers[s2.PeerKey()] = NewPeer(s2)
+
+	adapter := &reactorAPIAdapter{r: r}
+
+	// "as65001" should match by name (peer 10.0.0.1), not by ASN (peer 10.0.0.2)
+	peers := adapter.getMatchingPeers("as65001")
+	require.Len(t, peers, 1, "should match exactly one peer by name, not ASN")
+	assert.Equal(t, "as65001", peers[0].settings.Name)
+	assert.Equal(t, uint32(65002), peers[0].settings.PeerAS, "should be the named peer, not the ASN-matched one")
+}
+
 func TestPeerSelectorNamePriority(t *testing.T) {
 	r := New(&Config{})
 

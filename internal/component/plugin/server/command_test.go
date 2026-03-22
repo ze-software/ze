@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -770,4 +771,95 @@ func TestDispatcherAuthorizationAppliesToUnknownCommands(t *testing.T) {
 	assert.True(t, errors.Is(err, ErrUnauthorized))
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Data, "authorization denied")
+}
+
+// TestLooksLikeASNSelector verifies that the ASN selector format is correctly
+// recognized by the dispatcher.
+//
+// VALIDATES: AC-5 — `as<digits>` recognized as a valid peer selector.
+// VALIDATES: AC-6 — `asnotanumber` and other invalid formats rejected.
+// PREVENTS: ASN selectors being silently ignored or misclassified.
+func TestLooksLikeASNSelector(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expect bool
+	}{
+		{"simple ASN", "as65001", true},
+		{"ASN 1", "as1", true},
+		{"ASN zero", "as0", true},
+		{"max ASN 32-bit", "as4294967295", true},
+		{"overflow 32-bit", "as4294967296", false},
+		{"very large overflow", "as99999999999999", false},
+		{"not a number", "asnotanumber", false},
+		{"empty after prefix", "as", false},
+		{"uppercase AS", "AS65001", true},
+		{"mixed case", "As65001", true},
+		{"just a number", "65001", false},
+		{"IP address", "10.0.0.1", false},
+		{"peer name", "upstream", false},
+		{"wildcard", "*", false},
+		{"negative", "as-1", false},
+		{"decimal", "as65001.5", false},
+		{"space in value", "as 65001", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expect, looksLikeASNSelector(tt.input), "looksLikeASNSelector(%q)", tt.input)
+		})
+	}
+}
+
+// TestDispatchWithASNSelector verifies that ASN selectors are correctly
+// stripped by the dispatcher and set in CommandContext.
+//
+// VALIDATES: AC-5 — dispatcher recognizes as<N> and sets ctx.Peer.
+// PREVENTS: ASN selector not stripped, causing command lookup failure.
+func TestDispatchWithASNSelector(t *testing.T) {
+	d := NewDispatcher()
+
+	var calledWithPeer string
+	var calledWithArgs []string
+	d.RegisterWithOptions("peer show", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		calledWithPeer = ctx.PeerSelector()
+		calledWithArgs = args
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "Show peer", RegisterOptions{RequiresSelector: true})
+
+	ctx := &CommandContext{}
+	resp, err := d.Dispatch(ctx, "peer as65001 show summary")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.Equal(t, "as65001", calledWithPeer)
+	assert.Equal(t, []string{"summary"}, calledWithArgs)
+}
+
+// TestDispatchWithNameSelector verifies that peer name selectors are recognized
+// when the reactor has a peer with that name.
+//
+// VALIDATES: isKnownPeerName branch is reachable through Dispatch.
+// PREVENTS: Name selectors silently failing when reactor is available.
+func TestDispatchWithNameSelector(t *testing.T) {
+	d := NewDispatcher()
+
+	var calledWithPeer string
+	d.RegisterWithOptions("peer show", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		calledWithPeer = ctx.PeerSelector()
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "Show peer", RegisterOptions{RequiresSelector: true})
+
+	srv := &Server{
+		reactor: &mockReactor{
+			peers: []plugin.PeerInfo{
+				{Address: netip.MustParseAddr("10.0.0.1"), Name: "router-a", PeerAS: 65001},
+			},
+		},
+	}
+
+	ctx := &CommandContext{Server: srv}
+	resp, err := d.Dispatch(ctx, "peer router-a show")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.Equal(t, "router-a", calledWithPeer)
 }

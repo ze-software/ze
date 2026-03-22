@@ -233,7 +233,7 @@ Commands sent through `ze cli`, `ze run`, `ze show`, or process stdin.
 | `bgp peer <addr> capabilities` | Show negotiated capabilities |
 | `bgp summary` | BGP summary table with statistics |
 
-Peer selector supports: `*` (all), exact IP, glob patterns (`192.168.*.*`), exclusion (`!addr`).
+Peer selector supports: `*` (all), exact IP, peer name, ASN (`as65001`), glob patterns (`192.168.*.*`), exclusion (`!addr`, `!as65001`). Tab completion for peer selectors in `ze show` and `ze run` when daemon is running.
 
 ### Route Updates
 

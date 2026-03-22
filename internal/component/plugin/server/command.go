@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/authz"
@@ -314,8 +315,8 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 	peerSelector := "*"
 	hasExplicitSelector := false
 	if len(tokens) >= 3 && strings.EqualFold(tokens[0], "peer") {
-		// Accept IP/glob directly, or check against known peer names via reactor.
-		if looksLikeIPOrGlob(tokens[1]) || isKnownPeerName(ctx, tokens[1]) {
+		// Accept IP/glob directly, ASN selector, or check against known peer names via reactor.
+		if looksLikeIPOrGlob(tokens[1]) || looksLikeASNSelector(tokens[1]) || isKnownPeerName(ctx, tokens[1]) {
 			peerSelector = tokens[1]
 			hasExplicitSelector = true
 			if ctx != nil {
@@ -563,4 +564,15 @@ func isKnownPeerName(ctx *CommandContext, s string) bool {
 		}
 	}
 	return false
+}
+
+// looksLikeASNSelector returns true if s looks like an ASN selector: "as" prefix
+// (case-insensitive) followed by a valid 32-bit unsigned integer
+// (e.g., "as65001", "AS65001", "As4294967295").
+func looksLikeASNSelector(s string) bool {
+	if len(s) < 3 || (s[0] != 'a' && s[0] != 'A') || (s[1] != 's' && s[1] != 'S') {
+		return false
+	}
+	_, err := strconv.ParseUint(s[2:], 10, 32)
+	return err == nil
 }

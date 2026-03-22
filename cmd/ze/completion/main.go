@@ -2,10 +2,12 @@
 // Detail: bash.go -- bash completion script generation
 // Detail: zsh.go -- zsh completion script generation
 // Detail: fish.go -- fish completion script generation
+// Detail: nushell.go -- nushell completion script generation
 // Detail: words.go -- dynamic completion data source for shell scripts
+// Detail: peers.go -- dynamic peer selector completion from running daemon
 //
 // Package completion provides the ze completion subcommand.
-// It generates shell completion scripts for bash, zsh, and fish.
+// It generates shell completion scripts for bash, zsh, fish, and nushell.
 package completion
 
 import (
@@ -33,6 +35,8 @@ func Run(args []string) int {
 		return generate("nushell", os.Stdout)
 	case "words":
 		return words(args[1:])
+	case "peers":
+		return peers()
 	case "help", "-h", "--help":
 		usage()
 		return 0

@@ -37,13 +37,9 @@ def "nu-complete ze schema-modules" [] {
     }
 }
 
-def "nu-complete ze show-path" [context: string, offset: int] {
-    let parts = ($context | str trim | split row " " | where {|w| ($w | str length) > 0 })
-    # Find "show" in parts, take everything after it as the path
-    let idx = ($parts | enumerate | where {|it| $it.item == "show"} | first | get index)
-    let path = ($parts | skip ($idx + 1))
+def "nu-complete ze peer-selectors" [] {
     try {
-        ^ze completion words show ...$path
+        ^ze completion peers
         | lines
         | where {|line| ($line | str length) > 0 }
         | each {|line|
@@ -58,12 +54,14 @@ def "nu-complete ze show-path" [context: string, offset: int] {
     }
 }
 
-def "nu-complete ze run-path" [context: string, offset: int] {
+def "nu-complete ze show-path" [context: string, offset: int] {
     let parts = ($context | str trim | split row " " | where {|w| ($w | str length) > 0 })
-    let idx = ($parts | enumerate | where {|it| $it.item == "run"} | first | get index)
+    # Find "show" in parts, take everything after it as the path
+    let idx = ($parts | enumerate | where {|it| $it.item == "show"} | first | get index)
     let path = ($parts | skip ($idx + 1))
+    mut result = []
     try {
-        ^ze completion words run ...$path
+        $result = (^ze completion words show ...$path
         | lines
         | where {|line| ($line | str length) > 0 }
         | each {|line|
@@ -72,10 +70,37 @@ def "nu-complete ze run-path" [context: string, offset: int] {
                 let row = ($cols | first)
                 { value: $row.column1, description: ($row.column2? | default "") }
             }
-        }
-    } catch {
-        []
+        })
+    } catch {}
+    # Add dynamic peer selectors when completing after "peer"
+    if ($path | length) == 1 and ($path | first) == "peer" {
+        $result = ($result | append (nu-complete ze peer-selectors))
     }
+    $result
+}
+
+def "nu-complete ze run-path" [context: string, offset: int] {
+    let parts = ($context | str trim | split row " " | where {|w| ($w | str length) > 0 })
+    let idx = ($parts | enumerate | where {|it| $it.item == "run"} | first | get index)
+    let path = ($parts | skip ($idx + 1))
+    mut result = []
+    try {
+        $result = (^ze completion words run ...$path
+        | lines
+        | where {|line| ($line | str length) > 0 }
+        | each {|line|
+            let cols = ($line | split column "\t")
+            if ($cols | length) > 0 {
+                let row = ($cols | first)
+                { value: $row.column1, description: ($row.column2? | default "") }
+            }
+        })
+    } catch {}
+    # Add dynamic peer selectors when completing after "peer"
+    if ($path | length) == 1 and ($path | first) == "peer" {
+        $result = ($result | append (nu-complete ze peer-selectors))
+    }
+    $result
 }
 
 def "nu-complete ze config-subcmds" [] {

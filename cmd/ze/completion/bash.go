@@ -159,6 +159,12 @@ _ze() {
             done
             local completions
             completions=$(ze completion words show "${path_words[@]}" 2>/dev/null | cut -f1)
+            # Add dynamic peer selectors when completing after "peer"
+            if [[ ${#path_words[@]} -eq 1 && "${path_words[0]}" == "peer" ]]; then
+                local peer_completions
+                peer_completions=$(ze completion peers 2>/dev/null | cut -f1)
+                completions="${completions} ${peer_completions}"
+            fi
             COMPREPLY=($(compgen -W "${completions}" -- "${cur}"))
             ;;
         run)
@@ -170,6 +176,12 @@ _ze() {
             done
             local completions
             completions=$(ze completion words run "${path_words[@]}" 2>/dev/null | cut -f1)
+            # Add dynamic peer selectors when completing after "peer"
+            if [[ ${#path_words[@]} -eq 1 && "${path_words[0]}" == "peer" ]]; then
+                local peer_completions
+                peer_completions=$(ze completion peers 2>/dev/null | cut -f1)
+                completions="${completions} ${peer_completions}"
+            fi
             COMPREPLY=($(compgen -W "${completions}" -- "${cur}"))
             ;;
         completion)

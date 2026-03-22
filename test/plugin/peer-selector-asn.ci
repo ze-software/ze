@@ -1,0 +1,64 @@
+# Test: peer commands work with ASN-based selector (as<N> format)
+# VALIDATES: AC-7 — getMatchingPeersLocked resolves peers by ASN selector
+# PREVENTS: ASN selectors not reaching the dispatch/reactor path end-to-end
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+cmd=api:conn=1:seq=1:text=peer as1 update text origin igp local-preference 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304650165014005040000006418010100
+EOF_PEER
+
+# Python plugin: sends update using ASN selector
+tmpfs=peer-selector-asn.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+from ze_api import flush, ready, wait_for_shutdown
+
+def main() -> None:
+    ready()
+
+    # Select peer by ASN "as1"
+    flush('peer as1 update text nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24\n')
+
+    wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external peer-selector-asn {
+		run ./peer-selector-asn.run
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		connection active
+		group-updates disable
+
+		family {
+			ipv4/unicast
+		}
+		capability {
+			graceful-restart
+		}
+		process peer-selector-asn {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

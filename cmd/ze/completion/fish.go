@@ -183,6 +183,10 @@ function __ze_complete_dynamic
     end
 
     ze completion words $subcmd $path 2>/dev/null
+    # Add dynamic peer selectors when completing after "peer"
+    if test (count $path) -eq 1; and test "$path[1]" = "peer"
+        ze completion peers 2>/dev/null
+    end
 end
 
 # --- Global flags ---

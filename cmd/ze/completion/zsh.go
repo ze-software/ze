@@ -118,6 +118,12 @@ _ze() {
                     fi
                     local -a dynamic_commands
                     dynamic_commands=(${(f)"$(ze completion words show ${path_words} 2>/dev/null | sed $'s/\t/:/')"})
+                    # Add dynamic peer selectors when completing after "peer"
+                    if [[ ${#path_words} -eq 1 && "${path_words[1]}" == "peer" ]]; then
+                        local -a peer_completions
+                        peer_completions=(${(f)"$(ze completion peers 2>/dev/null | sed $'s/\t/:/')"})
+                        dynamic_commands+=("${peer_completions[@]}")
+                    fi
                     [[ ${#dynamic_commands} -gt 0 ]] && _describe 'command' dynamic_commands
                     ;;
                 run)
@@ -128,6 +134,12 @@ _ze() {
                     fi
                     local -a dynamic_commands
                     dynamic_commands=(${(f)"$(ze completion words run ${path_words} 2>/dev/null | sed $'s/\t/:/')"})
+                    # Add dynamic peer selectors when completing after "peer"
+                    if [[ ${#path_words} -eq 1 && "${path_words[1]}" == "peer" ]]; then
+                        local -a peer_completions
+                        peer_completions=(${(f)"$(ze completion peers 2>/dev/null | sed $'s/\t/:/')"})
+                        dynamic_commands+=("${peer_completions[@]}")
+                    fi
                     [[ ${#dynamic_commands} -gt 0 ]] && _describe 'command' dynamic_commands
                     ;;
                 plugin)

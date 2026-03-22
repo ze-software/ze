@@ -306,8 +306,10 @@ Many commands take a `peer <selector>` argument:
 | `*` | `peer *` | All peers |
 | Name | `peer upstream1` | By configured peer name |
 | IP address | `peer 10.0.0.1` | By peer IP |
+| ASN | `peer as65001` | By remote ASN, case-insensitive (matches all peers with that ASN) |
 | Glob | `peer 192.168.*.*` | Pattern match |
 | Exclusion | `peer !10.0.0.1` | All except this peer |
+| ASN exclusion | `peer !as65001` | All except peers with this ASN |
 
 ### Peer Commands
 

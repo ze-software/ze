@@ -20,6 +20,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 - [feedback_durability_over_velocity.md](feedback_durability_over_velocity.md) - Optimize for "never revisit this code", not "get to commit fast". Thoroughness over speed.
 - [feedback_unanswered_questions_block.md](feedback_unanswered_questions_block.md) - Re-state unanswered questions before proceeding. Never silently assume answers.
 - [feedback_consistency_predictability.md](feedback_consistency_predictability.md) - Follow the same process every time. Inconsistency forces the user to be vigilant about catching shortcuts.
+- [feedback_learned_before_done.md](feedback_learned_before_done.md) - Never present work as complete until the learned summary is written.
 - [feedback_memory_is_in_repo.md](feedback_memory_is_in_repo.md) - ~/.claude/projects/.../memory/ is the repo's .claude/memory/. Always commit memory changes.
 
 ## References (cross-project, not in repo)

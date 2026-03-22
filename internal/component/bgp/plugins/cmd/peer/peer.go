@@ -31,7 +31,8 @@ func init() {
 }
 
 // filterPeersBySelector returns peers matching the context's peer selector.
-// If the selector is "*", all peers are returned. Otherwise, filters by IP or peer name.
+// If the selector is "*", all peers are returned. Otherwise, filters by IP,
+// peer name, or ASN ("as<N>" format).
 func filterPeersBySelector(ctx *pluginserver.CommandContext) ([]plugin.PeerInfo, *plugin.Response, error) {
 	if ctx.Reactor() == nil {
 		return nil, &plugin.Response{Status: plugin.StatusError, Data: "reactor not available"}, fmt.Errorf("reactor not available")
@@ -58,6 +59,19 @@ func filterPeersBySelector(ctx *pluginserver.CommandContext) ([]plugin.PeerInfo,
 	for i := range allPeers {
 		if allPeers[i].Name == selector {
 			return []plugin.PeerInfo{allPeers[i]}, nil, nil
+		}
+	}
+
+	// Try ASN selector: "as<N>" (case-insensitive) matches all peers with that remote AS.
+	if len(selector) > 2 && (selector[0] == 'a' || selector[0] == 'A') && (selector[1] == 's' || selector[1] == 'S') {
+		if asn, err := strconv.ParseUint(selector[2:], 10, 32); err == nil {
+			var matched []plugin.PeerInfo
+			for i := range allPeers {
+				if uint64(allPeers[i].PeerAS) == asn {
+					matched = append(matched, allPeers[i])
+				}
+			}
+			return matched, nil, nil
 		}
 	}
 
