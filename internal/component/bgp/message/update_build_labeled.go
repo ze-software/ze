@@ -12,6 +12,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 )
 
+// attrPrefixSID is the Prefix SID attribute type code (RFC 8669).
+// Defined locally -- the labeled plugin registers the display name via attribute.RegisterName.
+const attrPrefixSID = attribute.AttributeCode(40)
+
 // LabeledUnicastParams contains parameters for building a labeled unicast route UPDATE.
 //
 // RFC 8277 - Using BGP to Bind MPLS Labels to Address Prefixes (SAFI 4).
@@ -187,7 +191,7 @@ func (ub *UpdateBuilder) BuildLabeledUnicast(p *LabeledUnicastParams) *Update {
 	if len(p.PrefixSID) > 0 {
 		attrs = append(attrs, &rawAttribute{
 			flags: attribute.FlagOptional | attribute.FlagTransitive,
-			code:  attribute.AttrPrefixSID,
+			code:  attrPrefixSID,
 			data:  p.PrefixSID,
 		})
 	}

@@ -58,13 +58,8 @@ const (
 	AttrExtCommunity     AttributeCode = 16 // RFC 4360
 	AttrAS4Path          AttributeCode = 17 // RFC 6793
 	AttrAS4Aggregator    AttributeCode = 18 // RFC 6793
-	AttrPMSI             AttributeCode = 22 // RFC 6514
-	AttrTunnelEncap      AttributeCode = 23 // RFC 5512
 	AttrIPv6ExtCommunity AttributeCode = 25 // RFC 5701
-	AttrAIGP             AttributeCode = 26 // RFC 7311
-	AttrBGPLS            AttributeCode = 29 // RFC 7752
 	AttrLargeCommunity   AttributeCode = 32 // RFC 8092
-	AttrPrefixSID        AttributeCode = 40 // RFC 8669
 )
 
 var attrCodeNames = map[AttributeCode]string{
@@ -83,13 +78,14 @@ var attrCodeNames = map[AttributeCode]string{
 	AttrExtCommunity:     "EXTENDED_COMMUNITIES",
 	AttrAS4Path:          "AS4_PATH",
 	AttrAS4Aggregator:    "AS4_AGGREGATOR",
-	AttrPMSI:             "PMSI_TUNNEL",
-	AttrTunnelEncap:      "TUNNEL_ENCAPSULATION",
 	AttrIPv6ExtCommunity: "IPV6_EXTENDED_COMMUNITIES",
-	AttrAIGP:             "AIGP",
-	AttrBGPLS:            "BGP_LS",
 	AttrLargeCommunity:   "LARGE_COMMUNITIES",
-	AttrPrefixSID:        "PREFIX_SID",
+}
+
+// RegisterName registers an attribute code and display name.
+// MUST only be called from init() functions. Not safe for concurrent use.
+func RegisterName(code AttributeCode, name string) {
+	attrCodeNames[code] = name
 }
 
 // String returns the attribute name.

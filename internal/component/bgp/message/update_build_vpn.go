@@ -194,7 +194,7 @@ func (ub *UpdateBuilder) BuildVPN(p *VPNParams) *Update {
 	if len(p.PrefixSID) > 0 {
 		attrs = append(attrs, &rawAttribute{
 			flags: attribute.FlagOptional | attribute.FlagTransitive,
-			code:  attribute.AttrPrefixSID,
+			code:  attrPrefixSID,
 			data:  p.PrefixSID,
 		})
 	}

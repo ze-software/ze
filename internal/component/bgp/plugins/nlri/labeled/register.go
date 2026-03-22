@@ -7,12 +7,16 @@ import (
 	"log/slog"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 func init() {
+	// RFC 8669: Register Prefix SID attribute (type 40).
+	attribute.RegisterName(40, "PREFIX_SID")
+
 	reg := registry.Registration{
 		Name:                  "bgp-nlri-labeled",
 		Description:           "Labeled Unicast family plugin (RFC 8277)",

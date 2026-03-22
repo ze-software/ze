@@ -94,7 +94,7 @@ func (ub *UpdateBuilder) BuildMUP(p MUPParams) *Update {
 	if len(p.PrefixSID) > 0 {
 		attrs = append(attrs, &rawAttribute{
 			flags: attribute.FlagOptional | attribute.FlagTransitive,
-			code:  attribute.AttrPrefixSID,
+			code:  attrPrefixSID,
 			data:  p.PrefixSID,
 		})
 	}
@@ -199,7 +199,7 @@ func (ub *UpdateBuilder) BuildMUPWithdraw(p MUPParams) *Update {
 	if len(p.PrefixSID) > 0 {
 		attrs = append(attrs, &rawAttribute{
 			flags: attribute.FlagOptional | attribute.FlagTransitive,
-			code:  attribute.AttrPrefixSID,
+			code:  attrPrefixSID,
 			data:  p.PrefixSID,
 		})
 	}

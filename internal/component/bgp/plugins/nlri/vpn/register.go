@@ -7,12 +7,16 @@ import (
 	"io"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 func init() {
+	// RFC 5512: Register Tunnel Encapsulation attribute (type 23).
+	attribute.RegisterName(23, "TUNNEL_ENCAPSULATION")
+
 	reg := registry.Registration{
 		Name:         "bgp-nlri-vpn",
 		Description:  "VPN family plugin",

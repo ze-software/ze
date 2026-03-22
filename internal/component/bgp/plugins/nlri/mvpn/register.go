@@ -7,12 +7,16 @@ import (
 	"log/slog"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 func init() {
+	// RFC 6514: Register PMSI Tunnel attribute (type 22).
+	attribute.RegisterName(22, "PMSI_TUNNEL")
+
 	reg := registry.Registration{
 		Name:         "bgp-nlri-mvpn",
 		Description:  "Multicast VPN family plugin (RFC 6514)",

@@ -7,12 +7,16 @@ import (
 	"io"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 func init() {
+	// RFC 7752: Register BGP-LS attribute (type 29).
+	attribute.RegisterName(29, "BGP_LS")
+
 	reg := registry.Registration{
 		Name:         "bgp-nlri-ls",
 		Description:  "BGP-LS family plugin",

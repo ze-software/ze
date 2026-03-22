@@ -26,6 +26,7 @@ import (
 
 	// Plugin packages — plugin + schema registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/adj_rib_in"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/aigp"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/hostname"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/llnh"
