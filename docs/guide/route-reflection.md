@@ -7,12 +7,10 @@ Ze can operate as a route server (RFC 7947) or route reflector, forwarding recei
 ```
 plugin {
     external rs {
-        run "ze plugin bgp-rs"
-        encoder json
+        run "ze.bgp-rs"
     }
     external adj-rib-in {
-        run "ze plugin bgp-adj-rib-in"
-        encoder json
+        run "ze.bgp-adj-rib-in"
     }
 }
 
@@ -61,9 +59,16 @@ The route server forwards all received routes to all other peers. There is no be
 
 When two peers negotiate identical capabilities (same ADD-PATH mode, same ASN format, same extended message support), they share the same encoding context. Routes between peers with matching contexts are forwarded as raw wire bytes without re-encoding -- no parse, no rebuild, no allocation.
 
-### Backpressure
+### Forwarding and Congestion
 
-Each destination peer has a dedicated forwarding worker (long-lived goroutine + channel). If a peer falls behind, the worker applies backpressure by pausing the source peer's TCP read. This prevents unbounded memory growth without dropping routes.
+Each destination peer has a dedicated forwarding worker (long-lived goroutine with a buffered channel). When a destination peer is slower than the update rate:
+
+1. The channel buffer absorbs short bursts (default capacity: 64 items)
+2. If the channel is full, items go into an unbounded per-worker overflow buffer
+3. The worker fires a congestion event (visible in logs and monitoring)
+4. When the peer catches up and the channel drains below 25%, congestion clears
+
+Routes are never dropped. A slow peer's overflow buffer grows in memory until the peer catches up. This prevents a single slow peer from blocking updates to all other peers while preserving routing correctness -- missing a route update is worse than using extra memory.
 
 ### Convergent Replay
 
@@ -93,4 +98,4 @@ Routes in transit can be managed via cache commands:
 
 ## Without Route Reflection
 
-When `bgp-rs` is not loaded, ze operates as a standard BGP speaker. Routes are not forwarded between peers.
+When `bgp-rs` is not loaded, received routes are not forwarded to other peers. The `bgp-rib` plugin stores routes and performs best-path selection, but does not re-advertise them. To forward routes between peers, load the `bgp-rs` plugin.
