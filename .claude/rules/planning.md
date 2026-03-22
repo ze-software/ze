@@ -164,6 +164,7 @@ If a spec describes work that is **already implemented**, run the full Completio
 [ ] 9. Write learned summary: plan/learned/NNN-<name>.md (see plan/TEMPLATE.md for summary format)
 [ ] 10. Verify: `make ze-verify` + git status + git diff, no unintended changes
 [ ] 11. Executive Summary Report — present to user BEFORE asking to commit
+        BLOCKING: learned summary (step 9) must exist. Name the file in the report.
 [ ] 12. Commit (when user approves) — ALL files in ONE commit
 ```
 
