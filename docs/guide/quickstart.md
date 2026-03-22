@@ -40,8 +40,7 @@ Save as `example.conf`:
 ```
 plugin {
     external rib {
-        run "ze plugin bgp-rib"
-        encoder json
+        run "ze.bgp-rib"
     }
 }
 
