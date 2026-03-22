@@ -31,7 +31,7 @@ bgp {
 			ipv4/unicast
 		}
 		role {
-			name provider
+			import provider
 			strict true
 		}
 	}

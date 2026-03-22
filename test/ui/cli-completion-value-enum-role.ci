@@ -19,14 +19,14 @@ bgp {
 }
 EOF_CONF
 
-# Role container should show name and strict children
+# Role container should show import, export, and strict children
 cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/role --input set+ test.conf
 expect=exit:code=0
-expect=stdout:contains=name
+expect=stdout:contains=import
 expect=stdout:contains=strict
 
-# Role name should show enum values
-cmd=foreground:seq=2:exec=ze config completion --context bgp/peer/peer1/role --input set+name+ test.conf
+# Role import should show enum values
+cmd=foreground:seq=2:exec=ze config completion --context bgp/peer/peer1/role --input set+import+ test.conf
 expect=exit:code=0
 expect=stdout:contains=provider
 expect=stdout:contains=customer

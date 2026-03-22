@@ -26,7 +26,7 @@ bgp {
 		hold-time 90
 		connection passive
 		role {
-			name customer
+			import customer
 		}
 		capability {
 			asn4 true
@@ -47,7 +47,7 @@ bgp {
 			ip 192.168.2.254
 		}
 		role {
-			name provider
+			import provider
 		}
 	}
 }

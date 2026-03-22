@@ -1,0 +1,91 @@
+# Test: no role config means no OTC filtering (backward compatible)
+# VALIDATES: AC-8 -- no import/export keywords = no OTC filtering
+# PREVENTS: OTC filtering being applied to peers without role config
+
+# ze-peer: NO role capability (untagged peer)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# No role capability added -- this peer is "unknown/untagged"
+# Send UPDATE: ORIGIN=IGP, AS_PATH=empty, NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0029020000000E4001010040020040030401010101180A0000
+EOF_PEER
+
+# Python test plugin: verifies route is received from untagged peer.
+tmpfs=test-unknown.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Verify routes from untagged peer are accepted when no role is configured."""
+import json
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for session and UPDATE processing.
+    time.sleep(3.0)
+
+    # Query adj-rib-in: route should be stored (no role = no OTC filtering).
+    result = dispatch(api, 'adj-rib-in status')
+    data = json.loads(result.get('data', '{}'))
+    total = data.get('total-routes', -1)
+
+    if total != 1:
+        print(f'FAIL: expected 1 route from untagged peer, got {total}', file=sys.stderr)
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+
+    print('OK: route from untagged peer accepted (no OTC filtering)', file=sys.stderr)
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze configuration: no role config for this peer (backward compatible)
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-unknown {
+		run ./test-unknown.run
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65001
+		}
+		local {
+			as 65000
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		connection active
+
+		family {
+			ipv4/unicast
+		}
+		process test-unknown {
+			receive [ update state ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

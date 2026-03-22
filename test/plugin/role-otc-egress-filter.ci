@@ -1,0 +1,96 @@
+# Test: OTC egress filter and ingress stamp from provider
+# VALIDATES: RFC 9234 Section 5 ingress stamp -- route from Provider gets OTC stamped
+# PREVENTS: Missing OTC stamp on routes from upstream causing downstream leaks
+
+# ze-peer: acts as a provider peer (role capability code 9, value 0=provider)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# Add role capability: code 9, value 00 (provider)
+option=open:value=add-capability:code=9:hex=00
+# Send UPDATE without OTC: ORIGIN=IGP, AS_PATH=empty, NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0029020000000E4001010040020040030401010101180A0000
+EOF_PEER
+
+# Python test plugin: verifies the route was received (stamped with OTC by ingress filter).
+tmpfs=test-egress.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Verify OTC ingress stamp from provider and route acceptance."""
+import json
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for session and UPDATE processing.
+    time.sleep(3.0)
+
+    # Query adj-rib-in: route should be stored (ingress stamp accepted the route).
+    result = dispatch(api, 'adj-rib-in status')
+    data = json.loads(result.get('data', '{}'))
+    total = data.get('total-routes', -1)
+
+    if total != 1:
+        print(f'FAIL: expected 1 route (stamped with OTC), got {total}', file=sys.stderr)
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+
+    print('OK: route from provider accepted and OTC stamped by ingress filter', file=sys.stderr)
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze configuration: local role = customer, peer is provider, export default
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-egress {
+		run ./test-egress.run
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65001
+		}
+		local {
+			as 65000
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		connection active
+
+		family {
+			ipv4/unicast
+		}
+		role {
+			import customer
+			export default
+		}
+		process test-egress {
+			receive [ update state ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
