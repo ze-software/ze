@@ -12,7 +12,7 @@ bgp {
         router-id 10.0.0.2
 
         role {
-            name customer
+            import customer
             strict true
         }
 
@@ -25,7 +25,8 @@ bgp {
 
 | Path | Type | Default | Description |
 |------|------|---------|-------------|
-| `role / name` | enum | -- | Relationship: `provider`, `customer`, `rs`, `rs-client`, `peer` |
+| `role / import` | enum | -- | Declares local role and enables RFC 9234 ingress rules: `provider`, `customer`, `rs`, `rs-client`, `peer` |
+| `role / export` | list | -- | Destination roles that may receive routes: `default`, `unknown`, or explicit role names |
 | `role / strict` | bool | false | Reject peers that don't advertise the Role capability |
 
 Role can be set at the group level and overridden per peer.

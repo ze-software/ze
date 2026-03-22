@@ -224,7 +224,7 @@ Symptom: session establishes briefly then NOTIFICATION received
    | 6 | 2 | Administrative Shutdown |
    | 6 | 5 | Connection Rejected |
 
-2. **Role mismatch:** If using `role { name customer; strict true; }`, both peers must advertise compatible roles.
+2. **Role mismatch:** If using `role { import customer; strict true; }`, both peers must advertise compatible roles.
 
 3. **Capability issues:** Enable debug to see negotiated vs offered capabilities:
    ```bash

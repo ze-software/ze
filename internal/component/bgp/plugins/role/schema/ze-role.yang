@@ -21,13 +21,29 @@ module ze-role {
         description "RFC 9234 BGP Role values";
     }
 
+    typedef export-token {
+        type union {
+            type enumeration {
+                enum default { description "RFC 9234 Section 5 default egress rules for the declared role"; }
+                enum unknown { description "Also send to peers with no role configured"; }
+            }
+            type role-type;
+        }
+        description "Export filter token: default expands to RFC rules, unknown sends to untagged peers, or explicit role name";
+    }
+
     grouping role-config {
         container role {
             description "RFC 9234 BGP Role configuration";
 
-            leaf name {
+            leaf import {
                 type role-type;
-                description "Our role in this peer relationship";
+                description "Declares local role and enables RFC 9234 ingress rules (replaces Phase 1 name keyword)";
+            }
+
+            leaf-list export {
+                type export-token;
+                description "Controls which destination peer roles may receive routes from this peer";
             }
 
             leaf strict {

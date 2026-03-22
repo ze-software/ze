@@ -43,6 +43,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
@@ -240,6 +241,12 @@ type Reactor struct {
 
 	connCallback    ConnectionCallback
 	messageReceiver MessageReceiver // Receives raw BGP messages
+
+	// Peer filter chains: collected from plugin registry at startup.
+	// Ingress: called before caching/dispatching received UPDATEs.
+	// Egress: called per destination peer during ForwardUpdate.
+	ingressFilters []registry.IngressFilterFunc
+	egressFilters  []registry.EgressFilterFunc
 
 	// Peer lifecycle observers (called on state transitions)
 	peerObservers []PeerLifecycleObserver
@@ -647,6 +654,9 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		r.eventDispatcher = bgpserver.NewEventDispatcher(r.api)
 		// Set EventDispatcher as message receiver for raw byte access
 		r.messageReceiver = r.eventDispatcher
+		// Collect peer filter chains from plugin registry.
+		r.ingressFilters = registry.IngressFilters()
+		r.egressFilters = registry.EgressFilters()
 		// Register API state observer for peer lifecycle events
 		r.AddPeerObserver(&apiStateObserver{dispatcher: r.eventDispatcher, reactor: r})
 

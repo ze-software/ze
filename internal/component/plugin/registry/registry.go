@@ -21,11 +21,30 @@ import (
 	"io"
 	"maps"
 	"net"
+	"net/netip"
 	"slices"
 	"sort"
 	"strings"
 	"sync"
 )
+
+// PeerFilterInfo holds peer metadata for filter decisions.
+// Passed by the reactor to registered filter functions.
+type PeerFilterInfo struct {
+	Address netip.Addr // Peer IP address
+	PeerAS  uint32     // Remote AS number
+}
+
+// IngressFilterFunc is called for received UPDATEs before caching and dispatching.
+// payload is the UPDATE body (without BGP header).
+// Returns accept=false to drop the route. If modifiedPayload is non-nil,
+// it replaces the original payload for caching and event dispatch.
+type IngressFilterFunc func(source PeerFilterInfo, payload []byte) (accept bool, modifiedPayload []byte)
+
+// EgressFilterFunc is called per destination peer during ForwardUpdate.
+// payload is the UPDATE body (without BGP header).
+// Returns false to suppress the route for this destination peer.
+type EgressFilterFunc func(source, dest PeerFilterInfo, payload []byte) bool
 
 // Registration describes a plugin's full metadata and handlers.
 // Each plugin registers exactly one Registration via its init() function.
@@ -72,6 +91,12 @@ type Registration struct {
 	// ConfigureMetrics is called before RunEngine with the metrics registry (any).
 	// The plugin should type-assert to metrics.Registry and register gauges/counters.
 	ConfigureMetrics func(reg any)
+
+	// In-process peer filters: called by the reactor for ingress/egress route filtering.
+	// Ingress: before caching/dispatching received UPDATEs. Egress: per destination peer.
+	// Filter closures capture plugin state (e.g., role configs) -- reactor passes only PeerFilterInfo.
+	IngressFilter IngressFilterFunc // nil = no ingress filtering
+	EgressFilter  EgressFilterFunc  // nil = no egress filtering
 
 	// CLI metadata (used by RunPlugin).
 	Features     string // Space-separated feature list (e.g., "nlri yang")
@@ -429,6 +454,36 @@ func WriteUsage(w io.Writer) error {
 		}
 	}
 	return nil
+}
+
+// IngressFilters returns all registered ingress filter functions.
+// Called by the reactor to build the ingress filter chain.
+func IngressFilters() []IngressFilterFunc {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	var filters []IngressFilterFunc
+	for _, reg := range plugins {
+		if reg.IngressFilter != nil {
+			filters = append(filters, reg.IngressFilter)
+		}
+	}
+	return filters
+}
+
+// EgressFilters returns all registered egress filter functions.
+// Called by the reactor to build the egress filter chain.
+func EgressFilters() []EgressFilterFunc {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	var filters []EgressFilterFunc
+	for _, reg := range plugins {
+		if reg.EgressFilter != nil {
+			filters = append(filters, reg.EgressFilter)
+		}
+	}
+	return filters
 }
 
 // Reset clears the registry. Only for use in tests.

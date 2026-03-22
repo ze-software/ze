@@ -16,7 +16,33 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
+
+// safeIngressFilter calls an ingress filter with panic recovery.
+// A buggy filter must not crash the reactor's TCP read goroutine.
+func safeIngressFilter(filter registry.IngressFilterFunc, src registry.PeerFilterInfo, payload []byte) (accept bool, modified []byte) {
+	defer func() {
+		if r := recover(); r != nil {
+			sessionLogger().Error("ingress filter panic", "peer", src.Address, "panic", r)
+			accept = true // fail-open: accept route on filter panic
+			modified = nil
+		}
+	}()
+	return filter(src, payload)
+}
+
+// safeEgressFilter calls an egress filter with panic recovery.
+// A buggy filter must not crash ForwardUpdate's caller goroutine.
+func safeEgressFilter(filter registry.EgressFilterFunc, src, dest registry.PeerFilterInfo, payload []byte) (accept bool) {
+	defer func() {
+		if r := recover(); r != nil {
+			fwdLogger().Error("egress filter panic", "src", src.Address, "dest", dest.Address, "panic", r)
+			accept = true // fail-open: accept route on filter panic
+		}
+	}()
+	return filter(src, dest, payload)
+}
 
 // AddPeerObserver registers an observer for peer lifecycle events.
 // Observers are called synchronously in registration order.
@@ -237,6 +263,35 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 					attrBytes := bytes[attrOffset+2 : attrOffset+2+attrLen]
 					msg.AttrsWire = attribute.NewAttributesWire(attrBytes, ctxID)
 				}
+			}
+		}
+	}
+
+	// Ingress peer filter chain: reject routes before caching/dispatching.
+	// Only for received UPDATEs. Filter closures check peer role, OTC, etc.
+	if direction == plugin.DirectionReceived && wireUpdate != nil && len(r.ingressFilters) > 0 {
+		src := registry.PeerFilterInfo{Address: peerAddr, PeerAS: peerInfo.PeerAS}
+		payload := wireUpdate.Payload()
+		for _, filter := range r.ingressFilters {
+			accept, modifiedPayload := safeIngressFilter(filter, src, payload)
+			if !accept {
+				return false // Route rejected by ingress filter; don't cache or dispatch.
+			}
+			if modifiedPayload != nil {
+				payload = modifiedPayload
+				// Create new WireUpdate from modified payload.
+				// The modified buffer is heap-allocated (not from pool).
+				wireUpdate = wireu.NewWireUpdate(payload, wireUpdate.SourceCtxID())
+				wireUpdate.SetMessageID(messageID)
+				// Update RawMessage to use modified WireUpdate.
+				attrsWire, parseErr := wireUpdate.Attrs()
+				if parseErr != nil {
+					sessionLogger().Debug("modified WireUpdate.Attrs error", "peer", peerAddr, "error", parseErr)
+				}
+				msg.RawBytes = payload
+				msg.WireUpdate = wireUpdate
+				msg.AttrsWire = attrsWire
+				msg.ParseError = parseErr
 			}
 		}
 	}

@@ -221,3 +221,227 @@ func TestValidateOpenRolePair_NoLocalConfig(t *testing.T) {
 	output := validateOpenRolePair(nil, input)
 	assert.True(t, output.Accept, "should accept when no Role config for peer")
 }
+
+// --- Loose mode (non-strict) comprehensive tests ---
+
+// TestLooseMode_AllRolesAcceptMissingPeerRole verifies loose mode for all 5 local roles.
+//
+// VALIDATES: Every local role accepts sessions when peer has no Role capability (loose mode).
+// PREVENTS: Loose mode silently failing for specific role values.
+func TestLooseMode_AllRolesAcceptMissingPeerRole(t *testing.T) {
+	t.Parallel()
+
+	for _, localRole := range []string{roleProvider, roleCustomer, rolePeer, roleRS, roleRSClient} {
+		t.Run(localRole, func(t *testing.T) {
+			t.Parallel()
+			cfg := &peerRoleConfig{role: localRole, strict: false}
+			input := &sdk.ValidateOpenInput{
+				Peer:   "10.0.0.1",
+				Remote: sdk.ValidateOpenMessage{Capabilities: []sdk.ValidateOpenCapability{}},
+			}
+			output := validateOpenRolePair(cfg, input)
+			assert.True(t, output.Accept, "loose mode: %s should accept missing peer role", localRole)
+		})
+	}
+}
+
+// TestLooseMode_PeerSendsUnknownRoleValue verifies loose mode accepts unknown role values.
+//
+// VALIDATES: Unknown role value (e.g., 5, 255) is treated as invalid pair but not as crash.
+// PREVENTS: Panic or undefined behavior on unknown role values from peers.
+func TestLooseMode_PeerSendsUnknownRoleValue(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		remoteHex string
+	}{
+		{"value_5", "05"},
+		{"value_127", "7F"},
+		{"value_255", "FF"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cfg := &peerRoleConfig{role: roleProvider, strict: false}
+			input := &sdk.ValidateOpenInput{
+				Peer: "10.0.0.1",
+				Remote: sdk.ValidateOpenMessage{
+					Capabilities: []sdk.ValidateOpenCapability{roleCap(tt.remoteHex)},
+				},
+			}
+			output := validateOpenRolePair(cfg, input)
+			// Unknown values are not in validRolePairs, so pair is invalid -> reject.
+			assert.False(t, output.Accept, "unknown role value should be rejected as invalid pair")
+			assert.Equal(t, uint8(2), output.NotifyCode)
+			assert.Equal(t, uint8(11), output.NotifySubcode)
+		})
+	}
+}
+
+// TestLooseMode_PeerSendsMalformedRoleCap verifies malformed role capability is handled.
+//
+// VALIDATES: Malformed capability (wrong length, bad hex) is skipped gracefully.
+// PREVENTS: Crash on malformed capability data from peers.
+func TestLooseMode_PeerSendsMalformedRoleCap(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		caps []sdk.ValidateOpenCapability
+	}{
+		// Empty hex -> len(data)==0 -> skipped by extractRolesFromCaps
+		{"empty_hex", []sdk.ValidateOpenCapability{{Code: roleCapCode, Hex: ""}}},
+		// Two bytes -> len(data)!=1 -> skipped
+		{"two_bytes", []sdk.ValidateOpenCapability{{Code: roleCapCode, Hex: "0003"}}},
+		// Invalid hex string -> DecodeString fails -> skipped
+		{"invalid_hex", []sdk.ValidateOpenCapability{{Code: roleCapCode, Hex: "ZZ"}}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cfg := &peerRoleConfig{role: roleProvider, strict: false}
+			input := &sdk.ValidateOpenInput{
+				Peer:   "10.0.0.1",
+				Remote: sdk.ValidateOpenMessage{Capabilities: tt.caps},
+			}
+			output := validateOpenRolePair(cfg, input)
+			// Malformed caps are skipped -> treated as no role -> loose mode accepts.
+			assert.True(t, output.Accept, "malformed cap in loose mode should accept (treated as no role)")
+		})
+	}
+}
+
+// --- Strict mode comprehensive tests ---
+
+// TestStrictMode_AllRolesRejectMissingPeerRole verifies strict mode for all 5 local roles.
+//
+// VALIDATES: Every local role rejects sessions when peer has no Role capability (strict mode).
+// PREVENTS: Strict mode silently passing for specific role values.
+func TestStrictMode_AllRolesRejectMissingPeerRole(t *testing.T) {
+	t.Parallel()
+
+	for _, localRole := range []string{roleProvider, roleCustomer, rolePeer, roleRS, roleRSClient} {
+		t.Run(localRole, func(t *testing.T) {
+			t.Parallel()
+			cfg := &peerRoleConfig{role: localRole, strict: true}
+			input := &sdk.ValidateOpenInput{
+				Peer:   "10.0.0.1",
+				Remote: sdk.ValidateOpenMessage{Capabilities: []sdk.ValidateOpenCapability{}},
+			}
+			output := validateOpenRolePair(cfg, input)
+			assert.False(t, output.Accept, "strict mode: %s should reject missing peer role", localRole)
+			assert.Equal(t, uint8(2), output.NotifyCode)
+			assert.Equal(t, uint8(11), output.NotifySubcode)
+			assert.Contains(t, output.Reason, "strict")
+		})
+	}
+}
+
+// TestStrictMode_ValidPairAccepted verifies strict mode still accepts valid pairs.
+//
+// VALIDATES: Strict mode only rejects missing role, not valid pairs.
+// PREVENTS: Strict mode being overly restrictive and rejecting correct sessions.
+func TestStrictMode_ValidPairAccepted(t *testing.T) {
+	t.Parallel()
+
+	cfg := &peerRoleConfig{role: roleProvider, strict: true}
+	input := &sdk.ValidateOpenInput{
+		Peer: "10.0.0.1",
+		Remote: sdk.ValidateOpenMessage{
+			Capabilities: []sdk.ValidateOpenCapability{roleCap("03")}, // Customer
+		},
+	}
+	output := validateOpenRolePair(cfg, input)
+	assert.True(t, output.Accept, "strict mode: valid pair should still be accepted")
+}
+
+// TestStrictMode_MalformedCapRejectsAsNoRole verifies strict rejects malformed cap.
+//
+// VALIDATES: Malformed capability treated as absent -> strict rejects.
+// PREVENTS: Malformed capability bypassing strict enforcement.
+func TestStrictMode_MalformedCapRejectsAsNoRole(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		caps []sdk.ValidateOpenCapability
+	}{
+		{"empty_hex", []sdk.ValidateOpenCapability{{Code: roleCapCode, Hex: ""}}},
+		{"two_bytes", []sdk.ValidateOpenCapability{{Code: roleCapCode, Hex: "0003"}}},
+		{"invalid_hex", []sdk.ValidateOpenCapability{{Code: roleCapCode, Hex: "ZZ"}}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cfg := &peerRoleConfig{role: roleProvider, strict: true}
+			input := &sdk.ValidateOpenInput{
+				Peer:   "10.0.0.1",
+				Remote: sdk.ValidateOpenMessage{Capabilities: tt.caps},
+			}
+			output := validateOpenRolePair(cfg, input)
+			assert.False(t, output.Accept, "strict: malformed cap should be treated as absent -> reject")
+			assert.Contains(t, output.Reason, "strict")
+		})
+	}
+}
+
+// --- Complete role pair matrix ---
+
+// TestValidateOpenRolePair_FullMatrix tests every possible local x remote combination.
+//
+// VALIDATES: RFC 9234 Table 2 is fully covered (5x5=25 combinations).
+// PREVENTS: Any pair being misclassified as valid or invalid.
+func TestValidateOpenRolePair_FullMatrix(t *testing.T) {
+	t.Parallel()
+
+	// Valid pairs from RFC 9234 Table 2.
+	validPairs := map[[2]string]bool{
+		{"provider", "customer"}: true,
+		{"customer", "provider"}: true,
+		{"rs", "rs-client"}:      true,
+		{"rs-client", "rs"}:      true,
+		{"peer", "peer"}:         true,
+	}
+
+	allRoles := []string{roleProvider, roleCustomer, rolePeer, roleRS, roleRSClient}
+
+	for _, local := range allRoles {
+		for _, remote := range allRoles {
+			remoteVal, _ := roleNameToValue(remote)
+			name := local + "_" + remote
+
+			t.Run(name, func(t *testing.T) {
+				t.Parallel()
+				cfg := &peerRoleConfig{role: local}
+				input := &sdk.ValidateOpenInput{
+					Peer: "10.0.0.1",
+					Remote: sdk.ValidateOpenMessage{
+						Capabilities: []sdk.ValidateOpenCapability{
+							{Code: roleCapCode, Hex: hexByte(remoteVal)},
+						},
+					},
+				}
+				output := validateOpenRolePair(cfg, input)
+				shouldAccept := validPairs[[2]string{local, remote}]
+
+				if shouldAccept {
+					assert.True(t, output.Accept, "%s<->%s should be valid", local, remote)
+				} else {
+					assert.False(t, output.Accept, "%s<->%s should be invalid", local, remote)
+					assert.Equal(t, uint8(2), output.NotifyCode)
+					assert.Equal(t, uint8(11), output.NotifySubcode)
+				}
+			})
+		}
+	}
+}
+
+// hexByte converts a byte to a 2-char hex string.
+func hexByte(b uint8) string {
+	const hex = "0123456789abcdef"
+	return string([]byte{hex[b>>4], hex[b&0xf]})
+}

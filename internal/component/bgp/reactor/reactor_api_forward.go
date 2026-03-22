@@ -11,6 +11,7 @@ import (
 
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
@@ -230,9 +231,40 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	var parsedWire *wireu.WireUpdate
 	var dispatchedCount int
 
+	// Build source PeerFilterInfo once for egress filter chain.
+	var srcFilter registry.PeerFilterInfo
+	if len(a.r.egressFilters) > 0 {
+		srcFilter = registry.PeerFilterInfo{Address: update.SourcePeerIP, PeerAS: 0}
+		// Look up source peer's ASN from peers map (may have disconnected).
+		a.r.mu.RLock()
+		if srcPeer, ok := a.r.findPeerByAddr(update.SourcePeerIP); ok {
+			srcFilter.PeerAS = srcPeer.Settings().PeerAS
+		}
+		a.r.mu.RUnlock()
+	}
+
 	for _, peer := range matchingPeers {
 		if peer.State() != PeerStateEstablished {
 			continue // Skip non-established peers
+		}
+
+		// Egress peer filter chain: check if route should be sent to this peer.
+		if len(a.r.egressFilters) > 0 {
+			destFilter := registry.PeerFilterInfo{
+				Address: peer.Settings().Address,
+				PeerAS:  peer.Settings().PeerAS,
+			}
+			payload := update.WireUpdate.Payload()
+			suppressed := false
+			for _, filter := range a.r.egressFilters {
+				if !safeEgressFilter(filter, srcFilter, destFilter, payload) {
+					suppressed = true
+					break
+				}
+			}
+			if suppressed {
+				continue // Route suppressed by egress filter for this peer.
+			}
 		}
 
 		// Select wire version for this peer.

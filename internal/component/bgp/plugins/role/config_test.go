@@ -7,6 +7,268 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestImportDeclaresRole verifies "import" keyword sets the local role.
+//
+// VALIDATES: import <role> sets role correctly for all 5 role values.
+// PREVENTS: import keyword being silently ignored, causing no Role capability.
+func TestImportDeclaresRole(t *testing.T) {
+	tests := []struct {
+		name     string
+		json     string
+		wantRole string
+	}{
+		{"customer", `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"customer"}}}}}`, "customer"},
+		{"provider", `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"provider"}}}}}`, "provider"},
+		{"peer", `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"peer"}}}}}`, "peer"},
+		{"rs", `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"rs"}}}}}`, "rs"},
+		{"rs-client", `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"rs-client"}}}}}`, "rs-client"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configs, _ := extractPeerRoleConfigs(tt.json)
+			require.Contains(t, configs, "10.0.0.1")
+			assert.Equal(t, tt.wantRole, configs["10.0.0.1"].role)
+		})
+	}
+}
+
+// TestImportReplacesName verifies "import" is accepted and "name" is rejected.
+//
+// VALIDATES: import replaces the Phase 1 "name" keyword completely.
+// PREVENTS: Old "name" keyword silently working after migration.
+func TestImportReplacesName(t *testing.T) {
+	// import keyword should work.
+	importJSON := `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"customer"}}}}}`
+	configs, _ := extractPeerRoleConfigs(importJSON)
+	require.Contains(t, configs, "10.0.0.1")
+	assert.Equal(t, "customer", configs["10.0.0.1"].role)
+
+	// name keyword should no longer be accepted.
+	nameJSON := `{"bgp":{"peer":{"10.0.0.1":{"role":{"name":"customer"}}}}}`
+	configs, _ = extractPeerRoleConfigs(nameJSON)
+	assert.Empty(t, configs, "name keyword should no longer be accepted")
+}
+
+// TestParseExportConfig verifies export token parsing from config JSON.
+//
+// VALIDATES: export tokens parsed correctly as string or string array.
+// PREVENTS: Export config being silently ignored.
+func TestParseExportConfig(t *testing.T) {
+	tests := []struct {
+		name       string
+		json       string
+		wantExport []string
+	}{
+		{
+			name:       "single_default_string",
+			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"provider","export":"default"}}}}}`,
+			wantExport: []string{"default"},
+		},
+		{
+			name:       "array_tokens",
+			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"provider","export":["default","unknown"]}}}}}`,
+			wantExport: []string{"default", "unknown"},
+		},
+		{
+			name:       "explicit_roles",
+			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"provider","export":["customer","peer"]}}}}}`,
+			wantExport: []string{"customer", "peer"},
+		},
+		{
+			name:       "no_export",
+			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"provider"}}}}}`,
+			wantExport: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configs, _ := extractPeerRoleConfigs(tt.json)
+			require.Contains(t, configs, "10.0.0.1")
+			assert.Equal(t, tt.wantExport, configs["10.0.0.1"].export)
+		})
+	}
+}
+
+// TestResolveExportEdgeCases verifies edge cases in export token resolution.
+//
+// VALIDATES: resolveExport handles empty, nil, unknown role, duplicate tokens.
+// PREVENTS: Panic or incorrect expansion on malformed input.
+func TestResolveExportEdgeCases(t *testing.T) {
+	t.Run("nil_tokens", func(t *testing.T) {
+		assert.Nil(t, resolveExport("provider", nil))
+	})
+	t.Run("empty_tokens", func(t *testing.T) {
+		assert.Nil(t, resolveExport("provider", []string{}))
+	})
+	t.Run("unknown_local_role", func(t *testing.T) {
+		// "default" for unknown role expands to nothing (no entry in exportDefaults).
+		result := resolveExport("bogus", []string{"default"})
+		assert.Empty(t, result)
+	})
+	t.Run("duplicate_tokens_deduped", func(t *testing.T) {
+		result := resolveExport("provider", []string{"customer", "customer"})
+		assert.Equal(t, []string{"customer"}, result)
+	})
+	t.Run("default_with_overlap", func(t *testing.T) {
+		// "default" for provider = {customer, rs-client}. Adding explicit "customer" should not duplicate.
+		result := resolveExport("provider", []string{"default", "customer"})
+		assert.ElementsMatch(t, []string{"customer", "rs-client"}, result)
+	})
+	t.Run("default_twice", func(t *testing.T) {
+		result := resolveExport("provider", []string{"default", "default"})
+		assert.ElementsMatch(t, []string{"customer", "rs-client"}, result)
+	})
+}
+
+// TestParseExportConfigEdgeCases verifies edge cases in export config parsing.
+//
+// VALIDATES: Export parsing handles invalid tokens, empty arrays, mixed types.
+// PREVENTS: Panic or silent misconfiguration from malformed export values.
+func TestParseExportConfigEdgeCases(t *testing.T) {
+	tests := []struct {
+		name       string
+		json       string
+		wantExport []string
+	}{
+		{
+			name:       "export_empty_string",
+			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"provider","export":""}}}}}`,
+			wantExport: nil,
+		},
+		{
+			name:       "export_empty_array",
+			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"provider","export":[]}}}}}`,
+			wantExport: nil,
+		},
+		{
+			name:       "export_number_ignored",
+			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"provider","export":42}}}}}`,
+			wantExport: nil,
+		},
+		{
+			name:       "export_bool_ignored",
+			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"provider","export":true}}}}}`,
+			wantExport: nil,
+		},
+		{
+			name:       "import_with_strict_and_export",
+			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"customer","strict":true,"export":"default"}}}}}`,
+			wantExport: []string{"default"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			configs, _ := extractPeerRoleConfigs(tt.json)
+			if tt.wantExport == nil {
+				if configs != nil && configs["10.0.0.1"] != nil {
+					assert.Nil(t, configs["10.0.0.1"].export)
+				}
+			} else {
+				require.Contains(t, configs, "10.0.0.1")
+				assert.Equal(t, tt.wantExport, configs["10.0.0.1"].export)
+			}
+		})
+	}
+}
+
+// TestImportWithStrictAndExportCombined verifies all three fields parsed together.
+//
+// VALIDATES: import + strict + export are all parsed from the same role container.
+// PREVENTS: One field overwriting or suppressing another.
+func TestImportWithStrictAndExportCombined(t *testing.T) {
+	jsonStr := `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"customer","strict":true,"export":["default","unknown"]}}}}}`
+	configs, _ := extractPeerRoleConfigs(jsonStr)
+	require.Contains(t, configs, "10.0.0.1")
+	cfg := configs["10.0.0.1"]
+	assert.Equal(t, "customer", cfg.role)
+	assert.True(t, cfg.strict)
+	assert.Equal(t, []string{"default", "unknown"}, cfg.export)
+}
+
+// TestExportGroupInheritance verifies export config inherits from group.
+//
+// VALIDATES: Group-level export config applies to all peers in the group.
+// PREVENTS: Export config being lost during group->peer inheritance.
+func TestExportGroupInheritance(t *testing.T) {
+	jsonStr := `{"bgp":{"group":{"transit":{"role":{"import":"provider","export":"default"},"peer":{
+		"10.0.0.1":{"peer-as":65001},
+		"10.0.0.2":{"role":{"import":"customer","export":["default","unknown"]}}
+	}}}}}`
+	configs, _ := extractPeerRoleConfigs(jsonStr)
+	require.Len(t, configs, 2)
+
+	// 10.0.0.1 inherits group export.
+	assert.Equal(t, []string{"default"}, configs["10.0.0.1"].export)
+	assert.Equal(t, "provider", configs["10.0.0.1"].role)
+
+	// 10.0.0.2 uses its own export (override).
+	assert.Equal(t, []string{"default", "unknown"}, configs["10.0.0.2"].export)
+	assert.Equal(t, "customer", configs["10.0.0.2"].role)
+}
+
+// TestExportDefault_Provider verifies RFC 9234 default export expansion for Provider.
+//
+// VALIDATES: export default for Provider allows sending to customer and rs-client.
+// PREVENTS: Wrong default expansion causing routes to leak or be suppressed.
+func TestExportDefault_Provider(t *testing.T) {
+	resolved := resolveExport("provider", []string{"default"})
+	assert.ElementsMatch(t, []string{"customer", "rs-client"}, resolved)
+}
+
+// TestExportDefault_Customer verifies RFC 9234 default export expansion for Customer.
+//
+// VALIDATES: export default for Customer allows sending to provider, rs, peer.
+// PREVENTS: Customer routes not reaching upstream providers.
+func TestExportDefault_Customer(t *testing.T) {
+	resolved := resolveExport("customer", []string{"default"})
+	assert.ElementsMatch(t, []string{"provider", "rs", "peer"}, resolved)
+}
+
+// TestExportDefaultUnknown verifies default + unknown combined.
+//
+// VALIDATES: export default unknown expands default AND includes "unknown".
+// PREVENTS: "unknown" token being lost during default expansion.
+func TestExportDefaultUnknown(t *testing.T) {
+	resolved := resolveExport("provider", []string{"default", "unknown"})
+	assert.ElementsMatch(t, []string{"customer", "rs-client", "unknown"}, resolved)
+}
+
+// TestExportExplicitRoles verifies explicit export role list without default.
+//
+// VALIDATES: Explicit role list is used as-is, no default expansion.
+// PREVENTS: Explicit overrides being expanded like defaults.
+func TestExportExplicitRoles(t *testing.T) {
+	resolved := resolveExport("provider", []string{"customer", "peer"})
+	assert.ElementsMatch(t, []string{"customer", "peer"}, resolved)
+}
+
+// TestExportDefaultAllRoles verifies default expansion for all 5 roles.
+//
+// VALIDATES: RFC 9234 Section 5 default egress rules for each local role.
+// PREVENTS: Missing role in default expansion.
+func TestExportDefaultAllRoles(t *testing.T) {
+	tests := []struct {
+		localRole string
+		want      []string
+	}{
+		{"provider", []string{"customer", "rs-client"}},
+		{"customer", []string{"provider", "rs", "peer"}},
+		{"rs", []string{"rs-client"}},
+		{"rs-client", []string{"rs", "provider"}},
+		{"peer", []string{"customer", "rs-client"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.localRole, func(t *testing.T) {
+			resolved := resolveExport(tt.localRole, []string{"default"})
+			assert.ElementsMatch(t, tt.want, resolved)
+		})
+	}
+}
+
 // TestExtractRoleCapabilities_ParseBGPConfig verifies JSON config parsing.
 //
 // VALIDATES: extractRoleCapabilities correctly parses BGP config JSON and returns
@@ -22,35 +284,35 @@ func TestExtractRoleCapabilities_ParseBGPConfig(t *testing.T) {
 	}{
 		{
 			name:        "provider_role_0",
-			json:        `{"bgp":{"peer":{"192.168.1.1":{"role":{"name":"provider"}}}}}`,
+			json:        `{"bgp":{"peer":{"192.168.1.1":{"role":{"import":"provider"}}}}}`,
 			wantPeer:    "192.168.1.1",
 			wantPayload: "00",
 			wantParsed:  true,
 		},
 		{
 			name:        "rs_role_1",
-			json:        `{"bgp":{"peer":{"10.0.0.1":{"role":{"name":"rs"}}}}}`,
+			json:        `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"rs"}}}}}`,
 			wantPeer:    "10.0.0.1",
 			wantPayload: "01",
 			wantParsed:  true,
 		},
 		{
 			name:        "rs_client_role_2",
-			json:        `{"bgp":{"peer":{"10.0.0.2":{"role":{"name":"rs-client"}}}}}`,
+			json:        `{"bgp":{"peer":{"10.0.0.2":{"role":{"import":"rs-client"}}}}}`,
 			wantPeer:    "10.0.0.2",
 			wantPayload: "02",
 			wantParsed:  true,
 		},
 		{
 			name:        "customer_role_3",
-			json:        `{"bgp":{"peer":{"10.0.0.3":{"role":{"name":"customer"}}}}}`,
+			json:        `{"bgp":{"peer":{"10.0.0.3":{"role":{"import":"customer"}}}}}`,
 			wantPeer:    "10.0.0.3",
 			wantPayload: "03",
 			wantParsed:  true,
 		},
 		{
 			name:        "peer_role_4",
-			json:        `{"bgp":{"peer":{"10.0.0.4":{"role":{"name":"peer"}}}}}`,
+			json:        `{"bgp":{"peer":{"10.0.0.4":{"role":{"import":"peer"}}}}}`,
 			wantPeer:    "10.0.0.4",
 			wantPayload: "04",
 			wantParsed:  true,
@@ -72,12 +334,12 @@ func TestExtractRoleCapabilities_ParseBGPConfig(t *testing.T) {
 		},
 		{
 			name:       "invalid_role_name",
-			json:       `{"bgp":{"peer":{"192.168.1.1":{"role":{"name":"invalid"}}}}}`,
+			json:       `{"bgp":{"peer":{"192.168.1.1":{"role":{"import":"invalid"}}}}}`,
 			wantParsed: false,
 		},
 		{
 			name:       "empty_role_name",
-			json:       `{"bgp":{"peer":{"192.168.1.1":{"role":{"name":""}}}}}`,
+			json:       `{"bgp":{"peer":{"192.168.1.1":{"role":{"import":""}}}}}`,
 			wantParsed: false,
 		},
 	}
@@ -107,8 +369,8 @@ func TestExtractRoleCapabilities_ParseBGPConfig(t *testing.T) {
 // PREVENTS: Only first peer being extracted when multiple peers have Role config.
 func TestExtractRoleCapabilities_MultiplePeers(t *testing.T) {
 	json := `{"bgp":{"peer":{
-		"192.168.1.1":{"role":{"name":"customer"}},
-		"10.0.0.1":{"role":{"name":"provider"}}
+		"192.168.1.1":{"role":{"import":"customer"}},
+		"10.0.0.1":{"role":{"import":"provider"}}
 	}}}`
 
 	caps := extractRoleCapabilities(json)
@@ -141,13 +403,13 @@ func TestExtractRoleCapabilities_InvalidJSON(t *testing.T) {
 // VALIDATES: extractPeerRoleConfigs extracts strict flag from config JSON.
 // PREVENTS: Strict mode being silently ignored in config parsing.
 func TestExtractPeerRoleConfigs_StrictParsing(t *testing.T) {
-	strictJSON := `{"bgp":{"peer":{"10.0.0.1":{"role":{"name":"customer","strict":true}}}}}`
-	configs := extractPeerRoleConfigs(strictJSON)
+	strictJSON := `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"customer","strict":true}}}}}`
+	configs, _ := extractPeerRoleConfigs(strictJSON)
 	require.Contains(t, configs, "10.0.0.1")
 	assert.True(t, configs["10.0.0.1"].strict, "strict should be true when strict is true")
 
-	normalJSON := `{"bgp":{"peer":{"10.0.0.1":{"role":{"name":"customer"}}}}}`
-	configs = extractPeerRoleConfigs(normalJSON)
+	normalJSON := `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"customer"}}}}}`
+	configs, _ = extractPeerRoleConfigs(normalJSON)
 	require.Contains(t, configs, "10.0.0.1")
 	assert.False(t, configs["10.0.0.1"].strict, "strict should be false when role-strict is absent")
 }
@@ -158,20 +420,18 @@ func TestExtractPeerRoleConfigs_StrictParsing(t *testing.T) {
 // the per-peer role takes precedence.
 // PREVENTS: Group-level role config suppressing per-peer overrides.
 func TestExtractPeerRoleConfigs_GroupWithPeerOverride(t *testing.T) {
-	jsonStr := `{"bgp":{"group":{"transit":{"role":{"name":"customer"},"peer":{
-		"10.0.0.1":{"role":{"name":"provider"}},
+	jsonStr := `{"bgp":{"group":{"transit":{"role":{"import":"customer"},"peer":{
+		"10.0.0.1":{"role":{"import":"provider"}},
 		"10.0.0.2":{}
 	}}}}}`
 
-	configs := extractPeerRoleConfigs(jsonStr)
+	configs, _ := extractPeerRoleConfigs(jsonStr)
 	require.Len(t, configs, 2, "both peers should have role configs")
 
-	// 10.0.0.1 should use its own role (provider), not the group's (customer).
 	cfg1 := configs["10.0.0.1"]
 	require.NotNil(t, cfg1)
 	assert.Equal(t, "provider", cfg1.role, "per-peer role should override group role")
 
-	// 10.0.0.2 should inherit group role (customer).
 	cfg2 := configs["10.0.0.2"]
 	require.NotNil(t, cfg2)
 	assert.Equal(t, "customer", cfg2.role, "peer without role should inherit group role")
@@ -182,7 +442,7 @@ func TestExtractPeerRoleConfigs_GroupWithPeerOverride(t *testing.T) {
 // VALIDATES: Group-level role config is applied to all peers in the group.
 // PREVENTS: Group-level role being ignored when no per-peer role is set.
 func TestExtractRoleCapabilities_GroupOnly(t *testing.T) {
-	jsonStr := `{"bgp":{"group":{"transit":{"role":{"name":"customer","strict":true},"peer":{
+	jsonStr := `{"bgp":{"group":{"transit":{"role":{"import":"customer","strict":true},"peer":{
 		"10.0.0.1":{"peer-as":65001},
 		"10.0.0.2":{"peer-as":65002}
 	}}}}}`
@@ -213,19 +473,19 @@ func TestExtractRoleCapabilities_StrictMode(t *testing.T) {
 	}{
 		{
 			name:       "strict_true",
-			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"name":"customer","strict":true}}}}}`,
+			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"customer","strict":true}}}}}`,
 			wantStrict: true,
 			wantRole:   "customer",
 		},
 		{
 			name:       "strict_false_explicit",
-			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"name":"provider","strict":false}}}}}`,
+			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"provider","strict":false}}}}}`,
 			wantStrict: false,
 			wantRole:   "provider",
 		},
 		{
 			name:       "strict_absent_defaults_false",
-			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"name":"peer"}}}}}`,
+			json:       `{"bgp":{"peer":{"10.0.0.1":{"role":{"import":"peer"}}}}}`,
 			wantStrict: false,
 			wantRole:   "peer",
 		},
@@ -233,7 +493,7 @@ func TestExtractRoleCapabilities_StrictMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			configs := extractPeerRoleConfigs(tt.json)
+			configs, _ := extractPeerRoleConfigs(tt.json)
 			require.Len(t, configs, 1, "should return exactly one peer config")
 
 			cfg := configs["10.0.0.1"]
@@ -242,4 +502,76 @@ func TestExtractRoleCapabilities_StrictMode(t *testing.T) {
 			assert.Equal(t, tt.wantStrict, cfg.strict, "strict mode mismatch")
 		})
 	}
+}
+
+// TestExtractRemoteIP verifies IP extraction from peer and group config maps.
+//
+// VALIDATES: extractRemoteIP correctly extracts remote.ip from peer or group config.
+// PREVENTS: Key mismatch between config (keyed by name) and filters (keyed by IP).
+func TestExtractRemoteIP(t *testing.T) {
+	tests := []struct {
+		name     string
+		peerMap  map[string]any
+		groupMap map[string]any
+		wantIP   string
+	}{
+		{"peer_has_ip", map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}}, nil, "10.0.0.1"},
+		{"group_has_ip", nil, map[string]any{"remote": map[string]any{"ip": "10.0.0.2"}}, "10.0.0.2"},
+		{"peer_overrides_group", map[string]any{"remote": map[string]any{"ip": "10.0.0.1"}}, map[string]any{"remote": map[string]any{"ip": "10.0.0.2"}}, "10.0.0.1"},
+		{"no_remote", map[string]any{"peer-as": "65001"}, nil, ""},
+		{"remote_no_ip", map[string]any{"remote": map[string]any{"as": "65001"}}, nil, ""},
+		{"both_nil", nil, nil, ""},
+		{"empty_ip", map[string]any{"remote": map[string]any{"ip": ""}}, nil, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractRemoteIP(tt.peerMap, tt.groupMap)
+			assert.Equal(t, tt.wantIP, got)
+		})
+	}
+}
+
+// TestExtractPeerRoleConfigs_NamedPeerKeyedByIP verifies named peers are keyed by IP.
+//
+// VALIDATES: extractPeerRoleConfigs keys configs by remote.ip, not peer name.
+// PREVENTS: Filter lookups by IP missing config stored by name.
+func TestExtractPeerRoleConfigs_NamedPeerKeyedByIP(t *testing.T) {
+	jsonStr := `{"bgp":{"peer":{"my-upstream":{"remote":{"ip":"10.0.0.1"},"role":{"import":"provider"}}}}}`
+	configs, nameToIP := extractPeerRoleConfigs(jsonStr)
+
+	// Config should be keyed by IP, not name.
+	require.Contains(t, configs, "10.0.0.1", "config should be keyed by IP")
+	assert.Nil(t, configs["my-upstream"], "config should NOT be keyed by name")
+	assert.Equal(t, "provider", configs["10.0.0.1"].role)
+
+	// Name-to-IP mapping should be populated.
+	require.Contains(t, nameToIP, "my-upstream")
+	assert.Equal(t, "10.0.0.1", nameToIP["my-upstream"])
+}
+
+// TestNameToIPResolution verifies setFilterRemoteRole resolves names to IPs.
+//
+// VALIDATES: setFilterRemoteRole uses filterNameToIP to convert peer name to IP.
+// PREVENTS: Remote role stored by name when filters look up by IP.
+func TestNameToIPResolution(t *testing.T) {
+	// Set up name-to-IP mapping.
+	setFilterState(map[string]*peerRoleConfig{
+		"10.0.0.1": {role: roleProvider},
+	}, map[string]string{"my-upstream": "10.0.0.1"})
+	defer setFilterState(nil, nil)
+
+	// Store remote role by NAME (as OnValidateOpen does).
+	setFilterRemoteRole("my-upstream", roleCustomer)
+	defer func() {
+		filterMu.Lock()
+		filterRemoteRoles = nil
+		filterMu.Unlock()
+	}()
+
+	// Look up by IP (as filters do).
+	cfg, remoteRole := getFilterConfig("10.0.0.1")
+	require.NotNil(t, cfg, "config should be found by IP")
+	assert.Equal(t, roleProvider, cfg.role)
+	assert.Equal(t, roleCustomer, remoteRole, "remote role should be found by IP after name resolution")
 }
