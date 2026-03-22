@@ -15,6 +15,7 @@ Rationale: `.claude/rationale/design-principles.md`
 | Design for change | Isolate volatility behind stable interfaces |
 | Fail-mode awareness | Every external call can fail. Every input can be malformed |
 | Do it right | Ze does the hard thing properly — zero-copy, pool dedup, buffer-first. Never trade correctness for speed of implementation |
+| Durability over velocity | Optimize for "never revisit this code" not "get to commit fast". Missing edge cases, shallow tests, unwired features all create rework. Rework wastes more of the user's time than thoroughness ever could |
 | Lazy over eager | Pass raw byte slices, not parsed structs. Use offset-based iterators (Next() yields one element), not collected slices. Consumer walks data and acts directly — no intermediate maps or structs built to iterate once. Never wrap raw data in a new struct with accessor methods — use existing wire type methods or standalone functions. Optimizing N→1 is wrong when the answer is N→0-until-needed |
 
 ## File Size

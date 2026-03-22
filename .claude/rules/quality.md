@@ -22,6 +22,22 @@ Rationale: `.claude/rationale/quality.md`
 
 Every check answered honestly. "Probably fine" is not a pass — run the code, read the diff. If any fails, fix before proceeding.
 
+## Adversarial Self-Review (BLOCKING)
+
+**Before presenting any work as complete**, answer these questions. Fix what they reveal BEFORE presenting.
+
+| # | Question | If the answer is bad |
+|---|----------|---------------------|
+| 1 | If `/deep-review` ran right now, what would it find? | Fix those things first |
+| 2 | What test cases did I skip because they seemed unlikely? | Write them |
+| 3 | Is every new function reachable from a user entry point? Name the path. | Wire it or say "not yet wired" |
+| 4 | If I doubled the test count, which tests would I add? | Add them now, not after being challenged |
+| 5 | Did I ask questions earlier that went unanswered? | List them. Do not silently assume answers and proceed |
+
+**Never present "version 1" knowing "version 2" is needed.** The first presentation should be the thorough one.
+
+**Unanswered questions block work.** If a question was asked and not answered, re-state it before proceeding. Do not silently pick an answer and keep going.
+
 ## Proof
 
 Paste command output as evidence. "Should work" is not evidence.

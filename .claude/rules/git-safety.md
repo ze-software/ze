@@ -13,6 +13,10 @@ Only commit when user says "commit". Only include task-related files.
 Output format: list staged files, excluded files, commit message, and ask — no git diff/stat output.
 Post-commit: hash, file count, clean state confirmation.
 
+**Never suggest, ask about, or hint at committing.** Present evidence of completion status.
+The user decides when to commit. Banned phrases: "ready to commit?", "shall I commit?",
+"we could commit now", "want me to commit?". Present the work. Stop. Wait.
+
 ## Before Any Commit (BLOCKING)
 
 **`make ze-verify` (timeout 120s) — not `go test`, not any subset.**
