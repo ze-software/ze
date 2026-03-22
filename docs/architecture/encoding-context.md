@@ -8,7 +8,7 @@
 | **Key Types** | `EncodingContext`, `NegotiatedCapabilities`, `ContextID` (uint16) |
 | **Key Functions** | `FromNegotiatedRecv/Send()`, `Registry.Register()`, `nc.Has()`, `nc.Families()` |
 | **Zero-Copy Rule** | If `sourceCtxID == destCtxID`, return cached wire bytes directly |
-| **Files** | `internal/component/bgp/context/`, `internal/component/bgp/reactor/peer.go`, `internal/component/plugin/wire_update.go` |
+| **Files** | `internal/component/bgp/context/`, `internal/component/bgp/reactor/peer.go`, `internal/component/bgp/wireu/wire_update.go` |
 
 **When to read full doc:** Route forwarding, peer session, encoding mismatches, new capabilities.
 
@@ -38,6 +38,9 @@ internal/component/bgp/context/
 internal/component/bgp/reactor/
 └── negotiated.go   # NegotiatedCapabilities struct
 ```
+<!-- source: internal/component/bgp/context/context.go -- EncodingContext struct -->
+<!-- source: internal/component/bgp/context/registry.go -- ContextID, ContextRegistry -->
+<!-- source: internal/component/bgp/reactor/negotiated.go -- NegotiatedCapabilities struct -->
 
 ## Family Type
 
@@ -116,6 +119,8 @@ type EncodingCaps struct {
     ExtendedNextHop map[Family]AFI            // RFC 8950: next-hop AFI per family
 }
 ```
+<!-- source: internal/component/bgp/context/context.go -- EncodingContext struct -->
+<!-- source: internal/component/bgp/capability/encoding.go -- EncodingCaps struct -->
 
 **ExtendedMessage:** Determines max message size (4096 standard, 65535 extended).
 Previously in SessionCaps, moved to EncodingCaps because it affects wire encoding.
@@ -150,6 +155,7 @@ type ContextRegistry struct {
 
 var Registry = NewRegistry()  // Global instance
 ```
+<!-- source: internal/component/bgp/context/registry.go -- ContextRegistry, Register, Get -->
 
 ### Usage Pattern
 
@@ -223,7 +229,7 @@ buffer returned to pool when cache entry is evicted or deleted.
 ### WireUpdate Structure
 
 ```go
-// internal/component/plugin/wire_update.go
+// internal/component/bgp/wireu/wire_update.go
 type WireUpdate struct {
     payload     []byte               // UPDATE body bytes (owned, not copied)
     sourceCtxID bgpctx.ContextID     // Encoding context for zero-copy decisions
@@ -239,6 +245,7 @@ func (u *WireUpdate) NLRI() ([]byte, error)                // RFC 4271 NLRI
 func (u *WireUpdate) MPReach() (MPReachWire, error)        // RFC 4760 MP_REACH_NLRI
 func (u *WireUpdate) MPUnreach() (MPUnreachWire, error)    // RFC 4760 MP_UNREACH_NLRI
 ```
+<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate struct and accessors -->
 
 ### Context Propagation
 
@@ -249,13 +256,14 @@ The session's `recvCtxID` is set by Peer after capability negotiation:
 p.recvCtxID = bgpctx.Registry.Register(recvCtx)
 p.session.SetRecvCtxID(p.recvCtxID)  // Propagate to session
 ```
+<!-- source: internal/component/bgp/reactor/peer.go -- setEncodingContexts -->
 
 This ensures WireUpdate carries the correct context for forwarding decisions.
 
 ### RawMessage Integration
 
 ```go
-// internal/component/plugin/types.go
+// internal/component/plugin/types.go (RawMessage)
 type RawMessage struct {
     Type       message.MessageType
     RawBytes   []byte              // Zero-copy reference to WireUpdate.Payload()
@@ -264,6 +272,7 @@ type RawMessage struct {
     // ...
 }
 ```
+<!-- source: internal/component/plugin/types.go -- RawMessage struct -->
 
 ### Zero-Copy Flow (Ownership Transfer)
 
@@ -363,6 +372,7 @@ type Peer struct {
     sendCtxID ContextID
 }
 ```
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer struct, negotiated/recvCtx/sendCtx fields -->
 
 Created at session establishment:
 - `NewNegotiatedCapabilities(neg)` - Which families are enabled
@@ -537,6 +547,9 @@ Context IDs must be registered via `Registry.Register()`:
 | `internal/component/bgp/reactor/negotiated.go` | NegotiatedCapabilities struct |
 | `internal/component/bgp/rib/route.go` | Wire cache fields, Pack*For methods |
 | `internal/component/bgp/reactor/peer.go` | Peer.negotiated, recvCtx, sendCtx fields |
+<!-- source: internal/component/bgp/context/ -- encoding context package -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer struct -->
+<!-- source: internal/component/bgp/reactor/negotiated.go -- NegotiatedCapabilities -->
 
 ## Related Specs
 

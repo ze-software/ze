@@ -26,6 +26,7 @@ All messages have a top-level `type` field. Event type is in the `message` objec
 ```
 
 This structure keeps message metadata (type, id, direction) together in the `message` object.
+<!-- source: internal/core/ipc/message.go -- MapResponse -->
 
 ### Namespaces
 
@@ -92,6 +93,7 @@ State events have the state value at `bgp` level:
 ```
 
 State values: `"up"`, `"down"`, `"connected"`
+<!-- source: internal/component/bgp/format/text.go -- FormatStateChange -->
 
 For `"down"` events, a `reason` field is included:
 
@@ -177,6 +179,7 @@ Each address family has an array of operations under `nlri`:
 - `next-hop`: Present only for "add" operations
 - `action`: "add" (announce) or "del" (withdraw)
 - `nlri`: Array of NLRI values
+<!-- source: internal/component/bgp/format/text.go -- formatFilterResultText -->
 
 ### Attributes
 
@@ -191,6 +194,7 @@ Attributes appear under the `attr` object:
 | communities | `"communities": ["65001:100", "65001:200"]` |
 | large-communities | `"large-communities": ["65001:0:100"]` |
 | extended-communities | `"extended-communities": ["0002..."]` (hex) |
+<!-- source: internal/component/bgp/format/text.go -- JSON attribute formatters -->
 
 ---
 
@@ -207,6 +211,7 @@ With ADD-PATH:
 ```json
 "nlri": [{"prefix": "10.0.0.0/24", "path-id": 1}]
 ```
+<!-- source: internal/component/bgp/format/text.go -- NLRI formatting per family -->
 
 ### Labeled Unicast (MPLS)
 
@@ -254,6 +259,7 @@ With ADD-PATH:
 ```
 
 Next-hop is at the **operation level** (same as all other families), not inside the NLRI object.
+<!-- source: internal/component/bgp/format/text.go -- NLRI family formatting -->
 
 ### FlowSpec-VPN
 
@@ -289,6 +295,7 @@ Next-hop is at the **operation level** (same as all other families), not inside 
   }
 }
 ```
+<!-- source: internal/component/bgp/format/text.go -- FormatOpen -->
 
 ---
 
@@ -310,6 +317,7 @@ Next-hop is at the **operation level** (same as all other families), not inside 
   }
 }
 ```
+<!-- source: internal/component/bgp/format/text.go -- FormatNotification -->
 
 ---
 
@@ -325,6 +333,7 @@ Next-hop is at the **operation level** (same as all other families), not inside 
   }
 }
 ```
+<!-- source: internal/component/bgp/format/text.go -- FormatKeepalive -->
 
 ---
 
@@ -390,6 +399,7 @@ API command responses:
 | response.status | string | Always | "done", "error", "warning", or "ack" |
 | response.partial | bool | If streaming | true for intermediate chunks |
 | response.data | any | Optional | Payload or error message |
+<!-- source: internal/component/plugin/types.go -- Response -->
 
 ---
 
@@ -421,6 +431,7 @@ peer 192.0.2.1 asn 65001 sent keepalive 42
 ```
 peer 192.0.2.1 asn 65001 sent notification 3 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data
 ```
+<!-- source: internal/component/bgp/format/text.go -- FormatOpen, FormatKeepalive, FormatNotification, FormatRouteRefresh -->
 
 ---
 

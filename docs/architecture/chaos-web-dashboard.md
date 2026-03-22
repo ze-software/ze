@@ -4,7 +4,9 @@ Live web dashboard for ze-chaos providing real-time visualization and interactiv
 
 ## Architecture Overview
 
-The web dashboard is a `report.Consumer` — the same interface used by the terminal dashboard, JSON log, and Prometheus metrics. It plugs into the existing event fan-out mechanism with zero changes to the Reporter multiplexer.
+The web dashboard is a `report.Consumer` -- the same interface used by the terminal dashboard, JSON log, and Prometheus metrics. It plugs into the existing event fan-out mechanism with zero changes to the Reporter multiplexer.
+<!-- source: internal/chaos/report/reporter.go -- Consumer interface, Reporter fan-out -->
+<!-- source: internal/chaos/web/dashboard.go -- Config, Dashboard -->
 
 ```
                                   ┌─────────────────────┐
@@ -33,7 +35,8 @@ The web dashboard is a `report.Consumer` — the same interface used by the term
 - SSE flows upward: WebDashboard state -> SSE broker -> browser
 - Control flows right: browser -> POST handler -> control channel -> orchestrator -> scheduler
 
-**Key constraint:** ProcessEvent() runs synchronously on the main event loop. It must be fast — update internal state and push to a broadcast channel, never block on HTTP or template rendering.
+**Key constraint:** ProcessEvent() runs synchronously on the main event loop. It must be fast -- update internal state and push to a broadcast channel, never block on HTTP or template rendering.
+<!-- source: internal/chaos/report/reporter.go -- Reporter.Process, Consumer.ProcessEvent -->
 
 ## Layout Architecture
 
@@ -94,6 +97,7 @@ Three-panel layout designed for desktop monitors. Peer table shows an active set
 | Route gauge | "R announced / S received" with delta indicators |
 
 Updated every second via SSE `tick` event.
+<!-- source: internal/chaos/web/dashboard.go -- Config.Seed, Config.PeerCount -->
 
 ## Left Sidebar
 
@@ -105,12 +109,14 @@ Updated every second via SSE `tick` event.
 | Routes | Announced, Received, Missing (red if >0), Extra (red if >0) |
 | Chaos | Events fired, Reconnections, Withdrawn routes |
 | Convergence | min / avg / max / p99 latency |
+<!-- source: internal/chaos/web/state.go -- state tracking per peer/global -->
 
 ### Property Badges
 
 - One badge per active property (5 properties available)
 - Color: green (PASS), red (FAIL), gray (not checked)
 - Click badge to expand violation details (inline accordion)
+<!-- source: internal/chaos/validation/property.go -- Property interface -->
 
 ### Control Panel
 
@@ -121,10 +127,12 @@ Updated every second via SSE `tick` event.
 | Manual trigger | Dropdown (action type) + button | Execute on selected peer(s) from table |
 | New seed | Text input + button | Stop current run, restart with new seed |
 | Stop | Button | Graceful shutdown |
+<!-- source: internal/chaos/web/dashboard.go -- Config.Control, ControlCommand -->
 
 ## Peer Table
 
-Table showing an **active set** of peers — not all 200+. Peers auto-appear when noteworthy events occur and decay away when idle. Users can pin peers to keep them permanently visible.
+Table showing an **active set** of peers -- not all 200+. Peers auto-appear when noteworthy events occur and decay away when idle. Users can pin peers to keep them permanently visible.
+<!-- source: internal/chaos/web/dashboard.go -- Config.MaxVisible -->
 
 ### Active Set Design
 
@@ -321,6 +329,7 @@ Dark theme optimized for monitoring use cases.
 | Status dots | 10px circles with the state color |
 
 All CSS uses custom properties (variables) defined on `:root`, making future theme changes trivial.
+<!-- source: internal/chaos/web/dashboard.go -- embedded assets, http.ServeMux -->
 
 ## HTMX Communication
 
@@ -368,7 +377,8 @@ Strategy:
 3. A background goroutine wakes every 200ms, checks dirty flags, renders only changed fragments, sends one batched SSE message
 4. For event feed: buffer events and flush at most 10 rows per SSE message
 
-This gives ~5 SSE updates/second — smooth visual updates without overload.
+This gives ~5 SSE updates/second -- smooth visual updates without overload.
+<!-- source: internal/chaos/web/dashboard.go -- Config.DebounceInterval, Config.EventBufSize -->
 
 ## Asset Embedding
 
@@ -401,7 +411,9 @@ The WebDashboard consumer maintains all state derived from events. This state is
 | SSE client set | Set of connected SSE channels with client IDs | HTTP handler (SSE connect/disconnect) |
 | Dirty flags | Bitmask of which components changed since last SSE flush | ProcessEvent sets, SSE goroutine clears |
 
-**Thread safety:** ProcessEvent() is called from the main goroutine. HTTP handlers and the SSE goroutine read state concurrently. All state access is protected by a RWMutex — ProcessEvent takes a write lock, handlers take a read lock.
+**Thread safety:** ProcessEvent() is called from the main goroutine. HTTP handlers and the SSE goroutine read state concurrently. All state access is protected by a RWMutex -- ProcessEvent takes a write lock, handlers take a read lock.
+<!-- source: internal/chaos/web/state.go -- state struct, RWMutex -->
+<!-- source: internal/chaos/web/dashboard.go -- ProcessEvent -->
 
 ## Control Architecture
 
@@ -598,3 +610,6 @@ These are informational — `--replay` skips them (they're not peer events). The
 | **Phase 4: Route Flow Matrix** | Peer-to-peer heatmap with top-N filtering, family filter, count/latency toggle | Phase 1 |
 
 Each phase is independently testable and deployable. Phase 1 delivers a complete view-only dashboard. Phases 2-4 can be implemented in any order after Phase 1.
+<!-- source: internal/chaos/web/dashboard.go -- Dashboard implementation -->
+<!-- source: internal/chaos/web/state.go -- state management -->
+<!-- source: internal/chaos/web/handlers_test.go -- handler tests -->

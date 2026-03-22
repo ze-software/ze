@@ -3,6 +3,8 @@
 **Source:** ExaBGP `bgp/message/update/nlri/bgpls/`
 **Family:** AFI 16388 (BGP-LS), SAFI 71 (bgp_ls) or 72 (bgp_ls_vpn)
 
+<!-- source: internal/component/bgp/nlri/nlri.go -- AFIBGPLS, SAFIBGPLinkState, SAFIBGPLinkStateVPN -->
+
 ---
 
 ## Wire Format Overview
@@ -41,6 +43,8 @@
 +---------------------------+
 ```
 
+<!-- source: internal/component/bgp/plugins/nlri/ls/types_nlri.go -- BGP-LS wire format parsing -->
+
 ---
 
 ## NLRI Types
@@ -52,6 +56,8 @@
 | 3 | IPv4 Prefix NLRI | IPv4 reachability |
 | 4 | IPv6 Prefix NLRI | IPv6 reachability |
 | 5 | SRv6 SID NLRI | Segment Routing v6 |
+
+<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGPLSNLRIType constants -->
 
 ---
 
@@ -66,6 +72,8 @@
 | 5 | Static |
 | 6 | OSPFv3 |
 | 227 | FreeRTR (non-standard) |
+
+<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGPLSProtocolID, ProtoISISL1..ProtoOSPFv3 -->
 
 ---
 
@@ -98,6 +106,8 @@
 | 515 | IGP Router ID | Variable |
 | 516 | BGP Router-ID | 4 |
 | 517 | Confederation Member | 4 |
+
+<!-- source: internal/component/bgp/plugins/nlri/ls/types_descriptor.go -- NodeDescriptor struct, TLV constants -->
 
 ---
 
@@ -134,6 +144,8 @@
 | 262 | IPv6 Neighbor Address | 16 |
 | 263 | Multi-Topology ID | 2 |
 
+<!-- source: internal/component/bgp/plugins/nlri/ls/types_descriptor.go -- LinkDescriptor TLV constants -->
+
 ---
 
 ## Prefix NLRI (Types 3, 4)
@@ -163,6 +175,8 @@
 | 263 | Multi-Topology ID | 2 |
 | 264 | OSPF Route Type | 1 |
 | 265 | IP Reachability Information | Variable |
+
+<!-- source: internal/component/bgp/plugins/nlri/ls/types_descriptor.go -- prefix descriptor TLV constants -->
 
 ---
 
@@ -318,6 +332,9 @@ var bgplsRegistry = map[uint16]BGPLSUnpacker{
     5: unpackSRv6SID,
 }
 ```
+
+<!-- source: internal/component/bgp/plugins/nlri/ls/types_nlri.go -- BGPLSNode, BGPLSLink, BGPLSPrefix -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/types_srv6.go -- BGPLSSRv6SID -->
 
 ---
 

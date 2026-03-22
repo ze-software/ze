@@ -26,6 +26,8 @@ Each line has the format: `#<id> <verb> [<json-payload>]`
 - `<json-payload>` is optional compact JSON.
 
 Implementation: `pkg/plugin/rpc/framing.go`, `pkg/plugin/rpc/message.go`
+<!-- source: pkg/plugin/rpc/framing.go -- newline-delimited framing -->
+<!-- source: pkg/plugin/rpc/conn.go -- Conn -->
 
 ## Method Naming
 
@@ -43,6 +45,7 @@ defines the RPC. The RPC name uses kebab-case.
 | `ze-plugin-api:session-ready` | ze-plugin-api |
 
 Max method name length: 256 characters.
+<!-- source: internal/component/config/yang/rpc.go -- WireModule -->
 
 ## Request
 
@@ -94,12 +97,14 @@ Events are delivered in batches for efficiency using a pooled buffer.
 ```
 
 Implementation: `pkg/plugin/rpc/batch.go`
+<!-- source: pkg/plugin/rpc/batch.go -- batch event delivery -->
 
 ## Response Mapping
 
 The `MapResponse()` function converts plugin Response fields to wire format.
 
 Implementation: `internal/core/ipc/message.go`
+<!-- source: internal/core/ipc/message.go -- MapResponse -->
 
 ## YANG API Modules
 
@@ -112,7 +117,10 @@ RPC definitions live in YANG API modules, separate from config modules:
 | ze-rib-api | `internal/component/plugin/rib/schema/ze-rib-api.yang` | RIB RPCs + notifications |
 | ze-plugin-api | `internal/ipc/schema/ze-plugin-api.yang` | Plugin lifecycle RPCs |
 
-Shared IPC types (typedefs, groupings) live in `ze-types` (`internal/yang/modules/ze-types.yang`).
+Shared IPC types (typedefs, groupings) live in `ze-types` (`internal/component/config/yang/modules/ze-types.yang`).
+<!-- source: internal/component/bgp/schema/ze-bgp-api.yang -- BGP RPCs -->
+<!-- source: internal/core/ipc/schema/ze-system-api.yang -- system RPCs -->
+<!-- source: internal/core/ipc/schema/ze-plugin-engine.yang -- plugin-engine RPCs -->
 
 ## JSON Conventions
 
@@ -121,3 +129,4 @@ All JSON follows Ze conventions (see `rules/json-format.md`):
 - Keys use kebab-case (`"peer-count"`, not `"peerCount"`).
 - Error identities use kebab-case (`"peer-not-found"`).
 - Address families use `"afi/safi"` format (`"ipv4/unicast"`).
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput and other wire types -->

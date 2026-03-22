@@ -1,6 +1,7 @@
 # Pool Architecture Critical Review
 
 Issues identified during design review. Track resolution status here.
+<!-- source: internal/component/bgp/attrpool/pool.go -- Pool implementation reviewed here -->
 
 ---
 
@@ -51,6 +52,7 @@ func (p *Pool) Intern(data []byte) Handle {
 **Recommendation:** Option (b) chaining is simplest. Collisions are rare with 64-bit hash, so chain length will be ~1 in practice.
 
 **Resolution:** Changed to `map[string]Handle` with `unsafe.String` pointing directly into buffer memory. Zero-copy keys, no hash collisions. Index is rebuilt after buffer reallocation to ensure keys point to current memory (see "Buffer Growth and Index Rebuild" in POOL_ARCHITECTURE.md).
+<!-- source: internal/component/bgp/attrpool/pool.go -- index map[string]Handle, rebuildIndex -->
 
 **Severity:** CRITICAL - Data corruption
 
@@ -418,6 +420,7 @@ for _, c := range nlriPool.Release(h) {
 - [ ] Create `internal/component/bgp/attrpool/pool_test.go` - Core tests (1h)
 - [ ] Create `internal/component/bgp/attrpool/compaction.go` - Compaction logic (1h)
 - [ ] Create `internal/component/bgp/attrpool/scheduler.go` - CompactionScheduler (45m)
+<!-- source: internal/component/bgp/attrpool/ -- all files exist -->
 
 ### Before Testing
 - [ ] Add debug handle validation (Issue #4) - debug.go/debug_release.go (30m)

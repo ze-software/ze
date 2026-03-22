@@ -1,6 +1,7 @@
 # ExaBGP Migration
 
 Ze provides tools for converting ExaBGP configurations and running existing ExaBGP plugins with ze as the BGP engine.
+<!-- source: cmd/ze/exabgp/main.go -- Run; internal/exabgp/migration/ -- config conversion; internal/exabgp/bridge/ -- plugin bridge -->
 
 ## Config Migration
 
@@ -67,6 +68,7 @@ The bridge translates bidirectionally:
 | `--family <family>` | Address families to support (repeatable) |
 | `--route-refresh` | Enable route refresh capability |
 | `--add-path <mode>` | ADD-PATH mode: `receive`, `send`, or `both` |
+<!-- source: cmd/ze/exabgp/main.go -- cmdPlugin flags -->
 
 Example with flags:
 
@@ -88,3 +90,4 @@ The compatibility bridge adds translation overhead. Consider porting to native z
 - You need access to ze-specific features (RPKI events, cache commands, commit workflow)
 - Performance matters (native plugins skip the translation layer)
 - You want to use the Go SDK for direct in-process execution
+<!-- source: internal/exabgp/bridge/ -- bidirectional translation; internal/exabgp/migration/ -- config converter -->

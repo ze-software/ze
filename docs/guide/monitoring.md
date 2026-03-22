@@ -1,6 +1,7 @@
 # Monitoring
 
 Ze provides real-time BGP event monitoring through the CLI. Events are streamed as they happen, with filtering by peer, event type, and direction.
+<!-- source: internal/component/bgp/plugins/cmd/monitor/ -- monitor streaming RPCs -->
 
 ## CLI Usage
 
@@ -35,6 +36,7 @@ ze cli bgp monitor peer upstream1 event update direction received
 | `negotiated` | No | Capability negotiation results |
 | `eor` | Yes | End-of-RIB markers |
 | `rpki` | Yes | RPKI validation results |
+<!-- source: internal/component/bgp/event.go -- event type definitions -->
 
 ### Output Formats
 
@@ -45,6 +47,7 @@ ze cli bgp monitor | json      # Full JSON envelope
 ze cli bgp monitor | table     # Tabular format
 ze cli bgp monitor | match rx  # Regex filter on output
 ```
+<!-- source: internal/component/command/ -- ApplyJSON, ApplyTable pipe operators -->
 
 ## JSON Event Format
 
@@ -115,6 +118,7 @@ process my-plugin {
 ```
 
 The plugin receives events through its `OnEvent` callback. See [Plugins guide](plugins.md) for details.
+<!-- source: internal/component/plugin/server/ -- event dispatch to plugins -->
 
 ## Single Command
 
@@ -125,3 +129,4 @@ ze cli --run "bgp summary"
 ze cli --run "rib routes received"
 ze cli --run "rpki status"
 ```
+<!-- source: cmd/ze/cli/main.go -- Run, Execute, StreamMonitor -->

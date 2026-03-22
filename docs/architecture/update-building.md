@@ -41,19 +41,23 @@ func ReturnReadBuffer(buf []byte)    // Exported for cache eviction
 
 **Files involved:**
 - `internal/component/bgp/reactor/session.go` - `getReadBuffer()`, `returnReadBuffer()`, `ReturnReadBuffer()`, `readAndProcessMessage()`, `processMessage()`
-- `internal/component/plugin/wire_update.go` - `WireUpdate` struct with derived accessors
+- `internal/component/bgp/wireu/wire_update.go` - `WireUpdate` struct with derived accessors
 - `internal/component/bgp/reactor/reactor.go` - `notifyMessageReceiver()` takes buf ownership when caching
 - `internal/component/bgp/reactor/recent_cache.go` - Returns buf to pool on eviction
+<!-- source: internal/component/bgp/reactor/session.go -- Session, getReadBuffer, ReturnReadBuffer -->
+<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate struct -->
+<!-- source: internal/component/bgp/reactor/recent_cache.go -- RecentUpdateCache -->
 
 **Key types:**
 ```go
-// internal/component/plugin/wire_update.go
+// internal/component/bgp/wireu/wire_update.go
 type WireUpdate struct {
     payload     []byte           // UPDATE body (slice into pool buffer)
     sourceCtxID bgpctx.ContextID
 }
 
 // internal/component/bgp/reactor/received_update.go
+<!-- source: internal/component/bgp/reactor/received_update.go -- ReceivedUpdate struct -->
 type ReceivedUpdate struct {
     WireUpdate   *api.WireUpdate  // Slices into poolBuf
     poolBuf      []byte           // Returned to pool on eviction
@@ -104,10 +108,11 @@ Config/API → Domain Object → *Params → UpdateBuilder.Build*() → Update
 ```
 
 **Files involved:**
-- `internal/component/config/loader.go` - Config parsing, creates domain objects
 - `internal/component/bgp/reactor/peersettings.go` - Domain objects (FlowSpecRoute, StaticRoute, etc.)
 - `internal/component/bgp/reactor/peer.go` - Conversion functions (toFlowSpecParams, etc.)
 - `internal/component/bgp/message/update_build.go` - UpdateBuilder, *Params structs, Build*() methods
+<!-- source: internal/component/bgp/reactor/peersettings.go -- FlowSpecRoute, StaticRoute -->
+<!-- source: internal/component/bgp/reactor/peer.go -- toFlowSpecParams, toStaticRouteUnicastParams -->
 
 **Flow example (FlowSpec):**
 ```go
@@ -143,6 +148,8 @@ Receive UPDATE → Parse → Route{wireBytes, sourceCtxID} → Forward
 - `internal/component/bgp/rib/route.go` - Route struct with wireBytes cache
 - `internal/component/bgp/context/` - EncodingContext, ContextID, Registry
 - `ENCODING_CONTEXT.md` - Detailed context system docs
+<!-- source: internal/component/bgp/rib/route.go -- Route struct, CanForwardDirect -->
+<!-- source: internal/component/bgp/context/registry.go -- ContextID, Registry -->
 
 **Flow example (route reflection):**
 ```go
@@ -355,6 +362,8 @@ peer.sendUpdateWithSplit(update, maxSize, family)
 - `internal/component/bgp/message/update_split.go` - `SplitUpdate()`, `SplitUpdateWithAddPath()`
 - `internal/component/bgp/message/chunk_mp_nlri.go` - `ChunkMPNLRI()` for family-aware NLRI parsing
 - `internal/component/bgp/reactor/peer.go` - `sendUpdateWithSplit()` integration
+<!-- source: internal/component/bgp/message/update_split.go -- SplitUpdate -->
+<!-- source: internal/component/bgp/message/chunk_mp_nlri.go -- ChunkMPNLRI -->
 
 **NLRI formats handled by ChunkMPNLRI:**
 | SAFI | Format |

@@ -1,6 +1,7 @@
 # Graceful Restart
 
 Graceful Restart (RFC 4724) preserves forwarding state across BGP session restarts. When a peer goes down and comes back, routes are held during the restart window instead of being immediately withdrawn, preventing traffic black-holes.
+<!-- source: internal/component/bgp/plugins/gr/register.go -- bgp-gr registration, RFCs 4724/9494 -->
 
 ## Configuration
 
@@ -44,6 +45,7 @@ bgp {
 | `graceful-restart / restart-time` | uint16 | 120 | Seconds to hold stale routes during restart (0-4095) |
 | `graceful-restart / mode` | enum | -- | `require`: reject peers without GR capability |
 | `graceful-restart / disable` | presence | -- | Disable GR for this peer |
+<!-- source: internal/component/bgp/plugins/gr/schema/ -- ze-graceful-restart YANG schema -->
 
 ## How It Works
 
@@ -69,6 +71,7 @@ If the peer does not reconnect within `restart-time` seconds, all stale routes a
 ### Fail-Safe
 
 If the GR plugin crashes or fails to issue `purge-stale`, the RIB automatically expires stale routes after `restart-time + 5s`.
+<!-- source: internal/component/bgp/plugins/gr/ -- GR state machine, retain-routes/purge-stale commands -->
 
 ## Plugin Bindings
 
@@ -77,6 +80,7 @@ The GR plugin requires:
 - The RIB plugin must also be loaded with `receive [ state ]` and `send [ update ]`
 
 The GR plugin depends on `bgp-rib` (declared in its registration). The engine ensures bgp-rib starts first.
+<!-- source: internal/component/bgp/plugins/gr/register.go -- Dependencies: bgp-rib -->
 
 ## CLI
 
@@ -107,6 +111,7 @@ capability {
 | `graceful-restart / long-lived-stale-time` | uint32 | -- | Seconds to hold LLGR-stale routes per family (0-16777215, 24-bit) |
 
 LLGR is only active when both peers negotiate it. Ze advertises LLGR capability (code 71) in OPEN when `long-lived-stale-time` is configured. LLGR requires GR capability (code 64) to also be present -- LLGR without GR is ignored per RFC 9494.
+<!-- source: internal/component/bgp/plugins/gr/register.go -- CapabilityCodes: 64, 71 -->
 
 ### How It Works
 
@@ -147,6 +152,7 @@ If `restart-time` is 0 but `long-lived-stale-time` is nonzero, the GR period is 
 |-----------|-------|---------|
 | LLGR_STALE | 0xFFFF0006 | Attached to stale routes during LLGR period |
 | NO_LLGR | 0xFFFF0007 | Routes with this community are deleted on LLGR entry |
+<!-- source: internal/component/bgp/plugins/gr/register.go -- CommunityLLGRStale, CommunityNoLLGR -->
 
 ### CLI
 
@@ -161,3 +167,4 @@ Shows per-family LLST values and F-bit flags.
 ## Without Graceful Restart
 
 When GR is not configured or the peer does not advertise the GR capability, routes are withdrawn immediately on session down. No stale state, no restart timer.
+<!-- source: internal/component/bgp/plugins/gr/ -- GR plugin implementation -->

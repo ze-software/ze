@@ -21,6 +21,7 @@ ze plugin test [options] <config-file>
 | `--tree` | Show raw config tree that would be sent to plugins |
 | `--json` | Show exact JSON delivery format |
 | `--root <name>` | Config root to show (default: `bgp`) |
+<!-- source: cmd/ze/plugin/test_cmd.go -- cmdPluginTest, flag parsing -->
 
 ### Examples
 
@@ -83,6 +84,7 @@ Output shows the exact line sent to plugins:
 | "unknown field in capability: hostname" | Plugin YANG not loaded | Add `--plugin ze.hostname` |
 | "root not found in tree" | Wrong root name | Check available roots in tree output |
 | Empty hostname in tree | Config syntax error | Check config file syntax |
+<!-- source: cmd/ze/plugin/test_cmd.go -- cmdPluginTest, --schema/--tree/--json modes -->
 
 ## Unit Tests
 
@@ -112,6 +114,7 @@ Location: `internal/component/plugin/hostname/hostname_test.go`
 | `TestHostnamePluginMultiplePeers` | Per-peer config isolation |
 | `TestHostnamePluginBoundary` | 255-byte length limits |
 | `TestHostnamePluginDeclarations` | Startup protocol messages |
+<!-- source: internal/component/plugin/server_config_test.go -- TestConfigTreeStructure, TestHostnamePluginFullFlow -->
 
 Run:
 ```bash
@@ -127,6 +130,7 @@ Location: `internal/component/plugin/capability_injection_test.go`
 | `TestCapabilityInjection` | Capabilities registered via API are retrievable |
 | `TestCapabilityInjectionPerPeer` | Per-peer capabilities override global |
 | `TestCapabilityInjectionConflict` | Duplicate capability codes rejected |
+<!-- source: internal/component/plugin/capability_injection_test.go -- capability injection tests -->
 
 Run:
 ```bash
@@ -155,6 +159,7 @@ ze plugin hostname --log-level debug
 | `ze.log.server` | Plugin server, process management |
 | `ze.log.config` | Config parsing, YANG loading |
 | `ze.log.hostname` | Hostname plugin (via CLI flag) |
+<!-- source: internal/core/slogutil/ -- Logger, PluginLogger, LazyLogger -->
 
 ## Debugging Checklist
 

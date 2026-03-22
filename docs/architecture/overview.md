@@ -172,6 +172,7 @@ Manages plugin lifecycle and communication:
 - Starts/stops external processes
 - Routes commands to appropriate plugins
 - Handles JSON events from reactor
+<!-- source: internal/component/plugin/server/ -- plugin server implementation -->
 
 ### 4.2 Reactor (`internal/component/bgp/reactor/`)
 
@@ -179,18 +180,21 @@ Core event loop:
 - Manages peer FSM instances
 - Routes BGP messages
 - Maintains message cache for zero-copy forwarding
+<!-- source: internal/component/bgp/reactor/reactor.go -- Reactor struct -->
 
 ### 4.3 FSM (`internal/component/bgp/fsm/`)
 
 RFC 4271 state machine:
 - IDLE → CONNECT → ACTIVE → OPENSENT → OPENCONFIRM → ESTABLISHED
 - Timer management (hold, keepalive, connect retry)
+<!-- source: internal/component/bgp/fsm/ -- FSM state machine -->
 
 ### 4.4 Messages (`internal/component/bgp/message/`)
 
 BGP message types:
 - OPEN, UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH
 - Header parsing and validation
+<!-- source: internal/component/bgp/message/ -- BGP message types -->
 
 ### 4.5 Attributes (`internal/component/bgp/attribute/`)
 
@@ -198,6 +202,7 @@ Path attributes:
 - ORIGIN, AS_PATH, NEXT_HOP, MED, LOCAL_PREF
 - Communities (standard, extended, large)
 - MP_REACH_NLRI, MP_UNREACH_NLRI
+<!-- source: internal/component/bgp/attribute/ -- path attribute types -->
 
 ### 4.6 NLRI (`internal/component/bgp/nlri/`)
 
@@ -222,6 +227,8 @@ Memory-efficient deduplication:
 - Per-attribute-type pools
 - Handle-based references
 - Alternating buffer compaction
+<!-- source: internal/component/bgp/attrpool/pool.go -- Pool struct -->
+<!-- source: internal/component/bgp/attrpool/handle.go -- Handle type -->
 
 ---
 

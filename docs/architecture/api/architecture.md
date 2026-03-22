@@ -23,6 +23,8 @@
 | Adj-RIB-In plugin | ✅ Done | `internal/component/bgp/plugins/adj_rib_in/` |
 | Shared BGP types | ✅ Done | `internal/component/bgp/` |
 | borr/eorr markers | ✅ Done | RFC 7313 full support |
+<!-- source: internal/component/plugin/server/server.go -- Server -->
+<!-- source: internal/component/plugin/process/process.go -- Process -->
 
 ---
 
@@ -92,6 +94,7 @@ Engine sends wire bytes to API in IPC Protocol format (when `format full` is con
 ```
 
 API decodes and stores in pool for deduplication.
+<!-- source: internal/component/bgp/format/text.go -- formatFilterResultText -->
 
 ### BGP Cache Control (✅ IMPLEMENTED)
 
@@ -178,6 +181,7 @@ Per-binding format/encoding applied
 - No data duplication (bindings live in PeerSettings)
 - Server doesn't track peer lifecycle
 - Encoding inheritance resolved at query time
+<!-- source: internal/component/bgp/reactor/reactor.go -- Reactor -->
 
 ### Encoding Inheritance
 
@@ -250,6 +254,7 @@ internal/component/plugin/registry/registry.go
 **Why the blank import lives in `cmd/ze/main.go`:** Placing it deeper (e.g., in `internal/component/plugin/`) would create import cycles, because some plugins depend on packages like `format` that themselves depend on `plugin`.
 
 **Registry is a leaf package:** `registry/` has zero dependencies on plugin implementations. Plugins import the registry to register; consumers import the registry to query. This one-directional flow prevents cycles.
+<!-- source: internal/component/plugin/registry/registry.go -- Registration, Lookup, All -->
 
 **Code generation keeps `all.go` in sync:** `scripts/gen-plugin-imports.go` (invoked via `make generate`) walks `internal/component/bgp/plugins/` for `register.go` files that import `plugin/registry`, and separately discovers infrastructure `schema/register.go` files that import `config/yang`. It writes the sorted blank-import list to `all.go`.
 
@@ -275,6 +280,7 @@ No other wiring is needed. The engine discovers it through registry queries, the
 | `YANGSchemas()` | YANG loader | All YANG schemas for CLI generation |
 | `ResolveDependencies()` | Engine startup | Expand dependency graph (with cycle detection) |
 | `TopologicalTiers()` | Engine startup | Order plugins for startup (Kahn's algorithm) |
+<!-- source: internal/component/plugin/registry/registry.go -- FamilyMap, CapabilityMap, YANGSchemas, ResolveDependencies, TopologicalTiers -->
 
 ### YANG API Modules
 
@@ -291,7 +297,8 @@ Each YANG module defines RPCs and notifications for a domain. Every RPC maps 1:1
 | `ze-plugin-engine` | `internal/yang/modules/` | 11 | 0 |
 | `ze-plugin-callback` | `internal/yang/modules/` | 8 | 0 |
 
-Wire methods use `module:rpc-name` format with `-api` suffix stripped (e.g., `ze-bgp-api` defines `ze-bgp:peer-list`). This is done by `WireModule()` in `internal/yang/rpc.go`.
+Wire methods use `module:rpc-name` format with `-api` suffix stripped (e.g., `ze-bgp-api` defines `ze-bgp:peer-list`). This is done by `WireModule()` in `internal/component/config/yang/rpc.go`.
+<!-- source: internal/component/config/yang/rpc.go -- WireModule -->
 
 ### Handler Registration
 
@@ -306,7 +313,9 @@ Handlers are organized by domain, each file providing a `*RPCs()` function:
 | `session.go` | `sessionRPCs()` | ze-plugin |
 | `plugin.go` | `pluginRPCs()` | ze-plugin |
 
-`AllBuiltinRPCs()` in `command.go` aggregates all 51 handlers into a flat `[]RPCRegistration` slice.
+`AllBuiltinRPCs()` in `command.go` aggregates all registered handlers into a flat `[]RPCRegistration` slice.
+<!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
+<!-- source: internal/component/plugin/server/handler.go -- RPCRegistration -->
 
 ## Monitor Streaming
 
@@ -319,6 +328,8 @@ The `ze-bgp:monitor` RPC provides live BGP event streaming over SSH sessions. Un
 | Event delivery | All 6 event functions | After delivering events to plugins, each event function also delivers to active monitor clients |
 
 Monitor supports filtering by peer address, event type, and direction. Pipe operators (`| json`, `| table`, `| match`) are applied server-side before streaming to the client.
+<!-- source: internal/component/plugin/server/monitor.go -- MonitorManager -->
+<!-- source: internal/component/ssh/ssh.go -- StreamingExecutorFactory -->
 
 ## Identity and Authorization
 
@@ -332,6 +343,7 @@ User identity for authorization is always injected by the transport layer, never
 | Unix socket | OS peer credentials |
 
 The `RPCParams` struct does not carry a username field. Authorization checks use the `CommandContext.Username` set by the server from the transport session, not from client-supplied JSON.
+<!-- source: internal/component/plugin/server/command.go -- CommandContext -->
 
 ## Connection Types
 
@@ -348,6 +360,7 @@ type Client struct {
 ```
 
 Flow: `acceptLoop()` → `handleClient()` → `clientLoop()` → `processCommand()`
+<!-- source: internal/component/plugin/server/server.go -- Server, Client -->
 
 ### Subprocess (Process)
 
@@ -372,6 +385,7 @@ Features:
 - Write queue with backpressure (high: 1000, low: 100)
 - Respawn limits (max 5 per 60 seconds)
 - **ACK controlled by serial prefix** (`#N` in command)
+<!-- source: internal/component/plugin/process/process.go -- Process -->
 
 ### Plugin IPC Protocol (YANG RPC)
 
@@ -401,6 +415,9 @@ internal/yang/modules/
 |-------------|-----------|------------------|
 | Internal (goroutine) | net.Pipe + DirectBridge | Single MuxConn (bidirectional) |
 | External (subprocess) | TLS connect-back | Single MuxConn (bidirectional) |
+<!-- source: pkg/plugin/rpc/mux.go -- MuxConn -->
+<!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge -->
+<!-- source: internal/component/plugin/ipc/tls.go -- TLS transport -->
 
 **5-stage startup preserved as typed RPCs:**
 1. Plugin calls `declare-registration`
@@ -408,6 +425,8 @@ internal/yang/modules/
 3. Plugin calls `declare-capabilities`
 4. Engine calls `share-registry`
 5. Plugin calls `ready`
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput -->
+<!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn -->
 
 ## Route Injection Flow
 
@@ -483,6 +502,7 @@ type LabeledUnicastRoute struct {
 
 **Note:** The unicast route flow has a bug where only OriginIGP is stored in rib.Route.
 Labeled-unicast correctly stores ALL attributes for proper queue replay.
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- handleUpdateText -->
 
 ## RouteSpec Structure
 
@@ -499,6 +519,8 @@ type RouteNextHop struct {
     Policy NextHopPolicy  // NextHopUnset, NextHopExplicit, or NextHopSelf
     Addr   netip.Addr     // Valid only when Policy == NextHopExplicit
 }
+<!-- source: internal/component/bgp/types/types.go -- RouteSpec -->
+<!-- source: internal/component/bgp/types/nexthop.go -- RouteNextHop -->
 
 type PathAttributes struct {
     Origin              *uint8
@@ -514,6 +536,7 @@ type PathAttributes struct {
 ### Next-Hop Resolution
 
 `RouteNextHop` is resolved at **peer level** in `internal/component/bgp/reactor/peer.go` via `resolveNextHop()`:
+<!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop, ErrNextHopUnset, ErrNextHopSelfNoLocal, ErrNextHopIncompatible -->
 
 | Policy | Behavior |
 |--------|----------|
@@ -531,6 +554,7 @@ type PathAttributes struct {
 ## Update Text Parser
 
 The `ParseUpdateText` function parses the "update text" command format for batch route operations:
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- ParseUpdateText -->
 
 ```
 <section>*
@@ -570,10 +594,12 @@ type NLRIGroup struct {
     NextHop  RouteNextHop   // Encapsulates next-hop policy (explicit or self)
 }
 ```
+<!-- source: internal/component/bgp/types/types.go -- UpdateTextResult, NLRIGroup -->
 
 ### YANG-Driven Attribute Validation
 
 Attribute values in the update text parser are validated against the YANG schema (`ze-bgp-conf.yang`), making YANG the single source of truth for data validation. The `ValueValidator` interface provides the validation, set via `SetYANGValidator()`.
+<!-- source: internal/component/plugin/validator.go -- ValueValidator, SetYANGValidator -->
 
 | Attribute | YANG Path | YANG Type | Validation |
 |-----------|-----------|-----------|------------|
@@ -717,6 +743,7 @@ Transaction flow:
 1. `begin transaction batch1` - Mark peers in transaction mode
 2. Routes → `Adj-RIB-Out.QueueAnnounce()` (queued, not sent)
 3. `commit transaction` - Flush all queued, send EOR
+<!-- source: internal/component/bgp/transaction/commit_manager.go -- CommitManager, Transaction -->
 
 ## ReactorInterface
 
@@ -905,6 +932,7 @@ type Response struct {
     Data    any    `json:"data,omitempty"`    // Payload
 }
 ```
+<!-- source: internal/component/plugin/types.go -- Response -->
 
 ### Response Status Values
 
@@ -965,6 +993,8 @@ type PendingRequests struct {
     byProcess map[*Process]map[string]bool  // for cleanup on death
 }
 ```
+<!-- source: internal/component/plugin/server/command_registry.go -- CommandRegistry -->
+<!-- source: internal/component/plugin/server/pending.go -- PendingRequests -->
 
 ### Lifecycle
 
@@ -1152,12 +1182,14 @@ type PeerLifecycleObserver interface {
     OnPeerClosed(peer *Peer, reason string)
 }
 ```
+<!-- source: internal/component/bgp/reactor/reactor.go -- PeerLifecycleObserver -->
 
 ### Registration
 
 ```go
 reactor.AddPeerObserver(observer)
 ```
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- AddPeerObserver -->
 
 Observers are called synchronously in registration order. Implementations MUST NOT block.
 
@@ -1176,6 +1208,7 @@ peer 192.0.2.1 asn 65001 state down
 {"type":"bgp","bgp":{"type":"state","peer":{"address":"192.0.2.1","asn":65001},"state":"up"}}
 {"type":"bgp","bgp":{"type":"state","peer":{"address":"192.0.2.1","asn":65001},"state":"down","reason":"hold timer expired"}}
 ```
+<!-- source: internal/component/bgp/format/text.go -- FormatStateChange -->
 
 ### Close Reasons
 
@@ -1287,3 +1320,5 @@ if needsAPIWait {
 | `internal/component/bgp/reactor/peer.go` | FSM callback, reactor notification, API sync |
 | `internal/component/bgp/reactor/session.go` | Session lifecycle, teardown handling |
 | `internal/component/bgp/rib/outgoing.go` | Adj-RIB-Out structure |
+<!-- source: internal/component/plugin/server/ -- server, command, handler packages -->
+<!-- source: internal/core/ipc/dispatch.go -- RPCDispatcher -->

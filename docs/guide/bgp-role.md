@@ -1,6 +1,7 @@
 # BGP Role (RFC 9234)
 
 BGP Role enables route leak prevention by declaring the relationship between peers. When configured, ze adds the Only To Customer (OTC) path attribute to enforce proper route propagation based on the business relationship.
+<!-- source: internal/component/bgp/plugins/role/register.go -- role registration, RFC 9234, OTC attribute -->
 
 ## Configuration
 
@@ -30,6 +31,7 @@ bgp {
 | `role / strict` | bool | false | Reject peers that don't advertise the Role capability |
 
 Role can be set at the group level and overridden per peer.
+<!-- source: internal/component/bgp/plugins/role/schema/ -- ze-role YANG schema -->
 
 ## Role Values
 
@@ -58,6 +60,7 @@ Mismatched roles cause a Role Mismatch NOTIFICATION (error 2, subcode 11).
 ## OTC Filtering
 
 The OTC (Only To Customer) attribute (type 35) prevents route leaks:
+<!-- source: internal/component/bgp/plugins/role/register.go -- OTCIngressFilter, OTCEgressFilter, otcAttrCode -->
 
 ### On Receipt
 
@@ -82,3 +85,4 @@ When strict mode is off (default), ze proceeds even if the peer does not adverti
 ## Without Role
 
 When role is not configured for a peer, no OTC processing occurs. Routes are forwarded without role-based filtering.
+<!-- source: internal/component/bgp/plugins/role/ -- role plugin implementation -->

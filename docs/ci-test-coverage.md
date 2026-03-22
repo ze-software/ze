@@ -1,5 +1,7 @@
 # .ci Test Coverage Priorities
 
+<!-- source: scripts/inventory.go -- ze-inventory implementation -->
+
 For current counts and uncovered RPCs, run `make ze-inventory`.
 
 ## Gaps -- Config Behavior Without .ci

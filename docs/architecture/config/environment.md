@@ -1,6 +1,7 @@
 # Ze Environment Variables
 
 **Source:** `internal/component/config/environment.go`
+<!-- source: internal/component/config/environment.go -- Environment struct, loadDefaults() -->
 **Purpose:** Complete reference of all ze environment variables
 
 ---
@@ -19,6 +20,7 @@ Ze uses environment variables for daemon and BGP subsystem configuration.
 **Priority:** env var (dot) > env var (underscore) > config file `environment { }` block > default.
 
 **Strict validation:** Invalid values cause startup failure (not silent defaults).
+<!-- source: internal/component/config/environment.go -- LoadEnvironmentWithConfig, loadFromEnvStrict -->
 
 ---
 
@@ -31,6 +33,7 @@ Ze uses environment variables for daemon and BGP subsystem configuration.
 
 When `ze.user` is not set, no privilege dropping occurs.
 See `internal/core/privilege/` for implementation.
+<!-- source: internal/core/privilege/ -- privilege dropping implementation -->
 
 ---
 
@@ -45,6 +48,7 @@ They can also be set via the config file `environment { <section> { <option> <va
 |----------|------|---------|-------------|
 | `ze.bgp.daemon.user` | string | "zeuser" | Legacy user field (prefer `ze.user`) |
 | `ze.bgp.daemon.umask` | octal | 0137 | Umask for created files |
+<!-- source: internal/component/config/environment.go -- DaemonEnv struct, loadDefaults -->
 
 ### log
 
@@ -67,6 +71,7 @@ They can also be set via the config file `environment { <section> { <option> <va
 | `ze.bgp.log.routes` | bool | false | Log received routes |
 | `ze.bgp.log.parser` | bool | false | Log message parsing |
 | `ze.bgp.log.short` | bool | true | Short log format |
+<!-- source: internal/component/config/environment.go -- LogEnv struct, loadDefaults -->
 
 Per-subsystem log levels are also supported via `ze.log.<subsystem>=<level>` (handled by `slogutil.ApplyLogConfig()`).
 
@@ -80,21 +85,26 @@ Per-subsystem log levels are also supported via `ze.log.<subsystem>=<level>` (ha
 | `ze.bgp.tcp.acl` | bool | false | Experimental ACL |
 | `ze.bgp.tcp.once` | bool | false | Legacy alias: sets attempts=1 |
 | `ze.bgp.tcp.connections` | int | - | Legacy alias for attempts |
+<!-- source: internal/component/config/environment.go -- TCPEnv struct, envOptions["tcp"], validatePort -->
 
 ### bgp
+<!-- source: internal/component/config/environment.go -- BGPEnv struct -->
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `ze.bgp.bgp.connection` | string | "" | Connection mode: "both", "passive", "active" |
+| `ze.bgp.bgp.connection` | enum | "" | Connection mode: "both", "passive", "active" |
 | `ze.bgp.bgp.openwait` | int | 60 | Seconds to wait for OPEN (1-3600) |
+<!-- source: internal/component/config/environment.go -- BGPEnv struct, validateOpenWait -->
 
 ### cache
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
 | `ze.bgp.cache.attributes` | bool | true | Cache attributes |
+<!-- source: internal/component/config/environment.go -- CacheEnv struct, loadDefaults -->
 
 ### api
+<!-- source: internal/component/config/environment.go -- APIEnv struct, loadDefaults() -->
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
@@ -105,8 +115,7 @@ Per-subsystem log levels are also supported via `ze.log.<subsystem>=<level>` (ha
 | `ze.bgp.api.respawn` | bool | true | Respawn dead processes |
 | `ze.bgp.api.terminate` | bool | false | Terminate if process dies |
 | `ze.bgp.api.cli` | bool | true | Create CLI named pipe |
-| `ze.bgp.api.pipename` | string | "ze-bgp" | Name for CLI pipe |
-| `ze.bgp.api.socketname` | string | "ze-bgp" | Name for Unix socket |
+<!-- source: internal/component/config/environment.go -- APIEnv struct, loadDefaults -->
 
 ### reactor
 
@@ -115,6 +124,7 @@ Per-subsystem log levels are also supported via `ze.log.<subsystem>=<level>` (ha
 | `ze.bgp.reactor.speed` | float | 1.0 | Reactor loop time multiplier (0.1-10.0) |
 | `ze.bgp.reactor.cache-ttl` | int | 60 | UPDATE cache TTL in seconds (0-3600) |
 | `ze.bgp.reactor.cache-max` | int | 1000000 | UPDATE cache max entries (0 = unlimited) |
+<!-- source: internal/component/config/environment.go -- ReactorEnv struct, loadDefaults, validateSpeed -->
 
 ### debug
 
@@ -129,6 +139,7 @@ Per-subsystem log levels are also supported via `ze.log.<subsystem>=<level>` (ha
 | `ze.bgp.debug.rotate` | bool | false | Rotate config on reload |
 | `ze.bgp.debug.timing` | bool | false | Reactor timing analysis |
 | `ze.bgp.debug.pprof` | string | "" | pprof HTTP server address (e.g. ":6060") |
+<!-- source: internal/component/config/environment.go -- DebugEnv struct -->
 
 ### chaos
 
@@ -136,6 +147,7 @@ Per-subsystem log levels are also supported via `ze.log.<subsystem>=<level>` (ha
 |----------|------|---------|-------------|
 | `ze.bgp.chaos.seed` | int64 | 0 | PRNG seed (0 = disabled, -1 = time-based) |
 | `ze.bgp.chaos.rate` | float | 0.1 | Fault probability per operation (0.0-1.0) |
+<!-- source: internal/component/config/environment.go -- ChaosEnv struct, validateChaosRate -->
 
 ---
 
@@ -156,6 +168,7 @@ environment {
     }
 }
 ```
+<!-- source: internal/component/config/environment.go -- SetConfigValue -->
 
 See [environment-block.md](environment-block.md) for the full config block syntax.
 
@@ -165,6 +178,7 @@ See [environment-block.md](environment-block.md) for the full config block synta
 
 Accepted: `true`, `false`, `yes`, `no`, `on`, `off`, `enable`, `disable`, `1`, `0`.
 Any other value causes a startup error.
+<!-- source: internal/component/config/environment.go -- parseBoolStrict -->
 
 ---
 

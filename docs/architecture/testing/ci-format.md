@@ -19,6 +19,8 @@ action=type:key=value:key=value:...
 | `expect=` | Expectations to validate |
 | `reject=` | Negative expectations (fail if matched) |
 | `action=` | Actions (send notification, raw bytes) |
+<!-- source: internal/test/runner/record_parse.go -- parseAndAdd, CI file parsing -->
+<!-- source: internal/test/tmpfs/tmpfs.go -- Tmpfs, File, Parse -->
 
 ## Stdin Blocks
 
@@ -51,6 +53,7 @@ stdin=<name>:text=<text-value>
 | `terminator` | End marker for multi-line content |
 | `hex` | Hex-encoded content (single-line) |
 | `text` | Plain text content (single-line, newline appended) |
+<!-- source: internal/test/tmpfs/tmpfs.go -- StdinBlocks map, parseStdin -->
 
 ### Examples
 
@@ -98,6 +101,7 @@ tmpfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
 | `mode` | No | Auto | File permissions (octal: 644, 755) |
 | `encoding` | No | `text` | Content encoding: `text` or `base64` |
 | `terminator` | Yes | - | End marker (alone on line) |
+<!-- source: internal/test/tmpfs/tmpfs.go -- File struct, Tmpfs.AddFile -->
 
 ### Mode Defaults
 
@@ -141,6 +145,7 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 3. **No hidden files** - no `.` prefix in path components
 4. **Path length limit** - max 256 characters
 5. **Path depth limit** - max 10 levels
+<!-- source: internal/test/tmpfs/security.go -- validatePath, Validate -->
 
 ### Limits
 
@@ -170,6 +175,7 @@ option=<type>:key=value[:key=value...]
 | `open` | `value=<behavior>` | OPEN message behavior |
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
+<!-- source: internal/test/runner/record_parse.go -- parseAndAdd, option parsing -->
 
 ### OPEN Behaviors
 
@@ -180,6 +186,7 @@ option=<type>:key=value[:key=value...]
 | `send-unknown-message` | Send unknown message type (255) after OPEN |
 | `drop-capability` | Remove a capability from ze-peer's OPEN response |
 | `add-capability` | Add a capability to ze-peer's OPEN response |
+<!-- source: internal/test/peer/checker.go -- OPEN behavior handling -->
 
 ### Capability Control (drop-capability / add-capability)
 
@@ -272,6 +279,7 @@ cmd=foreground:seq=<N>:exec=<command>[:stdin=<name>][:timeout=<dur>]
 
 **Background:** Starts and keeps running until test ends.
 **Foreground:** Starts and waits for completion.
+<!-- source: internal/test/runner/runner_exec.go -- process orchestration -->
 
 ### Example (Decode Test)
 
@@ -325,6 +333,7 @@ Validates the decoded message matches expected JSON.
 - Volatile fields removed before comparison: `exabgp`, `ze-bgp`, `time`, `host`, `pid`, `ppid`, `counter`
 - Neighbor normalization: `peer` ↔ `neighbor` treated as equivalent, `direction` field ignored
 - All non-volatile fields must match exactly
+<!-- source: internal/test/runner/runner_validate.go -- JSON comparison, volatile field removal -->
 
 ### Exit Code Expectations
 
@@ -360,6 +369,7 @@ expect=syslog:pattern=<regex>
 ```
 
 Validates that captured syslog output matches the regex pattern. When any `expect=syslog:` line is present, the test runner automatically starts a UDP syslog server and injects `ze.log.backend=syslog` and `ze.log.destination=127.0.0.1:<port>` into the test environment.
+<!-- source: internal/test/syslog/testsyslog.go -- UDP syslog server for tests -->
 
 ### Negative Expectations (reject)
 
@@ -374,6 +384,7 @@ Inverse of `expect=` — the test **fails** if the pattern matches. Used to veri
 |------|-------------|
 | `reject=stderr:pattern=<regex>` | Fail if stderr matches regex |
 | `reject=syslog:pattern=<regex>` | Fail if syslog output matches regex |
+<!-- source: internal/test/runner/runner_validate.go -- reject expectation handling -->
 
 ## Actions
 
@@ -490,6 +501,8 @@ Different components consume different line types:
 | `expect=bgp:` | ze-peer |
 | `action=notification:`, `action=send:` | ze-peer |
 | `action=rewrite:`, `action=sighup:`, `action=sigterm:` | ze-peer (reload/signal tests) |
+<!-- source: internal/test/peer/expect.go -- ze-peer expectation handling -->
+<!-- source: internal/test/runner/record.go -- Record, State -->
 
 Lines not recognized by a consumer are ignored.
 
@@ -520,6 +533,7 @@ Key changes:
 ## Editor Test Format (.et)
 
 The `.et` format extends `.ci` for interactive editor testing. Tests are located in `test/editor/`.
+<!-- source: internal/component/cli/testing/parser.go -- editor test parsing -->
 
 ### Overview
 
@@ -550,6 +564,7 @@ Editor tests simulate user input sequences against the headless configuration ed
 | `expect=status:contains=<text>` | Status message | `expect=status:contains=committed` |
 | `expect=error:none` | No command error | `expect=error:none` |
 | `expect=timer:active` | Confirm timer running | `expect=timer:active` |
+<!-- source: internal/component/cli/testing/expect.go -- editor expectation types -->
 
 ### Wait Actions
 
@@ -595,5 +610,7 @@ expect=completion:contains=router-id,local-as,peer
 | Lifecycle | `test/editor/lifecycle/` | commit, rollback, load, history |
 | Validation | `test/editor/validation/` | hold-time, peer-as |
 | Pipe | `test/editor/pipe/` | grep, head, tail |
+<!-- source: internal/component/cli/testing/parser.go -- editor test file parsing -->
+<!-- source: internal/component/cli/testing/session_test.go -- editor session tests -->
 
 Full format specification: `plan/spec-editor-testing-framework.md`

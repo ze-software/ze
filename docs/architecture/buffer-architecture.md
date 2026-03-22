@@ -139,7 +139,8 @@ The core type wrapping raw BGP message bytes:
 
 ```go
 // WireUpdate wraps UPDATE message payload (after BGP header)
-// Location: internal/component/plugin/wire_update.go
+// Location: internal/component/bgp/wireu/wire_update.go
+<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate struct -->
 type WireUpdate struct {
     payload     []byte
     sourceCtxID ContextID      // For zero-copy decisions
@@ -166,6 +167,7 @@ type AttrIterator struct {
     offset int
 }
 
+<!-- source: internal/component/bgp/attribute/ -- AttrIterator -->
 func NewAttrIterator(data []byte) AttrIterator  // value return — stack-allocated
 
 // Next returns the next attribute
@@ -196,6 +198,7 @@ func NewNLRIIterator(data []byte, addPath bool) *NLRIIterator
 // Returns (nil, 0, false) when exhausted
 func (it *NLRIIterator) Next() (prefix []byte, pathID uint32, ok bool)
 ```
+<!-- source: internal/component/bgp/nlri/ -- NLRIIterator -->
 
 ### AS-PATH Iterator
 
@@ -216,6 +219,7 @@ func (it *ASPathIterator) Next() (segType uint8, asns []byte, ok bool)
 // Convenience: iterate ASNs within current segment
 func (it *ASPathIterator) ASNIterator(asns []byte) *ASNIterator
 ```
+<!-- source: internal/component/bgp/attribute/ -- ASPathIterator -->
 
 ### Update Builder (For Creating Messages)
 
@@ -260,6 +264,7 @@ Routes store wire bytes as source of truth:
 
 ```go
 // internal/component/bgp/rib/route.go
+<!-- source: internal/component/bgp/rib/route.go -- Route struct -->
 type Route struct {
     // Wire bytes (source of truth)
     wireBytes     []byte           // packed path attributes

@@ -17,6 +17,7 @@ This document describes the debugging tools available in ZeBGP for troubleshooti
 ## 1. Config Dump Command
 
 **Location:** `cmd/ze/bgp/configdump.go`
+<!-- source: cmd/ze/config/cmd_dump.go -- config dump command -->
 
 Parses a config file and displays the interpreted values. Useful for verifying that config parsing works correctly.
 
@@ -59,7 +60,8 @@ peer 10.0.0.1:
 
 ## 2. BGP Message Decoder
 
-**Location:** `internal/test/peer/decode.go`
+<!-- source: internal/test/runner/decode.go -- BGP message decoding -->
+<!-- source: internal/test/runner/decoding.go -- decoding helpers -->
 
 Decodes raw BGP messages (hex) into human-readable format. Used automatically by functional tests and available via `--decode` flag.
 
@@ -97,7 +99,8 @@ msg  recv   FFFFFFFF...:0030:02:00000014400101004002060201000000014003040A000001
 
 ## 3. Test Failure Diff
 
-**Location:** `internal/test/peer/peer.go`, `internal/test/peer/decode.go`
+<!-- source: internal/test/peer/peer.go -- test peer with message validation -->
+<!-- source: internal/test/runner/diff.go -- test failure diff -->
 
 When a functional test fails with "message mismatch", the output now includes a decoded diff showing exactly what differed.
 
@@ -133,7 +136,7 @@ Differences:
 
 ## 4. Per-Subsystem Logging (ze.log.*)
 
-**Location:** `internal/slogutil/slogutil.go`
+<!-- source: internal/core/slogutil/slogutil.go -- Logger() function and hierarchical subsystem logging -->
 
 Environment variables that enable structured logging at key points in the pipeline.
 
@@ -191,11 +194,15 @@ Currently instrumented:
 - `internal/component/bgp/reactor/session.go`: RFC 7606 handling (sessionLogger)
 - `internal/component/bgp/reactor/reactor.go`: Reload, route operations (reactorLogger, routesLogger)
 
+<!-- source: internal/component/bgp/reactor/peer.go -- peerLogger, routesLogger -->
+<!-- source: internal/component/bgp/reactor/session.go -- sessionLogger -->
+<!-- source: internal/component/bgp/reactor/reactor.go -- reactorLogger -->
+
 ---
 
 ## 5. Parser Warnings
 
-**Location:** `internal/component/config/parser.go`
+<!-- source: internal/component/config/parser.go -- Parser.Warnings() -->
 
 The parser now collects warnings for potentially problematic patterns, accessible via `Parser.Warnings()`.
 
@@ -325,3 +332,9 @@ Subsystem naming convention: `ze.log.` + simplified package path (e.g., `bgp.rea
 | `internal/component/bgp/reactor/peer.go` | Peer/route logging (peerLogger, routesLogger) |
 | `internal/component/bgp/reactor/session.go` | Session logging (sessionLogger) |
 | `internal/component/bgp/reactor/reactor.go` | Reactor logging (reactorLogger, routesLogger) |
+
+<!-- source: internal/core/slogutil/slogutil.go -- logging infrastructure -->
+<!-- source: internal/test/peer/peer.go -- test peer -->
+<!-- source: internal/test/runner/decode.go -- BGP message decoder -->
+<!-- source: cmd/ze/config/cmd_dump.go -- config-dump command -->
+<!-- source: cmd/ze-test/peer.go -- ze-test peer subcommand -->

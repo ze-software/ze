@@ -30,6 +30,8 @@ Input = output symmetry: what you type is what you see.
 | 1028 | IPv4 Local Router-ID | `local-router-ids` | N/A | `node_local_router_id_ipv4` | []string | plural: can have v4+v6 |
 | 1029 | IPv6 Local Router-ID | `local-router-ids` | N/A | `node_local_router_id_ipv6` | []string | merged with 1028 |
 
+<!-- source: internal/component/bgp/plugins/nlri/ls/attr_node.go -- node attribute TLV decoding -->
+
 ## Node SR Attribute TLVs (RFC 9085)
 
 | TLV | RFC Name | Ze Name | ExaBGP Name | GoBGP JSON | Type | Notes |
@@ -37,6 +39,8 @@ Input = output symmetry: what you type is what you see.
 | 1034 | SR Capabilities | `sr-capabilities` | N/A | `sr_capabilities` | object | {flags, ranges[]} |
 | 1035 | SR Algorithm | `sr-algorithms` | N/A | `sr_algorithms` | []int | plural: list of IDs |
 | 1036 | SR Local Block | `sr-local-block` | N/A | `sr_local_block` | object | {ranges[]} |
+
+<!-- source: internal/component/bgp/plugins/nlri/ls/attr_node.go -- SR capability TLV decoding -->
 
 ## Link Attribute TLVs (RFC 7752 Section 3.3.2)
 
@@ -53,6 +57,8 @@ Input = output symmetry: what you type is what you see.
 | 1096 | SRLG | `srlgs` | N/A | `srlgs` | []int | plural: list of uint32 |
 | 1097 | Opaque Link Attribute | `opaque-link-attr` | N/A | `link_opaque_attribute` | string | hex |
 | 1098 | Link Name | `link-name` | N/A | `link_name` | string | UTF-8 |
+
+<!-- source: internal/component/bgp/plugins/nlri/ls/attr_link.go -- link attribute TLV decoding -->
 
 ## Link SR Attribute TLVs (RFC 9085)
 
@@ -92,6 +98,8 @@ Input = output symmetry: what you type is what you see.
 | 1155 | Prefix Metric | `prefix-metric` | N/A | N/A (TODO) | int | uint32 |
 | 1157 | Opaque Prefix Attribute | `opaque-prefix-attr` | N/A | `prefix_opaque_attribute` | string | hex |
 
+<!-- source: internal/component/bgp/plugins/nlri/ls/attr_prefix.go -- prefix attribute TLV decoding -->
+
 ## Prefix SR Attribute TLVs (RFC 9085)
 
 | TLV | RFC Name | Ze Name | ExaBGP Name | GoBGP JSON | Type | Notes |
@@ -109,11 +117,15 @@ Input = output symmetry: what you type is what you see.
 | 1251 | SRv6 BGP Peer Node SID | `srv6-bgp-peer-node-sid` | N/A | `srv6_bgp_peer_node_sid` | object | {flags, weight, peer-as, peer-bgp-id} |
 | 1252 | SRv6 SID Structure | `srv6-sid-structure` | N/A | `srv6_sid_structure` | object | {loc-block-len, loc-node-len, func-len, arg-len} |
 
+<!-- source: internal/component/bgp/plugins/nlri/ls/attr_srv6.go -- SRv6 attribute TLV decoding -->
+
 ## Unknown TLVs
 
 | Pattern | Ze Name | Type | Notes |
 |---------|---------|------|-------|
 | Unregistered TLV code | `generic-lsid-<code>` | []string | hex value in array (forward compatibility) |
+
+<!-- source: internal/component/bgp/plugins/nlri/ls/attr.go -- attribute TLV framework, register_attr.go -->
 
 ## ExaBGP Migration Notes
 

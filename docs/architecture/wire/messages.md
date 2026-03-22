@@ -45,6 +45,8 @@ All BGP messages share a common 19-byte header:
 | Length | 2 | Total message length (19-4096, or 19-65535 with extended) |
 | Type | 1 | Message type code |
 
+<!-- source: internal/component/bgp/message/header.go -- MarkerLen, HeaderLen, MaxMsgLen, ExtMsgLen, Marker -->
+
 ### Message Types
 
 | Code | Name | RFC |
@@ -55,6 +57,8 @@ All BGP messages share a common 19-byte header:
 | 4 | KEEPALIVE | RFC 4271 |
 | 5 | ROUTE-REFRESH | RFC 2918 |
 
+<!-- source: internal/component/bgp/message/header.go -- MessageType, TypeOPEN..TypeROUTEREFRESH -->
+
 ### Message Length Constraints
 
 | Message Type | Minimum | Maximum (standard) | Maximum (extended) |
@@ -64,6 +68,8 @@ All BGP messages share a common 19-byte header:
 | NOTIFICATION | 21 | 4096 | 65535 |
 | KEEPALIVE | 19 | 19 | 19 |
 | ROUTE-REFRESH | 23 | 23 | 23 |
+
+<!-- source: internal/component/bgp/message/header.go -- MinOpenLen, MinUpdateLen, MinNotificationLen, KeepaliveLen, MinRouteRefreshLen -->
 
 ---
 
@@ -94,6 +100,8 @@ RFC 4271 Section 4.2
 | Opt Parm Len | 1 | Length of optional parameters |
 | Optional Parameters | Variable | Capabilities |
 
+<!-- source: internal/component/bgp/message/open.go -- Open struct -->
+
 ### Optional Parameters
 
 ```
@@ -110,6 +118,8 @@ RFC 4271 Section 4.2
 |-----------|------|-----|
 | 2 | Capabilities | RFC 5492 |
 
+<!-- source: internal/component/bgp/capability/capability.go -- ParseFromOptionalParams -->
+
 ### Capability TLV (within Optional Parameter Type 2)
 
 ```
@@ -121,6 +131,8 @@ RFC 4271 Section 4.2
 |          Capability Value (variable)          |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ```
+
+<!-- source: internal/component/bgp/capability/capability.go -- Capability interface, Parse -->
 
 ---
 
@@ -164,6 +176,9 @@ Prefix bytes = ceil(Length / 8)
 
 Example: 10.0.0.0/24 = `18 0A 00 00` (length=24, 3 prefix bytes)
 
+<!-- source: internal/component/bgp/wire/update_sections.go -- UpdateSections, ParseUpdateSections -->
+<!-- source: internal/component/bgp/message/update.go -- UPDATE message handling -->
+
 ---
 
 ## 3. NOTIFICATION Message (Type 3)
@@ -194,6 +209,9 @@ RFC 4271 Section 4.5
 | 4 | Hold Timer Expired | 0=Unspecific |
 | 5 | FSM Error | 1=OpenSent, 2=OpenConfirm, 3=Established |
 | 6 | Cease | 1=Max Prefixes, 2=Admin Shutdown, 3=Peer Deconfigured, 4=Admin Reset, 5=Connection Rejected, 6=Config Change, 7=Connection Collision, 8=Out of Resources |
+
+<!-- source: internal/component/bgp/message/notification.go -- NotifyErrorCode, NotifyMessageHeader..NotifyCease -->
+<!-- source: internal/component/bgp/message/notification.go -- NotifyHeader*, NotifyOpen*, NotifyUpdate*, NotifyCease* subcodes -->
 
 ### Shutdown Communication (RFC 8203/9003)
 
@@ -247,6 +265,8 @@ RFC 2918
 | 1 | ROUTE_REFRESH_BEGIN | Beginning of Route Refresh (BoRR) |
 | 2 | ROUTE_REFRESH_END | End of Route Refresh (EoRR) |
 
+<!-- source: internal/component/bgp/message/routerefresh.go -- RouteRefresh struct, RouteRefreshSubtype -->
+
 ---
 
 ## Extended Message Support (RFC 8654)
@@ -255,6 +275,8 @@ When Extended Message capability is negotiated:
 - Maximum message length increases from 4096 to 65535 bytes
 - Affects UPDATE messages primarily (large attribute sets)
 - Header Length field can contain values > 4096
+
+<!-- source: internal/component/bgp/message/header.go -- ValidateLengthWithMax, MaxMessageLength -->
 
 ---
 
@@ -324,6 +346,10 @@ func ParseHeader(data []byte) (length uint16, msgType MessageType, err error) {
     return length, msgType, nil
 }
 ```
+
+<!-- source: internal/component/bgp/message/message.go -- Message interface, writeHeader -->
+<!-- source: internal/component/bgp/message/header.go -- ParseHeader, Header struct -->
+<!-- source: internal/component/bgp/context/context.go -- WireWriter interface -->
 
 ---
 

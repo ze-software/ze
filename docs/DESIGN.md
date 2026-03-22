@@ -21,6 +21,8 @@ anything that reads lines and writes lines -- without understanding the engine i
 Everyone can extend Ze by writing a plugin, not by forking a monolith. Internal
 components communicate via `net.Pipe()` with DirectBridge; external ones connect back
 over TLS. CLI access to the running daemon uses SSH.
+<!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge -->
+<!-- source: internal/component/plugin/all/all.go -- plugin blank imports -->
 
 **Wire-first design.** BGP messages are byte buffers, not parsed structs. Parsing happens
 lazily through offset-based iterators. Attributes are deduplicated in per-type memory pools
@@ -31,6 +33,9 @@ implementations, narrowing the performance gap with C and Rust to roughly 10-15%
 (see [Performance Trade-offs](#performance-trade-offs) below). Ze does the hard thing
 properly -- lazy parsing, pool dedup, buffer-first encoding -- and never trades
 correctness for speed of implementation.
+<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate lazy-parsed byte buffer -->
+<!-- source: internal/component/bgp/attrpool/pool.go -- per-attribute-type dedup pools -->
+<!-- source: internal/component/bgp/context/registry.go -- ContextID for zero-copy decisions -->
 
 **Broad protocol coverage.** 21 address families (IPv4/IPv6 unicast, multicast, VPN,
 FlowSpec, FlowSpec VPN, EVPN, VPLS, BGP-LS, MPLS, MUP, MVPN, RTC), 13 capabilities
@@ -45,6 +50,9 @@ representation.
 ze-native format. `ze exabgp plugin` runs existing ExaBGP processes with Ze as the BGP
 engine. The migration is external tooling only -- the engine itself has zero ExaBGP
 format awareness.
+<!-- source: cmd/ze/config/cmd_migrate.go -- ze config migrate command -->
+<!-- source: cmd/ze/exabgp/main.go -- ze exabgp plugin command -->
+<!-- source: internal/exabgp/migration/migrate.go -- ExaBGP migration logic -->
 
 **Observable by default.** Structured logging via slog, JSON events for every BGP state
 transition and route change, and a chaos testing framework with a web dashboard for
@@ -89,6 +97,12 @@ broader protocol support, and a plugin ecosystem.
 | Engine is stateless for routes | The engine forwards wire bytes and caches them for zero-copy forwarding. Plugins own RIB storage, policy, and route selection. |
 | No premature abstraction | Three concrete implementations before abstracting. Boring code that obviously works over clever code that might. |
 | YANG-modeled everything | All RPCs and config schemas are YANG-defined. CLI dispatch, plugin registration, schema discovery, and config parsing all flow from YANG modules. |
+
+<!-- source: internal/component/bgp/reactor/session.go -- readBufPool4K, readBufPool64K, buildBufPool -->
+<!-- source: internal/component/bgp/attrpool/pool.go -- Pool, per-attribute-type dedup -->
+<!-- source: internal/component/bgp/attrpool/handle.go -- Handle opaque reference -->
+<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate byte buffer with lazy accessors -->
+<!-- source: internal/component/config/yang/loader.go -- YANG-based config schema loading -->
 
 ---
 
@@ -165,6 +179,8 @@ return slices into the payload without copying. Iterator methods (`AttrIterator(
 `NLRIIterator()`) walk the wire bytes at offsets, yielding one element at a time.
 
 No intermediate struct is ever built to iterate once.
+<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate struct and accessor methods -->
+<!-- source: internal/component/bgp/attribute/iterator.go -- AttrIterator -->
 
 ### Buffer-First Encoding
 
@@ -178,6 +194,8 @@ sized to RFC maximums:
 | `buildBufPool` | 4,096 | UPDATE building |
 | Per-plugin `nlriBufPool` | 4,096 | NLRI encoding |
 
+<!-- source: internal/component/bgp/reactor/session.go -- readBufPool4K, readBufPool64K, buildBufPool -->
+
 The skip-and-backfill pattern handles variable-length sections: write fixed bytes, skip
 the length field, write payload forward, backfill the length at the saved position.
 This avoids the `Len()`-then-`WriteTo()` double traversal in the hot path.
@@ -188,6 +206,8 @@ Each peer's negotiated capabilities (ASN4, ADD-PATH, Extended Next Hop) are hash
 a `ContextID` (uint16). When source and destination peers share the same ContextID, the
 engine forwards the cached wire bytes unchanged. When they differ, the engine re-encodes
 through `PackContext`.
+<!-- source: internal/component/bgp/context/registry.go -- ContextID type and hashing -->
+<!-- source: internal/component/bgp/context/context.go -- PackContext encoding rules -->
 
 ### Pool-Based Deduplication
 
@@ -229,6 +249,8 @@ All code for a concern lives in its folder. The "delete the folder" test: if you
 `internal/component/bgp/plugins/rib/`, only RIB functionality disappears. The engine,
 reactor, FSM, and all other plugins continue to work. Blank imports in
 `internal/component/plugin/all/all.go` are the only coupling.
+<!-- source: internal/component/plugin/all/all.go -- plugin blank imports -->
+<!-- source: internal/component/bgp/plugins/rib/register.go -- RIB plugin registration -->
 
 ### YANG Is Required
 
@@ -244,6 +266,9 @@ config parsing, and protocol wire format.
 | Fork (default) | `pluginname` | Subprocess, TLS connect-back |
 | Direct | `ze-pluginname` | Sync in-process call |
 | Path | `/path/to/binary` | External binary, TLS connect-back |
+
+<!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge implementation -->
+<!-- source: pkg/plugin/rpc/mux.go -- MuxConn concurrent RPC multiplexer -->
 
 Internal plugins bypass pipes entirely via DirectBridge for hot-path performance.
 External plugins connect back to the engine's TLS listener and authenticate with a
@@ -299,6 +324,22 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `bgp-mvpn` | Multicast VPN NLRI decode |
 | `bgp-rtc` | Route Target Constraint NLRI decode |
 
+<!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib plugin -->
+<!-- source: internal/component/bgp/plugins/rs/register.go -- bgp-rs plugin -->
+<!-- source: internal/component/bgp/plugins/gr/register.go -- bgp-gr plugin -->
+<!-- source: internal/component/bgp/plugins/role/register.go -- role plugin -->
+<!-- source: internal/component/bgp/plugins/watchdog/register.go -- bgp-watchdog plugin -->
+<!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- bgp-evpn plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- bgp-flowspec plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- bgp-ls plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/mup/register.go -- bgp-mup plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/vpn/register.go -- bgp-vpn plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/vpls/register.go -- bgp-vpls plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/labeled/register.go -- bgp-labeled plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/mvpn/register.go -- bgp-mvpn plugin -->
+<!-- source: internal/component/bgp/plugins/nlri/rtc/register.go -- bgp-rtc plugin -->
+
 ---
 
 ## Configuration
@@ -308,6 +349,8 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 JUNOS-like hierarchical format. `{}` blocks, `;` terminators, `#` comments.
 YANG-driven parsing: each config node's type (leaf, leaf-list, container, list)
 determines how it is parsed.
+<!-- source: internal/component/config/tokenizer.go -- tokenizer for JUNOS-like syntax -->
+<!-- source: internal/component/config/yang/loader.go -- YANG-driven config parsing -->
 
 ```
 environment {
@@ -347,6 +390,10 @@ graph LR
     R --> Plugins["ExtractPluginsFromTree()"] --> PI["Plugin Infrastructure"]
 ```
 
+<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree() -->
+<!-- source: internal/component/bgp/reactor/config.go -- PeersFromTree() -->
+<!-- source: internal/component/bgp/config/plugins.go -- ExtractPluginsFromTree() -->
+
 ### Inheritance
 
 Three levels with deep-merge for containers:
@@ -369,6 +416,9 @@ of ExaBGP formats -- all translation lives in external tooling.
 Unlike most Unix daemons that only offer flat configuration files, Ze stores its
 configuration in ZeFS -- a netcapstring-framed blob store (`.zefs` file) that supports
 named entries, hierarchical keys, zero-copy reads via mmap, and in-place updates.
+<!-- source: pkg/zefs/store.go -- ZeFS blob store -->
+<!-- source: pkg/zefs/netcapstring.go -- netcapstring framing -->
+<!-- source: pkg/zefs/mmap_unix.go -- mmap zero-copy reads -->
 This makes Ze more like a network operating system (similar to VyOS or JunOS) than a
 traditional daemon: configuration is managed through an interactive editor with
 draft/commit workflow, not by editing text files and sending SIGHUP.
@@ -424,6 +474,7 @@ For the full table with RFC references and plugin attribution, see `docs/feature
 Families are registered dynamically by plugins via `PluginRegistry.Register()`, not
 a static list. New families are added by writing a plugin with NLRI encode/decode
 and registering it.
+<!-- source: internal/component/plugin/all/all.go -- plugin registration triggers -->
 
 ### Capabilities
 
@@ -442,6 +493,10 @@ and registering it.
 | Hostname | 73 | draft-walton-bgp-hostname-capability | Implemented |
 | Software Version | 75 | draft-ietf-idr-software-version | Implemented |
 | Link-Local Next Hop | 77 | draft-ietf-idr-linklocal-capability | Implemented |
+
+<!-- source: internal/component/bgp/capability/capability.go -- capability codes and parsing -->
+<!-- source: internal/component/bgp/capability/encoding.go -- ASN4, AddPath, ExtendedMsg, ExtNH -->
+<!-- source: internal/component/bgp/capability/session.go -- GR, RouteRefresh, Role -->
 
 ### Path Attributes
 
@@ -462,6 +517,13 @@ and registering it.
 | EXTENDED_COMMUNITY | 16 | RFC 4360 | `extended-community` |
 | LARGE_COMMUNITY | 32 | RFC 8092 | `large-community` |
 | PREFIX_SID | 40 | RFC 8669 | `prefix-sid` |
+
+<!-- source: internal/component/bgp/attribute/attribute.go -- attribute code constants -->
+<!-- source: internal/component/bgp/attribute/origin.go -- ORIGIN attribute -->
+<!-- source: internal/component/bgp/attribute/aspath.go -- AS_PATH attribute -->
+<!-- source: internal/component/bgp/attribute/simple.go -- NEXT_HOP, MED, LOCAL_PREF, etc. -->
+<!-- source: internal/component/bgp/attribute/community.go -- COMMUNITY, EXT_COMMUNITY, LARGE_COMMUNITY -->
+<!-- source: internal/component/bgp/attribute/mpnlri.go -- MP_REACH_NLRI, MP_UNREACH_NLRI -->
 
 ### Negotiated Capabilities and Encoding
 
@@ -535,6 +597,11 @@ Ze uses a domain-based CLI dispatch. Each domain (`bgp`, `config`, `schema`, `hu
 `exabgp`) has its own `cmd/ze/<domain>/main.go` with `func Run(args []string) int`.
 Subcommands use their own `flag.FlagSet`. Exit codes: 0 = success, 1 = error,
 2 = file not found.
+<!-- source: cmd/ze/bgp/main.go -- bgp domain Run() -->
+<!-- source: cmd/ze/config/main.go -- config domain Run() -->
+<!-- source: cmd/ze/yang/main.go -- schema domain Run() -->
+<!-- source: cmd/ze/exabgp/main.go -- exabgp domain Run() -->
+<!-- source: cmd/ze/cli/main.go -- cli domain Run() -->
 
 Key commands:
 
@@ -738,6 +805,9 @@ For a full discussion of when Ze is and is not the right choice, see
 | Long-lived worker goroutines | Per-event goroutine creation and scheduling overhead |
 | Per-destination forward workers | Head-of-line blocking across peers; write lock contention |
 
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- per-destination forward workers -->
+<!-- source: internal/component/bgp/reactor/peer.go -- DirectBridge for internal plugins -->
+
 **Allocation reduction on the hot path:**
 
 | Technique | What it avoids |
@@ -807,6 +877,13 @@ This is not zero-copy in the kernel-bypass sense that Rust with `bytes::Bytes` o
 | `Pool` | Per-attribute-type pools with refcounted handles and incremental compaction |
 | `Handle` | Opaque reference into a pool (buffer bit + pool index + slot) |
 | `DirectBridge` | Bypasses IPC serialization for internal plugins (direct function calls) |
+
+<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate -->
+<!-- source: internal/component/bgp/context/context.go -- PackContext -->
+<!-- source: internal/component/bgp/context/registry.go -- ContextID -->
+<!-- source: internal/component/bgp/attrpool/pool.go -- Pool -->
+<!-- source: internal/component/bgp/attrpool/handle.go -- Handle -->
+<!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge -->
 
 ---
 

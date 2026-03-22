@@ -33,6 +33,31 @@ Each row answered Yes/No. Each Yes names the file and what to add.
 
 Stage 12 (Documentation review) is BLOCKING. Doc updates are part of the commit, not follow-up work.
 
+## Source Anchors (BLOCKING)
+
+**Every factual claim** in `docs/` must be verified against actual code before writing.
+Never describe what you *think* the code does. Read the source first.
+
+Add HTML comment anchors tying claims to code locations:
+
+```
+<!-- source: internal/component/bgp/reactor/forward_pool.go — ForwardPool -->
+```
+
+These are invisible in rendered markdown but let future sessions verify accuracy.
+
+| Rule | Detail |
+|------|--------|
+| When to add | Every paragraph with a factual claim (syntax, field names, behavior, data structures) |
+| Format | `<!-- source: <relative-path> — <symbol-or-topic> -->` |
+| Placement | After the paragraph or table row containing the claim |
+| When editing docs | Verify existing anchors still match reality. Fix stale ones |
+| When changing code | Check if any doc has an anchor pointing to the changed file. Update if claim is now wrong |
+| Granularity | One anchor per factual paragraph or table. Not every sentence, not every file |
+
+**Before writing any documentation:** read the actual source file. After writing: add the anchor.
+**Before editing existing documentation:** grep for `<!-- source:` anchors, verify each one.
+
 ## NOT Documentation
 
 - Code comments (`// Design:`, `// Related:`) -- covered by `design-doc-references.md` and `related-refs.md`

@@ -16,6 +16,7 @@
 | AS_TRANS | 23456 | Reserved ASN for 4-byte transition |
 | 2-byte max | 65535 (0xFFFF) | Maximum 2-byte ASN |
 | 4-byte max | 4294967295 (0xFFFFFFFF) | Maximum 4-byte ASN |
+<!-- source: internal/component/bgp/attribute/as4.go -- AS4Path, AttrAS4Path -->
 
 ---
 
@@ -32,6 +33,7 @@
 |   4-byte AS Number        |  4 octets
 +---------------------------+
 ```
+<!-- source: internal/component/bgp/capability/capability.go -- CodeASN4=65 -->
 
 ### OPEN Message
 
@@ -72,6 +74,8 @@ Example: AS path [65001, 4200000001, 65002]
 AS_PATH (2-byte):   [65001, 23456, 65002]   <- 4200000001 → AS_TRANS
 AS4_PATH (4-byte):  [65001, 4200000001, 65002]  <- Real values
 ```
+<!-- source: internal/component/bgp/attribute/as4.go -- AS4Path, Flags, Len -->
+<!-- source: internal/component/bgp/capability/negotiated.go -- Negotiated.ASN4 -->
 
 ---
 
@@ -115,6 +119,7 @@ Similar to AS_PATH, the AGGREGATOR attribute has two forms:
 |-----------|------|----------|-----------|
 | AGGREGATOR | 7 | 2 bytes | Peer doesn't support ASN4 |
 | AS4_AGGREGATOR | 18 | 4 bytes | Peer doesn't support ASN4 + large AS |
+<!-- source: internal/component/bgp/attribute/as4.go -- AS4Path code=17, AS4Aggregator code=18 -->
 
 ### AGGREGATOR Format
 
@@ -304,6 +309,8 @@ func (p *ASPath) Pack(neg *Negotiated) []byte {
     return result
 }
 ```
+<!-- source: internal/component/bgp/attribute/as4.go -- AS4Path.WriteTo -->
+<!-- source: internal/component/bgp/capability/negotiated.go -- Negotiated.ASN4 -->
 
 ---
 

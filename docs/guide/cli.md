@@ -1,6 +1,7 @@
 # CLI Reference
 
 Ze provides an interactive CLI and single-command execution for runtime queries and control. All CLI access goes through the daemon's SSH server.
+<!-- source: cmd/ze/cli/main.go -- Run; cmd/ze/show/main.go -- Run; cmd/ze/run/main.go -- Run -->
 
 ## Usage
 
@@ -34,6 +35,7 @@ ze run peer upstream1 teardown 2     # Full access including destructive command
 | `bgp summary` | BGP summary table |
 
 **Peer selector:** `*` (all), exact IP, glob patterns (`192.168.*.*`), exclusion (`!addr`), or peer name.
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/reactor/reactor_api.go -- selectPeers -->
 
 ## Route Commands
 
@@ -45,6 +47,7 @@ ze run peer upstream1 teardown 2     # Full access including destructive command
 | `rib routes sent [peer] [family]` | Show Adj-RIB-Out |
 | `rib clear received [peer]` | Clear Adj-RIB-In |
 | `rib clear sent [peer]` | Clear Adj-RIB-Out |
+<!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/cmd/update/ -- update RPCs -->
 
 See [Route Injection guide](route-injection.md) for UPDATE syntax details.
 
@@ -94,6 +97,7 @@ Named update windows for atomic route changes:
 | `help` | List all commands |
 | `command-list` | All commands with descriptions |
 | `command-help <name>` | Detailed help for a command |
+<!-- source: internal/component/cmd/meta/ -- help/discovery RPCs; internal/component/cmd/cache/ -- cache RPCs -->
 
 ## Signals
 
@@ -104,6 +108,7 @@ Named update windows for atomic route changes:
 | `ze signal restart` | Graceful restart (with GR marker) |
 | `ze signal quit` | Goroutine dump and exit |
 | `ze status` | Check if daemon is running |
+<!-- source: cmd/ze/signal/main.go -- Run, RunStatus -->
 
 ## Interactive Features
 
@@ -113,3 +118,4 @@ In `ze cli` interactive mode:
 - **Pipe operators:** `| json`, `| table`, `| match <regex>`, `| count`, `| no-more`
 - **History** persisted across sessions
 - **Ctrl-C** cancels current command, **Ctrl-D** exits
+<!-- source: cmd/ze/cli/main.go -- pipe operators, bubbletea model, history -->

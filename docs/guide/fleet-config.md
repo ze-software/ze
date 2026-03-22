@@ -1,6 +1,7 @@
 # Fleet Configuration
 
 Ze supports centralized configuration management for multi-node deployments. A central hub serves configuration to remote ze instances over TLS.
+<!-- source: cmd/ze/hub/main.go -- hub orchestrator; internal/component/hub/ -- hub implementation -->
 
 > **Status:** This feature is partially implemented. The hub architecture and blob storage are functional. Client-side config fetching is in design.
 
@@ -28,6 +29,7 @@ ze init                             # Interactive setup
 ze init --managed                   # Managed client (connects to hub)
 ze init --force                     # Replace existing database
 ```
+<!-- source: cmd/ze/init/main.go -- managedFlag, forceFlag -->
 
 `ze init` prompts for:
 - SSH username and password
@@ -95,6 +97,7 @@ ze config edit edge-01.conf         # Edit config for edge-01
 ze config archive backup edge-01.conf  # Archive a version
 ze config history edge-01.conf      # View rollback history
 ```
+<!-- source: cmd/ze/config/cmd_edit.go; cmd/ze/config/cmd_history.go; cmd/ze/config/cmd_archive.go -->
 
 ## Resilience
 
@@ -109,3 +112,4 @@ ze config history edge-01.conf      # View rollback history
 | `--server <addr>` | Override hub address |
 | `--name <name>` | Override instance name |
 | `--token <secret>` | Override auth token |
+<!-- source: internal/component/hub/ -- hub TLS and client auth -->

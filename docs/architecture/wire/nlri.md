@@ -39,6 +39,8 @@ ExaBGP supports 42 AFI/SAFI combinations. Ze supports ~19 families (17 plugin-re
 | 25 (L2VPN) | 70 (evpn) | evpn | MP_REACH_NLRI |
 | 16388 (BGP-LS) | 71 (bgp_ls) | bgp-ls | MP_REACH_NLRI |
 
+<!-- source: internal/component/bgp/nlri/nlri.go -- AFI, SAFI, Family constants -->
+
 ---
 
 ## Class Hierarchy
@@ -90,6 +92,14 @@ NLRI (interface)
 
 **Note:** IPVPN stays standalone because its field order differs (rd before prefix).
 
+<!-- source: internal/component/bgp/nlri/base.go -- PrefixNLRI, RDNLRIBase -->
+<!-- source: internal/component/bgp/nlri/inet.go -- INET struct -->
+<!-- source: internal/component/bgp/plugins/nlri/labeled/types.go -- LabeledUnicast struct -->
+<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- VPN struct -->
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPNRouteType constants -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowComponentType constants -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGPLSNLRIType constants -->
+
 ---
 
 ## INET NLRI (RFC 4271)
@@ -124,6 +134,8 @@ NLRI (interface)
 | 10.0.0.0/8 | `08 0A` | mask=8, 1 byte (10) |
 | 192.168.1.0/24 | `18 C0 A8 01` | mask=24, 3 bytes |
 | 10.0.0.1/32 | `20 0A 00 00 01` | mask=32, 4 bytes (full IP) |
+
+<!-- source: internal/component/bgp/nlri/inet.go -- ParseINET, INET.Len, INET.WriteTo -->
 
 ### ExaBGP Implementation
 
@@ -171,6 +183,8 @@ class INET(NLRI):
 - **Label Value:** 20 bits (0-1048575)
 - **Exp:** 3 bits (experimental/TC)
 - **S (BoS):** 1 bit - Bottom of Stack (1 = last label)
+
+<!-- source: internal/component/bgp/nlri/helpers.go -- WriteLabelStack -->
 
 ### Special Label Values
 
@@ -260,6 +274,9 @@ Wire: 60 00 3E 81 00 00 FD E8 00 00 00 64 0A
       +------------------------------------ Length: 96 bits
 ```
 
+<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- VPN struct, ParseVPN -->
+<!-- source: internal/component/bgp/nlri/rd.go -- RouteDistinguisher, RDType constants -->
+
 ---
 
 ## EVPN NLRI (RFC 7432)
@@ -287,6 +304,8 @@ See `nlri-evpn.md` for detailed documentation.
 | 3 | Inclusive Multicast | RD, ETag, IP |
 | 4 | Ethernet Segment | RD, ESI, IP |
 | 5 | IP Prefix | RD, ESI, ETag, IP-Prefix, GW-IP, Label |
+
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPNRouteType1..5 -->
 
 ---
 
@@ -329,6 +348,8 @@ See `nlri-flowspec.md` for detailed documentation.
 | 12 | Fragment | Binary |
 | 13 | Flow Label (IPv6) | Numeric |
 
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowComponentType constants -->
+
 ---
 
 ## BGP-LS NLRI (RFC 7752)
@@ -363,6 +384,8 @@ See `nlri-bgpls.md` for detailed documentation.
 | 4 | Direct |
 | 5 | Static |
 | 6 | OSPFv3 |
+
+<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGPLSNLRIType, BGPLSProtocolID -->
 
 ---
 
@@ -415,6 +438,8 @@ func (l *LabeledUnicast) Bytes() []byte                  // Payload bytes only
 nlri.LenWithContext(n, ctx)      // Adds 4 bytes when ctx.AddPath=true
 nlri.WriteNLRI(n, buf, off, ctx) // Prepends path ID when ctx.AddPath=true
 ```
+
+<!-- source: internal/component/bgp/plugins/nlri/labeled/types.go -- LabeledUnicast struct -->
 
 ### Label Encoding
 
@@ -484,6 +509,11 @@ type LabeledUnicast struct {
 }
 ```
 
+<!-- source: internal/component/bgp/nlri/nlri.go -- NLRI interface -->
+<!-- source: internal/component/bgp/nlri/base.go -- PrefixNLRI struct -->
+<!-- source: internal/component/bgp/nlri/inet.go -- INET struct -->
+<!-- source: internal/component/bgp/plugins/nlri/labeled/types.go -- LabeledUnicast struct -->
+
 ### ADD-PATH Encoding (RFC 7911)
 
 Path ID is handled **separately** from NLRI payload encoding:
@@ -500,6 +530,8 @@ nlri.WriteNLRI(n, buf, 0, ctx)  // Prepends path ID when ctx.AddPath=true
 **WriteNLRI behavior:**
 - `ctx.AddPath=true`: writes `[4-byte pathID][payload]`
 - `ctx.AddPath=false` or `ctx=nil`: writes `[payload]` only
+
+<!-- source: internal/component/bgp/nlri/nlri.go -- LenWithContext, WriteNLRI -->
 
 ### Index Generation
 

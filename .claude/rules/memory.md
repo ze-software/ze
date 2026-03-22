@@ -121,3 +121,9 @@ Do NOT flag these as "identity wrappers adding no value."
 - Placed cross-cutting JSON-RPC gateway under `bgp/plugins/` by pattern-matching recently-read files.
 - Root cause: anchored on "where I just read code" instead of reasoning from architecture.
 - **Rule:** Before placing any new plugin, apply the "delete the folder" test: if the parent were deleted, should this plugin disappear? Domain plugins → `bgp/plugins/`. Cross-cutting services → `internal/component/<name>/`. Core infra → `internal/core/`.
+
+### Documentation Written From Assumption (RECURRING)
+- Wrote docs describing syntax, field names, and behavior from memory instead of reading actual code.
+- User found many errors: old syntax, wrong data, stale information.
+- Root cause: described what I *thought* the code does, not what it *actually* does. No verification step.
+- **Rule:** `rules/documentation.md` Source Anchors section. Read the source file BEFORE writing any factual claim. Add `<!-- source: path -- symbol -->` HTML comments. Never describe code from memory.

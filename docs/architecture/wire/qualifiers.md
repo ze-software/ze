@@ -18,6 +18,9 @@ Qualifiers are reusable components used within NLRI types:
 | EthernetTag | 4 bytes | EVPN |
 | MAC | 6 bytes | EVPN |
 
+<!-- source: internal/component/bgp/nlri/rd.go -- RouteDistinguisher -->
+<!-- source: internal/component/bgp/nlri/helpers.go -- WriteLabelStack -->
+
 ---
 
 ## Route Distinguisher (RFC 4364)
@@ -76,6 +79,8 @@ Total: **8 bytes**
 
 **String format:** `ASN:Assigned` (e.g., `4200000001:100`)
 
+<!-- source: internal/component/bgp/nlri/rd.go -- RDType0, RDType1, RDType2, RouteDistinguisher struct -->
+
 ### ExaBGP Implementation
 
 ```python
@@ -105,6 +110,8 @@ class RouteDistinguisher:
 ```json
 "rd": "65000:100"
 ```
+
+<!-- source: internal/component/bgp/nlri/rd.go -- ParseRouteDistinguisher, RouteDistinguisher.String -->
 
 ---
 
@@ -159,6 +166,8 @@ Label 1000, Label 2000 (stack):
 00 7D 01   Label 2000, BoS=1 (2000<<4 | 1 = 0x7D01)
 ```
 
+<!-- source: internal/component/bgp/nlri/helpers.go -- WriteLabelStack -->
+
 ### ExaBGP Implementation
 
 ```python
@@ -198,6 +207,8 @@ class Labels:
 ```
 
 Format: `[ [label_value, raw_24bit_value], ... ]`
+
+<!-- source: internal/component/bgp/nlri/nlri.go -- ParseLabelStack, EncodeLabelStack -->
 
 ---
 
@@ -250,6 +261,9 @@ class PathInfo:
 "path-information": "1.2.3.4"
 ```
 
+<!-- source: internal/component/bgp/nlri/nlri.go -- WriteNLRI, LenWithContext -->
+<!-- source: internal/component/bgp/nlri/base.go -- PrefixNLRI.PathID -->
+
 ---
 
 ## ESI - Ethernet Segment Identifier (RFC 7432)
@@ -283,6 +297,8 @@ Total: **10 bytes**
 |-------|---------|
 | `00:00:00:00:00:00:00:00:00:00` | Single-homed (default) |
 | `FF:FF:FF:FF:FF:FF:FF:FF:FF:FF` | Reserved (max) |
+
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- ESI fields in EVPNType1..4 -->
 
 ### ExaBGP Implementation
 
@@ -332,6 +348,8 @@ Total: **4 bytes**
 | 0 | No Ethernet Tag (default) |
 | 0xFFFFFFFF | MAX_ET |
 
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EthernetTag field in EVPN route types -->
+
 ### ExaBGP Implementation
 
 ```python
@@ -377,6 +395,8 @@ Total: **6 bytes**
 In EVPN Type 2, the MAC length field is in **bits**:
 - Standard: 48 bits (6 bytes)
 - Other values possible but rare
+
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- MAC field in EVPNType2 -->
 
 ### ExaBGP Implementation
 
@@ -432,6 +452,8 @@ Qualifiers compare by struct equality (value semantics):
 ```go
 if rd1 == rd2 { ... }  // Direct struct comparison
 ```
+
+<!-- source: internal/component/bgp/nlri/rd.go -- RouteDistinguisher struct (value semantics) -->
 
 ---
 

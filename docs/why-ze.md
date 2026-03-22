@@ -26,6 +26,9 @@ multithreaded, with broader protocol coverage, and a plugin SDK for deeper integ
 | Atomic route updates | `commit start` / `commit end` workflow |
 | Raw wire access | Hex-mode encoding and decoding, `bgp cache forward` |
 
+<!-- source: pkg/plugin/sdk/sdk.go -- plugin SDK entry point -->
+<!-- source: pkg/plugin/rpc/mux.go -- MuxConn for concurrent RPCs -->
+
 ExaBGP pioneered this space. GoBGP offers gRPC but limits you to the operations its
 API exposes. BIRD has no programmatic API at all. Ze gives raw wire access alongside
 structured events, in a compiled multithreaded daemon.
@@ -59,6 +62,8 @@ business rules, Ze's plugin model is more flexible than any built-in policy lang
 existing ExaBGP processes with Ze as the BGP engine. If you have ExaBGP deployments
 and want multithreading, broader address family support, or the plugin ecosystem,
 Ze provides a migration path that does not require rewriting your scripts.
+<!-- source: cmd/ze/config/cmd_migrate.go -- ze config migrate -->
+<!-- source: cmd/ze/exabgp/main.go -- ze exabgp plugin -->
 
 ### Wire-level protocol tooling
 
@@ -174,6 +179,9 @@ Ze is written in Go. Compared to C (BIRD, FRR) and Rust (rustbgpd) implementatio
 | Bounds checking | Unavoidable in Go, but modern CPUs branch-predict these away |
 | Interface dispatch | Concrete types in hot paths where possible |
 
+<!-- source: internal/component/bgp/attrpool/pool.go -- pool-based dedup -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- long-lived forward workers -->
+
 **Estimated composite overhead:** Ze is expected to leave roughly 10-15% on the table
 compared to an optimal C/Rust monolith when using internal plugins (DirectBridge). Most
 of this is the inherent cost of Go's runtime. The plugin architecture adds a smaller
@@ -199,6 +207,8 @@ Ze's `WireUpdate` holds a byte slice reference to the TCP read buffer. Lazy pars
 avoids decoding into intermediate structs. When source and destination peers share the
 same encoding context (ContextID), UPDATE messages are forwarded as cached wire bytes
 with no parsing at all.
+<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate byte slice reference -->
+<!-- source: internal/component/bgp/context/registry.go -- ContextID matching -->
 
 This is not zero-copy in the strictest sense: Go's TCP layer copies bytes from the
 kernel into a Go slice. True zero-copy (kernel buffer to userspace without copying)
@@ -213,6 +223,8 @@ dwarfed by the cost of parsing, policy evaluation, and re-encoding.
 
 Ze uses a custom multiplexed text protocol (`#<id> <verb> [<json>]`) for plugin
 communication instead of gRPC. This was a deliberate choice:
+<!-- source: pkg/plugin/rpc/framing.go -- wire framing for multiplexed protocol -->
+<!-- source: pkg/plugin/rpc/mux.go -- MuxConn multiplexer -->
 
 - **Simplicity:** The protocol is human-readable and debuggable with `cat`.
 - **No code generation:** No `.proto` files, no generated stubs, no protobuf dependency.

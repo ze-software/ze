@@ -1,6 +1,7 @@
 # Plugins
 
 Ze uses a plugin architecture for all features beyond core BGP session management. Plugins handle RIB storage, route reflection, graceful restart, RPKI validation, NLRI encoding, and more.
+<!-- source: internal/component/plugin/registry/registry.go -- plugin registry; internal/component/plugin/all/ -- blank imports -->
 
 ## Which Plugins Do I Need?
 
@@ -14,6 +15,7 @@ Ze uses a plugin architecture for all features beyond core BGP session managemen
 | Monitor only (no RIB) | None | Ze runs without plugins -- peers connect, events fire, no routes stored |
 
 NLRI family plugins (bgp-nlri-evpn, bgp-nlri-vpn, etc.) are loaded automatically when you configure the corresponding address family. You don't need to declare them.
+<!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin registrations with Families field -->
 
 ## Loading Plugins
 
@@ -88,6 +90,7 @@ peer transit-a {
 
 Plugins can register custom event types via the `EventTypes` field in their registration.
 These become valid in `receive` config directives and `subscribe-events` RPCs.
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.EventTypes -->
 
 ### Directions
 
@@ -107,6 +110,7 @@ process my-plugin {
 | Path | `run "/usr/local/bin/my-plugin"` | External binary |
 
 Internal mode (`ze.pluginname`) runs the plugin as a goroutine within the ze process, using direct function calls instead of IPC. This is the fastest mode but requires the plugin to be compiled into ze.
+<!-- source: internal/component/plugin/server/ -- plugin invocation modes; internal/component/plugin/cli/cli.go -- RunPlugin -->
 
 ## Built-In Plugins
 
@@ -125,6 +129,7 @@ ze --plugins
 | `bgp-persist` | Route persistence across restarts | `receive [ update state ] send [ update ]` |
 | `bgp-rs` | Route server (forward-all) | `receive [ update ] send [ update ]` |
 | `bgp-watchdog` | Deferred route announcement | `receive [ update ]` |
+<!-- source: internal/component/bgp/plugins/rib/register.go; internal/component/bgp/plugins/adj_rib_in/register.go; internal/component/bgp/plugins/persist/register.go; internal/component/bgp/plugins/rs/register.go; internal/component/bgp/plugins/watchdog/register.go -->
 
 ### Protocol
 
@@ -138,6 +143,7 @@ ze --plugins
 | `bgp-hostname` | FQDN capability | -- |
 | `bgp-softver` | Software version capability | -- |
 | `bgp-llnh` | Link-local next-hop (RFC 2545) | -- |
+<!-- source: internal/component/bgp/plugins/gr/register.go; internal/component/bgp/plugins/rpki/register.go; internal/component/bgp/plugins/rpki_decorator/register.go; internal/component/bgp/plugins/route_refresh/register.go; internal/component/bgp/plugins/role/register.go; internal/component/bgp/plugins/hostname/register.go; internal/component/bgp/plugins/softver/register.go; internal/component/bgp/plugins/llnh/register.go -->
 
 ### NLRI Encoders/Decoders
 
@@ -154,6 +160,7 @@ NLRI plugins register address family support. They are loaded automatically when
 | `bgp-nlri-mvpn` | ipv4/mvpn, ipv6/mvpn |
 | `bgp-nlri-rtc` | ipv4/rtc |
 | `bgp-nlri-ls` | bgp-ls/bgp-ls, bgp-ls/bgp-ls-vpn |
+<!-- source: internal/component/bgp/plugins/nlri/vpn/register.go; internal/component/bgp/plugins/nlri/evpn/register.go; internal/component/bgp/plugins/nlri/vpls/register.go; internal/component/bgp/plugins/nlri/flowspec/register.go; internal/component/bgp/plugins/nlri/labeled/register.go; internal/component/bgp/plugins/nlri/mup/register.go; internal/component/bgp/plugins/nlri/mvpn/register.go; internal/component/bgp/plugins/nlri/rtc/register.go; internal/component/bgp/plugins/nlri/ls/register.go -->
 
 ## Hub Configuration
 
@@ -167,6 +174,7 @@ plugin {
     }
 }
 ```
+<!-- source: internal/component/hub/schema/ -- hub config YANG schema; pkg/plugin/sdk/ -- TLS auth -->
 
 ## Writing External Plugins
 
@@ -204,3 +212,4 @@ Plugins can declare dependencies on other plugins. The engine starts plugins in 
 ```
 
 Dependencies are declared in the plugin's registration, not in config. The engine resolves them automatically.
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.Dependencies -->

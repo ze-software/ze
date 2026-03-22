@@ -16,6 +16,9 @@ The Ze engine does NOT implement this - it belongs in API programs like `ze plug
 ## Overview
 
 This is the **implementation reference** for Pool + Wire design in API programs:
+<!-- source: internal/component/bgp/attrpool/pool.go -- Pool struct -->
+<!-- source: internal/component/bgp/attrpool/handle.go -- Handle type -->
+<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate struct -->
 
 | This Spec Implements | Design Goal |
 |---------------------|-------------|
@@ -123,6 +126,7 @@ func (c *Connection) readUpdateAPI() (*WireUpdate, error) {
 | API (WireUpdate) | 1 per msg | 0 | Allocate per read |
 
 Both modes efficient. RIB optimizes for memory dedup. API optimizes for simplicity.
+<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate (API mode) -->
 
 ---
 
@@ -150,6 +154,7 @@ UPDATE Message (Section 4.3):
 ```
 
 All positions derivable from the two length fields.
+<!-- source: internal/component/bgp/wireu/wire_update.go -- ensureParsed, derived accessors -->
 
 ## Current State
 
@@ -1000,6 +1005,7 @@ RIB manages pool handle lifecycle. See "Reverse Index" section above for full In
 ```
 
 **RIB owns the lifecycle.** Callers pass bytes, never handles. Pool refcount matches RIB entries exactly.
+<!-- source: internal/component/bgp/attrpool/pool.go -- Intern, Release refcounting -->
 
 ### Example: IPv4 Unicast
 
@@ -1073,6 +1079,8 @@ func DetermineMode(peers []PeerConfig) UpdateMode {
 ### Phase 1: Pool Core ✅
 
 **File:** `internal/component/bgp/attrpool/pool.go`
+<!-- source: internal/component/bgp/attrpool/pool.go -- Pool, Intern, Get, Release -->
+<!-- source: internal/component/bgp/attrpool/handle.go -- Handle layout -->
 
 > **Note:** The implementation uses a hybrid handle layout. See `docs/architecture/pool-architecture.md` for current design.
 
@@ -1208,6 +1216,7 @@ type FamilyRIB struct {
 **Status:** Not needed for MVP. Pool grows without reclaiming. Add when memory pressure matters.
 
 **File:** `internal/component/bgp/attrpool/scheduler.go`
+<!-- source: internal/component/bgp/attrpool/scheduler.go -- Scheduler, Run -->
 
 #### The Problem: Fragmentation
 
@@ -1512,6 +1521,8 @@ See `plan/spec-plugin-rib-pool-storage.md` § "Phase 6: Per-Attribute Deduplicat
 **Dependencies:**
 - `internal/component/bgp/attribute/iterator.go` - `AttrIterator` (exists, reuse)
 - `internal/component/bgp/attrpool/pool.go` - Pool infrastructure (exists, extend)
+<!-- source: internal/component/bgp/attribute/ -- AttrIterator -->
+<!-- source: internal/component/bgp/attrpool/pool.go -- Pool with Intern/Get/Release -->
 
 ---
 

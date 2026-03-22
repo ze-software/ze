@@ -13,6 +13,7 @@ environment {
 ```
 
 Priority: **OS env > config block > defaults**
+<!-- source: internal/component/config/environment.go -- LoadEnvironmentWithConfig priority order -->
 
 ## Syntax
 
@@ -26,48 +27,51 @@ environment {
 
 ### Available Sections and Options
 
+<!-- source: internal/component/config/environment.go -- loadDefaults(), envOptions -->
+
 | Section | Option | Type | Range/Values | Default |
 |---------|--------|------|--------------|---------|
 | **daemon** | pid | string | - | "" |
-| | user | string | - | "" |
+| | user | string | - | "zeuser" |
 | | daemonize | bool | - | false |
-| | drop | bool | - | false |
-| | umask | octal | - | 0o022 |
+| | drop | bool | - | true |
+| | umask | octal | - | 0o137 |
 | **log** | level | enum | DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL | INFO |
 | | enable | bool | - | true |
-| | destination | string | - | "" |
+| | destination | string | - | "stdout" |
 | | all | bool | - | false |
-| | configuration | bool | - | false |
+| | configuration | bool | - | true |
 | | reactor | bool | - | true |
 | | daemon | bool | - | true |
 | | processes | bool | - | true |
 | | network | bool | - | true |
-| | statistics | bool | - | false |
+| | statistics | bool | - | true |
 | | packets | bool | - | false |
 | | rib | bool | - | false |
 | | message | bool | - | false |
 | | timers | bool | - | false |
 | | routes | bool | - | false |
 | | parser | bool | - | false |
-| | short | bool | - | false |
-| **tcp** | port | int | 1-65535 | 179 |
+| | short | bool | - | true |
+| **tcp** | port | int | 179 or 1025-65535 | 179 |
 | | attempts | int | 0-1000 | 0 |
 | | delay | int | - | 0 |
 | | acl | bool | - | false |
 | | once | bool | - | false (legacy alias) |
 | | connections | int | 0-1000 | (legacy alias for attempts) |
-| **bgp** | passive | bool | - | true |
+| **bgp** | connection | enum | both, passive, active | "" |
 | | openwait | int | 1-3600 | 60 |
 | **cache** | attributes | bool | - | true |
-| **api** | ack | bool | - | false |
+| **api** | ack | bool | - | true |
 | | chunk | int | - | 1 |
-| | encoder | enum | json, text | json |
+| | encoder | enum | json, text | "json" |
 | | compact | bool | - | false |
-| | respawn | bool | - | false |
+| | respawn | bool | - | true |
 | | terminate | bool | - | false |
 | | cli | bool | - | true |
-| | pipename | string | - | ze |
 | **reactor** | speed | float | 0.1-10.0 | 1.0 |
+| | cache-ttl | int | 0-3600 | 60 |
+| | cache-max | int | 0+ | 1000000 |
 | **debug** | pdb | bool | - | false |
 | | memory | bool | - | false |
 | | configuration | bool | - | false |
@@ -76,6 +80,10 @@ environment {
 | | defensive | bool | - | false |
 | | rotate | bool | - | false |
 | | timing | bool | - | false |
+| | pprof | string | - | "" |
+| **chaos** | seed | int64 | - | 0 |
+| | rate | float | 0.0-1.0 | 0.1 |
+<!-- source: internal/component/config/environment.go -- loadDefaults, envOptions -->
 
 ### Value Types
 
@@ -87,6 +95,7 @@ environment {
 | float | Decimal number (e.g., `1.5`, `0.1`) |
 | octal | Octal number (with or without leading 0) |
 | string | Quoted for spaces (e.g., `"/path/with spaces/file"`) |
+<!-- source: internal/component/config/environment.go -- parseBoolStrict, parseIntStrict, parseFloatStrict, parseOctalStrict -->
 
 ## Priority Order
 
@@ -94,6 +103,7 @@ environment {
 2. **OS environment variable** (underscore notation): `ze_bgp_log_level=DEBUG`
 3. **Config file** environment block
 4. **Defaults**
+<!-- source: internal/component/config/environment.go -- LoadEnvironmentWithConfig -->
 
 ## Strict Validation
 
@@ -104,8 +114,9 @@ Ze uses **strict validation** - invalid values cause startup failure:
 ze.bgp.tcp.port=abc          # Invalid: not a number
 ze.bgp.tcp.port=99999        # Invalid: out of range (1-65535)
 ze.bgp.log.level=BOGUS       # Invalid: unknown level
-ze.bgp.bgp.passive=maybe     # Invalid: not a boolean
+ze.bgp.bgp.connection=maybe   # Invalid: must be both, passive, or active
 ```
+<!-- source: internal/component/config/environment.go -- validatePort, validateLogLevel, validateEncoder -->
 
 ### Migration Helper
 
@@ -132,10 +143,13 @@ environment {
     }
 }
 
-router-id 192.0.2.1;
-local-as 65000;
-peer 192.0.2.2 {
-    peer-as 65001;
+bgp {
+    router-id 192.0.2.1;
+    local { as 65000; }
+
+    peer my-peer {
+        remote { ip 192.0.2.2; as 65001; }
+    }
 }
 ```
 
@@ -156,7 +170,7 @@ environment {
         attempts 3;
     }
     bgp {
-        passive true;
+        connection passive;
         openwait 120;
     }
     api {
@@ -185,6 +199,7 @@ ze bgp run config.conf
 | Invalid values | Silent fallback to default | Strict error, refuse to start |
 | Validation | None | Enums and ranges validated |
 | Migration helper | None | `ze config validate --limit environment` |
+<!-- source: internal/component/config/environment.go -- SetConfigValue error handling -->
 
 ## Multiple Environment Blocks
 

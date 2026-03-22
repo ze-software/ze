@@ -14,6 +14,7 @@
 | Stage timeout | ✅ Done | Configurable per-plugin, default 5s |
 | Config validation (GR/RR→API) | ✅ Done | Config validation |
 | `borr`/`eorr` markers | ✅ Done | RFC 7313 full support, RIB plugin responds to refresh |
+<!-- source: internal/component/bgp/reactor/reactor.go -- cache management -->
 
 ---
 
@@ -65,6 +66,7 @@ Engine delegates all route storage to API. Reference implementations: `ze plugin
 | Graceful Restart | Retain routes across peer restart, replay on reconnect |
 
 All other capabilities (ADD-PATH, 4-byte AS, etc.) are engine-handled.
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer capabilities -->
 
 ---
 
@@ -122,6 +124,7 @@ plugin {
     }
 }
 ```
+<!-- source: internal/component/plugin/process/process.go -- Process timeout -->
 
 See `docs/architecture/config/syntax.md` for full plugin config options.
 
@@ -165,6 +168,7 @@ peer 192.168.1.1 eorr ipv4/unicast
 **RFC 7313 compliance:**
 - Enhanced Route Refresh capability check before sending BoRR/EoRR
 - Config `route-refresh` enables both RouteRefresh and EnhancedRouteRefresh capabilities
+<!-- source: internal/component/bgp/format/text.go -- FormatRouteRefresh -->
 
 ---
 
@@ -197,6 +201,8 @@ When `encoding json`:
 |--------|----------|----------|
 | `ze plugin rr` | Route Server (multi-peer) | ribIn (routes FROM peers) |
 | `ze plugin rib` | Full RIB (Adj-RIB-In/Out) | Both ribIn and ribOut |
+<!-- source: internal/component/bgp/plugins/rs/ -- route server plugin -->
+<!-- source: internal/component/bgp/plugins/rib/ -- RIB plugin -->
 
 See `plan/spec-api-rr.md` for implementation details.
 

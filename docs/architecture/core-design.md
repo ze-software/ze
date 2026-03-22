@@ -77,6 +77,8 @@ All new code MUST follow these patterns.
 - **BGP cache** enables zero-copy forwarding (`bgp cache 123 forward <sel>`)
 - **Dynamic event types** -- plugins declare event types they produce via `Registration.EventTypes`. Engine registers them into `ValidEvents` at startup, so subscribe-events and emit-event validation accept them. Follows the same pattern as dynamic family registration.
 - **Dynamic send types** -- plugins declare send types they enable via `Registration.SendTypes`. Engine registers them into `ValidSendTypes` at startup, so `send [ ]` config validation accepts them dynamically. Base types (update, refresh) have dedicated bool fields; plugin types use `SendCustom map[string]bool`.
+<!-- source: internal/component/plugin/registry/ -- plugin registry, Register -->
+<!-- source: internal/component/plugin/types.go -- Registration struct -->
 - **Four-phase startup** -- Phase 1: explicit plugins. Phase 2: auto-load for unclaimed families. Phase 3: auto-load for custom event types referenced in config `receive [ ]` (e.g., `update-rpki` auto-loads `bgp-rpki-decorator`). Phase 4: auto-load for custom send types referenced in config `send [ ]` (e.g., `enhanced-refresh` auto-loads `bgp-route-refresh`).
 
 ---
@@ -86,7 +88,8 @@ All new code MUST follow these patterns.
 Decoding/encoding BGP messages requires **negotiated capabilities** from OPEN exchange:
 
 ```go
-// Simplified view - see internal/component/bgp/capability/negotiated.go for full struct
+// Simplified view - see internal/component/bgp/capability/ for full struct
+<!-- source: internal/component/bgp/capability/ -- Negotiated capabilities -->
 type Negotiated struct {
     ASN4            bool                   // AS_PATH: 2-byte or 4-byte ASNs
     AddPath         map[Family]AddPathMode // NLRI: Receive/Send/Both path-id
@@ -110,6 +113,7 @@ type Negotiated struct {
 
 ```go
 // internal/component/bgp/context/registry.go
+<!-- source: internal/component/bgp/context/registry.go -- ContextID -->
 type ContextID uint16  // Unique ID per distinct capability set (65535 max)
 
 // Zero-copy decision
@@ -164,6 +168,7 @@ func (u *WireUpdate) MPUnreach() (MPUnreachWire, error)
 func (u *WireUpdate) AttrIterator() (AttrIterator, error)
 func (u *WireUpdate) NLRIIterator(addPath bool) (*NLRIIterator, error)
 ```
+<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate struct -->
 
 ---
 
@@ -215,7 +220,8 @@ type RIB struct {
 ### Route Entry (Pool Handles, Not Copies)
 
 ```go
-// internal/component/plugin/rib/storage/routeentry.go
+// Route entry with pool handles (design reference)
+<!-- source: internal/component/bgp/attrpool/handle.go -- Handle type -->
 type RouteEntry struct {
     // All fields are opaque handles into attribute pools (not copies)
     // Use pool.Handle for indirection - enables refcounting and deduplication
@@ -283,7 +289,8 @@ type CheckedBufWriter interface {
     Len() int
 }
 
-// NLRI interface (internal/component/bgp/nlri/nlri.go)
+// NLRI interface
+<!-- source: internal/component/bgp/nlri/nlri.go -- NLRI interface -->
 type NLRI interface {
     Family() Family
     Bytes() []byte                    // Wire-format encoding (payload only)
@@ -301,6 +308,7 @@ func LenWithContext(n NLRI, addPath bool) int
 
 **ADD-PATH encoding:** Use `WriteNLRI()` helper function for ADD-PATH aware encoding,
 which prepends the 4-byte path ID when needed.
+<!-- source: internal/component/bgp/nlri/nlri.go -- NLRI interface, LenWithContext, WriteNLRI -->
 
 ---
 
@@ -475,6 +483,7 @@ func (a *Attributes) Build() []byte
 func (a *Attributes) WriteTo(buf []byte, off int) int           // pre-allocated buffer
 func (a *Attributes) CheckedWriteTo(buf []byte, off int) (int, error)
 ```
+<!-- source: internal/component/bgp/attribute/ -- AttributesWire, Builder -->
 
 ---
 

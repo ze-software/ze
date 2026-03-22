@@ -17,6 +17,7 @@ namespace verb [args...]             # Fire-and-forget (no response)
 ```
 
 **Status values:** `done`, `error`, `warning`, `ack`
+<!-- source: internal/core/ipc/ -- IPC protocol format -->
 
 ---
 
@@ -42,6 +43,7 @@ During Stage 1, plugins declare their capabilities to the Hub.
 | `declare wants config <root>` | Request config subtree delivery (e.g., `bgp`) |
 | `declare receive <type>` | Register event interest |
 | `declare done` | End of declarations (barrier) |
+<!-- source: internal/component/plugin/registration.go -- declaration parsing -->
 
 **Example - BGP subsystem:**
 ```
@@ -506,6 +508,8 @@ Returns validation errors if any.
 | `bgp cache <id> release` | Allow eviction |
 | `bgp cache <id> expire` | Remove immediately |
 | `bgp cache <id> forward <sel>` | Forward to peers |
+<!-- source: internal/component/bgp/reactor/recent_cache.go -- cache operations -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- command dispatch -->
 
 ### Plugin configuration
 
@@ -523,6 +527,7 @@ Returns validation errors if any.
 |---------|-------------|
 | `subscribe [peer <sel>] <ns> event <type> [direction <dir>]` | Subscribe to events |
 | `unsubscribe [peer <sel>] <ns> event <type> [direction <dir>]` | Unsubscribe |
+<!-- source: internal/component/plugin/events.go -- event subscription -->
 
 **Example:**
 ```
@@ -555,6 +560,7 @@ subscribe rib event cache
 - Pull model: Hub notifies plugins, plugins query for config
 - Hub never pushes config data
 - Handler routing uses longest prefix match
+<!-- source: internal/component/plugin/registration.go -- handler registration and routing -->
 
 ---
 

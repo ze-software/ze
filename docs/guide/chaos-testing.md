@@ -18,6 +18,7 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
 |------|-------------|---------|
 | `--chaos-seed <N>` | PRNG seed for reproducible faults. `-1` = time-based. `0` = disabled. | 0 (off) |
 | `--chaos-rate <f>` | Probability of fault per operation (0.0 to 1.0) | 0.1 |
+<!-- source: cmd/ze/main.go -- chaosSeed, chaosRate global flags; cmd/ze/bgp/childmode.go -- ze.bgp.chaos.seed/rate -->
 
 ## ze-chaos Tool
 
@@ -54,6 +55,7 @@ ze-chaos --replay run.ndjson
 # Shrink to minimal reproduction
 ze-chaos --shrink run.ndjson
 ```
+<!-- source: cmd/ze-chaos/ -- event logging, replay, shrink modes -->
 
 ### Property Validation
 
@@ -89,6 +91,7 @@ ze --chaos-seed 42 --chaos-rate 0.1 config.conf
 ```
 
 Seed `0` disables chaos entirely (zero overhead). Seed `-1` uses the current time (non-reproducible).
+<!-- source: cmd/ze/main.go -- chaosSeed handling -->
 
 ## Make Targets
 
@@ -103,3 +106,4 @@ Seed `0` disables chaos entirely (zero overhead). Seed `-1` uses the current tim
 - **CI pipeline:** Catch race conditions and edge cases
 - **Debugging:** Reproduce intermittent failures with a fixed seed
 - **Benchmarking:** Measure convergence time under fault conditions
+<!-- source: cmd/ze-chaos/ -- ze-chaos tool; test/ -- chaos functional tests -->

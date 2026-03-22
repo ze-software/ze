@@ -21,6 +21,7 @@ bin/ze init
 ```
 
 This prompts for username, password, SSH host (default `127.0.0.1`), and port (default `2222`). Credentials are stored locally with bcrypt-hashed passwords. For scripting:
+<!-- source: cmd/ze/init/main.go -- Run, defaultHost, defaultPort, bcrypt hashing -->
 
 ```bash
 echo -e "admin\nsecret" | bin/ze init
@@ -32,6 +33,7 @@ Running `ze init` a second time will refuse with `error: database already exists
 bin/ze signal stop             # stop daemon first
 bin/ze init --force            # prompts for confirmation, then backs up and reinitializes
 ```
+<!-- source: cmd/ze/init/main.go -- forceFlag -->
 
 ## Minimal Config
 
@@ -86,6 +88,7 @@ bgp {
 ```bash
 bin/ze config validate example.conf
 ```
+<!-- source: cmd/ze/config/cmd_validate.go -- cmdValidate -->
 
 Expected output:
 
@@ -111,6 +114,7 @@ Silence means the default log level (`warn`) has nothing to report -- that's nor
 ```bash
 bin/ze -d example.conf        # debug logging
 ```
+<!-- source: cmd/ze/main.go -- "-d" debug flag sets ze.log=debug -->
 
 ## Verify
 
@@ -129,6 +133,7 @@ bin/ze cli --run "peer test-peer detail"
 # Watch live events
 bin/ze cli --run "bgp monitor"
 ```
+<!-- source: cmd/ze/cli/main.go -- Execute, StreamMonitor -->
 
 ## Test Without a Real Peer
 
@@ -141,6 +146,7 @@ bin/ze-test peer --mode sink --port 1179 --asn 65001
 # Terminal 2: start ze with config pointing to localhost:1179
 bin/ze example-local.conf
 ```
+<!-- source: cmd/ze-test/peer.go -- ze-test peer command -->
 
 Where `example-local.conf` uses `remote { ip 127.0.0.1; }` and `port 1179`.
 
@@ -150,6 +156,7 @@ Where `example-local.conf` uses `remote { ip 127.0.0.1; }` and `port 1179`.
 bin/ze signal stop             # graceful shutdown
 bin/ze signal restart          # graceful restart (preserves routes via GR)
 ```
+<!-- source: cmd/ze/signal/main.go -- Run -->
 
 ## Next Steps
 

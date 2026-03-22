@@ -1,6 +1,7 @@
 # Route Injection
 
 Ze supports injecting routes at runtime through text, hex, or base64 encoded UPDATE commands. Routes can be sent from the CLI, from external plugins, or from process scripts.
+<!-- source: internal/component/bgp/plugins/cmd/update/ -- update text/hex/b64 command parsing -->
 
 ## Text Format
 
@@ -35,6 +36,7 @@ Attributes are flat: keyword followed by value. No `set`/`add`/`del` on attribut
 ### Well-Known Communities
 
 `no-export`, `no-advertise`, `no-export-subconfed`, `nopeer`
+<!-- source: internal/component/bgp/attribute/ -- community name constants -->
 
 ### Next-Hop Self
 
@@ -90,6 +92,8 @@ Routes are sent to peers matching the selector:
 | Glob | `peer 192.168.*.*` | Pattern match |
 | Exclusion | `peer !10.0.0.1` | All except this peer |
 
+<!-- source: internal/component/bgp/plugins/cmd/raw/ -- raw message injection -->
+
 ## Commit Workflow
 
 For atomic multi-route updates:
@@ -100,6 +104,7 @@ ze run peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
 ze run peer * update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.1.0/24
 ze run commit end my-batch         # All routes sent together
 ```
+<!-- source: internal/component/cmd/commit/ -- commit command RPCs; internal/component/bgp/transaction/ -- commit manager -->
 
 ## From Plugins
 
@@ -118,3 +123,4 @@ Go plugins use the SDK method:
 ```go
 p.UpdateRoute(ctx, "*", "update text nhop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24")
 ```
+<!-- source: pkg/plugin/sdk/ -- SDK DispatchCommand; test/scripts/ze_api.py -- Python SDK -->

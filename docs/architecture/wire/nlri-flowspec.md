@@ -3,6 +3,8 @@
 **Source:** ExaBGP `bgp/message/update/nlri/flow.py`
 **Family:** AFI 1/2, SAFI 133 (flow_ip) or 134 (flow_vpn)
 
+<!-- source: internal/component/bgp/nlri/constants.go -- SAFIFlowSpec, SAFIFlowSpecVPN -->
+
 ---
 
 ## Wire Format Overview
@@ -16,6 +18,9 @@
 |   Components (variable)   |  Ordered filter rules
 +---------------------------+
 ```
+
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowSpec struct -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types_vpn.go -- FlowSpecVPN struct -->
 
 ---
 
@@ -69,6 +74,8 @@ else:
 | 9 | TCP Flags | Both |
 | 12 | Fragment | Both |
 
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowComponentType constants -->
+
 ---
 
 ## Prefix Component Encoding
@@ -98,6 +105,8 @@ else:
 |   Prefix (variable)       |  Truncated bytes
 +---------------------------+
 ```
+
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types_prefix.go -- prefix component encoding -->
 
 ---
 
@@ -141,6 +150,9 @@ Common to all non-prefix components:
 | 10 | not (none set) |
 | 11 | diff (not exact match) |
 
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowOperator type and flags -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types_numeric.go -- NumericComponent -->
+
 ---
 
 ## Component Examples
@@ -177,6 +189,8 @@ Value:        02 (SYN flag)
 
 Wire: 09 81 02
 ```
+
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/encode.go -- FlowSpec encoding -->
 
 ---
 
@@ -285,6 +299,8 @@ This means: match RST **OR** match (FIN **and** PUSH together).
 
 Available: `dont-fragment`, `is-fragment`, `first-fragment`, `last-fragment`.
 
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowFragment, FlowTCPFlags constants -->
+
 ### Numeric Range Example
 
 ```json
@@ -323,6 +339,8 @@ func (f *Flow) Rules() map[int][]FlowRule {
 ### Component Order
 
 Rules MUST be ordered by component ID in wire format (RFC requirement):
+
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowSpec struct, component ordering -->
 
 ```go
 func (f *Flow) Pack() []byte {

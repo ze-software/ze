@@ -26,6 +26,7 @@ update <encoding> [<attr-sections>]... [nlri <family> add <nlri>... [del <nlri>.
 | `text` | Per-attribute keywords | Prefixes (1.0.0.0/24) | Human-readable |
 | `hex` | `attr set <hex-bytes>` | Hex wire bytes | Debug |
 | `b64` | `attr set <b64-bytes>` | Base64 wire bytes | Compact |
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- ParseUpdateText -->
 
 ## Text Mode - Per-Attribute Keywords
 
@@ -45,6 +46,7 @@ update text <attr> <op> <value> [<attr> <op> <value>]... nhop set <addr> nlri <f
 | med | `med del` | Remove MED attribute |
 | local-preference | `local-preference set <value>` | `local-preference set 200` |
 | local-preference | `local-preference del` | Remove local-preference |
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- scalar attribute handling -->
 
 ### AS-Path (set/add/del)
 
@@ -112,6 +114,7 @@ peer 10.0.0.1 asn 65001 received update 124 next-hop 10.0.0.2 nlri ipv4/unicast 
 ```
 
 This ensures output is always self-contained per nlri group.
+<!-- source: internal/component/bgp/types/nexthop.go -- RouteNextHop, NextHopExplicit, NextHopSelf -->
 
 #### Next-Hop Overwriting
 
@@ -127,6 +130,7 @@ update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 \
 # → 1.0.0.0/24 gets nhop 10.0.0.1
 # → 2.0.0.0/24 gets nhop 10.0.0.2
 ```
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- nhop accumulation -->
 
 #### Next-Hop and Withdraw
 
@@ -158,6 +162,7 @@ peer 10.0.0.1 update text origin set igp local-preference set 200 community set 
 # Withdraw (no nhop needed)
 peer 10.0.0.1 update text nlri ipv4/unicast del prefix 1.0.0.0/24
 ```
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- handleUpdateText -->
 
 ## Wire Mode - Raw Bytes (hex/b64)
 
@@ -176,6 +181,7 @@ Only `attr set` and `nhop set` supported (no `add`/`del` for wire bytes).
 peer 10.0.0.1 update hex attr set 400101400206020100001f94 nhop set 0a000001 nlri ipv4/unicast add 18010a00
 peer 10.0.0.1 update b64 attr set QAEBQAIGAgEAAAH5 nhop set CgAAAQ== nlri ipv4/unicast add GAAKAAoA
 ```
+<!-- source: internal/component/bgp/plugins/cmd/update/update_wire.go -- handleUpdateHex, handleUpdateB64 -->
 
 ## Attribute Operations Summary
 
@@ -212,6 +218,7 @@ peer 10.0.0.1 update b64 attr set QAEBQAIGAgEAAAH5 nhop set CgAAAQ== nlri ipv4/u
 | `add` | ✅ | Prepends to existing list |
 | `del [value]` | ✅ | Removes first occurrence of each value (**error if not present**) |
 | `del` (no value) | ✅ | Removes entire attribute (always succeeds, no-op if not set) |
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- list attribute operations -->
 
 #### How `add` Works
 
@@ -434,6 +441,7 @@ update {
 For `hex`/`b64`/`cbor` encodings:
 - Spaces optional in NLRI - concatenated as raw wire bytes
 - Spaces help track NLRI boundaries for UPDATE size splitting (max 4096 bytes)
+<!-- source: internal/component/bgp/plugins/cmd/raw/ -- raw passthrough handler -->
 
 ```bash
 # Both equivalent:
@@ -484,6 +492,7 @@ bgp plugin format full          # Both parsed AND wire bytes
 bgp plugin ack sync             # Wait for wire transmission
 bgp plugin ack async            # Return immediately (default)
 ```
+<!-- source: internal/component/bgp/schema/ze-bgp-api.yang -- plugin-encoding, plugin-format, plugin-ack -->
 
 ## Grammar
 
@@ -531,6 +540,7 @@ watchdog withdraw <name>   # withdraw all routes in pool from peers
 | `rd` | `*-vpn` families | All others |
 | `label` | `*-vpn`, `*-labeled` families | All others |
 | `path-information` | Any (if ADD-PATH negotiated) | Ignored if not negotiated |
+<!-- source: internal/component/bgp/types/types.go -- UpdateTextResult, NLRIGroup -->
 
 ### Wire Mode (hex/b64)
 ```
@@ -576,6 +586,7 @@ peer 10.0.0.1 update text community set [ 65000:1 ] nhop set 10.0.0.1 \
 - Overrides apply to ALL NLRIs in that section (not per-prefix)
 - `nhop set/del` inside nlri works in all modes
 - `<attr> set/add/del` inside nlri works in text mode only
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- per-NLRI attribute overrides -->
 
 ## VPN Modifiers
 
@@ -594,6 +605,7 @@ nlri ipv4/mpls-vpn rd 65000:100 label 1000 add prefix 10.0.0.0/24,10.0.1.0/24
 |----------|--------|---------|
 | `rd` | `rd <asn>:<num>` or `rd <ip>:<num>` | `rd 65000:100` |
 | `label` | `label <num>` | `label 1000` |
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- VPN modifiers (rd, label) -->
 
 ## End-of-RIB (EOR)
 
@@ -627,6 +639,7 @@ peer 10.0.0.1 update text nlri ipv6/unicast eor nhop set 10.0.0.1 nlri ipv4/unic
 |--------|------------|
 | IPv4 unicast | Empty UPDATE: `withdrawn=0, path_attr=0, nlri=0` |
 | Other families | MP_UNREACH_NLRI with AFI/SAFI, no prefixes |
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- EOR handling -->
 
 ## VPLS (L2VPN/VPLS)
 
@@ -661,6 +674,7 @@ peer 10.0.0.1 update text nlri l2vpn/vpls del rd 1:1 ve-id 1 ve-block-offset 0 v
 # EOR for VPLS
 peer 10.0.0.1 update text nlri l2vpn/vpls eor
 ```
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- VPLS NLRI parsing -->
 
 ## EVPN (L2VPN/EVPN)
 
@@ -761,6 +775,7 @@ peer 10.0.0.1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/2
 ```bash
 peer 10.0.0.1 update text nlri l2vpn/evpn eor
 ```
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- EVPN NLRI parsing -->
 
 ## Conditional nhop del
 
@@ -800,6 +815,7 @@ peer 10.0.0.1 raw keepalive hex
 # Full packet (user provides marker + length + type)
 peer 10.0.0.1 raw hex ffffffffffffffffffffffffffffffff001303
 ```
+<!-- source: internal/component/bgp/plugins/cmd/raw/ -- raw passthrough -->
 
 ⚠️ **No validation.** Can crash peer, violate FSM, send malformed messages.
 
@@ -819,6 +835,7 @@ peer 10.0.0.1 raw hex ffffffffffffffffffffffffffffffff001303
 | Scalar add | `'origin' is a scalar attribute: use 'set' or 'del'` |
 | Wire mode add/del | `wire mode only supports 'attr set'` |
 | Del not present | `community del: 65000:99 not present` |
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- error messages -->
 
 ## Family Validation
 
@@ -834,6 +851,7 @@ peer 10.0.0.1 raw hex ffffffffffffffffffffffffffffffff001303
 | Announce without nhop | Error: entire block rejected |
 | IPv4 nhop for IPv6 NLRI | Requires Extended NH capability (RFC 5549) |
 | Extended NH not negotiated | Error: `extended next-hop not negotiated` |
+<!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop -->
 
 ## Removed Commands
 
@@ -856,6 +874,7 @@ Routes are tagged with a pool when announced:
 ```bash
 update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 watchdog set mypool
 ```
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- watchdog parsing -->
 
 > **Note:** `watchdog set <name>` in `update text` commands is not yet implemented.
 > The parser recognizes the syntax but the handler returns an error.

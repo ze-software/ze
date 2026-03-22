@@ -1,6 +1,7 @@
 # ZeFS File Format
 
 ZeFS is a netcapstring-framed blob store. A single `.zefs` file holds multiple named entries (files) with hierarchical keys, zero-copy reads via mmap, and in-place update support via capacity-aware framing.
+<!-- source: pkg/zefs/store.go -- Store implementation -->
 
 ## Netcapstring
 
@@ -33,6 +34,7 @@ The header separators are `:` (between number, cap, and used) and `\n` (after us
 | `<data>` | Actual content | `<used>` |
 | `<padding>` | Space bytes (0x20) | `<cap>` - `<used>` |
 | `\n` | Terminator (0x0A) | 1 |
+<!-- source: pkg/zefs/netcapstring.go -- netcapstring encoding/decoding -->
 
 ### Properties
 
@@ -128,6 +130,8 @@ Keys are hierarchical paths using `/` as separator. They must be valid `fs.Valid
 ## Memory mapping
 
 On unix, the backing file is memory-mapped (`PROT_READ`, `MAP_PRIVATE`). Tree nodes hold sub-slices of the mapped region for zero-copy reads. The `ReadLock` and `WriteLock` guards scope zero-copy slice validity: callers hold the lock while processing raw bytes, and the in-process `sync.RWMutex` prevents `flush()` (which remaps the backing) from running while slices are in use.
+<!-- source: pkg/zefs/mmap_unix.go -- mmap implementation -->
+<!-- source: pkg/zefs/lock.go -- ReadLock, WriteLock guards -->
 
 ## Concurrency model
 
@@ -171,9 +175,13 @@ Keys follow a `<namespace>/<qualifier>/<path>` convention to prevent collisions 
 | `file/<date>/` | Historical config versions (future) | `file/20260318-100000/etc/ze/router.conf` |
 
 The Storage interface (`internal/component/config/storage/`) translates filesystem paths to namespaced keys via `resolveKey()`. The function is idempotent: already-namespaced keys pass through unchanged, so `List()` results can be fed back to `ReadFile()` without double-prefixing.
+<!-- source: internal/component/config/storage/ -- Storage interface, resolveKey -->
 
 `ze data` operates on raw blob keys. `ze init` writes `meta/` keys directly.
 
 ## Implementation
 
 Reference implementation: `pkg/zefs/` in the ze repository.
+<!-- source: pkg/zefs/store.go -- Store, ReadLock, WriteLock -->
+<!-- source: pkg/zefs/tree.go -- in-memory tree representation -->
+<!-- source: pkg/zefs/file.go -- file-level operations -->

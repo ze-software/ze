@@ -17,6 +17,10 @@ An RFC implementation typically touches these areas (not all apply to every RFC)
 | Plugin | `internal/component/plugin/` | RFC needs plugin commands |
 | Context | `internal/component/bgp/context/` | RFC affects encoding context |
 
+<!-- source: internal/component/bgp/capability/capability.go -- capability codes and parsing -->
+<!-- source: internal/component/bgp/attribute/attribute.go -- attribute code constants -->
+<!-- source: internal/component/bgp/context/context.go -- PackContext encoding rules -->
+
 ## Phase 0: Preparation
 
 ### 0.1 RFC Analysis
@@ -627,3 +631,7 @@ func TestMyFeature(t *testing.T) {
 | RFC 4760 (MP) | Capability, NLRI, Attributes | `internal/component/bgp/nlri/`, `internal/component/bgp/attribute/mpnlri.go` |
 | RFC 8955 (FlowSpec) | NLRI, UPDATE builder | `internal/component/bgp/message/update_build_flowspec.go` |
 | RFC 7432 (EVPN) | NLRI, UPDATE builder | `internal/component/bgp/message/update_build_evpn.go` |
+
+<!-- source: internal/component/bgp/capability/session.go -- GR capability -->
+<!-- source: internal/component/bgp/capability/encoding.go -- ADD-PATH capability -->
+<!-- source: internal/component/bgp/attribute/mpnlri.go -- MP_REACH/MP_UNREACH attributes -->

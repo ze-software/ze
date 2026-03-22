@@ -32,6 +32,8 @@ Routes that fail validation never enter best-path selection.
 | 6 | `mandatory-attr-missing` | ORIGIN, AS_PATH, or NEXT_HOP absent (when required) | 4271 | `message/rfc7606.go` |
 | 7 | `family-not-negotiated` | MP_REACH/MP_UNREACH AFI/SAFI not in OPEN capabilities | 4271 | `reactor/session_validation.go` |
 | 8 | `rpki-invalid` | Origin AS does not match any covering VRP | 6811 | `plugins/adj_rib_in/rib_validation.go` |
+<!-- source: internal/component/bgp/message/rfc7606.go -- RFC 7606 validation checks -->
+<!-- source: internal/component/bgp/reactor/session_validation.go -- family-not-negotiated check -->
 
 ### RFC 7606 Error Escalation
 
@@ -82,6 +84,7 @@ decides.
 | 15 | `lost-igp-cost` | Lowest IGP cost to next-hop | 4271 | Not yet implemented |
 | 16 | `lost-router-id` | Lowest Router ID / ORIGINATOR_ID wins | 4271/4456 | Numeric IP comparison |
 | 17 | `lost-peer-address` | Lowest peer IP address wins (final tiebreak) | 4271 | Numeric IP comparison |
+<!-- source: internal/component/bgp/plugins/rib/ -- best-path selection implementation -->
 
 ### Candidate Extraction
 

@@ -13,6 +13,7 @@ Ze uses a line-delimited protocol for communication between the engine and exter
 - Streaming responses with partial results
 - Event subscription model
 - Bidirectional communication over TLS (external) or net.Pipe (internal)
+<!-- source: pkg/plugin/rpc/conn.go -- Conn -->
 
 ---
 
@@ -84,6 +85,7 @@ All messages are UTF-8 encoded, newline-delimited:
 ```
 
 Each line is a complete message. No multi-line messages.
+<!-- source: pkg/plugin/rpc/framing.go -- newline-delimited framing -->
 
 ### Command Format (Plugin/CLI → Engine)
 
@@ -112,6 +114,8 @@ JSON with `type` field indicating the payload key:
 | `response.status` | string | Always | `"done"`, `"error"`, `"warning"`, or `"ack"` |
 | `response.partial` | bool | If streaming | `true` for intermediate chunks |
 | `response.data` | any | Optional | Payload (result or error message) |
+<!-- source: internal/component/plugin/types.go -- Response struct -->
+<!-- source: internal/core/ipc/message.go -- MapResponse -->
 
 ### Event Format (Engine → Plugin)
 
@@ -162,6 +166,7 @@ JSON with `type` field indicating which key contains the payload. The `peer` fie
 | `raw` | object | If format=full | Wire bytes (see Raw Format below) |
 
 **State events:** Use simple `"state": "up"` string at bgp level (no container). Down events include `"reason": "..."` field.
+<!-- source: internal/component/bgp/format/text.go -- FormatStateChange -->
 
 **RIB event payload (`rib` key):**
 
@@ -188,6 +193,7 @@ JSON with `type` field indicating which key contains the payload. The `peer` fie
 | `withdrawn` | object | `{"<family>": "<hex>"}` - Withdrawn wire bytes per family |
 
 Events are only sent to plugins that have subscribed.
+<!-- source: internal/component/bgp/format/text.go -- formatFilterResultText, FormatOpen, FormatNotification -->
 
 ---
 
@@ -253,6 +259,7 @@ Plugin → Engine:
 | `error` | Failure | `data` contains error message (string) |
 | `warning` | Partial success | `data` contains warning details |
 | `ack` | Streaming chunk | `partial: true`, `data` contains chunk |
+<!-- source: internal/component/plugin/types.go -- Response.Status -->
 
 ---
 
@@ -273,6 +280,7 @@ Plugin lifecycle operations:
 | `plugin session ready` | Signal plugin init complete |
 | `plugin session ping` | Health check (returns PID) |
 | `plugin session bye` | Disconnect |
+<!-- source: internal/core/ipc/schema/ze-plugin-api.yang -- plugin lifecycle RPCs -->
 
 ### BGP Namespace
 
@@ -293,6 +301,7 @@ Plugin lifecycle operations:
 | `bgp plugin encoding json\|text` | Set event encoding format |
 | `bgp plugin format hex\|base64\|parsed\|full` | Set wire bytes format (JSON only) |
 | `bgp plugin ack sync\|async` | Set ACK timing |
+<!-- source: internal/component/bgp/schema/ze-bgp-api.yang -- plugin-encoding, plugin-format, plugin-ack -->
 
 Format relationship:
 - `encoding text` → always parsed (human readable)
@@ -322,6 +331,7 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 | `bgp peer <sel> ready` | Signal peer replay complete |
 | `bgp peer <sel> tcp reset` | Force TCP RST |
 | `bgp peer <sel> tcp ttl <num>` | Set TTL (multi-hop) |
+<!-- source: internal/component/bgp/schema/ze-bgp-api.yang -- peer RPCs -->
 
 **Watchdog:**
 
@@ -340,12 +350,15 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 | `bgp commit <name> rollback` | Discard batch |
 | `bgp commit <name> show` | Show queued count |
 | `bgp commit list` | List active batches |
+<!-- source: internal/component/bgp/transaction/commit_manager.go -- CommitManager -->
+<!-- source: internal/component/cmd/commit/commit.go -- commit handlers -->
 
 **Raw Passthrough:**
 
 | Command | Description |
 |---------|-------------|
 | `bgp raw <type> <enc> <data>` | Send raw BGP message |
+<!-- source: internal/component/bgp/plugins/cmd/raw/ -- raw passthrough handler -->
 
 ### System Namespace
 
@@ -361,6 +374,8 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 | `daemon shutdown` | Gracefully shutdown the daemon |
 | `daemon status` | Show daemon status |
 | `daemon reload` | Reload the configuration |
+<!-- source: internal/core/ipc/schema/ze-system-api.yang -- system RPCs -->
+<!-- source: internal/component/plugin/server/handler.go -- APIVersion -->
 
 ### RIB Namespace
 
@@ -387,6 +402,7 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 | `bgp cache <id1>,<id2>,...,<idN> release` | Batch release |
 | `bgp cache <id> expire` | Remove immediately |
 | `bgp cache list` | List cached IDs |
+<!-- source: internal/component/bgp/reactor/reactor.go -- cache management -->
 
 ---
 
@@ -442,6 +458,7 @@ subscribe rib event route                               # RIB route events
 | `route` | Route change (add/remove) |
 
 RIB events include `peer` field indicating which peer caused the event.
+<!-- source: internal/component/bgp/plugins/rib/schema/ze-rib-api.yang -- RIB event types -->
 
 ### Event Examples
 
@@ -593,6 +610,8 @@ subscribe rib event route
 ```
 
 **Barrier semantics:** All plugins must complete each stage before any proceed to next.
+<!-- source: internal/core/ipc/schema/ze-plugin-engine.yang -- startup RPCs -->
+<!-- source: internal/core/ipc/schema/ze-plugin-callback.yang -- callback RPCs -->
 
 **Timeout:** 5s per stage (configurable via `timeout` in plugin config).
 
@@ -677,6 +696,7 @@ Errors are returned as strings in `data` field:
 | `DEFAULT_TIMEOUT` | 30s | Request timeout |
 | `COMPLETION_TIMEOUT` | 500ms | Tab completion timeout |
 | `RESPAWN_LIMIT` | 5 | Max respawns per 60s |
+<!-- source: internal/component/plugin/process/process.go -- Process backpressure -->
 
 When backpressure triggers:
 1. Events dropped for affected process
@@ -695,6 +715,7 @@ peer <ip> asn <asn> <direction> <type> <msg-id> <fields...>
 ```
 
 **Note:** Text format intentionally stays flat for human readability. No JSON wrapping is applied.
+<!-- source: internal/component/bgp/format/text.go -- formatFilterResultText, FormatStateChange -->
 
 Examples:
 
@@ -711,6 +732,7 @@ peer 192.0.2.1 asn 65001 sent keepalive 42
 All plugins use the unified `#<id> <verb> [<json>]\n` wire format (see `wire-format.md`).
 There is no separate text mode. The same newline-delimited framing is used for both
 the 5-stage startup handshake and post-startup concurrent RPCs.
+<!-- source: pkg/plugin/rpc/mux.go -- MuxConn -->
 
 ---
 
@@ -722,6 +744,7 @@ Plugins can register custom commands:
 |---------|-------------|
 | `register command "<name>" description "<help>" [args "<usage>"] [completable] [timeout <dur>]` | Register command |
 | `unregister command "<name>"` | Unregister command |
+<!-- source: internal/component/plugin/server/command_registry.go -- CommandRegistry -->
 
 ---
 

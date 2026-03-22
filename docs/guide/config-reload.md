@@ -1,6 +1,7 @@
 # Configuration Reload
 
 Ze supports live configuration reload without restarting the daemon. Changed peers are updated, new peers are added, and removed peers are disconnected.
+<!-- source: cmd/ze/hub/main.go -- SIGHUP handler, o.Reload -->
 
 ## Triggering a Reload
 
@@ -46,6 +47,7 @@ If a plugin reload fails:
 | `SIGHUP` | Reload configuration (add/remove/update peers) |
 | `SIGTERM` / `SIGINT` | Graceful shutdown (NOTIFICATION Cease to all peers) |
 | `SIGUSR1` | Dump status to stderr |
+<!-- source: cmd/ze/hub/main.go -- signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP) -->
 
 ## Reload Workflow
 
@@ -56,6 +58,7 @@ If a plugin reload fails:
 5. For each new peer: creates session, initiates connection
 6. For each changed peer: tears down old session, starts new one
 7. Plugins receive config-verify then config-apply callbacks
+<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree; internal/component/bgp/reactor/reactor_api.go -- PeersFromTree, config diff -->
 
 ## Best Practices
 

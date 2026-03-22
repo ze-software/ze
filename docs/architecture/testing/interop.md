@@ -14,6 +14,8 @@ For BGP terminology used in this document, see [docs/features.md](../../features
 | BIRD | 2.x (Alpine 3.21) | Alpine build | birdc | eBGP, route exchange, triangle topologies |
 | GoBGP | 3.31.0 | Go builder | gobgp CLI | eBGP, route injection and verification |
 | ExaBGP | main (API 6.0.0) | Python harness | Wire byte comparison | Byte-for-byte encoding across all address families |
+<!-- source: test/interop/interop.py -- FRR, BIRD, GoBGP, Ze helpers -->
+<!-- source: test/interop/run.py -- scenario orchestrator -->
 
 ## Prerequisites
 
@@ -43,6 +45,7 @@ For each scenario, `interop.py` manages the container lifecycle:
 3. Wait for all containers to become healthy
 4. Import and run the scenario's `check.py`
 5. Tear down containers and network
+<!-- source: test/interop/interop.py -- container lifecycle, network creation -->
 
 Daemons start conditionally: FRR if `frr.conf` exists, BIRD if `bird.conf` exists,
 GoBGP if `gobgp.toml` exists. This means each scenario only runs the daemons it needs.
@@ -57,6 +60,7 @@ GoBGP if `gobgp.toml` exists. This means each scenario only runs the daemons it 
 | GoBGP | 172.30.0.5 | `ze-iop-gobgp-<pid>` |
 
 Container names include the runner PID as suffix, so concurrent runs do not conflict.
+<!-- source: test/interop/interop.py -- container naming, IP addresses -->
 
 ### Scenario Structure
 
@@ -90,6 +94,7 @@ daemon's native CLI (`vtysh`, `birdc`, `gobgp`, `ze`) via `docker exec`. Start w
 existing scenario (e.g., `01-ebgp-ipv4-frr/check.py`) as a template.
 
 All session waiters poll with a configurable timeout (default 90s, override via `SESSION_TIMEOUT` env var).
+<!-- source: test/interop/interop.py -- wait_session, wait_route, check_route -->
 
 ### Scenario Inventory
 
@@ -114,6 +119,7 @@ All session waiters poll with a configurable timeout (default 90s, override via 
 | 17 | md5-auth-frr | Ze, FRR | TCP MD5 authentication (RFC 2385) |
 | 18 | ebgp-gobgp | Ze, GoBGP | eBGP session with GoBGP |
 | 19 | routes-gobgp | Ze, GoBGP | Route exchange with GoBGP |
+<!-- source: test/interop/scenarios/ -- scenario directories -->
 
 ### Running
 
@@ -195,6 +201,7 @@ make ze-exabgp-test   # runs via uv with psutil dependency
 ```
 
 ExaBGP compatibility is part of `make ze-verify` (the pre-commit gate).
+<!-- source: test/exabgp-compat/encoding/ -- .ci test files for wire compatibility -->
 
 ## Test Hierarchy
 

@@ -38,6 +38,7 @@ ADD-PATH:   [path-id][prefix]
 |   ... more families ...   |
 +---------------------------+
 ```
+<!-- source: internal/component/bgp/capability/capability.go -- CodeAddPath=69, AddPath, AddPathFamily -->
 
 ### Send/Receive Flags
 
@@ -47,6 +48,7 @@ ADD-PATH:   [path-id][prefix]
 | 1 | receive | Can receive ADD-PATH |
 | 2 | send | Can send ADD-PATH |
 | 3 | send/receive | Both directions |
+<!-- source: internal/component/bgp/capability/capability.go -- AddPathNone=0, AddPathReceive=1, AddPathSend=2, AddPathBoth=3 -->
 
 ### Negotiation Result
 
@@ -65,6 +67,7 @@ def receive(self, afi, safi):
     peer = self.received.get((afi, safi), 0)
     return (local & 1) and (peer & 2)  # local can receive, peer can send
 ```
+<!-- source: internal/component/bgp/capability/negotiated.go -- Negotiate, addPath negotiation -->
 
 ---
 
@@ -88,6 +91,7 @@ def receive(self, afi, safi):
 |-------|---------|
 | 0x00000000 | NOPATH - ADD-PATH enabled but no specific ID |
 | (absent) | DISABLED - ADD-PATH not negotiated |
+<!-- source: internal/component/bgp/nlri/wire.go -- WireNLRI.PathID, HasAddPath -->
 
 ### Path ID Assignment
 
@@ -113,6 +117,7 @@ NLRI:
   [path-id-3][prefix-3]
   [path-id-4][prefix-4]
 ```
+<!-- source: internal/component/bgp/nlri/nlri.go -- WriteNLRI, addPath path ID prepend -->
 
 ### MP_REACH_NLRI / MP_UNREACH_NLRI
 
@@ -344,6 +349,7 @@ func (a AddPath) CanReceive(f Family, peer AddPath) bool {
     remote := peer[f]
     return (local&AddPathReceive != 0) && (remote&AddPathSend != 0)
 }
+<!-- source: internal/component/bgp/capability/negotiated.go -- ADD-PATH mode negotiation per family -->
 
 func (a AddPath) Pack() []byte {
     var buf bytes.Buffer
@@ -357,6 +363,7 @@ func (a AddPath) Pack() []byte {
     return buf.Bytes()
 }
 ```
+<!-- source: internal/component/bgp/capability/capability.go -- AddPath.WriteTo, parseAddPath -->
 
 ### NLRI Encoding (Phase 3+ Simplification)
 
@@ -387,6 +394,8 @@ func encodeNLRI(n nlri.NLRI, ctx *nlri.PackContext) []byte {
 **Path ID value:**
 - Uses `n.PathID()` (stored value, 0 if unset)
 - Value 0 is valid per RFC 7911 (NOPATH)
+<!-- source: internal/component/bgp/nlri/nlri.go -- WriteNLRI, LenWithContext -->
+<!-- source: internal/component/bgp/nlri/nlri.go -- NLRI interface, PathID(), WriteTo() -->
 
 ---
 

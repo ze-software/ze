@@ -12,8 +12,10 @@ Zero-copy message handling with capability-based forwarding.
 > - **Ownership transfer** - callback returns `kept=true` to take buffer ownership
 > - **Two size-appropriate pools** - 4K (pre-OPEN) and 64K (Extended Message)
 > - **Zero-copy cache** - cache owns buffer, `Take()` transfers ownership
-> - **No ref counting** - single owner at a time (session → cache → caller)
+> - **No ref counting** - single owner at a time (session -> cache -> caller)
 > - **Critical ordering** - callback executes BEFORE cache (prevents use-after-free)
+<!-- source: internal/component/bgp/reactor/session.go -- getReadBuffer, ReturnReadBuffer -->
+<!-- source: internal/component/bgp/reactor/recent_cache.go -- RecentUpdateCache -->
 >
 > **Cache API:**
 > - `Add()` - cache takes ownership
@@ -492,6 +494,8 @@ func (p *Peer) writeLoop() {
 6. Peer A disconnects
    → Pool garbage collected
 ```
+
+<!-- source: internal/component/bgp/reactor/session.go -- current buffer pool implementation -->
 
 ---
 

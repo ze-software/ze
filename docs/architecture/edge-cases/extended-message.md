@@ -16,6 +16,7 @@ Extended Message capability allows BGP messages larger than 4096 bytes, up to 65
 | HEADER_LEN | 19 | BGP header size (fixed) |
 | INITIAL_SIZE | 4096 | Standard maximum message size |
 | EXTENDED_SIZE | 65535 | Extended maximum message size |
+<!-- source: internal/component/bgp/message/header.go -- HeaderLen=19, MaxMsgLen=4096, ExtMsgLen=65535 -->
 
 ---
 
@@ -32,6 +33,7 @@ Extended Message capability allows BGP messages larger than 4096 bytes, up to 65
 ```
 
 The capability has no data - its presence indicates support.
+<!-- source: internal/component/bgp/capability/capability.go -- CodeExtendedMessage=6 -->
 
 ### Negotiation
 
@@ -43,6 +45,7 @@ def msg_size(self) -> int:
         return ExtendedMessage.EXTENDED_SIZE
     return ExtendedMessage.INITIAL_SIZE
 ```
+<!-- source: internal/component/bgp/capability/negotiated.go -- Negotiated.ExtendedMessage -->
 
 ---
 
@@ -69,6 +72,7 @@ def msg_size(self) -> int:
 - **Marker:** 16 bytes, all 0xFF
 - **Length:** 2 bytes, total message length (19-4096 or 19-65535)
 - **Type:** 1 byte, message type code
+<!-- source: internal/component/bgp/message/header.go -- MarkerLen=16, HeaderLen=19, Marker -->
 
 ### Length Field
 
@@ -78,6 +82,7 @@ The length field interpretation depends on negotiation:
 |-----------|-------------|
 | No extended message | 19 - 4096 |
 | Extended message negotiated | 19 - 65535 |
+<!-- source: internal/component/bgp/message/header.go -- MaxMsgLen=4096, ExtMsgLen=65535 -->
 
 ---
 
@@ -265,6 +270,7 @@ const (
     ExtendedMsgSize = 65535
 )
 ```
+<!-- source: internal/component/bgp/message/header.go -- MaxMsgLen=4096, ExtMsgLen=65535 -->
 
 ### Negotiated Size
 
@@ -281,6 +287,7 @@ func (n *Negotiated) MsgSize() int {
     return InitialMsgSize
 }
 ```
+<!-- source: internal/component/bgp/capability/negotiated.go -- Negotiated.ExtendedMessage -->
 
 ### Reading Messages
 
@@ -315,6 +322,8 @@ func (c *Conn) ReadMessage(neg *Negotiated) (uint8, []byte, error) {
     return msgType, body, nil
 }
 ```
+<!-- source: internal/component/bgp/reactor/session_read.go -- message reading -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- message writing -->
 
 ---
 

@@ -3,6 +3,7 @@
 ## Purpose
 
 The UPDATE cache stores received BGP UPDATE messages by message-id, enabling route-reflector-style forwarding where plugins can re-send cached wire bytes to peers without re-encoding.
+<!-- source: internal/component/bgp/reactor/recent_cache.go -- RecentUpdateCache -->
 
 ## Cache Consumer Model
 
@@ -12,6 +13,8 @@ Not all plugins that receive UPDATE events participate in cache lifecycle manage
 |-------------|-------------|------------------|-----------------|----------|
 | Cache consumer (e.g., RIB, route reflector) | `"cache-consumer": true` | Yes | Yes | Yes |
 | Observer (e.g., monitor, counter, logger) | default (`false`) | Yes | No | No |
+<!-- source: internal/component/plugin/process.go -- IsCacheConsumer/SetCacheConsumer -->
+<!-- source: pkg/plugin/rpc/types.go -- CacheConsumer field on DeclareRegistrationInput -->
 
 ### Opting In
 
@@ -35,6 +38,7 @@ p.Run(ctx, sdk.Registration{
     CacheConsumer: true,
 })
 ```
+<!-- source: internal/component/plugin/server.go -- Stage 1 reads cache-consumer from registration -->
 
 This is a permanent property set once at startup. The engine stores it on the process and uses it to filter which plugin deliveries are counted for `Activate()`.
 
@@ -67,6 +71,7 @@ Activate(id, count)      — set pendingConsumers = count - earlyAcks, clear pen
 All consumers done       — entry evicted, buffer returned to pool
   + retainCount = 0
 ```
+<!-- source: internal/component/bgp/reactor/recent_cache.go -- Add, Activate, Ack, evictLocked -->
 
 ### States
 
@@ -85,6 +90,7 @@ Two independent tracking layers:
 |-------|---------------|----------------|---------|
 | `pendingConsumers` (count) | `Activate(id, count)` | `Ack(id, plugin)` from cache consumer | Mandatory ack tracking |
 | `retainCount` (API-level) | `retain` command | `release` command (non-plugin context) | Explicit hold |
+<!-- source: internal/component/bgp/reactor/recent_cache.go -- cacheEntry struct -->
 
 Entry evicted when: `pendingConsumers == 0 AND retainCount <= 0 AND !pending`
 
@@ -99,6 +105,7 @@ Fast plugins may ack before `Activate()` is called. The `earlyAckCount` field tr
 
 - `RegisterConsumer(name)` — initializes FIFO tracking, sets last-ack to highest-added-id (avoids implicit acks on pre-existing entries)
 - `UnregisterConsumer(name)` — decrements `pendingConsumers` on all un-acked entries for that plugin, evicts entries that reach zero
+<!-- source: internal/component/bgp/reactor/recent_cache.go -- RegisterConsumer, UnregisterConsumer -->
 
 ## Commands
 
@@ -131,6 +138,7 @@ Plugin acks must follow receive order. If a plugin receives updates 100, 101, 10
 - Acking 100 after already acking 102 returns `FIFO violation` error
 
 Per-plugin FIFO tracked via `pluginLastAck map[string]uint64`.
+<!-- source: internal/component/bgp/reactor/recent_cache.go -- Ack FIFO enforcement -->
 
 ## Safety Valve
 
@@ -154,7 +162,7 @@ Configured via: `environment { reactor { cache-max N; } }` or `ze_reactor_cache_
 | File | Purpose |
 |------|---------|
 | `internal/component/bgp/reactor/recent_cache.go` | Cache implementation (Add, Activate, Ack, eviction) |
-| `internal/component/bgp/plugins/bgp-cmd-cache/cache.go` | Command dispatch (list, retain, release) |
+| `internal/component/bgp/plugins/cmd/cache/` | Command dispatch (list, retain, release) |
 | `internal/component/bgp/server/events.go` | Event delivery + cache consumer filtering |
 | `internal/component/plugin/process.go` | `IsCacheConsumer()` / `SetCacheConsumer()` on Process |
 | `internal/component/plugin/server.go` | Stage 1 reads `cache-consumer` from registration |

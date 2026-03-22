@@ -53,10 +53,12 @@ bgp {
 | Component | Status | Location |
 |-----------|--------|----------|
 | Forked subsystem processes | ✅ Done | `cmd/ze-subsystem/main.go` |
-| 5-stage protocol | ✅ Done | `internal/component/plugin/subsystem.go` |
+| 5-stage protocol | ✅ Done | `internal/component/plugin/registration.go` |
 | Bidirectional pipe communication | ✅ Done | `SubsystemHandler`, `Process` |
 | Command routing to processes | ✅ Done | `SubsystemManager.FindHandler()` |
 | Dynamic command registration | ✅ Done | `declare cmd <name>` in protocol |
+<!-- source: internal/component/plugin/registration.go -- 5-stage protocol -->
+<!-- source: internal/component/plugin/process/ -- Process management -->
 
 **Still needed for full Hub Architecture:**
 
@@ -304,6 +306,7 @@ declare done
 - `declare schema handler <path>` - register config handler paths (longest-prefix routing)
 - `declare schema yang <<EOF...EOF` - YANG content inline via heredoc
 - Hub stores YANG content for config validation
+<!-- source: internal/component/plugin/registration.go -- declare schema parsing -->
 
 **Schema debugging (CLI):**
 ```bash
@@ -676,6 +679,7 @@ Hub handles all config processing internally (no separate Config Reader process)
 | **CLI commit** | Notifies plugins: `config verify` then `config apply` |
 
 Plugins respond to notifications by querying hub for live/edit config, computing diff, and applying changes themselves.
+<!-- source: internal/component/config/diff.go -- config diff computation -->
 
 ### Responsibilities
 
@@ -772,8 +776,9 @@ On any commit trigger:
 
 | Field | Description |
 |-------|-------------|
-| `modules` | Map of module name → Schema (module, namespace, yang, handlers, plugin) |
-| `handlerIndex` | Map of handler path → plugin name (for routing) |
+| `modules` | Map of module name -> Schema (module, namespace, yang, handlers, plugin) |
+| `handlerIndex` | Map of handler path -> plugin name (for routing) |
+<!-- source: internal/component/plugin/registration.go -- schema storage -->
 
 **SubsystemHandler** tracks each plugin process:
 
@@ -991,12 +996,12 @@ Phase 1: Hub Foundation ──────► Phase 2: Config Parsing
 **Already implemented** (see `internal/component/plugin/`):
 
 - ✅ Forked subsystem processes (`cmd/ze-subsystem/`)
-- ✅ 5-stage protocol via pipes (`internal/component/plugin/subsystem.go`)
-- ✅ Bidirectional communication (`callEngine()` in subsystem)
-- ✅ `SubsystemHandler` and `SubsystemManager`
+- ✅ 5-stage protocol via pipes (`internal/component/plugin/registration.go`)
+- ✅ Bidirectional communication
 - ✅ Command routing to forked processes
-- ✅ Hub struct with RouteCommand, ProcessConfig
 - ✅ SchemaRegistry with Register, FindHandler
+<!-- source: internal/component/plugin/registration.go -- protocol implementation -->
+<!-- source: internal/component/plugin/server/ -- plugin server -->
 
 ### Phase Overview
 
@@ -1039,9 +1044,11 @@ Phase 1: Hub Foundation ──────► Phase 2: Config Parsing
 ### Source Code
 
 - `cmd/ze-subsystem/main.go` - Forked subsystem binary
-- `internal/component/plugin/subsystem.go` - SubsystemHandler/Manager
-- `internal/component/plugin/process.go` - Process pipe communication
 - `internal/component/plugin/registration.go` - 5-stage protocol parsing
+- `internal/component/plugin/process/` - Process pipe communication
+- `internal/component/plugin/server/` - Plugin server
+<!-- source: internal/component/plugin/registration.go -- protocol parsing -->
+<!-- source: internal/component/plugin/process/ -- process management -->
 
 ---
 

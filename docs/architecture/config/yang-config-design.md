@@ -476,10 +476,18 @@ Each validator registers a `ValidateFn(path, value) error` and optional `Complet
 | Registration | `internal/component/config/validators_register.go` |
 | Recursive tree walk | `internal/yang/validator.go` (`ValidateTree`/`walkTree`) |
 
+<!-- source: internal/component/config/yang/modules/ze-extensions.yang -- ze:validate extension definition -->
+<!-- source: internal/component/config/yang/validator_registry.go -- ValidateFn, CompleteFn registry -->
+<!-- source: internal/component/config/validators.go -- custom validator implementations -->
+<!-- source: internal/component/config/validators_register.go -- validator registration -->
+<!-- source: internal/component/config/yang/validator.go -- ValidateTree, walkTree -->
+
 Ze uses goyang (not libyang). `ValidateTree` recursively validates config trees against YANG schema entries,
 checking range, pattern, enum, length, mandatory at every level. After YANG native validation, `ze:validate`
 extensions trigger registered Go functions. `CheckAllValidatorsRegistered` verifies at startup that every
 `ze:validate` reference has a registered implementation.
+<!-- source: internal/component/config/yang/validator_registry.go -- CheckAllValidatorsRegistered -->
+<!-- source: internal/component/config/yang_schema.go -- goyang-based schema loading -->
 
 ### Layer 3b: External Validators (zx:validator) — Future
 

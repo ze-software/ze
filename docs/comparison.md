@@ -182,6 +182,11 @@ estimated 10-15% overhead vs. C/Rust (not yet benchmarked at scale; see
 migrated via `ze config migrate`. Built-in RPKI validation, Prometheus metrics, and structured JSON
 logging. No FIB integration or built-in policy language -- policy is implemented by plugins and
 external processes via the JSON event and text command protocol.
+<!-- source: internal/component/bgp/wireu/wire_update.go -- lazy-parsed WireUpdate -->
+<!-- source: internal/component/bgp/attrpool/pool.go -- pool-based attribute dedup -->
+<!-- source: internal/component/bgp/context/registry.go -- ContextID encoding context matching -->
+<!-- source: internal/component/bgp/plugins/rpki/register.go -- RPKI validation plugin -->
+<!-- source: cmd/ze/config/cmd_migrate.go -- ze config migrate -->
 
 **ExaBGP** is the automation specialist. It pioneered the external-process model where BGP events
 are delivered as JSON to stdin/stdout of user scripts in any language. Deployed worldwide for

@@ -10,16 +10,19 @@ Source of truth: `internal/component/bgp/format/text.go` (formatter), `internal/
 ### Message Headers
 
 Two header shapes exist depending on message type:
+<!-- source: internal/component/bgp/format/text.go -- formatPeerHeader, formatStateText -->
 
 | Shape | Layout | Used By |
 |-------|--------|---------|
 | State | `peer <address> asn <asn> state <state>` | State change events |
 | Message | `peer <address> <direction> <type> <msgid> <body...>` | UPDATE, OPEN, NOTIFICATION, KEEPALIVE, REFRESH, BORR, EORR |
+<!-- source: internal/component/bgp/format/text.go -- formatStateChangeText, formatFilterResultText -->
 
 State events include the peer ASN early in the header. Message events do not include ASN in the header —
 ASN appears later in type-specific body fields (e.g., OPEN) or not at all (e.g., KEEPALIVE).
 
 Direction is `received` or `sent`. Message ID is a monotonically increasing integer per peer session.
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- OnPeerEstablished, OnPeerClosed -->
 
 ### BNF Grammar
 
@@ -30,7 +33,7 @@ Direction is `received` or `sent`. Message ID is a monotonically increasing inte
 
 <direction>     ::= "received" | "sent"
 <type>          ::= "update" | "open" | "notification" | "keepalive" | "refresh" | "borr" | "eorr"
-<state-value>   ::= "up" | "down" | "established" | "connected" | ...
+<state-value>   ::= "up" | "down"
 
 <update-body>   ::= <announce-body> | <withdraw-body> | <empty>
 <announce-body> ::= "announce" <attributes> <family-section>+
@@ -52,7 +55,7 @@ Direction is `received` or `sent`. Message ID is a monotonically increasing inte
 <local-pref>    ::= "pref" <integer>
 <community>     ::= "s-com" <community-value> ("," <community-value>)*
 <large-community>    ::= "l-com" <lc-value> ("," <lc-value>)*
-<extended-community> ::= "e-com" <hex> ("," <hex>)*
+<extended-community> ::= "x-com" <hex> ("," <hex>)*
 <unknown-attr>  ::= "attr-" <code> <space> <hex>
 
 <open-body>     ::= "asn" <asn> "router-id" <address> "hold-time" <seconds> <capability>*
@@ -64,6 +67,8 @@ Direction is `received` or `sent`. Message ID is a monotonically increasing inte
 
 <refresh-body>  ::= "family" <family>
 ```
+<!-- source: internal/component/bgp/format/text.go -- FormatOpen, FormatNotification, FormatKeepalive, FormatRouteRefresh -->
+<!-- source: internal/component/bgp/textparse/keywords.go -- KWOrigin, ShortPath, ShortNext, ShortPref, ShortSCom, ShortLCom, ShortXCom -->
 
 ### Attribute Formats
 
@@ -78,11 +83,13 @@ All verified against `format/text.go:formatAttributeText()`. Text output uses sh
 | LOCAL_PREF | `pref` | `local-preference` | `pref 200` | scalar |
 | COMMUNITY | `s-com` | `community` | `s-com 65001:100,65002:200` | comma-separated |
 | LARGE_COMMUNITY | `l-com` | `large-community` | `l-com 65001:1:2,65002:3:4` | comma-separated |
-| EXT_COMMUNITY | `e-com` | `extended-community` | `e-com 0002000a0b0c0d0e` | comma-separated hex |
+| EXT_COMMUNITY | `x-com` | `extended-community` | `x-com 0002000a0b0c0d0e` | comma-separated hex |
 | Unknown | `attr-<code>` | — | `attr-42 deadbeef` | scalar hex |
+<!-- source: internal/component/bgp/format/text.go -- formatAttributeText -->
 
 Note: keywords are singular (`s-com`, not `communities`). Lists use comma separation (no brackets, no spaces in values).
-Shared keyword constants defined in `textparse/keywords.go`.
+Shared keyword constants defined in `textparse/keywords.go`. The alias `e-com` is accepted as input but the formatter always outputs `x-com`.
+<!-- source: internal/component/bgp/textparse/keywords.go -- ShortXCom, aliasToCanonical -->
 
 ### NLRI String Formats
 
@@ -105,6 +112,15 @@ Each NLRI type plugin implements `String()` which produces the text representati
 | MVPN | `<route-type> rd set X` | rd (conditional) | `bgp-nlri-mvpn/types.go:192` |
 | RTC | `origin-as set X rt set Y` or `default` | default case has no sub-keys | `bgp-nlri-rtc/types.go:184` |
 | MUP | `<route-type> rd set X` | rd (conditional) | `bgp-nlri-mup/types.go:200` |
+<!-- source: internal/component/bgp/nlri/inet.go -- INET.String -->
+<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- String -->
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- String -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- String -->
+<!-- source: internal/component/bgp/plugins/nlri/labeled/types.go -- String -->
+<!-- source: internal/component/bgp/plugins/nlri/vpls/types.go -- String -->
+<!-- source: internal/component/bgp/plugins/nlri/mvpn/types.go -- String -->
+<!-- source: internal/component/bgp/plugins/nlri/rtc/types.go -- String -->
+<!-- source: internal/component/bgp/plugins/nlri/mup/types.go -- String -->
 
 All complex NLRIs use the `set` keyword between field name and value. FlowSpec match operators (`==`, `>=`, `!=`, etc.) pass through as part of the value token.
 
@@ -125,13 +141,14 @@ Format: `<afi>/<safi>` — always slash-separated, lowercase.
 | IPv4 Labeled | `ipv4/nlri-mpls` |
 | IPv6 Labeled | `ipv6/nlri-mpls` |
 | IPv4 RTC | `ipv4/rtc` |
+<!-- source: internal/component/bgp/message/family.go -- FamilyIPv4Unicast, family constants -->
 
 ### Complete Current Format Examples
 
 All examples verified against `format/text_test.go`.
 
 ```
-peer 10.0.0.1 asn 65001 state established
+peer 10.0.0.1 asn 65001 state up
 
 peer 10.0.0.1 asn 65001 state down
 
@@ -153,6 +170,7 @@ peer 10.0.0.1 received refresh 5 family ipv4/unicast
 
 peer 10.0.0.1 received borr 1 family ipv6/unicast
 ```
+<!-- source: internal/component/bgp/format/text.go -- formatStateChangeText, FormatOpen, FormatNotification, FormatKeepalive, FormatRouteRefresh -->
 
 ### Multi-Family UPDATE
 
@@ -168,6 +186,7 @@ Announce and withdraw can appear in the same UPDATE as separate lines (same mess
 peer 10.0.0.1 received update 1 announce origin igp ipv4/unicast next 10.0.0.1 nlri 10.0.0.0/24
 peer 10.0.0.1 received update 1 withdraw ipv4/unicast nlri 172.16.0.0/16
 ```
+<!-- source: internal/component/bgp/format/text.go -- formatFilterResultText -->
 
 ---
 
@@ -180,7 +199,7 @@ For implemented changes, see the current format sections above.
 
 | Change | Status |
 |--------|--------|
-| Short keyword aliases (`path`, `next`, `pref`, `s-com`, `l-com`, `e-com`) | Implemented — event formatter and command parser |
+| Short keyword aliases (`path`, `next`, `pref`, `s-com`, `l-com`, `x-com`) | Implemented -- event formatter and command parser |
 | Comma-separated lists (AS_PATH, communities) | Implemented — event formatter |
 | No brackets around community lists | Implemented — event formatter |
 | Flat grammar for commands (no `set` keyword for attributes) | Implemented — command parser |
@@ -189,6 +208,7 @@ For implemented changes, see the current format sections above.
 | Text-mode 5-stage handshake (auto-detected from first byte) | Implemented — `rpc/text.go`, `rpc/text_conn.go` |
 | TextMuxConn with `#N` serial prefix for post-startup concurrent RPCs | Implemented — `rpc/text_mux.go` |
 | Heredoc config delivery (`root <name> json << END`) | Implemented — `rpc/text.go` FormatConfigureText/ParseConfigureText |
+<!-- source: internal/component/bgp/textparse/keywords.go -- ShortPath, ShortNext, ShortPref, ShortSCom, ShortLCom, ShortXCom, aliasToCanonical -->
 
 ### Still Proposed: Uniform Header
 
@@ -212,12 +232,14 @@ All `set` keywords in complex NLRIs dropped — sub-keys become `key value` dire
 | `rd set 65000:100 prefix set 10.0.0.0/24 label set 1000` (in NLRI String) | `rd 65000:100 prefix 10.0.0.0/24 label 1000` |
 
 ADD-PATH uses `info` (short for `path-information`) as a modifier before the action: `nlri ipv4/unicast info 42 add prefix 10.0.0.0/24`.
+<!-- source: internal/component/bgp/textparse/keywords.go -- KWAdd, KWDel, ShortInfo, KWPathInformation -->
 
 ### Still Proposed: Dict Mode
 
 For complex NLRIs, the parser reads sub-key-value pairs after an action token until it encounters a token not in the family's sub-key set (that token becomes the next top-level key).
 
 The parser's sub-key table per family must be updated whenever an NLRI type adds a new field. `nlri` is the only key that may repeat within a single message line.
+<!-- source: internal/component/bgp/textparse/keywords.go -- NLRITypeKeywords -->
 
 ### Design Principles (for remaining work)
 

@@ -25,6 +25,8 @@ Multi-protocol extensions (RFC 4760) embedded NLRI inside attributes:
 - `MP_REACH_NLRI` (type 14) - contains next-hop + announced NLRI
 - `MP_UNREACH_NLRI` (type 15) - contains withdrawn NLRI
 
+<!-- source: internal/component/bgp/attribute/attribute.go -- AttrMPReachNLRI, AttrMPUnreachNLRI constants -->
+
 Later RFCs added more attributes that may relate to specific NLRI.
 
 Result:
@@ -55,6 +57,8 @@ Pack attributes in this order (within the RFC attribute section):
 +---------------------------+
 ```
 
+<!-- source: internal/component/bgp/message/update_build.go -- UPDATE attribute ordering -->
+
 ### Why This Order
 
 1. **Regular attributes first**: Cacheable blob, shared between updates with same path
@@ -77,3 +81,6 @@ Senders MAY order attributes however they want (RFC 4271 Appendix F.3 is SHOULD,
 
 This is NOT proposing an RFC change. Just documenting Ze's internal strategy
 for efficient UPDATE construction while remaining fully RFC-compliant.
+
+<!-- source: internal/component/bgp/message/update_build.go -- update building with attribute ordering -->
+<!-- source: internal/component/bgp/wire/update_sections.go -- UpdateSections parsing -->

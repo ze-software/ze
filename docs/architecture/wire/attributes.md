@@ -11,6 +11,7 @@
 | **Key Types** | `Attribute` interface, `AttributeCode`, `AttributeFlags` |
 
 **When to read full doc:** Attribute parsing, new attribute types, ASN4 encoding.
+<!-- source: internal/component/bgp/attribute/attribute.go -- AttributeCode, AttributeFlags, Attribute interface -->
 
 ---
 
@@ -34,6 +35,7 @@ All path attributes share a common header:
 |  Attr. Flags  |  Attr. Type   |         Length (2 bytes)      |  (extended length)
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ```
+<!-- source: internal/component/bgp/attribute/attribute.go -- ParseHeader, WriteHeaderTo -->
 
 ### Attribute Flags
 
@@ -51,6 +53,7 @@ All path attributes share a common header:
 | 2 | Partial | 0x20 | 1=Partial (set by non-originating AS) |
 | 3 | Extended Length | 0x10 | 1=2-byte length, 0=1-byte length |
 | 4-7 | Reserved | | Must be 0 |
+<!-- source: internal/component/bgp/attribute/attribute.go -- FlagOptional, FlagTransitive, FlagPartial, FlagExtLength -->
 
 ### Flag Combinations
 
@@ -65,31 +68,35 @@ All path attributes share a common header:
 
 ## Attribute Type Codes
 
-| Code | Hex | Name | Flags | RFC |
-|------|-----|------|-------|-----|
-| 1 | 0x01 | ORIGIN | 0x40 (WK-M) | RFC 4271 |
-| 2 | 0x02 | AS_PATH | 0x40 (WK-M) | RFC 4271 |
-| 3 | 0x03 | NEXT_HOP | 0x40 (WK-M) | RFC 4271 |
-| 4 | 0x04 | MULTI_EXIT_DISC | 0x80 (O-NT) | RFC 4271 |
-| 5 | 0x05 | LOCAL_PREF | 0x40 (WK-D) | RFC 4271 |
-| 6 | 0x06 | ATOMIC_AGGREGATE | 0x40 (WK-D) | RFC 4271 |
-| 7 | 0x07 | AGGREGATOR | 0xC0 (O-T) | RFC 4271 |
-| 8 | 0x08 | COMMUNITY | 0xC0 (O-T) | RFC 1997 |
-| 9 | 0x09 | ORIGINATOR_ID | 0x80 (O-NT) | RFC 4456 |
-| 10 | 0x0A | CLUSTER_LIST | 0x80 (O-NT) | RFC 4456 |
-| 14 | 0x0E | MP_REACH_NLRI | 0x80 (O-NT) | RFC 4760 |
-| 15 | 0x0F | MP_UNREACH_NLRI | 0x80 (O-NT) | RFC 4760 |
-| 16 | 0x10 | EXTENDED_COMMUNITY | 0xC0 (O-T) | RFC 4360 |
-| 17 | 0x11 | AS4_PATH | 0xC0 (O-T) | RFC 6793 |
-| 18 | 0x12 | AS4_AGGREGATOR | 0xC0 (O-T) | RFC 6793 |
-| 22 | 0x16 | PMSI_TUNNEL | 0xC0 (O-T) | RFC 6514 |
-| 23 | 0x17 | TUNNEL_ENCAP | 0xC0 (O-T) | RFC 5512 |
-| 26 | 0x1A | AIGP | 0x80 (O-NT) | RFC 7311 |
-| 29 | 0x1D | BGP_LS | 0x80 (O-NT) | RFC 7752 |
-| 32 | 0x20 | LARGE_COMMUNITY | 0xC0 (O-T) | RFC 8092 |
-| 40 | 0x28 | BGP_PREFIX_SID | 0xC0 (O-T) | RFC 8669 |
+<!-- source: internal/component/bgp/attribute/attribute.go -- AttributeCode constants -->
 
-Legend: WK=Well-known, O=Optional, M=Mandatory, D=Discretionary, T=Transitive, NT=Non-transitive
+| Code | Hex | Name | Flags | RFC | Status |
+|------|-----|------|-------|-----|--------|
+| 1 | 0x01 | ORIGIN | 0x40 (WK-M) | RFC 4271 | implemented |
+| 2 | 0x02 | AS_PATH | 0x40 (WK-M) | RFC 4271 | implemented |
+| 3 | 0x03 | NEXT_HOP | 0x40 (WK-M) | RFC 4271 | implemented |
+| 4 | 0x04 | MULTI_EXIT_DISC | 0x80 (O-NT) | RFC 4271 | implemented |
+| 5 | 0x05 | LOCAL_PREF | 0x40 (WK-D) | RFC 4271 | implemented |
+| 6 | 0x06 | ATOMIC_AGGREGATE | 0x40 (WK-D) | RFC 4271 | implemented |
+| 7 | 0x07 | AGGREGATOR | 0xC0 (O-T) | RFC 4271 | implemented |
+| 8 | 0x08 | COMMUNITY | 0xC0 (O-T) | RFC 1997 | implemented |
+| 9 | 0x09 | ORIGINATOR_ID | 0x80 (O-NT) | RFC 4456 | implemented |
+| 10 | 0x0A | CLUSTER_LIST | 0x80 (O-NT) | RFC 4456 | implemented |
+| 14 | 0x0E | MP_REACH_NLRI | 0x80 (O-NT) | RFC 4760 | implemented |
+| 15 | 0x0F | MP_UNREACH_NLRI | 0x80 (O-NT) | RFC 4760 | implemented |
+| 16 | 0x10 | EXTENDED_COMMUNITY | 0xC0 (O-T) | RFC 4360 | implemented |
+| 17 | 0x11 | AS4_PATH | 0xC0 (O-T) | RFC 6793 | implemented |
+| 18 | 0x12 | AS4_AGGREGATOR | 0xC0 (O-T) | RFC 6793 | implemented |
+| 22 | 0x16 | PMSI_TUNNEL | 0xC0 (O-T) | RFC 6514 | not implemented |
+| 23 | 0x17 | TUNNEL_ENCAP | 0xC0 (O-T) | RFC 5512 | not implemented |
+| 25 | 0x19 | IPV6_EXT_COMMUNITY | 0xC0 (O-T) | RFC 5701 | implemented |
+| 26 | 0x1A | AIGP | 0x80 (O-NT) | RFC 7311 | not implemented |
+| 29 | 0x1D | BGP_LS | 0x80 (O-NT) | RFC 7752 | not implemented |
+| 32 | 0x20 | LARGE_COMMUNITY | 0xC0 (O-T) | RFC 8092 | implemented |
+| 40 | 0x28 | BGP_PREFIX_SID | 0xC0 (O-T) | RFC 8669 | not implemented |
+
+Legend: WK=Well-known, O=Optional, M=Mandatory, D=Discretionary, T=Transitive, NT=Non-transitive.
+Unimplemented attributes are parsed as opaque (raw bytes preserved for forwarding).
 
 ---
 
@@ -111,6 +118,7 @@ RFC 4271 - Origin of the path information.
 
 **Length:** 1 byte
 **Flags:** 0x40 (Well-known Mandatory)
+<!-- source: internal/component/bgp/attribute/attribute.go -- AttrOrigin -->
 
 ---
 
@@ -137,6 +145,7 @@ RFC 4271 - Sequence of ASNs traversed.
 
 **AS Size:** 2 bytes without ASN4 capability, 4 bytes with ASN4
 **Max Segment Length:** 255 ASNs per segment
+<!-- source: internal/component/bgp/attribute/aspath.go -- ASPathSegmentType, ASSet, ASSequence, ASConfedSequence -->
 
 ### Example
 
@@ -162,6 +171,7 @@ RFC 4271 - Next hop IP address (IPv4 only in traditional UPDATE).
 **Flags:** 0x40 (Well-known Mandatory)
 
 Note: For IPv6 and other families, next hop is in MP_REACH_NLRI.
+<!-- source: internal/component/bgp/attribute/attribute.go -- AttrNextHop -->
 
 ---
 
@@ -179,6 +189,7 @@ RFC 4271 - Multi-exit discriminator for external links.
 **Flags:** 0x80 (Optional Non-transitive)
 
 Lower MED is preferred.
+<!-- source: internal/component/bgp/attribute/attribute.go -- AttrMED -->
 
 ---
 
@@ -196,6 +207,7 @@ RFC 4271 - Local preference (IBGP only).
 **Flags:** 0x40 (Well-known Discretionary)
 
 Higher LOCAL_PREF is preferred. Default: 100.
+<!-- source: internal/component/bgp/attribute/attribute.go -- AttrLocalPref -->
 
 ---
 
@@ -211,6 +223,7 @@ RFC 4271 - Indicates route is an aggregate.
 **Flags:** 0x40 (Well-known Discretionary)
 
 Presence indicates the route is less specific than component routes.
+<!-- source: internal/component/bgp/attribute/attribute.go -- AttrAtomicAggregate -->
 
 ---
 
@@ -228,6 +241,7 @@ RFC 4271 - AS and router ID that performed aggregation.
 
 **Length:** 6 bytes (2-byte AS) or 8 bytes (4-byte AS)
 **Flags:** 0xC0 (Optional Transitive)
+<!-- source: internal/component/bgp/attribute/attribute.go -- AttrAggregator -->
 
 ---
 
@@ -256,6 +270,7 @@ RFC 1997 - Community values for policy.
 ### Format
 
 Communities displayed as AS:Value (e.g., 65001:100)
+<!-- source: internal/component/bgp/attribute/community.go -- CommunityNoExport, CommunityNoAdvertise, CommunityNoExportSubconfed -->
 
 ---
 
@@ -271,6 +286,7 @@ RFC 4456 - Router ID of route reflector client origin.
 
 **Length:** 4 bytes
 **Flags:** 0x80 (Optional Non-transitive)
+<!-- source: internal/component/bgp/attribute/attribute.go -- AttrOriginatorID -->
 
 ---
 
@@ -288,6 +304,7 @@ RFC 4456 - List of route reflector cluster IDs.
 
 **Length:** 4 bytes per cluster ID (variable total)
 **Flags:** 0x80 (Optional Non-transitive)
+<!-- source: internal/component/bgp/attribute/attribute.go -- AttrClusterList -->
 
 ---
 
@@ -325,6 +342,7 @@ RFC 4760 - Multiprotocol reachable NLRI.
 | IPv6 Unicast | 32 | IPv6 + link-local IPv6 |
 | VPNv4 | 12 | RD (8) + IPv4 (4) |
 | VPNv6 | 24 | RD (8) + IPv6 (16) |
+<!-- source: internal/component/bgp/attribute/attribute.go -- AttrMPReachNLRI -->
 
 ---
 
@@ -343,6 +361,7 @@ RFC 4760 - Multiprotocol unreachable NLRI.
 **Flags:** 0x80 (Optional Non-transitive)
 
 No next hop - only withdrawn routes.
+<!-- source: internal/component/bgp/attribute/attribute.go -- AttrMPUnreachNLRI -->
 
 ---
 
@@ -381,6 +400,7 @@ RFC 4360 - Extended community values.
 | 0x01:0x02 | Route Target (IPv4) |
 | 0x06:0x00 | EVPN MAC Mobility |
 | 0x06:0x01 | EVPN ESI Label |
+<!-- source: internal/component/bgp/attribute/community.go -- ExtendedCommunity, ExtendedCommunities -->
 
 ---
 
@@ -396,6 +416,8 @@ Used when:
 1. Local speaker has 4-byte ASN
 2. Peer doesn't support ASN4 capability
 3. AS_PATH contains ASNs > 65535
+<!-- source: internal/component/bgp/attribute/attribute.go -- AttrAS4Path -->
+<!-- source: internal/component/bgp/attribute/as4.go -- AS4 path processing -->
 
 ---
 
@@ -413,6 +435,7 @@ RFC 6793 - 4-byte aggregator for non-ASN4 peers.
 
 **Length:** 8 bytes
 **Flags:** 0xC0 (Optional Transitive)
+<!-- source: internal/component/bgp/attribute/attribute.go -- AttrAS4Aggregator -->
 
 ---
 
@@ -434,6 +457,7 @@ RFC 8092 - Large community values (12 bytes each).
 **Flags:** 0xC0 (Optional Transitive)
 
 Format: GlobalAdmin:LocalData1:LocalData2 (e.g., 4294967295:100:200)
+<!-- source: internal/component/bgp/attribute/community.go -- LargeCommunity, LargeCommunities -->
 
 ---
 
@@ -466,6 +490,7 @@ const (
 ```
 
 **Note:** Context-dependent attributes (AS_PATH, Aggregator) use `PackWithContext`/`WriteToWithContext` for ASN4 encoding decisions. Most attributes ignore the context parameters.
+<!-- source: internal/component/bgp/attribute/attribute.go -- Attribute interface, AttributeCode, AttributeFlags -->
 
 ### WireWriter Interface
 
@@ -477,6 +502,7 @@ type WireWriter interface {
     WriteTo(buf []byte, off int, ctx *EncodingContext) int
 }
 ```
+<!-- source: internal/component/bgp/context/context.go -- WireWriter interface -->
 
 ### Attribute Parsing
 
@@ -496,6 +522,8 @@ for each attribute in packed bytes:
 ```
 
 Actual implementation uses `ParseHeader()` function in `attribute.go`.
+<!-- source: internal/component/bgp/attribute/attribute.go -- ParseHeader -->
+<!-- source: internal/component/bgp/attribute/wire.go -- AttributesWire -->
 
 ---
 
@@ -528,6 +556,7 @@ index := make([]attrIndex, 0, 8)  // 99.9% of routes fit without reallocation
 | 6 | 96% | 144 bytes |
 | 8 | 99.9% | 192 bytes |
 | 10 | 100% | 240 bytes |
+<!-- source: internal/component/bgp/attribute/wire.go -- attrIndex slice capacity -->
 
 ---
 
@@ -547,6 +576,8 @@ The BGP-LS attribute carries node, link, and prefix properties as a sequence of 
 Each TLV: 2-byte type + 2-byte length + value. Decoded via offset-based iterators (no allocation). See `docs/architecture/wire/bgpls-attribute-naming.md` for the full naming convention and JSON key mapping.
 
 Source: `internal/component/bgp/plugins/nlri/ls/`.
+<!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- RegisterName(29, "BGP_LS") -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGP-LS TLV decoding -->
 
 ---
 

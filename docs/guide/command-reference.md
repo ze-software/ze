@@ -2,6 +2,7 @@
 
 Ze commands fall into two categories: **shell commands** that run locally
 and **runtime commands** sent to the running daemon via SSH.
+<!-- source: cmd/ze/main.go -- main dispatch -->
 
 ## Shell Commands
 
@@ -27,6 +28,7 @@ ze start                         # Start daemon from database
 | `-V`, `--version` | Show version |
 | `--chaos-seed <N>` | Enable chaos self-test mode |
 | `--chaos-rate <0-1>` | Fault probability per operation |
+<!-- source: cmd/ze/main.go -- global flag parsing -->
 
 ### ze config validate
 
@@ -45,6 +47,7 @@ ze config validate --json <config-file> # JSON output
 | `--json` | JSON output |
 
 Exit codes: 0 = valid, 1 = invalid, 2 = file not found.
+<!-- source: cmd/ze/config/cmd_validate.go -- cmdValidate -->
 
 ### ze config
 
@@ -90,6 +93,7 @@ ze config archive <name> <file>  # Archive config
 ```
 ze config migrate <file>         # Convert old format to current
 ```
+<!-- source: cmd/ze/config/main.go -- subcommandHandlers, storageHandlers -->
 
 | Flag | Purpose |
 |------|---------|
@@ -113,6 +117,7 @@ ze signal quit                   # Immediate exit + goroutine dump
 | `--port` | SSH port (default: 2222 or `ze_ssh_port`) |
 
 Exit codes: 0 = ok, 1 = not running, 4 = command failed.
+<!-- source: cmd/ze/signal/main.go -- Run, ExitSuccess/ExitNotRunning/ExitNoCredentials/ExitSignalFailed -->
 
 ### ze status
 
@@ -128,6 +133,7 @@ ze status
 | `--port` | SSH port |
 
 Exit codes: 0 = running, 1 = not running.
+<!-- source: cmd/ze/signal/main.go -- RunStatus -->
 
 ### ze bgp
 
@@ -161,6 +167,7 @@ ze bgp plugin                    # Interactive plugin simulator
 | `-n` | Dry run |
 | `--no-header` | Exclude BGP header |
 | `--asn4` | 4-byte ASN (default: true) |
+<!-- source: cmd/ze/bgp/main.go -- Run; cmd/ze/bgp/decode.go -- cmdDecode; cmd/ze/bgp/encode.go -- cmdEncode -->
 
 ### ze exabgp
 
@@ -178,6 +185,7 @@ ze exabgp migrate <file>         # Convert ExaBGP config to ze
 | `--family <family>` | Address family (repeatable) |
 | `--route-refresh` | Enable route-refresh |
 | `--add-path <mode>` | ADD-PATH mode: receive, send, both |
+<!-- source: cmd/ze/exabgp/main.go -- Run, cmdPlugin, cmdMigrate -->
 
 ### ze schema
 
@@ -193,6 +201,7 @@ ze schema protocol               # Show protocol version
 ```
 
 All subcommands accept `--json`.
+<!-- source: cmd/ze/schema/main.go -- Run -->
 
 ### ze yang
 
@@ -211,6 +220,7 @@ ze yang doc [command]            # Command documentation
 | `--config` | Show config tree (tree) |
 | `--min-prefix <N>` | Minimum prefix length (completion, default: 1) |
 | `--list` | List commands (doc) |
+<!-- source: cmd/ze/yang/main.go -- Run -->
 
 ### ze init
 
@@ -223,6 +233,7 @@ ze init -force                   # Replace existing database
 ```
 
 Prompts for: username, password, host (127.0.0.1), port (2222), name (hostname).
+<!-- source: cmd/ze/init/main.go -- Run, defaultHost, defaultPort -->
 
 ### ze data
 
@@ -238,6 +249,7 @@ ze data cat <key>                  # Print entry content
 | Flag | Purpose |
 |------|---------|
 | `--path <store>` | Blob store path |
+<!-- source: cmd/ze/data/main.go -- Run, subcommandHandlers -->
 
 ### ze plugin
 
@@ -247,6 +259,7 @@ Plugin management.
 ze plugin <name> [args]          # Run plugin CLI handler
 ze plugin test                   # Test plugin schema/config
 ```
+<!-- source: cmd/ze/plugin/main.go -- Run -->
 
 ### ze completion
 
@@ -267,6 +280,7 @@ ze completion nushell
 | Zsh | `eval "$(ze completion zsh)"` | `ze completion zsh > ~/.zsh/completions/_ze && autoload -Uz compinit && compinit` |
 | Fish | `ze completion fish \| source` | `ze completion fish > ~/.config/fish/completions/ze.fish` |
 | Nushell | `ze completion nushell \| save -f ($nu.default-config-dir \| path join "completions" "ze.nu")` | Add `source completions/ze.nu` to `config.nu` |
+<!-- source: cmd/ze/completion/main.go -- Run -->
 
 ### ze env
 
@@ -281,6 +295,7 @@ ze env get <key>                 # Show single env var
 | Flag | Purpose |
 |------|---------|
 | `-v`, `--verbose` | Verbose output (list) |
+<!-- source: cmd/ze/environ/main.go -- Run -->
 
 ---
 
@@ -296,6 +311,7 @@ Commands sent to the running daemon. Access through three entry points:
 
 `ze cli` accepts `--run <command>` for single-shot execution and
 `--format <format>` (default: yaml).
+<!-- source: cmd/ze/cli/main.go -- Run; cmd/ze/show/main.go -- Run; cmd/ze/run/main.go -- Run -->
 
 ### Peer Selector
 
@@ -310,6 +326,7 @@ Many commands take a `peer <selector>` argument:
 | Glob | `peer 192.168.*.*` | Pattern match |
 | Exclusion | `peer !10.0.0.1` | All except this peer |
 | ASN exclusion | `peer !as65001` | All except peers with this ASN |
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- selectPeers; internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handler -->
 
 ### Peer Commands
 
@@ -326,6 +343,7 @@ Many commands take a `peer <selector>` argument:
 | `peer <sel> resume` | write | Resume read loop |
 | `peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |
 | `peer <sel> save` | write | Save running peers to config |
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang -->
 
 ### Route Injection
 
@@ -351,6 +369,7 @@ Text format attributes:
 
 NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 `nlri <family> eor`.
+<!-- source: internal/component/bgp/plugins/cmd/update/ -- update text/hex/b64 parsing; internal/component/bgp/plugins/cmd/raw/ -- raw message injection -->
 
 ### RIB Commands
 
@@ -362,6 +381,7 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `rib best status` | read-only | Best-path computation status |
 | `rib clear in [peer]` | write | Clear Adj-RIB-In |
 | `rib clear out [peer]` | write | Regenerate and re-advertise Adj-RIB-Out |
+<!-- source: internal/component/bgp/plugins/cmd/rib/ -- RIB proxy RPCs; internal/component/bgp/plugins/rib/ -- RIB plugin -->
 
 ### Commit (Atomic Updates)
 
@@ -374,6 +394,7 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `commit <name> rollback` | write | Discard queued updates |
 | `commit <name> withdraw route <prefix>` | write | Withdraw prefix from window |
 | `commit list` | read-only | List active commits |
+<!-- source: internal/component/cmd/commit/ -- commit command RPCs -->
 
 ### Cache Commands
 
@@ -386,6 +407,7 @@ NLRI operations: `nlri <family> add <prefixes>`, `nlri <family> del <prefixes>`,
 | `cache <id> forward <peer-sel>` | write | Re-inject UPDATE to peer(s) |
 
 Batch operations: `cache <id1>,<id2> <action> [args]`.
+<!-- source: internal/component/cmd/cache/ -- cache command RPCs -->
 
 ### Event Monitoring
 
@@ -400,6 +422,7 @@ bgp monitor [peer <sel>] [event <types>] [direction <dir>]
 | `direction` | sent, received |
 
 Streaming command: use in interactive `ze cli` or via SSH.
+<!-- source: internal/component/bgp/plugins/cmd/monitor/ -- monitor streaming RPCs -->
 
 ### Metrics
 
@@ -407,6 +430,7 @@ Streaming command: use in interactive `ze cli` or via SSH.
 |---------|--------|---------|
 | `metrics show` | read-only | Prometheus text format metrics |
 | `metrics list` | read-only | List metric names |
+<!-- source: internal/component/cmd/metrics/ -- metrics show/list RPCs -->
 
 ### Logging
 
@@ -416,6 +440,7 @@ Streaming command: use in interactive `ze cli` or via SSH.
 | `log set <subsystem> <level>` | write | Set log level at runtime |
 
 Levels: debug, info, warn, err, disabled.
+<!-- source: internal/component/cmd/log/ -- log show/set RPCs; internal/core/slogutil/slogutil.go -- level definitions -->
 
 ### Plugin Configuration (from plugin context)
 
@@ -424,6 +449,7 @@ Levels: debug, info, warn, err, disabled.
 | `bgp plugin encoding <json\|text>` | write | Set event encoding |
 | `bgp plugin format <hex\|base64\|parsed\|full>` | write | Set wire format display |
 | `bgp plugin ack <sync\|async>` | write | Set ACK timing |
+<!-- source: internal/component/cmd/subscribe/ -- subscribe/unsubscribe RPCs -->
 
 ### Discovery
 
@@ -433,6 +459,7 @@ Levels: debug, info, warn, err, disabled.
 | `command-list` | read-only | List all commands with descriptions |
 | `command-help <name>` | read-only | Detailed help for a command |
 | `event-list` | read-only | List available event types |
+<!-- source: internal/component/cmd/meta/ -- help/discovery RPCs -->
 
 ---
 
@@ -449,6 +476,7 @@ Inside `ze cli`:
 | Pipe: JSON compact | `peer list \| json compact` |
 | Pipe: disable paging | `peer list \| no-more` |
 | Tab completion | Contextual command/argument completion |
+<!-- source: cmd/ze/cli/main.go -- pipe operators, interactive model -->
 
 ---
 
@@ -461,3 +489,4 @@ The daemon handles these Unix signals directly:
 | `SIGHUP` | Reload configuration |
 | `SIGTERM` / `SIGINT` | Graceful shutdown |
 | `SIGUSR1` | Dump status to stderr |
+<!-- source: cmd/ze/hub/main.go -- signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP) -->

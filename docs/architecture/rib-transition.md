@@ -24,7 +24,9 @@ Ze is transitioning to an architecture where **all RIB data and logic lives in A
 
 The reactor no longer holds `ribIn` or `ribStore` fields. Route storage is
 fully owned by plugins (`bgp-rib`, `bgp-adj-rib-in`). The engine retains only:
-- **msg-id cache** (`recentUpdates`) — wire bytes for zero-copy forwarding
+- **msg-id cache** (`recentUpdates`) -- wire bytes for zero-copy forwarding
+<!-- source: internal/component/bgp/reactor/reactor.go -- Reactor struct (no RIB fields) -->
+<!-- source: internal/component/bgp/reactor/recent_cache.go -- RecentUpdateCache -->
 
 ```
 Engine receives UPDATE → Cache wire bytes (msg-id) → Send event to plugins → Plugins store/forward
@@ -129,6 +131,9 @@ What the engine does:
 - **Capabilities**: Negotiate with peers
 - **API Server**: Unix socket, JSON protocol
 - **msg-id Cache**: Store wire bytes, lifetime controlled by API
+<!-- source: internal/component/bgp/reactor/reactor.go -- Reactor (engine core) -->
+<!-- source: internal/component/bgp/fsm/ -- FSM states -->
+<!-- source: internal/component/bgp/reactor/session.go -- Session wire I/O -->
 
 What the engine does NOT do:
 - ❌ Route storage (no RIB)
@@ -244,9 +249,11 @@ See [msg-id Cache Control](#msg-id-cache-control) for details.
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| Pool | `internal/component/bgp/rib/pool/` | Go pool for API programs |
+| Pool | `internal/component/bgp/attrpool/` | Go pool for API programs |
 | RIB | `internal/component/bgp/rib/` | Route storage patterns |
 | Route | `internal/component/bgp/rib/route.go` | Route with handles |
+<!-- source: internal/component/bgp/attrpool/pool.go -- Pool implementation -->
+<!-- source: internal/component/bgp/attrpool/handle.go -- Handle type -->
 
 ---
 

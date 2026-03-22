@@ -3,6 +3,8 @@
 **Source:** ExaBGP `bgp/message/update/nlri/evpn/`
 **Family:** AFI 25 (L2VPN), SAFI 70 (EVPN)
 
+<!-- source: internal/component/bgp/nlri/nlri.go -- AFIL2VPN, SAFIEVPN, L2VPNEVPN -->
+
 ---
 
 ## Common Header
@@ -19,6 +21,8 @@ All EVPN NLRIs share this structure:
 +---------------------------+
 ```
 
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPN common header structure -->
+
 ---
 
 ## Route Types
@@ -30,6 +34,8 @@ All EVPN NLRIs share this structure:
 | 3 | Inclusive Multicast Ethernet Tag | `Multicast` |
 | 4 | Ethernet Segment | `Segment` |
 | 5 | IP Prefix | `Prefix` |
+
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPNRouteType1..EVPNRouteType5 -->
 
 ---
 
@@ -59,6 +65,8 @@ All EVPN NLRIs share this structure:
 # After 2-byte header:
 # RD: 2-10, ESI: 10-20, ETag: 20-24, Label: 24+
 ```
+
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPNType1 (Ethernet Auto-Discovery) -->
 
 ---
 
@@ -121,6 +129,8 @@ Per RFC 7432 Section 7.2, key components are:
 
 **NOT** included: ESI, Labels (these are attributes)
 
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPNType2 wire format parsing -->
+
 ---
 
 ## Type 3: Inclusive Multicast Ethernet Tag
@@ -143,6 +153,8 @@ Per RFC 7432 Section 7.2, key components are:
 +---------------------------+
 ```
 
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPNType3 (Inclusive Multicast) -->
+
 ---
 
 ## Type 4: Ethernet Segment
@@ -164,6 +176,8 @@ Per RFC 7432 Section 7.2, key components are:
 |   Originating Router IP   |  4 or 16 octets
 +---------------------------+
 ```
+
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPNType4 (Ethernet Segment) -->
 
 ---
 
@@ -192,6 +206,8 @@ Per RFC 7432 Section 7.2, key components are:
 |   MPLS Label (3 octets)   |
 +---------------------------+
 ```
+
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPNType5 (IP Prefix) -->
 
 ---
 
@@ -313,6 +329,8 @@ var evpnRegistry = map[int]EVPNUnpacker{
     5: unpackPrefix,
 }
 ```
+
+<!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- EVPN type parsing and encoding -->
 
 ---
 

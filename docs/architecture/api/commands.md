@@ -20,6 +20,7 @@ Ze uses target-first syntax with JSON or text encoding.
 | Forward command | Not available | `forward update-id` for route reflection |
 
 See [JSON_FORMAT.md](JSON_FORMAT.md#exabgp-differences) for output format differences.
+<!-- source: internal/component/plugin/server/command.go -- Dispatcher -->
 
 ---
 
@@ -30,7 +31,7 @@ See [JSON_FORMAT.md](JSON_FORMAT.md#exabgp-differences) for output format differ
 | Daemon | shutdown, reload, restart, status |
 | Session | ack, sync, reset, ping, bye |
 | System | help, version, api version |
-| Peer | list, detail, capabilities, statistics, create, delete, teardown |
+| Peer | list, detail, capabilities, statistics, create, delete, teardown, flush |
 | Announce | route, flow, vpls, eor, operational |
 | Withdraw | route, flow, vpls, watchdog |
 | RIB | routes, best, status, clear |
@@ -39,6 +40,7 @@ See [JSON_FORMAT.md](JSON_FORMAT.md#exabgp-differences) for output format differ
 | Group | start, end (batching) |
 | Monitor | bgp monitor (live event streaming) |
 | Subscribe | subscribe, unsubscribe (event filtering) |
+<!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
 
 ---
 
@@ -60,6 +62,7 @@ plugin session ready     # Signal plugin init complete
 plugin session ping      # Health check
 plugin session bye       # Disconnect
 ```
+<!-- source: internal/core/ipc/schema/ze-plugin-api.yang -- session RPCs -->
 
 ### BGP Plugin Configuration
 
@@ -73,6 +76,7 @@ bgp plugin format full       # Both parsed AND wire bytes
 bgp plugin ack sync          # Wait for wire transmission
 bgp plugin ack async         # Return immediately (default)
 ```
+<!-- source: internal/component/bgp/schema/ze-bgp-api.yang -- plugin-encoding, plugin-format, plugin-ack RPCs -->
 
 ### Event Subscription Commands
 
@@ -104,6 +108,7 @@ unsubscribe <namespace> event <type> [direction received|sent|both]
 | `update-rpki` | ✅ | UPDATE merged with RPKI validation (from bgp-rpki-decorator) |
 
 Plugins may register additional event types via `Registration.EventTypes`. These are validated at runtime against the dynamic registry.
+<!-- source: internal/component/plugin/registry/registry.go -- Registration.EventTypes -->
 
 **RIB event types:**
 
@@ -143,6 +148,7 @@ bgp monitor peer <addr> event update direction received  # Combined filters
 | `direction` | `received`, `sent` | Both directions |
 
 Wire method: `ze-bgp:monitor`. Supports pipe operators: `| json`, `| table`, `| match`.
+<!-- source: internal/component/plugin/server/monitor.go -- MonitorManager -->
 
 ### System Commands
 
@@ -157,6 +163,7 @@ system command help "<name>" # Show command details
 system command complete "<partial>"  # Complete command names
 system command complete "<cmd>" args [<completed>...] "<partial>"  # Arg completion
 ```
+<!-- source: internal/core/ipc/schema/ze-system-api.yang -- system RPCs -->
 
 ### Daemon Commands
 
@@ -179,7 +186,9 @@ peer <ip> statistics     # Show specific peer statistics
 peer <ip> teardown <code> [<reason>]  # Disconnect peer
 peer create <config>     # Create dynamic peer
 peer <ip> delete         # Delete dynamic peer
+peer <sel> flush         # Wait for forward pool to drain (barrier)
 ```
+<!-- source: internal/component/bgp/schema/ze-bgp-api.yang -- peer RPCs -->
 
 ### Cache Commands (Ze)
 
@@ -203,6 +212,7 @@ The cache commands enable route reflection via API:
 3. External process decides routing
 4. Cache forward command references msg-id (zero-copy when contexts match)
 5. Cache entries expire after configurable TTL (default 60s) unless retained
+<!-- source: internal/component/bgp/reactor/reactor.go -- cache forward -->
 
 ### Log Commands (Ze)
 
@@ -212,6 +222,7 @@ bgp log set <subsystem> <level>   # Change subsystem log level at runtime
 ```
 
 Levels: `debug`, `info`, `warn`, `err`. Changes take effect immediately via `slog.LevelVar` atomic swap. Only loggers created via `slogutil.Logger()` or `slogutil.LazyLogger()` (non-disabled) are shown and modifiable.
+<!-- source: internal/component/bgp/plugins/cmd/log/schema/ -- ze-bgp-cmd-log-api.yang -->
 
 ### Metrics Commands (Ze)
 
@@ -221,6 +232,7 @@ bgp metrics list          # List metric names only (no values)
 ```
 
 Requires telemetry to be enabled in config (`telemetry { prometheus { ... } }`). Returns error if metrics registry is not available.
+<!-- source: internal/component/bgp/plugins/cmd/metrics/schema/ -- ze-bgp-cmd-metrics-api.yang -->
 
 ### Peer Selectors
 
@@ -229,6 +241,7 @@ peer *                   # All peers
 peer 192.168.1.2         # Specific peer by IP
 peer !192.168.1.2        # All peers EXCEPT this IP (for route reflection)
 ```
+<!-- source: internal/core/selector/selector.go -- Selector -->
 
 The `!<ip>` negated selector is useful for route reflection:
 ```
@@ -243,6 +256,7 @@ bgp cache 12345 forward !10.0.0.1
 
 All route operations use unified `update text` syntax with flat attribute declarations
 (no `set` keyword) and keyword aliases (short forms accepted, see Keyword Aliases below):
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- ParseUpdateText -->
 
 ```bash
 # Announce routes (flat attributes, no 'set')
@@ -304,6 +318,7 @@ rib status                                  # RIB status (peer/route counts)
 rib clear in                                # Clear Adj-RIB-In
 rib clear out                               # Resend Adj-RIB-Out
 ```
+<!-- source: internal/component/bgp/plugins/rib/schema/ze-rib-api.yang -- RIB RPCs -->
 
 #### Inter-Plugin RIB Commands (GR/LLGR)
 
@@ -326,6 +341,7 @@ peer <selector> update text ...
 peer <selector> update text ...
 group end                         # End batch, send all
 ```
+<!-- source: internal/component/bgp/transaction/commit_manager.go -- CommitManager -->
 
 ---
 
@@ -401,6 +417,7 @@ Available attribute names:
 | `extended-community` | 16 | EXTENDED_COMMUNITIES |
 | `large-community` | 32 | LARGE_COMMUNITIES |
 | `all` | - | All attributes (default) |
+<!-- source: internal/component/bgp/types/contentconfig.go -- ContentConfig -->
 
 Benefits of partial parsing:
 - Reduced CPU (only parse what's needed for routing decision)
@@ -467,6 +484,7 @@ aggregator <asn> <ip>            # Aggregator
 aigp <value>                     # AIGP
 split /<len>                     # Ze: prefix expansion (see below)
 ```
+<!-- source: internal/component/bgp/types/types.go -- RouteSpec, PathAttributes -->
 
 ### Keyword Aliases
 
@@ -482,6 +500,7 @@ split /<len>                     # Ze: prefix expansion (see below)
 | `route-distinguisher` | `rd` | — |
 
 Lists use commas (no spaces): `path 65001,65002`. Brackets accepted for transition: `as-path [65001 65002]`.
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- keyword alias table -->
 
 ---
 
@@ -577,6 +596,7 @@ withdraw ipv4/flow \
 | redirect-next-hop | Redirect to next-hop |
 | mark <dscp> | Set DSCP |
 | community [...] | Add community |
+<!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- FlowSpec parsing -->
 
 ---
 
@@ -593,6 +613,7 @@ withdraw ipv4/flow \
 ```json
 {"type":"response","response":{"serial":"1","status":"error","data":"description"}}
 ```
+<!-- source: internal/component/plugin/types.go -- Response struct -->
 
 ### Show Neighbor
 
@@ -706,6 +727,7 @@ func Dispatch(tree DispatchTree, tokens *Tokenizer, reactor *Reactor) (Handler, 
     // Return handler and matched peers
 }
 ```
+<!-- source: internal/component/plugin/server/command.go -- Dispatcher, Handler -->
 
 ### Peer Selector Parsing
 
@@ -737,6 +759,7 @@ var Commands = []CommandInfo{
     // ...
 }
 ```
+<!-- source: internal/component/plugin/server/rpc_register.go -- registeredRPCs -->
 
 ---
 

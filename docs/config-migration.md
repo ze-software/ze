@@ -2,6 +2,10 @@
 
 ZeBGP migrates configurations using named transformations. Each transformation has a specific purpose and can be previewed before applying.
 
+<!-- source: cmd/ze/config/cmd_migrate.go -- ze bgp config migrate command -->
+<!-- source: cmd/ze/config/cmd_fmt.go -- ze bgp config fmt command -->
+<!-- source: cmd/ze/config/cmd_validate.go -- ze config validate command -->
+
 ## Quick Start
 
 ```bash
@@ -197,6 +201,8 @@ $ ze bgp config migrate --in-place old.conf
 - `--dry-run` - Show what would happen without applying
 - `-o <file>` - Write to specified file
 - `--in-place` - Modify original file (creates backup)
+
+<!-- source: internal/exabgp/migration/migrate.go -- migration transformation logic -->
 
 ## Unsupported Features
 

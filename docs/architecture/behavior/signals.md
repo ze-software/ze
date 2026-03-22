@@ -15,6 +15,7 @@
 | SIGUSR1 | Reload | Reload configuration |
 | SIGUSR2 | Full Reload | Full configuration reload |
 | SIGINT | Shutdown | Ctrl+C, immediate shutdown |
+<!-- source: internal/component/bgp/reactor/signal.go -- SignalHandler, SIGTERM/SIGINT/SIGHUP/SIGUSR1 -->
 
 ---
 
@@ -157,6 +158,7 @@ def sigterm(self, signum, frame):
 ```
 
 If a signal arrives while another is being processed, it's ignored.
+<!-- source: internal/component/bgp/reactor/signal.go -- safeHandleSignal, handleSignal -->
 
 ---
 
@@ -224,6 +226,8 @@ def shutdown(self):
     self.processes.terminate_all()
     sys.exit(0)
 ```
+<!-- source: internal/component/bgp/reactor/signal.go -- SignalHandler.OnShutdown -->
+<!-- source: internal/component/bgp/message/notification.go -- NOTIFICATION Cease codes -->
 
 ---
 
@@ -239,11 +243,14 @@ Ze diverges from ExaBGP's signal mapping. The following reflects the actual impl
 | SIGINT | Graceful shutdown | Same as SIGTERM (Ctrl+C) |
 | SIGHUP | Config reload | `reactor.SignalHandler.OnReload` (BGP path); `Orchestrator.Reload` (hub path — shuts down on failure) |
 | SIGUSR1 | Status dump | `reactor.SignalHandler.OnStatus` (BGP path only) |
-| SIGQUIT | Goroutine dump + exit | Go runtime default (not caught — useful for debugging) |
+| SIGQUIT | Goroutine dump + exit | Go runtime default (not caught -- useful for debugging) |
+<!-- source: internal/component/bgp/reactor/signal.go -- handleSignal, SIGTERM/SIGINT/SIGHUP/SIGUSR1 -->
+<!-- source: cmd/ze/hub/main.go -- runBGPInProcess, runOrchestratorWithData -->
 
 ### Daemon Liveness
 
 Daemon liveness is detected by TCP dial to the SSH port. CLI tools (`ze signal stop`, `ze signal reload`, `ze signal status`) connect via SSH to send commands. No PID files or Unix sockets are used.
+<!-- source: cmd/ze/signal/main.go -- Run, cmdSignalReload, cmdSignalStop -->
 
 ### `ze signal` CLI
 
@@ -256,6 +263,7 @@ Usage: `ze signal <command>`
 | reload | SSH command | Reload sent | Not running / SSH error |
 | stop | SSH command | Stop sent | Not running / SSH error |
 | status | TCP dial to SSH port | Running | Not running |
+<!-- source: cmd/ze/signal/main.go -- Run, ExitSuccess, ExitNotRunning -->
 
 ### Startup Paths
 
@@ -264,12 +272,15 @@ Usage: `ze signal <command>`
 2. Start SSH server (binds configured listen addresses)
 3. Start reactor with `SignalHandler` (handles SIGHUP/SIGUSR1)
 4. Wait for SIGTERM/SIGINT or reactor done
+<!-- source: cmd/ze/hub/main.go -- runBGPInProcess -->
 
 **Hub orchestrator** (`runOrchestratorWithData`):
 1. Parse hub config
 2. Start SSH server
 3. Start orchestrator
 4. Signal goroutine handles SIGTERM/SIGINT/SIGHUP
+<!-- source: cmd/ze/hub/main.go -- runOrchestratorWithData -->
+<!-- source: internal/component/bgp/reactor/signal.go -- SignalHandler.StartWithContext -->
 
 ---
 

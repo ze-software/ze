@@ -36,6 +36,8 @@ peer 192.0.2.1 {
 **Files:**
 - Config: `internal/component/config/bgp.go` - `NeighborConfig.IgnoreFamilyMismatch`
 - Validation: `internal/component/bgp/reactor/session.go` - `handleUpdate()` (pending)
+<!-- source: internal/component/bgp/reactor/session_validation.go -- enforceRFC7606 -->
+<!-- source: internal/component/bgp/reactor/config.go -- IgnoreFamilyMismatch -->
 
 ---
 

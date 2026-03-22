@@ -369,6 +369,9 @@ When `expect=syslog:` is present, the test runner automatically:
 | Auto-injection | `runner.go` | Adds `backend=syslog` + `destination=host:port` |
 | `validateLogging()` | `runner.go` | Checks patterns after test completes |
 
+<!-- source: internal/test/syslog/testsyslog.go -- syslog UDP server -->
+<!-- source: internal/test/runner/runner.go -- auto-injection and validateLogging -->
+
 **Message format:** Syslog messages use Go's `slog.TextHandler` format with syslog framing:
 ```
 <priority>timestamp hostname ze-bgp: level=DEBUG subsystem=server msg="..." key=value
@@ -671,6 +674,17 @@ The test passes if:
 | `stress.go` | Iteration stats and timing for -c/--count |
 | `tmpfs_test.go` | Tmpfs parsing integration tests |
 
+<!-- source: internal/test/runner/color.go -- ANSI colors -->
+<!-- source: internal/test/runner/decode.go -- BGP message decoding -->
+<!-- source: internal/test/runner/display.go -- live progress display -->
+<!-- source: internal/test/runner/json.go -- JSON validation -->
+<!-- source: internal/test/runner/limits.go -- ulimit check -->
+<!-- source: internal/test/runner/ports.go -- port allocation -->
+<!-- source: internal/test/runner/record.go -- test record state machine -->
+<!-- source: internal/test/runner/report.go -- failure reports -->
+<!-- source: internal/test/runner/runner.go -- test execution engine -->
+<!-- source: internal/test/runner/stress.go -- stress iteration stats -->
+
 ### Package: `internal/tmpfs/`
 
 | File | Purpose |
@@ -681,6 +695,11 @@ The test passes if:
 | `cleanup.go` | Signal handling for temp cleanup |
 
 ### Entry Point: `cmd/ze-test/`
+
+<!-- source: cmd/ze-test/main.go -- test runner entry point -->
+<!-- source: cmd/ze-test/bgp.go -- bgp test subcommand -->
+<!-- source: cmd/ze-test/syslog.go -- syslog server subcommand -->
+<!-- source: cmd/ze-test/rpki.go -- RPKI mock RTR subcommand -->
 
 Subcommand-based CLI with `bgp` for BGP test execution, `syslog` for syslog server, and `rpki` for deterministic RPKI mock RTR server.
 
@@ -705,4 +724,23 @@ Usage: `ze-test rpki --port 3323 [--valid-asn 65001] [--invalid-asn 65099]`
 
 ---
 
-**Updated:** 2026-02-11
+## Route Delivery Synchronization
+
+Plugin test scripts use `wait_for_ack()` from `test/scripts/ze_api.py` to ensure routes have been delivered to peers before proceeding. This function sends a `ze-bgp:peer-flush` RPC that blocks until all forward pool workers have drained their queued items to peer sockets (deterministic barrier).
+<!-- source: test/scripts/ze_api.py -- wait_for_ack() function -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer-flush RPC handler -->
+<!-- source: internal/component/bgp/reactor/forward_pool_barrier.go -- forward pool flush barrier -->
+
+**When writing new plugin tests:**
+
+| Pattern | Use |
+|---------|-----|
+| After a batch of `send()` calls | Call `wait_for_ack()` before checking results or sending dependent commands |
+| Between independent `send()` calls | No synchronization needed (FIFO ordering per peer is guaranteed) |
+| Before `wait_for_shutdown()` | Call `wait_for_ack()` to ensure all routes hit the wire |
+
+**Do NOT use `time.sleep()` for forward delivery synchronization.** The flush barrier is deterministic and does not depend on timing. Use `time.sleep()` only for non-forward-pool concerns (session establishment, RPKI cache, event propagation).
+
+---
+
+**Updated:** 2026-03-22

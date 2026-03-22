@@ -2,23 +2,26 @@
 
 Current implementation coverage of the text format across message types, attributes, and NLRI families.
 
-Source of truth: `internal/component/bgp/format/text.go` (formatter), `internal/component/bgp/plugins/rs/server.go` (parser).
+Source of truth: `internal/component/bgp/format/text.go` (formatter), `internal/component/bgp/plugins/rs/server_text.go` (parser).
+<!-- source: internal/component/bgp/format/text.go -- text formatters -->
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- text parsers -->
 
 ## Message Type Coverage
 
 | Message Type | Formatter | Parser | Tests |
 |-------------|-----------|--------|-------|
-| State (up/down) | `FormatStateChange` `text.go:841` | `parseTextState` `server.go:1226` | `TestFormatStateChange` `text_test.go:27` |
-| UPDATE announce | `formatFilterResultText` `text.go:627` | `parseTextNLRIOps` `server.go:1057` | `TestFormatMessageText` `text_test.go:77` |
-| UPDATE withdraw | `formatFilterResultText` `text.go:627` | `parseTextNLRIOps` `server.go:1057` | `TestFormatMessageText` `text_test.go:77` |
+| State (up/down) | `FormatStateChange` `text.go:841` | `parseTextState` `server_text.go:352` | `TestFormatStateChange` `text_test.go:27` |
+| UPDATE announce | `formatFilterResultText` `text.go:627` | `parseTextNLRIOps` `server_text.go:194` | `TestFormatMessageText` `text_test.go:77` |
+| UPDATE withdraw | `formatFilterResultText` `text.go:627` | `parseTextNLRIOps` `server_text.go:194` | `TestFormatMessageText` `text_test.go:77` |
 | UPDATE empty | `formatEmptyUpdate` `text.go:80` | handled (no body) | — |
-| OPEN | `FormatOpen` `text.go:790` | `parseTextOpen` `server.go:1170` | `TestFormatOpenWithDirection` `text_test.go:601` |
+| OPEN | `FormatOpen` `text.go:790` | `parseTextOpen` `server_text.go:280` | `TestFormatOpenWithDirection` `text_test.go:601` |
 | NOTIFICATION | `FormatNotification` `text.go:809` | — (not parsed by RR) | `TestFormatNotificationWithDirection` `text_test.go:681` |
 | KEEPALIVE | `FormatKeepalive` `text.go:826` | — (not parsed by RR) | `TestFormatKeepaliveWithDirection` `text_test.go:644` |
-| REFRESH | `FormatRouteRefresh` `text.go:833` | `parseTextRefresh` `server.go:1257` | — |
-| BORR | `FormatRouteRefresh` `text.go:833` | `parseTextRefresh` `server.go:1257` | — |
+| REFRESH | `FormatRouteRefresh` `text.go:833` | `parseTextRefresh` `server_text.go:392` | — |
+| BORR | `FormatRouteRefresh` `text.go:833` | `parseTextRefresh` `server_text.go:392` | — |
 | EORR | `FormatRouteRefresh` `text.go:833` | parsed but ignored | — |
-| Negotiated | — (not yet formatted as text) | — | — |
+| Negotiated | --- (not yet formatted as text) | --- | --- |
+<!-- source: internal/component/bgp/format/text.go -- FormatStateChange, FormatOpen, FormatNotification, FormatKeepalive, FormatRouteRefresh -->
 
 ## Attribute Coverage
 
@@ -36,14 +39,15 @@ Source of truth: `internal/component/bgp/format/text.go` (formatter), `internal/
 | ATOMIC_AGGREGATE | 6 | — | — | — |
 | AGGREGATOR | 7 | — | — | — |
 | ORIGINATOR_ID | 9 | — | — | — |
-| CLUSTER_LIST | 10 | — | — | — |
+| CLUSTER_LIST | 10 | --- | --- | --- |
+<!-- source: internal/component/bgp/format/text.go -- attribute formatters (lines 704-783) -->
 
 ## NLRI Family Coverage
 
 | Family | Plugin | String() | Formatter Integration | Parser Integration |
 |--------|--------|----------|----------------------|-------------------|
-| ipv4/unicast | built-in | `nlri/inet.go:178` | `text.go:650` | `server.go:1068` |
-| ipv6/unicast | built-in | `nlri/inet.go:178` | `text.go:650` | `server.go:1068` |
+| ipv4/unicast | built-in | `nlri/inet.go:178` | `text.go:650` | `server_text.go` |
+| ipv6/unicast | built-in | `nlri/inet.go:178` | `text.go:650` | `server_text.go` |
 | ipv4/vpn | bgp-nlri-vpn | `types.go:266` | via NLRI.String() | prefix collected |
 | ipv6/vpn | bgp-nlri-vpn | `types.go:266` | via NLRI.String() | prefix collected |
 | l2vpn/evpn | bgp-nlri-evpn | `types.go:308,481,595,715,875` | via NLRI.String() | prefix collected |
@@ -67,8 +71,9 @@ forwarding to downstream peers.
 | Simple prefix parsing (ipv4/ipv6 unicast) | Extracted as prefix strings |
 | Complex NLRI sub-field parsing (VPN, EVPN, etc.) | Not parsed — forwarded as opaque strings |
 | ADD-PATH path-id extraction | Not extracted — included in NLRI string |
-| Attribute parsing from UPDATE text | Not parsed — attributes forwarded with raw text |
+| Attribute parsing from UPDATE text | Not parsed --- attributes forwarded with raw text |
 | Capability parsing from OPEN | Parsed (code, name, value) |
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextNLRIOps, parseTextOpen -->
 
 ## Encoding Coverage
 
@@ -79,4 +84,5 @@ forwarding to downstream peers.
 | Text full | `formatFullFromResult` (parsed + raw) | — |
 | JSON parsed | `FormatParsed` → JSON functions | Full (`shared/event.go`) |
 | JSON raw | `formatRawFromResult` | — |
-| JSON full | `formatFullFromResult` (parsed + raw) | — |
+| JSON full | `formatFullFromResult` (parsed + raw) | --- |
+<!-- source: internal/component/bgp/format/text.go -- FormatParsed, formatRawFromResult, formatFullFromResult -->

@@ -1,6 +1,7 @@
 # Logging
 
 Ze uses hierarchical, structured logging with runtime-configurable levels per subsystem.
+<!-- source: internal/core/slogutil/slogutil.go -- Logger, PluginLogger, level definitions -->
 
 ## Log Levels
 
@@ -28,6 +29,8 @@ environment {
 }
 ```
 
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- environment log config block -->
+
 ### Environment Variables
 
 Environment variables take precedence over the config file:
@@ -43,6 +46,7 @@ export ZE_LOG_PLUGIN=info
 # All notation forms are equivalent:
 ze.log.bgp.fsm    ZE_LOG_BGP_FSM    ze_log_bgp_fsm
 ```
+<!-- source: internal/core/slogutil/slogutil.go -- ze.log, ze.log.<subsystem> env var registration -->
 
 ### CLI Flag
 
@@ -59,6 +63,7 @@ ze run bgp log set bgp.fsm debug
 ze run bgp log set bgp.reactor info
 ze cli --run "bgp log levels"         # show current levels
 ```
+<!-- source: internal/component/cmd/log/ -- log show/set RPCs -->
 
 ## Priority Order
 
@@ -101,6 +106,7 @@ export ZE_LOG_RELAY=disabled   # silence plugin output
 ```
 
 Default relay level: `warn`.
+<!-- source: internal/component/plugin/process/delivery.go -- plugin delivery/relay -->
 
 ## Common Subsystems
 
@@ -115,6 +121,7 @@ Default relay level: `warn`.
 | `hub` | Plugin hub, IPC |
 | `gr` | Graceful restart |
 | `relay` | Plugin stderr relay |
+<!-- source: internal/core/slogutil/slogutil.go -- subsystem logger creation -->
 
 ## Inspecting Current Configuration
 

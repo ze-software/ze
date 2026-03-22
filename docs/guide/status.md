@@ -18,6 +18,7 @@ Ze establishes BGP sessions, exchanges routes, and handles the full FSM lifecycl
 | NOTIFICATION handling | Working -- all standard codes including RFC 9003 shutdown communication |
 | Keepalive / hold timer | Working |
 | TCP MD5 authentication | Working on Linux and FreeBSD. Not available on macOS (kernel limitation). |
+<!-- source: internal/component/bgp/reactor/ -- reactor event loop, FSM, wire layer -->
 
 ### Address Families
 
@@ -36,6 +37,7 @@ All families decode. Most encode. Use `ze --plugins` to see the current state.
 | MVPN | Yes | No | No |
 | Route Target Constraint | Yes | No | No |
 | Mobile User Plane | Yes | Yes | Yes |
+<!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin registrations with Families -->
 
 ### Plugins
 
@@ -55,6 +57,7 @@ All families decode. Most encode. Use `ze --plugins` to see the current state.
 | bgp-persist | Working -- route persistence across restarts |
 | bgp-watchdog | Working -- deferred route announcement |
 | All NLRI plugins (9) | Working -- decode and encode for their families |
+<!-- source: internal/component/bgp/plugins/ -- all plugin register.go files -->
 
 ### Infrastructure
 
@@ -68,6 +71,7 @@ All families decode. Most encode. Use `ze --plugins` to see the current state.
 | ExaBGP config migration | Working -- auto-detect and convert |
 | ExaBGP plugin bridge | Partial -- 20/37 compatibility tests passing |
 | Chaos testing (ze-chaos) | Working -- deterministic replay, property validation |
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- YANG config; cmd/ze/config/ -- config CLI; internal/component/cli/ -- interactive CLI; internal/core/slogutil/ -- hierarchical logging; internal/exabgp/ -- ExaBGP migration -->
 
 ### Test Suite
 
@@ -79,6 +83,7 @@ All families decode. Most encode. Use `ze --plugins` to see the current state.
 | Linters | 26 |
 
 All tests run with the race detector enabled.
+<!-- source: Makefile -- ze-unit-test, ze-functional-test, ze-lint, ze-fuzz-test targets -->
 
 ## What Does NOT Work Yet
 
@@ -101,6 +106,7 @@ All tests run with the race detector enabled.
 | macOS MD5 | TCP MD5 auth returns "not supported" on Darwin (kernel limitation, not a bug) |
 | Error messages | Some parse errors could be more specific about what went wrong |
 | Packaging | No Docker image, no binary releases, no package manager support yet |
+<!-- source: internal/component/bgp/ -- FSM, wire layer, reactor implementation -->
 
 ### API stability
 

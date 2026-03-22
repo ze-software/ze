@@ -1,197 +1,299 @@
 # Plugin Protocol
 
-ZeBGP plugins communicate with the engine via stdin/stdout using a 5-stage text protocol.
+Ze plugins communicate with the engine via JSON RPCs over a single bidirectional
+connection. Internal plugins use `net.Pipe()`; external plugins connect back via TLS.
+<!-- source: pkg/plugin/sdk/sdk.go -- NewWithConn, NewFromTLSEnv -->
+
+All messages use newline-delimited framing with the wire format `#<id> <verb> [<json>]\n`.
+<!-- source: pkg/plugin/rpc/conn.go -- Conn doc comment -->
+
+## Wire Format
+
+Every message is a single newline-terminated line:
+
+| Message type | Format |
+|-------------|--------|
+| Request | `#<id> <method> [<json-params>]\n` |
+| Success response | `#<id> ok [<json-result>]\n` |
+| Error response | `#<id> error [<json-error>]\n` |
+
+<!-- source: pkg/plugin/rpc/message.go -- FormatRequest, FormatResult, FormatError -->
+
+- `<id>` is a monotonically increasing uint64 correlation ID
+- `<method>` uses YANG-style `<module>:<rpc-name>` naming (e.g., `ze-plugin-engine:declare-registration`)
+- JSON payloads are optional (omitted when empty or null)
+- Responses use `ok` or `error` as the verb; requests use the method name
+
+**Routing:** `MuxConn` multiplexes a single connection for concurrent RPCs. A background
+reader goroutine routes incoming lines by verb: `ok`/`error` responses go to the waiting
+`CallRPC` caller by `#<id>`, while method-name requests go to the `Requests()` channel.
+<!-- source: pkg/plugin/rpc/mux.go -- MuxConn, readLoop -->
+
+**Examples:**
+
+```
+# Plugin sends declare-registration (Stage 1)
+#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both"}]}
+
+# Engine responds OK
+#1 ok
+
+# Engine sends configure to plugin (Stage 2)
+#1 ze-plugin-callback:configure {"sections":[{"root":"bgp","data":"{...}"}]}
+
+# Plugin responds OK
+#1 ok
+
+# Engine sends event at runtime
+#42 ze-plugin-callback:deliver-event {"event":"{\"type\":\"state\",...}"}
+
+# Plugin responds OK
+#42 ok
+
+# Error response with payload
+#5 error {"code":"error","message":"unknown family: ipv4/unknown"}
+```
 
 ## Protocol Stages
 
-### Stage 1: Declaration
+The SDK handles the 5-stage startup protocol automatically via `Plugin.Run()`.
+<!-- source: pkg/plugin/sdk/sdk.go -- Run -->
 
-Plugin sends declarations on startup:
+### Stage 1: Registration (Plugin to Engine)
 
-```
-declare encoding text
-declare schema <yang-module-escaped>
-declare handler <prefix>
-declare cmd <command-name>
-declare done
-```
+Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistrationInput`:
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput -->
 
-**Messages:**
-- `declare encoding text` - Required, specifies text encoding
-- `declare schema <text>` - YANG module (newlines escaped as `\n`)
-- `declare handler <prefix>` - Handler path prefix (e.g., "bgp", "bgp.peer")
-- `declare cmd <name>` - Command name (e.g., "status")
-- `declare done` - End of declarations
+| Field | Type | Description |
+|-------|------|-------------|
+| `families` | `[]FamilyDecl` | Address families the plugin handles (name + mode) |
+| `commands` | `[]CommandDecl` | Commands the plugin provides |
+| `dependencies` | `[]string` | Plugin names that must also be loaded |
+| `wants-config` | `[]string` | Config roots the plugin wants to receive |
+| `schema` | `SchemaDecl` | YANG schema (module, namespace, yang-text, handlers) |
+| `wants-validate-open` | `bool` | Whether plugin wants OPEN validation callbacks |
+| `cache-consumer` | `bool` | Whether plugin consumes cached events |
+| `cache-consumer-unordered` | `bool` | Whether unordered cache delivery is acceptable |
+| `connection-handlers` | `[]ConnectionHandlerDecl` | Listen sockets to receive via fd passing |
 
-### Stage 2: Config
-
-Engine sends initial configuration. Plugin loads into candidate, then commits.
-
-```
-# Engine → Plugin
-bgp peer create {"address":"192.0.2.1","peer-as":65002}
-bgp peer create {"address":"192.0.2.2","peer-as":65003}
-bgp commit
-
-# Plugin → Engine
-# Success: no output
-# Failure: error message, startup aborted
-```
-
-**End of stage:**
-```
-config done
-```
-
-### Stage 3: Capability
-
-Plugin confirms capability registration complete:
+**Wire example:**
 
 ```
-capability done
+#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both"}],"commands":[{"name":"flowspec status","description":"Show FlowSpec status"}],"wants-config":["bgp"]}
+#1 ok
 ```
 
-### Stage 4: Registry
+### Stage 2: Config (Engine to Plugin)
 
-Engine confirms all schemas registered:
+Engine sends `ze-plugin-callback:configure` with a `ConfigureInput`:
+<!-- source: pkg/plugin/rpc/types.go -- ConfigureInput -->
 
-```
-registry done
-```
+| Field | Type | Description |
+|-------|------|-------------|
+| `sections` | `[]ConfigSection` | Config sections (root name + JSON data) |
 
-### Stage 5: Ready
+Each `ConfigSection` has:
+<!-- source: pkg/plugin/rpc/types.go -- ConfigSection -->
 
-Plugin signals ready for commands:
+| Field | Type | Description |
+|-------|------|-------------|
+| `root` | `string` | Config root name (e.g., `"bgp"`) |
+| `data` | `string` | JSON-encoded config data |
 
-```
-ready
-```
-
-## Command Format
-
-All commands use the plugin's namespace:
-
-```
-<namespace> <path> <action> {json}
-<namespace> commit
-<namespace> rollback
-<namespace> diff
-```
-
-**Examples:**
-```
-bgp peer create {"address":"192.0.2.1","peer-as":65002}
-bgp peer modify {"address":"192.0.2.1","hold-time":90}
-bgp peer delete {"address":"192.0.2.1"}
-bgp commit
-bgp rollback
-bgp diff
-```
-
-| Part | Description |
-|------|-------------|
-| `<namespace>` | Plugin namespace (e.g., `bgp`, `rib`, `acme-monitor`) |
-| `<path>` | Handler path within namespace (e.g., `peer`, `peer-group`) |
-| `<action>` | `create`, `modify`, or `delete` |
-| `{json}` | Data including keys |
-
-## Candidate/Running Model
-
-Plugins maintain two configuration states:
+**Wire example:**
 
 ```
-┌─────────────────┐     ┌─────────────────┐
-│    Running      │     │   Candidate     │
-│  (committed)    │     │   (pending)     │
-├─────────────────┤     ├─────────────────┤
-│ Active config   │     │ Uncommitted     │
-│ Last commit     │     │ changes         │
-└─────────────────┘     └─────────────────┘
+#1 ze-plugin-callback:configure {"sections":[{"root":"bgp","data":"{\"bgp\":{\"peer\":{...}}}"}]}
+#1 ok
 ```
 
-| Command | Effect |
-|---------|--------|
-| `<ns> ... create/modify/delete` | Modifies candidate |
-| `<ns> commit` | Diff candidate vs running → verify → apply → candidate becomes running |
-| `<ns> rollback` | Discard candidate, revert to running |
-| `<ns> diff` | Show pending changes (candidate vs running) |
+### Stage 3: Capabilities (Plugin to Engine)
 
-**Commit flow:**
-1. Compute diff between candidate and running
-2. Call verify handlers for each change
-3. If all verify pass, call apply handlers
-4. Candidate becomes new running
+Plugin sends `ze-plugin-engine:declare-capabilities` with a `DeclareCapabilitiesInput`:
+<!-- source: pkg/plugin/rpc/types.go -- DeclareCapabilitiesInput -->
 
-## Command Loop
+| Field | Type | Description |
+|-------|------|-------------|
+| `capabilities` | `[]CapabilityDecl` | BGP capabilities for OPEN injection |
 
-After ready, plugin handles commands:
+Each `CapabilityDecl` has:
+<!-- source: pkg/plugin/rpc/types.go -- CapabilityDecl -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `code` | `uint8` | Capability code (e.g., 64 for Graceful Restart) |
+| `encoding` | `string` | `"hex"`, `"b64"`, or `"text"` |
+| `payload` | `string` | Encoded capability value |
+| `peers` | `[]string` | Peer addresses to inject into (empty = all peers) |
+
+**Wire example:**
 
 ```
-# Engine → Plugin
-#<serial> <namespace> <command> [args...]
-
-# Plugin → Engine
-@<serial> ok [json-data]
-@<serial> error <message>
+#2 ze-plugin-engine:declare-capabilities {"capabilities":[{"code":64,"encoding":"hex","payload":"0078","peers":["192.168.1.1"]}]}
+#2 ok
 ```
 
-**Serial numbers:**
-- Engine uses alpha serials (a-j)
-- Plugin uses numeric serials for callbacks
+### Stage 4: Registry (Engine to Plugin)
 
-**Shutdown:**
-```json
-{"shutdown":true}
+Engine sends `ze-plugin-callback:share-registry` with a `ShareRegistryInput`:
+<!-- source: pkg/plugin/rpc/types.go -- ShareRegistryInput -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `commands` | `[]RegistryCommand` | Registered commands from all plugins |
+
+Each `RegistryCommand` has:
+<!-- source: pkg/plugin/rpc/types.go -- RegistryCommand -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | Command name |
+| `plugin` | `string` | Plugin that registered it |
+| `encoding` | `string` | Encoding format |
+
+**Wire example:**
+
 ```
+#2 ze-plugin-callback:share-registry {"commands":[{"name":"rib adjacent status","plugin":"bgp-adj-rib-in"},{"name":"peer","plugin":"bgp"}]}
+#2 ok
+```
+
+### Stage 5: Ready (Plugin to Engine)
+
+Plugin sends `ze-plugin-engine:ready` with an optional `ReadyInput`:
+<!-- source: pkg/plugin/rpc/types.go -- ReadyInput -->
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `subscribe` | `SubscribeEventsInput` | Optional startup event subscription |
+
+The `subscribe` field allows plugins to register event subscriptions atomically with
+startup completion. This avoids a race where `SignalAPIReady` triggers route sends before
+a separate `subscribe-events` RPC could be processed.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetStartupSubscriptions -->
+
+**Wire example:**
+
+```
+#3 ze-plugin-engine:ready {"subscribe":{"events":["update","state"],"peers":["*"],"format":"json"}}
+#3 ok
+```
+
+After Stage 5, the SDK activates the DirectBridge (for internal plugins) and enters
+the event loop.
+
+## Runtime Callbacks (Engine to Plugin)
+
+After startup, the engine sends runtime RPCs to the plugin via the event loop:
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- dispatchCallback -->
+
+| Method | Input | Description |
+|--------|-------|-------------|
+| `ze-plugin-callback:deliver-event` | `{"event":"<json>"}` | Single event delivery |
+| `ze-plugin-callback:deliver-batch` | `{"events":[...]}` | Batched event delivery |
+| `ze-plugin-callback:execute-command` | `ExecuteCommandInput` | Command execution request |
+| `ze-plugin-callback:config-verify` | `ConfigVerifyInput` | Config verification (reload) |
+| `ze-plugin-callback:config-apply` | `ConfigApplyInput` | Config apply (reload) |
+| `ze-plugin-callback:validate-open` | `ValidateOpenInput` | OPEN message validation |
+| `ze-plugin-callback:encode-nlri` | `EncodeNLRIInput` | NLRI encoding request |
+| `ze-plugin-callback:decode-nlri` | `DecodeNLRIInput` | NLRI decoding request |
+| `ze-plugin-callback:decode-capability` | `DecodeCapabilityInput` | Capability decoding request |
+| `ze-plugin-callback:bye` | `ByeInput` | Shutdown notification |
+
+## Runtime RPCs (Plugin to Engine)
+
+Plugins can call the engine during runtime via these RPCs:
+<!-- source: pkg/plugin/sdk/sdk_engine.go -- all methods -->
+
+| Method | Input | Output | Description |
+|--------|-------|--------|-------------|
+| `ze-plugin-engine:update-route` | `UpdateRouteInput` | `UpdateRouteOutput` | Inject route to peers |
+| `ze-plugin-engine:dispatch-command` | `DispatchCommandInput` | `DispatchCommandOutput` | Inter-plugin command dispatch |
+| `ze-plugin-engine:emit-event` | `EmitEventInput` | `EmitEventOutput` | Push event to subscribers |
+| `ze-plugin-engine:subscribe-events` | `SubscribeEventsInput` | - | Subscribe to events |
+| `ze-plugin-engine:unsubscribe-events` | - | - | Unsubscribe from events |
+| `ze-plugin-engine:decode-nlri` | `DecodeNLRIInput` | `DecodeNLRIOutput` | Decode NLRI via registry |
+| `ze-plugin-engine:encode-nlri` | `EncodeNLRIInput` | `EncodeNLRIOutput` | Encode NLRI via registry |
+| `ze-plugin-engine:decode-mp-reach` | `DecodeMPReachInput` | `DecodeMPReachOutput` | Decode MP_REACH_NLRI |
+| `ze-plugin-engine:decode-mp-unreach` | `DecodeMPUnreachInput` | `DecodeMPUnreachOutput` | Decode MP_UNREACH_NLRI |
+| `ze-plugin-engine:decode-update` | `DecodeUpdateInput` | `DecodeUpdateOutput` | Decode full UPDATE message |
 
 ## Message Flow Example
 
 ```
-Plugin                                        Engine
-   │                                             │
-   │── declare encoding text ───────────────────>│
-   │── declare schema module... ────────────────>│
-   │── declare handler bgp ─────────────────────>│
-   │── declare handler bgp.peer ────────────────>│
-   │── declare cmd status ──────────────────────>│
-   │── declare done ────────────────────────────>│
-   │                                             │
-   │<── bgp peer create {"address":"192.0.2.1"}──│
-   │<── bgp peer create {"address":"192.0.2.2"}──│
-   │<── bgp commit ─────────────────────────────>│
-   │    (verify all, then apply all)             │
-   │<── config done ─────────────────────────────│
-   │                                             │
-   │── capability done ─────────────────────────>│
-   │                                             │
-   │<── registry done ───────────────────────────│
-   │                                             │
-   │── ready ───────────────────────────────────>│
-   │                                             │
-   │<── #a bgp status ──────────────────────────>│
-   │── @a ok {"peers":2,"established":2} ───────>│
-   │                                             │
-   │<── #b bgp peer create {"address":"10.0.0.1"}│
-   │<── #c bgp commit ───────────────────────────│
-   │── @b ok ───────────────────────────────────>│
-   │── @c ok ───────────────────────────────────>│
-   │                                             │
-   │<── {"shutdown":true} ───────────────────────│
-   │    (plugin exits)                           │
+Plugin                                             Engine
+   |                                                  |
+   |  STAGE 1: declare-registration                   |
+   |-- #1 ze-plugin-engine:declare-registration {...}->|
+   |<- #1 ok ---------------------------------------- |
+   |                                                  |
+   |  STAGE 2: configure                              |
+   |<- #1 ze-plugin-callback:configure {...} ---------|
+   |-- #1 ok ---------------------------------------->|
+   |                                                  |
+   |  STAGE 3: declare-capabilities                   |
+   |-- #2 ze-plugin-engine:declare-capabilities {...}->|
+   |<- #2 ok ---------------------------------------- |
+   |                                                  |
+   |  STAGE 4: share-registry                         |
+   |<- #2 ze-plugin-callback:share-registry {...} ----|
+   |-- #2 ok ---------------------------------------->|
+   |                                                  |
+   |  STAGE 5: ready                                  |
+   |-- #3 ze-plugin-engine:ready {...} -------------->|
+   |<- #3 ok ---------------------------------------- |
+   |                                                  |
+   |  RUNTIME: event delivery                         |
+   |<- #42 ze-plugin-callback:deliver-batch {...} ----|
+   |-- #42 ok ---------------------------------------->|
+   |                                                  |
+   |  RUNTIME: plugin sends route update              |
+   |-- #4 ze-plugin-engine:update-route {...} -------->|
+   |<- #4 ok {"peers-affected":2,"routes-sent":2} --- |
+   |                                                  |
+   |  RUNTIME: command execution                      |
+   |<- #43 ze-plugin-callback:execute-command {...} ---|
+   |-- #43 ok {"status":"done","data":"..."} -------->|
+   |                                                  |
+   |  SHUTDOWN: bye                                   |
+   |<- #99 ze-plugin-callback:bye {"reason":"..."} ---|
+   |-- #99 ok ---------------------------------------->|
+   |  (plugin exits)                                  |
 ```
 
 ## Error Handling
 
-**Declaration errors:**
-- Invalid YANG schema → startup fails
+**Stage errors:** If any stage RPC fails (error response or timeout), the SDK returns
+an error from `Run()` with context like `"stage 1 (declare-registration): ..."`.
+<!-- source: pkg/plugin/sdk/sdk.go -- Run -->
 
-**Commit errors:**
-- Verify handler returns error → commit rejected, candidate unchanged
-- Apply handler returns error → partial apply (logged), may need recovery
+**Runtime errors:** Callback handlers return errors via `#<id> error {"code":"...","message":"..."}`.
+Unknown methods are rejected with `"unknown method: <method>"`.
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- dispatchCallback -->
 
-**Command errors:**
-- Return error → `@serial error message`
+**Connection errors:** EOF or closed connection during the event loop is treated as
+clean shutdown (engine closes socket to signal exit).
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop -->
 
-**Fatal errors:**
-- Plugin should exit with non-zero code
-- Engine will restart or report failure
+**Config reload errors:** `config-verify` and `config-apply` return structured results
+with `{"status":"ok"}` or `{"status":"error","error":"..."}`. If no handler is registered,
+the response is `{"status":"ok"}` (graceful no-op).
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- handleConfigRPC -->
+
+## Batched Event Delivery
+
+Events are batched for efficiency. The engine collects pending events from a per-process
+channel, JSON-quotes each one, and sends them in a single `deliver-batch` RPC.
+<!-- source: pkg/plugin/rpc/batch.go -- WriteBatchFrame -->
+
+```
+#42 ze-plugin-callback:deliver-batch {"events":["<json-event-1>","<json-event-2>",...]}
+#42 ok
+```
+
+The SDK unpacks the batch and dispatches each event to the `OnEvent` handler individually.
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- handleDeliverBatch -->
+
+For internal plugins with an active `DirectBridge`, event delivery bypasses JSON-RPC
+framing entirely: `bridge.DeliverEvents(events)` calls the `onEvent` handler directly.
+<!-- source: pkg/plugin/sdk/sdk.go -- Run, bridge activation -->

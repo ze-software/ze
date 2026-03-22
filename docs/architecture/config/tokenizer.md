@@ -254,6 +254,8 @@ peer 192.168.1.2 {
 
 ## Ze Implementation Notes
 
+<!-- source: internal/component/config/tokenizer.go -- Go tokenizer implementation -->
+
 ### Go Tokenizer
 
 ```go

@@ -14,6 +14,8 @@ Ze has multiple route representations serving different purposes in the data flo
 | `rr.Route` | `internal/component/plugin/rr/rib.go` | Minimal for zero-copy forwarding | MsgID, Family, Prefix only |
 | `RIBRoute` | `internal/component/plugin/types.go` | Query output | Peer, Prefix, NextHop, ASPath (strings) |
 | `rib.Route` | `internal/component/bgp/rib/route.go` | Core engine storage | NLRI, Attrs, ASPath, wire cache, refcount |
+<!-- source: internal/component/plugin/types.go -- RouteSpec, PathAttributes, RIBRoute -->
+<!-- source: internal/component/bgp/rib/route.go -- rib.Route (core engine) -->
 
 **Note:** Two different `rib.Route` types exist - one in `internal/component/plugin/rib/` (plugin) and one in `internal/component/bgp/rib/` (core engine).
 
@@ -97,6 +99,8 @@ internal/component/bgp/attribute/
 ├── text.go           # Text formatting: FormatASPath(), FormatCommunities()
 └── *.go              # Wire format encoding/decoding
 ```
+<!-- source: internal/component/plugin/types.go -- route type definitions -->
+<!-- source: internal/core/selector/ -- peer selector implementation -->
 
 ## Design Principles
 

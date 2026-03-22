@@ -18,6 +18,7 @@ Ze supports two operating modes:
 **This document describes Hub mode.**
 
 In hub mode, Ze runs as a **hub process** (`ze`) that orchestrates separate **plugin processes** communicating via pipes. This architecture enables:
+<!-- source: internal/component/plugin/server/ -- plugin server orchestration -->
 
 - Language freedom (plugins can be Go, Python, Rust, etc.)
 - Crash isolation (BGP crash doesn't kill RIB)
@@ -413,6 +414,8 @@ Each plugin follows this protocol with the hub:
 | 3 | Plugin → Hub | `capability hex ...`, `capability done` |
 | 4 | Hub → Plugin | `registry cmd ...`, `registry done` |
 | 5 | Plugin → Hub | `ready` |
+<!-- source: internal/component/plugin/registration.go -- 5-stage protocol parsing -->
+<!-- source: internal/component/plugin/startup_coordinator.go -- startup coordination -->
 
 **Priority:** Determines verify/apply order. Lower = first. Example: BGP=100, RIB=200, GR=300.
 
@@ -537,7 +540,9 @@ declare done
 |--------|----------|---------|
 | `ze-types` | `yang/ze-types.yang` | Common types (asn, ip-address, etc.) |
 | `ze-bgp-conf` | `internal/component/bgp/schema/ze-bgp-conf.yang` | `container bgp` with peers, families |
-| `ze-plugin-conf` | `internal/yang/modules/ze-plugin-conf.yang` | `container plugin` for process declarations |
+| `ze-plugin-conf` | `internal/component/plugin/schema/` | `container plugin` for process declarations |
+<!-- source: internal/component/bgp/schema/ -- BGP YANG schemas -->
+<!-- source: internal/component/plugin/schema/ -- plugin YANG schemas -->
 | `ze-rib` | `internal/component/plugin/rib/schema/ze-rib.yang` | Augments `ze-bgp-conf` with `container rib` |
 | `ze-graceful-restart` | `internal/component/plugin/gr/schema/ze-graceful-restart.yang` | Augments `ze-bgp-conf` for graceful-restart |
 | `ze-hostname` | `internal/component/plugin/hostname/schema/ze-hostname.yang` | Augments `ze-bgp-conf` for FQDN capability |
@@ -655,14 +660,18 @@ The target user/group is configured via environment variables:
 When `ze.user` is not set, no privilege dropping occurs.
 
 Implementation: `internal/core/privilege/` -- calls `setgid` then `setuid` after `reactor.Start()` binds port 179.
+<!-- source: internal/core/privilege/ -- privilege dropping -->
 
 ### Plugin TLS Transport
 
 External plugins connect back to the engine via TLS. The engine binds a TLS listener (configured via `plugin { hub { listen ...; secret ...; } }`), forks child processes with `ZE_PLUGIN_HUB_HOST`/`ZE_PLUGIN_HUB_PORT`/`ZE_PLUGIN_HUB_TOKEN` env vars, and waits for authenticated connect-back. Each plugin uses a single bidirectional TLS connection with MuxConn for concurrent RPCs.
+<!-- source: internal/component/hub/ -- hub TLS listener -->
+<!-- source: pkg/plugin/rpc/ -- MuxConn for concurrent RPCs -->
 
 ### Plugin Process Isolation
 
 Each external plugin runs in its own process group (`Setpgid`) for clean signal handling and inherits the daemon's (already-dropped) uid/gid. All plugins run as the same unprivileged user.
+<!-- source: internal/component/plugin/process/ -- process isolation -->
 
 ---
 

@@ -23,6 +23,7 @@
 ## Overview
 
 Ze configuration uses a JUNOS-like hierarchical syntax with sections, keywords, and values terminated by semicolons or braces. The parser is YANG-driven: each config node's type (leaf, leaf-list, container, list) determines how it is parsed. No custom `ze:syntax` annotations are used in ze-native config.
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- module ze-bgp-conf structure -->
 
 ---
 
@@ -80,21 +81,22 @@ plugin {
 
 bgp {
     router-id <ip>;                         # BGP-level global (inherited by all peers)
-    local-as <asn>;                         # BGP-level global (inherited by all peers)
+    local {
+        as <asn>;                           # BGP-level local AS (inherited by all peers)
+    }
 
     group <name> {
         <peer-fields>                       # Group-level defaults (shared by all peers in group)
-        peer <ip-address> {
-            name <display-name>;            # Optional: CLI selector name
+        peer <name> {
             <peer-fields>                   # Peer-level overrides
         }
     }
 
-    peer <ip-address> {                     # Standalone peer (no group inheritance)
-        name <display-name>;
+    peer <name> {                           # Standalone peer (no group inheritance)
         <peer-fields>
     }
 }
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- container bgp, list peer -->
 ```
 
 ---
@@ -112,6 +114,7 @@ environment {
     tcp { port 1179; }
 }
 ```
+<!-- source: internal/component/config/environment.go -- Environment struct, envOptions -->
 
 ### plugin
 
@@ -133,6 +136,7 @@ plugin {
 | run | string | Command to execute |
 | encoder | string | `json` or `text` |
 | timeout | duration | Per-stage timeout (e.g., `5s`, `1m`, `500ms`). Default: 5s. 0 = use default. Negative rejected. |
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- list process, leaf run, leaf encoding -->
 
 **Timeout semantics:** During startup, all plugins synchronize at each stage. The timeout controls how long this plugin waits for all plugins to complete each stage. With multiple plugins, use the same timeout for all, or set the longest timeout on all plugins to avoid fast plugins timing out while waiting for slow ones.
 
@@ -146,8 +150,7 @@ Peers are organized into named groups under `bgp`. Groups provide shared default
 bgp {
     group <name> {
         <peer-fields>               # Group-level defaults
-        peer <ip-address> {
-            name <display-name>;    # Optional CLI selector
+        peer <name> {
             <peer-fields>           # Peer-level overrides
         }
     }
@@ -157,17 +160,18 @@ bgp {
 | Element | Type | Purpose |
 |---------|------|---------|
 | `group` | list (key: name) | Named collection of peers with shared defaults |
-| `peer` inside group | list (key: IP) | Peer with optional overrides of group defaults |
-| `peer` at bgp level | list (key: IP) | Standalone peer (no group inheritance) |
-| `name` on peer | leaf (optional) | Display name usable as CLI selector instead of IP |
+| `peer` inside group | list (key: name) | Peer with optional overrides of group defaults |
+| `peer` at bgp level | list (key: name) | Standalone peer (no group inheritance) |
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- list group, list peer -->
 
 #### 3-Level Inheritance
 
 | Priority | Source | Scope |
 |----------|--------|-------|
-| Lowest | `bgp` block globals | `local-as`, `router-id` -- inherited by all peers |
+| Lowest | `bgp` block globals | `local { as; }`, `router-id` -- inherited by all peers |
 | Middle | Group defaults | All `peer-fields` set on the group |
 | Highest | Peer overrides | All `peer-fields` set on the peer |
+<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree, deepMergeMaps -->
 
 Containers (like `capability`) deep-merge at key level -- both group and peer capabilities are combined. Leaves (like `hold-time`) override -- peer value wins over group value.
 
@@ -176,43 +180,43 @@ Containers (like `capability`) deep-merge at key level -- both group and peer ca
 ```
 bgp {
     router-id 1.2.3.4
-    local-as 65000
+    local { as 65000; }
 
     group rr-clients {
         hold-time 180
         capability { route-refresh enable; }
 
-        peer 10.0.0.1 {
-            name router-east
-            peer-as 65001
-            local-address 10.0.0.1
+        peer router-east {
+            remote { ip 10.0.0.1; as 65001; }
+            local { ip 10.0.0.1; }
         }
-        peer 10.0.0.2 {
-            peer-as 65002
-            local-address 10.0.0.2
+        peer client-b {
+            remote { ip 10.0.0.2; as 65002; }
+            local { ip 10.0.0.2; }
             hold-time 90               # Overrides group's 180
         }
     }
 
     group edge-peers {
         hold-time 30
-        peer 192.168.1.1 {
-            peer-as 64500
-            local-address 192.168.1.254
+        peer edge-gw {
+            remote { ip 192.168.1.1; as 64500; }
+            local { ip 192.168.1.254; }
         }
     }
 }
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- peer-fields grouping -->
 ```
 
 #### Peer Name Rules
 
 | Rule | Detail |
 |------|--------|
-| Optional | Peers may have no name |
+| Required | Every peer must have a name (it is the list key) |
 | Unique | Two peers with the same name produce a config validation error |
-| Characters | Alphanumeric, hyphens, underscores. No spaces, dots, colons, commas, or `*` |
-| CLI usage | `peer <name> <command>` works identically to `peer <ip> <command>` |
-| Disambiguation | A name must not parse as a valid IP address |
+| Pattern | Must start with a letter or underscore (`[a-zA-Z_].*`) |
+| CLI usage | `peer <name> <command>` selects the peer |
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- list peer key "name" -->
 
 #### Migration
 
@@ -227,23 +231,23 @@ Container for all BGP-related configuration (peers, groups, global settings).
 
 ```
 bgp {
-    router-id <ip>;         # Global router-id (inherited by all peers)
-    local-as <asn>;         # Global local-as (inherited by all peers)
+    router-id <ip>;           # Global router-id (inherited by all peers)
+    local { as <asn>; }       # Global local AS (inherited by all peers)
 
     group <name> {
         # Group-level defaults (inherited by all peers in group)
+        remote { as <asn>; }    # Default remote AS for group
         hold-time <seconds>;
         capability { ... }
         family { ... }
 
-        peer <ip-address> {
-            name <display-name>;    # Optional CLI selector
+        peer <name> {
+            # Peer identity
+            remote { ip <ip>; as <asn>; }
+            local { ip <ip>; as <asn>; }
 
             # Peer-level overrides
             router-id <ip>;
-            local-address <ip>;
-            local-as <asn>;
-            peer-as <asn>;
             hold-time <seconds>;
 
             # Capabilities
@@ -260,6 +264,7 @@ bgp {
         }
     }
 }
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- container bgp structure -->
 ```
 
 **Migration:** `ze bgp config migrate` converts old syntax:
@@ -272,23 +277,20 @@ bgp {
 ## Peer Keywords
 
 ### Session
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- peer-fields grouping -->
 
 | Keyword | Type | Description |
 |---------|------|-------------|
 | router-id | IP | BGP router ID |
-| local-address | IP | Local address to bind |
-| local-as | ASN | Local AS number |
-| peer-as | ASN | Peer AS number |
-| hold-time | int | Hold time (seconds) |
+| remote { ip; as; } | container | Remote peer IP address and AS number |
+| local { ip; as; } | container | Local IP address and AS number overrides |
+| hold-time | int | Hold time (seconds, default 90) |
 | connection | enum | `both` (default), `passive`, `active` |
 | port | int | Per-peer listen port |
-| ttl-security | int | TTL security hop count |
-| md5-password | string | MD5 authentication password |
-| md5-ip | IP | MD5 authentication IP |
-| group-updates | bool | Group updates for efficiency |
-| auto-flush | bool | Auto-flush after each update |
-| outgoing-ttl | int | Outgoing TTL |
-| incoming-ttl | int | Incoming TTL |
+| group-updates | bool | Group updates for efficiency (default true) |
+| description | string | Peer description |
+| link-local | IPv6 | IPv6 link-local address for next-hop (RFC 2545) |
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- grouping peer-fields, leaf hold-time, leaf connection -->
 
 ### Capability Section
 
@@ -300,6 +302,7 @@ All capabilities support a four-mode vocabulary:
 | `disable` | No | None | `false` |
 | `require` | Yes | Reject peer if capability missing | |
 | `refuse` | No | Reject peer if capability present | |
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- container capability, enum enable/disable/require/refuse -->
 
 **Simple capabilities** -- mode is the value:
 
@@ -356,6 +359,7 @@ add-path {
 The last token is interpreted as a mode if it matches `require`|`refuse`|`enable`|`disable`. Otherwise the existing direction parsing applies unchanged.
 
 **Defaults:** ASN4 defaults to `enable`. All other capabilities are absent (opt-in) -- they only participate in negotiation when explicitly configured.
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- leaf asn4 default true -->
 
 **Backwards compatibility:** `true` is accepted as `enable`, `false` as `disable`. Bare capability names (e.g., `route-refresh;`) mean `enable`.
 
@@ -379,6 +383,7 @@ family {
 ```
 
 Block syntax is also supported: `ipv4 { unicast; multicast require; }`.
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- list family -->
 
 ### ADD-PATH Section
 
@@ -395,6 +400,7 @@ add-path {
 ```
 
 Each line is parsed as: `<family> [<direction>] [<mode>]` where family is the list key, direction is `send`, `receive`, or `send/receive` (default: `send/receive`), and mode defaults to `enable`.
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- list add-path, leaf direction, leaf mode -->
 
 ### Process Section
 
@@ -423,6 +429,7 @@ process <plugin-name> {
 | `state` | Peer up/down events |
 | `sent` | Sent UPDATE confirmations |
 | `negotiated` | Capability negotiation results |
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- leaf-list receive, ze:validate receive-event-type -->
 
 Plugins may register additional event types (e.g., `rpki`, `update-rpki`) that can also appear in receive lists. These are validated at runtime against the plugin registry.
 
@@ -435,6 +442,7 @@ Plugins may register additional event types (e.g., `rpki`, `update-rpki`) that c
 | `update` | Can inject routes |
 | `refresh` | Can request route refresh |
 | `enhanced-refresh` | Can send BORR/EORR markers (RFC 7313, always paired) |
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- leaf-list send, ze:validate send-message-type -->
 
 **`all` is not accepted.** List send types explicitly.
 
@@ -476,6 +484,7 @@ update {
     }
 }
 ```
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- container attribute, leaf origin, leaf next-hop, leaf-list community -->
 
 ### NLRI Grammar
 
@@ -490,6 +499,7 @@ update {
 - `<op>` -- **mandatory** operation: `add` (announce), `del` (withdraw), `eor` (end-of-rib, no payload)
 - `<bracket-list>` -- `[ prefix1 prefix2 ... ]` -- for prefix-based families, one route per entry
 - `<structured-payload>` -- for complex families (FlowSpec, VPLS, EVPN), one route per line
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- list nlri, leaf content -->
 
 ### Payload dispatch
 
@@ -647,6 +657,7 @@ Standalone watchdog commands (via API):
 watchdog announce <name>   # send all routes in pool to peers
 watchdog withdraw <name>   # withdraw all routes in pool from peers
 ```
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- container watchdog, leaf name, leaf withdraw -->
 
 ---
 
@@ -719,6 +730,7 @@ refuse          # capability mode: reject session if peer has it
 ```
 
 The `require` and `refuse` values are accepted by boolean fields to support capability mode enforcement. The parser normalizes `enable` to `true` and `disable` to `false` internally; `require` and `refuse` pass through unchanged.
+<!-- source: internal/component/config/environment.go -- parseBoolStrict -->
 
 ### Origin
 
@@ -736,18 +748,18 @@ incomplete
 
 ```
 bgp {
-    router-id 1.2.3.4         # BGP-level global
-    local-as 65000             # BGP-level global
+    router-id 1.2.3.4           # BGP-level global
+    local { as 65000; }          # BGP-level global
 
     group rr-clients {
-        hold-time 90           # Group default
+        hold-time 90             # Group default
         family {
             ipv4/unicast
         }
 
-        peer 192.168.1.2 {
-            peer-as 65002      # Peer override
-            local-address 192.168.1.1
+        peer client-a {
+            remote { ip 192.168.1.2; as 65002; }
+            local { ip 192.168.1.1; }
         }
     }
 }
@@ -757,11 +769,12 @@ bgp {
 
 | Concept | Description |
 |---------|-------------|
-| BGP globals | `local-as` and `router-id` at bgp level, inherited by all peers |
+| BGP globals | `local { as; }` and `router-id` at bgp level, inherited by all peers |
 | Group defaults | Any `peer-fields` set on the group, inherited by all peers in that group |
 | Peer overrides | Any `peer-fields` set on the peer, takes highest precedence |
 | Deep merge | Containers (e.g., `capability`) merge keys from both group and peer |
 | Leaf override | Scalar values (e.g., `hold-time`) at peer level replace group values |
+<!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree, deepMergeMaps -->
 
 ### Standalone Peers
 
@@ -769,11 +782,11 @@ Peers directly under `bgp` (not inside a group) inherit only BGP-level globals:
 
 ```
 bgp {
-    local-as 65000
+    local { as 65000; }
 
-    peer 10.0.0.5 {
-        peer-as 65001
-        local-address 10.0.0.1
+    peer my-peer {
+        remote { ip 10.0.0.5; as 65001; }
+        local { ip 10.0.0.1; }
         hold-time 180
     }
 }

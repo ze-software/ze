@@ -15,6 +15,7 @@ ze init                        # interactive: prompts for username, password, ho
 Defaults: `127.0.0.1:2222`, ED25519 host key auto-generated.
 
 Credentials are stored in the ze database (`database.zefs`) with bcrypt-hashed passwords.
+<!-- source: cmd/ze/init/main.go -- keyUsername/keyPassword/keyHost/keyPort, defaultHost, defaultPort -->
 
 ### Reinitializing
 
@@ -28,6 +29,7 @@ ze init --force                # prompts for confirmation interactively
 ```
 
 `--force` moves the old database to `database.zefs.replaced-<date>` as a backup before creating a new one. The backup contains your previous SSH credentials and any stored configs. Non-interactive use (piped stdin) is rejected for safety -- `--force` requires interactive confirmation.
+<!-- source: cmd/ze/init/main.go -- forceFlag -->
 
 ### Connection
 
@@ -37,6 +39,7 @@ ze cli --run "peer list"       # single command
 ze show peer list              # read-only shorthand
 ze run peer transit teardown 2 # read-write shorthand
 ```
+<!-- source: cmd/ze/cli/main.go -- Run; cmd/ze/show/main.go -- Run; cmd/ze/run/main.go -- Run -->
 
 ### Override Host/Port
 
@@ -48,6 +51,7 @@ export ZE_SSH_PORT=2222
 # Per-command flags
 ze signal reload --host 10.0.0.1 --port 2222
 ```
+<!-- source: cmd/ze/internal/ssh/client/client.go -- ze.ssh.host, ze.ssh.port env vars -->
 
 ## Signals
 
@@ -59,6 +63,7 @@ ze signal reload --host 10.0.0.1 --port 2222
 | `ze signal stop` | Graceful shutdown (no GR marker) |
 | `ze signal restart` | Graceful restart (writes GR marker for RFC 4724) |
 | `ze signal quit` | Goroutine dump to stderr, then exit |
+<!-- source: cmd/ze/signal/main.go -- Run -->
 
 ### Via Unix Signals
 
@@ -67,6 +72,7 @@ ze signal reload --host 10.0.0.1 --port 2222
 | `SIGHUP` | Reload configuration |
 | `SIGTERM` / `SIGINT` | Graceful shutdown (NOTIFICATION Cease to all peers) |
 | `SIGUSR1` | Dump status to stderr |
+<!-- source: cmd/ze/hub/main.go -- signal.Notify, SIGHUP/SIGTERM/SIGINT handling -->
 
 ### Exit Codes (signal command)
 
@@ -76,6 +82,7 @@ ze signal reload --host 10.0.0.1 --port 2222
 | 1 | Daemon not running |
 | 2 | No SSH credentials (run `ze init`) |
 | 4 | Signal delivery failed |
+<!-- source: cmd/ze/signal/main.go -- ExitSuccess/ExitNotRunning/ExitNoCredentials/ExitSignalFailed -->
 
 ## Health Checks
 
@@ -86,6 +93,7 @@ ze status                      # exit 0 = running, exit 1 = not running
 ```
 
 This dials the SSH port without completing a handshake. Suitable for systemd watchdog or load balancer TCP check.
+<!-- source: cmd/ze/signal/main.go -- RunStatus, net.Dialer -->
 
 ### Scripting
 
@@ -129,6 +137,7 @@ ze env get ze.log              # details for one var
 | `ze.ssh.port` | -- | Override SSH port for CLI commands |
 | `ze.config.dir` | -- | Override config directory |
 | `ze.storage.blob` | `true` | Use blob storage (false = filesystem) |
+<!-- source: internal/core/slogutil/slogutil.go -- ze.log registration; cmd/ze/internal/ssh/client/client.go -- ze.ssh.host/port; cmd/ze/main.go -- ze.storage.blob, ze.config.dir -->
 
 ## CLI Flags
 
@@ -142,6 +151,7 @@ ze env get ze.log              # details for one var
 | `--chaos-rate <0-1>` | Chaos fault probability |
 | `-V`, `--version` | Show version |
 | `--plugins` | List registered plugins (with optional `--json`) |
+<!-- source: cmd/ze/main.go -- global flag parsing -->
 
 ## systemd
 
@@ -237,6 +247,7 @@ Symptom: session establishes briefly then NOTIFICATION received
 2. **Port in use:** Check if another ze instance or BGP daemon holds port 179
 3. **SSH port conflict:** Default SSH is 2222. Check with `netstat -tlnp | grep 2222`
 4. **Missing credentials:** Run `ze init` before starting
+<!-- source: cmd/ze/config/cmd_validate.go -- cmdValidate; internal/component/ssh/ -- SSH server -->
 
 ### Plugin Not Working
 
@@ -250,6 +261,7 @@ Symptom: session establishes briefly then NOTIFICATION received
 3. **Check plugin logs:** Set `ZE_LOG_RELAY=debug` to see plugin stderr output
 
 4. **Plugin not reaching Ready state:** Enable `ZE_LOG_PLUGIN=debug` and look for startup stage failures
+<!-- source: internal/component/plugin/server/server.go -- plugin stage timeout; internal/component/plugin/registry/registry.go -- plugin registration -->
 
 ### No Routes in RIB
 

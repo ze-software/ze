@@ -9,6 +9,7 @@ Plugins have three distinct operating modes with different input/output formats.
 | **CLI Mode** | `ze plugin <name> --nlri <hex>` | Flag value or `-` for stdin | Direct user invocation |
 | **Engine Decode Mode** | `ze plugin <name> --decode` | Protocol commands on stdin | Engine decode delegation |
 | **Engine Mode** | `ze plugin <name>` | Full API protocol (stdin) | Engine-plugin communication |
+<!-- source: cmd/ze/bgp/cmd_plugin.go -- plugin CLI dispatch -->
 
 ## Design Principle
 
@@ -46,6 +47,7 @@ ze plugin rib --features
 | flowspec | ✗ | ✓ | ipv4/flow, ipv6/flow NLRI |
 | rib | ✗ | ✗ | No decode features |
 | rr | ✗ | ✗ | No decode features |
+<!-- source: internal/component/plugin/registry/ -- plugin registration, Features field -->
 
 ### Feature Names
 
@@ -129,6 +131,7 @@ MAC/IP advertisement rd=1:37.44.55.55:1 mac=FC:15:B4:78:7B:8F
 | `--family <fam>` | string | Address family context (flowspec only) |
 | `--features` | bool | List supported decode features |
 | `--yang` | bool | Output YANG schema |
+<!-- source: cmd/ze/bgp/cmd_plugin.go -- CLI flag parsing, --nlri, --capa, --text -->
 
 ## Engine Decode Mode (`--decode` flag)
 
@@ -189,6 +192,7 @@ See `docs/architecture/api/plugin-protocol.md` for full protocol.
 - **Stateful**: Can maintain state across requests
 - **Bidirectional**: Engine can send config, receive events
 - **Lifecycle managed**: Engine handles respawn, backpressure
+<!-- source: internal/component/plugin/server/ -- plugin process management -->
 
 ## Implementation Pattern
 
@@ -247,6 +251,7 @@ The `ze bgp decode` command supports three plugin invocation modes based on nami
 | `ze-name` | Direct | Synchronous in-process | CLI decode, tests, fastest |
 | `/path/to/bin` | Fork | External binary with `--decode` | Custom decoders |
 | `/path/to/bin --args` | Fork | External binary with args + `--decode` | Custom decoders with options |
+<!-- source: internal/component/bgp/format/decode.go -- decode dispatch, fork/internal/direct modes -->
 
 ### Examples
 
@@ -277,6 +282,7 @@ ze bgp decode --plugin "/usr/local/bin/my-decoder --verbose --format yaml" --nlr
 | Isolation | Full | Memory shared | Memory shared |
 | Speed | Slowest | Medium | Fastest |
 | Fallback | In-process retry | None | None |
+<!-- source: internal/component/bgp/format/decode.go -- fork/internal/direct mode dispatch -->
 
 ### External Plugin API Contract
 
@@ -321,8 +327,9 @@ Arguments are split by whitespace. The `--decode` flag is always appended last.
 |--------|-------------------|
 | `ze.unknown` | Error: "internal plugin 'unknown' not registered" |
 | `ze-unknown` | Error: "direct decoder 'unknown' not available" |
-| `unknown` | Try subprocess → fallback to direct → nil |
+| `unknown` | Try subprocess -> fallback to direct -> nil |
 | `/missing/path` | Process spawn fails, returns nil |
+<!-- source: internal/component/bgp/format/decode.go -- error handling per mode -->
 
 ## Related
 

@@ -103,6 +103,8 @@ The hub (`plugin { hub { } }`) already provides:
 - Token authentication (`#0 auth {"token":"...","name":"..."}`)
 - MuxConn multiplexed RPCs (`#id verb [json]\n`)
 - Connection tracking by name
+<!-- source: internal/component/hub/ -- hub TLS infrastructure -->
+<!-- source: pkg/plugin/rpc/ -- MuxConn -->
 
 Managed configuration adds:
 - Per-client secrets in `server` blocks (instead of one shared secret)
@@ -340,3 +342,5 @@ Reference spec: `plan/spec-fleet-config.md`
 | `internal/component/plugin/server/` | Hub extensions: named server/client blocks, per-client auth, config-fetch handler |
 | `internal/component/managed/` | Client: connection manager, reconnect, heartbeat |
 | `cmd/ze/` | `ze daemon` managed mode detection + CLI flag overrides |
+<!-- source: internal/component/plugin/server/ -- hub server infrastructure -->
+<!-- source: internal/component/config/storage/ -- Storage interface for blob access -->

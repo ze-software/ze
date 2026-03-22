@@ -1,6 +1,7 @@
 # Route Reflection
 
 Ze can operate as a route server (RFC 7947) or route reflector, forwarding received routes to other peers. The `bgp-rs` plugin handles route forwarding with zero-copy wire optimization when peers share the same encoding context.
+<!-- source: internal/component/bgp/plugins/rs/register.go -- bgp-rs registration, RFC 7947 -->
 
 ## Configuration
 
@@ -69,6 +70,7 @@ Each destination peer has a dedicated forwarding worker (long-lived goroutine wi
 4. When the peer catches up and the channel drains below 25%, congestion clears
 
 Routes are never dropped. A slow peer's overflow buffer grows in memory until the peer catches up. This prevents a single slow peer from blocking updates to all other peers while preserving routing correctness -- missing a route update is worse than using extra memory.
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- per-destination forward workers, overflow buffer -->
 
 ### Convergent Replay
 
@@ -85,6 +87,7 @@ The `bgp-rs` plugin requires:
 - `send [ update ]` -- sends forwarded routes back to the peer
 
 The `bgp-adj-rib-in` plugin stores received routes for replay on peer reconnect.
+<!-- source: internal/component/bgp/plugins/rs/ -- RunRouteServer; internal/component/bgp/plugins/adj_rib_in/ -- adj-rib-in for replay -->
 
 ## Cache Commands
 
@@ -99,3 +102,4 @@ Routes in transit can be managed via cache commands:
 ## Without Route Reflection
 
 When `bgp-rs` is not loaded, received routes are not forwarded to other peers. The `bgp-rib` plugin stores routes and performs best-path selection, but does not re-advertise them. To forward routes between peers, load the `bgp-rs` plugin.
+<!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib registration -->

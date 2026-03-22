@@ -209,6 +209,7 @@ Handles encode buffer bit, pool index, and slot in a 32-bit value:
 | Slot | 26 | 0-67M | Entry index |
 
 **Implementation** (`internal/component/bgp/attrpool/handle.go`):
+<!-- source: internal/component/bgp/attrpool/handle.go -- Handle type -->
 
 ```go
 type Handle uint32
@@ -291,6 +292,7 @@ type Pool struct {
     // Shutdown state
     shutdown atomic.Bool
 }
+<!-- source: internal/component/bgp/attrpool/pool.go -- Pool struct -->
 
 type buffer struct {
     data     []byte
@@ -395,6 +397,7 @@ func (p *Pool) Intern(data []byte) Handle
 // Returns ErrPoolShutdown, ErrDataTooLarge, or ErrPoolFull.
 func (p *Pool) InternWithError(data []byte) (Handle, error)
 ```
+<!-- source: internal/component/bgp/attrpool/pool.go -- Intern, InternWithError -->
 
 Behavior:
 1. Check dedup index for existing entry
@@ -547,6 +550,7 @@ func NewScheduler(pools []*Pool, config SchedulerConfig) *Scheduler
 // Run starts scheduler loop. Blocks until context canceled.
 func (s *Scheduler) Run(ctx context.Context)
 ```
+<!-- source: internal/component/bgp/attrpool/scheduler.go -- Scheduler, SchedulerConfig -->
 
 Scheduler behavior:
 1. Check if any pool has recent activity (within QuietPeriod)
@@ -568,6 +572,7 @@ The scheduler is wired into the RIB plugin via `OnStarted`:
 Implementation: `internal/component/bgp/plugins/rib/compaction.go` (thin wiring), `rib.go` (OnStarted callback).
 
 `pool.AllPools()` in `internal/component/bgp/plugins/rib/pool/attributes.go` returns all 13 attribute pools.
+<!-- source: internal/component/bgp/plugins/rib/ -- compaction wiring, AllPools -->
 
 ---
 
@@ -677,6 +682,7 @@ When buffer capacity is exceeded, the pool must:
 **Cost:** O(live slots) iteration, but only happens on buffer growth (rare in steady state).
 
 **Implementation:** See `internal/component/bgp/attrpool/pool.go:rebuildIndex()`
+<!-- source: internal/component/bgp/attrpool/pool.go -- rebuildIndex -->
 
 ---
 
@@ -792,6 +798,7 @@ For fine-grained deduplication when routes share some but not all attributes:
 | `AtomicAggregate` | 12 | 64B | ATOMIC_AGGREGATE (RFC 4271) |
 | `Aggregator` | 13 | 4KB | AGGREGATOR (RFC 4271) |
 | `OtherAttrs` | 14 | 64KB | Unknown/unhandled attributes |
+<!-- source: internal/component/bgp/plugins/rib/pool/attributes.go -- per-attribute pool instances -->
 
 ### Usage Pattern
 

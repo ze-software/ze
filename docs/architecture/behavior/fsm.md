@@ -11,6 +11,8 @@
 | **Key Types** | `State`, `FSM`, `Peer.Run()` |
 
 **When to read full doc:** Connection lifecycle, timer logic, collision detection.
+<!-- source: internal/component/bgp/fsm/state.go -- State, StateIdle..StateEstablished -->
+<!-- source: internal/component/bgp/fsm/fsm.go -- FSM, Event() -->
 
 ---
 
@@ -29,6 +31,7 @@
 | OPENSENT | 0x08 | OPEN sent, waiting for peer OPEN |
 | OPENCONFIRM | 0x10 | OPEN received, waiting for KEEPALIVE |
 | ESTABLISHED | 0x20 | Session established, exchanging routes |
+<!-- source: internal/component/bgp/fsm/state.go -- StateIdle=0x01, StateActive=0x02, StateConnect=0x04, StateOpenSent=0x08, StateOpenConfirm=0x10, StateEstablished=0x20 -->
 
 ---
 
@@ -100,6 +103,7 @@ transition = {
 | OPENSENT | CONNECT only |
 | OPENCONFIRM | OPENSENT, OPENCONFIRM |
 | ESTABLISHED | OPENCONFIRM, ESTABLISHED |
+<!-- source: internal/component/bgp/fsm/fsm.go -- handleIdle, handleConnect, handleActive, handleOpenSent, handleOpenConfirm, handleEstablished -->
 
 ---
 
@@ -110,30 +114,35 @@ transition = {
 - **Trigger:** Peer configured and enabled
 - **From:** IDLE
 - **To:** CONNECT (active) or ACTIVE (passive)
+<!-- source: internal/component/bgp/fsm/fsm.go -- handleIdle, EventManualStart -->
 
 ### TCP Connection Established
 
 - **Trigger:** TCP handshake complete
 - **From:** CONNECT or ACTIVE
 - **To:** OPENSENT (after sending OPEN)
+<!-- source: internal/component/bgp/fsm/fsm.go -- handleConnect, handleActive, EventTCPConnectionConfirmed -->
 
 ### Receive OPEN
 
 - **Trigger:** Valid OPEN message received
 - **From:** OPENSENT
 - **To:** OPENCONFIRM (after sending KEEPALIVE)
+<!-- source: internal/component/bgp/fsm/fsm.go -- handleOpenSent, EventBGPOpen -->
 
 ### Receive KEEPALIVE
 
 - **Trigger:** KEEPALIVE received in OPENCONFIRM
 - **From:** OPENCONFIRM
 - **To:** ESTABLISHED
+<!-- source: internal/component/bgp/fsm/fsm.go -- handleOpenConfirm, EventKeepaliveMsg -->
 
 ### Error Events
 
 - **Trigger:** NOTIFICATION, TCP error, hold timer expired
 - **From:** Any
 - **To:** IDLE
+<!-- source: internal/component/bgp/fsm/state.go -- EventHoldTimerExpires, EventTCPConnectionFails, EventNotifMsg -->
 
 ---
 
@@ -162,6 +171,7 @@ transition = {
 - **Purpose:** Timeout waiting for OPEN
 - **Default:** 60 seconds (`exabgp.bgp.openwait`)
 - **Behavior:** Fire in OPENSENT triggers disconnect
+<!-- source: internal/component/bgp/fsm/state.go -- EventHoldTimerExpires, EventKeepaliveTimerExpires, EventConnectRetryTimerExpires -->
 
 ---
 
@@ -263,6 +273,7 @@ def check_collision(self, remote_id):
         self.close_outgoing()
         return True
 ```
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- handleConnection, collision detection -->
 
 ---
 
@@ -282,6 +293,7 @@ const (
     StateEstablished State = 0x20
 )
 ```
+<!-- source: internal/component/bgp/fsm/state.go -- State, StateIdle..StateEstablished -->
 
 ### Reactor Notification
 
@@ -307,6 +319,8 @@ session.fsm.SetCallback(func(from, to fsm.State) {
     }
 })
 ```
+<!-- source: internal/component/bgp/reactor/peer.go -- SetCallback on fsm -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyPeerEstablished, notifyPeerClosed -->
 
 ### PeerLifecycleObserver
 
@@ -323,6 +337,7 @@ reactor.AddPeerObserver(observer)
 ```
 
 The `apiStateObserver` is registered automatically when API server starts, emitting state messages to external processes.
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- PeerLifecycleObserver, AddPeerObserver -->
 
 **See:** `docs/architecture/api/ARCHITECTURE.md` for full details.
 
@@ -352,6 +367,8 @@ func (p *Peer) Run(ctx context.Context) error {
     }
 }
 ```
+<!-- source: internal/component/bgp/reactor/peer.go -- PeerState, PeerStateStopped..PeerStateEstablished -->
+<!-- source: internal/component/bgp/fsm/fsm.go -- FSM.Event(), handleIdle..handleEstablished -->
 
 ---
 

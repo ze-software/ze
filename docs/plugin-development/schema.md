@@ -2,6 +2,56 @@
 
 Plugins declare their configuration schema using YANG (RFC 7950). This guide covers the basics for plugin authors.
 
+## Registering a Schema
+
+Schemas are declared via the `Schema` field of `sdk.Registration`, which is passed to
+`p.Run()`. The `Schema` field is a pointer to `sdk.SchemaDecl`.
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput, SchemaDecl -->
+<!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, SchemaDecl -->
+
+```go
+p := sdk.NewWithConn("my-plugin", conn)
+
+p.Run(ctx, sdk.Registration{
+    Schema: &sdk.SchemaDecl{
+        Module:    "ze-my-plugin",
+        Namespace: "urn:ze:my-plugin",
+        YANGText:  myPluginYANG,        // YANG module text (string)
+        Handlers:  []string{"my-plugin"},
+    },
+    WantsConfig: []string{"my-plugin"},
+})
+```
+<!-- source: pkg/plugin/sdk/sdk.go -- Run -->
+
+### SchemaDecl Fields
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `Module` | `string` | YANG module name |
+| `Namespace` | `string` | YANG namespace URI |
+| `YANGText` | `string` | Full YANG module text |
+| `Handlers` | `[]string` | Config path prefixes this plugin handles |
+
+<!-- source: pkg/plugin/rpc/types.go -- SchemaDecl -->
+
+### Embedding YANG Files
+
+Internal plugins use `//go:embed` to embed YANG files at compile time:
+<!-- source: internal/component/bgp/plugins/rib/schema/embed.go -- ZeRibYANG (go:embed) -->
+<!-- source: internal/component/bgp/plugins/rib/register.go -- YANG field set to ribschema.ZeRibYANG -->
+
+```go
+import _ "embed"
+
+//go:embed my-plugin.yang
+var myPluginYANG string
+```
+
+The embedded string is then passed as `YANGText` in the `SchemaDecl`.
+
+For external plugins, the YANG text can come from any source (file read, constant, etc.).
+
 ## Minimal Schema
 
 ```yang
@@ -163,17 +213,75 @@ leaf group {
 }
 ```
 
-ZeBGP validates that referenced values exist.
+Ze validates that referenced values exist.
 
 ## Best Practices
 
-1. **Use meaningful namespaces** - Include your organization
-2. **Add descriptions** - Help users understand fields
-3. **Set sensible defaults** - Reduce required config
-4. **Validate early** - Use YANG constraints, not just code
-5. **Test with ze plugin validate** - Catch errors early
+1. **Use meaningful namespaces** -- include your organization
+2. **Add descriptions** -- help users understand fields
+3. **Set sensible defaults** -- reduce required config
+4. **Validate early** -- use YANG constraints, not just code
+5. **Use the `Handlers` field** -- list the config path prefixes your plugin manages
 
-## Example: Complete Schema
+## Example: Complete Plugin with Schema
+
+A complete example showing YANG schema registration with the SDK:
+
+```go
+package main
+
+import (
+    "context"
+    _ "embed"
+    "log"
+    "os"
+    "os/signal"
+
+    "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
+)
+
+//go:embed acme-monitor.yang
+var acmeMonitorYANG string
+
+func main() {
+    p, err := sdk.NewFromEnv("acme-monitor")
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    p.OnConfigure(func(sections []sdk.ConfigSection) error {
+        for _, s := range sections {
+            log.Printf("config root=%s data=%s", s.Root, s.Data)
+        }
+        return nil
+    })
+
+    p.OnEvent(func(event string) error {
+        log.Printf("event: %s", event)
+        return nil
+    })
+
+    ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+    defer cancel()
+
+    if err := p.Run(ctx, sdk.Registration{
+        Schema: &sdk.SchemaDecl{
+            Module:    "acme-monitor",
+            Namespace: "urn:acme:monitor",
+            YANGText:  acmeMonitorYANG,
+            Handlers:  []string{"acme-monitor"},
+        },
+        WantsConfig: []string{"acme-monitor"},
+    }); err != nil {
+        log.Fatal(err)
+    }
+}
+```
+<!-- source: pkg/plugin/sdk/sdk.go -- NewFromEnv, Run -->
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigure, OnEvent -->
+<!-- source: pkg/plugin/sdk/sdk_types.go -- Registration, SchemaDecl, ConfigSection -->
+
+### Example YANG Schema
 
 ```yang
 module acme-monitor {

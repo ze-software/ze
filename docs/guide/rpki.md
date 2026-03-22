@@ -1,6 +1,7 @@
 # RPKI Origin Validation
 
 Ze validates received BGP routes against RPKI ROA data. Invalid routes are rejected before entering the RIB. The feature connects to RTR cache servers (RFC 8210), downloads Validated ROA Payloads (VRPs), and applies the RFC 6811 origin validation algorithm to each received prefix.
+<!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki registration, RFCs 6811/8210 -->
 
 ## Configuration
 
@@ -62,10 +63,12 @@ bgp {
 | `rpki / policy / not-found-action` | enum | accept | Action for NotFound routes: accept, reject, log-only |
 
 Multiple cache servers are supported for redundancy. VRP tables from all servers are merged (union).
+<!-- source: internal/component/bgp/plugins/rpki/schema/ -- ze-rpki YANG schema -->
 
 ### Plugin Bindings
 
 The rpki plugin must be bound to peers with `process rpki { receive [ update ] }`. The adj-rib-in plugin must also be bound with `process adj-rib-in { receive [ update state ] }` -- it provides the validation gate that holds routes pending validation.
+<!-- source: internal/component/bgp/plugins/rpki/register.go -- Dependencies: bgp-adj-rib-in -->
 
 ## How It Works
 
@@ -93,6 +96,7 @@ Each received route gets one of three states (RFC 6811):
 If the rpki plugin does not respond within `validation-timeout` seconds (default: 30), pending routes are automatically promoted to installed. This prevents route black-holing if the RPKI infrastructure is unavailable.
 
 If all RTR cache servers disconnect, the existing VRP cache is retained until the connection is re-established. Routes continue to be validated against the last known good cache.
+<!-- source: internal/component/bgp/plugins/rpki/ -- RPKI validation logic, RTR client, fail-open -->
 
 ### AS_PATH Edge Cases
 
@@ -119,6 +123,7 @@ Example:
 $ ze cli --run "rpki status"
 {"running":true,"vrp-count-ipv4":3,"vrp-count-ipv6":0,"sessions":1}
 ```
+<!-- source: internal/component/bgp/plugins/rpki/ -- RPKI CLI commands (status, cache, roa, summary) -->
 
 ## RPKI Validation Events
 
@@ -141,6 +146,7 @@ When the rpki plugin is loaded, it emits validation events that other plugins ca
 ```
 
 When the ROA cache is empty: `"rpki": {"status": "unavailable"}`.
+<!-- source: internal/component/bgp/plugins/rpki/ -- RPKI event emission -->
 
 ## Merged Events (bgp-rpki-decorator)
 
@@ -187,6 +193,7 @@ The merged event contains the full UPDATE JSON with an `rpki` section injected:
 ```
 
 If the RPKI validation does not arrive within the timeout (2 seconds), the event is emitted without the `rpki` section (graceful degradation).
+<!-- source: internal/component/bgp/plugins/rpki_decorator/register.go -- bgp-rpki-decorator registration -->
 
 ## Testing RPKI Locally
 
@@ -207,6 +214,7 @@ Validation states are predictable (for routes from AS 65001 with default flags):
 ## Without RPKI
 
 When the rpki plugin is not loaded, routes flow directly into the adj-rib-in with zero overhead. No pending state, no validation delay. The validation gate is only activated when the rpki plugin sends `adj-rib-in enable-validation` during startup.
+<!-- source: internal/component/bgp/plugins/adj_rib_in/ -- adj-rib-in validation gate -->
 
 ## Troubleshooting
 

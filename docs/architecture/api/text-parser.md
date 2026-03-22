@@ -1,9 +1,10 @@
 # Text Parser Architecture
 
-The text parser lives in `internal/component/bgp/plugins/rs/server.go`. It is the only consumer of the text format
+The text parser lives in `internal/component/bgp/plugins/rs/server_text.go`. It is the only consumer of the text format
 on the hot path (route server forwarding). Other plugins use JSON via `shared/event.go`.
 
-Source of truth: `internal/component/bgp/plugins/rs/server.go` (all `parse*` functions).
+Source of truth: `internal/component/bgp/plugins/rs/server_text.go` (all `parse*` functions).
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- quickParseTextEvent, parseTextNLRIOps -->
 
 ## Current Parser
 
@@ -21,7 +22,8 @@ Full NLRI parsing (`parseTextNLRIOps`) is deferred to the worker goroutine.
 
 ### Entry Point: dispatchText
 
-`dispatchText(text string)` at `server.go:503` receives raw text lines from the engine socket.
+`dispatchText(text string)` at `server.go:509` receives raw text lines from the engine socket.
+<!-- source: internal/component/bgp/plugins/rs/server.go -- dispatchText -->
 
 1. Calls `quickParseTextEvent(text)` for lightweight routing
 2. Routes by event type:
@@ -34,7 +36,8 @@ UPDATE is the only type with deferred parsing. All others are infrequent and par
 
 ### Quick Parse: quickParseTextEvent
 
-`quickParseTextEvent(text string) (eventType, msgID, peerAddr, payload, error)` at `server.go:1011`.
+`quickParseTextEvent(text string) (eventType, msgID, peerAddr, payload, error)` at `server_text.go:116`.
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- quickParseTextEvent -->
 
 1. Trim trailing newline
 2. Split with `strings.Fields(text)` — requires minimum 5 fields, must start with `peer`
@@ -52,14 +55,15 @@ The two header shapes require different field indices:
 
 ### UPDATE Parser: parseTextNLRIOps
 
-`parseTextNLRIOps(text string) map[string][]FamilyOperation` at `server.go:1057`.
+`parseTextNLRIOps(text string) map[string][]FamilyOperation` at `server_text.go:194`.
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextNLRIOps, FamilyOperation -->
 
 Handles multiline UPDATEs (announce + withdraw for same msgID on separate lines).
 
 1. Split text by newlines with `strings.SplitSeq`
 2. For each line, call `parseTextNLRIOpsLine(fields, result)`
 
-`parseTextNLRIOpsLine` at `server.go:1068` implements a state machine:
+`parseTextNLRIOpsLine` implements a state machine:
 
 1. Scan for action token: `announce` (maps to add) or `withdraw` (maps to del)
 2. After action, scan for family tokens and NLRI sequences:
@@ -73,7 +77,7 @@ Result is a map: family string to list of `FamilyOperation{Action, NLRIs}`.
 
 ### Family Detection: isFamilyToken
 
-`isFamilyToken(s string) bool` at `server.go:1150`.
+`isFamilyToken(s string) bool` in `server_text.go`.
 
 Distinguishes family strings from NLRI prefixes — both contain `/`:
 
@@ -88,7 +92,8 @@ Algorithm: find last `/`, check if all characters after it are digits. All-digit
 
 ### OPEN Parser: parseTextOpen
 
-`parseTextOpen(text string) *Event` at `server.go:1170`.
+`parseTextOpen(text string) *Event` at `server_text.go:280`.
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextOpen -->
 
 Parses key-value pairs starting from `fields[5]`:
 - `asn <value>` — peer ASN
@@ -100,7 +105,8 @@ Capabilities are chained: `cap 1 multiprotocol ipv4/unicast cap 65 asn4 65001 ca
 
 ### State Parser: parseTextState
 
-`parseTextState(text string) *Event` at `server.go:1226`.
+`parseTextState(text string) *Event` at `server_text.go:352`.
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextState -->
 
 Parses key-value pairs from `fields[2]`:
 - `asn <value>` — peer ASN
@@ -108,7 +114,8 @@ Parses key-value pairs from `fields[2]`:
 
 ### Refresh Parser: parseTextRefresh
 
-`parseTextRefresh(text string) *Event` at `server.go:1257`.
+`parseTextRefresh(text string) *Event` at `server_text.go:392`.
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextRefresh -->
 
 Type comes from `fields[3]` (one of: `refresh`, `borr`, `eorr`).
 Scans for `family` keyword, splits the value by `/` into AFI and SAFI.
@@ -140,6 +147,7 @@ All parsers are fail-safe:
 | parseTextRefresh | `strings.SplitN()` for family split |
 
 All functions allocate via `strings.Fields()`. No manual byte scanning or zero-allocation parsing exists in the current implementation.
+<!-- source: internal/component/bgp/plugins/rs/server_text.go -- all parse functions -->
 
 ---
 
