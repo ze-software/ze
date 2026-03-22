@@ -1,0 +1,667 @@
+# Spec: forward-congestion
+
+| Field | Value |
+|-------|-------|
+| Status | design |
+| Depends | spec-forward-backpressure, spec-prefix maximum |
+| Phase | - |
+| Updated | 2026-03-22 |
+
+## Post-Compaction Recovery
+
+**Re-read these after context compaction:**
+1. This spec file (you're reading it now)
+2. `internal/component/bgp/reactor/forward_pool.go` - forward pool
+3. `internal/component/bgp/reactor/session_write.go` - writeMu, write deadlines
+4. `internal/component/bgp/reactor/session.go` - keepalive/hold timers
+5. `rfc/short/rfc2918.md` - Route Refresh
+6. `rfc/short/rfc4724.md` - Graceful Restart
+
+## Task
+
+The forward pool's committed code drops BGP UPDATE messages when a destination
+peer's overflow buffer exceeds 256 items. Dropping routes is a correctness bug:
+the peer's RIB silently diverges with no recovery mechanism.
+
+**Invariant: routes are never dropped.** If the system cannot deliver a route
+to a peer, it must either buffer the route or tear down the session. Silent
+discard is never acceptable.
+
+## The Problem
+
+A single slow destination peer (TCP buffer full, remote not reading) causes:
+
+| Without handling | Consequence |
+|-----------------|-------------|
+| Committed code (drop at 256) | Silent routing inconsistency, peer RIB diverges permanently |
+| Working tree (unbounded overflow) | Single slow peer causes OOM, kills all peers |
+| Blocking dispatch (original) | One slow peer blocks forwarding to all peers |
+
+None of these are acceptable. The design must bound memory, preserve routes,
+and isolate slow peers from fast ones.
+
+## Industry Context
+
+Research into existing BGP implementations reveals:
+
+| Implementation | Approach to slow peers |
+|---------------|----------------------|
+| BIRD 3 (IXP route servers) | High/low watermark on pending export queue. When high water exceeded, pauses imports. Never drops. |
+| FRRouting | Dedicated keepalive thread. Write quanta limit per I/O cycle. Configurable SO_SNDBUF. Implements RFC 9687 Send Hold Timer. |
+| OpenBGPd | Internal msgbuf queuing on EAGAIN. Keepalive on independent timer. Implements RFC 9687. |
+| Cisco IOS-XR | Update groups with slow-peer detection and dynamic isolation into "refresh sub-groups." 32 MB per sub-group cache. |
+| Juniper Junos | 17 prioritized output queues. Keepalive generation in dedicated kernel thread. Per-prefix out-delay rate limiting. |
+| Nokia (Alcatel-Lucent) | Uses TCP receive window zero as deliberate backpressure. Known to break peers that don't handle it. |
+
+**Universal industry rule:** Never drop routes silently. Every major implementation
+chooses memory growth or backpressure over route loss.
+
+**RFC 9687 (Send Hold Timer, November 2024):** Directly addresses the "stuck peer"
+problem. If ze cannot send ANY message to a peer for a configured duration
+(recommended: max(8 minutes, 2x HoldTime)), tear down the session. Sends
+NOTIFICATION Error Code 8 "Send Hold Timer Expired." Implemented by FRR, OpenBGPd,
+BIRD. Ze should implement this as a safety net independent of congestion handling.
+
+**TCP window zero is a known vendor technique.** Nokia/Alcatel-Lucent routers use
+it deliberately as backpressure. It broke ExaBGP and was documented to the community.
+Ben Cox (2021) demonstrated that holding window zero without release creates "BGP
+zombies" -- sessions that appear alive but cannot deliver withdrawals, causing stale
+routes in the DFZ. Every tested implementation (BIRD, Cisco, Junos, Arista, FRR)
+hangs without tearing down.
+
+**TCP_NODELAY:** 27x improvement in UPDATE delivery latency measured in BIRD
+(0.207s to 0.007s). FRR and OpenBGPd enable it. Ze should set TCP_NODELAY on
+all peer sockets -- critical for keepalive delivery under congestion.
+
+## Design: Four-Layer Congestion Response
+
+Routes are never dropped. Congestion is handled by four escalating layers.
+Each layer activates only when the previous layer is insufficient.
+
+### Layer 1: Channel Buffer (existing)
+
+Per-destination-peer buffered channel (default 64 items). Absorbs micro-bursts.
+No action needed -- this already works.
+
+### Layer 2: Pre-Allocated Overflow Pool
+
+A global memory pool, pre-allocated at startup, shared by all destination peers.
+
+| Property | Value |
+|----------|-------|
+| Allocation | At startup, one contiguous block |
+| Sizing | Auto-sized from routing data + configurable override |
+| Scope | Global -- all peers draw from the same pool |
+| Fairness | Per-peer share proportional to expected prefix count |
+| Item size | fwdItem slots (~200 bytes metadata each, wire bytes shared via cache refcount) |
+| When exhausted | Triggers Layer 3 (read throttling) or Layer 4 (teardown) |
+
+**Why pre-allocate:** `append()` to unbounded slices means the memory bound
+is theoretical. Pre-allocation makes the bound real -- the memory is committed
+at startup, and the system knows exactly how much it has. No GC pressure spikes
+during congestion.
+
+#### Buffer Sizing: Data-Driven
+
+A fixed buffer size (256, 10000, or any constant) is wrong because it ignores
+the actual routing table. A peer announcing 1M prefixes can have a convergence
+event touching 10% of them -- that is 100K updates in a burst. The buffer must
+be sized to the real workload, not an arbitrary number.
+
+**Sizing sources (in priority order):**
+
+| Priority | Source | What it provides | When available |
+|----------|--------|-----------------|----------------|
+| 1 | Configured prefix maximum per peer | Operator intent -- "I expect at most N prefixes from this peer" | Always (if configured) |
+| 2 | Previous run data (zefs) | Actual observed prefix count from last session with this peer | At startup |
+| 3 | Local RIB (adj-rib-in) | Actual prefix count from current session | After session established |
+| 4 | Compiled-in PeeringDB/routing table | Per-ASN prefix count snapshot from build time | Always (fallback) |
+| 5 | PeeringDB public API refresh | Updated per-ASN data for unknown or stale ASNs | On-demand background |
+
+#### Prefix-Limit (pre-requisite spec: spec-prefix maximum)
+
+**Prefix-limit is mandatory for every peer.** No peer runs without one.
+Like Junos `prefix maximum`, it does double duty:
+
+| Purpose | How prefix maximum helps |
+|---------|----------------------|
+| Safety | Tear down session if peer exceeds limit (prevents route leaks, misconfig) |
+| Buffer sizing | Directly tells the congestion system the expected workload per peer |
+
+**Two ways to set the value:**
+
+| Mode | Config syntax | Behavior |
+|------|-------------|----------|
+| Explicit | `prefix maximum 100000;` | Operator sets the value. Hard enforcement. |
+| PeeringDB lookup | `prefix maximum peeringdb;` | Ze resolves the value NOW: queries compiled-in data or PeeringDB API, gets the number, and writes the actual number into the config. Config ends up with e.g. `prefix maximum 95000;` |
+
+`peeringdb` is a one-time resolution keyword, not a persistent mode.
+The config always contains a concrete number after resolution. If the
+compiled-in data doesn't have the ASN, ze queries the PeeringDB public
+API dynamically to get it.
+
+This means:
+- The operator can type `prefix maximum peeringdb;` in the CLI or config
+- Ze resolves it immediately to a real number
+- The saved config has the resolved number, not the keyword
+- Next time ze reads the config, it sees a normal integer
+- The advisory system (below) will tell the operator if the number
+  becomes too tight over time
+
+**Prefix-limit advisory system:**
+
+The limit protects against route leaks and misconfig, but it must not
+be so tight that normal routing table growth triggers a session teardown.
+Ze tracks whether a peer is approaching its limit and advises the operator.
+
+| Observed prefix count | What ze does |
+|----------------------|-------------|
+| Below 90% of limit | Normal operation |
+| Reaches 90% of limit | Records "hot" event to zefs: peer, timestamp, observed count, current limit |
+| Reaches limit | Session enforcement (teardown per spec-prefix maximum) |
+
+**Ze never auto-changes the running prefix maximum.** The limit is a safety
+mechanism -- silently raising it could mask a route leak. Instead:
+
+On next startup or config edit, ze reports recommendations:
+
+| Report | Example |
+|--------|---------|
+| Peer approaching limit | "peer 10.0.0.1 (AS65001): prefix maximum 100000, observed peak 92347 on 2026-03-20. Suggest raising to 102000." |
+| Peer well below limit | "peer 10.0.0.2 (AS65002): prefix maximum 500000, observed peak 12400. Limit may be unnecessarily high." |
+| Auto-derived value stale | "peer 10.0.0.3 (AS65003): prefix maximum auto (PeeringDB: 45000, compiled 2026-01-15). Consider setting explicit value based on observed peak 51200." |
+
+This is advisory only. The operator decides. The report appears:
+- On `ze bgp status` or similar CLI command
+- In logs at startup if any peer has a "hot" record in zefs
+- Via Prometheus metric (`ze_bgp_prefix_limit_headroom_ratio` per peer)
+
+**Prefix-limit is a separate spec** (`plan/spec-prefix maximum.md`) because
+it involves BGP config, YANG schema, session enforcement, NOTIFICATION
+generation, and the advisory system. This congestion spec CONSUMES the
+prefix maximum value for buffer sizing but does not implement it.
+
+#### Previous Run Data (zefs)
+
+On session teardown or periodic flush, ze records per-peer observed data
+to `database.zefs`:
+
+| Field | Value |
+|-------|-------|
+| Peer address | IP |
+| Peer ASN | uint32 |
+| Prefix count | Max observed prefix count during session |
+| Last updated | Timestamp |
+
+On next startup, this data is loaded and used for buffer sizing before
+any session establishes. The previous run's actual prefix count is
+better than any external estimate.
+
+#### Embedded + Cached Network Size Data
+
+A build-time code generator analyzes PeeringDB data and public routing
+table snapshots (RIPE RIS, RouteViews) to produce a compiled-in table
+of per-ASN expected prefix counts. This table ships inside the ze binary.
+
+| Component | Purpose |
+|-----------|---------|
+| Build-time generator | Fetches PeeringDB + routing table snapshots, produces Go source with per-ASN prefix count map |
+| Compiled-in table | Embedded in binary. Available at startup with zero network access. |
+| zefs persistence | Previous-run data and refreshed PeeringDB data written to `database.zefs` |
+| PeeringDB refresh | When compiled-in + zefs data is older than threshold, background query updates for stale/missing ASNs |
+| Authenticated PeeringDB | For ASNs not in public data, user configures credentials. Queries only for missing ASNs. |
+
+**Data flow:**
+
+1. At startup: load compiled-in table (always present)
+2. Overlay zefs data (previous run observations + any prior PeeringDB refreshes)
+3. For each configured peer: use prefix maximum if set, else zefs observation, else compiled-in/PeeringDB
+4. If ASN missing from all sources AND PeeringDB refresh enabled: queue background query
+5. On session establishment: actual RIB count becomes the live source
+6. On session teardown / periodically: write observed prefix counts to zefs
+7. If data age exceeds threshold: background PeeringDB refresh for stale ASNs
+
+**Staleness handling:** The compiled-in data gets stale as the binary ages.
+The zefs cache extends its life with real observations from previous runs.
+PeeringDB refresh is the last resort for unknown ASNs. Even stale data
+(within months) is far better than a fixed constant -- the DFZ grows
+slowly and per-ASN proportions are relatively stable.
+
+**Auto-sizing algorithm:**
+
+1. At startup, allocate pool based on configured size or available memory
+2. For each peer, determine expected prefix count (priority order above)
+3. Per-peer buffer share = proportional to expected prefix count
+4. A peer with prefix maximum 500K gets a proportionally larger share than
+   one with prefix maximum 1K
+5. On session establishment, refine share using actual RIB count
+6. If actual count exceeds prefix maximum: session enforcement handles it
+   (separate spec)
+
+**Configuration:**
+
+| Config key | Purpose |
+|-----------|---------|
+| `ze.fwd.pool.size` | Explicit total pool size override (e.g., "1GB") |
+| `ze.fwd.pool.peeringdb` | Enable PeeringDB refresh when local data is stale (boolean) |
+| `ze.fwd.pool.peeringdb.user` | PeeringDB API username (optional, for authenticated queries) |
+| `ze.fwd.pool.peeringdb.password` | PeeringDB API password |
+| `ze.fwd.pool.refresh.age` | Max age before triggering PeeringDB refresh (default 30 days) |
+| Per-peer `prefix maximum` | Max expected prefixes (BGP config, see spec-prefix maximum) |
+
+### Layer 3: Read Throttling (backpressure)
+
+When the overflow pool fills, slow down inbound reads from source peers.
+The buffer fill level drives the throttle -- a proportional feedback loop.
+
+**Identifying who to throttle:**
+
+Not all source peers contribute equally to congestion. Throttling must
+target the peers whose traffic is actually filling the pool, not punish
+low-volume peers for the sins of high-volume ones.
+
+#### Source-Side Metrics (per source peer)
+
+| Metric | What | Why needed | Prometheus |
+|--------|------|-----------|------------|
+| `ze_bgp_updates_received_total` | Counter: total UPDATEs received | Baseline volume, rate() gives send rate | Yes |
+| `ze_bgp_updates_forwarded_total` | Counter: items that went through channel (normal path) | The "good" path -- destination kept up | Yes |
+| `ze_bgp_updates_overflowed_total` | Counter: items that went to overflow pool | The "pressure" path -- destination couldn't keep up | Yes |
+| `ze_bgp_overflow_ratio` | Gauge: overflowed / (forwarded + overflowed) over sliding window | **The key throttle metric.** High ratio = this source's traffic is piling up. | Yes |
+| `ze_bgp_throttle_state` | Gauge: 0=none, 1=sleep, 2=window-zero | Current backpressure level applied | Yes |
+| `ze_bgp_throttle_sleep_ms` | Gauge: current sleep duration between reads | How hard we're pushing back | Yes |
+
+**The overflow ratio is the throttle signal.** A source where 80% of updates
+overflow is causing pressure. A source where 1% overflows is fine even at
+high volume. This distinguishes "fast sender to healthy destinations" from
+"sender whose traffic is filling the pool."
+
+**Two time windows for detection:**
+
+| Window | Duration | Detects |
+|--------|----------|---------|
+| Short | 10s | Bursts: sudden spike in overflow ratio |
+| Long | 60s | Slow build: gradual increase over minutes |
+
+Throttle activates if EITHER window shows high overflow ratio for a source peer.
+
+#### Destination-Side Metrics (per destination peer)
+
+| Metric | What | Why needed | Prometheus |
+|--------|------|-----------|------------|
+| `ze_bgp_overflow_items` | Gauge: items currently in this peer's overflow | Direct pressure indicator | Yes |
+| `ze_bgp_overflow_items_total` | Counter: total items that entered overflow | Cumulative congestion history | Yes |
+| `ze_bgp_overflow_growth_rate` | Gauge: change in overflow_items over last 10s | Recovering (negative) or worsening (positive) | Yes |
+| `ze_bgp_congested` | Gauge: 0 or 1 | Already exists via onCongested/onResumed | Yes |
+| `ze_bgp_congested_duration_seconds` | Gauge: seconds in current congestion | Teardown decision input | Yes |
+| `ze_bgp_write_errors_total` | Counter: TCP write failures | Detects stuck TCP | Yes |
+| `ze_bgp_write_latency_seconds` | Histogram: time in writeMu per batch | Slow writes predict congestion | Yes |
+
+#### Global Pool Metrics
+
+| Metric | What | Prometheus |
+|--------|------|------------|
+| `ze_bgp_pool_capacity` | Gauge: total slots | Yes |
+| `ze_bgp_pool_used` | Gauge: currently allocated slots | Yes |
+| `ze_bgp_pool_used_ratio` | Gauge: pool_used / pool_capacity | Yes |
+
+#### Throttle Decision Logic
+
+1. Pool fill ratio crosses threshold (e.g., 50%) -- backpressure needed
+2. Rank source peers by overflow_ratio (short OR long window)
+3. Throttle highest-ratio sources first -- their traffic is the traffic
+   filling the pool
+4. Low overflow-ratio sources continue at full speed
+5. As pool drains, release throttle starting with lowest-ratio sources
+
+**Mechanism: sleep between reads**
+
+The sleep duration between TCP reads from source peers is proportional to
+both the pool fill level AND the source peer's overflow ratio.
+
+| Pool fill | Source overflow ratio | Sleep between reads |
+|-----------|---------------------|-------------------|
+| 0-25% | Any | 0 (normal) |
+| 25-50% | Low (<10%) | 0 (this source is not the problem) |
+| 25-50% | High (>50%) | Short (1-5ms) |
+| 50-75% | Low | 0-1ms |
+| 50-75% | High | Medium (10-50ms) |
+| 75-100% | Any | Long (100-500ms) -- everyone slows |
+
+**Mechanism: TCP receive window zero**
+
+A harder escalation for severe congestion. Known vendor technique (Nokia/ALU).
+
+TCP window zero is set on source peer connections whose overflow ratio is
+highest. The kernel stops accepting data from that source. The source's
+writes block in their TCP stack.
+
+**TCP window zero MUST pulse open periodically.** A zero window held
+indefinitely blocks ALL data from a source peer -- including keepalives,
+NOTIFICATION, and ROUTE-REFRESH messages. One slow destination peer would
+cause all source peers to freeze, which cascades into hold timer expiry
+and mass session teardown (the "BGP zombie" problem documented by Ben Cox).
+
+**Pulse timing is derived from the keepalive interval.** The window must
+open at least 5 times per keepalive-to-keepalive interval, each time for
+a few seconds -- enough to drain queued keepalives and a burst of data.
+
+| Keepalive interval | Pulse count | Closed duration | Open duration |
+|-------------------|-------------|-----------------|---------------|
+| 30s (hold=90s) | 5 minimum | ~4s | ~2s |
+| 60s (hold=180s) | 5 minimum | ~10s | ~2s |
+| 10s (hold=30s) | 5 minimum | ~1s | ~1s |
+
+Formula: `closed_duration = keepalive_interval / (pulse_count + 1)`,
+`open_duration = 2-3s` (enough to drain kernel receive buffer).
+Per-source-peer calculation uses that peer's negotiated hold time / 3
+as the keepalive interval.
+
+**Why 5 pulses minimum:** One keepalive arrives per interval. With 5 open
+windows per interval, there are 5 chances to receive it. Even with jitter
+in keepalive timing, 5 windows makes it near-certain the keepalive lands
+in an open window. Fewer pulses risk missing the keepalive by bad luck.
+
+**Burst on re-open:** When the window opens, the source peer's kernel
+flushes its entire send buffer at once. This is NOT a trickle -- it is
+everything that accumulated during the closed period, delivered as a
+burst at wire speed. The duty cycle does NOT control effective rate the
+way sleep-between-reads does.
+
+This means the open window is a burst-accept phase:
+- The source kernel dumps its queued data
+- Our kernel receive buffer fills quickly
+- We read what we can during the open window
+- When we close again, whatever we didn't read stays in our kernel buffer
+  and is available on the next open
+
+The practical effect of the pulse is not rate limiting but **volume
+limiting per cycle**: the total data accepted per cycle is bounded by
+our kernel receive buffer size plus whatever we read during the open
+duration. The closed period prevents new data from entering our kernel
+buffer (zero window means the source stops sending).
+
+**Implication for pool sizing:** With TCP window pulsing, the overflow
+pool must absorb bursts, not a smooth stream. Each open window can
+produce a burst of messages equal to `source_kernel_send_buffer +
+our_kernel_recv_buffer` worth of BGP messages. The pool must be large
+enough to absorb several such bursts per source peer without
+exhausting.
+
+**Combining both mechanisms:**
+
+| Pool fill | Sleep between reads | TCP window |
+|-----------|-------------------|------------|
+| 0-50% | Proportional sleep (high-ratio sources only) | Normal (open) |
+| 50-85% | Maximum sleep (high-ratio sources) | Normal (open) |
+| 85-95% | Maximum sleep (all sources) | Pulsing on highest-ratio sources |
+| 95-100% | Maximum sleep (all sources) | Pulsing on all sources + evaluating Layer 4 teardown |
+
+Sleep-between-reads is the primary backpressure tool (smooth, proportional,
+keepalive-safe, targeted by overflow ratio). TCP window pulsing is the
+escalation when sleep alone cannot reduce inflow enough.
+
+**Critical constraint: hold timer safety**
+
+Both mechanisms affect keepalive delivery from source peers. The pulse
+design guarantees keepalive safety by construction: 5 open windows per
+keepalive interval means 5 chances to receive each keepalive. The risk
+is that keepalives are buried under queued UPDATEs in the kernel buffer.
+With kernel buffers of ~100 messages, 2 seconds of reading at typical
+rates drains the buffer.
+
+The read throttle (sleep) MUST also respect the source peer's hold timer.
+Maximum sleep bounded by `keepalive_interval / (pulse_count + 1)`.
+
+#### Defensive: Handling Window Zero FROM Peers
+
+Ze must also handle the case where a REMOTE peer sets its TCP receive
+window to zero toward us (the Nokia/ALU scenario, the Ben Cox attack).
+
+**RFC 9687 Send Hold Timer** is the defense. If ze cannot send any
+message to a peer for the configured Send Hold Time (recommended:
+max(8 minutes, 2x HoldTime)), send NOTIFICATION Error Code 8 and
+tear down the session. This prevents "BGP zombie" sessions where
+a peer holds window zero indefinitely.
+
+### Layer 4: Session Teardown (last resort)
+
+If the overflow pool is exhausted AND read throttling has not reduced inflow
+enough AND a specific destination peer's allocation is at its limit, tear
+down that destination peer's session.
+
+**Teardown is not dropping.** Both sides know the session ended. On reconnect,
+full initial sync occurs. Routing consistency is preserved because the session
+boundary invalidates all prior state.
+
+**GR-aware teardown (RFC 4724):**
+
+| Peer GR support | Teardown method | Route fate |
+|-----------------|----------------|------------|
+| GR capable | TCP close without NOTIFICATION | Peer retains routes, marks stale, re-syncs on reconnect |
+| No GR | NOTIFICATION (Cease/Out of Resources, subcode 8) then close | Routes deleted, full sync on reconnect |
+
+Per RFC 4724 Section 4: NOTIFICATION triggers route deletion (Event 24/25).
+TCP failure without NOTIFICATION triggers route retention (Event 18). For
+GR peers, TCP close is strictly better.
+
+**Teardown triggers:**
+
+| Condition | Action |
+|-----------|--------|
+| Peer's overflow share exhausted AND pool >95% full AND backpressure active for >N seconds | Tear down the slow destination peer |
+| All read throttling at maximum AND pool still growing | Tear down the slowest destination peer (highest overflow_items) |
+| Send Hold Timer expired (RFC 9687) | Tear down -- cannot send anything to this peer |
+
+The congestion teardown timeout must be shorter than hold timers to bound
+memory before the natural hold timer safety net kicks in.
+
+## Keepalive Write Contention (existing bug)
+
+Separate from the congestion design but discovered during research.
+
+`sendKeepalive` acquires `writeMu` with no write deadline. The forward
+worker holds `writeMu` for up to 30s (write deadline). Sequence on stuck TCP:
+
+1. Forward worker holds writeMu, write deadline 30s
+2. Keepalive timer fires, blocks on writeMu for up to 30s
+3. Keepalive acquires writeMu, writes -- **no deadline, blocks indefinitely**
+4. No keepalives sent, remote's hold timer expires (90-180s)
+
+`writeMessage` (used by keepalive, NOTIFICATION, OPEN) must set a write
+deadline. Suggested: `min(holdTime/3, fwdWriteDeadline)`.
+
+**Industry comparison:** FRR solves this with a dedicated keepalive thread.
+Junos moves keepalive generation to a kernel thread. Ze's writeMu contention
+is a known class of bug that other implementations have explicitly addressed.
+
+**TCP_NODELAY:** Ze should set TCP_NODELAY on all peer sockets. Measured 27x
+improvement in UPDATE delivery latency in BIRD. Critical for keepalive
+delivery under congestion where Nagle/Delayed-ACK interaction can add
+200ms+ latency.
+
+## Interaction: FSM Teardown from Missing Keepalive
+
+When TCP is stuck outbound (writes fail or block):
+
+| Time | What happens |
+|------|-------------|
+| 0s | Forward write starts blocking/failing |
+| 30s | Forward write deadline expires, writeMu released |
+| 30-60s | Keepalive may get through (if TCP briefly unsticks) or fail |
+| 60-90s | Multiple keepalive failures; remote's hold timer approaching |
+| 90-180s | Remote hold timer expires, remote sends NOTIFICATION or closes TCP |
+
+The congestion teardown (Layer 4) should fire BEFORE the hold timer
+expires. This gives the system control over HOW the session ends (GR-friendly
+TCP close vs remote-initiated NOTIFICATION which deletes routes).
+
+RFC 9687 Send Hold Timer provides a second safety net: if the session is
+stuck but the hold timer hasn't expired (because we're still receiving
+keepalives from the remote), the Send Hold Timer detects that WE can't
+send and tears down proactively.
+
+## Interaction: Route Refresh (RFC 2918)
+
+Route Refresh is NOT used as a recovery-from-drops mechanism (there are no
+drops). It is relevant in two scenarios:
+
+1. **After teardown + reconnect:** The reconnecting peer receives full initial
+   sync automatically. Route Refresh is not needed.
+
+2. **Post-congestion re-validation:** If an operator suspects a peer's view
+   may be stale due to prolonged congestion (even without drops), they can
+   manually trigger Route Refresh. This is operational, not automatic.
+
+Route Refresh does not play a role in the congestion handling path itself.
+
+## Interaction: Graceful Restart (RFC 4724)
+
+GR affects the TEARDOWN decision only (Layer 4). It does not affect
+Layers 1-3. Summary:
+
+- GR peers: TCP close (route retention, reconnect within Restart Time)
+- Non-GR peers: NOTIFICATION + close (routes deleted, full re-sync)
+- LLGR (RFC 9494): same as GR but with extended retention period
+- If WE are the one restarting: not applicable (we're the sender, not receiver)
+
+## Memory Budget
+
+| Component | Per peer | Global |
+|-----------|----------|--------|
+| Channel buffer | chanSize x ~200B = ~12 KB | N_peers x 12 KB |
+| Overflow pool | Fair-share proportional to prefix count | Configured or auto-sized |
+| Wire bytes | Shared via cache refcount | Shared, bounded by cache eviction |
+
+**Example sizing from routing data:**
+
+| Deployment | Peers | Avg prefixes/peer | 10% burst | Pool needed |
+|-----------|-------|-------------------|-----------|-------------|
+| Small IXP | 50 | 10K | 1K updates/peer | ~50K items = ~10 MB |
+| Medium IXP | 200 | 50K | 5K updates/peer | ~1M items = ~200 MB |
+| Large IXP (DE-CIX scale) | 1000 | 100K | 10K updates/peer | ~10M items = ~2 GB |
+| Full table peer | 1 | 1M | 100K updates | ~100K items = ~20 MB |
+
+Auto-sizing from local RIB or PeeringDB makes these numbers real rather
+than guessed.
+
+## Open Questions (for review)
+
+1. **Fair-share enforcement:** Hard per-peer limit from the global pool?
+   Or soft (advisory, with one peer able to burst into another's share if
+   the other is idle)?
+
+2. **Pool sizing default:** What fraction of available memory when no
+   prefix maximum, no zefs data, and no PeeringDB? 10%? 25%? Require
+   explicit configuration?
+
+3. **Pre-allocation granularity:** One large byte slab? A free-list of
+   fwdItem-sized slots? A ring buffer?
+
+4. **RFC 9687 Send Hold Timer value:** max(8 min, 2x HoldTime) per RFC
+   recommendation, or configurable?
+
+5. **Prefix-limit burst fraction:** If prefix maximum is 100K, what
+   fraction represents "worst expected burst"? 10% (10K items)?
+   Configurable per peer or global multiplier?
+
+6. **Advisory report format:** CLI command output? Structured JSON for
+   automation? Both?
+
+## Current Behavior (MANDATORY)
+
+**Source files read:**
+- [ ] `internal/component/bgp/reactor/forward_pool.go` - per-peer workers, TryDispatch, DispatchOverflow
+  -> Constraint: committed code drops oldest at overflowMax=256
+  -> Constraint: working tree removed limit (unbounded)
+  -> Constraint: done() callbacks guaranteed via safeBatchHandle
+  -> Constraint: congestion flag with hysteresis (25% low-water)
+- [ ] `internal/component/bgp/reactor/reactor_api_forward.go` - ForwardUpdate dispatches to pool
+  -> Constraint: cache Retain before dispatch, Release in done callback
+- [ ] `internal/component/bgp/reactor/session_write.go` - writeMessage has NO write deadline
+  -> Constraint: only fwdBatchHandler sets write deadline
+- [ ] `internal/component/bgp/reactor/session.go` - keepalive/hold timers
+  -> Constraint: hold timer default 90-180s; keepalive interval = holdTime/3
+- [ ] `internal/component/bgp/message/notification.go` - NotifyCeaseOutOfResources = subcode 8
+
+**Behavior to preserve:**
+- Per-peer FIFO ordering
+- Cache lifecycle (Retain/Release)
+- Zero-copy forwarding when contexts match
+- Congestion callbacks (onCongested/onResumed)
+- safeBatchHandle panic recovery
+- Drain-batch buffer reuse
+
+**Behavior to change:**
+- Replace drop-at-256 with pre-allocated global overflow pool (auto-sized)
+- Add write deadline to writeMessage (keepalive bug)
+- Set TCP_NODELAY on peer sockets
+- Implement RFC 9687 Send Hold Timer
+- Add source-side metrics (overflow ratio, throttle state)
+- Add destination-side metrics (overflow items, growth rate, write latency)
+- Add read throttling proportional to pool fill AND source overflow ratio
+- Add TCP window zero pulsing as escalation
+- Add session teardown as last resort (GR-aware)
+- Add overflow flush on peer-down
+- Add PeeringDB integration for buffer sizing
+
+## Data Flow (MANDATORY)
+
+### Entry Point
+- Cached UPDATE via ForwardUpdate from bgp-rs plugin
+
+### Congestion Path
+1. ForwardUpdate calls TryDispatch per destination peer
+2. Channel full: TryDispatch returns false, item goes to overflow pool
+3. Pool slot allocated from pre-allocated global pool (no malloc)
+4. Source peer's overflow counter incremented (for ratio tracking)
+5. If pool utilization crosses threshold: evaluate source overflow ratios
+6. High-ratio sources get sleep between reads or TCP window pulsing
+7. Destination worker drains overflow into channel, processes batches
+8. Pool utilization drops: throttle eases (lowest-ratio sources first)
+9. If pool exhausted and backpressure insufficient: tear down slowest destination
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| ForwardUpdate -> overflow pool | Slot allocation from global pool | [ ] |
+| ForwardUpdate -> source metrics | Increment overflow counter per source | [ ] |
+| Pool fill level -> read throttle | Shared atomic read by session read loops | [ ] |
+| Source overflow ratio -> throttle targeting | Per-source ratio checked in read loop | [ ] |
+| Pool exhaustion -> teardown | Callback from pool to reactor | [ ] |
+| Peer-down -> pool | Return all peer's slots to pool | [ ] |
+| Metrics -> Prometheus | Standard Prometheus exposition | [ ] |
+
+## Wiring Test (MANDATORY)
+
+| Entry Point | -> | Feature Code | Test |
+|-------------|---|--------------|------|
+| ForwardUpdate to slow peer, pool fills | -> | Read throttle activates on high-ratio source peers | test/plugin/forward-congestion-throttle.ci |
+| Pool exhausted, backpressure insufficient | -> | Slow destination torn down (GR-aware) | test/plugin/forward-congestion-teardown.ci |
+| Peer disconnects with pool slots | -> | Slots returned to pool immediately | TestFwdPool_FlushPeerReturnsSlots |
+| Send Hold Timer expires on stuck peer | -> | Session torn down with Error Code 8 | test/plugin/forward-send-hold-timer.ci |
+
+## Acceptance Criteria
+
+| AC ID | Input / Condition | Expected Behavior |
+|-------|-------------------|-------------------|
+| AC-1 | Route forwarded to slow peer, channel full | Item stored in overflow pool (never dropped) |
+| AC-2 | Overflow pool crosses fill threshold | Source peer read throttle activates, targeted by overflow ratio |
+| AC-3 | Read throttle active, pool drains | Throttle eases proportionally, lowest-ratio sources first |
+| AC-4 | Overflow pool exhausted, destination still slow | Slowest destination peer session torn down |
+| AC-5 | Destination with GR capability torn down | TCP close without NOTIFICATION (route retention) |
+| AC-6 | Destination without GR torn down | Cease/Out of Resources NOTIFICATION then close |
+| AC-7 | Peer disconnects with overflow items | Pool slots returned, done() called for all items |
+| AC-8 | writeMessage called on stuck TCP | Write deadline set (keepalive bug fix) |
+| AC-9 | Read throttle duration | Never exceeds source peer keepalive_interval / 6 |
+| AC-10 | Pool size configurable | ze.fwd.pool.size env var; auto-sized from RIB/PeeringDB if not set |
+| AC-11 | Total memory for slow peers | Bounded by pool size, no growth beyond pre-allocation |
+| AC-12 | Fast destination peers during congestion | Unaffected by slow destination -- isolation preserved |
+| AC-13 | TCP window zero on source peer | Pulses open 5x per keepalive interval, 2-3s each |
+| AC-14 | Remote peer holds window zero toward us | RFC 9687 Send Hold Timer tears down after configured duration |
+| AC-15 | TCP_NODELAY set on peer sockets | All BGP peer TCP connections have TCP_NODELAY enabled |
+| AC-16 | Source peer overflow ratio visible in Prometheus | ze_bgp_overflow_ratio gauge per peer |
+| AC-17 | Destination peer overflow depth visible in Prometheus | ze_bgp_overflow_items gauge per peer |
+| AC-18 | Pool utilization visible in Prometheus | ze_bgp_pool_used_ratio gauge |
+| AC-19 | Per-peer buffer share proportional to prefix count | Peer with 500K prefixes gets larger share than peer with 200 |
+| AC-20 | PeeringDB lookup for unknown peers | Query PeeringDB by ASN when no local RIB data, if configured |
