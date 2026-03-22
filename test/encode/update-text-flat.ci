@@ -27,8 +27,8 @@ bgp {
 		group-updates disable
 
 		family {
-			ipv4/unicast
-			ipv6/unicast
+			ipv4/unicast { prefix { maximum 10000; } }
+			ipv6/unicast { prefix { maximum 10000; } }
 		}
 		update {
 			attribute {

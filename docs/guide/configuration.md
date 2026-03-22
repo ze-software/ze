@@ -108,18 +108,52 @@ Configured under `capability { }` at any inheritance level.
 
 ## Address Families
 
-Configured under `family { }`. Available families depend on loaded plugins.
+Configured under `family { }`. Each family requires a `prefix { maximum N; }` block.
 
 ```
 family {
-    ipv4/unicast;
-    ipv6/unicast;
-    ipv4/mpls-vpn;
-    l2vpn/evpn;
+    ipv4/unicast { prefix { maximum 1000000; } }
+    ipv6/unicast { prefix { maximum 200000; } }
+    ipv4/mpls-vpn { prefix { maximum 500; } }
+    l2vpn/evpn { prefix { maximum 10000; } }
 }
 ```
 
 Use `ze --plugins` to see available families from registered plugins.
+
+### Prefix Limits
+
+Every family must have a prefix maximum. Ze refuses to start without one.
+
+```
+family {
+    ipv4/unicast {
+        prefix {
+            maximum 1000000
+            warning 900000
+        }
+    }
+}
+```
+
+Warning defaults to 90% of maximum when not set. Peer-level settings control enforcement behavior:
+
+```
+peer transit-a {
+    prefix {
+        teardown false
+        idle-timeout 30
+    }
+    family {
+        ipv4/unicast { prefix { maximum 1000000; } }
+    }
+}
+```
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `teardown` | `true` | Send NOTIFICATION and close on exceed. `false` = warn only, drop excess NLRIs. |
+| `idle-timeout` | `0` | Seconds before reconnect after prefix teardown. 0 = no reconnect. |
 
 ## Process Bindings
 

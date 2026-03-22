@@ -99,8 +99,8 @@ bgp {
         connection active
 
         family {
-            ipv4/flow
-            ipv4/unicast
+            ipv4/flow { prefix { maximum 10000; } }
+            ipv4/unicast { prefix { maximum 10000; } }
         }
 
         process flowspec {

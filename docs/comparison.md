@@ -66,6 +66,7 @@ Last updated: 2026-03-21
 | Confederation (RFC 5065) | No | No | Yes | No | No | Yes | Yes | No | No | Yes |
 | Admin Shutdown (RFC 8203) | Yes | Yes | Yes | Partial | No | Yes | Yes | Yes | Yes | Yes |
 | BGP Roles (RFC 9234) | Yes | No | Yes | Yes | No | No | No | No | Yes | Yes |
+| Prefix Limit (RFC 4486) | Yes | Yes | Yes | No | No | Yes | Yes | No | Yes | Yes |
 
 ## Policy & Route Manipulation
 

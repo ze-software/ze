@@ -164,6 +164,36 @@ module ze-bgp-conf {
                 }
                 description "Address family negotiation mode";
             }
+
+            // Per-family prefix limits (RFC 4486)
+            container prefix {
+                description "Prefix limit configuration for this address family";
+                leaf maximum {
+                    type uint32 {
+                        range "1..max";
+                    }
+                    description "Hard maximum number of prefixes accepted. Mandatory for every negotiated family.";
+                }
+                leaf warning {
+                    type uint32;
+                    description "Warning threshold. Defaults to 90% of maximum when not set.";
+                }
+            }
+        }
+
+        // Peer-level prefix enforcement settings
+        container prefix {
+            description "Peer-level prefix limit enforcement settings";
+            leaf teardown {
+                type boolean;
+                default true;
+                description "Tear down session when prefix maximum exceeded (false = warn only)";
+            }
+            leaf idle-timeout {
+                type uint16;
+                default 0;
+                description "Seconds before auto-reconnect after prefix teardown (0 = no reconnect)";
+            }
         }
 
         // Capabilities

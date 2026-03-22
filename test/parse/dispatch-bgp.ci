@@ -14,7 +14,7 @@ bgp {
 		router-id 10.0.0.2
 		hold-time 180
 		family {
-			ipv4/unicast
+			ipv4/unicast { prefix { maximum 10000; } }
 		}
 	}
 }

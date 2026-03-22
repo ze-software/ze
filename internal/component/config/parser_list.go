@@ -125,6 +125,15 @@ func (p *Parser) parseListInlineBlock(tree *Tree, name string, node *ListNode) e
 			return p.errorf(tok, "invalid key for %s: %v", name, err)
 		}
 
+		// Disambiguate: key { ... } = named block entry, key [values] ; = inline entry.
+		if p.tok.Peek().Type == TokenLBrace {
+			p.tok.Next() // consume {
+			if err := p.parseListFieldBlock(tree, name, node, key); err != nil {
+				return err
+			}
+			continue
+		}
+
 		if err := p.parseListInlineEntry(tree, name, node, key); err != nil {
 			return err
 		}

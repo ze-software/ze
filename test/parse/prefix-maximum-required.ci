@@ -1,0 +1,27 @@
+# Prefix maximum is mandatory for every negotiated family.
+# Config without prefix { maximum N; } must be rejected at parse time.
+# AC-2: Family block has no prefix maximum -> Config parse error, ze refuses to start.
+
+# Config WITHOUT prefix maximum (should fail)
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65533
+		}
+		local {
+			as 65533
+			ip 127.0.0.1
+		}
+		router-id 10.0.0.2
+		family {
+			ipv4/unicast
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=prefix maximum

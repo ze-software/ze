@@ -19,7 +19,7 @@ bgp {
 	group llnh-peers {
 		connection active
 		family {
-			ipv6/unicast
+			ipv6/unicast { prefix { maximum 10000; } }
 		}
 		capability {
 			link-local-nexthop

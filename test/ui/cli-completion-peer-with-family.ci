@@ -17,9 +17,11 @@ bgp {
 		}
 		family ipv4/unicast {
 			mode enable
+			prefix { maximum 10000; }
 		}
 		family ipv6/unicast {
 			mode enable
+			prefix { maximum 10000; }
 		}
 	}
 }

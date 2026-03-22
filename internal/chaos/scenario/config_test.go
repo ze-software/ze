@@ -64,7 +64,7 @@ func TestConfigGenPeerBlock(t *testing.T) {
 	// local container always present
 	assert.Contains(t, config, "local {")
 	// Family block
-	assert.Contains(t, config, "ipv4/unicast;")
+	assert.Contains(t, config, "ipv4/unicast { prefix { maximum 10000; } }")
 	// Passive peer should have passive flag
 	assert.Contains(t, config, "connection passive;")
 }
@@ -250,17 +250,17 @@ func TestConfigGenMultiFamily(t *testing.T) {
 	config := GenerateConfig(params)
 
 	// Peer 0 should have all three families.
-	assert.Contains(t, config, "ipv6/unicast;")
-	assert.Contains(t, config, "l2vpn/evpn;")
+	assert.Contains(t, config, "ipv6/unicast { prefix { maximum 10000; } }")
+	assert.Contains(t, config, "l2vpn/evpn { prefix { maximum 10000; } }")
 
 	// Both peers have ipv4 unicast (2 occurrences).
-	assert.Equal(t, 2, strings.Count(config, "ipv4/unicast;"))
+	assert.Equal(t, 2, strings.Count(config, "ipv4/unicast { prefix { maximum 10000; } }"))
 
 	// Only 1 peer has ipv6 unicast.
-	assert.Equal(t, 1, strings.Count(config, "ipv6/unicast;"))
+	assert.Equal(t, 1, strings.Count(config, "ipv6/unicast { prefix { maximum 10000; } }"))
 
 	// Only 1 peer has l2vpn evpn.
-	assert.Equal(t, 1, strings.Count(config, "l2vpn/evpn;"))
+	assert.Equal(t, 1, strings.Count(config, "l2vpn/evpn { prefix { maximum 10000; } }"))
 }
 
 // TestConfigGenFallbackToIPv4 verifies that peers with no Families field
@@ -283,5 +283,5 @@ func TestConfigGenFallbackToIPv4(t *testing.T) {
 	}
 
 	config := GenerateConfig(params)
-	assert.Contains(t, config, "ipv4/unicast;")
+	assert.Contains(t, config, "ipv4/unicast { prefix { maximum 10000; } }")
 }

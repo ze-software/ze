@@ -98,6 +98,7 @@ var (
 	ErrUnsupportedVersion  = errors.New("unsupported BGP version")
 	ErrFamilyNotNegotiated = errors.New("address family not negotiated")
 	ErrSessionTearingDown  = errors.New("session is tearing down")
+	ErrPrefixLimitExceeded = errors.New("prefix limit exceeded")
 )
 
 // Session manages a single BGP peer connection.
@@ -203,6 +204,11 @@ type Session struct {
 
 	// done is closed when the Run loop exits.
 	done chan struct{}
+
+	// prefixCounts tracks received prefix count per family for prefix limit enforcement.
+	// Initialized in NewSession when PrefixMaximum is configured.
+	// Only accessed from session's read goroutine (no synchronization needed).
+	prefixCounts *prefixCounts
 }
 
 // NewSession creates a new BGP session for a peer.
@@ -221,14 +227,15 @@ func NewSession(settings *PeerSettings) *Session {
 	}
 
 	s := &Session{
-		settings: settings,
-		fsm:      fsm.New(),
-		timers:   fsm.NewTimers(),
-		clock:    clock.RealClock{},
-		dialer:   dialer,
-		writeBuf: wire.NewSessionBuffer(false), // Start with 4096, resize if Extended Message
-		errChan:  make(chan error, 2),          // Buffer 2: normal error + teardown
-		done:     make(chan struct{}),
+		settings:     settings,
+		fsm:          fsm.New(),
+		timers:       fsm.NewTimers(),
+		clock:        clock.RealClock{},
+		dialer:       dialer,
+		writeBuf:     wire.NewSessionBuffer(false), // Start with 4096, resize if Extended Message
+		errChan:      make(chan error, 2),          // Buffer 2: normal error + teardown
+		done:         make(chan struct{}),
+		prefixCounts: &prefixCounts{counts: make(map[string]int64), warned: make(map[string]bool)},
 	}
 
 	// Configure FSM connection mode: passive if active bit is NOT set.

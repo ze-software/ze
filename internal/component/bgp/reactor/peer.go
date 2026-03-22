@@ -175,6 +175,10 @@ type Peer struct {
 	reconnectMin time.Duration
 	reconnectMax time.Duration
 
+	// prefixTeardownCount tracks consecutive prefix-limit teardowns for exponential backoff.
+	// Reset when a session stays established (successful Run return).
+	prefixTeardownCount uint32
+
 	// Ordered operation queue: Used when session is NOT established.
 	// Maintains strict ordering of announce/withdraw/teardown operations.
 	// Processed on session establishment; teardowns act as batch separators.
@@ -771,6 +775,33 @@ func (p *Peer) run() {
 				continue
 			}
 
+			// RFC 4486: Prefix limit teardown with idle-timeout.
+			// Uses separate backoff from normal reconnect: idle-timeout x 2^(N-1), capped at 1 hour.
+			if errors.Is(err, ErrPrefixLimitExceeded) && p.settings.PrefixIdleTimeout > 0 {
+				p.prefixTeardownCount++
+				idleBase := time.Duration(p.settings.PrefixIdleTimeout) * time.Second
+				prefixDelay := idleBase
+				for i := uint32(1); i < p.prefixTeardownCount; i++ {
+					prefixDelay *= 2
+					if prefixDelay > time.Hour {
+						prefixDelay = time.Hour
+						break
+					}
+				}
+				peerLogger().Warn("prefix limit teardown, waiting before reconnect",
+					"peer", p.settings.Address,
+					"delay", prefixDelay,
+					"teardown_count", p.prefixTeardownCount,
+				)
+				p.setState(PeerStateConnecting)
+				select {
+				case <-p.ctx.Done():
+					return
+				case <-p.clock.After(prefixDelay):
+				}
+				continue
+			}
+
 			// Normal error: Backoff before retry
 			p.setState(PeerStateConnecting)
 
@@ -796,6 +827,8 @@ func (p *Peer) run() {
 		} else {
 			// Reset delay on successful session
 			delay = p.reconnectMin
+			// Reset prefix teardown backoff after stable session.
+			p.prefixTeardownCount = 0
 		}
 	}
 }

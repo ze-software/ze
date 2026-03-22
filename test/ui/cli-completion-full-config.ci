@@ -36,6 +36,7 @@ bgp {
 		}
 		family ipv4/unicast {
 			mode enable
+			prefix { maximum 10000; }
 		}
 	}
 	peer peer1-2 {

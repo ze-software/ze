@@ -91,7 +91,7 @@ bgp {
 		group-updates disable
 
 		family {
-			ipv4/unicast
+			ipv4/unicast { prefix { maximum 10000; } }
 		}
 		capability {
 			graceful-restart disable

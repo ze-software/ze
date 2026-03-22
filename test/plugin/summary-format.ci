@@ -131,7 +131,7 @@ plugin {
 bgp {
 	group test-peer {
 		family {
-			ipv4/unicast
+			ipv4/unicast { prefix { maximum 10000; } }
 		}
 		update {
 			attribute {

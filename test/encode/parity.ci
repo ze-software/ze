@@ -25,7 +25,7 @@ bgp {
 			connection active
 
 			family {
-				ipv6/mpls-vpn
+				ipv6/mpls-vpn { prefix { maximum 10000; } }
 			}
 			update {
 				attribute {

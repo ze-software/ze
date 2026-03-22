@@ -32,8 +32,8 @@ bgp {
 		group-updates enable
 
 		family {
-			ipv4/mcast-vpn
-			ipv6/mcast-vpn
+			ipv4/mcast-vpn { prefix { maximum 10000; } }
+			ipv6/mcast-vpn { prefix { maximum 10000; } }
 		}
 		auto-flush enable
 

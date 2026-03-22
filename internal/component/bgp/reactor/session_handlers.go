@@ -196,6 +196,9 @@ func (s *Session) handleUpdate(wu *wireu.WireUpdate) error {
 		return err
 	}
 
+	// Prefix limits are checked in processMessage() BEFORE plugin delivery.
+	// By the time handleUpdate runs, the UPDATE has already passed the prefix check.
+
 	return s.fsm.Event(fsm.EventUpdateMsg)
 }
 

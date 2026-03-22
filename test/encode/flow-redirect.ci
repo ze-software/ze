@@ -36,9 +36,9 @@ bgp {
 		group-updates disable
 
 		family {
-			ipv4/flow
-			ipv4/flow-vpn
-			ipv6/flow
+			ipv4/flow { prefix { maximum 10000; } }
+			ipv4/flow-vpn { prefix { maximum 10000; } }
+			ipv6/flow { prefix { maximum 10000; } }
 		}
 		capability {
 			graceful-restart 5

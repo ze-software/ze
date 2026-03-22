@@ -58,7 +58,7 @@ bgp {
 		group-updates disable
 
 		family {
-			ipv4/flow
+			ipv4/flow { prefix { maximum 10000; } }
 		}
 
 		# Static FlowSpec route (ensures route is sent)

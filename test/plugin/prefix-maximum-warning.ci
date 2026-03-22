@@ -1,0 +1,44 @@
+# Test: Prefix warning threshold logs warning but does not tear down
+# AC-5: Peer prefix count reaches family warning -> Warning logged, session stays up.
+# AC-9: Peer withdraws prefixes below warning -> counter decremented.
+
+# ze-peer: sends 2 routes (reaches warning=2 with maximum=3), expects EOR back (no teardown)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.0.1.0/24:next-hop=10.0.0.1
+# Expect EOR from ze (session stays up, no NOTIFICATION)
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration: warning=2, maximum=3
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65001
+		}
+		local {
+			as 65000
+			ip 127.0.0.1
+		}
+		router-id 10.0.0.1
+		connection active
+
+		family {
+			ipv4/unicast {
+				prefix {
+					maximum 3
+					warning 2
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s

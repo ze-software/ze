@@ -26,8 +26,8 @@ bgp {
 		connection active
 
 		family {
-			ipv4/mup
-			ipv6/mup
+			ipv4/mup { prefix { maximum 10000; } }
+			ipv6/mup { prefix { maximum 10000; } }
 		}
 
 		# Route 1: mup-t1st IPv4 with source

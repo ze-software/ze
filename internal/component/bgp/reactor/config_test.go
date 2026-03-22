@@ -182,10 +182,10 @@ func TestParsePeerFamilies(t *testing.T) {
 		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
 		"local":  map[string]any{"ip": "auto"},
 		"family": map[string]any{
-			"ipv4/unicast":   map[string]any{"mode": "enable"},
-			"ipv6/unicast":   map[string]any{"mode": "require"},
-			"ipv4/multicast": map[string]any{"mode": "ignore"},
-			"ipv4/flow":      map[string]any{"mode": "disable"},
+			"ipv4/unicast":   map[string]any{"mode": "enable", "prefix": map[string]any{"maximum": "100000"}},
+			"ipv6/unicast":   map[string]any{"mode": "require", "prefix": map[string]any{"maximum": "100000"}},
+			"ipv4/multicast": map[string]any{"mode": "ignore", "prefix": map[string]any{"maximum": "100000"}},
+			"ipv4/flow":      map[string]any{"mode": "disable", "prefix": map[string]any{"maximum": "100000"}},
 		},
 	}
 
@@ -221,7 +221,7 @@ func TestParsePeerFamilyIgnoreMismatch(t *testing.T) {
 		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
 		"local":  map[string]any{"ip": "auto"},
 		"family": map[string]any{
-			"ipv4/unicast":    map[string]any{"mode": "enable"},
+			"ipv4/unicast":    map[string]any{"mode": "enable", "prefix": map[string]any{"maximum": "100000"}},
 			"ignore-mismatch": map[string]any{"mode": "true"},
 		},
 	}
@@ -259,7 +259,7 @@ func TestParsePeerCapabilities(t *testing.T) {
 		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
 		"local":  map[string]any{"ip": "auto"},
 		"family": map[string]any{
-			"ipv4/unicast": map[string]any{},
+			"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}},
 		},
 		"capability": map[string]any{
 			"asn4":             "true",
@@ -340,8 +340,8 @@ func TestParsePeerCapabilityAddPathGlobal(t *testing.T) {
 		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
 		"local":  map[string]any{"ip": "auto"},
 		"family": map[string]any{
-			"ipv4/unicast": map[string]any{},
-			"ipv6/unicast": map[string]any{},
+			"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}},
+			"ipv6/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}},
 		},
 		"capability": map[string]any{
 			"add-path": "send/receive",
@@ -378,7 +378,7 @@ func TestParsePeerCapabilityAddPathBlock(t *testing.T) {
 		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
 		"local":  map[string]any{"ip": "auto"},
 		"family": map[string]any{
-			"ipv4/unicast": map[string]any{},
+			"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}},
 		},
 		"capability": map[string]any{
 			"add-path": map[string]any{
@@ -412,7 +412,7 @@ func TestParsePeerCapabilityAddPathSendOnly(t *testing.T) {
 		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
 		"local":  map[string]any{"ip": "auto"},
 		"family": map[string]any{
-			"ipv4/unicast": map[string]any{},
+			"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}},
 		},
 		"capability": map[string]any{
 			"add-path": "send",
@@ -901,7 +901,7 @@ func TestPeersFromTree(t *testing.T) {
 				"local":     map[string]any{"ip": "192.0.2.100"},
 				"hold-time": "180",
 				"family": map[string]any{
-					"ipv4/unicast": map[string]any{},
+					"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}},
 				},
 			},
 			"peer2": map[string]any{
@@ -1009,15 +1009,15 @@ func TestPeersFromTreeConfiguredFamilies(t *testing.T) {
 				"remote": map[string]any{"ip": "192.0.2.1", "as": "65001"},
 				"local":  map[string]any{"ip": "auto"},
 				"family": map[string]any{
-					"ipv4/unicast": map[string]any{},
-					"ipv6/unicast": map[string]any{},
+					"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}},
+					"ipv6/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}},
 				},
 			},
 			"peer2": map[string]any{
 				"remote": map[string]any{"ip": "192.0.2.2", "as": "65002"},
 				"local":  map[string]any{"ip": "auto"},
 				"family": map[string]any{
-					"ipv4/unicast": map[string]any{},
+					"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}},
 				},
 			},
 		},
@@ -1414,7 +1414,7 @@ func TestParseAddPathWithMode(t *testing.T) {
 			tree: map[string]any{
 				"remote":     map[string]any{"ip": "10.0.0.1", "as": "65001"},
 				"local":      map[string]any{"ip": "auto"},
-				"family":     map[string]any{"ipv4/unicast": map[string]any{}},
+				"family":     map[string]any{"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}}},
 				"capability": map[string]any{"add-path": "send/receive require"},
 			},
 			wantRequired: []capability.Code{capability.CodeAddPath},
@@ -1424,7 +1424,7 @@ func TestParseAddPathWithMode(t *testing.T) {
 			tree: map[string]any{
 				"remote":     map[string]any{"ip": "10.0.0.1", "as": "65001"},
 				"local":      map[string]any{"ip": "auto"},
-				"family":     map[string]any{"ipv4/unicast": map[string]any{}},
+				"family":     map[string]any{"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}}},
 				"capability": map[string]any{},
 				"add-path":   map[string]any{"ipv4/unicast": map[string]any{"direction": "send", "mode": "require"}},
 			},
@@ -1435,7 +1435,7 @@ func TestParseAddPathWithMode(t *testing.T) {
 			tree: map[string]any{
 				"remote":     map[string]any{"ip": "10.0.0.1", "as": "65001"},
 				"local":      map[string]any{"ip": "auto"},
-				"family":     map[string]any{"ipv4/unicast": map[string]any{}},
+				"family":     map[string]any{"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}}},
 				"capability": map[string]any{"add-path": "send/receive refuse"},
 			},
 			wantRefused: []capability.Code{capability.CodeAddPath},
@@ -1445,7 +1445,7 @@ func TestParseAddPathWithMode(t *testing.T) {
 			tree: map[string]any{
 				"remote":     map[string]any{"ip": "10.0.0.1", "as": "65001"},
 				"local":      map[string]any{"ip": "auto"},
-				"family":     map[string]any{"ipv4/unicast": map[string]any{}},
+				"family":     map[string]any{"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}}},
 				"capability": map[string]any{"add-path": "send/receive"},
 			},
 			// No mode specified = enable (default) — no require/refuse entries.
@@ -1455,7 +1455,7 @@ func TestParseAddPathWithMode(t *testing.T) {
 			tree: map[string]any{
 				"remote":     map[string]any{"ip": "10.0.0.1", "as": "65001"},
 				"local":      map[string]any{"ip": "auto"},
-				"family":     map[string]any{"ipv4/unicast": map[string]any{}},
+				"family":     map[string]any{"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}}},
 				"capability": map[string]any{"add-path": "send/receive disable"},
 			},
 			// disable = don't advertise, no enforcement.
@@ -1465,7 +1465,7 @@ func TestParseAddPathWithMode(t *testing.T) {
 			tree: map[string]any{
 				"remote":     map[string]any{"ip": "10.0.0.1", "as": "65001"},
 				"local":      map[string]any{"ip": "auto"},
-				"family":     map[string]any{"ipv4/unicast": map[string]any{}},
+				"family":     map[string]any{"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}}},
 				"capability": map[string]any{"add-path": "send/receive refuse"},
 			},
 			wantRefused: []capability.Code{capability.CodeAddPath},
@@ -1648,4 +1648,225 @@ func TestParsePeerFromTree_GroupName(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
 	assert.Equal(t, "rr-clients", peers[0].GroupName)
+}
+
+// TestPrefixLimitConfig verifies prefix maximum and warning parsed from family config.
+//
+// VALIDATES: Per-family prefix maximum and warning are extracted from config tree into PeerSettings.
+// PREVENTS: Prefix config silently ignored during family parsing.
+func TestPrefixLimitConfig(t *testing.T) {
+	tree := map[string]any{
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
+		"family": map[string]any{
+			"ipv4/unicast": map[string]any{
+				"mode": "enable",
+				"prefix": map[string]any{
+					"maximum": "1000000",
+					"warning": "800000",
+				},
+			},
+			"ipv6/unicast": map[string]any{
+				"mode": "enable",
+				"prefix": map[string]any{
+					"maximum": "200000",
+					"warning": "180000",
+				},
+			},
+		},
+	}
+
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
+	require.NoError(t, err)
+
+	assert.Equal(t, uint32(1000000), ps.PrefixMaximum["ipv4/unicast"])
+	assert.Equal(t, uint32(800000), ps.PrefixWarning["ipv4/unicast"])
+	assert.Equal(t, uint32(200000), ps.PrefixMaximum["ipv6/unicast"])
+	assert.Equal(t, uint32(180000), ps.PrefixWarning["ipv6/unicast"])
+}
+
+// TestPrefixLimitConfigDefault90Percent verifies warning defaults to 90% of maximum.
+//
+// VALIDATES: When warning is not specified, it auto-computes to 90% of maximum.
+// PREVENTS: Missing default leaves warning at 0, disabling the warning mechanism.
+func TestPrefixLimitConfigDefault90Percent(t *testing.T) {
+	tree := map[string]any{
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
+		"family": map[string]any{
+			"ipv4/unicast": map[string]any{
+				"mode": "enable",
+				"prefix": map[string]any{
+					"maximum": "1000000",
+				},
+			},
+		},
+	}
+
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
+	require.NoError(t, err)
+
+	assert.Equal(t, uint32(1000000), ps.PrefixMaximum["ipv4/unicast"])
+	assert.Equal(t, uint32(900000), ps.PrefixWarning["ipv4/unicast"])
+}
+
+// TestPrefixLimitConfigWarningExceedsMax verifies config rejected when warning >= maximum.
+//
+// VALIDATES: Invalid config produces clear error.
+// PREVENTS: Misconfigured warning threshold that never triggers (>= maximum means teardown first).
+func TestPrefixLimitConfigWarningExceedsMax(t *testing.T) {
+	tree := map[string]any{
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
+		"family": map[string]any{
+			"ipv4/unicast": map[string]any{
+				"mode": "enable",
+				"prefix": map[string]any{
+					"maximum": "1000",
+					"warning": "1000",
+				},
+			},
+		},
+	}
+
+	_, err := parsePeerFromTree("peer1", tree, 65000, 0)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "warning")
+}
+
+// TestPrefixLimitConfigMissing verifies config rejected when family has no prefix maximum.
+//
+// VALIDATES: Every negotiated family must have a prefix maximum.
+// PREVENTS: Peer running without prefix protection (the #1 purpose of this feature).
+func TestPrefixLimitConfigMissing(t *testing.T) {
+	tree := map[string]any{
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
+		"family": map[string]any{
+			"ipv4/unicast": map[string]any{
+				"mode": "enable",
+				// No prefix block -- should error.
+			},
+		},
+	}
+
+	_, err := parsePeerFromTree("peer1", tree, 65000, 0)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "prefix maximum")
+}
+
+// TestPrefixLimitConfigTeardownDefault verifies teardown defaults to true.
+//
+// VALIDATES: PrefixTeardown is true by default.
+// PREVENTS: Default of false silently swallowing prefix violations.
+func TestPrefixLimitConfigTeardownDefault(t *testing.T) {
+	tree := map[string]any{
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
+		"family": map[string]any{
+			"ipv4/unicast": map[string]any{
+				"mode": "enable",
+				"prefix": map[string]any{
+					"maximum": "100000",
+				},
+			},
+		},
+	}
+
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
+	require.NoError(t, err)
+	assert.True(t, ps.PrefixTeardown)
+}
+
+// TestPrefixLimitConfigTeardownFalse verifies teardown can be set to false (warn-only mode).
+//
+// VALIDATES: Explicit teardown=false is parsed correctly.
+// PREVENTS: Operator unable to use warn-only mode.
+func TestPrefixLimitConfigTeardownFalse(t *testing.T) {
+	tree := map[string]any{
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
+		"family": map[string]any{
+			"ipv4/unicast": map[string]any{
+				"mode": "enable",
+				"prefix": map[string]any{
+					"maximum": "100000",
+				},
+			},
+		},
+		"prefix": map[string]any{
+			"teardown": "false",
+		},
+	}
+
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
+	require.NoError(t, err)
+	assert.False(t, ps.PrefixTeardown)
+}
+
+// TestPrefixLimitConfigIdleTimeout verifies idle-timeout parsed into PeerSettings.
+//
+// VALIDATES: idle-timeout correctly parsed from peer-level prefix container.
+// PREVENTS: Auto-reconnect feature silently broken.
+func TestPrefixLimitConfigIdleTimeout(t *testing.T) {
+	tree := map[string]any{
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
+		"family": map[string]any{
+			"ipv4/unicast": map[string]any{
+				"mode": "enable",
+				"prefix": map[string]any{
+					"maximum": "100000",
+				},
+			},
+		},
+		"prefix": map[string]any{
+			"idle-timeout": "30",
+		},
+	}
+
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
+	require.NoError(t, err)
+	assert.Equal(t, uint16(30), ps.PrefixIdleTimeout)
+}
+
+// TestPrefixLimitBoundaryMaximum verifies boundary values for prefix maximum.
+//
+// VALIDATES: maximum=1 (minimum valid) and maximum=4294967295 (max uint32) both accepted.
+// PREVENTS: Off-by-one in range validation.
+func TestPrefixLimitBoundaryMaximum(t *testing.T) {
+	tests := []struct {
+		name    string
+		maximum string
+		wantErr bool
+	}{
+		{"minimum valid", "1", false},
+		{"typical value", "100000", false},
+		{"max uint32", "4294967295", false},
+		{"zero rejected", "0", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := map[string]any{
+				"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+				"local":  map[string]any{"ip": "auto"},
+				"family": map[string]any{
+					"ipv4/unicast": map[string]any{
+						"mode": "enable",
+						"prefix": map[string]any{
+							"maximum": tt.maximum,
+						},
+					},
+				},
+			}
+
+			_, err := parsePeerFromTree("peer1", tree, 65000, 0)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }

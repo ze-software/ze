@@ -23,7 +23,7 @@ bgp {
 			connection active
 
 			family {
-				bgp-ls/bgp-ls
+				bgp-ls/bgp-ls { prefix { maximum 10000; } }
 			}
 		}
 	}

@@ -34,7 +34,7 @@ bgp {
 		router-id 1.2.3.4
 		connection active
 		family {
-			ipv6/unicast
+			ipv6/unicast { prefix { maximum 10000; } }
 		}
 		capability {
 			link-local-nexthop

@@ -86,6 +86,21 @@ Peers are keyed by name (`peer <name> { }`) with IP and AS in nested containers:
 | `ttl-security` | Minimum TTL for incoming packets | Optional |
 | `group-updates` | Enable/disable UPDATE grouping | Default: enabled |
 
+### Prefix Limits (RFC 4486)
+
+Per-peer per-family prefix maximum enforcement. Mandatory for every negotiated family.
+
+| Setting | Scope | Description |
+|---------|-------|-------------|
+| `prefix { maximum N; }` | Per family | Hard maximum prefix count. Mandatory. |
+| `prefix { warning N; }` | Per family | Warning threshold. Default: 90% of maximum. |
+| `prefix { teardown true/false; }` | Per peer | Tear down on exceed (default: true) or warn-only. |
+| `prefix { idle-timeout N; }` | Per peer | Seconds before auto-reconnect after teardown (0 = no reconnect). |
+
+When a peer exceeds the maximum: NOTIFICATION Cease/MaxPrefixes (subcode 1) is sent and the session is torn down. With `teardown false`, the session stays up but further NLRIs for the exceeded family are dropped.
+
+Auto-reconnect uses exponential backoff: idle-timeout x 2^(N-1), capped at 1 hour. Backoff resets on stable session.
+
 ### Capabilities Configuration
 
 | Capability | Config Key | Values |

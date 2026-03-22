@@ -29,7 +29,7 @@ bgp {
 		group-updates disable
 
 		family {
-			l2vpn/vpls
+			l2vpn/vpls { prefix { maximum 10000; } }
 		}
 
 		# Route 1: VPLS with local-preference 1

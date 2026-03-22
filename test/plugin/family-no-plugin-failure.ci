@@ -27,7 +27,7 @@ bgp {
 
 		family {
 			# fake-safi - not a real SAFI, should be rejected
-			ipv4/fake-safi
+			ipv4/fake-safi { prefix { maximum 10000; } }
 		}
 	}
 }

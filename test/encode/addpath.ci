@@ -24,9 +24,9 @@ bgp {
 		group-updates disable
 
 		family {
-			ipv4/mpls-vpn
-			ipv4/unicast
-			ipv6/unicast
+			ipv4/mpls-vpn { prefix { maximum 10000; } }
+			ipv4/unicast { prefix { maximum 10000; } }
+			ipv6/unicast { prefix { maximum 10000; } }
 		}
 		capability {
 			add-path send/receive

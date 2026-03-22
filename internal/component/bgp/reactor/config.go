@@ -22,6 +22,7 @@ import (
 // Config tree string constants (shared with reactor.go to satisfy goconst).
 const (
 	valTrue    = "true"
+	valFalse   = "false"
 	valEnable  = "enable"
 	valDisable = "disable"
 	valRequire = "require"
@@ -135,10 +136,13 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		ps.LinkLocal = ll
 	}
 
-	// Parse families.
+	// Parse families (includes per-family prefix limits).
 	if err := parseFamiliesFromTree(tree, ps); err != nil {
 		return nil, fmt.Errorf("peer %s: %w", name, err)
 	}
+
+	// Parse peer-level prefix settings (teardown, idle-timeout).
+	parsePrefixSettingsFromTree(tree, ps)
 
 	// Parse capabilities.
 	parseCapabilitiesFromTree(tree, ps)
@@ -232,7 +236,8 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 }
 
 // parseFamiliesFromTree parses address family configuration from the tree.
-// Builds Multiprotocol capabilities and tracks required/ignore families.
+// Builds Multiprotocol capabilities, tracks required/ignore families,
+// and extracts per-family prefix limits (RFC 4486).
 func parseFamiliesFromTree(tree map[string]any, ps *PeerSettings) error {
 	familyMap, ok := mapMap(tree, "family")
 	if !ok {
@@ -274,10 +279,12 @@ func parseFamiliesFromTree(tree map[string]any, ps *PeerSettings) error {
 		}
 
 		modeStr := ""
+		var familyEntryMap map[string]any
 		switch v := val.(type) {
 		case string:
 			modeStr = v
 		case map[string]any:
+			familyEntryMap = v
 			// List entry: extract mode from map.
 			if mode, ok := mapString(v, "mode"); ok {
 				modeStr = mode
@@ -307,9 +314,69 @@ func parseFamiliesFromTree(tree map[string]any, ps *PeerSettings) error {
 		if mode == familyModeIgnore {
 			ps.IgnoreFamilies = append(ps.IgnoreFamilies, family)
 		}
+
+		// RFC 4486: Extract per-family prefix limits.
+		if err := parsePrefixLimitFromFamily(key, familyEntryMap, ps); err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+// parsePrefixLimitFromFamily extracts prefix maximum and warning from a family entry.
+// RFC 4486 Section 4: Maximum Number of Prefixes Reached.
+// Every non-disabled family MUST have a prefix maximum configured.
+func parsePrefixLimitFromFamily(familyKey string, entryMap map[string]any, ps *PeerSettings) error {
+	prefixMap, hasPrefixBlock := mapMap(entryMap, "prefix")
+	if !hasPrefixBlock {
+		return fmt.Errorf("family %s: prefix maximum is mandatory (add prefix { maximum N; })", familyKey)
+	}
+
+	maximum, ok := mapUint32(prefixMap, "maximum")
+	if !ok || maximum == 0 {
+		return fmt.Errorf("family %s: prefix maximum is mandatory and must be > 0", familyKey)
+	}
+
+	// Initialize maps lazily.
+	if ps.PrefixMaximum == nil {
+		ps.PrefixMaximum = make(map[string]uint32)
+	}
+	if ps.PrefixWarning == nil {
+		ps.PrefixWarning = make(map[string]uint32)
+	}
+
+	ps.PrefixMaximum[familyKey] = maximum
+
+	// Warning defaults to 90% of maximum.
+	warning, hasWarning := mapUint32(prefixMap, "warning")
+	if hasWarning {
+		if warning >= maximum {
+			return fmt.Errorf("family %s: prefix warning (%d) must be less than maximum (%d)", familyKey, warning, maximum)
+		}
+		ps.PrefixWarning[familyKey] = warning
+	} else {
+		ps.PrefixWarning[familyKey] = maximum * 9 / 10
+	}
+
+	return nil
+}
+
+// parsePrefixSettingsFromTree extracts peer-level prefix enforcement settings.
+// These are in the peer's top-level "prefix" container (not per-family).
+func parsePrefixSettingsFromTree(tree map[string]any, ps *PeerSettings) {
+	prefixMap, ok := mapMap(tree, "prefix")
+	if !ok {
+		return
+	}
+
+	if v, ok := mapString(prefixMap, "teardown"); ok {
+		ps.PrefixTeardown = v != valFalse
+	}
+
+	if v, ok := mapUint32(prefixMap, "idle-timeout"); ok {
+		ps.PrefixIdleTimeout = uint16(v) //nolint:gosec // Bounded by YANG uint16 range
+	}
 }
 
 // familyMode represents the negotiation mode for an address family.
@@ -329,7 +396,7 @@ func parseFamilyMode(s string) familyMode {
 	switch strings.ToLower(s) {
 	case "", valTrue, valEnable:
 		return familyModeEnable
-	case "false", valDisable:
+	case valFalse, valDisable:
 		return familyModeDisable
 	case valRequire:
 		return familyModeRequire
@@ -358,7 +425,7 @@ func parseCapMode(s string) capMode {
 	switch strings.ToLower(s) {
 	case "", valTrue, valEnable:
 		return capModeEnable
-	case "false", valDisable:
+	case valFalse, valDisable:
 		return capModeDisable
 	case valRequire:
 		return capModeRequire

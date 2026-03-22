@@ -78,7 +78,7 @@ bgp {
 	
 		family {
 			# ipv6/mup; # MUP not supported by update text yet
-			ipv6/unicast
+			ipv6/unicast { prefix { maximum 10000; } }
 		}
 		capability {
 			graceful-restart

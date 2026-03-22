@@ -156,7 +156,7 @@ func writeFullPeerBlock(b *strings.Builder, params ConfigParams, p PeerProfile) 
 	}
 	fmt.Fprintf(b, "        family {\n")
 	for _, f := range families {
-		fmt.Fprintf(b, "            %s;\n", f)
+		fmt.Fprintf(b, "            %s { prefix { maximum 10000; } }\n", f)
 	}
 	fmt.Fprintf(b, "        }\n")
 

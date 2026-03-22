@@ -140,6 +140,29 @@ func (s *Session) processMessage(hdr *message.Header, body, buf []byte) (error, 
 		// rely on the discarded attribute values for route selection.
 	}
 
+	// RFC 4486: Check prefix limits BEFORE delivering to plugins.
+	// Over-limit UPDATEs must not reach the RIB or be forwarded.
+	if hdr.Type == message.TypeUPDATE && wireUpdate != nil {
+		prefixNotif, prefixDrop := s.checkPrefixLimits(wireUpdate)
+		if prefixNotif != nil {
+			// teardown=true: send NOTIFICATION and close session.
+			s.mu.RLock()
+			conn := s.conn
+			s.mu.RUnlock()
+			_ = s.sendNotification(conn, prefixNotif.ErrorCode, prefixNotif.ErrorSubcode, prefixNotif.Data)
+			_ = s.fsm.Event(fsm.EventNotifMsg)
+			s.closeConn()
+			return fmt.Errorf("%w: %w", ErrConnectionClosed, ErrPrefixLimitExceeded), false
+		}
+		if prefixDrop {
+			// AC-27: teardown=false, exceeded. Skip plugin delivery but keep session.
+			// Withdrawals were already counted. The UPDATE is consumed but not forwarded.
+			s.timers.ResetHoldTimer()
+			_ = s.fsm.Event(fsm.EventUpdateMsg)
+			return nil, false
+		}
+	}
+
 	// Notify callback for all message types.
 	// Callback returns true if it took ownership of buf (e.g., cached it).
 	var kept bool

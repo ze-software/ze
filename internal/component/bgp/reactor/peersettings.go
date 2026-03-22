@@ -312,6 +312,23 @@ type PeerSettings struct {
 	FlowSpecRoutes []FlowSpecRoute
 	MUPRoutes      []MUPRoute
 
+	// PrefixMaximum is the hard maximum number of prefixes accepted per family.
+	// Key is "afi/safi" string (e.g., "ipv4/unicast"). Mandatory for every negotiated family.
+	// RFC 4486 Section 4: exceeding triggers Cease/MaxPrefixes NOTIFICATION.
+	PrefixMaximum map[string]uint32
+
+	// PrefixWarning is the warning threshold per family.
+	// Defaults to 90% of PrefixMaximum when not explicitly configured.
+	PrefixWarning map[string]uint32
+
+	// PrefixTeardown controls whether exceeding the maximum tears down the session.
+	// Default: true. When false, excess prefixes are rejected but session stays up.
+	PrefixTeardown bool
+
+	// PrefixIdleTimeout is seconds to wait before auto-reconnect after prefix teardown.
+	// 0 means no auto-reconnect. Uses exponential backoff on repeated teardowns.
+	PrefixIdleTimeout uint16
+
 	// Process bindings - which plugins receive messages from this peer.
 	ProcessBindings []ProcessBinding
 
@@ -356,14 +373,15 @@ type ProcessBinding struct {
 // NewPeerSettings creates a peer settings with default values.
 func NewPeerSettings(address netip.Addr, localAS, peerAS, routerID uint32) *PeerSettings {
 	return &PeerSettings{
-		Address:      address,
-		Port:         DefaultBGPPort,
-		LocalAS:      localAS,
-		PeerAS:       peerAS,
-		RouterID:     routerID,
-		HoldTime:     DefaultHoldTime,
-		Connection:   ConnectionBoth,
-		GroupUpdates: true,
+		Address:        address,
+		Port:           DefaultBGPPort,
+		LocalAS:        localAS,
+		PeerAS:         peerAS,
+		RouterID:       routerID,
+		HoldTime:       DefaultHoldTime,
+		Connection:     ConnectionBoth,
+		GroupUpdates:   true,
+		PrefixTeardown: true,
 	}
 }
 

@@ -31,7 +31,7 @@ bgp {
 				asn4 true
 			}
 			family {
-				ipv4/mpls-vpn
+				ipv4/mpls-vpn { prefix { maximum 10000; } }
 			}
 			update {
 				attribute {
