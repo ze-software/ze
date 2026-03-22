@@ -17,8 +17,8 @@ BGP peers can send an unbounded number of prefixes, exhausting memory and maskin
 
 - Every `.ci` test and chaos config must include `prefix { maximum N; }` for each family. 176 files updated -- any new test must include it.
 - `spec-forward-congestion` can read `PeerSettings.PrefixMaximum` for buffer sizing.
-- Data infrastructure (zefs storage, CLI update commands, autocompletion, staleness detection) deferred to future `spec-prefix-data`.
-- Prometheus metrics deferred to metrics infrastructure spec.
+- Data infrastructure (zefs storage, CLI update commands, autocompletion, staleness detection) deferred to `spec-prefix-data.md` with explicit task items.
+- Prometheus prefix metrics implemented: count, maximum, warning, warning_exceeded, exceeded_total, teardown_total (per peer+family labels).
 - Enforcement `.ci` test has a race condition in ze-peer (connection closed before NOTIFICATION read). Needs ze-peer improvement for close-time message capture.
 
 ## Gotchas
