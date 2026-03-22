@@ -38,7 +38,7 @@ func executeChaos(ctx context.Context, action engine.ChaosAction, conn net.Conn,
 
 	case engine.ActionNotificationCease:
 		// Clean disconnect with NOTIFICATION.
-		sendCease(conn, p.Index, cfg.Quiet)
+		sendCease(ctx, conn, p.Index, cfg.Quiet)
 		return ChaosResult{Disconnected: true}
 
 	case engine.ActionHoldTimerExpiry:

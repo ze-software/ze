@@ -11,7 +11,6 @@ import (
 	"io"
 	"net"
 	"net/netip"
-	"os"
 	"sync/atomic"
 	"time"
 
@@ -360,11 +359,19 @@ func readMsg(conn net.Conn) error {
 }
 
 // sendCease sends a NOTIFICATION Cease (best-effort on shutdown).
-func sendCease(conn net.Conn, peerIndex int, quiet bool) {
+// When ctx is canceled, the cease is part of normal runner shutdown and logged
+// at debug level. When ctx is still active, the cease is unexpected (e.g.,
+// chaos action) and logged at info level.
+func sendCease(ctx context.Context, conn net.Conn, peerIndex int, quiet bool) {
 	notif := BuildCeaseNotification()
 	_ = writeMsg(conn, notif)
 
-	if !quiet {
-		fmt.Fprintf(os.Stderr, "ze-chaos | peer %d | sent NOTIFICATION cease\n", peerIndex)
+	if quiet {
+		return
 	}
+	if ctx.Err() != nil {
+		logger.Debug("shutdown", "peer", peerIndex)
+		return
+	}
+	logger.Info("sent NOTIFICATION cease", "peer", peerIndex)
 }

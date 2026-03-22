@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
-	"os"
 	"sync/atomic"
 	"time"
 
@@ -18,7 +17,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
+
+var logger = slogutil.Logger("chaos.peer")
 
 // Family string constants used in event tagging and NLRI dispatch.
 const (
@@ -241,7 +243,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	emit(Event{Type: EventEstablished, Families: families})
 
 	if cfg.Verbose {
-		fmt.Fprintf(os.Stderr, "ze-chaos | peer %d | session established\n", p.Index)
+		logger.Debug("session established", "peer", p.Index)
 	}
 
 	// IPv4 unicast routes are used for chaos withdrawals.
@@ -253,7 +255,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	// total route volume manageable while still exercising all code paths.
 	for _, family := range families {
 		if ctx.Err() != nil {
-			sendCease(conn, p.Index, cfg.Quiet)
+			sendCease(ctx, conn, p.Index, cfg.Quiet)
 			emit(Event{Type: EventDisconnected})
 			return
 		}
@@ -403,7 +405,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	for _, family := range families {
 		eor := BuildEOR(family)
 		if eor == nil {
-			fmt.Fprintf(os.Stderr, "ze-chaos | peer %d | skipping EOR for unknown family %s\n", p.Index, family)
+			logger.Warn("skipping EOR for unknown family", "peer", p.Index, "family", family)
 			continue
 		}
 		if _, writeErr := conn.Write(eor); writeErr != nil {
@@ -467,7 +469,7 @@ func RunSimulator(ctx context.Context, cfg SimulatorConfig) {
 	for {
 		select {
 		case <-ctx.Done():
-			sendCease(conn, p.Index, cfg.Quiet)
+			sendCease(ctx, conn, p.Index, cfg.Quiet)
 			conn.Close() //nolint:errcheck,gosec // best-effort close to unblock readLoop
 			<-readerDone
 			emit(Event{Type: EventDisconnected})
