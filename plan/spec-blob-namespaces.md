@@ -17,7 +17,7 @@
 5. `internal/component/config/storage/blob.go` - `resolveKey()`, `migrateExistingFiles()`, `List()`
 6. `cmd/ze/init/main.go` - `ze init` (writes `meta/ssh/*` keys)
 7. `cmd/ze/internal/sshclient/sshclient.go` - SSH client reads credentials from blob
-8. `cmd/ze/db/main.go` - `ze db import` creates blob keys
+8. `cmd/ze/data/main.go` - `ze data import` creates blob keys
 
 ## Task
 
@@ -27,7 +27,7 @@ Deliverables:
 1. `meta/` namespace for instance metadata (`meta/ssh/username`, `meta/instance/name`, `meta/instance/managed`)
 2. `file/` namespace with qualifier for config files (`file/active/etc/ze/router.conf`)
 3. `ze init` extended: sets `meta/instance/name` and `meta/instance/managed` (value: `true`/`false`)
-4. `ze db import` stores as `file/active/ze.conf`
+4. `ze data import` stores as `file/active/ze.conf`
 5. `resolveKey()` idempotent: already-namespaced keys pass through unchanged
 6. `List()` returns full blob key names (callers see namespaces)
 
@@ -90,14 +90,14 @@ No external RFCs apply.
   -> Decision: change constants to `meta/ssh/username`, etc. Add `meta/instance/name` and `meta/instance/managed`.
 - [ ] `cmd/ze/internal/sshclient/sshclient.go` - `ReadCredentials()` hardcodes `"ssh/username"`, `"ssh/password"`, `"ssh/host"`, `"ssh/port"` (lines 132-148). Reads directly from `zefs.BlobStore`, not through Storage. Every CLI command uses this to SSH-connect to daemon.
   -> Decision: change hardcoded keys to `meta/ssh/username`, etc. CRITICAL: if init changes but this doesn't, all CLI commands break.
-- [ ] `cmd/ze/db/main.go` - `ls`, `cat`, `rm` use raw blob keys (no changes needed). `import` uses `filePathToKey()` which strips `/` to produce bare keys.
-  -> Decision: `ze db import` stores as `file/active/ze.conf`. `ls`/`cat`/`rm` need no changes.
+- [ ] `cmd/ze/data/main.go` - `ls`, `cat`, `rm` use raw blob keys (no changes needed). `import` uses `filePathToKey()` which strips `/` to produce bare keys.
+  -> Decision: `ze data import` stores as `file/active/ze.conf`. `ls`/`cat`/`rm` need no changes.
 - [ ] `internal/component/ssh/` - SSH **server** reads host key path via `filepath.Join(configDir, "ssh_host_ed25519_key")`, goes through `resolveKey()` in Storage. Gets `file/active/` prefix automatically. Does NOT read `ssh/username` -- that's the SSH **client** (`sshclient.go`).
   -> Decision: no SSH server code changes needed.
 
 **Behavior to preserve:**
 - ZeFS blob format unchanged (key namespaces are a convention, not a format change)
-- `ze db ls/cat/rm` continue to work (with namespaced keys)
+- `ze data ls/cat/rm` continue to work (with namespaced keys)
 - Storage interface signatures unchanged
 
 **Behavior to change:**
@@ -107,7 +107,7 @@ No external RFCs apply.
 - `resolveKey()` prepends `file/active/` for filesystem paths, passes through already-namespaced keys
 - `List()` returns full blob keys (namespace included, no leading `/`)
 - `migrateExistingFiles()` writes `file/active/` prefixed keys on blob create
-- `ze db import` stores as `file/active/ze.conf`
+- `ze data import` stores as `file/active/ze.conf`
 
 ## Data Flow (MANDATORY - see `rules/data-flow-tracing.md`)
 
@@ -115,7 +115,7 @@ No external RFCs apply.
 - `ze init` writes `meta/` keys directly to BlobStore
 - SSH client (`sshclient.go`) reads `meta/ssh/*` keys directly from BlobStore
 - Storage layer translates filesystem paths to `file/active/` keys via `resolveKey()`
-- `ze db import` writes `file/active/ze.conf` directly to BlobStore
+- `ze data import` writes `file/active/ze.conf` directly to BlobStore
 - `migrateExistingFiles()` writes `file/active/` prefixed keys on blob create
 
 ### Boundaries Crossed
@@ -124,7 +124,7 @@ No external RFCs apply.
 | Storage -> Blob | `resolveKey()` prepends `file/active/` for filesystem paths, idempotent for namespaced keys | [ ] |
 | `ze init` -> Blob | Writes `meta/` prefixed keys directly | [ ] |
 | SSH client -> Blob | Reads `meta/ssh/*` keys directly | [ ] |
-| `ze db import` -> Blob | Stores as `file/active/ze.conf` | [ ] |
+| `ze data import` -> Blob | Stores as `file/active/ze.conf` | [ ] |
 | `migrateExistingFiles()` -> Blob | Writes `file/active/` prefixed keys on create | [ ] |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
@@ -135,7 +135,7 @@ No external RFCs apply.
 | `ze init --managed` | -> | Blob contains `meta/instance/managed` with value `true` | `test/managed/init-managed-key.ci` |
 | `ze config` (any CLI command) | -> | `sshclient.ReadCredentials()` reads `meta/ssh/*` keys | `test/managed/cli-reads-meta-keys.ci` |
 | `ze daemon config.conf` | -> | Config stored under `file/active/` prefix | `test/managed/file-namespace.ci` |
-| `ze db import /path/to/file` | -> | Key stored as `file/active/ze.conf` | Unit test |
+| `ze data import /path/to/file` | -> | Key stored as `file/active/ze.conf` | Unit test |
 
 ## Acceptance Criteria
 
@@ -146,8 +146,8 @@ No external RFCs apply.
 | AC-3 | `ze init --managed` | Blob contains `meta/instance/managed` with value `true`. Without flag: `false`. |
 | AC-4 | Config written via Storage layer | Key uses `file/active/` prefix (e.g., `file/active/etc/ze/router.conf`) |
 | AC-5 | Any CLI command after `ze init` | `sshclient.ReadCredentials()` reads `meta/ssh/*` keys successfully |
-| AC-6 | `ze db import /path/to/file` | Key stored as `file/active/ze.conf` |
-| AC-7 | `ze db ls meta/` | Returns only `meta/*` keys. `ze db ls file/` returns only `file/*` keys. |
+| AC-6 | `ze data import /path/to/file` | Key stored as `file/active/ze.conf` |
+| AC-7 | `ze data ls meta/` | Returns only `meta/*` keys. `ze data ls file/` returns only `file/*` keys. |
 | AC-8 | `resolveKey("file/active/etc/ze/router.conf")` | Returns unchanged (idempotent, no double-prefix) |
 | AC-9 | `List("/etc/ze")` via Storage | Returns full blob keys like `file/active/etc/ze/router.conf` |
 | AC-10 | Pass `List()` result back to `ReadFile()` | Reads successfully (resolveKey passes through namespaced key) |
@@ -162,7 +162,7 @@ No external RFCs apply.
 | `TestZeInitManagedKey` | `cmd/ze/init/main_test.go` | Init writes `meta/instance/managed` `true` with flag, `false` without (AC-3) | |
 | `TestReadCredentialsMeta` | `cmd/ze/internal/sshclient/sshclient_test.go` | `ReadCredentials()` reads `meta/ssh/*` keys (AC-5) | |
 | `TestBlobStorageFilePrefix` | `internal/component/config/storage/storage_test.go` | Config paths get `file/active/` prefix in blob (AC-4) | |
-| `TestDbImportFilePrefix` | `cmd/ze/db/main_test.go` | `ze db import` stores as `file/active/ze.conf` (AC-6) | |
+| `TestDbImportFilePrefix` | `cmd/ze/data/main_test.go` | `ze data import` stores as `file/active/ze.conf` (AC-6) | |
 | `TestResolveKeyIdempotent` | `internal/component/config/storage/storage_test.go` | Already-namespaced keys pass through unchanged (AC-8) | |
 | `TestBlobStorageListReturnsFullKeys` | `internal/component/config/storage/storage_test.go` | `List()` returns full blob keys with namespace (AC-9) | |
 | `TestBlobStorageListRoundTrip` | `internal/component/config/storage/storage_test.go` | `List()` result passed to `ReadFile()` works (AC-10) | |
@@ -171,10 +171,10 @@ No external RFCs apply.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `init-meta-keys` | `test/managed/init-meta-keys.ci` | `ze init` creates blob with `meta/ssh/*` keys, `ze db ls meta/` shows them | |
+| `init-meta-keys` | `test/managed/init-meta-keys.ci` | `ze init` creates blob with `meta/ssh/*` keys, `ze data ls meta/` shows them | |
 | `init-managed-key` | `test/managed/init-managed-key.ci` | `ze init --managed` stores `meta/instance/managed` as `true` | |
 | `cli-reads-meta-keys` | `test/managed/cli-reads-meta-keys.ci` | CLI command connects via `meta/ssh/*` credentials after init | |
-| `file-namespace` | `test/managed/file-namespace.ci` | Config stored under `file/active/` prefix, visible via `ze db ls file/` | |
+| `file-namespace` | `test/managed/file-namespace.ci` | Config stored under `file/active/` prefix, visible via `ze data ls file/` | |
 
 ## Files to Modify
 - `cmd/ze/init/main.go` - change key constants to `meta/ssh/*`, add `--managed` flag, add name prompt, add `meta/instance/name` and `meta/instance/managed` entries
@@ -182,7 +182,7 @@ No external RFCs apply.
 - `cmd/ze/internal/sshclient/sshclient.go` - change hardcoded `"ssh/username"` etc. to `"meta/ssh/username"` etc.
 - `internal/component/config/storage/blob.go` - `resolveKey()` prepends `file/active/` (idempotent), `migrateExistingFiles()` writes `file/active/` prefixed keys, `List()` returns full blob keys
 - `internal/component/config/storage/storage_test.go` - tests for `file/active/` prefix, idempotent resolveKey, List round-trip, filesystem migration
-- `cmd/ze/db/main.go` - `filePathToKey()` returns `file/active/ze.conf`
+- `cmd/ze/data/main.go` - `filePathToKey()` returns `file/active/ze.conf`
 - `docs/architecture/zefs-format.md` - document namespace convention
 
 ## Files to Create
@@ -222,13 +222,13 @@ No external RFCs apply.
 
 ### Phase 2: Storage namespace + List changes (AC-4, AC-6, AC-8, AC-9, AC-10)
 - Add `TestBlobStorageFilePrefix`, `TestResolveKeyIdempotent`, `TestBlobStorageListReturnsFullKeys`, `TestBlobStorageListRoundTrip` in `storage_test.go`
-- Add `TestDbImportFilePrefix` in `cmd/ze/db/main_test.go`
+- Add `TestDbImportFilePrefix` in `cmd/ze/data/main_test.go`
 - Add `TestBlobMigrateFilesystemPrefixed` in `storage_test.go`
 - Tests: run and confirm FAIL
 - Update `resolveKey()` in `blob.go`: idempotent namespace-aware resolution
 - Update `List()` in `blob.go`: return full blob keys
 - Update `migrateExistingFiles()` in `blob.go`: write `file/active/` prefixed keys
-- Update `filePathToKey()` in `cmd/ze/db/main.go`: return `file/active/ze.conf`
+- Update `filePathToKey()` in `cmd/ze/data/main.go`: return `file/active/ze.conf`
 - Tests: run and confirm PASS
 
 ### Phase 3: Functional tests + docs + verification (AC-7)
@@ -260,7 +260,7 @@ No external RFCs apply.
 | `resolveKey()` prepends `file/active/` | `grep "file/active" internal/component/config/storage/blob.go` |
 | `resolveKey()` idempotent | `TestResolveKeyIdempotent` passes |
 | `List()` returns full keys | `TestBlobStorageListReturnsFullKeys` passes |
-| `ze db import` uses `file/active/ze.conf` | `grep "file/active" cmd/ze/db/main.go` |
+| `ze data import` uses `file/active/ze.conf` | `grep "file/active" cmd/ze/data/main.go` |
 | `zefs-format.md` updated | `grep "meta/" docs/architecture/zefs-format.md` |
 | 4 `.ci` functional tests exist | `ls test/managed/*.ci` |
 
@@ -270,7 +270,7 @@ No external RFCs apply.
 |-------|-----------------|
 | Input validation | `resolveKey()` must not allow path traversal (`../`) to escape namespace |
 | Key injection | Verify user-prompted `meta/instance/name` value cannot contain `/` or other key separators that would create unexpected keys |
-| Credential exposure | `meta/ssh/password` must not appear in logs, error messages, or `ze db ls` output format |
+| Credential exposure | `meta/ssh/password` must not appear in logs, error messages, or `ze data ls` output format |
 
 ## Mistake Log
 

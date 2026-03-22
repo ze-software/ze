@@ -23,7 +23,7 @@ func cmdLsWithStorage(store storage.Storage, _ []string) int {
 				continue // directory doesn't exist yet
 			}
 			for _, key := range keys {
-				fmt.Println("[db] " + key)
+				fmt.Println("[data] " + key)
 				found = true
 			}
 		}

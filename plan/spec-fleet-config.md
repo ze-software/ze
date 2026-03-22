@@ -470,7 +470,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 - First boot CLI flags are the only bootstrap; after first fetch, config is self-describing
 - No special metadata keys needed; the config block IS the metadata
 - `ze daemon` is the right name for "start as long-lived background process"
-- `ze db rm` already handles blob deletion; no new deletion code needed
+- `ze data rm` already handles blob deletion; no new deletion code needed
 
 ## RFC Documentation
 

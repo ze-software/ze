@@ -224,20 +224,20 @@ ze init -force                   # Replace existing database
 
 Prompts for: username, password, host (127.0.0.1), port (2222), name (hostname).
 
-### ze db
+### ze data
 
 Low-level blob store management.
 
 ```
-ze db import <file>...           # Import files into blob
-ze db rm <key>...                # Remove entries
-ze db ls [prefix]                # List entries
-ze db cat <key>                  # Print entry content
+ze data import <file>...           # Import files into blob
+ze data rm <key>...                # Remove entries
+ze data ls [prefix]                # List entries
+ze data cat <key>                  # Print entry content
 ```
 
 | Flag | Purpose |
 |------|---------|
-| `--db <path>` | Database path |
+| `--path <store>` | Blob store path |
 
 ### ze plugin
 

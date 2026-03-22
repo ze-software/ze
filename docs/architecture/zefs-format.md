@@ -133,7 +133,7 @@ On unix, the backing file is memory-mapped (`PROT_READ`, `MAP_PRIVATE`). Tree no
 
 ### Single-process ownership
 
-Only one process opens a ZeFS blob at a time. In ze, the daemon (`ze router.conf`) owns the blob. SSH editor sessions run as goroutines within the daemon process (via Wish). Terminal commands (`ze config edit`, `ze db ls`) detect the running daemon by dialing the SSH port and become SSH clients, sending commands through the daemon rather than opening the blob directly. When no daemon is running, the editor starts an ephemeral daemon, connects via SSH, and stops it when done.
+Only one process opens a ZeFS blob at a time. In ze, the daemon (`ze router.conf`) owns the blob. SSH editor sessions run as goroutines within the daemon process (via Wish). Terminal commands (`ze config edit`, `ze data ls`) detect the running daemon by dialing the SSH port and become SSH clients, sending commands through the daemon rather than opening the blob directly. When no daemon is running, the editor starts an ephemeral daemon, connects via SSH, and stops it when done.
 
 ### In-process locking
 
@@ -172,7 +172,7 @@ Keys follow a `<namespace>/<qualifier>/<path>` convention to prevent collisions 
 
 The Storage interface (`internal/component/config/storage/`) translates filesystem paths to namespaced keys via `resolveKey()`. The function is idempotent: already-namespaced keys pass through unchanged, so `List()` results can be fed back to `ReadFile()` without double-prefixing.
 
-`ze db` operates on raw blob keys. `ze init` writes `meta/` keys directly.
+`ze data` operates on raw blob keys. `ze init` writes `meta/` keys directly.
 
 ## Implementation
 

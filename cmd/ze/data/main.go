@@ -1,7 +1,7 @@
 // Design: docs/architecture/zefs-format.md -- ZeFS blob store CLI
 //
-// Package db provides the ze db subcommand for managing ZeFS blob stores.
-package db
+// Package data provides the ze data subcommand for managing ZeFS blob stores.
+package data
 
 import (
 	"fmt"
@@ -25,10 +25,10 @@ var subcommandHandlers = map[string]func(string, []string) int{
 	"cat":    cmdCat,
 }
 
-// Run executes the db subcommand with the given arguments.
+// Run executes the data subcommand with the given arguments.
 // Returns exit code.
 func Run(args []string) int {
-	dbPath, remaining := extractDBFlag(args)
+	storePath, remaining := extractPathFlag(args)
 
 	if len(remaining) == 0 {
 		usage()
@@ -44,10 +44,10 @@ func Run(args []string) int {
 	}
 
 	if handler, ok := subcommandHandlers[subcmd]; ok {
-		return handler(dbPath, subArgs)
+		return handler(storePath, subArgs)
 	}
 
-	fmt.Fprintf(os.Stderr, "unknown db subcommand: %s\n", subcmd)
+	fmt.Fprintf(os.Stderr, "unknown data subcommand: %s\n", subcmd)
 	candidates := make([]string, 0, len(subcommandHandlers))
 	for k := range subcommandHandlers {
 		candidates = append(candidates, k)
@@ -59,49 +59,49 @@ func Run(args []string) int {
 	return 1
 }
 
-// extractDBFlag parses --db <path> from args and returns the blob path and remaining args.
-func extractDBFlag(args []string) (string, []string) {
-	dbPath := ""
+// extractPathFlag parses --path <path> from args and returns the blob path and remaining args.
+func extractPathFlag(args []string) (string, []string) {
+	storePath := ""
 	remaining := make([]string, 0, len(args))
 	for i := 0; i < len(args); i++ {
 		switch {
-		case args[i] == "--db" && i+1 < len(args):
-			dbPath = args[i+1]
+		case args[i] == "--path" && i+1 < len(args):
+			storePath = args[i+1]
 			i++
-		case strings.HasPrefix(args[i], "--db="):
-			dbPath = args[i][len("--db="):]
+		case strings.HasPrefix(args[i], "--path="):
+			storePath = args[i][len("--path="):]
 		default:
 			remaining = append(remaining, args[i])
 		}
 	}
 
-	if dbPath == "" {
+	if storePath == "" {
 		configDir := paths.DefaultConfigDir()
 		if configDir == "" {
-			dbPath = defaultBlobName
+			storePath = defaultBlobName
 		} else {
-			dbPath = filepath.Join(configDir, defaultBlobName)
+			storePath = filepath.Join(configDir, defaultBlobName)
 		}
 	}
 
-	return dbPath, remaining
+	return storePath, remaining
 }
 
 // openStore opens an existing blob store or returns an error.
-func openStore(dbPath string) (*zefs.BlobStore, error) {
-	s, err := zefs.Open(dbPath)
+func openStore(storePath string) (*zefs.BlobStore, error) {
+	s, err := zefs.Open(storePath)
 	if err != nil {
-		return nil, fmt.Errorf("open %s: %w", dbPath, err)
+		return nil, fmt.Errorf("open %s: %w", storePath, err)
 	}
 	return s, nil
 }
 
 // openOrCreateStore opens an existing store or creates a new one.
-func openOrCreateStore(dbPath string) (*zefs.BlobStore, error) {
-	if _, err := os.Stat(dbPath); err == nil {
-		return zefs.Open(dbPath)
+func openOrCreateStore(storePath string) (*zefs.BlobStore, error) {
+	if _, err := os.Stat(storePath); err == nil {
+		return zefs.Open(storePath)
 	}
-	return zefs.Create(dbPath)
+	return zefs.Create(storePath)
 }
 
 // filePathToKey converts a filesystem path to a blob key under the file/active/ namespace.
@@ -110,13 +110,13 @@ func filePathToKey(path string) string {
 	return "file/active/" + filepath.Base(path)
 }
 
-func cmdImport(dbPath string, args []string) int {
+func cmdImport(storePath string, args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "usage: ze db import <file>...\n")
+		fmt.Fprintf(os.Stderr, "usage: ze data import <file>...\n")
 		return 1
 	}
 
-	s, err := openOrCreateStore(dbPath)
+	s, err := openOrCreateStore(storePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 2
@@ -125,7 +125,7 @@ func cmdImport(dbPath string, args []string) int {
 
 	wl, err := s.Lock()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: lock %s: %v\n", dbPath, err)
+		fmt.Fprintf(os.Stderr, "error: lock %s: %v\n", storePath, err)
 		return 2
 	}
 
@@ -153,20 +153,20 @@ func cmdImport(dbPath string, args []string) int {
 		return 2
 	}
 
-	fmt.Printf("%d files imported into %s\n", imported, dbPath)
+	fmt.Printf("%d files imported into %s\n", imported, storePath)
 	if imported == 0 {
 		return 2
 	}
 	return 0
 }
 
-func cmdRm(dbPath string, args []string) int {
+func cmdRm(storePath string, args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintf(os.Stderr, "usage: ze db rm <key>...\n")
+		fmt.Fprintf(os.Stderr, "usage: ze data rm <key>...\n")
 		return 1
 	}
 
-	s, err := openStore(dbPath)
+	s, err := openStore(storePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 2
@@ -175,7 +175,7 @@ func cmdRm(dbPath string, args []string) int {
 
 	wl, err := s.Lock()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: lock %s: %v\n", dbPath, err)
+		fmt.Fprintf(os.Stderr, "error: lock %s: %v\n", storePath, err)
 		return 2
 	}
 
@@ -194,15 +194,15 @@ func cmdRm(dbPath string, args []string) int {
 		return 2
 	}
 
-	fmt.Printf("%d entries removed from %s\n", removed, dbPath)
+	fmt.Printf("%d entries removed from %s\n", removed, storePath)
 	if removed == 0 {
 		return 2
 	}
 	return 0
 }
 
-func cmdLs(dbPath string, args []string) int {
-	s, err := openStore(dbPath)
+func cmdLs(storePath string, args []string) int {
+	s, err := openStore(storePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 2
@@ -221,13 +221,13 @@ func cmdLs(dbPath string, args []string) int {
 	return 0
 }
 
-func cmdCat(dbPath string, args []string) int {
+func cmdCat(storePath string, args []string) int {
 	if len(args) != 1 {
-		fmt.Fprintf(os.Stderr, "usage: ze db cat <key>\n")
+		fmt.Fprintf(os.Stderr, "usage: ze data cat <key>\n")
 		return 1
 	}
 
-	s, err := openStore(dbPath)
+	s, err := openStore(storePath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 2
@@ -245,7 +245,7 @@ func cmdCat(dbPath string, args []string) int {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze db [--db path] <command> [args...]
+	fmt.Fprintf(os.Stderr, `Usage: ze data [--path <store>] <command> [args...]
 
 Manage ZeFS blob stores.
 
@@ -256,15 +256,15 @@ Commands:
   cat <key>           Print entry content to stdout
 
 Flags:
-  --db <path>         Path to the blob store (default: {configDir}/database.zefs)
+  --path <store>      Path to the blob store (default: {configDir}/database.zefs)
 
 Examples:
-  ze db import /etc/ze/router.conf /etc/ze/site-b.conf
-  ze db ls
-  ze db ls file/active/
-  ze db ls meta/
-  ze db cat file/active/etc/ze/router.conf
-  ze db rm file/active/etc/ze/old-router.conf
-  ze db --db /tmp/test.zefs import router.conf
+  ze data import /etc/ze/router.conf /etc/ze/site-b.conf
+  ze data ls
+  ze data ls file/active/
+  ze data ls meta/
+  ze data cat file/active/etc/ze/router.conf
+  ze data rm file/active/etc/ze/old-router.conf
+  ze data --path /tmp/test.zefs import router.conf
 `)
 }

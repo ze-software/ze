@@ -110,7 +110,7 @@ N/A - not protocol work.
 |-------------|---|--------------|------|
 | `ze config edit` -> type commands -> exit -> restart -> Up arrow | -> | `model.loadHistory()` + `model.saveHistory()` | `test/ui/history-persist-edit.ci` |
 | `ze cli` -> type commands -> exit -> restart -> Up arrow | -> | `model.loadHistory()` + `model.saveHistory()` | `test/ui/history-persist-cli.ci` |
-| `ze db cat meta/history/max` (after manual set) | -> | `historyStore.loadMax()` | `test/ui/history-max-config.ci` |
+| `ze data cat meta/history/max` (after manual set) | -> | `historyStore.loadMax()` | `test/ui/history-max-config.ci` |
 
 ## Acceptance Criteria
 
@@ -121,7 +121,7 @@ N/A - not protocol work.
 | AC-3 | Edit mode and command mode have separate stored histories | `meta/history/edit` and `meta/history/command` are distinct keys |
 | AC-4 | Execute 150 commands with max=100 | Only last 100 stored in zefs |
 | AC-5 | `meta/history/max` absent | Default to 100 |
-| AC-6 | `meta/history/max` set to 50 via `ze db import` | History trimmed to 50 |
+| AC-6 | `meta/history/max` set to 50 via `ze data import` | History trimmed to 50 |
 | AC-7 | No zefs available (filesystem storage) | History works in-memory only (no error, graceful degradation) |
 | AC-8 | Same command entered consecutively | Stored only once (existing dedup preserved) |
 | AC-9 | Concurrent sessions do not corrupt history | Last-write-wins is acceptable; no crash or data loss |

@@ -15,7 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 	zecompletion "codeberg.org/thomas-mangin/ze/cmd/ze/completion"
 	zeconfig "codeberg.org/thomas-mangin/ze/cmd/ze/config"
-	zedb "codeberg.org/thomas-mangin/ze/cmd/ze/db"
+	zedata "codeberg.org/thomas-mangin/ze/cmd/ze/data"
 	zeenv "codeberg.org/thomas-mangin/ze/cmd/ze/environ"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
@@ -183,8 +183,8 @@ dispatch:
 		os.Exit(code)
 	case "init":
 		os.Exit(zeinit.Run(args[1:]))
-	case "db":
-		os.Exit(zedb.Run(args[1:]))
+	case "data":
+		os.Exit(zedata.Run(args[1:]))
 	case "schema":
 		os.Exit(schema.Run(args[1:], plugins))
 	case "yang":
@@ -249,7 +249,7 @@ dispatch:
 	// Unknown command
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
 	commands := []string{
-		"bgp", "plugin", "cli", "config", "db", "init", "start", "schema", "yang",
+		"bgp", "plugin", "cli", "config", "data", "init", "start", "schema", "yang",
 		"exabgp", "signal", "status", "show", "run", "completion", "version", "help",
 	}
 	if suggestion := suggest.Command(arg, commands); suggestion != "" {
@@ -379,7 +379,7 @@ Commands:
   start        Start daemon using config from database
   init         Bootstrap database with SSH credentials
   config       Configuration management (validate, edit, migrate, ...)
-  db           Blob store management
+  data         Blob store management
   schema       Schema discovery
   yang         YANG tree analysis and command docs
   cli          Interactive CLI for running daemons

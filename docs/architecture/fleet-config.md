@@ -136,7 +136,7 @@ At `#0 auth`, the hub looks up the token against the `client` entries nested und
 
 Client configs are entries in the hub's ZeFS blob, keyed by client name. The exact key format follows the blob namespace convention (see `spec-blob-namespaces`).
 
-The admin manages these using existing blob tools (`ze db ls`, `ze config edit`, SSH editor).
+The admin manages these using existing blob tools (`ze data ls`, `ze config edit`, SSH editor).
 
 ### Config Storage (Client Side)
 
@@ -310,7 +310,7 @@ Priority: CLI flag > env var > config block > blob metadata.
 | Hub auth (`#0 auth`) | Extend: per-client secret lookup under `server` block |
 | Hub MuxConn | Reuse as-is |
 | Hub ZeFS blob | Reuse as-is (client configs are entries) |
-| `ze db rm` | Reuse as-is |
+| `ze data rm` | Reuse as-is |
 | Named `server`/`client` hub blocks | **New:** replaces flat `listen`/`secret` fields |
 | `config-fetch` / `config-changed` RPCs | **New:** hub-side handlers |
 | Config change watcher | **New:** hub notifies on blob write |

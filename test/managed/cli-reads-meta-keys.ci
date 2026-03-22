@@ -19,17 +19,17 @@ trap 'rm -rf "$INIT_DIR"' EXIT
 # Init credentials
 printf 'testuser\ntestpass\n10.0.0.1\n3333\n\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init
 
-# Read back via ze db cat (uses raw blob keys)
-USERNAME=$(ZE_CONFIG_DIR="$INIT_DIR" ze db cat meta/ssh/username)
+# Read back via ze data cat (uses raw blob keys)
+USERNAME=$(ZE_CONFIG_DIR="$INIT_DIR" ze data cat meta/ssh/username)
 [ "$USERNAME" = "testuser" ] || { echo "FAIL: username expected 'testuser', got '$USERNAME'" >&2; exit 1; }
 
-PASSWORD=$(ZE_CONFIG_DIR="$INIT_DIR" ze db cat meta/ssh/password)
+PASSWORD=$(ZE_CONFIG_DIR="$INIT_DIR" ze data cat meta/ssh/password)
 [ "$PASSWORD" = "testpass" ] || { echo "FAIL: password expected 'testpass', got '$PASSWORD'" >&2; exit 1; }
 
-HOST=$(ZE_CONFIG_DIR="$INIT_DIR" ze db cat meta/ssh/host)
+HOST=$(ZE_CONFIG_DIR="$INIT_DIR" ze data cat meta/ssh/host)
 [ "$HOST" = "10.0.0.1" ] || { echo "FAIL: host expected '10.0.0.1', got '$HOST'" >&2; exit 1; }
 
-PORT=$(ZE_CONFIG_DIR="$INIT_DIR" ze db cat meta/ssh/port)
+PORT=$(ZE_CONFIG_DIR="$INIT_DIR" ze data cat meta/ssh/port)
 [ "$PORT" = "3333" ] || { echo "FAIL: port expected '3333', got '$PORT'" >&2; exit 1; }
 
 echo "OK: CLI reads meta/ssh/* keys after init" >&2
