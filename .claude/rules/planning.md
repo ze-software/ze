@@ -38,8 +38,14 @@ Write plan files to project `.claude/plan/ze-plan-<name>`, NOT `~/.claude/plan`.
 ── IMPLEMENT ── (TDD cycle)
 [ ] 15. Test fails → implement → test passes. Log mistakes immediately.
 
-── VERIFY ── (audit, docs, completion)
-[ ] 16. Complete Completion Checklist
+── SELF-REVIEW ── (adversarial, BEFORE presenting to user)
+   Gate: Adversarial Self-Review (rules/quality.md) — all 5 questions answered, fixes applied.
+[ ] 16. Run adversarial self-review. Fix what it reveals. Do NOT present work yet.
+[ ] 17. Check for unanswered questions from earlier in conversation. Re-state them.
+
+── VERIFY ── (complete checklist, present evidence)
+[ ] 18. Complete Completion Checklist — all 12 steps, in order, no skipping.
+[ ] 19. Present work with evidence. Do NOT suggest committing.
 ```
 
 ## Implementation Plan Format

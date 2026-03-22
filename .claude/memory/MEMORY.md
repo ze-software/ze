@@ -17,6 +17,10 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 - [feedback_test_failures_always_report.md](feedback_test_failures_always_report.md) - Always report test failures visibly. Pre-existing does not block commits but must be tracked.
 - [feedback_no_git_stash.md](feedback_no_git_stash.md) - Never use git stash in any form; it is disallowed
 - [feedback_multiple_commits.md](feedback_multiple_commits.md) - Break work into multiple focused commits, not one big bundle
+- [feedback_durability_over_velocity.md](feedback_durability_over_velocity.md) - Optimize for "never revisit this code", not "get to commit fast". Thoroughness over speed.
+- [feedback_unanswered_questions_block.md](feedback_unanswered_questions_block.md) - Re-state unanswered questions before proceeding. Never silently assume answers.
+- [feedback_consistency_predictability.md](feedback_consistency_predictability.md) - Follow the same process every time. Inconsistency forces the user to be vigilant about catching shortcuts.
+- [feedback_memory_is_in_repo.md](feedback_memory_is_in_repo.md) - ~/.claude/projects/.../memory/ is the repo's .claude/memory/. Always commit memory changes.
 
 ## References (cross-project, not in repo)
 
