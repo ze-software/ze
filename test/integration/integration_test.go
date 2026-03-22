@@ -54,25 +54,53 @@ func cleanupReactors(t *testing.T, r1, r2 *reactor.Reactor) {
 	_ = r2.Wait(ctx)
 }
 
+// listenPort returns the TCP port the reactor is listening on.
+func listenPort(t *testing.T, r *reactor.Reactor) uint16 {
+	t.Helper()
+	addrs := r.ListenAddrs()
+	if len(addrs) == 0 {
+		t.Fatal("reactor has no listen addresses")
+	}
+	tcpAddr, ok := addrs[0].(*net.TCPAddr)
+	if !ok {
+		t.Fatalf("listen address is not TCP: %T", addrs[0])
+	}
+	return uint16(tcpAddr.Port) //nolint:gosec // Port is always < 65536
+}
+
 // setupPeers creates two reactors with configured neighbors.
+// Reactors bind to port 0 (OS-assigned) and peers are added after start
+// to eliminate the TOCTOU race between port discovery and binding.
 func setupPeers(t *testing.T, ctx context.Context, cfg1, cfg2 peerConfig) (*reactor.Reactor, *reactor.Reactor) {
 	t.Helper()
 
-	port1 := findFreePort(t)
-	port2 := findFreePort(t)
-
 	r1 := reactor.New(&reactor.Config{
-		ListenAddr: fmt.Sprintf("127.0.0.1:%d", port1),
+		ListenAddr: "127.0.0.1:0",
 		RouterID:   cfg1.routerID,
 		LocalAS:    cfg1.localAS,
 	})
 
 	r2 := reactor.New(&reactor.Config{
-		ListenAddr: fmt.Sprintf("127.0.0.1:%d", port2),
+		ListenAddr: "127.0.0.1:0",
 		RouterID:   cfg2.routerID,
 		LocalAS:    cfg2.localAS,
 	})
 
+	// Start both reactors first so they bind to OS-assigned ports.
+	if err := r1.StartWithContext(ctx); err != nil {
+		t.Fatalf("start r1: %v", err)
+	}
+
+	if err := r2.StartWithContext(ctx); err != nil {
+		r1.Stop()
+		t.Fatalf("start r2: %v", err)
+	}
+
+	// Extract actual ports from bound listeners.
+	port1 := listenPort(t, r1)
+	port2 := listenPort(t, r2)
+
+	// Add peers using actual bound ports -- no TOCTOU race.
 	neighbor1 := &reactor.PeerSettings{
 		Address:    netip.MustParseAddr("127.0.0.1"),
 		Port:       port2,
@@ -94,19 +122,12 @@ func setupPeers(t *testing.T, ctx context.Context, cfg1, cfg2 peerConfig) (*reac
 	}
 
 	if err := r1.AddPeer(neighbor1); err != nil {
+		cleanupReactors(t, r1, r2)
 		t.Fatalf("add peer to r1: %v", err)
 	}
 	if err := r2.AddPeer(neighbor2); err != nil {
+		cleanupReactors(t, r1, r2)
 		t.Fatalf("add peer to r2: %v", err)
-	}
-
-	if err := r1.StartWithContext(ctx); err != nil {
-		t.Fatalf("start r1: %v", err)
-	}
-
-	if err := r2.StartWithContext(ctx); err != nil {
-		r1.Stop()
-		t.Fatalf("start r2: %v", err)
 	}
 
 	return r1, r2
