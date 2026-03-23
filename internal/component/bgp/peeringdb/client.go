@@ -36,16 +36,16 @@ func (p PrefixCounts) Suspicious() bool {
 // (info_prefixes4, info_prefixes6). These are external API fields,
 // not ze's own JSON format which uses kebab-case.
 
-// Client queries a PeeringDB-compatible API for prefix counts.
-type Client struct {
+// PeeringDB queries a PeeringDB-compatible API for prefix counts.
+type PeeringDB struct {
 	baseURL string
 	http    *http.Client
 }
 
-// NewClient creates a PeeringDB client for the given base URL.
+// NewPeeringDB creates a PeeringDB client for the given base URL.
 // For localhost (127.0.0.1) URLs, TLS certificate validation is skipped
 // to support functional tests with fake servers.
-func NewClient(baseURL string) *Client {
+func NewPeeringDB(baseURL string) *PeeringDB {
 	transport := &http.Transport{}
 	if dt, ok := http.DefaultTransport.(*http.Transport); ok {
 		transport = dt.Clone()
@@ -65,7 +65,7 @@ func NewClient(baseURL string) *Client {
 		}
 	}
 
-	return &Client{
+	return &PeeringDB{
 		baseURL: baseURL,
 		http: &http.Client{
 			Timeout:   defaultTimeout,
@@ -76,7 +76,7 @@ func NewClient(baseURL string) *Client {
 
 // LookupASN queries PeeringDB for prefix counts of the given ASN.
 // Returns an error if the ASN is not found in PeeringDB.
-func (c *Client) LookupASN(ctx context.Context, asn uint32) (PrefixCounts, error) {
+func (c *PeeringDB) LookupASN(ctx context.Context, asn uint32) (PrefixCounts, error) {
 	reqURL := fmt.Sprintf("%s/api/net?asn=%d", c.baseURL, asn)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, http.NoBody)

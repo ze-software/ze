@@ -82,7 +82,7 @@ func HandleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 		}, err
 	}
 
-	client := peeringdb.NewClient(sc.PeeringDBURL)
+	client := peeringdb.NewPeeringDB(sc.PeeringDBURL)
 	today := time.Now().Format(time.DateOnly)
 
 	var results []peerResult

@@ -46,7 +46,7 @@ func TestLookupASN(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(fakeHandler))
 	defer srv.Close()
 
-	c := NewClient(srv.URL)
+	c := NewPeeringDB(srv.URL)
 
 	tests := []struct {
 		name    string
@@ -105,7 +105,7 @@ func TestLookupASN(t *testing.T) {
 // VALIDATES: AC-2 -- unreachable PeeringDB returns error.
 // PREVENTS: client panicking or returning zero on network failure.
 func TestLookupASNUnreachable(t *testing.T) {
-	c := NewClient("http://127.0.0.1:1") // nothing listening
+	c := NewPeeringDB("http://127.0.0.1:1") // nothing listening
 
 	_, err := c.LookupASN(context.Background(), 65001)
 	if err == nil {
@@ -119,7 +119,7 @@ func TestLookupASNDeterministic(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(fakeHandler))
 	defer srv.Close()
 
-	c := NewClient(srv.URL)
+	c := NewPeeringDB(srv.URL)
 
 	first, err := c.LookupASN(context.Background(), 65001)
 	if err != nil {
@@ -177,7 +177,7 @@ func TestLookupASNZeroPrefixes(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(handler))
 	defer srv.Close()
 
-	c := NewClient(srv.URL)
+	c := NewPeeringDB(srv.URL)
 
 	counts, err := c.LookupASN(context.Background(), 65999)
 	if err != nil {
@@ -231,7 +231,7 @@ func TestLookupASNMalformedJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(handler))
 	defer srv.Close()
 
-	c := NewClient(srv.URL)
+	c := NewPeeringDB(srv.URL)
 
 	_, err := c.LookupASN(context.Background(), 65001)
 	if err == nil {
@@ -249,7 +249,7 @@ func TestLookupASNHTTPError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(handler))
 	defer srv.Close()
 
-	c := NewClient(srv.URL)
+	c := NewPeeringDB(srv.URL)
 
 	_, err := c.LookupASN(context.Background(), 65001)
 	if err == nil {
@@ -271,7 +271,7 @@ func TestLookupASNNegativeValues(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(handler))
 	defer srv.Close()
 
-	c := NewClient(srv.URL)
+	c := NewPeeringDB(srv.URL)
 
 	counts, err := c.LookupASN(context.Background(), 65001)
 	if err != nil {
@@ -296,7 +296,7 @@ func TestLookupASNContextCancel(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(handler))
 	defer srv.Close()
 
-	c := NewClient(srv.URL)
+	c := NewPeeringDB(srv.URL)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel immediately
@@ -323,7 +323,7 @@ func TestLookupASNMissingFields(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(handler))
 	defer srv.Close()
 
-	c := NewClient(srv.URL)
+	c := NewPeeringDB(srv.URL)
 
 	counts, err := c.LookupASN(context.Background(), 65001)
 	if err != nil {
