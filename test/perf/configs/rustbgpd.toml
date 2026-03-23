@@ -3,6 +3,9 @@ asn = 65000
 router_id = "172.31.0.6"
 listen_port = 179
 
+[global.telemetry]
+log_format = "json"
+
 [[neighbors]]
 address = "172.31.0.10"
 remote_asn = 65001
