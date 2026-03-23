@@ -547,9 +547,23 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 - EgressFilterFunc signature change is infrastructure that benefits all future filter plugins
 - Filter priority mechanism enables predictable pipeline ordering without naming tricks
-- Cumulative accumulation for tag/strip follows the proven routes pattern in peers.go
+- Cumulative accumulation for tag/strip uses `ze:cumulative` YANG extension with deepMergeMaps
 - Wire manipulation for community insert/remove parallels OTC insertion in otc.go
 - Named communities with validation at config time prevents typo-based misconfigurations
+
+### Related Filter Plugins (broader effort)
+
+This spec is the first of three filter plugins. The infrastructure changes (egress mutation, FilterPriority, PeerFilterInfo, ze:cumulative, filter YANG container) benefit all three.
+
+| Plugin | Spec | Status | Library |
+|--------|------|--------|---------|
+| bgp-filter-community | this spec | design | N/A (wire manipulation only) |
+| bgp-filter-prefix | spec-filter-prefix (not yet written) | planned | N/A |
+| bgp-filter-irr | spec-filter-irr (not yet written) | planned | `internal/component/bgp/irr/` (already written) |
+
+**IRR library** (`internal/component/bgp/irr/`): RPSL whois client for querying IRR databases (RADB, RIPE, NTT). Resolves AS-SETs to origin ASNs (recursive, cycle-safe), fetches prefixes per family, aggregates and sorts. Follows same pattern as `internal/component/bgp/peeringdb/`. Prefixes will be written to config (not zefs). Staleness warnings like PeeringDB.
+
+**PeeringDB rename**: `peeringdb.Client` renamed to `peeringdb.PeeringDB` / `NewPeeringDB()` for naming consistency with `irr.IRR` / `NewIRR()`.
 
 ## RFC Documentation
 
