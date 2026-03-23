@@ -168,6 +168,7 @@ module ze-bgp-api {
             leaf local-address { type zt:ip-address; description "Local bind address"; }
             leaf router-id { type zt:ipv4-address; description "Router ID override"; }
             leaf hold-time { type uint16; description "Hold time"; }
+            leaf connect-retry { type uint16; description "Connect retry interval"; }
             leaf connection { type string; description "Connection mode: both, passive, active"; }
         }
     }

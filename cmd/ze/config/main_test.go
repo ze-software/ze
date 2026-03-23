@@ -117,7 +117,7 @@ func TestConfigFmtRejectsOld(t *testing.T) {
 //
 // PREVENTS: Formatting errors on real-world configs.
 func TestConfigFmtComplexConfig(t *testing.T) {
-	input := `bgp{group defaults{hold-time 90;peer upstream{remote{ip 192.0.2.1;as 65001;}local{as 65000;}family{ipv4/unicast;}}}}`
+	input := `bgp{group defaults{timer{hold-time 90;}peer upstream{remote{ip 192.0.2.1;as 65001;}local{as 65000;}family{ipv4/unicast;}}}}`
 
 	output, hasChanges, err := ConfigFmtBytes([]byte(input))
 	if err != nil {

@@ -58,7 +58,7 @@ func decodeOpenMessage(data []byte, hasHeader bool) (map[string]any, error) {
 	openContent := map[string]any{
 		"asn":          asn,
 		"router-id":    open.RouterID(),
-		"hold-time":    open.HoldTime,
+		"timer":        map[string]any{"hold-time": open.HoldTime},
 		"capabilities": capsArray,
 	}
 

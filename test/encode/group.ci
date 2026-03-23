@@ -27,7 +27,9 @@ bgp {
 			as 65533
 		}
 		connection active
-		hold-time 180
+		timer {
+			hold-time 180
+		}
 		group-updates disable
 
 		family {

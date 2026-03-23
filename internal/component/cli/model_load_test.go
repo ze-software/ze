@@ -575,7 +575,7 @@ func TestLoadFileRelativeReplace(t *testing.T) {
   local { as 65000; }
   peer peer1 {
     remote { ip 1.1.1.1; as 65001; }
-    hold-time 90
+    timer { hold-time 90; }
   }
 }`
 	// Content to replace the peer block with
@@ -631,7 +631,7 @@ func TestLoadFileRelativeMerge(t *testing.T) {
   }
 }`
 	mergeContent := `description "merged peer"
-hold-time 180`
+timer { hold-time 180; }`
 
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)

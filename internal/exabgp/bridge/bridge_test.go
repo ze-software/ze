@@ -830,9 +830,9 @@ func TestZebgpToExabgpJSON_Negotiated(t *testing.T) {
 				"type": "negotiated",
 			},
 			"negotiated": map[string]any{
-				"hold-time": float64(90),
-				"asn4":      true,
-				"families":  []any{"ipv4/unicast", "ipv6/unicast"},
+				"timer":    map[string]any{"hold-time": float64(90)},
+				"asn4":     true,
+				"families": []any{"ipv4/unicast", "ipv6/unicast"},
 				"add-path": map[string]any{
 					"send":    []any{"ipv4/unicast"},
 					"receive": []any{"ipv4/unicast"},
@@ -898,8 +898,8 @@ func TestZebgpToExabgpJSON_NegotiatedMinimal(t *testing.T) {
 				"type": "negotiated",
 			},
 			"negotiated": map[string]any{
-				"hold-time": float64(180),
-				"asn4":      false,
+				"timer": map[string]any{"hold-time": float64(180)},
+				"asn4":  false,
 			},
 		},
 	}

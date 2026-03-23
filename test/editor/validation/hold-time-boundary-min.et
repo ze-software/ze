@@ -10,7 +10,7 @@ bgp {
   		ip 1.1.1.1
   		as 65001;
   	}
-    hold-time 3;
+    timer { hold-time 3; }
   }
 }
 EOF_THREE

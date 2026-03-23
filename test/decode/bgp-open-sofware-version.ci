@@ -1,4 +1,4 @@
 # bgp-open-sofware-version decoding test (Ze format)
 stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00510104FFFD00B40A000002340206010400010001020641040000FFFD02224B201F4578614247502F6D61696E2D633261326561386562642D3230323430373135
 cmd=foreground:seq=1:exec=ze-test decode --json --plugin bgp-softver --open -:stdin=payload
-expect=json:json={"bgp":{"message":{"direction":"received","id":0,"type":"open"},"open":{"asn":65533,"capabilities":[{"code":1,"name":"multiprotocol","value":"ipv4/unicast"},{"code":65,"name":"asn4","value":"65533"},{"code":75,"name":"software-version","version":"ExaBGP/main-c2a2ea8ebd-20240715"}],"hold-time":180,"router-id":"10.0.0.2"},"peer":{"address":"127.0.0.1","asn":65533}},"type":"bgp"}
+expect=json:json={"bgp":{"message":{"direction":"received","id":0,"type":"open"},"open":{"asn":65533,"capabilities":[{"code":1,"name":"multiprotocol","value":"ipv4/unicast"},{"code":65,"name":"asn4","value":"65533"},{"code":75,"name":"software-version","version":"ExaBGP/main-c2a2ea8ebd-20240715"}],"router-id":"10.0.0.2","timer":{"hold-time":180}},"peer":{"address":"127.0.0.1","asn":65533}},"type":"bgp"}

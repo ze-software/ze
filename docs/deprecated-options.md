@@ -25,7 +25,7 @@ peer upstream1 {
         ip 192.0.2.1;
         as 65001;
     }
-    local-as 65000;
+    local { as 65000; }
 }
 ```
 
@@ -50,10 +50,10 @@ peer 192.168.*.* {
 ```
 template {
     match * {
-        hold-time 90;
+        timer { hold-time 90; }
     }
     match 192.168.*.* {
-        hold-time 180;
+        timer { hold-time 180; }
     }
 }
 ```

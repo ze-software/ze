@@ -369,7 +369,7 @@ func copySimpleFields(src, dst *config.Tree) {
 	// Fields that remain as direct leaves on the peer.
 	directFields := []string{
 		"description", "router-id",
-		"hold-time", "listen", "connect", "ttl-security",
+		"listen", "connect", "ttl-security",
 		"md5-password", "md5-base64", "group-updates", "auto-flush",
 	}
 
@@ -377,6 +377,13 @@ func copySimpleFields(src, dst *config.Tree) {
 		if v, ok := src.Get(field); ok {
 			dst.Set(field, v)
 		}
+	}
+
+	// ExaBGP "hold-time" -> Ze "timer > hold-time"
+	if v, ok := src.Get("hold-time"); ok {
+		timerContainer := config.NewTree()
+		timerContainer.Set("hold-time", v)
+		dst.SetContainer("timer", timerContainer)
 	}
 
 	// ExaBGP "passive true" -> Ze "connection passive"

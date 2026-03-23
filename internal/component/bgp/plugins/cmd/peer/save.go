@@ -6,6 +6,7 @@ package peer
 import (
 	"fmt"
 	"net/netip"
+	"slices"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
@@ -17,6 +18,10 @@ import (
 // Matches reactor/peersettings.go DefaultHoldTime. Duplicated here to avoid
 // importing the reactor package from a command handler.
 const defaultHoldTime = 90 * time.Second
+
+// defaultConnectRetry is the default connect retry interval (5 seconds).
+// Matches reactor/peersettings.go DefaultConnectRetry.
+const defaultConnectRetry = 5 * time.Second
 
 // HandleBgpPeerSave handles "set bgp peer <selector> save" command.
 // Saves selected peer(s) to the config file, merging into existing config.
@@ -107,10 +112,16 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 				return saveFieldError(p.Address, "router-id", err)
 			}
 		}
-		// RFC 4271: hold-time 0 is valid (no keepalives). Save if different from default 90s.
+		// Timer container: hold-time and connect-retry (only if non-default).
+		timerPath := append(slices.Clone(peerPath), "timer")
 		if p.HoldTime != defaultHoldTime {
-			if err := ed.SetValue(peerPath, "hold-time", fmt.Sprintf("%d", int(p.HoldTime.Seconds()))); err != nil {
+			if err := ed.SetValue(timerPath, "hold-time", fmt.Sprintf("%d", int(p.HoldTime.Seconds()))); err != nil {
 				return saveFieldError(p.Address, "hold-time", err)
+			}
+		}
+		if p.ConnectRetry != 0 && p.ConnectRetry != defaultConnectRetry {
+			if err := ed.SetValue(timerPath, "connect-retry", fmt.Sprintf("%d", int(p.ConnectRetry.Seconds()))); err != nil {
+				return saveFieldError(p.Address, "connect-retry", err)
 			}
 		}
 		if p.Connection != "" && p.Connection != "both" {

@@ -25,7 +25,9 @@ bgp {
 		description "parsing l2vpn/vpls routes"
 		router-id 127.0.0.1
 		connection active
-		hold-time 180
+		timer {
+			hold-time 180
+		}
 		group-updates disable
 
 		family {

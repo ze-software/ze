@@ -159,7 +159,7 @@ func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 //
 // Key conversions:
 //   - Family format: "ipv4/unicast" -> "ipv4 unicast".
-//   - Field names: ZeBGP uses hyphens ("hold-time"), ExaBGP uses underscores ("hold_time").
+//   - Timer: ZeBGP nests hold-time under "timer", ExaBGP expects flat "hold_time".
 func convertNegotiated(zebgp map[string]any) map[string]any {
 	if zebgp == nil {
 		return map[string]any{}
@@ -167,15 +167,16 @@ func convertNegotiated(zebgp map[string]any) map[string]any {
 
 	result := make(map[string]any)
 
-	// Map ZeBGP hyphenated keys to ExaBGP underscored keys
-	keyMapping := map[string]string{
-		"hold-time": "hold_time",
-		"asn4":      "asn4", // Same in both
-	}
-	for zebgpKey, exabgpKey := range keyMapping {
-		if v, ok := zebgp[zebgpKey]; ok {
-			result[exabgpKey] = v
+	// Extract hold-time from timer container (Ze nests it under "timer")
+	if timer, ok := zebgp["timer"].(map[string]any); ok {
+		if v, ok := timer["hold-time"]; ok {
+			result["hold_time"] = v
 		}
+	}
+
+	// Map ZeBGP keys to ExaBGP underscored keys
+	if v, ok := zebgp["asn4"]; ok {
+		result["asn4"] = v
 	}
 
 	// Convert families: "ipv4/unicast" -> "ipv4 unicast"

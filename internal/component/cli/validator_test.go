@@ -278,32 +278,32 @@ func TestValidateSemanticHoldTime(t *testing.T) {
 	}{
 		{
 			name:    "hold_time_0_valid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } hold-time 0; } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { hold-time 0; } } }",
 			wantErr: false,
 		},
 		{
 			name:    "hold_time_1_invalid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } hold-time 1; } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { hold-time 1; } } }",
 			wantErr: true,
 		},
 		{
 			name:    "hold_time_2_invalid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } hold-time 2; } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { hold-time 2; } } }",
 			wantErr: true,
 		},
 		{
 			name:    "hold_time_3_valid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } hold-time 3; } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { hold-time 3; } } }",
 			wantErr: false,
 		},
 		{
 			name:    "hold_time_90_valid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } hold-time 90; } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { hold-time 90; } } }",
 			wantErr: false,
 		},
 		{
 			name:    "hold_time_65535_valid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } hold-time 65535; } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { hold-time 65535; } } }",
 			wantErr: false,
 		},
 	}
@@ -334,7 +334,7 @@ func TestValidateAll(t *testing.T) {
   local { as 65000; }
   peer peer1 {
     remote { ip 1.1.1.1; as 65001; }
-    hold-time 90
+    timer { hold-time 90; }
   }
 }`
 	result := v.Validate(validConfig)
@@ -346,7 +346,7 @@ func TestValidateAll(t *testing.T) {
   local { as 65000; }
   peer peer1 {
     remote { ip 1.1.1.1; as 65001; }
-    hold-time 1
+    timer { hold-time 1; }
   }
 }`
 	result = v.Validate(invalidConfig)
@@ -367,7 +367,7 @@ func TestValidationErrorFormat(t *testing.T) {
   router-id 1.2.3.4
   peer peer1 {
     remote { ip 1.1.1.1; as 65001; }
-    hold-time 1
+    timer { hold-time 1; }
   }
 }`
 
@@ -472,7 +472,7 @@ func TestValidateMissingPeerAS(t *testing.T) {
   local { as 65000; }
   peer peer1 {
     remote { ip 192.0.2.1; }
-    hold-time 90
+    timer { hold-time 90; }
   }
 }`,
 			wantErr: true,
@@ -522,7 +522,7 @@ func TestValidatePeerASInheritance(t *testing.T) {
   local { as 65000; }
   group ibgp {
     remote { as 65000; }
-    hold-time 60
+    timer { hold-time 60; }
     peer peer1 {
       remote { ip 192.0.2.1; }
     }
@@ -548,7 +548,7 @@ func TestValidatePeerASInheritance(t *testing.T) {
   router-id 1.1.1.1
   local { as 65000; }
   group base {
-    hold-time 60
+    timer { hold-time 60; }
     peer peer1 {
       remote { ip 192.0.2.1; }
     }
@@ -564,7 +564,7 @@ func TestValidatePeerASInheritance(t *testing.T) {
   local { as 65000; }
   peer peer1 {
     remote { ip 192.0.2.1; }
-    hold-time 90
+    timer { hold-time 90; }
   }
 }`,
 			wantWarn:        true,
@@ -577,7 +577,7 @@ func TestValidatePeerASInheritance(t *testing.T) {
   local { as 65000; }
   group bad {
     remote { as 65001; }
-    hold-time 1
+    timer { hold-time 1; }
     peer peer1 {
       remote { ip 192.0.2.1; }
     }

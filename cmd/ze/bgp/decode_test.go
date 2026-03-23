@@ -154,7 +154,9 @@ func TestDecodeOpen(t *testing.T) {
 
 	// Verify key fields
 	assert.Equal(t, float64(65533), openSection["asn"], "open.asn")
-	assert.Equal(t, float64(180), openSection["hold-time"], "open.hold-time")
+	timer, ok := openSection["timer"].(map[string]any)
+	require.True(t, ok, "open.timer must be a map")
+	assert.Equal(t, float64(180), timer["hold-time"], "open.timer.hold-time")
 	assert.Equal(t, "10.0.0.2", openSection["router-id"], "open.router-id")
 
 	// Ze format: capabilities should be an array, not a map

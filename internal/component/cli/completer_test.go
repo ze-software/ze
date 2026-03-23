@@ -291,7 +291,7 @@ func TestCompleterListKeyAcceptedThenShowsChildren(t *testing.T) {
 	texts := completionTexts(completions)
 	// Should show peer children, not key completions
 	assert.Contains(t, texts, "remote", "should show peer children after key")
-	assert.Contains(t, texts, "hold-time", "should show peer children after key")
+	assert.Contains(t, texts, "timer", "should show peer children after key")
 	assert.NotContains(t, texts, "<value>", "should not show key hint inside peer")
 	assert.NotContains(t, texts, "name", "list key 'name' hidden inside entry")
 }
@@ -406,10 +406,10 @@ func TestCompleterValidateValueAtPath(t *testing.T) {
 		value string
 		valid bool
 	}{
-		{"valid hold-time", []string{"bgp", "peer", "hold-time"}, "90", true},
-		{"zero hold-time", []string{"bgp", "peer", "hold-time"}, "0", true},
-		{"invalid hold-time string", []string{"bgp", "peer", "hold-time"}, "abc", false},
-		{"hold-time too large", []string{"bgp", "peer", "hold-time"}, "99999999", false},
+		{"valid hold-time", []string{"bgp", "peer", "timer", "hold-time"}, "90", true},
+		{"zero hold-time", []string{"bgp", "peer", "timer", "hold-time"}, "0", true},
+		{"invalid hold-time string", []string{"bgp", "peer", "timer", "hold-time"}, "abc", false},
+		{"hold-time too large", []string{"bgp", "peer", "timer", "hold-time"}, "99999999", false},
 	}
 
 	for _, tt := range tests {
@@ -559,7 +559,7 @@ func TestCompleterNoValidateRegression(t *testing.T) {
 	c := NewCompleter()
 
 	// hold-time is a uint16 with no ze:validate
-	completions := c.Complete("set hold-time ", []string{"bgp", "peer"})
+	completions := c.Complete("set hold-time ", []string{"bgp", "peer", "timer"})
 	require.NotEmpty(t, completions)
 	assert.Equal(t, "hint", completions[0].Type, "non-validated leaf should show hint")
 	assert.Contains(t, completions[0].Text, "0-65535", "should show numeric range hint")

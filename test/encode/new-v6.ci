@@ -38,7 +38,9 @@ bgp {
 			description "a simple test for the new configuration format name"
 			router-id 10.0.0.2
 			connection active
-			hold-time 180
+			timer {
+				hold-time 180
+			}
 
 			family {
 				ipv6/unicast { prefix { maximum 10000; } }

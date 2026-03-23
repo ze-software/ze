@@ -168,7 +168,7 @@ func (e *JSONEncoder) Notification(peer plugin.PeerInfo, notify DecodedNotificat
 }
 
 // Open returns JSON for an OPEN message.
-// Fields in inner payload: asn, router-id, hold-time, capabilities.
+// Fields in inner payload: asn, router-id, timer { hold-time }, capabilities.
 func (e *JSONEncoder) Open(peer plugin.PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
 	outer, inner := e.message(peer, "open")
 	setMessageDirection(outer, direction)
@@ -190,7 +190,7 @@ func (e *JSONEncoder) Open(peer plugin.PeerInfo, open DecodedOpen, direction str
 	// Fields in inner payload (hyphenated per json-format.md)
 	inner["asn"] = open.ASN
 	inner["router-id"] = open.RouterID
-	inner["hold-time"] = open.HoldTime
+	inner["timer"] = map[string]any{"hold-time": open.HoldTime}
 	inner["capabilities"] = caps
 
 	return e.marshal(outer)
@@ -225,12 +225,12 @@ func (e *JSONEncoder) RouteRefresh(peer plugin.PeerInfo, decoded DecodedRouteRef
 }
 
 // Negotiated returns JSON for negotiated capabilities after OPEN exchange.
-// Fields in inner payload: hold-time, asn4, families, add-path.
+// Fields in inner payload: timer { hold-time }, asn4, families, add-path.
 func (e *JSONEncoder) Negotiated(peer plugin.PeerInfo, neg DecodedNegotiated) string {
 	outer, inner := e.message(peer, "negotiated")
 
 	// Fields in inner payload (hyphenated per json-format.md)
-	inner["hold-time"] = neg.HoldTime
+	inner["timer"] = map[string]any{"hold-time": neg.HoldTime}
 	inner["asn4"] = neg.ASN4
 	inner["families"] = neg.Families
 

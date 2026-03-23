@@ -173,7 +173,7 @@ bgp {
 | Highest | Peer overrides | All `peer-fields` set on the peer |
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree, deepMergeMaps -->
 
-Containers (like `capability`) deep-merge at key level -- both group and peer capabilities are combined. Leaves (like `hold-time`) override -- peer value wins over group value.
+Containers (like `capability`, `timer`) deep-merge at key level -- both group and peer capabilities are combined. Leaves (like `hold-time` inside `timer`) override -- peer value wins over group value.
 
 #### Example
 
@@ -183,7 +183,7 @@ bgp {
     local { as 65000; }
 
     group rr-clients {
-        hold-time 180
+        timer { hold-time 180; }
         capability { route-refresh enable; }
 
         peer router-east {
@@ -193,12 +193,12 @@ bgp {
         peer client-b {
             remote { ip 10.0.0.2; as 65002; }
             local { ip 10.0.0.2; }
-            hold-time 90               # Overrides group's 180
+            timer { hold-time 90; }    # Overrides group's 180
         }
     }
 
     group edge-peers {
-        hold-time 30
+        timer { hold-time 30; }
         peer edge-gw {
             remote { ip 192.168.1.1; as 64500; }
             local { ip 192.168.1.254; }
@@ -237,7 +237,7 @@ bgp {
     group <name> {
         # Group-level defaults (inherited by all peers in group)
         remote { as <asn>; }    # Default remote AS for group
-        hold-time <seconds>;
+        timer { hold-time <seconds>; connect-retry <seconds>; }
         capability { ... }
         family { ... }
 
@@ -248,7 +248,7 @@ bgp {
 
             # Peer-level overrides
             router-id <ip>;
-            hold-time <seconds>;
+            timer { hold-time <seconds>; }
 
             # Capabilities
             capability { ... }
@@ -284,13 +284,13 @@ bgp {
 | router-id | IP | BGP router ID |
 | remote { ip; as; } | container | Remote peer IP address and AS number |
 | local { ip; as; } | container | Local IP address and AS number overrides |
-| hold-time | int | Hold time (seconds, default 90) |
+| timer { } | container | Timer settings: `hold-time` (seconds, default 90), `connect-retry` (seconds, default 120) |
 | connection | enum | `both` (default), `passive`, `active` |
 | port | int | Per-peer listen port |
 | group-updates | bool | Group updates for efficiency (default true) |
 | description | string | Peer description |
 | link-local | IPv6 | IPv6 link-local address for next-hop (RFC 2545) |
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- grouping peer-fields, leaf hold-time, leaf connection -->
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- grouping peer-fields, container timer, leaf connection -->
 
 ### Capability Section
 
@@ -752,7 +752,7 @@ bgp {
     local { as 65000; }          # BGP-level global
 
     group rr-clients {
-        hold-time 90             # Group default
+        timer { hold-time 90; }  # Group default
         family {
             ipv4/unicast
         }
@@ -772,8 +772,8 @@ bgp {
 | BGP globals | `local { as; }` and `router-id` at bgp level, inherited by all peers |
 | Group defaults | Any `peer-fields` set on the group, inherited by all peers in that group |
 | Peer overrides | Any `peer-fields` set on the peer, takes highest precedence |
-| Deep merge | Containers (e.g., `capability`) merge keys from both group and peer |
-| Leaf override | Scalar values (e.g., `hold-time`) at peer level replace group values |
+| Deep merge | Containers (e.g., `capability`, `timer`) merge keys from both group and peer |
+| Leaf override | Scalar values (e.g., `hold-time` inside `timer`) at peer level replace group values |
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree, deepMergeMaps -->
 
 ### Standalone Peers
@@ -787,7 +787,7 @@ bgp {
     peer my-peer {
         remote { ip 10.0.0.5; as 65001; }
         local { ip 10.0.0.1; }
-        hold-time 180
+        timer { hold-time 180; }
     }
 }
 ```

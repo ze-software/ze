@@ -22,7 +22,7 @@ input=type:text=edit bgp peer peer1
 input=enter
 expect=context:path=bgp.peer.peer1
 
-# Set hold-time should show uint16 hint (0-65535)
-input=type:text=set hold-time
+# Set timer hold-time should show uint16 hint (0-65535)
+input=type:text=set timer hold-time
 input=space
 expect=completion:contains=<0-65535>

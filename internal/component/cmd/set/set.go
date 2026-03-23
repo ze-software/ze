@@ -13,7 +13,7 @@ func init() {
 		pluginserver.RPCRegistration{
 			WireMethod:       "ze-set:bgp-peer-with",
 			Handler:          peer.HandleBgpPeerWith,
-			Help:             "Set peer with configuration (asn, local-as, hold-time, etc.)",
+			Help:             "Set peer with configuration (asn, local-as, timer, etc.)",
 			RequiresSelector: true,
 		},
 		pluginserver.RPCRegistration{

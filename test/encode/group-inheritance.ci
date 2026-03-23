@@ -14,7 +14,9 @@ bgp {
 		remote {
 			as 65533
 		}
-		hold-time 30
+		timer {
+			hold-time 30
+		}
 		connection active
 		family {
 			ipv4/unicast { prefix { maximum 10000; } }

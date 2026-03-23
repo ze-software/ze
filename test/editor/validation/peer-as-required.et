@@ -12,7 +12,7 @@ bgp {
   	remote {
   		ip 1.1.1.1
   	}
-    hold-time 90;
+    timer { hold-time 90; }
   }
 }
 EOF_CONF

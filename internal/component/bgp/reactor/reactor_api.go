@@ -95,6 +95,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			PeerAS:             s.PeerAS,
 			RouterID:           s.RouterID,
 			HoldTime:           s.HoldTime,
+			ConnectRetry:       s.ConnectRetry,
 			Connection:         s.Connection.String(),
 			State:              p.State().String(),
 			UpdatesReceived:    stats.UpdatesReceived,
@@ -488,6 +489,13 @@ func parsePeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 				settings.HoldTime = time.Duration(ht) * time.Second
 			}
 		}
+		if v, ok := fields["connect-retry"].(string); ok {
+			var cr uint32
+			parseUint32FromString(v, &cr)
+			if cr > 0 {
+				settings.ConnectRetry = time.Duration(cr) * time.Second
+			}
+		}
 		if v, ok := fields["connection"].(string); ok {
 			mode, err := ParseConnectionMode(v)
 			if err != nil {
@@ -552,6 +560,7 @@ func peerSettingsEqual(a, b *PeerSettings) bool {
 
 	// Compare behavior fields.
 	if a.HoldTime != b.HoldTime ||
+		a.ConnectRetry != b.ConnectRetry ||
 		a.GroupUpdates != b.GroupUpdates ||
 		a.IgnoreFamilyMismatch != b.IgnoreFamilyMismatch ||
 		a.DisableASN4 != b.DisableASN4 {

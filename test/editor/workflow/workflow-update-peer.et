@@ -17,7 +17,7 @@ bgp {
   	local {
   		ip auto;
   	}
-    hold-time 90;
+    timer { hold-time 90; }
   }
 }
 EOF_CONF
@@ -31,7 +31,7 @@ input=enter
 expect=context:path=bgp.peer.peer1
 
 # Update hold-time using context-relative path
-input=type:text=set hold-time 120
+input=type:text=set timer hold-time 120
 input=enter
 expect=status:contains=set
 expect=dirty:true

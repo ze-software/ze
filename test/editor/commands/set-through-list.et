@@ -1,5 +1,5 @@
 # Test: Set command works through list paths from root
-# VALIDATES: spec-editor-2 AC-1: set bgp peer <ip> hold-time <value> works from root
+# VALIDATES: spec-editor-2 AC-1: set bgp peer <ip> timer hold-time <value> works from root
 # VALIDATES: spec-editor-2 AC-6: set bgp peer <ip> description <value> works from root
 # PREVENTS: List key being treated as leaf name instead of key value
 
@@ -22,7 +22,7 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Set hold-time through list from root context
-input=type:text=set bgp peer peer1 hold-time 120
+input=type:text=set bgp peer peer1 timer hold-time 120
 input=enter
 expect=status:contains=set
 expect=dirty:true

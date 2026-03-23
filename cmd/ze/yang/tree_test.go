@@ -154,10 +154,12 @@ func TestUnifiedTreeConstraints(t *testing.T) {
 	require.NotNil(t, rid)
 	assert.True(t, rid.Mandatory, "router-id should be mandatory")
 
-	// hold-time has default 90 -- check inside peer
+	// hold-time has default 90 -- check inside peer > timer
 	peer := bgp.Children["peer"]
 	require.NotNil(t, peer)
-	ht := peer.Children["hold-time"]
+	timer := peer.Children["timer"]
+	require.NotNil(t, timer, "peer should have timer container")
+	ht := timer.Children["hold-time"]
 	require.NotNil(t, ht)
 	assert.Equal(t, "90", ht.Default, "hold-time should have default 90")
 }

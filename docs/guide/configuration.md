@@ -7,11 +7,11 @@ Ze uses a JUNOS-like hierarchical configuration format.
 | Element | Syntax | Example |
 |---------|--------|---------|
 | Blocks | `name { ... }` | `bgp { ... }` |
-| Values | `key value` or `key value;` | `hold-time 180` |
+| Values | `key value` or `key value;` | `router-id 1.2.3.4` |
 | Comments | `#` to end of line | `# this is a comment` |
 | Lists | `[ item1 item2 ]` | `receive [ update state ]` |
 | Strings | Unquoted or `"double quoted"` | `run "ze plugin bgp-rib"` |
-| Terminators | Optional semicolons (`;`) | Both `hold-time 180` and `hold-time 180;` work |
+| Terminators | Optional semicolons (`;`) | Both `router-id 1.2.3.4` and `router-id 1.2.3.4;` work |
 | Inline blocks | `name { key value; key value; }` | `remote { ip 10.0.0.1; as 65001; }` |
 
 Indentation is not significant. Unknown keys are rejected with a suggestion for the closest valid key.
@@ -27,7 +27,9 @@ bgp {
 
     # Peer group with shared defaults
     group upstream {
-        hold-time 180;
+        timer {
+            hold-time 180;
+        }
         connection active;
 
         capability {
@@ -46,7 +48,9 @@ bgp {
 
         peer transit-b {
             remote { ip 10.0.0.2; as 65002; }
-            hold-time 90;    # overrides group value
+            timer {
+                hold-time 90;    # overrides group value
+            }
         }
     }
 
@@ -70,10 +74,10 @@ Configuration uses 3-level inheritance: BGP globals, group defaults, peer overri
 | Level | Scope | Example |
 |-------|-------|---------|
 | BGP | All peers | `bgp { router-id 1.2.3.4; }` |
-| Group | Peers in group | `group upstream { hold-time 180; }` |
-| Peer | Single peer | `peer transit-a { hold-time 90; }` |
+| Group | Peers in group | `group upstream { timer { hold-time 180; } }` |
+| Peer | Single peer | `peer transit-a { timer { hold-time 90; } }` |
 
-Containers (like `capability`, `family`) are deep-merged across levels. Leaf values (like `hold-time`) override.
+Containers (like `capability`, `family`, `timer`) are deep-merged across levels. Leaf values (like `hold-time` inside `timer`) override.
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree, inheritance merging -->
 
 ## Peer Settings
@@ -86,14 +90,14 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `local { ip; as; }` | Local bind address and AS | Yes (ip can be `auto`) |
 | `router-id` | BGP router ID | Yes (or inherited) |
 | `description` | Human-readable description | No |
-| `hold-time` | Hold timer seconds (0 or 3-65535) | No (default: 180) |
+| `timer { }` | Timer container: `hold-time` (seconds, 0 or 3-65535, default 180), `connect-retry` (seconds, default 120) | No |
 | `connection` | Connect mode: `active` (dial out only), `passive` (accept only), `both` (dial out + accept inbound) | No (default: both) |
 | `port` | TCP port | No (default: 179) |
 | `md5-password` | TCP MD5 authentication | No |
 | `ttl-security` | Minimum TTL for incoming packets | No |
 | `outgoing-ttl` | TTL for outgoing packets | No |
 | `group-updates` | Enable/disable UPDATE grouping | No (default: enable) |
-<!-- source: internal/component/bgp/config/peers.go -- PeersFromTree; internal/component/bgp/schema/ze-bgp-conf.yang -- peer settings -->
+<!-- source: internal/component/bgp/config/peers.go -- PeersFromTree; internal/component/bgp/schema/ze-bgp-conf.yang -- peer settings, container timer -->
 
 ## Capabilities
 

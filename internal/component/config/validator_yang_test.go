@@ -46,7 +46,9 @@ func TestValidateTree_ValidConfig(t *testing.T) {
 				"local": map[string]any{
 					"ip": "192.0.2.1",
 				},
-				"hold-time":  uint16(90),
+				"timer": map[string]any{
+					"hold-time": uint16(90),
+				},
 				"connection": "passive",
 			},
 		},
@@ -116,7 +118,9 @@ func TestValidateTree_RangeViolation(t *testing.T) {
 						"local": map[string]any{
 							"ip": "192.0.2.1",
 						},
-						"hold-time": uint16(2),
+						"timer": map[string]any{
+							"hold-time": uint16(2),
+						},
 					},
 				},
 			},
@@ -277,7 +281,9 @@ func TestValidateTree_ListEntries(t *testing.T) {
 				"local": map[string]any{
 					"ip": "192.0.2.1",
 				},
-				"hold-time": uint16(90),
+				"timer": map[string]any{
+					"hold-time": uint16(90),
+				},
 			},
 			"peer2": map[string]any{
 				"remote": map[string]any{
@@ -287,7 +293,9 @@ func TestValidateTree_ListEntries(t *testing.T) {
 				"local": map[string]any{
 					"ip": "192.0.2.1",
 				},
-				"hold-time": uint16(1), // invalid
+				"timer": map[string]any{
+					"hold-time": uint16(1), // invalid
+				},
 			},
 		},
 	}
@@ -644,7 +652,7 @@ func TestValidator_HoldTimeRange(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := v.Validate("bgp.peer.hold-time", tt.value)
+			err := v.Validate("bgp.peer.timer.hold-time", tt.value)
 			if tt.wantErr {
 				assert.Error(t, err, "expected error for value %v", tt.value)
 			} else {

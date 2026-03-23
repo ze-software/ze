@@ -227,11 +227,15 @@ type Peer struct {
 
 // NewPeer creates a new peer for the given settings.
 func NewPeer(settings *PeerSettings) *Peer {
+	reconnectMin := settings.ConnectRetry
+	if reconnectMin == 0 {
+		reconnectMin = DefaultReconnectMin
+	}
 	p := &Peer{
 		settings:      settings,
 		clock:         clock.RealClock{},
 		dialer:        &network.RealDialer{},
-		reconnectMin:  DefaultReconnectMin,
+		reconnectMin:  reconnectMin,
 		reconnectMax:  DefaultReconnectMax,
 		opQueue:       make([]PeerOp, 0, 16), // Pre-allocate small capacity
 		sourceID:      source.DefaultRegistry.RegisterPeer(settings.Address, settings.PeerAS),

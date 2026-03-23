@@ -487,14 +487,15 @@ Config keys are parsed from the YANG `peer-fields` schema via `ParseInlineArgs`.
 | `local as` | ASN (uint32) | No | Local AS override |
 | `local ip` | IP address | No | Local IP for this session |
 | `router-id` | IPv4 address | No | Router ID override |
-| `hold-time` | seconds (0-86400) | No | Hold time (default: 90) |
+| `timer hold-time` | seconds (0-86400) | No | Hold time (default: 90) |
+| `timer connect-retry` | seconds | No | Connect retry interval (default: 120) |
 | `connection` | both/passive/active | No | TCP connection mode |
 | `description` | text | No | Peer description |
 | `link-local` | IPv6 address | No | Link-local next-hop |
 | `port` | 1-65535 | No | Per-peer listen port |
 | `group-updates` | enable/disable | No | UPDATE grouping |
 
-Example: `set bgp peer upstream1 with remote ip 10.0.0.1 remote as 65001 local as 65000 hold-time 90 connection passive`
+Example: `set bgp peer upstream1 with remote ip 10.0.0.1 remote as 65001 local as 65000 timer hold-time 90 connection passive`
 
 <!-- source: internal/component/config/setparser_inline.go -- ParseInlineArgs YANG-driven parser -->
 <!-- source: internal/component/plugin/server/node_with.go -- HandleNodeWith generic set handler -->

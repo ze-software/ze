@@ -16,7 +16,7 @@ bgp {
   	local {
   		ip auto;
   	}
-    hold-time 90;
+    timer { hold-time 90; }
   }
 }
 EOF_CONF
@@ -25,7 +25,7 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Delete a leaf value from inside a peer
-input=type:text=delete bgp peer peer1 hold-time
+input=type:text=delete bgp peer peer1 timer hold-time
 input=enter
 expect=status:contains=Deleted
 expect=dirty:true

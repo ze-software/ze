@@ -26,7 +26,7 @@ input=enter
 expect=context:path=bgp.peer.peer1
 
 # Set relative path - should be prefixed with context
-input=type:text=set hold-time 90
+input=type:text=set timer hold-time 90
 input=enter
 expect=dirty:true
 expect=status:contains=set

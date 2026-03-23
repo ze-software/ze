@@ -25,7 +25,9 @@ bgp {
 			}
 			router-id 127.1.1.1
 			connection active
-			hold-time 180
+			timer {
+				hold-time 180
+			}
 			group-updates disable
 			capability {
 				asn4 true

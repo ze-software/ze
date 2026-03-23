@@ -33,7 +33,9 @@ bgp {
 
     peer transit1 {
         remote { ip 192.0.2.1; as 65001; }
-        hold-time 90;
+        timer {
+            hold-time 90;
+        }
         local { ip 192.168.1.1; }
     }
 
@@ -554,7 +556,9 @@ bgp {
 
     peer transit1 {
         remote { ip 192.0.2.1; as 65001; }
-        hold-time 90;
+        timer {
+            hold-time 90;
+        }
         local { ip 192.168.1.1; }
     }
 }
@@ -602,7 +606,9 @@ bgp {
     local { as 65000; }
 
     group backbone {
-        hold-time 30;
+        timer {
+            hold-time 30;
+        }
 
         peer rtr1 {
             remote { ip 10.0.0.1; as 65001; }
@@ -635,7 +641,9 @@ bgp {
     local { as 65000; }
 
     group backbone {
-        hold-time 30;
+        timer {
+            hold-time 30;
+        }
 
         peer transit1 {
             remote { ip 192.0.2.1; as 65001; }
@@ -863,7 +871,9 @@ bgp {
     local { as 65000; }
     peer transit1 {
         remote { ip 192.0.2.1; as 65001; }
-        hold-time 0;
+        timer {
+            hold-time 0;
+        }
         local { ip 192.168.1.1; }
     }
 }`,
@@ -890,7 +900,9 @@ bgp {
     local { as 65000; }
     peer transit1 {
         remote { ip 192.0.2.1; as 65001; }
-        hold-time 30;
+        timer {
+            hold-time 30;
+        }
         local { ip 192.168.1.1; }
     }
 }`,

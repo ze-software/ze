@@ -27,7 +27,9 @@ bgp {
         router-id 1.2.3.4;
         remote { ip 192.0.2.1; as 65001; }
         local { as 65000; ip 192.0.2.2; }
-        hold-time 90;
+        timer {
+            hold-time 90;
+        }
         connection both;
     }
 }
@@ -58,7 +60,9 @@ bgp {
 	val, _ = remoteContainer.Get("as")
 	require.Equal(t, "65001", val)
 
-	val, _ = n.Get("hold-time")
+	timerContainer := n.GetContainer("timer")
+	require.NotNil(t, timerContainer)
+	val, _ = timerContainer.Get("hold-time")
 	require.Equal(t, "90", val)
 }
 

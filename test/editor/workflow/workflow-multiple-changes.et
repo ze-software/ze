@@ -16,7 +16,7 @@ bgp {
   	local {
   		ip auto;
   	}
-    hold-time 90;
+    timer { hold-time 90; }
   }
 }
 EOF_CONF
@@ -31,7 +31,7 @@ expect=status:contains=set
 expect=dirty:true
 
 # Change hold-time through list
-input=type:text=set bgp peer peer1 hold-time 120
+input=type:text=set bgp peer peer1 timer hold-time 120
 input=enter
 expect=status:contains=set
 

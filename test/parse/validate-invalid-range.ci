@@ -14,7 +14,9 @@ bgp {
 		local {
 			ip 192.0.2.2
 		}
-		hold-time 2
+		timer {
+			hold-time 2
+		}
 	}
 }
 EOF_CONF

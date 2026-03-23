@@ -32,6 +32,7 @@ type PeerInfo struct {
 	PeerAS       uint32
 	RouterID     uint32
 	HoldTime     time.Duration // Configured hold time
+	ConnectRetry time.Duration // Connect retry interval
 	Connection   string        // Connection mode: "both", "passive", "active"
 	State        string
 	Uptime       time.Duration

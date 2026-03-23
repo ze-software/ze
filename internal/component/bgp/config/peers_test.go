@@ -28,7 +28,9 @@ func TestPeersFromConfigTreeBasic(t *testing.T) {
 	remoteTree.Set("ip", "10.0.0.1")
 	remoteTree.Set("as", "65001")
 	peerTree.SetContainer("remote", remoteTree)
-	peerTree.Set("hold-time", "180")
+	peerTimerTree := config.NewTree()
+	peerTimerTree.Set("hold-time", "180")
+	peerTree.SetContainer("timer", peerTimerTree)
 	peerLocalTree := config.NewTree()
 	peerLocalTree.Set("ip", "auto")
 	peerTree.SetContainer("local", peerLocalTree)
@@ -100,7 +102,9 @@ func TestPeersFromConfigTreeGroupWithRoutes(t *testing.T) {
 
 	// Group with hold-time default.
 	groupTree := config.NewTree()
-	groupTree.Set("hold-time", "300")
+	groupTimerTree := config.NewTree()
+	groupTimerTree.Set("hold-time", "300")
+	groupTree.SetContainer("timer", groupTimerTree)
 
 	// Peer inside group with a static route.
 	peerTree := config.NewTree()

@@ -326,11 +326,13 @@ func semanticValidation(bgpTree map[string]any) []validationWarning {
 				Message: fmt.Sprintf("peer %s: remote as not configured", name),
 			})
 		}
-		holdTime := treeUint32(peer["hold-time"])
-		if holdTime > 0 && holdTime < 3 {
-			warnings = append(warnings, validationWarning{
-				Message: fmt.Sprintf("peer %s: hold-time %d too low (minimum 3)", name, holdTime),
-			})
+		if timerMap, ok := peer["timer"].(map[string]any); ok {
+			holdTime := treeUint32(timerMap["hold-time"])
+			if holdTime > 0 && holdTime < 3 {
+				warnings = append(warnings, validationWarning{
+					Message: fmt.Sprintf("peer %s: hold-time %d too low (minimum 3)", name, holdTime),
+				})
+			}
 		}
 	}
 

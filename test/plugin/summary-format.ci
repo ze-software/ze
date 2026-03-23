@@ -158,7 +158,9 @@ bgp {
 			}
 			router-id 10.0.0.139
 			connection active
-			hold-time 30
+			timer {
+				hold-time 30
+			}
 		}
 	}
 }

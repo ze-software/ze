@@ -16,7 +16,7 @@ EOF_CONF
 
 tmpfs=extra.conf:terminator=EOF_EXTRA
 description "merged peer";
-hold-time 180;
+timer { hold-time 180; }
 EOF_EXTRA
 
 option=file:path=test.conf

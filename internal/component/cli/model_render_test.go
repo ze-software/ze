@@ -192,7 +192,7 @@ func TestModelContextHighlighting(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	// Config with parse error on line 6 (invalid hold-time value)
+	// Config with parse error (invalid hold-time value)
 	// The parser rejects "notanumber" during type validation, so tree is empty.
 	// This test verifies error highlighting works on the full config view (raw text fallback).
 	content := `bgp {
@@ -200,7 +200,7 @@ func TestModelContextHighlighting(t *testing.T) {
   local-as 65000
   peer 1.1.1.1 {
     peer-as 65001
-    hold-time notanumber
+    timer { hold-time notanumber; }
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)

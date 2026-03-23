@@ -73,6 +73,10 @@ func ParseConnectionMode(s string) (ConnectionMode, error) {
 // DefaultHoldTime is the default hold time per RFC 4271.
 const DefaultHoldTime = 90 * time.Second
 
+// DefaultConnectRetry is the default connect retry interval.
+// Ze uses exponential backoff starting from this value (see peer.go:run()).
+const DefaultConnectRetry = 5 * time.Second
+
 // StaticRoute represents a route to announce when session is established.
 // Fields are stored in both serializable (string/uint) and wire-ready formats.
 //
@@ -254,6 +258,10 @@ type PeerSettings struct {
 	// HoldTime is the proposed hold time (default 90s).
 	HoldTime time.Duration
 
+	// ConnectRetry is the initial connect retry interval (default 5s).
+	// Used as the base for exponential backoff in peer.run().
+	ConnectRetry time.Duration
+
 	// Connection controls TCP connection establishment mode.
 	// ConnectionBoth (default): initiate and accept.
 	// ConnectionPassive: accept only (no dial out).
@@ -384,6 +392,7 @@ func NewPeerSettings(address netip.Addr, localAS, peerAS, routerID uint32) *Peer
 		PeerAS:         peerAS,
 		RouterID:       routerID,
 		HoldTime:       DefaultHoldTime,
+		ConnectRetry:   DefaultConnectRetry,
 		Connection:     ConnectionBoth,
 		GroupUpdates:   true,
 		PrefixTeardown: true,

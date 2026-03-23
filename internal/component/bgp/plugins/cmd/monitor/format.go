@@ -103,7 +103,7 @@ func formatState(peer, asn string, ev monitorEvent) string {
 }
 
 func formatOpen(dir, peer, asn string, ev monitorEvent) string {
-	hold := ev.BGP.Open.HoldTime
+	hold := ev.BGP.Open.Timer.HoldTime
 	id := ev.BGP.Open.RouterID
 	return fmt.Sprintf("%s OPEN   %s %s hold=%d id=%s", dir, peer, asn, hold, id)
 }
@@ -145,7 +145,9 @@ type monitorEvent struct {
 		} `json:"eor"`
 
 		Open struct {
-			HoldTime int    `json:"hold-time"`
+			Timer struct {
+				HoldTime int `json:"hold-time"`
+			} `json:"timer"`
 			RouterID string `json:"router-id"`
 		} `json:"open"`
 

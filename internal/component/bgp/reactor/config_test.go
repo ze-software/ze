@@ -21,7 +21,7 @@ func TestParsePeerFromTree(t *testing.T) {
 		"remote":        map[string]any{"ip": "192.0.2.1", "as": "65001"},
 		"local":         map[string]any{"as": "65000", "ip": "192.168.1.1"},
 		"router-id":     "10.0.0.1",
-		"hold-time":     "180",
+		"timer":         map[string]any{"hold-time": "180"},
 		"connection":    "passive",
 		"group-updates": "false",
 		"link-local":    "fe80::1",
@@ -157,9 +157,9 @@ func TestParsePeerFromTreeHoldTimeBoundary(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tree := map[string]any{
-				"remote":    map[string]any{"ip": "10.0.0.1", "as": "65001"},
-				"local":     map[string]any{"ip": "auto"},
-				"hold-time": tt.ht,
+				"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+				"local":  map[string]any{"ip": "auto"},
+				"timer":  map[string]any{"hold-time": tt.ht},
 			}
 			ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 			if tt.wantErr {
@@ -897,9 +897,9 @@ func TestPeersFromTree(t *testing.T) {
 		"local":     map[string]any{"as": "65000"},
 		"peer": map[string]any{
 			"peer1": map[string]any{
-				"remote":    map[string]any{"ip": "192.0.2.1", "as": "65001"},
-				"local":     map[string]any{"ip": "192.0.2.100"},
-				"hold-time": "180",
+				"remote": map[string]any{"ip": "192.0.2.1", "as": "65001"},
+				"local":  map[string]any{"ip": "192.0.2.100"},
+				"timer":  map[string]any{"hold-time": "180"},
 				"family": map[string]any{
 					"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}},
 				},

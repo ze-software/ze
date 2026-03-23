@@ -229,7 +229,7 @@ func TestHandlerPeerAddAllOptions(t *testing.T) {
 		"local", "as", "65000",
 		"local", "ip", "10.0.0.1",
 		"router-id", "1.2.3.4",
-		"hold-time", "90",
+		"timer", "hold-time", "90",
 		"connection", "passive",
 	})
 	require.NoError(t, err)
@@ -240,7 +240,7 @@ func TestHandlerPeerAddAllOptions(t *testing.T) {
 	assert.Equal(t, "65000", treeString(pt, "local", "as"))
 	assert.Equal(t, "10.0.0.1", treeString(pt, "local", "ip"))
 	assert.Equal(t, "1.2.3.4", treeString(pt, "router-id"))
-	assert.Equal(t, "90", treeString(pt, "hold-time"))
+	assert.Equal(t, "90", treeString(pt, "timer", "hold-time"))
 	assert.Equal(t, "passive", treeString(pt, "connection"))
 }
 
@@ -447,7 +447,7 @@ func TestSetPeerWithFullConfig(t *testing.T) {
 	resp, err := HandleBgpPeerWith(ctx, []string{
 		"remote", "as", "65001",
 		"router-id", "1.2.3.4",
-		"hold-time", "180",
+		"timer", "hold-time", "180",
 		"connection", "passive",
 	})
 	require.NoError(t, err)
@@ -456,7 +456,7 @@ func TestSetPeerWithFullConfig(t *testing.T) {
 	pt := appliedPeerTree(t, reactor)
 	assert.Equal(t, "65001", treeString(pt, "remote", "as"))
 	assert.Equal(t, "1.2.3.4", treeString(pt, "router-id"))
-	assert.Equal(t, "180", treeString(pt, "hold-time"))
+	assert.Equal(t, "180", treeString(pt, "timer", "hold-time"))
 	assert.Equal(t, "passive", treeString(pt, "connection"))
 }
 

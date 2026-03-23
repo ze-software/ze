@@ -102,7 +102,7 @@ func TestFormatMonitorLineOther(t *testing.T) {
 		},
 		{
 			name: "open",
-			json: `{"type":"bgp","bgp":{"message":{"direction":"received","type":"open"},"peer":{"address":"10.0.0.1","asn":65001},"open":{"hold-time":90,"router-id":"1.2.3.4"}}}`,
+			json: `{"type":"bgp","bgp":{"message":{"direction":"received","type":"open"},"peer":{"address":"10.0.0.1","asn":65001},"open":{"timer":{"hold-time":90},"router-id":"1.2.3.4"}}}`,
 			want: "recv OPEN   10.0.0.1 AS65001 hold=90 id=1.2.3.4",
 		},
 		{

@@ -13,7 +13,7 @@ bgp {
   		ip 1.1.1.1
   		as 65001;
   	}
-    hold-time 90;
+    timer { hold-time 90; }
   }
 }
 EOF_CONF
@@ -33,7 +33,7 @@ expect=viewport:contains=remote
 expect=viewport:contains=hold-time
 
 # Set a value in context
-input=type:text=set hold-time 120
+input=type:text=set timer hold-time 120
 input=enter
 expect=status:contains=set
 expect=dirty:true

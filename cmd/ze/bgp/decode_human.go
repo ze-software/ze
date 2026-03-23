@@ -33,9 +33,11 @@ func formatOpenHuman(result map[string]any) string {
 		fmt.Fprintf(&sb, "  ASN:         %v\n", formatNumber(asn))
 	}
 
-	// Hold Time (Ze format uses "hold-time")
-	if ht, ok := openSection["hold-time"]; ok {
-		fmt.Fprintf(&sb, "  Hold Time:   %v seconds\n", formatNumber(ht))
+	// Hold Time (Ze format nests under "timer")
+	if timer, ok := openSection["timer"].(map[string]any); ok {
+		if ht, ok := timer["hold-time"]; ok {
+			fmt.Fprintf(&sb, "  Hold Time:   %v seconds\n", formatNumber(ht))
+		}
 	}
 
 	// Router ID (Ze format uses "router-id")

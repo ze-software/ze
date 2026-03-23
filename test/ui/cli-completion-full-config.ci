@@ -23,7 +23,9 @@ bgp {
 		local {
 			ip 192.168.1.254
 		}
-		hold-time 90
+		timer {
+			hold-time 90
+		}
 		connection passive
 		role {
 			import customer

@@ -6,7 +6,9 @@ bgp {
 		as 65000
 	}
 	group peering {
-		hold-time 180
+		timer {
+			hold-time 180
+		}
 		peer peer1 {
 			remote {
 				ip 127.0.0.1

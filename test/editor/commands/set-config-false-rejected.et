@@ -29,7 +29,7 @@ expect=error:contains=unknown path
 expect=dirty:false
 
 # Set on list without key should fail
-input=type:text=set bgp peer hold-time 90
+input=type:text=set bgp peer timer hold-time 90
 input=enter
 expect=error:contains=list
 expect=dirty:false

@@ -1614,8 +1614,10 @@ func TestJSONEncoderNegotiated(t *testing.T) {
 	// Get event-specific payload
 	payload := getEventPayload(t, result)
 
-	// Fields in event payload (flat format with hyphenated names)
-	assert.Equal(t, float64(90), payload["hold-time"])
+	// Fields in event payload (hyphenated names, hold-time nested under timer)
+	timer, ok := payload["timer"].(map[string]any)
+	require.True(t, ok, "timer must be a map")
+	assert.Equal(t, float64(90), timer["hold-time"])
 	assert.Equal(t, true, payload["asn4"])
 
 	// Check families in payload
@@ -1663,8 +1665,10 @@ func TestJSONEncoderNegotiatedMinimal(t *testing.T) {
 	// ze-bgp JSON: get event payload
 	payload := getEventPayload(t, result)
 
-	// Fields in event payload (flat format with hyphenated names)
-	assert.Equal(t, float64(180), payload["hold-time"])
+	// Fields in event payload (hyphenated names, hold-time nested under timer)
+	timer, ok := payload["timer"].(map[string]any)
+	require.True(t, ok, "timer must be a map")
+	assert.Equal(t, float64(180), timer["hold-time"])
 	assert.Equal(t, false, payload["asn4"])
 
 	// Families in payload

@@ -186,6 +186,7 @@ module ze-types {
         leaf state { type string; description "FSM state (idle, connect, active, opensent, openconfirm, established)"; }
         leaf router-id { type ipv4-address; description "Peer router ID"; }
         leaf hold-time { type uint16; description "Negotiated hold time"; }
+        leaf connect-retry { type uint16; description "Connect retry interval"; }
         leaf uptime { type uint32; description "Seconds since established"; }
     }
 

@@ -32,7 +32,7 @@ expect=status:contains=set
 expect=error:none
 
 # Set hold-time on the same peer
-input=type:text=set bgp peer 10.0.0.1 hold-time 90
+input=type:text=set bgp peer 10.0.0.1 timer hold-time 90
 input=enter
 expect=status:contains=set
 expect=error:none

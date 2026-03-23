@@ -80,14 +80,19 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 
 	ps := NewPeerSettings(ip, peerLocalAS, peerAS, peerRouterID)
 
-	// Hold time (default 90s from NewPeerSettings).
-	if v, ok := mapUint32(tree, "hold-time"); ok {
-		ht := v
-		// RFC 4271 Section 4.2: Hold Time MUST be either zero or at least three seconds.
-		if ht >= 1 && ht <= 2 {
-			return nil, fmt.Errorf("peer %s: invalid hold-time %d: RFC 4271 requires 0 or >= 3 seconds", name, ht)
+	// Timer container (hold-time, connect-retry).
+	timerMap, _ := mapMap(tree, "timer")
+	if timerMap != nil {
+		if v, ok := mapUint32(timerMap, "hold-time"); ok {
+			// RFC 4271 Section 4.2: Hold Time MUST be either zero or at least three seconds.
+			if v >= 1 && v <= 2 {
+				return nil, fmt.Errorf("peer %s: invalid hold-time %d: RFC 4271 requires 0 or >= 3 seconds", name, v)
+			}
+			ps.HoldTime = time.Duration(v) * time.Second
 		}
-		ps.HoldTime = time.Duration(ht) * time.Second
+		if v, ok := mapUint32(timerMap, "connect-retry"); ok {
+			ps.ConnectRetry = time.Duration(v) * time.Second
+		}
 	}
 
 	// Connection mode (both/passive/active).
