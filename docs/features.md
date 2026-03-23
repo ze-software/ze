@@ -399,7 +399,7 @@ their propagation.
 
 | Feature | Description |
 |---------|-------------|
-| Cross-implementation comparison | Test Ze, GoBGP, FRR, BIRD, or any BGP speaker |
+| Cross-implementation comparison | Docker runner for Ze, FRR, BIRD, GoBGP, rustbgpd (or any BGP speaker) |
 | Multi-iteration with statistics | Median/stddev from repeated runs, outlier removal |
 | Three encoding modes | IPv4 inline NLRI, IPv4 force-MP (MP_REACH_NLRI), IPv6 MP |
 | Comparison reports | Markdown and HTML side-by-side reports from result files |

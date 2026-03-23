@@ -95,17 +95,45 @@ a pause. Longer delays give the DUT time to settle between measurements.
 
 ## Cross-Implementation Comparison
 
-### Generating Reports
+### Automated Docker Runner
 
-After running benchmarks against multiple implementations, generate a
-side-by-side comparison:
+The included test runner benchmarks all five supported implementations in Docker:
+
+| DUT | Image | Config | Forwarding mechanism |
+|-----|-------|--------|---------------------|
+| Ze | ze-interop (built) | `test/perf/configs/ze.conf` | bgp-rs plugin |
+| FRR | quay.io/frrouting/frr:10.3.1 | `test/perf/configs/frr.conf` | route-map PERMIT |
+| BIRD | bird-interop (built) | `test/perf/configs/bird.conf` | import/export all |
+| GoBGP | gobgp-interop (built) | `test/perf/configs/gobgp.toml` | default accept policy |
+| rustbgpd | rustbgpd-interop (built from source) | `test/perf/configs/rustbgpd.toml` | route_server_client |
+
+<!-- source: test/perf/run.py -- Docker benchmark runner -->
+<!-- source: test/interop/Dockerfile.rustbgpd -- rustbgpd Docker image -->
 
 ```bash
-ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --dut-name ze --output result-ze.json
-ze-perf run --dut-addr 172.31.0.5 --dut-asn 65100 --dut-name gobgp --output result-gobgp.json
+# All DUTs
+python3 test/perf/run.py
 
+# Specific DUTs
+python3 test/perf/run.py ze bird rustbgpd
+
+# Override defaults
+DUT_ROUTES=10000 DUT_REPEAT=5 python3 test/perf/run.py
+
+# Via Make
+make ze-perf-bench
+make ze-perf-bench PERF_DUT=ze
+```
+
+Results are written to `test/perf/results/` as JSON files. An HTML comparison report is generated automatically.
+
+### Manual Reports
+
+After running benchmarks, generate reports from the result files:
+
+```bash
 # Markdown report (default)
-ze-perf report result-ze.json result-gobgp.json
+ze-perf report result-ze.json result-gobgp.json result-rustbgpd.json
 
 # HTML report
 ze-perf report --html result-ze.json result-gobgp.json > comparison.html
