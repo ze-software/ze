@@ -6,5 +6,5 @@ import _ "embed"
 //go:embed ze-bgp-cmd-commit-api.yang
 var ZeBgpCmdCommitAPIYANG string
 
-//go:embed ze-commit-cmd.yang
-var ZeCommitCmdYANG string
+//go:embed ze-cli-commit-cmd.yang
+var ZeCliCommitCmdYANG string

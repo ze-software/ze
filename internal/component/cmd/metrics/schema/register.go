@@ -6,5 +6,5 @@ import (
 
 func init() {
 	yang.RegisterModule("ze-bgp-cmd-metrics-api.yang", ZeBgpCmdMetricsAPIYANG)
-	yang.RegisterModule("ze-metrics-cmd.yang", ZeMetricsCmdYANG)
+	yang.RegisterModule("ze-cli-metrics-cmd.yang", ZeCliMetricsCmdYANG)
 }

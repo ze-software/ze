@@ -1,6 +1,6 @@
-module ze-meta-cmd {
-    namespace "urn:ze:meta:cmd";
-    prefix metacmd;
+module ze-cli-meta-cmd {
+    namespace "urn:ze:cli:meta:cmd";
+    prefix climeta;
     import ze-extensions { prefix ze; }
     description "BGP meta/introspection command tree";
     revision 2026-03-16 { description "Initial revision"; }

@@ -6,5 +6,5 @@ import _ "embed"
 //go:embed ze-bgp-cmd-subscribe-api.yang
 var ZeBgpCmdSubscribeAPIYANG string
 
-//go:embed ze-subscribe-cmd.yang
-var ZeSubscribeCmdYANG string
+//go:embed ze-cli-subscribe-cmd.yang
+var ZeCliSubscribeCmdYANG string

@@ -1,6 +1,6 @@
-module ze-commit-cmd {
-    namespace "urn:ze:commit:cmd";
-    prefix commitcmd;
+module ze-cli-commit-cmd {
+    namespace "urn:ze:cli:commit:cmd";
+    prefix clicommitcmd;
     import ze-extensions { prefix ze; }
     description "BGP commit command tree";
     revision 2026-03-16 { description "Initial revision"; }

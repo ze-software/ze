@@ -6,5 +6,5 @@ import (
 
 func init() {
 	yang.RegisterModule("ze-bgp-cmd-commit-api.yang", ZeBgpCmdCommitAPIYANG)
-	yang.RegisterModule("ze-commit-cmd.yang", ZeCommitCmdYANG)
+	yang.RegisterModule("ze-cli-commit-cmd.yang", ZeCliCommitCmdYANG)
 }

@@ -1,6 +1,6 @@
-module ze-log-cmd {
-    namespace "urn:ze:log:cmd";
-    prefix logcmd;
+module ze-cli-log-cmd {
+    namespace "urn:ze:cli:log:cmd";
+    prefix clilogcmd;
     import ze-extensions { prefix ze; }
     description "BGP log command tree";
     revision 2026-03-16 { description "Initial revision"; }

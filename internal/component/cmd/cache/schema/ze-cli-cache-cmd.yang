@@ -1,6 +1,6 @@
-module ze-cache-cmd {
-    namespace "urn:ze:cache:cmd";
-    prefix cachecmd;
+module ze-cli-cache-cmd {
+    namespace "urn:ze:cli:cache:cmd";
+    prefix clicachecmd;
     import ze-extensions { prefix ze; }
     description "BGP cache command tree";
     revision 2026-03-16 { description "Initial revision"; }

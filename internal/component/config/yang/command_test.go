@@ -269,7 +269,7 @@ func TestRefreshCmdModule(t *testing.T) {
 	assert.Equal(t, "ze-bgp:peer-clear-soft", GetCommandExtension(peer.Dir["clear"].Dir["soft"]))
 }
 
-// TestMetaCmdModule verifies ze-meta-cmd.yang (introspection from cmd/meta plugin).
+// TestMetaCmdModule verifies ze-cli-meta-cmd.yang (introspection from cmd/meta plugin).
 //
 // VALIDATES: Meta command YANG module loads with help, command, event, plugin groups.
 // PREVENTS: Introspection commands missing from the command tree.
@@ -277,11 +277,11 @@ func TestMetaCmdModule(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdBase+"meta/schema/ze-meta-cmd.yang")
+	loadCmdModule(t, loader, cmdBase+"meta/schema/ze-cli-meta-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-meta-cmd")
+	entry := loader.GetEntry("ze-cli-meta-cmd")
 	require.NotNil(t, entry)
 
 	assert.Equal(t, "ze-bgp:help", GetCommandExtension(entry.Dir["help"]))
@@ -302,9 +302,9 @@ func TestSimpleCmdModules(t *testing.T) {
 		container  string
 		wireMethod string
 	}{
-		{"cache", cmdBase + "cache/schema/ze-cache-cmd.yang", "ze-cache-cmd", "cache", "ze-bgp:cache"},
-		{"commit", cmdBase + "commit/schema/ze-commit-cmd.yang", "ze-commit-cmd", "commit", "ze-bgp:commit"},
-		{"subscribe", cmdBase + "subscribe/schema/ze-subscribe-cmd.yang", "ze-subscribe-cmd", "subscribe", "ze-bgp:subscribe"},
+		{"cache", cmdBase + "cache/schema/ze-cli-cache-cmd.yang", "ze-cli-cache-cmd", "cache", "ze-bgp:cache"},
+		{"commit", cmdBase + "commit/schema/ze-cli-commit-cmd.yang", "ze-cli-commit-cmd", "commit", "ze-bgp:commit"},
+		{"subscribe", cmdBase + "subscribe/schema/ze-cli-subscribe-cmd.yang", "ze-cli-subscribe-cmd", "subscribe", "ze-bgp:subscribe"},
 	}
 
 	for _, tt := range tests {
@@ -332,16 +332,16 @@ func TestCommitNoEditShortcut(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdBase+"commit/schema/ze-commit-cmd.yang")
+	loadCmdModule(t, loader, cmdBase+"commit/schema/ze-cli-commit-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-commit-cmd")
+	entry := loader.GetEntry("ze-cli-commit-cmd")
 	require.NotNil(t, entry)
 	assert.False(t, HasEditShortcutExtension(entry.Dir["commit"]), "ze-bgp:commit is NOT an edit shortcut")
 }
 
-// TestLogCmdModule verifies ze-log-cmd.yang (log operations from cmd/log plugin).
+// TestLogCmdModule verifies ze-cli-log-cmd.yang (log operations from cmd/log plugin).
 //
 // VALIDATES: Log command YANG module loads with log > levels and log > set nodes.
 // PREVENTS: Log commands missing from the command tree.
@@ -349,11 +349,11 @@ func TestLogCmdModule(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdBase+"log/schema/ze-log-cmd.yang")
+	loadCmdModule(t, loader, cmdBase+"log/schema/ze-cli-log-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-log-cmd")
+	entry := loader.GetEntry("ze-cli-log-cmd")
 	require.NotNil(t, entry)
 
 	log := entry.Dir["log"]
@@ -362,7 +362,7 @@ func TestLogCmdModule(t *testing.T) {
 	assert.Equal(t, "ze-bgp:log-set", GetCommandExtension(log.Dir["set"]))
 }
 
-// TestMetricsCmdModule verifies ze-metrics-cmd.yang (metrics operations from cmd/metrics plugin).
+// TestMetricsCmdModule verifies ze-cli-metrics-cmd.yang (metrics operations from cmd/metrics plugin).
 //
 // VALIDATES: Metrics command YANG module loads with metrics > values and metrics > list nodes.
 // PREVENTS: Metrics commands missing from the command tree.
@@ -370,11 +370,11 @@ func TestMetricsCmdModule(t *testing.T) {
 	loader := NewLoader()
 	err := loader.LoadEmbedded()
 	require.NoError(t, err)
-	loadCmdModule(t, loader, cmdBase+"metrics/schema/ze-metrics-cmd.yang")
+	loadCmdModule(t, loader, cmdBase+"metrics/schema/ze-cli-metrics-cmd.yang")
 	err = loader.Resolve()
 	require.NoError(t, err)
 
-	entry := loader.GetEntry("ze-metrics-cmd")
+	entry := loader.GetEntry("ze-cli-metrics-cmd")
 	require.NotNil(t, entry)
 
 	metrics := entry.Dir["metrics"]
@@ -417,6 +417,36 @@ func TestUpdateCmdModule(t *testing.T) {
 	assert.Equal(t, "ze-bgp:peer-update", GetCommandExtension(entry.Dir["peer"].Dir["update"]))
 }
 
+// TestCliUpdateCmdModule verifies ze-cli-update-cmd.yang (update verb from cmd/update).
+//
+// VALIDATES: Update verb YANG module loads with update > bgp > peer > prefix hierarchy.
+// PREVENTS: Update verb missing from the command tree.
+func TestCliUpdateCmdModule(t *testing.T) {
+	loader := NewLoader()
+	err := loader.LoadEmbedded()
+	require.NoError(t, err)
+	loadCmdModule(t, loader, cmdBase+"update/schema/ze-cli-update-cmd.yang")
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	entry := loader.GetEntry("ze-cli-update-cmd")
+	require.NotNil(t, entry)
+
+	update := entry.Dir["update"]
+	require.NotNil(t, update, "update container must exist")
+	assert.Equal(t, "", GetCommandExtension(update), "update is a grouping, no handler")
+
+	bgp := update.Dir["bgp"]
+	require.NotNil(t, bgp, "update > bgp must exist")
+
+	peer := bgp.Dir["peer"]
+	require.NotNil(t, peer, "update > bgp > peer must exist")
+
+	prefix := peer.Dir["prefix"]
+	require.NotNil(t, prefix, "update > bgp > peer > prefix must exist")
+	assert.Equal(t, "ze-update:bgp-peer-prefix", GetCommandExtension(prefix))
+}
+
 // TestBuildCommandTree verifies BuildCommandTree merges multiple -cmd modules into one command.Node tree.
 //
 // VALIDATES: Multiple YANG modules with overlapping containers merge correctly into command.Node.
@@ -431,7 +461,7 @@ func TestBuildCommandTree(t *testing.T) {
 	loadCmdModule(t, loader, cmdPluginBase+"cmd/raw/schema/ze-raw-cmd.yang")
 	loadCmdModule(t, loader, cmdPluginBase+"route_refresh/schema/ze-refresh-cmd.yang")
 	// Load a non-overlapping module
-	loadCmdModule(t, loader, cmdBase+"cache/schema/ze-cache-cmd.yang")
+	loadCmdModule(t, loader, cmdBase+"cache/schema/ze-cli-cache-cmd.yang")
 
 	err = loader.Resolve()
 	require.NoError(t, err)
@@ -439,7 +469,7 @@ func TestBuildCommandTree(t *testing.T) {
 	tree := BuildCommandTree(loader)
 	require.NotNil(t, tree)
 
-	// "cache" from ze-cache-cmd
+	// "cache" from ze-cli-cache-cmd
 	cache := tree.Children["cache"]
 	require.NotNil(t, cache, "cache should exist")
 	assert.Equal(t, "BGP message cache operations", cache.Description)

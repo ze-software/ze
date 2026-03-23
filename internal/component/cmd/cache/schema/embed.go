@@ -6,5 +6,5 @@ import _ "embed"
 //go:embed ze-bgp-cmd-cache-api.yang
 var ZeBgpCmdCacheAPIYANG string
 
-//go:embed ze-cache-cmd.yang
-var ZeCacheCmdYANG string
+//go:embed ze-cli-cache-cmd.yang
+var ZeCliCacheCmdYANG string

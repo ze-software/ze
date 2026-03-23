@@ -6,5 +6,5 @@ import (
 
 func init() {
 	yang.RegisterModule("ze-bgp-cmd-cache-api.yang", ZeBgpCmdCacheAPIYANG)
-	yang.RegisterModule("ze-cache-cmd.yang", ZeCacheCmdYANG)
+	yang.RegisterModule("ze-cli-cache-cmd.yang", ZeCliCacheCmdYANG)
 }

@@ -6,5 +6,5 @@ import _ "embed"
 //go:embed ze-bgp-cmd-metrics-api.yang
 var ZeBgpCmdMetricsAPIYANG string
 
-//go:embed ze-metrics-cmd.yang
-var ZeMetricsCmdYANG string
+//go:embed ze-cli-metrics-cmd.yang
+var ZeCliMetricsCmdYANG string
