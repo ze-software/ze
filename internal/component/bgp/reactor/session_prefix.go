@@ -5,6 +5,8 @@
 package reactor
 
 import (
+	"time"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
@@ -277,6 +279,11 @@ func (s *Session) setPrefixCountMetric(family string, count int64) {
 		return
 	}
 	s.prefixMetrics.prefixCount.With(s.peerLabel(), family).Set(float64(count))
+
+	// Update ratio: count / maximum.
+	if maximum, ok := s.settings.PrefixMaximum[family]; ok && maximum > 0 {
+		s.prefixMetrics.prefixRatio.With(s.peerLabel(), family).Set(float64(count) / float64(maximum))
+	}
 }
 
 func (s *Session) setPrefixWarningExceededMetric(family string, val float64) {
@@ -300,9 +307,9 @@ func (s *Session) incrPrefixTeardownMetric() {
 	s.prefixMetrics.prefixTeardownTotal.With(s.peerLabel()).Inc()
 }
 
-// SetPrefixConfigMetrics publishes the static prefix configuration as Prometheus gauges.
+// setPrefixConfigMetrics publishes the static prefix configuration as Prometheus gauges.
 // Called once when the peer is added to the reactor.
-func setPrefixConfigMetrics(m *reactorMetrics, peerAddr string, settings *PeerSettings) {
+func setPrefixConfigMetrics(m *reactorMetrics, peerAddr string, settings *PeerSettings, now time.Time) {
 	if m == nil {
 		return
 	}
@@ -312,4 +319,35 @@ func setPrefixConfigMetrics(m *reactorMetrics, peerAddr string, settings *PeerSe
 	for family, warning := range settings.PrefixWarning {
 		m.prefixWarning.With(peerAddr, family).Set(float64(warning))
 	}
+
+	// Staleness: set metric based on PrefixUpdated timestamp age.
+	setPrefixStaleMetric(m, peerAddr, settings.PrefixUpdated, now)
+}
+
+// stalenessThreshold is the age beyond which prefix data is considered stale.
+const stalenessThreshold = 180 * 24 * time.Hour // 6 months
+
+// IsPrefixDataStale reports whether a prefix updated timestamp is older than 6 months.
+// Returns false for empty timestamps (manually configured, no staleness tracking).
+func IsPrefixDataStale(updated string, now time.Time) bool {
+	if updated == "" {
+		return false
+	}
+	t, err := time.Parse(time.DateOnly, updated)
+	if err != nil {
+		return false
+	}
+	return now.Sub(t) > stalenessThreshold
+}
+
+// setPrefixStaleMetric sets the ze_bgp_prefix_stale gauge for a peer.
+func setPrefixStaleMetric(m *reactorMetrics, peerAddr, updated string, now time.Time) {
+	if m == nil {
+		return
+	}
+	val := float64(0)
+	if IsPrefixDataStale(updated, now) {
+		val = 1
+	}
+	m.prefixStale.With(peerAddr).Set(val)
 }

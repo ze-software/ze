@@ -85,4 +85,52 @@ func TestExtractSystemConfig_Missing(t *testing.T) {
 	sc := system.ExtractSystemConfig(tree)
 	assert.Equal(t, "unknown", sc.Host)
 	assert.Equal(t, "", sc.Domain)
+	assert.Equal(t, "https://www.peeringdb.com", sc.PeeringDBURL)
+	assert.Equal(t, uint8(10), sc.PeeringDBMargin)
+}
+
+// TestExtractSystemConfig_PeeringDB verifies PeeringDB config extraction.
+//
+// VALIDATES: AC-11 -- custom PeeringDB URL is read from config.
+// VALIDATES: AC-12 -- custom margin is read from config.
+// PREVENTS: PeeringDB settings being ignored.
+func TestExtractSystemConfig_PeeringDB(t *testing.T) {
+	tree := config.NewTree()
+	sys := tree.GetOrCreateContainer("system")
+	pdb := sys.GetOrCreateContainer("peeringdb")
+	pdb.Set("url", "https://peeringdb.example.com")
+	pdb.Set("margin", "20")
+
+	sc := system.ExtractSystemConfig(tree)
+	assert.Equal(t, "https://peeringdb.example.com", sc.PeeringDBURL)
+	assert.Equal(t, uint8(20), sc.PeeringDBMargin)
+}
+
+// TestExtractSystemConfig_PeeringDB_Defaults verifies PeeringDB defaults
+// when peeringdb block exists but has no overrides.
+//
+// VALIDATES: Default PeeringDB URL and margin are applied.
+// PREVENTS: Zero margin or empty URL when peeringdb block is present but empty.
+func TestExtractSystemConfig_PeeringDB_Defaults(t *testing.T) {
+	tree := config.NewTree()
+	sys := tree.GetOrCreateContainer("system")
+	sys.GetOrCreateContainer("peeringdb") // empty peeringdb block
+
+	sc := system.ExtractSystemConfig(tree)
+	assert.Equal(t, "https://www.peeringdb.com", sc.PeeringDBURL)
+	assert.Equal(t, uint8(10), sc.PeeringDBMargin)
+}
+
+// TestExtractSystemConfig_PeeringDB_InvalidMargin verifies invalid margin is ignored.
+//
+// VALIDATES: Invalid margin value keeps the default.
+// PREVENTS: Parsing error from crashing or setting margin to 0.
+func TestExtractSystemConfig_PeeringDB_InvalidMargin(t *testing.T) {
+	tree := config.NewTree()
+	sys := tree.GetOrCreateContainer("system")
+	pdb := sys.GetOrCreateContainer("peeringdb")
+	pdb.Set("margin", "not-a-number")
+
+	sc := system.ExtractSystemConfig(tree)
+	assert.Equal(t, uint8(10), sc.PeeringDBMargin)
 }

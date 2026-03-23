@@ -377,6 +377,10 @@ func parsePrefixSettingsFromTree(tree map[string]any, ps *PeerSettings) {
 	if v, ok := mapUint32(prefixMap, "idle-timeout"); ok {
 		ps.PrefixIdleTimeout = uint16(v) //nolint:gosec // Bounded by YANG uint16 range
 	}
+
+	if v, ok := mapString(prefixMap, "updated"); ok {
+		ps.PrefixUpdated = v
+	}
 }
 
 // familyMode represents the negotiation mode for an address family.

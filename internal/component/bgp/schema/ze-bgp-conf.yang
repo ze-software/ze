@@ -194,6 +194,11 @@ module ze-bgp-conf {
                 default 0;
                 description "Seconds before auto-reconnect after prefix teardown (0 = no reconnect)";
             }
+            leaf updated {
+                type string;
+                ze:hidden true;
+                description "ISO date (YYYY-MM-DD) when prefix maximum was last updated from PeeringDB. Hidden leaf.";
+            }
         }
 
         // Capabilities

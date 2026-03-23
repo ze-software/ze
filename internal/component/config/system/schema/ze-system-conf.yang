@@ -24,6 +24,23 @@ module ze-system-conf {
             description "System domain, supports $ENV_VAR expansion";
         }
 
+        // PeeringDB integration settings
+        container peeringdb {
+            description "PeeringDB API configuration for prefix data lookups";
+            leaf url {
+                type string;
+                default "https://www.peeringdb.com";
+                description "PeeringDB-compatible API base URL";
+            }
+            leaf margin {
+                type uint8 {
+                    range "0..100";
+                }
+                default 10;
+                description "Percentage margin above PeeringDB count for prefix maximum (0-100)";
+            }
+        }
+
         // Named archive blocks
         list archive {
             key "name";

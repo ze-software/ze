@@ -31,8 +31,10 @@ type reactorMetrics struct {
 	prefixMaximum         metrics.GaugeVec   // Configured hard maximum per family
 	prefixWarning         metrics.GaugeVec   // Configured warning threshold per family
 	prefixWarningExceeded metrics.GaugeVec   // 1 if count >= warning for this family
+	prefixRatio           metrics.GaugeVec   // current_count / maximum (0.0 to 1.0+)
 	prefixExceededTotal   metrics.CounterVec // Times this family exceeded maximum
 	prefixTeardownTotal   metrics.CounterVec // Times session torn down for prefix limit (per peer)
+	prefixStale           metrics.GaugeVec   // 1 if prefix updated timestamp is older than 6 months (per peer)
 }
 
 // initReactorMetrics creates reactor-level metrics from the registry.
@@ -57,8 +59,10 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 		prefixMaximum:         reg.GaugeVec("ze_bgp_prefix_maximum", "Configured hard maximum per family.", []string{"peer", "family"}),
 		prefixWarning:         reg.GaugeVec("ze_bgp_prefix_warning", "Configured warning threshold per family.", []string{"peer", "family"}),
 		prefixWarningExceeded: reg.GaugeVec("ze_bgp_prefix_warning_exceeded", "1 if count >= warning for this family.", []string{"peer", "family"}),
+		prefixRatio:           reg.GaugeVec("ze_bgp_prefix_ratio", "Current prefix count / maximum (0.0 to 1.0+).", []string{"peer", "family"}),
 		prefixExceededTotal:   reg.CounterVec("ze_bgp_prefix_maximum_exceeded_total", "Times this family exceeded maximum.", []string{"peer", "family"}),
 		prefixTeardownTotal:   reg.CounterVec("ze_bgp_prefix_teardown_total", "Times session torn down for prefix limit.", []string{"peer"}),
+		prefixStale:           reg.GaugeVec("ze_bgp_prefix_stale", "1 if prefix data is older than 6 months.", []string{"peer"}),
 	}
 }
 

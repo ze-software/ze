@@ -104,7 +104,15 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	// Update Prometheus gauges if metrics are configured.
 	if r.rmetrics != nil {
 		r.rmetrics.peersConfigured.Set(float64(len(r.peers)))
-		setPrefixConfigMetrics(r.rmetrics, settings.Address.String(), settings)
+		setPrefixConfigMetrics(r.rmetrics, settings.Address.String(), settings, r.clock.Now())
+	}
+
+	// Log staleness warning if prefix data is outdated.
+	if IsPrefixDataStale(settings.PrefixUpdated, r.clock.Now()) {
+		reactorLogger().Warn("prefix data is stale",
+			"peer", settings.Address,
+			"updated", settings.PrefixUpdated,
+		)
 	}
 
 	// If reactor is running, start the peer and create listener if needed.

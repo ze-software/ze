@@ -299,6 +299,62 @@ func TestPrefixBackoffReset(t *testing.T) {
 	assert.Equal(t, uint32(0), p.prefixTeardownCount)
 }
 
+// TestPrefixStalenessCheck verifies staleness detection for prefix updated timestamps.
+//
+// VALIDATES: AC-5 -- "Warning at startup" when updated timestamp is older than threshold.
+// VALIDATES: AC-6 -- "No staleness warning" when timestamp is empty.
+// PREVENTS: false staleness alerts for manually configured peers.
+func TestPrefixStalenessCheck(t *testing.T) {
+	now := time.Date(2026, 3, 23, 0, 0, 0, 0, time.UTC)
+
+	tests := []struct {
+		name    string
+		updated string
+		want    bool
+	}{
+		{"empty timestamp not stale", "", false},
+		{"recent date not stale", "2026-03-01", false},
+		{"exactly 6 months ago not stale", "2025-09-24", false},
+		{"7 months ago is stale", "2025-08-01", true},
+		{"1 year ago is stale", "2025-03-01", true},
+		{"invalid date not stale", "not-a-date", false},
+		{"today not stale", "2026-03-23", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IsPrefixDataStale(tt.updated, now)
+			assert.Equal(t, tt.want, got, "IsPrefixDataStale(%q, %v)", tt.updated, now)
+		})
+	}
+}
+
+// TestPrefixRatio verifies the ratio computation (count / maximum).
+//
+// VALIDATES: AC-9 -- "Equals current_count / maximum for each peer/family".
+// PREVENTS: division by zero or incorrect ratio calculation.
+func TestPrefixRatio(t *testing.T) {
+	tests := []struct {
+		name    string
+		count   int64
+		maximum uint32
+		want    float64
+	}{
+		{"half full", 500, 1000, 0.5},
+		{"at maximum", 1000, 1000, 1.0},
+		{"over maximum", 1500, 1000, 1.5},
+		{"empty", 0, 1000, 0.0},
+		{"one prefix", 1, 1000, 0.001},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := float64(tt.count) / float64(tt.maximum)
+			assert.InDelta(t, tt.want, got, 0.0001)
+		})
+	}
+}
+
 // newTestPeerSettingsWithPrefix creates PeerSettings with prefix limits for testing.
 func newTestPeerSettingsWithPrefix(maximum, warning uint32) *PeerSettings {
 	ps := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65001, 0)

@@ -329,6 +329,11 @@ type PeerSettings struct {
 	// 0 means no auto-reconnect. Uses exponential backoff on repeated teardowns.
 	PrefixIdleTimeout uint16
 
+	// PrefixUpdated is the ISO date (YYYY-MM-DD) when prefix maximums were last
+	// updated from PeeringDB. Empty means manually configured (no staleness tracking).
+	// Hidden leaf -- not shown in config output.
+	PrefixUpdated string
+
 	// Process bindings - which plugins receive messages from this peer.
 	ProcessBindings []ProcessBinding
 

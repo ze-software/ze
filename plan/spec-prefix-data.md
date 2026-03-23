@@ -92,20 +92,24 @@ PeeringDB only has data for ipv4/unicast and ipv6/unicast. Other families
 can point to a PeeringDB-compatible service (private mirror, internal
 data source) by setting the URL in config.
 
-    bgp {
-        prefix {
-            peeringdb-url "https://peeringdb.example.com";
+PeeringDB is an external service, not a BGP concept. Configuration lives
+under `system { peeringdb { } }` (in `ze-system-conf.yang`), not under
+`bgp`. This keeps BGP config focused on BGP and allows other subsystems
+to use PeeringDB data in the future.
+
+    system {
+        peeringdb {
+            url "https://peeringdb.example.com";
             margin 10;
         }
     }
 
 | YANG path | Type | Default | Description |
 |-----------|------|---------|-------------|
-| `bgp/prefix/peeringdb-url` | string | `https://www.peeringdb.com` | PeeringDB-compatible API base URL |
-| `bgp/prefix/margin` | uint8 | 10 | Percentage margin above PeeringDB count (0-100) |
+| `system/peeringdb/url` | string | `https://www.peeringdb.com` | PeeringDB-compatible API base URL |
+| `system/peeringdb/margin` | uint8 | 10 | Percentage margin above PeeringDB count (0-100) |
 
-**Rate limiting:** 1 request per second maximum. Unique ASNs are deduped
-(multiple peers with same ASN = one query).
+**Rate limiting:** 1 request per second maximum.
 
 **TLS:** For localhost (127.0.0.1) URLs, TLS certificate validation is
 skipped. This allows functional tests to run a fake PeeringDB service
@@ -158,8 +162,8 @@ For each matched peer:
 | Step | Action |
 |------|--------|
 | 1 | Read peer's remote ASN from config |
-| 2 | Query PeeringDB (or configured URL) for prefix counts |
-| 3 | Apply configured margin (default 10%): suggested = PeeringDB count * (1 + margin/100) |
+| 2 | Query PeeringDB (or URL from `system/peeringdb/url`) for prefix counts |
+| 3 | Apply configured margin (`system/peeringdb/margin`, default 10%): suggested = PeeringDB count * (1 + margin/100) |
 | 4 | For each negotiated family with PeeringDB data: propose new maximum |
 | 5 | Show diff: old value -> new value |
 | 6 | Update config with new values |
@@ -224,9 +228,10 @@ via the config resolution pipeline.
 |---|----------|--------|
 | 1 | Staleness threshold | 6 months (fixed) |
 | 2 | Config inheritance | Verify group/root defaults work via resolve pipeline |
-| 3 | PeeringDB rate limits | 1 request per second max, dedup ASNs |
+| 3 | PeeringDB rate limits | 1 request per second max |
 | 4 | Margin on PeeringDB values | Configurable (default 10%) |
-| 5 | PeeringDB URL | Configurable (default public PeeringDB, allows compatible services) |
+| 5 | PeeringDB URL | Configurable via `system/peeringdb/url` (default public PeeringDB) |
+| 6 | YANG location | `system { peeringdb { } }` not `bgp { }` -- PeeringDB is a service, not a BGP concept |
 
 ## Required Reading
 
@@ -264,7 +269,7 @@ via the config resolution pipeline.
 ### Entry Point: Update Command
 1. Operator runs `ze bgp peer * prefix update`
 2. Command reads config: for each matching peer, get remote ASN
-3. Dedup ASNs, query PeeringDB API for each unique ASN
+3. Query PeeringDB API for each peer's ASN (1 req/s)
 4. For each peer: compute new maximum (PeeringDB value + 10% margin)
 5. Update config values for ipv4/unicast and ipv6/unicast
 6. Set peer-level `prefix { updated "YYYY-MM-DD"; }`
@@ -300,9 +305,9 @@ via the config resolution pipeline.
 | AC-1 | `ze bgp peer * prefix update` with reachable PeeringDB | ipv4/ipv6 maximums updated to PeeringDB value + configured margin, `updated` timestamp set |
 | AC-2 | `ze bgp peer * prefix update` with unreachable PeeringDB | Error reported per peer, no config changed, no timestamp set |
 | AC-3 | Peer has VPN family, PeeringDB has no VPN data | VPN family skipped with message, ipv4/ipv6 updated normally |
-| AC-4 | Multiple peers with same ASN | PeeringDB queried once per unique ASN, 1 req/s max |
-| AC-11 | `bgp { prefix { peeringdb-url "https://internal.example.com"; } }` | Update command uses custom URL |
-| AC-12 | `bgp { prefix { margin 20; } }` | Update command applies 20% margin instead of default 10% |
+| ~~AC-4~~ | ~~Multiple peers with same ASN~~ | ~~PeeringDB queried once per unique ASN~~ Removed -- no ASN dedup needed |
+| AC-11 | `system { peeringdb { url "https://internal.example.com"; } }` | Update command uses custom URL |
+| AC-12 | `system { peeringdb { margin 20; } }` | Update command applies 20% margin instead of default 10% |
 | AC-5 | Peer's `updated` timestamp is older than threshold | Warning at startup, `ze_bgp_prefix_stale` = 1 |
 | AC-6 | Peer has no `updated` timestamp | No staleness warning (manually configured, no tracking) |
 | AC-7 | `ze bgp peer X show` for peer with stale timestamp | Shows last-updated date and staleness status |
@@ -316,7 +321,7 @@ via the config resolution pipeline.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | TestPeeringDBParseResponse | peeringdb_test.go | JSON response parsing | [ ] |
-| TestPeeringDBDedup | peeringdb_test.go | Multiple peers same ASN = one query | [ ] |
+| ~~TestPeeringDBDedup~~ | ~~peeringdb_test.go~~ | ~~Multiple peers same ASN = one query~~ Removed -- no dedup | |
 | TestComputeMargin | peeringdb_test.go | PeeringDB value + 10% margin | [ ] |
 | TestStalenessCheck | session_prefix_test.go | Timestamp age vs threshold | [ ] |
 | TestPrefixRatioMetric | session_prefix_test.go | count/maximum ratio computation | [ ] |
@@ -355,8 +360,10 @@ for 127.0.0.1 hosts.
 
 ## Files to Modify
 
-- `internal/component/bgp/schema/ze-bgp-conf.yang` -- add `updated` hidden leaf to peer-level prefix container; add `bgp/prefix` container with `peeringdb-url` and `margin`
-- `internal/component/bgp/reactor/config.go` -- parse `updated`, `peeringdb-url`, `margin` from config tree
+- `internal/component/config/system/schema/ze-system-conf.yang` -- add `peeringdb` container with `url` and `margin`
+- `internal/component/bgp/schema/ze-bgp-conf.yang` -- add `updated` hidden leaf to peer-level prefix container
+- `internal/component/bgp/reactor/config.go` -- parse `updated` from config tree
+- `internal/component/config/system/` -- parse `peeringdb` settings from config tree
 - `internal/component/bgp/reactor/peersettings.go` -- add PrefixUpdated field
 - `internal/component/bgp/reactor/session_prefix.go` -- add ratio metric helper
 - `internal/component/bgp/reactor/reactor_metrics.go` -- add prefix_ratio and prefix_stale metrics
