@@ -214,6 +214,13 @@ def run_perf(dut):
         docker("exec", runner, "ip", "addr", "add", f"{RECEIVER_IP}/24", "dev", "eth0",
                check=False, timeout=10, capture=True)
 
+        # Scale timeouts based on route count.
+        # Per-iteration convergence: ~60s per 1M routes (conservative).
+        convergence_timeout_s = max(30, (DUT_ROUTES // 10000) * 3)
+        # Total iterations: warmup(1) + repeat. Each takes convergence + iter-delay(8s) + overhead(30s).
+        total_iterations = 1 + DUT_REPEAT
+        subprocess_timeout_s = total_iterations * (convergence_timeout_s + 40) + 60
+
         # Build ze-perf command.
         cmd = [
             "exec", runner, "/usr/local/bin/ze-perf", "run",
@@ -232,7 +239,7 @@ def run_perf(dut):
             "--iter-delay", "8s",
             "--warmup", "2s",
             "--connect-timeout", "20s",
-            "--duration", "300s",
+            "--duration", f"{convergence_timeout_s}s",
             "--output", f"/results/{result_name}",
         ]
 
@@ -241,7 +248,7 @@ def run_perf(dut):
         if dut["receiver_port"]:
             cmd += ["--receiver-port", str(dut["receiver_port"])]
 
-        docker(*cmd, timeout=1800)  # 30 min for large route counts with multiple iterations
+        docker(*cmd, timeout=subprocess_timeout_s)
         return True
 
     except subprocess.CalledProcessError:
