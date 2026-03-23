@@ -257,3 +257,83 @@ func TestReadThrottle_ZeroKeepaliveNoThrottle(t *testing.T) {
 	d := rt.ComputeSleep("10.0.0.1", 0)
 	assert.Equal(t, time.Duration(0), d, "no throttle when keepalive is 0 (timers disabled)")
 }
+
+// TestReadThrottle_NegativeKeepaliveNoThrottle verifies negative keepalive is handled.
+//
+// VALIDATES: AC-9 boundary: invalid-below (negative keepalive).
+// PREVENTS: Unexpected behavior with malformed keepalive values.
+func TestReadThrottle_NegativeKeepaliveNoThrottle(t *testing.T) {
+	rt := &ReadThrottle{
+		poolFillRatio: func() float64 { return 1.0 },
+		sourceRatio:   func(_ string) float64 { return 1.0 },
+		enabled:       true,
+	}
+
+	d := rt.ComputeSleep("10.0.0.1", -1*time.Second)
+	assert.Equal(t, time.Duration(0), d, "no throttle when keepalive is negative")
+}
+
+// TestReadThrottle_BoundaryValues verifies exact fill ratio boundaries (0.25, 0.50, 0.75).
+//
+// VALIDATES: AC-2 boundary testing per TDD rules.
+// PREVENTS: Off-by-one at band transitions.
+func TestReadThrottle_BoundaryValues(t *testing.T) {
+	highSrc := func(_ string) float64 { return 0.8 }
+
+	tests := []struct {
+		name      string
+		fill      float64
+		expectMin time.Duration
+		expectMax time.Duration
+	}{
+		{"at 0.25 (last no-throttle)", 0.25, 0, 0},
+		{"at 0.50 with high src (band 2 max)", 0.50, 1 * time.Millisecond, 5 * time.Millisecond},
+		{"at 0.75 with high src (band 3 max)", 0.75, 10 * time.Millisecond, 50 * time.Millisecond},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rt := &ReadThrottle{
+				poolFillRatio: func() float64 { return tt.fill },
+				sourceRatio:   highSrc,
+				enabled:       true,
+			}
+			d := rt.ComputeSleep("10.0.0.1", 30*time.Second)
+			if tt.expectMin == 0 && tt.expectMax == 0 {
+				assert.Equal(t, time.Duration(0), d)
+			} else {
+				assert.GreaterOrEqual(t, d, tt.expectMin)
+				assert.LessOrEqual(t, d, tt.expectMax)
+			}
+		})
+	}
+}
+
+// TestReadThrottle_SourceRatioClamped verifies srcRatio values outside [0,1]
+// are clamped and don't produce invalid sleep durations.
+//
+// VALIDATES: ComputeSleep robustness with out-of-range source ratios.
+// PREVENTS: Negative return values or sleep exceeding documented range.
+func TestReadThrottle_SourceRatioClamped(t *testing.T) {
+	tests := []struct {
+		name     string
+		srcRatio float64
+	}{
+		{"negative ratio", -0.5},
+		{"ratio above 1", 2.0},
+		{"ratio way above 1", 10.0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rt := &ReadThrottle{
+				poolFillRatio: func() float64 { return 0.90 },
+				sourceRatio:   func(_ string) float64 { return tt.srcRatio },
+				enabled:       true,
+			}
+			d := rt.ComputeSleep("10.0.0.1", 30*time.Second)
+			assert.GreaterOrEqual(t, d, time.Duration(0), "sleep must never be negative")
+			assert.LessOrEqual(t, d, 500*time.Millisecond, "sleep must not exceed documented max (500ms)")
+		})
+	}
+}

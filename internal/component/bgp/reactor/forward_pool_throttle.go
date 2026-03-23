@@ -74,6 +74,11 @@ func (rt *ReadThrottle) ComputeSleep(sourceAddr string, keepaliveInterval time.D
 	}
 
 	srcRatio := rt.sourceRatio(sourceAddr)
+	if srcRatio < 0 {
+		srcRatio = 0
+	} else if srcRatio > 1.0 {
+		srcRatio = 1.0
+	}
 
 	var sleepMs float64
 
@@ -109,12 +114,10 @@ func (rt *ReadThrottle) ComputeSleep(sourceAddr string, keepaliveInterval time.D
 		if bandProgress > 1.0 {
 			bandProgress = 1.0
 		}
-		// Base 100ms + up to 400ms based on fill and ratio
+		// Base 100ms + up to 400ms based on fill and ratio.
+		// With srcRatio clamped to [0,1], sleepMs is always >= 100 >= 100*bandProgress,
+		// so all sources get meaningful throttle at critical fill.
 		sleepMs = 100.0 + 400.0*bandProgress*srcRatio
-		// Even low-ratio sources get meaningful throttle at critical fill
-		if sleepMs < 100.0*bandProgress {
-			sleepMs = 100.0 * bandProgress
-		}
 	}
 
 	d := time.Duration(sleepMs * float64(time.Millisecond))
