@@ -1,6 +1,7 @@
 // Design: docs/architecture/core-design.md — per-peer forward worker pool
 // Overview: reactor.go — BGP reactor event loop and peer management
 // Related: reactor_api_forward.go — UPDATE forwarding dispatches to forward pool
+// Related: reactor_metrics.go — metrics loop polls overflow depth, pool ratio, source stats
 
 package reactor
 
@@ -243,6 +244,18 @@ type fwdPool struct {
 
 	// overflowPool bounds overflow items across all workers (nil = unbounded).
 	overflowPool *fwdOverflowPool
+
+	// Per-source-peer dispatch counters for AC-16 overflow ratio.
+	// Key: source peer address. Updated atomically in ForwardUpdate path.
+	srcStatsMu sync.Mutex
+	srcStats   map[string]*fwdSourceStats
+}
+
+// fwdSourceStats tracks forwarded vs overflowed counts for one source peer.
+// Used to compute the overflow ratio (AC-16).
+type fwdSourceStats struct {
+	forwarded  atomic.Int64 // successfully dispatched via TryDispatch
+	overflowed atomic.Int64 // fell through to DispatchOverflow
 }
 
 // newFwdPool creates a new forward pool with the given handler and configuration.
@@ -255,11 +268,12 @@ func newFwdPool(handler func(fwdKey, []fwdItem), cfg fwdPoolConfig) *fwdPool {
 		cfg.idleTimeout = 5 * time.Second
 	}
 	fp := &fwdPool{
-		workers: make(map[fwdKey]*fwdWorker),
-		handler: handler,
-		cfg:     cfg,
-		clock:   clock.RealClock{},
-		stopCh:  make(chan struct{}),
+		workers:  make(map[fwdKey]*fwdWorker),
+		handler:  handler,
+		cfg:      cfg,
+		clock:    clock.RealClock{},
+		stopCh:   make(chan struct{}),
+		srcStats: make(map[string]*fwdSourceStats),
 	}
 	if cfg.overflowPoolSize > 0 {
 		poolSize := cfg.overflowPoolSize
@@ -507,6 +521,86 @@ func (fp *fwdPool) Stop() {
 // WorkerCount returns the number of active workers.
 func (fp *fwdPool) WorkerCount() int {
 	return int(fp.count.Load())
+}
+
+// OverflowDepths returns a snapshot of per-destination-peer overflow depth.
+// Each entry maps peer address to the number of items currently in its overflow buffer.
+// Called by the metrics update loop; must not block.
+func (fp *fwdPool) OverflowDepths() map[string]int {
+	fp.mu.Lock()
+	result := make(map[string]int, len(fp.workers))
+	for key, w := range fp.workers {
+		w.overflowMu.Lock()
+		result[key.peerAddr] = len(w.overflow)
+		w.overflowMu.Unlock()
+	}
+	fp.mu.Unlock()
+	return result
+}
+
+// PoolUsedRatio returns the fraction of overflow pool tokens in use (0.0 to 1.0).
+// Returns 0.0 if no pool is configured. Called by the metrics update loop.
+func (fp *fwdPool) PoolUsedRatio() float64 {
+	if fp.overflowPool == nil {
+		return 0.0
+	}
+	avail := fp.overflowPool.available()
+	total := fp.overflowPool.size
+	if total == 0 {
+		return 0.0
+	}
+	return 1.0 - float64(avail)/float64(total)
+}
+
+// RecordForwarded increments the forwarded counter for a source peer.
+// Called from ForwardUpdate when TryDispatch succeeds.
+func (fp *fwdPool) RecordForwarded(sourcePeer string) {
+	fp.getSourceStats(sourcePeer).forwarded.Add(1)
+}
+
+// RecordOverflowed increments the overflowed counter for a source peer.
+// Called from ForwardUpdate when DispatchOverflow is used.
+func (fp *fwdPool) RecordOverflowed(sourcePeer string) {
+	fp.getSourceStats(sourcePeer).overflowed.Add(1)
+}
+
+// getSourceStats returns the stats for a source peer, creating if needed.
+func (fp *fwdPool) getSourceStats(sourcePeer string) *fwdSourceStats {
+	fp.srcStatsMu.Lock()
+	s, ok := fp.srcStats[sourcePeer]
+	if !ok {
+		s = &fwdSourceStats{}
+		fp.srcStats[sourcePeer] = s
+	}
+	fp.srcStatsMu.Unlock()
+	return s
+}
+
+// SourceOverflowRatios returns per-source-peer overflow ratio: overflowed/(forwarded+overflowed).
+// Returns 0.0 for peers with no overflow. Called by the metrics update loop.
+func (fp *fwdPool) SourceOverflowRatios() map[string]float64 {
+	fp.srcStatsMu.Lock()
+	result := make(map[string]float64, len(fp.srcStats))
+	for peer, s := range fp.srcStats {
+		fwd := s.forwarded.Load()
+		ovf := s.overflowed.Load()
+		total := fwd + ovf
+		if total == 0 {
+			result[peer] = 0.0
+		} else {
+			result[peer] = float64(ovf) / float64(total)
+		}
+	}
+	fp.srcStatsMu.Unlock()
+	return result
+}
+
+// RemoveSourceStats deletes the source stats entry for a peer.
+// Called on peer disconnect to prevent unbounded srcStats growth.
+func (fp *fwdPool) RemoveSourceStats(sourcePeer string) {
+	fp.srcStatsMu.Lock()
+	delete(fp.srcStats, sourcePeer)
+	fp.srcStatsMu.Unlock()
 }
 
 // safeBatchHandle calls the handler with panic recovery, then calls done() for

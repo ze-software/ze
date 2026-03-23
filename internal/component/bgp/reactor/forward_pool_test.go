@@ -1068,3 +1068,143 @@ func TestFwdPool_DispatchOverflowAfterStopWithPool(t *testing.T) {
 	assert.Equal(t, 10, pool.overflowPool.available(),
 		"no pool tokens should be consumed on stopped pool")
 }
+
+// TestFwdPool_OverflowDepths verifies OverflowDepths returns per-peer
+// overflow item counts as a snapshot.
+//
+// VALIDATES: AC-17 (overflow depth visible per destination peer)
+// PREVENTS: Missing or inaccurate overflow depth metrics.
+func TestFwdPool_OverflowDepths(t *testing.T) {
+	blocker := make(chan struct{})
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		<-blocker
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	// Create workers (block in handler).
+	pool.Dispatch(fwdKey{peerAddr: "10.0.0.1"}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: "10.0.0.2"}, fwdItem{})
+	time.Sleep(10 * time.Millisecond)
+
+	// Add overflow items to first peer only.
+	for range 3 {
+		pool.DispatchOverflow(fwdKey{peerAddr: "10.0.0.1"}, fwdItem{done: func() {}})
+	}
+
+	depths := pool.OverflowDepths()
+	assert.Equal(t, 3, depths["10.0.0.1"], "peer 10.0.0.1 should have 3 overflow items")
+	assert.Equal(t, 0, depths["10.0.0.2"], "peer 10.0.0.2 should have 0 overflow items")
+
+	// Unblock and verify depths return to 0 after drain.
+	close(blocker)
+
+	require.Eventually(t, func() bool {
+		d := pool.OverflowDepths()
+		return d["10.0.0.1"] == 0
+	}, time.Second, time.Millisecond, "overflow depth should return to 0 after drain")
+}
+
+// TestFwdPool_PoolUsedRatio verifies PoolUsedRatio returns correct utilization.
+//
+// VALIDATES: AC-18 (pool utilization visible as ratio)
+// PREVENTS: Incorrect pool utilization metric.
+func TestFwdPool_PoolUsedRatio(t *testing.T) {
+	blocker := make(chan struct{})
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		<-blocker
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowPoolSize: 10})
+	defer pool.Stop()
+
+	// No overflow items yet -- ratio should be 0.
+	assert.InDelta(t, 0.0, pool.PoolUsedRatio(), 0.001, "empty pool should have 0.0 ratio")
+
+	// Create worker and add overflow items.
+	pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{})
+	time.Sleep(10 * time.Millisecond)
+	dummyPeer := &Peer{}
+	for range 4 {
+		pool.DispatchOverflow(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{done: func() {}, peer: dummyPeer})
+	}
+
+	// 4 of 10 tokens used = 0.4 ratio.
+	assert.InDelta(t, 0.4, pool.PoolUsedRatio(), 0.001, "4/10 tokens used should be 0.4")
+
+	close(blocker)
+}
+
+// TestFwdPool_PoolUsedRatioNoPool verifies PoolUsedRatio returns 0 when
+// no overflow pool is configured.
+//
+// VALIDATES: AC-18 (graceful no-pool path)
+// PREVENTS: Panic or wrong value when pool is nil.
+func TestFwdPool_PoolUsedRatioNoPool(t *testing.T) {
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	assert.InDelta(t, 0.0, pool.PoolUsedRatio(), 0.001, "no pool should return 0.0")
+}
+
+// TestFwdPool_SourceOverflowRatios verifies per-source overflow ratio tracking.
+//
+// VALIDATES: AC-16 (per-source overflow ratio)
+// PREVENTS: Wrong ratio calculation or missing source peer tracking.
+func TestFwdPool_SourceOverflowRatios(t *testing.T) {
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	// Source A: 8 forwarded, 2 overflowed = 20% overflow ratio.
+	for range 8 {
+		pool.RecordForwarded("10.0.0.1")
+	}
+	for range 2 {
+		pool.RecordOverflowed("10.0.0.1")
+	}
+
+	// Source B: 0 forwarded, 5 overflowed = 100% overflow ratio.
+	for range 5 {
+		pool.RecordOverflowed("10.0.0.2")
+	}
+
+	// Source C: 10 forwarded, 0 overflowed = 0% overflow ratio.
+	for range 10 {
+		pool.RecordForwarded("10.0.0.3")
+	}
+
+	ratios := pool.SourceOverflowRatios()
+	assert.InDelta(t, 0.2, ratios["10.0.0.1"], 0.001, "source A: 2/10 = 0.2")
+	assert.InDelta(t, 1.0, ratios["10.0.0.2"], 0.001, "source B: 5/5 = 1.0")
+	assert.InDelta(t, 0.0, ratios["10.0.0.3"], 0.001, "source C: 0/10 = 0.0")
+}
+
+// TestFwdPool_SourceOverflowRatiosConcurrent verifies concurrent
+// RecordForwarded/RecordOverflowed calls don't race.
+//
+// VALIDATES: AC-16 (concurrent safety of source stats)
+// PREVENTS: Race conditions in source peer counter updates.
+func TestFwdPool_SourceOverflowRatiosConcurrent(t *testing.T) {
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
+	defer pool.Stop()
+
+	var wg sync.WaitGroup
+	const goroutines = 20
+	const iterations = 100
+	wg.Add(goroutines)
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			for range iterations {
+				pool.RecordForwarded("10.0.0.1")
+				pool.RecordOverflowed("10.0.0.1")
+			}
+		}()
+	}
+	wg.Wait()
+
+	ratios := pool.SourceOverflowRatios()
+	// Each goroutine does equal forwarded + overflowed, so ratio should be 0.5.
+	assert.InDelta(t, 0.5, ratios["10.0.0.1"], 0.001,
+		"equal forwarded and overflowed should give 0.5 ratio")
+}

@@ -1,5 +1,6 @@
 // Design: docs/architecture/core-design.md — reactor-level Prometheus metrics
 // Overview: reactor.go — Reactor struct and lifecycle
+// Related: forward_pool.go — overflow depth, pool ratio, source stats polled by metrics loop
 
 package reactor
 
@@ -20,11 +21,14 @@ type reactorMetrics struct {
 	uptimeSeconds        metrics.Gauge
 	cacheEntries         metrics.Gauge
 	forwardWorkersActive metrics.Gauge
+	poolUsedRatio        metrics.Gauge // AC-18: overflow pool utilization (0.0 to 1.0)
 
 	// Per-peer (labeled by peer address)
-	peerState   metrics.GaugeVec
-	peerMsgRecv metrics.CounterVec
-	peerMsgSent metrics.CounterVec
+	peerState     metrics.GaugeVec
+	peerMsgRecv   metrics.CounterVec
+	peerMsgSent   metrics.CounterVec
+	overflowItems metrics.GaugeVec // AC-17: per-destination overflow depth
+	overflowRatio metrics.GaugeVec // AC-16: per-source overflowed/(forwarded+overflowed)
 
 	// Prefix limits (labeled by peer + family)
 	prefixCount           metrics.GaugeVec   // Current prefix count per family
@@ -49,10 +53,13 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 		uptimeSeconds:        reg.Gauge("ze_uptime_seconds", "Seconds since reactor started."),
 		cacheEntries:         reg.Gauge("ze_cache_entries", "UPDATE cache entry count."),
 		forwardWorkersActive: reg.Gauge("ze_forward_workers_active", "Active forward pool workers."),
+		poolUsedRatio:        reg.Gauge("ze_bgp_pool_used_ratio", "Overflow pool utilization (0.0 = empty, 1.0 = full)."),
 
-		peerState:   reg.GaugeVec("ze_peer_state", "Peer FSM state (0=stopped, 1=connecting, 2=active, 3=established).", []string{"peer"}),
-		peerMsgRecv: reg.CounterVec("ze_peer_messages_received_total", "BGP messages received from peer.", []string{"peer"}),
-		peerMsgSent: reg.CounterVec("ze_peer_messages_sent_total", "BGP messages sent to peer.", []string{"peer"}),
+		peerState:     reg.GaugeVec("ze_peer_state", "Peer FSM state (0=stopped, 1=connecting, 2=active, 3=established).", []string{"peer"}),
+		peerMsgRecv:   reg.CounterVec("ze_peer_messages_received_total", "BGP messages received from peer.", []string{"peer"}),
+		peerMsgSent:   reg.CounterVec("ze_peer_messages_sent_total", "BGP messages sent to peer.", []string{"peer"}),
+		overflowItems: reg.GaugeVec("ze_bgp_overflow_items", "Items in per-destination overflow buffer.", []string{"peer"}),
+		overflowRatio: reg.GaugeVec("ze_bgp_overflow_ratio", "Per-source overflow ratio: overflowed/(forwarded+overflowed).", []string{"source"}),
 
 		// RFC 4486: Prefix limit metrics
 		prefixCount:           reg.GaugeVec("ze_bgp_prefix_count", "Current prefix count per family.", []string{"peer", "family"}),
@@ -95,8 +102,21 @@ func (r *Reactor) updatePeriodicMetrics() {
 	// Cache entries
 	m.cacheEntries.Set(float64(r.recentUpdates.Len()))
 
-	// Forward pool workers
+	// Forward pool workers + overflow metrics
 	if r.fwdPool != nil {
 		m.forwardWorkersActive.Set(float64(r.fwdPool.WorkerCount()))
+
+		// AC-18: pool utilization ratio
+		m.poolUsedRatio.Set(r.fwdPool.PoolUsedRatio())
+
+		// AC-17: per-destination overflow depth
+		for peer, depth := range r.fwdPool.OverflowDepths() {
+			m.overflowItems.With(peer).Set(float64(depth))
+		}
+
+		// AC-16: per-source overflow ratio
+		for peer, ratio := range r.fwdPool.SourceOverflowRatios() {
+			m.overflowRatio.With(peer).Set(ratio)
+		}
 	}
 }

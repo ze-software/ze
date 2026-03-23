@@ -10,8 +10,6 @@ import (
 	"net/netip"
 	"strconv"
 	"time"
-
-	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
 
 // findPeerByAddr looks up a peer by address, trying default port first.
@@ -184,6 +182,13 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 		r.rmetrics.peerState.Delete(label)
 		r.rmetrics.peerMsgRecv.Delete(label)
 		r.rmetrics.peerMsgSent.Delete(label)
+		r.rmetrics.overflowItems.Delete(label)
+		r.rmetrics.overflowRatio.Delete(label)
+	}
+
+	// Clean up source stats so disconnected peers don't accumulate in srcStats.
+	if r.fwdPool != nil {
+		r.fwdPool.RemoveSourceStats(peer.peerAddrLabel())
 	}
 
 	// Check if any other peer uses this listener (same LocalAddress + port)
@@ -216,26 +221,27 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 // AddDynamicPeer adds a peer with the given configuration from the plugin API.
 // Used by "bgp peer <ip> add" command for runtime peer management.
 // LocalAS and RouterID default to reactor config if not specified.
-func (r *Reactor) AddDynamicPeer(config plugin.DynamicPeerConfig) error {
-	// Use reactor defaults for optional fields
-	localAS := config.LocalAS
-	if localAS == 0 {
-		localAS = r.config.LocalAS
-	}
-	routerID := config.RouterID
-	if routerID == 0 {
-		routerID = r.config.RouterID
+func (r *Reactor) AddDynamicPeer(addr netip.Addr, tree map[string]any) error {
+	// Inject remote.ip from selector (parsePeerFromTree requires it).
+	if remote, ok := tree["remote"].(map[string]any); ok {
+		remote["ip"] = addr.String()
+	} else {
+		tree["remote"] = map[string]any{"ip": addr.String()}
 	}
 
-	settings := NewPeerSettings(config.Address, localAS, config.PeerAS, routerID)
-	if config.LocalAddress.IsValid() {
-		settings.LocalAddress = config.LocalAddress
+	// Inject local.ip = "auto" if not set (parsePeerFromTree requires it).
+	if local, ok := tree["local"].(map[string]any); ok {
+		if _, hasIP := local["ip"]; !hasIP {
+			local["ip"] = valAuto
+		}
+	} else {
+		tree["local"] = map[string]any{"ip": valAuto}
 	}
-	if config.HoldTime > 0 {
-		settings.HoldTime = config.HoldTime
-	}
-	if mode, err := ParseConnectionMode(config.Connection); err == nil {
-		settings.Connection = mode
+
+	name := addr.String()
+	settings, err := parsePeerFromTree(name, tree, r.config.LocalAS, r.config.RouterID)
+	if err != nil {
+		return fmt.Errorf("dynamic peer %s: %w", name, err)
 	}
 
 	return r.AddPeer(settings)

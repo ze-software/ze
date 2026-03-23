@@ -243,6 +243,10 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		a.r.mu.RUnlock()
 	}
 
+	// Source peer address for overflow ratio tracking (AC-16).
+	// Hoisted outside the loop — loop-invariant, avoids N redundant String() allocations.
+	srcAddr := update.SourcePeerIP.String()
+
 	for _, peer := range matchingPeers {
 		if peer.State() != PeerStateEstablished {
 			continue // Skip non-established peers
@@ -365,9 +369,11 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 
 		key := fwdKey{peerAddr: peer.Settings().Address.String()}
 		if a.r.fwdPool.TryDispatch(key, item) {
+			a.r.fwdPool.RecordForwarded(srcAddr)
 			dispatchedCount++
 		} else if a.r.fwdPool.DispatchOverflow(key, item) {
 			// Channel full — item buffered in overflow for deferred processing.
+			a.r.fwdPool.RecordOverflowed(srcAddr)
 			dispatchedCount++
 		}
 		// If DispatchOverflow returned false, pool is stopped — done() was
