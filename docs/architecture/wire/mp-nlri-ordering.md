@@ -46,14 +46,60 @@ When building UPDATE messages:
 **Rationale:** Withdrawals logically precede announcements. Regular path
 attributes describe the NLRI in MP_REACH, so they appear between the two.
 
+## RFC Compliance Analysis
+
+**RFC 4271 Section 5** recommends (SHOULD) ordering path attributes by ascending
+type code. RFC 4760 assigned type code 14 to MP_REACH_NLRI and 15 to
+MP_UNREACH_NLRI. Strict type-code ordering would place announcements (14)
+before withdrawals (15), contradicting the withdrawal-first principle that
+RFC 4271 Section 4.3 established by placing Withdrawn Routes before NLRI in
+the UPDATE wire format. This was an oversight in RFC 4760's type code
+assignment.
+
+**RFC 7606 Section 5.1** (the major BGP error handling fixup RFC, updates both
+RFC 4271 and RFC 4760) addresses this with two requirements:
+
+1. "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if present) SHALL be
+   encoded as the very first path attribute in an UPDATE message."
+
+2. "An UPDATE message MUST NOT contain more than one of the following:
+   non-empty Withdrawn Routes field, non-empty Network Layer Reachability
+   Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute."
+
+Requirement 2 means MP_REACH and MP_UNREACH **cannot appear in the same
+UPDATE** per RFC 7606. Each UPDATE carries either announcements or withdrawals
+for multiprotocol families, never both. This eliminates the intra-message
+ordering question entirely.
+
+Requirement 1 means whichever MP attribute is present goes first, before all
+regular attributes. This supersedes RFC 4271's type-code ordering for these
+attributes.
+
+**Ze is half-compliant with RFC 7606:**
+
+- **MP_UNREACH first:** Compliant. Withdrawal is the first attribute, matching
+  both RFC 7606's SHALL and RFC 4271's withdrawal-first wire format.
+
+- **MP_REACH last:** Intentionally non-compliant. RFC 7606 says it SHALL be
+  first, but ze places it after all regular path attributes. In theory, a
+  streaming parser could benefit from having attributes parsed before NLRI
+  arrives. In practice, receivers are optimized for MP_REACH first (what
+  RFC 7606 mandates and what other implementations send). Ze's ordering
+  may prevent those fast-path optimizations. This is a conscious trade-off
+  that prioritizes the withdrawal-first principle from ze's original design
+  over alignment with receiver expectations.
+
 ## Compatibility
 
-This ordering is valid because:
+Ze must still handle legacy UPDATEs that combine MP_REACH and MP_UNREACH (pre-
+RFC 7606 implementations). RFC 7606 Section 5.1 notes: "Since older BGP
+speakers may not implement these restrictions, an implementation MUST still be
+prepared to receive these fields in any position or combination."
 
-1. All regular attributes remain in RFC order
-2. MP attributes at end is common in implementations
-3. BGP speakers MUST accept attributes in any order (RFC 4271 Section 5)
-4. Withdrawals before announcements is logical (remove old, add new)
+For ze's own outbound UPDATEs, the ordering is:
+1. RFC 4271 Section 5: receivers MUST accept attributes in any order
+2. RFC 7606 Section 5.1: MP attributes SHALL be first (ze complies)
+3. The SHOULD for type-code ordering is overridden by the SHALL in RFC 7606
 
 ## Implementation Notes
 
