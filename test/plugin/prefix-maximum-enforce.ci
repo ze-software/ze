@@ -1,0 +1,57 @@
+# Test: Prefix maximum enforcement tears down session (RFC 4486)
+# AC-3: Peer sends prefixes exceeding family maximum (teardown=true) ->
+#        NOTIFICATION Cease/MaxPrefixes sent, session torn down.
+# AC-10: From spec-prefix-limit -- enforcement wiring test.
+
+# ze-peer: sends 3 routes (exceeds maximum=2)
+# We only expect EOR (seq=1) -- ze closes after sending NOTIFICATION,
+# and the NOTIFICATION is verified via ze's stderr log.
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=asn:value=65001
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.0.1.0/24:next-hop=10.0.0.1
+option=update:value=send-route:prefix=10.0.2.0/24:next-hop=10.0.0.1
+# Accept EOR (ze sends this immediately on session establishment)
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration: prefix maximum=2 for ipv4/unicast
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65001
+		}
+		local {
+			as 65000
+			ip 127.0.0.1
+		}
+		router-id 10.0.0.1
+		connection active
+
+		family {
+			ipv4/unicast {
+				prefix {
+					maximum 2
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
+# Verify enforcement happened via ze's stderr log
+expect=stderr:contains=prefix count exceeded maximum
+expect=stderr:contains=teardown

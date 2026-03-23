@@ -12,6 +12,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"syscall"
 	"unicode/utf8"
 )
 
@@ -272,4 +273,14 @@ func isTimeout(err error) bool {
 		return netErr.Timeout()
 	}
 	return false
+}
+
+// isConnReset reports whether err is a "connection reset by peer" error.
+// This happens when the remote side closes with unread data, sending RST
+// instead of FIN. Treated like EOF for test purposes: the remote side
+// sent its final message (e.g., NOTIFICATION) and closed.
+// Uses errors.Is which traverses the full Unwrap chain, matching the
+// pattern in runner_validate.go:isTransientConnError.
+func isConnReset(err error) bool {
+	return errors.Is(err, syscall.ECONNRESET)
 }

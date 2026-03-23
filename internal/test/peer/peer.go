@@ -372,12 +372,13 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 			if isTimeout(err) {
 				continue
 			}
-			if errors.Is(err, io.EOF) {
+			if errors.Is(err, io.EOF) || isConnReset(err) {
 				if p.checker.Completed() {
 					return Result{Success: true}
 				}
-				// After sighup, the daemon may restart the peer which closes this connection.
-				// Treat EOF as expected — Run() will accept the next connection.
+				// Connection closed (EOF) or reset (RST). Both mean the remote
+				// side is done. If all expectations are not yet met, check if
+				// a reconnection is expected (sighup reload, prefix teardown).
 				if p.checker.ExpectingClose() {
 					return Result{Success: true}
 				}

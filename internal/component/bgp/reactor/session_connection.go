@@ -10,8 +10,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"syscall"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
@@ -360,13 +362,21 @@ func (s *Session) closeConn() {
 			_ = s.bufWriter.Flush()
 			s.writeMu.Unlock()
 		}
-		// Half-close: send FIN (not RST) so the remote side can read
+		// Graceful close: send FIN (not RST) so the remote side can read
 		// any pending NOTIFICATION before the connection is torn down.
 		// A plain Close() sends RST when unread data is in the receive
 		// buffer, which can cause the remote kernel to discard our
 		// outbound data before the application reads it.
 		if tcp, ok := s.conn.(*net.TCPConn); ok {
-			_ = tcp.CloseWrite()
+			if cwErr := tcp.CloseWrite(); cwErr == nil {
+				// FIN sent. Drain unread data so Close() sends FIN instead of RST.
+				_ = tcp.SetReadDeadline(s.clock.Now().Add(100 * time.Millisecond))
+				if _, drainErr := io.Copy(io.Discard, tcp); drainErr != nil {
+					// Drain failure is expected (timeout or reset) -- proceed to Close.
+					_ = drainErr
+				}
+			}
+			// If CloseWrite failed, socket is already broken -- skip drain.
 		}
 		_ = s.conn.Close()
 		s.conn = nil

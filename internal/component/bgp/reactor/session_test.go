@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
@@ -2970,4 +2971,77 @@ func TestSessionNoMD5WhenKeyAbsent(t *testing.T) {
 	require.True(t, ok)
 	require.Empty(t, rd.MD5Key)
 	require.Nil(t, rd.PeerAddr)
+}
+
+// TestCloseConnGracefulTCP verifies closeConn sends FIN (not RST) on real TCP.
+// Uses a real TCP connection to exercise the CloseWrite + drain path
+// (which is skipped by net.Pipe in other tests).
+//
+// VALIDATES: NOTIFICATION data is readable by remote after closeConn.
+// PREVENTS: TCP RST discarding NOTIFICATION before remote reads it.
+func TestCloseConnGracefulTCP(t *testing.T) {
+	// Start a TCP listener on localhost.
+	var lc net.ListenConfig
+	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer func() { _ = ln.Close() }()
+
+	// Accept connection in background.
+	acceptCh := make(chan net.Conn, 1)
+	go func() {
+		conn, acceptErr := ln.Accept()
+		if acceptErr != nil {
+			return
+		}
+		acceptCh <- conn
+	}()
+
+	// Dial to the listener.
+	var dialer net.Dialer
+	clientConn, err := dialer.DialContext(context.Background(), "tcp", ln.Addr().String())
+	require.NoError(t, err)
+	defer func() { _ = clientConn.Close() }()
+
+	// Get the server-side connection.
+	var serverConn net.Conn
+	select {
+	case serverConn = <-acceptCh:
+	case <-time.After(time.Second):
+		t.Fatal("accept timed out")
+	}
+	defer func() { _ = serverConn.Close() }()
+
+	// Set up session with the real TCP connection directly (bypass
+	// connectionEstablished which sends OPEN and complicates the read).
+	ps := NewPeerSettings(mustParseAddr("127.0.0.1"), 65000, 65001, 0)
+	session := NewSession(ps)
+	session.mu.Lock()
+	session.conn = serverConn
+	session.bufReader = bufio.NewReaderSize(serverConn, 4096)
+	session.bufWriter = bufio.NewWriterSize(serverConn, 4096)
+	session.mu.Unlock()
+
+	// Write data that the remote should be able to read after close.
+	session.writeMu.Lock()
+	_, writeErr := session.bufWriter.WriteString("NOTIFICATION-DATA")
+	session.writeMu.Unlock()
+	require.NoError(t, writeErr)
+
+	// Send unread data from client to server (creates unread data in server's
+	// receive buffer, which would cause RST without the drain fix).
+	_, writeErr = clientConn.Write([]byte("KEEPALIVE-FROM-CLIENT"))
+	require.NoError(t, writeErr)
+
+	// Brief pause to let the client data arrive in server's receive buffer.
+	time.Sleep(10 * time.Millisecond)
+
+	// Close the session (should do CloseWrite + drain + Close).
+	session.closeConn()
+
+	// Verify: client can still read the data we wrote (FIN, not RST).
+	buf := make([]byte, 4096)
+	_ = clientConn.SetReadDeadline(time.Now().Add(time.Second))
+	n, readErr := clientConn.Read(buf)
+	require.NoError(t, readErr, "should read data before EOF (FIN not RST)")
+	assert.Equal(t, "NOTIFICATION-DATA", string(buf[:n]))
 }
