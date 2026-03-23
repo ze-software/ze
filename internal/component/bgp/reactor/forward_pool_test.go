@@ -633,7 +633,7 @@ func TestFwdPool_DispatchOverflow(t *testing.T) {
 
 	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
 		processed.Add(int32(len(items)))
-	}, fwdPoolConfig{chanSize: 4, idleTimeout: time.Second, overflowMax: 16})
+	}, fwdPoolConfig{chanSize: 4, idleTimeout: time.Second})
 	defer pool.Stop()
 
 	key := fwdKey{peerAddr: "1.1.1.1"}
@@ -651,51 +651,43 @@ func TestFwdPool_DispatchOverflow(t *testing.T) {
 	}, time.Second, time.Millisecond, "all items including overflow should be processed")
 }
 
-// TestFwdPool_OverflowMax verifies the overflow buffer drops oldest items
-// when it exceeds the maximum size, calling their done callbacks.
+// TestFwdPool_OverflowNeverDrops verifies the overflow buffer grows without
+// dropping items. Routes are critical data and must never be silently lost.
 //
 // VALIDATES: AC-5
-// PREVENTS: Unbounded overflow buffer growth.
-func TestFwdPool_OverflowMax(t *testing.T) {
+// PREVENTS: Silent route loss from overflow cap.
+func TestFwdPool_OverflowNeverDrops(t *testing.T) {
 	blocker := make(chan struct{})
-	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
-		<-blocker
-	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowMax: 3})
-	defer func() {
-		close(blocker)
-		pool.Stop()
-	}()
+	var unblocked atomic.Bool
+	var processed atomic.Int32
+
+	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		if !unblocked.Load() {
+			<-blocker
+		}
+		processed.Add(int32(len(items)))
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
+	defer pool.Stop()
 
 	key := fwdKey{peerAddr: "1.1.1.1"}
-	var droppedIDs []int
-	var mu sync.Mutex
 
 	// Create worker by dispatching one item (blocks in handler)
 	pool.Dispatch(key, fwdItem{})
 	time.Sleep(10 * time.Millisecond)
 
-	// Fill overflow with 5 items (max is 3, so 2 should be dropped)
-	for i := range 5 {
-		pool.DispatchOverflow(key, fwdItem{
-			done: func() {
-				mu.Lock()
-				droppedIDs = append(droppedIDs, i)
-				mu.Unlock()
-			},
-		})
+	// Fill overflow with many items -- none should be dropped
+	const overflowCount = 500
+	for range overflowCount {
+		pool.DispatchOverflow(key, fwdItem{done: func() {}})
 	}
 
-	// Items 0 and 1 should have been dropped (oldest first)
-	require.Eventually(t, func() bool {
-		mu.Lock()
-		defer mu.Unlock()
-		return len(droppedIDs) >= 2
-	}, time.Second, time.Millisecond, "oldest overflow items should be dropped")
+	// Unblock handler -- all items should eventually be processed
+	unblocked.Store(true)
+	close(blocker)
 
-	mu.Lock()
-	assert.Contains(t, droppedIDs, 0, "item 0 should be dropped")
-	assert.Contains(t, droppedIDs, 1, "item 1 should be dropped")
-	mu.Unlock()
+	require.Eventually(t, func() bool {
+		return processed.Load() >= overflowCount
+	}, 2*time.Second, 10*time.Millisecond, "all overflow items must be processed, none dropped")
 }
 
 // TestFwdPool_StopFiresOverflowDone verifies Stop fires done callbacks
@@ -709,7 +701,7 @@ func TestFwdPool_StopFiresOverflowDone(t *testing.T) {
 
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 		<-blocker
-	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowMax: 16})
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 
 	key := fwdKey{peerAddr: "1.1.1.1"}
 
@@ -744,7 +736,7 @@ func TestFwdPool_CongestionCallbacks(t *testing.T) {
 
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 		<-blocker
-	}, fwdPoolConfig{chanSize: 4, idleTimeout: time.Second, overflowMax: 16})
+	}, fwdPoolConfig{chanSize: 4, idleTimeout: time.Second})
 	pool.onCongested = func(peerAddr string) {
 		mu.Lock()
 		congestedPeers = append(congestedPeers, peerAddr)
@@ -807,7 +799,7 @@ func TestFwdPool_DrainOverflowDirectProcess(t *testing.T) {
 
 	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
 		processed.Add(int32(len(items)))
-	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowMax: 32})
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	defer pool.Stop()
 
 	key := fwdKey{peerAddr: "1.1.1.1"}

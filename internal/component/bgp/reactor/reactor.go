@@ -57,7 +57,6 @@ import (
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.chan.size", Type: "int", Default: "64", Description: "Per-destination forward worker channel capacity"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.write.deadline", Type: "duration", Default: "30s", Description: "TCP write deadline for forward pool batch writes"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.overflow.size", Type: "int", Default: "256", Description: "Per-worker overflow buffer max size for non-blocking dispatch"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.safety.valve", Type: "duration", Default: "5m", Description: "Safety valve duration for UPDATE cache gap-based eviction"})
 )
 
@@ -306,10 +305,6 @@ func New(config *Config) *Reactor {
 	// Default: 64. Invalid/zero/negative values use default.
 	fwdChanSize := env.GetInt("ze.fwd.chan.size", 0)
 
-	// ze.fwd.overflow.size overrides the per-worker overflow buffer max size.
-	// Default: 256. Invalid/zero/negative values use default.
-	fwdOverflowSize := env.GetInt("ze.fwd.overflow.size", 0)
-
 	r := &Reactor{
 		config:          config,
 		clock:           clock.RealClock{},
@@ -319,8 +314,7 @@ func New(config *Config) *Reactor {
 		listeners:       make(map[string]*Listener),
 		recentUpdates:   NewRecentUpdateCache(maxEntries),
 		fwdPool: newFwdPool(fwdBatchHandler, fwdPoolConfig{
-			chanSize:    fwdChanSize,
-			overflowMax: fwdOverflowSize,
+			chanSize: fwdChanSize,
 		}),
 		configTree: config.ConfigTree,
 	}
