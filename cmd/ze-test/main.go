@@ -9,6 +9,7 @@
 //	ze-test editor [flags]         Run editor functional tests (.et files)
 //	ze-test peer [flags]           BGP test peer (sink/echo/check modes)
 //	ze-test rpki [flags]           Deterministic RPKI mock server (IP modulo)
+//	ze-test peeringdb [flags]      Deterministic PeeringDB mock server (ASN-derived)
 //	ze-test syslog [flags]         Run syslog server for testing
 //	ze-test text-plugin            Run minimal text-mode plugin (for .ci tests)
 package main
@@ -48,6 +49,8 @@ func main() {
 		os.Exit(textPluginCmd())
 	case "rpki":
 		os.Exit(rpkiCmd())
+	case "peeringdb":
+		os.Exit(peeringdbCmd())
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", cmd)
 		printUsage()
@@ -69,6 +72,7 @@ Commands:
   ui           Run UI functional tests (completion, CLI)
   peer         BGP test peer (sink/echo/check modes)
   rpki         Deterministic RPKI mock server (IP modulo for validation state)
+  peeringdb    Deterministic PeeringDB mock server (ASN-derived prefix counts)
   syslog       Run syslog server for testing
   text-plugin  Run minimal text-mode plugin (for .ci tests)
 

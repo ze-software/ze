@@ -109,13 +109,13 @@ More specific overrides less specific:
 | `bgp/peer/family/<family>/prefix/warning` | uint32 | 90% of maximum | Warning threshold. Optional. |
 | `bgp/peer/prefix/teardown` | boolean | true | Tear down on exceed (false = warn only). Peer-level. |
 | `bgp/peer/prefix/idle-timeout` | uint16 | 0 | Seconds before auto-reconnect after teardown (0 = no reconnect). Peer-level. |
-| `bgp/prefix/source-url` | string | (ze default) | URL for prefix data. Defaults to ze's codeberg repository. Overridable for private mirrors. Global to BGP. |
+| ~~`bgp/prefix/source-url`~~ | ~~string~~ | ~~(ze default)~~ | ~~URL for prefix data.~~ Superseded by `bgp/prefix/peeringdb-url` in spec-prefix-data. |
 
-The `source-url` is a global BGP setting. Ze is the only data source
+~~The `source-url` is a global BGP setting. Ze is the only data source
 for prefix maximums. The data ze ships may be built from PeeringDB,
 routing table snapshots, or other sources -- but the operator always
 gets it from ze (or a mirror at source-url). There is no direct
-PeeringDB query at runtime.
+PeeringDB query at runtime.~~ Superseded: spec-prefix-data queries PeeringDB (or compatible service) directly at runtime. Configurable URL via `bgp/prefix/peeringdb-url`. No build pipeline, no embedded data, no zefs storage.
 
 Every negotiated family MUST have a prefix maximum. Ze refuses to start
 if a family block has no corresponding prefix maximum.
