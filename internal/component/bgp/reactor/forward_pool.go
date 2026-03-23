@@ -2,6 +2,7 @@
 // Overview: reactor.go — BGP reactor event loop and peer management
 // Related: reactor_api_forward.go — UPDATE forwarding dispatches to forward pool
 // Related: reactor_metrics.go — metrics loop polls overflow depth, pool ratio, source stats
+// Related: forward_pool_throttle.go — read throttle using pool fill ratio and source stats
 
 package reactor
 

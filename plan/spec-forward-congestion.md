@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-forward-backpressure, spec-prefix maximum |
-| Phase | 2/4 |
+| Phase | 3/4 |
 | Updated | 2026-03-23 |
 
 ## Post-Compaction Recovery
