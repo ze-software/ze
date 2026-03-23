@@ -14,8 +14,9 @@ import (
 func cmdReport(args []string) int {
 	fs := flag.NewFlagSet("ze-perf report", flag.ContinueOnError)
 
-	md := fs.Bool("md", true, "Markdown output (default)")
-	html := fs.Bool("html", false, "HTML output")
+	_ = fs.Bool("md", true, "Markdown comparison table (default)")
+	html := fs.Bool("html", false, "Self-contained HTML report")
+	doc := fs.Bool("doc", false, "Full performance.md document with disclaimers and methodology")
 
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: ze-perf report [flags] <file> [file...]
@@ -25,6 +26,7 @@ Generate a comparison report from one or more result JSON files.
 Examples:
   ze-perf report result-ze.json result-gobgp.json
   ze-perf report --html result-ze.json result-gobgp.json > report.html
+  ze-perf report --doc result-*.json > docs/performance.md
 
 Flags:
 `)
@@ -59,19 +61,21 @@ Flags:
 		results = append(results, res)
 	}
 
-	// --html overrides --md.
-	if *html {
-		*md = false
-	}
-
-	if *md {
-		if err := report.Markdown(results, os.Stdout); err != nil {
-			fmt.Fprintf(os.Stderr, "error: generating markdown report: %v\n", err)
+	// --doc and --html override --md.
+	switch {
+	case *doc:
+		if err := report.PerformanceDoc(results, os.Stdout); err != nil {
+			fmt.Fprintf(os.Stderr, "error: generating performance doc: %v\n", err)
 			return 1
 		}
-	} else {
+	case *html:
 		if err := report.HTML(results, os.Stdout); err != nil {
 			fmt.Fprintf(os.Stderr, "error: generating HTML report: %v\n", err)
+			return 1
+		}
+	default:
+		if err := report.Markdown(results, os.Stdout); err != nil {
+			fmt.Fprintf(os.Stderr, "error: generating markdown report: %v\n", err)
 			return 1
 		}
 	}

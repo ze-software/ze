@@ -1,0 +1,19 @@
+[global.config]
+as = 65000
+router-id = "172.31.0.7"
+
+[[neighbors]]
+[neighbors.config]
+neighbor-address = "172.31.0.10"
+peer-as = 65001
+[[neighbors.afi-safis]]
+[neighbors.afi-safis.config]
+afi-safi-name = "ipv4-unicast"
+
+[[neighbors]]
+[neighbors.config]
+neighbor-address = "172.31.0.11"
+peer-as = 65002
+[[neighbors.afi-safis]]
+[neighbors.afi-safis.config]
+afi-safi-name = "ipv4-unicast"

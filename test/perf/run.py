@@ -53,6 +53,7 @@ DUTS = [
     {"name": "bird",     "image": "bird-interop",  "ip": "172.31.0.4", "port": 179, "sender_port": 0, "receiver_port": 0},
     {"name": "gobgp",    "image": "gobgp-interop", "ip": "172.31.0.5", "port": 179, "sender_port": 0, "receiver_port": 0},
     {"name": "rustbgpd", "image": RUSTBGPD_IMAGE,  "ip": "172.31.0.6", "port": 179, "sender_port": 0, "receiver_port": 0},
+    {"name": "rustybgp", "image": "rustybgp-interop", "ip": "172.31.0.7", "port": 179, "sender_port": 0, "receiver_port": 0},
 ]
 
 SUFFIX = str(os.getpid())
@@ -121,6 +122,15 @@ def build_images(needed_duts):
         except subprocess.CalledProcessError:
             print("  warning: rustbgpd image build failed")
 
+    if "rustybgp" in needed:
+        print("Building RustyBGP image...")
+        try:
+            docker("build", "-t", "rustybgp-interop",
+                   "-f", os.path.join(INTEROP_DIR, "Dockerfile.rustybgp"),
+                   INTEROP_DIR, "--quiet", timeout=900)
+        except subprocess.CalledProcessError:
+            print("  warning: RustyBGP image build failed")
+
 
 def container_name(dut_name):
     return f"ze-perf-{dut_name}-{SUFFIX}"
@@ -140,6 +150,7 @@ def start_dut(dut):
         "bird":     ["-v", f"{CONFIGS_DIR}/bird.conf:/etc/bird/bird.conf:ro"],
         "gobgp":    ["-v", f"{CONFIGS_DIR}/gobgp.toml:/etc/gobgp/gobgp.toml:ro"],
         "rustbgpd": ["-v", f"{CONFIGS_DIR}/rustbgpd.toml:/etc/rustbgpd/config.toml:ro"],
+        "rustybgp": ["-v", f"{CONFIGS_DIR}/rustybgp.toml:/etc/rustybgp/config.toml:ro"],
     }
 
     caps = ["--cap-add", "NET_ADMIN"]
@@ -243,7 +254,7 @@ def run_perf(dut):
 def cleanup():
     """Remove all containers and the network."""
     print("\nCleaning up...")
-    for dut in DUTS:
+    for dut in DUTS:  # noqa: B007 -- need dut["name"] not index
         stop_dut(dut["name"])
     docker("rm", "-f", f"ze-perf-runner-{SUFFIX}", check=False, timeout=10, capture=True)
     docker("network", "rm", NETWORK, check=False, timeout=10, capture=True)
@@ -333,6 +344,14 @@ def main():
                 check=False, timeout=30, stdout=f,
             )
         print(f"\nHTML report: {html_path}")
+
+        perf_doc = os.path.join(PROJECT_ROOT, "docs", "performance.md")
+        with open(perf_doc, "w") as f:
+            subprocess.run(
+                [ZE_PERF, "report", "--doc"] + result_files,
+                check=False, timeout=30, stdout=f,
+            )
+        print(f"Performance doc: {perf_doc}")
 
     print()
     if failed == 0:

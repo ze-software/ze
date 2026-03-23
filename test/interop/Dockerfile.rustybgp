@@ -1,0 +1,19 @@
+# RustyBGP daemon for performance testing.
+# Builds from GitHub source using musl for static linking.
+
+FROM rust:1.85-alpine AS builder
+
+RUN apk add --no-cache musl-dev protobuf-dev git
+
+WORKDIR /src
+RUN git clone --depth 1 https://github.com/osrg/rustybgp.git . && \
+    cargo build --release
+
+FROM alpine:3.21
+
+RUN apk add --no-cache tini
+
+COPY --from=builder /src/target/release/rustybgpd /usr/local/bin/rustybgpd
+
+ENTRYPOINT ["tini", "--", "rustybgpd"]
+CMD ["-f", "/etc/rustybgp/config.toml"]
