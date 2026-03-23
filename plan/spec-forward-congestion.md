@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-forward-backpressure, spec-prefix maximum |
-| Phase | - |
-| Updated | 2026-03-22 |
+| Phase | 1/4 |
+| Updated | 2026-03-23 |
 
 ## Post-Compaction Recovery
 

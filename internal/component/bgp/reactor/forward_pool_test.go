@@ -818,3 +818,253 @@ func TestFwdPool_DrainOverflowDirectProcess(t *testing.T) {
 		return processed.Load() >= 11
 	}, 2*time.Second, time.Millisecond, "all items including overflow direct-processed should complete")
 }
+
+// TestFwdPool_OverflowUsesPool verifies overflow items acquire tokens from
+// the global overflow pool and return them after processing.
+//
+// VALIDATES: AC-1 (overflow stored in pool, never dropped)
+// PREVENTS: Overflow bypassing the bounded pool system.
+func TestFwdPool_OverflowUsesPool(t *testing.T) {
+	blocker := make(chan struct{})
+	var processed atomic.Int32
+
+	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		<-blocker
+		processed.Add(int32(len(items)))
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowPoolSize: 10})
+	defer pool.Stop()
+
+	key := fwdKey{peerAddr: "1.1.1.1"}
+
+	// Create worker (blocks in handler).
+	pool.Dispatch(key, fwdItem{})
+	time.Sleep(10 * time.Millisecond)
+
+	// Add 5 overflow items -- pool should track them.
+	// peer must be non-nil so items are not treated as sentinels (which skip pool acquire).
+	dummyPeer := &Peer{}
+	for range 5 {
+		pool.DispatchOverflow(key, fwdItem{done: func() {}, peer: dummyPeer})
+	}
+
+	// Pool should have 5 tokens acquired (10 total - 5 used = 5 available).
+	assert.Equal(t, 5, pool.overflowPool.available(),
+		"pool should have 5 tokens acquired")
+
+	// Unblock -- all items processed, tokens returned.
+	close(blocker)
+
+	require.Eventually(t, func() bool {
+		return pool.overflowPool.available() == 10
+	}, time.Second, time.Millisecond, "all pool tokens should be returned after processing")
+
+	require.Eventually(t, func() bool {
+		return processed.Load() >= 5
+	}, time.Second, time.Millisecond, "all overflow items should be processed")
+}
+
+// TestFwdPool_PeerDisconnectReturnsSlots verifies Stop returns all pool
+// tokens and calls done() for overflow items still queued at shutdown.
+//
+// VALIDATES: AC-7 (peer disconnect returns pool slots, done() called)
+// PREVENTS: Pool token leaks on peer disconnect or reactor shutdown.
+func TestFwdPool_PeerDisconnectReturnsSlots(t *testing.T) {
+	blocker := make(chan struct{})
+	var doneCalled atomic.Int32
+
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		<-blocker
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowPoolSize: 10})
+
+	key := fwdKey{peerAddr: "1.1.1.1"}
+
+	// Create worker (blocks in handler).
+	pool.Dispatch(key, fwdItem{})
+	time.Sleep(10 * time.Millisecond)
+
+	// Add overflow items with done callbacks.
+	// peer must be non-nil so items acquire pool tokens (nil peer = sentinel, skips pool).
+	dummyPeer := &Peer{}
+	for range 4 {
+		pool.DispatchOverflow(key, fwdItem{
+			done: func() { doneCalled.Add(1) },
+			peer: dummyPeer,
+		})
+	}
+
+	// Verify tokens were acquired.
+	assert.Equal(t, 6, pool.overflowPool.available(),
+		"4 tokens should be acquired (10 - 4 = 6 available)")
+
+	// Stop simulates shutdown -- should return all tokens and call done().
+	close(blocker)
+	pool.Stop()
+
+	assert.GreaterOrEqual(t, int(doneCalled.Load()), 4,
+		"done must be called for all overflow items")
+	assert.Equal(t, 10, pool.overflowPool.available(),
+		"all pool tokens must be returned after Stop")
+}
+
+// TestFwdPool_PoolExhausted verifies that when the overflow pool is exhausted,
+// items are still accepted (unbounded fallback) and never dropped.
+// Pool tokens are returned only for the items that acquired them.
+//
+// VALIDATES: AC-11 (memory bounded by pool size, graceful fallback)
+// PREVENTS: Panic or route drop when pool is exhausted.
+func TestFwdPool_PoolExhausted(t *testing.T) {
+	blocker := make(chan struct{})
+	var processed atomic.Int32
+
+	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		<-blocker
+		processed.Add(int32(len(items)))
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowPoolSize: 5})
+	defer pool.Stop()
+
+	key := fwdKey{peerAddr: "1.1.1.1"}
+
+	// Create worker (blocks in handler).
+	pool.Dispatch(key, fwdItem{})
+	time.Sleep(10 * time.Millisecond)
+
+	// Add 8 overflow items -- first 5 use pool, last 3 are fallback.
+	// peer must be non-nil so items acquire pool tokens (nil peer = sentinel, skips pool).
+	dummyPeer := &Peer{}
+	for range 8 {
+		ok := pool.DispatchOverflow(key, fwdItem{done: func() {}, peer: dummyPeer})
+		require.True(t, ok, "DispatchOverflow must never reject items")
+	}
+
+	// Pool fully exhausted.
+	assert.Equal(t, 0, pool.overflowPool.available(),
+		"pool should be fully exhausted")
+
+	// Unblock and verify all 8 items processed (none dropped).
+	close(blocker)
+
+	require.Eventually(t, func() bool {
+		return processed.Load() >= 8
+	}, time.Second, time.Millisecond, "all items including fallback must be processed")
+
+	// Pool tokens for the 5 pooled items should be returned.
+	require.Eventually(t, func() bool {
+		return pool.overflowPool.available() == 5
+	}, time.Second, time.Millisecond, "pooled tokens should be returned after processing")
+}
+
+// TestFwdOverflowPool_DoubleRelease verifies the release() default branch
+// detects and handles a double-release (more releases than acquires).
+//
+// VALIDATES: release() error detection branch
+// PREVENTS: Silent token count corruption from lifecycle bugs.
+func TestFwdOverflowPool_DoubleRelease(t *testing.T) {
+	p := newFwdOverflowPool(3)
+	assert.Equal(t, 3, p.available())
+
+	// Acquire one token.
+	ok := p.acquire()
+	require.True(t, ok)
+	assert.Equal(t, 2, p.available())
+
+	// Release it -- back to 3.
+	p.release()
+	assert.Equal(t, 3, p.available())
+
+	// Double-release -- pool should NOT grow beyond size.
+	// The release() default branch logs an error and discards the extra token.
+	p.release()
+	assert.Equal(t, 3, p.available(), "pool must not exceed its size on double-release")
+}
+
+// TestFwdOverflowPool_ConcurrentAcquireRelease verifies token safety
+// under concurrent access from multiple goroutines.
+//
+// VALIDATES: channel-based semaphore goroutine safety
+// PREVENTS: Race conditions in acquire/release under concurrent load.
+func TestFwdOverflowPool_ConcurrentAcquireRelease(t *testing.T) {
+	const poolSize = 100
+	const goroutines = 50
+	const iterations = 100
+
+	p := newFwdOverflowPool(poolSize)
+
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for range goroutines {
+		go func() {
+			defer wg.Done()
+			for range iterations {
+				if p.acquire() {
+					// Simulate work.
+					p.release()
+				}
+			}
+		}()
+	}
+	wg.Wait()
+
+	assert.Equal(t, poolSize, p.available(),
+		"all tokens must be returned after concurrent acquire/release")
+}
+
+// TestFwdPool_DrainOverflowDirectProcessReleasesTokens verifies pool tokens
+// are returned when drainOverflow processes items directly (processDirect path)
+// instead of enqueuing them to the channel.
+//
+// VALIDATES: drainOverflow processDirect path releases pool tokens
+// PREVENTS: Token leaks when overflow items exceed channel capacity during drain.
+func TestFwdPool_DrainOverflowDirectProcessReleasesTokens(t *testing.T) {
+	var processed atomic.Int32
+
+	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		processed.Add(int32(len(items)))
+	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowPoolSize: 20})
+	defer pool.Stop()
+
+	key := fwdKey{peerAddr: "1.1.1.1"}
+
+	// Add many overflow items (more than channel capacity of 2).
+	// When drainOverflow runs, some enqueue to channel, rest are processed directly.
+	// peer must be non-nil so items acquire pool tokens (nil peer = sentinel, skips pool).
+	dummyPeer := &Peer{}
+	for range 10 {
+		pool.DispatchOverflow(key, fwdItem{done: func() {}, peer: dummyPeer})
+	}
+
+	// Trigger worker creation + processing.
+	pool.Dispatch(key, fwdItem{})
+
+	// All 11 items should be processed.
+	require.Eventually(t, func() bool {
+		return processed.Load() >= 11
+	}, 2*time.Second, time.Millisecond, "all items should be processed")
+
+	// All 10 pool tokens should be returned (regardless of channel vs direct path).
+	require.Eventually(t, func() bool {
+		return pool.overflowPool.available() == 20
+	}, time.Second, time.Millisecond, "all pool tokens must be returned")
+}
+
+// TestFwdPool_DispatchOverflowAfterStopWithPool verifies DispatchOverflow
+// on a stopped pool with overflow pool enabled: returns false, calls done(),
+// and does NOT consume a pool token.
+//
+// VALIDATES: DispatchOverflow stopped-pool path with pool enabled
+// PREVENTS: Pool token leaks when dispatching to a stopped pool.
+func TestFwdPool_DispatchOverflowAfterStopWithPool(t *testing.T) {
+	var doneCalled atomic.Int32
+
+	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+	}, fwdPoolConfig{chanSize: 4, idleTimeout: time.Second, overflowPoolSize: 10})
+	pool.Stop()
+
+	ok := pool.DispatchOverflow(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{
+		done: func() { doneCalled.Add(1) },
+	})
+
+	assert.False(t, ok, "DispatchOverflow must return false on stopped pool")
+	assert.Equal(t, int32(1), doneCalled.Load(), "done must be called on stopped pool")
+	assert.Equal(t, 10, pool.overflowPool.available(),
+		"no pool tokens should be consumed on stopped pool")
+}

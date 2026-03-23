@@ -310,7 +310,8 @@ func New(config *Config) *Reactor {
 	fwdChanSize := env.GetInt("ze.fwd.chan.size", 0)
 	// ze.fwd.pool.size bounds overflow items across all workers.
 	// Default: 100000 (~100K items). 0 = unbounded (legacy behavior).
-	fwdPoolSize := env.GetInt("ze.fwd.pool.size", 100000)
+	// Negative values treated as 0.
+	fwdPoolSize := max(env.GetInt("ze.fwd.pool.size", 100000), 0)
 
 	r := &Reactor{
 		config:          config,

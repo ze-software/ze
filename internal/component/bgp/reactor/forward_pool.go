@@ -32,6 +32,7 @@ type fwdItem struct {
 	updates   []*message.Update // Re-encode path: SendUpdate per entry
 	peer      *Peer             // Target peer for all operations
 	done      func()            // Called after all ops complete (Release cache entry)
+	pooled    bool              // Holds overflow pool token; MUST release after processing
 }
 
 // fwdWriteDeadlineDefault is the default TCP write deadline for forward pool
@@ -130,10 +131,63 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 	session.resetSendHoldTimer()
 }
 
+// fwdOverflowPoolMaxSize caps the overflow pool to prevent unbounded
+// allocation from misconfigured ze.fwd.pool.size values.
+const fwdOverflowPoolMaxSize = 10_000_000
+
+// fwdOverflowPool bounds the number of overflow items across all workers.
+// Sized at startup via ze.fwd.pool.size. When exhausted, DispatchOverflow
+// falls back to unbounded append and logs a warning. Layer 3/4 handle
+// escalation (read throttling, teardown).
+type fwdOverflowPool struct {
+	tokens    chan struct{}
+	size      int
+	exhausted atomic.Int64 // count of failed acquire() calls (for rate-limited logging)
+}
+
+func newFwdOverflowPool(size int) *fwdOverflowPool {
+	p := &fwdOverflowPool{
+		tokens: make(chan struct{}, size),
+		size:   size,
+	}
+	for range size {
+		p.tokens <- struct{}{}
+	}
+	return p
+}
+
+// acquire attempts to take a pool token (non-blocking).
+// Returns true if a token was acquired, false if the pool is exhausted.
+// Caller MUST call release() exactly once after processing the item.
+func (p *fwdOverflowPool) acquire() bool {
+	select {
+	case <-p.tokens:
+		return true
+	default: // pool exhausted — non-blocking, caller handles fallback
+		return false
+	}
+}
+
+// release returns a pool token. MUST be called exactly once per successful acquire().
+// Logs an error on double-release (more releases than acquires), which indicates
+// a bug in token lifecycle management.
+func (p *fwdOverflowPool) release() {
+	select {
+	case p.tokens <- struct{}{}:
+	default: // bug: more releases than acquires — pool was never this large
+		fwdLogger().Error("overflow pool double-release")
+	}
+}
+
+// available returns the number of free tokens. This is a point-in-time snapshot
+// and may be stale by the time the caller acts on it. Use for diagnostics only.
+func (p *fwdOverflowPool) available() int { return len(p.tokens) }
+
 // fwdPoolConfig holds configuration for a fwdPool.
 type fwdPoolConfig struct {
-	chanSize    int
-	idleTimeout time.Duration
+	chanSize         int
+	idleTimeout      time.Duration
+	overflowPoolSize int // 0 = unbounded (legacy); >0 = bounded overflow pool
 }
 
 // fwdWorker is a single long-lived goroutine processing items for one destination peer.
@@ -186,9 +240,13 @@ type fwdPool struct {
 	// worker goroutine (onResumed). Must not block.
 	onCongested func(peerAddr string) // Called on false->true transition
 	onResumed   func(peerAddr string) // Called on true->false transition
+
+	// overflowPool bounds overflow items across all workers (nil = unbounded).
+	overflowPool *fwdOverflowPool
 }
 
 // newFwdPool creates a new forward pool with the given handler and configuration.
+// Caller MUST call Stop when done to drain workers and release resources.
 func newFwdPool(handler func(fwdKey, []fwdItem), cfg fwdPoolConfig) *fwdPool {
 	if cfg.chanSize <= 0 {
 		cfg.chanSize = 64
@@ -196,13 +254,25 @@ func newFwdPool(handler func(fwdKey, []fwdItem), cfg fwdPoolConfig) *fwdPool {
 	if cfg.idleTimeout <= 0 {
 		cfg.idleTimeout = 5 * time.Second
 	}
-	return &fwdPool{
+	fp := &fwdPool{
 		workers: make(map[fwdKey]*fwdWorker),
 		handler: handler,
 		cfg:     cfg,
 		clock:   clock.RealClock{},
 		stopCh:  make(chan struct{}),
 	}
+	if cfg.overflowPoolSize > 0 {
+		poolSize := cfg.overflowPoolSize
+		if poolSize > fwdOverflowPoolMaxSize {
+			fwdLogger().Warn("overflow pool size capped at maximum",
+				"configured", poolSize,
+				"max", fwdOverflowPoolMaxSize,
+			)
+			poolSize = fwdOverflowPoolMaxSize
+		}
+		fp.overflowPool = newFwdOverflowPool(poolSize)
+	}
+	return fp
 }
 
 // SetClock sets the clock used for worker idle timers.
@@ -330,6 +400,26 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 	}
 	fp.mu.Unlock()
 
+	// Acquire overflow pool token if pool exists.
+	// Skip for sentinel items (peer == nil) — they carry no route data
+	// and should not consume pool capacity meant for real updates.
+	if fp.overflowPool != nil && item.peer != nil {
+		if fp.overflowPool.acquire() {
+			item.pooled = true
+		} else {
+			// Pool exhausted — fall back to unbounded append.
+			// Layer 3 (read throttling) and Layer 4 (teardown) handle escalation.
+			// Rate-limited: log at thresholds to avoid flooding under sustained pressure.
+			if n := fp.overflowPool.exhausted.Add(1); n == 1 || n == 100 || n == 10000 || n == 100000 {
+				fwdLogger().Warn("overflow pool exhausted, unbounded fallback",
+					"peer", key.peerAddr,
+					"pool_size", fp.overflowPool.size,
+					"exhausted_total", n,
+				)
+			}
+		}
+	}
+
 	w.overflowMu.Lock()
 	w.overflow = append(w.overflow, item)
 
@@ -389,13 +479,17 @@ func (fp *fwdPool) Stop() {
 	}
 	fp.mu.Unlock()
 
-	// Fire done callbacks for all overflow items before closing channels.
-	// Workers won't process these since we're about to close their channels.
+	// Fire done callbacks and release pool tokens for all overflow items
+	// before closing channels. Workers won't process these since we're
+	// about to close their channels.
 	for _, w := range all {
 		w.overflowMu.Lock()
 		for _, item := range w.overflow {
 			if item.done != nil {
 				item.done()
+			}
+			if item.pooled && fp.overflowPool != nil {
+				fp.overflowPool.release()
 			}
 		}
 		w.overflow = nil
@@ -424,6 +518,9 @@ func (fp *fwdPool) safeBatchHandle(key fwdKey, items []fwdItem) {
 		for i := range items {
 			if items[i].done != nil {
 				items[i].done()
+			}
+			if items[i].pooled && fp.overflowPool != nil { // nil check is defensive — pooled is only set when pool exists
+				fp.overflowPool.release()
 			}
 		}
 	}()
@@ -555,9 +652,18 @@ func (fp *fwdPool) drainOverflow(key fwdKey, w *fwdWorker) {
 	w.overflowMu.Unlock()
 
 	// Try to enqueue overflow items into the channel.
-	// If channel is full, process remaining items directly as a batch.
+	// If channel is full or pool is stopping, process remaining directly.
+	// The stopCh check prevents send-on-closed-channel panic: Stop closes
+	// stopCh (step 1) well before closing w.ch (step 5), so if stopCh is
+	// closed, w.ch may be about to close — fall through to processDirect.
 	var remaining []fwdItem
 	for i, item := range items {
+		select {
+		case <-fp.stopCh: // pool stopping — don't risk send on closing channel
+			remaining = items[i:]
+			goto processDirect
+		default: // not stopping — safe to attempt enqueue
+		}
 		select {
 		case w.ch <- item:
 			// Enqueued successfully — worker loop will process it.
