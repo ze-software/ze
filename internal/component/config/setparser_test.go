@@ -673,3 +673,81 @@ func TestPreviousQuoteEscapeRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+// TestParseInlineArgs verifies schema-driven inline arg parsing.
+//
+// VALIDATES: ParseInlineArgs builds correct Tree from flat token sequence.
+// PREVENTS: Schema-driven parsing silently dropping or misplacing values.
+func TestParseInlineArgs(t *testing.T) {
+	schema := YANGSchema()
+	require.NotNil(t, schema)
+
+	peerNode, err := schema.Lookup("bgp.peer")
+	require.NoError(t, err)
+
+	tree, err := ParseInlineArgs(peerNode, []string{
+		"remote", "as", "65001",
+		"local", "as", "65000",
+		"hold-time", "90",
+		"connection", "passive",
+	})
+	require.NoError(t, err)
+
+	m := tree.ToMap()
+
+	// Verify container fields
+	remote, ok := m["remote"].(map[string]any)
+	require.True(t, ok, "remote should be a map")
+	assert.Equal(t, "65001", remote["as"])
+
+	local, ok := m["local"].(map[string]any)
+	require.True(t, ok, "local should be a map")
+	assert.Equal(t, "65000", local["as"])
+
+	// Verify leaf fields
+	assert.Equal(t, "90", m["hold-time"])
+	assert.Equal(t, "passive", m["connection"])
+}
+
+// TestParseInlineArgsListNode verifies list-type fields are handled.
+//
+// VALIDATES: ParseInlineArgs handles NodeList (key + field + value).
+// PREVENTS: List-type YANG nodes rejected as unsupported.
+func TestParseInlineArgsListNode(t *testing.T) {
+	schema := YANGSchema()
+	require.NotNil(t, schema)
+
+	peerNode, err := schema.Lookup("bgp.peer")
+	require.NoError(t, err)
+
+	tree, err := ParseInlineArgs(peerNode, []string{
+		"remote", "as", "65001",
+		"family", "ipv4/unicast", "mode", "enable",
+	})
+	require.NoError(t, err)
+
+	m := tree.ToMap()
+
+	// Verify list entry
+	familyMap, ok := m["family"].(map[string]any)
+	require.True(t, ok, "family should be a map")
+	entry, ok := familyMap["ipv4/unicast"].(map[string]any)
+	require.True(t, ok, "ipv4/unicast entry should be a map")
+	assert.Equal(t, "enable", entry["mode"])
+}
+
+// TestParseInlineArgsUnknownKey verifies unknown keys are rejected.
+//
+// VALIDATES: ParseInlineArgs rejects keys not in the schema.
+// PREVENTS: Typos silently accepted.
+func TestParseInlineArgsUnknownKey(t *testing.T) {
+	schema := YANGSchema()
+	require.NotNil(t, schema)
+
+	peerNode, err := schema.Lookup("bgp.peer")
+	require.NoError(t, err)
+
+	_, err = ParseInlineArgs(peerNode, []string{"bogus-key", "value"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown option")
+}

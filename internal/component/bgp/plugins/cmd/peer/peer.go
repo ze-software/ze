@@ -273,155 +273,48 @@ func parseUint(s string) (uint64, error) {
 	return strconv.ParseUint(s, 10, 64)
 }
 
-// HandleBgpPeerAdd handles "set bgp peer <ip> add asn <asn> [options...]" command.
-// Adds a peer dynamically at runtime.
-//
-// Options:
-//
-//	asn <asn>           - Required: peer AS number
-//	local-as <asn>      - Optional: local AS (default: reactor's LocalAS)
-//	local-ip <ip>       - Optional: local IP for this session
-//	router-id <id>      - Optional: router ID (default: reactor's RouterID)
-//	hold-time <seconds> - Optional: hold time in seconds (default: 90)
-//	passive             - Optional: listen-only mode (no outgoing connections)
-func HandleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
-	_, errResp, err := pluginserver.RequireReactor(ctx)
-	if err != nil {
-		return errResp, err
-	}
-
-	// Parse peer address from context (extracted by dispatcher)
-	peer := ctx.PeerSelector()
-	if peer == "*" || peer == "" {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Data:   "add requires specific peer: peer <ip> add asn <asn>",
-		}, fmt.Errorf("no peer specified")
-	}
-
-	addr, err := netip.ParseAddr(peer)
-	if err != nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("invalid peer address: %s", peer),
-		}, fmt.Errorf("invalid peer address %s: %w", peer, err)
-	}
-
-	// Parse options
-	config := plugin.DynamicPeerConfig{Address: addr}
-
-	for i := 0; i < len(args); i++ {
-		switch strings.ToLower(args[i]) {
-		case "asn":
-			if i+1 >= len(args) {
-				return &plugin.Response{Status: plugin.StatusError, Data: "missing value for asn"}, fmt.Errorf("missing asn value")
-			}
-			i++
-			asn, err := parseUint(args[i])
-			if err != nil {
-				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid asn: %s", args[i])}, fmt.Errorf("invalid asn %s: %w", args[i], err)
-			}
-			if asn > 0xFFFFFFFF {
-				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid asn: %s (out of range)", args[i])}, fmt.Errorf("asn out of range: %d", asn)
-			}
-			config.PeerAS = uint32(asn)
-
-		case "local-as":
-			if i+1 >= len(args) {
-				return &plugin.Response{Status: plugin.StatusError, Data: "missing value for local-as"}, fmt.Errorf("missing local-as value")
-			}
-			i++
-			asn, err := parseUint(args[i])
-			if err != nil {
-				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid local-as: %s", args[i])}, fmt.Errorf("invalid local-as %s: %w", args[i], err)
-			}
-			if asn > 0xFFFFFFFF {
-				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid local-as: %s (out of range)", args[i])}, fmt.Errorf("local-as out of range: %d", asn)
-			}
-			config.LocalAS = uint32(asn)
-
-		case "local-ip":
-			if i+1 >= len(args) {
-				return &plugin.Response{Status: plugin.StatusError, Data: "missing value for local-ip"}, fmt.Errorf("missing local-ip value")
-			}
-			i++
-			localAddr, err := netip.ParseAddr(args[i])
-			if err != nil {
-				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid local-ip: %s", args[i])}, fmt.Errorf("invalid local-ip %s: %w", args[i], err)
-			}
-			config.LocalAddress = localAddr
-
-		case "router-id":
-			if i+1 >= len(args) {
-				return &plugin.Response{Status: plugin.StatusError, Data: "missing value for router-id"}, fmt.Errorf("missing router-id value")
-			}
-			i++
-			rid, err := parseRouterID(args[i])
-			if err != nil {
-				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid router-id: %s", args[i])}, fmt.Errorf("invalid router-id %s: %w", args[i], err)
-			}
-			config.RouterID = rid
-
-		case "hold-time":
-			if i+1 >= len(args) {
-				return &plugin.Response{Status: plugin.StatusError, Data: "missing value for hold-time"}, fmt.Errorf("missing hold-time value")
-			}
-			i++
-			seconds, err := parseUint(args[i])
-			if err != nil {
-				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid hold-time: %s", args[i])}, fmt.Errorf("invalid hold-time %s: %w", args[i], err)
-			}
-			// RFC 4271: hold time 0 is valid (no keepalives), 3-65535 are valid
-			// Cap at reasonable maximum to prevent overflow (1 day = 86400s)
-			const maxHoldTime = 86400
-			if seconds > maxHoldTime {
-				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("hold-time too large: %d (max %d)", seconds, maxHoldTime)}, fmt.Errorf("hold-time out of range: %d (max %d)", seconds, maxHoldTime)
-			}
-			config.HoldTime = time.Duration(seconds) * time.Second
-
-		case "connection":
-			if i+1 >= len(args) {
-				return &plugin.Response{Status: plugin.StatusError, Data: "connection requires a value (both, passive, active)"}, fmt.Errorf("missing connection value")
-			}
-			i++
-			v := args[i] //nolint:gosec // bounds checked by i+1 >= len(args) guard above
-			if v != "both" && v != "passive" && v != "active" {
-				return &plugin.Response{Status: plugin.StatusError, Data: fmt.Sprintf("invalid connection mode: %s", v)}, fmt.Errorf("invalid connection mode: %s", v)
-			}
-			config.Connection = v
-
-		default: // unknown option -> return error
-			return &plugin.Response{
-				Status: plugin.StatusError,
-				Data:   fmt.Sprintf("unknown option: %s", args[i]),
-			}, fmt.Errorf("unknown option: %s", args[i])
-		}
-	}
-
-	// Validate required fields
-	if config.PeerAS == 0 {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Data:   "asn is required: peer <ip> add asn <asn>",
-		}, fmt.Errorf("missing required asn")
-	}
-
-	// Add peer via reactor
-	if err := ctx.Reactor().AddDynamicPeer(config); err != nil {
-		return &plugin.Response{
-			Status: plugin.StatusError,
-			Data:   fmt.Sprintf("failed to add peer: %v", err),
-		}, fmt.Errorf("add peer %s: %w", addr, err)
-	}
-
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data: map[string]any{
-			"peer":    addr.String(),
-			"asn":     config.PeerAS,
-			"message": "peer added",
+// HandleBgpPeerWith handles "set bgp peer <ip> with <config>" command.
+// Delegates to pluginserver.HandleNodeWith with peer-specific validation and apply.
+func HandleBgpPeerWith(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	return pluginserver.HandleNodeWith(ctx, args, "bgp.peer", "peer", preparePeerTree,
+		func(selector string, tree map[string]any) error {
+			addr, _ := netip.ParseAddr(selector) // already validated in preparePeerTree
+			return ctx.Reactor().AddDynamicPeer(addr, tree)
 		},
-	}, nil
+	)
+}
+
+// preparePeerTree validates and injects peer-specific defaults into the parsed tree.
+// selector is the peer IP from the dispatcher; nodeTree is the YANG-parsed config.
+func preparePeerTree(selector string, nodeTree map[string]any) (*plugin.Response, error) {
+	addr, err := netip.ParseAddr(selector)
+	if err != nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Data:   fmt.Sprintf("invalid peer address: %s", selector),
+		}, fmt.Errorf("invalid peer address %s: %w", selector, err)
+	}
+
+	// Validate required remote as and inject remote.ip from selector.
+	remote, ok := nodeTree["remote"].(map[string]any)
+	if !ok || remote["as"] == nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Data:   "remote as is required: set bgp peer <ip> with remote as <asn>",
+		}, fmt.Errorf("missing required remote as")
+	}
+	remote["ip"] = addr.String()
+
+	// Inject local.ip = "auto" if not set (parsePeerFromTree requires it).
+	if local, ok := nodeTree["local"].(map[string]any); ok {
+		if _, hasIP := local["ip"]; !hasIP {
+			local["ip"] = "auto"
+		}
+	} else {
+		nodeTree["local"] = map[string]any{"ip": "auto"}
+	}
+
+	return nil, nil //nolint:nilnil // success
 }
 
 // HandleBgpPeerRemove handles "del bgp peer <ip>" command.

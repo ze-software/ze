@@ -54,9 +54,9 @@ func (m *mockReactor) ResumePeer(_ netip.Addr) error { return nil }
 func (m *mockReactor) FlushForwardPool(_ context.Context) error               { return nil }
 func (m *mockReactor) FlushForwardPoolPeer(_ context.Context, _ string) error { return nil }
 
-func (m *mockReactor) TeardownPeer(_ netip.Addr, _ uint8, _ string) error { return nil }
-func (m *mockReactor) AddDynamicPeer(_ plugin.DynamicPeerConfig) error    { return nil }
-func (m *mockReactor) RemovePeer(_ netip.Addr) error                      { return nil }
+func (m *mockReactor) TeardownPeer(_ netip.Addr, _ uint8, _ string) error  { return nil }
+func (m *mockReactor) RemovePeer(_ netip.Addr) error                       { return nil }
+func (m *mockReactor) AddDynamicPeer(_ netip.Addr, _ map[string]any) error { return nil }
 
 // BGP reactor stubs.
 func (m *mockReactor) AnnounceEOR(_ string, _ uint16, _ uint8) error { return nil }

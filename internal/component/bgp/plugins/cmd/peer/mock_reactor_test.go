@@ -39,10 +39,11 @@ type mockReactor struct {
 		subcode uint8
 		message string
 	}
-	addedPeers   []plugin.DynamicPeerConfig
-	removedPeers []netip.Addr
-	pausedPeers  []netip.Addr
-	resumedPeers []netip.Addr
+	configTree     map[string]any   // returned by GetConfigTree
+	appliedConfigs []map[string]any // captured by ApplyConfigDiff
+	removedPeers   []netip.Addr
+	pausedPeers    []netip.Addr
+	resumedPeers   []netip.Addr
 
 	// NLRI batch tracking (used by update_wire integration tests)
 	announcedBatches []struct {
@@ -65,18 +66,21 @@ type mockReactor struct {
 	}
 }
 
-func (m *mockReactor) Peers() []plugin.PeerInfo                                        { return m.peers }
-func (m *mockReactor) Stats() plugin.ReactorStats                                      { return m.stats }
-func (m *mockReactor) Stop()                                                           {}
-func (m *mockReactor) Reload() error                                                   { return nil }
-func (m *mockReactor) VerifyConfig(_ map[string]any) error                             { return nil }
-func (m *mockReactor) ApplyConfigDiff(_ map[string]any) error                          { return nil }
+func (m *mockReactor) Peers() []plugin.PeerInfo            { return m.peers }
+func (m *mockReactor) Stats() plugin.ReactorStats          { return m.stats }
+func (m *mockReactor) Stop()                               {}
+func (m *mockReactor) Reload() error                       { return nil }
+func (m *mockReactor) VerifyConfig(_ map[string]any) error { return nil }
+func (m *mockReactor) ApplyConfigDiff(tree map[string]any) error {
+	m.appliedConfigs = append(m.appliedConfigs, tree)
+	return nil
+}
 func (m *mockReactor) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding { return nil }
 func (m *mockReactor) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig         { return nil }
 func (m *mockReactor) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
 	return m.peerCaps
 }
-func (m *mockReactor) GetConfigTree() map[string]any          { return nil }
+func (m *mockReactor) GetConfigTree() map[string]any          { return m.configTree }
 func (m *mockReactor) SetConfigTree(_ map[string]any)         {}
 func (m *mockReactor) SignalAPIReady()                        {}
 func (m *mockReactor) AddAPIProcessCount(_ int)               {}
@@ -107,13 +111,13 @@ func (m *mockReactor) TeardownPeer(addr netip.Addr, subcode uint8, shutdownMsg s
 	return nil
 }
 
-func (m *mockReactor) AddDynamicPeer(config plugin.DynamicPeerConfig) error {
-	m.addedPeers = append(m.addedPeers, config)
+func (m *mockReactor) RemovePeer(addr netip.Addr) error {
+	m.removedPeers = append(m.removedPeers, addr)
 	return nil
 }
 
-func (m *mockReactor) RemovePeer(addr netip.Addr) error {
-	m.removedPeers = append(m.removedPeers, addr)
+func (m *mockReactor) AddDynamicPeer(addr netip.Addr, tree map[string]any) error {
+	m.appliedConfigs = append(m.appliedConfigs, tree)
 	return nil
 }
 

@@ -1,4 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
+// Related: node_with.go — generic "set X with" handler
 
 package server
 

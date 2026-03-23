@@ -22,7 +22,6 @@ type mockReactor struct {
 		subcode uint8
 		message string
 	}
-	addedPeers   []plugin.DynamicPeerConfig
 	removedPeers []netip.Addr
 }
 
@@ -71,15 +70,12 @@ func (m *mockReactor) ApplyConfigDiff(_ map[string]any) error {
 	return nil
 }
 
-func (m *mockReactor) AddDynamicPeer(config plugin.DynamicPeerConfig) error {
-	m.addedPeers = append(m.addedPeers, config)
-	return nil
-}
-
 func (m *mockReactor) RemovePeer(addr netip.Addr) error {
 	m.removedPeers = append(m.removedPeers, addr)
 	return nil
 }
+
+func (m *mockReactor) AddDynamicPeer(_ netip.Addr, _ map[string]any) error { return nil }
 
 func (m *mockReactor) GetConfigTree() map[string]any {
 	return nil

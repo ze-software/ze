@@ -34,7 +34,7 @@ def main():
     time.sleep(1.0)
 
     try:
-        result = dispatch(api, 'set bgp peer 10.0.0.1 with asn 2 local-as 1')
+        result = dispatch(api, 'set bgp peer 10.0.0.1 with remote as 2 local as 1')
         if result.get('status') != 'done':
             print(f'FAIL: add status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)

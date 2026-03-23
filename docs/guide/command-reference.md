@@ -475,7 +475,27 @@ Many commands take a `peer <selector>` argument:
 |---------|--------|---------|
 | `set bgp peer <sel> with <config>` | write | Create peer with configuration |
 | `set bgp peer <sel> save` | write | Save running peers to config |
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- set peer handlers -->
+
+#### Peer Config Keys
+
+Config keys match the YANG peer-fields structure. Container prefixes (`remote`, `local`) scope sub-keys.
+
+| Key | Value | Required | Description |
+|-----|-------|----------|-------------|
+| `remote as` | ASN (uint32) | Yes | Peer AS number |
+| `local as` | ASN (uint32) | No | Local AS override |
+| `local ip` | IP address | No | Local IP for this session |
+| `router-id` | IPv4 address | No | Router ID override |
+| `hold-time` | seconds (0-86400) | No | Hold time (default: 90) |
+| `connection` | both/passive/active | No | TCP connection mode |
+| `description` | text | No | Peer description |
+| `link-local` | IPv6 address | No | Link-local next-hop |
+| `port` | 1-65535 | No | Per-peer listen port |
+| `group-updates` | enable/disable | No | UPDATE grouping |
+
+Example: `set bgp peer 10.0.0.1 with remote as 65001 local as 65000 hold-time 90 connection passive`
+
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- HandleBgpPeerWith config-syntax parser -->
 
 ### Del Commands
 

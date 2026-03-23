@@ -67,18 +67,6 @@ type ReactorStats struct {
 	LocalAS   uint32 // Local AS number
 }
 
-// DynamicPeerConfig contains minimal configuration for adding a peer dynamically.
-// Used by "peer <ip> add" command to add peers at runtime.
-type DynamicPeerConfig struct {
-	Address      netip.Addr    // Peer IP address (required)
-	PeerAS       uint32        // Peer AS number (required)
-	LocalAS      uint32        // Local AS number (optional, use reactor default if 0)
-	LocalAddress netip.Addr    // Local IP for this session (optional)
-	RouterID     uint32        // Router ID (optional, use reactor default if 0)
-	HoldTime     time.Duration // Hold time (optional, use default if 0)
-	Connection   string        // Connection mode: "both" (default), "passive", "active"
-}
-
 // PeerCapabilitiesInfo holds negotiated and configured capability data for API display.
 type PeerCapabilitiesInfo struct {
 	Families             []string          // Negotiated address families (e.g., "ipv4/unicast")
@@ -126,8 +114,10 @@ type ReactorPeerController interface {
 	// Used by flow control to release backpressure when a plugin's worker pool drains.
 	ResumePeer(addr netip.Addr) error
 
-	// AddDynamicPeer adds a peer with the given configuration.
-	AddDynamicPeer(config DynamicPeerConfig) error
+	// AddDynamicPeer adds a peer from a YANG-parsed config tree.
+	// The addr is from the peer selector; tree is the peer-fields config.
+	// Calls parsePeerFromTree directly (not the reload pipeline).
+	AddDynamicPeer(addr netip.Addr, tree map[string]any) error
 
 	// RemovePeer removes a peer by address.
 	RemovePeer(addr netip.Addr) error

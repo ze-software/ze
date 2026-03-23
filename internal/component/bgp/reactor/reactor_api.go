@@ -647,15 +647,14 @@ func (a *reactorAPIAdapter) FlushForwardPoolPeer(ctx context.Context, addr strin
 	return a.r.fwdPool.BarrierPeer(ctx, addr)
 }
 
-// AddDynamicPeer adds a peer with the given configuration.
-// Delegates to reactor's AddDynamicPeer which handles defaults.
-func (a *reactorAPIAdapter) AddDynamicPeer(config plugin.DynamicPeerConfig) error {
-	return a.r.AddDynamicPeer(config)
-}
-
 // RemovePeer removes a peer by address.
 func (a *reactorAPIAdapter) RemovePeer(addr netip.Addr) error {
 	return a.r.RemovePeer(addr)
+}
+
+// AddDynamicPeer adds a peer from a YANG-parsed config tree.
+func (a *reactorAPIAdapter) AddDynamicPeer(addr netip.Addr, tree map[string]any) error {
+	return a.r.AddDynamicPeer(addr, tree)
 }
 
 // RIBInRoutes returns routes from Adj-RIB-In.

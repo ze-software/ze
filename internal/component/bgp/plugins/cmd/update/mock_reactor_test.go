@@ -37,7 +37,6 @@ type mockReactor struct {
 		subcode uint8
 		message string
 	}
-	addedPeers   []plugin.DynamicPeerConfig
 	removedPeers []netip.Addr
 	pausedPeers  []netip.Addr
 	resumedPeers []netip.Addr
@@ -105,15 +104,12 @@ func (m *mockReactor) TeardownPeer(addr netip.Addr, subcode uint8, shutdownMsg s
 	return nil
 }
 
-func (m *mockReactor) AddDynamicPeer(config plugin.DynamicPeerConfig) error {
-	m.addedPeers = append(m.addedPeers, config)
-	return nil
-}
-
 func (m *mockReactor) RemovePeer(addr netip.Addr) error {
 	m.removedPeers = append(m.removedPeers, addr)
 	return nil
 }
+
+func (m *mockReactor) AddDynamicPeer(_ netip.Addr, _ map[string]any) error { return nil }
 
 // BGP reactor stubs (not tracked unless needed).
 func (m *mockReactor) AnnounceEOR(_ string, _ uint16, _ uint8) error { return nil }

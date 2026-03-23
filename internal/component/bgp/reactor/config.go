@@ -27,6 +27,7 @@ const (
 	valDisable = "disable"
 	valRequire = "require"
 	valRefuse  = "refuse"
+	valAuto    = "auto" // local ip "auto" = use system default
 )
 
 // parsePeerFromTree parses a peer's settings from a flattened config tree.
@@ -119,7 +120,7 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 	if localAddrStr == "" {
 		return nil, fmt.Errorf("peer %s: local ip is required (use IP address or \"auto\")", name)
 	}
-	if localAddrStr != "auto" {
+	if localAddrStr != valAuto {
 		la, err := netip.ParseAddr(localAddrStr)
 		if err != nil {
 			return nil, fmt.Errorf("peer %s: invalid local ip: %w", name, err)

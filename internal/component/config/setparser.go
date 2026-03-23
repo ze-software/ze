@@ -2,6 +2,7 @@
 // Related: parser.go — config parser core
 // Related: serialize_set.go — set-format serialization (inverse of this file)
 // Related: meta.go — MetaTree for metadata-aware parsing
+// Detail: setparser_inline.go — inline arg parsing (ParseInlineArgs)
 
 package config
 
@@ -910,3 +911,5 @@ func (p *SetParser) walkAndSetInlineListEntry(tree *Tree, il *InlineListNode, na
 	}
 	return p.walkAndSet(entry, il, tokens, lineNum)
 }
+
+// Inline arg parsing moved to setparser_inline.go

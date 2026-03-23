@@ -1149,8 +1149,8 @@ func (m *mockReactorBatch) Stop()                                               
 func (m *mockReactorBatch) Reload() error                                          { return nil }
 func (m *mockReactorBatch) VerifyConfig(_ map[string]any) error                    { return nil }
 func (m *mockReactorBatch) ApplyConfigDiff(_ map[string]any) error                 { return nil }
-func (m *mockReactorBatch) AddDynamicPeer(_ plugin.DynamicPeerConfig) error        { return nil }
 func (m *mockReactorBatch) RemovePeer(_ netip.Addr) error                          { return nil }
+func (m *mockReactorBatch) AddDynamicPeer(_ netip.Addr, _ map[string]any) error    { return nil }
 func (m *mockReactorBatch) TeardownPeer(_ netip.Addr, _ uint8, _ string) error     { return nil }
 func (m *mockReactorBatch) PausePeer(_ netip.Addr) error                           { return nil }
 func (m *mockReactorBatch) ResumePeer(_ netip.Addr) error                          { return nil }
