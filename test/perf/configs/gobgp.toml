@@ -1,0 +1,28 @@
+[global.config]
+  as = 65000
+  router-id = "172.31.0.5"
+  port = 179
+
+[global.apply-policy.config]
+  default-import-policy = "accept-route"
+  default-export-policy = "accept-route"
+
+[[neighbors]]
+  [neighbors.config]
+    neighbor-address = "172.31.0.10"
+    peer-as = 65001
+  [neighbors.transport.config]
+    passive-mode = true
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-unicast"
+
+[[neighbors]]
+  [neighbors.config]
+    neighbor-address = "172.31.0.11"
+    peer-as = 65002
+  [neighbors.transport.config]
+    passive-mode = true
+  [[neighbors.afi-safis]]
+    [neighbors.afi-safis.config]
+      afi-safi-name = "ipv4-unicast"

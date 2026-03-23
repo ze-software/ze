@@ -297,6 +297,132 @@ ze env get <key>                 # Show single env var
 | `-v`, `--verbose` | Verbose output (list) |
 <!-- source: cmd/ze/environ/main.go -- Run -->
 
+### ze-perf
+
+BGP propagation latency benchmark tool. Separate binary from `ze`.
+
+<!-- source: cmd/ze-perf/main.go -- ze-perf CLI entry point -->
+
+```
+ze-perf <command> [flags]
+```
+
+| Command | Purpose |
+|---------|---------|
+| `run` | Run benchmark against a BGP DUT |
+| `report` | Generate comparison report from result files |
+| `track` | Track performance history and detect regressions |
+
+#### ze-perf run
+
+Run a BGP propagation benchmark against a device under test (DUT). Establishes
+sender and receiver sessions with the DUT, injects routes from the sender, and
+measures how quickly they propagate through to the receiver.
+
+<!-- source: cmd/ze-perf/run.go -- run subcommand -->
+
+```
+ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000
+ze-perf run --dut-addr 172.31.0.5 --dut-asn 65000 --dut-name gobgp --routes 10000 --json
+ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --family ipv6/unicast
+ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --force-mp --repeat 10
+```
+
+**DUT flags:**
+
+| Flag | Type | Default | Purpose |
+|------|------|---------|---------|
+| `--dut-addr` | string | (required) | DUT BGP address |
+| `--dut-port` | int | 179 | DUT BGP port |
+| `--dut-asn` | int | (required) | DUT autonomous system number |
+| `--dut-name` | string | `unknown` | DUT implementation name (appears in results) |
+| `--dut-version` | string | | DUT version string |
+
+**Sender/receiver flags:**
+
+| Flag | Type | Default | Purpose |
+|------|------|---------|---------|
+| `--sender-addr` | string | `127.0.0.1` | Sender local address |
+| `--sender-asn` | int | `65001` | Sender autonomous system number |
+| `--receiver-addr` | string | `127.0.0.2` | Receiver local address |
+| `--receiver-asn` | int | `65002` | Receiver autonomous system number |
+
+**Benchmark flags:**
+
+| Flag | Type | Default | Purpose |
+|------|------|---------|---------|
+| `--routes` | int | `1000` | Number of routes to inject |
+| `--family` | string | `ipv4/unicast` | Address family (`ipv4/unicast` or `ipv6/unicast`) |
+| `--force-mp` | bool | `false` | Force MP_REACH_NLRI for IPv4 unicast |
+| `--seed` | uint64 | `0` | Deterministic seed (0 = random) |
+| `--warmup` | duration | `2s` | Warmup delay after session establishment |
+| `--connect-timeout` | duration | `10s` | TCP connection timeout |
+| `--duration` | duration | `60s` | Maximum time to wait for convergence per iteration |
+
+**Iteration flags:**
+
+| Flag | Type | Default | Purpose |
+|------|------|---------|---------|
+| `--repeat` | int | `5` | Number of benchmark iterations |
+| `--warmup-runs` | int | `1` | Warmup iterations (discarded from results) |
+| `--iter-delay` | duration | `3s` | Delay between iterations |
+| `--batch-size` | int | `0` | UPDATE batch size (0 = single UPDATE per prefix) |
+
+**Output flags:**
+
+| Flag | Type | Default | Purpose |
+|------|------|---------|---------|
+| `--json` | bool | `false` | JSON output |
+| `--output` | string | | Output file path (implies `--json`) |
+
+Exit codes: 0 = success, 1 = error (missing flags, validation failure, benchmark failure).
+
+#### ze-perf report
+
+Generate a comparison report from one or more result JSON files.
+
+<!-- source: cmd/ze-perf/report.go -- report subcommand -->
+
+```
+ze-perf report result-ze.json result-gobgp.json
+ze-perf report --html result-ze.json result-gobgp.json > report.html
+```
+
+| Flag | Type | Default | Purpose |
+|------|------|---------|---------|
+| `--md` | bool | `true` | Markdown output |
+| `--html` | bool | `false` | HTML output (overrides `--md`) |
+
+Reads result JSON files produced by `ze-perf run --json` and generates a
+side-by-side comparison table.
+
+#### ze-perf track
+
+Track performance history and detect regressions from an NDJSON file.
+
+<!-- source: cmd/ze-perf/track.go -- track subcommand -->
+
+```
+ze-perf track history.ndjson
+ze-perf track --check history.ndjson
+ze-perf track --html history.ndjson > trend.html
+ze-perf track --check --threshold-convergence 15 history.ndjson
+```
+
+| Flag | Type | Default | Purpose |
+|------|------|---------|---------|
+| `--md` | bool | `true` | Markdown output |
+| `--html` | bool | `false` | HTML output (overrides `--md`) |
+| `--check` | bool | `false` | Check for regressions (exit 1 on regression) |
+| `--last` | int | `0` | Only consider last N entries (0 = all) |
+| `--threshold-convergence` | int | `20` | Convergence regression threshold (%) |
+| `--threshold-throughput` | int | `20` | Throughput regression threshold (%) |
+| `--threshold-p99` | int | `30` | P99 latency regression threshold (%) |
+
+<!-- source: internal/perf/regression.go -- regression detection thresholds -->
+
+Exit codes: 0 = no regression (or report mode), 1 = regression detected or error.
+
 ---
 
 ## Runtime Commands
