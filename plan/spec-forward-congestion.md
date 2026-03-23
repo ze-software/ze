@@ -297,23 +297,35 @@ Each layer activates only when the previous layer is insufficient.
 Per-destination-peer buffered channel (default 64 items). Absorbs micro-bursts.
 No action needed -- this already works.
 
-### Layer 2: Pre-Allocated Overflow Pool
+### Layer 2: Global Overflow Pool with Weighted Access
 
-A global memory pool, pre-allocated at startup, shared by all destination peers.
+Full design: `docs/architecture/forward-congestion-pool.md`
+
+A global buffer pool, lazily allocated in 10% steps, shared by all peers.
+During congestion, the overflow pool provides read buffers directly to source
+peers -- the buffer is allocated from the pool, TCP reads into it, and it
+stays in the pool until the destination drains it (zero-copy by construction).
 
 | Property | Value |
 |----------|-------|
-| Allocation | At startup, one contiguous block |
-| Sizing | Auto-sized from routing data + configurable override |
+| Growth | Block allocation: 10% of maximum per block (contiguous, less fragmentation) |
+| Growth trigger | Current allocation 90% full |
+| Shrink | Per-buffer: freed on return when >20% of allocation is free |
+| Permanent floor | First 10% block is never freed (hot reserve for next burst) |
+| Maximum | Sum of all peer weights (prefix counts), or explicit `ze.fwd.pool.size` |
 | Scope | Global -- all peers draw from the same pool |
-| Fairness | Per-peer share proportional to expected prefix count |
-| Item size | fwdItem slots (~200 bytes metadata each, wire bytes shared via cache refcount) |
-| When exhausted | Triggers Layer 3 (read throttling) or Layer 4 (teardown) |
+| Fairness | Weighted access: priority diminishes with usage-to-weight ratio |
+| Buffer role | Pool provides read buffers during congestion (not local read pool) |
+| Backpressure | Buffer exhaustion IS the backpressure -- no buffer means no read |
+| When exhausted | Source peers cannot read (natural backpressure), then Layer 4 (teardown) |
 
-**Why pre-allocate:** `append()` to unbounded slices means the memory bound
+~~**Why pre-allocate:** `append()` to unbounded slices means the memory bound
 is theoretical. Pre-allocation makes the bound real -- the memory is committed
 at startup, and the system knows exactly how much it has. No GC pressure spikes
-during congestion.
+during congestion.~~
+**Superseded (2026-03-23):** Asymmetric allocation/release replaces full pre-allocation.
+Growth in 10% contiguous blocks, shrink per-buffer on return. First 10% block permanent.
+Memory tracks actual congestion, not theoretical worst case.
 
 #### Buffer Sizing: Data-Driven
 
@@ -521,26 +533,42 @@ Throttle activates if EITHER window shows high overflow ratio for a source peer.
 
 #### Throttle Decision Logic
 
-1. Pool fill ratio crosses threshold (e.g., 50%) -- backpressure needed
-2. Rank source peers by overflow_ratio (short OR long window)
-3. Throttle highest-ratio sources first -- their traffic is the traffic
-   filling the pool
-4. Low overflow-ratio sources continue at full speed
-5. As pool drains, release throttle starting with lowest-ratio sources
+**Primary mechanism: buffer denial (zero-copy design, 2026-03-23).**
 
-**Mechanism: sleep between reads**
+The overflow pool provides read buffers to source peers during congestion.
+Throttling is buffer denial: a peer whose destinations have a high
+usage-to-weight ratio is denied a buffer. No buffer means no TCP read
+means kernel backpressure on the remote sender.
 
-The sleep duration between TCP reads from source peers is proportional to
-both the pool fill level AND the source peer's overflow ratio.
+1. Source peer requests buffer from overflow pool
+2. Pool checks weighted access: usage-to-weight ratio for destinations
+   this source feeds
+3. Low ratio: buffer granted, peer reads normally
+4. High ratio: buffer denied, peer waits (TCP backpressure)
+5. As destinations drain, usage drops, ratio improves, buffers granted again
 
-| Pool fill | Source overflow ratio | Sleep between reads |
+**No sleep-between-reads needed.** The previous design used proportional
+sleep durations. The zero-copy buffer-ownership model makes this unnecessary:
+buffer exhaustion creates backpressure automatically, targeted at the
+culprit (the source whose destinations are consuming the most pool buffers
+relative to their weight).
+
+~~**Mechanism: sleep between reads**~~
+
+~~The sleep duration between TCP reads from source peers is proportional to
+both the pool fill level AND the source peer's overflow ratio.~~
+
+| ~~Pool fill~~ | ~~Source overflow ratio~~ | ~~Sleep between reads~~ |
 |-----------|---------------------|-------------------|
-| 0-25% | Any | 0 (normal) |
-| 25-50% | Low (<10%) | 0 (this source is not the problem) |
-| 25-50% | High (>50%) | Short (1-5ms) |
-| 50-75% | Low | 0-1ms |
-| 50-75% | High | Medium (10-50ms) |
-| 75-100% | Any | Long (100-500ms) -- everyone slows |
+| ~~0-25%~~ | ~~Any~~ | ~~0 (normal)~~ |
+| ~~25-50%~~ | ~~Low (<10%)~~ | ~~0 (this source is not the problem)~~ |
+| ~~25-50%~~ | ~~High (>50%)~~ | ~~Short (1-5ms)~~ |
+| ~~50-75%~~ | ~~Low~~ | ~~0-1ms~~ |
+| ~~50-75%~~ | ~~High~~ | ~~Medium (10-50ms)~~ |
+| ~~75-100%~~ | ~~Any~~ | ~~Long (100-500ms) -- everyone slows~~ |
+
+**Superseded (2026-03-23):** Sleep-between-reads replaced by buffer denial
+in the zero-copy pool design. See `docs/architecture/forward-congestion-pool.md`.
 
 **Mechanism: TCP receive window zero**
 
@@ -843,23 +871,49 @@ than guessed.
 
 ## Open Questions (for review)
 
-1. **Fair-share enforcement:** Hard per-peer limit from the global pool?
+1. ~~**Fair-share enforcement:** Hard per-peer limit from the global pool?
    Or soft (advisory, with one peer able to burst into another's share if
-   the other is idle)?
+   the other is idle)?~~
+   **Resolved (2026-03-23):** Weighted access with diminishing rights. No hard
+   per-peer limit. Each peer's weight is its expected prefix count. Access
+   priority decreases as usage-to-weight ratio increases. Under pressure, the
+   highest-ratio peer is denied buffers first (natural backpressure) and is the
+   first teardown candidate. Over time, usage rebalances toward weight proportions.
+   See `docs/architecture/forward-congestion-pool.md`.
 
-2. **Pool sizing default:** What fraction of available memory when no
+2. ~~**Pool sizing default:** What fraction of available memory when no
    prefix maximum, no zefs data, and no PeeringDB? 10%? 25%? Require
-   explicit configuration?
+   explicit configuration?~~
+   **Resolved (2026-03-23):** Asymmetric allocation/release. Growth in 10%
+   contiguous blocks (less fragmentation). Shrink per-buffer on return when
+   free space >20%. First 10% block is permanent (never freed) -- hot reserve
+   for next burst. Maximum is 100% of peer weight sum.
+   See `docs/architecture/forward-congestion-pool.md`.
 
-3. **Pre-allocation granularity:** One large byte slab? A free-list of
-   fwdItem-sized slots? A ring buffer?
+3. ~~**Pre-allocation granularity:** One large byte slab? A free-list of
+   fwdItem-sized slots? A ring buffer?~~
+   **Resolved (2026-03-23):** Zero-copy buffer transfer. The overflow pool
+   provides read buffers directly to source peers during congestion. No copy,
+   no ownership transfer -- the buffer is allocated from the overflow pool,
+   TCP reads into it, and it stays in the overflow pool until the destination
+   drains it. Buffer exhaustion IS the backpressure mechanism.
+   See `docs/architecture/forward-congestion-pool.md`.
 
-4. **RFC 9687 Send Hold Timer value:** max(8 min, 2x HoldTime) per RFC
-   recommendation, or configurable?
+4. ~~**RFC 9687 Send Hold Timer value:** max(8 min, 2x HoldTime) per RFC
+   recommendation, or configurable?~~
+   **Resolved (2026-03-23):** Default `max(8 minutes, 2x HoldTime)` per RFC 9687
+   Section 4 recommendation. Configurable per peer for operators who need to tune.
 
-5. **Prefix-limit burst fraction:** If prefix maximum is 100K, what
+5. ~~**Prefix-limit burst fraction:** If prefix maximum is 100K, what
    fraction represents "worst expected burst"? 10% (10K items)?
-   Configurable per peer or global multiplier?
+   Configurable per peer or global multiplier?~~
+   **Resolved (2026-03-23):** Burst fraction is inverse to peer size. Small
+   peers over-provision prefix-maximum by 4x+, large peers (full table) set
+   it close to actual. Scaling curve: <500 prefixes = 100%, 500-10K = 50%,
+   10K-100K = 30%, 100K-500K = 15%, 500K+ = 10%. DFZ reference: ~1.1M IPv4,
+   ~260K IPv6 (March 2026). Channel size (Layer 1) and pool weight (Layer 2)
+   both derived from the burst fraction, not raw prefix-maximum.
+   See `docs/architecture/forward-congestion-pool.md`.
 
 6. **Advisory report format:** CLI command output? Structured JSON for
    automation? Both?
@@ -889,7 +943,7 @@ than guessed.
 - Drain-batch buffer reuse
 
 **Behavior to change:**
-- Replace drop-at-256 with pre-allocated global overflow pool (auto-sized)
+- Replace drop-at-256 with block-backed overflow pool (weighted access, lazy 10% growth)
 - Add write deadline to writeMessage (keepalive bug)
 - ~~Set TCP_NODELAY on peer sockets~~ Done (commit 1c43e11d)
 - Set IP_TOS/DSCP CS6 (0xC0) on all peer sockets (dialer Control callback + accepted connections)
@@ -897,9 +951,10 @@ than guessed.
 - Add hold timer congestion extension (BIRD technique: extend 10s if RX data pending)
 - Add route superseding in overflow pool (replace pending update for same prefix, not append)
 - Add TX budget limiting (cap messages per forward batch to prevent one peer starving others)
+- Replace sync.Pool with block-backed pool (4K and 64K instances, combined capacity tracking)
 - Add source-side metrics (overflow ratio, throttle state)
 - Add destination-side metrics (overflow items, growth rate, write latency)
-- Add read throttling proportional to pool fill AND source overflow ratio
+- Add read throttling via buffer denial (weighted access, culprit targeting)
 - Add TCP window zero pulsing as escalation
 - Add session teardown as last resort (GR-aware)
 - Add overflow flush on peer-down
@@ -912,24 +967,25 @@ than guessed.
 
 ### Congestion Path
 1. ForwardUpdate calls TryDispatch per destination peer
-2. Channel full: TryDispatch returns false, item goes to overflow pool
-3. Pool slot allocated from pre-allocated global pool (no malloc)
-4. Source peer's overflow counter incremented (for ratio tracking)
-5. If pool utilization crosses threshold: evaluate source overflow ratios
-6. High-ratio sources get sleep between reads or TCP window pulsing
-7. Destination worker drains overflow into channel, processes batches
-8. Pool utilization drops: throttle eases (lowest-ratio sources first)
+2. Channel full: TryDispatch returns false, item goes to overflow path
+3. Source peer's next read requests buffer from overflow pool (not local read pool)
+4. Pool checks weighted access: usage-to-weight ratio for this peer's destinations
+5. If ratio acceptable: buffer granted, TCP reads into overflow-pool-owned buffer
+6. If ratio too high: buffer denied, peer cannot read, TCP backpressure on remote
+7. Destination worker drains overflow items, returns buffers to pool
+8. As buffers return: pool checks free space, nil's excess (GC frees backing block when all nil'd)
 9. If pool exhausted and backpressure insufficient: tear down slowest destination
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| ForwardUpdate -> overflow pool | Slot allocation from global pool | [ ] |
-| ForwardUpdate -> source metrics | Increment overflow counter per source | [ ] |
-| Pool fill level -> read throttle | Shared atomic read by session read loops | [ ] |
-| Source overflow ratio -> throttle targeting | Per-source ratio checked in read loop | [ ] |
+| Read loop -> overflow pool | Buffer request (Get) from block-backed pool | [ ] |
+| Pool -> weighted access | Usage-to-weight ratio check before granting buffer | [ ] |
+| Buffer denial -> TCP backpressure | No buffer = no read = kernel backpressure on remote | [ ] |
+| Buffer return -> pool shrink | Nil slice reference when >20% free, GC frees block | [ ] |
 | Pool exhaustion -> teardown | Callback from pool to reactor | [ ] |
-| Peer-down -> pool | Return all peer's slots to pool | [ ] |
+| Peer-down -> pool | Return all peer's buffers to pool | [ ] |
+| 4K + 64K -> combined capacity | Growth/shrink/backpressure use combined usage | [ ] |
 | Metrics -> Prometheus | Standard Prometheus exposition | [ ] |
 
 ## Wiring Test (MANDATORY)
@@ -951,16 +1007,16 @@ than guessed.
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | Route forwarded to slow peer, channel full | Item stored in overflow pool (never dropped) |
-| AC-2 | Overflow pool crosses fill threshold | Source peer read throttle activates, targeted by overflow ratio |
-| AC-3 | Read throttle active, pool drains | Throttle eases proportionally, lowest-ratio sources first |
+| AC-2 | Overflow pool under pressure, source peer requests buffer | Buffer denied to peer with highest usage-to-weight ratio (backpressure via buffer denial) |
+| AC-3 | Destination drains overflow, buffers returned | Peer's usage-to-weight ratio drops, buffer requests granted again |
 | AC-4 | Overflow pool exhausted, destination still slow | Slowest destination peer session torn down |
 | AC-5 | Destination with GR capability torn down | TCP close without NOTIFICATION (route retention) |
 | AC-6 | Destination without GR torn down | Cease/Out of Resources NOTIFICATION then close |
 | AC-7 | Peer disconnects with overflow items | Pool slots returned, done() called for all items |
 | AC-8 | writeMessage called on stuck TCP | Write deadline set (keepalive bug fix) |
-| AC-9 | Read throttle duration | Never exceeds source peer keepalive_interval / 6 |
+| AC-9 | Buffer denial duration | Buffer denial cannot block longer than source peer keepalive_interval / 6 (hold timer safety) |
 | AC-10 | Pool size configurable | ze.fwd.pool.size env var; auto-sized from RIB/PeeringDB if not set |
-| AC-11 | Total memory for slow peers | Bounded by pool size, no growth beyond pre-allocation |
+| AC-11 | Total memory for slow peers | Bounded by pool maximum (sum of peer weights), growth in 10% blocks, shrink per-buffer on return |
 | AC-12 | Fast destination peers during congestion | Unaffected by slow destination -- isolation preserved |
 | AC-13 | TCP window zero on source peer | Pulses open 5x per keepalive interval, 2-3s each |
 | AC-14 | Remote peer holds window zero toward us | RFC 9687 Send Hold Timer tears down after configured duration |
@@ -975,3 +1031,6 @@ than guessed.
 | AC-23 | New update for prefix already in overflow pool | **Deferred optimization.** Old entry replaced (route superseding), not appended. Requires per-prefix indexing of the overflow pool (NLRI parsing on overflow entry). Ze's UPDATE-first design avoids NLRI parsing on the forward path; adding it here contradicts that principle. Without dedup, FIFO ordering still converges correctly -- the slow peer processes redundant intermediate UPDATEs but reaches the right final state. Real-world overflow is dominated by convergence events (many distinct prefixes withdrawn once), not flap (same prefix repeated). May not fix a real traffic pattern problem. Revisit if profiling shows high duplicate rate in overflow under production load. |
 | AC-24 | Forward batch to single destination peer | TX budget caps messages per batch (prevents one peer starving others in event loop) |
 | AC-25 | Forward batch contains both withdrawals and announcements | **Deferred optimization.** Withdrawals sent before announcements (faster convergence). Requires AC-23 (route superseding) first -- without per-prefix dedup, reordering can invert announce/withdraw for the same prefix, causing permanent stale routes. Blocked on AC-23 which is itself deferred. |
+| AC-26 | Read and build buffers | sync.Pool replaced with block-backed pool (one backing array per 10% block, buffers are slices). Two instances: 4K and 64K. buildBufPool merged into 4K instance. |
+| AC-27 | Pool capacity decisions | Growth, shrink, and backpressure use combined usage across 4K + 64K instances (memory pressure is shared) |
+| AC-28 | Pool maximum | Dynamically tracks peer set: adding a peer increases maximum (based on prefix count weight), removing decreases it |
