@@ -231,7 +231,7 @@ def run_perf(dut):
             "--warmup-runs", "1",
             "--iter-delay", "8s",
             "--warmup", "2s",
-            "--connect-timeout", "10s",
+            "--connect-timeout", "20s",
             "--duration", "30s",
             "--output", f"/results/{result_name}",
         ]

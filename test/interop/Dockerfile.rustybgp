@@ -1,7 +1,7 @@
 # RustyBGP daemon for performance testing.
 # Builds from GitHub source using musl for static linking.
 
-FROM rust:1.82-alpine AS builder
+FROM rust:1.85-alpine AS builder
 
 RUN apk add --no-cache musl-dev protobuf-dev git
 
