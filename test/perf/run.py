@@ -229,7 +229,7 @@ def run_perf(dut):
             "--seed", str(DUT_SEED),
             "--repeat", str(DUT_REPEAT),
             "--warmup-runs", "1",
-            "--iter-delay", "5s",
+            "--iter-delay", "8s",
             "--warmup", "2s",
             "--connect-timeout", "10s",
             "--duration", "30s",
