@@ -6,18 +6,19 @@ package peer
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/peeringdb"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
 const (
-	defaultPeeringDBURL    = "https://www.peeringdb.com"
-	defaultPeeringDBMargin = 10
-	peeringdbRateLimit     = time.Second // 1 request per second
+	peeringdbRateLimit = time.Second // 1 request per second
 
 	statusUpdated = "updated"
 	statusSkipped = "skipped"
@@ -33,6 +34,15 @@ func init() {
 			RequiresSelector: true,
 		},
 	)
+}
+
+// peerResult holds the outcome of a prefix update attempt for one peer.
+type peerResult struct {
+	Peer    string         `json:"peer"`
+	ASN     uint32         `json:"asn"`
+	Status  string         `json:"status"`
+	Changes map[string]any `json:"changes,omitempty"`
+	Error   string         `json:"error,omitempty"`
 }
 
 // handleBgpPeerPrefixUpdate handles "bgp peer <selector> prefix update".
@@ -52,7 +62,6 @@ func handleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 		}, fmt.Errorf("config path not set")
 	}
 
-	// Get peers matching selector.
 	peers, errResp, err := filterPeersBySelector(ctx)
 	if errResp != nil {
 		return errResp, err
@@ -74,19 +83,18 @@ func handleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 	}
 	defer func() { _ = ed.Close() }()
 
-	// Read PeeringDB settings from system config.
-	pdbURL, margin := readPeeringDBSettings(ed)
+	// Read PeeringDB settings from system config (single source of truth).
+	sc := system.ExtractSystemConfig(ed.Tree())
 
-	client := peeringdb.NewClient(pdbURL)
-	today := time.Now().Format(time.DateOnly)
-
-	type peerResult struct {
-		Peer    string         `json:"peer"`
-		ASN     uint32         `json:"asn"`
-		Status  string         `json:"status"`
-		Changes map[string]any `json:"changes,omitempty"`
-		Error   string         `json:"error,omitempty"`
+	if err := validatePeeringDBURL(sc.PeeringDBURL); err != nil {
+		return &plugin.Response{
+			Status: plugin.StatusError,
+			Data:   fmt.Sprintf("invalid peeringdb url: %v", err),
+		}, err
 	}
+
+	client := peeringdb.NewClient(sc.PeeringDBURL)
+	today := time.Now().Format(time.DateOnly)
 
 	var results []peerResult
 	var updated int
@@ -102,15 +110,17 @@ func handleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 			continue
 		}
 
-		// Rate limit: sleep between requests.
+		// Rate limit: sleep between PeeringDB requests.
 		if i > 0 {
 			time.Sleep(peeringdbRateLimit)
 		}
 
-		counts, err := client.LookupASN(context.Background(), p.PeerAS)
-		if err != nil {
+		// TODO: CommandContext does not carry context.Context -- use background.
+		// Rate limiting (sleep above) provides the only cancellation point.
+		counts, lookupErr := client.LookupASN(context.TODO(), p.PeerAS)
+		if lookupErr != nil {
 			result.Status = statusError
-			result.Error = err.Error()
+			result.Error = lookupErr.Error()
 			results = append(results, result)
 			continue
 		}
@@ -122,48 +132,12 @@ func handleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 			continue
 		}
 
-		// Apply margin and update config for ipv4/unicast and ipv6/unicast.
-		changes := make(map[string]any)
-		peerKey := p.Name
-		if peerKey == "" {
-			peerKey = p.Address.String()
-		}
-
-		if counts.IPv4 > 0 {
-			newMax := peeringdb.ApplyMargin(counts.IPv4, margin)
-			familyPath := []string{"bgp", "peer", peerKey, "family", "ipv4/unicast", "prefix"}
-			if setErr := ed.SetValue(familyPath, "maximum", fmt.Sprintf("%d", newMax)); setErr != nil {
-				result.Status = statusError
-				result.Error = fmt.Sprintf("set ipv4 maximum: %v", setErr)
-				results = append(results, result)
-				continue
-			}
-			changes["ipv4/unicast"] = newMax
-		}
-
-		if counts.IPv6 > 0 {
-			newMax := peeringdb.ApplyMargin(counts.IPv6, margin)
-			familyPath := []string{"bgp", "peer", peerKey, "family", "ipv6/unicast", "prefix"}
-			if setErr := ed.SetValue(familyPath, "maximum", fmt.Sprintf("%d", newMax)); setErr != nil {
-				result.Status = statusError
-				result.Error = fmt.Sprintf("set ipv6 maximum: %v", setErr)
-				results = append(results, result)
-				continue
-			}
-			changes["ipv6/unicast"] = newMax
-		}
-
-		// Set updated timestamp (hidden leaf).
-		prefixPath := []string{"bgp", "peer", peerKey, "prefix"}
-		if setErr := ed.SetValue(prefixPath, "updated", today); setErr != nil {
-			result.Status = statusError
-			result.Error = fmt.Sprintf("set updated timestamp: %v", setErr)
+		if ok := updatePeerPrefixConfig(ed, p, counts, sc.PeeringDBMargin, today, &result); !ok {
 			results = append(results, result)
 			continue
 		}
 
 		result.Status = statusUpdated
-		result.Changes = changes
 		results = append(results, result)
 		updated++
 	}
@@ -189,37 +163,62 @@ func handleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*p
 	}, nil
 }
 
-// readPeeringDBSettings reads PeeringDB URL and margin from the config tree.
-// Returns defaults if the peeringdb block is not present.
-func readPeeringDBSettings(ed *cli.Editor) (string, uint8) {
-	pdbURL := defaultPeeringDBURL
-	margin := uint8(defaultPeeringDBMargin)
-
-	tree := ed.Tree()
-	if tree == nil {
-		return pdbURL, margin
+// updatePeerPrefixConfig applies PeeringDB counts to a single peer's config.
+// Returns true on success, false on error (result.Status/Error set).
+func updatePeerPrefixConfig(ed *cli.Editor, p *plugin.PeerInfo, counts peeringdb.PrefixCounts, margin uint8, today string, result *peerResult) bool {
+	changes := make(map[string]any)
+	peerKey := p.Name
+	if peerKey == "" {
+		peerKey = p.Address.String()
 	}
 
-	sys := tree.GetContainer("system")
-	if sys == nil {
-		return pdbURL, margin
-	}
+	// Build config path. Grouped peers use group path; standalone use peer path.
+	// This matches the save.go convention (always writes to standalone peer path).
+	basePath := []string{"bgp", "peer", peerKey}
 
-	pdb := sys.GetContainer("peeringdb")
-	if pdb == nil {
-		return pdbURL, margin
-	}
-
-	if url, ok := pdb.Get("url"); ok && url != "" {
-		pdbURL = url
-	}
-
-	if marginStr, ok := pdb.Get("margin"); ok {
-		var v int
-		if _, scanErr := fmt.Sscanf(marginStr, "%d", &v); scanErr == nil && v >= 0 && v <= 100 {
-			margin = uint8(v) //nolint:gosec // Bounded by range check above
+	if counts.IPv4 > 0 {
+		newMax := peeringdb.ApplyMargin(counts.IPv4, margin)
+		familyPath := append(basePath, "family", "ipv4/unicast", "prefix") //nolint:gocritic // append to copy is intentional
+		if setErr := ed.SetValue(familyPath, "maximum", fmt.Sprintf("%d", newMax)); setErr != nil {
+			result.Status = statusError
+			result.Error = fmt.Sprintf("set ipv4 maximum: %v", setErr)
+			return false
 		}
+		changes["ipv4/unicast"] = newMax
 	}
 
-	return pdbURL, margin
+	if counts.IPv6 > 0 {
+		newMax := peeringdb.ApplyMargin(counts.IPv6, margin)
+		familyPath := append(basePath, "family", "ipv6/unicast", "prefix") //nolint:gocritic // append to copy is intentional
+		if setErr := ed.SetValue(familyPath, "maximum", fmt.Sprintf("%d", newMax)); setErr != nil {
+			result.Status = statusError
+			result.Error = fmt.Sprintf("set ipv6 maximum: %v", setErr)
+			return false
+		}
+		changes["ipv6/unicast"] = newMax
+	}
+
+	// Set updated timestamp (hidden leaf).
+	prefixPath := append(basePath, "prefix") //nolint:gocritic // append to copy is intentional
+	if setErr := ed.SetValue(prefixPath, "updated", today); setErr != nil {
+		result.Status = statusError
+		result.Error = fmt.Sprintf("set updated timestamp: %v", setErr)
+		return false
+	}
+
+	result.Changes = changes
+	return true
+}
+
+// validatePeeringDBURL checks that a PeeringDB URL uses http or https scheme.
+func validatePeeringDBURL(rawURL string) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return fmt.Errorf("peeringdb: invalid url %q: %w", rawURL, err)
+	}
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return fmt.Errorf("peeringdb: url scheme must be http or https, got %q", scheme)
+	}
+	return nil
 }

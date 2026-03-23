@@ -150,6 +150,7 @@ via a command protocol rather than a built-in policy language.
 | Atomic commit workflow | Yes | No | No | No | No | No | No | No | No | No |
 | Schema discovery (CLI) | Yes | No | No | No | No | No | No | No | No | No |
 | Healthcheck tool | No | No | No | Partial | No | No | No | Yes | No | No |
+| PeeringDB prefix integration | Yes | No | No | No | No | No | No | No | No | No |
 | Propagation benchmark tool | Yes | No | No | No | No | No | No | No | No | No |
 
 ## Best-Path Selection

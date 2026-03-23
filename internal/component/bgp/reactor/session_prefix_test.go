@@ -314,7 +314,7 @@ func TestPrefixStalenessCheck(t *testing.T) {
 	}{
 		{"empty timestamp not stale", "", false},
 		{"recent date not stale", "2026-03-01", false},
-		{"exactly 6 months ago not stale", "2025-09-24", false},
+		{"exactly 180 days ago not stale", "2025-09-24", false},
 		{"7 months ago is stale", "2025-08-01", true},
 		{"1 year ago is stale", "2025-03-01", true},
 		{"invalid date not stale", "not-a-date", false},
@@ -353,6 +353,27 @@ func TestPrefixRatio(t *testing.T) {
 			assert.InDelta(t, tt.want, got, 0.0001)
 		})
 	}
+}
+
+// TestPrefixRatioGuard verifies that setPrefixCountMetric does not panic
+// when prefix maximum is zero (division by zero guard in ratio computation).
+//
+// VALIDATES: AC-9 -- ratio computed safely even with misconfigured maximum.
+// PREVENTS: division by zero panic in setPrefixCountMetric.
+func TestPrefixRatioGuard(t *testing.T) {
+	// PeerSettings with maximum=0 -- setPrefixCountMetric must not panic.
+	ps := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65001, 0)
+	ps.PrefixMaximum = map[string]uint32{"ipv4/unicast": 0}
+	ps.PrefixWarning = map[string]uint32{"ipv4/unicast": 0}
+	s := NewSession(ps)
+
+	// This should not panic despite maximum=0.
+	s.setPrefixCountMetric("ipv4/unicast", 100)
+
+	// With a valid maximum, ratio code path executes (no panic).
+	ps2 := newTestPeerSettingsWithPrefix(1000, 0)
+	s2 := NewSession(ps2)
+	s2.setPrefixCountMetric("ipv4/unicast", 500)
 }
 
 // newTestPeerSettingsWithPrefix creates PeerSettings with prefix limits for testing.

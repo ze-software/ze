@@ -237,3 +237,33 @@ func TestHandlerPeerSaveNoConfigPath(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "config path")
 }
+
+// TestValidatePeeringDBURL verifies URL scheme validation.
+//
+// VALIDATES: Security -- only http/https schemes allowed for PeeringDB URL.
+// PREVENTS: file:// or ftp:// URLs being used to exfiltrate data.
+func TestValidatePeeringDBURL(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr bool
+	}{
+		{"https valid", "https://www.peeringdb.com", false},
+		{"http valid", "http://127.0.0.1:8080", false},
+		{"ftp rejected", "ftp://evil.com", true},
+		{"file rejected", "file:///etc/passwd", true},
+		{"empty scheme rejected", "peeringdb.com/api", true},
+		{"no scheme rejected", "/api/net", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePeeringDBURL(tt.url)
+			if tt.wantErr {
+				assert.Error(t, err, "expected error for %q", tt.url)
+			} else {
+				assert.NoError(t, err, "unexpected error for %q", tt.url)
+			}
+		})
+	}
+}

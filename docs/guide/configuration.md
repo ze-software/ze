@@ -159,7 +159,28 @@ peer transit-a {
 |---------|---------|-------------|
 | `teardown` | `true` | Send NOTIFICATION and close on exceed. `false` = warn only, drop excess NLRIs. |
 | `idle-timeout` | `0` | Seconds before reconnect after prefix teardown. 0 = no reconnect. |
+
+### PeeringDB Prefix Data
+
+Ze can query PeeringDB to suggest prefix maximums. Configure the PeeringDB API URL and margin in the system block:
+
+```
+system {
+    peeringdb {
+        url "https://www.peeringdb.com"
+        margin 10
+    }
+}
+```
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `url` | `https://www.peeringdb.com` | PeeringDB-compatible API base URL. |
+| `margin` | `10` | Percentage added above PeeringDB prefix count (0-100). |
+
+Run `ze bgp peer * prefix update` to query PeeringDB and update prefix maximums. Review changes with `ze config diff`, then apply with `ze config commit`.
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- prefix limit enforcement; internal/component/bgp/schema/ze-bgp-conf.yang -- prefix config -->
+<!-- source: internal/component/config/system/schema/ze-system-conf.yang -- peeringdb config -->
 
 ## Process Bindings
 

@@ -407,6 +407,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// ze-peer is now ze-test peer
 			binPath = r.testPath
 			extraArgs = []string{"peer"}
+		case "ze-test":
+			// ze-test subcommands (peeringdb, rpki, syslog, etc.)
+			binPath = r.testPath
 		case "ze":
 			binPath = r.zePath
 		default:

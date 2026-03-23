@@ -2,6 +2,7 @@
 // Detail: summary.go — BGP summary and capabilities handlers
 // Detail: session.go — BGP peer session handlers
 // Detail: save.go — BGP peer config persistence
+// Detail: prefix_update.go — PeeringDB prefix update command
 
 package peer
 

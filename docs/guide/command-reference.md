@@ -469,6 +469,7 @@ Many commands take a `peer <selector>` argument:
 | `peer <sel> resume` | write | Resume read loop |
 | `peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |
 | `peer <sel> save` | write | Save running peers to config |
+| `peer <sel> prefix update` | write | Update prefix maximums from PeeringDB |
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang -->
 
 ### Route Injection

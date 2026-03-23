@@ -1,0 +1,131 @@
+# Test: bgp peer * prefix update queries PeeringDB and updates config
+# AC-1: PeeringDB query returns prefix counts, config updated with margin.
+# AC-11: Custom PeeringDB URL is used.
+
+# ze-peer expectations (session established, receives EOR)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: dispatches prefix update, verifies result
+tmpfs=prefix-update-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import json
+import os
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'engine call returned None'}
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+    time.sleep(1.0)
+
+    try:
+        result = dispatch(api, 'peer * prefix update')
+        status = result.get('status')
+        if status != 'done':
+            print(f'FAIL: status={status} data={result.get("data")}', file=sys.stderr)
+            sys.exit(1)
+
+        data = result.get('data', {})
+        if isinstance(data, str):
+            data = json.loads(data)
+
+        updated = data.get('updated', 0)
+        if updated != 1:
+            print(f'FAIL: expected 1 updated, got {updated}', file=sys.stderr)
+            sys.exit(1)
+
+        results = data.get('results', [])
+        if len(results) != 1:
+            print(f'FAIL: expected 1 result, got {len(results)}', file=sys.stderr)
+            sys.exit(1)
+
+        r = results[0]
+        if r.get('status') != 'updated':
+            print(f'FAIL: peer status={r.get("status")} error={r.get("error")}', file=sys.stderr)
+            sys.exit(1)
+
+        changes = r.get('changes', {})
+        # ASN 65001: ipv4=65001, with 10% margin = 71501
+        ipv4_max = changes.get('ipv4/unicast', 0)
+        if ipv4_max != 71501:
+            print(f'FAIL: expected ipv4 maximum 71501, got {ipv4_max}', file=sys.stderr)
+            sys.exit(1)
+
+        print(f'OK: prefix update succeeded, ipv4={ipv4_max}', file=sys.stderr)
+    finally:
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration with PeeringDB pointed at fake server
+stdin=ze-bgp:terminator=EOF_CONF
+system {
+	peeringdb {
+		url http://127.0.0.1:$PORT2
+		margin 10
+	}
+}
+
+plugin {
+	external prefix-update-test {
+		run ./prefix-update-test.run
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65001
+		}
+		local {
+			as 65000
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		connection active
+		group-updates disable
+
+		family {
+			ipv4/unicast { prefix { maximum 10000; } }
+		}
+		capability {
+			graceful-restart disable
+		}
+		process prefix-update-test {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-test peeringdb --port $PORT2
+cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
