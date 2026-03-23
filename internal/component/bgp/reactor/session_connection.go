@@ -205,6 +205,12 @@ func (s *Session) processOpen(open *message.Open) error {
 
 // connectionEstablished handles a new TCP connection (incoming or outgoing).
 func (s *Session) connectionEstablished(conn net.Conn) error {
+	// Disable Nagle's algorithm: BGP messages are application-framed and
+	// flushed explicitly via bufio.Writer, so Nagle only adds latency.
+	if tcp, ok := conn.(*net.TCPConn); ok {
+		_ = tcp.SetNoDelay(true)
+	}
+
 	s.mu.Lock()
 	s.conn = conn
 	s.bufReader = bufio.NewReaderSize(conn, 65536)
