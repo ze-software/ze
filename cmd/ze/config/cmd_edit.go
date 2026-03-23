@@ -344,6 +344,12 @@ Examples:
 		store = storage.NewFilesystem()
 	}
 
+	// Refuse if no zefs database and -f not set (user expects blob storage)
+	if !*fileOverride && !storage.IsBlobStorage(store) {
+		fmt.Fprintf(os.Stderr, "error: database not found (run ze init first)\n")
+		return 1
+	}
+
 	// Default config name from meta/instance/name, fall back to ze.conf
 	configPath := defaultConfigName(store)
 	userProvided := fs.NArg() >= 1

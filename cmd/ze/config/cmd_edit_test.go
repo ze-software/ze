@@ -528,3 +528,19 @@ func TestStalePortDetection(t *testing.T) {
 		t.Error("expected false for unreachable port")
 	}
 }
+
+// TestEditRefusesWithoutZefs verifies that config edit refuses to start
+// when no zefs database exists and -f is not set.
+//
+// VALIDATES: Missing zefs database prints error directing user to run ze init.
+//
+// PREVENTS: Silent fallback to filesystem when user expects blob storage.
+func TestEditRefusesWithoutZefs(t *testing.T) {
+	// Filesystem storage simulates resolveStorage() fallback when zefs is missing
+	store := storage.NewFilesystem()
+	code := cmdEditWithStorage(store, []string{})
+
+	if code != 1 {
+		t.Errorf("expected exit code 1, got %d", code)
+	}
+}
