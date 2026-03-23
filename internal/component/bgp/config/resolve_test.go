@@ -1220,7 +1220,7 @@ func TestValidatePeerName(t *testing.T) {
 		{"hyphen_prefix_with_alpha", "-router", false},
 		{"reserved_list", "list", true},
 		{"reserved_detail", "detail", true},
-		{"reserved_add", "add", true},
+		{"formerly_reserved_add", "add", false},
 		{"reserved_update", "update", true},
 		{"reserved_teardown", "teardown", true},
 		{"reserved_prefix_ok", "list-east", false},

@@ -18,11 +18,11 @@ import (
 // importing the reactor package from a command handler.
 const defaultHoldTime = 90 * time.Second
 
-// handleBgpPeerSave handles "bgp peer <selector> save" command.
+// HandleBgpPeerSave handles "set bgp peer <selector> save" command.
 // Saves selected peer(s) to the config file, merging into existing config.
 // Creates a backup before writing. Only writes optional fields that differ
 // from reactor defaults (local as, router-id) or protocol defaults (hold-time, connection).
-func handleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err

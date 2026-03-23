@@ -39,9 +39,9 @@ func TestBgpHandlerRPCs(t *testing.T) {
 		wireMethodsSeen[reg.WireMethod] = true
 	}
 
-	// 9 peer ops + 3 summary/caps/stats + 1 session-peer-ready = 13
-	// (prefix-update moved to ze-update:bgp-peer-prefix in cmd/update package)
-	assert.Equal(t, 13, bgpCount, "expected 13 BGP handler RPCs")
+	// 6 peer ops (teardown/pause/resume/flush/list/detail) + 3 summary/caps/stats + 1 session-peer-ready = 10
+	// Moved: add/save to ze-set:*, remove to ze-del:*, prefix-update to ze-update:*
+	assert.Equal(t, 10, bgpCount, "expected 10 BGP handler RPCs")
 }
 
 // TestHandlerPeerList verifies handleBgpPeerList returns peer info.
@@ -81,7 +81,7 @@ func TestHandlerPeerListNilReactor(t *testing.T) {
 	require.Error(t, err)
 }
 
-// TestHandlerPeerSave verifies handleBgpPeerSave writes peer config to file.
+// TestHandlerPeerSave verifies HandleBgpPeerSave writes peer config to file.
 //
 // VALIDATES: Save handler creates peer entries in config file via Editor.
 // PREVENTS: Save handler silently failing or writing incorrect config values.
@@ -109,7 +109,7 @@ func TestHandlerPeerSave(t *testing.T) {
 	ctx := newTestContextWithConfig(reactor, configPath)
 	ctx.Peer = "*"
 
-	resp, err := handleBgpPeerSave(ctx, nil)
+	resp, err := HandleBgpPeerSave(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -156,7 +156,7 @@ func TestHandlerPeerSaveNonDefaultHoldTime(t *testing.T) {
 	ctx := newTestContextWithConfig(reactor, configPath)
 	ctx.Peer = "*"
 
-	resp, err := handleBgpPeerSave(ctx, nil)
+	resp, err := HandleBgpPeerSave(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -196,7 +196,7 @@ func TestHandlerPeerSaveLocalAddress(t *testing.T) {
 	ctx := newTestContextWithConfig(reactor, configPath)
 	ctx.Peer = "*"
 
-	resp, err := handleBgpPeerSave(ctx, nil)
+	resp, err := HandleBgpPeerSave(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -234,7 +234,7 @@ func TestHandlerPeerSaveNoConfigPath(t *testing.T) {
 	ctx := newTestContext(reactor) // no config path
 	ctx.Peer = "*"
 
-	_, err := handleBgpPeerSave(ctx, nil)
+	_, err := HandleBgpPeerSave(ctx, nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "config path")
 }

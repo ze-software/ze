@@ -42,20 +42,20 @@ func TestRunCommandTree(t *testing.T) {
 	tree := cli.BuildCommandTree(false)
 
 	// These top-level commands must exist (they come from RPC registrations)
-	topLevel := []string{"daemon", "peer", "rib", "system", "summary"}
+	topLevel := []string{"daemon", "peer", "rib", "system", "summary", "set", "del", "update"}
 	for _, cmd := range topLevel {
 		if _, ok := tree.Children[cmd]; !ok {
 			t.Errorf("missing top-level command in tree: %s", cmd)
 		}
 	}
 
-	// Verify peer has expected subcommands including destructive ones
+	// Verify peer has expected subcommands (add/remove/save moved to set/del verbs)
 	peer := tree.Children["peer"]
 	if peer == nil {
 		t.Fatal("peer command missing from tree")
 		return
 	}
-	for _, sub := range []string{"list", "detail", "teardown", "add", "remove"} {
+	for _, sub := range []string{"list", "detail", "teardown"} {
 		if _, ok := peer.Children[sub]; !ok {
 			t.Errorf("peer missing subcommand: %s", sub)
 		}

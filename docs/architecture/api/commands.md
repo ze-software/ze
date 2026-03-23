@@ -31,7 +31,7 @@ See [JSON_FORMAT.md](JSON_FORMAT.md#exabgp-differences) for output format differ
 | Daemon | shutdown, reload, restart, status |
 | Session | ack, sync, reset, ping, bye |
 | System | help, version, api version |
-| Peer | list, detail, capabilities, statistics, create, delete, teardown, flush |
+| Peer | list, detail, capabilities, statistics, set (add/save), del, teardown, flush |
 | Announce | route, flow, vpls, eor, operational |
 | Withdraw | route, flow, vpls, watchdog |
 | RIB | routes, best, status, clear |
@@ -184,8 +184,8 @@ peer <ip> capabilities   # Show specific peer capabilities
 peer statistics          # Show peer statistics (counters)
 peer <ip> statistics     # Show specific peer statistics
 peer <ip> teardown <code> [<reason>]  # Disconnect peer
-peer create <config>     # Create dynamic peer
-peer <ip> delete         # Delete dynamic peer
+set bgp peer <ip> with <config>  # Create peer with configuration
+del bgp peer <ip>               # Remove dynamic peer
 peer <sel> flush         # Wait for forward pool to drain (barrier)
 ```
 <!-- source: internal/component/bgp/schema/ze-bgp-api.yang -- peer RPCs -->
@@ -689,8 +689,6 @@ peer
 ├── detail
 ├── capabilities
 ├── statistics
-├── create
-├── delete
 └── <selector>
     ├── detail
     ├── capabilities

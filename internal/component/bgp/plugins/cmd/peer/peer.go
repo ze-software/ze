@@ -24,12 +24,9 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-list", Handler: handleBgpPeerList, Help: "List peer(s) (brief)", ReadOnly: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-detail", Handler: handleBgpPeerDetail, Help: "Peer details (config, state, counters)", ReadOnly: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-teardown", Handler: handleTeardown, Help: "Teardown peer session with cease subcode and optional message (RFC 8203)", RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-add", Handler: handleBgpPeerAdd, Help: "Add a peer dynamically", RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-remove", Handler: handleBgpPeerRemove, Help: "Remove a peer dynamically", RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-pause", Handler: handleBgpPeerPause, Help: "Pause peer read loop (flow control)", RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-resume", Handler: handleBgpPeerResume, Help: "Resume peer read loop (flow control)", RequiresSelector: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-flush", Handler: handleBgpPeerFlush, Help: "Wait for forward pool to drain (barrier)", RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-save", Handler: handleBgpPeerSave, Help: "Save peer(s) to config file (merges into existing config)", RequiresSelector: true},
 	)
 }
 
@@ -276,7 +273,7 @@ func parseUint(s string) (uint64, error) {
 	return strconv.ParseUint(s, 10, 64)
 }
 
-// handleBgpPeerAdd handles "peer <ip> add asn <asn> [options...]" command.
+// HandleBgpPeerAdd handles "set bgp peer <ip> add asn <asn> [options...]" command.
 // Adds a peer dynamically at runtime.
 //
 // Options:
@@ -287,7 +284,7 @@ func parseUint(s string) (uint64, error) {
 //	router-id <id>      - Optional: router ID (default: reactor's RouterID)
 //	hold-time <seconds> - Optional: hold time in seconds (default: 90)
 //	passive             - Optional: listen-only mode (no outgoing connections)
-func handleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+func HandleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err
@@ -427,9 +424,9 @@ func handleBgpPeerAdd(ctx *pluginserver.CommandContext, args []string) (*plugin.
 	}, nil
 }
 
-// handleBgpPeerRemove handles "peer <ip> remove" command.
+// HandleBgpPeerRemove handles "del bgp peer <ip>" command.
 // Removes a peer dynamically at runtime.
-func handleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func HandleBgpPeerRemove(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err

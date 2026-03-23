@@ -39,9 +39,11 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cli"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/cache"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/commit"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/del"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/set"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update"
 )

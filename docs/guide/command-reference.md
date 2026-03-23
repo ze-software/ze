@@ -463,14 +463,26 @@ Many commands take a `peer <selector>` argument:
 | `peer <sel> capabilities` | read-only | Negotiated capabilities |
 | `peer <sel> statistics` | read-only | Per-peer update statistics with rates |
 | `bgp summary` | read-only | BGP summary table |
-| `peer <sel> add <config>` | write | Add peer dynamically |
-| `peer <sel> remove` | write | Remove peer |
 | `peer <sel> pause` | write | Pause read loop (flow control) |
 | `peer <sel> resume` | write | Resume read loop |
 | `peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |
-| `peer <sel> save` | write | Save running peers to config |
 | `peer <sel> flush` | write | Block until all queued updates for peer are on the wire |
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang -->
+
+### Set Commands
+
+| Command | Access | Purpose |
+|---------|--------|---------|
+| `set bgp peer <sel> with <config>` | write | Create peer with configuration |
+| `set bgp peer <sel> save` | write | Save running peers to config |
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- set peer handlers -->
+
+### Del Commands
+
+| Command | Access | Purpose |
+|---------|--------|---------|
+| `del bgp peer <sel>` | write | Remove peer |
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- del peer handler -->
 
 ### Update Commands
 

@@ -27,8 +27,8 @@ ze run peer upstream1 teardown 2     # Full access including destructive command
 | `peer list` | List all peers (brief) |
 | `peer * show` | Show peer details and statistics |
 | `peer <sel> teardown <code>` | Graceful session closure with NOTIFICATION |
-| `peer <sel> add <config>` | Dynamic peer addition |
-| `peer <sel> remove` | Remove peer |
+| `set bgp peer <sel> with <config>` | Dynamic peer creation |
+| `del bgp peer <sel>` | Remove peer |
 | `peer <sel> pause` | Pause reading from peer (flow control) |
 | `peer <sel> resume` | Resume reading from peer |
 | `peer <sel> capabilities` | Show negotiated capabilities |

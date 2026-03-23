@@ -1,0 +1,23 @@
+module ze-cli-del-cmd {
+    namespace "urn:ze:cli:del:cmd";
+    prefix clidelcmd;
+    import ze-extensions { prefix ze; }
+    description "Delete command tree -- remove configuration";
+    revision 2026-03-23 { description "Initial revision"; }
+
+    container del {
+        config false;
+        description "Remove configuration";
+
+        container bgp {
+            config false;
+            description "BGP configuration removal";
+
+            container peer {
+                config false;
+                ze:command "ze-del:bgp-peer";
+                description "Remove a peer dynamically";
+            }
+        }
+    }
+}

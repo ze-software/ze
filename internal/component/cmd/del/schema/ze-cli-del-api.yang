@@ -1,0 +1,9 @@
+module ze-cli-del-api {
+  namespace "urn:ze:cli:del:api";
+  prefix cli-del;
+
+  description
+    "Ze del/delete verb RPCs -- remove configuration.";
+
+  rpc bgp-peer { description "Remove a peer dynamically"; }
+}

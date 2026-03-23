@@ -39,18 +39,6 @@ module ze-peer-cmd {
             description "Per-peer update statistics with rates";
         }
 
-        container add {
-            config false;
-            ze:command "ze-bgp:peer-add";
-            description "Add a peer dynamically";
-        }
-
-        container remove {
-            config false;
-            ze:command "ze-bgp:peer-remove";
-            description "Remove a peer dynamically";
-        }
-
         container teardown {
             config false;
             ze:command "ze-bgp:peer-teardown";
@@ -74,12 +62,6 @@ module ze-peer-cmd {
             config false;
             ze:command "ze-bgp:peer-flush";
             description "Wait for forward pool to drain (barrier)";
-        }
-
-        container save {
-            config false;
-            ze:command "ze-bgp:peer-save";
-            description "Save peer(s) to config file (merges into existing config)";
         }
 
         container plugin {

@@ -254,8 +254,8 @@ generalized to extract `peer <selector>` at any position in the command path
 | `peer * capabilities` | `show bgp peer * capabilities` | show |
 | `peer * statistics` | `show bgp peer * statistics` | show |
 | `bgp summary` | `show bgp summary` | show |
-| `peer * add` | `set bgp peer * add` | set |
-| `peer * remove` | `set bgp peer * remove` | set |
+| `peer * add` | `set bgp peer * with <config>` | set |
+| `peer * remove` | `del bgp peer *` | del |
 | `peer * save` | `set bgp peer * save` | set |
 | `peer * teardown` | `run bgp peer * teardown` | run |
 | `peer * pause` | `run bgp peer * pause` | run |

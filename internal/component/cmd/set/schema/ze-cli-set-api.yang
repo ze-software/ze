@@ -1,0 +1,10 @@
+module ze-cli-set-api {
+  namespace "urn:ze:cli:set:api";
+  prefix cli-set;
+
+  description
+    "Ze set verb RPCs -- create or modify configuration.";
+
+  rpc bgp-peer-with { description "Set peer with configuration (asn, local-as, hold-time, etc.)"; }
+  rpc bgp-peer-save { description "Save peer(s) to config file"; }
+}

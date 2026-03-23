@@ -34,13 +34,13 @@ def main():
     time.sleep(1.0)
 
     try:
-        result = dispatch(api, 'peer 10.0.0.99 add asn 2 local-as 1')
+        result = dispatch(api, 'set bgp peer 10.0.0.99 with asn 2 local-as 1')
         if result.get('status') != 'done':
             print(f'FAIL: add status={result.get("status")}', file=sys.stderr)
             sys.exit(1)
         time.sleep(0.5)
 
-        result = dispatch(api, 'peer 10.0.0.99 remove')
+        result = dispatch(api, 'del bgp peer 10.0.0.99')
         if result.get('status') != 'done':
             print(f'FAIL: remove status={result.get("status")}', file=sys.stderr)
             sys.exit(1)

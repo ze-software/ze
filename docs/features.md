@@ -305,8 +305,8 @@ Commands sent through `ze cli`, `ze run`, `ze show`, or process stdin.
 | `bgp peer * list` | List peers (brief) |
 | `bgp peer * show` | Show peer details and statistics |
 | `bgp peer <addr> teardown <code>` | Graceful session closure with NOTIFICATION |
-| `bgp peer <addr> add <config>` | Dynamic peer addition |
-| `bgp peer <addr> remove` | Remove peer |
+| `set bgp peer <addr> with <config>` | Dynamic peer creation |
+| `del bgp peer <addr>` | Remove peer |
 | `bgp peer <addr> pause` | Pause reading from peer (flow control) |
 | `bgp peer <addr> resume` | Resume reading from peer |
 | `bgp peer <addr> capabilities` | Show negotiated capabilities |

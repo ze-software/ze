@@ -183,7 +183,7 @@ func TestHandlerPeerAddBasic(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerAdd(ctx, []string{"asn", "65001"})
+	resp, err := HandleBgpPeerAdd(ctx, []string{"asn", "65001"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -201,7 +201,7 @@ func TestHandlerPeerAddAllOptions(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerAdd(ctx, []string{
+	resp, err := HandleBgpPeerAdd(ctx, []string{
 		"asn", "65001",
 		"local-as", "65000",
 		"local-ip", "10.0.0.1",
@@ -229,7 +229,7 @@ func TestHandlerPeerAddMissingASN(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerAdd(ctx, nil)
+	resp, err := HandleBgpPeerAdd(ctx, nil)
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
@@ -242,7 +242,7 @@ func TestHandlerPeerAddWildcardPeer(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 	ctx.Peer = "*"
 
-	resp, err := handleBgpPeerAdd(ctx, []string{"asn", "65001"})
+	resp, err := HandleBgpPeerAdd(ctx, []string{"asn", "65001"})
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }
@@ -255,7 +255,7 @@ func TestHandlerPeerAddUnknownOption(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerAdd(ctx, []string{"asn", "65001", "bogus-option"})
+	resp, err := HandleBgpPeerAdd(ctx, []string{"asn", "65001", "bogus-option"})
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Data, "unknown option")
@@ -270,7 +270,7 @@ func TestHandlerPeerRemove(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := handleBgpPeerRemove(ctx, nil)
+	resp, err := HandleBgpPeerRemove(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
@@ -286,7 +286,7 @@ func TestHandlerPeerRemoveWildcardPeer(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 	ctx.Peer = "*"
 
-	resp, err := handleBgpPeerRemove(ctx, nil)
+	resp, err := HandleBgpPeerRemove(ctx, nil)
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 }

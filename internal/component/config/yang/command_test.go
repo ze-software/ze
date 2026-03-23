@@ -198,17 +198,18 @@ func TestPeerCmdModule(t *testing.T) {
 	assert.Equal(t, "", GetCommandExtension(peer), "peer grouping has no handler")
 	assert.Equal(t, gyang.TSFalse, peer.Config)
 
-	// peer commands
+	// peer commands (add/remove/save moved to set/del verbs)
 	assert.Equal(t, "ze-bgp:peer-list", GetCommandExtension(peer.Dir["list"]))
 	assert.Equal(t, "ze-bgp:peer-detail", GetCommandExtension(peer.Dir["detail"]))
-	assert.Equal(t, "ze-bgp:peer-add", GetCommandExtension(peer.Dir["add"]))
-	assert.Equal(t, "ze-bgp:peer-remove", GetCommandExtension(peer.Dir["remove"]))
 	assert.Equal(t, "ze-bgp:peer-teardown", GetCommandExtension(peer.Dir["teardown"]))
 	assert.Equal(t, "ze-bgp:peer-pause", GetCommandExtension(peer.Dir["pause"]))
 	assert.Equal(t, "ze-bgp:peer-resume", GetCommandExtension(peer.Dir["resume"]))
-	assert.Equal(t, "ze-bgp:peer-save", GetCommandExtension(peer.Dir["save"]))
+	assert.Equal(t, "ze-bgp:peer-flush", GetCommandExtension(peer.Dir["flush"]))
 	assert.Equal(t, "ze-bgp:peer-capabilities", GetCommandExtension(peer.Dir["capabilities"]))
 	assert.Equal(t, "ze-bgp:peer-statistics", GetCommandExtension(peer.Dir["statistics"]))
+	assert.Nil(t, peer.Dir["add"], "add moved to set verb")
+	assert.Nil(t, peer.Dir["remove"], "remove moved to del verb")
+	assert.Nil(t, peer.Dir["save"], "save moved to set verb")
 
 	// deep nesting: peer > plugin > session > ready
 	assert.Equal(t, "ze-plugin:session-peer-ready",
@@ -447,6 +448,67 @@ func TestCliUpdateCmdModule(t *testing.T) {
 	assert.Equal(t, "ze-update:bgp-peer-prefix", GetCommandExtension(prefix))
 }
 
+// TestCliSetCmdModule verifies ze-cli-set-cmd.yang (set verb from cmd/set).
+//
+// VALIDATES: Set verb YANG module loads with set > bgp > peer > add/save hierarchy.
+// PREVENTS: Set verb commands missing from the command tree.
+func TestCliSetCmdModule(t *testing.T) {
+	loader := NewLoader()
+	err := loader.LoadEmbedded()
+	require.NoError(t, err)
+	loadCmdModule(t, loader, cmdBase+"set/schema/ze-cli-set-cmd.yang")
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	entry := loader.GetEntry("ze-cli-set-cmd")
+	require.NotNil(t, entry)
+
+	set := entry.Dir["set"]
+	require.NotNil(t, set, "set container must exist")
+	assert.Equal(t, "", GetCommandExtension(set), "set is a grouping, no handler")
+
+	bgp := set.Dir["bgp"]
+	require.NotNil(t, bgp, "set > bgp must exist")
+
+	peer := bgp.Dir["peer"]
+	require.NotNil(t, peer, "set > bgp > peer must exist")
+
+	with := peer.Dir["with"]
+	require.NotNil(t, with, "set > bgp > peer > with must exist")
+	assert.Equal(t, "ze-set:bgp-peer-with", GetCommandExtension(with))
+
+	save := peer.Dir["save"]
+	require.NotNil(t, save, "set > bgp > peer > save must exist")
+	assert.Equal(t, "ze-set:bgp-peer-save", GetCommandExtension(save))
+}
+
+// TestCliDelCmdModule verifies ze-cli-del-cmd.yang (del verb from cmd/del).
+//
+// VALIDATES: Del verb YANG module loads with del > bgp > peer hierarchy.
+// PREVENTS: Del verb command missing from the command tree.
+func TestCliDelCmdModule(t *testing.T) {
+	loader := NewLoader()
+	err := loader.LoadEmbedded()
+	require.NoError(t, err)
+	loadCmdModule(t, loader, cmdBase+"del/schema/ze-cli-del-cmd.yang")
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	entry := loader.GetEntry("ze-cli-del-cmd")
+	require.NotNil(t, entry)
+
+	del := entry.Dir["del"]
+	require.NotNil(t, del, "del container must exist")
+	assert.Equal(t, "", GetCommandExtension(del), "del is a grouping, no handler")
+
+	bgp := del.Dir["bgp"]
+	require.NotNil(t, bgp, "del > bgp must exist")
+
+	peer := bgp.Dir["peer"]
+	require.NotNil(t, peer, "del > bgp > peer must exist")
+	assert.Equal(t, "ze-del:bgp-peer", GetCommandExtension(peer))
+}
+
 // TestBuildCommandTree verifies BuildCommandTree merges multiple -cmd modules into one command.Node tree.
 //
 // VALIDATES: Multiple YANG modules with overlapping containers merge correctly into command.Node.
@@ -484,8 +546,7 @@ func TestBuildCommandTree(t *testing.T) {
 	// From ze-peer-cmd -- verify WireMethod on merged leaves
 	require.NotNil(t, peer.Children["list"], "peer.list from ze-peer-cmd")
 	assert.Equal(t, "ze-bgp:peer-list", peer.Children["list"].WireMethod)
-	require.NotNil(t, peer.Children["add"], "peer.add from ze-peer-cmd")
-	assert.Equal(t, "ze-bgp:peer-add", peer.Children["add"].WireMethod)
+	assert.Nil(t, peer.Children["add"], "peer.add moved to set verb")
 
 	// From ze-raw-cmd
 	require.NotNil(t, peer.Children["raw"], "peer.raw from ze-raw-cmd")

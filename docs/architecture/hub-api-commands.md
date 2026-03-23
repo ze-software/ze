@@ -246,7 +246,7 @@ Result:  exit 0 → valid
 
 ```bash
 # User types:
-$ ze bgp peer add 192.0.2.1 group <TAB>
+$ ze set bgp peer 192.0.2.1 with asn <TAB>
 
 # Shell runs:
 $ ze bgp schema complete peer-group name

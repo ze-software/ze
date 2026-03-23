@@ -35,9 +35,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/cache"     // init() registers cache command RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/commit"    // init() registers commit command RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/del"       // init() registers del verb RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/log"       // init() registers log show/set RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"      // init() registers help/discovery RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics"   // init() registers metrics show/list RPCs
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/set"       // init() registers set verb RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe" // init() registers subscribe/unsubscribe RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update"    // init() registers update verb RPCs
 
@@ -58,6 +60,7 @@ import (
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.chan.size", Type: "int", Default: "64", Description: "Per-destination forward worker channel capacity"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.write.deadline", Type: "duration", Default: "30s", Description: "TCP write deadline for forward pool batch writes"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.size", Type: "int", Default: "100000", Description: "Global overflow pool capacity for forward workers (0 = unbounded)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.safety.valve", Type: "duration", Default: "5m", Description: "Safety valve duration for UPDATE cache gap-based eviction"})
 )
 
@@ -305,6 +308,9 @@ func New(config *Config) *Reactor {
 	// ze.fwd.chan.size overrides the per-destination forward pool channel capacity.
 	// Default: 64. Invalid/zero/negative values use default.
 	fwdChanSize := env.GetInt("ze.fwd.chan.size", 0)
+	// ze.fwd.pool.size bounds overflow items across all workers.
+	// Default: 100000 (~100K items). 0 = unbounded (legacy behavior).
+	fwdPoolSize := env.GetInt("ze.fwd.pool.size", 100000)
 
 	r := &Reactor{
 		config:          config,
@@ -315,7 +321,8 @@ func New(config *Config) *Reactor {
 		listeners:       make(map[string]*Listener),
 		recentUpdates:   NewRecentUpdateCache(maxEntries),
 		fwdPool: newFwdPool(fwdBatchHandler, fwdPoolConfig{
-			chanSize: fwdChanSize,
+			chanSize:         fwdChanSize,
+			overflowPoolSize: fwdPoolSize,
 		}),
 		configTree: config.ConfigTree,
 	}
