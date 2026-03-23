@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"syscall"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
@@ -205,10 +206,26 @@ func (s *Session) processOpen(open *message.Open) error {
 
 // connectionEstablished handles a new TCP connection (incoming or outgoing).
 func (s *Session) connectionEstablished(conn net.Conn) error {
-	// Disable Nagle's algorithm: BGP messages are application-framed and
-	// flushed explicitly via bufio.Writer, so Nagle only adds latency.
+	// Tune TCP socket for BGP:
+	// - TCP_NODELAY: BGP messages are application-framed and flushed
+	//   explicitly via bufio.Writer, so Nagle only adds latency.
+	// - IP_TOS/IPV6_TCLASS = 0xC0 (DSCP CS6, Internet Control):
+	//   RFC 4271 §5.1 recommends IP precedence for BGP. Network devices
+	//   with QoS policies prioritize CS6 traffic over regular data,
+	//   reducing hold timer expiry risk under network congestion.
 	if tcp, ok := conn.(*net.TCPConn); ok {
 		_ = tcp.SetNoDelay(true)
+		if addr, ok := tcp.RemoteAddr().(*net.TCPAddr); ok {
+			if raw, err := tcp.SyscallConn(); err == nil {
+				_ = raw.Control(func(fd uintptr) {
+					if addr.IP.To4() != nil {
+						_ = syscall.SetsockoptInt(int(fd), syscall.IPPROTO_IP, syscall.IP_TOS, 0xC0)
+					} else {
+						_ = syscall.SetsockoptInt(int(fd), syscall.IPPROTO_IPV6, syscall.IPV6_TCLASS, 0xC0)
+					}
+				})
+			}
+		}
 	}
 
 	s.mu.Lock()
@@ -328,6 +345,9 @@ func (s *Session) Teardown(subcode uint8, shutdownMsg string) error {
 }
 
 // closeConn closes the TCP connection.
+// Uses half-close (CloseWrite) when possible to send TCP FIN instead of RST.
+// This ensures the remote side can read any pending data (e.g., NOTIFICATION)
+// before the connection is fully closed.
 func (s *Session) closeConn() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -339,6 +359,14 @@ func (s *Session) closeConn() {
 			s.writeMu.Lock()
 			_ = s.bufWriter.Flush()
 			s.writeMu.Unlock()
+		}
+		// Half-close: send FIN (not RST) so the remote side can read
+		// any pending NOTIFICATION before the connection is torn down.
+		// A plain Close() sends RST when unread data is in the receive
+		// buffer, which can cause the remote kernel to discard our
+		// outbound data before the application reads it.
+		if tcp, ok := s.conn.(*net.TCPConn); ok {
+			_ = tcp.CloseWrite()
 		}
 		_ = s.conn.Close()
 		s.conn = nil

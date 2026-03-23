@@ -46,12 +46,69 @@ Research into existing BGP implementations reveals:
 
 | Implementation | Approach to slow peers |
 |---------------|----------------------|
-| BIRD 3 (IXP route servers) | High/low watermark on pending export queue. When high water exceeded, pauses imports. Never drops. |
+| BIRD 3 (IXP route servers) | Unbounded bucket queue per peer (no backpressure beyond TCP flow control). Route superseding deduplicates pending updates for same prefix. Hold timer congestion extension: if RX data pending when hold timer fires, extend 10s instead of teardown. TX budget 1024 messages per event loop cycle. Channel fairness: round-robin with 16-message stickiness across AFI/SAFI. fast_rx during handshake for OPEN/KEEPALIVE priority. |
 | FRRouting | Dedicated keepalive thread. Write quanta limit per I/O cycle. Configurable SO_SNDBUF. Implements RFC 9687 Send Hold Timer. |
 | OpenBGPd | Internal msgbuf queuing on EAGAIN. Keepalive on independent timer. Implements RFC 9687. |
 | Cisco IOS-XR | Update groups with slow-peer detection and dynamic isolation into "refresh sub-groups." 32 MB per sub-group cache. |
 | Juniper Junos | 17 prioritized output queues. Keepalive generation in dedicated kernel thread. Per-prefix out-delay rate limiting. |
 | Nokia (Alcatel-Lucent) | Uses TCP receive window zero as deliberate backpressure. Known to break peers that don't handle it. |
+
+### BIRD Source Code Analysis (2026-03-23)
+
+Detailed analysis of BIRD source code (gitlab.nic.cz/labs/bird, master branch).
+
+**Socket options BIRD sets on BGP connections:**
+
+| Option | Value | File / Function | Purpose |
+|--------|-------|----------------|---------|
+| IP_TOS (IPv4) | 0xC0 (DSCP CS6, Internet Control) | bgp.c:229,1827 via io.c:sk_set_tos4() | Network-level QoS priority for routing protocol traffic |
+| IPV6_TCLASS (IPv6) | 0xC0 (DSCP CS6) | bgp.c:229,1827 via io.c:sk_set_tos6() | Same as above for IPv6 |
+| O_NONBLOCK | all sockets | io.c:1141 | Non-blocking I/O for event loop |
+| SO_REUSEADDR | listener only | io.c:1666 | Allow quick listener restart |
+| TCP_MD5SIG | when configured | sysio.h:511-552 | RFC 2385 authentication |
+| TCP-AO | when configured | sysio.h:175-502 | RFC 5925 authentication |
+| IP_MINTTL / IPV6_MINHOPCOUNT | when ttl_security configured | sysio.h:555-580 | GTSM (RFC 5082) |
+| IP_FREEBIND / IPV6_FREEBIND | when free_bind configured | sysio.h:616-629 | Bind to not-yet-assigned addresses |
+| SO_BINDTODEVICE | when interface configured | io.c:1168,1178 | VRF binding |
+
+**Socket options BIRD does NOT set on BGP connections:**
+
+| Option | Status | Notes |
+|--------|--------|-------|
+| TCP_NODELAY | Not set | Nagle enabled. Relies on kernel coalescing of one-message-per-write pattern |
+| TCP_CORK / MSG_MORE | Not used | No explicit write batching |
+| SO_SNDBUF | Not set | Kernel default |
+| SO_RCVBUF | Not set on TCP | Only set on UDP/IP sockets (io.c:1247) |
+| SO_KEEPALIVE | Not used | App-layer timers only |
+| SO_PRIORITY | Available but not applied | sk_priority_control=7 exists but BGP sockets don't set priority field |
+
+**BIRD TX path:**
+
+| Property | Detail |
+|----------|--------|
+| TX buffer | Single buffer per connection: 4096 bytes (standard) or 65535 (extended messages, RFC 8654) |
+| Messages per write | ONE per sk_send() call. No multi-message batching. |
+| TX budget | 1024 messages per bgp_kick_tx()/bgp_tx() invocation |
+| When send buffer full | write() returns EAGAIN, loop exits, resumes on POLLOUT |
+| Pending update queue | Unbounded linked list of bgp_bucket structs (no limit, no dropping) |
+| Route superseding | Prefix hash deduplicates: new route for already-queued prefix moves to new bucket |
+
+**BIRD congestion handling:**
+
+| Mechanism | Detail |
+|-----------|--------|
+| Backpressure | None explicit. TCP flow control only. Bucket queue grows unbounded. |
+| Hold timer extension | If RX data pending when hold timer fires, extend 10s (CPU congestion detection, bgp.c:1712-1716) |
+| Send Hold Timer | RFC 9687. Default 2x hold_time. Reset on every successful sk_send(). Hard disconnect on expiry (no NOTIFICATION). |
+| Channel fairness | Round-robin with 16-message stickiness across AFI/SAFI (packets.c:3063-3089) |
+| fast_rx mode | ON during OPEN/OPENCONFIRM, OFF in ESTABLISHED. Fast sockets get priority reads (up to 4 per poll cycle) |
+| Event loop steps | MAX_STEPS=4 per socket per poll cycle |
+
+**Key takeaway for ze:** BIRD's bucket queue is unbounded with no backpressure --
+it relies entirely on TCP flow control and route superseding to manage slow peers.
+Ze's four-layer design is strictly more capable. The techniques worth adopting are:
+hold timer congestion extension, TX budget limiting, channel fairness, IP_TOS marking,
+and route superseding in the overflow pool.
 
 **Universal industry rule:** Never drop routes silently. Every major implementation
 chooses memory growth or backpressure over route loss.
@@ -69,9 +126,28 @@ zombies" -- sessions that appear alive but cannot deliver withdrawals, causing s
 routes in the DFZ. Every tested implementation (BIRD, Cisco, Junos, Arista, FRR)
 hangs without tearing down.
 
-**TCP_NODELAY:** 27x improvement in UPDATE delivery latency measured in BIRD
-(0.207s to 0.007s). FRR and OpenBGPd enable it. Ze should set TCP_NODELAY on
-all peer sockets -- critical for keepalive delivery under congestion.
+**TCP_NODELAY:** ~~Ze should set TCP_NODELAY on all peer sockets.~~ Done (commit
+1c43e11d). Set in connectionEstablished() on all production BGP sessions.
+
+**IP_TOS / DSCP CS6 (0xC0):** BIRD sets IP_PREC_INTERNET_CONTROL on all BGP sockets
+(both listener and outgoing). RFC 4271 Section 5.1 recommends IP precedence for BGP.
+DSCP CS6 tells network devices to prioritize BGP traffic over regular data traffic.
+Under network congestion, routers with QoS policies will preferentially forward BGP
+packets, reducing the chance of hold timer expiry due to packet loss. Ze should set
+IP_TOS on all peer sockets -- both dialer (via Control callback) and accepted connections.
+
+**Hold timer congestion extension (BIRD technique):** When the hold timer expires,
+check if there is unread data in the kernel receive buffer (via poll with zero timeout
+or syscall). If data is pending, the daemon is CPU-congested, not the peer -- extend
+the hold timer by 10 seconds instead of tearing down. This prevents false hold timer
+expirations when the event loop is overloaded processing a burst of UPDATEs from
+other peers.
+
+**Route superseding in pending queue (BIRD technique):** When a new route arrives
+for a destination already queued for sending, replace the old entry instead of
+appending. This bounds queue growth to the number of unique prefixes rather than the
+number of updates. Ze's overflow pool should do the same -- a new update for an
+already-queued prefix should replace, not append.
 
 ## Design: Four-Layer Congestion Response
 
@@ -595,8 +671,12 @@ than guessed.
 **Behavior to change:**
 - Replace drop-at-256 with pre-allocated global overflow pool (auto-sized)
 - Add write deadline to writeMessage (keepalive bug)
-- Set TCP_NODELAY on peer sockets
+- ~~Set TCP_NODELAY on peer sockets~~ Done (commit 1c43e11d)
+- Set IP_TOS/DSCP CS6 (0xC0) on all peer sockets (dialer Control callback + accepted connections)
 - Implement RFC 9687 Send Hold Timer
+- Add hold timer congestion extension (BIRD technique: extend 10s if RX data pending)
+- Add route superseding in overflow pool (replace pending update for same prefix, not append)
+- Add TX budget limiting (cap messages per forward batch to prevent one peer starving others)
 - Add source-side metrics (overflow ratio, throttle state)
 - Add destination-side metrics (overflow items, growth rate, write latency)
 - Add read throttling proportional to pool fill AND source overflow ratio
@@ -640,6 +720,10 @@ than guessed.
 | Pool exhausted, backpressure insufficient | -> | Slow destination torn down (GR-aware) | test/plugin/forward-congestion-teardown.ci |
 | Peer disconnects with pool slots | -> | Slots returned to pool immediately | TestFwdPool_FlushPeerReturnsSlots |
 | Send Hold Timer expires on stuck peer | -> | Session torn down with Error Code 8 | test/plugin/forward-send-hold-timer.ci |
+| BGP session established (dial or accept) | -> | IP_TOS=0xC0 set on TCP socket | TestSession_IPTOS_Set |
+| Hold timer fires while RX buffer has data | -> | Timer extended 10s, session not torn down | TestSession_HoldTimerCongestionExtension |
+| Two updates for same prefix in overflow | -> | Second replaces first, pool item count unchanged | TestFwdPool_RouteSuperseding |
+| Forward batch exceeds TX budget | -> | Batch capped, remaining deferred to next cycle | TestFwdPool_TXBudgetLimit |
 
 ## Acceptance Criteria
 
@@ -659,9 +743,13 @@ than guessed.
 | AC-12 | Fast destination peers during congestion | Unaffected by slow destination -- isolation preserved |
 | AC-13 | TCP window zero on source peer | Pulses open 5x per keepalive interval, 2-3s each |
 | AC-14 | Remote peer holds window zero toward us | RFC 9687 Send Hold Timer tears down after configured duration |
-| AC-15 | TCP_NODELAY set on peer sockets | All BGP peer TCP connections have TCP_NODELAY enabled |
+| AC-15 | TCP_NODELAY set on peer sockets | All BGP peer TCP connections have TCP_NODELAY enabled. Done (commit 1c43e11d). |
 | AC-16 | Source peer overflow ratio visible in Prometheus | ze_bgp_overflow_ratio gauge per peer |
 | AC-17 | Destination peer overflow depth visible in Prometheus | ze_bgp_overflow_items gauge per peer |
 | AC-18 | Pool utilization visible in Prometheus | ze_bgp_pool_used_ratio gauge |
 | AC-19 | Per-peer buffer share proportional to prefix count | Peer with 500K prefixes gets larger share than peer with 200 |
 | AC-20 | PeeringDB lookup for unknown peers | Query PeeringDB by ASN when no local RIB data, if configured |
+| AC-21 | IP_TOS/DSCP CS6 set on all peer sockets | Outgoing (dialer Control callback) and accepted connections set IP_TOS=0xC0 (IPv4) / IPV6_TCLASS=0xC0 (IPv6) |
+| AC-22 | Hold timer fires with RX data pending | Hold timer extended 10s instead of teardown (CPU congestion, not peer failure) |
+| AC-23 | New update for prefix already in overflow pool | Old entry replaced (route superseding), not appended. Pool item count bounded by unique prefixes. |
+| AC-24 | Forward batch to single destination peer | TX budget caps messages per batch (prevents one peer starving others in event loop) |
