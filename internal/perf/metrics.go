@@ -130,30 +130,28 @@ func CalculateLatencies(durations []time.Duration) (p50, p90, p99, max int) {
 	return p50, p90, p99, max
 }
 
-// CalculateThroughput computes average and peak routes/sec from arrival timestamps.
-// avg = total routes / time span in seconds. peak = max count in any 1-second window.
-// Returns 0,0 for empty or single-element input.
-func CalculateThroughput(timestamps []time.Time) (avg, peak int) {
-	if len(timestamps) <= 1 {
+// CalculateThroughput computes average and peak routes/sec.
+// convergence is the total time from first send to last receive.
+// timestamps are per-route arrival times (used for peak calculation).
+// avg = total routes / convergence seconds. peak = max count in any 1-second window.
+// When all routes arrive in a single burst (zero timestamp spread), peak equals route count.
+func CalculateThroughput(timestamps []time.Time, convergence time.Duration) (avg, peak int) {
+	if len(timestamps) == 0 {
 		return 0, 0
 	}
 
+	// Average: routes / convergence time.
+	if convergence > 0 {
+		avg = int(float64(len(timestamps)) / convergence.Seconds())
+	}
+
+	// Peak: sliding 1-second window over sorted arrival timestamps.
 	sorted := make([]time.Time, len(timestamps))
 	copy(sorted, timestamps)
 	sort.Slice(sorted, func(i, j int) bool {
 		return sorted[i].Before(sorted[j])
 	})
 
-	span := sorted[len(sorted)-1].Sub(sorted[0])
-	if span <= 0 {
-		return 0, 0
-	}
-
-	spanSec := span.Seconds()
-	avg = int(float64(len(sorted)) / spanSec)
-
-	// Peak: sliding 1-second window using two pointers.
-	peak = 0
 	left := 0
 
 	for right := range sorted {

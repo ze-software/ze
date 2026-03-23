@@ -241,7 +241,12 @@ func TestRunSmallBenchmark(t *testing.T) {
 		return recvTimestamps[i].Before(recvTimestamps[j])
 	})
 
-	tpAvg, tpPeak := CalculateThroughput(recvTimestamps)
+	var convergenceDur time.Duration
+	if len(recvTimestamps) > 1 {
+		convergenceDur = recvTimestamps[len(recvTimestamps)-1].Sub(recvTimestamps[0])
+	}
+
+	tpAvg, tpPeak := CalculateThroughput(recvTimestamps, convergenceDur)
 
 	result := IterationResult{
 		RoutesReceived: len(recvTimes),

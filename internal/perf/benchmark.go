@@ -349,7 +349,7 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 	}
 
 	p50, p90, p99, latMax := CalculateLatencies(durations)
-	tpAvg, tpPeak := CalculateThroughput(recvTimestamps)
+	tpAvg, tpPeak := CalculateThroughput(recvTimestamps, time.Duration(convergenceMs)*time.Millisecond)
 
 	// Send NOTIFICATION Cease on both connections.
 	cease := BuildCeaseNotification()

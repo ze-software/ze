@@ -158,7 +158,8 @@ func TestThroughputCalculation(t *testing.T) {
 			timestamps[i] = base.Add(time.Duration(i) * 10 * time.Millisecond)
 		}
 
-		avg, peak := CalculateThroughput(timestamps)
+		convergence := timestamps[len(timestamps)-1].Sub(timestamps[0])
+		avg, peak := CalculateThroughput(timestamps, convergence)
 
 		// 100 routes over ~990ms. avg should be ~100 routes/sec.
 		if avg < 90 || avg > 110 {
@@ -171,7 +172,7 @@ func TestThroughputCalculation(t *testing.T) {
 	})
 
 	t.Run("empty timestamps", func(t *testing.T) {
-		avg, peak := CalculateThroughput(nil)
+		avg, peak := CalculateThroughput(nil, 0)
 		if avg != 0 || peak != 0 {
 			t.Errorf("expected 0,0 for empty, got %d,%d", avg, peak)
 		}
@@ -179,9 +180,12 @@ func TestThroughputCalculation(t *testing.T) {
 
 	t.Run("single timestamp", func(t *testing.T) {
 		base := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-		avg, peak := CalculateThroughput([]time.Time{base})
-		if avg != 0 || peak != 0 {
-			t.Errorf("expected 0,0 for single timestamp, got %d,%d", avg, peak)
+		avg, peak := CalculateThroughput([]time.Time{base}, 0)
+		if avg != 0 {
+			t.Errorf("avg = %d, want 0 for single timestamp with zero convergence", avg)
+		}
+		if peak != 1 {
+			t.Errorf("peak = %d, want 1 for single timestamp", peak)
 		}
 	})
 
@@ -196,7 +200,8 @@ func TestThroughputCalculation(t *testing.T) {
 			timestamps[100+i] = base.Add(time.Second + time.Duration(i)*5*time.Millisecond)
 		}
 
-		avg, peak := CalculateThroughput(timestamps)
+		convergence := timestamps[len(timestamps)-1].Sub(timestamps[0])
+		avg, peak := CalculateThroughput(timestamps, convergence)
 
 		// 200 routes over ~1.5 seconds.
 		if avg < 80 || avg > 200 {
