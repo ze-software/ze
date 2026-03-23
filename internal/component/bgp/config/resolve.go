@@ -132,12 +132,20 @@ func isASCIILetterOrDigit(ch rune) bool {
 	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')
 }
 
-// isValidPeerNameChar returns true if the character is allowed in a peer name.
-// Allowed: ASCII letters, ASCII digits, hyphens, underscores.
-// Non-ASCII letters (unicode.IsLetter accepts CJK, accents, etc.) are rejected
-// to avoid display issues and CLI ambiguity.
+// isValidPeerNameFirstChar returns true if the character is allowed as the first
+// character of a peer name. Only ASCII letters, digits, and underscores.
+// Dots and hyphens are not allowed as the first character to avoid ambiguity
+// with IP addresses (dot) and CLI flags (hyphen).
+func isValidPeerNameFirstChar(ch rune) bool {
+	return isASCIILetterOrDigit(ch) || ch == '_'
+}
+
+// isValidPeerNameChar returns true if the character is allowed in a peer name
+// at the second position or later. Allowed: ASCII letters, digits, hyphens,
+// underscores, and dots. Non-ASCII letters (unicode.IsLetter accepts CJK,
+// accents, etc.) are rejected to avoid display issues and CLI ambiguity.
 func isValidPeerNameChar(ch rune) bool {
-	return isASCIILetterOrDigit(ch) || ch == '-' || ch == '_'
+	return isASCIILetterOrDigit(ch) || ch == '-' || ch == '_' || ch == '.'
 }
 
 // maxPeerNameLen is the maximum length for peer names.
@@ -157,9 +165,10 @@ var reservedPeerNames = map[string]bool{
 }
 
 // validatePeerName checks that a peer name is valid for use as a CLI selector.
-// Names must be ASCII alphanumeric with hyphens and underscores only.
+// First character must be ASCII alphanumeric or underscore.
+// Subsequent characters may also include hyphens and dots.
 // Names must not parse as IP addresses or look like glob patterns.
-// Names must start with a letter or digit (not punctuation-only).
+// Names must contain at least one letter or digit.
 // Names must not collide with "peer" subcommand keywords.
 func validatePeerName(name string) error {
 	if name == "*" {
@@ -176,10 +185,15 @@ func validatePeerName(name string) error {
 	}
 
 	// Reject names containing invalid characters.
-	// Only ASCII letters, digits, hyphens, and underscores are allowed.
-	for _, ch := range name {
-		if !isValidPeerNameChar(ch) {
-			return fmt.Errorf("invalid peer name %q: only ASCII alphanumeric, hyphens, and underscores allowed", name)
+	// First character: ASCII letters, digits, underscores only.
+	// Subsequent characters: also allow hyphens and dots.
+	for i, ch := range name {
+		if i == 0 {
+			if !isValidPeerNameFirstChar(ch) {
+				return fmt.Errorf("invalid peer name %q: first character must be alphanumeric or underscore", name)
+			}
+		} else if !isValidPeerNameChar(ch) {
+			return fmt.Errorf("invalid peer name %q: only alphanumeric, hyphens, underscores, and dots allowed", name)
 		}
 	}
 
@@ -213,9 +227,13 @@ func validateGroupName(name string) error {
 	if len(name) > maxPeerNameLen {
 		return fmt.Errorf("invalid group name %q: exceeds maximum length %d", name, maxPeerNameLen)
 	}
-	for _, ch := range name {
-		if !isValidPeerNameChar(ch) {
-			return fmt.Errorf("invalid group name %q: only ASCII alphanumeric, hyphens, and underscores allowed", name)
+	for i, ch := range name {
+		if i == 0 {
+			if !isValidPeerNameFirstChar(ch) {
+				return fmt.Errorf("invalid group name %q: first character must be alphanumeric or underscore", name)
+			}
+		} else if !isValidPeerNameChar(ch) {
+			return fmt.Errorf("invalid group name %q: only alphanumeric, hyphens, underscores, and dots allowed", name)
 		}
 	}
 	hasAlphanumeric := false
