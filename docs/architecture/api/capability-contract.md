@@ -156,14 +156,14 @@ peer 192.168.1.1: route-refresh requires process with send { update; }
 
 **Router → API:** ✅ Implemented
 ```
-peer 192.168.1.1 refresh ipv4/unicast
+peer peer-east refresh ipv4/unicast
 ```
 
 **API → Router:** ✅ Done (`refresh.go`, `reactor.go`)
 ```
-peer 192.168.1.1 borr ipv4/unicast
+peer peer-east borr ipv4/unicast
 update text nhop set self nlri ipv4/unicast add 10.0.0.0/24
-peer 192.168.1.1 eorr ipv4/unicast
+peer peer-east eorr ipv4/unicast
 ```
 **RFC 7313 compliance:**
 - Enhanced Route Refresh capability check before sending BoRR/EoRR

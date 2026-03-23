@@ -89,7 +89,6 @@ Decoding/encoding BGP messages requires **negotiated capabilities** from OPEN ex
 
 ```go
 // Simplified view - see internal/component/bgp/capability/ for full struct
-<!-- source: internal/component/bgp/capability/ -- Negotiated capabilities -->
 type Negotiated struct {
     ASN4            bool                   // AS_PATH: 2-byte or 4-byte ASNs
     AddPath         map[Family]AddPathMode // NLRI: Receive/Send/Both path-id
@@ -101,6 +100,7 @@ type Negotiated struct {
     RouteRefresh    bool                   // RFC 2918 route refresh support
 }
 ```
+<!-- source: internal/component/bgp/capability/ -- Negotiated capabilities -->
 
 **Why it matters:**
 - Same wire bytes parse differently based on negotiated caps
@@ -113,7 +113,6 @@ type Negotiated struct {
 
 ```go
 // internal/component/bgp/context/registry.go
-<!-- source: internal/component/bgp/context/registry.go -- ContextID -->
 type ContextID uint16  // Unique ID per distinct capability set (65535 max)
 
 // Zero-copy decision
@@ -123,6 +122,7 @@ if sourceCtxID == destCtxID {
     // Parse and re-encode for destination caps
 }
 ```
+<!-- source: internal/component/bgp/context/registry.go -- ContextID -->
 
 ---
 
@@ -221,7 +221,6 @@ type RIB struct {
 
 ```go
 // Route entry with pool handles (design reference)
-<!-- source: internal/component/bgp/attrpool/handle.go -- Handle type -->
 type RouteEntry struct {
     // All fields are opaque handles into attribute pools (not copies)
     // Use pool.Handle for indirection - enables refcounting and deduplication
@@ -238,6 +237,7 @@ type RouteEntry struct {
     // ... other attributes
 }
 ```
+<!-- source: internal/component/bgp/attrpool/handle.go -- Handle type -->
 
 ### Per-Attribute-Type Deduplication
 
@@ -290,7 +290,6 @@ type CheckedBufWriter interface {
 }
 
 // NLRI interface
-<!-- source: internal/component/bgp/nlri/nlri.go -- NLRI interface -->
 type NLRI interface {
     Family() Family
     Bytes() []byte                    // Wire-format encoding (payload only)
@@ -305,10 +304,10 @@ type NLRI interface {
 func LenWithContext(n NLRI, addPath bool) int
 // Returns Len() if addPath=false, Len()+4 if addPath=true
 ```
+<!-- source: internal/component/bgp/nlri/nlri.go -- NLRI interface, LenWithContext, WriteNLRI -->
 
 **ADD-PATH encoding:** Use `WriteNLRI()` helper function for ADD-PATH aware encoding,
 which prepends the 4-byte path ID when needed.
-<!-- source: internal/component/bgp/nlri/nlri.go -- NLRI interface, LenWithContext, WriteNLRI -->
 
 ---
 
@@ -541,7 +540,60 @@ Receive UPDATE → Assign msg-id → Cache WireUpdate → API event
 
 ---
 
-## 11. Implementation Priority
+## 11. TCP Socket Tuning
+
+Ze applies three optimizations to all production BGP TCP connections in `connectionEstablished()`:
+<!-- source: internal/component/bgp/reactor/session_connection.go -- connectionEstablished -->
+
+| Setting | Value | Rationale |
+|---------|-------|-----------|
+| `TCP_NODELAY` | enabled | BGP messages are application-framed and flushed explicitly via `bufio.Writer`. Nagle's algorithm only adds latency (up to 40ms) with no benefit since messages are never partial writes. |
+| `IP_TOS` (IPv4) | `0xC0` (DSCP CS6) | RFC 4271 S5.1 recommends IP precedence for BGP. CS6 (Internet Control) causes network devices with QoS policies to prioritize BGP keepalives and updates over regular data traffic, reducing hold timer expiry risk under congestion. |
+| `IPV6_TCLASS` (IPv6) | `0xC0` (DSCP CS6) | Same as above, for IPv6 peers. |
+
+### Graceful TCP Close (Half-Close)
+
+When closing a BGP connection, ze uses TCP half-close (`CloseWrite`) before `Close`. This sends a FIN instead of RST, ensuring the remote peer can read any pending NOTIFICATION message before the connection is fully torn down. A plain `Close()` sends RST when unread data is in the receive buffer, which can cause the remote kernel to discard outbound data before the application reads it.
+<!-- source: internal/component/bgp/reactor/session_connection.go -- closeConn -->
+
+The sequence is: flush `bufio.Writer` -> `CloseWrite` (FIN) -> drain unread data (100ms deadline) -> `Close`.
+
+### Send Hold Timer (RFC 9687)
+
+Ze implements the Send Hold Timer to detect when the local side cannot send data to a peer (e.g., the peer's TCP window is full). The timer starts when the session reaches Established and is reset on every successful write. On expiry, ze sends NOTIFICATION code 8 (Send Hold Timer Expired) and closes the session.
+<!-- source: internal/component/bgp/reactor/session_write.go -- sendHoldTimerExpired, resetSendHoldTimer -->
+
+Duration: `max(8 minutes, 2x hold-time)`. Not configurable per RFC 9687.
+
+### Hold Timer Congestion Extension
+
+When the hold timer fires, ze checks whether data was recently read from the peer (`recentRead` flag set by the read loop on every successful message read). If true, the peer IS sending data but ze is CPU-congested processing other peers' UPDATEs. Instead of tearing down the session, ze resets the hold timer and logs a warning. This technique is adapted from BIRD.
+<!-- source: internal/component/bgp/reactor/session.go -- recentRead, hold timer callback -->
+
+### Write Deadline
+
+Forward pool batch writes set a TCP write deadline (default: 30 seconds, configurable via `ze.fwd.write.deadline`) to prevent a stuck peer from blocking the worker goroutine indefinitely. The deadline is cleared after the batch completes.
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler, fwdWriteDeadlineDefault -->
+
+---
+
+## 12. Connection Modes
+
+Each peer has a `connection` setting controlling TCP establishment:
+<!-- source: internal/component/bgp/reactor/peersettings.go -- ConnectionMode -->
+
+| Mode | Behavior |
+|------|----------|
+| `active` | Dial out only. Does not accept inbound connections. |
+| `passive` | Accept inbound only. Does not dial out. RFC 4271 S8.1.1 PassiveTcpEstablishment. |
+| `both` (default) | Both dial out and accept inbound. The reactor starts a per-peer listener bound to the peer's local address on port 179, then also dials out to the peer's remote address. Whichever connection succeeds first is used; collision detection (RFC 4271 S6.8) resolves races. |
+
+Connection collision detection follows RFC 4271 S6.8: when both sides connect simultaneously, the peer with the higher BGP ID keeps its outgoing connection. If the session is already in OpenConfirm state when a new connection arrives, the OPEN is read from the pending connection to compare BGP IDs before deciding which connection to close.
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- handlePendingCollision, acceptOrReject -->
+
+---
+
+## 13. Implementation Priority
 
 1. **Merge Attributes types** - Single type for read + write
 2. **Implement RIB with pools** - Per-attribute-type deduplication
@@ -559,4 +611,4 @@ Receive UPDATE → Assign msg-id → Cache WireUpdate → API event
 
 ---
 
-**Last Updated:** 2026-01-30 (RouteEntry updated to match pool.Handle implementation)
+**Last Updated:** 2026-03-23 (Added TCP socket tuning, graceful close, connection modes)

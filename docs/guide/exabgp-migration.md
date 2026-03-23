@@ -76,13 +76,19 @@ Example with flags:
 run "ze exabgp plugin --family ipv4/unicast --family ipv6/unicast /path/to/plugin.py"
 ```
 
+### Automatic Prefix Defaults
+
+The migration tool adds `prefix { maximum 10000; }` to every converted address family. Ze requires per-family prefix limits (RFC 4486), and ExaBGP configs do not have them. The default of 10,000 is a conservative starting point; adjust per-peer based on expected route counts (full table peers typically need 1,000,000+).
+<!-- source: internal/exabgp/migration/migrate_family.go -- convertFamilyToList -->
+
 ## Migration Workflow
 
 1. **Convert config:** `ze exabgp migrate old.conf > new.conf`
-2. **Validate:** `ze config validate new.conf`
-3. **Bridge plugins:** Update `run` directives to use `ze exabgp plugin`
-4. **Test:** Run ze with the new config and verify sessions establish
-5. **Port plugins:** Gradually rewrite plugins to use the ze SDK directly
+2. **Review prefix limits:** Check `prefix { maximum ... }` values match expected route counts
+3. **Validate:** `ze config validate new.conf`
+4. **Bridge plugins:** Update `run` directives to use `ze exabgp plugin`
+5. **Test:** Run ze with the new config and verify sessions establish
+6. **Port plugins:** Gradually rewrite plugins to use the ze SDK directly
 
 ## When to Port Plugins
 

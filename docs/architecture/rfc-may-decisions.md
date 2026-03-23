@@ -24,7 +24,11 @@ This file documents decisions made for RFC "MAY" clauses (optional behavior).
 
 **Config Example:**
 ```
-peer 192.0.2.1 {
+peer upstream1 {
+    remote {
+        ip 192.0.2.1;
+        as 65001;
+    }
     family {
         ipv4/unicast;
         ipv6/unicast;

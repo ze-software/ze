@@ -55,10 +55,13 @@ Config parsing tests - verify configurations parse correctly.
 # test/parse/simple-v4.ci
 stdin=config:terminator=EOF_CONF
 bgp {
-    peer 127.0.0.1 {
+    peer test-peer {
+        remote {
+            ip 127.0.0.1;
+            as 65533;
+        }
         router-id 10.0.0.2;
         local-as 65533;
-        peer-as 65533;
     }
 }
 EOF_CONF
@@ -72,10 +75,13 @@ expect=exit:code=0
 # test/parse/route-refresh-no-process.ci
 stdin=config:terminator=EOF_CONF
 bgp {
-    peer 10.0.0.1 {
+    peer test-peer {
+        remote {
+            ip 10.0.0.1;
+            as 65002;
+        }
         router-id 1.2.3.4;
         local-as 65001;
-        peer-as 65002;
         capability { route-refresh; }
     }
 }
@@ -113,12 +119,12 @@ Config reload tests - verify SIGHUP-triggered reload behavior end-to-end.
 ```
 # Initial config establishes session with one route
 stdin=ze-bgp:terminator=EOF_CONF
-bgp { peer 127.0.0.1 { ... nlri { ipv4/unicast add 192.168.1.0/24; } } }
+bgp { peer loopback { remote { ip 127.0.0.1; } ... nlri { ipv4/unicast add 192.168.1.0/24; } } }
 EOF_CONF
 
 # Alternate config with two routes
 tmpfs=config2.conf:terminator=EOF_CONF2
-bgp { peer 127.0.0.1 { ... nlri { ipv4/unicast add 192.168.1.0/24; ipv4/unicast add 10.0.0.0/24; } } }
+bgp { peer loopback { remote { ip 127.0.0.1; } ... nlri { ipv4/unicast add 192.168.1.0/24; ipv4/unicast add 10.0.0.0/24; } } }
 EOF_CONF2
 
 option=tcp_connections:value=2
@@ -217,7 +223,7 @@ The `.ci` file is the **source of truth** for bidirectional testing. Full format
 ```
 # Tmpfs: embed config inline
 tmpfs=test.conf:terminator=EOF_CONF
-peer 127.0.0.1 { ... }
+peer test-peer { remote { ip 127.0.0.1; } ... }
 EOF_CONF
 
 # Options
@@ -255,9 +261,12 @@ Tmpfs allows embedding config files directly in `.ci` files:
 
 ```
 tmpfs=peer.conf:terminator=EOF_CONF
-peer 127.0.0.1 {
+peer test-peer {
+    remote {
+        ip 127.0.0.1;
+        as 65533;
+    }
     local-as 65533;
-    peer-as 65533;
 }
 EOF_CONF
 
@@ -569,11 +578,14 @@ Single self-contained `.ci` file with embedded config:
 ```
 # test/encode/mytest.ci
 tmpfs=mytest.conf:terminator=EOF_CONF
-peer 127.0.0.1 {
+peer loopback {
+    remote {
+        ip 127.0.0.1;
+        as 1;
+    }
     router-id 1.2.3.4;
     local-address 127.0.0.1;
     local-as 1;
-    peer-as 1;
 
     family {
         ipv4/unicast;
@@ -595,11 +607,14 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0200000015400101
 
 ```
 # test/encode/mytest.conf
-peer 127.0.0.1 {
+peer loopback {
+    remote {
+        ip 127.0.0.1;
+        as 1;
+    }
     router-id 1.2.3.4;
     local-address 127.0.0.1;
     local-as 1;
-    peer-as 1;
 
     family {
         ipv4/unicast;
@@ -631,10 +646,13 @@ To test that invalid configs are rejected with specific errors, create a `.ci` f
 # test/parse/my-error.ci
 stdin=config:terminator=EOF_CONF
 bgp {
-    peer 10.0.0.1 {
+    peer test-peer {
+        remote {
+            ip 10.0.0.1;
+            as 65002;
+        }
         router-id 1.2.3.4;
         local-as 65001;
-        peer-as 65002;
         # ... invalid configuration ...
     }
 }
@@ -672,6 +690,9 @@ The test passes if:
 | `report.go` | AI-friendly failure reports |
 | `runner.go` | Test execution engine, Tmpfs runtime support |
 | `stress.go` | Iteration stats and timing for -c/--count |
+| `timing.go` | Per-test timing baseline with auto-timeout |
+| `timing_test.go` | Timing baseline tests |
+| `parallel.go` | Parallel test execution |
 | `tmpfs_test.go` | Tmpfs parsing integration tests |
 
 <!-- source: internal/test/runner/color.go -- ANSI colors -->
@@ -684,6 +705,8 @@ The test passes if:
 <!-- source: internal/test/runner/report.go -- failure reports -->
 <!-- source: internal/test/runner/runner.go -- test execution engine -->
 <!-- source: internal/test/runner/stress.go -- stress iteration stats -->
+<!-- source: internal/test/runner/timing.go -- per-test timing baseline -->
+<!-- source: internal/test/runner/parallel.go -- parallel test execution -->
 
 ### Package: `internal/tmpfs/`
 
@@ -721,6 +744,19 @@ Usage: `ze-test rpki --port 3323 [--valid-asn 65001] [--invalid-asn 65099]`
 - Process isolation via `Setpgid`
 - Context timeouts on all execution
 - Dynamic port allocation prevents conflicts
+
+---
+
+## Per-Test Timing Baseline
+
+`ze-test` maintains a rolling timing baseline in `tmp/test-timings.json` that enables two features:
+<!-- source: internal/test/runner/timing.go -- TimingEntry, LoadTimings, SaveTimings -->
+
+**Auto-timeout:** Each test's timeout is calculated as `min(global_timeout, max(5s, 5x baseline_avg))`. A test that normally takes 500ms gets a 5s timeout instead of the default 15s. This catches hangs in seconds rather than waiting for the global timeout. Explicit `option=timeout:value=` in the `.ci` file always takes precedence.
+
+**Slow detection:** Tests exceeding 2x their baseline average are flagged in the summary output. Investigate performance regressions before ignoring these warnings.
+
+The baseline uses an exponential moving average (EMA, alpha=0.3) and requires 3 samples before it is used for auto-timeout. The timings file is capped at 10 MB; if it grows beyond that, timing data is reset.
 
 ---
 

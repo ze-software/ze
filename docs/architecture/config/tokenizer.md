@@ -45,7 +45,8 @@ ExaBGP uses a custom tokenizer for configuration files. The format is similar to
 Lines ending with `\` continue to the next line:
 
 ```
-peer 192.168.1.2 { \
+peer peer-east { \
+    remote { ip 192.168.1.2; as 65002; } \
     router-id 1.1.1.1; \
 }
 ```
@@ -229,7 +230,11 @@ class Parser:
 ### Input
 
 ```
-peer 192.168.1.2 {
+peer peer-east {
+    remote {
+        ip 192.168.1.2;
+        as 65002;
+    }
     router-id 1.1.1.1;
     local-as 65001;
     family {
@@ -241,11 +246,15 @@ peer 192.168.1.2 {
 ### Output Tokens
 
 ```python
-['neighbor', '192.168.1.2', '{']
+['peer', 'peer-east', '{']
+['remote', '{']
+['ip', '192.168.1.2', ';']
+['as', '65002', ';']
+['}']
 ['router-id', '1.1.1.1', ';']
 ['local-as', '65001', ';']
 ['family', '{']
-['ipv4', 'unicast', ';']
+['ipv4/unicast', ';']
 ['}']
 ['}']
 ```

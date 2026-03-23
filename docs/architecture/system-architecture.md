@@ -130,8 +130,11 @@ bgp {
     local-as 65001;
     router-id 1.1.1.1;
 
-    peer 192.0.2.1 {
-        peer-as 65002;
+    peer transit-a {
+        remote {
+            ip 192.0.2.1;
+            as 65002;
+        }
         passive;
 
         capability {
@@ -210,7 +213,11 @@ Config for augmenting plugins appears nested within the augmented schema:
 
 ```
 bgp {
-    peer 192.0.2.1 {
+    peer transit-a {
+        remote {
+            ip 192.0.2.1;
+            as 65002;
+        }
         capability {
             graceful-restart {      # Handled by ze gr, not ze bgp
                 enabled true;
@@ -278,12 +285,12 @@ CLI commands are routed to plugins by prefix:
 ```bash
 # Routed to ze bgp
 ze bgp peer list
-ze bgp peer 192.0.2.1 show
-ze bgp peer 192.0.2.1 update ...
+ze bgp peer upstream1 show
+ze bgp peer upstream1 update ...
 
 # Routed to ze rib
 ze rib show
-ze rib replay 192.0.2.1
+ze rib replay upstream1
 
 # Routed to hub (system commands)
 ze system schema list

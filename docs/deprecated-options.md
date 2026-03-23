@@ -20,9 +20,12 @@ neighbor 192.0.2.1 {
 
 **Current (v3):**
 ```
-peer 192.0.2.1 {
+peer upstream1 {
+    remote {
+        ip 192.0.2.1;
+        as 65001;
+    }
     local-as 65000;
-    peer-as 65001;
 }
 ```
 
@@ -108,7 +111,11 @@ capability {
 ### operational block
 
 ```
-peer 192.0.2.1 {
+peer upstream1 {
+    remote {
+        ip 192.0.2.1;
+        as 65001;
+    }
     operational {
         # All operational messages ignored
     }

@@ -96,8 +96,8 @@ bgp {
         <peer-fields>
     }
 }
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- container bgp, list peer -->
 ```
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- container bgp, list peer -->
 
 ---
 
@@ -205,8 +205,8 @@ bgp {
         }
     }
 }
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- peer-fields grouping -->
 ```
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- peer-fields grouping -->
 
 #### Peer Name Rules
 
@@ -264,8 +264,8 @@ bgp {
         }
     }
 }
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- container bgp structure -->
 ```
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- container bgp structure -->
 
 **Migration:** `ze bgp config migrate` converts old syntax:
 - `neighbor` to `bgp { group <name> { peer } }`

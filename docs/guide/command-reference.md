@@ -473,15 +473,16 @@ Many commands take a `peer <selector>` argument:
 
 | Command | Access | Purpose |
 |---------|--------|---------|
-| `set bgp peer <sel> with <config>` | write | Create peer with configuration |
+| `set bgp peer <name> with <config>` | write | Create peer with configuration |
 | `set bgp peer <sel> save` | write | Save running peers to config |
 
 #### Peer Config Keys
 
-Config keys match the YANG peer-fields structure. Container prefixes (`remote`, `local`) scope sub-keys.
+Config keys are parsed from the YANG `peer-fields` schema via `ParseInlineArgs`. Container prefixes (`remote`, `local`) scope sub-keys. The parser walks the YANG tree to determine how many tokens each field consumes (leaf = name + value, container = name + recurse into children).
 
 | Key | Value | Required | Description |
 |-----|-------|----------|-------------|
+| `remote ip` | IP address | Yes | Peer remote IP address |
 | `remote as` | ASN (uint32) | Yes | Peer AS number |
 | `local as` | ASN (uint32) | No | Local AS override |
 | `local ip` | IP address | No | Local IP for this session |
@@ -493,9 +494,11 @@ Config keys match the YANG peer-fields structure. Container prefixes (`remote`, 
 | `port` | 1-65535 | No | Per-peer listen port |
 | `group-updates` | enable/disable | No | UPDATE grouping |
 
-Example: `set bgp peer 10.0.0.1 with remote as 65001 local as 65000 hold-time 90 connection passive`
+Example: `set bgp peer upstream1 with remote ip 10.0.0.1 remote as 65001 local as 65000 hold-time 90 connection passive`
 
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- HandleBgpPeerWith config-syntax parser -->
+<!-- source: internal/component/config/setparser_inline.go -- ParseInlineArgs YANG-driven parser -->
+<!-- source: internal/component/plugin/server/node_with.go -- HandleNodeWith generic set handler -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- HandleBgpPeerWith, preparePeerTree -->
 
 ### Del Commands
 

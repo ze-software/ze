@@ -134,6 +134,24 @@ Auto-reconnect uses exponential backoff: idle-timeout x 2^(N-1), capped at 1 hou
 <!-- source: internal/component/bgp/reactor/peer.go -- idle-timeout and reconnect logic -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/prefix_update.go -- PeeringDB update command -->
 
+### Session Resilience
+
+| Feature | Description |
+|---------|-------------|
+| TCP_NODELAY | Disables Nagle's algorithm. BGP messages are application-framed; Nagle only adds latency. |
+| DSCP CS6 (RFC 4271 S5.1) | Sets IP_TOS/IPV6_TCLASS to 0xC0 so network QoS policies prioritize BGP traffic. |
+| Graceful TCP close | Half-close (CloseWrite) before Close sends FIN instead of RST, ensuring remote peers read pending NOTIFICATIONs. |
+| Send Hold Timer (RFC 9687) | Detects when local side cannot write to peer. Duration: max(8min, 2x hold-time). Sends NOTIFICATION code 8 on expiry. |
+| Hold timer congestion extension | If data was recently read when the hold timer fires, ze is CPU-congested, not the peer. Resets hold timer instead of tearing down. |
+| Write deadline | Forward pool batch writes use a 30s TCP write deadline (configurable via `ze.fwd.write.deadline`) to prevent stuck peers from blocking workers. |
+| Bounded overflow pool | Global token pool (default: 100,000, configurable via `ze.fwd.pool.size`) bounds overflow memory across all forward workers. Falls back to unbounded on exhaustion. |
+
+**Prometheus metrics:** `ze_bgp_pool_used_ratio`, `ze_bgp_overflow_items{peer}`, `ze_bgp_overflow_ratio{source}`.
+<!-- source: internal/component/bgp/reactor/session_connection.go -- TCP_NODELAY, IP_TOS, closeConn -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- Send Hold Timer -->
+<!-- source: internal/component/bgp/reactor/session.go -- recentRead congestion extension -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- write deadline, overflow pool -->
+
 ### Capabilities Configuration
 
 | Capability | Config Key | Values |
@@ -305,8 +323,8 @@ Commands sent through `ze cli`, `ze run`, `ze show`, or process stdin.
 | `bgp peer * list` | List peers (brief) |
 | `bgp peer * show` | Show peer details and statistics |
 | `bgp peer <addr> teardown <code>` | Graceful session closure with NOTIFICATION |
-| `set bgp peer <addr> with <config>` | Dynamic peer creation |
-| `del bgp peer <addr>` | Remove peer |
+| `set bgp peer <name> with <config>` | Dynamic peer creation |
+| `del bgp peer <name>` | Remove peer |
 | `bgp peer <addr> pause` | Pause reading from peer (flow control) |
 | `bgp peer <addr> resume` | Resume reading from peer |
 | `bgp peer <addr> capabilities` | Show negotiated capabilities |

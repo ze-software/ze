@@ -89,8 +89,8 @@ When `nhop set self` is used:
 
 **Input format**: `nhop` is a separate accumulator, can appear anywhere before `nlri`:
 ```bash
-peer 10.0.0.1 update text nhop set self origin set igp nlri ipv4/unicast add prefix 1.0.0.0/24
-peer 10.0.0.1 update text origin set igp nhop set self nlri ipv4/unicast add prefix 1.0.0.0/24
+peer upstream1 update text nhop set self origin set igp nlri ipv4/unicast add prefix 1.0.0.0/24
+peer upstream1 update text origin set igp nhop set self nlri ipv4/unicast add prefix 1.0.0.0/24
 # Both equivalent - nhop accumulates
 ```
 
@@ -106,7 +106,7 @@ peer 10.0.0.1 asn 65001 received update 123 origin igp next-hop 192.168.1.1 nlri
 ```bash
 # Input:
 peer * update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 \
-                   nhop set 10.0.0.2 nlri ipv4/unicast add prefix 2.0.0.0/24
+                  nhop set 10.0.0.2 nlri ipv4/unicast add prefix 2.0.0.0/24
 
 # Output (two separate nlri groups, each with its next-hop):
 peer 10.0.0.1 asn 65001 received update 123 next-hop 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
@@ -151,16 +151,16 @@ update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24 del prefix
 
 ```bash
 # Simple announce
-peer 10.0.0.1 update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+peer upstream1 update text nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 
 # With attributes
-peer 10.0.0.1 update text origin set igp med set 100 nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+peer upstream1 update text origin set igp med set 100 nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 
 # Multiple attributes
-peer 10.0.0.1 update text origin set igp local-preference set 200 community set [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24,2.0.0.0/24
+peer upstream1 update text origin set igp local-preference set 200 community set [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24,2.0.0.0/24
 
 # Withdraw (no nhop needed)
-peer 10.0.0.1 update text nlri ipv4/unicast del prefix 1.0.0.0/24
+peer upstream1 update text nlri ipv4/unicast del prefix 1.0.0.0/24
 ```
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- handleUpdateText -->
 
@@ -178,8 +178,8 @@ Only `attr set` and `nhop set` supported (no `add`/`del` for wire bytes).
 ### Wire Mode Examples
 
 ```bash
-peer 10.0.0.1 update hex attr set 400101400206020100001f94 nhop set 0a000001 nlri ipv4/unicast add 18010a00
-peer 10.0.0.1 update b64 attr set QAEBQAIGAgEAAAH5 nhop set CgAAAQ== nlri ipv4/unicast add GAAKAAoA
+peer upstream1 update hex attr set 400101400206020100001f94 nhop set 0a000001 nlri ipv4/unicast add 18010a00
+peer upstream1 update b64 attr set QAEBQAIGAgEAAAH5 nhop set CgAAAQ== nlri ipv4/unicast add GAAKAAoA
 ```
 <!-- source: internal/component/bgp/plugins/cmd/update/update_wire.go -- handleUpdateHex, handleUpdateB64 -->
 
@@ -354,7 +354,7 @@ update text community del community set [ 65000:1 ] nhop set 10.0.0.1 nlri ipv4/
 Multiple attribute and nlri sections can be chained. Attributes accumulate:
 
 ```bash
-peer 10.0.0.1 update text \
+peer upstream1 update text \
     origin set igp community set [ 65000:1 65000:2 ] nhop set 10.0.0.1 \
     nlri ipv4/unicast add prefix 1.0.0.0/24,2.0.0.0/24 \
     community add [ 65000:3 ] \
@@ -386,11 +386,11 @@ Each API command line = clean state.
 **Examples:**
 ```bash
 # Text mode - per-attribute keywords
-peer 10.0.0.1 update text med set 100 nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
+peer upstream1 update text med set 100 nhop set 10.0.0.1 nlri ipv4/unicast add prefix 1.0.0.0/24
 
 # Wire mode - attr set <bytes>
-peer 10.0.0.1 update hex attr set 400101400206020100001f94 nlri ipv4/unicast add 18010a00 18020b00
-peer 10.0.0.1 update b64 attr set QAEBQAIGAgEAAAH5 nlri ipv4/unicast add GAAKAAoA
+peer upstream1 update hex attr set 400101400206020100001f94 nlri ipv4/unicast add 18010a00 18020b00
+peer upstream1 update b64 attr set QAEBQAIGAgEAAAH5 nlri ipv4/unicast add GAAKAAoA
 ```
 
 ## Config File Format
@@ -574,11 +574,11 @@ Within `nlri` section, attrs/nhop can be overridden for that section only:
 
 ```bash
 # Override nhop inside nlri (all modes)
-peer 10.0.0.1 update text origin set igp nhop set 10.0.0.1 \
+peer upstream1 update text origin set igp nhop set 10.0.0.1 \
     nlri ipv4/unicast nhop set 10.0.0.2 add prefix 1.0.0.0/24,2.0.0.0/24
 
 # Override attr inside nlri (text mode only)
-peer 10.0.0.1 update text community set [ 65000:1 ] nhop set 10.0.0.1 \
+peer upstream1 update text community set [ 65000:1 ] nhop set 10.0.0.1 \
     nlri ipv4/unicast community add [ 65000:2 ] add prefix 1.0.0.0/24
 ```
 
@@ -594,7 +594,7 @@ NLRI modifiers for VPN families (not path attributes):
 
 ```bash
 # L3VPN with RD and label
-peer 10.0.0.1 update text extended-community set [ target:65000:100 ] nhop set 10.0.0.1 \
+peer upstream1 update text extended-community set [ target:65000:100 ] nhop set 10.0.0.1 \
     nlri ipv4/mpls-vpn rd 65000:100 label 1000 add prefix 10.0.0.0/24
 
 # Multiple prefixes same RD/label
@@ -621,16 +621,16 @@ update text nlri <family> eor
 
 ```bash
 # IPv4 unicast EOR
-peer 10.0.0.1 update text nlri ipv4/unicast eor
+peer upstream1 update text nlri ipv4/unicast eor
 
 # IPv6 unicast EOR
-peer 10.0.0.1 update text nlri ipv6/unicast eor
+peer upstream1 update text nlri ipv6/unicast eor
 
 # Multiple families in one command
-peer 10.0.0.1 update text nlri ipv4/unicast eor nlri ipv6/unicast eor
+peer upstream1 update text nlri ipv4/unicast eor nlri ipv6/unicast eor
 
 # EOR with NLRI in same command
-peer 10.0.0.1 update text nlri ipv6/unicast eor nhop set 10.0.0.1 nlri ipv4/unicast add prefix 10.0.0.0/24
+peer upstream1 update text nlri ipv6/unicast eor nhop set 10.0.0.1 nlri ipv4/unicast add prefix 10.0.0.0/24
 ```
 
 ### Wire Format
@@ -666,13 +666,13 @@ update text nlri l2vpn/vpls del rd <rd> ve-id <n> ve-block-offset <n> ve-block-s
 
 ```bash
 # Announce VPLS
-peer 10.0.0.1 update text nlri l2vpn/vpls add rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label-base 1000
+peer upstream1 update text nlri l2vpn/vpls add rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label-base 1000
 
 # Withdraw VPLS
-peer 10.0.0.1 update text nlri l2vpn/vpls del rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label-base 1000
+peer upstream1 update text nlri l2vpn/vpls del rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label-base 1000
 
 # EOR for VPLS
-peer 10.0.0.1 update text nlri l2vpn/vpls eor
+peer upstream1 update text nlri l2vpn/vpls eor
 ```
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- VPLS NLRI parsing -->
 
@@ -712,16 +712,16 @@ update text nlri l2vpn/evpn add mac-ip rd <rd> mac <mac> [ip <ip>] label <n>
 
 ```bash
 # MAC only
-peer 10.0.0.1 update text nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 label 100
+peer upstream1 update text nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 label 100
 
 # MAC with IPv4
-peer 10.0.0.1 update text nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 ip 192.168.1.1 label 100
+peer upstream1 update text nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 ip 192.168.1.1 label 100
 
 # MAC with IPv6
-peer 10.0.0.1 update text nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 ip 2001:db8::1 label 100
+peer upstream1 update text nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 ip 2001:db8::1 label 100
 
 # With ESI and Ethernet Tag
-peer 10.0.0.1 update text nlri l2vpn/evpn add mac-ip rd 1:1 esi 00:01:02:03:04:05:06:07:08:09 etag 100 mac 00:11:22:33:44:55 label 100
+peer upstream1 update text nlri l2vpn/evpn add mac-ip rd 1:1 esi 00:01:02:03:04:05:06:07:08:09 etag 100 mac 00:11:22:33:44:55 label 100
 ```
 
 ### Type 3: Inclusive Multicast Ethernet Tag
@@ -737,7 +737,7 @@ update text nlri l2vpn/evpn add multicast rd <rd> ip <originator-ip>
 **Example:**
 
 ```bash
-peer 10.0.0.1 update text nlri l2vpn/evpn add multicast rd 1:1 ip 192.168.1.1
+peer upstream1 update text nlri l2vpn/evpn add multicast rd 1:1 ip 192.168.1.1
 ```
 
 ### Type 5: IP Prefix Route
@@ -758,22 +758,22 @@ If neither is specified, direct forwarding via label is used.
 
 ```bash
 # IPv4 prefix (direct forwarding)
-peer 10.0.0.1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 label 100
+peer upstream1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 label 100
 
 # IPv6 prefix
-peer 10.0.0.1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 2001:db8::/32 label 100
+peer upstream1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 2001:db8::/32 label 100
 
 # With GW IP Overlay Index (recursive resolution via RT-2)
-peer 10.0.0.1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 gateway 192.168.1.254 label 100
+peer upstream1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 gateway 192.168.1.254 label 100
 
 # With ESI Overlay Index (recursive resolution via RT-1)
-peer 10.0.0.1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 esi 00:01:02:03:04:05:06:07:08:09 label 100
+peer upstream1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 esi 00:01:02:03:04:05:06:07:08:09 label 100
 ```
 
 ### EVPN EOR
 
 ```bash
-peer 10.0.0.1 update text nlri l2vpn/evpn eor
+peer upstream1 update text nlri l2vpn/evpn eor
 ```
 <!-- source: internal/component/bgp/plugins/cmd/update/update_text.go -- EVPN NLRI parsing -->
 
@@ -782,7 +782,7 @@ peer 10.0.0.1 update text nlri l2vpn/evpn eor
 `nhop del <addr>` only removes if current nhop matches:
 
 ```bash
-peer 10.0.0.1 update text nhop set 10.0.0.1 \
+peer upstream1 update text nhop set 10.0.0.1 \
     nlri ipv4/unicast add prefix 1.0.0.0/24 \
     nhop del 10.0.0.1 \
     nhop set 10.0.0.2 \
@@ -790,7 +790,7 @@ peer 10.0.0.1 update text nhop set 10.0.0.1 \
 # → 1.0.0.0/24 nhop 10.0.0.1
 # → 2.0.0.0/24 nhop 10.0.0.2 (del matched, then set)
 
-peer 10.0.0.1 update text nhop set 10.0.0.1 \
+peer upstream1 update text nhop set 10.0.0.1 \
     nhop del 10.0.0.99 \
     nlri ipv4/unicast add prefix 1.0.0.0/24
 # → nhop del 10.0.0.99 is no-op (doesn't match 10.0.0.1)
@@ -808,12 +808,12 @@ Send raw bytes with no validation ("trust me bro" mode):
 
 ```bash
 # Payload only (Ze adds 19-byte header)
-peer 10.0.0.1 raw update hex 0000000e40010100400200400304c0a80101180a00
-peer 10.0.0.1 raw notification hex 0602
-peer 10.0.0.1 raw keepalive hex
+peer upstream1 raw update hex 0000000e40010100400200400304c0a80101180a00
+peer upstream1 raw notification hex 0602
+peer upstream1 raw keepalive hex
 
 # Full packet (user provides marker + length + type)
-peer 10.0.0.1 raw hex ffffffffffffffffffffffffffffffff001303
+peer upstream1 raw hex ffffffffffffffffffffffffffffffff001303
 ```
 <!-- source: internal/component/bgp/plugins/cmd/raw/ -- raw passthrough -->
 

@@ -368,8 +368,11 @@ bgp {
             ipv6 unicast;
         }
 
-        peer 192.168.1.2 {
-            peer-as 65002;
+        peer peer-east {
+            remote {
+                ip 192.168.1.2;
+                as 65002;
+            }
             local-address 192.168.1.1;
             hold-time 90;
         }
@@ -717,7 +720,7 @@ and expectations in a single file.
 
 ```
 stdin=ze-bgp:terminator=EOF_CONF
-peer 127.0.0.1 { ... }
+peer loopback { remote { ip 127.0.0.1; } ... }
 EOF_CONF
 
 cmd=ze-bgp:stdin=ze-bgp

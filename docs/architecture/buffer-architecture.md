@@ -140,7 +140,6 @@ The core type wrapping raw BGP message bytes:
 ```go
 // WireUpdate wraps UPDATE message payload (after BGP header)
 // Location: internal/component/bgp/wireu/wire_update.go
-<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate struct -->
 type WireUpdate struct {
     payload     []byte
     sourceCtxID ContextID      // For zero-copy decisions
@@ -158,6 +157,7 @@ func (u *WireUpdate) WithdrawnIterator(addPath bool) (*nlri.NLRIIterator, error)
 func (u *WireUpdate) AttrIterator() (*attribute.AttrIterator, error)
 func (u *WireUpdate) NLRIIterator(addPath bool) (*nlri.NLRIIterator, error)
 ```
+<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate struct -->
 
 ### Attribute Iterator
 
@@ -167,7 +167,6 @@ type AttrIterator struct {
     offset int
 }
 
-<!-- source: internal/component/bgp/attribute/ -- AttrIterator -->
 func NewAttrIterator(data []byte) AttrIterator  // value return — stack-allocated
 
 // Next returns the next attribute
@@ -180,6 +179,7 @@ func (it *AttrIterator) Find(typeCode uint8) ([]byte, bool)
 // Zero-alloc standalone find — no pointer receiver, no heap escape
 func AttrFind(data []byte, code AttributeCode) (hdrStart int, flags AttributeFlags, value []byte, found bool)
 ```
+<!-- source: internal/component/bgp/attribute/ -- AttrIterator -->
 
 ### NLRI Iterator
 
@@ -264,7 +264,6 @@ Routes store wire bytes as source of truth:
 
 ```go
 // internal/component/bgp/rib/route.go
-<!-- source: internal/component/bgp/rib/route.go -- Route struct -->
 type Route struct {
     // Wire bytes (source of truth)
     wireBytes     []byte           // packed path attributes
@@ -306,6 +305,7 @@ func (r *Route) WireBytes() []byte {
     return r.wireBytes
 }
 ```
+<!-- source: internal/component/bgp/rib/route.go -- Route struct -->
 
 ---
 

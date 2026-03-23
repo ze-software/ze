@@ -429,7 +429,7 @@ def handle_update(event):
 When msg-id cache is unavailable (long outage, cache evicted), API can announce raw wire bytes:
 
 ```
-peer 10.0.0.1 announce raw <base64-attrs> nlri ipv4/unicast <base64-nlri>
+peer upstream1 announce raw <base64-attrs> nlri ipv4/unicast <base64-nlri>
 ```
 
 Family is required for proper UPDATE construction. This allows API to rebuild UPDATEs from its pool without needing engine cache.

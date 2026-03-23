@@ -34,8 +34,11 @@ acme-monitor {
 bgp {
     local-as 65001;
     router-id 1.2.3.4;
-    peer 192.0.2.1 {
-        peer-as 65002;
+    peer transit-a {
+        remote {
+            ip 192.0.2.1;
+            as 65002;
+        }
     }
 }
 ```
@@ -430,14 +433,14 @@ Handler paths use dot-separated segments with optional key syntax for list insta
 
 **Mapping from config syntax:**
 ```
-bgp {                        → handler: bgp
-    peer 192.0.2.1 { ... }   → handler: bgp.peer
-                               path: bgp.peer[address=192.0.2.1]
+bgp {                            → handler: bgp
+    peer transit-a { ... }       → handler: bgp.peer
+                                   path: bgp.peer[name=transit-a]
 }
 ```
 
 **Routing example:**
-- Request for `bgp.peer[address=192.0.2.1]`
+- Request for `bgp.peer[name=transit-a]`
 - Registered handlers: `bgp`, `bgp.peer`
 - Longest match: `bgp.peer` → routes to BGP plugin
 
@@ -603,14 +606,17 @@ leaf monitored-peer {
 
 ```
 bgp {
-    peer 192.0.2.1 {
-        peer-as 65000;
+    peer transit-a {
+        remote {
+            ip 192.0.2.1;
+            as 65000;
+        }
     }
 }
 
 acme-monitor {
-    monitored-peer 192.0.2.1;  # Valid - peer exists
-    monitored-peer 10.0.0.99;  # INVALID - leafref target not found
+    monitored-peer transit-a;   # Valid - peer exists
+    monitored-peer no-such;     # INVALID - leafref target not found
 }
 ```
 
@@ -946,8 +952,11 @@ acme-monitor {
 }
 
 bgp {
-    peer 192.0.2.1 {
-        peer-as 65002;
+    peer transit-a {
+        remote {
+            ip 192.0.2.1;
+            as 65002;
+        }
     }
 }
 ```

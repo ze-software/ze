@@ -214,7 +214,11 @@ def pack_nlri(self, negotiated: Negotiated) -> Buffer:
 ### ExaBGP Config
 
 ```
-peer 192.168.1.2 {
+peer peer-east {
+    remote {
+        ip 192.168.1.2;
+        as 65002;
+    }
     capability {
         add-path receive;       # Receive only
         add-path send;          # Send only
@@ -349,7 +353,6 @@ func (a AddPath) CanReceive(f Family, peer AddPath) bool {
     remote := peer[f]
     return (local&AddPathReceive != 0) && (remote&AddPathSend != 0)
 }
-<!-- source: internal/component/bgp/capability/negotiated.go -- ADD-PATH mode negotiation per family -->
 
 func (a AddPath) Pack() []byte {
     var buf bytes.Buffer
@@ -363,6 +366,7 @@ func (a AddPath) Pack() []byte {
     return buf.Bytes()
 }
 ```
+<!-- source: internal/component/bgp/capability/negotiated.go -- ADD-PATH mode negotiation per family -->
 <!-- source: internal/component/bgp/capability/capability.go -- AddPath.WriteTo, parseAddPath -->
 
 ### NLRI Encoding (Phase 3+ Simplification)

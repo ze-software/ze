@@ -121,9 +121,9 @@ Plugins may register additional event types via `Registration.EventTypes`. These
 ```
 subscribe bgp event update                              # All peers, both directions
 subscribe bgp event update direction received           # Received only
-subscribe peer 10.0.0.1 bgp event update               # Specific peer
+subscribe peer upstream1 bgp event update               # Specific peer
 subscribe peer * bgp event state                        # All peers, state changes
-subscribe peer !10.0.0.1 bgp event update direction sent  # Exclude one peer
+subscribe peer !upstream1 bgp event update direction sent  # Exclude one peer
 subscribe rib event route                               # RIB route events
 ```
 
@@ -184,8 +184,8 @@ peer <ip> capabilities   # Show specific peer capabilities
 peer statistics          # Show peer statistics (counters)
 peer <ip> statistics     # Show specific peer statistics
 peer <ip> teardown <code> [<reason>]  # Disconnect peer
-set bgp peer <ip> with <config>  # Create peer with configuration
-del bgp peer <ip>               # Remove dynamic peer
+set bgp peer <name> with <config>  # Create peer with configuration
+del bgp peer <name>                # Remove dynamic peer
 peer <sel> flush         # Wait for forward pool to drain (barrier)
 ```
 <!-- source: internal/component/bgp/schema/ze-bgp-api.yang -- peer RPCs -->
@@ -238,15 +238,15 @@ Requires telemetry to be enabled in config (`telemetry { prometheus { ... } }`).
 
 ```
 peer *                   # All peers
-peer 192.168.1.2         # Specific peer by IP
-peer !192.168.1.2        # All peers EXCEPT this IP (for route reflection)
+peer upstream1            # Specific peer by name
+peer !upstream1           # All peers EXCEPT this one (for route reflection)
 ```
 <!-- source: internal/core/selector/selector.go -- Selector -->
 
 The `!<ip>` negated selector is useful for route reflection:
 ```
 # Forward update to all peers except the source
-bgp cache 12345 forward !10.0.0.1
+bgp cache 12345 forward !upstream1
 ```
 
 > **Note:** Filter selectors (`[local-as ...]`, `[peer-as ...]`) from ExaBGP multi-session

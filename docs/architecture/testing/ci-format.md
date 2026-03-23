@@ -60,9 +60,12 @@ stdin=<name>:text=<text-value>
 **Multi-line (config):**
 ```
 stdin=ze-bgp:terminator=EOF_CONF
-peer 127.0.0.1 {
+peer test-peer {
+    remote {
+        ip 127.0.0.1;
+        as 65533;
+    }
     local-as 65533;
-    peer-as 65533;
 }
 EOF_CONF
 
@@ -122,9 +125,12 @@ tmpfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
 
 ```
 tmpfs=peer.conf:terminator=EOF_CONF
-peer 127.0.0.1 {
+peer test-peer {
+    remote {
+        ip 127.0.0.1;
+        as 65533;
+    }
     local-as 65533;
-    peer-as 65533;
 }
 EOF_CONF
 
@@ -170,7 +176,7 @@ option=<type>:key=value[:key=value...]
 | `file` | `path=<name>` | Config file to use |
 | `asn` | `value=<N>` | Override peer ASN |
 | `bind` | `value=ipv6` | Bind to IPv6 |
-| `timeout` | `value=<duration>` | Test timeout (e.g., `30s`) |
+| `timeout` | `value=<duration>` | Test timeout (e.g., `30s`). Overrides auto-timeout. |
 | `tcp_connections` | `value=<N>` | Number of TCP connections |
 | `open` | `value=<behavior>` | OPEN message behavior |
 | `update` | `value=<behavior>` | UPDATE message behavior |
@@ -298,7 +304,7 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
-peer 127.0.0.1 { ... }
+peer test-peer { remote { ip 127.0.0.1; } ... }
 EOF_CONF
 
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
@@ -454,11 +460,14 @@ Sends SIGTERM to the daemon process. Reads PID from `daemon.pid` in the tmpfs di
 ```
 # Embed config using Tmpfs
 tmpfs=test.conf:terminator=EOF_CONF
-peer 127.0.0.1 {
+peer test-peer {
+    remote {
+        ip 127.0.0.1;
+        as 65000;
+    }
     router-id 10.0.0.2;
     local-address 127.0.0.1;
     local-as 65533;
-    peer-as 65000;
     hold-time 180;
 
     family {
@@ -581,8 +590,11 @@ Editor tests simulate user input sequences against the headless configuration ed
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  peer 1.1.1.1 {
-    peer-as 65001;
+  peer upstream1 {
+    remote {
+      ip 1.1.1.1;
+      as 65001;
+    }
   }
 }
 EOF_CONF

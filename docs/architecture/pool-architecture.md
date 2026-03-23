@@ -292,7 +292,6 @@ type Pool struct {
     // Shutdown state
     shutdown atomic.Bool
 }
-<!-- source: internal/component/bgp/attrpool/pool.go -- Pool struct -->
 
 type buffer struct {
     data     []byte
@@ -314,6 +313,7 @@ const (
     PoolCompacting
 )
 ```
+<!-- source: internal/component/bgp/attrpool/pool.go -- Pool struct -->
 
 ---
 

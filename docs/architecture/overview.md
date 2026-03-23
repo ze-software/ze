@@ -290,9 +290,12 @@ environment {
     }
 }
 
-peer 192.168.1.2 {
+peer peer-east {
+    remote {
+        ip 192.168.1.2;
+        as 65002;
+    }
     local-as 65001;
-    peer-as 65002;
     local-address 192.168.1.1;
 
     family {

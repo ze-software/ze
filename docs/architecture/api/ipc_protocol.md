@@ -431,9 +431,9 @@ Examples:
 ```
 subscribe bgp event update                              # all peers, both directions
 subscribe bgp event update direction received           # all peers, received only
-subscribe peer 10.0.0.1 bgp event update               # specific peer, both directions
+subscribe peer upstream1 bgp event update               # specific peer, both directions
 subscribe peer * bgp event state                        # explicit all peers
-subscribe peer !10.0.0.1 bgp event update direction sent # all except one, sent only
+subscribe peer !upstream1 bgp event update direction sent # all except one, sent only
 subscribe plugin rib-cache rib event cache             # events from specific plugin
 subscribe rib event route                               # RIB route events
 ```

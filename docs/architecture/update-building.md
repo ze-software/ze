@@ -57,7 +57,6 @@ type WireUpdate struct {
 }
 
 // internal/component/bgp/reactor/received_update.go
-<!-- source: internal/component/bgp/reactor/received_update.go -- ReceivedUpdate struct -->
 type ReceivedUpdate struct {
     WireUpdate   *api.WireUpdate  // Slices into poolBuf
     poolBuf      []byte           // Returned to pool on eviction
@@ -73,6 +72,7 @@ func (u *WireUpdate) NLRI() ([]byte, error)
 func (u *WireUpdate) MPReach() (MPReachWire, error)   // nil,nil if attr not present
 func (u *WireUpdate) MPUnreach() (MPUnreachWire, error) // nil,nil if attr not present
 ```
+<!-- source: internal/component/bgp/reactor/received_update.go -- ReceivedUpdate struct -->
 
 **Buffer lifecycle (ownership transfer):**
 1. Session gets buffer from appropriate pool (`getReadBuffer()`)

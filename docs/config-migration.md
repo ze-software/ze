@@ -107,10 +107,13 @@ template {
     }
 }
 
-peer 192.0.2.1 {
+peer upstream1 {
     inherit defaults;
+    remote {
+        ip 192.0.2.1;
+        as 65001;
+    }
     local-as 65000;
-    peer-as 65001;
 }
 ```
 
@@ -125,7 +128,7 @@ $ ze config migrate --dry-run old.conf
 ⚠️  Config needs migration
 
 Deprecated patterns found:
-  • neighbor 192.0.2.1 → peer 192.0.2.1
+  • neighbor 192.0.2.1 → peer upstream1 { remote { ip 192.0.2.1; } }
   • template.neighbor defaults → template.group defaults
 
 To migrate, run:

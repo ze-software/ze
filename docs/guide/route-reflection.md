@@ -65,12 +65,13 @@ When two peers negotiate identical capabilities (same ADD-PATH mode, same ASN fo
 Each destination peer has a dedicated forwarding worker (long-lived goroutine with a buffered channel). When a destination peer is slower than the update rate:
 
 1. The channel buffer absorbs short bursts (default capacity: 64 items)
-2. If the channel is full, items go into an unbounded per-worker overflow buffer
-3. The worker fires a congestion event (visible in logs and monitoring)
+2. If the channel is full, items go into a per-worker overflow buffer
+3. The worker fires a congestion event (visible in logs and Prometheus metrics)
 4. When the peer catches up and the channel drains below 25%, congestion clears
 
-Routes are never dropped. A slow peer's overflow buffer grows in memory until the peer catches up. This prevents a single slow peer from blocking updates to all other peers while preserving routing correctness -- missing a route update is worse than using extra memory.
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- per-destination forward workers, overflow buffer -->
+Overflow is bounded by a global token pool (default: 100,000 items, configurable via `ze.fwd.pool.size`). When the pool is exhausted, items fall back to unbounded append and a warning is logged. Routes are never dropped -- missing a route update is worse than using extra memory. Prometheus metrics expose per-destination overflow depth (`ze_bgp_overflow_items`), per-source overflow ratio (`ze_bgp_overflow_ratio`), and global pool utilization (`ze_bgp_pool_used_ratio`).
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- per-destination forward workers, overflow pool -->
+<!-- source: internal/component/bgp/reactor/reactor_metrics.go -- overflow Prometheus metrics -->
 
 ### Convergent Replay
 

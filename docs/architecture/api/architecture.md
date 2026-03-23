@@ -519,8 +519,6 @@ type RouteNextHop struct {
     Policy NextHopPolicy  // NextHopUnset, NextHopExplicit, or NextHopSelf
     Addr   netip.Addr     // Valid only when Policy == NextHopExplicit
 }
-<!-- source: internal/component/bgp/types/types.go -- RouteSpec -->
-<!-- source: internal/component/bgp/types/nexthop.go -- RouteNextHop -->
 
 type PathAttributes struct {
     Origin              *uint8
@@ -532,6 +530,8 @@ type PathAttributes struct {
     ExtendedCommunities []attribute.ExtendedCommunity
 }
 ```
+<!-- source: internal/component/bgp/types/types.go -- RouteSpec -->
+<!-- source: internal/component/bgp/types/nexthop.go -- RouteNextHop -->
 
 ### Next-Hop Resolution
 
