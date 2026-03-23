@@ -351,6 +351,9 @@ func (s *Session) Teardown(subcode uint8, shutdownMsg string) error {
 // This ensures the remote side can read any pending data (e.g., NOTIFICATION)
 // before the connection is fully closed.
 func (s *Session) closeConn() {
+	// Stop Send Hold Timer before acquiring s.mu to avoid lock ordering issues.
+	s.stopSendHoldTimer()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

@@ -176,6 +176,9 @@ func (s *Session) handleKeepalive() error {
 	if state == fsm.StateOpenConfirm {
 		// Start keepalive timer for sending our keepalives.
 		s.timers.StartKeepaliveTimer()
+		// Start RFC 9687 Send Hold Timer: detects when we cannot send
+		// any data to the peer (stuck TCP). Resets on every successful write.
+		s.startSendHoldTimer()
 	}
 
 	return s.fsm.Event(fsm.EventKeepaliveMsg)

@@ -44,7 +44,7 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 	// Get buffer from pool
 	buf := s.getReadBuffer()
 
-	// Read header — through bufio.Reader to batch kernel read syscalls.
+	// Read header -- through bufio.Reader to batch kernel read syscalls.
 	_, err := io.ReadFull(s.bufReader, buf[:message.HeaderLen])
 	if err != nil {
 		s.returnReadBuffer(buf)
@@ -55,6 +55,11 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 		}
 		return err
 	}
+
+	// Mark that data was read. Used by hold timer congestion extension:
+	// if the hold timer fires while recentRead is true, the daemon is
+	// CPU-congested (data arrived but wasn't processed in time).
+	s.recentRead.Store(true)
 
 	hdr, err := message.ParseHeader(buf[:message.HeaderLen])
 	if err != nil {

@@ -88,18 +88,22 @@ func ReturnReadBuffer(buf []byte) {
 
 // Session errors.
 var (
-	ErrNotConnected        = errors.New("not connected")
-	ErrAlreadyConnected    = errors.New("already connected")
-	ErrInvalidState        = errors.New("invalid FSM state")
-	ErrNotificationRecv    = errors.New("notification received")
-	ErrConnectionClosed    = errors.New("connection closed")
-	ErrHoldTimerExpired    = errors.New("hold timer expired")
-	ErrInvalidMessage      = errors.New("invalid message")
-	ErrUnsupportedVersion  = errors.New("unsupported BGP version")
-	ErrFamilyNotNegotiated = errors.New("address family not negotiated")
-	ErrSessionTearingDown  = errors.New("session is tearing down")
-	ErrPrefixLimitExceeded = errors.New("prefix limit exceeded")
+	ErrNotConnected         = errors.New("not connected")
+	ErrAlreadyConnected     = errors.New("already connected")
+	ErrInvalidState         = errors.New("invalid FSM state")
+	ErrNotificationRecv     = errors.New("notification received")
+	ErrConnectionClosed     = errors.New("connection closed")
+	ErrHoldTimerExpired     = errors.New("hold timer expired")
+	ErrInvalidMessage       = errors.New("invalid message")
+	ErrUnsupportedVersion   = errors.New("unsupported BGP version")
+	ErrFamilyNotNegotiated  = errors.New("address family not negotiated")
+	ErrSessionTearingDown   = errors.New("session is tearing down")
+	ErrPrefixLimitExceeded  = errors.New("prefix limit exceeded")
+	ErrSendHoldTimerExpired = errors.New("send hold timer expired")
 )
+
+// sendHoldTimerMin is the minimum Send Hold Timer duration per RFC 9687.
+const sendHoldTimerMin = 8 * time.Minute
 
 // Session manages a single BGP peer connection.
 //
@@ -213,6 +217,20 @@ type Session struct {
 	// prefixMetrics is a reference to reactor-level Prometheus prefix metrics.
 	// Set by Peer in runOnce(). Nil when metrics are not enabled.
 	prefixMetrics *reactorMetrics
+
+	// recentRead is set to true by the read loop on every successful message read.
+	// The hold timer callback checks and clears it: if true, the daemon is
+	// CPU-congested (data arrived but wasn't processed in time), so the hold
+	// timer is extended instead of tearing down. Atomic for thread safety
+	// between read goroutine and timer goroutine.
+	recentRead atomic.Bool
+
+	// sendHoldTimer detects when the local side cannot send any data to the
+	// peer (RFC 9687). Reset on every successful write. On expiry, the session
+	// is torn down with NOTIFICATION Error Code 8 (Send Hold Timer Expired).
+	// Started when session enters ESTABLISHED, stopped on close.
+	sendHoldTimer clock.Timer
+	sendHoldMu    sync.Mutex // protects sendHoldTimer
 }
 
 // NewSession creates a new BGP session for a peer.
@@ -250,12 +268,24 @@ func NewSession(settings *PeerSettings) *Session {
 
 	// Wire up timer callbacks.
 	s.timers.OnHoldTimerExpires(func() {
+		// BIRD technique: if data was recently read, the daemon is
+		// CPU-congested (busy processing other peers' UPDATEs), not the
+		// remote peer. Extend hold timer by 10s instead of tearing down.
+		// The remote peer IS sending data -- we just haven't processed it yet.
+		if s.recentRead.Swap(false) {
+			sessionLogger().Info("hold timer extended: recent read activity (CPU congestion)",
+				"peer", s.settings.Address,
+			)
+			s.timers.ResetHoldTimer()
+			return
+		}
+
 		s.mu.Lock()
 		_ = s.fsm.Event(fsm.EventHoldTimerExpires)
 		s.mu.Unlock()
 		select {
 		case s.errChan <- ErrHoldTimerExpired:
-		default:
+		default: // errChan full -- cancel goroutine already has a signal
 		}
 	})
 

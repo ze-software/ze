@@ -27,13 +27,14 @@ type NotifyErrorCode uint8
 //	5 - Finite State Machine Error (Section 6.6)
 //	6 - Cease (Section 6.7)
 const (
-	NotifyMessageHeader    NotifyErrorCode = 1
-	NotifyOpenMessage      NotifyErrorCode = 2
-	NotifyUpdateMessage    NotifyErrorCode = 3
-	NotifyHoldTimerExpired NotifyErrorCode = 4
-	NotifyFSMError         NotifyErrorCode = 5
-	NotifyCease            NotifyErrorCode = 6
-	NotifyRouteRefresh     NotifyErrorCode = 7 // RFC 7313
+	NotifyMessageHeader        NotifyErrorCode = 1
+	NotifyOpenMessage          NotifyErrorCode = 2
+	NotifyUpdateMessage        NotifyErrorCode = 3
+	NotifyHoldTimerExpired     NotifyErrorCode = 4
+	NotifyFSMError             NotifyErrorCode = 5
+	NotifyCease                NotifyErrorCode = 6
+	NotifyRouteRefresh         NotifyErrorCode = 7 // RFC 7313
+	NotifySendHoldTimerExpired NotifyErrorCode = 8 // RFC 9687
 )
 
 // RFC 4271 Section 4.5 - Message Header Error subcodes:
@@ -148,7 +149,9 @@ func (c NotifyErrorCode) String() string {
 		return "Cease"
 	case NotifyRouteRefresh:
 		return "Route Refresh Error"
-	default:
+	case NotifySendHoldTimerExpired:
+		return "Send Hold Timer Expired"
+	default: // Unknown codes exist in the wild (vendor extensions)
 		return fmt.Sprintf("Unknown(%d)", c)
 	}
 }

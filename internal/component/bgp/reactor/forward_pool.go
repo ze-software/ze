@@ -123,7 +123,11 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 			"peer", peer.Settings().Address,
 			"err", err,
 		)
+		return
 	}
+
+	// Successful batch write -- reset RFC 9687 Send Hold Timer.
+	session.resetSendHoldTimer()
 }
 
 // fwdPoolConfig holds configuration for a fwdPool.

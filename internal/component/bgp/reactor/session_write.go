@@ -8,11 +8,15 @@ package reactor
 import (
 	"net"
 	"net/netip"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 )
+
+// controlWriteDeadlineMin is the minimum write deadline for control messages.
+const controlWriteDeadlineMin = 10 * time.Second
 
 // sendKeepalive sends a KEEPALIVE message.
 func (s *Session) sendKeepalive(conn net.Conn) error {
@@ -30,7 +34,8 @@ func (s *Session) sendNotification(conn net.Conn, code message.NotifyErrorCode, 
 }
 
 // writeMessage writes a BGP message directly into the session buffer.
-// Always flushes immediately — used for KEEPALIVE, OPEN, NOTIFICATION.
+// Always flushes immediately -- used for KEEPALIVE, OPEN, NOTIFICATION.
+// Sets a write deadline to prevent indefinite blocking on stuck TCP.
 func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 	if conn == nil {
 		return ErrNotConnected
@@ -38,6 +43,15 @@ func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
+
+	// Set write deadline to prevent indefinite blocking on stuck TCP.
+	// Without this, a stuck connection holds writeMu forever, preventing
+	// the forward worker from detecting the failure and triggering teardown.
+	deadline := s.controlWriteDeadline()
+	if err := conn.SetWriteDeadline(s.clock.Now().Add(deadline)); err != nil {
+		return err
+	}
+	defer func() { _ = conn.SetWriteDeadline(time.Time{}) }()
 
 	// Zero-allocation: write directly into session buffer.
 	// Message types don't use context for basic encoding
@@ -52,6 +66,9 @@ func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 		return err
 	}
 
+	// Successful write -- reset RFC 9687 Send Hold Timer.
+	s.resetSendHoldTimer()
+
 	// Notify callback after successful send.
 	// Body is data after the 19-byte header (16-byte marker + 2-byte length + 1-byte type).
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
@@ -60,6 +77,100 @@ func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 	}
 
 	return nil
+}
+
+// controlWriteDeadline returns the write deadline for control messages
+// (KEEPALIVE, OPEN, NOTIFICATION). Bounded by min(holdTime/3, 30s)
+// with a minimum of 10s.
+func (s *Session) controlWriteDeadline() time.Duration {
+	holdTime := s.settings.HoldTime
+	if holdTime <= 0 {
+		return fwdWriteDeadlineDefault
+	}
+	d := max(holdTime/3, controlWriteDeadlineMin)
+	return min(d, fwdWriteDeadlineDefault)
+}
+
+// sendHoldDuration returns the Send Hold Timer duration per RFC 9687.
+// Recommended: max(8 minutes, 2x HoldTime).
+func (s *Session) sendHoldDuration() time.Duration {
+	return max(sendHoldTimerMin, 2*s.settings.HoldTime)
+}
+
+// startSendHoldTimer starts the RFC 9687 Send Hold Timer.
+// Called when session enters ESTABLISHED. The timer is reset on every
+// successful write. On expiry, the session is torn down.
+func (s *Session) startSendHoldTimer() {
+	d := s.sendHoldDuration()
+	s.sendHoldMu.Lock()
+	defer s.sendHoldMu.Unlock()
+	s.stopSendHoldTimerLocked()
+	s.sendHoldTimer = s.clock.AfterFunc(d, s.sendHoldTimerExpired)
+}
+
+// resetSendHoldTimer resets the Send Hold Timer after a successful write.
+func (s *Session) resetSendHoldTimer() {
+	s.sendHoldMu.Lock()
+	defer s.sendHoldMu.Unlock()
+	if s.sendHoldTimer != nil {
+		s.sendHoldTimer.Stop()
+		s.sendHoldTimer = s.clock.AfterFunc(s.sendHoldDuration(), s.sendHoldTimerExpired)
+	}
+}
+
+// stopSendHoldTimer stops the Send Hold Timer.
+func (s *Session) stopSendHoldTimer() {
+	s.sendHoldMu.Lock()
+	defer s.sendHoldMu.Unlock()
+	s.stopSendHoldTimerLocked()
+}
+
+func (s *Session) stopSendHoldTimerLocked() {
+	if s.sendHoldTimer != nil {
+		s.sendHoldTimer.Stop()
+		s.sendHoldTimer = nil
+	}
+}
+
+// sendHoldTimerExpired is called when the RFC 9687 Send Hold Timer expires.
+// This means the local side has been unable to send any data for the
+// configured duration. Try to send NOTIFICATION, then close.
+func (s *Session) sendHoldTimerExpired() {
+	sessionLogger().Warn("send hold timer expired (RFC 9687)",
+		"peer", s.settings.Address,
+		"duration", s.sendHoldDuration(),
+	)
+
+	// Stop the timer before attempting NOTIFICATION. Otherwise the
+	// NOTIFICATION write (if it succeeds) resets the timer via
+	// writeMessage -> resetSendHoldTimer, creating a new timer that
+	// closeConn immediately stops.
+	s.stopSendHoldTimer()
+
+	s.mu.RLock()
+	conn := s.conn
+	s.mu.RUnlock()
+
+	// Try to send NOTIFICATION (may fail if TCP is stuck -- that's expected).
+	if conn != nil {
+		_ = s.sendNotification(conn,
+			message.NotifySendHoldTimerExpired,
+			0, // No subcode defined by RFC 9687
+			nil,
+		)
+	}
+
+	s.mu.Lock()
+	_ = s.fsm.Event(fsm.EventHoldTimerExpires)
+	s.mu.Unlock()
+
+	s.setCloseReason(ErrSendHoldTimerExpired)
+	s.closeConn()
+
+	select {
+	case s.errChan <- ErrSendHoldTimerExpired:
+	default: // errChan full -- cancel goroutine already has a signal
+	}
 }
 
 // TriggerHoldTimerExpiry triggers the hold timer expiry event.
@@ -136,7 +247,11 @@ func (s *Session) SendUpdate(update *message.Update) error {
 	if err := s.writeUpdate(update); err != nil {
 		return err
 	}
-	return s.flushWrites()
+	if err := s.flushWrites(); err != nil {
+		return err
+	}
+	s.resetSendHoldTimer()
+	return nil
 }
 
 // SendAnnounce sends a BGP UPDATE message for announcing a route.
@@ -176,6 +291,7 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, localAS uint32, isIBGP,
 	if err := s.flushWrites(); err != nil {
 		return err
 	}
+	s.resetSendHoldTimer()
 
 	// Notify callback after successful send
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
@@ -222,6 +338,7 @@ func (s *Session) SendWithdraw(prefix netip.Prefix, addPath bool) error {
 	if err := s.flushWrites(); err != nil {
 		return err
 	}
+	s.resetSendHoldTimer()
 
 	// Notify callback after successful send
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
@@ -257,7 +374,11 @@ func (s *Session) SendRawUpdateBody(body []byte) error {
 	if err := s.writeRawUpdateBody(body); err != nil {
 		return err
 	}
-	return s.flushWrites()
+	if err := s.flushWrites(); err != nil {
+		return err
+	}
+	s.resetSendHoldTimer()
+	return nil
 }
 
 // SendRawMessage sends raw bytes to the peer.
@@ -281,7 +402,11 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 		if _, err := s.bufWriter.Write(payload); err != nil {
 			return err
 		}
-		return s.bufWriter.Flush()
+		if err := s.bufWriter.Flush(); err != nil {
+			return err
+		}
+		s.resetSendHoldTimer()
+		return nil
 	}
 
 	s.writeMu.Lock()
@@ -308,5 +433,9 @@ func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
 	if _, err := s.bufWriter.Write(buf[:totalLen]); err != nil {
 		return err
 	}
-	return s.bufWriter.Flush()
+	if err := s.bufWriter.Flush(); err != nil {
+		return err
+	}
+	s.resetSendHoldTimer()
+	return nil
 }
