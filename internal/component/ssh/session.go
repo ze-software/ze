@@ -1,5 +1,6 @@
 // Design: (none -- predates documentation)
 // Overview: ssh.go -- SSH server lifecycle
+// Related: warnings.go -- LoginWarningsFunc type definition
 
 package ssh
 
@@ -24,7 +25,14 @@ func (s *Server) createSessionModel(username string) cli.Model {
 	factory := s.executorFactory
 	shutdownFn := s.shutdownFunc
 	restartFn := s.restartFunc
+	warningsFn := s.loginWarningsFunc
 	s.mu.Unlock()
+
+	// Collect login warnings (safe if warningsFn is nil or panics).
+	var warnings []cli.LoginWarning
+	if warningsFn != nil {
+		warnings = s.collectWarnings(warningsFn)
+	}
 
 	var executor CommandExecutor
 	if factory != nil {
@@ -64,6 +72,7 @@ func (s *Server) createSessionModel(username string) cli.Model {
 				if restartFn != nil {
 					m.SetRestartFunc(restartFn)
 				}
+				m.SetLoginWarnings(warnings)
 				return m
 			}
 		}
@@ -81,5 +90,6 @@ func (s *Server) createSessionModel(username string) cli.Model {
 	if restartFn != nil {
 		m.SetRestartFunc(restartFn)
 	}
+	m.SetLoginWarnings(warnings)
 	return m
 }

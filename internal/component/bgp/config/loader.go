@@ -24,6 +24,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
@@ -591,6 +592,25 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 						}
 					}
 					r.Stop()
+				})
+				// Wire login warnings: check prefix staleness on each SSH session.
+				rl := apiServer.Reactor()
+				sshSrv.SetLoginWarnings(func() []cli.LoginWarning {
+					peers := rl.Peers()
+					now := time.Now()
+					stale := 0
+					for i := range peers {
+						if reactor.IsPrefixDataStale(peers[i].PrefixUpdated, now) {
+							stale++
+						}
+					}
+					if stale == 0 {
+						return nil
+					}
+					return []cli.LoginWarning{{
+						Message: fmt.Sprintf("%d peer(s) have stale prefix data", stale),
+						Command: "ze update bgp peer * prefix",
+					}}
 				})
 				configLogger().Info("SSH command executor wired")
 			}

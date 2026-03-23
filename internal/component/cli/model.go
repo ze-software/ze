@@ -119,6 +119,9 @@ type Model struct {
 	monitorFactory MonitorFactory  // Creates monitor sessions (nil if unavailable)
 	monitorSession *MonitorSession // Active monitor session (nil when not monitoring)
 
+	// Login warnings (set by SSH session, displayed on first render)
+	loginWarnings []LoginWarning
+
 	// Daemon lifecycle callbacks (set by SSH session for stop/restart commands)
 	shutdownFunc func() // Called on "stop" in interactive CLI (no GR marker)
 	restartFunc  func() // Called on "restart" in interactive CLI (writes GR marker)
@@ -1157,6 +1160,12 @@ func (m *Model) SetCommandCompleter(cc CommandModeCompleter) {
 // When nil, command mode shows an error on Enter.
 func (m *Model) SetCommandExecutor(fn func(string) (string, error)) {
 	m.commandExecutor = fn
+}
+
+// SetLoginWarnings sets the login warnings to display in the welcome area.
+// Called by the SSH session after collecting warnings from the daemon.
+func (m *Model) SetLoginWarnings(warnings []LoginWarning) {
+	m.loginWarnings = warnings
 }
 
 // SetShutdownFunc sets the callback for the "stop" interactive CLI command.

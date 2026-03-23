@@ -1052,3 +1052,123 @@ func TestPluginCommandCompleter(t *testing.T) {
 	// Verify PluginCompleter satisfies CommandModeCompleter interface
 	var _ CommandModeCompleter = pc
 }
+
+// TestModelDisplaysLoginWarnings verifies that login warnings appear in View() output.
+//
+// VALIDATES: AC-1 from spec-login-warnings: Welcome shows warning message and command.
+// VALIDATES: AC-4 from spec-login-warnings: Warning includes actionable command.
+// PREVENTS: Login warnings silently dropped, not rendered to operator.
+func TestModelDisplaysLoginWarnings(t *testing.T) {
+	m := NewCommandModel()
+	m.width = 80
+	m.height = 24
+
+	m.SetLoginWarnings([]LoginWarning{
+		{Message: "3 peer(s) have stale prefix data", Command: "ze update bgp peer * prefix"},
+	})
+
+	view := m.View()
+	assert.Contains(t, view, "3 peer(s) have stale prefix data", "warning message should appear")
+	assert.Contains(t, view, "ze update bgp peer * prefix", "actionable command should appear")
+}
+
+// TestModelNoLoginWarnings verifies that View() renders normally without login warnings.
+//
+// VALIDATES: AC-2 from spec-login-warnings: No warning in welcome when no stale peers.
+// PREVENTS: Empty warning block rendered when warnings are nil.
+func TestModelNoLoginWarnings(t *testing.T) {
+	m := NewCommandModel()
+	m.width = 80
+	m.height = 24
+
+	// No SetLoginWarnings called -- loginWarnings is nil
+	view := m.View()
+	assert.NotContains(t, view, "warning:", "no warning block should appear")
+	assert.NotContains(t, view, "run:", "no command suggestion should appear")
+}
+
+// TestModelMultipleLoginWarnings verifies that multiple warnings all render.
+//
+// VALIDATES: Multiple warnings render as consecutive blocks.
+// PREVENTS: Only first warning displayed, rest silently dropped.
+func TestModelMultipleLoginWarnings(t *testing.T) {
+	m := NewCommandModel()
+	m.width = 80
+	m.height = 24
+
+	m.SetLoginWarnings([]LoginWarning{
+		{Message: "3 peer(s) have stale prefix data", Command: "ze update bgp peer * prefix"},
+		{Message: "RPKI cache expired", Command: "ze update rpki"},
+	})
+
+	view := m.View()
+	assert.Contains(t, view, "3 peer(s) have stale prefix data")
+	assert.Contains(t, view, "RPKI cache expired")
+	assert.Contains(t, view, "ze update bgp peer * prefix")
+	assert.Contains(t, view, "ze update rpki")
+}
+
+// TestModelDisplaysLoginWarningsWithEditor verifies warnings render in editor-capable mode.
+//
+// VALIDATES: AC-1 from spec-login-warnings in editor path.
+// PREVENTS: Warnings only working in command-only mode but not editor mode.
+func TestModelDisplaysLoginWarningsWithEditor(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup in test
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	model.width = 80
+	model.height = 24
+
+	model.SetLoginWarnings([]LoginWarning{
+		{Message: "2 peer(s) have stale prefix data", Command: "ze update bgp peer * prefix"},
+	})
+
+	view := model.View()
+	assert.Contains(t, view, "2 peer(s) have stale prefix data", "warning should appear in editor mode")
+	assert.Contains(t, view, "ze update bgp peer * prefix", "command should appear in editor mode")
+}
+
+// TestWarningWithEmptyCommand verifies warning renders without "run:" when Command is empty.
+//
+// VALIDATES: Warning with no actionable command displays message only.
+// PREVENTS: Bare "run:" line displayed when Command is empty.
+func TestWarningWithEmptyCommand(t *testing.T) {
+	m := NewCommandModel()
+	m.width = 80
+	m.height = 24
+
+	m.SetLoginWarnings([]LoginWarning{
+		{Message: "software update available", Command: ""},
+	})
+
+	view := m.View()
+	assert.Contains(t, view, "software update available", "warning message should appear")
+	assert.NotContains(t, view, "run:", "no run line when Command is empty")
+}
+
+// TestWarningWithEmptyMessage verifies empty Message warnings are skipped.
+//
+// VALIDATES: Empty Message produces no visual artifact.
+// PREVENTS: Bare "warning: " line displayed for empty Message.
+func TestWarningWithEmptyMessage(t *testing.T) {
+	m := NewCommandModel()
+	m.width = 80
+	m.height = 24
+
+	m.SetLoginWarnings([]LoginWarning{
+		{Message: "", Command: "ze update rpki"},
+	})
+
+	view := m.View()
+	assert.NotContains(t, view, "warning:", "empty message should not render warning line")
+	assert.NotContains(t, view, "run:", "empty message warning should not render command line")
+}

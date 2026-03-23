@@ -298,6 +298,9 @@ External processes receive BGP events and send commands:
 | `ze show <command>` | Read-only daemon commands |
 | `ze run <command>` | All daemon commands |
 
+**Login warnings:** When an operator connects via SSH, ze checks for conditions requiring attention and displays warnings in the welcome area. Each warning includes a message and an actionable command. Currently checks for stale prefix data (peers with `prefix-updated` older than 6 months).
+<!-- source: internal/component/ssh/session.go -- createSessionModel login warning collection -->
+
 ### Other
 
 | Command | Description |

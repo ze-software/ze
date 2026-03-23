@@ -172,10 +172,26 @@ func (m Model) View() string {
 		lines = append(lines, vpLines...)
 	}
 
+	// Login warnings (rendered above message area, consuming padding space)
+	var warningLines []string
+	for _, w := range m.loginWarnings {
+		if w.Message == "" {
+			continue
+		}
+		warningLines = append(warningLines, warningLineStyle.Render("warning: "+w.Message))
+		if w.Command != "" {
+			warningLines = append(warningLines, warningLineStyle.Render("  run: "+w.Command))
+		}
+	}
+
 	// Pad between viewport and bottom area
-	for len(lines) < viewHeight-bottomRows {
+	bottomUsed := bottomRows + len(warningLines)
+	for len(lines) < viewHeight-bottomUsed {
 		lines = append(lines, "")
 	}
+
+	// Warning lines above message area
+	lines = append(lines, warningLines...)
 
 	// Message area (2 lines) + prompt — always at the bottom
 	msg1, msg2 := m.messageLines()

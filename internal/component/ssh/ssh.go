@@ -88,7 +88,7 @@ type RestartFunc func()
 // Exec commands (non-interactive) are dispatched through the executor.
 type Server struct {
 	config                   Config
-	mu                       sync.Mutex // protects wish field, executorFactory, and shutdownFunc
+	mu                       sync.Mutex // protects wish field, executorFactory, shutdownFunc, and loginWarningsFunc
 	wish                     *ssh.Server
 	listener                 net.Listener   // bound listener (for address resolution)
 	extraListeners           []net.Listener // additional listeners for multi-address binding
@@ -98,6 +98,7 @@ type Server struct {
 	streamingExecutorFactory StreamingExecutorFactory // set after reactor starts; for monitor commands
 	shutdownFunc             ShutdownFunc             // set by daemon; called on "stop" exec command
 	restartFunc              RestartFunc              // set by daemon; called on "restart" exec command
+	loginWarningsFunc        LoginWarningsFunc        // set by daemon; returns login warnings for SSH sessions
 }
 
 // NewServer creates a new SSH server with the given configuration.
@@ -195,6 +196,15 @@ func (s *Server) SetRestartFunc(f RestartFunc) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.restartFunc = f
+}
+
+// SetLoginWarnings sets the function that returns login warnings for new SSH sessions.
+// Called by the daemon after the reactor starts, alongside SetExecutorFactory.
+// The function is called once per session in createSessionModel.
+func (s *Server) SetLoginWarnings(f LoginWarningsFunc) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.loginWarningsFunc = f
 }
 
 // Start launches the SSH server. It implements ze.Subsystem.
