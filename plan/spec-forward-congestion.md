@@ -47,6 +47,8 @@ Research into existing BGP implementations reveals:
 | Implementation | Approach to slow peers |
 |---------------|----------------------|
 | BIRD 3 (IXP route servers) | Unbounded bucket queue per peer (no backpressure beyond TCP flow control). Route superseding deduplicates pending updates for same prefix. Hold timer congestion extension: if RX data pending when hold timer fires, extend 10s instead of teardown. TX budget 1024 messages per event loop cycle. Channel fairness: round-robin with 16-message stickiness across AFI/SAFI. fast_rx during handshake for OPEN/KEEPALIVE priority. |
+| GoBGP | Unbounded InfiniteChannel per peer (eapache/channels). No backpressure. Write failure is fatal (kills peer). One write() syscall per UPDATE. No TCP_NODELAY. Sets IP_TOS/DSCP via DialerControl + listenControl. TCP keepalive disabled. 1-second write deadline during handshake, none in ESTABLISHED. No Send Hold Timer. No buffer pooling (per-read malloc). |
+| RustyBGP | Unbounded mpsc channels from table threads to peer tasks. No write timeout (write_all blocks forever on stuck peer). 4-phase write priority: urgent > withdrawals > announcements > EOR. TX budget max_tx_count=2048 per iteration. SO_SNDBUF-aware TX buffer: min(64KB, SO_SNDBUF/2). SO_REUSEPORT on listener. No TCP_NODELAY, no IP_TOS/DSCP, no Send Hold Timer. Tokio async runtime with per-peer tasks. |
 | FRRouting | Dedicated keepalive thread. Write quanta limit per I/O cycle. Configurable SO_SNDBUF. Implements RFC 9687 Send Hold Timer. |
 | OpenBGPd | Internal msgbuf queuing on EAGAIN. Keepalive on independent timer. Implements RFC 9687. |
 | Cisco IOS-XR | Update groups with slow-peer detection and dynamic isolation into "refresh sub-groups." 32 MB per sub-group cache. |
@@ -109,6 +111,142 @@ it relies entirely on TCP flow control and route superseding to manage slow peer
 Ze's four-layer design is strictly more capable. The techniques worth adopting are:
 hold timer congestion extension, TX budget limiting, channel fairness, IP_TOS marking,
 and route superseding in the overflow pool.
+
+### GoBGP Source Code Analysis (2026-03-23)
+
+Detailed analysis of GoBGP source code (github.com/osrg/gobgp, local copy).
+
+**Socket options GoBGP sets on BGP connections:**
+
+| Option | Value | File / Function | Purpose |
+|--------|-------|----------------|---------|
+| IP_TOS (IPv4) | Configurable via peer config | sockopt_linux.go:215 via DialerControl() | DSCP marking |
+| IPV6_TCLASS (IPv6) | Configurable via peer config | sockopt_linux.go:218 via DialerControl() | Same for IPv6 |
+| TCP_MD5SIG | When password configured | sockopt_linux.go:67-90 | RFC 2385 authentication |
+| IP_TTL / IPV6_UNICAST_HOPS | Configurable | sockopt_linux.go:162-173 | TTL setting |
+| IP_MINTTL / IPV6_MINHOPCOUNT | When configured | sockopt_linux.go:179-184 | GTSM (RFC 5082) |
+| TCP_MAXSEG | When configured | sockopt_linux.go:193-204 | MSS clamping |
+| SO_BINDTODEVICE | When bind interface set | sockopt_linux.go:206-209 | VRF binding |
+| TCP KeepAlive | Disabled (KeepAlive: -1) | fsm.go:929 | BGP has own keepalives |
+| Listener IP_TTL | 255 (always) | listener.go:83-90 | TTL security for inbound |
+| MPTCP | Disabled | listener.go:152 | Incompatible with TCP MD5 in Go 1.24+ |
+
+**Socket options GoBGP does NOT set:**
+
+| Option | Notes |
+|--------|-------|
+| TCP_NODELAY | Not set. Nagle left at OS default. |
+| SO_SNDBUF / SO_RCVBUF | Not set. OS defaults. |
+| TCP_CORK / MSG_MORE | Not used |
+| SO_PRIORITY | Not set |
+| SO_REUSEPORT | Not set |
+
+**GoBGP TX path:**
+
+| Property | Detail |
+|----------|--------|
+| Outgoing queue | InfiniteChannel (eapache/channels) -- unbounded, never drops |
+| Messages per write | ONE per conn.Write() call. No batching. |
+| Write deadline | 1 second during handshake; none in ESTABLISHED |
+| Write failure | Fatal -- kills peer immediately, no retry |
+| No bufio | Direct io.ReadFull() per message, make([]byte, length) per read |
+| UPDATE grouping | CreateUpdateMsgFromPaths() groups paths by family, but each UPDATE is a separate write |
+
+**GoBGP congestion handling:**
+
+| Mechanism | Detail |
+|-----------|--------|
+| Backpressure | None. InfiniteChannel accepts all. RIB has no way to know peer is congested. |
+| Send Hold Timer | Not implemented. Stuck write blocks sendMessageloop forever. |
+| Rate limiting | None |
+| Slow-peer detection | None |
+| Route superseding | Not in output queue (InfiniteChannel is FIFO, no dedup) |
+
+**Key takeaway for ze:** GoBGP confirms IP_TOS/DSCP is standard practice (ze now does
+this). GoBGP's lack of TCP_NODELAY, buffer pooling, and write batching are performance
+gaps ze already avoids. GoBGP's InfiniteChannel is functionally identical to BIRD's
+unbounded bucket queue -- no implementation has solved backpressure.
+
+### RustyBGP Source Code Analysis (2026-03-23)
+
+Detailed analysis of RustyBGP source code (github.com/osrg/rustybgp, local copy).
+
+**Socket options RustyBGP sets on BGP connections:**
+
+| Option | Value | File / Function | Purpose |
+|--------|-------|----------------|---------|
+| SO_REUSEADDR | true | event.rs:2458 | Quick listener restart |
+| SO_REUSEPORT | true | event.rs:2459 | Load-balanced accept across threads |
+| IPV6_V6ONLY | true (IPv6 listener) | event.rs:2455 | Separate IPv4/IPv6 listeners |
+| TCP_MD5SIG | When password configured | auth.rs:58-71 | RFC 2385 (Linux only) |
+| O_NONBLOCK | all sockets | event.rs:2460 | Tokio async I/O |
+
+**Socket options RustyBGP does NOT set:**
+
+| Option | Notes |
+|--------|-------|
+| TCP_NODELAY | Not set |
+| IP_TOS / IPV6_TCLASS | Not set. No DSCP marking. |
+| SO_SNDBUF | Reads but never sets. TX buffer sized as min(64KB, SO_SNDBUF/2). |
+| SO_RCVBUF | Not set. RX buffer fixed at 64KB. |
+| TCP_CORK / MSG_MORE | Not used |
+| SO_PRIORITY | Not set |
+| SO_KEEPALIVE | Not set |
+| IP_MINTTL | Not set (no GTSM support) |
+
+**RustyBGP TX path (most sophisticated of the open-source implementations):**
+
+| Property | Detail |
+|----------|--------|
+| Write phases | 4-phase priority: (1) urgent (OPEN/KEEPALIVE/NOTIFICATION) > (2) withdrawals > (3) announcements > (4) EOR |
+| TX budget | max_tx_count=2048 attribute records per event loop iteration |
+| TX buffer sizing | min(64KB, SO_SNDBUF/2) -- auto-adapts to actual socket buffer |
+| Write timeout | NONE. write_all().await blocks forever on stuck peer. |
+| Outgoing channels | Unbounded mpsc from table threads to peer tasks |
+| Runtime | Tokio async with per-peer tasks |
+| Attribute grouping | PendingTx deduplicates by attribute set (routes sharing attributes batched into one UPDATE) |
+
+**RustyBGP congestion handling:**
+
+| Mechanism | Detail |
+|-----------|--------|
+| Backpressure | None. Unbounded channels from table threads. |
+| Send Hold Timer | Not implemented. Stuck write_all blocks peer task indefinitely. |
+| Rate limiting | TX budget (2048) is fairness, not rate limiting |
+| Slow-peer detection | None. Peer task blocks on write, queues grow unbounded. |
+| Route superseding | PendingTx deduplicates by prefix within a batch, but channel queue is not deduped |
+
+**Key takeaway for ze:** RustyBGP's 4-phase write priority and SO_SNDBUF-aware
+buffer sizing are worth studying. The TX budget (2048 per iteration) is similar
+to BIRD's (1024) and validates ze's planned TX budget limiting (AC-24). RustyBGP's
+critical weakness is no write timeout -- a stuck peer blocks the entire task with
+no recovery. Ze's RFC 9687 Send Hold Timer addresses exactly this gap.
+
+### Cross-Implementation Comparison (2026-03-23)
+
+| Feature | BIRD | GoBGP | RustyBGP | FRR | Ze (planned) |
+|---------|------|-------|----------|-----|-------------|
+| TCP_NODELAY | No | No | No | Yes | **Done** |
+| IP_TOS/DSCP CS6 | Yes (0xC0) | Yes (configurable) | No | Yes | **Done** |
+| TCP_MD5SIG | Yes | Yes (Linux) | Yes (Linux) | Yes | Yes |
+| GTSM (IP_MINTTL) | Yes | Yes | No | Yes | Yes |
+| TCP-AO (RFC 5925) | Yes | No | No | Partial | Not yet |
+| SO_SNDBUF tuning | No | No | Reads, doesn't set | Yes (configurable) | Planned |
+| Send Hold Timer (RFC 9687) | Yes | **No** | **No** | Yes | Planned |
+| Write timeout | N/A (non-blocking) | None in ESTABLISHED | **None** | Dedicated thread | Planned |
+| Backpressure | None (unbounded queue) | None (InfiniteChannel) | None (unbounded mpsc) | Write quanta | **4-layer design** |
+| Route superseding | Yes (prefix hash) | No | Partial (per-batch) | Yes | Planned |
+| TX budget | 1024 msgs/cycle | None | 2048 attrs/iteration | Write quanta | Planned |
+| Hold timer congestion ext. | Yes (10s if RX pending) | No | No | No | Planned |
+| Write priority phases | No (fixed priority) | No | Yes (4-phase) | No | Planned |
+| Buffer pooling | No (malloc per msg) | No (malloc per read) | No (BytesMut) | No | **Yes (pool)** |
+| bufio batching | No | No | App-level buffering | No | **Yes (16KB)** |
+
+**Industry-wide gaps ze addresses:**
+- No open-source BGP daemon has real backpressure (ze: 4-layer design)
+- Only BIRD/FRR/OpenBGPd implement RFC 9687 (ze: planned)
+- No implementation combines TCP_NODELAY + IP_TOS + buffer pooling + bufio (ze: done)
+- Only BIRD has hold timer congestion extension (ze: planned, AC-22)
 
 **Universal industry rule:** Never drop routes silently. Every major implementation
 chooses memory growth or backpressure over route loss.
@@ -413,30 +551,34 @@ highest. The kernel stops accepting data from that source. The source's
 writes block in their TCP stack.
 
 **TCP window zero MUST pulse open periodically.** A zero window held
-indefinitely blocks ALL data from a source peer -- including keepalives,
-NOTIFICATION, and ROUTE-REFRESH messages. One slow destination peer would
-cause all source peers to freeze, which cascades into hold timer expiry
-and mass session teardown (the "BGP zombie" problem documented by Ben Cox).
+indefinitely blocks ALL data from a source peer -- including UPDATEs,
+keepalives, NOTIFICATION, and ROUTE-REFRESH messages. One slow destination
+peer would cause all source peers to freeze, which cascades into hold
+timer expiry and mass session teardown (the "BGP zombie" problem
+documented by Ben Cox).
 
-**Pulse timing is derived from the keepalive interval.** The window must
-open at least 5 times per keepalive-to-keepalive interval, each time for
-a few seconds -- enough to drain queued keepalives and a burst of data.
+**Pulse timing is derived from the hold time.** The window must open
+frequently enough that the source peer can deliver at least one message
+(UPDATE or keepalive) per hold timer interval. Since RFC 4271 resets
+the hold timer on both UPDATEs and keepalives, any received message
+prevents expiry. The pulse must ensure at least one message arrives
+within every hold time period.
 
-| Keepalive interval | Pulse count | Closed duration | Open duration |
-|-------------------|-------------|-----------------|---------------|
-| 30s (hold=90s) | 5 minimum | ~4s | ~2s |
-| 60s (hold=180s) | 5 minimum | ~10s | ~2s |
-| 10s (hold=30s) | 5 minimum | ~1s | ~1s |
+| Hold time | Pulse count | Closed duration | Open duration |
+|-----------|-------------|-----------------|---------------|
+| 90s (keepalive=30s) | 5 minimum | ~4s | ~2s |
+| 180s (keepalive=60s) | 5 minimum | ~10s | ~2s |
+| 30s (keepalive=10s) | 5 minimum | ~1s | ~1s |
 
 Formula: `closed_duration = keepalive_interval / (pulse_count + 1)`,
 `open_duration = 2-3s` (enough to drain kernel receive buffer).
 Per-source-peer calculation uses that peer's negotiated hold time / 3
 as the keepalive interval.
 
-**Why 5 pulses minimum:** One keepalive arrives per interval. With 5 open
-windows per interval, there are 5 chances to receive it. Even with jitter
-in keepalive timing, 5 windows makes it near-certain the keepalive lands
-in an open window. Fewer pulses risk missing the keepalive by bad luck.
+**Why 5 pulses minimum:** The source peer sends either UPDATEs or
+keepalives (or both). With 5 open windows per keepalive interval, there
+are 5 chances to receive at least one message. Even with jitter, 5
+windows makes it near-certain something lands in an open window.
 
 **Burst on re-open:** When the window opens, the source peer's kernel
 flushes its entire send buffer at once. This is NOT a trickle -- it is
@@ -479,12 +621,14 @@ escalation when sleep alone cannot reduce inflow enough.
 
 **Critical constraint: hold timer safety**
 
-Both mechanisms affect keepalive delivery from source peers. The pulse
-design guarantees keepalive safety by construction: 5 open windows per
-keepalive interval means 5 chances to receive each keepalive. The risk
-is that keepalives are buried under queued UPDATEs in the kernel buffer.
-With kernel buffers of ~100 messages, 2 seconds of reading at typical
-rates drains the buffer.
+Both mechanisms affect message delivery from source peers. Since RFC 4271
+resets the hold timer on both UPDATEs and keepalives, the constraint is:
+at least one message (any type) must arrive within each hold time period.
+
+The pulse design guarantees this by construction: 5 open windows per
+keepalive interval means 5 chances to receive at least one message.
+UPDATEs count -- if the source peer is sending routes, those reset our
+hold timer just as well as keepalives do.
 
 The read throttle (sleep) MUST also respect the source peer's hold timer.
 Maximum sleep bounded by `keepalive_interval / (pulse_count + 1)`.
@@ -532,31 +676,78 @@ GR peers, TCP close is strictly better.
 The congestion teardown timeout must be shorter than hold timers to bound
 memory before the natural hold timer safety net kicks in.
 
-## Keepalive Write Contention (existing bug)
+## Keepalive Under Congestion (corrected analysis)
 
-Separate from the congestion design but discovered during research.
+### Why keepalive priority is a non-problem
 
-`sendKeepalive` acquires `writeMu` with no write deadline. The forward
-worker holds `writeMu` for up to 30s (write deadline). Sequence on stuck TCP:
+RFC 4271 Section 6.5 specifies the hold timer resets on **both KEEPALIVE and
+UPDATE** messages. All implementations (ze, BIRD, GoBGP, RustyBGP, FRR)
+implement this correctly. This means:
 
-1. Forward worker holds writeMu, write deadline 30s
-2. Keepalive timer fires, blocks on writeMu for up to 30s
-3. Keepalive acquires writeMu, writes -- **no deadline, blocks indefinitely**
-4. No keepalives sent, remote's hold timer expires (90-180s)
+| Scenario | Keepalive delayed? | Remote hold timer | Session alive? |
+|----------|-------------------|-------------------|----------------|
+| We're sending UPDATEs, keepalive blocked by writeMu | Yes | Reset by every UPDATE received | **Yes -- UPDATEs keep it alive** |
+| Session idle, no UPDATEs or keepalives flowing | Keepalive goes out trivially (no writeMu contention) | Reset by keepalive | Yes |
+| TCP fully stuck, nothing reaches remote | Both UPDATEs and keepalives blocked | Expires | No -- RFC 9687 Send Hold Timer detects this |
 
-`writeMessage` (used by keepalive, NOTIFICATION, OPEN) must set a write
-deadline. Suggested: `min(holdTime/3, fwdWriteDeadline)`.
+**A delayed keepalive only matters when the session is idle AND the keepalive
+is blocked.** But an idle session has no forward batch holding writeMu, so
+there is no contention. The keepalive goes out immediately.
 
-**Industry comparison:** FRR solves this with a dedicated keepalive thread.
-Junos moves keepalive generation to a kernel thread. Ze's writeMu contention
-is a known class of bug that other implementations have explicitly addressed.
+**When UPDATEs are flowing, the keepalive is redundant.** The remote peer's
+hold timer resets on every UPDATE it receives. A keepalive that arrives 30
+seconds late changes nothing -- the remote already knows we're alive from
+the UPDATEs it has been receiving.
 
-**TCP_NODELAY:** Ze should set TCP_NODELAY on all peer sockets. Measured 27x
-improvement in UPDATE delivery latency in BIRD. Critical for keepalive
-delivery under congestion where Nagle/Delayed-ACK interaction can add
-200ms+ latency.
+**When TCP is fully stuck, priority cannot help.** Neither UPDATEs nor
+keepalives can be written. No priority system, dedicated thread, or phase
+ordering changes this. RFC 9687 Send Hold Timer is the correct safety net:
+detect that we cannot send anything, tear down proactively.
 
-## Interaction: FSM Teardown from Missing Keepalive
+### What is still needed: writeMessage write deadline (AC-8)
+
+`writeMessage` (used by keepalive, NOTIFICATION, OPEN) has no write deadline.
+If TCP is stuck, `writeMessage` blocks indefinitely under writeMu. This
+is not a keepalive priority problem -- it is a resource leak: writeMu is
+held forever, preventing the forward worker from detecting the stuck TCP
+and triggering teardown.
+
+Fix: `writeMessage` must set a write deadline. Suggested:
+`min(holdTime/3, fwdWriteDeadline)`. This bounds the writeMu hold time
+and allows the system to detect stuck TCP within a bounded interval.
+
+### Write priority: withdrawals before announcements (AC-25)
+
+Priority phases are valuable not for keepalive survival, but for routing
+correctness. Withdrawals should be sent before announcements because a
+late withdrawal means the remote peer forwards traffic into a black hole,
+while a late announcement only means suboptimal routing.
+
+RustyBGP implements 4-phase write priority: urgent (OPEN/KEEPALIVE/
+NOTIFICATION) > withdrawals > announcements > EOR. BIRD uses a priority
+bitmask: CLOSE > NOTIFICATION > OPEN > KEEPALIVE > UPDATE (no withdrawal/
+announcement distinction). Neither implementation's priority helps when
+TCP is congested -- priority only matters when the socket is writable.
+
+Ze should prioritize withdrawals over announcements in the forward batch
+handler. This is an ordering optimization within the existing write path,
+not a new mechanism.
+
+### Industry comparison (corrected)
+
+| Implementation | Keepalive mechanism | Why it works |
+|---------------|-------------------|-------------|
+| BIRD | Priority bitmask, same TX buffer | UPDATEs reset remote hold timer; priority only matters on idle sessions |
+| GoBGP | Same goroutine, InfiniteChannel | UPDATEs reset remote hold timer; no contention on idle sessions |
+| RustyBGP | Same task, urgent Vec drained first | UPDATEs reset remote hold timer; priority is about withdrawal ordering |
+| FRR | Dedicated keepalive thread | Solves a problem that doesn't exist (UPDATEs already keep session alive). Real value: guaranteed keepalive on truly idle sessions even if main thread is stuck processing. |
+
+~~FRR's dedicated keepalive thread is the gold standard.~~ FRR's dedicated
+thread solves an edge case (main thread stuck in CPU-heavy processing on an
+otherwise idle session) but the primary defense is and always has been
+RFC 9687 Send Hold Timer for stuck TCP.
+
+## Interaction: Stuck TCP Outbound
 
 When TCP is stuck outbound (writes fail or block):
 
@@ -564,9 +755,10 @@ When TCP is stuck outbound (writes fail or block):
 |------|-------------|
 | 0s | Forward write starts blocking/failing |
 | 30s | Forward write deadline expires, writeMu released |
-| 30-60s | Keepalive may get through (if TCP briefly unsticks) or fail |
-| 60-90s | Multiple keepalive failures; remote's hold timer approaching |
-| 90-180s | Remote hold timer expires, remote sends NOTIFICATION or closes TCP |
+| 30s+ | writeMessage (keepalive/NOTIFICATION) also fails with deadline |
+| Ongoing | Remote still receiving nothing -- hold timer counting down |
+| 90-180s | Remote hold timer expires, remote tears down |
+| max(8min, 2x HoldTime) | RFC 9687 Send Hold Timer expires, we tear down proactively |
 
 The congestion teardown (Layer 4) should fire BEFORE the hold timer
 expires. This gives the system control over HOW the session ends (GR-friendly
@@ -724,6 +916,7 @@ than guessed.
 | Hold timer fires while RX buffer has data | -> | Timer extended 10s, session not torn down | TestSession_HoldTimerCongestionExtension |
 | Two updates for same prefix in overflow | -> | Second replaces first, pool item count unchanged | TestFwdPool_RouteSuperseding |
 | Forward batch exceeds TX budget | -> | Batch capped, remaining deferred to next cycle | TestFwdPool_TXBudgetLimit |
+| Forward batch has withdrawals and announcements | -> | Withdrawals written before announcements | TestFwdPool_WithdrawalPriority |
 
 ## Acceptance Criteria
 
@@ -753,3 +946,4 @@ than guessed.
 | AC-22 | Hold timer fires with RX data pending | Hold timer extended 10s instead of teardown (CPU congestion, not peer failure) |
 | AC-23 | New update for prefix already in overflow pool | Old entry replaced (route superseding), not appended. Pool item count bounded by unique prefixes. |
 | AC-24 | Forward batch to single destination peer | TX budget caps messages per batch (prevents one peer starving others in event loop) |
+| AC-25 | Forward batch contains both withdrawals and announcements | Withdrawals sent before announcements (reduces black-hole window from late withdrawal) |
