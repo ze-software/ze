@@ -942,9 +942,9 @@ than guessed.
 | Send Hold Timer expires on stuck peer | -> | Session torn down with Error Code 8 | test/plugin/forward-send-hold-timer.ci |
 | BGP session established (dial or accept) | -> | IP_TOS=0xC0 set on TCP socket | TestSession_IPTOS_Set |
 | Hold timer fires while RX buffer has data | -> | Timer extended 10s, session not torn down | TestSession_HoldTimerCongestionExtension |
-| Two updates for same prefix in overflow | -> | Second replaces first, pool item count unchanged | TestFwdPool_RouteSuperseding |
+| Two updates for same prefix in overflow | -> | Second replaces first, pool item count unchanged | TestFwdPool_RouteSuperseding (deferred -- AC-23) |
 | Forward batch exceeds TX budget | -> | Batch capped, remaining deferred to next cycle | TestFwdPool_TXBudgetLimit |
-| Forward batch has withdrawals and announcements (after AC-23 dedup) | -> | Withdrawals written before announcements | TestFwdPool_WithdrawalPriority |
+| Forward batch has withdrawals and announcements (after AC-23 dedup) | -> | Withdrawals written before announcements | TestFwdPool_WithdrawalPriority (deferred -- AC-25) |
 
 ## Acceptance Criteria
 
@@ -972,6 +972,6 @@ than guessed.
 | AC-20 | PeeringDB lookup for unknown peers | Query PeeringDB by ASN when no local RIB data, if configured |
 | AC-21 | IP_TOS/DSCP CS6 set on all peer sockets | Outgoing (dialer Control callback) and accepted connections set IP_TOS=0xC0 (IPv4) / IPV6_TCLASS=0xC0 (IPv6) |
 | AC-22 | Hold timer fires with RX data pending | Hold timer extended 10s instead of teardown (CPU congestion, not peer failure) |
-| AC-23 | New update for prefix already in overflow pool | Old entry replaced (route superseding), not appended. Pool item count bounded by unique prefixes. |
+| AC-23 | New update for prefix already in overflow pool | **Deferred optimization.** Old entry replaced (route superseding), not appended. Requires per-prefix indexing of the overflow pool (NLRI parsing on overflow entry). Ze's UPDATE-first design avoids NLRI parsing on the forward path; adding it here contradicts that principle. Without dedup, FIFO ordering still converges correctly -- the slow peer processes redundant intermediate UPDATEs but reaches the right final state. Real-world overflow is dominated by convergence events (many distinct prefixes withdrawn once), not flap (same prefix repeated). May not fix a real traffic pattern problem. Revisit if profiling shows high duplicate rate in overflow under production load. |
 | AC-24 | Forward batch to single destination peer | TX budget caps messages per batch (prevents one peer starving others in event loop) |
-| AC-25 | Forward batch contains both withdrawals and announcements | Withdrawals sent before announcements (faster convergence). **Requires AC-23 (route superseding) first** -- without per-prefix dedup, reordering can invert announce/withdraw for the same prefix, causing permanent stale routes. |
+| AC-25 | Forward batch contains both withdrawals and announcements | **Deferred optimization.** Withdrawals sent before announcements (faster convergence). Requires AC-23 (route superseding) first -- without per-prefix dedup, reordering can invert announce/withdraw for the same prefix, causing permanent stale routes. Blocked on AC-23 which is itself deferred. |
