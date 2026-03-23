@@ -214,9 +214,10 @@ bgp {
 |------|--------|
 | Required | Every peer must have a name (it is the list key) |
 | Unique | Two peers with the same name produce a config validation error |
-| Pattern | Must start with a letter or underscore (`[a-zA-Z_].*`) |
+| First character | ASCII letter, digit, or underscore (`[a-zA-Z0-9_]`) |
+| Subsequent characters | ASCII letter, digit, underscore, hyphen, or dot (`[a-zA-Z0-9_.-]`) |
 | CLI usage | `peer <name> <command>` selects the peer |
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- list peer key "name" -->
+<!-- source: internal/component/bgp/config/resolve.go -- validatePeerName -->
 
 #### Migration
 

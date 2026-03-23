@@ -54,9 +54,9 @@ module ze-bgp-conf {
 
                 leaf name {
                     type string {
-                        pattern '[a-zA-Z_].*';
+                        pattern '[a-zA-Z0-9_][a-zA-Z0-9_.\-]*';
                     }
-                    description "Peer name (must start with a letter, not a digit)";
+                    description "Peer name (alphanumeric/underscore start, then alphanumeric/underscore/hyphen/dot)";
                 }
 
                 uses peer-fields;
