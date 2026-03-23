@@ -3,6 +3,7 @@
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-interop-test
+.PHONY: ze-perf-build ze-perf-bench ze-perf-report ze-perf-track
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-validate-commands ze-validate-commands-json ze-doc-drift
 .PHONY: check
 
@@ -260,6 +261,34 @@ ze-interop-test:
 	@echo "Running interop tests (requires Docker)..."
 	@python3 test/interop/run.py $(INTEROP_SCENARIO)
 
+# ─── Performance benchmarks ────────────────────────────────────────────────
+
+# Build ze-perf binary
+ze-perf-build:
+	@echo "Building ze-perf..."
+	@mkdir -p bin
+	$(GO) build -o bin/ze-perf ./cmd/ze-perf
+
+# Run performance benchmarks against all DUTs (requires Docker).
+# Override: DUT_ROUTES=1000 DUT_SEED=42 make ze-perf-bench
+# Single DUT: make ze-perf-bench PERF_DUT=ze
+PERF_DUT ?=
+
+ze-perf-bench: ze-perf-build
+	@echo "Running performance benchmarks (requires Docker)..."
+	@test/perf/run.sh $(PERF_DUT)
+
+# Generate comparison report from benchmark results.
+ze-perf-report:
+	@bin/ze-perf report test/perf/results/*.json --md
+
+# Update history tracking from benchmark results.
+ze-perf-track:
+	@for f in test/perf/results/*.json; do \
+		dut=$$(basename "$$f" .json); \
+		bin/ze-perf track "test/perf/history/$${dut}.ndjson" --append "$$f"; \
+	done
+
 # ─── Spec status ─────────────────────────────────────────────────────────────
 
 # Show spec inventory with progress status
@@ -363,6 +392,13 @@ help:
 	@echo "  Interop tests (Docker):"
 	@echo "  ze-interop-test          - Run interop tests against FRR and BIRD"
 	@echo "                             INTEROP_SCENARIO=name to run one scenario"
+	@echo ""
+	@echo "  Performance benchmarks (Docker):"
+	@echo "  ze-perf-build            - Build ze-perf binary"
+	@echo "  ze-perf-bench            - Run benchmarks against all DUTs"
+	@echo "                             PERF_DUT=name to run one DUT"
+	@echo "  ze-perf-report           - Generate comparison report from results"
+	@echo "  ze-perf-track            - Update history tracking from results"
 	@echo ""
 	@echo "  Spec status:"
 	@echo "  ze-spec-status        - Show spec inventory with progress status"
