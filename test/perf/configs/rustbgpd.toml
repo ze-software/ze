@@ -9,15 +9,11 @@ log_format = "json"
 [[neighbors]]
 address = "172.31.0.10"
 remote_asn = 65001
-description = "perf-sender"
 hold_time = 90
-route_server_client = true
 families = ["ipv4_unicast"]
 
 [[neighbors]]
 address = "172.31.0.11"
 remote_asn = 65002
-description = "perf-receiver"
 hold_time = 90
-route_server_client = true
 families = ["ipv4_unicast"]
