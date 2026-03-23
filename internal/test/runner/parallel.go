@@ -33,6 +33,7 @@ type ParallelRunner[T any] struct {
 	label    string         // test suite label for header
 	noHeader bool           // if true, don't print header in Run (caller manages it)
 	onFail   func(T, error) // Called for each failed test (for verbose output)
+	baseDir  string         // project root for timing baseline persistence
 }
 
 // NewParallelRunner creates a parallel test runner.
@@ -61,6 +62,11 @@ func (r *ParallelRunner[T]) SetLabel(label string) {
 // Use when the header is managed by the caller.
 func (r *ParallelRunner[T]) SetNoHeader(v bool) {
 	r.noHeader = v
+}
+
+// SetBaseDir sets the project root for timing baseline persistence.
+func (r *ParallelRunner[T]) SetBaseDir(dir string) {
+	r.baseDir = dir
 }
 
 // SetOnFail sets the callback for failed tests.
@@ -183,6 +189,22 @@ func (r *ParallelRunner[T]) Run(ctx context.Context) bool {
 	close(done)
 	r.display.Newline()
 	r.display.Summary()
+
+	// Record and display timing baseline.
+	// Skip timed-out tests — their duration is the kill time, not actual runtime.
+	if r.baseDir != "" && r.label != "" {
+		timings := LoadTimings(r.baseDir)
+		for _, t := range r.tests {
+			if t.Record.Duration > 0 && t.Record.State != StateTimeout {
+				timings.Record(r.label, t.Name, t.Record.Duration)
+			}
+		}
+		r.display.TimingDetail(r.label, timings)
+		if err := timings.Save(r.baseDir); err != nil {
+			logger().Warn("save timings failed", "error", err)
+		}
+	}
+
 	r.display.DebugHints()
 
 	// Call onFail for each failure if verbose and callback set

@@ -115,7 +115,7 @@ Examples:
 	}
 
 	// Run tests in parallel with progress display
-	return runEditorTests(tests, *verbose, *quiet)
+	return runEditorTests(tests, baseDir, *verbose, *quiet)
 }
 
 // discoverEditorTests finds all .et files and adds them to the test set.
@@ -141,7 +141,7 @@ func discoverEditorTests(tests *runner.EditorTests, testDir, baseDir string) err
 }
 
 // runEditorTests executes tests in parallel with real-time progress display.
-func runEditorTests(tests *runner.EditorTests, verbose, quiet bool) error {
+func runEditorTests(tests *runner.EditorTests, baseDir string, verbose, quiet bool) error {
 	colors := runner.NewColors()
 
 	// Create parallel runner with generic type for direct test access
@@ -149,6 +149,7 @@ func runEditorTests(tests *runner.EditorTests, verbose, quiet bool) error {
 	pr.SetLabel("editor")
 	pr.SetQuiet(quiet)
 	pr.SetVerbose(verbose)
+	pr.SetBaseDir(baseDir)
 
 	// Add selected tests to runner
 	for _, test := range tests.Selected() {

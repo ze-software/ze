@@ -1,4 +1,5 @@
 // Design: docs/architecture/testing/ci-format.md — test runner framework
+// Related: timing.go — timing baseline and slow test detection
 
 package runner
 
@@ -418,6 +419,35 @@ func (d *Display) StressSummary(result *StressResult, count int) {
 			total, totalPassed, totalFailed, totalTimedOut, rate)
 	}
 	d.println("")
+}
+
+// TimingDetail prints per-test timing and flags slow tests.
+// Called after Summary to show timing baseline comparison.
+func (d *Display) TimingDetail(suite string, timings Timings) {
+	if d.quiet {
+		return
+	}
+
+	d.tests.mu.RLock()
+	var records []*Record
+	for _, nick := range d.tests.ordered {
+		r := d.tests.byNick[nick]
+		if r.Duration > 0 {
+			records = append(records, r)
+		}
+	}
+	d.tests.mu.RUnlock()
+
+	if len(records) == 0 {
+		return
+	}
+
+	if line := FormatTimingLine(suite, records, timings, d.colors); line != "" {
+		d.println(line)
+	}
+	if slow := FormatSlowTests(suite, records, timings, d.colors); slow != "" {
+		d.print(slow)
+	}
 }
 
 // DebugHints prints commands to rerun failed tests individually.

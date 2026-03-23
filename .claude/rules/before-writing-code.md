@@ -9,6 +9,7 @@ Rationale: `.claude/rationale/before-writing-code.md`
 [ ] 3. Verify file paths exist (Glob/Grep)
 [ ] 4. Buffer-first check (wire encoding) — WriteTo(buf, off), not Pack()/make([]byte)
 [ ] 5. Lazy-first check (performance) — pass raw byte slices, not parsed structs. Use existing iterators (NLRIIterator, attribute iterators), not collected slices. Consumer walks data and acts directly — no intermediate maps/slices built to iterate once. Before creating a wrapper struct: can the consumer call existing wire type methods directly?
+[ ] 6. Bulk-edit check — modifying >2 files with the same pattern? Change ONE first, test it, confirm it works, THEN apply to the rest. Never assume a pattern works across files without validation.
 ```
 
 Before any spec: READ source files, document current behavior, preserve by default.

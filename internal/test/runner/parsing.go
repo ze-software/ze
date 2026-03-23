@@ -303,6 +303,7 @@ func (r *ParsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 	runner.SetVerbose(verbose)
 	runner.SetLabel("parse")
 	runner.SetNoHeader(true) // header managed by caller
+	runner.SetBaseDir(r.baseDir)
 
 	// Add tests to runner
 	for _, test := range selected {

@@ -2,6 +2,7 @@
 // Detail: runner_exec.go — test execution and process orchestration
 // Detail: runner_validate.go — result validation (JSON, logging, HTTP)
 // Detail: runner_output.go — output capture, saving, and parsing
+// Related: timing.go — timing baseline persistence and slow detection
 
 package runner
 
@@ -23,12 +24,13 @@ const binNameZePeer = "ze-peer"
 
 // RunOptions configures test execution.
 type RunOptions struct {
-	Timeout    time.Duration
-	Parallel   int
-	Verbose    bool
-	DebugNicks []string
-	Quiet      bool
-	SaveDir    string
+	Timeout     time.Duration
+	Parallel    int
+	Verbose     bool
+	DebugNicks  []string
+	Quiet       bool
+	SaveDir     string
+	SkipTimings bool // skip timing recording (set during stress mode)
 }
 
 // DefaultRunOptions returns sensible defaults.
@@ -51,6 +53,7 @@ type Runner struct {
 	display  *Display
 	report   *Report
 	colors   *Colors
+	timings  Timings // rolling timing baseline
 
 	// extraBinaries maps binary name -> Go package path for additional
 	// binaries that should be built alongside ze and ze-test.
@@ -76,6 +79,7 @@ func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
 		colors:   colors,
 		display:  NewDisplay(tests.Tests, colors),
 		report:   NewReport(colors),
+		timings:  LoadTimings(baseDir),
 	}, nil
 }
 
@@ -226,7 +230,35 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 		r.report.PrintAllFailures(r.tests.Tests)
 	}
 
+	// Record and display per-test timings (skip during stress iterations)
+	if !opts.SkipTimings {
+		r.recordTimings()
+	}
+
 	return allSuccess
+}
+
+// Timings returns the runner's timing baseline (for display by caller).
+func (r *Runner) Timings() Timings {
+	return r.timings
+}
+
+// recordTimings updates the rolling baseline and saves to disk.
+// Skips timed-out tests — their duration is the timeout value, not actual runtime.
+// Recording timeouts would inflate the baseline and relax future auto-timeouts.
+func (r *Runner) recordTimings() {
+	suite := r.display.label
+	if suite == "" {
+		return
+	}
+	for _, rec := range r.tests.Selected() {
+		if rec.Duration > 0 && rec.State != StateTimeout {
+			r.timings.Record(suite, rec.Name, rec.Duration)
+		}
+	}
+	if err := r.timings.Save(r.baseDir); err != nil {
+		logger().Warn("save timings failed", "error", err)
+	}
 }
 
 // RunWithCount runs each test count times for stress testing.
@@ -241,9 +273,10 @@ func (r *Runner) RunWithCount(ctx context.Context, opts *RunOptions, count int) 
 
 	totalStart := time.Now()
 
-	// Create stress-mode options (suppress per-iteration failure reports)
+	// Create stress-mode options (suppress per-iteration output and timing recording)
 	stressOpts := *opts
-	stressOpts.Quiet = true // Suppress verbose output per iteration
+	stressOpts.Quiet = true       // Suppress verbose output per iteration
+	stressOpts.SkipTimings = true // Don't pollute baseline with stress-load timings
 
 	for i := 1; i <= count; i++ {
 		// Check for cancellation before each iteration

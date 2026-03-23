@@ -137,8 +137,9 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		return r.runOrchestrated(ctx, rec, opts)
 	}
 
-	// Determine timeout - per-test override or global default
-	timeout := opts.Timeout
+	// Determine timeout: explicit .ci override > baseline-derived > global default.
+	// Baseline-derived = min(global, max(5s, 5x avg)) — catches hangs faster.
+	timeout := r.timings.SuggestedTimeout(r.display.label, rec.Name, opts.Timeout)
 	if timeoutStr, ok := rec.Extra["timeout"]; ok {
 		if d, err := time.ParseDuration(timeoutStr); err == nil {
 			timeout = d
@@ -337,8 +338,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		return cmds[i].Seq < cmds[j].Seq
 	})
 
-	// Determine timeout from foreground command or default
-	timeout := opts.Timeout
+	// Determine timeout: explicit foreground cmd > baseline-derived > global default.
+	timeout := r.timings.SuggestedTimeout(r.display.label, rec.Name, opts.Timeout)
 	for _, cmd := range cmds {
 		if cmd.Mode == modeForeground && cmd.Timeout != "" {
 			if d, err := time.ParseDuration(cmd.Timeout); err == nil {

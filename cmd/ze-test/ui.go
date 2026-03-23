@@ -137,13 +137,21 @@ Examples:
 		return err
 	}
 
+	r.Display().SetLabel("ui")
+	r.Report().SetLabel("ui")
+
 	opts := &runner.RunOptions{
 		Timeout: 15 * time.Second,
 		Verbose: *verbose,
 		Quiet:   *quiet,
 	}
 
-	if !r.Run(ctx, opts) {
+	success := r.Run(ctx, opts)
+	r.Display().Summary()
+	r.Display().TimingDetail("ui", r.Timings())
+	r.Display().DebugHints()
+
+	if !success {
 		return ErrTestsFailed
 	}
 
