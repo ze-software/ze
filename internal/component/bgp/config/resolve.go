@@ -30,6 +30,13 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 	delete(result, "group")
 	delete(result, "peer")
 
+	// BGP-level defaults (Layer 1: lowest precedence for every peer).
+	// After removing group/peer lists, result contains all BGP-level fields.
+	// These serve as defaults for every peer -- groups and peer-level values
+	// override them via deepMergeMaps. No field whitelist needed: unknown
+	// fields are harmlessly ignored by PeersFromTree downstream.
+	bgpDefaults := deepCopyMap(result)
+
 	peerMap := make(map[string]any)
 	peerNames := make(map[string]string) // name -> addr (for uniqueness check)
 
@@ -63,6 +70,9 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 
 			resolved := make(map[string]any)
 
+			// Layer 1: BGP-level defaults (lowest precedence).
+			deepMergeMaps(resolved, deepCopyMap(bgpDefaults))
+
 			// Layer 2: Apply group defaults.
 			deepMergeMaps(resolved, groupFields)
 
@@ -84,7 +94,13 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 		peerName := peerEntry.Key
 		peerTree := peerEntry.Value
 
-		resolved := peerTree.ToMap()
+		resolved := make(map[string]any)
+
+		// Layer 1: BGP-level defaults (lowest precedence).
+		deepMergeMaps(resolved, deepCopyMap(bgpDefaults))
+
+		// Layer 3: Apply peer's own values (highest precedence).
+		deepMergeMaps(resolved, peerTree.ToMap())
 
 		// Validate peer name (the list key).
 		if err := validatePeerName(peerName); err != nil {
@@ -213,6 +229,20 @@ func validateGroupName(name string) error {
 		return fmt.Errorf("invalid group name %q: must contain at least one letter or digit", name)
 	}
 	return nil
+}
+
+// deepCopyMap returns a deep copy of a map, recursively copying nested maps.
+// Non-map values are shared (strings, ints are immutable so this is safe).
+func deepCopyMap(src map[string]any) map[string]any {
+	dst := make(map[string]any, len(src))
+	for k, v := range src {
+		if m, ok := v.(map[string]any); ok {
+			dst[k] = deepCopyMap(m)
+		} else {
+			dst[k] = v
+		}
+	}
+	return dst
 }
 
 // deepMergeMaps recursively merges src into dst.

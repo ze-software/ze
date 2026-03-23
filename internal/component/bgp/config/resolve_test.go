@@ -1041,6 +1041,75 @@ func TestResolveBGPTree_ValidGroupNames(t *testing.T) {
 	}
 }
 
+// TestResolveBGPTree_BGPLevelFamilyInheritance verifies peers inherit family
+// config from the bgp root level when not overridden.
+//
+// VALIDATES: bgp { family { ipv4/unicast { prefix { maximum N; } } } } flows to peers.
+// PREVENTS: Standalone peers missing root-level family defaults.
+func TestResolveBGPTree_BGPLevelFamilyInheritance(t *testing.T) {
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
+
+	// BGP-level family defaults.
+	bgpFamily := config.NewTree()
+	ipv4Tree := config.NewTree()
+	ipv4Prefix := config.NewTree()
+	ipv4Prefix.Set("maximum", "100000")
+	ipv4Tree.SetContainer("prefix", ipv4Prefix)
+	bgpFamily.AddListEntry("family", "ipv4/unicast", ipv4Tree)
+	// family is a list, stored in bgp tree
+	bgp.AddListEntry("family", "ipv4/unicast", ipv4Tree)
+
+	// Standalone peer with NO family override.
+	peerTree := config.NewTree()
+	peerRemote := config.NewTree()
+	peerRemote.Set("ip", "10.0.0.1")
+	peerRemote.Set("as", "65001")
+	peerTree.SetContainer("remote", peerRemote)
+	bgp.AddListEntry("peer", "peer1", peerTree)
+
+	// Standalone peer WITH family override.
+	peer2Tree := config.NewTree()
+	peer2Remote := config.NewTree()
+	peer2Remote.Set("ip", "10.0.0.2")
+	peer2Remote.Set("as", "65002")
+	peer2Tree.SetContainer("remote", peer2Remote)
+	peer2Family := config.NewTree()
+	peer2Prefix := config.NewTree()
+	peer2Prefix.Set("maximum", "500000")
+	peer2Family.SetContainer("prefix", peer2Prefix)
+	peer2Tree.AddListEntry("family", "ipv4/unicast", peer2Family)
+	bgp.AddListEntry("peer", "peer2", peer2Tree)
+
+	tree.SetContainer("bgp", bgp)
+
+	result, err := ResolveBGPTree(tree)
+	require.NoError(t, err)
+
+	// peer1 should inherit bgp-level family with maximum 100000.
+	p1 := resolvedPeer(t, result, "peer1")
+	p1Family, ok := p1["family"].(map[string]any)
+	require.True(t, ok, "peer1 should have family")
+	p1Ipv4, ok := p1Family["ipv4/unicast"].(map[string]any)
+	require.True(t, ok, "peer1 should have ipv4/unicast family")
+	p1Prefix, ok := p1Ipv4["prefix"].(map[string]any)
+	require.True(t, ok, "peer1 should have prefix config")
+	assert.Equal(t, "100000", p1Prefix["maximum"], "peer1 should inherit bgp-level maximum")
+
+	// peer2 should use its own override (500000).
+	p2 := resolvedPeer(t, result, "peer2")
+	p2Family, ok := p2["family"].(map[string]any)
+	require.True(t, ok, "peer2 should have family")
+	p2Ipv4, ok := p2Family["ipv4/unicast"].(map[string]any)
+	require.True(t, ok, "peer2 should have ipv4/unicast family")
+	p2Prefix, ok := p2Ipv4["prefix"].(map[string]any)
+	require.True(t, ok, "peer2 should have prefix config")
+	assert.Equal(t, "500000", p2Prefix["maximum"], "peer2 should use its own maximum")
+}
+
 // TestDeepMergeMaps_FamilyLeafOverride verifies that leaf family values are replaced, not merged.
 //
 // VALIDATES: When group has family "ipv4/unicast" and peer has "ipv6/unicast", the peer's value wins.
