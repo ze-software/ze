@@ -232,7 +232,7 @@ def run_perf(dut):
             "--iter-delay", "8s",
             "--warmup", "2s",
             "--connect-timeout", "20s",
-            "--duration", "30s",
+            "--duration", "300s",
             "--output", f"/results/{result_name}",
         ]
 
@@ -241,7 +241,7 @@ def run_perf(dut):
         if dut["receiver_port"]:
             cmd += ["--receiver-port", str(dut["receiver_port"])]
 
-        docker(*cmd, timeout=300)
+        docker(*cmd, timeout=1800)  # 30 min for large route counts with multiple iterations
         return True
 
     except subprocess.CalledProcessError:
