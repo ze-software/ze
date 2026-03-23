@@ -154,6 +154,14 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 		if p.LocalAddress.IsValid() {
 			row["local-ip"] = p.LocalAddress.String()
 		}
+		if p.PrefixUpdated != "" {
+			row["prefix-updated"] = p.PrefixUpdated
+			if t, err := time.Parse(time.DateOnly, p.PrefixUpdated); err == nil {
+				if time.Since(t) > 180*24*time.Hour {
+					row["prefix-stale"] = true
+				}
+			}
+		}
 		result[p.Address.String()] = row
 	}
 

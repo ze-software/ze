@@ -36,6 +36,10 @@ type PeerInfo struct {
 	State        string
 	Uptime       time.Duration
 
+	// PrefixUpdated is the ISO date (YYYY-MM-DD) when prefix maximums were
+	// last updated from PeeringDB. Empty means manually configured.
+	PrefixUpdated string
+
 	// Statistics (engine-level counters; NLRI-level counters live in the RIB plugin)
 	UpdatesReceived    uint32
 	UpdatesSent        uint32

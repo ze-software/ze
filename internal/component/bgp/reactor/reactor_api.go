@@ -103,6 +103,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			KeepalivesSent:     stats.KeepalivesSent,
 			EORReceived:        stats.EORReceived,
 			EORSent:            stats.EORSent,
+			PrefixUpdated:      s.PrefixUpdated,
 		}
 		if estAt := p.EstablishedAt(); !estAt.IsZero() {
 			info.Uptime = a.r.clock.Now().Sub(estAt)
