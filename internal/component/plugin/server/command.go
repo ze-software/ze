@@ -309,22 +309,16 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 		return nil, ErrEmptyCommand
 	}
 
-	// Check for "peer <selector>" prefix
-	// Format: peer <addr|name|*> <command>
+	// Extract peer selector from "peer <selector>" at any position in the command.
+	// Format: ... peer <addr|name|*> <rest>
 	// Selector can be an IP address, glob pattern, peer name, or "*" for all.
-	peerSelector := "*"
-	hasExplicitSelector := false
-	if len(tokens) >= 3 && strings.EqualFold(tokens[0], "peer") {
-		// Accept IP/glob directly, ASN selector, or check against known peer names via reactor.
-		if looksLikeIPOrGlob(tokens[1]) || looksLikeASNSelector(tokens[1]) || isKnownPeerName(ctx, tokens[1]) {
-			peerSelector = tokens[1]
-			hasExplicitSelector = true
-			if ctx != nil {
-				ctx.Peer = peerSelector
-			}
-			// Rebuild input: "peer <command>" (without the selector)
-			input = "peer " + strings.Join(tokens[2:], " ")
+	// The selector is stripped from the input so it matches the registered YANG path.
+	peerSelector, hasExplicitSelector, selectorIdx := extractPeerSelector(ctx, tokens)
+	if hasExplicitSelector {
+		if ctx != nil {
+			ctx.Peer = peerSelector
 		}
+		input = rebuildWithoutSelector(tokens, selectorIdx)
 	}
 
 	// Build lowercase input for matching
@@ -575,4 +569,37 @@ func looksLikeASNSelector(s string) bool {
 	}
 	_, err := strconv.ParseUint(s[2:], 10, 32)
 	return err == nil
+}
+
+// extractPeerSelector scans tokens for "peer <selector>" at any position.
+// Returns the selector, whether one was found, and the index of the selector token.
+// The selector is a token that looks like an IP, glob, ASN selector, or known peer name.
+// If no selector is found, returns ("*", false, -1).
+func extractPeerSelector(ctx *CommandContext, tokens []string) (string, bool, int) {
+	for i, tok := range tokens {
+		if !strings.EqualFold(tok, "peer") {
+			continue
+		}
+		if i+1 >= len(tokens) {
+			continue
+		}
+		candidate := tokens[i+1]
+		if looksLikeIPOrGlob(candidate) || looksLikeASNSelector(candidate) || isKnownPeerName(ctx, candidate) {
+			return candidate, true, i + 1
+		}
+	}
+	return "*", false, -1
+}
+
+// rebuildWithoutSelector rebuilds a token list, removing the token at selectorIdx.
+// Used after extractPeerSelector found a selector to produce a YANG-matching path.
+func rebuildWithoutSelector(tokens []string, selectorIdx int) string {
+	out := make([]string, 0, len(tokens)-1)
+	for i, tok := range tokens {
+		if i == selectorIdx {
+			continue
+		}
+		out = append(out, tok)
+	}
+	return strings.Join(out, " ")
 }

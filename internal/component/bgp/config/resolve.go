@@ -153,7 +153,7 @@ var reservedPeerNames = map[string]bool{
 	"pause": true, "resume": true, "flush": true, "save": true, "teardown": true,
 	"capabilities": true, "statistics": true, "update": true,
 	"raw": true, "refresh": true, "borr": true, "eorr": true,
-	"clear": true, "plugin": true, "prefix": true,
+	"clear": true, "plugin": true,
 }
 
 // validatePeerName checks that a peer name is valid for use as a CLI selector.

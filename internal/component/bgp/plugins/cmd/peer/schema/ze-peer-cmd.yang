@@ -82,17 +82,6 @@ module ze-peer-cmd {
             description "Save peer(s) to config file (merges into existing config)";
         }
 
-        container prefix {
-            config false;
-            description "Prefix operations";
-
-            container update {
-                config false;
-                ze:command "ze-bgp:peer-prefix-update";
-                description "Update prefix maximums from PeeringDB for matched peer(s)";
-            }
-        }
-
         container plugin {
             config false;
             description "Plugin operations";

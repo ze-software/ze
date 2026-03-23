@@ -87,7 +87,7 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `router-id` | BGP router ID | Yes (or inherited) |
 | `description` | Human-readable description | No |
 | `hold-time` | Hold timer seconds (0 or 3-65535) | No (default: 180) |
-| `connection` | Connect mode: `active`, `passive`, `both` | No (default: both) |
+| `connection` | Connect mode: `active` (dial out only), `passive` (accept only), `both` (dial out + accept inbound) | No (default: both) |
 | `port` | TCP port | No (default: 179) |
 | `md5-password` | TCP MD5 authentication | No |
 | `ttl-security` | Minimum TTL for incoming packets | No |
@@ -178,7 +178,7 @@ system {
 | `url` | `https://www.peeringdb.com` | PeeringDB-compatible API base URL. |
 | `margin` | `10` | Percentage added above PeeringDB prefix count (0-100). |
 
-Run `ze bgp peer * prefix update` to query PeeringDB and update prefix maximums. Review changes with `ze config diff`, then apply with `ze config commit`.
+Run `ze update bgp peer * prefix` to query PeeringDB and update prefix maximums. Review changes with `ze config diff`, then apply with `ze config commit`.
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- prefix limit enforcement; internal/component/bgp/schema/ze-bgp-conf.yang -- prefix config -->
 <!-- source: internal/component/config/system/schema/ze-system-conf.yang -- peeringdb config -->
 

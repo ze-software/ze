@@ -1,0 +1,28 @@
+module ze-cli-update-cmd {
+    namespace "urn:ze:cli:update:cmd";
+    prefix cliupdatecmd;
+    import ze-extensions { prefix ze; }
+    description "Update command tree -- refresh stale data from external sources";
+    revision 2026-03-23 { description "Initial revision"; }
+
+    container update {
+        config false;
+        description "Refresh stale data from external sources";
+
+        container bgp {
+            config false;
+            description "BGP data updates";
+
+            container peer {
+                config false;
+                description "Update BGP peer data";
+
+                container prefix {
+                    config false;
+                    ze:command "ze-update:bgp-peer-prefix";
+                    description "Update prefix maximums from PeeringDB for matched peer(s)";
+                }
+            }
+        }
+    }
+}

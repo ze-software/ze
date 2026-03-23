@@ -1,0 +1,9 @@
+module ze-cli-update-api {
+  namespace "urn:ze:cli:update:api";
+  prefix cli-update;
+
+  description
+    "Ze update verb RPCs -- refresh stale data from external sources.";
+
+  rpc bgp-peer-prefix { description "Update prefix maximums from PeeringDB for matched peer(s)"; }
+}

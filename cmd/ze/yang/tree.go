@@ -43,6 +43,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update"
 )
 
 // AnalysisNode is a node in the unified analysis tree.

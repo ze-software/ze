@@ -127,7 +127,7 @@ When a peer exceeds the maximum: NOTIFICATION Cease/MaxPrefixes (subcode 1) is s
 
 Auto-reconnect uses exponential backoff: idle-timeout x 2^(N-1), capped at 1 hour. Backoff resets on stable session.
 
-**PeeringDB integration:** `ze bgp peer * prefix update` queries PeeringDB for each peer's ASN and updates prefix maximums automatically. A configurable margin (default 10%) is added to PeeringDB values. The PeeringDB URL is configurable under `system { peeringdb { url; margin; } }` for private mirrors. Staleness warnings appear when prefix data is older than 6 months.
+**PeeringDB integration:** `ze update bgp peer * prefix` queries PeeringDB for each peer's ASN and updates prefix maximums automatically. A configurable margin (default 10%) is added to PeeringDB values. The PeeringDB URL is configurable under `system { peeringdb { url; margin; } }` for private mirrors. Staleness warnings appear when prefix data is older than 6 months.
 
 **Prometheus metrics:** `ze_bgp_prefix_count`, `ze_bgp_prefix_maximum`, `ze_bgp_prefix_warning`, `ze_bgp_prefix_warning_exceeded`, `ze_bgp_prefix_ratio`, `ze_bgp_prefix_maximum_exceeded_total`, `ze_bgp_prefix_teardown_total`, `ze_bgp_prefix_stale`.
 <!-- source: internal/component/bgp/reactor/session_prefix.go -- prefix limit enforcement -->

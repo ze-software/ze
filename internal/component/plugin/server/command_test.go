@@ -863,3 +863,82 @@ func TestDispatchWithNameSelector(t *testing.T) {
 	assert.Equal(t, "done", resp.Status)
 	assert.Equal(t, "router-a", calledWithPeer)
 }
+
+// TestDispatchEmbeddedPeerSelector verifies peer selector extraction when "peer"
+// is not the first token (e.g., "update bgp peer * prefix").
+//
+// VALIDATES: Dispatcher extracts selector from "peer <selector>" at any position.
+// PREVENTS: Commands with embedded "peer <selector>" failing to match registered YANG paths.
+func TestDispatchEmbeddedPeerSelector(t *testing.T) {
+	d := NewDispatcher()
+
+	var calledWithPeer string
+	d.RegisterWithOptions("update bgp peer prefix", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		calledWithPeer = ctx.PeerSelector()
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "Update prefix", RegisterOptions{RequiresSelector: true})
+
+	ctx := &CommandContext{}
+	resp, err := d.Dispatch(ctx, "update bgp peer * prefix")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.Equal(t, "*", calledWithPeer)
+}
+
+// TestDispatchEmbeddedPeerSelectorIP verifies embedded selector with an IP address.
+//
+// VALIDATES: "update bgp peer 10.0.0.1 prefix" extracts IP selector correctly.
+// PREVENTS: IP selectors only working at position 0.
+func TestDispatchEmbeddedPeerSelectorIP(t *testing.T) {
+	d := NewDispatcher()
+
+	var calledWithPeer string
+	d.RegisterWithOptions("update bgp peer prefix", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		calledWithPeer = ctx.PeerSelector()
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "Update prefix", RegisterOptions{RequiresSelector: true})
+
+	ctx := &CommandContext{}
+	resp, err := d.Dispatch(ctx, "update bgp peer 10.0.0.1 prefix")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.Equal(t, "10.0.0.1", calledWithPeer)
+}
+
+// TestDispatchEmbeddedPeerSelectorASN verifies embedded selector with ASN.
+//
+// VALIDATES: "update bgp peer as65001 prefix" extracts ASN selector correctly.
+// PREVENTS: ASN selectors only working at position 0.
+func TestDispatchEmbeddedPeerSelectorASN(t *testing.T) {
+	d := NewDispatcher()
+
+	var calledWithPeer string
+	d.RegisterWithOptions("update bgp peer prefix", func(ctx *CommandContext, args []string) (*plugin.Response, error) {
+		calledWithPeer = ctx.PeerSelector()
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "Update prefix", RegisterOptions{RequiresSelector: true})
+
+	ctx := &CommandContext{}
+	resp, err := d.Dispatch(ctx, "update bgp peer as65001 prefix")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.Equal(t, "as65001", calledWithPeer)
+}
+
+// TestDispatchEmbeddedNoSelector verifies RequiresSelector enforcement for embedded peer.
+//
+// VALIDATES: "update bgp peer prefix" without selector is rejected when RequiresSelector=true.
+// PREVENTS: Commands executing on all peers when explicit selector is required.
+func TestDispatchEmbeddedNoSelector(t *testing.T) {
+	d := NewDispatcher()
+
+	d.RegisterWithOptions("update bgp peer prefix", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		t.Fatal("handler should not be called without selector")
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}, "Update prefix", RegisterOptions{RequiresSelector: true})
+
+	ctx := &CommandContext{}
+	_, err := d.Dispatch(ctx, "update bgp peer prefix")
+	require.Error(t, err, "embedded peer without selector must be rejected")
+	assert.Contains(t, err.Error(), "requires a peer selector")
+}

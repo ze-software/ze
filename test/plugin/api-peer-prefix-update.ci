@@ -1,4 +1,4 @@
-# Test: bgp peer * prefix update queries PeeringDB and updates config
+# Test: update bgp peer * prefix queries PeeringDB and updates config
 # AC-1: PeeringDB query returns prefix counts, config updated with margin.
 # AC-11: Custom PeeringDB URL is used.
 
@@ -35,7 +35,7 @@ def main():
     time.sleep(1.0)
 
     try:
-        result = dispatch(api, 'peer * prefix update')
+        result = dispatch(api, 'update bgp peer * prefix')
         status = result.get('status')
         if status != 'done':
             print(f'FAIL: status={status} data={result.get("data")}', file=sys.stderr)
@@ -68,9 +68,14 @@ def main():
             sys.exit(1)
 
         print(f'OK: prefix update succeeded, ipv4={ipv4_max}', file=sys.stderr)
-    finally:
         dispatch(api, 'daemon shutdown')
         api.wait_for_shutdown()
+    except SystemExit:
+        # On failure: don't send daemon shutdown -- let ze timeout so test fails.
+        raise
+    except Exception as e:
+        print(f'FAIL: unexpected error: {e}', file=sys.stderr)
+        sys.exit(1)
 
 if __name__ == '__main__':
     main()

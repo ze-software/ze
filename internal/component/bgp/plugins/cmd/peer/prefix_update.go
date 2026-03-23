@@ -25,17 +25,6 @@ const (
 	statusError   = "error"
 )
 
-func init() {
-	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{
-			WireMethod:       "ze-bgp:peer-prefix-update",
-			Handler:          handleBgpPeerPrefixUpdate,
-			Help:             "Update prefix maximums from PeeringDB for matched peer(s)",
-			RequiresSelector: true,
-		},
-	)
-}
-
 // peerResult holds the outcome of a prefix update attempt for one peer.
 type peerResult struct {
 	Peer    string         `json:"peer"`
@@ -45,10 +34,10 @@ type peerResult struct {
 	Error   string         `json:"error,omitempty"`
 }
 
-// handleBgpPeerPrefixUpdate handles "bgp peer <selector> prefix update".
+// HandleBgpPeerPrefixUpdate handles "update bgp peer <selector> prefix".
 // Queries PeeringDB for each peer's ASN and proposes new prefix maximums.
 // Updates config but does NOT commit -- operator must run "ze config commit".
-func handleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
+func HandleBgpPeerPrefixUpdate(ctx *pluginserver.CommandContext, _ []string) (*plugin.Response, error) {
 	_, errResp, err := pluginserver.RequireReactor(ctx)
 	if err != nil {
 		return errResp, err

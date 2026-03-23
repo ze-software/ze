@@ -459,7 +459,7 @@ Many commands take a `peer <selector>` argument:
 | Command | Access | Purpose |
 |---------|--------|---------|
 | `peer list` | read-only | List all peers (IP, ASN, state, uptime) |
-| `peer <sel> detail` | read-only | Detailed peer info (config, state, counters) |
+| `peer <sel> detail` | read-only | Detailed peer info (config, state, counters, `prefix-updated` date, `prefix-stale` warning) |
 | `peer <sel> capabilities` | read-only | Negotiated capabilities |
 | `peer <sel> statistics` | read-only | Per-peer update statistics with rates |
 | `bgp summary` | read-only | BGP summary table |
@@ -469,8 +469,15 @@ Many commands take a `peer <selector>` argument:
 | `peer <sel> resume` | write | Resume read loop |
 | `peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |
 | `peer <sel> save` | write | Save running peers to config |
-| `peer <sel> prefix update` | write | Update prefix maximums from PeeringDB |
+| `peer <sel> flush` | write | Block until all queued updates for peer are on the wire |
 <!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/plugins/cmd/peer/schema/ze-peer-cmd.yang -->
+
+### Update Commands
+
+| Command | Access | Purpose |
+|---------|--------|---------|
+| `update bgp peer <sel> prefix` | write | Update prefix maximums from PeeringDB |
+<!-- source: internal/component/cmd/update/update.go -- update verb RPC registration; internal/component/cmd/update/schema/ze-cli-update-cmd.yang -->
 
 ### Route Injection
 
