@@ -29,6 +29,20 @@ func NewJSONEncoder(_ string) *JSONEncoder {
 	return &JSONEncoder{}
 }
 
+// peerMap builds the "peer" JSON object from PeerInfo.
+// Always includes address, asn, and name. Includes group when non-empty.
+func peerMap(peer plugin.PeerInfo) map[string]any {
+	m := map[string]any{
+		"address": peer.Address.String(),
+		"asn":     peer.PeerAS,
+		"name":    peer.Name,
+	}
+	if peer.GroupName != "" {
+		m["group"] = peer.GroupName
+	}
+	return m
+}
+
 // message creates the BGP payload for an event.
 // Returns the outer bgp payload and inner event payload.
 // ze-bgp JSON Format: {"message":{"type":"<msgType>"},"peer":{...},"<msgType>":{...}}.
@@ -39,10 +53,7 @@ func (e *JSONEncoder) message(peer plugin.PeerInfo, msgType string) (outer, inne
 		"message": map[string]any{
 			"type": msgType,
 		},
-		"peer": map[string]any{
-			"address": peer.Address.String(),
-			"asn":     peer.PeerAS,
-		},
+		"peer":  peerMap(peer),
 		msgType: inner,
 	}
 	return outer, inner
@@ -84,10 +95,7 @@ func (e *JSONEncoder) StateUp(peer plugin.PeerInfo) string {
 		"message": map[string]any{
 			"type": "state",
 		},
-		"peer": map[string]any{
-			"address": peer.Address.String(),
-			"asn":     peer.PeerAS,
-		},
+		"peer":  peerMap(peer),
 		"state": "up",
 	}
 	return e.marshal(payload)
@@ -100,10 +108,7 @@ func (e *JSONEncoder) StateDown(peer plugin.PeerInfo, reason string) string {
 		"message": map[string]any{
 			"type": "state",
 		},
-		"peer": map[string]any{
-			"address": peer.Address.String(),
-			"asn":     peer.PeerAS,
-		},
+		"peer":   peerMap(peer),
 		"state":  "down",
 		"reason": reason,
 	}
@@ -117,10 +122,7 @@ func (e *JSONEncoder) StateConnected(peer plugin.PeerInfo) string {
 		"message": map[string]any{
 			"type": "state",
 		},
-		"peer": map[string]any{
-			"address": peer.Address.String(),
-			"asn":     peer.PeerAS,
-		},
+		"peer":  peerMap(peer),
 		"state": "connected",
 	}
 	return e.marshal(payload)

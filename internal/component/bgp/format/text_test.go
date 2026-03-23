@@ -60,20 +60,20 @@ func TestFormatStateChange(t *testing.T) {
 			name:     "json established",
 			state:    "established",
 			encoding: plugin.EncodingJSON,
-			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"established"}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001,"name":""},"state":"established"}}` + "\n",
 		},
 		{
 			name:     "json down no reason",
 			state:    "down",
 			encoding: plugin.EncodingJSON,
-			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001,"name":""},"state":"down"}}` + "\n",
 		},
 		{
 			name:     "json down with reason",
 			state:    "down",
 			reason:   "notification",
 			encoding: plugin.EncodingJSON,
-			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down","reason":"notification"}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001,"name":""},"state":"down","reason":"notification"}}` + "\n",
 		},
 	}
 
@@ -82,6 +82,64 @@ func TestFormatStateChange(t *testing.T) {
 			got := FormatStateChange(peer, tt.state, tt.reason, tt.encoding)
 			if got != tt.want {
 				t.Errorf("FormatStateChange() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestPeerJSONNameGroup verifies that peer name and group appear in JSON output when set.
+//
+// VALIDATES: JSON events include "name" and "group" in the peer object.
+// PREVENTS: Peer identity limited to address+asn only.
+func TestPeerJSONNameGroup(t *testing.T) {
+	tests := []struct {
+		name string
+		peer plugin.PeerInfo
+		want string
+	}{
+		{
+			name: "name only",
+			peer: plugin.PeerInfo{
+				Address: netip.MustParseAddr("10.0.0.1"),
+				PeerAS:  65001,
+				Name:    "upstream1",
+			},
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001,"name":"upstream1"},"state":"established"}}` + "\n",
+		},
+		{
+			name: "name and group",
+			peer: plugin.PeerInfo{
+				Address:   netip.MustParseAddr("10.0.0.2"),
+				PeerAS:    65002,
+				Name:      "peer_east",
+				GroupName: "transit",
+			},
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.2","asn":65002,"group":"transit","name":"peer_east"},"state":"established"}}` + "\n",
+		},
+		{
+			name: "group only",
+			peer: plugin.PeerInfo{
+				Address:   netip.MustParseAddr("10.0.0.3"),
+				PeerAS:    65003,
+				GroupName: "edge",
+			},
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.3","asn":65003,"group":"edge","name":""},"state":"established"}}` + "\n",
+		},
+		{
+			name: "no name no group",
+			peer: plugin.PeerInfo{
+				Address: netip.MustParseAddr("10.0.0.4"),
+				PeerAS:  65004,
+			},
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.4","asn":65004,"name":""},"state":"established"}}` + "\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FormatStateChange(tt.peer, "established", "", plugin.EncodingJSON)
+			if got != tt.want {
+				t.Errorf("FormatStateChange() =\n  %s\nwant:\n  %s", got, tt.want)
 			}
 		})
 	}
@@ -119,13 +177,13 @@ func TestFormatEOR(t *testing.T) {
 			name:     "ipv4/unicast json",
 			family:   "ipv4/unicast",
 			encoding: plugin.EncodingJSON,
-			want:     `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"10.0.0.1","asn":65001},"eor":{"family":"ipv4/unicast"}}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"10.0.0.1","asn":65001,"name":""},"eor":{"family":"ipv4/unicast"}}}` + "\n",
 		},
 		{
 			name:     "ipv6/unicast json",
 			family:   "ipv6/unicast",
 			encoding: plugin.EncodingJSON,
-			want:     `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"10.0.0.1","asn":65001},"eor":{"family":"ipv6/unicast"}}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"10.0.0.1","asn":65001,"name":""},"eor":{"family":"ipv6/unicast"}}}` + "\n",
 		},
 	}
 
@@ -171,13 +229,13 @@ func TestFormatCongestion(t *testing.T) {
 			name:      "congested json",
 			eventType: "congested",
 			encoding:  plugin.EncodingJSON,
-			want:      `{"type":"bgp","bgp":{"message":{"type":"congested"},"peer":{"address":"10.0.0.1","asn":65001}}}` + "\n",
+			want:      `{"type":"bgp","bgp":{"message":{"type":"congested"},"peer":{"address":"10.0.0.1","asn":65001,"name":""}}}` + "\n",
 		},
 		{
 			name:      "resumed json",
 			eventType: "resumed",
 			encoding:  plugin.EncodingJSON,
-			want:      `{"type":"bgp","bgp":{"message":{"type":"resumed"},"peer":{"address":"10.0.0.1","asn":65001}}}` + "\n",
+			want:      `{"type":"bgp","bgp":{"message":{"type":"resumed"},"peer":{"address":"10.0.0.1","asn":65001,"name":""}}}` + "\n",
 		},
 	}
 
@@ -310,7 +368,7 @@ func TestFormatMessageJSON(t *testing.T) {
 	if !strings.Contains(got, `"direction":"received"`) {
 		t.Error("missing direction:received in message wrapper")
 	}
-	if !strings.Contains(got, `"peer":{"address":"10.0.0.1","asn":65001}`) {
+	if !strings.Contains(got, `"peer":{"address":"10.0.0.1","asn":65001,"name":""}`) {
 		t.Error("missing peer info")
 	}
 	// NLRIs under "nlri" object with family key

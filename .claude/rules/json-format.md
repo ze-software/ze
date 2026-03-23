@@ -10,7 +10,7 @@ All JSON keys: lowercase kebab-case. Never camelCase or snake_case.
 ## Ze IPC Envelope
 
 ```json
-{"type":"bgp","bgp":{"peer":{"address":"...","asn":N},"message":{"id":N,"direction":"received","type":"open"},"open":{...}}}
+{"type":"bgp","bgp":{"peer":{"address":"...","asn":N,"group":"...","name":"..."},"message":{"id":N,"direction":"received","type":"open"},"open":{...}}}
 ```
 
 ## Attribute Names

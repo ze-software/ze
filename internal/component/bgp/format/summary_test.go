@@ -106,6 +106,35 @@ var summaryPeer = plugin.PeerInfo{
 	PeerAS:  65001,
 }
 
+// TestFormatSummaryPeerNameGroup verifies name and group appear in summary JSON peer object.
+//
+// VALIDATES: Summary JSON includes peer name and group when set.
+// PREVENTS: writePeerJSON path omitting name/group in summary format.
+func TestFormatSummaryPeerNameGroup(t *testing.T) {
+	peer := plugin.PeerInfo{
+		Address:   netip.MustParseAddr("10.0.0.1"),
+		PeerAS:    65001,
+		Name:      "upstream1",
+		GroupName: "transit",
+	}
+
+	body := buildTestUpdateBodyWithAttrs(
+		netip.MustParsePrefix("192.168.1.0/24"),
+		netip.MustParseAddr("10.0.0.1"),
+		0, 0, nil,
+	)
+	msg := summaryMsg(body, 1)
+	got := FormatMessage(peer, msg, summaryContent(), "")
+
+	bgp := parseSummaryJSON(t, got)
+	peerObj, ok := bgp["peer"].(map[string]any)
+	require.True(t, ok, "bgp.peer must be object")
+	assert.Equal(t, "10.0.0.1", peerObj["address"])
+	assert.Equal(t, float64(65001), peerObj["asn"])
+	assert.Equal(t, "transit", peerObj["group"])
+	assert.Equal(t, "upstream1", peerObj["name"])
+}
+
 // TestFormatSummaryLegacyNLRI verifies announce=true when legacy NLRI section has bytes.
 //
 // VALIDATES: Legacy IPv4 unicast NLRI section detected as announce.

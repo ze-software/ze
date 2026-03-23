@@ -1874,6 +1874,81 @@ func TestEventJSONPeerObject(t *testing.T) {
 	assert.Equal(t, float64(65002), peerObj["asn"])
 }
 
+// TestEventJSONPeerNameGroup verifies the peerMap helper includes name and group in JSON output.
+//
+// VALIDATES: JSONEncoder methods include "name" and "group" in peer object when set.
+// PREVENTS: peerMap omitting name/group fields.
+func TestEventJSONPeerNameGroup(t *testing.T) {
+	enc := NewJSONEncoder("6.0.0")
+
+	tests := []struct {
+		name      string
+		peer      plugin.PeerInfo
+		wantGroup bool
+	}{
+		{
+			name: "name and group",
+			peer: plugin.PeerInfo{
+				Address:   netip.MustParseAddr("10.0.0.1"),
+				PeerAS:    65001,
+				Name:      "upstream1",
+				GroupName: "transit",
+			},
+			wantGroup: true,
+		},
+		{
+			name: "name only",
+			peer: plugin.PeerInfo{
+				Address: netip.MustParseAddr("10.0.0.2"),
+				PeerAS:  65002,
+				Name:    "peer_east",
+			},
+			wantGroup: false,
+		},
+		{
+			name: "group only",
+			peer: plugin.PeerInfo{
+				Address:   netip.MustParseAddr("10.0.0.3"),
+				PeerAS:    65003,
+				GroupName: "edge",
+			},
+			wantGroup: true,
+		},
+		{
+			name: "no name no group",
+			peer: plugin.PeerInfo{
+				Address: netip.MustParseAddr("10.0.0.4"),
+				PeerAS:  65004,
+			},
+			wantGroup: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg := enc.StateUp(tt.peer)
+
+			var result map[string]any
+			err := json.Unmarshal([]byte(msg), &result)
+			require.NoError(t, err, "JSON must be valid")
+
+			payload := getEventPayload(t, result)
+			peerObj, ok := payload["peer"].(map[string]any)
+			require.True(t, ok, "peer must be object")
+
+			// name is always present (YANG key)
+			assert.Equal(t, tt.peer.Name, peerObj["name"])
+
+			if tt.wantGroup {
+				assert.Equal(t, tt.peer.GroupName, peerObj["group"])
+			} else {
+				_, hasGroup := peerObj["group"]
+				assert.False(t, hasGroup, "group should be absent")
+			}
+		})
+	}
+}
+
 // TestEventJSONNestedStructure verifies ze-bgp JSON nested structure for attributes and NLRIs.
 //
 // VALIDATES: Attributes under "attr", NLRIs under "nlri" objects.

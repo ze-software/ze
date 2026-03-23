@@ -22,6 +22,51 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
+// jsonSafeReplacer escapes characters that would break JSON string values.
+// Config validation restricts peer names to [a-zA-Z0-9_-], so this is
+// defense-in-depth -- it should never trigger in practice.
+var jsonSafeReplacer = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
+
+// writePeerJSON writes the "peer":{...} JSON fragment to a strings.Builder.
+// Always includes address, asn, and name. Includes group when non-empty.
+// Key order is alphabetical (matching json.Marshal output from peerMap).
+func writePeerJSON(sb *strings.Builder, peer plugin.PeerInfo) {
+	sb.WriteString(`,"peer":{"address":"`)
+	sb.WriteString(peer.Address.String())
+	sb.WriteString(`","asn":`)
+	sb.WriteString(strconv.FormatUint(uint64(peer.PeerAS), 10))
+	if peer.GroupName != "" {
+		sb.WriteString(`,"group":"`)
+		sb.WriteString(jsonSafeReplacer.Replace(peer.GroupName))
+		sb.WriteByte('"')
+	}
+	sb.WriteString(`,"name":"`)
+	sb.WriteString(jsonSafeReplacer.Replace(peer.Name))
+	sb.WriteByte('"')
+	sb.WriteByte('}')
+}
+
+// peerJSONInline returns the peer JSON object as a string (without leading comma).
+// Used by fmt.Sprintf sites where a Builder is not available.
+// Key order is alphabetical (matching json.Marshal output from peerMap).
+func peerJSONInline(peer plugin.PeerInfo) string {
+	var sb strings.Builder
+	sb.WriteString(`"peer":{"address":"`)
+	sb.WriteString(peer.Address.String())
+	sb.WriteString(`","asn":`)
+	sb.WriteString(strconv.FormatUint(uint64(peer.PeerAS), 10))
+	if peer.GroupName != "" {
+		sb.WriteString(`,"group":"`)
+		sb.WriteString(jsonSafeReplacer.Replace(peer.GroupName))
+		sb.WriteByte('"')
+	}
+	sb.WriteString(`,"name":"`)
+	sb.WriteString(jsonSafeReplacer.Replace(peer.Name))
+	sb.WriteByte('"')
+	sb.WriteByte('}')
+	return sb.String()
+}
+
 // FormatMessage formats a RawMessage based on ContentConfig.
 // Uses lazy parsing via AttrsWire when available for optimal performance.
 // Handles encoding (json/text), format (parsed/raw/full), and attribute filtering.
@@ -81,8 +126,7 @@ func FormatMessage(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgptyp
 // ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"update"},...}}.
 func formatEmptyUpdate(peer plugin.PeerInfo, content bgptypes.ContentConfig) string {
 	if content.Encoding == plugin.EncodingJSON {
-		return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"update"},"peer":{"address":"%s","asn":%d},"nlri":{}}}`+"\n",
-			peer.Address, peer.PeerAS)
+		return `{"type":"bgp","bgp":{"message":{"type":"update"},` + peerJSONInline(peer) + `,"nlri":{}}}` + "\n"
 	}
 	return fmt.Sprintf("peer %s update\n", peer.Address)
 }
@@ -115,8 +159,7 @@ func formatNonUpdate(peer plugin.PeerInfo, msg bgptypes.RawMessage, content bgpt
 	if content.Encoding == plugin.EncodingJSON {
 		// ze-bgp JSON format: {"type":"bgp","bgp":{"message":{"type":"..."},...}}
 		msgType := strings.ToLower(msg.Type.String())
-		return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"%s"},"peer":{"address":"%s","asn":%d},"raw":{"message":"%s"}}}`+"\n",
-			msgType, peer.Address, peer.PeerAS, rawHex)
+		return `{"type":"bgp","bgp":{"message":{"type":"` + msgType + `"},` + peerJSONInline(peer) + `,"raw":{"message":"` + rawHex + `"}}}` + "\n"
 	}
 	return fmt.Sprintf("peer %s %s raw %s\n",
 		peer.Address, strings.ToLower(msg.Type.String()), rawHex)
@@ -145,8 +188,7 @@ func formatRawFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content 
 		if direction != "" {
 			msgFields = fmt.Sprintf(`,"direction":%q`, direction)
 		}
-		return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"update"%s},"peer":{"address":"%s","asn":%d},"raw":{"update":"%s"}}}`+"\n",
-			msgFields, peer.Address, peer.PeerAS, rawHex)
+		return `{"type":"bgp","bgp":{"message":{"type":"update"` + msgFields + `},` + peerJSONInline(peer) + `,"raw":{"update":"` + rawHex + `"}}}` + "\n"
 	}
 	return fmt.Sprintf("peer %s %s update raw %s\n", peer.Address, direction, rawHex)
 }
@@ -328,11 +370,7 @@ func formatFilterResultJSON(peer plugin.PeerInfo, result bgpfilter.FilterResult,
 	sb.WriteString(`}`)
 
 	// Peer at bgp level
-	sb.WriteString(`,"peer":{"address":"`)
-	sb.WriteString(peer.Address.String())
-	sb.WriteString(`","asn":`)
-	fmt.Fprintf(&sb, "%d", peer.PeerAS)
-	sb.WriteString(`}`)
+	writePeerJSON(&sb, peer)
 
 	// Update container with attr and nlri inside
 	sb.WriteString(`,"update":{`)
@@ -894,12 +932,11 @@ func FormatStateChange(peer plugin.PeerInfo, state, reason, encoding string) str
 func formatStateChangeJSON(peer plugin.PeerInfo, state, reason string) string {
 	// ze-bgp JSON format with reason for down events.
 	// reason is only present for "down" events — "up" has no close reason.
+	p := peerJSONInline(peer)
 	if reason != "" {
-		return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"%s","asn":%d},"state":"%s","reason":"%s"}}`+"\n",
-			peer.Address, peer.PeerAS, state, reason)
+		return `{"type":"bgp","bgp":{"message":{"type":"state"},` + p + `,"state":"` + state + `","reason":"` + reason + `"}}` + "\n"
 	}
-	return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"%s","asn":%d},"state":"%s"}}`+"\n",
-		peer.Address, peer.PeerAS, state)
+	return `{"type":"bgp","bgp":{"message":{"type":"state"},` + p + `,"state":"` + state + `"}}` + "\n"
 }
 
 func formatStateChangeText(peer plugin.PeerInfo, state, reason string) string {
@@ -914,8 +951,7 @@ func formatStateChangeText(peer plugin.PeerInfo, state, reason string) string {
 // family is the address family (e.g., "ipv4/unicast", "ipv6/unicast").
 func FormatEOR(peer plugin.PeerInfo, family, encoding string) string {
 	if encoding == plugin.EncodingJSON {
-		return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"%s","asn":%d},"eor":{"family":"%s"}}}`+"\n",
-			peer.Address, peer.PeerAS, family)
+		return `{"type":"bgp","bgp":{"message":{"type":"eor"},` + peerJSONInline(peer) + `,"eor":{"family":"` + family + `"}}}` + "\n"
 	}
 	return fmt.Sprintf("peer %s asn %d eor %s\n", peer.Address, peer.PeerAS, family)
 }
@@ -924,8 +960,7 @@ func FormatEOR(peer plugin.PeerInfo, family, encoding string) string {
 // eventType is "congested" or "resumed". peerAddr is the destination peer address.
 func FormatCongestion(peer plugin.PeerInfo, eventType, encoding string) string {
 	if encoding == plugin.EncodingJSON {
-		return fmt.Sprintf(`{"type":"bgp","bgp":{"message":{"type":"%s"},"peer":{"address":"%s","asn":%d}}}`+"\n",
-			eventType, peer.Address, peer.PeerAS)
+		return `{"type":"bgp","bgp":{"message":{"type":"` + eventType + `"},` + peerJSONInline(peer) + `}}` + "\n"
 	}
 	return fmt.Sprintf("peer %s asn %d %s\n", peer.Address, peer.PeerAS, eventType)
 }

@@ -126,7 +126,7 @@ JSON with `type` field indicating which key contains the payload. The `peer` fie
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "peer": {"address": "10.0.0.1", "asn": 65001},
+    "peer": {"address": "10.0.0.1", "asn": 65001, "group": "transit", "name": "upstream1"},
     "update": {
       "message": {"id": 123, "direction": "received"},
       "attr": {"origin": "igp", "as-path": [65001]},
@@ -153,7 +153,7 @@ JSON with `type` field indicating which key contains the payload. The `peer` fie
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `type` | string | Always | `update`, `open`, `notification`, `keepalive`, `refresh`, `state`, `negotiated` |
-| `peer` | object | Always | `{"address":"<ip>", "asn":<asn>}` - at bgp level |
+| `peer` | object | Always | `{"address":"<ip>", "asn":<asn>}` - at bgp level. Optional `"name"` and `"group"` when configured. |
 | `<type>` | object/string | Usually | Event data nested under event type key (string for state events) |
 
 **BGP event data fields (inside `bgp.<type>` object, except state):**
@@ -175,7 +175,7 @@ JSON with `type` field indicating which key contains the payload. The `peer` fie
 | `type` | string | Always | `cache`, `route` |
 | `action` | string | Always | `new`, `evict`, `add`, `remove` |
 | `msg-id` | uint64 | For cache events | Message cache ID |
-| `peer` | object | Always | `{"address":"<ip>", "asn":<asn>}` |
+| `peer` | object | Always | `{"address":"<ip>", "asn":<asn>}`. Optional `"name"` and `"group"` when configured. |
 
 **Message object fields (BGP wire messages only):**
 
