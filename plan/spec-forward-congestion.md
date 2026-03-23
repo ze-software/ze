@@ -48,7 +48,7 @@ Research into existing BGP implementations reveals:
 |---------------|----------------------|
 | BIRD 3 (IXP route servers) | Unbounded bucket queue per peer (no backpressure beyond TCP flow control). Route superseding deduplicates pending updates for same prefix. Hold timer congestion extension: if RX data pending when hold timer fires, extend 10s instead of teardown. TX budget 1024 messages per event loop cycle. Channel fairness: round-robin with 16-message stickiness across AFI/SAFI. fast_rx during handshake for OPEN/KEEPALIVE priority. |
 | GoBGP | Unbounded InfiniteChannel per peer (eapache/channels). No backpressure. Write failure is fatal (kills peer). One write() syscall per UPDATE. No TCP_NODELAY. Sets IP_TOS/DSCP via DialerControl + listenControl. TCP keepalive disabled. 1-second write deadline during handshake, none in ESTABLISHED. No Send Hold Timer. No buffer pooling (per-read malloc). |
-| RustyBGP | Unbounded mpsc channels from table threads to peer tasks. No write timeout (write_all blocks forever on stuck peer). 4-phase write priority: urgent > withdrawals > announcements > EOR. TX budget max_tx_count=2048 per iteration. SO_SNDBUF-aware TX buffer: min(64KB, SO_SNDBUF/2). SO_REUSEPORT on listener. No TCP_NODELAY, no IP_TOS/DSCP, no Send Hold Timer. Tokio async runtime with per-peer tasks. |
+| RustBGPd | Unbounded mpsc channels from table threads to peer tasks. No write timeout (write_all blocks forever on stuck peer). 4-phase write priority: urgent > withdrawals > announcements > EOR. TX budget max_tx_count=2048 per iteration. SO_SNDBUF-aware TX buffer: min(64KB, SO_SNDBUF/2). SO_REUSEPORT on listener. No TCP_NODELAY, no IP_TOS/DSCP, no Send Hold Timer. Tokio async runtime with per-peer tasks. |
 | FRRouting | Dedicated keepalive thread. Write quanta limit per I/O cycle. Configurable SO_SNDBUF. Implements RFC 9687 Send Hold Timer. |
 | OpenBGPd | Internal msgbuf queuing on EAGAIN. Keepalive on independent timer. Implements RFC 9687. |
 | Cisco IOS-XR | Update groups with slow-peer detection and dynamic isolation into "refresh sub-groups." 32 MB per sub-group cache. |
@@ -167,11 +167,11 @@ this). GoBGP's lack of TCP_NODELAY, buffer pooling, and write batching are perfo
 gaps ze already avoids. GoBGP's InfiniteChannel is functionally identical to BIRD's
 unbounded bucket queue -- no implementation has solved backpressure.
 
-### RustyBGP Source Code Analysis (2026-03-23)
+### RustBGPd Source Code Analysis (2026-03-23)
 
-Detailed analysis of RustyBGP source code (github.com/osrg/rustybgp, local copy).
+Detailed analysis of RustBGPd source code (github.com/osrg/rustybgp, local copy).
 
-**Socket options RustyBGP sets on BGP connections:**
+**Socket options RustBGPd sets on BGP connections:**
 
 | Option | Value | File / Function | Purpose |
 |--------|-------|----------------|---------|
@@ -181,7 +181,7 @@ Detailed analysis of RustyBGP source code (github.com/osrg/rustybgp, local copy)
 | TCP_MD5SIG | When password configured | auth.rs:58-71 | RFC 2385 (Linux only) |
 | O_NONBLOCK | all sockets | event.rs:2460 | Tokio async I/O |
 
-**Socket options RustyBGP does NOT set:**
+**Socket options RustBGPd does NOT set:**
 
 | Option | Notes |
 |--------|-------|
@@ -194,7 +194,7 @@ Detailed analysis of RustyBGP source code (github.com/osrg/rustybgp, local copy)
 | SO_KEEPALIVE | Not set |
 | IP_MINTTL | Not set (no GTSM support) |
 
-**RustyBGP TX path (most sophisticated of the open-source implementations):**
+**RustBGPd TX path (most sophisticated of the open-source implementations):**
 
 | Property | Detail |
 |----------|--------|
@@ -206,7 +206,7 @@ Detailed analysis of RustyBGP source code (github.com/osrg/rustybgp, local copy)
 | Runtime | Tokio async with per-peer tasks |
 | Attribute grouping | PendingTx deduplicates by attribute set (routes sharing attributes batched into one UPDATE) |
 
-**RustyBGP congestion handling:**
+**RustBGPd congestion handling:**
 
 | Mechanism | Detail |
 |-----------|--------|
@@ -216,15 +216,15 @@ Detailed analysis of RustyBGP source code (github.com/osrg/rustybgp, local copy)
 | Slow-peer detection | None. Peer task blocks on write, queues grow unbounded. |
 | Route superseding | PendingTx deduplicates by prefix within a batch, but channel queue is not deduped |
 
-**Key takeaway for ze:** RustyBGP's 4-phase write priority and SO_SNDBUF-aware
+**Key takeaway for ze:** RustBGPd's 4-phase write priority and SO_SNDBUF-aware
 buffer sizing are worth studying. The TX budget (2048 per iteration) is similar
-to BIRD's (1024) and validates ze's planned TX budget limiting (AC-24). RustyBGP's
+to BIRD's (1024) and validates ze's planned TX budget limiting (AC-24). RustBGPd's
 critical weakness is no write timeout -- a stuck peer blocks the entire task with
 no recovery. Ze's RFC 9687 Send Hold Timer addresses exactly this gap.
 
 ### Cross-Implementation Comparison (2026-03-23)
 
-| Feature | BIRD | GoBGP | RustyBGP | FRR | Ze (planned) |
+| Feature | BIRD | GoBGP | RustBGPd | FRR | Ze (planned) |
 |---------|------|-------|----------|-----|-------------|
 | TCP_NODELAY | No | No | No | Yes | **Done** |
 | IP_TOS/DSCP CS6 | Yes (0xC0) | Yes (configurable) | No | Yes | **Done** |
@@ -681,7 +681,7 @@ memory before the natural hold timer safety net kicks in.
 ### Why keepalive priority is a non-problem
 
 RFC 4271 Section 6.5 specifies the hold timer resets on **both KEEPALIVE and
-UPDATE** messages. All implementations (ze, BIRD, GoBGP, RustyBGP, FRR)
+UPDATE** messages. All implementations (ze, BIRD, GoBGP, RustBGPd, FRR)
 implement this correctly. This means:
 
 | Scenario | Keepalive delayed? | Remote hold timer | Session alive? |
@@ -718,20 +718,48 @@ and allows the system to detect stuck TCP within a bounded interval.
 
 ### Write priority: withdrawals before announcements (AC-25)
 
-Priority phases are valuable not for keepalive survival, but for routing
-correctness. Withdrawals should be sent before announcements because a
-late withdrawal means the remote peer forwards traffic into a black hole,
-while a late announcement only means suboptimal routing.
+**Requires route superseding (AC-23) first. Unsafe without it.**
 
-RustyBGP implements 4-phase write priority: urgent (OPEN/KEEPALIVE/
+The value of withdrawal priority is convergence speed for route removal.
+A late withdrawal means the remote peer continues forwarding to a dead
+next-hop (active traffic loss). A late announcement means the remote peer
+uses a longer path but traffic still arrives (suboptimal routing). Sending
+withdrawals first during convergence bursts reduces time-to-recovery.
+
+**Intra-message ordering is already correct.** RFC 4271 places the Withdrawn
+Routes field before the NLRI field in the UPDATE wire format. Ze goes further:
+MP_UNREACH_NLRI (attr 15) is placed first in the attribute section, MP_REACH_NLRI
+(attr 14) last (see `docs/architecture/wire/mp-nlri-ordering.md`). Within a single
+UPDATE, withdrawals are always processed before announcements.
+
+**The inter-message ordering hazard:** The same prefix can appear as an
+announcement then a withdrawal in separate UPDATEs in the same batch (route
+flap, policy change). If reordered across messages, the withdrawal is sent
+first (no-op at the remote) then the announcement installs a route that
+should have been removed. The remote peer's RIB permanently diverges with
+no recovery mechanism.
+
+| Batch order | Announce 10.0.0.0/24 then Withdraw 10.0.0.0/24 | Result at remote |
+|-------------|------------------------------------------------|-----------------|
+| FIFO (current) | Install, then remove | Correct (route removed) |
+| Withdrawal-first (naive) | Remove (no-op), then install | **Wrong (stale route persists)** |
+
+**RustBGPd avoids this** because its `PendingTx` structure deduplicates by
+prefix: if a withdrawal arrives for a prefix already in the announcement
+set, the announcement is replaced. After dedup, no prefix appears in both
+the withdrawal and announcement sets -- reordering is safe.
+
+**Ze prerequisite: route superseding (AC-23).** Once the overflow pool
+deduplicates by prefix (new update for an already-queued prefix replaces
+the old entry), the same prefix cannot appear as both announcement and
+withdrawal in the same batch. Only then is withdrawal-first reordering
+safe. AC-25 is deferred until AC-23 is implemented.
+
+RustBGPd implements 4-phase write priority: urgent (OPEN/KEEPALIVE/
 NOTIFICATION) > withdrawals > announcements > EOR. BIRD uses a priority
 bitmask: CLOSE > NOTIFICATION > OPEN > KEEPALIVE > UPDATE (no withdrawal/
 announcement distinction). Neither implementation's priority helps when
 TCP is congested -- priority only matters when the socket is writable.
-
-Ze should prioritize withdrawals over announcements in the forward batch
-handler. This is an ordering optimization within the existing write path,
-not a new mechanism.
 
 ### Industry comparison (corrected)
 
@@ -739,7 +767,7 @@ not a new mechanism.
 |---------------|-------------------|-------------|
 | BIRD | Priority bitmask, same TX buffer | UPDATEs reset remote hold timer; priority only matters on idle sessions |
 | GoBGP | Same goroutine, InfiniteChannel | UPDATEs reset remote hold timer; no contention on idle sessions |
-| RustyBGP | Same task, urgent Vec drained first | UPDATEs reset remote hold timer; priority is about withdrawal ordering |
+| RustBGPd | Same task, urgent Vec drained first | UPDATEs reset remote hold timer; priority is about withdrawal ordering |
 | FRR | Dedicated keepalive thread | Solves a problem that doesn't exist (UPDATEs already keep session alive). Real value: guaranteed keepalive on truly idle sessions even if main thread is stuck processing. |
 
 ~~FRR's dedicated keepalive thread is the gold standard.~~ FRR's dedicated
@@ -916,7 +944,7 @@ than guessed.
 | Hold timer fires while RX buffer has data | -> | Timer extended 10s, session not torn down | TestSession_HoldTimerCongestionExtension |
 | Two updates for same prefix in overflow | -> | Second replaces first, pool item count unchanged | TestFwdPool_RouteSuperseding |
 | Forward batch exceeds TX budget | -> | Batch capped, remaining deferred to next cycle | TestFwdPool_TXBudgetLimit |
-| Forward batch has withdrawals and announcements | -> | Withdrawals written before announcements | TestFwdPool_WithdrawalPriority |
+| Forward batch has withdrawals and announcements (after AC-23 dedup) | -> | Withdrawals written before announcements | TestFwdPool_WithdrawalPriority |
 
 ## Acceptance Criteria
 
@@ -946,4 +974,4 @@ than guessed.
 | AC-22 | Hold timer fires with RX data pending | Hold timer extended 10s instead of teardown (CPU congestion, not peer failure) |
 | AC-23 | New update for prefix already in overflow pool | Old entry replaced (route superseding), not appended. Pool item count bounded by unique prefixes. |
 | AC-24 | Forward batch to single destination peer | TX budget caps messages per batch (prevents one peer starving others in event loop) |
-| AC-25 | Forward batch contains both withdrawals and announcements | Withdrawals sent before announcements (reduces black-hole window from late withdrawal) |
+| AC-25 | Forward batch contains both withdrawals and announcements | Withdrawals sent before announcements (faster convergence). **Requires AC-23 (route superseding) first** -- without per-prefix dedup, reordering can invert announce/withdraw for the same prefix, causing permanent stale routes. |
