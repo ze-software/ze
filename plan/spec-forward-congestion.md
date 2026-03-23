@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | in-progress |
+| Status | design |
 | Depends | spec-forward-backpressure, spec-prefix maximum |
-| Phase | 3/4 |
+| Phase | 2/5 |
 | Updated | 2026-03-23 |
 
 ## Post-Compaction Recovery
@@ -287,15 +287,30 @@ appending. This bounds queue growth to the number of unique prefixes rather than
 number of updates. Ze's overflow pool should do the same -- a new update for an
 already-queued prefix should replace, not append.
 
+## Implementation Phases
+
+| Phase | Name | ACs | Status |
+|-------|------|-----|--------|
+| 1 | Foundation: overflow pool, metrics, socket options | AC-1, AC-7, AC-11, AC-15, AC-16, AC-17, AC-18, AC-21 | Done |
+| 2 | Safety: write deadline, Send Hold Timer, hold timer extension | AC-8, AC-14, AC-22 | Done |
+| 3 | Pool multiplexer: replace sync.Pool, block-backed handles | AC-26, AC-27, AC-7 (enhanced) | Ready |
+| 4 | Weight + dynamic sizing: burst fraction, channel size, PeeringDB | AC-28, AC-29, AC-10, AC-19, AC-20, AC-24 | Blocked (spec-prefix maximum) |
+| 5 | Backpressure + teardown: buffer denial, GR-aware teardown | AC-2, AC-3, AC-4, AC-5, AC-6, AC-9, AC-12 | Blocked (Phase 4) |
+
+Phase 3 is independent -- can start now.
+Phase 4 depends on `spec-prefix maximum` for the weight source.
+Phase 5 depends on Phase 4 (needs weights for buffer denial decisions).
+
 ## Design: Four-Layer Congestion Response
 
 Routes are never dropped. Congestion is handled by four escalating layers.
 Each layer activates only when the previous layer is insufficient.
 
-### Layer 1: Channel Buffer (existing)
+### Layer 1: Channel Buffer (dynamic sizing)
 
-Per-destination-peer buffered channel (default 64 items). Absorbs micro-bursts.
-No action needed -- this already works.
+Per-destination-peer buffered channel. Absorbs micro-bursts. ~~Default 64 items.~~
+Channel size is dynamic, derived from the peer's weight (burst-adjusted prefix
+count). See `docs/architecture/forward-congestion-pool.md` for the sizing table.
 
 ### Layer 2: Global Overflow Pool with Weighted Access
 
@@ -494,8 +509,8 @@ low-volume peers for the sins of high-volume ones.
 | `ze_bgp_updates_forwarded_total` | Counter: items that went through channel (normal path) | The "good" path -- destination kept up | Yes |
 | `ze_bgp_updates_overflowed_total` | Counter: items that went to overflow pool | The "pressure" path -- destination couldn't keep up | Yes |
 | `ze_bgp_overflow_ratio` | Gauge: overflowed / (forwarded + overflowed) over sliding window | **The key throttle metric.** High ratio = this source's traffic is piling up. | Yes |
-| `ze_bgp_throttle_state` | Gauge: 0=none, 1=sleep, 2=window-zero | Current backpressure level applied | Yes |
-| `ze_bgp_throttle_sleep_ms` | Gauge: current sleep duration between reads | How hard we're pushing back | Yes |
+| `ze_bgp_throttle_state` | Gauge: 0=granted, 1=denied | Current backpressure level (buffer denial) | Yes |
+| `ze_bgp_throttle_denied_total` | Counter: total buffer requests denied | Cumulative backpressure applied to this source | Yes |
 
 **The overflow ratio is the throttle signal.** A source where 80% of updates
 overflow is causing pressure. A source where 1% overflows is fine even at
@@ -570,96 +585,41 @@ both the pool fill level AND the source peer's overflow ratio.~~
 **Superseded (2026-03-23):** Sleep-between-reads replaced by buffer denial
 in the zero-copy pool design. See `docs/architecture/forward-congestion-pool.md`.
 
-**Mechanism: TCP receive window zero**
+~~**Mechanism: TCP receive window zero**~~
 
-A harder escalation for severe congestion. Known vendor technique (Nokia/ALU).
+~~A harder escalation for severe congestion. Known vendor technique (Nokia/ALU).~~
 
-TCP window zero is set on source peer connections whose overflow ratio is
+~~TCP window zero is set on source peer connections whose overflow ratio is
 highest. The kernel stops accepting data from that source. The source's
-writes block in their TCP stack.
+writes block in their TCP stack.~~
 
-**TCP window zero MUST pulse open periodically.** A zero window held
-indefinitely blocks ALL data from a source peer -- including UPDATEs,
-keepalives, NOTIFICATION, and ROUTE-REFRESH messages. One slow destination
-peer would cause all source peers to freeze, which cascades into hold
-timer expiry and mass session teardown (the "BGP zombie" problem
-documented by Ben Cox).
+**Superseded (2026-03-23):** Explicit TCP window zero manipulation removed.
+Stopping reads (buffer denial) achieves the same effect naturally: the kernel
+receive buffer fills, the kernel advertises progressively smaller TCP windows
+automatically, and the remote peer slows its sends. This is how TCP flow
+control was designed to work. No platform-specific syscalls, no pulse timing
+complexity, no risk of hold timer violations from incorrect pulse logic.
 
-**Pulse timing is derived from the hold time.** The window must open
-frequently enough that the source peer can deliver at least one message
-(UPDATE or keepalive) per hold timer interval. Since RFC 4271 resets
-the hold timer on both UPDATEs and keepalives, any received message
-prevents expiry. The pulse must ensure at least one message arrives
-within every hold time period.
+The kernel is better at managing window sizes than application code. Buffer
+denial is the single backpressure mechanism for all congestion levels.
 
-| Hold time | Pulse count | Closed duration | Open duration |
-|-----------|-------------|-----------------|---------------|
-| 90s (keepalive=30s) | 5 minimum | ~4s | ~2s |
-| 180s (keepalive=60s) | 5 minimum | ~10s | ~2s |
-| 30s (keepalive=10s) | 5 minimum | ~1s | ~1s |
+~~**Combining both mechanisms:**~~
 
-Formula: `closed_duration = keepalive_interval / (pulse_count + 1)`,
-`open_duration = 2-3s` (enough to drain kernel receive buffer).
-Per-source-peer calculation uses that peer's negotiated hold time / 3
-as the keepalive interval.
-
-**Why 5 pulses minimum:** The source peer sends either UPDATEs or
-keepalives (or both). With 5 open windows per keepalive interval, there
-are 5 chances to receive at least one message. Even with jitter, 5
-windows makes it near-certain something lands in an open window.
-
-**Burst on re-open:** When the window opens, the source peer's kernel
-flushes its entire send buffer at once. This is NOT a trickle -- it is
-everything that accumulated during the closed period, delivered as a
-burst at wire speed. The duty cycle does NOT control effective rate the
-way sleep-between-reads does.
-
-This means the open window is a burst-accept phase:
-- The source kernel dumps its queued data
-- Our kernel receive buffer fills quickly
-- We read what we can during the open window
-- When we close again, whatever we didn't read stays in our kernel buffer
-  and is available on the next open
-
-The practical effect of the pulse is not rate limiting but **volume
-limiting per cycle**: the total data accepted per cycle is bounded by
-our kernel receive buffer size plus whatever we read during the open
-duration. The closed period prevents new data from entering our kernel
-buffer (zero window means the source stops sending).
-
-**Implication for pool sizing:** With TCP window pulsing, the overflow
-pool must absorb bursts, not a smooth stream. Each open window can
-produce a burst of messages equal to `source_kernel_send_buffer +
-our_kernel_recv_buffer` worth of BGP messages. The pool must be large
-enough to absorb several such bursts per source peer without
-exhausting.
-
-**Combining both mechanisms:**
-
-| Pool fill | Sleep between reads | TCP window |
-|-----------|-------------------|------------|
-| 0-50% | Proportional sleep (high-ratio sources only) | Normal (open) |
-| 50-85% | Maximum sleep (high-ratio sources) | Normal (open) |
-| 85-95% | Maximum sleep (all sources) | Pulsing on highest-ratio sources |
-| 95-100% | Maximum sleep (all sources) | Pulsing on all sources + evaluating Layer 4 teardown |
-
-Sleep-between-reads is the primary backpressure tool (smooth, proportional,
+~~Sleep-between-reads is the primary backpressure tool (smooth, proportional,
 keepalive-safe, targeted by overflow ratio). TCP window pulsing is the
-escalation when sleep alone cannot reduce inflow enough.
+escalation when sleep alone cannot reduce inflow enough.~~
 
-**Critical constraint: hold timer safety**
+**Superseded (2026-03-23):** Single mechanism: buffer denial. No sleep, no
+explicit TCP window manipulation. See `docs/architecture/forward-congestion-pool.md`.
 
-Both mechanisms affect message delivery from source peers. Since RFC 4271
-resets the hold timer on both UPDATEs and keepalives, the constraint is:
-at least one message (any type) must arrive within each hold time period.
+**Hold timer safety under buffer denial**
 
-The pulse design guarantees this by construction: 5 open windows per
-keepalive interval means 5 chances to receive at least one message.
-UPDATEs count -- if the source peer is sending routes, those reset our
-hold timer just as well as keepalives do.
-
-The read throttle (sleep) MUST also respect the source peer's hold timer.
-Maximum sleep bounded by `keepalive_interval / (pulse_count + 1)`.
+Buffer denial stops reads, which stops hold timer resets on the inbound
+side. The constraint remains: at least one message must arrive within each
+hold time period. Buffer denial duration is bounded by AC-9:
+`keepalive_interval / 6`. Within that window, the source peer's kernel
+buffer holds its queued data. When the buffer is granted and reading
+resumes, the pending data (including any keepalive) is read immediately.
 
 #### Defensive: Handling Window Zero FROM Peers
 
@@ -915,8 +875,11 @@ than guessed.
    both derived from the burst fraction, not raw prefix-maximum.
    See `docs/architecture/forward-congestion-pool.md`.
 
-6. **Advisory report format:** CLI command output? Structured JSON for
-   automation? Both?
+6. ~~**Advisory report format:** CLI command output? Structured JSON for
+   automation? Both?~~
+   **Resolved (2026-03-23):** All three: CLI output (`ze bgp status`),
+   events via monitor (plugin event stream), and Prometheus metrics
+   (`ze_bgp_prefix_limit_headroom_ratio` per peer).
 
 ## Current Behavior (MANDATORY)
 
@@ -951,11 +914,11 @@ than guessed.
 - Add hold timer congestion extension (BIRD technique: extend 10s if RX data pending)
 - Add route superseding in overflow pool (replace pending update for same prefix, not append)
 - Add TX budget limiting (cap messages per forward batch to prevent one peer starving others)
-- Replace sync.Pool with block-backed pool (4K and 64K instances, combined capacity tracking)
+- Replace sync.Pool with pool multiplexer (handle = block ID + []byte, deterministic block freeing)
 - Add source-side metrics (overflow ratio, throttle state)
 - Add destination-side metrics (overflow items, growth rate, write latency)
 - Add read throttling via buffer denial (weighted access, culprit targeting)
-- Add TCP window zero pulsing as escalation
+- ~~Add TCP window zero pulsing as escalation~~ Removed: buffer denial causes natural TCP window shrinkage
 - Add session teardown as last resort (GR-aware)
 - Add overflow flush on peer-down
 - Add PeeringDB integration for buffer sizing
@@ -1018,7 +981,7 @@ than guessed.
 | AC-10 | Pool size configurable | ze.fwd.pool.size env var; auto-sized from RIB/PeeringDB if not set |
 | AC-11 | Total memory for slow peers | Bounded by pool maximum (sum of peer weights), growth in 10% blocks, shrink per-buffer on return |
 | AC-12 | Fast destination peers during congestion | Unaffected by slow destination -- isolation preserved |
-| AC-13 | TCP window zero on source peer | Pulses open 5x per keepalive interval, 2-3s each |
+| AC-13 | ~~TCP window zero on source peer~~ | ~~Pulses open 5x per keepalive interval, 2-3s each~~ **Removed (2026-03-23):** buffer denial causes natural TCP window shrinkage via kernel. Explicit window zero manipulation unnecessary. |
 | AC-14 | Remote peer holds window zero toward us | RFC 9687 Send Hold Timer tears down after configured duration |
 | AC-15 | TCP_NODELAY set on peer sockets | All BGP peer TCP connections have TCP_NODELAY enabled. Done (commit 1c43e11d). |
 | AC-16 | Source peer overflow ratio visible in Prometheus | ze_bgp_overflow_ratio gauge per peer |
@@ -1031,6 +994,7 @@ than guessed.
 | AC-23 | New update for prefix already in overflow pool | **Deferred optimization.** Old entry replaced (route superseding), not appended. Requires per-prefix indexing of the overflow pool (NLRI parsing on overflow entry). Ze's UPDATE-first design avoids NLRI parsing on the forward path; adding it here contradicts that principle. Without dedup, FIFO ordering still converges correctly -- the slow peer processes redundant intermediate UPDATEs but reaches the right final state. Real-world overflow is dominated by convergence events (many distinct prefixes withdrawn once), not flap (same prefix repeated). May not fix a real traffic pattern problem. Revisit if profiling shows high duplicate rate in overflow under production load. |
 | AC-24 | Forward batch to single destination peer | TX budget caps messages per batch (prevents one peer starving others in event loop) |
 | AC-25 | Forward batch contains both withdrawals and announcements | **Deferred optimization.** Withdrawals sent before announcements (faster convergence). Requires AC-23 (route superseding) first -- without per-prefix dedup, reordering can invert announce/withdraw for the same prefix, causing permanent stale routes. Blocked on AC-23 which is itself deferred. |
-| AC-26 | Read and build buffers | sync.Pool replaced with block-backed pool (one backing array per 10% block, buffers are slices). Two instances: 4K and 64K. buildBufPool merged into 4K instance. |
+| AC-26 | Read and build buffers | sync.Pool replaced by pool multiplexer. Handles carry block ID for deterministic return routing. Two multiplexers: 4K and 64K. buildBufPool merged into 4K instance. |
 | AC-27 | Pool capacity decisions | Growth, shrink, and backpressure use combined usage across 4K + 64K instances (memory pressure is shared) |
 | AC-28 | Pool maximum | Dynamically tracks peer set: adding a peer increases maximum (based on prefix count weight), removing decreases it |
+| AC-29 | Per-peer channel size | Dynamic: derived from peer weight (burst-adjusted prefix count). Range 16-256 based on weight tier. |
