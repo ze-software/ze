@@ -276,7 +276,7 @@ PERF_DUT ?=
 
 ze-perf-bench: ze-perf-build
 	@echo "Running performance benchmarks (requires Docker)..."
-	@test/perf/run.sh $(PERF_DUT)
+	@python3 test/perf/run.py $(PERF_DUT)
 
 # Generate comparison report from benchmark results.
 ze-perf-report:
