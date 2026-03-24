@@ -15,14 +15,18 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/subsystem"
+	"codeberg.org/thomas-mangin/ze/internal/component/bus"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/engine"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 // Env var registration for hub readiness signal.
@@ -159,8 +163,21 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 
 	fmt.Printf("Starting ze BGP with config: %s\n", configPath)
 
-	if err := reactor.Start(); err != nil {
-		fmt.Fprintf(os.Stderr, "error starting reactor: %v\n", err)
+	// Create Bus and Engine. Wire reactor as a Subsystem via adapter.
+	// The Bus is a notification layer for cross-component signaling.
+	// Plugin data delivery stays on the existing EventDispatcher direct path.
+	b := bus.NewBus()
+	reactor.SetBus(b)
+	bgpSub := subsystem.NewBGPSubsystem(reactor)
+	eng := engine.NewEngine(b, stubConfigProvider(), stubPluginManager())
+	if err := eng.RegisterSubsystem(bgpSub); err != nil {
+		fmt.Fprintf(os.Stderr, "error: register subsystem: %v\n", err)
+		return 1
+	}
+
+	startCtx := context.Background()
+	if err := eng.Start(startCtx); err != nil {
+		fmt.Fprintf(os.Stderr, "error starting engine: %v\n", err)
 		return 1
 	}
 
@@ -168,7 +185,7 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 	// All subsequent work (plugins, connections) runs as the configured user.
 	if err := dropPrivileges(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: drop privileges: %v\n", err)
-		reactor.Stop()
+		_ = eng.Stop(startCtx)
 		return 1
 	}
 
@@ -192,17 +209,17 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 	select {
 	case <-sigCh:
 		fmt.Println("\nShutting down...")
-		reactor.Stop()
 	case <-doneCh:
 		fmt.Println("\nShutting down...")
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	stopCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	if err := reactor.Wait(ctx); err != nil {
+	if err := eng.Stop(stopCtx); err != nil {
 		fmt.Fprintf(os.Stderr, "warning: shutdown timeout: %v\n", err)
 	}
+	b.Stop()
 
 	fmt.Println("Ze BGP stopped.")
 	return 0
@@ -303,3 +320,30 @@ func runOrchestratorWithData(store storage.Storage, configPath string, data []by
 	o.Stop()
 	return 0
 }
+
+// --- Stub implementations for Engine dependencies ---
+// ConfigProvider and PluginManager are wired as stubs until their respective
+// arch-0 phases integrate them fully. The Engine requires non-nil values.
+
+type nopConfigProvider struct{}
+
+func (c *nopConfigProvider) Load(string) error                   { return nil }
+func (c *nopConfigProvider) Get(string) (map[string]any, error)  { return map[string]any{}, nil }
+func (c *nopConfigProvider) Validate() []error                   { return nil }
+func (c *nopConfigProvider) Save(string) error                   { return nil }
+func (c *nopConfigProvider) Watch(string) <-chan ze.ConfigChange { return nil }
+func (c *nopConfigProvider) Schema() ze.SchemaTree               { return ze.SchemaTree{} }
+func (c *nopConfigProvider) RegisterSchema(string, string) error { return nil }
+
+func stubConfigProvider() ze.ConfigProvider { return &nopConfigProvider{} }
+
+type nopPluginManager struct{}
+
+func (p *nopPluginManager) Register(ze.PluginConfig) error                            { return nil }
+func (p *nopPluginManager) StartAll(context.Context, ze.Bus, ze.ConfigProvider) error { return nil }
+func (p *nopPluginManager) StopAll(context.Context) error                             { return nil }
+func (p *nopPluginManager) Plugin(string) (ze.PluginProcess, bool)                    { return ze.PluginProcess{}, false }
+func (p *nopPluginManager) Plugins() []ze.PluginProcess                               { return nil }
+func (p *nopPluginManager) Capabilities() []ze.Capability                             { return nil }
+
+func stubPluginManager() ze.PluginManager { return &nopPluginManager{} }

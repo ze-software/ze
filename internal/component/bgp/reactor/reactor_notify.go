@@ -62,6 +62,12 @@ func (r *Reactor) notifyPeerEstablished(peer *Peer) {
 	for _, obs := range observers {
 		obs.OnPeerEstablished(peer)
 	}
+
+	// Bus notification for cross-component consumers.
+	r.publishBusNotification("bgp/state", map[string]string{
+		"peer":  peer.settings.Address.String(),
+		"state": "up",
+	})
 }
 
 // notifyPeerNegotiated sends negotiated capabilities to subscribed plugins.
@@ -82,6 +88,11 @@ func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
 
 	decoded := format.NegotiatedToDecoded(neg)
 	r.eventDispatcher.OnPeerNegotiated(peerInfo, decoded)
+
+	// Bus notification for cross-component consumers.
+	r.publishBusNotification("bgp/negotiated", map[string]string{
+		"peer": peer.settings.Address.String(),
+	})
 }
 
 // notifyPeerClosed calls all observers when peer leaves Established.
@@ -93,6 +104,13 @@ func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
 	for _, obs := range observers {
 		obs.OnPeerClosed(peer, reason)
 	}
+
+	// Bus notification for cross-component consumers.
+	r.publishBusNotification("bgp/state", map[string]string{
+		"peer":   peer.settings.Address.String(),
+		"state":  "down",
+		"reason": reason,
+	})
 
 	// Track session count for MaxSessions feature (tcp.once/tcp.attempts)
 	if r.config.MaxSessions > 0 {
@@ -144,6 +162,12 @@ func (r *Reactor) emitCongestionEvent(peerAddr, eventType string) {
 		return
 	}
 	r.eventDispatcher.OnPeerCongestionChange(peerInfo, eventType)
+
+	// Bus notification for cross-component consumers.
+	r.publishBusNotification("bgp/congestion", map[string]string{
+		"peer":  peerAddr,
+		"event": eventType,
+	})
 }
 
 // notifyMessageReceiver notifies the message receiver of a raw BGP message.
@@ -311,6 +335,12 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		})
 		kept = true // Cache always accepts
 	}
+
+	// Bus notification for cross-component consumers.
+	r.publishBusNotification("bgp/update", map[string]string{
+		"peer":      peerAddr.String(),
+		"direction": direction,
+	})
 
 	// Sent messages: synchronous delivery, no async channel.
 	if direction == plugin.DirectionSent {

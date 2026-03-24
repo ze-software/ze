@@ -42,6 +42,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/set"       // init() registers set verb RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe" // init() registers subscribe/unsubscribe RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update"    // init() registers update verb RPCs
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
@@ -244,6 +245,7 @@ type Reactor struct {
 
 	connCallback    ConnectionCallback
 	messageReceiver MessageReceiver // Receives raw BGP messages
+	bus             ze.Bus          // Bus for cross-component notifications (nil until SetBus)
 
 	// Peer filter chains: collected from plugin registry at startup.
 	// Ingress: called before caching/dispatching received UPDATEs.
@@ -372,6 +374,23 @@ func (r *Reactor) SetDialer(d network.Dialer) {
 // Must be called before StartWithContext.
 func (r *Reactor) SetListenerFactory(f network.ListenerFactory) {
 	r.listenerFactory = f
+}
+
+// SetBus sets the Bus for cross-component notifications.
+// Must be called before StartWithContext. When set, the reactor publishes
+// lightweight notifications to Bus topics alongside the existing
+// EventDispatcher data delivery path.
+func (r *Reactor) SetBus(b ze.Bus) {
+	r.bus = b
+}
+
+// publishBusNotification publishes a lightweight notification to the Bus.
+// Payload is nil — notifications carry information in metadata only.
+// No-op if Bus is nil. Fire-and-forget — does not block the caller.
+func (r *Reactor) publishBusNotification(topic string, metadata map[string]string) {
+	if r.bus != nil {
+		r.bus.Publish(topic, nil, metadata)
+	}
 }
 
 // SetMetricsRegistry sets the metrics registry for Prometheus instrumentation.
