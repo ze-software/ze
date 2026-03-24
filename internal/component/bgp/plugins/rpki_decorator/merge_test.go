@@ -8,8 +8,8 @@ import (
 )
 
 func TestMergeUpdateRPKI(t *testing.T) {
-	update := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","asn":65001},"message":{"id":42,"direction":"received","type":"update"},"update":{"attr":{"origin":"igp"},"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}`
-	rpki := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","asn":65001},"message":{"id":42,"type":"rpki"},"rpki":{"ipv4/unicast":{"10.0.0.0/24":"valid"}}}}`
+	update := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"id":42,"direction":"received","type":"update"},"update":{"attr":{"origin":"igp"},"ipv4/unicast":[{"next-hop":"192.168.1.1","action":"add","nlri":["10.0.0.0/24"]}]}}}`
+	rpki := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"id":42,"type":"rpki"},"rpki":{"ipv4/unicast":{"10.0.0.0/24":"valid"}}}}`
 
 	merged := mergeUpdateRPKI(update, rpki)
 	if merged == "" {
@@ -56,8 +56,8 @@ func TestMergeUpdateRPKI(t *testing.T) {
 }
 
 func TestMergeUpdateRPKIUnavailable(t *testing.T) {
-	update := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","asn":65001},"message":{"id":7,"direction":"received","type":"update"},"update":{"attr":{"origin":"igp"}}}}`
-	rpki := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","asn":65001},"message":{"id":7,"type":"rpki"},"rpki":{"status":"unavailable"}}}`
+	update := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"id":7,"direction":"received","type":"update"},"update":{"attr":{"origin":"igp"}}}}`
+	rpki := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"id":7,"type":"rpki"},"rpki":{"status":"unavailable"}}}`
 
 	merged := mergeUpdateRPKI(update, rpki)
 
@@ -80,7 +80,7 @@ func TestMergeUpdateRPKIUnavailable(t *testing.T) {
 }
 
 func TestMergeUpdateRPKITimeoutNoSecondary(t *testing.T) {
-	update := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","asn":65001},"message":{"id":3,"direction":"received","type":"update"},"update":{"attr":{"origin":"igp"}}}}`
+	update := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"id":3,"direction":"received","type":"update"},"update":{"attr":{"origin":"igp"}}}}`
 
 	// Empty secondary means rpki event timed out.
 	merged := mergeUpdateRPKI(update, "")
@@ -125,7 +125,7 @@ func TestMergeUpdateRPKIInvalidJSON(t *testing.T) {
 	}
 
 	// Good primary, bad secondary: should still produce result (without rpki section).
-	update := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","asn":65001},"message":{"id":1,"type":"update"},"update":{}}}`
+	update := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"id":1,"type":"update"},"update":{}}}`
 	merged := mergeUpdateRPKI(update, "not-json")
 	if merged == "" {
 		t.Fatal("expected non-empty for good primary with bad secondary")

@@ -59,7 +59,7 @@ All events follow the ze-bgp JSON envelope:
   "bgp": {
     "peer": {
       "address": "10.0.0.1",
-      "asn": 65001
+      "remote": {"as": 65001}
     },
     "message": {
       "id": 42,
@@ -76,7 +76,7 @@ All events follow the ze-bgp JSON envelope:
 {
   "type": "bgp",
   "bgp": {
-    "peer": {"address": "10.0.0.1", "asn": 65001},
+    "peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
     "message": {"id": 1, "direction": "received", "type": "update"},
     "update": {
       "ipv4/unicast": [
@@ -100,7 +100,7 @@ All events follow the ze-bgp JSON envelope:
 {
   "type": "bgp",
   "bgp": {
-    "peer": {"address": "10.0.0.1", "asn": 65001},
+    "peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
     "message": {"type": "state"},
     "state": "up"
   }

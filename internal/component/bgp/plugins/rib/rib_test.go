@@ -43,7 +43,7 @@ func newTestRIBManager(t *testing.T) *RIBManager {
 // PREVENTS: Sent events being dropped due to format mismatch.
 func TestParseEvent_SentFormat(t *testing.T) {
 	// New command-style format: family at top level with operations array
-	input := `{"type":"sent","msg-id":123,"peer":{"address":"10.0.0.1","asn":65001},"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24","10.0.1.0/24"]}]}`
+	input := `{"type":"sent","msg-id":123,"peer":{"address":"10.0.0.1","remote":{"as":65001}},"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24","10.0.1.0/24"]}]}`
 
 	event, err := parseEvent([]byte(input))
 	require.NoError(t, err)
@@ -64,7 +64,7 @@ func TestParseEvent_SentFormat(t *testing.T) {
 // PREVENTS: Received events being dropped due to format mismatch.
 func TestParseEvent_ReceivedFormat(t *testing.T) {
 	// New command-style format: direction inside message wrapper
-	input := `{"message":{"type":"update","id":456,"direction":"received"},"peer":{"address":{"local":"10.0.0.2","peer":"10.0.0.1"},"asn":{"local":65002,"peer":65001}},"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24","10.0.1.0/24"]}]}`
+	input := `{"message":{"type":"update","id":456,"direction":"received"},"peer":{"address":"10.0.0.1","local":{"address":"10.0.0.2","as":65002},"remote":{"as":65001}},"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24","10.0.1.0/24"]}]}`
 
 	event, err := parseEvent([]byte(input))
 	require.NoError(t, err)
@@ -82,7 +82,7 @@ func TestParseEvent_ReceivedFormat(t *testing.T) {
 // VALIDATES: State events are parsed correctly.
 // PREVENTS: Peer state changes being missed.
 func TestParseEvent_StateFormat(t *testing.T) {
-	input := `{"type":"state","peer":{"address":"10.0.0.1","asn":65001},"state":"up"}`
+	input := `{"type":"state","peer":{"address":"10.0.0.1","remote":{"as":65001}},"state":"up"}`
 
 	event, err := parseEvent([]byte(input))
 	require.NoError(t, err)
@@ -118,7 +118,7 @@ func TestHandleSent_StoresRoutes(t *testing.T) {
 	event := &Event{
 		Type:  "sent",
 		MsgID: 100,
-		Peer:  mustMarshal(t, PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
+		Peer:  mustMarshal(t, PeerInfoJSON{Address: "10.0.0.1", Remote: PeerRemoteInfo{AS: 65001}}),
 		FamilyOps: map[string][]FamilyOperation{
 			"ipv4/unicast": {
 				{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
@@ -149,7 +149,7 @@ func TestHandleSent_Withdraw(t *testing.T) {
 	announce := &Event{
 		Type:  "sent",
 		MsgID: 100,
-		Peer:  mustMarshal(t, PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
+		Peer:  mustMarshal(t, PeerInfoJSON{Address: "10.0.0.1", Remote: PeerRemoteInfo{AS: 65001}}),
 		FamilyOps: map[string][]FamilyOperation{
 			"ipv4/unicast": {
 				{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
@@ -162,7 +162,7 @@ func TestHandleSent_Withdraw(t *testing.T) {
 	// Then withdraw
 	withdraw := &Event{
 		Type: "sent",
-		Peer: mustMarshal(t, PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
+		Peer: mustMarshal(t, PeerInfoJSON{Address: "10.0.0.1", Remote: PeerRemoteInfo{AS: 65001}}),
 		FamilyOps: map[string][]FamilyOperation{
 			"ipv4/unicast": {
 				{Action: "del", NLRIs: []any{"10.0.0.0/24"}},
@@ -184,7 +184,7 @@ func TestHandleReceived_StoresRoutes(t *testing.T) {
 	// Two NLRIs: 10.0.0.0/24 (18 0a 00 00) + 10.0.1.0/24 (18 0a 00 01)
 	event := &Event{
 		Message:       &MessageInfo{Type: "update", ID: 200},
-		Peer:          mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}}),
+		Peer:          mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}}),
 		RawAttributes: "40010100", // ORIGIN IGP
 		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000180a0001"},
 		FamilyOps: map[string][]FamilyOperation{
@@ -206,7 +206,7 @@ func TestHandleReceived_StoresRoutes(t *testing.T) {
 // PREVENTS: Stale route state.
 func TestHandleReceived_Withdraw(t *testing.T) {
 	r := newTestRIBManager(t)
-	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peerJSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 
 	// First announce with raw fields
 	announce := &Event{
@@ -253,7 +253,7 @@ func TestHandleState_PeerUp(t *testing.T) {
 
 	event := &Event{
 		Type:  "state",
-		Peer:  mustMarshal(t, PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
+		Peer:  mustMarshal(t, PeerInfoJSON{Address: "10.0.0.1", Remote: PeerRemoteInfo{AS: 65001}}),
 		State: "up",
 	}
 
@@ -271,7 +271,7 @@ func TestHandleState_PeerUp(t *testing.T) {
 // PREVENTS: Stale routes from failed peers.
 func TestHandleState_PeerDown(t *testing.T) {
 	r := newTestRIBManager(t)
-	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peerJSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 
 	// Pre-populate ribInPool via handleReceived
 	announce := &Event{
@@ -294,7 +294,7 @@ func TestHandleState_PeerDown(t *testing.T) {
 
 	event := &Event{
 		Type:  "state",
-		Peer:  mustMarshal(t, PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
+		Peer:  mustMarshal(t, PeerInfoJSON{Address: "10.0.0.1", Remote: PeerRemoteInfo{AS: 65001}}),
 		State: "down",
 	}
 
@@ -316,7 +316,7 @@ func TestHandleState_PeerDown(t *testing.T) {
 // PREVENTS: Incorrect stats being reported.
 func TestStatusJSON(t *testing.T) {
 	r := newTestRIBManager(t)
-	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peerJSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 
 	// Add routes via pool storage
 	event := &Event{
@@ -358,7 +358,7 @@ func TestDispatch_RoutesToCorrectHandler(t *testing.T) {
 			name: "sent_to_ribOut",
 			event: &Event{
 				Type: "sent",
-				Peer: mustMarshal(t, PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
+				Peer: mustMarshal(t, PeerInfoJSON{Address: "10.0.0.1", Remote: PeerRemoteInfo{AS: 65001}}),
 				FamilyOps: map[string][]FamilyOperation{
 					"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 				},
@@ -370,7 +370,7 @@ func TestDispatch_RoutesToCorrectHandler(t *testing.T) {
 			name: "update_to_ribInPool",
 			event: &Event{
 				Message:       &MessageInfo{Type: "update"},
-				Peer:          json.RawMessage(`{"address":{"local":"","peer":"10.0.0.1"},"asn":{"local":0,"peer":65001}}`),
+				Peer:          json.RawMessage(`{"address":"10.0.0.1","local":{"address":"","as":0},"remote":{"as":65001}}`),
 				RawAttributes: "40010100",
 				RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
 				FamilyOps: map[string][]FamilyOperation{
@@ -415,7 +415,7 @@ func TestHandleState_ConcurrentUpDown(t *testing.T) {
 	}
 
 	// Pre-populate ribInPool via handleReceived
-	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peerJSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 	announce := &Event{
 		Message:       &MessageInfo{Type: "update", ID: 100},
 		Peer:          peerJSON,
@@ -427,7 +427,7 @@ func TestHandleState_ConcurrentUpDown(t *testing.T) {
 	}
 	r.handleReceived(announce)
 
-	peer := mustMarshal(t, PeerInfoFlat{Address: "10.0.0.1", ASN: 65001})
+	peer := mustMarshal(t, PeerInfoJSON{Address: "10.0.0.1", Remote: PeerRemoteInfo{AS: 65001}})
 
 	// Rapid state changes from multiple goroutines
 	done := make(chan bool)
@@ -572,7 +572,7 @@ func TestHandleCommand_RIBAdjacentStatus(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Add route via pool storage
-	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peerJSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 	announce := &Event{
 		Message:       &MessageInfo{Type: "update", ID: 100},
 		Peer:          peerJSON,
@@ -603,7 +603,7 @@ func TestHandleCommand_RIBShowReceived(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Add routes via pool storage for peer 10.0.0.1
-	peer1JSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peer1JSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 	event1 := &Event{
 		Message:       &MessageInfo{Type: "update", ID: 100},
 		Peer:          peer1JSON,
@@ -616,7 +616,7 @@ func TestHandleCommand_RIBShowReceived(t *testing.T) {
 	r.handleReceived(event1)
 
 	// Add routes via pool storage for peer 10.0.0.2
-	peer2JSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.1", "peer": "10.0.0.2"}, "asn": map[string]uint32{"local": 65001, "peer": 65002}})
+	peer2JSON := mustMarshal(t, map[string]any{"address": "10.0.0.2", "local": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}, "remote": map[string]any{"as": uint32(65002)}})
 	event2 := &Event{
 		Message:       &MessageInfo{Type: "update", ID: 101},
 		Peer:          peer2JSON,
@@ -687,7 +687,7 @@ func TestHandleCommand_RIBAdjacentInboundEmpty(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Add routes via pool storage for peer 10.0.0.1
-	peer1JSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peer1JSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 	event1 := &Event{
 		Message:       &MessageInfo{Type: "update", ID: 100},
 		Peer:          peer1JSON,
@@ -700,7 +700,7 @@ func TestHandleCommand_RIBAdjacentInboundEmpty(t *testing.T) {
 	r.handleReceived(event1)
 
 	// Add routes via pool storage for peer 10.0.0.2
-	peer2JSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.1", "peer": "10.0.0.2"}, "asn": map[string]uint32{"local": 65001, "peer": 65002}})
+	peer2JSON := mustMarshal(t, map[string]any{"address": "10.0.0.2", "local": map[string]any{"address": "10.0.0.1", "as": uint32(65001)}, "remote": map[string]any{"as": uint32(65002)}})
 	event2 := &Event{
 		Message:       &MessageInfo{Type: "update", ID: 101},
 		Peer:          peer2JSON,
@@ -811,7 +811,7 @@ func TestRIBPluginHandleCommandShortNames(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Populate test data
-	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peerJSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 	announce := &Event{
 		Message:       &MessageInfo{Type: "update", ID: 100},
 		Peer:          peerJSON,
@@ -863,7 +863,7 @@ func TestRIBPluginHandleCommandLegacyNames(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Populate test data
-	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peerJSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 	announce := &Event{
 		Message:       &MessageInfo{Type: "update", ID: 100},
 		Peer:          peerJSON,
@@ -924,7 +924,7 @@ func TestHandleRefresh_InternalState(t *testing.T) {
 	// Output goes through SDK RPC (updateRoute), so we verify internal state is correct
 	event := &Event{
 		Message: &MessageInfo{Type: "refresh"},
-		Peer:    mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}}),
+		Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}}),
 		AFI:     "ipv4",
 		SAFI:    "unicast",
 	}
@@ -954,7 +954,7 @@ func TestHandleRefresh_PeerNotUp(t *testing.T) {
 
 	event := &Event{
 		Message: &MessageInfo{Type: "refresh"},
-		Peer:    mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}}),
+		Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}}),
 		AFI:     "ipv4",
 		SAFI:    "unicast",
 	}
@@ -981,7 +981,7 @@ func TestHandleRefresh_IPv6Family(t *testing.T) {
 
 	event := &Event{
 		Message: &MessageInfo{Type: "refresh"},
-		Peer:    mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}}),
+		Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}}),
 		AFI:     "ipv6",
 		SAFI:    "unicast",
 	}
@@ -1010,7 +1010,7 @@ func TestHandleReceived_PoolStorage(t *testing.T) {
 	// Raw NLRI: 10.0.0.0/24 (18 0a 00 00)
 	event := &Event{
 		Message:       &MessageInfo{Type: "update", ID: 300},
-		Peer:          mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}}),
+		Peer:          mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}}),
 		RawAttributes: "40010100",                                    // ORIGIN IGP
 		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"}, // 10.0.0.0/24
 		FamilyOps: map[string][]FamilyOperation{
@@ -1035,7 +1035,7 @@ func TestHandleReceived_PoolStorage_MultipleNLRIs(t *testing.T) {
 	// Two NLRIs: 10.0.0.0/24 (18 0a 00 00) + 10.0.1.0/24 (18 0a 00 01)
 	event := &Event{
 		Message:       &MessageInfo{Type: "update", ID: 302},
-		Peer:          mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}}),
+		Peer:          mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}}),
 		RawAttributes: "40010100",
 		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000180a0001"},
 		FamilyOps: map[string][]FamilyOperation{
@@ -1054,7 +1054,7 @@ func TestHandleReceived_PoolStorage_MultipleNLRIs(t *testing.T) {
 // PREVENTS: Stale routes remaining in pool.
 func TestHandleReceived_PoolStorage_Withdraw(t *testing.T) {
 	r := newTestRIBManager(t)
-	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peerJSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 
 	// First: announce
 	announce := &Event{
@@ -1089,7 +1089,7 @@ func TestHandleReceived_PoolStorage_Withdraw(t *testing.T) {
 // PREVENTS: Stale pool data from failed peers.
 func TestHandleState_PeerDown_ClearsPoolStorage(t *testing.T) {
 	r := newTestRIBManager(t)
-	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peerJSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 
 	// Add route via pool storage
 	announce := &Event{
@@ -1108,7 +1108,7 @@ func TestHandleState_PeerDown_ClearsPoolStorage(t *testing.T) {
 	// Peer goes down
 	stateDown := &Event{
 		Type:  "state",
-		Peer:  mustMarshal(t, PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
+		Peer:  mustMarshal(t, PeerInfoJSON{Address: "10.0.0.1", Remote: PeerRemoteInfo{AS: 65001}}),
 		State: "down",
 	}
 	r.handleState(stateDown)
@@ -1125,7 +1125,7 @@ func TestHandleState_PeerDown_ClearsPoolStorage(t *testing.T) {
 // PREVENTS: IPv6 address parsing/formatting bugs in cross-storage.
 func TestHandleReceived_PoolStorage_IPv6(t *testing.T) {
 	r := newTestRIBManager(t)
-	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "::2", "peer": "::1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peerJSON := mustMarshal(t, map[string]any{"address": "::1", "local": map[string]any{"address": "::2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 
 	// IPv6 NLRI: 2001:db8::/32
 	// Wire format: [prefix-len:1][prefix-bytes:4] = [32][20][01][0d][b8]
@@ -1151,7 +1151,7 @@ func TestHandleReceived_PoolStorage_IPv6(t *testing.T) {
 // PREVENTS: EVPN wire format being corrupted by splitNLRIs().
 func TestHandleReceived_PoolStorage_SkipsEVPN(t *testing.T) {
 	r := newTestRIBManager(t)
-	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peerJSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 
 	// EVPN NLRI (will be skipped - not simple prefix format)
 	event := &Event{
@@ -1178,7 +1178,7 @@ func TestHandleReceived_PoolStorage_SkipsEVPN(t *testing.T) {
 // PREVENTS: Pool routes not being counted in status.
 func TestStatusJSON_WithPoolStorage(t *testing.T) {
 	r := newTestRIBManager(t)
-	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peerJSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 
 	// Add routes via pool storage
 	event := &Event{
@@ -1203,7 +1203,7 @@ func TestStatusJSON_WithPoolStorage(t *testing.T) {
 // PREVENTS: Pool routes being invisible to show commands.
 func TestHandleCommand_InboundShow_PoolStorage(t *testing.T) {
 	r := newTestRIBManager(t)
-	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peerJSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 
 	// Add route via pool storage
 	event := &Event{
@@ -1235,7 +1235,7 @@ func TestHandleCommand_InboundShow_PoolStorage(t *testing.T) {
 // PREVENTS: Pool routes remaining after empty command.
 func TestHandleCommand_InboundEmpty_PoolStorage(t *testing.T) {
 	r := newTestRIBManager(t)
-	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peerJSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 
 	// Add route via pool storage
 	event := &Event{
@@ -1411,7 +1411,7 @@ func TestDispatch_RefreshEvents(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			event := &Event{
 				Message: &MessageInfo{Type: tt.eventType},
-				Peer:    mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}}),
+				Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}}),
 				AFI:     "ipv4",
 				SAFI:    "unicast",
 			}
@@ -1444,7 +1444,7 @@ func TestParseEvent_NewBGPFormat(t *testing.T) {
 		"bgp": {
 			"type": "update",
 			"message": {"id": 789, "direction": "received"},
-			"peer": {"address": "10.0.0.1", "asn": 65001},
+			"peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
 			"attributes": {"origin": "igp", "as-path": [65001]},
 			"nlri": {"ipv4/unicast": [{"next-hop": "1.1.1.1", "action": "add", "nlri": ["10.0.0.0/24"]}]}
 		}
@@ -1477,7 +1477,7 @@ func TestParseEvent_NewBGPFormatState(t *testing.T) {
 		"type": "bgp",
 		"bgp": {
 			"type": "state",
-			"peer": {"address": "10.0.0.1", "asn": 65001},
+			"peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
 			"state": "up"
 		}
 	}`
@@ -1500,7 +1500,7 @@ func TestParseEvent_NewBGPFormatWithRaw(t *testing.T) {
 		"bgp": {
 			"type": "update",
 			"message": {"id": 100, "direction": "received"},
-			"peer": {"address": "10.0.0.1", "asn": 65001},
+			"peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
 			"attributes": {"origin": "igp"},
 			"nlri": {"ipv4/unicast": [{"next-hop": "1.1.1.1", "action": "add", "nlri": ["10.0.0.0/24"]}]},
 			"raw": {
@@ -1535,7 +1535,7 @@ func TestParseEvent_NewRIBFormat(t *testing.T) {
 			"type": "cache",
 			"action": "new",
 			"msg-id": 12345,
-			"peer": {"address": "10.0.0.1", "asn": 65001}
+			"peer": {"address": "10.0.0.1", "remote": {"as": 65001}}
 		}
 	}`
 
@@ -1555,7 +1555,7 @@ func TestParseEvent_BackwardsCompatible(t *testing.T) {
 	// Old format without type/bgp wrapper
 	input := `{
 		"message": {"type": "update", "id": 456, "direction": "received"},
-		"peer": {"address": "10.0.0.1", "asn": 65001},
+		"peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
 		"origin": "igp",
 		"ipv4/unicast": [{"next-hop": "1.1.1.1", "action": "add", "nlri": ["10.0.0.0/24"]}]
 	}`
@@ -1574,7 +1574,7 @@ func TestParseEvent_BackwardsCompatible(t *testing.T) {
 // PREVENTS: Path-ID bytes being misinterpreted as prefix length.
 func TestHandleReceived_AddPathNLRI(t *testing.T) {
 	r := newTestRIBManager(t)
-	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peerJSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 
 	// ADD-PATH NLRI: [path-id:4][prefix-len:1][prefix-bytes]
 	// 10.0.0.0/24 with path-id 42: 00 00 00 2a 18 0a 00 00
@@ -1613,7 +1613,7 @@ func TestHandleReceived_AddPathNLRI(t *testing.T) {
 // PREVENTS: Withdrawal failing to match because path-ID bytes weren't consumed.
 func TestHandleReceived_AddPathWithdraw(t *testing.T) {
 	r := newTestRIBManager(t)
-	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peerJSON := mustMarshal(t, map[string]any{"address": "10.0.0.1", "local": map[string]any{"address": "10.0.0.2", "as": uint32(65002)}, "remote": map[string]any{"as": uint32(65001)}})
 
 	// First announce with ADD-PATH
 	announce := &Event{
@@ -1659,8 +1659,9 @@ func TestHandleReceived_AddPathWithdraw(t *testing.T) {
 func TestExtractCandidate_PoolWiring(t *testing.T) {
 	r := newTestRIBManager(t)
 	peerJSON := mustMarshal(t, map[string]any{
-		"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"},
-		"asn":     map[string]uint32{"local": 65000, "peer": 65001},
+		"address": "10.0.0.1",
+		"local":   map[string]any{"address": "10.0.0.2", "as": uint32(65000)},
+		"remote":  map[string]any{"as": uint32(65001)},
 	})
 
 	// Raw attributes: ORIGIN=IGP(0), AS_PATH=SEQUENCE[65001,65002], LOCAL_PREF=200, MED=50.
@@ -1718,8 +1719,9 @@ func TestPeerMetaCleanup_ClearAndRelease(t *testing.T) {
 	t.Run("rib clear in", func(t *testing.T) {
 		r := newTestRIBManager(t)
 		peerJSON := mustMarshal(t, map[string]any{
-			"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"},
-			"asn":     map[string]uint32{"local": 65000, "peer": 65001},
+			"address": "10.0.0.1",
+			"local":   map[string]any{"address": "10.0.0.2", "as": uint32(65000)},
+			"remote":  map[string]any{"as": uint32(65001)},
 		})
 		event := &Event{
 			Message:       &MessageInfo{Type: "update", ID: 1},
@@ -1744,8 +1746,9 @@ func TestPeerMetaCleanup_ClearAndRelease(t *testing.T) {
 	t.Run("rib release-routes", func(t *testing.T) {
 		r := newTestRIBManager(t)
 		peerJSON := mustMarshal(t, map[string]any{
-			"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"},
-			"asn":     map[string]uint32{"local": 65000, "peer": 65001},
+			"address": "10.0.0.1",
+			"local":   map[string]any{"address": "10.0.0.2", "as": uint32(65000)},
+			"remote":  map[string]any{"as": uint32(65001)},
 		})
 		event := &Event{
 			Message:       &MessageInfo{Type: "update", ID: 1},

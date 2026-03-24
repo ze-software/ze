@@ -41,39 +41,39 @@ func TestFormatStateChange(t *testing.T) {
 			name:     "text established",
 			state:    "established",
 			encoding: plugin.EncodingText,
-			want:     "peer 10.0.0.1 asn 65001 state established\n",
+			want:     "peer 10.0.0.1 remote as 65001 state established\n",
 		},
 		{
 			name:     "text down no reason",
 			state:    "down",
 			encoding: plugin.EncodingText,
-			want:     "peer 10.0.0.1 asn 65001 state down\n",
+			want:     "peer 10.0.0.1 remote as 65001 state down\n",
 		},
 		{
 			name:     "text down with reason",
 			state:    "down",
 			reason:   "tcp-failure",
 			encoding: plugin.EncodingText,
-			want:     "peer 10.0.0.1 asn 65001 state down reason tcp-failure\n",
+			want:     "peer 10.0.0.1 remote as 65001 state down reason tcp-failure\n",
 		},
 		{
 			name:     "json established",
 			state:    "established",
 			encoding: plugin.EncodingJSON,
-			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001,"name":""},"state":"established"}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}},"state":"established"}}` + "\n",
 		},
 		{
 			name:     "json down no reason",
 			state:    "down",
 			encoding: plugin.EncodingJSON,
-			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001,"name":""},"state":"down"}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}},"state":"down"}}` + "\n",
 		},
 		{
 			name:     "json down with reason",
 			state:    "down",
 			reason:   "notification",
 			encoding: plugin.EncodingJSON,
-			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001,"name":""},"state":"down","reason":"notification"}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}},"state":"down","reason":"notification"}}` + "\n",
 		},
 	}
 
@@ -104,7 +104,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 				PeerAS:  65001,
 				Name:    "upstream1",
 			},
-			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001,"name":"upstream1"},"state":"established"}}` + "\n",
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.1","name":"upstream1","remote":{"as":65001}},"state":"established"}}` + "\n",
 		},
 		{
 			name: "name and group",
@@ -114,7 +114,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 				Name:      "peer_east",
 				GroupName: "transit",
 			},
-			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.2","asn":65002,"group":"transit","name":"peer_east"},"state":"established"}}` + "\n",
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.2","group":"transit","name":"peer_east","remote":{"as":65002}},"state":"established"}}` + "\n",
 		},
 		{
 			name: "group only",
@@ -123,7 +123,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 				PeerAS:    65003,
 				GroupName: "edge",
 			},
-			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.3","asn":65003,"group":"edge","name":""},"state":"established"}}` + "\n",
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.3","group":"edge","name":"","remote":{"as":65003}},"state":"established"}}` + "\n",
 		},
 		{
 			name: "no name no group",
@@ -131,7 +131,7 @@ func TestPeerJSONNameGroup(t *testing.T) {
 				Address: netip.MustParseAddr("10.0.0.4"),
 				PeerAS:  65004,
 			},
-			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.4","asn":65004,"name":""},"state":"established"}}` + "\n",
+			want: `{"type":"bgp","bgp":{"message":{"type":"state"},"peer":{"address":"10.0.0.4","name":"","remote":{"as":65004}},"state":"established"}}` + "\n",
 		},
 	}
 
@@ -165,25 +165,25 @@ func TestFormatEOR(t *testing.T) {
 			name:     "ipv4/unicast text",
 			family:   "ipv4/unicast",
 			encoding: plugin.EncodingText,
-			want:     "peer 10.0.0.1 asn 65001 eor ipv4/unicast\n",
+			want:     "peer 10.0.0.1 remote as 65001 eor ipv4/unicast\n",
 		},
 		{
 			name:     "ipv6/unicast text",
 			family:   "ipv6/unicast",
 			encoding: plugin.EncodingText,
-			want:     "peer 10.0.0.1 asn 65001 eor ipv6/unicast\n",
+			want:     "peer 10.0.0.1 remote as 65001 eor ipv6/unicast\n",
 		},
 		{
 			name:     "ipv4/unicast json",
 			family:   "ipv4/unicast",
 			encoding: plugin.EncodingJSON,
-			want:     `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"10.0.0.1","asn":65001,"name":""},"eor":{"family":"ipv4/unicast"}}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}},"eor":{"family":"ipv4/unicast"}}}` + "\n",
 		},
 		{
 			name:     "ipv6/unicast json",
 			family:   "ipv6/unicast",
 			encoding: plugin.EncodingJSON,
-			want:     `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"10.0.0.1","asn":65001,"name":""},"eor":{"family":"ipv6/unicast"}}}` + "\n",
+			want:     `{"type":"bgp","bgp":{"message":{"type":"eor"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}},"eor":{"family":"ipv6/unicast"}}}` + "\n",
 		},
 	}
 
@@ -217,25 +217,25 @@ func TestFormatCongestion(t *testing.T) {
 			name:      "congested text",
 			eventType: "congested",
 			encoding:  plugin.EncodingText,
-			want:      "peer 10.0.0.1 asn 65001 congested\n",
+			want:      "peer 10.0.0.1 remote as 65001 congested\n",
 		},
 		{
 			name:      "resumed text",
 			eventType: "resumed",
 			encoding:  plugin.EncodingText,
-			want:      "peer 10.0.0.1 asn 65001 resumed\n",
+			want:      "peer 10.0.0.1 remote as 65001 resumed\n",
 		},
 		{
 			name:      "congested json",
 			eventType: "congested",
 			encoding:  plugin.EncodingJSON,
-			want:      `{"type":"bgp","bgp":{"message":{"type":"congested"},"peer":{"address":"10.0.0.1","asn":65001,"name":""}}}` + "\n",
+			want:      `{"type":"bgp","bgp":{"message":{"type":"congested"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}}}}` + "\n",
 		},
 		{
 			name:      "resumed json",
 			eventType: "resumed",
 			encoding:  plugin.EncodingJSON,
-			want:      `{"type":"bgp","bgp":{"message":{"type":"resumed"},"peer":{"address":"10.0.0.1","asn":65001,"name":""}}}` + "\n",
+			want:      `{"type":"bgp","bgp":{"message":{"type":"resumed"},"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}}}}` + "\n",
 		},
 	}
 
@@ -291,9 +291,9 @@ func TestFormatMessageText(t *testing.T) {
 
 	got := FormatMessage(peer, msg, content, "")
 
-	// Format: peer <ip> asn <asn> <direction> update <id> <attrs> family <family> next-hop <ip> nlri add <prefixes>
-	if !strings.Contains(got, "peer 10.0.0.1 asn 65001 received update") {
-		t.Errorf("FormatMessage() =\n%q\nshould contain 'peer 10.0.0.1 asn 65001 received update'", got)
+	// Format: peer <ip> remote as <asn> <direction> update <id> <attrs> family <family> next-hop <ip> nlri add <prefixes>
+	if !strings.Contains(got, "peer 10.0.0.1 remote as 65001 received update") {
+		t.Errorf("FormatMessage() =\n%q\nshould contain 'peer 10.0.0.1 remote as 65001 received update'", got)
 	}
 	if strings.Contains(got, "announce") {
 		t.Error("should not contain 'announce' keyword (replaced by family + nlri add)")
@@ -368,7 +368,7 @@ func TestFormatMessageJSON(t *testing.T) {
 	if !strings.Contains(got, `"direction":"received"`) {
 		t.Error("missing direction:received in message wrapper")
 	}
-	if !strings.Contains(got, `"peer":{"address":"10.0.0.1","asn":65001,"name":""}`) {
+	if !strings.Contains(got, `"peer":{"address":"10.0.0.1","name":"","remote":{"as":65001}}`) {
 		t.Error("missing peer info")
 	}
 	// NLRIs under "nlri" object with family key
@@ -485,9 +485,9 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 
 	got := FormatMessage(peer, msg, content, "")
 
-	// Should use FormatOpen with uniform header: peer X asn Y received open <msg-id> router-id R hold-time T cap ...
-	if !strings.Contains(got, "peer 10.0.0.1 asn 42 received open") {
-		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'peer 10.0.0.1 asn 42 received open'", got)
+	// Should use FormatOpen with uniform header: peer X remote as Y received open <msg-id> router-id R hold-time T cap ...
+	if !strings.Contains(got, "peer 10.0.0.1 remote as 42 received open") {
+		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'peer 10.0.0.1 remote as 42 received open'", got)
 	}
 	if !strings.Contains(got, "router-id 10.0.0.1") {
 		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'router-id 10.0.0.1'", got)
@@ -520,9 +520,9 @@ func TestFormatNonUpdateKeepalive(t *testing.T) {
 
 	got := FormatMessage(peer, msg, content, "")
 
-	// Should use uniform header: peer X asn Y received keepalive
-	if !strings.Contains(got, "peer 10.0.0.1 asn 65001 received keepalive") {
-		t.Errorf("FormatMessage() for KEEPALIVE =\n%q\nshould contain 'peer 10.0.0.1 asn 65001 received keepalive'", got)
+	// Should use uniform header: peer X remote as Y received keepalive
+	if !strings.Contains(got, "peer 10.0.0.1 remote as 65001 received keepalive") {
+		t.Errorf("FormatMessage() for KEEPALIVE =\n%q\nshould contain 'peer 10.0.0.1 remote as 65001 received keepalive'", got)
 	}
 }
 
@@ -796,12 +796,12 @@ func TestFormatOpenWithDirection(t *testing.T) {
 		{
 			name:      "sent",
 			direction: "sent",
-			want:      "peer 10.0.0.1 asn 65001 sent open 42 router-id 1.1.1.1 hold-time 90\n",
+			want:      "peer 10.0.0.1 remote as 65001 sent open 42 router-id 1.1.1.1 hold-time 90\n",
 		},
 		{
 			name:      "received",
 			direction: "received",
-			want:      "peer 10.0.0.1 asn 65001 received open 42 router-id 1.1.1.1 hold-time 90\n",
+			want:      "peer 10.0.0.1 remote as 65001 received open 42 router-id 1.1.1.1 hold-time 90\n",
 		},
 	}
 
@@ -833,12 +833,12 @@ func TestFormatKeepaliveWithDirection(t *testing.T) {
 		{
 			name:      "sent",
 			direction: "sent",
-			want:      "peer 10.0.0.1 asn 65001 sent keepalive 42\n",
+			want:      "peer 10.0.0.1 remote as 65001 sent keepalive 42\n",
 		},
 		{
 			name:      "received",
 			direction: "received",
-			want:      "peer 10.0.0.1 asn 65001 received keepalive 42\n",
+			want:      "peer 10.0.0.1 remote as 65001 received keepalive 42\n",
 		},
 	}
 
@@ -878,12 +878,12 @@ func TestFormatNotificationWithDirection(t *testing.T) {
 		{
 			name:      "sent",
 			direction: "sent",
-			want:      "peer 10.0.0.1 asn 65001 sent notification 42 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data \n",
+			want:      "peer 10.0.0.1 remote as 65001 sent notification 42 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data \n",
 		},
 		{
 			name:      "received",
 			direction: "received",
-			want:      "peer 10.0.0.1 asn 65001 received notification 42 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data \n",
+			want:      "peer 10.0.0.1 remote as 65001 received notification 42 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data \n",
 		},
 	}
 
@@ -1098,8 +1098,8 @@ func TestFormatFilterResultTextEmptyUpdate(t *testing.T) {
 	if text == "" {
 		t.Fatal("empty UPDATE should produce a non-empty text line")
 	}
-	if !strings.HasPrefix(text, "peer 10.0.0.1 asn 65001") {
-		t.Errorf("expected uniform header 'peer 10.0.0.1 asn 65001 ...', got: %q", text)
+	if !strings.HasPrefix(text, "peer 10.0.0.1 remote as 65001") {
+		t.Errorf("expected uniform header 'peer 10.0.0.1 remote as 65001...', got: %q", text)
 	}
 	if !strings.Contains(text, "update") {
 		t.Errorf("expected 'update' in output, got: %q", text)

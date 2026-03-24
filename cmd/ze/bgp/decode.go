@@ -207,7 +207,7 @@ func makeZeEnvelope(msgType string) map[string]any {
 		"bgp": map[string]any{
 			"peer": map[string]any{
 				"address": "127.0.0.1",
-				"asn":     65533,
+				"remote":  map[string]any{"as": 65533},
 			},
 			"message": map[string]any{
 				"id":        0,

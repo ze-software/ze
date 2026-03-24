@@ -14,7 +14,7 @@ Two header shapes exist depending on message type:
 
 | Shape | Layout | Used By |
 |-------|--------|---------|
-| State | `peer <address> asn <asn> state <state>` | State change events |
+| State | `peer <address> remote as <asn> state <state>` | State change events |
 | Message | `peer <address> <direction> <type> <msgid> <body...>` | UPDATE, OPEN, NOTIFICATION, KEEPALIVE, REFRESH, BORR, EORR |
 <!-- source: internal/component/bgp/format/text.go -- formatStateChangeText, formatFilterResultText -->
 
@@ -28,7 +28,7 @@ Direction is `received` or `sent`. Message ID is a monotonically increasing inte
 
 ```
 <message>       ::= <state-event> | <message-event>
-<state-event>   ::= "peer" <address> "asn" <asn> "state" <state-value> LF
+<state-event>   ::= "peer" <address> "remote" "as" <asn> "state" <state-value> LF
 <message-event> ::= "peer" <address> <direction> <type> <msgid> <body> LF
 
 <direction>     ::= "received" | "sent"
@@ -148,9 +148,9 @@ Format: `<afi>/<safi>` — always slash-separated, lowercase.
 All examples verified against `format/text_test.go`.
 
 ```
-peer 10.0.0.1 asn 65001 state up
+peer 10.0.0.1 remote as 65001 state up
 
-peer 10.0.0.1 asn 65001 state down
+peer 10.0.0.1 remote as 65001 state down
 
 peer 10.0.0.1 received update 1 announce origin igp path 65001,65002 pref 100 ipv4/unicast next 10.0.0.1 nlri 192.168.1.0/24
 
@@ -212,12 +212,12 @@ For implemented changes, see the current format sections above.
 
 ### Still Proposed: Uniform Header
 
-All messages start with `peer <ip> asn <asn>`. After `asn <n>`, the next token dispatches:
+All messages start with `peer <ip> remote as <asn>`. After `as <n>`, the next token dispatches:
 - `state` — state event
 - `negotiated` — negotiated event (new addition)
 - `received` / `sent` — direction, followed by message type
 
-Currently, state events include `asn` but message events do not.
+Currently, state events include `remote as` but message events do not.
 
 ### Still Proposed: Event NLRI Restructuring
 

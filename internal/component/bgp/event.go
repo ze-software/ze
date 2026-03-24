@@ -330,82 +330,83 @@ func (e *Event) GetDirection() string {
 	return ""
 }
 
-// PeerInfoFlat is the flat peer format (sent events, state events).
-type PeerInfoFlat struct {
-	Address string `json:"address"`
-	ASN     uint32 `json:"asn"`
+// PeerRemoteInfo holds the remote peer identity (YANG: container remote).
+type PeerRemoteInfo struct {
+	AS uint32 `json:"as"`
 }
 
-// PeerInfoNested is the nested peer format (received events).
-type PeerInfoNested struct {
-	Address struct {
-		Local string `json:"local"`
-		Peer  string `json:"peer"`
-	} `json:"address"`
-	ASN struct {
-		Local uint32 `json:"local"`
-		Peer  uint32 `json:"peer"`
-	} `json:"asn"`
-	State string `json:"state,omitempty"`
+// PeerLocalInfo holds local peer identity (YANG: container local).
+type PeerLocalInfo struct {
+	Address string `json:"address,omitempty"`
+	AS      uint32 `json:"as,omitempty"`
 }
 
-// GetPeerAddress extracts the peer address from either format.
+// PeerInfoJSON is the YANG-aligned peer format for all events.
+// Flat events (state, sent) omit Local. Full events include Local.
+type PeerInfoJSON struct {
+	Address string         `json:"address"`
+	Name    string         `json:"name,omitempty"`
+	Group   string         `json:"group,omitempty"`
+	Remote  PeerRemoteInfo `json:"remote"`
+	Local   *PeerLocalInfo `json:"local,omitempty"`
+	State   string         `json:"state,omitempty"`
+}
+
+// GetPeerAddress extracts the peer address (YANG: address leaf).
 func (e *Event) GetPeerAddress() string {
 	if len(e.Peer) == 0 {
 		return ""
 	}
 
-	// Try flat format first (sent events, state events).
-	var flat PeerInfoFlat
-	if err := json.Unmarshal(e.Peer, &flat); err == nil && flat.Address != "" {
-		return flat.Address
-	}
-
-	// Try nested format (received events).
-	var nested PeerInfoNested
-	if err := json.Unmarshal(e.Peer, &nested); err == nil && nested.Address.Peer != "" {
-		return nested.Address.Peer
+	var info PeerInfoJSON
+	if err := json.Unmarshal(e.Peer, &info); err == nil && info.Address != "" {
+		return info.Address
 	}
 
 	return ""
 }
 
-// GetPeerASN extracts the peer ASN from either format.
+// GetPeerASN extracts the remote peer ASN (YANG: remote.as).
 func (e *Event) GetPeerASN() uint32 {
 	if len(e.Peer) == 0 {
 		return 0
 	}
 
-	// Try flat format first.
-	var flat PeerInfoFlat
-	if err := json.Unmarshal(e.Peer, &flat); err == nil && flat.ASN > 0 {
-		return flat.ASN
-	}
-
-	// Try nested format.
-	var nested PeerInfoNested
-	if err := json.Unmarshal(e.Peer, &nested); err == nil && nested.ASN.Peer > 0 {
-		return nested.ASN.Peer
+	var info PeerInfoJSON
+	if err := json.Unmarshal(e.Peer, &info); err == nil && info.Remote.AS > 0 {
+		return info.Remote.AS
 	}
 
 	return 0
 }
 
-// GetPeerState extracts peer state from nested format (state events in new format).
-func (e *Event) GetPeerState() string {
-	// First check top-level State field.
-	if e.State != "" {
-		return e.State
-	}
-
-	// Check nested format.
+// GetPeerName extracts the peer name (YANG: name leaf).
+func (e *Event) GetPeerName() string {
 	if len(e.Peer) == 0 {
 		return ""
 	}
 
-	var nested PeerInfoNested
-	if err := json.Unmarshal(e.Peer, &nested); err == nil && nested.State != "" {
-		return nested.State
+	var info PeerInfoJSON
+	if err := json.Unmarshal(e.Peer, &info); err == nil {
+		return info.Name
+	}
+
+	return ""
+}
+
+// GetPeerState extracts peer state from the peer object or top-level State field.
+func (e *Event) GetPeerState() string {
+	if e.State != "" {
+		return e.State
+	}
+
+	if len(e.Peer) == 0 {
+		return ""
+	}
+
+	var info PeerInfoJSON
+	if err := json.Unmarshal(e.Peer, &info); err == nil && info.State != "" {
+		return info.State
 	}
 
 	return ""

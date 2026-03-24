@@ -416,7 +416,7 @@ func TestBridgeIntegration_RealPlugin(t *testing.T) {
 	zebgpEvent := map[string]any{
 		"meta":    map[string]any{"version": "1.0.0", "format": "ze-bgp"},
 		"message": map[string]any{"type": "update", "id": 1, "direction": "received"},
-		"peer":    map[string]any{"address": "10.0.0.1", "asn": 65001},
+		"peer":    map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": 65001}},
 		"origin":  "igp",
 		"ipv4/unicast": []any{
 			map[string]any{"action": "add", "next-hop": "10.0.0.1", "nlri": []any{"192.168.1.0/24"}},
@@ -447,7 +447,7 @@ func TestBridgeIntegration_RealPlugin(t *testing.T) {
 	withdrawEvent := map[string]any{
 		"meta":    map[string]any{"version": "1.0.0", "format": "ze-bgp"},
 		"message": map[string]any{"type": "update", "id": 2, "direction": "received"},
-		"peer":    map[string]any{"address": "10.0.0.1", "asn": 65001},
+		"peer":    map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": 65001}},
 		"ipv4/unicast": []any{
 			map[string]any{"action": "del", "nlri": []any{"192.168.1.0/24"}},
 		},
@@ -665,7 +665,7 @@ func TestBridgeIntegration_IPv6(t *testing.T) {
 	h.SendJSON(map[string]any{
 		"meta":    map[string]any{"version": "1.0.0", "format": "ze-bgp"},
 		"message": map[string]any{"type": "update", "direction": "received"},
-		"peer":    map[string]any{"address": "2001:db8::1", "asn": 65001},
+		"peer":    map[string]any{"address": "2001:db8::1", "remote": map[string]any{"as": 65001}},
 		"origin":  "igp",
 		"ipv6/unicast": []any{
 			map[string]any{"action": "add", "next-hop": "2001:db8::1", "nlri": []any{"2001:db8:1::/48"}},
@@ -697,7 +697,7 @@ func TestBridgeIntegration_MultipleNLRI(t *testing.T) {
 	h.SendJSON(map[string]any{
 		"meta":    map[string]any{"version": "1.0.0", "format": "ze-bgp"},
 		"message": map[string]any{"type": "update", "direction": "received"},
-		"peer":    map[string]any{"address": "10.0.0.1", "asn": 65001},
+		"peer":    map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": 65001}},
 		"origin":  "igp",
 		"ipv4/unicast": []any{
 			map[string]any{
@@ -740,7 +740,7 @@ func TestBridgeIntegration_StateMessage(t *testing.T) {
 	h.SendJSON(map[string]any{
 		"meta":    map[string]any{"version": "1.0.0", "format": "ze-bgp"},
 		"message": map[string]any{"type": "state", "direction": "received"},
-		"peer":    map[string]any{"address": "10.0.0.1", "asn": 65001},
+		"peer":    map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": 65001}},
 		"state":   "up",
 	})
 
@@ -770,7 +770,7 @@ func TestBridgeIntegration_NotificationMessage(t *testing.T) {
 	h.SendJSON(map[string]any{
 		"meta":    map[string]any{"version": "1.0.0", "format": "ze-bgp"},
 		"message": map[string]any{"type": "notification", "direction": "received"},
-		"peer":    map[string]any{"address": "10.0.0.1", "asn": 65001},
+		"peer":    map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": 65001}},
 		"notification": map[string]any{
 			"code":    6,
 			"subcode": 4,

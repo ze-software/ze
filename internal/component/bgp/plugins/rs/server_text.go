@@ -110,9 +110,9 @@ func buildNLRIEntries(tokens []string) []any {
 // quickParseTextEvent extracts event type, message ID, peer address, and raw text
 // from a text-format event line. Returns the full text as payload for deferred parsing.
 //
-// Uniform header: "peer <addr> asn <n> ..."
-// State:   "peer <addr> asn <n> state <state>"       → dispatch="state"
-// Message: "peer <addr> asn <n> <dir> <type> <id>"   → dispatch=<type>.
+// Uniform header: "peer <addr> remote as <n> ..."
+// State:   "peer <addr> remote as <n> state <state>"       → dispatch="state"
+// Message: "peer <addr> remote as <n> <dir> <type> <id>"   → dispatch=<type>.
 func quickParseTextEvent(text string) (string, uint64, string, string, error) {
 	text = strings.TrimRight(text, "\n")
 	s := textparse.NewScanner(text)
@@ -126,13 +126,16 @@ func quickParseTextEvent(text string) (string, uint64, string, string, error) {
 	if !ok {
 		return "", 0, "", "", fmt.Errorf("invalid text event: missing peer address")
 	}
-	// asn
-	if tok, ok := s.Next(); !ok || tok != tokenASN {
-		return "", 0, "", "", fmt.Errorf("invalid text event: missing asn keyword")
+	// remote as <n>
+	if tok, ok := s.Next(); !ok || tok != tokenRemote {
+		return "", 0, "", "", fmt.Errorf("invalid text event: missing remote keyword")
+	}
+	if tok, ok := s.Next(); !ok || tok != tokenAS {
+		return "", 0, "", "", fmt.Errorf("invalid text event: missing as keyword")
 	}
 	// <n> (ASN value — consumed but not returned; available from payload)
 	if _, ok := s.Next(); !ok {
-		return "", 0, "", "", fmt.Errorf("invalid text event: missing asn value")
+		return "", 0, "", "", fmt.Errorf("invalid text event: missing as value")
 	}
 
 	// Next token: either "state" or <direction>
@@ -186,7 +189,7 @@ func parseTextUpdateFamilies(text string) map[string]bool {
 // parseTextNLRIOps extracts family operations (add/del + NLRIs) from a text UPDATE.
 // Used by processForward to populate the withdrawal map.
 //
-// Format: "peer <addr> asn <n> <dir> update <id> <attrs> [next <nh>] nlri <fam> add|del <nlris> ..."
+// Format: "peer <addr> remote as <n> <dir> update <id> <attrs> [next <nh>] nlri <fam> add|del <nlris> ..."
 //
 // Key-dispatch loop processes keywords sequentially, resolving aliases via textparse.ResolveAlias:
 // - Attribute keywords (origin, path, pref, etc.): skip value(s)
@@ -195,8 +198,8 @@ func parseTextNLRIOps(text string) map[string][]FamilyOperation {
 	result := make(map[string][]FamilyOperation)
 	s := textparse.NewScanner(strings.TrimRight(text, "\n"))
 
-	// Skip header: peer <addr> asn <n> <dir> update <id>
-	for i := 0; i < 7 && !s.Done(); i++ {
+	// Skip header: peer <addr> remote as <n> <dir> update <id>
+	for i := 0; i < 8 && !s.Done(); i++ {
 		s.Next()
 	}
 
@@ -275,7 +278,7 @@ func parseTextNLRIOps(text string) map[string][]FamilyOperation {
 }
 
 // parseTextOpen extracts OPEN event data from text format.
-// Format: "peer <addr> asn <n> <dir> open <id> router-id <ip> hold-time <t> cap <code> <name> [<value>]...".
+// Format: "peer <addr> remote as <n> <dir> open <id> router-id <ip> hold-time <t> cap <code> <name> [<value>]...".
 // ASN is extracted from the uniform header.
 func parseTextOpen(text string) *Event {
 	s := textparse.NewScanner(strings.TrimRight(text, "\n"))
@@ -293,8 +296,9 @@ func parseTextOpen(text string) *Event {
 		Open:     &OpenInfo{},
 	}
 
-	// asn <n>
-	s.Next() // "asn"
+	// remote as <n>
+	s.Next() // "remote"
+	s.Next() // "as"
 	if asnStr, ok := s.Next(); ok {
 		if n, err := strconv.ParseUint(asnStr, 10, 32); err == nil {
 			event.PeerASN = uint32(n)  //nolint:gosec // bounded by ParseUint bitSize=32
@@ -348,7 +352,7 @@ func parseTextOpen(text string) *Event {
 }
 
 // parseTextState extracts state event data from text format.
-// Format: "peer <addr> asn <n> state <state>".
+// Format: "peer <addr> remote as <n> state <state>".
 func parseTextState(text string) *Event {
 	s := textparse.NewScanner(strings.TrimRight(text, "\n"))
 
@@ -371,10 +375,13 @@ func parseTextState(text string) *Event {
 			break
 		}
 		switch tok {
-		case "asn":
-			if v, ok := s.Next(); ok {
-				if n, err := strconv.ParseUint(v, 10, 32); err == nil {
-					event.PeerASN = uint32(n) //nolint:gosec // bounded by ParseUint bitSize=32
+		case "remote":
+			// remote as <n>
+			if as, ok := s.Next(); ok && as == "as" {
+				if v, ok := s.Next(); ok {
+					if n, err := strconv.ParseUint(v, 10, 32); err == nil {
+						event.PeerASN = uint32(n) //nolint:gosec // bounded by ParseUint bitSize=32
+					}
 				}
 			}
 		case "state":
@@ -388,7 +395,7 @@ func parseTextState(text string) *Event {
 }
 
 // parseTextRefresh extracts refresh event data from text format.
-// Format: "peer <addr> asn <n> <dir> refresh|borr|eorr <id> family <family>".
+// Format: "peer <addr> remote as <n> <dir> refresh|borr|eorr <id> family <family>".
 func parseTextRefresh(text string) *Event {
 	s := textparse.NewScanner(strings.TrimRight(text, "\n"))
 
@@ -399,8 +406,9 @@ func parseTextRefresh(text string) *Event {
 		return nil
 	}
 
-	// asn <n>
-	s.Next() // "asn"
+	// remote as <n>
+	s.Next() // "remote"
+	s.Next() // "as"
 	s.Next() // ASN value
 
 	// <dir> <type> <id>

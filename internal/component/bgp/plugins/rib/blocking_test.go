@@ -88,7 +88,7 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 
 	// Step 1: Send a "sent" event to populate ribOut with a route.
 	// This is a "type":"sent" event — the rib plugin stores it in ribOut.
-	sentEvent := `{"type":"sent","msg-id":1,"peer":{"address":"10.0.0.1","asn":65001},"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}`
+	sentEvent := `{"type":"sent","msg-id":1,"peer":{"address":"10.0.0.1","remote":{"as":65001}},"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}`
 	deliverEventSync(t, ctx, mux, sentEvent)
 
 	// Step 2: Start a goroutine to handle update-route requests on plugin-to-engine.
@@ -142,8 +142,8 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 	// even if the engine could send the probe, the plugin couldn't process it
 	// until replayRoutes finishes.
 
-	stateUpEvent := `{"type":"state","peer":{"address":"10.0.0.1","asn":65001},"state":"up"}`
-	probeEvent := `{"type":"sent","msg-id":2,"peer":{"address":"10.0.0.1","asn":65001},"ipv4/unicast":[{"next-hop":"2.2.2.2","action":"add","nlri":["10.0.1.0/24"]}]}`
+	stateUpEvent := `{"type":"state","peer":{"address":"10.0.0.1","remote":{"as":65001}},"state":"up"}`
+	probeEvent := `{"type":"sent","msg-id":2,"peer":{"address":"10.0.0.1","remote":{"as":65001}},"ipv4/unicast":[{"next-hop":"2.2.2.2","action":"add","nlri":["10.0.1.0/24"]}]}`
 
 	type deliverResult struct {
 		duration time.Duration

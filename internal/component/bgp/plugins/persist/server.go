@@ -338,9 +338,12 @@ func quickParsePersistEvent(text string) (string, uint64, string, string, error)
 	if !ok {
 		return "", 0, "", "", fmt.Errorf("missing peer address")
 	}
-	// asn
-	if tok, ok := s.Next(); !ok || tok != "asn" {
-		return "", 0, "", "", fmt.Errorf("missing asn keyword")
+	// remote as
+	if tok, ok := s.Next(); !ok || tok != "remote" {
+		return "", 0, "", "", fmt.Errorf("missing remote keyword")
+	}
+	if tok, ok := s.Next(); !ok || tok != "as" {
+		return "", 0, "", "", fmt.Errorf("missing as keyword")
 	}
 	// <n>
 	if _, ok := s.Next(); !ok {
@@ -384,8 +387,8 @@ func parsePersistNLRIOps(text string) map[string][]persistFamilyOp {
 	result := make(map[string][]persistFamilyOp)
 	s := textparse.NewScanner(strings.TrimRight(text, "\n"))
 
-	// Skip header: peer <addr> asn <n> <dir> update <id>
-	for i := 0; i < 7 && !s.Done(); i++ {
+	// Skip header: peer <addr> remote as <n> <dir> update <id>
+	for i := 0; i < 8 && !s.Done(); i++ {
 		s.Next()
 	}
 
@@ -517,10 +520,13 @@ func parsePersistState(text string) *persistEvent {
 			break
 		}
 		switch tok {
-		case "asn":
-			if v, ok := s.Next(); ok {
-				if n, err := strconv.ParseUint(v, 10, 32); err == nil {
-					event.asn = uint32(n) //nolint:gosec // bounded by ParseUint bitSize=32
+		case "remote":
+			// remote as <n>
+			if as, ok := s.Next(); ok && as == "as" {
+				if v, ok := s.Next(); ok {
+					if n, err := strconv.ParseUint(v, 10, 32); err == nil {
+						event.asn = uint32(n) //nolint:gosec // bounded by ParseUint bitSize=32
+					}
 				}
 			}
 		case persistEventState:
@@ -547,8 +553,9 @@ func parsePersistOpen(text string) *persistEvent {
 		families: make(map[string]bool),
 	}
 
-	// asn <n>
-	s.Next() // "asn"
+	// remote as <n>
+	s.Next() // "remote"
+	s.Next() // "as"
 	if asnStr, ok := s.Next(); ok {
 		if n, err := strconv.ParseUint(asnStr, 10, 32); err == nil {
 			event.asn = uint32(n) //nolint:gosec // bounded by ParseUint bitSize=32

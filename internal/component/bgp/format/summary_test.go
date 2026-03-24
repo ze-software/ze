@@ -130,7 +130,9 @@ func TestFormatSummaryPeerNameGroup(t *testing.T) {
 	peerObj, ok := bgp["peer"].(map[string]any)
 	require.True(t, ok, "bgp.peer must be object")
 	assert.Equal(t, "10.0.0.1", peerObj["address"])
-	assert.Equal(t, float64(65001), peerObj["asn"])
+	remoteObj, ok := peerObj["remote"].(map[string]any)
+	require.True(t, ok, "peer.remote must be object")
+	assert.Equal(t, float64(65001), remoteObj["as"])
 	assert.Equal(t, "transit", peerObj["group"])
 	assert.Equal(t, "upstream1", peerObj["name"])
 }

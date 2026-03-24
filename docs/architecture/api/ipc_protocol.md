@@ -126,7 +126,7 @@ JSON with `type` field indicating which key contains the payload. The `peer` fie
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "peer": {"address": "10.0.0.1", "asn": 65001, "group": "transit", "name": "upstream1"},
+    "peer": {"address": "10.0.0.1", "group": "transit", "name": "upstream1", "remote": {"as": 65001}},
     "update": {
       "message": {"id": 123, "direction": "received"},
       "attr": {"origin": "igp", "as-path": [65001]},
@@ -153,7 +153,7 @@ JSON with `type` field indicating which key contains the payload. The `peer` fie
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `type` | string | Always | `update`, `open`, `notification`, `keepalive`, `refresh`, `state`, `negotiated` |
-| `peer` | object | Always | `{"address":"<ip>", "asn":<asn>}` - at bgp level. Optional `"name"` and `"group"` when configured. |
+| `peer` | object | Always | `{"address":"<ip>", "remote":{"as":<asn>}}` - at bgp level. Optional `"name"` and `"group"` when configured. |
 | `<type>` | object/string | Usually | Event data nested under event type key (string for state events) |
 
 **BGP event data fields (inside `bgp.<type>` object, except state):**
@@ -175,7 +175,7 @@ JSON with `type` field indicating which key contains the payload. The `peer` fie
 | `type` | string | Always | `cache`, `route` |
 | `action` | string | Always | `new`, `evict`, `add`, `remove` |
 | `msg-id` | uint64 | For cache events | Message cache ID |
-| `peer` | object | Always | `{"address":"<ip>", "asn":<asn>}`. Optional `"name"` and `"group"` when configured. |
+| `peer` | object | Always | `{"address":"<ip>", "remote":{"as":<asn>}}`. Optional `"name"` and `"group"` when configured. |
 
 **Message object fields (BGP wire messages only):**
 
@@ -468,7 +468,7 @@ RIB events include `peer` field indicating which peer caused the event.
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "peer": {"address": "192.0.2.1", "asn": 65001},
+    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
     "update": {
       "message": {"id": 123, "direction": "received"},
       "attr": {
@@ -492,7 +492,7 @@ RIB events include `peer` field indicating which peer caused the event.
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "peer": {"address": "192.0.2.1", "asn": 65001},
+    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
     "update": {
       "message": {"id": 0, "direction": "sent"},
       "attr": {
@@ -517,7 +517,7 @@ RIB events include `peer` field indicating which peer caused the event.
   "type": "bgp",
   "bgp": {
     "type": "update",
-    "peer": {"address": "192.0.2.1", "asn": 65001},
+    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
     "update": {
       "message": {"id": 123, "direction": "received"},
       "attr": {
@@ -545,7 +545,7 @@ RIB events include `peer` field indicating which peer caused the event.
   "type": "bgp",
   "bgp": {
     "type": "state",
-    "peer": {"address": "192.0.2.1", "asn": 65001},
+    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
     "state": "up"
   }
 }
@@ -557,7 +557,7 @@ RIB events include `peer` field indicating which peer caused the event.
   "type": "bgp",
   "bgp": {
     "type": "state",
-    "peer": {"address": "192.0.2.1", "asn": 65001},
+    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
     "state": "down",
     "reason": "hold timer expired"
   }
@@ -572,7 +572,7 @@ RIB events include `peer` field indicating which peer caused the event.
     "type": "cache",
     "action": "new",
     "msg-id": 12345,
-    "peer": {"address": "192.0.2.1", "asn": 65001}
+    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}}
   }
 }
 ```
@@ -711,7 +711,7 @@ When backpressure triggers:
 When `bgp plugin encoding text` is set, events use human-readable text format (not JSON wrapper):
 
 ```
-peer <ip> asn <asn> <direction> <type> <msg-id> <fields...>
+peer <ip> remote as <asn> <direction> <type> <msg-id> <fields...>
 ```
 
 **Note:** Text format intentionally stays flat for human readability. No JSON wrapping is applied.
@@ -720,9 +720,9 @@ peer <ip> asn <asn> <direction> <type> <msg-id> <fields...>
 Examples:
 
 ```
-peer 192.0.2.1 asn 65001 state up
-peer 192.0.2.1 asn 65001 received update 1 announce origin igp as-path 65001 ipv4/unicast next-hop 192.0.2.1 nlri 10.0.0.0/24
-peer 192.0.2.1 asn 65001 sent keepalive 42
+peer 192.0.2.1 remote as 65001 state up
+peer 192.0.2.1 remote as 65001 received update 1 announce origin igp as-path 65001 ipv4/unicast next-hop 192.0.2.1 nlri 10.0.0.0/24
+peer 192.0.2.1 remote as 65001 sent keepalive 42
 ```
 
 ---

@@ -90,7 +90,7 @@ func extractFamily(envelope map[string]any) string {
 //	  "type": "bgp",
 //	  "bgp": {
 //	    "message": {"type": "update", "id": 0, "direction": "received"},
-//	    "peer": {"address": "127.0.0.1", "asn": 65533},
+//	    "peer": {"address": "127.0.0.1", "remote": {"as": 65533}},
 //	    "update": {
 //	      "attr": {"origin": "igp", "as-path": [65533]},
 //	      "ipv4/unicast": [{"next-hop": "10.0.1.254", "action": "add", "nlri": ["10.0.0.0/24"]}]

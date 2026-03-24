@@ -19,7 +19,7 @@ never acceptable.
 |-------|-----------|---------|
 | 1 | Per-peer channel buffer (existing, 64 items) | Absorbs micro-bursts |
 | 2 | Global overflow pool with weighted access | Channel full |
-| 3 | Read throttling on culprit source peers | Pool filling |
+| 3 | Buffer denial on culprit source peers (natural TCP backpressure) | Pool filling |
 | 4 | Session teardown (GR-aware, last resort) | Pool exhausted, backpressure insufficient |
 
 ## Pool Capacity Tracks Peer Set
@@ -65,26 +65,37 @@ RIPE RIS (stat.ripe.net), RouteViews (routeviews.org).
 
 | Prefix maximum | Typical real/max ratio | Burst fraction | Reasoning |
 |---------------|----------------------|---------------|-----------|
-| < 500 | ~25% (4x overstatement) | 100% of max | Peer could genuinely double overnight (new customer). Small absolute numbers. |
-| 500 - 10K | ~40% | 50% | Medium operators, moderate growth room |
-| 10K - 100K | ~60-70% | 30% | Transit/content, more predictable |
-| 100K - 500K | ~80% | 15% | Large transit, table is mostly stable |
-| 500K+ (full table) | ~90% | 10% | DFZ grows slowly, convergence events are the main burst source |
+| 1 - 499 | ~25% (4x overstatement) | 100% of max | Peer could genuinely double overnight (new customer). Small absolute numbers. |
+| 500 - 9,999 | ~40% | 50% | Medium operators, moderate growth room |
+| 10,000 - 99,999 | ~60-70% | 30% | Transit/content, more predictable |
+| 100,000 - 499,999 | ~80% | 15% | Large transit, table is mostly stable |
+| 500,000+ (full table) | ~90% | 10% | DFZ grows slowly, convergence events are the main burst source |
 
-**Example:** A peer with `prefix maximum 200` has burst fraction 100% =
-200 items. A peer with `prefix maximum 1000000` has burst fraction 10% =
-100,000 items. The small peer's pool weight is 200, the large peer's is
-100,000 -- reflecting the realistic burst, not the raw limit.
+**Example:** A peer with `prefix maximum 200` has weight 200 (100%
+burst fraction). A peer with `prefix maximum 1,000,000` has weight
+100,000 (10% burst fraction). Weight reflects the realistic burst, not
+the raw limit. Weight is used for both pool share fairness and
+usage-to-weight ratio tracking.
 
 ### Channel Size (Layer 1)
 
-The per-peer channel absorbs micro-bursts (seconds of updates). Its size
-is a fraction of the expected burst, not the whole burst. The overflow
-pool (Layer 2) handles sustained bursts.
+The per-peer channel absorbs micro-bursts (milliseconds of updates).
+Its size is derived from the peer's weight (burst-adjusted prefix count),
+scaled down because the channel only needs to cover the time between
+drain cycles.
 
-The channel size is derived from the same burst fraction, scaled down
-further because the channel only needs to cover the time between drain
-cycles (milliseconds, not seconds).
+| Peer weight (burst-adjusted) | Channel size | Reasoning |
+|-----------------------------|-------------|-----------|
+| 1 - 99 | 16 | Small peer, small bursts. Floor prevents starvation. |
+| 100 - 999 | 32 | Medium peer |
+| 1,000 - 9,999 | 64 | Current default, fits most peers |
+| 10,000 - 99,999 | 128 | Large peer, bigger micro-bursts |
+| 100,000+ | 256 | Full table peer, convergence events touch many prefixes |
+
+The channel is the fast path (no weighted access check, no fairness
+tracking). It should be large enough that normal operation rarely hits
+the overflow path, but small enough that the overflow pool is the
+primary buffer during real congestion.
 
 ## Asymmetric Allocation and Release
 
@@ -133,22 +144,25 @@ The pool does not pre-allocate its full maximum at startup. It grows in
 | Usage reaches 90% of current allocation | Allocate another 10% block |
 | Upper bound | 100% of maximum (sum of all peer weights) |
 
-### Shrink: Per-Buffer on Return
+### Shrink: Per-Block on Return
 
-When a buffer is returned to the pool (destination drained the item),
-the pool checks whether it has excess capacity. If free space exceeds
-20% of current allocation, the returned slice reference is nil'd (dropped)
-rather than kept in the available inventory. When all slices from a block's
-backing array are nil'd, the GC frees the entire backing array.
+When a buffer is returned, the block ID routes it to the correct block's
+free list. The multiplexer then checks whether the block can be freed:
 
-| On buffer return | Free space <= 20% | Free space > 20% |
-|-----------------|-------------------|------------------|
-| Buffer from first 10% block | Keep (permanent) | Keep (permanent) |
-| Buffer from later blocks | Keep in inventory | Nil the reference (GC frees block when all nil'd) |
+| Condition | Action |
+|-----------|--------|
+| Block is permanent (ID 0) | Always keep. Buffer goes to block's free list. |
+| Block has all buffers free AND pool has >20% excess capacity | Drop the block: nil all refs, remove from multiplexer. GC frees backing array. |
+| Block has outstanding buffers | Keep. Buffer goes to block's free list. |
 
-The first 10% block is permanent -- the pool holds its slice references
-forever, so the backing array is never collected. This provides a hot
-reserve that absorbs the next burst with zero allocation latency.
+Because each buffer carries its block ID, returns are always routed to
+the correct block. No searching, no pointer comparison. When a block's
+free count equals its total count, the multiplexer knows with certainty
+that every buffer is home -- the block can be dropped safely.
+
+The first block (ID 0) is permanent -- the multiplexer never drops it.
+This provides a hot reserve that absorbs the next burst with zero
+allocation latency.
 
 ### Example
 
@@ -177,29 +191,29 @@ transfer step.
 
 ### Normal Path (no congestion)
 
-| Step | Buffer owner |
-|------|-------------|
-| Read loop requests buffer | Peer's local read pool (readBufPool4K / readBufPool64K) |
-| TCP read fills buffer with UPDATE | Local read pool |
-| UPDATE processed, forwarded via channel | Local read pool |
-| Processing complete | Buffer returned to local read pool |
+| Step | Buffer |
+|------|--------|
+| Read loop requests handle from multiplexer | `Get()` returns `{ID, Buf}` from preferred block |
+| TCP read fills `handle.Buf` with UPDATE | Handle held by read loop |
+| UPDATE processed, forwarded via channel | Handle passed through |
+| Processing complete | `Return(handle)` routes to `blocks[ID]` free list |
 
 <!-- source: internal/component/bgp/reactor/session.go -- getReadBuffer, ReturnReadBuffer -->
 
 ### Congestion Path (channel full)
 
-| Step | Buffer owner |
-|------|-------------|
+| Step | Buffer |
+|------|--------|
 | Read loop detects destination channel full | -- |
-| Read loop requests buffer from overflow pool (not local pool) | **Global overflow pool** |
-| TCP read fills buffer with UPDATE | Overflow pool |
-| Item queued in overflow backlog | Already in overflow pool memory -- no copy |
-| Destination worker drains item, forwards to peer | Overflow pool |
-| Processing complete | Buffer returned to overflow pool |
+| Read loop requests handle from multiplexer (weighted access check) | `Get()` checks usage-to-weight ratio before granting |
+| TCP read fills `handle.Buf` with UPDATE | Handle held by multiplexer (buffer is in a block) |
+| Item queued in overflow backlog | Handle passed to backlog -- no copy, buffer stays in same block |
+| Destination worker drains item, forwards to peer | Handle passed through |
+| Processing complete | `Return(handle)` routes to `blocks[ID]` free list |
 
-The buffer was always owned by the overflow pool. It was allocated from the
-pool, read into directly, and returned to the pool after the destination
-peer processes it. Zero copies by construction.
+The buffer was always in its block's backing array. It was allocated from
+the multiplexer, read into directly, and returned to the same block after
+the destination peer processes it. Zero copies by construction.
 
 ### Natural Backpressure
 
@@ -219,9 +233,11 @@ Access rights are proportional to weight but diminish with usage.
 
 ### Weight Assignment
 
-Each peer's weight is its expected prefix count (from the priority sources
-listed above). The weight determines the peer's proportional share of the
-pool.
+Weight = burst-adjusted prefix count. It is the peer's `prefix maximum`
+(or observed/estimated count) scaled by the burst fraction for that peer's
+size tier. Weight determines both the peer's proportional share of the
+pool (fairness) and the denominator in the usage-to-weight ratio
+(backpressure targeting).
 
 ### Diminishing Access
 
@@ -267,12 +283,9 @@ When the overflow pool runs low, the peer with the worst usage-to-weight
 ratio is denied buffers first. This is the throttle: no buffer means no
 read means TCP backpressure on the source.
 
-## Unified Pool Implementation
+## Pool Multiplexer
 
 <!-- source: internal/component/bgp/reactor/session.go -- readBufPool4K, readBufPool64K, buildBufPool -->
-
-The block-backed pool replaces all existing `sync.Pool` instances. The
-change is how memory is initialized -- the Get/Return API stays the same.
 
 ### Current: sync.Pool (to be replaced)
 
@@ -287,46 +300,84 @@ Three `sync.Pool` instances with per-buffer `make()` in `New`:
 `buildBufPool` is the same size as `readBufPool4K` -- these merge into
 one 4K instance. Three pools become two (4K and 64K).
 
-`sync.Pool` weakness: the GC can evict entries between cycles. Under GC
-pressure (exactly when congestion happens), the pool empties and forces
-fresh allocations at the worst possible time.
+`sync.Pool` cannot route returns to the correct block. It is an unordered
+free list -- `Get()` returns an arbitrary item, and there is no way to
+preferentially drain a specific block. The GC can also evict entries
+between cycles, which prevents deterministic block freeing.
 
-### New: Block-Backed Pool
+### New: Pool Multiplexer with Block-Backed Slices
 
-Same Get/Return interface. Different memory initialization: one backing
-array per block, buffers are slices into it. GC tracks blocks (few), not
-individual buffers (many).
+The pool hands out a handle, not a raw `[]byte`. The handle carries the
+block ID so returns are always routed to the correct block.
 
-Two pool instances, one pool type:
+**Handle type:**
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| ID | uint16 | Block this buffer belongs to. Assigned at allocation, never changes. |
+| Buf | []byte | The buffer (slice into backing array). Used for reads/writes. |
+
+**Multiplexer operations:**
+
+| Operation | What happens |
+|-----------|-------------|
+| `Get()` | Pick preferred block (permanent first, then lowest-numbered with free buffers). Return handle. |
+| `Return(handle)` | Route to `blocks[handle.ID].free(handle.Buf)`. O(1), no searching. |
+| `Grow()` | Allocate new block (one backing array), assign next ID, register with multiplexer. |
+| `Shrink(blockID)` | When block has all buffers free and pool has excess capacity, drop block. Nil all refs, remove from multiplexer. GC frees backing array. |
+
+**Allocation preference:** `Get()` takes from the permanent block first
+(ID 0), then the lowest-numbered block with free buffers. This keeps
+pressure on higher-numbered blocks, making them candidates for shrink.
+
+**Deterministic block freeing:** Each block tracks its total count and
+free count. When `freeCount == totalCount`, every buffer is home. The
+multiplexer can drop the block with certainty -- no guessing, no
+stale-reference risk.
+
+**Per-block free list:** Each block has its own free list (simple slice
+of available buffer indices). No global free list. The block ID in the
+handle routes returns to the correct list in O(1).
+
+**Concurrency:** One mutex per multiplexer (not per block). The
+multiplexer is only used during congestion (normal path uses per-peer
+channels). Overflow is already the slow path -- a mutex is acceptable.
+The fast path (channel send/receive) never touches the multiplexer.
+
+**Two multiplexer instances:**
 
 | Instance | Buffer size | Purpose |
 |----------|------------|---------|
-| 4K pool | 4096 | Reads (pre-Extended Message), UPDATE building |
-| 64K pool | 65535 | Reads (post-Extended Message) |
+| 4K multiplexer | 4096 | Reads (pre-Extended Message), UPDATE building |
+| 64K multiplexer | 65535 | Reads (post-Extended Message) |
 
-`buildBufPool` is eliminated -- it was always 4K buffers, same as the
-read pool. Reads and builds draw from the same 4K instance.
+`buildBufPool` is eliminated -- reads and builds draw from the same
+4K multiplexer.
 
 The overflow pool is not a separate pool. During congestion, the source
-peer draws from the same 4K or 64K instance -- the buffer just stays
+peer draws from the same 4K or 64K multiplexer -- the buffer just stays
 in use longer (held in overflow backlog until destination drains it).
+
+**Every callsite that currently passes `[]byte` passes a handle instead.**
+The `Buf` field is used for TCP reads, wire writes, etc. The full handle
+is passed to `Return()`.
 
 ### Combined Capacity Tracking
 
 Buffer sizes are incompatible (can't hand a 4K buffer to a 64K reader),
-so the two instances maintain separate inventories. But memory pressure
-is a shared resource -- growth, shrink, and backpressure decisions use
-the combined usage across both pools.
+so the two multiplexers maintain separate inventories. But memory
+pressure is a shared resource -- growth, shrink, and backpressure
+decisions use the combined usage across both multiplexers.
 
 | Decision | Input |
 |----------|-------|
 | Grow (allocate another 10% block) | Combined usage of 4K + 64K > 90% of combined allocation |
-| Shrink (nil returned buffers) | Combined free across 4K + 64K > 20% of combined allocation |
+| Shrink (drop empty blocks) | Combined free across 4K + 64K > 20% of combined allocation |
 | Backpressure (deny buffer) | Combined usage-to-weight ratio |
 
-This prevents a scenario where the 64K pool is 95% full (real memory
-pressure) but the 4K pool has headroom, and the system fails to trigger
-backpressure because each pool looks at itself in isolation.
+This prevents a scenario where the 64K multiplexer is 95% full (real
+memory pressure) but the 4K multiplexer has headroom, and the system
+fails to trigger backpressure because each looks at itself in isolation.
 
 ## Configuration
 

@@ -66,7 +66,8 @@ const (
 	eventRefresh = "refresh"
 
 	// Text format field tokens used in text event parsing.
-	tokenASN      = "asn"
+	tokenRemote   = "remote"
+	tokenAS       = "as"
 	tokenCap      = "cap"
 	tokenRouterID = "router-id"
 	tokenHoldTime = "hold-time"
@@ -612,8 +613,8 @@ const maxBatchSize = 50
 // --- Text event parsing ---
 //
 // Text format replaces JSON for the bgp-rs hot path.
-// Uniform header: "peer <addr> asn <n> <dir> <type> <id> ..."
-// State:          "peer <addr> asn <n> state <state>"
+// Uniform header: "peer <addr> remote as <n> <dir> <type> <id> ..."
+// State:          "peer <addr> remote as <n> state <state>"
 // Parsed with TextScanner (zero-copy token extraction from original string).
 
 // topLevelKeywords and nlriTypeKeywords are now shared from textparse package.

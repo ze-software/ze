@@ -22,7 +22,7 @@ func FormatMonitorLine(raw string) string {
 
 	dir := formatDirection(ev.BGP.Message.Direction)
 	peer := ev.BGP.Peer.Address
-	asn := fmt.Sprintf("AS%d", ev.BGP.Peer.ASN)
+	asn := fmt.Sprintf("AS%d", ev.BGP.Peer.Remote.AS)
 
 	switch ev.BGP.Message.Type {
 	case "update":
@@ -130,7 +130,9 @@ type monitorEvent struct {
 	BGP struct {
 		Peer struct {
 			Address string `json:"address"`
-			ASN     uint32 `json:"asn"`
+			Remote  struct {
+				AS uint32 `json:"as"`
+			} `json:"remote"`
 		} `json:"peer"`
 		Message struct {
 			Direction string `json:"direction"`

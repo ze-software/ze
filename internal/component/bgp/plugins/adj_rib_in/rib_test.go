@@ -40,12 +40,13 @@ func mustMarshal(t *testing.T, v any) json.RawMessage {
 	return data
 }
 
-// testPeerJSON returns peer JSON in ze-bgp nested format for peer 10.0.0.1 / AS 65001.
+// testPeerJSON returns peer JSON in YANG-aligned format for peer 10.0.0.1 / AS 65001.
 func testPeerJSON(t *testing.T) json.RawMessage {
 	t.Helper()
 	return mustMarshal(t, map[string]any{
-		"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"},
-		"asn":     map[string]uint32{"local": 65002, "peer": 65001},
+		"address": "10.0.0.1",
+		"remote":  map[string]any{"as": uint32(65001)},
+		"local":   map[string]any{"address": "10.0.0.2", "as": uint32(65002)},
 	})
 }
 
@@ -323,7 +324,7 @@ func TestClearPeerOnDown(t *testing.T) {
 	// Peer goes down
 	downEvent := &bgp.Event{
 		Type: "state",
-		Peer: mustMarshal(t, bgp.PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
+		Peer: mustMarshal(t, bgp.PeerInfoJSON{Address: "10.0.0.1", Remote: bgp.PeerRemoteInfo{AS: 65001}}),
 	}
 	// State can be in flat peer format or top-level
 	downEvent.State = "down"
@@ -531,7 +532,7 @@ func TestHandleState_PeerUpTriggersReplay(t *testing.T) {
 	upEvent := &bgp.Event{
 		Type:  "state",
 		State: "up",
-		Peer:  mustMarshal(t, bgp.PeerInfoFlat{Address: "10.0.0.3", ASN: 65003}),
+		Peer:  mustMarshal(t, bgp.PeerInfoJSON{Address: "10.0.0.3", Remote: bgp.PeerRemoteInfo{AS: 65003}}),
 	}
 
 	r.handleState(upEvent)
@@ -562,7 +563,7 @@ func TestHandleState_PeerUpEmptyRIB(t *testing.T) {
 	upEvent := &bgp.Event{
 		Type:  "state",
 		State: "up",
-		Peer:  mustMarshal(t, bgp.PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
+		Peer:  mustMarshal(t, bgp.PeerInfoJSON{Address: "10.0.0.1", Remote: bgp.PeerRemoteInfo{AS: 65001}}),
 	}
 
 	// Should not panic or error.
@@ -606,7 +607,7 @@ func TestHandleState_PeerUpSelfExclusion(t *testing.T) {
 	upEvent := &bgp.Event{
 		Type:  "state",
 		State: "up",
-		Peer:  mustMarshal(t, bgp.PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
+		Peer:  mustMarshal(t, bgp.PeerInfoJSON{Address: "10.0.0.1", Remote: bgp.PeerRemoteInfo{AS: 65001}}),
 	}
 
 	r.handleState(upEvent)

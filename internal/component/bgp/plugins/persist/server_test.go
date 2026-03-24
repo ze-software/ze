@@ -30,7 +30,7 @@ func TestPersist_SentUpdate_StoresRoute(t *testing.T) {
 		mu.Unlock()
 	}
 
-	ps.dispatchText("peer 10.0.0.1 asn 65001 sent update 42 origin igp next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24")
+	ps.dispatchText("peer 10.0.0.1 remote as 65001 sent update 42 origin igp next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24")
 
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
@@ -83,10 +83,10 @@ func TestPersist_SentWithdrawal_RemovesRoute(t *testing.T) {
 	}
 
 	// Add route.
-	ps.dispatchText("peer 10.0.0.1 asn 65001 sent update 42 origin igp next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24")
+	ps.dispatchText("peer 10.0.0.1 remote as 65001 sent update 42 origin igp next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24")
 
 	// Withdraw route.
-	ps.dispatchText("peer 10.0.0.1 asn 65001 sent update 43 nlri ipv4/unicast del prefix 192.168.1.0/24")
+	ps.dispatchText("peer 10.0.0.1 remote as 65001 sent update 43 nlri ipv4/unicast del prefix 192.168.1.0/24")
 
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
@@ -120,10 +120,10 @@ func TestPersist_PeerDown_KeepsRibOut(t *testing.T) {
 	ps.updateRouteHook = func(peer, cmd string) {} // no-op
 
 	// Add route.
-	ps.dispatchText("peer 10.0.0.1 asn 65001 sent update 42 origin igp next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24")
+	ps.dispatchText("peer 10.0.0.1 remote as 65001 sent update 42 origin igp next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24")
 
 	// Peer goes down.
-	ps.dispatchText("peer 10.0.0.1 asn 65001 state down")
+	ps.dispatchText("peer 10.0.0.1 remote as 65001 state down")
 
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
@@ -158,7 +158,7 @@ func TestPersist_PeerUp_ReplaysRoutes(t *testing.T) {
 	ps.mu.Unlock()
 
 	// Peer comes up.
-	ps.dispatchText("peer 10.0.0.1 asn 65001 state up")
+	ps.dispatchText("peer 10.0.0.1 remote as 65001 state up")
 	time.Sleep(200 * time.Millisecond) // Wait for replay goroutine.
 
 	mu.Lock()
@@ -209,7 +209,7 @@ func TestPersist_PeerUp_SendsEOR(t *testing.T) {
 	ps.mu.Unlock()
 
 	// Peer comes up.
-	ps.dispatchText("peer 10.0.0.1 asn 65001 state up")
+	ps.dispatchText("peer 10.0.0.1 remote as 65001 state up")
 	time.Sleep(200 * time.Millisecond)
 
 	mu.Lock()
@@ -258,7 +258,7 @@ func TestPersist_HandleOpen(t *testing.T) {
 	ps := newTestPersistServer(t)
 	ps.updateRouteHook = func(peer, cmd string) {}
 
-	ps.dispatchText("peer 10.0.0.1 asn 65001 received open 1 router-id 10.0.0.1 hold-time 90 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh")
+	ps.dispatchText("peer 10.0.0.1 remote as 65001 received open 1 router-id 10.0.0.1 hold-time 90 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh")
 
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
@@ -288,7 +288,7 @@ func TestPersist_HandleOpen_ImplicitIPv4(t *testing.T) {
 	ps.updateRouteHook = func(peer, cmd string) {}
 
 	// OPEN without multiprotocol capability.
-	ps.dispatchText("peer 10.0.0.1 asn 65001 received open 1 router-id 10.0.0.1 hold-time 90 cap 2 route-refresh")
+	ps.dispatchText("peer 10.0.0.1 remote as 65001 received open 1 router-id 10.0.0.1 hold-time 90 cap 2 route-refresh")
 
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
@@ -319,10 +319,10 @@ func TestPersist_RouteReplacement_ReleasesOld(t *testing.T) {
 	}
 
 	// First announcement.
-	ps.dispatchText("peer 10.0.0.1 asn 65001 sent update 42 origin igp next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24")
+	ps.dispatchText("peer 10.0.0.1 remote as 65001 sent update 42 origin igp next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24")
 
 	// Replacement (same prefix, different msgID).
-	ps.dispatchText("peer 10.0.0.1 asn 65001 sent update 43 origin igp next-hop 10.0.0.2 nlri ipv4/unicast add prefix 192.168.1.0/24")
+	ps.dispatchText("peer 10.0.0.1 remote as 65001 sent update 43 origin igp next-hop 10.0.0.2 nlri ipv4/unicast add prefix 192.168.1.0/24")
 
 	ps.mu.RLock()
 	route := ps.ribOut["10.0.0.1"]["ipv4/unicast|prefix 192.168.1.0/24"]
@@ -379,7 +379,7 @@ func TestPersist_NoFamilies_NoEOR(t *testing.T) {
 	}
 	ps.mu.Unlock()
 
-	ps.dispatchText("peer 10.0.0.1 asn 65001 state up")
+	ps.dispatchText("peer 10.0.0.1 remote as 65001 state up")
 	time.Sleep(200 * time.Millisecond)
 
 	mu.Lock()

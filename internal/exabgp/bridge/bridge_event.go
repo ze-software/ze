@@ -35,7 +35,7 @@ const (
 //	{
 //	  "type": "bgp",
 //	  "bgp": {
-//	    "peer": {"address": "10.0.0.1", "asn": 65001},
+//	    "peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
 //	    "message": {"id": 1, "direction": "received", "type": "update"},
 //	    "update": {
 //	      "attr": {"origin": "igp"},
@@ -99,7 +99,10 @@ func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 	// Get peer from bgp level (ze-bgp JSON format)
 	peer, _ := bgpPayload["peer"].(map[string]any)
 	peerAddr, _ := peer["address"].(string)
-	peerASN, _ := peer["asn"].(float64)
+	var peerASN float64
+	if remote, ok := peer["remote"].(map[string]any); ok {
+		peerASN, _ = remote["as"].(float64)
+	}
 
 	// Get event-specific data from nested key (except state which is a string)
 	eventData := bgpPayload

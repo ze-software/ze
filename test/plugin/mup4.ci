@@ -5,12 +5,12 @@ stdin=peer:terminator=EOF_PEER
 # Test IPv4 unicast functionality
 cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 200 nhop 10.0.1.254 nlri ipv4/unicast add 10.0.1.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0001FE400504000000C8180A0001
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":200,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.1.0/24"],"next-hop":"10.0.1.254"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":200,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.1.0/24"],"next-hop":"10.0.1.254"}]}
 cmd=api:conn=1:seq=2:text=peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 cmd=api:conn=1:seq=3:text=peer * update text nlri ipv4/unicast del 10.0.1.0/24
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00010000
-expect=json:conn=1:seq=3:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","ipv4/unicast":[{"action":"del","nlri":["10.0.1.0/24"]}]}
+expect=json:conn=1:seq=3:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","ipv4/unicast":[{"action":"del","nlri":["10.0.1.0/24"]}]}
 # Note: MUP-specific tests commented out pending update text MUP support
 # 4:cmd:announce eor ipv4/mup
 # 4:cmd:announce ipv4/mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 extended-community [target:10:10] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] )

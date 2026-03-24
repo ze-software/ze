@@ -14,7 +14,7 @@ import (
 // PREVENTS: Breaking shared event parsing after extraction from bgp-rib.
 func TestParseEvent_ZeBGPUpdateFormat(t *testing.T) {
 	input := `{"type":"bgp","bgp":{
-		"peer":{"address":{"local":"10.0.0.2","peer":"10.0.0.1"},"asn":{"local":65002,"peer":65001}},
+		"peer":{"address":"10.0.0.1","local":{"address":"10.0.0.2","as":65002},"remote":{"as":65001}},
 		"message":{"type":"update","id":42,"direction":"received"},
 		"update":{
 			"attributes":{"origin":"igp","as-path":[65001]},
@@ -47,7 +47,7 @@ func TestParseEvent_ZeBGPUpdateFormat(t *testing.T) {
 // VALIDATES: ParseEvent extracts peer state from flat format.
 // PREVENTS: State events silently ignored after extraction.
 func TestParseEvent_StateFormat(t *testing.T) {
-	input := `{"type":"state","peer":{"address":"10.0.0.1","asn":65001},"state":"up"}`
+	input := `{"type":"state","peer":{"address":"10.0.0.1","remote":{"as":65001}},"state":"up"}`
 
 	event, err := ParseEvent([]byte(input))
 	require.NoError(t, err)
@@ -67,7 +67,7 @@ func TestParseEvent_FormatFullRawFields(t *testing.T) {
 	// Raw inside update object (legacy test — kept for backwards compatibility).
 	t.Run("raw inside update", func(t *testing.T) {
 		input := `{"type":"bgp","bgp":{
-			"peer":{"address":{"local":"10.0.0.2","peer":"10.0.0.1"},"asn":{"local":65002,"peer":65001}},
+			"peer":{"address":"10.0.0.1","local":{"address":"10.0.0.2","as":65002},"remote":{"as":65001}},
 			"message":{"type":"update","id":1,"direction":"received"},
 			"update":{
 				"nlri":{"ipv4/unicast":[{"next-hop":"10.0.0.1","action":"add","nlri":["10.0.0.0/24"]}]},
@@ -94,7 +94,7 @@ func TestParseEvent_FormatFullRawFields(t *testing.T) {
 	// ParseEvent must extract it BEFORE narrowing payloadData to the update object.
 	t.Run("raw at bgp level", func(t *testing.T) {
 		input := `{"type":"bgp","bgp":{
-			"peer":{"address":{"local":"10.0.0.2","peer":"10.0.0.1"},"asn":{"local":65002,"peer":65001}},
+			"peer":{"address":"10.0.0.1","local":{"address":"10.0.0.2","as":65002},"remote":{"as":65001}},
 			"message":{"type":"update","id":1,"direction":"received"},
 			"update":{
 				"nlri":{"ipv4/unicast":[{"next-hop":"10.0.0.1","action":"add","nlri":["10.0.0.0/24"]}]}
@@ -124,7 +124,7 @@ func TestParseEvent_FormatFullRawFields(t *testing.T) {
 func TestParseEvent_AddPathField(t *testing.T) {
 	t.Run("add_path_present", func(t *testing.T) {
 		input := `{"type":"bgp","bgp":{
-			"peer":{"address":{"local":"10.0.0.2","peer":"10.0.0.1"},"asn":{"local":65002,"peer":65001}},
+			"peer":{"address":"10.0.0.1","local":{"address":"10.0.0.2","as":65002},"remote":{"as":65001}},
 			"message":{"type":"update","id":1,"direction":"received"},
 			"update":{
 				"nlri":{"ipv4/unicast":[{"next-hop":"10.0.0.1","action":"add","nlri":["10.0.0.0/24"]}]}
@@ -143,7 +143,7 @@ func TestParseEvent_AddPathField(t *testing.T) {
 
 	t.Run("add_path_absent", func(t *testing.T) {
 		input := `{"type":"bgp","bgp":{
-			"peer":{"address":{"local":"10.0.0.2","peer":"10.0.0.1"},"asn":{"local":65002,"peer":65001}},
+			"peer":{"address":"10.0.0.1","local":{"address":"10.0.0.2","as":65002},"remote":{"as":65001}},
 			"message":{"type":"update","id":1,"direction":"received"},
 			"update":{
 				"nlri":{"ipv4/unicast":[{"next-hop":"10.0.0.1","action":"add","nlri":["10.0.0.0/24"]}]}
@@ -171,14 +171,14 @@ func TestParseEvent_PeerFormats(t *testing.T) {
 	}{
 		{
 			name:  "flat format (sent/state events)",
-			input: `{"type":"state","peer":{"address":"192.168.1.1","asn":64512},"state":"down"}`,
+			input: `{"type":"state","peer":{"address":"192.168.1.1","remote":{"as":64512}},"state":"down"}`,
 			addr:  "192.168.1.1",
 			asn:   64512,
 		},
 		{
 			name: "nested format (received events)",
 			input: `{"type":"bgp","bgp":{
-				"peer":{"address":{"local":"10.0.0.2","peer":"192.168.1.1"},"asn":{"local":65002,"peer":64512}},
+				"peer":{"address":"192.168.1.1","local":{"address":"10.0.0.2","as":65002},"remote":{"as":64512}},
 				"message":{"type":"update","id":1,"direction":"received"},
 				"update":{"nlri":{"ipv4/unicast":[{"next-hop":"10.0.0.1","action":"add","nlri":["10.0.0.0/24"]}]}}
 			}}`,
@@ -203,7 +203,7 @@ func TestParseEvent_PeerFormats(t *testing.T) {
 // PREVENTS: Only first family parsed, others silently dropped.
 func TestParseEvent_MultipleFamilies(t *testing.T) {
 	input := `{"type":"bgp","bgp":{
-		"peer":{"address":"10.0.0.1","asn":65001},
+		"peer":{"address":"10.0.0.1","remote":{"as":65001}},
 		"message":{"type":"update","id":1,"direction":"received"},
 		"update":{
 			"nlri":{

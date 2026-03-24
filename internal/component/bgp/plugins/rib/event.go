@@ -13,8 +13,9 @@ type (
 	Event           = bgp.Event
 	FamilyOperation = bgp.FamilyOperation
 	MessageInfo     = bgp.MessageInfo
-	PeerInfoFlat    = bgp.PeerInfoFlat
-	PeerInfoNested  = bgp.PeerInfoNested
+	PeerInfoJSON    = bgp.PeerInfoJSON
+	PeerRemoteInfo  = bgp.PeerRemoteInfo
+	PeerLocalInfo   = bgp.PeerLocalInfo
 )
 
 // Function aliases for package-internal callers.

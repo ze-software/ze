@@ -132,8 +132,8 @@ func BenchmarkEventThroughput(b *testing.B) {
 		name  string
 		event string
 	}{
-		{"keepalive", `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","asn":65001},"message":{"id":42,"direction":"received","type":"keepalive"}}}`},
-		{"update_small", `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","asn":65001},"message":{"id":43,"direction":"received","type":"update"},"update":{"attr":{"origin":"igp","as-path":[65001],"next-hop":"10.0.0.1"},"ipv4/unicast":[{"action":"add","next-hop":"10.0.0.1","nlri":["10.0.0.0/24"]}]}}}`},
+		{"keepalive", `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"id":42,"direction":"received","type":"keepalive"}}}`},
+		{"update_small", `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"id":43,"direction":"received","type":"update"},"update":{"attr":{"origin":"igp","as-path":[65001],"next-hop":"10.0.0.1"},"ipv4/unicast":[{"action":"add","next-hop":"10.0.0.1","nlri":["10.0.0.0/24"]}]}}}`},
 		{"update_large", generateLargeUpdateEvent(100)},
 	}
 
@@ -216,7 +216,7 @@ func BenchmarkMemoryPerConnection(b *testing.B) {
 // generateLargeUpdateEvent creates a synthetic UPDATE event with N NLRIs.
 func generateLargeUpdateEvent(nlriCount int) string {
 	var buf bytes.Buffer
-	buf.WriteString(`{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","asn":65001},"message":{"id":100,"direction":"received","type":"update"},"update":{"attr":{"origin":"igp","as-path":[65001,65002,65003],"next-hop":"10.0.0.1","local-preference":100},"ipv4/unicast":[{"action":"add","next-hop":"10.0.0.1","nlri":[`)
+	buf.WriteString(`{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"id":100,"direction":"received","type":"update"},"update":{"attr":{"origin":"igp","as-path":[65001,65002,65003],"next-hop":"10.0.0.1","local-preference":100},"ipv4/unicast":[{"action":"add","next-hop":"10.0.0.1","nlri":[`)
 	for i := range nlriCount {
 		if i > 0 {
 			buf.WriteByte(',')

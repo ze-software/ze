@@ -296,7 +296,7 @@ func (rs *RouteServer) peersJSON() string {
 	for _, p := range rs.peers {
 		peers = append(peers, map[string]any{
 			"address": p.Address,
-			"asn":     p.ASN,
+			"remote":  map[string]any{"as": p.ASN},
 			"up":      p.Up,
 		})
 	}

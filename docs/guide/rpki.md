@@ -133,7 +133,7 @@ When the rpki plugin is loaded, it emits validation events that other plugins ca
 {
   "type": "bgp",
   "bgp": {
-    "peer": {"address": "10.0.0.1", "asn": 65001},
+    "peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
     "message": {"id": 42, "type": "rpki"},
     "rpki": {
       "ipv4/unicast": {
@@ -184,7 +184,7 @@ The merged event contains the full UPDATE JSON with an `rpki` section injected:
 {
   "type": "bgp",
   "bgp": {
-    "peer": {"address": "10.0.0.1", "asn": 65001},
+    "peer": {"address": "10.0.0.1", "remote": {"as": 65001}},
     "message": {"id": 42, "type": "update-rpki"},
     "update": {"attr": {"origin": "igp"}, ...},
     "rpki": {"ipv4/unicast": {"10.0.1.0/24": "valid"}}

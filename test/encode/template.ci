@@ -4,16 +4,16 @@ cmd=api:conn=1:seq=1:text=peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 1.1.1.1 nlri ipv4/unicast add 1.0.0.0/8
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E02000000154001010040020040030401010101400504000000640801
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["1.0.0.0/8"],"next-hop":"1.1.1.1"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["1.0.0.0/8"],"next-hop":"1.1.1.1"}]}
 cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 1.1.1.1 nlri ipv4/unicast add 2.0.0.0/8
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E02000000154001010040020040030401010101400504000000640802
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["2.0.0.0/8"],"next-hop":"1.1.1.1"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["2.0.0.0/8"],"next-hop":"1.1.1.1"}]}
 cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 1.2.3.4 nlri ipv4/unicast add 3.0.0.0/8
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E02000000154001010040020040030401020304400504000000640803
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["3.0.0.0/8"],"next-hop":"1.2.3.4"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["3.0.0.0/8"],"next-hop":"1.2.3.4"}]}
 cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 2.2.2.2 nlri ipv4/unicast add 4.0.0.0/8
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E02000000154001010040020040030402020202400504000000640804
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["4.0.0.0/8"],"next-hop":"2.2.2.2"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["4.0.0.0/8"],"next-hop":"2.2.2.2"}]}
 EOF_PEER
 
 # ze bgp configuration

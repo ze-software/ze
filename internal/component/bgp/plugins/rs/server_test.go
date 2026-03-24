@@ -75,7 +75,7 @@ func TestHandleUpdate_ZeBGPFormat(t *testing.T) {
 	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 asn 65001 received update 123 origin igp as-path 65001 local-preference 100 next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 123 origin igp as-path 65001 local-preference 100 next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -115,7 +115,7 @@ func TestHandleUpdate_Withdraw_ZeBGPFormat(t *testing.T) {
 	}
 	rs.withdrawalMu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 asn 65001 received update 124 nlri ipv4/unicast del prefix 10.0.0.0/24")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 124 nlri ipv4/unicast del prefix 10.0.0.0/24")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -146,7 +146,7 @@ func TestHandleUpdate_MultiFamilyMixed(t *testing.T) {
 	}
 	rs.withdrawalMu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 asn 65001 received update 125 origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24 next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32 nlri ipv4/unicast del prefix 10.0.2.0/24")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 125 origin igp next-hop 192.168.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24 next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32 nlri ipv4/unicast del prefix 10.0.2.0/24")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -181,7 +181,7 @@ func TestHandleState_Down_ZeBGPFormat(t *testing.T) {
 	}
 	rs.withdrawalMu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 asn 65001 state down")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state down")
 
 	rs.withdrawalMu.Lock()
 	wdLen := len(rs.withdrawals["10.0.0.1"])
@@ -215,7 +215,7 @@ func TestHandleState_Up_ZeBGPFormat(t *testing.T) {
 		return statusDone, `{"last-index":0,"replayed":0}`, nil
 	}
 
-	rs.dispatchText("peer 10.0.0.1 asn 65001 state up")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
 	time.Sleep(50 * time.Millisecond) // Let replay goroutine complete.
 
 	rs.mu.RLock()
@@ -246,7 +246,7 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 		return statusDone, `{"last-index":0,"replayed":0}`, nil
 	}
 
-	rs.dispatchText("peer 10.0.0.1 asn 65001 state up")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
 	time.Sleep(50 * time.Millisecond) // Let replay goroutine complete.
 
 	rs.mu.RLock()
@@ -278,7 +278,7 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 func TestHandleOpen_ZeBGPFormat(t *testing.T) {
 	rs := newTestRouteServer(t)
 
-	rs.dispatchText("peer 10.0.0.1 asn 65001 received open 0 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh cap 65 asn4 65001")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received open 0 router-id 10.0.0.1 hold-time 180 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast cap 2 route-refresh cap 65 asn4 65001")
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -329,7 +329,7 @@ func TestHandleRefresh_ZeBGPFormat(t *testing.T) {
 	rs.mu.Unlock()
 
 	// handleRefresh calls updateRoute which sends via SDK RPC (fails silently on closed conn).
-	rs.dispatchText("peer 10.0.0.1 asn 65001 received refresh 0 family ipv4/unicast")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received refresh 0 family ipv4/unicast")
 }
 
 // --- Family/capability filtering tests ---
@@ -359,7 +359,7 @@ func TestFilterUpdateByFamily(t *testing.T) {
 	}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 asn 65001 received update 100 origin igp next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 100 origin igp next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -405,7 +405,7 @@ func TestFilterRefreshByCapability(t *testing.T) {
 	rs.mu.Unlock()
 
 	// handleRefresh forwards to peers via updateRoute (fails silently on closed conn).
-	rs.dispatchText("peer 10.0.0.1 asn 65001 received refresh 0 family ipv4/unicast")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received refresh 0 family ipv4/unicast")
 }
 
 // TestFilterReplayByFamily verifies replay only sends compatible routes.
@@ -434,7 +434,7 @@ func TestFilterReplayByFamily(t *testing.T) {
 	rs.mu.Unlock()
 
 	// handleState/handleStateUp calls updateRoute for route replay.
-	rs.dispatchText("peer 10.0.0.1 asn 65001 state up")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -814,7 +814,7 @@ func TestDispatchPassesPreParsedPayload(t *testing.T) {
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
 	t.Cleanup(func() { rs.workers.Stop() })
 
-	rs.dispatchText("peer 10.0.0.1 asn 65001 received update 42 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 42 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
 
 	// Wait for worker to process the no-op handler.
 	time.Sleep(50 * time.Millisecond)
@@ -853,7 +853,7 @@ func TestProcessForwardPopulatesWithdrawalMap(t *testing.T) {
 	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 asn 65001 received update 99 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 99 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
 	flushWorkers(t, rs)
 
 	rs.withdrawalMu.Lock()
@@ -883,7 +883,7 @@ func TestWithdrawalMapConsistency(t *testing.T) {
 	// Dispatch multiple UPDATEs.
 	for i := uint64(1); i <= 5; i++ {
 		rs.dispatchText(fmt.Sprintf(
-			"peer 10.0.0.1 asn 65001 received update %d origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
+			"peer 10.0.0.1 remote as 65001 received update %d origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
 			i, i,
 		))
 	}
@@ -903,7 +903,7 @@ func TestWithdrawalMapConsistency(t *testing.T) {
 		rs.processForward(key, item.msgID)
 	}, poolConfig{chanSize: 64, idleTimeout: 5 * time.Second})
 
-	rs.dispatchText("peer 10.0.0.1 asn 65001 state down")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state down")
 
 	// After peer down, withdrawal map should be empty for this peer.
 	time.Sleep(50 * time.Millisecond)
@@ -1075,7 +1075,7 @@ func TestBatchForwardFireAndForget(t *testing.T) {
 	// Dispatch 5 UPDATEs with distinct prefixes from the same source peer.
 	for i := uint64(1); i <= 5; i++ {
 		rs.dispatchText(fmt.Sprintf(
-			"peer 10.0.0.1 asn 65001 received update %d origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
+			"peer 10.0.0.1 remote as 65001 received update %d origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.%d.0/24",
 			i, i,
 		))
 	}
@@ -1124,7 +1124,7 @@ func TestBatchForwardFireAndForget(t *testing.T) {
 
 // buildTestUpdate creates a minimal text-format UPDATE event for testing dispatch.
 func buildTestUpdate(peer string, msgID uint64) string {
-	return fmt.Sprintf("peer %s asn 65001 received update %d origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24", peer, msgID)
+	return fmt.Sprintf("peer %s remote as 65001 received update %d origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24", peer, msgID)
 }
 
 // --- Replay tests (spec rib-03) ---
@@ -1326,7 +1326,7 @@ func TestWithdrawalOnPeerDown(t *testing.T) {
 	rs.withdrawalMu.Unlock()
 
 	// Trigger peer down.
-	rs.dispatchText("peer 10.0.0.1 asn 65001 state down")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state down")
 
 	select {
 	case <-done:
@@ -1464,7 +1464,7 @@ func TestTextUpdateParseableByFields(t *testing.T) {
 	}{
 		{
 			name:     "add ipv4",
-			input:    "peer 10.0.0.1 asn 65001 received update 42 origin igp as-path 65001,65002 next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24\n",
+			input:    "peer 10.0.0.1 remote as 65001 received update 42 origin igp as-path 65001,65002 next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24\n",
 			wantType: eventUpdate,
 			wantID:   42,
 			wantPeer: "10.0.0.1",
@@ -1472,7 +1472,7 @@ func TestTextUpdateParseableByFields(t *testing.T) {
 		},
 		{
 			name:     "del ipv4",
-			input:    "peer 10.0.0.2 asn 65002 received update 99 nlri ipv4/unicast del prefix 10.0.0.0/24\n",
+			input:    "peer 10.0.0.2 remote as 65002 received update 99 nlri ipv4/unicast del prefix 10.0.0.0/24\n",
 			wantType: eventUpdate,
 			wantID:   99,
 			wantPeer: "10.0.0.2",
@@ -1480,7 +1480,7 @@ func TestTextUpdateParseableByFields(t *testing.T) {
 		},
 		{
 			name:     "add ipv6",
-			input:    "peer 10.0.0.1 asn 65001 received update 7 origin igp next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32\n",
+			input:    "peer 10.0.0.1 remote as 65001 received update 7 origin igp next-hop 2001:db8::1 nlri ipv6/unicast add prefix 2001:db8::/32\n",
 			wantType: eventUpdate,
 			wantID:   7,
 			wantPeer: "10.0.0.1",
@@ -1520,7 +1520,7 @@ func TestTextUpdateParseableByFields(t *testing.T) {
 //
 // PREVENTS: State events not being parseable in text format.
 func TestTextStateEventParseable(t *testing.T) {
-	input := "peer 10.0.0.1 asn 65001 state up\n"
+	input := "peer 10.0.0.1 remote as 65001 state up\n"
 
 	eventType, _, peerAddr, _, err := quickParseTextEvent(input)
 	if err != nil {
@@ -1540,7 +1540,7 @@ func TestTextStateEventParseable(t *testing.T) {
 //
 // PREVENTS: OPEN events not being parseable in text format.
 func TestTextOpenEventParseable(t *testing.T) {
-	input := "peer 10.0.0.1 asn 65001 received open 5 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast\n"
+	input := "peer 10.0.0.1 remote as 65001 received open 5 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast cap 1 multiprotocol ipv6/unicast\n"
 
 	eventType, _, peerAddr, payload, err := quickParseTextEvent(input)
 	if err != nil {
@@ -1587,7 +1587,7 @@ func TestTextOpenEventParseable(t *testing.T) {
 // PREVENTS: Withdrawal map not being populated from text events.
 func TestTextUpdateWithdrawalTracking(t *testing.T) {
 	// Add line (comma format: nlri ipv4/unicast add prefix <a>,<b>).
-	addLine := "peer 10.0.0.1 asn 65001 received update 42 origin igp next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24,10.0.0.0/8\n"
+	addLine := "peer 10.0.0.1 remote as 65001 received update 42 origin igp next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24,10.0.0.0/8\n"
 	ops := parseTextNLRIOps(addLine)
 
 	addOps, ok := ops["ipv4/unicast"]
@@ -1605,7 +1605,7 @@ func TestTextUpdateWithdrawalTracking(t *testing.T) {
 	}
 
 	// Del line: nlri <family> del
-	delLine := "peer 10.0.0.1 asn 65001 received update 43 nlri ipv4/unicast del prefix 192.168.1.0/24\n"
+	delLine := "peer 10.0.0.1 remote as 65001 received update 43 nlri ipv4/unicast del prefix 192.168.1.0/24\n"
 	wdOps := parseTextNLRIOps(delLine)
 
 	delOps, ok := wdOps["ipv4/unicast"]
@@ -1691,7 +1691,7 @@ func TestReplayForPeer_SendsEOR(t *testing.T) {
 	}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 asn 65001 state up")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
 	time.Sleep(200 * time.Millisecond) // Let replay goroutine complete.
 
 	mu.Lock()
@@ -1760,7 +1760,7 @@ func TestReplayForPeer_NoFamilies_NoEOR(t *testing.T) {
 	}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 asn 65001 state up")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
 	time.Sleep(200 * time.Millisecond)
 
 	mu.Lock()
@@ -1800,7 +1800,7 @@ func TestReplayForPeer_FailedReplay_NoEOR(t *testing.T) {
 	}
 	rs.mu.Unlock()
 
-	rs.dispatchText("peer 10.0.0.1 asn 65001 state up")
+	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
 	time.Sleep(200 * time.Millisecond)
 
 	mu.Lock()

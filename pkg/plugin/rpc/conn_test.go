@@ -327,7 +327,7 @@ func TestConn_CallBatchRPC_DeadlineWrite(t *testing.T) {
 	defer closeConn(t, conn)
 
 	events := [][]byte{
-		[]byte(`{"type":"bgp","bgp":{"type":"state","peer":{"address":"10.0.0.1","asn":65001},"state":"up"}}`),
+		[]byte(`{"type":"bgp","bgp":{"type":"state","peer":{"address":"10.0.0.1","remote":{"as":65001}},"state":"up"}}`),
 	}
 
 	_, err := conn.CallBatchRPC(ctx, events)

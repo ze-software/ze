@@ -193,6 +193,7 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 	if peerAddr == "" {
 		return
 	}
+	peerName := event.GetPeerName()
 
 	// Use parsed AS_PATH (already ASN4-normalized) when available.
 	// Fall back to raw attribute parsing only if ASPath is empty.
@@ -240,19 +241,19 @@ func (rp *RPKIPlugin) handleEvent(event *bgp.Event) {
 
 		// Emit rpki event only if there were "add" operations (skip pure withdrawals).
 		if len(familyResults) > 0 || cacheEmpty {
-			rp.emitRPKIEvent(peerAddr, event.GetPeerASN(), event.GetMsgID(), family, familyResults, cacheEmpty)
+			rp.emitRPKIEvent(peerAddr, peerName, event.GetPeerASN(), event.GetMsgID(), family, familyResults, cacheEmpty)
 		}
 	}
 }
 
 // emitRPKIEvent emits an rpki validation event via the SDK EmitEvent RPC.
 // Called after validating all prefixes in a family for a single UPDATE.
-func (rp *RPKIPlugin) emitRPKIEvent(peerAddr string, peerASN uint32, msgID uint64, family string, results map[string]uint8, cacheEmpty bool) {
+func (rp *RPKIPlugin) emitRPKIEvent(peerAddr, peerName string, peerASN uint32, msgID uint64, family string, results map[string]uint8, cacheEmpty bool) {
 	var event string
 	if cacheEmpty {
-		event = buildRPKIEventUnavailable(peerAddr, peerASN, msgID)
+		event = buildRPKIEventUnavailable(peerAddr, peerName, peerASN, msgID)
 	} else {
-		event = buildRPKIEvent(peerAddr, peerASN, msgID, family, results)
+		event = buildRPKIEvent(peerAddr, peerName, peerASN, msgID, family, results)
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)

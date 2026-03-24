@@ -126,8 +126,8 @@ func TestTextScannerDone(t *testing.T) {
 
 func TestTextScannerRealEvent(t *testing.T) {
 	// Simulate parsing a real text event header
-	s := NewScanner("peer 10.0.0.1 asn 65001 received update 42 origin igp")
-	expected := []string{"peer", "10.0.0.1", "asn", "65001", "received", "update", "42", "origin", "igp"}
+	s := NewScanner("peer 10.0.0.1 remote as 65001 received update 42 origin igp")
+	expected := []string{"peer", "10.0.0.1", "remote", "as", "65001", "received", "update", "42", "origin", "igp"}
 
 	var got []string
 	for !s.Done() {

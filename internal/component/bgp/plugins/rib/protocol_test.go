@@ -119,7 +119,7 @@ func TestRIBPluginFiveStageProtocol(t *testing.T) {
 
 	// ── Plugin is now in event loop ─────────────────────────────────────
 	// Verify the plugin can process an event after startup.
-	sentEvent := `{"type":"sent","msg-id":1,"peer":{"address":"10.0.0.1","asn":65001},"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}`
+	sentEvent := `{"type":"sent","msg-id":1,"peer":{"address":"10.0.0.1","remote":{"as":65001}},"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24"]}]}`
 	deliverEventSync(t, ctx, mux, sentEvent)
 
 	// ── Cleanup ─────────────────────────────────────────────────────────

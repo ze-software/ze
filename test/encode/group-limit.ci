@@ -6,13 +6,13 @@ cmd=api:conn=1:seq=1:text=peer * update text nlri ipv6/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
 cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 10.0.0.1 nlri ipv4/unicast add 193.0.2.1/32 193.0.2.2/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00360200000015400101004002004003040A0000014005040000006420C100020120C1000202
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["193.0.2.1/32","193.0.2.2/32"],"next-hop":"10.0.0.1"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["193.0.2.1/32","193.0.2.2/32"],"next-hop":"10.0.0.1"}]}
 cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 2a02:b80:1::1 nlri ipv6/unicast add 2a02:b80:0:1::1/128
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E02000000374001010040020040050400000064800E26000201102A020B8000010000000000000000000100802A020B80000000010000000000000001
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2a02:b80:0:1::1/128"],"next-hop":"2a02:b80:1::1"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":100,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2a02:b80:0:1::1/128"],"next-hop":"2a02:b80:1::1"}]}
 cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 2a02:b80:1::1 nlri ipv6/unicast add 2a02:b80:0:2::2/128
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E02000000374001010040020040050400000064800E26000201102A020B8000010000000000000000000100802A020B80000000020000000000000002
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2a02:b80:0:2::2/128"],"next-hop":"2a02:b80:1::1"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","local-preference":100,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2a02:b80:0:2::2/128"],"next-hop":"2a02:b80:1::1"}]}
 EOF_PEER
 
 # ze bgp configuration

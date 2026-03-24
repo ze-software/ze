@@ -16,19 +16,19 @@ func TestParseStateEvent(t *testing.T) {
 	}{
 		{
 			name:     "state up",
-			input:    "peer 10.0.0.1 asn 65001 state up\n",
+			input:    "peer 10.0.0.1 remote as 65001 state up\n",
 			wantAddr: "10.0.0.1",
 			wantSt:   "up",
 		},
 		{
 			name:     "state down",
-			input:    "peer 10.0.0.2 asn 65002 state down",
+			input:    "peer 10.0.0.2 remote as 65002 state down",
 			wantAddr: "10.0.0.2",
 			wantSt:   "down",
 		},
 		{
 			name:     "state connected",
-			input:    "peer 10.0.0.1 asn 65001 state connected\n",
+			input:    "peer 10.0.0.1 remote as 65001 state connected\n",
 			wantAddr: "10.0.0.1",
 			wantSt:   "connected",
 		},
@@ -52,7 +52,7 @@ func TestParseStateEvent(t *testing.T) {
 		},
 		{
 			name:     "no state token",
-			input:    "peer 10.0.0.1 asn 65001\n",
+			input:    "peer 10.0.0.1 remote as 65001\n",
 			wantAddr: "",
 			wantSt:   "",
 		},

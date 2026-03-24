@@ -14,14 +14,14 @@ func TestParseEventMeta(t *testing.T) {
 	}{
 		{
 			name:      "valid update event",
-			input:     `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","asn":65001},"message":{"id":42,"direction":"received","type":"update"}}}`,
+			input:     `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"id":42,"direction":"received","type":"update"}}}`,
 			wantType:  "update",
 			wantPeer:  "10.0.0.1",
 			wantMsgID: 42,
 		},
 		{
 			name:      "valid rpki event",
-			input:     `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","asn":65001},"message":{"id":42,"type":"rpki"},"rpki":{}}}`,
+			input:     `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"id":42,"type":"rpki"},"rpki":{}}}`,
 			wantType:  "rpki",
 			wantPeer:  "10.0.0.1",
 			wantMsgID: 42,

@@ -42,7 +42,7 @@ UPDATE is the only type with deferred parsing. All others are infrequent and par
 1. Trim trailing newline
 2. Split with `strings.Fields(text)` — requires minimum 5 fields, must start with `peer`
 3. Detect layout by positional check:
-   - If `fields[4] == "state"` — STATE event (different header shape): return `("state", 0, fields[1], text, nil)`
+   - If `fields[5] == "state"` — STATE event (different header shape): return `("state", 0, fields[1], text, nil)`
    - Otherwise — MESSAGE event: type at `fields[3]`, msgID parsed from `fields[4]`
 4. Returns `(eventType, msgID, peerAddr, fullText, err)`
 
@@ -50,7 +50,7 @@ The two header shapes require different field indices:
 
 | Header Shape | Type Location | ID Location | Example |
 |-------------|---------------|-------------|---------|
-| State | `fields[4]` (keyword "state") | none (returns 0) | `peer 10.0.0.1 asn 65001 state up` |
+| State | `fields[5]` (keyword "state") | none (returns 0) | `peer 10.0.0.1 remote as 65001 state up` |
 | Message | `fields[3]` | `fields[4]` | `peer 10.0.0.1 received update 1 ...` |
 
 ### UPDATE Parser: parseTextNLRIOps
@@ -109,7 +109,7 @@ Capabilities are chained: `cap 1 multiprotocol ipv4/unicast cap 65 asn4 65001 ca
 <!-- source: internal/component/bgp/plugins/rs/server_text.go -- parseTextState -->
 
 Parses key-value pairs from `fields[2]`:
-- `asn <value>` — peer ASN
+- `remote as <value>` — peer ASN
 - `state <value>` — state string (up, down, established, etc.)
 
 ### Refresh Parser: parseTextRefresh
@@ -177,7 +177,7 @@ After tokenizing, the parser reads tokens sequentially:
 
 ### Proposed Quick Parse (hot path)
 
-All messages start with `peer <ip> asn <n>`. Quick parse: byte-scan for first 4 tokens (2 key-value pairs) plus dispatch token. Zero allocations — returns byte slices into original buffer.
+All messages start with `peer <ip> remote as <n>`. Quick parse: byte-scan for first 5 tokens (2 key-value pairs, where the second is `remote as <n>`) plus dispatch token. Zero allocations — returns byte slices into original buffer.
 
 ### Proposed Shared Parser Location (future)
 

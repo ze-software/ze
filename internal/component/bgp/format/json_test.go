@@ -105,7 +105,9 @@ func TestJSONEncoderStateUp(t *testing.T) {
 	peerMap, ok := payload["peer"].(map[string]any)
 	require.True(t, ok, "peer must be object")
 	assert.Equal(t, "192.168.1.2", peerMap["address"])
-	assert.Equal(t, float64(65002), peerMap["asn"])
+	remoteMap, ok := peerMap["remote"].(map[string]any)
+	require.True(t, ok, "peer.remote must be object")
+	assert.Equal(t, float64(65002), remoteMap["as"])
 
 	// State in payload
 	assert.Equal(t, "up", payload["state"])
@@ -346,7 +348,9 @@ func TestJSONEncoderNotification(t *testing.T) {
 	peerMap, ok := bgpPayload["peer"].(map[string]any)
 	require.True(t, ok, "peer must be object at bgp level")
 	assert.Equal(t, "192.168.1.2", peerMap["address"])
-	assert.Equal(t, float64(65002), peerMap["asn"])
+	remoteMap, ok := peerMap["remote"].(map[string]any)
+	require.True(t, ok, "peer.remote must be object")
+	assert.Equal(t, float64(65002), remoteMap["as"])
 
 	// Notification fields in payload
 	assert.Equal(t, float64(6), payload["code"])
@@ -1875,7 +1879,9 @@ func TestEventJSONPeerObject(t *testing.T) {
 	require.True(t, ok, "bgp.state.peer must be object")
 
 	assert.Equal(t, "192.168.1.2", peerObj["address"])
-	assert.Equal(t, float64(65002), peerObj["asn"])
+	remoteObj, ok := peerObj["remote"].(map[string]any)
+	require.True(t, ok, "peer.remote must be object")
+	assert.Equal(t, float64(65002), remoteObj["as"])
 }
 
 // TestEventJSONPeerNameGroup verifies the peerMap helper includes name and group in JSON output.

@@ -14,7 +14,7 @@ func TestBuildRPKIEvent(t *testing.T) {
 		"192.168.0.0/16": ValidationNotFound,
 	}
 
-	event := buildRPKIEvent("10.0.0.1", uint32(65001), uint64(42), "ipv4/unicast", results)
+	event := buildRPKIEvent("10.0.0.1", "upstream1", uint32(65001), uint64(42), "ipv4/unicast", results)
 
 	var parsed map[string]any
 	if err := json.Unmarshal([]byte(event), &parsed); err != nil {
@@ -34,9 +34,13 @@ func TestBuildRPKIEvent(t *testing.T) {
 	if peerMap["address"] != "10.0.0.1" {
 		t.Fatalf("expected peer address=10.0.0.1, got %v", peerMap["address"])
 	}
-	peerASN, ok := peerMap["asn"].(float64)
+	remoteMap, ok := peerMap["remote"].(map[string]any)
+	if !ok {
+		t.Fatal("missing remote key in peer")
+	}
+	peerASN, ok := remoteMap["as"].(float64)
 	if !ok || peerASN != 65001 {
-		t.Fatalf("expected peer asn=65001, got %v", peerMap["asn"])
+		t.Fatalf("expected peer remote.as=65001, got %v", remoteMap["as"])
 	}
 
 	msgMap, ok := bgpMap["message"].(map[string]any)
@@ -76,7 +80,7 @@ func TestBuildRPKIEventSinglePrefix(t *testing.T) {
 		"10.0.1.0/24": ValidationValid,
 	}
 
-	event := buildRPKIEvent("10.0.0.1", uint32(65001), uint64(1), "ipv4/unicast", results)
+	event := buildRPKIEvent("10.0.0.1", "upstream1", uint32(65001), uint64(1), "ipv4/unicast", results)
 
 	var parsed map[string]any
 	if err := json.Unmarshal([]byte(event), &parsed); err != nil {
@@ -102,7 +106,7 @@ func TestBuildRPKIEventSinglePrefix(t *testing.T) {
 }
 
 func TestBuildRPKIEventUnavailable(t *testing.T) {
-	event := buildRPKIEventUnavailable("10.0.0.1", uint32(65001), uint64(7))
+	event := buildRPKIEventUnavailable("10.0.0.1", "upstream1", uint32(65001), uint64(7))
 
 	var parsed map[string]any
 	if err := json.Unmarshal([]byte(event), &parsed); err != nil {
@@ -134,7 +138,7 @@ func TestBuildRPKIEventUnavailable(t *testing.T) {
 }
 
 func TestBuildRPKIEventWithdrawal(t *testing.T) {
-	event := buildRPKIEvent("10.0.0.1", uint32(65001), uint64(3), "ipv4/unicast", nil)
+	event := buildRPKIEvent("10.0.0.1", "upstream1", uint32(65001), uint64(3), "ipv4/unicast", nil)
 
 	var parsed map[string]any
 	if err := json.Unmarshal([]byte(event), &parsed); err != nil {
@@ -162,7 +166,7 @@ func TestBuildRPKIEventEscaping(t *testing.T) {
 		`10.0.0.0/24"inject`: ValidationValid,
 	}
 
-	event := buildRPKIEvent(`peer"addr`, uint32(65001), uint64(1), `ipv4/"unicast`, results)
+	event := buildRPKIEvent(`peer"addr`, "test-peer", uint32(65001), uint64(1), `ipv4/"unicast`, results)
 
 	var parsed map[string]any
 	if err := json.Unmarshal([]byte(event), &parsed); err != nil {

@@ -181,8 +181,17 @@ module ze-types {
     grouping peer-info {
         description "Peer information returned by peer-list and peer-show";
         leaf address { type ip-address; description "Peer IP address"; }
-        leaf asn { type asn; description "Peer ASN"; }
-        leaf local-as { type asn; description "Local ASN for this peer"; }
+        leaf name { type string; description "Peer name (YANG list key)"; }
+        leaf group { type string; description "Peer-group name (empty if standalone)"; }
+        container remote {
+            description "Remote peer identity";
+            leaf as { type asn; description "Peer ASN"; }
+        }
+        container local {
+            description "Local identity for this peer";
+            leaf as { type asn; description "Local ASN"; }
+            leaf address { type ip-address; description "Local bind address"; }
+        }
         leaf state { type string; description "FSM state (idle, connect, active, opensent, openconfirm, established)"; }
         leaf router-id { type ipv4-address; description "Peer router ID"; }
         leaf hold-time { type uint16; description "Negotiated hold time"; }

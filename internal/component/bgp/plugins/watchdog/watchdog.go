@@ -116,11 +116,11 @@ func RunWatchdogPlugin(conn net.Conn) int {
 }
 
 // parseStateEvent extracts peer address and state from a text state event.
-// Format: "peer 10.0.0.1 asn 65001 state up\n"
+// Format: "peer 10.0.0.1 remote as 65001 state up\n"
 // Returns ("", "") if the event is not a recognized state event.
 func parseStateEvent(text string) (peerAddr, state string) {
 	fields := strings.Fields(strings.TrimRight(text, "\n"))
-	// Minimum: "peer" addr "state" value = 4 tokens
+	// Minimum: "peer" addr "remote" "as" N "state" value = 7 tokens
 	if len(fields) < 4 {
 		return "", ""
 	}

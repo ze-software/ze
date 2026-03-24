@@ -19,7 +19,7 @@ All messages have a top-level `type` field. Event type is in the `message` objec
   "type": "<namespace>",
   "<namespace>": {
     "message": {"type": "<event-type>", "id": <n>, "direction": "<dir>"},
-    "peer": {"address": "<ip>", "asn": <n>},
+    "peer": {"address": "<ip>", "remote": {"as": <n>}},
     ...event-specific fields...
   }
 }
@@ -47,7 +47,7 @@ All BGP events have the same structure: type in `message`, `peer` and event-spec
   "type": "bgp",
   "bgp": {
     "message": {"type": "<event-type>", "id": <n>, "direction": "<dir>"},
-    "peer": {"address": "<ip>", "asn": <n>},
+    "peer": {"address": "<ip>", "remote": {"as": <n>}},
     ...event-specific fields...
   }
 }
@@ -86,7 +86,7 @@ State events have the state value at `bgp` level:
   "type": "bgp",
   "bgp": {
     "message": {"type": "state"},
-    "peer": {"address": "192.0.2.1", "asn": 65001},
+    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
     "state": "up"
   }
 }
@@ -102,7 +102,7 @@ For `"down"` events, a `reason` field is included:
   "type": "bgp",
   "bgp": {
     "message": {"type": "state"},
-    "peer": {"address": "192.0.2.1", "asn": 65001},
+    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
     "state": "down",
     "reason": "hold timer expired"
   }
@@ -122,7 +122,7 @@ Attributes and NLRIs are at the `bgp` level (flat structure):
   "type": "bgp",
   "bgp": {
     "message": {"type": "update", "id": 1, "direction": "received"},
-    "peer": {"address": "192.0.2.1", "asn": 65001},
+    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
     "attr": {
       "origin": "igp",
       "as-path": [65001, 65002]
@@ -144,7 +144,7 @@ Attributes and NLRIs are at the `bgp` level (flat structure):
   "type": "bgp",
   "bgp": {
     "message": {"type": "update", "id": 1, "direction": "received"},
-    "peer": {"address": "192.0.2.1", "asn": 65001},
+    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
     "attr": {
       "origin": "igp",
       "as-path": [65001]
@@ -282,7 +282,7 @@ Next-hop is at the **operation level** (same as all other families), not inside 
   "type": "bgp",
   "bgp": {
     "message": {"type": "open", "id": 1, "direction": "received"},
-    "peer": {"address": "192.0.2.1", "asn": 65001},
+    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
     "open": {
       "asn": 65001,
       "router-id": "1.1.1.1",
@@ -306,7 +306,7 @@ Next-hop is at the **operation level** (same as all other families), not inside 
   "type": "bgp",
   "bgp": {
     "message": {"type": "notification", "id": 3, "direction": "sent"},
-    "peer": {"address": "192.0.2.1", "asn": 65001},
+    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
     "notification": {
       "code": 6,
       "subcode": 2,
@@ -328,7 +328,7 @@ Next-hop is at the **operation level** (same as all other families), not inside 
   "type": "bgp",
   "bgp": {
     "message": {"type": "keepalive", "id": 42, "direction": "sent"},
-    "peer": {"address": "192.0.2.1", "asn": 65001},
+    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
     "keepalive": {}
   }
 }
@@ -346,7 +346,7 @@ Sent after OPEN exchange:
   "type": "bgp",
   "bgp": {
     "message": {"type": "negotiated"},
-    "peer": {"address": "192.0.2.1", "asn": 65001},
+    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}},
     "negotiated": {
       "hold-time": 90,
       "asn4": true,
@@ -371,7 +371,7 @@ Sent after OPEN exchange:
     "type": "cache",
     "action": "new",
     "msg-id": 12345,
-    "peer": {"address": "192.0.2.1", "asn": 65001}
+    "peer": {"address": "192.0.2.1", "remote": {"as": 65001}}
   }
 }
 ```
@@ -409,27 +409,27 @@ Text format does NOT use JSON wrapping. All messages follow: `peer <ip> <directi
 
 **State:**
 ```
-peer 192.0.2.1 asn 65001 state up
+peer 192.0.2.1 remote as 65001 state up
 ```
 
 **UPDATE:**
 ```
-peer 192.0.2.1 asn 65001 received update 1 announce origin igp as-path 65001 ipv4/unicast next-hop 192.0.2.1 nlri 10.0.0.0/24
+peer 192.0.2.1 remote as 65001 received update 1 announce origin igp as-path 65001 ipv4/unicast next-hop 192.0.2.1 nlri 10.0.0.0/24
 ```
 
 **OPEN:**
 ```
-peer 192.0.2.1 asn 65001 received open 1 asn 65001 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast
+peer 192.0.2.1 remote as 65001 received open 1 asn 65001 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast
 ```
 
 **KEEPALIVE:**
 ```
-peer 192.0.2.1 asn 65001 sent keepalive 42
+peer 192.0.2.1 remote as 65001 sent keepalive 42
 ```
 
 **NOTIFICATION:**
 ```
-peer 192.0.2.1 asn 65001 sent notification 3 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data
+peer 192.0.2.1 remote as 65001 sent notification 3 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data
 ```
 <!-- source: internal/component/bgp/format/text.go -- FormatOpen, FormatKeepalive, FormatNotification, FormatRouteRefresh -->
 

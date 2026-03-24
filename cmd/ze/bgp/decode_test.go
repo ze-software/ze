@@ -146,7 +146,9 @@ func TestDecodeOpen(t *testing.T) {
 	peer, ok := bgp["peer"].(map[string]any)
 	require.True(t, ok, "missing or invalid 'peer' field in bgp")
 	assert.Equal(t, "127.0.0.1", peer["address"], "peer.address")
-	assert.Equal(t, float64(65533), peer["asn"], "peer.asn")
+	remote, ok := peer["remote"].(map[string]any)
+	require.True(t, ok, "missing or invalid 'remote' in peer")
+	assert.Equal(t, float64(65533), remote["as"], "peer.remote.as")
 
 	// Check open section
 	openSection, ok := bgp["open"].(map[string]any)
@@ -415,7 +417,7 @@ func TestDecodeUpdate(t *testing.T) {
 	peer, ok := bgp["peer"].(map[string]any)
 	require.True(t, ok, "missing or invalid 'peer' field in bgp")
 	assert.NotNil(t, peer["address"], "peer.address")
-	assert.NotNil(t, peer["asn"], "peer.asn")
+	assert.NotNil(t, peer["remote"], "peer.remote")
 
 	// Ze format: update section under bgp.update
 	update, ok := bgp["update"].(map[string]any)

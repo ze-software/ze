@@ -42,8 +42,13 @@ type rpkiEventBGP struct {
 }
 
 type rpkiEventPeer struct {
-	Address string `json:"address"`
-	ASN     uint32 `json:"asn"`
+	Address string          `json:"address"`
+	Name    string          `json:"name"`
+	Remote  rpkiEventRemote `json:"remote"`
+}
+
+type rpkiEventRemote struct {
+	AS uint32 `json:"as"`
 }
 
 type rpkiEventMessage struct {
@@ -54,7 +59,7 @@ type rpkiEventMessage struct {
 // buildRPKIEvent builds a JSON rpki event string for the given validation results.
 // Per-prefix states are grouped under the family key. If results is nil or empty,
 // the rpki section is an empty object (withdrawal).
-func buildRPKIEvent(peerAddr string, peerASN uint32, msgID uint64, family string, results map[string]uint8) string {
+func buildRPKIEvent(peerAddr, peerName string, peerASN uint32, msgID uint64, family string, results map[string]uint8) string {
 	// Build per-prefix state strings.
 	var rpkiSection any
 	if len(results) == 0 {
@@ -70,7 +75,7 @@ func buildRPKIEvent(peerAddr string, peerASN uint32, msgID uint64, family string
 	evt := rpkiEventJSON{
 		Type: "bgp",
 		BGP: rpkiEventBGP{
-			Peer:    rpkiEventPeer{Address: peerAddr, ASN: peerASN},
+			Peer:    rpkiEventPeer{Address: peerAddr, Name: peerName, Remote: rpkiEventRemote{AS: peerASN}},
 			Message: rpkiEventMessage{ID: msgID, Type: "rpki"},
 			RPKI:    rpkiSection,
 		},
@@ -87,11 +92,11 @@ func buildRPKIEvent(peerAddr string, peerASN uint32, msgID uint64, family string
 // buildRPKIEventUnavailable builds a JSON rpki event with "unavailable" status.
 // Emitted when the ROA cache is empty or expired. The rpki field is an object
 // with a "status" key (not a bare string) so consumers always get an object.
-func buildRPKIEventUnavailable(peerAddr string, peerASN uint32, msgID uint64) string {
+func buildRPKIEventUnavailable(peerAddr, peerName string, peerASN uint32, msgID uint64) string {
 	evt := rpkiEventJSON{
 		Type: "bgp",
 		BGP: rpkiEventBGP{
-			Peer:    rpkiEventPeer{Address: peerAddr, ASN: peerASN},
+			Peer:    rpkiEventPeer{Address: peerAddr, Name: peerName, Remote: rpkiEventRemote{AS: peerASN}},
 			Message: rpkiEventMessage{ID: msgID, Type: "rpki"},
 			RPKI:    map[string]string{"status": "unavailable"},
 		},

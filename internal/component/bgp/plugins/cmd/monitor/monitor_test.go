@@ -466,7 +466,7 @@ func TestStreamMonitor(t *testing.T) {
 	}, 2*time.Second, 10*time.Millisecond, "monitor client should register")
 
 	// Deliver an event.
-	eventJSON := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","asn":65001},"message":{"type":"update","direction":"received"}}}`
+	eventJSON := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"type":"update","direction":"received"}}}`
 	mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1", "", eventJSON)
 
 	// Wait for the event to appear in output.
@@ -510,11 +510,11 @@ func TestStreamMonitorWithFilters(t *testing.T) {
 	}, 2*time.Second, 10*time.Millisecond)
 
 	// Deliver matching event.
-	matchEvent := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","asn":65001},"message":{"type":"update","direction":"received"}}}`
+	matchEvent := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"type":"update","direction":"received"}}}`
 	mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.1", "", matchEvent)
 
 	// Deliver non-matching event (different peer).
-	noMatchEvent := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.2","asn":65002},"message":{"type":"update","direction":"received"}}}`
+	noMatchEvent := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.2","remote":{"as":65002}},"message":{"type":"update","direction":"received"}}}`
 	mm.Deliver(plugin.NamespaceBGP, plugin.EventUpdate, plugin.DirectionReceived, "10.0.0.2", "", noMatchEvent)
 
 	// Wait for the matching event.

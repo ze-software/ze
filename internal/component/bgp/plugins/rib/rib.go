@@ -621,15 +621,15 @@ func (r *RIBManager) updatePeerMeta(event *Event, peerAddr string) {
 	}
 }
 
-// getLocalASN extracts the local ASN from an event's nested peer format.
-// Received events use PeerInfoNested which has ASN.Local and ASN.Peer.
+// getLocalASN extracts the local ASN from an event's peer format.
+// Events with local info use PeerInfoJSON with Local.AS (YANG: local.as).
 func getLocalASN(event *Event) uint32 {
 	if len(event.Peer) == 0 {
 		return 0
 	}
-	var nested PeerInfoNested
-	if err := json.Unmarshal(event.Peer, &nested); err == nil && nested.ASN.Local > 0 {
-		return nested.ASN.Local
+	var info PeerInfoJSON
+	if err := json.Unmarshal(event.Peer, &info); err == nil && info.Local != nil && info.Local.AS > 0 {
+		return info.Local.AS
 	}
 	return 0
 }

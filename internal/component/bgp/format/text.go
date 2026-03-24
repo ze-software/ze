@@ -28,42 +28,80 @@ import (
 var jsonSafeReplacer = strings.NewReplacer(`\`, `\\`, `"`, `\"`)
 
 // writePeerJSON writes the "peer":{...} JSON fragment to a strings.Builder.
-// Always includes address, asn, and name. Includes group when non-empty.
+// Structure matches YANG peer-info grouping: address, name, remote.as, group.
+// Always includes address, name, and remote.as. Includes group when non-empty.
 // Key order is alphabetical (matching json.Marshal output from peerMap).
 func writePeerJSON(sb *strings.Builder, peer plugin.PeerInfo) {
 	sb.WriteString(`,"peer":{"address":"`)
 	sb.WriteString(peer.Address.String())
-	sb.WriteString(`","asn":`)
-	sb.WriteString(strconv.FormatUint(uint64(peer.PeerAS), 10))
+	sb.WriteByte('"')
 	if peer.GroupName != "" {
 		sb.WriteString(`,"group":"`)
 		sb.WriteString(jsonSafeReplacer.Replace(peer.GroupName))
 		sb.WriteByte('"')
 	}
+	if peer.LocalAS > 0 || peer.LocalAddress.IsValid() {
+		sb.WriteString(`,"local":{`)
+		first := true
+		if peer.LocalAddress.IsValid() {
+			sb.WriteString(`"address":"`)
+			sb.WriteString(peer.LocalAddress.String())
+			sb.WriteByte('"')
+			first = false
+		}
+		if peer.LocalAS > 0 {
+			if !first {
+				sb.WriteByte(',')
+			}
+			sb.WriteString(`"as":`)
+			sb.WriteString(strconv.FormatUint(uint64(peer.LocalAS), 10))
+		}
+		sb.WriteByte('}')
+	}
 	sb.WriteString(`,"name":"`)
 	sb.WriteString(jsonSafeReplacer.Replace(peer.Name))
-	sb.WriteByte('"')
-	sb.WriteByte('}')
+	sb.WriteString(`","remote":{"as":`)
+	sb.WriteString(strconv.FormatUint(uint64(peer.PeerAS), 10))
+	sb.WriteString(`}}`)
 }
 
 // peerJSONInline returns the peer JSON object as a string (without leading comma).
 // Used by fmt.Sprintf sites where a Builder is not available.
+// Structure matches YANG peer-info grouping: address, name, remote.as, group.
 // Key order is alphabetical (matching json.Marshal output from peerMap).
 func peerJSONInline(peer plugin.PeerInfo) string {
 	var sb strings.Builder
 	sb.WriteString(`"peer":{"address":"`)
 	sb.WriteString(peer.Address.String())
-	sb.WriteString(`","asn":`)
-	sb.WriteString(strconv.FormatUint(uint64(peer.PeerAS), 10))
+	sb.WriteByte('"')
 	if peer.GroupName != "" {
 		sb.WriteString(`,"group":"`)
 		sb.WriteString(jsonSafeReplacer.Replace(peer.GroupName))
 		sb.WriteByte('"')
 	}
+	if peer.LocalAS > 0 || peer.LocalAddress.IsValid() {
+		sb.WriteString(`,"local":{`)
+		first := true
+		if peer.LocalAddress.IsValid() {
+			sb.WriteString(`"address":"`)
+			sb.WriteString(peer.LocalAddress.String())
+			sb.WriteByte('"')
+			first = false
+		}
+		if peer.LocalAS > 0 {
+			if !first {
+				sb.WriteByte(',')
+			}
+			sb.WriteString(`"as":`)
+			sb.WriteString(strconv.FormatUint(uint64(peer.LocalAS), 10))
+		}
+		sb.WriteByte('}')
+	}
 	sb.WriteString(`,"name":"`)
 	sb.WriteString(jsonSafeReplacer.Replace(peer.Name))
-	sb.WriteByte('"')
-	sb.WriteByte('}')
+	sb.WriteString(`","remote":{"as":`)
+	sb.WriteString(strconv.FormatUint(uint64(peer.PeerAS), 10))
+	sb.WriteString(`}}`)
 	return sb.String()
 }
 
@@ -342,7 +380,7 @@ func formatFullFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content
 //	  "type": "bgp",
 //	  "bgp": {
 //	    "message": {"type": "update", "id": 123, "direction": "received"},
-//	    "peer": {"address": "...", "asn": ...},
+//	    "peer": {"address": "...", "name": "...", "remote": {"as": ...}},
 //	    "update": {
 //	      "attr": {"origin": "igp", ...},
 //	      "nlri": {
@@ -679,10 +717,10 @@ func formatFilterResultText(peer plugin.PeerInfo, result bgpfilter.FilterResult,
 	var sb strings.Builder
 	var scratch [64]byte
 
-	// Uniform header: peer <ip> asn <asn> <direction> update <id>
+	// Uniform header: peer <ip> remote as <asn> <direction> update <id>
 	sb.WriteString("peer ")
 	sb.Write(peer.Address.AppendTo(scratch[:0]))
-	sb.WriteString(" asn ")
+	sb.WriteString(" remote as ")
 	sb.Write(strconv.AppendUint(scratch[:0], uint64(peer.PeerAS), 10))
 	sb.WriteByte(' ')
 	sb.WriteString(direction)
@@ -866,12 +904,12 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 }
 
 // FormatOpen formats an OPEN message as text output.
-// Format: peer <ip> <direction> open <msg-id> asn <asn> router-id <id> hold-time <t> [cap <code> <name> <value>]...
+// Format: peer <ip> remote as <asn> <direction> open <msg-id> router-id <id> hold-time <t> [cap <code> <name> <value>]...
 // ASN is the speaker's ASN (from the OPEN message).
 // Capabilities use "cap <code> <name> <value>" format for easy parsing.
 func FormatOpen(peer plugin.PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
 	var sb strings.Builder
-	fmt.Fprintf(&sb, "peer %s asn %d %s open %d router-id %s hold-time %d",
+	fmt.Fprintf(&sb, "peer %s remote as %d %s open %d router-id %s hold-time %d",
 		peer.Address, open.ASN, direction, msgID, open.RouterID, open.HoldTime)
 
 	for _, cap := range open.Capabilities {
@@ -886,7 +924,7 @@ func FormatOpen(peer plugin.PeerInfo, open DecodedOpen, direction string, msgID 
 }
 
 // FormatNotification formats a NOTIFICATION message as text output.
-// Format: peer <ip> <direction> notification <msg-id> code <n> subcode <n> code-name <name> subcode-name <name> data <hex>.
+// Format: peer <ip> remote as <asn> <direction> notification <msg-id> code <n> subcode <n> code-name <name> subcode-name <name> data <hex>.
 // Names are hyphenated for single-word parsing (e.g., "Administrative-Shutdown").
 func FormatNotification(peer plugin.PeerInfo, notify DecodedNotification, direction string, msgID uint64) string {
 	dataHex := ""
@@ -898,22 +936,22 @@ func FormatNotification(peer plugin.PeerInfo, notify DecodedNotification, direct
 	codeName := strings.ReplaceAll(notify.ErrorCodeName, " ", "-")
 	subcodeName := strings.ReplaceAll(notify.ErrorSubcodeName, " ", "-")
 
-	return fmt.Sprintf("peer %s asn %d %s notification %d code %d subcode %d code-name %s subcode-name %s data %s\n",
+	return fmt.Sprintf("peer %s remote as %d %s notification %d code %d subcode %d code-name %s subcode-name %s data %s\n",
 		peer.Address, peer.PeerAS, direction, msgID, notify.ErrorCode, notify.ErrorSubcode,
 		codeName, subcodeName, dataHex)
 }
 
 // FormatKeepalive formats a KEEPALIVE message as text output.
-// Format: peer <ip> <direction> keepalive <msg-id>.
+// Format: peer <ip> remote as <asn> <direction> keepalive <msg-id>.
 func FormatKeepalive(peer plugin.PeerInfo, direction string, msgID uint64) string {
-	return fmt.Sprintf("peer %s asn %d %s keepalive %d\n", peer.Address, peer.PeerAS, direction, msgID)
+	return fmt.Sprintf("peer %s remote as %d %s keepalive %d\n", peer.Address, peer.PeerAS, direction, msgID)
 }
 
 // FormatRouteRefresh formats a ROUTE-REFRESH message as text output.
 // RFC 7313: Type is "refresh" (subtype 0), "borr" (subtype 1), or "eorr" (subtype 2).
-// Format: peer <ip> <direction> <type> <msg-id> family <family>.
+// Format: peer <ip> remote as <asn> <direction> <type> <msg-id> family <family>.
 func FormatRouteRefresh(peer plugin.PeerInfo, decoded DecodedRouteRefresh, direction string, msgID uint64) string {
-	return fmt.Sprintf("peer %s asn %d %s %s %d family %s\n",
+	return fmt.Sprintf("peer %s remote as %d %s %s %d family %s\n",
 		peer.Address, peer.PeerAS, direction, decoded.SubtypeName, msgID, decoded.Family)
 }
 
@@ -941,9 +979,9 @@ func formatStateChangeJSON(peer plugin.PeerInfo, state, reason string) string {
 
 func formatStateChangeText(peer plugin.PeerInfo, state, reason string) string {
 	if reason != "" {
-		return fmt.Sprintf("peer %s asn %d state %s reason %s\n", peer.Address, peer.PeerAS, state, reason)
+		return fmt.Sprintf("peer %s remote as %d state %s reason %s\n", peer.Address, peer.PeerAS, state, reason)
 	}
-	return fmt.Sprintf("peer %s asn %d state %s\n", peer.Address, peer.PeerAS, state)
+	return fmt.Sprintf("peer %s remote as %d state %s\n", peer.Address, peer.PeerAS, state)
 }
 
 // FormatEOR formats an End-of-RIB marker event.
@@ -953,7 +991,7 @@ func FormatEOR(peer plugin.PeerInfo, family, encoding string) string {
 	if encoding == plugin.EncodingJSON {
 		return `{"type":"bgp","bgp":{"message":{"type":"eor"},` + peerJSONInline(peer) + `,"eor":{"family":"` + family + `"}}}` + "\n"
 	}
-	return fmt.Sprintf("peer %s asn %d eor %s\n", peer.Address, peer.PeerAS, family)
+	return fmt.Sprintf("peer %s remote as %d eor %s\n", peer.Address, peer.PeerAS, family)
 }
 
 // FormatCongestion formats a forward-path congestion event.
@@ -962,7 +1000,7 @@ func FormatCongestion(peer plugin.PeerInfo, eventType, encoding string) string {
 	if encoding == plugin.EncodingJSON {
 		return `{"type":"bgp","bgp":{"message":{"type":"` + eventType + `"},` + peerJSONInline(peer) + `}}` + "\n"
 	}
-	return fmt.Sprintf("peer %s asn %d %s\n", peer.Address, peer.PeerAS, eventType)
+	return fmt.Sprintf("peer %s remote as %d %s\n", peer.Address, peer.PeerAS, eventType)
 }
 
 // FormatNegotiated formats negotiated capabilities event.

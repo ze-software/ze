@@ -57,7 +57,7 @@ func TestTransformEnvelopeToPlugin_IPv4Announce(t *testing.T) {
 			},
 			"peer": map[string]any{
 				"address": "127.0.0.1",
-				"asn":     float64(65533),
+				"remote":  map[string]any{"as": float64(65533)},
 			},
 			"update": map[string]any{
 				"attr": map[string]any{
@@ -107,7 +107,7 @@ func TestTransformEnvelopeToPlugin_IPv4Withdraw(t *testing.T) {
 		"type": "bgp",
 		"bgp": map[string]any{
 			"message": map[string]any{"type": "update"},
-			"peer":    map[string]any{"address": "127.0.0.1", "asn": float64(65533)},
+			"peer":    map[string]any{"address": "127.0.0.1", "remote": map[string]any{"as": float64(65533)}},
 			"update": map[string]any{
 				"ipv4/unicast": []any{
 					map[string]any{"action": "del", "nlri": []any{"10.0.1.0/24"}},
@@ -138,7 +138,7 @@ func TestTransformEnvelopeToPlugin_IPv6Withdraw(t *testing.T) {
 		"type": "bgp",
 		"bgp": map[string]any{
 			"message": map[string]any{"type": "update"},
-			"peer":    map[string]any{"address": "::1", "asn": float64(65533)},
+			"peer":    map[string]any{"address": "::1", "remote": map[string]any{"as": float64(65533)}},
 			"update": map[string]any{
 				"ipv6/unicast": []any{
 					map[string]any{"action": "del", "nlri": []any{"fc00:1::/64"}},
@@ -169,7 +169,7 @@ func TestTransformEnvelopeToPlugin_IPv6Announce(t *testing.T) {
 		"type": "bgp",
 		"bgp": map[string]any{
 			"message": map[string]any{"type": "update"},
-			"peer":    map[string]any{"address": "::1", "asn": float64(65533)},
+			"peer":    map[string]any{"address": "::1", "remote": map[string]any{"as": float64(65533)}},
 			"update": map[string]any{
 				"attr": map[string]any{
 					"origin":           "igp",
@@ -209,7 +209,7 @@ func TestTransformEnvelopeToPlugin_EOR(t *testing.T) {
 		"type": "bgp",
 		"bgp": map[string]any{
 			"message": map[string]any{"type": "update"},
-			"peer":    map[string]any{"address": "127.0.0.1", "asn": float64(65533)},
+			"peer":    map[string]any{"address": "127.0.0.1", "remote": map[string]any{"as": float64(65533)}},
 			"update":  map[string]any{},
 		},
 	}
@@ -327,12 +327,12 @@ func TestComparePluginJSON_IgnoresContextFields(t *testing.T) {
 	actual := map[string]any{
 		"message":   map[string]any{"type": "update"},
 		"direction": "in",
-		"peer":      map[string]any{"address": "127.0.0.1", "asn": 65533},
+		"peer":      map[string]any{"address": "127.0.0.1", "remote": map[string]any{"as": 65533}},
 		"origin":    "igp",
 	}
 
 	// Expected has different peer/direction
-	expected := `{"message":{"type":"update"},"direction":"out","peer":{"address":"10.0.0.1","asn":65000},"origin":"igp"}`
+	expected := `{"message":{"type":"update"},"direction":"out","peer":{"address":"10.0.0.1","remote":{"as":65000}},"origin":"igp"}`
 
 	err := comparePluginJSON(actual, expected)
 	assert.NoError(t, err)
@@ -367,7 +367,7 @@ func TestTransformEnvelopeToPlugin_FlowSpecAnnounce(t *testing.T) {
 		"type": "bgp",
 		"bgp": map[string]any{
 			"message": map[string]any{"type": "update"},
-			"peer":    map[string]any{"address": "127.0.0.1", "asn": float64(65533)},
+			"peer":    map[string]any{"address": "127.0.0.1", "remote": map[string]any{"as": float64(65533)}},
 			"update": map[string]any{
 				"attr": map[string]any{
 					"origin":           "igp",
@@ -419,7 +419,7 @@ func TestTransformEnvelopeToPlugin_FlowSpecWithNextHop(t *testing.T) {
 		"type": "bgp",
 		"bgp": map[string]any{
 			"message": map[string]any{"type": "update"},
-			"peer":    map[string]any{"address": "127.0.0.1", "asn": float64(65533)},
+			"peer":    map[string]any{"address": "127.0.0.1", "remote": map[string]any{"as": float64(65533)}},
 			"update": map[string]any{
 				"attr": map[string]any{
 					"origin":           "igp",
@@ -464,7 +464,7 @@ func TestTransformEnvelopeToPlugin_IPv6FlowSpec(t *testing.T) {
 		"type": "bgp",
 		"bgp": map[string]any{
 			"message": map[string]any{"type": "update"},
-			"peer":    map[string]any{"address": "::1", "asn": float64(65533)},
+			"peer":    map[string]any{"address": "::1", "remote": map[string]any{"as": float64(65533)}},
 			"update": map[string]any{
 				"attr": map[string]any{
 					"origin":           "igp",
@@ -511,7 +511,7 @@ func TestTransformEnvelopeToPlugin_FlowSpecWithdraw(t *testing.T) {
 		"type": "bgp",
 		"bgp": map[string]any{
 			"message": map[string]any{"type": "update"},
-			"peer":    map[string]any{"address": "127.0.0.1", "asn": float64(65533)},
+			"peer":    map[string]any{"address": "127.0.0.1", "remote": map[string]any{"as": float64(65533)}},
 			"update": map[string]any{
 				"ipv4/flow": []any{
 					map[string]any{

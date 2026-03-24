@@ -22,7 +22,7 @@ func TestZebgpToExabgpJSON_UpdateAnnounce(t *testing.T) {
 			"type": "update",
 			"peer": map[string]any{
 				"address": "10.0.0.1",
-				"asn":     float64(65001),
+				"remote":  map[string]any{"as": float64(65001)},
 			},
 			"update": map[string]any{
 				"message": map[string]any{
@@ -92,7 +92,7 @@ func TestZebgpToExabgpJSON_UpdateWithdraw(t *testing.T) {
 		"type": "bgp",
 		"bgp": map[string]any{
 			"type": "update",
-			"peer": map[string]any{"address": "10.0.0.1", "asn": float64(65001)},
+			"peer": map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": float64(65001)}},
 			"update": map[string]any{
 				"message": map[string]any{"direction": "received"},
 				"nlri": map[string]any{
@@ -129,7 +129,7 @@ func TestZebgpToExabgpJSON_StateUp(t *testing.T) {
 		"type": "bgp",
 		"bgp": map[string]any{
 			"type":  "state",
-			"peer":  map[string]any{"address": "10.0.0.1", "asn": float64(65001)},
+			"peer":  map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": float64(65001)}},
 			"state": "up",
 		},
 	}
@@ -163,7 +163,7 @@ func TestZebgpToExabgpJSON_DirectionMapping(t *testing.T) {
 			zebgp := map[string]any{
 				"type": "bgp",
 				"bgp": map[string]any{
-					"peer":    map[string]any{"address": "10.0.0.1", "asn": float64(65001)},
+					"peer":    map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": float64(65001)}},
 					"message": map[string]any{"type": "update", "direction": tt.direction},
 					"update":  map[string]any{},
 				},
@@ -353,7 +353,7 @@ func TestRoundTrip(t *testing.T) {
 		"type": "bgp",
 		"bgp": map[string]any{
 			"type": "update",
-			"peer": map[string]any{"address": "10.0.0.1", "asn": float64(65001)},
+			"peer": map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": float64(65001)}},
 			"update": map[string]any{
 				"message": map[string]any{"direction": "received"},
 				"attr":    map[string]any{"origin": "igp"},
@@ -824,7 +824,7 @@ func TestZebgpToExabgpJSON_Negotiated(t *testing.T) {
 		"bgp": map[string]any{
 			"peer": map[string]any{
 				"address": "10.0.0.1",
-				"asn":     float64(65001),
+				"remote":  map[string]any{"as": float64(65001)},
 			},
 			"message": map[string]any{
 				"type": "negotiated",
@@ -892,7 +892,7 @@ func TestZebgpToExabgpJSON_NegotiatedMinimal(t *testing.T) {
 		"bgp": map[string]any{
 			"peer": map[string]any{
 				"address": "10.0.0.1",
-				"asn":     float64(65001),
+				"remote":  map[string]any{"as": float64(65001)},
 			},
 			"message": map[string]any{
 				"type": "negotiated",
@@ -925,7 +925,7 @@ func TestZebgpToExabgpJSON_NegotiatedMissing(t *testing.T) {
 		"bgp": map[string]any{
 			"peer": map[string]any{
 				"address": "10.0.0.1",
-				"asn":     float64(65001),
+				"remote":  map[string]any{"as": float64(65001)},
 			},
 			"message": map[string]any{
 				"type": "negotiated",
