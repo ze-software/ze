@@ -15,6 +15,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -77,48 +78,9 @@ func NewPeeringDB(baseURL string) *PeeringDB {
 // LookupASN queries PeeringDB for prefix counts of the given ASN.
 // Returns an error if the ASN is not found in PeeringDB.
 func (c *PeeringDB) LookupASN(ctx context.Context, asn uint32) (PrefixCounts, error) {
-	reqURL := fmt.Sprintf("%s/api/net?asn=%d", c.baseURL, asn)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, http.NoBody)
+	fields, err := c.fetchNetFields(ctx, asn)
 	if err != nil {
-		return PrefixCounts{}, fmt.Errorf("peeringdb: create request: %w", err)
-	}
-
-	resp, err := c.http.Do(req)
-	if err != nil {
-		return PrefixCounts{}, fmt.Errorf("peeringdb: query ASN %d: %w", asn, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode != http.StatusOK {
-		return PrefixCounts{}, fmt.Errorf("peeringdb: ASN %d: HTTP %d", asn, resp.StatusCode)
-	}
-
-	return decodePeeringDBResponse(resp, asn)
-}
-
-// maxResponseSize limits PeeringDB response bodies to 1 MB.
-const maxResponseSize = 1 << 20
-
-// decodePeeringDBResponse extracts prefix counts from a PeeringDB API response.
-// Uses raw JSON decoding to avoid struct tags with PeeringDB's snake_case fields.
-func decodePeeringDBResponse(resp *http.Response, asn uint32) (PrefixCounts, error) {
-	var raw struct {
-		Data []json.RawMessage `json:"data"`
-	}
-	limited := io.LimitReader(resp.Body, maxResponseSize)
-	if err := json.NewDecoder(limited).Decode(&raw); err != nil {
-		return PrefixCounts{}, fmt.Errorf("peeringdb: ASN %d: decode: %w", asn, err)
-	}
-
-	if len(raw.Data) == 0 {
-		return PrefixCounts{}, fmt.Errorf("peeringdb: ASN %d: not found", asn)
-	}
-
-	// Decode first record as generic map to handle PeeringDB's snake_case fields.
-	var fields map[string]any
-	if err := json.Unmarshal(raw.Data[0], &fields); err != nil {
-		return PrefixCounts{}, fmt.Errorf("peeringdb: ASN %d: decode record: %w", asn, err)
+		return PrefixCounts{}, err
 	}
 
 	return PrefixCounts{
@@ -126,6 +88,78 @@ func decodePeeringDBResponse(resp *http.Response, asn uint32) (PrefixCounts, err
 		IPv6: jsonUint32(fields, "info_prefixes6"),
 	}, nil
 }
+
+// LookupASSet queries PeeringDB for the IRR AS-SET(s) registered by the given ASN.
+// Returns a slice of AS-SET names (e.g., ["AS-EXAMPLE", "RIPE::AS-EXAMPLE"]).
+// Returns an empty slice (not error) if the ASN exists but has no AS-SET registered.
+// Returns an error if the ASN is not found in PeeringDB.
+func (c *PeeringDB) LookupASSet(ctx context.Context, asn uint32) ([]string, error) {
+	fields, err := c.fetchNetFields(ctx, asn)
+	if err != nil {
+		return nil, err
+	}
+
+	raw, ok := fields["irr_as_set"].(string)
+	if !ok || raw == "" {
+		return nil, nil
+	}
+
+	return parseASSetField(raw), nil
+}
+
+// parseASSetField splits PeeringDB's irr_as_set field into individual AS-SET names.
+// The field may contain multiple AS-SETs separated by spaces, commas, or newlines.
+// Source prefixes like "RIPE::" or "RADB::" are preserved (they indicate the IRR source).
+func parseASSetField(raw string) []string {
+	// PeeringDB uses spaces as the primary separator, but some entries use
+	// commas or newlines. Normalize to spaces, then split.
+	raw = strings.NewReplacer(",", " ", "\n", " ", "\r", " ").Replace(raw)
+
+	return strings.Fields(raw)
+}
+
+// fetchNetFields queries the PeeringDB net endpoint for the given ASN
+// and returns the first record's fields as a generic map.
+func (c *PeeringDB) fetchNetFields(ctx context.Context, asn uint32) (map[string]any, error) {
+	reqURL := fmt.Sprintf("%s/api/net?asn=%d", c.baseURL, asn)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("peeringdb: create request: %w", err)
+	}
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("peeringdb: query ASN %d: %w", asn, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("peeringdb: ASN %d: HTTP %d", asn, resp.StatusCode)
+	}
+
+	var raw struct {
+		Data []json.RawMessage `json:"data"`
+	}
+	limited := io.LimitReader(resp.Body, maxResponseSize)
+	if err := json.NewDecoder(limited).Decode(&raw); err != nil {
+		return nil, fmt.Errorf("peeringdb: ASN %d: decode: %w", asn, err)
+	}
+
+	if len(raw.Data) == 0 {
+		return nil, fmt.Errorf("peeringdb: ASN %d: not found", asn)
+	}
+
+	var fields map[string]any
+	if err := json.Unmarshal(raw.Data[0], &fields); err != nil {
+		return nil, fmt.Errorf("peeringdb: ASN %d: decode record: %w", asn, err)
+	}
+
+	return fields, nil
+}
+
+// maxResponseSize limits PeeringDB response bodies to 1 MB.
+const maxResponseSize = 1 << 20
 
 // jsonUint32 extracts a uint32 from a JSON map field. Returns 0 if missing or not a number.
 func jsonUint32(m map[string]any, key string) uint32 {

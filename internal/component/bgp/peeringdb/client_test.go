@@ -34,8 +34,18 @@ func fakeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, wErr := fmt.Fprintf(w, `{"data":[{"asn":%d,"info_prefixes4":%d,"info_prefixes6":%d}]}`,
-		asnNum, asnNum, asnNum/5); wErr != nil {
+	// Deterministic AS-SET: ASN 65001 → "AS-TEST", ASN 65002 → "AS-FOO AS-BAR",
+	// ASN 65003 → empty (no AS-SET registered).
+	var irrASSet string
+	switch asnNum {
+	case 65001:
+		irrASSet = "AS-TEST"
+	case 65002:
+		irrASSet = "AS-FOO AS-BAR"
+	}
+
+	if _, wErr := fmt.Fprintf(w, `{"data":[{"asn":%d,"info_prefixes4":%d,"info_prefixes6":%d,"irr_as_set":"%s"}]}`,
+		asnNum, asnNum, asnNum/5, irrASSet); wErr != nil {
 		return
 	}
 }
@@ -335,6 +345,101 @@ func TestLookupASNMissingFields(t *testing.T) {
 	}
 	if !counts.Suspicious() {
 		t.Error("missing prefix fields should be flagged suspicious")
+	}
+}
+
+// VALIDATES: LookupASSet returns single AS-SET for ASN with one registered.
+// PREVENTS: AS-SET lookup silently returning empty for valid ASN.
+func TestLookupASSet(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(fakeHandler))
+	defer srv.Close()
+
+	c := NewPeeringDB(srv.URL)
+	sets, err := c.LookupASSet(context.Background(), 65001)
+	if err != nil {
+		t.Fatalf("LookupASSet: %v", err)
+	}
+
+	if len(sets) != 1 || sets[0] != "AS-TEST" {
+		t.Errorf("got %v, want [AS-TEST]", sets)
+	}
+}
+
+// VALIDATES: LookupASSet returns multiple AS-SETs when space-separated.
+// PREVENTS: only first AS-SET returned when multiple registered.
+func TestLookupASSetMultiple(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(fakeHandler))
+	defer srv.Close()
+
+	c := NewPeeringDB(srv.URL)
+	sets, err := c.LookupASSet(context.Background(), 65002)
+	if err != nil {
+		t.Fatalf("LookupASSet: %v", err)
+	}
+
+	if len(sets) != 2 || sets[0] != "AS-FOO" || sets[1] != "AS-BAR" {
+		t.Errorf("got %v, want [AS-FOO AS-BAR]", sets)
+	}
+}
+
+// VALIDATES: LookupASSet returns nil when ASN has no AS-SET registered.
+// PREVENTS: error on ASN with empty irr_as_set field.
+func TestLookupASSetEmpty(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(fakeHandler))
+	defer srv.Close()
+
+	c := NewPeeringDB(srv.URL)
+	sets, err := c.LookupASSet(context.Background(), 65003)
+	if err != nil {
+		t.Fatalf("LookupASSet: %v", err)
+	}
+
+	if sets != nil {
+		t.Errorf("got %v, want nil", sets)
+	}
+}
+
+// VALIDATES: LookupASSet returns error for unknown ASN.
+// PREVENTS: silent empty result for non-existent ASN.
+func TestLookupASSetNotFound(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(fakeHandler))
+	defer srv.Close()
+
+	c := NewPeeringDB(srv.URL)
+	_, err := c.LookupASSet(context.Background(), 0)
+	if err == nil {
+		t.Fatal("expected error for unknown ASN, got nil")
+	}
+}
+
+// VALIDATES: parseASSetField handles various separator formats.
+// PREVENTS: broken parsing on comma/newline separated AS-SET strings.
+func TestParseASSetField(t *testing.T) {
+	tests := []struct {
+		input string
+		want  []string
+	}{
+		{"AS-FOO", []string{"AS-FOO"}},
+		{"AS-FOO AS-BAR", []string{"AS-FOO", "AS-BAR"}},
+		{"AS-FOO,AS-BAR", []string{"AS-FOO", "AS-BAR"}},
+		{"AS-FOO\nAS-BAR", []string{"AS-FOO", "AS-BAR"}},
+		{"RIPE::AS-FOO RADB::AS-BAR", []string{"RIPE::AS-FOO", "RADB::AS-BAR"}},
+		{"  AS-FOO  ", []string{"AS-FOO"}},
+		{"", nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := parseASSetField(tt.input)
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %v, want %v", got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("got[%d] = %q, want %q", i, got[i], tt.want[i])
+				}
+			}
+		})
 	}
 }
 
