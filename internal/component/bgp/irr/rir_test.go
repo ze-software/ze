@@ -159,6 +159,7 @@ func TestRIRForASN(t *testing.T) {
 			}
 			if e == nil {
 				t.Fatalf("RIRForASN(%d) = nil, want RIR=%s", tt.asn, tt.wantRIR)
+				return // unreachable, satisfies staticcheck SA5011
 			}
 			if e.RIR != tt.wantRIR {
 				t.Errorf("RIRForASN(%d).RIR = %q, want %q", tt.asn, e.RIR, tt.wantRIR)
@@ -222,6 +223,7 @@ func TestSeedRIRTable(t *testing.T) {
 	e := table.RIRForASN(3333)
 	if e == nil {
 		t.Fatal("seed table missing AS3333 (RIPE)")
+		return // unreachable, satisfies staticcheck SA5011
 	}
 	if e.RIR != RIRRIPE {
 		t.Errorf("AS3333 RIR = %q, want %q", e.RIR, RIRRIPE)
@@ -231,6 +233,7 @@ func TestSeedRIRTable(t *testing.T) {
 	e = table.RIRForASN(7018)
 	if e == nil {
 		t.Fatal("seed table missing AS7018 (ARIN)")
+		return // unreachable, satisfies staticcheck SA5011
 	}
 	if e.RIR != RIRARIN {
 		t.Errorf("AS7018 RIR = %q, want %q", e.RIR, RIRARIN)

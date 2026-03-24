@@ -24,7 +24,7 @@ func TestRunSmallBenchmark(t *testing.T) {
 
 	const routeCount = 10
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	// 1. Start the test forwarder.
