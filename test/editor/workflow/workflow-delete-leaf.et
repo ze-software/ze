@@ -1,4 +1,4 @@
-# Test: Delete leaf — remove hold-time, verify removed
+# Test: Delete leaf — remove receive-hold-time, verify removed
 # VALIDATES: spec-editor-4: leaf deletion workflow
 # PREVENTS: Leaf deletion leaving stale state
 
@@ -16,7 +16,7 @@ bgp {
   	local {
   		ip auto;
   	}
-    timer { hold-time 90; }
+    timer { receive-hold-time 90; }
   }
 }
 EOF_CONF
@@ -25,7 +25,7 @@ option=file:path=test.conf
 option=timeout:value=10s
 
 # Delete a leaf value from inside a peer
-input=type:text=delete bgp peer peer1 timer hold-time
+input=type:text=delete bgp peer peer1 timer receive-hold-time
 input=enter
 expect=status:contains=Deleted
 expect=dirty:true

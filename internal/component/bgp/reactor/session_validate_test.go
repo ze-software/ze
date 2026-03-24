@@ -20,7 +20,7 @@ import (
 // newValidateSession creates a minimal Session for validation tests (eBGP, no negotiated caps).
 func newValidateSession() *Session {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
-	settings.HoldTime = 90 * time.Second
+	settings.ReceiveHoldTime = 90 * time.Second
 	return NewSession(settings)
 }
 

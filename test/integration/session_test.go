@@ -35,23 +35,23 @@ func TestDirectSession(t *testing.T) {
 
 	// Neighbor configs.
 	neighbor1 := &reactor.PeerSettings{
-		Address:    netip.MustParseAddr("127.0.0.1"),
-		Port:       port,
-		LocalAS:    65001,
-		PeerAS:     65002,
-		RouterID:   0x01010101,
-		HoldTime:   30 * time.Second,
-		Connection: reactor.ConnectionBoth,
+		Address:         netip.MustParseAddr("127.0.0.1"),
+		Port:            port,
+		LocalAS:         65001,
+		PeerAS:          65002,
+		RouterID:        0x01010101,
+		ReceiveHoldTime: 30 * time.Second,
+		Connection:      reactor.ConnectionBoth,
 	}
 
 	neighbor2 := &reactor.PeerSettings{
-		Address:    netip.MustParseAddr("127.0.0.1"),
-		Port:       0, // Not used for passive
-		LocalAS:    65002,
-		PeerAS:     65001,
-		RouterID:   0x02020202,
-		HoldTime:   30 * time.Second,
-		Connection: reactor.ConnectionPassive,
+		Address:         netip.MustParseAddr("127.0.0.1"),
+		Port:            0, // Not used for passive
+		LocalAS:         65002,
+		PeerAS:          65001,
+		RouterID:        0x02020202,
+		ReceiveHoldTime: 30 * time.Second,
+		Connection:      reactor.ConnectionPassive,
 	}
 
 	// Create sessions.
@@ -167,13 +167,13 @@ func TestRequiredFamilyRejection(t *testing.T) {
 
 	// Session1: requires ipv6/unicast (will be the one rejecting)
 	neighbor1 := &reactor.PeerSettings{
-		Address:    netip.MustParseAddr("127.0.0.1"),
-		Port:       port,
-		LocalAS:    65001,
-		PeerAS:     65002,
-		RouterID:   0x01010101,
-		HoldTime:   30 * time.Second,
-		Connection: reactor.ConnectionBoth,
+		Address:         netip.MustParseAddr("127.0.0.1"),
+		Port:            port,
+		LocalAS:         65001,
+		PeerAS:          65002,
+		RouterID:        0x01010101,
+		ReceiveHoldTime: 30 * time.Second,
+		Connection:      reactor.ConnectionBoth,
 		Capabilities: []capability.Capability{
 			&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast},
 		},
@@ -184,13 +184,13 @@ func TestRequiredFamilyRejection(t *testing.T) {
 
 	// Session2: only advertises ipv4/unicast (doesn't have what session1 requires)
 	neighbor2 := &reactor.PeerSettings{
-		Address:    netip.MustParseAddr("127.0.0.1"),
-		Port:       0,
-		LocalAS:    65002,
-		PeerAS:     65001,
-		RouterID:   0x02020202,
-		HoldTime:   30 * time.Second,
-		Connection: reactor.ConnectionPassive,
+		Address:         netip.MustParseAddr("127.0.0.1"),
+		Port:            0,
+		LocalAS:         65002,
+		PeerAS:          65001,
+		RouterID:        0x02020202,
+		ReceiveHoldTime: 30 * time.Second,
+		Connection:      reactor.ConnectionPassive,
 		Capabilities: []capability.Capability{
 			&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
 		},
@@ -307,13 +307,13 @@ func TestOpenNegotiation(t *testing.T) {
 
 	// Session1: active, HoldTime=60s, ASN4 + ipv4/unicast + ipv6/unicast + RouteRefresh
 	neighbor1 := &reactor.PeerSettings{
-		Address:    netip.MustParseAddr("127.0.0.1"),
-		Port:       port,
-		LocalAS:    65001,
-		PeerAS:     65002,
-		RouterID:   0x01010101,
-		HoldTime:   60 * time.Second,
-		Connection: reactor.ConnectionBoth,
+		Address:         netip.MustParseAddr("127.0.0.1"),
+		Port:            port,
+		LocalAS:         65001,
+		PeerAS:          65002,
+		RouterID:        0x01010101,
+		ReceiveHoldTime: 60 * time.Second,
+		Connection:      reactor.ConnectionBoth,
 		Capabilities: []capability.Capability{
 			&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
 			&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast},
@@ -323,13 +323,13 @@ func TestOpenNegotiation(t *testing.T) {
 
 	// Session2: passive, HoldTime=90s, ASN4 + ipv4/unicast only (no RouteRefresh)
 	neighbor2 := &reactor.PeerSettings{
-		Address:    netip.MustParseAddr("127.0.0.1"),
-		Port:       0,
-		LocalAS:    65002,
-		PeerAS:     65001,
-		RouterID:   0x02020202,
-		HoldTime:   90 * time.Second,
-		Connection: reactor.ConnectionPassive,
+		Address:         netip.MustParseAddr("127.0.0.1"),
+		Port:            0,
+		LocalAS:         65002,
+		PeerAS:          65001,
+		RouterID:        0x02020202,
+		ReceiveHoldTime: 90 * time.Second,
+		Connection:      reactor.ConnectionPassive,
 		Capabilities: []capability.Capability{
 			&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
 		},

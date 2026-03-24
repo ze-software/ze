@@ -26,7 +26,7 @@ bgp {
 		router-id 127.0.0.1
 		connection active
 		timer {
-			hold-time 180
+			receive-hold-time 180
 		}
 		group-updates disable
 

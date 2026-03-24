@@ -154,14 +154,14 @@ func TestUnifiedTreeConstraints(t *testing.T) {
 	require.NotNil(t, rid)
 	assert.True(t, rid.Mandatory, "router-id should be mandatory")
 
-	// hold-time has default 90 -- check inside peer > timer
+	// receive-hold-time has default 90 -- check inside peer > timer
 	peer := bgp.Children["peer"]
 	require.NotNil(t, peer)
 	timer := peer.Children["timer"]
 	require.NotNil(t, timer, "peer should have timer container")
-	ht := timer.Children["hold-time"]
+	ht := timer.Children["receive-hold-time"]
 	require.NotNil(t, ht)
-	assert.Equal(t, "90", ht.Default, "hold-time should have default 90")
+	assert.Equal(t, "90", ht.Default, "receive-hold-time should have default 90")
 }
 
 // PREVENTS: List key not skipped, showing up as config child.

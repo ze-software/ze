@@ -49,15 +49,15 @@ func TestDeepMergeMaps(t *testing.T) {
 	}{
 		{
 			name: "leaf_override",
-			dst:  map[string]any{"timer": map[string]any{"hold-time": "90"}},
-			src:  map[string]any{"timer": map[string]any{"hold-time": "180"}},
-			want: map[string]any{"timer": map[string]any{"hold-time": "180"}},
+			dst:  map[string]any{"timer": map[string]any{"receive-hold-time": "90"}},
+			src:  map[string]any{"timer": map[string]any{"receive-hold-time": "180"}},
+			want: map[string]any{"timer": map[string]any{"receive-hold-time": "180"}},
 		},
 		{
 			name: "add_new_key",
 			dst:  map[string]any{"remote": map[string]any{"as": "65001"}},
-			src:  map[string]any{"timer": map[string]any{"hold-time": "180"}},
-			want: map[string]any{"remote": map[string]any{"as": "65001"}, "timer": map[string]any{"hold-time": "180"}},
+			src:  map[string]any{"timer": map[string]any{"receive-hold-time": "180"}},
+			want: map[string]any{"remote": map[string]any{"as": "65001"}, "timer": map[string]any{"receive-hold-time": "180"}},
 		},
 		{
 			name: "deep_merge_containers",
@@ -119,7 +119,7 @@ func TestResolveBGPTree_GroupDefaults(t *testing.T) {
 
 	groupTree := config.NewTree()
 	groupTimerTree := config.NewTree()
-	groupTimerTree.Set("hold-time", "180")
+	groupTimerTree.Set("receive-hold-time", "180")
 	groupTree.SetContainer("timer", groupTimerTree)
 	groupTree.Set("connection", "passive")
 
@@ -142,7 +142,7 @@ func TestResolveBGPTree_GroupDefaults(t *testing.T) {
 	peer := resolvedPeer(t, result, "peer1")
 	timerMap, ok := peer["timer"].(map[string]any)
 	require.True(t, ok, "peer timer should be a map")
-	assert.Equal(t, "180", timerMap["hold-time"], "group hold-time should be inherited")
+	assert.Equal(t, "180", timerMap["receive-hold-time"], "group receive-hold-time should be inherited")
 	assert.Equal(t, "passive", peer["connection"], "group connection should be inherited")
 	remote := resolvedPeerRemote(t, peer)
 	assert.Equal(t, "65001", remote["as"], "peer's own remote as should be present")
@@ -161,7 +161,7 @@ func TestResolveBGPTree_PeerOverridesGroup(t *testing.T) {
 
 	groupTree := config.NewTree()
 	groupTimerTree := config.NewTree()
-	groupTimerTree.Set("hold-time", "180")
+	groupTimerTree.Set("receive-hold-time", "180")
 	groupTree.SetContainer("timer", groupTimerTree)
 	groupTree.Set("connection", "passive")
 
@@ -174,7 +174,7 @@ func TestResolveBGPTree_PeerOverridesGroup(t *testing.T) {
 	peerLocal.Set("ip", "auto")
 	peerTree.SetContainer("local", peerLocal)
 	peerTimerTree := config.NewTree()
-	peerTimerTree.Set("hold-time", "90") // Override group's 180.
+	peerTimerTree.Set("receive-hold-time", "90") // Override group's 180.
 	peerTree.SetContainer("timer", peerTimerTree)
 	groupTree.AddListEntry("peer", "peer1", peerTree)
 
@@ -187,7 +187,7 @@ func TestResolveBGPTree_PeerOverridesGroup(t *testing.T) {
 	peer := resolvedPeer(t, result, "peer1")
 	timerMap, ok := peer["timer"].(map[string]any)
 	require.True(t, ok, "peer timer should be a map")
-	assert.Equal(t, "90", timerMap["hold-time"], "peer's hold-time should override group's")
+	assert.Equal(t, "90", timerMap["receive-hold-time"], "peer's receive-hold-time should override group's")
 	assert.Equal(t, "passive", peer["connection"], "group's connection should be inherited")
 }
 
@@ -316,7 +316,7 @@ func TestResolveBGPTree_MultipleGroups(t *testing.T) {
 	// Group 1: fast peers.
 	group1 := config.NewTree()
 	group1Timer := config.NewTree()
-	group1Timer.Set("hold-time", "30")
+	group1Timer.Set("receive-hold-time", "30")
 	group1.SetContainer("timer", group1Timer)
 	peer1 := config.NewTree()
 	peer1Remote := config.NewTree()
@@ -329,7 +329,7 @@ func TestResolveBGPTree_MultipleGroups(t *testing.T) {
 	// Group 2: slow peers.
 	group2 := config.NewTree()
 	group2Timer := config.NewTree()
-	group2Timer.Set("hold-time", "300")
+	group2Timer.Set("receive-hold-time", "300")
 	group2.SetContainer("timer", group2Timer)
 	peer2 := config.NewTree()
 	peer2Remote := config.NewTree()
@@ -347,12 +347,12 @@ func TestResolveBGPTree_MultipleGroups(t *testing.T) {
 	p1 := resolvedPeer(t, result, "fast1")
 	p1Timer, ok := p1["timer"].(map[string]any)
 	require.True(t, ok, "fast1 timer should be a map")
-	assert.Equal(t, "30", p1Timer["hold-time"], "fast-peers group hold-time")
+	assert.Equal(t, "30", p1Timer["receive-hold-time"], "fast-peers group receive-hold-time")
 
 	p2 := resolvedPeer(t, result, "slow1")
 	p2Timer, ok := p2["timer"].(map[string]any)
 	require.True(t, ok, "slow1 timer should be a map")
-	assert.Equal(t, "300", p2Timer["hold-time"], "slow-peers group hold-time")
+	assert.Equal(t, "300", p2Timer["receive-hold-time"], "slow-peers group receive-hold-time")
 }
 
 // TestResolveBGPTree_DuplicatePeerName verifies error on duplicate peer names across groups.
@@ -405,7 +405,7 @@ func TestResolveBGPTree_EmptyGroup(t *testing.T) {
 
 	groupTree := config.NewTree()
 	groupTimerTree := config.NewTree()
-	groupTimerTree.Set("hold-time", "180")
+	groupTimerTree.Set("receive-hold-time", "180")
 	groupTree.SetContainer("timer", groupTimerTree)
 	// No peers added.
 	bgp.AddListEntry("group", "empty-group", groupTree)
@@ -632,7 +632,7 @@ func TestResolveBGPTree_StandalonePeer(t *testing.T) {
 	peerRemote.Set("as", "65001")
 	peerTree.SetContainer("remote", peerRemote)
 	peerTimerTree := config.NewTree()
-	peerTimerTree.Set("hold-time", "180")
+	peerTimerTree.Set("receive-hold-time", "180")
 	peerTree.SetContainer("timer", peerTimerTree)
 	bgp.AddListEntry("peer", "peer1", peerTree)
 	tree.SetContainer("bgp", bgp)
@@ -645,7 +645,7 @@ func TestResolveBGPTree_StandalonePeer(t *testing.T) {
 	assert.Equal(t, "65001", remote["as"])
 	timerMap, ok := peer["timer"].(map[string]any)
 	require.True(t, ok, "peer timer should be a map")
-	assert.Equal(t, "180", timerMap["hold-time"])
+	assert.Equal(t, "180", timerMap["receive-hold-time"])
 	// Standalone peers should not have group-name.
 	_, hasGroupName := peer["group-name"]
 	assert.False(t, hasGroupName, "standalone peer should not have group-name")
@@ -665,7 +665,7 @@ func TestResolveBGPTree_MixedGroupAndStandalone(t *testing.T) {
 	// Group with one peer.
 	groupTree := config.NewTree()
 	groupTimerTree := config.NewTree()
-	groupTimerTree.Set("hold-time", "180")
+	groupTimerTree.Set("receive-hold-time", "180")
 	groupTree.SetContainer("timer", groupTimerTree)
 	groupPeer := config.NewTree()
 	gpRemote := config.NewTree()
@@ -682,7 +682,7 @@ func TestResolveBGPTree_MixedGroupAndStandalone(t *testing.T) {
 	spRemote.Set("as", "65002")
 	standalonePeer.SetContainer("remote", spRemote)
 	spTimerTree := config.NewTree()
-	spTimerTree.Set("hold-time", "90")
+	spTimerTree.Set("receive-hold-time", "90")
 	standalonePeer.SetContainer("timer", spTimerTree)
 	bgp.AddListEntry("peer", "standalone1", standalonePeer)
 
@@ -695,14 +695,14 @@ func TestResolveBGPTree_MixedGroupAndStandalone(t *testing.T) {
 	p1 := resolvedPeer(t, result, "grouped1")
 	p1Timer, ok := p1["timer"].(map[string]any)
 	require.True(t, ok, "grouped1 timer should be a map")
-	assert.Equal(t, "180", p1Timer["hold-time"])
+	assert.Equal(t, "180", p1Timer["receive-hold-time"])
 	assert.Equal(t, "fast", p1["group-name"])
 
 	// Standalone peer uses its own values.
 	p2 := resolvedPeer(t, result, "standalone1")
 	p2Timer, ok := p2["timer"].(map[string]any)
 	require.True(t, ok, "standalone1 timer should be a map")
-	assert.Equal(t, "90", p2Timer["hold-time"])
+	assert.Equal(t, "90", p2Timer["receive-hold-time"])
 	_, hasGroupName := p2["group-name"]
 	assert.False(t, hasGroupName)
 }

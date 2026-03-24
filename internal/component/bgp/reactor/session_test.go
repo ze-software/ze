@@ -110,7 +110,7 @@ func TestSessionSendOpen(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.HoldTime = 90 * time.Second
+	settings.ReceiveHoldTime = 90 * time.Second
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 	}
@@ -171,7 +171,7 @@ func TestSessionSendOpenWithPluginFamilies(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.HoldTime = 90 * time.Second
+	settings.ReceiveHoldTime = 90 * time.Second
 	settings.Connection = ConnectionPassive
 
 	session := NewSession(settings)
@@ -229,7 +229,7 @@ func TestSessionSendOpenConfigFamiliesOverridePlugin(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.HoldTime = 90 * time.Second
+	settings.ReceiveHoldTime = 90 * time.Second
 	settings.Connection = ConnectionPassive
 	// Add IPv4 FlowSpec via config - this means config has families, plugin families ignored
 	settings.Capabilities = []capability.Capability{
@@ -374,7 +374,7 @@ func TestSessionHoldTimerExpiry(t *testing.T) {
 		65001, 65002, 0x01020301,
 	)
 	settings.Connection = ConnectionPassive
-	settings.HoldTime = 50 * time.Millisecond
+	settings.ReceiveHoldTime = 50 * time.Millisecond
 
 	session := NewSession(settings)
 	_ = session.Start()
@@ -2372,7 +2372,7 @@ func TestSessionHoldTimerStillWorks(t *testing.T) {
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	settings.HoldTime = 50 * time.Millisecond // Very short for testing
+	settings.ReceiveHoldTime = 50 * time.Millisecond // Very short for testing
 	session := NewSession(settings)
 
 	// Use net.Pipe — ReadFull will block.
@@ -3044,4 +3044,58 @@ func TestCloseConnGracefulTCP(t *testing.T) {
 	n, readErr := clientConn.Read(buf)
 	require.NoError(t, readErr, "should read data before EOF (FIN not RST)")
 	assert.Equal(t, "NOTIFICATION-DATA", string(buf[:n]))
+}
+
+// TestSendHoldDurationAuto verifies the RFC 9687 auto formula: max(8min, 2x ReceiveHoldTime).
+//
+// VALIDATES: When SendHoldTime=0 (auto), duration is max(8 minutes, 2x ReceiveHoldTime).
+// PREVENTS: Wrong formula producing too-short or too-long send hold timer.
+func TestSendHoldDurationAuto(t *testing.T) {
+	tests := []struct {
+		name     string
+		recvHold time.Duration
+		want     time.Duration
+	}{
+		{"recv_90s_auto_8min", 90 * time.Second, 8 * time.Minute},     // 2*90=180s < 8min=480s
+		{"recv_0s_auto_8min", 0, 8 * time.Minute},                     // 2*0=0 < 8min
+		{"recv_300s_auto_10min", 300 * time.Second, 10 * time.Minute}, // 2*300=600s > 8min=480s
+		{"recv_240s_auto_8min", 240 * time.Second, 8 * time.Minute},   // 2*240=480s == 8min
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settings := NewPeerSettings(netip.MustParseAddr("10.0.0.1"), 65001, 65002, 0)
+			settings.ReceiveHoldTime = tt.recvHold
+			// SendHoldTime = 0 (auto, default)
+			session := NewSession(settings)
+			assert.Equal(t, tt.want, session.sendHoldDuration())
+		})
+	}
+}
+
+// TestSendHoldDurationExplicit verifies explicit send-hold-time overrides the formula.
+//
+// VALIDATES: When SendHoldTime > 0, that exact value is returned.
+// PREVENTS: Explicit value being ignored in favor of the auto formula.
+func TestSendHoldDurationExplicit(t *testing.T) {
+	tests := []struct {
+		name     string
+		sendHold time.Duration
+		recvHold time.Duration
+		want     time.Duration
+	}{
+		{"explicit_480s", 480 * time.Second, 90 * time.Second, 480 * time.Second},
+		{"explicit_600s", 600 * time.Second, 90 * time.Second, 600 * time.Second},
+		{"explicit_overrides_formula", 500 * time.Second, 300 * time.Second, 500 * time.Second},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settings := NewPeerSettings(netip.MustParseAddr("10.0.0.1"), 65001, 65002, 0)
+			settings.ReceiveHoldTime = tt.recvHold
+			settings.SendHoldTime = tt.sendHold
+			session := NewSession(settings)
+			assert.Equal(t, tt.want, session.sendHoldDuration())
+		})
+	}
 }

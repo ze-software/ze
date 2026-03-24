@@ -11,7 +11,7 @@ bgp {
   		ip 1.1.1.1
   		as 65001;
   	}
-    timer { hold-time 2; }
+    timer { receive-hold-time 2; }
   }
 }
 EOF_INVALID
@@ -21,4 +21,4 @@ option=timeout:value=10s
 
 # Hold-time 2 should trigger error
 expect=errors:count=1
-expect=errors:contains=hold-time
+expect=errors:contains=receive-hold-time

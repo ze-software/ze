@@ -1,6 +1,6 @@
 # Test: Hold-time boundary values per RFC 4271
-# VALIDATES: hold-time 0 is valid (disable keepalives)
-# VALIDATES: hold-time 3 is valid (minimum when enabled)
+# VALIDATES: receive-hold-time 0 is valid (disable keepalives)
+# VALIDATES: receive-hold-time 3 is valid (minimum when enabled)
 # RFC 4271 Section 4.2: "A value of zero in the Hold Time field means no keepalives"
 
 tmpfs=valid-zero.conf:terminator=EOF_ZERO
@@ -11,7 +11,7 @@ bgp {
   		ip 1.1.1.1
   		as 65001;
   	}
-    timer { hold-time 0; }
+    timer { receive-hold-time 0; }
   }
 }
 EOF_ZERO

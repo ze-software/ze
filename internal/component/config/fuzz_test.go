@@ -15,7 +15,7 @@ func fuzzSchema() *Schema {
 	schema.Define("neighbor", List(TypeIP,
 		Field("description", Leaf(TypeString)),
 		Field("peer-as", Leaf(TypeUint32)),
-		Field("hold-time", LeafWithDefault(TypeUint16, "90")),
+		Field("receive-hold-time", LeafWithDefault(TypeUint16, "90")),
 		Field("family", Container(
 			Field("ipv4", Container(
 				Field("unicast", Leaf(TypeBool)),
@@ -41,7 +41,7 @@ func FuzzConfigParser(f *testing.F) {
 	f.Add("router-id 1.2.3.4;")
 	f.Add("local-as 65000;")
 	f.Add("neighbor 10.0.0.1 { peer-as 65001; }")
-	f.Add("neighbor 10.0.0.1 { description \"test peer\"; peer-as 65001; hold-time 180; }")
+	f.Add("neighbor 10.0.0.1 { description \"test peer\"; peer-as 65001; receive-hold-time 180; }")
 	f.Add("process foo { run \"/usr/bin/foo\"; }")
 	f.Add("")                              // Empty
 	f.Add("{}")                            // Braces only

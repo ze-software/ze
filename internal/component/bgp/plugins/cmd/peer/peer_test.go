@@ -97,10 +97,10 @@ func TestHandlerPeerSave(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
 			{
-				Address:  netip.MustParseAddr("192.0.2.1"),
-				PeerAS:   65001,
-				LocalAS:  65000,
-				HoldTime: 90 * time.Second, // default — should NOT be saved
+				Address:         netip.MustParseAddr("192.0.2.1"),
+				PeerAS:          65001,
+				LocalAS:         65000,
+				ReceiveHoldTime: 90 * time.Second, // default — should NOT be saved
 			},
 		},
 		stats: plugin.ReactorStats{LocalAS: 65000, RouterID: 0x01020304},
@@ -125,7 +125,7 @@ func TestHandlerPeerSave(t *testing.T) {
 	assert.Contains(t, string(content), "192.0.2.1")
 	assert.Contains(t, string(content), "as 65001")
 	// local-as matches reactor default, so should NOT be written for this peer
-	// hold-time is default 90s, so should NOT be written
+	// receive-hold-time is default 90s, so should NOT be written
 }
 
 // TestHandlerPeerSaveNonDefaultHoldTime verifies hold-time 0 (RFC 4271) is saved.
@@ -143,11 +143,11 @@ func TestHandlerPeerSaveNonDefaultHoldTime(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
 			{
-				Address:    netip.MustParseAddr("10.0.0.1"),
-				PeerAS:     65002,
-				LocalAS:    65000,
-				HoldTime:   0, // RFC 4271: no keepalives
-				Connection: "passive",
+				Address:         netip.MustParseAddr("10.0.0.1"),
+				PeerAS:          65002,
+				LocalAS:         65000,
+				ReceiveHoldTime: 0, // RFC 4271: no keepalives
+				Connection:      "passive",
 			},
 		},
 		stats: plugin.ReactorStats{LocalAS: 65000, RouterID: 0x01020304},
@@ -183,11 +183,11 @@ func TestHandlerPeerSaveLocalAddress(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []plugin.PeerInfo{
 			{
-				Address:      netip.MustParseAddr("192.0.2.1"),
-				PeerAS:       65001,
-				LocalAS:      65000,
-				LocalAddress: netip.MustParseAddr("192.168.1.1"),
-				HoldTime:     90 * time.Second, // default — should NOT be saved
+				Address:         netip.MustParseAddr("192.0.2.1"),
+				PeerAS:          65001,
+				LocalAS:         65000,
+				LocalAddress:    netip.MustParseAddr("192.168.1.1"),
+				ReceiveHoldTime: 90 * time.Second, // default — should NOT be saved
 			},
 		},
 		stats: plugin.ReactorStats{LocalAS: 65000, RouterID: 0x01020304},
@@ -205,19 +205,19 @@ func TestHandlerPeerSaveLocalAddress(t *testing.T) {
 	assert.Contains(t, string(content), "ip 192.168.1.1")
 }
 
-// TestDefaultHoldTimeMatchesReactor verifies the local defaultHoldTime constant
-// matches the reactor's DefaultHoldTime (90s per RFC 4271 Section 10).
+// TestDefaultReceiveHoldTimeMatchesReactor verifies the local defaultReceiveHoldTime constant
+// matches the reactor's DefaultReceiveHoldTime (90s per RFC 4271 Section 10).
 // Source: internal/component/bgp/reactor/peersettings.go
 //
-// VALIDATES: defaultHoldTime is consistent with reactor.DefaultHoldTime.
+// VALIDATES: defaultReceiveHoldTime is consistent with reactor.DefaultReceiveHoldTime.
 // PREVENTS: Silent divergence between command handler and reactor defaults.
-func TestDefaultHoldTimeMatchesReactor(t *testing.T) {
+func TestDefaultReceiveHoldTimeMatchesReactor(t *testing.T) {
 	// Cannot import reactor (import cycle via blank import in reactor.go).
 	// Verify the value matches the expected RFC 4271 default directly.
-	// reactor.DefaultHoldTime is defined in internal/component/bgp/reactor/peersettings.go
-	// and is tested by TestDefaultHoldTime in peersettings_test.go.
-	assert.Equal(t, 90*time.Second, defaultHoldTime,
-		"defaultHoldTime must be 90s to match reactor.DefaultHoldTime (reactor/peersettings.go)")
+	// reactor.DefaultReceiveHoldTime is defined in internal/component/bgp/reactor/peersettings.go
+	// and is tested by TestDefaultReceiveHoldTime in peersettings_test.go.
+	assert.Equal(t, 90*time.Second, defaultReceiveHoldTime,
+		"defaultReceiveHoldTime must be 90s to match reactor.DefaultReceiveHoldTime (reactor/peersettings.go)")
 }
 
 // TestHandlerPeerSaveNoConfigPath verifies save errors when config path is empty.

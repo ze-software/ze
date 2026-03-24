@@ -102,23 +102,23 @@ func setupPeers(t *testing.T, ctx context.Context, cfg1, cfg2 peerConfig) (*reac
 
 	// Add peers using actual bound ports -- no TOCTOU race.
 	neighbor1 := &reactor.PeerSettings{
-		Address:    netip.MustParseAddr("127.0.0.1"),
-		Port:       port2,
-		LocalAS:    cfg1.localAS,
-		PeerAS:     cfg1.peerAS,
-		RouterID:   cfg1.routerID,
-		HoldTime:   30 * time.Second,
-		Connection: cfg1.connection,
+		Address:         netip.MustParseAddr("127.0.0.1"),
+		Port:            port2,
+		LocalAS:         cfg1.localAS,
+		PeerAS:          cfg1.peerAS,
+		RouterID:        cfg1.routerID,
+		ReceiveHoldTime: 30 * time.Second,
+		Connection:      cfg1.connection,
 	}
 
 	neighbor2 := &reactor.PeerSettings{
-		Address:    netip.MustParseAddr("127.0.0.1"),
-		Port:       port1,
-		LocalAS:    cfg2.localAS,
-		PeerAS:     cfg2.peerAS,
-		RouterID:   cfg2.routerID,
-		HoldTime:   30 * time.Second,
-		Connection: cfg2.connection,
+		Address:         netip.MustParseAddr("127.0.0.1"),
+		Port:            port1,
+		LocalAS:         cfg2.localAS,
+		PeerAS:          cfg2.peerAS,
+		RouterID:        cfg2.routerID,
+		ReceiveHoldTime: 30 * time.Second,
+		Connection:      cfg2.connection,
 	}
 
 	if err := r1.AddPeer(neighbor1); err != nil {
@@ -255,23 +255,23 @@ func TestSessionReconnect(t *testing.T) {
 	})
 
 	neighbor1 := &reactor.PeerSettings{
-		Address:    netip.MustParseAddr("127.0.0.1"),
-		Port:       port2,
-		LocalAS:    65001,
-		PeerAS:     65002,
-		RouterID:   0x01010101,
-		HoldTime:   30 * time.Second,
-		Connection: reactor.ConnectionBoth,
+		Address:         netip.MustParseAddr("127.0.0.1"),
+		Port:            port2,
+		LocalAS:         65001,
+		PeerAS:          65002,
+		RouterID:        0x01010101,
+		ReceiveHoldTime: 30 * time.Second,
+		Connection:      reactor.ConnectionBoth,
 	}
 
 	neighbor2 := &reactor.PeerSettings{
-		Address:    netip.MustParseAddr("127.0.0.1"),
-		Port:       port1,
-		LocalAS:    65002,
-		PeerAS:     65001,
-		RouterID:   0x02020202,
-		HoldTime:   30 * time.Second,
-		Connection: reactor.ConnectionPassive,
+		Address:         netip.MustParseAddr("127.0.0.1"),
+		Port:            port1,
+		LocalAS:         65002,
+		PeerAS:          65001,
+		RouterID:        0x02020202,
+		ReceiveHoldTime: 30 * time.Second,
+		Connection:      reactor.ConnectionPassive,
 	}
 
 	if err := r1.AddPeer(neighbor1); err != nil {

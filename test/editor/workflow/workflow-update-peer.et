@@ -1,4 +1,4 @@
-# Test: Update peer workflow — edit into peer, change hold-time, commit
+# Test: Update peer workflow — edit into peer, change receive-hold-time, commit
 # VALIDATES: spec-editor-4 AC-3: update peer workflow
 # VALIDATES: spec-editor-4 AC-5: exit after workflow
 # PREVENTS: Context-relative set breaking on update
@@ -17,7 +17,7 @@ bgp {
   	local {
   		ip auto;
   	}
-    timer { hold-time 90; }
+    timer { receive-hold-time 90; }
   }
 }
 EOF_CONF
@@ -30,8 +30,8 @@ input=type:text=edit bgp peer peer1
 input=enter
 expect=context:path=bgp.peer.peer1
 
-# Update hold-time using context-relative path
-input=type:text=set timer hold-time 120
+# Update receive-hold-time using context-relative path
+input=type:text=set timer receive-hold-time 120
 input=enter
 expect=status:contains=set
 expect=dirty:true

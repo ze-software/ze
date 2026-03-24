@@ -39,7 +39,7 @@ bgp {
 			router-id 10.0.0.2
 			connection active
 			timer {
-				hold-time 180
+				receive-hold-time 180
 			}
 
 			family {

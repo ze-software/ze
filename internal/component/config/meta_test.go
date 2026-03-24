@@ -44,13 +44,13 @@ func TestMetaTreeNestedPath(t *testing.T) {
 		Time:   time.Date(2026, 3, 12, 14, 31, 0, 0, time.UTC),
 	}
 
-	// Set metadata for a nested path: neighbor -> 192.0.2.1 -> hold-time
+	// Set metadata for a nested path: neighbor -> 192.0.2.1 -> receive-hold-time
 	child := mt.GetOrCreateContainer("neighbor")
 	listChild := child.GetOrCreateListEntry("192.0.2.1")
-	listChild.SetEntry("hold-time", entry)
+	listChild.SetEntry("receive-hold-time", entry)
 
 	// Retrieve it
-	got, ok := listChild.GetEntry("hold-time")
+	got, ok := listChild.GetEntry("receive-hold-time")
 	require.True(t, ok)
 	assert.Equal(t, "alice", got.User)
 }
@@ -141,7 +141,7 @@ func TestMetaTreeAllSessions(t *testing.T) {
 
 	mt.SetEntry("router-id", thomas)
 	mt.SetEntry("local-as", thomas)
-	mt.SetEntry("hold-time", alice)
+	mt.SetEntry("receive-hold-time", alice)
 
 	sessions := mt.AllSessions()
 	assert.Len(t, sessions, 2)

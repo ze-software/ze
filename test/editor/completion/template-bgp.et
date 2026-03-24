@@ -9,7 +9,7 @@ bgp {
     as 65000;
   }
   group internal {
-    timer { hold-time 90; }
+    timer { receive-hold-time 90; }
   }
 }
 EOF_CONF

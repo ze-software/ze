@@ -262,10 +262,10 @@ func TestValidateSemanticRouterID(t *testing.T) {
 	}
 }
 
-// TestValidateSemanticHoldTime verifies hold-time boundary validation.
+// TestValidateSemanticHoldTime verifies receive-hold-time boundary validation.
 //
 // VALIDATES: Hold time must be 0 or >= 3 per RFC 4271.
-// PREVENTS: Invalid hold-time values 1 or 2.
+// PREVENTS: Invalid receive-hold-time values 1 or 2.
 // BOUNDARY: 0 (valid), 1 (invalid), 2 (invalid), 3 (valid), 65535 (valid).
 func TestValidateSemanticHoldTime(t *testing.T) {
 	v, err := NewConfigValidator()
@@ -278,32 +278,32 @@ func TestValidateSemanticHoldTime(t *testing.T) {
 	}{
 		{
 			name:    "hold_time_0_valid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { hold-time 0; } } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { receive-hold-time 0; } } }",
 			wantErr: false,
 		},
 		{
 			name:    "hold_time_1_invalid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { hold-time 1; } } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { receive-hold-time 1; } } }",
 			wantErr: true,
 		},
 		{
 			name:    "hold_time_2_invalid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { hold-time 2; } } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { receive-hold-time 2; } } }",
 			wantErr: true,
 		},
 		{
 			name:    "hold_time_3_valid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { hold-time 3; } } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { receive-hold-time 3; } } }",
 			wantErr: false,
 		},
 		{
 			name:    "hold_time_90_valid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { hold-time 90; } } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { receive-hold-time 90; } } }",
 			wantErr: false,
 		},
 		{
 			name:    "hold_time_65535_valid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { hold-time 65535; } } }",
+			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { receive-hold-time 65535; } } }",
 			wantErr: false,
 		},
 	}
@@ -312,7 +312,7 @@ func TestValidateSemanticHoldTime(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := v.Validate(tt.content)
 			if tt.wantErr {
-				assert.NotEmpty(t, result.Errors, "expected error for hold-time")
+				assert.NotEmpty(t, result.Errors, "expected error for receive-hold-time")
 			} else {
 				assert.Empty(t, result.Errors, "expected no errors")
 			}
@@ -334,25 +334,25 @@ func TestValidateAll(t *testing.T) {
   local { as 65000; }
   peer peer1 {
     remote { ip 1.1.1.1; as 65001; }
-    timer { hold-time 90; }
+    timer { receive-hold-time 90; }
   }
 }`
 	result := v.Validate(validConfig)
 	assert.Empty(t, result.Errors, "expected no errors for valid config")
 
-	// Config with semantic error (invalid hold-time)
+	// Config with semantic error (invalid receive-hold-time)
 	invalidConfig := `bgp {
   router-id 1.2.3.4
   local { as 65000; }
   peer peer1 {
     remote { ip 1.1.1.1; as 65001; }
-    timer { hold-time 1; }
+    timer { receive-hold-time 1; }
   }
 }`
 	result = v.Validate(invalidConfig)
 	require.NotEmpty(t, result.Errors, "expected errors for invalid config")
-	// Should have hold-time error
-	assert.Contains(t, result.Errors[0].Message, "hold-time")
+	// Should have receive-hold-time error
+	assert.Contains(t, result.Errors[0].Message, "receive-hold-time")
 }
 
 // TestValidationErrorFormat verifies error message formatting.
@@ -367,7 +367,7 @@ func TestValidationErrorFormat(t *testing.T) {
   router-id 1.2.3.4
   peer peer1 {
     remote { ip 1.1.1.1; as 65001; }
-    timer { hold-time 1; }
+    timer { receive-hold-time 1; }
   }
 }`
 
@@ -376,7 +376,7 @@ func TestValidationErrorFormat(t *testing.T) {
 
 	// Error should have message
 	assert.NotEmpty(t, result.Errors[0].Message, "error should have message")
-	assert.Contains(t, result.Errors[0].Message, "hold-time")
+	assert.Contains(t, result.Errors[0].Message, "receive-hold-time")
 }
 
 // TestValidatePeerAddress verifies peer address validation.
@@ -472,7 +472,7 @@ func TestValidateMissingPeerAS(t *testing.T) {
   local { as 65000; }
   peer peer1 {
     remote { ip 192.0.2.1; }
-    timer { hold-time 90; }
+    timer { receive-hold-time 90; }
   }
 }`,
 			wantErr: true,
@@ -522,7 +522,7 @@ func TestValidatePeerASInheritance(t *testing.T) {
   local { as 65000; }
   group ibgp {
     remote { as 65000; }
-    timer { hold-time 60; }
+    timer { receive-hold-time 60; }
     peer peer1 {
       remote { ip 192.0.2.1; }
     }
@@ -548,7 +548,7 @@ func TestValidatePeerASInheritance(t *testing.T) {
   router-id 1.1.1.1
   local { as 65000; }
   group base {
-    timer { hold-time 60; }
+    timer { receive-hold-time 60; }
     peer peer1 {
       remote { ip 192.0.2.1; }
     }
@@ -564,27 +564,27 @@ func TestValidatePeerASInheritance(t *testing.T) {
   local { as 65000; }
   peer peer1 {
     remote { ip 192.0.2.1; }
-    timer { hold-time 90; }
+    timer { receive-hold-time 90; }
   }
 }`,
 			wantWarn:        true,
 			wantMsgContains: "remote",
 		},
 		{
-			name: "invalid_hold-time_from_group",
+			name: "invalid_receive-hold-time_from_group",
 			content: `bgp {
   router-id 1.1.1.1
   local { as 65000; }
   group bad {
     remote { as 65001; }
-    timer { hold-time 1; }
+    timer { receive-hold-time 1; }
     peer peer1 {
       remote { ip 192.0.2.1; }
     }
   }
 }`,
 			wantErr:         true,
-			wantMsgContains: "hold-time",
+			wantMsgContains: "receive-hold-time",
 		},
 	}
 

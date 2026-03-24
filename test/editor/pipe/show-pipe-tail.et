@@ -14,14 +14,14 @@ bgp {
   		ip 1.1.1.1
   		as 65001;
   	}
-    timer { hold-time 90; }
+    timer { receive-hold-time 90; }
   }
   peer peer2 {
   	remote {
   		ip 2.2.2.2
   		as 65002;
   	}
-    timer { hold-time 180; }
+    timer { receive-hold-time 180; }
   }
 }
 EOF_CONF

@@ -13,7 +13,7 @@ bgp {
 		description "will announce 256 /24"
 		router-id 198.111.227.39
 		timer {
-			hold-time 180
+			receive-hold-time 180
 		}
 		outgoing-ttl 1
 		update {

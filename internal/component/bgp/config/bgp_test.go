@@ -28,7 +28,7 @@ bgp {
         remote { ip 192.0.2.1; as 65001; }
         local { as 65000; ip 192.0.2.2; }
         timer {
-            hold-time 90;
+            receive-hold-time 90;
         }
         connection both;
     }
@@ -62,7 +62,7 @@ bgp {
 
 	timerContainer := n.GetContainer("timer")
 	require.NotNil(t, timerContainer)
-	val, _ = timerContainer.Get("hold-time")
+	val, _ = timerContainer.Get("receive-hold-time")
 	require.Equal(t, "90", val)
 }
 

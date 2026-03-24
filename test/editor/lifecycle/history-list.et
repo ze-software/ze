@@ -17,7 +17,7 @@ bgp {
   	local {
   		ip auto;
   	}
-    timer { hold-time 90; }
+    timer { receive-hold-time 90; }
   }
 }
 EOF_CONF

@@ -10,7 +10,7 @@ bgp {
   		ip 1.1.1.1
   		as 65001;
   	}
-    timer { hold-time 1; }
+    timer { receive-hold-time 1; }
   }
 }
 EOF_CONF
@@ -18,11 +18,11 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Config has validation error (hold-time 1 is invalid per RFC 4271)
+# Config has validation error (receive-hold-time 1 is invalid per RFC 4271)
 expect=errors:count=1
 
 # Try to commit — issues shown in viewport, not as error
 input=type:text=commit
 input=enter
-expect=viewport:contains=hold-time
+expect=viewport:contains=receive-hold-time
 expect=status:contains=blocked

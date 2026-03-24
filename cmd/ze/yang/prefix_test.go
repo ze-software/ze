@@ -13,7 +13,7 @@ func TestPrefixCollisions(t *testing.T) {
 		{Name: "link-local", Source: SourceConfig},
 		{Name: "local", Source: SourceConfig},
 		{Name: "listen", Source: SourceConfig},
-		{Name: "hold-time", Source: SourceConfig},
+		{Name: "receive-hold-time", Source: SourceConfig},
 	}
 
 	groups := FindCollisions(siblings, 1)
@@ -28,8 +28,8 @@ func TestPrefixCollisions(t *testing.T) {
 func TestPrefixCollisionsNone(t *testing.T) {
 	siblings := []SiblingInfo{
 		{Name: "add-path", Source: SourceConfig},
-		{Name: "hold-time", Source: SourceConfig},
-		{Name: "remote", Source: SourceConfig},
+		{Name: "receive-hold-time", Source: SourceConfig},
+		{Name: "description", Source: SourceConfig},
 	}
 
 	groups := FindCollisions(siblings, 1)

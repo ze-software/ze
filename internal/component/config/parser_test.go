@@ -19,7 +19,7 @@ func testSchema() *Schema {
 		Field("local-address", Leaf(TypeIP)),
 		Field("local-as", Leaf(TypeUint32)),
 		Field("peer-as", Leaf(TypeUint32)),
-		Field("hold-time", LeafWithDefault(TypeUint16, "90")),
+		Field("receive-hold-time", LeafWithDefault(TypeUint16, "90")),
 		Field("connection", LeafWithDefault(TypeString, "both")),
 		Field("family", Container(
 			Field("ipv4", Container(
@@ -420,11 +420,11 @@ neighbor 192.0.2.1 {
 	require.False(t, ok, "original should not have router-id after clone modification")
 
 	// Verify independence: modify cloned neighbor
-	n.Set("hold-time", "30")
+	n.Set("receive-hold-time", "30")
 	origNeighbors := original.GetList("neighbor")
 	origN := origNeighbors["192.0.2.1"]
-	_, ok = origN.Get("hold-time")
-	require.False(t, ok, "original neighbor should not have hold-time after clone modification")
+	_, ok = origN.Get("receive-hold-time")
+	require.False(t, ok, "original neighbor should not have receive-hold-time after clone modification")
 }
 
 // TestTreeDeleteValue verifies Tree.Delete removes a leaf value.

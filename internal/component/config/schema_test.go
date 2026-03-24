@@ -72,7 +72,7 @@ func TestSchemaList(t *testing.T) {
 		Field("local-as", Leaf(TypeUint32)),
 		Field("peer-as", Leaf(TypeUint32)),
 		Field("router-id", Leaf(TypeIPv4)),
-		Field("hold-time", Leaf(TypeUint16)),
+		Field("receive-hold-time", Leaf(TypeUint16)),
 		Field("group-updates", Leaf(TypeBool)),
 	))
 
@@ -203,10 +203,10 @@ func TestSchemaValidateValue(t *testing.T) {
 func TestSchemaDefault(t *testing.T) {
 	schema := NewSchema()
 
-	schema.Define("hold-time", LeafWithDefault(TypeUint16, "90"))
+	schema.Define("receive-hold-time", LeafWithDefault(TypeUint16, "90"))
 	schema.Define("group-updates", LeafWithDefault(TypeBool, "false"))
 
-	holdTimeNode, ok := schema.Get("hold-time").(*LeafNode)
+	holdTimeNode, ok := schema.Get("receive-hold-time").(*LeafNode)
 	require.True(t, ok, "expected LeafNode")
 	require.Equal(t, "90", holdTimeNode.Default)
 

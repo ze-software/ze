@@ -10,7 +10,7 @@ bgp {
   		ip 1.1.1.1
   		as 65001;
   	}
-    timer { hold-time 1; }
+    timer { receive-hold-time 1; }
   }
 }
 EOF_CONF
@@ -18,10 +18,10 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Should have validation error for hold-time 1 (RFC 4271)
+# Should have validation error for receive-hold-time 1 (RFC 4271)
 expect=errors:count=1
 
 # Errors command should show the issue
 input=type:text=errors
 input=enter
-expect=content:contains=hold-time
+expect=content:contains=receive-hold-time

@@ -14,7 +14,7 @@ bgp {
   		ip 1.1.1.1
   		as 65001;
   	}
-    timer { hold-time 90; }
+    timer { receive-hold-time 90; }
   }
 }
 EOF_CONF
@@ -35,4 +35,4 @@ expect=error:none
 
 # Should show peer content
 expect=content:contains=remote
-expect=content:contains=hold-time
+expect=content:contains=receive-hold-time

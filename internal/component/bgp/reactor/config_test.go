@@ -21,7 +21,7 @@ func TestParsePeerFromTree(t *testing.T) {
 		"remote":        map[string]any{"ip": "192.0.2.1", "as": "65001"},
 		"local":         map[string]any{"as": "65000", "ip": "192.168.1.1"},
 		"router-id":     "10.0.0.1",
-		"timer":         map[string]any{"hold-time": "180"},
+		"timer":         map[string]any{"receive-hold-time": "180"},
 		"connection":    "passive",
 		"group-updates": "false",
 		"link-local":    "fe80::1",
@@ -34,7 +34,7 @@ func TestParsePeerFromTree(t *testing.T) {
 	assert.Equal(t, uint32(65001), ps.PeerAS)
 	assert.Equal(t, uint32(65000), ps.LocalAS) // Peer-level overrides global.
 	assert.Equal(t, ipToUint32(netip.MustParseAddr("10.0.0.1")), ps.RouterID)
-	assert.Equal(t, 180*time.Second, ps.HoldTime)
+	assert.Equal(t, 180*time.Second, ps.ReceiveHoldTime)
 	assert.Equal(t, ConnectionPassive, ps.Connection)
 	assert.False(t, ps.GroupUpdates)
 	assert.Equal(t, netip.MustParseAddr("192.168.1.1"), ps.LocalAddress)
@@ -56,13 +56,13 @@ func TestParsePeerFromTreeDefaults(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, uint32(65002), ps.PeerAS)
-	assert.Equal(t, uint32(65000), ps.LocalAS)       // Global default.
-	assert.Equal(t, uint32(0x01020304), ps.RouterID) // Global default.
-	assert.Equal(t, 90*time.Second, ps.HoldTime)     // Default.
-	assert.Equal(t, ConnectionBoth, ps.Connection)   // Default.
-	assert.True(t, ps.GroupUpdates)                  // Default.
-	assert.Equal(t, netip.Addr{}, ps.LocalAddress)   // Unset ("auto").
-	assert.Equal(t, netip.Addr{}, ps.LinkLocal)      // Unset.
+	assert.Equal(t, uint32(65000), ps.LocalAS)          // Global default.
+	assert.Equal(t, uint32(0x01020304), ps.RouterID)    // Global default.
+	assert.Equal(t, 90*time.Second, ps.ReceiveHoldTime) // Default.
+	assert.Equal(t, ConnectionBoth, ps.Connection)      // Default.
+	assert.True(t, ps.GroupUpdates)                     // Default.
+	assert.Equal(t, netip.Addr{}, ps.LocalAddress)      // Unset ("auto").
+	assert.Equal(t, netip.Addr{}, ps.LinkLocal)         // Unset.
 }
 
 // TestParsePeerFromTreeInvalid verifies error handling for invalid trees.
@@ -135,7 +135,7 @@ func TestParsePeerFromTreeInvalid(t *testing.T) {
 	}
 }
 
-// TestParsePeerFromTreeHoldTimeBoundary verifies RFC 4271 hold-time constraints.
+// TestParsePeerFromTreeHoldTimeBoundary verifies RFC 4271 receive-hold-time constraints.
 //
 // VALIDATES: Hold time 0 and >= 3 accepted; 1-2 rejected per RFC 4271 Section 4.2.
 // PREVENTS: Accepting invalid hold times that violate the RFC.
@@ -159,18 +159,72 @@ func TestParsePeerFromTreeHoldTimeBoundary(t *testing.T) {
 			tree := map[string]any{
 				"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
 				"local":  map[string]any{"ip": "auto"},
-				"timer":  map[string]any{"hold-time": tt.ht},
+				"timer":  map[string]any{"receive-hold-time": tt.ht},
 			}
 			ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
 			if tt.wantErr {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), "invalid hold-time")
+				assert.Contains(t, err.Error(), "invalid receive-hold-time")
 			} else {
 				require.NoError(t, err)
-				assert.Equal(t, tt.wantDur, ps.HoldTime)
+				assert.Equal(t, tt.wantDur, ps.ReceiveHoldTime)
 			}
 		})
 	}
+}
+
+// TestParsePeerFromTreeSendHoldTimeBoundary verifies RFC 9687 send-hold-time constraints.
+//
+// VALIDATES: Send hold time 0 (auto) and >= 480 accepted; 1-479 rejected per RFC 9687.
+// PREVENTS: Accepting invalid send hold times that violate the RFC.
+// BOUNDARY: 0 (valid/auto), 1 (invalid), 479 (invalid), 480 (valid minimum), 65535 (valid max).
+func TestParsePeerFromTreeSendHoldTimeBoundary(t *testing.T) {
+	tests := []struct {
+		name    string
+		sht     string
+		wantErr bool
+		wantDur time.Duration
+	}{
+		{"send_hold_0_auto", "0", false, 0},
+		{"send_hold_1_invalid", "1", true, 0},
+		{"send_hold_479_invalid", "479", true, 0},
+		{"send_hold_480_valid_min", "480", false, 480 * time.Second},
+		{"send_hold_600", "600", false, 600 * time.Second},
+		{"send_hold_65535_max", "65535", false, 65535 * time.Second},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree := map[string]any{
+				"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+				"local":  map[string]any{"ip": "auto"},
+				"timer":  map[string]any{"receive-hold-time": "90", "send-hold-time": tt.sht},
+			}
+			ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "invalid send-hold-time")
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.wantDur, ps.SendHoldTime)
+			}
+		})
+	}
+}
+
+// TestParsePeerFromTreeSendHoldTimeDefault verifies send-hold-time defaults to 0 (auto).
+//
+// VALIDATES: Omitting send-hold-time results in SendHoldTime=0.
+// PREVENTS: Non-zero default breaking the auto formula.
+func TestParsePeerFromTreeSendHoldTimeDefault(t *testing.T) {
+	tree := map[string]any{
+		"remote": map[string]any{"ip": "10.0.0.1", "as": "65001"},
+		"local":  map[string]any{"ip": "auto"},
+		"timer":  map[string]any{"receive-hold-time": "90"},
+	}
+	ps, err := parsePeerFromTree("peer1", tree, 65000, 0)
+	require.NoError(t, err)
+	assert.Equal(t, time.Duration(0), ps.SendHoldTime, "default send-hold-time should be 0 (auto)")
 }
 
 // TestParsePeerFamilies verifies family parsing from a config tree.
@@ -899,7 +953,7 @@ func TestPeersFromTree(t *testing.T) {
 			"peer1": map[string]any{
 				"remote": map[string]any{"ip": "192.0.2.1", "as": "65001"},
 				"local":  map[string]any{"ip": "192.0.2.100"},
-				"timer":  map[string]any{"hold-time": "180"},
+				"timer":  map[string]any{"receive-hold-time": "180"},
 				"family": map[string]any{
 					"ipv4/unicast": map[string]any{"prefix": map[string]any{"maximum": "100000"}},
 				},
@@ -928,7 +982,7 @@ func TestPeersFromTree(t *testing.T) {
 	assert.Equal(t, uint32(65001), p1.PeerAS)
 	assert.Equal(t, uint32(65000), p1.LocalAS)
 	assert.Equal(t, ipToUint32(netip.MustParseAddr("10.0.0.1")), p1.RouterID)
-	assert.Equal(t, 180*time.Second, p1.HoldTime)
+	assert.Equal(t, 180*time.Second, p1.ReceiveHoldTime)
 	assert.Equal(t, ConnectionBoth, p1.Connection)
 
 	// Peer 2: also inherits globals.

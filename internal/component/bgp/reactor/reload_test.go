@@ -19,7 +19,7 @@ const emptyConfig = `ze bgp {
 `
 
 // simpleReloadFunc parses minimal config for testing.
-// Supports: neighbor <ip> { local-as <n>; peer-as <n>; hold-time <n>; passive; }.
+// Supports: neighbor <ip> { local-as <n>; peer-as <n>; receive-hold-time <n>; passive; }.
 func simpleReloadFunc(configPath string) ([]*PeerSettings, error) {
 	data, err := os.ReadFile(configPath) //nolint:gosec // test file
 	if err != nil {
@@ -30,7 +30,7 @@ func simpleReloadFunc(configPath string) ([]*PeerSettings, error) {
 	neighborRe := regexp.MustCompile(`neighbor\s+(\d+\.\d+\.\d+\.\d+)\s*\{([^}]*)\}`)
 	localASRe := regexp.MustCompile(`local-as\s+(\d+)`)
 	peerASRe := regexp.MustCompile(`peer-as\s+(\d+)`)
-	holdTimeRe := regexp.MustCompile(`hold-time\s+(\d+)`)
+	holdTimeRe := regexp.MustCompile(`receive-hold-time\s+(\d+)`)
 	passiveRe := regexp.MustCompile(`\bpassive\b`)
 
 	var peers []*PeerSettings
@@ -62,7 +62,7 @@ func simpleReloadFunc(configPath string) ([]*PeerSettings, error) {
 		if htMatch := holdTimeRe.FindStringSubmatch(block); len(htMatch) > 1 {
 			var ht uint32
 			parseUint32(htMatch[1], &ht)
-			peer.HoldTime = time.Duration(ht) * time.Second
+			peer.ReceiveHoldTime = time.Duration(ht) * time.Second
 		}
 
 		peers = append(peers, peer)
@@ -194,7 +194,7 @@ func TestReloadChangedSettings(t *testing.T) {
     neighbor 10.0.0.1 {
         local-as 65001;
         peer-as 65002;
-        hold-time 90;
+        receive-hold-time 90;
         passive;
     }
 }
@@ -212,7 +212,7 @@ func TestReloadChangedSettings(t *testing.T) {
 	// Add the peer manually with initial settings.
 	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
 	settings.Connection = ConnectionPassive
-	settings.HoldTime = 90 * time.Second
+	settings.ReceiveHoldTime = 90 * time.Second
 	_ = reactor.AddPeer(settings)
 
 	require.NoError(t, reactor.Start())
@@ -221,14 +221,14 @@ func TestReloadChangedSettings(t *testing.T) {
 	// Verify initial hold time.
 	peers := reactor.Peers()
 	require.Len(t, peers, 1, "should start with 1 peer")
-	assert.Equal(t, 90*time.Second, peers[0].Settings().HoldTime, "initial hold time")
+	assert.Equal(t, 90*time.Second, peers[0].Settings().ReceiveHoldTime, "initial hold time")
 
 	// Update config with changed hold time.
 	updatedConfig := `ze bgp {
     neighbor 10.0.0.1 {
         local-as 65001;
         peer-as 65002;
-        hold-time 30;
+        receive-hold-time 30;
         passive;
     }
 }
@@ -244,7 +244,7 @@ func TestReloadChangedSettings(t *testing.T) {
 	peers = reactor.Peers()
 	require.Len(t, peers, 1, "should still have 1 peer after reload")
 	assert.Equal(t, "10.0.0.1", peers[0].Settings().Address.String())
-	assert.Equal(t, 30*time.Second, peers[0].Settings().HoldTime, "hold time should be updated")
+	assert.Equal(t, 30*time.Second, peers[0].Settings().ReceiveHoldTime, "hold time should be updated")
 }
 
 // TestReloadParseError verifies that Reload() returns error on bad config.
@@ -361,7 +361,7 @@ func TestReloadFileNotFound(t *testing.T) {
 // PREVENTS: Reload missing setting changes due to bad comparison.
 func TestPeerSettingsEqual(t *testing.T) {
 	base := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
-	base.HoldTime = 90 * time.Second
+	base.ReceiveHoldTime = 90 * time.Second
 	base.Connection = ConnectionPassive
 
 	tests := []struct {
@@ -372,7 +372,8 @@ func TestPeerSettingsEqual(t *testing.T) {
 		{"identical", func(p *PeerSettings) {}, true},
 		{"different_local_as", func(p *PeerSettings) { p.LocalAS = 65099 }, false},
 		{"different_peer_as", func(p *PeerSettings) { p.PeerAS = 65099 }, false},
-		{"different_hold_time", func(p *PeerSettings) { p.HoldTime = 30 * time.Second }, false},
+		{"different_hold_time", func(p *PeerSettings) { p.ReceiveHoldTime = 30 * time.Second }, false},
+		{"different_send_hold_time", func(p *PeerSettings) { p.SendHoldTime = 600 * time.Second }, false},
 		{"different_connection", func(p *PeerSettings) { p.Connection = ConnectionBoth }, false},
 		{"different_port", func(p *PeerSettings) { p.Port = 1179 }, false},
 	}
@@ -381,7 +382,7 @@ func TestPeerSettingsEqual(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a copy of base settings.
 			other := NewPeerSettings(base.Address, base.LocalAS, base.PeerAS, base.RouterID)
-			other.HoldTime = base.HoldTime
+			other.ReceiveHoldTime = base.ReceiveHoldTime
 			other.Connection = base.Connection
 			other.Port = base.Port
 
@@ -504,7 +505,7 @@ func makeBGPTree(peers map[string]testPeer) map[string]any {
 			"local":  map[string]any{"ip": localIP, "as": p.localAS},
 		}
 		if p.holdTime != "" {
-			m["hold-time"] = p.holdTime
+			m["receive-hold-time"] = p.holdTime
 		}
 		peerMap[name] = m
 	}
@@ -647,7 +648,7 @@ func TestReactorApplyConfigDiffChangedPeer(t *testing.T) {
 
 	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
 	settings.Connection = ConnectionPassive
-	settings.HoldTime = 90 * time.Second
+	settings.ReceiveHoldTime = 90 * time.Second
 	_ = r.AddPeer(settings)
 
 	require.NoError(t, r.Start())
@@ -655,7 +656,7 @@ func TestReactorApplyConfigDiffChangedPeer(t *testing.T) {
 
 	peers := r.Peers()
 	require.Len(t, peers, 1)
-	assert.Equal(t, 90*time.Second, peers[0].Settings().HoldTime)
+	assert.Equal(t, 90*time.Second, peers[0].Settings().ReceiveHoldTime)
 
 	adapter := &reactorAPIAdapter{r: r}
 	// Same peer, different hold time.
@@ -669,7 +670,7 @@ func TestReactorApplyConfigDiffChangedPeer(t *testing.T) {
 	peers = r.Peers()
 	require.Len(t, peers, 1)
 	assert.Equal(t, "10.0.0.1", peers[0].Settings().Address.String())
-	assert.Equal(t, 30*time.Second, peers[0].Settings().HoldTime)
+	assert.Equal(t, 30*time.Second, peers[0].Settings().ReceiveHoldTime)
 }
 
 // TestReactorReloadBackwardCompat verifies that existing Reload() still works.

@@ -1,4 +1,4 @@
-# Valid config: peer groups with inherited hold-time
+# Valid config: peer groups with inherited receive-hold-time
 stdin=config:terminator=EOF_CONF
 bgp {
 	router-id 1.2.3.4
@@ -7,7 +7,7 @@ bgp {
 	}
 	group peering {
 		timer {
-			hold-time 180
+			receive-hold-time 180
 		}
 		peer peer1 {
 			remote {

@@ -105,7 +105,8 @@ func TestNewPeerSettings_Defaults(t *testing.T) {
 	assert.Equal(t, uint32(65001), ps.LocalAS)
 	assert.Equal(t, uint32(65002), ps.PeerAS)
 	assert.Equal(t, uint32(0x01020304), ps.RouterID)
-	assert.Equal(t, DefaultHoldTime, ps.HoldTime, "default hold time=90s")
+	assert.Equal(t, DefaultReceiveHoldTime, ps.ReceiveHoldTime, "default receive hold time=90s")
+	assert.Equal(t, time.Duration(0), ps.SendHoldTime, "default send hold time=0 (auto)")
 	assert.Equal(t, ConnectionBoth, ps.Connection)
 	assert.True(t, ps.GroupUpdates, "group updates enabled by default")
 }
@@ -196,9 +197,9 @@ func TestStaticRoute_RouteKey(t *testing.T) {
 	}
 }
 
-// TestDefaultHoldTime verifies the constant is 90 seconds per RFC 4271.
-func TestDefaultHoldTime(t *testing.T) {
-	assert.Equal(t, 90*time.Second, DefaultHoldTime)
+// TestDefaultReceiveHoldTime verifies the constant is 90 seconds per RFC 4271.
+func TestDefaultReceiveHoldTime(t *testing.T) {
+	assert.Equal(t, 90*time.Second, DefaultReceiveHoldTime)
 }
 
 // TestDefaultBGPPort verifies the constant is 179 per RFC 4271.

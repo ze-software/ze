@@ -610,7 +610,7 @@ func TestSetCommandUpdatesExistingValue(t *testing.T) {
 // TestSetCommandRejectsInvalidValue verifies that set rejects values
 // that don't match the YANG leaf type.
 //
-// VALIDATES: "set timer hold-time abc" returns error for non-numeric value.
+// VALIDATES: "set timer receive-hold-time abc" returns error for non-numeric value.
 // PREVENTS: Invalid typed values being accepted and only caught at commit.
 func TestSetCommandRejectsInvalidValue(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -631,14 +631,14 @@ func TestSetCommandRejectsInvalidValue(t *testing.T) {
 	require.NoError(t, err)
 	model.ApplyResult(editResult)
 
-	// Set hold-time to invalid string — should fail
-	_, err = model.dispatchCommand("set timer hold-time abc")
-	require.Error(t, err, "should reject non-numeric hold-time")
+	// Set receive-hold-time to invalid string — should fail
+	_, err = model.dispatchCommand("set timer receive-hold-time abc")
+	require.Error(t, err, "should reject non-numeric receive-hold-time")
 	assert.Contains(t, err.Error(), "invalid value")
 
-	// Set hold-time to valid value — should succeed
-	_, err = model.dispatchCommand("set timer hold-time 180")
-	require.NoError(t, err, "should accept valid numeric hold-time")
+	// Set receive-hold-time to valid value — should succeed
+	_, err = model.dispatchCommand("set timer receive-hold-time 180")
+	require.NoError(t, err, "should accept valid numeric receive-hold-time")
 }
 
 // TestJoinTokensWithQuotes verifies quote handling in token rejoining.
@@ -907,7 +907,7 @@ func TestCommitNoNotifierStandalone(t *testing.T) {
 
 // TestSetThroughList verifies set with full path through a list from root context.
 //
-// VALIDATES: spec-editor-2 AC-1: "set bgp peer 1.1.1.1 timer hold-time 90" from root.
+// VALIDATES: spec-editor-2 AC-1: "set bgp peer 1.1.1.1 timer receive-hold-time 90" from root.
 // PREVENTS: Positional path splitting breaking list paths.
 func TestSetThroughList(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -922,13 +922,13 @@ func TestSetThroughList(t *testing.T) {
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	// Set hold-time through list from root — no edit context
-	result, err := model.dispatchCommand("set bgp peer peer1 timer hold-time 120")
+	// Set receive-hold-time through list from root — no edit context
+	result, err := model.dispatchCommand("set bgp peer peer1 timer receive-hold-time 120")
 	require.NoError(t, err, "set through list should succeed")
 	assert.Contains(t, result.statusMessage, "set")
 
 	content := ed.WorkingContent()
-	assert.Contains(t, content, "120", "hold-time should be updated to 120")
+	assert.Contains(t, content, "120", "receive-hold-time should be updated to 120")
 }
 
 // TestSetRejectsNonLeafPath verifies set rejects paths that don't resolve to a leaf.
@@ -976,12 +976,12 @@ func TestSetInContextPreserved(t *testing.T) {
 	model.ApplyResult(editResult)
 
 	// Set within context — should still work
-	result, err := model.dispatchCommand("set timer hold-time 120")
+	result, err := model.dispatchCommand("set timer receive-hold-time 120")
 	require.NoError(t, err, "context-relative set should still work")
 	assert.Contains(t, result.statusMessage, "set")
 
 	content := ed.WorkingContent()
-	assert.Contains(t, content, "120", "hold-time should be updated to 120")
+	assert.Contains(t, content, "120", "receive-hold-time should be updated to 120")
 }
 
 // TestSetThroughListDescription verifies set of a string value through a list from root.
@@ -1033,7 +1033,7 @@ func TestSetRejectsConfigFalse(t *testing.T) {
 
 // TestSetRejectsMissingListKey verifies set rejects a list path without a key.
 //
-// VALIDATES: spec-editor-2 AC-3: "set bgp peer timer hold-time 90" (missing key) → error.
+// VALIDATES: spec-editor-2 AC-3: "set bgp peer timer receive-hold-time 90" (missing key) → error.
 // PREVENTS: Ambiguous set when list key is missing.
 func TestSetRejectsMissingListKey(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -1048,9 +1048,9 @@ func TestSetRejectsMissingListKey(t *testing.T) {
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	// "set bgp peer timer hold-time 90" — peer is a list, "timer" is not a valid key value,
+	// "set bgp peer timer receive-hold-time 90" — peer is a list, "timer" is not a valid key value,
 	// but more importantly "90" should not land in a random place.
-	_, err = model.dispatchCommand("set bgp peer timer hold-time 90")
+	_, err = model.dispatchCommand("set bgp peer timer receive-hold-time 90")
 	require.Error(t, err, "set on list without key should fail")
 }
 
@@ -1165,11 +1165,11 @@ func TestFormatChangeEntryModified(t *testing.T) {
 func TestFormatChangeEntryDelete(t *testing.T) {
 	var b strings.Builder
 	formatChangeEntry(&b, config.SessionEntry{
-		Path:  "bgp timer hold-time",
+		Path:  "bgp timer receive-hold-time",
 		Entry: config.MetaEntry{Value: "", Previous: "180"},
 	})
 	line := b.String()
-	assert.Contains(t, line, "  - delete bgp timer hold-time")
+	assert.Contains(t, line, "  - delete bgp timer receive-hold-time")
 	assert.Contains(t, line, "(was: 180)")
 	assert.NotContains(t, line, "set")
 }

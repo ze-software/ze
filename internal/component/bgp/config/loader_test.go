@@ -34,7 +34,7 @@ bgp {
     peer transit1 {
         remote { ip 192.0.2.1; as 65001; }
         timer {
-            hold-time 90;
+            receive-hold-time 90;
         }
         local { ip 192.168.1.1; }
     }
@@ -557,7 +557,7 @@ bgp {
     peer transit1 {
         remote { ip 192.0.2.1; as 65001; }
         timer {
-            hold-time 90;
+            receive-hold-time 90;
         }
         local { ip 192.168.1.1; }
     }
@@ -597,7 +597,7 @@ peer transit1 {
 
 // TestParseGroupWithInheritance verifies group-level defaults are inherited by member peers.
 //
-// VALIDATES: bgp { group <name> { hold-time N; peer <ip> { } } } syntax.
+// VALIDATES: bgp { group <name> { receive-hold-time N; peer <ip> { } } } syntax.
 // PREVENTS: Group default inheritance failures.
 func TestParseGroupWithInheritance(t *testing.T) {
 	input := `
@@ -607,7 +607,7 @@ bgp {
 
     group backbone {
         timer {
-            hold-time 30;
+            receive-hold-time 30;
         }
 
         peer rtr1 {
@@ -625,9 +625,9 @@ bgp {
 	peers := r.Peers()
 	require.Len(t, peers, 1)
 
-	// Peer should inherit hold-time from group
+	// Peer should inherit receive-hold-time from group
 	settings := peers[0].Settings()
-	assert.Equal(t, 30*1000000000, int(settings.HoldTime.Nanoseconds()))
+	assert.Equal(t, 30*1000000000, int(settings.ReceiveHoldTime.Nanoseconds()))
 }
 
 // TestGroupNameKeyword verifies named groups with peer inheritance.
@@ -642,7 +642,7 @@ bgp {
 
     group backbone {
         timer {
-            hold-time 30;
+            receive-hold-time 30;
         }
 
         peer transit1 {
@@ -660,9 +660,9 @@ bgp {
 	peers := r.Peers()
 	require.Len(t, peers, 1)
 
-	// Peer should inherit hold-time from backbone group
+	// Peer should inherit receive-hold-time from backbone group
 	settings := peers[0].Settings()
-	assert.Equal(t, 30*1000000000, int(settings.HoldTime.Nanoseconds()))
+	assert.Equal(t, 30*1000000000, int(settings.ReceiveHoldTime.Nanoseconds()))
 }
 
 // TestUnknownKeywordInGroup verifies error for unknown keyword inside a group.
@@ -853,10 +853,10 @@ bgp {
 	require.NotNil(t, tree)
 }
 
-// TestHoldTimeZeroPreserved verifies hold-time 0 is preserved, not defaulted.
+// TestHoldTimeZeroPreserved verifies receive-hold-time 0 is preserved, not defaulted.
 //
-// VALIDATES: RFC 4271 allows hold-time 0 (disables keepalives).
-// PREVENTS: Explicit hold-time 0 being overwritten with default 90s.
+// VALIDATES: RFC 4271 allows receive-hold-time 0 (disables keepalives).
+// PREVENTS: Explicit receive-hold-time 0 being overwritten with default 90s.
 func TestHoldTimeZeroPreserved(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -872,7 +872,7 @@ bgp {
     peer transit1 {
         remote { ip 192.0.2.1; as 65001; }
         timer {
-            hold-time 0;
+            receive-hold-time 0;
         }
         local { ip 192.168.1.1; }
     }
@@ -901,7 +901,7 @@ bgp {
     peer transit1 {
         remote { ip 192.0.2.1; as 65001; }
         timer {
-            hold-time 30;
+            receive-hold-time 30;
         }
         local { ip 192.168.1.1; }
     }
@@ -919,8 +919,8 @@ bgp {
 			require.Len(t, peers, 1)
 
 			settings := peers[0].Settings()
-			gotSec := int(settings.HoldTime.Seconds())
-			assert.Equal(t, tt.wantHoldTime, gotSec, "hold-time mismatch")
+			gotSec := int(settings.ReceiveHoldTime.Seconds())
+			assert.Equal(t, tt.wantHoldTime, gotSec, "receive-hold-time mismatch")
 		})
 	}
 }

@@ -484,7 +484,7 @@ func TestComputeDiff(t *testing.T) {
 	// Setup candidate with changes using thread-safe method.
 	p.SetCandidate(map[string]map[string]string{
 		"bgp.peer": {
-			"192.0.2.1": `{"address":"192.0.2.1","peer-as":65002,"hold-time":90}`, // Modified
+			"192.0.2.1": `{"address":"192.0.2.1","peer-as":65002,"receive-hold-time":90}`, // Modified
 			// 192.0.2.2 deleted
 			"192.0.2.3": `{"address":"192.0.2.3","peer-as":65004}`, // Created
 		},

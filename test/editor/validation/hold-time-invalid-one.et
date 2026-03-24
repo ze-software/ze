@@ -1,5 +1,5 @@
 # Test: Hold-time 1 is invalid per RFC 4271
-# VALIDATES: hold-time 1 triggers validation error
+# VALIDATES: receive-hold-time 1 triggers validation error
 # RFC 4271 Section 4.2: Values 1-2 are invalid
 
 tmpfs=invalid-one.conf:terminator=EOF_ONE
@@ -10,7 +10,7 @@ bgp {
   		ip 1.1.1.1
   		as 65001;
   	}
-    timer { hold-time 1; }
+    timer { receive-hold-time 1; }
   }
 }
 EOF_ONE
@@ -20,4 +20,4 @@ option=timeout:value=10s
 
 # Hold-time 1 should be invalid
 expect=errors:count=1
-expect=errors:contains=hold-time
+expect=errors:contains=receive-hold-time

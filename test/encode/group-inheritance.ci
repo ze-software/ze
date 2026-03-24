@@ -1,10 +1,10 @@
-# Group defaults produce correct wire output: hold-time inherited from group
+# Group defaults produce correct wire output: receive-hold-time inherited from group
 stdin=peer:terminator=EOF_PEER
 option=open:value=inspect-open-message
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0104FFFD001E0A000002100206010400010001020641040000FFFD
 EOF_PEER
 
-# ze bgp configuration -- hold-time set at group level, inherited by peer
+# ze bgp configuration -- receive-hold-time set at group level, inherited by peer
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	group test {
@@ -15,7 +15,7 @@ bgp {
 			as 65533
 		}
 		timer {
-			hold-time 30
+			receive-hold-time 30
 		}
 		connection active
 		family {

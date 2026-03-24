@@ -375,7 +375,7 @@ func TestCompleterListKeyStringAccepted(t *testing.T) {
 // TestCompleterInvalidKeyWithSpaceNoChildren verifies that after typing
 // an invalid list key followed by a space, no children are shown.
 //
-// VALIDATES: "set bgp peer 1.1.1 " does NOT show remote, hold-time, etc.
+// VALIDATES: "set bgp peer 1.1.1 " does NOT show remote, receive-hold-time, etc.
 // PREVENTS: Navigating past an invalid key and showing schema children.
 func TestCompleterInvalidKeyWithSpaceNoChildren(t *testing.T) {
 	c := NewCompleter()
@@ -396,7 +396,7 @@ func TestCompleterInvalidKeyWithSpaceNoChildren(t *testing.T) {
 // checks values against YANG leaf types.
 //
 // VALIDATES: Invalid values for typed leaves are rejected.
-// PREVENTS: Setting non-IP address for peer address, non-numeric for hold-time.
+// PREVENTS: Setting non-IP address for peer address, non-numeric for receive-hold-time.
 func TestCompleterValidateValueAtPath(t *testing.T) {
 	c := NewCompleter()
 
@@ -406,10 +406,10 @@ func TestCompleterValidateValueAtPath(t *testing.T) {
 		value string
 		valid bool
 	}{
-		{"valid hold-time", []string{"bgp", "peer", "timer", "hold-time"}, "90", true},
-		{"zero hold-time", []string{"bgp", "peer", "timer", "hold-time"}, "0", true},
-		{"invalid hold-time string", []string{"bgp", "peer", "timer", "hold-time"}, "abc", false},
-		{"hold-time too large", []string{"bgp", "peer", "timer", "hold-time"}, "99999999", false},
+		{"valid receive-hold-time", []string{"bgp", "peer", "timer", "receive-hold-time"}, "90", true},
+		{"zero receive-hold-time", []string{"bgp", "peer", "timer", "receive-hold-time"}, "0", true},
+		{"invalid receive-hold-time string", []string{"bgp", "peer", "timer", "receive-hold-time"}, "abc", false},
+		{"receive-hold-time too large", []string{"bgp", "peer", "timer", "receive-hold-time"}, "99999999", false},
 	}
 
 	for _, tt := range tests {
@@ -483,7 +483,7 @@ func TestValidateRejectsNonLeafPath(t *testing.T) {
 // TestCompleterValidateExtensionCompletion verifies that leaves with ze:validate
 // get CompleteFn-based completions instead of the generic <value> hint.
 // Contrasts receive (has CompleteFn -> actionable values) with send (also has
-// CompleteFn -> actionable values) and hold-time (no ze:validate -> type hint).
+// CompleteFn -> actionable values) and receive-hold-time (no ze:validate -> type hint).
 //
 // VALIDATES: AC-1: Tab on a leaf with ze:validate + CompleteFn shows values.
 // PREVENTS: ze:validate leaves with CompleteFn falling through to generic hint.
@@ -553,13 +553,13 @@ func TestCompleterSendMessageCompletion(t *testing.T) {
 // TestCompleterNoValidateRegression verifies that leaves without ze:validate
 // still show normal hints (no regression from adding validate completion).
 //
-// VALIDATES: AC-5: Tab on hold-time still shows numeric range hint.
+// VALIDATES: AC-5: Tab on receive-hold-time still shows numeric range hint.
 // PREVENTS: Breaking existing enum/bool/hint completion for non-validated leaves.
 func TestCompleterNoValidateRegression(t *testing.T) {
 	c := NewCompleter()
 
-	// hold-time is a uint16 with no ze:validate
-	completions := c.Complete("set hold-time ", []string{"bgp", "peer", "timer"})
+	// receive-hold-time is a uint16 with no ze:validate
+	completions := c.Complete("set receive-hold-time ", []string{"bgp", "peer", "timer"})
 	require.NotEmpty(t, completions)
 	assert.Equal(t, "hint", completions[0].Type, "non-validated leaf should show hint")
 	assert.Contains(t, completions[0].Text, "0-65535", "should show numeric range hint")

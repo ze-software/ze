@@ -163,7 +163,7 @@ bgp {
 			router-id 10.0.0.139
 			connection active
 			timer {
-				hold-time 30
+				receive-hold-time 30
 			}
 		}
 	}

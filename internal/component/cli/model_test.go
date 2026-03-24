@@ -24,10 +24,10 @@ const (
   peer peer1 {
     remote { ip 1.1.1.1; as 65001; }
     local { ip auto; }
-    timer { hold-time 90; }
+    timer { receive-hold-time 90; }
   }
 }`
-	// testValidBGPConfigSimplePeer is for tests that don't need hold-time.
+	// testValidBGPConfigSimplePeer is for tests that don't need receive-hold-time.
 	testValidBGPConfigSimplePeer = `bgp {
   router-id 1.2.3.4
   local { as 65000; }
@@ -46,13 +46,13 @@ func TestModelValidationOnLoad(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	// Write config with validation error (hold-time 1 inside peer)
+	// Write config with validation error (receive-hold-time 1 inside peer)
 	content := `bgp {
   router-id 1.2.3.4
   local { as 65000; }
   peer peer1 {
     remote { ip 1.1.1.1; as 65001; }
-    timer { hold-time 1; }
+    timer { receive-hold-time 1; }
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
@@ -77,13 +77,13 @@ func TestModelCommitBlockedOnErrors(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	// Write config with validation error (hold-time 2 inside peer)
+	// Write config with validation error (receive-hold-time 2 inside peer)
 	content := `bgp {
   router-id 1.2.3.4
   local { as 65000; }
   peer peer1 {
     remote { ip 1.1.1.1; as 65001; }
-    timer { hold-time 2; }
+    timer { receive-hold-time 2; }
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
@@ -118,7 +118,7 @@ func TestModelCommitSucceedsWhenValid(t *testing.T) {
   peer peer1 {
     remote { ip 1.1.1.1; as 65001; }
     local { ip auto; }
-    timer { hold-time 90; }
+    timer { receive-hold-time 90; }
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
@@ -298,7 +298,7 @@ func TestModelValidationDebounce(t *testing.T) {
 
 	// Simulate receiving tick with matching ID
 	// First change content to something with errors
-	ed.SetWorkingContent(`bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { hold-time 1; } } }`)
+	ed.SetWorkingContent(`bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { receive-hold-time 1; } } }`)
 	currentID := model.validationID
 
 	// Update returns a new model - we need to use that
@@ -340,7 +340,7 @@ func TestModelStatusBarErrorIndicator(t *testing.T) {
 	content := `bgp {
   peer peer1 {
     remote { ip 1.1.1.1; as 65001; }
-    timer { hold-time 1; }
+    timer { receive-hold-time 1; }
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)

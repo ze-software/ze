@@ -30,10 +30,10 @@ func TestParseCommand(t *testing.T) {
 		},
 		{
 			name:        "modify_action",
-			input:       `bgp peer modify {"address":"192.0.2.1","hold-time":90}`,
+			input:       `bgp peer modify {"address":"192.0.2.1","receive-hold-time":90}`,
 			wantHandler: "bgp.peer",
 			wantAction:  "modify",
-			wantData:    `{"address":"192.0.2.1","hold-time":90}`,
+			wantData:    `{"address":"192.0.2.1","receive-hold-time":90}`,
 		},
 		{
 			name:        "delete_action",

@@ -13,7 +13,7 @@ bgp {
 		description "a quagga test peer"
 		router-id 10.0.0.2
 		timer {
-			hold-time 180
+			receive-hold-time 180
 		}
 		update {
 			attribute {

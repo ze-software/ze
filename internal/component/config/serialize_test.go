@@ -64,7 +64,7 @@ func TestSerializeNeighbor(t *testing.T) {
         }
         router-id 1.2.3.4
         timer {
-            hold-time 90
+            receive-hold-time 90
         }
     }
 }

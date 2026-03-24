@@ -94,14 +94,14 @@ func TestHighlightValidationIssuesWithMapping(t *testing.T) {
 	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
 
 	// Filtered content (e.g., inside a peer block)
-	// Original config had: line 1=bgp{, line 2=router-id, line 3=peer{, line 4=peer-as, line 5=hold-time
+	// Original config had: line 1=bgp{, line 2=router-id, line 3=peer{, line 4=peer-as, line 5=receive-hold-time
 	// Filtered shows just line 4 and 5 as lines 1 and 2
 	filteredContent := `peer-as 65001
-hold-time 1`
+receive-hold-time 1`
 
-	// Error is on original line 5 (hold-time), which is filtered line 2
+	// Error is on original line 5 (receive-hold-time), which is filtered line 2
 	errors := []ConfigValidationError{
-		{Line: 5, Message: "invalid hold-time"},
+		{Line: 5, Message: "invalid receive-hold-time"},
 	}
 
 	// Mapping: filtered line 1 → original line 4, filtered line 2 → original line 5
@@ -118,9 +118,9 @@ hold-time 1`
 	// Line 1 (peer-as) should NOT have ANSI codes - no error on original line 4
 	assert.NotContains(t, lines[0], "\x1b[", "line 1 should not have ANSI codes")
 
-	// Line 2 (hold-time) should have ANSI codes - error on original line 5
+	// Line 2 (receive-hold-time) should have ANSI codes - error on original line 5
 	assert.Contains(t, lines[1], "\x1b[", "line 2 should have ANSI styling")
-	assert.Contains(t, lines[1], "hold-time", "line 2 content preserved")
+	assert.Contains(t, lines[1], "receive-hold-time", "line 2 content preserved")
 }
 
 // TestHighlightValidationIssuesWarnings verifies warning lines get highlighted differently.
@@ -192,7 +192,7 @@ func TestModelContextHighlighting(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	// Config with parse error (invalid hold-time value)
+	// Config with parse error (invalid receive-hold-time value)
 	// The parser rejects "notanumber" during type validation, so tree is empty.
 	// This test verifies error highlighting works on the full config view (raw text fallback).
 	content := `bgp {
@@ -200,7 +200,7 @@ func TestModelContextHighlighting(t *testing.T) {
   local-as 65000
   peer 1.1.1.1 {
     peer-as 65001
-    timer { hold-time notanumber; }
+    timer { receive-hold-time notanumber; }
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
@@ -222,7 +222,7 @@ func TestModelContextHighlighting(t *testing.T) {
 	model.showConfigContent()
 
 	// Viewport should show the raw config content (tree is invalid, raw text fallback)
-	assert.Contains(t, model.viewportContent, "hold-time", "viewport should show config content")
+	assert.Contains(t, model.viewportContent, "receive-hold-time", "viewport should show config content")
 
 	// Error line should be highlighted with ANSI escape codes
 	assert.Contains(t, model.viewportContent, "\x1b[", "error line should be highlighted")

@@ -19,6 +19,6 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1 --input set+timer+hold-time+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1 --input set+timer+receive-hold-time+ test.conf
 expect=exit:code=0
 expect=stdout:contains=0-65535

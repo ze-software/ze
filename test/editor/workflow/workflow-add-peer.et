@@ -1,4 +1,4 @@
-# Test: Add peer workflow — set remote as and hold-time, commit
+# Test: Add peer workflow — set remote as and receive-hold-time, commit
 # VALIDATES: spec-editor-4 AC-1: complete add-peer workflow
 # VALIDATES: spec-editor-4 AC-5: exit after workflow
 # PREVENTS: Multi-step peer creation failing silently
@@ -31,8 +31,8 @@ input=enter
 expect=status:contains=set
 expect=error:none
 
-# Set hold-time on the same peer
-input=type:text=set bgp peer 10.0.0.1 timer hold-time 90
+# Set receive-hold-time on the same peer
+input=type:text=set bgp peer 10.0.0.1 timer receive-hold-time 90
 input=enter
 expect=status:contains=set
 expect=error:none

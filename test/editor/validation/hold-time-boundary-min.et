@@ -1,5 +1,5 @@
 # Test: Hold-time minimum valid value when enabled
-# VALIDATES: hold-time 3 is the minimum valid value (when not 0)
+# VALIDATES: receive-hold-time 3 is the minimum valid value (when not 0)
 # RFC 4271 Section 4.2: "If non-zero, must be at least 3 seconds"
 
 tmpfs=valid-three.conf:terminator=EOF_THREE
@@ -10,7 +10,7 @@ bgp {
   		ip 1.1.1.1
   		as 65001;
   	}
-    timer { hold-time 3; }
+    timer { receive-hold-time 3; }
   }
 }
 EOF_THREE

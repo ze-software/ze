@@ -16,7 +16,7 @@ EOF_CONF
 
 tmpfs=extra.conf:terminator=EOF_EXTRA
 description "merged peer";
-timer { hold-time 180; }
+timer { receive-hold-time 180; }
 EOF_EXTRA
 
 option=file:path=test.conf
@@ -36,7 +36,7 @@ expect=content:contains=as 65001
 
 # Merged content added
 expect=content:contains=description
-expect=content:contains=hold-time
+expect=content:contains=receive-hold-time
 
 expect=dirty:true
 expect=error:none

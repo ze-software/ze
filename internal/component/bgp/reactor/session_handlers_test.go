@@ -26,7 +26,7 @@ func newOpenSentSession(t *testing.T) *Session {
 
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	settings.Connection = ConnectionPassive
-	settings.HoldTime = 90 * time.Second
+	settings.ReceiveHoldTime = 90 * time.Second
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
@@ -125,7 +125,7 @@ func TestHandleOpen_Malformed(t *testing.T) {
 func TestHandleOpen_RequiredFamilyMissing(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	settings.Connection = ConnectionPassive
-	settings.HoldTime = 90 * time.Second
+	settings.ReceiveHoldTime = 90 * time.Second
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
@@ -177,7 +177,7 @@ func TestHandleOpen_RequiredFamilyMissing(t *testing.T) {
 func TestHandleOpen_RequiredCapMissing(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	settings.Connection = ConnectionPassive
-	settings.HoldTime = 90 * time.Second
+	settings.ReceiveHoldTime = 90 * time.Second
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 	}
@@ -220,7 +220,7 @@ func TestHandleOpen_RequiredCapMissing(t *testing.T) {
 func TestHandleOpen_RefusedCapPresent(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	settings.Connection = ConnectionPassive
-	settings.HoldTime = 90 * time.Second
+	settings.ReceiveHoldTime = 90 * time.Second
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 		&capability.RouteRefresh{},
@@ -405,7 +405,7 @@ func TestHandleRouteRefresh_NonNegotiatedFamily(t *testing.T) {
 func TestHandleUpdate_FamilyMismatchIgnoreMode(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	settings.Connection = ConnectionPassive
-	settings.HoldTime = 90 * time.Second
+	settings.ReceiveHoldTime = 90 * time.Second
 	settings.IgnoreFamilyMismatch = true
 	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},

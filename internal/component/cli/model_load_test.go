@@ -575,7 +575,7 @@ func TestLoadFileRelativeReplace(t *testing.T) {
   local { as 65000; }
   peer peer1 {
     remote { ip 1.1.1.1; as 65001; }
-    timer { hold-time 90; }
+    timer { receive-hold-time 90; }
   }
 }`
 	// Content to replace the peer block with
@@ -610,7 +610,7 @@ description "new peer"`
 	// Peer content should be replaced
 	assert.Contains(t, ed.WorkingContent(), "65002", "new remote as present")
 	assert.Contains(t, ed.WorkingContent(), "description", "new description present")
-	assert.NotContains(t, ed.WorkingContent(), "hold-time", "old hold-time removed")
+	assert.NotContains(t, ed.WorkingContent(), "receive-hold-time", "old receive-hold-time removed")
 	assert.True(t, ed.Dirty(), "should be marked dirty")
 	assert.True(t, result.revalidate, "should trigger revalidation")
 }
@@ -631,7 +631,7 @@ func TestLoadFileRelativeMerge(t *testing.T) {
   }
 }`
 	mergeContent := `description "merged peer"
-timer { hold-time 180; }`
+timer { receive-hold-time 180; }`
 
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
@@ -659,7 +659,7 @@ timer { hold-time 180; }`
 
 	// Merged content added
 	assert.Contains(t, ed.WorkingContent(), "description", "description merged")
-	assert.Contains(t, ed.WorkingContent(), "hold-time", "hold-time merged")
+	assert.Contains(t, ed.WorkingContent(), "receive-hold-time", "receive-hold-time merged")
 	assert.True(t, ed.Dirty(), "should be marked dirty")
 	assert.True(t, result.revalidate, "should trigger revalidation")
 }

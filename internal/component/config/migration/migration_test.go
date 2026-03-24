@@ -93,7 +93,7 @@ func TestMigrate_TemplateNeighborToGroup(t *testing.T) {
 	tree := config.NewTree()
 	tmpl := config.NewTree()
 	tmplNeighbor := config.NewTree()
-	tmplNeighbor.Set("hold-time", "30")
+	tmplNeighbor.Set("receive-hold-time", "30")
 	tmpl.AddListEntry("neighbor", "my-group", tmplNeighbor)
 	tree.SetContainer("template", tmpl)
 
@@ -109,7 +109,7 @@ func TestMigrate_TemplateNeighborToGroup(t *testing.T) {
 	require.NotNil(t, bgp, "bgp block should exist")
 	groups := bgp.GetList("group")
 	require.Contains(t, groups, "my-group", "my-group should be a bgp group")
-	holdTime, ok := groups["my-group"].Get("hold-time")
+	holdTime, ok := groups["my-group"].Get("receive-hold-time")
 	assert.True(t, ok)
 	assert.Equal(t, "30", holdTime)
 }

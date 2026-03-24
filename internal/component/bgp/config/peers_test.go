@@ -14,7 +14,7 @@ import (
 // TestPeersFromConfigTreeBasic verifies basic peer extraction without routes.
 //
 // VALIDATES: PeersFromConfigTree returns correct PeerSettings from a simple tree.
-// PREVENTS: Regression where basic fields (address, AS, hold-time) are lost.
+// PREVENTS: Regression where basic fields (address, AS, receive-hold-time) are lost.
 func TestPeersFromConfigTreeBasic(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
@@ -29,7 +29,7 @@ func TestPeersFromConfigTreeBasic(t *testing.T) {
 	remoteTree.Set("as", "65001")
 	peerTree.SetContainer("remote", remoteTree)
 	peerTimerTree := config.NewTree()
-	peerTimerTree.Set("hold-time", "180")
+	peerTimerTree.Set("receive-hold-time", "180")
 	peerTree.SetContainer("timer", peerTimerTree)
 	peerLocalTree := config.NewTree()
 	peerLocalTree.Set("ip", "auto")
@@ -100,10 +100,10 @@ func TestPeersFromConfigTreeGroupWithRoutes(t *testing.T) {
 	bgpLocal.Set("as", "65000")
 	bgp.SetContainer("local", bgpLocal)
 
-	// Group with hold-time default.
+	// Group with receive-hold-time default.
 	groupTree := config.NewTree()
 	groupTimerTree := config.NewTree()
-	groupTimerTree.Set("hold-time", "300")
+	groupTimerTree.Set("receive-hold-time", "300")
 	groupTree.SetContainer("timer", groupTimerTree)
 
 	// Peer inside group with a static route.

@@ -18,7 +18,7 @@ import (
 // newNegotiateSession creates a minimal Session with localOpen and peerOpen set for negotiation tests.
 func newNegotiateSession(localHold, peerHold time.Duration) *Session {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
-	settings.HoldTime = localHold
+	settings.ReceiveHoldTime = localHold
 
 	session := NewSession(settings)
 

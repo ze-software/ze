@@ -1,5 +1,5 @@
 # Test: Invalid range value rejected
-# VALIDATES: AC-3 — hold-time 2 triggers range validation error
+# VALIDATES: AC-3 — receive-hold-time 2 triggers range validation error
 stdin=config:terminator=EOF_CONF
 bgp {
 	router-id 1.2.3.4
@@ -15,7 +15,7 @@ bgp {
 			ip 192.0.2.2
 		}
 		timer {
-			hold-time 2
+			receive-hold-time 2
 		}
 	}
 }
@@ -23,4 +23,4 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config validate -:stdin=config
 expect=exit:code=1
-expect=stderr:contains=hold-time
+expect=stderr:contains=receive-hold-time

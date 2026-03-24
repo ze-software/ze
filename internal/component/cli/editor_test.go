@@ -646,7 +646,7 @@ const validBGPConfig = `bgp {
 	local { as 65000; }
 	peer peer1 {
 		remote { ip 1.1.1.1; as 65001; }
-		timer { hold-time 90; }
+		timer { receive-hold-time 90; }
 	}
 }
 `
@@ -794,14 +794,14 @@ func TestEditorTreeDelete(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck // test cleanup
 
-	err = ed.DeleteValue([]string{"bgp", "peer", "peer1", "timer"}, "hold-time")
+	err = ed.DeleteValue([]string{"bgp", "peer", "peer1", "timer"}, "receive-hold-time")
 	require.NoError(t, err)
 	assert.True(t, ed.Dirty())
 
 	timer := ed.WalkPath([]string{"bgp", "peer", "peer1", "timer"})
 	require.NotNil(t, timer)
-	_, ok := timer.Get("hold-time")
-	assert.False(t, ok, "hold-time should be deleted")
+	_, ok := timer.Get("receive-hold-time")
+	assert.False(t, ok, "receive-hold-time should be deleted")
 }
 
 // TestEditorTreeDeleteContainer verifies DeleteContainer removes a block.
@@ -1057,7 +1057,7 @@ func TestSerializationRoundTrip(t *testing.T) {
   local { as 65000; }
   peer peer1 {
     remote { ip 1.1.1.1; as 65001; }
-    timer { hold-time 90; }
+    timer { receive-hold-time 90; }
   }
 }`},
 	}
@@ -1265,7 +1265,7 @@ func TestEditorWriteThroughPrevious(t *testing.T) {
 }
 
 // TestEditorWriteThroughListEntry verifies write-through for a leaf under a YANG
-// list entry (e.g., bgp peer 1.1.1.1 timer hold-time). This exercises the schema-aware
+// list entry (e.g., bgp peer 1.1.1.1 timer receive-hold-time). This exercises the schema-aware
 // MetaTree navigation where list keys must be stored in .lists, not .containers.
 //
 // VALIDATES: Write-through records metadata for leaves under list entries.
@@ -1280,8 +1280,8 @@ func TestEditorWriteThroughListEntry(t *testing.T) {
 	session := NewEditSession("thomas", "local")
 	ed.SetSession(session)
 
-	// Change hold-time under bgp peer 1.1.1.1 timer (a list entry path).
-	err = ed.SetValue([]string{"bgp", "peer", "peer1", "timer"}, "hold-time", "180")
+	// Change receive-hold-time under bgp peer 1.1.1.1 timer (a list entry path).
+	err = ed.SetValue([]string{"bgp", "peer", "peer1", "timer"}, "receive-hold-time", "180")
 	require.NoError(t, err)
 
 	// Change file should exist with metadata for the list entry leaf.
@@ -1292,7 +1292,7 @@ func TestEditorWriteThroughListEntry(t *testing.T) {
 	changeContent := string(changeData)
 
 	// Change file should contain the new value.
-	assert.Contains(t, changeContent, "180", "change file should contain updated hold-time")
+	assert.Contains(t, changeContent, "180", "change file should contain updated receive-hold-time")
 
 	// Change file should contain user metadata for the list entry leaf.
 	// This is the critical check: if walkOrCreateMeta doesn't use schema-aware
@@ -1315,10 +1315,10 @@ func TestEditorWriteThroughListEntry(t *testing.T) {
 	require.NotNil(t, entryMeta, "peer peer1 metadata list entry should exist")
 	timerMeta := entryMeta.GetContainer("timer")
 	require.NotNil(t, timerMeta, "timer metadata container should exist under peer list entry")
-	entry, ok := timerMeta.GetEntry("hold-time")
-	require.True(t, ok, "hold-time metadata should exist under timer container")
+	entry, ok := timerMeta.GetEntry("receive-hold-time")
+	require.True(t, ok, "receive-hold-time metadata should exist under timer container")
 	assert.Equal(t, session.ID, entry.SessionKey(), "session key should match session ID")
-	assert.Equal(t, "90", entry.Previous, "Previous should record committed hold-time value")
+	assert.Equal(t, "90", entry.Previous, "Previous should record committed receive-hold-time value")
 }
 
 // TestEditorConcurrentWrite verifies concurrent editors can write without corruption.
@@ -2166,10 +2166,10 @@ func TestEditorDiscardPathBoundary(t *testing.T) {
 	ed.SetSession(session)
 
 	// Set two values: one under "peer 1.1.1.1" and one under "bgp" (router-id).
-	// The YANG path "peer 1.1.1.1 timer hold-time" starts with "peer",
+	// The YANG path "peer 1.1.1.1 timer receive-hold-time" starts with "peer",
 	// while "bgp router-id" does not -- but raw prefix "peer" could match
 	// a hypothetical "bgp peer-group" if boundary matching is broken.
-	err = ed.SetValue([]string{"bgp", "peer", "peer1", "timer"}, "hold-time", "180")
+	err = ed.SetValue([]string{"bgp", "peer", "peer1", "timer"}, "receive-hold-time", "180")
 	require.NoError(t, err)
 	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
 	require.NoError(t, err)
@@ -2178,7 +2178,7 @@ func TestEditorDiscardPathBoundary(t *testing.T) {
 	err = ed.DiscardSessionPath([]string{"bgp", "peer"})
 	require.NoError(t, err)
 
-	// The peer entry's timer hold-time should be restored, but "bgp router-id" should
+	// The peer entry's timer receive-hold-time should be restored, but "bgp router-id" should
 	// still be pending. This also confirms that "peer" doesn't accidentally
 	// match "bgp router-id" (it wouldn't with the old code either, but exercises
 	// the boundary logic for space-separated YANG paths).
@@ -2409,7 +2409,7 @@ func TestEditorConflictStaleNewValue(t *testing.T) {
 	listen 0.0.0.0:179
 	peer peer1 {
 		remote { ip 1.1.1.1; as 65001; }
-		timer { hold-time 90; }
+		timer { receive-hold-time 90; }
 	}
 }
 `
@@ -2762,7 +2762,7 @@ func TestWriteThroughDeletePathNotFound(t *testing.T) {
 
 	// Try to delete from a path that doesn't exist in the tree.
 	// "bgp" exists but "peer 9.9.9.9" does not.
-	err = ed.DeleteValue([]string{"bgp", "peer", "nonexistent", "timer"}, "hold-time")
+	err = ed.DeleteValue([]string{"bgp", "peer", "nonexistent", "timer"}, "receive-hold-time")
 	require.Error(t, err, "delete on non-existent path should error")
 	assert.Contains(t, err.Error(), "path not found")
 }
@@ -2785,13 +2785,13 @@ func TestDiscardPartialDirtyFlag(t *testing.T) {
 	// Make two changes at different paths.
 	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
 	require.NoError(t, err)
-	err = ed.SetValue([]string{"bgp", "peer", "peer1", "timer"}, "hold-time", "180")
+	err = ed.SetValue([]string{"bgp", "peer", "peer1", "timer"}, "receive-hold-time", "180")
 	require.NoError(t, err)
 
 	assert.True(t, ed.Dirty(), "should be dirty after two changes")
 
 	// Discard only the peer subtree (partial discard).
-	err = ed.DiscardSessionPath([]string{"bgp", "peer", "peer1", "timer", "hold-time"})
+	err = ed.DiscardSessionPath([]string{"bgp", "peer", "peer1", "timer", "receive-hold-time"})
 	require.NoError(t, err)
 
 	// Still dirty because router-id change remains.
@@ -2928,7 +2928,7 @@ func TestStaleConflictNewValueBothAdded(t *testing.T) {
 
 	// Simulate external commit: directly write config.conf with "listen 0.0.0.0".
 	// This bypasses write-through (another editor session committed externally).
-	externalConfig := "set bgp router-id 1.2.3.4\nset bgp local as 65000\nset bgp listen 0.0.0.0\nset bgp peer peer1 remote ip 1.1.1.1\nset bgp peer peer1 remote as 65001\nset bgp peer peer1 timer hold-time 90\n"
+	externalConfig := "set bgp router-id 1.2.3.4\nset bgp local as 65000\nset bgp listen 0.0.0.0\nset bgp peer peer1 remote ip 1.1.1.1\nset bgp peer peer1 remote as 65001\nset bgp peer peer1 timer receive-hold-time 90\n"
 	err = os.WriteFile(configPath, []byte(externalConfig), 0o600)
 	require.NoError(t, err)
 
@@ -3395,7 +3395,7 @@ func TestCommitMultipleChanges(t *testing.T) {
 	require.NoError(t, err)
 	err = ed.SetValue([]string{"bgp", "local"}, "as", "65999")
 	require.NoError(t, err)
-	err = ed.SetValue([]string{"bgp", "peer", "peer1", "timer"}, "hold-time", "30")
+	err = ed.SetValue([]string{"bgp", "peer", "peer1", "timer"}, "receive-hold-time", "30")
 	require.NoError(t, err)
 
 	result, err := ed.CommitSession()
@@ -3409,7 +3409,7 @@ func TestCommitMultipleChanges(t *testing.T) {
 	configContent := string(configData)
 	assert.Contains(t, configContent, "9.9.9.9", "router-id should be updated")
 	assert.Contains(t, configContent, "65999", "local-as should be updated")
-	assert.Contains(t, configContent, "30", "hold-time should be updated")
+	assert.Contains(t, configContent, "30", "receive-hold-time should be updated")
 	assert.NotContains(t, configContent, "1.2.3.4", "old router-id should be gone")
 	assert.NotContains(t, configContent, "65000", "old local-as should be gone")
 }
@@ -3435,7 +3435,7 @@ func TestCommitConvergentDelete(t *testing.T) {
 
 	// Simulate external commit that also deleted local-as.
 	// Write config.conf without local-as.
-	externalConfig := "set bgp router-id 1.2.3.4\nset bgp peer peer1 remote ip 1.1.1.1\nset bgp peer peer1 remote as 65001\nset bgp peer peer1 timer hold-time 90\n"
+	externalConfig := "set bgp router-id 1.2.3.4\nset bgp peer peer1 remote ip 1.1.1.1\nset bgp peer peer1 remote as 65001\nset bgp peer peer1 timer receive-hold-time 90\n"
 	err = os.WriteFile(configPath, []byte(externalConfig), 0o600)
 	require.NoError(t, err)
 
@@ -4246,7 +4246,7 @@ func testNavSchema() *config.Schema {
 	schema.Define("local-as", config.Leaf(config.TypeUint32))
 	schema.Define("neighbor", config.List(config.TypeIP,
 		config.Field("peer-as", config.Leaf(config.TypeUint32)),
-		config.Field("hold-time", config.Leaf(config.TypeUint32)),
+		config.Field("receive-hold-time", config.Leaf(config.TypeUint32)),
 	))
 	schema.Define("opts", config.Flex(
 		config.Field("timeout", config.Leaf(config.TypeUint32)),
@@ -5062,7 +5062,7 @@ func TestDeleteToChangeFile(t *testing.T) {
 	session := NewEditSession("thomas", "local")
 	ed.SetSession(session)
 
-	err = ed.DeleteValue([]string{"bgp", "peer", "peer1", "timer"}, "hold-time")
+	err = ed.DeleteValue([]string{"bgp", "peer", "peer1", "timer"}, "receive-hold-time")
 	require.NoError(t, err)
 
 	// Change file should exist with delete entry.
@@ -5070,7 +5070,7 @@ func TestDeleteToChangeFile(t *testing.T) {
 	data, readErr := os.ReadFile(changePath) //nolint:gosec // test file
 	require.NoError(t, readErr)
 	content := string(data)
-	assert.Contains(t, content, "hold-time")
+	assert.Contains(t, content, "receive-hold-time")
 	assert.Contains(t, content, "#thomas")
 }
 
@@ -5161,7 +5161,7 @@ func TestNoConflictDifferentLeaves(t *testing.T) {
 	defer ed2.Close() //nolint:errcheck,gosec // test cleanup
 	session2 := NewEditSession("bob", "ssh")
 	ed2.SetSession(session2)
-	err = ed2.SetValue([]string{"bgp", "peer", "peer1", "timer"}, "hold-time", "180")
+	err = ed2.SetValue([]string{"bgp", "peer", "peer1", "timer"}, "receive-hold-time", "180")
 	require.NoError(t, err)
 
 	// Bob should NOT detect any conflict.
@@ -5315,7 +5315,7 @@ func TestChangeFileFormatChangesOnly(t *testing.T) {
 
 	// Should NOT contain unchanged entries from the original config.
 	assert.NotContains(t, content, "65000", "change file should not contain unchanged local-as")
-	assert.NotContains(t, content, "hold-time", "change file should not contain unchanged hold-time")
+	assert.NotContains(t, content, "receive-hold-time", "change file should not contain unchanged receive-hold-time")
 	assert.NotContains(t, content, "peer1", "change file should not contain unchanged peer entries")
 }
 

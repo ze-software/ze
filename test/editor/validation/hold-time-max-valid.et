@@ -1,5 +1,5 @@
 # Test: Hold-time maximum valid value (65535)
-# VALIDATES: hold-time 65535 is valid (max uint16)
+# VALIDATES: receive-hold-time 65535 is valid (max uint16)
 # BOUNDARY: Last valid value at upper range
 # RFC 4271: Hold Time is a 2-octet unsigned integer
 
@@ -11,7 +11,7 @@ bgp {
   		ip 1.1.1.1
   		as 65001;
   	}
-    timer { hold-time 65535; }
+    timer { receive-hold-time 65535; }
   }
 }
 EOF_CONF

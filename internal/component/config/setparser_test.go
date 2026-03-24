@@ -688,7 +688,7 @@ func TestParseInlineArgs(t *testing.T) {
 	tree, err := ParseInlineArgs(peerNode, []string{
 		"remote", "as", "65001",
 		"local", "as", "65000",
-		"timer", "hold-time", "90",
+		"timer", "receive-hold-time", "90",
 		"connection", "passive",
 	})
 	require.NoError(t, err)
@@ -704,10 +704,10 @@ func TestParseInlineArgs(t *testing.T) {
 	require.True(t, ok, "local should be a map")
 	assert.Equal(t, "65000", local["as"])
 
-	// Verify timer container with hold-time leaf
+	// Verify timer container with receive-hold-time leaf
 	timer, ok := m["timer"].(map[string]any)
 	require.True(t, ok, "timer should be a map")
-	assert.Equal(t, "90", timer["hold-time"])
+	assert.Equal(t, "90", timer["receive-hold-time"])
 	assert.Equal(t, "passive", m["connection"])
 }
 

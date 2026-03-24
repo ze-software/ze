@@ -133,7 +133,7 @@ func TestConfigGenHoldTime(t *testing.T) {
 	}
 
 	config := GenerateConfig(params)
-	assert.Contains(t, config, "timer { hold-time 90; }")
+	assert.Contains(t, config, "timer { receive-hold-time 90; }")
 }
 
 // TestConfigGenMultiplePeers verifies that config with many peers has

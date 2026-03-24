@@ -15,7 +15,7 @@ bgp {
 			ip 192.0.2.2
 		}
 		timer {
-			hold-time 90
+			receive-hold-time 90
 		}
 	}
 }

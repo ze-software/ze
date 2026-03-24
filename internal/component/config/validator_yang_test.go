@@ -47,7 +47,7 @@ func TestValidateTree_ValidConfig(t *testing.T) {
 					"ip": "192.0.2.1",
 				},
 				"timer": map[string]any{
-					"hold-time": uint16(90),
+					"receive-hold-time": uint16(90),
 				},
 				"connection": "passive",
 			},
@@ -119,12 +119,12 @@ func TestValidateTree_RangeViolation(t *testing.T) {
 							"ip": "192.0.2.1",
 						},
 						"timer": map[string]any{
-							"hold-time": uint16(2),
+							"receive-hold-time": uint16(2),
 						},
 					},
 				},
 			},
-			path: "hold-time",
+			path: "receive-hold-time",
 		},
 		{
 			name: "port_0_invalid",
@@ -266,7 +266,7 @@ func TestValidateTree_NestedContainers(t *testing.T) {
 func TestValidateTree_ListEntries(t *testing.T) {
 	v := newTestValidator(t)
 
-	// Two peers: one valid, one with invalid hold-time
+	// Two peers: one valid, one with invalid receive-hold-time
 	data := map[string]any{
 		"router-id": "192.0.2.1",
 		"local": map[string]any{
@@ -282,7 +282,7 @@ func TestValidateTree_ListEntries(t *testing.T) {
 					"ip": "192.0.2.1",
 				},
 				"timer": map[string]any{
-					"hold-time": uint16(90),
+					"receive-hold-time": uint16(90),
 				},
 			},
 			"peer2": map[string]any{
@@ -294,7 +294,7 @@ func TestValidateTree_ListEntries(t *testing.T) {
 					"ip": "192.0.2.1",
 				},
 				"timer": map[string]any{
-					"hold-time": uint16(1), // invalid
+					"receive-hold-time": uint16(1), // invalid
 				},
 			},
 		},
@@ -303,7 +303,7 @@ func TestValidateTree_ListEntries(t *testing.T) {
 	errs := v.ValidateTree("bgp", data)
 	require.NotEmpty(t, errs, "invalid list entry should produce error")
 	assert.Equal(t, yang.ErrTypeRange, errs[0].Type)
-	assert.Contains(t, errs[0].Path, "hold-time")
+	assert.Contains(t, errs[0].Path, "receive-hold-time")
 }
 
 // TestValidateTree_FamilyModeEnum verifies family mode enum after schema fix.
@@ -630,7 +630,7 @@ func TestValidator_ErrorMessages(t *testing.T) {
 	assert.Contains(t, err.Error(), "as")
 }
 
-// TestValidator_HoldTimeRange verifies hold-time special range (0 | 3..65535).
+// TestValidator_HoldTimeRange verifies receive-hold-time special range (0 | 3..65535).
 //
 // VALIDATES: Hold-time accepts 0 or values >= 3.
 // BOUNDARY: 0 valid, 1-2 invalid, 3+ valid.
@@ -652,7 +652,7 @@ func TestValidator_HoldTimeRange(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := v.Validate("bgp.peer.timer.hold-time", tt.value)
+			err := v.Validate("bgp.peer.timer.receive-hold-time", tt.value)
 			if tt.wantErr {
 				assert.Error(t, err, "expected error for value %v", tt.value)
 			} else {
