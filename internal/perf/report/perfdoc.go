@@ -164,7 +164,7 @@ forward some prefixes.
 
 ## Reproducing
 
-`+"```bash\n"+`make ze-perf-build
+`+"```bash\n"+`make ze-perf
 python3 test/perf/run.py
 `+"```\n"+`
 Requires Docker. See [Benchmarking Guide](guide/benchmarking.md) for details.

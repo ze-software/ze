@@ -43,6 +43,12 @@ func captureStderr(t *testing.T, fn func()) string {
 		t.Fatalf("creating pipe: %v", err)
 	}
 
+	defer func() {
+		if err := r.Close(); err != nil {
+			t.Logf("closing pipe reader: %v", err)
+		}
+	}()
+
 	os.Stderr = w
 
 	fn()

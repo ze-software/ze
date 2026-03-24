@@ -3,6 +3,7 @@ package report
 
 import (
 	"fmt"
+	"html"
 	"io"
 
 	"codeberg.org/thomas-mangin/ze/internal/perf"
@@ -50,7 +51,7 @@ func HTML(results []perf.Result, w io.Writer) error {
 			header += " [force-mp]"
 		}
 
-		if _, err := fmt.Fprintf(w, "<h2>%s</h2>\n", header); err != nil {
+		if _, err := fmt.Fprintf(w, "<h2>%s</h2>\n", html.EscapeString(header)); err != nil {
 			return fmt.Errorf("writing group header: %w", err)
 		}
 
@@ -88,8 +89,8 @@ func writeHTMLTable(w io.Writer, results []perf.Result) error {
 		convClass := cellClass(results[i].ConvergenceMs, bestConv, worstConv)
 
 		if _, err := fmt.Fprintf(w, "<tr><td>%s</td><td>%s</td><td class=\"%s\">%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td></tr>\n",
-			results[i].DUTName,
-			results[i].DUTVersion,
+			html.EscapeString(results[i].DUTName),
+			html.EscapeString(results[i].DUTVersion),
 			convClass,
 			fmtMs(results[i].ConvergenceMs),
 			fmtMs(results[i].ConvergenceStddevMs),
@@ -162,7 +163,7 @@ func writeSVGChart(w io.Writer, results []perf.Result) error {
 
 		if _, err := fmt.Fprintf(w,
 			"  <text x=\"%d\" y=\"%d\" font-size=\"14\" font-family=\"sans-serif\" dominant-baseline=\"middle\">%s</text>\n",
-			padding, y+barHeight/2, results[i].DUTName); err != nil {
+			padding, y+barHeight/2, html.EscapeString(results[i].DUTName)); err != nil {
 			return fmt.Errorf("writing SVG label: %w", err)
 		}
 

@@ -378,8 +378,8 @@ func TestBenchmarkIterDelayTiming(t *testing.T) {
 
 	// With 2 iterations and 1 inter-iteration delay of 500ms,
 	// total elapsed must be at least 400ms (with some slack).
-	if elapsed < 400*time.Millisecond {
-		t.Errorf("elapsed = %v, want >= 400ms for 500ms iter-delay between 2 iterations", elapsed)
+	if elapsed < 450*time.Millisecond {
+		t.Errorf("elapsed = %v, want >= 450ms for 500ms iter-delay between 2 iterations", elapsed)
 	}
 
 	if result.RoutesReceived <= 0 {
