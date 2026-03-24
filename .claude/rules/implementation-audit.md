@@ -44,15 +44,7 @@ Before: writing summary to `plan/learned/`, claiming "done", asking to commit.
 
 ## AC Evidence Verification (BLOCKING)
 
-For each AC-N, quote the expected behavior from the AC table, then name the test and its assertion. The assertion must verify the BEHAVIOR, not just the mechanism.
-
-**Mechanical check:** Read the AC text. Read the test assertion. If the test would still pass with a no-op implementation, the evidence is invalid.
-
-| Pattern | Invalid evidence | Valid evidence |
-|---------|-----------------|----------------|
-| AC says "routes not installed" | Test checks no error returned | Test checks route is absent from delivery callback |
-| AC says "session torn down" | Test checks NOTIFICATION struct created | Test checks connection closed |
-| AC says "config rejected" | Test checks error is non-nil | Test checks error message contains expected text |
+For each AC-N, quote the expected behavior from the AC table, then name the test and its assertion. The assertion must verify the BEHAVIOR, not just the mechanism. See `rules/tdd.md` "AC-Linked Tests" for the full behavior-vs-mechanism table and mechanical check.
 
 ## Mechanically Enforced
 

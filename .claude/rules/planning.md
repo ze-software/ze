@@ -163,37 +163,23 @@ If a spec describes work that is **already implemented**, run the full Completio
 [ ] 8. Update spec — Implementation Summary, Documentation Updates, Deviations
 [ ] 9. Write learned summary: plan/learned/NNN-<name>.md (see plan/TEMPLATE.md for summary format)
 [ ] 10. Verify: `make ze-verify` + git status + git diff, no unintended changes
-[ ] 11. Executive Summary Report — present to user BEFORE asking to commit
+[ ] 11. Executive Summary Report — present to user with what was done and what is left (including deferred).
         BLOCKING: learned summary (step 9) must exist. Name the file in the report.
-[ ] 12. Commit (when user approves) — ALL files in ONE commit
+        Do NOT ask to commit. The user will tell you when to commit.
+[ ] 12. Commit (when user says so) — related changes in one commit. Disjoint systems (e.g., CLI and BGP encoding) get separate commits.
 ```
 
 ## Deferred Work (BLOCKING)
 
-**No deferral without a destination.** Work deferred from a spec MUST land in a concrete, existing spec — not a vague future phase.
+See `rules/deferral-tracking.md` for the full deferral process and log format.
 
-| Deferral | Status |
-|----------|--------|
-| "Deferred to spec-X" and spec-X exists with explicit task item for this work | Allowed |
-| "Deferred to Phase N" but no spec for Phase N exists | **Blocked — spec is not done** |
-| "Deferred to next spec" with no filename | **Blocked — spec is not done** |
-| "Will be handled later" | **Blocked — spec is not done** |
+**No deferral without a destination.** Work deferred from a spec MUST land in a concrete, existing spec with an explicit task item for this work.
 
-Before marking a spec done, for every deferral:
-
-```
-[ ] 1. Receiving spec exists (filename, not "Phase N")
-[ ] 2. Receiving spec has explicit task item listing the deferred work
-[ ] 3. Deferred item is recorded in current spec's Deviations section with receiving spec filename
-```
-
-If the receiving spec does not exist: either do the work now, or create the receiving spec with the deferred items before marking the current spec done.
-
-**The test:** grep the receiving spec for the deferred item. If it's not there, the deferral is a deletion disguised as a postponement.
+Before marking a spec done, for every deferral: verify the receiving spec exists, has the deferred item listed, and the deferral is recorded in the current spec's Deviations section.
 
 ## Executive Summary Report
 
-**BLOCKING:** Present to user before every commit request. Format below.
+**BLOCKING:** Present to user when all work is complete. Format below.
 
 ```
 ## Executive Summary
@@ -230,25 +216,8 @@ If the receiving spec does not exist: either do the work now, or create the rece
 
 ## Documentation Update Checklist (BLOCKING)
 
-**Every row must be answered Yes or No.** Every Yes must name the file to update.
-"Update the docs" is not an answer. Name the specific file and what to add.
-
-| # | Question | If Yes, update | Examples |
-|---|----------|---------------|----------|
-| 1 | Does this add a user-facing feature? | `docs/features.md` | New plugin, new config option, new CLI command |
-| 2 | Does this change how users configure ze? | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` | New config key, changed syntax, new enum value |
-| 3 | Does this add or change a CLI command? | `docs/guide/command-reference.md`, `docs/guide/cli.md` | New subcommand, new flag, changed output |
-| 4 | Does this add or change an API/RPC? | `docs/architecture/api/commands.md`, `docs/architecture/api/architecture.md` | New RPC, changed params, new event type |
-| 5 | Does this add or change a plugin? | `docs/guide/plugins.md`, `docs/plugin-development/` | New plugin, changed SDK, new registration field |
-| 6 | Does this have a user guide page? | `docs/guide/<topic>.md` | rpki.md, graceful-restart.md, monitoring.md |
-| 7 | Does this change wire format or attributes? | `docs/architecture/wire/messages.md`, `attributes.md`, `nlri.md` | New attribute, changed encoding, new NLRI type |
-| 8 | Does this change the plugin SDK or protocol? | `.claude/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` | New Registration field, new RPC, changed startup |
-| 9 | Does this implement or change RFC behavior? | `rfc/short/rfcNNNN.md`, `docs/architecture/rfc-may-decisions.md` | New RFC support, changed compliance |
-| 10 | Does this change test infrastructure? | `docs/functional-tests.md`, `docs/architecture/testing/ci-format.md` | New test tool, new .ci syntax, new test pattern |
-| 11 | Does this affect ze vs other daemons comparison? | `docs/comparison.md` | Feature parity change (RPKI, GR, etc.) |
-| 12 | Does this change internal architecture? | `docs/architecture/core-design.md` or relevant subsystem doc | Event delivery, plugin lifecycle, config pipeline |
-
-Route for non-doc updates: process rules go to `.claude/rules/`, session knowledge to `memory.md`.
+See `rules/documentation.md` for the canonical 12-row checklist.
+Every row must be answered Yes/No. Every Yes must name the file and what to add.
 
 ## Writing Learned Summaries
 

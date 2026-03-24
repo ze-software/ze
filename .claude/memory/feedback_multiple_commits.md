@@ -1,11 +1,15 @@
 ---
-name: Prefer multiple focused commits
-description: Break work into logical commits rather than bundling everything into one
+name: Commit granularity by system
+description: Same system = one commit. Disjoint systems = separate commits.
 type: feedback
 ---
 
-Break work into multiple focused commits when changes are logically separate. Don't bundle unrelated fixes, rules, docs, and learned summaries into a single commit.
+Changes to the same system (code, tests, docs for one feature) go in one commit. Disjoint work (e.g., CLI changes and BGP encoding changes) gets separate commits.
 
-**Why:** User explicitly corrected the one-big-commit pattern. Separate commits make history readable and reversible.
+**Why:** User wants readable, reversible history. One big bundle makes it hard to review and revert. But splitting related changes (feature + its tests) across commits makes no sense either.
 
-**How to apply:** After completing work, group changes by logical unit (bug fix, rule addition, doc update) and commit each separately. A bug fix + its test fix is one commit. A new rule file is another. A learned summary is another.
+**How to apply:**
+- Feature code + its tests + its docs = one commit
+- Unrelated bug fix in a different package = separate commit
+- Rule file updates + the code they document = one commit if related, separate if not
+- Ask if unsure whether changes are "same system" or "disjoint"

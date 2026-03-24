@@ -106,16 +106,7 @@ On failure: search the log. On success: one line of exit status. Never `| tail`.
 
 ## Pre-Commit
 
-**BLOCKING:** `make ze-verify` is the ONLY acceptable pre-commit verification. Not `go test`. Not any subset.
+See `rules/git-safety.md` for the full pre-commit workflow.
 
-**BLOCKING:** Never ask to commit without reporting ALL test failures to the user first. If any test failed, list every failure explicitly before any commit discussion. Hiding, omitting, or glossing over failures is forbidden.
-
-```
-[ ] make ze-verify — capture to tmp/ze-test.log (timeout 120s)
-[ ] Report test result: pass/fail. If failures: list every one. No omissions.
-[ ] Keep output concise — failures and summary only, not the full log.
-[ ] User approval
-```
-
+`make ze-verify` is the ONLY acceptable pre-commit verification. Not `go test`. Not any subset.
 During development: `go test`, `make ze-unit-test` are fine for fast iteration.
-Before committing or claiming done: `make ze-verify`. No exceptions.

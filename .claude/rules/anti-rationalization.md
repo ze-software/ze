@@ -17,12 +17,12 @@ Rationale: `.claude/rationale/anti-rationalization.md`
 | Excuse | Answer |
 |--------|--------|
 | "Transient" / "resource contention" | Investigate. A failure happened |
-| "Not related to our changes" | Always report visibly. Pre-existing or not, it needs fixing |
+| "Not related to our changes" | Always report visibly. Investigate and fix |
 | "Passed on retry" | Retry is not evidence. Investigate the failure |
 | "Timing-dependent" | Race condition. Fix it |
-| "Pre-existing issue" | Report it. Pre-existing does not block committing current work, but the issue should be tracked for fixing |
+| "Pre-existing issue" | Report it. Investigate the root cause. Ask the user how to proceed |
 
-**Every test failure matters.** Always report failures visibly so the user does not miss them. A pre-existing failure does not block committing unrelated work (it does not make things worse), but it should always be flagged for resolution. Zero bugs is impossible but every known bug should be tracked.
+**Every test failure matters.** Always report failures visibly. Investigate every failure regardless of origin. Then ask the user how to proceed -- the right call depends on context and risk level. Never assume a failure is safe to ignore.
 
 ## Completion
 

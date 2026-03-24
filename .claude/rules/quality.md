@@ -44,7 +44,7 @@ Every check answered honestly. "Probably fine" is not a pass — run the code, r
 
 Paste command output as evidence. "Should work" is not evidence.
 
-**BLOCKING:** `make ze-verify` (timeout 120s) is the ONLY acceptable verification before committing or claiming done. `go test` alone is for development iterations only — never sufficient for commit readiness.
+**BLOCKING:** `make ze-verify` (timeout 120s) is the ONLY acceptable verification before claiming done. See `rules/git-safety.md` for the full pre-commit workflow.
 
 ## Critical Reviews
 

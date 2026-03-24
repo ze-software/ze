@@ -131,7 +131,6 @@
     ]
   },
   "enableAllProjectMcpServers": false,
-  "outputStyle": "Explanatory",
   "sandbox": {
     "enabled": false,
     "autoAllowBashIfSandboxed": false

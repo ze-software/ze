@@ -13,18 +13,9 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 ## User Preferences (cross-project, not in repo)
 
 - [feedback_no_em_dashes.md](feedback_no_em_dashes.md) - Never use em dashes in English text (AI writing tell)
-- [feedback_never_claim_done_unwired.md](feedback_never_claim_done_unwired.md) - Completion claims require wiring proof: name the entry point, name the .ci test. Hooks enforce at commit time.
-- [feedback_test_failures_always_report.md](feedback_test_failures_always_report.md) - Always report test failures visibly. Pre-existing does not block commits but must be tracked.
-- [feedback_no_git_stash.md](feedback_no_git_stash.md) - Never use git stash in any form; it is disallowed
-- [feedback_multiple_commits.md](feedback_multiple_commits.md) - Break work into multiple focused commits, not one big bundle
-- [feedback_durability_over_velocity.md](feedback_durability_over_velocity.md) - Optimize for "never revisit this code", not "get to commit fast". Thoroughness over speed.
-- [feedback_unanswered_questions_block.md](feedback_unanswered_questions_block.md) - Re-state unanswered questions before proceeding. Never silently assume answers.
+- [feedback_test_failures_always_report.md](feedback_test_failures_always_report.md) - Always report test failures. Investigate. Ask user how to proceed based on risk.
+- [feedback_multiple_commits.md](feedback_multiple_commits.md) - Same system = one commit. Disjoint systems = separate commits.
 - [feedback_consistency_predictability.md](feedback_consistency_predictability.md) - Follow the same process every time. Inconsistency forces the user to be vigilant about catching shortcuts.
-- [feedback_learned_before_done.md](feedback_learned_before_done.md) - Never present work as complete until the learned summary is written.
 - [feedback_memory_is_in_repo.md](feedback_memory_is_in_repo.md) - ~/.claude/projects/.../memory/ is the repo's .claude/memory/. Always commit memory changes.
 - [feedback_no_deferral.md](feedback_no_deferral.md) - Do not defer hard work. Implement it. Deferring defeats the purpose of delegation.
 - [feedback_no_edit_without_approval.md](feedback_no_edit_without_approval.md) - During design discussions, present options and wait. Never edit files until explicitly approved.
-
-## References (cross-project, not in repo)
-
-- [reference_codeberg_tea.md](reference_codeberg_tea.md) - tea CLI available for Codeberg repo (PRs, issues, comments, API)
