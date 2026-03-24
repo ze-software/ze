@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/yang-config-design.md — config editor
+// Overview: model.go — Model definition, Update loop, key dispatch
 // Related: model_mode.go — mode-aware prompt rendering
 // Related: diff.go — line-based LCS diff for gutter annotation
 // Related: diff_tree.go — tree-aware diff using YANG schema
@@ -218,31 +219,58 @@ func (m Model) View() string {
 }
 
 // messageLines returns the two lines for the message area above the prompt.
-// Priority: error (red) > status message > idle info (header/tips).
+//
+// Line 1 (top): command feedback — starts with welcome, replaced by command results.
+// Line 2 (bottom): warnings/help — validation hints, ? completion descriptions, errors.
 func (m Model) messageLines() (string, string) {
-	// Error takes top priority — show in red across both lines if needed
-	if m.err != nil {
-		return errorStyle.Render("Error: " + m.err.Error()), ""
-	}
+	// Line 1: command feedback
+	line1 := m.feedbackLine()
 
-	// Status message from last command (e.g., "Configuration committed")
+	// Line 2: warnings/help (priority: error > completion hint > validation hint > idle)
+	line2 := m.warningLine()
+
+	return line1, line2
+}
+
+// feedbackLine returns the top message line: command results and status.
+func (m Model) feedbackLine() string {
+	if m.err != nil {
+		return errorStyle.Render("Error: " + m.err.Error())
+	}
 	if m.statusMessage != "" {
 		if strings.HasPrefix(m.statusMessage, "welcome") {
-			hint := m.validationHintLine()
-			if hint != "" {
-				return m.idleInfoLine(), hint
-			}
-			return m.idleInfoLine(), welcomeStyle.Render(m.statusMessage)
+			return welcomeStyle.Render(m.statusMessage)
 		}
 		style := successStyle
-		if strings.HasPrefix(m.statusMessage, "commit blocked") {
+		switch {
+		case strings.HasPrefix(m.statusMessage, "commit blocked"):
 			style = errorStyle
+		case strings.HasPrefix(m.statusMessage, "Quit?"),
+			strings.HasPrefix(m.statusMessage, "Pending changes"):
+			style = warnStyle
 		}
-		return style.Render("► " + m.statusMessage), m.idleInfoLine()
+		return style.Render("► " + m.statusMessage)
 	}
+	return m.idleInfoLine()
+}
 
-	// Idle: show header info + validation status
-	return m.idleInfoLine(), m.validationHintLine()
+// warningLine returns the bottom message line: warnings, help, and hints.
+func (m Model) warningLine() string {
+	// Completion hint from ? or validation warning/error
+	if m.completionHint != "" {
+		style := hintStyle
+		if m.completionHintDim {
+			style = dimStyle
+		} else if strings.HasPrefix(m.completionHint, "invalid ") {
+			style = warnStyle
+		}
+		return style.Render(m.completionHint)
+	}
+	// Validation hints
+	if hint := m.validationHintLine(); hint != "" {
+		return hint
+	}
+	return m.idleInfoLine()
 }
 
 // idleInfoLine returns the default info line shown when there's no error or status.
@@ -293,9 +321,9 @@ func (m Model) overlayDropdown(base string) string {
 
 	dropdown := m.renderDropdownBox(availableAbove)
 
-	// Position dropdown above the prompt line
+	// Position dropdown above the prompt line, with 2-line gap for message area
 	dropdownHeight := strings.Count(dropdown, "\n") + 1
-	y := max(promptLineIdx-dropdownHeight, 0)
+	y := max(promptLineIdx-dropdownHeight-2, 0)
 	x := 2 // Indent slightly from left edge
 
 	return placeOverlay(x, y, dropdown, base)
@@ -459,12 +487,19 @@ func (m Model) renderDropdownBox(availableHeight int) string {
 		start = max(0, end-maxShow)
 	}
 
-	// Fixed inner width (between │ and │)
-	const innerWidth = 48
+	// Dynamic inner width (between │ and │) based on terminal width.
+	// The dropdown is indented 2 chars (overlay x=2) + 4 chars for "│ " and " │" borders.
+	// Leave some margin on the right so it doesn't touch the terminal edge.
+	// Clamp inner width to [48, 96]. 48 = old fixed width. 96 = cap for ultra-wide.
+	innerWidth := min(max(m.width-10, 48), 96) // 10 = 2 indent + 4 border + 4 margin
+
+	// Column layout: prefix(2) + cmd(cmdWidth) + gap(1) + desc(rest)
+	cmdWidth := min(max(innerWidth/5, 12), 24)
+	descWidth := max(innerWidth-2-cmdWidth-1, 20)
 
 	var lines []string
 
-	// Top border: ╭─ Completions (15 chars) + dashes + ╮ = 52 total
+	// Top border: ╭─ Completions ─...─╮
 	lines = append(lines, "╭─ Completions "+strings.Repeat("─", innerWidth-12)+"╮")
 
 	for i := start; i < end; i++ {
@@ -479,18 +514,18 @@ func (m Model) renderDropdownBox(availableHeight int) string {
 		}
 
 		cmd := comp.Text
-		if len(cmd) > 12 {
-			cmd = cmd[:12]
+		if cmdRunes := []rune(cmd); len(cmdRunes) > cmdWidth {
+			cmd = string(cmdRunes[:cmdWidth])
 		}
 
 		desc := comp.Description
-		if len(desc) > 30 {
-			desc = desc[:27] + "..."
+		if descRunes := []rune(desc); len(descRunes) > descWidth {
+			desc = string(descRunes[:descWidth-3]) + "..."
 		}
 
-		// Format: prefix(2) + cmd(12) + padding + desc
+		// Format: prefix(2) + cmd(cmdWidth) + padding to cmdWidth+3 + desc
 		line := prefix + cmd
-		for len(line) < 15 {
+		for len(line) < cmdWidth+3 {
 			line += " "
 		}
 		line += desc
@@ -639,12 +674,12 @@ func (m Model) renderInputWithGhost() string {
 		prompt := m.textInput.Prompt // Include the "> " prompt
 		// Show: prompt + typed text + cursor on first ghost char + rest of ghost text
 		// Use reverse video for cursor block like textinput does
-		if len(m.ghostText) == 1 {
-			cursor := lipgloss.NewStyle().Reverse(true).Render(m.ghostText)
+		runes := []rune(m.ghostText)
+		cursor := lipgloss.NewStyle().Reverse(true).Render(string(runes[0]))
+		if len(runes) == 1 {
 			return prompt + value + cursor
 		}
-		cursor := lipgloss.NewStyle().Reverse(true).Render(string(m.ghostText[0]))
-		return prompt + value + cursor + ghostStyle.Render(m.ghostText[1:])
+		return prompt + value + cursor + ghostStyle.Render(string(runes[1:]))
 	}
 
 	return m.textInput.View()

@@ -1,5 +1,7 @@
 // Design: docs/architecture/config/yang-config-design.md — config editor
+// Detail: model_render.go — View rendering, dropdown, message lines
 // Detail: model_mode.go — editor mode switching (edit/command)
+// Detail: model_search.go — config search and prefix-token matching
 // Detail: history.go — command history persistence to zefs
 
 package cli
@@ -23,6 +25,8 @@ var (
 	ghostStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
 	dimStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	hintStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("73"))
+	warnStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
 	contextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("33"))
 	overlayStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
@@ -67,10 +71,13 @@ type Model struct {
 	isTemplate  bool     // true when editing with wildcard (*)
 
 	// Completion state
-	completions  []Completion
-	selected     int    // Selected index in dropdown (-1 for ghost mode)
-	ghostText    string // Inline ghost suggestion
-	showDropdown bool   // Whether to show dropdown
+	completions       []Completion
+	selected          int    // Selected index in dropdown (-1 for ghost mode)
+	ghostText         string // Inline ghost suggestion
+	showDropdown      bool   // Whether to show dropdown
+	completionHint    string // Transient description shown on second message line (clears on typing/Enter)
+	completionHintDim bool   // When true, render hint in dim style (partial input); false = bright (confirmed)
+	searchCache       string // Cached SetView() output for / search (invalidated on tree change)
 
 	// Validation state
 	validationErrors   []ConfigValidationError
@@ -469,12 +476,18 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			if m.selected < 0 {
 				m.selected = len(m.completions) - 1
 			}
+			m.completionHint = ""
+			m.completionHintDim = false
 			return m, nil
 		case tea.KeyDown:
 			m.selected = (m.selected + 1) % len(m.completions)
+			m.completionHint = ""
+			m.completionHintDim = false
 			return m, nil
 		case tea.KeyEsc:
 			m.showDropdown = false
+			m.completionHint = ""
+			m.completionHintDim = false
 			m.selected = -1
 			return m, nil
 		case tea.KeyEnter:
@@ -550,11 +563,27 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m.handleShiftTab()
 
 	case tea.KeyRunes:
-		// Check for ? to trigger completion like Tab
+		// ? shows full description when dropdown is open, otherwise triggers completion like Tab
 		if len(msg.Runes) == 1 && msg.Runes[0] == '?' {
+			// Show description of selected item in dropdown
+			if m.showDropdown && m.selected >= 0 && m.selected < len(m.completions) {
+				comp := m.completions[m.selected]
+				m.completionHint = comp.Text + ": " + comp.Description
+				m.completionHintDim = false
+				return m, nil
+			}
+			// Show description of single ghost-text match
+			if len(m.completions) == 1 && m.ghostText != "" {
+				comp := m.completions[0]
+				m.completionHint = comp.Text + ": " + comp.Description
+				m.completionHintDim = false
+				return m, nil
+			}
 			return m.handleTab()
 		}
-		// Typing resets history browsing so next Up starts from most recent.
+		// Typing clears transient completion hint and resets history browsing.
+		m.completionHint = ""
+		m.completionHintDim = false
 		m.history.ResetBrowsing()
 		// Otherwise pass to text input
 		m.textInput, cmd = m.textInput.Update(msg)
@@ -562,10 +591,14 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmd, m.scheduleValidation())
 
 	case tea.KeyEnter:
+		m.completionHint = ""
+		m.completionHintDim = false
 		return m.handleEnter()
 	}
 
-	// All other key types: forward to text input for processing
+	// All other key types (including Backspace): forward to text input for processing
+	m.completionHint = ""
+	m.completionHintDim = false
 	m.history.ResetBrowsing()
 	m.textInput, cmd = m.textInput.Update(msg)
 	m.updateCompletions()
@@ -726,6 +759,8 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	if m.showDropdown && m.selected >= 0 && m.selected < len(m.completions) {
 		m.applyCompletion(m.completions[m.selected])
 		m.showDropdown = false
+		m.completionHint = ""
+		m.completionHintDim = false
 		m.selected = -1
 		m.updateCompletions()
 		return m, nil
@@ -759,6 +794,8 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 			m.history.Save(m.mode.String())
 		}
 		m.showDropdown = false
+		m.completionHint = ""
+		m.completionHintDim = false
 		m.selected = -1
 		m.ghostText = ""
 		m.completions = nil
@@ -835,6 +872,8 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	// Clear input
 	m.textInput.SetValue("")
 	m.showDropdown = false
+	m.completionHint = ""
+	m.completionHintDim = false
 	m.selected = -1
 	m.ghostText = ""
 	m.completions = nil
@@ -935,6 +974,8 @@ func (m Model) handleHistoryUp() tea.Model {
 	if !ok {
 		return m
 	}
+	m.completionHint = ""
+	m.completionHintDim = false
 	m.textInput.SetValue(value)
 	m.textInput.CursorEnd()
 	m.updateCompletions()
@@ -947,6 +988,8 @@ func (m Model) handleHistoryDown() tea.Model {
 	if !ok {
 		return m
 	}
+	m.completionHint = ""
+	m.completionHintDim = false
 	m.textInput.SetValue(value)
 	m.textInput.CursorEnd()
 	m.updateCompletions()
@@ -955,6 +998,16 @@ func (m Model) handleHistoryDown() tea.Model {
 
 // applyCompletion applies a completion to the input.
 func (m *Model) applyCompletion(comp Completion) {
+	// Search results: replace input with the set command minus its last word (the value).
+	if comp.Type == "search" {
+		words := strings.Fields(comp.Text)
+		if len(words) > 1 {
+			m.textInput.SetValue(strings.Join(words[:len(words)-1], " ") + " ")
+		}
+		m.textInput.CursorEnd()
+		return
+	}
+
 	input := m.textInput.Value()
 	words := tokenizeCommand(input)
 
@@ -984,6 +1037,11 @@ func (m *Model) updateCompletions() {
 	input := m.textInput.Value()
 
 	switch {
+	case strings.HasPrefix(input, "/"):
+		// Search mode: /prefix tokens filter config set-commands.
+		m.completions = m.searchConfig(input[1:])
+		m.ghostText = ""
+
 	case m.mode == ModeEdit && strings.HasPrefix(input, cmdRun+" "):
 		// Edit mode with "run " prefix: delegate to command completer for operational completions.
 		if m.commandCompleter != nil {
@@ -1034,7 +1092,25 @@ func (m *Model) updateCompletions() {
 	// Hide dropdown if no completions or single match
 	if len(m.completions) <= 1 {
 		m.showDropdown = false
+		m.completionHint = ""
+		m.completionHintDim = false
 		m.selected = -1
+	}
+
+	// Surface validation completions on line 2 (e.g., invalid list key).
+	// "warning" = dim (still typing), "error" = bright (value confirmed with space).
+	// Done after dropdown hide so the hint isn't cleared.
+	if len(m.completions) == 1 {
+		switch m.completions[0].Type {
+		case "warning":
+			m.completionHint = m.completions[0].Description
+			m.completionHintDim = true
+			m.completions = nil
+		case "error":
+			m.completionHint = m.completions[0].Description
+			m.completionHintDim = false
+			m.completions = nil
+		}
 	}
 }
 

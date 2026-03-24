@@ -715,6 +715,14 @@ func (e *Editor) SetView() string {
 	return config.SerializeSet(e.tree, e.schema)
 }
 
+// SensitiveKeys returns the set of leaf names marked ze:sensitive in the schema.
+func (e *Editor) SensitiveKeys() map[string]bool {
+	if e.schema == nil {
+		return nil
+	}
+	return config.SensitiveKeys(e.schema)
+}
+
 // SessionChanges returns the changes for a specific session, or all sessions.
 // If sessionID is empty, returns changes for all sessions (scanning change files).
 func (e *Editor) SessionChanges(sessionID string) []config.SessionEntry {

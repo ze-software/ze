@@ -335,6 +335,171 @@ func TestDropdownPositionedAbovePrompt(t *testing.T) {
 	assert.Less(t, dropdownIdx, promptIdx, "dropdown should be above the prompt line")
 }
 
+// TestWarningLineDimHint verifies completionHintDim renders with dimStyle.
+//
+// VALIDATES: When completionHintDim is true, warningLine uses dim styling.
+// PREVENTS: Dim hints rendered in bright style, confusing partial vs confirmed input.
+func TestWarningLineDimHint(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
+
+	m := Model{
+		completionHint:    "partial match hint",
+		completionHintDim: true,
+	}
+
+	result := m.warningLine()
+
+	// Should use dimStyle (color 241) not hintStyle (color 73)
+	expected := dimStyle.Render("partial match hint")
+	assert.Equal(t, expected, result, "dim hint should use dimStyle")
+	assert.Contains(t, result, "partial match hint", "hint text should be preserved")
+}
+
+// TestWarningLineInvalidHint verifies "invalid " prefix renders with warnStyle.
+//
+// VALIDATES: Hints starting with "invalid " use warning (orange) style.
+// PREVENTS: Invalid input hints shown in normal hint color, missing user attention.
+func TestWarningLineInvalidHint(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
+
+	m := Model{
+		completionHint:    "invalid receive-hold-time value",
+		completionHintDim: false,
+	}
+
+	result := m.warningLine()
+
+	expected := warnStyle.Render("invalid receive-hold-time value")
+	assert.Equal(t, expected, result, "invalid hint should use warnStyle")
+}
+
+// TestWarningLinePlainHint verifies plain hints render with hintStyle.
+//
+// VALIDATES: Hints without "invalid " prefix and not dim use hintStyle.
+// PREVENTS: Normal completion descriptions using wrong style.
+func TestWarningLinePlainHint(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
+
+	m := Model{
+		completionHint:    "foo: bar",
+		completionHintDim: false,
+	}
+
+	result := m.warningLine()
+
+	expected := hintStyle.Render("foo: bar")
+	assert.Equal(t, expected, result, "plain hint should use hintStyle")
+}
+
+// TestFeedbackLineWelcome verifies welcome message uses welcomeStyle.
+//
+// VALIDATES: Status messages starting with "welcome" render in welcome (yellow) style.
+// PREVENTS: Welcome message rendered with generic success style.
+func TestFeedbackLineWelcome(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
+
+	m := Model{
+		statusMessage: "welcome to ze editor",
+	}
+
+	result := m.feedbackLine()
+
+	expected := welcomeStyle.Render("welcome to ze editor")
+	assert.Equal(t, expected, result, "welcome message should use welcomeStyle")
+	// Should NOT have the ">" prefix that other status messages get
+	assert.NotContains(t, result, "►", "welcome should not have indicator prefix")
+}
+
+// TestFeedbackLineQuit verifies "Quit?" message uses warnStyle.
+//
+// VALIDATES: Status messages starting with "Quit?" render in warn (orange) style.
+// PREVENTS: Quit confirmation rendered as success, misleading the user.
+func TestFeedbackLineQuit(t *testing.T) {
+	lipgloss.SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
+
+	m := Model{
+		statusMessage: "Quit? Press Esc again to exit",
+	}
+
+	result := m.feedbackLine()
+
+	expected := warnStyle.Render("► Quit? Press Esc again to exit")
+	assert.Equal(t, expected, result, "quit message should use warnStyle with indicator")
+	assert.Contains(t, result, "►", "quit should have indicator prefix")
+}
+
+// TestDropdownWidthNarrow verifies dropdown renders correctly at minimum width.
+//
+// VALIDATES: Dropdown renders valid box structure at narrow terminal width (50).
+// PREVENTS: Dropdown breaking or panicking when terminal is narrow.
+func TestDropdownWidthNarrow(t *testing.T) {
+	m := Model{
+		completions:  makeTestCompletions(3),
+		selected:     0,
+		showDropdown: true,
+		width:        50,
+	}
+
+	dropdown := m.renderDropdownBox(10)
+	lines := strings.Split(dropdown, "\n")
+
+	// Should have valid box structure: top border, items, bottom border
+	require.GreaterOrEqual(t, len(lines), 5, "should have at least top + 3 items + bottom")
+	assert.True(t, strings.HasPrefix(lines[0], "╭"), "should start with top-left corner")
+	assert.True(t, strings.HasPrefix(lines[len(lines)-1], "╰"), "should end with bottom-left corner")
+	assert.Contains(t, lines[0], "Completions", "top border should contain title")
+
+	// All content lines should have matching borders
+	for i := 1; i < len(lines)-1; i++ {
+		assert.True(t, strings.HasPrefix(lines[i], "│"), "content line %d should start with │", i)
+		assert.True(t, strings.HasSuffix(lines[i], "│"), "content line %d should end with │", i)
+	}
+
+	// All items should be present
+	for i := range 3 {
+		assert.Contains(t, dropdown, fmt.Sprintf("cmd%d", i+1), "should contain item %d", i+1)
+	}
+}
+
+// TestDropdownWidthWide verifies dropdown renders correctly at maximum width.
+//
+// VALIDATES: Dropdown renders valid box structure at wide terminal width (200) with capped inner width.
+// PREVENTS: Dropdown stretching unboundedly in ultra-wide terminals.
+func TestDropdownWidthWide(t *testing.T) {
+	m := Model{
+		completions:  makeTestCompletions(3),
+		selected:     0,
+		showDropdown: true,
+		width:        200,
+	}
+
+	dropdown := m.renderDropdownBox(10)
+	lines := strings.Split(dropdown, "\n")
+
+	// Should have valid box structure
+	require.GreaterOrEqual(t, len(lines), 5, "should have at least top + 3 items + bottom")
+	assert.True(t, strings.HasPrefix(lines[0], "╭"), "should start with top-left corner")
+	assert.True(t, strings.HasPrefix(lines[len(lines)-1], "╰"), "should end with bottom-left corner")
+
+	// Inner width should be capped at 96. Content line = "│ " + inner(96) + " │" = 100 chars.
+	// The top border = "╭─ Completions " + dashes + "╮" should have consistent length.
+	for i := 1; i < len(lines)-1; i++ {
+		lineLen := len([]rune(lines[i]))
+		// "│ " (2) + inner(96) + " │" (2) = 100
+		assert.Equal(t, 100, lineLen, "content line %d should be 100 chars (inner width capped at 96)", i)
+	}
+
+	// All items should still be present
+	for i := range 3 {
+		assert.Contains(t, dropdown, fmt.Sprintf("cmd%d", i+1), "should contain item %d", i+1)
+	}
+}
+
 // TestModelStatusBarNoErrorsWhenValid verifies no indicator when valid.
 //
 // VALIDATES: View() shows no error indicator for valid config.
