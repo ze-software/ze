@@ -344,8 +344,10 @@ ze-perf run --dut-addr 172.31.0.2 --dut-asn 65000 --force-mp --repeat 10
 |------|------|---------|---------|
 | `--sender-addr` | string | `127.0.0.1` | Sender local address |
 | `--sender-asn` | int | `65001` | Sender autonomous system number |
+| `--sender-port` | int | `0` | DUT port for sender (0 = use `--dut-port`) |
 | `--receiver-addr` | string | `127.0.0.2` | Receiver local address |
 | `--receiver-asn` | int | `65002` | Receiver autonomous system number |
+| `--receiver-port` | int | `0` | DUT port for receiver (0 = use `--dut-port`) |
 
 **Benchmark flags:**
 

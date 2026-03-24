@@ -1,9 +1,9 @@
-.PHONY: all build ze chaos test clean fmt vet tidy generate help
+.PHONY: all build ze chaos test analyse clean fmt vet tidy generate help
 .PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-test ze-verify ze-ci
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-interop-test
-.PHONY: ze-perf-build ze-perf-bench ze-perf-report ze-perf-track
+.PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-validate-commands ze-validate-commands-json ze-doc-drift
 .PHONY: check
 
@@ -37,7 +37,7 @@ generate:
 	@go run scripts/gen-plugin-imports.go
 
 # Build all binaries
-build: generate bin/ze bin/ze-test bin/ze-chaos docs/comparison.html
+build: generate bin/ze bin/ze-test bin/ze-chaos bin/ze-analyse docs/comparison.html
 	@echo "All binaries built"
 
 # Regenerate comparison HTML when markdown changes
@@ -56,6 +56,10 @@ test:
 	@mkdir -p bin
 	$(GO) build -o bin/ze-test ./cmd/ze-test
 
+analyse:
+	@mkdir -p bin
+	$(GO) build -o bin/ze-analyse ./cmd/ze-analyse
+
 # Individual binary targets
 bin/ze: $(shell find cmd/ze internal -name '*.go' 2>/dev/null)
 	@echo "Building ze..."
@@ -71,6 +75,11 @@ bin/ze-chaos: $(shell find cmd/ze-chaos internal -name '*.go' 2>/dev/null)
 	@echo "Building ze-chaos..."
 	@mkdir -p bin
 	$(GO) build -o bin/ze-chaos ./cmd/ze-chaos
+
+bin/ze-analyse: $(shell find cmd/ze-analyse -name '*.go' 2>/dev/null)
+	@echo "Building ze-analyse..."
+	@mkdir -p bin
+	$(GO) build -o bin/ze-analyse ./cmd/ze-analyse
 
 # ─── Ze tests ────────────────────────────────────────────────────────────────
 
@@ -264,7 +273,7 @@ ze-interop-test:
 # ─── Performance benchmarks ────────────────────────────────────────────────
 
 # Build ze-perf binary
-ze-perf-build:
+ze-perf:
 	@echo "Building ze-perf..."
 	@mkdir -p bin
 	$(GO) build -o bin/ze-perf ./cmd/ze-perf
@@ -274,7 +283,7 @@ ze-perf-build:
 # Single DUT: make ze-perf-bench PERF_DUT=ze
 PERF_DUT ?=
 
-ze-perf-bench: ze-perf-build
+ze-perf-bench: ze-perf
 	@echo "Running performance benchmarks (requires Docker)..."
 	@python3 test/perf/run.py $(PERF_DUT)
 
@@ -355,10 +364,11 @@ help:
 	@echo "Ze BGP Makefile targets:"
 	@echo ""
 	@echo "  all                   - ze-lint, ze-unit-test, build (default)"
-	@echo "  build                 - Build all binaries (bin/ze, bin/ze-test, bin/ze-chaos)"
+	@echo "  build                 - Build all binaries (bin/ze, bin/ze-test, bin/ze-chaos, bin/ze-analyse)"
 	@echo "  ze                    - Build bin/ze"
 	@echo "  chaos                 - Build bin/ze-chaos"
 	@echo "  test                  - Build bin/ze-test"
+	@echo "  analyse               - Build bin/ze-analyse (MRT analysis tools)"
 	@echo ""
 	@echo "  Use GO=tinygo to build with TinyGo (e.g. make ze GO=tinygo)"
 	@echo ""
@@ -394,7 +404,7 @@ help:
 	@echo "                             INTEROP_SCENARIO=name to run one scenario"
 	@echo ""
 	@echo "  Performance benchmarks (Docker):"
-	@echo "  ze-perf-build            - Build ze-perf binary"
+	@echo "  ze-perf            - Build ze-perf binary"
 	@echo "  ze-perf-bench            - Run benchmarks against all DUTs"
 	@echo "                             PERF_DUT=name to run one DUT"
 	@echo "  ze-perf-report           - Generate comparison report from results"

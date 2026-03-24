@@ -267,7 +267,62 @@ func TestRunSmallBenchmark(t *testing.T) {
 	<-fwdDone
 }
 
-// VALIDATES: "Benchmark handles timeout when DUT drops UPDATEs."
+// VALIDATES: AC-3 "ze-perf run with unreachable DUT exits non-zero with error."
+// PREVENTS: RunBenchmark hangs or panics when DUT is unreachable.
+func TestBenchmarkUnreachableDUT(t *testing.T) {
+	t.Parallel()
+
+	// Get a port that is guaranteed to be closed.
+	var lc net.ListenConfig
+
+	ln, err := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+
+	tcpAddr, ok := ln.Addr().(*net.TCPAddr)
+	if !ok {
+		t.Fatal("listener address is not TCP")
+	}
+
+	closedPort := tcpAddr.Port
+
+	if err := ln.Close(); err != nil {
+		t.Fatalf("close listener: %v", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	cfg := BenchmarkConfig{
+		DUTAddr:        "127.0.0.1",
+		DUTPort:        closedPort,
+		DUTASN:         65000,
+		DUTName:        "unreachable",
+		SenderAddr:     "127.0.0.1",
+		SenderASN:      65001,
+		ReceiverAddr:   "127.0.0.1",
+		ReceiverASN:    65002,
+		Routes:         10,
+		Family:         "ipv4/unicast",
+		Seed:           42,
+		Warmup:         0,
+		ConnectTimeout: 2 * time.Second,
+		Duration:       5 * time.Second,
+		Repeat:         1,
+		WarmupRuns:     0,
+		IterDelay:      0,
+	}
+
+	_, err = RunBenchmark(ctx, cfg, io.Discard)
+	if err == nil {
+		t.Fatal("expected error for unreachable DUT, got nil")
+	}
+
+	t.Logf("unreachable DUT error: %v", err)
+}
+
+// VALIDATES: AC-4 "DUT does not forward routes: routes-sent > 0, received < sent, lost > 0."
 // PREVENTS: "RunBenchmark hangs or panics when convergence is not reached."
 //
 // TestBenchmarkTimeout verifies that RunBenchmark completes gracefully when
@@ -335,6 +390,20 @@ func TestBenchmarkTimeout(t *testing.T) {
 
 	if result.RoutesLost <= 0 {
 		t.Errorf("RoutesLost = %d, want > 0", result.RoutesLost)
+	}
+
+	// 4. Verify the DUT metadata is preserved.
+	if result.DUTName != "sink-forwarder" {
+		t.Errorf("DUTName = %q, want %q", result.DUTName, "sink-forwarder")
+	}
+
+	// 5. Verify repeat/kept fields.
+	if result.Repeat != 1 {
+		t.Errorf("Repeat = %d, want 1", result.Repeat)
+	}
+
+	if result.RepeatKept != 1 {
+		t.Errorf("RepeatKept = %d, want 1", result.RepeatKept)
 	}
 
 	cancel()

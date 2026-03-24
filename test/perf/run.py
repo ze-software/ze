@@ -278,7 +278,7 @@ def main():
 
     # Check prerequisites.
     if not os.path.isfile(ZE_PERF):
-        print(f"error: ze-perf not found. Run: make ze-perf-build", file=sys.stderr)
+        print(f"error: ze-perf not found. Run: make ze-perf", file=sys.stderr)
         return 1
 
     build_linux_binary()

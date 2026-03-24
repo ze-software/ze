@@ -106,6 +106,11 @@ func TestMarkdownReport(t *testing.T) {
 		t.Error("output missing formatted convergence value '1,847'")
 	}
 
+	// Table must have header separator row (CommonMark requirement).
+	if !strings.Contains(out, "|---") {
+		t.Error("output missing table header separator '|---' (CommonMark)")
+	}
+
 	// Sorted by convergence: ze (1847) before gobgp (3200) before frr (11800)
 	zePos := strings.Index(out, "| ze")
 	gobgpPos := strings.Index(out, "| gobgp")
