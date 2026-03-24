@@ -5,7 +5,7 @@
 | Status | design |
 | Depends | spec-arch-0 |
 | Phase | - |
-| Updated | 2026-03-04 |
+| Updated | 2026-03-24 |
 
 ## Post-Compaction Recovery
 
@@ -25,15 +25,15 @@ The primary use case is **make-before-break interface migration**: create a new 
 
 ### Design Decision: Plugin per OS
 
-Interface management is implemented as a **plugin** (not a subsystem), with one plugin per operating system:
+Interface management is implemented as a **plugin** (not a subsystem). Implementation is **Linux-only** for now, using `_linux.go` file suffixes so macOS/BSD support can be added later without restructuring.
 
-| OS | Plugin | Mechanism |
-|----|--------|-----------|
-| Linux | `iface-linux` | Netlink (`vishvananda/netlink`) — `RTM_NEWLINK`, `RTM_NEWADDR`, multicast monitoring |
-| macOS | `iface-darwin` | Route sockets (`syscall.AF_ROUTE`) |
-| BSD | `iface-bsd` (future) | Route sockets (similar to macOS) |
+| OS | Plugin | Mechanism | Status |
+|----|--------|-----------|--------|
+| Linux | `iface` (`_linux.go`) | Netlink (`vishvananda/netlink`) — `RTM_NEWLINK`, `RTM_NEWADDR`, multicast monitoring | This spec |
+| macOS | `iface` (`_darwin.go`) | Route sockets (`syscall.AF_ROUTE`) | Future |
+| BSD | `iface` (`_bsd.go`) | Route sockets (similar to macOS) | Future |
 
-Go build tags (`//go:build linux`, `//go:build darwin`) select the correct `register.go` at compile time. Only the platform-appropriate plugin is compiled and registered.
+Go build tags via `_linux.go` / `_darwin.go` suffixes select the correct implementation at compile time. A single `iface` plugin package with platform-specific files — not separate packages per OS.
 
 ### Scope
 
@@ -71,7 +71,7 @@ The plugin both **monitors all OS interfaces** (reacting to external changes) an
 - [ ] `internal/component/engine/engine.go` — Engine starts plugins first, then subsystems in registration order. Stops in reverse
 - [ ] `internal/component/bus/bus.go` — Bus implementation with hierarchical topics, prefix matching, per-consumer delivery goroutine
 - [ ] `internal/component/bgp/reactor/listener.go` — `Listener` wraps `net.ListenConfig`, bound to `"addr:port"` strings
-- [ ] `internal/component/bgp/reactor/reactor_peers.go` — `startListenerForAddressPort(addr, port, peerKey)` creates per-address listeners
+- [ ] `internal/component/bgp/reactor/reactor.go` — `startListenerForAddressPort(addr, port, peerKey)` creates per-address listeners
 - [ ] `internal/core/network/network.go` — `RealDialer` with optional `LocalAddr` for outbound connections
 - [ ] `internal/component/plugin/registry/` — plugin registration via `init()`, `Register()` function
 
@@ -206,31 +206,28 @@ Phase 4 MUST NOT start until Phase 3 confirms BGP has established sessions on th
 | Delete interface | `RTM_DELLINK` | `IFLA_IFNAME` |
 | Monitor changes | Multicast groups | `RTMGRP_LINK`, `RTMGRP_IPV4_IFADDR`, `RTMGRP_IPV6_IFADDR` |
 
-Dependency: `github.com/vishvananda/netlink` (high-level Go netlink library)
+Dependencies: `github.com/vishvananda/netlink` (netlink, 3200+ stars), `github.com/insomniacslk/dhcp` (DHCP v4/v6, 815+ stars)
 
-### macOS (Route Sockets)
+### macOS (Future — `_darwin.go`)
 
-| Operation | Mechanism | Notes |
-|-----------|-----------|-------|
-| Create interface | Not directly supported for most types | Use `ifconfig` / `networksetup` for loopback aliases |
-| Add IP address | `SIOCAIFADDR` ioctl (IPv4), `SIOCAIFADDR_IN6` (IPv6) | Or `ifconfig <iface> alias <addr>` |
-| Remove IP address | `SIOCDIFADDR` ioctl | Or `ifconfig <iface> -alias <addr>` |
-| Monitor changes | `AF_ROUTE` socket | `RTM_IFINFO` (link), `RTM_NEWADDR`/`RTM_DELADDR` (address) |
-
-macOS plugin has reduced creation capability but full monitoring capability.
+Not in scope for this spec. When added, macOS will use `AF_ROUTE` sockets for monitoring and `SIOCAIFADDR` / `SIOCDIFADDR` ioctls for address management. Reduced interface creation capability (no `RTM_NEWLINK` equivalent for most types) but full monitoring capability.
 
 ## Plugin Registration
 
 ### Structure
 
-| File | Build Tag | Purpose |
-|------|-----------|---------|
-| `internal/plugins/iface-linux/iface.go` | `//go:build linux` | Linux implementation using `vishvananda/netlink` |
-| `internal/plugins/iface-linux/register.go` | `//go:build linux` | `init()` → `registry.Register(...)` |
-| `internal/plugins/iface-linux/monitor.go` | `//go:build linux` | Netlink multicast monitor goroutine |
-| `internal/plugins/iface-darwin/iface.go` | `//go:build darwin` | macOS implementation using route sockets |
-| `internal/plugins/iface-darwin/register.go` | `//go:build darwin` | `init()` → `registry.Register(...)` |
-| `internal/plugins/iface-darwin/monitor.go` | `//go:build darwin` | Route socket monitor goroutine |
+Single `internal/plugins/iface/` package with platform-specific `_linux.go` files. Shared types and registration in platform-independent files. macOS/BSD added later as `_darwin.go` / `_bsd.go`.
+
+| File | Platform | Purpose |
+|------|----------|---------|
+| `internal/plugins/iface/iface.go` | All | Shared types, Bus topic constants, payload encoding |
+| `internal/plugins/iface/register.go` | All | `init()` → `registry.Register(...)` |
+| `internal/plugins/iface/iface_linux.go` | Linux | Netlink interface management (`vishvananda/netlink`) |
+| `internal/plugins/iface/monitor_linux.go` | Linux | Netlink multicast monitor goroutine |
+| `internal/plugins/iface/dhcp_linux.go` | Linux | DHCP v4/v6 client (`insomniacslk/dhcp`) |
+| `internal/plugins/iface/sysctl_linux.go` | Linux | sysctl writes for IPv4/IPv6 options, SLAAC |
+| `internal/plugins/iface/mirror_linux.go` | Linux | tc mirred setup via netlink (optional) |
+| `internal/plugins/iface/schema/ze-iface-conf.yang` | All | YANG config schema |
 
 ### Registration Fields
 
@@ -369,6 +366,76 @@ Following VyOS's fragment pattern (`include/interface/*.xml.i`), common options 
 | `interface/monitor/enabled` | leaf boolean | Enable monitoring (default: true) |
 | `interface/monitor/filter` | leaf-list string | Interface name patterns to monitor (empty = all) |
 
+### DHCP Configuration
+
+DHCP client functionality uses `github.com/insomniacslk/dhcp` — the de facto Go DHCP library covering both DHCPv4 (`nclient4`) and DHCPv6 (`nclient6`) including Prefix Delegation. No viable alternative exists.
+
+| YANG Path | Node Type | Description |
+|-----------|-----------|-------------|
+| `interface/<type>/<name>/dhcp` | container | DHCPv4 client settings |
+| `interface/<type>/<name>/dhcp/enabled` | leaf boolean | Enable DHCPv4 on this interface (default: false) |
+| `interface/<type>/<name>/dhcp/client-id` | leaf string | Optional client identifier |
+| `interface/<type>/<name>/dhcp/hostname` | leaf string | Hostname sent in DHCP requests |
+| `interface/<type>/<name>/dhcpv6` | container | DHCPv6 client settings |
+| `interface/<type>/<name>/dhcpv6/enabled` | leaf boolean | Enable DHCPv6 on this interface (default: false) |
+| `interface/<type>/<name>/dhcpv6/pd` | container | Prefix Delegation settings |
+| `interface/<type>/<name>/dhcpv6/pd/length` | leaf uint8 | Requested prefix length (e.g., 48, 56, 60) |
+| `interface/<type>/<name>/dhcpv6/duid` | leaf string | Optional DUID override (auto-generated if absent) |
+
+Dependency: `github.com/insomniacslk/dhcp` (BSD-3-Clause, 815+ stars, actively maintained)
+
+DHCP lease events publish to the Bus:
+
+| Topic | Published When | Payload Fields |
+|-------|---------------|----------------|
+| `interface/dhcp/lease-acquired` | DHCPv4 lease obtained | `name`, `address`, `prefix-length`, `router`, `dns`, `lease-time` |
+| `interface/dhcp/lease-renewed` | DHCPv4 lease renewed | Same as above |
+| `interface/dhcp/lease-expired` | DHCPv4 lease expired | `name`, `address` |
+| `interface/dhcpv6/lease-acquired` | DHCPv6 lease/PD obtained | `name`, `address` or `prefix`, `prefix-length`, `lease-time` |
+| `interface/dhcpv6/lease-expired` | DHCPv6 lease expired | `name`, `address` or `prefix` |
+
+DHCP-acquired addresses also trigger the standard `interface/addr/added` and `interface/addr/removed` events (the DHCP client adds/removes addresses via netlink, and the monitor detects these changes). The DHCP-specific topics provide lease metadata (timers, DNS, gateway) that the generic address events do not carry.
+
+### IPv6 Autoconf (SLAAC)
+
+IPv6 SLAAC is handled by the Linux kernel natively. Ze controls it via sysctl knobs per interface — no userspace SLAAC implementation needed. The netlink monitor detects addresses generated by the kernel and publishes them as standard `interface/addr/added` events.
+
+| YANG Path | Node Type | Description |
+|-----------|-----------|-------------|
+| `interface/<type>/<name>/ipv6/autoconf` | leaf boolean | Enable SLAAC (default: true, mirrors kernel default) |
+| `interface/<type>/<name>/ipv6/accept-ra` | leaf boolean | Accept Router Advertisements (default: true) |
+| `interface/<type>/<name>/ipv6/forwarding` | leaf boolean | Enable IPv6 forwarding (default: false) |
+
+Implementation: write to `/proc/sys/net/ipv6/conf/<iface>/autoconf`, `accept_ra`, and `forwarding`. Note that `accept_ra` has a special interaction with `forwarding` — when forwarding is enabled, `accept_ra` must be set to `2` (not `1`) to still accept RAs. The plugin handles this automatically.
+
+For advanced RA/NDP use cases (e.g., acting as an RA sender), `github.com/mdlayher/ndp` (MIT, 236 stars, mature) provides RS/RA parsing — deferred to a future spec as Ze is a BGP daemon, not a router advertisement daemon.
+
+### Traffic Mirroring (Optional)
+
+Traffic mirroring uses `tc` mirred actions via `vishvananda/netlink` — the same dependency already used for interface management. No additional library needed.
+
+| YANG Path | Node Type | Description |
+|-----------|-----------|-------------|
+| `interface/<type>/<name>/mirror` | container | Traffic mirroring settings |
+| `interface/<type>/<name>/mirror/ingress` | leaf string | Mirror ingress traffic to this interface name |
+| `interface/<type>/<name>/mirror/egress` | leaf string | Mirror egress traffic to this interface name |
+
+Implementation: create ingress/egress qdisc, add matchall filter with `MirredAction` pointing at the destination interface index. All via netlink, no shelling out to `tc`.
+
+Mirroring is **optional** — omitting the `mirror` container means no mirroring. This feature is useful for debugging (mirror a peer's traffic to a tap interface for tcpdump) but is not required for core BGP operation.
+
+### IPv4 Options
+
+Following VyOS's per-interface IPv4 tunables, controlled via sysctl:
+
+| YANG Path | Node Type | Description |
+|-----------|-----------|-------------|
+| `interface/<type>/<name>/ipv4/forwarding` | leaf boolean | Enable IPv4 forwarding (default: false) |
+| `interface/<type>/<name>/ipv4/arp-filter` | leaf boolean | ARP filtering per RFC 1122 (default: false) |
+| `interface/<type>/<name>/ipv4/arp-accept` | leaf boolean | Accept gratuitous ARP (default: false) |
+
+Implementation: write to `/proc/sys/net/ipv4/conf/<iface>/forwarding`, `arp_filter`, `arp_accept`.
+
 ### BGP Integration: `update-source` Enhancement
 
 Following VyOS, BGP's `local-address` (Ze's equivalent of `update-source`) should accept both IP addresses and interface names:
@@ -449,9 +516,14 @@ New subcommand: `ze interface`
 | AC-4 | `interface/addr/added` event for a peer's `LocalAddress` | BGP starts listener on that address and attempts outbound connections |
 | AC-5 | `interface/addr/removed` event for an active listener address | BGP sends NOTIFICATION cease to peers, drains connections, removes listener |
 | AC-6 | Make-before-break migration via config reload | New interface created, IP added, BGP binds, old IP removed, old interface deleted — no period where IP is unreachable |
-| AC-7 | Interface plugin starts on macOS | Opens `AF_ROUTE` socket, monitors address changes, publishes same Bus events |
-| AC-8 | Interface plugin stops | Removes Ze-managed interfaces (if configured to do so), closes netlink/route socket |
-| AC-9 | Multiple peers share same `LocalAddress` | All peers react to address add/remove events, shared listener created once |
+| AC-7 | DHCP enabled on interface | DHCPv4 client sends DISCOVER, obtains lease, adds address via netlink, publishes `interface/dhcp/lease-acquired` |
+| AC-8 | DHCPv6 with PD enabled | DHCPv6 client sends SOLICIT, obtains prefix delegation, publishes `interface/dhcpv6/lease-acquired` |
+| AC-9 | DHCP lease expires | Address removed via netlink, `interface/dhcp/lease-expired` published, `interface/addr/removed` fires |
+| AC-10 | IPv6 autoconf enabled on interface | sysctl `autoconf=1` set, kernel-generated SLAAC addresses detected by monitor, published as `interface/addr/added` |
+| AC-11 | Traffic mirror configured | tc ingress qdisc + matchall filter with mirred action created on source interface, traffic duplicated to destination |
+| AC-12 | Traffic mirror removed | tc filter and qdisc removed, no traffic duplication |
+| AC-13 | Interface plugin stops | Removes Ze-managed interfaces (if configured to do so), closes netlink socket |
+| AC-14 | Multiple peers share same `LocalAddress` | All peers react to address add/remove events, shared listener created once |
 
 ## 🧪 TDD Test Plan
 
@@ -459,9 +531,12 @@ New subcommand: `ze interface`
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestBusTopicCreation` | `internal/plugins/iface-linux/iface_test.go` | Plugin creates correct Bus topics on start | |
-| `TestNetlinkEventToTopic` | `internal/plugins/iface-linux/monitor_test.go` | Maps netlink message types to correct Bus topics | |
-| `TestPayloadFormat` | `internal/plugins/iface-linux/iface_test.go` | JSON payload matches spec (kebab-case, correct fields) | |
+| `TestBusTopicCreation` | `internal/plugins/iface/iface_test.go` | Plugin creates correct Bus topics on start | |
+| `TestNetlinkEventToTopic` | `internal/plugins/iface/monitor_linux_test.go` | Maps netlink message types to correct Bus topics | |
+| `TestPayloadFormat` | `internal/plugins/iface/iface_test.go` | JSON payload matches spec (kebab-case, correct fields) | |
+| `TestDHCPLeaseToEvent` | `internal/plugins/iface/dhcp_linux_test.go` | DHCP lease acquisition publishes correct Bus events | |
+| `TestSysctlAutoconf` | `internal/plugins/iface/sysctl_linux_test.go` | IPv6 autoconf/accept_ra/forwarding sysctl writes correct values | |
+| `TestMirrorSetup` | `internal/plugins/iface/mirror_linux_test.go` | tc qdisc + mirred filter created for mirror config | |
 | `TestBGPAddrAddedReaction` | `internal/component/bgp/reactor/reactor_iface_test.go` | Listener started when matching addr event received | |
 | `TestBGPAddrRemovedReaction` | `internal/component/bgp/reactor/reactor_iface_test.go` | Sessions drained when addr removed event received | |
 | `TestMigrationOrdering` | `internal/component/bgp/reactor/reactor_iface_test.go` | Old IP not removed until new IP confirmed | |
@@ -483,21 +558,24 @@ New subcommand: `ze interface`
 | `test-iface-create` | `test/plugin/iface-create.ci` | Config with interface section creates dummy interface | |
 | `test-iface-monitor` | `test/plugin/iface-monitor.ci` | External IP change triggers Bus event | |
 | `test-iface-bgp-bind` | `test/plugin/iface-bgp-bind.ci` | BGP session starts after interface IP added | |
+| `test-iface-dhcp` | `test/plugin/iface-dhcp.ci` | DHCP client obtains lease, address appears | |
+| `test-iface-mirror` | `test/plugin/iface-mirror.ci` | Traffic mirroring configured, packets duplicated | |
 | `test-iface-migrate` | `test/plugin/iface-migrate.ci` | Full make-before-break migration | |
 
 ### Future (if deferring any tests)
 - Performance benchmark for netlink event throughput — not needed for correctness
 - Chaos test: rapid interface flapping — defer to chaos framework
+- macOS `_darwin.go` implementation and tests — future spec
 
 ## Files to Modify
 
 - `internal/component/bgp/reactor/reactor.go` — add Bus subscription for `interface/` events
 - `internal/component/bgp/reactor/listener.go` — add `startListenerForAddress` / `stopListenerForAddress` methods
-- `internal/component/bgp/reactor/reactor_peers.go` — react to address availability events
+- `internal/component/bgp/reactor/reactor.go` — react to address availability events (listener management is here)
 - `internal/component/bgp/schema/ze-bgp-conf.yang` — extend `local-address` to accept interface names (VyOS `update-source` pattern)
 - `internal/component/plugin/registry/registry.go` — ensure interface plugin can register (may already be sufficient)
 - `internal/component/plugin/all/all.go` — blank import for new plugin packages (auto-generated by `make generate`)
-- `go.mod` — add `github.com/vishvananda/netlink` dependency
+- `go.mod` — add `github.com/vishvananda/netlink` and `github.com/insomniacslk/dhcp` dependencies
 
 ### Integration Checklist
 
@@ -515,13 +593,14 @@ New subcommand: `ze interface`
 
 ## Files to Create
 
-- `internal/plugins/iface/schema/ze-iface-conf.yang` — YANG config schema (platform-independent)
-- `internal/plugins/iface-linux/iface.go` — Linux interface plugin (netlink management)
-- `internal/plugins/iface-linux/register.go` — Linux registration with `//go:build linux`
-- `internal/plugins/iface-linux/monitor.go` — Netlink multicast monitor goroutine
-- `internal/plugins/iface-darwin/iface.go` — macOS interface plugin (route sockets)
-- `internal/plugins/iface-darwin/register.go` — macOS registration with `//go:build darwin`
-- `internal/plugins/iface-darwin/monitor.go` — Route socket monitor goroutine
+- `internal/plugins/iface/iface.go` — Shared types, Bus topic constants, payload encoding
+- `internal/plugins/iface/register.go` — Plugin registration (`init()` → `registry.Register()`)
+- `internal/plugins/iface/iface_linux.go` — Linux interface management (netlink create/delete/addr)
+- `internal/plugins/iface/monitor_linux.go` — Netlink multicast monitor goroutine
+- `internal/plugins/iface/dhcp_linux.go` — DHCPv4/v6 client using `insomniacslk/dhcp`
+- `internal/plugins/iface/sysctl_linux.go` — sysctl writes for IPv4/IPv6 options, SLAAC toggle
+- `internal/plugins/iface/mirror_linux.go` — tc mirred setup via netlink (optional)
+- `internal/plugins/iface/schema/ze-iface-conf.yang` — YANG config schema
 - `cmd/ze/interface/main.go` — CLI subcommand for interface management
 - `cmd/ze/interface/show.go` — `ze interface show` handler
 - `cmd/ze/interface/create.go` — `ze interface create` handler
@@ -530,6 +609,8 @@ New subcommand: `ze interface`
 - `test/plugin/iface-create.ci` — Functional test: interface creation
 - `test/plugin/iface-monitor.ci` — Functional test: monitoring
 - `test/plugin/iface-bgp-bind.ci` — Functional test: BGP binding
+- `test/plugin/iface-dhcp.ci` — Functional test: DHCP lease acquisition
+- `test/plugin/iface-mirror.ci` — Functional test: traffic mirroring
 - `test/plugin/iface-migrate.ci` — Functional test: migration
 
 ### Documentation Update Checklist (BLOCKING)
@@ -684,7 +765,7 @@ MUST document: validation rules, error conditions, state transitions, timer cons
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-9 all demonstrated
+- [ ] AC-1..AC-14 all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
