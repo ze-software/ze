@@ -184,11 +184,11 @@ func (p *Peer) sendInitialRoutes() {
 			// Send route, splitting if needed.
 			family := op.Route.NLRI().Family()
 			addPath := p.addPathFor(family)
-			attrBuf := getBuildBuf()
-			update := buildRIBRouteUpdate(attrBuf, op.Route, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+			attrHandle := getBuildBuf()
+			update := buildRIBRouteUpdate(attrHandle.Buf, op.Route, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 			p.mu.Unlock()
 			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, addPath)
-			putBuildBuf(attrBuf)
+			putBuildBuf(attrHandle)
 			if sendErr != nil {
 				routesLogger().Debug("send error for queued route", "peer", addr, "nlri", op.Route.NLRI(), "error", sendErr)
 				p.mu.Lock()
@@ -207,11 +207,11 @@ func (p *Peer) sendInitialRoutes() {
 			// Send withdrawal using pooled buffer.
 			family := op.NLRI.Family()
 			addPath := p.addPathFor(family)
-			wdBuf := getBuildBuf()
-			update := buildWithdrawNLRI(wdBuf, op.NLRI, addPath)
+			wdHandle := getBuildBuf()
+			update := buildWithdrawNLRI(wdHandle.Buf, op.NLRI, addPath)
 			p.mu.Unlock()
 			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, addPath)
-			putBuildBuf(wdBuf)
+			putBuildBuf(wdHandle)
 			if sendErr != nil {
 				routesLogger().Debug("send error for withdrawal", "peer", addr, "nlri", op.NLRI, "error", sendErr)
 				p.mu.Lock()
@@ -309,11 +309,11 @@ func (p *Peer) sendInitialRoutes() {
 		case PeerOpAnnounce:
 			family := op.Route.NLRI().Family()
 			addPath := p.addPathFor(family)
-			attrBuf := getBuildBuf()
-			update := buildRIBRouteUpdate(attrBuf, op.Route, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+			attrHandle := getBuildBuf()
+			update := buildRIBRouteUpdate(attrHandle.Buf, op.Route, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 			p.mu.Unlock()
 			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, addPath)
-			putBuildBuf(attrBuf)
+			putBuildBuf(attrHandle)
 			if sendErr != nil {
 				routesLogger().Debug("send error for late-queued route", "peer", addr, "error", sendErr)
 				p.mu.Lock()
@@ -329,11 +329,11 @@ func (p *Peer) sendInitialRoutes() {
 		case PeerOpWithdraw:
 			family := op.NLRI.Family()
 			addPath := p.addPathFor(family)
-			wdBuf := getBuildBuf()
-			update := buildWithdrawNLRI(wdBuf, op.NLRI, addPath)
+			wdHandle := getBuildBuf()
+			update := buildWithdrawNLRI(wdHandle.Buf, op.NLRI, addPath)
 			p.mu.Unlock()
 			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, addPath)
-			putBuildBuf(wdBuf)
+			putBuildBuf(wdHandle)
 			if sendErr != nil {
 				routesLogger().Debug("send error for late-queued withdrawal", "peer", addr, "error", sendErr)
 				p.mu.Lock()

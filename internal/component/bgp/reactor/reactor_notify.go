@@ -154,7 +154,7 @@ func (r *Reactor) emitCongestionEvent(peerAddr, eventType string) {
 // direction is "sent" or "received".
 // buf is the pool buffer for received messages (nil for sent).
 // Returns true if buf ownership was taken (caller should not return to pool).
-func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction string, buf []byte) bool {
+func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction string, buf BufHandle) bool {
 	r.mu.RLock()
 	receiver := r.messageReceiver
 	peer, hasPeer := r.findPeerByAddr(peerAddr)
@@ -302,7 +302,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	// If a fast plugin calls "forward" before Activate(), Get() still works
 	// (pending entries are accessible) and Decrement() adjusts the count
 	// (negative is corrected when Activate adds N).
-	if direction == plugin.DirectionReceived && wireUpdate != nil && buf != nil {
+	if direction == plugin.DirectionReceived && wireUpdate != nil && buf.Buf != nil {
 		r.recentUpdates.Add(&ReceivedUpdate{
 			WireUpdate:   wireUpdate, // Zero-copy: slices into buf
 			poolBuf:      buf,        // Cache owns buf

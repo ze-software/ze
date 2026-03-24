@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-forward-backpressure, spec-prefix maximum |
-| Phase | 2/5 |
-| Updated | 2026-03-23 |
+| Phase | 3/5 |
+| Updated | 2026-03-24 |
 
 ## Post-Compaction Recovery
 
@@ -323,11 +323,12 @@ stays in the pool until the destination drains it (zero-copy by construction).
 
 | Property | Value |
 |----------|-------|
-| Growth | Block allocation: 10% of maximum per block (contiguous, less fragmentation) |
-| Growth trigger | Current allocation 90% full |
-| Shrink | Per-buffer: freed on return when >20% of allocation is free |
-| Permanent floor | First 10% block is never freed (hot reserve for next burst) |
+| Growth | Block allocation on exhaustion: one contiguous backing array per block |
+| Growth trigger | `Get()` finds no free buffer in any existing block |
+| Shrink | Lazy collapse: every 100th `Get()`, delete highest block if fully returned and block below has >=50% free |
+| Permanent floor | None -- all blocks are freeable. "Hot reserve" is whichever block is currently active. |
 | Maximum | Sum of all peer weights (prefix counts), or explicit `ze.fwd.pool.size` |
+| Allocation order | Lowest block first (consolidates steady-state in low blocks, higher blocks drain and collapse) |
 | Scope | Global -- all peers draw from the same pool |
 | Fairness | Weighted access: priority diminishes with usage-to-weight ratio |
 | Buffer role | Pool provides read buffers during congestion (not local read pool) |
@@ -338,9 +339,12 @@ stays in the pool until the destination drains it (zero-copy by construction).
 is theoretical. Pre-allocation makes the bound real -- the memory is committed
 at startup, and the system knows exactly how much it has. No GC pressure spikes
 during congestion.~~
-**Superseded (2026-03-23):** Asymmetric allocation/release replaces full pre-allocation.
+~~**Superseded (2026-03-23):** Asymmetric allocation/release replaces full pre-allocation.
 Growth in 10% contiguous blocks, shrink per-buffer on return. First 10% block permanent.
-Memory tracks actual congestion, not theoretical worst case.
+Memory tracks actual congestion, not theoretical worst case.~~
+**Superseded (2026-03-24):** Three simple rules replace thresholds. Allocate from highest
+block. Grow on exhaustion (not at 90%). Lazy collapse every 100th Get() (not on Return).
+No permanent block. See `docs/architecture/forward-congestion-pool.md`.
 
 #### Buffer Sizing: Data-Driven
 
@@ -844,19 +848,26 @@ than guessed.
 2. ~~**Pool sizing default:** What fraction of available memory when no
    prefix maximum, no zefs data, and no PeeringDB? 10%? 25%? Require
    explicit configuration?~~
-   **Resolved (2026-03-23):** Asymmetric allocation/release. Growth in 10%
+   **Resolved (2026-03-23):** ~~Asymmetric allocation/release. Growth in 10%
    contiguous blocks (less fragmentation). Shrink per-buffer on return when
    free space >20%. First 10% block is permanent (never freed) -- hot reserve
-   for next burst. Maximum is 100% of peer weight sum.
+   for next burst. Maximum is 100% of peer weight sum.~~
+   **Updated (2026-03-24):** Three rules. Grow on exhaustion (no threshold).
+   Allocate from highest block. Collapse highest every 100th Get() when fully
+   returned and block below has >=50% free. No permanent block.
    See `docs/architecture/forward-congestion-pool.md`.
 
 3. ~~**Pre-allocation granularity:** One large byte slab? A free-list of
    fwdItem-sized slots? A ring buffer?~~
-   **Resolved (2026-03-23):** Zero-copy buffer transfer. The overflow pool
+   **Resolved (2026-03-23):** ~~Zero-copy buffer transfer. The overflow pool
    provides read buffers directly to source peers during congestion. No copy,
    no ownership transfer -- the buffer is allocated from the overflow pool,
    TCP reads into it, and it stays in the overflow pool until the destination
-   drains it. Buffer exhaustion IS the backpressure mechanism.
+   drains it. Buffer exhaustion IS the backpressure mechanism.~~
+   **Updated (2026-03-24):** Block-backed multiplexer with handles. Each
+   handle carries block ID for deterministic return routing. Blocks are
+   contiguous backing arrays. Growth on exhaustion, shrink via lazy collapse
+   every 100th Get(). No free-list, no ring buffer, no pre-allocation.
    See `docs/architecture/forward-congestion-pool.md`.
 
 4. ~~**RFC 9687 Send Hold Timer value:** max(8 min, 2x HoldTime) per RFC
@@ -994,7 +1005,7 @@ than guessed.
 | AC-23 | New update for prefix already in overflow pool | **Deferred optimization.** Old entry replaced (route superseding), not appended. Requires per-prefix indexing of the overflow pool (NLRI parsing on overflow entry). Ze's UPDATE-first design avoids NLRI parsing on the forward path; adding it here contradicts that principle. Without dedup, FIFO ordering still converges correctly -- the slow peer processes redundant intermediate UPDATEs but reaches the right final state. Real-world overflow is dominated by convergence events (many distinct prefixes withdrawn once), not flap (same prefix repeated). May not fix a real traffic pattern problem. Revisit if profiling shows high duplicate rate in overflow under production load. |
 | AC-24 | Forward batch to single destination peer | TX budget caps messages per batch (prevents one peer starving others in event loop) |
 | AC-25 | Forward batch contains both withdrawals and announcements | **Deferred optimization.** Withdrawals sent before announcements (faster convergence). Requires AC-23 (route superseding) first -- without per-prefix dedup, reordering can invert announce/withdraw for the same prefix, causing permanent stale routes. Blocked on AC-23 which is itself deferred. |
-| AC-26 | Read and build buffers | sync.Pool replaced by pool multiplexer. Handles carry block ID for deterministic return routing. Two multiplexers: 4K and 64K. buildBufPool merged into 4K instance. |
-| AC-27 | Pool capacity decisions | Growth, shrink, and backpressure use combined usage across 4K + 64K instances (memory pressure is shared) |
+| AC-26 | Read and build buffers | sync.Pool replaced by pool multiplexer. Handles carry block ID for deterministic return routing. Two multiplexers: 4K and 64K. buildBufPool merged into 4K instance. Get() allocates from lowest block (steady-state packs low, higher blocks drain for collapse). Grow on exhaustion. Lazy collapse every 100th Get() (triggered by normal network reads): delete highest block when fully returned and block below has >=50% free. No permanent block. |
+| AC-27 | Pool capacity decisions | Growth, shrink, and backpressure use combined usage across 4K + 64K instances (memory pressure is shared). Collapse check piggybacked on normal read path (every 100th Get()) to reclaim overflow blocks without timers. |
 | AC-28 | Pool maximum | Dynamically tracks peer set: adding a peer increases maximum (based on prefix count weight), removing decreases it |
 | AC-29 | Per-peer channel size | Dynamic: derived from peer weight (burst-adjusted prefix count). Range 16-256 based on weight tier. |

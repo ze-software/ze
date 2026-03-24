@@ -433,9 +433,11 @@ func TestResolveBGPTree_PeerNameValidation(t *testing.T) {
 			wantErr:  "invalid peer name",
 		},
 		{
-			name:     "contains_dots",
+			// Dots are allowed in peer names (FQDN-style: router.east.dc1).
+			// isValidPeerNameChar includes '.'. This is a valid name.
+			name:     "contains_dots_is_valid",
 			peerName: "router.east",
-			wantErr:  "invalid peer name",
+			wantErr:  "", // valid -- no error expected
 		},
 		{
 			name:     "contains_spaces",
@@ -473,14 +475,18 @@ func TestResolveBGPTree_PeerNameValidation(t *testing.T) {
 			peerRemote.Set("ip", "10.0.0.1")
 			peerRemote.Set("as", "65001")
 			peerTree.SetContainer("remote", peerRemote)
-			// Use invalid name as the list key (validatePeerName checks the key).
+			// Use name as the list key (validatePeerName checks the key).
 			groupTree.AddListEntry("peer", tt.peerName, peerTree)
 			bgp.AddListEntry("group", "test-group", groupTree)
 			tree.SetContainer("bgp", bgp)
 
 			_, err := ResolveBGPTree(tree)
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), tt.wantErr)
+			if tt.wantErr == "" {
+				require.NoError(t, err, "peer name %q should be valid", tt.peerName)
+			} else {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+			}
 		})
 	}
 }
@@ -851,12 +857,15 @@ func TestResolveBGPTree_PeerNamePunctuationOnly(t *testing.T) {
 	tests := []struct {
 		name     string
 		peerName string
+		wantErr  string
 	}{
-		{"hyphens_only", "---"},
-		{"underscores_only", "___"},
-		{"mixed_punctuation", "_-_-_"},
-		{"single_hyphen", "-"},
-		{"single_underscore", "_"},
+		// Names starting with underscore pass first-char but fail alphanumeric check.
+		{"underscores_only", "___", "at least one letter or digit"},
+		{"mixed_punctuation", "_-_-_", "at least one letter or digit"},
+		{"single_underscore", "_", "at least one letter or digit"},
+		// Names starting with hyphen fail at first-char check (before alphanumeric check).
+		{"hyphens_only", "---", "first character must be alphanumeric or underscore"},
+		{"single_hyphen", "-", "first character must be alphanumeric or underscore"},
 	}
 
 	for _, tt := range tests {
@@ -877,7 +886,7 @@ func TestResolveBGPTree_PeerNamePunctuationOnly(t *testing.T) {
 
 			_, err := ResolveBGPTree(tree)
 			require.Error(t, err, "punctuation-only name %q should be rejected", tt.peerName)
-			assert.Contains(t, err.Error(), "at least one letter or digit")
+			assert.Contains(t, err.Error(), tt.wantErr)
 		})
 	}
 }
@@ -972,10 +981,10 @@ func TestResolveBGPTree_GroupNameValidation(t *testing.T) {
 		groupName string
 		wantErr   string
 	}{
-		{"contains_dots", "group.one", "invalid group name"},
+		{"contains_dots_is_valid", "group.one", ""}, // dots allowed (FQDN-style)
 		{"contains_spaces", "group one", "invalid group name"},
 		{"contains_colon", "group:one", "invalid group name"},
-		{"punctuation_only", "---", "at least one letter or digit"},
+		{"punctuation_only", "---", "first character must be alphanumeric or underscore"},
 		{"unicode", "\u00e9quipe", "invalid group name"},
 	}
 
@@ -998,8 +1007,12 @@ func TestResolveBGPTree_GroupNameValidation(t *testing.T) {
 			tree.SetContainer("bgp", bgp)
 
 			_, err := ResolveBGPTree(tree)
-			require.Error(t, err, "group name %q should be rejected", tt.groupName)
-			assert.Contains(t, err.Error(), tt.wantErr)
+			if tt.wantErr == "" {
+				require.NoError(t, err, "group name %q should be valid", tt.groupName)
+			} else {
+				require.Error(t, err, "group name %q should be rejected", tt.groupName)
+				assert.Contains(t, err.Error(), tt.wantErr)
+			}
 		})
 	}
 }

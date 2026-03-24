@@ -27,8 +27,8 @@ func nextMsgID() uint64 {
 // ReceivedUpdate represents an immutable snapshot of a received UPDATE.
 // Each UPDATE gets a unique ID; updates to same NLRI create new IDs.
 //
-// Memory contract: WireUpdate slices into poolBuf; all derived slices share it.
-// When cache evicts this entry, poolBuf is returned to the session buffer pool.
+// Memory contract: WireUpdate slices into poolBuf.Buf; all derived slices share it.
+// When cache evicts this entry, poolBuf is returned to the buffer multiplexer.
 // EBGP pool buffers (ebgpPoolBuf4, ebgpPoolBuf2) are returned on cache eviction too.
 // Message ID is stored in WireUpdate, accessible via WireUpdate.MessageID().
 type ReceivedUpdate struct {
@@ -36,9 +36,9 @@ type ReceivedUpdate struct {
 	// Provides Payload(), Attrs(), NLRI(), MPReach(), MPUnreach(), SourceCtxID(), MessageID().
 	WireUpdate *wireu.WireUpdate
 
-	// poolBuf is the session read buffer that WireUpdate slices into.
-	// Returned to pool when cache evicts this entry.
-	poolBuf []byte
+	// poolBuf is the session read buffer handle that WireUpdate slices into.
+	// Returned to multiplexer when cache evicts this entry.
+	poolBuf BufHandle
 
 	// SourcePeerIP is the IP address of the peer that sent this UPDATE.
 	SourcePeerIP netip.Addr
@@ -57,24 +57,22 @@ type ReceivedUpdate struct {
 	// Cached after first call to EBGPWire(_, _, false).
 	ebgpWireASN2 *wireu.WireUpdate
 
-	// ebgpPoolBuf4 is the pool buffer backing ebgpWireASN4.
-	// Returned to pool on cache eviction.
-	ebgpPoolBuf4 []byte
+	// ebgpPoolBuf4 is the pool buffer handle backing ebgpWireASN4.
+	// Returned to multiplexer on cache eviction.
+	ebgpPoolBuf4 BufHandle
 
-	// ebgpPoolBuf2 is the pool buffer backing ebgpWireASN2.
-	// Returned to pool on cache eviction.
-	ebgpPoolBuf2 []byte
+	// ebgpPoolBuf2 is the pool buffer handle backing ebgpWireASN2.
+	// Returned to multiplexer on cache eviction.
+	ebgpPoolBuf2 BufHandle
 }
 
-// getReadBuf gets a buffer from the appropriate read pool.
-// Uses the same pools as session reads for uniform lifecycle management.
-//
-//nolint:forcetypeassert,errcheck // pool New always returns []byte
-func getReadBuf(extendedMessage bool) []byte {
+// getReadBuf gets a buffer handle from the appropriate multiplexer.
+// Uses the same multiplexers as session reads for uniform lifecycle management.
+func getReadBuf(extendedMessage bool) BufHandle {
 	if extendedMessage {
-		return readBufPool64K.Get().([]byte)
+		return bufMux64K.Get()
 	}
-	return readBufPool4K.Get().([]byte)
+	return bufMux4K.Get()
 }
 
 // EBGPWire returns a WireUpdate with the local ASN prepended to AS_PATH.
@@ -108,18 +106,21 @@ func (u *ReceivedUpdate) EBGPWire(localASN uint32, srcASN4, dstASN4 bool) (*wire
 	// Generate patched payload
 	payload := u.WireUpdate.Payload()
 
-	// Use extended pool if original payload is large
+	// Use extended multiplexer if original payload is large
 	extendedMessage := len(payload) > message.MaxMsgLen-message.HeaderLen
 	dst := getReadBuf(extendedMessage)
+	if dst.Buf == nil {
+		return nil, fmt.Errorf("EBGP wire buffer exhausted: pool at maximum allocation")
+	}
 
-	n, err := wireu.RewriteASPath(dst, payload, localASN, srcASN4, dstASN4)
+	n, err := wireu.RewriteASPath(dst.Buf, payload, localASN, srcASN4, dstASN4)
 	if err != nil {
-		ReturnReadBuffer(dst) // Return buffer on error
+		ReturnReadBuffer(dst) // Return handle on error
 		return nil, fmt.Errorf("EBGP wire rewrite: %w", err)
 	}
 
 	// Wrap in WireUpdate with same context ID as original
-	wu := wireu.NewWireUpdate(dst[:n], u.WireUpdate.SourceCtxID())
+	wu := wireu.NewWireUpdate(dst.Buf[:n], u.WireUpdate.SourceCtxID())
 	wu.SetMessageID(u.WireUpdate.MessageID())
 	wu.SetSourceID(u.WireUpdate.SourceID())
 

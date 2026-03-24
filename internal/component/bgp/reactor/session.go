@@ -6,6 +6,7 @@
 // Detail: session_read.go — message read loop
 // Detail: session_validation.go — RFC 7606 validation
 // Detail: session_flow.go — backpressure pause/resume gate
+// Related: bufmux.go — block-backed buffer multiplexer for read/build buffers
 
 package reactor
 
@@ -37,52 +38,44 @@ import (
 // Controlled by ze.log.bgp.reactor.session environment variable.
 var sessionLogger = slogutil.LazyLogger("bgp.reactor.session")
 
-// readBufPool4K provides reusable 4K read buffers for standard messages.
-// Used before Extended Message capability is negotiated.
-var readBufPool4K = sync.Pool{
-	New: func() any {
-		return make([]byte, message.MaxMsgLen) // 4096
-	},
+// bufMuxBlockSize is the number of buffers per block in the pool multiplexer.
+// Each block is one contiguous allocation. Sized for typical concurrent peer counts.
+const bufMuxBlockSize = 128
+
+// bufMux4K is the block-backed multiplexer for 4K buffers.
+// Serves both read (pre-Extended Message) and build (UPDATE attributes) paths.
+// Replaces readBufPool4K and buildBufPool (both were 4K sync.Pool).
+var bufMux4K = newBufMux(message.MaxMsgLen, bufMuxBlockSize) // 4096
+
+// bufMux64K is the block-backed multiplexer for 64K buffers.
+// Serves read path after Extended Message capability is negotiated (RFC 8654).
+// Replaces readBufPool64K (65K sync.Pool).
+var bufMux64K = newBufMux(message.ExtMsgLen, bufMuxBlockSize) // 65535
+
+// getBuildBuf returns a reusable 4K buffer handle from the 4K multiplexer.
+// Caller MUST call putBuildBuf when done.
+func getBuildBuf() BufHandle {
+	return bufMux4K.Get()
 }
 
-// readBufPool64K provides reusable 64K read buffers for extended messages.
-// Used after Extended Message capability is negotiated (RFC 8654).
-var readBufPool64K = sync.Pool{
-	New: func() any {
-		return make([]byte, message.ExtMsgLen) // 65535
-	},
+// putBuildBuf returns a build buffer handle to the 4K multiplexer.
+func putBuildBuf(h BufHandle) {
+	bufMux4K.Return(h)
 }
 
-// buildBufPool provides reusable 4K buffers for building UPDATE path attributes.
-// Get before buildRIBRouteUpdate / buildWithdrawNLRI, put after SendUpdate returns.
-var buildBufPool = sync.Pool{
-	New: func() any {
-		return make([]byte, message.MaxMsgLen) // 4096
-	},
-}
-
-// getBuildBuf returns a reusable 4K buffer from buildBufPool.
-//
-//nolint:forcetypeassert,errcheck // pool New always returns []byte
-func getBuildBuf() []byte {
-	return buildBufPool.Get().([]byte)
-}
-
-// putBuildBuf returns a buffer to the build pool.
-func putBuildBuf(buf []byte) {
-	buildBufPool.Put(buf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
-}
-
-// ReturnReadBuffer returns a buffer to the appropriate pool based on capacity.
+// ReturnReadBuffer returns a buffer handle to the appropriate multiplexer.
 // Used by cache to return buffers when entries are evicted.
-func ReturnReadBuffer(buf []byte) {
-	if buf == nil {
+func ReturnReadBuffer(h BufHandle) {
+	if h.Buf == nil {
 		return
 	}
-	if cap(buf) >= message.ExtMsgLen {
-		readBufPool64K.Put(buf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+	// Route by len(h.Buf), not cap(). Slices into backing arrays have
+	// cap = len(backing) - offset, which varies by position. But len()
+	// is always exactly bufSize since get() returns backing[off:off+bufSize].
+	if len(h.Buf) >= message.ExtMsgLen {
+		bufMux64K.Return(h)
 	} else {
-		readBufPool4K.Put(buf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+		bufMux4K.Return(h)
 	}
 }
 
@@ -115,9 +108,9 @@ const sendHoldTimerMin = 8 * time.Minute
 // direction is "sent" or "received".
 // wireUpdate is non-nil for UPDATE messages (zero-copy), nil for other types.
 // ctxID is the encoding context for zero-copy decisions.
-// buf is the pool buffer for received messages (nil for sent).
+// buf is the pool buffer handle for received messages (zero-value for sent).
 // Returns true if callback took ownership of buf (caller should not return to pool).
-type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction string, buf []byte) (kept bool)
+type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction string, buf BufHandle) (kept bool)
 
 type Session struct {
 	mu sync.RWMutex
@@ -395,26 +388,16 @@ func (s *Session) WriteBuf() *wire.SessionBuffer {
 
 // getReadBuffer gets an appropriately-sized buffer from pool.
 // Uses 4K pool before Extended Message negotiation, 64K after.
-func (s *Session) getReadBuffer() []byte {
+func (s *Session) getReadBuffer() BufHandle {
 	if s.extendedMessage {
-		if buf, ok := readBufPool64K.Get().([]byte); ok {
-			return buf
-		}
-		return make([]byte, message.ExtMsgLen)
+		return bufMux64K.Get()
 	}
-	if buf, ok := readBufPool4K.Get().([]byte); ok {
-		return buf
-	}
-	return make([]byte, message.MaxMsgLen)
+	return bufMux4K.Get()
 }
 
-// returnReadBuffer returns buffer to the appropriate pool based on size.
-func (s *Session) returnReadBuffer(buf []byte) {
-	if cap(buf) >= message.ExtMsgLen {
-		readBufPool64K.Put(buf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
-	} else {
-		readBufPool4K.Put(buf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
-	}
+// returnReadBuffer returns buffer to the appropriate multiplexer.
+func (s *Session) returnReadBuffer(h BufHandle) {
+	ReturnReadBuffer(h)
 }
 
 // DetectCollision checks if an incoming connection causes a collision.

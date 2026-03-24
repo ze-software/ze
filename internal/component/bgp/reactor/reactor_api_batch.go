@@ -86,9 +86,9 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch bgptype
 			asn4 := peer.asn4()
 
 			// Build UPDATE message for this batch using pooled buffers
-			attrBuf := getBuildBuf()
-			nlriBuf := getBuildBuf()
-			update := a.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, nextHop, isIBGP, asn4, addPath)
+			attrHandle := getBuildBuf()
+			nlriHandle := getBuildBuf()
+			update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, asn4, addPath)
 
 			// Send with splitting for large batches
 			// RFC 4271: Each split UPDATE is self-contained with full attributes
@@ -97,8 +97,8 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch bgptype
 			} else {
 				acceptedCount++
 			}
-			putBuildBuf(attrBuf)
-			putBuildBuf(nlriBuf)
+			putBuildBuf(attrHandle)
+			putBuildBuf(nlriHandle)
 		} else {
 			// Session not established or queue draining: queue to preserve order
 			for _, n := range batch.NLRIs {
@@ -141,9 +141,9 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch bgptype
 			addPath := peer.addPathFor(batch.Family)
 
 			// Build withdraw UPDATE for this batch using pooled buffers
-			attrBuf := getBuildBuf()
-			nlriBuf := getBuildBuf()
-			update := a.buildBatchWithdrawUpdate(attrBuf, nlriBuf, batch, addPath)
+			attrHandle := getBuildBuf()
+			nlriHandle := getBuildBuf()
+			update := a.buildBatchWithdrawUpdate(attrHandle.Buf, nlriHandle.Buf, batch, addPath)
 
 			// Send with splitting for large batches
 			if err := peer.sendUpdateWithSplit(update, maxMsgSize, addPath); err != nil {
@@ -151,8 +151,8 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch bgptype
 			} else {
 				acceptedCount++
 			}
-			putBuildBuf(attrBuf)
-			putBuildBuf(nlriBuf)
+			putBuildBuf(attrHandle)
+			putBuildBuf(nlriHandle)
 		} else {
 			// Session not established or queue draining: queue to preserve order
 			for _, n := range batch.NLRIs {
@@ -567,12 +567,12 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 		var update *message.Update
 
 		// Write NLRIs into pooled buffer
-		nlriBuf := getBuildBuf()
+		nlriHandle := getBuildBuf()
 		off := 0
 		for _, n := range nlris {
-			off += nlri.WriteNLRI(n, nlriBuf, off, addPath)
+			off += nlri.WriteNLRI(n, nlriHandle.Buf, off, addPath)
 		}
-		nlriBytes := nlriBuf[:off]
+		nlriBytes := nlriHandle.Buf[:off]
 
 		if family == ipv4Unicast {
 			// IPv4 unicast: use WithdrawnRoutes field
@@ -586,24 +586,24 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 				SAFI: attribute.SAFI(family.SAFI),
 				NLRI: nlriBytes,
 			}
-			attrBuf := getBuildBuf()
-			attrLen := attribute.WriteAttrTo(mpUnreach, attrBuf, 0)
+			attrHandle := getBuildBuf()
+			attrLen := attribute.WriteAttrTo(mpUnreach, attrHandle.Buf, 0)
 			update = &message.Update{
-				PathAttributes: attrBuf[:attrLen],
+				PathAttributes: attrHandle.Buf[:attrLen],
 			}
 			// Send then return attr buffer (nlri already copied into attrBuf by WriteAttrTo)
 			if err := peer.SendUpdate(update); err == nil {
 				updatesSent++
 			}
-			putBuildBuf(attrBuf)
-			putBuildBuf(nlriBuf)
+			putBuildBuf(attrHandle)
+			putBuildBuf(nlriHandle)
 			continue
 		}
 
 		if err := peer.SendUpdate(update); err == nil {
 			updatesSent++
 		}
-		putBuildBuf(nlriBuf)
+		putBuildBuf(nlriHandle)
 	}
 
 	return updatesSent

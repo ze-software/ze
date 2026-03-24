@@ -245,7 +245,7 @@ func TestReceivedUpdate_EBGPWireLazyASN4(t *testing.T) {
 	if update.ebgpWireASN4 == nil {
 		t.Error("ebgpWireASN4 should be cached")
 	}
-	if update.ebgpPoolBuf4 == nil {
+	if update.ebgpPoolBuf4.Buf == nil {
 		t.Error("ebgpPoolBuf4 should be stored")
 	}
 }
@@ -322,10 +322,10 @@ func TestReceivedUpdate_EBGPWireLazyASN2(t *testing.T) {
 	if update.ebgpWireASN2 == nil {
 		t.Error("ebgpWireASN2 should be cached")
 	}
-	if update.ebgpPoolBuf4 == nil {
+	if update.ebgpPoolBuf4.Buf == nil {
 		t.Error("ebgpPoolBuf4 should be stored")
 	}
-	if update.ebgpPoolBuf2 == nil {
+	if update.ebgpPoolBuf2.Buf == nil {
 		t.Error("ebgpPoolBuf2 should be stored")
 	}
 }

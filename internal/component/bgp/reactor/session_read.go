@@ -41,13 +41,24 @@ func (s *Session) ReadAndProcess() error {
 // readAndProcessMessage reads a message from the connection and processes it.
 // Uses clean get/return pool pattern for buffer lifecycle.
 func (s *Session) readAndProcessMessage(conn net.Conn) error {
-	// Get buffer from pool
+	// Get buffer from multiplexer.
 	buf := s.getReadBuffer()
+	if buf.Buf == nil {
+		return fmt.Errorf("read buffer exhausted: pool at maximum allocation")
+	}
+
+	// Defer ensures buffer is returned even if processMessage panics.
+	// Set to true when callback takes ownership (cache keeps the buffer).
+	kept := false
+	defer func() {
+		if !kept {
+			s.returnReadBuffer(buf)
+		}
+	}()
 
 	// Read header -- through bufio.Reader to batch kernel read syscalls.
-	_, err := io.ReadFull(s.bufReader, buf[:message.HeaderLen])
+	_, err := io.ReadFull(s.bufReader, buf.Buf[:message.HeaderLen])
 	if err != nil {
-		s.returnReadBuffer(buf)
 		// Handle connection close: EOF or connection reset by peer
 		if errors.Is(err, io.EOF) || isConnectionReset(err) {
 			s.handleConnectionClose()
@@ -61,16 +72,14 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 	// CPU-congested (data arrived but wasn't processed in time).
 	s.recentRead.Store(true)
 
-	hdr, err := message.ParseHeader(buf[:message.HeaderLen])
+	hdr, err := message.ParseHeader(buf.Buf[:message.HeaderLen])
 	if err != nil {
-		s.returnReadBuffer(buf)
 		_ = s.fsm.Event(fsm.EventBGPHeaderErr)
 		return fmt.Errorf("parse header: %w", err)
 	}
 
 	// RFC 8654: Validate message length against max (4096 or 65535 if extended).
 	if err := hdr.ValidateLengthWithMax(s.extendedMessage); err != nil {
-		s.returnReadBuffer(buf)
 		// RFC 8654 Section 5: Send NOTIFICATION with Bad Message Length.
 		var lengthBuf [2]byte
 		binary.BigEndian.PutUint16(lengthBuf[:], hdr.Length)
@@ -87,27 +96,22 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 	// Read body
 	bodyLen := int(hdr.Length) - message.HeaderLen
 	if bodyLen > 0 {
-		_, err = io.ReadFull(s.bufReader, buf[message.HeaderLen:hdr.Length])
+		_, err = io.ReadFull(s.bufReader, buf.Buf[message.HeaderLen:hdr.Length])
 		if err != nil {
-			s.returnReadBuffer(buf)
 			return fmt.Errorf("read body: %w", err)
 		}
 	}
 
 	// Process message - callback returns kept=true if it took buffer ownership
-	err, kept := s.processMessage(&hdr, buf[message.HeaderLen:hdr.Length], buf)
+	var processErr error
+	processErr, kept = s.processMessage(&hdr, buf.Buf[message.HeaderLen:hdr.Length], buf)
 
-	// Return buffer to pool only if callback didn't keep it
-	if !kept {
-		s.returnReadBuffer(buf)
-	}
-
-	return err
+	return processErr
 }
 
 // processMessage handles a received BGP message.
 // Returns (error, kept) where kept indicates if callback took buffer ownership.
-func (s *Session) processMessage(hdr *message.Header, body, buf []byte) (error, bool) {
+func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle) (error, bool) {
 	s.mu.RLock()
 	ctxID := s.recvCtxID
 	sourceID := s.sourceID

@@ -1614,7 +1614,7 @@ func setupEstablishedSessionEBGP(t *testing.T) (*Session, net.Conn, *int, func()
 
 	// Track callback invocations
 	callbackCount := new(int)
-	session.onMessageReceived = func(_ netip.Addr, _ message.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, direction string, _ []byte) bool {
+	session.onMessageReceived = func(_ netip.Addr, _ message.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, direction string, _ BufHandle) bool {
 		if direction == "received" {
 			*callbackCount++
 		}

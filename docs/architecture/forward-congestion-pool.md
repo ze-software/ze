@@ -97,23 +97,17 @@ tracking). It should be large enough that normal operation rarely hits
 the overflow path, but small enough that the overflow pool is the
 primary buffer during real congestion.
 
-## Asymmetric Allocation and Release
+## Block-Backed Allocation
 
-Growth and shrink use different granularities. Allocation is in large
-blocks to reduce fragmentation. Release is per-buffer to return memory
-promptly after a congestion spike subsides.
-
-### Block Structure: One Backing Array Per 10% Step
-
-Each 10% growth step is a single `make([]byte, N*bufSize)`. Individual
+Each block is a single contiguous `make([]byte, N*bufSize)`. Individual
 buffers are slices into this backing array -- no per-buffer allocation.
 
 | Property | Value |
 |----------|-------|
-| Block backing | One `[]byte` allocation per 10% step |
+| Block backing | One `[]byte` allocation per block |
 | Buffer | Slice into backing array: `block[i*bufSize : (i+1)*bufSize]` |
 | Slice header cost | 24 bytes (pointer + length + capacity) |
-| GC objects at max pool | 10 (one per block), not millions of individual buffers |
+| GC objects | One per block, not millions of individual buffers |
 
 ### GC-Based Release: All-or-Nothing Per Block
 
@@ -133,55 +127,87 @@ a still-slow destination while all siblings have drained, which is
 uncommon because a destination draining 99/100 items will drain the last
 one too.
 
-### Growth: 10% Blocks
+### Allocation: Lowest Block First
 
-The pool does not pre-allocate its full maximum at startup. It grows in
-10% block increments -- each block is one contiguous backing array.
+`Get()` allocates from the lowest-numbered block with free buffers.
+This keeps steady-state traffic consolidated in low blocks, letting
+higher blocks drain and become candidates for collapse.
+
+During a burst, blocks are grown sequentially (0, 1, 2, ...). After
+the burst subsides, FIFO returns arrive for all blocks. The lowest
+block (0) receives returns first (its buffers were allocated earliest,
+sit at the front of overflow queues) and also receives new steady-state
+allocations. Higher blocks only receive returns and never get refilled
+-- they converge to fully-free in natural top-down order and are
+collapsed by the periodic check.
+
+### Growth: On Exhaustion
+
+The pool starts with zero blocks. A block is allocated when `Get()`
+finds no free buffer in any existing block.
 
 | Pool state | Action |
 |-----------|--------|
-| Startup | Allocate first 10% block (permanent, never freed) |
-| Usage reaches 90% of current allocation | Allocate another 10% block |
-| Upper bound | 100% of maximum (sum of all peer weights) |
+| No blocks exist | Allocate block 0 |
+| All blocks full, below maximum | Allocate next sequential block |
+| All blocks full, at maximum | Return zero handle (pool exhausted -- backpressure) |
 
-### Shrink: Per-Block on Return
+No speculative growth. No 90% threshold. A block is allocated exactly
+when needed.
 
-When a buffer is returned, the block ID routes it to the correct block's
-free list. The multiplexer then checks whether the block can be freed:
+### Shrink: Lazy Collapse on Get()
+
+Blocks are not freed on Return(). Instead, every 100th `Get()` call
+runs a collapse check on the highest block:
 
 | Condition | Action |
 |-----------|--------|
-| Block is permanent (ID 0) | Always keep. Buffer goes to block's free list. |
-| Block has all buffers free AND pool has >20% excess capacity | Drop the block: nil all refs, remove from multiplexer. GC frees backing array. |
-| Block has outstanding buffers | Keep. Buffer goes to block's free list. |
+| Highest block fully returned AND block below has >=50% free | Delete highest block, repeat check on new highest |
+| Highest block has outstanding buffers | No collapse |
+| Highest block fully returned but block below <50% free | No collapse (would need to regrow immediately) |
+| Only one block exists | No collapse (nothing to collapse into) |
 
-Because each buffer carries its block ID, returns are always routed to
-the correct block. No searching, no pointer comparison. When a block's
-free count equals its total count, the multiplexer knows with certainty
-that every buffer is home -- the block can be dropped safely.
+The collapse cascades: if blocks 2, 1, 0 are all fully returned, one
+check pass deletes them top-down until only the block with active
+allocations remains.
 
-The first block (ID 0) is permanent -- the multiplexer never drops it.
-This provides a hot reserve that absorbs the next burst with zero
-allocation latency.
+**Why on Get(), not Return():** After a burst subsides, the overflow
+path stops receiving `Get()` calls -- traffic is normal. But the normal
+read path calls `Get()` on the same multiplexer for every BGP message
+received from the network. Every peer session reads from TCP into a
+buffer obtained from the mux. This constant activity drives the collapse
+check: every 100th network message read triggers a check on whether
+overflow blocks can be freed. No timer needed -- network traffic is
+the heartbeat. One atomic counter increment per `Get()`, one collapse
+check per 100 -- negligible cost.
+
+**No permanent block.** If all traffic stops and every buffer returns,
+all blocks are deleted. The next `Get()` allocates a fresh block. The
+"hot reserve" is whichever block is currently serving traffic, not a
+designated block 0.
 
 ### Example
 
-Pool maximum is 1000 buffers. Startup allocates block 1 (100 buffers,
-one backing array).
+Pool block size is 100 buffers each.
 
 | Event | Blocks | In use | Free | Action |
 |-------|--------|--------|------|--------|
-| Startup | 1 (permanent) | 0 | 100 | Block 1 allocated |
-| Burst starts | 1 | 90 | 10 | 90% full, allocate block 2 |
-| Burst continues | 2 | 180 | 20 | 90% full, allocate block 3 |
-| Burst peaks at 250 | 3 | 250 | 50 | Within capacity |
-| Burst subsides | 3 | 180 | 120 | >20% free, returning slices nil'd |
-| Block 3 fully drained | 2 | 150 | 50 | GC frees block 3 backing array |
-| Block 2 fully drained | 1 | 30 | 70 | GC frees block 2 backing array |
-| Settled | 1 (permanent) | 30 | 70 | Only block 1 remains |
+| First Get() | 0 | 1 | 99 | Block 0 allocated, buffer from 0 |
+| Burst fills block 0 | 0 | 100 | 0 | -- |
+| Next Get(), block 0 full | 0, 1 | 101 | 99 | Block 1 allocated, buffer from 1 |
+| Block 1 fills | 0, 1, 2 | 201 | 99 | Block 2 allocated on next Get() |
+| Burst peaks at 250 | 0, 1, 2 | 250 | 50 | Within capacity |
+| Burst subsides, returns arrive | 0, 1, 2 | 180 | 120 | FIFO: block 0 buffers return first |
+| Steady state resumes | 0, 1, 2 | 80 | 220 | New allocations go to block 0 (lowest). Blocks 1, 2 only receive returns. |
+| Block 2 fully returned | 0, 1, 2 | 60 | 240 | Block 2 has all buffers home |
+| 100th Get() collapse check | 0, 1 | 60 | 40 | Block 2 (highest) fully returned, block 1 has >=50% free: delete block 2 |
+| Block 1 fully returned | 0, 1 | 30 | 70 | Block 1 has all buffers home |
+| 100th Get() collapse check | 0 | 30 | 70 | Block 1 (highest) fully returned, block 0 has >=50% free: delete block 1 |
+| Settled | 0 | 30 | 70 | Only block 0 remains |
 
-After the spike, only the permanent first block remains. Block 2 and 3
-backing arrays are collected by the GC once all their slices are nil'd.
+After the spike, only block 0 remains -- the one serving steady-state
+traffic. Higher blocks drained because lowest-first allocation directed
+all new gets to block 0, while higher blocks only received returns.
 
 ## Zero-Copy Buffer Ownership
 
@@ -321,14 +347,21 @@ block ID so returns are always routed to the correct block.
 
 | Operation | What happens |
 |-----------|-------------|
-| `Get()` | Pick preferred block (permanent first, then lowest-numbered with free buffers). Return handle. |
-| `Return(handle)` | Route to `blocks[handle.ID].free(handle.Buf)`. O(1), no searching. |
-| `Grow()` | Allocate new block (one backing array), assign next ID, register with multiplexer. |
-| `Shrink(blockID)` | When block has all buffers free and pool has excess capacity, drop block. Nil all refs, remove from multiplexer. GC frees backing array. |
+| `Get()` | Allocate from lowest block with free buffers. If none free, grow. Every 100th call, run collapse check first. |
+| `Return(handle)` | Route to `blocks[handle.ID]` free list. Increment block's free count. O(1). |
+| `grow()` | Allocate new block (one backing array), assign next sequential ID, register with multiplexer. |
+| `tryCollapse()` | If highest block fully returned AND block below has >=50% free: delete highest, repeat. |
 
-**Allocation preference:** `Get()` takes from the permanent block first
-(ID 0), then the lowest-numbered block with free buffers. This keeps
-pressure on higher-numbered blocks, making them candidates for shrink.
+**Allocation preference:** `Get()` takes from the lowest-numbered
+block with free buffers. This consolidates steady-state traffic in
+low blocks, letting higher blocks drain and become collapse candidates.
+
+**Lazy collapse:** Every 100th `Get()` call checks whether the highest
+block can be deleted. The check cascades downward, collapsing multiple
+fully-returned blocks in one pass. This replaces timers and
+shrink-on-return logic. The 50% free threshold on the block below
+prevents oscillation (collapsing when the survivor is nearly full
+would force an immediate regrow).
 
 **Deterministic block freeing:** Each block tracks its total count and
 free count. When `freeCount == totalCount`, every buffer is home. The
@@ -340,9 +373,9 @@ of available buffer indices). No global free list. The block ID in the
 handle routes returns to the correct list in O(1).
 
 **Concurrency:** One mutex per multiplexer (not per block). The
-multiplexer is only used during congestion (normal path uses per-peer
-channels). Overflow is already the slow path -- a mutex is acceptable.
-The fast path (channel send/receive) never touches the multiplexer.
+multiplexer is used for all buffer allocation (normal and overflow
+paths). A single mutex is acceptable -- `Get()` and `Return()` are
+fast O(1) operations.
 
 **Two multiplexer instances:**
 
