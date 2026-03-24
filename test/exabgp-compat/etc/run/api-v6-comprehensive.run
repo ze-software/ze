@@ -438,9 +438,9 @@ class APITest:
         )
 
         self.expect(
-            'rib clear out',
+            'rib clear out *',
             {'answer': 'done'},
-            'rib clear out succeeds',
+            'rib clear out * succeeds',
         )
 
     def test_error_cases(self) -> None:

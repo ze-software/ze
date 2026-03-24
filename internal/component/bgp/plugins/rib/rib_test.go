@@ -29,7 +29,7 @@ func newTestRIBManager(t *testing.T) *RIBManager {
 	return &RIBManager{
 		plugin:        p,
 		ribInPool:     make(map[string]*storage.PeerRIB),
-		ribOut:        make(map[string]map[string]*Route),
+		ribOut:        make(map[string]map[string]map[string]*Route),
 		peerUp:        make(map[string]bool),
 		peerMeta:      make(map[string]*PeerMeta),
 		retainedPeers: make(map[string]bool),
@@ -128,11 +128,12 @@ func TestHandleSent_StoresRoutes(t *testing.T) {
 
 	r.handleSent(event)
 
-	assert.Len(t, r.ribOut["10.0.0.1"], 2)
-	assert.Contains(t, r.ribOut["10.0.0.1"], "ipv4/unicast:10.0.0.0/24")
-	assert.Contains(t, r.ribOut["10.0.0.1"], "ipv4/unicast:10.0.1.0/24")
+	require.Contains(t, r.ribOut["10.0.0.1"], "ipv4/unicast")
+	assert.Len(t, r.ribOut["10.0.0.1"]["ipv4/unicast"], 2)
+	assert.Contains(t, r.ribOut["10.0.0.1"]["ipv4/unicast"], "10.0.0.0/24")
+	assert.Contains(t, r.ribOut["10.0.0.1"]["ipv4/unicast"], "10.0.1.0/24")
 
-	route := r.ribOut["10.0.0.1"]["ipv4/unicast:10.0.0.0/24"]
+	route := r.ribOut["10.0.0.1"]["ipv4/unicast"]["10.0.0.0/24"]
 	assert.Equal(t, "10.0.0.0/24", route.Prefix)
 	assert.Equal(t, "1.1.1.1", route.NextHop)
 	assert.Equal(t, uint64(100), route.MsgID)
@@ -157,7 +158,7 @@ func TestHandleSent_Withdraw(t *testing.T) {
 		},
 	}
 	r.handleSent(announce)
-	assert.Len(t, r.ribOut["10.0.0.1"], 1)
+	assert.Len(t, r.ribOut["10.0.0.1"]["ipv4/unicast"], 1)
 
 	// Then withdraw
 	withdraw := &Event{
@@ -170,7 +171,8 @@ func TestHandleSent_Withdraw(t *testing.T) {
 		},
 	}
 	r.handleSent(withdraw)
-	assert.Len(t, r.ribOut["10.0.0.1"], 0)
+	// After withdrawing all routes in a family, the family map is cleaned up
+	assert.Empty(t, r.ribOut["10.0.0.1"])
 }
 
 // TestHandleReceived_StoresRoutes verifies routes are stored in Adj-RIB-In.
@@ -246,9 +248,11 @@ func TestHandleState_PeerUp(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Pre-populate ribOut
-	r.ribOut["10.0.0.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.0.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
-		"ipv4/unicast:10.0.1.0/24": {MsgID: 2, Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "1.1.1.1"},
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+			"10.0.1.0/24": {MsgID: 2, Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "1.1.1.1"},
+		},
 	}
 
 	event := &Event{
@@ -262,7 +266,7 @@ func TestHandleState_PeerUp(t *testing.T) {
 	// Verify internal state: peer is marked as up
 	assert.True(t, r.peerUp["10.0.0.1"], "peer should be marked as up")
 	// ribOut should be preserved (routes are replayed via SDK RPC, not text output)
-	assert.Len(t, r.ribOut["10.0.0.1"], 2, "ribOut should still have routes")
+	assert.Len(t, r.ribOut["10.0.0.1"]["ipv4/unicast"], 2, "ribOut should still have routes")
 }
 
 // TestHandleState_PeerDown verifies Adj-RIB-In is cleared on peer down.
@@ -287,8 +291,10 @@ func TestHandleState_PeerDown(t *testing.T) {
 	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
 
 	// Pre-populate ribOut
-	r.ribOut["10.0.0.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "10.0.1.0/24"},
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "10.0.1.0/24"},
+		},
 	}
 	r.peerUp["10.0.0.1"] = true
 
@@ -307,7 +313,7 @@ func TestHandleState_PeerDown(t *testing.T) {
 	_, metaExists := r.peerMeta["10.0.0.1"]
 	assert.False(t, metaExists, "peerMeta should be deleted on peer down")
 	// ribOut should be preserved for replay
-	assert.Len(t, r.ribOut["10.0.0.1"], 1)
+	assert.Len(t, r.ribOut["10.0.0.1"]["ipv4/unicast"], 1)
 }
 
 // TestStatusJSON verifies status command output.
@@ -330,8 +336,10 @@ func TestStatusJSON(t *testing.T) {
 	}
 	r.handleReceived(event)
 
-	r.ribOut["10.0.0.2"] = map[string]*Route{
-		"c": {},
+	r.ribOut["10.0.0.2"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {},
+		},
 	}
 	r.peerUp["10.0.0.1"] = true
 	r.peerUp["10.0.0.2"] = true
@@ -392,8 +400,10 @@ func TestDispatch_RoutesToCorrectHandler(t *testing.T) {
 				totalIn += peerRIB.Len()
 			}
 			totalOut := 0
-			for _, routes := range r.ribOut {
-				totalOut += len(routes)
+			for _, peerFamilies := range r.ribOut {
+				for _, familyRoutes := range peerFamilies {
+					totalOut += len(familyRoutes)
+				}
 			}
 
 			assert.Equal(t, tt.wantRibIn, totalIn, "ribInPool count")
@@ -410,8 +420,10 @@ func TestHandleState_ConcurrentUpDown(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Pre-populate ribOut
-	r.ribOut["10.0.0.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.0.0/24": {MsgID: 1, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {MsgID: 1, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+		},
 	}
 
 	// Pre-populate ribInPool via handleReceived
@@ -585,7 +597,12 @@ func TestHandleCommand_RIBAdjacentStatus(t *testing.T) {
 	r.handleReceived(announce)
 
 	r.peerUp["10.0.0.1"] = true
-	r.ribOut["10.0.0.1"] = map[string]*Route{"b": {}, "c": {}}
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {},
+			"10.0.1.0/24": {},
+		},
+	}
 
 	status, data, err := r.handleCommand("rib adjacent status", "", nil)
 	require.NoError(t, err)
@@ -712,7 +729,7 @@ func TestHandleCommand_RIBAdjacentInboundEmpty(t *testing.T) {
 	}
 	r.handleReceived(event2)
 
-	status, data, err := r.handleCommand("rib adjacent inbound empty", "10.0.0.1", nil)
+	status, data, err := r.handleCommand("rib adjacent inbound empty", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, data, `"cleared":1`)
@@ -731,11 +748,15 @@ func TestHandleCommand_RIBAdjacentInboundEmpty(t *testing.T) {
 func TestHandleCommand_RIBShowSent(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	r.ribOut["10.0.0.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+		},
 	}
-	r.ribOut["10.0.0.2"] = map[string]*Route{
-		"ipv4/unicast:10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
+	r.ribOut["10.0.0.2"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
+		},
 	}
 
 	status, data, err := r.handleCommand("rib show", "10.0.0.1", []string{"sent"})
@@ -752,16 +773,20 @@ func TestHandleCommand_RIBShowSent(t *testing.T) {
 func TestHandleCommand_RIBAdjacentOutboundResend(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	r.ribOut["10.0.0.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.0.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+		},
 	}
-	r.ribOut["10.0.0.2"] = map[string]*Route{
-		"ipv4/unicast:10.0.1.0/24": {MsgID: 2, Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
+	r.ribOut["10.0.0.2"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.1.0/24": {MsgID: 2, Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
+		},
 	}
 	r.peerUp["10.0.0.1"] = true
 	r.peerUp["10.0.0.2"] = true
 
-	status, data, err := r.handleCommand("rib adjacent outbound resend", "10.0.0.1", nil)
+	status, data, err := r.handleCommand("rib adjacent outbound resend", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	// Resend count: routes are sent via SDK RPC (updateRoute), which fails silently on closed pipes
@@ -778,12 +803,14 @@ func TestHandleCommand_RIBAdjacentOutboundResend_DownPeer(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Peer has routes but is DOWN
-	r.ribOut["10.0.0.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.0.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+		},
 	}
 	// peerUp["10.0.0.1"] is NOT set (peer is down)
 
-	status, data, err := r.handleCommand("rib adjacent outbound resend", "10.0.0.1", nil)
+	status, data, err := r.handleCommand("rib adjacent outbound resend", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, data, `"resent":0`, "should not resend to down peer")
@@ -823,8 +850,10 @@ func TestRIBPluginHandleCommandShortNames(t *testing.T) {
 	}
 	r.handleReceived(announce)
 	r.peerUp["10.0.0.1"] = true
-	r.ribOut["10.0.0.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.1.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.1.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
+		},
 	}
 
 	tests := []struct {
@@ -836,9 +865,9 @@ func TestRIBPluginHandleCommandShortNames(t *testing.T) {
 	}{
 		{"rib status", "rib status", nil, true, `"running":true`},
 		{"rib show received", "rib show", []string{"received"}, true, "10.0.0.1"},
-		{"rib clear in", "rib clear in", nil, true, `"cleared"`},
+		{"rib clear in", "rib clear in", []string{"*"}, true, `"cleared"`},
 		{"rib show sent", "rib show", []string{"sent"}, true, "adj-rib-out"},
-		{"rib clear out", "rib clear out", nil, true, `"resent"`},
+		{"rib clear out", "rib clear out", []string{"*"}, true, `"resent"`},
 	}
 
 	for _, tt := range tests {
@@ -881,16 +910,17 @@ func TestRIBPluginHandleCommandLegacyNames(t *testing.T) {
 	tests := []struct {
 		name    string
 		command string
+		args    []string
 		wantIn  string
 	}{
-		{"adjacent status", "rib adjacent status", `"running":true`},
-		{"adjacent inbound empty", "rib adjacent inbound empty", `"cleared"`},
-		{"adjacent outbound resend", "rib adjacent outbound resend", `"resent"`},
+		{"adjacent status", "rib adjacent status", nil, `"running":true`},
+		{"adjacent inbound empty", "rib adjacent inbound empty", []string{"*"}, `"cleared"`},
+		{"adjacent outbound resend", "rib adjacent outbound resend", []string{"*"}, `"resent"`},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			status, data, err := r.handleCommand(tt.command, "*", nil)
+			status, data, err := r.handleCommand(tt.command, "*", tt.args)
 			require.NoError(t, err, "legacy command %q should succeed", tt.command)
 			assert.Equal(t, "done", status)
 			assert.Contains(t, data, tt.wantIn, "legacy command %q data", tt.command)
@@ -913,10 +943,14 @@ func TestHandleRefresh_InternalState(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Pre-populate ribOut with routes
-	r.ribOut["10.0.0.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.0.0/24":   {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
-		"ipv4/unicast:10.0.1.0/24":   {MsgID: 2, Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "1.1.1.1"},
-		"ipv6/unicast:2001:db8::/32": {MsgID: 3, Family: "ipv6/unicast", Prefix: "2001:db8::/32", NextHop: "::1"},
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+			"10.0.1.0/24": {MsgID: 2, Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "1.1.1.1"},
+		},
+		"ipv6/unicast": {
+			"2001:db8::/32": {MsgID: 3, Family: "ipv6/unicast", Prefix: "2001:db8::/32", NextHop: "::1"},
+		},
 	}
 	r.peerUp["10.0.0.1"] = true
 
@@ -936,7 +970,7 @@ func TestHandleRefresh_InternalState(t *testing.T) {
 	// Peer should still be up after refresh
 	assert.True(t, r.peerUp["10.0.0.1"], "peer should still be up after refresh")
 	// RibOut should be unchanged (refresh re-advertises, doesn't modify)
-	assert.Len(t, r.ribOut["10.0.0.1"], 3, "ribOut should be unchanged after refresh")
+	assert.Len(t, r.ribOut["10.0.0.1"], 2, "ribOut should have 2 families unchanged after refresh")
 }
 
 // TestHandleRefresh_PeerNotUp verifies refresh is ignored for down peers.
@@ -947,8 +981,10 @@ func TestHandleRefresh_PeerNotUp(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	// Peer has routes but is not up
-	r.ribOut["10.0.0.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+		},
 	}
 	// peerUp["10.0.0.1"] is NOT set (peer is down)
 
@@ -973,9 +1009,13 @@ func TestHandleRefresh_PeerNotUp(t *testing.T) {
 func TestHandleRefresh_IPv6Family(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	r.ribOut["10.0.0.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.0.0/24":   {Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
-		"ipv6/unicast:2001:db8::/32": {MsgID: 1, Family: "ipv6/unicast", Prefix: "2001:db8::/32", NextHop: "::1"},
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+		},
+		"ipv6/unicast": {
+			"2001:db8::/32": {MsgID: 1, Family: "ipv6/unicast", Prefix: "2001:db8::/32", NextHop: "::1"},
+		},
 	}
 	r.peerUp["10.0.0.1"] = true
 
@@ -991,7 +1031,7 @@ func TestHandleRefresh_IPv6Family(t *testing.T) {
 
 	// State should be preserved
 	assert.True(t, r.peerUp["10.0.0.1"])
-	assert.Len(t, r.ribOut["10.0.0.1"], 2)
+	assert.Len(t, r.ribOut["10.0.0.1"], 2, "ribOut should have 2 families")
 }
 
 // =============================================================================
@@ -1251,7 +1291,7 @@ func TestHandleCommand_InboundEmpty_PoolStorage(t *testing.T) {
 	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
 
 	// Call empty command via handleCommand
-	status, data, err := r.handleCommand("rib adjacent inbound empty", "10.0.0.1", nil)
+	status, data, err := r.handleCommand("rib adjacent inbound empty", "*", []string{"10.0.0.1"})
 	require.NoError(t, err)
 	assert.Equal(t, "done", status)
 	assert.Contains(t, data, `"cleared":1`)
@@ -1393,8 +1433,10 @@ func TestWireToPrefix(t *testing.T) {
 func TestDispatch_RefreshEvents(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	r.ribOut["10.0.0.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+		},
 	}
 	r.peerUp["10.0.0.1"] = true
 
@@ -1773,4 +1815,402 @@ func TestPeerMetaCleanup_ClearAndRelease(t *testing.T) {
 		_, retainExists := r.retainedPeers["10.0.0.1"]
 		assert.False(t, retainExists, "retainedPeers should be cleared on release")
 	})
+}
+
+// TestHandleSentPerFamily verifies routes are stored in separate family maps.
+//
+// VALIDATES: AC-1 — routes stored under correct family key.
+// PREVENTS: Routes from different families mixing in the same map.
+func TestHandleSentPerFamily(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	event := &Event{
+		Message: &MessageInfo{Type: "update", ID: 1},
+		Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": uint32(65001)}}),
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+			"ipv6/unicast": {{NextHop: "::1", Action: "add", NLRIs: []any{"2001:db8::/32"}}},
+		},
+	}
+	r.handleSent(event)
+
+	// Verify per-family structure
+	peerFamilies := r.ribOut["10.0.0.1"]
+	require.Len(t, peerFamilies, 2, "should have 2 family maps")
+	require.Contains(t, peerFamilies, "ipv4/unicast")
+	require.Contains(t, peerFamilies, "ipv6/unicast")
+	assert.Len(t, peerFamilies["ipv4/unicast"], 1)
+	assert.Len(t, peerFamilies["ipv6/unicast"], 1)
+
+	// Verify route contents
+	rt := peerFamilies["ipv4/unicast"]["10.0.0.0/24"]
+	require.NotNil(t, rt)
+	assert.Equal(t, "ipv4/unicast", rt.Family)
+	assert.Equal(t, "10.0.0.0/24", rt.Prefix)
+}
+
+// TestHandleSentWithdrawalPerFamily verifies withdrawal removes from correct family.
+//
+// VALIDATES: AC-8 — withdrawal removes from correct family map.
+// PREVENTS: Withdrawal affecting wrong family or leaving stale entries.
+func TestHandleSentWithdrawalPerFamily(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Add routes in two families
+	add := &Event{
+		Message: &MessageInfo{Type: "update", ID: 1},
+		Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": uint32(65001)}}),
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
+			"ipv6/unicast": {{NextHop: "::1", Action: "add", NLRIs: []any{"2001:db8::/32"}}},
+		},
+	}
+	r.handleSent(add)
+
+	// Withdraw one ipv4 route
+	del := &Event{
+		Message: &MessageInfo{Type: "update", ID: 2},
+		Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": uint32(65001)}}),
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{Action: "del", NLRIs: []any{"10.0.0.0/24"}}},
+		},
+	}
+	r.handleSent(del)
+
+	// ipv4 should have 1 route, ipv6 untouched
+	assert.Len(t, r.ribOut["10.0.0.1"]["ipv4/unicast"], 1)
+	assert.Len(t, r.ribOut["10.0.0.1"]["ipv6/unicast"], 1)
+}
+
+// TestHandleSentWithdrawalCleansEmptyMaps verifies empty maps are removed.
+//
+// VALIDATES: AC-11 — empty family and peer maps cleaned up.
+// PREVENTS: Zombie empty maps accumulating in memory.
+func TestHandleSentWithdrawalCleansEmptyMaps(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Add one route
+	add := &Event{
+		Message: &MessageInfo{Type: "update", ID: 1},
+		Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": uint32(65001)}}),
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		},
+	}
+	r.handleSent(add)
+	require.Contains(t, r.ribOut, "10.0.0.1")
+
+	// Withdraw the only route
+	del := &Event{
+		Message: &MessageInfo{Type: "update", ID: 2},
+		Peer:    mustMarshal(t, map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": uint32(65001)}}),
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{Action: "del", NLRIs: []any{"10.0.0.0/24"}}},
+		},
+	}
+	r.handleSent(del)
+
+	// Both family map and peer map should be gone
+	_, hasPeer := r.ribOut["10.0.0.1"]
+	assert.False(t, hasPeer, "empty peer map should be removed from ribOut")
+}
+
+// TestHandleRefreshPerFamily verifies only the requested family is sent.
+//
+// VALIDATES: AC-2 — only requested family routes sent on refresh.
+// PREVENTS: Sending routes from other families on route refresh.
+func TestHandleRefreshPerFamily(t *testing.T) {
+	r := newTestRIBManager(t)
+	r.peerUp["10.0.0.1"] = true
+
+	// Pre-populate ribOut with two families
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+		},
+		"ipv6/unicast": {
+			"2001:db8::/32": {MsgID: 2, Family: "ipv6/unicast", Prefix: "2001:db8::/32", NextHop: "::1"},
+		},
+	}
+
+	// Request refresh for ipv4/unicast only
+	refreshEvent := &Event{
+		Peer: mustMarshal(t, map[string]any{"address": "10.0.0.1", "remote": map[string]any{"as": uint32(65001)}}),
+		AFI:  "ipv4", SAFI: "unicast",
+	}
+	// handleRefresh sends routes via SDK (closed pipe in test, no-op),
+	// but we can verify it doesn't panic and the ribOut is unchanged.
+	r.handleRefresh(refreshEvent)
+
+	// ribOut should be unchanged (routes are sent, not removed)
+	assert.Len(t, r.ribOut["10.0.0.1"]["ipv4/unicast"], 1)
+	assert.Len(t, r.ribOut["10.0.0.1"]["ipv6/unicast"], 1)
+}
+
+// TestHandleStateReplayAllFamilies verifies all families are replayed on peer-up.
+//
+// VALIDATES: AC-3 — all families replayed in MsgID order on peer-up.
+// PREVENTS: Only one family being replayed after reconnect.
+func TestHandleStateReplayAllFamilies(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Pre-populate ribOut with two families
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+		},
+		"ipv6/unicast": {
+			"2001:db8::/32": {MsgID: 2, Family: "ipv6/unicast", Prefix: "2001:db8::/32", NextHop: "::1"},
+		},
+	}
+
+	// Peer comes up
+	upEvent := &Event{
+		Peer: mustMarshal(t, map[string]any{"address": "10.0.0.1", "state": "up", "remote": map[string]any{"as": uint32(65001)}}),
+	}
+	r.handleState(upEvent)
+
+	// ribOut should be preserved (routes are replayed, not consumed)
+	assert.Len(t, r.ribOut["10.0.0.1"], 2, "both families should still be in ribOut")
+}
+
+// TestOutboundResendAllFamilies verifies resend without family sends everything.
+//
+// VALIDATES: AC-4 — no-family resend replays all families.
+// PREVENTS: Per-family restructuring accidentally losing routes on resend.
+func TestOutboundResendAllFamilies(t *testing.T) {
+	r := newTestRIBManager(t)
+	r.peerUp["10.0.0.1"] = true
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+		},
+		"ipv6/unicast": {
+			"2001:db8::/32": {MsgID: 2, Family: "ipv6/unicast", Prefix: "2001:db8::/32", NextHop: "::1"},
+		},
+	}
+
+	status, data, err := r.handleCommand("rib clear out", "*", []string{"*"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	assert.Equal(t, float64(2), result["resent"], "should resend routes from both families")
+}
+
+// TestOutboundResendSingleFamily verifies resend with family sends only that family.
+//
+// VALIDATES: AC-5 — family-specific resend.
+// PREVENTS: Resending routes from other families.
+func TestOutboundResendSingleFamily(t *testing.T) {
+	r := newTestRIBManager(t)
+	r.peerUp["10.0.0.1"] = true
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+		},
+		"ipv6/unicast": {
+			"2001:db8::/32": {MsgID: 2, Family: "ipv6/unicast", Prefix: "2001:db8::/32", NextHop: "::1"},
+		},
+	}
+
+	status, data, err := r.handleCommand("rib clear out", "*", []string{"*", "ipv4/unicast"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	assert.Equal(t, float64(1), result["resent"], "should resend only ipv4/unicast routes")
+}
+
+// TestStatusJSONMultiFamilyCount verifies status counts across families.
+//
+// VALIDATES: AC-6 — total route count matches sum across families.
+// PREVENTS: Per-family restructuring breaking route counts.
+func TestStatusJSONMultiFamilyCount(t *testing.T) {
+	r := newTestRIBManager(t)
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
+			"10.0.1.0/24": {MsgID: 2, Family: "ipv4/unicast", Prefix: "10.0.1.0/24"},
+		},
+		"ipv6/unicast": {
+			"2001:db8::/32": {MsgID: 3, Family: "ipv6/unicast", Prefix: "2001:db8::/32"},
+		},
+	}
+
+	data := r.statusJSON()
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	assert.Equal(t, float64(3), result["routes-out"], "should count 3 total routes across families")
+}
+
+// TestOutboundSourceMultiFamily verifies pipeline iterates all families.
+//
+// VALIDATES: AC-7 — all routes from all families appear in pipeline output.
+// PREVENTS: Pipeline missing routes from some families.
+func TestOutboundSourceMultiFamily(t *testing.T) {
+	r := newTestRIBManager(t)
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
+		},
+		"ipv6/unicast": {
+			"2001:db8::/32": {MsgID: 2, Family: "ipv6/unicast", Prefix: "2001:db8::/32"},
+		},
+	}
+
+	src := newOutboundSource(r, "*")
+	count := 0
+	families := map[string]bool{}
+	for {
+		item, ok := src.Next()
+		if !ok {
+			break
+		}
+		families[item.Family] = true
+		count++
+	}
+	assert.Equal(t, 2, count, "should iterate 2 routes total")
+	assert.True(t, families["ipv4/unicast"], "should include ipv4/unicast")
+	assert.True(t, families["ipv6/unicast"], "should include ipv6/unicast")
+}
+
+// TestOutRouteKey verifies the ribOut-specific prefix-only key function.
+//
+// VALIDATES: outRouteKey produces prefix-only keys (no family prefix).
+// PREVENTS: Key collisions or missing pathID in ribOut keys.
+func TestOutRouteKey(t *testing.T) {
+	tests := []struct {
+		prefix string
+		pathID uint32
+		want   string
+	}{
+		{"10.0.0.0/24", 0, "10.0.0.0/24"},
+		{"10.0.0.0/24", 1, "10.0.0.0/24:1"},
+		{"10.0.0.0/24", 2, "10.0.0.0/24:2"},
+		{"2001:db8::/32", 0, "2001:db8::/32"},
+		{"2001:db8::/32", 100, "2001:db8::/32:100"},
+	}
+
+	for _, tt := range tests {
+		got := outRouteKey(tt.prefix, tt.pathID)
+		assert.Equal(t, tt.want, got, "outRouteKey(%q, %d)", tt.prefix, tt.pathID)
+	}
+}
+
+// TestOutboundResendSelectorFromArgs verifies rib clear out extracts the selector
+// from args[0], not the peer parameter (which is always "*" for plugin dispatch).
+//
+// VALIDATES: AC-10 — selector from args filters peers correctly.
+// PREVENTS: Selector silently discarded, resending to all peers.
+func TestOutboundResendSelectorFromArgs(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Two peers, both up, both with routes in ribOut
+	r.peerUp["10.0.0.1"] = true
+	r.peerUp["10.0.0.2"] = true
+	r.ribOut["10.0.0.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.1.0.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.1.0.0/24", NextHop: "1.1.1.1"},
+		},
+	}
+	r.ribOut["10.0.0.2"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.2.0.0/24": {MsgID: 2, Family: "ipv4/unicast", Prefix: "10.2.0.0/24", NextHop: "2.2.2.2"},
+		},
+	}
+
+	// Dispatch with selector "!10.0.0.1" in args (all except 10.0.0.1).
+	// peer param is "*" (as it would be for plugin-dispatched commands).
+	status, data, err := r.handleCommand("rib clear out", "*", []string{"!10.0.0.1"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+
+	// Only 10.0.0.2 should be resent (1 peer, 1 route)
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	assert.Equal(t, float64(1), result["peers"], "should resend to 1 peer (not 10.0.0.1)")
+	assert.Equal(t, float64(1), result["resent"], "should resend 1 route")
+}
+
+// TestInboundEmptySelectorFromArgs verifies rib clear in extracts selector from args.
+//
+// VALIDATES: AC-12 — rib clear in uses args[0] for selector.
+// PREVENTS: Clearing all peers when only one was requested.
+func TestInboundEmptySelectorFromArgs(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Two peers with routes in ribInPool
+	r.ribInPool["10.0.0.1"] = storage.NewPeerRIB("10.0.0.1")
+	r.ribInPool["10.0.0.2"] = storage.NewPeerRIB("10.0.0.2")
+
+	// Clear only 10.0.0.1
+	status, data, err := r.handleCommand("rib clear in", "*", []string{"10.0.0.1"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+	assert.Contains(t, data, `"cleared"`)
+
+	// 10.0.0.1 should be gone, 10.0.0.2 should remain
+	_, has1 := r.ribInPool["10.0.0.1"]
+	_, has2 := r.ribInPool["10.0.0.2"]
+	assert.False(t, has1, "10.0.0.1 should be cleared")
+	assert.True(t, has2, "10.0.0.2 should remain")
+}
+
+// TestRetainRoutesSelectorFromArgs verifies rib retain-routes extracts selector from args.
+//
+// VALIDATES: AC-13 — rib retain-routes uses args[0] for selector.
+// PREVENTS: Retaining all peers when only one was requested.
+func TestRetainRoutesSelectorFromArgs(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Two peers with routes
+	r.ribInPool["10.0.0.1"] = storage.NewPeerRIB("10.0.0.1")
+	r.ribInPool["10.0.0.2"] = storage.NewPeerRIB("10.0.0.2")
+
+	// Retain only 10.0.0.1
+	status, data, err := r.handleCommand("rib retain-routes", "*", []string{"10.0.0.1"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+	assert.Contains(t, data, `"retained-peers":1`)
+
+	assert.True(t, r.retainedPeers["10.0.0.1"], "10.0.0.1 should be retained")
+	assert.False(t, r.retainedPeers["10.0.0.2"], "10.0.0.2 should NOT be retained")
+}
+
+// TestReleaseRoutesSelectorFromArgs verifies rib release-routes extracts selector from args.
+//
+// VALIDATES: AC-14 — rib release-routes uses args[0] for selector.
+// PREVENTS: Releasing all peers when only one was requested.
+func TestReleaseRoutesSelectorFromArgs(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	// Two retained peers
+	r.ribInPool["10.0.0.1"] = storage.NewPeerRIB("10.0.0.1")
+	r.ribInPool["10.0.0.2"] = storage.NewPeerRIB("10.0.0.2")
+	r.retainedPeers["10.0.0.1"] = true
+	r.retainedPeers["10.0.0.2"] = true
+
+	// Release only 10.0.0.1
+	status, data, err := r.handleCommand("rib release-routes", "*", []string{"10.0.0.1"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", status)
+	assert.Contains(t, data, `"released-peers":1`)
+
+	assert.False(t, r.retainedPeers["10.0.0.1"], "10.0.0.1 should be released")
+	assert.True(t, r.retainedPeers["10.0.0.2"], "10.0.0.2 should still be retained")
+}
+
+// TestOutboundResendNoArgError verifies rib clear out returns error with no args.
+//
+// VALIDATES: AC-15 — missing required selector returns error.
+// PREVENTS: Accidentally resending to all peers when selector was forgotten.
+func TestOutboundResendNoArgError(t *testing.T) {
+	r := newTestRIBManager(t)
+
+	status, _, err := r.handleCommand("rib clear out", "*", nil)
+	require.Error(t, err, "rib clear out with no args should return error")
+	assert.Equal(t, "error", status)
 }

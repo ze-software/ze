@@ -123,18 +123,20 @@ type outboundSource struct {
 
 func newOutboundSource(r *RIBManager, selector string) *outboundSource {
 	var items []RouteItem
-	for peer, routes := range r.ribOut {
+	for peer, peerFamilies := range r.ribOut {
 		if !matchesPeer(peer, selector) {
 			continue
 		}
-		for _, rt := range routes {
-			items = append(items, RouteItem{
-				Peer:      peer,
-				Family:    rt.Family,
-				Prefix:    rt.Prefix,
-				Direction: "sent",
-				OutRoute:  rt,
-			})
+		for _, familyRoutes := range peerFamilies {
+			for _, rt := range familyRoutes {
+				items = append(items, RouteItem{
+					Peer:      peer,
+					Family:    rt.Family,
+					Prefix:    rt.Prefix,
+					Direction: "sent",
+					OutRoute:  rt,
+				})
+			}
 		}
 	}
 	return &outboundSource{r: r, selector: selector, items: items}

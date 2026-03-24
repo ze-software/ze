@@ -363,9 +363,11 @@ func TestShowPipelineBothDirections(t *testing.T) {
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	// Add outbound route
-	r.ribOut["192.0.2.2"] = map[string]*Route{
-		"ipv4/unicast:172.16.0.0/24": {
-			Family: "ipv4/unicast", Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
+	r.ribOut["192.0.2.2"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"172.16.0.0/24": {
+				Family: "ipv4/unicast", Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
+			},
 		},
 	}
 
@@ -391,9 +393,11 @@ func TestShowPipelineReceivedScope(t *testing.T) {
 	peerRIB.Insert(family, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
-	r.ribOut["192.0.2.2"] = map[string]*Route{
-		"ipv4/unicast:172.16.0.0/24": {
-			Family: "ipv4/unicast", Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
+	r.ribOut["192.0.2.2"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"172.16.0.0/24": {
+				Family: "ipv4/unicast", Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
+			},
 		},
 	}
 
@@ -418,9 +422,11 @@ func TestShowPipelineSentScope(t *testing.T) {
 	peerRIB.Insert(family, attrBytes, nlriBytes)
 	r.ribInPool["192.0.2.1"] = peerRIB
 
-	r.ribOut["192.0.2.2"] = map[string]*Route{
-		"ipv4/unicast:172.16.0.0/24": {
-			Family: "ipv4/unicast", Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
+	r.ribOut["192.0.2.2"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"172.16.0.0/24": {
+				Family: "ipv4/unicast", Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
+			},
 		},
 	}
 
@@ -439,18 +445,20 @@ func TestShowPipelineComposed(t *testing.T) {
 	r := newTestRIBManager(t)
 
 	med100 := uint32(100)
-	r.ribOut["192.0.2.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.0.0/24": {
-			Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "10.0.0.1",
-			ASPath: []uint32{64501, 64502}, Communities: []string{"65000:100"}, MED: &med100,
-		},
-		"ipv4/unicast:10.0.1.0/24": {
-			Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "10.0.0.1",
-			ASPath: []uint32{64501}, Communities: []string{"65001:200"}, MED: &med100,
-		},
-		"ipv4/unicast:10.0.2.0/24": {
-			Family: "ipv4/unicast", Prefix: "10.0.2.0/24", NextHop: "10.0.0.1",
-			ASPath: []uint32{64503}, Communities: []string{"65000:100"}, MED: &med100,
+	r.ribOut["192.0.2.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {
+				Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "10.0.0.1",
+				ASPath: []uint32{64501, 64502}, Communities: []string{"65000:100"}, MED: &med100,
+			},
+			"10.0.1.0/24": {
+				Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "10.0.0.1",
+				ASPath: []uint32{64501}, Communities: []string{"65001:200"}, MED: &med100,
+			},
+			"10.0.2.0/24": {
+				Family: "ipv4/unicast", Prefix: "10.0.2.0/24", NextHop: "10.0.0.1",
+				ASPath: []uint32{64503}, Communities: []string{"65000:100"}, MED: &med100,
+			},
 		},
 	}
 
@@ -743,9 +751,11 @@ func TestShowPipelineExplicitSentReceived(t *testing.T) {
 	r.ribInPool["192.0.2.1"] = peerRIB
 
 	// Add outbound route
-	r.ribOut["192.0.2.2"] = map[string]*Route{
-		"ipv4/unicast:172.16.0.0/24": {
-			Family: "ipv4/unicast", Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
+	r.ribOut["192.0.2.2"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"172.16.0.0/24": {
+				Family: "ipv4/unicast", Prefix: "172.16.0.0/24", NextHop: "10.0.0.1",
+			},
 		},
 	}
 

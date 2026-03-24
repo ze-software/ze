@@ -5,7 +5,11 @@
 // internal/component/bgp/ so bgp-adj-rib-in and future plugins can reuse them.
 package rib
 
-import bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+import (
+	"fmt"
+
+	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+)
 
 // Type aliases — these are the same types, not wrappers.
 type (
@@ -25,3 +29,13 @@ var (
 	parseNLRIValue     = bgp.ParseNLRIValue
 	routeKey           = bgp.RouteKey
 )
+
+// outRouteKey creates a ribOut-specific key without the family prefix.
+// The family is redundant in ribOut because it is the outer map key.
+// RFC 7911: When ADD-PATH is negotiated, pathID is part of the key.
+func outRouteKey(prefix string, pathID uint32) string {
+	if pathID == 0 {
+		return prefix
+	}
+	return fmt.Sprintf("%s:%d", prefix, pathID)
+}

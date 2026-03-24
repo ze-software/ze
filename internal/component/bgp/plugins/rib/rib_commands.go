@@ -100,20 +100,36 @@ func doRegisterBuiltinCommands() {
 				return statusDone, r.showPipeline(sel, args), nil
 			}},
 		{[]string{"rib clear in", "rib adjacent inbound empty"}, "Clear Adj-RIB-In routes",
-			func(r *RIBManager, sel string, _ []string) (string, string, error) {
-				return statusDone, r.inboundEmptyJSON(sel), nil
+			func(r *RIBManager, _ string, args []string) (string, string, error) {
+				if len(args) == 0 {
+					return statusError, "", fmt.Errorf("rib clear in requires a selector (* for all peers)")
+				}
+				return statusDone, r.inboundEmptyJSON(args[0]), nil
 			}},
 		{[]string{"rib clear out", "rib adjacent outbound resend"}, "Resend Adj-RIB-Out routes",
-			func(r *RIBManager, sel string, _ []string) (string, string, error) {
-				return statusDone, r.outboundResendJSON(sel), nil
+			func(r *RIBManager, _ string, args []string) (string, string, error) {
+				if len(args) == 0 {
+					return statusError, "", fmt.Errorf("rib clear out requires a selector (* for all peers)")
+				}
+				var family string
+				if len(args) >= 2 && strings.Contains(args[1], "/") {
+					family = args[1]
+				}
+				return statusDone, r.outboundResendJSON(args[0], family), nil
 			}},
 		{[]string{"rib retain-routes"}, "Mark peer RIB for retention",
-			func(r *RIBManager, sel string, _ []string) (string, string, error) {
-				return statusDone, r.retainRoutesJSON(sel), nil
+			func(r *RIBManager, _ string, args []string) (string, string, error) {
+				if len(args) == 0 {
+					return statusError, "", fmt.Errorf("rib retain-routes requires a selector (* for all peers)")
+				}
+				return statusDone, r.retainRoutesJSON(args[0]), nil
 			}},
 		{[]string{"rib release-routes"}, "Release retained peer RIB",
-			func(r *RIBManager, sel string, _ []string) (string, string, error) {
-				return statusDone, r.releaseRoutesJSON(sel), nil
+			func(r *RIBManager, _ string, args []string) (string, string, error) {
+				if len(args) == 0 {
+					return statusError, "", fmt.Errorf("rib release-routes requires a selector (* for all peers)")
+				}
+				return statusDone, r.releaseRoutesJSON(args[0]), nil
 			}},
 		{[]string{"rib mark-stale"}, "Mark peer routes at stale level",
 			func(r *RIBManager, _ string, args []string) (string, string, error) {
@@ -258,25 +274,38 @@ func (r *RIBManager) inboundEmptyJSON(selector string) string {
 }
 
 // outboundResendJSON replays Adj-RIB-Out routes for matching peers, returns JSON result.
+// If family is non-empty, only routes from that family are resent.
 // Does NOT send "plugin session ready" - that's only for initial reconnect.
-func (r *RIBManager) outboundResendJSON(selector string) string {
+func (r *RIBManager) outboundResendJSON(selector, family string) string {
 	r.mu.RLock()
 	var peersToResend []string
 	routesToResend := make(map[string][]*Route)
 
-	for peer, routes := range r.ribOut {
+	for peer, peerFamilies := range r.ribOut {
 		if !matchesPeer(peer, selector) {
 			continue
 		}
 		if !r.peerUp[peer] {
 			continue // Only resend to up peers
 		}
-		peersToResend = append(peersToResend, peer)
-		routesCopy := make([]*Route, 0, len(routes))
-		for _, rt := range routes {
-			routesCopy = append(routesCopy, rt)
+		var routesCopy []*Route
+		if family != "" {
+			// Single family resend
+			for _, rt := range peerFamilies[family] {
+				routesCopy = append(routesCopy, rt)
+			}
+		} else {
+			// All families
+			for _, familyRoutes := range peerFamilies {
+				for _, rt := range familyRoutes {
+					routesCopy = append(routesCopy, rt)
+				}
+			}
 		}
-		routesToResend[peer] = routesCopy
+		if len(routesCopy) > 0 {
+			peersToResend = append(peersToResend, peer)
+			routesToResend[peer] = routesCopy
+		}
 	}
 	r.mu.RUnlock()
 
@@ -319,8 +348,10 @@ func (r *RIBManager) statusJSON() string {
 	}
 
 	routesOut := 0
-	for _, routes := range r.ribOut {
-		routesOut += len(routes)
+	for _, peerFamilies := range r.ribOut {
+		for _, familyRoutes := range peerFamilies {
+			routesOut += len(familyRoutes)
+		}
 	}
 
 	result := map[string]any{

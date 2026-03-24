@@ -151,17 +151,19 @@ func TestOutboundShowWithAttributes(t *testing.T) {
 
 	med := uint32(100)
 	localPref := uint32(200)
-	r.ribOut["192.0.2.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.0.0/24": {
-			Family:           "ipv4/unicast",
-			Prefix:           "10.0.0.0/24",
-			NextHop:          "10.0.0.1",
-			Origin:           "igp",
-			ASPath:           []uint32{65001, 65002},
-			MED:              &med,
-			LocalPreference:  &localPref,
-			Communities:      []string{"65000:100"},
-			LargeCommunities: []string{"65000:1:2"},
+	r.ribOut["192.0.2.1"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {
+				Family:           "ipv4/unicast",
+				Prefix:           "10.0.0.0/24",
+				NextHop:          "10.0.0.1",
+				Origin:           "igp",
+				ASPath:           []uint32{65001, 65002},
+				MED:              &med,
+				LocalPreference:  &localPref,
+				Communities:      []string{"65000:100"},
+				LargeCommunities: []string{"65000:1:2"},
+			},
 		},
 	}
 
@@ -256,11 +258,13 @@ func TestInboundShowPrefixFilter(t *testing.T) {
 func TestOutboundShowMinimalAttributes(t *testing.T) {
 	r := newTestRIBManager(t)
 
-	r.ribOut["192.0.2.2"] = map[string]*Route{
-		"ipv4/unicast:10.0.0.0/24": {
-			Family:  "ipv4/unicast",
-			Prefix:  "10.0.0.0/24",
-			NextHop: "10.0.0.1",
+	r.ribOut["192.0.2.2"] = map[string]map[string]*Route{
+		"ipv4/unicast": {
+			"10.0.0.0/24": {
+				Family:  "ipv4/unicast",
+				Prefix:  "10.0.0.0/24",
+				NextHop: "10.0.0.1",
+			},
 		},
 	}
 

@@ -75,7 +75,7 @@ type PersistPeer struct {
 type PersistServer struct {
 	plugin *sdk.Plugin
 	peers  map[string]*PersistPeer
-	ribOut map[string]map[string]*StoredRoute // peer → routeKey → StoredRoute
+	ribOut map[string]map[string]map[string]*StoredRoute // peer → family → prefix → StoredRoute
 	mu     sync.RWMutex
 
 	// updateRouteHook is called instead of updateRoute for test inspection.
@@ -91,7 +91,7 @@ func RunPersistServer(conn net.Conn) int {
 	ps := &PersistServer{
 		plugin: p,
 		peers:  make(map[string]*PersistPeer),
-		ribOut: make(map[string]map[string]*StoredRoute),
+		ribOut: make(map[string]map[string]map[string]*StoredRoute),
 	}
 
 	p.OnEvent(func(eventStr string) error {
@@ -146,7 +146,7 @@ func (ps *PersistServer) handleSentUpdate(peerAddr string, msgID uint64, text st
 	defer ps.mu.Unlock()
 
 	if ps.ribOut[peerAddr] == nil {
-		ps.ribOut[peerAddr] = make(map[string]*StoredRoute)
+		ps.ribOut[peerAddr] = make(map[string]map[string]*StoredRoute)
 	}
 
 	for family, familyOps := range ops {
@@ -156,15 +156,17 @@ func (ps *PersistServer) handleSentUpdate(peerAddr string, msgID uint64, text st
 				if !ok {
 					continue
 				}
-				routeKey := family + "|" + prefix
 
 				switch op.Action {
 				case "add":
+					if ps.ribOut[peerAddr][family] == nil {
+						ps.ribOut[peerAddr][family] = make(map[string]*StoredRoute)
+					}
 					// Release old entry if replacing.
-					if old, exists := ps.ribOut[peerAddr][routeKey]; exists && old.MsgID != msgID {
+					if old, exists := ps.ribOut[peerAddr][family][prefix]; exists && old.MsgID != msgID {
 						ps.updateRoute(peerAddr, fmt.Sprintf("bgp cache %d release", old.MsgID))
 					}
-					ps.ribOut[peerAddr][routeKey] = &StoredRoute{
+					ps.ribOut[peerAddr][family][prefix] = &StoredRoute{
 						MsgID:  msgID,
 						Family: family,
 						Prefix: prefix,
@@ -172,9 +174,20 @@ func (ps *PersistServer) handleSentUpdate(peerAddr string, msgID uint64, text st
 					ps.updateRoute(peerAddr, fmt.Sprintf("bgp cache %d retain", msgID))
 
 				case "del":
-					if old, exists := ps.ribOut[peerAddr][routeKey]; exists {
+					familyRoutes := ps.ribOut[peerAddr][family]
+					if familyRoutes == nil {
+						continue
+					}
+					if old, exists := familyRoutes[prefix]; exists {
 						ps.updateRoute(peerAddr, fmt.Sprintf("bgp cache %d release", old.MsgID))
-						delete(ps.ribOut[peerAddr], routeKey)
+						delete(familyRoutes, prefix)
+					}
+					// Clean up empty maps
+					if len(familyRoutes) == 0 {
+						delete(ps.ribOut[peerAddr], family)
+					}
+					if len(ps.ribOut[peerAddr]) == 0 {
+						delete(ps.ribOut, peerAddr)
 					}
 				}
 			}
@@ -244,8 +257,8 @@ func (ps *PersistServer) replayForPeer(peerAddr string, gen uint64) {
 		return
 	}
 
-	routes := ps.ribOut[peerAddr]
-	if len(routes) == 0 {
+	peerFamilies := ps.ribOut[peerAddr]
+	if len(peerFamilies) == 0 {
 		// No routes to replay — still send EOR.
 		families := ps.peerFamilies(peerAddr)
 		ps.mu.RUnlock()
@@ -253,13 +266,15 @@ func (ps *PersistServer) replayForPeer(peerAddr string, gen uint64) {
 		return
 	}
 
-	// Collect routes to replay.
+	// Collect routes to replay — flatten all families.
 	type replayEntry struct {
 		msgID uint64
 	}
-	entries := make([]replayEntry, 0, len(routes))
-	for _, route := range routes {
-		entries = append(entries, replayEntry{msgID: route.MsgID})
+	var entries []replayEntry
+	for _, familyRoutes := range peerFamilies {
+		for _, route := range familyRoutes {
+			entries = append(entries, replayEntry{msgID: route.MsgID})
+		}
 	}
 	families := ps.peerFamilies(peerAddr)
 	ps.mu.RUnlock()

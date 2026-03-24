@@ -114,8 +114,9 @@ type RIBManager struct {
 	// Uses pool storage for memory efficiency (attributes deduplicated)
 	ribInPool map[string]*storage.PeerRIB // peerAddr -> PeerRIB
 
-	// ribOut stores routes sent TO peers (Adj-RIB-Out)
-	ribOut map[string]map[string]*Route // peerAddr -> routeKey -> route
+	// ribOut stores routes sent TO peers (Adj-RIB-Out), keyed per-family.
+	// Enables per-family operations (route refresh, LLGR readvertisement).
+	ribOut map[string]map[string]map[string]*Route // peerAddr -> family -> prefixKey -> route
 
 	// peerUp tracks which peers are currently up
 	peerUp map[string]bool
@@ -182,8 +183,11 @@ func (r *RIBManager) updateMetrics() {
 
 	currentOut := make(map[string]bool, len(r.ribOut))
 	totalOut := 0
-	for peer, routes := range r.ribOut {
-		count := len(routes)
+	for peer, peerFamilies := range r.ribOut {
+		count := 0
+		for _, familyRoutes := range peerFamilies {
+			count += len(familyRoutes)
+		}
 		m.routesOutVec.With(peer).Set(float64(count))
 		currentOut[peer] = true
 		totalOut += count
@@ -224,7 +228,7 @@ func RunRIBPlugin(conn net.Conn) int {
 	r := &RIBManager{
 		plugin:        p,
 		ribInPool:     make(map[string]*storage.PeerRIB),
-		ribOut:        make(map[string]map[string]*Route),
+		ribOut:        make(map[string]map[string]map[string]*Route),
 		peerUp:        make(map[string]bool),
 		peerMeta:      make(map[string]*PeerMeta),
 		retainedPeers: make(map[string]bool),
@@ -352,7 +356,7 @@ func (r *RIBManager) handleSent(event *Event) {
 
 	// Initialize peer's ribOut if needed
 	if r.ribOut[peerAddr] == nil {
-		r.ribOut[peerAddr] = make(map[string]*Route)
+		r.ribOut[peerAddr] = make(map[string]map[string]*Route)
 	}
 
 	// Process family operations
@@ -361,6 +365,10 @@ func (r *RIBManager) handleSent(event *Event) {
 		for _, op := range ops {
 			switch op.Action {
 			case "add":
+				// Initialize family map if needed
+				if r.ribOut[peerAddr][family] == nil {
+					r.ribOut[peerAddr][family] = make(map[string]*Route)
+				}
 				// Store routes with their next-hop
 				for _, nlriVal := range op.NLRIs {
 					prefix, pathID := parseNLRIValue(nlriVal)
@@ -369,8 +377,8 @@ func (r *RIBManager) handleSent(event *Event) {
 							"peer", peerAddr, "family", family, "got", fmt.Sprintf("%T", nlriVal))
 						continue
 					}
-					key := routeKey(family, prefix, pathID)
-					r.ribOut[peerAddr][key] = &Route{
+					key := outRouteKey(prefix, pathID)
+					r.ribOut[peerAddr][family][key] = &Route{
 						MsgID:               msgID,
 						Family:              family,
 						Prefix:              prefix,
@@ -386,14 +394,26 @@ func (r *RIBManager) handleSent(event *Event) {
 					}
 				}
 			case "del":
-				// Remove routes
+				// Remove routes from the family map
+				familyRoutes := r.ribOut[peerAddr][family]
+				if familyRoutes == nil {
+					continue
+				}
 				for _, nlriVal := range op.NLRIs {
 					prefix, pathID := parseNLRIValue(nlriVal)
 					if prefix == "" {
 						continue
 					}
-					key := routeKey(family, prefix, pathID)
-					delete(r.ribOut[peerAddr], key)
+					key := outRouteKey(prefix, pathID)
+					delete(familyRoutes, key)
+				}
+				// Clean up empty family map
+				if len(familyRoutes) == 0 {
+					delete(r.ribOut[peerAddr], family)
+				}
+				// Clean up empty peer map
+				if len(r.ribOut[peerAddr]) == 0 {
+					delete(r.ribOut, peerAddr)
 				}
 			}
 		}
@@ -523,13 +543,12 @@ func (r *RIBManager) handleRefresh(event *Event) {
 		return
 	}
 
-	// Copy routes for the requested family while holding lock
+	// Direct family lookup -- no linear scan of all routes
 	var routesToSend []*Route
-	if routes := r.ribOut[peerAddr]; routes != nil {
-		for _, rt := range routes {
-			if rt.Family == family {
-				routesToSend = append(routesToSend, rt)
-			}
+	if familyRoutes := r.ribOut[peerAddr][family]; familyRoutes != nil {
+		routesToSend = make([]*Route, 0, len(familyRoutes))
+		for _, rt := range familyRoutes {
+			routesToSend = append(routesToSend, rt)
 		}
 	}
 	r.mu.RUnlock()
@@ -561,11 +580,12 @@ func (r *RIBManager) handleState(event *Event) {
 		// Peer came up - clear retain flag (fresh session replaces stale state).
 		delete(r.retainedPeers, peerAddr)
 
-		// Copy routes for replay while holding lock
-		routes := r.ribOut[peerAddr]
-		routesToReplay = make([]*Route, 0, len(routes))
-		for _, rt := range routes {
-			routesToReplay = append(routesToReplay, rt)
+		// Copy routes for replay while holding lock — flatten all families
+		peerFamilies := r.ribOut[peerAddr]
+		for _, familyRoutes := range peerFamilies {
+			for _, rt := range familyRoutes {
+				routesToReplay = append(routesToReplay, rt)
+			}
 		}
 	} else if !isUp && wasUp {
 		// Peer went down - clear Adj-RIB-In unless retained for GR.

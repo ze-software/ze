@@ -1,6 +1,6 @@
-# Test: rib clear out resends Adj-RIB-Out routes
-# VALIDATES: rib clear out dispatches through engine to bgp-rib plugin
-# PREVENTS: rib clear-out proxy handler broken or not reaching plugin
+# Test: rib clear out with family filter resends only that family
+# VALIDATES: AC-5 — rib clear out * ipv4/unicast resends only ipv4/unicast
+# PREVENTS: Per-family filter ignored, all families resent
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -9,8 +9,8 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for rib clear out
-tmpfs=rib-clear-out-test.run:mode=755:terminator=EOF_RUN
+# Python test plugin: exercises dispatch-command for rib clear out with family
+tmpfs=rib-clear-out-family-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import sys
 import time
@@ -33,11 +33,19 @@ def main():
     time.sleep(1.0)
 
     try:
-        result = dispatch(api, 'rib clear out *')
+        # Test per-family clear out
+        result = dispatch(api, 'rib clear out * ipv4/unicast')
         if result.get('status') != 'done':
-            print(f'FAIL: rib clear-out status={result.get("status")} data={result.get("data")}', file=sys.stderr)
+            print(f'FAIL: status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)
-        print('OK: rib clear out * dispatched', file=sys.stderr)
+        print('OK: rib clear out * ipv4/unicast dispatched', file=sys.stderr)
+
+        # Test no-arg error
+        result = dispatch(api, 'rib clear out')
+        if result.get('status') != 'error':
+            print(f'FAIL: expected error for no-arg, got status={result.get("status")}', file=sys.stderr)
+            sys.exit(1)
+        print('OK: rib clear out without selector returns error', file=sys.stderr)
     finally:
         dispatch(api, 'daemon shutdown')
         api.wait_for_shutdown()
@@ -49,8 +57,8 @@ EOF_RUN
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	external rib-clear-out-test {
-		run ./rib-clear-out-test.run
+	external rib-clear-out-family-test {
+		run ./rib-clear-out-family-test.run
 		encoder json
 	}
 	external rib {
@@ -85,7 +93,7 @@ bgp {
 		capability {
 			graceful-restart disable
 		}
-		process rib-clear-out-test {
+		process rib-clear-out-family-test {
 		}
 		process rib {
 			receive [ state ]

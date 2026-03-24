@@ -11,7 +11,7 @@ func newTestPersistServer(t *testing.T) *PersistServer {
 	t.Helper()
 	return &PersistServer{
 		peers:  make(map[string]*PersistPeer),
-		ribOut: make(map[string]map[string]*StoredRoute),
+		ribOut: make(map[string]map[string]map[string]*StoredRoute),
 	}
 }
 
@@ -35,15 +35,15 @@ func TestPersist_SentUpdate_StoresRoute(t *testing.T) {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 
-	peerRoutes := ps.ribOut["10.0.0.1"]
-	if peerRoutes == nil {
-		t.Fatal("expected ribOut entry for 10.0.0.1")
+	familyRoutes := ps.ribOut["10.0.0.1"]["ipv4/unicast"]
+	if familyRoutes == nil {
+		t.Fatal("expected ribOut entry for 10.0.0.1 ipv4/unicast")
 		return
 	}
 
-	route, exists := peerRoutes["ipv4/unicast|prefix 192.168.1.0/24"]
+	route, exists := familyRoutes["prefix 192.168.1.0/24"]
 	if !exists {
-		t.Fatalf("expected route in ribOut, got keys: %v", routeKeys(peerRoutes))
+		t.Fatalf("expected route in ribOut, got keys: %v", mapKeys(familyRoutes))
 	}
 	if route.MsgID != 42 {
 		t.Errorf("MsgID = %d, want 42", route.MsgID)
@@ -91,9 +91,10 @@ func TestPersist_SentWithdrawal_RemovesRoute(t *testing.T) {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 
-	peerRoutes := ps.ribOut["10.0.0.1"]
-	if len(peerRoutes) > 0 {
-		t.Errorf("expected empty ribOut after withdrawal, got %v", routeKeys(peerRoutes))
+	// After withdrawal of last route, peer map should be cleaned up
+	peerFamilies := ps.ribOut["10.0.0.1"]
+	if len(peerFamilies) > 0 {
+		t.Errorf("expected empty ribOut after withdrawal, got families: %v", familyKeys(peerFamilies))
 	}
 
 	// Verify release was called for the old route.
@@ -128,8 +129,8 @@ func TestPersist_PeerDown_KeepsRibOut(t *testing.T) {
 	ps.mu.RLock()
 	defer ps.mu.RUnlock()
 
-	peerRoutes := ps.ribOut["10.0.0.1"]
-	if len(peerRoutes) == 0 {
+	peerFamilies := ps.ribOut["10.0.0.1"]
+	if len(peerFamilies) == 0 {
 		t.Error("ribOut should be preserved on peer down")
 	}
 }
@@ -151,9 +152,11 @@ func TestPersist_PeerUp_ReplaysRoutes(t *testing.T) {
 
 	// Pre-populate ribOut (simulating routes sent before peer went down).
 	ps.mu.Lock()
-	ps.ribOut["10.0.0.1"] = map[string]*StoredRoute{
-		"ipv4/unicast|prefix 192.168.1.0/24": {MsgID: 42, Family: "ipv4/unicast", Prefix: "prefix 192.168.1.0/24"},
-		"ipv4/unicast|prefix 192.168.2.0/24": {MsgID: 43, Family: "ipv4/unicast", Prefix: "prefix 192.168.2.0/24"},
+	ps.ribOut["10.0.0.1"] = map[string]map[string]*StoredRoute{
+		"ipv4/unicast": {
+			"prefix 192.168.1.0/24": {MsgID: 42, Family: "ipv4/unicast", Prefix: "prefix 192.168.1.0/24"},
+			"prefix 192.168.2.0/24": {MsgID: 43, Family: "ipv4/unicast", Prefix: "prefix 192.168.2.0/24"},
+		},
 	}
 	ps.mu.Unlock()
 
@@ -203,8 +206,10 @@ func TestPersist_PeerUp_SendsEOR(t *testing.T) {
 		Up:       true,
 		Families: map[string]bool{"ipv4/unicast": true, "ipv6/unicast": true},
 	}
-	ps.ribOut["10.0.0.1"] = map[string]*StoredRoute{
-		"ipv4/unicast|prefix 192.168.1.0/24": {MsgID: 42, Family: "ipv4/unicast", Prefix: "prefix 192.168.1.0/24"},
+	ps.ribOut["10.0.0.1"] = map[string]map[string]*StoredRoute{
+		"ipv4/unicast": {
+			"prefix 192.168.1.0/24": {MsgID: 42, Family: "ipv4/unicast", Prefix: "prefix 192.168.1.0/24"},
+		},
 	}
 	ps.mu.Unlock()
 
@@ -325,7 +330,7 @@ func TestPersist_RouteReplacement_ReleasesOld(t *testing.T) {
 	ps.dispatchText("peer 10.0.0.1 remote as 65001 sent update 43 origin igp next-hop 10.0.0.2 nlri ipv4/unicast add prefix 192.168.1.0/24")
 
 	ps.mu.RLock()
-	route := ps.ribOut["10.0.0.1"]["ipv4/unicast|prefix 192.168.1.0/24"]
+	route := ps.ribOut["10.0.0.1"]["ipv4/unicast"]["prefix 192.168.1.0/24"]
 	ps.mu.RUnlock()
 
 	if route == nil {
@@ -374,8 +379,10 @@ func TestPersist_NoFamilies_NoEOR(t *testing.T) {
 
 	// Pre-populate ribOut but no OPEN received (no families).
 	ps.mu.Lock()
-	ps.ribOut["10.0.0.1"] = map[string]*StoredRoute{
-		"ipv4/unicast|prefix 192.168.1.0/24": {MsgID: 42, Family: "ipv4/unicast", Prefix: "prefix 192.168.1.0/24"},
+	ps.ribOut["10.0.0.1"] = map[string]map[string]*StoredRoute{
+		"ipv4/unicast": {
+			"prefix 192.168.1.0/24": {MsgID: 42, Family: "ipv4/unicast", Prefix: "prefix 192.168.1.0/24"},
+		},
 	}
 	ps.mu.Unlock()
 
@@ -392,8 +399,44 @@ func TestPersist_NoFamilies_NoEOR(t *testing.T) {
 	}
 }
 
-// routeKeys returns the keys of a route map for error messages.
-func routeKeys(m map[string]*StoredRoute) []string {
+// TestPersistSentPerFamily verifies persist stores routes per-family.
+//
+// VALIDATES: AC-9 — persist follows matching per-family restructuring.
+// PREVENTS: Persist plugin not matching RIB plugin's per-family structure.
+func TestPersistSentPerFamily(t *testing.T) {
+	ps := newTestPersistServer(t)
+	ps.updateRouteHook = func(peer, cmd string) {} // no-op
+
+	// Add routes in two families
+	ps.dispatchText("peer 10.0.0.1 remote as 65001 sent update 42 origin igp next-hop 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24")
+	ps.dispatchText("peer 10.0.0.1 remote as 65001 sent update 43 origin igp next-hop ::1 nlri ipv6/unicast add prefix 2001:db8::/32")
+
+	ps.mu.RLock()
+	defer ps.mu.RUnlock()
+
+	peerFamilies := ps.ribOut["10.0.0.1"]
+	if len(peerFamilies) != 2 {
+		t.Fatalf("expected 2 families, got %d", len(peerFamilies))
+	}
+	if len(peerFamilies["ipv4/unicast"]) != 1 {
+		t.Errorf("expected 1 ipv4 route, got %d", len(peerFamilies["ipv4/unicast"]))
+	}
+	if len(peerFamilies["ipv6/unicast"]) != 1 {
+		t.Errorf("expected 1 ipv6 route, got %d", len(peerFamilies["ipv6/unicast"]))
+	}
+}
+
+// mapKeys returns string keys for error messages.
+func mapKeys(m map[string]*StoredRoute) []string {
+	result := make([]string, 0, len(m))
+	for k := range m {
+		result = append(result, k)
+	}
+	return result
+}
+
+// familyKeys returns family keys for error messages.
+func familyKeys(m map[string]map[string]*StoredRoute) []string {
 	result := make([]string, 0, len(m))
 	for k := range m {
 		result = append(result, k)

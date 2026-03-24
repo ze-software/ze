@@ -315,8 +315,8 @@ rib routes [scope] [filters...] [terminal]  # Unified route display with pipelin
     terminals: count, json
 rib best [filters...] [terminal]            # Best-path per prefix (RFC 4271 §9.1.2)
 rib status                                  # RIB status (peer/route counts)
-rib clear in                                # Clear Adj-RIB-In
-rib clear out                               # Resend Adj-RIB-Out
+rib clear in <selector>                      # Clear Adj-RIB-In (* for all peers)
+rib clear out <selector> [family]           # Resend Adj-RIB-Out (* for all, optional family)
 ```
 <!-- source: internal/component/bgp/plugins/rib/schema/ze-rib-api.yang -- RIB RPCs -->
 
