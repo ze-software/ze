@@ -17,6 +17,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/irr"
 )
 
 const defaultTimeout = 10 * time.Second
@@ -109,13 +111,24 @@ func (c *PeeringDB) LookupASSet(ctx context.Context, asn uint32) ([]string, erro
 
 // parseASSetField splits PeeringDB's irr_as_set field into individual AS-SET names.
 // The field may contain multiple AS-SETs separated by spaces, commas, or newlines.
-// Source prefixes like "RIPE::" or "RADB::" are preserved (they indicate the IRR source).
+// Source prefixes like "RIPE::" or "RADB::" are preserved because they tell the
+// IRR client which database to query (e.g., whois.ripe.net for RIPE::AS-FOO).
+// Names containing control characters or invalid characters are filtered out to prevent
+// whois command injection when these names are later passed to IRR queries.
+// Validation uses irr.ValidateASSetName to keep the character set in one place.
 func parseASSetField(raw string) []string {
 	// PeeringDB uses spaces as the primary separator, but some entries use
 	// commas or newlines. Normalize to spaces, then split.
 	raw = strings.NewReplacer(",", " ", "\n", " ", "\r", " ").Replace(raw)
 
-	return strings.Fields(raw)
+	fields := strings.Fields(raw)
+	valid := make([]string, 0, len(fields))
+	for _, name := range fields {
+		if irr.ValidateASSetName(name) == nil {
+			valid = append(valid, name)
+		}
+	}
+	return valid
 }
 
 // fetchNetFields queries the PeeringDB net endpoint for the given ASN

@@ -13,15 +13,19 @@
 // filter configuration.
 //
 // No caching is provided; callers manage their own cache and staleness.
+//
+// Related: rir.go -- RIR delegation table (ASN-to-RIR lookup)
 package irr
 
 import (
 	"cmp"
 	"context"
 	"fmt"
+	"io"
 	"net"
 	"net/netip"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -65,13 +69,23 @@ func NewIRR(server string) *IRR {
 	}
 }
 
+// maxRecursionDepth limits AS-SET expansion to prevent resource exhaustion
+// from deeply nested or malicious AS-SET references. Real-world nesting
+// rarely exceeds 5 levels.
+const maxRecursionDepth = 32
+
 // ResolveASSet expands an AS-SET name into a set of origin ASNs.
 // Handles recursive AS-SET references (AS-SET containing other AS-SETs).
 // Uses the RPSL "!i" command for AS-SET member expansion.
+// Returns an error if the AS-SET name contains control characters.
 func (c *IRR) ResolveASSet(ctx context.Context, asSet string) ([]uint32, error) {
+	if err := validateASSetName(asSet); err != nil {
+		return nil, err
+	}
+
 	seen := make(map[string]bool)
 	result := make(map[uint32]bool)
-	if err := c.resolveASSetRecursive(ctx, asSet, seen, result); err != nil {
+	if err := c.resolveASSetRecursive(ctx, asSet, seen, result, 0); err != nil {
 		return nil, err
 	}
 
@@ -83,7 +97,11 @@ func (c *IRR) ResolveASSet(ctx context.Context, asSet string) ([]uint32, error) 
 	return asns, nil
 }
 
-func (c *IRR) resolveASSetRecursive(ctx context.Context, asSet string, seen map[string]bool, result map[uint32]bool) error {
+func (c *IRR) resolveASSetRecursive(ctx context.Context, asSet string, seen map[string]bool, result map[uint32]bool, depth int) error {
+	if depth >= maxRecursionDepth {
+		return fmt.Errorf("irr: AS-SET recursion depth exceeded (%d) at %s", maxRecursionDepth, asSet)
+	}
+
 	upper := strings.ToUpper(asSet)
 	if seen[upper] {
 		return nil // cycle detection
@@ -113,7 +131,10 @@ func (c *IRR) resolveASSetRecursive(ctx context.Context, asSet string, seen map[
 
 			// Nested AS-SET reference.
 			if strings.HasPrefix(strings.ToUpper(word), "AS-") || strings.Contains(word, ":") {
-				if err := c.resolveASSetRecursive(ctx, word, seen, result); err != nil {
+				if err := validateASSetName(word); err != nil {
+					continue // skip malformed nested references
+				}
+				if err := c.resolveASSetRecursive(ctx, word, seen, result, depth+1); err != nil {
 					return err
 				}
 				continue
@@ -127,7 +148,12 @@ func (c *IRR) resolveASSetRecursive(ctx context.Context, asSet string, seen map[
 // LookupPrefixes fetches the announced prefixes for an AS-SET from the IRR.
 // Uses the RPSL "!a4" and "!a6" commands for IPv4 and IPv6 prefix queries.
 // Prefixes are aggregated (collapsed) and sorted.
+// Returns an error if the AS-SET name contains control characters.
 func (c *IRR) LookupPrefixes(ctx context.Context, asSet string) (PrefixList, error) {
+	if err := validateASSetName(asSet); err != nil {
+		return PrefixList{}, err
+	}
+
 	ipv4, err := c.lookupFamilyPrefixes(ctx, asSet, 4)
 	if err != nil {
 		return PrefixList{}, err
@@ -144,6 +170,7 @@ func (c *IRR) LookupPrefixes(ctx context.Context, asSet string) (PrefixList, err
 	}, nil
 }
 
+// lookupFamilyPrefixes queries a single address family (4 or 6) for the given AS-SET.
 func (c *IRR) lookupFamilyPrefixes(ctx context.Context, asSet string, family int) ([]netip.Prefix, error) {
 	response, err := c.query(ctx, fmt.Sprintf("!a%d%s", family, asSet))
 	if err != nil {
@@ -157,8 +184,8 @@ func (c *IRR) lookupFamilyPrefixes(ctx context.Context, asSet string, family int
 			if word == "C" || word == "D" {
 				continue // end markers
 			}
-			// Skip the leading "A<count>" answer line.
-			if word != "" && word[0] == 'A' {
+			// Skip the leading "A<count>" answer marker.
+			if isAnswerMarker(word) {
 				continue
 			}
 
@@ -193,20 +220,42 @@ func (c *IRR) query(ctx context.Context, command string) (string, error) {
 		return "", fmt.Errorf("irr: send query: %w", err)
 	}
 
-	buf := make([]byte, maxResponse)
-	var total int
-	for {
-		n, readErr := conn.Read(buf[total:])
-		total += n
-		if readErr != nil {
-			break
-		}
-		if total >= maxResponse {
-			break
-		}
+	limited := io.LimitReader(conn, int64(maxResponse))
+	data, readErr := io.ReadAll(limited)
+	if readErr != nil {
+		return "", fmt.Errorf("irr: read response: %w", readErr)
 	}
 
-	return string(buf[:total]), nil
+	return string(data), nil
+}
+
+// validateASSetName rejects AS-SET names containing control characters that
+// could inject additional RPSL commands via the whois protocol (newlines, etc.).
+// Accepts: alphanumeric, hyphens, underscores, colons (for IRR source prefixes
+// like "RIPE::AS-FOO"), periods.
+func validateASSetName(name string) error {
+	if name == "" {
+		return fmt.Errorf("irr: empty AS-SET name")
+	}
+	for _, c := range name {
+		if c < 0x20 || c == 0x7f {
+			return fmt.Errorf("irr: AS-SET name %q contains control character", name)
+		}
+		// Allow: A-Z a-z 0-9 - _ : .
+		if (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') ||
+			c == '-' || c == '_' || c == ':' || c == '.' {
+			continue
+		}
+		return fmt.Errorf("irr: AS-SET name %q contains invalid character %q", name, string(c))
+	}
+	return nil
+}
+
+// ValidateASSetName is the exported form of validateASSetName for callers
+// that need to validate AS-SET names from external sources (e.g., PeeringDB)
+// before passing them to ResolveASSet or LookupPrefixes.
+func ValidateASSetName(name string) error {
+	return validateASSetName(name)
 }
 
 // isAnswerMarker reports whether s is an RPSL answer marker like "A3" or "A125".
@@ -241,20 +290,12 @@ func parseASN(s string) (uint32, bool) {
 		return 0, false
 	}
 
-	// Parse as uint32.
-	var asn uint32
-	for _, c := range num {
-		if c < '0' || c > '9' {
-			return 0, false
-		}
-		asn = asn*10 + uint32(c-'0')
-	}
-
-	if asn == 0 {
+	n, err := strconv.ParseUint(num, 10, 32)
+	if err != nil || n == 0 {
 		return 0, false
 	}
 
-	return asn, true
+	return uint32(n), true
 }
 
 // aggregateAndSort collapses overlapping prefixes and sorts the result.
@@ -283,18 +324,18 @@ func aggregateAndSort(prefixes []netip.Prefix) []netip.Prefix {
 	})
 
 	// Remove prefixes that are covered by a shorter (broader) prefix.
+	// Since the input is sorted by address then prefix length (shorter first),
+	// we only need to check the last accepted prefix: if it covers the current
+	// one, skip it. This makes the coverage check O(n) instead of O(n^2).
 	result := make([]netip.Prefix, 0, len(unique))
 	for _, p := range unique {
-		covered := false
-		for _, existing := range result {
-			if existing.Contains(p.Addr()) && existing.Bits() <= p.Bits() {
-				covered = true
-				break
+		if len(result) > 0 {
+			last := result[len(result)-1]
+			if last.Contains(p.Addr()) && last.Bits() <= p.Bits() {
+				continue // covered by the last accepted prefix
 			}
 		}
-		if !covered {
-			result = append(result, p)
-		}
+		result = append(result, p)
 	}
 
 	return result

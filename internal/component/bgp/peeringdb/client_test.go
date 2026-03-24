@@ -426,6 +426,10 @@ func TestParseASSetField(t *testing.T) {
 		{"RIPE::AS-FOO RADB::AS-BAR", []string{"RIPE::AS-FOO", "RADB::AS-BAR"}},
 		{"  AS-FOO  ", []string{"AS-FOO"}},
 		{"", nil},
+		// Security: names with invalid characters are filtered out.
+		{"AS-FOO AS-BAR;DROP", []string{"AS-FOO"}},
+		{"AS-OK\tAS-ALSO-OK", []string{"AS-OK", "AS-ALSO-OK"}}, // tab is a valid separator
+		{"AS-GOOD AS-B\x00D", []string{"AS-GOOD"}},             // null byte filtered
 	}
 
 	for _, tt := range tests {

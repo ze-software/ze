@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -238,11 +240,16 @@ func TestParseASN(t *testing.T) {
 		{"AS65001", 65001, true},
 		{"65001", 65001, true},
 		{"as65001", 65001, true},
-		{"AS0", 0, false},
-		{"", 0, false},
-		{"AS", 0, false},
-		{"ASFOO", 0, false},
-		{"AS-SET", 0, false},
+		{"AS4294967295", 4294967295, true}, // max uint32
+		{"AS1", 1, true},
+		{"AS0", 0, false},            // zero ASN invalid
+		{"", 0, false},               // empty string
+		{"AS", 0, false},             // prefix only
+		{"ASFOO", 0, false},          // non-numeric after AS
+		{"AS-SET", 0, false},         // AS-SET name, not ASN
+		{"AS4294967296", 0, false},   // overflow: max uint32 + 1
+		{"AS99999999999", 0, false},  // way too large
+		{"  AS65001  ", 65001, true}, // whitespace trimmed
 	}
 
 	for _, tt := range tests {
@@ -328,5 +335,135 @@ func TestNewIRRAutoPort(t *testing.T) {
 	c := NewIRR("rr.ntt.net")
 	if c.server != "rr.ntt.net:43" {
 		t.Errorf("server = %q, want %q", c.server, "rr.ntt.net:43")
+	}
+}
+
+// VALIDATES: isAnswerMarker correctly identifies RPSL answer codes.
+// PREVENTS: answer markers parsed as ASNs or prefixes.
+func TestIsAnswerMarker(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"A3", true},
+		{"A125", true},
+		{"A0", true},
+		{"A", false},       // too short
+		{"", false},        // empty
+		{"B3", false},      // wrong prefix
+		{"AS65001", false}, // AS prefix, not answer marker
+		{"A3X", false},     // non-digit after initial digits
+		{"ABC", false},     // all letters
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := isAnswerMarker(tt.input)
+			if got != tt.want {
+				t.Errorf("isAnswerMarker(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+// VALIDATES: validateASSetName rejects control characters (whois injection prevention).
+// PREVENTS: RPSL command injection via newlines in AS-SET names.
+func TestValidateASSetName(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{"valid simple", "AS-EXAMPLE", false},
+		{"valid with source", "RIPE::AS-EXAMPLE", false},
+		{"valid with dots", "AS-EXAMPLE.NET", false},
+		{"valid with underscore", "AS_EXAMPLE", false},
+		{"empty", "", true},
+		{"newline injection", "AS-TEST\n!dAS-VICTIM", true},
+		{"carriage return", "AS-TEST\r\n!d", true},
+		{"null byte", "AS-TEST\x00", true},
+		{"space", "AS TEST", true},
+		{"semicolon", "AS-TEST;DROP", true},
+		{"tab", "AS-TEST\t", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateASSetName(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateASSetName(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+// VALIDATES: ResolveASSet rejects names with control characters.
+// PREVENTS: whois command injection via user-supplied AS-SET names.
+func TestResolveASSetInjection(t *testing.T) {
+	addr, cleanup := fakeIRRServer(t, handleASSetQuery)
+	defer cleanup()
+
+	c := NewIRR(addr)
+	_, err := c.ResolveASSet(context.Background(), "AS-TEST\n!dVICTIM")
+	if err == nil {
+		t.Fatal("expected error for injected AS-SET name")
+	}
+}
+
+// VALIDATES: LookupPrefixes rejects names with control characters.
+// PREVENTS: whois command injection via prefix lookup.
+func TestLookupPrefixesInjection(t *testing.T) {
+	addr, cleanup := fakeIRRServer(t, handleASSetQuery)
+	defer cleanup()
+
+	c := NewIRR(addr)
+	_, err := c.LookupPrefixes(context.Background(), "AS-TEST\n!a4VICTIM")
+	if err == nil {
+		t.Fatal("expected error for injected AS-SET name")
+	}
+}
+
+// VALIDATES: ResolveASSet returns error when recursion depth exceeds limit.
+// PREVENTS: resource exhaustion from deeply nested AS-SET chains.
+func TestResolveASSetDepthLimit(t *testing.T) {
+	// Fake server returns a unique nested AS-SET for every query,
+	// creating an unbounded chain: AS-DEEP-0 -> AS-DEEP-1 -> AS-DEEP-2 -> ...
+	depthHandler := func(conn net.Conn) {
+		defer func() { _ = conn.Close() }()
+
+		buf := make([]byte, 4096)
+		n, readErr := conn.Read(buf)
+		if readErr != nil {
+			return
+		}
+		query := string(buf[:n])
+
+		// Extract the number from "!iAS-DEEP-N\n" and return "AS-DEEP-(N+1)".
+		query = strings.TrimPrefix(query, "!iAS-DEEP-")
+		query = strings.TrimSuffix(query, "\n")
+		num, parseErr := strconv.Atoi(query)
+		if parseErr != nil {
+			if _, err := fmt.Fprint(conn, "D\n"); err != nil {
+				return
+			}
+			return
+		}
+
+		next := fmt.Sprintf("AS-DEEP-%d", num+1)
+		if _, err := fmt.Fprintf(conn, "A1\n%s\nC\n", next); err != nil {
+			return
+		}
+	}
+
+	addr, cleanup := fakeIRRServer(t, depthHandler)
+	defer cleanup()
+
+	c := NewIRR(addr)
+	_, err := c.ResolveASSet(context.Background(), "AS-DEEP-0")
+	if err == nil {
+		t.Fatal("expected error for depth limit exceeded")
+	}
+	if !strings.Contains(err.Error(), "recursion depth exceeded") {
+		t.Errorf("error should mention recursion depth, got: %v", err)
 	}
 }
