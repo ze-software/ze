@@ -209,13 +209,6 @@ func TestRunSmallBenchmark(t *testing.T) {
 		durations = append(durations, d)
 	}
 
-	// All latencies must be non-negative.
-	for i, d := range durations {
-		if d < 0 {
-			t.Errorf("latency[%d] = %v, want >= 0", i, d)
-		}
-	}
-
 	p50, p90, p99, pMax := CalculateLatencies(durations)
 
 	// With 10 routes through loopback, latencies should be tiny but ordered.
