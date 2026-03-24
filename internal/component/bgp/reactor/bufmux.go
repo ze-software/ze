@@ -102,10 +102,12 @@ func newBufBlock(id uint16, bufSize, count int) *bufBlock {
 // BufMux is a block-backed buffer multiplexer that replaces sync.Pool.
 //
 // Three rules govern its behavior:
-//  1. Allocate from highest block with free buffers.
+//  1. Allocate from lowest block with free buffers (steady-state packs low,
+//     higher blocks drain and become collapse candidates).
 //  2. Grow a new block when Get() finds no free buffer.
-//  3. Every 100th Get(), collapse the highest block if fully returned
-//     and the block below has >=50% free.
+//  3. Collapse highest block (via tryCollapse) when fully returned and
+//     block below has >=50% free. Triggered externally by probedPool on a
+//     traffic-driven interval — no timer, no per-Return check.
 //
 // No permanent block. No speculative growth. No shrink-on-return.
 //
@@ -118,7 +120,6 @@ type BufMux struct {
 	blockSize int         // buffers per block
 	maxBlocks int         // 0 = unlimited
 	nextID    uint16      // next block ID to assign
-	getCount  atomic.Int64
 }
 
 // newBufMux creates a multiplexer for buffers of the given size.
@@ -139,24 +140,15 @@ func (m *BufMux) SetMaxBlocks(n int) {
 	m.mu.Unlock()
 }
 
-// Get returns a buffer handle from the highest block with free buffers.
+// Get returns a buffer handle from the lowest block with free buffers.
 // If no block has free buffers, a new block is grown (unless at maximum).
 // Returns zero-value BufHandle (Buf == nil) when pool is exhausted.
 //
 // Caller MUST call Return() when done with the buffer to avoid resource
 // exhaustion. Every Get() must be paired with exactly one Return().
-//
-// Every 100th call, runs a collapse check to reclaim fully-returned blocks.
 func (m *BufMux) Get() BufHandle {
-	n := m.getCount.Add(1)
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
-	// Every 100th Get: collapse check.
-	if n%100 == 0 {
-		m.collapseLocked()
-	}
-
 	return m.getLocked()
 }
 
@@ -241,7 +233,8 @@ func (m *BufMux) collapseLocked() {
 	}
 }
 
-// tryCollapse exposes collapseLocked for testing.
+// tryCollapse runs a collapse check on the block list. Called by probedPool
+// on a traffic-driven interval to reclaim fully-returned overflow blocks.
 func (m *BufMux) tryCollapse() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -266,7 +259,71 @@ func (m *BufMux) blockCount() int {
 	return len(m.blocks)
 }
 
-// resetGetCounter resets the Get() counter to zero (for testing).
-func (m *BufMux) resetGetCounter() {
-	m.getCount.Store(0)
+// probedPool wraps a BufMux and fires a probe callback on every Get().
+// The wrapper is a pure trigger — it holds no counter or interval. The
+// probe target (overflow pool) owns the counter and decides when to act.
+// This uses regular network I/O as an implicit clock instead of a timer.
+type probedPool struct {
+	mux   *BufMux
+	probe func() // called on every Get(); nil = no-op
+}
+
+// newProbedPool creates a buffer multiplexer wrapper. The probe callback
+// is not set — call SetProbe to wire monitoring.
+func newProbedPool(bufSize, blockSize int) *probedPool {
+	return &probedPool{
+		mux: newBufMux(bufSize, blockSize),
+	}
+}
+
+// Get returns a buffer handle from the underlying BufMux.
+// Fires the probe callback on every call — the probe target decides
+// whether to act (counter and interval are the target's responsibility).
+func (p *probedPool) Get() BufHandle {
+	if p.probe != nil {
+		p.probe()
+	}
+	return p.mux.Get()
+}
+
+// Return releases a buffer handle back to the underlying BufMux.
+func (p *probedPool) Return(h BufHandle) {
+	p.mux.Return(h)
+}
+
+// SetProbe sets the function fired on every Get(). The probe target owns
+// the counter and decides when to check. Must be called before concurrent use.
+func (p *probedPool) SetProbe(fn func()) {
+	p.probe = fn
+}
+
+// SetMaxBlocks limits the number of blocks in the underlying BufMux.
+// Must be called before concurrent use.
+func (p *probedPool) SetMaxBlocks(n int) {
+	p.mux.SetMaxBlocks(n)
+}
+
+// tryCollapse triggers a collapse check on the underlying BufMux.
+func (p *probedPool) tryCollapse() {
+	p.mux.tryCollapse()
+}
+
+// blockCount returns the number of active blocks (for testing).
+func (p *probedPool) blockCount() int {
+	return p.mux.blockCount()
+}
+
+// withCollapseProbe wires a traffic-driven collapse probe to a pool.
+// The counter lives in the closure — it belongs to the probe target
+// (overflow pool), not to the wrapper. When the overflow pool type is
+// built, the counter will move there.
+func withCollapseProbe(pp *probedPool, interval int) *probedPool {
+	var count atomic.Int64
+	every := int64(interval)
+	pp.SetProbe(func() {
+		if n := count.Add(1); n%every == 0 {
+			pp.tryCollapse()
+		}
+	})
+	return pp
 }

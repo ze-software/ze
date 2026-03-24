@@ -5,7 +5,7 @@ unbounded memory. This document records the design decisions for the overflow
 pool, buffer ownership, weighted access, and backpressure.
 
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdOverflowPool, fwdItem -->
-<!-- source: internal/component/bgp/reactor/session.go -- readBufPool4K, readBufPool64K, getReadBuffer -->
+<!-- source: internal/component/bgp/reactor/session.go -- bufMux4K, bufMux64K (probedPool), getReadBuffer -->
 
 ## Invariant
 
@@ -155,10 +155,11 @@ finds no free buffer in any existing block.
 No speculative growth. No 90% threshold. A block is allocated exactly
 when needed.
 
-### Shrink: Lazy Collapse on Get()
+### Shrink: Lazy Collapse via Traffic-Driven Probe
 
-Blocks are not freed on Return(). Instead, every 100th `Get()` call
-runs a collapse check on the highest block:
+Blocks are not freed on Return(). Instead, the `probedPool` wrapper
+fires a probe on every `Get()`. The probe target owns the counter and
+triggers a collapse check every N calls (default 100):
 
 | Condition | Action |
 |-----------|--------|
@@ -171,15 +172,15 @@ The collapse cascades: if blocks 2, 1, 0 are all fully returned, one
 check pass deletes them top-down until only the block with active
 allocations remains.
 
-**Why on Get(), not Return():** After a burst subsides, the overflow
-path stops receiving `Get()` calls -- traffic is normal. But the normal
-read path calls `Get()` on the same multiplexer for every BGP message
-received from the network. Every peer session reads from TCP into a
-buffer obtained from the mux. This constant activity drives the collapse
-check: every 100th network message read triggers a check on whether
-overflow blocks can be freed. No timer needed -- network traffic is
-the heartbeat. One atomic counter increment per `Get()`, one collapse
-check per 100 -- negligible cost.
+**Why traffic-driven, not Return()-driven or timer-driven:** After a
+burst subsides, the overflow path stops receiving `Get()` calls --
+traffic is normal. But the normal read path calls `Get()` on the same
+multiplexer for every BGP message received from the network. The
+`probedPool` wrapper fires a probe callback on every `Get()`. The probe
+target (overflow pool) owns the counter and decides when to act --
+currently every 100th tick triggers a collapse check. No timer needed
+-- network traffic is the heartbeat. The wrapper is a pure trigger; the
+counter and interval belong to the target, not the wrapper.
 
 **No permanent block.** If all traffic stops and every buffer returns,
 all blocks are deleted. The next `Get()` allocates a fresh block. The
@@ -311,27 +312,10 @@ read means TCP backpressure on the source.
 
 ## Pool Multiplexer
 
-<!-- source: internal/component/bgp/reactor/session.go -- readBufPool4K, readBufPool64K, buildBufPool -->
+<!-- source: internal/component/bgp/reactor/bufmux.go -- BufMux, probedPool, withCollapseProbe -->
+<!-- source: internal/component/bgp/reactor/session.go -- bufMux4K, bufMux64K -->
 
-### Current: sync.Pool (to be replaced)
-
-Three `sync.Pool` instances with per-buffer `make()` in `New`:
-
-| Pool | Buffer size | Purpose |
-|------|------------|---------|
-| `readBufPool4K` | 4096 | TCP reads (pre-Extended Message) |
-| `readBufPool64K` | 65535 | TCP reads (post-Extended Message) |
-| `buildBufPool` | 4096 | Building UPDATE attributes (outbound) |
-
-`buildBufPool` is the same size as `readBufPool4K` -- these merge into
-one 4K instance. Three pools become two (4K and 64K).
-
-`sync.Pool` cannot route returns to the correct block. It is an unordered
-free list -- `Get()` returns an arbitrary item, and there is no way to
-preferentially drain a specific block. The GC can also evict entries
-between cycles, which prevents deterministic block freeing.
-
-### New: Pool Multiplexer with Block-Backed Slices
+### Pool Multiplexer with Block-Backed Slices
 
 The pool hands out a handle, not a raw `[]byte`. The handle carries the
 block ID so returns are always routed to the correct block.
@@ -347,7 +331,7 @@ block ID so returns are always routed to the correct block.
 
 | Operation | What happens |
 |-----------|-------------|
-| `Get()` | Allocate from lowest block with free buffers. If none free, grow. Every 100th call, run collapse check first. |
+| `Get()` | Allocate from lowest block with free buffers. If none free, grow. Collapse triggered externally by `probedPool` probe. |
 | `Return(handle)` | Route to `blocks[handle.ID]` free list. Increment block's free count. O(1). |
 | `grow()` | Allocate new block (one backing array), assign next sequential ID, register with multiplexer. |
 | `tryCollapse()` | If highest block fully returned AND block below has >=50% free: delete highest, repeat. |
@@ -356,8 +340,9 @@ block ID so returns are always routed to the correct block.
 block with free buffers. This consolidates steady-state traffic in
 low blocks, letting higher blocks drain and become collapse candidates.
 
-**Lazy collapse:** Every 100th `Get()` call checks whether the highest
-block can be deleted. The check cascades downward, collapsing multiple
+**Lazy collapse:** The `probedPool` wrapper fires a probe on every
+`Get()`. The probe target's counter triggers `tryCollapse()` every N
+calls (default 100). The check cascades downward, collapsing multiple
 fully-returned blocks in one pass. This replaces timers and
 shrink-on-return logic. The 50% free threshold on the block below
 prevents oscillation (collapsing when the survivor is nearly full
@@ -384,8 +369,7 @@ fast O(1) operations.
 | 4K multiplexer | 4096 | Reads (pre-Extended Message), UPDATE building |
 | 64K multiplexer | 65535 | Reads (post-Extended Message) |
 
-`buildBufPool` is eliminated -- reads and builds draw from the same
-4K multiplexer.
+Build and read paths share the same 4K multiplexer (`bufMux4K`).
 
 The overflow pool is not a separate pool. During congestion, the source
 peer draws from the same 4K or 64K multiplexer -- the buffer just stays

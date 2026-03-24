@@ -42,15 +42,19 @@ var sessionLogger = slogutil.LazyLogger("bgp.reactor.session")
 // Each block is one contiguous allocation. Sized for typical concurrent peer counts.
 const bufMuxBlockSize = 128
 
+// bufMuxProbeInterval is the number of Get() calls between collapse checks
+// and overflow probe callbacks. Normal network traffic drives the interval.
+const bufMuxProbeInterval = 100
+
 // bufMux4K is the block-backed multiplexer for 4K buffers.
 // Serves both read (pre-Extended Message) and build (UPDATE attributes) paths.
-// Replaces readBufPool4K and buildBufPool (both were 4K sync.Pool).
-var bufMux4K = newBufMux(message.MaxMsgLen, bufMuxBlockSize) // 4096
+// Collapse probe wired via withCollapseProbe; overflow probe added by reactor.
+var bufMux4K = withCollapseProbe(newProbedPool(message.MaxMsgLen, bufMuxBlockSize), bufMuxProbeInterval)
 
 // bufMux64K is the block-backed multiplexer for 64K buffers.
 // Serves read path after Extended Message capability is negotiated (RFC 8654).
-// Replaces readBufPool64K (65K sync.Pool).
-var bufMux64K = newBufMux(message.ExtMsgLen, bufMuxBlockSize) // 65535
+// Collapse probe wired via withCollapseProbe; overflow probe added by reactor.
+var bufMux64K = withCollapseProbe(newProbedPool(message.ExtMsgLen, bufMuxBlockSize), bufMuxProbeInterval)
 
 // getBuildBuf returns a reusable 4K buffer handle from the 4K multiplexer.
 // Caller MUST call putBuildBuf when done.

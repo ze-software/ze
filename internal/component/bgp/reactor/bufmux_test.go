@@ -264,51 +264,79 @@ func TestBufMux_CollapseCascade(t *testing.T) {
 	}
 }
 
-func TestBufMux_CollapseEvery100(t *testing.T) {
-	// tryCollapse is triggered every 100th Get().
-	mux := newBufMux(64, 4)
-	// Create 2 blocks.
+func TestProbedPool_CollapseEveryInterval(t *testing.T) {
+	// VALIDATES: AC-27 — collapse piggybacked on normal Get() traffic.
+	// PREVENTS: Needing a dedicated timer to reclaim overflow blocks.
+	const interval = 10
+	pp := withCollapseProbe(newProbedPool(64, 4), interval)
+
+	// Create 2 blocks: fill block 0 (4 buffers), grow block 1 (2 buffers).
+	// Counter (in probe closure) after setup: 6.
 	b0 := make([]BufHandle, 4)
 	for i := range b0 {
-		b0[i] = mux.Get()
+		b0[i] = pp.Get()
 	}
 	b1 := make([]BufHandle, 2)
 	for i := range b1 {
-		b1[i] = mux.Get()
+		b1[i] = pp.Get()
 	}
 
-	// Return all of block 1 + most of block 0.
+	// Return all of block 1 + 3 of 4 from block 0.
+	// Block 1 fully returned, block 0 has 75% free. Collapse-ready.
 	for _, h := range b1 {
-		mux.Return(h)
+		pp.Return(h)
 	}
 	for i := range 3 {
-		mux.Return(b0[i])
-	}
-	// Block 1 fully returned, block 0 has 75% free. Collapse should trigger.
-
-	if mux.blockCount() != 2 {
-		t.Fatalf("before 100th Get: blockCount=%d, want 2", mux.blockCount())
+		pp.Return(b0[i])
 	}
 
-	// Do 99 Gets (returns immediately) — no collapse yet.
-	// Reset counter first to control timing.
-	mux.resetGetCounter()
-	for range 99 {
-		h := mux.Get()
-		mux.Return(h)
-	}
-	if mux.blockCount() != 2 {
-		t.Fatalf("after 99 Gets: blockCount=%d, want 2", mux.blockCount())
+	if pp.blockCount() != 2 {
+		t.Fatalf("setup: blockCount=%d, want 2", pp.blockCount())
 	}
 
-	// 100th Get should trigger collapse.
-	h := mux.Get()
-	if mux.blockCount() != 1 {
-		t.Fatalf("after 100th Get: blockCount=%d, want 1", mux.blockCount())
+	// 3 more Gets (counter 7-9): no collapse yet.
+	for range 3 {
+		h := pp.Get()
+		pp.Return(h)
+	}
+	if pp.blockCount() != 2 {
+		t.Fatalf("before interval: blockCount=%d, want 2", pp.blockCount())
 	}
 
-	mux.Return(h)
-	mux.Return(b0[3])
+	// 10th Get triggers collapse via probe's counter.
+	h := pp.Get()
+	if pp.blockCount() != 1 {
+		t.Fatalf("after interval: blockCount=%d, want 1", pp.blockCount())
+	}
+
+	pp.Return(h)
+	pp.Return(b0[3])
+}
+
+func TestProbedPool_ProbeFiresEveryGet(t *testing.T) {
+	// VALIDATES: AC-27 — probe fires on every Get, target owns the counter.
+	// PREVENTS: Counter living in the wrapper instead of the target.
+	pp := newProbedPool(64, 4)
+
+	var probeCount int
+	pp.SetProbe(func() { probeCount++ })
+
+	// Probe fires on every Get.
+	for range 5 {
+		h := pp.Get()
+		pp.Return(h)
+	}
+	if probeCount != 5 {
+		t.Fatalf("probe count after 5 Gets: %d, want 5", probeCount)
+	}
+
+	// No probe when nil.
+	pp.SetProbe(nil)
+	h := pp.Get()
+	pp.Return(h)
+	if probeCount != 5 {
+		t.Fatalf("probe count after nil probe: %d, want 5", probeCount)
+	}
 }
 
 func TestBufMux_ZeroHandleSentinel(t *testing.T) {
