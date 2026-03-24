@@ -94,7 +94,8 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			LocalAS:            s.LocalAS,
 			PeerAS:             s.PeerAS,
 			RouterID:           s.RouterID,
-			HoldTime:           s.HoldTime,
+			ReceiveHoldTime:    s.ReceiveHoldTime,
+			SendHoldTime:       s.SendHoldTime,
 			ConnectRetry:       s.ConnectRetry,
 			Connection:         s.Connection.String(),
 			State:              p.State().String(),
@@ -482,11 +483,24 @@ func parsePeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 		settings.Name = peerName
 
 		// Parse optional fields.
-		if v, ok := fields["hold-time"].(string); ok {
+		if v, ok := fields["receive-hold-time"].(string); ok {
 			var ht uint32
 			parseUint32FromString(v, &ht)
-			if ht > 0 {
-				settings.HoldTime = time.Duration(ht) * time.Second
+			// RFC 4271 Section 4.2: Hold Time MUST be either zero or at least three seconds.
+			if ht >= 1 && ht <= 2 {
+				reactorLogger().Warn("invalid receive-hold-time in peer config, ignoring", "peer", peerName, "value", ht)
+			} else if ht > 0 {
+				settings.ReceiveHoldTime = time.Duration(ht) * time.Second
+			}
+		}
+		if v, ok := fields["send-hold-time"].(string); ok {
+			var sht uint32
+			parseUint32FromString(v, &sht)
+			// RFC 9687: Send Hold Timer must be 0 (auto) or >= 480 seconds.
+			if sht != 0 && sht < 480 {
+				reactorLogger().Warn("invalid send-hold-time in peer config, ignoring", "peer", peerName, "value", sht)
+			} else {
+				settings.SendHoldTime = time.Duration(sht) * time.Second
 			}
 		}
 		if v, ok := fields["connect-retry"].(string); ok {
@@ -559,7 +573,8 @@ func peerSettingsEqual(a, b *PeerSettings) bool {
 	}
 
 	// Compare behavior fields.
-	if a.HoldTime != b.HoldTime ||
+	if a.ReceiveHoldTime != b.ReceiveHoldTime ||
+		a.SendHoldTime != b.SendHoldTime ||
 		a.ConnectRetry != b.ConnectRetry ||
 		a.GroupUpdates != b.GroupUpdates ||
 		a.IgnoreFamilyMismatch != b.IgnoreFamilyMismatch ||

@@ -327,10 +327,16 @@ func semanticValidation(bgpTree map[string]any) []validationWarning {
 			})
 		}
 		if timerMap, ok := peer["timer"].(map[string]any); ok {
-			holdTime := treeUint32(timerMap["hold-time"])
+			holdTime := treeUint32(timerMap["receive-hold-time"])
 			if holdTime > 0 && holdTime < 3 {
 				warnings = append(warnings, validationWarning{
-					Message: fmt.Sprintf("peer %s: hold-time %d too low (minimum 3)", name, holdTime),
+					Message: fmt.Sprintf("peer %s: receive-hold-time %d too low (minimum 3)", name, holdTime),
+				})
+			}
+			sendHoldTime := treeUint32(timerMap["send-hold-time"])
+			if sendHoldTime > 0 && sendHoldTime < 480 {
+				warnings = append(warnings, validationWarning{
+					Message: fmt.Sprintf("peer %s: send-hold-time %d too low (RFC 9687 minimum 480)", name, sendHoldTime),
 				})
 			}
 		}

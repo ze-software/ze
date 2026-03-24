@@ -138,7 +138,7 @@ func writeFullPeerBlock(b *strings.Builder, params ConfigParams, p PeerProfile) 
 	fmt.Fprintf(b, "            as %d;\n", params.LocalAS)
 	fmt.Fprintf(b, "            ip %s;\n", params.LocalAddr)
 	fmt.Fprintf(b, "        }\n")
-	fmt.Fprintf(b, "        timer { hold-time %d; }\n", p.HoldTime)
+	fmt.Fprintf(b, "        timer { receive-hold-time %d; }\n", p.HoldTime)
 
 	// Per-peer port: Ze listens on a unique port for each peer.
 	if p.ZePort > 0 {

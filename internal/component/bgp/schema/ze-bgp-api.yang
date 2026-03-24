@@ -167,7 +167,8 @@ module ze-bgp-api {
             leaf local-as { type zt:asn; description "Local ASN override"; }
             leaf local-address { type zt:ip-address; description "Local bind address"; }
             leaf router-id { type zt:ipv4-address; description "Router ID override"; }
-            leaf hold-time { type uint16; description "Hold time"; }
+            leaf receive-hold-time { type uint16; description "Receive hold time (RFC 4271)"; }
+            leaf send-hold-time { type uint16; description "Send hold time (RFC 9687, 0=auto)"; }
             leaf connect-retry { type uint16; description "Connect retry interval"; }
             leaf connection { type string; description "Connection mode: both, passive, active"; }
         }

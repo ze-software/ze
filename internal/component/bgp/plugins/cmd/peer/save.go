@@ -14,10 +14,10 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
-// defaultHoldTime is the default hold time per RFC 4271 Section 10 (90 seconds).
-// Matches reactor/peersettings.go DefaultHoldTime. Duplicated here to avoid
+// defaultReceiveHoldTime is the default receive hold time per RFC 4271 Section 10 (90 seconds).
+// Matches reactor/peersettings.go DefaultReceiveHoldTime. Duplicated here to avoid
 // importing the reactor package from a command handler.
-const defaultHoldTime = 90 * time.Second
+const defaultReceiveHoldTime = 90 * time.Second
 
 // defaultConnectRetry is the default connect retry interval (5 seconds).
 // Matches reactor/peersettings.go DefaultConnectRetry.
@@ -112,11 +112,16 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 				return saveFieldError(p.Address, "router-id", err)
 			}
 		}
-		// Timer container: hold-time and connect-retry (only if non-default).
+		// Timer container: receive-hold-time, send-hold-time, and connect-retry (only if non-default).
 		timerPath := append(slices.Clone(peerPath), "timer")
-		if p.HoldTime != defaultHoldTime {
-			if err := ed.SetValue(timerPath, "hold-time", fmt.Sprintf("%d", int(p.HoldTime.Seconds()))); err != nil {
-				return saveFieldError(p.Address, "hold-time", err)
+		if p.ReceiveHoldTime != defaultReceiveHoldTime {
+			if err := ed.SetValue(timerPath, "receive-hold-time", fmt.Sprintf("%d", int(p.ReceiveHoldTime.Seconds()))); err != nil {
+				return saveFieldError(p.Address, "receive-hold-time", err)
+			}
+		}
+		if p.SendHoldTime != 0 {
+			if err := ed.SetValue(timerPath, "send-hold-time", fmt.Sprintf("%d", int(p.SendHoldTime.Seconds()))); err != nil {
+				return saveFieldError(p.Address, "send-hold-time", err)
 			}
 		}
 		if p.ConnectRetry != 0 && p.ConnectRetry != defaultConnectRetry {

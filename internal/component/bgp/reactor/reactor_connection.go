@@ -175,7 +175,7 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	buf := make([]byte, message.MaxMsgLen)
 
 	// Set read deadline - use hold time or 90s default
-	holdTime := peer.Settings().HoldTime
+	holdTime := peer.Settings().ReceiveHoldTime
 	if holdTime == 0 {
 		holdTime = 90 * time.Second
 	}

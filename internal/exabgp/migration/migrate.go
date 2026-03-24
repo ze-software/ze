@@ -379,10 +379,10 @@ func copySimpleFields(src, dst *config.Tree) {
 		}
 	}
 
-	// ExaBGP "hold-time" -> Ze "timer > hold-time"
+	// ExaBGP "hold-time" -> Ze "timer > receive-hold-time"
 	if v, ok := src.Get("hold-time"); ok {
 		timerContainer := config.NewTree()
-		timerContainer.Set("hold-time", v)
+		timerContainer.Set("receive-hold-time", v)
 		dst.SetContainer("timer", timerContainer)
 	}
 

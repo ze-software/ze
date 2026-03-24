@@ -70,8 +70,8 @@ func ParseConnectionMode(s string) (ConnectionMode, error) {
 	return 0, fmt.Errorf("invalid connection mode %q: must be %s, %s, or %s", s, connBoth, connPassive, connActive)
 }
 
-// DefaultHoldTime is the default hold time per RFC 4271.
-const DefaultHoldTime = 90 * time.Second
+// DefaultReceiveHoldTime is the default receive hold time per RFC 4271.
+const DefaultReceiveHoldTime = 90 * time.Second
 
 // DefaultConnectRetry is the default connect retry interval.
 // Ze uses exponential backoff starting from this value (see peer.go:run()).
@@ -255,8 +255,14 @@ type PeerSettings struct {
 	// RouterID is our BGP router identifier (IPv4 format).
 	RouterID uint32
 
-	// HoldTime is the proposed hold time (default 90s).
-	HoldTime time.Duration
+	// ReceiveHoldTime is the proposed receive hold time (default 90s, RFC 4271).
+	// Advertised in OPEN; negotiated value is min(local, remote).
+	ReceiveHoldTime time.Duration
+
+	// SendHoldTime is the send hold timer duration (RFC 9687).
+	// 0 = automatic: max(8 minutes, 2x ReceiveHoldTime).
+	// Explicit value >= 480s overrides the formula.
+	SendHoldTime time.Duration
 
 	// ConnectRetry is the initial connect retry interval (default 5s).
 	// Used as the base for exponential backoff in peer.run().
@@ -386,16 +392,16 @@ type ProcessBinding struct {
 // NewPeerSettings creates a peer settings with default values.
 func NewPeerSettings(address netip.Addr, localAS, peerAS, routerID uint32) *PeerSettings {
 	return &PeerSettings{
-		Address:        address,
-		Port:           DefaultBGPPort,
-		LocalAS:        localAS,
-		PeerAS:         peerAS,
-		RouterID:       routerID,
-		HoldTime:       DefaultHoldTime,
-		ConnectRetry:   DefaultConnectRetry,
-		Connection:     ConnectionBoth,
-		GroupUpdates:   true,
-		PrefixTeardown: true,
+		Address:         address,
+		Port:            DefaultBGPPort,
+		LocalAS:         localAS,
+		PeerAS:          peerAS,
+		RouterID:        routerID,
+		ReceiveHoldTime: DefaultReceiveHoldTime,
+		ConnectRetry:    DefaultConnectRetry,
+		Connection:      ConnectionBoth,
+		GroupUpdates:    true,
+		PrefixTeardown:  true,
 	}
 }
 

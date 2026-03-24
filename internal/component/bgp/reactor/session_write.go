@@ -83,7 +83,7 @@ func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 // (KEEPALIVE, OPEN, NOTIFICATION). Bounded by min(holdTime/3, 30s)
 // with a minimum of 10s.
 func (s *Session) controlWriteDeadline() time.Duration {
-	holdTime := s.settings.HoldTime
+	holdTime := s.settings.ReceiveHoldTime
 	if holdTime <= 0 {
 		return fwdWriteDeadlineDefault
 	}
@@ -92,9 +92,13 @@ func (s *Session) controlWriteDeadline() time.Duration {
 }
 
 // sendHoldDuration returns the Send Hold Timer duration per RFC 9687.
-// Recommended: max(8 minutes, 2x HoldTime).
+// If SendHoldTime is explicitly configured (>0), use that value.
+// Otherwise use the RFC 9687 recommendation: max(8 minutes, 2x ReceiveHoldTime).
 func (s *Session) sendHoldDuration() time.Duration {
-	return max(sendHoldTimerMin, 2*s.settings.HoldTime)
+	if s.settings.SendHoldTime > 0 {
+		return s.settings.SendHoldTime
+	}
+	return max(sendHoldTimerMin, 2*s.settings.ReceiveHoldTime)
 }
 
 // startSendHoldTimer starts the RFC 9687 Send Hold Timer.

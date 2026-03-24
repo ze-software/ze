@@ -24,18 +24,19 @@ const (
 
 // PeerInfo is a snapshot of peer state for API output.
 type PeerInfo struct {
-	Address      netip.Addr
-	LocalAddress netip.Addr
-	Name         string // Human-readable peer name for CLI selector
-	GroupName    string // Peer-group this peer belongs to
-	LocalAS      uint32
-	PeerAS       uint32
-	RouterID     uint32
-	HoldTime     time.Duration // Configured hold time
-	ConnectRetry time.Duration // Connect retry interval
-	Connection   string        // Connection mode: "both", "passive", "active"
-	State        string
-	Uptime       time.Duration
+	Address         netip.Addr
+	LocalAddress    netip.Addr
+	Name            string // Human-readable peer name for CLI selector
+	GroupName       string // Peer-group this peer belongs to
+	LocalAS         uint32
+	PeerAS          uint32
+	RouterID        uint32
+	ReceiveHoldTime time.Duration // Configured receive hold time (RFC 4271)
+	SendHoldTime    time.Duration // Configured send hold time (RFC 9687, 0=auto)
+	ConnectRetry    time.Duration // Connect retry interval
+	Connection      string        // Connection mode: "both", "passive", "active"
+	State           string
+	Uptime          time.Duration
 
 	// PrefixUpdated is the ISO date (YYYY-MM-DD) when prefix maximums were
 	// last updated from PeeringDB. Empty means manually configured.

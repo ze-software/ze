@@ -264,7 +264,7 @@ func NewSession(settings *PeerSettings) *Session {
 	s.fsm.SetPassive(!settings.Connection.IsActive())
 
 	// Configure timers.
-	s.timers.SetHoldTime(settings.HoldTime)
+	s.timers.SetHoldTime(settings.ReceiveHoldTime)
 
 	// Wire up timer callbacks.
 	s.timers.OnHoldTimerExpires(func() {

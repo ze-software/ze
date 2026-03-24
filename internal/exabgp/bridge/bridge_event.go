@@ -163,6 +163,7 @@ func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 // Key conversions:
 //   - Family format: "ipv4/unicast" -> "ipv4 unicast".
 //   - Timer: ZeBGP nests hold-time under "timer", ExaBGP expects flat "hold_time".
+//     The protocol-level JSON uses "hold-time" (BGP OPEN field), not "receive-hold-time" (config key).
 func convertNegotiated(zebgp map[string]any) map[string]any {
 	if zebgp == nil {
 		return map[string]any{}
@@ -170,7 +171,7 @@ func convertNegotiated(zebgp map[string]any) map[string]any {
 
 	result := make(map[string]any)
 
-	// Extract hold-time from timer container (Ze nests it under "timer")
+	// Extract hold-time from timer container (Ze protocol JSON uses "hold-time")
 	if timer, ok := zebgp["timer"].(map[string]any); ok {
 		if v, ok := timer["hold-time"]; ok {
 			result["hold_time"] = v

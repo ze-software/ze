@@ -149,7 +149,7 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		buf.WriteString("}\n")
 	}
 
-	// Write timer container (timer > hold-time, timer > connect-retry).
+	// Write timer container (timer > receive-hold-time, timer > connect-retry).
 	if timer := tree.GetContainer("timer"); timer != nil {
 		buf.WriteString(indent)
 		buf.WriteString("timer {\n")

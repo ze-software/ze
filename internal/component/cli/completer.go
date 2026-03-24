@@ -214,8 +214,13 @@ func (c *Completer) completeSetPath(tokens, contextPath []string, endsWithSpace 
 			copy(listPath, currentPath)
 			keyEntry := c.getListKeyEntry(listPath)
 			if !validateLeafValue(keyEntry, token) {
-				// Invalid key value — return no completions (user needs to fix the key)
-				return nil
+				listName := currentPath[len(currentPath)-1]
+				hint := c.typeHint(keyEntry.Type)
+				return []Completion{{
+					Text:        token,
+					Description: fmt.Sprintf("invalid %s key (expected %s)", listName, hint),
+					Type:        "error",
+				}}
 			}
 		}
 		currentPath = append(currentPath, token)
@@ -519,6 +524,13 @@ func (c *Completer) listKeyCompletions(listName, prefix string, contextPath []st
 				Text:        prefix,
 				Description: "New " + listName + " key",
 				Type:        "list-key",
+			})
+		} else {
+			hint := c.typeHint(keyEntry.Type)
+			completions = append(completions, Completion{
+				Text:        prefix,
+				Description: fmt.Sprintf("invalid %s key (expected %s)", listName, hint),
+				Type:        "warning",
 			})
 		}
 	}
@@ -948,7 +960,7 @@ func commonPrefix(a, b string) string {
 
 // ValidateValueAtPath validates a value against the YANG type at the given path.
 // Returns nil if valid, an error describing why the value is invalid.
-// Path should include the leaf name (e.g., ["bgp", "peer", "1.1.1.1", "hold-time"]).
+// Path should include the leaf name (e.g., ["bgp", "peer", "1.1.1.1", "receive-hold-time"]).
 func (c *Completer) ValidateValueAtPath(path []string, value string) error {
 	if c.loader == nil {
 		return nil // No schema loaded — cannot validate

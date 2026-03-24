@@ -120,12 +120,20 @@ module ze-bgp-conf {
         container timer {
             description "BGP timer configuration";
 
-            leaf hold-time {
+            leaf receive-hold-time {
                 type uint16 {
                     range "0 | 3..65535";
                 }
                 default 90;
-                description "Hold time in seconds (RFC 4271: 0 or >= 3)";
+                description "Receive hold time in seconds (RFC 4271: 0 or >= 3). Proposed in OPEN.";
+            }
+
+            leaf send-hold-time {
+                type uint16 {
+                    range "0 | 480..65535";
+                }
+                default 0;
+                description "Send hold time in seconds (RFC 9687). 0 = auto: max(480, 2x receive-hold-time).";
             }
 
             leaf connect-retry {

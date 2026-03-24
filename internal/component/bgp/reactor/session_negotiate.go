@@ -43,7 +43,7 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 	// Hold Timer by using the smaller of its configured Hold Time and the
 	// Hold Time received in the OPEN message. The Hold Time MUST be either
 	// zero or at least three seconds."
-	localHold := s.settings.HoldTime
+	localHold := s.settings.ReceiveHoldTime
 	peerHold := time.Duration(s.peerOpen.HoldTime) * time.Second
 
 	var negotiatedHold time.Duration
@@ -128,7 +128,7 @@ func (s *Session) sendOpen(conn net.Conn) error {
 	open := &message.Open{
 		Version:        4,
 		MyAS:           myAS,
-		HoldTime:       uint16(s.settings.HoldTime / time.Second), //nolint:gosec // Hold time max 65535s
+		HoldTime:       uint16(s.settings.ReceiveHoldTime / time.Second), //nolint:gosec // Hold time max 65535s
 		BGPIdentifier:  s.settings.RouterID,
 		ASN4:           s.settings.LocalAS,
 		OptionalParams: optParams,

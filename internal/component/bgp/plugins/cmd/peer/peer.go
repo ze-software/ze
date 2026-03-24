@@ -128,8 +128,9 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, _ []string) (*plugin.
 		routerID := netip.AddrFrom4([4]byte{byte(rid >> 24), byte(rid >> 16), byte(rid >> 8), byte(rid)}).String()
 
 		timer := map[string]any{
-			"hold-time":     int(p.HoldTime.Seconds()),
-			"connect-retry": int(p.ConnectRetry.Seconds()),
+			"receive-hold-time": int(p.ReceiveHoldTime.Seconds()),
+			"send-hold-time":    int(p.SendHoldTime.Seconds()),
+			"connect-retry":     int(p.ConnectRetry.Seconds()),
 		}
 		row := map[string]any{
 			"remote-as":           p.PeerAS,

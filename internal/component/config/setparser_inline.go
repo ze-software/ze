@@ -12,8 +12,8 @@ import (
 // tokens. The schema determines how many tokens each field consumes:
 // a leaf consumes name + value (2 tokens), a container consumes name + recurse.
 //
-// Example: ["remote", "as", "65001", "hold-time", "90"] with a peer-fields
-// schema node produces a Tree with remote.as=65001 and hold-time=90.
+// Example: ["remote", "as", "65001", "receive-hold-time", "90"] with a peer-fields
+// schema node produces a Tree with remote.as=65001 and receive-hold-time=90.
 //
 // Unlike Parse which handles "set path value" lines, this handles inline
 // args where multiple fields are concatenated without delimiters.
