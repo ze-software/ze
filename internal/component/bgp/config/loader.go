@@ -117,13 +117,18 @@ func LoadReactor(input string) (*reactor.Reactor, error) {
 	return CreateReactorFromTree(tree, "", "", plugins, nil)
 }
 
-// LoadReactorWithPlugins parses config with CLI plugins and creates Reactor.
-// configPath is the original file path (used for SIGHUP reload). May be empty or "-".
-// store is used by the reload function to re-read config on SIGHUP; may be nil when
-// configPath is "" or "-" (reload not supported).
-// This is used when config data is already read (e.g., from stdin) and plugins
-// need to be merged in.
-func LoadReactorWithPlugins(store storage.Storage, input, configPath string, cliPlugins []string) (*reactor.Reactor, error) {
+// LoadConfigResult holds the output of LoadConfig: a parsed config tree,
+// resolved plugin list, and derived config directory.
+type LoadConfigResult struct {
+	Tree      *config.Tree
+	Plugins   []reactor.PluginConfig
+	ConfigDir string
+}
+
+// LoadConfig parses config with CLI plugin YANG schemas, extracts and resolves
+// the plugin list, and returns the parsed tree + plugins without creating a reactor.
+// This is the first half of the decomposed LoadReactorWithPlugins.
+func LoadConfig(input, configPath string, cliPlugins []string) (*LoadConfigResult, error) {
 	// Internal plugin schemas loaded via init()-based registration (LoadRegistered).
 	// Only CLI-specified external plugins need explicit loading.
 	pluginYANG := plugin.CollectPluginYANG(cliPlugins)
@@ -162,7 +167,17 @@ func LoadReactorWithPlugins(store storage.Storage, input, configPath string, cli
 		configDir = cwd
 	}
 
-	r, err := CreateReactorFromTree(tree, configDir, configPath, plugins, store)
+	return &LoadConfigResult{
+		Tree:      tree,
+		Plugins:   plugins,
+		ConfigDir: configDir,
+	}, nil
+}
+
+// CreateReactor creates a Reactor from a LoadConfigResult.
+// This is the second half of the decomposed LoadReactorWithPlugins.
+func CreateReactor(cfg *LoadConfigResult, configPath string, store storage.Storage) (*reactor.Reactor, error) {
+	r, err := CreateReactorFromTree(cfg.Tree, cfg.ConfigDir, configPath, cfg.Plugins, store)
 	if err != nil {
 		return nil, err
 	}
@@ -174,6 +189,19 @@ func LoadReactorWithPlugins(store storage.Storage, input, configPath string, cli
 	}
 
 	return r, nil
+}
+
+// LoadReactorWithPlugins parses config with CLI plugins and creates Reactor.
+// configPath is the original file path (used for SIGHUP reload). May be empty or "-".
+// store is used by the reload function to re-read config on SIGHUP; may be nil when
+// configPath is "" or "-" (reload not supported).
+// This is a convenience wrapper around LoadConfig + CreateReactor.
+func LoadReactorWithPlugins(store storage.Storage, input, configPath string, cliPlugins []string) (*reactor.Reactor, error) {
+	cfg, err := LoadConfig(input, configPath, cliPlugins)
+	if err != nil {
+		return nil, err
+	}
+	return CreateReactor(cfg, configPath, store)
 }
 
 // LoadReactorFile loads config from file and creates Reactor.

@@ -20,10 +20,16 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 // logger is the bgp.server subsystem logger.
 var logger = slogutil.LazyLogger("bgp.server")
+
+// eorBus holds the Bus reference for EOR notifications.
+// Set by EventDispatcher.SetBus(). Package-level to avoid threading
+// through onMessageReceived → onEORReceived call chain.
+var eorBus ze.Bus //nolint:gochecknoglobals // Bus reference set once at startup
 
 // monitorFormatKey is the format+encoding cache key for CLI monitors (always json+parsed).
 const monitorFormatKey = "parsed+json"
@@ -581,6 +587,14 @@ func onEORReceived(s *pluginserver.Server, peer plugin.PeerInfo, family string) 
 		jsonOutput = format.FormatEOR(peer, family, "json")
 	}
 	monitorDeliver(s, plugin.EventEOR, plugin.DirectionReceived, peerAddr, peer.Name, jsonOutput)
+
+	// Bus notification for cross-component consumers.
+	if eorBus != nil {
+		eorBus.Publish("bgp/eor", nil, map[string]string{
+			"peer":   peerAddr,
+			"family": family,
+		})
+	}
 }
 
 // onMessageSent handles BGP messages sent to peers.

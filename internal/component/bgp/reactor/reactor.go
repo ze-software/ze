@@ -382,6 +382,9 @@ func (r *Reactor) SetListenerFactory(f network.ListenerFactory) {
 // EventDispatcher data delivery path.
 func (r *Reactor) SetBus(b ze.Bus) {
 	r.bus = b
+	if r.eventDispatcher != nil {
+		r.eventDispatcher.SetBus(b)
+	}
 }
 
 // publishBusNotification publishes a lightweight notification to the Bus.
@@ -674,6 +677,10 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		r.api = pluginserver.NewServer(apiConfig, &reactorAPIAdapter{r})
 		// Create EventDispatcher for BGP event delivery (type-safe, no hooks indirection)
 		r.eventDispatcher = bgpserver.NewEventDispatcher(r.api)
+		// Propagate Bus to EventDispatcher for EOR notifications.
+		if r.bus != nil {
+			r.eventDispatcher.SetBus(r.bus)
+		}
 		// Set EventDispatcher as message receiver for raw byte access
 		r.messageReceiver = r.eventDispatcher
 		// Collect peer filter chains from plugin registry.

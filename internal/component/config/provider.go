@@ -109,6 +109,40 @@ func tryDrain(ch chan ze.ConfigChange) {
 	}
 }
 
+// SetRoot stores a pre-parsed config subtree for a root name.
+// Overwrites any existing value. Notifies watchers for that root.
+// If tree is nil, stores an empty map.
+func (p *Provider) SetRoot(root string, tree map[string]any) {
+	if tree == nil {
+		tree = map[string]any{}
+	}
+
+	p.mu.Lock()
+	p.roots[root] = tree
+
+	// Collect watchers to notify (under lock to snapshot channels).
+	type notification struct {
+		ch     chan ze.ConfigChange
+		change ze.ConfigChange
+	}
+	notifications := make([]notification, 0, len(p.watchers[root]))
+	for _, ch := range p.watchers[root] {
+		notifications = append(notifications, notification{
+			ch:     ch,
+			change: ze.ConfigChange{Root: root, Tree: tree},
+		})
+	}
+	p.mu.Unlock()
+
+	// Send notifications outside lock — non-blocking to avoid deadlock.
+	for _, n := range notifications {
+		if !trySend(n.ch, n.change) {
+			tryDrain(n.ch)
+			n.ch <- n.change
+		}
+	}
+}
+
 // Get returns the config subtree for a root name.
 // Returns empty map if the root does not exist.
 func (p *Provider) Get(root string) (map[string]any, error) {

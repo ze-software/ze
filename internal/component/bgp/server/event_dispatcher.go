@@ -13,6 +13,7 @@ import (
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
 
 // EventDispatcher bridges the reactor to plugin event delivery.
@@ -26,6 +27,7 @@ import (
 type EventDispatcher struct {
 	server  *pluginserver.Server
 	encoder *format.JSONEncoder
+	bus     ze.Bus // Bus for cross-component notifications (nil until SetBus)
 }
 
 // NewEventDispatcher creates a new EventDispatcher for the given plugin server.
@@ -35,6 +37,14 @@ func NewEventDispatcher(server *pluginserver.Server) *EventDispatcher {
 		server:  server,
 		encoder: format.NewJSONEncoder("0.0.1"),
 	}
+}
+
+// SetBus sets the Bus for cross-component notifications.
+// When set, the EventDispatcher publishes bgp/eor notifications
+// when End-of-RIB markers are detected during UPDATE delivery.
+func (d *EventDispatcher) SetBus(b ze.Bus) {
+	d.bus = b
+	eorBus = b // Package-level for onEORReceived access
 }
 
 // OnMessageReceived handles raw BGP messages from peers.

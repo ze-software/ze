@@ -388,6 +388,84 @@ func TestLifecycle(t *testing.T) {
 	}
 }
 
+// VALIDATES: AC-1 — SetRoot stores tree, Get retrieves it.
+// PREVENTS: SetRoot not persisting data.
+func TestProviderSetRoot(t *testing.T) {
+	mgr := config.NewProvider()
+
+	tree := map[string]any{
+		"router-id": "10.0.0.1",
+		"local-as":  float64(65000),
+	}
+	mgr.SetRoot("bgp", tree)
+
+	got, err := mgr.Get("bgp")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got["router-id"] != "10.0.0.1" {
+		t.Errorf("router-id = %v, want '10.0.0.1'", got["router-id"])
+	}
+	if got["local-as"] != float64(65000) {
+		t.Errorf("local-as = %v, want 65000", got["local-as"])
+	}
+}
+
+// VALIDATES: AC-1 — SetRoot overwrites existing root.
+// PREVENTS: Stale config after SetRoot.
+func TestProviderSetRootOverwrite(t *testing.T) {
+	mgr := config.NewProvider()
+
+	mgr.SetRoot("bgp", map[string]any{"router-id": "1.1.1.1"})
+	mgr.SetRoot("bgp", map[string]any{"router-id": "2.2.2.2"})
+
+	got, err := mgr.Get("bgp")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if got["router-id"] != "2.2.2.2" {
+		t.Errorf("router-id = %v, want '2.2.2.2'", got["router-id"])
+	}
+}
+
+// VALIDATES: AC-1 — SetRoot notifies watchers.
+// PREVENTS: Watchers not receiving updates from SetRoot.
+func TestProviderSetRootNotifiesWatchers(t *testing.T) {
+	mgr := config.NewProvider()
+
+	ch := mgr.Watch("bgp")
+
+	mgr.SetRoot("bgp", map[string]any{"router-id": "3.3.3.3"})
+
+	select {
+	case change := <-ch:
+		if change.Root != "bgp" {
+			t.Errorf("Root = %q, want %q", change.Root, "bgp")
+		}
+		if change.Tree["router-id"] != "3.3.3.3" {
+			t.Errorf("Tree[router-id] = %v, want '3.3.3.3'", change.Tree["router-id"])
+		}
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for watch notification")
+	}
+}
+
+// VALIDATES: SetRoot with nil tree stores empty map (no panic).
+// PREVENTS: Nil pointer dereference on nil tree.
+func TestProviderSetRootNil(t *testing.T) {
+	mgr := config.NewProvider()
+
+	mgr.SetRoot("bgp", nil)
+
+	got, err := mgr.Get("bgp")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if len(got) != 0 {
+		t.Errorf("Get returned %v, want empty map", got)
+	}
+}
+
 // VALIDATES: ConfigProvider interface satisfaction.
 // PREVENTS: Compile-time interface drift.
 func TestProviderSatisfiesInterface(t *testing.T) {

@@ -106,10 +106,25 @@ func readStdinConfig() (data []byte, stdinOpen bool, err error) {
 // When stdinOpen is true, a background goroutine monitors stdin for EOF and
 // triggers shutdown when the upstream process exits (pipe mode).
 func runBGPInProcess(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen bool) int {
-	// Use YANG-based config parser with CLI plugins
-	reactor, err := bgpconfig.LoadReactorWithPlugins(store, string(data), configPath, plugins)
+	// Phase 1: Parse config and resolve plugins (no reactor created yet).
+	loadResult, err := bgpconfig.LoadConfig(string(data), configPath, plugins)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
+		return 1
+	}
+
+	// Phase 2: Populate ConfigProvider with parsed config tree.
+	configProvider := zeconfig.NewProvider()
+	for root, subtree := range loadResult.Tree.ToMap() {
+		if sub, ok := subtree.(map[string]any); ok {
+			configProvider.SetRoot(root, sub)
+		}
+	}
+
+	// Phase 3: Create reactor from parsed config.
+	reactor, err := bgpconfig.CreateReactor(loadResult, configPath, store)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: create reactor: %v\n", err)
 		return 1
 	}
 
@@ -169,7 +184,7 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 	b := bus.NewBus()
 	reactor.SetBus(b)
 	bgpSub := subsystem.NewBGPSubsystem(reactor)
-	eng := engine.NewEngine(b, stubConfigProvider(), stubPluginManager())
+	eng := engine.NewEngine(b, configProvider, stubPluginManager())
 	if err := eng.RegisterSubsystem(bgpSub); err != nil {
 		fmt.Fprintf(os.Stderr, "error: register subsystem: %v\n", err)
 		return 1
@@ -321,21 +336,9 @@ func runOrchestratorWithData(store storage.Storage, configPath string, data []by
 	return 0
 }
 
-// --- Stub implementations for Engine dependencies ---
-// ConfigProvider and PluginManager are wired as stubs until their respective
-// arch-0 phases integrate them fully. The Engine requires non-nil values.
-
-type nopConfigProvider struct{}
-
-func (c *nopConfigProvider) Load(string) error                   { return nil }
-func (c *nopConfigProvider) Get(string) (map[string]any, error)  { return map[string]any{}, nil }
-func (c *nopConfigProvider) Validate() []error                   { return nil }
-func (c *nopConfigProvider) Save(string) error                   { return nil }
-func (c *nopConfigProvider) Watch(string) <-chan ze.ConfigChange { return nil }
-func (c *nopConfigProvider) Schema() ze.SchemaTree               { return ze.SchemaTree{} }
-func (c *nopConfigProvider) RegisterSchema(string, string) error { return nil }
-
-func stubConfigProvider() ze.ConfigProvider { return &nopConfigProvider{} }
+// --- Stub implementation for PluginManager ---
+// PluginManager is wired as a stub until the plugin lifecycle is migrated
+// from pluginserver.Server to PluginManager (future spec).
 
 type nopPluginManager struct{}
 
