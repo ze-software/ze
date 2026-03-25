@@ -3,7 +3,7 @@
 | Field | Value |
 |-------|-------|
 | Status | in-progress |
-| Depends | spec-forward-backpressure, spec-prefix maximum |
+| Depends | spec-prefix maximum |
 | Phase | 3/5 |
 | Updated | 2026-03-24 |
 
