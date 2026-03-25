@@ -19,6 +19,7 @@ test/internet/*.tmp
 
 # Research output (large generated files)
 research/output/
+research/comparison/
 docs/performance.md
 
 # Coverage reports
