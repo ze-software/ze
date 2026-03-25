@@ -667,6 +667,36 @@ func TestModelHistoryPersistOnEnter(t *testing.T) {
 	assert.Equal(t, []string{"show"}, loaded, "command should be persisted to store via Save")
 }
 
+// TestCommandModelHistoryPersistOnEnter verifies that Enter in command-only mode
+// (NewCommandModel, used by ze cli) persists history through a real store.
+//
+// VALIDATES: AC-2: Commands in ze cli survive restart.
+// PREVENTS: Command-mode history lost because Save uses wrong mode key.
+func TestCommandModelHistoryPersistOnEnter(t *testing.T) {
+	storePath := filepath.Join(t.TempDir(), "test.zefs")
+	store, err := zefs.Create(storePath)
+	require.NoError(t, err)
+
+	model := NewCommandModel()
+	model.width = 80
+	model.height = 24
+	model.SetHistory(NewHistory(store, "testuser"))
+
+	// Execute "peer list" (operational command in command mode).
+	// Without a commandExecutor, handleEnter falls through to history save.
+	model.textInput.SetValue("peer list")
+	newModel, _ := model.handleEnter()
+	_, ok := newModel.(Model)
+	require.True(t, ok)
+
+	// Reload from store and verify saved under "command" key.
+	h2 := NewHistory(store, "testuser")
+	loaded := h2.Load("command")
+	store.Close() //nolint:errcheck // test cleanup
+
+	assert.Equal(t, []string{"peer list"}, loaded, "command-mode history should be persisted under 'command' key")
+}
+
 // TestTabOnListKeyShowsChildrenImmediately verifies that pressing Tab on a typed
 // list key value accepts it and immediately shows the next-level completions.
 //

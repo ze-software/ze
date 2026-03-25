@@ -17,6 +17,7 @@ const (
 	StepExpect
 	StepWait
 	StepSession
+	StepRestart
 )
 
 // Step represents a single ordered step in the test (input, expect, wait, or session).
@@ -26,6 +27,7 @@ type Step struct {
 	ExpectIndex  int // Index into Expects slice (if Type == StepExpect)
 	WaitIndex    int // Index into Waits slice (if Type == StepWait)
 	SessionIndex int // Index into Sessions slice (if Type == StepSession)
+	RestartIndex int // Index into Restarts slice (if Type == StepRestart)
 }
 
 // TestCase represents a parsed .et (Editor Test) file.
@@ -36,6 +38,7 @@ type TestCase struct {
 	Expects  []Expectation   // Expectations (in order)
 	Waits    []WaitAction    // Wait actions
 	Sessions []SessionAction // Session create/switch actions
+	Restarts []struct{}      // Restart markers (no parameters)
 	Steps    []Step          // Ordered sequence of steps (preserves interleaving)
 }
 
@@ -108,6 +111,7 @@ var validActions = map[string]bool{
 	"expect":  true,
 	"wait":    true,
 	"session": true,
+	"restart": true,
 }
 
 // ParseETFile parses an .et (Editor Test) file content.
@@ -182,6 +186,9 @@ func (tc *TestCase) parseLine(line string, scanner *bufio.Scanner, lineNum *int)
 	}
 	if action == "session" {
 		return tc.parseSession(rest)
+	}
+	if action == "restart" {
+		return tc.parseRestart(rest)
 	}
 
 	// Should never reach here due to validActions check above
@@ -442,5 +449,17 @@ func (tc *TestCase) parseSession(rest string) error {
 
 	tc.Sessions = append(tc.Sessions, sa)
 	tc.Steps = append(tc.Steps, Step{Type: StepSession, SessionIndex: len(tc.Sessions) - 1})
+	return nil
+}
+
+// parseRestart adds a restart marker to the step sequence.
+// Restart recreates the headless model from the same config, simulating exit + relaunch.
+// History backed by a blob store survives restarts.
+func (tc *TestCase) parseRestart(rest string) error {
+	if rest != "" && rest != "editor" {
+		return fmt.Errorf("restart accepts no value or 'editor', got %q", rest)
+	}
+	tc.Restarts = append(tc.Restarts, struct{}{})
+	tc.Steps = append(tc.Steps, Step{Type: StepRestart, RestartIndex: len(tc.Restarts) - 1})
 	return nil
 }

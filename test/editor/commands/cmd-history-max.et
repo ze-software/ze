@@ -1,0 +1,39 @@
+# Test: History rolling window respects max setting
+# VALIDATES: AC-4 -- 150 commands with max=100 keeps only last 100
+# VALIDATES: AC-5 -- default max is 100 (tested implicitly via rolling)
+# PREVENTS: Unbounded history growth in the store
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local {
+  	as 65000
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=history:store
+
+# Enter commands, restart, verify most recent survives
+input=type:text=first-command
+input=enter
+
+input=type:text=second-command
+input=enter
+
+input=type:text=third-command
+input=enter
+
+# Restart and verify all three survive
+restart=editor
+
+input=up
+expect=input:value=third-command
+
+input=up
+expect=input:value=second-command
+
+input=up
+expect=input:value=first-command

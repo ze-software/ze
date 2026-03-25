@@ -7,7 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 // TestResult represents the outcome of running an .et test.
@@ -67,6 +71,12 @@ func runTestCase(tc *TestCase) *TestResult {
 	for _, tf := range tc.Tmpfs {
 		filePath := filepath.Join(tmpDir, tf.Path)
 
+		// Guard against path traversal (e.g., "../../../etc/cron.d/malicious").
+		if !strings.HasPrefix(filepath.Clean(filePath), filepath.Clean(tmpDir)+string(os.PathSeparator)) {
+			result.Error = fmt.Sprintf("path traversal in tmpfs: %s", tf.Path)
+			return result
+		}
+
 		// Create parent directories if needed
 		if dir := filepath.Dir(filePath); dir != tmpDir {
 			if err := os.MkdirAll(dir, 0o750); err != nil {
@@ -94,7 +104,9 @@ func runTestCase(tc *TestCase) *TestResult {
 	timeout := 30 * time.Second
 	width := 80
 	height := 24
-	reloadMode := "" // "success", "fail", or "" (standalone)
+	reloadMode := ""         // "success", "fail", or "" (standalone)
+	useHistoryStore := false // option=history:store -- persist history to zefs
+	editorMode := "edit"     // option=mode:value=command -- command-only mode
 	sessionUser := ""
 	sessionOrigin := ""
 
@@ -126,6 +138,14 @@ func runTestCase(tc *TestCase) *TestResult {
 			if mode, ok := opt.Values["mode"]; ok {
 				reloadMode = mode
 			}
+		case "history":
+			if _, ok := opt.Values["store"]; ok {
+				useHistoryStore = true
+			}
+		case "mode":
+			if val, ok := opt.Values["value"]; ok {
+				editorMode = val
+			}
 		case "session":
 			if user, ok := opt.Values["user"]; ok {
 				sessionUser = user
@@ -136,35 +156,51 @@ func runTestCase(tc *TestCase) *TestResult {
 		}
 	}
 
-	if configPath == "" {
-		result.Error = "no config file specified (use option=file:path=...)"
-		return result
-	}
-
-	// Check config file exists
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		result.Error = fmt.Sprintf("config file not found: %s", configPath)
-		return result
-	}
-
-	// Create headless model (with or without session)
-	var hm *HeadlessModel
-	if sessionUser != "" {
-		var hmErr error
-		hm, hmErr = NewHeadlessModelWithSession(configPath, sessionUser, sessionOrigin)
-		if hmErr != nil {
-			result.Error = fmt.Sprintf("creating session editor: %v", hmErr)
+	// Create blob store for history persistence (if requested).
+	// The store lives in tmpDir and persists across restart= steps.
+	var historyStore *zefs.BlobStore
+	if useHistoryStore {
+		storePath := filepath.Join(tmpDir, "history.zefs")
+		var storeErr error
+		historyStore, storeErr = zefs.Create(storePath)
+		if storeErr != nil {
+			result.Error = fmt.Sprintf("creating history store: %v", storeErr)
 			return result
 		}
-	} else {
-		var hmErr error
-		hm, hmErr = NewHeadlessModel(configPath)
-		if hmErr != nil {
-			result.Error = fmt.Sprintf("creating editor: %v", hmErr)
-			return result
+		defer historyStore.Close() //nolint:errcheck // test cleanup
+	}
+
+	// createModel builds a HeadlessModel based on the current mode.
+	createModel := func() (*HeadlessModel, error) {
+		if editorMode == "command" {
+			return NewHeadlessCommandModel(), nil
 		}
+		if configPath == "" {
+			return nil, fmt.Errorf("no config file specified (use option=file:path=...)")
+		}
+		if _, statErr := os.Stat(configPath); os.IsNotExist(statErr) {
+			return nil, fmt.Errorf("config file not found: %s", configPath)
+		}
+		if sessionUser != "" {
+			return NewHeadlessModelWithSession(configPath, sessionUser, sessionOrigin)
+		}
+		return NewHeadlessModel(configPath)
+	}
+
+	// wireHistory sets up history persistence on the model.
+	wireHistory := func(hm *HeadlessModel) {
+		if historyStore != nil {
+			hm.Model().SetHistory(cli.NewHistory(historyStore, "testuser"))
+		}
+	}
+
+	hm, hmErr := createModel()
+	if hmErr != nil {
+		result.Error = fmt.Sprintf("creating editor: %v", hmErr)
+		return result
 	}
 	hm.SetTmpDir(tmpDir)
+	wireHistory(hm)
 
 	// Multi-session map: session name -> headless model.
 	// SEQUENTIAL: test steps run serially; no concurrent map access.
@@ -208,6 +244,22 @@ func runTestCase(tc *TestCase) *TestResult {
 				hm = existing
 			}
 
+		case StepRestart:
+			// Drain pending commands on the old model before replacing it,
+			// so timer goroutines don't outlive the model.
+			hm.SettleWait()
+			// Simulate exit + relaunch: create a fresh headless model
+			// from the same config file. The blob store persists, so
+			// history is reloaded from zefs on the new model.
+			newHM, restartErr := createModel()
+			if restartErr != nil {
+				result.Error = fmt.Sprintf("step %d (restart): %v", stepIdx+1, restartErr)
+				return result
+			}
+			newHM.SetTmpDir(tmpDir)
+			wireHistory(newHM)
+			hm = newHM
+
 		case StepInput:
 			inp := tc.Inputs[step.InputIndex]
 			input := inp.ToInput()
@@ -227,7 +279,7 @@ func runTestCase(tc *TestCase) *TestResult {
 			// Block until pending commands complete (file I/O that
 			// exceeded the 15ms processCmdWithDepth timeout). Under
 			// concurrent test load with race detector, this wait is
-			// essential — non-blocking Settle alone is insufficient.
+			// essential -- non-blocking Settle alone is insufficient.
 			hm.SettleWait()
 			exp := tc.Expects[step.ExpectIndex]
 			if err := CheckExpectation(exp, hm); err != nil {

@@ -779,4 +779,26 @@ Plugin test scripts use `wait_for_ack()` from `test/scripts/ze_api.py` to ensure
 
 ---
 
-**Updated:** 2026-03-22
+## Editor Tests (.et format)
+
+Editor tests (`test/editor/`) verify the interactive TUI editor and CLI using headless keystroke simulation. Run with `make ze-editor-test` or `bin/ze-test editor`.
+
+<!-- source: internal/component/cli/testing/parser.go -- .et file parser -->
+
+### Key Directives
+
+| Directive | Example | Purpose |
+|-----------|---------|---------|
+| `tmpfs=` | `tmpfs=test.conf:terminator=EOF` | Embed test files |
+| `option=file:path=` | `option=file:path=test.conf` | Config file to load |
+| `option=mode:value=` | `option=mode:value=command` | Command-only mode (no editor) |
+| `option=history:store` | `option=history:store` | Enable zefs-backed history persistence |
+| `input=type:text=` | `input=type:text=show` | Type text |
+| `input=enter/up/down/tab` | `input=enter` | Press named key |
+| `expect=input:value=` | `expect=input:value=show` | Assert input buffer content |
+| `expect=mode:is=` | `expect=mode:is=command` | Assert editor mode |
+| `restart=` | `restart=editor` | Simulate exit + relaunch (blob store persists) |
+
+---
+
+**Updated:** 2026-03-25

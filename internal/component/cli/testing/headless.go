@@ -81,6 +81,21 @@ func NewHeadlessModelWithSession(configPath, user, origin string) (*HeadlessMode
 	return hm, nil
 }
 
+// NewHeadlessCommandModel creates a command-only headless model (no editor).
+// Used for testing ze cli behavior where no config file is loaded.
+func NewHeadlessCommandModel() *HeadlessModel {
+	model := cli.NewCommandModel()
+
+	newModel, _ := model.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	if m, ok := newModel.(cli.Model); ok {
+		model = m
+	}
+
+	return &HeadlessModel{
+		model: model,
+	}
+}
+
 // TmpDir returns the temp directory for file expectations.
 func (hm *HeadlessModel) TmpDir() string {
 	return hm.tmpDir
@@ -345,7 +360,11 @@ func (hm *HeadlessModel) ShowDropdown() bool {
 }
 
 // WorkingContent returns the current working config content.
+// Returns empty string for command-only models (no editor).
 func (hm *HeadlessModel) WorkingContent() string {
+	if hm.editor == nil {
+		return ""
+	}
 	return hm.editor.WorkingContent()
 }
 
@@ -376,6 +395,10 @@ func (hm *HeadlessModel) Mode() cli.EditorMode {
 
 // SetReloadNotifier configures a reload notifier on the underlying cli.
 // Used by the .et test runner to simulate daemon reload behavior.
+// No-op for command-only models (no editor).
 func (hm *HeadlessModel) SetReloadNotifier(fn cli.ReloadNotifier) {
+	if hm.editor == nil {
+		return
+	}
 	hm.editor.SetReloadNotifier(fn)
 }

@@ -1,0 +1,28 @@
+# Test: Command-mode history persists across restart
+# VALIDATES: AC-2 -- executed commands in ze cli survive restart
+# PREVENTS: Command-mode history lost because Save uses wrong mode key
+
+option=mode:value=command
+option=timeout:value=10s
+option=history:store
+
+# Execute commands in command mode
+input=type:text=peer list
+input=enter
+
+input=type:text=daemon status
+input=enter
+
+# Verify history before restart
+input=up
+expect=input:value=daemon status
+
+# Simulate exit + relaunch
+restart=editor
+
+# After restart, press Up -- history should be restored from zefs
+input=up
+expect=input:value=daemon status
+
+input=up
+expect=input:value=peer list

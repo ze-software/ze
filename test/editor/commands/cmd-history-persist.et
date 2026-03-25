@@ -1,0 +1,37 @@
+# Test: Command history persists across restart
+# VALIDATES: AC-1 -- executed commands in ze config edit survive restart
+# PREVENTS: History lost on restart because Save was never called
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local {
+  	as 65000
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=history:store
+
+# Execute two commands
+input=type:text=show
+input=enter
+
+input=type:text=compare
+input=enter
+
+# Verify history exists before restart
+input=up
+expect=input:value=compare
+
+# Simulate exit + relaunch
+restart=editor
+
+# After restart, press Up -- history should be restored from zefs
+input=up
+expect=input:value=compare
+
+input=up
+expect=input:value=show
