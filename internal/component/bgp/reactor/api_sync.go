@@ -91,12 +91,23 @@ func (r *Reactor) WaitForAPIReady() {
 	default:
 	}
 
-	// Wait for all ready signals or timeout
+	// Wait for all ready signals, timeout, or context cancellation.
+	// Context check prevents infinite hang when using a virtual clock
+	// that is not being advanced (e.g., plugin startup failed).
+	// A nil ctx (reactor not started) yields a nil channel that blocks forever in select.
+	var ctxDone <-chan struct{}
+	if r.ctx != nil {
+		ctxDone = r.ctx.Done()
+	}
+
 	select {
 	case <-r.apiReady:
 		return
 	case <-r.clock.After(r.apiTimeout):
 		slog.Warn("api timeout", "ready", r.readyCount.Load(), "expected", r.processCount.Load())
+		r.signalAllReady()
+	case <-ctxDone:
+		slog.Warn("api wait canceled", "ready", r.readyCount.Load(), "expected", r.processCount.Load())
 		r.signalAllReady()
 	}
 }
@@ -146,11 +157,18 @@ func (r *Reactor) WaitForPluginStartupComplete() {
 		startupTimeout = 3 * DefaultAPITimeout
 	}
 
+	var ctxDone <-chan struct{}
+	if r.ctx != nil {
+		ctxDone = r.ctx.Done()
+	}
+
 	select {
 	case <-r.startupComplete:
 		return
 	case <-r.clock.After(startupTimeout):
 		slog.Warn("plugin startup timeout", "timeout", startupTimeout)
+	case <-ctxDone:
+		slog.Warn("plugin startup wait canceled")
 	}
 }
 

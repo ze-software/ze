@@ -27,6 +27,7 @@ var structuredEventPool = sync.Pool{
 type DirectBridge struct {
 	deliverEvents     func(events []string) error
 	deliverStructured func(events []any) error
+	hasStructured     atomic.Bool // set atomically when deliverStructured is written
 	dispatchRPC       func(method string, params json.RawMessage) (json.RawMessage, error)
 	ready             atomic.Bool
 }
@@ -64,22 +65,24 @@ func (b *DirectBridge) Ready() bool {
 // SetDeliverStructured registers the plugin-side structured event handler.
 // Called by the SDK after startup to enable structured delivery (engine→plugin).
 // When set, the engine delivers structured events directly instead of formatting text.
+// The hasStructured atomic bool creates a happens-before edge so that readers
+// calling HasStructuredHandler or DeliverStructured see the function pointer.
 func (b *DirectBridge) SetDeliverStructured(fn func(events []any) error) {
 	b.deliverStructured = fn
+	b.hasStructured.Store(fn != nil)
 }
 
 // HasStructuredHandler reports whether a structured delivery handler is registered.
+// Uses atomic hasStructured flag — no direct read of the function pointer.
 func (b *DirectBridge) HasStructuredHandler() bool {
-	return b.deliverStructured != nil
+	return b.ready.Load() && b.hasStructured.Load()
 }
 
 // DeliverStructured calls the plugin's structured event handler directly.
-// Returns error if the bridge is not ready or the handler is not set.
+// Returns error if the handler is not set. The hasStructured atomic load
+// creates a happens-before from SetDeliverStructured's write.
 func (b *DirectBridge) DeliverStructured(events []any) error {
-	if !b.ready.Load() {
-		return errors.New("bridge not ready")
-	}
-	if b.deliverStructured == nil {
+	if !b.hasStructured.Load() {
 		return errors.New("structured handler not set")
 	}
 	return b.deliverStructured(events)

@@ -19,6 +19,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/chaos/scenario"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	pluginmgr "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
 )
 
 // RunConfig holds parameters for an in-process chaos run.
@@ -136,6 +137,15 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	reactor.SetClock(vc)
 	reactor.SetDialer(dialer)
 	reactor.SetListenerFactory(listenerFactory)
+
+	// Set ProcessSpawner so plugin startup can spawn internal plugins.
+	// Without this, Server.runPluginPhase fails and WaitForAPIReady
+	// blocks forever (virtual clock timeout never fires).
+	pm := pluginmgr.NewManager()
+	if err := pm.StartAll(ctx, nil, nil); err != nil {
+		return nil, fmt.Errorf("start plugin manager: %w", err)
+	}
+	reactor.SetProcessSpawner(pm)
 
 	// Start reactor — creates listeners, starts API, starts peers.
 	reactorCtx, reactorCancel := context.WithCancel(ctx)
