@@ -247,6 +247,8 @@ type Reactor struct {
 	connCallback    ConnectionCallback
 	messageReceiver MessageReceiver       // Receives raw BGP messages
 	bus             ze.Bus                // Bus for cross-component notifications (nil until SetBus)
+	busHandlers     []busHandler          // Bus event handlers registered via OnBusEvent (before Start)
+	busSubs         []ze.Subscription     // Active Bus subscriptions (created by subscribeBus)
 	processSpawner  plugin.ProcessSpawner // PluginManager for process lifecycle (nil = Server self-manages)
 
 	// Peer filter chains: collected from plugin registry at startup.
@@ -596,6 +598,10 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 
 	// Start background gap scan goroutine for the recent update cache.
 	r.recentUpdates.Start()
+
+	// Subscribe to Bus topics for registered handlers (e.g., interface events).
+	// Must happen before listeners start so handlers are active when events arrive.
+	r.subscribeBus()
 
 	// Start global listener if ListenAddr is configured.
 	if r.config.ListenAddr != "" {
@@ -1035,6 +1041,7 @@ func (r *Reactor) cleanup() {
 
 	// Phase 3: Cleanup remaining resources.
 	r.recentUpdates.Stop()
+	r.unsubscribeBus()
 
 	r.running = false
 	r.cancel = nil
