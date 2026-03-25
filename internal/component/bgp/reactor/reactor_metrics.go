@@ -1,7 +1,6 @@
 // Design: docs/architecture/core-design.md — reactor-level Prometheus metrics
 // Overview: reactor.go — Reactor struct and lifecycle
 // Related: forward_pool.go — overflow depth, pool ratio, source stats polled by metrics loop
-// Related: forward_pool_throttle.go — read throttle using pool fill ratio and source stats
 
 package reactor
 
