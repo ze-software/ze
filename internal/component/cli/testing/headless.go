@@ -207,7 +207,7 @@ func (hm *HeadlessModel) SettleWait() {
 		return
 	}
 
-	deadline := time.Now().Add(500 * time.Millisecond)
+	deadline := time.Now().Add(2 * time.Second)
 
 	for len(hm.pending) > 0 && time.Now().Before(deadline) {
 		drained := false
@@ -227,7 +227,8 @@ func (hm *HeadlessModel) SettleWait() {
 
 		if !drained && len(hm.pending) > 0 {
 			// Yield to let goroutines complete, then retry.
-			time.Sleep(time.Millisecond)
+			// 5ms gives sufficient time under race-detector overhead.
+			time.Sleep(5 * time.Millisecond)
 		}
 	}
 }
