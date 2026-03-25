@@ -22,64 +22,70 @@ All new code MUST follow these patterns.
 
 ## 1. System Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                    BGP Subsystem  (internal/component/bgp/)                   │
-│                                                                             │
-│   ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌────────────────────────────┐    │
-│   │ Peer 1  │  │ Peer 2  │  │ Peer N  │  │ Capability Negotiation     │    │
-│   │  FSM    │  │  FSM    │  │  FSM    │  │ (ASN4 · AddPath · ExtNH)  │    │
-│   └────┬────┘  └────┬────┘  └────┬────┘  │ ContextID · EncodingContext│    │
-│        │            │            │        └────────────────────────────┘    │
-│        └────────────┼────────────┘                                          │
-│                     ▼                                                       │
-│   ┌─────────────────────────────────────────────────────────────────────┐   │
-│   │  Wire Layer  (Session Buffer · Message Parse · WireUpdate)         │   │
-│   └────────────────────────────────┬────────────────────────────────────┘   │
-│                                    ▼                                        │
-│   ┌─────────────────────┐  ┌──────────────────┐                            │
-│   │   Reactor           │─▶│ EventDispatcher  │                            │
-│   │ (event loop,        │  │ (type-safe bridge,│                            │
-│   │  BGP cache)         │  │  JSON encoder)   │                            │
-│   └─────────────────────┘  └────────┬─────────┘                            │
-└─────────────────────────────────────┼──────────────────────────────────────┘
-                                      │  formatted events
-                                      ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  Config Pipeline  (internal/component/config/)                                        │
-│  File → Tree → ResolveBGPTree()                                             │
-│    ├─ PeersFromTree()            → peer definitions → Reactor               │
-│    └─ ExtractPluginsFromTree()   → plugin config   → Plugin Infrastructure  │
-└─────────────────────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────────────────────┐
-│               Plugin Infrastructure  (internal/component/plugin/)                     │
-│    Plugin Registry · Process Manager · Hub · SDK · DirectBridge             │
-└─────────────────────────────────────────────────────────────────────────────┘
-                              │                 ▲
-          JSON events (down)  │                 │  commands (up)
-          + base64 wire bytes │                 │  update/forward/withdraw
-                              ▼                 │
-═══════════════════════ PROCESS BOUNDARY (TLS / net.Pipe) ══════════════════
-                              │                 ▲
-                              ▼                 │
-                      ┌───────────────┐
-                      │    Plugin     │  (Go/Python/Rust/etc.)
-                      │  (RIB / RR)   │
-                      └───────────────┘
+```mermaid
+flowchart TB
+    subgraph Engine["Engine (supervisor — no BGP knowledge)"]
+        BUS["Bus\n(notification pub/sub)"]
+        CP["ConfigProvider\n(config tree authority)"]
+        PM["PluginManager\n(process lifecycle:\nspawn/stop via ProcessSpawner)"]
+    end
+
+    subgraph BGPSub["BGP Subsystem (ze.Subsystem)"]
+        subgraph Peers["Peer FSMs"]
+            P1[Peer 1 FSM]
+            PN[Peer N FSM]
+        end
+        CAP["Capability Negotiation\n(ASN4 · AddPath · ExtNH · ContextID)"]
+        WIRE["Wire Layer\n(Session Buffer · Message Parse · WireUpdate)"]
+        REACTOR["Reactor\n(event loop, BGP cache)"]
+        ED["EventDispatcher\n(data delivery, format negotiation)"]
+
+        P1 & PN --> WIRE
+        CAP -.-> WIRE
+        WIRE --> REACTOR
+        REACTOR -->|"direct call\n(data + counts)"| ED
+        REACTOR -.->|"notification\n(signals only)"| BUS
+    end
+
+    subgraph ConfigPipeline["Config Pipeline"]
+        LOAD["File → Tree → LoadConfig()\n→ ConfigProvider.SetRoot()"]
+    end
+
+    subgraph PluginServer["Plugin Server"]
+        HANDSHAKE["5-stage handshake · Subscriptions\nDispatcher · DirectBridge"]
+    end
+
+    subgraph PluginProcs["Process Boundary (TLS / net.Pipe)"]
+        PLUGIN["Plugin (Go/Python/Rust)\n(RIB · RR · GR)"]
+    end
+
+    Engine --> BGPSub
+    PM -->|"SpawnMore()"| PluginServer
+    CP -->|"Get('bgp')"| REACTOR
+    LOAD --> CP
+    ED -->|"formatted events"| PluginServer
+    HANDSHAKE <-->|"JSON events ↓\ncommands ↑"| PLUGIN
 ```
 
 **Key principles:**
-- **BGP Subsystem** handles BGP protocol, TCP, FSM, wire parsing, event dispatch
-- **Config Pipeline** parses config and feeds both BGP Subsystem and Plugin Infrastructure
-- **Plugin Infrastructure** manages plugin lifecycle, process spawning, message routing
-- **Plugins** implement RIB storage, policy, route reflection
-- **Pipes** carry JSON events (with base64 wire bytes) and text commands
-- **BGP cache** enables zero-copy forwarding (`bgp cache 123 forward <sel>`)
-- **Dynamic event types** -- plugins declare event types they produce via `Registration.EventTypes`. Engine registers them into `ValidEvents` at startup, so subscribe-events and emit-event validation accept them. Follows the same pattern as dynamic family registration.
-- **Dynamic send types** -- plugins declare send types they enable via `Registration.SendTypes`. Engine registers them into `ValidSendTypes` at startup, so `send [ ]` config validation accepts them dynamically. Base types (update, refresh) have dedicated bool fields; plugin types use `SendCustom map[string]bool`.
+- **Engine** supervises startup/shutdown order. No BGP knowledge. Starts PluginManager, then Subsystems.
+- **Bus** is a notification layer for cross-component signaling (peer state, updates). Not data transport. Payload is nil; information in metadata.
+- **ConfigProvider** is the config authority. Populated from YANG-parsed tree via `SetRoot()`. Subsystems and plugins read from it.
+- **PluginManager** owns process lifecycle (spawn/stop via `ProcessSpawner`). Server calls `SpawnMore()` for auto-loaded plugins.
+- **BGP Subsystem** wraps reactor via `BGPSubsystem` adapter implementing `ze.Subsystem`. Publishes Bus notifications alongside EventDispatcher data delivery.
+- **EventDispatcher** handles plugin data delivery (format negotiation, DirectBridge, cache counts). Called directly by reactor — not via Bus.
+- **Plugin Server** handles 5-stage handshake, subscriptions, command dispatch. Uses PluginManager for process creation.
+- **Two-phase plugin startup** -- Phase 1 (PluginManager.StartAll): spawn processes. Phase 2 (Server.StartWithContext): 5-stage handshake with spawned processes.
+- **Four-phase auto-load** -- Phase 1: explicit plugins. Phase 2: unclaimed families. Phase 3: custom event types. Phase 4: custom send types. Auto-load calls `PluginManager.SpawnMore()`.
+- **Pipes** carry JSON events (with base64 wire bytes) and text commands.
+- **BGP cache** enables zero-copy forwarding (`bgp cache 123 forward <sel>`).
+- **Dynamic event types** -- plugins declare event types they produce via `Registration.EventTypes`. Engine registers them into `ValidEvents` at startup.
+- **Dynamic send types** -- plugins declare send types they enable via `Registration.SendTypes`. Engine registers them into `ValidSendTypes` at startup.
 <!-- source: internal/component/plugin/registry/ -- plugin registry, Register -->
 <!-- source: internal/component/plugin/types.go -- Registration struct -->
-- **Four-phase startup** -- Phase 1: explicit plugins. Phase 2: auto-load for unclaimed families. Phase 3: auto-load for custom event types referenced in config `receive [ ]` (e.g., `update-rpki` auto-loads `bgp-rpki-decorator`). Phase 4: auto-load for custom send types referenced in config `send [ ]` (e.g., `enhanced-refresh` auto-loads `bgp-route-refresh`).
+<!-- source: internal/component/engine/engine.go -- Engine supervisor -->
+<!-- source: internal/component/bgp/subsystem/subsystem.go -- BGPSubsystem adapter -->
+<!-- source: internal/component/plugin/manager/manager.go -- PluginManager with ProcessSpawner -->
 
 ---
 
