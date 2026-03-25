@@ -48,13 +48,37 @@ const bufMuxProbeInterval = 100
 
 // bufMux4K is the block-backed multiplexer for 4K buffers.
 // Serves both read (pre-Extended Message) and build (UPDATE attributes) paths.
-// Collapse probe wired via withCollapseProbe; overflow probe added by reactor.
+// Collapse probe wired via withCollapseProbe; overflow probe available via AddProbe.
 var bufMux4K = withCollapseProbe(newProbedPool(message.MaxMsgLen, bufMuxBlockSize), bufMuxProbeInterval)
 
 // bufMux64K is the block-backed multiplexer for 64K buffers.
 // Serves read path after Extended Message capability is negotiated (RFC 8654).
-// Collapse probe wired via withCollapseProbe; overflow probe added by reactor.
+// Collapse probe wired via withCollapseProbe; overflow probe available via AddProbe.
 var bufMux64K = withCollapseProbe(newProbedPool(message.ExtMsgLen, bufMuxBlockSize), bufMuxProbeInterval)
+
+// initBufMuxBudget wires a shared byte budget into both multiplexers.
+// Called from reactor startup. maxBytes <= 0 means unlimited (AC-27).
+func initBufMuxBudget(maxBytes int64) {
+	if maxBytes <= 0 {
+		return
+	}
+	cb := newCombinedBudget(maxBytes)
+	bufMux4K.SetBudget(cb)
+	bufMux64K.SetBudget(cb)
+}
+
+// CombinedBufMuxStats returns total allocated and in-use byte counts
+// across both the 4K and 64K buffer multiplexers. Used by metrics and
+// backpressure decisions (AC-27: memory pressure is shared).
+func CombinedBufMuxStats() (totalBytes, usedBytes int64) {
+	return combinedMuxStats(bufMux4K.mux, bufMux64K.mux)
+}
+
+// CombinedBufMuxUsedRatio returns the fraction of allocated bytes in use
+// across both multiplexers (0.0 to 1.0). Returns 0.0 if nothing is allocated.
+func CombinedBufMuxUsedRatio() float64 {
+	return combinedMuxUsedRatio(bufMux4K.mux, bufMux64K.mux)
+}
 
 // getBuildBuf returns a reusable 4K buffer handle from the 4K multiplexer.
 // Caller MUST call putBuildBuf when done.

@@ -63,6 +63,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.chan.size", Type: "int", Default: "64", Description: "Per-destination forward worker channel capacity"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.write.deadline", Type: "duration", Default: "30s", Description: "TCP write deadline for forward pool batch writes"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.size", Type: "int", Default: "100000", Description: "Global overflow pool capacity for forward workers (0 = unbounded)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.maxbytes", Type: "int64", Default: "0", Description: "Combined byte budget for 4K+64K buffer pools (0 = unlimited)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.safety.valve", Type: "duration", Default: "5m", Description: "Safety valve duration for UPDATE cache gap-based eviction"})
 )
 
@@ -256,6 +257,9 @@ type Reactor struct {
 	// Egress: called per destination peer during ForwardUpdate.
 	ingressFilters []registry.IngressFilterFunc
 	egressFilters  []registry.EgressFilterFunc
+	// Mod handlers: post-accept transformations applied after egress filters.
+	// Keyed by mod key (e.g., "set:attr:otc"). Collected from registry at startup.
+	modHandlers map[string]registry.ModHandlerFunc
 
 	// Peer lifecycle observers (called on state transitions)
 	peerObservers []PeerLifecycleObserver
@@ -318,6 +322,10 @@ func New(config *Config) *Reactor {
 	// Default: 100000 (~100K items). 0 = unbounded (legacy behavior).
 	// Negative values treated as 0.
 	fwdPoolSize := max(env.GetInt("ze.fwd.pool.size", 100000), 0)
+
+	// ze.fwd.pool.maxbytes caps combined memory across 4K+64K buffer pools (AC-27).
+	// 0 = unlimited (default). Positive values enforce a shared byte budget.
+	initBufMuxBudget(env.GetInt64("ze.fwd.pool.maxbytes", 0))
 
 	r := &Reactor{
 		config:          config,
@@ -706,9 +714,10 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		}
 		// Set EventDispatcher as message receiver for raw byte access
 		r.messageReceiver = r.eventDispatcher
-		// Collect peer filter chains from plugin registry.
+		// Collect peer filter chains and mod handlers from plugin registry.
 		r.ingressFilters = registry.IngressFilters()
 		r.egressFilters = registry.EgressFilters()
+		r.modHandlers = registry.ModHandlers()
 		// Register API state observer for peer lifecycle events
 		r.AddPeerObserver(&apiStateObserver{dispatcher: r.eventDispatcher, reactor: r})
 

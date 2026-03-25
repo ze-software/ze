@@ -16,7 +16,7 @@ import (
 // Zero value (Buf == nil) means "no buffer available" (pool exhausted).
 // Caller MUST call Return() (or the appropriate return function) after use.
 type BufHandle struct {
-	ID  uint16 // block this buffer belongs to
+	ID  uint32 // block this buffer belongs to
 	idx int    // buffer index within the block (internal routing)
 	Buf []byte // the buffer slice (into block's backing array)
 }
@@ -32,7 +32,7 @@ type bufBlock struct {
 	total     int    // number of buffers in this block
 	freeCount int    // number of buffers currently in free list
 	bufSize   int    // size of each buffer
-	id        uint16 // block ID (matches BufHandle.ID)
+	id        uint32 // block ID (matches BufHandle.ID)
 }
 
 // get takes a buffer from this block's free list.
@@ -82,7 +82,7 @@ func (b *bufBlock) freeRatio() float64 {
 }
 
 // newBufBlock allocates a block with one contiguous backing array.
-func newBufBlock(id uint16, bufSize, count int) *bufBlock {
+func newBufBlock(id uint32, bufSize, count int) *bufBlock {
 	b := &bufBlock{
 		backing:   make([]byte, count*bufSize),
 		free:      make([]int, count),
@@ -99,12 +99,60 @@ func newBufBlock(id uint16, bufSize, count int) *bufBlock {
 	return b
 }
 
+// combinedBudget tracks total allocated bytes across multiple BufMux instances
+// using an atomic counter. Lock-free reads make it safe to call from within
+// growLocked() without risking cross-mux deadlock (AC-27).
+//
+// Each BufMux that shares a budget calls recordGrow/recordCollapse when
+// blocks are added/removed. The canGrow check is O(1) and never acquires
+// another mux's lock.
+type combinedBudget struct {
+	allocated atomic.Int64 // total allocated bytes across all muxes
+	maxBytes  int64        // 0 = unlimited
+}
+
+// newCombinedBudget creates a shared budget. maxBytes <= 0 means unlimited.
+func newCombinedBudget(maxBytes int64) *combinedBudget {
+	return &combinedBudget{maxBytes: maxBytes}
+}
+
+// tryReserve atomically checks whether adding blockBytes would stay within
+// budget and, if so, reserves the space. Returns true if the reservation
+// succeeded. Uses a CAS loop to eliminate the TOCTOU gap between checking
+// and recording — two muxes cannot both pass the check concurrently.
+func (cb *combinedBudget) tryReserve(blockBytes int) bool {
+	add := int64(blockBytes)
+	if cb.maxBytes <= 0 {
+		cb.allocated.Add(add)
+		return true
+	}
+	for {
+		cur := cb.allocated.Load()
+		if cur+add > cb.maxBytes {
+			return false
+		}
+		if cb.allocated.CompareAndSwap(cur, cur+add) {
+			return true
+		}
+	}
+}
+
+// releaseBytes removes blockBytes from the allocation counter.
+func (cb *combinedBudget) releaseBytes(blockBytes int) {
+	cb.allocated.Add(-int64(blockBytes))
+}
+
+// AllocatedBytes returns the current total across all muxes.
+func (cb *combinedBudget) AllocatedBytes() int64 {
+	return cb.allocated.Load()
+}
+
 // BufMux is a block-backed buffer multiplexer that replaces sync.Pool.
 //
 // Three rules govern its behavior:
 //  1. Allocate from lowest block with free buffers (steady-state packs low,
 //     higher blocks drain and become collapse candidates).
-//  2. Grow a new block when Get() finds no free buffer.
+//  2. Grow a new block when Get() finds no free buffer (subject to budget).
 //  3. Collapse highest block (via tryCollapse) when fully returned and
 //     block below has >=50% free. Triggered externally by probedPool on a
 //     traffic-driven interval — no timer, no per-Return check.
@@ -115,11 +163,12 @@ func newBufBlock(id uint16, bufSize, count int) *bufBlock {
 // because Get() and Return() are O(1).
 type BufMux struct {
 	mu        sync.Mutex
-	blocks    []*bufBlock // ordered by creation; index may not equal ID after collapse
-	bufSize   int         // buffer size for this multiplexer
-	blockSize int         // buffers per block
-	maxBlocks int         // 0 = unlimited
-	nextID    uint16      // next block ID to assign
+	blocks    []*bufBlock     // ordered by creation; index may not equal ID after collapse
+	bufSize   int             // buffer size for this multiplexer
+	blockSize int             // buffers per block
+	maxBlocks int             // 0 = unlimited
+	nextID    uint32          // next block ID to assign
+	budget    *combinedBudget // shared budget across mux instances; nil = unlimited
 }
 
 // newBufMux creates a multiplexer for buffers of the given size.
@@ -138,6 +187,22 @@ func (m *BufMux) SetMaxBlocks(n int) {
 	m.mu.Lock()
 	m.maxBlocks = n
 	m.mu.Unlock()
+}
+
+// SetBudget sets a shared budget that limits combined allocated bytes
+// across multiple BufMux instances. The budget is an atomic counter —
+// safe to check from growLocked without cross-mux deadlock.
+// Nil = unlimited growth (default). Must be called before concurrent use.
+//
+// If blocks already exist (budget set after initial growth), their bytes
+// are added to the budget counter so accounting stays consistent.
+func (m *BufMux) SetBudget(cb *combinedBudget) {
+	m.budget = cb
+	if cb != nil {
+		for range m.blocks {
+			cb.allocated.Add(int64(m.blockBytes()))
+		}
+	}
 }
 
 // Get returns a buffer handle from the lowest block with free buffers.
@@ -201,9 +266,31 @@ func (m *BufMux) Return(h BufHandle) {
 	b.put(h.idx)
 }
 
-// growLocked allocates a new block. Returns nil if at maximum. Caller holds mu.
+// Stats returns the total allocated buffer slots and the number currently
+// in use across all blocks. Safe for concurrent use (acquires mu).
+// The values are a point-in-time snapshot.
+func (m *BufMux) Stats() (allocated, inUse int) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, b := range m.blocks {
+		allocated += b.total
+		inUse += b.total - b.freeCount
+	}
+	return
+}
+
+// blockBytes returns the byte size of one block (blockSize * bufSize).
+func (m *BufMux) blockBytes() int {
+	return m.blockSize * m.bufSize
+}
+
+// growLocked allocates a new block. Returns nil if at maximum or if
+// the budget denies. Caller holds mu.
 func (m *BufMux) growLocked() *bufBlock {
 	if m.maxBlocks > 0 && len(m.blocks) >= m.maxBlocks {
+		return nil
+	}
+	if m.budget != nil && !m.budget.tryReserve(m.blockBytes()) {
 		return nil
 	}
 	b := newBufBlock(m.nextID, m.bufSize, m.blockSize)
@@ -230,6 +317,9 @@ func (m *BufMux) collapseLocked() {
 		// Delete highest: trim slice. The removed element becomes
 		// unreachable and eligible for GC.
 		m.blocks = m.blocks[:len(m.blocks)-1]
+		if m.budget != nil {
+			m.budget.releaseBytes(m.blockBytes())
+		}
 	}
 }
 
@@ -243,7 +333,7 @@ func (m *BufMux) tryCollapse() {
 
 // blockByID finds a block by its ID. Returns nil if not found.
 // Caller must hold mu.
-func (m *BufMux) blockByID(id uint16) *bufBlock {
+func (m *BufMux) blockByID(id uint32) *bufBlock {
 	for _, b := range m.blocks {
 		if b.id == id {
 			return b
@@ -297,10 +387,34 @@ func (p *probedPool) SetProbe(fn func()) {
 	p.probe = fn
 }
 
+// AddProbe chains an additional probe callback. The new probe fires after
+// any existing probe on every Get(). Use this to add overflow/backpressure
+// monitoring without replacing the collapse probe.
+// Must be called before concurrent use.
+func (p *probedPool) AddProbe(fn func()) {
+	old := p.probe
+	if old == nil {
+		p.probe = fn
+	} else {
+		p.probe = func() { old(); fn() }
+	}
+}
+
+// Stats returns (allocated, inUse) buffer slot counts from the underlying BufMux.
+func (p *probedPool) Stats() (allocated, inUse int) {
+	return p.mux.Stats()
+}
+
 // SetMaxBlocks limits the number of blocks in the underlying BufMux.
 // Must be called before concurrent use.
 func (p *probedPool) SetMaxBlocks(n int) {
 	p.mux.SetMaxBlocks(n)
+}
+
+// SetBudget sets the shared budget on the underlying BufMux.
+// Must be called before concurrent use.
+func (p *probedPool) SetBudget(cb *combinedBudget) {
+	p.mux.SetBudget(cb)
 }
 
 // tryCollapse triggers a collapse check on the underlying BufMux.
@@ -311,6 +425,28 @@ func (p *probedPool) tryCollapse() {
 // blockCount returns the number of active blocks (for testing).
 func (p *probedPool) blockCount() int {
 	return p.mux.blockCount()
+}
+
+// combinedMuxStats returns total allocated and in-use byte counts across two BufMux instances.
+// Used for shared memory budget decisions (AC-27).
+func combinedMuxStats(a, b *BufMux) (totalBytes, usedBytes int64) {
+	aAlloc, aUsed := a.Stats()
+	bAlloc, bUsed := b.Stats()
+	totalBytes = int64(aAlloc)*int64(a.bufSize) + int64(bAlloc)*int64(b.bufSize)
+	usedBytes = int64(aUsed)*int64(a.bufSize) + int64(bUsed)*int64(b.bufSize)
+	return
+}
+
+// combinedMuxUsedRatio returns the fraction of allocated bytes in use across
+// two BufMux instances (0.0 to 1.0). Returns 0.0 if nothing is allocated.
+// Clamped to 1.0 because the two Stats() calls are not atomic — transient
+// inconsistency can produce used > total.
+func combinedMuxUsedRatio(a, b *BufMux) float64 {
+	total, used := combinedMuxStats(a, b)
+	if total == 0 {
+		return 0.0
+	}
+	return min(float64(used)/float64(total), 1.0)
 }
 
 // withCollapseProbe wires a traffic-driven collapse probe to a pool.

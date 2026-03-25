@@ -386,11 +386,23 @@ so the two multiplexers maintain separate inventories. But memory
 pressure is a shared resource -- growth, shrink, and backpressure
 decisions use the combined usage across both multiplexers.
 
-| Decision | Input |
-|----------|-------|
-| Grow (allocate another 10% block) | Combined usage of 4K + 64K > 90% of combined allocation |
-| Shrink (drop empty blocks) | Combined free across 4K + 64K > 20% of combined allocation |
-| Backpressure (deny buffer) | Combined usage-to-weight ratio |
+<!-- source: internal/component/bgp/reactor/bufmux.go — combinedBudget -->
+<!-- source: internal/component/bgp/reactor/session.go — initBufMuxBudget, CombinedBufMuxStats -->
+
+**Shared byte budget:** Both multiplexers share a `combinedBudget`
+(atomic counter). Each mux increments the counter on block growth
+and decrements on collapse. The budget check is lock-free -- no
+cross-mux deadlock risk.
+
+| Decision | Mechanism |
+|----------|-----------|
+| Grow (new block) | `combinedBudget.canGrow(blockBytes)` — denies if total allocated across both muxes would exceed `ze.fwd.pool.maxbytes` |
+| Shrink (collapse) | Per-mux collapse (unchanged). Budget counter decremented on collapse via `recordCollapse`. |
+| Backpressure (deny buffer) | `CombinedBufMuxUsedRatio()` — ratio of in-use bytes across both muxes. Available to overflow pool and metrics. |
+
+**Configuration:** `ze.fwd.pool.maxbytes` sets the combined byte limit
+(default 0 = unlimited). Phase 4 will set this dynamically based on
+peer weights.
 
 This prevents a scenario where the 64K multiplexer is 95% full (real
 memory pressure) but the 4K multiplexer has headroom, and the system
