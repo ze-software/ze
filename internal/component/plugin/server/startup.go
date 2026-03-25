@@ -213,7 +213,7 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 	if !ok || pm == nil {
 		return fmt.Errorf("spawner did not produce a valid ProcessManager")
 	}
-	s.procManager = pm
+	s.procManager.Store(pm)
 
 	// Step (b): Compute dependency tiers from plugin configs.
 	names := make([]string, len(plugins))
@@ -223,7 +223,7 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 	tiers, err := registry.TopologicalTiers(names)
 	if err != nil {
 		logger().Error("tier computation failed", "error", err)
-		s.procManager.Stop()
+		pm.Stop()
 		return err
 	}
 
@@ -237,7 +237,7 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 		// Build process slice for this tier by looking up names in PM.
 		tierProcs := make([]*process.Process, 0, len(tierNames))
 		for _, name := range tierNames {
-			proc := s.procManager.GetProcess(name)
+			proc := pm.GetProcess(name)
 			if proc == nil {
 				logger().Error("tier process not found in PM", "plugin", name, "tier", tierIdx)
 				continue
@@ -277,9 +277,14 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 	}
 
 	// Step (d): After ALL tiers complete, start async handlers for ALL processes.
+	// Tracked in wg so Server.Wait() blocks until all handlers exit.
 	s.coordinator = nil
 	for _, proc := range allProcesses {
-		go s.handleSingleProcessCommandsRPC(proc)
+		s.wg.Add(1)
+		go func(p *process.Process) {
+			defer s.wg.Done()
+			s.handleSingleProcessCommandsRPC(p)
+		}(proc)
 	}
 
 	return nil

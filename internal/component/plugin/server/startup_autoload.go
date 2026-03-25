@@ -79,7 +79,8 @@ func (s *Server) getUnclaimedPluginsForTokens(tokens []string, lookupFn func(str
 		}
 
 		// Skip if already configured or running
-		if s.hasConfiguredPlugin(pluginName) || (s.procManager != nil && s.procManager.GetProcess(pluginName) != nil) {
+		pm := s.procManager.Load()
+		if s.hasConfiguredPlugin(pluginName) || (pm != nil && pm.GetProcess(pluginName) != nil) {
 			logger().Debug(kind+" plugin already configured, skipping auto-load",
 				kind, token, "plugin", pluginName)
 			continue
@@ -105,8 +106,9 @@ func (s *Server) getUnclaimedPluginsForTokens(tokens []string, lookupFn func(str
 
 	// Build plugin configs for all resolved names not already running.
 	var plugins []plugin.PluginConfig
+	pm2 := s.procManager.Load()
 	for _, name := range resolved {
-		if s.hasConfiguredPlugin(name) || (s.procManager != nil && s.procManager.GetProcess(name) != nil) {
+		if s.hasConfiguredPlugin(name) || (pm2 != nil && pm2.GetProcess(name) != nil) {
 			continue
 		}
 

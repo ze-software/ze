@@ -61,8 +61,8 @@ type Server struct {
 	rpcDispatcher *ipc.RPCDispatcher // Wire method dispatch for socket clients
 	rpcFallback   func(string) func(json.RawMessage) (any, error)
 	commitManager any
-	procManager   *process.ProcessManager
-	spawner       plugin.ProcessSpawner // PluginManager for process lifecycle (nil = self-managed)
+	procManager   atomic.Pointer[process.ProcessManager]
+	spawner       plugin.ProcessSpawner // PluginManager for process lifecycle
 	subscriptions *SubscriptionManager  // API-driven event subscriptions
 	monitors      *MonitorManager       // CLI monitor subscriptions
 
@@ -131,7 +131,7 @@ func (s *Server) wrapHandler(handler Handler, cliCommand string, readOnly bool) 
 }
 
 // NewServer creates a new API server.
-func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) *Server {
+func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, error) {
 	s := &Server{
 		config:        config,
 		reactor:       reactor,
@@ -152,7 +152,7 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) *Server {
 	// Build WireMethod -> CLI path mapping from shared YANG loader.
 	loader, err := yang.DefaultLoader()
 	if err != nil {
-		logger().Error("YANG command tree unavailable, text dispatch disabled", "error", err)
+		return nil, fmt.Errorf("YANG command tree: %w", err)
 	}
 	wireToPath := yang.WireMethodToPath(loader)
 
@@ -173,7 +173,7 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) *Server {
 		}
 	}
 
-	return s
+	return s, nil
 }
 
 // ConfigPath returns the path to the config file. Empty if not set.
@@ -241,7 +241,7 @@ func (s *Server) Monitors() *MonitorManager {
 // ProcessManager returns the process manager.
 // Used by BGP hook implementations to iterate plugin processes.
 func (s *Server) ProcessManager() *process.ProcessManager {
-	return s.procManager
+	return s.procManager.Load()
 }
 
 // SetProcessSpawner sets the PluginManager as the process spawner.
@@ -304,8 +304,8 @@ func (s *Server) cleanup() {
 	s.running.Store(false)
 
 	// Stop processes
-	if s.procManager != nil {
-		s.procManager.Stop()
+	if pm := s.procManager.Load(); pm != nil {
+		pm.Stop()
 	}
 }
 
@@ -370,12 +370,13 @@ func (s *Server) GetDecodeFamilies() []string {
 // Used for two-phase config parsing to extend the schema before parsing peer config.
 // Should be called after Stage 1 (Registration) completes for all plugins.
 func (s *Server) GetSchemaDeclarations() []plugin.SchemaDeclaration {
-	if s.procManager == nil {
+	pm := s.procManager.Load()
+	if pm == nil {
 		return nil
 	}
 
 	var declarations []plugin.SchemaDeclaration
-	for _, proc := range s.procManager.AllProcesses() {
+	for _, proc := range pm.AllProcesses() {
 		reg := proc.Registration()
 		declarations = append(declarations, reg.SchemaDeclarations...)
 	}

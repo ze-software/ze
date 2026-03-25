@@ -89,8 +89,8 @@ func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error
 
 	var affected []affectedPlugin
 
-	if s.procManager != nil {
-		for _, proc := range s.procManager.AllProcesses() {
+	if pm := s.procManager.Load(); pm != nil {
+		for _, proc := range pm.AllProcesses() {
 			reg := proc.Registration()
 			if reg == nil || len(reg.WantsConfigRoots) == 0 {
 				continue

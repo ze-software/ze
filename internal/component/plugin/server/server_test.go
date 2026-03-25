@@ -27,7 +27,7 @@ import (
 // PREVENTS: Resource leaks on shutdown.
 func TestServerStartStop(t *testing.T) {
 	reactor := &mockReactor{}
-	server := NewServer(&ServerConfig{}, reactor)
+	server, _ := NewServer(&ServerConfig{}, reactor)
 
 	// Start server
 	err := server.Start()
@@ -52,7 +52,7 @@ func TestNoUnixSocket(t *testing.T) {
 	sockPath := filepath.Join(dir, "test.sock")
 
 	reactor := &mockReactor{}
-	server := NewServer(&ServerConfig{}, reactor)
+	server, _ := NewServer(&ServerConfig{}, reactor)
 
 	err := server.Start()
 	require.NoError(t, err)
@@ -99,7 +99,7 @@ func TestHandleProcessStartupRPC(t *testing.T) {
 	defer cancel()
 
 	reactor := &mockReactor{}
-	server := NewServer(&ServerConfig{}, reactor)
+	server, _ := NewServer(&ServerConfig{}, reactor)
 	server.ctx, server.cancel = context.WithCancel(ctx)
 	server.coordinator = plugin.NewStartupCoordinator(1)
 
@@ -194,7 +194,7 @@ func TestStartupRPC_DependencyValidation(t *testing.T) {
 	defer cancel()
 
 	reactor := &mockReactor{}
-	server := NewServer(&ServerConfig{
+	server, _ := NewServer(&ServerConfig{
 		Plugins: []plugin.PluginConfig{
 			{Name: "bgp-rs"},
 		},
@@ -249,7 +249,7 @@ func TestStartupRPC_DependencySatisfied(t *testing.T) {
 	defer cancel()
 
 	reactor := &mockReactor{}
-	server := NewServer(&ServerConfig{
+	server, _ := NewServer(&ServerConfig{
 		Plugins: []plugin.PluginConfig{
 			{Name: "test-dep-ok"},
 			{Name: "bgp-adj-rib-in"},

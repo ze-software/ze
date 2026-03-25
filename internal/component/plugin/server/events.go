@@ -13,7 +13,8 @@ import (
 // EncodeNLRI encodes NLRI by routing to the appropriate family plugin via RPC.
 // Returns error if no plugin registered or plugin not running.
 func (s *Server) EncodeNLRI(family string, args []string) ([]byte, error) {
-	if s.registry == nil || s.procManager == nil {
+	pm := s.procManager.Load()
+	if s.registry == nil || pm == nil {
 		return nil, fmt.Errorf("server not configured for plugins")
 	}
 
@@ -22,7 +23,7 @@ func (s *Server) EncodeNLRI(family string, args []string) ([]byte, error) {
 		return nil, fmt.Errorf("no plugin registered for family %s", family)
 	}
 
-	proc := s.procManager.GetProcess(pluginName)
+	proc := pm.GetProcess(pluginName)
 	if proc == nil {
 		return nil, fmt.Errorf("plugin %s not running", pluginName)
 	}
@@ -51,7 +52,8 @@ func (s *Server) EncodeNLRI(family string, args []string) ([]byte, error) {
 // Returns the JSON representation of the decoded NLRI.
 // Returns error if no plugin registered or plugin not running.
 func (s *Server) DecodeNLRI(family, hexData string) (string, error) {
-	if s.registry == nil || s.procManager == nil {
+	pm := s.procManager.Load()
+	if s.registry == nil || pm == nil {
 		return "", fmt.Errorf("server not configured for plugins")
 	}
 
@@ -60,7 +62,7 @@ func (s *Server) DecodeNLRI(family, hexData string) (string, error) {
 		return "", fmt.Errorf("no plugin registered for family %s", family)
 	}
 
-	proc := s.procManager.GetProcess(pluginName)
+	proc := pm.GetProcess(pluginName)
 	if proc == nil {
 		return "", fmt.Errorf("plugin %s not running", pluginName)
 	}

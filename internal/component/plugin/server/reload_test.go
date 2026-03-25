@@ -165,7 +165,7 @@ func newTestReloadServer(t *testing.T, reactor *mockReloadReactor, plugins []plu
 		pd.responder = resp
 	}
 
-	s.procManager = pm
+	s.procManager.Store(pm)
 
 	return s
 }
@@ -632,7 +632,7 @@ func TestReloadVerifyCrashedPlugin(t *testing.T) {
 	s := newTestReloadServer(t, reactor, plugins)
 
 	// Simulate crash: close conn so Conn() returns nil.
-	proc := s.procManager.GetProcess("crashed-plugin")
+	proc := s.procManager.Load().GetProcess("crashed-plugin")
 	proc.CloseConn()
 
 	err := s.ReloadConfig(context.Background(), newTree)
@@ -701,7 +701,7 @@ func TestReloadVerifyCrashedPluginMultiple(t *testing.T) {
 	s := newTestReloadServer(t, reactor, plugins)
 
 	// Nil conn for "crashed" before reload — verify phase catches this.
-	proc := s.procManager.GetProcess("crashed")
+	proc := s.procManager.Load().GetProcess("crashed")
 	proc.CloseConn()
 
 	err := s.ReloadConfig(context.Background(), newTree)
@@ -728,7 +728,7 @@ func TestReloadProcessDiedBetweenVerifyAndApply(t *testing.T) {
 	}
 	s := newTestReloadServer(t, reactor, plugins)
 
-	proc := s.procManager.GetProcess("dies-after-verify")
+	proc := s.procManager.Load().GetProcess("dies-after-verify")
 
 	// Use beforeVerifyRsp to deterministically nil engineConn BEFORE the verify
 	// response is sent. Only nil the pointer — do NOT close the underlying connection,

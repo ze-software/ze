@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/netip"
 	"runtime"
@@ -682,7 +683,11 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 				Internal:      pc.Internal, // Run in-process via goroutine
 			})
 		}
-		r.api = pluginserver.NewServer(apiConfig, &reactorAPIAdapter{r})
+		var serverErr error
+		r.api, serverErr = pluginserver.NewServer(apiConfig, &reactorAPIAdapter{r})
+		if serverErr != nil {
+			return fmt.Errorf("create plugin server: %w", serverErr)
+		}
 		// Wire PluginManager as process spawner (if set).
 		if r.processSpawner != nil {
 			r.api.SetProcessSpawner(r.processSpawner)
@@ -747,9 +752,10 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	})
 	r.signals.StartWithContext(r.ctx)
 
-	// Capture peers slice before releasing lock - ensures consistent snapshot
-	// even if peers were somehow modified during API wait.
-	peersToStart := r.peers
+	// Copy peer map before releasing lock — map alias would race with
+	// concurrent AddDynamicPeer (concurrent map read+write panics in Go).
+	peersToStart := make(map[string]*Peer, len(r.peers))
+	maps.Copy(peersToStart, r.peers)
 
 	// Release lock before waiting for API - plugins need RLock in GetPeerCapabilityConfigs()
 	// during their startup protocol. Holding the write lock here causes deadlock.

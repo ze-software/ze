@@ -335,7 +335,9 @@ func runOrchestratorWithData(store storage.Storage, configPath string, data []by
 	// Wait for shutdown
 	<-ctx.Done()
 
-	// Clean shutdown
+	// Clean shutdown — stop signal handler goroutine before returning.
+	signal.Stop(sigCh)
+	close(sigCh)
 	o.Stop()
 	return 0
 }

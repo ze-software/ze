@@ -16,7 +16,8 @@ const DefaultAPITimeout = 5 * time.Second
 // APISyncState tracks API process synchronization state.
 type APISyncState struct {
 	// processCount is the number of API processes that must send ready.
-	processCount int
+	// Accessed from multiple goroutines (startup adds, reactor reads).
+	processCount atomic.Int32
 
 	// readyCount tracks how many "api ready" signals received.
 	readyCount atomic.Int32
@@ -40,7 +41,7 @@ type APISyncState struct {
 // SetAPIProcessCount sets the number of API processes to wait for.
 // Must be called before WaitForAPIReady.
 func (r *Reactor) SetAPIProcessCount(count int) {
-	r.processCount = count
+	r.processCount.Store(int32(count))
 	r.readyCount.Store(0)
 	if r.apiTimeout == 0 {
 		r.apiTimeout = DefaultAPITimeout
@@ -63,14 +64,14 @@ func (r *Reactor) SetAPIProcessCount(count int) {
 // Safe to call while WaitForPluginStartupComplete is blocking on the reactor goroutine.
 // Lazily creates apiReady if initial count was 0 (auto-load only configs).
 func (r *Reactor) AddAPIProcessCount(count int) {
-	r.processCount += count
+	total := r.processCount.Add(int32(count))
 	// Create apiReady lazily when auto-loaded plugins arrive after SetAPIProcessCount(0).
 	// startupComplete is always created by SetAPIProcessCount, so no lazy creation needed.
 	if r.apiReady == nil && count > 0 {
 		r.apiReady = make(chan struct{})
 		r.apiReadyOnce = sync.Once{}
 	}
-	slog.Debug("added api process count", "added", count, "total", r.processCount)
+	slog.Debug("added api process count", "added", count, "total", total)
 }
 
 // WaitForAPIReady blocks until all API processes signal readiness or timeout.
@@ -79,7 +80,7 @@ func (r *Reactor) AddAPIProcessCount(count int) {
 // Thread-safe: can be called multiple times (subsequent calls return immediately).
 func (r *Reactor) WaitForAPIReady() {
 	// No processes = no wait
-	if r.processCount == 0 {
+	if r.processCount.Load() == 0 {
 		return
 	}
 
@@ -95,7 +96,7 @@ func (r *Reactor) WaitForAPIReady() {
 	case <-r.apiReady:
 		return
 	case <-r.clock.After(r.apiTimeout):
-		slog.Warn("api timeout", "ready", r.readyCount.Load(), "expected", r.processCount)
+		slog.Warn("api timeout", "ready", r.readyCount.Load(), "expected", r.processCount.Load())
 		r.signalAllReady()
 	}
 }
@@ -104,8 +105,9 @@ func (r *Reactor) WaitForAPIReady() {
 // When all processes have signaled, unblocks WaitForAPIReady.
 func (r *Reactor) SignalAPIReady() {
 	count := r.readyCount.Add(1)
-	slog.Debug("api ready signal", "count", count, "expected", r.processCount)
-	if int(count) >= r.processCount {
+	expected := r.processCount.Load()
+	slog.Debug("api ready signal", "count", count, "expected", expected)
+	if count >= expected {
 		r.signalAllReady()
 	}
 }
