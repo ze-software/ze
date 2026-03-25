@@ -26,7 +26,7 @@ BOLD='\033[1m'
 RESET='\033[0m'
 
 SESSION_STATE=".claude/session-state.md"
-SELECTED_SPEC=$(cat .claude/selected-spec 2>/dev/null | tr -d '[:space:]')
+SELECTED_SPEC=$(grep -v '^#' .claude/selected-spec 2>/dev/null | grep -v '^$' | tail -1 | tr -d '[:space:]')
 
 ERRORS=()
 WARNINGS=()

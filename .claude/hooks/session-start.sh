@@ -15,13 +15,20 @@ else
     echo "✅ Clean"
 fi
 
-# Selected spec - with READ reminder
-SELECTED_SPEC=$(grep -v '^#' .claude/selected-spec 2>/dev/null | grep -v '^$' | head -1)
+# Selected specs - multi-session aware (one per line)
+SELECTED_SPECS=$(grep -v '^#' .claude/selected-spec 2>/dev/null | grep -v '^$')
+SELECTED_COUNT=$(echo "$SELECTED_SPECS" | grep -c . 2>/dev/null || true)
 SPEC_COUNT=$(find plan -maxdepth 1 -name "spec-*.md" 2>/dev/null | wc -l | tr -d ' ')
 
-if [ -n "$SELECTED_SPEC" ] && [ -f "plan/$SELECTED_SPEC" ]; then
-    echo "🎯 SPEC: $SELECTED_SPEC (+$((SPEC_COUNT-1)) others)"
-    echo "   → READ plan/$SELECTED_SPEC BEFORE any work"
+if [ "$SELECTED_COUNT" -gt 1 ]; then
+    echo "⚠️ ${SELECTED_COUNT} Claude sessions active on specs:"
+    echo "$SELECTED_SPECS" | while read -r spec; do
+        [ -f "plan/$spec" ] && echo "   - $spec" || echo "   - $spec (missing)"
+    done
+    echo "   → READ your spec BEFORE any work"
+elif [ "$SELECTED_COUNT" -eq 1 ] && [ -f "plan/$SELECTED_SPECS" ]; then
+    echo "🎯 SPEC: $SELECTED_SPECS (+$((SPEC_COUNT-1)) others)"
+    echo "   → READ plan/$SELECTED_SPECS BEFORE any work"
 elif [ "$SPEC_COUNT" -gt 0 ]; then
     echo "📋 ${SPEC_COUNT} specs, none selected"
 fi

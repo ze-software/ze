@@ -7,7 +7,7 @@ MESSAGE=$(cat)
 if echo "$MESSAGE" | grep -q "continued from a previous conversation" && \
    echo "$MESSAGE" | grep -q "ran out of context\|context compaction"; then
     echo "$(date -Iseconds)" > .claude/.compaction-detected
-    SELECTED_SPEC=$(cat .claude/selected-spec 2>/dev/null | tr -d '[:space:]')
+    SELECTED_SPEC=$(grep -v '^#' .claude/selected-spec 2>/dev/null | grep -v '^$' | tail -1 | tr -d '[:space:]')
 
     # Compact output to stderr (no tokens)
     echo "🔄 COMPACTION: Read .claude/rules/post-compaction.md" >&2

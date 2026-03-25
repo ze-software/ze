@@ -30,7 +30,7 @@ if [[ ! -f .claude/selected-spec ]]; then
     exit 0
 fi
 
-SPEC_NAME=$(tr -d '[:space:]' < .claude/selected-spec)
+SPEC_NAME=$(grep -v '^#' .claude/selected-spec 2>/dev/null | grep -v '^$' | tail -1 | tr -d '[:space:]')
 if [[ -z "$SPEC_NAME" ]]; then
     exit 0
 fi

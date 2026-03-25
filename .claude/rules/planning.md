@@ -5,7 +5,9 @@ Rationale: `.claude/rationale/planning.md`
 
 ## Spec Selection
 
-One spec at a time. Tracked in `.claude/selected-spec` (filename only). Clear after writing summary to `plan/learned/`.
+One spec at a time per session. Tracked in `.claude/selected-spec` (one filename per line).
+**Append** your spec filename when selecting. **Remove your line** after writing summary to `plan/learned/`.
+Multiple lines means multiple Claude sessions are working concurrently -- do not overwrite their entries.
 
 ## Plan File Location
 
