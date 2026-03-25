@@ -47,5 +47,6 @@ if [ -f ".claude/session-state.md" ]; then
     fi
 fi
 
-# Top rule reminder (one line)
+# Blocking reminders
+echo "⚠️ BLOCKING: ToolSearch select:LSP — load BEFORE any work"
 echo "⚠️ RULE: Read spec + source files BEFORE writing any code"
