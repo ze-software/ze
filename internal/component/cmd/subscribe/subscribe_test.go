@@ -15,7 +15,7 @@ import (
 // newTestContext creates a CommandContext with a Server (including SubscriptionManager)
 // and an optional Process. Pass nil proc for tests that need no process context.
 func newTestContext(proc *process.Process) *pluginserver.CommandContext {
-	server := pluginserver.NewServer(&pluginserver.ServerConfig{
+	server, _ := pluginserver.NewServer(&pluginserver.ServerConfig{
 		CommitManager: transaction.NewCommitManager(),
 	}, nil)
 	return &pluginserver.CommandContext{

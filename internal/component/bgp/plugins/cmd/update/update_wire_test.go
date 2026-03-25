@@ -414,7 +414,7 @@ func TestParseUpdateWire_MultipleAttrSetError(t *testing.T) {
 func TestHandleUpdateHex_Integration(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "10.0.0.1",
 	}
 
@@ -448,7 +448,7 @@ func TestHandleUpdateHex_Integration(t *testing.T) {
 func TestHandleUpdateB64_Integration(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "10.0.0.1",
 	}
 
@@ -479,7 +479,7 @@ func TestHandleUpdateB64_Integration(t *testing.T) {
 func TestHandleUpdateHex_WithdrawOnly(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "10.0.0.1",
 	}
 
@@ -504,7 +504,7 @@ func TestHandleUpdateHex_WithdrawOnly(t *testing.T) {
 func TestHandleUpdateHex_MixedAddDel(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "10.0.0.1",
 	}
 

@@ -115,7 +115,7 @@ func (m *mockReactor) ForwardUpdate(sel *selector.Selector, id uint64, _ string)
 
 // newTestContext creates a CommandContext backed by a mock reactor.
 func newTestContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandContext {
-	server := pluginserver.NewServer(&pluginserver.ServerConfig{
+	server, _ := pluginserver.NewServer(&pluginserver.ServerConfig{
 		CommitManager: transaction.NewCommitManager(),
 	}, reactor)
 	return &pluginserver.CommandContext{Server: server}

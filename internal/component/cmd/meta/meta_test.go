@@ -14,7 +14,7 @@ import (
 
 // newTestContext creates a CommandContext for handler tests.
 func newTestContext() *pluginserver.CommandContext {
-	server := pluginserver.NewServer(&pluginserver.ServerConfig{
+	server, _ := pluginserver.NewServer(&pluginserver.ServerConfig{
 		CommitManager: transaction.NewCommitManager(),
 	}, nil)
 	return &pluginserver.CommandContext{Server: server}

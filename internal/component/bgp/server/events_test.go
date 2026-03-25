@@ -65,7 +65,8 @@ func mockPluginResponder(ctx context.Context, pluginConn *plugipc.PluginConn, de
 func newTestServer(t *testing.T) *pluginserver.Server {
 	t.Helper()
 
-	srv := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+	require.NoError(t, err)
 	require.NoError(t, srv.StartWithContext(t.Context()))
 	t.Cleanup(func() { srv.Stop() })
 	return srv

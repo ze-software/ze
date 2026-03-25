@@ -15,7 +15,7 @@ import (
 // newDispatchContext creates a CommandContext with all init()-registered RPCs,
 // simulating the production dispatch chain.
 func newDispatchContext() *pluginserver.CommandContext {
-	server := pluginserver.NewServer(&pluginserver.ServerConfig{
+	server, _ := pluginserver.NewServer(&pluginserver.ServerConfig{
 		CommitManager: transaction.NewCommitManager(),
 	}, nil)
 	return &pluginserver.CommandContext{Server: server}

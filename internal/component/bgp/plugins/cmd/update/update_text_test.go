@@ -1192,6 +1192,15 @@ func (m *mockReactorBatch) SendBoRR(_ string, _ uint16, _ uint8) error    { retu
 func (m *mockReactorBatch) SendEoRR(_ string, _ uint16, _ uint8) error    { return nil }
 func (m *mockReactorBatch) SoftClearPeer(_ string) ([]string, error)      { return nil, nil }
 
+// mustNewServer creates a server, panicking on error (test helper).
+func mustNewServer(config *pluginserver.ServerConfig, reactor plugin.ReactorLifecycle) *pluginserver.Server {
+	srv, err := pluginserver.NewServer(config, reactor)
+	if err != nil {
+		panic("mustNewServer: " + err.Error())
+	}
+	return srv
+}
+
 // TestHandleUpdateText_SimpleAnnounce verifies single route announcement.
 //
 // VALIDATES: Single NLRI announced via reactor batch method.
@@ -1199,7 +1208,7 @@ func (m *mockReactorBatch) SoftClearPeer(_ string) ([]string, error)      { retu
 func TestHandleUpdateText_SimpleAnnounce(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "192.0.2.1",
 	}
 
@@ -1228,7 +1237,7 @@ func TestHandleUpdateText_SimpleAnnounce(t *testing.T) {
 func TestHandleUpdateText_MultipleRoutes(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1253,7 +1262,7 @@ func TestHandleUpdateText_MultipleRoutes(t *testing.T) {
 func TestHandleUpdateText_MixedAnnounceWithdraw(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1280,7 +1289,7 @@ func TestHandleUpdateText_MixedAnnounceWithdraw(t *testing.T) {
 func TestHandleUpdateText_MultipleGroups(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1313,7 +1322,7 @@ func TestHandleUpdateText_MultipleGroups(t *testing.T) {
 func TestHandleUpdateText_WithdrawUnicast(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1338,7 +1347,7 @@ func TestHandleUpdateText_WithdrawUnicast(t *testing.T) {
 func TestHandleUpdateText_ParseError(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1359,7 +1368,7 @@ func TestHandleUpdateText_ParseError(t *testing.T) {
 func TestHandleUpdateText_PeerNotFound(t *testing.T) {
 	reactor := &mockReactorBatch{noPeersMatching: true}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "192.0.2.99",
 	}
 
@@ -1380,7 +1389,7 @@ func TestHandleUpdateText_PeerNotFound(t *testing.T) {
 func TestHandleUpdateText_WatchdogDeferred(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1405,7 +1414,7 @@ func TestHandleUpdateText_WatchdogDeferred(t *testing.T) {
 func TestHandleUpdateText_EmptyResult(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1427,7 +1436,7 @@ func TestHandleUpdateText_EmptyResult(t *testing.T) {
 func TestHandleUpdateText_IPv6Announce(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1451,7 +1460,7 @@ func TestHandleUpdateText_IPv6Announce(t *testing.T) {
 func TestHandleUpdateText_NextHopSelf(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1475,7 +1484,7 @@ func TestHandleUpdateText_NextHopSelf(t *testing.T) {
 func TestHandleUpdateText_FamilyNotAccepted(t *testing.T) {
 	reactor := &mockReactorBatch{noPeersAccepted: true}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1498,7 +1507,7 @@ func TestHandleUpdateText_PartialFamilyAccepted(t *testing.T) {
 	// Only IPv6 is not accepted
 	reactor := &mockReactorBatch{noPeersAcceptedFor: nlri.IPv6Unicast}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1527,7 +1536,7 @@ func TestHandleUpdateText_PartialFamilyAccepted(t *testing.T) {
 func TestHandleUpdate_TextSubcommand(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 
@@ -1550,7 +1559,7 @@ func TestHandleUpdate_TextSubcommand(t *testing.T) {
 func TestHandleUpdate_UnknownEncoding(t *testing.T) {
 	reactor := &mockReactorBatch{}
 	ctx := &pluginserver.CommandContext{
-		Server: pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor),
+		Server: mustNewServer(&pluginserver.ServerConfig{}, reactor),
 		Peer:   "*",
 	}
 

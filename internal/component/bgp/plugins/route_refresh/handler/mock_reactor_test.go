@@ -109,7 +109,7 @@ func (m *mockReactor) SoftClearPeer(sel string) ([]string, error) {
 
 // newTestContext creates a CommandContext backed by a mock reactor.
 func newTestContext(reactor plugin.ReactorLifecycle) *pluginserver.CommandContext {
-	server := pluginserver.NewServer(&pluginserver.ServerConfig{
+	server, _ := pluginserver.NewServer(&pluginserver.ServerConfig{
 		CommitManager: transaction.NewCommitManager(),
 	}, reactor)
 	return &pluginserver.CommandContext{Server: server}
