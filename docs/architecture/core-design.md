@@ -73,7 +73,7 @@ flowchart TB
 - **ConfigProvider** is the config authority. Populated from YANG-parsed tree via `SetRoot()`. Subsystems and plugins read from it.
 - **PluginManager** owns process lifecycle (spawn/stop via `ProcessSpawner`). Server calls `SpawnMore()` for auto-loaded plugins.
 - **BGP Subsystem** wraps reactor via `BGPSubsystem` adapter implementing `ze.Subsystem`. Publishes Bus notifications alongside EventDispatcher data delivery.
-- **EventDispatcher** handles plugin data delivery (format negotiation, DirectBridge, cache counts). Called directly by reactor — not via Bus.
+- **EventDispatcher** handles plugin data delivery (format negotiation, DirectBridge with `StructuredEvent`, cache counts). Internal plugins receive `*rpc.StructuredEvent` via DirectBridge (no JSON round-trip); external plugins receive formatted JSON text. Called directly by reactor — not via Bus.
 - **Plugin Server** handles 5-stage handshake, subscriptions, command dispatch. Uses PluginManager for process creation.
 - **Two-phase plugin startup** -- Phase 1 (PluginManager.StartAll): spawn processes. Phase 2 (Server.StartWithContext): 5-stage handshake with spawned processes.
 - **Four-phase auto-load** -- Phase 1: explicit plugins. Phase 2: unclaimed families. Phase 3: custom event types. Phase 4: custom send types. Auto-load calls `PluginManager.SpawnMore()`.
@@ -497,13 +497,11 @@ func (a *Attributes) CheckedWriteTo(buf []byte, off int) (int, error)
 ### Receive Path
 
 ```
-Network recv() → WireUpdate → Reactor → EventDispatcher → Plugin (JSON + base64)
-                                                                │
-                                                                ├─ Parse (lazy)
-                                                                ├─ Extract NLRIs (iterator)
-                                                                ├─ Extract attributes (iterator)
-                                                                ├─ Intern each in pools
-                                                                └─ Create RouteEntry with refs
+Network recv() → WireUpdate → Reactor → EventDispatcher
+    ├─ Internal plugin (DirectBridge): StructuredEvent with RawMessage pointer
+    │   └─ Plugin reads AttrsWire.Get() + WireUpdate sections (lazy, zero-copy)
+    └─ External plugin (socket): JSON text (formatted from filter.ApplyToUpdate)
+        └─ Plugin calls ParseEvent → extract NLRIs/attributes → pools/RIB
 ```
 
 ### API Announce Path

@@ -31,6 +31,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -132,7 +133,20 @@ func RunGRPlugin(conn net.Conn) int {
 		nil, "full",
 	)
 
-	// Event handler: dispatch JSON events to the appropriate GR handler.
+	// Structured event handler: dispatch via DirectBridge without JSON parsing.
+	// State events use metadata fields directly; OPEN/EOR decode from RawMessage.
+	p.OnStructuredEvent(func(events []any) error {
+		for _, event := range events {
+			se, ok := event.(*rpc.StructuredEvent)
+			if !ok || se.PeerAddress == "" {
+				continue
+			}
+			gp.handleStructuredEvent(se)
+		}
+		return nil
+	})
+
+	// Fallback: dispatch JSON events for non-DirectBridge delivery.
 	p.OnEvent(func(event string) error {
 		return gp.handleEvent(event)
 	})
@@ -147,6 +161,48 @@ func RunGRPlugin(conn net.Conn) int {
 	}
 
 	return 0
+}
+
+// handleStructuredEvent dispatches a StructuredEvent to the appropriate GR handler.
+// State events use metadata fields directly (no JSON parsing needed).
+// OPEN and EOR events continue through the text OnEvent path — they are infrequent
+// and OPEN capability decoding requires the format package (import cycle if used here).
+func (gp *grPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
+	if se.EventType == "state" {
+		gp.handleStructuredState(se.PeerAddress, se.State, se.Reason)
+	}
+	// OPEN/EOR: delivered as text via OnEvent (no structured handler needed).
+}
+
+// handleStructuredState processes a structured state event.
+func (gp *grPlugin) handleStructuredState(peerAddr, state, reason string) {
+	switch state {
+	case "down":
+		wasNotification := reason == "notification"
+
+		gp.mu.Lock()
+		cap := gp.peerCaps[peerAddr]
+		llgrCap := gp.peerLLGRCaps[peerAddr]
+		gp.mu.Unlock()
+
+		activated := gp.state.onSessionDown(peerAddr, cap, llgrCap, wasNotification)
+		if activated {
+			gp.dispatchCommand("rib purge-stale " + peerAddr)
+			gp.dispatchCommand("rib retain-routes " + peerAddr)
+			gp.dispatchCommand("rib mark-stale " + peerAddr + " " + strconv.FormatUint(uint64(cap.RestartTime), 10))
+		}
+
+	case "up":
+		gp.mu.Lock()
+		newCap := gp.peerCaps[peerAddr]
+		newLLGRCap := gp.peerLLGRCaps[peerAddr]
+		gp.mu.Unlock()
+
+		purged := gp.state.onSessionReestablished(peerAddr, newCap, newLLGRCap)
+		for _, family := range purged {
+			gp.dispatchCommand("rib purge-stale " + peerAddr + " " + family)
+		}
+	}
 }
 
 // handleEvent parses a JSON event and dispatches to the appropriate handler.

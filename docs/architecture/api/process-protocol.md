@@ -274,6 +274,30 @@ bypassing JSON-RPC envelope construction, newline framing, and pipe I/O. The plu
 `onEvent` handler is called synchronously in the delivery goroutine.
 <!-- source: pkg/plugin/sdk/sdk.go -- Run, bridge activation -->
 
+#### Structured Event Delivery
+
+When a plugin registers `OnStructuredEvent`, the engine delivers `*rpc.StructuredEvent`
+instead of formatted text strings. `StructuredEvent` carries pre-extracted peer metadata
+(PeerAddress, PeerAS, LocalAS, etc.) and a `RawMessage` pointer for wire message events.
+This eliminates the JSON round-trip: the engine skips text formatting, and the plugin
+reads data directly from `AttrsWire` (lazy per-attribute parsing) and `WireUpdate`
+(zero-copy section access) instead of calling `ParseEvent`.
+<!-- source: pkg/plugin/rpc/bridge.go -- StructuredEvent -->
+
+For UPDATE events, `RawMessage` carries `AttrsWire` and `WireUpdate` with lazy accessors.
+For state events, `StructuredEvent.State` and `StructuredEvent.Reason` carry the data
+directly. For other wire messages (OPEN, NOTIFICATION, REFRESH), `RawMessage.RawBytes`
+contains the raw wire bytes.
+
+`StructuredEvent` instances are pooled via `GetStructuredEvent`/`PutStructuredEvent`
+to eliminate per-event heap allocations on the hot path.
+<!-- source: internal/component/bgp/server/events.go -- getStructuredEvent -->
+
+Plugins that register both `OnStructuredEvent` and `OnEvent` receive structured events
+via the former and text events via the latter. The delivery pipeline (`deliverMixedBatch`)
+routes each event to the appropriate handler based on whether `Event` or `Output` is set.
+<!-- source: internal/component/plugin/process/delivery.go -- deliverMixedBatch -->
+
 ### Event Subscription
 
 Plugins subscribe to events using either:
@@ -462,7 +486,8 @@ between SDK bridge activation and engine readiness.
 
 | Direction | Socket path (before) | Direct path (after) |
 |-----------|---------------------|---------------------|
-| Engine to Plugin events | JSON-RPC envelope -> newline frame -> `net.Pipe.Write` -> read -> unmarshal -> `onEvent` | `bridge.DeliverEvents(events)` -> `onEvent` directly |
+| Engine to Plugin events (text) | JSON-RPC envelope -> newline frame -> `net.Pipe.Write` -> read -> unmarshal -> `onEvent` | `bridge.DeliverEvents(events)` -> `onEvent` directly |
+| Engine to Plugin events (structured) | — | `bridge.DeliverStructured([]any)` -> `onStructuredEvent` with `*StructuredEvent` (no text formatting, no JSON parsing) |
 | Plugin to Engine RPCs | `json.Marshal` -> newline frame -> `net.Pipe.Write` -> read -> unmarshal -> `dispatcher.Dispatch` | `bridge.DispatchRPC(method, params)` -> `dispatcher.Dispatch` directly |
 
 **Files:**

@@ -9,7 +9,6 @@ package server
 import (
 	"fmt"
 	"sort"
-	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
@@ -34,28 +33,36 @@ var eorBus ze.Bus //nolint:gochecknoglobals // Bus reference set once at startup
 // monitorFormatKey is the format+encoding cache key for CLI monitors (always json+parsed).
 const monitorFormatKey = "parsed+json"
 
-// structuredUpdatePool eliminates per-UPDATE heap allocation of StructuredUpdate
-// on the DirectBridge hot path. Get, fill fields, deliver, then put back.
-var structuredUpdatePool = sync.Pool{
-	New: func() any { return new(rpc.StructuredUpdate) },
+// getStructuredEvent returns a StructuredEvent from the pool with peer fields populated.
+func getStructuredEvent(peer plugin.PeerInfo, msg *bgptypes.RawMessage) *rpc.StructuredEvent {
+	se := rpc.GetStructuredEvent()
+	se.PeerAddress = peer.Address.String()
+	se.PeerName = peer.Name
+	se.PeerGroup = peer.GroupName
+	se.PeerAS = peer.PeerAS
+	se.LocalAS = peer.LocalAS
+	se.LocalAddress = peer.LocalAddress.String()
+	se.EventType = messageTypeToEventType(msg.Type)
+	se.Direction = msg.Direction
+	se.MessageID = msg.MessageID
+	se.RawMessage = msg
+	se.Meta = msg.Meta
+	return se
 }
 
-// getStructuredUpdate returns a StructuredUpdate from the pool with fields set.
-func getStructuredUpdate(peerAddr string, event any) *rpc.StructuredUpdate {
-	su, ok := structuredUpdatePool.Get().(*rpc.StructuredUpdate)
-	if !ok {
-		su = new(rpc.StructuredUpdate)
-	}
-	su.PeerAddress = peerAddr
-	su.Event = event
-	return su
-}
-
-// putStructuredUpdate returns a StructuredUpdate to the pool after clearing references.
-func putStructuredUpdate(su *rpc.StructuredUpdate) {
-	su.PeerAddress = ""
-	su.Event = nil
-	structuredUpdatePool.Put(su)
+// getStructuredStateEvent returns a StructuredEvent for a peer state change.
+func getStructuredStateEvent(peer plugin.PeerInfo, state, reason string) *rpc.StructuredEvent {
+	se := rpc.GetStructuredEvent()
+	se.PeerAddress = peer.Address.String()
+	se.PeerName = peer.Name
+	se.PeerGroup = peer.GroupName
+	se.PeerAS = peer.PeerAS
+	se.LocalAS = peer.LocalAS
+	se.LocalAddress = peer.LocalAddress.String()
+	se.EventType = plugin.EventState
+	se.State = state
+	se.Reason = reason
+	return se
 }
 
 // formatCache is a stack-allocated cache for pre-formatted event outputs.
@@ -130,15 +137,12 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	}
 	logger().Debug("OnMessageReceived", "peer", peerAddr, "event", eventType, "dir", msg.Direction, "count", len(procs))
 
-	// Check if this is an UPDATE (only UPDATEs use DirectBridge structured delivery).
-	isUpdate := msg.Type == message.TypeUPDATE
-
 	// Pre-format text for text/JSON consumers per distinct format+encoding key.
-	// DirectBridge consumers skip text formatting entirely.
+	// DirectBridge structured consumers skip text formatting entirely.
 	// Stack-allocated cache avoids per-event map allocation.
 	var fmtCache formatCache
 	for _, proc := range procs {
-		if isUpdate && proc.HasStructuredHandler() {
+		if proc.HasStructuredHandler() {
 			continue // DirectBridge — no text formatting needed
 		}
 		cacheKey := proc.FormatCacheKey()
@@ -151,17 +155,17 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 	results := make(chan process.EventResult, len(procs))
 	sent := 0
 
-	// Track pooled StructuredUpdates for return after result collection.
-	var pooled [4]*rpc.StructuredUpdate
+	// Track pooled StructuredEvents for return after result collection.
+	var pooled [4]*rpc.StructuredEvent
 	pooledN := 0
 
 	for _, proc := range procs {
 		var delivery process.EventDelivery
-		if isUpdate && proc.HasStructuredHandler() {
-			su := getStructuredUpdate(peerAddr, &msg)
-			delivery = process.EventDelivery{Event: su, Result: results}
+		if proc.HasStructuredHandler() {
+			se := getStructuredEvent(peer, &msg)
+			delivery = process.EventDelivery{Event: se, Result: results}
 			if pooledN < len(pooled) {
-				pooled[pooledN] = su
+				pooled[pooledN] = se
 				pooledN++
 			}
 		} else {
@@ -185,13 +189,14 @@ func onMessageReceived(s *pluginserver.Server, encoder *format.JSONEncoder, peer
 		}
 	}
 
-	// Return pooled StructuredUpdates after all consumers are done.
+	// Return pooled StructuredEvents after all consumers are done.
 	for i := range pooledN {
-		putStructuredUpdate(pooled[i])
+		rpc.PutStructuredEvent(pooled[i])
 	}
 
 	// RFC 4724 Section 2: detect EOR markers in received UPDATEs.
 	// EOR is delivered as a separate event so plugins can subscribe to "eor" independently.
+	isUpdate := msg.Type == message.TypeUPDATE
 	if isUpdate && msg.Direction == plugin.DirectionReceived && msg.WireUpdate != nil {
 		if family, ok := msg.WireUpdate.IsEOR(); ok {
 			onEORReceived(s, peer, family.String())
@@ -234,12 +239,10 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 	}
 	logger().Debug("OnMessageBatchReceived", "peer", peerAddr, "event", eventType, "dir", msgs[0].Direction, "procs", len(procs), "msgs", len(msgs))
 
-	// Check if this is an UPDATE batch (only UPDATEs use DirectBridge structured delivery).
-	isUpdate := msgs[0].Type == message.TypeUPDATE
-
 	// Deliver each message: pre-format text for text/JSON consumers,
-	// pass RawMessage directly for DirectBridge consumers.
+	// pass StructuredEvent directly for DirectBridge consumers.
 	// Stack-allocated cache is reused across batch iterations.
+	isUpdate := msgs[0].Type == message.TypeUPDATE
 	var fmtCache formatCache
 	results := make(chan process.EventResult, len(procs))
 
@@ -247,10 +250,10 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 		msg := &msgs[i]
 
 		// Pre-format text for text/JSON consumers per distinct format+encoding key.
-		// DirectBridge consumers skip text formatting entirely.
+		// DirectBridge structured consumers skip text formatting entirely.
 		fmtCache.reset()
 		for _, proc := range procs {
-			if isUpdate && proc.HasStructuredHandler() {
+			if proc.HasStructuredHandler() {
 				continue // DirectBridge — no text formatting needed
 			}
 			cacheKey := proc.FormatCacheKey()
@@ -259,16 +262,16 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 			}
 		}
 
-		var pooled [4]*rpc.StructuredUpdate
+		var pooled [4]*rpc.StructuredEvent
 		pooledN := 0
 		sent := 0
 		for _, proc := range procs {
 			var delivery process.EventDelivery
-			if isUpdate && proc.HasStructuredHandler() {
-				su := getStructuredUpdate(peerAddr, msg)
-				delivery = process.EventDelivery{Event: su, Result: results}
+			if proc.HasStructuredHandler() {
+				se := getStructuredEvent(peer, msg)
+				delivery = process.EventDelivery{Event: se, Result: results}
 				if pooledN < len(pooled) {
-					pooled[pooledN] = su
+					pooled[pooledN] = se
 					pooledN++
 				}
 			} else {
@@ -292,9 +295,9 @@ func onMessageBatchReceived(s *pluginserver.Server, encoder *format.JSONEncoder,
 		}
 		counts[i] = cacheCount
 
-		// Return pooled StructuredUpdates after all consumers are done.
+		// Return pooled StructuredEvents after all consumers are done.
 		for j := range pooledN {
-			putStructuredUpdate(pooled[j])
+			rpc.PutStructuredEvent(pooled[j])
 		}
 
 		// RFC 4724 Section 2: detect EOR markers in received UPDATEs.
@@ -476,9 +479,13 @@ func onPeerStateChange(s *pluginserver.Server, peer plugin.PeerInfo, state, reas
 
 	logger().Debug("OnPeerStateChange", "peer", peerAddr, "state", state, "reason", reason, "count", len(procs))
 
-	// Pre-format once per distinct encoding.
+	// Pre-format once per distinct encoding (text consumers only).
+	// DirectBridge structured consumers get StructuredEvent with State/Reason fields.
 	var fmtCache formatCache
 	for _, proc := range procs {
+		if proc.HasStructuredHandler() {
+			continue // DirectBridge — no text formatting needed
+		}
 		enc := proc.Encoding()
 		if _, ok := fmtCache.get(enc); !ok {
 			fmtCache.set(enc, format.FormatStateChange(peer, state, reason, enc))
@@ -487,16 +494,35 @@ func onPeerStateChange(s *pluginserver.Server, peer plugin.PeerInfo, state, reas
 
 	// Deliver sequentially in dependency order — each process must complete
 	// before the next starts, enabling inter-plugin coordination.
+	// Structured consumers get StructuredEvent; text consumers get formatted text.
+	var pooled [4]*rpc.StructuredEvent
+	pooledN := 0
 	for _, proc := range procs {
-		output, _ := fmtCache.get(proc.Encoding())
+		var delivery process.EventDelivery
 		results := make(chan process.EventResult, 1)
-		if !proc.Deliver(process.EventDelivery{Output: output, Result: results}) {
+		if proc.HasStructuredHandler() {
+			se := getStructuredStateEvent(peer, state, reason)
+			delivery = process.EventDelivery{Event: se, Result: results}
+			if pooledN < len(pooled) {
+				pooled[pooledN] = se
+				pooledN++
+			}
+		} else {
+			output, _ := fmtCache.get(proc.Encoding())
+			delivery = process.EventDelivery{Output: output, Result: results}
+		}
+		if !proc.Deliver(delivery) {
 			continue
 		}
 		r := <-results
 		if r.Err != nil && s.Context().Err() == nil {
 			logger().Warn("OnPeerStateChange write failed", "proc", r.ProcName, "err", r.Err)
 		}
+	}
+
+	// Return pooled StructuredEvents after all consumers are done.
+	for i := range pooledN {
+		rpc.PutStructuredEvent(pooled[i])
 	}
 
 	// Deliver to CLI monitors.
@@ -622,14 +648,13 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer plu
 	}
 	logger().Debug("OnMessageSent", "peer", peerAddr, "type", eventType, "count", len(procs))
 
-	// Check if this is an UPDATE (only UPDATEs use DirectBridge structured delivery).
 	isUpdate := msg.Type == message.TypeUPDATE
 
 	// Pre-format: encode once per distinct format+encoding combination.
-	// DirectBridge consumers skip text formatting entirely.
+	// DirectBridge structured consumers skip text formatting entirely.
 	var fmtCache formatCache
 	for _, proc := range procs {
-		if isUpdate && proc.HasStructuredHandler() {
+		if proc.HasStructuredHandler() {
 			continue // DirectBridge — no text formatting needed
 		}
 		cacheKey := proc.FormatCacheKey()
@@ -647,16 +672,16 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer plu
 	results := make(chan process.EventResult, len(procs))
 	sent := 0
 
-	var pooled [4]*rpc.StructuredUpdate
+	var pooled [4]*rpc.StructuredEvent
 	pooledN := 0
 
 	for _, proc := range procs {
 		var delivery process.EventDelivery
-		if isUpdate && proc.HasStructuredHandler() {
-			su := getStructuredUpdate(peerAddr, &msg)
-			delivery = process.EventDelivery{Event: su, Result: results}
+		if proc.HasStructuredHandler() {
+			se := getStructuredEvent(peer, &msg)
+			delivery = process.EventDelivery{Event: se, Result: results}
 			if pooledN < len(pooled) {
-				pooled[pooledN] = su
+				pooled[pooledN] = se
 				pooledN++
 			}
 		} else {
@@ -676,9 +701,9 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer plu
 		}
 	}
 
-	// Return pooled StructuredUpdates after all consumers are done.
+	// Return pooled StructuredEvents after all consumers are done.
 	for i := range pooledN {
-		putStructuredUpdate(pooled[i])
+		rpc.PutStructuredEvent(pooled[i])
 	}
 
 	// Deliver to CLI monitors. Reuse json+parsed from format cache if available.

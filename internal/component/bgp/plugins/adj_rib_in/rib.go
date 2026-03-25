@@ -16,21 +16,29 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/netip"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	adjschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/adj_rib_in/schema"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/seqmap"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 const (
-	statusDone  = "done"
-	statusError = "error"
+	statusDone        = "done"
+	statusError       = "error"
+	stateUp           = "up"
+	stateDown         = "down"
+	familyIPv4Unicast = "ipv4/unicast"
 )
 
 // loggerPtr is the package-level logger, disabled by default.
@@ -117,6 +125,26 @@ func RunAdjRIBInPlugin(conn net.Conn) int {
 		pending: make(map[string]*PendingRoute),
 	}
 
+	// Structured event handler for DirectBridge delivery.
+	// State events use metadata fields directly. UPDATE events are dispatched
+	// to the appropriate handler based on EventType.
+	p.OnStructuredEvent(func(events []any) error {
+		for _, event := range events {
+			se, ok := event.(*rpc.StructuredEvent)
+			if !ok || se.PeerAddress == "" {
+				continue
+			}
+			switch se.EventType {
+			case "state":
+				r.handleStructuredState(se)
+			case "update":
+				r.handleReceivedStructured(se)
+			}
+		}
+		return nil
+	})
+
+	// Fallback: JSON event handler for non-DirectBridge delivery.
 	p.OnEvent(func(jsonStr string) error {
 		event, err := bgp.ParseEvent([]byte(jsonStr))
 		if err != nil {
@@ -166,6 +194,176 @@ func (r *AdjRIBInManager) updateRoute(peerSelector, command string) {
 	_, _, err := r.plugin.UpdateRoute(ctx, peerSelector, command)
 	if err != nil {
 		logger().Warn("update-route failed", "peer", peerSelector, "error", err)
+	}
+}
+
+// handleReceivedStructured processes received UPDATE events from StructuredEvent wire types.
+// Builds a bgp.Event with raw hex fields from WireUpdate sections and delegates to dispatch.
+// This eliminates the JSON round-trip while reusing the existing handleReceived logic.
+func (r *AdjRIBInManager) handleReceivedStructured(se *rpc.StructuredEvent) {
+	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
+	if !ok || msg == nil || msg.WireUpdate == nil {
+		return
+	}
+
+	wu := msg.WireUpdate
+	ctx := bgpctx.Registry.Get(wu.SourceCtxID())
+
+	// Build a bgp.Event with raw hex fields from wire data.
+	event := &bgp.Event{Type: "update"}
+
+	// Raw attributes hex (path attrs without MP_REACH/UNREACH).
+	if msg.AttrsWire != nil {
+		event.RawAttributes = hex.EncodeToString(msg.AttrsWire.Packed())
+	}
+
+	// Build family ops + raw NLRI/withdrawn hex from wire sections.
+	event.RawNLRI = make(map[string]string)
+	event.RawWithdrawn = make(map[string]string)
+	event.FamilyOps = make(map[string][]bgp.FamilyOperation)
+	event.AddPath = make(map[string]bool)
+
+	// IPv4 unicast announces.
+	nlriData, err := wu.NLRI()
+	if err == nil && len(nlriData) > 0 {
+		family := familyIPv4Unicast
+		event.RawNLRI[family] = hex.EncodeToString(nlriData)
+		addPath := ctx != nil && ctx.AddPath(nlri.Family{AFI: 1, SAFI: 1})
+		event.AddPath[family] = addPath
+		event.FamilyOps[family] = append(event.FamilyOps[family], bgp.FamilyOperation{
+			Action: "add",
+			NLRIs:  wireNLRIsToAny(nlriData, addPath, family),
+		})
+	}
+
+	// IPv4 unicast withdrawals.
+	wdData, err := wu.Withdrawn()
+	if err == nil && len(wdData) > 0 {
+		family := familyIPv4Unicast
+		event.RawWithdrawn[family] = hex.EncodeToString(wdData)
+		addPath := ctx != nil && ctx.AddPath(nlri.Family{AFI: 1, SAFI: 1})
+		event.AddPath[family] = addPath
+		event.FamilyOps[family] = append(event.FamilyOps[family], bgp.FamilyOperation{
+			Action: "del",
+			NLRIs:  wireNLRIsToAny(wdData, addPath, family),
+		})
+	}
+
+	// MP_REACH_NLRI announces.
+	mpReach, err := wu.MPReach()
+	if err == nil && mpReach != nil {
+		family := mpReach.Family().String()
+		nlriBytes := mpReach.NLRIBytes()
+		if len(nlriBytes) > 0 {
+			event.RawNLRI[family] = hex.EncodeToString(nlriBytes)
+			addPath := ctx != nil && ctx.AddPath(mpReach.Family())
+			event.AddPath[family] = addPath
+			nhop := mpReach.NextHop().String()
+			event.FamilyOps[family] = append(event.FamilyOps[family], bgp.FamilyOperation{
+				Action:  "add",
+				NextHop: nhop,
+				NLRIs:   wireNLRIsToAny(nlriBytes, addPath, family),
+			})
+		}
+	}
+
+	// MP_UNREACH_NLRI withdrawals.
+	mpUnreach, err := wu.MPUnreach()
+	if err == nil && mpUnreach != nil {
+		family := mpUnreach.Family().String()
+		wdBytes := mpUnreach.WithdrawnBytes()
+		if len(wdBytes) > 0 {
+			event.RawWithdrawn[family] = hex.EncodeToString(wdBytes)
+			addPath := ctx != nil && ctx.AddPath(mpUnreach.Family())
+			event.AddPath[family] = addPath
+			event.FamilyOps[family] = append(event.FamilyOps[family], bgp.FamilyOperation{
+				Action: "del",
+				NLRIs:  wireNLRIsToAny(wdBytes, addPath, family),
+			})
+		}
+	}
+
+	// Set peer field so GetPeerAddress works.
+	event.Peer = []byte(`{"address":"` + se.PeerAddress + `"}`)
+
+	r.dispatch(event)
+}
+
+// wireNLRIsToAny walks wire NLRI bytes and returns prefix strings as []any.
+// Uses stack-allocated [16]byte buffer to avoid per-prefix heap allocation.
+func wireNLRIsToAny(data []byte, addPath bool, family string) []any {
+	isIPv6 := len(family) >= 4 && family[:4] == "ipv6"
+	addrLen := 4
+	if isIPv6 {
+		addrLen = 16
+	}
+
+	var result []any
+	var buf [16]byte // stack-allocated — large enough for IPv6
+	offset := 0
+	for offset < len(data) {
+		if addPath {
+			if offset+4 >= len(data) {
+				break
+			}
+			offset += 4 // skip path-ID
+		}
+		if offset >= len(data) {
+			break
+		}
+		prefixLen := int(data[offset])
+		byteCount := (prefixLen + 7) / 8
+		offset++ // skip prefix-len byte
+		if offset+byteCount > len(data) {
+			break
+		}
+		// Zero and fill from wire — reuse stack buffer each iteration.
+		clear(buf[:])
+		copy(buf[:], data[offset:offset+byteCount])
+		offset += byteCount
+
+		addr, ok := netip.AddrFromSlice(buf[:addrLen])
+		if !ok {
+			continue
+		}
+		result = append(result, netip.PrefixFrom(addr, prefixLen).String())
+	}
+	return result
+}
+
+// handleStructuredState processes a structured state event from DirectBridge.
+func (r *AdjRIBInManager) handleStructuredState(se *rpc.StructuredEvent) {
+	peerAddr := se.PeerAddress
+	if peerAddr == "" {
+		return
+	}
+
+	state := se.State
+	if state != stateUp && state != stateDown {
+		logger().Debug("ignoring unknown peer state", "peer", peerAddr, "state", state)
+		return
+	}
+
+	isUp := state == stateUp
+
+	r.mu.Lock()
+	r.peerUp[peerAddr] = isUp
+
+	if !isUp {
+		delete(r.ribIn, peerAddr)
+		r.clearPeerPending(peerAddr)
+	}
+	r.mu.Unlock()
+
+	if isUp {
+		cmds, _ := r.buildReplayCommands(peerAddr, 0)
+		for _, cmd := range cmds {
+			if r.routeSender != nil {
+				r.routeSender(peerAddr, cmd)
+			} else {
+				r.updateRoute(peerAddr, cmd)
+			}
+		}
 	}
 }
 
@@ -310,12 +508,12 @@ func (r *AdjRIBInManager) handleState(event *bgp.Event) {
 
 	// Only process known states. Ignore unknown/intermediate FSM states
 	// to avoid accidentally clearing routes on transient transitions.
-	if state != "up" && state != "down" {
+	if state != stateUp && state != stateDown {
 		logger().Debug("ignoring unknown peer state", "peer", peerAddr, "state", state)
 		return
 	}
 
-	isUp := state == "up"
+	isUp := state == stateUp
 
 	r.mu.Lock()
 	r.peerUp[peerAddr] = isUp

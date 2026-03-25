@@ -32,7 +32,7 @@ func (p *Plugin) OnEvent(fn func(string) error) {
 
 // OnStructuredEvent sets the handler for structured event delivery via DirectBridge.
 // When registered, the bridge delivers structured events directly (no text formatting).
-// The handler receives []any where each element is a *rpc.StructuredUpdate.
+// The handler receives []any where each element is a *rpc.StructuredEvent.
 func (p *Plugin) OnStructuredEvent(fn func([]any) error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

@@ -30,6 +30,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -235,7 +236,21 @@ func RunRIBPlugin(conn net.Conn) int {
 		grState:       make(map[string]*peerGRState),
 	}
 
-	// Register event handler: dispatches BGP events (update, sent, state, refresh)
+	// Structured event handler for DirectBridge delivery.
+	// Eliminates JSON round-trip: reads peer metadata from StructuredEvent fields,
+	// raw wire bytes from RawMessage's AttrsWire/WireUpdate.
+	p.OnStructuredEvent(func(events []any) error {
+		for _, event := range events {
+			se, ok := event.(*rpc.StructuredEvent)
+			if !ok || se.PeerAddress == "" {
+				continue
+			}
+			r.dispatchStructured(se)
+		}
+		return nil
+	})
+
+	// Fallback: JSON event handler for non-DirectBridge delivery (external plugins).
 	p.OnEvent(func(jsonStr string) error {
 		event, err := parseEvent([]byte(jsonStr))
 		if err != nil {
@@ -561,6 +576,45 @@ func (r *RIBManager) handleRefresh(event *Event) {
 	r.updateRoute(peerAddr, "eorr "+family)
 
 	logger().Debug("completed route refresh", "peer", peerAddr, "family", family, "routes", len(routesToSend))
+}
+
+// handleStructuredState processes a structured state event from DirectBridge.
+// Eliminates JSON parsing for state events (no ParseEvent/GetPeerAddress needed).
+func (r *RIBManager) handleStructuredState(se *rpc.StructuredEvent) {
+	peerAddr := se.PeerAddress
+	state := se.State
+
+	r.mu.Lock()
+	wasUp := r.peerUp[peerAddr]
+	isUp := state == "up"
+	r.peerUp[peerAddr] = isUp
+
+	var routesToReplay []*Route
+
+	if isUp && !wasUp {
+		delete(r.retainedPeers, peerAddr)
+		peerFamilies := r.ribOut[peerAddr]
+		for _, familyRoutes := range peerFamilies {
+			for _, rt := range familyRoutes {
+				routesToReplay = append(routesToReplay, rt)
+			}
+		}
+	} else if !isUp && wasUp {
+		if r.retainedPeers[peerAddr] {
+			logger().Debug("retaining Adj-RIB-In for GR", "peer", peerAddr)
+		} else {
+			if peerRIB := r.ribInPool[peerAddr]; peerRIB != nil {
+				peerRIB.Release()
+				delete(r.ribInPool, peerAddr)
+			}
+			delete(r.peerMeta, peerAddr)
+		}
+	}
+	r.mu.Unlock()
+
+	if routesToReplay != nil {
+		r.replayRoutes(peerAddr, routesToReplay)
+	}
 }
 
 // handleState processes peer state changes.

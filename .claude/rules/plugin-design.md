@@ -125,3 +125,15 @@ Auto-populated: CLI dispatch, plugin runners, YANG schemas, config roots, family
 | External (remote) | TLS over TCP (single connection) | Token via out-of-band config | `plugin { hub { listen ...; secret ...; } }` |
 
 External plugins connect back to the engine's TLS listener. Auth is stage 0: `#0 auth {"token":"...","name":"..."}`. After auth, the standard 5-stage handshake proceeds over the same single MuxConn connection.
+
+## Structured Event Delivery (DirectBridge)
+
+Internal plugins that register `OnStructuredEvent` receive `*rpc.StructuredEvent` instead of formatted text. The engine delivers pre-extracted peer metadata + `RawMessage` pointer, eliminating JSON formatting on the engine side and `ParseEvent` on the plugin side.
+
+| Event type | StructuredEvent fields | RawMessage |
+|------------|----------------------|------------|
+| UPDATE (received/sent) | PeerAddress, PeerAS, LocalAS, Direction, MessageID, Meta | Set — carries `AttrsWire` (lazy attributes) + `WireUpdate` (zero-copy sections) |
+| State (up/down) | PeerAddress, PeerAS, State, Reason | nil |
+| OPEN, NOTIFICATION, REFRESH | PeerAddress, PeerAS, Direction, MessageID | Set — carries `RawBytes` for wire decoding |
+
+Plugins read attributes via `AttrsWire.Get(code)` (lazy, per-attribute) and NLRIs via `WireUpdate.NLRI()` / `MPReach()` / `MPUnreach()` (zero-copy byte slices). External/forked plugins continue receiving JSON text via `OnEvent`.

@@ -18,6 +18,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/textparse"
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
@@ -218,12 +221,35 @@ func RunRouteServer(conn net.Conn) int {
 	defer rs.resumeAllPaused()
 
 	// Register structured event handler for DirectBridge delivery.
-	// When active, UPDATE events arrive as *rpc.StructuredUpdate — no text parsing needed.
+	// UPDATE events carry RawMessage for zero-copy wire forwarding (hot path).
+	// State events use metadata fields (no text parsing).
+	// OPEN/refresh events continue via text OnEvent path (infrequent, complex decode).
 	p.OnStructuredEvent(func(events []any) error {
 		for _, event := range events {
-			if su, ok := event.(*rpc.StructuredUpdate); ok {
-				if msg, ok := su.Event.(*bgptypes.RawMessage); ok {
-					rs.dispatchStructured(su.PeerAddress, msg)
+			se, ok := event.(*rpc.StructuredEvent)
+			if !ok {
+				continue
+			}
+			switch se.EventType {
+			case eventUpdate:
+				if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
+					rs.dispatchStructured(se.PeerAddress, msg)
+				}
+			case eventState:
+				if ev := parseStructuredState(se); ev != nil {
+					rs.handleState(ev)
+				}
+			case eventOpen:
+				if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
+					if ev := parseStructuredOpen(se, msg); ev != nil {
+						rs.handleOpen(ev)
+					}
+				}
+			case eventRefresh:
+				if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
+					if ev := parseStructuredRefresh(se, msg); ev != nil {
+						rs.handleRefresh(ev)
+					}
 				}
 			}
 		}
@@ -602,6 +628,132 @@ func (rs *RouteServer) dispatchStructured(peerAddr string, msg *bgptypes.RawMess
 		} else {
 			rs.mu.Unlock()
 		}
+	}
+}
+
+// parseStructuredState converts a StructuredEvent state event to an rs Event.
+func parseStructuredState(se *rpc.StructuredEvent) *Event {
+	if se.PeerAddress == "" {
+		return nil
+	}
+	return &Event{
+		Type:     eventState,
+		PeerAddr: se.PeerAddress,
+		PeerASN:  se.PeerAS,
+		State:    se.State,
+	}
+}
+
+// parseStructuredOpen converts a StructuredEvent OPEN to an rs Event.
+// Decodes raw OPEN wire bytes using message.UnpackOpen + capability.Parse directly
+// (avoiding bgp/format import which creates an import cycle).
+func parseStructuredOpen(se *rpc.StructuredEvent, msg *bgptypes.RawMessage) *Event {
+	if se.PeerAddress == "" || msg.RawBytes == nil {
+		return nil
+	}
+	open, err := message.UnpackOpen(msg.RawBytes)
+	if err != nil {
+		return nil
+	}
+
+	asn := uint32(open.MyAS)
+	if open.ASN4 > 0 {
+		asn = open.ASN4
+	}
+
+	// Parse capabilities from optional params (RFC 3392: type 2).
+	var infoCaps []CapabilityInfo
+	offset := 0
+	for offset < len(open.OptionalParams) {
+		if offset+2 > len(open.OptionalParams) {
+			break
+		}
+		paramType := open.OptionalParams[offset]
+		paramLen := int(open.OptionalParams[offset+1])
+		offset += 2
+		if offset+paramLen > len(open.OptionalParams) {
+			break
+		}
+		if paramType == 2 {
+			caps, parseErr := capability.Parse(open.OptionalParams[offset : offset+paramLen])
+			if parseErr == nil {
+				for _, c := range caps {
+					for _, ic := range formatCapInfo(c) {
+						infoCaps = append(infoCaps, ic)
+						if asn4, ok := c.(*capability.ASN4); ok {
+							asn = asn4.ASN
+						}
+					}
+				}
+			}
+		}
+		offset += paramLen
+	}
+
+	return &Event{
+		Type:     eventOpen,
+		PeerAddr: se.PeerAddress,
+		PeerASN:  asn,
+		Open: &OpenInfo{
+			ASN:          asn,
+			RouterID:     open.RouterID(),
+			HoldTime:     open.HoldTime,
+			Capabilities: infoCaps,
+		},
+	}
+}
+
+// formatCapInfo converts a capability.Capability to CapabilityInfo entries.
+func formatCapInfo(cap capability.Capability) []CapabilityInfo {
+	code := int(cap.Code())
+	switch c := cap.(type) {
+	case *capability.Multiprotocol:
+		return []CapabilityInfo{{Code: code, Name: "multiprotocol", Value: fmt.Sprintf("%s/%s", c.AFI, c.SAFI)}}
+	case *capability.ASN4:
+		return []CapabilityInfo{{Code: code, Name: "asn4", Value: fmt.Sprintf("%d", c.ASN)}}
+	case *capability.ExtendedMessage:
+		return []CapabilityInfo{{Code: code, Name: "extended-message"}}
+	case *capability.AddPath:
+		var results []CapabilityInfo
+		for _, f := range c.Families {
+			var mode string
+			switch f.Mode { //nolint:exhaustive // AddPathNone skipped intentionally
+			case capability.AddPathReceive:
+				mode = "receive"
+			case capability.AddPathSend:
+				mode = "send"
+			case capability.AddPathBoth:
+				mode = "send-receive"
+			}
+			if mode != "" {
+				results = append(results, CapabilityInfo{Code: code, Name: "addpath", Value: fmt.Sprintf("%s/%s %s", f.AFI, f.SAFI, mode)})
+			}
+		}
+		return results
+	case *capability.GracefulRestart:
+		return []CapabilityInfo{{Code: code, Name: "graceful-restart"}}
+	}
+	return []CapabilityInfo{{Code: code, Name: fmt.Sprintf("unknown-%d", code)}}
+}
+
+// parseStructuredRefresh converts a StructuredEvent ROUTEREFRESH to an rs Event.
+// Decodes raw ROUTEREFRESH wire bytes (4 bytes: AFI + reserved + SAFI).
+func parseStructuredRefresh(se *rpc.StructuredEvent, msg *bgptypes.RawMessage) *Event {
+	if se.PeerAddress == "" || msg.RawBytes == nil || len(msg.RawBytes) < 4 {
+		return nil
+	}
+	afi := uint16(msg.RawBytes[0])<<8 | uint16(msg.RawBytes[1])
+	safi := msg.RawBytes[3]
+	family := nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)}.String()
+	afiStr, safiStr, ok := strings.Cut(family, "/")
+	if !ok {
+		return nil
+	}
+	return &Event{
+		Type:     eventRefresh,
+		PeerAddr: se.PeerAddress,
+		AFI:      afiStr,
+		SAFI:     safiStr,
 	}
 }
 

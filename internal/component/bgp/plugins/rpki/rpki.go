@@ -12,13 +12,19 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"net/netip"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	bgp "codeberg.org/thomas-mangin/ze/internal/component/bgp"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -97,6 +103,20 @@ func RunRPKIPlugin(conn net.Conn) int {
 		workerWg.Wait()
 	}()
 
+	// Structured event handler for DirectBridge delivery.
+	// Receives UPDATE events as StructuredEvent with RawMessage — no JSON parsing.
+	p.OnStructuredEvent(func(events []any) error {
+		for _, event := range events {
+			se, ok := event.(*rpc.StructuredEvent)
+			if !ok || se.EventType != "update" || se.PeerAddress == "" {
+				continue
+			}
+			rp.handleStructuredUpdate(se)
+		}
+		return nil
+	})
+
+	// Fallback: JSON event handler for non-DirectBridge delivery.
 	p.OnEvent(func(jsonStr string) error {
 		event, err := bgp.ParseEvent([]byte(jsonStr))
 		if err != nil {
@@ -177,6 +197,136 @@ func (rp *RPKIPlugin) startSessions(cfg *rpkiConfig) {
 		rp.sessions = append(rp.sessions, session)
 		rp.sessionWg.Go(session.Run)
 		logger().Info("rpki: started RTR session", "address", cs.Address, "port", cs.Port)
+	}
+}
+
+// handleStructuredUpdate processes a structured UPDATE event from DirectBridge.
+// Extracts AS_PATH from AttrsWire and NLRIs from WireUpdate, then validates
+// each prefix against the ROA cache. No JSON parsing needed.
+func (rp *RPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
+	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
+	if !ok || msg == nil || msg.WireUpdate == nil {
+		return
+	}
+
+	// Extract origin AS from AttrsWire (lazy parse of AS_PATH only).
+	originAS := rpkiOriginASFromWire(msg.AttrsWire)
+	if originAS == OriginNone {
+		return
+	}
+
+	peerAddr := se.PeerAddress
+	peerName := se.PeerName
+	peerASN := se.PeerAS
+	msgID := se.MessageID
+	wu := msg.WireUpdate
+	ctx := bgpctx.Registry.Get(wu.SourceCtxID())
+
+	v4, v6 := rp.cache.Count()
+	cacheEmpty := v4+v6 == 0
+
+	// Validate IPv4 unicast NLRIs.
+	nlriData, err := wu.NLRI()
+	if err == nil && len(nlriData) > 0 {
+		addPath := ctx != nil && ctx.AddPath(nlri.Family{AFI: 1, SAFI: 1})
+		rp.validateNLRIs(peerAddr, peerName, peerASN, msgID, "ipv4/unicast",
+			nlriData, addPath, false, originAS, cacheEmpty)
+	}
+
+	// Validate MP_REACH_NLRI announces.
+	mpReach, err := wu.MPReach()
+	if err == nil && mpReach != nil {
+		family := mpReach.Family()
+		nlriBytes := mpReach.NLRIBytes()
+		if len(nlriBytes) > 0 {
+			addPath := ctx != nil && ctx.AddPath(family)
+			rp.validateNLRIs(peerAddr, peerName, peerASN, msgID, family.String(),
+				nlriBytes, addPath, family.AFI == 2, originAS, cacheEmpty)
+		}
+	}
+}
+
+// rpkiOriginASFromWire extracts the origin AS from AttrsWire's AS_PATH attribute.
+func rpkiOriginASFromWire(attrs *attribute.AttributesWire) uint32 {
+	if attrs == nil {
+		return OriginNone
+	}
+	attr, err := attrs.Get(attribute.AttrASPath)
+	if err != nil || attr == nil {
+		return OriginNone
+	}
+	asp, ok := attr.(*attribute.ASPath)
+	if !ok || len(asp.Segments) == 0 {
+		return OriginNone
+	}
+	// Flatten segments and take last ASN.
+	var lastASN uint32
+	for _, seg := range asp.Segments {
+		if len(seg.ASNs) > 0 {
+			lastASN = seg.ASNs[len(seg.ASNs)-1]
+		}
+	}
+	if lastASN == 0 {
+		return OriginNone
+	}
+	return lastASN
+}
+
+// validateNLRIs walks wire NLRI bytes and validates each prefix against the ROA cache.
+func (rp *RPKIPlugin) validateNLRIs(peerAddr, peerName string, peerASN uint32, msgID uint64,
+	family string, nlriData []byte, addPath, isIPv6 bool, originAS uint32, cacheEmpty bool) {
+
+	addrLen := 4
+	if isIPv6 {
+		addrLen = 16
+	}
+
+	familyResults := make(map[string]uint8)
+	offset := 0
+	for offset < len(nlriData) {
+		if addPath {
+			if offset+4 >= len(nlriData) {
+				break
+			}
+			offset += 4 // skip path-ID
+		}
+		if offset >= len(nlriData) {
+			break
+		}
+		prefixLen := int(nlriData[offset])
+		byteCount := (prefixLen + 7) / 8
+		offset++
+		if offset+byteCount > len(nlriData) {
+			break
+		}
+		var buf [16]byte // stack-allocated
+		clear(buf[:])
+		copy(buf[:], nlriData[offset:offset+byteCount])
+		offset += byteCount
+
+		addr, ok := netip.AddrFromSlice(buf[:addrLen])
+		if !ok {
+			continue
+		}
+		prefix := netip.PrefixFrom(addr, prefixLen).String()
+
+		state := rp.cache.Validate(prefix, originAS)
+		familyResults[prefix] = state
+
+		select {
+		case rp.validateCh <- validationRequest{
+			peerAddr: peerAddr,
+			family:   family,
+			prefix:   prefix,
+			state:    state,
+		}:
+		case <-rp.stopCh:
+			return
+		}
+	}
+
+	if len(familyResults) > 0 || cacheEmpty {
+		rp.emitRPKIEvent(peerAddr, peerName, peerASN, msgID, family, familyResults, cacheEmpty)
 	}
 }
 

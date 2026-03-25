@@ -7,8 +7,15 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
+	"sync"
 	"sync/atomic"
 )
+
+// structuredEventPool eliminates per-event heap allocation of StructuredEvent
+// on the DirectBridge hot path. Get, fill fields, deliver, then put back.
+var structuredEventPool = sync.Pool{
+	New: func() any { return new(StructuredEvent) },
+}
 
 // DirectBridge mediates direct function calls between engine and plugin sides
 // for internal plugins, bypassing JSON serialization and socket I/O.
@@ -102,12 +109,63 @@ func (b *DirectBridge) DispatchRPC(method string, params json.RawMessage) (json.
 	return b.dispatchRPC(method, params)
 }
 
-// StructuredUpdate carries peer context alongside raw event data through DirectBridge.
-// Used by events.go to deliver UPDATE data to in-process plugins without text formatting.
-// Consumers type-assert Event to the concrete payload type (e.g., *types.RawMessage).
-type StructuredUpdate struct {
-	PeerAddress string // Source peer address string
-	Event       any    // Raw event data (e.g., *types.RawMessage)
+// StructuredEvent carries peer context and event data through DirectBridge.
+// Used by events.go to deliver BGP events to in-process plugins without text formatting.
+//
+// For UPDATE events, RawMessage is set to *types.RawMessage (carries AttrsWire
+// for lazy per-attribute parsing and WireUpdate for zero-copy section access).
+// For state events, State and Reason carry the event data; RawMessage is nil.
+// For other wire messages (OPEN, NOTIFICATION, etc.), RawMessage is set.
+//
+// Async safety: RawMessage may reference zero-copy wire buffers that are reused
+// after the callback returns. Plugins MUST copy any data they need to retain
+// beyond the handler invocation. See types.RawMessage.IsAsyncSafe().
+//
+// Pooled via GetStructuredEvent/PutStructuredEvent — callers MUST return via
+// PutStructuredEvent after all consumers have processed the event.
+type StructuredEvent struct {
+	PeerAddress  string         // Source peer address string
+	PeerName     string         // Peer name from config
+	PeerGroup    string         // Peer group name from config
+	PeerAS       uint32         // Remote peer AS number
+	LocalAS      uint32         // Local AS number
+	LocalAddress string         // Local address string
+	EventType    string         // "update", "open", "notification", "keepalive", "refresh", "state", "eor", etc.
+	Direction    string         // "sent" or "received"
+	MessageID    uint64         // Unique message ID (0 for non-message events)
+	State        string         // For state events: "up", "down"
+	Reason       string         // For state events: close reason
+	RawMessage   any            // *types.RawMessage for wire messages, nil for synthetic events
+	Meta         map[string]any // Route metadata (sent events only)
+}
+
+// GetStructuredEvent returns a StructuredEvent from the pool.
+// All fields are zeroed. Caller MUST call PutStructuredEvent after use.
+func GetStructuredEvent() *StructuredEvent {
+	se, ok := structuredEventPool.Get().(*StructuredEvent)
+	if !ok {
+		se = new(StructuredEvent)
+	}
+	return se
+}
+
+// PutStructuredEvent returns a StructuredEvent to the pool after clearing all fields.
+// MUST be called after all consumers have processed the event.
+func PutStructuredEvent(se *StructuredEvent) {
+	se.PeerAddress = ""
+	se.PeerName = ""
+	se.PeerGroup = ""
+	se.PeerAS = 0
+	se.LocalAS = 0
+	se.LocalAddress = ""
+	se.EventType = ""
+	se.Direction = ""
+	se.MessageID = 0
+	se.State = ""
+	se.Reason = ""
+	se.RawMessage = nil
+	se.Meta = nil
+	structuredEventPool.Put(se)
 }
 
 // Bridger is implemented by connections that carry a DirectBridge reference.

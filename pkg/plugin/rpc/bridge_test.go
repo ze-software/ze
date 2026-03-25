@@ -156,3 +156,86 @@ func TestDirectBridgeNotReady(t *testing.T) {
 	bridge.SetReady()
 	assert.True(t, bridge.Ready(), "bridge should be ready after SetReady()")
 }
+
+// TestStructuredEventPool verifies pool get/put cycle and field clearing.
+//
+// VALIDATES: AC-9 — StructuredEvent pool clears all fields on put (no stale data leaks).
+// PREVENTS: Stale data from previous event leaking to next consumer.
+func TestStructuredEventPool(t *testing.T) {
+	t.Parallel()
+
+	// Get a StructuredEvent, fill all fields
+	se := GetStructuredEvent()
+	se.PeerAddress = "10.0.0.1"
+	se.PeerName = "peer1"
+	se.PeerGroup = "group1"
+	se.PeerAS = 65001
+	se.LocalAS = 65000
+	se.LocalAddress = "10.0.0.254"
+	se.EventType = "update"
+	se.Direction = "received"
+	se.MessageID = 42
+	se.State = "up"
+	se.Reason = "reconnect"
+	se.RawMessage = "sentinel"
+	se.Meta = map[string]any{"key": "val"}
+
+	// Return to pool
+	PutStructuredEvent(se)
+
+	// Get again — all fields must be cleared
+	se2 := GetStructuredEvent()
+	assert.Empty(t, se2.PeerAddress, "PeerAddress not cleared")
+	assert.Empty(t, se2.PeerName, "PeerName not cleared")
+	assert.Empty(t, se2.PeerGroup, "PeerGroup not cleared")
+	assert.Zero(t, se2.PeerAS, "PeerAS not cleared")
+	assert.Zero(t, se2.LocalAS, "LocalAS not cleared")
+	assert.Empty(t, se2.LocalAddress, "LocalAddress not cleared")
+	assert.Empty(t, se2.EventType, "EventType not cleared")
+	assert.Empty(t, se2.Direction, "Direction not cleared")
+	assert.Zero(t, se2.MessageID, "MessageID not cleared")
+	assert.Empty(t, se2.State, "State not cleared")
+	assert.Empty(t, se2.Reason, "Reason not cleared")
+	assert.Nil(t, se2.RawMessage, "RawMessage not cleared")
+	assert.Nil(t, se2.Meta, "Meta not cleared")
+	PutStructuredEvent(se2)
+}
+
+// TestStructuredEventDeliverViaDirectBridge verifies structured event delivery through DirectBridge.
+//
+// VALIDATES: AC-1 — Internal plugin receives *StructuredEvent with fields populated.
+// PREVENTS: StructuredEvent not reaching plugin's OnStructuredEvent handler.
+func TestStructuredEventDeliverViaDirectBridge(t *testing.T) {
+	t.Parallel()
+
+	bridge := NewDirectBridge()
+
+	var received []any
+	bridge.SetDeliverStructured(func(events []any) error {
+		received = append(received, events...)
+		return nil
+	})
+	bridge.SetReady()
+
+	se := &StructuredEvent{
+		PeerAddress: "10.0.0.1",
+		PeerAS:      65001,
+		EventType:   "update",
+		Direction:   "received",
+		MessageID:   1,
+		RawMessage:  "test-payload",
+	}
+
+	err := bridge.DeliverStructured([]any{se})
+	require.NoError(t, err)
+	require.Len(t, received, 1)
+
+	got, ok := received[0].(*StructuredEvent)
+	require.True(t, ok, "received event must be *StructuredEvent")
+	assert.Equal(t, "10.0.0.1", got.PeerAddress)
+	assert.Equal(t, uint32(65001), got.PeerAS)
+	assert.Equal(t, "update", got.EventType)
+	assert.Equal(t, "received", got.Direction)
+	assert.Equal(t, uint64(1), got.MessageID)
+	assert.Equal(t, "test-payload", got.RawMessage)
+}

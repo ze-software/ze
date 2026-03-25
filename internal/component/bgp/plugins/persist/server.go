@@ -9,14 +9,20 @@ import (
 	"log/slog"
 	"maps"
 	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/textparse"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -94,6 +100,28 @@ func RunPersistServer(conn net.Conn) int {
 		ribOut: make(map[string]map[string]map[string]*StoredRoute),
 	}
 
+	// Structured event handler for DirectBridge delivery.
+	// State events use metadata fields directly. UPDATE/OPEN events dispatch
+	// to appropriate handlers based on EventType.
+	p.OnStructuredEvent(func(events []any) error {
+		for _, event := range events {
+			se, ok := event.(*rpc.StructuredEvent)
+			if !ok || se.PeerAddress == "" {
+				continue
+			}
+			switch se.EventType {
+			case persistEventState:
+				ps.handleStructuredState(se)
+			case persistEventUpdate:
+				ps.handleSentStructured(se)
+			case persistEventOpen:
+				ps.handleOpenStructured(se)
+			}
+		}
+		return nil
+	})
+
+	// Fallback: text event handler for UPDATE/OPEN and non-DirectBridge delivery.
 	p.OnEvent(func(eventStr string) error {
 		ps.dispatchText(eventStr)
 		return nil
@@ -193,6 +221,263 @@ func (ps *PersistServer) handleSentUpdate(peerAddr string, msgID uint64, text st
 			}
 		}
 	}
+}
+
+// handleSentStructured processes a sent UPDATE from StructuredEvent wire types.
+// Builds NLRI family operations from WireUpdate and delegates to the existing store logic.
+func (ps *PersistServer) handleSentStructured(se *rpc.StructuredEvent) {
+	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
+	if !ok || msg == nil || msg.WireUpdate == nil {
+		return
+	}
+
+	wu := msg.WireUpdate
+	ctx := bgpctx.Registry.Get(wu.SourceCtxID())
+	peerAddr := se.PeerAddress
+	msgID := se.MessageID
+
+	// Build family operations from wire sections.
+	ops := make(map[string][]persistFamilyOp)
+
+	// IPv4 unicast announces.
+	nlriData, err := wu.NLRI()
+	if err == nil && len(nlriData) > 0 {
+		addPath := ctx != nil && ctx.AddPath(nlri.Family{AFI: 1, SAFI: 1})
+		nlris := persistWireNLRIs(nlriData, addPath, false)
+		if len(nlris) > 0 {
+			ops["ipv4/unicast"] = append(ops["ipv4/unicast"], persistFamilyOp{Action: "add", NLRIs: nlris})
+		}
+	}
+
+	// IPv4 unicast withdrawals.
+	wdData, err := wu.Withdrawn()
+	if err == nil && len(wdData) > 0 {
+		addPath := ctx != nil && ctx.AddPath(nlri.Family{AFI: 1, SAFI: 1})
+		nlris := persistWireNLRIs(wdData, addPath, false)
+		if len(nlris) > 0 {
+			ops["ipv4/unicast"] = append(ops["ipv4/unicast"], persistFamilyOp{Action: "del", NLRIs: nlris})
+		}
+	}
+
+	// MP_REACH_NLRI announces.
+	mpReach, err := wu.MPReach()
+	if err == nil && mpReach != nil {
+		family := mpReach.Family()
+		nlriBytes := mpReach.NLRIBytes()
+		if len(nlriBytes) > 0 {
+			addPath := ctx != nil && ctx.AddPath(family)
+			nlris := persistWireNLRIs(nlriBytes, addPath, family.AFI == 2)
+			if len(nlris) > 0 {
+				ops[family.String()] = append(ops[family.String()], persistFamilyOp{Action: "add", NLRIs: nlris})
+			}
+		}
+	}
+
+	// MP_UNREACH_NLRI withdrawals.
+	mpUnreach, err := wu.MPUnreach()
+	if err == nil && mpUnreach != nil {
+		family := mpUnreach.Family()
+		wdBytes := mpUnreach.WithdrawnBytes()
+		if len(wdBytes) > 0 {
+			addPath := ctx != nil && ctx.AddPath(family)
+			nlris := persistWireNLRIs(wdBytes, addPath, family.AFI == 2)
+			if len(nlris) > 0 {
+				ops[family.String()] = append(ops[family.String()], persistFamilyOp{Action: "del", NLRIs: nlris})
+			}
+		}
+	}
+
+	// Use the existing store logic.
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	if ps.ribOut[peerAddr] == nil {
+		ps.ribOut[peerAddr] = make(map[string]map[string]*StoredRoute)
+	}
+
+	for family, familyOps := range ops {
+		for _, op := range familyOps {
+			for _, n := range op.NLRIs {
+				prefix, ok := n.(string)
+				if !ok {
+					continue
+				}
+				if op.Action == "add" {
+					if ps.ribOut[peerAddr][family] == nil {
+						ps.ribOut[peerAddr][family] = make(map[string]*StoredRoute)
+					}
+					if old, exists := ps.ribOut[peerAddr][family][prefix]; exists && old.MsgID != msgID {
+						ps.updateRoute(peerAddr, fmt.Sprintf("bgp cache %d release", old.MsgID))
+					}
+					ps.ribOut[peerAddr][family][prefix] = &StoredRoute{MsgID: msgID, Family: family, Prefix: prefix}
+					ps.updateRoute(peerAddr, fmt.Sprintf("bgp cache %d retain", msgID))
+				} else if op.Action == "del" {
+					familyRoutes := ps.ribOut[peerAddr][family]
+					if familyRoutes == nil {
+						continue
+					}
+					if old, exists := familyRoutes[prefix]; exists {
+						ps.updateRoute(peerAddr, fmt.Sprintf("bgp cache %d release", old.MsgID))
+						delete(familyRoutes, prefix)
+					}
+					if len(familyRoutes) == 0 {
+						delete(ps.ribOut[peerAddr], family)
+					}
+					if len(ps.ribOut[peerAddr]) == 0 {
+						delete(ps.ribOut, peerAddr)
+					}
+				}
+			}
+		}
+	}
+}
+
+// handleOpenStructured processes an OPEN event from StructuredEvent wire types.
+// Extracts ASN and negotiated families from raw OPEN wire bytes.
+func (ps *PersistServer) handleOpenStructured(se *rpc.StructuredEvent) {
+	msg, ok := se.RawMessage.(*bgptypes.RawMessage)
+	if !ok || msg == nil || msg.RawBytes == nil {
+		return
+	}
+
+	open, err := message.UnpackOpen(msg.RawBytes)
+	if err != nil {
+		return
+	}
+
+	asn := uint32(open.MyAS)
+	if open.ASN4 > 0 {
+		asn = open.ASN4
+	}
+
+	families := make(map[string]bool)
+	hasMultiprotocol := false
+
+	// Parse capabilities from optional parameters to find multiprotocol families.
+	// RFC 3392/5492: Type 2 = Capabilities Optional Parameter.
+	capData := open.OptionalParams
+	offset := 0
+	for offset < len(capData) {
+		if offset+2 > len(capData) {
+			break
+		}
+		paramType := capData[offset]
+		paramLen := int(capData[offset+1])
+		offset += 2
+		if offset+paramLen > len(capData) {
+			break
+		}
+		if paramType == 2 {
+			// Walk capability TLVs within this parameter.
+			capOffset := 0
+			paramData := capData[offset : offset+paramLen]
+			for capOffset < len(paramData) {
+				if capOffset+2 > len(paramData) {
+					break
+				}
+				capCode := paramData[capOffset]
+				capLen := int(paramData[capOffset+1])
+				capOffset += 2
+				if capOffset+capLen > len(paramData) {
+					break
+				}
+				if capCode == 1 && capLen == 4 { // Multiprotocol (code 1)
+					afi := nlri.AFI(uint16(paramData[capOffset])<<8 | uint16(paramData[capOffset+1]))
+					safi := nlri.SAFI(paramData[capOffset+3])
+					f := nlri.Family{AFI: afi, SAFI: safi}.String()
+					families[f] = true
+					hasMultiprotocol = true
+				} else if capCode == 65 && capLen == 4 { // ASN4 capability
+					asn = uint32(paramData[capOffset])<<24 | uint32(paramData[capOffset+1])<<16 |
+						uint32(paramData[capOffset+2])<<8 | uint32(paramData[capOffset+3])
+				}
+				capOffset += capLen
+			}
+		}
+		offset += paramLen
+	}
+
+	// RFC 4760: implicit ipv4/unicast if no multiprotocol capability.
+	if !hasMultiprotocol {
+		families["ipv4/unicast"] = true
+	}
+
+	ps.mu.Lock()
+	defer ps.mu.Unlock()
+
+	peer := ps.peers[se.PeerAddress]
+	if peer == nil {
+		peer = &PersistPeer{Address: se.PeerAddress}
+		ps.peers[se.PeerAddress] = peer
+	}
+	peer.ASN = asn
+	peer.Families = families
+}
+
+// persistWireNLRIs walks wire NLRI bytes and returns prefix strings as []any.
+// Uses stack-allocated [16]byte buffer to avoid per-prefix heap allocation.
+func persistWireNLRIs(data []byte, addPath, isIPv6 bool) []any {
+	addrLen := 4
+	if isIPv6 {
+		addrLen = 16
+	}
+	var result []any
+	var buf [16]byte // stack-allocated — large enough for IPv6
+	offset := 0
+	for offset < len(data) {
+		if addPath {
+			if offset+4 >= len(data) {
+				break
+			}
+			offset += 4
+		}
+		if offset >= len(data) {
+			break
+		}
+		prefixLen := int(data[offset])
+		byteCount := (prefixLen + 7) / 8
+		offset++
+		if offset+byteCount > len(data) {
+			break
+		}
+		clear(buf[:])
+		copy(buf[:], data[offset:offset+byteCount])
+		offset += byteCount
+		addr, ok := netip.AddrFromSlice(buf[:addrLen])
+		if !ok {
+			continue
+		}
+		result = append(result, netip.PrefixFrom(addr, prefixLen).String())
+	}
+	return result
+}
+
+// handleStructuredState processes a structured state event from DirectBridge.
+func (ps *PersistServer) handleStructuredState(se *rpc.StructuredEvent) {
+	peerAddr := se.PeerAddress
+
+	ps.mu.Lock()
+
+	if se.State == persistStateUp {
+		peer := ps.peers[peerAddr]
+		if peer == nil {
+			peer = &PersistPeer{Address: peerAddr}
+			ps.peers[peerAddr] = peer
+		}
+		peer.Up = true
+		peer.replayGen++
+		gen := peer.replayGen
+		ps.mu.Unlock()
+		go ps.replayForPeer(peerAddr, gen)
+		return
+	}
+
+	if se.State == persistStateDown {
+		if peer := ps.peers[peerAddr]; peer != nil {
+			peer.Up = false
+		}
+	}
+	ps.mu.Unlock()
 }
 
 // handleState processes a state event (up/down).

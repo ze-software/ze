@@ -16,6 +16,7 @@ import (
 	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -80,7 +81,23 @@ func RunWatchdogPlugin(conn net.Conn) int {
 	p.SetStartupSubscriptions([]string{"state"}, nil, "")
 	p.SetEncoding("text")
 
-	// Runtime: handle text events (peer state changes)
+	// Runtime: handle structured events (peer state changes via DirectBridge).
+	p.OnStructuredEvent(func(events []any) error {
+		for _, event := range events {
+			se, ok := event.(*rpc.StructuredEvent)
+			if !ok || se.PeerAddress == "" {
+				continue
+			}
+			if se.State == "up" {
+				srv.handleStateUp(se.PeerAddress)
+			} else if se.State != "" {
+				srv.handleStateDown(se.PeerAddress)
+			}
+		}
+		return nil
+	})
+
+	// Fallback: handle text events for non-DirectBridge delivery (external plugins).
 	p.OnEvent(func(eventStr string) error {
 		peerAddr, state := parseStateEvent(eventStr)
 		if peerAddr == "" {
