@@ -2,6 +2,7 @@
 .PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-test ze-verify ze-ci
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
+.PHONY: ze-all ze-all-test
 .PHONY: ze-interop-test
 .PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-validate-commands ze-validate-commands-json ze-doc-drift
@@ -205,13 +206,21 @@ ze-exabgp-test: bin/ze
 	@echo "Running ExaBGP compatibility tests..."
 	uv run --with psutil --with paramiko ./test/exabgp-compat/bin/functional encoding --timeout 60
 
-# Run all ze tests (use before commits)
-ze-test: ze-lint ze-chaos-lint ze-unit-test ze-functional-test ze-exabgp-test ze-chaos-test ze-fuzz-test
+# Run all ze tests including fuzz (ze only, no chaos/perf/analyse)
+ze-test: ze-lint ze-unit-test ze-functional-test ze-exabgp-test ze-fuzz-test
 	@echo "All ze tests passed"
 
-# All tests except fuzz (use during development)
-ze-verify: ze-lint ze-chaos-lint ze-unit-test ze-functional-test ze-exabgp-test ze-chaos-test
+# All tests except fuzz (ze only — use during development)
+ze-verify: ze-lint ze-unit-test ze-functional-test ze-exabgp-test
 	@echo "Ze verification passed"
+
+# Everything: ze + chaos (no fuzz)
+ze-all: ze-verify ze-chaos-verify
+	@echo "All verification passed (ze + chaos)"
+
+# Everything including fuzz: ze + chaos
+ze-all-test: ze-test ze-chaos-verify
+	@echo "All tests passed (ze + chaos + fuzz)"
 
 # Codebase consistency checks (naming, structure, cross-refs, file sizes)
 ze-consistency:
@@ -387,8 +396,10 @@ help:
 	@echo "  ze-exabgp-test        - Run ExaBGP compatibility tests only"
 	@echo "  ze-fuzz-test          - Run all fuzz tests (15s per target)"
 	@echo "  ze-fuzz-one           - Run single fuzz target (FUZZ=name PKG=path TIME=30s)"
-	@echo "  ze-test               - All tests: lint + unit + functional + exabgp + chaos + fuzz (before commits)"
-	@echo "  ze-verify             - All tests except fuzz (development)"
+	@echo "  ze-test               - Ze tests: lint + unit + functional + exabgp + fuzz"
+	@echo "  ze-verify             - Ze tests except fuzz (development)"
+	@echo "  ze-all                - Everything: ze-verify + ze-chaos-verify"
+	@echo "  ze-all-test           - Everything + fuzz: ze-test + ze-chaos-verify"
 	@echo "  ze-ci                 - ze-lint + ze-unit-test + build"
 	@echo ""
 	@echo "  Chaos tests:"
