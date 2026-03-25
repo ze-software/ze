@@ -6,8 +6,6 @@ package server
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -15,7 +13,6 @@ import (
 	"time"
 
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
-	pluginipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -121,6 +118,7 @@ func (s *Server) runPluginStartup() {
 		logger().Debug("starting explicit plugins", "count", len(s.config.Plugins))
 		if err := s.runPluginPhase(s.config.Plugins); err != nil {
 			logger().Error("explicit plugin startup failed", "error", err)
+			s.signalStartupComplete()
 			return
 		}
 	}
@@ -204,58 +202,18 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 		return nil
 	}
 
-	// Step (a): Create ProcessManager for all plugins.
-	pm := process.NewProcessManager(plugins)
-	s.procManager = pm
-
-	// Set up TLS acceptor for external plugins.
-	// If hub config is missing but external plugins exist, auto-generate one
-	// with a random port and secret so external plugins work without explicit config.
-	var acceptor *pluginipc.PluginAcceptor
-	hasExternal := false
-	for _, p := range plugins {
-		if !p.Internal {
-			hasExternal = true
-			break
-		}
+	// Step (a): Spawn processes via PluginManager (ProcessSpawner).
+	if s.spawner == nil {
+		return fmt.Errorf("no ProcessSpawner set — call SetProcessSpawner before Start")
 	}
-	if hasExternal {
-		hubConf := s.config.Hub
-		if hubConf == nil {
-			var tokenBytes [32]byte
-			if _, err := rand.Read(tokenBytes[:]); err != nil {
-				return fmt.Errorf("generate hub token: %w", err)
-			}
-			hubConf = &plugin.HubConfig{
-				Listen: []string{"127.0.0.1:0"},
-				Secret: hex.EncodeToString(tokenBytes[:]),
-			}
-		}
-		cert, certErr := pluginipc.GenerateSelfSignedCert()
-		if certErr != nil {
-			return fmt.Errorf("generate TLS cert: %w", certErr)
-		}
-		listeners, lnErr := pluginipc.StartListeners(hubConf.Listen, cert)
-		if lnErr != nil {
-			return fmt.Errorf("start TLS listeners: %w", lnErr)
-		}
-		// Use the first listener for the acceptor.
-		acceptor = pluginipc.NewPluginAcceptor(listeners[0], hubConf.Secret)
-		acceptor.Start()
-		pm.SetAcceptor(acceptor)
-		// Close extra listeners (acceptor owns the first one).
-		for _, ln := range listeners[1:] {
-			ln.Close() //nolint:errcheck,gosec // extra listeners not used yet
-		}
-	}
-
-	// Start all processes (internal via goroutine, external via fork + TLS connect-back).
-	if err := pm.StartWithContext(s.ctx); err != nil {
-		if acceptor != nil {
-			acceptor.Stop()
-		}
+	if err := s.spawner.SpawnMore(plugins); err != nil {
 		return err
 	}
+	pm, ok := s.spawner.GetProcessManager().(*process.ProcessManager)
+	if !ok || pm == nil {
+		return fmt.Errorf("spawner did not produce a valid ProcessManager")
+	}
+	s.procManager = pm
 
 	// Step (b): Compute dependency tiers from plugin configs.
 	names := make([]string, len(plugins))
@@ -265,7 +223,7 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 	tiers, err := registry.TopologicalTiers(names)
 	if err != nil {
 		logger().Error("tier computation failed", "error", err)
-		pm.Stop()
+		s.procManager.Stop()
 		return err
 	}
 
@@ -279,7 +237,7 @@ func (s *Server) runPluginPhase(plugins []plugin.PluginConfig) error {
 		// Build process slice for this tier by looking up names in PM.
 		tierProcs := make([]*process.Process, 0, len(tierNames))
 		for _, name := range tierNames {
-			proc := pm.GetProcess(name)
+			proc := s.procManager.GetProcess(name)
 			if proc == nil {
 				logger().Error("tier process not found in PM", "plugin", name, "tier", tierIdx)
 				continue

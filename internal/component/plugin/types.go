@@ -263,6 +263,18 @@ func NewErrorResponse(message string) *Response {
 	}
 }
 
+// ProcessSpawner is the interface for plugin process lifecycle management.
+// Implemented by PluginManager. Used by Server to delegate process creation
+// instead of creating ProcessManager directly.
+type ProcessSpawner interface {
+	// SpawnMore spawns additional plugin processes (for auto-load).
+	SpawnMore(configs []PluginConfig) error
+
+	// GetProcessManager returns the most recent ProcessManager.
+	// Returns nil if no processes have been spawned.
+	GetProcessManager() any
+}
+
 // HubConfig holds plugin transport configuration.
 // Extracted from: plugin { hub { listen ...; secret ...; } }.
 type HubConfig struct {

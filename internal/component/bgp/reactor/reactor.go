@@ -244,8 +244,9 @@ type Reactor struct {
 	configTree map[string]any
 
 	connCallback    ConnectionCallback
-	messageReceiver MessageReceiver // Receives raw BGP messages
-	bus             ze.Bus          // Bus for cross-component notifications (nil until SetBus)
+	messageReceiver MessageReceiver       // Receives raw BGP messages
+	bus             ze.Bus                // Bus for cross-component notifications (nil until SetBus)
+	processSpawner  plugin.ProcessSpawner // PluginManager for process lifecycle (nil = Server self-manages)
 
 	// Peer filter chains: collected from plugin registry at startup.
 	// Ingress: called before caching/dispatching received UPDATEs.
@@ -385,6 +386,13 @@ func (r *Reactor) SetBus(b ze.Bus) {
 	if r.eventDispatcher != nil {
 		r.eventDispatcher.SetBus(b)
 	}
+}
+
+// SetProcessSpawner sets the PluginManager as the process spawner.
+// Must be called before StartWithContext. When set, the reactor passes
+// it to Server so process creation is delegated to PluginManager.
+func (r *Reactor) SetProcessSpawner(sp plugin.ProcessSpawner) {
+	r.processSpawner = sp
 }
 
 // publishBusNotification publishes a lightweight notification to the Bus.
@@ -675,6 +683,10 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 			})
 		}
 		r.api = pluginserver.NewServer(apiConfig, &reactorAPIAdapter{r})
+		// Wire PluginManager as process spawner (if set).
+		if r.processSpawner != nil {
+			r.api.SetProcessSpawner(r.processSpawner)
+		}
 		// Create EventDispatcher for BGP event delivery (type-safe, no hooks indirection)
 		r.eventDispatcher = bgpserver.NewEventDispatcher(r.api)
 		// Propagate Bus to EventDispatcher for EOR notifications.

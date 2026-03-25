@@ -62,8 +62,9 @@ type Server struct {
 	rpcFallback   func(string) func(json.RawMessage) (any, error)
 	commitManager any
 	procManager   *process.ProcessManager
-	subscriptions *SubscriptionManager // API-driven event subscriptions
-	monitors      *MonitorManager      // CLI monitor subscriptions
+	spawner       plugin.ProcessSpawner // PluginManager for process lifecycle (nil = self-managed)
+	subscriptions *SubscriptionManager  // API-driven event subscriptions
+	monitors      *MonitorManager       // CLI monitor subscriptions
 
 	// Plugin registration protocol
 	coordinator *plugin.StartupCoordinator // Stage synchronization
@@ -241,6 +242,14 @@ func (s *Server) Monitors() *MonitorManager {
 // Used by BGP hook implementations to iterate plugin processes.
 func (s *Server) ProcessManager() *process.ProcessManager {
 	return s.procManager
+}
+
+// SetProcessSpawner sets the PluginManager as the process spawner.
+// When set, runPluginPhase delegates process creation to the spawner
+// instead of creating ProcessManager directly.
+// Must be called before Start.
+func (s *Server) SetProcessSpawner(sp plugin.ProcessSpawner) {
+	s.spawner = sp
 }
 
 // Running returns true if the server is running.
