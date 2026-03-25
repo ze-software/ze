@@ -44,6 +44,18 @@ func safeEgressFilter(filter registry.EgressFilterFunc, src, dest registry.PeerF
 	return filter(src, dest, payload, meta, mods)
 }
 
+// safeModHandler calls a mod handler with panic recovery.
+// Fail-open: a panicking handler skips the modification (route forwarded unmodified).
+func safeModHandler(handler registry.ModHandlerFunc, key string, payload []byte, val any) (result []byte) {
+	defer func() {
+		if r := recover(); r != nil {
+			fwdLogger().Error("mod handler panic, skipping modification", "key", key, "panic", r)
+			result = nil // fail-open: skip modification on handler panic
+		}
+	}()
+	return handler(payload, val)
+}
+
 // AddPeerObserver registers an observer for peer lifecycle events.
 // Observers are called synchronously in registration order.
 // MUST NOT block; use goroutine for slow processing.

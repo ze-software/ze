@@ -1,0 +1,108 @@
+# Test: OTC processing scoped to unicast families only per RFC 9234
+# VALIDATES: AC-6, AC-7 -- non-unicast family routes bypass OTC ingress/egress rules
+# PREVENTS: OTC applied to multicast/VPN/flow families violating RFC 9234 Section 5
+
+# ze-peer: customer peer sends multicast UPDATE with OTC (would be rejected if OTC applied)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# Add role capability: code 9, value 03 (customer)
+option=open:value=add-capability:code=9:hex=03
+# Send UPDATE with MP_REACH_NLRI for IPv4 multicast (AFI=1, SAFI=2) + OTC attribute.
+# If OTC processing applied, this would be rejected (OTC from Customer = leak).
+# Since multicast is out of OTC scope, it should be accepted.
+# UPDATE body:
+#   withdrawn_len=0000
+#   attrs:
+#     ORIGIN=IGP: 40 01 01 00
+#     AS_PATH=[65001]: 40 02 06 02 01 0000FDE9
+#     MP_REACH_NLRI (AFI=1 SAFI=2 nhlen=4 nh=1.1.1.1 nlri=10.0.0.0/24):
+#       90 0E 0C 0001 02 04 01010101 00 180A0000
+#     OTC=65001: C0 23 04 0000FDE9
+#   attr_len = 4+9+15+7 = 35 = 0x23
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003A0200000023400101004002060201 0000FDE9900E0C000102040101010100180A0000C023040000FDE9
+EOF_PEER
+
+# Python test plugin: verifies the multicast route with OTC was NOT rejected.
+tmpfs=test-scope.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Verify non-unicast routes bypass OTC processing (multicast with OTC from Customer accepted)."""
+import json
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for session and UPDATE processing.
+    time.sleep(3.0)
+
+    # If OTC was applied to multicast, this route would be rejected (OTC from Customer = leak).
+    # Since multicast is out of OTC scope, it should be accepted into adj-rib-in.
+    result = dispatch(api, 'adj-rib-in status')
+    data = json.loads(result.get('data', '{}'))
+    total = data.get('total-routes', -1)
+
+    if total != 1:
+        print(f'FAIL: expected 1 route (multicast OTC bypasses scope), got {total}', file=sys.stderr)
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+
+    print('OK: multicast route with OTC accepted (OTC scope = unicast only)', file=sys.stderr)
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze configuration: Provider with Customer peer, ipv4/multicast enabled
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-scope {
+		run ./test-scope.run
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65001
+		}
+		local {
+			as 65000
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		connection active
+
+		family {
+			ipv4/unicast { prefix { maximum 10000; } }
+			ipv4/multicast { prefix { maximum 10000; } }
+		}
+		role {
+			import provider
+		}
+		process test-scope {
+			receive [ update state ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

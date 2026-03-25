@@ -6,6 +6,7 @@ package role
 
 import (
 	"fmt"
+	"math"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
@@ -217,6 +218,31 @@ func extractPeerRoleConfigs(jsonStr string) (map[string]*peerRoleConfig, map[str
 	}
 
 	return configs, nameToIP
+}
+
+// extractLocalASN extracts the local-as value from the BGP config JSON.
+// Returns 0 if not found or not a valid number.
+func extractLocalASN(jsonStr string) uint32 {
+	bgpSubtree, ok := configjson.ParseBGPSubtree(jsonStr)
+	if !ok {
+		logger().Warn("extractLocalASN: failed to parse BGP subtree")
+		return 0
+	}
+	switch v := bgpSubtree["local-as"].(type) {
+	case float64:
+		if v < 0 || v > math.MaxUint32 {
+			logger().Warn("extractLocalASN: local-as out of uint32 range", "value", v)
+			return 0
+		}
+		return uint32(v)
+	case int:
+		if v < 0 || v > math.MaxUint32 {
+			logger().Warn("extractLocalASN: local-as out of uint32 range", "value", v)
+			return 0
+		}
+		return uint32(v)
+	}
+	return 0
 }
 
 // extractRoleCapabilities parses BGP config JSON and returns per-peer Role capabilities.

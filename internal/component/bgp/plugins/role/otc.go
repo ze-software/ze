@@ -89,10 +89,59 @@ func appendOTCToAttrs(attrs []byte, asn uint32) []byte {
 	return result
 }
 
-// isUnicastFamily returns true for IPv4/IPv6 unicast families.
+// MP_REACH_NLRI attribute type code.
+const mpReachAttrCode = byte(14)
+
+// isPayloadUnicast checks if an UPDATE payload carries IPv4 or IPv6 unicast.
 // RFC 9234 Section 5: OTC processing is scoped to AFI 1/2 (IPv4/IPv6), SAFI 1 (Unicast).
-func isUnicastFamily(family string) bool {
-	return family == "ipv4/unicast" || family == "ipv6/unicast"
+//
+// If no MP_REACH_NLRI attribute is found, the UPDATE is IPv4 unicast (RFC 4271 implicit).
+// If MP_REACH_NLRI is found, reads AFI (2 bytes) and SAFI (1 byte) from the attribute value.
+func isPayloadUnicast(payload []byte) bool {
+	attrs := extractAttrsFromPayload(payload)
+	if attrs == nil {
+		return true // Malformed or empty: treat as unicast (fail-open for OTC)
+	}
+
+	off := 0
+	for off < len(attrs) {
+		if off+3 > len(attrs) {
+			break
+		}
+		flags := attribute.AttributeFlags(attrs[off])
+		code := attrs[off+1]
+		var attrLen uint16
+		var hdrLen int
+		if flags.IsExtLength() {
+			if off+4 > len(attrs) {
+				break
+			}
+			attrLen = binary.BigEndian.Uint16(attrs[off+2 : off+4])
+			hdrLen = 4
+		} else {
+			attrLen = uint16(attrs[off+2])
+			hdrLen = 3
+		}
+		if off+hdrLen+int(attrLen) > len(attrs) {
+			break
+		}
+
+		if code == mpReachAttrCode {
+			// MP_REACH_NLRI: AFI (2 bytes) + SAFI (1 byte) at start of value.
+			if attrLen < 3 {
+				return true // Malformed MP_REACH: treat as unicast
+			}
+			valStart := off + hdrLen
+			afi := binary.BigEndian.Uint16(attrs[valStart : valStart+2])
+			safi := attrs[valStart+2]
+			return (afi == 1 || afi == 2) && safi == 1
+		}
+
+		off += hdrLen + int(attrLen)
+	}
+
+	// No MP_REACH_NLRI found: IPv4 unicast (RFC 4271).
+	return true
 }
 
 // OTC ingress filter result.
@@ -179,17 +228,17 @@ func extractAttrsFromPayload(payload []byte) []byte {
 // Updates the attrLen field to account for the added OTC attribute.
 func insertOTCInPayload(payload []byte, otcASN uint32) []byte {
 	if len(payload) < 4 {
-		return payload
+		return nil // Malformed: signal no modification.
 	}
 	withdrawnLen := int(binary.BigEndian.Uint16(payload[0:2]))
 	attrOffset := 2 + withdrawnLen
 	if len(payload) < attrOffset+2 {
-		return payload
+		return nil // Malformed: signal no modification.
 	}
 	attrLen := int(binary.BigEndian.Uint16(payload[attrOffset : attrOffset+2]))
 	attrEnd := attrOffset + 2 + attrLen
 	if len(payload) < attrEnd {
-		return payload
+		return nil // Malformed: signal no modification.
 	}
 
 	otc := buildOTCAttr(otcASN)
@@ -237,6 +286,11 @@ func OTCIngressFilter(src registry.PeerFilterInfo, payload []byte, meta map[stri
 		return true, nil
 	}
 
+	// RFC 9234 Section 5: OTC MUST NOT be applied to other address families by default.
+	if !isPayloadUnicast(payload) {
+		return true, nil
+	}
+
 	attrs := extractAttrsFromPayload(payload)
 	if attrs == nil {
 		return true, nil
@@ -273,19 +327,38 @@ func OTCIngressFilter(src registry.PeerFilterInfo, payload []byte, meta map[stri
 // Called by the reactor per destination peer during ForwardUpdate.
 // Checks both export role filtering and OTC egress suppression per RFC 9234 Section 5.
 //
-// Uses meta["src-role"] (our configured knowledge of the source peer's role) for
-// suppression decisions. If we don't configure a role, we don't filter.
-func OTCEgressFilter(src, dest registry.PeerFilterInfo, payload []byte, meta map[string]any, _ *registry.ModAccumulator) bool {
+// Two independent egress checks:
+//  1. Wire-bytes OTC check (unconditional): if route has OTC, MUST NOT propagate to Provider/Peer/RS.
+//  2. Meta-based Gao-Rexford check: if source role is Provider/Peer/RS, suppress to Provider/Peer/RS.
+func OTCEgressFilter(src, dest registry.PeerFilterInfo, payload []byte, meta map[string]any, mods *registry.ModAccumulator) bool {
+	// RFC 9234 Section 5: OTC MUST NOT be applied to other address families by default.
+	if !isPayloadUnicast(payload) {
+		return true
+	}
+
 	srcCfg, _ := getFilterConfig(src.Address.String())
 	_, destRemoteRole := getFilterConfig(dest.Address.String())
 
-	// RFC 9234 Section 5 OTC egress suppression (non-overridable).
-	// A route from a Provider/Peer/RS source must not be sent to a Provider/Peer/RS destination.
-	// Based on our configured role for the source peer (meta["src-role"]).
+	// RFC 9234 Section 5 egress rule 2 (unconditional, wire-bytes):
+	// "If a route already contains the OTC Attribute, it MUST NOT be
+	// propagated to Providers, Peers, or RSes."
+	// This check does not depend on source peer configuration.
+	if checkOTCEgress(destRemoteRole, extractAttrsFromPayload(payload)) {
+		logger().Debug("OTC egress suppress (wire-bytes)",
+			"src", src.Address, "dest", dest.Address, "dest-role", destRemoteRole)
+		return false
+	}
+
+	// Gao-Rexford leak prevention (meta-based safety net):
+	// Routes from a Provider/Peer/RS source must not be sent to a Provider/Peer/RS destination.
+	// meta["src-role"] stores our LOCAL role for the source peer (from config "import" keyword).
+	// Our local role maps to the source peer's type:
+	//   customer  → source IS Provider    peer     → source IS Peer
+	//   rs-client → source IS RS          provider → source IS Customer (allowed to transit)
 	if destRemoteRole == roleProvider || destRemoteRole == rolePeer || destRemoteRole == roleRS {
 		srcRole, _ := meta["src-role"].(string)
-		if srcRole == roleProvider || srcRole == rolePeer || srcRole == roleRS {
-			logger().Debug("OTC egress suppress",
+		if srcRole == roleCustomer || srcRole == rolePeer || srcRole == roleRSClient {
+			logger().Debug("OTC egress suppress (src-role)",
 				"src", src.Address, "src-role", srcRole, "dest", dest.Address, "dest-role", destRemoteRole)
 			return false
 		}
@@ -308,5 +381,39 @@ func OTCEgressFilter(src, dest registry.PeerFilterInfo, payload []byte, meta map
 		}
 	}
 
+	// RFC 9234 Section 5: "If a route is to be advertised to a Customer, a Peer,
+	// or an RS-Client [...] and the OTC Attribute is not present, then [...]
+	// an OTC Attribute MUST be added with a value equal to the AS number of the local AS."
+	if mods != nil && (destRemoteRole == roleCustomer || destRemoteRole == rolePeer || destRemoteRole == roleRSClient) {
+		attrs := extractAttrsFromPayload(payload)
+		_, hasOTC, _ := findOTC(attrs)
+		if !hasOTC {
+			localASN := getLocalASN()
+			if localASN > 0 {
+				mods.Set("set:attr:otc", localASN)
+				logger().Debug("OTC egress stamp mod",
+					"src", src.Address, "dest", dest.Address, "dest-role", destRemoteRole, "otc-asn", localASN)
+			}
+		}
+	}
+
 	return true
+}
+
+// otcModHandler is the mod handler for "set:attr:otc".
+// Called by applyMods in the reactor forward path after all egress filters accept.
+// val is the local ASN (uint32) to stamp as OTC.
+// Returns modified payload with OTC appended, or nil to skip modification.
+func otcModHandler(payload []byte, val any) []byte {
+	asn, ok := val.(uint32)
+	if !ok || asn == 0 {
+		return nil // Invalid value: skip modification.
+	}
+	modified := insertOTCInPayload(payload, asn)
+	if modified == nil {
+		// Overflow: return nil to signal no modification.
+		logger().Warn("OTC mod handler: attribute overflow, skipping stamp")
+		return nil
+	}
+	return modified
 }

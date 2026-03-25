@@ -558,8 +558,8 @@ func TestNameToIPResolution(t *testing.T) {
 	// Set up name-to-IP mapping.
 	setFilterState(map[string]*peerRoleConfig{
 		"10.0.0.1": {role: roleProvider},
-	}, map[string]string{"my-upstream": "10.0.0.1"})
-	defer setFilterState(nil, nil)
+	}, map[string]string{"my-upstream": "10.0.0.1"}, 0)
+	defer setFilterState(nil, nil, 0)
 
 	// Store remote role by NAME (as OnValidateOpen does).
 	setFilterRemoteRole("my-upstream", roleCustomer)
@@ -574,4 +574,30 @@ func TestNameToIPResolution(t *testing.T) {
 	require.NotNil(t, cfg, "config should be found by IP")
 	assert.Equal(t, roleProvider, cfg.role)
 	assert.Equal(t, roleCustomer, remoteRole, "remote role should be found by IP after name resolution")
+}
+
+// VALIDATES: extractLocalASN parses local-as from BGP config JSON.
+// PREVENTS: Wrong ASN used for OTC egress stamping.
+func TestExtractLocalASN(t *testing.T) {
+	tests := []struct {
+		name string
+		json string
+		want uint32
+	}{
+		{"valid_float64", `{"bgp":{"local-as":65001}}`, 65001},
+		{"max_asn", `{"bgp":{"local-as":4294967295}}`, 4294967295},
+		{"zero", `{"bgp":{"local-as":0}}`, 0},
+		{"missing_key", `{"bgp":{}}`, 0},
+		{"string_value", `{"bgp":{"local-as":"not-a-number"}}`, 0},
+		{"invalid_json", `not json`, 0},
+		{"empty_json", `{}`, 0},
+		{"negative", `{"bgp":{"local-as":-1}}`, 0},
+		{"overflow", `{"bgp":{"local-as":4294967296}}`, 0},
+		{"very_large", `{"bgp":{"local-as":5000000000}}`, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, extractLocalASN(tt.json))
+		})
+	}
 }

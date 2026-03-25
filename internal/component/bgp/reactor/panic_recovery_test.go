@@ -280,6 +280,34 @@ func TestSafeEgressFilterNormalPassthrough(t *testing.T) {
 	assert.Equal(t, uint32(100), lp)
 }
 
+// TestSafeModHandlerPanicSkips verifies that a panicking mod handler
+// returns nil (fail-open: route forwarded unmodified) and does not crash the caller.
+//
+// VALIDATES: fail-open behavior -- panicking mod handler skips modification.
+// PREVENTS: Panic in mod handler crashing the forward path.
+func TestSafeModHandlerPanicSkips(t *testing.T) {
+	panicHandler := registry.ModHandlerFunc(func(_ []byte, _ any) []byte {
+		panic("simulated mod handler panic")
+	})
+	payload := []byte{0x00, 0x00, 0x00, 0x04, 0x40, 0x01, 0x01, 0x00}
+
+	result := safeModHandler(panicHandler, "test:key", payload, uint32(65000))
+	assert.Nil(t, result, "panicking mod handler must return nil (fail-open)")
+}
+
+// TestSafeModHandlerNormalPassthrough verifies the happy path: a well-behaved
+// mod handler's result passes through unchanged.
+func TestSafeModHandlerNormalPassthrough(t *testing.T) {
+	normalHandler := registry.ModHandlerFunc(func(payload []byte, val any) []byte {
+		// Append a byte to simulate modification.
+		return append(payload, 0xFF) //nolint:gocritic // appendAssign: test intentionally creates new slice
+	})
+	payload := []byte{0x00, 0x01, 0x02}
+
+	result := safeModHandler(normalHandler, "test:key", payload, nil)
+	assert.Equal(t, []byte{0x00, 0x01, 0x02, 0xFF}, result, "handler result should pass through")
+}
+
 // TestSafeRunGapScanRecoversPanic verifies safeRunGapScan catches panics.
 //
 // VALIDATES: AC-7 — gap scan wrapper pattern catches panics.

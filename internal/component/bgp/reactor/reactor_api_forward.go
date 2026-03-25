@@ -272,8 +272,6 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				continue // Route suppressed by egress filter for this peer.
 			}
 		}
-		// TODO(spec-llgr-4): applyMods(mods) -- mod application handlers added by consuming specs.
-
 		// Select wire version for this peer.
 		// RFC 4271 §9.1.2: EBGP peers get AS-PATH-prepended wire.
 		// IBGP peers get original wire unchanged.
@@ -285,6 +283,31 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				peerWire = ebgpWireASN2
 			}
 			// If EBGP wire generation failed, peerWire stays as original (graceful degradation)
+		}
+
+		// Apply accumulated modifications from egress filters.
+		// Runs AFTER wire selection so mods apply to the correct wire version
+		// (e.g., EBGP wire with AS-PATH prepended, not the original).
+		// Handlers are post-accept transformations: they cannot reject, only transform.
+		// Each handler receives the output of the previous, composing sequentially.
+		if mods.Len() > 0 {
+			payload := peerWire.Payload()
+			modified := false
+			mods.Range(func(key string, val any) {
+				handler := a.r.modHandlers[key]
+				if handler == nil {
+					reactorLogger().Warn("no mod handler registered", "key", key)
+					return
+				}
+				result := safeModHandler(handler, key, payload, val)
+				if len(result) > 0 {
+					payload = result
+					modified = true
+				}
+			})
+			if modified {
+				peerWire = wireu.NewWireUpdate(payload, peerWire.SourceCtxID())
+			}
 		}
 
 		// Build the fwdItem with pre-computed send operations for this peer.

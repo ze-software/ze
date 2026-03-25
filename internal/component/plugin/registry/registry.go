@@ -93,6 +93,53 @@ func (a *ModAccumulator) Range(fn func(key string, val any)) {
 // Reset clears all accumulated modifications for reuse.
 func (a *ModAccumulator) Reset() { clear(a.m) }
 
+// ModHandlerFunc is a post-accept transformation applied after all egress filters
+// have accepted a route for a given peer. It takes the current UPDATE payload and
+// the mod value written by an egress filter, and returns a modified payload.
+// It cannot reject a route -- only transform. Handlers compose sequentially:
+// each receives the output of the previous handler.
+// Called from the reactor forward path; MUST NOT retain payload beyond the call.
+type ModHandlerFunc func(payload []byte, val any) []byte
+
+// modHandlers stores registered mod handlers keyed by mod key.
+// Populated at init() time by plugins, read at runtime by the reactor.
+var modHandlers = make(map[string]ModHandlerFunc)
+
+// RegisterModHandler registers a mod handler for the given key.
+// Must be called from init() functions only. Ignores nil handlers.
+func RegisterModHandler(key string, handler ModHandlerFunc) {
+	if handler == nil {
+		return
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	modHandlers[key] = handler
+}
+
+// UnregisterModHandler removes a mod handler. Only for use in tests.
+func UnregisterModHandler(key string) {
+	mu.Lock()
+	defer mu.Unlock()
+	delete(modHandlers, key)
+}
+
+// ModHandler returns the registered handler for the given key, or nil.
+func ModHandler(key string) ModHandlerFunc {
+	mu.RLock()
+	defer mu.RUnlock()
+	return modHandlers[key]
+}
+
+// ModHandlers returns a snapshot of all registered mod handlers.
+// Called by the reactor to build the handler map at startup.
+func ModHandlers() map[string]ModHandlerFunc {
+	mu.RLock()
+	defer mu.RUnlock()
+	result := make(map[string]ModHandlerFunc, len(modHandlers))
+	maps.Copy(result, modHandlers)
+	return result
+}
+
 // Registration describes a plugin's full metadata and handlers.
 // Each plugin registers exactly one Registration via its init() function.
 type Registration struct {
@@ -538,25 +585,35 @@ func Reset() {
 	mu.Lock()
 	defer mu.Unlock()
 	plugins = make(map[string]*Registration)
+	modHandlers = make(map[string]ModHandlerFunc)
 	metricsRegistry = nil
+}
+
+// RegistrySnapshot holds a complete copy of the registry state for test save/restore.
+type RegistrySnapshot struct {
+	plugins     map[string]*Registration
+	modHandlers map[string]ModHandlerFunc
 }
 
 // Snapshot returns a copy of the current registry state. Only for use in tests.
 // Use with Restore to safely reset and restore after test-specific registrations.
-func Snapshot() map[string]*Registration {
+func Snapshot() RegistrySnapshot {
 	mu.RLock()
 	defer mu.RUnlock()
 
-	snap := make(map[string]*Registration, len(plugins))
-	maps.Copy(snap, plugins)
-	return snap
+	ps := make(map[string]*Registration, len(plugins))
+	maps.Copy(ps, plugins)
+	mh := make(map[string]ModHandlerFunc, len(modHandlers))
+	maps.Copy(mh, modHandlers)
+	return RegistrySnapshot{plugins: ps, modHandlers: mh}
 }
 
 // Restore replaces the registry with a previously saved snapshot. Only for use in tests.
-func Restore(snap map[string]*Registration) {
+func Restore(snap RegistrySnapshot) {
 	mu.Lock()
 	defer mu.Unlock()
-	plugins = snap
+	plugins = snap.plugins
+	modHandlers = snap.modHandlers
 }
 
 // ResolveDependencies expands a list of plugin names by iteratively adding

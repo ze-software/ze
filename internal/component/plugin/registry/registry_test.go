@@ -1049,3 +1049,78 @@ func TestModAccumulator_MultipleKeys(t *testing.T) {
 		t.Fatalf("after Reset, Len() = %d, want 0", mods.Len())
 	}
 }
+
+// VALIDATES: AC-9 — Mod handler registered and retrievable by key.
+// PREVENTS: Handler registration silently lost.
+func TestModHandlerRegistration(t *testing.T) {
+	called := false
+	handler := ModHandlerFunc(func(payload []byte, val any) []byte {
+		called = true
+		return payload
+	})
+
+	RegisterModHandler("set:attr:otc", handler)
+	t.Cleanup(func() { UnregisterModHandler("set:attr:otc") })
+
+	got := ModHandler("set:attr:otc")
+	if got == nil {
+		t.Fatal("ModHandler returned nil for registered key")
+	}
+
+	result := got([]byte{1, 2, 3}, uint32(65000))
+	if !called {
+		t.Fatal("handler was not called")
+	}
+	if len(result) != 3 {
+		t.Fatalf("handler returned %d bytes, want 3", len(result))
+	}
+}
+
+// VALIDATES: AC-9 — Unknown mod key returns nil handler.
+// PREVENTS: Panic on unregistered key lookup.
+func TestModHandlerNotFound(t *testing.T) {
+	got := ModHandler("set:attr:nonexistent")
+	if got != nil {
+		t.Fatal("ModHandler returned non-nil for unregistered key")
+	}
+}
+
+// VALIDATES: ModHandlers returns a snapshot copy that doesn't affect the registry.
+// PREVENTS: Caller mutations leaking back into the global registry.
+func TestModHandlersSnapshot(t *testing.T) {
+	h1 := ModHandlerFunc(func(p []byte, _ any) []byte { return p })
+	h2 := ModHandlerFunc(func(p []byte, _ any) []byte { return p })
+
+	RegisterModHandler("test:snap:a", h1)
+	RegisterModHandler("test:snap:b", h2)
+	t.Cleanup(func() {
+		UnregisterModHandler("test:snap:a")
+		UnregisterModHandler("test:snap:b")
+	})
+
+	snap := ModHandlers()
+	if len(snap) < 2 {
+		t.Fatalf("snapshot has %d handlers, want at least 2", len(snap))
+	}
+	if snap["test:snap:a"] == nil || snap["test:snap:b"] == nil {
+		t.Fatal("snapshot missing registered handlers")
+	}
+
+	// Mutating snapshot must not affect registry.
+	delete(snap, "test:snap:a")
+	if ModHandler("test:snap:a") == nil {
+		t.Fatal("deleting from snapshot affected the registry")
+	}
+}
+
+// VALIDATES: RegisterModHandler ignores nil handler.
+// PREVENTS: Nil handler registered leading to panic in safeModHandler.
+func TestRegisterModHandlerNil(t *testing.T) {
+	RegisterModHandler("test:nil:key", nil)
+	t.Cleanup(func() { UnregisterModHandler("test:nil:key") })
+
+	got := ModHandler("test:nil:key")
+	if got != nil {
+		t.Fatal("nil handler should not be registered")
+	}
+}

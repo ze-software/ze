@@ -50,15 +50,24 @@ var (
 	filterPeerConfigs map[string]*peerRoleConfig // IP -> role config (from OnConfigure)
 	filterRemoteRoles map[string]string          // IP -> remote role name (from OnValidateOpen)
 	filterNameToIP    map[string]string          // peer name -> IP (for OnValidateOpen name resolution)
+	filterLocalASN    uint32                     // local AS number for OTC egress stamping
 )
 
-// setFilterState stores peer role configs and name-to-IP mapping for filter closures.
-func setFilterState(configs map[string]*peerRoleConfig, n2ip map[string]string) {
+// setFilterState stores peer role configs, name-to-IP mapping, and local ASN for filter closures.
+func setFilterState(configs map[string]*peerRoleConfig, n2ip map[string]string, localASN uint32) {
 	filterMu.Lock()
 	filterPeerConfigs = configs
 	filterNameToIP = n2ip
+	filterLocalASN = localASN
 	filterRemoteRoles = nil // Clear stale remote roles from previous config.
 	filterMu.Unlock()
+}
+
+// getLocalASN returns the local AS number captured from config.
+func getLocalASN() uint32 {
+	filterMu.RLock()
+	defer filterMu.RUnlock()
+	return filterLocalASN
 }
 
 // setFilterRemoteRole stores a peer's negotiated remote role for filter closures.
@@ -137,15 +146,17 @@ func RunRolePlugin(conn net.Conn) int {
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		var caps []sdk.CapabilityDecl
+		var localASN uint32
 		for _, section := range sections {
 			if section.Root != "bgp" {
 				continue
 			}
 			peerConfigs, nameToIP = extractPeerRoleConfigs(section.Data)
 			caps = append(caps, extractRoleCapabilities(section.Data)...)
+			localASN = extractLocalASN(section.Data)
 		}
 		// Store configs in package-level state for filter closures.
-		setFilterState(peerConfigs, nameToIP)
+		setFilterState(peerConfigs, nameToIP, localASN)
 		p.SetCapabilities(caps)
 		return nil
 	})
