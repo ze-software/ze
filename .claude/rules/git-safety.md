@@ -25,7 +25,7 @@ unrelated package = separate commit.
 
 ## Before Any Commit (BLOCKING)
 
-**`make ze-verify` (timeout 120s) — not `go test`, not any subset.**
+**`make ze-verify` (timeout 180s) — not `go test`, not any subset.**
 
 **BLOCKING:** Never ask to commit without reporting ALL test failures to the user first. If any test failed, list every failure explicitly before any commit discussion. Hiding, omitting, or glossing over failures is forbidden.
 

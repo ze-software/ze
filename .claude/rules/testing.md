@@ -104,6 +104,14 @@ make ze-verify > tmp/ze-test.log 2>&1 || grep -E "^--- FAIL|^FAIL|TEST FAILURE|â
 
 On failure: search the log. On success: one line of exit status. Never `| tail`.
 
+## Bash Tool Timeouts
+
+| Command | Timeout | Why |
+|---------|---------|-----|
+| Default | 15000ms | Bash tool default |
+| `make ze-unit-test` | 120s | Longer than default |
+| `make ze-verify` | 180s | Runs lint + unit + functional + exabgp; regularly takes over 1m50s |
+
 ## Pre-Commit
 
 See `rules/git-safety.md` for the full pre-commit workflow.

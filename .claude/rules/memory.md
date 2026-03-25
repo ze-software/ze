@@ -25,9 +25,6 @@ Validate format (contains "/", non-empty parts) — never enumerate all families
 File → Tree → `ResolveBGPTree()` → `map[string]any` → `reactor.PeersFromTree()`.
 Key files: `component/config/resolve.go`, `component/config/peers.go`, `reactor/config.go`.
 
-### Bash Timeout
-Default 15000ms. Longer only for `make ze-verify`, `make ze-unit-test`.
-
 ### Linter Hook
 `auto_linter.sh` runs goimports on Edit/Write. Add import + usage in same edit to avoid cascading removals.
 
@@ -43,9 +40,6 @@ Key decisions agreed with user:
 - **Performance matters** — user explicitly asked for performance-conscious design
 - **`make ze-verify`** before closing spec/committing
 - **Cross-check child specs against umbrella** after each phase
-
-### Bash Timeout for ze-verify
-`make ze-verify` needs timeout 120s (2 min) — runs lint + unit + functional + exabgp + chaos.
 
 ### Constants for Command/Status Names
 String literals used as command names or status values must be constants — compiler catches typos that `case "sett":` would silently miss. Editor commands live in `config/editor/model.go`. Plugin status uses `plugin.StatusDone`/`plugin.StatusError`.
