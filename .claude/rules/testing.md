@@ -22,6 +22,7 @@ Rationale: `.claude/rationale/testing.md`
 | BGP encoding | `test/encode/` | Config + expectations |
 | Plugin behavior | `test/plugin/` | Config + expectations |
 | Wire decoding | `test/decode/` | stdin + cmd + `expect=json:` |
+| Editor/TUI behavior | `test/editor/` | `.et` with `input=`/`expect=` directives |
 | Internal logic | `internal/<pkg>/<file>_test.go` | Go test file |
 
 ## Make Targets
@@ -36,6 +37,7 @@ Rationale: `.claude/rationale/testing.md`
 | `make ze-fuzz-test` | Fuzz tests (15s per target) |
 | `make ze-exabgp-test` | ExaBGP compatibility |
 | `make ze-test` | All tests including fuzz (use when specifically needed) |
+| `make ze-editor-test` | Editor `.et` tests (headless TUI) |
 | `make ze-chaos-test` | Chaos unit + functional + web |
 
 ## Iteration Workflow (BLOCKING)
@@ -55,9 +57,11 @@ Rationale: `.claude/rationale/testing.md`
 |-------|---------|-------|
 | Single functional test | `ze-test bgp plugin N` | seconds |
 | Single encode test | `ze-test bgp encode N` | seconds |
+| Single editor test | `ze-test editor -p pattern` | seconds |
 | Single Go test | `go test -race -run TestName ./pkg/...` | seconds |
 | Single package | `go test -race ./internal/component/bgp/reactor/...` | seconds |
 | All unit tests | `make ze-unit-test` | fast |
+| All editor tests | `make ze-editor-test` | ~30s |
 | Pre-commit gate | `make ze-verify` | ~2 min |
 
 `make ze-verify` is the **final gate**, not a development tool. Use targeted commands during iteration.
@@ -104,6 +108,67 @@ make ze-verify > tmp/ze-test.log 2>&1 || grep -E "^--- FAIL|^FAIL|TEST FAILURE|â
 
 On failure: search the log. On success: one line of exit status. Never `| tail`.
 
+## Editor Tests (.et format)
+
+`.et` files in `test/editor/` test the interactive TUI editor via headless simulation.
+Infrastructure: `internal/component/cli/testing/` (parser, expect, headless, input, runner).
+Run: `make ze-editor-test` or `bin/ze-test editor [-p pattern] [-v] [-l]`.
+
+### Directives
+
+| Directive | Purpose | Example |
+|-----------|---------|---------|
+| `tmpfs=<path>:terminator=<TERM>` | Embedded config file | `tmpfs=test.conf:terminator=EOF` |
+| `option=file:path=<name>` | Config file to load (required) | `option=file:path=test.conf` |
+| `option=timeout:value=<dur>` | Test timeout (default 30s) | `option=timeout:value=10s` |
+| `option=width:value=N` | Editor width (default 80) | `option=width:value=120` |
+| `option=height:value=N` | Editor height (default 24) | `option=height:value=30` |
+| `option=reload:mode=success\|fail` | Mock reload notifier | `option=reload:mode=success` |
+| `option=session:user=X:origin=Y` | Session identity | `option=session:user=alice:origin=ssh` |
+| `session=<name>` | Switch to named session | `session=bob` |
+| `input=type:text=<string>` | Type text | `input=type:text=show` |
+| `input=<keyname>` | Press key | `input=enter`, `input=tab`, `input=up` |
+| `input=ctrl:key=<char>` | Ctrl+key | `input=ctrl:key=c` |
+
+**Named keys:** `tab`, `enter`, `esc`, `up`, `down`, `left`, `right`, `backspace`, `delete`, `home`, `end`, `pgup`, `pgdn`, `space`, `shift+tab`
+
+### Expectations
+
+| Type | Example | What it checks |
+|------|---------|----------------|
+| `expect=input:value=<text>` | `expect=input:value=show` | Text input buffer |
+| `expect=input:empty` | | Input is empty |
+| `expect=context:root` | | At root context |
+| `expect=context:path=bgp.peer` | | At nested context |
+| `expect=dirty:true\|false` | | Unsaved changes |
+| `expect=error:none\|contains=<text>` | | Command error state |
+| `expect=status:contains=<text>\|empty` | | Status message |
+| `expect=mode:is=edit\|command` | | Editor mode |
+| `expect=completion:contains=a,b` | | Tab completions include items |
+| `expect=completion:empty\|count=N\|exact=a,b` | | Completion list state |
+| `expect=ghost:text=<text>\|empty` | | Ghost text preview |
+| `expect=content:contains=<text>` | | Config content |
+| `expect=viewport:contains=<text>` | | Displayed output |
+| `expect=dropdown:visible\|hidden` | | Dropdown shown |
+| `expect=file:path=<rel>:contains=<text>` | | On-disk file content |
+| `expect=file:path=<rel>:absent` | | File does not exist |
+| `expect=timer:active\|inactive` | | Commit confirm timer |
+| `expect=errors:count=N\|contains=<text>` | | Validation errors |
+| `expect=warnings:count=N\|contains=<text>` | | Validation warnings |
+| `expect=prompt:contains=<text>` | | Prompt text |
+
+### When to use .et vs .ci vs Go tests
+
+| Test need | Format | Why |
+|-----------|--------|-----|
+| TUI behavior (keystrokes, completions, history) | `.et` | Headless model simulates real TUI |
+| BGP wire, config parsing, CLI commands | `.ci` | Process-level testing |
+| Internal logic, persistence wiring | Go `_test.go` | Direct API access |
+
+### Structure
+
+Tests organized by concern in `test/editor/`: `commands/`, `completion/`, `lifecycle/`, `mode/`, `navigation/`, `pipe/`, `session/`, `validation/`, `workflow/`.
+
 ## Bash Tool Timeouts
 
 | Command | Timeout | Why |
@@ -111,6 +176,14 @@ On failure: search the log. On success: one line of exit status. Never `| tail`.
 | Default | 15000ms | Bash tool default |
 | `make ze-unit-test` | 120s | Longer than default |
 | `make ze-verify` | 180s | Runs lint + unit + functional + exabgp; regularly takes over 1m50s |
+
+## Common Flaky Test Causes
+
+| Symptom | Root Cause | Fix |
+|---------|-----------|-----|
+| Port reuse race in reactor tests | `Stop()` not waiting for cleanup | Ensure cleanup goroutines complete before returning |
+| Completion test fails intermittently | Real bug, not flaky | Check `completeShowPath` includes YANG schema children |
+| Inter-message timing in plugin tests | Sleep too tight under load | Increase inter-message delay or use synchronization |
 
 ## Pre-Commit
 
