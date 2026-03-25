@@ -325,17 +325,15 @@ func (s *Server) Reload(_ context.Context, _ ze.ConfigProvider) error {
 }
 
 // resolveHostKeyOption returns the Wish host key option.
-// When storage is configured, the key is read from (or generated into) storage
-// and served from memory via WithHostKeyPEM.
-// When storage is nil, the key is served from the filesystem via WithHostKeyPath.
+// The key is always read from (or generated into) the storage layer and
+// served from memory via WithHostKeyPEM. Never uses WithHostKeyPath, which
+// would auto-generate both .key and .pub files on the physical filesystem,
+// bypassing the zefs blob store.
 func (s *Server) resolveHostKeyOption() (ssh.Option, error) {
 	store := s.config.Storage
-	if !storage.IsBlobStorage(store) {
-		return wish.WithHostKeyPath(s.config.HostKeyPath), nil
-	}
-
 	keyPath := s.config.HostKeyPath
-	if store.Exists(keyPath) {
+
+	if store != nil && store.Exists(keyPath) {
 		data, err := store.ReadFile(keyPath)
 		if err != nil {
 			return nil, fmt.Errorf("read host key from storage: %w", err)
@@ -354,8 +352,10 @@ func (s *Server) resolveHostKeyOption() (ssh.Option, error) {
 	}
 	pemBytes := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: pkcs8Bytes})
 
-	if err := store.WriteFile(keyPath, pemBytes, 0o600); err != nil {
-		return nil, fmt.Errorf("store host key: %w", err)
+	if store != nil {
+		if err := store.WriteFile(keyPath, pemBytes, 0o600); err != nil {
+			return nil, fmt.Errorf("store host key: %w", err)
+		}
 	}
 	s.logger.Info("generated SSH host key", "path", keyPath)
 

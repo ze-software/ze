@@ -3,6 +3,7 @@ package ssh
 import (
 	"context"
 	"net"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -141,32 +142,48 @@ func TestResolveHostKeyFromBlobStorage(t *testing.T) {
 	assert.Equal(t, data, data2, "key should not be regenerated")
 }
 
-// VALIDATES: resolveHostKeyOption uses WithHostKeyPath when storage is nil or filesystem.
-// PREVENTS: regression in filesystem mode.
+// VALIDATES: resolveHostKeyOption generates key in memory when storage is nil or filesystem.
+// PREVENTS: host key files being created on the physical filesystem by Wish.
 func TestResolveHostKeyFilesystemMode(t *testing.T) {
 	t.Run("nil storage", func(t *testing.T) {
+		dir := t.TempDir()
+		keyPath := filepath.Join(dir, "host_key")
 		cfg := Config{
 			Listen:      "127.0.0.1:0",
-			HostKeyPath: filepath.Join(t.TempDir(), "host_key"),
+			HostKeyPath: keyPath,
 		}
 		srv, err := NewServer(cfg)
 		require.NoError(t, err)
 		opt, err := srv.resolveHostKeyOption()
 		require.NoError(t, err)
-		assert.NotNil(t, opt, "should return WithHostKeyPath option")
+		assert.NotNil(t, opt, "should return a valid ssh.Option")
+		// Key must NOT be written to filesystem when storage is nil.
+		_, statErr := os.Stat(keyPath)
+		assert.True(t, os.IsNotExist(statErr), "key file must not be created on filesystem")
+		_, statPubErr := os.Stat(keyPath + ".pub")
+		assert.True(t, os.IsNotExist(statPubErr), "pub file must not be created on filesystem")
 	})
 
 	t.Run("filesystem storage", func(t *testing.T) {
+		dir := t.TempDir()
+		keyPath := filepath.Join(dir, "host_key")
 		cfg := Config{
 			Listen:      "127.0.0.1:0",
-			HostKeyPath: filepath.Join(t.TempDir(), "host_key"),
+			HostKeyPath: keyPath,
 			Storage:     storage.NewFilesystem(),
 		}
 		srv, err := NewServer(cfg)
 		require.NoError(t, err)
 		opt, err := srv.resolveHostKeyOption()
 		require.NoError(t, err)
-		assert.NotNil(t, opt, "filesystem storage should still use WithHostKeyPath")
+		assert.NotNil(t, opt, "should return a valid ssh.Option")
+		// Private key is written via storage.WriteFile (filesystem).
+		data, readErr := os.ReadFile(keyPath)
+		require.NoError(t, readErr, "key should be persisted via storage")
+		assert.Contains(t, string(data), "PRIVATE KEY")
+		// .pub must NOT exist — Wish's WithHostKeyPath is no longer used.
+		_, statPubErr := os.Stat(keyPath + ".pub")
+		assert.True(t, os.IsNotExist(statPubErr), "pub file must not be created on filesystem")
 	})
 }
 
