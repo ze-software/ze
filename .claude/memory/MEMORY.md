@@ -19,3 +19,4 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 - [feedback_memory_is_in_repo.md](feedback_memory_is_in_repo.md) - ~/.claude/projects/.../memory/ is the repo's .claude/memory/. Always commit memory changes.
 - [feedback_no_deferral.md](feedback_no_deferral.md) - Do not defer hard work. Implement it. Deferring defeats the purpose of delegation.
 - [feedback_no_edit_without_approval.md](feedback_no_edit_without_approval.md) - During design discussions, present options and wait. Never edit files until explicitly approved.
+- [feedback_trust_learned_summaries.md](feedback_trust_learned_summaries.md) - Verify "deferred/impossible" claims in learned summaries against actual code before reporting

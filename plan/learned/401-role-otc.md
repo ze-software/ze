@@ -18,7 +18,7 @@ Implement RFC 9234 OTC (Only to Customer) attribute processing: ingress stamping
 ## Patterns
 
 - Per-plugin attribute registration: `attribute.RegisterName(code, name)` from `init()`, documented as init-only
-- Generic filter chain: `IngressFilterFunc` returns `(accept, modifiedPayload)`, `EgressFilterFunc` returns `bool`
+- Generic filter chain: `IngressFilterFunc` returns `(accept, modifiedPayload)`, `EgressFilterFunc` returns `bool` + writes to `*ModAccumulator` for per-peer modifications
 - Name-to-IP resolution: config uses peer names as keys, filters use IP addresses; `extractRemoteIP` + `filterNameToIP` bridge the gap
 - OTC egress suppression runs before `srcCfg == nil` guard to apply to IBGP-sourced routes with OTC
 - `resolveExport` expands `default` token to RFC 9234 Section 5 role sets; `unknown` pseudo-role handles untagged peers
@@ -29,7 +29,7 @@ Implement RFC 9234 OTC (Only to Customer) attribute processing: ingress stamping
 - `setFilterState` clearing `filterRemoteRoles` broke tests that modified and restored filter state in subtests. Restore must also re-set remote roles.
 - `insertOTCInPayload` must return nil (not original payload) on uint16 overflow, otherwise caller treats unchanged payload as "modified" and rebuilds WireUpdate unnecessarily.
 - `isUnicastFamily` defined but not yet called from filters. OTC scope (IPv4/IPv6 unicast only per RFC) needs family extraction from payload -- deferred to follow-up spec.
-- Egress OTC stamping (adding OTC to outgoing routes without it) requires `EgressFilterFunc` signature change -- deferred.
+- Egress OTC stamping (adding OTC to outgoing routes without it) uses `ModAccumulator` (already in the `EgressFilterFunc` signature). The filter writes `mods.Set("set:attr:otc", localASN)`; the reactor's `applyMods` framework applies it. Only the `applyMods` handler registration is needed -- no signature change required.
 - `resolveExport` allocates per call in the hot path (per-UPDATE per-peer). Should pre-compute at config time.
 
 ## Files
