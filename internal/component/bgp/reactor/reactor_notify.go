@@ -20,28 +20,28 @@ import (
 )
 
 // safeIngressFilter calls an ingress filter with panic recovery.
-// A buggy filter must not crash the reactor's TCP read goroutine.
-func safeIngressFilter(filter registry.IngressFilterFunc, src registry.PeerFilterInfo, payload []byte) (accept bool, modified []byte) {
+// Fail-closed: a panicking filter rejects the route (drops the UPDATE).
+func safeIngressFilter(filter registry.IngressFilterFunc, src registry.PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modified []byte) {
 	defer func() {
 		if r := recover(); r != nil {
-			sessionLogger().Error("ingress filter panic", "peer", src.Address, "panic", r)
-			accept = true // fail-open: accept route on filter panic
+			sessionLogger().Error("ingress filter panic, rejecting route", "peer", src.Address, "panic", r)
+			accept = false // fail-closed: reject route on filter panic
 			modified = nil
 		}
 	}()
-	return filter(src, payload)
+	return filter(src, payload, meta)
 }
 
 // safeEgressFilter calls an egress filter with panic recovery.
-// A buggy filter must not crash ForwardUpdate's caller goroutine.
-func safeEgressFilter(filter registry.EgressFilterFunc, src, dest registry.PeerFilterInfo, payload []byte) (accept bool) {
+// Fail-closed: a panicking filter suppresses the route for this peer.
+func safeEgressFilter(filter registry.EgressFilterFunc, src, dest registry.PeerFilterInfo, payload []byte, meta map[string]any, mods *registry.ModAccumulator) (accept bool) {
 	defer func() {
 		if r := recover(); r != nil {
-			fwdLogger().Error("egress filter panic", "src", src.Address, "dest", dest.Address, "panic", r)
-			accept = true // fail-open: accept route on filter panic
+			fwdLogger().Error("egress filter panic, suppressing route", "src", src.Address, "dest", dest.Address, "panic", r)
+			accept = false // fail-closed: suppress route on filter panic
 		}
 	}()
-	return filter(src, dest, payload)
+	return filter(src, dest, payload, meta, mods)
 }
 
 // AddPeerObserver registers an observer for peer lifecycle events.
@@ -178,7 +178,7 @@ func (r *Reactor) emitCongestionEvent(peerAddr, eventType string) {
 // direction is "sent" or "received".
 // buf is the pool buffer for received messages (nil for sent).
 // Returns true if buf ownership was taken (caller should not return to pool).
-func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction string, buf BufHandle) bool {
+func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction string, buf BufHandle, meta map[string]any) bool {
 	r.mu.RLock()
 	receiver := r.messageReceiver
 	peer, hasPeer := r.findPeerByAddr(peerAddr)
@@ -273,6 +273,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			Timestamp: timestamp,
 			Direction: direction,
 			MessageID: messageID,
+			Meta:      meta, // Route metadata from ReceivedUpdate (sent events).
 		}
 
 		// For sent UPDATE messages, create AttrsWire from body if we have a context ID
@@ -293,11 +294,13 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 
 	// Ingress peer filter chain: reject routes before caching/dispatching.
 	// Only for received UPDATEs. Filter closures check peer role, OTC, etc.
+	var routeMeta map[string]any
 	if direction == plugin.DirectionReceived && wireUpdate != nil && len(r.ingressFilters) > 0 {
 		src := registry.PeerFilterInfo{Address: peerAddr, PeerAS: peerInfo.PeerAS}
 		payload := wireUpdate.Payload()
+		ingressMeta := make(map[string]any, 2) // Non-nil: filters may write to it.
 		for _, filter := range r.ingressFilters {
-			accept, modifiedPayload := safeIngressFilter(filter, src, payload)
+			accept, modifiedPayload := safeIngressFilter(filter, src, payload, ingressMeta)
 			if !accept {
 				return false // Route rejected by ingress filter; don't cache or dispatch.
 			}
@@ -318,6 +321,10 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 				msg.ParseError = parseErr
 			}
 		}
+		// Only store metadata on ReceivedUpdate if any filter wrote to it.
+		if len(ingressMeta) > 0 {
+			routeMeta = ingressMeta
+		}
 	}
 
 	// Cache BEFORE event delivery (only received UPDATEs).
@@ -332,6 +339,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			poolBuf:      buf,        // Cache owns buf
 			SourcePeerIP: peerAddr,
 			ReceivedAt:   timestamp,
+			Meta:         routeMeta,
 		})
 		kept = true // Cache always accepts
 	}

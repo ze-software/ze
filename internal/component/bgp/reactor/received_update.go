@@ -46,6 +46,10 @@ type ReceivedUpdate struct {
 	// ReceivedAt is when this UPDATE was received.
 	ReceivedAt time.Time
 
+	// Meta holds route metadata set at ingress by filters.
+	// Read-only after creation. May be nil if no filter set metadata.
+	Meta map[string]any
+
 	// ebgpMu protects lazy EBGP wire generation.
 	ebgpMu sync.Mutex
 

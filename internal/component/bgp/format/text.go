@@ -5,6 +5,7 @@ package format
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -354,10 +355,20 @@ func formatFullFromResult(peer plugin.PeerInfo, msg bgptypes.RawMessage, content
 
 		rawObj.WriteString(`}`)
 
-		// ze-bgp JSON: inject raw into bgp object (ends with "}}\n")
-		// Replace trailing "}}\n" with ","raw":{...}}}\n"
+		// Inject route metadata if present (sideband, not in wire bytes).
+		// Marshal error silently drops metadata (meta contains only string/bool values
+		// from ingress filters; marshal failure requires a code bug, not external input).
+		var metaJSON string
+		if len(msg.Meta) > 0 {
+			if metaBytes, err := json.Marshal(msg.Meta); err == nil {
+				metaJSON = `,"route-meta":` + string(metaBytes)
+			}
+		}
+
+		// ze-bgp JSON: inject raw + meta into bgp object (ends with "}}\n")
+		// Replace trailing "}}\n" with ","raw":{...},"route-meta":{...}}}\n"
 		if strings.HasSuffix(parsed, "}}\n") {
-			return parsed[:len(parsed)-3] + "," + rawObj.String() + "}}\n"
+			return parsed[:len(parsed)-3] + "," + rawObj.String() + metaJSON + "}}\n"
 		}
 		return parsed
 	}

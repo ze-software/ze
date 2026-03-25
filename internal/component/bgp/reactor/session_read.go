@@ -177,7 +177,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 	// Callback returns true if it took ownership of buf (e.g., cached it).
 	var kept bool
 	if s.onMessageReceived != nil {
-		kept = s.onMessageReceived(s.settings.Address, hdr.Type, body, wireUpdate, ctxID, "received", buf)
+		kept = s.onMessageReceived(s.settings.Address, hdr.Type, body, wireUpdate, ctxID, "received", buf, nil)
 	}
 
 	var err error

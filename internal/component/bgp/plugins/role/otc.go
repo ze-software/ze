@@ -219,8 +219,18 @@ func insertOTCInPayload(payload []byte, otcASN uint32) []byte {
 // OTCIngressFilter is the ingress filter function registered in the plugin registry.
 // Called by the reactor for each received UPDATE before caching and dispatching.
 // Checks OTC ingress rules per RFC 9234 Section 5.
-func OTCIngressFilter(src registry.PeerFilterInfo, payload []byte) (bool, []byte) {
+//
+// Sets meta["src-role"] to the source peer's role from our config (e.g., "provider", "customer").
+// The egress filter uses this for suppression decisions -- our configured knowledge of the
+// peer relationship, independent of whether OTC is in the wire bytes.
+// If we don't configure a role for a peer, we don't filter its routes.
+func OTCIngressFilter(src registry.PeerFilterInfo, payload []byte, meta map[string]any) (bool, []byte) {
 	cfg, remoteRole := getFilterConfig(src.Address.String())
+
+	// Always record source peer's role in metadata from our configuration.
+	if cfg != nil && cfg.role != "" {
+		meta["src-role"] = cfg.role
+	}
 
 	// No role config or no remote role: no OTC filtering.
 	if cfg == nil || remoteRole == "" {
@@ -262,24 +272,26 @@ func OTCIngressFilter(src registry.PeerFilterInfo, payload []byte) (bool, []byte
 // OTCEgressFilter is the egress filter function registered in the plugin registry.
 // Called by the reactor per destination peer during ForwardUpdate.
 // Checks both export role filtering and OTC egress suppression per RFC 9234 Section 5.
-func OTCEgressFilter(src, dest registry.PeerFilterInfo, payload []byte) bool {
+//
+// Uses meta["src-role"] (our configured knowledge of the source peer's role) for
+// suppression decisions. If we don't configure a role, we don't filter.
+func OTCEgressFilter(src, dest registry.PeerFilterInfo, payload []byte, meta map[string]any, _ *registry.ModAccumulator) bool {
 	srcCfg, _ := getFilterConfig(src.Address.String())
 	_, destRemoteRole := getFilterConfig(dest.Address.String())
 
 	// RFC 9234 Section 5 OTC egress suppression (non-overridable).
-	// Applies to ALL routes with OTC, regardless of source peer config.
-	// A route with OTC from IBGP (no role config) must still be suppressed
-	// when forwarded to Provider/Peer/RS.
-	if destRemoteRole != "" {
-		attrs := extractAttrsFromPayload(payload)
-		if attrs != nil && checkOTCEgress(destRemoteRole, attrs) {
+	// A route from a Provider/Peer/RS source must not be sent to a Provider/Peer/RS destination.
+	// Based on our configured role for the source peer (meta["src-role"]).
+	if destRemoteRole == roleProvider || destRemoteRole == rolePeer || destRemoteRole == roleRS {
+		srcRole, _ := meta["src-role"].(string)
+		if srcRole == roleProvider || srcRole == rolePeer || srcRole == roleRS {
 			logger().Debug("OTC egress suppress",
-				"src", src.Address, "dest", dest.Address, "dest-role", destRemoteRole)
+				"src", src.Address, "src-role", srcRole, "dest", dest.Address, "dest-role", destRemoteRole)
 			return false
 		}
 	}
 
-	// Source has no role config: no export role filtering (OTC suppression above still applied).
+	// Source has no role config: no export role filtering.
 	if srcCfg == nil {
 		return true
 	}

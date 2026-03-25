@@ -50,7 +50,7 @@ This is an umbrella spec. Implementation is in four child specs executed in orde
 | ~~`spec-llgr-1-capability.md`~~ | Capability Wire + Config | - | Done (`plan/learned/401-llgr-1-capability.md`) | LLGR capability code 71: wire decode/encode, YANG schema, config extraction, CLI decode |
 | ~~`spec-llgr-2-state-machine.md`~~ | State Machine | llgr-1 | Done (`plan/learned/402-llgr-2-state-machine.md`) | GR-to-LLGR transition, per-family LLST timers, reconnect during LLGR, timer interactions |
 | ~~`spec-llgr-3-rib-integration.md`~~ | RIB Integration | llgr-2 | Done (`plan/learned/403-llgr-3-rib-integration.md`) | LLGR_STALE attachment, NO_LLGR deletion, best-path depreference, generic RIB commands |
-| `spec-llgr-4-readvertisement.md` | Readvertisement | llgr-3 | design | Re-advertise stale routes with LLGR_STALE, suppress to non-LLGR peers, partial deployment |
+| `spec-llgr-4-readvertisement.md` | Readvertisement | llgr-3, spec-route-metadata, spec-rib-family-ribout | design | Re-advertise stale routes with LLGR_STALE, suppress to non-LLGR peers, partial deployment via route metadata |
 
 ## Required Reading
 

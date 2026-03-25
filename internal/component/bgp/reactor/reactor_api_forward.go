@@ -253,6 +253,8 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		}
 
 		// Egress peer filter chain: check if route should be sent to this peer.
+		// mods accumulates per-peer modifications; fresh for each peer.
+		var mods registry.ModAccumulator
 		if len(a.r.egressFilters) > 0 {
 			destFilter := registry.PeerFilterInfo{
 				Address: peer.Settings().Address,
@@ -261,7 +263,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			payload := update.WireUpdate.Payload()
 			suppressed := false
 			for _, filter := range a.r.egressFilters {
-				if !safeEgressFilter(filter, srcFilter, destFilter, payload) {
+				if !safeEgressFilter(filter, srcFilter, destFilter, payload, update.Meta, &mods) {
 					suppressed = true
 					break
 				}
@@ -270,6 +272,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				continue // Route suppressed by egress filter for this peer.
 			}
 		}
+		// TODO(spec-llgr-4): applyMods(mods) -- mod application handlers added by consuming specs.
 
 		// Select wire version for this peer.
 		// RFC 4271 §9.1.2: EBGP peers get AS-PATH-prepended wire.
@@ -285,7 +288,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		}
 
 		// Build the fwdItem with pre-computed send operations for this peer.
-		item := fwdItem{peer: peer}
+		item := fwdItem{peer: peer, meta: update.Meta}
 
 		// Get max message size for this peer (RFC 8654)
 		nc := peer.negotiated.Load()

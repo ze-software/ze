@@ -35,6 +35,7 @@ type fwdItem struct {
 	peer      *Peer             // Target peer for all operations
 	done      func()            // Called after all ops complete (Release cache entry)
 	pooled    bool              // Holds overflow pool token; MUST release after processing
+	meta      map[string]any    // Route metadata from ReceivedUpdate; set on sent events
 }
 
 // fwdWriteDeadlineDefault is the default TCP write deadline for forward pool
@@ -96,11 +97,13 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 		return
 	}
 	defer func() {
+		session.sentMeta = nil // Clear route metadata on all exit paths.
 		// Clear write deadline (zero value = no deadline).
 		_ = conn.SetWriteDeadline(time.Time{})
 	}()
 
 	for _, item := range items {
+		session.sentMeta = item.meta // Route metadata for sent event callbacks.
 		for _, body := range item.rawBodies {
 			if err := session.writeRawUpdateBody(body); err != nil {
 				fwdLogger().Warn("forward batch write failed",
@@ -120,7 +123,6 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 			}
 		}
 	}
-
 	if err := session.flushWrites(); err != nil {
 		fwdLogger().Warn("forward batch flush failed",
 			"peer", peer.Settings().Address,

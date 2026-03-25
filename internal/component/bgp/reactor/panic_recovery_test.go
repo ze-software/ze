@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 )
@@ -205,6 +206,78 @@ func TestSignalHandlerRecoversPanic(t *testing.T) {
 	require.Eventually(t, func() bool { return callCount.Load() >= 2 },
 		time.Second, 10*time.Millisecond,
 		"signal handler should continue after callback panic")
+}
+
+// TestSafeIngressFilterPanicRejects verifies that a panicking ingress filter
+// rejects the route (fail-closed) and does not crash the caller.
+//
+// VALIDATES: fail-closed behavior -- panicking filter rejects instead of accepting.
+// PREVENTS: Regression to fail-open where a buggy filter would accept unfiltered routes.
+func TestSafeIngressFilterPanicRejects(t *testing.T) {
+	panicFilter := func(_ registry.PeerFilterInfo, _ []byte, _ map[string]any) (bool, []byte) {
+		panic("simulated ingress filter panic")
+	}
+	src := registry.PeerFilterInfo{Address: mustParseAddr("10.0.0.1"), PeerAS: 65001}
+	meta := make(map[string]any)
+
+	accept, modified := safeIngressFilter(panicFilter, src, []byte{0x00, 0x00, 0x00, 0x00}, meta)
+	assert.False(t, accept, "panicking ingress filter must reject (fail-closed)")
+	assert.Nil(t, modified, "panicking ingress filter must not return modified payload")
+}
+
+// TestSafeEgressFilterPanicSuppresses verifies that a panicking egress filter
+// suppresses the route (fail-closed) and does not crash the caller.
+//
+// VALIDATES: fail-closed behavior -- panicking filter suppresses instead of accepting.
+// PREVENTS: Regression to fail-open where a buggy filter would forward unfiltered routes.
+func TestSafeEgressFilterPanicSuppresses(t *testing.T) {
+	panicFilter := func(_, _ registry.PeerFilterInfo, _ []byte, _ map[string]any, _ *registry.ModAccumulator) bool {
+		panic("simulated egress filter panic")
+	}
+	src := registry.PeerFilterInfo{Address: mustParseAddr("10.0.0.1"), PeerAS: 65001}
+	dest := registry.PeerFilterInfo{Address: mustParseAddr("10.0.0.2"), PeerAS: 65002}
+	var mods registry.ModAccumulator
+
+	accept := safeEgressFilter(panicFilter, src, dest, []byte{0x00, 0x00, 0x00, 0x00}, nil, &mods)
+	assert.False(t, accept, "panicking egress filter must suppress (fail-closed)")
+	assert.Equal(t, 0, mods.Len(), "panicking egress filter must not leave mods")
+}
+
+// TestSafeIngressFilterNormalPassthrough verifies the happy path: a well-behaved
+// ingress filter's result passes through unchanged.
+func TestSafeIngressFilterNormalPassthrough(t *testing.T) {
+	normalFilter := func(_ registry.PeerFilterInfo, _ []byte, meta map[string]any) (bool, []byte) {
+		meta["test"] = 42
+		return true, nil
+	}
+	src := registry.PeerFilterInfo{Address: mustParseAddr("10.0.0.1"), PeerAS: 65001}
+	meta := make(map[string]any)
+
+	accept, modified := safeIngressFilter(normalFilter, src, []byte{0x00, 0x00, 0x00, 0x00}, meta)
+	assert.True(t, accept)
+	assert.Nil(t, modified)
+	assert.Equal(t, 42, meta["test"], "meta should carry filter's value")
+}
+
+// TestSafeEgressFilterNormalPassthrough verifies the happy path: a well-behaved
+// egress filter's result passes through and mods are accumulated.
+func TestSafeEgressFilterNormalPassthrough(t *testing.T) {
+	normalFilter := func(_, _ registry.PeerFilterInfo, _ []byte, meta map[string]any, mods *registry.ModAccumulator) bool {
+		mods.Set("set:attr:local-preference", uint32(100))
+		return true
+	}
+	src := registry.PeerFilterInfo{Address: mustParseAddr("10.0.0.1"), PeerAS: 65001}
+	dest := registry.PeerFilterInfo{Address: mustParseAddr("10.0.0.2"), PeerAS: 65002}
+	var mods registry.ModAccumulator
+
+	accept := safeEgressFilter(normalFilter, src, dest, []byte{0x00, 0x00, 0x00, 0x00}, nil, &mods)
+	assert.True(t, accept)
+	assert.Equal(t, 1, mods.Len(), "mods should carry filter's value")
+	v, ok := mods.Get("set:attr:local-preference")
+	assert.True(t, ok)
+	lp, lpOK := v.(uint32)
+	assert.True(t, lpOK)
+	assert.Equal(t, uint32(100), lp)
 }
 
 // TestSafeRunGapScanRecoversPanic verifies safeRunGapScan catches panics.

@@ -13,7 +13,7 @@ Implement RFC 9234 OTC (Only to Customer) attribute processing: ingress stamping
 - Peer filter chain uses registry-based function registration (same pattern as InProcessNLRIDecoder)
 - Filter closures capture package-level state; reactor passes only PeerFilterInfo{Address, PeerAS}
 - Config keys by IP (via `extractRemoteIP`), with `filterNameToIP` mapping for named peers
-- Panic recovery wrappers (fail-open) protect reactor goroutines from filter bugs
+- Panic recovery wrappers (fail-closed: reject/suppress) protect reactor goroutines from filter bugs
 
 ## Patterns
 

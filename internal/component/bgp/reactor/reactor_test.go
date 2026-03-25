@@ -1428,7 +1428,7 @@ func TestNotifyMessageReceiverWireUpdate(t *testing.T) {
 	// Call notifyMessageReceiver directly (same package)
 	// In normal flow, session creates WireUpdate and passes it through
 	// Pass nil buf since we're not testing caching here
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, wireUpdate, 0, "received", BufHandle{})
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, wireUpdate, 0, "received", BufHandle{}, nil)
 
 	// Verify WireUpdate is set
 	require.NotNil(t, receivedMsg.WireUpdate, "WireUpdate should be set for UPDATE")
@@ -1492,7 +1492,7 @@ func TestNotifyMessageReceiverSentAttrsWire(t *testing.T) {
 	// Call notifyMessageReceiver with direction="sent" and non-zero ctxID
 	// Non-zero ctxID triggers AttrsWire creation for sent messages
 	ctxID := bgpctx.ContextID(1)
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, nil, ctxID, "sent", BufHandle{})
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, nil, ctxID, "sent", BufHandle{}, nil)
 
 	// Verify AttrsWire is set
 	require.NotNil(t, sentMsg.AttrsWire, "AttrsWire should be created for sent UPDATE with ctxID")
@@ -1536,7 +1536,7 @@ func TestNotifyMessageReceiverSentNoCtxID(t *testing.T) {
 	copy(updatePayload[4:], attrs)
 
 	// Call with ctxID=0 (no context)
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, nil, 0, "sent", BufHandle{})
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, nil, 0, "sent", BufHandle{}, nil)
 
 	// AttrsWire should be nil when ctxID is 0
 	require.Nil(t, sentMsg.AttrsWire, "AttrsWire should be nil when ctxID is 0")
@@ -1699,7 +1699,7 @@ func TestDeliveryChannelDecouplesRead(t *testing.T) {
 	buf := BufHandle{Buf: make([]byte, 4096)}
 
 	start := time.Now()
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, "received", buf)
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, "received", buf, nil)
 	elapsed := time.Since(start)
 
 	// Read goroutine should return almost immediately (enqueue, not block)
@@ -1748,7 +1748,7 @@ func TestCacheInsertionBeforeDelivery(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(payload, 0)
 	buf := BufHandle{Buf: make([]byte, 4096)}
 
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, "received", buf)
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, "received", buf, nil)
 
 	select {
 	case <-cacheCheckDone:
@@ -1786,7 +1786,7 @@ func TestActivateAfterAllDeliveries(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(payload, 0)
 	buf := BufHandle{Buf: make([]byte, 4096)}
 
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, "received", buf)
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, "received", buf, nil)
 
 	var msgID uint64
 	select {
@@ -1836,14 +1836,14 @@ func TestDeliveryBackpressure(t *testing.T) {
 	// First 2 UPDATEs fill the channel buffer
 	for range 2 {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)})
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)}, nil)
 	}
 
 	// 3rd send in goroutine — should block (channel full, no reader)
 	thirdDone := make(chan struct{})
 	go func() {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)})
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)}, nil)
 		close(thirdDone)
 	}()
 
@@ -1887,7 +1887,7 @@ func TestNonUpdateSynchronous(t *testing.T) {
 	defer stop()
 
 	// KEEPALIVE — must be delivered synchronously (before notifyMessageReceiver returns)
-	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeKEEPALIVE, nil, nil, 0, "received", BufHandle{})
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeKEEPALIVE, nil, nil, 0, "received", BufHandle{}, nil)
 
 	require.True(t, received, "KEEPALIVE should be delivered synchronously, not through async channel")
 }
@@ -1939,7 +1939,7 @@ func TestCrossPeerIsolation(t *testing.T) {
 		// Send 2 UPDATEs to peer A (1 in delivery + 1 in channel buffer)
 		for range 2 {
 			w := wireu.NewWireUpdate(payload, 0)
-			_ = reactor.notifyMessageReceiver(peerAddrA, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)})
+			_ = reactor.notifyMessageReceiver(peerAddrA, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)}, nil)
 		}
 	}()
 
@@ -1948,7 +1948,7 @@ func TestCrossPeerIsolation(t *testing.T) {
 	// Peer B should NOT be blocked by peer A's state
 	wB := wireu.NewWireUpdate(payload, 0)
 	start := time.Now()
-	_ = reactor.notifyMessageReceiver(peerAddrB, message.TypeUPDATE, payload, wB, 0, "received", BufHandle{Buf: make([]byte, 4096)})
+	_ = reactor.notifyMessageReceiver(peerAddrB, message.TypeUPDATE, payload, wB, 0, "received", BufHandle{Buf: make([]byte, 4096)}, nil)
 	elapsed := time.Since(start)
 
 	require.Less(t, elapsed, 50*time.Millisecond,
@@ -1997,7 +1997,7 @@ func TestDeliveryDrainOnTeardown(t *testing.T) {
 	payload := testUpdatePayload()
 	for range itemCount {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)})
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)}, nil)
 	}
 
 	// Close channel (teardown) — delivery goroutine drains remaining items
@@ -2045,7 +2045,7 @@ func TestPeerDeliveryDrainBatch(t *testing.T) {
 	payload := testUpdatePayload()
 	for range itemCount {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)})
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)}, nil)
 	}
 
 	// Now start delivery — all 5 items are already buffered
@@ -2112,7 +2112,7 @@ func TestPeerDeliveryActivatePerMessage(t *testing.T) {
 	payload := testUpdatePayload()
 	for range 3 {
 		w := wireu.NewWireUpdate(payload, 0)
-		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)})
+		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)}, nil)
 	}
 
 	// Wait for delivery

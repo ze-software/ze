@@ -73,7 +73,7 @@ func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 	// Body is data after the 19-byte header (16-byte marker + 2-byte length + 1-byte type).
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		_ = s.onMessageReceived(s.settings.Address, msg.Type(), body, nil, s.sendCtxID, "sent", BufHandle{})
+		_ = s.onMessageReceived(s.settings.Address, msg.Type(), body, nil, s.sendCtxID, "sent", BufHandle{}, nil)
 	}
 
 	return nil
@@ -198,14 +198,14 @@ func (s *Session) writeUpdate(update *message.Update) error {
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
 		sessionLogger().Debug("SendUpdate", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "msgLen", n)
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", BufHandle{})
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", BufHandle{}, s.sentMeta)
 	}
 
 	return nil
 }
 
 // writeRawUpdateBody writes a raw UPDATE body to bufWriter without locking or flushing.
-// Caller must hold writeMu.
+// Caller must hold writeMu. Fires sent event callback with route metadata.
 func (s *Session) writeRawUpdateBody(body []byte) error {
 	totalLen := message.HeaderLen + len(body)
 	s.writeBuf.Reset()
@@ -217,8 +217,16 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 	buf[18] = byte(message.TypeUPDATE)
 	copy(buf[message.HeaderLen:], body)
 
-	_, err := s.bufWriter.Write(buf[:totalLen])
-	return err
+	if _, err := s.bufWriter.Write(buf[:totalLen]); err != nil {
+		return err
+	}
+
+	if s.onMessageReceived != nil {
+		sessionLogger().Debug("SendRawUpdateBody", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "bodyLen", len(body))
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", BufHandle{}, s.sentMeta)
+	}
+
+	return nil
 }
 
 // flushWrites flushes the bufWriter. Caller must hold writeMu.
@@ -300,7 +308,7 @@ func (s *Session) SendAnnounce(route bgptypes.RouteSpec, localAS uint32, isIBGP,
 	// Notify callback after successful send
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", BufHandle{})
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", BufHandle{}, nil)
 	}
 
 	return nil
@@ -347,7 +355,7 @@ func (s *Session) SendWithdraw(prefix netip.Prefix, addPath bool) error {
 	// Notify callback after successful send
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", BufHandle{})
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", BufHandle{}, nil)
 	}
 
 	return nil

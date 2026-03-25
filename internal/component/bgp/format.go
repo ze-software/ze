@@ -5,16 +5,48 @@
 package bgp
 
 import (
+	"encoding/hex"
 	"fmt"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 )
 
-// FormatAnnounceCommand builds an "update text" announce command with full attributes.
-// Format: update text [attrs...] nhop <nh> nlri <family> [modifiers] add <prefix>.
+// FormatAnnounceCommand builds an announce command with full attributes.
+// When route.RawAttrs is set (from format=full sent events), uses "update hex"
+// format to preserve ALL transitive attributes (OTC, unknown attrs) through replay.
+// Otherwise uses "update text" with per-field attributes.
 // The peer selector is passed separately to updateRoute.
 func FormatAnnounceCommand(route *Route) string {
+	// Prefer hex format when raw attributes available -- preserves all transitive attrs.
+	if route.RawAttrs != "" {
+		return formatAnnounceHex(route)
+	}
+	return formatAnnounceText(route)
+}
+
+// formatAnnounceHex builds an "update hex attr set <hex>" command.
+// Preserves all path attributes including OTC (RFC 9234) and any unknown transitive attributes.
+// Falls back to text format if RawAttrs is not valid hex.
+func formatAnnounceHex(route *Route) string {
+	// Defense-in-depth: validate hex before interpolating into command string.
+	if _, err := hex.DecodeString(route.RawAttrs); err != nil {
+		return formatAnnounceText(route)
+	}
+	var sb strings.Builder
+	sb.WriteString("update hex attr set ")
+	sb.WriteString(route.RawAttrs)
+	sb.WriteString(" nlri ")
+	sb.WriteString(route.Family)
+	writeNLRIModifiers(&sb, route)
+	sb.WriteString(" add ")
+	sb.WriteString(route.Prefix)
+	return sb.String()
+}
+
+// formatAnnounceText builds an "update text" command with per-field attributes.
+// Used when raw attributes are not available (e.g., plugin-originated routes).
+func formatAnnounceText(route *Route) string {
 	var sb strings.Builder
 
 	// Base command (peer selector is handled by updateRoute).

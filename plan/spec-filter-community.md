@@ -41,7 +41,7 @@ Infrastructure changes required:
 ### Architecture Docs
 - [ ] `docs/architecture/core-design.md` - reactor filter pipeline, plugin lifecycle
   → Constraint: filters are read-only closures, captured at reactor startup
-  → Constraint: panic recovery wraps all filter calls (fail-open)
+  → Constraint: panic recovery wraps all filter calls (fail-closed: reject/suppress on panic)
 - [ ] `docs/architecture/wire/attributes.md` - attribute wire format, community encoding
   → Constraint: buffer-first encoding, WriteTo pattern
 - [ ] `docs/architecture/config/syntax.md` - config syntax and YANG patterns
@@ -79,20 +79,20 @@ Infrastructure changes required:
 **Behavior to preserve:**
 - Existing IngressFilterFunc signature and all current ingress filter callers
 - OTC ingress/egress filter functionality (bgp-role plugin)
-- safeIngressFilter panic recovery and fail-open behavior
+- safeIngressFilter panic recovery and fail-closed behavior
 - Community wire format parsing and encoding (attribute/community.go)
 - Config parsing for community values in route attributes (routeattr_community.go)
 - Deep-merge replacement semantics for all existing config fields
 - Route cumulative pattern in peers.go
 
 **Behavior to change:**
-- EgressFilterFunc signature: from `func(src, dst PeerFilterInfo, payload []byte) bool` to `func(src, dst PeerFilterInfo, payload []byte) (pass bool, changed bool, modifiedPayload []byte)`
-- safeEgressFilter: update to handle new return values, copy-on-first-edit semantics
-- Egress filter pipeline in reactor_api_forward.go: apply modified payload when changed=true; fresh payload per destination peer (never leak modifications across peers)
+- ~~EgressFilterFunc signature: from `func(src, dst PeerFilterInfo, payload []byte) bool` to `func(src, dst PeerFilterInfo, payload []byte) (pass bool, changed bool, modifiedPayload []byte)`~~ **Superseded by spec-route-metadata:** EgressFilterFunc now takes `(src, dest PeerFilterInfo, payload []byte, meta map[string]any, mods *ModAccumulator) bool`. Use `ModAccumulator` for per-peer payload modifications instead of return-value approach.
+- ~~safeEgressFilter: update to handle new return values, copy-on-first-edit semantics~~ **Superseded:** safeEgressFilter already updated for meta+mods. Mod application will be wired when applyMods handlers are added.
+- ~~Egress filter pipeline in reactor_api_forward.go: apply modified payload when changed=true~~ **Superseded:** ForwardUpdate creates per-peer ModAccumulator, passes to filters. Apply after chain via applyMods (framework exists, handlers TBD).
 - PeerFilterInfo: add Name (string) and GroupName (string) fields; reactor populates from PeerSettings
 - Registration struct: add FilterPriority field (int, lower = first)
 - IngressFilters() and EgressFilters(): sort by FilterPriority, then by plugin name for equal priority
-- OTC egress filter: update signature to match new EgressFilterFunc (returns pass, false, nil -- no mutation)
+- ~~OTC egress filter: update signature to match new EgressFilterFunc~~ **Done:** OTC uses meta["otc"] via ingress filter, ModAccumulator parameter unused.
 - deepMergeMaps in resolve.go: support `ze:cumulative` extension on leaf-lists (append instead of replace)
 
 **Pre-implementation:** Create `rfc/short/rfc8092.md` (large communities) if missing.

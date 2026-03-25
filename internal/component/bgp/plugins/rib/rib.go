@@ -391,6 +391,8 @@ func (r *RIBManager) handleSent(event *Event) {
 						Communities:         event.Communities,
 						LargeCommunities:    event.LargeCommunities,
 						ExtendedCommunities: event.ExtendedCommunities,
+						RawAttrs:            event.RawAttributes,
+						Meta:                event.RouteMeta,
 					}
 				}
 			case "del":

@@ -34,6 +34,17 @@ type Route struct {
 	LargeCommunities    []string `json:"large-communities,omitempty"`
 	ExtendedCommunities []string `json:"extended-communities,omitempty"`
 
+	// RawAttrs is the hex-encoded path attributes from format=full sent events.
+	// When non-empty, FormatAnnounceCommand uses "update hex attr set <hex>" format
+	// instead of per-field text format. This preserves ALL transitive attributes
+	// (including OTC, unknown attributes) through RIB replay.
+	RawAttrs string `json:"raw-attrs,omitempty"`
+
+	// Meta carries route-level metadata through the RIB for egress filtering on replay.
+	// Set by handleSent from ReceivedUpdate.Meta (e.g., "src-role" for OTC suppression).
+	// When the RIB replays routes through ForwardUpdate, egress filters read this.
+	Meta map[string]any `json:"meta,omitempty"`
+
 	// VPN fields — used by watchdog and future VPN route replay.
 	RD     string   `json:"rd,omitempty"`     // Route Distinguisher ("ASN:NN" or "IP:NN")
 	Labels []uint32 `json:"labels,omitempty"` // MPLS label stack

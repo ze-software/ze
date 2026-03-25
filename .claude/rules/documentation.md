@@ -23,6 +23,7 @@ Name the file, name the section, describe the change. Never say "update document
 | 10 | Test infrastructure | `docs/functional-tests.md`, `docs/architecture/testing/` | New test tools or patterns |
 | 11 | Comparison | `docs/comparison.md` | Feature parity with other daemons |
 | 12 | Architecture | `docs/architecture/core-design.md` or subsystem doc | Structural design changes |
+| 13 | Route metadata | `docs/architecture/meta/README.md` + `docs/architecture/meta/<plugin>.md` | Plugin sets or reads route metadata keys |
 
 ## In Specs
 

@@ -101,6 +101,7 @@ func (s *Server) handleUpdateRouteRPC(proc *process.Process, conn *plugipc.Plugi
 		Server:  s,
 		Process: proc,
 		Peer:    input.PeerSelector,
+		Meta:    input.Meta,
 	}
 	if cmdCtx.Peer == "" {
 		cmdCtx.Peer = "*"
@@ -413,6 +414,7 @@ func (s *Server) handleUpdateRouteDirect(proc *process.Process, params json.RawM
 		Server:  s,
 		Process: proc,
 		Peer:    input.PeerSelector,
+		Meta:    input.Meta,
 	}
 	if cmdCtx.Peer == "" {
 		cmdCtx.Peer = "*"

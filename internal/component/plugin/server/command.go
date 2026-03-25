@@ -80,6 +80,7 @@ type CommandContext struct {
 	Process  *process.Process // The API process (for session state)
 	Peer     string           // Peer selector: "*" for all, or specific IP. Empty = "*"
 	Username string           // Authenticated username (empty = no auth, full access)
+	Meta     map[string]any   // Route metadata from UpdateRoute RPC; nil if not set.
 }
 
 // Reactor returns the reactor lifecycle interface via Server. Nil-safe: returns nil if Server is nil.

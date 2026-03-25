@@ -983,3 +983,69 @@ func TestResolveDependencies_Diamond(t *testing.T) {
 		t.Errorf("expected 3 plugins, got %d: %v", len(result), result)
 	}
 }
+
+// --- ModAccumulator tests ---
+
+// VALIDATES: AC-5 — ModAccumulator.Len() returns 0 when empty, no allocation.
+// PREVENTS: Accidental allocation on the zero-mod path.
+func TestModAccumulator_LazyAlloc(t *testing.T) {
+	var mods ModAccumulator
+	if mods.Len() != 0 {
+		t.Fatalf("empty ModAccumulator.Len() = %d, want 0", mods.Len())
+	}
+	if v, ok := mods.Get("anything"); ok || v != nil {
+		t.Fatalf("empty ModAccumulator.Get returned (%v, %v)", v, ok)
+	}
+	// Set triggers allocation.
+	mods.Set("set:attr:local-preference", uint32(100))
+	if mods.Len() != 1 {
+		t.Fatalf("after Set, Len() = %d, want 1", mods.Len())
+	}
+}
+
+// VALIDATES: AC-6 — Multiple Set calls accumulated, all retrievable.
+// PREVENTS: Overwrite or loss of mods from different filters.
+func TestModAccumulator_MultipleKeys(t *testing.T) {
+	var mods ModAccumulator
+	mods.Set("set:attr:local-preference", uint32(0))
+	mods.Set("add:attr:community", []string{"no-export"})
+	mods.Set("withdraw:nlri:*", true)
+
+	if mods.Len() != 3 {
+		t.Fatalf("Len() = %d, want 3", mods.Len())
+	}
+
+	v, ok := mods.Get("set:attr:local-preference")
+	lp, lpOK := v.(uint32)
+	if !ok || !lpOK || lp != 0 {
+		t.Fatalf("Get local-preference = (%v, %v)", v, ok)
+	}
+
+	v, ok = mods.Get("add:attr:community")
+	if !ok {
+		t.Fatal("Get community not found")
+	}
+	comms, commsOK := v.([]string)
+	if !commsOK || len(comms) != 1 || comms[0] != "no-export" {
+		t.Fatalf("community = %v, want [no-export]", comms)
+	}
+
+	v, ok = mods.Get("withdraw:nlri:*")
+	wb, wbOK := v.(bool)
+	if !ok || !wbOK || !wb {
+		t.Fatalf("Get withdraw = (%v, %v)", v, ok)
+	}
+
+	// Range should visit all 3.
+	count := 0
+	mods.Range(func(_ string, _ any) { count++ })
+	if count != 3 {
+		t.Fatalf("Range visited %d, want 3", count)
+	}
+
+	// Reset clears.
+	mods.Reset()
+	if mods.Len() != 0 {
+		t.Fatalf("after Reset, Len() = %d, want 0", mods.Len())
+	}
+}

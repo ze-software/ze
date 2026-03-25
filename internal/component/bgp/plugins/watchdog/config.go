@@ -145,7 +145,7 @@ func collectWatchdogRoutes(updateMap map[string]any, peerAddr string, pools *Poo
 			continue
 		}
 
-		entries := parseNLRIEntries(nlriMap, base, wdWithdraw)
+		entries := parseNLRIEntries(nlriMap, &base, wdWithdraw)
 		if len(entries) == 0 {
 			continue
 		}
@@ -205,7 +205,7 @@ func buildRouteFromAttrs(attrMap map[string]any) bgp.Route {
 
 // parseNLRIEntries parses NLRI map entries into PoolEntry objects.
 // Each NLRI entry has family as key and a map with "content" field.
-func parseNLRIEntries(nlriMap map[string]any, base bgp.Route, initiallyWithdrawn bool) []*PoolEntry {
+func parseNLRIEntries(nlriMap map[string]any, base *bgp.Route, initiallyWithdrawn bool) []*PoolEntry {
 	var entries []*PoolEntry
 
 	for familyKey, nlriData := range nlriMap {
@@ -256,7 +256,7 @@ func parseNLRIEntries(nlriMap map[string]any, base bgp.Route, initiallyWithdrawn
 
 		// Remaining items are prefixes
 		for _, prefix := range remaining {
-			route := base
+			route := *base // Copy struct, don't alias pointer.
 			route.Family = family
 			route.Prefix = normalizePrefix(prefix)
 			route.RD = rd

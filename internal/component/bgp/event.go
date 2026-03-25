@@ -288,6 +288,10 @@ type Event struct {
 	// RFC 7911: ADD-PATH per-family flags from negotiated capabilities (format=full only).
 	// When true for a family, NLRI wire bytes include 4-byte path-ID prefix.
 	AddPath map[string]bool `json:"-"` // Populated by parseRawFields from raw.add-path
+
+	// RouteMeta carries route-level metadata through events (e.g., "src-role" for OTC filtering).
+	// Set from ReceivedUpdate.Meta on sent events; stored on Route.Meta in ribOut.
+	RouteMeta map[string]any `json:"route-meta,omitempty"`
 }
 
 // FamilyOperation represents a single add or del operation for a family.

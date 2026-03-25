@@ -37,14 +37,61 @@ type PeerFilterInfo struct {
 
 // IngressFilterFunc is called for received UPDATEs before caching and dispatching.
 // payload is the UPDATE body (without BGP header).
+// meta is a shared metadata map; filters can read and write to it.
+// Caller MUST pass a non-nil meta map; writing to a nil meta panics.
 // Returns accept=false to drop the route. If modifiedPayload is non-nil,
 // it replaces the original payload for caching and event dispatch.
-type IngressFilterFunc func(source PeerFilterInfo, payload []byte) (accept bool, modifiedPayload []byte)
+type IngressFilterFunc func(source PeerFilterInfo, payload []byte, meta map[string]any) (accept bool, modifiedPayload []byte)
 
 // EgressFilterFunc is called per destination peer during ForwardUpdate.
 // payload is the UPDATE body (without BGP header).
+// meta is route metadata set at ingress (read-only); may be nil.
+// mods accumulates per-peer modifications applied after all filters pass.
+// MUST NOT retain the mods pointer beyond the call -- it is reused per peer.
 // Returns false to suppress the route for this destination peer.
-type EgressFilterFunc func(source, dest PeerFilterInfo, payload []byte) bool
+type EgressFilterFunc func(source, dest PeerFilterInfo, payload []byte, meta map[string]any, mods *ModAccumulator) bool
+
+// ModAccumulator collects per-peer route modifications from egress filters.
+// Lazily allocates the underlying map on first Set call to avoid allocation
+// when no filter writes modifications (the common case).
+// NOT safe for concurrent use. Each peer iteration gets a fresh instance.
+// Mod keys follow the convention "<action>:<target>:<name>" where:
+//   - action: set, del, add, withdraw
+//   - target: attr, nlri
+//   - name: attribute or prefix (kebab-case, matching text command format)
+type ModAccumulator struct {
+	m map[string]any
+}
+
+// Set stores a modification. Allocates the map on first call.
+func (a *ModAccumulator) Set(key string, val any) {
+	if a.m == nil {
+		a.m = make(map[string]any, 2)
+	}
+	a.m[key] = val
+}
+
+// Get returns a modification value and whether it exists.
+func (a *ModAccumulator) Get(key string) (any, bool) {
+	if a.m == nil {
+		return nil, false
+	}
+	v, ok := a.m[key]
+	return v, ok
+}
+
+// Len returns the number of accumulated modifications.
+func (a *ModAccumulator) Len() int { return len(a.m) }
+
+// Range calls fn for each accumulated modification.
+func (a *ModAccumulator) Range(fn func(key string, val any)) {
+	for k, v := range a.m {
+		fn(k, v)
+	}
+}
+
+// Reset clears all accumulated modifications for reuse.
+func (a *ModAccumulator) Reset() { clear(a.m) }
 
 // Registration describes a plugin's full metadata and handlers.
 // Each plugin registers exactly one Registration via its init() function.

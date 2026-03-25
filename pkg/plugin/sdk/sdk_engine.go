@@ -15,7 +15,17 @@ import (
 // UpdateRoute injects a route update to matching peers via the engine.
 // Returns the number of peers affected and routes sent.
 func (p *Plugin) UpdateRoute(ctx context.Context, peerSelector, command string) (peersAffected, routesSent uint32, err error) {
-	input := &rpc.UpdateRouteInput{PeerSelector: peerSelector, Command: command}
+	return p.UpdateRouteWithMeta(ctx, peerSelector, command, nil)
+}
+
+// UpdateRouteWithMeta injects a route update with metadata to matching peers.
+// Meta is plumbed to CommandContext.Meta for the command dispatch path.
+// For forwarded cached routes (peer-to-peer), ingress filters set ReceivedUpdate.Meta
+// which egress filters read. Plugin-originated routes currently go through AnnounceNLRIBatch
+// (direct send) where CommandContext.Meta is not yet consumed by egress filters.
+// Pass nil meta for routes without metadata (equivalent to UpdateRoute).
+func (p *Plugin) UpdateRouteWithMeta(ctx context.Context, peerSelector, command string, meta map[string]any) (peersAffected, routesSent uint32, err error) {
+	input := &rpc.UpdateRouteInput{PeerSelector: peerSelector, Command: command, Meta: meta}
 	result, err := p.callEngineWithResult(ctx, "ze-plugin-engine:update-route", input)
 	if err != nil {
 		return 0, 0, err

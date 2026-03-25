@@ -21,6 +21,7 @@ type RawMessage struct {
 	WireUpdate *wireu.WireUpdate         // UPDATE wire wrapper (nil if not UPDATE)
 	Direction  string                    // "sent" or "received"
 	ParseError error                     // Non-nil if lazy parsing failed
+	Meta       map[string]any            // Route metadata from ReceivedUpdate (sent events only)
 }
 
 // IsAsyncSafe reports whether this message's RawBytes can be safely used after

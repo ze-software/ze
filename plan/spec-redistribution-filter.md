@@ -74,7 +74,7 @@ This spec covers external plugin filters only. Internal/in-engine optimized filt
 - [ ] `internal/component/plugin/registry/registry.go` - Registration struct with IngressFilter/EgressFilter fields, PeerFilterInfo struct, IngressFilterFunc/EgressFilterFunc types, IngressFilters()/EgressFilters() query functions
 - [ ] `internal/component/bgp/reactor/reactor_notify.go:270-297` - ingress filter chain: iterates r.ingressFilters, calls safeIngressFilter with panic recovery, short-circuits on reject, creates new WireUpdate on modify
 - [ ] `internal/component/bgp/reactor/reactor_api_forward.go:234-268` - egress filter chain: builds PeerFilterInfo per source/dest, iterates r.egressFilters per destination peer, suppresses on reject
-- [ ] `internal/component/bgp/reactor/reactor_notify.go:22-45` - safeIngressFilter and safeEgressFilter: panic recovery wrappers, fail-open on panic
+- [ ] `internal/component/bgp/reactor/reactor_notify.go:22-45` - safeIngressFilter and safeEgressFilter: panic recovery wrappers, fail-closed on panic (reject/suppress)
 - [ ] `internal/core/ipc/schema/ze-plugin-engine.yang:18-82` - declare-registration RPC with family, command, wants-config, schema fields
 - [ ] `internal/component/bgp/schema/ze-bgp-conf.yang:83-435` - peer-fields grouping with capability, family, process, etc.
 - [ ] `internal/component/bgp/plugins/role/register.go` - role plugin registers IngressFilter and EgressFilter closures

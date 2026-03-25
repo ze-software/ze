@@ -193,8 +193,9 @@ type ExecuteCommandOutput struct {
 
 // UpdateRouteInput is the input for ze-plugin-engine:update-route.
 type UpdateRouteInput struct {
-	PeerSelector string `json:"peer-selector,omitempty"`
-	Command      string `json:"command"`
+	PeerSelector string         `json:"peer-selector,omitempty"`
+	Command      string         `json:"command"`
+	Meta         map[string]any `json:"meta,omitempty"` // Optional route metadata; plumbed to CommandContext.Meta.
 }
 
 // UpdateRouteOutput is the output for ze-plugin-engine:update-route.

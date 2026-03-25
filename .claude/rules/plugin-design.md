@@ -102,6 +102,7 @@ After Stage 5: SDK wraps Socket A in `MuxConn` for concurrent RPCs. Engine dispa
 [ ] Add YANG schema if config support (schema/ subdir)
 [ ] Add EventTypes if plugin produces custom event types (e.g., ["update-rpki"])
 [ ] Add functional tests in test/plugin/
+[ ] If plugin sets/reads route metadata: register keys in docs/architecture/meta/README.md, create docs/architecture/meta/<name>.md (see template there)
 ```
 
 Auto-populated: CLI dispatch, plugin runners, YANG schemas, config roots, family/capability maps, decoder maps.

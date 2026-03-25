@@ -113,8 +113,9 @@ const sendHoldTimerMin = 8 * time.Minute
 // wireUpdate is non-nil for UPDATE messages (zero-copy), nil for other types.
 // ctxID is the encoding context for zero-copy decisions.
 // buf is the pool buffer handle for received messages (zero-value for sent).
+// meta is route metadata from ReceivedUpdate (sent events only); nil for received.
 // Returns true if callback took ownership of buf (caller should not return to pool).
-type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction string, buf BufHandle) (kept bool)
+type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction string, buf BufHandle, meta map[string]any) (kept bool)
 
 type Session struct {
 	mu sync.RWMutex
@@ -183,6 +184,12 @@ type Session struct {
 	// sendCtxID is the encoding context for sent messages.
 	// Set by Peer after capability negotiation for AttrsWire creation in callbacks.
 	sendCtxID bgpctx.ContextID
+
+	// sentMeta holds route metadata for the current forward pool write operation.
+	// Lifecycle: set per-item by fwdBatchHandler, read by writeRawUpdateBody/writeUpdate
+	// within the same writeMu critical section, cleared to nil by defer on all exit paths.
+	// MUST NOT be read outside writeMu. Zero-value (nil) for non-forward writes.
+	sentMeta map[string]any
 
 	// sourceID identifies the peer in the source registry.
 	// Set by Peer at creation time.

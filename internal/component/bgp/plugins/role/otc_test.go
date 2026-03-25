@@ -433,9 +433,13 @@ func TestOTCIngressFilter(t *testing.T) {
 	t.Run("no_config_passthrough", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99"), PeerAS: 65099}
 		payload := buildTestPayload(buildTestAttrs(65001), nil)
-		accept, modified := OTCIngressFilter(src, payload)
+		meta := make(map[string]any)
+		accept, modified := OTCIngressFilter(src, payload, meta)
 		assert.True(t, accept)
 		assert.Nil(t, modified)
+		// No role config for 10.0.0.99 -> no src-role in meta.
+		_, hasSrcRole := meta["src-role"]
+		assert.False(t, hasSrcRole, "no role config -> no src-role in meta")
 	})
 
 	t.Run("config_but_no_remote_role", func(t *testing.T) {
@@ -443,9 +447,12 @@ func TestOTCIngressFilter(t *testing.T) {
 			"10.0.0.50": {role: roleProvider},
 		}, nil)
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.50"), PeerAS: 65050}
-		accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(0), nil))
+		meta := make(map[string]any)
+		accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(0), nil), meta)
 		assert.True(t, accept)
 		assert.Nil(t, modified)
+		// Has role config (provider) -> meta["src-role"] should be set.
+		assert.Equal(t, "provider", meta["src-role"], "src-role should reflect our config")
 		// Restore original configs and remote roles (setFilterState clears remote roles).
 		setFilterState(map[string]*peerRoleConfig{
 			"10.0.0.1": {role: roleProvider},
@@ -459,15 +466,19 @@ func TestOTCIngressFilter(t *testing.T) {
 
 	t.Run("reject_leak_from_customer", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001}
-		accept, _ := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(65001), nil))
+		accept, _ := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(65001), nil), make(map[string]any))
 		assert.False(t, accept)
 	})
 
 	t.Run("stamp_from_provider", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002}
-		accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(0), nil))
+		meta := make(map[string]any)
+		accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(0), nil), meta)
 		assert.True(t, accept)
 		require.NotNil(t, modified)
+		// Meta set after stamping.
+		// Role config for 10.0.0.2 is "customer" -> src-role set.
+		assert.Equal(t, "customer", meta["src-role"], "src-role should reflect our config")
 		attrs := extractAttrsFromPayload(modified)
 		asn, found, _ := findOTC(attrs)
 		assert.True(t, found)
@@ -476,21 +487,21 @@ func TestOTCIngressFilter(t *testing.T) {
 
 	t.Run("accept_peer_otc_matches", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.3"), PeerAS: 65003}
-		accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(65003), nil))
+		accept, modified := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(65003), nil), make(map[string]any))
 		assert.True(t, accept)
 		assert.Nil(t, modified)
 	})
 
 	t.Run("reject_peer_otc_mismatch", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.3"), PeerAS: 65003}
-		accept, _ := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(65099), nil))
+		accept, _ := OTCIngressFilter(src, buildTestPayload(buildTestAttrs(65099), nil), make(map[string]any))
 		assert.False(t, accept)
 	})
 
 	t.Run("reject_malformed_otc", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002}
 		malformed := []byte{0x40, 0x01, 0x01, 0x00, 0xC0, 35, 3, 0x00, 0x01, 0x02}
-		accept, _ := OTCIngressFilter(src, buildTestPayload(malformed, nil))
+		accept, _ := OTCIngressFilter(src, buildTestPayload(malformed, nil), make(map[string]any))
 		assert.False(t, accept)
 	})
 }
@@ -521,92 +532,156 @@ func TestOTCEgressFilter(t *testing.T) {
 	t.Run("no_source_config_accept", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
 		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")}
-		assert.True(t, OTCEgressFilter(src, dest, noOTC))
+		assert.True(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("no_export_no_otc_accept", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
 		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")}
-		assert.True(t, OTCEgressFilter(src, dest, noOTC))
+		assert.True(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("default_to_customer_accept", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
 		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")}
-		assert.True(t, OTCEgressFilter(src, dest, noOTC))
+		assert.True(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("default_to_provider_suppress", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
 		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")}
-		assert.False(t, OTCEgressFilter(src, dest, noOTC))
+		assert.False(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("default_to_rs_client_accept", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
 		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.13")}
-		assert.True(t, OTCEgressFilter(src, dest, noOTC))
+		assert.True(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("default_to_peer_suppress", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
 		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.12")}
-		assert.False(t, OTCEgressFilter(src, dest, noOTC))
+		assert.False(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("explicit_customer_peer_to_customer", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
 		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")}
-		assert.True(t, OTCEgressFilter(src, dest, noOTC))
+		assert.True(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("explicit_customer_peer_to_provider", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.5")}
 		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")}
-		assert.False(t, OTCEgressFilter(src, dest, noOTC))
+		assert.False(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("default_unknown_to_untagged", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.6")}
 		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.14")}
-		assert.True(t, OTCEgressFilter(src, dest, noOTC))
+		assert.True(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("default_only_to_untagged_suppress", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
 		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.14")}
-		assert.False(t, OTCEgressFilter(src, dest, noOTC))
+		assert.False(t, OTCEgressFilter(src, dest, noOTC, nil, nil))
 	})
 
 	t.Run("otc_suppress_to_provider", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
 		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")}
-		assert.False(t, OTCEgressFilter(src, dest, withOTC))
+		assert.False(t, OTCEgressFilter(src, dest, withOTC, map[string]any{"src-role": "provider"}, nil))
 	})
 
 	t.Run("otc_allow_to_customer", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
 		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")}
-		assert.True(t, OTCEgressFilter(src, dest, withOTC))
+		assert.True(t, OTCEgressFilter(src, dest, withOTC, map[string]any{"src-role": "provider"}, nil))
 	})
 
 	t.Run("otc_suppress_to_peer", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
 		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.12")}
-		assert.False(t, OTCEgressFilter(src, dest, withOTC))
+		assert.False(t, OTCEgressFilter(src, dest, withOTC, map[string]any{"src-role": "provider"}, nil))
 	})
 
 	t.Run("otc_suppress_to_rs", func(t *testing.T) {
 		setFilterRemoteRole("10.0.0.15", roleRS)
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
 		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.15")}
-		assert.False(t, OTCEgressFilter(src, dest, withOTC))
+		assert.False(t, OTCEgressFilter(src, dest, withOTC, map[string]any{"src-role": "provider"}, nil))
 	})
 
 	t.Run("otc_allow_to_rs_client", func(t *testing.T) {
 		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
 		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.13")}
-		assert.True(t, OTCEgressFilter(src, dest, withOTC))
+		assert.True(t, OTCEgressFilter(src, dest, withOTC, map[string]any{"src-role": "provider"}, nil))
+	})
+
+	t.Run("meta_wrong_type_not_suppressed", func(t *testing.T) {
+		// meta["src-role"] with wrong type (int instead of string) must NOT trigger suppression.
+		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
+		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")} // provider
+		assert.True(t, OTCEgressFilter(src, dest, withOTC, map[string]any{"src-role": 42}, nil),
+			"int src-role is not string -- suppression must not trigger")
+		assert.True(t, OTCEgressFilter(src, dest, withOTC, map[string]any{"src-role": true}, nil),
+			"bool src-role is not string -- suppression must not trigger")
+	})
+
+	// --- src-role metadata tests (config-based suppression) ---
+
+	t.Run("src_role_provider_to_provider_suppress", func(t *testing.T) {
+		// Route from provider (our config) to provider dest: suppress, even without OTC in wire.
+		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
+		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")} // provider
+		meta := map[string]any{"src-role": "provider"}
+		assert.False(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
+			"provider->provider must suppress via src-role, even without OTC")
+	})
+
+	t.Run("src_role_provider_to_customer_accept", func(t *testing.T) {
+		// Route from provider to customer: accept (customers can receive).
+		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.7")}
+		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")} // customer
+		meta := map[string]any{"src-role": "provider"}
+		assert.True(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
+			"provider->customer should accept")
+	})
+
+	t.Run("src_role_customer_to_provider_accept", func(t *testing.T) {
+		// Route from customer to provider: accept (customer routes can go anywhere).
+		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}  // no config
+		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")} // provider
+		meta := map[string]any{"src-role": "customer"}
+		assert.True(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
+			"customer->provider should accept")
+	})
+
+	t.Run("src_role_peer_to_peer_suppress", func(t *testing.T) {
+		// Route from peer to peer: suppress.
+		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}  // no config
+		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.12")} // peer
+		meta := map[string]any{"src-role": "peer"}
+		assert.False(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
+			"peer->peer must suppress via src-role")
+	})
+
+	t.Run("src_role_peer_to_rs_suppress", func(t *testing.T) {
+		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
+		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.15")} // RS
+		meta := map[string]any{"src-role": "peer"}
+		assert.False(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
+			"peer->RS must suppress via src-role")
+	})
+
+	t.Run("src_role_rs_to_provider_suppress", func(t *testing.T) {
+		src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.99")}
+		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.11")} // provider
+		meta := map[string]any{"src-role": "rs"}
+		assert.False(t, OTCEgressFilter(src, dest, noOTC, meta, nil),
+			"RS->provider must suppress via src-role")
 	})
 }
 
@@ -671,7 +746,7 @@ func TestLooseIngressFilter_IBGPNoRole_RouteWithOTC(t *testing.T) {
 
 	src := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.100"), PeerAS: 65000}
 	payload := buildTestPayload(buildTestAttrs(65001), nil) // route has OTC
-	accept, modified := OTCIngressFilter(src, payload)
+	accept, modified := OTCIngressFilter(src, payload, make(map[string]any))
 	assert.True(t, accept, "IBGP peer without role: route with OTC should pass")
 	assert.Nil(t, modified, "no modification expected")
 }
@@ -712,23 +787,23 @@ func TestEgressFilter_IBGPSourceToEBGPDest_WithOTC(t *testing.T) {
 
 	// OTC -> Provider: SUPPRESS (RFC 9234: routes with OTC must not propagate to providers).
 	dest := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.200")}
-	assert.False(t, OTCEgressFilter(ibgpSrc, dest, withOTC), "OTC route from IBGP to EBGP provider: suppress")
+	assert.False(t, OTCEgressFilter(ibgpSrc, dest, withOTC, map[string]any{"src-role": "provider"}, nil), "OTC route from IBGP to EBGP provider: suppress")
 
 	// OTC -> Customer: ALLOW (customer is downstream, OTC is fine).
 	dest = registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.201")}
-	assert.True(t, OTCEgressFilter(ibgpSrc, dest, withOTC), "OTC route from IBGP to EBGP customer: allow")
+	assert.True(t, OTCEgressFilter(ibgpSrc, dest, withOTC, map[string]any{"src-role": "provider"}, nil), "OTC route from IBGP to EBGP customer: allow")
 
 	// OTC -> Peer: SUPPRESS.
 	dest = registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.202")}
-	assert.False(t, OTCEgressFilter(ibgpSrc, dest, withOTC), "OTC route from IBGP to EBGP peer: suppress")
+	assert.False(t, OTCEgressFilter(ibgpSrc, dest, withOTC, map[string]any{"src-role": "provider"}, nil), "OTC route from IBGP to EBGP peer: suppress")
 
 	// OTC -> RS: SUPPRESS.
 	dest = registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.203")}
-	assert.False(t, OTCEgressFilter(ibgpSrc, dest, withOTC), "OTC route from IBGP to EBGP RS: suppress")
+	assert.False(t, OTCEgressFilter(ibgpSrc, dest, withOTC, map[string]any{"src-role": "provider"}, nil), "OTC route from IBGP to EBGP RS: suppress")
 
 	// OTC -> RS-Client: ALLOW (downstream).
 	dest = registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.204")}
-	assert.True(t, OTCEgressFilter(ibgpSrc, dest, withOTC), "OTC route from IBGP to EBGP RS-client: allow")
+	assert.True(t, OTCEgressFilter(ibgpSrc, dest, withOTC, map[string]any{"src-role": "provider"}, nil), "OTC route from IBGP to EBGP RS-client: allow")
 }
 
 // TestEgressFilter_IBGPSourceToEBGPDest_NoOTC verifies routes without OTC
@@ -751,7 +826,7 @@ func TestEgressFilter_IBGPSourceToEBGPDest_NoOTC(t *testing.T) {
 
 	for _, destAddr := range []string{"10.0.0.200", "10.0.0.201", "10.0.0.202"} {
 		dest := registry.PeerFilterInfo{Address: netip.MustParseAddr(destAddr)}
-		assert.True(t, OTCEgressFilter(ibgpSrc, dest, noOTC),
+		assert.True(t, OTCEgressFilter(ibgpSrc, dest, noOTC, nil, nil),
 			"route without OTC from IBGP to %s: should pass", destAddr)
 	}
 }
@@ -785,17 +860,16 @@ func TestMixedTopology_RoleAndNoRolePeers(t *testing.T) {
 	// Route from configured peer (provider, export default) to provider dest: suppress (not in default set).
 	src1 := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.1")}
 	dest1 := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.10")}
-	assert.False(t, OTCEgressFilter(src1, dest1, noOTC), "provider src, export default, to provider dest: suppress")
+	assert.False(t, OTCEgressFilter(src1, dest1, noOTC, nil, nil), "provider src, export default, to provider dest: suppress")
 
-	// Route from unconfigured peer (no role) to provider dest with OTC: suppress (OTC rule).
+	// Route from unconfigured peer (no role) to provider dest: pass (no src-role, we don't filter).
 	src2 := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.2")}
-	assert.False(t, OTCEgressFilter(src2, dest1, withOTC), "no-role src, OTC route to provider: suppress")
+	assert.True(t, OTCEgressFilter(src2, dest1, withOTC, nil, nil), "no-role src to provider: pass (no config = no filtering)")
 
-	// Route from unconfigured peer (no role) to provider dest without OTC: pass (no export config, no OTC).
-	assert.True(t, OTCEgressFilter(src2, dest1, noOTC), "no-role src, no OTC to provider: pass")
+	// Route from unconfigured peer to provider dest without OTC: same -- pass.
+	assert.True(t, OTCEgressFilter(src2, dest1, noOTC, nil, nil), "no-role src, no OTC to provider: pass")
 
 	// Route from unconfigured peer to untagged dest: always pass.
 	dest2 := registry.PeerFilterInfo{Address: netip.MustParseAddr("10.0.0.20")}
-	assert.True(t, OTCEgressFilter(src2, dest2, withOTC), "no-role src, OTC to untagged: pass")
-	assert.True(t, OTCEgressFilter(src2, dest2, noOTC), "no-role src, no OTC to untagged: pass")
+	assert.True(t, OTCEgressFilter(src2, dest2, noOTC, nil, nil), "no-role src to untagged: pass")
 }

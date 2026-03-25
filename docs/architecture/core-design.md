@@ -519,14 +519,37 @@ Text command → ParseUpdate() → WireUpdate → Send to peer
 ### Forwarding Path
 
 ```
-Receive UPDATE → Assign msg-id → Cache WireUpdate → API event
-                                                        │
-                                                        ▼
-                                               Plugin decides
-                                                        │
-                                                        ▼
-                          "bgp cache 123 forward" → Lookup cache → Send wire
+Receive UPDATE → Assign msg-id → Ingress filters (set meta) → Cache WireUpdate+Meta → API event
+                                                                        │
+                                                                        ▼
+                                                               Plugin decides
+                                                                        │
+                                                                        ▼
+                          "bgp cache 123 forward" → Lookup cache → Egress filters (read meta, write mods) → Apply mods → Send wire
 ```
+
+<!-- source: internal/component/plugin/registry/registry.go -- ModAccumulator, EgressFilterFunc, IngressFilterFunc -->
+
+### Route Metadata and Modification Accumulator
+
+`ReceivedUpdate.Meta` (`map[string]any`) carries route-level metadata set at ingress by filters.
+Read-only after caching. `UpdateRouteInput.Meta` is plumbed to `CommandContext.Meta` for
+plugin-originated routes (not yet wired to ReceivedUpdate -- consuming specs connect this).
+
+Egress filters receive `meta` (read) and `*ModAccumulator` (write) per destination peer.
+`ModAccumulator` lazily allocates on first `Set()` call -- zero cost when no filter writes mods.
+
+Mod keys follow `<action>:<target>:<name>` convention:
+
+| Action | Target | Example |
+|--------|--------|---------|
+| `set` | `attr` | `set:attr:local-preference` |
+| `add` | `attr` | `add:attr:community` |
+| `del` | `attr` | `del:attr:local-preference` |
+| `del` | `nlri` | `del:nlri:10.0.0.0/24` |
+| `withdraw` | `nlri` | `withdraw:nlri:*` |
+
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- ForwardUpdate egress filter chain -->
 
 ---
 
