@@ -170,9 +170,9 @@ Keys follow a `<namespace>/<qualifier>/<path>` convention to prevent collisions 
 | Namespace | Purpose | Example |
 |-----------|---------|---------|
 | `meta/` | Instance metadata (credentials, identity, flags) | `meta/ssh/username`, `meta/instance/managed` |
-| `file/active/` | Current committed config files | `file/active/etc/ze/router.conf` |
-| `file/draft/` | Live edits in progress (future) | `file/draft/etc/ze/router.conf` |
-| `file/<date>/` | Historical config versions (future) | `file/20260318-100000/etc/ze/router.conf` |
+| `file/active/` | Current committed config files | `file/active/router.conf` |
+| `file/draft/` | Live edits in progress (future) | `file/draft/router.conf` |
+| `file/<date>/` | Historical config versions (future) | `file/20260318-100000/router.conf` |
 
 The Storage interface (`internal/component/config/storage/`) translates filesystem paths to namespaced keys via `resolveKey()`. The function is idempotent: already-namespaced keys pass through unchanged, so `List()` results can be fed back to `ReadFile()` without double-prefixing.
 <!-- source: internal/component/config/storage/ -- Storage interface, resolveKey -->
