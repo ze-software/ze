@@ -1,4 +1,5 @@
 // Design: (none -- new tool, predates documentation)
+// Overview: benchmark.go -- prefix generation
 
 package perf
 

@@ -1,6 +1,7 @@
 package perf
 
 import (
+	"io"
 	"net/netip"
 	"testing"
 )
@@ -113,6 +114,125 @@ func TestBuildKeepalive(t *testing.T) {
 	if data[18] != 4 {
 		t.Fatalf("message type: got %d, want 4 (KEEPALIVE)", data[18])
 	}
+}
+
+// VALIDATES: "readMessageSlab reads into slab, falls back to heap when exhausted."
+// PREVENTS: Slab overflow, incorrect fallback, or data corruption.
+func TestReadMessageSlab(t *testing.T) {
+	t.Parallel()
+
+	// Build a valid KEEPALIVE (19 bytes) as test data.
+	ka := BuildKeepalive()
+
+	tests := []struct {
+		name     string
+		slabSize int
+		wantSlab bool // true if message should be in slab, false for heap
+	}{
+		{"fits in slab", 100, true},
+		{"slab exhausted", 5, false},    // too small for 19-byte message
+		{"slab exactly fits", 19, true}, // exactly one message
+		{"nil slab", 0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			r := newBytesReader(ka)
+			hdr := make([]byte, 19)
+
+			var slab []byte
+			if tt.slabSize > 0 {
+				slab = make([]byte, tt.slabSize)
+			}
+
+			msgType, msg, newOff, err := readMessageSlab(r, hdr, slab, 0)
+			if err != nil {
+				t.Fatalf("readMessageSlab: %v", err)
+			}
+
+			if msgType != 4 { // KEEPALIVE
+				t.Errorf("type: got %d, want 4", msgType)
+			}
+
+			if len(msg) != 19 {
+				t.Errorf("msg length: got %d, want 19", len(msg))
+			}
+
+			if tt.wantSlab {
+				// Message should be a sub-slice of the slab.
+				if newOff != 19 {
+					t.Errorf("slab offset: got %d, want 19", newOff)
+				}
+			} else {
+				// Heap fallback: slab offset unchanged.
+				if newOff != 0 {
+					t.Errorf("slab offset: got %d, want 0 (heap fallback)", newOff)
+				}
+			}
+		})
+	}
+}
+
+// VALIDATES: "readMessageSlab rejects invalid message length."
+// PREVENTS: Accepting messages with length < HeaderLen.
+func TestReadMessageSlabInvalidLength(t *testing.T) {
+	t.Parallel()
+
+	// Craft a header with length = 10 (< HeaderLen=19).
+	var badHdr [19]byte
+	for i := range 16 {
+		badHdr[i] = 0xFF
+	}
+
+	badHdr[16] = 0
+	badHdr[17] = 10 // length = 10, invalid
+	badHdr[18] = 4  // KEEPALIVE type
+
+	r := newBytesReader(badHdr[:])
+	hdr := make([]byte, 19)
+	slab := make([]byte, 100)
+
+	_, _, _, err := readMessageSlab(r, hdr, slab, 0)
+	if err == nil {
+		t.Fatal("expected error for invalid message length")
+	}
+}
+
+// VALIDATES: "ReadMessageBuf rejects header buffer shorter than HeaderLen."
+// PREVENTS: Panic on short header buffer.
+func TestReadMessageBufShortHdr(t *testing.T) {
+	t.Parallel()
+
+	r := newBytesReader(BuildKeepalive())
+	shortHdr := make([]byte, 5) // too small
+
+	_, _, err := ReadMessageBuf(r, shortHdr)
+	if err == nil {
+		t.Fatal("expected error for short header buffer")
+	}
+}
+
+// newBytesReader creates an io.Reader from a byte slice.
+func newBytesReader(data []byte) *bytesReader {
+	return &bytesReader{data: data}
+}
+
+type bytesReader struct {
+	data []byte
+	pos  int
+}
+
+func (r *bytesReader) Read(p []byte) (int, error) {
+	if r.pos >= len(r.data) {
+		return 0, io.EOF
+	}
+
+	n := copy(p, r.data[r.pos:])
+	r.pos += n
+
+	return n, nil
 }
 
 func TestBuildCeaseNotification(t *testing.T) {

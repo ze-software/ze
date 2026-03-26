@@ -333,6 +333,81 @@ func TestPrefixExtractionSkipsWithdrawn(t *testing.T) {
 	}
 }
 
+// VALIDATES: "CountPrefixes returns same count as len(ExtractPrefixes) for all UPDATE formats"
+// PREVENTS: Divergence between cheap counter and full extractor.
+func TestCountPrefixesMatchesExtract(t *testing.T) {
+	tests := []struct {
+		name string
+		body []byte
+	}{
+		{"inline single", func() []byte {
+			var attrs []byte
+			attrs = append(attrs, buildOriginAttr()...)
+			attrs = append(attrs, buildNextHopAttr(1, 1, 1, 1)...)
+			attrs = append(attrs, buildASPathAttr()...)
+			return buildUpdateBody(attrs, []byte{24, 10, 0, 0})
+		}()},
+		{"inline multiple", func() []byte {
+			var attrs []byte
+			attrs = append(attrs, buildOriginAttr()...)
+			attrs = append(attrs, buildNextHopAttr(1, 1, 1, 1)...)
+			attrs = append(attrs, buildASPathAttr()...)
+			return buildUpdateBody(attrs, []byte{24, 10, 0, 0, 24, 192, 0, 2})
+		}()},
+		{"mp reach ipv4", buildUpdateBody(buildMPReachIPv4([4]byte{1, 1, 1, 1}, []byte{24, 10, 0, 0}), nil)},
+		{"mp reach ipv6", func() []byte {
+			var nh [16]byte
+			nh[0] = 0x20
+			nh[1] = 0x01
+			nh[15] = 0x01
+			return buildUpdateBody(buildMPReachIPv6(nh, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01}), nil)
+		}()},
+		{"both inline and mp", func() []byte {
+			var attrs []byte
+			attrs = append(attrs, buildOriginAttr()...)
+			attrs = append(attrs, buildNextHopAttr(1, 1, 1, 1)...)
+			attrs = append(attrs, buildASPathAttr()...)
+			attrs = append(attrs, buildMPReachIPv4([4]byte{1, 1, 1, 1}, []byte{24, 10, 1, 0})...)
+			return buildUpdateBody(attrs, []byte{24, 10, 0, 0})
+		}()},
+		{"empty update", func() []byte {
+			var attrs []byte
+			attrs = append(attrs, buildOriginAttr()...)
+			attrs = append(attrs, buildNextHopAttr(1, 1, 1, 1)...)
+			attrs = append(attrs, buildASPathAttr()...)
+			return buildUpdateBody(attrs, nil)
+		}()},
+		{"withdrawn present", func() []byte {
+			withdrawn := []byte{24, 10, 99, 0} // 10.99.0.0/24 withdrawn
+			var attrs []byte
+			attrs = append(attrs, buildOriginAttr()...)
+			attrs = append(attrs, buildNextHopAttr(1, 1, 1, 1)...)
+			attrs = append(attrs, buildASPathAttr()...)
+			inlineNLRI := []byte{24, 10, 0, 0}
+			body := make([]byte, 2+len(withdrawn)+2+len(attrs)+len(inlineNLRI))
+			binary.BigEndian.PutUint16(body[0:2], uint16(len(withdrawn)))
+			copy(body[2:], withdrawn)
+			off := 2 + len(withdrawn)
+			binary.BigEndian.PutUint16(body[off:off+2], uint16(len(attrs)))
+			copy(body[off+2:], attrs)
+			copy(body[off+2+len(attrs):], inlineNLRI)
+			return body
+		}()},
+		{"nil body", nil},
+		{"short body", []byte{0x00}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			extracted := len(ExtractPrefixes(tt.body))
+			counted := CountPrefixes(tt.body)
+			if counted != extracted {
+				t.Errorf("CountPrefixes=%d, len(ExtractPrefixes)=%d", counted, extracted)
+			}
+		})
+	}
+}
+
 func TestPrefixExtractionExtendedLengthAttr(t *testing.T) {
 	// VALIDATES: "Handle extended-length path attributes"
 	// PREVENTS: Misparse when attribute has 2-byte length field

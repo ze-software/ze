@@ -1,5 +1,5 @@
 // Design: (none -- new tool, predates documentation)
-// Related: benchmark.go -- benchmark orchestration using session I/O
+// Overview: benchmark.go -- benchmark orchestration using session I/O
 
 package perf
 
@@ -135,12 +135,28 @@ func SerializeMsg(msg message.Message) []byte {
 	return buf
 }
 
-// ReadMessage reads one complete BGP message from a connection.
+// ReadMessage reads one complete BGP message from a reader.
 // Returns the message type and the full message bytes (including header).
-// The caller MUST set appropriate read deadlines on the connection before calling.
-func ReadMessage(conn net.Conn) (message.MessageType, []byte, error) {
+// The caller MUST set appropriate read deadlines on the underlying connection
+// before calling (when using a buffered reader over a net.Conn).
+func ReadMessage(r io.Reader) (message.MessageType, []byte, error) {
 	hdr := make([]byte, message.HeaderLen)
-	if _, err := io.ReadFull(conn, hdr); err != nil {
+	return readMessageWithHdr(r, hdr)
+}
+
+// ReadMessageBuf reads one complete BGP message using a caller-provided header
+// buffer. The hdr buffer MUST be at least message.HeaderLen (19) bytes.
+// This avoids per-call header allocation in hot loops.
+func ReadMessageBuf(r io.Reader, hdr []byte) (message.MessageType, []byte, error) {
+	return readMessageWithHdr(r, hdr)
+}
+
+func readMessageWithHdr(r io.Reader, hdr []byte) (message.MessageType, []byte, error) {
+	if len(hdr) < message.HeaderLen {
+		return 0, nil, fmt.Errorf("header buffer too small: %d < %d", len(hdr), message.HeaderLen)
+	}
+
+	if _, err := io.ReadFull(r, hdr[:message.HeaderLen]); err != nil {
 		return 0, nil, fmt.Errorf("reading header: %w", err)
 	}
 
@@ -149,11 +165,15 @@ func ReadMessage(conn net.Conn) (message.MessageType, []byte, error) {
 		return 0, nil, fmt.Errorf("invalid message length: %d", msgLen)
 	}
 
+	if msgLen > message.MaxMsgLen {
+		return 0, nil, fmt.Errorf("message length %d exceeds RFC 4271 limit %d", msgLen, message.MaxMsgLen)
+	}
+
 	msg := make([]byte, msgLen)
-	copy(msg, hdr)
+	copy(msg[:message.HeaderLen], hdr)
 
 	if msgLen > message.HeaderLen {
-		if _, err := io.ReadFull(conn, msg[message.HeaderLen:]); err != nil {
+		if _, err := io.ReadFull(r, msg[message.HeaderLen:]); err != nil {
 			return 0, nil, fmt.Errorf("reading body: %w", err)
 		}
 	}

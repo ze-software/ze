@@ -1,5 +1,5 @@
 // Design: (none -- new tool, predates documentation)
-// Related: benchmark.go -- benchmark orchestration using prefix extraction
+// Overview: benchmark.go -- benchmark orchestration using prefix extraction
 
 package perf
 
@@ -7,6 +7,133 @@ import (
 	"encoding/binary"
 	"net/netip"
 )
+
+// CountPrefixes counts the number of announced prefixes in a BGP UPDATE message
+// body without constructing any netip.Prefix objects. This is used by receiveRaw
+// for convergence detection -- keeping allocations and parsing out of the timing
+// path while still knowing when all expected prefixes have arrived.
+//
+// Assumes ADD-PATH (RFC 7911) is not negotiated. If ADD-PATH is in use,
+// each NLRI has a 4-byte path ID prefix and counts will be incorrect.
+func CountPrefixes(body []byte) int {
+	if len(body) < 4 {
+		return 0
+	}
+
+	count := 0
+
+	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
+	off := 2 + withdrawnLen
+
+	if off+2 > len(body) {
+		return 0
+	}
+
+	attrLen := int(binary.BigEndian.Uint16(body[off : off+2]))
+	off += 2
+
+	attrEnd := off + attrLen
+	if attrEnd > len(body) {
+		return 0
+	}
+
+	// Walk attributes looking for MP_REACH_NLRI (type 14).
+	for off < attrEnd {
+		if off+3 > attrEnd {
+			break
+		}
+
+		flags := body[off]
+		code := body[off+1]
+		off += 2
+
+		var aLen int
+		if flags&0x10 != 0 {
+			if off+2 > attrEnd {
+				break
+			}
+
+			aLen = int(binary.BigEndian.Uint16(body[off : off+2]))
+			off += 2
+		} else {
+			aLen = int(body[off])
+			off++
+		}
+
+		if off+aLen > attrEnd {
+			break
+		}
+
+		if code == 14 {
+			count += countMPReachPrefixes(body[off : off+aLen])
+		}
+
+		off += aLen
+	}
+
+	// Count inline IPv4/unicast NLRI.
+	off = attrEnd
+	for off < len(body) {
+		prefixLen := int(body[off])
+		if prefixLen > 32 {
+			break
+		}
+
+		byteLen := (prefixLen + 7) / 8
+		if off+1+byteLen > len(body) {
+			break
+		}
+
+		count++
+		off += 1 + byteLen
+	}
+
+	return count
+}
+
+// countMPReachPrefixes counts prefixes in an MP_REACH_NLRI attribute value
+// without constructing netip.Prefix objects. Supports AFI=1 (IPv4) and AFI=2 (IPv6).
+// Assumes ADD-PATH (RFC 7911) is not negotiated.
+func countMPReachPrefixes(data []byte) int {
+	if len(data) < 5 {
+		return 0
+	}
+
+	afi := binary.BigEndian.Uint16(data[0:2])
+	if afi != 1 && afi != 2 {
+		return 0
+	}
+
+	nhLen := int(data[3])
+	off := 4 + nhLen + 1 // Skip next-hop + reserved byte.
+
+	if off > len(data) {
+		return 0
+	}
+
+	maxBits := 32
+	if afi == 2 {
+		maxBits = 128
+	}
+
+	count := 0
+	for off < len(data) {
+		prefixLen := int(data[off])
+		if prefixLen > maxBits {
+			break
+		}
+
+		byteLen := (prefixLen + 7) / 8
+		if off+1+byteLen > len(data) {
+			break
+		}
+
+		count++
+		off += 1 + byteLen
+	}
+
+	return count
+}
 
 // ExtractPrefixes extracts all announced prefixes from a BGP UPDATE message
 // body (everything after the 19-byte header). Returns both inline IPv4/unicast

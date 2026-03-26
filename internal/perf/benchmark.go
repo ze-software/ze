@@ -1,15 +1,18 @@
 // Design: (none -- new tool, predates documentation)
-// Related: session.go -- BGP message I/O and handshake
-// Related: sender.go -- UPDATE construction
-// Related: receiver.go -- prefix extraction from UPDATEs
-// Related: metrics.go -- latency and throughput computation
-// Related: result.go -- Result type for output
+// Detail: session.go -- BGP message I/O and handshake
+// Detail: sender.go -- UPDATE construction
+// Detail: receiver.go -- prefix extraction from UPDATEs
+// Detail: routes.go -- prefix generation
+// Detail: metrics.go -- latency and throughput computation
+// Detail: result.go -- Result type for output
 
 package perf
 
 import (
+	"bufio"
 	"context"
 	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -18,10 +21,19 @@ import (
 	"net/netip"
 	"sort"
 	"sync"
+	"syscall"
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
+
+// rawMessage holds a raw BGP UPDATE message and its receive timestamp.
+// Used to defer prefix extraction until after the receive loop completes,
+// keeping parsing CPU out of the timing path.
+type rawMessage struct {
+	data []byte
+	when time.Time
+}
 
 // Address family constants for benchmark configuration.
 const (
@@ -161,6 +173,12 @@ func generatePrefixes(family string, seed uint64, count int) ([]netip.Prefix, er
 // runIteration executes a single benchmark iteration: connect sender and receiver,
 // handshake, inject routes, wait for convergence, compute metrics.
 //
+// Measurement isolation: all UPDATE wire bytes are pre-built before the send loop
+// (no encoding CPU in the timing path), and the receiver buffers raw messages with
+// timestamps without parsing (no decoding CPU in the timing path). Prefix extraction
+// happens after the receiver is done. Buffered I/O (16 KB write, 64 KB read) matches
+// ze production and minimizes syscall overhead.
+//
 //nolint:cyclop,funlen // Sequential orchestration of a multi-step benchmark iteration.
 func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Prefix) (IterationResult, error) {
 	receiverPort := cfg.DUTPort
@@ -231,33 +249,111 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		return IterationResult{}, fmt.Errorf("clearing sender deadline: %w", err)
 	}
 
-	// Start keepalive goroutines.
-	kaCtx, kaCancel := context.WithCancel(ctx)
-	defer kaCancel()
+	// Receiver keepalive starts immediately (writes don't conflict with receiveRaw reads).
+	recvKaCtx, recvKaCancel := context.WithCancel(ctx)
+	defer recvKaCancel()
 
-	var kaWg sync.WaitGroup
+	var recvKaWg sync.WaitGroup
 
-	kaWg.Go(func() {
-		keepaliveLoop(kaCtx, senderConn)
+	recvKaWg.Go(func() {
+		keepaliveLoop(recvKaCtx, receiverConn)
 	})
 
-	kaWg.Go(func() {
-		keepaliveLoop(kaCtx, receiverConn)
+	// Sender keepalive deferred until after the send loop. During sends, the main
+	// goroutine writes through bufio.Writer; a concurrent keepalive would corrupt framing.
+
+	// Pre-build all UPDATE wire bytes before the timing loop.
+	// This keeps encoding CPU out of the send timing path.
+	sender := NewSender(SenderConfig{
+		ASN:     uint32(cfg.SenderASN), //nolint:gosec // CLI-validated range
+		IsEBGP:  cfg.SenderASN != cfg.DUTASN,
+		NextHop: parseAddr(cfg.SenderAddr),
+		Family:  cfg.Family,
+		ForceMP: cfg.ForceMP,
 	})
 
-	// Start receiver goroutine.
-	var mu sync.Mutex
+	// Group prefixes into batches for multi-NLRI UPDATEs.
+	// BatchSize <= 0 means pack as many NLRIs as fit per UPDATE (like BIRD/FRR),
+	// computed dynamically from RFC 4271 4096-byte max and actual attribute overhead.
+	// BatchSize == 1 means one NLRI per UPDATE (ze's native forwarding pattern).
+	batchSize := cfg.BatchSize
+	if batchSize <= 0 {
+		// Build a single-prefix UPDATE to measure attribute overhead, then compute
+		// how many NLRIs fit within the RFC 4271 4096-byte maximum.
+		probe := sender.BuildRoute(prefixes[0])
+		if probe == nil {
+			return IterationResult{}, fmt.Errorf("BuildRoute returned nil for probe prefix")
+		}
 
-	recvTimes := make(map[netip.Prefix]time.Time, len(prefixes))
-	allReceived := make(chan struct{})
+		perNLRI := 1 + (prefixes[0].Bits()+7)/8 // wire size per prefix
+		overhead := len(probe) - perNLRI        // header + attrs without NLRI
+		if overhead >= message.MaxMsgLen {
+			return IterationResult{}, fmt.Errorf("attribute overhead %d exceeds max message size %d", overhead, message.MaxMsgLen)
+		}
+		// -1 accounts for possible attribute extended-length promotion (1->2 byte length field).
+		batchSize = max((message.MaxMsgLen-overhead-1)/perNLRI, 1)
+	}
+
+	// batchRanges[i] = [startIdx, endIdx) into the prefixes slice for each UPDATE.
+	type batchRange struct{ start, end int }
+
+	var batches []batchRange
+
+	for i := 0; i < len(prefixes); i += batchSize {
+		batches = append(batches, batchRange{i, min(i+batchSize, len(prefixes))})
+	}
+
+	// Build each batched UPDATE.
+	prebuilt := make([][]byte, len(batches))
+
+	totalSendBytes := 0
+
+	for i, br := range batches {
+		b := sender.BuildBatch(prefixes[br.start:br.end])
+		if b == nil {
+			return IterationResult{}, fmt.Errorf("BuildBatch returned nil for batch %d", i)
+		}
+
+		prebuilt[i] = b
+		totalSendBytes += len(b)
+	}
+
+	// Consolidate all pre-built UPDATEs into one contiguous slab for cache locality.
+	// prebuilt[] entries become sub-slices of sendSlab. sendSlab MUST outlive all
+	// prebuilt references (guaranteed: Flush at line below completes before return).
+	sendSlab := make([]byte, totalSendBytes)
+	off := 0
+
+	for i, b := range prebuilt {
+		copy(sendSlab[off:], b)
+		prebuilt[i] = sendSlab[off : off+len(b)]
+		off += len(b)
+	}
+
+	// Start receiver goroutine with buffered reader (64 KB, matching ze production).
+	// Buffers raw UPDATE messages with timestamps -- no parsing in the timing path.
+	recvBufReader := bufio.NewReaderSize(receiverConn, 65536)
+
+	// Pre-allocate contiguous receive slab. Estimate: DUT may repack NLRIs into
+	// different-sized UPDATEs, so allocate generously (128 bytes per expected prefix).
+	// Slab offset advances forward-only (never rewinds), so message sub-slices
+	// stored in rawMsgs never alias each other.
+	recvSlab := make([]byte, len(prefixes)*128) //nolint:mnd // generous estimate for variable UPDATE sizes
 
 	recvCtx, recvCancel := context.WithCancel(ctx)
 	defer recvCancel()
 
+	// DUT may repack NLRIs into different-sized UPDATEs, so allocate for worst
+	// case (one UPDATE per prefix) to avoid append reallocation in the timing path.
+	rawMsgs := make([]rawMessage, 0, len(prefixes))
+
+	recvDone := make(chan struct{})
+
 	var recvWg sync.WaitGroup
 
 	recvWg.Go(func() {
-		receiveLoop(recvCtx, receiverConn, len(prefixes), &mu, recvTimes, allReceived)
+		defer close(recvDone)
+		rawMsgs, _ = receiveRaw(recvCtx, recvBufReader, receiverConn, len(prefixes), rawMsgs, recvSlab)
 	})
 
 	// Wait warmup duration.
@@ -269,38 +365,44 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		}
 	}
 
-	// Send routes.
-	sender := NewSender(SenderConfig{
-		ASN:     uint32(cfg.SenderASN), //nolint:gosec // CLI-validated range
-		IsEBGP:  cfg.SenderASN != cfg.DUTASN,
-		NextHop: mustAddr(cfg.SenderAddr),
-		Family:  cfg.Family,
-		ForceMP: cfg.ForceMP,
-	})
-
+	// Send pre-built routes using buffered writer (16 KB, matching ze production).
+	// All prefixes in a batch share the same send timestamp.
+	sendBufWriter := bufio.NewWriterSize(senderConn, 16384)
 	sendTimes := make(map[netip.Prefix]time.Time, len(prefixes))
 	sendStart := time.Now()
 
-	for _, prefix := range prefixes {
-		updateBytes := sender.BuildRoute(prefix)
-		if updateBytes == nil {
-			return IterationResult{}, fmt.Errorf("BuildRoute returned nil for %s", prefix)
+	for i, br := range batches {
+		if _, err := sendBufWriter.Write(prebuilt[i]); err != nil {
+			return IterationResult{}, fmt.Errorf("sending batch %d: %w", i, err)
 		}
 
-		if err := WriteMessage(senderConn, updateBytes); err != nil {
-			return IterationResult{}, fmt.Errorf("sending route %s: %w", prefix, err)
+		now := time.Now()
+		for _, prefix := range prefixes[br.start:br.end] {
+			sendTimes[prefix] = now
 		}
-
-		sendTimes[prefix] = time.Now()
 	}
 
-	// Wait for convergence or timeout.
+	if err := sendBufWriter.Flush(); err != nil {
+		return IterationResult{}, fmt.Errorf("flushing sender: %w", err)
+	}
+
+	// Now safe to start sender keepalive (send loop done, no more bufio.Writer use).
+	senderKaCtx, senderKaCancel := context.WithCancel(ctx)
+	defer senderKaCancel()
+
+	var senderKaWg sync.WaitGroup
+
+	senderKaWg.Go(func() {
+		keepaliveLoop(senderKaCtx, senderConn)
+	})
+
+	// Wait for convergence (receiver idle) or timeout.
 	deadline := time.NewTimer(cfg.Duration)
 	defer deadline.Stop()
 
 	select {
-	case <-allReceived:
-		// All prefixes received.
+	case <-recvDone:
+		// Receiver went idle -- all updates arrived.
 	case <-deadline.C:
 		// Timeout -- proceed with partial results.
 	case <-ctx.Done():
@@ -311,12 +413,21 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 	recvCancel()
 	recvWg.Wait()
 
+	// Decode prefixes from buffered raw messages (post-idle, no timing impact).
+	recvTimes := make(map[netip.Prefix]time.Time, len(prefixes))
+	for _, raw := range rawMsgs {
+		body := raw.data[message.HeaderLen:]
+		for _, p := range ExtractPrefixes(body) {
+			if _, exists := recvTimes[p]; !exists {
+				recvTimes[p] = raw.when
+			}
+		}
+	}
+
 	// Compute metrics.
 	// Only count prefixes that were both sent and received -- the DUT may
 	// advertise its own routes (connected networks, loopback) which would
 	// inflate len(recvTimes) beyond cfg.Routes and produce negative RoutesLost.
-	mu.Lock()
-
 	var durations []time.Duration
 
 	var recvTimestamps []time.Time
@@ -336,8 +447,6 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 
 	received := len(durations)
 
-	mu.Unlock()
-
 	if len(recvTimestamps) > 0 {
 		sort.Slice(recvTimestamps, func(i, j int) bool {
 			return recvTimestamps[i].Before(recvTimestamps[j])
@@ -355,6 +464,12 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 	p50, p90, p99, latMax := CalculateLatencies(durations)
 	tpAvg, tpPeak := CalculateThroughput(recvTimestamps, time.Duration(convergenceMs)*time.Millisecond)
 
+	// Stop keepalives before sending Cease to avoid concurrent writes.
+	recvKaCancel()
+	senderKaCancel()
+	recvKaWg.Wait()
+	senderKaWg.Wait()
+
 	// Send NOTIFICATION Cease on both connections.
 	cease := BuildCeaseNotification()
 	_ = WriteMessage(senderConn, cease)
@@ -362,10 +477,6 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 
 	// Give 100ms for NOTIFICATION to be sent before closing.
 	time.Sleep(100 * time.Millisecond)
-
-	// Stop keepalives.
-	kaCancel()
-	kaWg.Wait()
 
 	return IterationResult{
 		ConvergenceMs:     convergenceMs,
@@ -419,7 +530,7 @@ func connectBGP(ctx context.Context, localAddr, remoteAddr string, timeout time.
 	switch {
 	case dialErr == nil && listenErr != nil:
 		// Dial succeeded, no listener. Use dialed connection directly.
-		return setNoDelay(conn)
+		return tuneTCP(conn)
 
 	case dialErr != nil && listenErr != nil:
 		return nil, fmt.Errorf("connecting to %s: dial: %w, listen: %w", remoteAddr, dialErr, listenErr)
@@ -450,6 +561,9 @@ func connectBGP(ctx context.Context, localAddr, remoteAddr string, timeout time.
 
 			// Dial connection is unresponsive. Close it and wait for inbound.
 			conn.Close() //nolint:errcheck // switching to listener path
+		} else {
+			// SetReadDeadline failed. Close dialed conn, fall through to listener.
+			conn.Close() //nolint:errcheck // switching to listener path
 		}
 
 	case dialErr != nil && listener != nil:
@@ -465,18 +579,37 @@ func connectBGP(ctx context.Context, localAddr, remoteAddr string, timeout time.
 			return nil, fmt.Errorf("accepting inbound from DUT: %w", err)
 		}
 
-		return setNoDelay(inConn)
+		return tuneTCP(inConn)
 	}
 
 	return nil, fmt.Errorf("no connection to %s", remoteAddr)
 }
 
-// setNoDelay enables TCP_NODELAY on a connection.
-func setNoDelay(conn net.Conn) (net.Conn, error) {
-	if tc, ok := conn.(*net.TCPConn); ok {
-		if err := tc.SetNoDelay(true); err != nil {
-			return nil, fmt.Errorf("setting TCP_NODELAY: %w", err)
-		}
+// tuneTCP applies the same socket options ze uses in production:
+// - TCP_NODELAY: BGP messages are application-framed, Nagle only adds latency.
+// - IP_TOS/IPV6_TCLASS = 0xC0 (DSCP CS6, Internet Control): RFC 4271 S5.1.
+func tuneTCP(conn net.Conn) (net.Conn, error) {
+	tc, ok := conn.(*net.TCPConn)
+	if !ok {
+		return conn, nil
+	}
+
+	if err := tc.SetNoDelay(true); err != nil {
+		return nil, fmt.Errorf("setting TCP_NODELAY: %w", err)
+	}
+
+	// Best-effort DSCP CS6 marking. Failures are non-fatal: some containers
+	// and OS configurations restrict setsockopt for TOS/TCLASS.
+	if raw, err := tc.SyscallConn(); err == nil {
+		_ = raw.Control(func(fd uintptr) {
+			if addr, ok := tc.RemoteAddr().(*net.TCPAddr); ok {
+				if addr.IP.To4() != nil {
+					_ = syscall.SetsockoptInt(int(fd), syscall.IPPROTO_IP, syscall.IP_TOS, 0xC0)
+				} else {
+					_ = syscall.SetsockoptInt(int(fd), syscall.IPPROTO_IPV6, syscall.IPV6_TCLASS, 0xC0)
+				}
+			}
+		})
 	}
 
 	return conn, nil
@@ -530,69 +663,107 @@ func keepaliveLoop(ctx context.Context, conn net.Conn) {
 	}
 }
 
-// receiveLoop reads BGP messages from conn, extracting prefixes from UPDATEs.
-// Signals allReceived when expectedCount prefixes have been collected.
-// Stops on context cancellation or connection error.
-func receiveLoop(
-	ctx context.Context,
-	conn net.Conn,
-	expectedCount int,
-	mu *sync.Mutex,
-	recvTimes map[netip.Prefix]time.Time,
-	allReceived chan struct{},
-) {
+// receiveRaw reads BGP messages from r, buffering UPDATE messages with their
+// receive timestamps. Only cheap prefix counting (no netip.Prefix construction,
+// no map, no mutex) is done for convergence detection. Full prefix extraction
+// happens after this function returns.
+//
+// Messages are read into the pre-allocated slab for cache locality. If the slab
+// is exhausted, falls back to heap allocation transparently. Slab offset advances
+// forward-only, so message sub-slices never alias each other.
+//
+// Assumes ADD-PATH (RFC 7911) is not negotiated; prefix counts will be incorrect
+// if the DUT sends path IDs.
+//
+// Returns msgs and nil on successful convergence or context cancellation.
+// Returns msgs and a non-nil error on connection/protocol failure (partial results).
+// The conn parameter is used only for setting read deadlines; all reads go
+// through the buffered reader r.
+func receiveRaw(
+	ctx context.Context, r io.Reader, conn net.Conn,
+	expectedPrefixes int, msgs []rawMessage, slab []byte,
+) ([]rawMessage, error) {
+	prefixCount := 0
+	hdr := make([]byte, message.HeaderLen) // Reused across all reads.
+	slabOff := 0
+
 	for {
-		// Check for cancellation before each read.
-		if ctx.Err() != nil {
-			return
+		if err := ctx.Err(); err != nil {
+			return msgs, err
 		}
 
-		_ = conn.SetReadDeadline(time.Now().Add(200 * time.Millisecond))
+		// Short deadline once all expected prefixes arrived (drain stragglers).
+		// Normal deadline otherwise (cancellation checking).
+		timeout := 200 * time.Millisecond
+		if prefixCount >= expectedPrefixes {
+			timeout = 100 * time.Millisecond
+		}
 
-		msgType, msg, err := ReadMessage(conn)
+		_ = conn.SetReadDeadline(time.Now().Add(timeout))
+
+		var msgType message.MessageType
+		var msg []byte
+		var err error
+
+		msgType, msg, slabOff, err = readMessageSlab(r, hdr, slab, slabOff)
 		if err != nil {
 			if isNetTimeout(err) {
-				mu.Lock()
-				got := len(recvTimes)
-				mu.Unlock()
-
-				if got >= expectedCount {
-					close(allReceived)
-					return
+				if prefixCount >= expectedPrefixes {
+					return msgs, nil // All expected prefixes collected.
 				}
 
 				continue
 			}
 
-			// Connection closed or other error -- stop gracefully.
-			return
+			return msgs, fmt.Errorf("receive: %w", err)
 		}
 
 		if msgType != message.TypeUPDATE {
 			continue
 		}
 
-		body := msg[message.HeaderLen:]
-		prefixes := ExtractPrefixes(body)
-		now := time.Now()
+		msgs = append(msgs, rawMessage{data: msg, when: time.Now()})
+		prefixCount += CountPrefixes(msg[message.HeaderLen:])
+	}
+}
 
-		mu.Lock()
+// readMessageSlab reads a BGP message into the slab at the given offset.
+// If the slab has insufficient space, falls back to heap allocation.
+// Returns the message type, message bytes, new slab offset, and any error.
+func readMessageSlab(
+	r io.Reader, hdr []byte, slab []byte, slabOff int,
+) (message.MessageType, []byte, int, error) {
+	if _, err := io.ReadFull(r, hdr); err != nil {
+		return 0, nil, slabOff, fmt.Errorf("reading header: %w", err)
+	}
 
-		for _, p := range prefixes {
-			if _, exists := recvTimes[p]; !exists {
-				recvTimes[p] = now
-			}
-		}
+	msgLen := int(binary.BigEndian.Uint16(hdr[16:18]))
+	if msgLen < message.HeaderLen {
+		return 0, nil, slabOff, fmt.Errorf("invalid message length: %d", msgLen)
+	}
 
-		got := len(recvTimes)
+	if msgLen > message.MaxMsgLen {
+		return 0, nil, slabOff, fmt.Errorf("message length %d exceeds RFC 4271 limit %d", msgLen, message.MaxMsgLen)
+	}
 
-		mu.Unlock()
+	// Try slab; fall back to heap if exhausted.
+	var msg []byte
+	if slabOff+msgLen <= len(slab) {
+		msg = slab[slabOff : slabOff+msgLen]
+		slabOff += msgLen
+	} else {
+		msg = make([]byte, msgLen)
+	}
 
-		if got >= expectedCount {
-			close(allReceived)
-			return
+	copy(msg[:message.HeaderLen], hdr)
+
+	if msgLen > message.HeaderLen {
+		if _, err := io.ReadFull(r, msg[message.HeaderLen:]); err != nil {
+			return 0, nil, slabOff, fmt.Errorf("reading body: %w", err)
 		}
 	}
+
+	return message.MessageType(hdr[18]), msg, slabOff, nil
 }
 
 // isNetTimeout reports whether err is a network timeout error.
@@ -605,8 +776,8 @@ func isNetTimeout(err error) bool {
 	return false
 }
 
-// mustAddr parses an IP address string, returning the zero address on failure.
-func mustAddr(s string) netip.Addr {
+// parseAddr parses an IP address string, returning the zero address on failure.
+func parseAddr(s string) netip.Addr {
 	addr, _ := netip.ParseAddr(s)
 	return addr
 }

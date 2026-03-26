@@ -1,5 +1,5 @@
 // Design: (none -- new tool, predates documentation)
-// Related: benchmark.go -- benchmark orchestration using metrics computation
+// Overview: benchmark.go -- benchmark orchestration using metrics computation
 
 package perf
 

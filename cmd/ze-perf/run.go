@@ -45,7 +45,7 @@ func cmdRun(args []string) int {
 	repeat := fs.Int("repeat", 5, "Number of benchmark iterations")
 	warmupRuns := fs.Int("warmup-runs", 1, "Warmup iterations (discarded)")
 	iterDelay := fs.Duration("iter-delay", 3*time.Second, "Delay between iterations")
-	batchSize := fs.Int("batch-size", 0, "UPDATE batch size (0 = single UPDATE per prefix)")
+	batchSize := fs.Int("batch-size", 0, "NLRIs per UPDATE (0 = auto-max within 4096 bytes, 1 = one prefix per UPDATE)")
 
 	// Output flags.
 	jsonOutput := fs.Bool("json", false, "JSON output")

@@ -1,5 +1,5 @@
 // Design: (none -- new tool, predates documentation)
-// Related: benchmark.go -- benchmark orchestration producing Result
+// Overview: benchmark.go -- benchmark orchestration producing Result
 
 package perf
 
