@@ -4,23 +4,32 @@
 
 cd "$CLAUDE_PROJECT_DIR" 2>/dev/null || cd "$(dirname "$0")/../.."
 
-STATE_FILE=".claude/session-state.md"
+# Load helpers
+source .claude/hooks/lib/state-file.sh
+
+STATE_FILE=$(_state_file)
 TIMESTAMP=$(date -Iseconds)
 
-# Read current spec
-SELECTED_SPEC=$(grep -v '^#' .claude/selected-spec 2>/dev/null | grep -v '^$' | head -1)
+# Read current spec from session marker
+SID=$(_session_id)
+MARKER=".claude/.session-${SID}"
+SELECTED_SPEC=""
+if [ -f "$MARKER" ]; then
+    SELECTED_SPEC=$(head -1 "$MARKER" 2>/dev/null)
+    [ "$SELECTED_SPEC" = "unassigned" ] && SELECTED_SPEC=""
+fi
 
 # Read current git state (compact)
 MODIFIED_FILES=$(git diff --name-only 2>/dev/null | head -20)
 STAGED_FILES=$(git diff --cached --name-only 2>/dev/null | head -20)
 
-# If session-state.md already exists and has content, preserve it.
+# If state file already exists and has content, preserve it.
 # Just prepend the compaction timestamp so Claude knows when it happened.
 if [ -f "$STATE_FILE" ] && [ -s "$STATE_FILE" ]; then
     # Check if it already has a compaction marker at the top
     if grep -q "^## Last Compaction" "$STATE_FILE"; then
         # Update the existing marker
-        sed -i '' "s/^## Last Compaction.*/## Last Compaction: $TIMESTAMP/" "$STATE_FILE"
+        sed -i "s/^## Last Compaction.*/## Last Compaction: $TIMESTAMP/" "$STATE_FILE"
     else
         # Insert compaction marker after the first heading
         {
@@ -58,7 +67,7 @@ fi
 # Mark compaction detected (existing mechanism)
 echo "$TIMESTAMP" > .claude/.compaction-detected
 
-# Output to stderr (not tokens) — Claude sees this in hook output
-echo "💾 Session state saved before compaction" >&2
+# Output to stderr (not tokens) -- Claude sees this in hook output
+echo "Session state saved before compaction ($STATE_FILE)" >&2
 
 exit 0

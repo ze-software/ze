@@ -16,7 +16,7 @@ Every gate includes a mandatory challenge — surface concerns, not just summari
 ### Step R: Resume Existing Spec
 
 1. Read the spec file from `plan/`
-2. Read `.claude/session-state.md` for digests
+2. Read per-spec session state (`.claude/session-state-<spec-stem>.md`) for digests
 3. Determine current phase by checking spec completeness:
    - No `→ Decision:` / `→ Constraint:` annotations → still in RESEARCH
    - Data Flow section empty → still in RESEARCH
@@ -60,7 +60,7 @@ Every gate includes a mandatory challenge — surface concerns, not just summari
 
 - **Never change `[ ]` to `[x]` in spec files** — checkboxes are template markers
 - Capture every insight as `→ Decision:` or `→ Constraint:` under the reading entry
-- Track what you've read in `session-state.md` with digests
+- Track what you've read in per-spec session state with digests
 - The annotations ARE the knowledge — they survive compaction, file contents don't
 
 #### Annotation Quality Standard
@@ -81,7 +81,7 @@ If an annotation wouldn't help someone make a design choice, it's too vague. Rew
 2. For each relevant doc:
    - Read it
    - Write `→ Decision:` or `→ Constraint:` annotation in spec under reading entry
-   - Write one-line digest to `session-state.md`
+   - Write one-line digest to per-spec session state file
 3. Read ACTUAL source files — document current behavior:
    - What each file does, key functions, patterns used
    - Behavior that must be preserved (unless user says otherwise)
@@ -204,7 +204,7 @@ Answer all three before presenting the gate. If any answer is "no", redesign.
 
 ## Rules
 
-- **Never tick `[ ]` to `[x]` in spec files** — track progress in session-state.md
+- **Never tick `[ ]` to `[x]` in spec files** -- track progress in per-spec session state
 - **`→ Decision:` / `→ Constraint:` annotations are the knowledge** — they survive compaction
 - Each GATE must use `AskUserQuestion` — never auto-proceed past a gate
 - Style: tables and prose, never code snippets in specs (`rules/spec-no-code.md`)

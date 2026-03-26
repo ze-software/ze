@@ -14,7 +14,7 @@ A `[x]` in a spec means you read it in a previous session. You don't remember th
 - Do not write any code
 - Do not make design decisions
 - Do not claim anything is "done"
-- After recovery: update session-state.md with current progress, key decisions, and file digests
+- After recovery: update per-spec session state with current progress, key decisions, and file digests
 
 ## File Digest Format
 ```

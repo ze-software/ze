@@ -1,0 +1,27 @@
+#!/bin/bash
+# Extracts a stable session identifier from CLAUDE_CODE_SESSION_ACCESS_TOKEN (JWT).
+# Falls back to PPID if token unavailable.
+# Usage: source this file, then call _session_id
+
+_session_id() {
+    if [ -z "$CLAUDE_CODE_SESSION_ACCESS_TOKEN" ]; then
+        echo "$PPID"
+        return
+    fi
+    # JWT payload is the second dot-separated segment (URL-safe base64)
+    local payload
+    payload=$(echo "$CLAUDE_CODE_SESSION_ACCESS_TOKEN" | cut -d. -f2)
+    # Convert URL-safe base64 to standard base64 and add padding
+    payload=$(echo "$payload" | tr '_-' '/+')
+    local mod=$((${#payload} % 4))
+    [ "$mod" -eq 2 ] && payload="${payload}=="
+    [ "$mod" -eq 3 ] && payload="${payload}="
+    # Extract session_id field
+    local sid
+    sid=$(echo "$payload" | base64 -d 2>/dev/null | grep -o '"session_id": *"[^"]*"' | head -1 | cut -d'"' -f4)
+    if [ -n "$sid" ]; then
+        echo "$sid"
+    else
+        echo "$PPID"
+    fi
+}

@@ -20,6 +20,6 @@ After work, if you learned something new about the codebase:
 ## Why Each Checklist Step
 
 1. **Search for existing implementations** -- If found: STOP. Use it, extend it, or document why new code is needed. Prevents duplication.
-2. **Know the source files** -- Use file digests from session-state.md when available. Only re-read full file when digest lacks detail for the specific edit.
+2. **Know the source files** -- Use file digests from per-spec session state when available. Only re-read full file when digest lacks detail for the specific edit.
 3. **Verify file paths** -- Never guess file locations from context. Use Glob/Grep to confirm.
 4. **Buffer-first encoding check** -- Check if `WriteTo` exists on the type first. New wire types: implement `wire.BufWriter` from the start.

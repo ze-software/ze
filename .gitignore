@@ -37,6 +37,8 @@ __pycache__/
 # Claude session state (per-session, not committed)
 .claude/selected-spec
 .claude/session-state.md
+.claude/session-state-*.md
+.claude/.session-*
 .claude/.compaction-detected
 test/perf/results/
 bin/ze-perf-linux

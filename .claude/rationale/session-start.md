@@ -15,7 +15,7 @@ Why: `.claude/rules/session-start.md`
 | Rule | Concrete Check |
 |------|----------------|
 | 1 | `cat .claude/selected-spec` -> read `plan/<name>` |
-| 2 | Check file digests in session-state.md; re-read full file only when digest insufficient |
+| 2 | Check file digests in per-spec session state; re-read full file only when digest insufficient |
 | 3 | Can you name 3 related files? |
 | 4 | `go test` shows RED before implementation |
 | 5 | Document current output format BEFORE changing |

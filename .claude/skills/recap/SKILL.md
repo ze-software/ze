@@ -9,7 +9,7 @@ Summarize the current session state so the user can quickly understand where thi
    - Task section (what the work aims to achieve)
    - Acceptance Criteria summary (total count, how many have evidence)
    - Implementation Phases (which phases exist, any phase markers)
-2. **Session state:** Read `.claude/session-state.md` if it exists. Extract the most recent session entry.
+2. **Session state:** Read per-spec session state (`.claude/session-state-<spec-stem>.md`) if it exists. Fall back to `.claude/session-state.md`. Extract the most recent session entry.
 3. **Git state:** Run `git status`, `git diff --stat`, and `git log --oneline -10`. Summarize:
    - Current branch
    - Uncommitted changes (count, key files, and scale from diff stat)

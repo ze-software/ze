@@ -94,4 +94,5 @@ RFC summaries: `rfc/short/`. Full RFCs: `rfc/full/`.
 
 ## Session State
 
-Track in `.claude/session-state.md` (not committed). Template: `.claude/session-state.md.template`.
+Per-spec: `.claude/session-state-<spec-stem>.md` (not committed). Fallback: `.claude/session-state.md`.
+Session markers: `.claude/.session-<ID>` map sessions to specs. See `hooks/lib/state-file.sh`.
