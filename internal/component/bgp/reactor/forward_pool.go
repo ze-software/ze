@@ -44,6 +44,31 @@ type fwdItem struct {
 // batch writes (30 seconds). Overridable via env var ze.fwd.write.deadline.
 const fwdWriteDeadlineDefault = 30 * time.Second
 
+// fwdWriteDeadlineNs holds the resolved write deadline in nanoseconds,
+// cached at package init to avoid per-batch env.GetDuration overhead on
+// the hot path. Overridden by initFwdWriteDeadline() at reactor startup.
+// Stored via atomic.Int64 for safe concurrent access.
+var fwdWriteDeadlineNs atomic.Int64 //nolint:gochecknoglobals // hot-path cache
+
+func init() {
+	fwdWriteDeadlineNs.Store(int64(fwdWriteDeadlineDefault))
+}
+
+// initFwdWriteDeadline reads ze.fwd.write.deadline from env and caches it.
+// Called once from reactor startup, before any forward pool dispatch.
+func initFwdWriteDeadline() {
+	d := env.GetDuration("ze.fwd.write.deadline", fwdWriteDeadlineDefault)
+	if d <= 0 {
+		d = fwdWriteDeadlineDefault
+	}
+	fwdWriteDeadlineNs.Store(int64(d))
+}
+
+// fwdWriteDeadline returns the cached write deadline for forward pool batches.
+func fwdWriteDeadline() time.Duration {
+	return time.Duration(fwdWriteDeadlineNs.Load())
+}
+
 // fwdBatchHandler executes pre-computed send operations for a batch of fwdItems.
 // Acquires the session write lock once, writes all messages to bufWriter, flushes once.
 // On first write error, remaining items in the batch are skipped.
@@ -87,11 +112,9 @@ func fwdBatchHandler(_ fwdKey, items []fwdItem) {
 	// Set write deadline AFTER acquiring writeMu so the full deadline budget
 	// is available for TCP writes (not consumed by mutex contention).
 	// Cleared in defer after write+flush completes.
-	writeDeadline := env.GetDuration("ze.fwd.write.deadline", fwdWriteDeadlineDefault)
-	if writeDeadline <= 0 {
-		writeDeadline = fwdWriteDeadlineDefault
-	}
-	if err := conn.SetWriteDeadline(session.clock.Now().Add(writeDeadline)); err != nil {
+	// Write deadline is cached in fwdPoolConfig at startup to avoid per-batch
+	// env.GetDuration overhead (hot path: called thousands of times/sec).
+	if err := conn.SetWriteDeadline(session.clock.Now().Add(fwdWriteDeadline())); err != nil {
 		fwdLogger().Warn("forward set write deadline failed",
 			"peer", peer.Settings().Address,
 			"err", err,

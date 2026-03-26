@@ -48,12 +48,13 @@ func (p *Peer) Stats() PeerStats {
 }
 
 // peerAddrLabel returns the peer address string for Prometheus labels.
-// settings is set at peer creation and never nil, but guard defensively.
+// Uses a cached string computed at peer creation to avoid repeated
+// netip.Addr.String() allocations on the hot path.
 func (p *Peer) peerAddrLabel() string {
-	if p.settings == nil {
+	if p.addrString == "" {
 		return "unknown"
 	}
-	return p.settings.Address.String()
+	return p.addrString
 }
 
 // IncrUpdatesReceived increments the received UPDATE counter.

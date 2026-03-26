@@ -386,23 +386,24 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			}
 		}
 
-		// Retain cache buffer for this peer's worker. Released by done callback
-		// after worker completes all send ops. Ack (deferred above) fires when
-		// ForwardUpdate returns — before workers finish — but retainCount keeps
-		// the buffer alive until all workers call Release.
+		// Retain cache buffer for this peer's worker BEFORE dispatch.
+		// Must happen before TryDispatch because a worker may call done()
+		// (Release) immediately after receiving the item. If Release ran
+		// before Retain, retainCount would go negative and trigger premature
+		// eviction -- a use-after-free on the pool buffer.
 		a.r.recentUpdates.Retain(updateID)
 		item.done = func() { a.r.recentUpdates.Release(updateID) }
 
-		key := fwdKey{peerAddr: peer.Settings().Address.String()}
+		key := fwdKey{peerAddr: peer.addrString}
 		if a.r.fwdPool.TryDispatch(key, item) {
 			a.r.fwdPool.RecordForwarded(srcAddr)
 			dispatchedCount++
 		} else if a.r.fwdPool.DispatchOverflow(key, item) {
-			// Channel full — item buffered in overflow for deferred processing.
+			// Channel full -- item buffered in overflow for deferred processing.
 			a.r.fwdPool.RecordOverflowed(srcAddr)
 			dispatchedCount++
 		}
-		// If DispatchOverflow returned false, pool is stopped — done() was
+		// If DispatchOverflow returned false, pool is stopped -- done() was
 		// called immediately (releasing cache ref). Don't count as dispatched.
 	}
 

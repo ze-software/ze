@@ -113,6 +113,10 @@ func (s *Session) startSendHoldTimer() {
 }
 
 // resetSendHoldTimer resets the Send Hold Timer after a successful write.
+// Stops the current timer and creates a new AfterFunc. Timer.Reset is unsafe
+// for AfterFunc timers: it cannot guarantee the callback won't run concurrently
+// with a previously-fired instance (Go docs: "Reset does not wait for prior f
+// to complete"). Stop+AfterFunc ensures single-execution semantics.
 func (s *Session) resetSendHoldTimer() {
 	s.sendHoldMu.Lock()
 	defer s.sendHoldMu.Unlock()

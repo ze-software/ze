@@ -217,6 +217,11 @@ type Peer struct {
 	// Assigned at creation, never changes.
 	sourceID source.SourceID
 
+	// addrString caches settings.Address.String() to avoid per-message
+	// string allocation on the hot path (Prometheus labels, bus notifications,
+	// forward pool keys). Computed once at peer creation.
+	addrString string
+
 	// Collision detection (RFC 4271 §6.8):
 	// When an incoming connection arrives while we're in OpenConfirm,
 	// we queue it here and wait for its OPEN to resolve the collision.
@@ -246,6 +251,7 @@ func NewPeer(settings *PeerSettings) *Peer {
 		sourceID:        source.DefaultRegistry.RegisterPeer(settings.Address, settings.PeerAS),
 		inboundNotify:   make(chan struct{}, 1),
 		prefixWarnedMap: make(map[string]bool),
+		addrString:      settings.Address.String(),
 	}
 
 	return p

@@ -371,8 +371,13 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	}
 
 	// Bus notification for cross-component consumers.
+	// Use cached addrString when available to avoid per-message String() allocation.
+	addrStr := peerAddr.String()
+	if hasPeer {
+		addrStr = peer.addrString
+	}
 	r.publishBusNotification("bgp/update", map[string]string{
-		"peer":      peerAddr.String(),
+		"peer":      addrStr,
 		"direction": direction,
 	})
 
