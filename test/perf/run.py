@@ -262,8 +262,8 @@ def run_perf(dut):
                    check=False, timeout=10, capture=True)
 
         # Scale timeouts based on route count.
-        # Conservative: ~1s per 1000 routes (covers slow DUTs like freeRtr at ~1k/s).
-        convergence_timeout_s = max(30, (DUT_ROUTES // 1000) + 30)
+        # Conservative: ~4s per 1000 routes (covers slow DUTs like freeRtr ~250-1000/s).
+        convergence_timeout_s = max(30, (DUT_ROUTES // 1000) * 4 + 30)
         # Total iterations: warmup(1) + repeat. Each takes convergence + iter-delay(8s) + overhead(30s).
         total_iterations = 1 + DUT_REPEAT
         subprocess_timeout_s = total_iterations * (convergence_timeout_s + 40) + 60
@@ -359,9 +359,20 @@ def main():
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
 
-    # Create network.
-    docker("network", "create", "--subnet", SUBNET, NETWORK,
-           check=False, timeout=10, capture=True)
+    # Create network (remove stale one first if subnet conflicts).
+    r = docker("network", "create", "--subnet", SUBNET, NETWORK,
+               check=False, timeout=10, capture=True)
+    if r.returncode != 0:
+        # Subnet conflict -- remove any old ze-perf network and retry.
+        old = docker("network", "ls", "--filter", f"name=ze-perf-", "--format", "{{{{.Name}}}}",
+                     check=False, timeout=10, capture=True)
+        for net in old.stdout.strip().splitlines():
+            docker("network", "rm", net, check=False, timeout=10, capture=True)
+        r = docker("network", "create", "--subnet", SUBNET, NETWORK,
+                   check=False, timeout=10, capture=True)
+        if r.returncode != 0:
+            print(f"error: cannot create Docker network: {r.stderr.strip()}", file=sys.stderr)
+            return 1
 
     print()
     print("--------------------------------------------")
