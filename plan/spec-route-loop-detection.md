@@ -5,7 +5,7 @@
 | Status | design |
 | Depends | - |
 | Phase | - |
-| Updated | 2026-03-21 |
+| Updated | 2026-03-26 |
 
 ## Post-Compaction Recovery
 
@@ -58,9 +58,10 @@ RFC 4456 Section 7: "Typically, the CLUSTER_ID will be set to the BGP Identifier
 - AS loop detection needs AS_PATH bytes + local ASN (both available in session)
 - Originator-ID and cluster-list checks only apply to iBGP sessions (PeerAS == LocalAS)
 - The existing `enforceRFC7606` returns an action; loop detection is a separate step that also returns treat-as-withdraw
+- Prefix limit check (`checkPrefixLimits`) runs after RFC 7606 in processMessage; loop detection should go between RFC 7606 and prefix limits so looped routes don't count
 - AS_PATH iterator (`aspath_iter.go`) already exists for zero-allocation AS_PATH traversal
-- ORIGINATOR_ID is a 4-byte attribute (type 9), same format as Router ID
-- CLUSTER_LIST is a sequence of 4-byte values (type 10), parsed by `attribute.ParseClusterList`
+- ORIGINATOR_ID is a 4-byte attribute (type 9). ParseOriginatorID returns OriginatorID (netip.Addr), NOT uint32. RouterID in PeerSettings is uint32. Type conversion needed for comparison.
+- CLUSTER_LIST is a sequence of 4-byte values (type 10), parsed by `attribute.ParseClusterList` returning ClusterList ([]uint32)
 
 ## Current Behavior (MANDATORY)
 
@@ -69,18 +70,18 @@ RFC 4456 Section 7: "Typically, the CLUSTER_ID will be set to the BGP Identifier
 - [ ] `internal/component/bgp/reactor/session_validation.go` - enforceRFC7606 (RFC 7606 structural validation) and validateUpdateFamilies (AFI/SAFI check). No loop detection.
 - [ ] `internal/component/bgp/reactor/peersettings.go` - PeerSettings has LocalAS (uint32), PeerAS (uint32), RouterID (uint32). No ClusterID field.
 - [ ] `internal/component/bgp/attribute/aspath_iter.go` - ASPathIterator and ASNIterator for zero-allocation AS_PATH traversal. Supports ASN4.
-- [ ] `internal/component/bgp/attribute/simple.go` - ParseClusterList returns ClusterList ([]uint32). ParseOriginatorID returns uint32.
+- [ ] `internal/component/bgp/attribute/simple.go` - ParseClusterList returns ClusterList ([]uint32). ParseOriginatorID returns (OriginatorID, error) where OriginatorID is netip.Addr (not uint32). Comparison with RouterID (uint32) requires conversion.
 - [ ] `internal/component/bgp/message/rfc7606.go` - RFC7606Action enum (None, AttributeDiscard, TreatAsWithdraw, SessionReset). Attribute codes 9 (ORIGINATOR_ID) and 10 (CLUSTER_LIST) defined.
 - [ ] `internal/component/bgp/plugins/rib/bestpath.go` - Best-path selection. No loop detection here (correct, it belongs in validation).
 
 **Behavior to preserve:**
 - RFC 7606 validation runs first and is unchanged
-- processMessage pipeline order: RFC 7606 -> family check -> plugin dispatch
+- processMessage pipeline order: RFC 7606 -> prefix limit check -> callback dispatch -> handleUpdate (family check). Family check is inside handleUpdate, not in processMessage directly.
 - Treat-as-withdraw semantics: route silently withdrawn, no NOTIFICATION, session stays up
-- Existing tests for RFC 7606, family validation, and best-path selection
+- Existing tests for RFC 7606, family validation, prefix limits, and best-path selection
 
 **Behavior to change:**
-- Add loop detection step between RFC 7606 validation and plugin dispatch in processMessage
+- Add loop detection step between RFC 7606 validation and prefix limit check in processMessage (looped routes should not count toward prefix limits)
 - Routes with AS loops, originator-ID loops, or cluster-list loops are treated as withdrawn
 
 ## Data Flow (MANDATORY)
@@ -91,9 +92,10 @@ RFC 4456 Section 7: "Typically, the CLUSTER_ID will be set to the BGP Identifier
 
 ### Transformation Path
 1. RFC 7606 structural validation (existing, unchanged)
-2. **NEW: Loop detection** - parse AS_PATH, ORIGINATOR_ID, CLUSTER_LIST from path attributes; compare against session settings (LocalAS, RouterID)
-3. Family negotiation check (existing, unchanged)
-4. Plugin dispatch (existing, unchanged)
+2. **NEW: Loop detection** - parse AS_PATH, ORIGINATOR_ID, CLUSTER_LIST from path attributes; compare against session settings (LocalAS, RouterID). Looped routes treated as withdrawn before prefix counting.
+3. Prefix limit check (existing, unchanged -- runs after loop detection so looped routes don't count)
+4. Callback dispatch to plugins (existing, unchanged)
+5. handleUpdate -> validateUpdateFamilies (existing, unchanged -- family check is inside handleUpdate, not processMessage)
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -102,10 +104,10 @@ RFC 4456 Section 7: "Typically, the CLUSTER_ID will be set to the BGP Identifier
 | Session settings -> validation | s.settings.LocalAS, s.settings.RouterID | [ ] |
 
 ### Integration Points
-- `session_read.go:processMessage` - insert loop detection call after enforceRFC7606, before plugin dispatch
+- `session_read.go:processMessage` - insert loop detection call after enforceRFC7606, before checkPrefixLimits
 - `session_validation.go` - new function(s) for loop detection, same file as existing validation
 - `attribute.ASPathIterator` - reuse for AS loop detection
-- `attribute.ParseOriginatorID` / attribute parsing for ORIGINATOR_ID extraction
+- `attribute.ParseOriginatorID` - returns (OriginatorID, error) where OriginatorID is netip.Addr; needs conversion to compare with RouterID (uint32)
 - `message.RFC7606Action` - reuse TreatAsWithdraw action for loop rejection
 
 ### Architectural Verification
@@ -143,18 +145,18 @@ RFC 4456 Section 7: "Typically, the CLUSTER_ID will be set to the BGP Identifier
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestDetectASLoop` | `internal/component/bgp/reactor/session_validation_test.go` | Local ASN in AS_SEQUENCE detected | |
-| `TestDetectASLoop_ASSet` | `internal/component/bgp/reactor/session_validation_test.go` | Local ASN in AS_SET detected | |
-| `TestDetectASLoop_NotPresent` | `internal/component/bgp/reactor/session_validation_test.go` | No false positive when ASN absent | |
-| `TestDetectASLoop_EmptyPath` | `internal/component/bgp/reactor/session_validation_test.go` | Empty AS_PATH does not trigger | |
-| `TestDetectOriginatorIDLoop` | `internal/component/bgp/reactor/session_validation_test.go` | Matching ORIGINATOR_ID detected | |
-| `TestDetectOriginatorIDLoop_Different` | `internal/component/bgp/reactor/session_validation_test.go` | Non-matching ORIGINATOR_ID passes | |
-| `TestDetectOriginatorIDLoop_Absent` | `internal/component/bgp/reactor/session_validation_test.go` | Missing ORIGINATOR_ID passes | |
-| `TestDetectOriginatorIDLoop_eBGP` | `internal/component/bgp/reactor/session_validation_test.go` | eBGP session skips check | |
-| `TestDetectClusterListLoop` | `internal/component/bgp/reactor/session_validation_test.go` | Local Router ID in CLUSTER_LIST detected | |
-| `TestDetectClusterListLoop_NotPresent` | `internal/component/bgp/reactor/session_validation_test.go` | CLUSTER_LIST without local ID passes | |
-| `TestDetectClusterListLoop_Absent` | `internal/component/bgp/reactor/session_validation_test.go` | Missing CLUSTER_LIST passes | |
-| `TestDetectClusterListLoop_eBGP` | `internal/component/bgp/reactor/session_validation_test.go` | eBGP session skips check | |
+| `TestDetectASLoop` | `internal/component/bgp/reactor/session_validate_test.go` | Local ASN in AS_SEQUENCE detected | |
+| `TestDetectASLoop_ASSet` | `internal/component/bgp/reactor/session_validate_test.go` | Local ASN in AS_SET detected | |
+| `TestDetectASLoop_NotPresent` | `internal/component/bgp/reactor/session_validate_test.go` | No false positive when ASN absent | |
+| `TestDetectASLoop_EmptyPath` | `internal/component/bgp/reactor/session_validate_test.go` | Empty AS_PATH does not trigger | |
+| `TestDetectOriginatorIDLoop` | `internal/component/bgp/reactor/session_validate_test.go` | Matching ORIGINATOR_ID detected | |
+| `TestDetectOriginatorIDLoop_Different` | `internal/component/bgp/reactor/session_validate_test.go` | Non-matching ORIGINATOR_ID passes | |
+| `TestDetectOriginatorIDLoop_Absent` | `internal/component/bgp/reactor/session_validate_test.go` | Missing ORIGINATOR_ID passes | |
+| `TestDetectOriginatorIDLoop_eBGP` | `internal/component/bgp/reactor/session_validate_test.go` | eBGP session skips check | |
+| `TestDetectClusterListLoop` | `internal/component/bgp/reactor/session_validate_test.go` | Local Router ID in CLUSTER_LIST detected | |
+| `TestDetectClusterListLoop_NotPresent` | `internal/component/bgp/reactor/session_validate_test.go` | CLUSTER_LIST without local ID passes | |
+| `TestDetectClusterListLoop_Absent` | `internal/component/bgp/reactor/session_validate_test.go` | Missing CLUSTER_LIST passes | |
+| `TestDetectClusterListLoop_eBGP` | `internal/component/bgp/reactor/session_validate_test.go` | eBGP session skips check | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -177,7 +179,7 @@ RFC 4456 Section 7: "Typically, the CLUSTER_ID will be set to the BGP Identifier
 ## Files to Modify
 - `internal/component/bgp/reactor/session_validation.go` - add loop detection functions
 - `internal/component/bgp/reactor/session_read.go` - call loop detection in processMessage after enforceRFC7606
-- `internal/component/bgp/reactor/session_validation_test.go` - unit tests for loop detection
+- `internal/component/bgp/reactor/session_validate_test.go` - add unit tests for loop detection (existing file, already has validateUpdateFamilies tests)
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -238,19 +240,19 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 2. **Phase: AS loop detection** -- add detectASLoop function and unit tests
    - Tests: `TestDetectASLoop`, `TestDetectASLoop_ASSet`, `TestDetectASLoop_NotPresent`, `TestDetectASLoop_EmptyPath`
-   - Files: `session_validation.go`, `session_validation_test.go`
+   - Files: `session_validation.go`, `session_validate_test.go`
    - Verify: tests fail -> implement -> tests pass
    - Notes: Use `attribute.NewASPathIterator` with `ASNIterator` to walk ASNs. Compare each against `s.settings.LocalAS`. Return true on first match.
 
 3. **Phase: Originator-ID loop detection** -- add detectOriginatorIDLoop function and unit tests
    - Tests: `TestDetectOriginatorIDLoop`, `TestDetectOriginatorIDLoop_Different`, `TestDetectOriginatorIDLoop_Absent`, `TestDetectOriginatorIDLoop_eBGP`
-   - Files: `session_validation.go`, `session_validation_test.go`
+   - Files: `session_validation.go`, `session_validate_test.go`
    - Verify: tests fail -> implement -> tests pass
-   - Notes: Extract ORIGINATOR_ID (type 9, 4 bytes) from path attributes. Compare as uint32 against `s.settings.RouterID`. Only check on iBGP sessions (`LocalAS == PeerAS`).
+   - Notes: Extract ORIGINATOR_ID (type 9, 4 bytes) from path attributes. ParseOriginatorID returns OriginatorID (netip.Addr), not uint32. Convert RouterID (uint32) to netip.Addr for comparison, or compare at the byte level. Only check on iBGP sessions (`LocalAS == PeerAS`).
 
 4. **Phase: Cluster-list loop detection** -- add detectClusterListLoop function and unit tests
    - Tests: `TestDetectClusterListLoop`, `TestDetectClusterListLoop_NotPresent`, `TestDetectClusterListLoop_Absent`, `TestDetectClusterListLoop_eBGP`
-   - Files: `session_validation.go`, `session_validation_test.go`
+   - Files: `session_validation.go`, `session_validate_test.go`
    - Verify: tests fail -> implement -> tests pass
    - Notes: Extract CLUSTER_LIST (type 10, multiple of 4 bytes). Walk 4-byte values, compare each against `s.settings.RouterID` (Router ID = default Cluster ID per RFC 4456 Section 7). Only check on iBGP sessions.
 
@@ -289,8 +291,8 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | AS loop detection function | `grep detectASLoop internal/component/bgp/reactor/session_validation.go` |
 | Originator-ID loop function | `grep detectOriginatorIDLoop internal/component/bgp/reactor/session_validation.go` |
 | Cluster-list loop function | `grep detectClusterListLoop internal/component/bgp/reactor/session_validation.go` |
-| Pipeline integration | `grep detectLoop internal/component/bgp/reactor/session_read.go` |
-| Unit tests | `grep -c TestDetect internal/component/bgp/reactor/session_validation_test.go` (12 tests) |
+| Pipeline integration | `grep detectLoop internal/component/bgp/reactor/session_read.go` (between enforceRFC7606 and checkPrefixLimits) |
+| Unit tests | `grep -c TestDetect internal/component/bgp/reactor/session_validate_test.go` (12 tests) |
 | Functional test: AS loop | `ls test/plugin/loop-as.ci` |
 | Functional test: originator-ID | `ls test/plugin/loop-originator-id.ci` |
 | Functional test: cluster-list | `ls test/plugin/loop-cluster-list.ci` |
