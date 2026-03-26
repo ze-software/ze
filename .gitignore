@@ -18,8 +18,7 @@ test/internet/*.bz2
 test/internet/*.tmp
 
 # Research output (large generated files)
-research/output/
-research/comparison/
+docs/research/comparison/
 docs/performance.md
 
 # Coverage reports
