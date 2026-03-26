@@ -753,3 +753,57 @@ func TestParseInlineArgsUnknownKey(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown option")
 }
+
+// TestExtractMetaLegacyFormat verifies extractMeta handles the old compound format.
+// Old format: #user@origin @ISO8601 %user@origin:unixtime
+// New format: #user @source %ISO8601
+//
+// VALIDATES: AC-12 -- old draft files with legacy metadata format parse correctly.
+// PREVENTS: Old drafts losing metadata when loaded after format migration.
+func TestExtractMetaLegacyFormat(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		user    string
+		source  string
+		hasTime bool
+		command string
+	}{
+		{
+			name:    "legacy compound user@origin",
+			input:   "#thomas@local @2026-03-18T23:52:58Z %thomas@local:1773877970 set router-id 1.2.3.4",
+			user:    "thomas",
+			source:  "local",
+			hasTime: true,
+			command: "set router-id 1.2.3.4",
+		},
+		{
+			name:    "legacy compound user@ip",
+			input:   "#admin@192.168.1.5 @2026-03-18T23:52:58Z %admin@192.168.1.5:1773877970 set router-id 1.2.3.4",
+			user:    "admin",
+			source:  "192.168.1.5",
+			hasTime: true,
+			command: "set router-id 1.2.3.4",
+		},
+		{
+			name:    "new format unchanged",
+			input:   "#thomas @local %2026-03-18T23:52:58Z set router-id 1.2.3.4",
+			user:    "thomas",
+			source:  "local",
+			hasTime: true,
+			command: "set router-id 1.2.3.4",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			entry, cmd := extractMeta(tt.input)
+			assert.Equal(t, tt.user, entry.User, "user")
+			assert.Equal(t, tt.source, entry.Source, "source")
+			if tt.hasTime {
+				assert.False(t, entry.Time.IsZero(), "time should be set")
+			}
+			assert.Equal(t, tt.command, cmd, "remaining command")
+		})
+	}
+}

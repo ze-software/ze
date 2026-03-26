@@ -823,6 +823,11 @@ func parsePipeFilters(tokens []string) []PipeFilter {
 		if i < len(tokens) && tokens[i] != "|" {
 			filter.Arg = tokens[i]
 			i++
+			// "compare rollback N" needs two args: combine "rollback" + "N".
+			if filter.Type == cmdCompare && filter.Arg == cmdRollback && i < len(tokens) && tokens[i] != "|" {
+				filter.Arg = filter.Arg + " " + tokens[i]
+				i++
+			}
 		}
 
 		filters = append(filters, filter)

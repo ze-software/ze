@@ -413,3 +413,247 @@ func TestCmdOptionColumnToggleInvalidArg(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "usage:")
 }
+
+// TestParsePipeFiltersRollback verifies "compare rollback N" is parsed as a single filter with combined arg.
+//
+// VALIDATES: AC-10a -- pipe parser keeps "rollback N" together.
+// PREVENTS: "rollback" and "N" split into separate filters.
+func TestParsePipeFiltersRollback(t *testing.T) {
+	tests := []struct {
+		name   string
+		tokens []string
+		want   []PipeFilter
+	}{
+		{
+			name:   "compare rollback 1",
+			tokens: []string{"|", "compare", "rollback", "1"},
+			want:   []PipeFilter{{Type: cmdCompare, Arg: "rollback 1"}},
+		},
+		{
+			name:   "compare committed unchanged",
+			tokens: []string{"|", "compare", "committed"},
+			want:   []PipeFilter{{Type: cmdCompare, Arg: "committed"}},
+		},
+		{
+			name:   "compare rollback 2 then format config",
+			tokens: []string{"|", "compare", "rollback", "2", "|", "format", "config"},
+			want: []PipeFilter{
+				{Type: cmdCompare, Arg: "rollback 2"},
+				{Type: cmdFormat, Arg: fmtConfig},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parsePipeFilters(tt.tokens)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestCmdShowPipeCompareRollback verifies compare rollback N uses backup content as baseline.
+//
+// VALIDATES: AC-10a -- show | compare rollback 1 shows diff markers against rollback 1.
+// PREVENTS: "rollback" treated as unknown target, N orphaned by pipe parser.
+func TestCmdShowPipeCompareRollback(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
+
+	// Create a backup so rollback 1 exists.
+	err = ed.createBackup(ed.OriginalContent(), nil)
+	require.NoError(t, err)
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	m := &model
+
+	// compare rollback 1 should return configView with original from backup.
+	result, err := m.cmdShowPipe(nil, []PipeFilter{{Type: cmdCompare, Arg: "rollback 1"}})
+	require.NoError(t, err)
+	require.NotNil(t, result.configView, "rollback compare returns configView")
+	assert.True(t, result.configView.hasOriginal, "rollback compare sets hasOriginal")
+	assert.NotEmpty(t, result.configView.originalContent, "rollback compare provides backup content")
+}
+
+// TestCmdShowPipeCompareRollbackInvalid verifies rollback N rejects invalid N.
+//
+// VALIDATES: AC-10a boundary -- rollback 0 and rollback beyond count produce error.
+// PREVENTS: Index out of range panic, silent fallback to committed.
+func TestCmdShowPipeCompareRollbackInvalid(t *testing.T) {
+	m := testShowModel(t)
+
+	// No backups exist: rollback 1 should error.
+	_, err := m.cmdShowPipe(nil, []PipeFilter{{Type: cmdCompare, Arg: "rollback 1"}})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "backup")
+
+	// rollback 0 should error (1-based indexing).
+	_, err = m.cmdShowPipe(nil, []PipeFilter{{Type: cmdCompare, Arg: "rollback 0"}})
+	require.Error(t, err)
+
+	// rollback abc should error.
+	_, err = m.cmdShowPipe(nil, []PipeFilter{{Type: cmdCompare, Arg: "rollback abc"}})
+	require.Error(t, err)
+}
+
+// TestCmdShowPipeCompareRollbackStackFormat verifies pipes stack: rollback + format.
+//
+// VALIDATES: AC-10b -- show | compare rollback 2 | format config stacks both pipes.
+// PREVENTS: Format pipe lost when compare rollback is present.
+func TestCmdShowPipeCompareRollbackStackFormat(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
+
+	// Create two backups.
+	err = ed.createBackup(ed.OriginalContent(), nil)
+	require.NoError(t, err)
+	err = ed.createBackup(ed.OriginalContent(), nil)
+	require.NoError(t, err)
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	m := &model
+
+	// compare rollback 2 + format config: should produce set-format content with diff baseline.
+	result, err := m.cmdShowPipe(nil, []PipeFilter{
+		{Type: cmdCompare, Arg: "rollback 2"},
+		{Type: cmdFormat, Arg: fmtConfig},
+	})
+	require.NoError(t, err)
+	// With format config + compare: content is rendered as set commands,
+	// and configView carries the original for diff.
+	require.NotNil(t, result.configView, "stacked pipes return configView")
+	assert.True(t, result.configView.hasOriginal, "stacked pipes set hasOriginal")
+}
+
+// TestCmdShowConfirmed verifies "show confirmed" displays the committed config.
+//
+// VALIDATES: AC-20 -- show confirmed displays the committed (original) config.
+// PREVENTS: show confirmed showing working config or erroring.
+func TestCmdShowConfirmed(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	m := &model
+
+	// Make a change so working differs from committed.
+	err = ed.SetValue([]string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err)
+	require.True(t, ed.Dirty())
+
+	// "show confirmed" should display the original (committed) config, not the working one.
+	result, err := m.cmdShow([]string{srcConfirmed})
+	require.NoError(t, err)
+	// The committed config has the original router-id, not 9.9.9.9.
+	var content string
+	if result.configView != nil {
+		content = result.configView.content
+	} else {
+		content = result.output
+	}
+	assert.NotContains(t, content, "9.9.9.9", "confirmed should not show working change")
+	assert.Contains(t, content, "bgp", "confirmed should show config content")
+}
+
+// TestCmdShowSaved verifies "show saved" displays the saved draft file.
+//
+// VALIDATES: AC-21 -- show saved displays the saved draft content.
+// PREVENTS: show saved showing working config or erroring when draft exists.
+func TestCmdShowSaved(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	// Create a draft file with different content.
+	draftContent := "set bgp router-id 8.8.8.8\nset bgp local as 65000\n"
+	draftPath := configPath + ".draft"
+	err = os.WriteFile(draftPath, []byte(draftContent), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	m := &model
+
+	// "show saved" should display the saved draft content.
+	result, err := m.cmdShow([]string{srcSaved})
+	require.NoError(t, err)
+	var content string
+	if result.configView != nil {
+		content = result.configView.content
+	} else {
+		content = result.output
+	}
+	assert.Contains(t, content, "8.8.8.8", "saved should show draft content")
+}
+
+// TestCmdShowSavedNoDraft verifies "show saved" with no draft file returns helpful message.
+//
+// VALIDATES: AC-21 boundary -- no draft file produces informative error.
+// PREVENTS: Empty viewport or panic when draft doesn't exist.
+func TestCmdShowSavedNoDraft(t *testing.T) {
+	m := testShowModel(t)
+
+	result, err := m.cmdShow([]string{srcSaved})
+	require.NoError(t, err)
+	assert.Contains(t, result.output, "no saved draft", "should indicate missing draft")
+}
+
+// TestCmdShowCompareUsername verifies "show | compare <username>" shows diff for user's changes.
+//
+// VALIDATES: AC-23 -- show | compare <username> shows diff markers for the specified user.
+// PREVENTS: Unknown username silently accepted without diff.
+func TestCmdShowCompareUsername(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	err := os.WriteFile(configPath, []byte(testValidBGPConfig), 0o600)
+	require.NoError(t, err)
+
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	t.Cleanup(func() { ed.Close() }) //nolint:errcheck,gosec // test cleanup
+
+	// Start a session and make changes so metadata exists.
+	session := NewEditSession("alice", "local")
+	ed.SetSession(session)
+	err = ed.SetValue([]string{"bgp"}, "router-id", "7.7.7.7")
+	require.NoError(t, err)
+
+	model, err := NewModel(ed)
+	require.NoError(t, err)
+	m := &model
+
+	// "show | compare alice" should return configView with diff baseline.
+	result, err := m.cmdShowPipe(nil, []PipeFilter{{Type: cmdCompare, Arg: "alice"}})
+	require.NoError(t, err)
+	require.NotNil(t, result.configView, "compare user returns configView")
+	assert.True(t, result.configView.hasOriginal, "compare user sets hasOriginal")
+	// The baseline should be the config without alice's changes.
+	assert.NotContains(t, result.configView.originalContent, "7.7.7.7",
+		"baseline should not contain alice's change")
+}

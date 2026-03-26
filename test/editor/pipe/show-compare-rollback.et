@@ -1,0 +1,42 @@
+# Test: Show with compare rollback N filter
+# VALIDATES: AC-10a -- show | compare rollback 1 shows diff against backup
+# PREVENTS: "rollback N" not parsed as single compare target
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local {
+  	as 65000
+  }
+  peer peer1 {
+  	remote {
+  		ip 1.1.1.1
+  		as 65001;
+  	}
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=reload:mode=success
+
+# Make a change first so config is dirty, then commit to create rollback 1
+input=type:text=set bgp listen 0.0.0.0:179
+input=enter
+expect=dirty:true
+
+input=type:text=commit
+input=enter
+expect=dirty:false
+
+# Make another change so current differs from rollback 1
+input=type:text=set bgp local as 65999
+input=enter
+expect=dirty:true
+
+# Show | compare rollback 1 should show diff vs the backup
+input=type:text=show | compare rollback 1
+input=enter
+expect=error:none
+expect=viewport:contains=65999

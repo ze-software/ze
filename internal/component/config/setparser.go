@@ -467,26 +467,49 @@ func extractMeta(line string) (MetaEntry, string) {
 	for remaining != "" {
 		if remaining[0] == '#' && len(remaining) > 1 && remaining[1] != ' ' {
 			// User metadata: #user (capped at 256 bytes to prevent abuse)
+			// Legacy detection: #user@origin contains '@' -- split into User + Source.
 			end := strings.IndexByte(remaining, ' ')
+			var raw string
 			if end == -1 {
-				entry.User = capMetaField(remaining[1:])
+				raw = remaining[1:]
 				remaining = ""
 			} else {
-				entry.User = capMetaField(remaining[1:end])
+				raw = remaining[1:end]
 				remaining = strings.TrimSpace(remaining[end+1:])
+			}
+			if at := strings.IndexByte(raw, '@'); at > 0 && entry.Source == "" {
+				entry.User = capMetaField(raw[:at])
+				entry.Source = capMetaField(raw[at+1:])
+			} else {
+				entry.User = capMetaField(raw)
 			}
 			continue
 		}
 
 		if remaining[0] == '@' {
 			// Source metadata: @origin (e.g., "local", "192.168.1.5") (capped at 256 bytes)
+			// Legacy: if Source already set (from #user@origin split) and value looks
+			// like ISO 8601, treat as Time instead of overwriting Source.
 			end := strings.IndexByte(remaining, ' ')
+			var val string
 			if end == -1 {
-				entry.Source = capMetaField(remaining[1:])
+				val = remaining[1:]
 				remaining = ""
 			} else {
-				entry.Source = capMetaField(remaining[1:end])
+				val = remaining[1:end]
 				remaining = strings.TrimSpace(remaining[end+1:])
+			}
+			if entry.Source != "" {
+				// Source already populated (legacy #user@origin split).
+				// Try parsing as time -- old format used @ISO8601 for timestamp.
+				if t, err := time.Parse(time.RFC3339, val); err == nil {
+					entry.Time = t
+				} else if t, err := time.Parse("2006-01-02T15:04:05Z", val); err == nil {
+					entry.Time = t
+				}
+				// If not parseable as time, discard (don't overwrite Source).
+			} else {
+				entry.Source = capMetaField(val)
 			}
 			continue
 		}

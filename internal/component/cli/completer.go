@@ -424,6 +424,7 @@ func completePipeFilter(available []Completion, tokens []string, endsWithSpace b
 		return filterCompletions([]Completion{
 			{Text: "committed", Description: "Compare with committed config", Type: "keyword"},
 			{Text: "saved", Description: "Compare with saved draft", Type: "keyword"},
+			{Text: "rollback", Description: "Compare with rollback N", Type: "keyword"},
 		}, prefix)
 	}
 

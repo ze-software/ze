@@ -214,6 +214,70 @@ func (e *Editor) SetDiffGutter(enabled bool) {
 	e.diffGutter = enabled
 }
 
+// ContentWithoutUser returns the config as it would be without the specified user's changes.
+// Clones the working tree, then reverts each leaf that the user changed to its Previous value.
+// Leaves with no Previous value (new additions by the user) are deleted.
+// Returns serialized tree content, or empty string if no metadata or no changes by that user.
+func (e *Editor) ContentWithoutUser(username string) string {
+	if e.meta == nil || e.tree == nil || e.schema == nil || !e.treeValid {
+		return ""
+	}
+
+	clone := e.tree.Clone()
+	revertUserChanges(clone, e.meta, username)
+	return config.Serialize(clone, e.schema)
+}
+
+// revertUserChanges walks the MetaTree and reverts leaves changed by the specified user.
+// MetaTree containers hold both YANG containers and list-level wrappers.
+// MetaTree lists hold individual list entry sub-trees.
+func revertUserChanges(tree *config.Tree, meta *config.MetaTree, username string) {
+	// Revert leaf entries at this level.
+	for name, entries := range meta.AllEntries() {
+		for _, entry := range entries {
+			if entry.User != username {
+				continue
+			}
+			if entry.Previous != "" {
+				tree.Set(name, entry.Previous)
+			} else {
+				tree.Delete(name)
+			}
+		}
+	}
+
+	// Recurse into containers (YANG containers and list-level wrappers).
+	for name, sub := range meta.Containers() {
+		// Try as YANG container first.
+		if child := tree.GetContainer(name); child != nil {
+			revertUserChanges(child, sub, username)
+			continue
+		}
+		// Try as list-level wrapper: meta stores list containers with list entries inside.
+		for key, entrySub := range sub.Lists() {
+			if listEntries := tree.GetList(name); listEntries != nil {
+				if entryTree := listEntries[key]; entryTree != nil {
+					revertUserChanges(entryTree, entrySub, username)
+				}
+			}
+		}
+	}
+
+	// Recurse into list entries (when traversing inside a list-level wrapper).
+	for key, sub := range meta.Lists() {
+		// At this level, the tree should already be the list-level tree,
+		// and key is the list entry identifier. This path is used when
+		// recursion enters a list container directly.
+		if listMap := tree.GetList(key); listMap != nil {
+			for entryKey, entryTree := range listMap {
+				if entrySub := sub.GetListEntry(entryKey); entrySub != nil {
+					revertUserChanges(entryTree, entrySub, username)
+				}
+			}
+		}
+	}
+}
+
 // SavedDraftContent returns the content of the saved draft file on disk.
 // Returns empty string if no draft exists.
 func (e *Editor) SavedDraftContent() string {
