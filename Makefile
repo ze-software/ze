@@ -3,7 +3,7 @@
 .PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-all ze-all-test
-.PHONY: ze-interop-test
+.PHONY: ze-interop-test ze-live-test ze-live-rpki-test
 .PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-validate-commands ze-validate-commands-json ze-doc-drift
 .PHONY: check
@@ -283,6 +283,17 @@ ze-interop-test:
 	@echo "Running interop tests (requires Docker)..."
 	@python3 test/interop/run.py $(INTEROP_SCENARIO)
 
+# ─── Live tests ────────────────────────────────────────────────────────────
+
+# Run all live integration tests (requires Docker + internet).
+# Tests connect to real external infrastructure (e.g., RPKI cache servers).
+ze-live-test: ze-live-rpki-test
+
+# Run RPKI live test (stayrtr container with real-world RPKI data).
+ze-live-rpki-test:
+	@echo "Running RPKI live test (requires Docker + internet)..."
+	$(GO) test -v -tags live -timeout 180s -count=1 ./internal/component/bgp/plugins/rpki/... -run TestLive
+
 # ─── Performance benchmarks ────────────────────────────────────────────────
 
 # Build ze-perf binary
@@ -418,6 +429,10 @@ help:
 	@echo "  Interop tests (Docker):"
 	@echo "  ze-interop-test          - Run interop tests against FRR and BIRD"
 	@echo "                             INTEROP_SCENARIO=name to run one scenario"
+	@echo ""
+	@echo "  Live tests (Docker + internet):"
+	@echo "  ze-live-test             - Run all live integration tests"
+	@echo "  ze-live-rpki-test        - Run RPKI live test (stayrtr + real data)"
 	@echo ""
 	@echo "  Performance benchmarks (Docker):"
 	@echo "  ze-perf            - Build ze-perf binary"

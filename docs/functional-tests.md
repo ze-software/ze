@@ -801,4 +801,39 @@ Editor tests (`test/editor/`) verify the interactive TUI editor and CLI using he
 
 ---
 
-**Updated:** 2026-03-25
+## Live Tests (Docker + Internet)
+
+Live tests run against real external infrastructure inside Docker containers.
+They are **not** part of `make ze-verify` and require both Docker and internet access.
+
+<!-- source: internal/component/bgp/plugins/rpki/rpki_live_test.go -- TestLiveRPKIValidation -->
+
+```bash
+make ze-live-test    # Run all live tests
+```
+
+### Build Tag
+
+Live tests use `//go:build live`. They are excluded from all normal test targets
+(`ze-unit-test`, `ze-functional-test`, `ze-verify`). The `ze-live-test` make target
+passes `-tags live` to include them.
+
+### RPKI Live Test
+
+Starts a [stayrtr](https://github.com/bgp/stayrtr) container that fetches real-world
+RPKI data, connects ze's RTR client, and validates known prefixes:
+
+| Prefix | Origin AS | Expected | Owner |
+|--------|-----------|----------|-------|
+| `1.1.1.0/24` | 13335 | Valid | Cloudflare DNS |
+| `8.8.8.0/24` | 15169 | Valid | Google DNS |
+| `82.212.0.0/16` | 64496 | NotFound | No ROA coverage |
+| `1.1.1.0/24` | 64496 | Invalid | Wrong origin for covered prefix |
+
+**Requirements:** Docker, internet access (fetches ~5 MB rpki.json from Cloudflare).
+**Timeout:** 180s (includes image pull, data fetch, RTR sync).
+**Skip behavior:** Test skips gracefully if Docker is unavailable or image cannot be pulled.
+
+---
+
+**Updated:** 2026-03-26
