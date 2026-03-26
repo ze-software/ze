@@ -7,38 +7,40 @@ Implement the selected spec end-to-end with built-in review loops.
 | Stage | Spec Section(s) Consumed |
 |-------|--------------------------|
 | 1. Read spec | Entire spec |
-| 2. Audit | Files to Modify, Files to Create, TDD Test Plan |
-| 3. Implement | Implementation Phases, TDD Test Plan, Acceptance Criteria |
-| 4. Verify | (make targets) |
-| 5. Critical review | **Critical Review Checklist** (feature-specific checks) |
-| 9. Deliverables review | **Deliverables Checklist** (verification methods per deliverable) |
-| 10. Security review | **Security Review Checklist** (feature-specific concerns) |
-| 12. Documentation review | **Documentation Update Checklist** (per-category doc updates) |
+| 2. Update status | Spec metadata |
+| 3. Audit | Files to Modify, Files to Create, TDD Test Plan |
+| 4. Implement | Implementation Phases, TDD Test Plan, Acceptance Criteria |
+| 5. Verify | (make targets) |
+| 6. Critical review | **Critical Review Checklist** (feature-specific checks) |
+| 10. Deliverables review | **Deliverables Checklist** (verification methods per deliverable) |
+| 11. Security review | **Security Review Checklist** (feature-specific concerns) |
+| 13. Documentation review | **Documentation Update Checklist** (per-category doc updates) |
 
 ## Steps
 
 1. **Read the spec:** Read `.claude/selected-spec`, then read `plan/<spec-name>`
-2. **Audit first:** Run `/spec-audit` logic. Check Files to Modify, Files to Create, and TDD Test Plan against the codebase. Identify what's already implemented, partially done, or missing. Do not redo existing work.
-3. **Implement:** Follow the spec's **Implementation Phases** section in order. For each phase:
+2. **Update spec status:** Set `Status` to `in-progress` and `Updated` to today's date immediately. This signals to other sessions that work has started.
+3. **Audit first:** Run `/spec-audit` logic. Check Files to Modify, Files to Create, and TDD Test Plan against the codebase. Identify what's already implemented, partially done, or missing. Do not redo existing work.
+4. **Implement:** Follow the spec's **Implementation Phases** section in order. For each phase:
    - Write the tests listed for that phase (TDD -- test must fail before implementation)
    - Implement minimal code to pass
    - Run `make ze-unit-test` until green
    - Move to next phase
-4. **Run full verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
-5. **Critical review:** Use the spec's **Critical Review Checklist** table. For each row:
+5. **Run full verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
+6. **Critical review:** Use the spec's **Critical Review Checklist** table. For each row:
    - Verify the "What to verify" column against the actual implementation
    - Document pass/fail for each check
    - Also apply generic checks from `rules/quality.md` (Correctness, Simplicity, Consistency, Completeness, Quality, Tests)
    - Do NOT agree with the spec blindly -- challenge architectural assumptions
-6. **Fix every issue found** in the review
-7. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
-8. **Repeat steps 5-7** until the review finds zero issues and all tests pass. Maximum 2 review passes.
-9. **Deliverables review:** Use the spec's **Deliverables Checklist** table. For each row:
-   - Run the verification method specified in the table
-   - Paste evidence (grep output, test output, ls output)
-   - If anything is missing or incomplete, go back to step 3 and implement it
-   - Also re-read Acceptance Criteria -- verify each AC-N with file:line evidence
-10. **Security review:** Use the spec's **Security Review Checklist** table as the starting point. For each row:
+7. **Fix every issue found** in the review
+8. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
+9. **Repeat steps 6-8** until the review finds zero issues and all tests pass. Maximum 2 review passes.
+10. **Deliverables review:** Use the spec's **Deliverables Checklist** table. For each row:
+    - Run the verification method specified in the table
+    - Paste evidence (grep output, test output, ls output)
+    - If anything is missing or incomplete, go back to step 4 and implement it
+    - Also re-read Acceptance Criteria -- verify each AC-N with file:line evidence
+11. **Security review:** Use the spec's **Security Review Checklist** table as the starting point. For each row:
     - Check the specific concern described
     - Also apply generic security checks:
       - Injection flaws (command injection, SQL injection, format string)
@@ -52,14 +54,14 @@ Implement the selected spec end-to-end with built-in review loops.
       - Information leakage (error messages exposing internals, sensitive data in logs)
       - Any OWASP Top 10 relevant to the code's context
     - Fix every issue found. If a fix requires design changes, present to user before proceeding.
-11. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
-12. **Documentation review (BLOCKING):** Use the spec's **Documentation Update Checklist** table. For each row:
+12. **Re-run verification:** `make ze-lint && make ze-unit-test && make ze-functional-test`
+13. **Documentation review (BLOCKING):** Use the spec's **Documentation Update Checklist** table. For each row:
     - Answer Yes or No. Every Yes MUST name the file and describe the update needed.
     - Do NOT say "update the docs." Name the specific file, the specific section, and what to add.
     - Categories: feature list, user guide, config syntax, CLI reference, API/RPC docs, plugin SDK, wire format, RFC compliance, comparison table, test infrastructure, architecture design.
     - If the spec has no Documentation Update Checklist, use `rules/planning.md` "Documentation Update Checklist" as the reference and fill it for the spec.
     - Write the doc updates. Include them in the commit.
-13. **Present summary:** List all changes made (files modified/created, tests added, docs updated, issues found and fixed). Ask user to commit.
+14. **Present summary:** List all changes made (files modified/created, tests added, docs updated, issues found and fixed). Ask user to commit.
 
 ## Rules
 
