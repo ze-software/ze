@@ -299,6 +299,9 @@ External processes receive BGP events and send commands:
 | `ze show <command>` | Read-only daemon commands |
 | `ze run <command>` | All daemon commands |
 
+**Commit confirmed:** The editor supports `commit confirmed <seconds>` for safe remote changes. The config is applied immediately but auto-reverts if `confirm` is not issued within the timeout window (1-3600 seconds). Use `abort` to revert manually. Modeled after Junos/VyOS commit confirmed.
+<!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed -->
+
 **Command history persistence:** Both `ze config edit` and `ze cli` persist command history to the zefs blob store. History survives application restarts, is stored per-mode (edit vs command) and per-user, with consecutive dedup and a configurable rolling window (default 100, max 10000). Graceful degradation when no blob store is available (in-memory only).
 <!-- source: internal/component/cli/history.go -- History type -->
 

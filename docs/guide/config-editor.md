@@ -22,6 +22,9 @@ The editor starts an ephemeral ze instance in the background for live YANG valid
 | `show <path>` | Display a specific section |
 | `diff` | Show uncommitted changes |
 | `commit` | Save changes and notify daemon |
+| `commit confirmed <N>` | Commit with N-second auto-revert window (1-3600) |
+| `confirm` | Make a pending confirmed commit permanent |
+| `abort` | Roll back a pending confirmed commit immediately |
 | `rollback <N>` | Restore revision N |
 | `top` | Navigate to config root |
 | `up` | Navigate up one level |
@@ -52,6 +55,21 @@ Tab completion is driven by registered YANG schemas. The editor suggests:
 - Valid config keys at the current level
 - Enum values for leaf nodes
 - Address family names from registered plugins
+
+## Commit Confirmed
+
+`commit confirmed <seconds>` writes the configuration and notifies the daemon, but starts a countdown timer. If `confirm` is not issued before the timer expires, the configuration automatically reverts to the previous version. This prevents lockouts when making changes remotely -- if a bad config breaks connectivity, the auto-revert restores access.
+<!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed, handleConfirmCountdown, rollbackConfirmed -->
+
+| Step | What happens |
+|------|-------------|
+| `commit confirmed 60` | Config saved, daemon notified, 60-second timer starts |
+| Verify the change works | BGP sessions come up, routes propagate, etc. |
+| `confirm` | Timer stops, config is permanent |
+| *or* `abort` | Config reverts immediately |
+| *or* timer expires | Config reverts automatically |
+
+The seconds parameter accepts values from 1 to 3600 (one hour).
 
 ## Rollback
 
