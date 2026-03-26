@@ -100,6 +100,11 @@ func (o *Orchestrator) Start(ctx context.Context) error {
 		return err
 	}
 
+	// Freeze registries for lock-free dispatch.
+	// All registrations are complete; no writers after this point.
+	o.registry.Freeze()
+	o.subsystems.Freeze()
+
 	return nil
 }
 

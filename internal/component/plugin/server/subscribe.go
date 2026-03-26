@@ -13,6 +13,12 @@ import (
 
 // Subscribe/unsubscribe handlers are in component/cmd/subscribe/subscribe.go.
 
+// Command keywords for subscription parsing.
+const (
+	kwPeer      = "peer"
+	kwDirection = "direction"
+)
+
 // Subscription represents an event subscription.
 type Subscription struct {
 	Namespace    string      // "bgp" or "rib"
@@ -175,7 +181,7 @@ func ParseSubscription(args []string) (*Subscription, error) {
 	i := 0
 
 	// Optional peer/plugin filter
-	if len(args) > i && args[i] == "peer" {
+	if len(args) > i && args[i] == kwPeer {
 		if len(args) < i+2 {
 			return nil, fmt.Errorf("missing peer selector")
 		}
@@ -222,7 +228,7 @@ func ParseSubscription(args []string) (*Subscription, error) {
 	i++
 
 	// Optional direction
-	if len(args) > i && args[i] == "direction" {
+	if len(args) > i && args[i] == kwDirection {
 		if len(args) <= i+1 {
 			return nil, fmt.Errorf("missing direction value")
 		}

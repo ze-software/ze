@@ -347,3 +347,102 @@ func TestDispatcherSubsystemIntegration(t *testing.T) {
 		assert.Contains(t, data, "pong")
 	}
 }
+
+// TestSubsystemManagerFreeze verifies Freeze creates a snapshot and Get/FindHandler use it.
+//
+// VALIDATES: AC-2 -- After Freeze(), Get and FindHandler use atomic.Load on frozen snapshot.
+// PREVENTS: Post-startup RLock overhead on the dispatch hot path.
+func TestSubsystemManagerFreeze(t *testing.T) {
+	manager := NewSubsystemManager()
+
+	handler := &SubsystemHandler{config: SubsystemConfig{Name: "bgp"}, commands: []string{"bgp show"}}
+	manager.mu.Lock()
+	manager.handlers["bgp"] = handler
+	manager.mu.Unlock()
+
+	manager.Freeze()
+
+	// Get must work after freeze
+	got := manager.Get("bgp")
+	assert.Equal(t, handler, got)
+
+	// FindHandler must work after freeze
+	found := manager.FindHandler("bgp show peers")
+	assert.Equal(t, handler, found)
+
+	// Unknown returns nil
+	assert.Nil(t, manager.Get("unknown"))
+	assert.Nil(t, manager.FindHandler("unknown command"))
+}
+
+// TestSubsystemManagerPreFreezeFallback verifies Get works before Freeze.
+//
+// VALIDATES: AC-3 equivalent for SubsystemManager -- Get falls back to RLock path before Freeze.
+// PREVENTS: Crash if Get called during startup before Freeze.
+func TestSubsystemManagerPreFreezeFallback(t *testing.T) {
+	manager := NewSubsystemManager()
+
+	handler := &SubsystemHandler{config: SubsystemConfig{Name: "bgp"}}
+	manager.mu.Lock()
+	manager.handlers["bgp"] = handler
+	manager.mu.Unlock()
+
+	// No Freeze() called -- must still work via RLock path
+	got := manager.Get("bgp")
+	assert.Equal(t, handler, got)
+}
+
+// TestSubsystemManagerUnregisterAfterFreeze verifies Unregister publishes a new snapshot.
+//
+// VALIDATES: AC-4, AC-5 -- Unregister updates mutable map AND publishes new frozen snapshot.
+// PREVENTS: Stale frozen snapshot after plugin crash/shutdown.
+func TestSubsystemManagerUnregisterAfterFreeze(t *testing.T) {
+	manager := NewSubsystemManager()
+
+	bgp := &SubsystemHandler{config: SubsystemConfig{Name: "bgp"}}
+	rib := &SubsystemHandler{config: SubsystemConfig{Name: "rib"}}
+	manager.mu.Lock()
+	manager.handlers["bgp"] = bgp
+	manager.handlers["rib"] = rib
+	manager.mu.Unlock()
+
+	manager.Freeze()
+
+	// Both visible after freeze
+	assert.NotNil(t, manager.Get("bgp"))
+	assert.NotNil(t, manager.Get("rib"))
+
+	// Unregister bgp -- must publish new snapshot
+	manager.Unregister("bgp")
+
+	// bgp gone, rib still present
+	assert.Nil(t, manager.Get("bgp"))
+	assert.NotNil(t, manager.Get("rib"))
+}
+
+// TestSubsystemManagerConcurrentGet verifies race safety after Freeze.
+//
+// VALIDATES: AC-6 equivalent for SubsystemManager -- concurrent Get calls are race-safe.
+// PREVENTS: Race conditions on the frozen dispatch hot path.
+func TestSubsystemManagerConcurrentGet(t *testing.T) {
+	manager := NewSubsystemManager()
+
+	handler := &SubsystemHandler{config: SubsystemConfig{Name: "bgp"}}
+	manager.mu.Lock()
+	manager.handlers["bgp"] = handler
+	manager.mu.Unlock()
+
+	manager.Freeze()
+
+	done := make(chan bool, 100)
+	for range 100 {
+		go func() {
+			got := manager.Get("bgp")
+			assert.Equal(t, handler, got)
+			done <- true
+		}()
+	}
+	for range 100 {
+		<-done
+	}
+}

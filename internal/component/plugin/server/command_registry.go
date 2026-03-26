@@ -4,13 +4,22 @@ package server
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
+
+// frozenCommands holds an immutable snapshot of the CommandRegistry's command
+// map. Created by Freeze() after startup, used by Lookup() on the hot path
+// to avoid RLock.
+type frozenCommands struct {
+	commands map[string]*RegisteredCommand
+}
 
 // validateCommandName checks that a command name contains only safe characters.
 // Prevents command shadowing via prefix matching with special characters.
@@ -74,6 +83,10 @@ type CommandRegistry struct {
 	mu       sync.RWMutex
 	commands map[string]*RegisteredCommand // lowercase name → registration
 	builtins map[string]bool               // lowercase builtin names (cannot be shadowed)
+
+	// frozen holds an immutable snapshot for lock-free Lookup after startup.
+	// nil before Freeze() is called.
+	frozen atomic.Pointer[frozenCommands]
 }
 
 // NewCommandRegistry creates a new command registry.
@@ -151,6 +164,7 @@ func (r *CommandRegistry) Register(proc *process.Process, defs []CommandDef) []R
 // Unregister removes commands owned by the process.
 // Only the owning process can unregister a command.
 // Unknown commands are silently ignored.
+// If frozen, publishes a new snapshot reflecting the removal.
 func (r *CommandRegistry) Unregister(proc *process.Process, names []string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -161,10 +175,13 @@ func (r *CommandRegistry) Unregister(proc *process.Process, names []string) {
 			delete(r.commands, key)
 		}
 	}
+
+	r.republishFrozen()
 }
 
 // UnregisterAll removes all commands owned by the process.
 // Called when a process dies.
+// If frozen, publishes a new snapshot reflecting the removal.
 func (r *CommandRegistry) UnregisterAll(proc *process.Process) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -174,10 +191,45 @@ func (r *CommandRegistry) UnregisterAll(proc *process.Process) {
 			delete(r.commands, key)
 		}
 	}
+
+	r.republishFrozen()
+}
+
+// republishFrozen rebuilds and stores a new frozen snapshot from the current
+// mutable map. Must be called under r.mu.Lock. No-op if Freeze was never called.
+func (r *CommandRegistry) republishFrozen() {
+	if r.frozen.Load() == nil {
+		return
+	}
+	snap := &frozenCommands{
+		commands: make(map[string]*RegisteredCommand, len(r.commands)),
+	}
+	maps.Copy(snap.commands, r.commands)
+	r.frozen.Store(snap)
+}
+
+// Freeze creates an immutable snapshot of the commands map.
+// After Freeze(), Lookup uses atomic.Load instead of RLock.
+// MUST be called after all Register calls complete (after startup barrier).
+// Safe to call multiple times (each call overwrites the previous snapshot).
+func (r *CommandRegistry) Freeze() {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	snap := &frozenCommands{
+		commands: make(map[string]*RegisteredCommand, len(r.commands)),
+	}
+	maps.Copy(snap.commands, r.commands)
+
+	r.frozen.Store(snap)
 }
 
 // Lookup finds a command by exact name (case-insensitive).
+// After Freeze(), uses lock-free atomic.Load on the frozen snapshot.
 func (r *CommandRegistry) Lookup(name string) *RegisteredCommand {
+	if snap := r.frozen.Load(); snap != nil {
+		return snap.commands[strings.ToLower(name)]
+	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return r.commands[strings.ToLower(name)]

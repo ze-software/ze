@@ -512,3 +512,136 @@ func TestSchemaRegistry_RegisterNotifications_Duplicate(t *testing.T) {
 	assert.Error(t, err)
 	assert.ErrorIs(t, err, ErrNotificationDuplicate)
 }
+
+// TestSchemaRegistryFreeze verifies that Freeze creates a snapshot and FindHandler uses it.
+//
+// VALIDATES: AC-1 -- After Freeze(), FindHandler uses atomic.Load on frozen snapshot.
+// PREVENTS: Post-startup RLock overhead on the dispatch hot path.
+func TestSchemaRegistryFreeze(t *testing.T) {
+	reg := NewSchemaRegistry()
+
+	bgpSchema := &Schema{Module: "ze-bgp", Handlers: []string{"bgp", "bgp.peer"}, Plugin: "bgp-plugin"}
+	require.NoError(t, reg.Register(bgpSchema))
+
+	reg.Freeze()
+
+	// FindHandler must still work after freeze
+	schema, match := reg.FindHandler("bgp.peer.timers")
+	require.NotNil(t, schema)
+	assert.Equal(t, "ze-bgp", schema.Module)
+	assert.Equal(t, "bgp.peer", match)
+
+	// Exact match
+	schema, match = reg.FindHandler("bgp")
+	require.NotNil(t, schema)
+	assert.Equal(t, "ze-bgp", schema.Module)
+	assert.Equal(t, "bgp", match)
+
+	// No match
+	schema, _ = reg.FindHandler("rib")
+	assert.Nil(t, schema)
+}
+
+// TestSchemaRegistryFreezeConsistency verifies frozen snapshot matches pre-freeze state.
+//
+// VALIDATES: AC-9 -- Frozen snapshot content matches pre-freeze mutable map exactly.
+// PREVENTS: Data loss or corruption during snapshot creation.
+func TestSchemaRegistryFreezeConsistency(t *testing.T) {
+	reg := NewSchemaRegistry()
+
+	schemas := []*Schema{
+		{Module: "ze-bgp", Handlers: []string{"bgp", "bgp.peer"}, Plugin: "bgp"},
+		{Module: "ze-rib", Handlers: []string{"rib"}, Plugin: "rib"},
+	}
+	for _, s := range schemas {
+		require.NoError(t, reg.Register(s))
+	}
+
+	// Capture pre-freeze results
+	preBGP, preBGPMatch := reg.FindHandler("bgp.peer")
+	preRIB, preRIBMatch := reg.FindHandler("rib")
+
+	reg.Freeze()
+
+	// Post-freeze results must match
+	postBGP, postBGPMatch := reg.FindHandler("bgp.peer")
+	postRIB, postRIBMatch := reg.FindHandler("rib")
+
+	assert.Equal(t, preBGP, postBGP)
+	assert.Equal(t, preBGPMatch, postBGPMatch)
+	assert.Equal(t, preRIB, postRIB)
+	assert.Equal(t, preRIBMatch, postRIBMatch)
+}
+
+// TestSchemaRegistryPreFreezeFallback verifies FindHandler works before Freeze.
+//
+// VALIDATES: AC-3 -- FindHandler falls back to RLock path before Freeze.
+// PREVENTS: Crash or wrong result if FindHandler called during startup.
+func TestSchemaRegistryPreFreezeFallback(t *testing.T) {
+	reg := NewSchemaRegistry()
+
+	require.NoError(t, reg.Register(&Schema{Module: "ze-bgp", Handlers: []string{"bgp"}, Plugin: "bgp"}))
+
+	// No Freeze() called -- must still work via RLock path
+	schema, match := reg.FindHandler("bgp")
+	require.NotNil(t, schema)
+	assert.Equal(t, "ze-bgp", schema.Module)
+	assert.Equal(t, "bgp", match)
+}
+
+// TestSchemaRegistryFreezeIdempotent verifies calling Freeze twice is safe.
+//
+// VALIDATES: Calling Freeze() twice overwrites the first snapshot safely.
+// PREVENTS: Panic or corruption on double-freeze.
+func TestSchemaRegistryFreezeIdempotent(t *testing.T) {
+	reg := NewSchemaRegistry()
+
+	require.NoError(t, reg.Register(&Schema{Module: "ze-bgp", Handlers: []string{"bgp"}, Plugin: "bgp"}))
+
+	reg.Freeze()
+	reg.Freeze() // Second freeze must not panic
+
+	schema, match := reg.FindHandler("bgp")
+	require.NotNil(t, schema)
+	assert.Equal(t, "ze-bgp", schema.Module)
+	assert.Equal(t, "bgp", match)
+}
+
+// TestSchemaRegistryConcurrentFindHandler verifies race safety after Freeze.
+//
+// VALIDATES: AC-6 -- 100 concurrent FindHandler calls after Freeze are race-safe.
+// PREVENTS: Race conditions on the frozen dispatch hot path.
+func TestSchemaRegistryConcurrentFindHandler(t *testing.T) {
+	reg := NewSchemaRegistry()
+
+	require.NoError(t, reg.Register(&Schema{Module: "ze-bgp", Handlers: []string{"bgp", "bgp.peer"}, Plugin: "bgp"}))
+	reg.Freeze()
+
+	done := make(chan bool, 100)
+	for range 100 {
+		go func() {
+			schema, match := reg.FindHandler("bgp.peer.timers")
+			assert.NotNil(t, schema)
+			assert.Equal(t, "bgp.peer", match)
+			done <- true
+		}()
+	}
+	for range 100 {
+		<-done
+	}
+}
+
+// TestSchemaRegistryFindHandlerPredicatesAfterFreeze verifies predicate stripping works with frozen path.
+//
+// VALIDATES: AC-1 -- Predicate stripping in FindHandler works with frozen snapshot.
+// PREVENTS: Predicate-containing paths failing to match after freeze.
+func TestSchemaRegistryFindHandlerPredicatesAfterFreeze(t *testing.T) {
+	reg := NewSchemaRegistry()
+
+	require.NoError(t, reg.Register(&Schema{Module: "ze-bgp", Handlers: []string{"bgp", "bgp.peer"}, Plugin: "bgp"}))
+	reg.Freeze()
+
+	schema, match := reg.FindHandler("bgp.peer[address=192.0.2.1].timers")
+	require.NotNil(t, schema)
+	assert.Equal(t, "bgp.peer", match)
+}

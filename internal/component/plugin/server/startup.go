@@ -181,8 +181,19 @@ func (s *Server) runPluginStartup() {
 	s.signalStartupComplete()
 }
 
-// signalStartupComplete notifies reactor that plugin startup is done.
+// signalStartupComplete freezes registries for lock-free dispatch and
+// notifies reactor that plugin startup is done.
 func (s *Server) signalStartupComplete() {
+	// Freeze registries: all registrations are complete, no writers after this point.
+	if s.dispatcher != nil {
+		if sm := s.dispatcher.Subsystems(); sm != nil {
+			sm.Freeze()
+		}
+		if cr := s.dispatcher.Registry(); cr != nil {
+			cr.Freeze()
+		}
+	}
+
 	if s.reactor != nil {
 		s.reactor.SignalPluginStartupComplete()
 	}

@@ -7,15 +7,24 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
+
+// frozenSubsystems holds an immutable snapshot of the SubsystemManager's handler
+// map. Created by Freeze() after startup, used by Get() and FindHandler()
+// on the hot path to avoid RLock.
+type frozenSubsystems struct {
+	handlers map[string]*SubsystemHandler
+}
 
 // ErrSubsystemNotRunning is returned when a command targets a non-running subsystem.
 var ErrSubsystemNotRunning = errors.New("subsystem not running")
@@ -258,7 +267,12 @@ func (h *SubsystemHandler) Handle(ctx context.Context, command string) (*plugin.
 // SubsystemManager manages multiple subsystem handlers.
 type SubsystemManager struct {
 	handlers map[string]*SubsystemHandler
-	mu       sync.RWMutex
+
+	// frozen holds an immutable snapshot for lock-free Get/FindHandler after startup.
+	// nil before Freeze() is called.
+	frozen atomic.Pointer[frozenSubsystems]
+
+	mu sync.RWMutex
 }
 
 // NewSubsystemManager creates a new subsystem manager.
@@ -304,8 +318,28 @@ func (m *SubsystemManager) StopAll() {
 	}
 }
 
+// Freeze creates an immutable snapshot of the handler map.
+// After Freeze(), Get and FindHandler use atomic.Load instead of RLock.
+// MUST be called after all Register calls complete (after startup barrier).
+// Safe to call multiple times (each call overwrites the previous snapshot).
+func (m *SubsystemManager) Freeze() {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	snap := &frozenSubsystems{
+		handlers: make(map[string]*SubsystemHandler, len(m.handlers)),
+	}
+	maps.Copy(snap.handlers, m.handlers)
+
+	m.frozen.Store(snap)
+}
+
 // Get returns a subsystem handler by name.
+// After Freeze(), uses lock-free atomic.Load on the frozen snapshot.
 func (m *SubsystemManager) Get(name string) *SubsystemHandler {
+	if snap := m.frozen.Load(); snap != nil {
+		return snap.handlers[name]
+	}
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.handlers[name]
@@ -313,6 +347,7 @@ func (m *SubsystemManager) Get(name string) *SubsystemHandler {
 
 // Unregister stops and removes a subsystem by name.
 // No-op if the name is not registered.
+// If frozen, publishes a new snapshot reflecting the removal.
 func (m *SubsystemManager) Unregister(name string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -323,6 +358,15 @@ func (m *SubsystemManager) Unregister(name string) {
 	}
 	handler.Stop()
 	delete(m.handlers, name)
+
+	// If frozen, publish new snapshot reflecting the removal.
+	if m.frozen.Load() != nil {
+		snap := &frozenSubsystems{
+			handlers: make(map[string]*SubsystemHandler, len(m.handlers)),
+		}
+		maps.Copy(snap.handlers, m.handlers)
+		m.frozen.Store(snap)
+	}
 }
 
 // Names returns the names of all registered subsystems.
@@ -338,12 +382,20 @@ func (m *SubsystemManager) Names() []string {
 }
 
 // FindHandler returns the handler for a given command, or nil if not found.
+// After Freeze(), uses lock-free atomic.Load on the frozen snapshot.
 func (m *SubsystemManager) FindHandler(command string) *SubsystemHandler {
+	if snap := m.frozen.Load(); snap != nil {
+		return findHandlerByCommand(snap.handlers, command)
+	}
 	m.mu.RLock()
 	defer m.mu.RUnlock()
+	return findHandlerByCommand(m.handlers, command)
+}
 
+// findHandlerByCommand performs command prefix match on a handler map.
+func findHandlerByCommand(handlers map[string]*SubsystemHandler, command string) *SubsystemHandler {
 	lowerCmd := strings.ToLower(command)
-	for _, handler := range m.handlers {
+	for _, handler := range handlers {
 		for _, cmd := range handler.Commands() {
 			if strings.HasPrefix(lowerCmd, strings.ToLower(cmd)) {
 				return handler
@@ -358,15 +410,18 @@ func (m *SubsystemManager) AllCommands() []string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	// Count total commands for preallocation
+	// Collect per-handler command slices first (thread-safe via handler.Commands()).
+	perHandler := make([][]string, 0, len(m.handlers))
 	total := 0
 	for _, handler := range m.handlers {
-		total += len(handler.commands)
+		cmds := handler.Commands()
+		perHandler = append(perHandler, cmds)
+		total += len(cmds)
 	}
 
 	commands := make([]string, 0, total)
-	for _, handler := range m.handlers {
-		commands = append(commands, handler.Commands()...)
+	for _, cmds := range perHandler {
+		commands = append(commands, cmds...)
 	}
 	return commands
 }

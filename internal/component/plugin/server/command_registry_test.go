@@ -4,6 +4,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
@@ -249,4 +251,132 @@ func TestCommandRegistry_Completable(t *testing.T) {
 	if cmd.Completable {
 		t.Error("myapp reload should not be completable")
 	}
+}
+
+// TestCommandRegistryFreeze verifies Freeze creates a snapshot and Lookup uses it.
+//
+// VALIDATES: AC-10 -- After Freeze(), Lookup uses atomic.Load on frozen snapshot.
+// PREVENTS: Post-startup RLock overhead on the dispatch hot path.
+func TestCommandRegistryFreeze(t *testing.T) {
+	registry := NewCommandRegistry()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
+
+	registry.Register(proc, []CommandDef{
+		{Name: "myapp status", Description: "Show status"},
+		{Name: "myapp reload", Description: "Reload config"},
+	})
+
+	registry.Freeze()
+
+	// Lookup must work after freeze
+	cmd := registry.Lookup("myapp status")
+	assert.NotNil(t, cmd)
+	assert.Equal(t, "myapp status", cmd.Name)
+
+	cmd = registry.Lookup("myapp reload")
+	assert.NotNil(t, cmd)
+	assert.Equal(t, "myapp reload", cmd.Name)
+
+	// Unknown returns nil
+	assert.Nil(t, registry.Lookup("unknown"))
+}
+
+// TestCommandRegistryPreFreezeFallback verifies Lookup works before Freeze.
+//
+// VALIDATES: AC-11 -- Lookup falls back to RLock path before Freeze.
+// PREVENTS: Crash if Lookup called during startup before Freeze.
+func TestCommandRegistryPreFreezeFallback(t *testing.T) {
+	registry := NewCommandRegistry()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
+
+	registry.Register(proc, []CommandDef{
+		{Name: "myapp status", Description: "Show status"},
+	})
+
+	// No Freeze() called -- must still work via RLock path
+	cmd := registry.Lookup("myapp status")
+	assert.NotNil(t, cmd)
+	assert.Equal(t, "myapp status", cmd.Name)
+}
+
+// TestCommandRegistryConcurrentLookup verifies race safety after Freeze.
+//
+// VALIDATES: AC-12 -- 100 concurrent Lookup calls after Freeze are race-safe.
+// PREVENTS: Race conditions on the frozen dispatch hot path.
+func TestCommandRegistryConcurrentLookup(t *testing.T) {
+	registry := NewCommandRegistry()
+	proc := process.NewProcess(plugin.PluginConfig{Name: "test-proc"})
+
+	registry.Register(proc, []CommandDef{
+		{Name: "myapp status", Description: "Show status"},
+	})
+
+	registry.Freeze()
+
+	done := make(chan bool, 100)
+	for range 100 {
+		go func() {
+			cmd := registry.Lookup("myapp status")
+			assert.NotNil(t, cmd)
+			assert.Equal(t, "myapp status", cmd.Name)
+			done <- true
+		}()
+	}
+	for range 100 {
+		<-done
+	}
+}
+
+// TestCommandRegistryUnregisterAfterFreeze verifies Unregister republishes frozen snapshot.
+//
+// VALIDATES: Unregister after Freeze publishes new snapshot; Lookup reflects removal.
+// PREVENTS: Stale frozen snapshot serving dead-process commands after plugin crash.
+func TestCommandRegistryUnregisterAfterFreeze(t *testing.T) {
+	registry := NewCommandRegistry()
+	proc1 := process.NewProcess(plugin.PluginConfig{Name: "proc1"})
+	proc2 := process.NewProcess(plugin.PluginConfig{Name: "proc2"})
+
+	registry.Register(proc1, []CommandDef{{Name: "cmd-a"}})
+	registry.Register(proc2, []CommandDef{{Name: "cmd-b"}})
+
+	registry.Freeze()
+
+	// Both visible after freeze
+	assert.NotNil(t, registry.Lookup("cmd-a"))
+	assert.NotNil(t, registry.Lookup("cmd-b"))
+
+	// Unregister proc1's commands
+	registry.Unregister(proc1, []string{"cmd-a"})
+
+	// cmd-a gone, cmd-b still present
+	assert.Nil(t, registry.Lookup("cmd-a"))
+	assert.NotNil(t, registry.Lookup("cmd-b"))
+}
+
+// TestCommandRegistryUnregisterAllAfterFreeze verifies UnregisterAll republishes frozen snapshot.
+//
+// VALIDATES: UnregisterAll after Freeze publishes new snapshot; Lookup reflects removal.
+// PREVENTS: Stale frozen snapshot after process death cleanup.
+func TestCommandRegistryUnregisterAllAfterFreeze(t *testing.T) {
+	registry := NewCommandRegistry()
+	proc1 := process.NewProcess(plugin.PluginConfig{Name: "proc1"})
+	proc2 := process.NewProcess(plugin.PluginConfig{Name: "proc2"})
+
+	registry.Register(proc1, []CommandDef{{Name: "cmd-a"}, {Name: "cmd-c"}})
+	registry.Register(proc2, []CommandDef{{Name: "cmd-b"}})
+
+	registry.Freeze()
+
+	// All visible
+	assert.NotNil(t, registry.Lookup("cmd-a"))
+	assert.NotNil(t, registry.Lookup("cmd-b"))
+	assert.NotNil(t, registry.Lookup("cmd-c"))
+
+	// Kill proc1 -- UnregisterAll
+	registry.UnregisterAll(proc1)
+
+	// proc1 commands gone, proc2 commands remain
+	assert.Nil(t, registry.Lookup("cmd-a"))
+	assert.Nil(t, registry.Lookup("cmd-c"))
+	assert.NotNil(t, registry.Lookup("cmd-b"))
 }

@@ -8,10 +8,19 @@ import (
 	"maps"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/core/ipc"
 )
+
+// frozenSchema holds an immutable snapshot of the SchemaRegistry's handler
+// and module maps. Created by Freeze() after startup, used by FindHandler()
+// on the hot path to avoid RLock.
+type frozenSchema struct {
+	handlers map[string]string
+	modules  map[string]*Schema
+}
 
 // Schema represents a YANG schema registered by a plugin.
 type Schema struct {
@@ -62,6 +71,10 @@ type SchemaRegistry struct {
 
 	// Notifications indexed by wire method
 	notifications map[string]*RegisteredNotification
+
+	// frozen holds an immutable snapshot for lock-free FindHandler after startup.
+	// nil before Freeze() is called.
+	frozen atomic.Pointer[frozenSchema]
 
 	mu sync.RWMutex
 }
@@ -263,28 +276,59 @@ func (r *SchemaRegistry) GetByHandler(path string) (*Schema, error) {
 	return r.modules[moduleName], nil
 }
 
+// Freeze creates an immutable snapshot of the handler and module maps.
+// After Freeze(), FindHandler uses atomic.Load instead of RLock.
+// MUST be called after all Register calls complete (after startup barrier).
+// Safe to call multiple times (each call overwrites the previous snapshot).
+func (r *SchemaRegistry) Freeze() {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	snap := &frozenSchema{
+		handlers: make(map[string]string, len(r.handlers)),
+		modules:  make(map[string]*Schema, len(r.modules)),
+	}
+	maps.Copy(snap.handlers, r.handlers)
+	maps.Copy(snap.modules, r.modules)
+
+	r.frozen.Store(snap)
+}
+
 // FindHandler returns the schema for a handler path using longest prefix match.
 // For example, if "bgp" and "bgp.peer" are registered, FindHandler("bgp.peer.timers")
 // returns the schema for "bgp.peer".
 // Predicates like [address=192.0.2.1] are stripped before matching.
+// After Freeze(), uses lock-free atomic.Load on the frozen snapshot.
 func (r *SchemaRegistry) FindHandler(path string) (*Schema, string) {
+	snap := r.frozen.Load()
+	if snap == nil {
+		return r.findHandlerLocked(path)
+	}
+	return findHandlerIn(snap.handlers, snap.modules, path)
+}
+
+// findHandlerLocked is the pre-freeze fallback using RLock.
+func (r *SchemaRegistry) findHandlerLocked(path string) (*Schema, string) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
+	return findHandlerIn(r.handlers, r.modules, path)
+}
 
-	// Strip predicates from path for matching (e.g., "bgp.peer[addr=x]" → "bgp.peer")
+// findHandlerIn performs longest-prefix match on the given maps.
+func findHandlerIn(handlers map[string]string, modules map[string]*Schema, path string) (*Schema, string) {
 	cleanPath := stripPredicates(path)
 
 	// Try exact match first
-	if moduleName, exists := r.handlers[cleanPath]; exists {
-		return r.modules[moduleName], cleanPath
+	if moduleName, exists := handlers[cleanPath]; exists {
+		return modules[moduleName], cleanPath
 	}
 
 	// Try progressively shorter prefixes
 	parts := strings.Split(cleanPath, ".")
 	for i := len(parts) - 1; i > 0; i-- {
 		prefix := strings.Join(parts[:i], ".")
-		if moduleName, exists := r.handlers[prefix]; exists {
-			return r.modules[moduleName], prefix
+		if moduleName, exists := handlers[prefix]; exists {
+			return modules[moduleName], prefix
 		}
 	}
 

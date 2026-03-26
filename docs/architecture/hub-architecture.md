@@ -819,6 +819,22 @@ FindHandler("unknown.path"):
   1. No matches found → return error UNKNOWN_HANDLER
 ```
 
+### Freeze-After-Init (Lock-Free Dispatch)
+
+<!-- source: internal/component/plugin/server/schema.go -- frozenSchema -->
+<!-- source: internal/component/plugin/server/subsystem.go -- frozenSubsystems -->
+<!-- source: internal/component/plugin/server/command_registry.go -- frozenCommands -->
+
+All three registries (SchemaRegistry, SubsystemManager, CommandRegistry) are populated during startup and never mutated during normal operation. After startup completes, each registry's `Freeze()` method creates an immutable snapshot stored via `atomic.Pointer`. Hot-path lookups (`FindHandler`, `Get`, `Lookup`) use `atomic.Load` on the frozen snapshot instead of acquiring a read lock.
+
+| Registry | Hot-path method | Used by |
+|----------|----------------|---------|
+| SchemaRegistry | `FindHandler` | Hub.RouteCommand (Orchestrator config dispatch) |
+| SubsystemManager | `Get`, `FindHandler` | Hub.RouteCommand, Dispatcher.Dispatch (CLI/API) |
+| CommandRegistry | `Lookup` | Dispatcher.Dispatch (CLI/API) |
+
+Pre-freeze reads fall back to the RLock path. Post-freeze mutations (e.g., `Unregister` during plugin crash recovery) rebuild and republish the frozen snapshot atomically.
+
 ### Serial Matching (Concurrent Requests)
 
 Hub maintains pending requests per plugin for concurrent operations:
