@@ -33,7 +33,7 @@ def build_images(frr_image, no_build=False):
 
     print("Building Ze image...")
     subprocess.run(
-        ["docker", "build", "-t", "ze-interop",
+        ["docker", "buildx", "build", "--load", "-t", "ze-interop",
          "-f", os.path.join(SCRIPT_DIR, "Dockerfile.ze"),
          PROJECT_ROOT, "--quiet"],
         check=True, timeout=600,
@@ -41,7 +41,7 @@ def build_images(frr_image, no_build=False):
 
     print("Building BIRD image...")
     subprocess.run(
-        ["docker", "build", "-t", "bird-interop",
+        ["docker", "buildx", "build", "--load", "-t", "bird-interop",
          "-f", os.path.join(SCRIPT_DIR, "Dockerfile.bird"),
          SCRIPT_DIR, "--quiet"],
         check=True, timeout=600,
@@ -49,7 +49,7 @@ def build_images(frr_image, no_build=False):
 
     print("Building GoBGP image...")
     result = subprocess.run(
-        ["docker", "build", "-t", "gobgp-interop",
+        ["docker", "buildx", "build", "--load", "-t", "gobgp-interop",
          "-f", os.path.join(SCRIPT_DIR, "Dockerfile.gobgp"),
          SCRIPT_DIR, "--quiet"],
         capture_output=True, text=True, timeout=600,

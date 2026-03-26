@@ -102,20 +102,20 @@ def build_images(needed_duts):
 
     if "ze" in needed:
         print("Building Ze image...")
-        docker("build", "-t", "ze-interop",
+        docker("buildx", "build", "--load", "-t", "ze-interop",
                "-f", os.path.join(INTEROP_DIR, "Dockerfile.ze"),
                PROJECT_ROOT, "--quiet", timeout=600)
 
     if "bird" in needed:
         print("Building BIRD image...")
-        docker("build", "-t", "bird-interop",
+        docker("buildx", "build", "--load", "-t", "bird-interop",
                "-f", os.path.join(INTEROP_DIR, "Dockerfile.bird"),
                INTEROP_DIR, "--quiet", timeout=120)
 
     if "gobgp" in needed:
         print("Building GoBGP image...")
         try:
-            docker("build", "-t", "gobgp-interop",
+            docker("buildx", "build", "--load", "-t", "gobgp-interop",
                    "-f", os.path.join(INTEROP_DIR, "Dockerfile.gobgp"),
                    INTEROP_DIR, "--quiet", timeout=300)
         except subprocess.CalledProcessError:
@@ -128,7 +128,7 @@ def build_images(needed_duts):
     if "rustbgpd" in needed:
         print("Building rustbgpd image...")
         try:
-            docker("build", "-t", "rustbgpd-interop",
+            docker("buildx", "build", "--load", "-t", "rustbgpd-interop",
                    "-f", os.path.join(INTEROP_DIR, "Dockerfile.rustbgpd"),
                    INTEROP_DIR, "--quiet", timeout=900)
         except subprocess.CalledProcessError:
@@ -137,7 +137,7 @@ def build_images(needed_duts):
     if "rustybgp" in needed:
         print("Building RustyBGP image...")
         try:
-            docker("build", "-t", "rustybgp-interop",
+            docker("buildx", "build", "--load", "-t", "rustybgp-interop",
                    "-f", os.path.join(INTEROP_DIR, "Dockerfile.rustybgp"),
                    INTEROP_DIR, "--quiet", timeout=900)
         except subprocess.CalledProcessError:
@@ -150,7 +150,7 @@ def build_images(needed_duts):
             print("  set FREERTR_DIR to the freeRtr repository root")
         else:
             try:
-                docker("build", "-t", "freertr-interop",
+                docker("buildx", "build", "--load", "-t", "freertr-interop",
                        "-f", os.path.join(INTEROP_DIR, "Dockerfile.freertr"),
                        FREERTR_DIR, "--quiet", timeout=600)
             except subprocess.CalledProcessError:
@@ -255,8 +255,8 @@ def run_perf(dut):
                    check=False, timeout=10, capture=True)
 
         # Scale timeouts based on route count.
-        # Per-iteration convergence: ~60s per 1M routes (conservative).
-        convergence_timeout_s = max(30, (DUT_ROUTES // 10000) * 3)
+        # Conservative: ~1s per 1000 routes (covers slow DUTs like freeRtr at ~1k/s).
+        convergence_timeout_s = max(30, (DUT_ROUTES // 1000) + 30)
         # Total iterations: warmup(1) + repeat. Each takes convergence + iter-delay(8s) + overhead(30s).
         total_iterations = 1 + DUT_REPEAT
         subprocess_timeout_s = total_iterations * (convergence_timeout_s + 40) + 60
