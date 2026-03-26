@@ -33,7 +33,7 @@ RUN chmod +x /opt/freertr/rawInt.bin
 # rawInt sends a captured packet to a dead port, gets ICMP unreachable, and exits.
 RUN printf '#!/bin/sh\nset -e\n\
 cd /tmp\n\
-java -Xmx512m -jar /opt/freertr/rtr.jar routercs \
+java -Xmx2g -XX:+UseZGC -jar /opt/freertr/rtr.jar routercs \
 /etc/freertr/freertr-hw.txt /etc/freertr/freertr-sw.txt &\n\
 JAVA_PID=$!\n\
 i=0; while [ $i -lt 30 ]; do\n\

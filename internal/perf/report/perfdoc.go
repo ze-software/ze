@@ -84,6 +84,11 @@ median convergence time) are automatically discarded.
 		return fmt.Errorf("writing caveat: %w", err)
 	}
 
+	// DUT setup section.
+	if err := writeDUTSetup(results, w); err != nil {
+		return fmt.Errorf("writing DUT setup: %w", err)
+	}
+
 	// Results tables.
 	if _, err := fmt.Fprintf(w, "## Results\n\n"); err != nil {
 		return fmt.Errorf("writing results header: %w", err)
@@ -170,6 +175,91 @@ python3 test/perf/run.py
 Requires Docker. See [Benchmarking Guide](guide/benchmarking.md) for details.
 `); err != nil {
 		return fmt.Errorf("writing interpretation: %w", err)
+	}
+
+	return nil
+}
+
+// dutSetupNotes maps DUT names to their configuration summaries for the performance doc.
+// Each entry describes the BGP-relevant settings used in the benchmark config files
+// under test/perf/configs/.
+var dutSetupNotes = map[string]string{
+	"ze": `**Ze** -- Go BGP daemon, goroutine-based, kernel TCP stack.
+  Config: passive peers, route-reflector plugin (bgp-rs), 1M prefix limit per family.
+  Transport: kernel TCP (standard Docker networking).`,
+
+	"frr": `**FRR** (Free Range Routing) -- C BGP daemon, kernel TCP stack.
+  Config: passive peers, PERMIT route-maps in/out (no filtering).
+  Transport: kernel TCP (standard Docker networking).`,
+
+	"bird": `**BIRD** -- C BGP daemon, kernel TCP stack.
+  Config: passive peers, import/export all (no filtering).
+  Transport: kernel TCP (standard Docker networking).`,
+
+	"gobgp": `**GoBGP** -- Go BGP daemon, kernel TCP stack.
+  Config: passive peers, default accept policy.
+  Transport: kernel TCP (standard Docker networking).`,
+
+	"rustbgpd": `**rustbgpd** -- Rust BGP daemon, kernel TCP stack.
+  Config: passive peers, default policy.
+  Transport: kernel TCP (standard Docker networking).`,
+
+	"rustybgp": `**RustyBGP** -- Rust BGP daemon, kernel TCP stack.
+  Config: passive peers, default policy.
+  Transport: kernel TCP (standard Docker networking).`,
+
+	"freertr": `**freeRtr** -- Java BGP daemon with its own TCP/IP stack.
+  Config: passive peers, 256KB buffer-size, extended-update enabled,
+  advertisement-interval-tx 0, incremental bestpath (1M limit), no safe-ebgp.
+  JVM: 2GB heap with ZGC (low-pause garbage collector).
+  Transport: rawInt bridge (UDP encapsulation between Docker eth0 and freeRtr's
+  virtual interface layer) -- adds latency vs kernel TCP used by other DUTs.`,
+}
+
+// writeDUTSetup writes a "DUT Setup" section describing the configuration of each
+// DUT that appears in the results.
+func writeDUTSetup(results []perf.Result, w io.Writer) error {
+	// Collect unique DUT names in result order.
+	seen := make(map[string]bool)
+	var names []string
+
+	for i := range results {
+		name := results[i].DUTName
+		if !seen[name] {
+			seen[name] = true
+			names = append(names, name)
+		}
+	}
+
+	if len(names) == 0 {
+		return nil
+	}
+
+	if _, err := fmt.Fprintf(w, "## DUT Setup\n\n"); err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprintf(w, "All DUTs run in Docker containers on the same host. Each DUT is\n"+
+		"configured with two passive BGP peers (sender AS 65001, receiver AS 65002)\n"+
+		"and AS 65000 as the local AS. The benchmark tool (ze-perf) establishes both\n"+
+		"sessions, injects routes via the sender, and measures when they arrive at\n"+
+		"the receiver.\n\n"); err != nil {
+		return err
+	}
+
+	for _, name := range names {
+		note, ok := dutSetupNotes[name]
+		if !ok {
+			note = fmt.Sprintf("**%s** -- no setup notes available.", name)
+		}
+
+		if _, err := fmt.Fprintf(w, "- %s\n", note); err != nil {
+			return err
+		}
+	}
+
+	if _, err := fmt.Fprintf(w, "\nConfig files: `test/perf/configs/`\n\n"); err != nil {
+		return err
 	}
 
 	return nil

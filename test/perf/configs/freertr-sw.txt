@@ -16,10 +16,17 @@ router bgp4 1
  address uni
  local-as 65000
  router-id 172.31.0.8
+ incremental 1000000
  neigh 172.31.0.10 remote-as 65001
  neigh 172.31.0.10 connection-mode passive
+ neigh 172.31.0.10 buffer-size 262144
+ neigh 172.31.0.10 extended-update
+ neigh 172.31.0.10 advertisement-interval-tx 0
  neigh 172.31.0.11 remote-as 65002
  neigh 172.31.0.11 connection-mode passive
+ neigh 172.31.0.11 buffer-size 262144
+ neigh 172.31.0.11 extended-update
+ neigh 172.31.0.11 advertisement-interval-tx 0
  red conn
  exit
 

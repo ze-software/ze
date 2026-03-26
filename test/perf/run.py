@@ -54,6 +54,7 @@ FREERTR_DIR = os.environ.get("FREERTR_DIR", os.path.abspath(
 DUT_ROUTES = int(os.environ.get("DUT_ROUTES", "100000"))
 DUT_SEED = int(os.environ.get("DUT_SEED", "42"))
 DUT_REPEAT = int(os.environ.get("DUT_REPEAT", "3"))
+NO_BUILD = bool(os.environ.get("NO_BUILD"))
 
 # Each DUT: name, image, ip, port, sender_port (0=use port), receiver_port (0=use port)
 DUTS = [
@@ -70,9 +71,19 @@ SUFFIX = str(os.getpid())
 NETWORK = f"ze-perf-{SUFFIX}"
 
 
+import platform
+
+# macOS: legacy builder is deprecated, use buildx.
+# Linux: buildx is not available, use legacy builder.
+USE_BUILDX = platform.system() == "Darwin"
+
+
 def docker(*args, check=True, timeout=60, capture=False, **kwargs):
-    """Run a docker command."""
-    cmd = ["docker"] + list(args)
+    """Run a docker command. Uses buildx on macOS, legacy builder on Linux."""
+    args = list(args)
+    if args[:2] == ["buildx", "build"] and not USE_BUILDX:
+        args = ["build"] + [a for a in args[2:] if a != "--load"]
+    cmd = ["docker"] + args
     if capture:
         return subprocess.run(cmd, check=check, timeout=timeout, capture_output=True, text=True, **kwargs)
     return subprocess.run(cmd, check=check, timeout=timeout, **kwargs)
