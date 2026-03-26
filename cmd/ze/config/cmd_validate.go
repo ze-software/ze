@@ -389,13 +389,18 @@ func outputValidateText(result *validationResult, verbose, quiet bool) int {
 				fmt.Println()
 				fmt.Println("Peers:")
 				for _, n := range result.Config.PeerDetails {
-					mode := "connect+accept"
+					var flags []string
 					if !n.Connect {
-						mode = "accept"
-					} else if !n.Accept {
-						mode = "connect"
+						flags = append(flags, "connect disabled")
 					}
-					fmt.Printf("  - %s AS%d (%s)\n", n.Address, n.PeerAS, mode)
+					if !n.Accept {
+						flags = append(flags, "accept disabled")
+					}
+					if len(flags) == 0 {
+						fmt.Printf("  - %s AS%d\n", n.Address, n.PeerAS)
+					} else {
+						fmt.Printf("  - %s AS%d (%s)\n", n.Address, n.PeerAS, strings.Join(flags, ", "))
+					}
 				}
 			}
 		}

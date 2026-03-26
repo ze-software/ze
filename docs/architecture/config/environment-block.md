@@ -59,7 +59,8 @@ environment {
 | | acl | bool | - | false |
 | | once | bool | - | false (legacy alias) |
 | | connections | int | 0-1000 | (legacy alias for attempts) |
-| **bgp** | connection | enum | both, passive, active | "" |
+| **bgp** | connect | bool | - | true |
+| | accept | bool | - | true |
 | | openwait | int | 1-3600 | 60 |
 | **cache** | attributes | bool | - | true |
 | **api** | ack | bool | - | true |
@@ -114,7 +115,7 @@ Ze uses **strict validation** - invalid values cause startup failure:
 ze.bgp.tcp.port=abc          # Invalid: not a number
 ze.bgp.tcp.port=99999        # Invalid: out of range (1-65535)
 ze.bgp.log.level=BOGUS       # Invalid: unknown level
-ze.bgp.bgp.connection=maybe   # Invalid: must be both, passive, or active
+ze.bgp.bgp.connect=maybe      # Invalid: must be a boolean (true/false)
 ```
 <!-- source: internal/component/config/environment.go -- validatePort, validateLogLevel, validateEncoder -->
 
@@ -170,7 +171,7 @@ environment {
         attempts 3;
     }
     bgp {
-        connection passive;
+        connect false;
         openwait 120;
     }
     api {

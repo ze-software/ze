@@ -10,7 +10,7 @@ All config behavior gaps closed by spec-ci-gaps (2026-03-17):
 
 | Feature | Description | .ci Test | Status |
 |---------|-------------|----------|--------|
-| Connection mode | passive/active/both | test/plugin/config-connection-mode.ci | Covered |
+| Connection mode | connect/accept booleans | test/plugin/config-connection-mode.ci | Covered |
 | Router ID override | Per-peer router-id | test/encode/router-id-override.ci | Covered |
 | Group updates | Enable/disable grouping | test/plugin/config-group-updates.ci | Covered |
 | ADD-PATH per-family | Send/receive per family | test/plugin/config-addpath-mode.ci | Covered |
@@ -35,7 +35,7 @@ All gaps closed. 41 new .ci tests added across 5 phases:
 - Phase 1: 10 CLI command tests (config validate/fmt/set, schema, status, show/run, exabgp migrate)
 - Phase 2: 10 API peer management tests (list/detail/add/remove/pause/resume/capabilities/subscribe/unsubscribe/route-refresh)
 - Phase 3: 11 API operation tests (rib show/clear, cache, commit, raw, CLI dispatch)
-- Phase 4: 7 config runtime behavior tests (connection mode, router-id, group-updates, addpath, ext-nexthop, role-strict, adj-rib)
+- Phase 4: 7 config runtime behavior tests (connect/accept mode, router-id, group-updates, addpath, ext-nexthop, role-strict, adj-rib)
 - Phase 5: 3 plugin behavior tests (persist, adj-rib-in query, role strict enforcement)
 
 1 test deferred: `signal-quit.ci` -- `ze signal` has no quit handler, test framework has no `action=sigquit`.

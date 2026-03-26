@@ -92,7 +92,8 @@ Per-subsystem log levels are also supported via `ze.log.<subsystem>=<level>` (ha
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| `ze.bgp.bgp.connection` | enum | "" | Connection mode: "both", "passive", "active" |
+| `ze.bgp.bgp.connect` | bool | true | Initiate outbound connections |
+| `ze.bgp.bgp.accept` | bool | true | Accept inbound connections |
 | `ze.bgp.bgp.openwait` | int | 60 | Seconds to wait for OPEN (1-3600) |
 <!-- source: internal/component/config/environment.go -- BGPEnv struct, validateOpenWait -->
 

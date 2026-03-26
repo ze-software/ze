@@ -363,14 +363,20 @@ func applyPortOverride(peers []*reactor.PeerSettings) {
 // ze.bgp.bgp.connect and ze.bgp.bgp.accept (dot or underscore notation).
 func applyConnectionOverride(peers []*reactor.PeerSettings) {
 	if v := env.Get("ze.bgp.bgp.connect"); v != "" {
-		if connect, err := config.ParseBoolStrict(v); err == nil {
+		connect, err := config.ParseBoolStrict(v)
+		if err != nil {
+			configLogger().Warn("invalid ze.bgp.bgp.connect value, ignoring", "value", v, "error", err)
+		} else {
 			for _, ps := range peers {
 				ps.Connection.Connect = connect
 			}
 		}
 	}
 	if v := env.Get("ze.bgp.bgp.accept"); v != "" {
-		if accept, err := config.ParseBoolStrict(v); err == nil {
+		accept, err := config.ParseBoolStrict(v)
+		if err != nil {
+			configLogger().Warn("invalid ze.bgp.bgp.accept value, ignoring", "value", v, "error", err)
+		} else {
 			for _, ps := range peers {
 				ps.Connection.Accept = accept
 			}

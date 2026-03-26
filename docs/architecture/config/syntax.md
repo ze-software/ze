@@ -286,12 +286,13 @@ bgp {
 | remote { ip; as; } | container | Remote peer IP address and AS number |
 | local { ip; as; } | container | Local IP address and AS number overrides |
 | timer { } | container | Timer settings: `hold-time` (seconds, default 90), `connect-retry` (seconds, default 120) |
-| connection | enum | `both` (default), `passive`, `active` |
+| local { connect; } | bool | Initiate outbound connections (default: true) |
+| remote { accept; } | bool | Accept inbound connections (default: true) |
 | port | int | Per-peer listen port |
 | group-updates | bool | Group updates for efficiency (default true) |
 | description | string | Peer description |
 | link-local | IPv6 | IPv6 link-local address for next-hop (RFC 2545) |
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- grouping peer-fields, container timer, leaf connection -->
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- grouping peer-fields, container timer, leaf connect, leaf accept -->
 
 ### Capability Section
 

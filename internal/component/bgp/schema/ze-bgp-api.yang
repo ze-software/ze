@@ -170,8 +170,14 @@ module ze-bgp-api {
             leaf receive-hold-time { type uint16; description "Receive hold time (RFC 4271)"; }
             leaf send-hold-time { type uint16; description "Send hold time (RFC 9687, 0=auto)"; }
             leaf connect-retry { type uint16; description "Connect retry interval"; }
-            leaf connect { type boolean; description "Initiate outbound connections (default true)"; }
-            leaf accept { type boolean; description "Accept inbound connections (default true)"; }
+            container local {
+                description "Local connection settings";
+                leaf connect { type boolean; description "Initiate outbound connections (default true)"; }
+            }
+            container remote {
+                description "Remote connection settings";
+                leaf accept { type boolean; description "Accept inbound connections (default true)"; }
+            }
         }
     }
 

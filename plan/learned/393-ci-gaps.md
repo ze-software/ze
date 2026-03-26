@@ -35,7 +35,7 @@ Close all 42 functional test gaps identified in `docs/ci-test-coverage.md`. Writ
 - `json.loads()` inside `isinstance(data, str)` guard handles the engine's string-typed `data` field correctly
 - Extended-message capability auto-included by ze changes OPEN byte count -- must verify actual OPEN bytes before writing hex expects
 - iBGP (same ASN) auto-includes LOCAL_PREF in UPDATEs -- use eBGP or account for extra attribute bytes
-- `connection both` causes port conflict with ze-peer (both try to bind same port) -- test `connection active` explicitly instead
+- Default connect+accept (both true) causes port conflict with ze-peer (both try to bind same port) -- test with `local { connect false; }` explicitly instead
 - `cmd=api:` lines in peer stdin conflict with Python plugin pattern in test/plugin/ -- use dispatch or text send pattern instead
 
 ## Files

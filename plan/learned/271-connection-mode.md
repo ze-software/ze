@@ -1,32 +1,32 @@
-# 271 — Connection Mode Enum
+# 271 — Connection Mode
 
 ## Objective
 
-Replace the `passive bool` peer option with a `connection` enum (`both`, `passive`, `active`) to support active-only mode where Ze never binds/listens for a peer — needed for `.ci` tests using ze-peer where Ze should only dial out.
+Replace the `passive bool` peer option with independent `connect` and `accept` booleans to control outbound and inbound connections separately -- needed for `.ci` tests using ze-peer where Ze should only dial out. Config syntax: `local { connect false; }` (don't initiate outbound), `remote { accept false; }` (don't accept inbound). Both default to true.
 
 ## Decisions
 
-- FSM keeps internal `passive bool` and `SetPassive(bool)` — the session layer translates `ConnectionMode` → bool at the session boundary. Chosen over leaking the enum into FSM internals; FSM only needs passive/non-passive distinction.
-- `active` mode prevents listener startup AND rejects inbound connections (defense in depth) — two separate checks in reactor.
-- All 89 `.ci` test files updated to `connection active;` — Ze must not bind when ze-peer is already listening.
-- ExaBGP migration: `passive true` → `connection passive`; no passive field → `connection active` (ExaBGP peers dial out by default).
-- Environment var `ze_bgp_bgp_connection` wired as string field to avoid enum parsing complexity at env-var layer.
-- Chaos runner sets `ModePassive` on profiles; config generator emits the string — runner controls mode, generator handles syntax.
+- FSM keeps internal `passive bool` and `SetPassive(bool)` -- the session layer translates connect/accept booleans at the session boundary. Chosen over leaking into FSM internals; FSM only needs passive/non-passive distinction.
+- `connect false` prevents outbound connections; `accept false` rejects inbound connections (defense in depth) -- two separate checks in reactor.
+- All `.ci` test files updated to `local { connect false; }` -- Ze must not bind when ze-peer is already listening.
+- ExaBGP migration: `passive true` maps to `local { connect false; }`.
+- Environment vars `ze.bgp.bgp.connect` and `ze.bgp.bgp.accept` (booleans).
+- Chaos runner sets connect/accept on profiles; config generator emits the syntax -- runner controls mode, generator handles syntax.
 
 ## Patterns
 
-- Adapter pattern at the session boundary: infrastructure enum → legacy bool API. Avoids cascading changes through FSM internals.
-- Zero value `ConnectionBoth` is the safe default — existing behavior preserved when field absent.
+- Adapter pattern at the session boundary: booleans to legacy FSM API. Avoids cascading changes through FSM internals.
+- Defaults (connect=true, accept=true) are the safe default -- existing behavior preserved when fields absent.
 
 ## Gotchas
 
-- Environment var was not initially wired to PeerSettings — required a follow-up fix (9918bba3). Always verify env vars reach PeerSettings, not just config file parsing.
-- Invalid connection mode should error, not silently warn — an additional unit test was required after the bug was found (48d7f35a).
+- Environment vars were not initially wired to PeerSettings -- required a follow-up fix. Always verify env vars reach PeerSettings, not just config file parsing.
+- Invalid boolean values should error, not silently warn -- an additional unit test was required after the bug was found.
 
 ## Files
 
-- `internal/component/bgp/reactor/peersettings.go` — `ConnectionMode` type (created)
-- `ze-bgp-conf.yang`, `ze-bgp-api.yang`, `ze-hub-conf.yang` — connection leaf added
-- `reactor.go`, `peer.go`, `session.go`, `config.go`, `environment.go` — updated
-- `handler/bgp.go`, `validate/main.go`, `migrate.go`, `scenario/config.go` — updated
-- 89 `.ci` files and 17+ Go test files — mechanical rename
+- `internal/component/bgp/reactor/peersettings.go` -- connect/accept booleans in PeerSettings
+- `ze-bgp-conf.yang`, `ze-bgp-api.yang`, `ze-hub-conf.yang` -- connect/accept leaves
+- `reactor.go`, `peer.go`, `session.go`, `config.go`, `environment.go` -- updated
+- `handler/bgp.go`, `validate/main.go`, `migrate.go`, `scenario/config.go` -- updated
+- `.ci` files and Go test files -- mechanical rename

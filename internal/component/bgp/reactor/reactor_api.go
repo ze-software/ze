@@ -49,6 +49,8 @@ func (o *apiStateObserver) OnPeerEstablished(peer *Peer) {
 		LocalAS:      s.LocalAS,
 		PeerAS:       s.PeerAS,
 		RouterID:     s.RouterID,
+		Connect:      s.Connection.Connect,
+		Accept:       s.Connection.Accept,
 		State:        peer.State().String(),
 	}
 	o.dispatcher.OnPeerStateChange(peerInfo, "up", "")
@@ -67,6 +69,8 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
 		LocalAS:      s.LocalAS,
 		PeerAS:       s.PeerAS,
 		RouterID:     s.RouterID,
+		Connect:      s.Connection.Connect,
+		Accept:       s.Connection.Accept,
 		State:        peer.State().String(),
 	}
 	o.dispatcher.OnPeerStateChange(peerInfo, "down", reason)

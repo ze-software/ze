@@ -30,7 +30,7 @@ bgp {
         timer {
             hold-time 180;
         }
-        connection active;
+        local { connect false; }   # passive: don't initiate outbound
 
         capability {
             asn4;
