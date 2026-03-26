@@ -168,9 +168,10 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		}()
 	}
 
-	// Get matching peers
+	// Get matching peers. Stack array avoids heap allocation for <= 16 peers.
 	a.r.mu.RLock()
-	var matchingPeers []*Peer
+	var peersBuf [16]*Peer
+	matchingPeers := peersBuf[:0]
 	for _, peer := range a.r.peers {
 		addr := peer.Settings().Address
 		if sel.Matches(addr) && addr != update.SourcePeerIP {

@@ -48,51 +48,29 @@ func (d *EventDispatcher) SetBus(b ze.Bus) {
 }
 
 // OnMessageReceived handles raw BGP messages from peers.
-// msg is bgptypes.RawMessage (typed as any to match reactor.MessageReceiver).
 // Returns the count of cache-consumer plugins that successfully received the event.
-func (d *EventDispatcher) OnMessageReceived(peer plugin.PeerInfo, msg any) int {
+func (d *EventDispatcher) OnMessageReceived(peer plugin.PeerInfo, msg bgptypes.RawMessage) int {
 	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
 		return 0
 	}
-	typedMsg, ok := msg.(bgptypes.RawMessage)
-	if !ok {
-		logger().Warn("OnMessageReceived: invalid msg type", "type", fmt.Sprintf("%T", msg))
-		return 0
-	}
-	return onMessageReceived(d.server, d.encoder, peer, typedMsg)
+	return onMessageReceived(d.server, d.encoder, peer, msg)
 }
 
 // OnMessageBatchReceived handles a batch of received BGP messages from the same peer.
-// msgs is []bgptypes.RawMessage (typed as []any to match reactor.MessageReceiver).
 // Returns per-message cache-consumer counts for Activate calls.
-func (d *EventDispatcher) OnMessageBatchReceived(peer plugin.PeerInfo, msgs []any) []int {
+func (d *EventDispatcher) OnMessageBatchReceived(peer plugin.PeerInfo, msgs []bgptypes.RawMessage) []int {
 	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
 		return make([]int, len(msgs))
 	}
-	typedMsgs := make([]bgptypes.RawMessage, len(msgs))
-	for i, msg := range msgs {
-		typedMsg, ok := msg.(bgptypes.RawMessage)
-		if !ok {
-			logger().Warn("OnMessageBatchReceived: invalid msg type", "type", fmt.Sprintf("%T", msg))
-			continue // zero-value RawMessage preserves 1:1 index mapping
-		}
-		typedMsgs[i] = typedMsg
-	}
-	return onMessageBatchReceived(d.server, d.encoder, peer, typedMsgs)
+	return onMessageBatchReceived(d.server, d.encoder, peer, msgs)
 }
 
 // OnMessageSent handles BGP messages sent to peers.
-// msg is bgptypes.RawMessage (typed as any to match reactor.MessageReceiver).
-func (d *EventDispatcher) OnMessageSent(peer plugin.PeerInfo, msg any) {
+func (d *EventDispatcher) OnMessageSent(peer plugin.PeerInfo, msg bgptypes.RawMessage) {
 	if d.server.ProcessManager() == nil || d.server.Subscriptions() == nil {
 		return
 	}
-	typedMsg, ok := msg.(bgptypes.RawMessage)
-	if !ok {
-		logger().Warn("OnMessageSent: invalid msg type", "type", fmt.Sprintf("%T", msg))
-		return
-	}
-	onMessageSent(d.server, d.encoder, peer, typedMsg)
+	onMessageSent(d.server, d.encoder, peer, msg)
 }
 
 // OnPeerStateChange handles peer state transitions.

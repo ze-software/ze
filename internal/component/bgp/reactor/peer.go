@@ -1081,8 +1081,8 @@ func (p *Peer) runOnce() error {
 				continue
 			}
 
-			// Convert batch to []any for the interface method.
-			msgs := make([]any, len(batch))
+			// Extract typed messages from batch (no []any boxing needed).
+			msgs := make([]bgptypes.RawMessage, len(batch))
 			for i := range batch {
 				msgs[i] = batch[i].msg
 			}

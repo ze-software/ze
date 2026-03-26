@@ -35,6 +35,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/route_refresh/handler" // init() registers route-refresh command RPCs
 	bgpserver "codeberg.org/thomas-mangin/ze/internal/component/bgp/server"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/transaction"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/cache"     // init() registers cache command RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/commit"    // init() registers commit command RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/del"       // init() registers del verb RPCs
@@ -184,23 +185,18 @@ type Stats struct {
 type ConnectionCallback func(conn net.Conn, settings *PeerSettings)
 
 // MessageReceiver receives raw BGP messages from peers.
-// Messages are passed as any (bgptypes.RawMessage) for on-demand parsing based on format config.
 type MessageReceiver interface {
 	// OnMessageReceived is called when a BGP message is received from a peer.
-	// peer contains full peer information for proper JSON encoding.
-	// msg is bgptypes.RawMessage (typed as any to match plugin.Server signature).
 	// Returns the count of cache-consumer plugins that successfully received the event.
-	OnMessageReceived(peer plugin.PeerInfo, msg any) int
+	OnMessageReceived(peer plugin.PeerInfo, msg bgptypes.RawMessage) int
 
 	// OnMessageBatchReceived handles a batch of received BGP messages from the same peer.
-	// msgs is []bgptypes.RawMessage (typed as []any to match plugin.Server signature).
 	// Returns per-message cache-consumer counts for Activate calls.
-	OnMessageBatchReceived(peer plugin.PeerInfo, msgs []any) []int
+	OnMessageBatchReceived(peer plugin.PeerInfo, msgs []bgptypes.RawMessage) []int
 
 	// OnMessageSent is called when a BGP message is sent to a peer.
 	// Only UPDATE messages trigger sent events.
-	// msg is bgptypes.RawMessage (typed as any to match plugin.Server signature).
-	OnMessageSent(peer plugin.PeerInfo, msg any)
+	OnMessageSent(peer plugin.PeerInfo, msg bgptypes.RawMessage)
 }
 
 // PeerLifecycleObserver receives peer state change notifications.
