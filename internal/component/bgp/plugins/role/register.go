@@ -14,9 +14,9 @@ func init() {
 	// RFC 9234: Register OTC attribute (type 35) as a known attribute.
 	attribute.RegisterName(attribute.AttributeCode(otcAttrCode), "OTC")
 
-	// Register mod handler for OTC egress stamping.
-	// Called by applyMods in the reactor forward path after egress filters accept.
-	registry.RegisterModHandler("set:attr:otc", otcModHandler)
+	// Register attr mod handler for OTC egress stamping (progressive build path).
+	// Called by buildModifiedPayload in the reactor forward path after egress filters accept.
+	registry.RegisterAttrModHandler(otcAttrCode, otcAttrModHandler)
 
 	reg := registry.Registration{
 		Name:            "role",

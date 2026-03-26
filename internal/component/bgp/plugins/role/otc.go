@@ -390,7 +390,9 @@ func OTCEgressFilter(src, dest registry.PeerFilterInfo, payload []byte, meta map
 		if !hasOTC {
 			localASN := getLocalASN()
 			if localASN > 0 {
-				mods.Set("set:attr:otc", localASN)
+				var asnBuf [otcAttrLen]byte
+				binary.BigEndian.PutUint32(asnBuf[:], localASN)
+				mods.Op(otcAttrCode, registry.AttrModSet, asnBuf[:]) // value bytes only (4-byte ASN)
 				logger().Debug("OTC egress stamp mod",
 					"src", src.Address, "dest", dest.Address, "dest-role", destRemoteRole, "otc-asn", localASN)
 			}
@@ -400,20 +402,38 @@ func OTCEgressFilter(src, dest registry.PeerFilterInfo, payload []byte, meta map
 	return true
 }
 
-// otcModHandler is the mod handler for "set:attr:otc".
-// Called by applyMods in the reactor forward path after all egress filters accept.
-// val is the local ASN (uint32) to stamp as OTC.
-// Returns modified payload with OTC appended, or nil to skip modification.
-func otcModHandler(payload []byte, val any) []byte {
-	asn, ok := val.(uint32)
-	if !ok || asn == 0 {
-		return nil // Invalid value: skip modification.
+// otcAttrModHandler is the AttrModHandler for OTC (type 35).
+// Called by the progressive build during the attribute walk.
+// src is the source OTC attribute bytes (nil if absent).
+// ops contains the set operation with pre-built 4-byte ASN value bytes.
+// Writes the complete 7-byte OTC attribute (header + value) into buf at off.
+// Returns the new offset after written bytes.
+//
+// RFC 9234 Section 5: "Once the OTC Attribute has been set, it MUST be preserved unchanged."
+// If source already has OTC, it is copied unchanged (set op is ignored).
+func otcAttrModHandler(src []byte, ops []registry.AttrOp, buf []byte, off int) int {
+	// OTC already present in source: preserve unchanged.
+	if len(src) > 0 {
+		if off+len(src) > len(buf) {
+			return off
+		}
+		copy(buf[off:], src)
+		return off + len(src)
 	}
-	modified := insertOTCInPayload(payload, asn)
-	if modified == nil {
-		// Overflow: return nil to signal no modification.
-		logger().Warn("OTC mod handler: attribute overflow, skipping stamp")
-		return nil
+	// OTC absent: create from the first set op's value bytes.
+	for _, op := range ops {
+		if op.Action != registry.AttrModSet || len(op.Buf) != otcAttrLen {
+			continue
+		}
+		if off+otcWireLen > len(buf) {
+			logger().Warn("OTC attr mod handler: buffer overflow, skipping stamp")
+			return off
+		}
+		buf[off] = otcAttrFlags
+		buf[off+1] = otcAttrCode
+		buf[off+2] = otcAttrLen
+		copy(buf[off+3:], op.Buf)
+		return off + otcWireLen
 	}
-	return modified
+	return off
 }

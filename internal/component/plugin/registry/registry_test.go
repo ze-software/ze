@@ -993,54 +993,40 @@ func TestModAccumulator_LazyAlloc(t *testing.T) {
 	if mods.Len() != 0 {
 		t.Fatalf("empty ModAccumulator.Len() = %d, want 0", mods.Len())
 	}
-	if v, ok := mods.Get("anything"); ok || v != nil {
-		t.Fatalf("empty ModAccumulator.Get returned (%v, %v)", v, ok)
+	if ops := mods.Ops(); len(ops) != 0 {
+		t.Fatalf("empty ModAccumulator.Ops() returned %d ops", len(ops))
 	}
-	// Set triggers allocation.
-	mods.Set("set:attr:local-preference", uint32(100))
+	// Op triggers allocation.
+	mods.Op(35, AttrModSet, []byte{0x00, 0x00, 0x00, 0x64})
 	if mods.Len() != 1 {
-		t.Fatalf("after Set, Len() = %d, want 1", mods.Len())
+		t.Fatalf("after Op, Len() = %d, want 1", mods.Len())
 	}
 }
 
-// VALIDATES: AC-6 — Multiple Set calls accumulated, all retrievable.
+// VALIDATES: AC-6 — Multiple Op calls accumulated, all retrievable.
 // PREVENTS: Overwrite or loss of mods from different filters.
-func TestModAccumulator_MultipleKeys(t *testing.T) {
+func TestModAccumulator_MultipleOps(t *testing.T) {
 	var mods ModAccumulator
-	mods.Set("set:attr:local-preference", uint32(0))
-	mods.Set("add:attr:community", []string{"no-export"})
-	mods.Set("withdraw:nlri:*", true)
+	mods.Op(35, AttrModSet, []byte{0x00, 0x00, 0x00, 0x00})
+	mods.Op(8, AttrModAdd, []byte{0xFF, 0xFF, 0x00, 0x01})
+	mods.Op(8, AttrModRemove, []byte{0xFF, 0xFF, 0xFF, 0x03})
 
 	if mods.Len() != 3 {
 		t.Fatalf("Len() = %d, want 3", mods.Len())
 	}
 
-	v, ok := mods.Get("set:attr:local-preference")
-	lp, lpOK := v.(uint32)
-	if !ok || !lpOK || lp != 0 {
-		t.Fatalf("Get local-preference = (%v, %v)", v, ok)
+	ops := mods.Ops()
+	if len(ops) != 3 {
+		t.Fatalf("Ops() len = %d, want 3", len(ops))
 	}
-
-	v, ok = mods.Get("add:attr:community")
-	if !ok {
-		t.Fatal("Get community not found")
+	if ops[0].Code != 35 || ops[0].Action != AttrModSet {
+		t.Fatalf("ops[0] = {%d, %d}, want {35, AttrModSet}", ops[0].Code, ops[0].Action)
 	}
-	comms, commsOK := v.([]string)
-	if !commsOK || len(comms) != 1 || comms[0] != "no-export" {
-		t.Fatalf("community = %v, want [no-export]", comms)
+	if ops[1].Code != 8 || ops[1].Action != AttrModAdd {
+		t.Fatalf("ops[1] = {%d, %d}, want {8, AttrModAdd}", ops[1].Code, ops[1].Action)
 	}
-
-	v, ok = mods.Get("withdraw:nlri:*")
-	wb, wbOK := v.(bool)
-	if !ok || !wbOK || !wb {
-		t.Fatalf("Get withdraw = (%v, %v)", v, ok)
-	}
-
-	// Range should visit all 3.
-	count := 0
-	mods.Range(func(_ string, _ any) { count++ })
-	if count != 3 {
-		t.Fatalf("Range visited %d, want 3", count)
+	if ops[2].Code != 8 || ops[2].Action != AttrModRemove {
+		t.Fatalf("ops[2] = {%d, %d}, want {8, AttrModRemove}", ops[2].Code, ops[2].Action)
 	}
 
 	// Reset clears.
@@ -1050,76 +1036,140 @@ func TestModAccumulator_MultipleKeys(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-9 — Mod handler registered and retrievable by key.
-// PREVENTS: Handler registration silently lost.
-func TestModHandlerRegistration(t *testing.T) {
-	called := false
-	handler := ModHandlerFunc(func(payload []byte, val any) []byte {
-		called = true
-		return payload
-	})
+// --- AttrOp / AttrModHandler tests (v2 progressive build) ---
 
-	RegisterModHandler("set:attr:otc", handler)
-	t.Cleanup(func() { UnregisterModHandler("set:attr:otc") })
+// VALIDATES: AC-11 — AttrOp holds code, action, buf fields.
+// PREVENTS: Wrong structure for mod accumulation.
+func TestAttrOpStructure(t *testing.T) {
+	op := AttrOp{
+		Code:   35,
+		Action: AttrModSet,
+		Buf:    []byte{0x00, 0x00, 0xFD, 0xE8}, // ASN 65000
+	}
+	if op.Code != 35 {
+		t.Fatalf("Code = %d, want 35", op.Code)
+	}
+	if op.Action != AttrModSet {
+		t.Fatalf("Action = %d, want AttrModSet", op.Action)
+	}
+	if len(op.Buf) != 4 {
+		t.Fatalf("Buf len = %d, want 4", len(op.Buf))
+	}
+}
 
-	got := ModHandler("set:attr:otc")
-	if got == nil {
-		t.Fatal("ModHandler returned nil for registered key")
+// VALIDATES: AC-11 — ModAccumulator.Op() stores AttrOp entries, Len() reflects count.
+// PREVENTS: Op() not accumulating, or Len() wrong.
+func TestModAccumulatorOp(t *testing.T) {
+	var mods ModAccumulator
+	if mods.Len() != 0 {
+		t.Fatalf("empty Len() = %d, want 0", mods.Len())
 	}
 
-	result := got([]byte{1, 2, 3}, uint32(65000))
+	mods.Op(35, AttrModSet, []byte{0x00, 0x00, 0xFD, 0xE8})
+	if mods.Len() != 1 {
+		t.Fatalf("after Op, Len() = %d, want 1", mods.Len())
+	}
+
+	// Multiple ops on same code accumulate separately.
+	mods.Op(8, AttrModAdd, []byte{0xFF, 0xFF, 0x00, 0x01})
+	mods.Op(8, AttrModRemove, []byte{0xFF, 0xFF, 0xFF, 0x03})
+	if mods.Len() != 3 {
+		t.Fatalf("after 3 ops, Len() = %d, want 3", mods.Len())
+	}
+
+	ops := mods.Ops()
+	if len(ops) != 3 {
+		t.Fatalf("Ops() len = %d, want 3", len(ops))
+	}
+	if ops[0].Code != 35 || ops[0].Action != AttrModSet {
+		t.Fatalf("ops[0] = {%d, %d}, want {35, AttrModSet}", ops[0].Code, ops[0].Action)
+	}
+	if ops[1].Code != 8 || ops[1].Action != AttrModAdd {
+		t.Fatalf("ops[1] = {%d, %d}, want {8, AttrModAdd}", ops[1].Code, ops[1].Action)
+	}
+	if ops[2].Code != 8 || ops[2].Action != AttrModRemove {
+		t.Fatalf("ops[2] = {%d, %d}, want {8, AttrModRemove}", ops[2].Code, ops[2].Action)
+	}
+}
+
+// VALIDATES: AC-11 — ModAccumulator.Reset() clears ops for reuse.
+// PREVENTS: Stale ops leaking between peers.
+func TestModAccumulatorOpReset(t *testing.T) {
+	var mods ModAccumulator
+	mods.Op(35, AttrModSet, []byte{0x00, 0x00, 0xFD, 0xE8})
+	mods.Reset()
+	if mods.Len() != 0 {
+		t.Fatalf("after Reset, Len() = %d, want 0", mods.Len())
+	}
+	if ops := mods.Ops(); len(ops) != 0 {
+		t.Fatalf("after Reset, Ops() len = %d, want 0", len(ops))
+	}
+}
+
+// VALIDATES: AC-12 — AttrModHandler registered by attr code, retrievable.
+// PREVENTS: Handler registration lost or wrong code mapping.
+func TestAttrModHandlerRegistration(t *testing.T) {
+	called := false
+	handler := AttrModHandler(func(src []byte, ops []AttrOp, buf []byte, off int) int {
+		called = true
+		return off
+	})
+
+	RegisterAttrModHandler(35, handler)
+	t.Cleanup(func() { UnregisterAttrModHandler(35) })
+
+	got := AttrModHandlerFor(35)
+	if got == nil {
+		t.Fatal("AttrModHandlerFor returned nil for registered code")
+	}
+
+	buf := make([]byte, 64)
+	got(nil, nil, buf, 0)
 	if !called {
 		t.Fatal("handler was not called")
 	}
-	if len(result) != 3 {
-		t.Fatalf("handler returned %d bytes, want 3", len(result))
-	}
 }
 
-// VALIDATES: AC-9 — Unknown mod key returns nil handler.
-// PREVENTS: Panic on unregistered key lookup.
-func TestModHandlerNotFound(t *testing.T) {
-	got := ModHandler("set:attr:nonexistent")
+// VALIDATES: AC-18 — Unknown attr code returns nil handler.
+// PREVENTS: Panic on unregistered code lookup.
+func TestAttrModHandlerNotFound(t *testing.T) {
+	got := AttrModHandlerFor(99)
 	if got != nil {
-		t.Fatal("ModHandler returned non-nil for unregistered key")
+		t.Fatal("AttrModHandlerFor returned non-nil for unregistered code")
 	}
 }
 
-// VALIDATES: ModHandlers returns a snapshot copy that doesn't affect the registry.
-// PREVENTS: Caller mutations leaking back into the global registry.
-func TestModHandlersSnapshot(t *testing.T) {
-	h1 := ModHandlerFunc(func(p []byte, _ any) []byte { return p })
-	h2 := ModHandlerFunc(func(p []byte, _ any) []byte { return p })
+// VALIDATES: AC-12 — AttrModHandlers returns snapshot for reactor startup.
+// PREVENTS: Reactor sharing mutable reference with registry.
+func TestAttrModHandlersSnapshot(t *testing.T) {
+	h := AttrModHandler(func(src []byte, ops []AttrOp, buf []byte, off int) int { return off })
 
-	RegisterModHandler("test:snap:a", h1)
-	RegisterModHandler("test:snap:b", h2)
+	RegisterAttrModHandler(200, h)
+	RegisterAttrModHandler(201, h)
 	t.Cleanup(func() {
-		UnregisterModHandler("test:snap:a")
-		UnregisterModHandler("test:snap:b")
+		UnregisterAttrModHandler(200)
+		UnregisterAttrModHandler(201)
 	})
 
-	snap := ModHandlers()
-	if len(snap) < 2 {
-		t.Fatalf("snapshot has %d handlers, want at least 2", len(snap))
-	}
-	if snap["test:snap:a"] == nil || snap["test:snap:b"] == nil {
+	snap := AttrModHandlers()
+	if snap[200] == nil || snap[201] == nil {
 		t.Fatal("snapshot missing registered handlers")
 	}
 
 	// Mutating snapshot must not affect registry.
-	delete(snap, "test:snap:a")
-	if ModHandler("test:snap:a") == nil {
+	delete(snap, 200)
+	if AttrModHandlerFor(200) == nil {
 		t.Fatal("deleting from snapshot affected the registry")
 	}
 }
 
-// VALIDATES: RegisterModHandler ignores nil handler.
-// PREVENTS: Nil handler registered leading to panic in safeModHandler.
-func TestRegisterModHandlerNil(t *testing.T) {
-	RegisterModHandler("test:nil:key", nil)
-	t.Cleanup(func() { UnregisterModHandler("test:nil:key") })
+// VALIDATES: RegisterAttrModHandler ignores nil handler.
+// PREVENTS: Nil handler registered leading to panic in progressive build.
+func TestRegisterAttrModHandlerNil(t *testing.T) {
+	RegisterAttrModHandler(250, nil)
+	t.Cleanup(func() { UnregisterAttrModHandler(250) })
 
-	got := ModHandler("test:nil:key")
+	got := AttrModHandlerFor(250)
 	if got != nil {
 		t.Fatal("nil handler should not be registered")
 	}

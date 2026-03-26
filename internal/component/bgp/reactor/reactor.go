@@ -262,9 +262,9 @@ type Reactor struct {
 	// Egress: called per destination peer during ForwardUpdate.
 	ingressFilters []registry.IngressFilterFunc
 	egressFilters  []registry.EgressFilterFunc
-	// Mod handlers: post-accept transformations applied after egress filters.
-	// Keyed by mod key (e.g., "set:attr:otc"). Collected from registry at startup.
-	modHandlers map[string]registry.ModHandlerFunc
+	// Attr mod handlers: per-attribute-code handlers for progressive build.
+	// Keyed by attribute type code (uint8). Collected from registry at startup.
+	attrModHandlers map[uint8]registry.AttrModHandler
 
 	// Peer lifecycle observers (called on state transitions)
 	peerObservers []PeerLifecycleObserver
@@ -374,10 +374,16 @@ func New(config *Config) *Reactor {
 	r.fwdPool.onCongested = func(peerAddr netip.AddrPort) {
 		reactorLogger().Warn("forward peer congested", "peer", peerAddr)
 		r.emitCongestionEvent(peerAddr.Addr(), plugin.EventCongested)
+		if r.rmetrics != nil {
+			r.rmetrics.fwdCongestionEvents.With(peerAddr.Addr().String()).Inc()
+		}
 	}
 	r.fwdPool.onResumed = func(peerAddr netip.AddrPort) {
 		reactorLogger().Info("forward peer resumed", "peer", peerAddr)
 		r.emitCongestionEvent(peerAddr.Addr(), plugin.EventResumed)
+		if r.rmetrics != nil {
+			r.rmetrics.fwdCongestionResume.With(peerAddr.Addr().String()).Inc()
+		}
 	}
 
 	// ze.cache.safety.valve overrides the safety valve duration for gap-based eviction.
@@ -742,7 +748,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		// Collect peer filter chains and mod handlers from plugin registry.
 		r.ingressFilters = registry.IngressFilters()
 		r.egressFilters = registry.EgressFilters()
-		r.modHandlers = registry.ModHandlers()
+		r.attrModHandlers = registry.AttrModHandlers()
 		// Register API state observer for peer lifecycle events
 		r.AddPeerObserver(&apiStateObserver{dispatcher: r.eventDispatcher, reactor: r})
 

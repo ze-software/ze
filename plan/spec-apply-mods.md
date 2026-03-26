@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-03-25 |
+| Phase | 6/10 |
+| Updated | 2026-03-26 |
 
 ## Post-Compaction Recovery
 
@@ -39,10 +39,10 @@ OTC egress stamping is a MUST requirement in RFC 9234 Section 5. Without it, rou
 
 | Area | Description |
 |------|-------------|
-| Mod handler registry | Register/lookup `ModHandlerFunc` by mod key in `registry.go`. A mod handler is a post-accept transformation: it runs ONLY after all egress filters have accepted the route for a given peer. It is not a filter — it cannot reject. It takes the payload + mod value and returns a modified payload. |
-| `applyMods` in forward path | After the egress filter chain accepts a route for a peer, iterate accumulated mods and call each registered handler. Handlers compose sequentially: each receives the output of the previous. Produces a modified WireUpdate for this peer's forwarding. |
-| OTC egress stamping | Role plugin writes `mods.Set("set:attr:otc", localASN)` when route has no OTC and destination is Customer/Peer/RS-Client |
-| OTC mod handler | Registered by role plugin; called by reactor after acceptance; calls `insertOTCInPayload` to produce modified payload |
+| Attr mod handler registry | Register per-attribute-code handler in `registry.go`. A handler receives the source attribute bytes (nil if absent), all ops for that code, output buffer + offset, and writes the result. It knows the attribute's semantics (scalar, list, sequence). |
+| `applyMods` progressive build | After egress filter chain and wire selection, if `mods.Len() > 0`: single-pass progressive build into a pooled buffer. Walk source attributes, collect ops per attr code, call registered handler. Unchanged attrs copied verbatim. After walk, call handlers for unconsumed codes (additions). Skip-and-backfill for attr_len. Zero-copy fast path preserved when `mods.Len() == 0`. |
+| AttrOp structure | Each mod entry is flat: attr code (uint8), action (uint8: set/add/remove/prepend), buf (pre-built value bytes). Multiple entries with same code allowed -- handler receives all ops for its code at once. |
+| OTC egress stamping | Role plugin writes `mods.Op(35, actionSet, otcValueBytes)` when route has no OTC and destination is Customer/Peer/RS-Client |
 | Unicast-only scope | OTC ingress and egress filters skip non-unicast families (IPv4/IPv6 unicast only per RFC) |
 | LocalASN capture | Role plugin captures reactor's LocalAS during OnConfigure for use in egress stamping |
 
@@ -72,13 +72,14 @@ OTC egress stamping is a MUST requirement in RFC 9234 Section 5. Without it, rou
 
 **Key insights:**
 - `ModAccumulator` already exists with `Set/Get/Range/Len/Reset`, lazily allocated, per-peer fresh instance
-- `EgressFilterFunc` already receives `*ModAccumulator` but no consumer applies mods yet
-- TODO at `reactor_api_forward.go:275` marks the exact insertion point for `applyMods`
-- `ModHandlerFunc` is a post-accept transformation: `func(payload []byte, val any) []byte`. Runs only after all egress filters accepted the route for a peer. Cannot reject — only transform. Handlers compose sequentially per peer.
-- `insertOTCInPayload` already exists in `otc.go:180-217` and works correctly
-- Role plugin captures per-peer config via package-level maps set during OnConfigure; localASN can use the same pattern
-- Family can be determined from payload: no MP_REACH/MP_UNREACH attributes means IPv4 unicast; otherwise parse AFI/SAFI from MP_REACH
+- `EgressFilterFunc` already receives `*ModAccumulator`; OTC egress filter now writes mods (implemented)
+- `applyMods` is implemented at `reactor_api_forward.go:289-312` (runs after wire selection)
+- `ModHandlerFunc` is a post-accept transformation (current: callback per mod key). Progressive build will replace callbacks with pre-built attribute bytes for mechanical copy/replace.
+- `insertOTCInPayload` exists in `otc.go:229-266` and works correctly
+- `isPayloadUnicast` (not `extractFamilyFromPayload`) gates OTC on unicast families in both filters
+- Role plugin captures localASN via `setFilterState` during OnConfigure (implemented)
 - `spec-llgr-4` depends on this framework for community addition, local-pref modification, and withdrawal conversion
+- Progressive build aligns with buffer-first architecture: pooled buffer + `WriteTo(buf, off)` pattern, skip-and-backfill for length fields (same as `reactor_wire.go`)
 
 ## Current Behavior (MANDATORY)
 
@@ -115,12 +116,84 @@ OTC egress stamping is a MUST requirement in RFC 9234 Section 5. Without it, rou
 
 Per-peer forward loop in `reactor_api_forward.go`:
 
-1. **Filter phase** (lines 258-274): egress filter chain runs. Each filter can suppress (return false) or accept (return true) and optionally write mods. If any filter suppresses, skip this peer entirely. OTC egress filter checks: route has no OTC AND dest is Customer/Peer/RS-Client -> writes `mods.Set("set:attr:otc", localASN)`, returns true.
-2. **All filters accepted** — route is going to this peer.
-3. **Apply mods** (line 275, currently TODO): if `mods.Len() > 0`, iterate mods via `mods.Range()`. For each mod key, look up registered `ModHandlerFunc`. Call handler with current payload + mod value. Handler returns modified payload. Chain: next handler receives the previous handler's output.
-4. **Wrap result**: if payload was modified, create new `WireUpdate` via `wireu.NewWireUpdate(modifiedPayload, ctxID)`.
-5. **Wire selection** (lines 277-288): select EBGP/IBGP wire version. Uses modified WireUpdate if mods were applied.
-6. **Build fwdItem** (line 291): forward item built with final wire + meta.
+1. **Filter phase**: egress filter chain runs with fresh `ModAccumulator` per peer. Each filter can suppress (return false) or accept (return true) and optionally write mods. If any filter suppresses, skip this peer entirely. OTC egress filter checks: route has no OTC AND dest is Customer/Peer/RS-Client -> writes mod (attr code 35, action "add", pre-built OTC bytes).
+2. **All filters accepted** -- route is going to this peer.
+3. **Wire selection**: select EBGP/IBGP wire version based on peer type. EBGP peers get the pre-built AS-PATH-prepended wire, IBGP peers get original. This runs BEFORE mods because EBGP wires are pre-built once per ForwardUpdate call (loop-invariant); mods must apply to the peer-specific wire, not the original.
+4. **Apply mods** (if `mods.Len() > 0`): progressive single-pass build into a pooled buffer. See Progressive Build Algorithm below. When `mods.Len() == 0` (common case): zero-copy, no buffer, no iteration.
+5. **Build fwdItem**: forward item built with final wire + meta.
+
+### Progressive Build Algorithm
+
+When `mods.Len() > 0`, a single-pass progressive build rewrites the selected wire's payload into a pooled buffer. This avoids per-handler full-payload allocation and handles all mod types (add, replace, remove) uniformly in one pass.
+
+**Buffer source:** pooled buffer (4096 or 64K depending on extended message negotiation). Returned to pool after send.
+
+**Pass structure (skip-and-backfill):**
+
+| Step | Action | Notes |
+|------|--------|-------|
+| 1 | Group ops by attr code | Scan `mods.Ops()`, build per-code op lists. Track which codes have ops. |
+| 2 | Copy withdrawn section verbatim | 2-byte length + withdrawn bytes. Unchanged by egress mods. Can write immediately. |
+| 3 | Skip attr_len field, save offset | Will be backfilled after all attributes are written. |
+| 4 | Walk source attributes one by one | For each attribute: read flags + type code (1 byte at `attrs[off+1]`) + length. |
+| 5 | Per attribute: check if code has ops | No ops: copy attribute bytes verbatim. Has ops: call registered handler with source bytes + ops list, handler writes result into buf. Mark code as consumed. |
+| 6 | After all source attributes: unconsumed codes | For each code with ops not yet consumed (attribute absent in source): call handler with nil source + ops list. Handler creates attribute from scratch. |
+| 7 | Backfill attr_len | Write actual attribute section length at saved offset from step 3. |
+| 8 | Copy NLRI section verbatim | Trailing bytes after attribute section. For structural mods (LLGR withdraw conversion), this step handles NLRI transformation. |
+| 9 | Wrap result | `wireu.NewWireUpdate(buf[:totalLen], sourceCtxID)`. BGP message header (19 bytes, total length at bytes 16-17) is written by the send layer, not applyMods. |
+
+**AttrOp structure (flat, one entry per operation):**
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| Code | uint8 | Attribute type code (e.g., 35 for OTC, 8 for COMMUNITY, 5 for LOCAL_PREF) |
+| Action | uint8 | Operation: set, add, remove, prepend |
+| Buf | []byte | Pre-built wire bytes of the VALUE (not the full attribute -- handler writes the header) |
+
+Multiple entries with the same Code are allowed. The progressive build groups ops by Code and passes all ops for a given code to the handler at once.
+
+**Action semantics (attribute-type-dependent):**
+
+| Action | Meaning | Example |
+|--------|---------|---------|
+| set | Replace entire attribute value | LOCAL_PREF: set 0. OTC: set ASN. MED: set 100. |
+| add | Append value to attribute's list | COMMUNITY: add 65000:300 |
+| remove | Remove value from attribute's list | COMMUNITY: remove NO_EXPORT |
+| prepend | Prepend value to attribute's sequence | AS_PATH: prepend ASN |
+
+**Handler per attribute code:**
+
+Each registered handler knows its attribute's semantics. It receives: source attribute bytes (nil if absent in source), list of ops, output buffer + offset. It writes the complete attribute (header + value) into the output buffer. The progressive build engine is generic -- attribute knowledge lives in handlers.
+
+| Source attr | Handler behavior |
+|-------------|-----------------|
+| Present | Read source header + value, apply ops (set replaces value, add appends, remove filters, prepend inserts), write result |
+| Absent | Create attribute from scratch using ops, write header + value |
+
+**Example: COMMUNITY with 3 ops on same UPDATE:**
+
+| # | Code | Action | Buf |
+|---|------|--------|-----|
+| 0 | 8 | add | 4 bytes (LLGR_STALE) |
+| 1 | 8 | remove | 4 bytes (NO_EXPORT) |
+| 2 | 8 | add | 4 bytes (NO_EXPORT_SUBCONFED) |
+
+Handler receives source community bytes + all 3 ops. Produces: source communities minus NO_EXPORT, plus LLGR_STALE and NO_EXPORT_SUBCONFED. One pass, one write.
+
+**Attribute-level vs structural mods:**
+
+| Mod type | Scope | Handled at |
+|----------|-------|------------|
+| Attribute ops (set/add/remove/prepend) | Single attribute by type code | Step 4 (attribute walk) or step 5 (unconsumed = new attr) |
+| NLRI structural (e.g., LLGR withdraw conversion) | NLRI section rewrite | Step 7 (NLRI copy) -- future, separate ModAccumulator field |
+
+**Performance characteristics:**
+- Zero-copy fast path when `mods.Len() == 0` (no buffer, no iteration, no allocation)
+- Single pass through source attributes when mods present (no second pass to patch)
+- Attr code comparison is one uint8 compare per attribute per mod -- negligible
+- Pooled buffer eliminates allocation cost
+- Sequential writes into same cache line -- prefetcher-friendly
+- Most attributes are unchanged (bulk copy), only modified attrs differ
 
 ### Entry Point -- Family Scope
 - OTC ingress filter receives payload with path attributes
@@ -136,24 +209,24 @@ Per-peer forward loop in `reactor_api_forward.go`:
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Plugin registry -> Reactor | Mod handlers registered at init, retrieved at reactor startup | [ ] |
-| Egress filter -> ModAccumulator | Filter writes mod key+value; reactor reads after chain | [ ] |
-| ModAccumulator -> Handler | Reactor iterates mods, calls registered handler per key | [ ] |
-| Handler -> WireUpdate | Handler returns modified payload; reactor wraps in WireUpdate | [ ] |
+| Plugin registry -> Reactor | Attr mod handlers registered at init by attr code, retrieved at reactor startup | [ ] |
+| Egress filter -> ModAccumulator | Filter writes AttrOp entries (code + action + value bytes); reactor reads after chain | [ ] |
+| ModAccumulator -> Progressive build | Reactor groups ops by code, calls registered handler per code during single-pass walk | [ ] |
+| Handler -> output buffer | Handler writes complete attribute (header + value) into pooled buffer at given offset | [ ] |
+| Progressive build -> WireUpdate | Build produces payload in pooled buffer; reactor wraps in WireUpdate | [ ] |
 
 ### Integration Points
-- `registry.go` - New `ModHandlerFunc` type + registration/lookup functions
-- `reactor_api_forward.go:275` - Replace TODO with `applyMods` call
-- `role/otc.go:OTCEgressFilter` - Write `"set:attr:otc"` mod instead of ignoring `mods`
-- `role/otc.go:OTCIngressFilter` - Add family check before OTC processing
-- `role/role.go` - Capture `localASN` during `setFilterState`
-- `role/register.go` - Register `"set:attr:otc"` mod handler
+- `registry.go` - `AttrOp` struct, `AttrModHandler` type, registration by attr code, `ModAccumulator` with `Op()` method
+- `reactor_api_forward.go` - Replace current `applyMods` with progressive build using registered handlers
+- `role/otc.go:OTCEgressFilter` - Write `mods.Op(35, actionSet, otcValueBytes)` instead of string-keyed mod
+- `role/register.go` - Register OTC attr mod handler for code 35
 
 ### Architectural Verification
 - [ ] No bypassed layers (mods flow through registry-based handlers, reactor never imports plugins)
-- [ ] No unintended coupling (reactor calls handlers by key, doesn't know about OTC/role)
-- [ ] No duplicated functionality (reuses `insertOTCInPayload` already in `otc.go`)
+- [ ] No unintended coupling (reactor calls handlers by attr code, doesn't know about OTC/role)
+- [ ] Handler per attr code encapsulates attribute semantics (scalar set, list add/remove, sequence prepend)
 - [ ] Zero-copy preserved when no mods (common case: `mods.Len() == 0` skips applyMods entirely)
+- [ ] Pooled buffer eliminates per-peer allocation when mods are present
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -164,39 +237,60 @@ Per-peer forward loop in `reactor_api_forward.go`:
 
 ## Acceptance Criteria
 
-| AC ID | Input / Condition | Expected Behavior |
-|-------|-------------------|-------------------|
-| AC-1 | Route without OTC forwarded to Customer peer (local role = provider) | OTC attribute added with value = local ASN |
-| AC-2 | Route without OTC forwarded to Peer (local role = provider) | OTC attribute added with value = local ASN |
-| AC-3 | Route without OTC forwarded to RS-Client (local role = RS) | OTC attribute added with value = local ASN |
-| AC-4 | Route without OTC forwarded to Provider (local role = customer) | No OTC stamped (Provider is not Customer/Peer/RS-Client from sender's perspective) |
-| AC-5 | Route with OTC already present forwarded to Customer peer | OTC preserved unchanged (MUST NOT modify existing OTC) |
-| AC-6 | Non-unicast family route (e.g., ipv4/multicast) from Provider peer | OTC ingress rules not applied |
-| AC-7 | Non-unicast family route forwarded to Customer peer | OTC egress rules not applied (no stamping, no suppression) |
-| AC-8 | No role configured on either peer | No OTC processing, no mods written (backward compatible) |
-| AC-9 | Mod handler registered for `"set:attr:otc"` | Handler callable from reactor without importing role plugin |
-| AC-10 | `mods.Len() == 0` after filter chain | `applyMods` is a no-op, zero allocation |
-| AC-11 | `insertOTCInPayload` returns nil (overflow) | Mod handler returns original payload unchanged, route still forwarded |
+| AC ID | Input / Condition | Expected Behavior | Phase |
+|-------|-------------------|-------------------|-------|
+| AC-1 | Route without OTC forwarded to Customer peer (local role = provider) | OTC attribute added with value = local ASN | v1 done |
+| AC-2 | Route without OTC forwarded to Peer (local role = provider) | OTC attribute added with value = local ASN | v1 done |
+| AC-3 | Route without OTC forwarded to RS-Client (local role = RS) | OTC attribute added with value = local ASN | v1 done |
+| AC-4 | Route without OTC forwarded to Provider (local role = customer) | No OTC stamped | v1 done |
+| AC-5 | Route with OTC already present forwarded to Customer peer | OTC preserved unchanged | v1 done |
+| AC-6 | Non-unicast family route from Provider peer | OTC ingress rules not applied | v1 done |
+| AC-7 | Non-unicast family route forwarded to Customer peer | OTC egress rules not applied | v1 done |
+| AC-8 | No role configured on either peer | No OTC processing, no mods written | v1 done |
+| AC-9 | `mods.Len() == 0` after filter chain | `applyMods` is a no-op, zero allocation, no buffer from pool | v1 done, v2 preserve |
+| AC-10 | OTC attr overflow during mod handler | Route forwarded with original payload unchanged | v1 done, v2 preserve |
+| AC-11 | `AttrOp` struct with code, action, buf fields | Egress filter writes `mods.Op(35, actionSet, otcValueBytes)` | v2 |
+| AC-12 | `AttrModHandler` registered by attr code (uint8) | Handler callable from reactor without importing role plugin | v2 |
+| AC-13 | Progressive build with single OTC set op | Output payload contains OTC attribute, attr_len correct, NLRI preserved | v2 |
+| AC-14 | Progressive build with no matching source attr | Handler called with nil source, creates attribute from scratch | v2 |
+| AC-15 | Progressive build with matching source attr (future: LOCAL_PREF set) | Handler called with source bytes, replaces value | v2 |
+| AC-16 | Multiple ops on same attr code (future: COMMUNITY add+remove) | Handler receives all ops, produces single result in one write | v2 |
+| AC-17 | Progressive build uses pooled buffer | Buffer obtained from pool, returned after send. No `make([]byte)` in hot path. | v2 |
+| AC-18 | Unknown attr code in ops (no handler registered) | Ops skipped with warning log, source attr copied unchanged | v2 |
 
 ## TDD Test Plan
 
-### Unit Tests
-| Test | File | Validates | Status |
-|------|------|-----------|--------|
-| `TestModHandlerRegistration` | `registry/registry_test.go` | Register and retrieve mod handler by key | |
-| `TestModHandlerNotFound` | `registry/registry_test.go` | Unknown mod key returns nil handler | |
-| `TestApplyModsNoMods` | `reactor/reactor_api_forward_test.go` | `mods.Len() == 0` is a no-op, returns original payload | |
-| `TestApplyModsOTCStamp` | `reactor/reactor_api_forward_test.go` | `"set:attr:otc"` mod produces payload with OTC appended | |
-| `TestApplyModsUnknownKey` | `reactor/reactor_api_forward_test.go` | Unknown mod key logged, original payload returned | |
-| `TestOTCEgressStampMod` | `role/otc_test.go` | Egress filter writes `"set:attr:otc"` mod when route has no OTC and dest is Customer | |
-| `TestOTCEgressNoStampProvider` | `role/otc_test.go` | Egress filter does NOT write mod when dest is Provider | |
-| `TestOTCEgressPreserveExisting` | `role/otc_test.go` | Egress filter does NOT write mod when route already has OTC | |
-| `TestOTCEgressStampLocalASN` | `role/otc_test.go` | Mod value is local ASN, not source or dest peer ASN | |
-| `TestOTCIngressUnicastOnly` | `role/otc_test.go` | Ingress filter skips OTC processing for non-unicast family | |
-| `TestOTCEgressUnicastOnly` | `role/otc_test.go` | Egress filter skips OTC processing for non-unicast family | |
-| `TestExtractFamilyFromPayload` | `role/otc_test.go` | Correctly identifies IPv4 unicast (no MP_REACH), IPv6 unicast (MP_REACH AFI=2 SAFI=1), multicast (SAFI=2) | |
-| `TestOTCStampOverflow` | `role/otc_test.go` | `insertOTCInPayload` returns nil on overflow; mod handler returns original payload | |
-| `TestLocalASNCaptured` | `role/role_test.go` | `setFilterState` stores localASN, egress filter uses it for stamping | |
+### v1 Unit Tests (existing -- update for v2 API)
+| Test | File | Validates | v2 change |
+|------|------|-----------|-----------|
+| `TestModHandlerRegistration` | `registry/registry_test.go` | Register and retrieve handler | Rewrite: register by attr code, retrieve by code |
+| `TestModHandlerNotFound` | `registry/registry_test.go` | Unknown code returns nil | Rewrite: lookup by uint8 code |
+| `TestOTCEgressStampMod` | `role/otc_test.go` | Egress filter writes mod when no OTC + dest is Customer | Rewrite: assert `mods.Op(35, actionSet, ...)` |
+| `TestOTCEgressNoStampProvider` | `role/otc_test.go` | No mod when dest is Provider | Assert `mods.Len() == 0` (API unchanged) |
+| `TestOTCEgressPreserveExisting` | `role/otc_test.go` | No mod when OTC already present | Assert `mods.Len() == 0` (API unchanged) |
+| `TestOTCEgressStampLocalASN` | `role/otc_test.go` | Mod value is local ASN bytes | Rewrite: check AttrOp.Buf contains local ASN |
+| `TestOTCIngressUnicastOnly` | `role/otc_test.go` | Ingress skips non-unicast | No change (ingress unaffected) |
+| `TestOTCEgressUnicastOnly` | `role/otc_test.go` | Egress skips non-unicast | No change |
+| `TestIsPayloadUnicast` | `role/otc_test.go` | Family detection from payload | No change |
+| `TestOTCModHandler` | `role/otc_test.go` | OTC handler produces correct bytes | Rewrite: new handler signature (src, ops, buf, off) |
+| `TestOTCStampOverflow` | `role/otc_test.go` | Overflow returns original payload | Rewrite: handler writes 0 bytes on overflow |
+
+### v2 Unit Tests (new)
+| Test | File | Validates | AC |
+|------|------|-----------|-----|
+| `TestAttrOpStructure` | `registry/registry_test.go` | AttrOp holds code, action, buf; ModAccumulator.Op() stores entry | AC-11 |
+| `TestAttrModHandlerRegistration` | `registry/registry_test.go` | Register handler by uint8 code, retrieve by code | AC-12 |
+| `TestProgressiveBuildNoMods` | `reactor/forward_build_test.go` | `mods.Len() == 0` returns original payload, no buffer from pool | AC-9 |
+| `TestProgressiveBuildOTCAdd` | `reactor/forward_build_test.go` | Single set op for code 35, source has no OTC: OTC appended, attr_len correct, NLRI intact | AC-13, AC-14 |
+| `TestProgressiveBuildAttrReplace` | `reactor/forward_build_test.go` | Set op for code 5 (LOCAL_PREF), source has LOCAL_PREF: value replaced, rest unchanged | AC-15 |
+| `TestProgressiveBuildMultiOps` | `reactor/forward_build_test.go` | Three ops on code 8 (COMMUNITY): add+remove+add, handler receives all, single result | AC-16 |
+| `TestProgressiveBuildPooledBuffer` | `reactor/forward_build_test.go` | Buffer from pool, not make([]byte) | AC-17 |
+| `TestProgressiveBuildUnknownCode` | `reactor/forward_build_test.go` | Op for unregistered code: warning logged, source attr copied unchanged | AC-18 |
+| `TestProgressiveBuildWithdrawnPreserved` | `reactor/forward_build_test.go` | Withdrawn section copied verbatim, unaffected by attr mods | |
+| `TestProgressiveBuildNLRIPreserved` | `reactor/forward_build_test.go` | NLRI section copied verbatim after modified attrs | |
+| `TestProgressiveBuildAttrLenBackfill` | `reactor/forward_build_test.go` | attr_len field matches actual attribute section length after mods | |
+| `TestOTCHandlerNewSignature` | `role/otc_test.go` | OTC handler: nil source + set op -> writes 7-byte OTC attr into buf | AC-14 |
+| `TestOTCHandlerExistingPreserved` | `role/otc_test.go` | OTC handler: source has OTC + set op -> copies source unchanged | AC-5 |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -204,24 +298,29 @@ Per-peer forward loop in `reactor_api_forward.go`:
 | Local ASN for OTC stamp | 1-4294967295 | 4294967295 | 0 (should not stamp with ASN 0) | N/A (uint32) |
 | MP_REACH AFI | 1-2 for unicast scope | 2 (IPv6) | 0 (reserved) | 3+ (not unicast scope) |
 | MP_REACH SAFI | 1 for unicast scope | 1 | 0 (reserved) | 2+ (not unicast) |
+| AttrOp.Code | 0-255 | 255 | N/A (uint8) | N/A (uint8) |
+| Attr_len after mods | 0-65535 | 65535 | N/A | Overflow: skip mod, use original payload |
 
-### Functional Tests
+### Functional Tests (existing -- behavioral assertions unchanged)
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `role-otc-egress-stamp` | `test/plugin/role-otc-egress-stamp.ci` | Provider sends route without OTC; Customer peer receives route WITH OTC = local ASN | |
-| `role-otc-unicast-scope` | `test/plugin/role-otc-unicast-scope.ci` | Multicast route forwarded without OTC processing regardless of role config | |
+| `role-otc-egress-stamp` | `test/plugin/role-otc-egress-stamp.ci` | Provider sends route without OTC; Customer peer receives route WITH OTC = local ASN | exists |
+| `role-otc-unicast-scope` | `test/plugin/role-otc-unicast-scope.ci` | Multicast route forwarded without OTC processing regardless of role config | exists |
 
 ### Future (if deferring any tests)
-- Property-based testing for mod handler round-trip (mod applied -> verify attribute present in wire)
-- Benchmark for applyMods overhead per peer (should be negligible when mods.Len() == 0)
+- Property-based testing for progressive build round-trip (build -> parse -> compare)
+- Benchmark: progressive build vs v1 callback for 1, 2, 3 concurrent mods
+- Benchmark: applyMods overhead per peer when `mods.Len() == 0` (must be zero allocation)
 
 ## Files to Modify
-- `internal/component/plugin/registry/registry.go` - Add `ModHandlerFunc` type, mod handler registration and lookup functions
-- `internal/component/bgp/reactor/reactor_api_forward.go` - Replace TODO at line 275 with `applyMods` implementation
-- `internal/component/bgp/reactor/reactor.go` - Load mod handlers at startup (alongside ingress/egress filters)
-- `internal/component/bgp/plugins/role/otc.go` - Add family extraction, unicast scope check in ingress and egress filters, write `"set:attr:otc"` mod in egress
-- `internal/component/bgp/plugins/role/role.go` - Capture `localASN` in `setFilterState`
-- `internal/component/bgp/plugins/role/register.go` - Register `"set:attr:otc"` mod handler
+- `internal/component/plugin/registry/registry.go` - Replace `ModHandlerFunc`/string-keyed API with `AttrOp` struct, `AttrModHandler` type, registration by uint8 code, `ModAccumulator` with `Op()` method
+- `internal/component/plugin/registry/registry_test.go` - Update tests for new API (attr code registration, AttrOp structure)
+- `internal/component/bgp/reactor/reactor_api_forward.go` - Replace current callback-based `applyMods` with progressive build engine
+- `internal/component/bgp/reactor/reactor.go` - Load attr mod handlers by code at startup (replaces string-keyed map)
+- `internal/component/bgp/reactor/reactor_notify.go` - Update `safeModHandler` for new handler signature (or replace with per-attr-code panic recovery in build engine)
+- `internal/component/bgp/plugins/role/otc.go` - OTC egress filter: `mods.Op(35, actionSet, otcValueBytes)`. OTC handler: new signature writing into caller's buffer.
+- `internal/component/bgp/plugins/role/register.go` - Register OTC handler by attr code 35
+- `internal/component/bgp/reactor/forward_update_test.go` - Update mod-related tests for new API
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -229,7 +328,7 @@ Per-peer forward loop in `reactor_api_forward.go`:
 | YANG schema (new RPCs) | No | N/A |
 | CLI commands/flags | No | N/A |
 | Editor autocomplete | No | N/A |
-| Functional test for new behavior | Yes | `test/plugin/role-otc-egress-stamp.ci`, `test/plugin/role-otc-unicast-scope.ci` |
+| Functional tests | No new ones | Existing `.ci` tests validate behavior, API is internal |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
@@ -238,18 +337,18 @@ Per-peer forward loop in `reactor_api_forward.go`:
 | 2 | Config syntax changed? | No | |
 | 3 | CLI command added/changed? | No | |
 | 4 | API/RPC added/changed? | No | |
-| 5 | Plugin added/changed? | No | Same role plugin, extended behavior |
-| 6 | Has a user guide page? | Yes | `docs/guide/bgp-role.md` - note OTC is now stamped on egress per RFC |
-| 7 | Wire format changed? | No | OTC attribute format unchanged |
+| 5 | Plugin added/changed? | No | Same role plugin, internal API change |
+| 6 | Has a user guide page? | No | Behavior unchanged from user perspective |
+| 7 | Wire format changed? | No | |
 | 8 | Plugin SDK/protocol changed? | No | |
-| 9 | RFC behavior implemented? | Yes | `rfc/short/rfc9234.md` - mark egress stamping as implemented |
+| 9 | RFC behavior implemented? | No | Already implemented in v1 |
 | 10 | Test infrastructure changed? | No | |
-| 11 | Affects daemon comparison? | No | Already listed in comparison |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` - document applyMods in forward path, `docs/architecture/meta/README.md` - document mod handler pattern |
+| 11 | Affects daemon comparison? | No | |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/core-design.md` - document progressive build in forward path, AttrOp structure, per-attr-code handlers |
 
 ## Files to Create
-- `test/plugin/role-otc-egress-stamp.ci` - OTC egress stamping functional test
-- `test/plugin/role-otc-unicast-scope.ci` - unicast-only scope functional test
+- `internal/component/bgp/reactor/forward_build.go` - Progressive build engine (separate file from forward path dispatch)
+- `internal/component/bgp/reactor/forward_build_test.go` - Progressive build unit tests
 
 ## Implementation Steps
 
@@ -273,66 +372,75 @@ Per-peer forward loop in `reactor_api_forward.go`:
 
 Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
-1. **Phase: Mod handler registry** -- Add `ModHandlerFunc` type and registration/lookup in `registry.go`
-   - Tests: `TestModHandlerRegistration`, `TestModHandlerNotFound`
+v1 phases (1-5) are already implemented. v2 phases (6-10) are new work.
+
+1. ~~**Phase: Mod handler registry**~~ -- v1 done
+2. ~~**Phase: applyMods callback in forward path**~~ -- v1 done
+3. ~~**Phase: Family extraction + unicast scope**~~ -- v1 done
+4. ~~**Phase: OTC egress stamping via string-keyed mods**~~ -- v1 done
+5. ~~**Phase: Functional tests**~~ -- v1 done (both .ci tests exist)
+
+6. **Phase: AttrOp + ModAccumulator refactor** -- Replace string-keyed `map[string]any` with `AttrOp` struct and `Op()` method in `registry.go`. Replace `ModHandlerFunc` with `AttrModHandler` registered by uint8 code.
+   - Tests: `TestAttrOpStructure`, `TestAttrModHandlerRegistration`
    - Files: `registry/registry.go`, `registry/registry_test.go`
-   - Verify: tests fail -> implement -> tests pass
+   - Verify: tests fail -> implement -> tests pass. Compilation breaks expected (callers use old API).
 
-2. **Phase: applyMods in forward path** -- Replace TODO at `reactor_api_forward.go:275` with mod application logic
-   - Tests: `TestApplyModsNoMods`, `TestApplyModsUnknownKey`
-   - Files: `reactor/reactor_api_forward.go`, `reactor/reactor.go`
-   - Verify: no-op when `mods.Len() == 0`; unknown keys logged and skipped
+7. **Phase: OTC migration to AttrOp** -- Migrate OTC egress filter to `mods.Op(35, actionSet, otcValueBytes)`. Migrate OTC handler to new signature. Update registration in `register.go`.
+   - Tests: `TestOTCEgressStampMod` (rewritten), `TestOTCHandlerNewSignature`, `TestOTCHandlerExistingPreserved`
+   - Files: `role/otc.go`, `role/register.go`, `role/otc_test.go`
+   - Verify: OTC filter writes AttrOp, handler writes into buf. Compilation fixed.
 
-3. **Phase: Family extraction + unicast scope** -- Add `extractFamilyFromPayload` in `otc.go`, gate ingress and egress filters on unicast family
-   - Tests: `TestExtractFamilyFromPayload`, `TestOTCIngressUnicastOnly`, `TestOTCEgressUnicastOnly`
-   - Files: `role/otc.go`, `role/otc_test.go`
-   - Verify: non-unicast payloads bypass OTC processing
+8. **Phase: Progressive build engine** -- Implement single-pass build in `forward_build.go`. Group ops by code, walk source attrs, call handlers, backfill attr_len, copy NLRI.
+   - Tests: `TestProgressiveBuildNoMods`, `TestProgressiveBuildOTCAdd`, `TestProgressiveBuildAttrReplace`, `TestProgressiveBuildMultiOps`, `TestProgressiveBuildUnknownCode`, `TestProgressiveBuildWithdrawnPreserved`, `TestProgressiveBuildNLRIPreserved`, `TestProgressiveBuildAttrLenBackfill`
+   - Files: `reactor/forward_build.go`, `reactor/forward_build_test.go`
+   - Verify: all progressive build tests pass in isolation
 
-4. **Phase: OTC egress stamping via mods** -- Capture localASN in role plugin, write `"set:attr:otc"` mod in egress filter, register OTC mod handler
-   - Tests: `TestLocalASNCaptured`, `TestOTCEgressStampMod`, `TestOTCEgressNoStampProvider`, `TestOTCEgressPreserveExisting`, `TestOTCEgressStampLocalASN`, `TestOTCStampOverflow`, `TestApplyModsOTCStamp`
-   - Files: `role/role.go`, `role/otc.go`, `role/register.go`, `reactor/reactor_api_forward.go`
-   - Verify: egress filter writes mod; applyMods calls handler; handler produces payload with OTC
+9. **Phase: Wire into forward path** -- Replace callback-based `applyMods` in `reactor_api_forward.go` with progressive build call. Add pooled buffer get/put. Update `reactor.go` handler loading.
+   - Tests: `TestProgressiveBuildPooledBuffer`, existing `forward_update_test.go` tests updated
+   - Files: `reactor/reactor_api_forward.go`, `reactor/reactor.go`, `reactor/reactor_notify.go`, `reactor/forward_update_test.go`
+   - Verify: `make ze-verify` passes. Existing `.ci` tests pass unchanged (behavioral equivalence).
 
-5. **Phase: Functional tests** -- .ci tests for end-to-end egress stamping and unicast scope
-   - Tests: `role-otc-egress-stamp`, `role-otc-unicast-scope`
-   - Files: `test/plugin/role-otc-egress-stamp.ci`, `test/plugin/role-otc-unicast-scope.ci`
-   - Verify: all .ci tests pass
-
-6. **RFC refs** -- Add `// RFC 9234 Section 5` comments on egress stamping code
-7. **Full verification** -- `make ze-verify`
-8. **Complete spec** -- audit, learned summary, delete spec
+10. **Phase: Cleanup + verification**
+    - Remove dead v1 code (`ModHandlerFunc`, `safeModHandler` if replaced, string-keyed registration)
+    - `make ze-verify`
+    - Audit, learned summary, delete spec
 
 ### Critical Review Checklist (/implement stage 5)
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has implementation with file:line |
-| Correctness | OTC stamped with local ASN (not source or dest peer ASN) per RFC 9234 Section 5 |
+| Correctness | OTC stamped with local ASN per RFC 9234 Section 5 |
 | RFC compliance | Existing OTC preserved unchanged; stamping only when OTC absent |
 | Scope | OTC processing gated on unicast family (AFI 1/2, SAFI 1) |
 | Backward compat | No role config = no OTC processing, no mods written |
-| Performance | `applyMods` is no-op when `mods.Len() == 0` (common case); no allocation |
-| Coupling | Reactor calls mod handlers by key, never imports role plugin |
-| Data flow | Egress filter writes mod -> applyMods applies -> modified WireUpdate used for forwarding |
+| Performance | `mods.Len() == 0` = zero-copy, zero allocation. Mods present = pooled buffer, single pass. |
+| Coupling | Reactor calls handlers by uint8 attr code, never imports role plugin |
+| Data flow | Egress filter writes AttrOp -> progressive build groups by code -> handler writes into buf -> WireUpdate wraps result |
+| No v1 residue | String-keyed `ModHandlerFunc`, `safeModHandler` callback path removed. No dead code. |
 
 ### Deliverables Checklist (/implement stage 9)
 | Deliverable | Verification method |
 |-------------|---------------------|
-| `ModHandlerFunc` type in registry | grep "ModHandlerFunc" in registry.go |
-| Mod handler registration/lookup | grep "RegisterModHandler\|ModHandler(" in registry.go |
-| `applyMods` replaces TODO | grep "applyMods\|TODO.*spec-llgr" in reactor_api_forward.go (TODO gone) |
-| OTC egress stamping writes mod | grep `"set:attr:otc"` in otc.go |
-| OTC mod handler registered | grep `"set:attr:otc"` in register.go |
-| localASN captured | grep "localASN\|filterLocalASN" in role.go |
-| Unicast scope check | grep "isUnicast\|extractFamily" in otc.go has production callers |
-| Functional tests exist | ls test/plugin/role-otc-egress-stamp.ci test/plugin/role-otc-unicast-scope.ci |
+| `AttrOp` struct in registry | grep "AttrOp" in registry.go |
+| `AttrModHandler` type | grep "AttrModHandler" in registry.go |
+| Registration by attr code | grep "RegisterAttrModHandler" in registry.go |
+| `ModAccumulator.Op()` method | grep "func.*ModAccumulator.*Op(" in registry.go |
+| Progressive build engine | ls reactor/forward_build.go |
+| Progressive build wired into forward path | grep "progressiveBuild\|buildModifiedPayload" in reactor_api_forward.go |
+| OTC filter uses AttrOp | grep "mods.Op(.*35" in otc.go |
+| OTC handler registered by code | grep "RegisterAttrModHandler.*35\|otcAttrCode" in register.go |
+| Pooled buffer in build | grep "buildBufPool\|Get()\|Put(" in forward_build.go |
+| v1 dead code removed | grep "ModHandlerFunc\|RegisterModHandler\b" returns zero hits outside tests |
+| Functional tests still pass | `make ze-functional-test` (no .ci changes needed) |
 
 ### Security Review Checklist (/implement stage 10)
 | Check | What to look for |
 |-------|-----------------|
-| Input validation | Mod handler validates value type (uint32) before casting; malformed mod skipped |
-| Overflow | `insertOTCInPayload` returns nil on uint16 overflow; handler returns original payload |
-| Panic safety | Mod handler called inside existing safeEgressFilter scope or separate recovery |
-| No injection | Mod keys are string constants, not user input |
+| Input validation | Handler validates AttrOp.Buf length before using; malformed op skipped |
+| Overflow | attr_len > 65535 after mods: skip modification, use original payload |
+| Panic safety | Handler called with panic recovery in progressive build loop |
+| No injection | AttrOp.Code is uint8 from filter code, not user input. AttrOp.Buf is pre-built wire bytes. |
+| Buffer bounds | Progressive build checks `off + writeLen <= len(buf)` before every write |
 
 ### Failure Routing
 | Failure | Route To |
@@ -360,6 +468,33 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 |---------|-----------|---------------|--------|
 
 ## Design Insights
+
+### Option A vs Option B for applyMods (decided: Option B)
+
+Two approaches were considered for applying mods to UPDATE payloads:
+
+| Approach | Description | Strengths | Weaknesses |
+|----------|-------------|-----------|------------|
+| A: Full copy then in-place patch | memcpy entire payload, then overwrite at specific offsets | Fast memcpy (SIMD/vectorized), simple for same-size replacements | Breaks when mod changes payload size (OTC add = +7 bytes, community append = +variable). Requires memmove to shift trailing bytes. Initial copy needs slack space calculated upfront. |
+| B: Progressive single-pass build | Walk source attributes, copy unchanged, replace modified, append new -- all in one pass into pooled buffer | Handles all mod types uniformly (add/replace/remove). One pass, no shifting. Aligns with buffer-first architecture (skip-and-backfill). | Many small copies instead of one memcpy. |
+
+**Decision: Option B.** Rationale:
+- Iteration is needed anyway to find target attributes; Option A does find-then-patch (two passes), Option B does find-and-write (one pass)
+- OTC and LLGR mods change payload size, which is the majority of mod types. Option A's memcpy advantage only holds for same-size patches.
+- Aligns with the project's buffer-first `WriteTo(buf, off)` pattern and pooled buffers
+- Small sequential copies into the same cache line are prefetcher-friendly; the performance difference vs one memcpy is negligible for UPDATE-sized payloads (typically < 4096 bytes)
+
+### Why mods run after wire selection
+
+EBGP wires (with AS-PATH prepended) are pre-built once per ForwardUpdate call, before the per-peer loop. If applyMods ran before wire selection, mods would modify the original payload, but wire selection would pick the pre-built EBGP wire (generated from the unmodified original). Mods would be silently lost for all EBGP peers. Mods must run on the selected wire's payload.
+
+### Flat AttrOp structure with per-attribute handlers
+
+The mod system uses flat AttrOp entries (code uint8, action uint8, buf []byte) instead of string-keyed mods with callbacks on full payloads. This design emerged from three observations:
+
+1. **Attribute operations are type-specific.** COMMUNITY supports add/remove (list), LOCAL_PREF supports set (scalar), AS_PATH supports prepend (sequence). A single generic handler cannot know these semantics. One handler per attribute code is the right granularity.
+2. **Multiple ops on the same attribute.** A single peer may need 3 COMMUNITY ops (add X, remove Y, add Z). Flat entries with the same Code accumulate naturally. The handler receives all ops at once and produces one result in one write.
+3. **Filters don't know source content.** An egress filter writes a general rule ("ensure OTC = local ASN") without knowing if the source payload has OTC or not. The progressive build discovers this during the walk and calls the handler with the source bytes (or nil if absent). The handler handles both cases.
 
 ## RFC Documentation
 

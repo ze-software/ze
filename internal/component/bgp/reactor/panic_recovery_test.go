@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"context"
+	"encoding/binary"
 	"net"
 	"os"
 	"sync/atomic"
@@ -262,8 +263,10 @@ func TestSafeIngressFilterNormalPassthrough(t *testing.T) {
 // TestSafeEgressFilterNormalPassthrough verifies the happy path: a well-behaved
 // egress filter's result passes through and mods are accumulated.
 func TestSafeEgressFilterNormalPassthrough(t *testing.T) {
-	normalFilter := func(_, _ registry.PeerFilterInfo, _ []byte, meta map[string]any, mods *registry.ModAccumulator) bool {
-		mods.Set("set:attr:local-preference", uint32(100))
+	normalFilter := func(_, _ registry.PeerFilterInfo, _ []byte, _ map[string]any, mods *registry.ModAccumulator) bool {
+		lpBuf := make([]byte, 4)
+		binary.BigEndian.PutUint32(lpBuf, 100)
+		mods.Op(5, registry.AttrModSet, lpBuf)
 		return true
 	}
 	src := registry.PeerFilterInfo{Address: mustParseAddr("10.0.0.1"), PeerAS: 65001}
@@ -273,39 +276,12 @@ func TestSafeEgressFilterNormalPassthrough(t *testing.T) {
 	accept := safeEgressFilter(normalFilter, src, dest, []byte{0x00, 0x00, 0x00, 0x00}, nil, &mods)
 	assert.True(t, accept)
 	assert.Equal(t, 1, mods.Len(), "mods should carry filter's value")
-	v, ok := mods.Get("set:attr:local-preference")
-	assert.True(t, ok)
-	lp, lpOK := v.(uint32)
-	assert.True(t, lpOK)
+	ops := mods.Ops()
+	require.Len(t, ops, 1)
+	assert.Equal(t, uint8(5), ops[0].Code)
+	assert.Equal(t, registry.AttrModSet, ops[0].Action)
+	lp := binary.BigEndian.Uint32(ops[0].Buf)
 	assert.Equal(t, uint32(100), lp)
-}
-
-// TestSafeModHandlerPanicSkips verifies that a panicking mod handler
-// returns nil (fail-open: route forwarded unmodified) and does not crash the caller.
-//
-// VALIDATES: fail-open behavior -- panicking mod handler skips modification.
-// PREVENTS: Panic in mod handler crashing the forward path.
-func TestSafeModHandlerPanicSkips(t *testing.T) {
-	panicHandler := registry.ModHandlerFunc(func(_ []byte, _ any) []byte {
-		panic("simulated mod handler panic")
-	})
-	payload := []byte{0x00, 0x00, 0x00, 0x04, 0x40, 0x01, 0x01, 0x00}
-
-	result := safeModHandler(panicHandler, "test:key", payload, uint32(65000))
-	assert.Nil(t, result, "panicking mod handler must return nil (fail-open)")
-}
-
-// TestSafeModHandlerNormalPassthrough verifies the happy path: a well-behaved
-// mod handler's result passes through unchanged.
-func TestSafeModHandlerNormalPassthrough(t *testing.T) {
-	normalHandler := registry.ModHandlerFunc(func(payload []byte, val any) []byte {
-		// Append a byte to simulate modification.
-		return append(payload, 0xFF) //nolint:gocritic // appendAssign: test intentionally creates new slice
-	})
-	payload := []byte{0x00, 0x01, 0x02}
-
-	result := safeModHandler(normalHandler, "test:key", payload, nil)
-	assert.Equal(t, []byte{0x00, 0x01, 0x02, 0xFF}, result, "handler result should pass through")
 }
 
 // TestSafeRunGapScanRecoversPanic verifies safeRunGapScan catches panics.

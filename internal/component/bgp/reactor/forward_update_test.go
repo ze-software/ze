@@ -327,26 +327,23 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 	peer.sendCtx.Store(ctx)
 	peer.sendCtxID = ctxID
 
-	// Marker bytes that the mod handler will append.
-	marker := []byte{0xDE, 0xAD}
+	// Marker attribute: code 250 (private), 2-byte value.
+	markerValue := []byte{0xDE, 0xAD}
 
-	// Egress filter that writes a mod.
+	// Egress filter that writes an AttrOp mod.
 	egressFilter := func(_, _ registry.PeerFilterInfo, _ []byte, _ map[string]any, mods *registry.ModAccumulator) bool {
-		mods.Set("test:marker", marker)
+		mods.Op(250, registry.AttrModSet, markerValue)
 		return true // accept
 	}
 
-	// Mod handler that appends marker bytes to the payload.
-	modHandler := func(p []byte, val any) []byte {
-		m, ok := val.([]byte)
-		if !ok {
-			return nil
-		}
-		result := make([]byte, len(p)+len(m))
-		copy(result, p)
-		copy(result[len(p):], m)
-		return result
-	}
+	// AttrModHandler that adds a marker attribute (flags+code+len+value = 5 bytes).
+	markerHandler := registry.AttrModHandler(func(_ []byte, ops []registry.AttrOp, buf []byte, off int) int {
+		buf[off] = 0xC0  // flags: Optional + Transitive
+		buf[off+1] = 250 // private code
+		buf[off+2] = byte(len(ops[0].Buf))
+		copy(buf[off+3:], ops[0].Buf)
+		return off + 3 + len(ops[0].Buf)
+	})
 
 	var dispatched []fwdItem
 	var mu sync.Mutex
@@ -361,11 +358,11 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 	defer testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates: cache,
-		peers:         map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
-		fwdPool:       testPool,
-		egressFilters: []registry.EgressFilterFunc{egressFilter},
-		modHandlers:   map[string]registry.ModHandlerFunc{"test:marker": modHandler},
+		recentUpdates:   cache,
+		peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
+		fwdPool:         testPool,
+		egressFilters:   []registry.EgressFilterFunc{egressFilter},
+		attrModHandlers: map[uint8]registry.AttrModHandler{250: markerHandler},
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -386,17 +383,23 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 	item := dispatched[0]
 	mu.Unlock()
 
-	// The dispatched payload should be the original + marker (mod was applied).
+	// The dispatched payload should contain the marker attribute added by the mod handler.
+	// Progressive build adds a 5-byte attribute: flags(1) + code(1) + len(1) + value(2).
 	require.Len(t, item.rawBodies, 1, "should have one raw body")
 	got := item.rawBodies[0]
 	assert.Greater(t, len(got), len(payload), "modified payload should be longer than original")
-	assert.Equal(t, marker, got[len(got)-2:], "payload should end with marker bytes from mod handler")
+	// Parse attr_len from the modified payload and find the marker attribute.
+	attrLen := int(binary.BigEndian.Uint16(got[2:4]))
+	expectedAttrLen := len(origAttrs) + 3 + len(markerValue) // original + marker attr header + value
+	assert.Equal(t, expectedAttrLen, attrLen, "attr_len should include original + marker attribute")
+	// Verify ORIGIN attribute preserved verbatim at the start of attrs.
+	assert.Equal(t, origAttrs, got[4:4+len(origAttrs)], "ORIGIN must be preserved unchanged")
 }
 
 // TestForwardUpdate_ModHandlerPanic verifies that a panicking mod handler
-// is caught by safeModHandler and the original payload is forwarded.
+// is caught by safeAttrModHandler and the original payload is forwarded.
 //
-// VALIDATES: Panic recovery in mod handler path (safeModHandler).
+// VALIDATES: Panic recovery in attr mod handler path (safeAttrModHandler).
 // PREVENTS: Panicking handler crashing the reactor forward loop.
 func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
@@ -438,13 +441,13 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 	peer.sendCtxID = ctxID
 
 	egressFilter := func(_, _ registry.PeerFilterInfo, _ []byte, _ map[string]any, mods *registry.ModAccumulator) bool {
-		mods.Set("test:panic", true)
+		mods.Op(251, registry.AttrModSet, []byte{0x01})
 		return true
 	}
 
-	panicHandler := func(_ []byte, _ any) []byte {
+	panicHandler := registry.AttrModHandler(func(_ []byte, _ []registry.AttrOp, _ []byte, _ int) int {
 		panic("deliberate test panic")
-	}
+	})
 
 	var dispatched []fwdItem
 	var mu sync.Mutex
@@ -459,18 +462,18 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 	defer testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates: cache,
-		peers:         map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
-		fwdPool:       testPool,
-		egressFilters: []registry.EgressFilterFunc{egressFilter},
-		modHandlers:   map[string]registry.ModHandlerFunc{"test:panic": panicHandler},
+		recentUpdates:   cache,
+		peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
+		fwdPool:         testPool,
+		egressFilters:   []registry.EgressFilterFunc{egressFilter},
+		attrModHandlers: map[uint8]registry.AttrModHandler{251: panicHandler},
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
 	sel, err := selector.Parse("*")
 	require.NoError(t, err)
 
-	// Must not panic -- safeModHandler catches it.
+	// Must not panic -- safeAttrModHandler catches it.
 	err = adapter.ForwardUpdate(sel, 301, "test-plugin")
 	require.NoError(t, err)
 
@@ -534,9 +537,9 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 	peer.sendCtx.Store(ctx)
 	peer.sendCtxID = ctxID
 
-	// Egress filter writes a mod key that has NO registered handler.
+	// Egress filter writes an AttrOp for a code with NO registered handler.
 	egressFilter := func(_, _ registry.PeerFilterInfo, _ []byte, _ map[string]any, mods *registry.ModAccumulator) bool {
-		mods.Set("unknown:key", true)
+		mods.Op(252, registry.AttrModSet, []byte{0x01})
 		return true
 	}
 
@@ -553,11 +556,11 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 	defer testPool.Stop()
 
 	r := &Reactor{
-		recentUpdates: cache,
-		peers:         map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
-		fwdPool:       testPool,
-		egressFilters: []registry.EgressFilterFunc{egressFilter},
-		modHandlers:   map[string]registry.ModHandlerFunc{}, // empty: no handler for "unknown:key"
+		recentUpdates:   cache,
+		peers:           map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
+		fwdPool:         testPool,
+		egressFilters:   []registry.EgressFilterFunc{egressFilter},
+		attrModHandlers: map[uint8]registry.AttrModHandler{}, // empty: no handler for code 252
 	}
 	adapter := &reactorAPIAdapter{r: r}
 

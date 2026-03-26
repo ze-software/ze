@@ -535,19 +535,40 @@ Read-only after caching. `UpdateRouteInput.Meta` is plumbed to `CommandContext.M
 plugin-originated routes (not yet wired to ReceivedUpdate -- consuming specs connect this).
 
 Egress filters receive `meta` (read) and `*ModAccumulator` (write) per destination peer.
-`ModAccumulator` lazily allocates on first `Set()` call -- zero cost when no filter writes mods.
+`ModAccumulator` lazily allocates on first `Op()` call -- zero cost when no filter writes mods.
 
-Mod keys follow `<action>:<target>:<name>` convention:
+Egress filters write `AttrOp` entries via `mods.Op(code, action, buf)`:
 
-| Action | Target | Example |
-|--------|--------|---------|
-| `set` | `attr` | `set:attr:local-preference` |
-| `add` | `attr` | `add:attr:community` |
-| `del` | `attr` | `del:attr:local-preference` |
-| `del` | `nlri` | `del:nlri:10.0.0.0/24` |
-| `withdraw` | `nlri` | `withdraw:nlri:*` |
+| Field | Type | Purpose |
+|-------|------|---------|
+| Code | uint8 | Attribute type code (e.g., 35 for OTC) |
+| Action | uint8 | `AttrModSet`, `AttrModAdd`, `AttrModRemove`, `AttrModPrepend` |
+| Buf | []byte | Pre-built wire bytes of the VALUE |
+
+Multiple entries with the same code accumulate -- the handler receives all ops at once.
+
+### Progressive Build (applyMods)
+
+When `mods.Len() > 0`, the forward path runs a single-pass progressive build into a pooled buffer.
+This replaces the source payload's attributes with handler-modified versions:
+
+1. Copy withdrawn section verbatim
+2. Skip attr_len field (backfill later)
+3. Walk source attributes: for each, check if ops exist for that attr code
+4. No ops: copy verbatim. Has ops: call registered `AttrModHandler` with source bytes + ops
+5. After walk: call handlers for unconsumed codes (new attributes)
+6. Backfill attr_len
+7. Copy NLRI section verbatim
+
+`AttrModHandler` is registered per attribute code at init time (e.g., OTC handler for code 35).
+Each handler knows its attribute's semantics (scalar set, list add/remove, sequence prepend).
+The build engine is generic -- attribute knowledge lives in handlers.
+
+When `mods.Len() == 0` (common case: no role config or no stamping needed), the progressive
+build is skipped entirely -- zero allocation, zero copy.
 
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- ForwardUpdate egress filter chain -->
+<!-- source: internal/component/bgp/reactor/forward_build.go -- buildModifiedPayload progressive build -->
 
 ---
 

@@ -937,7 +937,7 @@ func TestMixedTopology_RoleAndNoRolePeers(t *testing.T) {
 
 // --- OTC egress stamping via mods ---
 
-// VALIDATES: AC-1 — Route without OTC to Customer gets mods.Set("set:attr:otc", localASN).
+// VALIDATES: AC-1, AC-11 — Route without OTC to Customer gets mods.Op(35, AttrModSet, ...).
 // PREVENTS: Missing OTC egress stamping per RFC 9234 Section 5.
 func TestOTCEgressStampMod(t *testing.T) {
 	// Provider (local role) sends to Customer (dest role).
@@ -963,10 +963,12 @@ func TestOTCEgressStampMod(t *testing.T) {
 	accept := OTCEgressFilter(src, dest, noOTC, meta, &mods)
 	assert.True(t, accept, "route should be accepted")
 
-	val, ok := mods.Get("set:attr:otc")
-	require.True(t, ok, "mod 'set:attr:otc' should be written")
-	asn, ok := val.(uint32)
-	require.True(t, ok, "mod value should be uint32")
+	ops := mods.Ops()
+	require.Len(t, ops, 1, "should write exactly one AttrOp")
+	assert.Equal(t, otcAttrCode, ops[0].Code, "op code should be OTC (35)")
+	assert.Equal(t, registry.AttrModSet, ops[0].Action, "op action should be AttrModSet")
+	assert.Len(t, ops[0].Buf, 4, "op buf should be 4-byte ASN")
+	asn := binary.BigEndian.Uint32(ops[0].Buf)
 	assert.Equal(t, uint32(65000), asn, "OTC should be stamped with local ASN")
 }
 
@@ -1021,7 +1023,7 @@ func TestOTCEgressPreserveExisting(t *testing.T) {
 	assert.Equal(t, 0, mods.Len(), "no mod when OTC already present")
 }
 
-// VALIDATES: AC-1 — OTC stamp value is local ASN, not source or dest peer ASN.
+// VALIDATES: AC-1, AC-11 — OTC stamp value is local ASN, not source or dest peer ASN.
 // PREVENTS: Stamping with wrong ASN.
 func TestOTCEgressStampLocalASN(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
@@ -1044,10 +1046,9 @@ func TestOTCEgressStampLocalASN(t *testing.T) {
 	var mods registry.ModAccumulator
 	OTCEgressFilter(src, dest, noOTC, meta, &mods)
 
-	val, ok := mods.Get("set:attr:otc")
-	require.True(t, ok)
-	asn, asnOK := val.(uint32)
-	require.True(t, asnOK, "mod value should be uint32")
+	ops := mods.Ops()
+	require.Len(t, ops, 1)
+	asn := binary.BigEndian.Uint32(ops[0].Buf)
 	assert.Equal(t, uint32(64999), asn, "must use local ASN (64999), not src (65001) or dest (65002)")
 }
 
@@ -1115,57 +1116,58 @@ func TestOTCIngressUnicastOnly(t *testing.T) {
 	assert.Nil(t, modified, "non-unicast should not modify payload")
 }
 
-// --- otcModHandler tests ---
-
-// VALIDATES: otcModHandler applies OTC to payload correctly.
-// PREVENTS: Mod handler returning wrong payload or silently failing.
-func TestOTCModHandler(t *testing.T) {
-	t.Run("valid_uint32", func(t *testing.T) {
-		payload := buildTestPayload(buildTestAttrs(0), nil)
-		result := otcModHandler(payload, uint32(65000))
-		require.NotNil(t, result, "valid uint32 should produce modified payload")
-		// Verify OTC was appended.
-		attrs := extractAttrsFromPayload(result)
-		asn, found, _ := findOTC(attrs)
-		assert.True(t, found, "OTC should be present in modified payload")
-		assert.Equal(t, uint32(65000), asn)
-	})
-
-	t.Run("wrong_type_string", func(t *testing.T) {
-		payload := buildTestPayload(buildTestAttrs(0), nil)
-		result := otcModHandler(payload, "not-uint32")
-		assert.Nil(t, result, "string val should return nil")
-	})
-
-	t.Run("wrong_type_int", func(t *testing.T) {
-		payload := buildTestPayload(buildTestAttrs(0), nil)
-		result := otcModHandler(payload, int(65000))
-		assert.Nil(t, result, "int (not uint32) should return nil")
-	})
-
-	t.Run("zero_asn", func(t *testing.T) {
-		payload := buildTestPayload(buildTestAttrs(0), nil)
-		result := otcModHandler(payload, uint32(0))
-		assert.Nil(t, result, "zero ASN should return nil")
-	})
-
-	t.Run("malformed_short_payload", func(t *testing.T) {
-		result := otcModHandler([]byte{0x00}, uint32(65000))
-		assert.Nil(t, result, "short payload should return nil")
-	})
+// VALIDATES: AC-12 — otcAttrModHandler registered by attr code 35 via init().
+// PREVENTS: Progressive build cannot find OTC handler.
+func TestOTCAttrModHandlerRegisteredInRegistry(t *testing.T) {
+	handler := registry.AttrModHandlerFor(otcAttrCode)
+	require.NotNil(t, handler, "attr mod handler for code 35 must be registered via init()")
 }
 
-// VALIDATES: Real otcModHandler is registered in the plugin registry via init().
-// PREVENTS: Registration mismatch between init() and the handler function.
-func TestOTCModHandlerRegisteredInRegistry(t *testing.T) {
-	handler := registry.ModHandler("set:attr:otc")
-	require.NotNil(t, handler, "set:attr:otc handler must be registered via init()")
+// VALIDATES: AC-14 — otcAttrModHandler creates OTC from scratch when source absent.
+// PREVENTS: OTC not added when attribute is missing from source.
+func TestOTCAttrModHandlerNewAttr(t *testing.T) {
+	asnBuf := make([]byte, 4)
+	binary.BigEndian.PutUint32(asnBuf, 65000)
+	ops := []registry.AttrOp{{Code: otcAttrCode, Action: registry.AttrModSet, Buf: asnBuf}}
 
-	// Call the real handler with a valid payload and verify it produces OTC.
-	payload := buildTestPayload(buildTestAttrs(0), nil)
-	result := handler(payload, uint32(65000))
-	require.NotNil(t, result, "real handler should transform payload")
-	assert.Greater(t, len(result), len(payload), "result should be longer (OTC appended)")
+	buf := make([]byte, 64)
+	newOff := otcAttrModHandler(nil, ops, buf, 0)
+
+	assert.Equal(t, otcWireLen, newOff, "should write 7 bytes (OTC header + value)")
+	assert.Equal(t, otcAttrFlags, buf[0], "flags")
+	assert.Equal(t, otcAttrCode, buf[1], "type code")
+	assert.Equal(t, byte(otcAttrLen), buf[2], "length")
+	asn := binary.BigEndian.Uint32(buf[3:7])
+	assert.Equal(t, uint32(65000), asn, "ASN value")
+}
+
+// VALIDATES: AC-5 — otcAttrModHandler preserves existing OTC unchanged.
+// PREVENTS: Double-stamping or overwriting existing OTC value.
+func TestOTCAttrModHandlerExistingPreserved(t *testing.T) {
+	// Source has OTC = 65001.
+	srcOTC := buildOTCAttr(65001)
+	asnBuf := make([]byte, 4)
+	binary.BigEndian.PutUint32(asnBuf, 65000) // Different ASN in the op.
+	ops := []registry.AttrOp{{Code: otcAttrCode, Action: registry.AttrModSet, Buf: asnBuf}}
+
+	buf := make([]byte, 64)
+	newOff := otcAttrModHandler(srcOTC[:], ops, buf, 0)
+
+	assert.Equal(t, otcWireLen, newOff, "should copy source OTC (7 bytes)")
+	asn := binary.BigEndian.Uint32(buf[3:7])
+	assert.Equal(t, uint32(65001), asn, "must preserve source OTC (65001), not op value (65000)")
+}
+
+// VALIDATES: AC-10 — otcAttrModHandler handles buffer overflow gracefully.
+// PREVENTS: Panic or buffer overrun on small output buffer.
+func TestOTCAttrModHandlerOverflow(t *testing.T) {
+	asnBuf := make([]byte, 4)
+	binary.BigEndian.PutUint32(asnBuf, 65000)
+	ops := []registry.AttrOp{{Code: otcAttrCode, Action: registry.AttrModSet, Buf: asnBuf}}
+
+	buf := make([]byte, 3) // Too small for 7-byte OTC.
+	newOff := otcAttrModHandler(nil, ops, buf, 0)
+	assert.Equal(t, 0, newOff, "should return original offset on overflow")
 }
 
 // VALIDATES: OTC egress stamp for Peer destination (not just Customer).
@@ -1219,10 +1221,10 @@ func TestOTCEgressStampRSClient(t *testing.T) {
 	accept := OTCEgressFilter(src, dest, noOTC, meta, &mods)
 	assert.True(t, accept, "route to RS-client should be accepted")
 
-	val, ok := mods.Get("set:attr:otc")
-	require.True(t, ok, "mod 'set:attr:otc' should be written for RS-client dest")
-	asn, asnOK := val.(uint32)
-	require.True(t, asnOK)
+	ops := mods.Ops()
+	require.Len(t, ops, 1, "should write exactly one AttrOp for RS-client dest")
+	assert.Equal(t, otcAttrCode, ops[0].Code)
+	asn := binary.BigEndian.Uint32(ops[0].Buf)
 	assert.Equal(t, uint32(65000), asn)
 }
 

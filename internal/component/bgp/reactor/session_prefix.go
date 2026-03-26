@@ -141,7 +141,7 @@ func (s *Session) mpAddPathReceive(family nlri.Family) bool {
 // prefixConfigLookup resolves a uint32 family key against PrefixMaximum/PrefixWarning config maps.
 // Config maps are keyed by "afi/safi" strings; this helper converts the numeric key to string
 // only when a config lookup is needed (cold path).
-func (s *Session) prefixConfigLookup(fk uint32) (maximum uint32, warning uint32, hasMax bool) {
+func (s *Session) prefixConfigLookup(fk uint32) (maximum, warning uint32, hasMax bool) {
 	for fam, max := range s.settings.PrefixMaximum {
 		k, ok := familyKeyString(fam)
 		if !ok {
@@ -245,7 +245,7 @@ func (s *Session) applyPrefixCheck(fk uint32, delta int64) (*message.Notificatio
 
 // buildPrefixNotification builds a Cease/MaxPrefixes NOTIFICATION.
 // RFC 4486 Section 4: Data = AFI (2 bytes) + SAFI (1 byte) + count (4 bytes).
-func buildPrefixNotification(fk uint32, count uint32) *message.Notification {
+func buildPrefixNotification(fk, count uint32) *message.Notification {
 	afi := uint16(fk >> 16)
 	safi := uint8((fk >> 8) & 0xFF)
 	notif := &message.Notification{

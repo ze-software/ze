@@ -52,91 +52,94 @@ type IngressFilterFunc func(source PeerFilterInfo, payload []byte, meta map[stri
 type EgressFilterFunc func(source, dest PeerFilterInfo, payload []byte, meta map[string]any, mods *ModAccumulator) bool
 
 // ModAccumulator collects per-peer route modifications from egress filters.
-// Lazily allocates the underlying map on first Set call to avoid allocation
-// when no filter writes modifications (the common case).
 // NOT safe for concurrent use. Each peer iteration gets a fresh instance.
-// Mod keys follow the convention "<action>:<target>:<name>" where:
-//   - action: set, del, add, withdraw
-//   - target: attr, nlri
-//   - name: attribute or prefix (kebab-case, matching text command format)
 type ModAccumulator struct {
-	m map[string]any
-}
-
-// Set stores a modification. Allocates the map on first call.
-func (a *ModAccumulator) Set(key string, val any) {
-	if a.m == nil {
-		a.m = make(map[string]any, 2)
-	}
-	a.m[key] = val
-}
-
-// Get returns a modification value and whether it exists.
-func (a *ModAccumulator) Get(key string) (any, bool) {
-	if a.m == nil {
-		return nil, false
-	}
-	v, ok := a.m[key]
-	return v, ok
+	ops []AttrOp
 }
 
 // Len returns the number of accumulated modifications.
-func (a *ModAccumulator) Len() int { return len(a.m) }
-
-// Range calls fn for each accumulated modification.
-func (a *ModAccumulator) Range(fn func(key string, val any)) {
-	for k, v := range a.m {
-		fn(k, v)
-	}
-}
+func (a *ModAccumulator) Len() int { return len(a.ops) }
 
 // Reset clears all accumulated modifications for reuse.
-func (a *ModAccumulator) Reset() { clear(a.m) }
+func (a *ModAccumulator) Reset() {
+	a.ops = a.ops[:0]
+}
 
-// ModHandlerFunc is a post-accept transformation applied after all egress filters
-// have accepted a route for a given peer. It takes the current UPDATE payload and
-// the mod value written by an egress filter, and returns a modified payload.
-// It cannot reject a route -- only transform. Handlers compose sequentially:
-// each receives the output of the previous handler.
-// Called from the reactor forward path; MUST NOT retain payload beyond the call.
-type ModHandlerFunc func(payload []byte, val any) []byte
+// Op accumulates an attribute modification operation.
+// Lazily allocates the slice on first call to avoid allocation
+// when no filter writes modifications (the common case).
+// Multiple calls with the same code are allowed -- the handler
+// receives all ops for a given code at once during the progressive build.
+func (a *ModAccumulator) Op(code, action uint8, buf []byte) {
+	a.ops = append(a.ops, AttrOp{Code: code, Action: action, Buf: buf})
+}
 
-// modHandlers stores registered mod handlers keyed by mod key.
+// Ops returns the accumulated attribute modification operations.
+// Returns nil if no ops have been accumulated.
+func (a *ModAccumulator) Ops() []AttrOp { return a.ops }
+
+// Attribute modification action constants.
+const (
+	AttrModSet     uint8 = iota // Replace entire attribute value (or create if absent)
+	AttrModAdd                  // Append value to attribute's list (e.g., COMMUNITY)
+	AttrModRemove               // Remove value from attribute's list (e.g., COMMUNITY)
+	AttrModPrepend              // Prepend value to attribute's sequence (e.g., AS_PATH)
+)
+
+// AttrOp describes a single attribute modification operation.
+// Egress filters accumulate AttrOps in the ModAccumulator via Op().
+// Multiple AttrOps with the same Code are allowed and are passed together
+// to the registered handler during the progressive build.
+type AttrOp struct {
+	Code   uint8  // Attribute type code (e.g., 35 for OTC, 8 for COMMUNITY)
+	Action uint8  // AttrModSet, AttrModAdd, AttrModRemove, AttrModPrepend
+	Buf    []byte // Pre-built wire bytes of the VALUE (handler writes the header)
+}
+
+// AttrModHandler is a per-attribute-code handler for the progressive build.
+// It receives the source attribute bytes (nil if absent in source), all ops
+// for this attribute code, the output buffer, and the current write offset.
+// It writes the complete attribute (header + value) into buf and returns
+// the new offset after the written bytes.
+// It cannot reject a route -- only transform. MUST NOT retain buf beyond the call.
+type AttrModHandler func(src []byte, ops []AttrOp, buf []byte, off int) int
+
+// attrModHandlers stores registered attr mod handlers keyed by attribute code.
 // Populated at init() time by plugins, read at runtime by the reactor.
-var modHandlers = make(map[string]ModHandlerFunc)
+var attrModHandlers = make(map[uint8]AttrModHandler)
 
-// RegisterModHandler registers a mod handler for the given key.
+// RegisterAttrModHandler registers a handler for the given attribute code.
 // Must be called from init() functions only. Ignores nil handlers.
-func RegisterModHandler(key string, handler ModHandlerFunc) {
+func RegisterAttrModHandler(code uint8, handler AttrModHandler) {
 	if handler == nil {
 		return
 	}
 	mu.Lock()
 	defer mu.Unlock()
-	modHandlers[key] = handler
+	attrModHandlers[code] = handler
 }
 
-// UnregisterModHandler removes a mod handler. Only for use in tests.
-func UnregisterModHandler(key string) {
+// UnregisterAttrModHandler removes an attr mod handler. Only for use in tests.
+func UnregisterAttrModHandler(code uint8) {
 	mu.Lock()
 	defer mu.Unlock()
-	delete(modHandlers, key)
+	delete(attrModHandlers, code)
 }
 
-// ModHandler returns the registered handler for the given key, or nil.
-func ModHandler(key string) ModHandlerFunc {
+// AttrModHandlerFor returns the registered handler for the given attribute code, or nil.
+func AttrModHandlerFor(code uint8) AttrModHandler {
 	mu.RLock()
 	defer mu.RUnlock()
-	return modHandlers[key]
+	return attrModHandlers[code]
 }
 
-// ModHandlers returns a snapshot of all registered mod handlers.
+// AttrModHandlers returns a snapshot of all registered attr mod handlers.
 // Called by the reactor to build the handler map at startup.
-func ModHandlers() map[string]ModHandlerFunc {
+func AttrModHandlers() map[uint8]AttrModHandler {
 	mu.RLock()
 	defer mu.RUnlock()
-	result := make(map[string]ModHandlerFunc, len(modHandlers))
-	maps.Copy(result, modHandlers)
+	result := make(map[uint8]AttrModHandler, len(attrModHandlers))
+	maps.Copy(result, attrModHandlers)
 	return result
 }
 
@@ -585,14 +588,14 @@ func Reset() {
 	mu.Lock()
 	defer mu.Unlock()
 	plugins = make(map[string]*Registration)
-	modHandlers = make(map[string]ModHandlerFunc)
+	attrModHandlers = make(map[uint8]AttrModHandler)
 	metricsRegistry = nil
 }
 
 // RegistrySnapshot holds a complete copy of the registry state for test save/restore.
 type RegistrySnapshot struct {
-	plugins     map[string]*Registration
-	modHandlers map[string]ModHandlerFunc
+	plugins         map[string]*Registration
+	attrModHandlers map[uint8]AttrModHandler
 }
 
 // Snapshot returns a copy of the current registry state. Only for use in tests.
@@ -603,9 +606,9 @@ func Snapshot() RegistrySnapshot {
 
 	ps := make(map[string]*Registration, len(plugins))
 	maps.Copy(ps, plugins)
-	mh := make(map[string]ModHandlerFunc, len(modHandlers))
-	maps.Copy(mh, modHandlers)
-	return RegistrySnapshot{plugins: ps, modHandlers: mh}
+	ah := make(map[uint8]AttrModHandler, len(attrModHandlers))
+	maps.Copy(ah, attrModHandlers)
+	return RegistrySnapshot{plugins: ps, attrModHandlers: ah}
 }
 
 // Restore replaces the registry with a previously saved snapshot. Only for use in tests.
@@ -613,7 +616,7 @@ func Restore(snap RegistrySnapshot) {
 	mu.Lock()
 	defer mu.Unlock()
 	plugins = snap.plugins
-	modHandlers = snap.modHandlers
+	attrModHandlers = snap.attrModHandlers
 }
 
 // ResolveDependencies expands a list of plugin names by iteratively adding

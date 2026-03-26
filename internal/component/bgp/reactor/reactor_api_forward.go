@@ -3,6 +3,7 @@
 // Related: reactor_api_batch.go — NLRI batch operations
 // Related: reactor_wire.go — zero-allocation wire UPDATE builders
 // Related: forward_pool.go — per-peer forward worker pool used by ForwardUpdate
+// Detail: forward_build.go — progressive build for egress attribute modification
 package reactor
 
 import (
@@ -289,25 +290,11 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		// Apply accumulated modifications from egress filters.
 		// Runs AFTER wire selection so mods apply to the correct wire version
 		// (e.g., EBGP wire with AS-PATH prepended, not the original).
-		// Handlers are post-accept transformations: they cannot reject, only transform.
-		// Each handler receives the output of the previous, composing sequentially.
+		// Progressive build: single-pass through attributes into pooled buffer.
+		// Zero-cost when mods.Len() == 0 (common case: no role config or no stamping needed).
 		if mods.Len() > 0 {
-			payload := peerWire.Payload()
-			modified := false
-			mods.Range(func(key string, val any) {
-				handler := a.r.modHandlers[key]
-				if handler == nil {
-					reactorLogger().Warn("no mod handler registered", "key", key)
-					return
-				}
-				result := safeModHandler(handler, key, payload, val)
-				if len(result) > 0 {
-					payload = result
-					modified = true
-				}
-			})
-			if modified {
-				peerWire = wireu.NewWireUpdate(payload, peerWire.SourceCtxID())
+			if modified := buildModifiedPayload(peerWire.Payload(), &mods, a.r.attrModHandlers); modified != nil {
+				peerWire = wireu.NewWireUpdate(modified, peerWire.SourceCtxID())
 			}
 		}
 
