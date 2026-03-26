@@ -72,7 +72,7 @@ func TestBuildBatchASPath_Explicit(t *testing.T) {
 func TestAnnounceNLRIBatch_NoMatchingPeers(t *testing.T) {
 	r := &Reactor{
 		config: &Config{LocalAS: 65000},
-		peers:  make(map[string]*Peer),
+		peers:  make(map[netip.AddrPort]*Peer),
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -93,7 +93,7 @@ func TestAnnounceNLRIBatch_NoMatchingPeers(t *testing.T) {
 func TestWithdrawNLRIBatch_NoMatchingPeers(t *testing.T) {
 	r := &Reactor{
 		config: &Config{LocalAS: 65000},
-		peers:  make(map[string]*Peer),
+		peers:  make(map[netip.AddrPort]*Peer),
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -129,7 +129,7 @@ func TestAnnounceNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 
 	r := &Reactor{
 		config: &Config{LocalAS: 65000},
-		peers:  map[string]*Peer{settings.Address.String(): peer},
+		peers:  map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -168,7 +168,7 @@ func TestWithdrawNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 
 	r := &Reactor{
 		config: &Config{LocalAS: 65000},
-		peers:  map[string]*Peer{settings.Address.String(): peer},
+		peers:  map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -201,7 +201,7 @@ func TestAnnounceNLRIBatch_QueueForNonEstablished(t *testing.T) {
 
 	r := &Reactor{
 		config: &Config{LocalAS: 65000},
-		peers:  map[string]*Peer{settings.Address.String(): peer},
+		peers:  map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
@@ -243,7 +243,7 @@ func TestWithdrawNLRIBatch_QueueForNonEstablished(t *testing.T) {
 
 	r := &Reactor{
 		config: &Config{LocalAS: 65000},
-		peers:  map[string]*Peer{settings.Address.String(): peer},
+		peers:  map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 	}
 	adapter := &reactorAPIAdapter{r: r}
 

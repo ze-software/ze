@@ -46,6 +46,12 @@ type WireUpdate struct {
 	// Cached section offsets (parsed lazily on first accessor call)
 	sections wire.UpdateSections
 	parseErr error // Cached error if parsing failed
+
+	// Cached Attrs() result (parsed lazily on first call).
+	// Thread-safety: benign race — concurrent calls may both compute,
+	// but both produce identical results from identical input.
+	cachedAttrs    *attribute.AttributesWire
+	cachedAttrsSet bool // distinguishes nil-result from not-yet-computed
 }
 
 // NewWireUpdate creates a WireUpdate from raw UPDATE payload bytes.
@@ -88,23 +94,43 @@ func (u *WireUpdate) Withdrawn() ([]byte, error) {
 // Attrs returns the Path Attributes as an AttributesWire for lazy parsing.
 // RFC 4271 Section 4.3 - Path attribute sequence.
 // Returns (nil, nil) if empty, (nil, error) if malformed.
-// AttributesWire is cheap to create (slice wrapper), so no caching needed.
+// Result is cached: the first call parses and stores, subsequent calls return the cached value.
+// Thread-safety: benign race — concurrent first calls may both compute,
+// but both produce identical results from identical immutable input.
 func (u *WireUpdate) Attrs() (*attribute.AttributesWire, error) {
+	if u.cachedAttrsSet {
+		return u.cachedAttrs, u.attrsErr()
+	}
 	return u.deriveAttrs()
+}
+
+// attrsErr reconstructs the error for cached nil results.
+// When cachedAttrsSet is true and cachedAttrs is nil, it could be either
+// a successful empty result or a parse error. We check parseErr to distinguish.
+func (u *WireUpdate) attrsErr() error {
+	if u.parseErr != nil {
+		return fmt.Errorf("attrs: %w", u.parseErr)
+	}
+	return nil
 }
 
 // deriveAttrs extracts AttributesWire from payload using cached sections.
 func (u *WireUpdate) deriveAttrs() (*attribute.AttributesWire, error) {
 	u.ensureParsed()
 	if u.parseErr != nil {
+		u.cachedAttrsSet = true
 		return nil, fmt.Errorf("attrs: %w", u.parseErr)
 	}
 
 	attrBytes := u.sections.Attrs(u.payload)
 	if attrBytes == nil {
+		u.cachedAttrsSet = true
 		return nil, nil //nolint:nilnil // nil,nil = valid empty (no attributes)
 	}
-	return attribute.NewAttributesWire(attrBytes, u.sourceCtxID), nil
+	result := attribute.NewAttributesWire(attrBytes, u.sourceCtxID)
+	u.cachedAttrs = result
+	u.cachedAttrsSet = true
+	return result, nil
 }
 
 // NLRI returns the Network Layer Reachability Information section.

@@ -13,22 +13,39 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 )
 
+// familyKey encodes an nlri.Family as a uint32 map key, avoiding fmt.Sprintf allocations
+// on the hot path. Layout: AFI in upper 16 bits, SAFI in bits 8-15, lower 8 bits zero.
+func familyKey(f nlri.Family) uint32 {
+	return uint32(f.AFI)<<16 | uint32(f.SAFI)<<8
+}
+
+// familyKeyString converts a "afi/safi" config string to the uint32 key used by prefixCounts.
+// Returns 0, false if the string is not a recognized family.
+func familyKeyString(s string) (uint32, bool) {
+	f, ok := nlri.ParseFamily(s)
+	if !ok {
+		return 0, false
+	}
+	return familyKey(f), true
+}
+
 // prefixCounts tracks the current number of received prefixes per family.
 // Incremented on announced NLRIs, decremented on withdrawn NLRIs.
 // Reset when the session is destroyed (Peer creates a new Session per connection).
+// Keys are uint32 family keys (see familyKey) to avoid string allocations on the hot path.
 type prefixCounts struct {
-	counts map[string]int64
-	warned map[string]bool // true once warning has been logged for a family (reset on drop below)
+	counts map[uint32]int64
+	warned map[uint32]bool // true once warning has been logged for a family (reset on drop below)
 }
 
 // add adjusts the count for a family by delta (positive for announce, negative for withdraw).
 // Count is clamped to 0 (cannot go negative from withdraw-more-than-announced).
-func (pc *prefixCounts) add(family string, delta int64) int64 {
-	pc.counts[family] += delta
-	if pc.counts[family] < 0 {
-		pc.counts[family] = 0
+func (pc *prefixCounts) add(fk uint32, delta int64) int64 {
+	pc.counts[fk] += delta
+	if pc.counts[fk] < 0 {
+		pc.counts[fk] = 0
 	}
-	return pc.counts[family]
+	return pc.counts[fk]
 }
 
 // ipv4AddPathReceive returns whether ADD-PATH receive is negotiated for IPv4 unicast.
@@ -63,9 +80,11 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 	// Process withdrawals BEFORE announces so that a single UPDATE replacing
 	// prefixes (withdraw old + announce new) doesn't falsely exceed the limit.
 
+	ipv4Key := familyKey(nlri.IPv4Unicast)
+
 	// Count IPv4 unicast body Withdrawn.
 	if withdrawn, err := countBodyWithdrawn(wu, addPath); err == nil && withdrawn > 0 {
-		s.applyPrefixDelta(nlri.IPv4Unicast.String(), -int64(withdrawn))
+		s.applyPrefixDelta(ipv4Key, -int64(withdrawn))
 	}
 
 	// Count MP_UNREACH_NLRI (non-IPv4 families).
@@ -78,14 +97,14 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 		if wdBytes := mpUnreach.WithdrawnBytes(); len(wdBytes) > 0 {
 			count := countPrefixEntries(wdBytes, mpAddPath)
 			if count > 0 {
-				s.applyPrefixDelta(family.String(), -int64(count))
+				s.applyPrefixDelta(familyKey(family), -int64(count))
 			}
 		}
 	}
 
 	// Count IPv4 unicast body NLRI (announced).
 	if announced, err := countBodyNLRI(wu, addPath); err == nil && announced > 0 {
-		if n, d := s.applyPrefixCheck(nlri.IPv4Unicast.String(), int64(announced)); n != nil || d {
+		if n, d := s.applyPrefixCheck(ipv4Key, int64(announced)); n != nil || d {
 			return n, d
 		}
 	}
@@ -100,7 +119,7 @@ func (s *Session) checkPrefixLimits(wu *wireu.WireUpdate) (notif *message.Notifi
 		if nlriBytes := mpReach.NLRIBytes(); len(nlriBytes) > 0 {
 			count := countPrefixEntries(nlriBytes, mpAddPath)
 			if count > 0 {
-				if n, d := s.applyPrefixCheck(family.String(), int64(count)); n != nil || d {
+				if n, d := s.applyPrefixCheck(familyKey(family), int64(count)); n != nil || d {
 					return n, d
 				}
 			}
@@ -119,19 +138,44 @@ func (s *Session) mpAddPathReceive(family nlri.Family) bool {
 	return mode == capability.AddPathReceive || mode == capability.AddPathBoth
 }
 
+// prefixConfigLookup resolves a uint32 family key against PrefixMaximum/PrefixWarning config maps.
+// Config maps are keyed by "afi/safi" strings; this helper converts the numeric key to string
+// only when a config lookup is needed (cold path).
+func (s *Session) prefixConfigLookup(fk uint32) (maximum uint32, warning uint32, hasMax bool) {
+	for fam, max := range s.settings.PrefixMaximum {
+		if k, ok := familyKeyString(fam); ok && k == fk {
+			maximum = max
+			hasMax = true
+			// Look up matching warning.
+			warning = s.settings.PrefixWarning[fam]
+			return maximum, warning, hasMax
+		}
+	}
+	return 0, 0, false
+}
+
+// familyString converts a uint32 family key back to "afi/safi" string for display/metrics.
+// Only called on cold paths (logging, metrics, notifications).
+func familyString(fk uint32) string {
+	afi := nlri.AFI(fk >> 16)
+	safi := nlri.SAFI((fk >> 8) & 0xFF)
+	return nlri.Family{AFI: afi, SAFI: safi}.String()
+}
+
 // applyPrefixDelta adjusts a family's prefix count without checking thresholds.
 // Used for withdrawals which only decrement and never trigger enforcement.
-func (s *Session) applyPrefixDelta(family string, delta int64) {
-	current := s.prefixCounts.add(family, delta)
+func (s *Session) applyPrefixDelta(fk uint32, delta int64) {
+	current := s.prefixCounts.add(fk, delta)
 
-	// Update Prometheus gauge.
+	// Update Prometheus gauge (cold path -- string conversion OK).
+	family := familyString(fk)
 	s.setPrefixCountMetric(family, current)
 
 	// Reset warning flag and metric when count drops below threshold.
-	warning := s.settings.PrefixWarning[family]
+	_, warning, _ := s.prefixConfigLookup(fk)
 	if warning > 0 && current < int64(warning) {
-		if s.prefixCounts.warned[family] {
-			s.prefixCounts.warned[family] = false
+		if s.prefixCounts.warned[fk] {
+			s.prefixCounts.warned[fk] = false
 			s.setPrefixWarningExceededMetric(family, 0)
 			if s.prefixWarningNotifier != nil {
 				s.prefixWarningNotifier(family, false)
@@ -142,22 +186,22 @@ func (s *Session) applyPrefixDelta(family string, delta int64) {
 
 // applyPrefixCheck adjusts a family's prefix count and checks thresholds.
 // Returns (notif, false) for teardown, (nil, true) for drop-without-teardown, (nil, false) for OK.
-func (s *Session) applyPrefixCheck(family string, delta int64) (*message.Notification, bool) {
-	current := s.prefixCounts.add(family, delta)
+func (s *Session) applyPrefixCheck(fk uint32, delta int64) (*message.Notification, bool) {
+	current := s.prefixCounts.add(fk, delta)
 
-	// Update Prometheus gauge.
+	// Update Prometheus gauge (cold path -- string conversion OK).
+	family := familyString(fk)
 	s.setPrefixCountMetric(family, current)
 
-	maximum, hasMax := s.settings.PrefixMaximum[family]
+	maximum, warning, hasMax := s.prefixConfigLookup(fk)
 	if !hasMax {
 		return nil, false
 	}
 
 	// Check warning threshold -- log once when crossing upward.
-	warning := s.settings.PrefixWarning[family]
 	if warning > 0 && current >= int64(warning) && current < int64(maximum) {
-		if !s.prefixCounts.warned[family] {
-			s.prefixCounts.warned[family] = true
+		if !s.prefixCounts.warned[fk] {
+			s.prefixCounts.warned[fk] = true
 			s.setPrefixWarningExceededMetric(family, 1)
 			if s.prefixWarningNotifier != nil {
 				s.prefixWarningNotifier(family, true)
@@ -185,7 +229,7 @@ func (s *Session) applyPrefixCheck(family string, delta int64) (*message.Notific
 
 		if s.settings.PrefixTeardown {
 			s.incrPrefixTeardownMetric()
-			return buildPrefixNotification(family, uint32(current)), false //nolint:gosec // Clamped by prefix maximum (uint32)
+			return buildPrefixNotification(fk, uint32(current)), false //nolint:gosec // Clamped by prefix maximum (uint32)
 		}
 		// AC-27: teardown=false. Return drop=true to skip plugin delivery.
 		// NLRIs beyond maximum are not installed in RIB or forwarded.
@@ -197,23 +241,22 @@ func (s *Session) applyPrefixCheck(family string, delta int64) (*message.Notific
 
 // buildPrefixNotification builds a Cease/MaxPrefixes NOTIFICATION.
 // RFC 4486 Section 4: Data = AFI (2 bytes) + SAFI (1 byte) + count (4 bytes).
-func buildPrefixNotification(family string, count uint32) *message.Notification {
-	f, ok := nlri.ParseFamily(family)
+func buildPrefixNotification(fk uint32, count uint32) *message.Notification {
+	afi := uint16(fk >> 16)
+	safi := uint8((fk >> 8) & 0xFF)
 	notif := &message.Notification{
 		ErrorCode:    message.NotifyCease,
 		ErrorSubcode: message.NotifyCeaseMaxPrefixes,
 	}
-	if ok {
-		data := make([]byte, 7)
-		data[0] = byte(f.AFI >> 8)
-		data[1] = byte(f.AFI)
-		data[2] = byte(f.SAFI)
-		data[3] = byte(count >> 24)
-		data[4] = byte(count >> 16)
-		data[5] = byte(count >> 8)
-		data[6] = byte(count)
-		notif.Data = data
-	}
+	data := make([]byte, 7)
+	data[0] = byte(afi >> 8)
+	data[1] = byte(afi)
+	data[2] = safi
+	data[3] = byte(count >> 24)
+	data[4] = byte(count >> 16)
+	data[5] = byte(count >> 8)
+	data[6] = byte(count)
+	notif.Data = data
 	return notif
 }
 

@@ -80,7 +80,7 @@ func TestForwardUpdate_DispatchesToPool(t *testing.T) {
 	// Build reactor with test pool
 	r := &Reactor{
 		recentUpdates: cache,
-		peers:         map[string]*Peer{settings.PeerKey(): peer},
+		peers:         map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 		fwdPool:       testPool,
 	}
 	adapter := &reactorAPIAdapter{r: r}
@@ -184,7 +184,7 @@ func TestForwardUpdate_RetainRelease(t *testing.T) {
 
 	r := &Reactor{
 		recentUpdates: cache,
-		peers: map[string]*Peer{
+		peers: map[netip.AddrPort]*Peer{
 			peer1Settings.PeerKey(): peer1,
 			peer2Settings.PeerKey(): peer2,
 		},
@@ -264,7 +264,7 @@ func TestForwardUpdate_DispatchToStoppedPool(t *testing.T) {
 
 	r := &Reactor{
 		recentUpdates: cache,
-		peers:         map[string]*Peer{peerSettings.PeerKey(): peer},
+		peers:         map[netip.AddrPort]*Peer{peerSettings.PeerKey(): peer},
 		fwdPool:       testPool,
 	}
 	adapter := &reactorAPIAdapter{r: r}
@@ -362,7 +362,7 @@ func TestForwardUpdate_ModsApplied(t *testing.T) {
 
 	r := &Reactor{
 		recentUpdates: cache,
-		peers:         map[string]*Peer{settings.PeerKey(): peer},
+		peers:         map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 		fwdPool:       testPool,
 		egressFilters: []registry.EgressFilterFunc{egressFilter},
 		modHandlers:   map[string]registry.ModHandlerFunc{"test:marker": modHandler},
@@ -460,7 +460,7 @@ func TestForwardUpdate_ModHandlerPanic(t *testing.T) {
 
 	r := &Reactor{
 		recentUpdates: cache,
-		peers:         map[string]*Peer{settings.PeerKey(): peer},
+		peers:         map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 		fwdPool:       testPool,
 		egressFilters: []registry.EgressFilterFunc{egressFilter},
 		modHandlers:   map[string]registry.ModHandlerFunc{"test:panic": panicHandler},
@@ -554,7 +554,7 @@ func TestForwardUpdate_ModsNoHandler(t *testing.T) {
 
 	r := &Reactor{
 		recentUpdates: cache,
-		peers:         map[string]*Peer{settings.PeerKey(): peer},
+		peers:         map[netip.AddrPort]*Peer{settings.PeerKey(): peer},
 		fwdPool:       testPool,
 		egressFilters: []registry.EgressFilterFunc{egressFilter},
 		modHandlers:   map[string]registry.ModHandlerFunc{}, // empty: no handler for "unknown:key"

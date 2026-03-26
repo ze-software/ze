@@ -18,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/fsm"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
 // Connect initiates an outgoing TCP connection.
@@ -225,6 +226,11 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 					} else {
 						_ = syscall.SetsockoptInt(int(fd), syscall.IPPROTO_IPV6, syscall.IPV6_TCLASS, 0xC0)
 					}
+					// Set socket buffers for BGP burst throughput.
+					// SO_RCVBUF: 256KB matches 4x the bufio.Reader size (64KB).
+					// SO_SNDBUF: 64KB matches 4x the bufio.Writer size (16KB).
+					_ = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVBUF, 262144)
+					_ = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_SNDBUF, 65536)
 				})
 			}
 		}
@@ -232,8 +238,8 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 
 	s.mu.Lock()
 	s.conn = conn
-	s.bufReader = bufio.NewReaderSize(conn, 65536)
-	s.bufWriter = bufio.NewWriterSize(conn, 16384)
+	s.bufReader = bufio.NewReaderSize(conn, env.GetInt("ze.buf.read.size", 65536))
+	s.bufWriter = bufio.NewWriterSize(conn, env.GetInt("ze.buf.write.size", 16384))
 	s.mu.Unlock()
 
 	// Signal FSM.

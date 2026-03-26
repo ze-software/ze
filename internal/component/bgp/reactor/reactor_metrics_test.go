@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"net/netip"
 	"strings"
 	"sync"
 	"testing"
@@ -178,14 +179,14 @@ func TestUpdatePeriodicMetrics_SetsOverflowGauges(t *testing.T) {
 
 	// Pre-populate source stats: source A has 80% forwarded, 20% overflowed.
 	for range 8 {
-		pool.RecordForwarded("10.0.0.1")
+		pool.RecordForwarded(netip.MustParseAddr("10.0.0.1"))
 	}
 	for range 2 {
-		pool.RecordOverflowed("10.0.0.1")
+		pool.RecordOverflowed(netip.MustParseAddr("10.0.0.1"))
 	}
 
 	// Create a worker so WorkerCount > 0 and OverflowDepths has an entry.
-	pool.Dispatch(fwdKey{peerAddr: "192.168.1.1"}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("192.168.1.1")}, fwdItem{})
 	require.Eventually(t, func() bool {
 		return pool.WorkerCount() == 1
 	}, time.Second, time.Millisecond)
@@ -251,12 +252,12 @@ func TestForwardDispatch_RecordForwarded_UpdatesMetrics(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 1, overflowPoolSize: 100})
 	defer pool.Stop()
 
-	key := fwdKey{peerAddr: "192.168.1.1"}
+	key := fwdKey{peerAddr: netip.MustParseAddr("192.168.1.1")}
 
 	// First dispatch succeeds via TryDispatch (handler blocks to keep worker busy).
 	ok := pool.TryDispatch(key, fwdItem{})
 	require.True(t, ok, "first TryDispatch should succeed")
-	pool.RecordForwarded("10.0.0.1")
+	pool.RecordForwarded(netip.MustParseAddr("10.0.0.1"))
 
 	// Wait for worker to start processing.
 	require.Eventually(t, func() bool {
@@ -266,14 +267,14 @@ func TestForwardDispatch_RecordForwarded_UpdatesMetrics(t *testing.T) {
 	// Fill the channel (chanSize=1).
 	ok = pool.TryDispatch(key, fwdItem{})
 	require.True(t, ok, "second TryDispatch should succeed (fills channel)")
-	pool.RecordForwarded("10.0.0.1")
+	pool.RecordForwarded(netip.MustParseAddr("10.0.0.1"))
 
 	// Now channel is full. TryDispatch should fail, fall through to DispatchOverflow.
 	ok = pool.TryDispatch(key, fwdItem{})
 	require.False(t, ok, "third TryDispatch should fail (channel full)")
 	ok = pool.DispatchOverflow(key, fwdItem{})
 	require.True(t, ok, "DispatchOverflow should succeed")
-	pool.RecordOverflowed("10.0.0.1")
+	pool.RecordOverflowed(netip.MustParseAddr("10.0.0.1"))
 
 	// Verify source stats: 2 forwarded, 1 overflowed = 1/3 ratio.
 	ratios := pool.SourceOverflowRatios()

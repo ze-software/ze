@@ -85,7 +85,7 @@ func (r *Reactor) handleConnectionWithContext(conn net.Conn, listenerAddr netip.
 // handleDirectConnection handles a connection on a per-peer-port listener.
 // The peerKey directly identifies the target peer (no remote IP matching needed).
 // Used when peers have custom ports — the listener port uniquely identifies the peer.
-func (r *Reactor) handleDirectConnection(conn net.Conn, peerKey string) {
+func (r *Reactor) handleDirectConnection(conn net.Conn, peerKey netip.AddrPort) {
 	r.mu.RLock()
 	peer, exists := r.peers[peerKey]
 	cb := r.connCallback

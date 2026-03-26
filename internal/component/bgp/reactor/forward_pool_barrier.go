@@ -5,6 +5,7 @@ package reactor
 
 import (
 	"context"
+	"net/netip"
 )
 
 // Barrier blocks until all workers have processed their queued items.
@@ -20,7 +21,7 @@ func (fp *fwdPool) Barrier(ctx context.Context) error {
 
 // BarrierPeer blocks until the worker for a specific peer address has drained.
 // Returns nil immediately if no worker exists for that peer.
-func (fp *fwdPool) BarrierPeer(ctx context.Context, peerAddr string) error {
+func (fp *fwdPool) BarrierPeer(ctx context.Context, peerAddr netip.Addr) error {
 	target := fwdKey{peerAddr: peerAddr}
 	return fp.barrier(ctx, func(k fwdKey) bool { return k == target })
 }

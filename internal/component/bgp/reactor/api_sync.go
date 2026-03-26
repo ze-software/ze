@@ -175,9 +175,12 @@ func (r *Reactor) WaitForPluginStartupComplete() {
 // SignalPeerAPIReady signals that a peer-specific API initialization is complete.
 // Called when "peer <addr> plugin session ready" is received (e.g., after route replay).
 // Routes the signal to the specified peer.
+// The peerAddr string is parsed as "ip:port" or bare IP (default port assumed).
 func (r *Reactor) SignalPeerAPIReady(peerAddr string) {
+	key := parsePeerAddrToKey(peerAddr)
+
 	r.mu.RLock()
-	peer, ok := r.peers[peerAddr]
+	peer, ok := r.peers[key]
 	r.mu.RUnlock()
 
 	slog.Debug("peer api ready signal", "peer", peerAddr, "found", ok)

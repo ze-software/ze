@@ -147,20 +147,15 @@ func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
 }
 
 // emitCongestionEvent emits a congestion state change event to subscribed plugins.
-// Called from fwdPool congestion callbacks. peerAddr is the string form of the
-// destination peer address. eventType is plugin.EventCongested or plugin.EventResumed.
+// Called from fwdPool congestion callbacks. peerAddr is the destination peer address.
+// eventType is plugin.EventCongested or plugin.EventResumed.
 // Safe to call before the eventDispatcher is initialized (nil check after peer lookup).
 //
-// Validates address and looks up peer before checking eventDispatcher, so that
-// invalid addresses and missing peers are caught independently of dispatcher state.
-func (r *Reactor) emitCongestionEvent(peerAddr, eventType string) {
-	addr, err := netip.ParseAddr(peerAddr)
-	if err != nil {
-		return
-	}
-
+// Looks up peer before checking eventDispatcher, so that missing peers are
+// caught independently of dispatcher state.
+func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 	r.mu.RLock()
-	peer, ok := r.findPeerByAddr(addr)
+	peer, ok := r.findPeerByAddr(peerAddr)
 	if !ok {
 		r.mu.RUnlock()
 		return
@@ -185,7 +180,7 @@ func (r *Reactor) emitCongestionEvent(peerAddr, eventType string) {
 
 	// Bus notification for cross-component consumers.
 	r.publishBusNotification("bgp/congestion", map[string]string{
-		"peer":  peerAddr,
+		"peer":  peerAddr.String(),
 		"event": eventType,
 	})
 }
@@ -371,15 +366,18 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	}
 
 	// Bus notification for cross-component consumers.
-	// Use cached addrString when available to avoid per-message String() allocation.
-	addrStr := peerAddr.String()
-	if hasPeer {
-		addrStr = peer.addrString
+	// Skip map allocation entirely when no bus is configured.
+	if r.bus != nil {
+		// Use cached addrString when available to avoid per-message String() allocation.
+		addrStr := peerAddr.String()
+		if hasPeer {
+			addrStr = peer.addrString
+		}
+		r.publishBusNotification("bgp/update", map[string]string{
+			"peer":      addrStr,
+			"direction": direction,
+		})
 	}
-	r.publishBusNotification("bgp/update", map[string]string{
-		"peer":      addrStr,
-		"direction": direction,
-	})
 
 	// Sent messages: synchronous delivery, no async channel.
 	if direction == plugin.DirectionSent {

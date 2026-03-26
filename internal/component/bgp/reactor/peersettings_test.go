@@ -68,37 +68,37 @@ func TestNewPeerSettings_Defaults(t *testing.T) {
 	assert.True(t, ps.GroupUpdates, "group updates enabled by default")
 }
 
-// TestPeerSettings_PeerKey verifies key format.
+// TestPeerSettings_PeerKey verifies key returns correct AddrPort.
 func TestPeerSettings_PeerKey(t *testing.T) {
 	ps := NewPeerSettings(netip.MustParseAddr("10.0.0.1"), 65001, 65002, 1)
-	assert.Equal(t, "10.0.0.1:179", ps.PeerKey())
+	assert.Equal(t, netip.MustParseAddrPort("10.0.0.1:179"), ps.PeerKey())
 }
 
 // TestPeerSettings_PeerKey_DefaultPort verifies port=0 uses DefaultBGPPort.
 func TestPeerSettings_PeerKey_DefaultPort(t *testing.T) {
 	ps := NewPeerSettings(netip.MustParseAddr("10.0.0.1"), 65001, 65002, 1)
 	ps.Port = 0
-	assert.Equal(t, "10.0.0.1:179", ps.PeerKey())
+	assert.Equal(t, netip.MustParseAddrPort("10.0.0.1:179"), ps.PeerKey())
 }
 
 // TestPeerSettings_PeerKey_CustomPort verifies custom port in key.
 func TestPeerSettings_PeerKey_CustomPort(t *testing.T) {
 	ps := NewPeerSettings(netip.MustParseAddr("10.0.0.1"), 65001, 65002, 1)
 	ps.Port = 1179
-	assert.Equal(t, "10.0.0.1:1179", ps.PeerKey())
+	assert.Equal(t, netip.MustParseAddrPort("10.0.0.1:1179"), ps.PeerKey())
 }
 
 // TestPeerKeyFromAddrPort verifies standalone key builder.
 func TestPeerKeyFromAddrPort(t *testing.T) {
 	addr := netip.MustParseAddr("192.168.1.1")
-	assert.Equal(t, "192.168.1.1:179", PeerKeyFromAddrPort(addr, 179))
-	assert.Equal(t, "192.168.1.1:1179", PeerKeyFromAddrPort(addr, 1179))
+	assert.Equal(t, netip.MustParseAddrPort("192.168.1.1:179"), PeerKeyFromAddrPort(addr, 179))
+	assert.Equal(t, netip.MustParseAddrPort("192.168.1.1:1179"), PeerKeyFromAddrPort(addr, 1179))
 }
 
 // TestPeerKeyFromAddrPort_IPv6 verifies IPv6 address in key.
 func TestPeerKeyFromAddrPort_IPv6(t *testing.T) {
 	addr := netip.MustParseAddr("2001:db8::1")
-	assert.Equal(t, "2001:db8::1:179", PeerKeyFromAddrPort(addr, 179))
+	assert.Equal(t, netip.MustParseAddrPort("[2001:db8::1]:179"), PeerKeyFromAddrPort(addr, 179))
 }
 
 // TestPeerSettings_IsIBGP verifies iBGP detection (same AS).

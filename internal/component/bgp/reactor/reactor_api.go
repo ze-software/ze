@@ -174,8 +174,8 @@ func (a *reactorAPIAdapter) SoftClearPeer(peerSelector string) ([]string, error)
 	var lastErr error
 	matched := false
 
-	for addrStr, peer := range a.r.peers {
-		if !ipGlobMatch(peerSelector, addrStr) {
+	for addrPort, peer := range a.r.peers {
+		if !ipGlobMatch(peerSelector, addrPort.Addr().String()) {
 			continue
 		}
 		if peer.State() != PeerStateEstablished {
@@ -374,47 +374,47 @@ func (a *reactorAPIAdapter) reconcilePeers(newPeers []*PeerSettings, label strin
 	r := a.r
 
 	// Build map of new peer settings for quick lookup.
-	newPeerSettings := make(map[string]*PeerSettings)
+	newPeerSettings := make(map[netip.AddrPort]*PeerSettings)
 	for _, p := range newPeers {
 		newPeerSettings[p.PeerKey()] = p
 	}
 
 	// Get current peer addresses and settings snapshot.
 	r.mu.RLock()
-	currentPeers := make(map[string]*PeerSettings)
-	for addr, peer := range r.peers {
-		currentPeers[addr] = peer.Settings()
+	currentPeers := make(map[netip.AddrPort]*PeerSettings)
+	for key, peer := range r.peers {
+		currentPeers[key] = peer.Settings()
 	}
 	r.mu.RUnlock()
 
 	// Categorize peers: to remove, to add, unchanged.
-	var toRemove []string
+	var toRemove []netip.AddrPort
 	var toAdd []*PeerSettings
 
-	for addr := range currentPeers {
-		newSettings, exists := newPeerSettings[addr]
+	for key := range currentPeers {
+		newSettings, exists := newPeerSettings[key]
 		if !exists {
-			toRemove = append(toRemove, addr)
-		} else if !peerSettingsEqual(currentPeers[addr], newSettings) {
-			toRemove = append(toRemove, addr)
+			toRemove = append(toRemove, key)
+		} else if !peerSettingsEqual(currentPeers[key], newSettings) {
+			toRemove = append(toRemove, key)
 			toAdd = append(toAdd, newSettings)
-			reactorLogger().Debug(label+": peer settings changed", "peer", addr)
+			reactorLogger().Debug(label+": peer settings changed", "peer", key)
 		}
 	}
 
-	for addr, settings := range newPeerSettings {
-		if _, exists := currentPeers[addr]; !exists {
+	for key, settings := range newPeerSettings {
+		if _, exists := currentPeers[key]; !exists {
 			toAdd = append(toAdd, settings)
 		}
 	}
 
 	// Remove peers.
-	for _, addr := range toRemove {
+	for _, key := range toRemove {
 		r.mu.Lock()
-		if peer, ok := r.peers[addr]; ok {
+		if peer, ok := r.peers[key]; ok {
 			peer.Stop()
-			delete(r.peers, addr)
-			reactorLogger().Debug(label+": removed peer", "peer", addr)
+			delete(r.peers, key)
+			reactorLogger().Debug(label+": removed peer", "peer", key)
 		}
 		r.mu.Unlock()
 	}
@@ -680,7 +680,11 @@ func (a *reactorAPIAdapter) FlushForwardPool(ctx context.Context) error {
 // FlushForwardPoolPeer blocks until the forward pool worker for a specific peer
 // address has drained its queued items. Returns nil immediately if no worker exists.
 func (a *reactorAPIAdapter) FlushForwardPoolPeer(ctx context.Context, addr string) error {
-	return a.r.fwdPool.BarrierPeer(ctx, addr)
+	parsed, err := netip.ParseAddr(addr)
+	if err != nil {
+		return fmt.Errorf("invalid peer address %q: %w", addr, err)
+	}
+	return a.r.fwdPool.BarrierPeer(ctx, parsed)
 }
 
 // RemovePeer removes a peer by address.
@@ -810,14 +814,9 @@ func (a *reactorAPIAdapter) getMatchingPeersLocked(selector string) []*Peer {
 		return peers
 	}
 
-	// Fast path: exact match by full key ("addr:port")
-	if peer, ok := a.r.peers[selector]; ok {
-		return []*Peer{peer}
-	}
-
-	// Try selector as bare IP with default port (API selectors may be IPs).
-	if !strings.Contains(selector, "*") {
-		if peer, ok := a.r.peers[selector+":"+strconv.Itoa(int(DefaultBGPPort))]; ok {
+	// Fast path: exact match by parsed AddrPort key.
+	if key := parsePeerAddrToKey(selector); key.IsValid() {
+		if peer, ok := a.r.peers[key]; ok {
 			return []*Peer{peer}
 		}
 	}
@@ -844,13 +843,8 @@ func (a *reactorAPIAdapter) getMatchingPeersLocked(selector string) []*Peer {
 
 	// Glob pattern match against the IP portion of each key.
 	var peers []*Peer
-	for key, peer := range a.r.peers {
-		// Extract IP from "addr:port" key for glob matching.
-		addr := key
-		if idx := strings.LastIndex(key, ":"); idx >= 0 {
-			addr = key[:idx]
-		}
-		if ipGlobMatch(selector, addr) {
+	for addrPort, peer := range a.r.peers {
+		if ipGlobMatch(selector, addrPort.Addr().String()) {
 			peers = append(peers, peer)
 		}
 	}

@@ -10,9 +10,8 @@ import (
 	"net/netip"
 	"time"
 
-	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
-
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/capability"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
 )
 
 // DefaultBGPPort is the standard BGP port per RFC 4271.
@@ -376,10 +375,10 @@ func NewPeerSettings(address netip.Addr, localAS, peerAS, routerID uint32) *Peer
 	}
 }
 
-// PeerKey returns the map key for this peer: "addr:port".
+// PeerKey returns the map key for this peer as a netip.AddrPort value type.
 // This uniquely identifies a peer even when multiple peers share the same IP.
 // Uses DefaultBGPPort when Port is zero (unset).
-func (n *PeerSettings) PeerKey() string {
+func (n *PeerSettings) PeerKey() netip.AddrPort {
 	port := n.Port
 	if port == 0 {
 		port = DefaultBGPPort
@@ -388,8 +387,9 @@ func (n *PeerSettings) PeerKey() string {
 }
 
 // PeerKeyFromAddrPort builds a peer map key from address and port.
-func PeerKeyFromAddrPort(addr netip.Addr, port uint16) string {
-	return fmt.Sprintf("%s:%d", addr.String(), port)
+// Returns a netip.AddrPort value type (20 bytes, comparable, zero allocation).
+func PeerKeyFromAddrPort(addr netip.Addr, port uint16) netip.AddrPort {
+	return netip.AddrPortFrom(addr, port)
 }
 
 // IsIBGP returns true if this is an internal BGP session (same AS).

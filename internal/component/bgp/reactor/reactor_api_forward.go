@@ -30,8 +30,8 @@ func (a *reactorAPIAdapter) AnnounceEOR(peerSelector string, afi uint16, safi ui
 	var lastErr error
 	sentCount := 0
 
-	for addrStr, peer := range a.r.peers {
-		if !ipGlobMatch(peerSelector, addrStr) {
+	for addrPort, peer := range a.r.peers {
+		if !ipGlobMatch(peerSelector, addrPort.Addr().String()) {
 			continue
 		}
 		if peer.State() != PeerStateEstablished {
@@ -104,8 +104,8 @@ func (a *reactorAPIAdapter) sendRouteRefresh(peerSelector string, afi uint16, sa
 	defer a.r.mu.RUnlock()
 
 	var lastErr error
-	for addrStr, peer := range a.r.peers {
-		if !ipGlobMatch(peerSelector, addrStr) {
+	for addrPort, peer := range a.r.peers {
+		if !ipGlobMatch(peerSelector, addrPort.Addr().String()) {
 			continue
 		}
 
@@ -245,8 +245,8 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	}
 
 	// Source peer address for overflow ratio tracking (AC-16).
-	// Hoisted outside the loop — loop-invariant, avoids N redundant String() allocations.
-	srcAddr := update.SourcePeerIP.String()
+	// Hoisted outside the loop — loop-invariant.
+	srcAddr := update.SourcePeerIP
 
 	for _, peer := range matchingPeers {
 		if peer.State() != PeerStateEstablished {
@@ -395,7 +395,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		a.r.recentUpdates.Retain(updateID)
 		item.done = func() { a.r.recentUpdates.Release(updateID) }
 
-		key := fwdKey{peerAddr: peer.addrString}
+		key := fwdKey{peerAddr: peer.Settings().Address}
 		if a.r.fwdPool.TryDispatch(key, item) {
 			a.r.fwdPool.RecordForwarded(srcAddr)
 			dispatchedCount++

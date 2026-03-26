@@ -176,12 +176,12 @@ func TestRouterIDConflictIBGPDuplicate(t *testing.T) {
 		"192.0.2.1", 65001, 0x01020304)
 	defer cleanupA()
 
-	peers := map[string]*Peer{
+	peers := map[netip.AddrPort]*Peer{
 		peerA.settings.PeerKey(): peerA,
 	}
 
 	// New peer in same iBGP AS with same router-ID → conflict.
-	addr, conflict := checkRouterIDConflict(peers, "192.0.2.99:179", 65001, 0x01020304)
+	addr, conflict := checkRouterIDConflict(peers, netip.MustParseAddrPort("192.0.2.99:179"), 65001, 0x01020304)
 	assert.True(t, conflict, "should detect duplicate router-ID in iBGP AS")
 	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), addr)
 }
@@ -197,12 +197,12 @@ func TestRouterIDConflictEBGPSameAS(t *testing.T) {
 		"192.0.2.1", 65002, 0x05060708)
 	defer cleanupA()
 
-	peers := map[string]*Peer{
+	peers := map[netip.AddrPort]*Peer{
 		peerA.settings.PeerKey(): peerA,
 	}
 
 	// New peer also in AS 65002 with same router-ID → conflict.
-	addr, conflict := checkRouterIDConflict(peers, "192.0.2.99:179", 65002, 0x05060708)
+	addr, conflict := checkRouterIDConflict(peers, netip.MustParseAddrPort("192.0.2.99:179"), 65002, 0x05060708)
 	assert.True(t, conflict, "should detect duplicate router-ID in same remote AS")
 	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), addr)
 }
@@ -218,12 +218,12 @@ func TestRouterIDConflictDifferentAS(t *testing.T) {
 		"192.0.2.1", 65002, 0x01020304)
 	defer cleanupA()
 
-	peers := map[string]*Peer{
+	peers := map[netip.AddrPort]*Peer{
 		peerA.settings.PeerKey(): peerA,
 	}
 
 	// New peer in AS 65003 with same router-ID → no conflict (different AS).
-	_, conflict := checkRouterIDConflict(peers, "192.0.2.99:179", 65003, 0x01020304)
+	_, conflict := checkRouterIDConflict(peers, netip.MustParseAddrPort("192.0.2.99:179"), 65003, 0x01020304)
 	assert.False(t, conflict, "different ASN should not conflict even with same router-ID")
 }
 
@@ -238,12 +238,12 @@ func TestRouterIDConflictDifferentRouterID(t *testing.T) {
 		"192.0.2.1", 65001, 0x01020304)
 	defer cleanupA()
 
-	peers := map[string]*Peer{
+	peers := map[netip.AddrPort]*Peer{
 		peerA.settings.PeerKey(): peerA,
 	}
 
 	// New peer in same AS with different router-ID → no conflict.
-	_, conflict := checkRouterIDConflict(peers, "192.0.2.99:179", 65001, 0x05060708)
+	_, conflict := checkRouterIDConflict(peers, netip.MustParseAddrPort("192.0.2.99:179"), 65001, 0x05060708)
 	assert.False(t, conflict, "different router-ID in same AS should not conflict")
 }
 
@@ -258,12 +258,12 @@ func TestRouterIDConflictNotEstablished(t *testing.T) {
 		"192.0.2.1", 65001, 0x01020304)
 	defer cleanupA()
 
-	peers := map[string]*Peer{
+	peers := map[netip.AddrPort]*Peer{
 		peerA.settings.PeerKey(): peerA,
 	}
 
 	// Same router-ID but peer not established → no conflict.
-	_, conflict := checkRouterIDConflict(peers, "192.0.2.99:179", 65001, 0x01020304)
+	_, conflict := checkRouterIDConflict(peers, netip.MustParseAddrPort("192.0.2.99:179"), 65001, 0x01020304)
 	assert.False(t, conflict, "non-ESTABLISHED peer should not trigger conflict")
 }
 
@@ -279,7 +279,7 @@ func TestRouterIDConflictSelfExcluded(t *testing.T) {
 	defer cleanupA()
 
 	peerKey := peerA.settings.PeerKey()
-	peers := map[string]*Peer{
+	peers := map[netip.AddrPort]*Peer{
 		peerKey: peerA,
 	}
 
@@ -298,12 +298,12 @@ func TestRouterIDConflictNilSession(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65001, 0x01020301)
 	peerA := NewPeer(settings)
 
-	peers := map[string]*Peer{
+	peers := map[netip.AddrPort]*Peer{
 		peerA.settings.PeerKey(): peerA,
 	}
 
 	// Same AS and same router-ID but no session → no conflict.
-	_, conflict := checkRouterIDConflict(peers, "192.0.2.99:179", 65001, 0x01020304)
+	_, conflict := checkRouterIDConflict(peers, netip.MustParseAddrPort("192.0.2.99:179"), 65001, 0x01020304)
 	assert.False(t, conflict, "peer without session should not trigger conflict")
 }
 
@@ -328,14 +328,14 @@ func TestRouterIDConflictMultiplePeers(t *testing.T) {
 		"192.0.2.3", 65002, 0x05060708)
 	defer cleanupC()
 
-	peers := map[string]*Peer{
+	peers := map[netip.AddrPort]*Peer{
 		peerA.settings.PeerKey(): peerA,
 		peerB.settings.PeerKey(): peerB,
 		peerC.settings.PeerKey(): peerC,
 	}
 
 	// New peer in AS 65002 with router-ID 5.6.7.8 → conflicts with Peer C.
-	addr, conflict := checkRouterIDConflict(peers, "192.0.2.99:179", 65002, 0x05060708)
+	addr, conflict := checkRouterIDConflict(peers, netip.MustParseAddrPort("192.0.2.99:179"), 65002, 0x05060708)
 	assert.True(t, conflict, "should detect conflict with Peer C")
 	assert.Equal(t, netip.MustParseAddr("192.0.2.3"), addr, "should identify Peer C as conflicting")
 }

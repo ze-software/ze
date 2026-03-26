@@ -2208,10 +2208,10 @@ func TestReactorPauseAllReads(t *testing.T) {
 // PREVENTS: bgp-rs withdrawal propagation failing with "no peers match selector".
 func TestGetMatchingPeersExclusion(t *testing.T) {
 	r := &Reactor{
-		peers: map[string]*Peer{
-			"127.0.0.1:179": {settings: &PeerSettings{Address: mustParseAddr("127.0.0.1")}},
-			"127.0.0.2:179": {settings: &PeerSettings{Address: mustParseAddr("127.0.0.2")}},
-			"127.0.0.3:179": {settings: &PeerSettings{Address: mustParseAddr("127.0.0.3")}},
+		peers: map[netip.AddrPort]*Peer{
+			netip.MustParseAddrPort("127.0.0.1:179"): {settings: &PeerSettings{Address: mustParseAddr("127.0.0.1")}},
+			netip.MustParseAddrPort("127.0.0.2:179"): {settings: &PeerSettings{Address: mustParseAddr("127.0.0.2")}},
+			netip.MustParseAddrPort("127.0.0.3:179"): {settings: &PeerSettings{Address: mustParseAddr("127.0.0.3")}},
 		},
 	}
 	adapter := &reactorAPIAdapter{r: r}
@@ -2298,17 +2298,6 @@ func TestMD5PeersForListener(t *testing.T) {
 	assert.Empty(t, md5None)
 }
 
-// TestEmitCongestionEvent_InvalidAddr verifies emitCongestionEvent handles
-// invalid peer address strings by returning early at ParseAddr.
-//
-// VALIDATES: emitCongestionEvent invalid address early return
-// PREVENTS: Panic or error log spam from malformed peer address.
-func TestEmitCongestionEvent_InvalidAddr(t *testing.T) {
-	r := New(&Config{ListenAddr: "127.0.0.1:0"})
-	// Invalid address: ParseAddr fails, function returns before peer lookup.
-	r.emitCongestionEvent("not-an-ip", "congested")
-}
-
 // TestEmitCongestionEvent_PeerNotFound verifies emitCongestionEvent handles
 // unknown peer addresses by returning early at findPeerByAddr.
 //
@@ -2317,7 +2306,7 @@ func TestEmitCongestionEvent_InvalidAddr(t *testing.T) {
 func TestEmitCongestionEvent_PeerNotFound(t *testing.T) {
 	r := New(&Config{ListenAddr: "127.0.0.1:0"})
 	// Valid address but no matching peer: findPeerByAddr returns false.
-	r.emitCongestionEvent("10.0.0.99", "congested")
+	r.emitCongestionEvent(mustParseAddr("10.0.0.99"), "congested")
 }
 
 // TestEmitCongestionEvent_NilDispatcher verifies emitCongestionEvent exercises
@@ -2334,10 +2323,10 @@ func TestEmitCongestionEvent_NilDispatcher(t *testing.T) {
 	err := r.AddPeer(settings)
 	require.NoError(t, err)
 
-	// Peer exists, address valid. Exercises ParseAddr, findPeerByAddr,
+	// Peer exists, address valid. Exercises findPeerByAddr,
 	// PeerInfo construction. Returns at nil dispatcher check.
-	r.emitCongestionEvent("10.0.0.1", "congested")
-	r.emitCongestionEvent("10.0.0.1", "resumed")
+	r.emitCongestionEvent(peerAddr, "congested")
+	r.emitCongestionEvent(peerAddr, "resumed")
 }
 
 // TestEmitCongestionEvent_CallbacksWired verifies the reactor wires

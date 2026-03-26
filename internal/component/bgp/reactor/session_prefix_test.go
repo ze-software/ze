@@ -8,8 +8,15 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/wireu"
 )
+
+// ipv4UKey is the uint32 family key for ipv4/unicast used in test assertions.
+var ipv4UKey = familyKey(nlri.IPv4Unicast) //nolint:gochecknoglobals // test helper
+
+// ipv6UKey is the uint32 family key for ipv6/unicast used in test assertions.
+var ipv6UKey = familyKey(nlri.IPv6Unicast) //nolint:gochecknoglobals // test helper
 
 // testWireUpdate creates a WireUpdate from raw UPDATE body bytes for testing.
 func testWireUpdate(body []byte) *wireu.WireUpdate {
@@ -38,7 +45,7 @@ func TestPrefixCountIncrement(t *testing.T) {
 		24, 10, 0, 1, // 10.0.1.0/24
 	}
 	checkOK(t, s, body)
-	assert.Equal(t, int64(2), s.prefixCounts.counts["ipv4/unicast"])
+	assert.Equal(t, int64(2), s.prefixCounts.counts[ipv4UKey])
 }
 
 // TestPrefixCountDecrement verifies prefix counter decrements on withdraw.
@@ -51,11 +58,11 @@ func TestPrefixCountDecrement(t *testing.T) {
 
 	// Announce 3 prefixes.
 	checkOK(t, s, []byte{0, 0, 0, 0, 24, 10, 0, 0, 24, 10, 0, 1, 24, 10, 0, 2})
-	assert.Equal(t, int64(3), s.prefixCounts.counts["ipv4/unicast"])
+	assert.Equal(t, int64(3), s.prefixCounts.counts[ipv4UKey])
 
 	// Withdraw 1 prefix.
 	checkOK(t, s, []byte{0, 4, 24, 10, 0, 0, 0, 0})
-	assert.Equal(t, int64(2), s.prefixCounts.counts["ipv4/unicast"])
+	assert.Equal(t, int64(2), s.prefixCounts.counts[ipv4UKey])
 }
 
 // TestPrefixCountReset verifies counters reset to 0 on new session.
@@ -67,10 +74,10 @@ func TestPrefixCountReset(t *testing.T) {
 	s1 := NewSession(ps)
 
 	checkOK(t, s1, []byte{0, 0, 0, 0, 24, 10, 0, 0, 24, 10, 0, 1})
-	assert.Equal(t, int64(2), s1.prefixCounts.counts["ipv4/unicast"])
+	assert.Equal(t, int64(2), s1.prefixCounts.counts[ipv4UKey])
 
 	s2 := NewSession(ps)
-	assert.Equal(t, int64(0), s2.prefixCounts.counts["ipv4/unicast"])
+	assert.Equal(t, int64(0), s2.prefixCounts.counts[ipv4UKey])
 }
 
 // TestPrefixWarningThreshold verifies warning logged at threshold without teardown.
@@ -83,7 +90,7 @@ func TestPrefixWarningThreshold(t *testing.T) {
 
 	// Send 3 prefixes (at warning=3, below maximum=5).
 	checkOK(t, s, []byte{0, 0, 0, 0, 24, 10, 0, 0, 24, 10, 0, 1, 24, 10, 0, 2})
-	assert.Equal(t, int64(3), s.prefixCounts.counts["ipv4/unicast"])
+	assert.Equal(t, int64(3), s.prefixCounts.counts[ipv4UKey])
 }
 
 // TestPrefixExceedTeardown verifies NOTIFICATION sent when maximum exceeded.
@@ -125,7 +132,7 @@ func TestPrefixExceedDrop(t *testing.T) {
 
 	assert.Nil(t, notif, "AC-4: teardown=false should not send NOTIFICATION")
 	assert.True(t, drop, "AC-27: over-limit UPDATE must be dropped (not delivered to plugins)")
-	assert.Equal(t, int64(4), s.prefixCounts.counts["ipv4/unicast"])
+	assert.Equal(t, int64(4), s.prefixCounts.counts[ipv4UKey])
 }
 
 // TestPrefixExceedDropWithdrawStillCounted verifies withdrawals are counted even when dropping.
@@ -141,11 +148,11 @@ func TestPrefixExceedDropWithdrawStillCounted(t *testing.T) {
 	_, drop := s.checkPrefixLimits(testWireUpdate(
 		[]byte{0, 0, 0, 0, 24, 10, 0, 0, 24, 10, 0, 1, 24, 10, 0, 2, 24, 10, 0, 3}))
 	assert.True(t, drop)
-	assert.Equal(t, int64(4), s.prefixCounts.counts["ipv4/unicast"])
+	assert.Equal(t, int64(4), s.prefixCounts.counts[ipv4UKey])
 
 	// Withdraw 2. Count drops to 2 (below max). No drop.
 	checkOK(t, s, []byte{0, 8, 24, 10, 0, 0, 24, 10, 0, 1, 0, 0})
-	assert.Equal(t, int64(2), s.prefixCounts.counts["ipv4/unicast"])
+	assert.Equal(t, int64(2), s.prefixCounts.counts[ipv4UKey])
 }
 
 // TestPrefixPerFamilyIsolation verifies exceeding one family does not affect others.
@@ -161,7 +168,7 @@ func TestPrefixPerFamilyIsolation(t *testing.T) {
 	body := []byte{0, 0, 0, 0, 24, 10, 0, 0, 24, 10, 0, 1, 24, 10, 0, 2, 24, 10, 0, 3}
 	notif, _ := s.checkPrefixLimits(testWireUpdate(body))
 	require.NotNil(t, notif, "should trigger on ipv4 exceed")
-	assert.Equal(t, int64(0), s.prefixCounts.counts["ipv6/unicast"])
+	assert.Equal(t, int64(0), s.prefixCounts.counts[ipv6UKey])
 }
 
 // TestPrefixWithdrawBeforeAnnounce verifies that withdrawals are counted before
@@ -175,14 +182,14 @@ func TestPrefixWithdrawBeforeAnnounce(t *testing.T) {
 
 	// Pre-fill count to 3 (at maximum).
 	checkOK(t, s, []byte{0, 0, 0, 0, 24, 10, 0, 0, 24, 10, 0, 1, 24, 10, 0, 2})
-	assert.Equal(t, int64(3), s.prefixCounts.counts["ipv4/unicast"])
+	assert.Equal(t, int64(3), s.prefixCounts.counts[ipv4UKey])
 
 	// Withdraw 1 + announce 1 (net change = 0). Must not trigger.
 	body2 := []byte{0, 4, 24, 10, 0, 0, 0, 0, 24, 10, 0, 3}
 	notif, drop := s.checkPrefixLimits(testWireUpdate(body2))
 	assert.Nil(t, notif, "prefix replacement should not trigger teardown")
 	assert.False(t, drop)
-	assert.Equal(t, int64(3), s.prefixCounts.counts["ipv4/unicast"])
+	assert.Equal(t, int64(3), s.prefixCounts.counts[ipv4UKey])
 }
 
 // TestPrefixNotificationData verifies NOTIFICATION data format per RFC 4486.
@@ -190,11 +197,11 @@ func TestPrefixWithdrawBeforeAnnounce(t *testing.T) {
 // VALIDATES: Data field contains AFI(2 big-endian) + SAFI(1) + count(4 big-endian).
 // PREVENTS: Wrong byte order or missing data field in NOTIFICATION.
 func TestPrefixNotificationData(t *testing.T) {
-	notif := buildPrefixNotification("ipv4/unicast", 100001)
+	notif := buildPrefixNotification(ipv4UKey, 100001)
 	require.Len(t, notif.Data, 7)
 	assert.Equal(t, []byte{0, 1, 1, 0, 1, 0x86, 0xa1}, notif.Data)
 
-	notif6 := buildPrefixNotification("ipv6/unicast", 50000)
+	notif6 := buildPrefixNotification(ipv6UKey, 50000)
 	require.Len(t, notif6.Data, 7)
 	assert.Equal(t, []byte{0, 2, 1, 0, 0, 0xc3, 0x50}, notif6.Data)
 }
@@ -207,7 +214,7 @@ func TestPrefixCountClampZero(t *testing.T) {
 	ps := newTestPeerSettingsWithPrefix(100000, 0)
 	s := NewSession(ps)
 	checkOK(t, s, []byte{0, 8, 24, 10, 0, 0, 24, 10, 0, 1, 0, 0})
-	assert.Equal(t, int64(0), s.prefixCounts.counts["ipv4/unicast"])
+	assert.Equal(t, int64(0), s.prefixCounts.counts[ipv4UKey])
 }
 
 // TestPrefixNoPrefixConfig verifies no enforcement when prefix limits not configured.
@@ -397,7 +404,7 @@ func TestPrefixWarningNotifier(t *testing.T) {
 	}
 
 	// Push count to 8 (warning threshold).
-	notif, drop := s.applyPrefixCheck("ipv4/unicast", 8)
+	notif, drop := s.applyPrefixCheck(ipv4UKey, 8)
 	assert.Nil(t, notif)
 	assert.False(t, drop)
 	require.Len(t, notifications, 1)
@@ -405,13 +412,13 @@ func TestPrefixWarningNotifier(t *testing.T) {
 	assert.True(t, notifications[0].warned)
 
 	// Push to 9 -- still in warning, no second notification.
-	notif, drop = s.applyPrefixCheck("ipv4/unicast", 1)
+	notif, drop = s.applyPrefixCheck(ipv4UKey, 1)
 	assert.Nil(t, notif)
 	assert.False(t, drop)
 	assert.Len(t, notifications, 1, "should not re-notify while in warning")
 
 	// Withdraw to 7 (below warning threshold).
-	s.applyPrefixDelta("ipv4/unicast", -2)
+	s.applyPrefixDelta(ipv4UKey, -2)
 	require.Len(t, notifications, 2)
 	assert.Equal(t, "ipv4/unicast", notifications[1].family)
 	assert.False(t, notifications[1].warned)

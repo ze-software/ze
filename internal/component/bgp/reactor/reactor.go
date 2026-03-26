@@ -69,6 +69,8 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.maxbytes", Type: "int64", Default: "0", Description: "Combined byte budget for 4K+64K buffer pools (0 = unlimited)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.batch.limit", Type: "int", Default: "1024", Description: "Max items per forward batch, bounds writeMu hold time (0 = unlimited)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.safety.valve", Type: "duration", Default: "5m", Description: "Safety valve duration for UPDATE cache gap-based eviction"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.read.size", Type: "int", Default: "65536", Description: "Per-session TCP read buffer size (bytes)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.write.size", Type: "int", Default: "16384", Description: "Per-session TCP write buffer size (bytes)"})
 )
 
 // reactorLogger is the reactor subsystem logger (lazy initialization).
@@ -226,9 +228,9 @@ type Reactor struct {
 	metricsRegistry metrics.Registry // injected by caller; nil when metrics not enabled
 	rmetrics        *reactorMetrics  // cached metric references (nil when registry not set)
 
-	peers           map[string]*Peer     // keyed by "addr:port" (PeerKey format)
-	listener        *Listener            // deprecated: single listener for backward compat
-	listeners       map[string]*Listener // keyed by "addr:port" (local endpoint)
+	peers           map[netip.AddrPort]*Peer // keyed by netip.AddrPort (zero-alloc lookup)
+	listener        *Listener                // deprecated: single listener for backward compat
+	listeners       map[string]*Listener     // keyed by "addr:port" (local endpoint)
 	signals         *SignalHandler
 	api             *pluginserver.Server       // API server for CLI and external processes
 	eventDispatcher *bgpserver.EventDispatcher // BGP event dispatch to plugins
@@ -341,7 +343,7 @@ func New(config *Config) *Reactor {
 		clock:           clock.RealClock{},
 		dialer:          &network.RealDialer{},
 		listenerFactory: network.RealListenerFactory{},
-		peers:           make(map[string]*Peer),
+		peers:           make(map[netip.AddrPort]*Peer),
 		listeners:       make(map[string]*Listener),
 		recentUpdates:   NewRecentUpdateCache(maxEntries),
 		fwdPool: newFwdPool(fwdBatchHandler, fwdPoolConfig{
@@ -369,11 +371,11 @@ func New(config *Config) *Reactor {
 	// and emit events to subscribed plugins.
 	// These fire from ForwardUpdate caller goroutines (onCongested) and worker
 	// goroutines (onResumed). They must not block.
-	r.fwdPool.onCongested = func(peerAddr string) {
+	r.fwdPool.onCongested = func(peerAddr netip.Addr) {
 		reactorLogger().Warn("forward peer congested", "peer", peerAddr)
 		r.emitCongestionEvent(peerAddr, plugin.EventCongested)
 	}
-	r.fwdPool.onResumed = func(peerAddr string) {
+	r.fwdPool.onResumed = func(peerAddr netip.Addr) {
 		reactorLogger().Info("forward peer resumed", "peer", peerAddr)
 		r.emitCongestionEvent(peerAddr, plugin.EventResumed)
 	}
@@ -659,7 +661,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	type listenerSpec struct {
 		addr    netip.Addr
 		port    int
-		peerKey string // non-empty for per-peer-port listeners
+		peerKey netip.AddrPort // valid (non-zero) for per-peer-port listeners
 	}
 	seen := make(map[string]struct{})
 	var specs []listenerSpec
@@ -678,7 +680,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 			continue
 		}
 		seen[lkey] = struct{}{}
-		peerKey := ""
+		var peerKey netip.AddrPort
 		if s.Port != 0 && s.Port != DefaultBGPPort {
 			peerKey = s.PeerKey() // Per-peer-port: direct routing
 		}
@@ -792,7 +794,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 
 	// Copy peer map before releasing lock — map alias would race with
 	// concurrent AddDynamicPeer (concurrent map read+write panics in Go).
-	peersToStart := make(map[string]*Peer, len(r.peers))
+	peersToStart := make(map[netip.AddrPort]*Peer, len(r.peers))
 	maps.Copy(peersToStart, r.peers)
 
 	// Release lock before waiting for API - plugins need RLock in GetPeerCapabilityConfigs()
@@ -872,11 +874,11 @@ func (r *Reactor) md5PeersForListener(listenPort int) []network.MD5Peer {
 }
 
 // startListenerForAddressPort creates and starts a listener on addr:port.
-// If peerKey is non-empty, the listener is a per-peer-port listener that routes
+// If peerKey is valid (non-zero), the listener is a per-peer-port listener that routes
 // directly to that peer (no remote IP matching). Otherwise, it's a shared listener
 // that matches incoming connections by remote IP.
 // Must be called with r.mu held.
-func (r *Reactor) startListenerForAddressPort(addr netip.Addr, port int, peerKey string) error {
+func (r *Reactor) startListenerForAddressPort(addr netip.Addr, port int, peerKey netip.AddrPort) error {
 	lkey := net.JoinHostPort(addr.String(), strconv.Itoa(port))
 
 	if _, exists := r.listeners[lkey]; exists {
@@ -893,7 +895,7 @@ func (r *Reactor) startListenerForAddressPort(addr netip.Addr, port int, peerKey
 		listener.SetListenerFactory(r.listenerFactory)
 	}
 
-	if peerKey != "" {
+	if peerKey.IsValid() {
 		// Per-peer-port listener: route directly by peer key
 		capturedKey := peerKey
 		listener.SetHandler(func(conn net.Conn) {
@@ -944,7 +946,7 @@ var nativeFamilies = map[string]bool{
 // If no family block, validation passes (sendOpen will use all plugin decode families).
 //
 // Returns error if any configured family lacks a decoder, preventing startup.
-func (r *Reactor) validatePeerFamilies(peers map[string]*Peer) error {
+func (r *Reactor) validatePeerFamilies(peers map[netip.AddrPort]*Peer) error {
 	// Get available decode families from plugins
 	var decodeFamilies []string
 	if r.api != nil {

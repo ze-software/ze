@@ -299,7 +299,7 @@ func NewSession(settings *PeerSettings) *Session {
 		writeBuf:     wire.NewSessionBuffer(false), // Start with 4096, resize if Extended Message
 		errChan:      make(chan error, 2),          // Buffer 2: normal error + teardown
 		done:         make(chan struct{}),
-		prefixCounts: &prefixCounts{counts: make(map[string]int64), warned: make(map[string]bool)},
+		prefixCounts: &prefixCounts{counts: make(map[uint32]int64), warned: make(map[uint32]bool)},
 	}
 
 	// Configure FSM connection mode: passive if active bit is NOT set.

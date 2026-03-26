@@ -12,6 +12,21 @@ import (
 	"time"
 )
 
+// parsePeerAddrToKey converts a peer address string (bare IP or "ip:port") to a
+// netip.AddrPort map key. Bare IPs get DefaultBGPPort. Invalid strings return a
+// zero AddrPort (which will simply not match any peer in the map).
+func parsePeerAddrToKey(s string) netip.AddrPort {
+	// Try as "ip:port" first.
+	if ap, err := netip.ParseAddrPort(s); err == nil {
+		return ap
+	}
+	// Try as bare IP with default port.
+	if addr, err := netip.ParseAddr(s); err == nil {
+		return netip.AddrPortFrom(addr, DefaultBGPPort)
+	}
+	return netip.AddrPort{}
+}
+
 // findPeerByAddr looks up a peer by address, trying default port first.
 // Falls back to iterating peers by IP for non-standard port peers.
 // Must be called with r.mu held (RLock or Lock).
@@ -31,7 +46,7 @@ func (r *Reactor) findPeerByAddr(addr netip.Addr) (*Peer, bool) {
 
 // findPeerKeyByAddr looks up a peer's map key and peer by address.
 // Must be called with r.mu held.
-func (r *Reactor) findPeerKeyByAddr(addr netip.Addr) (string, *Peer, bool) {
+func (r *Reactor) findPeerKeyByAddr(addr netip.Addr) (netip.AddrPort, *Peer, bool) {
 	key := PeerKeyFromAddrPort(addr, DefaultBGPPort)
 	if peer, ok := r.peers[key]; ok {
 		return key, peer, true
@@ -41,7 +56,7 @@ func (r *Reactor) findPeerKeyByAddr(addr netip.Addr) (string, *Peer, bool) {
 			return k, peer, true
 		}
 	}
-	return "", nil, false
+	return netip.AddrPort{}, nil, false
 }
 
 // peerListenPort returns the port to listen on for a peer.
@@ -139,7 +154,7 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 				_ = existing.Wait(waitCtx)
 				cancel()
 				delete(r.listeners, lkey)
-				peerKey := ""
+				var peerKey netip.AddrPort
 				if settings.Port != 0 && settings.Port != DefaultBGPPort {
 					peerKey = settings.PeerKey()
 				}
@@ -193,7 +208,7 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 
 	// Clean up source stats so disconnected peers don't accumulate in srcStats.
 	if r.fwdPool != nil {
-		r.fwdPool.RemoveSourceStats(peer.peerAddrLabel())
+		r.fwdPool.RemoveSourceStats(peer.Settings().Address)
 	}
 
 	// Remove peer's prefix demand from pool auto-sizing (AC-28).

@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"context"
+	"net/netip"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -29,7 +30,7 @@ func TestFwdPool_Barrier_DrainsAll(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: 5 * time.Second})
 	defer pool.Stop()
 
-	key := fwdKey{peerAddr: "1.1.1.1"}
+	key := fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}
 
 	// Dispatch two items — handler is blocked so they queue up
 	pool.Dispatch(key, fwdItem{})
@@ -91,7 +92,7 @@ func TestFwdPool_Barrier_Filtered(t *testing.T) {
 	gate.Add(1) // block handler for peer2
 
 	pool := newFwdPool(func(key fwdKey, _ []fwdItem) {
-		if key.peerAddr == "2.2.2.2" {
+		if key.peerAddr == netip.MustParseAddr("2.2.2.2") {
 			gate.Wait() // block peer2's handler
 		}
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: 5 * time.Second})
@@ -101,8 +102,8 @@ func TestFwdPool_Barrier_Filtered(t *testing.T) {
 	}()
 
 	// Dispatch to both peers
-	pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{})
-	pool.Dispatch(fwdKey{peerAddr: "2.2.2.2"}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("2.2.2.2")}, fwdItem{})
 
 	// Wait for peer1's item to be processed
 	require.Eventually(t, func() bool {
@@ -113,7 +114,7 @@ func TestFwdPool_Barrier_Filtered(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	err := pool.BarrierPeer(ctx, "1.1.1.1")
+	err := pool.BarrierPeer(ctx, netip.MustParseAddr("1.1.1.1"))
 	assert.NoError(t, err)
 }
 
@@ -134,7 +135,7 @@ func TestFwdPool_Barrier_ContextCancel(t *testing.T) {
 		pool.Stop()
 	}()
 
-	pool.Dispatch(fwdKey{peerAddr: "1.1.1.1"}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}, fwdItem{})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -179,7 +180,7 @@ func TestFwdPool_Barrier_WithOverflow(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: 5 * time.Second})
 	defer pool.Stop()
 
-	key := fwdKey{peerAddr: "1.1.1.1"}
+	key := fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}
 
 	// Fill the channel (size=2)
 	pool.TryDispatch(key, fwdItem{})

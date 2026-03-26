@@ -9,6 +9,7 @@
 package reactor
 
 import (
+	"net/netip"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -24,8 +25,9 @@ import (
 var fwdLogger = slogutil.LazyLogger("bgp.reactor.forward")
 
 // fwdKey identifies a per-destination-peer forward worker.
+// Uses netip.Addr instead of string for efficient map key hashing on the hot path.
 type fwdKey struct {
-	peerAddr string
+	peerAddr netip.Addr
 }
 
 // fwdItem is a unit of work dispatched to a forward worker.
@@ -268,8 +270,8 @@ type fwdPool struct {
 	// Congestion callbacks — fire on transitions only (not every item).
 	// Called from the TryDispatch caller goroutine (onCongested) or the
 	// worker goroutine (onResumed). Must not block.
-	onCongested func(peerAddr string) // Called on false->true transition
-	onResumed   func(peerAddr string) // Called on true->false transition
+	onCongested func(peerAddr netip.Addr) // Called on false->true transition
+	onResumed   func(peerAddr netip.Addr) // Called on true->false transition
 
 	// overflowPool bounds overflow items across all workers (nil = unbounded).
 	overflowPool *fwdOverflowPool
@@ -277,7 +279,7 @@ type fwdPool struct {
 	// Per-source-peer dispatch counters for AC-16 overflow ratio.
 	// Key: source peer address. Updated atomically in ForwardUpdate path.
 	srcStatsMu sync.Mutex
-	srcStats   map[string]*fwdSourceStats
+	srcStats   map[netip.Addr]*fwdSourceStats
 }
 
 // fwdSourceStats tracks forwarded vs overflowed counts for one source peer.
@@ -302,7 +304,7 @@ func newFwdPool(handler func(fwdKey, []fwdItem), cfg fwdPoolConfig) *fwdPool {
 		cfg:      cfg,
 		clock:    clock.RealClock{},
 		stopCh:   make(chan struct{}),
-		srcStats: make(map[string]*fwdSourceStats),
+		srcStats: make(map[netip.Addr]*fwdSourceStats),
 	}
 	if cfg.overflowPoolSize > 0 {
 		poolSize := cfg.overflowPoolSize
@@ -553,14 +555,14 @@ func (fp *fwdPool) WorkerCount() int {
 }
 
 // OverflowDepths returns a snapshot of per-destination-peer overflow depth.
-// Each entry maps peer address to the number of items currently in its overflow buffer.
+// Each entry maps peer address string to the number of items currently in its overflow buffer.
 // Called by the metrics update loop; must not block.
 func (fp *fwdPool) OverflowDepths() map[string]int {
 	fp.mu.Lock()
 	result := make(map[string]int, len(fp.workers))
 	for key, w := range fp.workers {
 		w.overflowMu.Lock()
-		result[key.peerAddr] = len(w.overflow)
+		result[key.peerAddr.String()] = len(w.overflow)
 		w.overflowMu.Unlock()
 	}
 	fp.mu.Unlock()
@@ -583,18 +585,18 @@ func (fp *fwdPool) PoolUsedRatio() float64 {
 
 // RecordForwarded increments the forwarded counter for a source peer.
 // Called from ForwardUpdate when TryDispatch succeeds.
-func (fp *fwdPool) RecordForwarded(sourcePeer string) {
+func (fp *fwdPool) RecordForwarded(sourcePeer netip.Addr) {
 	fp.getSourceStats(sourcePeer).forwarded.Add(1)
 }
 
 // RecordOverflowed increments the overflowed counter for a source peer.
 // Called from ForwardUpdate when DispatchOverflow is used.
-func (fp *fwdPool) RecordOverflowed(sourcePeer string) {
+func (fp *fwdPool) RecordOverflowed(sourcePeer netip.Addr) {
 	fp.getSourceStats(sourcePeer).overflowed.Add(1)
 }
 
 // getSourceStats returns the stats for a source peer, creating if needed.
-func (fp *fwdPool) getSourceStats(sourcePeer string) *fwdSourceStats {
+func (fp *fwdPool) getSourceStats(sourcePeer netip.Addr) *fwdSourceStats {
 	fp.srcStatsMu.Lock()
 	s, ok := fp.srcStats[sourcePeer]
 	if !ok {
@@ -607,6 +609,7 @@ func (fp *fwdPool) getSourceStats(sourcePeer string) *fwdSourceStats {
 
 // SourceOverflowRatios returns per-source-peer overflow ratio: overflowed/(forwarded+overflowed).
 // Returns 0.0 for peers with no overflow. Called by the metrics update loop.
+// Keys are string-form addresses for display/metrics consumption.
 func (fp *fwdPool) SourceOverflowRatios() map[string]float64 {
 	fp.srcStatsMu.Lock()
 	result := make(map[string]float64, len(fp.srcStats))
@@ -615,9 +618,9 @@ func (fp *fwdPool) SourceOverflowRatios() map[string]float64 {
 		ovf := s.overflowed.Load()
 		total := fwd + ovf
 		if total == 0 {
-			result[peer] = 0.0
+			result[peer.String()] = 0.0
 		} else {
-			result[peer] = float64(ovf) / float64(total)
+			result[peer.String()] = float64(ovf) / float64(total)
 		}
 	}
 	fp.srcStatsMu.Unlock()
@@ -626,7 +629,7 @@ func (fp *fwdPool) SourceOverflowRatios() map[string]float64 {
 
 // RemoveSourceStats deletes the source stats entry for a peer.
 // Called on peer disconnect to prevent unbounded srcStats growth.
-func (fp *fwdPool) RemoveSourceStats(sourcePeer string) {
+func (fp *fwdPool) RemoveSourceStats(sourcePeer netip.Addr) {
 	fp.srcStatsMu.Lock()
 	delete(fp.srcStats, sourcePeer)
 	fp.srcStatsMu.Unlock()
