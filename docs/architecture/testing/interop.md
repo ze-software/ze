@@ -119,6 +119,19 @@ All session waiters poll with a configurable timeout (default 90s, override via 
 | 17 | md5-auth-frr | Ze, FRR | TCP MD5 authentication (RFC 2385) |
 | 18 | ebgp-gobgp | Ze, GoBGP | eBGP session with GoBGP |
 | 19 | routes-gobgp | Ze, GoBGP | Route exchange with GoBGP |
+| 20 | role-frr | Ze, FRR | RFC 9234 Role capability negotiation |
+| 21 | role-gobgp | Ze, GoBGP | RFC 9234 Role capability negotiation |
+| 22 | evpn-frr | Ze, FRR | EVPN Type-2 route exchange |
+| 23 | vpn-frr | Ze, FRR | VPN (L3VPN) route exchange |
+| 24 | flowspec-frr | Ze, FRR | FlowSpec rule exchange |
+| 25 | ipv6-ebgp-bird | Ze, BIRD | IPv6 eBGP route exchange |
+| 26 | ipv6-ebgp-gobgp | Ze, GoBGP | IPv6 eBGP route exchange |
+| 27 | multihop-ebgp-frr | Ze, FRR | Multi-hop eBGP with outgoing-ttl |
+| 28 | evpn-gobgp | Ze, GoBGP | EVPN Type-2 route exchange |
+| 29 | vpn-gobgp | Ze, GoBGP | VPN (L3VPN) route exchange |
+| 30 | flowspec-gobgp | Ze, GoBGP | FlowSpec rule exchange |
+| 31 | multihop-ebgp-bird | Ze, BIRD | Multi-hop eBGP with outgoing-ttl |
+| 32 | multihop-ebgp-gobgp | Ze, GoBGP | Multi-hop eBGP with outgoing-ttl |
 <!-- source: test/interop/scenarios/ -- scenario directories -->
 
 ### Running
@@ -225,11 +238,8 @@ families.
 
 Not yet covered by interop tests:
 
-- EVPN, VPN, FlowSpec sessions with live peers (encoding is validated via ExaBGP compat)
-- IPv6 sessions with BIRD or GoBGP (only FRR)
-- Multi-hop eBGP
-- Long-Lived Graceful Restart with live peers
-- BFD
+- Long-Lived Graceful Restart with live peers (LLGR not yet implemented)
+- BFD (no BFD protocol support in Ze)
 
 ## Related Documents
 
