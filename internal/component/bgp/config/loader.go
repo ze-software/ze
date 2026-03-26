@@ -938,24 +938,28 @@ func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
 // When the main storage is already blob-backed, it is used directly.
 // Otherwise, opens the zefs database independently so SSH host keys
 // always go into the blob store rather than the filesystem.
-// Falls back to the passed store if zefs is not available.
+// Tries configDir first, then DefaultConfigDir (binary-relative), because
+// configDir may not contain database.zefs (e.g., stdin mode, temp dirs).
+// Falls back to the passed store if zefs is not available anywhere.
 func resolveSSHStorage(mainStore storage.Storage, configDir string) storage.Storage {
 	if storage.IsBlobStorage(mainStore) {
 		return mainStore
 	}
-	dir := configDir
-	if dir == "" {
-		dir = paths.DefaultConfigDir()
+	// Try configDir first, then binary-relative default.
+	// configDir is almost never empty (LoadConfig sets it to cwd for stdin),
+	// but may not contain database.zefs when the config file is elsewhere.
+	candidates := [2]string{configDir, paths.DefaultConfigDir()}
+	for _, dir := range candidates {
+		if dir == "" {
+			continue
+		}
+		dbPath := filepath.Join(dir, "database.zefs")
+		blobStore, err := storage.NewBlob(dbPath, dir)
+		if err == nil {
+			return blobStore
+		}
 	}
-	if dir == "" {
-		return mainStore
-	}
-	dbPath := filepath.Join(dir, "database.zefs")
-	blobStore, err := storage.NewBlob(dbPath, dir)
-	if err != nil {
-		return mainStore
-	}
-	return blobStore
+	return mainStore
 }
 
 // loadZefsUsers reads SSH credentials from the zefs database (written by ze init).
