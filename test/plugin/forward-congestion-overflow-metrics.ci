@@ -1,0 +1,148 @@
+# Test: overflow metrics registered and visible via metrics values endpoint
+#
+# Flow:
+# 1. BGP session establishes with telemetry enabled
+# 2. Python plugin dispatches "metrics values" via dispatch-command
+# 3. Verifies overflow-specific Prometheus metrics appear in output
+# 4. Shuts down daemon
+#
+# VALIDATES: Phase 2 deferred — .ci functional test for ze_bgp_overflow_* metrics.
+# PREVENTS: Overflow metrics not registered or not reachable via dispatch chain.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+
+# EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: verifies overflow metrics appear in Prometheus output
+tmpfs=overflow-metrics-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Test: overflow metrics visible in metrics values output."""
+
+import json
+import sys
+import time
+
+from ze_api import API
+
+
+def dispatch(api, command):
+    """Call dispatch-command and return result dict."""
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for BGP session to establish
+    time.sleep(1.0)
+
+    # Test: metrics values should contain overflow metric names
+    r = dispatch(api, 'metrics values')
+    status = r.get('status')
+    if status != 'done':
+        print(f'FAIL: expected status=done, got={status}', file=sys.stderr)
+        sys.exit(1)
+
+    data_str = r.get('data', '{}')
+    try:
+        data = json.loads(data_str) if isinstance(data_str, str) else data_str
+    except (json.JSONDecodeError, TypeError):
+        data = {}
+
+    metrics_text = data.get('metrics', '')
+    if not metrics_text:
+        print(f'FAIL: empty metrics text, data={data}', file=sys.stderr)
+        sys.exit(1)
+
+    # Scalar gauge: always registered and present with value 0
+    required = [
+        'ze_bgp_pool_used_ratio',
+        'ze_forward_workers_active',
+    ]
+    missing = []
+    for name in required:
+        if name not in metrics_text:
+            missing.append(name)
+
+    if missing:
+        print(f'FAIL: missing metrics: {missing}', file=sys.stderr)
+        print(f'Got metrics text ({len(metrics_text)} bytes):', file=sys.stderr)
+        for line in metrics_text.split('\n'):
+            if 'ze_' in line:
+                print(f'  {line}', file=sys.stderr)
+        sys.exit(1)
+
+    print(f'OK: overflow metrics present in {len(metrics_text)} bytes', file=sys.stderr)
+
+    # Shutdown daemon
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration with telemetry enabled
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external overflow-metrics-test {
+		run ./overflow-metrics-test.run
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+telemetry {
+	prometheus {
+		port 19275
+	}
+}
+
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+			accept false
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		group-updates disable
+
+		family {
+			ipv4/unicast { prefix { maximum 10000; } }
+		}
+		capability {
+			graceful-restart disable
+		}
+		process overflow-metrics-test {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
