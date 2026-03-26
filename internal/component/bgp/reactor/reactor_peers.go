@@ -99,6 +99,11 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	peer.messageCallback = r.notifyMessageReceiver
 	r.peers[key] = peer
 
+	// Track peer's prefix demand for pool auto-sizing (AC-28).
+	if r.fwdWeights != nil {
+		r.fwdWeights.AddPeer(peer.peerAddrLabel(), totalPrefixMax(settings.PrefixMaximum), len(settings.PrefixMaximum))
+	}
+
 	// Update Prometheus gauges if metrics are configured.
 	if r.rmetrics != nil {
 		r.rmetrics.peersConfigured.Set(float64(len(r.peers)))
@@ -189,6 +194,11 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 	// Clean up source stats so disconnected peers don't accumulate in srcStats.
 	if r.fwdPool != nil {
 		r.fwdPool.RemoveSourceStats(peer.peerAddrLabel())
+	}
+
+	// Remove peer's prefix demand from pool auto-sizing (AC-28).
+	if r.fwdWeights != nil {
+		r.fwdWeights.RemovePeer(peer.peerAddrLabel())
 	}
 
 	// Check if any other peer uses this listener (same LocalAddress + port)

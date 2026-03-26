@@ -495,11 +495,16 @@ func TestInitBufMuxBudget_Zero(t *testing.T) {
 
 	initBufMuxBudget(0)
 
-	if bufMux4K.mux.budget != nil {
-		t.Fatal("initBufMuxBudget(0) should not set a budget")
+	// Budget is always created (even with 0 = unlimited) so
+	// updateBufMuxBudget never hits the create-path concurrently.
+	if bufMux4K.mux.budget == nil {
+		t.Fatal("initBufMuxBudget(0) should create a budget (unlimited)")
 	}
-	if bufMux64K.mux.budget != nil {
-		t.Fatal("initBufMuxBudget(0) should not set a budget")
+	if bufMux4K.mux.budget.maxBytes.Load() != 0 {
+		t.Fatal("initBufMuxBudget(0) should set maxBytes=0 (unlimited)")
+	}
+	if bufMux4K.mux.budget != bufMux64K.mux.budget {
+		t.Fatal("both pools should share the same budget instance")
 	}
 }
 
@@ -527,5 +532,49 @@ func TestInitBufMuxBudget_Positive(t *testing.T) {
 	}
 	if bufMux4K.mux.budget != bufMux64K.mux.budget {
 		t.Fatal("both pools should share the same budget instance")
+	}
+}
+
+func TestUpdateBufMuxBudget_UpdatesExistingLimit(t *testing.T) {
+	// VALIDATES: AC-28 -- updateBufMuxBudget atomically updates the shared budget limit.
+	// PREVENTS: Data race on combinedBudget.maxBytes (finding #1).
+
+	old4K := bufMux4K.mux.budget
+	old64K := bufMux64K.mux.budget
+	defer func() {
+		bufMux4K.mux.budget = old4K
+		bufMux64K.mux.budget = old64K
+	}()
+
+	initBufMuxBudget(1_000_000)
+	if bufMux4K.mux.budget.maxBytes.Load() != 1_000_000 {
+		t.Fatal("initial maxBytes should be 1000000")
+	}
+
+	updateBufMuxBudget(5_000_000)
+	if bufMux4K.mux.budget.maxBytes.Load() != 5_000_000 {
+		t.Errorf("maxBytes after update = %d, want 5000000", bufMux4K.mux.budget.maxBytes.Load())
+	}
+	if bufMux64K.mux.budget.maxBytes.Load() != 5_000_000 {
+		t.Errorf("64K maxBytes = %d, want 5000000 (should share budget)", bufMux64K.mux.budget.maxBytes.Load())
+	}
+}
+
+func TestUpdateBufMuxBudget_ZeroMeansUnlimited(t *testing.T) {
+	// VALIDATES: AC-28 -- updateBufMuxBudget(0) sets unlimited (no cap).
+	// PREVENTS: Stale budget when all peers removed (finding #5).
+
+	old4K := bufMux4K.mux.budget
+	old64K := bufMux64K.mux.budget
+	defer func() {
+		bufMux4K.mux.budget = old4K
+		bufMux64K.mux.budget = old64K
+	}()
+
+	initBufMuxBudget(1_000_000)
+	updateBufMuxBudget(0)
+
+	if bufMux4K.mux.budget.maxBytes.Load() != 0 {
+		t.Errorf("maxBytes after zero update = %d, want 0 (unlimited)", bufMux4K.mux.budget.maxBytes.Load())
 	}
 }

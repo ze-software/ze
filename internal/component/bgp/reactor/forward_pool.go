@@ -1,5 +1,7 @@
 // Design: docs/architecture/core-design.md — per-peer forward worker pool
 // Overview: reactor.go — BGP reactor event loop and peer management
+// Detail: forward_pool_weight.go — burst fraction, buffer demand calculation
+// Detail: forward_pool_weight_tracker.go — per-peer weight tracking and pool budget
 // Related: reactor_api_forward.go — UPDATE forwarding dispatches to forward pool
 // Related: reactor_metrics.go — metrics loop polls overflow depth, pool ratio, source stats
 // Related: bufmux.go — block-backed buffer multiplexer (shared buffer pools)
@@ -192,6 +194,7 @@ type fwdPoolConfig struct {
 	chanSize         int
 	idleTimeout      time.Duration
 	overflowPoolSize int // 0 = unbounded (legacy); >0 = bounded overflow pool
+	batchLimit       int // 0 = unlimited; >0 = max items per drain-batch (AC-24)
 }
 
 // fwdWorker is a single long-lived goroutine processing items for one destination peer.
@@ -635,9 +638,14 @@ func (fp *fwdPool) safeBatchHandle(key fwdKey, items []fwdItem) {
 // drainBatch collects available items from the channel without blocking.
 // Returns a batch starting with firstItem, followed by any immediately available items.
 // buf is a reusable slice from the caller — reset to [:0] and returned for reuse.
-func drainBatch(buf []fwdItem, firstItem fwdItem, ch <-chan fwdItem) []fwdItem {
+// limit caps the total batch size (0 = unlimited). Remaining items stay in the
+// channel for the next drain cycle (AC-24: TX budget).
+func drainBatch(buf []fwdItem, firstItem fwdItem, ch <-chan fwdItem, limit int) []fwdItem {
 	buf = append(buf[:0], firstItem)
 	for {
+		if limit > 0 && len(buf) >= limit {
+			return buf
+		}
 		select {
 		case extra, ok := <-ch:
 			if !ok {
@@ -680,7 +688,7 @@ func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
 			if !idle.Stop() {
 				fwdDrainTimer(idle)
 			}
-			w.batchBuf = drainBatch(w.batchBuf, item, w.ch)
+			w.batchBuf = drainBatch(w.batchBuf, item, w.ch, fp.cfg.batchLimit)
 			fp.safeBatchHandle(key, w.batchBuf)
 
 			// Drain overflow items into the channel after processing.

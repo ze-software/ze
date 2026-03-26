@@ -1,6 +1,7 @@
 // Design: docs/architecture/forward-congestion-pool.md -- block-backed buffer multiplexer
 // Related: session.go -- read/build buffer pools replaced by BufMux instances
 // Related: forward_pool.go -- overflow pool uses same buffers, held longer during congestion
+// Related: forward_pool_weight.go -- burst fraction, buffer demand for pool sizing
 
 package reactor
 
@@ -108,12 +109,14 @@ func newBufBlock(id uint32, bufSize, count int) *bufBlock {
 // another mux's lock.
 type combinedBudget struct {
 	allocated atomic.Int64 // total allocated bytes across all muxes
-	maxBytes  int64        // 0 = unlimited
+	maxBytes  atomic.Int64 // 0 = unlimited; updated by weight tracker
 }
 
 // newCombinedBudget creates a shared budget. maxBytes <= 0 means unlimited.
 func newCombinedBudget(maxBytes int64) *combinedBudget {
-	return &combinedBudget{maxBytes: maxBytes}
+	cb := &combinedBudget{}
+	cb.maxBytes.Store(maxBytes)
+	return cb
 }
 
 // tryReserve atomically checks whether adding blockBytes would stay within
@@ -122,13 +125,14 @@ func newCombinedBudget(maxBytes int64) *combinedBudget {
 // and recording — two muxes cannot both pass the check concurrently.
 func (cb *combinedBudget) tryReserve(blockBytes int) bool {
 	add := int64(blockBytes)
-	if cb.maxBytes <= 0 {
+	limit := cb.maxBytes.Load()
+	if limit <= 0 {
 		cb.allocated.Add(add)
 		return true
 	}
 	for {
 		cur := cb.allocated.Load()
-		if cur+add > cb.maxBytes {
+		if cur+add > limit {
 			return false
 		}
 		if cb.allocated.CompareAndSwap(cur, cur+add) {
@@ -190,19 +194,21 @@ func (m *BufMux) SetMaxBlocks(n int) {
 }
 
 // SetBudget sets a shared budget that limits combined allocated bytes
-// across multiple BufMux instances. The budget is an atomic counter —
+// across multiple BufMux instances. The budget is an atomic counter --
 // safe to check from growLocked without cross-mux deadlock.
-// Nil = unlimited growth (default). Must be called before concurrent use.
+// Nil = unlimited growth (default). Safe for concurrent use.
 //
 // If blocks already exist (budget set after initial growth), their bytes
 // are added to the budget counter so accounting stays consistent.
 func (m *BufMux) SetBudget(cb *combinedBudget) {
+	m.mu.Lock()
 	m.budget = cb
 	if cb != nil {
 		for range m.blocks {
 			cb.allocated.Add(int64(m.blockBytes()))
 		}
 	}
+	m.mu.Unlock()
 }
 
 // Get returns a buffer handle from the lowest block with free buffers.

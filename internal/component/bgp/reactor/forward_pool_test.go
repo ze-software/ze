@@ -519,7 +519,7 @@ func TestFwdDrainBatchReusesBuffer(t *testing.T) {
 
 	// First call: buffer grows from nil.
 	var buf []fwdItem
-	buf = drainBatch(buf, first, ch)
+	buf = drainBatch(buf, first, ch, 0)
 
 	if len(buf) != 3 {
 		t.Fatalf("expected 3 items, got %d", len(buf))
@@ -529,7 +529,7 @@ func TestFwdDrainBatchReusesBuffer(t *testing.T) {
 	// Second call: reuse existing buffer.
 	ch <- fwdItem{}
 	first2 := fwdItem{}
-	buf = drainBatch(buf, first2, ch)
+	buf = drainBatch(buf, first2, ch, 0)
 
 	if len(buf) != 2 {
 		t.Fatalf("expected 2 items, got %d", len(buf))
@@ -538,6 +538,53 @@ func TestFwdDrainBatchReusesBuffer(t *testing.T) {
 
 	if firstPtr != secondPtr {
 		t.Error("second call allocated a new backing array instead of reusing buffer")
+	}
+}
+
+// TestFwdDrainBatchLimit verifies that drainBatch stops at the configured limit.
+// Remaining items stay in the channel for the next cycle.
+//
+// VALIDATES: AC-24 — TX budget caps messages per batch.
+// PREVENTS: One peer's convergence burst monopolizing writeMu hold time.
+func TestFwdDrainBatchLimit(t *testing.T) {
+	ch := make(chan fwdItem, 10)
+	// Queue 5 extra items (6 total with firstItem).
+	for range 5 {
+		ch <- fwdItem{}
+	}
+
+	first := fwdItem{}
+
+	// Limit=1: returns only firstItem, no channel drain.
+	var buf []fwdItem
+	buf = drainBatch(buf, first, ch, 1)
+	if len(buf) != 1 {
+		t.Fatalf("limit=1: got %d items, want 1", len(buf))
+	}
+	if len(ch) != 5 {
+		t.Errorf("limit=1: channel should still have 5, got %d", len(ch))
+	}
+
+	// Limit=3: should get exactly 3 items from channel (firstItem re-created).
+	first = fwdItem{}
+	buf = drainBatch(buf, first, ch, 3)
+	if len(buf) != 3 {
+		t.Fatalf("limit=3: got %d items, want 3", len(buf))
+	}
+
+	// 3 items should remain in the channel (5 - 2 drained by limit=3).
+	if len(ch) != 3 {
+		t.Errorf("remaining in channel: %d, want 3", len(ch))
+	}
+
+	// Limit=0 (unlimited): drains all remaining.
+	first2 := <-ch
+	buf = drainBatch(buf, first2, ch, 0)
+	if len(buf) != 3 {
+		t.Errorf("limit=0: got %d items, want 3", len(buf))
+	}
+	if len(ch) != 0 {
+		t.Errorf("channel should be empty, got %d", len(ch))
 	}
 }
 

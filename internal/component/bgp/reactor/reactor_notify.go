@@ -67,6 +67,14 @@ func (r *Reactor) AddPeerObserver(obs PeerLifecycleObserver) {
 
 // notifyPeerEstablished calls all observers when peer reaches Established.
 func (r *Reactor) notifyPeerEstablished(peer *Peer) {
+	// Update weight tracker with actual negotiated family count (AC-28).
+	// Config-declared familyCount may differ from negotiated families.
+	if r.fwdWeights != nil {
+		if nc := peer.negotiated.Load(); nc != nil {
+			r.fwdWeights.UpdateFamilyCount(peer.peerAddrLabel(), len(nc.Families()))
+		}
+	}
+
 	r.observersMu.RLock()
 	observers := r.peerObservers
 	r.observersMu.RUnlock()
@@ -220,6 +228,12 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 				if wireUpdate != nil {
 					if _, isEOR := wireUpdate.IsEOR(); isEOR {
 						peer.IncrEORReceived()
+						// Notify weight tracker: may transition pre-EOR to
+						// post-EOR when all family EORs received, shrinking
+						// pool allocation (AC-28).
+						if r.fwdWeights != nil {
+							r.fwdWeights.PeerEORReceived(peer.peerAddrLabel())
+						}
 					}
 				}
 			case message.TypeKEEPALIVE:

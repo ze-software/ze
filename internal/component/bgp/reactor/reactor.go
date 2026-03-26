@@ -28,6 +28,7 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"              // init() registers peer management RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/raw"               // init() registers raw message RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/update"            // init() registers update parsing RPCs
@@ -65,6 +66,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.write.deadline", Type: "duration", Default: "30s", Description: "TCP write deadline for forward pool batch writes"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.size", Type: "int", Default: "100000", Description: "Global overflow pool capacity for forward workers (0 = unbounded)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.maxbytes", Type: "int64", Default: "0", Description: "Combined byte budget for 4K+64K buffer pools (0 = unlimited)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.batch.limit", Type: "int", Default: "1024", Description: "Max items per forward batch, bounds writeMu hold time (0 = unlimited)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.safety.valve", Type: "duration", Default: "5m", Description: "Safety valve duration for UPDATE cache gap-based eviction"})
 )
 
@@ -243,6 +245,10 @@ type Reactor struct {
 	// doing synchronous TCP writes, eliminating head-of-line blocking.
 	fwdPool *fwdPool
 
+	// fwdWeights tracks per-peer buffer demand and recalculates pool
+	// budget when peers are added, removed, or complete EOR.
+	fwdWeights *weightTracker
+
 	// Config tree for plugin JSON delivery
 	configTree map[string]any
 
@@ -323,10 +329,15 @@ func New(config *Config) *Reactor {
 	// Default: 100000 (~100K items). 0 = unbounded (legacy behavior).
 	// Negative values treated as 0.
 	fwdPoolSize := max(env.GetInt("ze.fwd.pool.size", 100000), 0)
+	// ze.fwd.batch.limit caps items per drain-batch, bounding writeMu hold time (AC-24).
+	// Default: 1024. 0 = unlimited. Negative values treated as 0.
+	fwdBatchLimit := max(env.GetInt("ze.fwd.batch.limit", 1024), 0)
 
 	// ze.fwd.pool.maxbytes caps combined memory across 4K+64K buffer pools (AC-27).
 	// 0 = unlimited (default). Positive values enforce a shared byte budget.
-	initBufMuxBudget(env.GetInt64("ze.fwd.pool.maxbytes", 0))
+	// When explicitly set, operator override takes precedence over auto-sizing.
+	explicitMaxBytes := env.GetInt64("ze.fwd.pool.maxbytes", 0)
+	initBufMuxBudget(explicitMaxBytes)
 
 	r := &Reactor{
 		config:          config,
@@ -339,8 +350,22 @@ func New(config *Config) *Reactor {
 		fwdPool: newFwdPool(fwdBatchHandler, fwdPoolConfig{
 			chanSize:         fwdChanSize,
 			overflowPoolSize: fwdPoolSize,
+			batchLimit:       fwdBatchLimit,
 		}),
 		configTree: config.ConfigTree,
+	}
+
+	// Weight tracker: recalculates pool budget when peers change.
+	// When ze.fwd.pool.maxbytes is not explicitly set (0), auto-size the
+	// bufmux budget from peer prefix maximums. When explicitly set, the
+	// operator's value is used and the callback only logs.
+	if explicitMaxBytes <= 0 {
+		r.fwdWeights = newWeightTracker(func(guaranteed, overflow int) {
+			total := int64(guaranteed+overflow) * int64(message.MaxMsgLen)
+			updateBufMuxBudget(total)
+		})
+	} else {
+		r.fwdWeights = newWeightTracker(nil)
 	}
 
 	// Wire congestion callbacks to log peer congestion state transitions

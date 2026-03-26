@@ -4,8 +4,8 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | spec-prefix maximum |
-| Phase | 3/5 |
-| Updated | 2026-03-24 |
+| Phase | 4/5 |
+| Updated | 2026-03-26 |
 
 ## Post-Compaction Recovery
 
@@ -293,8 +293,8 @@ already-queued prefix should replace, not append.
 |-------|------|-----|--------|
 | 1 | Foundation: overflow pool, metrics, socket options | AC-1, AC-7, AC-11, AC-15, AC-16, AC-17, AC-18, AC-21 | Done |
 | 2 | Safety: write deadline, Send Hold Timer, hold timer extension | AC-8, AC-14, AC-22 | Done |
-| 3 | Pool multiplexer: replace sync.Pool, block-backed handles | AC-26, AC-27, AC-7 (enhanced) | Ready |
-| 4 | Weight + dynamic sizing: burst fraction, channel size, PeeringDB | AC-28, AC-29, AC-10, AC-19, AC-20, AC-24 | Blocked (spec-prefix maximum) |
+| 3 | Pool multiplexer: replace sync.Pool, block-backed handles | AC-26, AC-27, AC-7 (enhanced) | Done |
+| 4 | Weight + dynamic sizing: burst fraction, pool auto-sizing, TX budget | AC-28, AC-10, AC-19, AC-20, AC-24 | In progress |
 | 5 | Backpressure + teardown: buffer denial, GR-aware teardown | AC-2, AC-3, AC-4, AC-5, AC-6, AC-9, AC-12 | Blocked (Phase 4) |
 
 Phase 3 is independent -- can start now.
@@ -925,7 +925,7 @@ than guessed.
 - Add hold timer congestion extension (BIRD technique: extend 10s if RX data pending)
 - Add route superseding in overflow pool (replace pending update for same prefix, not append)
 - Add TX budget limiting (cap messages per forward batch to prevent one peer starving others)
-- Replace sync.Pool with pool multiplexer (handle = block ID + []byte, deterministic block freeing)
+- ~~Replace sync.Pool with pool multiplexer (handle = block ID + []byte, deterministic block freeing)~~ Done (Phase 3)
 - Add source-side metrics (overflow ratio, throttle state)
 - Add destination-side metrics (overflow items, growth rate, write latency)
 - Add read throttling via buffer denial (weighted access, culprit targeting)
@@ -999,7 +999,7 @@ than guessed.
 | AC-17 | Destination peer overflow depth visible in Prometheus | ze_bgp_overflow_items gauge per peer |
 | AC-18 | Pool utilization visible in Prometheus | ze_bgp_pool_used_ratio gauge |
 | AC-19 | Per-peer buffer share proportional to prefix count | Peer with 500K prefixes gets larger share than peer with 200 |
-| AC-20 | PeeringDB lookup for unknown peers | Query PeeringDB by ASN when no local RIB data, if configured |
+| AC-20 | PeeringDB lookup for unknown peers | **Satisfied by spec-prefix-limit (2026-03-26).** Prefix maximum is mandatory per peer. PeeringDB client exists (`internal/component/bgp/peeringdb/client.go`). `ze bgp peer * prefix update` refreshes values. No additional work needed here. |
 | AC-21 | IP_TOS/DSCP CS6 set on all peer sockets | Outgoing (dialer Control callback) and accepted connections set IP_TOS=0xC0 (IPv4) / IPV6_TCLASS=0xC0 (IPv6) |
 | AC-22 | Hold timer fires with RX data pending | Hold timer extended 10s instead of teardown (CPU congestion, not peer failure) |
 | AC-23 | New update for prefix already in overflow pool | **Deferred optimization.** Old entry replaced (route superseding), not appended. Requires per-prefix indexing of the overflow pool (NLRI parsing on overflow entry). Ze's UPDATE-first design avoids NLRI parsing on the forward path; adding it here contradicts that principle. Without dedup, FIFO ordering still converges correctly -- the slow peer processes redundant intermediate UPDATEs but reaches the right final state. Real-world overflow is dominated by convergence events (many distinct prefixes withdrawn once), not flap (same prefix repeated). May not fix a real traffic pattern problem. Revisit if profiling shows high duplicate rate in overflow under production load. |
@@ -1008,4 +1008,4 @@ than guessed.
 | AC-26 | Read and build buffers | sync.Pool replaced by pool multiplexer. Handles carry block ID for deterministic return routing. Two multiplexers: 4K and 64K. buildBufPool merged into 4K instance. Get() allocates from lowest block (steady-state packs low, higher blocks drain for collapse). Grow on exhaustion. Lazy collapse every 100th Get() (triggered by normal network reads): delete highest block when fully returned and block below has >=50% free. No permanent block. |
 | AC-27 | Pool capacity decisions | Growth, shrink, and backpressure use combined usage across 4K + 64K instances (memory pressure is shared). Collapse check piggybacked on normal read path (every 100th Get()) to reclaim overflow blocks without timers. |
 | AC-28 | Pool maximum | Dynamically tracks peer set: adding a peer increases maximum (based on prefix count weight), removing decreases it |
-| AC-29 | Per-peer channel size | Dynamic: derived from peer weight (burst-adjusted prefix count). Range 16-256 based on weight tier. |
+| AC-29 | ~~Per-peer channel size~~ | **Dropped (2026-03-26):** RIPE RIS analysis shows fixed 64 is the right size. Dynamic sizing adds complexity for no measurable gain. Channel stays at fixed 64 via `ze.fwd.chan.size`. |

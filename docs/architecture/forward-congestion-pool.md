@@ -77,25 +77,174 @@ burst fraction). A peer with `prefix maximum 1,000,000` has weight
 the raw limit. Weight is used for both pool share fairness and
 usage-to-weight ratio tracking.
 
+<!-- source: internal/component/bgp/reactor/forward_pool_weight.go -- burstFraction, burstWeight -->
+
 ### Channel Size (Layer 1)
 
 The per-peer channel absorbs micro-bursts (milliseconds of updates).
-Its size is derived from the peer's weight (burst-adjusted prefix count),
-scaled down because the channel only needs to cover the time between
-drain cycles.
+Fixed at 64 items for all peers, based on RIPE RIS analysis of burst
+patterns across the DFZ. The channel is the fast path (no weighted
+access check, no fairness tracking). Configurable via `ze.fwd.chan.size`.
 
-| Peer weight (burst-adjusted) | Channel size | Reasoning |
-|-----------------------------|-------------|-----------|
-| 1 - 99 | 16 | Small peer, small bursts. Floor prevents starvation. |
-| 100 - 999 | 32 | Medium peer |
-| 1,000 - 9,999 | 64 | Current default, fits most peers |
-| 10,000 - 99,999 | 128 | Large peer, bigger micro-bursts |
-| 100,000+ | 256 | Full table peer, convergence events touch many prefixes |
+## Two-Tier Pool Sizing
 
-The channel is the fast path (no weighted access check, no fairness
-tracking). It should be large enough that normal operation rarely hits
-the overflow path, but small enough that the overflow pool is the
-primary buffer during real congestion.
+The buffer pool has two tiers: a guaranteed tier that is pre-allocated
+and always available, and an overflow tier that grows dynamically during
+congestion. When both are exhausted, backpressure engages automatically.
+
+<!-- source: internal/component/bgp/reactor/bufmux.go -- BufMux, combinedBudget -->
+<!-- source: internal/component/bgp/reactor/session.go -- bufMux4K, bufMux64K -->
+
+### From NLRIs to Buffers
+
+Each BGP UPDATE message read from TCP consumes one bufmux handle
+(one 4K or 64K buffer). A single UPDATE carries multiple NLRIs.
+The packing ratio determines how many buffers are needed for a
+given number of NLRIs.
+
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `nlriPerMessage` | 20 | Conservative NLRIs per UPDATE (actual: 50-200 for shared-attribute batches) |
+| `bufSize` | 4096 | Standard BGP message buffer |
+
+Buffers needed for a peer = `ceil(expected_nlris / nlriPerMessage)`.
+
+These constants are intentionally conservative. Real packing is 3-10x
+denser, so actual memory usage is well below the calculated maximums.
+The values are designed to be easy to change for future configuration.
+
+<!-- source: internal/component/bgp/reactor/forward_pool_weight.go -- nlriPerMessage, buffersNeeded, peerBufferDemand -->
+
+### Pre-EOR vs Post-EOR Demand
+
+A peer's buffer demand depends on its session phase. During initial
+table dump (pre-EOR), the peer sends its entire routing table. During
+steady state (post-EOR), only incremental updates flow.
+
+| Phase | NLRIs expected | Buffers needed | When |
+|-------|---------------|----------------|------|
+| Pre-EOR | `prefixMax` (full table) | `prefixMax / 20` | Session start until End-of-RIB |
+| Post-EOR | `burstWeight(prefixMax)` | `burstWeight(prefixMax) / 20` | After all family EORs received |
+
+Pre-EOR peers get full-table allocation so initial convergence is never
+throttled. When the last EOR arrives (all families done), the peer's
+demand drops to burst-only, freeing capacity for other peers.
+
+**Per-peer buffer demand examples (4K buffers):**
+
+| Prefix Max | Pre-EOR buffers | Pre-EOR memory | Burst % | Post-EOR buffers | Post-EOR memory |
+|-----------|----------------|----------------|---------|-----------------|-----------------|
+| 200 | 10 | 40 KB | 100% | 10 | 40 KB |
+| 1,000 | 50 | 200 KB | 50% | 25 | 100 KB |
+| 10,000 | 500 | 2 MB | 30% | 150 | 600 KB |
+| 50,000 | 2,500 | 10 MB | 30% | 750 | 3 MB |
+| 100,000 | 5,000 | 20 MB | 15% | 750 | 3 MB |
+| 300,000 | 15,000 | 60 MB | 15% | 2,250 | 9 MB |
+| 500,000 | 25,000 | 100 MB | 10% | 2,500 | 10 MB |
+| 1,000,000 | 50,000 | 200 MB | 10% | 5,000 | 20 MB |
+
+### Guaranteed Tier (Pre-Allocated)
+
+The guaranteed tier is the sum of all peers' buffer demands. These
+bufmux blocks are pre-allocated at startup (or when peers are added)
+so the buffers are always available without runtime allocation.
+
+```
+guaranteed = sum(buffers_needed) across all peers
+```
+
+Each peer contributes its current-phase demand (pre-EOR or post-EOR).
+
+### Overflow Tier (Dynamic)
+
+The overflow tier absorbs the case where destination peers are slow and
+source read buffers stay pinned longer than expected. It grows
+dynamically on demand and collapses when traffic subsides.
+
+The overflow size is the sum of the K largest peers' buffer demands,
+where K scales with the square root of the total peer count:
+
+```
+K = max(1, sqrt(total_peers))
+overflow = sum of K largest peer buffer demands
+```
+
+This says: "the overflow pool can handle sqrt(N) of the largest peers
+being stuck simultaneously." The scaling adapts without configuration:
+
+| Total peers | K (simultaneous slow) | Reasoning |
+|------------|----------------------|-----------|
+| 4 | 2 | Small deployment, 2 slow peers is realistic |
+| 25 | 5 | Medium, multiple slow peers possible |
+| 100 | 10 | Large, but unlikely more than 10 stuck at once |
+| 500 | 22 | IXP scale |
+| 1,000 | 31 | Large IXP |
+
+### Total Pool Budget
+
+```
+total_buffers = guaranteed + overflow
+maxBlocks = ceil(total_buffers / blockSize)
+```
+
+The combined byte budget (`ze.fwd.pool.maxbytes`) is set to
+`total_buffers * bufSize`. When explicitly configured, the operator's
+value overrides auto-sizing.
+
+### Dynamic Recalculation
+
+<!-- source: internal/component/bgp/reactor/forward_pool_weight_tracker.go -- weightTracker, AddPeer, PeerEORReceived, RemovePeer -->
+
+The pool budget recalculates on three events:
+
+| Event | Action |
+|-------|--------|
+| AddPeer | Add peer's pre-EOR demand, recalculate guaranteed + overflow, grow budget |
+| EOR received (all families) | Switch peer to post-EOR demand, recalculate, collapse excess blocks |
+| RemovePeer | Remove peer demand, recalculate, collapse excess blocks |
+
+On a route server restart, all peers connect simultaneously. The pool
+starts at peak (all pre-EOR). As EORs arrive over the next minutes,
+each peer's allocation shrinks and the pool collapses to steady state.
+
+### IXP Memory Profiles
+
+Real-world memory consumption for route server deployments. All
+calculations use 4K buffers and 20 NLRIs per message (conservative).
+
+**Small IXP (50 peers)**
+Peer distribution: 30 @ 500, 15 @ 10K, 4 @ 100K, 1 @ 500K prefixes.
+
+| Phase | Guaranteed | Overflow (K=7) | Total |
+|-------|-----------|----------------|-------|
+| Pre-EOR (all starting) | 213 MB | 180 MB | **393 MB** |
+| Post-EOR (steady state) | 34 MB | 23 MB | **57 MB** |
+
+**Medium IXP (200 peers)**
+Peer distribution: 100 @ 1K, 60 @ 20K, 30 @ 100K, 8 @ 300K, 2 @ 1M prefixes.
+
+| Phase | Guaranteed | Overflow (K=14) | Total |
+|-------|-----------|-----------------|-------|
+| Pre-EOR (all starting) | 1.74 GB | 1.07 GB | **2.81 GB** |
+| Post-EOR (steady state) | 284 MB | 124 MB | **408 MB** |
+
+**Large IXP (1000 peers)**
+Peer distribution: 500 @ 500, 300 @ 20K, 150 @ 100K, 40 @ 500K, 10 @ 1M prefixes.
+
+| Phase | Guaranteed | Overflow (K=31) | Total |
+|-------|-----------|-----------------|-------|
+| Pre-EOR (all starting) | 10.3 GB | 6.4 GB | **16.7 GB** |
+| Post-EOR (steady state) | 1.46 GB | 410 MB | **1.87 GB** |
+
+**Key observations:**
+
+- Steady state is modest: under 2 GB even for a 1000-peer IXP
+- Pre-EOR peaks at 8-9x the steady-state allocation but is transient
+- Route server machines typically have 128+ GB RAM; even peak fits easily
+- The 20 NLRIs/message ratio is 3-10x more conservative than real packing,
+  so actual memory usage is well below these calculated maximums
+- As each peer completes initial sync (sends EOR), its allocation drops
+  and pool blocks are collapsed via the lazy probe mechanism
 
 ## Block-Backed Allocation
 
@@ -412,8 +561,14 @@ fails to trigger backpressure because each looks at itself in isolation.
 
 | Config key | Purpose | Default |
 |-----------|---------|---------|
-| `ze.fwd.pool.size` | Explicit total pool size override | Auto-sized from peer weights |
+| `ze.fwd.pool.maxbytes` | Combined byte budget for 4K+64K pools | Auto-sized from peer weights |
+| `ze.fwd.pool.size` | Overflow pool token count (items) | Auto-sized from peer weights |
+| `ze.fwd.chan.size` | Per-peer dispatch channel capacity | 64 |
 | Per-peer `prefix maximum` | Max expected prefixes (drives weight) | Required (PeeringDB fallback) |
+
+When `ze.fwd.pool.maxbytes` is explicitly set, the operator's value
+overrides auto-sizing. When unset (0), the pool budget is calculated
+dynamically from the peer set as described in Two-Tier Pool Sizing.
 
 ## Related Documents
 

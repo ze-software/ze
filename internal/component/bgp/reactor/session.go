@@ -58,14 +58,23 @@ var bufMux4K = withCollapseProbe(newProbedPool(message.MaxMsgLen, bufMuxBlockSiz
 var bufMux64K = withCollapseProbe(newProbedPool(message.ExtMsgLen, bufMuxBlockSize), bufMuxProbeInterval)
 
 // initBufMuxBudget wires a shared byte budget into both multiplexers.
-// Called from reactor startup. maxBytes <= 0 means unlimited (AC-27).
+// Called once from reactor startup, before any concurrent use.
+// maxBytes <= 0 means unlimited initially (AC-27). A budget is always
+// created so updateBufMuxBudget never needs the create-path concurrently.
 func initBufMuxBudget(maxBytes int64) {
-	if maxBytes <= 0 {
-		return
-	}
-	cb := newCombinedBudget(maxBytes)
+	cb := newCombinedBudget(maxBytes) // 0 = unlimited
 	bufMux4K.SetBudget(cb)
 	bufMux64K.SetBudget(cb)
+}
+
+// updateBufMuxBudget updates the shared byte budget limit atomically.
+// Called by the weight tracker when the peer set changes and
+// ze.fwd.pool.maxbytes is not explicitly set (auto-sizing, AC-28).
+// maxBytes <= 0 means unlimited (tryReserve treats it as no-limit).
+func updateBufMuxBudget(maxBytes int64) {
+	if b := bufMux4K.mux.budget; b != nil {
+		b.maxBytes.Store(maxBytes)
+	}
 }
 
 // CombinedBufMuxStats returns total allocated and in-use byte counts
