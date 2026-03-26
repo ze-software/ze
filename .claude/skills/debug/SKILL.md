@@ -8,7 +8,7 @@ The user will paste failing test output as context.
 
 1. **Read the failing test output** provided by the user
 2. **Identify the failing tests:** Extract test names, packages, error messages, and expected vs actual values
-3. **Launch 3 parallel investigation tasks:**
+3. **Launch 4 parallel investigation tasks:**
 
    **Task 1 — Format/parsing mismatch:**
    Check test expectations against actual output formats. Are the tests expecting a different structure, field name, or encoding than what the code produces?
@@ -18,6 +18,9 @@ The user will paste failing test output as context.
 
    **Task 3 — Configuration/initialization issue:**
    Check setup, defaults, and initialization order. Are dependencies missing, nil, or initialized in the wrong sequence?
+
+   **Task 4 — Concurrency/wiring issue:**
+   Check for race conditions, nil pointer from uninitialized dependencies, wrong production path (grep for ALL implementations of the handler -- the test may call a different one than production), and plugin wiring gaps (feature implemented but not reachable from its entry point).
 
 4. **Each task must:**
    - Read relevant source code
@@ -31,4 +34,4 @@ The user will paste failing test output as context.
 
 - Do NOT modify test expectations unless the tests are genuinely wrong per the spec
 - If multiple hypotheses find real issues, fix all of them
-- If none of the 3 hypotheses explain the failure, report what was ruled out and ask the user for guidance
+- If none of the 4 hypotheses explain the failure, report what was ruled out and ask the user for guidance

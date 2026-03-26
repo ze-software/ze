@@ -1,6 +1,6 @@
 # Deep Review
 
-Exhaustive multi-agent code review that spawns parallel focused agents, each reviewing a different aspect of the code changes.
+Exhaustive multi-agent code review (~10 min). Spawns 8 parallel focused agents, each reviewing a different aspect of the code changes. Use before merge or commit of significant work. For a quicker single-pass review, use `/review-for-issues` instead.
 
 The user may optionally specify a scope: `/deep-review [path|branch|files]`
 - No argument: reviews all uncommitted changes (`git diff HEAD`)

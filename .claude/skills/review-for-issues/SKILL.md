@@ -1,9 +1,10 @@
 # Review For Issues
 
-Find bugs, edge cases, security gaps, and missing tests in the current uncommitted changes.
+Quick single-pass review (~2 min) for bugs, edge cases, security gaps, and missing tests in uncommitted changes.
 
 This review answers: **"What can go wrong that nobody planned for?"**
 
+For an exhaustive 8-agent review before merge, use `/deep-review` instead.
 For spec completeness (are all ACs implemented?), use `/review-against-spec` instead.
 
 ## Steps

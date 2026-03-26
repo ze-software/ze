@@ -1,6 +1,8 @@
 # Spec Audit
 
-Audit the current codebase against the selected spec BEFORE any implementation begins.
+Audit the current codebase against the selected spec BEFORE implementation begins. Answers: **"What already exists? What's left to build?"**
+
+For post-implementation verification (did we build everything?), use `/review-against-spec` instead.
 
 ## Steps
 

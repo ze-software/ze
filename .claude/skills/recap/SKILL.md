@@ -10,11 +10,11 @@ Summarize the current session state so the user can quickly understand where thi
    - Acceptance Criteria summary (total count, how many have evidence)
    - Implementation Phases (which phases exist, any phase markers)
 2. **Session state:** Read `.claude/session-state.md` if it exists. Extract the most recent session entry.
-3. **Git state:** Run `git status` and `git log --oneline -10`. Summarize:
+3. **Git state:** Run `git status`, `git diff --stat`, and `git log --oneline -10`. Summarize:
    - Current branch
-   - Uncommitted changes (count and key files)
+   - Uncommitted changes (count, key files, and scale from diff stat)
    - Recent commits relevant to the current work
-4. **Tasks:** Check for in-progress tasks in this conversation using TaskList.
+4. **Tasks:** Check for in-progress tasks in this conversation using TaskList (skip if none exist).
 5. **Formal deferrals:** Read `plan/deferrals.md`. List open deferrals, especially any from the selected spec.
 6. **Session skips:** Review the conversation history for anything skipped, postponed, or left incomplete during this session that is NOT yet logged in `plan/deferrals.md`. Look for:
    - Edge cases noticed but not handled

@@ -1,9 +1,10 @@
 # Review Against Spec
 
-Verify the implementation matches the spec. Every requirement, every test, every file.
+Post-implementation verification: does the implementation match the spec? Every requirement, every test, every file.
 
 This review answers: **"Did we build what we said we would?"**
 
+For pre-implementation audit (what already exists?), use `/spec-audit` instead.
 For code quality, edge cases, and security, use `/review-for-issues` instead.
 
 ## Steps
