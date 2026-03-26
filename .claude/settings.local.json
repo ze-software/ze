@@ -113,7 +113,8 @@
       "Bash(sed:*)",
       "Bash(gofmt:*)",
       "Bash(./scripts/worktree-update.sh:*)",
-      "Bash(gh issue:*)"
+      "Bash(gh issue:*)",
+      "Bash(zellij setup:*)"
     ],
     "deny": [
       "Bash(git reset:*)",
