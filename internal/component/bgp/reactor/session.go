@@ -6,6 +6,7 @@
 // Detail: session_read.go — message read loop
 // Detail: session_validation.go — RFC 7606 validation
 // Detail: session_flow.go — backpressure pause/resume gate
+// Detail: session_prefix.go — prefix limit enforcement (RFC 4486)
 // Related: bufmux.go — block-backed buffer multiplexer for read/build buffers
 
 package reactor
@@ -245,6 +246,10 @@ type Session struct {
 	// prefixMetrics is a reference to reactor-level Prometheus prefix metrics.
 	// Set by Peer in runOnce(). Nil when metrics are not enabled.
 	prefixMetrics *reactorMetrics
+
+	// prefixWarningNotifier is called when a family's warning state changes.
+	// Set by Peer in runOnce() to propagate warning state for API visibility.
+	prefixWarningNotifier func(family string, warned bool)
 
 	// recentRead is set to true by the read loop on every successful message read.
 	// The hold timer callback checks and clears it: if true, the daemon is

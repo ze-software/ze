@@ -42,6 +42,11 @@ type PeerInfo struct {
 	// last updated from PeeringDB. Empty means manually configured.
 	PrefixUpdated string
 
+	// PrefixWarnings lists families where the received prefix count exceeds
+	// the configured warning threshold. Updated in real-time by the session.
+	// Empty when no family is in warning state (or session not established).
+	PrefixWarnings []string
+
 	// Statistics (engine-level counters; NLRI-level counters live in the RIB plugin)
 	UpdatesReceived    uint32
 	UpdatesSent        uint32

@@ -1,0 +1,10 @@
+module ze-cli-show-api {
+  namespace "urn:ze:cli:show:api";
+  prefix cli-show;
+
+  description
+    "Ze show verb RPCs -- read-only introspection commands.";
+
+  rpc bgp-peer { description "Show peer(s) details"; }
+  rpc bgp-warnings { description "Show active prefix warnings (stale data, threshold exceeded)"; }
+}

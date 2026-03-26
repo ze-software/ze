@@ -16,4 +16,5 @@ module ze-bgp-cmd-peer-api {
   rpc summary { description "Show BGP summary (peer table with statistics)"; }
   rpc peer-capabilities { description "Show negotiated capabilities for peer(s)"; }
   rpc session-peer-ready { description "Signal peer-specific plugin init complete"; }
+  rpc warnings { description "Show active prefix warnings (stale data, threshold exceeded)"; }
 }

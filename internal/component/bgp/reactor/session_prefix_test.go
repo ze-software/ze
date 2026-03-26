@@ -376,6 +376,78 @@ func TestPrefixRatioGuard(t *testing.T) {
 	s2.setPrefixCountMetric("ipv4/unicast", 500)
 }
 
+// TestPrefixWarningNotifier verifies that applyPrefixCheck calls the warning notifier
+// when a family crosses the warning threshold, and applyPrefixDelta calls it when clearing.
+//
+// VALIDATES: Prefix warning state propagated to Peer for API visibility.
+// PREVENTS: Login banner and ze bgp warnings showing stale or missing runtime warnings.
+func TestPrefixWarningNotifier(t *testing.T) {
+	ps := newTestPeerSettingsWithPrefix(10, 8)
+	s := NewSession(ps)
+
+	var notifications []struct {
+		family string
+		warned bool
+	}
+	s.prefixWarningNotifier = func(family string, warned bool) {
+		notifications = append(notifications, struct {
+			family string
+			warned bool
+		}{family, warned})
+	}
+
+	// Push count to 8 (warning threshold).
+	notif, drop := s.applyPrefixCheck("ipv4/unicast", 8)
+	assert.Nil(t, notif)
+	assert.False(t, drop)
+	require.Len(t, notifications, 1)
+	assert.Equal(t, "ipv4/unicast", notifications[0].family)
+	assert.True(t, notifications[0].warned)
+
+	// Push to 9 -- still in warning, no second notification.
+	notif, drop = s.applyPrefixCheck("ipv4/unicast", 1)
+	assert.Nil(t, notif)
+	assert.False(t, drop)
+	assert.Len(t, notifications, 1, "should not re-notify while in warning")
+
+	// Withdraw to 7 (below warning threshold).
+	s.applyPrefixDelta("ipv4/unicast", -2)
+	require.Len(t, notifications, 2)
+	assert.Equal(t, "ipv4/unicast", notifications[1].family)
+	assert.False(t, notifications[1].warned)
+}
+
+// TestPeerPrefixWarnedFamilies verifies the Peer tracks prefix warning state
+// from session notifications and clears on teardown.
+//
+// VALIDATES: PrefixWarnings field in PeerInfo populated from live session state.
+// PREVENTS: PeerInfo.PrefixWarnings always empty even when families exceed threshold.
+func TestPeerPrefixWarnedFamilies(t *testing.T) {
+	ps := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65001, 0)
+	p := NewPeer(ps)
+
+	// Initially no warnings.
+	assert.Nil(t, p.PrefixWarnedFamilies())
+
+	// Simulate session notifying of warning.
+	p.SetPrefixWarned("ipv4/unicast", true)
+	families := p.PrefixWarnedFamilies()
+	assert.Equal(t, []string{"ipv4/unicast"}, families)
+
+	// Add another family.
+	p.SetPrefixWarned("ipv6/unicast", true)
+	assert.Len(t, p.PrefixWarnedFamilies(), 2)
+
+	// Clear one.
+	p.SetPrefixWarned("ipv4/unicast", false)
+	assert.Equal(t, []string{"ipv6/unicast"}, p.PrefixWarnedFamilies())
+
+	// clearPrefixWarned resets all.
+	p.SetPrefixWarned("ipv4/unicast", true)
+	p.clearPrefixWarned()
+	assert.Nil(t, p.PrefixWarnedFamilies())
+}
+
 // newTestPeerSettingsWithPrefix creates PeerSettings with prefix limits for testing.
 func newTestPeerSettingsWithPrefix(maximum, warning uint32) *PeerSettings {
 	ps := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65001, 0)

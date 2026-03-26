@@ -179,6 +179,11 @@ type Peer struct {
 	// Reset when a session stays established (successful Run return).
 	prefixTeardownCount uint32
 
+	// prefixWarnedMu protects prefixWarnedMap for concurrent access from
+	// the session goroutine (writes) and API goroutine (reads).
+	prefixWarnedMu  sync.Mutex
+	prefixWarnedMap map[string]bool // family -> true when prefix count exceeds warning threshold
+
 	// Ordered operation queue: Used when session is NOT established.
 	// Maintains strict ordering of announce/withdraw/teardown operations.
 	// Processed on session establishment; teardowns act as batch separators.
@@ -232,14 +237,15 @@ func NewPeer(settings *PeerSettings) *Peer {
 		reconnectMin = DefaultReconnectMin
 	}
 	p := &Peer{
-		settings:      settings,
-		clock:         clock.RealClock{},
-		dialer:        &network.RealDialer{},
-		reconnectMin:  reconnectMin,
-		reconnectMax:  DefaultReconnectMax,
-		opQueue:       make([]PeerOp, 0, 16), // Pre-allocate small capacity
-		sourceID:      source.DefaultRegistry.RegisterPeer(settings.Address, settings.PeerAS),
-		inboundNotify: make(chan struct{}, 1),
+		settings:        settings,
+		clock:           clock.RealClock{},
+		dialer:          &network.RealDialer{},
+		reconnectMin:    reconnectMin,
+		reconnectMax:    DefaultReconnectMax,
+		opQueue:         make([]PeerOp, 0, 16), // Pre-allocate small capacity
+		sourceID:        source.DefaultRegistry.RegisterPeer(settings.Address, settings.PeerAS),
+		inboundNotify:   make(chan struct{}, 1),
+		prefixWarnedMap: make(map[string]bool),
 	}
 
 	return p
@@ -248,6 +254,42 @@ func NewPeer(settings *PeerSettings) *Peer {
 // Settings returns the configured peer settings.
 func (p *Peer) Settings() *PeerSettings {
 	return p.settings
+}
+
+// SetPrefixWarned records whether a family's prefix count exceeds the warning threshold.
+// Called by the session goroutine when warning state changes.
+// Safe for concurrent use (protected by prefixWarnedMu).
+func (p *Peer) SetPrefixWarned(family string, warned bool) {
+	p.prefixWarnedMu.Lock()
+	defer p.prefixWarnedMu.Unlock()
+	if warned {
+		p.prefixWarnedMap[family] = true
+	} else {
+		delete(p.prefixWarnedMap, family)
+	}
+}
+
+// PrefixWarnedFamilies returns the families currently exceeding the warning threshold.
+// Returns nil when no family is in warning state (or session not established).
+// Safe for concurrent use (protected by prefixWarnedMu).
+func (p *Peer) PrefixWarnedFamilies() []string {
+	p.prefixWarnedMu.Lock()
+	defer p.prefixWarnedMu.Unlock()
+	if len(p.prefixWarnedMap) == 0 {
+		return nil
+	}
+	families := make([]string, 0, len(p.prefixWarnedMap))
+	for f := range p.prefixWarnedMap {
+		families = append(families, f)
+	}
+	return families
+}
+
+// clearPrefixWarned resets all prefix warning state. Called on session teardown.
+func (p *Peer) clearPrefixWarned() {
+	p.prefixWarnedMu.Lock()
+	defer p.prefixWarnedMu.Unlock()
+	clear(p.prefixWarnedMap)
 }
 
 // SourceID returns the unique source ID for this peer.
@@ -867,6 +909,7 @@ func (p *Peer) runOnce() error {
 	if p.reactor != nil {
 		session.prefixMetrics = p.reactor.rmetrics
 	}
+	session.prefixWarningNotifier = p.SetPrefixWarned
 	session.SetSourceID(p.sourceID)
 	session.SetPluginCapabilityGetter(p.getPluginCapabilities)
 	session.SetPluginFamiliesGetter(p.getPluginFamilies)
@@ -879,6 +922,7 @@ func (p *Peer) runOnce() error {
 	defer func() {
 		p.negotiated.Store(nil) // Clear negotiated capabilities
 		p.clearEncodingContexts()
+		p.clearPrefixWarned()
 		// Reset sendingInitialRoutes flag so next session can run sendInitialRoutes().
 		// This is needed because session.Teardown() may return before the old
 		// sendInitialRoutes() goroutine finishes its 500ms sleep.

@@ -621,24 +621,10 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 					}
 					r.Stop()
 				})
-				// Wire login warnings: check prefix staleness on each SSH session.
+				// Wire login warnings: collect prefix warnings on each SSH session.
 				rl := apiServer.Reactor()
 				sshSrv.SetLoginWarnings(func() []cli.LoginWarning {
-					peers := rl.Peers()
-					now := time.Now()
-					stale := 0
-					for i := range peers {
-						if reactor.IsPrefixDataStale(peers[i].PrefixUpdated, now) {
-							stale++
-						}
-					}
-					if stale == 0 {
-						return nil
-					}
-					return []cli.LoginWarning{{
-						Message: fmt.Sprintf("%d peer(s) have stale prefix data", stale),
-						Command: "ze update bgp peer * prefix",
-					}}
+					return collectPrefixWarnings(rl)
 				})
 				configLogger().Info("SSH command executor wired")
 			}
@@ -1019,4 +1005,50 @@ func formatResponseData(data any) string {
 		return fmt.Sprintf("%v", data)
 	}
 	return string(b)
+}
+
+// collectPrefixWarnings gathers prefix warnings for the login banner.
+// Two kinds: stale prefix data (config-level) and active threshold exceeded (runtime).
+// If exactly one warning exists, the specific detail is shown.
+// If more than one, a count is shown with the command to investigate.
+func collectPrefixWarnings(rl plugin.ReactorIntrospector) []cli.LoginWarning {
+	peers := rl.Peers()
+	now := time.Now()
+
+	var warnings []cli.LoginWarning
+	for i := range peers {
+		p := &peers[i]
+		label := peerLabel(p)
+
+		if reactor.IsPrefixDataStale(p.PrefixUpdated, now) {
+			warnings = append(warnings, cli.LoginWarning{
+				Message: fmt.Sprintf("%s has stale prefix data (updated %s)", label, p.PrefixUpdated),
+				Command: "update bgp peer " + p.Address.String() + " prefix",
+			})
+		}
+		for _, family := range p.PrefixWarnings {
+			warnings = append(warnings, cli.LoginWarning{
+				Message: fmt.Sprintf("%s %s prefix count exceeds warning threshold", label, family),
+			})
+		}
+	}
+
+	if len(warnings) == 0 {
+		return nil
+	}
+	if len(warnings) == 1 {
+		return warnings
+	}
+	return []cli.LoginWarning{{
+		Message: fmt.Sprintf("%d warnings", len(warnings)),
+		Command: "show bgp warnings",
+	}}
+}
+
+// peerLabel returns a human-readable label for a peer (name or IP + AS).
+func peerLabel(p *plugin.PeerInfo) string {
+	if p.Name != "" {
+		return fmt.Sprintf("peer %s (AS%d)", p.Name, p.PeerAS)
+	}
+	return fmt.Sprintf("peer %s (AS%d)", p.Address, p.PeerAS)
 }

@@ -18,6 +18,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/meta/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/metrics/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/set/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/show/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/system/schema"
@@ -52,3 +53,4 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/watchdog"
 )
+

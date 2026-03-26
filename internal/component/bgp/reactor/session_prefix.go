@@ -133,6 +133,9 @@ func (s *Session) applyPrefixDelta(family string, delta int64) {
 		if s.prefixCounts.warned[family] {
 			s.prefixCounts.warned[family] = false
 			s.setPrefixWarningExceededMetric(family, 0)
+			if s.prefixWarningNotifier != nil {
+				s.prefixWarningNotifier(family, false)
+			}
 		}
 	}
 }
@@ -156,6 +159,9 @@ func (s *Session) applyPrefixCheck(family string, delta int64) (*message.Notific
 		if !s.prefixCounts.warned[family] {
 			s.prefixCounts.warned[family] = true
 			s.setPrefixWarningExceededMetric(family, 1)
+			if s.prefixWarningNotifier != nil {
+				s.prefixWarningNotifier(family, true)
+			}
 			sessionLogger().Warn("prefix count reached warning threshold",
 				"peer", s.settings.Address,
 				"family", family,

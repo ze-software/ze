@@ -2,6 +2,7 @@ package bgpconfig
 
 import (
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/all"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -1200,4 +1202,90 @@ func TestReservedPeerNamesSyncWithRPCs(t *testing.T) {
 		assert.True(t, dynamicKeywords[keyword],
 			"reservedPeerNames entry %q has no matching registered bgp peer RPC -- remove it or register the RPC", keyword)
 	}
+}
+
+// mockIntrospector implements plugin.ReactorIntrospector for collectPrefixWarnings tests.
+type mockIntrospector struct {
+	peers []plugin.PeerInfo
+}
+
+func (m *mockIntrospector) Peers() []plugin.PeerInfo   { return m.peers }
+func (m *mockIntrospector) Stats() plugin.ReactorStats { return plugin.ReactorStats{} }
+func (m *mockIntrospector) PeerNegotiatedCapabilities(_ netip.Addr) *plugin.PeerCapabilitiesInfo {
+	return nil
+}
+func (m *mockIntrospector) GetPeerProcessBindings(_ netip.Addr) []plugin.PeerProcessBinding {
+	return nil
+}
+func (m *mockIntrospector) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig { return nil }
+
+// TestCollectPrefixWarningsOneStale verifies that a single stale peer shows the specific warning.
+//
+// VALIDATES: Login banner shows detail when exactly 1 warning exists.
+// PREVENTS: Single-warning case still showing "1 warnings" count.
+func TestCollectPrefixWarningsOneStale(t *testing.T) {
+	staleDate := "2025-01-01" // > 6 months ago
+	ri := &mockIntrospector{
+		peers: []plugin.PeerInfo{
+			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001, Name: "core-rtr", PrefixUpdated: staleDate},
+			{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002, PrefixUpdated: "2026-03-01"},
+		},
+	}
+
+	warnings := collectPrefixWarnings(ri)
+	require.Len(t, warnings, 1)
+	assert.Contains(t, warnings[0].Message, "core-rtr")
+	assert.Contains(t, warnings[0].Message, "stale prefix data")
+	assert.NotEmpty(t, warnings[0].Command)
+}
+
+// TestCollectPrefixWarningsMultiple verifies that >1 warnings shows a count.
+//
+// VALIDATES: Login banner shows "N warnings" when multiple warnings exist.
+// PREVENTS: Banner dumping all warnings when count is high.
+func TestCollectPrefixWarningsMultiple(t *testing.T) {
+	staleDate := "2025-01-01"
+	ri := &mockIntrospector{
+		peers: []plugin.PeerInfo{
+			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001, PrefixUpdated: staleDate},
+			{Address: netip.MustParseAddr("10.0.0.2"), PeerAS: 65002, PrefixUpdated: staleDate},
+		},
+	}
+
+	warnings := collectPrefixWarnings(ri)
+	require.Len(t, warnings, 1)
+	assert.Contains(t, warnings[0].Message, "2 warnings")
+	assert.Equal(t, "show bgp warnings", warnings[0].Command)
+}
+
+// TestCollectPrefixWarningsNone verifies no warnings returned for healthy peers.
+//
+// VALIDATES: Login banner is silent when no warnings exist.
+// PREVENTS: Spurious warnings on healthy system.
+func TestCollectPrefixWarningsNone(t *testing.T) {
+	ri := &mockIntrospector{
+		peers: []plugin.PeerInfo{
+			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001, PrefixUpdated: "2026-03-01"},
+		},
+	}
+
+	warnings := collectPrefixWarnings(ri)
+	assert.Nil(t, warnings)
+}
+
+// TestCollectPrefixWarningsRuntime verifies that runtime prefix threshold warnings are included.
+//
+// VALIDATES: Login banner includes runtime prefix warnings, not just staleness.
+// PREVENTS: Runtime prefix warnings invisible at login.
+func TestCollectPrefixWarningsRuntime(t *testing.T) {
+	ri := &mockIntrospector{
+		peers: []plugin.PeerInfo{
+			{Address: netip.MustParseAddr("10.0.0.1"), PeerAS: 65001, PrefixWarnings: []string{"ipv4/unicast"}},
+		},
+	}
+
+	warnings := collectPrefixWarnings(ri)
+	require.Len(t, warnings, 1)
+	assert.Contains(t, warnings[0].Message, "ipv4/unicast")
+	assert.Contains(t, warnings[0].Message, "exceeds warning threshold")
 }
