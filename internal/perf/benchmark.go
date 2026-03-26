@@ -312,8 +312,10 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 	recvWg.Wait()
 
 	// Compute metrics.
+	// Only count prefixes that were both sent and received -- the DUT may
+	// advertise its own routes (connected networks, loopback) which would
+	// inflate len(recvTimes) beyond cfg.Routes and produce negative RoutesLost.
 	mu.Lock()
-	received := len(recvTimes)
 
 	var durations []time.Duration
 
@@ -331,6 +333,8 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 		durations = append(durations, d)
 		recvTimestamps = append(recvTimestamps, recvTime)
 	}
+
+	received := len(durations)
 
 	mu.Unlock()
 
