@@ -25,9 +25,9 @@ import (
 var fwdLogger = slogutil.LazyLogger("bgp.reactor.forward")
 
 // fwdKey identifies a per-destination-peer forward worker.
-// Uses netip.Addr instead of string for efficient map key hashing on the hot path.
+// Uses netip.AddrPort to distinguish peers on different ports sharing the same IP.
 type fwdKey struct {
-	peerAddr netip.Addr
+	peerAddr netip.AddrPort
 }
 
 // fwdItem is a unit of work dispatched to a forward worker.
@@ -270,8 +270,8 @@ type fwdPool struct {
 	// Congestion callbacks — fire on transitions only (not every item).
 	// Called from the TryDispatch caller goroutine (onCongested) or the
 	// worker goroutine (onResumed). Must not block.
-	onCongested func(peerAddr netip.Addr) // Called on false->true transition
-	onResumed   func(peerAddr netip.Addr) // Called on true->false transition
+	onCongested func(peerAddr netip.AddrPort) // Called on false->true transition
+	onResumed   func(peerAddr netip.AddrPort) // Called on true->false transition
 
 	// overflowPool bounds overflow items across all workers (nil = unbounded).
 	overflowPool *fwdOverflowPool

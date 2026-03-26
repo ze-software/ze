@@ -680,11 +680,11 @@ func (a *reactorAPIAdapter) FlushForwardPool(ctx context.Context) error {
 // FlushForwardPoolPeer blocks until the forward pool worker for a specific peer
 // address has drained its queued items. Returns nil immediately if no worker exists.
 func (a *reactorAPIAdapter) FlushForwardPoolPeer(ctx context.Context, addr string) error {
-	parsed, err := netip.ParseAddr(addr)
-	if err != nil {
-		return fmt.Errorf("invalid peer address %q: %w", addr, err)
+	ap := parsePeerAddrToKey(addr)
+	if !ap.IsValid() {
+		return fmt.Errorf("invalid peer address %q", addr)
 	}
-	return a.r.fwdPool.BarrierPeer(ctx, parsed)
+	return a.r.fwdPool.BarrierPeer(ctx, ap)
 }
 
 // RemovePeer removes a peer by address.

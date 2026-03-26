@@ -143,10 +143,14 @@ func (s *Session) mpAddPathReceive(family nlri.Family) bool {
 // only when a config lookup is needed (cold path).
 func (s *Session) prefixConfigLookup(fk uint32) (maximum uint32, warning uint32, hasMax bool) {
 	for fam, max := range s.settings.PrefixMaximum {
-		if k, ok := familyKeyString(fam); ok && k == fk {
+		k, ok := familyKeyString(fam)
+		if !ok {
+			sessionLogger().Warn("prefix-maximum: unrecognized family in config", "family", fam)
+			continue
+		}
+		if k == fk {
 			maximum = max
 			hasMax = true
-			// Look up matching warning.
 			warning = s.settings.PrefixWarning[fam]
 			return maximum, warning, hasMax
 		}

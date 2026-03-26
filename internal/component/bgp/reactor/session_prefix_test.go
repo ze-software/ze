@@ -455,6 +455,36 @@ func TestPeerPrefixWarnedFamilies(t *testing.T) {
 	assert.Nil(t, p.PrefixWarnedFamilies())
 }
 
+// TestFamilyKeyRoundTrip verifies familyKey/familyString/familyKeyString round-trip for all
+// well-known families.
+//
+// VALIDATES: familyString(familyKey(f)) == f.String() and familyKeyString(f.String()) == familyKey(f).
+// PREVENTS: Silent key collisions or lossy encoding in prefix-count map keys.
+func TestFamilyKeyRoundTrip(t *testing.T) {
+	families := []nlri.Family{
+		nlri.IPv4Unicast, nlri.IPv6Unicast,
+		nlri.IPv4Multicast, nlri.IPv6Multicast,
+		nlri.IPv4VPN, nlri.IPv6VPN,
+		nlri.L2VPNEVPN,
+	}
+	for _, f := range families {
+		key := familyKey(f)
+		str := familyString(key)
+		if str != f.String() {
+			t.Errorf("round-trip failed for %v: familyString(familyKey(%v)) = %q, want %q", f, f, str, f.String())
+		}
+		// Reverse: string -> key -> string
+		k2, ok := familyKeyString(f.String())
+		if !ok {
+			t.Errorf("familyKeyString(%q) returned false", f.String())
+			continue
+		}
+		if k2 != key {
+			t.Errorf("familyKeyString(%q) = %d, want %d", f.String(), k2, key)
+		}
+	}
+}
+
 // newTestPeerSettingsWithPrefix creates PeerSettings with prefix limits for testing.
 func newTestPeerSettingsWithPrefix(maximum, warning uint32) *PeerSettings {
 	ps := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65001, 0)

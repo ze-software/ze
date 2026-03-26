@@ -371,13 +371,13 @@ func New(config *Config) *Reactor {
 	// and emit events to subscribed plugins.
 	// These fire from ForwardUpdate caller goroutines (onCongested) and worker
 	// goroutines (onResumed). They must not block.
-	r.fwdPool.onCongested = func(peerAddr netip.Addr) {
+	r.fwdPool.onCongested = func(peerAddr netip.AddrPort) {
 		reactorLogger().Warn("forward peer congested", "peer", peerAddr)
-		r.emitCongestionEvent(peerAddr, plugin.EventCongested)
+		r.emitCongestionEvent(peerAddr.Addr(), plugin.EventCongested)
 	}
-	r.fwdPool.onResumed = func(peerAddr netip.Addr) {
+	r.fwdPool.onResumed = func(peerAddr netip.AddrPort) {
 		reactorLogger().Info("forward peer resumed", "peer", peerAddr)
-		r.emitCongestionEvent(peerAddr, plugin.EventResumed)
+		r.emitCongestionEvent(peerAddr.Addr(), plugin.EventResumed)
 	}
 
 	// ze.cache.safety.valve overrides the safety valve duration for gap-based eviction.

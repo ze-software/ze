@@ -229,8 +229,12 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 					// Set socket buffers for BGP burst throughput.
 					// SO_RCVBUF: 256KB matches 4x the bufio.Reader size (64KB).
 					// SO_SNDBUF: 64KB matches 4x the bufio.Writer size (16KB).
-					_ = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVBUF, 262144)
-					_ = syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_SNDBUF, 65536)
+					if err := syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVBUF, 262144); err != nil {
+						sessionLogger().Debug("SO_RCVBUF not set, using OS default", "err", err)
+					}
+					if err := syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_SNDBUF, 65536); err != nil {
+						sessionLogger().Debug("SO_SNDBUF not set, using OS default", "err", err)
+					}
 				})
 			}
 		}
@@ -238,8 +242,10 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 
 	s.mu.Lock()
 	s.conn = conn
-	s.bufReader = bufio.NewReaderSize(conn, env.GetInt("ze.buf.read.size", 65536))
-	s.bufWriter = bufio.NewWriterSize(conn, env.GetInt("ze.buf.write.size", 16384))
+	readBufSize := max(env.GetInt("ze.buf.read.size", 65536), 4096)
+	writeBufSize := max(env.GetInt("ze.buf.write.size", 16384), 4096)
+	s.bufReader = bufio.NewReaderSize(conn, readBufSize)
+	s.bufWriter = bufio.NewWriterSize(conn, writeBufSize)
 	s.mu.Unlock()
 
 	// Signal FSM.

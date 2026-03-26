@@ -475,6 +475,39 @@ func TestWireUpdate_AttrsConsistent(t *testing.T) {
 	}
 }
 
+// TestWireUpdate_AttrsCachedPointer verifies Attrs() caching returns the same pointer.
+//
+// VALIDATES: Second Attrs() call returns identical pointer (cached, not re-allocated).
+// PREVENTS: Per-call allocation on hot path from missing cache.
+func TestWireUpdate_AttrsCachedPointer(t *testing.T) {
+	// Build UPDATE with ORIGIN attribute (code 1, flags 0x40, len 1, value 0x00 = IGP)
+	attrs := []byte{0x40, 0x01, 0x01, 0x00}
+	payload := make([]byte, 2+0+2+len(attrs))
+	binary.BigEndian.PutUint16(payload[0:2], 0)                  // withdrawn len = 0
+	binary.BigEndian.PutUint16(payload[2:4], uint16(len(attrs))) //nolint:gosec // G115: test data
+	copy(payload[4:], attrs)
+
+	wu := NewWireUpdate(payload, 0)
+
+	attrs1, err1 := wu.Attrs()
+	if err1 != nil {
+		t.Fatalf("Attrs() first call error: %v", err1)
+	}
+	if attrs1 == nil {
+		t.Fatal("Attrs() first call returned nil")
+	}
+
+	attrs2, err2 := wu.Attrs()
+	if err2 != nil {
+		t.Fatalf("Attrs() second call error: %v", err2)
+	}
+
+	// Same pointer -- cached, not re-allocated.
+	if attrs1 != attrs2 {
+		t.Error("Attrs() not cached: second call returned different pointer")
+	}
+}
+
 // TestWireUpdate_Withdrawn_Error verifies truncated withdrawn returns error.
 //
 // VALIDATES: Truncated payload returns error, not nil

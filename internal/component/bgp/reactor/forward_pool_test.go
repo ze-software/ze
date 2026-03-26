@@ -27,19 +27,19 @@ func TestFwdPool_LazyCreation(t *testing.T) {
 	assert.Equal(t, 0, pool.WorkerCount())
 
 	// First dispatch creates worker
-	ok := pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}, fwdItem{})
+	ok := pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
 	require.True(t, ok)
 	<-handled
 	assert.Equal(t, 1, pool.WorkerCount())
 
 	// Same peer reuses worker
-	ok = pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}, fwdItem{})
+	ok = pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
 	require.True(t, ok)
 	<-handled
 	assert.Equal(t, 1, pool.WorkerCount())
 
 	// Different peer creates second worker
-	ok = pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("2.2.2.2")}, fwdItem{})
+	ok = pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("2.2.2.2:179")}, fwdItem{})
 	require.True(t, ok)
 	<-handled
 	assert.Equal(t, 2, pool.WorkerCount())
@@ -55,7 +55,7 @@ func TestFwdPool_IdleTimeout(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: 50 * time.Millisecond})
 	defer pool.Stop()
 
-	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
 	require.Eventually(t, func() bool {
 		return pool.WorkerCount() == 1
 	}, time.Second, time.Millisecond, "worker should be spawned")
@@ -76,8 +76,8 @@ func TestFwdPool_Stop(t *testing.T) {
 		<-blocker
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 
-	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}, fwdItem{})
-	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("2.2.2.2")}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("2.2.2.2:179")}, fwdItem{})
 	require.Eventually(t, func() bool {
 		return pool.WorkerCount() == 2
 	}, time.Second, time.Millisecond, "both workers should be spawned")
@@ -97,7 +97,7 @@ func TestFwdPool_DispatchAfterStop(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	pool.Stop()
 
-	ok := pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}, fwdItem{})
+	ok := pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
 	assert.False(t, ok)
 }
 
@@ -118,7 +118,7 @@ func TestFwdPool_FIFOPerPeer(t *testing.T) {
 	defer pool.Stop()
 
 	for range 5 {
-		pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}, fwdItem{})
+		pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
 	}
 
 	for i := 1; i <= 5; i++ {
@@ -140,8 +140,8 @@ func TestFwdPool_ParallelPeers(t *testing.T) {
 	slowCh := make(chan struct{})
 	fastDone := make(chan struct{})
 
-	slowAddr := netip.MustParseAddr("10.0.0.1")
-	fastAddr := netip.MustParseAddr("10.0.0.2")
+	slowAddr := netip.MustParseAddrPort("10.0.0.1:179")
+	fastAddr := netip.MustParseAddrPort("10.0.0.2:179")
 
 	pool := newFwdPool(func(key fwdKey, _ []fwdItem) {
 		if key.peerAddr == slowAddr {
@@ -181,7 +181,7 @@ func TestFwdPool_BackpressureBehavior(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	defer pool.Stop()
 
-	key := fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 
 	// Fill: 1 item in handler + 2 in channel = 3 dispatches
 	pool.Dispatch(key, fwdItem{})
@@ -230,7 +230,7 @@ func TestFwdPool_HandlerError(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	defer pool.Stop()
 
-	key := fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 	doneFunc := func() { doneCalled.Add(1) }
 
 	// First dispatch panics
@@ -261,7 +261,7 @@ func TestFwdPool_StopUnblocksDispatch(t *testing.T) {
 		<-blocker
 	}, fwdPoolConfig{chanSize: 1, idleTimeout: time.Second})
 
-	key := fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 	pool.Dispatch(key, fwdItem{}) // In handler
 	time.Sleep(10 * time.Millisecond)
 	pool.Dispatch(key, fwdItem{}) // In channel
@@ -307,7 +307,7 @@ func TestFwdPoolCustomChanSize(t *testing.T) {
 	for i := range 100 {
 		done := make(chan bool, 1)
 		go func() {
-			ok := pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}, fwdItem{})
+			ok := pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
 			done <- ok
 		}()
 		select {
@@ -345,18 +345,18 @@ func TestForwardPoolBackpressurePropagation(t *testing.T) {
 	}()
 
 	// Dispatch 1 item and wait for handler to start blocking.
-	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
 	<-entered
 
 	// Fill channel (4 items = chanSize) while handler is blocked.
 	for range 4 {
-		pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}, fwdItem{})
+		pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
 	}
 
 	// Next dispatch should block (channel full, handler blocked).
 	dispatched := make(chan struct{})
 	go func() {
-		pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}, fwdItem{})
+		pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
 		close(dispatched)
 	}()
 
@@ -387,7 +387,7 @@ func TestFwdPool_DoneCalledOnSuccess(t *testing.T) {
 	defer pool.Stop()
 
 	for range 3 {
-		pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}, fwdItem{
+		pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{
 			done: func() { doneCh <- struct{}{} },
 		})
 	}
@@ -425,7 +425,7 @@ func TestFwdWorkerDrainBatch(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 10, idleTimeout: time.Second})
 	defer pool.Stop()
 
-	key := fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 
 	// Dispatch first item — enters handler
 	pool.Dispatch(key, fwdItem{})
@@ -459,7 +459,7 @@ func TestFwdWorkerBatchSingleItem(t *testing.T) {
 	defer pool.Stop()
 
 	// Dispatch single item
-	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
 
 	select {
 	case size := <-batchSizes:
@@ -487,7 +487,7 @@ func TestFwdWorkerBatchAllDoneCalled(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 10, idleTimeout: time.Second})
 	defer pool.Stop()
 
-	key := fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 	doneFunc := func() { doneCalled.Add(1) }
 
 	// Dispatch first item — enters handler and panics
@@ -606,7 +606,7 @@ func TestFwdWorkerIdleRestartFreshBuffer(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: 50 * time.Millisecond})
 	defer pool.Stop()
 
-	key := fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 
 	// Dispatch 3 items to force buffer growth.
 	pool.Dispatch(key, fwdItem{})
@@ -653,7 +653,7 @@ func TestFwdPool_TryDispatch(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	defer pool.Stop()
 
-	key := fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 
 	// First dispatch enters handler (blocks on blocker)
 	ok := pool.TryDispatch(key, fwdItem{})
@@ -687,7 +687,7 @@ func TestFwdPool_DispatchOverflow(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 4, idleTimeout: time.Second})
 	defer pool.Stop()
 
-	key := fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 
 	// Dispatch some items via overflow
 	pool.DispatchOverflow(key, fwdItem{done: func() {}})
@@ -720,7 +720,7 @@ func TestFwdPool_OverflowNeverDrops(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	defer pool.Stop()
 
-	key := fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 
 	// Create worker by dispatching one item (blocks in handler)
 	pool.Dispatch(key, fwdItem{})
@@ -754,7 +754,7 @@ func TestFwdPool_StopFiresOverflowDone(t *testing.T) {
 		<-blocker
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 
-	key := fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 
 	// Create worker (blocks in handler)
 	pool.Dispatch(key, fwdItem{})
@@ -788,19 +788,19 @@ func TestFwdPool_CongestionCallbacks(t *testing.T) {
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 		<-blocker
 	}, fwdPoolConfig{chanSize: 4, idleTimeout: time.Second})
-	pool.onCongested = func(peerAddr netip.Addr) {
+	pool.onCongested = func(peerAddr netip.AddrPort) {
 		mu.Lock()
 		congestedPeers = append(congestedPeers, peerAddr.String())
 		mu.Unlock()
 	}
-	pool.onResumed = func(peerAddr netip.Addr) {
+	pool.onResumed = func(peerAddr netip.AddrPort) {
 		mu.Lock()
 		resumedPeers = append(resumedPeers, peerAddr.String())
 		mu.Unlock()
 	}
 	defer pool.Stop()
 
-	key := fwdKey{peerAddr: netip.MustParseAddr("10.0.0.1")}
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}
 
 	// Fill: 1 in handler + 4 in channel = full
 	pool.Dispatch(key, fwdItem{})
@@ -814,7 +814,7 @@ func TestFwdPool_CongestionCallbacks(t *testing.T) {
 	assert.False(t, ok)
 
 	mu.Lock()
-	assert.Equal(t, []string{"10.0.0.1"}, congestedPeers, "onCongested should fire once")
+	assert.Equal(t, []string{"10.0.0.1:179"}, congestedPeers, "onCongested should fire once")
 	mu.Unlock()
 
 	// Second failure should NOT fire again (already congested)
@@ -835,7 +835,7 @@ func TestFwdPool_CongestionCallbacks(t *testing.T) {
 	}, 2*time.Second, 10*time.Millisecond, "onResumed should fire after drain")
 
 	mu.Lock()
-	assert.Equal(t, []string{"10.0.0.1"}, resumedPeers)
+	assert.Equal(t, []string{"10.0.0.1:179"}, resumedPeers)
 	mu.Unlock()
 }
 
@@ -853,7 +853,7 @@ func TestFwdPool_DrainOverflowDirectProcess(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	defer pool.Stop()
 
-	key := fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 
 	// Add many overflow items (more than channel capacity).
 	// When drainOverflow runs, some will enqueue, rest will be processed directly.
@@ -885,7 +885,7 @@ func TestFwdPool_OverflowUsesPool(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowPoolSize: 10})
 	defer pool.Stop()
 
-	key := fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 
 	// Create worker (blocks in handler).
 	pool.Dispatch(key, fwdItem{})
@@ -927,7 +927,7 @@ func TestFwdPool_PeerDisconnectReturnsSlots(t *testing.T) {
 		<-blocker
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowPoolSize: 10})
 
-	key := fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 
 	// Create worker (blocks in handler).
 	pool.Dispatch(key, fwdItem{})
@@ -973,7 +973,7 @@ func TestFwdPool_PoolExhausted(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowPoolSize: 5})
 	defer pool.Stop()
 
-	key := fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 
 	// Create worker (blocks in handler).
 	pool.Dispatch(key, fwdItem{})
@@ -1073,7 +1073,7 @@ func TestFwdPool_DrainOverflowDirectProcessReleasesTokens(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowPoolSize: 20})
 	defer pool.Stop()
 
-	key := fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 
 	// Add many overflow items (more than channel capacity of 2).
 	// When drainOverflow runs, some enqueue to channel, rest are processed directly.
@@ -1110,7 +1110,7 @@ func TestFwdPool_DispatchOverflowAfterStopWithPool(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 4, idleTimeout: time.Second, overflowPoolSize: 10})
 	pool.Stop()
 
-	ok := pool.DispatchOverflow(fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}, fwdItem{
+	ok := pool.DispatchOverflow(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{
 		done: func() { doneCalled.Add(1) },
 	})
 
@@ -1133,25 +1133,25 @@ func TestFwdPool_OverflowDepths(t *testing.T) {
 	defer pool.Stop()
 
 	// Create workers (block in handler).
-	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("10.0.0.1")}, fwdItem{})
-	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("10.0.0.2")}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.2:179")}, fwdItem{})
 	time.Sleep(10 * time.Millisecond)
 
 	// Add overflow items to first peer only.
 	for range 3 {
-		pool.DispatchOverflow(fwdKey{peerAddr: netip.MustParseAddr("10.0.0.1")}, fwdItem{done: func() {}})
+		pool.DispatchOverflow(fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}, fwdItem{done: func() {}})
 	}
 
 	depths := pool.OverflowDepths()
-	assert.Equal(t, 3, depths["10.0.0.1"], "peer 10.0.0.1 should have 3 overflow items")
-	assert.Equal(t, 0, depths["10.0.0.2"], "peer 10.0.0.2 should have 0 overflow items")
+	assert.Equal(t, 3, depths["10.0.0.1:179"], "peer 10.0.0.1 should have 3 overflow items")
+	assert.Equal(t, 0, depths["10.0.0.2:179"], "peer 10.0.0.2 should have 0 overflow items")
 
 	// Unblock and verify depths return to 0 after drain.
 	close(blocker)
 
 	require.Eventually(t, func() bool {
 		d := pool.OverflowDepths()
-		return d["10.0.0.1"] == 0
+		return d["10.0.0.1:179"] == 0
 	}, time.Second, time.Millisecond, "overflow depth should return to 0 after drain")
 }
 
@@ -1170,11 +1170,11 @@ func TestFwdPool_PoolUsedRatio(t *testing.T) {
 	assert.InDelta(t, 0.0, pool.PoolUsedRatio(), 0.001, "empty pool should have 0.0 ratio")
 
 	// Create worker and add overflow items.
-	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
 	time.Sleep(10 * time.Millisecond)
 	dummyPeer := &Peer{}
 	for range 4 {
-		pool.DispatchOverflow(fwdKey{peerAddr: netip.MustParseAddr("1.1.1.1")}, fwdItem{done: func() {}, peer: dummyPeer})
+		pool.DispatchOverflow(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{done: func() {}, peer: dummyPeer})
 	}
 
 	// 4 of 10 tokens used = 0.4 ratio.

@@ -186,7 +186,7 @@ func TestUpdatePeriodicMetrics_SetsOverflowGauges(t *testing.T) {
 	}
 
 	// Create a worker so WorkerCount > 0 and OverflowDepths has an entry.
-	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddr("192.168.1.1")}, fwdItem{})
+	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("192.168.1.1:179")}, fwdItem{})
 	require.Eventually(t, func() bool {
 		return pool.WorkerCount() == 1
 	}, time.Second, time.Millisecond)
@@ -225,7 +225,7 @@ func TestUpdatePeriodicMetrics_SetsOverflowGauges(t *testing.T) {
 	// AC-17: per-destination overflow depth gauge was set.
 	overflowItemsVec := reg.gaugeVec("ze_bgp_overflow_items")
 	require.NotNil(t, overflowItemsVec, "ze_bgp_overflow_items should be registered")
-	destGauge := overflowItemsVec.get("192.168.1.1")
+	destGauge := overflowItemsVec.get("192.168.1.1:179")
 	require.NotNil(t, destGauge, "overflow items should have been set for destination 192.168.1.1")
 	// Worker channel is not blocked, so overflow buffer should be empty.
 	assert.Equal(t, 0.0, destGauge.Value(), "overflow depth should be 0 for non-congested peer")
@@ -249,29 +249,32 @@ func TestForwardDispatch_RecordForwarded_UpdatesMetrics(t *testing.T) {
 
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
 		<-blocker
-	}, fwdPoolConfig{chanSize: 1, overflowPoolSize: 100})
+	}, fwdPoolConfig{chanSize: 4, overflowPoolSize: 100})
 	defer pool.Stop()
 
-	key := fwdKey{peerAddr: netip.MustParseAddr("192.168.1.1")}
+	key := fwdKey{peerAddr: netip.MustParseAddrPort("192.168.1.1:179")}
 
-	// First dispatch succeeds via TryDispatch (handler blocks to keep worker busy).
+	// First dispatch: worker starts and blocks in handler on <-blocker.
 	ok := pool.TryDispatch(key, fwdItem{})
 	require.True(t, ok, "first TryDispatch should succeed")
 	pool.RecordForwarded(netip.MustParseAddr("10.0.0.1"))
 
-	// Wait for worker to start processing.
 	require.Eventually(t, func() bool {
 		return pool.WorkerCount() == 1
 	}, time.Second, time.Millisecond)
+	// Wait for worker to consume from channel and block in handler.
+	time.Sleep(10 * time.Millisecond)
 
-	// Fill the channel (chanSize=1).
-	ok = pool.TryDispatch(key, fwdItem{})
-	require.True(t, ok, "second TryDispatch should succeed (fills channel)")
+	// Fill the channel (chanSize=4): worker is blocked, so these stay queued.
+	for range 4 {
+		ok = pool.TryDispatch(key, fwdItem{})
+		require.True(t, ok, "TryDispatch should succeed while channel has space")
+	}
 	pool.RecordForwarded(netip.MustParseAddr("10.0.0.1"))
 
-	// Now channel is full. TryDispatch should fail, fall through to DispatchOverflow.
+	// Channel is full (4/4). TryDispatch should fail.
 	ok = pool.TryDispatch(key, fwdItem{})
-	require.False(t, ok, "third TryDispatch should fail (channel full)")
+	require.False(t, ok, "TryDispatch should fail (channel full)")
 	ok = pool.DispatchOverflow(key, fwdItem{})
 	require.True(t, ok, "DispatchOverflow should succeed")
 	pool.RecordOverflowed(netip.MustParseAddr("10.0.0.1"))
@@ -302,7 +305,7 @@ func TestForwardDispatch_RecordForwarded_UpdatesMetrics(t *testing.T) {
 	// Verify overflow items gauge shows the overflow buffer depth.
 	overflowItemsVec := reg.gaugeVec("ze_bgp_overflow_items")
 	require.NotNil(t, overflowItemsVec)
-	destGauge := overflowItemsVec.get("192.168.1.1")
+	destGauge := overflowItemsVec.get("192.168.1.1:179")
 	require.NotNil(t, destGauge, "overflow items should be set for destination")
 	assert.Equal(t, 1.0, destGauge.Value(), "overflow buffer should have 1 item")
 

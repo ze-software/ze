@@ -395,7 +395,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		a.r.recentUpdates.Retain(updateID)
 		item.done = func() { a.r.recentUpdates.Release(updateID) }
 
-		key := fwdKey{peerAddr: peer.Settings().Address}
+		key := fwdKey{peerAddr: peer.Settings().PeerKey()}
 		if a.r.fwdPool.TryDispatch(key, item) {
 			a.r.fwdPool.RecordForwarded(srcAddr)
 			dispatchedCount++
