@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
 """Ze performance benchmark runner.
 
-Orchestrates Docker containers for each DUT (Ze, FRR, BIRD, GoBGP, rustbgpd),
-runs ze-perf against each, collects results, and generates reports.
+Orchestrates Docker containers for each DUT (Ze, FRR, BIRD, GoBGP, rustbgpd,
+RustyBGP, freeRtr), runs ze-perf against each, collects results, and generates reports.
 
 Usage:
-    python3 test/perf/run.py                     # run all DUTs
-    python3 test/perf/run.py ze                   # run single DUT
-    python3 test/perf/run.py ze bird              # run specific DUTs
-    DUT_ROUTES=10000 python3 test/perf/run.py     # override route count
+    python3 test/perf/run.py --build [DUT ...]    # build images only
+    python3 test/perf/run.py --test [DUT ...]     # test only (images must exist)
+    python3 test/perf/run.py --build --test [DUT ...]  # build then test
+    python3 test/perf/run.py --build --test ze freertr # specific DUTs
 
 Environment:
     FRR_IMAGE       - FRR Docker image (default: quay.io/frrouting/frr:10.3.1)
     RUSTBGPD_IMAGE  - rustbgpd image (default: rustbgpd-interop, built from source)
-    NO_BUILD        - set to 1 to skip image builds
+    FREERTR_DIR     - freeRtr source (default: ../../../m36/freeRtr relative to project)
     DUT_ROUTES      - number of routes to send (default: 1000)
     DUT_SEED        - route generation seed (default: 42)
     DUT_REPEAT      - benchmark iterations (default: 3)
 """
 
+import argparse
 import atexit
 import json
 import os
@@ -41,8 +42,9 @@ RECEIVER_IP = "172.31.0.11"
 
 FRR_IMAGE = os.environ.get("FRR_IMAGE", "quay.io/frrouting/frr:10.3.1")
 RUSTBGPD_IMAGE = os.environ.get("RUSTBGPD_IMAGE", "rustbgpd-interop")
-NO_BUILD = os.environ.get("NO_BUILD", "0") == "1"
-DUT_ROUTES = int(os.environ.get("DUT_ROUTES", "1000"))
+FREERTR_DIR = os.environ.get("FREERTR_DIR", os.path.abspath(
+    os.path.join(PROJECT_ROOT, "..", "..", "..", "m36", "freeRtr")))
+DUT_ROUTES = int(os.environ.get("DUT_ROUTES", "100000"))
 DUT_SEED = int(os.environ.get("DUT_SEED", "42"))
 DUT_REPEAT = int(os.environ.get("DUT_REPEAT", "3"))
 
@@ -54,6 +56,7 @@ DUTS = [
     {"name": "gobgp",    "image": "gobgp-interop", "ip": "172.31.0.5", "port": 179, "sender_port": 0, "receiver_port": 0},
     {"name": "rustbgpd", "image": RUSTBGPD_IMAGE,  "ip": "172.31.0.6", "port": 179, "sender_port": 0, "receiver_port": 0},
     {"name": "rustybgp", "image": "rustybgp-interop", "ip": "172.31.0.7", "port": 179, "sender_port": 0, "receiver_port": 0},
+    {"name": "freertr",  "image": "freertr-interop",  "ip": "172.31.0.8", "port": 179, "sender_port": 0, "receiver_port": 0},
 ]
 
 SUFFIX = str(os.getpid())
@@ -69,11 +72,20 @@ def docker(*args, check=True, timeout=60, capture=False, **kwargs):
 
 
 def build_linux_binary():
-    """Cross-compile ze-perf for Linux/arm64 if missing."""
+    """Cross-compile ze-perf for Linux if missing or wrong architecture."""
+    import platform
+    go_arch = {"x86_64": "amd64", "aarch64": "arm64"}.get(platform.machine(), "amd64")
     if os.path.exists(ZE_PERF_LINUX):
-        return
-    print("Cross-compiling ze-perf for Linux...")
-    env = {**os.environ, "GOOS": "linux", "GOARCH": "arm64", "CGO_ENABLED": "0"}
+        # Verify existing binary matches current architecture.
+        r = subprocess.run(["file", ZE_PERF_LINUX], capture_output=True, text=True, timeout=5)
+        if go_arch == "amd64" and "x86-64" in r.stdout:
+            return
+        if go_arch == "arm64" and "aarch64" in r.stdout:
+            return
+        print(f"Rebuilding ze-perf-linux for {go_arch}...")
+    else:
+        print(f"Cross-compiling ze-perf for Linux/{go_arch}...")
+    env = {**os.environ, "GOOS": "linux", "GOARCH": go_arch, "CGO_ENABLED": "0"}
     subprocess.run(
         ["go", "build", "-o", ZE_PERF_LINUX, "./cmd/ze-perf/"],
         check=True, timeout=120, env=env, cwd=PROJECT_ROOT,
@@ -131,6 +143,19 @@ def build_images(needed_duts):
         except subprocess.CalledProcessError:
             print("  warning: RustyBGP image build failed")
 
+    if "freertr" in needed:
+        print("Building freeRtr image...")
+        if not os.path.isdir(FREERTR_DIR):
+            print(f"  warning: freeRtr source not found at {FREERTR_DIR}")
+            print("  set FREERTR_DIR to the freeRtr repository root")
+        else:
+            try:
+                docker("build", "-t", "freertr-interop",
+                       "-f", os.path.join(INTEROP_DIR, "Dockerfile.freertr"),
+                       FREERTR_DIR, "--quiet", timeout=600)
+            except subprocess.CalledProcessError:
+                print("  warning: freeRtr image build failed")
+
 
 def container_name(dut_name):
     return f"ze-perf-{dut_name}-{SUFFIX}"
@@ -151,11 +176,15 @@ def start_dut(dut):
         "gobgp":    ["-v", f"{CONFIGS_DIR}/gobgp.toml:/etc/gobgp/gobgp.toml:ro"],
         "rustbgpd": ["-v", f"{CONFIGS_DIR}/rustbgpd.toml:/etc/rustbgpd/config.toml:ro"],
         "rustybgp": ["-v", f"{CONFIGS_DIR}/rustybgp.toml:/etc/rustybgp/config.toml:ro"],
+        "freertr":  ["-v", f"{CONFIGS_DIR}/freertr-hw.txt:/etc/freertr/freertr-hw.txt:ro",
+                     "-v", f"{CONFIGS_DIR}/freertr-sw.txt:/etc/freertr/freertr-sw.txt:ro"],
     }
 
     caps = ["--cap-add", "NET_ADMIN"]
     if name == "frr":
         caps += ["--cap-add", "SYS_ADMIN"]
+    if name == "freertr":
+        caps += ["--cap-add", "NET_RAW"]
 
     extra = []
     if name == "ze":
@@ -180,6 +209,9 @@ def stop_dut(dut_name):
 
 def wait_dut_ready(dut_name, timeout_s=30):
     """Wait for container to be running."""
+    # freeRtr needs extra time: JVM startup + rawInt bridge initialization.
+    if dut_name == "freertr":
+        timeout_s = max(timeout_s, 45)
     cname = container_name(dut_name)
     deadline = time.time() + timeout_s
     while time.time() < deadline:
@@ -213,6 +245,14 @@ def run_perf(dut):
         # Add receiver IP as second address.
         docker("exec", runner, "ip", "addr", "add", f"{RECEIVER_IP}/24", "dev", "eth0",
                check=False, timeout=10, capture=True)
+
+        # freeRtr has its own TCP/IP stack and validates checksums.
+        # Docker veth uses checksum offloading, so disable it on the runner.
+        if dut["name"] == "freertr":
+            docker("exec", runner, "apk", "add", "--no-cache", "ethtool",
+                   check=False, timeout=30, capture=True)
+            docker("exec", runner, "ethtool", "-K", "eth0", "tx", "off",
+                   check=False, timeout=10, capture=True)
 
         # Scale timeouts based on route count.
         # Per-iteration convergence: ~60s per 1M routes (conservative).
@@ -267,14 +307,39 @@ def cleanup():
     docker("network", "rm", NETWORK, check=False, timeout=10, capture=True)
 
 
+def parse_args():
+    all_names = [d["name"] for d in DUTS]
+    parser = argparse.ArgumentParser(
+        description="Ze performance benchmark runner.",
+        epilog=f"Available DUTs: {', '.join(all_names)}",
+    )
+    parser.add_argument("--build", action="store_true", help="build Docker images")
+    parser.add_argument("--test", action="store_true", help="run benchmarks")
+    parser.add_argument("duts", nargs="*", metavar="DUT", help="DUT names (default: all)")
+    args = parser.parse_args()
+
+    if not args.build and not args.test:
+        parser.error("at least one of --build or --test is required")
+
+    return args
+
+
 def main():
-    # Parse DUT filter from args.
-    requested = set(sys.argv[1:]) if len(sys.argv) > 1 else None
+    args = parse_args()
+
+    # Filter DUTs.
+    requested = set(args.duts) if args.duts else None
     duts = [d for d in DUTS if requested is None or d["name"] in requested]
 
     if not duts:
         print(f"error: no matching DUTs. Available: {', '.join(d['name'] for d in DUTS)}", file=sys.stderr)
         return 1
+
+    if args.build:
+        build_images(duts)
+
+    if not args.test:
+        return 0
 
     # Check prerequisites.
     if not os.path.isfile(ZE_PERF):
@@ -284,9 +349,6 @@ def main():
     build_linux_binary()
 
     atexit.register(cleanup)
-
-    # Build only needed images.
-    build_images(duts)
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
 

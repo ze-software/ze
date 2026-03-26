@@ -1,0 +1,51 @@
+# freeRtr BGP daemon for performance testing.
+# Builds from local source. Build context must be the freeRtr repository root.
+#
+# freeRtr has its own TCP/IP stack -- rawInt.bin bridges the Docker
+# network interface to freeRtr's virtual interface layer via UDP.
+
+FROM eclipse-temurin:21-jdk-alpine AS java-builder
+WORKDIR /build
+COPY src/compiler.txt src/manifest.txt src/module-info.java src/
+COPY src/org/ src/org/
+RUN cd src && javac @compiler.txt && \
+    cd /build/binOut && \
+    jar -cmf /build/src/manifest.txt /build/rtr.jar .
+
+FROM alpine:3.21 AS native-builder
+RUN apk add --no-cache gcc musl-dev linux-headers
+WORKDIR /build
+COPY misc/native/rawInt.c misc/native/utils.h ./
+RUN gcc -O3 -Wall -o rawInt.bin rawInt.c -lpthread && strip rawInt.bin
+
+FROM eclipse-temurin:21-jre-alpine
+
+RUN apk add --no-cache tini iproute2 iptables ethtool
+
+COPY --from=java-builder /build/rtr.jar /opt/freertr/rtr.jar
+COPY --from=native-builder /build/rawInt.bin /opt/freertr/rawInt.bin
+RUN chmod +x /opt/freertr/rawInt.bin
+
+# Startup script: bridge eth0 to freeRtr's virtual interface via rawInt.
+# Flush kernel IP to prevent TCP RST conflicts (freeRtr has its own TCP stack).
+# Ports: rawInt listens on 20002, freeRtr listens on 20001.
+# Order matters: freeRtr must bind UDP 20001 BEFORE rawInt starts, otherwise
+# rawInt sends a captured packet to a dead port, gets ICMP unreachable, and exits.
+RUN printf '#!/bin/sh\nset -e\n\
+cd /tmp\n\
+java -Xmx512m -jar /opt/freertr/rtr.jar routercs \
+/etc/freertr/freertr-hw.txt /etc/freertr/freertr-sw.txt &\n\
+JAVA_PID=$!\n\
+i=0; while [ $i -lt 30 ]; do\n\
+  ss -tln 2>/dev/null | grep -q 2323 && break\n\
+  sleep 1; i=$((i+1))\n\
+done\n\
+ip addr flush dev eth0\n\
+ip link set eth0 up promisc on\n\
+ethtool -K eth0 rx off tx off sg off tso off gso off gro off 2>/dev/null || true\n\
+/opt/freertr/rawInt.bin eth0 20002 127.0.0.1 20001 127.0.0.1 &\n\
+wait $JAVA_PID\n' \
+> /opt/freertr/start.sh && chmod +x /opt/freertr/start.sh
+
+ENTRYPOINT ["tini", "--"]
+CMD ["/opt/freertr/start.sh"]

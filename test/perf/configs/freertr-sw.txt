@@ -1,0 +1,33 @@
+hostname freertr-perf
+
+vrf definition v1
+ rd 1:1
+ exit
+
+interface ethernet1
+ vrf forwarding v1
+ ipv4 address 172.31.0.8 255.255.255.0
+ no shutdown
+ exit
+
+router bgp4 1
+ vrf v1
+ no safe-ebgp
+ address uni
+ local-as 65000
+ router-id 172.31.0.8
+ neigh 172.31.0.10 remote-as 65001
+ neigh 172.31.0.10 connection-mode passive
+ neigh 172.31.0.11 remote-as 65002
+ neigh 172.31.0.11 connection-mode passive
+ red conn
+ exit
+
+server telnet tel
+ security protocol telnet
+ no exec authorization
+ no login authentication
+ vrf v1
+ exit
+
+end
