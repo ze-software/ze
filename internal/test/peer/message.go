@@ -132,6 +132,11 @@ type RouteToSend struct {
 	OriginAS uint32 // Origin ASN for AS_PATH
 	NextHop  string // Next-hop IP (e.g. "10.0.0.1")
 	ASSet    bool   // Use AS_SET instead of AS_SEQUENCE
+
+	// Extended fields for loop detection tests.
+	ASPath       []uint32 // Explicit AS_PATH sequence (overrides OriginAS if set)
+	OriginatorID uint32   // ORIGINATOR_ID attribute (type 9); 0 = omit
+	ClusterList  []uint32 // CLUSTER_LIST attribute (type 10); nil = omit
 }
 
 // BuildRouteMsg constructs a BGP UPDATE message with the given route.
@@ -159,17 +164,25 @@ func BuildRouteMsg(route RouteToSend) ([]byte, error) {
 	// ORIGIN: IGP (0) - flags=0x40, type=1, len=1, value=0
 	origin := []byte{0x40, 0x01, 0x01, 0x00}
 
-	// AS_PATH with 4-byte ASN
+	// AS_PATH with 4-byte ASNs
 	segType := byte(0x02) // AS_SEQUENCE
 	if route.ASSet {
 		segType = 0x01 // AS_SET
 	}
-	asPath := []byte{
-		0x40, 0x02, 0x06, // flags, type, length=6
-		segType, 0x01, // segment type, count=1
-		byte(route.OriginAS >> 24), byte(route.OriginAS >> 16),
-		byte(route.OriginAS >> 8), byte(route.OriginAS),
+	asns := route.ASPath
+	if len(asns) == 0 && route.OriginAS != 0 {
+		asns = []uint32{route.OriginAS}
 	}
+	asPathData := make([]byte, 0, 2+len(asns)*4)
+	if len(asns) > 0 {
+		asPathData = append(asPathData, segType, byte(len(asns)))
+		for _, asn := range asns {
+			asPathData = append(asPathData, byte(asn>>24), byte(asn>>16), byte(asn>>8), byte(asn))
+		}
+	}
+	asPath := make([]byte, 0, 3+len(asPathData))
+	asPath = append(asPath, 0x40, 0x02, byte(len(asPathData)))
+	asPath = append(asPath, asPathData...)
 
 	// NEXT_HOP - flags=0x40, type=3, len=4
 	nextHop := make([]byte, 0, 7)
@@ -180,11 +193,27 @@ func BuildRouteMsg(route RouteToSend) ([]byte, error) {
 	localPref := []byte{0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64}
 
 	// Total path attributes
-	attrs := make([]byte, 0, len(origin)+len(asPath)+len(nextHop)+len(localPref))
+	attrs := make([]byte, 0, len(origin)+len(asPath)+len(nextHop)+len(localPref)+12)
 	attrs = append(attrs, origin...)
 	attrs = append(attrs, asPath...)
 	attrs = append(attrs, nextHop...)
 	attrs = append(attrs, localPref...)
+
+	// Optional: ORIGINATOR_ID (type 9, RFC 4456)
+	if route.OriginatorID != 0 {
+		oid := route.OriginatorID
+		attrs = append(attrs, 0x80, 0x09, 0x04,
+			byte(oid>>24), byte(oid>>16), byte(oid>>8), byte(oid))
+	}
+
+	// Optional: CLUSTER_LIST (type 10, RFC 4456)
+	if len(route.ClusterList) > 0 {
+		clLen := len(route.ClusterList) * 4
+		attrs = append(attrs, 0x80, 0x0A, byte(clLen))
+		for _, cl := range route.ClusterList {
+			attrs = append(attrs, byte(cl>>24), byte(cl>>16), byte(cl>>8), byte(cl))
+		}
+	}
 
 	// NLRI: prefix-length byte + prefix bytes (ceiling division)
 	nlriBytes := (prefixLen + 7) / 8

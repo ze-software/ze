@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
+| Phase | 9/9 |
 | Updated | 2026-03-26 |
 
 ## Post-Compaction Recovery
@@ -338,48 +338,118 @@ MUST document: validation rules, error conditions.
 ## Implementation Summary
 
 ### What Was Implemented
-- [List actual changes made]
+- `detectLoops` function in `session_validation.go` -- single-pass walk over path attributes checking AS_PATH, ORIGINATOR_ID, CLUSTER_LIST
+- Pipeline integration in `session_read.go:processMessage` -- between RFC 7606 and prefix limits
+- 12 unit tests in `session_validate_test.go`
+- 3 functional .ci tests (loop-as, loop-originator-id, loop-cluster-list)
+- RFC 4456 summary in `rfc/short/rfc4456.md`
+- Extended ze-peer `RouteToSend` with ASPath, OriginatorID, ClusterList fields
+- Documentation in `features.md`, `route-selection.md`
 
 ### Bugs Found/Fixed
-- [Any bugs discovered]
+- None
 
 ### Documentation Updates
-- [Docs updated]
+- `docs/features.md` -- added Route Loop Detection section
+- `docs/architecture/route-selection.md` -- added reasons 8-10 (as-loop, originator-id-loop, cluster-list-loop), renumbered rpki-invalid to 11
 
 ### Deviations from Plan
-- [Differences from original plan and why]
+- Spec planned 3 separate functions (`detectASLoop`, `detectOriginatorIDLoop`, `detectClusterListLoop`). Implemented as single `detectLoops` that walks attributes once -- more efficient (one pass) and simpler (one call site). Same test coverage.
+- ORIGINATOR_ID comparison done at byte level (uint32 from wire vs uint32 RouterID) rather than converting through netip.Addr -- simpler and avoids the type mismatch issue.
+- Spec planned tests in `session_validation_test.go` but existing tests were in `session_validate_test.go` -- used existing file.
 
 ## Implementation Audit
 
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| AS loop detection | Done | session_validation.go:detectLoops | AS_PATH walk via ASPathIterator |
+| Originator-ID loop detection | Done | session_validation.go:detectLoops | uint32 comparison, iBGP only |
+| Cluster-list loop detection | Done | session_validation.go:detectLoops | walk 4-byte values, iBGP only |
+| Pipeline integration | Done | session_read.go:processMessage | After RFC 7606, before prefix limits |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | TestDetectASLoop, loop-as.ci | eBGP also detected (AS loop is universal) |
+| AC-2 | Done | TestDetectASLoop, loop-as.ci | iBGP with local ASN in AS_PATH |
+| AC-3 | Done | TestDetectASLoop_NotPresent | No false positive |
+| AC-4 | Done | TestDetectOriginatorIDLoop, loop-originator-id.ci | iBGP ORIGINATOR_ID match |
+| AC-5 | Done | TestDetectOriginatorIDLoop_Different | Different ORIGINATOR_ID passes |
+| AC-6 | Done | TestDetectOriginatorIDLoop_eBGP | eBGP skips check |
+| AC-7 | Done | TestDetectClusterListLoop, loop-cluster-list.ci | iBGP CLUSTER_LIST match |
+| AC-8 | Done | TestDetectClusterListLoop_NotPresent | No match passes |
+| AC-9 | Done | TestDetectClusterListLoop_eBGP | eBGP skips check |
+| AC-10 | Done | TestDetectASLoop_ASSet | AS_SET members checked |
+| AC-11 | Done | Pipeline order in session_read.go | RFC 7606 runs first, returns before detectLoops |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| TestDetectASLoop | Done | session_validate_test.go | |
+| TestDetectASLoop_ASSet | Done | session_validate_test.go | |
+| TestDetectASLoop_NotPresent | Done | session_validate_test.go | |
+| TestDetectASLoop_EmptyPath | Done | session_validate_test.go | |
+| TestDetectOriginatorIDLoop | Done | session_validate_test.go | |
+| TestDetectOriginatorIDLoop_Different | Done | session_validate_test.go | |
+| TestDetectOriginatorIDLoop_Absent | Done | session_validate_test.go | |
+| TestDetectOriginatorIDLoop_eBGP | Done | session_validate_test.go | |
+| TestDetectClusterListLoop | Done | session_validate_test.go | |
+| TestDetectClusterListLoop_NotPresent | Done | session_validate_test.go | |
+| TestDetectClusterListLoop_Absent | Done | session_validate_test.go | |
+| TestDetectClusterListLoop_eBGP | Done | session_validate_test.go | |
 
 ### Files from Plan
 | File | Status | Notes |
+|------|--------|-------|
+| rfc/short/rfc4456.md | Created | RFC 4456 summary |
+| session_validation.go | Modified | detectLoops function |
+| session_read.go | Modified | Pipeline integration |
+| session_validate_test.go | Modified | 12 new tests |
+| test/plugin/loop-as.ci | Created | AS loop functional test |
+| test/plugin/loop-originator-id.ci | Created | Originator-ID functional test |
+| test/plugin/loop-cluster-list.ci | Created | Cluster-list functional test |
+| docs/features.md | Modified | Route Loop Detection section |
+| docs/architecture/route-selection.md | Modified | Reasons 8-10 added |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:**
-- **Skipped:**
-- **Changed:**
+- **Total items:** 27 (4 requirements + 11 ACs + 12 tests)
+- **Done:** 27
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (single detectLoops function instead of 3 separate functions)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
+|------|--------|----------|
+| rfc/short/rfc4456.md | Yes | ls confirmed |
+| test/plugin/loop-as.ci | Yes | ls confirmed |
+| test/plugin/loop-originator-id.ci | Yes | ls confirmed |
+| test/plugin/loop-cluster-list.ci | Yes | ls confirmed |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1 | AS loop detected (eBGP) | TestDetectASLoop passes (eBGP covered: AS loop is universal per RFC 4271) |
+| AC-2 | AS loop detected (iBGP) | TestDetectASLoop passes, loop-as.ci passes |
+| AC-3 | No false positive | TestDetectASLoop_NotPresent passes |
+| AC-4 | ORIGINATOR_ID match detected | TestDetectOriginatorIDLoop passes, loop-originator-id.ci passes |
+| AC-5 | Different ORIGINATOR_ID passes | TestDetectOriginatorIDLoop_Different passes |
+| AC-6 | eBGP skips ORIGINATOR_ID | TestDetectOriginatorIDLoop_eBGP passes |
+| AC-7 | CLUSTER_LIST match detected | TestDetectClusterListLoop passes, loop-cluster-list.ci passes |
+| AC-8 | No match passes | TestDetectClusterListLoop_NotPresent passes |
+| AC-9 | eBGP skips CLUSTER_LIST | TestDetectClusterListLoop_eBGP passes |
+| AC-10 | AS_SET members checked | TestDetectASLoop_ASSet passes |
+| AC-11 | RFC 7606 precedence | Pipeline: enforceRFC7606 returns before detectLoops runs |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| iBGP + AS loop | test/plugin/loop-as.ci | Pass (ze-test output: pass 1/1) |
+| iBGP + ORIGINATOR_ID | test/plugin/loop-originator-id.ci | Pass (ze-test output: pass 1/1) |
+| iBGP + CLUSTER_LIST | test/plugin/loop-cluster-list.ci | Pass (ze-test output: pass 1/1) |
 
 ## Checklist
 

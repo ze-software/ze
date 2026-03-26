@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"encoding/hex"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -161,6 +162,35 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) {
 				OriginAS: uint32(asn), //nolint:gosec // range checked by ParseUint
 				NextHop:  kv["next-hop"],
 				ASSet:    kv["as-set"] == "true",
+			}
+			// Extended fields for loop detection tests.
+			if v := kv["as-path"]; v != "" {
+				for s := range strings.SplitSeq(v, ",") {
+					a, err := strconv.ParseUint(strings.TrimSpace(s), 10, 32)
+					if err == nil {
+						route.ASPath = append(route.ASPath, uint32(a)) //nolint:gosec // range checked
+					}
+				}
+			}
+			if v := kv["originator-id"]; v != "" {
+				ip := net.ParseIP(v)
+				if ip != nil {
+					ip4 := ip.To4()
+					if ip4 != nil {
+						route.OriginatorID = uint32(ip4[0])<<24 | uint32(ip4[1])<<16 | uint32(ip4[2])<<8 | uint32(ip4[3])
+					}
+				}
+			}
+			if v := kv["cluster-list"]; v != "" {
+				for s := range strings.SplitSeq(v, ",") {
+					ip := net.ParseIP(strings.TrimSpace(s))
+					if ip != nil {
+						ip4 := ip.To4()
+						if ip4 != nil {
+							route.ClusterList = append(route.ClusterList, uint32(ip4[0])<<24|uint32(ip4[1])<<16|uint32(ip4[2])<<8|uint32(ip4[3]))
+						}
+					}
+				}
 			}
 			config.SendRoutes = append(config.SendRoutes, route)
 		}

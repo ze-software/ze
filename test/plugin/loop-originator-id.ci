@@ -1,0 +1,50 @@
+# Test: ORIGINATOR_ID loop detection (RFC 4456 Section 8)
+# AC-4: iBGP UPDATE with ORIGINATOR_ID matching local Router ID -> treated as withdrawn.
+#
+# ze-peer sends a route with ORIGINATOR_ID = 1.2.3.4 (ze's Router ID).
+# Ze detects the originator loop and silently drops the route.
+
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+option=asn:value=65000
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1:origin-as=65000:originator-id=1.2.3.4
+# Accept EOR from ze on session establishment.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# ze bgp configuration: iBGP with router-id 1.2.3.4
+stdin=ze-bgp:terminator=EOF_CONF
+environment {
+	log {
+		level debug
+	}
+	tcp {
+		attempts 3
+	}
+}
+
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65000
+			accept false
+		}
+		local {
+			as 65000
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+
+		family {
+			ipv4/unicast { prefix { maximum 10000; } }
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=10s
+expect=stderr:contains=ORIGINATOR_ID loop detected

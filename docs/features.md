@@ -153,6 +153,20 @@ Auto-reconnect uses exponential backoff: idle-timeout x 2^(N-1), capped at 1 hou
 <!-- source: internal/component/bgp/reactor/session.go -- recentRead congestion extension -->
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- write deadline, overflow pool -->
 
+### Route Loop Detection
+
+| Check | RFC | Scope | What it detects |
+|-------|-----|-------|-----------------|
+| AS loop | RFC 4271 Section 9 | All sessions | Local ASN in received AS_PATH (AS_SEQUENCE or AS_SET) |
+| ORIGINATOR_ID loop | RFC 4456 Section 8 | iBGP only | ORIGINATOR_ID matches local Router ID |
+| CLUSTER_LIST loop | RFC 4456 Section 8 | iBGP only | Local Router ID found in CLUSTER_LIST |
+
+All three checks run after RFC 7606 structural validation but before prefix limit counting.
+Routes failing any check are silently treated as withdrawn (no NOTIFICATION, session stays up).
+Cluster ID defaults to Router ID per RFC 4456 Section 7.
+
+<!-- source: internal/component/bgp/reactor/session_validation.go -- detectLoops -->
+
 ### Capabilities Configuration
 
 | Capability | Config Key | Values |

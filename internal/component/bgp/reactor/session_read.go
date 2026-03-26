@@ -158,6 +158,15 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		// UPDATE is still dispatched — the attribute bytes are still present
 		// in the wire format, but plugins receiving this UPDATE should not
 		// rely on the discarded attribute values for route selection.
+
+		// RFC 4271 Section 9, RFC 4456 Section 8: Loop detection.
+		// Runs after RFC 7606 (structurally valid) but before prefix limits
+		// so looped routes don't count toward prefix counters.
+		if s.detectLoops(wireUpdate.Payload()) {
+			s.timers.ResetHoldTimer()
+			_ = s.fsm.Event(fsm.EventUpdateMsg)
+			return nil, false
+		}
 	}
 
 	// RFC 4486: Check prefix limits BEFORE delivering to plugins.
@@ -183,7 +192,8 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		}
 	}
 
-	// Notify callback for all message types.
+	// Notify callback for all message types BEFORE type-specific validation.
+	// Plugins see raw messages including ones that may fail validation (e.g., bad OPEN).
 	// Callback returns true if it took ownership of buf (e.g., cached it).
 	var kept bool
 	if s.onMessageReceived != nil {

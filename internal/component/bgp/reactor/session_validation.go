@@ -16,6 +16,128 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
 
+// detectLoops checks for BGP route loops in an UPDATE's path attributes.
+// Returns true if a loop is detected (route should be treated as withdrawn).
+//
+// Three checks are performed:
+//  1. AS loop: local ASN appears in AS_PATH (RFC 4271 Section 9)
+//  2. Originator-ID loop: ORIGINATOR_ID matches local Router ID (RFC 4456 Section 8, iBGP only)
+//  3. Cluster-list loop: local Router ID in CLUSTER_LIST (RFC 4456 Section 8, iBGP only)
+//
+// The body parameter is the raw UPDATE body (withdrawn_len + withdrawn + attr_len + attrs + nlri).
+func (s *Session) detectLoops(body []byte) bool {
+	if len(body) < 4 {
+		return false
+	}
+
+	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
+	offset := 2 + withdrawnLen
+	if offset+2 > len(body) {
+		return false
+	}
+
+	attrLen := int(binary.BigEndian.Uint16(body[offset : offset+2]))
+	offset += 2
+	if offset+attrLen > len(body) {
+		return false
+	}
+
+	pathAttrs := body[offset : offset+attrLen]
+	isIBGP := s.settings.LocalAS == s.settings.PeerAS
+	localASN := s.settings.LocalAS
+	routerID := s.settings.RouterID
+
+	asn4 := false
+	if neg := s.Negotiated(); neg != nil {
+		asn4 = neg.ASN4
+	}
+
+	// Walk path attributes once, checking all three loop conditions.
+	pos := 0
+	for pos < len(pathAttrs) {
+		if pos+2 > len(pathAttrs) {
+			break
+		}
+
+		flags := pathAttrs[pos]
+		code := attribute.AttributeCode(pathAttrs[pos+1])
+		pos += 2
+
+		var dataLen int
+		if flags&0x10 != 0 { // Extended length
+			if pos+2 > len(pathAttrs) {
+				break
+			}
+			dataLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
+			pos += 2
+		} else {
+			if pos+1 > len(pathAttrs) {
+				break
+			}
+			dataLen = int(pathAttrs[pos])
+			pos++
+		}
+
+		if pos+dataLen > len(pathAttrs) {
+			break
+		}
+
+		data := pathAttrs[pos : pos+dataLen]
+
+		switch code { //nolint:exhaustive // only loop-relevant attributes checked
+		case attribute.AttrASPath:
+			// RFC 4271 Section 9: "If the local AS appears in the AS_PATH attribute,
+			// the route MUST be excluded from the Phase 2 decision function."
+			iter := attribute.NewASPathIterator(data, asn4)
+			for {
+				_, asns, ok := iter.Next()
+				if !ok {
+					break
+				}
+				asnIter := attribute.NewASNIterator(asns, asn4)
+				for {
+					asn, ok := asnIter.Next()
+					if !ok {
+						break
+					}
+					if asn == localASN {
+						sessionLogger().Debug("AS loop detected", "local-asn", localASN)
+						return true
+					}
+				}
+			}
+
+		case attribute.AttrOriginatorID:
+			// RFC 4456 Section 8: "A router that recognizes the ORIGINATOR_ID attribute
+			// SHOULD ignore a route received with its BGP Identifier as the ORIGINATOR_ID."
+			if isIBGP && dataLen == 4 {
+				originatorID := binary.BigEndian.Uint32(data)
+				if originatorID == routerID {
+					sessionLogger().Debug("ORIGINATOR_ID loop detected", "originator-id", originatorID)
+					return true
+				}
+			}
+
+		case attribute.AttrClusterList:
+			// RFC 4456 Section 8: "If the local CLUSTER_ID is found in the CLUSTER_LIST,
+			// the advertisement received SHOULD be ignored."
+			if isIBGP && dataLen%4 == 0 {
+				for i := 0; i < dataLen; i += 4 {
+					clusterID := binary.BigEndian.Uint32(data[i:])
+					if clusterID == routerID {
+						sessionLogger().Debug("CLUSTER_LIST loop detected", "cluster-id", clusterID)
+						return true
+					}
+				}
+			}
+		}
+
+		pos += dataLen
+	}
+
+	return false
+}
+
 // enforceRFC7606 validates an UPDATE per RFC 7606 and enforces the resulting action.
 //
 // Returns the (potentially new) WireUpdate, the action taken, and an error if
