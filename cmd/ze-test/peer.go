@@ -99,6 +99,7 @@ func parsePeerFlags() (*peer.Config, bool) {
 
 	fs := flag.NewFlagSet("peer", flag.ExitOnError)
 	fs.IntVar(&config.Port, "port", port, "port to bind to")
+	fs.StringVar(&config.BindAddr, "bind", "", "bind address (default 127.0.0.1, or ::1 with -ipv6)")
 	fs.IntVar(&config.ASN, "asn", 0, "ASN to use (0 = extract from peer OPEN)")
 	fs.StringVar(&mode, "mode", "check", "operation mode: check, sink, echo")
 	fs.BoolVar(&config.IPv6, "ipv6", false, "bind using IPv6")

@@ -510,9 +510,9 @@ func TestOTCIngressFilter(t *testing.T) {
 
 func TestOTCEgressFilter(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
-		"10.0.0.1": {role: roleProvider, export: []string{"default"}},
-		"10.0.0.5": {role: roleProvider, export: []string{"customer", "peer"}},
-		"10.0.0.6": {role: roleProvider, export: []string{"default", "unknown"}},
+		"10.0.0.1": {role: roleProvider, export: []string{"default"}, resolvedExport: resolveExport(roleProvider, []string{"default"})},
+		"10.0.0.5": {role: roleProvider, export: []string{"customer", "peer"}, resolvedExport: resolveExport(roleProvider, []string{"customer", "peer"})},
+		"10.0.0.6": {role: roleProvider, export: []string{"default", "unknown"}, resolvedExport: resolveExport(roleProvider, []string{"default", "unknown"})},
 		"10.0.0.7": {role: roleProvider},
 	}, nil, 0)
 	setFilterRemoteRole("10.0.0.10", roleCustomer)
@@ -899,7 +899,7 @@ func TestEgressFilter_IBGPSourceToEBGPDest_NoOTC(t *testing.T) {
 // PREVENTS: Role config on one peer affecting filtering decisions for other peers.
 func TestMixedTopology_RoleAndNoRolePeers(t *testing.T) {
 	setFilterState(map[string]*peerRoleConfig{
-		"10.0.0.1": {role: roleProvider, export: []string{"default"}},
+		"10.0.0.1": {role: roleProvider, export: []string{"default"}, resolvedExport: resolveExport(roleProvider, []string{"default"})},
 		// 10.0.0.2 has NO role config (IBGP or legacy peer)
 	}, nil, 0)
 	setFilterRemoteRole("10.0.0.1", roleCustomer) // EBGP: we are provider, they are customer

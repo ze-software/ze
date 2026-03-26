@@ -16,9 +16,10 @@ import (
 // The "import" keyword declares the local role and enables RFC 9234 ingress rules.
 // The "export" keyword controls which destination peer roles may receive routes.
 type peerRoleConfig struct {
-	role   string   // role name from "import" keyword: provider, rs, rs-client, customer, peer
-	strict bool     // require peer to send Role capability
-	export []string // raw export tokens from config (e.g., ["default", "unknown"])
+	role           string   // role name from "import" keyword: provider, rs, rs-client, customer, peer
+	strict         bool     // require peer to send Role capability
+	export         []string // raw export tokens from config (e.g., ["default", "unknown"])
+	resolvedExport []string // pre-computed expanded export set (resolved at config time, avoids hot-path allocation)
 }
 
 // RFC 9234 Section 5: default egress rules per local role.
@@ -75,6 +76,7 @@ func parseRoleContainer(roleMap map[string]any) *peerRoleConfig {
 	cfg := &peerRoleConfig{role: roleName}
 	cfg.strict = parseBool(roleMap["strict"])
 	cfg.export = parseExportTokens(roleMap["export"])
+	cfg.resolvedExport = resolveExport(cfg.role, cfg.export)
 	return cfg
 }
 

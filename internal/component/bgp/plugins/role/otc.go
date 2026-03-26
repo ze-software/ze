@@ -370,13 +370,13 @@ func OTCEgressFilter(src, dest registry.PeerFilterInfo, payload []byte, meta map
 	}
 
 	// Export role filtering: check if destination role is in the allowed set.
-	if len(srcCfg.export) > 0 {
+	// Uses pre-computed resolvedExport (resolved at config time, not per-UPDATE).
+	if len(srcCfg.resolvedExport) > 0 {
 		destRole := destRemoteRole
 		if destRole == "" {
 			destRole = roleUnknown
 		}
-		allowed := resolveExport(srcCfg.role, srcCfg.export)
-		if !slices.Contains(allowed, destRole) {
+		if !slices.Contains(srcCfg.resolvedExport, destRole) {
 			return false // Destination role not in export set.
 		}
 	}

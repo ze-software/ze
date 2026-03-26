@@ -94,6 +94,9 @@ type Config struct {
 	Port int
 	// ASN to use in OPEN message (0 = extract from peer OPEN)
 	ASN int
+	// BindAddr overrides the listen address (default "127.0.0.1", or "::1" if IPv6).
+	// Useful for multi-peer tests where each peer listens on a different loopback address.
+	BindAddr string
 	// TCPConnections is the number of TCP connections to accept for multi-connection tests.
 	// Used with option:tcp_connections:N in .ci files. Default 1.
 	TCPConnections int
@@ -154,9 +157,12 @@ func New(config *Config) (*Peer, error) {
 
 // Run starts the test peer and blocks until completion or context cancellation.
 func (p *Peer) Run(ctx context.Context) Result {
-	host := "127.0.0.1"
-	if p.config.IPv6 {
-		host = "::1"
+	host := p.config.BindAddr
+	if host == "" {
+		host = "127.0.0.1"
+		if p.config.IPv6 {
+			host = "::1"
+		}
 	}
 	addr := net.JoinHostPort(host, fmt.Sprintf("%d", p.config.Port))
 
