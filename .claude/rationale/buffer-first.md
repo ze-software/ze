@@ -1,6 +1,7 @@
 # Buffer-First Rationale
 
-Why: `.claude/rules/buffer-first.md`
+Why: `.claude/rules/buffer-first.md` (mechanical reference)
+Principle: `.claude/rules/design-principles.md` -- Encapsulation onion + Buffer-first encoding
 
 ## Why Pool Buffer = RFC Length
 

@@ -38,9 +38,35 @@ Precise names: `wireBytes` not `data`, `peerConfig` not `info`, `parseResult` no
 Consistent: don't mix "peer"/"neighbor" or "message"/"packet".
 Length ∝ scope: `i` (loop), `peer` (local), `peerAddr` (field), `DefaultKeepaliveInterval` (constant).
 
+## Encapsulation Onion
+
+Networking protocols are encapsulation onions: Ethernet wraps IP wraps TCP wraps BGP wraps
+UPDATE wraps path attributes wraps AS_PATH. The only sane way to work with them is to
+allocate once at the outermost layer and slice inward with specialized data-manipulation
+programs.
+
+The three onion principles are facets of the same idea:
+
+| Principle | Side | What it governs |
+|-----------|------|-----------------|
+| Encapsulation onion | Structure | One allocation, slice inward, never copy between layers |
+| Buffer-first encoding | Write | `WriteTo(buf, off)` into pooled buffers, no append/make |
+| Lazy over eager | Read | Pass raw bytes, iterate with offsets, parse on demand |
+
+Ze's WireUpdate is the canonical example: a single buffer holds the wire UPDATE, and
+iterators (NLRI, attributes, MP_REACH) narrow the window without allocating. PackContext
+tells each layer how to interpret bytes (ASN4, ADD-PATH) without copying them.
+
+freeRtr's packHolder demonstrates the same pattern at a broader scope: one struct
+accumulates metadata as a packet traverses ETH -> IP -> MPLS -> BGP layers, giving any
+layer access to all previously-parsed headers without re-parsing or re-allocating.
+
+Currently Ze operates at the BGP layer only. If Ze ever handles lower layers (BMP, TCP
+options, MPLS), the same discipline applies: allocate at the outermost layer, slice inward.
+
 ## Error Handling
 
 - Errors should be actionable (what failed, why, how to fix)
 - Distinguish recoverable vs fatal
-- Don't hide in logs — propagate
+- Don't hide in logs -- propagate
 - Clean up resources on error paths

@@ -1,9 +1,8 @@
-# Buffer-First Encoding
+# Buffer-First Encoding -- Mechanical Reference
 
 **BLOCKING:** All wire encoding MUST write into pooled, bounded buffers.
+Principle: `rules/design-principles.md` -- Encapsulation onion + Buffer-first encoding.
 Rationale: `.claude/rationale/buffer-first.md`
-
-Pool buffer = RFC max length = bounded encoding space.
 
 | Pool | Size | Purpose |
 |------|------|---------|
