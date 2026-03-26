@@ -288,13 +288,14 @@ ze-perf:
 	$(GO) build -o bin/ze-perf ./cmd/ze-perf
 
 # Run performance benchmarks against all DUTs (requires Docker).
-# Override: DUT_ROUTES=1000 DUT_SEED=42 make ze-perf-bench
+# Override: DUT_ROUTES=100000 DUT_SEED=42 make ze-perf-bench
 # Single DUT: make ze-perf-bench PERF_DUT=ze
+# Skip image builds: NO_BUILD=1 make ze-perf-bench
 PERF_DUT ?=
 
 ze-perf-bench: ze-perf
 	@echo "Running performance benchmarks (requires Docker)..."
-	@python3 test/perf/run.py $(PERF_DUT)
+	@python3 test/perf/run.py --build --test $(PERF_DUT)
 
 # Generate comparison report from benchmark results.
 ze-perf-report:

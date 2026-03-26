@@ -10,13 +10,20 @@ Usage:
     python3 test/perf/run.py --build --test [DUT ...]  # build then test
     python3 test/perf/run.py --build --test ze freertr # specific DUTs
 
+Arguments:
+    --build         Build/pull Docker images for selected DUTs
+    --test          Run benchmarks (images must already exist)
+    DUT ...         Optional DUT names to filter (default: all)
+                    Available: ze, frr, bird, gobgp, rustbgpd, rustybgp, freertr
+
 Environment:
     FRR_IMAGE       - FRR Docker image (default: quay.io/frrouting/frr:10.3.1)
     RUSTBGPD_IMAGE  - rustbgpd image (default: rustbgpd-interop, built from source)
     FREERTR_DIR     - freeRtr source (default: ../../../m36/freeRtr relative to project)
-    DUT_ROUTES      - number of routes to send (default: 1000)
+    DUT_ROUTES      - number of routes to send (default: 100000)
     DUT_SEED        - route generation seed (default: 42)
     DUT_REPEAT      - benchmark iterations (default: 3)
+    NO_BUILD        - skip Docker image builds when set (e.g. NO_BUILD=1)
 """
 
 import argparse
@@ -94,7 +101,7 @@ def build_linux_binary():
 
 def build_images(needed_duts):
     """Build/pull only the images needed for the requested DUTs."""
-    if NO_BUILD:
+    if os.environ.get("NO_BUILD"):
         print("  skipping image builds (NO_BUILD=1)")
         return
 
