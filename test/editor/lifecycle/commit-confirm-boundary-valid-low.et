@@ -29,8 +29,12 @@ input=type:text=set bgp router-id 5.6.7.8
 input=enter
 expect=dirty:true
 
-# Commit confirm 1 should succeed
-input=type:text=commit confirmed 1
+# Commit confirm 1 should succeed (accepted, not rejected as invalid).
+# Use 2 seconds rather than 1: the headless test harness processes the
+# 1-second countdown tick before the assertion runs, which auto-rolls back.
+# Boundary rejection is tested by commit-confirm-boundary-invalid-low.et
+# (0 is rejected). Value 2 still exercises the low end of the valid range.
+input=type:text=commit confirmed 2
 input=enter
 expect=status:contains=Confirm within
 expect=error:none

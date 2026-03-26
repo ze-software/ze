@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/cursor"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -1282,6 +1283,14 @@ func (m *Model) SetHistory(h *History) {
 // that cannot access the unexported textInput field directly.
 func (m *Model) SetInput(value string) {
 	m.textInput.SetValue(value)
+}
+
+// DisableBlink switches the cursor to static mode, suppressing the periodic
+// blink command (~530ms timer). Headless test models call this to avoid
+// spawning timer goroutines that add latency and serve no purpose without
+// a terminal.
+func (m *Model) DisableBlink() {
+	m.textInput.Cursor.SetMode(cursor.CursorStatic)
 }
 
 // UpdateCompletions refreshes the completion list based on current input.
