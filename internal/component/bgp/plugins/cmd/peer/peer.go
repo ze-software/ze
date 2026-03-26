@@ -430,7 +430,8 @@ func handleBgpPeerFlush(ctx *pluginserver.CommandContext, _ []string) (*plugin.R
 	}
 
 	selector := ctx.PeerSelector()
-	flushCtx := context.Background()
+	flushCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 
 	if selector == "*" || selector == "" {
 		// Flush all peers.
