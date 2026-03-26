@@ -87,6 +87,10 @@ func TestParseExportConfig(t *testing.T) {
 			configs, _ := extractPeerRoleConfigs(tt.json)
 			require.Contains(t, configs, "10.0.0.1")
 			assert.Equal(t, tt.wantExport, configs["10.0.0.1"].export)
+			// Verify resolvedExport is pre-computed at config time and matches runtime resolution.
+			expected := resolveExport(configs["10.0.0.1"].role, tt.wantExport)
+			assert.Equal(t, expected, configs["10.0.0.1"].resolvedExport,
+				"resolvedExport should match resolveExport(role, export)")
 		})
 	}
 }
@@ -203,10 +207,14 @@ func TestExportGroupInheritance(t *testing.T) {
 	// 10.0.0.1 inherits group export.
 	assert.Equal(t, []string{"default"}, configs["10.0.0.1"].export)
 	assert.Equal(t, "provider", configs["10.0.0.1"].role)
+	assert.ElementsMatch(t, []string{"customer", "rs-client"}, configs["10.0.0.1"].resolvedExport,
+		"provider default resolvedExport should expand to customer + rs-client")
 
 	// 10.0.0.2 uses its own export (override).
 	assert.Equal(t, []string{"default", "unknown"}, configs["10.0.0.2"].export)
 	assert.Equal(t, "customer", configs["10.0.0.2"].role)
+	assert.ElementsMatch(t, []string{"provider", "rs", "peer", "unknown"}, configs["10.0.0.2"].resolvedExport,
+		"customer default+unknown resolvedExport should expand correctly")
 }
 
 // TestExportDefault_Provider verifies RFC 9234 default export expansion for Provider.
