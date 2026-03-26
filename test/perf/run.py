@@ -73,9 +73,11 @@ NETWORK = f"ze-perf-{SUFFIX}"
 
 import platform
 
-# macOS: legacy builder is deprecated, use buildx.
-# Linux: buildx is not available, use legacy builder.
-USE_BUILDX = platform.system() == "Darwin"
+# Use buildx if available (preferred), fall back to legacy builder.
+USE_BUILDX = subprocess.run(
+    ["docker", "buildx", "version"],
+    capture_output=True, timeout=5,
+).returncode == 0
 
 
 def docker(*args, check=True, timeout=60, capture=False, **kwargs):
