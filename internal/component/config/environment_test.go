@@ -74,7 +74,7 @@ func TestLoadEnvironmentFromEnv(t *testing.T) {
 	// Use t.Setenv for test-scoped env vars
 	t.Setenv("ze.bgp.log.level", "DEBUG")
 	t.Setenv("ze.bgp.tcp.port", "1179")
-	t.Setenv("ze.bgp.bgp.connection", "passive")
+	t.Setenv("ze.bgp.bgp.connect", "false")
 	coreenv.ResetCache()
 
 	env, err := LoadEnvironment()
@@ -88,8 +88,8 @@ func TestLoadEnvironmentFromEnv(t *testing.T) {
 	if env.TCP.Port != 1179 {
 		t.Errorf("TCP.Port = %d, want %d", env.TCP.Port, 1179)
 	}
-	if env.BGP.Connection != "passive" {
-		t.Errorf("BGP.Connection = %q, want %q", env.BGP.Connection, "passive")
+	if env.BGP.Connect == nil || *env.BGP.Connect != false {
+		t.Errorf("BGP.Connect = %v, want false", env.BGP.Connect)
 	}
 }
 
@@ -135,23 +135,27 @@ func TestLoadEnvironmentDotPriority(t *testing.T) {
 	}
 }
 
-func TestLoadEnvironmentConnectionValues(t *testing.T) {
-	// Test valid connection mode values.
+func TestLoadEnvironmentConnectAcceptValues(t *testing.T) {
+	// Test valid connect/accept boolean values.
 	tests := []struct {
-		value string
-		want  string
+		name       string
+		envKey     string
+		envValue   string
+		checkField string
+		want       bool
 	}{
-		{"both", "both"},
-		{"passive", "passive"},
-		{"active", "active"},
+		{"connect_true", "ze.bgp.bgp.connect", "true", "connect", true},
+		{"connect_false", "ze.bgp.bgp.connect", "false", "connect", false},
+		{"accept_true", "ze.bgp.bgp.accept", "true", "accept", true},
+		{"accept_false", "ze.bgp.bgp.accept", "false", "accept", false},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.value, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			coreenv.ResetCache()
 			t.Cleanup(coreenv.ResetCache)
 
-			t.Setenv("ze.bgp.bgp.connection", tt.value)
+			t.Setenv(tt.envKey, tt.envValue)
 			coreenv.ResetCache()
 
 			env, err := LoadEnvironment()
@@ -159,23 +163,30 @@ func TestLoadEnvironmentConnectionValues(t *testing.T) {
 				t.Fatalf("LoadEnvironment() error = %v", err)
 			}
 
-			if env.BGP.Connection != tt.want {
-				t.Errorf("BGP.Connection with %q = %q, want %q", tt.value, env.BGP.Connection, tt.want)
+			switch tt.checkField {
+			case "connect":
+				if env.BGP.Connect == nil || *env.BGP.Connect != tt.want {
+					t.Errorf("BGP.Connect with %q = %v, want %v", tt.envValue, env.BGP.Connect, tt.want)
+				}
+			case "accept":
+				if env.BGP.Accept == nil || *env.BGP.Accept != tt.want {
+					t.Errorf("BGP.Accept with %q = %v, want %v", tt.envValue, env.BGP.Accept, tt.want)
+				}
 			}
 		})
 	}
 }
 
-func TestLoadEnvironmentConnectionInvalidValue(t *testing.T) {
+func TestLoadEnvironmentConnectInvalidValue(t *testing.T) {
 	coreenv.ResetCache()
 	t.Cleanup(coreenv.ResetCache)
 
-	t.Setenv("ze.bgp.bgp.connection", "random")
+	t.Setenv("ze.bgp.bgp.connect", "random")
 	coreenv.ResetCache()
 
 	_, err := LoadEnvironment()
 	if err == nil {
-		t.Error("expected error for invalid connection mode 'random'")
+		t.Error("expected error for invalid connect value 'random'")
 	}
 }
 
@@ -318,13 +329,13 @@ func TestParseBoolStrict(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
-			got, err := parseBoolStrict(tt.input)
+			got, err := ParseBoolStrict(tt.input)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseBoolStrict(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+				t.Errorf("ParseBoolStrict(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
 				return
 			}
 			if !tt.wantErr && got != tt.want {
-				t.Errorf("parseBoolStrict(%q) = %v, want %v", tt.input, got, tt.want)
+				t.Errorf("ParseBoolStrict(%q) = %v, want %v", tt.input, got, tt.want)
 			}
 		})
 	}
@@ -568,8 +579,8 @@ func TestSetConfigValue(t *testing.T) {
 		{"log", "level", "DEBUG", func(e *Environment) bool { return e.Log.Level == "DEBUG" }},
 		{"LOG", "LEVEL", "INFO", func(e *Environment) bool { return e.Log.Level == "INFO" }}, // case insensitive
 		{"tcp", "port", "1179", func(e *Environment) bool { return e.TCP.Port == 1179 }},
-		{"bgp", "connection", "passive", func(e *Environment) bool { return e.BGP.Connection == "passive" }},
-		{"bgp", "connection", "active", func(e *Environment) bool { return e.BGP.Connection == "active" }},
+		{"bgp", "connect", "false", func(e *Environment) bool { return e.BGP.Connect != nil && !*e.BGP.Connect }},
+		{"bgp", "accept", "false", func(e *Environment) bool { return e.BGP.Accept != nil && !*e.BGP.Accept }},
 		{"api", "encoder", "text", func(e *Environment) bool { return e.API.Encoder == "text" }},
 		{"reactor", "speed", "2.5", func(e *Environment) bool { return e.Reactor.Speed == 2.5 }},
 		{"daemon", "user", "zebgp", func(e *Environment) bool { return e.Daemon.User == "zebgp" }},
@@ -612,7 +623,7 @@ func TestSetConfigValueErrors(t *testing.T) {
 		{"tcp", "port", "1024", "invalid"}, // privileged port (not 179)
 		{"log", "level", "BOGUS", "invalid log level"},
 		{"api", "encoder", "xml", "invalid encoder"},
-		{"bgp", "connection", "maybe", "invalid connection"},
+		{"bgp", "connect", "maybe", "invalid"},
 	}
 
 	for _, tt := range tests {
@@ -722,7 +733,7 @@ func TestAllSectionsConfig(t *testing.T) {
 		"daemon":  {"user": "zebgp", "daemonize": "true"},
 		"log":     {"level": "DEBUG", "short": "false"},
 		"tcp":     {"port": "1179", "attempts": "5"},
-		"bgp":     {"connection": "passive", "openwait": "120"},
+		"bgp":     {"connect": "false", "openwait": "120"},
 		"cache":   {"attributes": "false"},
 		"api":     {"encoder": "text", "respawn": "false"},
 		"reactor": {"speed": "2.0"},
@@ -753,8 +764,8 @@ func TestAllSectionsConfig(t *testing.T) {
 	if env.TCP.Attempts != 5 {
 		t.Error("TCP.Attempts")
 	}
-	if env.BGP.Connection != "passive" {
-		t.Errorf("BGP.Connection = %q, want %q", env.BGP.Connection, "passive")
+	if env.BGP.Connect == nil || *env.BGP.Connect != false {
+		t.Errorf("BGP.Connect = %v, want false", env.BGP.Connect)
 	}
 	if env.BGP.OpenWait != 120 {
 		t.Error("BGP.OpenWait")

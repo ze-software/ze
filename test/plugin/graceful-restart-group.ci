@@ -36,7 +36,9 @@ environment {
 
 bgp {
 	group gr-peers {
-		connection active
+		remote {
+			accept false
+		}
 		group-updates disable
 
 		family {

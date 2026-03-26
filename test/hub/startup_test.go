@@ -162,7 +162,7 @@ bgp {
 		local-address 127.0.0.1;
 		local-as 65000;
 		peer-as 65001;
-		connection passive;
+		connect false;
 	}
 }
 `

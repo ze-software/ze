@@ -1,4 +1,4 @@
-# Test: connection active config establishes session to peer
+# Test: accept false config establishes session to peer
 # VALIDATES: connection mode config option is wired and affects FSM behavior
 # PREVENTS: connection mode config silently ignored
 
@@ -6,24 +6,24 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
-# EOR proves session established with explicit connection active
+# EOR proves session established with explicit accept false
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# ze bgp configuration with explicit connection active
+# ze bgp configuration with explicit accept false
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer peer1 {
 		remote {
 			ip 127.0.0.1
 			as 1
+			accept false
 		}
 		local {
 			as 1
 			ip 127.0.0.1
 		}
 		router-id 1.2.3.4
-		connection active
 		group-updates disable
 
 		family {

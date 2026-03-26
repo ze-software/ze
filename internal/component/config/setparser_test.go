@@ -689,7 +689,7 @@ func TestParseInlineArgs(t *testing.T) {
 		"remote", "as", "65001",
 		"local", "as", "65000",
 		"timer", "receive-hold-time", "90",
-		"connection", "passive",
+		"local", "connect", "false",
 	})
 	require.NoError(t, err)
 
@@ -703,12 +703,12 @@ func TestParseInlineArgs(t *testing.T) {
 	local, ok := m["local"].(map[string]any)
 	require.True(t, ok, "local should be a map")
 	assert.Equal(t, "65000", local["as"])
+	assert.Equal(t, "false", local["connect"])
 
 	// Verify timer container with receive-hold-time leaf
 	timer, ok := m["timer"].(map[string]any)
 	require.True(t, ok, "timer should be a map")
 	assert.Equal(t, "90", timer["receive-hold-time"])
-	assert.Equal(t, "passive", m["connection"])
 }
 
 // TestParseInlineArgsListNode verifies list-type fields are handled.

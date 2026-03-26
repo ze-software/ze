@@ -25,12 +25,12 @@ bgp {
 		remote {
 			ip 127.0.0.1
 			as 65533
+			accept false
 		}
 		local {
 			as 65533
 			ip 127.0.0.1
 		}
-		connection active
 	}
 }
 

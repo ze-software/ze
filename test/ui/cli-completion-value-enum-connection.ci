@@ -1,5 +1,5 @@
-# Test: ze config completion — enum value hints (connection)
-# VALIDATES: Enum leaf shows all enum values
+# Test: ze config completion -- boolean value hints (connect)
+# VALIDATES: Boolean leaf in local container shows true/false values
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
@@ -19,8 +19,7 @@ bgp {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1 --input set+connection+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/local --input set+connect+ test.conf
 expect=exit:code=0
-expect=stdout:contains=both
-expect=stdout:contains=passive
-expect=stdout:contains=active
+expect=stdout:contains=true
+expect=stdout:contains=false

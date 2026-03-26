@@ -43,8 +43,7 @@ bgp {
 
     peer transit2 {
         remote { ip 192.0.2.2; as 65002; }
-        connection passive;
-        local { ip 192.168.1.1; }
+        local { ip 192.168.1.1; connect false; }
     }
 }
 `
@@ -100,8 +99,7 @@ bgp {
 
     peer transit1 {
         remote { ip 192.0.2.1; as 65001; }
-        connection passive;
-        local { ip 192.168.1.1; }
+        local { ip 192.168.1.1; connect false; }
     }
 }
 `

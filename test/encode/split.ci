@@ -27,6 +27,7 @@ bgp {
 		remote {
 			ip 127.0.0.1
 			as 65533
+			accept false
 		}
 		local {
 			as 65533
@@ -34,7 +35,6 @@ bgp {
 		}
 		description "will announce 4 /24"
 		router-id 198.111.227.39
-		connection active
 		group-updates disable
 
 		family {

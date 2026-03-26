@@ -25,6 +25,7 @@ bgp {
 		remote {
 			ip 127.0.0.1
 			as 65500
+			accept false
 		}
 		local {
 			as 65500
@@ -32,7 +33,6 @@ bgp {
 		}
 		description "m7i-4 router"
 		router-id 10.0.0.1
-		connection active
 		group-updates disable
 
 		family {

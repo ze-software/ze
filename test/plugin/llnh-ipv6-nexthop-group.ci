@@ -17,7 +17,9 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	group llnh-peers {
-		connection active
+		remote {
+			accept false
+		}
 		family {
 			ipv6/unicast { prefix { maximum 10000; } }
 		}

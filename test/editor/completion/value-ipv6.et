@@ -26,4 +26,4 @@ expect=error:none
 # Completions should work in IPv6 peer context
 input=type:text=set
 input=space
-expect=completion:contains=remote,timer,connection
+expect=completion:contains=remote,local,timer

@@ -90,6 +90,11 @@ module ze-bgp-conf {
                 type zt:asn;
                 description "Peer Autonomous System Number";
             }
+            leaf accept {
+                type boolean;
+                default true;
+                description "Accept inbound TCP connections from this peer (RFC 4271 Section 8.1.1)";
+            }
         }
 
         // Local identity overrides
@@ -98,6 +103,11 @@ module ze-bgp-conf {
             leaf as {
                 type zt:asn;
                 description "Local AS (overrides global)";
+            }
+            leaf connect {
+                type boolean;
+                default true;
+                description "Initiate outbound TCP connections to this peer (RFC 4271 Section 8.1.1)";
             }
         }
 
@@ -141,16 +151,6 @@ module ze-bgp-conf {
                 default 120;
                 description "Connect retry interval in seconds (RFC 4271 Section 8)";
             }
-        }
-
-        leaf connection {
-            type enumeration {
-                enum both { description "Initiate and accept connections (default)"; }
-                enum passive { description "Accept only — do not initiate outbound"; }
-                enum active { description "Initiate only — do not accept inbound"; }
-            }
-            default both;
-            description "TCP connection establishment mode for this peer";
         }
 
         leaf port {
@@ -541,13 +541,15 @@ module ze-bgp-conf {
 
         container bgp {
             description "BGP protocol settings";
-            leaf connection {
-                type enumeration {
-                    enum both { description "Initiate and accept connections"; }
-                    enum passive { description "Accept only"; }
-                    enum active { description "Initiate only"; }
-                }
-                description "Connection mode";
+            leaf connect {
+                type boolean;
+                default true;
+                description "Initiate outbound connections";
+            }
+            leaf accept {
+                type boolean;
+                default true;
+                description "Accept inbound connections";
             }
             leaf openwait { type int32; }
         }

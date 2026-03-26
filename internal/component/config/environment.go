@@ -25,10 +25,6 @@ const (
 	LogLevelInfo = "INFO"
 	EncoderText  = "text"
 	EncoderJSON  = "json"
-
-	connBoth    = "both"
-	connPassive = "passive"
-	connActive  = "active"
 )
 
 // Environment holds all environment-based configuration.
@@ -91,8 +87,9 @@ type TCPEnv struct {
 
 // BGPEnv holds BGP-related settings.
 type BGPEnv struct {
-	Connection string // Connection mode for all peers: "both" (default), "passive", "active"
-	OpenWait   int    // Seconds to wait for OPEN
+	Connect  *bool // Initiate outbound connections (nil = not set, use default true)
+	Accept   *bool // Accept inbound connections (nil = not set, use default true)
+	OpenWait int   // Seconds to wait for OPEN
 }
 
 // CacheEnv holds caching-related settings.
@@ -291,9 +288,10 @@ func getEnv(section, option string) string {
 // Strict Parsing Functions (return errors instead of silent defaults)
 // =============================================================================
 
-// parseBoolStrict parses a boolean value strictly.
-// Returns error for invalid values instead of defaulting to false.
-func parseBoolStrict(value string) (bool, error) {
+// ParseBoolStrict parses a boolean value strictly (case-insensitive).
+// Accepts: true/false/yes/no/on/off/enable/disable/1/0.
+// Returns error for unrecognized values instead of defaulting to false.
+func ParseBoolStrict(value string) (bool, error) {
 	v := strings.ToLower(value)
 	switch v {
 	case "1", "true", "yes", "on", "enable":
@@ -468,11 +466,23 @@ type envOption struct {
 // setBoolField creates a setter function for boolean fields.
 func setBoolField(getter func(e *Environment) *bool) func(env *Environment, value string) error {
 	return func(env *Environment, value string) error {
-		b, err := parseBoolStrict(value)
+		b, err := ParseBoolStrict(value)
 		if err != nil {
 			return err
 		}
 		*getter(env) = b
+		return nil
+	}
+}
+
+// setBoolPtrField creates a setter for optional boolean fields (*bool).
+func setBoolPtrField(getter func(e *Environment) **bool) func(env *Environment, value string) error {
+	return func(env *Environment, value string) error {
+		b, err := ParseBoolStrict(value)
+		if err != nil {
+			return err
+		}
+		*getter(env) = &b
 		return nil
 	}
 }
@@ -533,7 +543,7 @@ var envOptions = map[string]map[string]envOption{
 		"acl":      {setter: setBoolField(func(e *Environment) *bool { return &e.TCP.ACL })},
 		// Backward compatibility aliases (ExaBGP legacy)
 		"once": {setter: func(e *Environment, v string) error {
-			b, err := parseBoolStrict(v)
+			b, err := ParseBoolStrict(v)
 			if err != nil {
 				return err
 			}
@@ -545,14 +555,8 @@ var envOptions = map[string]map[string]envOption{
 		"connections": {setter: setIntField(func(e *Environment) *int { return &e.TCP.Attempts }), validate: validateAttempts},
 	},
 	"bgp": {
-		"connection": {setter: func(env *Environment, value string) error {
-			switch value {
-			case connBoth, connPassive, connActive:
-				env.BGP.Connection = value
-				return nil
-			}
-			return fmt.Errorf("invalid connection mode %q: must be both, passive, or active", value)
-		}},
+		"connect":  {setter: setBoolPtrField(func(e *Environment) **bool { return &e.BGP.Connect })},
+		"accept":   {setter: setBoolPtrField(func(e *Environment) **bool { return &e.BGP.Accept })},
 		"openwait": {setter: setIntField(func(e *Environment) *int { return &e.BGP.OpenWait }), validate: validateOpenWait},
 	},
 	"cache": {

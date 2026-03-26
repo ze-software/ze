@@ -147,7 +147,8 @@ func TestHandlerPeerSaveNonDefaultHoldTime(t *testing.T) {
 				PeerAS:          65002,
 				LocalAS:         65000,
 				ReceiveHoldTime: 0, // RFC 4271: no keepalives
-				Connection:      "passive",
+				Connect:         false,
+				Accept:          true,
 			},
 		},
 		stats: plugin.ReactorStats{LocalAS: 65000, RouterID: 0x01020304},
@@ -165,7 +166,7 @@ func TestHandlerPeerSaveNonDefaultHoldTime(t *testing.T) {
 	s := string(content)
 	assert.Contains(t, s, "10.0.0.1")
 	assert.Contains(t, s, "hold-time 0")
-	assert.Contains(t, s, "connection passive")
+	assert.Contains(t, s, "connect disable")
 }
 
 // TestHandlerPeerSaveLocalAddress verifies local-address is saved to config.

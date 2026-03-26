@@ -44,12 +44,12 @@ func TestValidateTree_ValidConfig(t *testing.T) {
 					"as": uint32(65002),
 				},
 				"local": map[string]any{
-					"ip": "192.0.2.1",
+					"ip":      "192.0.2.1",
+					"connect": false,
 				},
 				"timer": map[string]any{
 					"receive-hold-time": uint16(90),
 				},
-				"connection": "passive",
 			},
 		},
 	}
@@ -77,17 +77,17 @@ func TestValidateTree_EnumViolation(t *testing.T) {
 					"as": uint32(65002),
 				},
 				"local": map[string]any{
-					"ip": "192.0.2.1",
+					"ip":      "192.0.2.1",
+					"connect": "invalid-value",
 				},
-				"connection": "invalid-value",
 			},
 		},
 	}
 
 	errs := v.ValidateTree("bgp", data)
 	require.NotEmpty(t, errs, "invalid enum should produce error")
-	assert.Equal(t, yang.ErrTypeEnum, errs[0].Type)
-	assert.Contains(t, errs[0].Path, "connection")
+	assert.Equal(t, yang.ErrTypeType, errs[0].Type)
+	assert.Contains(t, errs[0].Path, "connect")
 }
 
 // TestValidateTree_RangeViolation verifies out-of-range values are caught at any depth.

@@ -25,8 +25,8 @@ bgp {
 		}
 		remote {
 			as 65533
+			accept false
 		}
-		connection active
 		timer {
 			receive-hold-time 180
 		}

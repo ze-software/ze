@@ -48,9 +48,10 @@ type validationSummary struct {
 
 // peerSummary shows peer details.
 type peerSummary struct {
-	Address    string
-	PeerAS     uint32
-	Connection string // "both", "passive", or "active"
+	Address string
+	PeerAS  uint32
+	Connect bool // Initiate outbound connections
+	Accept  bool // Accept inbound connections
 }
 
 func cmdValidate(args []string) int {
@@ -240,9 +241,21 @@ func buildValidationSummary(bgpTree map[string]any, tree *config.Tree) *validati
 			if !ok {
 				continue
 			}
-			conn := "both"
-			if v, ok := peer["connection"]; ok {
-				conn = fmt.Sprint(v)
+			connect := true
+			if localMap, ok := peer["local"].(map[string]any); ok {
+				if v, ok := localMap["connect"]; ok {
+					if b, err := config.ParseBoolStrict(fmt.Sprint(v)); err == nil {
+						connect = b
+					}
+				}
+			}
+			accept := true
+			if remoteMap, ok := peer["remote"].(map[string]any); ok {
+				if v, ok := remoteMap["accept"]; ok {
+					if b, err := config.ParseBoolStrict(fmt.Sprint(v)); err == nil {
+						accept = b
+					}
+				}
 			}
 			var peerAS uint32
 			var addr string
@@ -254,9 +267,10 @@ func buildValidationSummary(bgpTree map[string]any, tree *config.Tree) *validati
 			}
 			_ = name // peer name is the map key
 			summary.PeerDetails = append(summary.PeerDetails, peerSummary{
-				Address:    addr,
-				PeerAS:     peerAS,
-				Connection: conn,
+				Address: addr,
+				PeerAS:  peerAS,
+				Connect: connect,
+				Accept:  accept,
 			})
 		}
 	}
@@ -375,7 +389,13 @@ func outputValidateText(result *validationResult, verbose, quiet bool) int {
 				fmt.Println()
 				fmt.Println("Peers:")
 				for _, n := range result.Config.PeerDetails {
-					fmt.Printf("  - %s AS%d (%s)\n", n.Address, n.PeerAS, n.Connection)
+					mode := "connect+accept"
+					if !n.Connect {
+						mode = "accept"
+					} else if !n.Accept {
+						mode = "connect"
+					}
+					fmt.Printf("  - %s AS%d (%s)\n", n.Address, n.PeerAS, mode)
 				}
 			}
 		}

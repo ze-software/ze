@@ -30,7 +30,6 @@ bgp {
         timer {
             receive-hold-time 90;
         }
-        connection both;
     }
 }
 `

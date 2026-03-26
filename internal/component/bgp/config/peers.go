@@ -21,7 +21,8 @@ import (
 // Env var registrations for BGP config overrides.
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.tcp.port", Type: "int", Default: "179", Description: "Override BGP TCP port for all peers"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.bgp.connection", Type: "string", Description: "Override peer connection mode (connect/listen/both)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.bgp.connect", Type: "bool", Default: "true", Description: "Override peer connect mode (initiate outbound)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.bgp.accept", Type: "bool", Default: "true", Description: "Override peer accept mode (accept inbound)"})
 )
 
 // PeersFromConfigTree builds PeerSettings from a config tree.
@@ -109,6 +110,13 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 	// Step 4: Apply environment overrides.
 	applyPortOverride(peers)
 	applyConnectionOverride(peers)
+
+	// Step 4b: Re-validate connection mode after env overrides.
+	for _, ps := range peers {
+		if !ps.Connection.Connect && !ps.Connection.Accept {
+			return nil, fmt.Errorf("peer %s: connect and accept cannot both be false (after env override)", ps.Name)
+		}
+	}
 
 	// Step 5: Validate capability-process constraints.
 	if err := ValidatePeerProcessCaps(peers); err != nil {
@@ -352,17 +360,20 @@ func applyPortOverride(peers []*reactor.PeerSettings) {
 }
 
 // applyConnectionOverride overrides peer connection mode from
-// ze.bgp.bgp.connection (dot or underscore notation).
+// ze.bgp.bgp.connect and ze.bgp.bgp.accept (dot or underscore notation).
 func applyConnectionOverride(peers []*reactor.PeerSettings) {
-	v := env.Get("ze.bgp.bgp.connection")
-	if v == "" {
-		return
+	if v := env.Get("ze.bgp.bgp.connect"); v != "" {
+		if connect, err := config.ParseBoolStrict(v); err == nil {
+			for _, ps := range peers {
+				ps.Connection.Connect = connect
+			}
+		}
 	}
-	mode, err := reactor.ParseConnectionMode(v)
-	if err != nil {
-		return
-	}
-	for _, ps := range peers {
-		ps.Connection = mode
+	if v := env.Get("ze.bgp.bgp.accept"); v != "" {
+		if accept, err := config.ParseBoolStrict(v); err == nil {
+			for _, ps := range peers {
+				ps.Connection.Accept = accept
+			}
+		}
 	}
 }

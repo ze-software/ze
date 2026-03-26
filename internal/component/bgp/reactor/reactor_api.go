@@ -97,7 +97,8 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			ReceiveHoldTime:    s.ReceiveHoldTime,
 			SendHoldTime:       s.SendHoldTime,
 			ConnectRetry:       s.ConnectRetry,
-			Connection:         s.Connection.String(),
+			Connect:            s.Connection.Connect,
+			Accept:             s.Connection.Accept,
 			State:              p.State().String(),
 			UpdatesReceived:    stats.UpdatesReceived,
 			UpdatesSent:        stats.UpdatesSent,
@@ -511,13 +512,19 @@ func parsePeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 				settings.ConnectRetry = time.Duration(cr) * time.Second
 			}
 		}
-		if v, ok := fields["connection"].(string); ok {
-			mode, err := ParseConnectionMode(v)
-			if err != nil {
-				reactorLogger().Warn("invalid connection mode in peer config, using default", "peer", peerName, "value", v, "error", err)
-			} else {
-				settings.Connection = mode
+		if localMap, ok := fields["local"].(map[string]any); ok {
+			if v, ok := localMap["connect"].(string); ok {
+				settings.Connection.Connect = v == "true"
 			}
+		}
+		if remoteMap, ok := fields["remote"].(map[string]any); ok {
+			if v, ok := remoteMap["accept"].(string); ok {
+				settings.Connection.Accept = v == "true"
+			}
+		}
+		if !settings.Connection.Connect && !settings.Connection.Accept {
+			reactorLogger().Warn("connect and accept both false, using default", "peer", peerName)
+			settings.Connection = ConnectionBoth
 		}
 		if v, ok := fields["router-id"].(string); ok {
 			if rid, err := netip.ParseAddr(v); err == nil && rid.Is4() {

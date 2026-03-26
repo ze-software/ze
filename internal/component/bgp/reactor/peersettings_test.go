@@ -6,17 +6,19 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-// VALIDATES: ConnectionMode bitmask operations and PeerSettings defaults.
+// VALIDATES: ConnectionMode boolean operations and PeerSettings defaults.
 // PREVENTS: Config parsing regressions where connection mode or peer key changes.
 
-// TestConnectionMode_Bitmask verifies bitmask composition.
-// ConnectionBoth = ConnectionActive | ConnectionPassive.
-func TestConnectionMode_Bitmask(t *testing.T) {
-	assert.Equal(t, ConnectionBoth, ConnectionActive|ConnectionPassive)
-	assert.NotEqual(t, ConnectionActive, ConnectionPassive)
+// TestConnectionMode_Presets verifies preset connection modes.
+func TestConnectionMode_Presets(t *testing.T) {
+	assert.True(t, ConnectionBoth.Connect)
+	assert.True(t, ConnectionBoth.Accept)
+	assert.True(t, ConnectionActive.Connect)
+	assert.False(t, ConnectionActive.Accept)
+	assert.False(t, ConnectionPassive.Connect)
+	assert.True(t, ConnectionPassive.Accept)
 }
 
 // TestConnectionMode_IsActive verifies IsActive for all modes.
@@ -46,51 +48,6 @@ func TestConnectionMode_IsPassive(t *testing.T) {
 	}
 	for _, tt := range tests {
 		assert.Equal(t, tt.passive, tt.mode.IsPassive(), "mode=%v", tt.mode)
-	}
-}
-
-// TestConnectionMode_String verifies string representation.
-func TestConnectionMode_String(t *testing.T) {
-	assert.Equal(t, "active", ConnectionActive.String())
-	assert.Equal(t, "passive", ConnectionPassive.String())
-	assert.Equal(t, "both", ConnectionBoth.String())
-}
-
-// TestConnectionMode_String_InvalidFallback verifies invalid mode defaults to "both".
-func TestConnectionMode_String_InvalidFallback(t *testing.T) {
-	assert.Equal(t, "both", ConnectionMode(0).String())
-	assert.Equal(t, "both", ConnectionMode(99).String())
-}
-
-// TestParseConnectionMode_Valid verifies parsing valid strings.
-func TestParseConnectionMode_Valid(t *testing.T) {
-	tests := []struct {
-		input    string
-		expected ConnectionMode
-	}{
-		{"both", ConnectionBoth},
-		{"passive", ConnectionPassive},
-		{"active", ConnectionActive},
-		{"", ConnectionBoth}, // empty defaults to both
-	}
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			mode, err := ParseConnectionMode(tt.input)
-			require.NoError(t, err)
-			assert.Equal(t, tt.expected, mode)
-		})
-	}
-}
-
-// TestParseConnectionMode_Invalid verifies error for invalid strings.
-func TestParseConnectionMode_Invalid(t *testing.T) {
-	invalids := []string{"unknown", "BOTH", "Both", "PASSIVE", "ACTIVE", "yes", "no"}
-	for _, s := range invalids {
-		t.Run(s, func(t *testing.T) {
-			_, err := ParseConnectionMode(s)
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "invalid connection mode")
-		})
 	}
 }
 

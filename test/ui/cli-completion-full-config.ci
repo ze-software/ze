@@ -22,11 +22,11 @@ bgp {
 		}
 		local {
 			ip 192.168.1.254
+			connect false
 		}
 		timer {
 			receive-hold-time 90
 		}
-		connection passive
 		role {
 			import customer
 		}

@@ -15,13 +15,13 @@ bgp {
 			remote {
 				ip ::1
 				as 12345
+				accept false
 			}
 			local {
 				as 12345
 				ip ::1
 			}
 			router-id 127.0.0.2
-			connection active
 
 			family {
 				ipv6/unicast { prefix { maximum 10000; } }

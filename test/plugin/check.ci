@@ -155,13 +155,13 @@ bgp {
 			remote {
 				ip 127.0.0.1
 				as 65512
+				accept false
 			}
 			local {
 				as 65512
 				ip 127.0.0.1
 			}
 			router-id 10.0.0.139
-			connection active
 			timer {
 				receive-hold-time 30
 			}

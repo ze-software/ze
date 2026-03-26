@@ -102,13 +102,19 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		}
 	}
 
-	// Connection mode (both/passive/active).
-	if v, ok := mapString(tree, "connection"); ok {
-		mode, err := ParseConnectionMode(v)
-		if err != nil {
-			return nil, fmt.Errorf("peer %s: %w", name, err)
+	// Connection mode: local { connect } and remote { accept }.
+	if localMap != nil {
+		if v, ok := mapBool(localMap, "connect"); ok {
+			ps.Connection.Connect = v
 		}
-		ps.Connection = mode
+	}
+	if hasRemote {
+		if v, ok := mapBool(remoteMap, "accept"); ok {
+			ps.Connection.Accept = v
+		}
+	}
+	if !ps.Connection.Connect && !ps.Connection.Accept {
+		return nil, fmt.Errorf("peer %s: connect and accept cannot both be false", name)
 	}
 
 	// Per-peer listen port (overrides global tcp.port for this peer).
@@ -983,13 +989,13 @@ func mapUint32(m map[string]any, key string) (uint32, bool) {
 	return uint32(n), true
 }
 
-// mapBool extracts a boolean value from a map (stored as string "true"/"false").
+// mapBool extracts a boolean value from a map (stored as string "true"/"false" or "1"/"0").
 func mapBool(m map[string]any, key string) (bool, bool) {
 	s, ok := mapString(m, key)
 	if !ok {
 		return false, false
 	}
-	return s == valTrue, true
+	return s == valTrue || s == "1", true
 }
 
 // mapMap extracts a nested map from a map.

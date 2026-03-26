@@ -306,8 +306,8 @@ def main():
         # (Ze doesn't know it's in a test and would otherwise keep running)
         os.environ['ze_bgp_tcp_attempts'] = '1'
 
-        # For tests: only dial out, never bind/listen (Ze default is "both")
-        os.environ['ze_bgp_bgp_connection'] = 'active'
+        # For tests: only dial out, never bind/listen (Ze default is connect+accept)
+        os.environ['ze_bgp_bgp_accept'] = 'false'
 
         if args.debug:
             print(f"Running: {' '.join(cmd)}", file=sys.stderr)

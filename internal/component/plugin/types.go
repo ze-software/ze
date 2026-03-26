@@ -34,7 +34,8 @@ type PeerInfo struct {
 	ReceiveHoldTime time.Duration // Configured receive hold time (RFC 4271)
 	SendHoldTime    time.Duration // Configured send hold time (RFC 9687, 0=auto)
 	ConnectRetry    time.Duration // Connect retry interval
-	Connection      string        // Connection mode: "both", "passive", "active"
+	Connect         bool          // Initiate outbound connections
+	Accept          bool          // Accept inbound connections
 	State           string
 	Uptime          time.Duration
 

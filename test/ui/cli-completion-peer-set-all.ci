@@ -27,7 +27,6 @@ expect=stdout:contains=local
 expect=stdout:contains=local
 expect=stdout:contains=router-id
 expect=stdout:contains=timer
-expect=stdout:contains=connection
 expect=stdout:contains=description
 expect=stdout:contains=port
 expect=stdout:contains=md5-password

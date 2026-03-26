@@ -1651,9 +1651,9 @@ class EncodingTests(Tests):
         actual_port = port if port is not None else test.conf['port']
 
         # Ze needs ze_bgp_tcp_port to override peer connection port
-        # and ze_bgp_bgp_connection=active to only dial out (no bind/listen)
+        # and ze_bgp_bgp_accept=false to only dial out (no bind/listen)
         config = {
-            'env': f'ze_bgp_tcp_port={actual_port} ze_bgp_bgp_connection=active',
+            'env': f'ze_bgp_tcp_port={actual_port} ze_bgp_bgp_accept=false',
             'exabgp': Path.EXABGP,
             'confs': ' \\\n    '.join(test.conf['confs']),
         }

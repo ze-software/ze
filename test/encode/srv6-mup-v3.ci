@@ -17,13 +17,13 @@ bgp {
 		remote {
 			ip 127.0.0.1
 			as 65000
+			accept false
 		}
 		local {
 			as 65000
 			ip 127.0.0.1
 		}
 		router-id 10.0.0.1
-		connection active
 
 		family {
 			ipv4/mup { prefix { maximum 10000; } }

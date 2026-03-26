@@ -23,13 +23,13 @@ bgp {
 		remote {
 			ip 127.0.0.1
 			as 12345
+			accept false
 		}
 		local {
 			as 12345
 			ip 127.0.0.1
 		}
 		router-id 127.0.0.2
-		connection active
 		group-updates disable
 
 		family {

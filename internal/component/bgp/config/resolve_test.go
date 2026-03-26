@@ -121,7 +121,9 @@ func TestResolveBGPTree_GroupDefaults(t *testing.T) {
 	groupTimerTree := config.NewTree()
 	groupTimerTree.Set("receive-hold-time", "180")
 	groupTree.SetContainer("timer", groupTimerTree)
-	groupTree.Set("connection", "passive")
+	groupLocal := config.NewTree()
+	groupLocal.Set("connect", "false")
+	groupTree.SetContainer("local", groupLocal)
 
 	peerTree := config.NewTree()
 	peerRemote := config.NewTree()
@@ -143,7 +145,9 @@ func TestResolveBGPTree_GroupDefaults(t *testing.T) {
 	timerMap, ok := peer["timer"].(map[string]any)
 	require.True(t, ok, "peer timer should be a map")
 	assert.Equal(t, "180", timerMap["receive-hold-time"], "group receive-hold-time should be inherited")
-	assert.Equal(t, "passive", peer["connection"], "group connection should be inherited")
+	localMap, ok := peer["local"].(map[string]any)
+	require.True(t, ok, "peer local should be a map")
+	assert.Equal(t, "false", localMap["connect"], "group local connect should be inherited")
 	remote := resolvedPeerRemote(t, peer)
 	assert.Equal(t, "65001", remote["as"], "peer's own remote as should be present")
 }
@@ -163,7 +167,9 @@ func TestResolveBGPTree_PeerOverridesGroup(t *testing.T) {
 	groupTimerTree := config.NewTree()
 	groupTimerTree.Set("receive-hold-time", "180")
 	groupTree.SetContainer("timer", groupTimerTree)
-	groupTree.Set("connection", "passive")
+	groupLocal := config.NewTree()
+	groupLocal.Set("connect", "false")
+	groupTree.SetContainer("local", groupLocal)
 
 	peerTree := config.NewTree()
 	peerRemote := config.NewTree()
@@ -188,7 +194,9 @@ func TestResolveBGPTree_PeerOverridesGroup(t *testing.T) {
 	timerMap, ok := peer["timer"].(map[string]any)
 	require.True(t, ok, "peer timer should be a map")
 	assert.Equal(t, "90", timerMap["receive-hold-time"], "peer's receive-hold-time should override group's")
-	assert.Equal(t, "passive", peer["connection"], "group's connection should be inherited")
+	localMap, ok := peer["local"].(map[string]any)
+	require.True(t, ok, "peer local should be a map")
+	assert.Equal(t, "false", localMap["connect"], "group's local connect should be inherited")
 }
 
 // TestResolveBGPTree_DeepMergeCapabilities verifies capability containers deep-merge.

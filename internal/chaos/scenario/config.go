@@ -137,6 +137,9 @@ func writeFullPeerBlock(b *strings.Builder, params ConfigParams, p PeerProfile) 
 	fmt.Fprintf(b, "        local {\n")
 	fmt.Fprintf(b, "            as %d;\n", params.LocalAS)
 	fmt.Fprintf(b, "            ip %s;\n", params.LocalAddr)
+	// All chaos peers are passive from Ze's perspective: Ze never dials out.
+	// This avoids needing loopback aliases for the fake peer addresses.
+	fmt.Fprintf(b, "            connect false;\n")
 	fmt.Fprintf(b, "        }\n")
 	fmt.Fprintf(b, "        timer { receive-hold-time %d; }\n", p.HoldTime)
 
@@ -144,10 +147,6 @@ func writeFullPeerBlock(b *strings.Builder, params ConfigParams, p PeerProfile) 
 	if p.ZePort > 0 {
 		fmt.Fprintf(b, "        port %d;\n", p.ZePort)
 	}
-
-	// All chaos peers are passive from Ze's perspective: Ze never dials out.
-	// This avoids needing loopback aliases for the fake peer addresses.
-	fmt.Fprintf(b, "        connection passive;\n")
 
 	// Family block — per-peer families from profile.
 	families := p.Families

@@ -317,11 +317,9 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 			if key == "local-link-local" {
 				outKey = "link-local"
 			}
-			// ExaBGP "passive true" → Ze "connection passive"
+			// ExaBGP "passive true" → Ze local { connect false } (handled in copySimpleFields)
 			if key == "passive" {
-				if v == configTrue {
-					merged.Set("connection", "passive")
-				}
+				merged.Set("passive", v)
 				continue
 			}
 			merged.Set(outKey, v)
@@ -369,7 +367,7 @@ func copySimpleFields(src, dst *config.Tree) {
 	// Fields that remain as direct leaves on the peer.
 	directFields := []string{
 		"description", "router-id",
-		"listen", "connect", "ttl-security",
+		"listen", "ttl-security",
 		"md5-password", "md5-base64", "group-updates", "auto-flush",
 	}
 
@@ -386,20 +384,17 @@ func copySimpleFields(src, dst *config.Tree) {
 		dst.SetContainer("timer", timerContainer)
 	}
 
-	// ExaBGP "passive true" -> Ze "connection passive"
-	if v, ok := src.Get("passive"); ok && v == configTrue {
-		dst.Set("connection", "passive")
-	}
-
 	// ExaBGP "local-link-local" -> Ze "link-local"
 	if v, ok := src.Get("local-link-local"); ok {
 		dst.Set("link-local", v)
 	}
 
-	// Fields that move into the "local" container: local-as -> as, local-address -> ip.
+	// Fields that move into the "local" container: local-as -> as, local-address -> ip, passive -> connect false.
 	localAS, hasLocalAS := src.Get("local-as")
 	localAddr, hasLocalAddr := src.Get("local-address")
-	if hasLocalAS || hasLocalAddr {
+	passive, hasPassive := src.Get("passive")
+	isPassive := hasPassive && passive == configTrue
+	if hasLocalAS || hasLocalAddr || isPassive {
 		localContainer := config.NewTree()
 		if hasLocalAS {
 			localContainer.Set("as", localAS)
@@ -407,17 +402,26 @@ func copySimpleFields(src, dst *config.Tree) {
 		if hasLocalAddr {
 			localContainer.Set("ip", localAddr)
 		}
+		if isPassive {
+			localContainer.Set("connect", "false")
+		}
 		dst.SetContainer("local", localContainer)
 	}
 
-	// Fields that move into the "remote" container: peer-as -> as.
-	if peerAS, ok := src.Get("peer-as"); ok {
+	// Fields that move into the "remote" container: peer-as -> as, passive -> accept.
+	peerAS, hasPeerAS := src.Get("peer-as")
+	if hasPeerAS || isPassive {
 		remoteContainer := dst.GetContainer("remote")
 		if remoteContainer == nil {
 			remoteContainer = config.NewTree()
 			dst.SetContainer("remote", remoteContainer)
 		}
-		remoteContainer.Set("as", peerAS)
+		if hasPeerAS {
+			remoteContainer.Set("as", peerAS)
+		}
+		if isPassive {
+			remoteContainer.Set("accept", "true")
+		}
 	}
 }
 
