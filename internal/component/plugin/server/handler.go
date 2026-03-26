@@ -1,10 +1,13 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
+// Detail: event_monitor.go — event monitor streaming handler
 
 package server
 
 import (
 	"context"
 	"io"
+	"strings"
+	"sync"
 )
 
 // StreamingHandler handles streaming commands (e.g., monitor).
@@ -12,17 +15,67 @@ import (
 // username is the authenticated SSH user (for authorization), args are command arguments.
 type StreamingHandler func(ctx context.Context, s *Server, w io.Writer, username string, args []string) error
 
-var registeredStreamingHandler StreamingHandler
+// streamingHandlers maps command prefix to handler. Multiple streaming commands
+// can coexist (e.g., "event monitor" and "bgp monitor"). Protected by streamingHandlersMu.
+var (
+	streamingHandlersMu sync.RWMutex
+	streamingHandlers   = make(map[string]StreamingHandler)
+)
 
-// RegisterStreamingHandler registers the streaming command handler.
-// Called from monitor plugin's init().
-func RegisterStreamingHandler(h StreamingHandler) {
-	registeredStreamingHandler = h
+// RegisterStreamingHandler registers a streaming command handler for a prefix.
+// The prefix is matched case-insensitively against command input.
+// Called from plugin init() functions.
+func RegisterStreamingHandler(prefix string, h StreamingHandler) {
+	key := strings.ToLower(prefix)
+	streamingHandlersMu.Lock()
+	if _, exists := streamingHandlers[key]; exists {
+		logger().Warn("duplicate streaming handler prefix, overwriting", "prefix", prefix)
+	}
+	streamingHandlers[key] = h
+	streamingHandlersMu.Unlock()
 }
 
-// GetStreamingHandler returns the registered streaming handler, or nil.
-func GetStreamingHandler() StreamingHandler {
-	return registeredStreamingHandler
+// GetStreamingHandlerForCommand returns the handler and extracted args for a command.
+// Matches the longest registered prefix. Returns (nil, nil) if no prefix matches.
+func GetStreamingHandlerForCommand(input string) (StreamingHandler, []string) {
+	lower := strings.ToLower(strings.TrimSpace(input))
+
+	streamingHandlersMu.RLock()
+	defer streamingHandlersMu.RUnlock()
+
+	var bestPrefix string
+	var bestHandler StreamingHandler
+
+	for prefix, handler := range streamingHandlers {
+		if lower == prefix || strings.HasPrefix(lower, prefix+" ") {
+			if len(prefix) > len(bestPrefix) {
+				bestPrefix = prefix
+				bestHandler = handler
+			}
+		}
+	}
+
+	if bestHandler == nil {
+		return nil, nil
+	}
+
+	// Extract args after the matched prefix.
+	// Use lower (trimmed, lowered) for slicing — input may have leading whitespace
+	// that shifts character positions relative to bestPrefix (matched against lower).
+	if len(lower) <= len(bestPrefix) {
+		return bestHandler, nil
+	}
+	rest := strings.TrimSpace(lower[len(bestPrefix):])
+	if rest == "" {
+		return bestHandler, nil
+	}
+	return bestHandler, strings.Fields(rest)
+}
+
+// IsStreamingCommand returns true if the input matches any registered streaming prefix.
+func IsStreamingCommand(input string) bool {
+	h, _ := GetStreamingHandlerForCommand(input)
+	return h != nil
 }
 
 // version is ze application version string, set by main at startup via SetVersion.

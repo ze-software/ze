@@ -313,10 +313,22 @@ func (a *reactorAPIAdapter) Reload() error {
 	// Get new peer configs from config file.
 	newPeers, err := reloadFn(configPath)
 	if err != nil {
+		if r.rmetrics != nil {
+			r.rmetrics.configReloadErrors.With("parse").Inc()
+		}
 		return fmt.Errorf("reload config: %w", err)
 	}
 
-	return a.reconcilePeers(newPeers, "reload")
+	if err := a.reconcilePeers(newPeers, "reload"); err != nil {
+		if r.rmetrics != nil {
+			r.rmetrics.configReloadErrors.With("apply").Inc()
+		}
+		return fmt.Errorf("reconcile peers: %w", err)
+	}
+	if r.rmetrics != nil {
+		r.rmetrics.configReloads.Inc()
+	}
+	return nil
 }
 
 // VerifyConfig validates peer settings without modifying reactor state.

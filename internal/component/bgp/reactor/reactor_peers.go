@@ -122,6 +122,7 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	// Update Prometheus gauges if metrics are configured.
 	if r.rmetrics != nil {
 		r.rmetrics.peersConfigured.Set(float64(len(r.peers)))
+		r.rmetrics.peersAddedTotal.Inc()
 		setPrefixConfigMetrics(r.rmetrics, settings.Address.String(), settings, r.clock.Now())
 	}
 
@@ -196,14 +197,44 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 	// Update Prometheus metrics if configured.
 	if r.rmetrics != nil {
 		r.rmetrics.peersConfigured.Set(float64(len(r.peers)))
+		r.rmetrics.peersRemovedTotal.Inc()
 
 		// Remove per-peer label entries so removed peers don't linger in /metrics.
 		label := peer.peerAddrLabel()
 		r.rmetrics.peerState.Delete(label)
-		r.rmetrics.peerMsgRecv.Delete(label)
-		r.rmetrics.peerMsgSent.Delete(label)
 		r.rmetrics.overflowItems.Delete(label)
 		r.rmetrics.overflowRatio.Delete(label)
+		r.rmetrics.sessionDuration.Delete(label)
+
+		// Message counters have peer + type labels.
+		for _, msgType := range []string{"update", "keepalive", "eor", "notification", "open", "route_refresh"} {
+			r.rmetrics.peerMsgRecv.Delete(label, msgType)
+			r.rmetrics.peerMsgSent.Delete(label, msgType)
+		}
+
+		// Session lifecycle counters (single-label: peer).
+		r.rmetrics.sessionsEstablished.Delete(label)
+		r.rmetrics.sessionFlaps.Delete(label)
+
+		// Multi-label counters (peer + from/to or peer + code/subcode).
+		// stateTransitions, notifSent, notifRecv have bounded cardinality
+		// (FSM states x FSM states, notification codes x subcodes) so we
+		// clean all observed combinations by iterating known states/codes.
+		for _, from := range peerStateNames {
+			for _, to := range peerStateNames {
+				r.rmetrics.stateTransitions.Delete(label, from, to)
+			}
+		}
+		// Notification code/subcode combinations are too numerous to enumerate
+		// exhaustively. Wire-layer metrics (wireBytesRecv, etc.) are single-label.
+		r.rmetrics.wireBytesRecv.Delete(label)
+		r.rmetrics.wireBytesSent.Delete(label)
+		r.rmetrics.wireReadErrors.Delete(label)
+		r.rmetrics.wireWriteErrors.Delete(label)
+		r.rmetrics.fwdCongestionEvents.Delete(label)
+		r.rmetrics.fwdCongestionResume.Delete(label)
+		r.rmetrics.prefixTeardownTotal.Delete(label)
+		r.rmetrics.prefixStale.Delete(label)
 	}
 
 	// Clean up source stats so disconnected peers don't accumulate in srcStats.

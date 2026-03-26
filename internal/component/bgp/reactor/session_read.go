@@ -59,10 +59,15 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 	// Read header -- through bufio.Reader to batch kernel read syscalls.
 	_, err := io.ReadFull(s.bufReader, buf.Buf[:message.HeaderLen])
 	if err != nil {
-		// Handle connection close: EOF or connection reset by peer
+		// Handle connection close: EOF or connection reset by peer.
+		// Clean close does not increment wireReadErrors (not an error).
 		if errors.Is(err, io.EOF) || isConnectionReset(err) {
 			s.handleConnectionClose()
 			return ErrConnectionClosed
+		}
+		// Actual read error (timeout, network failure): count it.
+		if s.prefixMetrics != nil {
+			s.prefixMetrics.wireReadErrors.With(s.settings.Address.String()).Inc()
 		}
 		return err
 	}
@@ -100,6 +105,11 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 		if err != nil {
 			return fmt.Errorf("read body: %w", err)
 		}
+	}
+
+	// Track wire bytes received.
+	if s.prefixMetrics != nil {
+		s.prefixMetrics.wireBytesRecv.With(s.settings.Address.String()).Add(float64(hdr.Length))
 	}
 
 	// Process message - callback returns kept=true if it took buffer ownership

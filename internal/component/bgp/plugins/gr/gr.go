@@ -28,12 +28,35 @@ import (
 	"sync/atomic"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/configjson"
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"
+	bgptypes "codeberg.org/thomas-mangin/ze/internal/component/bgp/types"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
+
+// grMetrics holds Prometheus metrics for GR state.
+type grMetrics struct {
+	activePeers  metrics.Gauge      // Peers currently in GR
+	staleRoutes  metrics.GaugeVec   // Stale routes pending refresh (peer)
+	timerExpired metrics.CounterVec // GR restart timer expirations (peer)
+}
+
+// grMetricsPtr stores GR metrics, set by SetMetricsRegistry.
+var grMetricsPtr atomic.Pointer[grMetrics]
+
+// SetMetricsRegistry creates GR metrics from the given registry.
+func SetMetricsRegistry(reg metrics.Registry) {
+	m := &grMetrics{
+		activePeers:  reg.Gauge("ze_gr_active_peers", "Peers currently in GR."),
+		staleRoutes:  reg.GaugeVec("ze_gr_stale_routes", "Stale routes pending refresh.", []string{"peer"}),
+		timerExpired: reg.CounterVec("ze_gr_timer_expired_total", "GR restart timer expirations.", []string{"peer"}),
+	}
+	grMetricsPtr.Store(m)
+}
 
 // loggerPtr is the package-level logger, disabled by default.
 // Use SetLogger() to enable logging from CLI --log-level flag.
@@ -165,13 +188,113 @@ func RunGRPlugin(conn net.Conn) int {
 
 // handleStructuredEvent dispatches a StructuredEvent to the appropriate GR handler.
 // State events use metadata fields directly (no JSON parsing needed).
-// OPEN and EOR events continue through the text OnEvent path — they are infrequent
-// and OPEN capability decoding requires the format package (import cycle if used here).
+// OPEN events decode raw wire bytes via message.UnpackOpen (no format import needed).
+// EOR events are delivered as text via OnEvent (onEORReceived uses text-only delivery).
 func (gp *grPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
-	if se.EventType == "state" {
+	switch se.EventType {
+	case "state":
 		gp.handleStructuredState(se.PeerAddress, se.State, se.Reason)
+	case "open":
+		if msg, ok := se.RawMessage.(*bgptypes.RawMessage); ok {
+			gp.handleStructuredOpen(se.PeerAddress, msg)
+		} else if se.RawMessage != nil {
+			logger().Warn("gr: unexpected RawMessage type for open event",
+				"peer", se.PeerAddress,
+				"type", fmt.Sprintf("%T", se.RawMessage))
+		}
 	}
-	// OPEN/EOR: delivered as text via OnEvent (no structured handler needed).
+}
+
+// handleStructuredOpen extracts GR (code 64) and LLGR (code 71) capabilities
+// from a received OPEN message's raw wire bytes. Same logic as handleOpenEvent
+// but reads wire bytes directly instead of JSON.
+func (gp *grPlugin) handleStructuredOpen(peerAddr string, msg *bgptypes.RawMessage) {
+	if msg.RawBytes == nil {
+		return
+	}
+	open, err := message.UnpackOpen(msg.RawBytes)
+	if err != nil {
+		logger().Debug("gr: failed to unpack OPEN", "peer", peerAddr, "err", err)
+		return
+	}
+
+	var foundGR bool
+	// Walk optional parameters looking for type 2 (capabilities).
+	offset := 0
+	for offset < len(open.OptionalParams) {
+		if offset+2 > len(open.OptionalParams) {
+			break
+		}
+		paramType := open.OptionalParams[offset]
+		paramLen := int(open.OptionalParams[offset+1])
+		offset += 2
+		if offset+paramLen > len(open.OptionalParams) {
+			break
+		}
+		if paramType == 2 {
+			foundGR = gp.extractGRCaps(peerAddr, open.OptionalParams[offset:offset+paramLen], foundGR)
+		}
+		offset += paramLen
+	}
+
+	// RFC 9494: If GR capability is not present, LLGR MUST be ignored.
+	if !foundGR {
+		gp.mu.Lock()
+		delete(gp.peerLLGRCaps, peerAddr)
+		gp.mu.Unlock()
+	}
+}
+
+// extractGRCaps walks raw capability bytes looking for codes 64 (GR) and 71 (LLGR).
+// Returns true if GR (code 64) was found (including prior calls via foundGR).
+func (gp *grPlugin) extractGRCaps(peerAddr string, data []byte, foundGR bool) bool {
+	off := 0
+	for off < len(data) {
+		if off+2 > len(data) {
+			break
+		}
+		code := data[off]
+		capLen := int(data[off+1])
+		off += 2
+		if off+capLen > len(data) {
+			break
+		}
+		capValue := data[off : off+capLen]
+		off += capLen
+
+		switch code {
+		case 64: // GR capability
+			result, err := decodeGR(capValue)
+			if err != nil {
+				logger().Debug("gr: failed to decode cap 64", "peer", peerAddr, "err", err)
+				continue
+			}
+			peerCap := grResultToPeerCap(result)
+			gp.mu.Lock()
+			gp.peerCaps[peerAddr] = peerCap
+			gp.mu.Unlock()
+			foundGR = true
+			logger().Debug("gr: stored peer GR capability",
+				"peer", peerAddr,
+				"restart-time", peerCap.RestartTime,
+				"families", len(peerCap.Families))
+
+		case 71: // LLGR capability
+			result, err := decodeLLGR(capValue)
+			if err != nil {
+				logger().Debug("gr: failed to decode cap 71", "peer", peerAddr, "err", err)
+				continue
+			}
+			peerCap := llgrResultToPeerCap(result)
+			gp.mu.Lock()
+			gp.peerLLGRCaps[peerAddr] = peerCap
+			gp.mu.Unlock()
+			logger().Debug("gr: stored peer LLGR capability",
+				"peer", peerAddr,
+				"families", len(peerCap.Families))
+		}
+	}
+	return foundGR
 }
 
 // handleStructuredState processes a structured state event.
@@ -385,6 +508,9 @@ func (gp *grPlugin) handleEOREvent(peerAddr string, payload map[string]any) {
 // onTimerExpired is called when a peer's restart timer fires.
 // RFC 4724 Section 4.2: delete all stale routes from the peer.
 func (gp *grPlugin) onTimerExpired(peerAddr string) {
+	if m := grMetricsPtr.Load(); m != nil {
+		m.timerExpired.With(peerAddr).Inc()
+	}
 	gp.releaseRoutes(peerAddr)
 }
 

@@ -4,6 +4,7 @@
 package reactor
 
 import (
+	"strconv"
 	"sync/atomic"
 	"time"
 )
@@ -58,56 +59,80 @@ func (p *Peer) peerAddrLabel() string {
 }
 
 // IncrUpdatesReceived increments the received UPDATE counter.
-// Also increments the per-peer Prometheus counter if metrics are configured.
+// Also increments the per-peer Prometheus counter with type label.
 func (p *Peer) IncrUpdatesReceived() {
 	p.counters.updatesReceived.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
-		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel()).Inc()
+		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "update").Inc()
 	}
 }
 
 // IncrUpdatesSent increments the sent UPDATE counter.
-// Also increments the per-peer Prometheus counter if metrics are configured.
+// Also increments the per-peer Prometheus counter with type label.
 func (p *Peer) IncrUpdatesSent() {
 	p.counters.updatesSent.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
-		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel()).Inc()
+		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "update").Inc()
 	}
 }
 
 // IncrKeepalivesReceived increments the received KEEPALIVE counter.
-// Also increments the per-peer Prometheus counter if metrics are configured.
+// Also increments the per-peer Prometheus counter with type label.
 func (p *Peer) IncrKeepalivesReceived() {
 	p.counters.keepalivesReceived.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
-		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel()).Inc()
+		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "keepalive").Inc()
 	}
 }
 
 // IncrKeepalivesSent increments the sent KEEPALIVE counter.
-// Also increments the per-peer Prometheus counter if metrics are configured.
+// Also increments the per-peer Prometheus counter with type label.
 func (p *Peer) IncrKeepalivesSent() {
 	p.counters.keepalivesSent.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
-		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel()).Inc()
+		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "keepalive").Inc()
 	}
 }
 
 // IncrEORReceived increments the received End-of-RIB counter.
-// Also increments the per-peer Prometheus counter if metrics are configured.
+// Also increments the per-peer Prometheus counter with type label.
 func (p *Peer) IncrEORReceived() {
 	p.counters.eorReceived.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
-		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel()).Inc()
+		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "eor").Inc()
 	}
 }
 
 // IncrEORSent increments the sent End-of-RIB counter.
-// Also increments the per-peer Prometheus counter if metrics are configured.
+// Also increments the per-peer Prometheus counter with type label.
 func (p *Peer) IncrEORSent() {
 	p.counters.eorSent.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
-		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel()).Inc()
+		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "eor").Inc()
+	}
+}
+
+// IncrNotificationSent increments the sent NOTIFICATION counter with code/subcode labels.
+func (p *Peer) IncrNotificationSent(code, subcode uint8) {
+	if p.reactor != nil && p.reactor.rmetrics != nil {
+		p.reactor.rmetrics.notifSent.With(
+			p.peerAddrLabel(),
+			strconv.FormatUint(uint64(code), 10),
+			strconv.FormatUint(uint64(subcode), 10),
+		).Inc()
+		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "notification").Inc()
+	}
+}
+
+// IncrNotificationReceived increments the received NOTIFICATION counter with code/subcode labels.
+func (p *Peer) IncrNotificationReceived(code, subcode uint8) {
+	if p.reactor != nil && p.reactor.rmetrics != nil {
+		p.reactor.rmetrics.notifRecv.With(
+			p.peerAddrLabel(),
+			strconv.FormatUint(uint64(code), 10),
+			strconv.FormatUint(uint64(subcode), 10),
+		).Inc()
+		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "notification").Inc()
 	}
 }
 
@@ -138,9 +163,26 @@ func (p *Peer) ClearStats() {
 	p.counters.establishedAt.Store(0)
 }
 
-// updatePeerStateMetric updates the ze_peer_state Prometheus gauge.
-func (p *Peer) updatePeerStateMetric(state PeerState) {
-	if p.reactor != nil && p.reactor.rmetrics != nil {
-		p.reactor.rmetrics.peerState.With(p.peerAddrLabel()).Set(float64(state))
+// peerStateNames lists all PeerState.String() values for metric label cleanup.
+var peerStateNames = []string{"Stopped", "Connecting", "Active", "Established"}
+
+// updatePeerStateMetric updates the ze_peer_state Prometheus gauge and
+// increments session lifecycle counters (transitions, established, flaps).
+func (p *Peer) updatePeerStateMetric(oldState, newState PeerState) {
+	if p.reactor == nil || p.reactor.rmetrics == nil {
+		return
+	}
+	m := p.reactor.rmetrics
+	addr := p.peerAddrLabel()
+
+	m.peerState.With(addr).Set(float64(newState))
+	m.stateTransitions.With(addr, oldState.String(), newState.String()).Inc()
+
+	if newState == PeerStateEstablished {
+		m.sessionsEstablished.With(addr).Inc()
+	}
+	if oldState == PeerStateEstablished && newState != PeerStateEstablished {
+		m.sessionFlaps.With(addr).Inc()
+		m.sessionDuration.With(addr).Set(0)
 	}
 }

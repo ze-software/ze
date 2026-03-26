@@ -25,6 +25,9 @@ func (s *Session) sendKeepalive(conn net.Conn) error {
 
 // sendNotification sends a NOTIFICATION message.
 func (s *Session) sendNotification(conn net.Conn, code message.NotifyErrorCode, subcode uint8, data []byte) error {
+	if s.onNotifSent != nil {
+		s.onNotifSent(uint8(code), subcode)
+	}
 	notif := &message.Notification{
 		ErrorCode:    code,
 		ErrorSubcode: subcode,
@@ -60,10 +63,22 @@ func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 	n := msg.WriteTo(s.writeBuf.Buffer(), 0, nil)
 
 	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
+		if s.prefixMetrics != nil {
+			s.prefixMetrics.wireWriteErrors.With(s.settings.Address.String()).Inc()
+		}
 		return err
 	}
 	if err := s.bufWriter.Flush(); err != nil {
+		if s.prefixMetrics != nil {
+			s.prefixMetrics.wireWriteErrors.With(s.settings.Address.String()).Inc()
+		}
 		return err
+	}
+
+	// Counts bytes staged into bufWriter then flushed. Both Write and Flush
+	// succeeded, so for TCP sockets this reflects bytes delivered to the kernel.
+	if s.prefixMetrics != nil {
+		s.prefixMetrics.wireBytesSent.With(s.settings.Address.String()).Add(float64(n))
 	}
 
 	// Successful write -- reset RFC 9687 Send Hold Timer.
