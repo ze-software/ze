@@ -1,0 +1,32 @@
+# Valid config: peer with nested local/remote containers and global local AS
+# Exercises: peer keyed by name, remote {ip, as}, local {as, ip}, global local {as}
+stdin=config:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1
+	local {
+		as 65000
+	}
+	peer upstream-1 {
+		remote {
+			ip 10.0.0.2
+			as 65002
+		}
+		local {
+			ip 10.0.0.1
+		}
+	}
+	peer upstream-2 {
+		remote {
+			ip 10.0.0.3
+			as 65003
+		}
+		local {
+			as 65100
+			ip 10.0.0.1
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
