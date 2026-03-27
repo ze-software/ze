@@ -1,0 +1,134 @@
+# Test: Community filter ingress tagging
+# VALIDATES: AC-6 -- ingress tagging adds configured communities to received UPDATE
+# PREVENTS: Community filter not wired, tag silently failing
+#
+# Flow:
+# 1. ze-peer sends UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+# 2. Community filter adds community 65000:100 on ingress (configured in tag list)
+# 3. Python test plugin queries adj-rib-in to verify community appears
+
+# Source peer (ASN 65001) on 127.0.0.1
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# Send UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+# Marker(16) + Len=002F(47) + Type=02 + WdLen=0000 + AttrLen=0014(20)
+#   ORIGIN: 40010100 (IGP)
+#   AS_PATH: 40020602010000FDE9 (AS_SEQ [65001])
+#   NEXT_HOP: 40030401010101
+#   NLRI: 180A0000 (10.0.0.0/24)
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+EOF_PEER
+
+# Python test plugin: verify community was added by ingress filter
+tmpfs=test-tag.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Verify community filter ingress tagging: 65000:100 added to received UPDATE."""
+import json
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for session to establish and UPDATE to be processed.
+    time.sleep(3.0)
+
+    # Query adj-rib-in: route should be present with tagged community.
+    result = dispatch(api, 'adj-rib-in status')
+    data = json.loads(result.get('data', '{}'))
+    total = data.get('total-routes', -1)
+
+    if total < 1:
+        print(f'FAIL: expected at least 1 route, got {total}', file=sys.stderr)
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+
+    # Query rib with community filter to verify the tag was applied.
+    result = dispatch(api, 'rib show received community 65000:100')
+    status = result.get('status')
+    if status != 'done':
+        print(f'FAIL: rib show community returned status={status}', file=sys.stderr)
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+
+    print('OK: community 65000:100 tagged on ingress', file=sys.stderr)
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze configuration: community definition + ingress tag
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-tag {
+		run ./test-tag.run
+		encoder json
+	}
+	external rib {
+		run "ze plugin bgp-rib"
+		encoder json
+	}
+}
+bgp {
+	community {
+		standard mark-transit {
+			value 65000:100
+		}
+	}
+
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65001
+			accept false
+		}
+		local {
+			as 65000
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		group-updates disable
+
+		family {
+			ipv4/unicast { prefix { maximum 10000; } }
+		}
+		capability {
+			graceful-restart disable
+		}
+		filter {
+			ingress {
+				community {
+					tag mark-transit
+				}
+			}
+		}
+		process test-tag {
+			receive [ update state ]
+		}
+		process rib {
+			receive [ state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.filter-community --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

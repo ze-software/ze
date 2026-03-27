@@ -1,0 +1,34 @@
+# Test: ze config validate with community filter config
+# Verifies that the YANG schema accepts community definitions and filter blocks
+stdin=config:terminator=EOF_CONF
+bgp {
+	community {
+		standard block-list {
+			value 65000:100
+			value 65000:200
+		}
+	}
+
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65533
+		}
+		local {
+			as 65533
+			ip 127.0.0.1
+		}
+		filter {
+			ingress {
+				community {
+					tag block-list
+				}
+			}
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

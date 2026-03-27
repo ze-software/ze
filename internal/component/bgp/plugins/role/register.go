@@ -30,6 +30,7 @@ func init() {
 		RunEngine:       RunRolePlugin,
 		IngressFilter:   OTCIngressFilter,
 		EgressFilter:    OTCEgressFilter,
+		FilterStage:     registry.FilterStageAnnotation,
 		ConfigureEngineLogger: func(loggerName string) {
 			ConfigureLogger(slogutil.Logger(loggerName))
 		},

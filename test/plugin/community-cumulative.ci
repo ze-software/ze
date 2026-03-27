@@ -1,0 +1,142 @@
+# Test: Community filter cumulative tag accumulation
+# VALIDATES: AC-8 -- tag lists accumulate across bgp/group/peer levels via ze:cumulative
+# PREVENTS: Most-specific level replacing less-specific tag list
+#
+# Flow:
+# 1. Config has BGP-level tag + peer-level tag (both should apply)
+# 2. ze-peer sends UPDATE without communities
+# 3. Community filter adds BOTH communities on ingress
+# 4. Python plugin verifies both communities present
+
+# Source peer (ASN 65001) on 127.0.0.1
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# Send UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+EOF_PEER
+
+# Python test plugin: verify both communities present
+tmpfs=test-cumulative.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Verify cumulative community tagging: both BGP-level and peer-level tags applied."""
+import json
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    time.sleep(3.0)
+
+    # Verify route accepted.
+    result = dispatch(api, 'adj-rib-in status')
+    data = json.loads(result.get('data', '{}'))
+    total = data.get('total-routes', -1)
+
+    if total < 1:
+        print(f'FAIL: expected at least 1 route, got {total}', file=sys.stderr)
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+
+    # Verify both communities present via rib show community filter.
+    for community in ['65000:1', '65000:2']:
+        result = dispatch(api, f'rib show received community {community}')
+        if result.get('status') != 'done':
+            print(f'FAIL: rib show community {community} failed', file=sys.stderr)
+            dispatch(api, 'daemon shutdown')
+            api.wait_for_shutdown()
+            sys.exit(1)
+
+    print('OK: both cumulative communities tagged on ingress', file=sys.stderr)
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze configuration: BGP-level tag + peer-level tag (cumulative)
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-cumulative {
+		run ./test-cumulative.run
+		encoder json
+	}
+	external rib {
+		run "ze plugin bgp-rib"
+		encoder json
+	}
+}
+bgp {
+	community {
+		standard global-mark {
+			value 65000:1
+		}
+		standard peer-mark {
+			value 65000:2
+		}
+	}
+
+	# BGP-level tag (applies to all peers)
+	filter {
+		ingress {
+			community {
+				tag global-mark
+			}
+		}
+	}
+
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65001
+			accept false
+		}
+		local {
+			as 65000
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		group-updates disable
+
+		family {
+			ipv4/unicast { prefix { maximum 10000; } }
+		}
+		capability {
+			graceful-restart disable
+		}
+		# Peer-level tag (accumulates with BGP-level)
+		filter {
+			ingress {
+				community {
+					tag peer-mark
+				}
+			}
+		}
+		process test-cumulative {
+			receive [ update state ]
+		}
+		process rib {
+			receive [ state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.filter-community --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

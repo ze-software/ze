@@ -31,6 +31,7 @@ import (
 	// Plugin packages — plugin + schema registration.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/adj_rib_in"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/aigp"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/filter_community"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/hostname"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/llnh"
@@ -52,5 +53,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rs"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/watchdog"
+
+	// Filter packages -- outside plugins/ scan path, manually imported.
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor/filter"
 )

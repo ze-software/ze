@@ -99,7 +99,7 @@ func TestDeepMergeMaps(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			deepMergeMaps(tt.dst, tt.src)
+			deepMergeMaps(tt.dst, tt.src, nil)
 			assert.Equal(t, tt.want, tt.dst)
 		})
 	}
@@ -1341,7 +1341,7 @@ func TestDeepMergeMaps_FamilyLeafOverride(t *testing.T) {
 	src := map[string]any{
 		"family": "ipv6/unicast",
 	}
-	deepMergeMaps(dst, src)
+	deepMergeMaps(dst, src, nil)
 	assert.Equal(t, "ipv6/unicast", dst["family"], "peer family should override group family")
 }
 
@@ -1364,7 +1364,7 @@ func TestDeepMergeMaps_NestedThreeLevels(t *testing.T) {
 			},
 		},
 	}
-	deepMergeMaps(dst, src)
+	deepMergeMaps(dst, src, nil)
 
 	l1, ok := dst["level1"].(map[string]any)
 	require.True(t, ok, "level1 should be a map")
@@ -1372,6 +1372,169 @@ func TestDeepMergeMaps_NestedThreeLevels(t *testing.T) {
 	require.True(t, ok, "level2 should be a map")
 	assert.Equal(t, "dst-val", l2["dst-key"], "dst key should be preserved")
 	assert.Equal(t, "src-val", l2["src-key"], "src key should be merged")
+}
+
+// TestCumulativeLeafList verifies that deepMergeMaps appends slice values
+// for keys marked as cumulative instead of replacing them.
+//
+// VALIDATES: AC-21 -- ze:cumulative leaf-list values accumulated across levels.
+// PREVENTS: Most-specific level replacing cumulative leaf-list values.
+func TestCumulativeLeafList(t *testing.T) {
+	cumulative := map[string]bool{
+		"filter.ingress.community.tag": true,
+	}
+
+	// BGP-level: tag = ["block-list"]
+	dst := map[string]any{
+		"filter": map[string]any{
+			"ingress": map[string]any{
+				"community": map[string]any{
+					"tag": []any{"block-list"},
+				},
+			},
+		},
+	}
+
+	// Group-level: tag = ["transit-mark"]
+	src := map[string]any{
+		"filter": map[string]any{
+			"ingress": map[string]any{
+				"community": map[string]any{
+					"tag": []any{"transit-mark"},
+				},
+			},
+		},
+	}
+
+	deepMergeMaps(dst, src, cumulative)
+
+	// Both values should be present (accumulated, not replaced).
+	filter, ok := dst["filter"].(map[string]any)
+	require.True(t, ok, "filter should be a map")
+	ingress, ok := filter["ingress"].(map[string]any)
+	require.True(t, ok, "ingress should be a map")
+	community, ok := ingress["community"].(map[string]any)
+	require.True(t, ok, "community should be a map")
+	tags, ok := community["tag"].([]any)
+	require.True(t, ok, "tag should be a []any")
+	assert.Equal(t, 2, len(tags), "should have 2 accumulated tags")
+	assert.Contains(t, tags, "block-list")
+	assert.Contains(t, tags, "transit-mark")
+}
+
+// TestCumulativeLeafListNonCumulativeUnchanged verifies that normal leaf-lists
+// are still replaced (not accumulated) when a cumulative set is provided.
+//
+// VALIDATES: Normal merge behavior preserved for non-cumulative keys.
+// PREVENTS: All leaf-lists becoming cumulative by accident.
+func TestCumulativeLeafListNonCumulativeUnchanged(t *testing.T) {
+	cumulative := map[string]bool{
+		"filter.ingress.community.tag": true,
+	}
+
+	dst := map[string]any{
+		"some-list": []any{"old-val"},
+	}
+	src := map[string]any{
+		"some-list": []any{"new-val"},
+	}
+
+	deepMergeMaps(dst, src, cumulative)
+
+	// Non-cumulative: src replaces dst.
+	vals, ok := dst["some-list"].([]any)
+	require.True(t, ok)
+	assert.Equal(t, 1, len(vals))
+	assert.Equal(t, "new-val", vals[0])
+}
+
+// TestCumulativeLeafListStringSlice verifies that cumulative merge works when
+// ToMap() produces []string (the actual type from Tree multi-values).
+//
+// VALIDATES: Cumulative merge handles []string from ToMap(), not just []any.
+// PREVENTS: Cumulative merge being dead code for real config data.
+func TestCumulativeLeafListStringSlice(t *testing.T) {
+	cumulative := map[string]bool{
+		"filter.ingress.community.tag": true,
+	}
+
+	// ToMap() produces []string for multi-values.
+	dst := map[string]any{
+		"filter": map[string]any{
+			"ingress": map[string]any{
+				"community": map[string]any{
+					"tag": []string{"global-mark"},
+				},
+			},
+		},
+	}
+	src := map[string]any{
+		"filter": map[string]any{
+			"ingress": map[string]any{
+				"community": map[string]any{
+					"tag": []string{"peer-mark"},
+				},
+			},
+		},
+	}
+
+	deepMergeMaps(dst, src, cumulative)
+
+	filter, ok := dst["filter"].(map[string]any)
+	require.True(t, ok)
+	ingress, ok := filter["ingress"].(map[string]any)
+	require.True(t, ok)
+	community, ok := ingress["community"].(map[string]any)
+	require.True(t, ok)
+	tags, ok := community["tag"].([]any)
+	require.True(t, ok, "accumulated result should be []any")
+	assert.Equal(t, 2, len(tags))
+	assert.Contains(t, tags, "global-mark")
+	assert.Contains(t, tags, "peer-mark")
+}
+
+// TestCumulativeLeafListBareString verifies that a single-value leaf-list
+// (produced as bare string by ToMap()) is accumulated correctly.
+//
+// VALIDATES: Single-value tag/strip not silently lost.
+// PREVENTS: ToMap() bare string causing nil from toAnySlice.
+func TestCumulativeLeafListBareString(t *testing.T) {
+	cumulative := map[string]bool{
+		"filter.ingress.community.tag": true,
+	}
+
+	dst := map[string]any{
+		"filter": map[string]any{
+			"ingress": map[string]any{
+				"community": map[string]any{
+					"tag": "global-mark", // bare string from ToMap() single-value
+				},
+			},
+		},
+	}
+	src := map[string]any{
+		"filter": map[string]any{
+			"ingress": map[string]any{
+				"community": map[string]any{
+					"tag": "peer-mark", // bare string
+				},
+			},
+		},
+	}
+
+	deepMergeMaps(dst, src, cumulative)
+
+	filter, ok := dst["filter"].(map[string]any)
+	require.True(t, ok)
+	ingress, ok := filter["ingress"].(map[string]any)
+	require.True(t, ok)
+	community, ok := ingress["community"].(map[string]any)
+	require.True(t, ok)
+	tags, ok := community["tag"].([]any)
+	require.True(t, ok, "accumulated bare strings should become []any")
+	assert.Equal(t, 2, len(tags))
+	assert.Contains(t, tags, "global-mark")
+	assert.Contains(t, tags, "peer-mark")
 }
 
 // TestValidateGroupName verifies group name validation edge cases.

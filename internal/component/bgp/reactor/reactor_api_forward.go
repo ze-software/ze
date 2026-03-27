@@ -240,10 +240,12 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	var srcFilter registry.PeerFilterInfo
 	if len(a.r.egressFilters) > 0 {
 		srcFilter = registry.PeerFilterInfo{Address: update.SourcePeerIP, PeerAS: 0}
-		// Look up source peer's ASN from peers map (may have disconnected).
+		// Look up source peer's ASN and identity from peers map (may have disconnected).
 		a.r.mu.RLock()
 		if srcPeer, ok := a.r.findPeerByAddr(update.SourcePeerIP); ok {
 			srcFilter.PeerAS = srcPeer.Settings().PeerAS
+			srcFilter.Name = srcPeer.Settings().Name
+			srcFilter.GroupName = srcPeer.Settings().GroupName
 		}
 		a.r.mu.RUnlock()
 	}
@@ -262,8 +264,10 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		var mods registry.ModAccumulator
 		if len(a.r.egressFilters) > 0 {
 			destFilter := registry.PeerFilterInfo{
-				Address: peer.Settings().Address,
-				PeerAS:  peer.Settings().PeerAS,
+				Address:   peer.Settings().Address,
+				PeerAS:    peer.Settings().PeerAS,
+				Name:      peer.Settings().Name,
+				GroupName: peer.Settings().GroupName,
 			}
 			payload := update.WireUpdate.Payload()
 			suppressed := false

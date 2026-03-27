@@ -9,6 +9,16 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
+// cumulativePaths lists config paths where leaf-list values should accumulate across
+// config inheritance levels (bgp -> group -> peer) instead of the most-specific
+// level replacing less-specific ones. Derived from ze:cumulative YANG extension.
+var cumulativePaths = map[string]bool{
+	"filter.ingress.community.tag":   true,
+	"filter.ingress.community.strip": true,
+	"filter.egress.community.tag":    true,
+	"filter.egress.community.strip":  true,
+}
+
 // ResolveBGPTree resolves peer-group inheritance and returns the bgp block as map[string]any.
 // Resolution applies 3 layers per peer (in precedence order):
 //  1. BGP-level globals (local-as, router-id from the bgp block)
@@ -71,13 +81,13 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 			resolved := make(map[string]any)
 
 			// Layer 1: BGP-level defaults (lowest precedence).
-			deepMergeMaps(resolved, deepCopyMap(bgpDefaults))
+			deepMergeMaps(resolved, deepCopyMap(bgpDefaults), cumulativePaths)
 
 			// Layer 2: Apply group defaults.
-			deepMergeMaps(resolved, groupFields)
+			deepMergeMaps(resolved, groupFields, cumulativePaths)
 
 			// Layer 3: Apply peer's own values (highest precedence).
-			deepMergeMaps(resolved, peerTree.ToMap())
+			deepMergeMaps(resolved, peerTree.ToMap(), cumulativePaths)
 
 			// Inject group name so PeersFromTree can populate PeerSettings.GroupName.
 			resolved["group-name"] = groupName
@@ -97,10 +107,10 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 		resolved := make(map[string]any)
 
 		// Layer 1: BGP-level defaults (lowest precedence).
-		deepMergeMaps(resolved, deepCopyMap(bgpDefaults))
+		deepMergeMaps(resolved, deepCopyMap(bgpDefaults), cumulativePaths)
 
 		// Layer 3: Apply peer's own values (highest precedence).
-		deepMergeMaps(resolved, peerTree.ToMap())
+		deepMergeMaps(resolved, peerTree.ToMap(), cumulativePaths)
 
 		// Validate peer name (the list key).
 		if err := validatePeerName(peerName); err != nil {
@@ -296,10 +306,53 @@ func deepCopyMap(src map[string]any) map[string]any {
 // deepMergeMaps recursively merges src into dst.
 // For leaf values (non-map), src overwrites dst.
 // For map values, keys are merged recursively so both sides contribute.
-func deepMergeMaps(dst, src map[string]any) {
+// If cumulative is non-nil, keys whose dot-path is in the set accumulate
+// slice values (append) instead of replacing them. Used for ze:cumulative
+// leaf-lists like filter tag/strip that must gather values from all config levels.
+func deepMergeMaps(dst, src map[string]any, cumulative map[string]bool) {
+	deepMergeAt(dst, src, cumulative, "")
+}
+
+// toAnySlice converts []any, []string, or a bare string to []any.
+// Returns nil if the value is not a slice or string type.
+func toAnySlice(v any) []any {
+	switch s := v.(type) {
+	case []any:
+		return s
+	case []string:
+		result := make([]any, len(s))
+		for i, val := range s {
+			result[i] = val
+		}
+		return result
+	case string:
+		return []any{s}
+	}
+	return nil
+}
+
+// deepMergeAt is the recursive worker for deepMergeMaps, tracking the dot-path
+// prefix for cumulative key lookups.
+func deepMergeAt(dst, src map[string]any, cumulative map[string]bool, prefix string) {
 	for k, srcVal := range src {
+		path := k
+		if prefix != "" {
+			path = prefix + "." + k
+		}
+
 		srcMap, srcIsMap := srcVal.(map[string]any)
 		if !srcIsMap {
+			// Cumulative: append slices instead of replacing.
+			// ToMap() produces []string for multiValues, JSON round-trip produces []any.
+			// Handle both types uniformly by converting to []any for accumulation.
+			if cumulative[path] {
+				srcSlice := toAnySlice(srcVal)
+				dstSlice := toAnySlice(dst[k])
+				if srcSlice != nil && dstSlice != nil {
+					dst[k] = append(dstSlice, srcSlice...)
+					continue
+				}
+			}
 			dst[k] = srcVal
 			continue
 		}
@@ -310,6 +363,6 @@ func deepMergeMaps(dst, src map[string]any) {
 			continue
 		}
 		// Both are maps -- recurse.
-		deepMergeMaps(dstMap, srcMap)
+		deepMergeAt(dstMap, srcMap, cumulative, path)
 	}
 }

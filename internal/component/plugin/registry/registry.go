@@ -31,11 +31,13 @@ import (
 // PeerFilterInfo holds peer metadata for filter decisions.
 // Passed by the reactor to registered filter functions.
 type PeerFilterInfo struct {
-	Address  netip.Addr // Peer IP address
-	PeerAS   uint32     // Remote AS number
-	LocalAS  uint32     // Local AS number (for iBGP detection)
-	RouterID uint32     // Local Router ID (for ORIGINATOR_ID/CLUSTER_LIST loop detection)
-	ASN4     bool       // 4-byte ASN negotiated (affects AS_PATH parsing)
+	Address   netip.Addr // Peer IP address
+	PeerAS    uint32     // Remote AS number
+	LocalAS   uint32     // Local AS number (for iBGP detection)
+	RouterID  uint32     // Local Router ID (for ORIGINATOR_ID/CLUSTER_LIST loop detection)
+	ASN4      bool       // 4-byte ASN negotiated (affects AS_PATH parsing)
+	Name      string     // Peer name from config (for filter config lookup)
+	GroupName string     // Group name (empty if standalone peer)
 }
 
 // IngressFilterFunc is called for received UPDATEs before caching and dispatching.
@@ -87,6 +89,15 @@ const (
 	AttrModAdd                  // Append value to attribute's list (e.g., COMMUNITY)
 	AttrModRemove               // Remove value from attribute's list (e.g., COMMUNITY)
 	AttrModPrepend              // Prepend value to attribute's sequence (e.g., AS_PATH)
+)
+
+// Filter stage constants define coarse ordering classes for the filter pipeline.
+// Filters are sorted by stage first, then by priority within a stage, then by name.
+// Gaps between values allow inserting new stages without renumbering.
+const (
+	FilterStageProtocol   int = 0   // RFC-mandated checks (loop detection, RFC 4271/4456)
+	FilterStagePolicy     int = 100 // Operator-configured filtering (community, prefix, IRR)
+	FilterStageAnnotation int = 200 // Protocol modifications that stamp routes (OTC/RFC 9234)
 )
 
 // AttrOp describes a single attribute modification operation.
@@ -195,8 +206,10 @@ type Registration struct {
 	// In-process peer filters: called by the reactor for ingress/egress route filtering.
 	// Ingress: before caching/dispatching received UPDATEs. Egress: per destination peer.
 	// Filter closures capture plugin state (e.g., role configs) -- reactor passes only PeerFilterInfo.
-	IngressFilter IngressFilterFunc // nil = no ingress filtering
-	EgressFilter  EgressFilterFunc  // nil = no egress filtering
+	IngressFilter  IngressFilterFunc // nil = no ingress filtering
+	EgressFilter   EgressFilterFunc  // nil = no egress filtering
+	FilterStage    int               // Coarse ordering class (FilterStageProtocol/Policy/Annotation)
+	FilterPriority int               // Fine ordering within stage; equal priority sorted by name
 
 	// CLI metadata (used by RunPlugin).
 	Features     string // Space-separated feature list (e.g., "nlri yang")
@@ -556,34 +569,91 @@ func WriteUsage(w io.Writer) error {
 	return nil
 }
 
-// IngressFilters returns all registered ingress filter functions.
+// filterEntry pairs a filter with its registration metadata for sorting.
+type filterEntry struct {
+	name     string
+	stage    int
+	priority int
+}
+
+// collectFilterEntries returns sorted filter entries. Caller MUST hold mu.RLock.
+func collectFilterEntries(hasFilter func(*Registration) bool) []filterEntry {
+	var entries []filterEntry
+	for _, reg := range plugins {
+		if hasFilter(reg) {
+			entries = append(entries, filterEntry{name: reg.Name, stage: reg.FilterStage, priority: reg.FilterPriority})
+		}
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		if entries[i].stage != entries[j].stage {
+			return entries[i].stage < entries[j].stage
+		}
+		if entries[i].priority != entries[j].priority {
+			return entries[i].priority < entries[j].priority
+		}
+		return entries[i].name < entries[j].name
+	})
+	return entries
+}
+
+// sortedFilterPlugins returns plugin names with the given filter type,
+// sorted by FilterStage, then FilterPriority, then by name.
+func sortedFilterPlugins(hasFilter func(*Registration) bool) []string {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	entries := collectFilterEntries(hasFilter)
+	names := make([]string, len(entries))
+	for i, e := range entries {
+		names[i] = e.name
+	}
+	return names
+}
+
+// IngressFilters returns all registered ingress filter functions,
+// sorted by FilterStage, then FilterPriority, then by plugin name.
 // Called by the reactor to build the ingress filter chain.
 func IngressFilters() []IngressFilterFunc {
 	mu.RLock()
 	defer mu.RUnlock()
 
-	var filters []IngressFilterFunc
-	for _, reg := range plugins {
-		if reg.IngressFilter != nil {
+	entries := collectFilterEntries(func(r *Registration) bool { return r.IngressFilter != nil })
+	filters := make([]IngressFilterFunc, 0, len(entries))
+	for _, e := range entries {
+		if reg, ok := plugins[e.name]; ok {
 			filters = append(filters, reg.IngressFilter)
 		}
 	}
 	return filters
 }
 
-// EgressFilters returns all registered egress filter functions.
+// IngressFilterNames returns the names of plugins with ingress filters,
+// in execution order (sorted by FilterStage, then FilterPriority, then name).
+func IngressFilterNames() []string {
+	return sortedFilterPlugins(func(r *Registration) bool { return r.IngressFilter != nil })
+}
+
+// EgressFilters returns all registered egress filter functions,
+// sorted by FilterStage, then FilterPriority, then by plugin name.
 // Called by the reactor to build the egress filter chain.
 func EgressFilters() []EgressFilterFunc {
 	mu.RLock()
 	defer mu.RUnlock()
 
-	var filters []EgressFilterFunc
-	for _, reg := range plugins {
-		if reg.EgressFilter != nil {
+	entries := collectFilterEntries(func(r *Registration) bool { return r.EgressFilter != nil })
+	filters := make([]EgressFilterFunc, 0, len(entries))
+	for _, e := range entries {
+		if reg, ok := plugins[e.name]; ok {
 			filters = append(filters, reg.EgressFilter)
 		}
 	}
 	return filters
+}
+
+// EgressFilterNames returns the names of plugins with egress filters,
+// in execution order (sorted by FilterStage, then FilterPriority, then name).
+func EgressFilterNames() []string {
+	return sortedFilterPlugins(func(r *Registration) bool { return r.EgressFilter != nil })
 }
 
 // Reset clears the registry. Only for use in tests.

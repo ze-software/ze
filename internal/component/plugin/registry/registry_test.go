@@ -1174,3 +1174,107 @@ func TestRegisterAttrModHandlerNil(t *testing.T) {
 		t.Fatal("nil handler should not be registered")
 	}
 }
+
+// TestFilterPriorityOrdering verifies that IngressFilters and EgressFilters return
+// filters sorted by FilterStage first, then FilterPriority, then by plugin name.
+//
+// VALIDATES: AC-12 -- filters execute in stage+priority order.
+// PREVENTS: Non-deterministic filter ordering from map iteration.
+func TestFilterPriorityOrdering(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	// Register four plugins across stages and priorities.
+	// "community" stage Policy priority 0, "loop" stage Protocol priority 0,
+	// "otc" stage Annotation priority 0, "prefix" stage Policy priority 10.
+	// Expected order: loop (Protocol/0), community (Policy/0), prefix (Policy/10), otc (Annotation/0).
+	noop := func(_ PeerFilterInfo, _ []byte, _ map[string]any) (bool, []byte) { return true, nil }
+
+	regCommunity := validReg("community")
+	regCommunity.FilterStage = FilterStagePolicy
+	regCommunity.FilterPriority = 0
+	regCommunity.IngressFilter = noop
+	if err := Register(regCommunity); err != nil {
+		t.Fatal(err)
+	}
+
+	regLoop := validReg("loop")
+	regLoop.FilterStage = FilterStageProtocol
+	regLoop.FilterPriority = 0
+	regLoop.IngressFilter = noop
+	if err := Register(regLoop); err != nil {
+		t.Fatal(err)
+	}
+
+	regOTC := validReg("otc")
+	regOTC.FilterStage = FilterStageAnnotation
+	regOTC.FilterPriority = 0
+	regOTC.IngressFilter = noop
+	if err := Register(regOTC); err != nil {
+		t.Fatal(err)
+	}
+
+	regPrefix := validReg("prefix")
+	regPrefix.FilterStage = FilterStagePolicy
+	regPrefix.FilterPriority = 10
+	regPrefix.IngressFilter = noop
+	if err := Register(regPrefix); err != nil {
+		t.Fatal(err)
+	}
+
+	names := IngressFilterNames()
+	if len(names) != 4 {
+		t.Fatalf("IngressFilterNames() len = %d, want 4", len(names))
+	}
+	want := []string{"loop", "community", "prefix", "otc"}
+	for i, w := range want {
+		if names[i] != w {
+			t.Errorf("names[%d] = %q, want %q (full order: %v)", i, names[i], w, names)
+		}
+	}
+}
+
+// TestFilterSameStageNameBreaksTie verifies that name is the tiebreaker
+// when both stage and priority are equal.
+//
+// VALIDATES: Deterministic ordering within identical stage+priority.
+// PREVENTS: Random ordering from map iteration when priorities match.
+func TestFilterSameStageNameBreaksTie(t *testing.T) {
+	t.Cleanup(func() { Reset() })
+
+	noop := func(_ PeerFilterInfo, _ []byte, _ map[string]any) (bool, []byte) { return true, nil }
+
+	for _, name := range []string{"charlie", "alpha", "bravo"} {
+		reg := validReg(name)
+		reg.FilterStage = FilterStagePolicy
+		reg.FilterPriority = 0
+		reg.IngressFilter = noop
+		if err := Register(reg); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	names := IngressFilterNames()
+	want := []string{"alpha", "bravo", "charlie"}
+	for i, w := range want {
+		if names[i] != w {
+			t.Errorf("names[%d] = %q, want %q", i, names[i], w)
+		}
+	}
+}
+
+// TestPeerFilterInfoFields verifies that PeerFilterInfo has Name and GroupName fields.
+//
+// VALIDATES: AC-20 -- PeerFilterInfo includes peer identity fields.
+// PREVENTS: Filters building their own address-to-name lookup maps.
+func TestPeerFilterInfoFields(t *testing.T) {
+	info := PeerFilterInfo{
+		Name:      "upstream-1",
+		GroupName: "transit",
+	}
+	if info.Name != "upstream-1" {
+		t.Errorf("Name = %q, want %q", info.Name, "upstream-1")
+	}
+	if info.GroupName != "transit" {
+		t.Errorf("GroupName = %q, want %q", info.GroupName, "transit")
+	}
+}

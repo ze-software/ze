@@ -1,0 +1,114 @@
+module ze-filter-community {
+    namespace "urn:ze:filter-community";
+    prefix fc;
+
+    import ze-bgp-conf { prefix bgp; }
+    import ze-extensions { prefix ze; }
+
+    description "Community filter plugin for ZeBGP — tag/strip communities on ingress/egress";
+
+    revision 2026-03-27 {
+        description "Initial revision";
+    }
+
+    // Named community definitions under bgp { community { } }
+    augment "/bgp:bgp" {
+        container community {
+            description "Named community definitions referenced by filter rules";
+
+            list standard {
+                key "name";
+                leaf name { type string; description "Community set name"; }
+                leaf-list value {
+                    type string;
+                    description "Standard community values (ASN:value format)";
+                }
+            }
+
+            list large {
+                key "name";
+                leaf name { type string; description "Community set name"; }
+                leaf-list value {
+                    type string;
+                    description "Large community values (GA:LD1:LD2 format)";
+                }
+            }
+
+            list extended {
+                key "name";
+                leaf name { type string; description "Community set name"; }
+                leaf-list value {
+                    type string;
+                    description "Extended community values";
+                }
+            }
+        }
+    }
+
+    // Filter config grouping — reused at bgp, group, and peer levels.
+    grouping community-filter-config {
+        container filter {
+            description "Route filter rules";
+
+            container ingress {
+                description "Ingress direction filters";
+
+                container community {
+                    description "Community filter for ingress";
+
+                    leaf-list tag {
+                        type string;
+                        ze:cumulative;
+                        description "Named communities to add on ingress";
+                    }
+
+                    leaf-list strip {
+                        type string;
+                        ze:cumulative;
+                        description "Named communities to remove on ingress";
+                    }
+                }
+            }
+
+            container egress {
+                description "Egress direction filters";
+
+                container community {
+                    description "Community filter for egress";
+
+                    leaf-list tag {
+                        type string;
+                        ze:cumulative;
+                        description "Named communities to add on egress";
+                    }
+
+                    leaf-list strip {
+                        type string;
+                        ze:cumulative;
+                        description "Named communities to remove on egress";
+                    }
+                }
+            }
+        }
+    }
+
+    // Standalone peer
+    augment "/bgp:bgp/bgp:peer" {
+        uses community-filter-config;
+    }
+
+    // Peer inside group
+    augment "/bgp:bgp/bgp:group/bgp:peer" {
+        uses community-filter-config;
+    }
+
+    // Group-level
+    augment "/bgp:bgp/bgp:group" {
+        uses community-filter-config;
+    }
+
+    // BGP-level (global defaults)
+    augment "/bgp:bgp" {
+        uses community-filter-config;
+    }
+}

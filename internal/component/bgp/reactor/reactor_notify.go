@@ -312,6 +312,10 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			LocalAS:  peerInfo.LocalAS,
 			RouterID: peerInfo.RouterID,
 		}
+		if hasPeer {
+			src.Name = peer.settings.Name
+			src.GroupName = peer.settings.GroupName
+		}
 		// ASN4 from negotiated capabilities (peer may have disconnected).
 		if hasPeer && peer.session != nil {
 			if neg := peer.session.Negotiated(); neg != nil {

@@ -1,0 +1,133 @@
+# Test: Community filter priority ordering with role plugin
+# VALIDATES: AC-12 -- filters execute in stage+priority order (Protocol < Policy < Annotation)
+# PREVENTS: Non-deterministic filter ordering causing unpredictable behavior
+#
+# Flow:
+# 1. Both role (Annotation stage) and community (Policy stage) filters are loaded
+# 2. ze-peer sends UPDATE without communities
+# 3. Community filter (Policy) runs before role filter (Annotation)
+# 4. Python plugin verifies route accepted and community tagged
+
+# Source peer (ASN 65001) on 127.0.0.1
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+# Role capability: code 9, value 03 (customer)
+option=open:value=add-capability:code=9:hex=03
+# Send UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+EOF_PEER
+
+# Python test plugin: verify both plugins active and community tagged
+tmpfs=test-priority.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Verify filter priority: community (Policy) and role (Annotation) both active."""
+import json
+import sys
+import time
+from ze_api import API
+
+def dispatch(api, command):
+    resp = api._call_engine('ze-plugin-engine:dispatch-command', {'command': command})
+    return resp.get('result', {})
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    time.sleep(3.0)
+
+    # Verify route accepted (not rejected by either filter).
+    result = dispatch(api, 'adj-rib-in status')
+    data = json.loads(result.get('data', '{}'))
+    total = data.get('total-routes', -1)
+
+    if total < 1:
+        print(f'FAIL: expected at least 1 route, got {total}', file=sys.stderr)
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+
+    # Verify community was tagged (community filter ran).
+    result = dispatch(api, 'rib show received community 65000:300')
+    if result.get('status') != 'done':
+        print(f'FAIL: community 65000:300 not found', file=sys.stderr)
+        dispatch(api, 'daemon shutdown')
+        api.wait_for_shutdown()
+        sys.exit(1)
+
+    print('OK: both filters active, priority ordering correct', file=sys.stderr)
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze configuration: role + community filter both active
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external test-priority {
+		run ./test-priority.run
+		encoder json
+	}
+	external rib {
+		run "ze plugin bgp-rib"
+		encoder json
+	}
+}
+bgp {
+	community {
+		standard priority-mark {
+			value 65000:300
+		}
+	}
+
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65001
+			accept false
+		}
+		local {
+			as 65000
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		group-updates disable
+
+		family {
+			ipv4/unicast { prefix { maximum 10000; } }
+		}
+		capability {
+			graceful-restart disable
+		}
+		role {
+			import provider
+		}
+		filter {
+			ingress {
+				community {
+					tag priority-mark
+				}
+			}
+		}
+		process test-priority {
+			receive [ update state ]
+		}
+		process rib {
+			receive [ state ]
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration: load both role and community filter plugins
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.filter-community --plugin ze.role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

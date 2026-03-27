@@ -99,4 +99,15 @@ module ze-extensions {
                      and execute as operational commands without requiring the
                      'run' prefix.";
     }
+
+    // Extension: cumulative
+    // Marks a leaf-list as cumulative during config resolution.
+    // Normal leaf-lists are replaced by more-specific config levels (peer > group > bgp).
+    // Cumulative leaf-lists append values from all levels instead of replacing.
+    // Used for filter tag/strip lists that must gather values across config hierarchy.
+    extension cumulative {
+        description "Marks a leaf-list as cumulative during config resolution.
+                     Values from bgp, group, and peer levels are accumulated
+                     (appended) instead of the most-specific level replacing others.";
+    }
 }
