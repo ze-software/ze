@@ -158,15 +158,9 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		// UPDATE is still dispatched — the attribute bytes are still present
 		// in the wire format, but plugins receiving this UPDATE should not
 		// rely on the discarded attribute values for route selection.
-
-		// RFC 4271 Section 9, RFC 4456 Section 8: Loop detection.
-		// Runs after RFC 7606 (structurally valid) but before prefix limits
-		// so looped routes don't count toward prefix counters.
-		if s.detectLoops(wireUpdate.Payload()) {
-			s.timers.ResetHoldTimer()
-			_ = s.fsm.Event(fsm.EventUpdateMsg)
-			return nil, false
-		}
+		//
+		// Loop detection (RFC 4271 S9, RFC 4456 S8) runs as an ingress filter
+		// in the reactor's message receiver callback (plugins/loop package).
 	}
 
 	// RFC 4486: Check prefix limits BEFORE delivering to plugins.

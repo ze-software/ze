@@ -31,8 +31,11 @@ import (
 // PeerFilterInfo holds peer metadata for filter decisions.
 // Passed by the reactor to registered filter functions.
 type PeerFilterInfo struct {
-	Address netip.Addr // Peer IP address
-	PeerAS  uint32     // Remote AS number
+	Address  netip.Addr // Peer IP address
+	PeerAS   uint32     // Remote AS number
+	LocalAS  uint32     // Local AS number (for iBGP detection)
+	RouterID uint32     // Local Router ID (for ORIGINATOR_ID/CLUSTER_LIST loop detection)
+	ASN4     bool       // 4-byte ASN negotiated (affects AS_PATH parsing)
 }
 
 // IngressFilterFunc is called for received UPDATEs before caching and dispatching.

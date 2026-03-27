@@ -306,7 +306,18 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	// Only for received UPDATEs. Filter closures check peer role, OTC, etc.
 	var routeMeta map[string]any
 	if direction == plugin.DirectionReceived && wireUpdate != nil && len(r.ingressFilters) > 0 {
-		src := registry.PeerFilterInfo{Address: peerAddr, PeerAS: peerInfo.PeerAS}
+		src := registry.PeerFilterInfo{
+			Address:  peerAddr,
+			PeerAS:   peerInfo.PeerAS,
+			LocalAS:  peerInfo.LocalAS,
+			RouterID: peerInfo.RouterID,
+		}
+		// ASN4 from negotiated capabilities (peer may have disconnected).
+		if hasPeer && peer.session != nil {
+			if neg := peer.session.Negotiated(); neg != nil {
+				src.ASN4 = neg.ASN4
+			}
+		}
 		payload := wireUpdate.Payload()
 		ingressMeta := make(map[string]any, 2) // Non-nil: filters may write to it.
 		for _, filter := range r.ingressFilters {
