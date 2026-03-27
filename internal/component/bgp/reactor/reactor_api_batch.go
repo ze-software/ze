@@ -64,13 +64,12 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch bgptype
 		// Resolve next-hop per peer using RouteNextHop policy
 		nextHop, nhErr := peer.resolveNextHop(batch.NextHop, batch.Family)
 		if nhErr != nil {
-			// Log but continue - skip this peer if next-hop can't be resolved
 			routesLogger().Debug("next-hop resolution failed", "peer", peer.Settings().Address, "error", nhErr)
 			continue
 		}
 
 		// Build AS_PATH per peer (iBGP vs eBGP)
-		asPath := a.buildBatchASPath(userASPath, isIBGP)
+		asPath := a.buildBatchASPath(userASPath, isIBGP, peer.Settings().LocalAS)
 
 		if !peer.ShouldQueue() {
 			// Check family negotiation
@@ -88,7 +87,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch bgptype
 			// Build UPDATE message for this batch using pooled buffers
 			attrHandle := getBuildBuf()
 			nlriHandle := getBuildBuf()
-			update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, asn4, addPath)
+			update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, asn4, addPath, peer.Settings().LocalAS)
 
 			// Send with splitting for large batches
 			// RFC 4271: Each split UPDATE is self-contained with full attributes
@@ -171,7 +170,7 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch bgptype
 
 // buildBatchASPath builds AS_PATH for batch operations.
 // RFC 4271 §5.1.2: iBGP SHALL NOT modify AS_PATH; eBGP prepends local AS.
-func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, isIBGP bool) *attribute.ASPath {
+func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, isIBGP bool, localAS uint32) *attribute.ASPath {
 	switch {
 	case len(userASPath) > 0:
 		return &attribute.ASPath{
@@ -184,7 +183,7 @@ func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, isIBGP bool) *
 	default: // eBGP: prepend local AS
 		return &attribute.ASPath{
 			Segments: []attribute.ASPathSegment{
-				{Type: attribute.ASSequence, ASNs: []uint32{a.r.config.LocalAS}},
+				{Type: attribute.ASSequence, ASNs: []uint32{localAS}},
 			},
 		}
 	}
@@ -194,7 +193,7 @@ func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, isIBGP bool) *
 // attrBuf and nlriBuf are caller-provided buffers (from buildBufPool).
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
-func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP, asn4, addPath bool) *message.Update {
+func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP, asn4, addPath bool, localAS uint32) *message.Update {
 	// Write NLRIs into caller-provided buffer
 	nlriOff := 0
 	for _, n := range batch.NLRIs {
@@ -204,7 +203,7 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 
 	// Wire mode: ensure mandatory attributes present, then add NEXT_HOP or MP_REACH_NLRI
 	if batch.Wire != nil {
-		attrOff := a.writeMandatoryAttrs(attrBuf, batch.Wire, isIBGP, asn4)
+		attrOff := a.writeMandatoryAttrs(attrBuf, batch.Wire, isIBGP, asn4, localAS)
 		return a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
 	}
 
@@ -221,7 +220,7 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 
 	// Ensure ORIGIN and AS_PATH are present (Builder may not include AS_PATH)
 	wire := attribute.NewAttributesWire(builtBytes, 0)
-	attrOff := a.writeMandatoryAttrs(attrBuf, wire, isIBGP, asn4)
+	attrOff := a.writeMandatoryAttrs(attrBuf, wire, isIBGP, asn4, localAS)
 
 	// Add NEXT_HOP or MP_REACH_NLRI
 	return a.buildWireModeUpdate(attrBuf, attrOff, nlriBytes, batch.Family, nextHop, isIBGP)
@@ -322,7 +321,8 @@ func (a *reactorAPIAdapter) hasAttribute(wireAttrs []byte, typeCode attribute.At
 // RFC 4271 Section 5.1.2: AS_PATH is a well-known mandatory attribute.
 // RFC 4271 Section 5.1: Attributes must appear in type code order.
 // If missing, adds defaults: ORIGIN=IGP, AS_PATH per iBGP/eBGP rules.
-func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.AttributesWire, isIBGP, asn4 bool) int {
+// localAS is the peer-specific local AS (used for AS_PATH prepend when missing).
+func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.AttributesWire, isIBGP, asn4 bool, localAS uint32) int {
 	hasOrigin, _ := wire.Has(attribute.AttrOrigin)
 	hasASPath, _ := wire.Has(attribute.AttrASPath)
 	packed := wire.Packed()
@@ -344,7 +344,7 @@ func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.Attr
 		off += 4
 
 		// AS_PATH
-		off += a.writeASPath(buf[off:], isIBGP, asn4)
+		off += a.writeASPath(buf[off:], isIBGP, asn4, localAS)
 
 		copy(buf[off:], packed)
 		return off + len(packed)
@@ -367,7 +367,7 @@ func (a *reactorAPIAdapter) writeMandatoryAttrs(buf []byte, wire *attribute.Attr
 	off = originEnd
 
 	// Insert AS_PATH
-	off += a.writeASPath(buf[off:], isIBGP, asn4)
+	off += a.writeASPath(buf[off:], isIBGP, asn4, localAS)
 
 	// Copy remaining attributes
 	copy(buf[off:], packed[originEnd:])
@@ -412,7 +412,8 @@ func (a *reactorAPIAdapter) findNextHopInsertPosition(wireAttrs []byte) int {
 }
 
 // writeASPath writes AS_PATH attribute to buf, returning bytes written.
-func (a *reactorAPIAdapter) writeASPath(buf []byte, isIBGP, asn4 bool) int {
+// localAS is the peer-specific local AS number (may differ from reactor global config).
+func (a *reactorAPIAdapter) writeASPath(buf []byte, isIBGP, asn4 bool, localAS uint32) int {
 	switch {
 	case isIBGP:
 		buf[0] = 0x40 // Transitive
@@ -425,15 +426,15 @@ func (a *reactorAPIAdapter) writeASPath(buf []byte, isIBGP, asn4 bool) int {
 		buf[2] = 6    // Length: 2 (segment header) + 4 (ASN)
 		buf[3] = byte(attribute.ASSequence)
 		buf[4] = 1 // Count = 1
-		binary.BigEndian.PutUint32(buf[5:], a.r.config.LocalAS)
+		binary.BigEndian.PutUint32(buf[5:], localAS)
 		return 9
 	default: // ASN2 eBGP
 		buf[0] = 0x40 // Transitive
 		buf[1] = 2    // AS_PATH
 		buf[2] = 4    // Length: 2 (segment header) + 2 (ASN)
 		buf[3] = byte(attribute.ASSequence)
-		buf[4] = 1                                                      // Count = 1
-		binary.BigEndian.PutUint16(buf[5:], uint16(a.r.config.LocalAS)) //nolint:gosec // LocalAS validated ≤ 65535 in ASN2 path
+		buf[4] = 1                                           // Count = 1
+		binary.BigEndian.PutUint16(buf[5:], uint16(localAS)) //nolint:gosec // LocalAS validated ≤ 65535 in ASN2 path
 		return 7
 	}
 }

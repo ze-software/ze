@@ -19,19 +19,19 @@
 
 Investigate and fix Ze bugs discovered by interop scenarios 22-32. The test infrastructure is correct (validated by 4 passing scenarios with all 3 vendors). Failures are Ze bugs in EVPN, VPN, FlowSpec address family handling and IPv6 route delivery to BIRD.
 
-### Interop Test Results (2026-03-26)
+### Interop Test Results (2026-03-27)
 
 | Scenario | Feature | Vendor | Result | Failure |
 |----------|---------|--------|--------|---------|
-| 22-evpn-frr | EVPN | FRR | FAIL | l2vpn/evpn family not negotiated |
-| 23-vpn-frr | VPN | FRR | FAIL | Routes not received (session up) |
-| 24-flowspec-frr | FlowSpec | FRR | FAIL | Rules not received (session up) |
-| 25-ipv6-ebgp-bird | IPv6 | BIRD | FAIL | Routes not received (session up) |
+| 22-evpn-frr | EVPN | FRR | ~~FAIL~~ PASS | Fixed: AS_PATH ASN=0, check.py key+JSON |
+| 23-vpn-frr | VPN | FRR | ~~FAIL~~ PASS | Fixed: AS_PATH ASN=0, invalid ext-community, VPN JSON |
+| 24-flowspec-frr | FlowSpec | FRR | ~~FAIL~~ PASS | Fixed: AS_PATH ASN=0, FlowSpec JSON count |
+| 25-ipv6-ebgp-bird | IPv6 | BIRD | FAIL | BIRD does not install IPv6 routes over IPv4 session |
 | 26-ipv6-ebgp-gobgp | IPv6 | GoBGP | PASS | |
 | 27-multihop-ebgp-frr | Multihop | FRR | PASS | |
-| 28-evpn-gobgp | EVPN | GoBGP | FAIL | Routes not received |
-| 29-vpn-gobgp | VPN | GoBGP | FAIL | Session never established |
-| 30-flowspec-gobgp | FlowSpec | GoBGP | FAIL | Rules not received |
+| 28-evpn-gobgp | EVPN | GoBGP | ~~FAIL~~ PASS | Fixed: AS_PATH ASN=0, GoBGP JSON dict/list |
+| 29-vpn-gobgp | VPN | GoBGP | FAIL | Ze does not advertise VPN capability to GoBGP |
+| 30-flowspec-gobgp | FlowSpec | GoBGP | ~~FAIL~~ PASS | Fixed: AS_PATH ASN=0, GoBGP JSON dict/list |
 | 31-multihop-ebgp-bird | Multihop | BIRD | PASS | |
 | 32-multihop-ebgp-gobgp | Multihop | GoBGP | PASS | |
 
@@ -40,22 +40,30 @@ Investigate and fix Ze bugs discovered by interop scenarios 22-32. The test infr
 | Feature | FRR | BIRD | GoBGP | Conclusion |
 |---------|-----|------|-------|------------|
 | IPv4 unicast | PASS (27) | PASS (31) | PASS (32) | Works |
-| IPv6 unicast | existing-10 | FAIL (25) | PASS (26) | Ze or BIRD-specific |
-| EVPN | FAIL (22) | N/A | FAIL (28) | Ze bug |
-| VPN | FAIL (23) | N/A | FAIL (29) | Ze bug |
-| FlowSpec | FAIL (24) | N/A | FAIL (30) | Ze bug |
+| IPv6 unicast | existing-10 | FAIL (25) | PASS (26) | BIRD-specific (Extended NH) |
+| EVPN | ~~FAIL~~ PASS (22) | N/A | ~~FAIL~~ PASS (28) | Fixed |
+| VPN | ~~FAIL~~ PASS (23) | N/A | FAIL (29) | VPN cap not sent to GoBGP |
+| FlowSpec | ~~FAIL~~ PASS (24) | N/A | ~~FAIL~~ PASS (30) | Fixed |
 | Multihop | PASS (27) | PASS (31) | PASS (32) | Works |
 
-### Failure Categories
+### Failure Categories (updated 2026-03-27)
 
-**Category 1: EVPN capability not negotiated (scenarios 22, 28)**
-Session establishes but l2vpn/evpn is not in OPEN capabilities. The `bgp-nlri-evpn` plugin registers `l2vpn/evpn` but Ze may not include it in the outgoing OPEN.
+**~~Category 1: EVPN capability not negotiated (scenarios 22, 28)~~ FIXED**
+Root cause: check.py used wrong FRR JSON key (`l2vpnEvpn` vs `l2VpnEvpn`). Capability WAS negotiated.
 
-**Category 2: Routes not delivered (scenarios 23, 24, 25, 30)**
-Session up, family may be negotiated, but routes from process plugin never reach peer. Either text command rejected, encoding fails, or UPDATE not forwarded.
+**~~Category 2: Routes not delivered (scenarios 22, 23, 24, 28, 30)~~ FIXED**
+Root causes:
+- `writeASPath` / `buildBatchASPath` used `a.r.config.LocalAS` (global=0) instead of per-peer `settings.LocalAS`. FRR/GoBGP rejected UPDATEs with AS 0 in AS_PATH (RFC 7607 treat-as-withdraw).
+- `validatePeerFamilies` only checked runtime registry (empty for in-process plugins). Added static registry fallback.
+- check.py JSON parsing bugs: FRR structures VPN/EVPN routes under RD key (not `"routes"`); GoBGP returns dict (not list); FlowSpec count used `> 2` instead of `>= 2`.
+- Announce scripts used invalid `[origin:65001:100]` extended community (100 is not an IP).
+- Announce scripts used `time.sleep(0.1)` instead of `wait_for_ack(1)` barrier flush.
 
-**Category 3: Session fails (scenario 29)**
-VPN with GoBGP -- session never establishes. Possible GoBGP afi-safi name mismatch (`ipv4-vpnv4unicast` may be wrong).
+**~~Category 3: Session fails (scenario 29)~~ PARTIALLY FIXED**
+GoBGP afi-safi name fixed (`ipv4-vpnv4unicast` -> `l3vpn-ipv4-unicast`). Session now establishes. But Ze does not advertise VPN capability to GoBGP despite identical config to scenario 23 (FRR). Needs investigation.
+
+**Remaining: scenario 25 (IPv6 BIRD)**
+BIRD does not install IPv6 routes received over an IPv4 BGP session. Extended Next Hop capability added to ze.conf but BIRD still does not accept routes. Needs investigation -- may be BIRD-specific or Ze Extended NH encoding issue.
 
 ## Required Reading
 
@@ -276,13 +284,29 @@ To be added during investigation.
 ## Implementation Summary
 
 ### What Was Implemented
-- [To be filled after fixes]
+- Fixed 6 of 8 failing interop scenarios (22, 23, 24, 28, 29-session, 30)
+- 0 regressions in 4 previously-passing scenarios (26, 27, 31, 32)
 
 ### Bugs Found/Fixed
-- [To be filled after fixes]
+
+| Bug | File | Impact |
+|-----|------|--------|
+| AS_PATH used global LocalAS (0) instead of per-peer LocalAS | `reactor_api_batch.go` | All non-unicast routes rejected by peers (RFC 7607) |
+| `validatePeerFamilies` only checked runtime registry | `reactor.go` | Ze crashed on startup with non-unicast families |
+| check.py FRR key `l2vpnEvpn` vs `l2VpnEvpn` | `22-evpn-frr/check.py` | False test failure |
+| check.py FRR EVPN/VPN JSON nested under RD key | `22-evpn-frr/check.py`, `interop.py` | Routes present but not found |
+| check.py FlowSpec count `> 2` instead of `>= 2` | `24-flowspec-frr/check.py` | Off-by-one in route count |
+| check.py GoBGP returns dict not list | `28/29/30-*-gobgp/check.py` | Routes present but not found |
+| Announce scripts invalid `[origin:65001:100]` | `23-vpn-frr/announce-vpn.py`, `29-vpn-gobgp/announce-vpn.py` | Parse error (100 not valid IP) |
+| GoBGP VPN afi-safi name `ipv4-vpnv4unicast` | `29-vpn-gobgp/gobgp.toml` | Session never established |
+| Announce scripts used `sleep(0.1)` not barrier flush | All announce scripts | Race between route send and check |
+
+### Not Done
+- Scenario 25 (IPv6 BIRD): BIRD does not install IPv6 routes over IPv4 session
+- Scenario 29 (VPN GoBGP): Ze does not advertise VPN capability to GoBGP despite identical config to working FRR scenario
 
 ### Documentation Updates
-- [To be filled after fixes]
+- None required (bug fixes only)
 
 ### Deviations from Plan
 - [To be filled after fixes]

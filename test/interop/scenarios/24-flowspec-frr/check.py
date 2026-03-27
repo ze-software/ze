@@ -38,8 +38,8 @@ def check():
         if output.strip():
             try:
                 data = json.loads(output)
-                routes = data.get("routes", {})
-                if len(routes) >= 2:
+                total = data.get("totalRoutes", 0)
+                if total >= 2:
                     raw_data = data
                     break
             except json.JSONDecodeError:
@@ -51,8 +51,8 @@ def check():
         print(ze.logs(20))
         raise AssertionError("FRR did not receive FlowSpec rules")
 
-    routes = raw_data.get("routes", {})
-    log_pass("FlowSpec rules received by FRR (count: %d)" % len(routes))
+    count = raw_data.get("numPrefix", len(raw_data.get("routes", {})))
+    log_pass("FlowSpec rules received by FRR (count: %d)" % count)
 
     # Verify FlowSpec rule content: route keys should reference announced destinations.
     routes_str = json.dumps(raw_data)

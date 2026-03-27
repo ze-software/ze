@@ -7,7 +7,7 @@ IPv6 UPDATE messages that BIRD accepts.
 
 import time
 
-from ze_api import flush, ready, wait_for_shutdown
+from ze_api import flush, ready, wait_for_ack, wait_for_shutdown
 
 ready()
 
@@ -15,9 +15,10 @@ ready()
 time.sleep(1)
 
 flush('peer * update text origin igp path 65001 nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8:1::/48\n')
-time.sleep(0.1)
+wait_for_ack(1)
 flush('peer * update text origin igp path 65001 nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8:2::/48\n')
-time.sleep(0.1)
+wait_for_ack(1)
 flush('peer * update text origin igp path 65001 nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8:3::/48\n')
+wait_for_ack(1)
 
 wait_for_shutdown(timeout=120)

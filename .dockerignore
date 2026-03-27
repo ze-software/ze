@@ -1,0 +1,9 @@
+tmp/
+.git/
+bin/
+docs/
+plan/
+rfc/
+etc/
+.claude/
+*.md

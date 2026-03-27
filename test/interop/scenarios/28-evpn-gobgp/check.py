@@ -22,7 +22,7 @@ def check():
     raw_data = None
     while time.time() < deadline:
         data = gobgp._gobgp_json(["global", "rib", "-a", "evpn"])
-        if data and isinstance(data, list) and len(data) > 0:
+        if data and (isinstance(data, list) and len(data) > 0 or isinstance(data, dict) and len(data) > 0):
             raw_data = data
             break
         time.sleep(2)

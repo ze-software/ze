@@ -12,4 +12,4 @@
       afi-safi-name = "ipv4-unicast"
   [[neighbors.afi-safis]]
     [neighbors.afi-safis.config]
-      afi-safi-name = "ipv4-vpnv4unicast"
+      afi-safi-name = "l3vpn-ipv4-unicast"

@@ -171,11 +171,21 @@ class FRR:
             return {}
 
     def has_route(self, prefix, family="ipv4 unicast"):
-        """Check if prefix exists in BGP table via JSON query."""
+        """Check if prefix exists in BGP table via JSON query.
+
+        Handles FRR's nested JSON for VPN/EVPN families where routes
+        are wrapped under the Route Distinguisher key (e.g., "65001:100").
+        """
         data = self.route(prefix, family)
         if not data:
             return False
-        return "paths" in data or "prefix" in data
+        if "paths" in data or "prefix" in data:
+            return True
+        # VPN/EVPN: routes nested under RD key (e.g., {"65001:100": {"prefix":...}})
+        for v in data.values():
+            if isinstance(v, dict) and ("paths" in v or "prefix" in v):
+                return True
+        return False
 
     def route_absent(self, prefix, family="ipv4 unicast"):
         """Assert prefix is NOT in BGP table."""

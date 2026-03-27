@@ -24,12 +24,13 @@ def check():
             nbr = json.loads(nbr_output)
             peer = nbr.get(ZE_IP, {})
             afis = peer.get("addressFamilyInfo", {})
-            assert "l2vpnEvpn" in afis, "l2vpn/evpn family not negotiated with FRR"
+            assert "l2VpnEvpn" in afis, "l2vpn/evpn family not negotiated with FRR"
             log_pass("l2vpn/evpn address family negotiated")
         except (json.JSONDecodeError, KeyError):
             log_info("could not verify EVPN capability (non-fatal)")
 
     # EVPN routes in FRR are queried via "show bgp l2vpn evpn json".
+    # FRR structures EVPN routes under the RD key (e.g., "1:1"), not "routes".
     log_info("waiting for EVPN routes to arrive at FRR...")
     deadline = time.time() + 30
     raw_data = None
@@ -38,8 +39,8 @@ def check():
         if output.strip():
             try:
                 data = json.loads(output)
-                routes = data.get("routes", {})
-                if routes:
+                # EVPN routes are under RD keys; check numPrefix or any RD key
+                if data.get("numPrefix", 0) > 0:
                     raw_data = data
                     break
             except json.JSONDecodeError:

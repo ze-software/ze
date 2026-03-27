@@ -25,7 +25,7 @@ func TestBuildBatchASPath_eBGP(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: r}
 
 	// No explicit AS_PATH, eBGP peer
-	asPath := adapter.buildBatchASPath(nil, false)
+	asPath := adapter.buildBatchASPath(nil, false, 65000)
 
 	require.NotNil(t, asPath)
 	require.Len(t, asPath.Segments, 1)
@@ -42,7 +42,7 @@ func TestBuildBatchASPath_iBGP(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: r}
 
 	// No explicit AS_PATH, iBGP peer
-	asPath := adapter.buildBatchASPath(nil, true)
+	asPath := adapter.buildBatchASPath(nil, true, 65000)
 
 	require.NotNil(t, asPath)
 	assert.Empty(t, asPath.Segments, "iBGP should have empty AS_PATH")
@@ -58,7 +58,7 @@ func TestBuildBatchASPath_Explicit(t *testing.T) {
 
 	// Explicit AS_PATH
 	userPath := []uint32{65001, 65002, 65003}
-	asPath := adapter.buildBatchASPath(userPath, false)
+	asPath := adapter.buildBatchASPath(userPath, false, 65000)
 
 	require.NotNil(t, asPath)
 	require.Len(t, asPath.Segments, 1)
@@ -296,7 +296,7 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv4(t *testing.T) {
 	// Use nil context (default ASN4=true, no ADD-PATH)
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
-	update := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("10.0.0.1"), false, true, false)
+	update := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("10.0.0.1"), false, true, false, 65000)
 
 	require.NotNil(t, update)
 
@@ -331,7 +331,7 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv6(t *testing.T) {
 
 	attrBuf := make([]byte, message.MaxMsgLen)
 	nlriBuf := make([]byte, message.MaxMsgLen)
-	update := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("2001:db8::1"), false, true, false)
+	update := adapter.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, netip.MustParseAddr("2001:db8::1"), false, true, false, 65000)
 
 	require.NotNil(t, update)
 
