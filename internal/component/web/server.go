@@ -20,6 +20,8 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
+	"io"
+	stdlog "log"
 	"log/slog"
 	"math/big"
 	"net"
@@ -132,6 +134,8 @@ func NewWebServer(cfg WebConfig) (*WebServer, error) {
 			// Timeouts prevent slow clients from holding connections indefinitely.
 			ReadHeaderTimeout: 10 * time.Second,
 			IdleTimeout:       120 * time.Second,
+			// Suppress TLS handshake errors from browsers rejecting self-signed certs.
+			ErrorLog: stdlog.New(io.Discard, "", 0),
 		},
 	}, nil
 }
@@ -240,16 +244,20 @@ func GenerateWebCertWithAddr(listenAddr string) (certPEM, keyPEM []byte, err err
 		},
 	}
 
-	// Add the listen address host as a SAN if it is a valid IP not already
-	// covered by the default localhost/loopback entries.
+	// Add SANs for the listen address. When listening on the unspecified
+	// address (0.0.0.0 or ::), add all non-loopback interface IPs so the
+	// certificate is valid regardless of which IP the client connects to.
 	if listenAddr != "" {
 		host, _, splitErr := net.SplitHostPort(listenAddr)
 		if splitErr != nil {
-			// listenAddr might be just an IP without a port.
 			host = listenAddr
 		}
 		if ip := net.ParseIP(host); ip != nil && !ip.IsLoopback() {
-			template.IPAddresses = append(template.IPAddresses, ip)
+			if ip.IsUnspecified() {
+				addInterfaceIPs(&template)
+			} else {
+				template.IPAddresses = append(template.IPAddresses, ip)
+			}
 		}
 	}
 
@@ -267,6 +275,35 @@ func GenerateWebCertWithAddr(listenAddr string) (certPEM, keyPEM []byte, err err
 	keyPEM = pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyDER})
 
 	return certPEM, keyPEM, nil
+}
+
+// addInterfaceIPs appends all non-loopback unicast IPs from network interfaces
+// to the certificate template's IPAddresses list. Used when listening on 0.0.0.0
+// so the cert is valid for any local IP the client connects to.
+func addInterfaceIPs(tmpl *x509.Certificate) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return
+	}
+	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addrs, addrErr := iface.Addrs()
+		if addrErr != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			ipNet, ok := addr.(*net.IPNet)
+			if !ok {
+				continue
+			}
+			if ipNet.IP.IsLoopback() || ipNet.IP.IsLinkLocalUnicast() {
+				continue
+			}
+			tmpl.IPAddresses = append(tmpl.IPAddresses, ipNet.IP)
+		}
+	}
 }
 
 // NewTLSConfig creates a tls.Config from PEM-encoded certificate and key data.

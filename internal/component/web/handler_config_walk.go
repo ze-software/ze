@@ -227,6 +227,7 @@ func walkTree(tree *config.Tree, schema *config.Schema, path []string) *config.T
 func buildConfigViewData(schema *config.Schema, tree *config.Tree, path []string) (*ConfigViewData, error) {
 	data := &ConfigViewData{
 		Path:        path,
+		CurrentPath: strings.Join(path, "/"),
 		Breadcrumbs: buildBreadcrumbs(path),
 	}
 

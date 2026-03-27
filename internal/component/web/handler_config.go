@@ -30,6 +30,8 @@ const (
 type ConfigViewData struct {
 	// Path is the current YANG path segments.
 	Path []string
+	// CurrentPath is the joined URL path for form actions (e.g., "bgp/peer/1.2.3.4").
+	CurrentPath string
 	// Breadcrumbs is the navigation trail from root to current node.
 	Breadcrumbs []BreadcrumbSegment
 	// NodeKind is the schema node kind at this path.
@@ -373,23 +375,25 @@ func HandleConfigView(renderer *Renderer, schema *config.Schema, tree *config.Tr
 			return
 		}
 
-		_ = nodeKindToTemplate(viewData.NodeKind)
+		tmplName := nodeKindToTemplate(viewData.NodeKind)
+		contentHTML := renderer.RenderConfigToHTML(tmplName, viewData)
 
 		// HTMX partial: return content fragment without layout wrapper.
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			// Partial content for HTMX requests. Full template rendering
-			// will be wired when config templates are created.
-			if _, err := fmt.Fprintf(w, "<div>%s</div>", template.HTMLEscapeString(strings.Join(path, " / "))); err != nil {
-				http.Error(w, fmt.Sprintf("write partial: %v", err), http.StatusInternalServerError)
+			if _, err := w.Write([]byte(contentHTML)); err != nil {
+				return // client disconnected
 			}
 			return
 		}
 
-		// Full HTML: render inside layout.
+		// Full HTML: render config content inside layout.
 		layoutData := LayoutData{
-			Title:      "Config: /" + strings.Join(path, "/"),
+			Title:      "Ze: /" + strings.Join(path, "/"),
+			Content:    contentHTML,
 			Breadcrumb: viewData.Breadcrumbs,
+			HasSession: true,
+			CLIPrompt:  "/" + strings.Join(path, "/") + ">",
 		}
 
 		if err := renderer.RenderLayout(w, layoutData); err != nil {

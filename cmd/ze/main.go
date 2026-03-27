@@ -192,7 +192,7 @@ dispatch:
 		fileOverride = config.ResolveConfigPath(fileOverride)
 		switch detectConfigType(store, fileOverride) {
 		case config.ConfigTypeBGP, config.ConfigTypeHub:
-			os.Exit(hub.Run(store, fileOverride, plugins, chaosSeed, chaosRate))
+			os.Exit(hub.Run(store, fileOverride, plugins, chaosSeed, chaosRate, false))
 		case config.ConfigTypeUnknown:
 			fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
 			os.Exit(1)
@@ -247,7 +247,7 @@ dispatch:
 		printVersion()
 		os.Exit(0)
 	case "start":
-		os.Exit(cmdStart(plugins, chaosSeed, chaosRate))
+		os.Exit(cmdStart(args[1:], plugins, chaosSeed, chaosRate))
 	case "help", "-h", "--help":
 		usage()
 		os.Exit(0)
@@ -262,7 +262,7 @@ dispatch:
 	if looksLikeConfig(arg) {
 		// For stdin, skip blob - hub.Run reads and probes internally
 		if arg == "-" {
-			os.Exit(hub.Run(storage.NewFilesystem(), arg, plugins, chaosSeed, chaosRate))
+			os.Exit(hub.Run(storage.NewFilesystem(), arg, plugins, chaosSeed, chaosRate, false))
 		}
 		store := resolveStorage()
 		// Search XDG config paths if not found locally
@@ -276,10 +276,10 @@ dispatch:
 		switch detectConfigType(store, arg) {
 		case config.ConfigTypeBGP:
 			// Start BGP daemon in-process via hub
-			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate))
+			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, false))
 		case config.ConfigTypeHub:
 			// Start hub orchestrator (forks external plugins)
-			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate))
+			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, false))
 		case config.ConfigTypeUnknown:
 			fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
 			os.Exit(1)
@@ -363,13 +363,24 @@ func resolveStorage() storage.Storage {
 // cmdStart resolves the default config from zefs and starts the daemon.
 // For managed clients (meta/instance/managed=true), connects to hub to fetch config
 // before starting, falling back to cached config if hub is unreachable.
-func cmdStart(plugins []string, chaosSeed int64, chaosRate float64) int {
+// When --web is set and no config exists, starts the web server standalone.
+func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64) int {
+	var webEnabled bool
+	for _, a := range args {
+		if a == "--web" {
+			webEnabled = true
+		}
+	}
+
 	store := resolveStorage()
 	defer store.Close() //nolint:errcheck // best-effort cleanup
 
 	if !storage.IsBlobStorage(store) {
-		fmt.Fprintf(os.Stderr, "error: ze start requires blob storage (run ze init first)\n")
-		return 1
+		if !webEnabled {
+			fmt.Fprintf(os.Stderr, "error: ze start requires blob storage (run ze init first)\n")
+			return 1
+		}
+		return zeweb.Run(nil)
 	}
 
 	// Check managed mode: meta/instance/managed=true in blob.
@@ -379,8 +390,11 @@ func cmdStart(plugins []string, chaosSeed int64, chaosRate float64) int {
 
 	configName := resolveDefaultConfig(store)
 	if !store.Exists(configName) {
-		fmt.Fprintf(os.Stderr, "error: no config found in database (run ze config edit first)\n")
-		return 1
+		if !webEnabled {
+			fmt.Fprintf(os.Stderr, "error: no config found in database (run ze config edit first)\n")
+			return 1
+		}
+		return hub.RunWebOnly(store)
 	}
 
 	ct := detectConfigType(store, configName)
@@ -389,7 +403,7 @@ func cmdStart(plugins []string, chaosSeed int64, chaosRate float64) int {
 		return 1
 	}
 
-	return hub.Run(store, configName, plugins, chaosSeed, chaosRate)
+	return hub.Run(store, configName, plugins, chaosSeed, chaosRate, webEnabled)
 }
 
 // isManaged returns true if the blob has meta/instance/managed=true.
@@ -422,7 +436,7 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 			go managed.RunManagedClient(ctx, *clientCfg)
 		}
 
-		return hub.Run(store, configName, plugins, chaosSeed, chaosRate)
+		return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false)
 	}
 
 	// No cached config: first boot after ze init --managed.
@@ -471,7 +485,7 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 		go managed.RunManagedClient(ctx, *clientCfg)
 	}
 
-	return hub.Run(store, configName, plugins, chaosSeed, chaosRate)
+	return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false)
 }
 
 // extractManagedClientConfig reads config from blob and extracts the hub client block.

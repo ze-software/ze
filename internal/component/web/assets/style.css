@@ -123,6 +123,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 .breadcrumb-active span {
   color: var(--text-primary);
   font-weight: 600;
+  padding: 0.1rem 0.3rem;
 }
 
 .session-indicator {
@@ -313,10 +314,13 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 }
 
 .config-nav-link {
-  display: inline-block;
-  padding: 0.3rem 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 10rem;
+  padding: 0.6rem 1.2rem;
   font-family: var(--font-mono);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: var(--accent);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -324,10 +328,60 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   transition: background 0.15s, border-color 0.15s;
 }
 
+.config-nav-container { border-left: 3px solid var(--text-muted); }
+.config-nav-list-kind { border-left: 3px solid var(--accent); }
+
 .config-nav-link:hover {
   background: var(--accent-subtle);
   border-color: var(--accent);
   text-decoration: none;
+}
+
+/* --- Field inputs --- */
+.config-field-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.3rem 0;
+}
+
+.config-field-name {
+  min-width: 12rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.config-field-input {
+  flex: 1;
+  max-width: 24rem;
+  padding: 0.3rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.config-field-input:focus {
+  outline: none;
+  border-color: var(--border-focus);
+}
+
+.config-btn-set {
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.config-btn-set:hover {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
 }
 
 /* --- List split layout (key panel + detail) --- */
@@ -588,6 +642,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 /* --- CLI bar --- */
 .cli-bar {
   grid-area: cli;
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -617,6 +672,30 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 }
 
 .cli-input:focus { border-color: var(--border-focus); }
+
+.cli-completions {
+  position: absolute;
+  bottom: 100%;
+  left: 4rem;
+  right: 1rem;
+  max-height: 12rem;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.25rem 0;
+  z-index: 100;
+}
+
+.cli-completion-item {
+  padding: 0.25rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.cli-completion-item b { color: var(--accent); }
+.cli-completion-item span { color: var(--text-muted); margin-left: 0.5rem; }
 
 .cli-mode-toggle {
   padding: 0.2rem 0.6rem;

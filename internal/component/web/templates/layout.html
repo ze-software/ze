@@ -37,11 +37,58 @@
   {{.NotificationHTML}}
 </aside>
 
-<footer class="cli-bar">
-  <span class="cli-prompt">{{.CLIPrompt}}</span>
-  <input type="text" class="cli-input" id="cli-input" placeholder="type a command..."
-         autocomplete="off" spellcheck="false">
+<footer class="cli-bar" id="cli-bar">
+  <span class="cli-prompt" id="cli-prompt">{{.CLIPrompt}}</span>
+  <input type="text" class="cli-input" id="cli-input"
+         placeholder="type a command..."
+         autocomplete="off" spellcheck="false"
+         hx-post="/cli" hx-trigger="keydown[key=='Enter']"
+         hx-target="#content-area" hx-swap="innerHTML"
+         hx-include="this" name="command">
+  <div class="cli-completions" id="cli-completions" style="display:none"></div>
 </footer>
+<script>
+(function(){
+  var input = document.getElementById('cli-input');
+  var box = document.getElementById('cli-completions');
+  if (!input) return;
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Tab' || (e.key === '?' && !e.ctrlKey)) {
+      e.preventDefault();
+      var val = input.value;
+      if (e.key === '?') val = val.replace(/\?+$/, '');
+      fetch('/cli/complete?input=' + encodeURIComponent(val))
+        .then(function(r){ return r.json(); })
+        .then(function(items){
+          if (!items || items.length === 0) { box.style.display='none'; return; }
+          if (items.length === 1) {
+            input.value = val.trimEnd() + (val.endsWith(' ')?'':' ') + items[0].text + ' ';
+            box.style.display = 'none';
+            return;
+          }
+          while (box.firstChild) box.removeChild(box.firstChild);
+          items.forEach(function(c){
+            var div = document.createElement('div');
+            div.className = 'cli-completion-item';
+            var b = document.createElement('b');
+            b.textContent = c.text;
+            div.appendChild(b);
+            if (c.description) {
+              var sp = document.createElement('span');
+              sp.textContent = ' ' + c.description;
+              div.appendChild(sp);
+            }
+            box.appendChild(div);
+          });
+          box.style.display = 'block';
+        })
+        .catch(function(){ box.style.display='none'; });
+    } else if (e.key === 'Escape') {
+      box.style.display = 'none';
+    }
+  });
+})();
+</script>
 
 </div>
 </body>

@@ -7,8 +7,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -17,26 +20,53 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/grmarker"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/subsystem"
 	"codeberg.org/thomas-mangin/ze/internal/component/bus"
+	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
 	pluginmgr "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
+	"codeberg.org/thomas-mangin/ze/internal/component/ssh"
+	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
+	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/internal/core/privilege"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 // Env var registration for hub readiness signal.
 var _ = env.MustRegister(env.EnvEntry{Key: "ze.ready.file", Type: "string", Description: "Write signal file when hub is ready (test infrastructure)"})
 
+// RunWebOnly starts only the web server (no BGP engine).
+// Used when ze start --web is called without a config.
+func RunWebOnly(store storage.Storage) int {
+	webSrv := startWebServer(store)
+	if webSrv == nil {
+		return 1
+	}
+	defer func() {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer shutdownCancel()
+		_ = webSrv.Shutdown(shutdownCtx)
+	}()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	fmt.Println("Ze web running. Press Ctrl+C to stop.")
+	<-sigCh
+	fmt.Println("\nShutting down...")
+	return 0
+}
+
 // Run executes the hub with the given config file path and optional CLI plugins.
 // store provides the I/O backend (filesystem or blob); used for config reads and reload.
 // chaosSeed > 0 enables chaos self-test mode; chaosRate < 0 means "use default".
 // Returns exit code.
-func Run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64) int {
+func Run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool) int {
 	// Read config content first (to probe type without parsing).
 	// When reading from stdin, we look for a NUL sentinel that signals
 	// "config complete but pipe stays open for liveness monitoring."
@@ -57,7 +87,7 @@ func Run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	switch zeconfig.ProbeConfigType(string(data)) {
 	case zeconfig.ConfigTypeBGP:
 		// Run BGP in-process using YANG parser
-		return runBGPInProcess(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen)
+		return runBGPInProcess(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled)
 	case zeconfig.ConfigTypeHub:
 		// Run hub orchestrator using hub parser
 		// TODO: pass plugins to orchestrator when hub mode supports them
@@ -105,7 +135,7 @@ func readStdinConfig() (data []byte, stdinOpen bool, err error) {
 // runBGPInProcess loads BGP config using YANG parser and runs reactor in-process.
 // When stdinOpen is true, a background goroutine monitors stdin for EOF and
 // triggers shutdown when the upstream process exits (pipe mode).
-func runBGPInProcess(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen bool) int {
+func runBGPInProcess(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool) int {
 	// Phase 1: Parse config and resolve plugins (no reactor created yet).
 	loadResult, err := bgpconfig.LoadConfig(string(data), configPath, plugins)
 	if err != nil {
@@ -208,6 +238,17 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 		return 1
 	}
 
+	// Start web server if --web flag was passed.
+	if webEnabled {
+		if webSrv := startWebServer(store); webSrv != nil {
+			defer func() {
+				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+				defer shutdownCancel()
+				_ = webSrv.Shutdown(shutdownCtx)
+			}()
+		}
+	}
+
 	// Wait for either signal or reactor to stop itself
 	doneCh := make(chan struct{})
 	go func() {
@@ -242,6 +283,169 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 
 	fmt.Println("Ze BGP stopped.")
 	return 0
+}
+
+// startWebServer creates and starts the web server with zefs credentials.
+// Returns the server on success, nil on failure (logged, non-fatal).
+func startWebServer(store storage.Storage) *zeweb.WebServer {
+	const listenAddr = "0.0.0.0:8443"
+
+	users, err := loadZefsUsers()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: web server disabled: %v\n", err)
+		return nil
+	}
+
+	// Persist TLS cert in zefs so browsers don't have to re-accept on every restart.
+	certStore := &blobCertStore{store: store}
+	certPEM, keyPEM, err := zeweb.LoadOrGenerateCert(certStore, listenAddr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: web server disabled: TLS cert: %v\n", err)
+		return nil
+	}
+
+	renderer, err := zeweb.NewRenderer()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: web server disabled: renderer: %v\n", err)
+		return nil
+	}
+
+	srv, err := zeweb.NewWebServer(zeweb.WebConfig{
+		ListenAddr: listenAddr,
+		CertPEM:    certPEM,
+		KeyPEM:     keyPEM,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: web server disabled: %v\n", err)
+		return nil
+	}
+
+	// Load YANG schema for config tree navigation.
+	schema := zeconfig.YANGSchema()
+	tree := zeconfig.NewTree()
+
+	// Ensure a config file exists for the editor.
+	configPath := resolveConfigPath(store)
+	if !store.Exists(configPath) {
+		if writeErr := store.WriteFile(configPath, []byte("# ze config\n"), 0o600); writeErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: cannot create config: %v\n", writeErr)
+		}
+	}
+
+	// Create editor manager for config editing via web.
+	editorMgr := zeweb.NewEditorManager(store, configPath, schema)
+
+	// Create CLI completer for Tab/? autocomplete.
+	completer := cli.NewCompleter()
+
+	sessionStore := zeweb.NewSessionStore()
+	loginRenderer := func(w http.ResponseWriter, _ *http.Request) {
+		if renderErr := renderer.RenderLogin(w, zeweb.LoginData{}); renderErr != nil {
+			http.Error(w, "render error", http.StatusInternalServerError)
+		}
+	}
+
+	// Config view handler shows YANG schema tree with current values.
+	viewHandler := zeweb.HandleConfigView(renderer, schema, tree)
+
+	// Config set handler for editing leaf values.
+	setHandler := zeweb.HandleConfigSet(editorMgr, schema)
+
+	// CLI autocomplete handler.
+	completeHandler := zeweb.HandleCLIComplete(completer)
+
+	// Auth wrapper for protecting individual routes.
+	authWrap := func(h http.Handler) http.Handler {
+		return zeweb.AuthMiddleware(sessionStore, users, loginRenderer, h)
+	}
+
+	loginHandler := zeweb.LoginHandler(sessionStore, users, loginRenderer)
+	assetHandler := http.StripPrefix("/assets/", renderer.AssetHandler())
+
+	srv.HandleFunc("POST /login", loginHandler)
+	srv.Handle("/assets/", assetHandler)
+	srv.Handle("/cli/complete", authWrap(completeHandler))
+	srv.Handle("POST /config/set/", authWrap(setHandler))
+	srv.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			http.Redirect(w, r, "/show/", http.StatusFound)
+			return
+		}
+		authWrap(viewHandler).ServeHTTP(w, r)
+	})
+
+	go func() {
+		if serveErr := srv.ListenAndServe(context.Background()); serveErr != nil {
+			slogutil.Logger("web.server").Error("web server error", "error", serveErr)
+		}
+	}()
+
+	readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer readyCancel()
+	if waitErr := srv.WaitReady(readyCtx); waitErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: web server failed to start: %v\n", waitErr)
+		_ = srv.Shutdown(context.Background())
+		return nil
+	}
+
+	fmt.Fprintf(os.Stderr, "web server listening on https://%s/\n", srv.Address())
+	return srv
+}
+
+// loadZefsUsers reads credentials from the zefs database (created by ze init).
+func loadZefsUsers() ([]ssh.UserConfig, error) {
+	dir := paths.DefaultConfigDir()
+	if dir == "" {
+		return nil, fmt.Errorf("cannot resolve config directory")
+	}
+	dbPath := filepath.Join(dir, "database.zefs")
+	db, err := zefs.Open(dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("open %s: %w", dbPath, err)
+	}
+	defer db.Close() //nolint:errcheck // read-only access
+	username, err := db.ReadFile("meta/ssh/username")
+	if err != nil {
+		return nil, fmt.Errorf("read username: %w", err)
+	}
+	hash, err := db.ReadFile("meta/ssh/password")
+	if err != nil {
+		return nil, fmt.Errorf("read password hash: %w", err)
+	}
+	name := string(username)
+	if name == "" {
+		return nil, fmt.Errorf("empty username in zefs")
+	}
+	return []ssh.UserConfig{{Name: name, Hash: string(hash)}}, nil
+}
+
+// blobCertStore implements web.CertStore backed by zefs blob storage.
+type blobCertStore struct {
+	store storage.Storage
+}
+
+func (s *blobCertStore) ReadCert() ([]byte, error) { return s.store.ReadFile("meta/web/cert") }
+func (s *blobCertStore) ReadKey() ([]byte, error)  { return s.store.ReadFile("meta/web/key") }
+func (s *blobCertStore) WriteCert(data []byte) error {
+	return s.store.WriteFile("meta/web/cert", data, 0o600)
+}
+func (s *blobCertStore) WriteKey(data []byte) error {
+	return s.store.WriteFile("meta/web/key", data, 0o600)
+}
+func (s *blobCertStore) Exists() bool {
+	return s.store.Exists("meta/web/cert") && s.store.Exists("meta/web/key")
+}
+
+// resolveConfigPath returns the config file path for the editor.
+func resolveConfigPath(store storage.Storage) string {
+	data, err := store.ReadFile("meta/instance/name")
+	if err == nil && len(data) > 0 {
+		name := strings.TrimSpace(string(data))
+		if name != "" {
+			return name + ".conf"
+		}
+	}
+	return "ze.conf"
 }
 
 // dropPrivileges drops to the user/group from ze.user/ze.group env vars.

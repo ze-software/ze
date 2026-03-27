@@ -133,6 +133,22 @@ func (r *Renderer) RenderConfigTemplate(w http.ResponseWriter, name string, data
 	return writeErr
 }
 
+// RenderConfigToHTML renders a config template to an HTML string for embedding
+// in the layout's Content field. Returns empty HTML on error.
+func (r *Renderer) RenderConfigToHTML(name string, data any) template.HTML {
+	t, ok := r.config[name]
+	if !ok {
+		return ""
+	}
+
+	var buf bytes.Buffer
+	if err := t.Execute(&buf, data); err != nil {
+		return ""
+	}
+
+	return template.HTML(buf.String()) //nolint:gosec // trusted template output
+}
+
 // RenderLayout renders the layout template with the given data to the response writer.
 // Renders to a buffer first to avoid partial writes on template errors.
 func (r *Renderer) RenderLayout(w http.ResponseWriter, data LayoutData) error {

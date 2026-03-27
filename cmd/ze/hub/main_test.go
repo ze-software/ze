@@ -15,7 +15,7 @@ import (
 // VALIDATES: Hub returns error for non-existent config.
 // PREVENTS: Silent failure when config file not found.
 func TestRunMissingConfig(t *testing.T) {
-	exit := Run(storage.NewFilesystem(), "/nonexistent/config.conf", nil, 0, -1)
+	exit := Run(storage.NewFilesystem(), "/nonexistent/config.conf", nil, 0, -1, false)
 	assert.Equal(t, 1, exit)
 }
 
@@ -32,7 +32,7 @@ func TestRunInvalidConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	exit := Run(storage.NewFilesystem(), configPath, nil, 0, -1)
+	exit := Run(storage.NewFilesystem(), configPath, nil, 0, -1, false)
 	assert.Equal(t, 1, exit)
 }
 

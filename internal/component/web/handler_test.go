@@ -9,6 +9,43 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestRegisterRoutes verifies that RegisterRoutes wires root, login, and assets
+// so the mux is not empty.
+// VALIDATES: route registration produces working endpoints.
+// PREVENTS: empty mux returning 404 for all requests (the original bug).
+func TestRegisterRoutes(t *testing.T) {
+	mux := http.NewServeMux()
+
+	authHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	assetsHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	RegisterRoutes(mux, authHandler, assetsHandler)
+
+	tests := []struct {
+		name       string
+		method     string
+		path       string
+		wantStatus int
+	}{
+		{"root redirects to /show/", "GET", "/", http.StatusFound},
+		{"assets served", "GET", "/assets/style.css", http.StatusOK},
+		{"show path hits auth", "GET", "/show/bgp", http.StatusOK},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := httptest.NewRequest(tt.method, tt.path, http.NoBody)
+			w := httptest.NewRecorder()
+			mux.ServeHTTP(w, r)
+			assert.Equal(t, tt.wantStatus, w.Code)
+		})
+	}
+}
+
 // TestParseURL_ShowPath verifies verb-first URL parsing for /show/ paths.
 // VALIDATES: URL scheme verb-first parsing -- show prefix produces TierView with correct segments.
 func TestParseURL_ShowPath(t *testing.T) {

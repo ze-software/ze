@@ -122,6 +122,32 @@ func TestGenerateWebCertWithAddr(t *testing.T) {
 	}
 }
 
+// TestGenerateWebCertWithAddr_UnspecifiedIncludesInterfaceIPs verifies that
+// listening on 0.0.0.0 adds the machine's non-loopback interface IPs as SANs.
+// VALIDATES: cert is valid for any local IP when listening on all interfaces.
+// PREVENTS: TLS errors when accessing ze via a non-loopback IP (e.g., 10.x.x.x).
+func TestGenerateWebCertWithAddr_UnspecifiedIncludesInterfaceIPs(t *testing.T) {
+	certPEM, _, err := GenerateWebCertWithAddr("0.0.0.0:8443")
+	require.NoError(t, err)
+
+	block, _ := pem.Decode(certPEM)
+	require.NotNil(t, block)
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	require.NoError(t, err)
+
+	// Must have more than the 3 defaults (localhost, 127.0.0.1, ::1)
+	// since every machine with networking has at least one non-loopback IP.
+	assert.Greater(t, len(cert.IPAddresses), 3,
+		"certificate for 0.0.0.0 must include interface IPs beyond defaults (got %v)", cert.IPAddresses)
+
+	// 0.0.0.0 itself should NOT be in the SANs (it is replaced by real IPs).
+	for _, ip := range cert.IPAddresses {
+		assert.False(t, ip.IsUnspecified(),
+			"certificate must not include unspecified address 0.0.0.0 as SAN")
+	}
+}
+
 // TestNewTLSConfig verifies that NewTLSConfig produces a valid tls.Config from
 // generated PEM material with the expected minimum TLS version.
 // VALIDATES: TLS works with generated cert.

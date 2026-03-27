@@ -6,6 +6,7 @@ package init
 
 import (
 	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -77,6 +78,21 @@ Examples:
 		return 1
 	}
 
+	// When piped, read all data first so --force can prompt on /dev/tty.
+	var inputReader io.Reader = os.Stdin
+	var promptWriter io.Writer
+	interactive := isTerminal(os.Stdin)
+	if interactive {
+		promptWriter = os.Stderr
+	} else {
+		data, readErr := io.ReadAll(os.Stdin)
+		if readErr != nil {
+			fmt.Fprintf(os.Stderr, "error: reading stdin: %v\n", readErr)
+			return 1
+		}
+		inputReader = bytes.NewReader(data)
+	}
+
 	// Handle --force: move existing database aside after confirmation.
 	if *forceFlag {
 		if _, err := os.Stat(dbPath); err == nil {
@@ -95,11 +111,7 @@ Examples:
 		}
 	}
 
-	// Use interactive prompts when stdin is a terminal
-	if isTerminal(os.Stdin) {
-		return runInit(os.Stdin, os.Stderr, dbPath, *managedFlag)
-	}
-	return runInit(os.Stdin, nil, dbPath, *managedFlag)
+	return runInit(inputReader, promptWriter, dbPath, *managedFlag)
 }
 
 // RunWithReader creates a zefs database with SSH credentials read from r.
@@ -276,11 +288,20 @@ func promptAndRead(scanner *bufio.Scanner, w io.Writer, prompt string) string {
 }
 
 // confirmForceReplace prompts the user for confirmation before replacing an existing database.
-// Returns true only if the user types "yes" (case-insensitive). Non-interactive stdin aborts.
+// Returns true only if the user types "yes" (case-insensitive).
+// When stdin is piped, opens /dev/tty for the confirmation prompt.
 func confirmForceReplace(dbPath string) bool {
-	if !isTerminal(os.Stdin) {
-		fmt.Fprintf(os.Stderr, "error: --force requires interactive confirmation (stdin is not a terminal)\n")
-		return false
+	var ttyReader io.Reader
+	if isTerminal(os.Stdin) {
+		ttyReader = os.Stdin
+	} else {
+		tty, err := os.Open("/dev/tty")
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: --force requires a terminal for confirmation\n")
+			return false
+		}
+		defer tty.Close() //nolint:errcheck // read-only
+		ttyReader = tty
 	}
 
 	fmt.Fprintf(os.Stderr, "\n")
@@ -296,7 +317,7 @@ func confirmForceReplace(dbPath string) bool {
 	fmt.Fprintf(os.Stderr, "\n")
 	fmt.Fprintf(os.Stderr, "  Type 'yes' to proceed: ")
 
-	scanner := bufio.NewScanner(os.Stdin)
+	scanner := bufio.NewScanner(ttyReader)
 	if !scanner.Scan() {
 		return false
 	}
