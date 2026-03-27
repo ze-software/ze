@@ -1163,6 +1163,173 @@ func TestResolveBGPTree_BGPLevelFamilyInheritance(t *testing.T) {
 	assert.Equal(t, "500000", p2Prefix["maximum"], "peer2 should use its own maximum")
 }
 
+// TestResolveBGPTree_DuplicateRemoteIP verifies error on duplicate remote > ip across peers.
+//
+// VALIDATES: Duplicate remote IP addresses produce config validation error.
+// PREVENTS: Two peers with different names but same remote IP causing ambiguous connections.
+func TestResolveBGPTree_DuplicateRemoteIP(t *testing.T) {
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
+
+	peer1 := config.NewTree()
+	peer1Remote := config.NewTree()
+	peer1Remote.Set("ip", "10.0.0.1")
+	peer1Remote.Set("as", "65001")
+	peer1.SetContainer("remote", peer1Remote)
+	bgp.AddListEntry("peer", "peer_alpha", peer1)
+
+	peer2 := config.NewTree()
+	peer2Remote := config.NewTree()
+	peer2Remote.Set("ip", "10.0.0.1") // Same IP as peer1.
+	peer2Remote.Set("as", "65002")
+	peer2.SetContainer("remote", peer2Remote)
+	bgp.AddListEntry("peer", "peer_beta", peer2)
+
+	tree.SetContainer("bgp", bgp)
+
+	_, err := ResolveBGPTree(tree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "10.0.0.1")
+	assert.Contains(t, err.Error(), "duplicate remote IP")
+}
+
+// TestResolveBGPTree_DuplicateRemoteIPAcrossGroups verifies error on duplicate remote > ip in different groups.
+//
+// VALIDATES: Duplicate remote IP addresses across groups produce config validation error.
+// PREVENTS: Two peers in different groups with same remote IP.
+func TestResolveBGPTree_DuplicateRemoteIPAcrossGroups(t *testing.T) {
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
+
+	group1 := config.NewTree()
+	peer1 := config.NewTree()
+	peer1Remote := config.NewTree()
+	peer1Remote.Set("ip", "10.0.0.1")
+	peer1Remote.Set("as", "65001")
+	peer1.SetContainer("remote", peer1Remote)
+	group1.AddListEntry("peer", "peer_alpha", peer1)
+	bgp.AddListEntry("group", "group1", group1)
+
+	group2 := config.NewTree()
+	peer2 := config.NewTree()
+	peer2Remote := config.NewTree()
+	peer2Remote.Set("ip", "10.0.0.1") // Same IP as peer1 in group1.
+	peer2Remote.Set("as", "65002")
+	peer2.SetContainer("remote", peer2Remote)
+	group2.AddListEntry("peer", "peer_beta", peer2)
+	bgp.AddListEntry("group", "group2", group2)
+
+	tree.SetContainer("bgp", bgp)
+
+	_, err := ResolveBGPTree(tree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "10.0.0.1")
+	assert.Contains(t, err.Error(), "duplicate remote IP")
+}
+
+// TestResolveBGPTree_DuplicateRemoteIPGroupAndStandalone verifies error on duplicate remote > ip across group and standalone.
+//
+// VALIDATES: Duplicate remote IP between grouped and standalone peers produces error.
+// PREVENTS: Same remote IP used in group peer and standalone peer.
+func TestResolveBGPTree_DuplicateRemoteIPGroupAndStandalone(t *testing.T) {
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
+
+	group1 := config.NewTree()
+	peer1 := config.NewTree()
+	peer1Remote := config.NewTree()
+	peer1Remote.Set("ip", "10.0.0.1")
+	peer1Remote.Set("as", "65001")
+	peer1.SetContainer("remote", peer1Remote)
+	group1.AddListEntry("peer", "peer_alpha", peer1)
+	bgp.AddListEntry("group", "group1", group1)
+
+	peer2 := config.NewTree()
+	peer2Remote := config.NewTree()
+	peer2Remote.Set("ip", "10.0.0.1") // Same IP as peer1 in group1.
+	peer2Remote.Set("as", "65002")
+	peer2.SetContainer("remote", peer2Remote)
+	bgp.AddListEntry("peer", "peer_beta", peer2)
+
+	tree.SetContainer("bgp", bgp)
+
+	_, err := ResolveBGPTree(tree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "10.0.0.1")
+	assert.Contains(t, err.Error(), "duplicate remote IP")
+}
+
+// TestResolveBGPTree_UniqueRemoteIPsAccepted verifies no error when remote IPs are unique.
+//
+// VALIDATES: Peers with different remote IPs are accepted.
+// PREVENTS: False positive duplicate detection.
+func TestResolveBGPTree_UniqueRemoteIPsAccepted(t *testing.T) {
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
+
+	peer1 := config.NewTree()
+	peer1Remote := config.NewTree()
+	peer1Remote.Set("ip", "10.0.0.1")
+	peer1Remote.Set("as", "65001")
+	peer1.SetContainer("remote", peer1Remote)
+	bgp.AddListEntry("peer", "peer_alpha", peer1)
+
+	peer2 := config.NewTree()
+	peer2Remote := config.NewTree()
+	peer2Remote.Set("ip", "10.0.0.2") // Different IP.
+	peer2Remote.Set("as", "65002")
+	peer2.SetContainer("remote", peer2Remote)
+	bgp.AddListEntry("peer", "peer_beta", peer2)
+
+	tree.SetContainer("bgp", bgp)
+
+	_, err := ResolveBGPTree(tree)
+	require.NoError(t, err)
+}
+
+// TestResolveBGPTree_MissingRemoteIPNoDuplicateError verifies peers without remote > ip don't cause false duplicates.
+//
+// VALIDATES: Peers without remote > ip are not treated as duplicates of each other.
+// PREVENTS: Empty-string IP being treated as a duplicate.
+func TestResolveBGPTree_MissingRemoteIPNoDuplicateError(t *testing.T) {
+	tree := config.NewTree()
+	bgp := config.NewTree()
+	bgpLocal := config.NewTree()
+	bgpLocal.Set("as", "65000")
+	bgp.SetContainer("local", bgpLocal)
+
+	peer1 := config.NewTree()
+	peer1Remote := config.NewTree()
+	peer1Remote.Set("as", "65001")
+	// No ip set.
+	peer1.SetContainer("remote", peer1Remote)
+	bgp.AddListEntry("peer", "peer_alpha", peer1)
+
+	peer2 := config.NewTree()
+	peer2Remote := config.NewTree()
+	peer2Remote.Set("as", "65002")
+	// No ip set.
+	peer2.SetContainer("remote", peer2Remote)
+	bgp.AddListEntry("peer", "peer_beta", peer2)
+
+	tree.SetContainer("bgp", bgp)
+
+	_, err := ResolveBGPTree(tree)
+	require.NoError(t, err)
+}
+
 // TestDeepMergeMaps_FamilyLeafOverride verifies that leaf family values are replaced, not merged.
 //
 // VALIDATES: When group has family "ipv4/unicast" and peer has "ipv6/unicast", the peer's value wins.

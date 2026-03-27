@@ -527,3 +527,128 @@ func TestModelStatusBarNoErrorsWhenValid(t *testing.T) {
 	view := model.View()
 	assert.NotContains(t, view, "error(s)", "view should not show error count for valid config")
 }
+
+// TestSanitizeForDisplayCleanString verifies clean strings pass through unchanged.
+//
+// VALIDATES: Normal config text is not altered by sanitization.
+// PREVENTS: Sanitizer corrupting valid config content.
+func TestSanitizeForDisplayCleanString(t *testing.T) {
+	clean := "bgp {\n  router-id 1.2.3.4\n  local-as 65000\n}"
+	assert.Equal(t, clean, sanitizeForDisplay(clean))
+}
+
+// TestSanitizeForDisplayPreservesWhitespace verifies tabs and newlines are preserved.
+//
+// VALIDATES: Tab and newline characters survive sanitization.
+// PREVENTS: Config indentation or structure destroyed.
+func TestSanitizeForDisplayPreservesWhitespace(t *testing.T) {
+	input := "key\tvalue\nkey2\tvalue2\r\n"
+	assert.Equal(t, input, sanitizeForDisplay(input))
+}
+
+// TestSanitizeForDisplayStripsANSIEscapes verifies ANSI escape sequences are removed.
+//
+// VALIDATES: Embedded ANSI color codes in config values are stripped.
+// PREVENTS: Raw escape codes corrupting TUI display.
+func TestSanitizeForDisplayStripsANSIEscapes(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "SGR color code",
+			input: "value \x1b[31mred\x1b[0m text",
+			want:  "value red text",
+		},
+		{
+			name:  "cursor movement",
+			input: "before\x1b[2Aafter",
+			want:  "beforeafter",
+		},
+		{
+			name:  "multiple sequences",
+			input: "\x1b[1m\x1b[31mbold red\x1b[0m",
+			want:  "bold red",
+		},
+		{
+			name:  "OSC sequence with BEL",
+			input: "text\x1b]0;title\x07rest",
+			want:  "textrest",
+		},
+		{
+			name:  "OSC sequence with ST",
+			input: "text\x1b]0;title\x1b\\rest",
+			want:  "textrest",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, sanitizeForDisplay(tt.input))
+		})
+	}
+}
+
+// TestSanitizeForDisplayStripsControlChars verifies C0/C1 control characters are replaced.
+//
+// VALIDATES: Non-printable control characters replaced with Unicode replacement char.
+// PREVENTS: Null bytes, bells, and other control chars corrupting display.
+func TestSanitizeForDisplayStripsControlChars(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "null byte",
+			input: "abc\x00def",
+			want:  "abc\uFFFDdef",
+		},
+		{
+			name:  "bell",
+			input: "abc\x07def",
+			want:  "abc\uFFFDdef",
+		},
+		{
+			name:  "vertical tab",
+			input: "abc\x0Bdef",
+			want:  "abc\uFFFDdef",
+		},
+		{
+			name:  "form feed",
+			input: "abc\x0Cdef",
+			want:  "abc\uFFFDdef",
+		},
+		{
+			name:  "DEL",
+			input: "abc\x7Fdef",
+			want:  "abc\uFFFDdef",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, sanitizeForDisplay(tt.input))
+		})
+	}
+}
+
+// TestSanitizeForDisplayEmptyString verifies empty input returns empty output.
+//
+// VALIDATES: Empty string handled without panic or error.
+// PREVENTS: Nil/empty edge case crash.
+func TestSanitizeForDisplayEmptyString(t *testing.T) {
+	assert.Equal(t, "", sanitizeForDisplay(""))
+}
+
+// TestSanitizeForDisplayUnicode verifies normal Unicode is preserved.
+//
+// VALIDATES: Non-ASCII printable characters (CJK, emoji, accented) survive sanitization.
+// PREVENTS: Over-aggressive stripping of valid multibyte characters.
+func TestSanitizeForDisplayUnicode(t *testing.T) {
+	input := "peer 192.168.1.1 # commentaire francais"
+	assert.Equal(t, input, sanitizeForDisplay(input))
+
+	// CJK and emoji
+	input2 := "description 测试 🌐"
+	assert.Equal(t, input2, sanitizeForDisplay(input2))
+}

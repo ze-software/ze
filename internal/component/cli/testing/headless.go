@@ -150,11 +150,12 @@ func (hm *HeadlessModel) processCmd(cmd tea.Cmd) {
 // Each command runs in a goroutine so blocking timer commands (validation tick,
 // confirm countdown, draft poll) don't stall the test. The goroutine either:
 //   - completes and we process the result synchronously (no concurrent access), or
-//   - exceeds the deadline and is orphaned (timer-only; doesn't access state).
+//   - exceeds the deadline and is added to pending for SettleWait to drain.
 //
-// No pending/drain mechanism: every command either completes within this call
-// or is abandoned. This eliminates races where a still-running goroutine writes
-// editor state while a later drain triggers model.Update() which reads it.
+// Timer goroutines only block in time.After, never accessing model/editor state,
+// so draining them later via SettleWait is race-free. State-mutating commands
+// (file I/O) complete within the slow-path deadline under normal conditions.
+// Cursor blink is eliminated via DisableBlink().
 func (hm *HeadlessModel) processCmdWithDepth(cmd tea.Cmd, depth int) {
 	if cmd == nil || depth > 5 {
 		return // Depth limit to prevent infinite recursion
@@ -182,14 +183,11 @@ func (hm *HeadlessModel) processCmdWithDepth(cmd tea.Cmd, depth int) {
 		}
 	}
 
-	// Slow path: wait for state-mutating commands (set, save, commit, load --
-	// including file I/O under race detector with 140 concurrent tests).
-	// 900ms catches all state-mutating commands even under extreme I/O
-	// contention. Only pure timer commands (confirm countdown ~1s, draft
-	// poll ~2s) exceed this; they go to pending and are drained later by
-	// settle/SettleWait. Timer goroutines only block in time.After, never
-	// accessing model/editor state, so draining them later is race-free.
-	// Cursor blink is eliminated via DisableBlink().
+	// Slow path: wait for state-mutating commands (set, save, commit, load).
+	// Under race detector with 141 parallel tests, file I/O can be slow.
+	// 900ms is the baseline; only pure timer commands (confirm countdown
+	// ~1s, draft poll ~2s) should exceed this. Commands that do exceed it
+	// go to pending and are drained by settle/SettleWait before expectations.
 	select {
 	case msg := <-done:
 		if msg != nil {
@@ -207,50 +205,74 @@ func (hm *HeadlessModel) settle() {
 	if len(hm.pending) == 0 {
 		return
 	}
-	remaining := hm.pending[:0]
-	for _, ch := range hm.pending {
+	// Snapshot current pending slice. processMsg may call
+	// processCmdWithDepth which appends new items to hm.pending.
+	snapshot := hm.pending
+	hm.pending = nil
+
+	for _, ch := range snapshot {
 		select {
 		case msg := <-ch:
 			if msg != nil {
 				hm.processMsg(msg, 0)
 			}
-		default: // channel not ready: timer goroutine still in time.After
-			remaining = append(remaining, ch)
+		default: // non-blocking: channel not ready, timer goroutine still in time.After
+			hm.pending = append(hm.pending, ch)
 		}
 	}
-	hm.pending = remaining
 }
 
-// SettleWait blocks until pending timer commands complete or deadline expires.
-// Called before expectation checks to ensure timer-driven state (countdown
-// ticks, draft poll, validation debounce) has been applied.
+// SettleWait blocks until pending commands complete or deadline expires.
+// Called before expectation checks to ensure state-mutating commands (file I/O)
+// and timer-driven state (countdown ticks, draft poll, validation debounce)
+// have been applied to the model.
+//
+// Drains the pending items from the snapshot taken at entry. Items spawned
+// during processing (e.g., countdown timer chain) are left in pending for
+// later calls. This prevents chasing an infinite timer chain while still
+// ensuring the original command result is processed.
+//
+// Total budget per snapshot item: 5s, generous enough for file I/O under
+// race detector with 141 parallel tests.
 func (hm *HeadlessModel) SettleWait() {
 	if len(hm.pending) == 0 {
 		return
 	}
 
-	deadline := time.Now().Add(3 * time.Second)
+	// Snapshot the items that need to be drained. New items spawned
+	// during processing (by processMsg -> processCmdWithDepth) go
+	// directly into hm.pending and are NOT part of this snapshot.
+	snapshot := hm.pending
+	hm.pending = nil
 
-	for len(hm.pending) > 0 && time.Now().Before(deadline) {
+	deadline := time.Now().Add(5 * time.Second)
+	for len(snapshot) > 0 && time.Now().Before(deadline) {
 		drained := false
-		remaining := hm.pending[:0]
-		for _, ch := range hm.pending {
+		var remaining []<-chan tea.Msg
+		for _, ch := range snapshot {
 			select {
 			case msg := <-ch:
 				if msg != nil {
 					hm.processMsg(msg, 0)
 				}
 				drained = true
-			default: // channel not ready: timer goroutine still in time.After
+			default: // non-blocking: channel not ready, goroutine still running
 				remaining = append(remaining, ch)
 			}
 		}
-		hm.pending = remaining
+		snapshot = remaining
 
-		if !drained && len(hm.pending) > 0 {
-			time.Sleep(5 * time.Millisecond)
+		if !drained && len(snapshot) > 0 {
+			// Short sleep to avoid busy-waiting. 10ms balances
+			// responsiveness with CPU usage under heavy load.
+			time.Sleep(10 * time.Millisecond)
 		}
 	}
+
+	// Any items from the snapshot that did not complete within the
+	// deadline are returned to pending alongside items spawned during
+	// processing.
+	hm.pending = append(hm.pending, snapshot...)
 }
 
 // processMsg processes a message from a command.

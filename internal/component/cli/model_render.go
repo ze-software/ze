@@ -9,10 +9,97 @@ package cli
 import (
 	"fmt"
 	"strings"
+	"unicode"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/reflow/ansi"
 )
+
+// sanitizeForDisplay strips or escapes non-printable characters and ANSI escape
+// sequences from config content before terminal rendering. This prevents raw
+// escape codes in config values from corrupting the TUI display.
+//
+// Preserved: tab (0x09), newline (0x0A), carriage return (0x0D).
+// Stripped: C0 controls (0x00-0x08, 0x0B-0x0C, 0x0E-0x1F), DEL (0x7F),
+// C1 controls (0x80-0x9F), and ANSI escape sequences (\x1b[...X, \x1b]...ST).
+func sanitizeForDisplay(s string) string {
+	// Fast path: if no suspicious bytes, return as-is.
+	hasSuspicious := false
+	for i := range len(s) {
+		b := s[i]
+		if b < 0x20 && b != '\t' && b != '\n' && b != '\r' {
+			hasSuspicious = true
+			break
+		}
+		if b == 0x7F || b == 0x1b {
+			hasSuspicious = true
+			break
+		}
+		// C1 control range: 0x80-0x9F (first byte of UTF-8 encoding)
+		if b >= 0x80 && b <= 0x9F {
+			hasSuspicious = true
+			break
+		}
+	}
+	if !hasSuspicious {
+		return s
+	}
+
+	var b strings.Builder
+	b.Grow(len(s))
+	runes := []rune(s)
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+
+		// Strip ANSI escape sequences: ESC [ ... final_byte or ESC ] ... ST
+		if r == 0x1b && i+1 < len(runes) {
+			next := runes[i+1]
+			if next == '[' {
+				// CSI sequence: ESC [ (params) final_byte (0x40-0x7E)
+				i += 2 // skip ESC [
+				for i < len(runes) && (runes[i] < 0x40 || runes[i] > 0x7E) {
+					i++
+				}
+				// skip the final byte
+				continue
+			}
+			if next == ']' {
+				// OSC sequence: ESC ] ... (ST = ESC \ or BEL)
+				i += 2 // skip ESC ]
+				for i < len(runes) {
+					if runes[i] == 0x07 { // BEL terminates OSC
+						break
+					}
+					if runes[i] == 0x1b && i+1 < len(runes) && runes[i+1] == '\\' {
+						i++ // skip the backslash too
+						break
+					}
+					i++
+				}
+				continue
+			}
+			// Other ESC sequences (e.g., ESC ( B): skip ESC + next char
+			i++
+			continue
+		}
+
+		// Allow tab, newline, carriage return
+		if r == '\t' || r == '\n' || r == '\r' {
+			b.WriteRune(r)
+			continue
+		}
+
+		// Strip C0 controls (0x00-0x1F), DEL (0x7F), C1 controls (0x80-0x9F)
+		if r < 0x20 || r == 0x7F || (r >= 0x80 && r <= 0x9F) {
+			b.WriteRune(unicode.ReplacementChar)
+			continue
+		}
+
+		b.WriteRune(r)
+	}
+
+	return b.String()
+}
 
 // setViewportData sets content with line mapping in the viewport.
 // When originalContent is provided and differs from content, a diff gutter
@@ -24,7 +111,8 @@ import (
 // that respects container boundaries (solving LCS brace-misalignment). Falls back
 // to line-based LCS diff for subtrees or when schema is unavailable.
 func (m *Model) setViewportData(data viewportData) {
-	content := data.content
+	content := sanitizeForDisplay(data.content)
+	data.originalContent = sanitizeForDisplay(data.originalContent)
 	lineMapping := data.lineMapping
 
 	// Apply diff gutter when original was explicitly provided, content differs,
@@ -63,6 +151,7 @@ func (m *Model) configViewAtPath(path []string) *viewportData {
 // Use for non-config content like diffs, history, or messages.
 // Skips validation highlighting since this is not config content.
 func (m *Model) setViewportText(content string) {
+	content = sanitizeForDisplay(content)
 	m.viewportContent = content
 	m.viewport.SetContent(content)
 	m.viewport.GotoTop()

@@ -277,7 +277,7 @@ func runTestCase(tc *TestCase) *TestResult {
 
 		case StepExpect:
 			// Block until pending commands complete (file I/O that
-			// exceeded the 15ms processCmdWithDepth timeout). Under
+			// exceeded the 900ms processCmdWithDepth timeout). Under
 			// concurrent test load with race detector, this wait is
 			// essential -- non-blocking Settle alone is insufficient.
 			hm.SettleWait()

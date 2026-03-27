@@ -74,6 +74,7 @@ func (m *Model) cmdCommitConfirmed(seconds int) (commandResult, error) {
 			return commandResult{}, err
 		}
 	}
+	m.searchCache = "" // tree changed, invalidate cached set-view
 
 	// Notify daemon immediately so it runs the new config during the confirm window
 	var reloadWarning string
@@ -109,6 +110,7 @@ func (m *Model) cmdConfirm() (commandResult, error) {
 
 	// Clean up .live.conf — .conf already has the confirmed content
 	m.editor.DeleteLive()
+	m.searchCache = "" // tree finalized, invalidate cached set-view
 
 	msg := "Configuration confirmed and saved permanently."
 	if m.editor.HasReloadNotifier() {
@@ -151,6 +153,7 @@ func (m *Model) rollbackConfirmed() (commandResult, error) {
 
 	// Clean up .live.conf
 	m.editor.DeleteLive()
+	m.searchCache = "" // tree changed, invalidate cached set-view
 
 	msg := "Changes rolled back to previous configuration."
 	if m.editor.HasReloadNotifier() {

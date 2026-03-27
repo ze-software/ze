@@ -195,6 +195,9 @@ func (v *ConfigValidator) validateWithYANG(tree *config.Tree, content string) ([
 		}
 	}
 
+	// Check for duplicate remote > ip across all peers.
+	v.checkDuplicateRemoteIPs(bgp, lines, &errs)
+
 	// Validate BGP-level fields — YANG schema defines which are mandatory.
 	bgpMap := bgp.ToMap()
 	// Remove peer and group sub-maps to avoid re-validating (already done above).
@@ -448,6 +451,44 @@ func findFieldLine(lines []string, block, field string) int {
 		}
 	}
 	return 0
+}
+
+// checkDuplicateRemoteIPs checks that no two peers share the same remote > ip value.
+// Collects IPs from both standalone and grouped peers and reports duplicates as errors.
+func (v *ConfigValidator) checkDuplicateRemoteIPs(bgp *config.Tree, lines []string, errs *[]ConfigValidationError) {
+	seen := make(map[string]string) // remote IP -> first peer name
+
+	checkPeer := func(peerName string, peerTree *config.Tree) {
+		remoteContainer := peerTree.GetContainer("remote")
+		if remoteContainer == nil {
+			return
+		}
+		ip, ok := remoteContainer.Get("ip")
+		if !ok || ip == "" {
+			return
+		}
+		if firstPeer, exists := seen[ip]; exists {
+			*errs = append(*errs, ConfigValidationError{
+				Line:     findPeerLine(lines, peerName),
+				Message:  fmt.Sprintf("duplicate remote IP %s in peer %s (already used by peer %s)", ip, peerName, firstPeer),
+				Severity: severityError,
+			})
+			return
+		}
+		seen[ip] = peerName
+	}
+
+	// Standalone peers.
+	for peerName, peerTree := range bgp.GetList(keyPeer) {
+		checkPeer(peerName, peerTree)
+	}
+
+	// Group peers.
+	for _, groupTree := range bgp.GetList(keyGroup) {
+		for peerName, peerTree := range groupTree.GetList(keyPeer) {
+			checkPeer(peerName, peerTree)
+		}
+	}
 }
 
 // ValidateSemantic validates semantic constraints on parsed tree.

@@ -300,6 +300,7 @@ func (m *Model) cmdRollback(args []string) (commandResult, error) {
 	if err := m.editor.Rollback(backups[n-1].Path); err != nil {
 		return commandResult{}, err
 	}
+	m.searchCache = "" // tree changed, invalidate cached set-view
 
 	return commandResult{
 		statusMessage: fmt.Sprintf("Rolled back to %s", backups[n-1].Path),
@@ -540,6 +541,7 @@ func (m *Model) cmdCommit() (commandResult, error) {
 	if err := m.editor.Save(); err != nil {
 		return commandResult{}, err
 	}
+	m.searchCache = "" // tree changed, invalidate cached set-view
 
 	// Archive config to remote locations (best-effort, non-fatal)
 	var archiveMsg string
@@ -603,6 +605,8 @@ func (m *Model) cmdCommitSession() (commandResult, error) {
 		}, nil
 	}
 
+	m.searchCache = "" // tree changed, invalidate cached set-view
+
 	msg := fmt.Sprintf("Session committed: %d change(s) applied", commitResult.Applied)
 	if commitResult.MigrationWarning != "" {
 		msg += fmt.Sprintf(" (warning: %s)", commitResult.MigrationWarning)
@@ -642,6 +646,7 @@ func (m *Model) cmdDiscardSession(args []string) (commandResult, error) {
 	if err := m.editor.DiscardSessionPath(path); err != nil {
 		return commandResult{}, err
 	}
+	m.searchCache = "" // tree changed, invalidate cached set-view
 
 	msg := "Session changes discarded"
 	if len(path) > 0 {
@@ -789,6 +794,7 @@ func (m *Model) cmdDiscard() (commandResult, error) {
 	if err := m.editor.Discard(); err != nil {
 		return commandResult{}, err
 	}
+	m.searchCache = "" // tree changed, invalidate cached set-view
 
 	return commandResult{
 		statusMessage: "Changes discarded",

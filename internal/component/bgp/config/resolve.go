@@ -117,11 +117,41 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 		peerMap[peerName] = resolved
 	}
 
+	// Check for duplicate remote > ip across all peers.
+	if err := checkDuplicateRemoteIPs(peerMap); err != nil {
+		return nil, err
+	}
+
 	if len(peerMap) > 0 {
 		result["peer"] = peerMap
 	}
 
 	return result, nil
+}
+
+// checkDuplicateRemoteIPs checks that no two peers share the same remote > ip value.
+// Peers without a remote > ip are skipped (they will fail mandatory field validation elsewhere).
+func checkDuplicateRemoteIPs(peerMap map[string]any) error {
+	seen := make(map[string]string) // remote IP -> first peer name
+	for peerName, v := range peerMap {
+		peer, ok := v.(map[string]any)
+		if !ok {
+			continue
+		}
+		remoteMap, ok := peer["remote"].(map[string]any)
+		if !ok {
+			continue
+		}
+		ip, ok := remoteMap["ip"].(string)
+		if !ok || ip == "" {
+			continue
+		}
+		if firstPeer, exists := seen[ip]; exists {
+			return fmt.Errorf("duplicate remote IP %s in peer %s (already used by peer %s)", ip, peerName, firstPeer)
+		}
+		seen[ip] = peerName
+	}
+	return nil
 }
 
 // Note: validateAndTrackPeerName was removed. Peer name validation is now done
