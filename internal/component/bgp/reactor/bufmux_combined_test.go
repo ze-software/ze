@@ -5,6 +5,11 @@ import (
 	"testing"
 )
 
+// bufMuxGlobalMu serializes tests that mutate the global bufMux4K/bufMux64K
+// budget state. Without this, concurrent tests that call Get()/Return() on
+// the global pools race with tests that nil-out and restore the budget pointer.
+var bufMuxGlobalMu sync.Mutex
+
 // VALIDATES: AC-27 — combined capacity across 4K + 64K multiplexer instances.
 // PREVENTS: One pool exhausting memory while the other has headroom, with no
 // shared awareness triggering backpressure.
@@ -481,6 +486,9 @@ func TestInitBufMuxBudget_Zero(t *testing.T) {
 	// VALIDATES: AC-27 — initBufMuxBudget(0) is a no-op.
 	// PREVENTS: Zero maxBytes accidentally creating a budget that blocks growth.
 
+	bufMuxGlobalMu.Lock()
+	defer bufMuxGlobalMu.Unlock()
+
 	// Save current budget state.
 	old4K := bufMux4K.mux.budget
 	old64K := bufMux64K.mux.budget
@@ -512,6 +520,9 @@ func TestInitBufMuxBudget_Positive(t *testing.T) {
 	// VALIDATES: AC-27 — initBufMuxBudget(N) wires shared budget to both pools.
 	// PREVENTS: Budget not actually shared between 4K and 64K pools.
 
+	bufMuxGlobalMu.Lock()
+	defer bufMuxGlobalMu.Unlock()
+
 	old4K := bufMux4K.mux.budget
 	old64K := bufMux64K.mux.budget
 	defer func() {
@@ -539,6 +550,9 @@ func TestUpdateBufMuxBudget_UpdatesExistingLimit(t *testing.T) {
 	// VALIDATES: AC-28 -- updateBufMuxBudget atomically updates the shared budget limit.
 	// PREVENTS: Data race on combinedBudget.maxBytes (finding #1).
 
+	bufMuxGlobalMu.Lock()
+	defer bufMuxGlobalMu.Unlock()
+
 	old4K := bufMux4K.mux.budget
 	old64K := bufMux64K.mux.budget
 	defer func() {
@@ -563,6 +577,9 @@ func TestUpdateBufMuxBudget_UpdatesExistingLimit(t *testing.T) {
 func TestUpdateBufMuxBudget_ZeroMeansUnlimited(t *testing.T) {
 	// VALIDATES: AC-28 -- updateBufMuxBudget(0) sets unlimited (no cap).
 	// PREVENTS: Stale budget when all peers removed (finding #5).
+
+	bufMuxGlobalMu.Lock()
+	defer bufMuxGlobalMu.Unlock()
 
 	old4K := bufMux4K.mux.budget
 	old64K := bufMux64K.mux.budget

@@ -71,6 +71,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.safety.valve", Type: "duration", Default: "5m", Description: "Safety valve duration for UPDATE cache gap-based eviction"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.read.size", Type: "int", Default: "65536", Description: "Per-session TCP read buffer size (bytes)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.write.size", Type: "int", Default: "16384", Description: "Per-session TCP write buffer size (bytes)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.metrics.interval", Type: "duration", Default: "10s", Description: "Periodic metrics refresh interval"})
 )
 
 // reactorLogger is the reactor subsystem logger (lazy initialization).
@@ -953,7 +954,7 @@ var nativeFamilies = map[string]bool{
 //
 // Returns error if any configured family lacks a decoder, preventing startup.
 func (r *Reactor) validatePeerFamilies(peers map[netip.AddrPort]*Peer) error {
-	// Get available decode families from plugins
+	// Get available decode families from plugins (runtime registry)
 	var decodeFamilies []string
 	if r.api != nil {
 		decodeFamilies = r.api.GetDecodeFamilies()
@@ -966,6 +967,12 @@ func (r *Reactor) validatePeerFamilies(peers map[netip.AddrPort]*Peer) error {
 	}
 	for _, f := range decodeFamilies {
 		available[f] = true
+	}
+	// Also include families from the static registry (init-time registrations).
+	// Runtime plugins may not have completed registration yet, but in-process
+	// decoders registered via init() are always available.
+	for family := range registry.FamilyMap() {
+		available[family] = true
 	}
 
 	// Check each peer's configured families

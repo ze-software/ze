@@ -1,0 +1,221 @@
+# Test: session flap, notification, and duration metrics after teardown
+#
+# Flow:
+# 1. BGP session establishes with telemetry and fast metrics interval (1s)
+# 2. Plugin waits for session up, sleeps 2s for metrics loop to tick
+# 3. Verifies ze_peer_session_duration_seconds > 0
+# 4. Dispatches "peer 127.0.0.1 teardown 4" (AdminReset, sends CEASE NOTIFICATION)
+# 5. Waits for teardown, queries metrics again
+# 6. Verifies ze_peer_session_flaps_total incremented
+# 7. Verifies ze_peer_notifications_sent_total with code=cease, subcode=4
+# 8. Shuts down daemon
+#
+# VALIDATES: AC-2 -- session flap counter increments on drop from Established.
+# VALIDATES: AC-4 -- notification sent counter with code/subcode labels.
+# VALIDATES: ze_peer_session_duration_seconds populated by metrics loop.
+# PREVENTS: Session lifecycle metrics not wired into FSM teardown path.
+
+# ze-peer expectations: session up, then expect NOTIFICATION (cease/admin-reset)
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=20s
+option=env:var=ze.metrics.interval:value=1s
+
+# EOR from ze
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+# NOTIFICATION: cease (6), admin-reset (4), "Administrative Reset" message
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002A0306041441646D696E697374726174697665205265736574
+EOF_PEER
+
+# Python test plugin: teardown peer, verify flap + notification + duration metrics
+tmpfs=flap-notif-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Test: session flap, notification, and duration metrics after teardown."""
+
+import json
+import sys
+import time
+
+from ze_api import API
+
+
+def dispatch(api, command):
+    """Call dispatch-command and return result dict."""
+    try:
+        resp = api._call_engine(
+            'ze-plugin-engine:dispatch-command', {'command': command})
+        return resp.get('result', {})
+    except RuntimeError as e:
+        print(f'WARN: dispatch({command!r}) failed: {e}', file=sys.stderr)
+        return {'status': 'error', 'message': str(e)}
+
+
+def get_metrics(api):
+    """Fetch Prometheus metrics text via dispatch."""
+    r = dispatch(api, 'metrics values')
+    if r.get('status') != 'done':
+        return ''
+    data_str = r.get('data', '{}')
+    try:
+        data = json.loads(data_str) if isinstance(data_str, str) else data_str
+    except (json.JSONDecodeError, TypeError) as e:
+        print(f'WARN: JSON parse failed: {e}', file=sys.stderr)
+        data = {}
+    return data.get('metrics', '')
+
+
+def find_metric_value(metrics_text, prefix):
+    """Find first metric line matching prefix, return the numeric value."""
+    for line in metrics_text.split('\n'):
+        if line.startswith('#'):
+            continue
+        if prefix in line:
+            parts = line.rsplit(' ', 1)
+            if len(parts) == 2:
+                try:
+                    return float(parts[1])
+                except ValueError:
+                    pass
+    return None
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for BGP session to establish + metrics loop tick (interval=1s via env)
+    time.sleep(3.0)
+
+    failed = False
+    errors = []
+
+    # Check session duration before teardown (should be > 0 after metrics loop tick)
+    metrics_before = get_metrics(api)
+    if not metrics_before:
+        errors.append('pre-teardown: empty metrics text')
+        failed = True
+    else:
+        duration = find_metric_value(metrics_before,
+            'ze_peer_session_duration_seconds{peer="127.0.0.1"}')
+        if duration is None:
+            errors.append('duration: ze_peer_session_duration_seconds not found')
+        elif duration <= 0:
+            errors.append(f'duration: expected > 0, got {duration}')
+
+    # Teardown: send CEASE/AdminReset NOTIFICATION to peer
+    r = dispatch(api, 'peer 127.0.0.1 teardown 4')
+    if r.get('status') != 'done':
+        errors.append(f'teardown: expected status=done, got={r.get("status")}')
+
+    # Wait for teardown to complete and metrics to update
+    time.sleep(2.0)
+
+    # Check flap and notification metrics after teardown
+    metrics_after = get_metrics(api)
+    if not metrics_after:
+        errors.append('post-teardown: empty metrics text')
+        failed = True
+    else:
+        # AC-2: Flap counter should have incremented (session dropped from Established)
+        flap = find_metric_value(metrics_after,
+            'ze_peer_session_flaps_total{peer="127.0.0.1"}')
+        if flap is None:
+            errors.append('AC-2: ze_peer_session_flaps_total not found after teardown')
+        elif flap < 1:
+            errors.append(f'AC-2: flap counter expected >= 1, got {flap}')
+
+        # AC-4: Notification sent counter with cease code and subcode 4
+        notif = find_metric_value(metrics_after,
+            'ze_peer_notifications_sent_total{peer="127.0.0.1",code="cease",subcode="4"}')
+        if notif is None:
+            errors.append('AC-4: ze_peer_notifications_sent_total{code=cease,subcode=4} not found')
+        elif notif < 1:
+            errors.append(f'AC-4: notification counter expected >= 1, got {notif}')
+
+        # Also check that peerMsgSent type=notification was incremented
+        msg_notif = find_metric_value(metrics_after,
+            'ze_peer_messages_sent_total{peer="127.0.0.1",type="notification"}')
+        if msg_notif is None:
+            errors.append('msg: ze_peer_messages_sent_total{type=notification} not found')
+
+    if errors:
+        print(f'FAIL: {len(errors)} check(s) failed:', file=sys.stderr)
+        for e in errors:
+            print(f'  - {e}', file=sys.stderr)
+        if metrics_after:
+            print(f'\nMetrics with ze_ prefix:', file=sys.stderr)
+            for line in metrics_after.split('\n'):
+                if 'ze_' in line and not line.startswith('#'):
+                    print(f'  {line}', file=sys.stderr)
+        failed = True
+    elif not failed:
+        print('OK: flap, notification, and duration metrics verified', file=sys.stderr)
+
+    # Always shutdown daemon
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+    if failed:
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration with telemetry and fast metrics interval
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external flap-notif-test {
+		run ./flap-notif-test.run
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+	log { level WARNING; }
+}
+
+telemetry {
+	prometheus {
+		port 19279
+	}
+}
+
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+			accept false
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		group-updates disable
+
+		family {
+			ipv4/unicast { prefix { maximum 10000; } }
+		}
+		capability {
+			graceful-restart disable
+		}
+		process flap-notif-test {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0

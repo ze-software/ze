@@ -7,11 +7,18 @@ package reactor
 import (
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 )
 
-// metricsUpdateInterval is how often periodic metrics are refreshed.
-const metricsUpdateInterval = 10 * time.Second
+// metricsUpdateIntervalDefault is how often periodic metrics are refreshed.
+// Overridable via ze.metrics.interval env var for testing.
+const metricsUpdateIntervalDefault = 10 * time.Second
+
+// metricsUpdateInterval returns the configured metrics refresh interval.
+func metricsUpdateInterval() time.Duration {
+	return env.GetDuration("ze.metrics.interval", metricsUpdateIntervalDefault)
+}
 
 // reactorMetrics holds Prometheus metrics for the reactor.
 // Created once at startup when a metrics registry is set.
@@ -124,7 +131,7 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 // metricsUpdateLoop periodically refreshes gauges that are read from snapshots
 // rather than incremented on events. Runs until the reactor context is canceled.
 func (r *Reactor) metricsUpdateLoop() {
-	ticker := time.NewTicker(metricsUpdateInterval)
+	ticker := time.NewTicker(metricsUpdateInterval())
 	defer ticker.Stop()
 
 	for {

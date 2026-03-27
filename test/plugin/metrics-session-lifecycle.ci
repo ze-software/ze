@@ -1,0 +1,206 @@
+# Test: session lifecycle metrics increment on session up/down cycle
+#
+# Flow:
+# 1. BGP session establishes with telemetry enabled
+# 2. Python plugin verifies ze_peer_sessions_established_total incremented
+# 3. Verifies ze_peer_state_transitions_total has entries
+# 4. Verifies message type labels on ze_peer_messages_received_total
+# 5. Shuts down daemon
+#
+# VALIDATES: AC-2 — session established/flap counters on FSM transitions.
+# VALIDATES: AC-3 — message type labels on ze_peer_messages_received_total.
+# PREVENTS: Session lifecycle metrics not wired into FSM state changes.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+
+# EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: verifies session lifecycle metrics after session up
+tmpfs=session-lifecycle-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Test: session lifecycle metrics reflect session establishment."""
+
+import json
+import sys
+import time
+
+from ze_api import API
+
+
+def dispatch(api, command):
+    """Call dispatch-command and return result dict."""
+    try:
+        resp = api._call_engine(
+            'ze-plugin-engine:dispatch-command', {'command': command})
+        return resp.get('result', {})
+    except RuntimeError as e:
+        print(f'WARN: dispatch({command!r}) failed: {e}', file=sys.stderr)
+        return {'status': 'error', 'message': str(e)}
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for BGP session to establish and metrics to propagate
+    time.sleep(2.0)
+
+    failed = False
+
+    # Get metrics values
+    r = dispatch(api, 'metrics values')
+    status = r.get('status')
+    metrics_text = ''
+    if status != 'done':
+        print(f'FAIL: expected status=done, got={status}', file=sys.stderr)
+        failed = True
+    else:
+        data_str = r.get('data', '{}')
+        try:
+            data = json.loads(data_str) if isinstance(data_str, str) else data_str
+        except (json.JSONDecodeError, TypeError) as e:
+            print(f'WARN: JSON parse failed: {e}, raw={data_str!r}', file=sys.stderr)
+            data = {}
+
+        metrics_text = data.get('metrics', '')
+        if not metrics_text:
+            print(f'FAIL: empty metrics text', file=sys.stderr)
+            failed = True
+
+    errors = []
+
+    if failed:
+        errors.append('metrics values dispatch failed (see above)')
+
+    # Only run detailed metric checks if we have valid metrics text
+    if not failed:
+        pass  # Proceed with checks below
+
+    # AC-2: Session established counter should have incremented for peer
+    # Prometheus format: metric_name{labels} value (integer counters render without .0)
+    if not failed and 'ze_peer_sessions_established_total{peer="127.0.0.1"} 1' not in metrics_text:
+        # Try to find what value it has
+        for line in metrics_text.split('\n'):
+            if 'ze_peer_sessions_established_total' in line and '127.0.0.1' in line:
+                errors.append(f'AC-2: established counter unexpected value: {line.strip()}')
+                break
+        else:
+            errors.append('AC-2: ze_peer_sessions_established_total{peer="127.0.0.1"} not found')
+
+    # AC-2: State transitions should include transition to Established
+    if not failed and 'ze_peer_state_transitions_total' not in metrics_text:
+        errors.append('AC-2: ze_peer_state_transitions_total not found')
+    else:
+        found_established = False
+        for line in metrics_text.split('\n'):
+            if 'ze_peer_state_transitions_total' in line and 'to="Established"' in line:
+                found_established = True
+                break
+        if not found_established:
+            errors.append('AC-2: no transition to="Established" found')
+
+    # AC-3: Message type labels should appear on received counter
+    # After session up with EOR, we expect keepalive and eor type labels
+    if not failed and 'ze_peer_messages_received_total' not in metrics_text:
+        errors.append('AC-3: ze_peer_messages_received_total not found')
+    else:
+        for expected_type in ['keepalive', 'eor']:
+            found = False
+            for line in metrics_text.split('\n'):
+                if 'ze_peer_messages_received_total' in line and f'type="{expected_type}"' in line:
+                    found = True
+                    break
+            if not found:
+                errors.append(f'AC-3: no type="{expected_type}" on ze_peer_messages_received_total')
+
+    # Wire metrics should show bytes transferred after session
+    if not failed and 'ze_wire_bytes_received_total{peer="127.0.0.1"}' not in metrics_text:
+        errors.append('wire: ze_wire_bytes_received_total for peer not found')
+    if not failed and 'ze_wire_bytes_sent_total{peer="127.0.0.1"}' not in metrics_text:
+        errors.append('wire: ze_wire_bytes_sent_total for peer not found')
+
+    if errors:
+        print(f'FAIL: {len(errors)} check(s) failed:', file=sys.stderr)
+        for e in errors:
+            print(f'  - {e}', file=sys.stderr)
+        if metrics_text:
+            print(f'\nMetrics with ze_ prefix:', file=sys.stderr)
+            for line in metrics_text.split('\n'):
+                if 'ze_' in line and not line.startswith('#'):
+                    print(f'  {line}', file=sys.stderr)
+        failed = True
+    elif not failed:
+        print('OK: session lifecycle metrics verified', file=sys.stderr)
+
+    # Always shutdown daemon
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+    if failed:
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration with telemetry enabled
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external session-lifecycle-test {
+		run ./session-lifecycle-test.run
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+telemetry {
+	prometheus {
+		port 19278
+	}
+}
+
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+			accept false
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		group-updates disable
+
+		family {
+			ipv4/unicast { prefix { maximum 10000; } }
+		}
+		capability {
+			graceful-restart disable
+		}
+		process session-lifecycle-test {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
