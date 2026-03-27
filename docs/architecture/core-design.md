@@ -570,6 +570,35 @@ build is skipped entirely -- zero allocation, zero copy.
 <!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- ForwardUpdate egress filter chain -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- buildModifiedPayload progressive build -->
 
+### Policy Filter Chain (planned)
+
+After in-process filters (role OTC), a configurable policy filter chain runs for
+external plugin filters. Filters are referenced by `<plugin>:<filter>` in
+`redistribution { import [...] export [...] }` config at bgp/group/peer levels.
+
+```
+Ingress:  Wire → In-process (mandatory) → Default filters → Policy chain (user) → Cache
+Egress:   Cache → In-process (mandatory) → Default filters → Policy chain (user) → Wire (per-peer)
+```
+
+Three categories of filters:
+
+| Category | When it runs | Overridable | Example |
+|----------|-------------|-------------|---------|
+| Mandatory | Always, first | No | `rfc:otc` |
+| Default | Always unless overridden | Yes, per-peer | `rfc:no-self-as` |
+| User | When configured | N/A | `rpki:validate` |
+
+Config hierarchy is cumulative (bgp > group > peer). Each filter declares which
+attributes it needs; the reactor parses only the union across the chain. Filters
+respond accept/reject/modify with delta-only output. Dirty tracking ensures only
+modified attributes are re-encoded.
+
+A filter may declare `overrides` to remove a default filter from the chain for
+peers where it is configured (e.g., `allow-own-as:relaxed` overrides `rfc:no-self-as`).
+
+<!-- source: plan/spec-redistribution-filter.md -- redistribution filter design -->
+
 ---
 
 ## 10. What Gets Eliminated

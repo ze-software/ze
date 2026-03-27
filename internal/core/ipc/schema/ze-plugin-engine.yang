@@ -78,6 +78,50 @@ module ze-plugin-engine {
                     description "Handler paths (e.g., bgp, bgp.peer)";
                 }
             }
+            list filter {
+                key "name";
+                description
+                    "Named route filters this plugin offers.
+                     Config references as <plugin>:<name> in redistribution blocks.";
+                leaf name {
+                    type string;
+                    description "Filter name (the part after : in <plugin>:<filter>)";
+                }
+                leaf direction {
+                    type enumeration {
+                        enum import { description "Ingress filtering"; }
+                        enum export { description "Egress filtering"; }
+                        enum both { description "Ingress and egress filtering"; }
+                    }
+                    description "Which direction(s) this filter handles";
+                }
+                leaf-list attributes {
+                    type string;
+                    description "Attribute names to receive (e.g., as-path, community)";
+                }
+                leaf nlri {
+                    type boolean;
+                    default true;
+                    description "Whether to include NLRI list in filter input";
+                }
+                leaf raw {
+                    type boolean;
+                    default false;
+                    description "Whether to include raw wire bytes";
+                }
+                leaf on-error {
+                    type enumeration {
+                        enum reject { description "Fail-closed: drop update on error"; }
+                        enum accept { description "Fail-open: pass update on error"; }
+                    }
+                    default reject;
+                    description "Behavior when filter IPC fails";
+                }
+                leaf-list overrides {
+                    type string;
+                    description "Default filters this filter replaces (e.g., rfc:no-self-as)";
+                }
+            }
         }
     }
 

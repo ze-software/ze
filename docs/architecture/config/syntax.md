@@ -452,6 +452,35 @@ Invalid enum values are rejected at parse time.
 
 ---
 
+## Redistribution Block (planned)
+
+Route filtering via external plugin filters. Appears in `peer-fields` grouping
+(group and peer levels) and `bgp` container (global level).
+
+```
+redistribution {
+    import [ rpki:validate community:scrub ];
+    export [ aspath:prepend ];
+}
+```
+
+| Keyword | Type | Description |
+|---------|------|-------------|
+| `import` | leaf-list of string | Import filter chain. Values are `<plugin>:<filter>` references |
+| `export` | leaf-list of string | Export filter chain. Values are `<plugin>:<filter>` references |
+
+Chains are cumulative across config levels (bgp > group > peer). Mandatory
+filters (e.g., `rfc:otc`) always run first and cannot be configured. Default
+filters (e.g., `rfc:no-self-as`) run unless overridden by a user filter that
+declares `overrides`.
+
+Validation: the `<plugin>` must exist and must have declared a filter named
+`<filter>` for the matching direction. Validated after plugin stage 1 completes.
+
+<!-- source: plan/spec-redistribution-filter.md -- redistribution YANG config design -->
+
+---
+
 ## Update Block (Ze-Native Routes)
 
 The `update { attribute {} nlri {} }` block is the ze-native way to announce routes in configuration files. All ze-native route config uses this format.

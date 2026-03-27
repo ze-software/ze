@@ -70,8 +70,10 @@ Last updated: 2026-03-25
 
 ## Policy & Route Manipulation
 
-Ze and ExaBGP take a programmable approach to policy: external processes manipulate routes
-via a command protocol rather than a built-in policy language.
+Ze takes a programmable approach to policy: external plugin filters manipulate routes
+via the `redistribution {}` config block using `<plugin>:<filter>` references.
+Filters chain as piped transforms (accept/reject/modify) with delta-only output.
+RFC-mandated checks run as default filters that can be selectively overridden.
 
 | Feature | Ze | rustbgpd | BIRD 3 | bio-rd | RustyBGP | FRR | GoBGP | ExaBGP | OpenBGPd | BIRD 2 | freeRtr |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -87,8 +89,8 @@ via a command protocol rather than a built-in policy language.
 | Next-hop set/self | API | Yes | Yes | Yes | No | Yes | Yes | API | Yes | Yes | Yes |
 | RPKI validation match | Yes | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes | Yes |
 | Neighbor/peer matching | Yes | Yes | Yes | No | No | Yes | Yes | No | Yes | Yes | Yes |
-| Named policy definitions | No | Yes | Yes | Yes | Partial | Yes | Yes | No | Yes | Yes | Yes |
-| Policy chaining | No | Yes | Yes | Yes | No | Yes | Yes | No | Yes | Yes | Yes |
+| Named policy definitions | Plugin | Yes | Yes | Yes | Partial | Yes | Yes | No | Yes | Yes | Yes |
+| Policy chaining | Yes | Yes | Yes | Yes | No | Yes | Yes | No | Yes | Yes | Yes |
 | Custom filter language | No | No | Yes | No | No | No | No | No | Yes | Yes | No |
 | External process policy | Yes | No | No | No | No | No | No | Yes | No | No | No |
 | Plugin-based policy | Yes | No | No | No | No | No | No | No | No | No | No |

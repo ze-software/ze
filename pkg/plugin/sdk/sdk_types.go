@@ -84,3 +84,12 @@ type DecodeUpdateOutput = rpc.DecodeUpdateOutput
 
 // ConnectionHandlerDecl declares a listen socket the plugin wants via fd passing.
 type ConnectionHandlerDecl = rpc.ConnectionHandlerDecl
+
+// FilterDecl declares a named route filter the plugin offers.
+type FilterDecl = rpc.FilterDecl
+
+// FilterUpdateInput is the input for filter-update (runtime callback).
+type FilterUpdateInput = rpc.FilterUpdateInput
+
+// FilterUpdateOutput is the output for filter-update (runtime callback).
+type FilterUpdateOutput = rpc.FilterUpdateOutput

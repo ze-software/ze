@@ -131,6 +131,25 @@ If any plugin fails to complete a stage, startup aborts for all plugins.
 - Prevents race conditions in multi-plugin configurations
 - Guarantees consistent state before BGP peers start
 
+**Filter Declaration (Stage 1, planned):**
+
+Plugins may include a `filters` list in their `declare-registration` to offer named
+route filters. Each entry declares a filter name, direction (import/export/both),
+requested attributes, failure mode, and optional overrides of default filters.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `filters[].name` | string | Filter name (referenced in config as `<plugin>:<name>`) |
+| `filters[].direction` | enum | `import`, `export`, or `both` |
+| `filters[].attributes` | list | Attribute names to receive (e.g., `as-path`, `community`) |
+| `filters[].on-error` | enum | `reject` (fail-closed) or `accept` (fail-open) |
+| `filters[].overrides` | list | Default filters this filter replaces (e.g., `rfc:no-self-as`) |
+
+Config references filters as `<plugin>:<filter>` in `redistribution { import [...] export [...] }`.
+The engine validates plugin and filter names after stage 1 completes.
+
+<!-- source: plan/spec-redistribution-filter.md -- filter declaration design -->
+
 ### Tier-Ordered Startup
 
 Plugins are grouped into dependency tiers before handshake begins. All processes
@@ -222,8 +241,15 @@ For external plugins, the process is expected to exit cleanly after receiving by
 | `decode-nlri` | `DecodeNLRIInput` | `{"json":"..."}` | Decode NLRI |
 | `decode-capability` | `DecodeCapabilityInput` | `{"json":"..."}` | Decode capability |
 | `bye` | `ByeInput` | `ok` | Shutdown signal |
+| `filter-update` | `FilterUpdateInput` | `FilterUpdateOutput` | Route filter request (planned) |
 
 All methods are prefixed with `ze-plugin-callback:`.
+
+**filter-update (planned):** Engine sends UPDATE attributes to a named filter.
+Plugin responds accept, reject, or modify (delta-only changed attributes).
+Includes filter name so the plugin can dispatch to the correct handler.
+
+<!-- source: plan/spec-redistribution-filter.md -- filter-update RPC design -->
 
 ### Plugin to Engine
 

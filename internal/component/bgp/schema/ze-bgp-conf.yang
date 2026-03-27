@@ -36,6 +36,22 @@ module ze-bgp-conf {
             description "Listen address and port";
         }
 
+        // Global redistribution filter chains (apply to all peers as base chain)
+        container redistribution {
+            description
+                "Global route filter chains for import and export.
+                 Group and peer levels append to this base chain.
+                 Values are <plugin>:<filter> references.";
+            leaf-list import {
+                type string;
+                description "Global import filter chain";
+            }
+            leaf-list export {
+                type string;
+                description "Global export filter chain";
+            }
+        }
+
         // Peer groups - Junos-style: peers nested inside named groups
         list group {
             key "name";
@@ -459,6 +475,22 @@ module ze-bgp-conf {
                 description "Message types to send. Valid: update, refresh,
                     enhanced-refresh (BORR/EORR markers, RFC 7313).
                     Validated at runtime against known send types.";
+            }
+        }
+
+        // Redistribution filter chains
+        container redistribution {
+            description
+                "Route filter chains for import and export.
+                 Values are <plugin>:<filter> references to named filters
+                 declared by plugins at stage 1.";
+            leaf-list import {
+                type string;
+                description "Import filter chain (<plugin>:<filter> references)";
+            }
+            leaf-list export {
+                type string;
+                description "Export filter chain (<plugin>:<filter> references)";
             }
         }
 

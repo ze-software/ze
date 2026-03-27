@@ -35,6 +35,7 @@ type DeclareRegistrationInput struct {
 	CacheConsumer          bool                    `json:"cache-consumer,omitempty"`
 	CacheConsumerUnordered bool                    `json:"cache-consumer-unordered,omitempty"`
 	ConnectionHandlers     []ConnectionHandlerDecl `json:"connection-handlers,omitempty"`
+	Filters                []FilterDecl            `json:"filters,omitempty"`
 }
 
 // ConnectionHandlerDecl declares a listen socket the plugin wants to receive via fd passing.
@@ -64,6 +65,34 @@ type SchemaDecl struct {
 	Namespace string   `json:"namespace,omitempty"`
 	YANGText  string   `json:"yang-text,omitempty"`
 	Handlers  []string `json:"handlers,omitempty"`
+}
+
+// FilterDecl declares a named route filter the plugin offers.
+type FilterDecl struct {
+	Name       string   `json:"name"`                 // Filter name (config references as <plugin>:<name>)
+	Direction  string   `json:"direction"`            // "import", "export", or "both"
+	Attributes []string `json:"attributes,omitempty"` // Attribute names to receive
+	NLRI       *bool    `json:"nlri,omitempty"`       // Include NLRI list (default true)
+	Raw        bool     `json:"raw,omitempty"`        // Include raw wire bytes
+	OnError    string   `json:"on-error,omitempty"`   // "reject" (fail-closed) or "accept" (fail-open)
+	Overrides  []string `json:"overrides,omitempty"`  // Default filters this filter replaces
+}
+
+// FilterUpdateInput is the input for ze-plugin-callback:filter-update (runtime).
+type FilterUpdateInput struct {
+	Filter    string `json:"filter"`        // Filter name to invoke
+	Direction string `json:"direction"`     // "import" or "export"
+	Peer      string `json:"peer"`          // Peer IP address
+	PeerAS    uint32 `json:"peer-as"`       // Peer ASN
+	Update    string `json:"update"`        // Text-format attributes and NLRI
+	Raw       string `json:"raw,omitempty"` // Hex-encoded raw UPDATE body (if filter declared raw=true)
+}
+
+// FilterUpdateOutput is the output for ze-plugin-callback:filter-update.
+type FilterUpdateOutput struct {
+	Action string `json:"action"`           // "accept", "reject", or "modify"
+	Update string `json:"update,omitempty"` // Delta-only modified attributes (only for action=modify)
+	Raw    string `json:"raw,omitempty"`    // Full raw UPDATE body replacement (only for action=modify with raw)
 }
 
 // ConfigSection is a single config section delivered to the plugin.

@@ -145,6 +145,27 @@ ze --plugins
 | `bgp-llnh` | Link-local next-hop (RFC 2545) | -- |
 <!-- source: internal/component/bgp/plugins/gr/register.go; internal/component/bgp/plugins/rpki/register.go; internal/component/bgp/plugins/rpki_decorator/register.go; internal/component/bgp/plugins/route_refresh/register.go; internal/component/bgp/plugins/role/register.go; internal/component/bgp/plugins/hostname/register.go; internal/component/bgp/plugins/softver/register.go; internal/component/bgp/plugins/llnh/register.go -->
 
+### Redistribution Filters (planned)
+
+Plugins can declare named filters at stage 1 for import and/or export filtering.
+Each filter specifies which attributes it needs, and the engine sends only those
+attributes as text for each UPDATE. Filters respond accept, reject, or modify
+(delta-only). See [Redistribution Guide](redistribution.md) for configuration.
+
+A single plugin can offer multiple named filters. Config references them as
+`<plugin>:<filter>` (e.g., `rpki:validate`, `community:scrub`).
+
+| Category | Behavior | Example |
+|----------|----------|---------|
+| Mandatory | Always on, cannot be overridden | `rfc:otc` |
+| Default | On by default, overridable per-peer | `rfc:no-self-as` |
+| User | Explicit in `redistribution {}` config | `rpki:validate` |
+
+Filters can declare `overrides` to remove default filters from the chain
+(e.g., `allow-own-as:relaxed` overrides `rfc:no-self-as` for a specific peer).
+
+<!-- source: plan/spec-redistribution-filter.md -- redistribution filter design -->
+
 ### NLRI Encoders/Decoders
 
 NLRI plugins register address family support. They are loaded automatically when the corresponding family is configured.

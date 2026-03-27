@@ -677,6 +677,26 @@ func registrationFromRPC(input *rpc.DeclareRegistrationInput) *plugin.PluginRegi
 		})
 	}
 
+	for _, f := range input.Filters {
+		nlri := true
+		if f.NLRI != nil {
+			nlri = *f.NLRI
+		}
+		onError := "reject"
+		if f.OnError != "" {
+			onError = f.OnError
+		}
+		reg.Filters = append(reg.Filters, plugin.FilterRegistration{
+			Name:       f.Name,
+			Direction:  f.Direction,
+			Attributes: f.Attributes,
+			NLRI:       nlri,
+			Raw:        f.Raw,
+			OnError:    onError,
+			Overrides:  f.Overrides,
+		})
+	}
+
 	return reg
 }
 

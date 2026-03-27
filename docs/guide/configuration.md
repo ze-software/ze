@@ -205,6 +205,38 @@ peer transit-a {
 Base event types for `receive`: `update`, `open`, `notification`, `keepalive`, `refresh`, `state`, `negotiated`, `eor`, `rpki`. Plugins may register additional types (e.g., `update-rpki` from bgp-rpki-decorator). Validated at config parse time against registered event types.
 <!-- source: internal/component/bgp/event.go -- event type definitions; internal/component/plugin/registry/registry.go -- EventTypes registration -->
 
+## Redistribution Filters (planned)
+
+Route filtering is configured via `redistribution` blocks at bgp, group, or peer level.
+Values are `<plugin>:<filter>` references to named filters declared by plugins.
+
+```
+bgp {
+    redistribution {
+        import [ rpki:validate ]
+    }
+    group customers {
+        redistribution {
+            import [ community:scrub ]
+        }
+        peer customer-a {
+            remote { ip 10.0.0.1; as 65001; }
+            redistribution {
+                export [ aspath:prepend ]
+            }
+        }
+    }
+}
+```
+
+Chains are cumulative: bgp-level filters run first, then group, then peer.
+Mandatory filters (e.g., `rfc:otc`) always run before user filters and cannot
+be removed. Default filters (e.g., `rfc:no-self-as`) run unless overridden by
+a filter that declares `overrides`.
+
+See [Redistribution Guide](redistribution.md) for details.
+<!-- source: plan/spec-redistribution-filter.md -- redistribution filter config design -->
+
 ## Static Routes
 
 Routes can be configured directly per peer:

@@ -92,6 +92,22 @@ After Stage 5: SDK wraps Socket A in `MuxConn` for concurrent RPCs. Engine dispa
 | `SendTypes` | []string | No | Send types this plugin enables (e.g., ["enhanced-refresh"]). Registered dynamically at startup. |
 | `Features` | string | No | Space-separated flags ("nlri yang capa") |
 
+## Runtime Filter Declaration (planned -- stage 1 wire protocol)
+
+External plugins can declare named route filters at stage 1 via `declare-registration`.
+This is runtime IPC, not compile-time registration. Filter fields are stored in
+`PluginRegistration` (`internal/component/plugin/registration.go`), not `Registration`.
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `filters[].name` | string | Filter name (config references as `<plugin>:<name>`) |
+| `filters[].direction` | enum | import, export, both |
+| `filters[].attributes` | []string | Attribute names to receive |
+| `filters[].on-error` | enum | reject (fail-closed) or accept (fail-open) |
+| `filters[].overrides` | []string | Default filters this filter replaces |
+
+See `plan/spec-redistribution-filter.md` for the full design.
+
 ## New Plugin Checklist
 
 ```

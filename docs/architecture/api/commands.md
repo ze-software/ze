@@ -48,7 +48,7 @@ Legacy noun-first RPCs (`peer list`, `bgp summary`) remain for internal dispatch
 user-facing commands use verb-first syntax.
 
 **Streaming vs polling:** `monitor` commands keep the display active and auto-refresh.
-`event monitor` streams live events line-by-line. `monitor bgp` polls summary data
+`monitor event` streams live events line-by-line. `monitor bgp` polls summary data
 every 2 seconds and renders a dashboard. Both use the `monitor` verb because they
 produce continuously-updating output.
 
@@ -66,7 +66,7 @@ produce continuously-updating output.
 | Log | levels, set (runtime log levels) |
 | Metrics | values, list (Prometheus metrics) |
 | Group | start, end (batching) |
-| Monitor | monitor bgp (TUI dashboard), event monitor (live event streaming) |
+| Monitor | monitor bgp (TUI dashboard), monitor event (live event streaming) |
 | Subscribe | subscribe, unsubscribe (event filtering) |
 <!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
 
@@ -155,19 +155,20 @@ subscribe peer !upstream1 bgp event update direction sent  # Exclude one peer
 subscribe rib event route                               # RIB route events
 ```
 
-### Event Monitor Command
+### Monitor Commands
 
-Stream live events from all namespaces (BGP and RIB). The session stays open and events are written line-by-line as they occur. Read-only.
+Stream live events or display live dashboards. All monitor commands follow verb-first syntax: `monitor <module> [args...]`.
 
 ```
-event monitor                                                # All events, all peers
-event monitor peer <addr>                                    # Filter by peer address
-event monitor peer *                                         # Explicit all peers
-event monitor include <type>,<type>                          # Only listed event types
-event monitor exclude <type>,<type>                          # All types except listed
-event monitor direction received                             # Received events only
-event monitor direction sent                                 # Sent events only
-event monitor include update peer <addr> direction received  # Combined filters
+monitor event                                                # All events, all peers
+monitor event peer <addr>                                    # Filter by peer address
+monitor event peer *                                         # Explicit all peers
+monitor event include <type>,<type>                          # Only listed event types
+monitor event exclude <type>,<type>                          # All types except listed
+monitor event direction received                             # Received events only
+monitor event direction sent                                 # Sent events only
+monitor event include update peer <addr> direction received  # Combined filters
+monitor bgp                                                  # Live peer dashboard (TUI)
 ```
 
 | Keyword | Values | Default |
@@ -185,7 +186,7 @@ Event types span all namespaces: BGP (update, open, notification, keepalive, ref
 Wire method: `ze-event:monitor`. Supports pipe operators: `| json`, `| table`, `| match`.
 <!-- source: internal/component/plugin/server/monitor.go -- MonitorManager -->
 
-**Note:** `monitor bgp` is the live peer dashboard in the interactive TUI (verb-first: `<action> <module>`). Event streaming uses `event monitor`.
+**Note:** `monitor bgp` is the live peer dashboard (TUI only). `monitor event` streams live events (SSH exec or TUI).
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
 
 ### System Commands
@@ -729,15 +730,13 @@ bgp
 │   ├── help
 │   └── complete
 ├── event
-│   ├── list
-│   └── monitor           # Stream live events (keeps session open)
+│   └── list
 ├── log
 │   ├── levels            # Show subsystem log levels
 │   └── set               # Set subsystem log level at runtime
 ├── metrics
 │   ├── values            # Show Prometheus metrics (text format)
 │   └── list              # List metric names
-├── monitor               # (legacy position -- see "monitor bgp" under verb-first commands)
 └── plugin
     ├── encoding
     ├── format
@@ -766,6 +765,10 @@ rib
 group
 ├── start
 └── end
+
+monitor
+├── bgp                   # Live peer dashboard (TUI)
+└── event                 # Stream live events (keeps session open)
 ```
 
 ---

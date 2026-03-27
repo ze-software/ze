@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-03-21 |
+| Phase | 2/8 |
+| Updated | 2026-03-27 |
 
 ## Post-Compaction Recovery
 
@@ -15,9 +15,11 @@
 3. `docs/architecture/api/wire-format.md` - IPC framing
 4. `docs/architecture/api/process-protocol.md` - 5-stage startup
 5. `internal/component/plugin/registry/registry.go` - Registration struct, filter types
-6. `internal/component/bgp/reactor/reactor_notify.go` - ingress filter chain
-7. `internal/component/bgp/reactor/reactor_api_forward.go` - egress filter chain
-8. `internal/core/ipc/schema/ze-plugin-engine.yang` - stage 1 declaration RPC
+6. `internal/component/plugin/registration.go` - PluginRegistration struct (stage 1 declaration)
+7. `internal/component/bgp/reactor/reactor_notify.go` - ingress filter chain
+8. `internal/component/bgp/reactor/reactor_api_forward.go` - egress filter chain
+9. `internal/component/bgp/reactor/forward_build.go` - buildModifiedPayload (egress mods)
+10. `internal/core/ipc/schema/ze-plugin-engine.yang` - stage 1 declaration RPC
 
 ## Task
 
@@ -30,21 +32,25 @@ This spec covers external plugin filters only. Internal/in-engine optimized filt
 | Decision | Rationale |
 |----------|-----------|
 | Plugins are normal plugins | No new plugin type. `plugin { external <name> { ... } }` as usual. Filter capability declared over wire protocol at stage 1 |
-| Wire protocol declares filter | New fields in `declare-registration`: filter direction(s) and requested attribute list |
-| No plugin-side config in ze | Plugin handles its own filtering logic. Ze only knows: "this plugin is a filter, it wants these attributes" |
-| `redistribution {}` config block | Under `peer-fields` grouping (group/peer level) AND bgp container (global level). Contains `import [...]` and `export [...]` leaf-lists |
+| Filter naming: `<plugin>:<filter>` | Uniform naming for all filters. A plugin may offer multiple named filters (e.g., `rpki:validate`, `rpki:log`). Built-in filters use `rfc:<action>` (e.g., `rfc:otc`). Config, IPC, and logging all use this format |
+| Three filter categories: mandatory, default, user | **Mandatory** (e.g., `rfc:otc`): always on, cannot be overridden. **Default** (e.g., `rfc:no-self-as`): on for all peers by default, can be overridden. **User** (e.g., `rpki:validate`): only present when explicitly configured. All use `<plugin>:<filter>` naming |
+| Mandatory/default filters invisible in config | Not listed in `redistribution {}`. A future extensive/verbose view may display them for debugging. User cannot remove or reorder mandatory filters. Default filters can be overridden (see below) |
+| Override mechanism for default filters | A filter can declare `overrides: ["rfc:no-self-as"]` to remove a default filter from the chain. Applies at the config level where the overriding filter is placed (bgp/group/peer), inherited downward. The overriding plugin knows the semantics of what it replaces. External plugins can override RFC defaults -- ze lets users do what they want |
+| Wire protocol declares named filters | New `filters` list in `declare-registration`: each entry has a name, direction, requested attributes, and on-error. One plugin can declare multiple filters |
+| No plugin-side config in ze | Plugin handles its own filtering logic. Ze only knows: "this plugin offers these named filters, each wants these attributes" |
+| `redistribution {}` config block | Under `peer-fields` grouping (group/peer level) AND bgp container (global level). Contains `import [...]` and `export [...]` leaf-lists. Values are `<plugin>:<filter>` strings |
 | Config hierarchy: bgp > group > peer | Cumulative: bgp-level filters run first, then group-level, then peer-level |
 | Chain semantics: piped transforms | Each filter sees output of previous filter. Short-circuit on reject. Default accept at end of chain |
 | Per-UPDATE granularity | Filters operate on full UPDATE, not per-NLRI. To filter specific NLRIs, return a modified NLRI list |
 | Withdrawals go through filters | Enables prefix-length filtering and default-route blocking on withdrawals |
-| Plugin declares requested attributes | At stage 1 via `declare-registration`. Reactor parses only the union of all declared attributes across the chain |
+| Plugin declares requested attributes per filter | At stage 1 via `declare-registration`. Each named filter declares its own attribute list. Reactor parses only the union of all declared attributes across the chain |
 | Subset input, delta-only output | Filter receives only declared attributes as text. Responds with only changed fields on modify |
 | Dirty field tracking | Modified fields marked dirty. Only dirty fields trigger re-encoding of the cached UPDATE |
 | Pointer-swap for parsed attributes | When a filter modifies an attribute, replace the parsed object pointer in the cache |
 | Raw mode available | Plugin can request raw wire bytes instead of/in addition to parsed attributes. Forces full re-parse on modify (inefficient but flexible) |
-| Plugin declares failure mode | `on-error` field in stage 1: reject (fail-closed) or accept (fail-open). Plugin author knows the security semantics of their filter |
-| Role plugin stays as-is | In-process Go closures via IngressFilter/EgressFilter. Runs first in chain (RFC-mandated). Shares chain position but not the new protocol |
-| Same plugin usable multiple times in chain | User may list a plugin name more than once in import/export (e.g., prepend twice) |
+| Plugin declares failure mode per filter | `on-error` field per named filter: reject (fail-closed) or accept (fail-open). Plugin author knows the security semantics of each filter |
+| Role plugin stays as-is (mandatory) | In-process Go closures via IngressFilter/EgressFilter. Runs first in chain (RFC-mandated). Named `rfc:otc` internally. Mandatory category -- cannot be overridden |
+| Same filter usable multiple times in chain | User may list the same `<plugin>:<filter>` more than once in import/export (e.g., `prepend:once` twice) |
 | External plugins first | IPC over text protocol. Internal fast-path filters are a separate future spec |
 
 ## Required Reading
@@ -63,29 +69,34 @@ This spec covers external plugin filters only. Internal/in-engine optimized filt
 - [ ] No specific RFC governs policy filters. This is ze-internal protocol design.
 
 **Key insights:**
-- Stage 1 `declare-registration` currently has: family list, command list, wants-config, schema. New filter fields extend this RPC.
-- Ingress filters run after wire parse, before cache. Egress filters run per-destination-peer during forward.
-- IPC uses `#<id> <verb> [<json>]` over MuxConn. Filter requests/responses fit this model.
+- Stage 1 `declare-registration` currently has: family list, command list, wants-config, schema. New `filters` list extends this RPC. Declaration is parsed into `PluginRegistration` struct in `internal/component/plugin/registration.go`.
+- A single plugin can declare multiple named filters (e.g., `rpki` plugin declares `validate` and `log`). Config references them as `rpki:validate`, `rpki:log`.
+- Ingress filters run after wire parse, before cache (:305-349). Egress filters run per-destination-peer during forward (:260-279).
+- IPC uses `#<id> <verb> [<json>]` over MuxConn. Filter requests/responses fit this model. The `filter-update` RPC includes the filter name so the plugin knows which filter is being invoked.
 - Current in-process filters receive raw `[]byte` payload. External filters receive text representation.
+- Egress modification infrastructure already exists: `ModAccumulator` collects per-attribute changes, `buildModifiedPayload` applies them to wire bytes using `attrModHandlers`. New export filter mods should integrate with or parallel this pattern.
 
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/component/plugin/registry/registry.go` - Registration struct with IngressFilter/EgressFilter fields, PeerFilterInfo struct, IngressFilterFunc/EgressFilterFunc types, IngressFilters()/EgressFilters() query functions
-- [ ] `internal/component/bgp/reactor/reactor_notify.go:270-297` - ingress filter chain: iterates r.ingressFilters, calls safeIngressFilter with panic recovery, short-circuits on reject, creates new WireUpdate on modify
-- [ ] `internal/component/bgp/reactor/reactor_api_forward.go:234-268` - egress filter chain: builds PeerFilterInfo per source/dest, iterates r.egressFilters per destination peer, suppresses on reject
-- [ ] `internal/component/bgp/reactor/reactor_notify.go:22-45` - safeIngressFilter and safeEgressFilter: panic recovery wrappers, fail-closed on panic (reject/suppress)
+- [ ] `internal/component/plugin/registry/registry.go` - Registration struct (IngressFilter:198, EgressFilter:199), PeerFilterInfo:33-39, IngressFilterFunc:47, EgressFilterFunc:55 (includes *ModAccumulator), IngressFilters():561, EgressFilters():576
+- [ ] `internal/component/plugin/registration.go:60-77` - PluginRegistration struct (Stage 1 data). This is where new filter declaration fields will be added. Currently has: Families, Commands, Receive, SchemaDeclarations, WantsConfigRoots, WantsValidateOpen, ConnectionHandlers
+- [ ] `internal/component/bgp/reactor/reactor_notify.go:305-349` - ingress filter chain: iterates r.ingressFilters, calls safeIngressFilter with panic recovery, short-circuits on reject, creates new WireUpdate on modify
+- [ ] `internal/component/bgp/reactor/reactor_api_forward.go:239-279` - egress filter chain: builds PeerFilterInfo per source/dest, iterates r.egressFilters per destination peer, suppresses on reject. Modification via ModAccumulator applied at :307-311 via buildModifiedPayload
+- [ ] `internal/component/bgp/reactor/reactor_notify.go:23-46` - safeIngressFilter:25 and safeEgressFilter:38: panic recovery wrappers, fail-closed on panic (reject/suppress)
+- [ ] `internal/component/bgp/reactor/reactor.go:263-267` - reactor stores ingressFilters, egressFilters, attrModHandlers fields. Initialized from registry at startup :749-751
+- [ ] `internal/component/bgp/reactor/forward_build.go` - buildModifiedPayload: applies ModAccumulator to wire bytes using attrModHandlers. Existing infrastructure for egress attribute modification
 - [ ] `internal/core/ipc/schema/ze-plugin-engine.yang:18-82` - declare-registration RPC with family, command, wants-config, schema fields
-- [ ] `internal/component/bgp/schema/ze-bgp-conf.yang:83-435` - peer-fields grouping with capability, family, process, etc.
-- [ ] `internal/component/bgp/plugins/role/register.go` - role plugin registers IngressFilter and EgressFilter closures
-- [ ] `internal/component/bgp/plugins/role/otc.go` - OTC ingress filter (stamp/reject), OTC egress filter (suppress per-peer)
+- [ ] `internal/component/bgp/schema/ze-bgp-conf.yang:83-464` - peer-fields grouping with capability, family, process, rib, etc.
+- [ ] `internal/component/bgp/plugins/role/register.go` - role plugin registers IngressFilter and EgressFilter closures (lines 31-32)
+- [ ] `internal/component/bgp/plugins/role/otc.go` - OTCIngressFilter:268-324 (stamp/reject per RFC 9234), OTCEgressFilter:326-403 (suppress per-peer)
 
 **Behavior to preserve:**
 - Role plugin's IngressFilter/EgressFilter mechanism unchanged
 - Role filters run before any policy filter chain (RFC-mandated, hard reject)
 - Current filter invocation in reactor_notify.go and reactor_api_forward.go stays as-is for in-process filters
 - safeIngressFilter/safeEgressFilter panic recovery pattern
-- Fail-open on filter panic
+- Fail-closed on filter panic (reject/suppress -- see reactor_notify.go:24,37)
 - 5-stage startup protocol for all plugins
 - WireUpdate lazy parsing and zero-copy
 - `#<id> <verb> [<json>]` IPC framing
@@ -106,25 +117,26 @@ This spec covers external plugin filters only. Internal/in-engine optimized filt
 | Step | Location | Format |
 |------|----------|--------|
 | Wire bytes received | reactor_notify.go | Raw BGP UPDATE body |
-| In-process ingress filters (role OTC) | reactor_notify.go:270-297 | `[]byte` payload |
+| In-process ingress filters (role OTC) | reactor_notify.go:305-349 | `[]byte` payload |
 | **NEW: resolve peer's import filter chain** | reactor (new code) | Config: bgp + group + peer merged |
 | **NEW: parse declared attributes** | reactor (new code) | Lazy parse only union of requested attributes |
 | **NEW: for each filter in import chain** | reactor (new code) | Send text via IPC, receive response |
 | **NEW: on modify, update cached attributes** | reactor (new code) | Pointer-swap dirty attributes, re-encode if needed |
-| Cache in recentUpdates | reactor_notify.go:299-313 | WireUpdate (possibly modified) |
+| Cache in recentUpdates | reactor_notify.go:346+ | WireUpdate (possibly modified) |
 
 ### Entry Point: Export (Egress) Filter Chain
 
 | Step | Location | Format |
 |------|----------|--------|
 | Forward request | reactor_api_forward.go | UpdateID -> cached ReceivedUpdate |
-| In-process egress filters (role OTC) | reactor_api_forward.go:252-268 | `[]byte` payload, per-peer |
+| In-process egress filters (role OTC) | reactor_api_forward.go:260-279 | `[]byte` payload, per-peer, ModAccumulator for mods |
 | **NEW: resolve destination peer's export filter chain** | reactor (new code) | Config: bgp + group + peer merged |
 | **NEW: parse declared attributes** | reactor (new code) | Lazy parse only union of requested attributes |
 | **NEW: for each filter in export chain** | reactor (new code) | Send text via IPC, receive response |
 | **NEW: on reject, skip peer** | reactor (new code) | Same as current egress filter short-circuit |
 | **NEW: on modify, use modified version for this peer** | reactor (new code) | Dirty tracking per forward, not cached globally |
-| Select wire version (IBGP/EBGP) | reactor_api_forward.go:270+ | Per-peer wire |
+| **EXISTING: apply ModAccumulator** | reactor_api_forward.go:307-311 | buildModifiedPayload applies mods after wire selection |
+| Select wire version (IBGP/EBGP) | reactor_api_forward.go:280+ | Per-peer wire |
 
 ### Entry Point: Stage 1 Declaration
 
@@ -145,8 +157,10 @@ This spec covers external plugin filters only. Internal/in-engine optimized filt
 
 ### Integration Points
 - `registry.go` Registration struct - no changes needed (filter capability is runtime/IPC, not compile-time)
-- `reactor_notify.go` ingress filter loop - new policy chain after existing in-process filters
-- `reactor_api_forward.go` egress filter loop - new policy chain after existing in-process filters
+- `registration.go` PluginRegistration struct - add filter declaration fields to Stage 1 data
+- `reactor_notify.go` ingress filter loop (:305-349) - new policy chain after existing in-process filters
+- `reactor_api_forward.go` egress filter loop (:260-279) - new policy chain after existing in-process filters
+- `forward_build.go` buildModifiedPayload - existing egress modification infrastructure (may be reusable for export filter mods)
 - `ze-plugin-engine.yang` - extend declare-registration input
 - `ze-bgp-conf.yang` - add redistribution container to peer-fields and bgp
 - `ze-plugin-callback.yang` - new filter-update RPC (engine -> plugin)
@@ -162,19 +176,21 @@ This spec covers external plugin filters only. Internal/in-engine optimized filt
 
 ### Stage 1: Filter Declaration
 
-Extend `declare-registration` input with a new `filter` container:
+Extend `declare-registration` input with a new `filters` list. Each entry declares a named filter:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `filter.direction` | enum: import, export, both | Which direction(s) this plugin filters |
-| `filter.attributes` | leaf-list of string | Attribute names to receive (e.g., "local-preference", "community", "as-path") |
-| `filter.nlri` | boolean (default true) | Whether to include NLRI list in filter input |
-| `filter.raw` | boolean (default false) | Whether to include raw wire bytes (forces full re-parse on modify) |
-| `filter.on-error` | enum: reject, accept | Behavior when IPC fails (timeout, crash, malformed response). Plugin declares its own failure semantics |
+| `filters[].name` | string | Filter name (the part after `:` in `<plugin>:<filter>`) |
+| `filters[].direction` | enum: import, export, both | Which direction(s) this filter handles |
+| `filters[].attributes` | leaf-list of string | Attribute names to receive (e.g., "local-preference", "community", "as-path") |
+| `filters[].nlri` | boolean (default true) | Whether to include NLRI list in filter input |
+| `filters[].raw` | boolean (default false) | Whether to include raw wire bytes (forces full re-parse on modify) |
+| `filters[].on-error` | enum: reject, accept | Behavior when IPC fails (timeout, crash, malformed response). Per-filter failure semantics |
+| `filters[].overrides` | leaf-list of string | Default filters this filter replaces (e.g., `["rfc:no-self-as"]`). When this filter is in a peer's chain, the listed default filters are removed for that peer. Empty list (default) means no overrides |
 
-Example wire message:
+Example wire message (plugin `allow-own-as` declares a filter that overrides a default RFC check):
 ```
-#5 ze-plugin-engine:declare-registration {"filter":{"direction":"both","attributes":["local-preference","community"],"nlri":true,"on-error":"reject"}}
+#5 ze-plugin-engine:declare-registration {"filters":[{"name":"relaxed","direction":"import","attributes":["as-path"],"on-error":"accept","overrides":["rfc:no-self-as"]}]}
 ```
 
 ### Runtime: Filter Request (engine -> plugin, socket B)
@@ -183,15 +199,16 @@ New RPC in `ze-plugin-callback`: `filter-update`
 
 | Field | Type | Description |
 |-------|------|-------------|
+| `filter` | string | Filter name (matches the name declared at stage 1, so plugin knows which filter to invoke) |
 | `direction` | string | "import" or "export" |
 | `peer` | string | Peer IP address |
 | `peer-as` | uint32 | Peer ASN |
 | `update` | string | Text-format update with only declared attributes and NLRI |
-| `raw` | string (optional) | Hex-encoded raw UPDATE body (only if plugin declared raw=true) |
+| `raw` | string (optional) | Hex-encoded raw UPDATE body (only if filter declared raw=true) |
 
 Example:
 ```
-#42 ze-plugin-callback:filter-update {"direction":"import","peer":"10.0.0.1","peer-as":65001,"update":"local-preference 100 community 65000:1 65000:2 nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24"}
+#42 ze-plugin-callback:filter-update {"filter":"validate","direction":"import","peer":"10.0.0.1","peer-as":65001,"update":"as-path 65001 65002 origin igp nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24"}
 ```
 
 ### Runtime: Filter Response (plugin -> engine)
@@ -236,7 +253,7 @@ Add `redistribution` container to `peer-fields` grouping (covers group and peer 
 | `grouping peer-fields` | `redistribution` | `leaf-list import`, `leaf-list export` |
 | `container bgp` | `redistribution` | `leaf-list import`, `leaf-list export` |
 
-Leaf-list values are plugin names (strings). Validated at config load: each name must correspond to a plugin that declared filter capability for the matching direction.
+Leaf-list type is string. Format: `<plugin>:<filter>` (e.g., `rpki:validate`). The `:` separator is validated at parse time. The plugin must exist and must have declared a filter with that name for the matching direction.
 
 ### Config Examples
 
@@ -244,7 +261,7 @@ Global level (applies to all peers):
 ```
 bgp {
     redistribution {
-        import [ rpki-filter ]
+        import [ rpki:validate ]
     }
 }
 ```
@@ -253,44 +270,59 @@ Group level (cumulative with global):
 ```
 bgp {
     redistribution {
-        import [ rpki-filter ]
+        import [ rpki:validate ]
     }
     group customers {
         redistribution {
-            import [ community-scrub ]
+            import [ community:scrub ]
         }
         peer customer-a {
             remote { ip 10.0.0.1; as 65001; }
             redistribution {
-                export [ prepend-filter ]
+                export [ aspath:prepend ]
             }
         }
     }
 }
 ```
 
-Effective chains for customer-a:
-- Import: `rpki-filter` (bgp) -> `community-scrub` (group)
-- Export: `prepend-filter` (peer)
+Effective chains for customer-a (mandatory/default filters not shown in config):
+- Import: [rfc:otc (mandatory)] -> [rfc:no-self-as (default)] -> `rpki:validate` (bgp) -> `community:scrub` (group)
+- Export: [rfc:otc (mandatory)] -> `aspath:prepend` (peer)
+
+Override example (peer customer-b allows own AS in path):
+```
+peer customer-b {
+    remote { ip 10.0.0.2; as 65002; }
+    redistribution {
+        import [ allow-own-as:relaxed ]
+    }
+}
+```
+
+Effective chain for customer-b (allow-own-as:relaxed declares `overrides: ["rfc:no-self-as"]`):
+- Import: [rfc:otc (mandatory)] -> ~~rfc:no-self-as~~ (overridden) -> `rpki:validate` (bgp) -> `allow-own-as:relaxed` (peer)
 
 ### Config Resolution
 
 | Level | Merge Rule |
 |-------|-----------|
-| bgp | Base chain |
+| mandatory | Always first, implicit, cannot be overridden |
+| default | After mandatory, implicit, can be overridden |
+| bgp | Base user chain |
 | group | Append to bgp chain |
 | peer | Append to group chain |
 
-Result: ordered list of plugin names per peer per direction. Resolved once at config load, stored on peer settings.
+Result: ordered list of `<plugin>:<filter>` per peer per direction. Resolved once at config load, stored on peer settings. Mandatory and default filters prepended internally. If any user filter in the resolved chain declares `overrides` for a default filter, that default filter is removed from the chain for that peer.
 
 ### Config Validation
 
 | Check | Error |
 |-------|-------|
-| Plugin name not found | `redistribution: unknown plugin "<name>"` |
-| Plugin not filter-capable | `redistribution: plugin "<name>" did not declare filter capability` |
-| Plugin declared import-only, used in export | `redistribution: plugin "<name>" only supports import filtering` |
-| Plugin declared export-only, used in import | `redistribution: plugin "<name>" only supports import filtering` |
+| Missing `:` separator | `redistribution: invalid filter reference "<value>", expected <plugin>:<filter>` |
+| Plugin not found | `redistribution: unknown plugin "<plugin>" in "<plugin>:<filter>"` |
+| Filter name not declared by plugin | `redistribution: plugin "<plugin>" did not declare filter "<filter>"` |
+| Filter used in wrong direction | `redistribution: filter "<plugin>:<filter>" does not support <import/export>` |
 
 Note: config validation for filter capability happens after stage 1 (plugins must declare before config can validate). This means redistribution validation is deferred until after plugin startup.
 
@@ -300,12 +332,12 @@ When resolving filter chains, the reactor computes the union of all declared att
 
 | Filter | Declares | Union |
 |--------|----------|-------|
-| rpki-filter | as-path, origin | as-path, origin |
-| community-scrub | community | as-path, origin, community |
+| rpki:validate | as-path, origin | as-path, origin |
+| community:scrub | community | as-path, origin, community |
 
-The reactor parses as-path, origin, and community once. rpki-filter receives only as-path and origin. community-scrub receives only community.
+The reactor parses as-path, origin, and community once. `rpki:validate` receives only as-path and origin. `community:scrub` receives only community.
 
-When community-scrub returns `modify community 65000:99`, the reactor:
+When `community:scrub` returns `modify community 65000:99`, the reactor:
 1. Marks community as dirty
 2. Replaces the parsed community attribute pointer
 3. After chain completes, re-encodes only dirty attributes into the UPDATE payload
@@ -325,20 +357,23 @@ For export filters, modifications are per-peer (don't affect the cached version)
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| `redistribution { import [...] }` config | -> | Config parsing + filter chain resolution | `test/plugin/redistribution-import-accept.ci` |
-| Received UPDATE + import filter | -> | Reactor ingress policy chain + IPC | `test/plugin/redistribution-import-reject.ci` |
+| `redistribution { import [ test:accept ] }` config | -> | Config parsing + `<plugin>:<filter>` chain resolution | `test/plugin/redistribution-import-accept.ci` |
+| Received UPDATE + import filter | -> | Reactor ingress policy chain + IPC with filter name dispatch | `test/plugin/redistribution-import-reject.ci` |
 | Received UPDATE + import filter modify | -> | Reactor ingress policy chain + dirty tracking | `test/plugin/redistribution-import-modify.ci` |
 | Forward UPDATE + export filter | -> | Reactor egress policy chain + IPC | `test/plugin/redistribution-export-reject.ci` |
-| Stage 1 filter declaration | -> | Plugin startup + filter registration | `test/plugin/redistribution-declare.ci` |
+| Stage 1 filter declaration (multiple named) | -> | Plugin startup + named filter registration | `test/plugin/redistribution-declare.ci` |
+| Filter with `overrides` configured on peer | -> | Default filter removed, override filter runs | `test/plugin/redistribution-override.ci` |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | Plugin sends `declare-registration` with `filter` field | Engine records filter capability and requested attributes |
-| AC-2 | Config has `redistribution { import [ plugin-a ] }` and plugin-a declared import filter | Config validates successfully, filter chain resolved |
-| AC-3 | Config has `redistribution { import [ unknown ] }` | Config error: unknown plugin |
-| AC-4 | Config has `redistribution { export [ import-only-plugin ] }` | Config error: plugin only supports import |
+| AC-1 | Plugin sends `declare-registration` with `filters` list containing two named filters | Engine records both named filters with their directions and attributes |
+| AC-2 | Config has `redistribution { import [ rpki:validate ] }` and rpki plugin declared `validate` import filter | Config validates successfully, filter chain resolved |
+| AC-3 | Config has `redistribution { import [ unknown:foo ] }` | Config error: unknown plugin "unknown" |
+| AC-3b | Config has `redistribution { import [ rpki:nonexistent ] }` | Config error: plugin "rpki" did not declare filter "nonexistent" |
+| AC-3c | Config has `redistribution { import [ badformat ] }` (missing `:`) | Config error: invalid filter reference |
+| AC-4 | Config has `redistribution { export [ rpki:validate ] }` and validate declared import-only | Config error: filter does not support export |
 | AC-5 | Received UPDATE, import filter returns accept | UPDATE cached and dispatched normally |
 | AC-6 | Received UPDATE, import filter returns reject | UPDATE dropped, not cached, not dispatched |
 | AC-7 | Received UPDATE, import filter returns modify with changed local-pref | UPDATE cached with modified local-pref, dirty re-encoding |
@@ -346,11 +381,16 @@ For export filters, modifications are per-peer (don't affect the cached version)
 | AC-9 | Forward UPDATE, export filter returns reject | UPDATE not sent to that peer |
 | AC-10 | Forward UPDATE, export filter returns modify | Modified version sent to that peer only, cache unchanged |
 | AC-11 | Three filters in chain: first modifies, second sees modification, third accepts | Piped transform semantics work end-to-end |
-| AC-12 | Config hierarchy: bgp import [ a ], group import [ b ], peer import [ c ] | Effective chain: a -> b -> c |
-| AC-13 | Filter declared `attributes: [local-preference]` but modify response changes community | Error: plugin can only modify declared attributes |
-| AC-14 | Role OTC rejects on ingress | Policy filter chain never runs (role is first) |
-| AC-15 | Plugin declares raw=true | Filter receives raw hex in addition to text attributes |
+| AC-12 | Config hierarchy: bgp import [ a:x ], group import [ b:y ], peer import [ c:z ] | Effective chain: a:x -> b:y -> c:z |
+| AC-13 | Filter declared `attributes: [local-preference]` but modify response changes community | Error: filter can only modify declared attributes |
+| AC-14 | Role OTC rejects on ingress (mandatory filter) | Policy filter chain never runs (mandatory filters are first, implicit) |
+| AC-15 | Plugin declares raw=true on a named filter | That filter receives raw hex in addition to text attributes |
 | AC-16 | Withdrawal UPDATE goes through import filter | Filter can reject withdrawal (e.g., block default route withdraw) |
+| AC-17 | filter-update RPC includes `filter` field matching declared name | Plugin receives correct filter name and can dispatch to the right handler |
+| AC-18 | Default filter `rfc:no-self-as` active, no overrides configured | Default filter runs for the peer (own AS in path rejected) |
+| AC-19 | Filter declares `overrides: ["rfc:no-self-as"]`, configured on a peer | `rfc:no-self-as` removed from that peer's chain. Override filter runs in its place |
+| AC-20 | Override configured at group level | Default filter removed for all peers in that group |
+| AC-21 | Filter declares `overrides: ["rfc:otc"]` (mandatory, not default) | Override ignored -- mandatory filters cannot be overridden. Config validates but mandatory filter stays |
 
 ## TDD Test Plan
 
@@ -358,16 +398,19 @@ For export filters, modifications are per-peer (don't affect the cached version)
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestFilterDeclarationParse` | `internal/core/ipc/declaration_test.go` | Parse filter fields from declare-registration JSON | |
-| `TestRedistributionConfigParse` | `internal/component/config/redistribution_test.go` | Parse redistribution YANG config block | |
-| `TestRedistributionConfigValidation` | `internal/component/config/redistribution_test.go` | Reject unknown/incompatible plugin names | |
-| `TestFilterChainResolution` | `internal/component/config/redistribution_test.go` | Merge bgp > group > peer chains correctly | |
+| `TestFilterDeclarationParse` | `internal/component/plugin/registration_test.go` | Parse `filters` list from declare-registration into PluginRegistration. Multiple named filters per plugin | |
+| `TestRedistributionConfigParse` | `internal/component/config/redistribution_test.go` | Parse redistribution YANG config block with `<plugin>:<filter>` values | |
+| `TestRedistributionConfigValidation` | `internal/component/config/redistribution_test.go` | Reject unknown plugin, unknown filter name, missing `:`, wrong direction | |
+| `TestFilterChainResolution` | `internal/component/config/redistribution_test.go` | Merge bgp > group > peer chains correctly. Mandatory filters implicit at head | |
 | `TestAttributeAccumulation` | `internal/component/bgp/reactor/filter_chain_test.go` | Union of declared attributes computed correctly | |
 | `TestFilterResponseParse` | `internal/component/bgp/reactor/filter_chain_test.go` | Parse accept/reject/modify responses | |
 | `TestDirtyTracking` | `internal/component/bgp/reactor/filter_chain_test.go` | Only dirty attributes trigger re-encoding | |
 | `TestFilterModifyOnlyDeclared` | `internal/component/bgp/reactor/filter_chain_test.go` | Reject modify of undeclared attribute | |
 | `TestFilterChainPipedTransform` | `internal/component/bgp/reactor/filter_chain_test.go` | Second filter sees first filter's modifications | |
 | `TestFilterChainShortCircuit` | `internal/component/bgp/reactor/filter_chain_test.go` | Reject stops chain, no further filters called | |
+| `TestDefaultFilterOverride` | `internal/component/config/redistribution_test.go` | Filter with `overrides` removes default filter from chain for that peer | |
+| `TestDefaultFilterOverrideAtGroupLevel` | `internal/component/config/redistribution_test.go` | Override at group level removes default for all peers in group | |
+| `TestMandatoryFilterCannotBeOverridden` | `internal/component/config/redistribution_test.go` | Override targeting mandatory filter is ignored, mandatory stays in chain | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 
@@ -385,8 +428,9 @@ For export filters, modifications are per-peer (don't affect the cached version)
 | `redistribution-import-reject` | `test/plugin/redistribution-import-reject.ci` | External filter plugin rejects routes, routes dropped | |
 | `redistribution-import-modify` | `test/plugin/redistribution-import-modify.ci` | External filter plugin modifies local-pref, cached value reflects change | |
 | `redistribution-export-reject` | `test/plugin/redistribution-export-reject.ci` | Export filter rejects for specific peer, route not forwarded to that peer | |
-| `redistribution-declare` | `test/plugin/redistribution-declare.ci` | Plugin declares filter capability at stage 1, config validates | |
+| `redistribution-declare` | `test/plugin/redistribution-declare.ci` | Plugin declares multiple named filters at stage 1, config validates `<plugin>:<filter>` references | |
 | `redistribution-chain-order` | `test/plugin/redistribution-chain-order.ci` | Multiple filters in chain, execution order matches config | |
+| `redistribution-override` | `test/plugin/redistribution-override.ci` | Filter with `overrides` removes default filter for that peer, override filter runs instead | |
 
 ### Future (if deferring any tests)
 - Property testing: random UPDATE payloads through filter chains preserve invariants
@@ -395,14 +439,14 @@ For export filters, modifications are per-peer (don't affect the cached version)
 
 ## Files to Modify
 
-- `internal/core/ipc/schema/ze-plugin-engine.yang` - add filter container to declare-registration input
+- `internal/core/ipc/schema/ze-plugin-engine.yang` - add `filters` list to declare-registration input (name, direction, attributes, nlri, raw, on-error per filter)
 - `internal/core/ipc/schema/ze-plugin-callback.yang` - add filter-update RPC
-- `internal/core/ipc/declaration.go` (or equivalent) - parse filter fields from JSON
+- `internal/component/plugin/registration.go` - add filter fields to PluginRegistration struct (Stage 1 data)
 - `internal/component/bgp/schema/ze-bgp-conf.yang` - add redistribution container to peer-fields and bgp
 - `internal/component/config/` - parse redistribution config, resolve filter chains
-- `internal/component/bgp/reactor/reactor.go` - store resolved filter chains, wire into startup
-- `internal/component/bgp/reactor/reactor_notify.go` - add policy filter chain after in-process ingress filters
-- `internal/component/bgp/reactor/reactor_api_forward.go` - add policy filter chain after in-process egress filters
+- `internal/component/bgp/reactor/reactor.go` - store resolved filter chains (:263-267 area), wire into startup (:749-751 area)
+- `internal/component/bgp/reactor/reactor_notify.go` - add policy filter chain after in-process ingress filters (:305-349 area)
+- `internal/component/bgp/reactor/reactor_api_forward.go` - add policy filter chain after in-process egress filters (:260-279 area)
 - `pkg/plugin/sdk/` - add filter callback support for plugin-side SDK
 
 ### Integration Checklist
@@ -436,6 +480,7 @@ For export filters, modifications are per-peer (don't affect the cached version)
 
 - `internal/component/bgp/reactor/filter_chain.go` - policy filter chain execution, attribute accumulation, dirty tracking, IPC interaction
 - `internal/component/bgp/reactor/filter_chain_test.go` - unit tests for filter chain
+- `internal/component/plugin/registration_test.go` - tests for filter declaration parsing (may already exist -- extend if so)
 - `internal/component/config/redistribution.go` - config parsing and chain resolution
 - `internal/component/config/redistribution_test.go` - config tests
 - `docs/guide/redistribution.md` - user guide for redistribution filters
@@ -445,6 +490,7 @@ For export filters, modifications are per-peer (don't affect the cached version)
 - `test/plugin/redistribution-export-reject.ci` - functional test
 - `test/plugin/redistribution-declare.ci` - functional test
 - `test/plugin/redistribution-chain-order.ci` - functional test
+- `test/plugin/redistribution-override.ci` - functional test (default filter override)
 
 ## Implementation Steps
 
@@ -469,13 +515,13 @@ For export filters, modifications are per-peer (don't affect the cached version)
 
 Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
-1. **Phase: YANG schemas** -- Extend declare-registration with filter container. Add redistribution to ze-bgp-conf.yang. Add filter-update callback RPC.
+1. **Phase: YANG schemas + declaration struct** -- Extend declare-registration with filter container. Add redistribution to ze-bgp-conf.yang. Add filter-update callback RPC. Add filter fields to PluginRegistration struct.
    - Tests: `TestFilterDeclarationParse`, `TestRedistributionConfigParse`
-   - Files: `ze-plugin-engine.yang`, `ze-bgp-conf.yang`, `ze-plugin-callback.yang`
+   - Files: `ze-plugin-engine.yang`, `ze-bgp-conf.yang`, `ze-plugin-callback.yang`, `registration.go`
    - Verify: tests fail -> implement -> tests pass
 
-2. **Phase: Config parsing** -- Parse redistribution blocks. Resolve filter chains with bgp > group > peer merging. Validate plugin names against filter-capable plugins.
-   - Tests: `TestRedistributionConfigValidation`, `TestFilterChainResolution`
+2. **Phase: Config parsing** -- Parse redistribution blocks with `<plugin>:<filter>` format. Resolve filter chains with mandatory > default > bgp > group > peer merging. Apply override removal of default filters. Validate plugin/filter names and directions.
+   - Tests: `TestRedistributionConfigValidation`, `TestFilterChainResolution`, `TestDefaultFilterOverride`, `TestDefaultFilterOverrideAtGroupLevel`, `TestMandatoryFilterCannotBeOverridden`
    - Files: `redistribution.go`, `redistribution_test.go`, config pipeline files
    - Verify: tests fail -> implement -> tests pass
 
@@ -511,7 +557,8 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC has implementation with file:line |
-| Correctness | Filter chain order matches config hierarchy (bgp > group > peer) |
+| Correctness | Filter chain order: mandatory > default > bgp > group > peer |
+| Correctness | Override only removes default filters, never mandatory |
 | Correctness | Modify response only accepted for declared attributes |
 | Correctness | Dirty tracking correctly identifies changed vs unchanged attributes |
 | Naming | JSON keys use kebab-case in filter declaration and response |
@@ -527,7 +574,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| declare-registration extended with filter fields | grep "filter" ze-plugin-engine.yang |
+| declare-registration extended with filter fields | grep "filter" ze-plugin-engine.yang + grep "Filter" registration.go |
 | redistribution container in ze-bgp-conf.yang | grep "redistribution" ze-bgp-conf.yang |
 | filter-update callback RPC | grep "filter-update" ze-plugin-callback.yang |
 | Config parsing for redistribution | grep "redistribution" internal/component/config/*.go |
@@ -647,7 +694,7 @@ No RFC governs this feature. This is ze-internal protocol design.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-16 all demonstrated
+- [ ] AC-1..AC-21 all demonstrated
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)

@@ -321,6 +321,15 @@ type PeerSettings struct {
 	// Process bindings - which plugins receive messages from this peer.
 	ProcessBindings []ProcessBinding
 
+	// ImportFilters is the ordered import filter chain for this peer.
+	// Cumulative: bgp-level + group-level + peer-level, in order.
+	// Each entry is a "<plugin>:<filter>" string.
+	ImportFilters []string
+
+	// ExportFilters is the ordered export filter chain for this peer.
+	// Cumulative: bgp-level + group-level + peer-level, in order.
+	ExportFilters []string
+
 	// RawCapabilityConfig stores parsed capability config values for plugin delivery.
 	// Maps capability name → field name → value (e.g., "graceful-restart" → "restart-time" → "120").
 	// Populated from config blocks like: capability { graceful-restart { restart-time 120; } }

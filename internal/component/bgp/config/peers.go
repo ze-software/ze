@@ -107,6 +107,47 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 		}
 	}
 
+	// Step 3b: Extract redistribution filter chains from all layers (cumulative).
+	// Like routes, redistribution filters accumulate: bgp + group + peer.
+	bgpImport, bgpExport, err := extractRedistributionFilters(bgpContainer)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, groupEntry := range bgpContainer.GetListOrdered("group") {
+		groupTree := groupEntry.Value
+		groupImport, groupExport, err := extractRedistributionFilters(groupTree)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, peerEntry := range groupTree.GetListOrdered("peer") {
+			ps, ok := peerIndex[peerEntry.Key]
+			if !ok {
+				continue
+			}
+			peerImport, peerExport, err := extractRedistributionFilters(peerEntry.Value)
+			if err != nil {
+				return nil, err
+			}
+			ps.ImportFilters = concatFilters(bgpImport, groupImport, peerImport)
+			ps.ExportFilters = concatFilters(bgpExport, groupExport, peerExport)
+		}
+	}
+
+	for _, peerEntry := range bgpContainer.GetListOrdered("peer") {
+		ps, ok := peerIndex[peerEntry.Key]
+		if !ok {
+			continue
+		}
+		peerImport, peerExport, err := extractRedistributionFilters(peerEntry.Value)
+		if err != nil {
+			return nil, err
+		}
+		ps.ImportFilters = concatFilters(bgpImport, peerImport)
+		ps.ExportFilters = concatFilters(bgpExport, peerExport)
+	}
+
 	// Step 4: Apply environment overrides.
 	applyPortOverride(peers)
 	applyConnectionOverride(peers)

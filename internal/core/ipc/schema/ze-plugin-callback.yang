@@ -180,6 +180,64 @@ module ze-plugin-callback {
         }
     }
 
+    // Runtime: Route filter callback.
+
+    rpc filter-update {
+        description
+            "Engine sends UPDATE attributes to a named filter plugin.
+             Plugin responds accept, reject, or modify (delta-only).";
+        input {
+            leaf filter {
+                type string;
+                mandatory true;
+                description "Filter name (declared at stage 1)";
+            }
+            leaf direction {
+                type string;
+                mandatory true;
+                description "import or export";
+            }
+            leaf peer {
+                type string;
+                mandatory true;
+                description "Peer IP address";
+            }
+            leaf peer-as {
+                type uint32;
+                mandatory true;
+                description "Peer ASN";
+            }
+            leaf update {
+                type string;
+                mandatory true;
+                description "Text-format attributes and NLRI (only declared attributes)";
+            }
+            leaf raw {
+                type string;
+                description "Hex-encoded raw UPDATE body (if filter declared raw=true)";
+            }
+        }
+        output {
+            leaf action {
+                type enumeration {
+                    enum accept { description "Pass update unchanged"; }
+                    enum reject { description "Drop update, short-circuit chain"; }
+                    enum modify { description "Apply delta changes"; }
+                }
+                mandatory true;
+                description "Filter decision";
+            }
+            leaf update {
+                type string;
+                description "Delta-only modified attributes (action=modify)";
+            }
+            leaf raw {
+                type string;
+                description "Full raw UPDATE body replacement (action=modify with raw)";
+            }
+        }
+    }
+
     // Shutdown: Clean termination.
 
     rpc bye {

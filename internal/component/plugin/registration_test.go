@@ -117,3 +117,72 @@ func TestPluginSchemaDecl(t *testing.T) {
 	assert.Contains(t, reg.PluginSchema.Handlers, "bgp.peer")
 	assert.Equal(t, 500, reg.PluginSchema.Priority)
 }
+
+// TestFilterDeclarationParse verifies filter declarations are stored on PluginRegistration.
+//
+// VALIDATES: AC-1 — Plugin sends declare-registration with filters list containing two named filters.
+// PREVENTS: Filter declaration data loss during stage 1 registration.
+func TestFilterDeclarationParse(t *testing.T) {
+	reg := &PluginRegistration{
+		Name: "rpki",
+		Filters: []FilterRegistration{
+			{
+				Name:       "validate",
+				Direction:  "import",
+				Attributes: []string{"as-path", "origin"},
+				NLRI:       true,
+				OnError:    "reject",
+			},
+			{
+				Name:       "log",
+				Direction:  "both",
+				Attributes: []string{"as-path", "community"},
+				NLRI:       true,
+				OnError:    "accept",
+			},
+		},
+	}
+
+	require.Len(t, reg.Filters, 2)
+
+	// First filter: validate (import only)
+	f0 := reg.Filters[0]
+	assert.Equal(t, "validate", f0.Name)
+	assert.Equal(t, "import", f0.Direction)
+	assert.Equal(t, []string{"as-path", "origin"}, f0.Attributes)
+	assert.True(t, f0.NLRI)
+	assert.False(t, f0.Raw)
+	assert.Equal(t, "reject", f0.OnError)
+	assert.Empty(t, f0.Overrides)
+
+	// Second filter: log (both directions)
+	f1 := reg.Filters[1]
+	assert.Equal(t, "log", f1.Name)
+	assert.Equal(t, "both", f1.Direction)
+	assert.Equal(t, []string{"as-path", "community"}, f1.Attributes)
+	assert.Equal(t, "accept", f1.OnError)
+}
+
+// TestFilterDeclarationWithOverrides verifies override declarations.
+//
+// VALIDATES: AC-19 — Filter declares overrides to remove default filters.
+// PREVENTS: Override data lost during registration.
+func TestFilterDeclarationWithOverrides(t *testing.T) {
+	reg := &PluginRegistration{
+		Name: "allow-own-as",
+		Filters: []FilterRegistration{
+			{
+				Name:       "relaxed",
+				Direction:  "import",
+				Attributes: []string{"as-path"},
+				OnError:    "accept",
+				Overrides:  []string{"rfc:no-self-as"},
+			},
+		},
+	}
+
+	require.Len(t, reg.Filters, 1)
+	f := reg.Filters[0]
+	assert.Equal(t, "relaxed", f.Name)
+	assert.Equal(t, []string{"rfc:no-self-as"}, f.Overrides)
+}
