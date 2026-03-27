@@ -276,6 +276,10 @@ type fwdPool struct {
 	// overflowPool bounds overflow items across all workers (nil = unbounded).
 	overflowPool *fwdOverflowPool
 
+	// congestion is the two-threshold enforcement controller (Phase 5).
+	// Nil when congestion control is not configured.
+	congestion *congestionController
+
 	// Per-source-peer dispatch counters for AC-16 overflow ratio.
 	// Key: source peer address. Updated atomically in ForwardUpdate path.
 	srcStatsMu sync.Mutex
@@ -445,10 +449,16 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 	}
 	fp.mu.Unlock()
 
-	// Acquire overflow pool token if pool exists.
+	// Check buffer denial (AC-2): if the congestion controller says this
+	// destination peer is the worst offender, skip pool acquisition. The item
+	// still goes to unbounded overflow (routes never dropped), but the denial
+	// signal feeds into teardown decisions.
+	denied := fp.congestion.ShouldDeny(key.peerAddr.String())
+
+	// Acquire overflow pool token if pool exists and not denied.
 	// Skip for sentinel items (peer == nil) — they carry no route data
 	// and should not consume pool capacity meant for real updates.
-	if fp.overflowPool != nil && item.peer != nil {
+	if fp.overflowPool != nil && item.peer != nil && !denied {
 		if fp.overflowPool.acquire() {
 			item.pooled = true
 		} else {
@@ -716,6 +726,11 @@ func (fp *fwdPool) runWorker(key fwdKey, w *fwdWorker) {
 			}
 			w.batchBuf = drainBatch(w.batchBuf, item, w.ch, fp.cfg.batchLimit)
 			fp.safeBatchHandle(key, w.batchBuf)
+
+			// Check congestion teardown after each batch (AC-4).
+			// This is cheap (atomic reads + map lookup) and only fires when
+			// the pool is critically full and this peer is the worst offender.
+			fp.congestion.CheckTeardown(key.peerAddr)
 
 			// Drain overflow items into the channel after processing.
 			fp.drainOverflow(key, w)

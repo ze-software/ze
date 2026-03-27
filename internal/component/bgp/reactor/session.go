@@ -72,7 +72,10 @@ func initBufMuxBudget(maxBytes int64) {
 // ze.fwd.pool.maxbytes is not explicitly set (auto-sizing, AC-28).
 // maxBytes <= 0 means unlimited (tryReserve treats it as no-limit).
 func updateBufMuxBudget(maxBytes int64) {
-	if b := bufMux4K.mux.budget; b != nil {
+	bufMux4K.mux.mu.Lock()
+	b := bufMux4K.mux.budget
+	bufMux4K.mux.mu.Unlock()
+	if b != nil {
 		b.maxBytes.Store(maxBytes)
 	}
 }

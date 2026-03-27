@@ -193,6 +193,34 @@ func (wt *weightTracker) UsageToWeightRatios(overflowDepths map[string]int) map[
 	return result
 }
 
+// WorstPeerRatio returns the peer address with the highest usage-to-weight
+// ratio and that ratio value. Returns ("", 0) if no peer has overflow items.
+// Used by the congestion controller to identify the teardown candidate (AC-4).
+func (wt *weightTracker) WorstPeerRatio(overflowDepths map[string]int) (worstAddr string, worstRatio float64) {
+	wt.mu.Lock()
+	defer wt.mu.Unlock()
+
+	for addr, depth := range overflowDepths {
+		if depth <= 0 {
+			continue
+		}
+		pw, ok := wt.peers[addr]
+		if !ok {
+			continue
+		}
+		demand := peerBufferDemand(pw.prefixMax, pw.preEOR)
+		if demand <= 0 {
+			continue
+		}
+		ratio := float64(depth) / float64(demand)
+		if ratio > worstRatio {
+			worstRatio = ratio
+			worstAddr = addr
+		}
+	}
+	return worstAddr, worstRatio
+}
+
 // demandsLocked returns the current buffer demand for each peer.
 // Caller must hold wt.mu.
 func (wt *weightTracker) demandsLocked() []int {

@@ -46,8 +46,10 @@ type reactorMetrics struct {
 	sessionDuration     metrics.GaugeVec   // Seconds since session established
 
 	// Forward pool events
-	fwdCongestionEvents metrics.CounterVec // Channel full onset events (peer)
-	fwdCongestionResume metrics.CounterVec // Channel resumed from congestion (peer)
+	fwdCongestionEvents  metrics.CounterVec // Channel full onset events (peer)
+	fwdCongestionResume  metrics.CounterVec // Channel resumed from congestion (peer)
+	fwdBufferDeniedTotal metrics.Counter    // AC-2: total buffer denials
+	fwdTeardownTotal     metrics.Counter    // AC-4: forced congestion teardowns
 
 	// Config + operational
 	configReloads      metrics.Counter    // Successful config reloads
@@ -101,8 +103,10 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 		sessionDuration:     reg.GaugeVec("ze_peer_session_duration_seconds", "Seconds since session established.", []string{"peer"}),
 
 		// Forward pool events
-		fwdCongestionEvents: reg.CounterVec("ze_forward_congestion_events_total", "Channel full events (onset).", []string{"peer"}),
-		fwdCongestionResume: reg.CounterVec("ze_forward_congestion_resumed_total", "Channel resumed from congestion.", []string{"peer"}),
+		fwdCongestionEvents:  reg.CounterVec("ze_forward_congestion_events_total", "Channel full events (onset).", []string{"peer"}),
+		fwdCongestionResume:  reg.CounterVec("ze_forward_congestion_resumed_total", "Channel resumed from congestion.", []string{"peer"}),
+		fwdBufferDeniedTotal: reg.Counter("ze_forward_buffer_denied_total", "Buffer denials due to congestion backpressure (AC-2)."),
+		fwdTeardownTotal:     reg.Counter("ze_forward_congestion_teardown_total", "Forced session teardowns due to pool exhaustion (AC-4)."),
 
 		// Config + operational
 		configReloads:      reg.Counter("ze_config_reloads_total", "Successful config reloads."),

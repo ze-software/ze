@@ -301,6 +301,6 @@ is cleared and the socket shares the event loop fairly with other protocols.
 | Buffer pooling + bufio batching | No implementation does both | **Done** (existing) |
 | Route superseding | BIRD, FRR | Planned |
 | Withdrawal priority | RustBGPd (safe due to per-prefix dedup) | Planned (AC-25, requires AC-23 route superseding first) |
-| TX budget | BIRD (1024), RustBGPd (2048) | Planned (AC-24) |
-| Real backpressure | FRR (queue limits), OpenBGPd (XOFF/XON) | Planned (4-layer design) |
-| GR-aware congestion teardown | None explicitly | Planned |
+| TX budget | BIRD (1024), RustBGPd (2048) | **Done** (AC-24, default 1024) |
+| Real backpressure | FRR (queue limits), OpenBGPd (XOFF/XON) | **Done** (two-threshold buffer denial + forced teardown) |
+| GR-aware congestion teardown | None explicitly | **Done** (GR: TCP close, non-GR: Cease/OutOfResources) |

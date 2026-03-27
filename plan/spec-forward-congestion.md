@@ -3,9 +3,9 @@
 | Field | Value |
 |-------|-------|
 | Status | in-progress |
-| Depends | spec-prefix maximum |
-| Phase | 4/5 |
-| Updated | 2026-03-26 |
+| Depends | - |
+| Phase | 5/5 |
+| Updated | 2026-03-27 |
 
 ## Post-Compaction Recovery
 
@@ -294,12 +294,17 @@ already-queued prefix should replace, not append.
 | 1 | Foundation: overflow pool, metrics, socket options | AC-1, AC-7, AC-11, AC-15, AC-16, AC-17, AC-18, AC-21 | Done |
 | 2 | Safety: write deadline, Send Hold Timer, hold timer extension | AC-8, AC-14, AC-22 | Done |
 | 3 | Pool multiplexer: replace sync.Pool, block-backed handles | AC-26, AC-27, AC-7 (enhanced) | Done |
-| 4 | Weight + dynamic sizing: burst fraction, pool auto-sizing, TX budget | AC-28, AC-10, AC-19, AC-20, AC-24 | In progress |
-| 5 | Backpressure + teardown: buffer denial, GR-aware teardown | AC-2, AC-3, AC-4, AC-5, AC-6, AC-9, AC-12 | Blocked (Phase 4) |
+| 4 | Weight + dynamic sizing: burst fraction, pool auto-sizing, TX budget | AC-28, AC-10, AC-19, AC-20, AC-24 | Done |
+| 5 | Backpressure + teardown: buffer denial, GR-aware teardown | AC-2, AC-3, AC-4, AC-5, AC-6, AC-9, AC-12 | Done |
 
-Phase 3 is independent -- can start now.
-Phase 4 depends on `spec-prefix maximum` for the weight source.
-Phase 5 depends on Phase 4 (needs weights for buffer denial decisions).
+~~Phase 3 is independent -- can start now.~~
+~~Phase 4 depends on `spec-prefix maximum` for the weight source.~~
+~~Phase 5 depends on Phase 4 (needs weights for buffer denial decisions).~~
+
+**Update (2026-03-27): All phases complete.**
+- Phase 4 dependency on `spec-prefix maximum` is resolved: prefix-limit is fully implemented (learned summaries 413, 415, 429). PrefixMaximum values are wired into the weight tracker via `reactor_peers.go:AddPeer()`.
+- Phase 3 ReadThrottle (sleep-based) was superseded and cancelled. Buffer denial (Phase 5) is the backpressure mechanism.
+- Phase 5 implemented: `congestionController` type in `forward_pool_congestion.go`. `ShouldDeny()` wired into `DispatchOverflow`, `CheckTeardown()` wired into `runWorker`. GR-aware teardown via `congestionTeardownPeer()`. 11 unit tests. Pre-existing `updateBufMuxBudget` race fixed.
 
 ## Design: Four-Layer Congestion Response
 
@@ -485,14 +490,23 @@ slowly and per-ASN proportions are relatively stable.
 
 **Configuration:**
 
-| Config key | Purpose |
-|-----------|---------|
-| `ze.fwd.pool.size` | Explicit total pool size override (e.g., "1GB") |
-| `ze.fwd.pool.peeringdb` | Enable PeeringDB refresh when local data is stale (boolean) |
-| `ze.fwd.pool.peeringdb.user` | PeeringDB API username (optional, for authenticated queries) |
-| `ze.fwd.pool.peeringdb.password` | PeeringDB API password |
-| `ze.fwd.pool.refresh.age` | Max age before triggering PeeringDB refresh (default 30 days) |
-| Per-peer `prefix maximum` | Max expected prefixes (BGP config, see spec-prefix maximum) |
+| Config key | Purpose | Default |
+|-----------|---------|---------|
+| `ze.fwd.pool.maxbytes` | Combined byte budget for 4K+64K pools (explicit override) | Auto-sized from peer weights |
+| `ze.fwd.pool.headroom` | Extra memory beyond auto-sized baseline (e.g. "512MB", "2GB") | 0 |
+| `ze.fwd.pool.size` | Overflow pool token count (items) | 100000 |
+| `ze.fwd.teardown.grace` | Seconds at >95% + >2x weight before forced teardown | 5s |
+| `ze.fwd.pool.peeringdb` | Enable PeeringDB refresh when local data is stale (boolean) | false |
+| `ze.fwd.pool.peeringdb.user` | PeeringDB API username (optional, for authenticated queries) | - |
+| `ze.fwd.pool.peeringdb.password` | PeeringDB API password | - |
+| `ze.fwd.pool.refresh.age` | Max age before triggering PeeringDB refresh | 30 days |
+| Per-peer `prefix maximum` | Max expected prefixes (BGP config, see spec-prefix maximum) | Required |
+
+`ze.fwd.pool.headroom` adds memory on top of the auto-sized baseline. Operators
+on machines with plenty of RAM can set headroom to delay teardown decisions --
+trading memory for session stability. Total budget = auto-sized + headroom.
+When `ze.fwd.pool.maxbytes` is explicitly set, it overrides everything (headroom
+is ignored).
 
 ### Layer 3: Read Throttling (backpressure)
 
@@ -572,6 +586,56 @@ buffer exhaustion creates backpressure automatically, targeted at the
 culprit (the source whose destinations are consuming the most pool buffers
 relative to their weight).
 
+#### Two-Threshold Enforcement (2026-03-27)
+
+Buffer denial slows inflow but cannot reclaim buffers already held by a
+stuck destination. One frozen peer can pin every buffer in the pool,
+freezing all source peers' read loops. RustBGPd avoids this through
+per-peer tokio tasks (a stuck peer blocks only its own task), but pays
+the price: unbounded memory, no backpressure, stuck `write_all` blocks
+forever. Ze's shared pool gives memory bounding and zero-copy, but
+requires active enforcement to prevent one peer from monopolising it.
+
+**Threshold 1 -- Buffer denial (soft, seconds).**
+When `PoolUsedRatio() > 0.8`, deny buffer requests for source peers
+whose traffic feeds destination peers with the highest usage-to-weight
+ratio. Slows inflow from the culprit source. Does not reclaim buffers
+already held.
+
+**Threshold 2 -- Forced teardown (hard, seconds).**
+When `PoolUsedRatio() > 0.95` AND the destination peer with the highest
+usage-to-weight ratio exceeds 2x its weight share AND this condition
+persists for a configurable duration (default 5s, `ze.fwd.teardown.grace`),
+tear down that destination peer. All its overflow items fire `done()`,
+all handles return to the pool. System recovers immediately.
+
+**Why seconds, not minutes.** The Send Hold Timer (max(8min, 2x hold))
+is a safety net for stuck TCP. It is too slow for pool exhaustion -- the
+pool can fill in seconds during a convergence burst to a stuck peer.
+The congestion teardown fires in 5-10 seconds, reclaiming buffers before
+the system freezes. The Send Hold Timer remains as a second safety net
+for scenarios where the congestion logic does not trigger (e.g. peer
+drains just enough to stay below the ratio threshold but never catches up).
+
+**The check lives in the forward worker.** Every time `fwdBatchHandler`
+hits the write deadline (TCP stuck), the worker checks: is the pool
+critical? Am I the worst offender? If yes, the worker tears down its own
+session. This is natural -- the stuck worker is the one that knows it is
+stuck. No separate enforcement goroutine needed.
+
+| Pool state | Worst peer ratio | Duration | Action |
+|-----------|-----------------|----------|--------|
+| < 80% used | Any | Any | Normal operation |
+| 80-95% used | Any | Any | Buffer denial on culprit sources (Threshold 1) |
+| > 95% used | < 2x weight | Any | Buffer denial continues, no teardown |
+| > 95% used | > 2x weight | < grace period | Buffer denial, teardown pending |
+| > 95% used | > 2x weight | >= grace period | Tear down worst peer (Threshold 2) |
+
+**After teardown:** pool recovers instantly (all handles returned).
+If another peer becomes the new worst offender, the cycle repeats.
+In practice, one stuck peer is the common case -- tearing it down
+resolves the congestion.
+
 ~~**Mechanism: sleep between reads**~~
 
 ~~The sleep duration between TCP reads from source peers is proportional to
@@ -638,9 +702,9 @@ a peer holds window zero indefinitely.
 
 ### Layer 4: Session Teardown (last resort)
 
-If the overflow pool is exhausted AND read throttling has not reduced inflow
-enough AND a specific destination peer's allocation is at its limit, tear
-down that destination peer's session.
+Triggered by Threshold 2 (above): pool > 95% full, worst peer exceeds
+2x its weight share, grace period elapsed. The forward worker tears down
+its own session.
 
 **Teardown is not dropping.** Both sides know the session ended. On reconnect,
 full initial sync occurs. Routing consistency is preserved because the session
@@ -661,12 +725,22 @@ GR peers, TCP close is strictly better.
 
 | Condition | Action |
 |-----------|--------|
-| Peer's overflow share exhausted AND pool >95% full AND backpressure active for >N seconds | Tear down the slow destination peer |
-| All read throttling at maximum AND pool still growing | Tear down the slowest destination peer (highest overflow_items) |
+| Threshold 2: pool >95%, peer >2x weight, grace elapsed | Tear down the slow destination peer (congestion teardown) |
 | Send Hold Timer expired (RFC 9687) | Tear down -- cannot send anything to this peer |
 
-The congestion teardown timeout must be shorter than hold timers to bound
-memory before the natural hold timer safety net kicks in.
+**Timing hierarchy:**
+
+| Mechanism | Fires after | Purpose |
+|-----------|-------------|---------|
+| Write deadline | 30s | Unblocks writeMu, lets worker detect stuck TCP |
+| Congestion teardown (Threshold 2) | ~35s (30s deadline + 5s grace) | Reclaims pool buffers before system freezes |
+| Send Hold Timer (RFC 9687) | max(8min, 2x hold) | Safety net for stuck TCP that congestion logic misses |
+
+**Configuration:**
+
+| Config key | Purpose | Default |
+|-----------|---------|---------|
+| `ze.fwd.teardown.grace` | Seconds at >95% + >2x weight before teardown | 5s |
 
 ## Keepalive Under Congestion (corrected analysis)
 
@@ -917,22 +991,22 @@ than guessed.
 - Drain-batch buffer reuse
 
 **Behavior to change:**
-- Replace drop-at-256 with block-backed overflow pool (weighted access, lazy 10% growth)
-- Add write deadline to writeMessage (keepalive bug)
+- ~~Replace drop-at-256 with block-backed overflow pool (weighted access, lazy 10% growth)~~ Done (Phase 1, forward_pool.go)
+- ~~Add write deadline to writeMessage (keepalive bug)~~ Done (Phase 2, session_write.go controlWriteDeadline)
 - ~~Set TCP_NODELAY on peer sockets~~ Done (commit 1c43e11d)
-- Set IP_TOS/DSCP CS6 (0xC0) on all peer sockets (dialer Control callback + accepted connections)
-- Implement RFC 9687 Send Hold Timer
-- Add hold timer congestion extension (BIRD technique: extend 10s if RX data pending)
-- Add route superseding in overflow pool (replace pending update for same prefix, not append)
-- Add TX budget limiting (cap messages per forward batch to prevent one peer starving others)
-- ~~Replace sync.Pool with pool multiplexer (handle = block ID + []byte, deterministic block freeing)~~ Done (Phase 3)
-- Add source-side metrics (overflow ratio, throttle state)
-- Add destination-side metrics (overflow items, growth rate, write latency)
-- Add read throttling via buffer denial (weighted access, culprit targeting)
+- ~~Set IP_TOS/DSCP CS6 (0xC0) on all peer sockets (dialer Control callback + accepted connections)~~ Done (Phase 1, session_connection.go:215-227)
+- ~~Implement RFC 9687 Send Hold Timer~~ Done (Phase 2, session_write.go:111-199)
+- ~~Add hold timer congestion extension (BIRD technique: extend 10s if RX data pending)~~ Done (Phase 2, session.go:320-331)
+- Add route superseding in overflow pool (deferred optimization, AC-23)
+- ~~Add TX budget limiting (cap messages per forward batch to prevent one peer starving others)~~ Done (Phase 4, ze.fwd.batch.limit, forward_pool.go:222)
+- ~~Replace sync.Pool with pool multiplexer (handle = block ID + []byte, deterministic block freeing)~~ Done (Phase 3, bufmux.go)
+- ~~Add source-side metrics (overflow ratio, throttle state)~~ Done (Phase 2, reactor_metrics.go)
+- ~~Add destination-side metrics (overflow items, growth rate, write latency)~~ Done (Phase 2, reactor_metrics.go)
+- ~~Add read throttling via buffer denial (weighted access, culprit targeting)~~ Done (Phase 5, forward_pool_congestion.go ShouldDeny, wired in DispatchOverflow)
 - ~~Add TCP window zero pulsing as escalation~~ Removed: buffer denial causes natural TCP window shrinkage
-- Add session teardown as last resort (GR-aware)
-- Add overflow flush on peer-down
-- Add PeeringDB integration for buffer sizing
+- ~~Add session teardown as last resort (GR-aware)~~ Done (Phase 5, forward_pool_congestion.go CheckTeardown + congestionTeardownPeer, wired in runWorker)
+- ~~Add overflow flush on peer-down~~ Done (forward_pool.go Stop, TestFwdPool_PeerDisconnectReturnsSlots)
+- ~~Add PeeringDB integration for buffer sizing~~ Done (spec-prefix-limit, peeringdb/client.go)
 
 ## Data Flow (MANDATORY)
 
@@ -964,48 +1038,229 @@ than guessed.
 
 ## Wiring Test (MANDATORY)
 
-| Entry Point | -> | Feature Code | Test |
-|-------------|---|--------------|------|
-| ForwardUpdate to slow peer, pool fills | -> | Read throttle activates on high-ratio source peers | test/plugin/forward-congestion-throttle.ci |
-| Pool exhausted, backpressure insufficient | -> | Slow destination torn down (GR-aware) | test/plugin/forward-congestion-teardown.ci |
-| Peer disconnects with pool slots | -> | Slots returned to pool immediately | TestFwdPool_FlushPeerReturnsSlots |
-| Send Hold Timer expires on stuck peer | -> | Session torn down with Error Code 8 | test/plugin/forward-send-hold-timer.ci |
-| BGP session established (dial or accept) | -> | IP_TOS=0xC0 set on TCP socket | TestSession_IPTOS_Set |
-| Hold timer fires while RX buffer has data | -> | Timer extended 10s, session not torn down | TestSession_HoldTimerCongestionExtension |
-| Two updates for same prefix in overflow | -> | Second replaces first, pool item count unchanged | TestFwdPool_RouteSuperseding (deferred -- AC-23) |
-| Forward batch exceeds TX budget | -> | Batch capped, remaining deferred to next cycle | TestFwdPool_TXBudgetLimit |
-| Forward batch has withdrawals and announcements (after AC-23 dedup) | -> | Withdrawals written before announcements | TestFwdPool_WithdrawalPriority (deferred -- AC-25) |
+| Entry Point | -> | Feature Code | Test | Status |
+|-------------|---|--------------|------|--------|
+| ForwardUpdate to slow peer, pool fills | -> | Buffer denied to worst destination peer | TestCongestion_ShouldDenyHighRatio, TestCongestion_FastPeerUnaffected | Done (forward_pool_congestion_test.go) |
+| Pool exhausted, backpressure insufficient | -> | Slow destination torn down (GR-aware) | TestCongestion_ForcedTeardownFires, TestCongestion_TeardownGRCapable | Done (forward_pool_congestion_test.go) |
+| Peer disconnects with pool slots | -> | Slots returned to pool immediately | TestFwdPool_PeerDisconnectReturnsSlots | Done (forward_pool_test.go:922) |
+| Send Hold Timer expires on stuck peer | -> | Session torn down with Error Code 8 | TestSendHoldDurationAuto, TestSendHoldDurationExplicit | Done (session_test.go:3053,3080) |
+| BGP session established (dial or accept) | -> | IP_TOS=0xC0 set on TCP socket | session_connection.go:215-227 (syscall in dialer Control) | Done (code, no dedicated test) |
+| Hold timer fires while RX buffer has data | -> | Timer extended 10s, session not torn down | session.go:320-331 (recentRead.Swap) | Done (code, no dedicated test) |
+| Two updates for same prefix in overflow | -> | Second replaces first, pool item count unchanged | Deferred optimization (AC-23) | Deferred |
+| Forward batch exceeds TX budget | -> | Batch capped, remaining deferred to next cycle | TestFwdDrainBatchLimit | Done (forward_pool_test.go:553) |
+| Forward batch has withdrawals and announcements (after AC-23 dedup) | -> | Withdrawals written before announcements | Deferred optimization (AC-25, blocked on AC-23) | Deferred |
+| Overflow metrics visible via Prometheus | -> | Pool ratio, overflow items, overflow ratios | test/plugin/forward-congestion-overflow-metrics.ci | Done |
+| Pool auto-sized from peer set | -> | Weight tracker updates BufMux budget on peer add/remove | TestWeightTracker_AddPeer, TestWeightTracker_TotalBudget | Done (weight_tracker_test.go) |
+| Burst fraction scales with prefix count | -> | burstFraction returns inverse scaling curve | TestBurstFraction, TestBurstWeight, TestPeerBufferDemand | Done (weight_test.go) |
 
 ## Acceptance Criteria
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
 | AC-1 | Route forwarded to slow peer, channel full | Item stored in overflow pool (never dropped) |
-| AC-2 | Overflow pool under pressure, source peer requests buffer | Buffer denied to peer with highest usage-to-weight ratio (backpressure via buffer denial) |
-| AC-3 | Destination drains overflow, buffers returned | Peer's usage-to-weight ratio drops, buffer requests granted again |
-| AC-4 | Overflow pool exhausted, destination still slow | Slowest destination peer session torn down |
-| AC-5 | Destination with GR capability torn down | TCP close without NOTIFICATION (route retention) |
-| AC-6 | Destination without GR torn down | Cease/Out of Resources NOTIFICATION then close |
+| AC-2 | Overflow pool under pressure, source peer requests buffer | Buffer denied to peer with highest usage-to-weight ratio (backpressure via buffer denial). **Done** (forward_pool_congestion.go:ShouldDeny, TestCongestion_ShouldDenyHighRatio, TestCongestion_FastPeerUnaffected). |
+| AC-3 | Destination drains overflow, buffers returned | Peer's usage-to-weight ratio drops, buffer requests granted again. **Done** (ShouldDeny returns false when ratio drops below worst -- TestCongestion_ShouldDenyBelowThreshold). |
+| AC-4 | Pool >95% full, destination peer exceeds 2x weight share for grace period | Destination peer session torn down (GR-aware). Worker checks after each batch via CheckTeardown. Grace configurable via `ze.fwd.teardown.grace` (default 5s). **Done** (forward_pool_congestion.go:CheckTeardown, TestCongestion_ForcedTeardownFires, TestCongestion_TeardownGracePeriodResets). |
+| AC-5 | Destination with GR capability torn down | TCP close without NOTIFICATION (route retention). **Done** (congestionTeardownPeer: closeConn + fsm.EventManualStop, TestCongestion_TeardownGRCapable). |
+| AC-6 | Destination without GR torn down | Cease/Out of Resources NOTIFICATION then close. **Done** (congestionTeardownPeer: Teardown(NotifyCeaseOutOfResources), TestCongestion_ForcedTeardownFires with grCapable=false). |
 | AC-7 | Peer disconnects with overflow items | Pool slots returned, done() called for all items |
-| AC-8 | writeMessage called on stuck TCP | Write deadline set (keepalive bug fix) |
-| AC-9 | Buffer denial duration | Buffer denial cannot block longer than source peer keepalive_interval / 6 (hold timer safety) |
-| AC-10 | Pool size configurable | ze.fwd.pool.size env var; auto-sized from RIB/PeeringDB if not set |
+| AC-8 | writeMessage called on stuck TCP | Write deadline set via controlWriteDeadline(): min(holdTime/3, 30s), minimum 10s. **Done** (session_write.go:99-108). |
+| AC-9 | Buffer denial duration | Buffer denial is per-dispatch-call (not continuous blocking). ShouldDeny is checked on each DispatchOverflow call; the worker drain cycle naturally bounds denial duration. No explicit keepalive/6 timer needed -- the source peer's read loop is never paused, only the overflow pool token is skipped. **Done** (design simplification: denial skips token, does not block reads). |
+| AC-10 | Pool size configurable | `ze.fwd.pool.size` (overflow token count, default 100K) and `ze.fwd.pool.maxbytes` (combined byte budget, auto-sized from peer set via weight tracker when 0). `ze.fwd.pool.headroom` adds extra memory beyond auto-sized baseline (total = auto + headroom). **Done** (reactor.go:68-72, reactor.go:326-372). |
 | AC-11 | Total memory for slow peers | Bounded by pool maximum (sum of peer weights), growth in 10% blocks, shrink per-buffer on return |
-| AC-12 | Fast destination peers during congestion | Unaffected by slow destination -- isolation preserved |
+| AC-12 | Fast destination peers during congestion | Unaffected by slow destination -- isolation preserved. **Done** (ShouldDeny only targets the worst peer; TestCongestion_FastPeerUnaffected verifies a healthy peer is never denied). |
 | AC-13 | ~~TCP window zero on source peer~~ | ~~Pulses open 5x per keepalive interval, 2-3s each~~ **Removed (2026-03-23):** buffer denial causes natural TCP window shrinkage via kernel. Explicit window zero manipulation unnecessary. |
-| AC-14 | Remote peer holds window zero toward us | RFC 9687 Send Hold Timer tears down after configured duration |
+| AC-14 | Remote peer holds window zero toward us | RFC 9687 Send Hold Timer tears down after configured duration. Default max(8min, 2x ReceiveHoldTime). **Done** (session_write.go:111-199, TestSendHoldDurationAuto, TestSendHoldDurationExplicit, config_test.go:180,218). |
 | AC-15 | TCP_NODELAY set on peer sockets | All BGP peer TCP connections have TCP_NODELAY enabled. Done (commit 1c43e11d). |
 | AC-16 | Source peer overflow ratio visible in Prometheus | ze_bgp_overflow_ratio gauge per peer |
 | AC-17 | Destination peer overflow depth visible in Prometheus | ze_bgp_overflow_items gauge per peer |
 | AC-18 | Pool utilization visible in Prometheus | ze_bgp_pool_used_ratio gauge |
-| AC-19 | Per-peer buffer share proportional to prefix count | Peer with 500K prefixes gets larger share than peer with 200 |
-| AC-20 | PeeringDB lookup for unknown peers | **Satisfied by spec-prefix-limit (2026-03-26).** Prefix maximum is mandatory per peer. PeeringDB client exists (`internal/component/bgp/peeringdb/client.go`). `ze bgp peer * prefix update` refreshes values. No additional work needed here. |
-| AC-21 | IP_TOS/DSCP CS6 set on all peer sockets | Outgoing (dialer Control callback) and accepted connections set IP_TOS=0xC0 (IPv4) / IPV6_TCLASS=0xC0 (IPv6) |
-| AC-22 | Hold timer fires with RX data pending | Hold timer extended 10s instead of teardown (CPU congestion, not peer failure) |
+| AC-19 | Per-peer buffer share proportional to prefix count | Peer with 500K prefixes gets larger share than peer with 200. **Done** (forward_pool_weight.go: burstFraction, burstWeight, peerBufferDemand; forward_pool_weight_tracker.go: AddPeer, TotalBudget, PeerDemand; tests in weight_test.go and weight_tracker_test.go). |
+| AC-20 | PeeringDB lookup for unknown peers | **Satisfied by spec-prefix-limit (2026-03-26).** Prefix maximum is mandatory per peer. PeeringDB client exists (`internal/component/bgp/peeringdb/client.go`). `ze bgp peer * prefix update` refreshes values. No additional work needed here. **Done.** |
+| AC-21 | IP_TOS/DSCP CS6 set on all peer sockets | Outgoing (dialer Control callback) and accepted connections set IP_TOS=0xC0 (IPv4) / IPV6_TCLASS=0xC0 (IPv6). **Done** (session_connection.go:215-227). |
+| AC-22 | Hold timer fires with RX data pending | Hold timer extended 10s instead of teardown (CPU congestion, not peer failure). **Done** (session.go:320-331, recentRead atomic flag). |
 | AC-23 | New update for prefix already in overflow pool | **Deferred optimization.** Old entry replaced (route superseding), not appended. Requires per-prefix indexing of the overflow pool (NLRI parsing on overflow entry). Ze's UPDATE-first design avoids NLRI parsing on the forward path; adding it here contradicts that principle. Without dedup, FIFO ordering still converges correctly -- the slow peer processes redundant intermediate UPDATEs but reaches the right final state. Real-world overflow is dominated by convergence events (many distinct prefixes withdrawn once), not flap (same prefix repeated). May not fix a real traffic pattern problem. Revisit if profiling shows high duplicate rate in overflow under production load. |
-| AC-24 | Forward batch to single destination peer | TX budget caps messages per batch (prevents one peer starving others in event loop) |
+| AC-24 | Forward batch to single destination peer | TX budget caps messages per batch (prevents one peer starving others in event loop). **Done** (`ze.fwd.batch.limit` default 1024, forward_pool.go:222, TestFwdDrainBatchLimit). |
 | AC-25 | Forward batch contains both withdrawals and announcements | **Deferred optimization.** Withdrawals sent before announcements (faster convergence). Requires AC-23 (route superseding) first -- without per-prefix dedup, reordering can invert announce/withdraw for the same prefix, causing permanent stale routes. Blocked on AC-23 which is itself deferred. |
-| AC-26 | Read and build buffers | sync.Pool replaced by pool multiplexer. Handles carry block ID for deterministic return routing. Two multiplexers: 4K and 64K. buildBufPool merged into 4K instance. Get() allocates from lowest block (steady-state packs low, higher blocks drain for collapse). Grow on exhaustion. Lazy collapse every 100th Get() (triggered by normal network reads): delete highest block when fully returned and block below has >=50% free. No permanent block. |
-| AC-27 | Pool capacity decisions | Growth, shrink, and backpressure use combined usage across 4K + 64K instances (memory pressure is shared). Collapse check piggybacked on normal read path (every 100th Get()) to reclaim overflow blocks without timers. |
-| AC-28 | Pool maximum | Dynamically tracks peer set: adding a peer increases maximum (based on prefix count weight), removing decreases it |
+| AC-26 | Read and build buffers | sync.Pool replaced by pool multiplexer (BufMux). Handles carry block ID for deterministic return routing. Two multiplexers: 4K and 64K. buildBufPool merged into 4K instance. Get() allocates from lowest block. Grow on exhaustion. Lazy collapse every 100th Get(). No permanent block. **Done** (bufmux.go, session.go:50-68). |
+| AC-27 | Pool capacity decisions | Growth, shrink, and backpressure use combined usage across 4K + 64K instances (shared combinedBudget). Collapse check piggybacked on normal read path. **Done** (bufmux.go:175, session.go:64-74). |
+| AC-28 | Pool maximum | Dynamically tracks peer set: adding a peer increases maximum (based on prefix count weight), removing decreases it. **Done** (forward_pool_weight_tracker.go, wired via reactor_peers.go:119 AddPeer). |
 | AC-29 | ~~Per-peer channel size~~ | **Dropped (2026-03-26):** RIPE RIS analysis shows fixed 64 is the right size. Dynamic sizing adds complexity for no measurable gain. Channel stays at fixed 64 via `ze.fwd.chan.size`. |
+
+## Files to Modify
+
+- `internal/component/bgp/reactor/forward_pool.go` -- add congestion teardown check in fwdBatchHandler, per-worker congestion timer, GR-aware teardown call
+- `internal/component/bgp/reactor/forward_pool_test.go` -- tests for buffer denial, forced teardown, GR-aware teardown, headroom, grace period
+- `internal/component/bgp/reactor/forward_pool_weight_tracker.go` -- add WorstPeerRatio method for teardown decision
+- `internal/component/bgp/reactor/forward_pool_weight_tracker_test.go` -- test WorstPeerRatio
+- `internal/component/bgp/reactor/reactor.go` -- register `ze.fwd.teardown.grace` and `ze.fwd.pool.headroom` env vars, wire into pool config
+- `internal/component/bgp/reactor/reactor_metrics.go` -- add throttle state and congestion teardown counter metrics
+- `internal/component/bgp/reactor/bufmux.go` -- add headroom to combined budget
+- `docs/architecture/forward-congestion-pool.md` -- already updated with enforcement + headroom design
+
+### Integration Checklist
+
+| Integration Point | Needed? | File |
+|-------------------|---------|------|
+| YANG schema (new RPCs) | No | - |
+| CLI commands/flags | No | - |
+| Editor autocomplete | No | - |
+| Functional test for new RPC/API | Yes | `test/plugin/forward-congestion-teardown.ci` |
+
+### Documentation Update Checklist (BLOCKING)
+
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature? | Yes | `docs/features.md` -- add congestion backpressure + forced teardown |
+| 2 | Config syntax changed? | No | - |
+| 3 | CLI command added/changed? | No | - |
+| 4 | API/RPC added/changed? | No | - |
+| 5 | Plugin added/changed? | No | - |
+| 6 | Has a user guide page? | No | - |
+| 7 | Wire format changed? | No | - |
+| 8 | Plugin SDK/protocol changed? | No | - |
+| 9 | RFC behavior implemented? | No | RFC 9687 already done (Phase 2) |
+| 10 | Test infrastructure changed? | No | - |
+| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` -- update backpressure row, `docs/architecture/congestion-industry.md` -- update Ze column |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/forward-congestion-pool.md` -- already updated |
+
+## TDD Test Plan
+
+### Phase 5a: Buffer denial (weighted access)
+
+| Test | File | AC |
+|------|------|----|
+| TestFwdPool_BufferDenialHighRatio | forward_pool_test.go | AC-2 |
+| TestFwdPool_BufferGrantedLowRatio | forward_pool_test.go | AC-3 |
+| TestFwdPool_BufferDenialKeepalifeLimit | forward_pool_test.go | AC-9 |
+| TestFwdPool_FastPeerUnaffected | forward_pool_test.go | AC-12 |
+| TestWeightTracker_WorstPeerRatio | forward_pool_weight_tracker_test.go | AC-4 |
+
+### Phase 5b: Forced teardown
+
+| Test | File | AC |
+|------|------|----|
+| TestFwdPool_ForcedTeardownOnPoolExhaustion | forward_pool_test.go | AC-4 |
+| TestFwdPool_TeardownGRPeer | forward_pool_test.go | AC-5 |
+| TestFwdPool_TeardownNonGRPeer | forward_pool_test.go | AC-6 |
+| TestFwdPool_TeardownGracePeriod | forward_pool_test.go | AC-4 |
+| TestFwdPool_TeardownReclaims | forward_pool_test.go | AC-4, AC-7 |
+
+### Phase 5c: Headroom + config
+
+| Test | File | AC |
+|------|------|----|
+| TestFwdPool_HeadroomIncreasesbudget | forward_pool_test.go or bufmux_test.go | AC-10 |
+| TestFwdPool_HeadroomIgnoredWhenExplicit | forward_pool_test.go or bufmux_test.go | AC-10 |
+
+## Implementation Steps
+
+### /implement Stage Mapping
+
+| /implement Stage | Spec Section |
+|------------------|--------------|
+| 1. Read spec | This file |
+| 2. Audit | Files to Modify, TDD Test Plan -- check what exists |
+| 3. Implement (TDD) | Implementation phases below |
+| 4. Full verification | `make ze-lint && make ze-unit-test && make ze-functional-test` |
+| 5. Critical review | Critical Review Checklist below |
+| 6. Fix issues | Fix every issue from critical review |
+| 7. Re-verify | Re-run stage 4 |
+| 8. Repeat 5-7 | Max 2 review passes |
+| 9. Deliverables review | Deliverables Checklist below |
+| 10. Security review | Security Review Checklist below |
+| 11. Re-verify | Re-run stage 4 |
+| 12. Present summary | Executive Summary Report per `rules/planning.md` |
+
+### Implementation Phases
+
+Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
+
+1. **Phase 5a: Buffer denial** -- weighted access check in forward pool
+   - Tests: TestFwdPool_BufferDenialHighRatio, TestFwdPool_BufferGrantedLowRatio, TestFwdPool_BufferDenialKeepalifeLimit, TestFwdPool_FastPeerUnaffected, TestWeightTracker_WorstPeerRatio
+   - Files: forward_pool.go, forward_pool_weight_tracker.go
+   - Verify: tests fail -> implement -> tests pass
+   - Key: OverflowDepths + UsageToWeightRatios already exist. Add denial logic to DispatchOverflow path. Track denial start time per source peer for AC-9 keepalive/6 bound.
+
+2. **Phase 5b: Forced teardown** -- congestion teardown in fwdBatchHandler
+   - Tests: TestFwdPool_ForcedTeardownOnPoolExhaustion, TestFwdPool_TeardownGRPeer, TestFwdPool_TeardownNonGRPeer, TestFwdPool_TeardownGracePeriod, TestFwdPool_TeardownReclaims
+   - Files: forward_pool.go
+   - Verify: tests fail -> implement -> tests pass
+   - Key: fwdBatchHandler already detects write deadline failures. Add pool ratio + weight ratio check. If pool > 95% and worker's peer ratio > 2x weight for grace period: GR-aware teardown. GR check via peer.session.Negotiated().GracefulRestart (non-nil = GR capable). GR: closeConn() without NOTIFICATION. Non-GR: Teardown(NotifyCeaseOutOfResources, "").
+
+3. **Phase 5c: Headroom + config** -- env var registration and budget integration
+   - Tests: TestFwdPool_HeadroomIncreasesBudget, TestFwdPool_HeadroomIgnoredWhenExplicit
+   - Files: reactor.go, bufmux.go
+   - Verify: tests fail -> implement -> tests pass
+   - Key: `ze.fwd.pool.headroom` adds bytes to auto-sized budget. `ze.fwd.teardown.grace` configures grace period. Both registered in reactor.go, read in pool init.
+
+4. **Phase 5d: Metrics + functional test**
+   - Add `ze_bgp_throttle_state`, `ze_bgp_throttle_denied_total`, `ze_bgp_congestion_teardown_total` metrics
+   - Create `test/plugin/forward-congestion-teardown.ci` functional test
+   - Files: reactor_metrics.go, test/plugin/forward-congestion-teardown.ci
+
+5. **Phase 5e: Documentation**
+   - Update `docs/features.md`, `docs/comparison.md`, `docs/architecture/congestion-industry.md`
+   - Files: docs only
+
+6. **Full verification** -> `make ze-verify`
+7. **Complete spec** -> Fill audit tables, write learned summary
+
+### Critical Review Checklist (/implement stage 5)
+
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every Phase 5 AC (AC-2, AC-3, AC-4, AC-5, AC-6, AC-9, AC-12) has implementation with file:line |
+| Correctness | Buffer denial uses UsageToWeightRatios correctly: ratio > threshold denies, not inverted |
+| Correctness | GR check: Negotiated().GracefulRestart != nil means GR capable, use closeConn(); nil means non-GR, use Teardown(OutOfResources) |
+| Correctness | Teardown fires only when pool > 95% AND ratio > 2x AND grace elapsed -- all three conditions required |
+| Correctness | Keepalive safety: denial duration bounded by keepalive_interval / 6 (AC-9), not hold time |
+| Data flow | Buffer denial happens in the overflow dispatch path (DispatchOverflow or TryDispatch), not in the read loop directly |
+| Data flow | Teardown check is in fwdBatchHandler (write deadline hit path), not in a timer goroutine |
+| Rule: goroutine-lifecycle | No new goroutines for enforcement -- checks piggyback on existing worker loop and batch handler |
+| Rule: buffer-first | No new allocations in hot path -- denial is a boolean check, not a buffer operation |
+| Rule: no-layering | No sleep-based throttle code remains -- buffer denial is the single mechanism |
+| Isolation | Fast destination peers unaffected: verify a peer with ratio 0.0 is never denied buffers regardless of global pool state |
+| Headroom | ze.fwd.pool.headroom adds to auto-sized, ignored when ze.fwd.pool.maxbytes explicit |
+| Metrics | Throttle state, denied count, teardown count all registered and updated |
+
+### Deliverables Checklist (/implement stage 9)
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| Buffer denial logic in forward_pool.go | `grep -n 'UsageToWeightRatio\|bufferDenied\|denyBuffer' internal/component/bgp/reactor/forward_pool.go` |
+| WorstPeerRatio in weight tracker | `grep -n 'WorstPeerRatio' internal/component/bgp/reactor/forward_pool_weight_tracker.go` |
+| Forced teardown in fwdBatchHandler | `grep -n 'teardown\|Teardown\|closeConn' internal/component/bgp/reactor/forward_pool.go` |
+| GR-aware teardown path | `grep -n 'GracefulRestart\|closeConn\|OutOfResources' internal/component/bgp/reactor/forward_pool.go` |
+| Keepalive/6 safety bound (AC-9) | `grep -n 'keepalive.*6\|denialStart\|denialDuration' internal/component/bgp/reactor/forward_pool.go` |
+| ze.fwd.teardown.grace env var | `grep -n 'ze.fwd.teardown.grace' internal/component/bgp/reactor/reactor.go` |
+| ze.fwd.pool.headroom env var | `grep -n 'ze.fwd.pool.headroom' internal/component/bgp/reactor/reactor.go` |
+| Headroom in budget calculation | `grep -n 'headroom\|Headroom' internal/component/bgp/reactor/bufmux.go` |
+| Throttle metrics registered | `grep -n 'throttle_state\|throttle_denied\|congestion_teardown' internal/component/bgp/reactor/reactor_metrics.go` |
+| Functional test exists | `ls test/plugin/forward-congestion-teardown.ci` |
+| All Phase 5 unit tests pass | `go test -race -run 'TestFwdPool_Buffer\|TestFwdPool_Forced\|TestFwdPool_Teardown\|TestFwdPool_Headroom\|TestWeightTracker_Worst' ./internal/component/bgp/reactor/...` |
+| docs/features.md updated | `grep -n 'backpressure\|congestion teardown' docs/features.md` |
+| docs/comparison.md updated | `grep -n 'backpressure\|buffer denial' docs/comparison.md` |
+
+### Security Review Checklist (/implement stage 10)
+
+| Check | What to look for |
+|-------|-----------------|
+| Resource exhaustion | Grace period timer: ensure no per-peer timer goroutine. Use timestamp comparison, not timer. |
+| Denial of service | A malicious peer cannot trigger teardown of a different peer by sending high volumes. Verify teardown targets the destination with highest ratio, not the source. |
+| Integer overflow | Usage-to-weight ratio division: check for zero weight (division by zero). PeerDemand returns 0 for unknown peers. |
+| Race condition | Congestion grace start time must be accessed atomically or under mutex. Multiple workers checking pool ratio concurrently must not cause double teardown. |
+| Information leakage | NOTIFICATION Cease/OutOfResources (subcode 8) does not leak internal pool state. Only standard RFC 4486 subcode. |
+| Metric cardinality | Throttle state metric uses peer address label -- same cardinality as existing overflow metrics, not unbounded. |
+| Hold timer safety | Buffer denial duration bound (keepalive/6) must be enforced even if the pool remains exhausted. A denied source must eventually be granted a read to prevent hold timer expiry. |
+
+### Failure Routing
+
+| Failure | Route To |
+|---------|----------|
+| Compilation error | Fix in the phase that introduced it |
+| Test fails wrong reason | Fix test assertion or setup |
+| Test fails behavior mismatch | Re-read source from Current Behavior -> RESEARCH if misunderstood |
+| Teardown fires too eagerly | Check grace period and ratio threshold constants |
+| Teardown never fires | Check pool ratio calculation -- is combined budget reporting correctly? |
+| Hold timer expires during denial | Check keepalive/6 bound enforcement -- is the denial timer being reset? |

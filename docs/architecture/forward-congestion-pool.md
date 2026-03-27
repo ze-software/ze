@@ -444,6 +444,32 @@ When the pool is full and reads pause:
 The system naturally rebalances toward proportional usage without any
 explicit rebalancing algorithm.
 
+### Forced Teardown: Preventing Pool Monopolisation
+
+Buffer denial slows inflow but cannot reclaim buffers already held by a
+stuck destination. One frozen peer can pin every buffer in the pool,
+freezing all source peers' read loops. Unlike RustBGPd (per-peer tokio
+tasks where a stuck peer blocks only itself), ze's shared pool requires
+active enforcement.
+
+Two thresholds:
+
+| Threshold | Trigger | Action |
+|-----------|---------|--------|
+| 1 (soft) | `PoolUsedRatio > 0.8` | Deny buffers to sources feeding the worst destination |
+| 2 (hard) | `PoolUsedRatio > 0.95` AND worst peer > 2x weight share for grace period | Tear down worst destination peer (GR-aware) |
+
+The grace period (default 5s, `ze.fwd.teardown.grace`) prevents teardown
+on transient spikes. The check lives in `fwdBatchHandler`: when the write
+deadline fires (TCP stuck, 30s), the worker checks pool state and its own
+ratio. If Threshold 2 is met, the worker tears down its own session.
+
+After teardown, all overflow handles return to the pool. The system
+recovers immediately. If another peer becomes the new worst offender,
+the cycle repeats.
+
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- fwdBatchHandler, fwdWorker -->
+
 ## Throttle the Culprit
 
 Read throttling targets the source peers whose traffic is filling the pool.
@@ -562,13 +588,25 @@ fails to trigger backpressure because each looks at itself in isolation.
 | Config key | Purpose | Default |
 |-----------|---------|---------|
 | `ze.fwd.pool.maxbytes` | Combined byte budget for 4K+64K pools | Auto-sized from peer weights |
+| `ze.fwd.pool.headroom` | Extra memory beyond auto-sized baseline (e.g. "512MB", "2GB") | 0 (no extra) |
 | `ze.fwd.pool.size` | Overflow pool token count (items) | Auto-sized from peer weights |
 | `ze.fwd.chan.size` | Per-peer dispatch channel capacity | 64 |
+| `ze.fwd.teardown.grace` | Seconds at >95% + >2x weight before forced teardown | 5s |
 | Per-peer `prefix maximum` | Max expected prefixes (drives weight) | Required (PeeringDB fallback) |
 
 When `ze.fwd.pool.maxbytes` is explicitly set, the operator's value
-overrides auto-sizing. When unset (0), the pool budget is calculated
-dynamically from the peer set as described in Two-Tier Pool Sizing.
+overrides auto-sizing entirely. When unset (0), the pool budget is
+calculated dynamically from the peer set as described in Two-Tier
+Pool Sizing.
+
+`ze.fwd.pool.headroom` adds memory on top of the auto-sized baseline.
+The auto-sized budget (guaranteed + overflow tiers) is the minimum
+the system needs. Headroom gives extra room for congestion before
+backpressure and teardown engage. Operators on machines with plenty
+of RAM can set headroom to delay teardown decisions -- trading memory
+for session stability. The total budget becomes
+`auto_sized_baseline + headroom`. This does not affect `ze.fwd.pool.maxbytes`
+when it is explicitly set (explicit overrides everything).
 
 ## Related Documents
 
