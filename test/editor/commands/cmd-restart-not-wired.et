@@ -1,0 +1,25 @@
+# Test: restart shows "not available" when restartFunc is not wired
+# VALIDATES: restart command is recognized even without daemon connection.
+# PREVENTS: restart silently ignored or treated as unknown command.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local { as 65000; }
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
+    timer { receive-hold-time 90; }
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+
+# No option=lifecycle:mode=wired -- restartFunc is nil
+
+# Type restart -- should show "not available"
+input=type:text=restart
+input=enter
+expect=status:contains=restart not available
+expect=input:empty

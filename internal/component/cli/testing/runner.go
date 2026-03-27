@@ -105,6 +105,7 @@ func runTestCase(tc *TestCase) *TestResult {
 	width := 80
 	height := 24
 	reloadMode := ""         // "success", "fail", or "" (standalone)
+	lifecycleMode := ""      // "wired" = mock shutdown/restart callbacks
 	useHistoryStore := false // option=history:store -- persist history to zefs
 	editorMode := "edit"     // option=mode:value=command -- command-only mode
 	sessionUser := ""
@@ -137,6 +138,10 @@ func runTestCase(tc *TestCase) *TestResult {
 		case "reload":
 			if mode, ok := opt.Values["mode"]; ok {
 				reloadMode = mode
+			}
+		case "lifecycle":
+			if mode, ok := opt.Values["mode"]; ok {
+				lifecycleMode = mode
 			}
 		case "history":
 			if _, ok := opt.Values["store"]; ok {
@@ -212,6 +217,14 @@ func runTestCase(tc *TestCase) *TestResult {
 		hm.SetReloadNotifier(func() error { return nil })
 	case "fail":
 		hm.SetReloadNotifier(func() error { return fmt.Errorf("daemon not reachable") })
+	}
+
+	// Configure mock lifecycle callbacks (shutdown/restart) if requested.
+	// Assign directly to model field via Model() pointer.
+	if lifecycleMode == "wired" {
+		m := hm.Model()
+		m.SetShutdownFunc(func() {})
+		m.SetRestartFunc(func() {})
 	}
 
 	// Set window size if specified

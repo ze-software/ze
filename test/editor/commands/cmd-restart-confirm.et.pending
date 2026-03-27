@@ -1,0 +1,29 @@
+# Test: restart command shows confirmation prompt, y confirms and quits
+# VALIDATES: AC-10 -- interactive CLI restart with confirmation prompt.
+# PREVENTS: restart command missing from CLI dispatch or skipping confirmation.
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+  router-id 1.2.3.4;
+  local { as 65000; }
+  peer peer1 {
+    remote { ip 1.1.1.1; as 65001; }
+    timer { receive-hold-time 90; }
+  }
+}
+EOF_CONF
+
+option=file:path=test.conf
+option=timeout:value=10s
+option=mode:value=command
+option=lifecycle:mode=wired
+
+# Type restart -- should show confirmation prompt
+input=type:text=restart
+input=enter
+expect=status:contains=restart the daemon
+expect=input:empty
+
+# Confirm with y -- should quit
+input=type:text=y
+input=enter
