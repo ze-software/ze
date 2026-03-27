@@ -26,7 +26,7 @@ Investigate and fix Ze bugs discovered by interop scenarios 22-32. The test infr
 | 22-evpn-frr | EVPN | FRR | ~~FAIL~~ PASS | Fixed: AS_PATH ASN=0, check.py key+JSON |
 | 23-vpn-frr | VPN | FRR | ~~FAIL~~ PASS | Fixed: AS_PATH ASN=0, invalid ext-community, VPN JSON |
 | 24-flowspec-frr | FlowSpec | FRR | ~~FAIL~~ PASS | Fixed: AS_PATH ASN=0, FlowSpec JSON count |
-| 25-ipv6-ebgp-bird | IPv6 | BIRD | FAIL | BIRD does not install IPv6 routes over IPv4 session |
+| 25-ipv6-ebgp-bird | IPv6 | BIRD | ~~FAIL~~ PASS | Fixed: BIRD needs multihop for unreachable IPv6 next-hop |
 | 26-ipv6-ebgp-gobgp | IPv6 | GoBGP | PASS | |
 | 27-multihop-ebgp-frr | Multihop | FRR | PASS | |
 | 28-evpn-gobgp | EVPN | GoBGP | ~~FAIL~~ PASS | Fixed: AS_PATH ASN=0, GoBGP JSON dict/list |
@@ -40,7 +40,7 @@ Investigate and fix Ze bugs discovered by interop scenarios 22-32. The test infr
 | Feature | FRR | BIRD | GoBGP | Conclusion |
 |---------|-----|------|-------|------------|
 | IPv4 unicast | PASS (27) | PASS (31) | PASS (32) | Works |
-| IPv6 unicast | existing-10 | FAIL (25) | PASS (26) | BIRD-specific (Extended NH) |
+| IPv6 unicast | existing-10 | ~~FAIL~~ PASS (25) | PASS (26) | Fixed (BIRD multihop) |
 | EVPN | ~~FAIL~~ PASS (22) | N/A | ~~FAIL~~ PASS (28) | Fixed |
 | VPN | ~~FAIL~~ PASS (23) | N/A | FAIL (29) | VPN cap not sent to GoBGP |
 | FlowSpec | ~~FAIL~~ PASS (24) | N/A | ~~FAIL~~ PASS (30) | Fixed |
@@ -60,10 +60,10 @@ Root causes:
 - Announce scripts used `time.sleep(0.1)` instead of `wait_for_ack(1)` barrier flush.
 
 **~~Category 3: Session fails (scenario 29)~~ PARTIALLY FIXED**
-GoBGP afi-safi name fixed (`ipv4-vpnv4unicast` -> `l3vpn-ipv4-unicast`). Session now establishes. But Ze does not advertise VPN capability to GoBGP despite identical config to scenario 23 (FRR). Needs investigation.
+GoBGP afi-safi name fixed (`ipv4-vpnv4unicast` -> `l3vpn-ipv4-unicast`). Session now establishes. OPEN encoding fixed (single type-2 optional parameter per RFC 5492). But GoBGP deduplicates Multiprotocol capabilities by AFI: when two families share AFI=1 (ipv4-unicast + l3vpn-ipv4-unicast), GoBGP keeps only one. Confirmed by comparing scenario 28 (different AFIs: 1+25, works) with scenario 29 (same AFI: 1+1, fails). This is a GoBGP limitation.
 
-**Remaining: scenario 25 (IPv6 BIRD)**
-BIRD does not install IPv6 routes received over an IPv4 BGP session. Extended Next Hop capability added to ze.conf but BIRD still does not accept routes. Needs investigation -- may be BIRD-specific or Ze Extended NH encoding issue.
+**~~Remaining: scenario 25 (IPv6 BIRD)~~ FIXED**
+BIRD rejected IPv6 routes because the next-hop (2001:db8::2) was not directly reachable on the IPv4-only Docker network. BIRD enforces RFC 4271 next-hop reachability strictly. Fix: added `multihop;` to BIRD config, which disables the directly-connected check.
 
 ## Required Reading
 
@@ -284,8 +284,9 @@ To be added during investigation.
 ## Implementation Summary
 
 ### What Was Implemented
-- Fixed 6 of 8 failing interop scenarios (22, 23, 24, 28, 29-session, 30)
+- Fixed 7 of 8 failing interop scenarios (22, 23, 24, 25, 28, 29-session, 30)
 - 0 regressions in 4 previously-passing scenarios (26, 27, 31, 32)
+- Scenario 29 (VPN GoBGP) remains: GoBGP limitation deduplicating same-AFI MP caps
 
 ### Bugs Found/Fixed
 
@@ -301,9 +302,11 @@ To be added during investigation.
 | GoBGP VPN afi-safi name `ipv4-vpnv4unicast` | `29-vpn-gobgp/gobgp.toml` | Session never established |
 | Announce scripts used `sleep(0.1)` not barrier flush | All announce scripts | Race between route send and check |
 
+| BIRD multihop for unreachable IPv6 NH | `25-ipv6-ebgp-bird/bird.conf` | BIRD rejects routes with unreachable NH |
+| OPEN one-param-per-cap broke GoBGP | `session_negotiate.go` | GoBGP only parses last type-2 param |
+
 ### Not Done
-- Scenario 25 (IPv6 BIRD): BIRD does not install IPv6 routes over IPv4 session
-- Scenario 29 (VPN GoBGP): Ze does not advertise VPN capability to GoBGP despite identical config to working FRR scenario
+- Scenario 29 (VPN GoBGP): GoBGP deduplicates same-AFI MP capabilities -- not a Ze bug
 
 ### Documentation Updates
 - None required (bug fixes only)

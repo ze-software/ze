@@ -142,26 +142,27 @@ func (s *Session) sendOpen(conn net.Conn) error {
 }
 
 // buildOptionalParams builds optional parameters from capabilities.
-// Each capability is wrapped in its own parameter (type 2) per RFC 5492.
+// All capabilities are bundled in a single type-2 (Capabilities) parameter
+// per RFC 5492 Section 4. Some implementations (GoBGP) only parse the last
+// type-2 parameter, so bundling ensures all capabilities are seen.
 // Single allocation: calculates total size upfront, then writes all TLVs.
 func buildOptionalParams(caps []capability.Capability) []byte {
 	if len(caps) == 0 {
 		return nil
 	}
 
-	// Calculate total size: each cap gets a 2-byte param wrapper + TLV bytes.
-	total := 0
+	// Calculate total capability TLV bytes.
+	capTotal := 0
 	for _, c := range caps {
-		total += 2 + c.Len() // param type (1) + param length (1) + cap TLV
+		capTotal += c.Len()
 	}
 
-	buf := make([]byte, total)
-	off := 0
+	// Single type-2 parameter: type (1) + length (1) + all capability TLVs.
+	buf := make([]byte, 2+capTotal)
+	buf[0] = 2              // Parameter type: Capabilities
+	buf[1] = byte(capTotal) //nolint:gosec // Total capability bytes always <256 for standard BGP
+	off := 2
 	for _, c := range caps {
-		capLen := c.Len()
-		buf[off] = 2              // Parameter type: Capabilities
-		buf[off+1] = byte(capLen) //nolint:gosec // Capability TLVs are always <256 bytes
-		off += 2
 		off += c.WriteTo(buf, off)
 	}
 
