@@ -1,11 +1,13 @@
 // Design: docs/architecture/web-interface.md -- Template rendering
 // Related: handler_config.go -- Config tree view handlers
 // Related: handler_admin.go -- Admin command handlers
+// Related: sse.go -- SSE event rendering
 
 // Package web provides the ze web interface with template rendering and static assets.
 package web
 
 import (
+	"bytes"
 	"embed"
 	"fmt"
 	"html/template"
@@ -112,41 +114,53 @@ func NewRenderer() (*Renderer, error) {
 
 // RenderConfigTemplate renders a config view template by name with the given data.
 // The name should match a config template (e.g., "container.html", "list.html").
+// Renders to a buffer first to avoid partial writes on template errors.
 func (r *Renderer) RenderConfigTemplate(w http.ResponseWriter, name string, data any) error {
 	t, ok := r.config[name]
 	if !ok {
 		return fmt.Errorf("unknown config template: %s", name)
 	}
 
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
-	if err := t.Execute(w, data); err != nil {
+	var buf bytes.Buffer
+	if err := t.Execute(&buf, data); err != nil {
 		return fmt.Errorf("render config template %s: %w", name, err)
 	}
 
-	return nil
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	_, writeErr := buf.WriteTo(w)
+
+	return writeErr
 }
 
 // RenderLayout renders the layout template with the given data to the response writer.
+// Renders to a buffer first to avoid partial writes on template errors.
 func (r *Renderer) RenderLayout(w http.ResponseWriter, data LayoutData) error {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
-	if err := r.layout.Execute(w, data); err != nil {
+	var buf bytes.Buffer
+	if err := r.layout.Execute(&buf, data); err != nil {
 		return fmt.Errorf("render layout: %w", err)
 	}
 
-	return nil
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	_, writeErr := buf.WriteTo(w)
+
+	return writeErr
 }
 
 // RenderLogin renders the login template with the given data to the response writer.
+// Renders to a buffer first to avoid partial writes on template errors.
 func (r *Renderer) RenderLogin(w http.ResponseWriter, data LoginData) error {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
-	if err := r.login.Execute(w, data); err != nil {
+	var buf bytes.Buffer
+	if err := r.login.Execute(&buf, data); err != nil {
 		return fmt.Errorf("render login: %w", err)
 	}
 
-	return nil
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	_, writeErr := buf.WriteTo(w)
+
+	return writeErr
 }
 
 // AssetHandler returns an http.Handler that serves embedded static assets.

@@ -60,6 +60,11 @@ func Run(args []string) int {
 			return 1
 		}
 	} else {
+		if *key != "" {
+			fmt.Fprintf(os.Stderr, "error: --cert is required when --key is specified\n")
+			return 1
+		}
+
 		// No certificate provided: generate a self-signed one
 		var err error
 		certPEM, keyPEM, err = web.GenerateWebCertWithAddr(*listen)

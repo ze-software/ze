@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -210,4 +211,117 @@ func TestNewWebServerRequiresFields(t *testing.T) {
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
 	}
+}
+
+// mockCertStore implements CertStore for testing LoadOrGenerateCert.
+// It tracks which methods were called so tests can verify the store interaction.
+type mockCertStore struct {
+	certData []byte
+	keyData  []byte
+	exists   bool
+
+	readCertCalled  bool
+	readKeyCalled   bool
+	writeCertCalled bool
+	writeKeyCalled  bool
+
+	writeCertErr error
+	writeKeyErr  error
+}
+
+func (m *mockCertStore) ReadCert() ([]byte, error) {
+	m.readCertCalled = true
+	if m.certData == nil {
+		return nil, fmt.Errorf("no cert stored")
+	}
+	return m.certData, nil
+}
+
+func (m *mockCertStore) ReadKey() ([]byte, error) {
+	m.readKeyCalled = true
+	if m.keyData == nil {
+		return nil, fmt.Errorf("no key stored")
+	}
+	return m.keyData, nil
+}
+
+func (m *mockCertStore) WriteCert(data []byte) error {
+	m.writeCertCalled = true
+	m.certData = data
+	return m.writeCertErr
+}
+
+func (m *mockCertStore) WriteKey(data []byte) error {
+	m.writeKeyCalled = true
+	m.keyData = data
+	return m.writeKeyErr
+}
+
+func (m *mockCertStore) Exists() bool {
+	return m.exists
+}
+
+// TestLoadOrGenerateCert_GenerateNew verifies that LoadOrGenerateCert generates
+// a new self-signed certificate and persists it when the store is empty.
+// VALIDATES: AC-9 (cert generated and stored when none exists).
+// PREVENTS: Missing WriteCert/WriteKey calls, invalid generated PEM.
+func TestLoadOrGenerateCert_GenerateNew(t *testing.T) {
+	store := &mockCertStore{exists: false}
+
+	certPEM, keyPEM, err := LoadOrGenerateCert(store, "127.0.0.1:8443")
+	require.NoError(t, err)
+	require.NotEmpty(t, certPEM, "certPEM must not be empty")
+	require.NotEmpty(t, keyPEM, "keyPEM must not be empty")
+
+	// Verify WriteCert and WriteKey were called (certificate persisted).
+	assert.True(t, store.writeCertCalled, "WriteCert must be called for new cert")
+	assert.True(t, store.writeKeyCalled, "WriteKey must be called for new cert")
+
+	// Verify ReadCert and ReadKey were NOT called (no existing cert to load).
+	assert.False(t, store.readCertCalled, "ReadCert must not be called when store is empty")
+	assert.False(t, store.readKeyCalled, "ReadKey must not be called when store is empty")
+
+	// Verify the returned PEM is valid and usable for TLS.
+	certBlock, _ := pem.Decode(certPEM)
+	require.NotNil(t, certBlock, "returned certPEM must be valid PEM")
+	assert.Equal(t, "CERTIFICATE", certBlock.Type)
+
+	keyBlock, _ := pem.Decode(keyPEM)
+	require.NotNil(t, keyBlock, "returned keyPEM must be valid PEM")
+	assert.Equal(t, "EC PRIVATE KEY", keyBlock.Type)
+
+	// Verify the cert and key form a valid TLS pair.
+	_, err = tls.X509KeyPair(certPEM, keyPEM)
+	require.NoError(t, err, "generated cert and key must form a valid TLS pair")
+}
+
+// TestLoadOrGenerateCert_LoadExisting verifies that LoadOrGenerateCert loads
+// existing certificate material from the store without generating new certs.
+// VALIDATES: AC-9 (existing cert loaded from store).
+// PREVENTS: Regenerating certs when store already has valid material.
+func TestLoadOrGenerateCert_LoadExisting(t *testing.T) {
+	// Pre-generate valid cert material to store.
+	origCert, origKey, err := GenerateWebCert()
+	require.NoError(t, err)
+
+	store := &mockCertStore{
+		exists:   true,
+		certData: origCert,
+		keyData:  origKey,
+	}
+
+	certPEM, keyPEM, err := LoadOrGenerateCert(store, "127.0.0.1:8443")
+	require.NoError(t, err)
+
+	// Verify ReadCert and ReadKey were called (loading from store).
+	assert.True(t, store.readCertCalled, "ReadCert must be called when store has certs")
+	assert.True(t, store.readKeyCalled, "ReadKey must be called when store has certs")
+
+	// Verify WriteCert and WriteKey were NOT called (no generation needed).
+	assert.False(t, store.writeCertCalled, "WriteCert must not be called when loading existing")
+	assert.False(t, store.writeKeyCalled, "WriteKey must not be called when loading existing")
+
+	// Verify the returned PEM matches what was stored.
+	assert.Equal(t, origCert, certPEM, "returned certPEM must match stored cert")
+	assert.Equal(t, origKey, keyPEM, "returned keyPEM must match stored key")
 }

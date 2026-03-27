@@ -687,6 +687,22 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 				})
 				configLogger().Info("SSH command executor wired")
 			}
+
+			// Shut down web server when reactor stops.
+			// Spawns a lifecycle goroutine that waits for reactor completion,
+			// then gracefully shuts down the HTTP server.
+			if webSrv != nil {
+				go func() {
+					_ = r.Wait(context.Background())
+					shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+					defer shutdownCancel()
+					if err := webSrv.Shutdown(shutdownCtx); err != nil {
+						configLogger().Warn("web server shutdown error", "error", err)
+					} else {
+						configLogger().Info("web server stopped")
+					}
+				}()
+			}
 		})
 	}
 

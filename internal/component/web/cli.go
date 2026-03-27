@@ -1,4 +1,5 @@
 // Design: docs/architecture/web-interface.md -- CLI bar and terminal mode
+// Related: handler.go -- URL routing and content negotiation
 // Related: handler_config.go -- Config handlers that CLI commands dispatch to
 // Related: editor.go -- Editor manager for command execution
 
@@ -140,6 +141,11 @@ func HandleCLICommand(mgr *EditorManager, schema *config.Schema, renderer *Rende
 			contextPath = strings.Split(pathStr, "/")
 		}
 
+		if err := ValidatePathSegments(contextPath); err != nil {
+			http.Error(w, "invalid path", http.StatusBadRequest)
+			return
+		}
+
 		cmd := parseCLICommand(command)
 		if cmd.Verb == "" {
 			http.Error(w, "empty command", http.StatusBadRequest)
@@ -218,6 +224,12 @@ func handleCLISet(w http.ResponseWriter, r *http.Request, contextPath, args []st
 	}
 
 	key := args[0]
+
+	if err := ValidatePathSegments([]string{key}); err != nil {
+		writeCLINotification(w, "invalid leaf name", "error")
+		return
+	}
+
 	value := strings.Join(args[1:], " ")
 
 	if err := mgr.SetValue(username, contextPath, key, value); err != nil {
@@ -236,6 +248,11 @@ func handleCLIDelete(w http.ResponseWriter, r *http.Request, contextPath, args [
 	}
 
 	key := args[0]
+
+	if err := ValidatePathSegments([]string{key}); err != nil {
+		writeCLINotification(w, "invalid leaf name", "error")
+		return
+	}
 
 	if err := mgr.DeleteValue(username, contextPath, key); err != nil {
 		writeCLINotification(w, fmt.Sprintf("delete error: %s", err), "error")
@@ -351,6 +368,11 @@ func HandleCLIComplete(completer *cli.Completer) http.HandlerFunc {
 			contextPath = strings.Split(pathStr, "/")
 		}
 
+		if err := ValidatePathSegments(contextPath); err != nil {
+			http.Error(w, "invalid path", http.StatusBadRequest)
+			return
+		}
+
 		completions := completer.Complete(input, contextPath)
 		if len(completions) > maxCompletionResults {
 			completions = completions[:maxCompletionResults]
@@ -410,6 +432,11 @@ func HandleCLITerminal(mgr *EditorManager) http.HandlerFunc {
 		var contextPath []string
 		if pathStr != "" {
 			contextPath = strings.Split(pathStr, "/")
+		}
+
+		if err := ValidatePathSegments(contextPath); err != nil {
+			http.Error(w, "invalid path", http.StatusBadRequest)
+			return
 		}
 
 		cmd := parseCLICommand(command)
@@ -534,6 +561,11 @@ func HandleCLIModeToggle(mgr *EditorManager, schema *config.Schema, renderer *Re
 		var contextPath []string
 		if pathStr != "" {
 			contextPath = strings.Split(pathStr, "/")
+		}
+
+		if err := ValidatePathSegments(contextPath); err != nil {
+			http.Error(w, "invalid path", http.StatusBadRequest)
+			return
 		}
 
 		if mode == "terminal" {

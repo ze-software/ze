@@ -81,7 +81,7 @@ func HandleAdminView(renderer *Renderer, children map[string][]string) http.Hand
 	return func(w http.ResponseWriter, r *http.Request) {
 		parsed, err := ParseURL(r)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 
@@ -153,7 +153,7 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher) http.Han
 
 		parsed, err := ParseURL(r)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "bad request", http.StatusBadRequest)
 			return
 		}
 

@@ -11,7 +11,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"strings"
 	"sync"
@@ -45,11 +44,11 @@ func getUsernameFromContext(r *http.Request) string {
 	return ""
 }
 
-var logger *slog.Logger
+var logger = slogutil.Logger("web.auth")
 
-func init() {
-	logger = slogutil.Logger("web.auth")
-}
+// sessionTTL is the maximum lifetime of a web session before it must be
+// re-authenticated. Expired sessions are invalidated on next validation.
+const sessionTTL = 24 * time.Hour
 
 // WebSession represents an authenticated user session.
 type WebSession struct {
@@ -117,12 +116,23 @@ func (s *SessionStore) CreateSession(username string) (*WebSession, error) {
 }
 
 // ValidateToken returns the session associated with the given token, or nil
-// if the token is not valid.
+// if the token is not valid or has expired (older than sessionTTL).
+// Expired sessions are invalidated automatically.
 func (s *SessionStore) ValidateToken(token string) *WebSession {
 	s.mu.RLock()
-	defer s.mu.RUnlock()
+	session := s.sessions[token]
+	s.mu.RUnlock()
 
-	return s.sessions[token]
+	if session == nil {
+		return nil
+	}
+
+	if time.Since(session.CreatedAt) > sessionTTL {
+		s.InvalidateUser(session.Username)
+		return nil
+	}
+
+	return session
 }
 
 // InvalidateUser removes the session for the given username. This is a no-op
@@ -214,6 +224,7 @@ func LoginHandler(store *SessionStore, users []ssh.UserConfig, loginRenderer fun
 			Name:     "ze-session",
 			Value:    session.Token,
 			Path:     "/",
+			MaxAge:   int(sessionTTL.Seconds()),
 			Secure:   true,
 			HttpOnly: true,
 			SameSite: http.SameSiteStrictMode,
@@ -261,12 +272,12 @@ func parseBasicAuth(r *http.Request) (string, string, bool) {
 		return "", "", false
 	}
 
-	const prefix = "Basic "
-	if !strings.HasPrefix(auth, prefix) {
+	const basicLen = 6 // len("basic ")
+	if len(auth) < basicLen || !strings.EqualFold(auth[:basicLen], "basic ") {
 		return "", "", false
 	}
 
-	decoded, err := base64.StdEncoding.DecodeString(auth[len(prefix):])
+	decoded, err := base64.StdEncoding.DecodeString(auth[basicLen:])
 	if err != nil {
 		return "", "", false
 	}

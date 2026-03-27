@@ -63,7 +63,7 @@ type AnalysisNode struct {
 }
 
 // confModules lists the YANG config modules to search (same as cli/completer.go).
-var confModules = []string{"ze-bgp-conf", "ze-hub-conf", "ze-plugin-conf"}
+var confModules = []string{"ze-bgp-conf", "ze-hub-conf", "ze-plugin-conf", "ze-web-conf"}
 
 // BuildUnifiedTree loads YANG schemas and RPC registrations, then merges
 // config entries and command entries into a single analysis tree.

@@ -310,7 +310,11 @@ func LoadOrGenerateCert(store CertStore, listenAddr string) (certPEM, keyPEM []b
 	if writeErr := store.WriteCert(certPEM); writeErr != nil {
 		return nil, nil, fmt.Errorf("store certificate: %w", writeErr)
 	}
+	// Note: if WriteKey fails after WriteCert succeeds, the store may contain
+	// an orphaned certificate. The next call to LoadOrGenerateCert will attempt
+	// to load both and fail on the missing key, triggering regeneration.
 	if writeErr := store.WriteKey(keyPEM); writeErr != nil {
+		serverLogger.Warn("WriteKey failed after WriteCert succeeded; store may have orphaned certificate", "error", writeErr)
 		return nil, nil, fmt.Errorf("store private key: %w", writeErr)
 	}
 

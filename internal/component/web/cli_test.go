@@ -467,6 +467,83 @@ func TestCLIBarMethodNotAllowed(t *testing.T) {
 	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
 }
 
+// VALIDATES: AC-14 (delete command removes value and redirects).
+// PREVENTS: Delete command fails silently or does not call DeleteValue.
+func TestCLIBarDelete(t *testing.T) {
+	mgr, renderer := setupCLITest(t)
+	schema, _ := buildTestSchemaAndTree()
+
+	handler := HandleCLICommand(mgr, schema, renderer)
+
+	// First set a value so there is something to delete.
+	err := mgr.SetValue("testuser", []string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err, "precondition: set value before delete")
+
+	body := url.Values{
+		"command": {"delete router-id"},
+		"path":    {"bgp"},
+	}
+
+	w := httptest.NewRecorder()
+	r := authedRequest(http.MethodPost, "/cli", body)
+	handler.ServeHTTP(w, r)
+
+	// Non-HTMX delete redirects via htmxRedirect (303 See Other).
+	assert.Equal(t, http.StatusSeeOther, w.Code)
+	assert.Contains(t, w.Header().Get("Location"), "/config/edit/",
+		"delete must redirect to config edit path")
+}
+
+// VALIDATES: AC-9 (commit command applies changes).
+// PREVENTS: Commit command returns error for valid session with changes.
+func TestCLIBarCommit(t *testing.T) {
+	mgr, renderer := setupCLITest(t)
+	schema, _ := buildTestSchemaAndTree()
+
+	handler := HandleCLICommand(mgr, schema, renderer)
+
+	// Set a value so there are pending changes to commit.
+	err := mgr.SetValue("testuser", []string{"bgp"}, "router-id", "5.6.7.8")
+	require.NoError(t, err, "precondition: set value before commit")
+
+	body := url.Values{
+		"command": {"commit"},
+		"path":    {"bgp"},
+	}
+
+	w := httptest.NewRecorder()
+	r := authedRequest(http.MethodPost, "/cli", body)
+	handler.ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+// VALIDATES: AC-9 (discard command clears pending changes and redirects).
+// PREVENTS: Discard command fails or does not redirect.
+func TestCLIBarDiscard(t *testing.T) {
+	mgr, renderer := setupCLITest(t)
+	schema, _ := buildTestSchemaAndTree()
+
+	handler := HandleCLICommand(mgr, schema, renderer)
+
+	// Set a value so the user has a draft to discard.
+	err := mgr.SetValue("testuser", []string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err, "precondition: set value before discard")
+
+	body := url.Values{
+		"command": {"discard"},
+	}
+
+	w := httptest.NewRecorder()
+	r := authedRequest(http.MethodPost, "/cli", body)
+	handler.ServeHTTP(w, r)
+
+	// Non-HTMX discard redirects via htmxRedirect (303 See Other).
+	assert.Equal(t, http.StatusSeeOther, w.Code)
+	assert.Equal(t, "/config/edit/", w.Header().Get("Location"),
+		"discard must redirect to config edit root")
+}
+
 // VALIDATES: buildConfigEditURL constructs correct URLs.
 // PREVENTS: Malformed redirect URLs.
 func TestBuildConfigEditURL(t *testing.T) {

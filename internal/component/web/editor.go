@@ -74,6 +74,11 @@ func (m *EditorManager) GetOrCreate(username string) (*userSession, error) {
 		m.evictInactive()
 	}
 
+	// Recheck after eviction: still at capacity means no idle sessions were freed.
+	if len(m.sessions) >= m.maxSessions {
+		return nil, fmt.Errorf("maximum concurrent editor sessions reached (%d)", m.maxSessions)
+	}
+
 	ed, err := cli.NewEditorWithStorage(m.store, m.configPath)
 	if err != nil {
 		return nil, fmt.Errorf("editor create for %s: %w", username, err)
@@ -151,7 +156,9 @@ func (m *EditorManager) Discard(username string) error {
 	}
 
 	m.mu.Lock()
-	delete(m.sessions, username)
+	if current, ok := m.sessions[username]; ok && current == us {
+		delete(m.sessions, username)
+	}
 	m.mu.Unlock()
 
 	return nil
@@ -236,6 +243,9 @@ func (m *EditorManager) evictInactive() {
 	cutoff := time.Now().Add(-m.idleTimeout)
 	for name, us := range m.sessions {
 		if us.lastActivity.Before(cutoff) {
+			us.mu.Lock()
+			_ = us.editor.Discard()
+			us.mu.Unlock()
 			delete(m.sessions, name)
 		}
 	}

@@ -640,3 +640,64 @@ func TestBoolCheckboxConversion(t *testing.T) {
 	// but isBoolLeaf still matched (using testSchema). The conversion
 	// logic was exercised.
 }
+
+// TestHandleConfigCommitGET verifies that GET /config/commit/ renders a page
+// with the diff of pending changes for the authenticated user.
+//
+// VALIDATES: AC-7 (commit page shows diff of pending changes).
+// PREVENTS: Commit page returning error or empty when user has changes.
+func TestHandleConfigCommitGET(t *testing.T) {
+	mgr, _ := newHandlerTestManager(t)
+	renderer, err := NewRenderer()
+	require.NoError(t, err, "NewRenderer must succeed")
+
+	// Set a value so the user has pending changes to diff.
+	err = mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err, "precondition: set value for pending diff")
+
+	handler := HandleConfigCommit(mgr, renderer, nil)
+
+	req := httptest.NewRequest(http.MethodGet, "/config/commit/", http.NoBody)
+	ctx := context.WithValue(req.Context(), ctxKeyUsername, "alice")
+	req = req.WithContext(ctx)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code,
+		"GET /config/commit/ must return 200")
+	assert.Contains(t, rec.Header().Get("Content-Type"), "text/html",
+		"response must be HTML")
+	// The response should include the layout. With pending changes, the diff
+	// content should be rendered inside the page.
+	assert.NotEmpty(t, rec.Body.String(),
+		"response body must not be empty")
+}
+
+// TestHandleConfigCommitPOST verifies that POST /config/commit/ applies the
+// user's pending changes and redirects to /config/edit/.
+//
+// VALIDATES: AC-8 (commit applies changes, redirects to config root).
+// PREVENTS: Commit not calling mgr.Commit, wrong redirect after commit.
+func TestHandleConfigCommitPOST(t *testing.T) {
+	mgr, _ := newHandlerTestManager(t)
+	renderer, err := NewRenderer()
+	require.NoError(t, err, "NewRenderer must succeed")
+
+	// Set a value so there are pending changes to commit.
+	err = mgr.SetValue("alice", []string{"bgp"}, "router-id", "9.9.9.9")
+	require.NoError(t, err, "precondition: set value before commit")
+
+	handler := HandleConfigCommit(mgr, renderer, nil)
+
+	req := postConfigRequest(t, "/config/commit/", url.Values{}, "alice")
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	// Expect a redirect (303 See Other) to /config/edit/.
+	assert.Equal(t, http.StatusSeeOther, rec.Code,
+		"successful commit must redirect with 303")
+	assert.Equal(t, "/config/edit/", rec.Header().Get("Location"),
+		"commit must redirect to /config/edit/")
+}

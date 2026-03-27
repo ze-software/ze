@@ -200,17 +200,6 @@ func writeSSEEvent(w http.ResponseWriter, ev sseEvent) error {
 	return err
 }
 
-// notificationBannerTmpl is the pre-compiled template for config change
-// notification banners delivered via SSE. It uses html/template for
-// automatic escaping of the reason text.
-var notificationBannerTmpl *template.Template
-
-func init() {
-	notificationBannerTmpl = template.Must(template.New("notification_banner").Parse(
-		notificationBannerSource,
-	))
-}
-
 // notificationBannerSource is the template for rendering config change
 // notification banners. Rendered server-side for SSE delivery via
 // html/template which auto-escapes the reason text.
@@ -221,6 +210,13 @@ const notificationBannerSource = `<div id="notification-bar" hx-swap-oob="innerH
 	`<button class="btn btn-sm btn-dismiss" onclick="this.closest('.notification-banner').remove()">Dismiss</button>` +
 	`</div>` +
 	`</div>`
+
+// notificationBannerTmpl is the pre-compiled template for config change
+// notification banners delivered via SSE. It uses html/template for
+// automatic escaping of the reason text.
+var notificationBannerTmpl = template.Must(template.New("notification_banner").Parse(
+	notificationBannerSource,
+))
 
 // notificationBannerData holds the template data for rendering the notification banner.
 type notificationBannerData struct {
