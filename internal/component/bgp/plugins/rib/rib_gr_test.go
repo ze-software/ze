@@ -120,6 +120,78 @@ func TestRIBMarkStaleCommandMissingArgs(t *testing.T) {
 	assert.Error(t, err, "should error with no restart time")
 }
 
+// TestRIBMarkStaleCommandExplicitLevel verifies mark-stale with an explicit stale level.
+//
+// VALIDATES: mark-stale [level] parameter sets StaleLevel on routes.
+// PREVENTS: Optional level argument being silently ignored.
+func TestRIBMarkStaleCommandExplicitLevel(t *testing.T) {
+	t.Parallel()
+	r := setupGRTestRIB(t)
+
+	// Mark with explicit level=2 (LLGR-stale / depreference threshold).
+	status, data, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120", "2"})
+	require.NoError(t, err)
+	assert.Equal(t, statusDone, status)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(data), &result))
+	assert.Equal(t, float64(2), result["marked"])
+
+	// Verify routes have StaleLevel=2, not the default 1.
+	ipv4Family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	entry, ok := r.ribInPool["192.0.2.1"].Lookup(ipv4Family, []byte{24, 10, 0, 0})
+	require.True(t, ok)
+	assert.Equal(t, uint8(2), entry.StaleLevel, "route should have StaleLevel=2")
+}
+
+// TestRIBMarkStaleCommandRejectsLevelZero verifies mark-stale rejects level=0.
+//
+// VALIDATES: Level 0 means fresh; mark-stale with level=0 is rejected.
+// PREVENTS: Accidental unstaling via mark-stale command.
+func TestRIBMarkStaleCommandRejectsLevelZero(t *testing.T) {
+	t.Parallel()
+	r := setupGRTestRIB(t)
+
+	status, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120", "0"})
+	assert.Error(t, err, "level=0 should be rejected")
+	assert.Equal(t, statusError, status)
+	assert.Contains(t, err.Error(), "stale level must be > 0")
+}
+
+// TestRIBMarkStaleCommandInvalidRestartTime verifies mark-stale rejects non-numeric restart-time.
+//
+// VALIDATES: Invalid restart-time string produces a clear error.
+// PREVENTS: Panic or silent default on malformed input.
+func TestRIBMarkStaleCommandInvalidRestartTime(t *testing.T) {
+	t.Parallel()
+	r := setupGRTestRIB(t)
+
+	status, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "abc"})
+	assert.Error(t, err, "non-numeric restart-time should be rejected")
+	assert.Equal(t, statusError, status)
+	assert.Contains(t, err.Error(), "invalid restart-time")
+}
+
+// TestRIBMarkStaleCommandInvalidLevel verifies mark-stale rejects non-numeric stale level.
+//
+// VALIDATES: Invalid stale level string produces a clear error.
+// PREVENTS: Panic or silent default on malformed level input.
+func TestRIBMarkStaleCommandInvalidLevel(t *testing.T) {
+	t.Parallel()
+	r := setupGRTestRIB(t)
+
+	// Non-numeric level.
+	status, _, err := r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120", "abc"})
+	assert.Error(t, err, "non-numeric level should be rejected")
+	assert.Equal(t, statusError, status)
+	assert.Contains(t, err.Error(), "invalid stale level")
+
+	// Level exceeding uint8 range.
+	status, _, err = r.handleCommand("rib mark-stale", "*", []string{"192.0.2.1", "120", "256"})
+	assert.Error(t, err, "level > 255 should be rejected")
+	assert.Equal(t, statusError, status)
+}
+
 // TestRIBPurgeStaleCommand verifies that "rib purge-stale" deletes only stale routes.
 //
 // VALIDATES: AC-2 — purge-stale deletes stale routes, keeps fresh ones.
@@ -380,10 +452,16 @@ func TestRIBShowInStaleFlag(t *testing.T) {
 		if stale, has := rtMap["stale"]; has {
 			if s, ok := stale.(bool); ok && s {
 				staleCount++
+				// Verify stale-level is also present with numeric value.
+				lvl, hasLevel := rtMap["stale-level"]
+				assert.True(t, hasLevel, "stale routes should have stale-level field")
+				assert.Equal(t, float64(1), lvl, "default stale level should be 1")
 				continue
 			}
 		}
 		freshCount++
+		_, hasLevel := rtMap["stale-level"]
+		assert.False(t, hasLevel, "fresh routes should not have stale-level field")
 	}
 	assert.Equal(t, 2, staleCount, "should have 2 stale routes")
 	assert.Equal(t, 1, freshCount, "should have 1 fresh route")
@@ -706,6 +784,9 @@ func TestContainsCommunity(t *testing.T) {
 }
 
 // TestAttachCommunity_MissingArgs verifies error on bad input.
+//
+// VALIDATES: attach-community rejects missing arguments.
+// PREVENTS: Panic or unclear error on malformed input.
 func TestAttachCommunity_MissingArgs(t *testing.T) {
 	t.Parallel()
 	r := newTestRIBManager(t)
@@ -716,6 +797,9 @@ func TestAttachCommunity_MissingArgs(t *testing.T) {
 }
 
 // TestDeleteWithCommunity_MissingArgs verifies error on bad input.
+//
+// VALIDATES: delete-with-community rejects missing arguments.
+// PREVENTS: Panic or unclear error on malformed input.
 func TestDeleteWithCommunity_MissingArgs(t *testing.T) {
 	t.Parallel()
 	r := newTestRIBManager(t)
