@@ -1,6 +1,6 @@
 # Managed Configuration
 
-**Status:** Design (not yet implemented)
+**Status:** Implemented (foundation -- background hub connection active, first-boot bootstrap, all 17 ACs)
 
 **Purpose:** Document the architecture for centralized configuration where ze instances fetch their config from a hub over TLS, with local ZeFS backup for partition resilience.
 

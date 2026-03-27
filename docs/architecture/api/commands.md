@@ -823,4 +823,24 @@ var Commands = []CommandInfo{
 
 ---
 
-**Last Updated:** 2026-03-10
+## Managed Config RPCs
+
+RPCs for hub-client managed configuration. These operate over MuxConn after auth,
+separate from the plugin 5-stage protocol.
+
+| Verb | Direction | Payload | Response |
+|------|-----------|---------|----------|
+| `config-fetch` | Client to hub | `{"version":"<hash-or-empty>"}` | `{"version":"<hash>","config":"<base64>"}` or `{"status":"current"}` |
+| `config-changed` | Hub to client | `{"version":"<hash>"}` | `{}` |
+| `config-ack` | Client to hub | `{"version":"<hash>","ok":true}` or `{"version":"<hash>","ok":false,"error":"..."}` | `{}` |
+| `ping` | Either direction | `{}` | `{}` |
+
+Version hash is truncated SHA-256 (16 hex characters) of config bytes.
+
+<!-- source: pkg/fleet/envelope.go -- RPC payload types -->
+<!-- source: internal/component/plugin/server/managed.go -- hub-side handlers -->
+<!-- source: internal/component/managed/client.go -- client-side handlers -->
+
+---
+
+**Last Updated:** 2026-03-27

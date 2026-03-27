@@ -279,6 +279,41 @@ environment {
 
 <!-- source: internal/component/config/environment.go -- environment block parsing; internal/core/slogutil/slogutil.go -- log level config -->
 
+## Hub Configuration
+
+The plugin hub provides TLS transport for plugin communication and fleet management.
+Named `server` blocks declare listeners; hub-level `client` blocks declare outbound
+connections to a remote hub (managed mode).
+
+```
+plugin {
+    hub {
+        server local {
+            host 127.0.0.1;
+            port 1790;
+            secret "local-secret-minimum-32-characters";
+        }
+        server central {
+            host 0.0.0.0;
+            port 1791;
+            secret "central-secret-min-32-characters!";
+            client edge-01 { secret "per-client-token-min-32-chars!!!"; }
+        }
+        client edge-01 {
+            host 10.0.0.1;
+            port 1791;
+            secret "per-client-token-min-32-chars!!!";
+        }
+    }
+}
+```
+
+Every ze instance has at least one `server` block (for local plugins and SSH).
+Secrets must be at least 32 characters. See [Fleet Configuration](fleet-config.md) for details.
+
+<!-- source: internal/component/plugin/schema/ze-plugin-conf.yang -- hub YANG schema -->
+<!-- source: internal/component/bgp/config/plugins.go -- ExtractHubConfig -->
+
 ## Validation
 
 Validate a configuration file without starting ze:

@@ -28,6 +28,9 @@ ze start                         # Start daemon from database
 | `-V`, `--version` | Show version |
 | `--chaos-seed <N>` | Enable chaos self-test mode |
 | `--chaos-rate <0-1>` | Fault probability per operation |
+| `--server <host:port>` | Override hub address for managed mode |
+| `--name <name>` | Override client name for managed mode |
+| `--token <token>` | Override auth token for managed mode |
 <!-- source: cmd/ze/main.go -- global flag parsing -->
 
 ### ze config validate

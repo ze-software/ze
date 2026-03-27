@@ -3,7 +3,7 @@
 Ze supports centralized configuration management for multi-node deployments. A central hub serves configuration to remote ze instances over TLS.
 <!-- source: cmd/ze/hub/main.go -- hub orchestrator; internal/component/hub/ -- hub implementation -->
 
-> **Status:** This feature is partially implemented. The hub architecture and blob storage are functional. Client-side config fetching is in design.
+> **Status:** Implemented. Named hub blocks, per-client auth, managed client lifecycle (fetch, reconnect, heartbeat), and `ze start` managed mode are functional.
 
 ## Architecture
 
