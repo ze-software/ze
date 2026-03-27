@@ -1,0 +1,22 @@
+module ze-web-conf {
+    namespace "urn:ze:web:conf";
+    prefix web;
+
+    import ze-types { prefix zt; }
+
+    description "Web interface configuration for Ze";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    container web {
+        description "Web interface settings";
+
+        leaf listen {
+            type string;
+            default "0.0.0.0:8443";
+            description "Listen address and port for HTTPS server";
+        }
+    }
+}

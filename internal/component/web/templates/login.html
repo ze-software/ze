@@ -1,0 +1,41 @@
+{{if .Overlay}}
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card">
+    <button class="login-close" onclick="document.getElementById('login-overlay').remove()">&times;</button>
+    <h2>Login</h2>
+    {{if .Error}}<div class="login-error">{{.Error}}</div>{{end}}
+    <form method="POST" action="/login">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" required autofocus>
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required>
+      <button type="submit" class="login-submit">Sign in</button>
+    </form>
+  </div>
+</div>
+{{else}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login</title>
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+<div class="login-page">
+  <div class="login-card">
+    <h2>Login</h2>
+    {{if .Error}}<div class="login-error">{{.Error}}</div>{{end}}
+    <form method="POST" action="/login">
+      <label for="username">Username</label>
+      <input type="text" id="username" name="username" required autofocus>
+      <label for="password">Password</label>
+      <input type="password" id="password" name="password" required>
+      <button type="submit" class="login-submit">Sign in</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>
+{{end}}

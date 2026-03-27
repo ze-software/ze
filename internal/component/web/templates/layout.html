@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}}</title>
+<link rel="stylesheet" href="/assets/style.css">
+<script src="/assets/htmx.min.js"></script>
+<script src="/assets/sse.js"></script>
+</head>
+<body>
+<div class="layout">
+
+<nav class="breadcrumb-bar">
+  <div class="breadcrumb-nav">
+    {{if gt (len .Breadcrumb) 1}}
+    <a class="breadcrumb-back" href="{{(index .Breadcrumb (sub (len .Breadcrumb) 2)).URL}}">&larr;</a>
+    {{end}}
+    <ol class="breadcrumb-list">
+      {{range .Breadcrumb}}
+      <li class="breadcrumb-item{{if .Active}} breadcrumb-active{{end}}">
+        {{if .Active}}<span>{{.Name}}</span>{{else}}<a href="{{.URL}}">{{.Name}}</a>{{end}}
+      </li>
+      {{end}}
+    </ol>
+  </div>
+  {{if .HasSession}}
+  <div class="session-indicator" title="Authenticated">&#x2713;</div>
+  {{end}}
+</nav>
+
+<main class="content-area">
+  {{.Content}}
+</main>
+
+<aside class="notification-bar" id="notification-bar">
+  {{.NotificationHTML}}
+</aside>
+
+<footer class="cli-bar">
+  <span class="cli-prompt">{{.CLIPrompt}}</span>
+  <input type="text" class="cli-input" id="cli-input" placeholder="type a command..."
+         autocomplete="off" spellcheck="false">
+</footer>
+
+</div>
+</body>
+</html>

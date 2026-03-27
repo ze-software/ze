@@ -33,6 +33,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/show"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
+	zeweb "codeberg.org/thomas-mangin/ze/cmd/ze/web"
 	zeyang "codeberg.org/thomas-mangin/ze/cmd/ze/yang"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -213,6 +214,8 @@ dispatch:
 		os.Exit(zeplugin.Run(args[1:]))
 	case "cli":
 		os.Exit(cli.Run(args[1:]))
+	case "web":
+		os.Exit(zeweb.Run(args[1:]))
 	case "config":
 		store := resolveStorage()
 		code := zeconfig.RunWithStorage(store, args[1:])
@@ -286,7 +289,7 @@ dispatch:
 	// Unknown command
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
 	commands := []string{
-		"bgp", "plugin", "cli", "config", "data", "init", "start", "schema", "yang",
+		"bgp", "plugin", "cli", "web", "config", "data", "init", "start", "schema", "yang",
 		"exabgp", "signal", "status", "show", "run", "completion", "version", "help",
 	}
 	if suggestion := suggest.Command(arg, commands); suggestion != "" {
@@ -644,6 +647,7 @@ Commands:
   schema       Schema discovery
   yang         YANG tree analysis and command docs
   cli          Interactive CLI for running daemons
+  web          Web interface
   show         Show daemon state (read-only commands)
   run          Execute daemon command (all commands)
   status       Check if daemon is running

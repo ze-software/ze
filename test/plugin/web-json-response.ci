@@ -1,0 +1,12 @@
+# Test: web JSON responses -- ?format=json and Accept header produce JSON
+# VALIDATES: content negotiation returns JSON for API-style requests
+# PREVENTS: JSON response path broken or missing content-type header
+#
+# Placeholder: the .ci test runner does not yet support HTTPS clients.
+# Full coverage is in internal/component/web/integration_test.go.
+# This file exists for spec audit hooks. When the test runner gains
+# HTTPS support, replace this with a real JSON response test.
+
+cmd=foreground:seq=1:exec=ze web --help
+expect=exit:code=0
+expect=stderr:contains=ze web

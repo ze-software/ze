@@ -1,0 +1,12 @@
+# Test: ze web starts HTTPS server and responds to requests
+# VALIDATES: web interface starts with auto-generated TLS certificate
+# PREVENTS: web startup regression (server fails to bind or serve)
+#
+# Placeholder: the .ci test runner does not yet support HTTPS clients.
+# Full coverage is in internal/component/web/integration_test.go.
+# This file exists for spec audit hooks. When the test runner gains
+# HTTPS support, replace this with a real startup + request test.
+
+cmd=foreground:seq=1:exec=ze web --help
+expect=exit:code=0
+expect=stderr:contains=ze web

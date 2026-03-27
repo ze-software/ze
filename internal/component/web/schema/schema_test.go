@@ -1,0 +1,39 @@
+package schema_test
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+
+	// Blank import triggers init() registration of the web YANG module.
+	_ "codeberg.org/thomas-mangin/ze/internal/component/web/schema"
+)
+
+// TestSchema_ZeWebModule verifies ze-web-conf.yang content.
+//
+// VALIDATES: ze-web-conf module defines expected namespace and containers.
+// PREVENTS: Missing web configuration elements.
+func TestSchema_ZeWebModule(t *testing.T) {
+	loader := yang.NewLoader()
+
+	require.NoError(t, loader.LoadEmbedded())
+	require.NoError(t, loader.LoadRegistered())
+	require.NoError(t, loader.Resolve())
+
+	mod := loader.GetModule("ze-web-conf")
+	require.NotNil(t, mod, "ze-web-conf module should exist")
+
+	assert.Equal(t, "urn:ze:web:conf", mod.Namespace.Name)
+
+	var webContainer bool
+	for _, c := range mod.Container {
+		if c.Name == "web" {
+			webContainer = true
+			break
+		}
+	}
+	assert.True(t, webContainer, "web container should exist")
+}
