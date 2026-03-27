@@ -24,6 +24,34 @@ See [JSON_FORMAT.md](JSON_FORMAT.md#exabgp-differences) for output format differ
 
 ---
 
+## Command Verb Taxonomy
+
+Commands follow a **verb-first** convention: `<action> <module> [args...]`.
+The action verb determines the command's behavior; the module implements it.
+
+| Verb | Purpose | Examples |
+|------|---------|---------|
+| `show` | Read-only display (returns data, exits) | `show bgp peer X`, `show bgp warnings` |
+| `set` | Create or modify | `set bgp peer X ...` |
+| `del` | Remove | `del bgp peer X` |
+| `update` | Route operations (announce, withdraw, refresh) | `update bgp peer * prefix ...` |
+| `monitor` | Long-running auto-refreshing display | `monitor bgp` (TUI dashboard) |
+
+<!-- source: internal/component/cmd/show/doc.go -- show verb -->
+<!-- source: internal/component/cmd/set/doc.go -- set verb -->
+<!-- source: internal/component/cmd/del/doc.go -- del verb -->
+<!-- source: internal/component/cmd/update/doc.go -- update verb -->
+
+**Internal dispatch:** `<action> <module>` is dispatched as the module implementing the action.
+For example, `monitor bgp` is handled by the BGP module's monitor implementation.
+Legacy noun-first RPCs (`peer list`, `bgp summary`) remain for internal dispatch but
+user-facing commands use verb-first syntax.
+
+**Streaming vs polling:** `monitor` commands keep the display active and auto-refresh.
+`event monitor` streams live events line-by-line. `monitor bgp` polls summary data
+every 2 seconds and renders a dashboard. Both use the `monitor` verb because they
+produce continuously-updating output.
+
 ## Command Categories
 
 | Category | Commands |
@@ -38,7 +66,7 @@ See [JSON_FORMAT.md](JSON_FORMAT.md#exabgp-differences) for output format differ
 | Log | levels, set (runtime log levels) |
 | Metrics | values, list (Prometheus metrics) |
 | Group | start, end (batching) |
-| Monitor | event monitor (live event streaming) |
+| Monitor | monitor bgp (TUI dashboard), event monitor (live event streaming) |
 | Subscribe | subscribe, unsubscribe (event filtering) |
 <!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
 
@@ -157,7 +185,8 @@ Event types span all namespaces: BGP (update, open, notification, keepalive, ref
 Wire method: `ze-event:monitor`. Supports pipe operators: `| json`, `| table`, `| match`.
 <!-- source: internal/component/plugin/server/monitor.go -- MonitorManager -->
 
-**Note:** `bgp monitor` has been renamed to `event monitor`. Running `bgp monitor` returns an error directing users to use `event monitor` instead.
+**Note:** `monitor bgp` is the live peer dashboard in the interactive TUI (verb-first: `<action> <module>`). Event streaming uses `event monitor`.
+<!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
 
 ### System Commands
 
@@ -609,6 +638,26 @@ withdraw ipv4/flow \
 
 ---
 
+## Filter Callbacks (planned)
+
+The engine sends `filter-update` callbacks to external plugin filters during
+UPDATE processing. This is a callback RPC (engine to plugin), not a user command.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `filter` | string | Filter name (declared at stage 1, dispatches to the right handler) |
+| `direction` | string | `import` or `export` |
+| `peer` | string | Peer IP address |
+| `peer-as` | uint32 | Peer ASN |
+| `update` | string | Text-format attributes and NLRI (only declared attributes) |
+
+Response: `{"action":"accept"}`, `{"action":"reject"}`, or
+`{"action":"modify","update":"<delta>"}` with only changed fields.
+
+<!-- source: plan/spec-redistribution-filter.md -- filter-update RPC design -->
+
+---
+
 ## Response Format
 
 ### Success (with serial prefix)
@@ -688,7 +737,7 @@ bgp
 ├── metrics
 │   ├── values            # Show Prometheus metrics (text format)
 │   └── list              # List metric names
-├── monitor               # Redirects to "event monitor" (renamed)
+├── monitor               # (legacy position -- see "monitor bgp" under verb-first commands)
 └── plugin
     ├── encoding
     ├── format

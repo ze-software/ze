@@ -220,6 +220,24 @@ External processes receive BGP events and send commands:
 | bgp-rs | Route server -- client-to-client route reflection (RFC 7947) |
 | bgp-watchdog | Deferred route announcement with named watchdog groups |
 
+### Redistribution Filters (planned)
+
+External plugins can act as route filters on import and export. Filters are
+configured per peer/group/globally via `redistribution { import [...] export [...] }`
+using `<plugin>:<filter>` references. Multiple filters chain as piped transforms
+(each sees previous filter's output). Filters respond accept/reject/modify with
+delta-only attribute changes and dirty tracking for efficient re-encoding.
+
+Three filter categories:
+
+| Category | Behavior | Example |
+|----------|----------|---------|
+| Mandatory | Always on, cannot be overridden | `rfc:otc` (RFC 9234) |
+| Default | On by default, can be overridden per-peer | `rfc:no-self-as` (loop prevention) |
+| User | Only present when explicitly configured | `rpki:validate`, `community:scrub` |
+
+<!-- source: plan/spec-redistribution-filter.md -- redistribution filter design -->
+
 <!-- source: internal/component/bgp/plugins/rib/register.go -- bgp-rib -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/register.go -- bgp-adj-rib-in -->
 <!-- source: internal/component/bgp/plugins/persist/register.go -- bgp-persist -->
@@ -312,6 +330,9 @@ External processes receive BGP events and send commands:
 | `ze cli` | Interactive CLI (with `--run <cmd>` for single command) |
 | `ze show <command>` | Read-only daemon commands |
 | `ze run <command>` | All daemon commands |
+
+**Live peer dashboard:** `monitor bgp` in the interactive CLI enters a live dashboard showing router identity, a sortable color-coded peer table with update rates, and drill-down detail view. Auto-refreshes every 2 seconds. Navigate with j/k, sort with s/S, Enter for detail, Esc to exit.
+<!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
 
 **Commit confirmed:** The editor supports `commit confirmed <seconds>` for safe remote changes. The config is applied immediately but auto-reverts if `confirm` is not issued within the timeout window (1-3600 seconds). Use `abort` to revert manually. Modeled after Junos/VyOS commit confirmed.
 <!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed -->

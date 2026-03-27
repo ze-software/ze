@@ -70,6 +70,9 @@ func (s *Server) createSessionModel(username string) cli.Model {
 				if monitorFn != nil {
 					m.SetMonitorFactory(monitorFn)
 				}
+				if executor != nil {
+					m.SetDashboardFactory(dashboardFactoryFromExecutor(executor))
+				}
 				if shutdownFn != nil {
 					m.SetShutdownFunc(shutdownFn)
 				}
@@ -91,6 +94,9 @@ func (s *Server) createSessionModel(username string) cli.Model {
 	if monitorFn != nil {
 		m.SetMonitorFactory(monitorFn)
 	}
+	if executor != nil {
+		m.SetDashboardFactory(dashboardFactoryFromExecutor(executor))
+	}
 	if shutdownFn != nil {
 		m.SetShutdownFunc(shutdownFn)
 	}
@@ -99,4 +105,14 @@ func (s *Server) createSessionModel(username string) cli.Model {
 	}
 	m.SetLoginWarnings(warnings)
 	return m
+}
+
+// dashboardFactoryFromExecutor creates a DashboardFactory from a CommandExecutor.
+// The factory returns a poller that calls "bgp summary" via the command executor.
+func dashboardFactoryFromExecutor(cmdExec CommandExecutor) cli.DashboardFactory {
+	return func() (func() (string, error), error) {
+		return func() (string, error) {
+			return cmdExec("bgp summary")
+		}, nil
+	}
 }

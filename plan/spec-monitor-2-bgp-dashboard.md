@@ -2,28 +2,29 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
-| Depends | spec-monitor-1-event-stream (naming only -- can be implemented independently with temporary name) |
-| Phase | - |
-| Updated | 2026-03-20 |
+| Status | in-progress |
+| Depends | - |
+| Phase | 7/7 |
+| Updated | 2026-03-27 |
 
-**Spec set:** `spec-monitor-1-event-stream.md` (sibling), `spec-monitor-2-bgp-dashboard.md` (this).
+**Spec set:** `plan/learned/396-bgp-monitor.md` (completed sibling), `spec-monitor-2-bgp-dashboard.md` (this).
 
 ## Post-Compaction Recovery
 
 **Re-read these after context compaction:**
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
-3. `docs/architecture/api/commands.md` - command architecture
-4. `internal/component/bgp/plugins/cmd/peer/summary.go` - existing summary RPC
-5. `internal/component/cli/model_monitor.go` - streaming mode pattern
-6. `internal/component/cli/model_render.go` - viewport rendering
+3. `internal/component/bgp/plugins/cmd/peer/summary.go` - summary RPC response format
+4. `internal/component/bgp/plugins/cmd/peer/peer.go:118-177` - peer-detail RPC response format
+5. `internal/component/cli/model_monitor.go` - streaming mode pattern (factory + session + poll)
+6. `internal/component/cli/model.go` - Model struct fields, Update() dispatch, message types
+7. `internal/component/bgp/plugins/cmd/monitor/monitor.go:46-56` - `bgp monitor` redirect to replace
 
 ## Task
 
 Implement `bgp monitor` as a live peer status dashboard in the TUI. The dashboard auto-refreshes every 2 seconds, showing a header bar with router identity and a sortable, color-coded peer table with update rates. Users navigate with keyboard shortcuts and can drill into peer details. Esc exits back to the CLI.
 
-**Data transport tradeoff:** the dashboard polls via `commandExecutor("bgp summary")` which creates an SSH exec channel per poll (every 2s). This is pragmatic (no new RPCs, reuses existing infrastructure) but adds per-poll latency vs a persistent streaming connection. Acceptable for a 2s refresh cycle. If latency becomes a problem, a streaming variant can be added later using the streaming handler registry from spec-monitor-1.
+**Data transport tradeoff:** the dashboard polls via `commandExecutor("bgp summary")` which creates an SSH exec channel per poll (every 2s). This is pragmatic (no new RPCs, reuses existing infrastructure) but adds per-poll latency vs a persistent streaming connection. Acceptable for a 2s refresh cycle. If latency becomes a problem, a streaming variant can be added later using the streaming handler registry (implemented in `plan/learned/396-bgp-monitor.md`).
 
 ## Required Reading
 
@@ -35,16 +36,18 @@ Implement `bgp monitor` as a live peer status dashboard in the TUI. The dashboar
   → Constraint: RPCs return `plugin.Response` with `Data` as `map[string]any`
 
 ### Learned Summaries
-- [ ] `plan/learned/396-bgp-monitor.md` - original monitor implementation
+- [ ] `plan/learned/396-bgp-monitor.md` - original monitor implementation (spec-monitor-1 completed)
   → Decision: TUI streaming uses MonitorSession pattern (factory + channel + poll tick)
+  → Decision: `bgp monitor` was renamed to `event monitor`; `bgp monitor` is a redirect placeholder
   → Constraint: Bubble Tea message-driven event loop
 
 **Key insights:**
 - `ze-bgp:summary` RPC already returns all needed data: router-id, local-as, uptime, peers-configured, peers-established, per-peer address/remote-as/state/uptime/updates-received/updates-sent/keepalives-received/keepalives-sent/eor-received/eor-sent
-- `ze-bgp:peer-detail` RPC returns extended info for single peer (local-as, router-id, hold-time, connection mode, local-ip, name, group)
+- `ze-bgp:peer-detail` RPC returns extended info keyed by peer IP: remote-as, local-as, router-id, timer (sub-object with receive-hold-time/send-hold-time/connect-retry as int seconds), connect (bool), accept (bool), state, uptime, counters, optional name/group/local-ip/prefix-updated/prefix-stale
 - Rate computation must be client-side (diff counters between polls)
-- CLI already has table formatting in `pipe_table.go` (box-drawing tables)
 - Monitor session pattern (factory + channel + poll tick) can be adapted for dashboard
+- `bgp monitor` is currently a streaming handler redirect (prints error, tells user to use `event monitor`). Must be replaced with dashboard entry, not layered on top
+- `model.go` is 1334 lines -- minimize additions there, put all dashboard logic in new files
 
 ## Current Behavior (MANDATORY)
 
@@ -63,7 +66,7 @@ Implement `bgp monitor` as a live peer status dashboard in the TUI. The dashboar
 - Monitor session cleanup pattern (context cancel + deferred cleanup)
 
 **Behavior to change:**
-- `bgp monitor` command now enters dashboard mode (not event stream -- event stream moved to `event monitor` by spec-monitor-1)
+- `bgp monitor` currently redirects to `event monitor` with an error message (see `monitor.go:46-56`). Replace this redirect with dashboard mode entry
 - New TUI view: custom-rendered dashboard bypasses the single-string viewport for a fixed-layout screen
 
 **Rendering approach:** Bubble Tea's `viewport.Model` renders a single scrollable string. The dashboard needs fixed header (2 lines), scrollable peer table, and fixed footer (1 line). The View() method must render the full screen directly using lipgloss (not through the viewport widget). The header and footer are rendered at fixed positions. The peer table occupies the middle, with manual scroll offset tracking when peers exceed available rows. This is the same pattern used by help overlays -- direct screen composition, not viewport delegation
@@ -72,7 +75,7 @@ Implement `bgp monitor` as a live peer status dashboard in the TUI. The dashboar
 
 ### Entry Point
 - User types `bgp monitor` in CLI (command mode or edit mode via `run bgp monitor`)
-- CLI detects `bgp monitor` prefix, enters dashboard mode
+- Currently `bgp monitor` is caught by `isMonitorCommand()` at `model.go:803` and `:885` (registered as streaming handler in `monitor.go:47`). The streaming handler prints a redirect error. Dashboard entry requires: (1) remove the `bgp monitor` streaming handler registration from `monitor.go`, (2) add dashboard detection in `model.go` before the `isMonitorCommand` check (or as a separate dashboard-specific check)
 
 ### Transformation Path
 1. CLI creates DashboardSession via DashboardFactory
@@ -95,7 +98,7 @@ Implement `bgp monitor` as a live peer status dashboard in the TUI. The dashboar
 - `commandExecutor` - existing SSH exec function for RPC calls
 - `setViewportText` - existing viewport content setter
 - ModeCommand - dashboard entered from command mode
-- `pipe_table.go` - potential table formatting reuse (or custom rendering for color)
+- lipgloss - direct screen composition for color-coded rendering (no existing table formatter to reuse)
 
 ### Architectural Verification
 - [ ] No bypassed layers (uses existing command executor for data)
@@ -165,25 +168,29 @@ Selected row highlighted (e.g., cyan background + bold).
 
 Shows extended peer info from `ze-bgp:peer-detail` RPC. The detail view auto-refreshes on the same 2s poll interval (calls `peer <ip> detail` via commandExecutor). This keeps counters live while viewing.
 
-| Field | Source |
-|-------|--------|
-| Neighbor | `address` |
-| Remote ASN | `remote-as` |
-| Local ASN | `local-as` |
-| State | `state` (color-coded) |
-| Uptime | `uptime` |
-| Router ID | `router-id` |
-| Hold Time | `hold-time` |
-| Connection | `connection` (both/passive/active) |
-| Updates Rx | `updates-received` |
-| Updates Tx | `updates-sent` |
-| Keepalives Rx | `keepalives-received` |
-| Keepalives Tx | `keepalives-sent` |
-| EOR Rx | `eor-received` |
-| EOR Tx | `eor-sent` |
-| Update Rate | computed (updates/sec) |
-| Name | `name` (if set) |
-| Group | `group` (if set) |
+| Field | Source | Notes |
+|-------|--------|-------|
+| Neighbor | `address` (map key) | |
+| Remote ASN | `remote-as` | |
+| Local ASN | `local-as` | |
+| State | `state` | Color-coded |
+| Uptime | `uptime` | Duration string |
+| Router ID | `router-id` | Dotted-quad IP |
+| Recv Hold Time | `timer.receive-hold-time` | Seconds (int) |
+| Send Hold Time | `timer.send-hold-time` | Seconds (int) |
+| Connect Retry | `timer.connect-retry` | Seconds (int) |
+| Connect | `connect` | Bool: initiates outbound |
+| Accept | `accept` | Bool: accepts inbound |
+| Local IP | `local-ip` | Optional, only if valid |
+| Updates Rx | `updates-received` | |
+| Updates Tx | `updates-sent` | |
+| Keepalives Rx | `keepalives-received` | |
+| Keepalives Tx | `keepalives-sent` | |
+| EOR Rx | `eor-received` | |
+| EOR Tx | `eor-sent` | |
+| Update Rate | computed | Client-side updates/sec |
+| Name | `name` | Optional |
+| Group | `group` | Optional |
 
 Esc or Backspace returns to peer table. If the peer disappears while in detail view, auto-return to peer table with status message "peer disconnected".
 
@@ -248,7 +255,7 @@ Peer addresses are never truncated. ASN is never truncated. State may be abbrevi
 | Data refresh interval | 2 seconds |
 | Key input poll | 50ms (Bubble Tea default) |
 | Poll command | `bgp summary` via commandExecutor |
-| Detail poll command | `peer <ip> detail` via commandExecutor (also on 2s interval) |
+| Detail poll command | `peer <ip> detail` via commandExecutor (also on 2s interval). Response is `{"peers":{"<ip>":{...}}}` keyed by peer address |
 | Poll failure (command error) | Show error in status line, keep last good data, retry on next interval |
 | Poll failure (SSH unreachable) | Show "disconnected" in status line (red), freeze display, retry on next interval |
 
@@ -280,22 +287,22 @@ Peer addresses are never truncated. ASN is never truncated. State may be abbrevi
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `bgp-monitor-dashboard` | `test/plugin/bgp-monitor-dashboard.ci` | `bgp monitor` RPC returns dashboard-configured status (tests the non-streaming RPC path, same pattern as current `monitor-basic.ci`). TUI rendering is covered by unit tests since `.ci` tests cannot simulate interactive key events | |
+| `bgp-monitor-dashboard` | `test/plugin/bgp-monitor-dashboard.ci` | `bgp monitor` RPC via dispatch-command returns valid summary data (same pattern as `monitor-basic.ci`). TUI rendering is covered by unit tests since `.ci` tests cannot simulate interactive key events | |
 
-**Note on .ci test scope:** the `.ci` test verifies the command is reachable and returns valid configuration data (wiring test). TUI rendering (table layout, colors, key handling, polling) is tested via unit tests with injected commandExecutor (no SSH). This matches the existing pattern where `monitor-basic.ci` tests RPC registration, not the streaming UI.
+**Note on .ci test scope:** the `.ci` test verifies the command is reachable via dispatch-command and returns valid data (wiring test). The existing `monitor-basic.ci` calls `dispatch(api, 'bgp monitor')` and checks `monitor-configured` status -- the dashboard test follows the same pattern but verifies summary data is returned. TUI rendering (table layout, colors, key handling, polling) is tested via unit tests with injected commandExecutor (no SSH).
 
 ## Files to Modify
 
-- `internal/component/cli/model.go` - UPDATE: add dashboard session field, handle dashboard messages (dashboardTickMsg, dashboardDataMsg)
-- `internal/component/cli/model_commands.go` - UPDATE: detect `bgp monitor` as dashboard command, route to startDashboardSession
-- `internal/component/bgp/plugins/cmd/monitor/` - UPDATE: repurpose YANG schema for dashboard description
-- `cmd/ze/cli/main.go` - UPDATE: wire DashboardFactory (commandExecutor-based poller)
+- `internal/component/cli/model.go` (1334 lines) - UPDATE: add dashboard session field, handle dashboard messages (dashboardTickMsg, dashboardDataMsg). NOTE: already over 1000-line threshold, dashboard fields add ~10 lines; keep minimal
+- `internal/component/cli/model_commands.go` (874 lines) - UPDATE: detect `bgp monitor` as dashboard command, route to startDashboardSession
+- `internal/component/bgp/plugins/cmd/monitor/monitor.go` - UPDATE: replace `bgp monitor` redirect handler (lines 46-56) with dashboard-aware response. The streaming handler currently prints "use event monitor instead"; repurpose to return dashboard configuration data
+- `cmd/ze/cli/main.go` (393 lines) - UPDATE: wire DashboardFactory (commandExecutor-based poller)
 - `docs/architecture/api/commands.md` - UPDATE: document dashboard
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new RPCs) | [x] | Update `ze-bgp:monitor` YANG to describe dashboard |
+| YANG schema (new RPCs) | [x] | No new RPCs needed; `ze-bgp:monitor` RPC already exists, `ze-bgp:summary` and `ze-bgp:peer-detail` already exist. Replace `bgp monitor` streaming redirect in `monitor.go` |
 | CLI commands/flags | [x] | Dashboard mode entry in model |
 | CLI usage/help text | [x] | Help text and `?` overlay |
 | API commands doc | [x] | `docs/architecture/api/commands.md` |
@@ -377,8 +384,8 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: `model_dashboard.go`, `model_dashboard_render.go`
    - Verify: tests fail then pass
 
-6. **Phase: Wire into CLI** -- `bgp monitor` command detection, DashboardFactory wiring in `cmd/ze/cli/main.go`
-   - Files: `model_commands.go`, `cmd/ze/cli/main.go`
+6. **Phase: Wire into CLI** -- detect `bgp monitor` in `model_commands.go` (currently handled as streaming command via `isMonitorCommand`; dashboard needs separate detection before the streaming check), DashboardFactory wiring in `cmd/ze/cli/main.go`, replace `bgp monitor` redirect in `monitor.go` with dashboard-aware response
+   - Files: `model_commands.go`, `cmd/ze/cli/main.go`, `monitor.go`
    - Verify: end-to-end works
 
 7. **Functional tests** -- create `.ci` test

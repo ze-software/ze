@@ -244,6 +244,11 @@ func (m Model) View() string {
 		return ""
 	}
 
+	// Dashboard mode renders its own full screen.
+	if m.dashboard != nil {
+		return m.renderDashboard()
+	}
+
 	// Use fixed height to prevent scrolling when dropdown appears
 	viewHeight := m.height
 	if viewHeight < 10 {

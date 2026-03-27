@@ -43,17 +43,10 @@ func init() {
 		return pluginserver.StreamEventMonitor(ctx, s, w, username, args)
 	})
 
-	// Keep "bgp monitor" as a placeholder that redirects to "event monitor".
-	pluginserver.RegisterStreamingHandler("bgp monitor", func(_ context.Context, s *pluginserver.Server, w io.Writer, username string, _ []string) error {
-		if d := s.Dispatcher(); d != nil {
-			cmdCtx := &pluginserver.CommandContext{Server: s, Username: username}
-			if !d.IsAuthorized(cmdCtx, "bgp monitor", true) {
-				return fmt.Errorf("unauthorized")
-			}
-		}
-		_, err := fmt.Fprintln(w, "error: 'bgp monitor' has been renamed to 'event monitor'. Use 'event monitor' instead.")
-		return err
-	})
+	// "monitor bgp" is the dashboard command, handled by the TUI model.
+	// Follows verb-first convention: <action> <module>.
+	// No streaming handler needed -- the CLI intercepts "monitor bgp" before
+	// it reaches the streaming path.
 }
 
 // handleMonitor is the RPC handler for non-streaming callers (interactive CLI dispatch).

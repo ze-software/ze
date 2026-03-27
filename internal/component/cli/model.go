@@ -3,6 +3,7 @@
 // Detail: model_mode.go — editor mode switching (edit/command)
 // Detail: model_search.go — config search and prefix-token matching
 // Detail: history.go — command history persistence to zefs
+// Detail: model_dashboard.go — dashboard session lifecycle
 
 package cli
 
@@ -126,6 +127,10 @@ type Model struct {
 	// Monitor streaming state
 	monitorFactory MonitorFactory  // Creates monitor sessions (nil if unavailable)
 	monitorSession *MonitorSession // Active monitor session (nil when not monitoring)
+
+	// Dashboard state (bgp monitor live peer table)
+	dashboardFactory DashboardFactory // Creates dashboard sessions (nil if unavailable)
+	dashboard        *dashboardState  // Active dashboard (nil when not in dashboard mode)
 
 	// Login warnings (set by SSH session, displayed on first render)
 	loginWarnings []LoginWarning
@@ -415,6 +420,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case monitorPollMsg:
 		return m.handleMonitorPoll()
+
+	case dashboardTickMsg:
+		if m.dashboard != nil {
+			pollCmd := m.dashboardPollCmd()
+			return m, pollCmd
+		}
+		return m, nil
+
+	case dashboardDataMsg:
+		return m.handleDashboardData(msg)
 	}
 
 	m.textInput, cmd = m.textInput.Update(msg)
@@ -424,6 +439,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // handleKeyMsg dispatches keyboard input to the appropriate handler.
 func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+
+	// Dashboard mode intercepts all keys.
+	if m.dashboard != nil {
+		if m.handleDashboardKey(msg.String()) {
+			return m, nil
+		}
+	}
 
 	// Lifecycle confirmation takes highest priority (quit, stop, restart).
 	if m.confirmQuit || m.confirmStop || m.confirmRestart {
@@ -800,6 +822,10 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		m.selected = -1
 		m.ghostText = ""
 		m.completions = nil
+		if isDashboardCommand(args) {
+			dashCmd := m.startDashboard()
+			return m, dashCmd
+		}
 		if m.monitorFactory != nil && isMonitorCommand(args) {
 			cmd := m.startMonitorSession(extractMonitorCmdArgs(args))
 			return m, cmd
@@ -882,6 +908,10 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	// Execute command — dispatch based on mode
 	if m.mode == ModeCommand {
 		m.lastCommand = input
+		if isDashboardCommand(input) {
+			dashCmd := m.startDashboard()
+			return m, dashCmd
+		}
 		if m.monitorFactory != nil && isMonitorCommand(input) {
 			cmd := m.startMonitorSession(extractMonitorCmdArgs(input))
 			return m, cmd

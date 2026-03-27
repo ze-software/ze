@@ -138,6 +138,13 @@ func runBGP(args []string) int {
 	cmdTree := buildRuntimeTree(client)
 	m.SetCommandCompleter(unicli.NewCommandCompleter(cmdTree))
 
+	// Wire dashboard factory: polls via commandExecutor.
+	m.SetDashboardFactory(func() (func() (string, error), error) {
+		return func() (string, error) {
+			return client.SendCommand("bgp summary")
+		}, nil
+	})
+
 	// Run the bubbletea program
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
