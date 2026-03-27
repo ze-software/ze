@@ -30,15 +30,29 @@ func init() {
 			ReadOnly:   true,
 		},
 	)
-	pluginserver.RegisterStreamingHandler(func(ctx context.Context, s *pluginserver.Server, w io.Writer, username string, args []string) error {
-		// Authorization check: monitor is read-only but still goes through authz.
+	// Register the compact one-liner formatter for monitor event display.
+	pluginserver.RegisterMonitorEventFormatter(FormatMonitorLine)
+	// Register the new "event monitor" streaming handler at engine level.
+	pluginserver.RegisterStreamingHandler("event monitor", func(ctx context.Context, s *pluginserver.Server, w io.Writer, username string, args []string) error {
+		if d := s.Dispatcher(); d != nil {
+			cmdCtx := &pluginserver.CommandContext{Server: s, Username: username}
+			if !d.IsAuthorized(cmdCtx, "event monitor", true) {
+				return fmt.Errorf("unauthorized")
+			}
+		}
+		return pluginserver.StreamEventMonitor(ctx, s, w, username, args)
+	})
+
+	// Keep "bgp monitor" as a placeholder that redirects to "event monitor".
+	pluginserver.RegisterStreamingHandler("bgp monitor", func(_ context.Context, s *pluginserver.Server, w io.Writer, username string, _ []string) error {
 		if d := s.Dispatcher(); d != nil {
 			cmdCtx := &pluginserver.CommandContext{Server: s, Username: username}
 			if !d.IsAuthorized(cmdCtx, "bgp monitor", true) {
 				return fmt.Errorf("unauthorized")
 			}
 		}
-		return StreamMonitor(ctx, s.Monitors(), w, args)
+		_, err := fmt.Fprintln(w, "error: 'bgp monitor' has been renamed to 'event monitor'. Use 'event monitor' instead.")
+		return err
 	})
 }
 
@@ -97,7 +111,10 @@ func StreamMonitor(ctx context.Context, mm *pluginserver.MonitorManager, w io.Wr
 	// Stream events until disconnect or shutdown.
 	for {
 		select {
-		case event := <-mc.EventChan:
+		case event, ok := <-mc.EventChan:
+			if !ok {
+				return nil
+			}
 			// Check for dropped events and prepend warning.
 			if d := mc.Dropped.Swap(0); d > 0 {
 				warning := fmt.Sprintf("--- WARNING: dropped %d events (slow reader)", d)

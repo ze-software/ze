@@ -139,8 +139,8 @@ Ze exposes Prometheus metrics when `telemetry { prometheus { ... } }` is configu
 | Metric | Type | Labels | Description |
 |--------|------|--------|-------------|
 | `ze_peer_state` | gauge | `peer` | FSM state (0=stopped, 1=connecting, 2=active, 3=established) |
-| `ze_peer_messages_received_total` | counter | `peer` | Messages received |
-| `ze_peer_messages_sent_total` | counter | `peer` | Messages sent |
+| `ze_peer_messages_received_total` | counter | `peer`, `type` | Messages received (type: update, keepalive, open, notification, refresh, eor) |
+| `ze_peer_messages_sent_total` | counter | `peer`, `type` | Messages sent (type: update, keepalive, open, notification, refresh, eor) |
 
 ### Forward Pool / Congestion
 

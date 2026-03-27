@@ -17,7 +17,7 @@ Internal plugins (rib, adj-rib-in, rs, gr, rpki, watchdog, persist) received BGP
 - UPDATE delivery to internal plugins is 415x faster and uses 86x fewer allocations (benchmark: 196 ns/op vs 81,400 ns/op, 2 allocs vs 172).
 - Rib plugin reads raw attribute bytes directly from `AttrsWire.Packed()` and NLRI bytes from `WireUpdate.NLRI()` -- no hex encode/decode round-trip for pool storage.
 - RPKI plugin parses only AS_PATH (1 attribute) from `AttrsWire.Get()` instead of 5+ `json.Unmarshal` calls.
-- RS now handles OPEN structurally using `capability.Parse()` directly (avoiding the `bgp/format` import cycle). GR keeps OPEN on text path (infrequent, complex capability state machine).
+- RS now handles OPEN structurally using `capability.Parse()` directly (avoiding the `bgp/format` import cycle). GR handles OPEN structurally by walking raw capability bytes for codes 64 (GR) and 71 (LLGR) via `message.UnpackOpen` (no `capability.Parse` or `format` import needed).
 - `adj-rib-in` structured UPDATE handler builds a `bgp.Event` from wire sections -- still hex-encodes for the existing `handleReceived` storage logic, but eliminates the JSON round-trip (engine doesn't format, plugin doesn't `ParseEvent`).
 
 ## Gotchas

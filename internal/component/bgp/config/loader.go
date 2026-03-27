@@ -596,13 +596,40 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 					}
 				})
 				// Wire streaming executor for monitor commands via registry.
-				if handler := pluginserver.GetStreamingHandler(); handler != nil {
-					sshSrv.SetStreamingExecutorFactory(func(username string) zessh.StreamingExecutor {
-						return func(ctx context.Context, w io.Writer, args []string) error {
-							return handler(ctx, apiServer, w, username, args)
+				// The SSH layer passes the full command input as args[0].
+				// The executor looks up the handler from the streaming registry.
+				sshSrv.SetStreamingExecutorFactory(func(username string) zessh.StreamingExecutor {
+					return func(ctx context.Context, w io.Writer, args []string) error {
+						if len(args) == 0 {
+							return fmt.Errorf("no command provided")
 						}
-					})
-				}
+						input := args[0]
+						handler, handlerArgs := pluginserver.GetStreamingHandlerForCommand(input)
+						if handler == nil {
+							return fmt.Errorf("unknown streaming command: %q", input)
+						}
+						return handler(ctx, apiServer, w, username, handlerArgs)
+					}
+				})
+				// Wire TUI monitor factory for interactive SSH sessions.
+				sshSrv.SetMonitorFactory(func(ctx context.Context, args []string) (*cli.MonitorSession, error) {
+					opts, err := pluginserver.ParseEventMonitorArgs(args)
+					if err != nil {
+						return nil, err
+					}
+					subs := pluginserver.BuildEventMonitorSubscriptions(opts)
+					id := fmt.Sprintf("tui-monitor-%d", time.Now().UnixNano())
+					client := pluginserver.NewMonitorClient(ctx, id, subs, 64)
+					apiServer.Monitors().Add(client)
+					cancel := func() {
+						apiServer.Monitors().Remove(id)
+					}
+					return &cli.MonitorSession{
+						EventChan:  client.EventChan,
+						Cancel:     cancel,
+						FormatFunc: pluginserver.MonitorEventFormatter(),
+					}, nil
+				})
 				sshSrv.SetShutdownFunc(func() { r.Stop() })
 				sshSrv.SetRestartFunc(func() {
 					// Compute max restart-time from all GR capabilities and write marker.

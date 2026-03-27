@@ -28,7 +28,7 @@ func (a *reactorAPIAdapter) AnnounceEOR(peerSelector string, afi uint16, safi ui
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
 
-	var lastErr error
+	var errs []error
 	sentCount := 0
 
 	for addrPort, peer := range a.r.peers {
@@ -39,18 +39,18 @@ func (a *reactorAPIAdapter) AnnounceEOR(peerSelector string, afi uint16, safi ui
 			continue
 		}
 		if err := peer.SendUpdate(update); err != nil {
-			lastErr = err
+			errs = append(errs, err)
 		} else {
 			peer.IncrEORSent()
 			sentCount++
 		}
 	}
 
-	if sentCount == 0 && lastErr == nil {
+	if sentCount == 0 && len(errs) == 0 {
 		return errors.New("no established peers to send to")
 	}
 
-	return lastErr
+	return errors.Join(errs...)
 }
 
 // SendRefresh sends a normal ROUTE-REFRESH message to matching peers.
@@ -104,7 +104,7 @@ func (a *reactorAPIAdapter) sendRouteRefresh(peerSelector string, afi uint16, sa
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
 
-	var lastErr error
+	var errs []error
 	for addrPort, peer := range a.r.peers {
 		if !ipGlobMatch(peerSelector, addrPort.Addr().String()) {
 			continue
@@ -125,11 +125,11 @@ func (a *reactorAPIAdapter) sendRouteRefresh(peerSelector string, afi uint16, sa
 
 		// Send full packet (msgType=0 means data includes header)
 		if err := peer.SendRawMessage(0, data); err != nil {
-			lastErr = err
+			errs = append(errs, err)
 		}
 	}
 
-	return lastErr
+	return errors.Join(errs...)
 }
 
 // ForwardUpdate forwards a cached UPDATE to peers matching the selector.
@@ -191,6 +191,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	// RFC 6793 §4: ASN4→ASN2 transcoding uses AS_TRANS=23456.
 	var ebgpWireASN4, ebgpWireASN2 *wireu.WireUpdate
 	var hasEBGPasn4, hasEBGPasn2 bool
+	var ebgpASN4Failed, ebgpASN2Failed bool
 	var ebgpLocalAS uint32
 	for _, peer := range matchingPeers {
 		if peer.State() != PeerStateEstablished {
@@ -215,6 +216,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			ebgpWireASN4, err = update.EBGPWire(ebgpLocalAS, srcASN4, true)
 			if err != nil {
 				fwdLogger().Warn("EBGP ASN4 wire rewrite failed", "id", updateID, "err", err)
+				ebgpASN4Failed = true
 			}
 		}
 		if hasEBGPasn2 {
@@ -222,6 +224,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			ebgpWireASN2, err = update.EBGPWire(ebgpLocalAS, srcASN4, false)
 			if err != nil {
 				fwdLogger().Warn("EBGP ASN2 wire rewrite failed", "id", updateID, "err", err)
+				ebgpASN2Failed = true
 			}
 		}
 	}
@@ -279,12 +282,21 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		// IBGP peers get original wire unchanged.
 		peerWire := update.WireUpdate
 		if peer.Settings().IsEBGP() {
-			if peer.asn4() && ebgpWireASN4 != nil {
-				peerWire = ebgpWireASN4
-			} else if !peer.asn4() && ebgpWireASN2 != nil {
-				peerWire = ebgpWireASN2
+			if peer.asn4() {
+				if ebgpASN4Failed {
+					continue // Skip: cannot forward without AS_PATH prepend (RFC 4271 §9.1.2)
+				}
+				if ebgpWireASN4 != nil {
+					peerWire = ebgpWireASN4
+				}
+			} else {
+				if ebgpASN2Failed {
+					continue // Skip: cannot forward without AS_PATH prepend (RFC 4271 §9.1.2)
+				}
+				if ebgpWireASN2 != nil {
+					peerWire = ebgpWireASN2
+				}
 			}
-			// If EBGP wire generation failed, peerWire stays as original (graceful degradation)
 		}
 
 		// Apply accumulated modifications from egress filters.

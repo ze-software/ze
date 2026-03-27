@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+// msgTypeUpdate is the Prometheus label value for UPDATE messages.
+// Shared across message-type counters and notification code mapping.
+const msgTypeUpdate = "update"
+
 // PeerStats holds a snapshot of per-peer counters.
 // Updates = per UPDATE message (engine level, no content parsing).
 // Keepalives = per KEEPALIVE message.
@@ -63,7 +67,7 @@ func (p *Peer) peerAddrLabel() string {
 func (p *Peer) IncrUpdatesReceived() {
 	p.counters.updatesReceived.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
-		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "update").Inc()
+		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), msgTypeUpdate).Inc()
 	}
 }
 
@@ -72,7 +76,7 @@ func (p *Peer) IncrUpdatesReceived() {
 func (p *Peer) IncrUpdatesSent() {
 	p.counters.updatesSent.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
-		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "update").Inc()
+		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), msgTypeUpdate).Inc()
 	}
 }
 
@@ -112,12 +116,34 @@ func (p *Peer) IncrEORSent() {
 	}
 }
 
+// notificationCodeLabel maps a BGP notification error code (RFC 4271 Section 4.5)
+// to a bounded label string for Prometheus. Unknown codes map to "other" to prevent
+// unbounded label cardinality from malformed or future code values.
+func notificationCodeLabel(code uint8) string {
+	switch code {
+	case 1:
+		return "header"
+	case 2:
+		return "open"
+	case 3:
+		return msgTypeUpdate
+	case 4:
+		return "hold-timer"
+	case 5:
+		return "fsm"
+	case 6:
+		return "cease"
+	default: // Intentional: unknown/future codes bucketed to bound cardinality.
+		return "other"
+	}
+}
+
 // IncrNotificationSent increments the sent NOTIFICATION counter with code/subcode labels.
 func (p *Peer) IncrNotificationSent(code, subcode uint8) {
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.notifSent.With(
 			p.peerAddrLabel(),
-			strconv.FormatUint(uint64(code), 10),
+			notificationCodeLabel(code),
 			strconv.FormatUint(uint64(subcode), 10),
 		).Inc()
 		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "notification").Inc()
@@ -129,7 +155,7 @@ func (p *Peer) IncrNotificationReceived(code, subcode uint8) {
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.notifRecv.With(
 			p.peerAddrLabel(),
-			strconv.FormatUint(uint64(code), 10),
+			notificationCodeLabel(code),
 			strconv.FormatUint(uint64(subcode), 10),
 		).Inc()
 		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "notification").Inc()
@@ -164,7 +190,15 @@ func (p *Peer) ClearStats() {
 }
 
 // peerStateNames lists all PeerState.String() values for metric label cleanup.
-var peerStateNames = []string{"Stopped", "Connecting", "Active", "Established"}
+var peerStateNames = []string{"Stopped", "Connecting", "Active", "Established", "Unknown"}
+
+// notifCodeNames lists all notification code label values produced by
+// notificationCodeLabel. Used for metric cleanup when a peer is removed.
+var notifCodeNames = []string{"header", "open", msgTypeUpdate, "hold-timer", "fsm", "cease", "other"}
+
+// notifSubcodeNames lists common subcodes for metric cleanup.
+// Covers 0-14, which spans all standard subcodes across all error codes.
+var notifSubcodeNames = []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14"}
 
 // updatePeerStateMetric updates the ze_peer_state Prometheus gauge and
 // increments session lifecycle counters (transitions, established, flaps).

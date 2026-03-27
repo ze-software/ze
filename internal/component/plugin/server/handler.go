@@ -26,6 +26,14 @@ var (
 // The prefix is matched case-insensitively against command input.
 // Called from plugin init() functions.
 func RegisterStreamingHandler(prefix string, h StreamingHandler) {
+	if strings.TrimSpace(prefix) == "" {
+		logger().Error("RegisterStreamingHandler called with empty prefix, ignoring")
+		return
+	}
+	if h == nil {
+		logger().Error("RegisterStreamingHandler called with nil handler", "prefix", prefix)
+		return
+	}
 	key := strings.ToLower(prefix)
 	streamingHandlersMu.Lock()
 	if _, exists := streamingHandlers[key]; exists {
@@ -38,7 +46,8 @@ func RegisterStreamingHandler(prefix string, h StreamingHandler) {
 // GetStreamingHandlerForCommand returns the handler and extracted args for a command.
 // Matches the longest registered prefix. Returns (nil, nil) if no prefix matches.
 func GetStreamingHandlerForCommand(input string) (StreamingHandler, []string) {
-	lower := strings.ToLower(strings.TrimSpace(input))
+	trimmed := strings.TrimSpace(input)
+	lower := strings.ToLower(trimmed)
 
 	streamingHandlersMu.RLock()
 	defer streamingHandlersMu.RUnlock()
@@ -59,13 +68,12 @@ func GetStreamingHandlerForCommand(input string) (StreamingHandler, []string) {
 		return nil, nil
 	}
 
-	// Extract args after the matched prefix.
-	// Use lower (trimmed, lowered) for slicing — input may have leading whitespace
-	// that shifts character positions relative to bestPrefix (matched against lower).
-	if len(lower) <= len(bestPrefix) {
+	// Extract args after the matched prefix from the original trimmed input
+	// (not the lowered version) to preserve case of peer selectors and arguments.
+	if len(trimmed) <= len(bestPrefix) {
 		return bestHandler, nil
 	}
-	rest := strings.TrimSpace(lower[len(bestPrefix):])
+	rest := strings.TrimSpace(trimmed[len(bestPrefix):])
 	if rest == "" {
 		return bestHandler, nil
 	}
@@ -76,6 +84,30 @@ func GetStreamingHandlerForCommand(input string) (StreamingHandler, []string) {
 func IsStreamingCommand(input string) bool {
 	h, _ := GetStreamingHandlerForCommand(input)
 	return h != nil
+}
+
+// monitorEventFormatter is a registered function that transforms raw JSON event lines
+// into compact human-readable one-liners for terminal display.
+// Set via RegisterMonitorEventFormatter from plugin init(). Returns raw input on failure.
+var (
+	monitorEventFormatterMu sync.RWMutex
+	monitorEventFormatter   func(string) string
+)
+
+// RegisterMonitorEventFormatter registers the function that formats raw JSON event
+// lines into compact one-liners for monitor streaming output (both CLI and TUI).
+// Called from the monitor plugin's init().
+func RegisterMonitorEventFormatter(fn func(string) string) {
+	monitorEventFormatterMu.Lock()
+	monitorEventFormatter = fn
+	monitorEventFormatterMu.Unlock()
+}
+
+// MonitorEventFormatter returns the registered event formatter, or nil if none is registered.
+func MonitorEventFormatter() func(string) string {
+	monitorEventFormatterMu.RLock()
+	defer monitorEventFormatterMu.RUnlock()
+	return monitorEventFormatter
 }
 
 // version is ze application version string, set by main at startup via SetVersion.

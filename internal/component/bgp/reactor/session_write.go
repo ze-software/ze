@@ -24,16 +24,18 @@ func (s *Session) sendKeepalive(conn net.Conn) error {
 }
 
 // sendNotification sends a NOTIFICATION message.
+// Increments the notification counter only after a successful write.
 func (s *Session) sendNotification(conn net.Conn, code message.NotifyErrorCode, subcode uint8, data []byte) error {
-	if s.onNotifSent != nil {
-		s.onNotifSent(uint8(code), subcode)
-	}
 	notif := &message.Notification{
 		ErrorCode:    code,
 		ErrorSubcode: subcode,
 		Data:         data,
 	}
-	return s.writeMessage(conn, notif)
+	err := s.writeMessage(conn, notif)
+	if err == nil && s.onNotifSent != nil {
+		s.onNotifSent(uint8(code), subcode)
+	}
+	return err
 }
 
 // writeMessage writes a BGP message directly into the session buffer.
@@ -211,7 +213,14 @@ func (s *Session) writeUpdate(update *message.Update) error {
 	n := update.WriteTo(s.writeBuf.Buffer(), 0, nil) // nil ctx: UPDATE already has wire bytes
 
 	if _, err := s.bufWriter.Write(s.writeBuf.Buffer()[:n]); err != nil {
+		if s.prefixMetrics != nil {
+			s.prefixMetrics.wireWriteErrors.With(s.settings.Address.String()).Inc()
+		}
 		return err
+	}
+
+	if s.prefixMetrics != nil {
+		s.prefixMetrics.wireBytesSent.With(s.settings.Address.String()).Add(float64(n))
 	}
 
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
@@ -237,7 +246,14 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 	copy(buf[message.HeaderLen:], body)
 
 	if _, err := s.bufWriter.Write(buf[:totalLen]); err != nil {
+		if s.prefixMetrics != nil {
+			s.prefixMetrics.wireWriteErrors.With(s.settings.Address.String()).Inc()
+		}
 		return err
+	}
+
+	if s.prefixMetrics != nil {
+		s.prefixMetrics.wireBytesSent.With(s.settings.Address.String()).Add(float64(totalLen))
 	}
 
 	if s.onMessageReceived != nil {
@@ -249,8 +265,15 @@ func (s *Session) writeRawUpdateBody(body []byte) error {
 }
 
 // flushWrites flushes the bufWriter. Caller must hold writeMu.
+// Increments wireWriteErrors on flush failure (TCP write error).
 func (s *Session) flushWrites() error {
-	return s.bufWriter.Flush()
+	if err := s.bufWriter.Flush(); err != nil {
+		if s.prefixMetrics != nil {
+			s.prefixMetrics.wireWriteErrors.With(s.settings.Address.String()).Inc()
+		}
+		return err
+	}
+	return nil
 }
 
 // SendUpdate sends a BGP UPDATE message.

@@ -627,7 +627,7 @@ func (p *Peer) State() PeerState {
 func (p *Peer) setState(s PeerState) {
 	old := PeerState(p.state.Swap(int32(s)))
 	if old != s {
-		p.updatePeerStateMetric(s)
+		p.updatePeerStateMetric(old, s)
 		p.mu.RLock()
 		cb := p.callback
 		p.mu.RUnlock()
@@ -758,7 +758,7 @@ func (p *Peer) QueueAnnounce(route *rib.Route) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if len(p.opQueue) >= MaxOpQueueSize {
-		routesLogger().Debug("opQueue full, dropping announce", "peer", p.settings.Address, "queueSize", len(p.opQueue), "nlri", route.NLRI())
+		routesLogger().Warn("opQueue full, dropping announce", "peer", p.settings.Address, "queueSize", len(p.opQueue), "nlri", route.NLRI())
 		return
 	}
 	p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpAnnounce, Route: route})
@@ -771,7 +771,7 @@ func (p *Peer) QueueWithdraw(n nlri.NLRI) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if len(p.opQueue) >= MaxOpQueueSize {
-		routesLogger().Debug("opQueue full, dropping withdraw", "peer", p.settings.Address, "queueSize", len(p.opQueue), "nlri", n)
+		routesLogger().Warn("opQueue full, dropping withdraw", "peer", p.settings.Address, "queueSize", len(p.opQueue), "nlri", n)
 		return
 	}
 	p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpWithdraw, NLRI: n})
@@ -916,6 +916,8 @@ func (p *Peer) runOnce() error {
 		session.prefixMetrics = p.reactor.rmetrics
 	}
 	session.prefixWarningNotifier = p.SetPrefixWarned
+	session.onNotifSent = p.IncrNotificationSent
+	session.onNotifRecv = p.IncrNotificationReceived
 	session.SetSourceID(p.sourceID)
 	session.SetPluginCapabilityGetter(p.getPluginCapabilities)
 	session.SetPluginFamiliesGetter(p.getPluginFamilies)

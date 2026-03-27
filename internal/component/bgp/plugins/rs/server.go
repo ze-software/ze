@@ -594,8 +594,8 @@ func (rs *RouteServer) dispatchText(text string) {
 }
 
 // dispatchStructured routes a structured UPDATE event from DirectBridge delivery.
-// Only UPDATE events arrive via this path — non-UPDATE events (state, open, refresh)
-// are still delivered as text via OnEvent/dispatchText.
+// Called from the OnStructuredEvent handler for UPDATE events only;
+// state, open, and refresh are handled inline in the handler's switch.
 func (rs *RouteServer) dispatchStructured(peerAddr string, msg *bgptypes.RawMessage) {
 	// Guard against delivery after shutdown: the engine's deliveryLoop goroutine
 	// can call bridge callbacks concurrently with bgp-rs cleanup (workers.Stop()).

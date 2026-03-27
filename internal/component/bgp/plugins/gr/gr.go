@@ -210,6 +210,7 @@ func (gp *grPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 // but reads wire bytes directly instead of JSON.
 func (gp *grPlugin) handleStructuredOpen(peerAddr string, msg *bgptypes.RawMessage) {
 	if msg.RawBytes == nil {
+		logger().Debug("gr: open event with nil raw bytes, skipping", "peer", peerAddr)
 		return
 	}
 	open, err := message.UnpackOpen(msg.RawBytes)
