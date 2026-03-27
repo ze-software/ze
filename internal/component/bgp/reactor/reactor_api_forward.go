@@ -283,9 +283,10 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		}
 		// Policy export filter chain: external plugin filters (after in-process filters).
 		if exportFilters := peer.Settings().ExportFilters; len(exportFilters) > 0 && a.r.api != nil {
+			attrsWire, _ := update.WireUpdate.Attrs()
+			updateText := FormatAttrsForFilter(attrsWire, nil)
 			action, _ := PolicyFilterChain(exportFilters, "export", peer.Settings().Address.String(), peer.Settings().PeerAS,
-				"", // TODO: text-format update from wire bytes
-				a.r.policyFilterFunc(),
+				updateText, a.r.policyFilterFunc(),
 			)
 			if action == PolicyReject {
 				continue // Route suppressed by policy export filter for this peer.

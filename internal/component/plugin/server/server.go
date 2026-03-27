@@ -270,6 +270,38 @@ func (s *Server) CallFilterUpdate(ctx context.Context, pluginName string, input 
 	return conn.SendFilterUpdate(ctx, input)
 }
 
+// Filter on-error constants.
+const (
+	FilterOnErrorReject = "reject"
+	FilterOnErrorAccept = "accept"
+)
+
+// FilterOnError returns the declared on-error mode for a named filter.
+// Returns FilterOnErrorReject (fail-closed) if the plugin or filter is not found.
+func (s *Server) FilterOnError(pluginName, filterName string) string {
+	pm := s.procManager.Load()
+	if pm == nil {
+		return FilterOnErrorReject
+	}
+	proc := pm.GetProcess(pluginName)
+	if proc == nil {
+		return FilterOnErrorReject
+	}
+	reg := proc.Registration()
+	if reg == nil {
+		return FilterOnErrorReject
+	}
+	for _, f := range reg.Filters {
+		if f.Name == filterName {
+			if f.OnError == FilterOnErrorAccept {
+				return FilterOnErrorAccept
+			}
+			return FilterOnErrorReject
+		}
+	}
+	return FilterOnErrorReject
+}
+
 // Running returns true if the server is running.
 func (s *Server) Running() bool {
 	return s.running.Load()

@@ -218,9 +218,12 @@ func (r *Reactor) policyFilterFunc() PolicyFilterFunc {
 
 		out, err := r.api.CallFilterUpdate(ctx, pluginName, input)
 		if err != nil {
-			reactorLogger().Warn("policy filter IPC error", "plugin", pluginName, "filter", filterName, "error", err)
-			// TODO: use per-filter on-error setting (reject or accept)
-			return PolicyResponse{Action: PolicyReject} // fail-closed
+			onError := r.api.FilterOnError(pluginName, filterName)
+			reactorLogger().Warn("policy filter IPC error", "plugin", pluginName, "filter", filterName, "on-error", onError, "error", err)
+			if onError == "accept" {
+				return PolicyResponse{Action: PolicyAccept}
+			}
+			return PolicyResponse{Action: PolicyReject}
 		}
 
 		action, parseErr := parsePolicyAction(out.Action)

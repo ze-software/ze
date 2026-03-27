@@ -356,9 +356,10 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	// Only for received UPDATEs when the peer has import filters configured.
 	if direction == plugin.DirectionReceived && wireUpdate != nil && hasPeer {
 		if filters := peer.settings.ImportFilters; len(filters) > 0 && r.api != nil {
+			attrsWire, _ := wireUpdate.Attrs()
+			updateText := FormatAttrsForFilter(attrsWire, nil)
 			action, _ := PolicyFilterChain(filters, "import", peerAddr.String(), peerInfo.PeerAS,
-				"", // TODO: text-format update from wire bytes (requires attribute formatting)
-				r.policyFilterFunc(),
+				updateText, r.policyFilterFunc(),
 			)
 			if action == PolicyReject {
 				return false // Route rejected by policy filter; don't cache or dispatch.
