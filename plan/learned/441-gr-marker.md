@@ -22,7 +22,7 @@ Ze implemented the Receiving Speaker side of RFC 4724 (Graceful Restart) but had
 ## Gotchas
 
 - `reject=stderr:contains=` is silently ignored by the .ci test runner: (a) `reject=` lines inside `stdin=peer:` blocks are not parsed (only `expect=`/`action=` are), (b) `parseReject` only supports `pattern=`, not `contains=`. Must use `reject=stderr:pattern=` outside the peer block.
-- `cli.Model.Update()` uses a value receiver (bubbletea pattern). Function pointer fields survive the copy chain, but wiring `.et` test infrastructure for lifecycle callbacks (`SetRestartFunc`/`SetShutdownFunc`) revealed the callbacks are lost somewhere in the headless model update chain. Root cause not yet identified. The `.et` infrastructure additions are correct but the restart confirmation test is pending.
+- `cli.Model.Update()` uses a value receiver (bubbletea pattern). Function pointer fields survive the copy chain correctly. Wiring `.et` test infrastructure for lifecycle callbacks (`SetRestartFunc`/`SetShutdownFunc`) appeared broken during development due to stale test binary, wasting significant debugging time. Always rebuild before diagnosing `.et` test failures.
 - The OPEN hex for GR with R=0 ends in `020440020078`. For R=1 it ends in `020440028078`. The only difference is byte 0 of the GR value: `00` vs `80`.
 
 ## Files

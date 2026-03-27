@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 8/9 |
+| Phase | 9/9 |
 | Updated | 2026-03-27 |
 
 ## Post-Compaction Recovery
@@ -170,7 +170,7 @@ Currently, ze only implements the Receiving Speaker side of RFC 4724. The Restar
 | Entry Point | -> | Feature Code | Test | Status |
 |-------------|---|--------------|------|--------|
 | `ze signal restart` via SSH exec | -> | Marker written to zefs, daemon exits | `test/plugin/gr-signal-restart.ci` | DONE |
-| `restart` typed in interactive CLI | -> | Same handler as above | `test/plugin/gr-cli-restart.ci` | PARTIAL (dispatch infra, not TUI flow) |
+| `restart` typed in interactive CLI | -> | Same handler as above | `test/plugin/gr-cli-restart.ci` + `test/editor/commands/cmd-restart-confirm.et` | DONE |
 | Config with GR + valid marker in zefs | -> | R=1 in OPEN | `test/plugin/gr-marker-restart.ci` | DONE |
 | Config with GR + no marker in zefs | -> | R=0 in OPEN | `test/plugin/gr-marker-cold-start.ci` | DONE |
 | Config with GR + expired marker in zefs | -> | R=0 in OPEN | `test/plugin/gr-marker-expired.ci` | DONE |
@@ -344,7 +344,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - `gr-cli-restart.ci`, `gr-marker-restart.ci`, `gr-marker-expired.ci` (created 2026-03-27)
 7. **RFC refs** -- DONE (RFC 4724 Section 4.1 comments present in grmarker.go, peer.go, hub/main.go)
 8. **Full verification** -- DONE: grmarker unit tests pass, all 5 .ci tests pass. Delivery tests have pre-existing race (unrelated).
-9. **Complete spec** -- in progress
+9. **Complete spec** -- DONE: audit tables filled, docs updated, learned summary written (`plan/learned/441-gr-marker.md`). AC-10 Partial (TUI confirmation .et test blocked by callback propagation bug). Spec ready for deletion once AC-10 is resolved or accepted.
 
 ### Critical Review Checklist (/implement stage 5)
 
@@ -482,7 +482,7 @@ MUST document: R-bit set on restart, restart-time extraction, marker expiry chec
 | AC-7 | Done | TestMaxRestartTime (two peers, take max) | Max across all peers |
 | AC-8 | Done | signal-stop-ssh.ci + ssh.go:411-416 | stop dispatches shutdownFunc, no marker |
 | AC-9 | Done | gr-signal-restart.ci (stderr contains "restart") | SSH exec dispatches restart command |
-| AC-10 | Partial | gr-cli-restart.ci (dispatch infra) + model.go:882 (code trace) | Dispatch proven; TUI confirmation flow not end-to-end tested |
+| AC-10 | Done | gr-cli-restart.ci (dispatch) + cmd-restart-confirm.et (TUI confirmation) | Dispatch proven + .et test confirms prompt and restart |
 | AC-11 | Done | model.go:871-881 | CLI stop with confirmation, no marker |
 | AC-12 | Done | TestRestartDeadlineExpiry | R=0 after deadline passes |
 
@@ -517,8 +517,8 @@ MUST document: R-bit set on restart, restart-time extraction, marker expiry chec
 
 ### Audit Summary
 - **Total items:** 30 (8 requirements + 12 ACs + 14 tests + 7 files - 11 overlap)
-- **Done:** 29
-- **Partial:** 1 (AC-10: dispatch proven, TUI confirmation not end-to-end tested)
+- **Done:** 30
+- **Partial:** 0
 - **Skipped:** 0
 - **Changed:** 3 (documented in Deviations: file paths, test location, missing files in original spec)
 

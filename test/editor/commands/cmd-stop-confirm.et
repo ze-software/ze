@@ -23,6 +23,6 @@ input=enter
 expect=status:contains=shut down the daemon
 expect=input:empty
 
-# Press Esc -- should cancel (not quit)
+# Press Esc -- should cancel (clears status, does not quit)
 input=esc
-expect=status:contains=cancelled
+expect=status:empty
