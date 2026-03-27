@@ -815,7 +815,7 @@ func (c *Completer) entryDescription(entry *gyang.Entry) string {
 }
 
 // confModules lists the YANG config modules to search for schema entries.
-var confModules = []string{"ze-bgp-conf", "ze-hub-conf", "ze-plugin-conf"}
+var confModules = []string{"ze-bgp-conf", "ze-hub-conf", "ze-plugin-conf", "ze-web-conf"}
 
 // getEntry returns the YANG entry at the given path.
 // Handles list keys by skipping key values (e.g., "peer", "1.1.1.1" → navigate to peer list children).

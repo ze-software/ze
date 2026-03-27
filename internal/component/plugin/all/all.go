@@ -26,6 +26,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ssh/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/web/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/core/ipc/schema"
 
 	// Plugin packages — plugin + schema registration.
