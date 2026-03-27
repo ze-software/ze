@@ -135,6 +135,9 @@ func (p *Plugin) dispatchCallback(ctx context.Context, req *rpc.Request) error {
 	case "ze-plugin-callback:validate-open":
 		return p.handleValidateOpen(ctx, req)
 
+	case "ze-plugin-callback:filter-update":
+		return p.handleFilterUpdate(ctx, req)
+
 	case "ze-plugin-callback:bye":
 		return p.handleByeAndRespond(ctx, req)
 	}
@@ -369,6 +372,28 @@ func (p *Plugin) handleExecuteCommand(ctx context.Context, req *rpc.Request) err
 		Status: status,
 		Data:   data,
 	})
+}
+
+func (p *Plugin) handleFilterUpdate(ctx context.Context, req *rpc.Request) error {
+	p.mu.Lock()
+	fn := p.onFilterUpdate
+	p.mu.Unlock()
+
+	if fn == nil {
+		return p.sendCallbackError(ctx, req.ID, "filter-update not supported")
+	}
+
+	var input rpc.FilterUpdateInput
+	if err := json.Unmarshal(req.Params, &input); err != nil {
+		return p.sendCallbackError(ctx, req.ID, fmt.Sprintf("unmarshal filter-update: %v", err))
+	}
+
+	out, err := fn(&input)
+	if err != nil {
+		return p.sendCallbackError(ctx, req.ID, err.Error())
+	}
+
+	return p.sendCallbackResult(ctx, req.ID, out)
 }
 
 // handleConfigRPC is a shared handler for config-verify and config-apply RPCs.

@@ -244,6 +244,20 @@ func (pc *PluginConn) SendExecuteCommand(ctx context.Context, serial, command st
 	return &out, nil
 }
 
+// SendFilterUpdate sends a filter-update request to the plugin.
+// The plugin evaluates the update against the named filter and returns accept/reject/modify.
+func (pc *PluginConn) SendFilterUpdate(ctx context.Context, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
+	result, err := pc.CallRPC(ctx, "ze-plugin-callback:filter-update", input)
+	if err != nil {
+		return nil, err
+	}
+	var out rpc.FilterUpdateOutput
+	if err := json.Unmarshal(result, &out); err != nil {
+		return nil, fmt.Errorf("unmarshal filter-update result: %w", err)
+	}
+	return &out, nil
+}
+
 // SendConfigVerify sends a config verification request to the plugin.
 // Returns the plugin's validation result (status + optional error).
 func (pc *PluginConn) SendConfigVerify(ctx context.Context, sections []rpc.ConfigSection) (*rpc.ConfigVerifyOutput, error) {

@@ -106,6 +106,15 @@ func (p *Plugin) OnValidateOpen(fn func(*ValidateOpenInput) *ValidateOpenOutput)
 	p.onValidateOpen = fn
 }
 
+// OnFilterUpdate sets the handler for route filter requests (redistribution).
+// The handler receives filter input (filter name, direction, peer, update text)
+// and returns a PolicyResponse (accept/reject/modify with optional delta).
+func (p *Plugin) OnFilterUpdate(fn func(*FilterUpdateInput) (*FilterUpdateOutput, error)) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.onFilterUpdate = fn
+}
+
 // OnStarted sets a callback that runs after the 5-stage startup completes
 // but before the event loop begins. This is the safe place to make engine
 // calls (e.g., SubscribeEvents) because the connection is no longer blocked

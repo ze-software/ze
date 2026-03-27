@@ -66,6 +66,7 @@ type Plugin struct {
 	onConfigVerify     func([]ConfigSection) error
 	onConfigApply      func([]ConfigDiffSection) error
 	onValidateOpen     func(*ValidateOpenInput) *ValidateOpenOutput
+	onFilterUpdate     func(*FilterUpdateInput) (*FilterUpdateOutput, error)
 	onBye              func(string)
 
 	// Post-startup callback (runs after Stage 5, before event loop).
