@@ -6,6 +6,7 @@
 .PHONY: ze-interop-test ze-live-test ze-live-rpki-test
 .PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
 .PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift
+.PHONY: ze-sync-vendor-web ze-check-vendor-web
 .PHONY: check
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
@@ -367,6 +368,14 @@ ze-validate-commands:
 ze-validate-commands-json:
 	@go run scripts/validate-commands.go --json
 
+# Sync vendored web assets to consumer directories
+ze-sync-vendor-web:
+	@scripts/sync-vendor-web.sh
+
+# Check vendored web assets for newer versions
+ze-check-vendor-web:
+	@scripts/check-vendor-web.sh
+
 # ─── Utilities ───────────────────────────────────────────────────────────────
 
 # Format code
@@ -463,6 +472,8 @@ help:
 	@echo "  ze-command-list       - Generate command inventory (all commands by verb)"
 	@echo "  ze-command-list-json  - Generate command inventory as JSON"
 	@echo "  ze-validate-commands  - Cross-check YANG command tree vs registered handlers"
+	@echo "  ze-sync-vendor-web   - Sync vendored web assets to consumer directories"
+	@echo "  ze-check-vendor-web  - Check vendored web assets for newer versions"
 	@echo ""
 	@echo "  Utilities:"
 	@echo "  fmt                   - Format code (gofmt + goimports)"
