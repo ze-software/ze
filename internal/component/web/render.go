@@ -1,5 +1,6 @@
 // Design: docs/architecture/web-interface.md -- Template rendering
 // Related: handler_config.go -- Config tree view handlers
+// Related: handler_admin.go -- Admin command handlers
 
 // Package web provides the ze web interface with template rendering and static assets.
 package web
@@ -77,6 +78,8 @@ func NewRenderer() (*Renderer, error) {
 		"breadcrumb.html",
 		"commit.html",
 		"notification.html",
+		"command.html",
+		"command_form.html",
 	}
 
 	configTemplates := make(map[string]*template.Template, len(configTemplateNames))

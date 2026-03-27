@@ -2,6 +2,7 @@
 // Related: handler.go -- URL routing and content negotiation
 // Related: render.go -- Template rendering
 // Related: editor.go -- Per-user editor management
+// Related: sse.go -- SSE broker for live config change notifications
 
 package web
 
@@ -622,10 +623,12 @@ func HandleConfigDelete(mgr *EditorManager) http.HandlerFunc {
 // GET: shows the commit page with a diff of pending changes.
 // POST: applies the user's pending changes via mgr.Commit.
 //
-// On successful commit, redirects to /config/edit/ (config root).
+// On successful commit, broadcasts a config-change SSE event to all
+// connected web clients (if broker is non-nil) and redirects to
+// /config/edit/ (config root).
 // On conflict, re-renders the commit page with conflict errors.
 // HTMX requests receive HX-Redirect instead of an HTTP redirect.
-func HandleConfigCommit(mgr *EditorManager, renderer *Renderer) http.HandlerFunc {
+func HandleConfigCommit(mgr *EditorManager, renderer *Renderer, broker *EventBroker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		username := getUsernameFromContext(r)
 		if username == "" {
@@ -639,7 +642,7 @@ func HandleConfigCommit(mgr *EditorManager, renderer *Renderer) http.HandlerFunc
 		}
 
 		if r.Method == http.MethodPost {
-			handleCommitPost(w, r, mgr, renderer, username)
+			handleCommitPost(w, r, mgr, renderer, username, broker)
 			return
 		}
 
@@ -669,7 +672,8 @@ func handleCommitGet(w http.ResponseWriter, mgr *EditorManager, renderer *Render
 }
 
 // handleCommitPost applies pending changes and redirects or re-renders on conflict.
-func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager, renderer *Renderer, username string) {
+// On successful commit (no conflicts), broadcasts a config-change SSE event.
+func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager, renderer *Renderer, username string, broker *EventBroker) {
 	result, err := mgr.Commit(username)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("commit: %v", err), http.StatusInternalServerError)
@@ -695,6 +699,10 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 
 		return
 	}
+
+	// Broadcast config change notification to all connected SSE clients.
+	// This runs only after CommitSession() returned successfully (AC-13).
+	BroadcastConfigChange(broker, username, "committed")
 
 	htmxRedirect(w, r, "/config/edit/")
 }

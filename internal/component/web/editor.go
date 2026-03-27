@@ -1,5 +1,6 @@
 // Design: docs/architecture/web-interface.md -- Per-user editor management
 // Related: handler_config.go -- Config view and edit handlers
+// Related: cli.go -- CLI bar command dispatch using Editor
 // Related: auth.go -- Session authentication
 
 package web
@@ -210,6 +211,23 @@ func (m *EditorManager) Tree(username string) *config.Tree {
 	defer us.mu.Unlock()
 
 	return us.editor.Tree()
+}
+
+// ContentAtPath returns the serialized config content at the given context path
+// for the user's working tree. Returns an empty string if no session exists.
+func (m *EditorManager) ContentAtPath(username string, path []string) string {
+	m.mu.RLock()
+	us, ok := m.sessions[username]
+	m.mu.RUnlock()
+
+	if !ok {
+		return ""
+	}
+
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	return us.editor.ContentAtPath(path)
 }
 
 // evictInactive removes sessions with lastActivity older than idleTimeout.

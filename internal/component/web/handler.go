@@ -1,5 +1,7 @@
 // Design: docs/architecture/web-interface.md -- URL routing and content negotiation
 // Related: handler_config.go -- Config tree view and edit handlers
+// Related: cli.go -- CLI bar and terminal mode handlers
+// Related: handler_admin.go -- Admin command handlers
 
 // Package web provides the HTTP handler layer for ze's web interface.
 //
@@ -222,4 +224,14 @@ func RegisterRoutes(mux *http.ServeMux, auth, assets http.Handler) {
 		}
 		auth.ServeHTTP(w, r)
 	})
+}
+
+// RegisterCLIRoutes registers CLI bar endpoint handlers on the given ServeMux.
+// All routes require authentication (callers use getUsernameFromContext).
+// The auth middleware must wrap these handlers before registration.
+func RegisterCLIRoutes(mux *http.ServeMux, authWrap func(http.HandlerFunc) http.Handler, cliCmd, cliComplete, cliTerminal, cliMode http.HandlerFunc) {
+	mux.Handle("/cli", authWrap(cliCmd))
+	mux.Handle("/cli/complete", authWrap(cliComplete))
+	mux.Handle("/cli/terminal", authWrap(cliTerminal))
+	mux.Handle("/cli/mode", authWrap(cliMode))
 }

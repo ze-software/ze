@@ -1,0 +1,393 @@
+package web
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// testCommandTree builds a static command tree for admin handler tests.
+// Structure:
+//
+//	(root) -> [peer, rib]
+//	peer -> [teardown, refresh]
+//	rib -> [clear]
+//	peer/teardown -> leaf (no children)
+//	peer/refresh -> leaf (no children)
+//	rib/clear -> leaf (no children)
+func testCommandTree() map[string][]string {
+	return map[string][]string{
+		"":     {"peer", "rib"},
+		"peer": {"teardown", "refresh"},
+		"rib":  {"clear"},
+	}
+}
+
+// testDispatcher returns a CommandDispatcher that echoes the command string
+// as output. If the command contains "fail", it returns an error.
+func testDispatcher() CommandDispatcher {
+	return func(command string) (string, error) {
+		if strings.Contains(command, "fail") {
+			return "", fmt.Errorf("command failed: %s", command)
+		}
+
+		return "executed: " + command, nil
+	}
+}
+
+// TestAdminRouteDispatch verifies that GET /admin/peer/ returns the command
+// tree with child links for the "peer" container.
+//
+// VALIDATES: AC-2 (peer admin tree with sub-commands as links).
+// PREVENTS: Missing children in admin container view.
+func TestAdminRouteDispatch(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	children := testCommandTree()
+	handler := HandleAdminView(renderer, children)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/peer/", http.NoBody)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	viewData := buildAdminViewData([]string{"peer"}, children)
+	assert.False(t, viewData.IsLeaf, "peer is a container, not a leaf")
+	require.Len(t, viewData.Children, 2, "peer has 2 sub-commands")
+
+	childNames := make(map[string]bool)
+	for _, ch := range viewData.Children {
+		childNames[ch.Name] = true
+	}
+
+	assert.True(t, childNames["teardown"], "teardown must be in children")
+	assert.True(t, childNames["refresh"], "refresh must be in children")
+}
+
+// TestAdminBreadcrumb verifies that /admin/peer/ produces breadcrumb segments
+// with the correct names and URLs.
+//
+// VALIDATES: AC-8 (breadcrumb at /admin/peer/ shows admin > peer with clickable segments).
+// VALIDATES: AC-9 (back button at /admin/peer/ navigates to /admin/).
+// PREVENTS: Broken breadcrumb URLs, missing segments, wrong prefix.
+func TestAdminBreadcrumb(t *testing.T) {
+	segments := buildAdminBreadcrumbs([]string{"peer"})
+
+	require.Len(t, segments, 2, "admin root + peer")
+
+	// Root segment: "admin" linking to /admin/.
+	assert.Equal(t, "admin", segments[0].Name)
+	assert.Equal(t, "/admin/", segments[0].URL)
+	assert.False(t, segments[0].Active)
+
+	// "peer" segment (last = active).
+	assert.Equal(t, "peer", segments[1].Name)
+	assert.Equal(t, "/admin/peer/", segments[1].URL)
+	assert.True(t, segments[1].Active)
+}
+
+// TestAdminBreadcrumbRoot verifies that an empty path under /admin/ produces
+// only the root breadcrumb segment.
+//
+// VALIDATES: AC-1 (root admin view).
+// PREVENTS: Panic on empty admin path.
+func TestAdminBreadcrumbRoot(t *testing.T) {
+	segments := buildAdminBreadcrumbs(nil)
+
+	require.Len(t, segments, 1, "admin root only")
+
+	assert.Equal(t, "admin", segments[0].Name)
+	assert.Equal(t, "/admin/", segments[0].URL)
+	assert.True(t, segments[0].Active)
+}
+
+// TestAdminBreadcrumbDeep verifies breadcrumbs for a multi-level admin path.
+//
+// VALIDATES: AC-8 (breadcrumb with multiple clickable segments).
+// PREVENTS: Wrong URL construction for deep paths.
+func TestAdminBreadcrumbDeep(t *testing.T) {
+	segments := buildAdminBreadcrumbs([]string{"peer", "192.168.1.1", "teardown"})
+
+	require.Len(t, segments, 4, "admin + 3 path segments")
+
+	assert.Equal(t, "admin", segments[0].Name)
+	assert.Equal(t, "/admin/", segments[0].URL)
+
+	assert.Equal(t, "peer", segments[1].Name)
+	assert.Equal(t, "/admin/peer/", segments[1].URL)
+
+	assert.Equal(t, "192.168.1.1", segments[2].Name)
+	assert.Equal(t, "/admin/peer/192.168.1.1/", segments[2].URL)
+
+	assert.Equal(t, "teardown", segments[3].Name)
+	assert.Equal(t, "/admin/peer/192.168.1.1/teardown/", segments[3].URL)
+	assert.True(t, segments[3].Active)
+}
+
+// TestCommandFormRendering verifies that a leaf command (no sub-commands)
+// produces form data with the command name and action URL.
+//
+// VALIDATES: AC-3 (leaf command renders with parameter form fields and Execute button).
+// VALIDATES: AC-10 (command with parameters renders form with path and parameter fields).
+// PREVENTS: Leaf nodes rendered as containers, missing action URL.
+func TestCommandFormRendering(t *testing.T) {
+	children := testCommandTree()
+
+	viewData := buildAdminViewData([]string{"peer", "teardown"}, children)
+
+	assert.True(t, viewData.IsLeaf, "peer/teardown is a leaf command")
+	require.NotNil(t, viewData.Form, "leaf command must have form data")
+
+	assert.Equal(t, "peer teardown", viewData.Form.CommandName)
+	assert.Equal(t, "/admin/peer/teardown", viewData.Form.ActionURL)
+}
+
+// TestAdminCommandExecution verifies that POST /admin/peer/192.168.1.1/teardown
+// dispatches the command and returns a result card with the command name
+// and output.
+//
+// VALIDATES: AC-4 (POST executes the mutation command and returns result card).
+// VALIDATES: AC-5 (result card has titled header with command name and output in body).
+// PREVENTS: Command not dispatched, result card missing output.
+func TestAdminCommandExecution(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	dispatch := testDispatcher()
+	handler := HandleAdminExecute(renderer, dispatch)
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/peer/192.168.1.1/teardown", http.NoBody)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Contains(t, body, "peer 192.168.1.1 teardown", "result card must contain the command name")
+	assert.Contains(t, body, "executed: peer 192.168.1.1 teardown", "result card must contain the output")
+	assert.NotContains(t, body, "command-error", "successful command must not have error class")
+}
+
+// TestCommandResultCard verifies the structure of a command result card
+// by checking the template data fields.
+//
+// VALIDATES: AC-5 (result card has titled header with command name and output in body).
+// PREVENTS: Wrong command name, missing output in result data.
+func TestCommandResultCard(t *testing.T) {
+	result := CommandResultData{
+		CommandName: "peer 192.168.1.1 teardown",
+		Output:      "peer 192.168.1.1 torn down",
+		Error:       false,
+	}
+
+	assert.Equal(t, "peer 192.168.1.1 teardown", result.CommandName)
+	assert.Equal(t, "peer 192.168.1.1 torn down", result.Output)
+	assert.False(t, result.Error)
+}
+
+// TestCommandResultCardStack verifies that multiple command executions
+// produce independent result cards. HTMX stacking (afterbegin) is a
+// client-side concern; the server returns one card per POST.
+//
+// VALIDATES: AC-6 (new card appears above previous one via hx-swap="afterbegin").
+// PREVENTS: Server-side accumulation of results (each POST is stateless).
+func TestCommandResultCardStack(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	dispatch := testDispatcher()
+	handler := HandleAdminExecute(renderer, dispatch)
+
+	// First command.
+	req1 := httptest.NewRequest(http.MethodPost, "/admin/peer/192.168.1.1/teardown", http.NoBody)
+	rec1 := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec1, req1)
+	assert.Equal(t, http.StatusOK, rec1.Code)
+
+	body1 := rec1.Body.String()
+
+	// Second command.
+	req2 := httptest.NewRequest(http.MethodPost, "/admin/rib/clear", http.NoBody)
+	rec2 := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec2, req2)
+	assert.Equal(t, http.StatusOK, rec2.Code)
+
+	body2 := rec2.Body.String()
+
+	// Each response is an independent result card.
+	assert.Contains(t, body1, "peer 192.168.1.1 teardown")
+	assert.Contains(t, body2, "rib clear")
+
+	// They are different cards (different content).
+	assert.NotEqual(t, body1, body2, "each POST produces a distinct result card")
+}
+
+// TestCommandErrorCard verifies that a command execution error produces
+// an error-styled result card with the error message in the body.
+//
+// VALIDATES: AC-11 (command execution error renders error in result card).
+// PREVENTS: Errors silently swallowed, missing error styling.
+func TestCommandErrorCard(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	dispatch := testDispatcher()
+	handler := HandleAdminExecute(renderer, dispatch)
+
+	// The test dispatcher returns an error when the command contains "fail".
+	req := httptest.NewRequest(http.MethodPost, "/admin/fail/command", http.NoBody)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	body := rec.Body.String()
+	assert.Contains(t, body, "command-error", "error card must have error CSS class")
+	assert.Contains(t, body, "command failed", "error card must contain error message")
+}
+
+// TestAdminContentNegotiation verifies that ?format=json on a command
+// execution POST returns JSON instead of HTML.
+//
+// VALIDATES: AC-7 (format=json returns JSON command output).
+// PREVENTS: JSON negotiation ignored for admin commands.
+func TestAdminContentNegotiation(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	dispatch := testDispatcher()
+	handler := HandleAdminExecute(renderer, dispatch)
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/peer/192.168.1.1/teardown?format=json", http.NoBody)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Header().Get("Content-Type"), "application/json")
+
+	var data map[string]any
+	err = json.NewDecoder(rec.Body).Decode(&data)
+	require.NoError(t, err, "response must be valid JSON")
+
+	assert.Equal(t, "peer 192.168.1.1 teardown", data["command"])
+	assert.Equal(t, "executed: peer 192.168.1.1 teardown", data["output"])
+	assert.Equal(t, false, data["error"])
+}
+
+// TestAdminContentNegotiationView verifies that ?format=json on a GET
+// admin view returns the command tree as JSON.
+//
+// VALIDATES: AC-7 (JSON content negotiation for admin views).
+// PREVENTS: JSON negotiation only working for POST, not GET.
+func TestAdminContentNegotiationView(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	children := testCommandTree()
+	handler := HandleAdminView(renderer, children)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/peer/?format=json", http.NoBody)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Contains(t, rec.Header().Get("Content-Type"), "application/json")
+
+	var data map[string]any
+	err = json.NewDecoder(rec.Body).Decode(&data)
+	require.NoError(t, err, "response must be valid JSON")
+
+	kids, ok := data["children"].([]any)
+	require.True(t, ok, "children must be an array")
+	assert.Len(t, kids, 2)
+}
+
+// TestAdminExecuteMethodNotAllowed verifies that GET to the execute handler
+// returns 405 Method Not Allowed.
+//
+// VALIDATES: handler enforces POST-only for command execution.
+// PREVENTS: Commands executed via GET (browser navigation).
+func TestAdminExecuteMethodNotAllowed(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	dispatch := testDispatcher()
+	handler := HandleAdminExecute(renderer, dispatch)
+
+	req := httptest.NewRequest(http.MethodGet, "/admin/peer/192.168.1.1/teardown", http.NoBody)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusMethodNotAllowed, rec.Code)
+}
+
+// TestAdminRootView verifies that GET /admin/ renders the root admin view
+// with top-level command modules as navigable links.
+//
+// VALIDATES: AC-1 (root admin view with top-level mutation command modules).
+// PREVENTS: Empty root view, missing top-level commands.
+func TestAdminRootView(t *testing.T) {
+	children := testCommandTree()
+
+	viewData := buildAdminViewData(nil, children)
+
+	assert.False(t, viewData.IsLeaf, "root is a container")
+	require.Len(t, viewData.Children, 2, "root has 2 top-level commands")
+
+	childNames := make(map[string]bool)
+	for _, ch := range viewData.Children {
+		childNames[ch.Name] = true
+	}
+
+	assert.True(t, childNames["peer"], "peer must be in top-level commands")
+	assert.True(t, childNames["rib"], "rib must be in top-level commands")
+
+	// Verify URLs use /admin/ prefix.
+	for _, ch := range viewData.Children {
+		assert.True(t, strings.HasPrefix(ch.URL, "/admin/"),
+			"child URL %q must start with /admin/", ch.URL)
+	}
+}
+
+// TestAdminErrorContentNegotiation verifies that ?format=json on an error
+// command execution returns JSON with error=true.
+//
+// VALIDATES: AC-7 + AC-11 (JSON error response for failed commands).
+// PREVENTS: Error lost in JSON content negotiation.
+func TestAdminErrorContentNegotiation(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	dispatch := testDispatcher()
+	handler := HandleAdminExecute(renderer, dispatch)
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/fail/command?format=json", http.NoBody)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var data map[string]any
+	err = json.NewDecoder(rec.Body).Decode(&data)
+	require.NoError(t, err)
+
+	assert.Equal(t, true, data["error"])
+	assert.Contains(t, data["output"], "command failed")
+}

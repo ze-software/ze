@@ -1,0 +1,16 @@
+<div class="terminal-container" id="content-area">
+  <div class="terminal-scrollback" id="terminal-scrollback"></div>
+  <div class="terminal-input-line">
+    <span class="terminal-prompt">{{.CLIPrompt}}</span>
+    <input type="text" class="terminal-input" id="terminal-input"
+           autocomplete="off" spellcheck="false"
+           hx-post="/cli/terminal" hx-trigger="keydown[key=='Enter']"
+           hx-target="#terminal-scrollback" hx-swap="beforeend"
+           hx-include="this" name="command">
+  </div>
+  <div class="terminal-controls">
+    <button hx-post="/cli/mode" hx-vals='{"mode":"integrated"}' hx-target="#content-area" hx-swap="outerHTML">
+      Switch to Integrated Mode
+    </button>
+  </div>
+</div>

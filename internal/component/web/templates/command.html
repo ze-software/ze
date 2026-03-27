@@ -1,0 +1,9 @@
+<div class="command-result{{if .Error}} command-error{{end}}">
+  <div class="command-result-header">
+    <span class="command-result-title">{{.CommandName}}</span>
+    {{if .Error}}<span class="command-result-error-badge">error</span>{{end}}
+  </div>
+  <div class="command-result-body">
+    <pre class="command-result-output">{{.Output}}</pre>
+  </div>
+</div>
