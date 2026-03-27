@@ -23,6 +23,7 @@ func buildCommandTree() *command.Node {
 func (s *Server) createSessionModel(username string) cli.Model {
 	s.mu.Lock()
 	factory := s.executorFactory
+	monitorFn := s.monitorFactory
 	shutdownFn := s.shutdownFunc
 	restartFn := s.restartFunc
 	warningsFn := s.loginWarningsFunc
@@ -66,6 +67,9 @@ func (s *Server) createSessionModel(username string) cli.Model {
 				if executor != nil {
 					m.SetCommandExecutor(executor)
 				}
+				if monitorFn != nil {
+					m.SetMonitorFactory(monitorFn)
+				}
 				if shutdownFn != nil {
 					m.SetShutdownFunc(shutdownFn)
 				}
@@ -83,6 +87,9 @@ func (s *Server) createSessionModel(username string) cli.Model {
 	m.SetCommandCompleter(cmdCompleter)
 	if executor != nil {
 		m.SetCommandExecutor(executor)
+	}
+	if monitorFn != nil {
+		m.SetMonitorFactory(monitorFn)
 	}
 	if shutdownFn != nil {
 		m.SetShutdownFunc(shutdownFn)

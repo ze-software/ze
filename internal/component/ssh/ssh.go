@@ -27,7 +27,9 @@ import (
 	"github.com/charmbracelet/wish/activeterm"
 	"github.com/charmbracelet/wish/bubbletea"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -96,6 +98,7 @@ type Server struct {
 	activeSessions           atomic.Int32
 	executorFactory          CommandExecutorFactory   // set after reactor starts; creates per-session executors
 	streamingExecutorFactory StreamingExecutorFactory // set after reactor starts; for monitor commands
+	monitorFactory           cli.MonitorFactory       // set after reactor starts; for TUI monitor mode
 	shutdownFunc             ShutdownFunc             // set by daemon; called on "stop" exec command
 	restartFunc              RestartFunc              // set by daemon; called on "restart" exec command
 	loginWarningsFunc        LoginWarningsFunc        // set by daemon; returns login warnings for SSH sessions
@@ -180,6 +183,14 @@ func (s *Server) SetStreamingExecutorFactory(f StreamingExecutorFactory) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.streamingExecutorFactory = f
+}
+
+// SetMonitorFactory sets the factory for TUI monitor sessions.
+// Called after the reactor starts to wire streaming monitor into interactive SSH sessions.
+func (s *Server) SetMonitorFactory(f cli.MonitorFactory) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.monitorFactory = f
 }
 
 // SetShutdownFunc sets the callback for "stop" exec commands.
@@ -431,21 +442,20 @@ func (s *Server) execMiddleware() wish.Middleware {
 			streamFactory := s.streamingExecutorFactory
 			s.mu.Unlock()
 
-			// Check for streaming commands (e.g., "bgp monitor ...").
-			if streamFactory != nil && isStreamingCommand(input) {
+			// Check for streaming commands (e.g., "event monitor ...").
+			// Pass the full input to the executor; the executor does handler lookup.
+			if streamFactory != nil && pluginserver.IsStreamingCommand(input) {
 				streamExec := streamFactory(sess.User())
-				// Extract args after "bgp monitor" prefix.
-				monitorArgs := extractMonitorArgs(input)
-				if err := streamExec(sess.Context(), sess, monitorArgs); err != nil {
+				if err := streamExec(sess.Context(), sess, []string{input}); err != nil {
 					fmt.Fprintf(sess.Stderr(), "error: %v\n", err) //nolint:errcheck // best-effort
 					sess.Exit(1)                                   //nolint:errcheck // best-effort
 				}
 				return
 			}
 
-			if streamFactory == nil && isStreamingCommand(input) {
-				fmt.Fprintln(sess.Stderr(), "error: monitor not available (daemon still starting)") //nolint:errcheck // best-effort
-				sess.Exit(1)                                                                        //nolint:errcheck // best-effort
+			if streamFactory == nil && pluginserver.IsStreamingCommand(input) {
+				fmt.Fprintln(sess.Stderr(), "error: streaming not available (daemon still starting)") //nolint:errcheck // best-effort
+				sess.Exit(1)                                                                          //nolint:errcheck // best-effort
 				return
 			}
 
@@ -471,28 +481,9 @@ func (s *Server) execMiddleware() wish.Middleware {
 	}
 }
 
-// monitorPrefix is the command prefix that triggers streaming mode.
-const monitorPrefix = "bgp monitor"
-
-// isStreamingCommand returns true if the input is a streaming command.
-func isStreamingCommand(input string) bool {
-	lower := strings.ToLower(strings.TrimSpace(input))
-	return lower == monitorPrefix || strings.HasPrefix(lower, monitorPrefix+" ")
-}
-
-// extractMonitorArgs extracts the arguments after "bgp monitor" from the input.
-func extractMonitorArgs(input string) []string {
-	trimmed := strings.ToLower(strings.TrimSpace(input))
-	// Skip the "bgp monitor" prefix (case-insensitive).
-	if len(trimmed) <= len(monitorPrefix) {
-		return nil
-	}
-	rest := strings.TrimSpace(trimmed[len(monitorPrefix):])
-	if rest == "" {
-		return nil
-	}
-	return strings.Fields(rest)
-}
+// Streaming command detection and argument extraction are handled by
+// pluginserver.IsStreamingCommand() and pluginserver.GetStreamingHandlerForCommand().
+// These use a prefix-keyed registry instead of a hardcoded prefix constant.
 
 // teaHandler creates a per-session Bubble Tea model using the unified cli.Model.
 // Each SSH session gets a command-mode model with an executor wired.

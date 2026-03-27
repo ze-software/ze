@@ -38,7 +38,7 @@ See [JSON_FORMAT.md](JSON_FORMAT.md#exabgp-differences) for output format differ
 | Log | levels, set (runtime log levels) |
 | Metrics | values, list (Prometheus metrics) |
 | Group | start, end (batching) |
-| Monitor | bgp monitor (live event streaming) |
+| Monitor | event monitor (live event streaming) |
 | Subscribe | subscribe, unsubscribe (event filtering) |
 <!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
 
@@ -127,28 +127,37 @@ subscribe peer !upstream1 bgp event update direction sent  # Exclude one peer
 subscribe rib event route                               # RIB route events
 ```
 
-### Monitor Command
+### Event Monitor Command
 
-Stream live BGP events. The session stays open and events are written line-by-line as they occur. Read-only.
+Stream live events from all namespaces (BGP and RIB). The session stays open and events are written line-by-line as they occur. Read-only.
 
 ```
-bgp monitor                                          # All events, all peers
-bgp monitor peer <addr>                              # Filter by peer address
-bgp monitor peer *                                   # Explicit all peers
-bgp monitor event <type>,<type>                      # Filter by event type(s)
-bgp monitor direction received                       # Received events only
-bgp monitor direction sent                           # Sent events only
-bgp monitor peer <addr> event update direction received  # Combined filters
+event monitor                                                # All events, all peers
+event monitor peer <addr>                                    # Filter by peer address
+event monitor peer *                                         # Explicit all peers
+event monitor include <type>,<type>                          # Only listed event types
+event monitor exclude <type>,<type>                          # All types except listed
+event monitor direction received                             # Received events only
+event monitor direction sent                                 # Sent events only
+event monitor include update peer <addr> direction received  # Combined filters
 ```
 
 | Keyword | Values | Default |
 |---------|--------|---------|
-| `peer` | IP address or `*` | `*` (all peers) |
-| `event` | Comma-separated event types (update, open, notification, keepalive, refresh, state, negotiated) | All types |
+| `peer` | IP address, peer name, `!exclusion`, or `*` | `*` (all peers) |
+| `include` | Comma-separated event types | All types (mutually exclusive with `exclude`) |
+| `exclude` | Comma-separated event types | None (mutually exclusive with `include`) |
 | `direction` | `received`, `sent` | Both directions |
 
-Wire method: `ze-bgp:monitor`. Supports pipe operators: `| json`, `| table`, `| match`.
+Keywords may appear in any order. `include` and `exclude` are mutually exclusive.
+
+Event types span all namespaces: BGP (update, open, notification, keepalive, refresh, state, negotiated, eor, congested, resumed, rpki) and RIB (cache, route). Types are validated at parse time.
+<!-- source: internal/component/plugin/server/event_monitor.go -- ParseEventMonitorArgs -->
+
+Wire method: `ze-event:monitor`. Supports pipe operators: `| json`, `| table`, `| match`.
 <!-- source: internal/component/plugin/server/monitor.go -- MonitorManager -->
+
+**Note:** `bgp monitor` has been renamed to `event monitor`. Running `bgp monitor` returns an error directing users to use `event monitor` instead.
 
 ### System Commands
 
@@ -671,14 +680,15 @@ bgp
 │   ├── help
 │   └── complete
 ├── event
-│   └── list
+│   ├── list
+│   └── monitor           # Stream live events (keeps session open)
 ├── log
 │   ├── levels            # Show subsystem log levels
 │   └── set               # Set subsystem log level at runtime
 ├── metrics
 │   ├── values            # Show Prometheus metrics (text format)
 │   └── list              # List metric names
-├── monitor               # Stream live BGP events (keeps session open)
+├── monitor               # Redirects to "event monitor" (renamed)
 └── plugin
     ├── encoding
     ├── format

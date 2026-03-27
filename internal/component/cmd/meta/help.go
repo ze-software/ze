@@ -18,13 +18,26 @@ func init() {
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-help", Handler: handleBgpCommandHelp, Help: "Show command details", ReadOnly: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-complete", Handler: handleBgpCommandComplete, Help: "Complete command/args", ReadOnly: true},
 		pluginserver.RPCRegistration{WireMethod: "ze-bgp:event-list", Handler: handleBgpEventList, Help: "List available BGP event types", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-event:monitor", Handler: handleEventMonitor, Help: "Stream live events (use SSH for streaming)", ReadOnly: true},
 	)
 }
 
-// BGP event types.
-var bgpEventTypes = []string{
-	"update", "open", "notification", "keepalive",
-	"refresh", "state", "negotiated",
+// bgpEventTypes returns the current list of valid BGP event types,
+// excluding non-event entries like "sent" (a direction flag).
+func bgpEventTypes() []string {
+	names := plugin.ValidEventNames(plugin.NamespaceBGP)
+	if names == "" {
+		return nil
+	}
+	types := strings.Split(names, ", ")
+	// Filter out "sent" which is a direction flag, not an event type.
+	result := types[:0]
+	for _, t := range types {
+		if t != plugin.DirectionSent {
+			result = append(result, t)
+		}
+	}
+	return result
 }
 
 // handleBgpHelp returns list of all available commands.
@@ -130,7 +143,28 @@ func handleBgpEventList(_ *pluginserver.CommandContext, _ []string) (*plugin.Res
 	return &plugin.Response{
 		Status: plugin.StatusDone,
 		Data: map[string]any{
-			"events": bgpEventTypes,
+			"events": bgpEventTypes(),
+		},
+	}, nil
+}
+
+// handleEventMonitor is the RPC handler for non-streaming callers.
+// Streaming is handled by StreamEventMonitor via the SSH/TUI path.
+// This handler validates arguments and returns the parsed configuration.
+func handleEventMonitor(_ *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
+	opts, err := pluginserver.ParseEventMonitorArgs(args)
+	if err != nil {
+		return nil, err
+	}
+
+	return &plugin.Response{
+		Status: plugin.StatusDone,
+		Data: map[string]any{
+			"status":    "monitor-configured",
+			"include":   opts.IncludeTypes,
+			"exclude":   opts.ExcludeTypes,
+			"peer":      opts.Peer,
+			"direction": opts.Direction,
 		},
 	}, nil
 }

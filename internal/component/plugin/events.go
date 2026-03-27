@@ -130,6 +130,54 @@ func ValidNamespaceNames() string {
 	return strings.Join(names, ", ")
 }
 
+// IsValidEventAnyNamespace returns true if the event type is valid in any namespace.
+// Safe for concurrent use.
+func IsValidEventAnyNamespace(eventType string) bool {
+	eventsMu.RLock()
+	defer eventsMu.RUnlock()
+	for _, events := range ValidEvents {
+		if events[eventType] {
+			return true
+		}
+	}
+	return false
+}
+
+// AllEventTypes returns all valid event types grouped by namespace.
+// Safe for concurrent use.
+func AllEventTypes() map[string][]string {
+	eventsMu.RLock()
+	defer eventsMu.RUnlock()
+	result := make(map[string][]string, len(ValidEvents))
+	for ns, events := range ValidEvents {
+		types := make([]string, 0, len(events))
+		for et := range events {
+			types = append(types, et)
+		}
+		result[ns] = types
+	}
+	return result
+}
+
+// AllValidEventNames returns a sorted, comma-separated list of valid event types
+// across all namespaces (deduped). Safe for concurrent use.
+func AllValidEventNames() string {
+	eventsMu.RLock()
+	defer eventsMu.RUnlock()
+	seen := make(map[string]bool)
+	for _, events := range ValidEvents {
+		for k := range events {
+			seen[k] = true
+		}
+	}
+	names := make([]string, 0, len(seen))
+	for k := range seen {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+	return strings.Join(names, ", ")
+}
+
 // RegisterEventType adds a custom event type to the given namespace.
 // Plugins call this to register event types they produce (e.g., "update-rpki").
 // Duplicate registration is idempotent. The namespace must already exist.

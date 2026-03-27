@@ -92,6 +92,60 @@ func TestValidEventNamesIncludesRegistered(t *testing.T) {
 	}
 }
 
+// VALIDATES: IsValidEventAnyNamespace returns true for types in any namespace.
+// PREVENTS: Cross-namespace event types rejected by event monitor.
+func TestIsValidEventAnyNamespace(t *testing.T) {
+	if !IsValidEventAnyNamespace("update") {
+		t.Fatal("update should be valid (BGP namespace)")
+	}
+	if !IsValidEventAnyNamespace("cache") {
+		t.Fatal("cache should be valid (RIB namespace)")
+	}
+	if IsValidEventAnyNamespace("nonexistent") {
+		t.Fatal("nonexistent should not be valid in any namespace")
+	}
+}
+
+// VALIDATES: AllEventTypes returns types grouped by namespace.
+// PREVENTS: Missing namespaces or types in all-events query.
+func TestAllEventTypes(t *testing.T) {
+	all := AllEventTypes()
+	bgp, ok := all[NamespaceBGP]
+	if !ok {
+		t.Fatal("AllEventTypes should include bgp namespace")
+	}
+	if len(bgp) == 0 {
+		t.Fatal("bgp namespace should have event types")
+	}
+
+	rib, ok := all[NamespaceRIB]
+	if !ok {
+		t.Fatal("AllEventTypes should include rib namespace")
+	}
+	if len(rib) == 0 {
+		t.Fatal("rib namespace should have event types")
+	}
+
+	// Verify it returns a copy (mutations don't affect global state).
+	all[NamespaceBGP] = nil
+	fresh := AllEventTypes()
+	if len(fresh[NamespaceBGP]) == 0 {
+		t.Fatal("AllEventTypes should return a fresh copy")
+	}
+}
+
+// VALIDATES: AllValidEventNames returns a deduped sorted list.
+// PREVENTS: Duplicate types in error messages, unsorted output.
+func TestAllValidEventNames(t *testing.T) {
+	names := AllValidEventNames()
+	if !strings.Contains(names, "update") {
+		t.Fatalf("AllValidEventNames should include update, got: %s", names)
+	}
+	if !strings.Contains(names, "cache") {
+		t.Fatalf("AllValidEventNames should include cache, got: %s", names)
+	}
+}
+
 // unregisterSendType removes a dynamically registered send type. Test helper only.
 func unregisterSendType(sendType string) {
 	sendTypesMu.Lock()
