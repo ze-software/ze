@@ -252,6 +252,24 @@ func (s *Server) SetProcessSpawner(sp plugin.ProcessSpawner) {
 	s.spawner = sp
 }
 
+// CallFilterUpdate sends a filter-update RPC to a named plugin and returns the response.
+// Returns an error if the plugin is not found, not connected, or the RPC fails.
+func (s *Server) CallFilterUpdate(ctx context.Context, pluginName string, input *rpc.FilterUpdateInput) (*rpc.FilterUpdateOutput, error) {
+	pm := s.procManager.Load()
+	if pm == nil {
+		return nil, fmt.Errorf("filter-update: no process manager")
+	}
+	proc := pm.GetProcess(pluginName)
+	if proc == nil {
+		return nil, fmt.Errorf("filter-update: unknown plugin %q", pluginName)
+	}
+	conn := proc.Conn()
+	if conn == nil {
+		return nil, fmt.Errorf("filter-update: plugin %q not connected", pluginName)
+	}
+	return conn.SendFilterUpdate(ctx, input)
+}
+
 // Running returns true if the server is running.
 func (s *Server) Running() bool {
 	return s.running.Load()

@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 6/8 |
+| Phase | 7/8 |
 | Updated | 2026-03-27 |
 
 ## Post-Compaction Recovery
@@ -541,9 +541,13 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Text delta merge in `applyFilterDelta()` handles attribute-level dirty tracking at the text protocol layer.
    - Wire-level dirty tracking (re-encoding only modified attributes using `ModAccumulator`/`buildModifiedPayload`) deferred to reactor wiring phase.
 
-5. **Phase: Reactor wiring** -- ⏸️ Blocked
-   - Pre-existing compilation error in `reactor_api_batch.go` (missing `localAS` arg from other work in tree) prevents reactor package from compiling. Must be fixed before wiring can proceed.
-   - When unblocked: wire `PolicyFilterChain` into `reactor_notify.go` (ingress, after in-process filters) and `reactor_api_forward.go` (egress, per-peer).
+5. **Phase: Reactor wiring** -- ✅ Done
+   - Ingress: `PolicyFilterChain` wired into `reactor_notify.go` after in-process filters, before cache. Uses `peer.settings.ImportFilters`.
+   - Egress: `PolicyFilterChain` wired into `reactor_api_forward.go` after in-process egress filters, per destination peer. Uses `peer.Settings().ExportFilters`.
+   - `policyFilterFunc()` on Reactor bridges to `r.api.CallFilterUpdate()` with 5s timeout.
+   - `CallFilterUpdate()` on Server looks up plugin process by name and calls `SendFilterUpdate()`.
+   - `parsePolicyAction()` validates wire response (accept/reject/modify), rejects unknown actions.
+   - TODO in both paths: text-format update from wire bytes (attribute formatting not yet wired).
 
 6. **Phase: SDK support** -- ✅ Done (commit c6d81d83)
    - `OnFilterUpdate()` callback, `handleFilterUpdate()` dispatch, `SendFilterUpdate()` IPC

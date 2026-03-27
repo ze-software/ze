@@ -352,6 +352,20 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		}
 	}
 
+	// Policy filter chain: external plugin filters (after in-process filters).
+	// Only for received UPDATEs when the peer has import filters configured.
+	if direction == plugin.DirectionReceived && wireUpdate != nil && hasPeer {
+		if filters := peer.settings.ImportFilters; len(filters) > 0 && r.api != nil {
+			action, _ := PolicyFilterChain(filters, "import", peerAddr.String(), peerInfo.PeerAS,
+				"", // TODO: text-format update from wire bytes (requires attribute formatting)
+				r.policyFilterFunc(),
+			)
+			if action == PolicyReject {
+				return false // Route rejected by policy filter; don't cache or dispatch.
+			}
+		}
+	}
+
 	// Cache BEFORE event delivery (only received UPDATEs).
 	// Entry is inserted with pending=true so it exists when plugins receive the
 	// message-id. After dispatch, Activate(id, N) sets the consumer count.

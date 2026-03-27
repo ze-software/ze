@@ -5,9 +5,13 @@
 package reactor
 
 import (
+	"context"
 	"fmt"
 	"maps"
 	"strings"
+	"time"
+
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
 const policyAttrNLRI = "nlri"
@@ -187,4 +191,57 @@ func formatFilterAttrs(attrs map[string]string) string {
 	}
 
 	return strings.Join(parts, " ")
+}
+
+// policyFilterTimeout is the per-filter IPC timeout (spec: 5 seconds).
+const policyFilterTimeout = 5 * time.Second
+
+// policyFilterFunc returns a PolicyFilterFunc that calls external plugins via IPC.
+// The reactor's API server is used to look up plugin connections.
+func (r *Reactor) policyFilterFunc() PolicyFilterFunc {
+	return func(pluginName, filterName, direction, peer string, peerAS uint32, updateText string) PolicyResponse {
+		if r.api == nil {
+			reactorLogger().Warn("policy filter: no API server", "plugin", pluginName, "filter", filterName)
+			return PolicyResponse{Action: PolicyReject} // fail-closed
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), policyFilterTimeout)
+		defer cancel()
+
+		input := &rpc.FilterUpdateInput{
+			Filter:    filterName,
+			Direction: direction,
+			Peer:      peer,
+			PeerAS:    peerAS,
+			Update:    updateText,
+		}
+
+		out, err := r.api.CallFilterUpdate(ctx, pluginName, input)
+		if err != nil {
+			reactorLogger().Warn("policy filter IPC error", "plugin", pluginName, "filter", filterName, "error", err)
+			// TODO: use per-filter on-error setting (reject or accept)
+			return PolicyResponse{Action: PolicyReject} // fail-closed
+		}
+
+		action, parseErr := parsePolicyAction(out.Action)
+		if parseErr != nil {
+			reactorLogger().Warn("policy filter: invalid action", "plugin", pluginName, "filter", filterName, "action", out.Action, "error", parseErr)
+			return PolicyResponse{Action: PolicyReject} // fail-closed on invalid response
+		}
+
+		return PolicyResponse{Action: action, Delta: out.Update}
+	}
+}
+
+// parsePolicyAction converts a string action from the wire protocol to PolicyAction.
+func parsePolicyAction(s string) (PolicyAction, error) {
+	switch s {
+	case "accept":
+		return PolicyAccept, nil
+	case "reject":
+		return PolicyReject, nil
+	case "modify":
+		return PolicyModify, nil
+	}
+	return PolicyReject, fmt.Errorf("unknown filter action %q, expected accept/reject/modify", s)
 }

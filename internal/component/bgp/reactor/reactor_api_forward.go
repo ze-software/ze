@@ -281,6 +281,17 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 				continue // Route suppressed by egress filter for this peer.
 			}
 		}
+		// Policy export filter chain: external plugin filters (after in-process filters).
+		if exportFilters := peer.Settings().ExportFilters; len(exportFilters) > 0 && a.r.api != nil {
+			action, _ := PolicyFilterChain(exportFilters, "export", peer.Settings().Address.String(), peer.Settings().PeerAS,
+				"", // TODO: text-format update from wire bytes
+				a.r.policyFilterFunc(),
+			)
+			if action == PolicyReject {
+				continue // Route suppressed by policy export filter for this peer.
+			}
+		}
+
 		// Select wire version for this peer.
 		// RFC 4271 §9.1.2: EBGP peers get AS-PATH-prepended wire.
 		// IBGP peers get original wire unchanged.
