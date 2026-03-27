@@ -145,7 +145,7 @@ func (m Model) handleMonitorPoll() (tea.Model, tea.Cmd) {
 }
 
 // SetMonitorFactory sets the factory used to create monitor sessions.
-// When set, streaming commands (e.g., "event monitor") in the interactive TUI enter streaming mode.
+// When set, streaming commands (e.g., "monitor event") in the interactive TUI enter streaming mode.
 // When nil, streaming commands fall through to the regular executor (non-streaming).
 func (m *Model) SetMonitorFactory(f MonitorFactory) {
 	m.monitorFactory = f

@@ -50,7 +50,7 @@ Ze is a BGP daemon written in Go. This document lists all user-facing features.
 | ADD-PATH | 69 | RFC 7911 | Multiple paths per prefix |
 | Extended Message | 6 | RFC 8654 | 65535-byte messages |
 | Extended Next Hop | 5 | RFC 8950 | IPv6 next-hop for IPv4 NLRI |
-| Graceful Restart | 64 | RFC 4724 | Session preservation across restarts |
+| Graceful Restart | 64 | RFC 4724 | Session preservation across restarts (Restarting Speaker: R-bit via zefs marker on `ze signal restart`) |
 | Long-Lived GR | 71 | RFC 9494 | Extended stale route retention with LLGR_STALE community and depreference |
 | BGP Role | 9 | RFC 9234 | Peer relationship role |
 | Hostname | 73 | draft | FQDN capability |
@@ -321,7 +321,8 @@ Three filter categories:
 |---------|-------------|
 | `ze <config-file>` | Start daemon with configuration |
 | `ze signal reload` | Send SIGHUP — reload configuration |
-| `ze signal stop` | Send SIGTERM — graceful shutdown |
+| `ze signal stop` | Graceful shutdown (no GR marker) |
+| `ze signal restart` | Graceful restart (writes GR marker, then shuts down) |
 | `ze signal quit` | Send SIGQUIT — goroutine dump + exit |
 | `ze status` | Check if daemon is running |
 

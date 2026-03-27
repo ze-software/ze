@@ -1,12 +1,21 @@
 # Monitoring
 
-Ze provides real-time BGP event monitoring through the CLI. Events are streamed as they happen, with filtering by peer, event type, and direction.
+Ze provides real-time BGP event monitoring and a live peer dashboard through the CLI. Commands follow verb-first syntax: `monitor <module>`.
 <!-- source: internal/component/bgp/plugins/cmd/monitor/ -- monitor streaming RPCs -->
 
-## CLI Usage
+## Live Peer Dashboard
 
 ```
-ze cli bgp monitor
+ze cli monitor bgp
+```
+
+Auto-refreshing dashboard showing router identity, sortable color-coded peer table with update rates. Navigate with j/k, sort with s/S, Enter for detail, Esc to exit. Refreshes every 2 seconds.
+<!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
+
+## Event Streaming
+
+```
+ze cli monitor event
 ```
 
 ### Filters
@@ -14,13 +23,14 @@ ze cli bgp monitor
 | Filter | Example | Description |
 |--------|---------|-------------|
 | `peer` | `peer upstream1` | Show events for one peer |
-| `event` | `event update,state` | Filter by event type (comma-separated) |
+| `include` | `include update,state` | Filter by event type (comma-separated) |
+| `exclude` | `exclude keepalive` | Exclude event types |
 | `direction` | `direction received` | Only received or sent events |
 
 Combine filters:
 
 ```
-ze cli bgp monitor peer upstream1 event update direction received
+ze cli monitor event peer upstream1 include update direction received
 ```
 
 ### Event Types
@@ -43,9 +53,9 @@ ze cli bgp monitor peer upstream1 event update direction received
 Pipe the output through format operators:
 
 ```
-ze cli bgp monitor | json      # Full JSON envelope
-ze cli bgp monitor | table     # Tabular format
-ze cli bgp monitor | match rx  # Regex filter on output
+ze cli monitor event | json      # Full JSON envelope
+ze cli monitor event | table     # Tabular format
+ze cli monitor event | match rx  # Regex filter on output
 ```
 <!-- source: internal/component/command/ -- ApplyJSON, ApplyTable pipe operators -->
 

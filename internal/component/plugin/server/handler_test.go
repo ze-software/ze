@@ -25,15 +25,15 @@ func TestStreamingHandlerRegistry(t *testing.T) {
 	handlerA := func(_ context.Context, _ *Server, _ io.Writer, _ string, _ []string) error { return nil }
 	handlerB := func(_ context.Context, _ *Server, _ io.Writer, _ string, _ []string) error { return nil }
 
-	RegisterStreamingHandler("event monitor", handlerA)
-	RegisterStreamingHandler("bgp monitor", handlerB)
+	RegisterStreamingHandler("monitor event", handlerA)
+	RegisterStreamingHandler("monitor bgp", handlerB)
 
-	h, args := GetStreamingHandlerForCommand("event monitor peer 10.0.0.1")
-	require.NotNil(t, h, "should match 'event monitor' prefix")
+	h, args := GetStreamingHandlerForCommand("monitor event peer 10.0.0.1")
+	require.NotNil(t, h, "should match 'monitor event' prefix")
 	require.Equal(t, []string{"peer", "10.0.0.1"}, args)
 
-	h, args = GetStreamingHandlerForCommand("bgp monitor")
-	require.NotNil(t, h, "should match 'bgp monitor' prefix")
+	h, args = GetStreamingHandlerForCommand("monitor bgp")
+	require.NotNil(t, h, "should match 'monitor bgp' prefix")
 	require.Nil(t, args, "no args after prefix")
 
 	h, _ = GetStreamingHandlerForCommand("unknown command")
@@ -54,26 +54,26 @@ func TestStreamingHandlerPrefixMatch(t *testing.T) {
 	}()
 
 	var matched string
-	RegisterStreamingHandler("event", func(_ context.Context, _ *Server, _ io.Writer, _ string, _ []string) error {
-		matched = "event"
+	RegisterStreamingHandler("monitor", func(_ context.Context, _ *Server, _ io.Writer, _ string, _ []string) error {
+		matched = "monitor"
 		return nil
 	})
-	RegisterStreamingHandler("event monitor", func(_ context.Context, _ *Server, _ io.Writer, _ string, _ []string) error {
-		matched = "event monitor"
+	RegisterStreamingHandler("monitor event", func(_ context.Context, _ *Server, _ io.Writer, _ string, _ []string) error {
+		matched = "monitor event"
 		return nil
 	})
 
-	h, args := GetStreamingHandlerForCommand("event monitor include update")
-	require.NotNil(t, h, "should match 'event monitor' prefix")
+	h, args := GetStreamingHandlerForCommand("monitor event include update")
+	require.NotNil(t, h, "should match 'monitor event' prefix")
 	_ = h(context.Background(), nil, nil, "", nil)
-	require.Equal(t, "event monitor", matched, "longest prefix should win")
+	require.Equal(t, "monitor event", matched, "longest prefix should win")
 	require.Equal(t, []string{"include", "update"}, args)
 
-	h, args = GetStreamingHandlerForCommand("event list")
-	require.NotNil(t, h, "should match 'event' prefix")
+	h, args = GetStreamingHandlerForCommand("monitor something")
+	require.NotNil(t, h, "should match 'monitor' prefix")
 	_ = h(context.Background(), nil, nil, "", nil)
-	require.Equal(t, "event", matched, "should match shorter prefix")
-	require.Equal(t, []string{"list"}, args)
+	require.Equal(t, "monitor", matched, "should match shorter prefix")
+	require.Equal(t, []string{"something"}, args)
 }
 
 // VALIDATES: IsStreamingCommand checks all registered prefixes.
@@ -90,11 +90,11 @@ func TestIsStreamingCommand(t *testing.T) {
 	}()
 
 	handler := func(_ context.Context, _ *Server, _ io.Writer, _ string, _ []string) error { return nil }
-	RegisterStreamingHandler("event monitor", handler)
+	RegisterStreamingHandler("monitor event", handler)
 
-	require.True(t, IsStreamingCommand("event monitor"))
-	require.True(t, IsStreamingCommand("event monitor peer 10.0.0.1"))
-	require.True(t, IsStreamingCommand("EVENT MONITOR"), "should be case-insensitive")
+	require.True(t, IsStreamingCommand("monitor event"))
+	require.True(t, IsStreamingCommand("monitor event peer 10.0.0.1"))
+	require.True(t, IsStreamingCommand("MONITOR EVENT"), "should be case-insensitive")
 	require.False(t, IsStreamingCommand("bgp peer list"))
-	require.False(t, IsStreamingCommand("eventmonitor"), "no space should not match")
+	require.False(t, IsStreamingCommand("monitorvent"), "no space should not match")
 }

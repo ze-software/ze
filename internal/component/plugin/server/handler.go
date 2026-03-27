@@ -1,11 +1,12 @@
 // Design: docs/architecture/api/process-protocol.md — plugin process management
-// Detail: event_monitor.go — event monitor streaming handler
+// Detail: event_monitor.go — monitor event streaming handler
 
 package server
 
 import (
 	"context"
 	"io"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -16,7 +17,7 @@ import (
 type StreamingHandler func(ctx context.Context, s *Server, w io.Writer, username string, args []string) error
 
 // streamingHandlers maps command prefix to handler. Multiple streaming commands
-// can coexist (e.g., "event monitor" and "bgp monitor"). Protected by streamingHandlersMu.
+// can coexist (e.g., "monitor event", "monitor bgp"). Protected by streamingHandlersMu.
 var (
 	streamingHandlersMu sync.RWMutex
 	streamingHandlers   = make(map[string]StreamingHandler)
@@ -84,6 +85,18 @@ func GetStreamingHandlerForCommand(input string) (StreamingHandler, []string) {
 func IsStreamingCommand(input string) bool {
 	h, _ := GetStreamingHandlerForCommand(input)
 	return h != nil
+}
+
+// StreamingPrefixes returns the registered streaming command prefixes, sorted.
+func StreamingPrefixes() []string {
+	streamingHandlersMu.RLock()
+	defer streamingHandlersMu.RUnlock()
+	prefixes := make([]string, 0, len(streamingHandlers))
+	for p := range streamingHandlers {
+		prefixes = append(prefixes, p)
+	}
+	sort.Strings(prefixes)
+	return prefixes
 }
 
 // monitorEventFormatter is a registered function that transforms raw JSON event lines

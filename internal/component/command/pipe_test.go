@@ -489,12 +489,12 @@ func TestProcessPipesDefaultFunc(t *testing.T) {
 		wantCmd    string
 		wantCustom bool // true if result should use custom formatter
 	}{
-		{"no pipe uses custom", "event monitor", "event monitor", true},
-		{"explicit json overrides custom", "event monitor | json", "event monitor", false},
-		{"explicit table overrides custom", "event monitor | table", "event monitor", false},
-		{"explicit text overrides custom", "event monitor | text", "event monitor", false},
-		{"explicit yaml overrides custom", "event monitor | yaml", "event monitor", false},
-		{"match only uses custom", "event monitor | match state", "event monitor", true},
+		{"no pipe uses custom", "monitor event", "monitor event", true},
+		{"explicit json overrides custom", "monitor event | json", "monitor event", false},
+		{"explicit table overrides custom", "monitor event | table", "monitor event", false},
+		{"explicit text overrides custom", "monitor event | text", "monitor event", false},
+		{"explicit yaml overrides custom", "monitor event | yaml", "monitor event", false},
+		{"match only uses custom", "monitor event | match state", "monitor event", true},
 	}
 
 	jsonInput := `{"key":"value"}`

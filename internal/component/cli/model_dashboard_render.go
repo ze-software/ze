@@ -237,12 +237,48 @@ func renderDashboardDetail(ds *dashboardState) string {
 		{"Update Rate", rate},
 	}
 
+	// Append extended fields from peer-detail RPC if available.
+	if d := ds.detailData; d != nil {
+		if rid, ok := d["router-id"].(string); ok {
+			rows = append(rows, struct{ label, value string }{"Router ID", rid})
+		}
+		if las, ok := d["local-as"].(float64); ok {
+			rows = append(rows, struct{ label, value string }{"Local ASN", fmt.Sprintf("%d", int(las))})
+		}
+		if timer, ok := d["timer"].(map[string]any); ok {
+			if rht, ok := timer["receive-hold-time"].(float64); ok {
+				rows = append(rows, struct{ label, value string }{"Recv Hold Time", fmt.Sprintf("%ds", int(rht))})
+			}
+			if sht, ok := timer["send-hold-time"].(float64); ok {
+				rows = append(rows, struct{ label, value string }{"Send Hold Time", fmt.Sprintf("%ds", int(sht))})
+			}
+			if cr, ok := timer["connect-retry"].(float64); ok {
+				rows = append(rows, struct{ label, value string }{"Connect Retry", fmt.Sprintf("%ds", int(cr))})
+			}
+		}
+		if conn, ok := d["connect"].(bool); ok {
+			rows = append(rows, struct{ label, value string }{"Connect", fmt.Sprintf("%v", conn)})
+		}
+		if acc, ok := d["accept"].(bool); ok {
+			rows = append(rows, struct{ label, value string }{"Accept", fmt.Sprintf("%v", acc)})
+		}
+		if lip, ok := d["local-ip"].(string); ok {
+			rows = append(rows, struct{ label, value string }{"Local IP", lip})
+		}
+		if name, ok := d["name"].(string); ok {
+			rows = append(rows, struct{ label, value string }{"Name", name})
+		}
+		if group, ok := d["group"].(string); ok {
+			rows = append(rows, struct{ label, value string }{"Group", group})
+		}
+	}
+
 	for _, r := range rows {
 		fmt.Fprintf(&sb, "  %-16s %s\n", r.label, r.value)
 	}
 
 	sb.WriteString("\n")
-	sb.WriteString(dashFooterStyle.Render("  Esc Back"))
+	sb.WriteString(dashFooterStyle.Render("  Esc Back  ? Help"))
 
 	return sb.String()
 }
@@ -262,4 +298,30 @@ func formatCounter(n uint32) string {
 		result = append(result, byte(c))
 	}
 	return string(result)
+}
+
+// renderDashboardHelp renders the help overlay.
+func renderDashboardHelp() string {
+	var sb strings.Builder
+	sb.WriteString(dashHeaderStyle.Render("  Dashboard Help"))
+	sb.WriteString("\n\n")
+
+	keys := []struct{ key, action string }{
+		{"j / Down", "Select next peer"},
+		{"k / Up", "Select previous peer"},
+		{"s", "Cycle sort column"},
+		{"S", "Reverse sort direction"},
+		{"Enter", "Show peer detail"},
+		{"Esc", "Back (detail -> table -> exit)"},
+		{"q / Ctrl-C", "Quit dashboard"},
+		{"?", "Toggle this help"},
+	}
+
+	for _, k := range keys {
+		fmt.Fprintf(&sb, "  %-14s %s\n", k.key, k.action)
+	}
+
+	sb.WriteString("\n")
+	sb.WriteString(dashFooterStyle.Render("  Press any key to dismiss"))
+	return sb.String()
 }

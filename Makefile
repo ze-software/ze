@@ -5,7 +5,7 @@
 .PHONY: ze-all ze-all-test
 .PHONY: ze-interop-test ze-live-test ze-live-rpki-test
 .PHONY: ze-perf ze-perf-bench ze-perf-report ze-perf-track
-.PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-validate-commands ze-validate-commands-json ze-doc-drift
+.PHONY: ze-spec-status ze-spec-status-json ze-inventory ze-inventory-json ze-command-list ze-command-list-json ze-validate-commands ze-validate-commands-json ze-doc-drift
 .PHONY: check
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
@@ -343,6 +343,14 @@ ze-inventory:
 ze-inventory-json:
 	@go run scripts/inventory.go --json
 
+# Generate command inventory (all registered commands, classified by verb)
+ze-command-list:
+	@go run scripts/command_inventory.go
+
+# Generate command inventory as JSON
+ze-command-list-json:
+	@go run scripts/command_inventory.go --json
+
 # Check documentation drift against live registry and filesystem
 ze-doc-drift:
 	@go run scripts/check-doc-drift.go
@@ -448,6 +456,8 @@ help:
 	@echo "  Inventory:"
 	@echo "  ze-inventory          - Generate project inventory (plugins, YANG, RPCs, tests)"
 	@echo "  ze-inventory-json     - Generate project inventory as JSON"
+	@echo "  ze-command-list       - Generate command inventory (all commands by verb)"
+	@echo "  ze-command-list-json  - Generate command inventory as JSON"
 	@echo "  ze-validate-commands  - Cross-check YANG command tree vs registered handlers"
 	@echo ""
 	@echo "  Utilities:"

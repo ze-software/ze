@@ -1,6 +1,6 @@
-# Test: event monitor with include filter via dispatch-command
+# Test: monitor event with include filter via dispatch-command
 # VALIDATES: AC-2 -- include filter parsed and returned in response
-# PREVENTS: include keyword not recognized by event monitor handler
+# PREVENTS: include keyword not recognized by monitor event handler
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -9,7 +9,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for event monitor include
+# Python test plugin: exercises dispatch-command for monitor event include
 tmpfs=event-monitor-include-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
@@ -34,7 +34,7 @@ def main():
     time.sleep(1.0)
 
     try:
-        result = dispatch(api, 'event monitor include update,state')
+        result = dispatch(api, 'monitor event include update,state')
         if result.get('status') != 'done':
             print(f'FAIL: status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)
@@ -48,7 +48,7 @@ def main():
             print(f'FAIL: expected include=[update,state], got {include}', file=sys.stderr)
             sys.exit(1)
 
-        print(f'OK: event monitor include filter parsed: {include}', file=sys.stderr)
+        print(f'OK: monitor event include filter parsed: {include}', file=sys.stderr)
     finally:
         dispatch(api, 'daemon shutdown')
         api.wait_for_shutdown()

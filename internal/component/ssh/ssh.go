@@ -442,7 +442,7 @@ func (s *Server) execMiddleware() wish.Middleware {
 			streamFactory := s.streamingExecutorFactory
 			s.mu.Unlock()
 
-			// Check for streaming commands (e.g., "event monitor ...").
+			// Check for streaming commands (e.g., "monitor event ...").
 			// Pass the full input to the executor; the executor does handler lookup.
 			if streamFactory != nil && pluginserver.IsStreamingCommand(input) {
 				streamExec := streamFactory(sess.User())

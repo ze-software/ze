@@ -125,7 +125,9 @@ type dashboardState struct {
 	selectedIdx  int
 	lastPollTime time.Time
 	pollError    string
-	detailAddr   string // non-empty when in detail view
+	detailAddr   string         // non-empty when in detail view
+	detailData   map[string]any // extended peer detail from RPC
+	showHelp     bool           // help overlay visible
 	poller       func() (string, error)
 	rates        map[string]*peerRateEntry
 }
@@ -299,6 +301,7 @@ func (m Model) handleDashboardData(msg dashboardDataMsg) (tea.Model, tea.Cmd) {
 		}
 
 		// If in detail view and peer disappeared, return to table.
+		// Otherwise refresh detail data.
 		if m.dashboard.detailAddr != "" {
 			found := false
 			for _, p := range snap.Peers {
@@ -309,7 +312,10 @@ func (m Model) handleDashboardData(msg dashboardDataMsg) (tea.Model, tea.Cmd) {
 			}
 			if !found {
 				m.dashboard.detailAddr = ""
+				m.dashboard.detailData = nil
 				m.statusMessage = "peer disconnected"
+			} else {
+				m.fetchPeerDetail(m.dashboard.detailAddr)
 			}
 		}
 	}
@@ -326,13 +332,22 @@ func (m *Model) handleDashboardKey(keyStr string) bool {
 
 	ds := m.dashboard
 
+	// Help overlay: ? toggles, any other key dismisses.
+	if ds.showHelp {
+		ds.showHelp = false
+		return true
+	}
+
 	// Detail view: Esc or Backspace returns to table.
 	if ds.detailAddr != "" {
 		switch keyStr {
 		case "esc", "backspace":
 			ds.detailAddr = ""
+			ds.detailData = nil
 		case "q", "ctrl+c":
 			m.stopDashboard()
+		case "?":
+			ds.showHelp = true
 		}
 		return true // Absorb all keys in detail view.
 	}
@@ -341,6 +356,8 @@ func (m *Model) handleDashboardKey(keyStr string) bool {
 	switch keyStr {
 	case "q", "ctrl+c", "esc":
 		m.stopDashboard()
+	case "?":
+		ds.showHelp = true
 	case "s":
 		ds.sortColumn = ds.sortColumn.next()
 	case "S":
@@ -368,11 +385,38 @@ func (m *Model) handleDashboardKey(keyStr string) bool {
 			sorted := sortDashboardPeers(ds.snapshot.Peers, ds.sortColumn, ds.sortAsc)
 			if ds.selectedIdx < len(sorted) {
 				ds.detailAddr = sorted[ds.selectedIdx].Address
+				ds.detailData = nil
+				m.fetchPeerDetail(ds.detailAddr)
 			}
 		}
 	}
 
 	return true // Absorb all keys in dashboard mode.
+}
+
+// fetchPeerDetail fetches extended peer info via commandExecutor.
+// Results are stored in ds.detailData for rendering.
+func (m *Model) fetchPeerDetail(addr string) {
+	if m.commandExecutor == nil || m.dashboard == nil {
+		return
+	}
+	data, err := m.commandExecutor("peer " + addr + " detail")
+	if err != nil {
+		return
+	}
+	m.dashboard.detailData = parsePeerDetail(data, addr)
+}
+
+// parsePeerDetail extracts the detail map for a specific peer from the RPC response.
+// Response format: {"peers": {"<ip>": {...}}}.
+func parsePeerDetail(data, addr string) map[string]any {
+	var raw struct {
+		Peers map[string]map[string]any `json:"peers"`
+	}
+	if err := json.Unmarshal([]byte(data), &raw); err != nil {
+		return nil
+	}
+	return raw.Peers[addr]
 }
 
 // renderDashboard renders the full dashboard screen.
@@ -386,6 +430,11 @@ func (m Model) renderDashboard() string {
 	width := m.width
 	if width <= 0 {
 		width = 80
+	}
+
+	// Help overlay replaces everything.
+	if ds.showHelp {
+		return renderDashboardHelp()
 	}
 
 	// Header (2 lines).

@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — monitor client management
 // Overview: server.go — Server struct holds MonitorManager
-// Related: event_monitor.go — event monitor streaming handler
+// Related: event_monitor.go — monitor event streaming handler
 
 package server
 

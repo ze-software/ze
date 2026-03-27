@@ -43,12 +43,6 @@ module ze-cli-meta-cmd {
             ze:command "ze-bgp:event-list";
             description "List available BGP event types";
         }
-
-        container monitor {
-            config false;
-            ze:command "ze-event:monitor";
-            description "Stream live events with optional include/exclude filters";
-        }
     }
 
     container plugin {

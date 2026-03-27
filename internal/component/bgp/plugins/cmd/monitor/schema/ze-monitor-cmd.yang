@@ -2,17 +2,23 @@ module ze-monitor-cmd {
     namespace "urn:ze:monitor:cmd";
     prefix moncmd;
     import ze-extensions { prefix ze; }
-    description "BGP monitor command tree";
-    revision 2026-03-17 { description "Initial revision"; }
+    description "Monitor command tree (verb-first: monitor <module>)";
+    revision 2026-03-27 { description "Verb-first: monitor bgp, monitor event"; }
 
-    container bgp {
+    container monitor {
         config false;
-        description "BGP operations";
+        description "Long-running auto-refreshing commands";
 
-        container monitor {
+        container bgp {
             config false;
             ze:command "ze-bgp:monitor";
-            description "Stream live BGP events";
+            description "Live peer status dashboard";
+        }
+
+        container event {
+            config false;
+            ze:command "ze-event:monitor";
+            description "Stream live events with optional include/exclude filters";
         }
     }
 }

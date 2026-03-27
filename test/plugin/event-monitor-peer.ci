@@ -1,6 +1,6 @@
-# Test: event monitor with peer filter via dispatch-command
+# Test: monitor event with peer filter via dispatch-command
 # VALIDATES: AC-5 -- peer filter parsed and returned in response
-# PREVENTS: peer keyword not recognized by event monitor handler
+# PREVENTS: peer keyword not recognized by monitor event handler
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -9,7 +9,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for event monitor peer
+# Python test plugin: exercises dispatch-command for monitor event peer
 tmpfs=event-monitor-peer-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
@@ -34,7 +34,7 @@ def main():
     time.sleep(1.0)
 
     try:
-        result = dispatch(api, 'event monitor peer 10.0.0.1')
+        result = dispatch(api, 'monitor event peer 10.0.0.1')
         if result.get('status') != 'done':
             print(f'FAIL: status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)
@@ -48,7 +48,7 @@ def main():
             print(f'FAIL: expected peer=10.0.0.1, got {peer}', file=sys.stderr)
             sys.exit(1)
 
-        print(f'OK: event monitor peer filter parsed: {peer}', file=sys.stderr)
+        print(f'OK: monitor event peer filter parsed: {peer}', file=sys.stderr)
     finally:
         dispatch(api, 'daemon shutdown')
         api.wait_for_shutdown()

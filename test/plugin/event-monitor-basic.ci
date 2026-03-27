@@ -1,6 +1,6 @@
-# Test: event monitor with no args via dispatch-command returns status=done
-# VALIDATES: AC-1 -- event monitor RPC handler is registered and returns monitor-configured
-# PREVENTS: event monitor handler not wired or returning wrong status
+# Test: monitor event with no args via dispatch-command returns status=done
+# VALIDATES: AC-1 -- monitor event RPC handler is registered and returns monitor-configured
+# PREVENTS: monitor event handler not wired or returning wrong status
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
@@ -9,7 +9,7 @@ option=timeout:value=15s
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: exercises dispatch-command for event monitor
+# Python test plugin: exercises dispatch-command for monitor event
 tmpfs=event-monitor-basic-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 import json
@@ -34,9 +34,9 @@ def main():
     time.sleep(1.0)
 
     try:
-        result = dispatch(api, 'event monitor')
+        result = dispatch(api, 'monitor event')
         if result.get('status') != 'done':
-            print(f'FAIL: event monitor status={result.get("status")} data={result.get("data")}', file=sys.stderr)
+            print(f'FAIL: monitor event status={result.get("status")} data={result.get("data")}', file=sys.stderr)
             sys.exit(1)
 
         data = result.get('data', {})
@@ -47,7 +47,7 @@ def main():
             print(f'FAIL: expected monitor-configured, got {status}', file=sys.stderr)
             sys.exit(1)
 
-        print(f'OK: event monitor returned status={status}', file=sys.stderr)
+        print(f'OK: monitor event returned status={status}', file=sys.stderr)
     finally:
         dispatch(api, 'daemon shutdown')
         api.wait_for_shutdown()

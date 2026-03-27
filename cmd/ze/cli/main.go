@@ -211,7 +211,7 @@ func isMonitorCommand(command string) bool {
 
 // StreamMonitor runs a streaming monitor command, printing each event line.
 // Default output is a compact one-liner per event (registered monitor formatter).
-// Users can override with explicit pipes: "event monitor | json", "| table", etc.
+// Users can override with explicit pipes: "monitor event | json", "| table", etc.
 func (c *cliClient) StreamMonitor(command string) int {
 	// Pipe operators are extracted before streaming.
 	// Default to the registered compact one-liner formatter instead of table
