@@ -20,7 +20,6 @@ import (
 // TestRunSmallBenchmark is an end-to-end integration test that sends 10 routes
 // through a trivial BGP forwarder and verifies that metrics are computed correctly.
 func TestRunSmallBenchmark(t *testing.T) {
-	t.Parallel()
 
 	const routeCount = 10
 
@@ -263,7 +262,6 @@ func TestRunSmallBenchmark(t *testing.T) {
 // VALIDATES: AC-3 "ze-perf run with unreachable DUT exits non-zero with error."
 // PREVENTS: RunBenchmark hangs or panics when DUT is unreachable.
 func TestBenchmarkUnreachableDUT(t *testing.T) {
-	t.Parallel()
 
 	// Get a port that is guaranteed to be closed.
 	var lc net.ListenConfig
@@ -322,7 +320,6 @@ func TestBenchmarkUnreachableDUT(t *testing.T) {
 // the DUT accepts connections and handshakes but never forwards UPDATEs,
 // producing a result with lost routes.
 func TestBenchmarkTimeout(t *testing.T) {
-	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

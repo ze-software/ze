@@ -46,6 +46,7 @@ func cmdRun(args []string) int {
 	warmupRuns := fs.Int("warmup-runs", 1, "Warmup iterations (discarded)")
 	iterDelay := fs.Duration("iter-delay", 3*time.Second, "Delay between iterations")
 	batchSize := fs.Int("batch-size", 0, "NLRIs per UPDATE (0 = auto-max within 4096 bytes, 1 = one prefix per UPDATE)")
+	passiveListen := fs.Bool("passive-listen", false, "Listen on port 179 for inbound DUT connections (requires root)")
 
 	// Output flags.
 	jsonOutput := fs.Bool("json", false, "JSON output")
@@ -153,6 +154,7 @@ Flags:
 		WarmupRuns:     *warmupRuns,
 		IterDelay:      *iterDelay,
 		BatchSize:      *batchSize,
+		PassiveListen:  *passiveListen,
 	}
 
 	// Set up context with signal cancellation.

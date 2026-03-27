@@ -309,3 +309,34 @@ func ProcessPipesDefaultTable(input string) (command string, format func(string)
 		return result
 	}
 }
+
+// ProcessPipesDefaultFunc is like ProcessPipes but applies defaultFn as the
+// formatter when no explicit format pipe (json, table, yaml, text) is specified.
+// This allows callers to provide a domain-specific formatter (e.g., compact
+// one-liner for streaming monitors) while still respecting explicit pipes.
+func ProcessPipesDefaultFunc(input string, defaultFn func(string) string) (command string, format func(string) string) {
+	command, ops := ParsePipe(input)
+	command, ops = FoldServerPipeline(command, ops)
+
+	if !HasFormatOp(ops) {
+		if len(ops) == 0 {
+			return command, defaultFn
+		}
+		// Non-format ops (match, count) still apply before the default formatter.
+		return command, func(rawJSON string) string {
+			result, errMsg := ApplyPipes(rawJSON, ops)
+			if errMsg != "" {
+				return "pipe error: " + errMsg
+			}
+			return defaultFn(result)
+		}
+	}
+
+	return command, func(rawJSON string) string {
+		result, errMsg := ApplyPipes(rawJSON, ops)
+		if errMsg != "" {
+			return "pipe error: " + errMsg
+		}
+		return result
+	}
+}

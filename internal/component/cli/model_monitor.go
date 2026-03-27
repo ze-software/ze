@@ -6,18 +6,20 @@ package cli
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )
 
 // MonitorSession represents an active monitor streaming session inside the TUI.
 // The model holds at most one active session. Events arrive on EventChan;
 // the model polls with a ticker and appends them to the viewport.
 type MonitorSession struct {
-	EventChan <-chan string      // Buffered channel delivering formatted event lines.
-	Cancel    context.CancelFunc // Stops the monitor and releases resources.
+	EventChan  <-chan string       // Buffered channel delivering raw JSON event lines.
+	Cancel     context.CancelFunc  // Stops the monitor and releases resources.
+	FormatFunc func(string) string // Optional formatter for display (e.g., compact one-liner). Nil = raw.
 }
 
 // MonitorFactory creates a monitor session for the given arguments.
@@ -31,26 +33,16 @@ const monitorPollInterval = 50 * time.Millisecond
 // monitorPollMsg triggers a poll of the monitor event channel.
 type monitorPollMsg struct{}
 
-// monitorCmdPrefix is the command prefix that enters monitor mode.
-const monitorCmdPrefix = "bgp monitor"
-
 // isMonitorCommand returns true if the input is a monitor streaming command.
+// Uses the registry-based prefix matching from the plugin server.
 func isMonitorCommand(input string) bool {
-	lower := strings.ToLower(strings.TrimSpace(input))
-	return lower == monitorCmdPrefix || strings.HasPrefix(lower, monitorCmdPrefix+" ")
+	return pluginserver.IsStreamingCommand(input)
 }
 
-// extractMonitorCmdArgs extracts the keyword arguments after "bgp monitor".
+// extractMonitorCmdArgs extracts the keyword arguments after the matched streaming prefix.
 func extractMonitorCmdArgs(input string) []string {
-	trimmed := strings.TrimSpace(input)
-	if len(trimmed) <= len(monitorCmdPrefix) {
-		return nil
-	}
-	rest := strings.TrimSpace(trimmed[len(monitorCmdPrefix):])
-	if rest == "" {
-		return nil
-	}
-	return strings.Fields(rest)
+	_, args := pluginserver.GetStreamingHandlerForCommand(input)
+	return args
 }
 
 // startMonitorSession creates a monitor session and returns a tea.Cmd that
@@ -126,6 +118,9 @@ func (m Model) handleMonitorPoll() (tea.Model, tea.Cmd) {
 		if m.outputBuf.Len() > 0 {
 			m.outputBuf.WriteString("\n")
 		}
+		if m.monitorSession.FormatFunc != nil {
+			event = m.monitorSession.FormatFunc(event)
+		}
 		m.outputBuf.WriteString(event)
 	}
 
@@ -150,8 +145,8 @@ func (m Model) handleMonitorPoll() (tea.Model, tea.Cmd) {
 }
 
 // SetMonitorFactory sets the factory used to create monitor sessions.
-// When set, "bgp monitor" commands in the interactive TUI enter streaming mode.
-// When nil, monitor commands fall through to the regular executor (non-streaming).
+// When set, streaming commands (e.g., "event monitor") in the interactive TUI enter streaming mode.
+// When nil, streaming commands fall through to the regular executor (non-streaming).
 func (m *Model) SetMonitorFactory(f MonitorFactory) {
 	m.monitorFactory = f
 }

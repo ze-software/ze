@@ -475,3 +475,41 @@ func TestProcessPipesDefaultTable(t *testing.T) {
 		})
 	}
 }
+
+// TestProcessPipesDefaultFunc verifies custom default formatter is used when no format pipe present.
+//
+// VALIDATES: ProcessPipesDefaultFunc applies the provided default function.
+// PREVENTS: Monitor streaming showing raw JSON or table instead of compact one-liner.
+func TestProcessPipesDefaultFunc(t *testing.T) {
+	customFmt := func(s string) string { return "CUSTOM:" + s }
+
+	tests := []struct {
+		name       string
+		input      string
+		wantCmd    string
+		wantCustom bool // true if result should use custom formatter
+	}{
+		{"no pipe uses custom", "event monitor", "event monitor", true},
+		{"explicit json overrides custom", "event monitor | json", "event monitor", false},
+		{"explicit table overrides custom", "event monitor | table", "event monitor", false},
+		{"explicit text overrides custom", "event monitor | text", "event monitor", false},
+		{"explicit yaml overrides custom", "event monitor | yaml", "event monitor", false},
+		{"match only uses custom", "event monitor | match state", "event monitor", true},
+	}
+
+	jsonInput := `{"key":"value"}`
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd, format := ProcessPipesDefaultFunc(tt.input, customFmt)
+			if cmd != tt.wantCmd {
+				t.Errorf("command = %q, want %q", cmd, tt.wantCmd)
+			}
+			result := format(jsonInput)
+			hasCustom := strings.HasPrefix(result, "CUSTOM:")
+			if hasCustom != tt.wantCustom {
+				t.Errorf("hasCustom = %v, want %v; result: %q", hasCustom, tt.wantCustom, result)
+			}
+		})
+	}
+}

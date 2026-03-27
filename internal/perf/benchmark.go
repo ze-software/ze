@@ -65,6 +65,7 @@ type BenchmarkConfig struct {
 	WarmupRuns     int
 	IterDelay      time.Duration
 	BatchSize      int
+	PassiveListen  bool // Listen on port 179 for inbound DUT connections (requires root)
 }
 
 // RunBenchmark runs the full benchmark: generate routes, run iterations,
@@ -194,7 +195,7 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 	// Connect receiver first.
 	receiverAddr := net.JoinHostPort(cfg.DUTAddr, fmt.Sprintf("%d", receiverPort))
 
-	receiverConn, err := connectBGP(ctx, cfg.ReceiverAddr, receiverAddr, cfg.ConnectTimeout)
+	receiverConn, err := connectBGP(ctx, cfg.ReceiverAddr, receiverAddr, cfg.ConnectTimeout, cfg.PassiveListen)
 	if err != nil {
 		return IterationResult{}, fmt.Errorf("connecting receiver: %w", err)
 	}
@@ -223,7 +224,7 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 	// Connect sender.
 	senderDUTAddr := net.JoinHostPort(cfg.DUTAddr, fmt.Sprintf("%d", senderPort))
 
-	senderConn, err := connectBGP(ctx, cfg.SenderAddr, senderDUTAddr, cfg.ConnectTimeout)
+	senderConn, err := connectBGP(ctx, cfg.SenderAddr, senderDUTAddr, cfg.ConnectTimeout, cfg.PassiveListen)
 	if err != nil {
 		return IterationResult{}, fmt.Errorf("connecting sender: %w", err)
 	}
@@ -493,18 +494,40 @@ func runIteration(ctx context.Context, cfg BenchmarkConfig, prefixes []netip.Pre
 	}, nil
 }
 
-// connectBGP establishes a BGP TCP connection by racing two strategies:
+// connectBGP establishes a BGP TCP connection. When passiveListen is true,
+// it races two strategies:
 // 1. Dial out to remoteAddr from localAddr (standard client behavior)
 // 2. Listen on localAddr:179 for inbound connection from the DUT
 //
 // Some implementations (e.g., rustbgpd) only respond to peers they can actively
 // connect to. By also listening, ze-perf works with both active and passive DUTs.
 // The first connection to succeed wins; the other is cleaned up.
-func connectBGP(ctx context.Context, localAddr, remoteAddr string, timeout time.Duration) (net.Conn, error) {
+//
+// When passiveListen is false, only the dial strategy is used. This avoids
+// requiring root privileges to bind port 179.
+func connectBGP(ctx context.Context, localAddr, remoteAddr string, timeout time.Duration, passiveListen bool) (net.Conn, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	// Start listener for inbound connections BEFORE dialing out.
+	// Resolve local address for dialing.
+	local, err := net.ResolveTCPAddr("tcp", localAddr+":0")
+	if err != nil {
+		return nil, fmt.Errorf("resolving local address %s: %w", localAddr, err)
+	}
+
+	// When passive listen is disabled, use dial-only path.
+	if !passiveListen {
+		dialer := net.Dialer{LocalAddr: local, Timeout: timeout}
+
+		conn, dialErr := dialer.DialContext(ctx, "tcp", remoteAddr)
+		if dialErr != nil {
+			return nil, fmt.Errorf("dialing %s: %w", remoteAddr, dialErr)
+		}
+
+		return tuneTCP(conn)
+	}
+
+	// Optionally start listener for inbound connections BEFORE dialing out.
 	// This ensures DUTs that actively connect (e.g., rustbgpd) find a listener.
 	listenAddr := net.JoinHostPort(localAddr, "179")
 
@@ -513,15 +536,6 @@ func connectBGP(ctx context.Context, localAddr, remoteAddr string, timeout time.
 	listener, listenErr := lc.Listen(ctx, "tcp", listenAddr)
 
 	// Dial out to the DUT.
-	local, err := net.ResolveTCPAddr("tcp", localAddr+":0")
-	if err != nil {
-		if listener != nil {
-			listener.Close() //nolint:errcheck // cleanup
-		}
-
-		return nil, fmt.Errorf("resolving local address %s: %w", localAddr, err)
-	}
-
 	dialer := net.Dialer{LocalAddr: local, Timeout: timeout}
 
 	conn, dialErr := dialer.DialContext(ctx, "tcp", remoteAddr)

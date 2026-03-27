@@ -199,14 +199,23 @@ func printFormatted(output, format string) {
 
 // isMonitorCommand returns true if the command is a streaming monitor command.
 func isMonitorCommand(command string) bool {
-	lower := strings.ToLower(strings.TrimSpace(command))
-	return lower == "bgp monitor" || strings.HasPrefix(lower, "bgp monitor ")
+	return pluginserver.IsStreamingCommand(command)
 }
 
 // StreamMonitor runs a streaming monitor command, printing each event line.
+// Default output is a compact one-liner per event (registered monitor formatter).
+// Users can override with explicit pipes: "event monitor | json", "| table", etc.
 func (c *cliClient) StreamMonitor(command string) int {
 	// Pipe operators are extracted before streaming.
-	cmdStr, formatFn := cmd.ProcessPipesDefaultTable(command)
+	// Default to the registered compact one-liner formatter instead of table
+	// because table produces multi-line output per event, unsuitable for streaming.
+	// The formatter is registered by the monitor plugin's init() via pluginserver.
+	defaultFmt := pluginserver.MonitorEventFormatter()
+	if defaultFmt == nil {
+		// Fallback: pass through raw JSON if no formatter registered.
+		defaultFmt = func(s string) string { return s }
+	}
+	cmdStr, formatFn := cmd.ProcessPipesDefaultFunc(command, defaultFmt)
 
 	err := sshclient.StreamCommand(c.creds, cmdStr, func(line string) error {
 		// Apply formatting (pipe operators or default text rendering).

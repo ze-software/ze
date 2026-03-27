@@ -21,7 +21,6 @@ import (
 // forwarder, runs RunBenchmark, verifies the Result, generates Markdown and HTML
 // reports, and round-trips the Result through NDJSON serialization.
 func TestBenchmarkEndToEnd(t *testing.T) {
-	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -180,7 +179,6 @@ func TestBenchmarkEndToEnd(t *testing.T) {
 // VALIDATES: AC-18 "ze-perf run --repeat 1 against forwarder: repeat=1, repeat-kept=1, convergence-stddev-ms=0."
 // PREVENTS: Single-iteration edge case produces invalid stddev.
 func TestBenchmarkSingleIteration(t *testing.T) {
-	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -252,7 +250,6 @@ func TestBenchmarkSingleIteration(t *testing.T) {
 // VALIDATES: AC-20 "ze-perf run --repeat 3 --iter-delay 0: all 3 complete, iter-delay-ms=0."
 // PREVENTS: Zero iter-delay causes errors or incomplete iterations.
 func TestBenchmarkIterDelayZero(t *testing.T) {
-	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -320,7 +317,6 @@ func TestBenchmarkIterDelayZero(t *testing.T) {
 // VALIDATES: AC-21 "ze-perf run --repeat 2 --iter-delay: wall-clock time includes delay."
 // PREVENTS: Iter-delay parameter ignored or not applied between iterations.
 func TestBenchmarkIterDelayTiming(t *testing.T) {
-	t.Parallel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
