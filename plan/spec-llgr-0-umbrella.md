@@ -119,7 +119,7 @@ This is an umbrella spec. Implementation is in four child specs executed in orde
 | Config -> Plugin | JSON config section in Stage 2 OnConfigure callback | [ ] |
 | OPEN -> Plugin | JSON event with capability hex in `open.capabilities` array | [ ] |
 | bgp-gr -> bgp-rib | Inter-plugin DispatchCommand (text commands) | [ ] |
-| RIB -> Best-path | LLGRStale flag on RouteEntry checked in SelectBest | [ ] |
+| RIB -> Best-path | ~~LLGRStale flag on RouteEntry checked in SelectBest~~ StaleLevel >= DepreferenceThreshold in ComparePair | [ ] |
 | RIB -> Forward path | Re-advertise trigger for LLGR_STALE routes | [ ] |
 
 ### Integration Points
@@ -128,7 +128,7 @@ This is an umbrella spec. Implementation is in four child specs executed in orde
 - `gr_state.go:handleTimerExpired` - change from purge-all to check-for-LLGR-transition
 - `rib_commands.go:handleCommand` - add new LLGR commands
 - `rib.go:peerGRState` - extend with LLGR fields
-- `storage/routeentry.go:RouteEntry` - add LLGRStale flag
+- `storage/routeentry.go:RouteEntry` - ~~add LLGRStale flag~~ StaleLevel uint8 + DepreferenceThreshold constant
 - `bestpath.go:SelectBest` - add LLGR-stale depreference step
 - `attribute/community.go` - add LLGR_STALE and NO_LLGR constants
 
@@ -249,7 +249,7 @@ Tests are defined in individual child specs. Each child spec has its own TDD pla
 - `internal/component/bgp/plugins/gr/schema/ze-graceful-restart.yang` - LLST config
 - `internal/component/bgp/plugins/rib/rib_commands.go` - new LLGR commands
 - `internal/component/bgp/plugins/rib/rib.go` - peerGRState LLGR fields
-- `internal/component/bgp/plugins/rib/storage/routeentry.go` - LLGRStale flag
+- `internal/component/bgp/plugins/rib/storage/routeentry.go` - ~~LLGRStale flag~~ StaleLevel uint8 + DepreferenceThreshold
 - `internal/component/bgp/plugins/rib/bestpath.go` - depreference step
 - `internal/component/bgp/attribute/community.go` - LLGR_STALE, NO_LLGR constants
 

@@ -869,7 +869,7 @@ Level 0 means fresh (not stale). Plugins define non-zero levels and pass them vi
 | Stale count | `FamilyRIB.StaleCount()` | Count stale routes (level > 0) |
 | Implicit unstale | `FamilyRIB.Insert()` | New entry always has `StaleLevel = 0` |
 
-<!-- source: internal/component/bgp/plugins/rib/storage/stale.go — FamilyRIB stale methods -->
+<!-- source: internal/component/bgp/plugins/rib/storage/familyrib.go — FamilyRIB stale methods -->
 
 `PeerRIB` provides aggregate methods: `MarkAllStale`, `PurgeFamilyStale`, `PurgeAllStale`, `StaleCount`.
 
