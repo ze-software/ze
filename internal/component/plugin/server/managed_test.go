@@ -109,3 +109,30 @@ func TestHubConfigFetchUpdated(t *testing.T) {
 	assert.Equal(t, fleet.VersionHash(newConfig), resp.Version)
 	assert.Empty(t, resp.Status, "status empty when config is returned")
 }
+
+// TestHubDuplicateClientRejected verifies that a second connection with the same name is rejected.
+//
+// VALIDATES: Two clients with same name -> second rejected (AC-9).
+// PREVENTS: Client impersonation or stale connection hijacking.
+func TestHubDuplicateClientRejected(t *testing.T) {
+	t.Parallel()
+
+	svc := NewManagedConfigService(func(name string) ([]byte, error) {
+		return []byte("config"), nil
+	})
+
+	// First registration succeeds.
+	require.NoError(t, svc.RegisterClient("edge-01"))
+
+	// Second registration with same name fails.
+	err := svc.RegisterClient("edge-01")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrDuplicateClient)
+
+	// Different name succeeds.
+	require.NoError(t, svc.RegisterClient("edge-02"))
+
+	// After unregister, same name succeeds again.
+	svc.UnregisterClient("edge-01")
+	require.NoError(t, svc.RegisterClient("edge-01"))
+}

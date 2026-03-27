@@ -92,6 +92,27 @@ func main() {
 			}
 			fileOverride = args[1]
 			args = args[2:]
+		case "--server":
+			if len(args) < 2 {
+				fmt.Fprintf(os.Stderr, "error: --server requires host:port\n")
+				os.Exit(1)
+			}
+			_ = env.Set("ze.managed.server", args[1])
+			args = args[2:]
+		case "--name":
+			if len(args) < 2 {
+				fmt.Fprintf(os.Stderr, "error: --name requires client name\n")
+				os.Exit(1)
+			}
+			_ = env.Set("ze.managed.name", args[1])
+			args = args[2:]
+		case "--token":
+			if len(args) < 2 {
+				fmt.Fprintf(os.Stderr, "error: --token requires auth token\n")
+				os.Exit(1)
+			}
+			_ = env.Set("ze.managed.token", args[1])
+			args = args[2:]
 		case "-d", "--debug":
 			_ = os.Setenv("ze.log", "debug")
 			_ = os.Setenv("ze.log.relay", "debug")
@@ -509,9 +530,12 @@ Options:
   -V, --version         Show version and exit
   --chaos-seed <N>      Enable chaos self-test mode with PRNG seed N (-1 = time-based)
   --chaos-rate <0-1>    Fault probability per operation (default: 0.1)
+  --server <host:port>  Override hub address for managed mode
+  --name <name>         Override client name for managed mode
+  --token <token>       Override auth token for managed mode
 
 Commands:
-  start        Start daemon using config from database
+  start        Start daemon using config from database (managed mode if meta/instance/managed=true)
   init         Bootstrap database with SSH credentials
   config       Configuration management (validate, edit, migrate, ...)
   data         Blob store management

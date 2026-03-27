@@ -6,12 +6,16 @@ package server
 import (
 	"encoding/base64"
 	"errors"
+	"sync"
 
 	"codeberg.org/thomas-mangin/ze/pkg/fleet"
 )
 
 // ErrClientConfigNotFound is returned when no config exists for a client name.
 var ErrClientConfigNotFound = errors.New("client config not found")
+
+// ErrDuplicateClient is returned when a client with the same name is already connected.
+var ErrDuplicateClient = errors.New("duplicate client name")
 
 // ConfigReader reads a client's config by name from the hub's blob store.
 // Returns the raw config bytes, or ErrClientConfigNotFound if the client
@@ -20,14 +24,39 @@ type ConfigReader func(name string) ([]byte, error)
 
 // ManagedConfigService handles hub-side config-fetch and config-changed operations
 // for managed clients. It reads client configs via a ConfigReader and computes
-// version hashes for change detection.
+// version hashes for change detection. Tracks connected clients and rejects
+// duplicate names. Safe for concurrent use.
 type ManagedConfigService struct {
 	readConfig ConfigReader
+	mu         sync.Mutex
+	connected  map[string]struct{} // connected client names
 }
 
 // NewManagedConfigService creates a service that reads client configs via reader.
 func NewManagedConfigService(reader ConfigReader) *ManagedConfigService {
-	return &ManagedConfigService{readConfig: reader}
+	return &ManagedConfigService{
+		readConfig: reader,
+		connected:  make(map[string]struct{}),
+	}
+}
+
+// RegisterClient marks a client as connected. Returns ErrDuplicateClient
+// if a client with the same name is already connected.
+func (s *ManagedConfigService) RegisterClient(name string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.connected[name]; exists {
+		return ErrDuplicateClient
+	}
+	s.connected[name] = struct{}{}
+	return nil
+}
+
+// UnregisterClient removes a client from the connected set.
+func (s *ManagedConfigService) UnregisterClient(name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.connected, name)
 }
 
 // HandleConfigFetch processes a config-fetch request from a managed client.
