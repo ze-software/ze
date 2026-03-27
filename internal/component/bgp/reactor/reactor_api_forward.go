@@ -402,6 +402,13 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			}
 		}
 
+		// Route superseding key (AC-23): FNV hash of raw body content.
+		// Zero for re-encode path items (updates only, no raw bodies).
+		item.supersedeKey = fwdSupersedeKey(item.rawBodies)
+
+		// Withdrawal flag (AC-25): true if item contains only withdrawals.
+		item.withdrawal = fwdIsWithdrawal(&item)
+
 		// Retain cache buffer for this peer's worker BEFORE dispatch.
 		// Must happen before TryDispatch because a worker may call done()
 		// (Release) immediately after receiving the item. If Release ran

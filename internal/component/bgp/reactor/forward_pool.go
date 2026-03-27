@@ -9,6 +9,7 @@
 package reactor
 
 import (
+	"hash/fnv"
 	"net/netip"
 	"sync"
 	"sync/atomic"
@@ -34,12 +35,14 @@ type fwdKey struct {
 // Pre-computed send operations for one destination peer from one ForwardUpdate call.
 // The worker executes rawBodies (SendRawUpdateBody) then updates (SendUpdate).
 type fwdItem struct {
-	rawBodies [][]byte          // Zero-copy or split pieces: SendRawUpdateBody per entry
-	updates   []*message.Update // Re-encode path: SendUpdate per entry
-	peer      *Peer             // Target peer for all operations
-	done      func()            // Called after all ops complete (Release cache entry)
-	pooled    bool              // Holds overflow pool token; MUST release after processing
-	meta      map[string]any    // Route metadata from ReceivedUpdate; set on sent events
+	rawBodies    [][]byte          // Zero-copy or split pieces: SendRawUpdateBody per entry
+	updates      []*message.Update // Re-encode path: SendUpdate per entry
+	peer         *Peer             // Target peer for all operations
+	done         func()            // Called after all ops complete (Release cache entry)
+	pooled       bool              // Holds overflow pool token; MUST release after processing
+	meta         map[string]any    // Route metadata from ReceivedUpdate; set on sent events
+	supersedeKey uint64            // FNV-1a hash of raw body for route superseding (AC-23); 0 = no superseding
+	withdrawal   bool              // True if this item contains only withdrawals (AC-25)
 }
 
 // fwdWriteDeadlineDefault is the default TCP write deadline for forward pool
@@ -476,6 +479,36 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 	}
 
 	w.overflowMu.Lock()
+
+	// Route superseding (AC-23): if a pending item has the same content hash,
+	// replace it instead of appending. This bounds queue growth to unique
+	// UPDATE content rather than total update count. O(n) scan is acceptable
+	// because overflow is the slow path and items are bounded by the pool.
+	if item.supersedeKey != 0 {
+		for i := range w.overflow {
+			if w.overflow[i].supersedeKey != item.supersedeKey {
+				continue
+			}
+			// Supersede: release old item's resources, replace with new.
+			old := w.overflow[i]
+			if old.done != nil {
+				old.done()
+			}
+			if old.pooled && fp.overflowPool != nil {
+				if item.pooled {
+					// Both pooled: release old token, new keeps its own.
+					fp.overflowPool.release()
+				} else {
+					// Old pooled, new not: transfer token to new item.
+					item.pooled = true
+				}
+			}
+			w.overflow[i] = item
+			w.overflowMu.Unlock()
+			return true
+		}
+	}
+
 	w.overflow = append(w.overflow, item)
 
 	// Log when overflow grows large (potential slow peer), but never drop.
@@ -649,7 +682,12 @@ func (fp *fwdPool) RemoveSourceStats(sourcePeer netip.Addr) {
 // every item in the batch. The done callbacks (Release) are guaranteed to run
 // even if the handler panics. Without this guarantee, a panicking handler would
 // leak cache entries.
+//
+// Reorders the batch so withdrawals are sent before announcements (AC-25).
+// This is safe because route superseding (AC-23) ensures no prefix appears
+// in both a withdrawal and announcement within the same overflow batch.
 func (fp *fwdPool) safeBatchHandle(key fwdKey, items []fwdItem) {
+	items = fwdReorderWithdrawalsFirst(items)
 	defer func() {
 		for i := range items {
 			if items[i].done != nil {
@@ -692,6 +730,93 @@ func drainBatch(buf []fwdItem, firstItem fwdItem, ch <-chan fwdItem, limit int) 
 			return buf
 		}
 	}
+}
+
+// fwdSupersedeKey computes an FNV-1a hash of the raw body bytes for route
+// superseding (AC-23). Two fwdItems with the same key carry identical wire
+// content and can safely supersede each other in the overflow queue.
+// Returns 0 if no raw bodies (re-encode path items are not superseded).
+func fwdSupersedeKey(rawBodies [][]byte) uint64 {
+	if len(rawBodies) == 0 {
+		return 0
+	}
+	h := fnv.New64a()
+	for _, body := range rawBodies {
+		h.Write(body) //nolint:errcheck // fnv.Write never returns error
+	}
+	return h.Sum64()
+}
+
+// fwdIsWithdrawal returns true if the fwdItem contains only withdrawals
+// (no announcements). For raw bodies, checks the UPDATE wire format:
+// non-zero Unfeasible Routes Length AND empty NLRI section.
+// For parsed updates, checks WithdrawnRoutes non-empty AND NLRI empty.
+// Used by AC-25 withdrawal priority.
+func fwdIsWithdrawal(item *fwdItem) bool {
+	// Check parsed updates first (re-encode path).
+	for _, u := range item.updates {
+		if len(u.NLRI) > 0 || len(u.PathAttributes) > 0 {
+			return false // Has announcements or attributes (likely announcement).
+		}
+		if len(u.WithdrawnRoutes) > 0 {
+			return true
+		}
+	}
+	// Check raw bodies (zero-copy path).
+	// UPDATE body format: [2B withdrawn_len][withdrawn][2B attr_len][attrs][nlri]
+	for _, body := range item.rawBodies {
+		if len(body) < 4 {
+			continue
+		}
+		wdLen := int(body[0])<<8 | int(body[1])
+		if wdLen == 0 {
+			return false // No withdrawn routes = announcement.
+		}
+		// Check if NLRI section exists after withdrawn + attributes.
+		off := 2 + wdLen
+		if off+2 > len(body) {
+			continue
+		}
+		attrLen := int(body[off])<<8 | int(body[off+1])
+		nlriStart := off + 2 + attrLen
+		if nlriStart < len(body) {
+			return false // Has NLRI = announcement.
+		}
+	}
+	return len(item.rawBodies) > 0 || len(item.updates) > 0
+}
+
+// fwdReorderWithdrawalsFirst reorders a batch so withdrawals come before
+// announcements (AC-25). This is safe because AC-23 route superseding
+// ensures no prefix appears in both a withdrawal and announcement within
+// the same batch. Reordering is stable within each group (withdrawal order
+// and announcement order are preserved).
+func fwdReorderWithdrawalsFirst(batch []fwdItem) []fwdItem {
+	// Count withdrawals to avoid allocation when none exist.
+	wdCount := 0
+	for i := range batch {
+		if batch[i].withdrawal {
+			wdCount++
+		}
+	}
+	if wdCount == 0 || wdCount == len(batch) {
+		return batch // Nothing to reorder.
+	}
+	// Stable partition: withdrawals first, then announcements.
+	// Uses a single pass with two write positions.
+	result := make([]fwdItem, len(batch))
+	wi, ai := 0, wdCount
+	for i := range batch {
+		if batch[i].withdrawal {
+			result[wi] = batch[i]
+			wi++
+		} else {
+			result[ai] = batch[i]
+			ai++
+		}
+	}
+	copy(batch, result)
+	return batch
 }
 
 // runWorker is the long-lived goroutine for one destination peer.
