@@ -1,0 +1,40 @@
+<div class="commit-review">
+  <h2 class="commit-title">Review Uncommitted Changes</h2>
+
+  {{if .Error}}
+  <section class="commit-error">
+    <h3>Conflict Errors</h3>
+    <p class="commit-error-message">{{.Error}}</p>
+    {{if .ConflictPaths}}
+    <ul class="commit-conflict-list">
+      {{range .ConflictPaths}}
+      <li class="commit-conflict-path">{{.}}</li>
+      {{end}}
+    </ul>
+    {{end}}
+  </section>
+  {{end}}
+
+  {{if .Diff}}
+  <section class="commit-diff">
+    <h3>Changes</h3>
+    <pre class="commit-diff-output">{{range .DiffLines}}{{if .IsAdd}}<span class="diff-add">{{.Text}}</span>
+{{else if .IsDel}}<span class="diff-del">{{.Text}}</span>
+{{else if .IsChange}}<span class="diff-change">{{.Text}}</span>
+{{else}}<span class="diff-context">{{.Text}}</span>
+{{end}}{{end}}</pre>
+  </section>
+  {{else}}
+  <p class="commit-empty">No uncommitted changes.</p>
+  {{end}}
+
+  <div class="commit-actions">
+    {{if .Diff}}
+    <button class="config-btn config-btn-confirm"
+            hx-post="/config/commit"
+            hx-target="#content-area"
+            hx-confirm="Commit these changes?">Confirm Commit</button>
+    {{end}}
+    <a class="config-btn config-btn-cancel" href="/config/edit/">Cancel</a>
+  </div>
+</div>

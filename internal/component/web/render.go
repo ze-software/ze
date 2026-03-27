@@ -75,6 +75,8 @@ func NewRenderer() (*Renderer, error) {
 		"freeform.html",
 		"inline_list.html",
 		"breadcrumb.html",
+		"commit.html",
+		"notification.html",
 	}
 
 	configTemplates := make(map[string]*template.Template, len(configTemplateNames))

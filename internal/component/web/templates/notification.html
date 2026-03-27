@@ -1,0 +1,13 @@
+{{if or (gt .ChangeCount 0) .Messages}}
+<div class="notification-content">
+  {{if gt .ChangeCount 0}}
+  <div class="notification-changes">
+    <span class="notification-badge">{{.ChangeCount}}</span> uncommitted change{{if ne .ChangeCount 1}}s{{end}}
+    <a class="notification-link" href="/config/commit" hx-get="/config/commit" hx-target="#content-area" hx-push-url="true">Review</a>
+  </div>
+  {{end}}
+  {{range .Messages}}
+  <div class="notification-message">{{.}}</div>
+  {{end}}
+</div>
+{{end}}

@@ -11,7 +11,7 @@
       {{end}}
     </ul>
     <div class="config-key-actions">
-      <button class="config-btn config-btn-add" disabled title="Add (available in edit mode)">+ Add</button>
+      <button class="config-btn config-btn-add" title="Add entry">+ Add</button>
     </div>
   </div>
 
@@ -23,7 +23,13 @@
         <h3 class="config-section-title">Fields</h3>
         <div class="config-fields">
           {{range .SelectedDetail.LeafFields}}
-          {{template "leaf_input" .}}
+          <form class="config-set-form{{if .Modified}} modified{{end}}"
+                hx-post="/config/set/{{$.DetailPath}}"
+                hx-target="#notification-bar"
+                hx-swap="innerHTML">
+            {{template "leaf_input" .}}
+            <button type="submit" class="config-btn config-btn-set">Set</button>
+          </form>
           {{end}}
         </div>
       </section>

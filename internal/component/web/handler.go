@@ -1,4 +1,5 @@
 // Design: docs/architecture/web-interface.md -- URL routing and content negotiation
+// Related: handler_config.go -- Config tree view and edit handlers
 
 // Package web provides the HTTP handler layer for ze's web interface.
 //

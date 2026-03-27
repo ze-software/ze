@@ -1,16 +1,24 @@
 // Design: docs/architecture/web-interface.md -- Config tree view handlers
 // Related: handler.go -- URL routing and content negotiation
 // Related: render.go -- Template rendering
+// Related: editor.go -- Per-user editor management
 
 package web
 
 import (
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
+)
+
+const (
+	htmxRequestTrue = "true"
+	boolTrue        = "true"
+	boolFalse       = "false"
 )
 
 // schemaGetter is the interface shared by Schema, ContainerNode, ListNode,
@@ -502,6 +510,267 @@ func nodeKindString(kind config.NodeKind) string {
 	return "unknown"
 }
 
+// HandleConfigSet returns a POST handler for /config/set/<yang-path>/.
+// It extracts the authenticated username from the request context, parses
+// the form body for "leaf" (field name) and "value" (new value), and calls
+// mgr.SetValue. For TypeBool leaves (checkboxes), the presence of the field
+// is treated as "true" and absence as "false".
+//
+// On success, redirects one level up in the path hierarchy.
+// On validation error from SetValue, returns an error notification.
+// HTMX requests receive HX-Redirect instead of an HTTP redirect.
+func HandleConfigSet(mgr *EditorManager, schema *config.Schema) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		username := getUsernameFromContext(r)
+		if username == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		parsed, err := ParseURL(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		path := parsed.Path
+
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, fmt.Sprintf("parse form: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		leaf := r.FormValue("leaf")
+		if leaf == "" {
+			http.Error(w, "missing leaf field name", http.StatusBadRequest)
+			return
+		}
+
+		value := r.FormValue("value")
+
+		// For boolean leaves, HTML checkboxes send the value only when
+		// checked. Convert presence/absence to "true"/"false".
+		if isBoolLeaf(schema, path, leaf) {
+			if _, present := r.Form["value"]; present {
+				value = boolTrue
+			} else {
+				value = "false"
+			}
+		}
+
+		if err := mgr.SetValue(username, path, leaf, value); err != nil {
+			http.Error(w, fmt.Sprintf("set value: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		redirectBackOneLevel(w, r, path)
+	}
+}
+
+// HandleConfigDelete returns a POST handler for /config/delete/<yang-path>/.
+// It extracts the authenticated username, parses the form body for "leaf",
+// and calls mgr.DeleteValue to remove the configured value.
+//
+// On success, redirects one level up. HTMX support mirrors HandleConfigSet.
+func HandleConfigDelete(mgr *EditorManager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		username := getUsernameFromContext(r)
+		if username == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		parsed, err := ParseURL(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		path := parsed.Path
+
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, fmt.Sprintf("parse form: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		leaf := r.FormValue("leaf")
+		if leaf == "" {
+			http.Error(w, "missing leaf field name", http.StatusBadRequest)
+			return
+		}
+
+		if err := mgr.DeleteValue(username, path, leaf); err != nil {
+			http.Error(w, fmt.Sprintf("delete value: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		redirectBackOneLevel(w, r, path)
+	}
+}
+
+// HandleConfigCommit returns a handler for /config/commit/.
+// GET: shows the commit page with a diff of pending changes.
+// POST: applies the user's pending changes via mgr.Commit.
+//
+// On successful commit, redirects to /config/edit/ (config root).
+// On conflict, re-renders the commit page with conflict errors.
+// HTMX requests receive HX-Redirect instead of an HTTP redirect.
+func HandleConfigCommit(mgr *EditorManager, renderer *Renderer) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		username := getUsernameFromContext(r)
+		if username == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		if r.Method == http.MethodGet {
+			handleCommitGet(w, mgr, renderer, username)
+			return
+		}
+
+		if r.Method == http.MethodPost {
+			handleCommitPost(w, r, mgr, renderer, username)
+			return
+		}
+
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// handleCommitGet renders the commit page showing a diff of pending changes.
+func handleCommitGet(w http.ResponseWriter, mgr *EditorManager, renderer *Renderer, username string) {
+	diff, err := mgr.Diff(username)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("diff: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	layoutData := LayoutData{
+		Title: "Commit Changes",
+	}
+
+	if diff != "" {
+		layoutData.NotificationHTML = template.HTML("<pre>" + template.HTMLEscapeString(diff) + "</pre>") //nolint:gosec // escaped
+	}
+
+	if err := renderer.RenderLayout(w, layoutData); err != nil {
+		http.Error(w, fmt.Sprintf("render: %v", err), http.StatusInternalServerError)
+	}
+}
+
+// handleCommitPost applies pending changes and redirects or re-renders on conflict.
+func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager, renderer *Renderer, username string) {
+	result, err := mgr.Commit(username)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("commit: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	if len(result.Conflicts) > 0 {
+		var msg strings.Builder
+		msg.WriteString("Commit conflicts:\n")
+
+		for _, c := range result.Conflicts {
+			fmt.Fprintf(&msg, "  %s: want %q, other (%s) has %q\n", c.Path, c.MyValue, c.OtherUser, c.OtherValue)
+		}
+
+		layoutData := LayoutData{
+			Title:            "Commit Conflicts",
+			NotificationHTML: template.HTML("<pre>" + template.HTMLEscapeString(msg.String()) + "</pre>"), //nolint:gosec // escaped
+		}
+
+		if err := renderer.RenderLayout(w, layoutData); err != nil {
+			http.Error(w, fmt.Sprintf("render: %v", err), http.StatusInternalServerError)
+		}
+
+		return
+	}
+
+	htmxRedirect(w, r, "/config/edit/")
+}
+
+// HandleConfigDiscard returns a POST handler for /config/discard/.
+// It discards the user's pending changes and redirects to /config/edit/.
+func HandleConfigDiscard(mgr *EditorManager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		username := getUsernameFromContext(r)
+		if username == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		if err := mgr.Discard(username); err != nil {
+			http.Error(w, fmt.Sprintf("discard: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		htmxRedirect(w, r, "/config/edit/")
+	}
+}
+
+// redirectBackOneLevel computes the parent path by removing the last segment
+// and redirects to /config/edit/<parent>/. For HTMX requests, it sets the
+// HX-Redirect header instead of returning an HTTP redirect.
+func redirectBackOneLevel(w http.ResponseWriter, r *http.Request, currentPath []string) {
+	parentPath := "/config/edit/"
+	if len(currentPath) > 0 {
+		parentPath = "/config/edit/" + strings.Join(currentPath[:len(currentPath)-1], "/")
+		if len(currentPath) > 1 {
+			parentPath += "/"
+		}
+	}
+
+	htmxRedirect(w, r, parentPath)
+}
+
+// htmxRedirect sends a redirect to the given target URL. For HTMX requests
+// (identified by the HX-Request header), it sets the HX-Redirect response
+// header so htmx performs a client-side redirect. For regular requests, it
+// returns a standard HTTP 303 See Other redirect.
+func htmxRedirect(w http.ResponseWriter, r *http.Request, target string) {
+	if r.Header.Get("HX-Request") == htmxRequestTrue {
+		w.Header().Set("HX-Redirect", target)
+		w.WriteHeader(http.StatusOK)
+
+		return
+	}
+
+	http.Redirect(w, r, target, http.StatusSeeOther)
+}
+
+// isBoolLeaf returns true if the named leaf at the given schema path has
+// TypeBool. Returns false if the path or leaf cannot be resolved, or if
+// the node is not a LeafNode.
+func isBoolLeaf(schema *config.Schema, path []string, leaf string) bool {
+	fullPath := append(path, leaf) //nolint:gocritic // append to separate slice is intentional
+	node, err := walkSchema(schema, fullPath)
+	if err != nil {
+		return false
+	}
+
+	leafNode, ok := node.(*config.LeafNode)
+	if !ok {
+		return false
+	}
+
+	return leafNode.Type == config.TypeBool
+}
+
 // HandleConfigView returns an HTTP handler that serves the config tree view.
 // It parses the URL path (stripping the /show/ prefix), walks both schema and
 // tree, and renders the appropriate template. JSON responses return the subtree
@@ -547,7 +816,7 @@ func HandleConfigView(renderer *Renderer, schema *config.Schema, tree *config.Tr
 		_ = nodeKindToTemplate(viewData.NodeKind)
 
 		// HTMX partial: return content fragment without layout wrapper.
-		if r.Header.Get("HX-Request") == "true" {
+		if r.Header.Get("HX-Request") == htmxRequestTrue {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
 			// Partial content for HTMX requests. Full template rendering
 			// will be wired when config templates are created.

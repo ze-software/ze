@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | spec-web-2-config-view |
-| Phase | - |
+| Phase | 1/8 |
 | Updated | 2026-03-27 |
 
 ## Post-Compaction Recovery

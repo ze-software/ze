@@ -1,10 +1,12 @@
 // Design: docs/architecture/web-interface.md -- Authentication and session management
+// Related: editor.go -- Per-user editor management
 
 // Package web provides the ze web interface, including session-based
 // authentication middleware and security headers for all HTTP responses.
 package web
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
@@ -18,6 +20,30 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
+
+// contextKey is an unexported type used for context keys in this package,
+// preventing collisions with keys defined in other packages.
+type contextKey struct{ name string }
+
+// ctxKeyUsername is the context key used to store the authenticated username.
+// Set by AuthMiddleware, read by getUsernameFromContext.
+var ctxKeyUsername = &contextKey{"username"}
+
+// withUsername returns a derived context carrying the authenticated username.
+func withUsername(ctx context.Context, username string) context.Context {
+	return context.WithValue(ctx, ctxKeyUsername, username)
+}
+
+// getUsernameFromContext extracts the authenticated username from the request
+// context. Returns an empty string if the context does not carry a username
+// (e.g., the request was not processed by AuthMiddleware).
+func getUsernameFromContext(r *http.Request) string {
+	if v, ok := r.Context().Value(ctxKeyUsername).(string); ok {
+		return v
+	}
+
+	return ""
+}
 
 var logger *slog.Logger
 
@@ -129,7 +155,7 @@ func AuthMiddleware(store *SessionStore, users []ssh.UserConfig, loginRenderer f
 		if cookie, err := r.Cookie("ze-session"); err == nil {
 			if session := store.ValidateToken(cookie.Value); session != nil {
 				addSecurityHeaders(w)
-				next.ServeHTTP(w, r)
+				next.ServeHTTP(w, r.WithContext(withUsername(r.Context(), session.Username)))
 
 				return
 			}
@@ -140,7 +166,7 @@ func AuthMiddleware(store *SessionStore, users []ssh.UserConfig, loginRenderer f
 			if ssh.AuthenticateUser(users, username, password) {
 				logger.Debug("basic auth accepted", "username", username)
 				addSecurityHeaders(w)
-				next.ServeHTTP(w, r)
+				next.ServeHTTP(w, r.WithContext(withUsername(r.Context(), username)))
 
 				return
 			}
@@ -196,7 +222,7 @@ func LoginHandler(store *SessionStore, users []ssh.UserConfig, loginRenderer fun
 		logger.Info("login successful", "username", username, "remote", r.RemoteAddr)
 
 		// HTMX login: respond with redirect header so HTMX replaces the page.
-		if r.Header.Get("HX-Request") == "true" {
+		if r.Header.Get("HX-Request") == htmxRequestTrue {
 			w.Header().Set("HX-Redirect", "/")
 			w.WriteHeader(http.StatusOK)
 
