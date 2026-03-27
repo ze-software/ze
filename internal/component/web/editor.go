@@ -244,7 +244,9 @@ func (m *EditorManager) evictInactive() {
 	for name, us := range m.sessions {
 		if us.lastActivity.Before(cutoff) {
 			us.mu.Lock()
-			_ = us.editor.Discard()
+			if discardErr := us.editor.Discard(); discardErr != nil {
+				serverLogger.Debug("evict discard failed", "user", name, "error", discardErr)
+			}
 			us.mu.Unlock()
 			delete(m.sessions, name)
 		}

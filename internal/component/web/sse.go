@@ -240,6 +240,7 @@ func BroadcastConfigChange(broker *EventBroker, username, reason string) {
 
 	var buf bytes.Buffer
 	if err := notificationBannerTmpl.Execute(&buf, data); err != nil {
+		serverLogger.Warn("notification banner render failed", "error", err)
 		return
 	}
 

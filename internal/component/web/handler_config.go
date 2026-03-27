@@ -6,6 +6,7 @@
 // Related: editor.go -- Per-user editor management
 // Related: handler_admin.go -- Admin command handlers
 // Related: sse.go -- SSE broker for live config change notifications
+// Related: cli.go -- CLI bar command dispatch
 
 package web
 

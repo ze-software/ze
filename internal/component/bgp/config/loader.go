@@ -584,6 +584,8 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 				readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
 				if waitErr := srv.WaitReady(readyCtx); waitErr != nil {
 					configLogger().Warn("web server failed to start", "error", waitErr)
+					// Shut down the already-started ListenAndServe goroutine to prevent leak.
+					_ = srv.Shutdown(context.Background())
 				} else {
 					configLogger().Info("web server listening", "address", srv.Address())
 					webSrv = srv

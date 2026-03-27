@@ -196,6 +196,11 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 // handleCLIEdit processes the "edit" verb: updates context path and returns
 // new breadcrumb + content for the target path.
 func handleCLIEdit(w http.ResponseWriter, contextPath, args []string, schema *config.Schema, renderer *Renderer, mgr *EditorManager, username string) {
+	if err := ValidatePathSegments(args); err != nil {
+		writeCLINotification(w, fmt.Sprintf("invalid path: %s", err), "error")
+		return
+	}
+
 	newPath := append(append([]string{}, contextPath...), args...)
 
 	// Validate the path exists in schema.
@@ -264,6 +269,11 @@ func handleCLIDelete(w http.ResponseWriter, r *http.Request, contextPath, args [
 
 // handleCLIShow processes the "show" verb: renders config text in the content area.
 func handleCLIShow(w http.ResponseWriter, contextPath, args []string, mgr *EditorManager, username string) {
+	if err := ValidatePathSegments(args); err != nil {
+		writeCLINotification(w, fmt.Sprintf("invalid path: %s", err), "error")
+		return
+	}
+
 	showPath := append(append([]string{}, contextPath...), args...)
 	content := mgr.ContentAtPath(username, showPath)
 	crumbs := buildBreadcrumbs(showPath)
@@ -494,6 +504,10 @@ func executeTerminalSet(mgr *EditorManager, username string, contextPath, args [
 		return "error: usage: set <leaf> <value>"
 	}
 
+	if err := ValidatePathSegments([]string{args[0]}); err != nil {
+		return fmt.Sprintf("error: invalid leaf name: %s", args[0])
+	}
+
 	if err := mgr.SetValue(username, contextPath, args[0], strings.Join(args[1:], " ")); err != nil {
 		return fmt.Sprintf("error: %s", err)
 	}
@@ -505,6 +519,10 @@ func executeTerminalSet(mgr *EditorManager, username string, contextPath, args [
 func executeTerminalDelete(mgr *EditorManager, username string, contextPath, args []string) string {
 	if len(args) < 1 {
 		return "error: usage: delete <leaf>"
+	}
+
+	if err := ValidatePathSegments([]string{args[0]}); err != nil {
+		return fmt.Sprintf("error: invalid leaf name: %s", args[0])
 	}
 
 	if err := mgr.DeleteValue(username, contextPath, args[0]); err != nil {
@@ -577,7 +595,8 @@ func HandleCLIModeToggle(mgr *EditorManager, schema *config.Schema, renderer *Re
 		tree := mgr.Tree(username)
 		viewData, err := buildConfigViewData(schema, tree, contextPath)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			serverLogger.Warn("mode toggle build view failed", "error", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 
