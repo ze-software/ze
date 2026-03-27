@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Sync vendored web assets to all consumer directories.
-# Source of truth: vendor/web/htmx/
-# See vendor/web/MANIFEST.md for the asset inventory.
+# Source of truth: third_party/web/htmx/
+# See third_party/web/MANIFEST.md for the asset inventory.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VENDOR="$ROOT/vendor/web/htmx"
+VENDOR="$ROOT/third_party/web/htmx"
 
 CONSUMERS=(
     "$ROOT/internal/chaos/web/assets"

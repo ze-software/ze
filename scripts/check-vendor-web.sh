@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Check npm registry for newer versions of vendored web assets.
-# Compares against versions recorded in vendor/web/MANIFEST.md.
+# Compares against versions recorded in third_party/web/MANIFEST.md.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MANIFEST="$ROOT/vendor/web/MANIFEST.md"
+MANIFEST="$ROOT/third_party/web/MANIFEST.md"
 
 if [ ! -f "$MANIFEST" ]; then
     echo "error: MANIFEST.md not found: $MANIFEST" >&2
@@ -54,7 +54,7 @@ fi
 echo ""
 echo "checking consumer copies..."
 
-VENDOR="$ROOT/vendor/web/htmx"
+VENDOR="$ROOT/third_party/web/htmx"
 CONSUMERS=(
     "$ROOT/internal/chaos/web/assets"
     "$ROOT/internal/component/web/assets"
