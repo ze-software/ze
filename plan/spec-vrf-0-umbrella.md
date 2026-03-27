@@ -222,6 +222,14 @@ The following global state in `internal/component/bgp/reactor/` was analyzed for
 | AC-11 | Two VRFs with same peer IP on different ports | No conflict -- each reactor has own listener and peer map |
 | AC-12 | Metrics from VRF red | Labeled with VRF name, distinguishable from VRF blue metrics |
 
+## Open Questions
+
+| # | Question | Options | Blocks |
+|---|----------|---------|--------|
+| Q1 | Peer-to-VRF mapping model | Config-based (one peer = one VRF), route-target (one peer feeds multiple VRFs via RT communities), or both | spec-vrf-2-plugin |
+
+Currently assumed config-based first (route-targets listed as out of scope in umbrella).
+
 ## Design Insights
 
 - All globals are safe to share: pools, budgets, deadlines, message ID counter. Same process, same memory, no isolation needed.
