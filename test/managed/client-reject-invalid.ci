@@ -1,0 +1,42 @@
+# Test: invalid hub config is rejected at parse time
+#
+# VALIDATES: AC-8 -- invalid config rejected before application.
+# PREVENTS: Broken config being accepted and crashing daemon.
+
+tmpfs=test-reject-invalid.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+touch daemon.ready
+
+INIT_DIR=$(mktemp -d)
+trap 'rm -rf "$INIT_DIR"' EXIT
+
+# Init database
+printf 'admin\nsecret123\n127.0.0.1\n2222\n\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init
+
+# Write config with invalid port (not a number)
+ZE_CONFIG_DIR="$INIT_DIR" ze data write ze.conf <<'CONF'
+plugin {
+    hub {
+        server local {
+            host 127.0.0.1;
+            port notanumber;
+            secret "local-secret-that-is-at-least-32ch";
+        }
+    }
+}
+CONF
+
+# Validate should fail due to invalid port
+if ZE_CONFIG_DIR="$INIT_DIR" ze config validate ze.conf 2>&1; then
+    echo "FAIL: expected validation failure for invalid port" >&2
+    exit 1
+fi
+
+echo "OK: invalid hub config correctly rejected" >&2
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-reject-invalid.sh:timeout=10s
+expect=exit:code=0

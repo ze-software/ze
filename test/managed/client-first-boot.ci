@@ -1,0 +1,32 @@
+# Test: managed client first boot with env var overrides
+#
+# VALIDATES: AC-1, AC-6 -- first boot without cached config requires hub info.
+# PREVENTS: Silent startup failure when hub info is missing.
+
+tmpfs=test-first-boot.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+touch daemon.ready
+
+INIT_DIR=$(mktemp -d)
+trap 'rm -rf "$INIT_DIR"' EXIT
+
+# Init with --managed flag and instance name
+printf 'admin\nsecret123\n127.0.0.1\n2222\nedge-01\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init --managed
+
+# Verify managed flag
+MANAGED=$(ZE_CONFIG_DIR="$INIT_DIR" ze data cat meta/instance/managed)
+[ "$MANAGED" = "true" ] || { echo "FAIL: not managed" >&2; exit 1; }
+
+# First boot without hub info should fail with clear error (AC-6)
+OUTPUT=$(ZE_CONFIG_DIR="$INIT_DIR" ze start 2>&1 || true)
+echo "$OUTPUT" | grep -q "managed mode" || { echo "FAIL: expected managed mode error, got: $OUTPUT" >&2; exit 1; }
+echo "$OUTPUT" | grep -q "ze.managed.server" || { echo "FAIL: expected hint about ze.managed.server" >&2; exit 1; }
+
+echo "OK: first boot without hub info exits with clear error" >&2
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-first-boot.sh:timeout=10s
+expect=exit:code=0

@@ -31,6 +31,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/show"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	zeyang "codeberg.org/thomas-mangin/ze/cmd/ze/yang"
+	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/managed"
@@ -39,6 +40,7 @@ import (
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
+	"codeberg.org/thomas-mangin/ze/pkg/fleet"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 
 	// Import all plugins to trigger init() registration.
@@ -400,14 +402,22 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 	configName := resolveDefaultConfig(store)
 
 	if store.Exists(configName) {
-		// Cached config exists: start BGP from cache.
-		// Background hub connection for updates will be started by the managed
-		// client component once the hub client block is parsed from config.
 		ct := detectConfigType(store, configName)
 		if ct == config.ConfigTypeUnknown {
 			fmt.Fprintf(os.Stderr, "error: cached config has no recognized block (bgp, plugin)\n")
 			return 1
 		}
+
+		// Extract hub client block for background connection.
+		clientCfg := extractManagedClientConfig(store, configName)
+
+		// Start background hub connection if client block found.
+		if clientCfg != nil {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			go managed.RunManagedClient(ctx, *clientCfg)
+		}
+
 		return hub.Run(store, configName, plugins, chaosSeed, chaosRate)
 	}
 
@@ -447,6 +457,40 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 	}
 
 	return hub.Run(store, configName, plugins, chaosSeed, chaosRate)
+}
+
+// extractManagedClientConfig reads config from blob and extracts the hub client block.
+// Returns nil if no client block is found (standalone mode).
+func extractManagedClientConfig(store storage.Storage, configName string) *managed.ClientConfig {
+	data, err := store.ReadFile(configName)
+	if err != nil {
+		return nil
+	}
+
+	// Parse config to extract hub client block.
+	loadResult, err := bgpconfig.LoadConfig(string(data), "", nil)
+	if err != nil {
+		return nil
+	}
+
+	hubCfg, err := bgpconfig.ExtractHubConfig(loadResult.Tree)
+	if err != nil || len(hubCfg.Clients) == 0 {
+		return nil
+	}
+
+	cli := hubCfg.Clients[0]
+
+	return &managed.ClientConfig{
+		Name:    cli.Name,
+		Server:  cli.Address(),
+		Token:   cli.Secret,
+		Version: fleet.VersionHash(data),
+		Handler: &managed.Handler{
+			Cache: func(cfgData []byte) error {
+				return store.WriteFile(configName, cfgData, 0)
+			},
+		},
+	}
 }
 
 // fetchInitialConfig connects to the hub, authenticates, and fetches the initial config.
