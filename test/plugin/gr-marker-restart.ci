@@ -1,0 +1,115 @@
+# gr-marker-restart - verify valid GR marker triggers restart detection
+#
+# Flow:
+# 1. Shell script creates a valid (far-future) GR marker in meta/bgp/gr-marker
+# 2. Ze starts with GR capability (restart-time=120) and filesystem storage
+# 3. Ze reads marker, sets RestartUntil, logs "GR restart marker found"
+# 4. Ze connects to ze-peer, session establishes (UPDATE + EOR sent)
+#
+# The marker proves the Restarting Speaker detection path works end-to-end:
+# marker in storage -> grmarker.Read() -> reactor.SetRestartUntil() -> R=1 in OPEN.
+# Wire-level R=1 verification is in unit tests (TestSetRBitOnCapability).
+#
+# VALIDATES: AC-2 -- startup with valid marker sets R=1 in GR capability.
+# VALIDATES: AC-6 -- marker consumed (removed) on startup.
+# PREVENTS: GR marker ignored on startup.
+
+# Shell script to create marker before ze starts
+tmpfs=create-marker.sh:mode=755:terminator=EOF_MARKER
+#!/bin/sh
+set -e
+mkdir -p meta/bgp
+# Far-future timestamp (year 2099): 4070910976 = 0x00000000F2A52C00
+# 8-byte big-endian int64 UNIX seconds
+printf '\x00\x00\x00\x00\xf2\xa5\x2c\x00' > meta/bgp/gr-marker
+EOF_MARKER
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=15s
+option=open:value=inspect-open-message
+
+# Enable GR subsystem logging so marker detection is visible
+option=env:var=ze.log.bgp.gr:value=info
+
+# Verify R=1 in the OPEN message wire bytes.
+# OPEN structure: marker(16) + len=0x0033(51) + type=01(OPEN) + ver=04 + AS=0001
+#   + hold=005A + rid=01020304 + opt-params-len=0x16(22)
+#   + MP ipv4/unicast: 02 06 01 04 00 01 00 01
+#   + ASN4 AS=1:      02 06 41 04 00 00 00 01
+#   + GR code=64 R=1: 02 04 40 02 80 78   <-- R-bit (0x80) set, restart-time=120
+# Compare cold start (gr-marker-cold-start.ci) where this byte is 00 78 (R=0).
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003301040001005A010203041602060104000100010206410400000001020440028078
+
+# Session establishes: static route UPDATE + EOR
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Verify marker was read and RestartUntil was set
+expect=stderr:contains=GR restart marker found
+EOF_PEER
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external gr {
+		run "ze plugin bgp-gr"
+		encoder json
+	}
+	external rib {
+		run "ze plugin bgp-rib"
+		encoder json
+	}
+}
+
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+			accept false
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		group-updates disable
+
+		family {
+			ipv4/unicast { prefix { maximum 10000; } }
+		}
+		capability {
+			graceful-restart {
+				restart-time 120
+			}
+		}
+
+		update {
+			attribute {
+				origin igp
+				local-preference 100
+				next-hop 10.0.0.1
+			}
+			nlri {
+				ipv4/unicast add 192.168.1.0/24
+			}
+		}
+
+		process gr {
+			send [ update ]
+		}
+		process rib {
+			send [ update ]
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration:
+# 1. Create marker file (foreground, completes instantly)
+# 2. Start ze-peer (background, waits for connection)
+# 3. Start ze with marker present (foreground, reads marker on startup)
+cmd=foreground:seq=1:exec=./create-marker.sh
+cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=15s

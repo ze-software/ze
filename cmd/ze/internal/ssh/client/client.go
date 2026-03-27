@@ -1,4 +1,5 @@
 // Design: docs/architecture/system-architecture.md — SSH client helper for CLI tools
+// Related: ../../../../../pkg/zefs/store.go — BlobStore reads credentials (meta/ssh/*)
 
 // Package client provides SSH client connectivity for ze CLI tools.
 // CLI tools connect to the daemon via SSH instead of Unix sockets.

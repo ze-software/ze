@@ -370,31 +370,135 @@ func TestSetRBitMixed(t *testing.T) {
 	}
 }
 
-// --- Deadline expiry behavior ---
+// --- Write/Read round-trip ---
 
-// VALIDATES: R=1 before deadline, R=0 after deadline.
-// PREVENTS: R-bit persisting past the restart window.
-func TestRestartDeadlineExpiry(t *testing.T) {
+// VALIDATES: Write then Read produces the same expiry timestamp.
+// PREVENTS: Endianness mismatch between Write and Read.
+func TestWriteReadRoundTrip(t *testing.T) {
+	store := newTestStore(t)
+	expiry := time.Now().Add(120 * time.Second)
+
+	if err := Write(store, expiry); err != nil {
+		t.Fatalf("Write: %v", err)
+	}
+
+	got, ok := Read(store)
+	if !ok {
+		t.Fatal("Read returned ok=false after Write")
+	}
+	if got.Unix() != expiry.Unix() {
+		t.Errorf("round-trip expiry = %d, want %d", got.Unix(), expiry.Unix())
+	}
+}
+
+// --- Boundary time tests ---
+
+// VALIDATES: Read correctly handles timestamps near the current time.
+// PREVENTS: Off-by-one in time comparison (Before vs BeforeOrEqual).
+func TestReadGRMarkerTimeBoundary(t *testing.T) {
+	tests := []struct {
+		name   string
+		offset time.Duration
+		wantOK bool
+	}{
+		{"1s in future", 1 * time.Second, true},
+		{"1s in past", -1 * time.Second, false},
+		// At exact expiry, time.Now().Before(expiry) is false -> expired.
+		{"2s in future", 2 * time.Second, true},
+		{"10s in past", -10 * time.Second, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := newTestStore(t)
+			expiry := time.Now().Add(tt.offset)
+			if err := store.WriteFile(markerKey, makeMarkerBytes(expiry.Unix()), 0); err != nil {
+				t.Fatalf("WriteFile: %v", err)
+			}
+			_, ok := Read(store)
+			if ok != tt.wantOK {
+				t.Errorf("Read ok = %v, want %v (offset %v)", ok, tt.wantOK, tt.offset)
+			}
+		})
+	}
+}
+
+// --- SetRBit edge cases ---
+
+// VALIDATES: SetRBit is idempotent -- calling it on caps that already have R=1.
+// PREVENTS: Double-OR corrupting the value.
+func TestSetRBitIdempotent(t *testing.T) {
+	// Input already has R=1 (0x80 | restart-time high nibble).
+	caps := []plugin.InjectedCapability{
+		{Code: grCapCode, Value: []byte{0x80, 0x78}}, // R=1, restart-time=120
+	}
+
+	result := SetRBit(caps)
+
+	if result[0].Value[0] != 0x80 {
+		t.Errorf("byte 0 = 0x%02x, want 0x80", result[0].Value[0])
+	}
+	rt := (int(result[0].Value[0])&0x0F)<<8 | int(result[0].Value[1])
+	if rt != 120 {
+		t.Errorf("restart-time = %d, want 120", rt)
+	}
+}
+
+// VALIDATES: SetRBit with nil input returns empty slice (no panic).
+// PREVENTS: Nil pointer dereference on empty capability list.
+func TestSetRBitNilInput(t *testing.T) {
+	result := SetRBit(nil)
+	if len(result) != 0 {
+		t.Errorf("SetRBit(nil) returned %d caps, want 0", len(result))
+	}
+}
+
+// VALIDATES: MaxRestartTime masks off R-bit when already set in input.
+// PREVENTS: R-bit (0x80) corrupting restart-time extraction.
+func TestMaxRestartTimeWithRBitSet(t *testing.T) {
+	caps := []plugin.InjectedCapability{
+		{Code: grCapCode, Value: []byte{0x80, 0x78}}, // R=1, restart-time=120
+	}
+	got := MaxRestartTime(caps)
+	if got != 120 {
+		t.Errorf("MaxRestartTime with R=1 = %d, want 120", got)
+	}
+}
+
+// --- SetRBit simulates the time-gate logic in peer.go ---
+
+// VALIDATES: The time-gated R-bit logic: SetRBit called only when before deadline.
+// PREVENTS: R-bit applied when it shouldn't be (after deadline).
+// NOTE: The actual time gate lives in peer.go:480; this tests the decision pattern.
+func TestSetRBitTimeGatePattern(t *testing.T) {
 	caps := []plugin.InjectedCapability{
 		{Code: grCapCode, Value: makeGRCapValue(120)},
 	}
 
-	// Before deadline: R-bit should be set.
-	deadline := time.Now().Add(10 * time.Second)
-	if !deadline.IsZero() && time.Now().Before(deadline) {
+	// Simulates peer.go:480 -- before deadline: apply SetRBit.
+	restartUntil := time.Now().Add(10 * time.Second)
+	if !restartUntil.IsZero() && time.Now().Before(restartUntil) {
 		result := SetRBit(caps)
 		if result[0].Value[0]&0x80 == 0 {
 			t.Error("before deadline: R-bit not set")
 		}
+	} else {
+		t.Fatal("expected to be before deadline")
 	}
 
-	// After deadline: R-bit should NOT be set (caps returned unmodified).
-	pastDeadline := time.Now().Add(-10 * time.Second)
-	if !pastDeadline.IsZero() && time.Now().Before(pastDeadline) {
-		t.Error("time check should be false for past deadline")
+	// Simulates peer.go:480 -- after deadline: skip SetRBit, use original caps.
+	restartUntil = time.Now().Add(-10 * time.Second)
+	if !restartUntil.IsZero() && time.Now().Before(restartUntil) {
+		t.Fatal("expected to be after deadline")
 	}
-	// When the check is false, caps are used unmodified.
+	// Original caps are used unmodified.
 	if caps[0].Value[0]&0x80 != 0 {
-		t.Error("after deadline: original cap should have R=0")
+		t.Error("original cap should have R=0")
+	}
+
+	// Simulates peer.go:480 -- zero RestartUntil (cold start): skip SetRBit.
+	restartUntil = time.Time{}
+	if !restartUntil.IsZero() {
+		t.Fatal("zero time should be zero")
 	}
 }

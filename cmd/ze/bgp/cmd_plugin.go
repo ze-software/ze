@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — plugin CLI simulator
 // Related: main.go — bgp subcommand dispatch
+// Related: ../internal/ssh/client/client.go — SSH credentials from zefs and ExecCommand
 
 package bgp
 

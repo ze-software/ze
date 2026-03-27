@@ -77,10 +77,10 @@ func Remove(store Store) error {
 	return err
 }
 
-// isNotExist checks if an error is a "not exist" path error from zefs.
+// isNotExist checks if an error indicates a missing file.
+// Uses errors.Is to match regardless of wrapping (PathError or bare ErrNotExist).
 func isNotExist(err error) bool {
-	var pe *fs.PathError
-	return errors.As(err, &pe) && errors.Is(pe.Err, fs.ErrNotExist)
+	return errors.Is(err, fs.ErrNotExist)
 }
 
 // MaxRestartTime returns the maximum restart-time (in seconds) across all

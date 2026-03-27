@@ -68,6 +68,8 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.size", Type: "int", Default: "100000", Description: "Global overflow pool capacity for forward workers (0 = unbounded)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.maxbytes", Type: "int64", Default: "0", Description: "Combined byte budget for 4K+64K buffer pools (0 = unlimited)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.batch.limit", Type: "int", Default: "1024", Description: "Max items per forward batch, bounds writeMu hold time (0 = unlimited)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.teardown.grace", Type: "duration", Default: "5s", Description: "Seconds at >95% pool + >2x weight before forced teardown"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.headroom", Type: "int64", Default: "0", Description: "Extra bytes beyond auto-sized pool baseline (0 = no extra)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.safety.valve", Type: "duration", Default: "5m", Description: "Safety valve duration for UPDATE cache gap-based eviction"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.read.size", Type: "int", Default: "65536", Description: "Per-session TCP read buffer size (bytes)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.write.size", Type: "int", Default: "16384", Description: "Per-session TCP write buffer size (bytes)"})
@@ -359,14 +361,60 @@ func New(config *Config) *Reactor {
 	// When ze.fwd.pool.maxbytes is not explicitly set (0), auto-size the
 	// bufmux budget from peer prefix maximums. When explicitly set, the
 	// operator's value is used and the callback only logs.
+	// ze.fwd.pool.headroom adds extra bytes beyond the auto-sized baseline.
+	// Ignored when ze.fwd.pool.maxbytes is explicitly set.
+	headroom := env.GetInt64("ze.fwd.pool.headroom", 0)
 	if explicitMaxBytes <= 0 {
 		r.fwdWeights = newWeightTracker(func(guaranteed, overflow int) {
-			total := int64(guaranteed+overflow) * int64(message.MaxMsgLen)
+			total := int64(guaranteed+overflow)*int64(message.MaxMsgLen) + headroom
 			updateBufMuxBudget(total)
 		})
 	} else {
 		r.fwdWeights = newWeightTracker(nil)
 	}
+
+	// Congestion controller: two-threshold enforcement (Phase 5, AC-2/AC-4).
+	teardownGrace := env.GetDuration("ze.fwd.teardown.grace", congestionGraceDefault)
+	r.fwdPool.congestion = newCongestionController(congestionConfig{
+		gracePeriod:    teardownGrace,
+		poolUsedRatio:  r.fwdPool.PoolUsedRatio,
+		overflowDepths: r.fwdPool.OverflowDepths,
+		weights:        r.fwdWeights,
+		onTeardown: congestionTeardownPeer(func(addr netip.AddrPort) *Peer {
+			r.mu.RLock()
+			p := r.peers[addr]
+			r.mu.RUnlock()
+			return p
+		}),
+		peerGRCapable: func(peerAddr string) bool {
+			r.mu.RLock()
+			defer r.mu.RUnlock()
+			for _, p := range r.peers {
+				if p.Settings().Address.String() != peerAddr {
+					continue
+				}
+				p.mu.Lock()
+				s := p.session
+				p.mu.Unlock()
+				if s == nil {
+					return false
+				}
+				neg := s.Negotiated()
+				return neg != nil && neg.GracefulRestart != nil
+			}
+			return false
+		},
+		onDenied: func() {
+			if r.rmetrics != nil {
+				r.rmetrics.fwdBufferDeniedTotal.Inc()
+			}
+		},
+		onTeardownFired: func() {
+			if r.rmetrics != nil {
+				r.rmetrics.fwdTeardownTotal.Inc()
+			}
+		},
+	})
 
 	// Wire congestion callbacks to log peer congestion state transitions
 	// and emit events to subscribed plugins.
@@ -469,6 +517,7 @@ func (r *Reactor) SetConfigPath(path string) {
 
 // SetRestartUntil sets the GR restart deadline. While the clock reads before
 // this deadline, OPEN messages include R=1 in GR capabilities (RFC 4724 Section 4.1).
+// MUST be called before StartWithContext -- not safe for concurrent use.
 func (r *Reactor) SetRestartUntil(t time.Time) {
 	r.config.RestartUntil = t
 }

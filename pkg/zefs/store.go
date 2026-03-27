@@ -6,6 +6,7 @@
 // Detail: file.go -- fs.File and fs.DirEntry wrappers
 // Detail: mmap_unix.go -- mmap/munmap for zero-copy reads
 // Detail: mmap_other.go -- heap fallback for non-unix
+// Related: ../../cmd/ze/internal/ssh/client/client.go — reads SSH credentials from meta/ssh/*
 
 package zefs
 

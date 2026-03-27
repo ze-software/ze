@@ -3,6 +3,8 @@
 // Detail: manager.go — multi-process coordination and respawn
 // Detail: sysproc_linux.go — Linux-specific process isolation
 // Detail: sysproc_other.go — non-Linux process isolation
+// Related: ../ipc/tls.go — PluginAcceptor used by startExternal (WaitForPlugin for TLS connect-back)
+// Related: ../../../../pkg/plugin/sdk/sdk.go — plugin-side SDK that connects back via TLS
 
 package process
 
