@@ -12,6 +12,7 @@
 | Monitor BGP sessions in real time | [Monitoring](monitoring.md) |
 | Validate routes against RPKI | [RPKI Origin Validation](rpki.md) |
 | Restart without dropping routes | [Graceful Restart](graceful-restart.md) |
+| Manage config through a browser | [Web Interface](web-interface.md) |
 | Migrate from ExaBGP | [ExaBGP Migration](exabgp-migration.md) |
 | Run Ze in production | [Operations](operations.md) |
 | Debug a peer that won't come up | [Operations](operations.md#troubleshooting) |
@@ -27,6 +28,7 @@
 | [Command Reference](command-reference.md) | Complete reference for all shell and runtime commands |
 | [Config Editor](config-editor.md) | Interactive NOS-like editor with YANG tab completion |
 | [Config Reload](config-reload.md) | Live reload, what changes live vs. requires restart |
+| [Web Interface](web-interface.md) | HTTPS web UI for config viewing, editing, and admin commands |
 
 ## Features
 
