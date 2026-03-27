@@ -4,12 +4,16 @@
 package main
 
 import (
+	"context"
+	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/bgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
@@ -29,10 +33,13 @@ import (
 	zeyang "codeberg.org/thomas-mangin/ze/cmd/ze/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/managed"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	pluginipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 
 	// Import all plugins to trigger init() registration.
 	// Must happen at the binary entry point (not in internal/plugin)
@@ -366,14 +373,15 @@ func isManaged(store storage.Storage) bool {
 }
 
 // cmdStartManaged handles ze start for managed clients.
-// Reads cached config from blob; if it exists, starts from cache.
-// If no cached config and hub is unreachable, exits with error.
+// With cached config: starts BGP immediately, connects to hub in background for updates.
+// Without cached config (first boot): requires hub connection to fetch initial config.
 func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, chaosRate float64) int {
 	configName := resolveDefaultConfig(store)
 
 	if store.Exists(configName) {
-		// Cached config exists: start from it.
-		// TODO(fleet-config): connect to hub in background, fetch updates.
+		// Cached config exists: start BGP from cache.
+		// Background hub connection for updates will be started by the managed
+		// client component once the hub client block is parsed from config.
 		ct := detectConfigType(store, configName)
 		if ct == config.ConfigTypeUnknown {
 			fmt.Fprintf(os.Stderr, "error: cached config has no recognized block (bgp, plugin)\n")
@@ -382,10 +390,94 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 		return hub.Run(store, configName, plugins, chaosSeed, chaosRate)
 	}
 
-	// No cached config: first boot. Hub connection required.
-	fmt.Fprintf(os.Stderr, "error: managed mode with no cached config; hub connection required\n")
-	fmt.Fprintf(os.Stderr, "hint: ensure hub is reachable or run ze init with hub details\n")
-	return 1
+	// No cached config: first boot after ze init --managed.
+	// Hub connection is required to fetch initial config.
+	// CLI flags or env vars provide hub connection info for bootstrap.
+	server := env.Get("ze.managed.server")
+	name := env.Get("ze.managed.name")
+
+	if server == "" || name == "" {
+		fmt.Fprintf(os.Stderr, "error: managed mode with no cached config\n")
+		fmt.Fprintf(os.Stderr, "hint: set ze.managed.server and ze.managed.name to bootstrap from hub\n")
+		fmt.Fprintf(os.Stderr, "  export ZE_MANAGED_SERVER=hub-host:1791\n")
+		fmt.Fprintf(os.Stderr, "  export ZE_MANAGED_NAME=edge-01\n")
+		fmt.Fprintf(os.Stderr, "  export ZE_MANAGED_TOKEN=secret\n")
+		return 1
+	}
+
+	// First boot: connect to hub, fetch config, cache it, then start.
+	fmt.Fprintf(os.Stderr, "managed: first boot, connecting to hub %s as %s\n", server, name)
+	configData, err := fetchInitialConfig(server, name, env.Get("ze.managed.token"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: fetch config from hub: %v\n", err)
+		return 1
+	}
+
+	// Cache fetched config in blob.
+	if writeErr := store.WriteFile(configName, configData, 0); writeErr != nil {
+		fmt.Fprintf(os.Stderr, "error: cache config: %v\n", writeErr)
+		return 1
+	}
+
+	ct := detectConfigType(store, configName)
+	if ct == config.ConfigTypeUnknown {
+		fmt.Fprintf(os.Stderr, "error: fetched config has no recognized block (bgp, plugin)\n")
+		return 1
+	}
+
+	return hub.Run(store, configName, plugins, chaosSeed, chaosRate)
+}
+
+// fetchInitialConfig connects to the hub, authenticates, and fetches the initial config.
+func fetchInitialConfig(server, name, token string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), env.GetDuration("ze.managed.connect.timeout", 5*time.Second))
+	defer cancel()
+
+	tlsConf := &tls.Config{
+		InsecureSkipVerify: true, //nolint:gosec // hub uses self-signed certs; cert pinning is a future spec
+		MinVersion:         tls.VersionTLS13,
+	}
+
+	conn, err := (&tls.Dialer{Config: tlsConf}).DialContext(ctx, "tcp", server)
+	if err != nil {
+		return nil, fmt.Errorf("connect to %s: %w", server, err)
+	}
+	defer conn.Close() //nolint:errcheck // cleanup
+
+	if err := pluginipc.SendAuth(ctx, conn, token, name); err != nil {
+		return nil, fmt.Errorf("auth: %w", err)
+	}
+
+	// Read auth response before wrapping in MuxConn.
+	// Auth response is a single line: "#0 ok ...\n"
+	authResp := make([]byte, 256)
+	n, readErr := conn.Read(authResp)
+	if readErr != nil {
+		return nil, fmt.Errorf("read auth response: %w", readErr)
+	}
+	if !strings.Contains(string(authResp[:n]), "ok") {
+		return nil, fmt.Errorf("auth rejected: %s", strings.TrimSpace(string(authResp[:n])))
+	}
+
+	rc := rpc.NewConn(conn, conn)
+	mc := rpc.NewMuxConn(rc)
+	defer mc.Close() //nolint:errcheck // cleanup
+
+	resp, err := managed.FetchConfig(ctx, mc, "")
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.Config == "" {
+		return nil, fmt.Errorf("hub returned empty config")
+	}
+
+	data, err := base64.StdEncoding.DecodeString(resp.Config)
+	if err != nil {
+		return nil, fmt.Errorf("decode config: %w", err)
+	}
+
+	return data, nil
 }
 
 // resolveDefaultConfig returns the config name from meta/instance/name or the fallback.
