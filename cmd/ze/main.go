@@ -490,6 +490,9 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 				return store.WriteFile(configName, cfgData, 0)
 			},
 		},
+		CheckManaged: func() bool {
+			return isManaged(store)
+		},
 	}
 }
 

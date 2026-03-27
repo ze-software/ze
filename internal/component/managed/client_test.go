@@ -125,3 +125,38 @@ func TestClientFetchConfigTimeout(t *testing.T) {
 	_, err := FetchConfig(ctx, mc, "")
 	require.Error(t, err)
 }
+
+// TestRunManagedClientStopsWhenUnmanaged verifies that RunManagedClient exits
+// when CheckManaged returns false.
+//
+// VALIDATES: AC-17 -- meta/managed=false severs hub connection.
+// PREVENTS: Managed client running indefinitely after managed flag disabled.
+func TestRunManagedClientStopsWhenUnmanaged(t *testing.T) {
+	t.Parallel()
+
+	done := make(chan struct{})
+
+	cfg := ClientConfig{
+		Name:   "edge-01",
+		Server: "127.0.0.1:19999", // unreachable -- doesn't matter, check happens first
+		Token:  "token",
+		Handler: &Handler{
+			Cache: func(data []byte) error { return nil },
+		},
+		CheckManaged: func() bool {
+			return false // immediately unmanaged
+		},
+	}
+
+	go func() {
+		RunManagedClient(context.Background(), cfg)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// RunManagedClient returned because CheckManaged is false.
+	case <-time.After(2 * time.Second):
+		t.Fatal("RunManagedClient did not stop when CheckManaged returned false")
+	}
+}

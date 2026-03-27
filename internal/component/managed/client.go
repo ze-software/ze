@@ -26,12 +26,13 @@ const (
 
 // ClientConfig holds the configuration for a managed client connection.
 type ClientConfig struct {
-	Name     string // Client identity (from hub client block name)
-	Server   string // Hub address (host:port)
-	Token    string // Auth token
-	Version  string // Current config version hash (empty on first boot)
-	Handler  *Handler
-	OnReload func() // Called after new config is cached and applied
+	Name         string // Client identity (from hub client block name)
+	Server       string // Hub address (host:port)
+	Token        string // Auth token
+	Version      string // Current config version hash (empty on first boot)
+	Handler      *Handler
+	OnReload     func()      // Called after new config is cached and applied
+	CheckManaged func() bool // Returns false when meta/instance/managed is disabled; nil = always managed
 }
 
 // RunManagedClient connects to the hub and maintains the connection with
@@ -41,6 +42,12 @@ func RunManagedClient(ctx context.Context, cfg ClientConfig) {
 	backoff := NewBackoff(1*time.Second, 60*time.Second, 0.1)
 
 	for {
+		// Check managed flag before each connection attempt (AC-17).
+		if cfg.CheckManaged != nil && !cfg.CheckManaged() {
+			slog.Info("managed: meta/instance/managed is false, stopping hub connection")
+			return
+		}
+
 		err := runConnection(ctx, &cfg)
 		if ctx.Err() != nil {
 			return // shutdown
