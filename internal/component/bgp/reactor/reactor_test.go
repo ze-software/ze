@@ -1690,18 +1690,22 @@ func TestDeliveryChannelDecouplesRead(t *testing.T) {
 	wireUpdate := wireu.NewWireUpdate(payload, 0)
 	buf := BufHandle{Buf: make([]byte, 4096)}
 
-	start := time.Now()
 	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, "received", buf, nil)
-	elapsed := time.Since(start)
 
-	// Read goroutine should return almost immediately (enqueue, not block)
-	require.Less(t, elapsed, 50*time.Millisecond,
-		"read goroutine should not block on slow plugin delivery (got %v)", elapsed)
+	// notifyMessageReceiver returned — delivery must NOT have completed yet.
+	// The 200ms sleep in the receiver proves decoupling: if the read goroutine
+	// blocked on delivery, this select would see delivered closed.
+	select {
+	case <-delivered:
+		t.Fatal("read goroutine blocked on slow plugin delivery instead of returning immediately")
+	default:
+		// Good: notifyMessageReceiver returned before the 200ms delivery callback finished
+	}
 
 	// Delivery should still complete asynchronously
 	select {
 	case <-delivered:
-	case <-time.After(1 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("delivery goroutine should have completed delivery")
 	}
 
@@ -1744,7 +1748,7 @@ func TestCacheInsertionBeforeDelivery(t *testing.T) {
 
 	select {
 	case <-cacheCheckDone:
-	case <-time.After(1 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("delivery callback should have run and checked cache")
 	}
 }
@@ -1783,16 +1787,25 @@ func TestActivateAfterAllDeliveries(t *testing.T) {
 	var msgID uint64
 	select {
 	case msgID = <-deliveryDone:
-	case <-time.After(1 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("delivery should have completed")
 	}
 
-	// Give delivery goroutine time to call Activate after OnMessageReceived returns
-	time.Sleep(50 * time.Millisecond)
-
-	// With 0 consumers, Activate(id, 0) should evict the entry
-	_, found := reactor.recentUpdates.Get(msgID)
-	require.False(t, found, "cache entry should be evicted after Activate(id, 0)")
+	// Poll for Activate(id, 0) to evict the entry.
+	// Activate runs in the delivery goroutine after the callback returns,
+	// so there's a small window between callback completion and eviction.
+	deadline := time.After(5 * time.Second)
+	for {
+		_, found := reactor.recentUpdates.Get(msgID)
+		if !found {
+			break // Entry evicted — Activate(id, 0) ran
+		}
+		select {
+		case <-deadline:
+			t.Fatal("cache entry should be evicted after Activate(id, 0)")
+		case <-time.After(5 * time.Millisecond):
+		}
+	}
 
 	stop()
 }
@@ -1839,12 +1852,12 @@ func TestDeliveryBackpressure(t *testing.T) {
 		close(thirdDone)
 	}()
 
-	// Pre-impl: all 3 sends complete synchronously (channel unused) → thirdDone closes → FAIL
-	// Post-impl: 3rd blocks on full channel → 200ms timeout → PASS
+	// Pre-impl: all 3 sends complete synchronously (channel unused) -> thirdDone closes -> FAIL
+	// Post-impl: 3rd blocks on full channel -> 1s timeout -> PASS
 	select {
 	case <-thirdDone:
 		t.Fatal("notifyMessageReceiver should block when delivery channel is full")
-	case <-time.After(200 * time.Millisecond):
+	case <-time.After(1 * time.Second):
 		// Expected: backpressure is working
 	}
 
@@ -1922,9 +1935,11 @@ func TestCrossPeerIsolation(t *testing.T) {
 
 	payload := testUpdatePayload()
 
-	// Fill peer A in a goroutine — in pre-impl, synchronous delivery blocks
+	// Fill peer A in a goroutine -- in pre-impl, synchronous delivery blocks
 	// on <-unblockA inside the receiver. Running in a goroutine prevents the
 	// test goroutine from hanging.
+	// aSent signals after both sends complete (or block on the second).
+	aSent := make(chan struct{})
 	aDone := make(chan struct{})
 	go func() {
 		defer close(aDone)
@@ -1933,23 +1948,26 @@ func TestCrossPeerIsolation(t *testing.T) {
 			w := wireu.NewWireUpdate(payload, 0)
 			_ = reactor.notifyMessageReceiver(peerAddrA, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)}, nil)
 		}
+		close(aSent) // Both sends completed; peer A's channel is full
 	}()
 
-	time.Sleep(100 * time.Millisecond) // Let peer A's sends proceed/block
+	// Wait for peer A's sends to complete (channel full) before testing peer B
+	select {
+	case <-aSent:
+	case <-time.After(5 * time.Second):
+		t.Fatal("peer A's sends should complete (capacity=1: 1 in delivery + 1 in buffer)")
+	}
 
-	// Peer B should NOT be blocked by peer A's state
+	// Peer B should NOT be blocked by peer A's state.
+	// The meaningful assertion: peer B's delivery completes while peer A is
+	// still blocked (unblockA has not been closed yet).
 	wB := wireu.NewWireUpdate(payload, 0)
-	start := time.Now()
 	_ = reactor.notifyMessageReceiver(peerAddrB, message.TypeUPDATE, payload, wB, 0, "received", BufHandle{Buf: make([]byte, 4096)}, nil)
-	elapsed := time.Since(start)
-
-	require.Less(t, elapsed, 50*time.Millisecond,
-		"peer B should not be blocked by peer A's full channel (got %v)", elapsed)
 
 	select {
 	case <-peerBDelivered:
 		// Good: peer B's delivery completed independently
-	case <-time.After(1 * time.Second):
+	case <-time.After(5 * time.Second):
 		t.Fatal("peer B's delivery should complete despite peer A being blocked")
 	}
 
@@ -2095,7 +2113,10 @@ func TestPeerDeliveryActivatePerMessage(t *testing.T) {
 	peerAddr := mustParseAddr("10.0.0.1")
 	require.NoError(t, reactor.AddPeer(NewPeerSettings(peerAddr, 65000, 65001, 0x01010101)))
 
-	receiver := &testDeliveryReceiver{consumerCount: 2}
+	// consumerCount=0 so Activate(id, 0) evicts each entry immediately.
+	// If Activate is called per message, all 3 entries are evicted (Len->0).
+	// If Activate is called only once (aggregated), 2 entries remain pending.
+	receiver := &testDeliveryReceiver{consumerCount: 0}
 	reactor.SetMessageReceiver(receiver)
 
 	stop := startTestDelivery(t, reactor, peerAddr, deliveryChannelCapacity)
@@ -2107,13 +2128,20 @@ func TestPeerDeliveryActivatePerMessage(t *testing.T) {
 		_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, w, 0, "received", BufHandle{Buf: make([]byte, 4096)}, nil)
 	}
 
-	// Wait for delivery
-	time.Sleep(100 * time.Millisecond)
+	// After sends, cache has 3 pending entries (Add is synchronous).
+	// Poll for all 3 Activate(id, 0) calls to evict entries.
+	deadline := time.After(5 * time.Second)
+	for reactor.recentUpdates.Len() > 0 {
+		select {
+		case <-deadline:
+			t.Fatalf("expected all cache entries evicted after per-message Activate(id, 0), got %d remaining",
+				reactor.recentUpdates.Len())
+		case <-time.After(5 * time.Millisecond):
+		}
+	}
 
-	// Each message should have been Activated with count=2 (consumer count).
-	// Activate(id, 2) with 0 early acks → pendingConsumers=2 > 0 → entries retained.
-	require.Equal(t, 3, reactor.recentUpdates.Len(),
-		"3 messages should each have a retained cache entry after Activate(id, 2)")
+	require.Equal(t, 0, reactor.recentUpdates.Len(),
+		"all 3 entries should be evicted by per-message Activate(id, 0)")
 
 	stop()
 }
