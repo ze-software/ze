@@ -109,8 +109,8 @@ This is an umbrella spec. Implementation is in four child specs executed in orde
 1. Config parse: YANG schema -> config JSON -> `extractGRCapabilities` extended to also produce code-71 capabilities
 2. OPEN decode: received OPEN event -> `handleOpenEvent` extended to also parse code-71 tuples, store LLST per family
 3. Timer expiry: GR restart-time fires -> state machine checks for LLGR -> transitions to LLGR period
-4. LLGR entry: state machine dispatches `rib enter-llgr` -> RIB attaches LLGR_STALE, deletes NO_LLGR, starts LLST timer
-5. Best-path: route selection checks LLGRStale flag -> deprioritizes stale routes
+4. ~~LLGR entry: state machine dispatches `rib enter-llgr`~~ (superseded: uses composable commands `rib attach-community`, `rib delete-with-community`, `rib mark-stale [level]`)
+5. ~~Best-path: route selection checks LLGRStale flag~~ (superseded: uses `StaleLevel uint8` with `DepreferenceThreshold = 2`)
 6. Readvertisement: stale routes re-advertised with LLGR_STALE to LLGR-capable peers, suppressed to others
 
 ### Boundaries Crossed
@@ -152,16 +152,20 @@ Add to `attribute/community.go` alongside existing CommunityNoExport, CommunityN
 
 ### AD-3: New RIB commands for LLGR actions
 
-Extend the existing inter-plugin command protocol between `bgp-gr` and `bgp-rib`:
+~~Extend the existing inter-plugin command protocol between `bgp-gr` and `bgp-rib`:~~
 
 | Command | Purpose |
 |---------|---------|
-| `rib enter-llgr <peer> <family> <llst>` | Transition family to LLGR: attach LLGR_STALE, delete NO_LLGR routes, start LLST timer |
-| `rib depreference-stale <peer>` | Mark stale routes as least-preferred in best-path selection |
+| ~~`rib enter-llgr <peer> <family> <llst>`~~ | ~~Transition family to LLGR: attach LLGR_STALE, delete NO_LLGR routes, start LLST timer~~ |
+| ~~`rib depreference-stale <peer>`~~ | ~~Mark stale routes as least-preferred in best-path selection~~ |
+
+Superseded: implementation uses generic composable commands instead: `rib attach-community <peer> <family> <hex>`, `rib delete-with-community <peer> <family> <hex>`, `rib mark-stale <peer> <restart-time> [level]`. The RIB has no LLGR-specific knowledge. See Deviations.
 
 ### AD-4: Depreference via flag, not LOCAL_PREF mutation
 
-Add an `LLGRStale bool` flag to `storage.RouteEntry`. The best-path comparator checks this flag first: any non-LLGR-stale route beats any LLGR-stale route, regardless of other attributes. Between two LLGR-stale routes, normal tiebreaking applies.
+~~Add an `LLGRStale bool` flag to `storage.RouteEntry`. The best-path comparator checks this flag first: any non-LLGR-stale route beats any LLGR-stale route, regardless of other attributes. Between two LLGR-stale routes, normal tiebreaking applies.~~
+
+Superseded: implementation uses `StaleLevel uint8` (0=fresh, 1=GR-stale, 2+=LLGR-stale) with `DepreferenceThreshold = 2`. More general than a boolean. See Deviations.
 
 **Rationale:** Avoids pool attribute mutation, keeps depreference reversible if routes become non-stale on reconnect, and matches RFC 9494 semantics ("treat as least preferred" is not the same as "set LOCAL_PREF=0").
 
@@ -356,8 +360,8 @@ Each phase corresponds to a child spec, executed in order.
 | LLGR config parses | `test/parse/graceful-restart-llgr.ci` passes |
 | GR-to-LLGR transition | `test/plugin/llgr-transition.ci` passes |
 | LLGR_STALE community constants | grep for CommunityLLGRStale in `attribute/community.go` |
-| Best-path depreference | grep for LLGRStale in `bestpath.go` |
-| New RIB commands registered | grep for `enter-llgr` in `rib_commands.go` |
+| Best-path depreference | grep for `DepreferenceThreshold` in `bestpath.go` |
+| Composable RIB commands registered | grep for `attach-community` in `rib_commands.go` |
 
 ### Security Review Checklist (/implement stage 10)
 

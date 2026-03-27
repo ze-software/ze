@@ -855,25 +855,36 @@ RFC 4724 requires the Receiving Speaker to mark routes as stale when a GR-capabl
 drops, retain them during the restart window, and selectively purge only stale routes
 when EOR arrives — preserving fresh routes received during the GR window.
 
-**Design:** `Stale bool` on `RouteEntry` — per-route metadata, NOT a pooled attribute.
+**Design:** `StaleLevel uint8` on `RouteEntry` — per-route metadata, NOT a pooled attribute.
 Stale state is not shared via dedup because each route instance has independent stale status.
+Level 0 means fresh (not stale). Plugins define non-zero levels and pass them via RIB commands.
+`DepreferenceThreshold` (default 2) is the level at which best-path deprioritizes routes.
+
+<!-- source: internal/component/bgp/plugins/rib/storage/routeentry.go — StaleLevelFresh, DepreferenceThreshold -->
 
 | Operation | Method | Scope |
 |-----------|--------|-------|
-| Mark stale | `FamilyRIB.MarkStale()` | All routes in one family |
-| Purge stale | `FamilyRIB.PurgeStale()` | Only stale routes in one family |
-| Stale count | `FamilyRIB.StaleCount()` | Count stale routes |
-| Implicit unstale | `FamilyRIB.Insert()` | New entry always has `Stale = false` |
+| Mark stale | `FamilyRIB.MarkStale(level)` | All routes in one family at given level |
+| Purge stale | `FamilyRIB.PurgeStale()` | Only stale routes (level > 0) in one family |
+| Stale count | `FamilyRIB.StaleCount()` | Count stale routes (level > 0) |
+| Implicit unstale | `FamilyRIB.Insert()` | New entry always has `StaleLevel = 0` |
+
+<!-- source: internal/component/bgp/plugins/rib/storage/stale.go — FamilyRIB stale methods -->
 
 `PeerRIB` provides aggregate methods: `MarkAllStale`, `PurgeFamilyStale`, `PurgeAllStale`, `StaleCount`.
 
-**RIB commands:** `rib mark-stale <peer> <restart-time>` and `rib purge-stale <peer> [family]`.
-Called by bgp-gr plugin via `DispatchCommand`. The RIB stores per-peer GR state
+**RIB commands:** `rib mark-stale <peer> <restart-time> [level]` and `rib purge-stale <peer> [family]`.
+Called by bgp-gr plugin via `DispatchCommand`. The optional level parameter defaults to 1
+(GR-stale); level 2 triggers best-path depreference (LLGR-stale). Generic composable commands
+`rib attach-community` and `rib delete-with-community` allow plugins to manipulate route
+communities without RIB code changes. The RIB stores per-peer GR state
 (`StaleAt`, `RestartTime`, `ExpiresAt`) and starts a safety-net expiry timer
 (restart-time + 5s margin) that auto-purges stale routes if bgp-gr never sends
 `purge-stale` or `release-routes`.
 
-**Show output:** `rib show in` includes `"stale": true` on stale routes.
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go — markStaleCommand, registerCommunityCommands -->
+
+**Show output:** `rib show in` includes `"stale": true` and `"stale-level": N` on stale routes (omitted when level is 0).
 `rib status` includes aggregate `stale-routes` count and per-peer GR state with
 `stale-at` and `expires-at` absolute times.
 
