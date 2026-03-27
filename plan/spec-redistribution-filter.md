@@ -553,12 +553,26 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - `OnFilterUpdate()` callback, `handleFilterUpdate()` dispatch, `SendFilterUpdate()` IPC
    - Files: `sdk.go`, `sdk_callbacks.go`, `sdk_dispatch.go`, `ipc/rpc.go`
 
-7. **Functional tests** -- Not started (depends on reactor wiring)
+7. **Functional tests** -- Not started
    - Files: `test/plugin/redistribution-*.ci`
+   - Blocked on: wire-to-text attribute formatting (the `updateText` parameter in both ingress and egress wiring is currently `""` -- need attribute formatting from WireUpdate to text protocol)
+   - Requires: test filter plugin (Python or Go) that declares filters and responds to filter-update
 
 8. **Full verification** -- Not yet
 
 9. **Complete spec** -- Not yet
+
+### Remaining Work (for next session)
+
+| Item | What | Why blocked |
+|------|------|-------------|
+| Wire-to-text formatting | Convert WireUpdate attributes to text format for filter-update input | Needs attribute parsing integration (lazy parse → text format per declared attributes) |
+| 7 functional .ci tests | End-to-end tests with external filter plugin | Depends on wire-to-text |
+| Override resolution | Default/mandatory filter registry + removal logic | Needs catalog of default filters (only rfc:no-self-as exists conceptually) |
+| Override tests | TestDefaultFilterOverride, TestMandatoryFilterCannotBeOverridden | Depends on override resolution |
+| Per-filter on-error | Use filter's declared on-error (reject/accept) on IPC failure | Need filter registry lookup in policyFilterFunc |
+| AC-13 validation | Reject modify of undeclared attributes | Need attribute registry per filter |
+| AC-15 raw mode | Include raw hex for filters declaring raw=true | Need raw bytes pass-through |
 
 ### Critical Review Checklist (/implement stage 5)
 
