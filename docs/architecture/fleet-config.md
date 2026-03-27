@@ -8,7 +8,7 @@
 
 ## Vision
 
-A managed client's config contains everything: BGP sessions, plugin settings, AND the hub connection info. The `plugin { hub { client <name> { host; port; secret } } }` block declares who the client is and where its hub lives. After the first boot (provisioned via `ze init`), the cached config is self-describing -- `ze daemon` reads it and knows everything.
+A managed client's config contains everything: BGP sessions, plugin settings, AND the hub connection info. The `plugin { hub { client <name> { host; port; secret } } }` block declares who the client is and where its hub lives. After the first boot (provisioned via `ze init`), the cached config is self-describing -- `ze start` reads it and knows everything.
 
 Every ze instance has at least one `server` block for local plugins and SSH. The hub infrastructure is universal -- managed config is just one more use of it.
 
@@ -120,7 +120,7 @@ Managed configuration adds:
 | Managed client (running) | `client edge-01 { host; port; secret }` in cached config | Connects to hub, fetches config |
 | Standalone | Only `server local { }` blocks, no hub-level `client` | Local plugins, no remote hub |
 
-`ze init` provisions the blob with identity and hub connection info. `ze daemon` reads the blob: if managed, connect to hub and fetch config. After the first fetch, the cached config is self-describing (contains the `client` block).
+`ze init` provisions the blob with identity and hub connection info. `ze start` reads the blob: if managed, connect to hub and fetch config. After the first fetch, the cached config is self-describing (contains the `client` block).
 
 CLI flags (`--server`, `--name`, `--token`) can override blob/config values for troubleshooting, but `ze init` is the primary provisioning path.
 
@@ -210,7 +210,7 @@ The client controls timing. A router in the middle of graceful restart or conver
 
 | Step | Action |
 |------|--------|
-| 1 | `ze daemon` |
+| 1 | `ze start` |
 | 2 | Read blob: `meta/instance/name`, `meta/instance/managed`=true, hub host/port, token |
 | 3 | Connect to hub, authenticate |
 | 4 | Fetch config (includes `server local { }` + `client edge-01 { }` + `bgp { }`) |
@@ -223,7 +223,7 @@ After this, the blob has the cached config. On subsequent boots, the config itse
 
 | Step | Action |
 |------|--------|
-| 1 | `ze daemon` (no flags) |
+| 1 | `ze start` (no flags) |
 | 2 | Read cached config from local blob |
 | 3 | Start local hub server (from `server local { }` block) |
 | 4 | Extract name, host, port, secret from hub-level `client <name> { }` block |
@@ -317,7 +317,7 @@ Priority: CLI flag > env var > config block > blob metadata.
 | `config-fetch` / `config-changed` RPCs | **New:** hub-side handlers |
 | Config change watcher | **New:** hub notifies on blob write |
 | Managed client component | **New:** connection, fetch, cache, reconnect |
-| `ze daemon` managed mode | **New:** detect managed from blob metadata or cached config |
+| `ze start` managed mode | **New:** detect managed from blob metadata or cached config |
 
 ---
 
@@ -341,6 +341,6 @@ Reference spec: `plan/spec-fleet-config.md`
 | `pkg/fleet/` | Shared types: version hash, config envelope, RPC verbs |
 | `internal/component/plugin/server/` | Hub extensions: named server/client blocks, per-client auth, config-fetch handler |
 | `internal/component/managed/` | Client: connection manager, reconnect, heartbeat |
-| `cmd/ze/` | `ze daemon` managed mode detection + CLI flag overrides |
+| `cmd/ze/main.go` | cmdStart() extended for managed mode detection + CLI flag overrides |
 <!-- source: internal/component/plugin/server/ -- hub server infrastructure -->
 <!-- source: internal/component/config/storage/ -- Storage interface for blob access -->

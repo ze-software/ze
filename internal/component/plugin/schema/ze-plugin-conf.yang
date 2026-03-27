@@ -17,14 +17,69 @@ module ze-plugin-conf {
         container hub {
             description "Plugin transport and auth configuration";
 
-            leaf-list listen {
-                type string;
-                description "TLS listener addresses (host:port)";
+            list server {
+                key "name";
+                description "Named hub server instances (TLS listeners)";
+
+                leaf name {
+                    type string { length "1..64"; }
+                    description "Server block name (e.g., local, central)";
+                }
+
+                leaf host {
+                    type string;
+                    description "Listen address";
+                }
+
+                leaf port {
+                    type uint16;
+                    description "Listen port";
+                }
+
+                leaf secret {
+                    type string;
+                    description "Auth token for plugin connections (min 32 chars)";
+                }
+
+                list client {
+                    key "name";
+                    description "Accepted remote managed clients";
+
+                    leaf name {
+                        type string { length "1..64"; }
+                        description "Client identity name";
+                    }
+
+                    leaf secret {
+                        type string;
+                        description "Per-client auth token (min 32 chars)";
+                    }
+                }
             }
 
-            leaf secret {
-                type string;
-                description "Auth token for plugin connections";
+            list client {
+                key "name";
+                description "Outbound hub connections (managed client mode)";
+
+                leaf name {
+                    type string { length "1..64"; }
+                    description "Client identity name";
+                }
+
+                leaf host {
+                    type string;
+                    description "Remote hub address";
+                }
+
+                leaf port {
+                    type uint16;
+                    description "Remote hub port";
+                }
+
+                leaf secret {
+                    type string;
+                    description "Auth token (min 32 chars)";
+                }
             }
         }
 

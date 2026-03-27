@@ -451,3 +451,135 @@ func TestAuthenticateWrongMethod(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "expected method auth")
 }
+
+// --- Per-Client Secret Tests ---
+
+// TestPerClientSecretLookup verifies that a client with a per-client secret is accepted.
+//
+// VALIDATES: Per-client secret found by name (AC-10 positive case).
+// PREVENTS: Per-client secrets being ignored in favor of shared secret only.
+func TestPerClientSecretLookup(t *testing.T) {
+	t.Parallel()
+
+	serverTLS, clientTLS := selfSignedTLSConfig(t)
+	ln := startTestListener(t, serverTLS)
+	defer ln.Close() //nolint:errcheck // test cleanup
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	clientSecrets := map[string]string{
+		"edge-01": "edge01-secret-that-is-at-least-32",
+	}
+	lookup := func(name string) (string, bool) {
+		s, ok := clientSecrets[name]
+		return s, ok
+	}
+
+	resultCh := make(chan authResult, 1)
+	go func() {
+		conn, acceptErr := ln.Accept()
+		if acceptErr != nil {
+			resultCh <- authResult{Err: acceptErr}
+			return
+		}
+		name, authErr := AuthenticateWithLookup(ctx, conn, "shared-secret-at-least-32-chars!", lookup)
+		resultCh <- authResult{Name: name, Conn: conn, Err: authErr}
+	}()
+
+	conn, err := (&tls.Dialer{Config: clientTLS}).DialContext(ctx, "tcp", ln.Addr().String())
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck // test cleanup
+
+	require.NoError(t, SendAuth(ctx, conn, "edge01-secret-that-is-at-least-32", "edge-01"))
+
+	result := <-resultCh
+	require.NoError(t, result.Err)
+	assert.Equal(t, "edge-01", result.Name)
+}
+
+// TestPerClientSecretReject verifies that a wrong per-client token is rejected.
+//
+// VALIDATES: Wrong token for known name rejected (AC-10).
+// PREVENTS: Client A's token authenticating as client B.
+func TestPerClientSecretReject(t *testing.T) {
+	t.Parallel()
+
+	serverTLS, clientTLS := selfSignedTLSConfig(t)
+	ln := startTestListener(t, serverTLS)
+	defer ln.Close() //nolint:errcheck // test cleanup
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	clientSecrets := map[string]string{
+		"edge-01": "edge01-secret-that-is-at-least-32",
+	}
+	lookup := func(name string) (string, bool) {
+		s, ok := clientSecrets[name]
+		return s, ok
+	}
+
+	resultCh := make(chan authResult, 1)
+	go func() {
+		conn, acceptErr := ln.Accept()
+		if acceptErr != nil {
+			resultCh <- authResult{Err: acceptErr}
+			return
+		}
+		name, authErr := AuthenticateWithLookup(ctx, conn, "shared-secret-at-least-32-chars!", lookup)
+		resultCh <- authResult{Name: name, Conn: conn, Err: authErr}
+	}()
+
+	conn, err := (&tls.Dialer{Config: clientTLS}).DialContext(ctx, "tcp", ln.Addr().String())
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck // test cleanup
+
+	require.NoError(t, SendAuth(ctx, conn, "wrong-secret-for-edge-01-client!", "edge-01"))
+
+	result := <-resultCh
+	require.Error(t, result.Err)
+	assert.Contains(t, result.Err.Error(), "auth failed")
+}
+
+// TestPerClientSecretUnknownName verifies that unknown names fall back to shared secret.
+//
+// VALIDATES: Unknown client name falls back to shared secret (AC-11).
+// PREVENTS: Plugin connections breaking when per-client lookup is enabled.
+func TestPerClientSecretUnknownName(t *testing.T) {
+	t.Parallel()
+
+	serverTLS, clientTLS := selfSignedTLSConfig(t)
+	ln := startTestListener(t, serverTLS)
+	defer ln.Close() //nolint:errcheck // test cleanup
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// Lookup returns false for unknown names -- falls back to shared secret.
+	lookup := func(name string) (string, bool) {
+		return "", false
+	}
+
+	resultCh := make(chan authResult, 1)
+	go func() {
+		conn, acceptErr := ln.Accept()
+		if acceptErr != nil {
+			resultCh <- authResult{Err: acceptErr}
+			return
+		}
+		name, authErr := AuthenticateWithLookup(ctx, conn, "shared-secret-at-least-32-chars!", lookup)
+		resultCh <- authResult{Name: name, Conn: conn, Err: authErr}
+	}()
+
+	conn, err := (&tls.Dialer{Config: clientTLS}).DialContext(ctx, "tcp", ln.Addr().String())
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck // test cleanup
+
+	// Plugin uses shared secret, not per-client.
+	require.NoError(t, SendAuth(ctx, conn, "shared-secret-at-least-32-chars!", "bgp-rib"))
+
+	result := <-resultCh
+	require.NoError(t, result.Err)
+	assert.Equal(t, "bgp-rib", result.Name)
+}

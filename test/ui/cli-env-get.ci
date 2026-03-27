@@ -1,0 +1,8 @@
+# Test: ze env get -- looks up a specific env var
+# VALIDATES: ze env get displays details for a known key
+
+cmd=foreground:seq=1:exec=ze env get ze.log
+expect=exit:code=0
+expect=stdout:contains=Key:
+expect=stdout:contains=Type:
+expect=stdout:contains=Description:

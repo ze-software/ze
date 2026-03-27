@@ -1,0 +1,7 @@
+# Test: ze env list -- lists public env vars, hides private ones
+# VALIDATES: ze env list shows registered env vars and excludes private entries
+
+cmd=foreground:seq=1:exec=ze env list
+expect=exit:code=0
+expect=stdout:contains=ze.log
+expect=stdout:!contains=ze.plugin.hub.token

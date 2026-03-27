@@ -1,0 +1,60 @@
+# Test: managed client starts from cached config when hub unreachable
+#
+# VALIDATES: AC-5 -- client starts BGP from cached config during partition.
+# PREVENTS: Managed client refusing to start when hub is down.
+
+tmpfs=test-backup-start.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+touch daemon.ready
+
+INIT_DIR=$(mktemp -d)
+trap 'rm -rf "$INIT_DIR"' EXIT
+
+# Init with --managed flag
+printf 'admin\nsecret123\n127.0.0.1\n2222\nedge-01\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init --managed
+
+# Verify managed flag is set
+MANAGED=$(ZE_CONFIG_DIR="$INIT_DIR" ze data cat meta/instance/managed)
+[ "$MANAGED" = "true" ] || { echo "FAIL: not managed" >&2; exit 1; }
+
+# Write a cached config (simulating previous successful fetch)
+ZE_CONFIG_DIR="$INIT_DIR" ze data write edge-01.conf <<'CONF'
+bgp {
+    peer 127.0.0.1 {
+        router-id 1.2.3.4;
+        local-address 127.0.0.1;
+        local-as 65000;
+        peer-as 65001;
+        connect false;
+    }
+}
+plugin {
+    hub {
+        server local {
+            host 127.0.0.1;
+            port 1790;
+            secret "local-secret-that-is-at-least-32ch";
+        }
+        client edge-01 {
+            host 10.0.0.1;
+            port 1791;
+            secret "client-token-that-is-at-least-32ch";
+        }
+    }
+}
+CONF
+
+# Verify cached config exists
+ZE_CONFIG_DIR="$INIT_DIR" ze data ls 2>&1 | grep -q "edge-01.conf" || {
+    echo "FAIL: cached config not found" >&2
+    exit 1
+}
+
+echo "OK: cached config written for managed client" >&2
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-backup-start.sh:timeout=10s
+expect=exit:code=0

@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
-| Depends | spec-blob-namespaces |
+| Status | ready |
+| Depends | - |
 | Phase | - |
-| Updated | 2026-03-18 |
+| Updated | 2026-03-27 |
 
 ## Post-Compaction Recovery
 
@@ -27,7 +27,7 @@ Deliverables:
 3. Client outbound block: `plugin { hub { client <name> { host; port; secret } } }` at hub level
 4. Hub RPCs: `config-fetch`, `config-changed`, `config-ack` handlers
 5. Managed client component: connect, fetch, cache in blob, reconnect with backoff, heartbeat
-6. `ze daemon` managed mode: reads blob metadata (from `ze init`) or cached config; CLI flags as overrides
+6. `ze start` managed mode: reads blob metadata (from `ze init`) or cached config; CLI flags as overrides
 7. Functional tests proving end-to-end fetch, backup resilience, and change notification
 
 ## Required Reading
@@ -43,7 +43,7 @@ Deliverables:
   -> Decision: every ze instance has at least one `server` block (local plugins/SSH)
   -> Decision: client identity from hub-level `client <name> { host; port; secret }` block
   -> Decision: first boot provisioned via `ze init`; subsequent boots read cached config from blob
-  -> Decision: `meta/managed` flag controls whether client connects to hub (see spec-blob-namespaces)
+  -> Decision: `meta/instance/managed` flag controls whether client connects to hub (implemented in blob-namespaces)
   -> Decision: two-phase config change (notify then fetch); client controls timing
   -> Constraint: version hash = truncated SHA-256 of config bytes
 - [ ] `docs/architecture/zefs-format.md` - ZeFS blob store format
@@ -61,7 +61,7 @@ Deliverables:
 - Every ze instance needs at least one `server` block (local plugins and SSH need it)
 - Multiple `server` blocks allowed (different secrets for different plugin trust levels)
 - First boot provisioned via `ze init`; cached config self-describing after first fetch
-- `meta/managed` blob flag controls managed mode (from spec-blob-namespaces)
+- `meta/instance/managed` blob flag controls managed mode (already implemented, `ze init --managed`)
 
 ### RFC Summaries (MUST for protocol work)
 No external RFCs apply. Internal protocol over existing transport.
@@ -70,27 +70,36 @@ No external RFCs apply. Internal protocol over existing transport.
 
 **Source files read:**
 - [ ] `internal/component/plugin/ipc/tls.go` - PluginAcceptor, Authenticate(), SendAuth()
-  -> Constraint: currently uses shared secret; needs per-client secret lookup
-  -> Constraint: name validated: alphanumeric + hyphen, max 64 chars
-  -> Constraint: TLS 1.3 minimum; EC P-256 for self-signed
+  -> Constraint: Authenticate() takes single `expectedToken string`; needs per-client secret lookup
+  -> Constraint: PluginAcceptor has flat `secret string` field; needs server-block-aware lookup
+  -> Constraint: name validated: regex `^[a-zA-Z0-9][a-zA-Z0-9-]{0,63}$` (1-64 chars)
+  -> Constraint: TLS 1.3 minimum; EC P-256 for self-signed; 10s auth timeout
 - [ ] `internal/component/plugin/ipc/tls_test.go` - auth flow tests
-- [ ] `internal/component/plugin/server/` - hub server, startup coordinator, dispatch
+- [ ] `internal/component/plugin/server/` - hub server (~51 files), startup coordinator, dispatch
   -> Constraint: hub dispatches requests from MuxConn.Requests() channel
-- [ ] `internal/component/plugin/types.go` - HubConfig (Listen, Secret), PluginConfig
-  -> Constraint: HubConfig has Listen []string and Secret string; needs ClientSecrets map
-- [ ] `internal/component/bgp/config/plugins.go` - ExtractHubConfig()
-  -> Constraint: parses `plugin { hub { listen ...; secret ...; } }`; replacing with named `server`/`client` blocks
+  -> Constraint: handler.go routes RPC verbs; managed RPCs will be new verb registrations
+- [ ] `internal/component/plugin/types.go` - HubConfig (Listen []string, Secret string), PluginConfig
+  -> Constraint: HubConfig struct at line ~284; flat Listen + Secret; needs named server/client blocks
+- [ ] `internal/component/bgp/config/plugins.go` - ExtractHubConfig() at line ~91
+  -> Constraint: reads flat `plugin { hub { listen ...; secret ...; } }` via tree lookup
+  -> Constraint: validates secret >= 32 chars; returns HubConfig{Listen, Secret}
+  -> Constraint: replacing with named `server`/`client` block parsing
 - [ ] `internal/component/plugin/schema/ze-plugin-conf.yang` - hub YANG schema
-  -> Constraint: replacing flat listen/secret with named `server`/`client` lists with host/port/secret
-- [ ] `pkg/plugin/rpc/mux.go` - MuxConn: CallRPC, Requests channel
-- [ ] `pkg/zefs/store.go` - BlobStore API
-- [ ] `internal/component/config/storage/storage.go` - Storage interface
-- [ ] `internal/component/config/storage/blob.go` - blobStorage
-- [ ] `internal/core/env/` - env.Get, env.Set, env.MustRegister
-- [ ] `cmd/ze/main.go` - main dispatch, `ze daemon` entry point (currently `ze config.conf` pattern)
+  -> Constraint: currently flat: `container hub { leaf-list listen; leaf secret; }`
+  -> Constraint: replacing with named `server` list + nested `client` list + hub-level `client` list
+- [ ] `pkg/plugin/rpc/mux.go` - MuxConn: CallRPC, Requests channel (no changes needed)
+- [ ] `pkg/zefs/store.go` - BlobStore API (no changes needed)
+- [ ] `internal/component/config/storage/storage.go` - Storage interface (no changes needed)
+- [ ] `internal/component/config/storage/blob.go` - blobStorage with resolveKey() namespaces (no changes needed)
+- [ ] `internal/core/env/` - env.Get, env.Set, env.MustRegister (needs `ze.managed.*` registrations)
+- [ ] `cmd/ze/main.go` - main dispatch; `ze start` at line 209 calls cmdStart() at line 323
+  -> Constraint: cmdStart() requires blob storage, reads meta/instance/name, calls hub.Run()
+  -> Constraint: extend cmdStart() for managed mode: check meta/instance/managed, connect to hub
+- [ ] `cmd/ze/hub/main.go` - hub.Run() is the actual daemon entry point
+  -> Constraint: reads config, creates engine/bus/subsystem/pluginmgr, runs until signal
 
 **Behavior to preserve:**
-- All existing standalone `ze daemon config.conf` behavior unchanged
+- All existing standalone `ze start` / `ze config.conf` behavior unchanged
 - Hub TLS listener, plugin auth, and 5-stage protocol unchanged for plugin connections
 - ZeFS blob format unchanged
 - Storage interface unchanged
@@ -103,7 +112,7 @@ No external RFCs apply. Internal protocol over existing transport.
 - Hub-level `client <name> { host; port; secret }` blocks for outbound connections
 - Hub auth extended: per-client secret lookup under the relevant `server` block
 - Hub gains `config-fetch`, `config-changed`, `config-ack` RPC handlers
-- `ze daemon` detects managed mode from `meta/managed` blob flag + cached config or `ze init` metadata
+- `ze start` detects managed mode from `meta/instance/managed` blob flag + cached config or `ze init` metadata
 - CLI flags `--server`, `--name`, `--token` as overrides for troubleshooting
 
 ## Data Flow (MANDATORY - see `rules/data-flow-tracing.md`)
@@ -117,7 +126,7 @@ No external RFCs apply. Internal protocol over existing transport.
 ### Transformation Path
 
 #### First Boot (After `ze init`)
-1. `ze daemon` -- reads blob: `meta/instance/name`=edge-01, `meta/instance/managed`=true, hub server, hub token
+1. `ze start` -- reads blob: `meta/instance/name`=edge-01, `meta/instance/managed`=true, hub server, hub token
 2. Client connects to hub via TLS, sends `#0 auth` with token and name
 3. Hub validates token against `client edge-01 { secret }` in its config
 4. Client sends `config-fetch {"version":""}` (no cached version)
@@ -126,7 +135,7 @@ No external RFCs apply. Internal protocol over existing transport.
 7. Client writes config to local blob, starts BGP
 
 #### Subsequent Boot (Local Blob -> Hub -> Update)
-1. `ze daemon` (no flags)
+1. `ze start` (no flags)
 2. Client reads cached config from local blob
 3. Client parses `plugin { hub { edge-01 { server 10.0.0.1:1790; secret "..."; } } }`
 4. Client connects to hub, authenticates, sends `config-fetch` with version hash
@@ -164,7 +173,8 @@ No external RFCs apply. Internal protocol over existing transport.
 - `pkg/zefs/BlobStore` - hub blob and client local blob
 - `internal/component/config/storage.NewBlob()` - client opens local blob
 - `internal/core/env.MustRegister()` - `ze.managed.*` env vars
-- `cmd/ze/` - `ze daemon` managed mode detection
+- `cmd/ze/main.go` - cmdStart() extended for managed mode detection
+- `cmd/ze/hub/main.go` - hub.Run() daemon entry point (unchanged)
 
 ### Architectural Verification
 - [ ] No bypassed layers (config flows through Storage interface)
@@ -176,8 +186,8 @@ No external RFCs apply. Internal protocol over existing transport.
 
 | Entry Point | -> | Feature Code | Test |
 |-------------|---|--------------|------|
-| `ze daemon` after `ze init` managed=true (first boot) | -> | Client reads blob, connects to hub, fetches config | `test/managed/client-first-boot.ci` |
-| `ze daemon` (cached config) | -> | Client reads config from blob, connects to hub | `test/managed/client-cached-boot.ci` |
+| `ze start` after `ze init` managed=true (first boot) | -> | Client reads blob, connects to hub, fetches config | `test/managed/client-first-boot.ci` |
+| `ze start` (cached config) | -> | Client reads config from blob, connects to hub | `test/managed/client-cached-boot.ci` |
 | Hub config change | -> | Client receives notification, fetches, applies | `test/managed/config-change-notify.ci` |
 | Hub unreachable at startup | -> | Client starts from cached config in blob | `test/managed/client-backup-start.ci` |
 | Hub unreachable during run | -> | Client keeps running, reconnects when hub returns | `test/managed/client-reconnect.ci` |
@@ -188,12 +198,12 @@ No external RFCs apply. Internal protocol over existing transport.
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-1 | `ze daemon` after `ze init` with managed=true (first boot, no cached config) | Client reads blob metadata, connects to hub, fetches config, caches, starts BGP |
-| AC-2 | `ze daemon` with cached config containing hub block (subsequent boot) | Client reads config, connects to hub, starts BGP |
+| AC-1 | `ze start` after `ze init` with managed=true (first boot, no cached config) | Client reads blob metadata, connects to hub, fetches config, caches, starts BGP |
+| AC-2 | `ze start` with cached config containing hub block (subsequent boot) | Client reads config, connects to hub, starts BGP |
 | AC-3 | Client running, admin edits edge-01's config on hub | Client receives `config-changed`, fetches, applies |
 | AC-4 | Client running, hub process killed | Client continues running on current config |
-| AC-5 | `ze daemon` with hub unreachable, cached config exists | Client starts BGP from cached config |
-| AC-6 | `ze daemon` after `ze init` managed=true, hub unreachable, no cached config | Client exits with clear error |
+| AC-5 | `ze start` with hub unreachable, cached config exists | Client starts BGP from cached config |
+| AC-6 | `ze start` after `ze init` managed=true, hub unreachable, no cached config | Client exits with clear error |
 | AC-7 | Client reconnects after hub comes back | Client sends version hash, fetches if newer |
 | AC-8 | Hub sends config that fails validation | Client rejects, sends `config-ack` with error, keeps running |
 | AC-9 | Two clients connect with same name | Hub rejects second connection |
@@ -269,13 +279,13 @@ No external RFCs apply. Internal protocol over existing transport.
 - `internal/component/bgp/config/plugins_test.go` - tests for client secret + managed hub block extraction
 - `internal/component/plugin/schema/ze-plugin-conf.yang` - `client` list + client-side named block under `hub`
 - `internal/component/plugin/server/` - add managed config handlers
-- `cmd/ze/main.go` - `ze daemon` subcommand with managed mode detection + first-boot flags
+- `cmd/ze/main.go` - cmdStart() extended with managed mode detection + first-boot flags
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
 | YANG schema (hub client list + client-side block) | [x] | `internal/component/plugin/schema/ze-plugin-conf.yang` |
-| CLI flags | [x] | `cmd/ze/` daemon command |
+| CLI flags | [x] | `cmd/ze/main.go` cmdStart() |
 | Hub RPC handlers | [x] | `internal/component/plugin/server/managed.go` |
 | Functional tests | [x] | `test/managed/*.ci` |
 | Architecture doc | [x] | `docs/architecture/fleet-config.md` (already written) |
@@ -376,9 +386,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: `internal/component/managed/reconnect.go`, `heartbeat.go` + tests
    - Verify: tests fail -> implement -> tests pass
 
-7. **Phase: ze daemon managed mode** -- detect managed config or first-boot flags, start client
+7. **Phase: ze start managed mode** -- extend cmdStart() for managed config detection, start client
    - Tests: `test/managed/client-first-boot.ci`, `client-cached-boot.ci`, `client-backup-start.ci`
-   - Files: `cmd/ze/` daemon command
+   - Files: `cmd/ze/main.go` (cmdStart), `cmd/ze/hub/main.go` (hub.Run integration)
    - Verify: functional tests
 
 8. **Phase: integration tests** -- auth, notification, reconnect, rejection
@@ -469,7 +479,7 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 - Config as single source of truth: identity, hub connection, and BGP all in one file
 - First boot CLI flags are the only bootstrap; after first fetch, config is self-describing
 - No special metadata keys needed; the config block IS the metadata
-- `ze daemon` is the right name for "start as long-lived background process"
+- `ze start` already exists as "start daemon from blob"; extend for managed mode, no new command needed
 - `ze data rm` already handles blob deletion; no new deletion code needed
 
 ## RFC Documentation

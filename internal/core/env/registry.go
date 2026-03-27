@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/environment.md — env var registry for CLI help
+// Overview: env.go — centralized env var lookup
 
 package env
 
@@ -10,6 +11,7 @@ type EnvEntry struct {
 	Type        string // "string", "int", "bool", "duration"
 	Default     string // Default value ("" if required or no default)
 	Description string // One-line description
+	Private     bool   // If true, hidden from "ze env list" and autocomplete
 }
 
 // registered holds all known env var keys.
@@ -45,8 +47,20 @@ func IsRegistered(key string) bool {
 	return false
 }
 
-// Entries returns all registered env var entries (unordered).
+// Entries returns public registered env var entries (unordered).
+// Private entries are excluded from listing and autocomplete.
 func Entries() []EnvEntry {
+	result := make([]EnvEntry, 0, len(registered))
+	for _, e := range registered {
+		if !e.Private {
+			result = append(result, e)
+		}
+	}
+	return result
+}
+
+// AllEntries returns all registered env var entries including private ones (unordered).
+func AllEntries() []EnvEntry {
 	result := make([]EnvEntry, 0, len(registered))
 	for _, e := range registered {
 		result = append(result, e)

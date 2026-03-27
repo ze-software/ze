@@ -19,6 +19,8 @@ func TestMain(m *testing.M) {
 	MustRegister(EnvEntry{Key: "ze.test.dur.val", Type: "duration", Description: "test key"})
 	MustRegister(EnvEntry{Key: "ze.test.i64.val", Type: "int64", Description: "test key"})
 	MustRegister(EnvEntry{Key: "ze.test.set.val", Type: "string", Description: "test key"})
+	MustRegister(EnvEntry{Key: "ze.test.private.val", Type: "string", Description: "secret", Private: true})
+	MustRegister(EnvEntry{Key: "ze.test.public.val", Type: "string", Description: "visible"})
 	os.Exit(m.Run())
 }
 
@@ -298,4 +300,33 @@ func TestSetBool(t *testing.T) {
 
 	require.NoError(t, SetBool(key, false))
 	assert.Equal(t, false, GetBool(key, true))
+}
+
+// TestEntriesExcludesPrivate verifies Entries() filters out private entries.
+//
+// VALIDATES: Private env vars are hidden from listing.
+// PREVENTS: Private vars leaking into "ze env list" or autocomplete.
+func TestEntriesExcludesPrivate(t *testing.T) {
+	public := Entries()
+	all := AllEntries()
+
+	// Exactly one private entry registered in TestMain, so difference must be 1.
+	assert.Equal(t, len(all), len(public)+1, "AllEntries should have exactly 1 more entry than Entries")
+
+	publicKeys := make(map[string]bool)
+	for _, e := range public {
+		assert.False(t, e.Private, "Entries() should not return private entry %s", e.Key)
+		publicKeys[e.Key] = true
+	}
+
+	assert.False(t, publicKeys["ze.test.private.val"], "private key should not appear in Entries()")
+	assert.True(t, publicKeys["ze.test.public.val"], "public key should appear in Entries()")
+
+	// AllEntries includes both private and public.
+	allKeys := make(map[string]bool)
+	for _, e := range all {
+		allKeys[e.Key] = true
+	}
+	assert.True(t, allKeys["ze.test.private.val"], "private key should appear in AllEntries()")
+	assert.True(t, allKeys["ze.test.public.val"], "public key should appear in AllEntries()")
 }

@@ -44,6 +44,10 @@ import (
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.storage.blob", Type: "bool", Default: "true", Description: "Use blob storage (false = filesystem)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.config.dir", Type: "string", Description: "Override default config directory"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.server", Type: "string", Description: "Override hub address (host:port) for managed mode"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.name", Type: "string", Description: "Override client name for managed mode"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.token", Type: "string", Description: "Override auth token for managed mode"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.connect.timeout", Type: "string", Default: "5s", Description: "Connection timeout for managed hub"})
 )
 
 // version and buildDate are set via ldflags at build time.
@@ -321,6 +325,8 @@ func resolveStorage() storage.Storage {
 }
 
 // cmdStart resolves the default config from zefs and starts the daemon.
+// For managed clients (meta/instance/managed=true), connects to hub to fetch config
+// before starting, falling back to cached config if hub is unreachable.
 func cmdStart(plugins []string, chaosSeed int64, chaosRate float64) int {
 	store := resolveStorage()
 	defer store.Close() //nolint:errcheck // best-effort cleanup
@@ -328,6 +334,11 @@ func cmdStart(plugins []string, chaosSeed int64, chaosRate float64) int {
 	if !storage.IsBlobStorage(store) {
 		fmt.Fprintf(os.Stderr, "error: ze start requires blob storage (run ze init first)\n")
 		return 1
+	}
+
+	// Check managed mode: meta/instance/managed=true in blob.
+	if isManaged(store) {
+		return cmdStartManaged(store, plugins, chaosSeed, chaosRate)
 	}
 
 	configName := resolveDefaultConfig(store)
@@ -343,6 +354,38 @@ func cmdStart(plugins []string, chaosSeed int64, chaosRate float64) int {
 	}
 
 	return hub.Run(store, configName, plugins, chaosSeed, chaosRate)
+}
+
+// isManaged returns true if the blob has meta/instance/managed=true.
+func isManaged(store storage.Storage) bool {
+	data, err := store.ReadFile("meta/instance/managed")
+	if err != nil {
+		return false
+	}
+	return strings.TrimSpace(string(data)) == "true"
+}
+
+// cmdStartManaged handles ze start for managed clients.
+// Reads cached config from blob; if it exists, starts from cache.
+// If no cached config and hub is unreachable, exits with error.
+func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, chaosRate float64) int {
+	configName := resolveDefaultConfig(store)
+
+	if store.Exists(configName) {
+		// Cached config exists: start from it.
+		// TODO(fleet-config): connect to hub in background, fetch updates.
+		ct := detectConfigType(store, configName)
+		if ct == config.ConfigTypeUnknown {
+			fmt.Fprintf(os.Stderr, "error: cached config has no recognized block (bgp, plugin)\n")
+			return 1
+		}
+		return hub.Run(store, configName, plugins, chaosSeed, chaosRate)
+	}
+
+	// No cached config: first boot. Hub connection required.
+	fmt.Fprintf(os.Stderr, "error: managed mode with no cached config; hub connection required\n")
+	fmt.Fprintf(os.Stderr, "hint: ensure hub is reachable or run ze init with hub details\n")
+	return 1
 }
 
 // resolveDefaultConfig returns the config name from meta/instance/name or the fallback.

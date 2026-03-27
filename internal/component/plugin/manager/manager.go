@@ -188,29 +188,46 @@ func (m *Manager) ensureAcceptor(configs []parent.PluginConfig) error {
 	}
 
 	hubConf := m.hubConfig
-	if hubConf == nil {
+	if hubConf == nil || len(hubConf.Servers) == 0 {
 		// Auto-generate hub config for external plugins without explicit config.
 		var tokenBytes [32]byte
 		if _, err := rand.Read(tokenBytes[:]); err != nil {
 			return fmt.Errorf("generate hub token: %w", err)
 		}
 		hubConf = &parent.HubConfig{
-			Listen: []string{"127.0.0.1:0"},
-			Secret: hex.EncodeToString(tokenBytes[:]),
+			Servers: []parent.HubServerConfig{{
+				Name:   "auto",
+				Host:   "127.0.0.1",
+				Port:   0,
+				Secret: hex.EncodeToString(tokenBytes[:]),
+			}},
 		}
 	}
+
+	// Use the first server block for the plugin acceptor.
+	server := hubConf.Servers[0]
 
 	cert, err := pluginipc.GenerateSelfSignedCert()
 	if err != nil {
 		return fmt.Errorf("generate TLS cert: %w", err)
 	}
 
-	listeners, err := pluginipc.StartListeners(hubConf.Listen, cert)
+	listeners, err := pluginipc.StartListeners([]string{server.Address()}, cert)
 	if err != nil {
 		return fmt.Errorf("start TLS listeners: %w", err)
 	}
 
-	m.acceptor = pluginipc.NewPluginAcceptor(listeners[0], hubConf.Secret)
+	m.acceptor = pluginipc.NewPluginAcceptor(listeners[0], server.Secret)
+
+	// Wire per-client secrets if the server block has any.
+	if len(server.Clients) > 0 {
+		clients := server.Clients // capture for closure
+		m.acceptor.SetSecretLookup(func(name string) (string, bool) {
+			s, ok := clients[name]
+			return s, ok
+		})
+	}
+
 	m.acceptor.Start()
 
 	// Close extra listeners (acceptor owns the first one).

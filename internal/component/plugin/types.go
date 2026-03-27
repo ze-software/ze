@@ -281,11 +281,40 @@ type ProcessSpawner interface {
 	GetProcessManager() any
 }
 
+// HubServerConfig holds a named hub server block.
+// Extracted from: plugin { hub { server <name> { host; port; secret; } } }.
+type HubServerConfig struct {
+	Name    string            // Server block name (e.g., "local", "central")
+	Host    string            // Listen address
+	Port    uint16            // Listen port
+	Secret  string            `json:"-"` // Auth token for plugin connections
+	Clients map[string]string `json:"-"` // Per-client secrets: name -> secret
+}
+
+// Address returns "host:port" for net.Listen.
+func (s HubServerConfig) Address() string {
+	return s.Host + ":" + fmt.Sprintf("%d", s.Port)
+}
+
+// HubClientConfig holds a hub-level client block (outbound connection).
+// Extracted from: plugin { hub { client <name> { host; port; secret; } } }.
+type HubClientConfig struct {
+	Name   string // Client identity name
+	Host   string // Remote hub address
+	Port   uint16 // Remote hub port
+	Secret string `json:"-"` // Auth token
+}
+
+// Address returns "host:port" for net.Dial.
+func (c HubClientConfig) Address() string {
+	return c.Host + ":" + fmt.Sprintf("%d", c.Port)
+}
+
 // HubConfig holds plugin transport configuration.
-// Extracted from: plugin { hub { listen ...; secret ...; } }.
+// Extracted from: plugin { hub { server ...; client ...; } }.
 type HubConfig struct {
-	Listen []string // TLS listener addresses (host:port)
-	Secret string   `json:"-"` // Auth token for plugin connections
+	Servers []HubServerConfig // Named server blocks (listeners)
+	Clients []HubClientConfig // Hub-level client blocks (outbound)
 }
 
 // PluginConfig holds plugin configuration.

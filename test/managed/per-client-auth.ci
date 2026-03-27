@@ -1,0 +1,50 @@
+# Test: hub config with per-client secret entries parses correctly
+#
+# VALIDATES: AC-10/AC-15 -- per-client secrets extracted from config tree.
+# PREVENTS: Hub unable to authenticate managed clients from config.
+
+tmpfs=test-per-client-auth.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+touch daemon.ready
+
+INIT_DIR=$(mktemp -d)
+trap 'rm -rf "$INIT_DIR"' EXIT
+
+# Init a database and write a config with named server + client entries
+printf 'admin\nsecret123\n127.0.0.1\n2222\n\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init
+
+# Write a config that uses named server blocks with client entries
+ZE_CONFIG_DIR="$INIT_DIR" ze data write ze.conf <<'CONF'
+plugin {
+    hub {
+        server local {
+            host 127.0.0.1;
+            port 1790;
+            secret "local-secret-that-is-at-least-32ch";
+        }
+        server central {
+            host 0.0.0.0;
+            port 1791;
+            secret "central-secret-that-is-at-least32";
+            client edge-01 {
+                secret "edge01-secret-that-is-at-least-32";
+            }
+        }
+    }
+}
+CONF
+
+# Validate the config parses without error
+ZE_CONFIG_DIR="$INIT_DIR" ze config validate ze.conf 2>&1 || {
+    echo "FAIL: config validation failed" >&2
+    exit 1
+}
+
+echo "OK: per-client auth config parses correctly" >&2
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-per-client-auth.sh:timeout=10s
+expect=exit:code=0

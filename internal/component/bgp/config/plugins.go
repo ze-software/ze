@@ -5,6 +5,7 @@ package bgpconfig
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -89,9 +90,8 @@ func ExtractPluginsFromTree(tree *config.Tree) ([]reactor.PluginConfig, error) {
 const minTokenLength = 32
 
 // ExtractHubConfig extracts plugin hub transport config from a parsed config tree.
-// Returns zero-value HubConfig with empty Secret if no hub block is present.
-// Returns error if secret is configured but too short (minimum 32 characters).
-// Reads from: plugin { hub { listen ...; secret ...; } }.
+// Returns zero-value HubConfig with no servers/clients if no hub block is present.
+// Reads from: plugin { hub { server <name> { host; port; secret; }; client <name> { host; port; secret; } } }.
 func ExtractHubConfig(tree *config.Tree) (plugin.HubConfig, error) {
 	pluginContainer := tree.GetContainer("plugin")
 	if pluginContainer == nil {
@@ -102,24 +102,95 @@ func ExtractHubConfig(tree *config.Tree) (plugin.HubConfig, error) {
 		return plugin.HubConfig{}, nil
 	}
 
-	secret, hasSecret := hubContainer.Get("secret")
-	if !hasSecret || secret == "" {
-		return plugin.HubConfig{}, nil
+	var hub plugin.HubConfig
+
+	// Parse named server blocks: server <name> { host; port; secret; client <name> { secret; } }
+	for _, entry := range hubContainer.GetListOrdered("server") {
+		srv, err := extractServerConfig(entry.Key, entry.Value)
+		if err != nil {
+			return plugin.HubConfig{}, fmt.Errorf("hub server %q: %w", entry.Key, err)
+		}
+		hub.Servers = append(hub.Servers, srv)
 	}
 
-	if len(secret) < minTokenLength {
-		return plugin.HubConfig{}, fmt.Errorf("hub secret too short: minimum %d characters, got %d", minTokenLength, len(secret))
-	}
-
-	hub := plugin.HubConfig{
-		Secret: secret,
-	}
-
-	if listen, ok := hubContainer.Get("listen"); ok && listen != "" {
-		hub.Listen = strings.Fields(listen)
+	// Parse hub-level client blocks: client <name> { host; port; secret; }
+	for _, entry := range hubContainer.GetListOrdered("client") {
+		cli, err := extractClientConfig(entry.Key, entry.Value)
+		if err != nil {
+			return plugin.HubConfig{}, fmt.Errorf("hub client %q: %w", entry.Key, err)
+		}
+		hub.Clients = append(hub.Clients, cli)
 	}
 
 	return hub, nil
+}
+
+// extractServerConfig parses a named server block.
+func extractServerConfig(name string, tree *config.Tree) (plugin.HubServerConfig, error) {
+	srv := plugin.HubServerConfig{Name: name}
+
+	if host, ok := tree.Get("host"); ok {
+		srv.Host = host
+	}
+
+	if portStr, ok := tree.Get("port"); ok {
+		port, err := strconv.ParseUint(portStr, 10, 16)
+		if err != nil {
+			return srv, fmt.Errorf("invalid port %q: %w", portStr, err)
+		}
+		srv.Port = uint16(port)
+	}
+
+	if secret, ok := tree.Get("secret"); ok && secret != "" {
+		if len(secret) < minTokenLength {
+			return srv, fmt.Errorf("secret too short: minimum %d characters, got %d", minTokenLength, len(secret))
+		}
+		srv.Secret = secret
+	}
+
+	// Parse nested client entries: client <name> { secret "..."; }
+	clients := tree.GetList("client")
+	if len(clients) > 0 {
+		srv.Clients = make(map[string]string, len(clients))
+		for clientName, clientTree := range clients {
+			clientSecret, ok := clientTree.Get("secret")
+			if !ok || clientSecret == "" {
+				return srv, fmt.Errorf("client %q: secret required", clientName)
+			}
+			if len(clientSecret) < minTokenLength {
+				return srv, fmt.Errorf("client %q: secret too short: minimum %d characters, got %d", clientName, minTokenLength, len(clientSecret))
+			}
+			srv.Clients[clientName] = clientSecret
+		}
+	}
+
+	return srv, nil
+}
+
+// extractClientConfig parses a hub-level client block (outbound connection).
+func extractClientConfig(name string, tree *config.Tree) (plugin.HubClientConfig, error) {
+	cli := plugin.HubClientConfig{Name: name}
+
+	if host, ok := tree.Get("host"); ok {
+		cli.Host = host
+	}
+
+	if portStr, ok := tree.Get("port"); ok {
+		port, err := strconv.ParseUint(portStr, 10, 16)
+		if err != nil {
+			return cli, fmt.Errorf("invalid port %q: %w", portStr, err)
+		}
+		cli.Port = uint16(port)
+	}
+
+	if secret, ok := tree.Get("secret"); ok && secret != "" {
+		if len(secret) < minTokenLength {
+			return cli, fmt.Errorf("secret too short: minimum %d characters, got %d", minTokenLength, len(secret))
+		}
+		cli.Secret = secret
+	}
+
+	return cli, nil
 }
 
 // extractInlinePluginsFromMap finds inline plugins in the resolved bgpTree map.

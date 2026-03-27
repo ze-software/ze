@@ -484,9 +484,9 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	if hubErr != nil {
 		return nil, fmt.Errorf("hub config: %w", hubErr)
 	}
-	// Convert to pointer: nil when not configured (empty Secret).
+	// Convert to pointer: nil when not configured (no servers).
 	var hubPtr *plugin.HubConfig
-	if hubConfig.Secret != "" {
+	if len(hubConfig.Servers) > 0 {
 		hubPtr = &hubConfig
 	}
 

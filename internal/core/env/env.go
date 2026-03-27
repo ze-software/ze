@@ -1,4 +1,5 @@
 // Design: docs/architecture/config/environment.md — centralized env var lookup
+// Detail: registry.go — env var registration and entry listing
 //
 // Package env provides centralized environment variable lookup for Ze.
 //

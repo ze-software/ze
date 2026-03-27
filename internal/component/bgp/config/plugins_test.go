@@ -179,26 +179,32 @@ func TestValidatePluginReferences_GroupPeerInlinePlugin(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-// TestExtractHubConfig_ListenAndSecret verifies that hub config is extracted
-// from plugin { hub { listen ...; secret ...; } }.
+// TestExtractHubServers verifies named server blocks are parsed with host/port/secret.
 //
-// VALIDATES: Hub config extraction from config tree.
+// VALIDATES: Named server blocks extracted from config tree (AC-15).
 // PREVENTS: TLS listener config being silently ignored.
-func TestExtractHubConfig_ListenAndSecret(t *testing.T) {
+func TestExtractHubServers(t *testing.T) {
 	tree := config.NewTree()
 	pluginContainer := config.NewTree()
 	tree.SetContainer("plugin", pluginContainer)
 
 	hubContainer := config.NewTree()
-	hubContainer.Set("listen", "127.0.0.1:1790 192.168.1.1:1790")
-	hubContainer.Set("secret", "test-token-42-abcdefghijklmnopqrst")
 	pluginContainer.SetContainer("hub", hubContainer)
+
+	serverTree := config.NewTree()
+	serverTree.Set("host", "127.0.0.1")
+	serverTree.Set("port", "1790")
+	serverTree.Set("secret", "test-token-42-abcdefghijklmnopqrst")
+	hubContainer.AddListEntry("server", "local", serverTree)
 
 	hub, err := ExtractHubConfig(tree)
 	require.NoError(t, err)
-	assert.NotEmpty(t, hub.Secret)
-	assert.Equal(t, []string{"127.0.0.1:1790", "192.168.1.1:1790"}, hub.Listen)
-	assert.Equal(t, "test-token-42-abcdefghijklmnopqrst", hub.Secret)
+	require.Len(t, hub.Servers, 1)
+	assert.Equal(t, "local", hub.Servers[0].Name)
+	assert.Equal(t, "127.0.0.1", hub.Servers[0].Host)
+	assert.Equal(t, uint16(1790), hub.Servers[0].Port)
+	assert.Equal(t, "test-token-42-abcdefghijklmnopqrst", hub.Servers[0].Secret)
+	assert.Equal(t, "127.0.0.1:1790", hub.Servers[0].Address())
 }
 
 // TestExtractHubConfig_NoHub verifies that missing hub config returns empty.
@@ -209,45 +215,24 @@ func TestExtractHubConfig_NoHub(t *testing.T) {
 	tree := config.NewTree()
 	hub, err := ExtractHubConfig(tree)
 	require.NoError(t, err)
-	assert.Empty(t, hub.Secret, "no hub block should return empty secret")
+	assert.Empty(t, hub.Servers, "no hub block should return empty servers")
+	assert.Empty(t, hub.Clients, "no hub block should return empty clients")
 }
 
-// TestExtractHubConfig_SingleListen verifies hub config with one listen address.
+// TestExtractHubConfig_NoServers verifies hub block with no server entries returns empty.
 //
-// VALIDATES: Single listen address parsed correctly.
-// PREVENTS: Off-by-one in space-separated leaf-list parsing.
-func TestExtractHubConfig_SingleListen(t *testing.T) {
+// VALIDATES: Hub block without servers returns zero-value.
+// PREVENTS: TLS listener starting without config.
+func TestExtractHubConfig_NoServers(t *testing.T) {
 	tree := config.NewTree()
 	pluginContainer := config.NewTree()
 	tree.SetContainer("plugin", pluginContainer)
-
 	hubContainer := config.NewTree()
-	hubContainer.Set("listen", "127.0.0.1:1790")
-	hubContainer.Set("secret", "my-secret-that-is-at-least-32-ch")
 	pluginContainer.SetContainer("hub", hubContainer)
 
 	hub, err := ExtractHubConfig(tree)
 	require.NoError(t, err)
-	assert.Equal(t, []string{"127.0.0.1:1790"}, hub.Listen)
-	assert.Equal(t, "my-secret-that-is-at-least-32-ch", hub.Secret)
-}
-
-// TestExtractHubConfig_NoSecret verifies hub config without secret returns empty.
-//
-// VALIDATES: Secret is required when hub block exists.
-// PREVENTS: TLS listener starting without auth token.
-func TestExtractHubConfig_NoSecret(t *testing.T) {
-	tree := config.NewTree()
-	pluginContainer := config.NewTree()
-	tree.SetContainer("plugin", pluginContainer)
-
-	hubContainer := config.NewTree()
-	hubContainer.Set("listen", "127.0.0.1:1790")
-	pluginContainer.SetContainer("hub", hubContainer)
-
-	hub, err := ExtractHubConfig(tree)
-	require.NoError(t, err)
-	assert.Empty(t, hub.Secret, "hub without secret should return empty")
+	assert.Empty(t, hub.Servers)
 }
 
 // TestExtractHubConfig_ShortSecret verifies that short secrets are rejected.
@@ -260,11 +245,164 @@ func TestExtractHubConfig_ShortSecret(t *testing.T) {
 	tree.SetContainer("plugin", pluginContainer)
 
 	hubContainer := config.NewTree()
-	hubContainer.Set("listen", "127.0.0.1:1790")
-	hubContainer.Set("secret", "too-short")
 	pluginContainer.SetContainer("hub", hubContainer)
+
+	serverTree := config.NewTree()
+	serverTree.Set("host", "127.0.0.1")
+	serverTree.Set("port", "1790")
+	serverTree.Set("secret", "too-short")
+	hubContainer.AddListEntry("server", "local", serverTree)
 
 	_, err := ExtractHubConfig(tree)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "too short")
+}
+
+// TestExtractMultipleServers verifies multiple named server blocks are parsed.
+//
+// VALIDATES: Multiple server blocks with different names parsed.
+// PREVENTS: Only first server block being extracted.
+func TestExtractMultipleServers(t *testing.T) {
+	tree := config.NewTree()
+	pluginContainer := config.NewTree()
+	tree.SetContainer("plugin", pluginContainer)
+
+	hubContainer := config.NewTree()
+	pluginContainer.SetContainer("hub", hubContainer)
+
+	local := config.NewTree()
+	local.Set("host", "127.0.0.1")
+	local.Set("port", "1790")
+	local.Set("secret", "local-secret-that-is-at-least-32c")
+	hubContainer.AddListEntry("server", "local", local)
+
+	central := config.NewTree()
+	central.Set("host", "0.0.0.0")
+	central.Set("port", "1791")
+	central.Set("secret", "central-secret-that-is-at-least32")
+	hubContainer.AddListEntry("server", "central", central)
+
+	hub, err := ExtractHubConfig(tree)
+	require.NoError(t, err)
+	require.Len(t, hub.Servers, 2)
+
+	// Verify both servers present (order preserved by GetListOrdered)
+	assert.Equal(t, "local", hub.Servers[0].Name)
+	assert.Equal(t, uint16(1790), hub.Servers[0].Port)
+	assert.Equal(t, "central", hub.Servers[1].Name)
+	assert.Equal(t, uint16(1791), hub.Servers[1].Port)
+}
+
+// TestExtractHubClients verifies hub-level client blocks are parsed.
+//
+// VALIDATES: Hub-level client blocks extracted with host/port/secret (AC-14).
+// PREVENTS: Managed client unable to find hub connection info.
+func TestExtractHubClients(t *testing.T) {
+	tree := config.NewTree()
+	pluginContainer := config.NewTree()
+	tree.SetContainer("plugin", pluginContainer)
+
+	hubContainer := config.NewTree()
+	pluginContainer.SetContainer("hub", hubContainer)
+
+	clientTree := config.NewTree()
+	clientTree.Set("host", "10.0.0.1")
+	clientTree.Set("port", "1791")
+	clientTree.Set("secret", "client-token-that-is-at-least-32c")
+	hubContainer.AddListEntry("client", "edge-01", clientTree)
+
+	hub, err := ExtractHubConfig(tree)
+	require.NoError(t, err)
+	require.Len(t, hub.Clients, 1)
+	assert.Equal(t, "edge-01", hub.Clients[0].Name)
+	assert.Equal(t, "10.0.0.1", hub.Clients[0].Host)
+	assert.Equal(t, uint16(1791), hub.Clients[0].Port)
+	assert.Equal(t, "client-token-that-is-at-least-32c", hub.Clients[0].Secret)
+	assert.Equal(t, "10.0.0.1:1791", hub.Clients[0].Address())
+}
+
+// TestExtractHubClientMissing verifies no hub-level client block returns empty.
+//
+// VALIDATES: No client block returns empty clients list.
+// PREVENTS: False positive for managed mode.
+func TestExtractHubClientMissing(t *testing.T) {
+	tree := config.NewTree()
+	pluginContainer := config.NewTree()
+	tree.SetContainer("plugin", pluginContainer)
+
+	hubContainer := config.NewTree()
+	pluginContainer.SetContainer("hub", hubContainer)
+
+	serverTree := config.NewTree()
+	serverTree.Set("host", "127.0.0.1")
+	serverTree.Set("port", "1790")
+	serverTree.Set("secret", "local-secret-that-is-at-least-32c")
+	hubContainer.AddListEntry("server", "local", serverTree)
+
+	hub, err := ExtractHubConfig(tree)
+	require.NoError(t, err)
+	assert.Empty(t, hub.Clients)
+	require.Len(t, hub.Servers, 1)
+}
+
+// TestExtractHubServerClients verifies nested client entries under server block.
+//
+// VALIDATES: Per-client secrets extracted from server block.
+// PREVENTS: Hub unable to authenticate managed clients.
+func TestExtractHubServerClients(t *testing.T) {
+	tree := config.NewTree()
+	pluginContainer := config.NewTree()
+	tree.SetContainer("plugin", pluginContainer)
+
+	hubContainer := config.NewTree()
+	pluginContainer.SetContainer("hub", hubContainer)
+
+	serverTree := config.NewTree()
+	serverTree.Set("host", "0.0.0.0")
+	serverTree.Set("port", "1791")
+	serverTree.Set("secret", "central-secret-that-is-at-least32")
+	hubContainer.AddListEntry("server", "central", serverTree)
+
+	client1 := config.NewTree()
+	client1.Set("secret", "edge01-secret-that-is-at-least-32")
+	serverTree.AddListEntry("client", "edge-01", client1)
+
+	client2 := config.NewTree()
+	client2.Set("secret", "edge02-secret-that-is-at-least-32")
+	serverTree.AddListEntry("client", "edge-02", client2)
+
+	hub, err := ExtractHubConfig(tree)
+	require.NoError(t, err)
+	require.Len(t, hub.Servers, 1)
+	require.Len(t, hub.Servers[0].Clients, 2)
+	assert.Equal(t, "edge01-secret-that-is-at-least-32", hub.Servers[0].Clients["edge-01"])
+	assert.Equal(t, "edge02-secret-that-is-at-least-32", hub.Servers[0].Clients["edge-02"])
+}
+
+// TestExtractHubServerClientSecretTooShort verifies client secret validation.
+//
+// VALIDATES: Client secret < 32 chars returns error.
+// PREVENTS: Weak per-client tokens accepted.
+func TestExtractHubServerClientSecretTooShort(t *testing.T) {
+	tree := config.NewTree()
+	pluginContainer := config.NewTree()
+	tree.SetContainer("plugin", pluginContainer)
+
+	hubContainer := config.NewTree()
+	pluginContainer.SetContainer("hub", hubContainer)
+
+	serverTree := config.NewTree()
+	serverTree.Set("host", "0.0.0.0")
+	serverTree.Set("port", "1791")
+	serverTree.Set("secret", "central-secret-that-is-at-least32")
+	hubContainer.AddListEntry("server", "central", serverTree)
+
+	client := config.NewTree()
+	client.Set("secret", "short")
+	serverTree.AddListEntry("client", "edge-01", client)
+
+	_, err := ExtractHubConfig(tree)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "too short")
+	assert.Contains(t, err.Error(), "edge-01")
 }

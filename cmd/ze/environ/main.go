@@ -5,6 +5,7 @@
 package environ
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -25,8 +26,7 @@ func Run(args []string) int {
 		usage()
 		return 0
 	case "list":
-		verbose := len(args) > 1 && (args[1] == "-v" || args[1] == "--verbose")
-		return showAll(verbose)
+		return cmdList(args[1:])
 	case "get":
 		if len(args) < 2 {
 			fmt.Fprintf(os.Stderr, "error: ze env get requires a key\n")
@@ -37,6 +37,23 @@ func Run(args []string) int {
 
 	// Default: treat as a key to look up
 	return showOne(args[0])
+}
+
+// cmdList parses flags for "ze env list" and displays the table.
+func cmdList(args []string) int {
+	fs := flag.NewFlagSet("ze env list", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	verbose := fs.Bool("v", false, "show current effective values")
+	fs.BoolVar(verbose, "verbose", false, "show current effective values")
+
+	if err := fs.Parse(args); err != nil {
+		return 1
+	}
+	if fs.NArg() > 0 {
+		fmt.Fprintf(os.Stderr, "error: unexpected argument %q\n", fs.Arg(0))
+		return 1
+	}
+	return showAll(*verbose)
 }
 
 // showAll displays all known env vars in a table.
@@ -63,6 +80,7 @@ func showAll(verbose bool) int {
 	}
 
 	if err := w.Flush(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 	return 0
@@ -89,7 +107,7 @@ func showOne(key string) int {
 	// Normalize key to dot notation for matching
 	normalized := strings.ReplaceAll(strings.ToLower(key), "_", ".")
 
-	for _, e := range env.Entries() {
+	for _, e := range env.AllEntries() {
 		if e.Key != normalized && e.Key != key {
 			continue
 		}
@@ -100,6 +118,9 @@ func showOne(key string) int {
 		fmt.Printf("Default:     %s\n", valueOrDash(e.Default))
 		fmt.Printf("Current:     %s\n", valueOrDash(current))
 		fmt.Printf("Description: %s\n", e.Description)
+		if e.Private {
+			fmt.Printf("Private:     yes\n")
+		}
 
 		// Show all notation forms
 		under := strings.ReplaceAll(e.Key, ".", "_")

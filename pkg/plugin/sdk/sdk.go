@@ -4,6 +4,8 @@
 // Detail: sdk_dispatch.go — event loop and callback dispatch
 // Detail: sdk_types.go — re-exported RPC type aliases
 // Detail: union.go — event stream correlation
+// Related: ../../../internal/component/plugin/ipc/tls.go — TLS transport and auth (SendAuth, PluginAcceptor)
+// Related: ../../../internal/component/plugin/process/process.go — engine-side process lifecycle (startExternal forks + WaitForPlugin)
 //
 // Package sdk provides a high-level SDK for creating ze plugins using the
 // YANG RPC protocol over a single bidirectional connection.
@@ -114,7 +116,7 @@ func NewFromEnv(name string) (*Plugin, error) {
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.host", Type: "string", Default: "127.0.0.1", Description: "TLS host for plugin-to-engine connection"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.port", Type: "string", Default: "12700", Description: "TLS port for plugin-to-engine connection"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.token", Type: "string", Description: "Auth token for plugin-to-engine TLS (required for external plugins)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.token", Type: "string", Description: "Auth token for plugin-to-engine TLS (required for external plugins)", Private: true})
 )
 
 // Default plugin transport address (matches hub config default listen address).

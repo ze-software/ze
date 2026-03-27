@@ -1,6 +1,8 @@
 // Design: docs/architecture/api/process-protocol.md — TLS transport for external plugins
 // Related: rpc.go — PluginConn typed RPC wrapper
 // Related: socketpair.go — package marker for plugin IPC
+// Related: ../process/process.go — startExternal calls WaitForPlugin after forking
+// Related: ../../../../pkg/plugin/sdk/sdk.go — NewFromTLSEnv dials TLS and calls SendAuth
 
 package ipc
 
@@ -101,6 +103,79 @@ func Authenticate(ctx context.Context, conn net.Conn, expectedToken string) (str
 	}
 
 	// Send OK response directly (no rpc.Conn to avoid reader goroutine).
+	if _, writeErr := conn.Write(append(rpc.FormatOK(id), '\n')); writeErr != nil {
+		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
+		return "", fmt.Errorf("send auth ok: %w", writeErr)
+	}
+
+	return params.Name, nil
+}
+
+// AuthenticateWithLookup reads the first RPC from conn and validates the auth token
+// using a per-name secret lookup. The lookup function returns the expected secret
+// for the given name, or false if the name is unknown. This supports per-client
+// secrets where each managed client has its own token.
+//
+// Falls back to sharedSecret if lookup returns false (plugin connections use shared secret).
+func AuthenticateWithLookup(ctx context.Context, conn net.Conn, sharedSecret string, lookup func(name string) (string, bool)) (string, error) {
+	if deadline, ok := ctx.Deadline(); ok {
+		if err := conn.SetReadDeadline(deadline); err != nil {
+			conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
+			return "", fmt.Errorf("set auth deadline: %w", err)
+		}
+	}
+
+	line, err := readLineRaw(conn, maxAuthFrameSize)
+	if err != nil {
+		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
+		return "", fmt.Errorf("read auth request: %w", err)
+	}
+
+	if clearErr := conn.SetReadDeadline(time.Time{}); clearErr != nil {
+		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
+		return "", fmt.Errorf("clear auth deadline: %w", clearErr)
+	}
+
+	id, verb, payload, parseErr := rpc.ParseLine(line)
+	if parseErr != nil {
+		writeErrorRaw(conn, 0, "malformed auth request")
+		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
+		return "", fmt.Errorf("auth failed: %w", parseErr)
+	}
+
+	if verb != "auth" {
+		writeErrorRaw(conn, id, "expected auth")
+		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
+		return "", fmt.Errorf("auth failed: expected method auth, got %q", verb)
+	}
+
+	var params authParams
+	if err := json.Unmarshal(payload, &params); err != nil {
+		writeErrorRaw(conn, id, "malformed auth params")
+		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
+		return "", fmt.Errorf("auth failed: malformed params: %w", err)
+	}
+
+	if !validPluginName.MatchString(params.Name) {
+		writeErrorRaw(conn, id, "invalid plugin name")
+		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
+		return "", fmt.Errorf("auth failed: invalid plugin name %q", params.Name)
+	}
+
+	// Try per-client secret first, fall back to shared secret.
+	expectedToken := sharedSecret
+	if lookup != nil {
+		if clientSecret, found := lookup(params.Name); found {
+			expectedToken = clientSecret
+		}
+	}
+
+	if subtle.ConstantTimeCompare([]byte(params.Token), []byte(expectedToken)) != 1 {
+		writeErrorRaw(conn, id, "auth failed")
+		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
+		return "", fmt.Errorf("auth failed: invalid token")
+	}
+
 	if _, writeErr := conn.Write(append(rpc.FormatOK(id), '\n')); writeErr != nil {
 		conn.Close() //nolint:errcheck,gosec // best-effort cleanup on error path
 		return "", fmt.Errorf("send auth ok: %w", writeErr)
@@ -226,12 +301,13 @@ const maxPendingConns = 32
 // to waiting plugin processes by name. The server creates one acceptor from
 // the hub config and shares it with all external processes.
 type PluginAcceptor struct {
-	listener net.Listener
-	secret   string
-	pending  sync.Map // name (string) -> chan net.Conn
-	sem      chan struct{}
-	ctx      context.Context
-	cancel   context.CancelFunc
+	listener     net.Listener
+	secret       string
+	secretLookup func(name string) (string, bool) // Per-client secret lookup (nil = shared secret only)
+	pending      sync.Map                         // name (string) -> chan net.Conn
+	sem          chan struct{}
+	ctx          context.Context
+	cancel       context.CancelFunc
 }
 
 // NewPluginAcceptor creates an acceptor that authenticates connections on the
@@ -245,6 +321,13 @@ func NewPluginAcceptor(listener net.Listener, secret string) *PluginAcceptor {
 		ctx:      ctx,
 		cancel:   cancel,
 	}
+}
+
+// SetSecretLookup sets a per-client secret lookup function.
+// When set, auth first checks per-client secrets by name, falling back
+// to the shared secret if the name is not found in the lookup.
+func (pa *PluginAcceptor) SetSecretLookup(lookup func(name string) (string, bool)) {
+	pa.secretLookup = lookup
 }
 
 // Addr returns the listener's address (useful when bound to port 0 in tests).
@@ -337,7 +420,13 @@ func (pa *PluginAcceptor) handleConn(conn net.Conn) {
 	authCtx, cancel := context.WithTimeout(pa.ctx, 10*time.Second)
 	defer cancel()
 
-	name, err := Authenticate(authCtx, conn, pa.secret)
+	var name string
+	var err error
+	if pa.secretLookup != nil {
+		name, err = AuthenticateWithLookup(authCtx, conn, pa.secret, pa.secretLookup)
+	} else {
+		name, err = Authenticate(authCtx, conn, pa.secret)
+	}
 	if err != nil {
 		return // Authenticate already closed conn on failure.
 	}

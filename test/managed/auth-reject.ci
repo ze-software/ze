@@ -1,0 +1,45 @@
+# Test: hub config with short client secret is rejected
+#
+# VALIDATES: AC-10 -- short per-client secrets rejected at parse time.
+# PREVENTS: Weak auth tokens accepted in config.
+
+tmpfs=test-auth-reject.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+touch daemon.ready
+
+INIT_DIR=$(mktemp -d)
+trap 'rm -rf "$INIT_DIR"' EXIT
+
+# Init a database
+printf 'admin\nsecret123\n127.0.0.1\n2222\n\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init
+
+# Write a config with a short client secret (should fail validation)
+ZE_CONFIG_DIR="$INIT_DIR" ze data write ze.conf <<'CONF'
+plugin {
+    hub {
+        server central {
+            host 0.0.0.0;
+            port 1791;
+            secret "central-secret-that-is-at-least32";
+            client edge-01 {
+                secret "short";
+            }
+        }
+    }
+}
+CONF
+
+# Validate should fail due to short client secret
+if ZE_CONFIG_DIR="$INIT_DIR" ze config validate ze.conf 2>&1; then
+    echo "FAIL: expected validation failure for short client secret" >&2
+    exit 1
+fi
+
+echo "OK: short per-client secret correctly rejected" >&2
+exit 0
+EOF_SH
+
+cmd=foreground:seq=1:exec=./test-auth-reject.sh:timeout=10s
+expect=exit:code=0
