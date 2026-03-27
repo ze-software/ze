@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — monitor client management
 // Overview: server.go — Server struct holds MonitorManager
+// Related: event_monitor.go — event monitor streaming handler
 
 package server
 
@@ -19,6 +20,7 @@ type MonitorClient struct {
 }
 
 // NewMonitorClient creates a monitor client with the given subscriptions and buffer size.
+// Caller MUST call MonitorManager.Remove(id) when done to release resources.
 func NewMonitorClient(ctx context.Context, id string, subs []*Subscription, bufSize int) *MonitorClient {
 	return &MonitorClient{
 		id:            id,

@@ -35,8 +35,9 @@ type spyCounter struct {
 	value float64
 }
 
-func (c *spyCounter) Inc()          { c.mu.Lock(); c.value++; c.mu.Unlock() }
-func (c *spyCounter) Add(v float64) { c.mu.Lock(); c.value += v; c.mu.Unlock() }
+func (c *spyCounter) Inc()           { c.mu.Lock(); c.value++; c.mu.Unlock() }
+func (c *spyCounter) Add(v float64)  { c.mu.Lock(); c.value += v; c.mu.Unlock() }
+func (c *spyCounter) Value() float64 { c.mu.Lock(); defer c.mu.Unlock(); return c.value }
 
 type spyGaugeVec struct {
 	mu     sync.Mutex
@@ -90,6 +91,13 @@ func (v *spyCounterVec) With(labels ...string) metrics.Counter {
 }
 
 func (v *spyCounterVec) Delete(...string) bool { return true }
+
+func (v *spyCounterVec) get(labels ...string) *spyCounter {
+	key := strings.Join(labels, ",")
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.counters[key]
+}
 
 type spyRegistry struct {
 	mu          sync.Mutex
@@ -151,6 +159,23 @@ func (r *spyRegistry) GaugeVec(name, _ string, _ []string) metrics.GaugeVec {
 	r.gaugeVecs[name] = gv
 	return gv
 }
+
+func (r *spyRegistry) Histogram(string, string, []float64) metrics.Histogram {
+	return spyNopHistogram{}
+}
+
+func (r *spyRegistry) HistogramVec(string, string, []float64, []string) metrics.HistogramVec {
+	return spyNopHistogramVec{}
+}
+
+type spyNopHistogram struct{}
+
+func (spyNopHistogram) Observe(float64) {}
+
+type spyNopHistogramVec struct{}
+
+func (spyNopHistogramVec) With(...string) metrics.Histogram { return spyNopHistogram{} }
+func (spyNopHistogramVec) Delete(...string) bool            { return false }
 
 func (r *spyRegistry) gauge(name string) *spyGauge {
 	r.mu.Lock()
@@ -340,6 +365,7 @@ func TestMetricNames_MatchRegistration(t *testing.T) {
 		"ze_peer_state",
 		"ze_bgp_overflow_items",
 		"ze_bgp_overflow_ratio",
+		"ze_peer_session_duration_seconds",
 		"ze_bgp_prefix_count",
 		"ze_bgp_prefix_maximum",
 		"ze_bgp_prefix_warning",
@@ -352,10 +378,35 @@ func TestMetricNames_MatchRegistration(t *testing.T) {
 		assert.NotNil(t, gv, "expected gauge vec %q to be registered", name)
 	}
 
+	// Verify all expected scalar counter names are registered.
+	expectedCounters := []string{
+		"ze_config_reloads_total",
+		"ze_peers_added_total",
+		"ze_peers_removed_total",
+	}
+	for _, name := range expectedCounters {
+		reg.mu.Lock()
+		_, ok := reg.counters[name]
+		reg.mu.Unlock()
+		assert.True(t, ok, "expected counter %q to be registered", name)
+	}
+
 	// Verify all expected counter vec names are registered.
 	expectedCounterVecs := []string{
 		"ze_peer_messages_received_total",
 		"ze_peer_messages_sent_total",
+		"ze_peer_sessions_established_total",
+		"ze_peer_session_flaps_total",
+		"ze_peer_state_transitions_total",
+		"ze_peer_notifications_sent_total",
+		"ze_peer_notifications_received_total",
+		"ze_forward_congestion_events_total",
+		"ze_forward_congestion_resumed_total",
+		"ze_config_reload_errors_total",
+		"ze_wire_bytes_received_total",
+		"ze_wire_bytes_sent_total",
+		"ze_wire_read_errors_total",
+		"ze_wire_write_errors_total",
 		"ze_bgp_prefix_maximum_exceeded_total",
 		"ze_bgp_prefix_teardown_total",
 	}

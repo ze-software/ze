@@ -52,18 +52,21 @@ func buildModifiedPayload(
 
 	// Parse source payload structure.
 	if len(payload) < 4 {
-		return nil // Malformed.
+		fwdLogger().Warn("malformed payload in buildModifiedPayload, skipping mods", "payloadLen", len(payload))
+		return nil
 	}
 	withdrawnLen := int(binary.BigEndian.Uint16(payload[0:2]))
 	attrOffset := 2 + withdrawnLen
 	if len(payload) < attrOffset+2 {
-		return nil // Malformed.
+		fwdLogger().Warn("malformed payload in buildModifiedPayload, skipping mods", "payloadLen", len(payload))
+		return nil
 	}
 	attrLen := int(binary.BigEndian.Uint16(payload[attrOffset : attrOffset+2]))
 	attrStart := attrOffset + 2
 	attrEnd := attrStart + attrLen
 	if len(payload) < attrEnd {
-		return nil // Malformed.
+		fwdLogger().Warn("malformed payload in buildModifiedPayload, skipping mods", "payloadLen", len(payload))
+		return nil
 	}
 
 	// Get pooled buffer. If payload is larger than standard, allocate directly.

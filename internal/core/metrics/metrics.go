@@ -4,9 +4,10 @@
 // Detail: server.go — HTTP server for metrics endpoint
 //
 // Package metrics provides metric collection interfaces and backends.
-// The interfaces (Counter, Gauge, CounterVec, GaugeVec, Registry) are
-// deliberately compatible with prometheus client_golang types so that
-// the Prometheus backend requires zero wrapping for scalar metrics.
+// The interfaces (Counter, Gauge, Histogram, CounterVec, GaugeVec,
+// HistogramVec, Registry) are deliberately compatible with prometheus
+// client_golang types so that the Prometheus backend requires zero
+// wrapping for scalar metrics.
 package metrics
 
 // Counter is a monotonically increasing metric.
@@ -39,10 +40,25 @@ type GaugeVec interface {
 	Delete(labelValues ...string) bool
 }
 
+// Histogram records observations in configurable buckets for distribution analysis.
+type Histogram interface {
+	Observe(float64)
+}
+
+// HistogramVec is a Histogram partitioned by label values.
+// With() must receive exactly the number of values matching the label names
+// used at creation time; mismatches cause a Prometheus panic.
+type HistogramVec interface {
+	With(labelValues ...string) Histogram
+	Delete(labelValues ...string) bool
+}
+
 // Registry creates and registers metrics.
 type Registry interface {
 	Counter(name, help string) Counter
 	Gauge(name, help string) Gauge
 	CounterVec(name, help string, labelNames []string) CounterVec
 	GaugeVec(name, help string, labelNames []string) GaugeVec
+	Histogram(name, help string, buckets []float64) Histogram
+	HistogramVec(name, help string, buckets []float64, labelNames []string) HistogramVec
 }

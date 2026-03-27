@@ -225,8 +225,16 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 				r.rmetrics.stateTransitions.Delete(label, from, to)
 			}
 		}
-		// Notification code/subcode combinations are too numerous to enumerate
-		// exhaustively. Wire-layer metrics (wireBytesRecv, etc.) are single-label.
+		// Notification codes: enumerate known BGP error codes (RFC 4271 + common).
+		// This covers all standard notifications; exotic codes leave stale entries
+		// but those are extremely rare in practice.
+		for _, code := range notifCodeNames {
+			for _, sub := range notifSubcodeNames {
+				r.rmetrics.notifSent.Delete(label, code, sub)
+				r.rmetrics.notifRecv.Delete(label, code, sub)
+			}
+		}
+		// Wire-layer metrics (wireBytesRecv, etc.) are single-label.
 		r.rmetrics.wireBytesRecv.Delete(label)
 		r.rmetrics.wireBytesSent.Delete(label)
 		r.rmetrics.wireReadErrors.Delete(label)
