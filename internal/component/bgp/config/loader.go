@@ -32,6 +32,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 	zessh "codeberg.org/thomas-mangin/ze/internal/component/ssh"
+	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
@@ -561,9 +562,40 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		}
 	}
 
+	// Start web server from system config block.
+	// Follows the same pattern as SSH: bind port now, wire handlers post-start.
+	var webSrv *zeweb.WebServer
+	if webCfg, ok := extractWebConfig(tree); ok {
+		certPEM, keyPEM, certErr := zeweb.GenerateWebCertWithAddr(webCfg.ListenAddr)
+		if certErr != nil {
+			configLogger().Warn("web TLS cert error", "error", certErr)
+		} else {
+			webCfg.CertPEM = certPEM
+			webCfg.KeyPEM = keyPEM
+			srv, webErr := zeweb.NewWebServer(webCfg)
+			if webErr != nil {
+				configLogger().Warn("web server config error", "error", webErr)
+			} else {
+				go func() {
+					if serveErr := srv.ListenAndServe(context.Background()); serveErr != nil {
+						configLogger().Error("web server error", "error", serveErr)
+					}
+				}()
+				readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				if waitErr := srv.WaitReady(readyCtx); waitErr != nil {
+					configLogger().Warn("web server failed to start", "error", waitErr)
+				} else {
+					configLogger().Info("web server listening", "address", srv.Address())
+					webSrv = srv
+				}
+				readyCancel()
+			}
+		}
+	}
+
 	// Deferred wiring: after reactor starts and Dispatcher is available,
-	// connect authorization store and SSH executor (if configured).
-	if authzStore != nil || sshSrv != nil {
+	// connect authorization store, SSH executor, and web handlers (if configured).
+	if authzStore != nil || sshSrv != nil || webSrv != nil {
 		r.SetPostStartFunc(func() {
 			d := r.Dispatcher()
 			if d == nil {
@@ -956,6 +988,30 @@ func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
 			}
 			cfg.Users = append(cfg.Users, uc)
 		}
+	}
+
+	return cfg, true
+}
+
+// extractWebConfig extracts web server configuration from the parsed config tree.
+// Returns the web config and true if a system.web block is present.
+func extractWebConfig(tree *config.Tree) (zeweb.WebConfig, bool) {
+	sys := tree.GetContainer("system")
+	if sys == nil {
+		return zeweb.WebConfig{}, false
+	}
+
+	webContainer := sys.GetContainer("web")
+	if webContainer == nil {
+		return zeweb.WebConfig{}, false
+	}
+
+	var cfg zeweb.WebConfig
+
+	if v, ok := webContainer.Get("listen"); ok {
+		cfg.ListenAddr = v
+	} else {
+		cfg.ListenAddr = "0.0.0.0:8443"
 	}
 
 	return cfg, true

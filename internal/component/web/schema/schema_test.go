@@ -28,12 +28,25 @@ func TestSchema_ZeWebModule(t *testing.T) {
 
 	assert.Equal(t, "urn:ze:web:conf", mod.Namespace.Name)
 
-	var webContainer bool
+	var systemContainer bool
 	for _, c := range mod.Container {
-		if c.Name == "web" {
-			webContainer = true
-			break
+		if c.Name != "system" {
+			continue
 		}
+
+		systemContainer = true
+
+		var webChild bool
+		for _, child := range c.Container {
+			if child.Name == "web" {
+				webChild = true
+				break
+			}
+		}
+
+		assert.True(t, webChild, "system.web container should exist")
+
+		break
 	}
-	assert.True(t, webContainer, "web container should exist")
+	assert.True(t, systemContainer, "system container should exist")
 }
