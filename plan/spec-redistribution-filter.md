@@ -398,19 +398,28 @@ For export filters, modifications are per-peer (don't affect the cached version)
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestFilterDeclarationParse` | `internal/component/plugin/registration_test.go` | Parse `filters` list from declare-registration into PluginRegistration. Multiple named filters per plugin | |
-| `TestRedistributionConfigParse` | `internal/component/config/redistribution_test.go` | Parse redistribution YANG config block with `<plugin>:<filter>` values | |
-| `TestRedistributionConfigValidation` | `internal/component/config/redistribution_test.go` | Reject unknown plugin, unknown filter name, missing `:`, wrong direction | |
-| `TestFilterChainResolution` | `internal/component/config/redistribution_test.go` | Merge bgp > group > peer chains correctly. Mandatory filters implicit at head | |
-| `TestAttributeAccumulation` | `internal/component/bgp/reactor/filter_chain_test.go` | Union of declared attributes computed correctly | |
-| `TestFilterResponseParse` | `internal/component/bgp/reactor/filter_chain_test.go` | Parse accept/reject/modify responses | |
-| `TestDirtyTracking` | `internal/component/bgp/reactor/filter_chain_test.go` | Only dirty attributes trigger re-encoding | |
-| `TestFilterModifyOnlyDeclared` | `internal/component/bgp/reactor/filter_chain_test.go` | Reject modify of undeclared attribute | |
-| `TestFilterChainPipedTransform` | `internal/component/bgp/reactor/filter_chain_test.go` | Second filter sees first filter's modifications | |
-| `TestFilterChainShortCircuit` | `internal/component/bgp/reactor/filter_chain_test.go` | Reject stops chain, no further filters called | |
-| `TestDefaultFilterOverride` | `internal/component/config/redistribution_test.go` | Filter with `overrides` removes default filter from chain for that peer | |
-| `TestDefaultFilterOverrideAtGroupLevel` | `internal/component/config/redistribution_test.go` | Override at group level removes default for all peers in group | |
-| `TestMandatoryFilterCannotBeOverridden` | `internal/component/config/redistribution_test.go` | Override targeting mandatory filter is ignored, mandatory stays in chain | |
+| `TestFilterDeclarationParse` | `internal/component/plugin/registration_test.go` | Parse `filters` list from declare-registration into PluginRegistration. Multiple named filters per plugin | ✅ Done |
+| `TestFilterDeclarationWithOverrides` | `internal/component/plugin/registration_test.go` | Override declarations stored correctly | ✅ Done (added) |
+| `TestRedistributionConfigParse` | `internal/component/bgp/config/redistribution_test.go` | Parse redistribution YANG config block with `<plugin>:<filter>` values | ✅ Done |
+| `TestRedistributionConfigValidation` | `internal/component/bgp/config/redistribution_test.go` | Reject unknown plugin, unknown filter name, missing `:`, wrong direction | ✅ Done (3 subtests) |
+| `TestFilterChainResolution` | `internal/component/bgp/config/redistribution_test.go` | Merge bgp > group > peer chains correctly | ✅ Done |
+| `TestRedistributionStandalonePeer` | `internal/component/bgp/config/redistribution_test.go` | Standalone peers accumulate bgp-level filters | ✅ Done (added) |
+| `TestRedistributionEmpty` | `internal/component/bgp/config/redistribution_test.go` | No filters configured = no crash | ✅ Done (added) |
+| `TestPolicyFilterChainAccept` | `internal/component/bgp/reactor/filter_chain_test.go` | Accept passes through unchanged | ✅ Done |
+| `TestPolicyFilterChainReject` | `internal/component/bgp/reactor/filter_chain_test.go` | Reject short-circuits chain | ✅ Done |
+| `TestPolicyFilterChainModify` | `internal/component/bgp/reactor/filter_chain_test.go` | Modify changes attributes | ✅ Done |
+| `TestPolicyFilterChainPipedTransform` | `internal/component/bgp/reactor/filter_chain_test.go` | Second filter sees first filter's modifications | ✅ Done |
+| `TestPolicyFilterChainShortCircuit` | `internal/component/bgp/reactor/filter_chain_test.go` | Reject stops chain, no further filters called | ✅ Done |
+| `TestPolicyFilterChainEmpty` | `internal/component/bgp/reactor/filter_chain_test.go` | Empty chain = default accept | ✅ Done (added) |
+| `TestPolicyFilterChainDispatch` | `internal/component/bgp/reactor/filter_chain_test.go` | Plugin:filter name split correctly | ✅ Done (added) |
+| `TestApplyFilterDelta` | `internal/component/bgp/reactor/filter_chain_test.go` | Delta merge (4 subtests: modify, add, empty, nlri) | ✅ Done (added) |
+| `TestAttributeAccumulation` | `internal/component/bgp/reactor/filter_chain_test.go` | Union of declared attributes computed correctly | Deferred to reactor wiring |
+| `TestFilterResponseParse` | `internal/component/bgp/reactor/filter_chain_test.go` | Parse accept/reject/modify responses | 🔄 Covered by chain tests (responses are PolicyResponse structs) |
+| `TestDirtyTracking` | `internal/component/bgp/reactor/filter_chain_test.go` | Only dirty attributes trigger re-encoding | Deferred to reactor wiring (wire-level) |
+| `TestFilterModifyOnlyDeclared` | `internal/component/bgp/reactor/filter_chain_test.go` | Reject modify of undeclared attribute | Deferred to reactor wiring (requires attribute registry) |
+| `TestDefaultFilterOverride` | `internal/component/config/redistribution_test.go` | Filter with `overrides` removes default filter from chain for that peer | Deferred (requires default filter registry) |
+| `TestDefaultFilterOverrideAtGroupLevel` | `internal/component/config/redistribution_test.go` | Override at group level removes default for all peers in group | Deferred (requires default filter registry) |
+| `TestMandatoryFilterCannotBeOverridden` | `internal/component/config/redistribution_test.go` | Override targeting mandatory filter is ignored, mandatory stays in chain | Deferred (requires mandatory filter registry) |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 
@@ -515,42 +524,37 @@ For export filters, modifications are per-peer (don't affect the cached version)
 
 Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
-1. **Phase: YANG schemas + declaration struct** -- Extend declare-registration with filter container. Add redistribution to ze-bgp-conf.yang. Add filter-update callback RPC. Add filter fields to PluginRegistration struct.
-   - Tests: `TestFilterDeclarationParse`, `TestRedistributionConfigParse`
-   - Files: `ze-plugin-engine.yang`, `ze-bgp-conf.yang`, `ze-plugin-callback.yang`, `registration.go`
-   - Verify: tests fail -> implement -> tests pass
+1. **Phase: YANG schemas + declaration struct** -- ✅ Done (commit dd4ea150)
+   - Tests: `TestFilterDeclarationParse`, `TestFilterDeclarationWithOverrides` -- PASS
+   - Files: `ze-plugin-engine.yang`, `ze-bgp-conf.yang`, `ze-plugin-callback.yang`, `registration.go`, `server/startup.go`, `rpc/types.go`, `sdk/sdk_types.go`
 
-2. **Phase: Config parsing** -- Parse redistribution blocks with `<plugin>:<filter>` format. Resolve filter chains with mandatory > default > bgp > group > peer merging. Apply override removal of default filters. Validate plugin/filter names and directions.
-   - Tests: `TestRedistributionConfigValidation`, `TestFilterChainResolution`, `TestDefaultFilterOverride`, `TestDefaultFilterOverrideAtGroupLevel`, `TestMandatoryFilterCannotBeOverridden`
-   - Files: `redistribution.go`, `redistribution_test.go`, config pipeline files
-   - Verify: tests fail -> implement -> tests pass
+2. **Phase: Config parsing** -- ✅ Done (commit dd4ea150)
+   - Tests: `TestRedistributionConfigParse`, `TestRedistributionConfigValidation` (3 subtests), `TestFilterChainResolution`, `TestRedistributionStandalonePeer`, `TestRedistributionEmpty` -- PASS
+   - Files: `redistribution.go`, `redistribution_test.go`, `peers.go`, `peersettings.go`
+   - Override tests deferred (need default/mandatory filter registry)
 
-3. **Phase: Filter chain runtime** -- Implement attribute accumulation, IPC interaction (send text, parse response), chain execution with piped transforms, short-circuit on reject.
-   - Tests: `TestAttributeAccumulation`, `TestFilterResponseParse`, `TestFilterChainPipedTransform`, `TestFilterChainShortCircuit`
+3. **Phase: Filter chain runtime** -- ✅ Done (commit dd4ea150)
+   - Tests: `TestPolicyFilterChainAccept`, `TestPolicyFilterChainReject`, `TestPolicyFilterChainModify`, `TestPolicyFilterChainPipedTransform`, `TestPolicyFilterChainShortCircuit`, `TestPolicyFilterChainEmpty`, `TestPolicyFilterChainDispatch`, `TestApplyFilterDelta` (4 subtests) -- PASS
    - Files: `filter_chain.go`, `filter_chain_test.go`
-   - Verify: tests fail -> implement -> tests pass
 
-4. **Phase: Dirty tracking** -- Implement dirty field marking, pointer-swap for modified attributes, selective re-encoding of UPDATE payload.
-   - Tests: `TestDirtyTracking`, `TestFilterModifyOnlyDeclared`
-   - Files: `filter_chain.go`, `filter_chain_test.go`
-   - Verify: tests fail -> implement -> tests pass
+4. **Phase: Dirty tracking** -- ✅ Text-level done (commit dd4ea150), wire-level deferred
+   - Text delta merge in `applyFilterDelta()` handles attribute-level dirty tracking at the text protocol layer.
+   - Wire-level dirty tracking (re-encoding only modified attributes using `ModAccumulator`/`buildModifiedPayload`) deferred to reactor wiring phase.
 
-5. **Phase: Reactor wiring** -- Wire policy filter chain into reactor ingress (after role) and egress (after role, per-peer). Integrate with config-resolved per-peer chains.
-   - Tests: functional tests
-   - Files: `reactor_notify.go`, `reactor_api_forward.go`, `reactor.go`
-   - Verify: tests fail -> implement -> tests pass
+5. **Phase: Reactor wiring** -- ⏸️ Blocked
+   - Pre-existing compilation error in `reactor_api_batch.go` (missing `localAS` arg from other work in tree) prevents reactor package from compiling. Must be fixed before wiring can proceed.
+   - When unblocked: wire `PolicyFilterChain` into `reactor_notify.go` (ingress, after in-process filters) and `reactor_api_forward.go` (egress, per-peer).
 
-6. **Phase: SDK support** -- Add filter callback support to plugin SDK so external plugins can register filter handlers.
-   - Tests: SDK tests
-   - Files: `pkg/plugin/sdk/` files
-   - Verify: tests fail -> implement -> tests pass
+6. **Phase: SDK support** -- ✅ Done (commit c6d81d83)
+   - `OnFilterUpdate()` callback, `handleFilterUpdate()` dispatch, `SendFilterUpdate()` IPC
+   - Files: `sdk.go`, `sdk_callbacks.go`, `sdk_dispatch.go`, `ipc/rpc.go`
 
-7. **Functional tests** -- Create .ci tests with external test filter plugin.
+7. **Functional tests** -- Not started (depends on reactor wiring)
    - Files: `test/plugin/redistribution-*.ci`
 
-8. **Full verification** -- `make ze-verify`
+8. **Full verification** -- Not yet
 
-9. **Complete spec** -- Fill audit tables, write learned summary.
+9. **Complete spec** -- Not yet
 
 ### Critical Review Checklist (/implement stage 5)
 
@@ -641,16 +645,48 @@ No RFC governs this feature. This is ze-internal protocol design.
 ## Implementation Summary
 
 ### What Was Implemented
-- [To be filled during implementation]
+
+**Phase 1 -- Wire protocol types and YANG schemas (commit dd4ea150):**
+- `FilterDecl`, `FilterUpdateInput`, `FilterUpdateOutput` in `pkg/plugin/rpc/types.go`
+- `FilterRegistration` struct in `internal/component/plugin/registration.go`
+- `filters` list in `ze-plugin-engine.yang` declare-registration
+- `redistribution` container in `ze-bgp-conf.yang` (bgp-level + peer-fields)
+- `filter-update` RPC in `ze-plugin-callback.yang`
+- `registrationFromRPC` wiring in `server/startup.go` (NLRI default true, on-error default reject)
+- SDK type re-exports in `pkg/plugin/sdk/sdk_types.go`
+
+**Phase 2 -- Config parsing and chain resolution (commit dd4ea150):**
+- `redistribution.go`: `extractRedistributionFilters()`, `validateFilterRefs()`, `concatFilters()`
+- Cumulative chain patching in `peers.go` (bgp > group > peer, same pattern as routes)
+- `ImportFilters`/`ExportFilters` fields on `PeerSettings`
+- Format validation: missing `:`, empty plugin name, empty filter name
+
+**Phase 3 -- Filter chain runtime (commit dd4ea150):**
+- `filter_chain.go`: `PolicyFilterChain()` with piped transforms and reject short-circuit
+- Text attribute parsing (`parseFilterAttrs`), delta merge (`applyFilterDelta`), deterministic output (`formatFilterAttrs`)
+- Types: `PolicyAction`, `PolicyResponse`, `PolicyFilterFunc`
+
+**Phase 6 -- SDK callback and IPC layer (commit c6d81d83):**
+- `OnFilterUpdate()` callback registration in `sdk_callbacks.go`
+- `handleFilterUpdate()` dispatch handler in `sdk_dispatch.go`
+- `"ze-plugin-callback:filter-update"` case in dispatch switch
+- `SendFilterUpdate()` in `ipc/rpc.go` for engine-to-plugin calls
 
 ### Bugs Found/Fixed
-- [To be filled during implementation]
+- None so far
 
 ### Documentation Updates
-- [To be filled during implementation]
+- Updated 10 documentation files in commit dd4ea150 (features, comparison, plugins guide, configuration guide, new redistribution guide, config syntax, API commands, process protocol, core design, plugin design rules). All marked "(planned)" with source anchors.
 
 ### Deviations from Plan
-- [To be filled during implementation]
+
+| Deviation | Reason |
+|-----------|--------|
+| Phase 4 (dirty tracking) merged into Phase 3 | Text-level delta is in `filter_chain.go`. Wire-level dirty tracking (re-encoding only modified attributes) deferred to reactor wiring phase, since it depends on `ModAccumulator`/`buildModifiedPayload` infrastructure |
+| Phase 5 (reactor wiring) blocked | Pre-existing compilation error in `reactor_api_batch.go` (missing `localAS` arg) from other work in tree. Reactor package cannot compile until fixed |
+| Override tests deferred | `TestDefaultFilterOverride`, `TestDefaultFilterOverrideAtGroupLevel`, `TestMandatoryFilterCannotBeOverridden` require a default/mandatory filter registry that doesn't exist yet. The data structures support overrides, but the runtime resolution needs the registry |
+| `TestAttributeAccumulation`, `TestDirtyTracking`, `TestFilterModifyOnlyDeclared` deferred | These require reactor-level integration (attribute parsing from wire bytes, attribute registry for validation). Cannot be tested at the text-format level |
+| Test names differ from spec plan | Added more focused tests (`TestPolicyFilterChainAccept`, `TestApplyFilterDelta`, etc.) that cover the same ACs with better granularity. Renamed from `TestFilterChain*` to `TestPolicyFilterChain*` to avoid collision with existing `FilterResult` type in `filter` package |
 
 ## Implementation Audit
 
@@ -669,6 +705,19 @@ No RFC governs this feature. This is ze-internal protocol design.
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `internal/component/bgp/reactor/filter_chain.go` | ✅ Created | PolicyFilterChain, text attr parsing, delta merge |
+| `internal/component/bgp/reactor/filter_chain_test.go` | ✅ Created | 8 tests (chain + delta) |
+| `internal/component/plugin/registration_test.go` | ✅ Extended | +2 filter tests |
+| `internal/component/bgp/config/redistribution.go` | ✅ Created | Extract, validate, concat filters |
+| `internal/component/bgp/config/redistribution_test.go` | ✅ Created | 5 tests (parse, validate, chain, standalone, empty) |
+| `docs/guide/redistribution.md` | ✅ Created | Full user guide |
+| `test/plugin/redistribution-import-accept.ci` | ❌ Not created | Depends on reactor wiring |
+| `test/plugin/redistribution-import-reject.ci` | ❌ Not created | Depends on reactor wiring |
+| `test/plugin/redistribution-import-modify.ci` | ❌ Not created | Depends on reactor wiring |
+| `test/plugin/redistribution-export-reject.ci` | ❌ Not created | Depends on reactor wiring |
+| `test/plugin/redistribution-declare.ci` | ❌ Not created | Depends on reactor wiring |
+| `test/plugin/redistribution-chain-order.ci` | ❌ Not created | Depends on reactor wiring |
+| `test/plugin/redistribution-override.ci` | ❌ Not created | Depends on reactor wiring |
 
 ### Audit Summary
 - **Total items:**
