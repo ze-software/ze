@@ -112,6 +112,56 @@ func TestPrometheusRegistry_Concurrent(t *testing.T) {
 	assert.Contains(t, body, `concurrent_vec_total{worker="worker"} 1000`)
 }
 
+// TestPrometheusRegistry_Histogram verifies histogram creation and observations.
+//
+// VALIDATES: AC-1 — PrometheusRegistry.Histogram creates a working histogram with buckets.
+// PREVENTS: Histogram not registered or observations not bucketed correctly.
+func TestPrometheusRegistry_Histogram(t *testing.T) {
+	reg := metrics.NewPrometheusRegistry()
+	h := reg.Histogram("test_duration_seconds", "A test histogram.", []float64{0.1, 0.5, 1.0})
+	h.Observe(0.05)
+	h.Observe(0.3)
+	h.Observe(0.8)
+
+	body := scrapeMetrics(t, reg)
+	assert.Contains(t, body, `test_duration_seconds_bucket{le="0.1"} 1`)
+	assert.Contains(t, body, `test_duration_seconds_bucket{le="0.5"} 2`)
+	assert.Contains(t, body, `test_duration_seconds_bucket{le="1"} 3`)
+	assert.Contains(t, body, "test_duration_seconds_count 3")
+}
+
+// TestPrometheusRegistry_HistogramVec verifies labeled histogram creation.
+//
+// VALIDATES: AC-1 — PrometheusRegistry.HistogramVec creates working labeled histograms.
+// PREVENTS: Label values not applied or observations not bucketed.
+func TestPrometheusRegistry_HistogramVec(t *testing.T) {
+	reg := metrics.NewPrometheusRegistry()
+	hv := reg.HistogramVec("request_duration_seconds", "Request duration.", []float64{0.1, 0.5, 1.0}, []string{"method"})
+	hv.With("GET").Observe(0.05)
+	hv.With("GET").Observe(0.3)
+	hv.With("POST").Observe(0.8)
+
+	body := scrapeMetrics(t, reg)
+	assert.Contains(t, body, `request_duration_seconds_bucket{method="GET",le="0.1"} 1`)
+	assert.Contains(t, body, `request_duration_seconds_bucket{method="GET",le="0.5"} 2`)
+	assert.Contains(t, body, `request_duration_seconds_bucket{method="POST",le="1"} 1`)
+}
+
+// TestPrometheusRegistry_HistogramIdempotent verifies same-name histogram returns existing.
+//
+// VALIDATES: AC-1 — Registry.Histogram is idempotent (get-or-create by name).
+// PREVENTS: Panic on duplicate histogram registration.
+func TestPrometheusRegistry_HistogramIdempotent(t *testing.T) {
+	reg := metrics.NewPrometheusRegistry()
+	h1 := reg.Histogram("idem_hist_seconds", "First.", []float64{1, 5, 10})
+	h1.Observe(3)
+	h2 := reg.Histogram("idem_hist_seconds", "Second.", []float64{1, 5, 10})
+	h2.Observe(7)
+
+	body := scrapeMetrics(t, reg)
+	assert.Contains(t, body, "idem_hist_seconds_count 2")
+}
+
 // TestPrometheusRegistry_Idempotent verifies that calling Counter/Gauge/Vec
 // with the same name returns the same metric instance (no panic on re-register).
 //

@@ -260,6 +260,14 @@ type Session struct {
 	// Set by Peer in runOnce() to propagate warning state for API visibility.
 	prefixWarningNotifier func(family string, warned bool)
 
+	// onNotifSent is called when a NOTIFICATION is sent to the peer.
+	// Set by Peer in runOnce() for Prometheus notification counter.
+	onNotifSent func(code, subcode uint8)
+
+	// onNotifRecv is called when a NOTIFICATION is received from the peer.
+	// Set by Peer in runOnce() for Prometheus notification counter.
+	onNotifRecv func(code, subcode uint8)
+
 	// recentRead is set to true by the read loop on every successful message read.
 	// The hold timer callback checks and clears it: if true, the daemon is
 	// CPU-congested (data arrived but wasn't processed in time), so the hold

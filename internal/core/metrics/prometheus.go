@@ -16,27 +16,31 @@ import (
 // prometheus.Registry. Uses a private registry (not the global default)
 // so tests don't interfere and the HTTP handler serves only ze metrics.
 //
-// All methods are idempotent: calling Counter/Gauge/CounterVec/GaugeVec
+// All methods are idempotent: calling Counter/Gauge/CounterVec/GaugeVec/Histogram/HistogramVec
 // with the same name returns the existing metric. This allows multiple
 // components and plugins to register metrics dynamically by name.
 type PrometheusRegistry struct {
-	registry    *prometheus.Registry
-	counters    map[string]Counter
-	gauges      map[string]Gauge
-	counterVecs map[string]CounterVec
-	gaugeVecs   map[string]GaugeVec
-	mu          sync.RWMutex
+	registry      *prometheus.Registry
+	counters      map[string]Counter
+	gauges        map[string]Gauge
+	counterVecs   map[string]CounterVec
+	gaugeVecs     map[string]GaugeVec
+	histograms    map[string]Histogram
+	histogramVecs map[string]HistogramVec
+	mu            sync.RWMutex
 }
 
 // NewPrometheusRegistry creates a PrometheusRegistry with a fresh
 // per-instance prometheus.Registry.
 func NewPrometheusRegistry() *PrometheusRegistry {
 	return &PrometheusRegistry{
-		registry:    prometheus.NewRegistry(),
-		counters:    make(map[string]Counter),
-		gauges:      make(map[string]Gauge),
-		counterVecs: make(map[string]CounterVec),
-		gaugeVecs:   make(map[string]GaugeVec),
+		registry:      prometheus.NewRegistry(),
+		counters:      make(map[string]Counter),
+		gauges:        make(map[string]Gauge),
+		counterVecs:   make(map[string]CounterVec),
+		gaugeVecs:     make(map[string]GaugeVec),
+		histograms:    make(map[string]Histogram),
+		histogramVecs: make(map[string]HistogramVec),
 	}
 }
 
@@ -156,6 +160,66 @@ func (r *PrometheusRegistry) GaugeVec(name, help string, labelNames []string) Ga
 	return wrapped
 }
 
+// Histogram returns a prometheus Histogram, creating and registering it on first call.
+// Subsequent calls with the same name return the existing histogram.
+// prometheus.Histogram already satisfies the metrics.Histogram interface
+// (Observe(float64)), so no wrapping is needed.
+func (r *PrometheusRegistry) Histogram(name, help string, buckets []float64) Histogram {
+	r.mu.RLock()
+	if h, ok := r.histograms[name]; ok {
+		r.mu.RUnlock()
+		return h
+	}
+	r.mu.RUnlock()
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if h, ok := r.histograms[name]; ok {
+		return h
+	}
+
+	h := prometheus.NewHistogram(prometheus.HistogramOpts{
+		Name:    name,
+		Help:    help,
+		Buckets: buckets,
+	})
+	r.registry.MustRegister(h)
+	r.histograms[name] = h
+
+	return h
+}
+
+// HistogramVec returns a prometheus HistogramVec, creating and registering it on first call.
+// Subsequent calls with the same name return the existing vector.
+// Wrapped to return our Histogram interface from With().
+func (r *PrometheusRegistry) HistogramVec(name, help string, buckets []float64, labelNames []string) HistogramVec {
+	r.mu.RLock()
+	if hv, ok := r.histogramVecs[name]; ok {
+		r.mu.RUnlock()
+		return hv
+	}
+	r.mu.RUnlock()
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if hv, ok := r.histogramVecs[name]; ok {
+		return hv
+	}
+
+	hv := prometheus.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    name,
+		Help:    help,
+		Buckets: buckets,
+	}, labelNames)
+	r.registry.MustRegister(hv)
+	wrapped := &promHistogramVec{hv: hv}
+	r.histogramVecs[name] = wrapped
+
+	return wrapped
+}
+
 // Handler returns an HTTP handler that serves the /metrics endpoint.
 func (r *PrometheusRegistry) Handler() http.Handler {
 	return promhttp.HandlerFor(r.registry, promhttp.HandlerOpts{})
@@ -185,4 +249,17 @@ func (v *promGaugeVec) With(labelValues ...string) Gauge {
 
 func (v *promGaugeVec) Delete(labelValues ...string) bool {
 	return v.gv.DeleteLabelValues(labelValues...)
+}
+
+// promHistogramVec wraps prometheus.HistogramVec to return metrics.Histogram.
+type promHistogramVec struct {
+	hv *prometheus.HistogramVec
+}
+
+func (v *promHistogramVec) With(labelValues ...string) Histogram {
+	return v.hv.WithLabelValues(labelValues...)
+}
+
+func (v *promHistogramVec) Delete(labelValues ...string) bool {
+	return v.hv.DeleteLabelValues(labelValues...)
 }

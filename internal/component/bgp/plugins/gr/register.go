@@ -9,6 +9,7 @@ import (
 	grschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/gr/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
@@ -42,6 +43,11 @@ func init() {
 		},
 		ConfigureEngineLogger: func(loggerName string) {
 			SetLogger(slogutil.Logger(loggerName))
+		},
+		ConfigureMetrics: func(reg any) {
+			if r, ok := reg.(metrics.Registry); ok {
+				SetMetricsRegistry(r)
+			}
 		},
 	}
 	reg.CLIHandler = func(args []string) int {

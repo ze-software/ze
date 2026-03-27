@@ -25,6 +25,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attrpool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/pool"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/storage"
@@ -60,12 +61,21 @@ func SetLogger(l *slog.Logger) {
 	}
 }
 
-// ribMetrics holds Prometheus gauges for RIB route counts.
+// ribMetrics holds Prometheus gauges for RIB route counts and churn.
 type ribMetrics struct {
 	routesIn     metrics.Gauge    // global total
 	routesOut    metrics.Gauge    // global total
 	routesInVec  metrics.GaugeVec // per-peer
 	routesOutVec metrics.GaugeVec // per-peer
+
+	// Route churn counters
+	routeInserts     metrics.CounterVec // labels: peer, family
+	routeWithdrawals metrics.CounterVec // labels: peer, family
+
+	// Attribute pool metrics (polled from pool.AllPools())
+	poolInternTotal metrics.GaugeVec // labels: pool -- monotonic, use rate()
+	poolDedupHits   metrics.GaugeVec // labels: pool -- monotonic, use rate()
+	poolSlotsUsed   metrics.GaugeVec // labels: pool
 }
 
 // metricsPtr stores RIB metrics gauges, set by SetMetricsRegistry.
@@ -80,8 +90,40 @@ func SetMetricsRegistry(reg metrics.Registry) {
 		routesOut:    reg.Gauge("ze_rib_routes_out_total", "Total Adj-RIB-Out route count."),
 		routesInVec:  reg.GaugeVec("ze_rib_routes_in", "Adj-RIB-In route count per peer.", []string{"peer"}),
 		routesOutVec: reg.GaugeVec("ze_rib_routes_out", "Adj-RIB-Out route count per peer.", []string{"peer"}),
+
+		routeInserts:     reg.CounterVec("ze_rib_route_inserts_total", "Routes inserted into Adj-RIB-In.", []string{"peer", "family"}),
+		routeWithdrawals: reg.CounterVec("ze_rib_route_withdrawals_total", "Routes withdrawn from Adj-RIB-In.", []string{"peer", "family"}),
+
+		poolInternTotal: reg.GaugeVec("ze_attr_pool_intern_total", "Total Intern() calls per pool.", []string{"pool"}),
+		poolDedupHits:   reg.GaugeVec("ze_attr_pool_dedup_hits_total", "Intern() dedup hits per pool.", []string{"pool"}),
+		poolSlotsUsed:   reg.GaugeVec("ze_attr_pool_slots_used", "Active slots per pool.", []string{"pool"}),
 	}
 	metricsPtr.Store(m)
+}
+
+// poolNameEntry maps a pool variable to its Prometheus label name.
+type poolNameEntry struct {
+	name string
+	pool interface{ Metrics() attrpool.Metrics }
+}
+
+// poolNames returns name/pool pairs for metrics labeling.
+func poolNames() []poolNameEntry {
+	return []poolNameEntry{
+		{"origin", pool.Origin},
+		{"as_path", pool.ASPath},
+		{"local_pref", pool.LocalPref},
+		{"med", pool.MED},
+		{"next_hop", pool.NextHop},
+		{"communities", pool.Communities},
+		{"large_communities", pool.LargeCommunities},
+		{"ext_communities", pool.ExtCommunities},
+		{"cluster_list", pool.ClusterList},
+		{"originator_id", pool.OriginatorID},
+		{"atomic_aggregate", pool.AtomicAggregate},
+		{"aggregator", pool.Aggregator},
+		{"other", pool.OtherAttrs},
+	}
 }
 
 // metricsUpdateInterval is how often RIB metrics gauges are refreshed.
@@ -212,6 +254,14 @@ func (r *RIBManager) updateMetrics() {
 
 	m.routesIn.Set(float64(totalIn))
 	m.routesOut.Set(float64(totalOut))
+
+	// Attribute pool dedup metrics (polled from atomic counters)
+	for _, entry := range poolNames() {
+		pm := entry.pool.Metrics()
+		m.poolInternTotal.With(entry.name).Set(float64(pm.InternTotal))
+		m.poolDedupHits.With(entry.name).Set(float64(pm.InternHits))
+		m.poolSlotsUsed.With(entry.name).Set(float64(pm.LiveSlots))
+	}
 }
 
 // RunRIBPlugin runs the RIB plugin using the SDK RPC protocol.
@@ -508,6 +558,10 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 			peerRIB.Insert(family, attrBytes, wirePrefix)
 		}
 
+		if m := metricsPtr.Load(); m != nil {
+			m.routeInserts.With(peerAddr, familyStr).Add(float64(len(prefixes)))
+		}
+
 		logger().Debug("pool: inserted routes", "peer", peerAddr, "family", familyStr,
 			"count", len(prefixes), "hex", hexNLRI[:min(16, len(hexNLRI))])
 	}
@@ -535,6 +589,10 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 		withdrawns := splitNLRIs(wdBytes, addPath)
 		for _, wd := range withdrawns {
 			peerRIB.Remove(family, wd)
+		}
+
+		if m := metricsPtr.Load(); m != nil {
+			m.routeWithdrawals.With(peerAddr, familyStr).Add(float64(len(withdrawns)))
 		}
 
 		logger().Debug("pool: withdrew routes", "peer", peerAddr, "family", familyStr, "count", len(withdrawns))

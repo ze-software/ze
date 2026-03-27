@@ -18,6 +18,14 @@ func (NopRegistry) CounterVec(string, string, []string) CounterVec { return nopC
 // GaugeVec returns a no-op GaugeVec.
 func (NopRegistry) GaugeVec(string, string, []string) GaugeVec { return nopGaugeVec{} }
 
+// Histogram returns a no-op Histogram.
+func (NopRegistry) Histogram(string, string, []float64) Histogram { return nopHistogram{} }
+
+// HistogramVec returns a no-op HistogramVec.
+func (NopRegistry) HistogramVec(string, string, []float64, []string) HistogramVec {
+	return nopHistogramVec{}
+}
+
 type nopCounter struct{}
 
 func (nopCounter) Inc()        {}
@@ -39,3 +47,12 @@ type nopGaugeVec struct{}
 
 func (nopGaugeVec) With(...string) Gauge  { return nopGauge{} }
 func (nopGaugeVec) Delete(...string) bool { return false }
+
+type nopHistogram struct{}
+
+func (nopHistogram) Observe(float64) {}
+
+type nopHistogramVec struct{}
+
+func (nopHistogramVec) With(...string) Histogram { return nopHistogram{} }
+func (nopHistogramVec) Delete(...string) bool    { return false }

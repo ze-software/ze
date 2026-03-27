@@ -36,6 +36,15 @@ func TestNopRegistry_NoOps(t *testing.T) {
 	gv.With("value").Inc()
 	gv.With("value").Dec()
 	gv.With("value").Add(-2)
+
+	// Histogram
+	h := reg.Histogram("test_hist", "help", []float64{1, 5})
+	h.Observe(2.5)
+
+	// HistogramVec
+	hv := reg.HistogramVec("test_hist_vec", "help", []float64{1, 5}, []string{"label"})
+	hv.With("value").Observe(2.5)
+	hv.Delete("value")
 }
 
 // TestNopRegistry_ImplementsRegistry verifies NopRegistry satisfies the Registry interface.
