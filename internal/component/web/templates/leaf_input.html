@@ -1,0 +1,33 @@
+{{define "leaf_input"}}
+<div class="config-field">
+  <label class="config-label" for="field-{{.Name}}" title="{{.Description}}">{{.Name}}</label>
+  {{if eq .InputType "checkbox"}}
+  <input type="checkbox" class="config-input config-checkbox" id="field-{{.Name}}" name="{{.Name}}"
+         {{if .Value}}checked{{end}} readonly disabled
+         title="{{.Description}}">
+  {{else if eq .InputType "select"}}
+  <select class="config-input config-select" id="field-{{.Name}}" name="{{.Name}}" readonly disabled
+          title="{{.Description}}">
+    {{range .Options}}
+    <option value="{{.}}"{{if eq . $.Value}} selected{{end}}>{{.}}</option>
+    {{end}}
+  </select>
+  {{else if eq .InputType "number"}}
+  <input type="number" class="config-input{{if not .IsConfigured}} default-value{{end}}" id="field-{{.Name}}" name="{{.Name}}"
+         value="{{.Value}}"
+         {{if .Min}}min="{{.Min}}"{{end}}
+         {{if .Max}}max="{{.Max}}"{{end}}
+         {{if and (not .IsConfigured) .Default}}placeholder="{{.Default}}"{{end}}
+         readonly
+         title="{{.Description}}">
+  {{else}}
+  <input type="text" class="config-input{{if not .IsConfigured}} default-value{{end}}" id="field-{{.Name}}" name="{{.Name}}"
+         value="{{.Value}}"
+         {{if .Pattern}}pattern="{{.Pattern}}"{{end}}
+         {{if and (not .IsConfigured) .Default}}placeholder="{{.Default}}"{{end}}
+         {{if .Placeholder}}placeholder="{{.Placeholder}}"{{end}}
+         readonly
+         title="{{.Description}}">
+  {{end}}
+</div>
+{{end}}

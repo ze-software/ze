@@ -1,0 +1,51 @@
+<div class="config-list-layout">
+  <div class="config-key-panel">
+    <h3 class="config-section-title">Keys</h3>
+    <ul class="config-key-list">
+      {{range .Keys}}
+      <li>
+        <a class="config-key-item{{if eq . $.SelectedKey}} selected{{end}}"
+           hx-get="{{$.BasePath}}{{.}}/" hx-target="#detail-panel" hx-push-url="true"
+           href="{{$.BasePath}}{{.}}/">{{.}}</a>
+      </li>
+      {{end}}
+    </ul>
+    <div class="config-key-actions">
+      <button class="config-btn config-btn-add" disabled title="Add (available in edit mode)">+ Add</button>
+    </div>
+  </div>
+
+  <div class="config-detail-panel" id="detail-panel">
+    {{if .SelectedDetail}}
+    <div class="config-container">
+      {{if .SelectedDetail.LeafFields}}
+      <section class="config-section">
+        <h3 class="config-section-title">Fields</h3>
+        <div class="config-fields">
+          {{range .SelectedDetail.LeafFields}}
+          {{template "leaf_input" .}}
+          {{end}}
+        </div>
+      </section>
+      {{end}}
+
+      {{if .SelectedDetail.Children}}
+      <section class="config-section">
+        <h3 class="config-section-title">Children</h3>
+        <ul class="config-nav-list">
+          {{range .SelectedDetail.Children}}
+          <li>
+            <a class="config-nav-link" hx-get="{{.URL}}" hx-target="#content-area" hx-push-url="true" href="{{.URL}}">{{.Name}}</a>
+          </li>
+          {{end}}
+        </ul>
+      </section>
+      {{end}}
+    </div>
+    {{else}}
+    <div class="config-empty-detail">
+      <p class="config-hint">Select an item from the list.</p>
+    </div>
+    {{end}}
+  </div>
+</div>

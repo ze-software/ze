@@ -1,0 +1,45 @@
+<div class="config-flex">
+  {{if and (not .Children) (not .Value)}}
+  {{/* Flag mode: just the name, no input */}}
+  <div class="config-flex-flag">
+    <span class="config-flex-name">{{.Name}}</span>
+    <span class="config-flex-indicator">enabled</span>
+  </div>
+
+  {{else if and .Value (not .Children)}}
+  {{/* Value mode: single input field */}}
+  <div class="config-flex-value">
+    <div class="config-fields">
+      {{template "leaf_input" .LeafField}}
+    </div>
+  </div>
+
+  {{else}}
+  {{/* Block mode: like container, list children */}}
+  <div class="config-container">
+    {{if .LeafFields}}
+    <section class="config-section">
+      <h3 class="config-section-title">Fields</h3>
+      <div class="config-fields">
+        {{range .LeafFields}}
+        {{template "leaf_input" .}}
+        {{end}}
+      </div>
+    </section>
+    {{end}}
+
+    {{if .Children}}
+    <section class="config-section">
+      <h3 class="config-section-title">Children</h3>
+      <ul class="config-nav-list">
+        {{range .Children}}
+        <li>
+          <a class="config-nav-link" hx-get="{{.URL}}" hx-target="#content-area" hx-push-url="true" href="{{.URL}}">{{.Name}}</a>
+        </li>
+        {{end}}
+      </ul>
+    </section>
+    {{end}}
+  </div>
+  {{end}}
+</div>

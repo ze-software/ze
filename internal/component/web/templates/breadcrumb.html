@@ -1,0 +1,10 @@
+{{if .BackURL}}
+<a class="breadcrumb-back" hx-get="{{.BackURL}}" hx-target="#content-area" hx-push-url="true" href="{{.BackURL}}">&#8592;</a>
+{{end}}
+<ol class="breadcrumb-list">
+  {{range .Segments}}
+  <li class="breadcrumb-item{{if .Active}} breadcrumb-active{{end}}">
+    {{if .Active}}<span>{{.Name}}</span>{{else}}<a hx-get="{{.URL}}" hx-target="#content-area" hx-push-url="true" href="{{.URL}}">{{.Name}}</a>{{end}}
+  </li>
+  {{end}}
+</ol>

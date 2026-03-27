@@ -1,4 +1,5 @@
 // Design: docs/architecture/web-interface.md -- Template rendering
+// Related: handler_config.go -- Config tree view handlers
 
 // Package web provides the ze web interface with template rendering and static assets.
 package web
@@ -45,6 +46,7 @@ type LoginData struct {
 type Renderer struct {
 	layout *template.Template
 	login  *template.Template
+	config map[string]*template.Template // keyed by template name (e.g., "container.html")
 	assets fs.FS
 }
 
@@ -65,6 +67,31 @@ func NewRenderer() (*Renderer, error) {
 		return nil, fmt.Errorf("parse login template: %w", err)
 	}
 
+	// Parse config view templates. Each includes the leaf_input partial.
+	configTemplateNames := []string{
+		"container.html",
+		"list.html",
+		"flex.html",
+		"freeform.html",
+		"inline_list.html",
+		"breadcrumb.html",
+	}
+
+	configTemplates := make(map[string]*template.Template, len(configTemplateNames))
+
+	for _, name := range configTemplateNames {
+		t, parseErr := template.New(name).Funcs(funcMap).ParseFS(
+			templatesFS,
+			"templates/"+name,
+			"templates/leaf_input.html",
+		)
+		if parseErr != nil {
+			return nil, fmt.Errorf("parse config template %s: %w", name, parseErr)
+		}
+
+		configTemplates[name] = t
+	}
+
 	assets, err := fs.Sub(assetsFS, "assets")
 	if err != nil {
 		return nil, fmt.Errorf("embedded assets sub-fs: %w", err)
@@ -73,8 +100,26 @@ func NewRenderer() (*Renderer, error) {
 	return &Renderer{
 		layout: layout,
 		login:  login,
+		config: configTemplates,
 		assets: assets,
 	}, nil
+}
+
+// RenderConfigTemplate renders a config view template by name with the given data.
+// The name should match a config template (e.g., "container.html", "list.html").
+func (r *Renderer) RenderConfigTemplate(w http.ResponseWriter, name string, data any) error {
+	t, ok := r.config[name]
+	if !ok {
+		return fmt.Errorf("unknown config template: %s", name)
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	if err := t.Execute(w, data); err != nil {
+		return fmt.Errorf("render config template %s: %w", name, err)
+	}
+
+	return nil
 }
 
 // RenderLayout renders the layout template with the given data to the response writer.

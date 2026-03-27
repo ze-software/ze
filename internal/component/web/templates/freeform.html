@@ -1,0 +1,12 @@
+<div class="config-freeform">
+  <h3 class="config-section-title">Entries</h3>
+  {{if .Entries}}
+  <ul class="config-freeform-list">
+    {{range .Entries}}
+    <li class="config-freeform-entry">{{.}}</li>
+    {{end}}
+  </ul>
+  {{else}}
+  <p class="config-hint">No entries configured.</p>
+  {{end}}
+</div>

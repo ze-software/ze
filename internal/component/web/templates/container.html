@@ -1,0 +1,38 @@
+<div class="config-container">
+  {{if .LeafFields}}
+  <section class="config-section">
+    <h3 class="config-section-title">Fields</h3>
+    <div class="config-fields">
+      {{range .LeafFields}}
+      {{template "leaf_input" .}}
+      {{end}}
+    </div>
+  </section>
+  {{end}}
+
+  {{if .ContainerChildren}}
+  <section class="config-section">
+    <h3 class="config-section-title">Containers</h3>
+    <ul class="config-nav-list">
+      {{range .ContainerChildren}}
+      <li>
+        <a class="config-nav-link" hx-get="{{.URL}}" hx-target="#content-area" hx-push-url="true" href="{{.URL}}">{{.Name}}</a>
+      </li>
+      {{end}}
+    </ul>
+  </section>
+  {{end}}
+
+  {{if .ListChildren}}
+  <section class="config-section">
+    <h3 class="config-section-title">Lists</h3>
+    <ul class="config-nav-list">
+      {{range .ListChildren}}
+      <li>
+        <a class="config-nav-link" hx-get="{{.URL}}" hx-target="#content-area" hx-push-url="true" href="{{.URL}}">{{.Name}}</a>
+      </li>
+      {{end}}
+    </ul>
+  </section>
+  {{end}}
+</div>
