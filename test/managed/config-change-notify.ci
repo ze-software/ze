@@ -13,13 +13,15 @@ set -e
 touch daemon.ready
 
 INIT_DIR=$(mktemp -d)
+DB="$INIT_DIR/database.zefs"
 trap 'rm -rf "$INIT_DIR"' EXIT
 
 # Init database
 printf 'admin\nsecret123\n127.0.0.1\n2222\nhub-01\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init
 
-# Write hub config with server block + client entries
-ZE_CONFIG_DIR="$INIT_DIR" ze data write hub-01.conf <<'CONF'
+# Validate hub config with server block + client entries
+ze config validate - <<'CONF' 2>&1 || {
+bgp { peer p1 { remote { ip 127.0.0.1; as 1; } local { as 1; ip 127.0.0.1; } router-id 1.2.3.4; } }
 plugin {
     hub {
         server central {
@@ -36,9 +38,6 @@ plugin {
     }
 }
 CONF
-
-# Validate config parses with multiple clients
-ZE_CONFIG_DIR="$INIT_DIR" ze config validate hub-01.conf 2>&1 || {
     echo "FAIL: hub config with client entries failed validation" >&2
     exit 1
 }

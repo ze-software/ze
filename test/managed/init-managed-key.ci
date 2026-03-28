@@ -16,7 +16,7 @@ trap 'rm -rf "$INIT_DIR"' EXIT
 printf 'admin\nsecret123\n127.0.0.1\n2222\n\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init --managed
 
 # Verify meta/instance/managed is true
-MANAGED=$(ZE_CONFIG_DIR="$INIT_DIR" ze data cat meta/instance/managed)
+MANAGED=$(ze data --path "$INIT_DIR/database.zefs" cat meta/instance/managed)
 [ "$MANAGED" = "true" ] || { echo "FAIL: meta/instance/managed expected 'true', got '$MANAGED'" >&2; exit 1; }
 
 echo "OK: ze init --managed sets meta/instance/managed=true" >&2

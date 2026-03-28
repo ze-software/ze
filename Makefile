@@ -1,6 +1,6 @@
 .PHONY: all build ze chaos test analyse clean fmt vet tidy generate help
 .PHONY: ze-lint ze-unit-test ze-unit-test-cover ze-functional-test ze-exabgp-test ze-fuzz-test ze-fuzz-one ze-test ze-verify ze-ci
-.PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test
+.PHONY: ze-encode-test ze-plugin-test ze-decode-test ze-parse-test ze-reload-test ze-ui-test ze-editor-test ze-managed-test
 .PHONY: ze-chaos-lint ze-chaos-unit-test ze-chaos-functional-test ze-chaos-web-test ze-chaos-test ze-chaos-verify
 .PHONY: ze-all ze-all-test
 .PHONY: ze-interop-test ze-live-test ze-live-rpki-test
@@ -115,6 +115,7 @@ ze-functional-test: bin/ze bin/ze-test
 	bin/ze-test bgp reload --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }reload"; }; \
 	bin/ze-test ui --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }ui"; }; \
 	bin/ze-test editor || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }editor"; }; \
+	bin/ze-test managed --all || { failed=$$((failed + 1)); failed_names="$${failed_names:+$$failed_names }managed"; }; \
 	if [ $$failed -gt 0 ]; then \
 		printf "\n════════════════════════════════════════\n"; \
 		printf "\033[31mFAIL  %d suite(s) failed: %s\033[0m\n" $$failed "$$failed_names"; \
@@ -126,7 +127,7 @@ ze-functional-test: bin/ze bin/ze-test
 		exit 1; \
 	else \
 		printf "\n════════════════════════════════════════\n"; \
-		printf "\033[32mPASS  all 7 suites\033[0m\n\n"; \
+		printf "\033[32mPASS  all 8 suites\033[0m\n\n"; \
 	fi
 
 # Run ze functional test suites individually
@@ -150,6 +151,9 @@ ze-ui-test: bin/ze-test
 
 ze-editor-test: bin/ze-test
 	@bin/ze-test editor
+
+ze-managed-test: bin/ze-test
+	@bin/ze-test managed --all
 
 # Run ze fuzz tests (all targets, 15s each)
 # Note: multiple fuzz tests per package require individual enumeration (-fuzz=. fails with "matches more than one").

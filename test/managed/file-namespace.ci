@@ -13,6 +13,7 @@ set -e
 touch daemon.ready
 
 INIT_DIR=$(mktemp -d)
+DB="$INIT_DIR/database.zefs"
 trap 'rm -rf "$INIT_DIR"' EXIT
 
 # Bootstrap database first
@@ -20,10 +21,10 @@ printf 'admin\nsecret123\n127.0.0.1\n2222\n\n' | ZE_CONFIG_DIR="$INIT_DIR" ze in
 
 # Import a config file
 echo "router-id 1.1.1.1" > "$INIT_DIR/test-router.conf"
-ZE_CONFIG_DIR="$INIT_DIR" ze data import "$INIT_DIR/test-router.conf"
+ze data --path "$DB" import "$INIT_DIR/test-router.conf"
 
 # Verify file/ namespace keys exist
-FILE_KEYS=$(ZE_CONFIG_DIR="$INIT_DIR" ze data ls file/)
+FILE_KEYS=$(ze data --path "$DB" ls)
 echo "$FILE_KEYS" >&2
 
 echo "$FILE_KEYS" | grep -q "file/active/" || { echo "FAIL: no file/active/ key found" >&2; exit 1; }

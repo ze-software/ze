@@ -10,24 +10,23 @@ set -e
 touch daemon.ready
 
 INIT_DIR=$(mktemp -d)
+DB="$INIT_DIR/database.zefs"
 trap 'rm -rf "$INIT_DIR"' EXIT
 
 # Init with --managed flag
 printf 'admin\nsecret123\n127.0.0.1\n2222\nedge-01\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init --managed
 
 # Verify managed flag is set
-MANAGED=$(ZE_CONFIG_DIR="$INIT_DIR" ze data cat meta/instance/managed)
+MANAGED=$(ze data --path "$DB" cat meta/instance/managed)
 [ "$MANAGED" = "true" ] || { echo "FAIL: not managed" >&2; exit 1; }
 
 # Write a cached config (simulating previous successful fetch)
-ZE_CONFIG_DIR="$INIT_DIR" ze data write edge-01.conf <<'CONF'
+cat > "$INIT_DIR/edge-01.conf" <<'CONF'
 bgp {
-    peer 127.0.0.1 {
+    peer p1 {
+        remote { ip 127.0.0.1; as 65001; }
+        local { ip 127.0.0.1; as 65000; }
         router-id 1.2.3.4;
-        local-address 127.0.0.1;
-        local-as 65000;
-        peer-as 65001;
-        connect false;
     }
 }
 plugin {
@@ -45,9 +44,10 @@ plugin {
     }
 }
 CONF
+ze data --path "$DB" import "$INIT_DIR/edge-01.conf"
 
 # Verify cached config exists
-ZE_CONFIG_DIR="$INIT_DIR" ze data ls 2>&1 | grep -q "edge-01.conf" || {
+ze data --path "$DB" ls 2>&1 | grep -q "edge-01.conf" || {
     echo "FAIL: cached config not found" >&2
     exit 1
 }

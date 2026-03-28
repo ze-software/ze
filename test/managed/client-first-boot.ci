@@ -10,13 +10,14 @@ set -e
 touch daemon.ready
 
 INIT_DIR=$(mktemp -d)
+DB="$INIT_DIR/database.zefs"
 trap 'rm -rf "$INIT_DIR"' EXIT
 
 # Init with --managed flag and instance name
 printf 'admin\nsecret123\n127.0.0.1\n2222\nedge-01\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init --managed
 
 # Verify managed flag
-MANAGED=$(ZE_CONFIG_DIR="$INIT_DIR" ze data cat meta/instance/managed)
+MANAGED=$(ze data --path "$DB" cat meta/instance/managed)
 [ "$MANAGED" = "true" ] || { echo "FAIL: not managed" >&2; exit 1; }
 
 # First boot without hub info should fail with clear error (AC-6)

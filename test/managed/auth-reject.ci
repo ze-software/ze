@@ -10,13 +10,14 @@ set -e
 touch daemon.ready
 
 INIT_DIR=$(mktemp -d)
+DB="$INIT_DIR/database.zefs"
 trap 'rm -rf "$INIT_DIR"' EXIT
 
 # Init a database
 printf 'admin\nsecret123\n127.0.0.1\n2222\n\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init
 
-# Write a config with a short client secret (should fail validation)
-ZE_CONFIG_DIR="$INIT_DIR" ze data write ze.conf <<'CONF'
+# Validate should fail due to short client secret
+if ze config validate - <<'CONF' 2>&1; then
 plugin {
     hub {
         server central {
@@ -30,9 +31,6 @@ plugin {
     }
 }
 CONF
-
-# Validate should fail due to short client secret
-if ZE_CONFIG_DIR="$INIT_DIR" ze config validate ze.conf 2>&1; then
     echo "FAIL: expected validation failure for short client secret" >&2
     exit 1
 fi

@@ -41,6 +41,8 @@ func main() {
 		os.Exit(editorCmd())
 	case "ui":
 		os.Exit(uiCmd())
+	case "managed":
+		os.Exit(managedCmd())
 	case "peer":
 		os.Exit(peerCmd())
 	case "syslog":
@@ -70,6 +72,7 @@ Commands:
   bgp          Run BGP functional tests (encoding, plugin, decoding, parsing)
   editor       Run editor functional tests (.et files)
   ui           Run UI functional tests (completion, CLI)
+  managed      Run managed config tests (hub, auth, fleet)
   peer         BGP test peer (sink/echo/check modes)
   rpki         Deterministic RPKI mock server (IP modulo for validation state)
   peeringdb    Deterministic PeeringDB mock server (ASN-derived prefix counts)
