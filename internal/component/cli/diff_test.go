@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	"github.com/charmbracelet/bubbles/viewport"
+	"charm.land/bubbles/v2/viewport"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -292,7 +292,7 @@ func TestAnnotateContentWithGutterNewBlock(t *testing.T) {
 // VALIDATES: The rendering pipeline applies diff gutter when originalContent differs.
 // PREVENTS: Gutter algorithm working in isolation but not wired into viewport display.
 func TestSetViewportDataAppliesGutter(t *testing.T) {
-	vp := viewport.New(80, 24)
+	vp := viewport.New(viewport.WithWidth(80), viewport.WithHeight(24))
 	m := Model{viewport: vp}
 
 	m.setViewportData(viewportData{
@@ -311,7 +311,7 @@ func TestSetViewportDataAppliesGutter(t *testing.T) {
 // VALIDATES: Empty originalContent with content triggers all '+' gutter markers.
 // PREVENTS: Guard skipping gutter for newly-added config blocks.
 func TestSetViewportDataNewBlockGutter(t *testing.T) {
-	vp := viewport.New(80, 24)
+	vp := viewport.New(viewport.WithWidth(80), viewport.WithHeight(24))
 	m := Model{viewport: vp}
 
 	m.setViewportData(viewportData{

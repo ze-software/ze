@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
 )
@@ -62,7 +62,7 @@ func (m *Model) SwitchMode(target EditorMode) {
 	// Save current mode's state
 	m.modeStates[m.mode] = modeState{
 		viewportContent: m.viewportContent,
-		viewportYOffset: m.viewport.YOffset,
+		viewportYOffset: m.viewport.YOffset(),
 		showViewport:    m.showViewport,
 		statusMessage:   m.statusMessage,
 		histSnap:        m.history.snapshot(),
@@ -79,7 +79,7 @@ func (m *Model) SwitchMode(target EditorMode) {
 	m.history.restore(saved.histSnap)
 
 	m.viewport.SetContent(saved.viewportContent)
-	m.viewport.YOffset = saved.viewportYOffset
+	m.viewport.SetYOffset(saved.viewportYOffset)
 
 	// Warn when entering command mode without a daemon connection
 	if target == ModeCommand && m.commandExecutor == nil {

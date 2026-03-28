@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -165,7 +165,7 @@ func TestModelStatusMessageDisplay(t *testing.T) {
 	model.statusMessage = "Test status message"
 
 	// View should contain the status message
-	view := model.View()
+	view := model.View().Content
 	assert.Contains(t, view, "Test status message", "status message should appear in view")
 	assert.Contains(t, view, "►", "status message should have indicator prefix")
 }
@@ -359,7 +359,7 @@ func TestModelStatusBarErrorIndicator(t *testing.T) {
 	require.NotEmpty(t, model.validationErrors, "should have errors")
 
 	// View should show error indicator
-	view := model.View()
+	view := model.View().Content
 	assert.Contains(t, view, "error", "status bar should show error indicator")
 }
 
@@ -383,7 +383,7 @@ func TestModelKeyrunesTriggersValidation(t *testing.T) {
 	initialID := model.validationID
 
 	// Send KeyRunes message (typing 'a')
-	newModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
+	newModel, cmd := model.Update(tea.KeyPressMsg{Code: 'a', Text: "a"})
 	updatedModel, ok := newModel.(Model)
 	require.True(t, ok, "Update should return a Model")
 
@@ -945,7 +945,7 @@ func TestViewRendersWithoutEditor(t *testing.T) {
 	m.height = 24
 
 	// Should not panic
-	output := m.View()
+	output := m.View().Content
 	assert.Contains(t, output, "Ze CLI", "header should say Ze CLI, not Ze Editor")
 	assert.NotContains(t, output, "[modified]", "should not show modified indicator")
 }
@@ -982,19 +982,19 @@ func TestShiftArrowLineScroll(t *testing.T) {
 	// Populate viewport with scrollable content
 	m.viewport.SetContent(strings.Repeat("line\n", 100))
 	m.showViewport = true
-	initialOffset := m.viewport.YOffset
+	initialOffset := m.viewport.YOffset()
 
 	// Shift+Down should scroll exactly one line
-	newModel, _ = m.handleKeyMsg(tea.KeyMsg{Type: tea.KeyShiftDown})
+	newModel, _ = m.handleKeyMsg(tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModShift})
 	m, ok = newModel.(Model)
 	require.True(t, ok)
-	assert.Equal(t, initialOffset+1, m.viewport.YOffset, "Shift+Down should scroll down one line")
+	assert.Equal(t, initialOffset+1, m.viewport.YOffset(), "Shift+Down should scroll down one line")
 
 	// Shift+Up should scroll back one line
-	newModel, _ = m.handleKeyMsg(tea.KeyMsg{Type: tea.KeyShiftUp})
+	newModel, _ = m.handleKeyMsg(tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModShift})
 	m, ok = newModel.(Model)
 	require.True(t, ok)
-	assert.Equal(t, initialOffset, m.viewport.YOffset, "Shift+Up should scroll up one line")
+	assert.Equal(t, initialOffset, m.viewport.YOffset(), "Shift+Up should scroll up one line")
 }
 
 // TestCtrlArrowPageScroll verifies that Ctrl+Up/Down scrolls the viewport one page.
@@ -1029,20 +1029,20 @@ func TestCtrlArrowPageScroll(t *testing.T) {
 	// Scroll down to populate some offset
 	m.viewport.SetContent(strings.Repeat("line\n", 100))
 	m.showViewport = true
-	initialOffset := m.viewport.YOffset
+	initialOffset := m.viewport.YOffset()
 
 	// Ctrl+Down should page down
-	newModel, _ = m.handleKeyMsg(tea.KeyMsg{Type: tea.KeyCtrlDown})
+	newModel, _ = m.handleKeyMsg(tea.KeyPressMsg{Code: tea.KeyDown, Mod: tea.ModCtrl})
 	m, ok = newModel.(Model)
 	require.True(t, ok)
-	assert.Greater(t, m.viewport.YOffset, initialOffset, "Ctrl+Down should scroll down")
+	assert.Greater(t, m.viewport.YOffset(), initialOffset, "Ctrl+Down should scroll down")
 
 	// Ctrl+Up should page up
-	afterDown := m.viewport.YOffset
-	newModel, _ = m.handleKeyMsg(tea.KeyMsg{Type: tea.KeyCtrlUp})
+	afterDown := m.viewport.YOffset()
+	newModel, _ = m.handleKeyMsg(tea.KeyPressMsg{Code: tea.KeyUp, Mod: tea.ModCtrl})
 	m, ok = newModel.(Model)
 	require.True(t, ok)
-	assert.Less(t, m.viewport.YOffset, afterDown, "Ctrl+Up should scroll up")
+	assert.Less(t, m.viewport.YOffset(), afterDown, "Ctrl+Up should scroll up")
 }
 
 // --- Phase 5: Plugin CLI tests ---
@@ -1097,7 +1097,7 @@ func TestModelDisplaysLoginWarnings(t *testing.T) {
 		{Message: "3 peer(s) have stale prefix data", Command: "ze update bgp peer * prefix"},
 	})
 
-	view := m.View()
+	view := m.View().Content
 	assert.Contains(t, view, "3 peer(s) have stale prefix data", "warning message should appear")
 	assert.Contains(t, view, "ze update bgp peer * prefix", "actionable command should appear")
 }
@@ -1112,7 +1112,7 @@ func TestModelNoLoginWarnings(t *testing.T) {
 	m.height = 24
 
 	// No SetLoginWarnings called -- loginWarnings is nil
-	view := m.View()
+	view := m.View().Content
 	assert.NotContains(t, view, "warning:", "no warning block should appear")
 	assert.NotContains(t, view, "run:", "no command suggestion should appear")
 }
@@ -1131,7 +1131,7 @@ func TestModelMultipleLoginWarnings(t *testing.T) {
 		{Message: "RPKI cache expired", Command: "ze update rpki"},
 	})
 
-	view := m.View()
+	view := m.View().Content
 	assert.Contains(t, view, "3 peer(s) have stale prefix data")
 	assert.Contains(t, view, "RPKI cache expired")
 	assert.Contains(t, view, "ze update bgp peer * prefix")
@@ -1162,7 +1162,7 @@ func TestModelDisplaysLoginWarningsWithEditor(t *testing.T) {
 		{Message: "2 peer(s) have stale prefix data", Command: "ze update bgp peer * prefix"},
 	})
 
-	view := model.View()
+	view := model.View().Content
 	assert.Contains(t, view, "2 peer(s) have stale prefix data", "warning should appear in editor mode")
 	assert.Contains(t, view, "ze update bgp peer * prefix", "command should appear in editor mode")
 }
@@ -1180,7 +1180,7 @@ func TestWarningWithEmptyCommand(t *testing.T) {
 		{Message: "software update available", Command: ""},
 	})
 
-	view := m.View()
+	view := m.View().Content
 	assert.Contains(t, view, "software update available", "warning message should appear")
 	assert.NotContains(t, view, "run:", "no run line when Command is empty")
 }
@@ -1198,7 +1198,7 @@ func TestWarningWithEmptyMessage(t *testing.T) {
 		{Message: "", Command: "ze update rpki"},
 	})
 
-	view := m.View()
+	view := m.View().Content
 	assert.NotContains(t, view, "warning:", "empty message should not render warning line")
 	assert.NotContains(t, view, "run:", "empty message warning should not render command line")
 }

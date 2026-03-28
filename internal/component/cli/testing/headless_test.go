@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -56,9 +56,9 @@ func TestHeadlessModelSendKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// Send some key messages
-	err = hm.SendMsg(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e'}})
+	err = hm.SendMsg(tea.KeyPressMsg{Code: 'e', Text: "e"})
 	require.NoError(t, err)
-	err = hm.SendMsg(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'d'}})
+	err = hm.SendMsg(tea.KeyPressMsg{Code: 'd', Text: "d"})
 	require.NoError(t, err)
 
 	// Input should be captured (model processes it)

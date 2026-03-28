@@ -3,22 +3,22 @@ package testing
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// requireKeyMsg extracts a KeyMsg from a tea.Msg, failing if not possible.
-func requireKeyMsg(t *testing.T, msg tea.Msg) tea.KeyMsg {
+// requireKeyPress extracts a KeyPressMsg from a tea.Msg, failing if not possible.
+func requireKeyPress(t *testing.T, msg tea.Msg) tea.KeyPressMsg {
 	t.Helper()
-	km, ok := msg.(tea.KeyMsg)
-	require.True(t, ok, "expected tea.KeyMsg, got %T", msg)
+	km, ok := msg.(tea.KeyPressMsg)
+	require.True(t, ok, "expected tea.KeyPressMsg, got %T", msg)
 	return km
 }
 
-// TestInputTypeToMessages verifies typed text becomes KeyRunes messages.
+// TestInputTypeToMessages verifies typed text becomes KeyPressMsg messages.
 //
-// VALIDATES: Each character in text input produces a KeyRunes message.
+// VALIDATES: Each character in text input produces a KeyPressMsg with text.
 // PREVENTS: Text not delivered to editor character by character.
 func TestInputTypeToMessages(t *testing.T) {
 	inp := Input{Kind: "type", Text: "abc"}
@@ -26,22 +26,21 @@ func TestInputTypeToMessages(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, msgs, 3)
 
-	// Each character should be a KeyRunes message
+	// Each character should be a KeyPressMsg with Text set
 	for i, msg := range msgs {
-		km := requireKeyMsg(t, msg)
-		assert.Equal(t, tea.KeyRunes, km.Type, "message %d", i)
-		assert.Len(t, km.Runes, 1, "message %d", i)
+		km := requireKeyPress(t, msg)
+		assert.NotEmpty(t, km.Text, "message %d should have text", i)
 	}
 
 	// Check actual characters
-	assert.Equal(t, 'a', requireKeyMsg(t, msgs[0]).Runes[0])
-	assert.Equal(t, 'b', requireKeyMsg(t, msgs[1]).Runes[0])
-	assert.Equal(t, 'c', requireKeyMsg(t, msgs[2]).Runes[0])
+	assert.Equal(t, "a", requireKeyPress(t, msgs[0]).Text)
+	assert.Equal(t, "b", requireKeyPress(t, msgs[1]).Text)
+	assert.Equal(t, "c", requireKeyPress(t, msgs[2]).Text)
 }
 
 // TestInputTypeWithSpaces verifies spaces are preserved.
 //
-// VALIDATES: Spaces in text input become KeyRunes messages.
+// VALIDATES: Spaces in text input become KeyPressMsg messages.
 // PREVENTS: Spaces lost during conversion.
 func TestInputTypeWithSpaces(t *testing.T) {
 	inp := Input{Kind: "type", Text: "edit bgp"}
@@ -50,12 +49,12 @@ func TestInputTypeWithSpaces(t *testing.T) {
 	require.Len(t, msgs, 8)
 
 	// Check space character
-	assert.Equal(t, ' ', requireKeyMsg(t, msgs[4]).Runes[0])
+	assert.Equal(t, " ", requireKeyPress(t, msgs[4]).Text)
 }
 
 // TestInputKeyTab verifies tab key conversion.
 //
-// VALIDATES: input=tab produces KeyTab message.
+// VALIDATES: input=tab produces KeyPressMsg with KeyTab code.
 // PREVENTS: Tab completion not triggering.
 func TestInputKeyTab(t *testing.T) {
 	inp := Input{Kind: "key", Key: "tab"}
@@ -63,13 +62,13 @@ func TestInputKeyTab(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, msgs, 1)
 
-	km := requireKeyMsg(t, msgs[0])
-	assert.Equal(t, tea.KeyTab, km.Type)
+	km := requireKeyPress(t, msgs[0])
+	assert.Equal(t, tea.KeyTab, km.Code)
 }
 
 // TestInputKeyEnter verifies enter key conversion.
 //
-// VALIDATES: input=enter produces KeyEnter message.
+// VALIDATES: input=enter produces KeyPressMsg with KeyEnter code.
 // PREVENTS: Commands not executing.
 func TestInputKeyEnter(t *testing.T) {
 	inp := Input{Kind: "key", Key: "enter"}
@@ -77,18 +76,18 @@ func TestInputKeyEnter(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, msgs, 1)
 
-	km := requireKeyMsg(t, msgs[0])
-	assert.Equal(t, tea.KeyEnter, km.Type)
+	km := requireKeyPress(t, msgs[0])
+	assert.Equal(t, tea.KeyEnter, km.Code)
 }
 
 // TestInputKeyArrows verifies arrow key conversion.
 //
-// VALIDATES: Arrow keys produce correct KeyMsg types.
+// VALIDATES: Arrow keys produce correct KeyPressMsg codes.
 // PREVENTS: Navigation not working in dropdown.
 func TestInputKeyArrows(t *testing.T) {
 	tests := []struct {
 		key      string
-		expected tea.KeyType
+		expected rune
 	}{
 		{"up", tea.KeyUp},
 		{"down", tea.KeyDown},
@@ -102,14 +101,14 @@ func TestInputKeyArrows(t *testing.T) {
 			msgs, err := inp.ToMessages()
 			require.NoError(t, err)
 			require.Len(t, msgs, 1)
-			assert.Equal(t, tt.expected, requireKeyMsg(t, msgs[0]).Type)
+			assert.Equal(t, tt.expected, requireKeyPress(t, msgs[0]).Code)
 		})
 	}
 }
 
 // TestInputKeyEscape verifies escape key conversion.
 //
-// VALIDATES: Both "esc" and "escape" produce KeyEscape.
+// VALIDATES: Both "esc" and "escape" produce KeyEscape code.
 // PREVENTS: Escape not closing dropdown.
 func TestInputKeyEscape(t *testing.T) {
 	for _, key := range []string{"esc", "escape"} {
@@ -118,7 +117,7 @@ func TestInputKeyEscape(t *testing.T) {
 			msgs, err := inp.ToMessages()
 			require.NoError(t, err)
 			require.Len(t, msgs, 1)
-			assert.Equal(t, tea.KeyEscape, requireKeyMsg(t, msgs[0]).Type)
+			assert.Equal(t, tea.KeyEscape, requireKeyPress(t, msgs[0]).Code)
 		})
 	}
 }
@@ -128,11 +127,11 @@ func TestInputKeyEscape(t *testing.T) {
 // VALIDATES: Special keys (backspace, delete, etc.) convert correctly.
 // PREVENTS: Text editing keys not working.
 func TestInputKeySpecial(t *testing.T) {
-	// Note: "space" is handled specially - it returns KeyRunes{' '} for textinput
-	// compatibility, not KeySpace. See TestInputSpaceSpecial for that case.
+	// Note: "space" is handled specially - it returns a KeyPressMsg with Text=" "
+	// for textinput text insertion. See TestInputSpaceSpecial for that case.
 	tests := []struct {
 		key      string
-		expected tea.KeyType
+		expected rune
 	}{
 		{"backspace", tea.KeyBackspace},
 		{"delete", tea.KeyDelete},
@@ -141,7 +140,6 @@ func TestInputKeySpecial(t *testing.T) {
 		{"pgup", tea.KeyPgUp},
 		{"pgdn", tea.KeyPgDown},
 		{"pgdown", tea.KeyPgDown},
-		{"shift+tab", tea.KeyShiftTab},
 	}
 
 	for _, tt := range tests {
@@ -150,23 +148,36 @@ func TestInputKeySpecial(t *testing.T) {
 			msgs, err := inp.ToMessages()
 			require.NoError(t, err)
 			require.Len(t, msgs, 1)
-			assert.Equal(t, tt.expected, requireKeyMsg(t, msgs[0]).Type)
+			assert.Equal(t, tt.expected, requireKeyPress(t, msgs[0]).Code)
 		})
 	}
 }
 
-// TestInputSpaceSpecial verifies space is converted to KeyRunes for textinput.
+// TestInputShiftTab verifies shift+tab uses modifier.
 //
-// VALIDATES: Space input inserts a space character (not KeySpace event).
+// VALIDATES: shift+tab produces KeyTab with ModShift.
+// PREVENTS: Shift+Tab not working for reverse tab completion.
+func TestInputShiftTab(t *testing.T) {
+	inp := Input{Kind: "key", Key: "shift+tab"}
+	msgs, err := inp.ToMessages()
+	require.NoError(t, err)
+	require.Len(t, msgs, 1)
+	km := requireKeyPress(t, msgs[0])
+	assert.Equal(t, tea.KeyTab, km.Code)
+	assert.True(t, km.Mod.Contains(tea.ModShift), "shift+tab should have ModShift")
+}
+
+// TestInputSpaceSpecial verifies space is converted to text for textinput.
+//
+// VALIDATES: Space input inserts a space character via Text field.
 // PREVENTS: Space not inserting text in textinput.
 func TestInputSpaceSpecial(t *testing.T) {
 	inp := Input{Kind: "key", Key: "space"}
 	msgs, err := inp.ToMessages()
 	require.NoError(t, err)
 	require.Len(t, msgs, 1)
-	keyMsg := requireKeyMsg(t, msgs[0])
-	assert.Equal(t, tea.KeyRunes, keyMsg.Type, "space should be KeyRunes, not KeySpace")
-	assert.Equal(t, []rune{' '}, keyMsg.Runes, "space should insert a space character")
+	km := requireKeyPress(t, msgs[0])
+	assert.Equal(t, " ", km.Text, "space should produce Text=\" \"")
 }
 
 // TestInputKeyUnknown verifies error on unknown key.
@@ -182,7 +193,7 @@ func TestInputKeyUnknown(t *testing.T) {
 
 // TestInputCtrlC verifies ctrl+c conversion.
 //
-// VALIDATES: Ctrl+C produces correct KeyMsg.
+// VALIDATES: Ctrl+C produces KeyPressMsg with ModCtrl.
 // PREVENTS: Ctrl combinations not working.
 func TestInputCtrlC(t *testing.T) {
 	inp := Input{Kind: "ctrl", Key: "c"}
@@ -190,14 +201,14 @@ func TestInputCtrlC(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, msgs, 1)
 
-	km := requireKeyMsg(t, msgs[0])
-	// Ctrl+C is KeyCtrlC (KeyCtrlA + 2)
-	assert.Equal(t, tea.KeyCtrlC, km.Type)
+	km := requireKeyPress(t, msgs[0])
+	assert.Equal(t, 'c', km.Code)
+	assert.True(t, km.Mod.Contains(tea.ModCtrl), "ctrl+c should have ModCtrl")
 }
 
 // TestInputCtrlU verifies ctrl+u conversion.
 //
-// VALIDATES: Ctrl+U produces correct KeyMsg for clearing line.
+// VALIDATES: Ctrl+U produces KeyPressMsg with ModCtrl for clearing line.
 // PREVENTS: Line clear not working.
 func TestInputCtrlU(t *testing.T) {
 	inp := Input{Kind: "ctrl", Key: "u"}
@@ -205,9 +216,9 @@ func TestInputCtrlU(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, msgs, 1)
 
-	km := requireKeyMsg(t, msgs[0])
-	// Ctrl+U is KeyCtrlU (KeyCtrlA + 20)
-	assert.Equal(t, tea.KeyCtrlU, km.Type)
+	km := requireKeyPress(t, msgs[0])
+	assert.Equal(t, 'u', km.Code)
+	assert.True(t, km.Mod.Contains(tea.ModCtrl), "ctrl+u should have ModCtrl")
 }
 
 // TestInputCtrlInvalid verifies error on invalid ctrl key.
@@ -259,9 +270,9 @@ func TestInputsToMessages(t *testing.T) {
 	// "hi" = 2 messages, enter = 1 message
 	require.Len(t, msgs, 3)
 
-	// First two are type
-	assert.Equal(t, tea.KeyRunes, requireKeyMsg(t, msgs[0]).Type)
-	assert.Equal(t, tea.KeyRunes, requireKeyMsg(t, msgs[1]).Type)
+	// First two are text characters
+	assert.NotEmpty(t, requireKeyPress(t, msgs[0]).Text)
+	assert.NotEmpty(t, requireKeyPress(t, msgs[1]).Text)
 	// Last is enter
-	assert.Equal(t, tea.KeyEnter, requireKeyMsg(t, msgs[2]).Type)
+	assert.Equal(t, tea.KeyEnter, requireKeyPress(t, msgs[2]).Code)
 }

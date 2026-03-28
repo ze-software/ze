@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 )
@@ -302,31 +302,31 @@ func (hm *HeadlessModel) processMsg(msg tea.Msg, depth int) {
 	}
 }
 
-// TypeText sends each character as a KeyRunes message.
+// TypeText sends each character as a KeyPressMsg.
 func (hm *HeadlessModel) TypeText(text string) {
 	for _, r := range text {
-		_ = hm.SendMsg(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		_ = hm.SendMsg(tea.KeyPressMsg{Code: r, Text: string(r)})
 	}
 }
 
 // PressEnter sends an Enter key message.
 func (hm *HeadlessModel) PressEnter() {
-	_ = hm.SendMsg(tea.KeyMsg{Type: tea.KeyEnter})
+	_ = hm.SendMsg(tea.KeyPressMsg{Code: tea.KeyEnter})
 }
 
 // PressTab sends a Tab key message.
 func (hm *HeadlessModel) PressTab() {
-	_ = hm.SendMsg(tea.KeyMsg{Type: tea.KeyTab})
+	_ = hm.SendMsg(tea.KeyPressMsg{Code: tea.KeyTab})
 }
 
 // PressEsc sends an Escape key message.
 func (hm *HeadlessModel) PressEsc() {
-	_ = hm.SendMsg(tea.KeyMsg{Type: tea.KeyEscape})
+	_ = hm.SendMsg(tea.KeyPressMsg{Code: tea.KeyEscape})
 }
 
 // ClearInput sends Ctrl+U to clear the input line.
 func (hm *HeadlessModel) ClearInput() {
-	_ = hm.SendMsg(tea.KeyMsg{Type: tea.KeyCtrlU})
+	_ = hm.SendMsg(tea.KeyPressMsg{Code: 'u', Mod: tea.ModCtrl})
 }
 
 // --- State Accessors ---

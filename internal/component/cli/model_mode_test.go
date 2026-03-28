@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -316,23 +317,29 @@ func TestModeScrollRestore(t *testing.T) {
 	// PREVENTS: losing scroll position when toggling modes
 	m := newTestModel(t)
 
-	// Set viewport content and scroll down in edit mode
-	longContent := "line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10"
+	// Set viewport content and scroll down in edit mode.
+	// Content must exceed viewport height (20) for SetYOffset to work in bubbles v2
+	// which clamps to the available scrollable range.
+	var lines []string
+	for i := 1; i <= 30; i++ {
+		lines = append(lines, fmt.Sprintf("line%d", i))
+	}
+	longContent := strings.Join(lines, "\n")
 	m.setViewportText(longContent)
-	m.viewport.YOffset = 5
+	m.viewport.SetYOffset(5)
 
 	// Switch to command mode
 	m.SwitchMode(ModeCommand)
 
-	if m.viewport.YOffset != 0 {
-		t.Errorf("expected YOffset 0 in fresh command mode, got %d", m.viewport.YOffset)
+	if m.viewport.YOffset() != 0 {
+		t.Errorf("expected YOffset 0 in fresh command mode, got %d", m.viewport.YOffset())
 	}
 
 	// Switch back to edit — scroll position should be restored
 	m.SwitchMode(ModeEdit)
 
-	if m.viewport.YOffset != 5 {
-		t.Errorf("expected YOffset 5 restored in edit mode, got %d", m.viewport.YOffset)
+	if m.viewport.YOffset() != 5 {
+		t.Errorf("expected YOffset 5 restored in edit mode, got %d", m.viewport.YOffset())
 	}
 }
 

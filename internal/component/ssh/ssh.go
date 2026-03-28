@@ -21,11 +21,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/wish/v2"
+	"charm.land/wish/v2/activeterm"
+	"charm.land/wish/v2/bubbletea"
 	"github.com/charmbracelet/ssh"
-	"github.com/charmbracelet/wish"
-	"github.com/charmbracelet/wish/activeterm"
-	"github.com/charmbracelet/wish/bubbletea"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -493,5 +493,5 @@ func (s *Server) teaHandler(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
 	username := sess.User()
 	model := s.createSessionModel(username)
 	s.logger.Info("SSH session started", "user", username, "remote", sess.RemoteAddr().String())
-	return model, []tea.ProgramOption{tea.WithAltScreen()}
+	return model, []tea.ProgramOption{}
 }

@@ -3,7 +3,7 @@ package cli
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // TestRestartFuncSurvivesUpdateChain verifies that restartFunc set via
@@ -27,7 +27,7 @@ func TestRestartFuncSurvivesUpdateChain(t *testing.T) {
 
 	// Type "restart" character by character (same as TypeText).
 	for i, r := range "restart" {
-		newM, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		newM, _ = m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
 		m, _ = newM.(Model) //nolint:errcheck // type assertion always succeeds
 		if m.restartFunc == nil {
 			t.Fatalf("restartFunc nil after typing character %d (%c)", i, r)
@@ -35,7 +35,7 @@ func TestRestartFuncSurvivesUpdateChain(t *testing.T) {
 	}
 
 	// Press Enter.
-	newM, _ = m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	newM, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m, _ = newM.(Model) //nolint:errcheck // type assertion always succeeds
 
 	t.Logf("status after Enter: %q", m.statusMessage)
@@ -62,7 +62,7 @@ func TestRestartFuncSurvivesWithCmdProcessing(t *testing.T) {
 
 	// Process each character AND its returned command (simulates headless model).
 	for i, r := range "restart" {
-		newM, cmd := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+		newM, cmd := m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
 		m, _ = newM.(Model) //nolint:errcheck // type assertion always succeeds
 
 		// Process command (same as headless processCmd).
@@ -80,7 +80,7 @@ func TestRestartFuncSurvivesWithCmdProcessing(t *testing.T) {
 	}
 
 	// Press Enter + process cmd.
-	newM, cmd := m.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	newM, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	m, _ = newM.(Model) //nolint:errcheck // type assertion always succeeds
 	if cmd != nil {
 		msg := cmd()

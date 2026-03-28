@@ -8,7 +8,7 @@ import (
 	"context"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
 )

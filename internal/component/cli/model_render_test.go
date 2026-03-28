@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/colorprofile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -19,8 +19,8 @@ import (
 // PREVENTS: User unable to see which lines have errors.
 func TestHighlightValidationIssues(t *testing.T) {
 	// Force color output for testing (lipgloss disables in non-TTY)
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
+	lipgloss.Writer.Profile = colorprofile.TrueColor
+	t.Cleanup(func() { lipgloss.Writer.Profile = colorprofile.Ascii })
 
 	content := `line 1
 line 2
@@ -90,8 +90,8 @@ func TestHighlightValidationIssuesOutOfRange(t *testing.T) {
 // PREVENTS: Errors missed when viewing subsection of config.
 func TestHighlightValidationIssuesWithMapping(t *testing.T) {
 	// Force color output for testing
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
+	lipgloss.Writer.Profile = colorprofile.TrueColor
+	t.Cleanup(func() { lipgloss.Writer.Profile = colorprofile.Ascii })
 
 	// Filtered content (e.g., inside a peer block)
 	// Original config had: line 1=bgp{, line 2=router-id, line 3=peer{, line 4=peer-as, line 5=receive-hold-time
@@ -129,8 +129,8 @@ receive-hold-time 1`
 // PREVENTS: Warnings not visible or confused with errors.
 func TestHighlightValidationIssuesWarnings(t *testing.T) {
 	// Force color output for testing
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
+	lipgloss.Writer.Profile = colorprofile.TrueColor
+	t.Cleanup(func() { lipgloss.Writer.Profile = colorprofile.Ascii })
 
 	content := `line 1
 line 2
@@ -165,8 +165,8 @@ line 3`
 // PREVENTS: Warning style hiding error.
 func TestHighlightValidationIssuesErrorPrecedence(t *testing.T) {
 	// Force color output for testing
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
+	lipgloss.Writer.Profile = colorprofile.TrueColor
+	t.Cleanup(func() { lipgloss.Writer.Profile = colorprofile.Ascii })
 
 	content := "line with both"
 
@@ -186,8 +186,8 @@ func TestHighlightValidationIssuesErrorPrecedence(t *testing.T) {
 // PREVENTS: Line mapping disconnect between validation and display.
 func TestModelContextHighlighting(t *testing.T) {
 	// Force color output for testing
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
+	lipgloss.Writer.Profile = colorprofile.TrueColor
+	t.Cleanup(func() { lipgloss.Writer.Profile = colorprofile.Ascii })
 
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
@@ -340,8 +340,8 @@ func TestDropdownPositionedAbovePrompt(t *testing.T) {
 // VALIDATES: When completionHintDim is true, warningLine uses dim styling.
 // PREVENTS: Dim hints rendered in bright style, confusing partial vs confirmed input.
 func TestWarningLineDimHint(t *testing.T) {
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
+	lipgloss.Writer.Profile = colorprofile.TrueColor
+	t.Cleanup(func() { lipgloss.Writer.Profile = colorprofile.Ascii })
 
 	m := Model{
 		completionHint:    "partial match hint",
@@ -361,8 +361,8 @@ func TestWarningLineDimHint(t *testing.T) {
 // VALIDATES: Hints starting with "invalid " use warning (orange) style.
 // PREVENTS: Invalid input hints shown in normal hint color, missing user attention.
 func TestWarningLineInvalidHint(t *testing.T) {
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
+	lipgloss.Writer.Profile = colorprofile.TrueColor
+	t.Cleanup(func() { lipgloss.Writer.Profile = colorprofile.Ascii })
 
 	m := Model{
 		completionHint:    "invalid receive-hold-time value",
@@ -380,8 +380,8 @@ func TestWarningLineInvalidHint(t *testing.T) {
 // VALIDATES: Hints without "invalid " prefix and not dim use hintStyle.
 // PREVENTS: Normal completion descriptions using wrong style.
 func TestWarningLinePlainHint(t *testing.T) {
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
+	lipgloss.Writer.Profile = colorprofile.TrueColor
+	t.Cleanup(func() { lipgloss.Writer.Profile = colorprofile.Ascii })
 
 	m := Model{
 		completionHint:    "foo: bar",
@@ -399,8 +399,8 @@ func TestWarningLinePlainHint(t *testing.T) {
 // VALIDATES: Status messages starting with "welcome" render in welcome (yellow) style.
 // PREVENTS: Welcome message rendered with generic success style.
 func TestFeedbackLineWelcome(t *testing.T) {
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
+	lipgloss.Writer.Profile = colorprofile.TrueColor
+	t.Cleanup(func() { lipgloss.Writer.Profile = colorprofile.Ascii })
 
 	m := Model{
 		statusMessage: "welcome to ze editor",
@@ -419,8 +419,8 @@ func TestFeedbackLineWelcome(t *testing.T) {
 // VALIDATES: Status messages starting with "Quit?" render in warn (orange) style.
 // PREVENTS: Quit confirmation rendered as success, misleading the user.
 func TestFeedbackLineQuit(t *testing.T) {
-	lipgloss.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { lipgloss.SetColorProfile(termenv.Ascii) })
+	lipgloss.Writer.Profile = colorprofile.TrueColor
+	t.Cleanup(func() { lipgloss.Writer.Profile = colorprofile.Ascii })
 
 	m := Model{
 		statusMessage: "Quit? Press Esc again to exit",
@@ -524,7 +524,7 @@ func TestModelStatusBarNoErrorsWhenValid(t *testing.T) {
 	require.Empty(t, model.validationErrors, "valid config should have no errors")
 
 	// View should not show error indicator anywhere
-	view := model.View()
+	view := model.View().Content
 	assert.NotContains(t, view, "error(s)", "view should not show error count for valid config")
 }
 

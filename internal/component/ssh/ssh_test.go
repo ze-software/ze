@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -306,7 +306,7 @@ func TestSSHUsesUnifiedModel(t *testing.T) {
 	// Bubble Tea commands are async — Update returns a tea.Cmd that must be
 	// executed manually in tests, then the resulting message fed back through Update.
 	model.SetInput("test-command")
-	updated, cmd := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+	updated, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 	require.NotNil(t, cmd, "Enter should return a command for async execution")
 
 	// Execute the command and feed the result back.
@@ -381,7 +381,7 @@ func TestLoginWarningsStalePeers(t *testing.T) {
 
 	model := srv.createSessionModel("alice")
 
-	view := model.View()
+	view := model.View().Content
 	assert.Contains(t, view, "3 peer(s) have stale prefix data", "warning message should appear in view")
 	assert.Contains(t, view, "ze update bgp peer * prefix", "actionable command should appear in view")
 }
@@ -401,7 +401,7 @@ func TestLoginWarningsNilFunc(t *testing.T) {
 
 	model := srv.createSessionModel("alice")
 
-	view := model.View()
+	view := model.View().Content
 	assert.NotContains(t, view, "warning:", "no warning should appear without loginWarningsFunc")
 }
 
@@ -422,7 +422,7 @@ func TestLoginWarningsNoPeers(t *testing.T) {
 
 	model := srv.createSessionModel("alice")
 
-	view := model.View()
+	view := model.View().Content
 	assert.NotContains(t, view, "warning:", "no warning should appear when provider returns nil")
 }
 
@@ -474,7 +474,7 @@ func TestPrefixStalenessWarning(t *testing.T) {
 			})
 
 			model := srv.createSessionModel("alice")
-			view := model.View()
+			view := model.View().Content
 
 			if tt.wantAbsent {
 				assert.NotContains(t, view, "warning:", "should not show warnings")
@@ -572,6 +572,6 @@ func TestLoginWarningsPanicRecovery(t *testing.T) {
 
 	// Should not panic -- session degrades gracefully.
 	model := srv.createSessionModel("alice")
-	view := model.View()
+	view := model.View().Content
 	assert.NotContains(t, view, "warning:", "no warning should appear after provider panic")
 }

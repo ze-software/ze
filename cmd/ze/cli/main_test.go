@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	unicli "codeberg.org/thomas-mangin/ze/internal/component/cli"
 )
@@ -283,9 +283,9 @@ func TestBuildRuntimeTree_FallbackToStatic(t *testing.T) {
 // PREVENTS: History browsing returning wrong entries or panicking.
 func TestHistoryUpDown(t *testing.T) {
 	m := unicli.NewCommandModel()
-	upKey := tea.KeyMsg{Type: tea.KeyUp}
-	downKey := tea.KeyMsg{Type: tea.KeyDown}
-	enterKey := tea.KeyMsg{Type: tea.KeyEnter}
+	upKey := tea.KeyPressMsg{Code: tea.KeyUp}
+	downKey := tea.KeyPressMsg{Code: tea.KeyDown}
+	enterKey := tea.KeyPressMsg{Code: tea.KeyEnter}
 
 	// Populate history by executing commands.
 	for _, c := range []string{"peer list", "daemon status", "system help"} {
@@ -351,9 +351,9 @@ func TestHistoryUpDown(t *testing.T) {
 // PREVENTS: Losing user's in-progress input when browsing history.
 func TestHistoryPreservesInput(t *testing.T) {
 	m := unicli.NewCommandModel()
-	upKey := tea.KeyMsg{Type: tea.KeyUp}
-	downKey := tea.KeyMsg{Type: tea.KeyDown}
-	enterKey := tea.KeyMsg{Type: tea.KeyEnter}
+	upKey := tea.KeyPressMsg{Code: tea.KeyUp}
+	downKey := tea.KeyPressMsg{Code: tea.KeyDown}
+	enterKey := tea.KeyPressMsg{Code: tea.KeyEnter}
 
 	// Populate history
 	m.SetInput("peer list")
@@ -387,7 +387,7 @@ func TestHistoryEmpty(t *testing.T) {
 	t.Run("up", func(t *testing.T) {
 		m := unicli.NewCommandModel()
 		m.SetInput("test")
-		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyUp})
+		updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyUp})
 		m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
 		if m.InputValue() != "test" {
 			t.Errorf("Up on empty history = %q, want 'test'", m.InputValue())
@@ -397,7 +397,7 @@ func TestHistoryEmpty(t *testing.T) {
 	t.Run("down", func(t *testing.T) {
 		m := unicli.NewCommandModel()
 		m.SetInput("test")
-		updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyDown})
+		updated, _ := m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 		m = updated.(unicli.Model) //nolint:forcetypeassert,errcheck // test
 		if m.InputValue() != "test" {
 			t.Errorf("Down on empty history = %q, want 'test'", m.InputValue())
@@ -412,8 +412,8 @@ func TestHistoryEmpty(t *testing.T) {
 // PREVENTS: History filling with repeated identical commands.
 func TestHistoryDedup(t *testing.T) {
 	m := unicli.NewCommandModel()
-	enterKey := tea.KeyMsg{Type: tea.KeyEnter}
-	upKey := tea.KeyMsg{Type: tea.KeyUp}
+	enterKey := tea.KeyPressMsg{Code: tea.KeyEnter}
+	upKey := tea.KeyPressMsg{Code: tea.KeyUp}
 
 	// Type "peer list" and press Enter three times.
 	for range 3 {

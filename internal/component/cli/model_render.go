@@ -11,7 +11,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/muesli/reflow/ansi"
 )
 
@@ -238,15 +239,22 @@ func shortDiagnostic(msg string) string {
 	return msg
 }
 
+// altView creates a tea.View with AltScreen enabled.
+func altView(s string) tea.View {
+	v := tea.NewView(s)
+	v.AltScreen = true
+	return v
+}
+
 // View implements tea.Model.
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	if m.quitting {
-		return ""
+		return tea.NewView("")
 	}
 
 	// Dashboard mode renders its own full screen.
 	if m.dashboard != nil {
-		return m.renderDashboard()
+		return altView(m.renderDashboard())
 	}
 
 	// Use fixed height to prevent scrolling when dropdown appears
@@ -262,7 +270,7 @@ func (m Model) View() string {
 
 	// Viewport for scrollable content — fills all space above the bottom rows
 	if m.showViewport && m.viewportContent != "" {
-		m.viewport.Height = max(viewHeight-bottomRows, 5)
+		m.viewport.SetHeight(max(viewHeight-bottomRows, 5))
 		vpLines := strings.Split(m.viewport.View(), "\n")
 		lines = append(lines, vpLines...)
 	}
@@ -301,15 +309,15 @@ func (m Model) View() string {
 
 	// Overlay dropdown if showing
 	if m.showDropdown && len(m.completions) > 0 {
-		return m.overlayDropdown(baseView)
+		return altView(m.overlayDropdown(baseView))
 	}
 
 	// Help overlay
 	if m.showHelp {
-		return m.renderHelpOverlay(baseView)
+		return altView(m.renderHelpOverlay(baseView))
 	}
 
-	return baseView
+	return altView(baseView)
 }
 
 // messageLines returns the two lines for the message area above the prompt.

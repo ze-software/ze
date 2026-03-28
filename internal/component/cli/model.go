@@ -12,11 +12,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/cursor"
-	"github.com/charmbracelet/bubbles/textinput"
-	"github.com/charmbracelet/bubbles/viewport"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/textinput"
+	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // Styles for the editor UI.
@@ -223,6 +222,12 @@ const (
 	loadActionMerge      = "merge"
 )
 
+// Key string constants for v2 bubbletea key matching.
+const (
+	keyCtrlC = "ctrl+c"
+	keyEsc   = "esc"
+)
+
 // Status messages for unavailable daemon operations.
 const (
 	msgStopNotAvailable    = "stop not available (not connected to daemon)"
@@ -283,9 +288,9 @@ func NewModel(ed *Editor) (Model, error) {
 	ti.Placeholder = "type command or Tab for suggestions"
 	ti.Focus()
 	ti.CharLimit = 512
-	ti.Width = 120
+	ti.SetWidth(120)
 
-	vp := viewport.New(120, 20)
+	vp := viewport.New(viewport.WithWidth(120), viewport.WithHeight(20))
 	vp.Style = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("62"))
@@ -332,9 +337,9 @@ func NewCommandModel() Model {
 	ti.Placeholder = "type command or press Tab for suggestions"
 	ti.Focus()
 	ti.CharLimit = 512
-	ti.Width = 120
+	ti.SetWidth(120)
 
-	vp := viewport.New(120, 20)
+	vp := viewport.New(viewport.WithWidth(120), viewport.WithHeight(20))
 	vp.Style = lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("62"))
@@ -370,16 +375,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		return m.handleKeyMsg(msg)
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		m.textInput.Width = msg.Width - 4
+		m.textInput.SetWidth(msg.Width - 4)
 		// Resize viewport
-		m.viewport.Width = msg.Width - 4
-		m.viewport.Height = max(msg.Height-10, 5)
+		m.viewport.SetWidth(msg.Width - 4)
+		m.viewport.SetHeight(max(msg.Height-10, 5))
 		// Show config on first size event (startup)
 		if m.hasEditor() && !m.showViewport && m.viewportContent == "" {
 			if m.editor.HasPendingEdit() {
@@ -443,12 +448,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // handleKeyMsg dispatches keyboard input to the appropriate handler.
-func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+	key := tea.Key(msg)
+	keyStr := key.String()
 
 	// Dashboard mode intercepts all keys.
 	if m.dashboard != nil {
-		if m.handleDashboardKey(msg.String()) {
+		if m.handleDashboardKey(keyStr) {
 			return m, nil
 		}
 	}
@@ -456,8 +463,8 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Lifecycle confirmation takes highest priority (quit, stop, restart).
 	if m.confirmQuit || m.confirmStop || m.confirmRestart {
 		confirmed := false
-		switch msg.Type { //nolint:exhaustive // only handle specific keys
-		case tea.KeyEsc, tea.KeyCtrlC:
+		isEscOrCtrlC := keyStr == keyCtrlC || keyStr == keyEsc
+		if isEscOrCtrlC {
 			if m.confirmQuit {
 				pending := m.hasEditor() && m.hasPendingChanges()
 				if !pending {
@@ -467,10 +474,8 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 			}
 			// Esc cancels stop/restart confirmation (fall through to cancel below)
-		case tea.KeyRunes:
-			if len(msg.Runes) == 1 && (msg.Runes[0] == 'y' || msg.Runes[0] == 'Y') {
-				confirmed = true
-			}
+		} else if key.Text == "y" || key.Text == "Y" {
+			confirmed = true
 		}
 		if confirmed {
 			if m.confirmStop && m.shutdownFunc != nil {
@@ -499,7 +504,7 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Dropdown navigation takes priority
 	if m.showDropdown && len(m.completions) > 0 {
-		switch msg.Type { //nolint:exhaustive // only handle specific keys
+		switch key.Code {
 		case tea.KeyUp:
 			m.selected--
 			if m.selected < 0 {
@@ -513,7 +518,7 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.completionHint = ""
 			m.completionHintDim = false
 			return m, nil
-		case tea.KeyEsc:
+		case tea.KeyEscape:
 			m.showDropdown = false
 			m.completionHint = ""
 			m.completionHintDim = false
@@ -522,16 +527,16 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case tea.KeyEnter:
 			return m.handleEnter()
 		case tea.KeyTab:
+			if key.Mod.Contains(tea.ModShift) {
+				return m.handleShiftTab()
+			}
 			return m.handleTab()
-		case tea.KeyShiftTab:
-			return m.handleShiftTab()
 		}
 	}
 
 	// Handle help overlay
 	if m.showHelp {
-		switch msg.Type { //nolint:exhaustive // only handle specific keys
-		case tea.KeyEsc, tea.KeyCtrlC:
+		if keyStr == keyEsc || keyStr == keyCtrlC {
 			m.showHelp = false
 			return m, nil
 		}
@@ -545,32 +550,32 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Handle viewport scrolling with Shift+Arrow and PgUp/PgDown (when no dropdown)
 	if m.showViewport && !m.showDropdown {
-		switch msg.Type { //nolint:exhaustive // only handle specific keys
-		case tea.KeyShiftUp:
+		switch {
+		case key.Code == tea.KeyUp && key.Mod.Contains(tea.ModShift):
 			m.viewport.ScrollUp(1)
 			return m, nil
-		case tea.KeyShiftDown:
+		case key.Code == tea.KeyDown && key.Mod.Contains(tea.ModShift):
 			m.viewport.ScrollDown(1)
 			return m, nil
-		case tea.KeyPgUp, tea.KeyCtrlUp:
+		case key.Code == tea.KeyPgUp || (key.Code == tea.KeyUp && key.Mod.Contains(tea.ModCtrl)):
 			m.viewport.PageUp()
 			return m, nil
-		case tea.KeyPgDown, tea.KeyCtrlDown:
+		case key.Code == tea.KeyPgDown || (key.Code == tea.KeyDown && key.Mod.Contains(tea.ModCtrl)):
 			m.viewport.PageDown()
 			return m, nil
 		}
 	}
 
 	// Handle command history with Up/Down arrows
-	switch msg.Type { //nolint:exhaustive // only handle specific keys
+	switch key.Code {
 	case tea.KeyUp:
 		return m.handleHistoryUp(), nil
 	case tea.KeyDown:
 		return m.handleHistoryDown(), nil
 	}
 
-	switch msg.Type { //nolint:exhaustive // only handle specific keys
-	case tea.KeyCtrlC, tea.KeyEsc:
+	switch {
+	case keyStr == keyCtrlC || keyStr == keyEsc:
 		// Stop active monitor session before considering quit.
 		if m.monitorSession != nil {
 			m.stopMonitorSession()
@@ -585,44 +590,44 @@ func (m Model) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.statusMessage = "Quit? (Esc/y to confirm, any other key to cancel)"
 		return m, nil
 
-	case tea.KeyTab:
-		return m.handleTab()
-
-	case tea.KeyShiftTab:
+	case key.Code == tea.KeyTab && key.Mod.Contains(tea.ModShift):
 		return m.handleShiftTab()
 
-	case tea.KeyRunes:
+	case key.Code == tea.KeyTab:
+		return m.handleTab()
+
+	case key.Text == "?":
 		// ? shows full description when dropdown is open, otherwise triggers completion like Tab
-		if len(msg.Runes) == 1 && msg.Runes[0] == '?' {
-			// Show description of selected item in dropdown
-			if m.showDropdown && m.selected >= 0 && m.selected < len(m.completions) {
-				comp := m.completions[m.selected]
-				m.completionHint = comp.Text + ": " + comp.Description
-				m.completionHintDim = false
-				return m, nil
-			}
-			// Show description of single ghost-text match
-			if len(m.completions) == 1 && m.ghostText != "" {
-				comp := m.completions[0]
-				m.completionHint = comp.Text + ": " + comp.Description
-				m.completionHintDim = false
-				return m, nil
-			}
-			return m.handleTab()
+		// Show description of selected item in dropdown
+		if m.showDropdown && m.selected >= 0 && m.selected < len(m.completions) {
+			comp := m.completions[m.selected]
+			m.completionHint = comp.Text + ": " + comp.Description
+			m.completionHintDim = false
+			return m, nil
 		}
+		// Show description of single ghost-text match
+		if len(m.completions) == 1 && m.ghostText != "" {
+			comp := m.completions[0]
+			m.completionHint = comp.Text + ": " + comp.Description
+			m.completionHintDim = false
+			return m, nil
+		}
+		return m.handleTab()
+
+	case key.Code == tea.KeyEnter:
+		m.completionHint = ""
+		m.completionHintDim = false
+		return m.handleEnter()
+
+	case key.Text != "":
 		// Typing clears transient completion hint and resets history browsing.
 		m.completionHint = ""
 		m.completionHintDim = false
 		m.history.ResetBrowsing()
-		// Otherwise pass to text input
+		// Pass to text input
 		m.textInput, cmd = m.textInput.Update(msg)
 		m.updateCompletions()
 		return m, tea.Batch(cmd, m.scheduleValidation())
-
-	case tea.KeyEnter:
-		m.completionHint = ""
-		m.completionHintDim = false
-		return m.handleEnter()
 	}
 
 	// All other key types (including Backspace): forward to text input for processing
@@ -877,7 +882,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	if input == cmdStop {
 		if m.shutdownFunc == nil {
 			m.textInput.SetValue("")
-			m.statusMessage = msgStopNotAvailable
+			m.statusMessage = "stop not available (not connected to daemon)"
 			return m, nil
 		}
 		m.textInput.SetValue("")
@@ -888,7 +893,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	if input == cmdRestart {
 		if m.restartFunc == nil {
 			m.textInput.SetValue("")
-			m.statusMessage = msgRestartNotAvailable
+			m.statusMessage = "restart not available (not connected to daemon)"
 			return m, nil
 		}
 		m.textInput.SetValue("")
@@ -931,42 +936,39 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 // Ctrl-D ends paste mode and processes the buffer.
 // Enter adds a newline to the buffer.
 // Other characters are accumulated.
-func (m Model) handlePasteModeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.Type { //nolint:exhaustive // only specific keys handled in paste mode
-	case tea.KeyCtrlD:
+func (m Model) handlePasteModeKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	key := tea.Key(msg)
+	keyStr := key.String()
+
+	switch {
+	case keyStr == "ctrl+d":
 		// End paste mode and process buffer
 		return m.finishPasteMode()
 
-	case tea.KeyCtrlC, tea.KeyEsc:
+	case keyStr == keyCtrlC || keyStr == keyEsc:
 		// Cancel paste mode
 		m.pasteMode = false
 		m.pasteBuffer.Reset()
 		m.statusMessage = "Paste mode canceled"
 		return m, nil
 
-	case tea.KeyEnter:
+	case key.Code == tea.KeyEnter:
 		// Add newline to buffer
 		m.pasteBuffer.WriteString("\n")
 		return m, nil
 
-	case tea.KeyRunes:
-		// Accumulate characters
-		for _, r := range msg.Runes {
-			m.pasteBuffer.WriteRune(r)
-		}
-		return m, nil
-
-	case tea.KeySpace:
-		m.pasteBuffer.WriteString(" ")
-		return m, nil
-
-	case tea.KeyBackspace:
+	case key.Code == tea.KeyBackspace:
 		// Remove last character from buffer
 		s := m.pasteBuffer.String()
 		if s != "" {
 			m.pasteBuffer.Reset()
 			m.pasteBuffer.WriteString(s[:len(s)-1])
 		}
+		return m, nil
+
+	case key.Text != "":
+		// Accumulate characters (includes space)
+		m.pasteBuffer.WriteString(key.Text)
 		return m, nil
 	}
 
@@ -1321,12 +1323,9 @@ func (m *Model) SetInput(value string) {
 	m.textInput.SetValue(value)
 }
 
-// DisableBlink switches the cursor to static mode, suppressing the periodic
-// blink command (~530ms timer). Headless test models call this to avoid
-// spawning timer goroutines that add latency and serve no purpose without
-// a terminal.
+// DisableBlink is a no-op in bubbletea v2. The virtual cursor does not produce
+// blink timer commands, so no suppression is needed in headless test models.
 func (m *Model) DisableBlink() {
-	m.textInput.Cursor.SetMode(cursor.CursorStatic)
 }
 
 // UpdateCompletions refreshes the completion list based on current input.
