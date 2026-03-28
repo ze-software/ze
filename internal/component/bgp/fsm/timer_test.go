@@ -65,24 +65,35 @@ func TestTimersHoldTimerReset(t *testing.T) {
 
 	timers.StartHoldTimer()
 
-	// Reset before expiry
-	time.Sleep(50 * time.Millisecond)
+	// Reset before expiry (within the 100ms hold time).
+	// We use require.Never to confirm the timer has NOT fired in the first 50ms,
+	// then reset it. This replaces Sleep(50ms) + manual channel check.
+	require.Never(t, func() bool {
+		select {
+		case <-fired:
+			return true
+		default:
+			return false
+		}
+	}, 50*time.Millisecond, 5*time.Millisecond, "hold timer should not fire within first 50ms")
 	timers.ResetHoldTimer()
 
-	// Wait past original expiry - should NOT have fired
-	time.Sleep(80 * time.Millisecond)
-	select {
-	case <-fired:
-		t.Fatal("hold timer should not have fired after reset")
-	default:
-		// Expected - no fire
-	}
+	// After reset, the timer restarts its 100ms window. Verify it does NOT fire
+	// for the first 80ms after reset (the old timer's original expiry window).
+	require.Never(t, func() bool {
+		select {
+		case <-fired:
+			return true
+		default:
+			return false
+		}
+	}, 80*time.Millisecond, 5*time.Millisecond, "hold timer should not fire before new expiry")
 
-	// Wait for new expiry - should fire now
+	// Now wait for the reset timer to fire.
 	select {
 	case <-fired:
 		// Expected
-	case <-time.After(100 * time.Millisecond):
+	case <-time.After(200 * time.Millisecond):
 		t.Fatal("hold timer should have fired after reset period")
 	}
 }

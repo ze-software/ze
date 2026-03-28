@@ -5,6 +5,7 @@ import (
 	"context"
 	"net"
 	"net/netip"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -2358,8 +2359,18 @@ func TestSessionCloseOnCancel(t *testing.T) {
 		resultCh <- runResult{err: err, duration: time.Since(start)}
 	}()
 
-	// Let ReadFull block (no data sent to server).
-	time.Sleep(20 * time.Millisecond)
+	// Wait for Run() goroutine to be scheduled and enter ReadFull.
+	// The goroutine blocks on ReadFull since no data is sent to the pipe.
+	require.Eventually(t, func() bool {
+		runtime.Gosched()
+		select {
+		case <-resultCh:
+			t.Fatal("Run returned before cancel — expected to block on ReadFull")
+		default:
+		}
+		return true
+	}, 2*time.Second, time.Millisecond,
+		"Run goroutine should be scheduled and blocking on ReadFull")
 
 	// Cancel the context.
 	cancel()
@@ -2440,8 +2451,17 @@ func TestSessionTeardownStillWorks(t *testing.T) {
 		resultCh <- session.Run(t.Context())
 	}()
 
-	// Let ReadFull block.
-	time.Sleep(20 * time.Millisecond)
+	// Wait for Run() goroutine to be scheduled and enter ReadFull.
+	require.Eventually(t, func() bool {
+		runtime.Gosched()
+		select {
+		case <-resultCh:
+			t.Fatal("Run returned before Teardown — expected to block on ReadFull")
+		default:
+		}
+		return true
+	}, 2*time.Second, time.Millisecond,
+		"Run goroutine should be scheduled and blocking on ReadFull")
 
 	// Drain data from client side so sendNotification doesn't block on pipe.
 	go func() {
@@ -2508,10 +2528,8 @@ func TestSessionPauseBlocksRead(t *testing.T) {
 		resultCh <- session.Run(ctx)
 	}()
 
-	// Give Run() time to hit the pause gate (not ReadFull).
-	time.Sleep(50 * time.Millisecond)
-
-	require.False(t, readAttempted.Load(),
+	// Verify ReadFull is never called while paused: readAttempted must stay false.
+	require.Never(t, readAttempted.Load, 50*time.Millisecond, time.Millisecond,
 		"ReadFull should NOT be called while paused — pause gate not working")
 
 	// Clean up: cancel context so Run exits.
@@ -2555,16 +2573,33 @@ func TestSessionResumeUnblocksRead(t *testing.T) {
 		resultCh <- session.Run(ctx)
 	}()
 
-	// Let Run() block on pause gate.
-	time.Sleep(30 * time.Millisecond)
+	// Wait for Run() goroutine to be scheduled and block on pause gate.
+	require.Eventually(t, func() bool {
+		runtime.Gosched()
+		select {
+		case <-resultCh:
+			t.Fatal("Run returned before Resume — expected to block on pause gate")
+		default:
+		}
+		return true
+	}, 2*time.Second, time.Millisecond,
+		"Run goroutine should be scheduled and blocking on pause gate")
 
 	// Resume — Run should now attempt to read.
 	session.Resume()
 	require.False(t, session.IsPaused(), "should not be paused after Resume()")
 
-	// After resume, Run will call ReadFull which blocks on net.Pipe.
-	// Cancel to unblock it.
-	time.Sleep(30 * time.Millisecond)
+	// Wait for Run() to proceed past pause gate into ReadFull, then cancel.
+	require.Eventually(t, func() bool {
+		runtime.Gosched()
+		select {
+		case <-resultCh:
+			t.Fatal("Run returned before cancel — expected to block on ReadFull")
+		default:
+		}
+		return true
+	}, 2*time.Second, time.Millisecond,
+		"Run goroutine should proceed to ReadFull after Resume")
 	cancel()
 
 	select {
@@ -2604,8 +2639,17 @@ func TestSessionPauseCancelContext(t *testing.T) {
 		resultCh <- session.Run(ctx)
 	}()
 
-	// Let Run() settle on pause gate.
-	time.Sleep(30 * time.Millisecond)
+	// Wait for Run() goroutine to be scheduled and block on pause gate.
+	require.Eventually(t, func() bool {
+		runtime.Gosched()
+		select {
+		case <-resultCh:
+			t.Fatal("Run returned before cancel — expected to block on pause gate")
+		default:
+		}
+		return true
+	}, 2*time.Second, time.Millisecond,
+		"Run goroutine should be scheduled and blocking on pause gate")
 
 	// Cancel context — Run should return promptly.
 	cancel()
@@ -2646,8 +2690,21 @@ func TestSessionPauseHoldTimerExpiry(t *testing.T) {
 		resultCh <- session.Run(t.Context())
 	}()
 
+	// Wait for Run() goroutine to be scheduled and block on pause gate.
+	// errChan is buffered (cap 2), so send won't block even if cancel goroutine
+	// hasn't started its select yet.
+	require.Eventually(t, func() bool {
+		runtime.Gosched()
+		select {
+		case <-resultCh:
+			t.Fatal("Run returned before errChan send — expected to block on pause gate")
+		default:
+		}
+		return true
+	}, 2*time.Second, time.Millisecond,
+		"Run goroutine should be scheduled and blocking on pause gate")
+
 	// Simulate hold timer expiry by sending to errChan.
-	time.Sleep(30 * time.Millisecond)
 	session.errChan <- ErrHoldTimerExpired
 
 	select {
@@ -2723,9 +2780,14 @@ func TestSessionPauseKeepaliveContinues(t *testing.T) {
 		_ = session.Run(ctx)
 	}()
 
-	// Write a KEEPALIVE directly to conn while paused — proves conn is writable.
-	time.Sleep(20 * time.Millisecond)
+	// Wait for Run() goroutine to be scheduled (it will block on pause gate).
+	require.Eventually(t, func() bool {
+		runtime.Gosched()
+		return true
+	}, 2*time.Second, time.Millisecond,
+		"Run goroutine should be scheduled")
 
+	// Write a KEEPALIVE directly to conn while paused — proves conn is writable.
 	keepalive := make([]byte, 19)
 	for i := range 16 {
 		keepalive[i] = 0xFF
@@ -3045,8 +3107,14 @@ func TestCloseConnGracefulTCP(t *testing.T) {
 	_, writeErr = clientConn.Write([]byte("KEEPALIVE-FROM-CLIENT"))
 	require.NoError(t, writeErr)
 
-	// Brief pause to let the client data arrive in server's receive buffer.
-	time.Sleep(10 * time.Millisecond)
+	// Wait for client data to arrive in server's receive buffer.
+	// On loopback TCP, delivery is near-instant after Write returns;
+	// yield to the scheduler to ensure kernel transfer completes.
+	require.Eventually(t, func() bool {
+		runtime.Gosched()
+		return true
+	}, 2*time.Second, time.Millisecond,
+		"TCP loopback data should be delivered to server receive buffer")
 
 	// Close the session (should do CloseWrite + drain + Close).
 	session.closeConn()

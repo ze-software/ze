@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bus"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -99,12 +101,9 @@ func TestReactorNoMatchingHandler(t *testing.T) {
 	// Publish to a topic that doesn't match "interface/" prefix.
 	b.Publish("bgp/update", nil, nil)
 
-	// Give delivery goroutine time to process.
-	time.Sleep(100 * time.Millisecond)
-
-	if called.Load() {
-		t.Error("handler called for non-matching topic")
-	}
+	// Verify handler is NOT called for non-matching topic.
+	require.Never(t, called.Load, 100*time.Millisecond, 10*time.Millisecond,
+		"handler called for non-matching topic")
 }
 
 // VALIDATES: AC-4 — Multiple handlers for overlapping prefixes → all called.
@@ -141,14 +140,9 @@ func TestReactorMultipleHandlers(t *testing.T) {
 
 	// Both handlers are called synchronously within Deliver, which runs
 	// in the Bus worker goroutine. Wait for delivery to complete.
-	deadline := time.After(2 * time.Second)
-	for count.Load() < 2 {
-		select {
-		case <-deadline:
-			t.Fatalf("timeout: handler count = %d, want 2", count.Load())
-		case <-time.After(10 * time.Millisecond):
-		}
-	}
+	require.Eventually(t, func() bool {
+		return count.Load() >= 2
+	}, 2*time.Second, time.Millisecond, "expected both handlers to be called")
 }
 
 // VALIDATES: AC-5 — Reactor.Stop() unsubscribes, no further deliveries.
@@ -176,22 +170,19 @@ func TestReactorUnsubscribesOnStop(t *testing.T) {
 
 	// Publish one event, wait for delivery.
 	b.Publish("interface/addr/added", nil, nil)
-	time.Sleep(100 * time.Millisecond)
-
-	if count.Load() != 1 {
-		t.Fatalf("expected 1 delivery before unsubscribe, got %d", count.Load())
-	}
+	require.Eventually(t, func() bool {
+		return count.Load() >= 1
+	}, 2*time.Second, time.Millisecond, "expected 1 delivery before unsubscribe")
 
 	// Unsubscribe.
 	r.unsubscribeBus()
 
 	// Publish again — should NOT be delivered.
 	b.Publish("interface/addr/added", nil, nil)
-	time.Sleep(100 * time.Millisecond)
-
-	if count.Load() != 1 {
-		t.Errorf("event delivered after unsubscribe: count = %d, want 1", count.Load())
-	}
+	require.Never(t, func() bool {
+		return count.Load() > 1
+	}, 100*time.Millisecond, 10*time.Millisecond,
+		"event delivered after unsubscribe")
 }
 
 // VALIDATES: AC-6 — No handlers registered → no subscription, clean start/stop.

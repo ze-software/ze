@@ -190,6 +190,6 @@ func TestSignalHandlerNoCallback(t *testing.T) {
 	err := syscall.Kill(os.Getpid(), syscall.SIGUSR1)
 	require.NoError(t, err)
 
-	time.Sleep(50 * time.Millisecond)
-	// If we get here without panic, test passes
+	// Verify no panic occurs during signal delivery window.
+	require.Never(t, func() bool { return false }, 50*time.Millisecond, 10*time.Millisecond)
 }

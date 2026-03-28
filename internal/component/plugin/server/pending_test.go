@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
 )
@@ -79,21 +81,21 @@ func TestPendingRequests_Timeout(t *testing.T) {
 
 	serial := pending.Add(req)
 
-	// Wait for timeout
-	time.Sleep(100 * time.Millisecond)
-
-	// Check timeout response was delivered
-	select {
-	case resp := <-respCh:
-		if resp.Status != plugin.StatusError {
-			t.Errorf("expected status 'error' for timeout, got %q", resp.Status)
+	// Wait for timeout to deliver error response
+	require.Eventually(t, func() bool {
+		select {
+		case resp := <-respCh:
+			if resp.Status != plugin.StatusError {
+				t.Errorf("expected status 'error' for timeout, got %q", resp.Status)
+			}
+			if resp.Data == nil {
+				t.Error("expected error message in Data")
+			}
+			return true
+		default:
+			return false
 		}
-		if resp.Data == nil {
-			t.Error("expected error message in Data")
-		}
-	default:
-		t.Error("timeout response should have been delivered")
-	}
+	}, 2*time.Second, time.Millisecond, "timeout response should have been delivered")
 
 	// Complete after timeout should fail
 	ok := pending.Complete(serial, &plugin.Response{Status: plugin.StatusDone})
@@ -263,7 +265,7 @@ func TestPendingRequests_StreamingResponse(t *testing.T) {
 
 	serial := pending.Add(req)
 
-	// Send partial responses
+	// Send partial responses, waiting for each to be received before sending next.
 	for i := range 3 {
 		ok := pending.Partial(serial, &plugin.Response{
 			Status: "partial",
@@ -272,7 +274,10 @@ func TestPendingRequests_StreamingResponse(t *testing.T) {
 		if !ok {
 			t.Errorf("Partial should succeed for chunk %d", i)
 		}
-		time.Sleep(30 * time.Millisecond) // Below timeout
+		// Wait for this partial to be received before sending next.
+		require.Eventually(t, func() bool {
+			return len(respCh) >= i+1
+		}, 2*time.Second, time.Millisecond, "partial %d should be received", i)
 	}
 
 	// Complete
@@ -281,7 +286,10 @@ func TestPendingRequests_StreamingResponse(t *testing.T) {
 		t.Error("Complete should succeed after partials")
 	}
 
-	// Count responses
+	// Wait for all responses to arrive, then count.
+	require.Eventually(t, func() bool {
+		return len(respCh) == 4 // 3 partials + 1 final
+	}, 2*time.Second, time.Millisecond, "expected 4 responses")
 	close(respCh)
 	count := 0
 	for range respCh {

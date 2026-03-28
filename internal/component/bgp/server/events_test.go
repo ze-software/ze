@@ -53,7 +53,11 @@ func mockPluginResponder(ctx context.Context, pluginConn *plugipc.PluginConn, de
 			return
 		}
 		if delay > 0 {
-			time.Sleep(delay)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(delay):
+			}
 		}
 		if err := pluginConn.SendResult(ctx, req.ID, nil); err != nil {
 			return

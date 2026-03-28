@@ -4,6 +4,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 // VALIDATES: Union correlates two event streams by message ID
@@ -25,7 +27,12 @@ func TestUnionBothArrive(t *testing.T) {
 	u.OnEvent("update", "10.0.0.1", 42, `{"update":"data"}`)
 	u.OnEvent("rpki", "10.0.0.1", 42, `{"rpki":"valid"}`)
 
-	time.Sleep(50 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return gotPrimary == `{"update":"data"}` && gotSecondary == `{"rpki":"valid"}`
+	}, 2*time.Second, time.Millisecond)
+
 	mu.Lock()
 	defer mu.Unlock()
 	if gotPrimary != `{"update":"data"}` {
@@ -49,23 +56,21 @@ func TestUnionPrimaryFirst(t *testing.T) {
 	defer u.Stop()
 
 	u.OnEvent("update", "10.0.0.1", 1, `primary`)
-	time.Sleep(20 * time.Millisecond)
 
-	mu.Lock()
-	c := called
-	mu.Unlock()
-	if c != 0 {
-		t.Fatalf("handler should not be called yet, called=%d", c)
-	}
+	// Handler should NOT be called with only the primary.
+	require.Never(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return called != 0
+	}, 50*time.Millisecond, time.Millisecond)
 
 	u.OnEvent("rpki", "10.0.0.1", 1, `secondary`)
-	time.Sleep(50 * time.Millisecond)
 
-	mu.Lock()
-	defer mu.Unlock()
-	if called != 1 {
-		t.Fatalf("expected 1 call, got %d", called)
-	}
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return called == 1
+	}, 2*time.Second, time.Millisecond)
 }
 
 func TestUnionSecondaryFirst(t *testing.T) {
@@ -82,9 +87,13 @@ func TestUnionSecondaryFirst(t *testing.T) {
 	defer u.Stop()
 
 	u.OnEvent("rpki", "10.0.0.1", 7, `sec`)
-	time.Sleep(20 * time.Millisecond)
 	u.OnEvent("update", "10.0.0.1", 7, `pri`)
-	time.Sleep(50 * time.Millisecond)
+
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return gotPrimary == `pri` && gotSecondary == `sec`
+	}, 2*time.Second, time.Millisecond)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -97,18 +106,25 @@ func TestUnionTimeout(t *testing.T) {
 	// Secondary never arrives -- handler called with empty secondary after timeout.
 	var mu sync.Mutex
 	var gotPrimary, gotSecondary string
+	var handlerCalled bool
 
 	u := NewUnion("update", "rpki", 100*time.Millisecond, func(primary, secondary string) {
 		mu.Lock()
 		gotPrimary = primary
 		gotSecondary = secondary
+		handlerCalled = true
 		mu.Unlock()
 	})
 	u.sweepInterval = 100 * time.Millisecond // faster sweep for test
 	defer u.Stop()
 
 	u.OnEvent("update", "10.0.0.1", 99, `timeout-test`)
-	time.Sleep(500 * time.Millisecond)
+
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return handlerCalled
+	}, 2*time.Second, time.Millisecond)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -137,13 +153,12 @@ func TestUnionFlushPeer(t *testing.T) {
 	u.OnEvent("update", "10.0.0.2", 3, `c`) // different peer
 
 	u.FlushPeer("10.0.0.1")
-	time.Sleep(50 * time.Millisecond)
 
-	mu.Lock()
-	defer mu.Unlock()
-	if calls != 2 {
-		t.Fatalf("expected 2 flushed calls for 10.0.0.1, got %d", calls)
-	}
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return calls == 2
+	}, 2*time.Second, time.Millisecond)
 }
 
 func TestUnionMaxPending(t *testing.T) {
@@ -163,13 +178,12 @@ func TestUnionMaxPending(t *testing.T) {
 	u.OnEvent("update", "10.0.0.1", 2, `second`)
 	// Third should evict first
 	u.OnEvent("update", "10.0.0.1", 3, `third`)
-	time.Sleep(50 * time.Millisecond)
 
-	mu.Lock()
-	defer mu.Unlock()
-	if evictedPrimary != `first` {
-		t.Fatalf("expected oldest evicted, got %q", evictedPrimary)
-	}
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return evictedPrimary == `first`
+	}, 2*time.Second, time.Millisecond)
 }
 
 func TestUnionOrphanSecondary(t *testing.T) {
@@ -188,13 +202,13 @@ func TestUnionOrphanSecondary(t *testing.T) {
 
 	// Send only secondary -- no primary ever arrives.
 	u.OnEvent("rpki", "10.0.0.1", 50, `orphan-secondary`)
-	time.Sleep(500 * time.Millisecond)
 
-	mu.Lock()
-	defer mu.Unlock()
-	if called != 0 {
-		t.Fatalf("handler should NOT be called for orphan secondary, called=%d", called)
-	}
+	// Handler should NOT be called for orphan secondary, even after sweep runs.
+	require.Never(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return called != 0
+	}, 500*time.Millisecond, 10*time.Millisecond)
 }
 
 func TestUnionFlushPeerSecondaryOnly(t *testing.T) {
@@ -214,14 +228,13 @@ func TestUnionFlushPeerSecondaryOnly(t *testing.T) {
 	u.OnEvent("rpki", "10.0.0.1", 60, `sec-only`)
 
 	u.FlushPeer("10.0.0.1")
-	time.Sleep(50 * time.Millisecond)
 
-	mu.Lock()
-	c := called
-	mu.Unlock()
-	if c != 0 {
-		t.Fatalf("handler should NOT be called for secondary-only flush, called=%d", c)
-	}
+	// Handler should NOT be called for secondary-only flush.
+	require.Never(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return called != 0
+	}, 50*time.Millisecond, time.Millisecond)
 }
 
 func TestUnionCorrelationKey(t *testing.T) {
@@ -239,21 +252,18 @@ func TestUnionCorrelationKey(t *testing.T) {
 	u.OnEvent("update", "10.0.0.1", 42, `p1`)
 	u.OnEvent("update", "10.0.0.2", 42, `p2`)
 	u.OnEvent("rpki", "10.0.0.1", 42, `r1`)
-	time.Sleep(50 * time.Millisecond)
 
-	mu.Lock()
-	c := calls
-	mu.Unlock()
-	if c != 1 {
-		t.Fatalf("expected 1 call (only peer1 matched), got %d", c)
-	}
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return calls == 1
+	}, 2*time.Second, time.Millisecond)
 
 	u.OnEvent("rpki", "10.0.0.2", 42, `r2`)
-	time.Sleep(50 * time.Millisecond)
 
-	mu.Lock()
-	defer mu.Unlock()
-	if calls != 2 {
-		t.Fatalf("expected 2 calls total, got %d", calls)
-	}
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return calls == 2
+	}, 2*time.Second, time.Millisecond)
 }

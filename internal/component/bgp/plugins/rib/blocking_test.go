@@ -96,6 +96,7 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 	// This delay is what causes the head-of-line blocking.
 	const updateRouteDelay = 500 * time.Millisecond
 	var updateRouteCount atomic.Int32
+	firstUpdateRoute := make(chan struct{}, 1) // signals when first update-route arrives
 	handlerCtx, cancelHandler := context.WithCancel(ctx)
 	defer cancelHandler()
 
@@ -113,9 +114,14 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 			}
 
 			if req.Method == "ze-plugin-engine:update-route" {
-				// Simulate engine processing time — this is the delay that
+				// Signal that the first update-route has been received.
+				select {
+				case firstUpdateRoute <- struct{}{}:
+				default:
+				}
+				// deliberate: simulates work latency — the delay that
 				// blocks the plugin's event loop via synchronous updateRoute.
-				time.Sleep(updateRouteDelay)
+				<-time.After(updateRouteDelay)
 				updateRouteCount.Add(1)
 				result := &rpc.UpdateRouteOutput{PeersAffected: 1, RoutesSent: 1}
 				if sendErr := mux.SendResult(handlerCtx, req.ID, result); sendErr != nil {
@@ -160,8 +166,14 @@ func TestRIBPluginEventLoopBlocking(t *testing.T) {
 		stateUpDone <- deliverResult{duration: time.Since(start), err: callErr}
 	}()
 
-	// Give plugin time to start processing the state-up event before sending the probe.
-	time.Sleep(50 * time.Millisecond)
+	// Wait for the state-up event to reach the update-route handler before
+	// sending the probe. The channel signal proves the handler is blocking,
+	// ensuring the test reliably demonstrates head-of-line blocking.
+	select {
+	case <-firstUpdateRoute:
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for update-route handler to receive first request")
+	}
 
 	// Goroutine 2: deliver probe event — blocked by head-of-line blocking
 	go func() {

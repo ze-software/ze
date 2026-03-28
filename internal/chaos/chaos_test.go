@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 	"codeberg.org/thomas-mangin/ze/internal/core/network"
 )
@@ -456,9 +458,8 @@ func TestResolveSeed(t *testing.T) {
 		t.Errorf("ResolveSeed(-1) = %d, want between %d and %d", resolved, before, after)
 	}
 
-	time.Sleep(time.Millisecond)
-	resolved2 := ResolveSeed(-1)
-	if resolved == resolved2 {
-		t.Error("two ResolveSeed(-1) calls returned the same value")
-	}
+	// Poll until ResolveSeed returns a different value (time-based seed advances).
+	require.Eventually(t, func() bool {
+		return ResolveSeed(-1) != resolved
+	}, 2*time.Second, time.Millisecond, "two ResolveSeed(-1) calls should eventually differ")
 }

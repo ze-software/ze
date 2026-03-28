@@ -522,8 +522,10 @@ func TestStreamMonitorWithFilters(t *testing.T) {
 		return strings.Contains(buf.String(), matchEvent)
 	}, 2*time.Second, 10*time.Millisecond)
 
-	// Small delay to ensure non-matching event would have been delivered if it was going to be.
-	time.Sleep(50 * time.Millisecond)
+	// Verify non-matching event does NOT arrive within a reasonable window.
+	require.Never(t, func() bool {
+		return strings.Contains(buf.String(), noMatchEvent)
+	}, 50*time.Millisecond, 10*time.Millisecond, "non-matching event should not appear")
 
 	cancel()
 	err := <-done

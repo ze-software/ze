@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestHeartbeatTimeout verifies that 3 missed pings triggers reconnect.
@@ -23,10 +24,9 @@ func TestHeartbeatTimeout(t *testing.T) {
 	hb.Start()
 	defer hb.Stop()
 
-	// Wait for 3+ missed intervals (50ms * 3 = 150ms + margin).
-	time.Sleep(250 * time.Millisecond)
-
-	assert.True(t, reconnectCalled.Load(), "reconnect should be triggered after 3 missed pings")
+	// Wait for 3+ missed intervals (50ms * 3 = 150ms) to trigger reconnect.
+	require.Eventually(t, reconnectCalled.Load, 2*time.Second, 10*time.Millisecond,
+		"reconnect should be triggered after 3 missed pings")
 }
 
 // TestHeartbeatReset verifies that pings prevent timeout.
@@ -44,11 +44,19 @@ func TestHeartbeatReset(t *testing.T) {
 	hb.Start()
 	defer hb.Stop()
 
-	// Send pings faster than timeout.
-	for range 6 {
-		time.Sleep(30 * time.Millisecond)
-		hb.RecordPong()
-	}
+	// Send pings faster than timeout for 180ms (covers 3+ heartbeat intervals).
+	// RecordPong resets the missed counter, preventing timeout.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(30 * time.Millisecond)
+		defer ticker.Stop()
+		for range 6 {
+			<-ticker.C
+			hb.RecordPong()
+		}
+	}()
+	<-done
 
 	assert.False(t, reconnectCalled.Load(), "should not timeout when pings are received")
 }
@@ -68,8 +76,8 @@ func TestHeartbeatStopNoLeak(t *testing.T) {
 	hb.Start()
 	hb.Stop()
 
-	time.Sleep(50 * time.Millisecond)
-
-	// Count should be 0 or 1 (at most one fire before stop).
-	assert.LessOrEqual(t, count.Load(), int32(1), "should not keep firing after stop")
+	// After Stop, no further callbacks should fire.
+	require.Never(t, func() bool {
+		return count.Load() > 1
+	}, 100*time.Millisecond, 10*time.Millisecond, "should not keep firing after stop")
 }

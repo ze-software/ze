@@ -216,9 +216,17 @@ func TestServerDoubleStartError(t *testing.T) {
 	err = srv.Start(context.Background(), nil, nil)
 	require.NoError(t, err)
 
-	// Give the Serve goroutine time to register the listener with the server
+	// Wait for the Serve goroutine to be ready before testing double-start
 	// (avoids a race in the Charm SSH library between Serve and Shutdown).
-	time.Sleep(50 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		var d net.Dialer
+		conn, dialErr := d.DialContext(context.Background(), "tcp", srv.Address())
+		if dialErr != nil {
+			return false // not ready yet
+		}
+		conn.Close() //nolint:errcheck,gosec // test probe
+		return true
+	}, 2*time.Second, time.Millisecond)
 
 	// Second start should fail.
 	err = srv.Start(context.Background(), nil, nil)

@@ -318,7 +318,7 @@ func TestReactorGracefulShutdown(t *testing.T) {
 	err := reactor.Start()
 	require.NoError(t, err)
 
-	time.Sleep(20 * time.Millisecond)
+	require.Eventually(t, func() bool { return reactor.Running() }, 2*time.Second, time.Millisecond, "reactor should be running")
 
 	reactor.Stop()
 
@@ -1675,10 +1675,13 @@ func TestDeliveryChannelDecouplesRead(t *testing.T) {
 	peerAddr := mustParseAddr("10.0.0.1")
 	require.NoError(t, reactor.AddPeer(NewPeerSettings(peerAddr, 65000, 65001, 0x01010101)))
 
+	deliveryStarted := make(chan struct{})
+	deliveryGate := make(chan struct{})
 	delivered := make(chan struct{})
 	receiver := &testDeliveryReceiver{
 		onReceived: func(_ plugin.PeerInfo, _ bgptypes.RawMessage) {
-			time.Sleep(200 * time.Millisecond) // Slow plugin
+			close(deliveryStarted)
+			<-deliveryGate // Block until test releases the gate
 			close(delivered)
 		},
 	}
@@ -1692,17 +1695,27 @@ func TestDeliveryChannelDecouplesRead(t *testing.T) {
 
 	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, payload, wireUpdate, 0, "received", buf, nil)
 
+	// Wait for the delivery goroutine to enter the callback (proves it was dispatched).
+	select {
+	case <-deliveryStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("delivery goroutine should have started")
+	}
+
 	// notifyMessageReceiver returned — delivery must NOT have completed yet.
-	// The 200ms sleep in the receiver proves decoupling: if the read goroutine
-	// blocked on delivery, this select would see delivered closed.
+	// The callback is blocked on deliveryGate, proving decoupling: if the read
+	// goroutine blocked on delivery, notifyMessageReceiver would not have returned.
 	select {
 	case <-delivered:
 		t.Fatal("read goroutine blocked on slow plugin delivery instead of returning immediately")
 	default:
-		// Good: notifyMessageReceiver returned before the 200ms delivery callback finished
+		// Good: notifyMessageReceiver returned before the delivery callback finished
 	}
 
-	// Delivery should still complete asynchronously
+	// Release the gate so delivery completes
+	close(deliveryGate)
+
+	// Delivery should complete asynchronously
 	select {
 	case <-delivered:
 	case <-time.After(5 * time.Second):

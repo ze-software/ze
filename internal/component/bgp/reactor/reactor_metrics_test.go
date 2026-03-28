@@ -271,8 +271,13 @@ func TestUpdatePeriodicMetrics_SetsOverflowGauges(t *testing.T) {
 func TestForwardDispatch_RecordForwarded_UpdatesMetrics(t *testing.T) {
 	reg := newSpyRegistry()
 	blocker := make(chan struct{})
+	handlerEntered := make(chan struct{}, 1)
 
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		select {
+		case handlerEntered <- struct{}{}:
+		default:
+		}
 		<-blocker
 	}, fwdPoolConfig{chanSize: 4, overflowPoolSize: 100})
 	defer pool.Stop()
@@ -284,11 +289,12 @@ func TestForwardDispatch_RecordForwarded_UpdatesMetrics(t *testing.T) {
 	require.True(t, ok, "first TryDispatch should succeed")
 	pool.RecordForwarded(netip.MustParseAddr("10.0.0.1"))
 
-	require.Eventually(t, func() bool {
-		return pool.WorkerCount() == 1
-	}, time.Second, time.Millisecond)
 	// Wait for worker to consume from channel and block in handler.
-	time.Sleep(10 * time.Millisecond)
+	select {
+	case <-handlerEntered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("handler did not enter")
+	}
 
 	// Fill the channel (chanSize=4): worker is blocked, so these stay queued.
 	for range 4 {

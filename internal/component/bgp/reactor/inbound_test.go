@@ -170,7 +170,9 @@ func TestInboundConnectionSkipsBackoff(t *testing.T) {
 	var wokenBy atomic.Int32 // 0=none, 1=timer, 2=inbound
 	delay := 30 * time.Second
 
+	ready := make(chan struct{})
 	go func() {
+		close(ready)
 		select {
 		case <-clock.After(delay):
 			wokenBy.Store(1)
@@ -179,8 +181,12 @@ func TestInboundConnectionSkipsBackoff(t *testing.T) {
 		}
 	}()
 
-	// Give the goroutine time to enter the select
-	time.Sleep(10 * time.Millisecond)
+	// Wait for the goroutine to be scheduled (channel close happens just before select)
+	<-ready
+
+	// Verify the goroutine has NOT been woken yet (still in select)
+	require.Never(t, func() bool { return wokenBy.Load() != 0 }, 50*time.Millisecond, time.Millisecond,
+		"goroutine should be blocked in select before inbound connection")
 
 	// Store an inbound connection — should wake the select immediately
 	client, server := net.Pipe()

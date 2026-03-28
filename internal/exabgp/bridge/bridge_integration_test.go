@@ -627,9 +627,14 @@ func TestBridgeIntegration_PluginExit(t *testing.T) {
 	event := `{"meta":{"version":"1.0.0"},"message":{"type":"update"},"peer":{"address":"10.0.0.1"},"ipv4/unicast":[{"action":"add","nlri":["10.0.0.0/8"]}]}`
 	_, _ = fmt.Fprintln(stdin, event)
 
-	// Give plugin time to exit, then close stdin
-	time.Sleep(500 * time.Millisecond)
-	_ = stdin.Close()
+	// Wait for stdout to drain (plugin exited), then close stdin.
+	// When the plugin exits, its stdout closes and lineReader's channel drains.
+	require.Eventually(t, func() bool {
+		_, ok := reader.ReadLine(50 * time.Millisecond)
+		return !ok // channel drained or closed means plugin exited
+	}, 2*time.Second, time.Millisecond, "plugin should exit after receiving event in noop mode")
+
+	stdin.Close() //nolint:errcheck // test cleanup
 
 	// Bridge should exit without hanging
 	done := make(chan error, 1)
@@ -744,10 +749,10 @@ func TestBridgeIntegration_StateMessage(t *testing.T) {
 		"state":   "up",
 	})
 
-	// Wait for plugin to process (no command output expected, just log)
-	time.Sleep(500 * time.Millisecond)
-
-	assert.Contains(t, h.Stderr(), "state change: up", "plugin should log state change")
+	// Wait for plugin to process (no command output expected, just log).
+	require.Eventually(t, func() bool {
+		return strings.Contains(h.Stderr(), "state change: up")
+	}, 2*time.Second, time.Millisecond, "plugin should log state change")
 }
 
 // TestBridgeIntegration_NotificationMessage verifies notification message translation.
@@ -778,8 +783,8 @@ func TestBridgeIntegration_NotificationMessage(t *testing.T) {
 		},
 	})
 
-	// Wait for plugin to process
-	time.Sleep(500 * time.Millisecond)
-
-	assert.Contains(t, h.Stderr(), "notification:", "plugin should log notification")
+	// Wait for plugin to process.
+	require.Eventually(t, func() bool {
+		return strings.Contains(h.Stderr(), "notification:")
+	}, 2*time.Second, time.Millisecond, "plugin should log notification")
 }

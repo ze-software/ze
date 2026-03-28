@@ -72,10 +72,10 @@ func TestListenerAcceptConnection(t *testing.T) {
 	require.NoError(t, err)
 	_ = conn.Close()
 
-	// Wait for handler
-	time.Sleep(50 * time.Millisecond)
-
-	require.Equal(t, int32(1), accepted.Load(), "handler should be called once")
+	// Wait for handler to be called.
+	require.Eventually(t, func() bool {
+		return accepted.Load() == 1
+	}, 2*time.Second, time.Millisecond, "handler should be called once")
 }
 
 // TestListenerMultipleConnections verifies multiple concurrent connections.
@@ -89,8 +89,7 @@ func TestListenerMultipleConnections(t *testing.T) {
 	var accepted atomic.Int32
 	listener.SetHandler(func(conn net.Conn) {
 		accepted.Add(1)
-		time.Sleep(10 * time.Millisecond) // Simulate work
-		_ = conn.Close()
+		conn.Close() //nolint:errcheck // test cleanup
 	})
 
 	err := listener.Start()
@@ -103,10 +102,9 @@ func TestListenerMultipleConnections(t *testing.T) {
 	const numConns = 5
 	for range numConns {
 		go func() {
-			conn, err := net.Dial("tcp", addr.String()) //nolint:noctx // Test code
-			if err == nil {
-				time.Sleep(5 * time.Millisecond)
-				_ = conn.Close()
+			conn, dialErr := net.Dial("tcp", addr.String()) //nolint:noctx // Test code
+			if dialErr == nil {
+				conn.Close() //nolint:errcheck // test cleanup
 			}
 		}()
 	}
@@ -198,9 +196,12 @@ func TestListenerCallback(t *testing.T) {
 	localAddr := conn.LocalAddr().String()
 	_ = conn.Close()
 
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer waitCancel()
+
 	select {
 	case <-done:
-	case <-time.After(time.Second):
+	case <-waitCtx.Done():
 		t.Fatal("handler not called")
 	}
 
@@ -220,8 +221,16 @@ func TestListenerCloseOnCancel(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, listener.Running())
 
-	// Let acceptLoop settle into blocking Accept.
-	time.Sleep(20 * time.Millisecond)
+	// Verify listener is accepting connections before measuring cancel speed.
+	// A successful dial+close proves acceptLoop is in its blocking Accept call.
+	require.Eventually(t, func() bool {
+		conn, dialErr := net.Dial("tcp", listener.Addr().String()) //nolint:noctx // Test code
+		if dialErr != nil {
+			return false
+		}
+		conn.Close() //nolint:errcheck // test probe
+		return true
+	}, 2*time.Second, time.Millisecond, "listener should be accepting connections")
 
 	// Cancel context and measure how quickly Wait returns.
 	start := time.Now()

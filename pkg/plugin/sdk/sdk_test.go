@@ -1094,8 +1094,15 @@ func TestSDKCloseUnblocksRead(t *testing.T) {
 		readDone <- err
 	}()
 
-	// Give the goroutine time to block on Read().
-	time.Sleep(50 * time.Millisecond)
+	// Verify the goroutine is blocked (not completing before Close).
+	require.Never(t, func() bool {
+		select {
+		case <-readDone:
+			return true
+		default:
+			return false
+		}
+	}, 50*time.Millisecond, 10*time.Millisecond, "readCallback should be blocked")
 
 	// Close should unblock the read.
 	require.NoError(t, p.Close())

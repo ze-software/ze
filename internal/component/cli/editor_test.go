@@ -5000,17 +5000,18 @@ func TestCheckDraftChangedFilesystemMtimeDetection(t *testing.T) {
 	changed, _ := ed.CheckDraftChanged()
 	assert.False(t, changed, "first poll should seed mtime, not report change")
 
-	// Need a small delay to ensure filesystem mtime granularity advances.
-	time.Sleep(10 * time.Millisecond)
-
-	// Write a newer draft (simulating another user's update).
-	err = os.WriteFile(draftPath, []byte("set bgp router-id 9.9.9.9\n"), 0o600)
-	require.NoError(t, err)
-
-	// Poll: should detect the newer mtime.
-	// On filesystem storage, ModifiedBy is empty so notifications don't include session ID.
-	changed, _ = ed.CheckDraftChanged()
-	assert.True(t, changed, "newer draft mtime should be detected on filesystem storage")
+	// Write a newer draft and poll until filesystem mtime granularity has advanced enough
+	// for CheckDraftChanged to detect it.
+	require.Eventually(t, func() bool {
+		writeErr := os.WriteFile(draftPath, []byte("set bgp router-id 9.9.9.9\n"), 0o600)
+		if writeErr != nil {
+			return false
+		}
+		// Poll: should detect the newer mtime.
+		// On filesystem storage, ModifiedBy is empty so notifications don't include session ID.
+		detected, _ := ed.CheckDraftChanged()
+		return detected
+	}, 2*time.Second, time.Millisecond, "newer draft mtime should be detected on filesystem storage")
 }
 
 // --- Per-user change file tests ---

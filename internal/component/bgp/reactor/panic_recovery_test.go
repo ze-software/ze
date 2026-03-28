@@ -158,8 +158,10 @@ func TestListenerHandlerRecoversPanic(t *testing.T) {
 	closeErr := conn1.Close()
 	require.NoError(t, closeErr)
 
-	// Give recovery time to complete.
-	time.Sleep(50 * time.Millisecond)
+	// Wait for panic recovery to complete (handler count stays at 1 after panic recovery).
+	require.Eventually(t, func() bool {
+		return handled.Load() >= 1
+	}, time.Second, time.Millisecond, "first handler should have run (and panicked)")
 
 	// Second connection: listener should still be accepting.
 	conn2, dialErr := net.Dial("tcp", addr.String()) //nolint:noctx // Test code

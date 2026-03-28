@@ -37,11 +37,11 @@ func TestUDPServer(t *testing.T) {
 	require.NoError(t, err)
 
 	// Wait for message to arrive
-	time.Sleep(200 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return len(srv.Messages()) > 0
+	}, 2*time.Second, 5*time.Millisecond, "expected at least one message")
 
-	// Should have received the message
 	msgs := srv.Messages()
-	require.NotEmpty(t, msgs, "expected at least one message")
 	assert.Contains(t, msgs[0], "test message from syslog client")
 }
 
@@ -65,11 +65,12 @@ func TestMessageCapture(t *testing.T) {
 	for i := 1; i <= 3; i++ {
 		_, err = fmt.Fprintf(conn, "<14>message %d", i)
 		require.NoError(t, err)
-		time.Sleep(10 * time.Millisecond) // Small delay to ensure ordering
 	}
 
-	// Wait for messages
-	time.Sleep(200 * time.Millisecond)
+	// Wait for all messages to arrive
+	require.Eventually(t, func() bool {
+		return len(srv.Messages()) >= 3
+	}, 2*time.Second, 5*time.Millisecond, "expected 3 messages")
 
 	msgs := srv.Messages()
 	require.Len(t, msgs, 3)
@@ -98,7 +99,9 @@ func TestPatternMatch(t *testing.T) {
 	_, err = conn.Write([]byte("<14>level=INFO subsystem=server msg=\"session established\""))
 	require.NoError(t, err)
 
-	time.Sleep(200 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return len(srv.Messages()) > 0
+	}, 2*time.Second, 5*time.Millisecond, "expected message to arrive")
 
 	// Should match
 	assert.True(t, srv.Match("subsystem=server"))
@@ -167,10 +170,7 @@ func TestContextCancellation(t *testing.T) {
 	// Cancel context
 	cancel()
 
-	// Give server time to notice cancellation
-	time.Sleep(100 * time.Millisecond)
-
-	// Messages should still be retrievable
+	// Messages should still be retrievable after cancellation
 	_ = srv.Messages()
 
 	// Close should succeed (may already be closed)

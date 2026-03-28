@@ -178,16 +178,21 @@ func TestPeerStateTransitions(t *testing.T) {
 	addr, ok := listener.Addr().(*net.TCPAddr)
 	require.True(t, ok, "expected TCPAddr")
 
-	// Accept connections but don't respond (peer stays connecting)
+	// Accept connections but don't respond (peer stays connecting).
+	// Connections held open until listener closes (deferred above).
 	go func() {
-		for {
-			conn, err := listener.Accept()
-			if err != nil {
-				return
+		var held []net.Conn
+		defer func() {
+			for _, c := range held {
+				c.Close() //nolint:errcheck // test cleanup
 			}
-			// Hold connection open without BGP handshake
-			time.Sleep(time.Second)
-			_ = conn.Close()
+		}()
+		for {
+			conn, acceptErr := listener.Accept()
+			if acceptErr != nil {
+				return // listener closed
+			}
+			held = append(held, conn)
 		}
 	}()
 
@@ -227,13 +232,15 @@ func TestPeerCallback(t *testing.T) {
 
 	peer := NewPeer(settings)
 
+	var callbackCalled atomic.Bool
 	var transitions []PeerState
 	peer.SetCallback(func(from, to PeerState) {
 		transitions = append(transitions, to)
+		callbackCalled.Store(true)
 	})
 
 	peer.Start()
-	time.Sleep(20 * time.Millisecond)
+	require.Eventually(t, callbackCalled.Load, 2*time.Second, time.Millisecond, "callback should be invoked at least once")
 	peer.Stop()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)

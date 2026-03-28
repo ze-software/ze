@@ -11,6 +11,8 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/stretchr/testify/require"
+
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
@@ -216,7 +218,9 @@ func TestHandleState_Up_ZeBGPFormat(t *testing.T) {
 	}
 
 	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
-	time.Sleep(50 * time.Millisecond) // Let replay goroutine complete.
+
+	require.Eventually(t, dispatched.Load, 2*time.Second, time.Millisecond,
+		"expected DispatchCommand to be called for replay")
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -227,9 +231,6 @@ func TestHandleState_Up_ZeBGPFormat(t *testing.T) {
 	}
 	if !peer.Up {
 		t.Error("expected peer to be up")
-	}
-	if !dispatched.Load() {
-		t.Error("expected DispatchCommand to be called for replay")
 	}
 }
 
@@ -247,7 +248,12 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 	}
 
 	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
-	time.Sleep(50 * time.Millisecond) // Let replay goroutine complete.
+
+	require.Eventually(t, func() bool {
+		v := replayCmd.Load()
+		s, ok := v.(string)
+		return ok && s != ""
+	}, 2*time.Second, time.Millisecond, "expected replay DispatchCommand")
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -262,10 +268,7 @@ func TestHandleState_Up_ExcludesSelf(t *testing.T) {
 
 	// The replay command must include the peer address — bgp-adj-rib-in uses it
 	// to replay routes from ALL source peers EXCEPT the target peer itself.
-	cmd, ok := replayCmd.Load().(string)
-	if !ok || cmd == "" {
-		t.Fatal("expected replay DispatchCommand, got none")
-	}
+	cmd, _ := replayCmd.Load().(string)
 	if !strings.Contains(cmd, "10.0.0.1") {
 		t.Errorf("replay command should target peer 10.0.0.1, got %q", cmd)
 	}
@@ -594,21 +597,11 @@ func TestDispatchResumeOnDrain(t *testing.T) {
 	close(block)
 
 	// Wait for resume (low-water clears pausedPeers).
-	deadline := time.After(2 * time.Second)
-	for {
+	require.Eventually(t, func() bool {
 		rs.mu.RLock()
-		stillPaused := rs.pausedPeers["10.0.0.1"]
-		rs.mu.RUnlock()
-		if !stillPaused {
-			break
-		}
-		select {
-		case <-deadline:
-			t.Fatal("timeout: peer not resumed after drain")
-		default:
-			time.Sleep(5 * time.Millisecond)
-		}
-	}
+		defer rs.mu.RUnlock()
+		return !rs.pausedPeers["10.0.0.1"]
+	}, 2*time.Second, time.Millisecond, "peer not resumed after drain")
 }
 
 // TestMultiSourceBackpressure verifies independent pause/resume per source peer.
@@ -735,21 +728,11 @@ func TestPausedPeerResumesOnDrain(t *testing.T) {
 
 	// Unblock → drain → resume.
 	close(block)
-	deadline := time.After(2 * time.Second)
-	for {
+	require.Eventually(t, func() bool {
 		rs.mu.RLock()
-		stillPaused := rs.pausedPeers["10.0.0.1"]
-		rs.mu.RUnlock()
-		if !stillPaused {
-			break
-		}
-		select {
-		case <-deadline:
-			t.Fatal("timeout: peer not resumed after drain")
-		default:
-			time.Sleep(5 * time.Millisecond)
-		}
-	}
+		defer rs.mu.RUnlock()
+		return !rs.pausedPeers["10.0.0.1"]
+	}, 2*time.Second, time.Millisecond, "peer not resumed after drain")
 
 	// Dispatch more after resume — should succeed without re-triggering pause.
 	rs.dispatchText(buildTestUpdate("10.0.0.1", 100))
@@ -817,13 +800,12 @@ func TestDispatchPassesPreParsedPayload(t *testing.T) {
 	rs.dispatchText("peer 10.0.0.1 remote as 65001 received update 42 origin igp next-hop 1.1.1.1 nlri ipv4/unicast add prefix 10.0.0.0/24")
 
 	// Wait for worker to process the no-op handler.
-	time.Sleep(50 * time.Millisecond)
-
-	// Check that fwdCtx was stored with textPayload.
-	val, ok := rs.fwdCtx.Load(uint64(42))
-	if !ok {
-		t.Fatal("fwdCtx not found for msgID 42")
-	}
+	var val any
+	require.Eventually(t, func() bool {
+		var ok bool
+		val, ok = rs.fwdCtx.Load(uint64(42))
+		return ok
+	}, 2*time.Second, time.Millisecond, "fwdCtx not found for msgID 42")
 	ctx, ok := val.(*forwardCtx)
 	if !ok {
 		t.Fatal("fwdCtx wrong type")
@@ -906,13 +888,11 @@ func TestWithdrawalMapConsistency(t *testing.T) {
 	rs.dispatchText("peer 10.0.0.1 remote as 65001 state down")
 
 	// After peer down, withdrawal map should be empty for this peer.
-	time.Sleep(50 * time.Millisecond)
-	rs.withdrawalMu.Lock()
-	wdLen := len(rs.withdrawals["10.0.0.1"])
-	rs.withdrawalMu.Unlock()
-	if wdLen != 0 {
-		t.Errorf("expected 0 withdrawal entries after peer down, got %d", wdLen)
-	}
+	require.Eventually(t, func() bool {
+		rs.withdrawalMu.Lock()
+		defer rs.withdrawalMu.Unlock()
+		return len(rs.withdrawals["10.0.0.1"]) == 0
+	}, 2*time.Second, time.Millisecond, "expected 0 withdrawal entries after peer down")
 }
 
 // TestReleaseCacheAsync verifies releaseCache returns immediately (async).
@@ -1108,13 +1088,11 @@ func TestBatchForwardFireAndForget(t *testing.T) {
 
 	// Unblock forward RPCs and verify background sender processes them.
 	close(blockForward)
-	time.Sleep(100 * time.Millisecond)
-
-	cmdMu.Lock()
-	defer cmdMu.Unlock()
-	if len(forwardCmds) == 0 {
-		t.Error("expected forward RPCs processed by background sender")
-	}
+	require.Eventually(t, func() bool {
+		cmdMu.Lock()
+		defer cmdMu.Unlock()
+		return len(forwardCmds) > 0
+	}, 2*time.Second, time.Millisecond, "expected forward RPCs processed by background sender")
 
 	// Recreate worker pool for cleanup (Stop() was called above).
 	rs.workers = newWorkerPool(func(key workerKey, item workItem) {
@@ -1161,14 +1139,16 @@ func TestHandleStateUpReplay(t *testing.T) {
 	rs.mu.Unlock()
 
 	rs.handleStateUp("10.0.0.1")
-	time.Sleep(200 * time.Millisecond)
+
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(dispatchCmds) > 0
+	}, 2*time.Second, time.Millisecond, "expected DispatchCommand calls for replay")
 
 	mu.Lock()
 	defer mu.Unlock()
 
-	if len(dispatchCmds) == 0 {
-		t.Fatal("expected DispatchCommand calls for replay, got none")
-	}
 	if !strings.HasPrefix(dispatchCmds[0], "adj-rib-in replay 10.0.0.1") {
 		t.Errorf("expected adj-rib-in replay command, got %q", dispatchCmds[0])
 	}
@@ -1230,14 +1210,15 @@ func TestHandleStateUpDelta(t *testing.T) {
 	rs.mu.Unlock()
 
 	rs.handleStateUp("10.0.0.1")
-	time.Sleep(200 * time.Millisecond)
+
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(dispatchCmds) >= 2
+	}, 2*time.Second, time.Millisecond, "expected 2 dispatch commands (full + delta)")
 
 	mu.Lock()
 	defer mu.Unlock()
-
-	if len(dispatchCmds) < 2 {
-		t.Fatalf("expected 2 dispatch commands (full + delta), got %d: %v", len(dispatchCmds), dispatchCmds)
-	}
 	if dispatchCmds[0] != "adj-rib-in replay 10.0.0.1 0" {
 		t.Errorf("expected full replay, got %q", dispatchCmds[0])
 	}
@@ -1410,7 +1391,11 @@ func TestReplayGeneration_RapidReconnect(t *testing.T) {
 
 	// First handleStateUp — goroutine A blocks on DispatchCommand.
 	rs.handleStateUp("10.0.0.1")
-	time.Sleep(20 * time.Millisecond) // Let goroutine A start and block.
+
+	// Wait for goroutine A to enter the hook and block on firstBlock.
+	require.Eventually(t, func() bool {
+		return callCount.Load() >= 1
+	}, 2*time.Second, time.Millisecond, "goroutine A did not enter dispatch hook")
 
 	// Second handleStateUp — simulates rapid reconnect. Goroutine B starts.
 	rs.handleStateUp("10.0.0.1")
@@ -1421,31 +1406,32 @@ func TestReplayGeneration_RapidReconnect(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("second replay timed out")
 	}
-	time.Sleep(50 * time.Millisecond) // Let goroutine B set Replaying=false.
 
-	// Goroutine B completed — peer should NOT be Replaying.
+	// Wait for goroutine B to set Replaying=false.
+	require.Eventually(t, func() bool {
+		rs.mu.RLock()
+		defer rs.mu.RUnlock()
+		return !rs.peers["10.0.0.1"].Replaying
+	}, 2*time.Second, time.Millisecond, "goroutine B did not clear Replaying")
+
+	// Goroutine B completed — verify ReplayGen.
 	rs.mu.RLock()
-	replayingAfterB := rs.peers["10.0.0.1"].Replaying
 	genAfterB := rs.peers["10.0.0.1"].ReplayGen
 	rs.mu.RUnlock()
-	if replayingAfterB {
-		t.Error("peer should not be Replaying after second replay completes")
-	}
 	if genAfterB != 2 {
 		t.Errorf("expected ReplayGen=2, got %d", genAfterB)
 	}
 
 	// Now unblock goroutine A (stale).
 	close(firstBlock)
-	time.Sleep(50 * time.Millisecond) // Let goroutine A finish.
 
-	// Stale goroutine A must NOT have changed Replaying back.
-	rs.mu.RLock()
-	replayingAfterA := rs.peers["10.0.0.1"].Replaying
-	rs.mu.RUnlock()
-	if replayingAfterA {
-		t.Error("stale goroutine must not set Replaying=true after completing")
-	}
+	// Stale goroutine A must NOT change Replaying back to true.
+	require.Never(t, func() bool {
+		rs.mu.RLock()
+		defer rs.mu.RUnlock()
+		return rs.peers["10.0.0.1"].Replaying
+	}, 100*time.Millisecond, time.Millisecond,
+		"stale goroutine must not set Replaying=true after completing")
 }
 
 // TestTextUpdateParseableByFields verifies text UPDATE events parse with strings.Fields.
@@ -1692,7 +1678,19 @@ func TestReplayForPeer_SendsEOR(t *testing.T) {
 	rs.mu.Unlock()
 
 	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
-	time.Sleep(200 * time.Millisecond) // Let replay goroutine complete.
+
+	// Wait for both EOR commands (one per family) to arrive.
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		count := 0
+		for _, cmd := range commands {
+			if strings.Contains(cmd, "eor") {
+				count++
+			}
+		}
+		return count >= 2
+	}, 2*time.Second, time.Millisecond, "expected 2 EOR commands")
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -1703,9 +1701,6 @@ func TestReplayForPeer_SendsEOR(t *testing.T) {
 		if strings.Contains(cmd, "eor") {
 			eorCmds = append(eorCmds, cmd)
 		}
-	}
-	if len(eorCmds) != 2 {
-		t.Fatalf("expected 2 EOR commands (one per family), got %d: %v", len(eorCmds), eorCmds)
 	}
 
 	// Verify both families got EOR.
@@ -1761,16 +1756,19 @@ func TestReplayForPeer_NoFamilies_NoEOR(t *testing.T) {
 	rs.mu.Unlock()
 
 	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
-	time.Sleep(200 * time.Millisecond)
 
-	mu.Lock()
-	defer mu.Unlock()
-
-	for _, cmd := range commands {
-		if strings.Contains(cmd, "eor") {
-			t.Errorf("expected no EOR commands for peer without families, got: %s", cmd)
+	// No EOR should be sent for a peer without families.
+	require.Never(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		for _, cmd := range commands {
+			if strings.Contains(cmd, "eor") {
+				return true
+			}
 		}
-	}
+		return false
+	}, 200*time.Millisecond, 5*time.Millisecond,
+		"expected no EOR commands for peer without families")
 }
 
 // TestReplayForPeer_FailedReplay_NoEOR verifies no EOR sent when replay fails.
@@ -1801,14 +1799,17 @@ func TestReplayForPeer_FailedReplay_NoEOR(t *testing.T) {
 	rs.mu.Unlock()
 
 	rs.dispatchText("peer 10.0.0.1 remote as 65001 state up")
-	time.Sleep(200 * time.Millisecond)
 
-	mu.Lock()
-	defer mu.Unlock()
-
-	for _, cmd := range commands {
-		if strings.Contains(cmd, "eor") {
-			t.Errorf("expected no EOR after failed replay, got: %s", cmd)
+	// No EOR should be sent after a failed replay.
+	require.Never(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		for _, cmd := range commands {
+			if strings.Contains(cmd, "eor") {
+				return true
+			}
 		}
-	}
+		return false
+	}, 200*time.Millisecond, 5*time.Millisecond,
+		"expected no EOR after failed replay")
 }

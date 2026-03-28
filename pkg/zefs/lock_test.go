@@ -23,6 +23,7 @@ func TestReadLockConcurrent(t *testing.T) {
 
 	var wg sync.WaitGroup
 	started := make(chan struct{}, 3)
+	barrier := make(chan struct{})
 
 	for range 3 {
 		wg.Go(func() {
@@ -38,8 +39,8 @@ func TestReadLockConcurrent(t *testing.T) {
 			if string(data) != "value" {
 				t.Errorf("got %q, want %q", data, "value")
 			}
-			// Hold the lock briefly to ensure concurrency
-			time.Sleep(10 * time.Millisecond)
+			// Hold the lock until all readers have started (proves concurrency)
+			<-barrier
 		})
 	}
 
@@ -52,6 +53,8 @@ func TestReadLockConcurrent(t *testing.T) {
 		}
 	}
 
+	// Release all readers now that concurrency is proven
+	close(barrier)
 	wg.Wait()
 	if err := s.Close(); err != nil {
 		t.Fatal(err)

@@ -231,14 +231,16 @@ func TestProcessManagerRespawnLimit(t *testing.T) {
 	require.NoError(t, err)
 	defer pm.Stop()
 
-	// Attempt respawns beyond limit
-	// Wait a bit between respawns for the crash script to exit
+	// Attempt respawns beyond limit.
+	// Wait for each crash to complete before respawning again.
 	for range RespawnLimit + 2 {
 		respawnErr := pm.Respawn("crash")
 		if errors.Is(respawnErr, ErrRespawnLimitExceeded) || errors.Is(respawnErr, ErrProcessDisabled) {
 			break // Limit reached
 		}
-		time.Sleep(20 * time.Millisecond) // Let crash script exit
+		require.Eventually(t, func() bool {
+			return !pm.IsRunning("crash")
+		}, 2*time.Second, time.Millisecond, "crash plugin should exit")
 	}
 
 	// Process should be disabled after exceeding limit
@@ -268,7 +270,9 @@ func TestProcessManagerCumulativeRespawnLimit(t *testing.T) {
 			break
 		}
 		require.NoError(t, respawnErr, "respawn %d should succeed within cumulative limit", batch)
-		time.Sleep(10 * time.Millisecond)
+		require.Eventually(t, func() bool {
+			return !pm.IsRunning("cycle")
+		}, 2*time.Second, time.Millisecond, "cycle plugin should exit")
 
 		// Clear per-window tracking to simulate window expiry (same package access)
 		pm.mu.Lock()
@@ -316,11 +320,13 @@ func TestProcessManagerRespawnSuccess(t *testing.T) {
 	require.NoError(t, err)
 	defer pm.Stop()
 
-	// First few respawns should succeed
+	// First few respawns should succeed.
 	for i := range 3 {
 		err := pm.Respawn("run")
 		require.NoError(t, err, "respawn %d should succeed", i)
-		time.Sleep(10 * time.Millisecond) // Let process start
+		require.Eventually(t, func() bool {
+			return pm.IsRunning("run")
+		}, 2*time.Second, time.Millisecond, "run plugin should start")
 	}
 
 	assert.True(t, pm.IsRunning("run"), "process should be running after respawn")

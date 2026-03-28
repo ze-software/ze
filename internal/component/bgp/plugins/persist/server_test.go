@@ -5,6 +5,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func newTestPersistServer(t *testing.T) *PersistServer {
@@ -13,6 +15,32 @@ func newTestPersistServer(t *testing.T) *PersistServer {
 		peers:  make(map[string]*PersistPeer),
 		ribOut: make(map[string]map[string]map[string]*StoredRoute),
 	}
+}
+
+// forwardCount returns the number of commands containing "forward" from the given slice.
+func forwardCount(mu *sync.Mutex, commands *[]string) int {
+	mu.Lock()
+	defer mu.Unlock()
+	n := 0
+	for _, cmd := range *commands {
+		if strings.Contains(cmd, "forward") {
+			n++
+		}
+	}
+	return n
+}
+
+// eorCount returns the number of commands containing "eor" from the given slice.
+func eorCount(mu *sync.Mutex, commands *[]string) int {
+	mu.Lock()
+	defer mu.Unlock()
+	n := 0
+	for _, cmd := range *commands {
+		if strings.Contains(cmd, "eor") {
+			n++
+		}
+	}
+	return n
 }
 
 // TestPersist_SentUpdate_StoresRoute verifies sent UPDATE stores route in ribOut.
@@ -162,7 +190,11 @@ func TestPersist_PeerUp_ReplaysRoutes(t *testing.T) {
 
 	// Peer comes up.
 	ps.dispatchText("peer 10.0.0.1 remote as 65001 state up")
-	time.Sleep(200 * time.Millisecond) // Wait for replay goroutine.
+
+	// Wait for replay goroutine to issue forward commands.
+	require.Eventually(t, func() bool {
+		return forwardCount(&mu, &commands) == 2
+	}, 2*time.Second, time.Millisecond, "expected 2 forward commands from replay goroutine")
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -172,9 +204,6 @@ func TestPersist_PeerUp_ReplaysRoutes(t *testing.T) {
 		if strings.Contains(cmd, "forward") {
 			forwards = append(forwards, cmd)
 		}
-	}
-	if len(forwards) != 2 {
-		t.Fatalf("expected 2 forward commands, got %d: %v", len(forwards), forwards)
 	}
 
 	for _, cmd := range forwards {
@@ -215,7 +244,11 @@ func TestPersist_PeerUp_SendsEOR(t *testing.T) {
 
 	// Peer comes up.
 	ps.dispatchText("peer 10.0.0.1 remote as 65001 state up")
-	time.Sleep(200 * time.Millisecond)
+
+	// Wait for replay goroutine to issue EOR commands.
+	require.Eventually(t, func() bool {
+		return eorCount(&mu, &commands) == 2
+	}, 2*time.Second, time.Millisecond, "expected 2 EOR commands from replay goroutine")
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -225,9 +258,6 @@ func TestPersist_PeerUp_SendsEOR(t *testing.T) {
 		if strings.Contains(cmd, "eor") {
 			eorCmds = append(eorCmds, cmd)
 		}
-	}
-	if len(eorCmds) != 2 {
-		t.Fatalf("expected 2 EOR commands, got %d: %v", len(eorCmds), eorCmds)
 	}
 
 	hasIPv4 := false
@@ -387,16 +417,17 @@ func TestPersist_NoFamilies_NoEOR(t *testing.T) {
 	ps.mu.Unlock()
 
 	ps.dispatchText("peer 10.0.0.1 remote as 65001 state up")
-	time.Sleep(200 * time.Millisecond)
 
-	mu.Lock()
-	defer mu.Unlock()
+	// Wait for replay goroutine to complete (forward command indicates replay ran),
+	// then verify no EOR was sent.
+	require.Eventually(t, func() bool {
+		return forwardCount(&mu, &commands) >= 1
+	}, 2*time.Second, time.Millisecond, "expected at least 1 forward command from replay goroutine")
 
-	for _, cmd := range commands {
-		if strings.Contains(cmd, "eor") {
-			t.Errorf("expected no EOR without families, got: %s", cmd)
-		}
-	}
+	// No EOR should have been issued (peer has no families from OPEN).
+	require.Never(t, func() bool {
+		return eorCount(&mu, &commands) > 0
+	}, 100*time.Millisecond, 10*time.Millisecond, "expected no EOR without families")
 }
 
 // TestPersistSentPerFamily verifies persist stores routes per-family.

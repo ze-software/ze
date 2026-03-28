@@ -28,29 +28,19 @@ func TestSchedulerRoundRobin(t *testing.T) {
 		CheckInterval: 10 * time.Millisecond,
 	})
 
-	// Track which pools get compacted
-	compacted := make(map[*Pool]int)
+	go s.Run(t.Context())
 
-	// Run scheduler for a bit
-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-	defer cancel()
-
-	go s.Run(ctx)
-
-	// Wait for scheduler to run
-	time.Sleep(80 * time.Millisecond)
-
-	// Check compaction distribution
-	for _, p := range pools {
-		m := p.Metrics()
-		if m.DeadSlots == 0 {
-			compacted[p]++
+	// Wait until at least 2 pools have been compacted (dead slots cleared).
+	require.Eventually(t, func() bool {
+		compacted := 0
+		for _, p := range pools {
+			m := p.Metrics()
+			if m.DeadSlots == 0 {
+				compacted++
+			}
 		}
-	}
-
-	// All pools should eventually be compacted
-	// Due to timing, we can't guarantee exact fairness, but all should be hit
-	require.GreaterOrEqual(t, len(compacted), 2, "at least 2 pools should be compacted")
+		return compacted >= 2
+	}, 2*time.Second, time.Millisecond, "at least 2 pools should be compacted")
 }
 
 // TestSchedulerRespectsQuietPeriod verifies compaction waits for inactivity.
@@ -77,11 +67,10 @@ func TestSchedulerRespectsQuietPeriod(t *testing.T) {
 	// Check immediately - should not be eligible
 	require.False(t, s.shouldCompact(p), "pool should not compact immediately after activity")
 
-	// Wait past quiet period
-	time.Sleep(150 * time.Millisecond)
-
-	// Now should be eligible
-	require.True(t, s.shouldCompact(p), "pool should be eligible after quiet period")
+	// Poll until quiet period elapses and pool becomes eligible.
+	require.Eventually(t, func() bool {
+		return s.shouldCompact(p)
+	}, 2*time.Second, 10*time.Millisecond, "pool should be eligible after quiet period")
 }
 
 // TestSchedulerStop verifies graceful shutdown.
@@ -103,18 +92,27 @@ func TestSchedulerStop(t *testing.T) {
 		close(done)
 	}()
 
-	// Let it run briefly
-	time.Sleep(30 * time.Millisecond)
+	// Verify the scheduler is still running (has not exited on its own).
+	require.Never(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 30*time.Millisecond, 10*time.Millisecond, "scheduler should keep running until canceled")
 
-	// Cancel should stop the scheduler
+	// Cancel should stop the scheduler.
 	cancel()
 
-	select {
-	case <-done:
-		// Good - scheduler stopped
-	case <-time.After(time.Second):
-		t.Fatal("scheduler did not stop within timeout")
-	}
+	require.Eventually(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "scheduler should stop after cancel")
 }
 
 // TestSchedulerNoPools verifies scheduler handles empty pool list.
@@ -180,8 +178,8 @@ func TestSchedulerCompactsHighDeadRatio(t *testing.T) {
 		DeadRatioThreshold: 0.5, // Compact if >50% dead
 	})
 
-	// Wait for quiet period to pass
-	time.Sleep(10 * time.Millisecond)
-
-	require.True(t, s.shouldCompact(p), "pool with 80% dead should need compaction")
+	// QuietPeriod is 0, so pool should be eligible immediately.
+	require.Eventually(t, func() bool {
+		return s.shouldCompact(p)
+	}, 2*time.Second, time.Millisecond, "pool with 80% dead should need compaction")
 }

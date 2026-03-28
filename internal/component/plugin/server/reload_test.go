@@ -190,7 +190,9 @@ func TestReloadConfigNoChange(t *testing.T) {
 	require.NoError(t, err)
 
 	// No RPCs should have been sent.
-	time.Sleep(50 * time.Millisecond) // Allow goroutines to settle
+	require.Never(t, func() bool {
+		return plugins[0].responder.getVerifyCalls() > 0 || plugins[0].responder.getApplyCalls() > 0
+	}, 200*time.Millisecond, 10*time.Millisecond, "no RPCs should be sent for unchanged config")
 	assert.Equal(t, 0, plugins[0].responder.getVerifyCalls())
 	assert.Equal(t, 0, plugins[0].responder.getApplyCalls())
 
@@ -328,9 +330,10 @@ func TestReloadConfigMultiplePlugins(t *testing.T) {
 	assert.Contains(t, err.Error(), "config verify failed")
 	assert.Contains(t, err.Error(), "GR in progress")
 
-	time.Sleep(50 * time.Millisecond)
-
 	// Neither should get apply (one rejected).
+	require.Never(t, func() bool {
+		return plugins[0].responder.getApplyCalls() > 0 || plugins[1].responder.getApplyCalls() > 0
+	}, 200*time.Millisecond, 10*time.Millisecond, "no apply RPCs should be sent when verify fails")
 	assert.Equal(t, 0, plugins[0].responder.getApplyCalls(), "rib should not get apply")
 	assert.Equal(t, 0, plugins[1].responder.getApplyCalls(), "gr should not get apply")
 

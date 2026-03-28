@@ -88,20 +88,18 @@ func startStayRTR(t *testing.T) (port int, cleanup func()) {
 // waitForRTR waits until a TCP connection to the given port succeeds.
 func waitForRTR(t *testing.T, port int, timeout time.Duration) {
 	t.Helper()
-	deadline := time.Now().Add(timeout)
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
 
-	for time.Now().Before(deadline) {
+	require.Eventually(t, func() bool {
 		conn, err := net.DialTimeout("tcp", addr, 2*time.Second)
-		if err == nil {
-			if closeErr := conn.Close(); closeErr != nil {
-				t.Logf("probe connection close: %v", closeErr)
-			}
-			return
+		if err != nil {
+			return false
 		}
-		time.Sleep(2 * time.Second)
-	}
-	t.Fatalf("stayrtr did not become reachable on port %d within %s", port, timeout)
+		if closeErr := conn.Close(); closeErr != nil {
+			t.Logf("probe connection close: %v", closeErr)
+		}
+		return true
+	}, timeout, 2*time.Second, "stayrtr did not become reachable on port %d within %s", port, timeout)
 }
 
 // TestLiveRPKIValidation connects to a stayrtr container serving live RPKI data
@@ -151,15 +149,11 @@ func TestLiveRPKIValidation(t *testing.T) {
 
 	// Wait for VRPs to be populated.
 	t.Log("waiting for RTR sync...")
-	syncDeadline := time.Now().Add(90 * time.Second)
 	var v4Count, v6Count int
-	for time.Now().Before(syncDeadline) {
+	require.Eventually(t, func() bool {
 		v4Count, v6Count = cache.Count()
-		if v4Count > 0 {
-			break
-		}
-		time.Sleep(2 * time.Second)
-	}
+		return v4Count > 0
+	}, 90*time.Second, 2*time.Second, "VRP cache should be populated from RTR sync")
 
 	// Stop session after sync (we only need the cache populated).
 	close(stopCh)

@@ -96,12 +96,15 @@ func TestSessionFlow_WaitForResume_ContextCancel(t *testing.T) {
 	var wg sync.WaitGroup
 	var waitErr error
 
+	entered := make(chan struct{})
 	wg.Go(func() {
+		close(entered)
 		waitErr = s.waitForResume(ctx)
 	})
 
-	// Give the goroutine time to enter select
-	time.Sleep(10 * time.Millisecond)
+	// Wait for the goroutine to be scheduled before canceling
+	<-entered
+	require.Eventually(t, func() bool { return s.IsPaused() }, 2*time.Second, time.Millisecond)
 	cancel()
 	wg.Wait()
 
@@ -121,11 +124,15 @@ func TestSessionFlow_WaitForResume_CloseReason(t *testing.T) {
 	var wg sync.WaitGroup
 	var waitErr error
 
+	entered := make(chan struct{})
 	wg.Go(func() {
+		close(entered)
 		waitErr = s.waitForResume(context.Background())
 	})
 
-	time.Sleep(10 * time.Millisecond)
+	// Wait for the goroutine to be scheduled before resuming
+	<-entered
+	require.Eventually(t, func() bool { return s.IsPaused() }, 2*time.Second, time.Millisecond)
 	s.Resume()
 	wg.Wait()
 

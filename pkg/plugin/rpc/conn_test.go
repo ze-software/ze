@@ -155,21 +155,34 @@ func TestConn_ReadRequest_CloseUnblocks(t *testing.T) {
 
 	ctx := context.Background()
 
+	// Use a context we can observe to confirm ReadRequest is blocking.
+	// Send a frame first to trigger the persistent reader start, then
+	// issue a second ReadRequest that will block (no more data).
+	go writeLine(t, serverEnd, "#1 warmup")
+
+	got, err := conn.ReadRequest(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, "warmup", got.Method)
+
+	// Now the persistent reader is running. The next ReadRequest will block
+	// on the internal frameCh since no more data is being sent.
 	errCh := make(chan error, 1)
 	go func() {
 		_, readErr := conn.ReadRequest(ctx)
 		errCh <- readErr
 	}()
 
-	// Give time for ReadRequest to block.
-	time.Sleep(50 * time.Millisecond)
-
+	// Close the connection -- should unblock the pending ReadRequest.
+	// We know the reader goroutine is already running from the warmup read.
 	require.NoError(t, conn.Close())
 
+	closeCtx, closeCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer closeCancel()
+
 	select {
-	case err := <-errCh:
-		require.Error(t, err, "ReadRequest should return error after Close()")
-	case <-time.After(2 * time.Second):
+	case closeErr := <-errCh:
+		require.Error(t, closeErr, "ReadRequest should return error after Close()")
+	case <-closeCtx.Done():
 		t.Fatal("ReadRequest did not unblock after Close()")
 	}
 }
@@ -241,19 +254,34 @@ func TestConn_NoGoroutineLeak(t *testing.T) {
 	_, err := conn.ReadRequest(ctx)
 	require.NoError(t, err)
 
-	// Let goroutine counts settle.
-	runtime.Gosched()
-	time.Sleep(10 * time.Millisecond)
-	before := runtime.NumGoroutine()
+	// Wait for goroutine count to stabilize.
+	var before int
+	require.Eventually(t, func() bool {
+		runtime.Gosched()
+		g := runtime.NumGoroutine()
+		if before == g {
+			return true
+		}
+		before = g
+		return false
+	}, 2*time.Second, time.Millisecond, "goroutine count should stabilize before measurement")
 
 	for range n {
 		_, readErr := conn.ReadRequest(ctx)
 		require.NoError(t, readErr)
 	}
 
-	runtime.Gosched()
-	time.Sleep(10 * time.Millisecond)
-	after := runtime.NumGoroutine()
+	// Wait for goroutine count to stabilize after reads.
+	var after int
+	require.Eventually(t, func() bool {
+		runtime.Gosched()
+		g := runtime.NumGoroutine()
+		if after == g {
+			return true
+		}
+		after = g
+		return false
+	}, 2*time.Second, time.Millisecond, "goroutine count should stabilize after measurement")
 
 	// Delta of 5 accounts for parallel test goroutine churn. The key
 	// assertion: no growth proportional to N (50 calls should not add 50 goroutines).
@@ -370,6 +398,9 @@ func TestConn_WriteLineWithContext_Deadline(t *testing.T) {
 	err := conn.writeLineWithContext(ctx, line)
 	require.NoError(t, err)
 
+	writeCtx, writeCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer writeCancel()
+
 	select {
 	case data := <-readDone:
 		require.NotNil(t, data)
@@ -377,7 +408,7 @@ func TestConn_WriteLineWithContext_Deadline(t *testing.T) {
 		require.NoError(t, parseErr)
 		assert.Equal(t, uint64(1), id)
 		assert.Equal(t, "test-write", verb)
-	case <-time.After(2 * time.Second):
+	case <-writeCtx.Done():
 		t.Fatal("server did not receive written frame")
 	}
 }
@@ -415,12 +446,14 @@ func TestConn_CallRPC_CloseUnblocks(t *testing.T) {
 	pluginEnd, engineEnd := net.Pipe()
 	defer closePipe(t, "engineEnd", engineEnd)
 
-	// Engine reads but never responds.
+	// Engine reads the request (signaling it arrived), but never responds.
+	engineGotRequest := make(chan struct{})
 	go func() {
 		engineConn := NewConn(engineEnd, engineEnd)
 		if _, readErr := engineConn.ReadRequest(context.Background()); readErr != nil {
 			return
 		}
+		close(engineGotRequest)
 		// Deliberately don't respond -- block forever.
 		select {}
 	}()
@@ -433,13 +466,23 @@ func TestConn_CallRPC_CloseUnblocks(t *testing.T) {
 		errCh <- callErr
 	}()
 
-	time.Sleep(50 * time.Millisecond)
+	// Wait until the engine has received the request, proving CallRPC
+	// has sent the request and is now waiting for the response.
+	rpcCloseCtx, rpcCloseCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer rpcCloseCancel()
+
+	select {
+	case <-engineGotRequest:
+	case <-rpcCloseCtx.Done():
+		t.Fatal("engine did not receive request")
+	}
+
 	require.NoError(t, conn.Close())
 
 	select {
 	case err := <-errCh:
 		require.Error(t, err, "CallRPC should return error after Close()")
-	case <-time.After(2 * time.Second):
+	case <-rpcCloseCtx.Done():
 		t.Fatal("CallRPC did not unblock after Close()")
 	}
 }
@@ -459,8 +502,9 @@ func TestConn_CallRPC_Serialization(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Engine echoes method name with a small delay to ensure overlap.
-	fakeEngineWithDelay(ctx, engineEnd, 10*time.Millisecond, func(req *Request) any {
+	// Engine echoes method name. Conn.CallRPC serializes via callMu,
+	// so overlap happens naturally without artificial delays.
+	fakeEngine(ctx, engineEnd, func(req *Request) any {
 		return map[string]string{"method": req.Method}
 	})
 

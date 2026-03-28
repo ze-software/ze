@@ -407,8 +407,15 @@ func TestPluginAcceptorWaitAfterStop(t *testing.T) {
 		errCh <- waitErr
 	}()
 
-	// Give WaitForPlugin time to start blocking.
-	time.Sleep(50 * time.Millisecond)
+	// Verify WaitForPlugin is blocked (not returning prematurely).
+	require.Never(t, func() bool {
+		select {
+		case <-errCh:
+			return true
+		default:
+			return false
+		}
+	}, 50*time.Millisecond, 10*time.Millisecond, "WaitForPlugin should be blocked before Stop")
 	acceptor.Stop()
 
 	select {

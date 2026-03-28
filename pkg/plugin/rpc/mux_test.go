@@ -32,24 +32,6 @@ func fakeEngine(ctx context.Context, conn net.Conn, handler func(*Request) any) 
 	}()
 }
 
-// fakeEngineWithDelay is like fakeEngine but adds a per-request delay.
-func fakeEngineWithDelay(ctx context.Context, conn net.Conn, delay time.Duration, handler func(*Request) any) {
-	rpcConn := NewConn(conn, conn)
-	go func() {
-		for {
-			req, err := rpcConn.ReadRequest(ctx)
-			if err != nil {
-				return
-			}
-			time.Sleep(delay)
-			result := handler(req)
-			if sendErr := rpcConn.SendResult(ctx, req.ID, result); sendErr != nil {
-				return
-			}
-		}
-	}()
-}
-
 // closePipe closes a net.Conn and logs failures to t.
 func closePipe(t *testing.T, name string, c net.Conn) {
 	t.Helper()
@@ -117,11 +99,25 @@ func TestMuxConn_ConcurrentCallRPC(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Engine responds with the request method -- allows verifying correct routing.
-	// Add small delay so both requests are in-flight simultaneously.
-	fakeEngineWithDelay(ctx, engineEnd, 50*time.Millisecond, func(req *Request) any {
-		return map[string]string{"method": req.Method}
-	})
+	// Engine reads both requests first, then sends both responses, ensuring
+	// both calls are in-flight simultaneously on the MuxConn side.
+	go func() {
+		rpcConn := NewConn(engineEnd, engineEnd)
+		req1, readErr := rpcConn.ReadRequest(ctx)
+		if readErr != nil {
+			return
+		}
+		req2, readErr := rpcConn.ReadRequest(ctx)
+		if readErr != nil {
+			return
+		}
+		if sendErr := rpcConn.SendResult(ctx, req1.ID, map[string]string{"method": req1.Method}); sendErr != nil {
+			return
+		}
+		if sendErr := rpcConn.SendResult(ctx, req2.ID, map[string]string{"method": req2.Method}); sendErr != nil {
+			return
+		}
+	}()
 
 	conn := NewConn(pluginEnd, pluginEnd)
 	mux := NewMuxConn(conn)
@@ -252,16 +248,26 @@ func TestMuxConn_CloseUnblocksPending(t *testing.T) {
 		errCh <- callErr
 	}()
 
-	// Give the call time to reach the waiting state.
-	time.Sleep(50 * time.Millisecond)
+	// Wait for the call to register in the pending map.
+	require.Eventually(t, func() bool {
+		found := false
+		mux.pending.Range(func(_, _ any) bool {
+			found = true
+			return false
+		})
+		return found
+	}, 2*time.Second, time.Millisecond, "call should register in pending map")
 
 	// Close the mux -- should unblock the caller.
 	require.NoError(t, mux.Close())
 
+	closeCtx, closeCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer closeCancel()
+
 	select {
 	case err := <-errCh:
 		require.Error(t, err, "CallRPC should return an error after Close()")
-	case <-time.After(2 * time.Second):
+	case <-closeCtx.Done():
 		t.Fatal("CallRPC did not unblock after Close()")
 	}
 }
@@ -337,13 +343,15 @@ func TestMuxConn_ReaderError(t *testing.T) {
 
 	pluginEnd, engineEnd := net.Pipe()
 
-	// Engine reads one request then closes the connection after a short delay.
+	// Engine reads one request, waits for both calls to be pending, then closes.
+	bothPending := make(chan struct{})
 	go func() {
 		rpcConn := NewConn(engineEnd, engineEnd)
 		if _, err := rpcConn.ReadRequest(context.Background()); err != nil {
 			return
 		}
-		time.Sleep(50 * time.Millisecond)
+		// Wait until test signals both calls are pending.
+		<-bothPending
 		if err := engineEnd.Close(); err != nil {
 			return
 		}
@@ -368,23 +376,35 @@ func TestMuxConn_ReaderError(t *testing.T) {
 		errCh1 <- callErr
 	}()
 	go func() {
-		// Slight delay so both are registered before connection dies.
-		time.Sleep(10 * time.Millisecond)
 		_, callErr := mux.CallRPC(ctx, "call-2", nil)
 		errCh2 <- callErr
 	}()
 
+	// Wait for both calls to register in the pending map before breaking connection.
+	require.Eventually(t, func() bool {
+		count := 0
+		mux.pending.Range(func(_, _ any) bool {
+			count++
+			return true
+		})
+		return count >= 2
+	}, 2*time.Second, time.Millisecond, "both calls should register in pending map")
+	close(bothPending)
+
+	readerCtx, readerCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer readerCancel()
+
 	select {
 	case err := <-errCh1:
 		require.Error(t, err, "call-1 should fail after connection error")
-	case <-time.After(5 * time.Second):
+	case <-readerCtx.Done():
 		t.Fatal("call-1 did not unblock after connection error")
 	}
 
 	select {
 	case err := <-errCh2:
 		require.Error(t, err, "call-2 should fail after connection error")
-	case <-time.After(5 * time.Second):
+	case <-readerCtx.Done():
 		t.Fatal("call-2 did not unblock after connection error")
 	}
 }

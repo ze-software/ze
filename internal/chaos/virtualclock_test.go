@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"codeberg.org/thomas-mangin/ze/internal/core/clock"
 )
 
@@ -248,13 +250,15 @@ func TestVirtualClockSleepBlocks(t *testing.T) {
 		close(done)
 	}()
 
-	time.Sleep(10 * time.Millisecond)
-
-	select {
-	case <-done:
-		t.Fatal("Sleep returned before Advance")
-	default:
-	}
+	// Verify Sleep blocks: done should NOT close before Advance.
+	require.Never(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 50*time.Millisecond, time.Millisecond, "Sleep returned before Advance")
 
 	vc.Advance(6 * time.Second)
 	wg.Wait()

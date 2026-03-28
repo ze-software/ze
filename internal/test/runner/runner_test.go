@@ -218,7 +218,9 @@ func TestValidateLoggingExpectSyslog(t *testing.T) {
 					sendUDPMessage(t, syslogSrv.Port(), msg)
 				}
 				// Wait for messages to be received
-				time.Sleep(100 * time.Millisecond)
+				require.Eventually(t, func() bool {
+					return len(syslogSrv.Messages()) >= len(tt.syslogMsgs)
+				}, 2*time.Second, time.Millisecond)
 			}
 
 			err := r.validateLogging(rec, "", syslogSrv)

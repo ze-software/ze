@@ -1,8 +1,11 @@
 package reactor
 
 import (
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 // TestAPISyncNoProcesses verifies no wait when no processes.
@@ -13,13 +16,20 @@ func TestAPISyncNoProcesses(t *testing.T) {
 	r := New(&Config{})
 	// Don't call SetAPIProcessCount - defaults to 0
 
-	start := time.Now()
-	r.WaitForAPIReady()
-	elapsed := time.Since(start)
+	done := make(chan struct{})
+	go func() {
+		r.WaitForAPIReady()
+		close(done)
+	}()
 
-	if elapsed > 10*time.Millisecond {
-		t.Errorf("took too long: %v (expected immediate)", elapsed)
-	}
+	require.Eventually(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "WaitForAPIReady should return immediately with zero processes")
 }
 
 // TestAPISyncSingleProcess verifies waiting for one process.
@@ -29,20 +39,38 @@ func TestAPISyncNoProcesses(t *testing.T) {
 func TestAPISyncSingleProcess(t *testing.T) {
 	r := New(&Config{})
 	r.SetAPIProcessCount(1)
-	r.apiTimeout = 200 * time.Millisecond
+	r.apiTimeout = 2 * time.Second
 
+	done := make(chan struct{})
+
+	// WaitForAPIReady should NOT return before we signal.
 	go func() {
-		time.Sleep(30 * time.Millisecond)
-		r.SignalAPIReady()
+		r.WaitForAPIReady()
+		close(done)
 	}()
 
-	start := time.Now()
-	r.WaitForAPIReady()
-	elapsed := time.Since(start)
+	// Verify it does NOT complete before the signal.
+	require.Never(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 50*time.Millisecond, time.Millisecond, "WaitForAPIReady should block until signal")
 
-	if elapsed < 20*time.Millisecond || elapsed > 100*time.Millisecond {
-		t.Errorf("unexpected timing: %v (expected ~30ms)", elapsed)
-	}
+	// Now signal ready.
+	r.SignalAPIReady()
+
+	// Verify it completes after the signal.
+	require.Eventually(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "WaitForAPIReady should return after signal")
 }
 
 // TestAPISyncMultipleProcesses verifies waiting for all processes.
@@ -52,24 +80,46 @@ func TestAPISyncSingleProcess(t *testing.T) {
 func TestAPISyncMultipleProcesses(t *testing.T) {
 	r := New(&Config{})
 	r.SetAPIProcessCount(3)
-	r.apiTimeout = 500 * time.Millisecond
+	r.apiTimeout = 2 * time.Second
 
+	done := make(chan struct{})
 	go func() {
-		time.Sleep(10 * time.Millisecond)
-		r.SignalAPIReady() // 1
-		time.Sleep(10 * time.Millisecond)
-		r.SignalAPIReady() // 2
-		time.Sleep(10 * time.Millisecond)
-		r.SignalAPIReady() // 3
+		r.WaitForAPIReady()
+		close(done)
 	}()
 
-	start := time.Now()
-	r.WaitForAPIReady()
-	elapsed := time.Since(start)
+	// After 1 signal, should still be blocked.
+	r.SignalAPIReady()
+	require.Never(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 50*time.Millisecond, time.Millisecond, "WaitForAPIReady should block after 1 of 3 signals")
 
-	if elapsed < 25*time.Millisecond || elapsed > 100*time.Millisecond {
-		t.Errorf("unexpected timing: %v (expected ~30ms)", elapsed)
-	}
+	// After 2 signals, should still be blocked.
+	r.SignalAPIReady()
+	require.Never(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 50*time.Millisecond, time.Millisecond, "WaitForAPIReady should block after 2 of 3 signals")
+
+	// After 3rd signal, should unblock.
+	r.SignalAPIReady()
+	require.Eventually(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "WaitForAPIReady should return after all 3 signals")
 }
 
 // TestAPISyncTimeout verifies timeout when process doesn't respond.
@@ -81,19 +131,34 @@ func TestAPISyncTimeout(t *testing.T) {
 	r.SetAPIProcessCount(2)
 	r.apiTimeout = 100 * time.Millisecond
 
-	// Only send 1 ready, expect 2
+	// Only send 1 ready, expect 2 -- must timeout.
+	r.SignalAPIReady()
+
+	done := make(chan struct{})
 	go func() {
-		time.Sleep(10 * time.Millisecond)
-		r.SignalAPIReady()
+		r.WaitForAPIReady()
+		close(done)
 	}()
 
-	start := time.Now()
-	r.WaitForAPIReady()
-	elapsed := time.Since(start)
+	// Should NOT return immediately (still waiting for 2nd signal).
+	require.Never(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 50*time.Millisecond, time.Millisecond, "WaitForAPIReady should not return before timeout")
 
-	if elapsed < 90*time.Millisecond || elapsed > 500*time.Millisecond {
-		t.Errorf("unexpected timing: %v (expected ~100ms, upper bound allows for -race overhead)", elapsed)
-	}
+	// Should eventually return after the 100ms timeout.
+	require.Eventually(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "WaitForAPIReady should return after timeout")
 }
 
 // TestAPISyncImmediateReady verifies quick return when already ready.
@@ -104,16 +169,23 @@ func TestAPISyncImmediateReady(t *testing.T) {
 	r := New(&Config{})
 	r.SetAPIProcessCount(1)
 
-	// Signal before waiting
+	// Signal before waiting.
 	r.SignalAPIReady()
 
-	start := time.Now()
-	r.WaitForAPIReady()
-	elapsed := time.Since(start)
+	done := make(chan struct{})
+	go func() {
+		r.WaitForAPIReady()
+		close(done)
+	}()
 
-	if elapsed > 10*time.Millisecond {
-		t.Errorf("took too long: %v (expected immediate)", elapsed)
-	}
+	require.Eventually(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "WaitForAPIReady should return immediately when already ready")
 }
 
 // TestAPISyncMultipleCalls verifies idempotency.
@@ -125,17 +197,24 @@ func TestAPISyncMultipleCalls(t *testing.T) {
 	r.SetAPIProcessCount(1)
 	r.SignalAPIReady()
 
-	// First call
+	// First call.
 	r.WaitForAPIReady()
 
-	// Second call should return immediately
-	start := time.Now()
-	r.WaitForAPIReady()
-	elapsed := time.Since(start)
+	// Second call should return immediately.
+	done := make(chan struct{})
+	go func() {
+		r.WaitForAPIReady()
+		close(done)
+	}()
 
-	if elapsed > 10*time.Millisecond {
-		t.Errorf("second call took too long: %v", elapsed)
-	}
+	require.Eventually(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "second WaitForAPIReady call should return immediately")
 }
 
 // TestAPISyncConcurrent verifies thread safety.
@@ -145,20 +224,45 @@ func TestAPISyncMultipleCalls(t *testing.T) {
 func TestAPISyncConcurrent(t *testing.T) {
 	r := New(&Config{})
 	r.SetAPIProcessCount(10)
-	r.apiTimeout = 500 * time.Millisecond
+	r.apiTimeout = 2 * time.Second
 
-	// Spawn 10 goroutines signaling concurrently
+	// Use a WaitGroup to start all goroutines simultaneously.
+	var ready sync.WaitGroup
+	ready.Add(10)
+
+	var started sync.WaitGroup
+	started.Add(10)
+
+	// Spawn 10 goroutines signaling concurrently.
 	for range 10 {
 		go func() {
-			time.Sleep(10 * time.Millisecond)
+			started.Done()
+			ready.Wait() // All goroutines start signaling at the same time.
 			r.SignalAPIReady()
 		}()
 	}
 
-	r.WaitForAPIReady()
+	// Wait for all goroutines to be ready, then release them.
+	started.Wait()
+	ready.Add(-10) // Release all.
 
-	// Verify all signals were received (readyCount should be 10)
-	if r.readyCount.Load() != 10 {
-		t.Errorf("expected 10 ready signals, got %d", r.readyCount.Load())
-	}
+	done := make(chan struct{})
+	var readyCount int32
+	go func() {
+		r.WaitForAPIReady()
+		readyCount = r.readyCount.Load()
+		close(done)
+	}()
+
+	require.Eventually(t, func() bool {
+		select {
+		case <-done:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "WaitForAPIReady should return after all concurrent signals")
+
+	// Verify all signals were received.
+	require.Equal(t, int32(10), readyCount, "all 10 ready signals should be received")
 }

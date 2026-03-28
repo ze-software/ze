@@ -13,6 +13,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -805,7 +807,14 @@ func TestStateUpBeforeOpen_FamiliesNil(t *testing.T) {
 	// State up arrives first (before OPEN)
 	stateInput := "peer 10.0.0.1 remote as 65001 state up"
 	rs.dispatchText(stateInput)
-	time.Sleep(50 * time.Millisecond) // Let replay goroutine complete.
+
+	// Wait for replay goroutine to complete (Replaying cleared).
+	require.Eventually(t, func() bool {
+		rs.mu.RLock()
+		defer rs.mu.RUnlock()
+		p := rs.peers["10.0.0.1"]
+		return p != nil && !p.Replaying
+	}, 2*time.Second, time.Millisecond, "replay goroutine should complete")
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]
@@ -849,7 +858,14 @@ func TestOpenThenStateUp_FamiliesPopulated(t *testing.T) {
 	// Step 2: State up
 	stateInput := "peer 10.0.0.1 remote as 65001 state up"
 	rs.dispatchText(stateInput)
-	time.Sleep(50 * time.Millisecond) // Let replay goroutine complete.
+
+	// Wait for replay goroutine to complete (Replaying cleared).
+	require.Eventually(t, func() bool {
+		rs.mu.RLock()
+		defer rs.mu.RUnlock()
+		p := rs.peers["10.0.0.1"]
+		return p != nil && !p.Replaying
+	}, 2*time.Second, time.Millisecond, "replay goroutine should complete")
 
 	rs.mu.RLock()
 	peer := rs.peers["10.0.0.1"]

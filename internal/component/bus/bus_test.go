@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"codeberg.org/thomas-mangin/ze/internal/component/bus"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -202,8 +204,10 @@ func TestExactSubscription(t *testing.T) {
 	b.Publish("bgp/state", []byte("no"), nil)
 
 	c.waitFor(t, 1, 2*time.Second)
-	// Give a moment for any extra event to arrive
-	time.Sleep(50 * time.Millisecond)
+	// Verify no extra events arrive
+	require.Never(t, func() bool {
+		return len(c.collected()) > 1
+	}, 50*time.Millisecond, 5*time.Millisecond)
 
 	events := c.collected()
 	if len(events) != 1 {
@@ -214,7 +218,7 @@ func TestExactSubscription(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-4 — Metadata filtering only delivers matching events.
+// VALIDATES: AC-4 -- Metadata filtering only delivers matching events.
 // PREVENTS: Filter bypass.
 func TestMetadataFiltering(t *testing.T) {
 	b := bus.NewBus()
@@ -238,7 +242,9 @@ func TestMetadataFiltering(t *testing.T) {
 	b.Publish("bgp/update", []byte("no-meta"), nil)
 
 	c.waitFor(t, 1, 2*time.Second)
-	time.Sleep(50 * time.Millisecond)
+	require.Never(t, func() bool {
+		return len(c.collected()) > 1
+	}, 50*time.Millisecond, 5*time.Millisecond)
 
 	events := c.collected()
 	if len(events) != 1 {
@@ -329,11 +335,12 @@ func TestUnsubscribe(t *testing.T) {
 	c.waitFor(t, 1, 2*time.Second)
 
 	b.Unsubscribe(sub)
-	// Allow unsubscribe to take effect
-	time.Sleep(50 * time.Millisecond)
 
 	b.Publish("bgp/update", []byte("after"), nil)
-	time.Sleep(100 * time.Millisecond)
+	// Verify no extra events arrive after unsubscribe
+	require.Never(t, func() bool {
+		return len(c.collected()) > 1
+	}, 100*time.Millisecond, 5*time.Millisecond)
 
 	events := c.collected()
 	if len(events) != 1 {
@@ -363,7 +370,9 @@ func TestTopicIsolation(t *testing.T) {
 	b.Publish("bgp/update", []byte("right"), nil)
 
 	c.waitFor(t, 1, 2*time.Second)
-	time.Sleep(50 * time.Millisecond)
+	require.Never(t, func() bool {
+		return len(c.collected()) > 1
+	}, 50*time.Millisecond, 5*time.Millisecond)
 
 	events := c.collected()
 	if len(events) != 1 {

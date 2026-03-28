@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"net/netip"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -144,7 +145,9 @@ func BenchmarkFwdPoolTryDispatch(b *testing.B) {
 
 	// Warm up: ensure worker exists so we measure steady-state, not creation.
 	pool.TryDispatch(key, fwdItem{})
-	time.Sleep(10 * time.Millisecond) // Let worker drain
+	for pool.WorkerCount() == 0 {
+		runtime.Gosched()
+	}
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -183,7 +186,9 @@ func BenchmarkFwdPoolTryDispatchParallel(b *testing.B) {
 
 		// Warm up worker.
 		pool.TryDispatch(key, fwdItem{})
-		time.Sleep(5 * time.Millisecond)
+		for pool.WorkerCount() < id+1 {
+			runtime.Gosched()
+		}
 
 		for pb.Next() {
 			pool.TryDispatch(key, fwdItem{})

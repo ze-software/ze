@@ -5,6 +5,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 // TestWorkerPool_LazyCreation verifies workers are created on first work item.
@@ -150,24 +152,8 @@ func TestWorkerPool_BackpressureWarning(t *testing.T) {
 func TestWorkerPool_ParallelProcessing(t *testing.T) {
 	var active atomic.Int32
 	var maxActive atomic.Int32
-	var done sync.WaitGroup
-
-	handler := func(key workerKey, item workItem) {
-		cur := active.Add(1)
-		// Track max concurrent workers.
-		for {
-			old := maxActive.Load()
-			if cur <= old || maxActive.CompareAndSwap(old, cur) {
-				break
-			}
-		}
-		time.Sleep(50 * time.Millisecond) // Simulate work.
-		active.Add(-1)
-		done.Done()
-	}
-
-	wp := newWorkerPool(handler, testPoolConfig())
-	defer wp.Stop()
+	var atBarrier sync.WaitGroup
+	release := make(chan struct{})
 
 	// 6 source peers = 6 workers processing in parallel.
 	keys := []workerKey{
@@ -178,13 +164,31 @@ func TestWorkerPool_ParallelProcessing(t *testing.T) {
 		{sourcePeer: "10.0.0.5"},
 		{sourcePeer: "10.0.0.6"},
 	}
+	atBarrier.Add(len(keys))
 
-	done.Add(len(keys))
+	handler := func(key workerKey, item workItem) {
+		cur := active.Add(1)
+		// Track max concurrent workers.
+		for {
+			old := maxActive.Load()
+			if cur <= old || maxActive.CompareAndSwap(old, cur) {
+				break
+			}
+		}
+		atBarrier.Done()
+		<-release // All workers block here until released.
+		active.Add(-1)
+	}
+
+	wp := newWorkerPool(handler, testPoolConfig())
+	defer wp.Stop()
+
 	for _, k := range keys {
 		wp.Dispatch(k, workItem{msgID: 1})
 	}
 
-	done.Wait()
+	atBarrier.Wait() // All 6 workers are active at the barrier.
+	close(release)   // Let them all finish.
 
 	if got := maxActive.Load(); got < 3 {
 		t.Errorf("expected at least 3 concurrent workers, max was %d", got)
@@ -215,23 +219,11 @@ func TestWorkerPool_FIFOWithinKey(t *testing.T) {
 	}
 
 	// Wait for all items to be processed.
-	deadline := time.After(5 * time.Second)
-	for {
+	require.Eventually(t, func() bool {
 		mu.Lock()
-		got := len(order)
-		mu.Unlock()
-		if got == n {
-			break
-		}
-		select {
-		case <-deadline:
-			mu.Lock()
-			t.Fatalf("timeout: processed %d/%d items", len(order), n)
-			mu.Unlock()
-		default:
-			time.Sleep(time.Millisecond)
-		}
-	}
+		defer mu.Unlock()
+		return len(order) == n
+	}, 5*time.Second, time.Millisecond)
 
 	// Verify strict ordering.
 	mu.Lock()
@@ -327,21 +319,11 @@ func TestWorkerPool_HandlerPanicRecovery(t *testing.T) {
 	wp.Dispatch(key, workItem{msgID: 2})
 
 	// Wait for second item to be processed.
-	deadline := time.After(2 * time.Second)
-	for {
+	require.Eventually(t, func() bool {
 		mu.Lock()
-		got := len(processed)
-		mu.Unlock()
-		if got >= 1 {
-			break
-		}
-		select {
-		case <-deadline:
-			t.Fatal("timeout: second item not processed after handler panic")
-		default:
-			time.Sleep(time.Millisecond)
-		}
-	}
+		defer mu.Unlock()
+		return len(processed) >= 1
+	}, 2*time.Second, time.Millisecond)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -437,15 +419,9 @@ func TestWorkerPoolLowWater(t *testing.T) {
 	// Wait for all items to process and low-water to fire.
 	waitForCount(&count, 9, t)
 
-	deadline := time.After(2 * time.Second)
-	for lowWaterCalls.Load() < 1 {
-		select {
-		case <-deadline:
-			t.Fatal("timeout: low-water callback never fired")
-		default:
-			time.Sleep(time.Millisecond)
-		}
-	}
+	require.Eventually(t, func() bool {
+		return lowWaterCalls.Load() >= 1
+	}, 2*time.Second, time.Millisecond, "low-water callback never fired")
 }
 
 // TestWorkerPoolHighLowCycle verifies high-water→pause, low-water→resume with no duplicate signals.
@@ -497,21 +473,14 @@ func TestWorkerPoolHighLowCycle(t *testing.T) {
 	waitForCount(&count, 9, t)
 
 	// Low-water should fire exactly once.
-	deadline := time.After(2 * time.Second)
-	for lowWaterCalls.Load() < 1 {
-		select {
-		case <-deadline:
-			t.Fatal("timeout: low-water callback never fired")
-		default:
-			time.Sleep(time.Millisecond)
-		}
-	}
+	require.Eventually(t, func() bool {
+		return lowWaterCalls.Load() >= 1
+	}, 2*time.Second, time.Millisecond, "low-water callback never fired")
 
-	// Verify only one low-water signal.
-	time.Sleep(50 * time.Millisecond) // Brief pause for any extra callbacks.
-	if got := lowWaterCalls.Load(); got != 1 {
-		t.Errorf("expected 1 low-water callback, got %d", got)
-	}
+	// Verify only one low-water signal (no extra callbacks).
+	require.Never(t, func() bool {
+		return lowWaterCalls.Load() > 1
+	}, 50*time.Millisecond, 5*time.Millisecond, "expected exactly 1 low-water callback")
 }
 
 // TestWorkerPoolCustomChanSize verifies custom channel size is respected.
@@ -656,23 +625,11 @@ func TestWorkerPool_OverflowFIFO(t *testing.T) {
 	close(block)
 
 	// Wait for all items processed.
-	deadline := time.After(5 * time.Second)
-	for {
+	require.Eventually(t, func() bool {
 		mu.Lock()
-		got := len(order)
-		mu.Unlock()
-		if got == 10 {
-			break
-		}
-		select {
-		case <-deadline:
-			mu.Lock()
-			t.Fatalf("timeout: processed %d/10 items, order=%v", len(order), order)
-			mu.Unlock()
-		default:
-			time.Sleep(time.Millisecond)
-		}
-	}
+		defer mu.Unlock()
+		return len(order) == 10
+	}, 5*time.Second, time.Millisecond)
 
 	// Verify strict FIFO: [1, 2, 3, ..., 10].
 	mu.Lock()
@@ -730,16 +687,10 @@ func TestWorkerPool_OverflowDrains(t *testing.T) {
 	// Unblock — all 11 items (1 blocking + 4 channel + 6 overflow) should process.
 	close(block)
 
-	deadline := time.After(5 * time.Second)
 	// 11 total: item 1 processed (handler returns after unblock) + items 2-11.
-	for processed.Load() < 11 {
-		select {
-		case <-deadline:
-			t.Fatalf("timeout: only %d/11 items processed", processed.Load())
-		default:
-			time.Sleep(time.Millisecond)
-		}
-	}
+	require.Eventually(t, func() bool {
+		return processed.Load() >= 11
+	}, 5*time.Second, time.Millisecond, "not all overflow items processed")
 }
 
 // TestWorkerPool_DepthIncludesOverflow verifies backpressure accounts for overflow items.
@@ -843,16 +794,14 @@ func TestWorkerPool_StopDropsOverflow(t *testing.T) {
 		close(stopDone)
 	}()
 
-	// Give Stop a moment to signal drain goroutine.
-	time.Sleep(50 * time.Millisecond)
+	// Wait for Stop to begin draining overflow (calls onItemDrop).
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(dropped) > 0
+	}, 2*time.Second, time.Millisecond, "Stop never called onItemDrop for overflow items")
 	close(block)
 	<-stopDone
-
-	mu.Lock()
-	defer mu.Unlock()
-	if len(dropped) == 0 {
-		t.Error("expected onItemDrop to be called for overflow items during Stop")
-	}
 }
 
 // TestWorkerPool_PeerDownDropsOverflow verifies PeerDown calls onItemDrop for overflow items.
@@ -911,16 +860,14 @@ func TestWorkerPool_PeerDownDropsOverflow(t *testing.T) {
 		close(peerDownDone)
 	}()
 
-	// Give PeerDown a moment to signal drain goroutine.
-	time.Sleep(50 * time.Millisecond)
+	// Wait for PeerDown to begin draining overflow (calls onItemDrop).
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return len(dropped) > 0
+	}, 2*time.Second, time.Millisecond, "PeerDown never called onItemDrop for overflow items")
 	close(block)
 	<-peerDownDone
-
-	mu.Lock()
-	defer mu.Unlock()
-	if len(dropped) == 0 {
-		t.Error("expected onItemDrop to be called for overflow items during PeerDown")
-	}
 }
 
 // TestDefaultChannelCapacity4096 verifies that the default channel capacity is 4096.
@@ -1028,16 +975,10 @@ func TestBackpressureLowWater10Percent(t *testing.T) {
 	waitForCount(&count, 21, t)
 
 	// Low-water fires at <10% (depth < 2 for cap=20).
-	// After all 20 items processed, depth=0 → low-water fires.
-	deadline := time.After(2 * time.Second)
-	for lowWaterCalls.Load() < 1 {
-		select {
-		case <-deadline:
-			t.Fatal("timeout: low-water callback never fired")
-		default:
-			time.Sleep(time.Millisecond)
-		}
-	}
+	// After all 20 items processed, depth=0 -> low-water fires.
+	require.Eventually(t, func() bool {
+		return lowWaterCalls.Load() >= 1
+	}, 2*time.Second, time.Millisecond, "low-water callback never fired")
 }
 
 // TestBackpressureThresholdOscillation verifies wider band reduces pause/resume cycles.
@@ -1110,27 +1051,20 @@ func TestBackpressureNoResumeAbove10Percent(t *testing.T) {
 	waitForCount(&count, 5, t)
 
 	// Items 1-5 processed. Item 6 is blocked in handler.
-	// Channel: items 7-11 (5 items). depth=5. 5*10=50, 50 > 10 → NOT <10%.
-	// Depth is at 50%, well above 10% — low-water must NOT fire.
-	time.Sleep(50 * time.Millisecond)
-	if lwCalls.Load() > 0 {
-		t.Error("onLowWater should NOT fire when depth is above 10%")
-	}
+	// Channel: items 7-11 (5 items). depth=5. 5*10=50, 50 > 10 -> NOT <10%.
+	// Depth is at 50%, well above 10% -- low-water must NOT fire.
+	require.Never(t, func() bool {
+		return lwCalls.Load() > 0
+	}, 50*time.Millisecond, 5*time.Millisecond, "onLowWater should NOT fire when depth is above 10%")
 
-	// Unblock remaining items → depth drains to 0 < 10% → low-water fires.
+	// Unblock remaining items -> depth drains to 0 < 10% -> low-water fires.
 	close(blockCh)
 	block = make(chan struct{}) // Replace so defer close doesn't double-close.
 	waitForCount(&count, 11, t)
 
-	deadline := time.After(2 * time.Second)
-	for lwCalls.Load() < 1 {
-		select {
-		case <-deadline:
-			t.Fatal("timeout: low-water callback never fired after draining below 10%")
-		default:
-			time.Sleep(time.Millisecond)
-		}
-	}
+	require.Eventually(t, func() bool {
+		return lwCalls.Load() >= 1
+	}, 2*time.Second, time.Millisecond, "low-water callback never fired after draining below 10%")
 }
 
 // TestBackpressureReminder verifies periodic WARN fires during sustained backpressure.
@@ -1168,18 +1102,18 @@ func TestBackpressureReminder(t *testing.T) {
 		t.Fatal("expected backpressure detection")
 	}
 
-	// Immediately dispatch again — should NOT log (interval not elapsed).
+	// Immediately dispatch again -- should NOT log (interval not elapsed).
 	wp.Dispatch(key, workItem{msgID: 12})
 
-	// Wait for interval to elapse, then dispatch — should log reminder.
-	time.Sleep(50 * time.Millisecond)
-	wp.Dispatch(key, workItem{msgID: 13})
-
-	// Verify: second BackpressureDetected means checkBackpressure ran
-	// with the interval elapsed → reminder WARN was emitted.
-	if !wp.BackpressureDetected(key) {
-		t.Error("expected backpressure after reminder interval elapsed")
-	}
+	// Dispatch after reminder interval (30ms) has elapsed -- should log reminder.
+	// The Eventually poll interval provides the wall-clock delay needed.
+	var msgID uint64 = 13
+	require.Eventually(t, func() bool {
+		wp.Dispatch(key, workItem{msgID: msgID})
+		msgID++
+		return wp.BackpressureDetected(key)
+	}, 2*time.Second, 10*time.Millisecond,
+		"expected backpressure after reminder interval elapsed")
 }
 
 // --- Test helpers ---
@@ -1193,26 +1127,16 @@ func testPoolConfig() poolConfig {
 
 func waitForCount(count *atomic.Int32, target int32, t *testing.T) {
 	t.Helper()
-	deadline := time.After(2 * time.Second)
-	for count.Load() < target {
-		select {
-		case <-deadline:
-			t.Fatalf("timeout waiting for count=%d, got %d", target, count.Load())
-		default:
-			time.Sleep(time.Millisecond)
-		}
-	}
+	require.Eventually(t, func() bool {
+		return count.Load() >= target
+	}, 2*time.Second, time.Millisecond,
+		"timeout waiting for count=%d, got %d", target, count.Load())
 }
 
 func waitForWorkerCount(wp *workerPool, target int, t *testing.T) {
 	t.Helper()
-	deadline := time.After(2 * time.Second)
-	for wp.WorkerCount() != target {
-		select {
-		case <-deadline:
-			t.Fatalf("timeout waiting for worker count=%d, got %d", target, wp.WorkerCount())
-		default:
-			time.Sleep(time.Millisecond)
-		}
-	}
+	require.Eventually(t, func() bool {
+		return wp.WorkerCount() == target
+	}, 2*time.Second, time.Millisecond,
+		"timeout waiting for worker count=%d, got %d", target, wp.WorkerCount())
 }

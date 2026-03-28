@@ -370,14 +370,14 @@ func TestOnTimerExpired_WithLLGR(t *testing.T) {
 	cap := testCap(1, famIPv4) // restart-time=1s
 	mgr.onSessionDown(testPeer, cap, llgrCapIPv4, false)
 
-	// Wait for GR timer to fire
-	time.Sleep(1500 * time.Millisecond)
+	// Wait for GR timer to fire and transition to LLGR
+	require.Eventually(t, func() bool {
+		return len(llgrEntries.get()) > 0
+	}, 3*time.Second, 10*time.Millisecond, "should enter LLGR for ipv4/unicast")
 
 	// Should NOT have called onTimerExpired (no purge)
 	assert.Empty(t, expired.get(), "GR timer expiry should not purge when LLGR available")
-	// Should have entered LLGR
 	assert.Equal(t, []string{"ipv4/unicast"}, llgrEntries.get(), "should enter LLGR for ipv4/unicast")
-	// Peer should still be active (in LLGR)
 	assert.True(t, mgr.peerActive(testPeer), "peer should still be active in LLGR")
 }
 
@@ -396,9 +396,11 @@ func TestOnTimerExpired_WithoutLLGR(t *testing.T) {
 	cap := testCap(1, famIPv4)
 	mgr.onSessionDown(testPeer, cap, nil, false) // no LLGR
 
-	time.Sleep(1500 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return len(expired.get()) > 0
+	}, 3*time.Second, 10*time.Millisecond, "should purge on GR timer expiry without LLGR")
 
-	assert.Equal(t, []string{testPeer}, expired.get(), "should purge on GR timer expiry without LLGR")
+	assert.Equal(t, []string{testPeer}, expired.get())
 	assert.False(t, mgr.peerActive(testPeer), "peer should no longer be active")
 }
 
@@ -423,7 +425,9 @@ func TestOnTimerExpired_MixedFamilies(t *testing.T) {
 	cap := testCap(1, famIPv4, famIPv6)
 	mgr.onSessionDown(testPeer, cap, llgrCapPartial, false)
 
-	time.Sleep(1500 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return len(llgrEntries.get()) > 0 && len(familyExpired.get()) > 0
+	}, 3*time.Second, 10*time.Millisecond, "GR timer should fire and transition to LLGR")
 
 	assert.Equal(t, []string{"ipv4/unicast"}, llgrEntries.get(), "only ipv4 should enter LLGR")
 	assert.Contains(t, familyExpired.get(), "ipv6/unicast", "ipv6 should be purged (no LLGR)")
@@ -458,8 +462,10 @@ func TestLLSTTimerExpiry_SingleFamily(t *testing.T) {
 	cap := testCap(1, famIPv4, famIPv6)
 	mgr.onSessionDown(testPeer, cap, llgrCap, false)
 
-	// Wait for GR timer (1s) + LLST ipv4 timer (1s) + margin
-	time.Sleep(2500 * time.Millisecond)
+	// Wait for GR timer (1s) + LLST ipv4 timer (1s) to fire
+	require.Eventually(t, func() bool {
+		return len(familyExpired.get()) > 0
+	}, 5*time.Second, 10*time.Millisecond, "ipv4 LLST should have fired")
 
 	assert.Contains(t, familyExpired.get(), "ipv4/unicast", "ipv4 LLST should have fired")
 	assert.Empty(t, completed.get(), "should not be complete (ipv6 still active)")
@@ -489,8 +495,10 @@ func TestLLSTTimerExpiry_LastFamily(t *testing.T) {
 	cap := testCap(1, famIPv4)
 	mgr.onSessionDown(testPeer, cap, llgrCap, false)
 
-	// Wait for GR (1s) + LLST (1s) + margin
-	time.Sleep(2500 * time.Millisecond)
+	// Wait for GR (1s) + LLST (1s) to fire
+	require.Eventually(t, func() bool {
+		return len(completed.get()) > 0
+	}, 5*time.Second, 10*time.Millisecond, "onLLGRComplete should fire")
 
 	assert.Equal(t, []string{testPeer}, completed.get(), "onLLGRComplete should fire")
 	assert.False(t, mgr.peerActive(testPeer), "peer should no longer be active")
