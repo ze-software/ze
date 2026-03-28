@@ -9,10 +9,7 @@
       </li>
       {{end}}
     </ul>
-    <form class="config-key-add" data-action="key-form" data-base-url="{{.BasePath}}" action="{{.BasePath}}" method="GET">
-      <input type="text" name="newkey" class="config-input" placeholder="new entry key...">
-      <button type="submit" class="config-btn-set">Add</button>
-    </form>
+    <button class="sidebar-flyout-add" data-action="add-entry" data-base-url="{{.BasePath}}">+ new</button>
   </div>
 
   <div class="config-detail-panel" id="detail-panel">

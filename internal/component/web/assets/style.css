@@ -995,46 +995,122 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   text-decoration: none;
 }
 
-.sidebar-entries {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
+/* Flyout: entries panel that appears on hover next to the sidebar */
+.sidebar-list-group {
+  position: relative;
 }
 
-.sidebar-entry {
+.sidebar-count {
+  float: right;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  padding: 0 0.3rem;
+  min-width: 1.2rem;
+  text-align: center;
+  border-radius: 0.5rem;
+  background: var(--bg-inset);
+}
+
+.sidebar-flyout {
+  display: none;
+  position: fixed;
+  min-width: 10rem;
+  max-height: 20rem;
+  overflow-y: auto;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  z-index: 100;
+  flex-direction: column;
+}
+
+.sidebar-flyout.visible {
+  display: flex;
+}
+
+.sidebar-flyout-entry {
   display: block;
-  padding: 0.3rem 0.75rem 0.3rem 1.25rem;
+  padding: 0.35rem 0.75rem;
   font-family: var(--font-mono);
   font-size: 0.8rem;
   color: var(--text-primary);
   text-decoration: none;
+  white-space: nowrap;
 }
 
-.sidebar-entry:hover {
+.sidebar-flyout-entry:hover {
   background: var(--accent-subtle);
   color: var(--accent);
   text-decoration: none;
 }
 
-.sidebar-entry.selected {
+.sidebar-flyout-entry.selected {
   background: var(--accent-subtle);
-  border-left: 2px solid var(--accent);
   color: var(--accent);
-  padding-left: calc(1.25rem - 2px);
+  font-weight: 600;
 }
 
-.sidebar-add {
-  display: flex;
-  gap: 0.25rem;
+.sidebar-flyout-add {
+  display: block;
+  width: 100%;
   padding: 0.35rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  background: none;
+  border: none;
+  border-top: 1px solid var(--border);
+  cursor: pointer;
+  text-align: left;
 }
 
-.sidebar-add-input {
-  flex: 1;
-  min-width: 0;
-  padding: 0.2rem 0.4rem;
+.sidebar-flyout-add:hover {
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+/* Add-entry overlay (modal dialog for creating a new list entry) */
+.add-entry-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-entry-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  min-width: 20rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.add-entry-card h3 {
+  margin-bottom: 0.75rem;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+
+.add-entry-input {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
   font-family: var(--font-mono);
-  font-size: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 1px solid var(--border-focus);
+  border-radius: var(--radius-sm);
+}
+
+.add-entry-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
   color: var(--text-primary);
   background: var(--input-bg);
   border: 1px solid var(--border);

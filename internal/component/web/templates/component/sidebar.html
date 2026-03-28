@@ -10,20 +10,24 @@
 
 {{define "sidebar_section"}}
 <div class="sidebar-section">
+  {{if .IsList}}
+  <div class="sidebar-list-group">
+    <a class="sidebar-heading" href="{{.URL}}"
+       hx-get="/fragment/detail?path={{.HxPath}}" hx-target="#detail" hx-push-url="{{.URL}}">{{.Name}}{{if .Description}}
+      <span class="ze-field-info" data-tooltip="{{.Description}}">i</span>{{end}}
+      <span class="sidebar-count">{{len .Entries}}</span></a>
+    <div class="sidebar-flyout">
+      {{range .Entries}}
+      <a class="sidebar-flyout-entry{{if .Selected}} selected{{end}}" href="{{.URL}}"
+         hx-get="/fragment/detail?path={{.HxPath}}" hx-target="#detail" hx-push-url="{{.URL}}">{{.Key}}</a>
+      {{end}}
+      <button class="sidebar-flyout-add" data-action="add-entry" data-base-url="{{.AddURL}}">+ new</button>
+    </div>
+  </div>
+  {{else}}
   <a class="sidebar-heading" href="{{.URL}}"
      hx-get="/fragment/detail?path={{.HxPath}}" hx-target="#detail" hx-push-url="{{.URL}}">{{.Name}}{{if .Description}}
     <span class="ze-field-info" data-tooltip="{{.Description}}">i</span>{{end}}</a>
-  {{if .IsList}}
-  <div class="sidebar-entries">
-    {{range .Entries}}
-    <a class="sidebar-entry{{if .Selected}} selected{{end}}" href="{{.URL}}"
-       hx-get="/fragment/detail?path={{.HxPath}}" hx-target="#detail" hx-push-url="{{.URL}}">{{.Key}}</a>
-    {{end}}
-    <form class="sidebar-add" data-action="key-form" data-base-url="{{.AddURL}}" action="{{.AddURL}}" method="GET">
-      <input type="text" name="key" class="sidebar-add-input" placeholder="add...">
-      <button type="submit" class="ze-field-btn">+</button>
-    </form>
-  </div>
   {{end}}
 </div>
 {{end}}

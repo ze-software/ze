@@ -271,6 +271,9 @@
       } else if (action === 'dismiss-login') {
         var overlay = document.getElementById('login-overlay');
         if (overlay) overlay.remove();
+      } else if (action === 'add-entry') {
+        var baseURL = btn.getAttribute('data-base-url') || '/show/';
+        showAddEntryOverlay(baseURL);
       } else if (action === 'toggle-theme') {
         var html = document.documentElement;
         var current = html.getAttribute('data-theme');
@@ -280,16 +283,66 @@
       }
     });
 
-    // Key-form: append input value to base URL before submitting.
-    document.addEventListener('submit', function(e) {
-      var form = e.target.closest('[data-action="key-form"]');
-      if (!form) return;
-      var base = form.getAttribute('data-base-url') || '';
-      var input = form.querySelector('input[type="text"]');
-      if (input && input.value) {
-        form.action = base + input.value + '/';
+  }
+
+  // Add-entry overlay: shows a modal to name a new list entry, then navigates to it.
+  function showAddEntryOverlay(baseURL) {
+    var overlay = document.createElement('div');
+    overlay.className = 'add-entry-overlay';
+    var card = document.createElement('div');
+    card.className = 'add-entry-card';
+    var heading = document.createElement('h3');
+    heading.textContent = 'New entry';
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'add-entry-input';
+    input.placeholder = 'name';
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        var name = input.value.trim();
+        if (name) window.location.href = baseURL + name + '/';
       }
+      if (e.key === 'Escape') overlay.remove();
     });
+    card.appendChild(heading);
+    card.appendChild(input);
+    overlay.appendChild(card);
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) overlay.remove();
+    });
+    document.body.appendChild(overlay);
+    input.focus();
+  }
+
+  // Sidebar flyout: position and show on hover over list groups.
+  function initFlyout() {
+    var activeFlyout = null;
+    document.addEventListener('mouseenter', function(e) {
+      var group = e.target.closest('.sidebar-list-group');
+      if (!group) return;
+      var flyout = group.querySelector('.sidebar-flyout');
+      if (!flyout) return;
+      if (activeFlyout && activeFlyout !== flyout) activeFlyout.classList.remove('visible');
+      var rect = group.getBoundingClientRect();
+      flyout.style.left = rect.right + 'px';
+      flyout.style.top = rect.top + 'px';
+      flyout.classList.add('visible');
+      activeFlyout = flyout;
+    }, true);
+
+    document.addEventListener('mouseleave', function(e) {
+      var group = e.target.closest('.sidebar-list-group');
+      if (!group) return;
+      // Delay hiding so mouse can move into the flyout.
+      setTimeout(function() {
+        var flyout = group.querySelector('.sidebar-flyout');
+        if (flyout && !group.matches(':hover') && !flyout.matches(':hover')) {
+          flyout.classList.remove('visible');
+          if (activeFlyout === flyout) activeFlyout = null;
+        }
+      }, 150);
+    }, true);
   }
 
   // Restore saved theme preference.
@@ -306,5 +359,6 @@
     initViewToggle();
     initNumberInputs();
     initActions();
+    initFlyout();
   });
 })();
