@@ -47,6 +47,7 @@
 | Guide | Description |
 |-------|-------------|
 | [Operations](operations.md) | SSH setup, signals, health checks, systemd, troubleshooting |
+| [MCP Remote Access](mcp/remote-access.md) | SSH tunnels and WireGuard for remote MCP access |
 | [Logging](logging.md) | Log levels, backends, per-subsystem tuning, runtime changes |
 | [ExaBGP Migration](exabgp-migration.md) | Config conversion and plugin compatibility bridge |
 | [Chaos Testing](chaos-testing.md) | Fault injection, deterministic replay, property validation |

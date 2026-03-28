@@ -137,8 +137,8 @@ No `unsafe-eval`. All scripts are external files. No inline `<script>` blocks.
 
 | Method | Command |
 |--------|---------|
-| CLI flag | `ze start --web` |
-| Config | `system { web { listen 0.0.0.0:8443; } }` |
+| CLI flag | `ze start --web <port>` |
+| Config | `environment { web { host 0.0.0.0; port 8443; } }` |
 
 Both paths call `startWebServer()` in `cmd/ze/hub/main.go`. Web-only mode (no BGP config) starts the web server standalone for initial setup.
 

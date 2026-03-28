@@ -157,8 +157,8 @@ Two ways:
 
 | Method | What happens |
 |--------|-------------|
-| `ze start --web` | Starts web server alongside BGP engine (or standalone if no config) |
-| `system { web { } }` in config | Detected during config load, enables web server |
+| `ze start --web <port>` | Starts web server alongside BGP engine (or standalone if no config) |
+| `environment { web { } }` in config | Detected during config load, enables web server |
 
 Both paths call `startWebServer()` in `cmd/ze/hub/main.go` which wires all routes, creates the EditorManager, CLI completer, and session store.
 

@@ -244,16 +244,17 @@ Add the HTTPS web interface alongside the BGP daemon. The web server runs on a
 separate port and provides configuration viewing, editing, and admin commands.
 
 ```
-ze start --web                                            # Start daemon + web on default port
-ze start --web --listen 127.0.0.1:8443                    # Web on specific address
-ze start --web --insecure-web --listen 127.0.0.1:8443     # No authentication (testing only)
+ze start --web 8443                              # Start daemon + web on port 8443
+ze start --web 8443 --insecure-web               # No authentication (forces 127.0.0.1)
+ze start --mcp 9718                              # Start daemon + MCP server
+ze start --web 8443 --mcp 9718                   # Both web and MCP
 ```
 
 | Flag | Purpose |
 |------|---------|
-| `--web` | Enable the web interface alongside the daemon |
-| `--listen <addr>` | Web server listen address (default: `0.0.0.0:8443`) |
-| `--insecure-web` | Disable authentication (requires `--listen 127.0.0.1:*`) |
+| `--web <port>` | Start web interface on `0.0.0.0:<port>` |
+| `--insecure-web` | Disable authentication (forces `127.0.0.1`, requires `--web`) |
+| `--mcp <port>` | Start MCP server on `127.0.0.1:<port>` (AI control interface) |
 
 The web server uses a self-signed ECDSA P-256 certificate (persisted in zefs) with SANs
 for localhost, 127.0.0.1, ::1, and the listen address.
