@@ -5,6 +5,9 @@
 
   var cachedItems = null;  // Last fetched completions for live filtering.
   var cachedPrefix = '';   // Prefix (up to last space) when completions were fetched.
+  var history = [];        // Command history.
+  var historyPos = -1;     // Current position in history (-1 = not browsing).
+  var historyDraft = '';   // Saved input before browsing history.
 
   function init() {
     var input = document.getElementById('cli-input');
@@ -12,12 +15,37 @@
     if (!input || !box) return;
 
     input.addEventListener('keydown', function(e) {
+      // History navigation.
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (history.length === 0) return;
+        if (historyPos < 0) historyDraft = input.value;
+        if (historyPos < history.length - 1) {
+          historyPos++;
+          input.value = history[history.length - 1 - historyPos];
+        }
+        return;
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (historyPos < 0) return;
+        historyPos--;
+        if (historyPos < 0) {
+          input.value = historyDraft;
+        } else {
+          input.value = history[history.length - 1 - historyPos];
+        }
+        return;
+      }
+
       if (e.key === 'Enter') {
         e.preventDefault();
         box.style.display = 'none';
         cachedItems = null;
         var cmd = input.value.trim();
         if (!cmd) return;
+        history.push(cmd);
+        historyPos = -1;
         input.value = '';
 
         var tokens = cmd.split(/\s+/);
@@ -38,13 +66,13 @@
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
             body: 'command=' + encodeURIComponent(cmd)
           }).then(function(r) { return r.text(); })
-            .then(function(text) {
-              var out = document.getElementById('terminal-output');
+            .then(function(html) {
+              var out = document.getElementById('terminal-scrollback');
               if (out) {
-                out.textContent += '> ' + cmd + '\n' + text + '\n';
+                // Server returns HTML fragments (terminal-entry divs).
+                out.insertAdjacentHTML('beforeend', html);
                 out.scrollTop = out.scrollHeight;
               }
-              // Commit bar updated via OOB from server.
             });
           return;
         }
@@ -186,11 +214,10 @@
   // Updated after HTMX mode toggle completes.
   function initViewToggle() {
     document.addEventListener('htmx:afterSwap', function(e) {
-      if (!e.detail || !e.detail.elt) return;
-      var content = e.detail.elt;
-      if (!content.classList || !content.classList.contains('content-area')) return;
-      // Check if content now has a terminal view.
-      var hasTerminal = content.querySelector('#terminal-output');
+      // Check if the content area was swapped (mode toggle or navigation).
+      var content = document.querySelector('.content-area');
+      if (!content) return;
+      var hasTerminal = content.querySelector('#terminal-scrollback');
       window.zeTerminalMode = !!hasTerminal;
       var btn = document.getElementById('view-toggle');
       if (!btn) return;
