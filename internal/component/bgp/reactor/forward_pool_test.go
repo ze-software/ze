@@ -122,12 +122,16 @@ func TestFwdPool_FIFOPerPeer(t *testing.T) {
 	}
 
 	for i := 1; i <= 5; i++ {
-		select {
-		case got := <-orderCh:
-			assert.Equal(t, i, got)
-		case <-time.After(time.Second):
-			t.Fatalf("timeout waiting for item %d", i)
-		}
+		var got int
+		require.Eventually(t, func() bool {
+			select {
+			case got = <-orderCh:
+				return true
+			default:
+				return false
+			}
+		}, 2*time.Second, time.Millisecond, "timeout waiting for item %d", i)
+		assert.Equal(t, i, got)
 	}
 }
 
@@ -139,12 +143,17 @@ func TestFwdPool_FIFOPerPeer(t *testing.T) {
 func TestFwdPool_ParallelPeers(t *testing.T) {
 	slowCh := make(chan struct{})
 	fastDone := make(chan struct{})
+	slowStarted := make(chan struct{}, 1)
 
 	slowAddr := netip.MustParseAddrPort("10.0.0.1:179")
 	fastAddr := netip.MustParseAddrPort("10.0.0.2:179")
 
 	pool := newFwdPool(func(key fwdKey, _ []fwdItem) {
 		if key.peerAddr == slowAddr {
+			select {
+			case slowStarted <- struct{}{}:
+			default:
+			}
 			<-slowCh
 		} else {
 			close(fastDone)
@@ -154,17 +163,19 @@ func TestFwdPool_ParallelPeers(t *testing.T) {
 
 	// Dispatch to slow peer first
 	pool.Dispatch(fwdKey{peerAddr: slowAddr}, fwdItem{})
-	time.Sleep(10 * time.Millisecond) // Ensure slow worker is blocked
+	<-slowStarted // Wait for slow worker to be blocking
 
 	// Dispatch to fast peer — should complete without waiting for slow
 	pool.Dispatch(fwdKey{peerAddr: fastAddr}, fwdItem{})
 
-	select {
-	case <-fastDone:
-		// Fast peer completed — not blocked by slow peer
-	case <-time.After(time.Second):
-		t.Fatal("fast peer blocked by slow peer")
-	}
+	require.Eventually(t, func() bool {
+		select {
+		case <-fastDone:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "fast peer blocked by slow peer")
 
 	close(slowCh)
 }
@@ -176,7 +187,12 @@ func TestFwdPool_ParallelPeers(t *testing.T) {
 // PREVENTS: Silent message drops under load.
 func TestFwdPool_BackpressureBehavior(t *testing.T) {
 	blocker := make(chan struct{})
+	handlerStarted := make(chan struct{}, 1)
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		select {
+		case handlerStarted <- struct{}{}:
+		default:
+		}
 		<-blocker
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	defer pool.Stop()
@@ -185,7 +201,7 @@ func TestFwdPool_BackpressureBehavior(t *testing.T) {
 
 	// Fill: 1 item in handler + 2 in channel = 3 dispatches
 	pool.Dispatch(key, fwdItem{})
-	time.Sleep(10 * time.Millisecond)
+	<-handlerStarted
 	pool.Dispatch(key, fwdItem{})
 	pool.Dispatch(key, fwdItem{})
 
@@ -196,21 +212,27 @@ func TestFwdPool_BackpressureBehavior(t *testing.T) {
 		dispatched <- ok
 	}()
 
-	select {
-	case <-dispatched:
-		t.Fatal("dispatch should have blocked on full channel")
-	case <-time.After(100 * time.Millisecond):
-		// Expected: dispatch is blocked
-	}
+	require.Never(t, func() bool {
+		select {
+		case <-dispatched:
+			return true
+		default:
+			return false
+		}
+	}, 100*time.Millisecond, 10*time.Millisecond, "dispatch should have blocked on full channel")
 
 	close(blocker) // Unblock processing
 
-	select {
-	case ok := <-dispatched:
-		assert.True(t, ok)
-	case <-time.After(time.Second):
-		t.Fatal("dispatch should have unblocked after handler drained")
-	}
+	var ok2 bool
+	require.Eventually(t, func() bool {
+		select {
+		case ok2 = <-dispatched:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "dispatch should have unblocked after handler drained")
+	assert.True(t, ok2)
 }
 
 // TestFwdPool_HandlerError verifies panics in the handler don't kill the worker
@@ -257,13 +279,18 @@ func TestFwdPool_HandlerError(t *testing.T) {
 // PREVENTS: Deadlock during reactor shutdown when workers are backed up.
 func TestFwdPool_StopUnblocksDispatch(t *testing.T) {
 	blocker := make(chan struct{})
+	handlerStarted := make(chan struct{}, 1)
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		select {
+		case handlerStarted <- struct{}{}:
+		default:
+		}
 		<-blocker
 	}, fwdPoolConfig{chanSize: 1, idleTimeout: time.Second})
 
 	key := fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}
 	pool.Dispatch(key, fwdItem{}) // In handler
-	time.Sleep(10 * time.Millisecond)
+	<-handlerStarted
 	pool.Dispatch(key, fwdItem{}) // In channel
 
 	// This dispatch should block
@@ -273,18 +300,29 @@ func TestFwdPool_StopUnblocksDispatch(t *testing.T) {
 		result <- ok
 	}()
 
-	time.Sleep(50 * time.Millisecond)
+	require.Never(t, func() bool {
+		select {
+		case <-result:
+			return true
+		default:
+			return false
+		}
+	}, 50*time.Millisecond, 5*time.Millisecond, "dispatch should be blocked on full channel")
 
 	// Stop should unblock the blocked dispatch
 	close(blocker)
 	pool.Stop()
 
-	select {
-	case ok := <-result:
-		assert.False(t, ok)
-	case <-time.After(time.Second):
-		t.Fatal("Stop should have unblocked blocked dispatch")
-	}
+	var stopOk bool
+	require.Eventually(t, func() bool {
+		select {
+		case stopOk = <-result:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "Stop should have unblocked blocked dispatch")
+	assert.False(t, stopOk)
 }
 
 // TestFwdPool_DoneCalledOnSuccess verifies the done callback is called
@@ -310,14 +348,16 @@ func TestFwdPoolCustomChanSize(t *testing.T) {
 			ok := pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
 			done <- ok
 		}()
-		select {
-		case ok := <-done:
-			if !ok {
-				t.Fatalf("dispatch %d rejected", i)
+		var ok bool
+		require.Eventually(t, func() bool {
+			select {
+			case ok = <-done:
+				return true
+			default:
+				return false
 			}
-		case <-time.After(2 * time.Second):
-			t.Fatalf("dispatch %d blocked — chanSize likely smaller than 128", i)
-		}
+		}, 2*time.Second, time.Millisecond, "dispatch %d blocked — chanSize likely smaller than 128", i)
+		require.True(t, ok, "dispatch %d rejected", i)
 	}
 }
 
@@ -360,22 +400,26 @@ func TestForwardPoolBackpressurePropagation(t *testing.T) {
 		close(dispatched)
 	}()
 
-	select {
-	case <-dispatched:
-		t.Fatal("dispatch should be blocked but returned immediately")
-	case <-time.After(100 * time.Millisecond):
-		// Expected: dispatch is blocked.
-	}
+	require.Never(t, func() bool {
+		select {
+		case <-dispatched:
+			return true
+		default:
+			return false
+		}
+	}, 100*time.Millisecond, 10*time.Millisecond, "dispatch should be blocked but returned immediately")
 
 	// Unblock handler → dispatch should complete.
 	unblocked.Store(1)
 	close(block)
-	select {
-	case <-dispatched:
-		// Dispatch completed after handler unblocked.
-	case <-time.After(2 * time.Second):
-		t.Fatal("dispatch still blocked after handler unblocked")
-	}
+	require.Eventually(t, func() bool {
+		select {
+		case <-dispatched:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "dispatch still blocked after handler unblocked")
 }
 
 func TestFwdPool_DoneCalledOnSuccess(t *testing.T) {
@@ -393,12 +437,14 @@ func TestFwdPool_DoneCalledOnSuccess(t *testing.T) {
 	}
 
 	for i := range 3 {
-		select {
-		case <-doneCh:
-			// done called
-		case <-time.After(time.Second):
-			t.Fatalf("timeout waiting for done callback %d", i)
-		}
+		require.Eventually(t, func() bool {
+			select {
+			case <-doneCh:
+				return true
+			default:
+				return false
+			}
+		}, 2*time.Second, time.Millisecond, "timeout waiting for done callback %d", i)
 	}
 }
 
@@ -410,6 +456,7 @@ func TestFwdPool_DoneCalledOnSuccess(t *testing.T) {
 func TestFwdWorkerDrainBatch(t *testing.T) {
 	batchSizes := make(chan int, 10)
 	entered := make(chan struct{}, 1)
+	itemsQueued := make(chan struct{})
 	var calls atomic.Int32
 
 	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
@@ -418,8 +465,8 @@ func TestFwdWorkerDrainBatch(t *testing.T) {
 			// Signal that first handler call entered, then block
 			// so remaining items queue in the channel.
 			entered <- struct{}{}
-			// Wait briefly for items to be dispatched
-			time.Sleep(20 * time.Millisecond)
+			// Wait for test to finish dispatching items
+			<-itemsQueued
 		}
 		batchSizes <- len(items)
 	}, fwdPoolConfig{chanSize: 10, idleTimeout: time.Second})
@@ -431,10 +478,13 @@ func TestFwdWorkerDrainBatch(t *testing.T) {
 	pool.Dispatch(key, fwdItem{})
 	<-entered
 
-	// Dispatch 5 more while first handler call is sleeping
+	// Dispatch 5 more while first handler call is blocked
 	for range 5 {
 		pool.Dispatch(key, fwdItem{})
 	}
+
+	// Unblock first handler call now that items are queued
+	close(itemsQueued)
 
 	// First handler call returns batch of 1
 	size1 := <-batchSizes
@@ -461,12 +511,16 @@ func TestFwdWorkerBatchSingleItem(t *testing.T) {
 	// Dispatch single item
 	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
 
-	select {
-	case size := <-batchSizes:
-		assert.Equal(t, 1, size, "single item should produce batch of 1")
-	case <-time.After(time.Second):
-		t.Fatal("timeout waiting for handler")
-	}
+	var size int
+	require.Eventually(t, func() bool {
+		select {
+		case size = <-batchSizes:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "timeout waiting for handler")
+	assert.Equal(t, 1, size, "single item should produce batch of 1")
 }
 
 // TestFwdWorkerBatchAllDoneCalled verifies done() is called for every
@@ -494,8 +548,9 @@ func TestFwdWorkerBatchAllDoneCalled(t *testing.T) {
 	pool.Dispatch(key, fwdItem{done: doneFunc})
 	<-entered
 
-	// Wait for panic recovery
-	time.Sleep(50 * time.Millisecond)
+	// Wait for panic recovery (done callback called for panicked item)
+	require.Eventually(t, func() bool { return doneCalled.Load() >= 1 },
+		time.Second, time.Millisecond, "done should be called after panic recovery")
 
 	// Dispatch 3 more while worker is ready again
 	// These should form a batch
@@ -631,13 +686,16 @@ func TestFwdWorkerIdleRestartFreshBuffer(t *testing.T) {
 	// Dispatch a single item — new worker is created with fresh (nil) buffer.
 	pool.Dispatch(key, fwdItem{})
 
-	select {
-	case size := <-batchSizes:
-		// New worker processed exactly 1 item — no stale data from old buffer.
-		assert.Equal(t, 1, size, "restarted worker should see only the new item")
-	case <-time.After(time.Second):
-		t.Fatal("timeout waiting for restarted worker to process item")
-	}
+	var restartSize int
+	require.Eventually(t, func() bool {
+		select {
+		case restartSize = <-batchSizes:
+			return true
+		default:
+			return false
+		}
+	}, 2*time.Second, time.Millisecond, "timeout waiting for restarted worker to process item")
+	assert.Equal(t, 1, restartSize, "restarted worker should see only the new item")
 	assert.Equal(t, 1, pool.WorkerCount())
 }
 
@@ -648,7 +706,12 @@ func TestFwdWorkerIdleRestartFreshBuffer(t *testing.T) {
 // PREVENTS: TryDispatch blocking like Dispatch when channel is full.
 func TestFwdPool_TryDispatch(t *testing.T) {
 	blocker := make(chan struct{})
+	handlerStarted := make(chan struct{}, 1)
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		select {
+		case handlerStarted <- struct{}{}:
+		default:
+		}
 		<-blocker
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 	defer pool.Stop()
@@ -659,7 +722,7 @@ func TestFwdPool_TryDispatch(t *testing.T) {
 	ok := pool.TryDispatch(key, fwdItem{})
 	require.True(t, ok, "TryDispatch should succeed on empty channel")
 
-	time.Sleep(10 * time.Millisecond) // Let handler start blocking
+	<-handlerStarted // Wait for handler to start blocking
 
 	// Fill channel (2 items = chanSize)
 	ok = pool.TryDispatch(key, fwdItem{})
@@ -724,7 +787,9 @@ func TestFwdPool_OverflowNeverDrops(t *testing.T) {
 
 	// Create worker by dispatching one item (blocks in handler)
 	pool.Dispatch(key, fwdItem{})
-	time.Sleep(10 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return pool.WorkerCount() == 1
+	}, time.Second, time.Millisecond, "worker should be spawned")
 
 	// Fill overflow with many items -- none should be dropped
 	const overflowCount = 500
@@ -748,9 +813,14 @@ func TestFwdPool_OverflowNeverDrops(t *testing.T) {
 // PREVENTS: Cache entry leaks from overflow items on shutdown.
 func TestFwdPool_StopFiresOverflowDone(t *testing.T) {
 	blocker := make(chan struct{})
+	handlerStarted := make(chan struct{}, 1)
 	var doneCalled atomic.Int32
 
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		select {
+		case handlerStarted <- struct{}{}:
+		default:
+		}
 		<-blocker
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second})
 
@@ -758,7 +828,7 @@ func TestFwdPool_StopFiresOverflowDone(t *testing.T) {
 
 	// Create worker (blocks in handler)
 	pool.Dispatch(key, fwdItem{})
-	time.Sleep(10 * time.Millisecond)
+	<-handlerStarted
 
 	// Add overflow items
 	for range 3 {
@@ -781,11 +851,16 @@ func TestFwdPool_StopFiresOverflowDone(t *testing.T) {
 // PREVENTS: Missing congestion state transitions, callback storms.
 func TestFwdPool_CongestionCallbacks(t *testing.T) {
 	blocker := make(chan struct{})
+	handlerStarted := make(chan struct{}, 1)
 	var congestedPeers []string
 	var resumedPeers []string
 	var mu sync.Mutex
 
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		select {
+		case handlerStarted <- struct{}{}:
+		default:
+		}
 		<-blocker
 	}, fwdPoolConfig{chanSize: 4, idleTimeout: time.Second})
 	pool.onCongested = func(peerAddr netip.AddrPort) {
@@ -804,7 +879,7 @@ func TestFwdPool_CongestionCallbacks(t *testing.T) {
 
 	// Fill: 1 in handler + 4 in channel = full
 	pool.Dispatch(key, fwdItem{})
-	time.Sleep(10 * time.Millisecond)
+	<-handlerStarted
 	for range 4 {
 		pool.Dispatch(key, fwdItem{})
 	}
@@ -877,9 +952,14 @@ func TestFwdPool_DrainOverflowDirectProcess(t *testing.T) {
 // PREVENTS: Overflow bypassing the bounded pool system.
 func TestFwdPool_OverflowUsesPool(t *testing.T) {
 	blocker := make(chan struct{})
+	handlerStarted := make(chan struct{}, 1)
 	var processed atomic.Int32
 
 	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		select {
+		case handlerStarted <- struct{}{}:
+		default:
+		}
 		<-blocker
 		processed.Add(int32(len(items)))
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowPoolSize: 10})
@@ -889,7 +969,7 @@ func TestFwdPool_OverflowUsesPool(t *testing.T) {
 
 	// Create worker (blocks in handler).
 	pool.Dispatch(key, fwdItem{})
-	time.Sleep(10 * time.Millisecond)
+	<-handlerStarted
 
 	// Add 5 overflow items -- pool should track them.
 	// peer must be non-nil so items are not treated as sentinels (which skip pool acquire).
@@ -921,9 +1001,14 @@ func TestFwdPool_OverflowUsesPool(t *testing.T) {
 // PREVENTS: Pool token leaks on peer disconnect or reactor shutdown.
 func TestFwdPool_PeerDisconnectReturnsSlots(t *testing.T) {
 	blocker := make(chan struct{})
+	handlerStarted := make(chan struct{}, 1)
 	var doneCalled atomic.Int32
 
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		select {
+		case handlerStarted <- struct{}{}:
+		default:
+		}
 		<-blocker
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowPoolSize: 10})
 
@@ -931,7 +1016,7 @@ func TestFwdPool_PeerDisconnectReturnsSlots(t *testing.T) {
 
 	// Create worker (blocks in handler).
 	pool.Dispatch(key, fwdItem{})
-	time.Sleep(10 * time.Millisecond)
+	<-handlerStarted
 
 	// Add overflow items with done callbacks.
 	// peer must be non-nil so items acquire pool tokens (nil peer = sentinel, skips pool).
@@ -965,9 +1050,14 @@ func TestFwdPool_PeerDisconnectReturnsSlots(t *testing.T) {
 // PREVENTS: Panic or route drop when pool is exhausted.
 func TestFwdPool_PoolExhausted(t *testing.T) {
 	blocker := make(chan struct{})
+	handlerStarted := make(chan struct{}, 1)
 	var processed atomic.Int32
 
 	pool := newFwdPool(func(_ fwdKey, items []fwdItem) {
+		select {
+		case handlerStarted <- struct{}{}:
+		default:
+		}
 		<-blocker
 		processed.Add(int32(len(items)))
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowPoolSize: 5})
@@ -977,7 +1067,7 @@ func TestFwdPool_PoolExhausted(t *testing.T) {
 
 	// Create worker (blocks in handler).
 	pool.Dispatch(key, fwdItem{})
-	time.Sleep(10 * time.Millisecond)
+	<-handlerStarted
 
 	// Add 8 overflow items -- first 5 use pool, last 3 are fallback.
 	// peer must be non-nil so items acquire pool tokens (nil peer = sentinel, skips pool).
@@ -1135,7 +1225,9 @@ func TestFwdPool_OverflowDepths(t *testing.T) {
 	// Create workers (block in handler).
 	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.1:179")}, fwdItem{})
 	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("10.0.0.2:179")}, fwdItem{})
-	time.Sleep(10 * time.Millisecond)
+	require.Eventually(t, func() bool {
+		return pool.WorkerCount() == 2
+	}, time.Second, time.Millisecond, "both workers should be spawned")
 
 	// Add overflow items to first peer only.
 	for range 3 {
@@ -1161,7 +1253,12 @@ func TestFwdPool_OverflowDepths(t *testing.T) {
 // PREVENTS: Incorrect pool utilization metric.
 func TestFwdPool_PoolUsedRatio(t *testing.T) {
 	blocker := make(chan struct{})
+	handlerStarted := make(chan struct{}, 1)
 	pool := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		select {
+		case handlerStarted <- struct{}{}:
+		default:
+		}
 		<-blocker
 	}, fwdPoolConfig{chanSize: 2, idleTimeout: time.Second, overflowPoolSize: 10})
 	defer pool.Stop()
@@ -1171,7 +1268,7 @@ func TestFwdPool_PoolUsedRatio(t *testing.T) {
 
 	// Create worker and add overflow items.
 	pool.Dispatch(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{})
-	time.Sleep(10 * time.Millisecond)
+	<-handlerStarted
 	dummyPeer := &Peer{}
 	for range 4 {
 		pool.DispatchOverflow(fwdKey{peerAddr: netip.MustParseAddrPort("1.1.1.1:179")}, fwdItem{done: func() {}, peer: dummyPeer})
