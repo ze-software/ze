@@ -1,0 +1,9 @@
+# Test: environment daemon container shows all leaf fields
+# VALIDATES: daemon container renders boolean and string fields with defaults
+# PREVENTS: deep nested container leaves not rendering
+
+option=timeout:value=30s
+
+action=open:path=/show/environment/daemon/
+expect=element:text=0137
+expect=element:text=zeuser

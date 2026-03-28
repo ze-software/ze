@@ -1,0 +1,8 @@
+# Test: empty list renders with add-entry capability
+# VALIDATES: list template renders for group with zero entries
+# PREVENTS: empty list crash, missing add-entry button
+
+option=timeout:value=30s
+
+action=open:path=/show/bgp/group/
+expect=element:text=new

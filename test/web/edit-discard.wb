@@ -1,9 +1,8 @@
 # Test: BGP local container shows expected leaf fields
-# VALIDATES: navigating to BGP local shows AS field and back link
+# VALIDATES: navigating to BGP local shows AS field
 # PREVENTS: nested container rendering broken
 
 option=timeout:value=30s
 
 action=open:path=/show/bgp/local/
-expect=element:text=Autonomous System Number
-expect=element:text=BACK
+expect=element:text=Local Autonomous System Number

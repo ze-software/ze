@@ -1,0 +1,9 @@
+# Test: plugin container renders its children
+# VALIDATES: plugin YANG schema is registered and renders in web view
+# PREVENTS: missing plugin schema registration, broken plugin container
+
+option=timeout:value=30s
+
+action=open:path=/show/plugin/
+expect=element:text=hub
+expect=element:text=external

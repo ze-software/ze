@@ -1,0 +1,8 @@
+# Test: telemetry container renders its children
+# VALIDATES: telemetry YANG schema is registered and renders in web view
+# PREVENTS: missing telemetry schema registration
+
+option=timeout:value=30s
+
+action=open:path=/show/telemetry/
+expect=element:text=prometheus

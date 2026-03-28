@@ -1,0 +1,8 @@
+# Test: environment debug container renders its fields
+# VALIDATES: debug container from YANG schema shows debug leaf nodes
+# PREVENTS: debug container broken or empty
+
+option=timeout:value=30s
+
+action=open:path=/show/environment/debug/
+expect=element:text=pprof

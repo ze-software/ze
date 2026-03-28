@@ -1,0 +1,12 @@
+# Test: theme toggle button does not break page
+# VALIDATES: clicking theme toggle preserves page content
+# PREVENTS: theme toggle JS error breaking rendering
+
+option=timeout:value=30s
+
+action=open:path=/show/
+expect=element:text=bgp
+
+action=click:text=◑
+action=wait:ms=500
+expect=element:text=bgp

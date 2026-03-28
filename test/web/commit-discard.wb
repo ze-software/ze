@@ -1,8 +1,8 @@
 # Test: BGP peer list container renders as list node
-# VALIDATES: navigating to BGP peer shows list view
+# VALIDATES: navigating to BGP peer shows list view with sidebar
 # PREVENTS: list template broken, peer list not rendering
 
 option=timeout:value=30s
 
 action=open:path=/show/bgp/peer/
-expect=element:text=BACK
+expect=element:text=+ new

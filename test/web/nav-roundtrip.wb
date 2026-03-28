@@ -1,0 +1,16 @@
+# Test: multi-step navigation with back returns to root
+# VALIDATES: repeated back navigation unwinds to root correctly
+# PREVENTS: back link breaking after multiple navigation steps
+
+option=timeout:value=30s
+
+action=open:path=/show/bgp/local/
+expect=element:text=Local Autonomous System Number
+
+action=click:text=←
+expect=element:text=group
+expect=element:text=peer
+
+action=click:text=←
+expect=element:text=environment
+expect=element:text=bgp

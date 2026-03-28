@@ -1,0 +1,10 @@
+# Test: setting a text field value persists after wait
+# VALIDATES: filling an input triggers hx-post and value is accepted
+# PREVENTS: broken hx-post on blur, value not saved to editor tree
+
+option=timeout:value=30s
+
+action=open:path=/show/environment/daemon/
+action=fill:text=zeuser:value=testadmin
+action=wait:ms=2000
+expect=element:text=testadmin

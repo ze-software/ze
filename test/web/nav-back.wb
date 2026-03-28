@@ -5,10 +5,10 @@
 option=timeout:value=30s
 
 action=open:path=/show/
-action=click:text=environment
-expect=element:text=BACK
+action=click:text=environment ›
+expect=element:text=log
 
-action=click:text=BACK
+action=click:text=←
 expect=element:text=environment
 expect=element:text=bgp
 expect=breadcrumb:not-contains=fragment

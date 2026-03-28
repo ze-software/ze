@@ -1,0 +1,12 @@
+# Test: error panel button is clickable
+# VALIDATES: clicking Errors button does not crash page
+# PREVENTS: error panel JS broken, button not wired
+
+option=timeout:value=30s
+
+action=open:path=/show/bgp/
+expect=element:text=Errors
+
+action=click:text=Errors
+action=wait:ms=500
+expect=element:text=Router ID

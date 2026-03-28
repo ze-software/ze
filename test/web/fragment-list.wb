@@ -1,9 +1,8 @@
-# Test: list node renders list view with entry management
-# VALIDATES: YANG list nodes render with entry sidebar and add form
-# PREVENTS: list rendering as container, missing add entry form
+# Test: list node renders with add-entry button
+# VALIDATES: YANG list nodes render with + new button for entry creation
+# PREVENTS: list rendering without entry management
 
 option=timeout:value=30s
 
 action=open:path=/show/bgp/group/
-expect=element:text=add
-expect=breadcrumb:contains=bgp,group
+expect=element:text=+ new

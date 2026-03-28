@@ -1,0 +1,12 @@
+# Test: setting a numeric field value persists
+# VALIDATES: numeric input accepts value and editor tree stores it
+# PREVENTS: number fields not accepting input, type mismatch on set
+
+option=timeout:value=30s
+
+action=open:path=/show/bgp/local/
+expect=element:text=Local Autonomous System Number
+
+action=fill:text=Local Autonomous System Number:value=65001
+action=wait:ms=2000
+expect=element:text=65001

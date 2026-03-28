@@ -1,0 +1,12 @@
+# Test: add-entry overlay opens on list page
+# VALIDATES: clicking new button opens overlay with name input
+# PREVENTS: add-entry overlay broken, JS not loaded
+
+option=timeout:value=30s
+
+action=open:path=/show/bgp/group/
+expect=element:text=new
+
+action=click:text=new
+action=wait:ms=500
+expect=element:text=New entry

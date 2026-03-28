@@ -1,8 +1,9 @@
-# Test: environment daemon container shows boolean leaf fields
-# VALIDATES: daemon container renders daemonize and drop fields
-# PREVENTS: boolean leaves not rendering in container view
+# Test: environment daemon container shows fields with defaults
+# VALIDATES: daemon container renders fields with default values as placeholders
+# PREVENTS: boolean/string leaves not rendering in container view
 
 option=timeout:value=30s
 
 action=open:path=/show/environment/daemon/
-expect=element:text=BACK
+expect=element:text=0137
+expect=element:text=zeuser

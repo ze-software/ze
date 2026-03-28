@@ -1,0 +1,14 @@
+# Test: navigate between sibling containers via back
+# VALIDATES: back then click sibling renders new container
+# PREVENTS: sibling navigation broken after back
+
+option=timeout:value=30s
+
+action=open:path=/show/bgp/local/
+expect=element:text=Local Autonomous System Number
+
+action=click:text=←
+expect=element:text=peer
+
+action=click:text=peer
+expect=element:text=+ new
