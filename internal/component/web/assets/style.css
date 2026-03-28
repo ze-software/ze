@@ -70,6 +70,7 @@
 
 html, body {
   height: 100%;
+  overflow: hidden;
   font-family: var(--font-ui);
   font-size: 14px;
   line-height: 1.5;
@@ -87,6 +88,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   grid-template-rows: auto 1fr auto auto;
   grid-template-areas: "breadcrumb" "content" "notification" "cli";
   height: 100vh;
+  width: 100%;
   overflow: hidden;
 }
 
@@ -96,17 +98,19 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 1rem 0.5rem 1rem;
+  padding: 0.5rem 1rem;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
   font-size: 0.85rem;
-  overflow: visible;
+  min-width: 0;
 }
 
 .breadcrumb-nav {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .breadcrumb-back {
@@ -741,7 +745,8 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 }
 
 .error-panel.collapsed {
-  transform: translateX(calc(100% - 2rem));
+  transform: translateX(100%);
+  pointer-events: none;
 }
 
 .error-toggle {
@@ -983,8 +988,6 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
 }
 
 .sidebar-heading:hover {
