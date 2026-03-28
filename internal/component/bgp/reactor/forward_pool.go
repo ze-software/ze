@@ -613,7 +613,7 @@ func (fp *fwdPool) OverflowDepths() map[string]int {
 	result := make(map[string]int, len(fp.workers))
 	for key, w := range fp.workers {
 		w.overflowMu.Lock()
-		result[key.peerAddr.Addr().String()] = len(w.overflow)
+		result[key.peerAddr.Addr().String()] += len(w.overflow)
 		w.overflowMu.Unlock()
 	}
 	fp.mu.Unlock()

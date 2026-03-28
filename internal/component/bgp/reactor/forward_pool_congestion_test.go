@@ -275,7 +275,7 @@ func TestCongestion_TeardownGRCapable(t *testing.T) {
 	var lastGR atomic.Bool
 
 	cc := newCongestionController(congestionConfig{
-		gracePeriod:    1 * time.Millisecond,
+		gracePeriod:    1 * time.Second, // must be >= 1s (constructor clamps to 5s default below 1s)
 		poolUsedRatio:  func() float64 { return 0.97 },
 		overflowDepths: func() map[string]int { return depths },
 		weights:        wt,
@@ -288,7 +288,7 @@ func TestCongestion_TeardownGRCapable(t *testing.T) {
 
 	addr := netip.MustParseAddrPort("10.0.0.1:179")
 	cc.CheckTeardown(addr)
-	fc.Add(time.Second)
+	fc.Add(2 * time.Second) // exceed 1s grace period
 	cc.CheckTeardown(addr)
 
 	assert.True(t, lastGR.Load())

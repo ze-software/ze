@@ -218,6 +218,56 @@ func TestPoolBudget(t *testing.T) {
 	}
 }
 
+// TestCalculatePoolBudget_MinFloorApplied verifies that when peers have very low
+// prefix maximums, the auto-sized budget from calculatePoolBudget is small enough
+// that the minPoolBudget floor in reactor.go is necessary.
+//
+// VALIDATES: The minPoolBudget floor (bufMuxBlockSize * MaxMsgLen = 128 * 4096 = 524288)
+//
+//	is needed because calculatePoolBudget can return values that produce budgets
+//	smaller than a single block allocation.
+//
+// PREVENTS: Removing the minPoolBudget floor under the assumption it is never reached.
+func TestCalculatePoolBudget_MinFloorApplied(t *testing.T) {
+	// A peer with prefixMax=2 and familyCount=1:
+	//   burstWeight(2) = 2 (tier 1: 2 * 1.0)
+	//   peerBufferDemand(2, false) = buffersNeeded(2) = 1 (ceil(2/20))
+	//
+	// With a single peer, guaranteed=1, overflow=1.
+	demand := peerBufferDemand(2, false)
+	if demand != 1 {
+		t.Fatalf("peerBufferDemand(2, false) = %d, want 1", demand)
+	}
+
+	g, o := calculatePoolBudget([]int{demand})
+	if g != 1 {
+		t.Errorf("guaranteed = %d, want 1", g)
+	}
+	if o != 1 {
+		t.Errorf("overflow = %d, want 1", o)
+	}
+
+	// The reactor computes: total = max((g+o)*MaxMsgLen, minPoolBudget)
+	// where minPoolBudget = bufMuxBlockSize * MaxMsgLen = 128 * 4096 = 524288.
+	//
+	// Without the floor: (1+1) * 4096 = 8192 -- too small for a single
+	// block allocation (128 * 4096 = 524288). The floor is necessary.
+	const maxMsgLen = 4096 // message.MaxMsgLen
+	autoSized := int64(g+o) * maxMsgLen
+	minPoolBudget := int64(bufMuxBlockSize) * maxMsgLen // 128 * 4096 = 524288
+
+	if autoSized >= minPoolBudget {
+		t.Errorf("auto-sized budget %d >= minPoolBudget %d; floor would be unnecessary",
+			autoSized, minPoolBudget)
+	}
+
+	// Verify the floor produces a usable budget.
+	total := max(autoSized, minPoolBudget)
+	if total != minPoolBudget {
+		t.Errorf("total = %d, want minPoolBudget %d", total, minPoolBudget)
+	}
+}
+
 func TestTotalPrefixMax(t *testing.T) {
 	tests := []struct {
 		name string

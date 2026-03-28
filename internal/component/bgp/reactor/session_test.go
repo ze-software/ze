@@ -764,6 +764,19 @@ func TestSessionExtendedMessageValidation(t *testing.T) {
 //
 // PREVENTS: Rejection of valid large UPDATE messages when capability is negotiated.
 func TestSessionExtendedMessageAccepted(t *testing.T) {
+	// Ensure the global buffer pool has enough budget. Under full-suite load,
+	// concurrent tests with small prefix maximums can auto-size the shared
+	// budget too low, causing getReadBuffer() to return nil.
+	bufMuxGlobalMu.Lock()
+	oldBudget := bufMux4K.mux.budget.maxBytes.Load()
+	updateBufMuxBudget(0) // 0 = unlimited
+	bufMuxGlobalMu.Unlock()
+	t.Cleanup(func() {
+		bufMuxGlobalMu.Lock()
+		updateBufMuxBudget(oldBudget)
+		bufMuxGlobalMu.Unlock()
+	})
+
 	// Setup: session WITH extended message capability
 	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),

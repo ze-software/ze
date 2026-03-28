@@ -250,7 +250,7 @@ func TestUpdatePeriodicMetrics_SetsOverflowGauges(t *testing.T) {
 	// AC-17: per-destination overflow depth gauge was set.
 	overflowItemsVec := reg.gaugeVec("ze_bgp_overflow_items")
 	require.NotNil(t, overflowItemsVec, "ze_bgp_overflow_items should be registered")
-	destGauge := overflowItemsVec.get("192.168.1.1:179")
+	destGauge := overflowItemsVec.get("192.168.1.1")
 	require.NotNil(t, destGauge, "overflow items should have been set for destination 192.168.1.1")
 	// Worker channel is not blocked, so overflow buffer should be empty.
 	assert.Equal(t, 0.0, destGauge.Value(), "overflow depth should be 0 for non-congested peer")
@@ -330,7 +330,7 @@ func TestForwardDispatch_RecordForwarded_UpdatesMetrics(t *testing.T) {
 	// Verify overflow items gauge shows the overflow buffer depth.
 	overflowItemsVec := reg.gaugeVec("ze_bgp_overflow_items")
 	require.NotNil(t, overflowItemsVec)
-	destGauge := overflowItemsVec.get("192.168.1.1:179")
+	destGauge := overflowItemsVec.get("192.168.1.1")
 	require.NotNil(t, destGauge, "overflow items should be set for destination")
 	assert.Equal(t, 1.0, destGauge.Value(), "overflow buffer should have 1 item")
 
