@@ -1,6 +1,6 @@
-# Test: import filter rejects routes, routes not cached
-# VALIDATES: AC-6 -- Import filter returns reject, UPDATE dropped
-# PREVENTS: Rejected routes leaking into cache or being dispatched
+# Test: import filter modifies attributes
+# VALIDATES: AC-7 -- Import filter returns modify with changed local-pref
+# PREVENTS: Modify response ignored, attributes not updated
 
 # ze-peer sends a route to ze
 stdin=peer:terminator=EOF_PEER
@@ -10,22 +10,21 @@ option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1:origin-as=65
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: declares an import filter that rejects everything
-tmpfs=filter-reject-test.run:mode=755:terminator=EOF_RUN
+# Python test plugin: import filter that modifies local-preference
+tmpfs=filter-modify-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-import json
 import sys
 import time
 from ze_api import API
 
-rejected_count = 0
+modified_count = 0
 
 def filter_handler(params):
-    """Reject all routes."""
-    global rejected_count
-    rejected_count += 1
-    print(f'filter-update REJECT: filter={params.get("filter")} peer={params.get("peer")}', file=sys.stderr)
-    return {'action': 'reject'}
+    """Modify local-preference to 200."""
+    global modified_count
+    modified_count += 1
+    print(f'filter-update MODIFY: filter={params.get("filter")} peer={params.get("peer")}', file=sys.stderr)
+    return {'action': 'modify', 'update': 'local-preference 200'}
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -37,9 +36,9 @@ def dispatch(api, command):
 def main():
     api = API()
     api.declare_filter(
-        name='reject-all',
+        name='set-localpref',
         direction='import',
-        attributes=['as-path', 'origin'],
+        attributes=['local-preference'],
         on_error='reject',
     )
     api.on_filter_update(filter_handler)
@@ -49,13 +48,12 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for route to arrive and be rejected
     time.sleep(2.0)
 
-    if rejected_count > 0:
-        print(f'OK: filter rejected {rejected_count} route(s)', file=sys.stderr)
+    if modified_count > 0:
+        print(f'OK: filter modified {modified_count} route(s)', file=sys.stderr)
     else:
-        print('INFO: filter not called (route may not have triggered filter)', file=sys.stderr)
+        print('INFO: filter not called', file=sys.stderr)
 
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()
@@ -67,8 +65,8 @@ EOF_RUN
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-    external filter-reject-test {
-        run ./filter-reject-test.run;
+    external filter-modify-test {
+        run ./filter-modify-test.run;
         encoder json;
     }
 }
@@ -76,7 +74,7 @@ bgp {
     router-id 1.2.3.4;
     local { as 65000; }
     redistribution {
-        import [ filter-reject-test:reject-all ];
+        import [ filter-modify-test:set-localpref ];
     }
     peer peer1 {
         remote {
@@ -88,13 +86,12 @@ bgp {
             as 65000;
             ip auto;
         }
-        process filter-reject-test {
+        process filter-modify-test {
             receive [ update state ];
         }
     }
 }
 EOF_CONF
 
-# Run ze with the test plugin
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0

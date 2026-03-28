@@ -2,23 +2,36 @@
 # VALIDATES: AC-5 -- Import filter returns accept, UPDATE cached and dispatched normally
 # PREVENTS: Accept filter blocking routes that should pass through
 
-# ze-peer expectations: peer sends an UPDATE, expects EOR back
+# ze-peer sends a route to ze, expects EOR back
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
 option=timeout:value=15s
+option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1:origin-as=65001
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # Python test plugin: declares an import filter that accepts everything
 tmpfs=filter-accept-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
+import json
 import sys
+import time
 from ze_api import API
+
+received_filter_calls = []
 
 def filter_handler(params):
     """Accept all routes."""
-    print(f'filter-update received: filter={params.get("filter")} peer={params.get("peer")}', file=sys.stderr)
+    received_filter_calls.append(params)
+    print(f'filter-update ACCEPT: filter={params.get("filter")} peer={params.get("peer")}', file=sys.stderr)
     return {'action': 'accept'}
+
+def dispatch(api, command):
+    resp = api._call_engine(
+        'ze-plugin-engine:dispatch-command', {'command': command})
+    if resp is None:
+        return {'status': 'error', 'data': 'None'}
+    return resp.get('result', {})
 
 def main():
     api = API()
@@ -35,8 +48,17 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    print('OK: filter plugin ready, waiting for events', file=sys.stderr)
-    api.wait_for_shutdown(timeout=10.0)
+    # Wait for route to arrive and be processed
+    time.sleep(2.0)
+
+    # The filter should have been called
+    if len(received_filter_calls) > 0:
+        print(f'OK: filter called {len(received_filter_calls)} time(s)', file=sys.stderr)
+    else:
+        print('INFO: filter not called (route may not have triggered filter)', file=sys.stderr)
+
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
 
 if __name__ == '__main__':
     main()

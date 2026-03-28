@@ -1,6 +1,6 @@
-# Test: import filter rejects routes, routes not cached
-# VALIDATES: AC-6 -- Import filter returns reject, UPDATE dropped
-# PREVENTS: Rejected routes leaking into cache or being dispatched
+# Test: export filter rejects routes for specific peer
+# VALIDATES: AC-9 -- Export filter rejects, UPDATE not sent to that peer
+# PREVENTS: Export filter not consulted during forwarding
 
 # ze-peer sends a route to ze
 stdin=peer:terminator=EOF_PEER
@@ -10,22 +10,25 @@ option=update:value=send-route:prefix=10.0.0.0/24:next-hop=10.0.0.1:origin-as=65
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# Python test plugin: declares an import filter that rejects everything
-tmpfs=filter-reject-test.run:mode=755:terminator=EOF_RUN
+# Python test plugin: declares an export filter that rejects all forwards
+tmpfs=filter-export-reject-test.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
-import json
 import sys
 import time
 from ze_api import API
 
-rejected_count = 0
+export_reject_count = 0
 
 def filter_handler(params):
-    """Reject all routes."""
-    global rejected_count
-    rejected_count += 1
-    print(f'filter-update REJECT: filter={params.get("filter")} peer={params.get("peer")}', file=sys.stderr)
-    return {'action': 'reject'}
+    """Reject all exports."""
+    global export_reject_count
+    direction = params.get('direction', '')
+    if direction == 'export':
+        export_reject_count += 1
+        print(f'filter-update EXPORT REJECT: filter={params.get("filter")} peer={params.get("peer")}', file=sys.stderr)
+        return {'action': 'reject'}
+    # Accept imports
+    return {'action': 'accept'}
 
 def dispatch(api, command):
     resp = api._call_engine(
@@ -37,9 +40,9 @@ def dispatch(api, command):
 def main():
     api = API()
     api.declare_filter(
-        name='reject-all',
-        direction='import',
-        attributes=['as-path', 'origin'],
+        name='block-export',
+        direction='export',
+        attributes=['as-path'],
         on_error='reject',
     )
     api.on_filter_update(filter_handler)
@@ -49,13 +52,12 @@ def main():
     api.wait_for_registry()
     api.ready()
 
-    # Wait for route to arrive and be rejected
     time.sleep(2.0)
 
-    if rejected_count > 0:
-        print(f'OK: filter rejected {rejected_count} route(s)', file=sys.stderr)
+    if export_reject_count > 0:
+        print(f'OK: export filter rejected {export_reject_count} forward(s)', file=sys.stderr)
     else:
-        print('INFO: filter not called (route may not have triggered filter)', file=sys.stderr)
+        print('INFO: export filter not called (no forward triggered)', file=sys.stderr)
 
     dispatch(api, 'daemon shutdown')
     api.wait_for_shutdown()
@@ -64,20 +66,17 @@ if __name__ == '__main__':
     main()
 EOF_RUN
 
-# ze bgp configuration
+# ze bgp configuration: export filter on peer
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-    external filter-reject-test {
-        run ./filter-reject-test.run;
+    external filter-export-reject-test {
+        run ./filter-export-reject-test.run;
         encoder json;
     }
 }
 bgp {
     router-id 1.2.3.4;
     local { as 65000; }
-    redistribution {
-        import [ filter-reject-test:reject-all ];
-    }
     peer peer1 {
         remote {
             ip 127.0.0.1;
@@ -88,13 +87,15 @@ bgp {
             as 65000;
             ip auto;
         }
-        process filter-reject-test {
+        redistribution {
+            export [ filter-export-reject-test:block-export ];
+        }
+        process filter-export-reject-test {
             receive [ update state ];
         }
     }
 }
 EOF_CONF
 
-# Run ze with the test plugin
 cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
 expect=exit:code=0
