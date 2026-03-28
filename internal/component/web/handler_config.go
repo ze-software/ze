@@ -375,8 +375,39 @@ func HandleConfigDiscard(mgr *EditorManager) http.HandlerFunc {
 			return
 		}
 
-		htmxRedirect(w, r, "/config/edit/")
+		// Navigate back one level from where the user was.
+		target := parentFromCurrentURL(r)
+		htmxRedirect(w, r, target)
 	}
+}
+
+// parentFromCurrentURL extracts the parent path from the HTMX HX-Current-URL
+// header (or Referer). Used by handlers like discard that have no path in their
+// own URL but need to navigate back one level from where the user was.
+// Falls back to /config/edit/ if no usable URL is available.
+func parentFromCurrentURL(r *http.Request) string {
+	current := r.Header.Get("HX-Current-URL")
+	if current == "" {
+		current = r.Referer()
+	}
+	if current == "" {
+		return "/config/edit/"
+	}
+
+	// Strip scheme+host if present (HX-Current-URL is a full URL).
+	if idx := strings.Index(current, "://"); idx >= 0 {
+		if slash := strings.Index(current[idx+3:], "/"); slash >= 0 {
+			current = current[idx+3+slash:]
+		}
+	}
+
+	// Strip trailing slash, then remove the last segment.
+	current = strings.TrimSuffix(current, "/")
+	if last := strings.LastIndex(current, "/"); last > 0 {
+		return current[:last+1]
+	}
+
+	return "/config/edit/"
 }
 
 // redirectBackOneLevel computes the parent path by removing the last segment
