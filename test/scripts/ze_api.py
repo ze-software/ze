@@ -59,7 +59,7 @@ import signal
 import socket
 import ssl
 import sys
-from typing import Any
+from typing import Any, Callable
 
 
 def _ze_env(key: str, default: str = '') -> str:
@@ -127,6 +127,11 @@ class API:
 
         # Accumulated connection handlers for Stage 1
         self._connection_handlers: list[dict[str, Any]] = []
+
+        # Accumulated filter declarations for Stage 1
+        self._filters: list[dict[str, Any]] = []
+        # Filter callback handler (runtime)
+        self._filter_handler: Callable | None = None
 
         # Accumulated capabilities for Stage 3
         self._capabilities: list[dict[str, Any]] = []
@@ -328,6 +333,14 @@ class API:
         else:
             os.write(self._callback_fd, line)
 
+    def _respond_result(self, req_id: int, result: dict) -> None:
+        """Send OK response with JSON result: #<id> ok <json>."""
+        line = self._format_line(req_id, 'ok', result)
+        if self._tls_mode:
+            self._tls_sock.sendall(line)
+        else:
+            os.write(self._callback_fd, line)
+
     def _serve_one(self, expected_method: str, timeout: float = 10.0) -> dict | None:
         """Read one RPC request, verify method, respond OK.
 
@@ -421,6 +434,38 @@ class API:
             'address': address,
         })
 
+    def declare_filter(self, name: str, direction: str = 'both',
+                       attributes: list[str] | None = None,
+                       on_error: str = 'reject',
+                       overrides: list[str] | None = None) -> None:
+        """Declare a named route filter (Stage 1).
+
+        Args:
+            name: Filter name (referenced in config as <plugin>:<name>)
+            direction: 'import', 'export', or 'both'
+            attributes: Attribute names to receive (empty = all)
+            on_error: 'reject' (fail-closed) or 'accept' (fail-open)
+            overrides: Default filters this filter replaces
+        """
+        f: dict[str, Any] = {'name': name, 'direction': direction, 'on-error': on_error}
+        if attributes:
+            f['attributes'] = attributes
+        if overrides:
+            f['overrides'] = overrides
+        self._filters.append(f)
+
+    def on_filter_update(self, handler: Callable[[dict], dict]) -> None:
+        """Register a handler for filter-update callbacks (runtime).
+
+        The handler receives the filter-update input dict and must return
+        a dict with 'action' ('accept', 'reject', or 'modify') and
+        optionally 'update' (delta text for modify).
+
+        Args:
+            handler: Callback function(input_dict) -> response_dict
+        """
+        self._filter_handler = handler
+
     def declare_done(self) -> None:
         """Signal Stage 1 declaration complete.
 
@@ -436,6 +481,8 @@ class API:
             params['wants-config'] = self._wants_config
         if self._connection_handlers:
             params['connection-handlers'] = self._connection_handlers
+        if self._filters:
+            params['filters'] = self._filters
 
         self._call_engine('ze-plugin-engine:declare-registration', params)
 
@@ -751,6 +798,15 @@ class API:
             self._shutdown = True
             return None
 
+        if method == 'ze-plugin-callback:filter-update':
+            if self._filter_handler and params:
+                result = self._filter_handler(params)
+                self._respond_result(req_id, result)
+            else:
+                # No handler registered: default accept
+                self._respond_result(req_id, {'action': 'accept'})
+            return self.read_line(timeout)
+
         # Other callbacks -- respond OK and skip
         self._respond_ok(req_id)
         return self.read_line(timeout)
@@ -985,6 +1041,19 @@ def declare_connection_handler(handler_type: str = 'listen',
 def receive_listener() -> socket.socket:
     """Receive a listen socket fd from the engine via SCM_RIGHTS."""
     return _get_api().receive_listener()
+
+
+def declare_filter(name: str, direction: str = 'both',
+                   attributes: list[str] | None = None,
+                   on_error: str = 'reject',
+                   overrides: list[str] | None = None) -> None:
+    """Declare a named route filter (Stage 1)."""
+    _get_api().declare_filter(name, direction, attributes, on_error, overrides)
+
+
+def on_filter_update(handler: Callable[[dict], dict]) -> None:
+    """Register a handler for filter-update callbacks."""
+    _get_api().on_filter_update(handler)
 
 
 def declare_done() -> None:

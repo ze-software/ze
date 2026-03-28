@@ -1,0 +1,80 @@
+# Test: plugin declares filters at stage 1, redistribution config validates
+# VALIDATES: AC-1 -- Plugin sends declare-registration with filters list
+# VALIDATES: AC-2 -- Config with redistribution referencing filter-capable plugin validates
+# PREVENTS: Filter declaration lost during stage 1, config rejects valid filter references
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: declares a filter and verifies startup completes
+tmpfs=filter-declare-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+import sys
+from ze_api import API
+
+def main():
+    api = API()
+
+    # Declare a named filter at stage 1
+    api.declare_filter(
+        name='accept-all',
+        direction='import',
+        attributes=['as-path', 'community'],
+        on_error='reject',
+    )
+    api.declare_done()
+
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # If we get here, startup succeeded -- filter declaration was accepted
+    print('OK: filter declaration accepted, startup complete', file=sys.stderr)
+
+    # Dispatch shutdown
+    api._call_engine('ze-plugin-engine:dispatch-command', {'command': 'daemon shutdown'})
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external filter-declare-test {
+        run ./filter-declare-test.run;
+        encoder json;
+    }
+}
+bgp {
+    router-id 1.2.3.4;
+    local { as 65000; }
+    redistribution {
+        import [ filter-declare-test:accept-all ];
+    }
+    peer peer1 {
+        remote {
+            ip 127.0.0.1;
+            as 65001;
+            accept false;
+        }
+        local {
+            as 65000;
+            ip auto;
+        }
+        process filter-declare-test {
+            receive [ update state ];
+        }
+    }
+}
+EOF_CONF
+
+# Run ze with the test plugin
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0
