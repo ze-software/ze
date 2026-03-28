@@ -160,3 +160,48 @@ func TestRunManagedClientStopsWhenUnmanaged(t *testing.T) {
 		t.Fatal("RunManagedClient did not stop when CheckManaged returned false")
 	}
 }
+
+// TestReadLine verifies byte-by-byte line reading for auth responses.
+//
+// VALIDATES: readLine handles normal, CRLF, oversize, and empty lines.
+// PREVENTS: Auth failures from partial reads or CRLF line endings.
+func TestReadLine(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		input   string
+		maxSize int
+		want    string
+		wantErr bool
+	}{
+		{name: "normal LF", input: "#0 ok\n", maxSize: 512, want: "#0 ok"},
+		{name: "CRLF stripped", input: "#0 ok\r\n", maxSize: 512, want: "#0 ok"},
+		{name: "empty line", input: "\n", maxSize: 512, want: ""},
+		{name: "oversize", input: "aaaaaaaaaa\n", maxSize: 5, wantErr: true},
+		{name: "exact at limit", input: "abcde\n", maxSize: 5, wantErr: true},
+		{name: "one under limit", input: "abcd\n", maxSize: 5, want: "abcd"},
+		{name: "error response", input: "#0 error {\"code\":\"auth\"}\n", maxSize: 512, want: "#0 error {\"code\":\"auth\"}"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			clientEnd, serverEnd := net.Pipe()
+			defer clientEnd.Close() //nolint:errcheck // test cleanup
+			defer serverEnd.Close() //nolint:errcheck // test cleanup
+
+			go func() {
+				serverEnd.Write([]byte(tt.input)) //nolint:errcheck // test helper
+			}()
+
+			got, err := readLine(clientEnd, tt.maxSize)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, string(got))
+		})
+	}
+}

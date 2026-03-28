@@ -585,6 +585,10 @@ func readAuthLine(conn net.Conn, maxSize int) ([]byte, error) {
 			continue
 		}
 		if b[0] == '\n' {
+			// Strip trailing \r for CRLF compatibility.
+			if len(buf) > 0 && buf[len(buf)-1] == '\r' {
+				buf = buf[:len(buf)-1]
+			}
 			return buf, nil
 		}
 		buf = append(buf, b[0])

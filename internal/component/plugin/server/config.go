@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md — plugin server configuration
 // Related: startup_autoload.go — consumes ConfiguredFamilies, ConfiguredCustomEvents, ConfiguredCustomSendTypes
+// Related: managed.go — hub-side managed config handlers
 
 package server
 

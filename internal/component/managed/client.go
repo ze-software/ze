@@ -52,7 +52,7 @@ func RunManagedClient(ctx context.Context, cfg ClientConfig) {
 			return
 		}
 
-		err := runConnection(ctx, &cfg, &backoff)
+		err := runConnection(ctx, &cfg, backoff)
 		if ctx.Err() != nil {
 			return // shutdown
 		}
@@ -76,7 +76,7 @@ func RunManagedClient(ctx context.Context, cfg ClientConfig) {
 // runConnection handles a single connection to the hub: connect, auth,
 // fetch config, run heartbeat + notification loop. Returns on any error
 // (caller retries with backoff). Resets backoff on successful auth.
-func runConnection(ctx context.Context, cfg *ClientConfig, backoff **Backoff) error {
+func runConnection(ctx context.Context, cfg *ClientConfig, backoff *Backoff) error {
 	// TLS connect.
 	tlsConf := &tls.Config{
 		InsecureSkipVerify: true, //nolint:gosec // hub uses self-signed certs; cert pinning planned
@@ -114,7 +114,7 @@ func runConnection(ctx context.Context, cfg *ClientConfig, backoff **Backoff) er
 	}
 
 	// Auth succeeded -- reset backoff for fresh retry delays on next disconnect.
-	(*backoff).Reset()
+	backoff.Reset()
 
 	// Wrap in MuxConn for multiplexed RPCs.
 	rc := rpc.NewConn(conn, conn)
@@ -298,6 +298,10 @@ func readLine(conn net.Conn, maxSize int) ([]byte, error) {
 			continue
 		}
 		if b[0] == '\n' {
+			// Strip trailing \r for CRLF compatibility.
+			if len(buf) > 0 && buf[len(buf)-1] == '\r' {
+				buf = buf[:len(buf)-1]
+			}
 			return buf, nil
 		}
 		buf = append(buf, b[0])
