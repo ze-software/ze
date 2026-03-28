@@ -489,6 +489,30 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   border-color: var(--border-focus);
 }
 
+.ze-field-input.ze-field-set {
+  border-color: var(--accent, #58a6ff);
+}
+
+.ze-field-tag {
+  flex-shrink: 0;
+  padding: 0.15rem 0.4rem;
+  font-size: 0.65rem;
+  font-family: var(--font-ui);
+  border-radius: var(--radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ze-field-tag-default {
+  color: var(--text-muted);
+  background: var(--bg-inset);
+}
+
+.ze-field-tag-set {
+  color: var(--accent, #58a6ff);
+  background: var(--bg-inset);
+}
+
 /* Toggle button for booleans */
 /* Tristate slider: yes / default / no */
 .ze-tristate {
