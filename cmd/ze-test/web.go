@@ -6,6 +6,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -32,7 +33,7 @@ func webMain() error {
 	fs.BoolVar(verbose, "verbose", false, "verbose output")
 	listOnly := fs.Bool("l", false, "list tests without running")
 	fs.BoolVar(listOnly, "list", false, "list tests without running")
-	port := fs.String("port", "18443", "port for test web server")
+	port := fs.String("port", "", "port for test web server (default: random free port)")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze-test web [options]
@@ -112,6 +113,18 @@ Examples:
 			fmt.Fprintf(os.Stdout, "  %s\n", t.Name) //nolint:errcheck // terminal output
 		}
 		return nil
+	}
+
+	// Pick a free port if none specified.
+	if *port == "" {
+		ln, listenErr := net.Listen("tcp", "127.0.0.1:0")
+		if listenErr != nil {
+			return fmt.Errorf("find free port: %w", listenErr)
+		}
+		*port = fmt.Sprintf("%d", ln.Addr().(*net.TCPAddr).Port)
+		if closeErr := ln.Close(); closeErr != nil {
+			return fmt.Errorf("close temp listener: %w", closeErr)
+		}
 	}
 
 	// Start ze web server.
