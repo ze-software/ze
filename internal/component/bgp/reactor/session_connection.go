@@ -21,6 +21,16 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
+// socketRecvBufSize is the SO_RCVBUF size for BGP sessions (256KB).
+// Sized at 4x the default bufio.Reader size (64KB) to absorb burst traffic
+// while the application drains the kernel buffer.
+const socketRecvBufSize = 262144
+
+// socketSendBufSize is the SO_SNDBUF size for BGP sessions (64KB).
+// Sized at 4x the default bufio.Writer size (16KB) to allow write batching
+// without blocking on kernel buffer space.
+const socketSendBufSize = 65536
+
 // Connect initiates an outgoing TCP connection.
 // If LocalAddress is configured, binds to it for outgoing connections.
 // This ensures consistent source address for next-hop self resolution.
@@ -227,12 +237,10 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 						_ = syscall.SetsockoptInt(int(fd), syscall.IPPROTO_IPV6, syscall.IPV6_TCLASS, 0xC0)
 					}
 					// Set socket buffers for BGP burst throughput.
-					// SO_RCVBUF: 256KB matches 4x the bufio.Reader size (64KB).
-					// SO_SNDBUF: 64KB matches 4x the bufio.Writer size (16KB).
-					if err := syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVBUF, 262144); err != nil {
+					if err := syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_RCVBUF, socketRecvBufSize); err != nil {
 						sessionLogger().Debug("SO_RCVBUF not set, using OS default", "err", err)
 					}
-					if err := syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_SNDBUF, 65536); err != nil {
+					if err := syscall.SetsockoptInt(int(fd), syscall.SOL_SOCKET, syscall.SO_SNDBUF, socketSendBufSize); err != nil {
 						sessionLogger().Debug("SO_SNDBUF not set, using OS default", "err", err)
 					}
 				})
