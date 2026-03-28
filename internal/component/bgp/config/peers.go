@@ -41,6 +41,11 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 		return nil, err
 	}
 
+	// Step 1b: Apply YANG schema defaults to each peer map.
+	// This makes YANG the single source of truth for RFC defaults
+	// (hold-time, connect-retry, port, etc.) instead of Go constants.
+	applyPeerSchemaDefaults(bgpTree)
+
 	// Step 2: Parse basic peer settings from the resolved map.
 	peers, err := reactor.PeersFromTree(bgpTree)
 	if err != nil {
@@ -165,6 +170,31 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 	}
 
 	return peers, nil
+}
+
+// applyPeerSchemaDefaults applies YANG defaults to each peer entry in the resolved BGP tree.
+// This makes YANG the single source of truth for defaults (RFC hold-time, port, etc.)
+// instead of duplicating them as Go constants in NewPeerSettings.
+func applyPeerSchemaDefaults(bgpTree map[string]any) {
+	schema := config.YANGSchema()
+	if schema == nil {
+		return
+	}
+	// Navigate to the peer ListNode in the schema (bgp > peer).
+	peerSchema, err := schema.Lookup("bgp.peer")
+	if err != nil {
+		return
+	}
+
+	peerMap, ok := bgpTree["peer"].(map[string]any)
+	if !ok {
+		return
+	}
+	for _, v := range peerMap {
+		if entry, ok := v.(map[string]any); ok {
+			config.ApplyDefaults(entry, peerSchema)
+		}
+	}
 }
 
 // patchRoutes extracts routes from a peer's *Tree and patches them into PeerSettings.

@@ -143,47 +143,107 @@ func LoadEnvironment() (*Environment, error) {
 	return LoadEnvironmentWithConfig(nil)
 }
 
-// loadDefaults sets default values.
-func (e *Environment) loadDefaults() {
-	// Daemon defaults
-	e.Daemon.User = "zeuser"
-	e.Daemon.Drop = true
-	e.Daemon.Umask = 0o137
+// loadDefaults sets default values from YANG schema (single source of truth).
+// YANG sources: ze-hub-conf.yang (daemon, log) and ze-bgp-conf.yang augment (tcp, bgp, cache, api, reactor, chaos).
+// Returns error if any required YANG default is missing -- that is a schema bug.
+func (e *Environment) loadDefaults() error {
+	schema := YANGSchema()
+	if schema == nil {
+		return fmt.Errorf("YANG schema failed to load")
+	}
 
-	// Log defaults
-	e.Log.Enable = true
-	e.Log.Level = LogLevelInfo
-	e.Log.Destination = "stdout"
-	e.Log.Configuration = true
-	e.Log.Reactor = true
-	e.Log.Daemon = true
-	e.Log.Processes = true
-	e.Log.Network = true
-	e.Log.Statistics = true
-	e.Log.Short = true
+	var err error
 
-	// TCP defaults
-	e.TCP.Port = 179
+	// Daemon (ze-hub-conf.yang > environment > daemon)
+	if e.Daemon.User, err = SchemaDefaultString(schema, "environment.daemon.user"); err != nil {
+		return err
+	}
+	if e.Daemon.Drop, err = SchemaDefaultBool(schema, "environment.daemon.drop"); err != nil {
+		return err
+	}
+	e.Daemon.Umask = 0o137 // octal -- YANG stores "0137" string, parsed separately
 
-	// BGP defaults
-	e.BGP.OpenWait = 60
+	// Log (ze-hub-conf.yang > environment > log)
+	if e.Log.Enable, err = SchemaDefaultBool(schema, "environment.log.enable"); err != nil {
+		return err
+	}
+	if e.Log.Level, err = SchemaDefaultString(schema, "environment.log.level"); err != nil {
+		return err
+	}
+	if e.Log.Destination, err = SchemaDefaultString(schema, "environment.log.destination"); err != nil {
+		return err
+	}
+	if e.Log.Configuration, err = SchemaDefaultBool(schema, "environment.log.configuration"); err != nil {
+		return err
+	}
+	if e.Log.Reactor, err = SchemaDefaultBool(schema, "environment.log.reactor"); err != nil {
+		return err
+	}
+	if e.Log.Daemon, err = SchemaDefaultBool(schema, "environment.log.daemon"); err != nil {
+		return err
+	}
+	if e.Log.Processes, err = SchemaDefaultBool(schema, "environment.log.processes"); err != nil {
+		return err
+	}
+	if e.Log.Network, err = SchemaDefaultBool(schema, "environment.log.network"); err != nil {
+		return err
+	}
+	if e.Log.Statistics, err = SchemaDefaultBool(schema, "environment.log.statistics"); err != nil {
+		return err
+	}
+	if e.Log.Short, err = SchemaDefaultBool(schema, "environment.log.short"); err != nil {
+		return err
+	}
 
-	// Cache defaults
-	e.Cache.Attributes = true
+	// TCP (ze-bgp-conf.yang augment > environment > tcp)
+	if e.TCP.Port, err = SchemaDefaultInt(schema, "environment.tcp.port"); err != nil {
+		return err
+	}
 
-	// API defaults
-	e.API.ACK = true
-	e.API.Chunk = 1
-	e.API.Encoder = "json"
-	e.API.Respawn = true
-	e.API.CLI = true
-	// Reactor defaults
-	e.Reactor.Speed = 1.0
-	e.Reactor.CacheTTL = 60      // 60 seconds
-	e.Reactor.CacheMax = 1000000 // 1M entries
+	// BGP (ze-bgp-conf.yang augment > environment > bgp)
+	if e.BGP.OpenWait, err = SchemaDefaultInt(schema, "environment.bgp.openwait"); err != nil {
+		return err
+	}
 
-	// Chaos defaults (disabled by default)
-	e.Chaos.Rate = 0.1 // Default rate when chaos IS enabled (seed > 0)
+	// Cache (ze-bgp-conf.yang augment > environment > cache)
+	if e.Cache.Attributes, err = SchemaDefaultBool(schema, "environment.cache.attributes"); err != nil {
+		return err
+	}
+
+	// API (ze-bgp-conf.yang augment > environment > api)
+	if e.API.ACK, err = SchemaDefaultBool(schema, "environment.api.ack"); err != nil {
+		return err
+	}
+	if e.API.Chunk, err = SchemaDefaultInt(schema, "environment.api.chunk"); err != nil {
+		return err
+	}
+	if e.API.Encoder, err = SchemaDefaultString(schema, "environment.api.encoder"); err != nil {
+		return err
+	}
+	if e.API.Respawn, err = SchemaDefaultBool(schema, "environment.api.respawn"); err != nil {
+		return err
+	}
+	if e.API.CLI, err = SchemaDefaultBool(schema, "environment.api.cli"); err != nil {
+		return err
+	}
+
+	// Reactor (ze-bgp-conf.yang augment > environment > reactor)
+	if e.Reactor.Speed, err = SchemaDefaultFloat64(schema, "environment.reactor.speed"); err != nil {
+		return err
+	}
+	if e.Reactor.CacheTTL, err = SchemaDefaultInt(schema, "environment.reactor.cache-ttl"); err != nil {
+		return err
+	}
+	if e.Reactor.CacheMax, err = SchemaDefaultInt(schema, "environment.reactor.cache-max"); err != nil {
+		return err
+	}
+
+	// Chaos (ze-bgp-conf.yang augment > environment > chaos)
+	if e.Chaos.Rate, err = SchemaDefaultFloat64(schema, "environment.chaos.rate"); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // OpenWaitDuration returns the OpenWait as a time.Duration.
@@ -678,7 +738,9 @@ func (e *Environment) loadFromEnvStrict() error {
 // slogutil.ApplyLogConfig() separately.
 func LoadEnvironmentWithConfig(configValues map[string]map[string]string) (*Environment, error) {
 	env := &Environment{}
-	env.loadDefaults()
+	if err := env.loadDefaults(); err != nil {
+		return nil, fmt.Errorf("load YANG defaults: %w", err)
+	}
 
 	// Apply config file values
 	for section, options := range configValues {

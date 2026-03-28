@@ -17,10 +17,10 @@ module ze-hub-conf {
         container daemon {
             description "Daemon settings";
             leaf pid { type string; }
-            leaf user { type string; }
+            leaf user { type string; default "zeuser"; description "System user for privilege drop"; }
             leaf daemonize { type boolean; }
-            leaf drop { type boolean; }
-            leaf umask { type string; }
+            leaf drop { type boolean; default true; description "Drop privileges after startup"; }
+            leaf umask { type string; default "0137"; description "File creation mask (octal)"; }
         }
 
         container log {
@@ -29,6 +29,7 @@ module ze-hub-conf {
             // Base log level for all subsystems (ze.log)
             leaf level {
                 type string;
+                default "INFO";
                 description "Base log level for all subsystems: disabled, debug, info, warn, err";
             }
 
@@ -41,7 +42,8 @@ module ze-hub-conf {
             // Syslog destination address
             leaf destination {
                 type string;
-                description "Syslog address when backend=syslog";
+                default "stdout";
+                description "Log destination: stdout, stderr, syslog, or filename";
             }
 
             // Plugin stderr relay level
@@ -50,28 +52,39 @@ module ze-hub-conf {
                 description "Plugin stderr relay level: disabled, debug, info, warn, err";
             }
 
-            // Legacy ExaBGP-compatible settings (deprecated)
-            leaf enable { type boolean; }
+            // Legacy ExaBGP-compatible settings
+            leaf enable { type boolean; default true; }
             leaf all { type boolean; }
-            leaf configuration { type boolean; }
-            leaf reactor { type boolean; }
-            leaf daemon { type boolean; }
-            leaf processes { type boolean; }
-            leaf network { type boolean; }
-            leaf statistics { type boolean; }
+            leaf configuration { type boolean; default true; }
+            leaf reactor { type boolean; default true; }
+            leaf daemon { type boolean; default true; }
+            leaf processes { type boolean; default true; }
+            leaf network { type boolean; default true; }
+            leaf statistics { type boolean; default true; }
             leaf packets { type boolean; }
             leaf rib { type boolean; }
             leaf message { type boolean; }
             leaf timers { type boolean; }
             leaf routes { type boolean; }
             leaf parser { type boolean; }
-            leaf short { type boolean; }
+            leaf short { type boolean; default true; }
 
             // Subsystem-specific log levels (any key allowed)
             // Syntax: <subsystem-path> <level>;
             // Example: bgp.routes debug;
             // Maps to: ze.log.bgp.routes=debug
             ze:allow-unknown-fields;
+        }
+
+        container api {
+            description "API settings";
+            leaf ack { type boolean; default true; description "Acknowledge API commands"; }
+            leaf chunk { type int32; default 1; description "Max lines before yield"; }
+            leaf encoder { type string; default "json"; description "Encoder type: json or text"; }
+            leaf compact { type boolean; description "Compact JSON for INET"; }
+            leaf respawn { type boolean; default true; description "Respawn dead processes"; }
+            leaf terminate { type boolean; description "Terminate if process dies"; }
+            leaf cli { type boolean; default true; description "Create CLI named pipe"; }
         }
 
         container debug {
@@ -85,6 +98,12 @@ module ze-hub-conf {
             leaf rotate { type boolean; }
             leaf timing { type boolean; }
             leaf pprof { type string; description "pprof HTTP server address (e.g. :6060)"; }
+        }
+
+        container chaos {
+            description "Chaos fault injection settings";
+            leaf seed { type int64; description "PRNG seed (0 = disabled)"; }
+            leaf rate { type string; default "0.1"; description "Fault probability per operation (0.0-1.0)"; }
         }
     }
 }

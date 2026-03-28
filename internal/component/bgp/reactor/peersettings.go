@@ -15,6 +15,8 @@ import (
 )
 
 // DefaultBGPPort is the standard BGP port per RFC 4271.
+// Source of truth: ze-bgp-conf.yang (environment > tcp > port, default 179).
+// Used as fallback when YANG schema defaults are not applied (tests, PeerKey).
 const DefaultBGPPort = 179
 
 // ConnectionMode controls TCP connection establishment for a peer.
@@ -41,11 +43,14 @@ func (m ConnectionMode) IsActive() bool { return m.Connect }
 func (m ConnectionMode) IsPassive() bool { return m.Accept }
 
 // DefaultReceiveHoldTime is the default receive hold time per RFC 4271.
+// Source of truth: ze-bgp-conf.yang (timer > receive-hold-time, default 90).
+// Production config reads this from YANG via ApplyDefaults.
 const DefaultReceiveHoldTime = 90 * time.Second
 
-// DefaultConnectRetry is the default connect retry interval.
-// Ze uses exponential backoff starting from this value (see peer.go:run()).
-const DefaultConnectRetry = 5 * time.Second
+// DefaultConnectRetry is the default connect retry interval per RFC 4271.
+// Source of truth: ze-bgp-conf.yang (timer > connect-retry, default 120).
+// Production config reads this from YANG via ApplyDefaults.
+const DefaultConnectRetry = 120 * time.Second
 
 // StaticRoute represents a route to announce when session is established.
 // Fields are stored in both serializable (string/uint) and wire-ready formats.
@@ -369,6 +374,9 @@ type ProcessBinding struct {
 }
 
 // NewPeerSettings creates a peer settings with default values.
+// In production, YANG schema defaults are applied to the config tree before parsing,
+// so these values serve as fallbacks for direct callers (tests, API).
+// They MUST match the YANG defaults in ze-bgp-conf.yang.
 func NewPeerSettings(address netip.Addr, localAS, peerAS, routerID uint32) *PeerSettings {
 	return &PeerSettings{
 		Address:         address,

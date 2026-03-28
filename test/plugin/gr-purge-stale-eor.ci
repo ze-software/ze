@@ -67,6 +67,7 @@ bgp {
 			ip 127.0.0.1
 		}
 		router-id 1.2.3.4
+		timer { connect-retry 5; }
 		group-updates disable
 
 		family {

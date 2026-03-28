@@ -38,6 +38,7 @@ bgp {
 			ip 127.0.0.1
 		}
 		router-id 10.0.0.10
+		timer { connect-retry 5; }
 
 		family {
 			ipv4/unicast { prefix { maximum 10000; } }

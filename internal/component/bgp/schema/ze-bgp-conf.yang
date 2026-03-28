@@ -565,7 +565,7 @@ module ze-bgp-conf {
     augment "/hub:environment" {
         container tcp {
             description "TCP settings";
-            leaf port { type zt:port; }
+            leaf port { type zt:port; default 179; description "BGP port (RFC 4271)"; }
             leaf attempts { type int32; }
             leaf delay { type int32; }
             leaf acl { type boolean; }
@@ -588,14 +588,14 @@ module ze-bgp-conf {
 
         container cache {
             description "Cache settings";
-            leaf attributes { type boolean; }
+            leaf attributes { type boolean; default true; description "Cache path attributes for deduplication"; }
         }
 
         container reactor {
             description "Reactor settings";
-            leaf speed { type string; }
-            leaf cache-ttl { type uint32; description "Update cache TTL in seconds (0=immediate, default 60)"; }
-            leaf cache-max { type uint32; description "Update cache max entries (0=unlimited, default 1000000)"; }
+            leaf speed { type string; default "1.0"; description "Reactor loop time multiplier (0.1-10.0)"; }
+            leaf cache-ttl { type uint32; default 60; description "Update cache TTL in seconds (0=immediate)"; }
+            leaf cache-max { type uint32; default 1000000; description "Update cache max entries (0=unlimited)"; }
         }
     }
 }

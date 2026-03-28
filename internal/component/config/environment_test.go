@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	// Blank import triggers init() registration of all plugin YANG modules.
 	// Needed by TestParseEnvironmentBlockApplied for the "api" environment field.
@@ -53,9 +54,9 @@ func TestLoadEnvironmentDefaults(t *testing.T) {
 		t.Errorf("TCP.Port = %d, want %d", env.TCP.Port, 179)
 	}
 
-	// Check BGP defaults
-	if env.BGP.OpenWait != 60 {
-		t.Errorf("BGP.OpenWait = %d, want %d", env.BGP.OpenWait, 60)
+	// Check BGP defaults (openwait: YANG default 120, ze-bgp-conf.yang)
+	if env.BGP.OpenWait != 120 {
+		t.Errorf("BGP.OpenWait = %d, want %d", env.BGP.OpenWait, 120)
 	}
 
 	// Check API defaults
@@ -200,10 +201,10 @@ func TestOpenWaitDuration(t *testing.T) {
 	}
 
 	dur := env.OpenWaitDuration()
-	want := 60 * 1000 * 1000 * 1000 // 60 seconds in nanoseconds
+	want := 120 * time.Second // YANG default: ze-bgp-conf.yang environment > bgp > openwait
 
-	if int64(dur) != int64(want) {
-		t.Errorf("OpenWaitDuration() = %v, want 60s", dur)
+	if dur != want {
+		t.Errorf("OpenWaitDuration() = %v, want %v", dur, want)
 	}
 }
 
