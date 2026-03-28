@@ -13,10 +13,11 @@ option=open:value=inspect-open-message
 # Expected OPEN with FlowSpec Multiprotocol capabilities (no explicit family config)
 # Structure: marker(16) + len(2) + type(1=OPEN) + version(1) + ASN(2) + hold(2) + router-id(4) + opt-params-len(1) + opt-params
 # ASN=1 (0x0001), hold=90s (0x005A default), router-id=1.2.3.4 (0x01020304)
-# Opt params (40 bytes = 0x28): 4 Multiprotocol caps + ASN4
-# Each Multiprotocol: param-type(02) + param-len(06) + cap-code(01) + cap-len(04) + AFI(2) + reserved(1) + SAFI(1)
-# ASN4: param-type(02) + param-len(06) + cap-code(41) + cap-len(04) + ASN(4)
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004501040001005A010203042802060104000100850206010400010086020601040002008502060104000200860206410400000001
+# Opt params (32 bytes = 0x20): bundled in single type-2 param (RFC 5492)
+# 02 1E (param type 2, len 30): 4 Multiprotocol caps + ASN4
+# Each Multiprotocol: cap-code(01) + cap-len(04) + AFI(2) + reserved(1) + SAFI(1)
+# ASN4: cap-code(41) + cap-len(04) + ASN(4)
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003D01040001005A0102030420021E010400010085010400010086010400020085010400020086410400000001
 EOF_PEER
 
 # ze bgp configuration - NO explicit family block!

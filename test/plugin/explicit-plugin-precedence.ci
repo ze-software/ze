@@ -17,10 +17,11 @@ stdin=peer:terminator=EOF_PEER
 option=open:value=inspect-open-message
 # Expect OPEN with:
 # - ASN=1 (0x0001), hold=90s (0x005A), router-id=1.2.3.4 (0x01020304)
-# - Opt params (16 bytes = 0x10):
-#   - Multiprotocol ipv4/flow: 02 06 01 04 00 01 00 85
-#   - ASN4: 02 06 41 04 00 00 00 01
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D01040001005A010203041002060104000100850206410400000001
+# - Opt params (14 bytes = 0x0E), bundled in single type-2 param (RFC 5492):
+#   - 02 0C (param type 2, len 12)
+#     Multiprotocol ipv4/flow: 01 04 00 01 00 85
+#     ASN4: 41 04 00 00 00 01
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002B01040001005A010203040E020C010400010085410400000001
 EOF_PEER
 
 # ze bgp configuration

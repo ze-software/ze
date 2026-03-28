@@ -18,13 +18,14 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=open:value=inspect-open-message
-# Expect OPEN with ipv4/flow + ipv4/unicast capabilities
+# Expect OPEN with ipv4/flow + ipv4/unicast capabilities (bundled in single type-2 param, RFC 5492)
 # Config families in config order: ipv4/flow (85), ipv4/unicast (01)
-# Caps: Multiprotocol ipv4/flow (02 06 01 04 00 01 00 85)
-#       Multiprotocol ipv4/unicast (02 06 01 04 00 01 00 01)
-#       ASN4 (02 06 41 04 00 00 00 01)
-# Total opt params: 24 bytes (0x18)
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003501040001005A0102030418020601040001008502060104000100010206410400000001
+# Bundled caps in single param: 02 12 (param type 2, len 18)
+#   Multiprotocol ipv4/flow: 01 04 00 01 00 85
+#   Multiprotocol ipv4/unicast: 01 04 00 01 00 01
+#   ASN4: 41 04 00 00 00 01
+# Total opt params: 20 bytes (0x14)
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003101040001005A01020304140212010400010085010400010001410400000001
 # Expect marker UPDATE from external plugin: 99.99.99.0/24 with nhop 1.2.3.4
 # This proves the external plugin is active (internal flowspec wouldn't send this)
 # Received: marker(16) + len=0x30(48) + type=02 + withdrawn=0000 + pathattr_len=0015(21)

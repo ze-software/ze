@@ -171,7 +171,8 @@ func TestBuildOptionalParams_SingleCap(t *testing.T) {
 	assert.Equal(t, byte(4), result[3], "cap length")
 }
 
-// TestBuildOptionalParams_MultipleCaps verifies concatenated encoding.
+// TestBuildOptionalParams_MultipleCaps verifies bundled encoding (RFC 5492 §4).
+// All capabilities are packed in a single type-2 parameter.
 func TestBuildOptionalParams_MultipleCaps(t *testing.T) {
 	caps := []capability.Capability{
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
@@ -181,11 +182,12 @@ func TestBuildOptionalParams_MultipleCaps(t *testing.T) {
 	result := buildOptionalParams(caps)
 	require.NotNil(t, result)
 
-	// First param: type=2, len=6 (Multiprotocol: code=1, len=4, AFI+res+SAFI)
-	assert.Equal(t, byte(2), result[0])
+	// Single type-2 param wrapping both capabilities.
+	// MP: code=1, len=4, data=4 bytes (6 total)
+	// ASN4: code=65, len=4, data=4 bytes (6 total)
+	// Param: type=2, len=12, then 12 bytes of capability TLVs.
+	assert.Equal(t, byte(2), result[0], "param type")
+	assert.Equal(t, byte(12), result[1], "param length = 6+6")
 	assert.Equal(t, byte(1), result[2], "first cap code = Multiprotocol")
-
-	// Second param starts after first (2 + 6 = 8)
-	assert.Equal(t, byte(2), result[8])
-	assert.Equal(t, byte(65), result[10], "second cap code = ASN4")
+	assert.Equal(t, byte(65), result[8], "second cap code = ASN4")
 }

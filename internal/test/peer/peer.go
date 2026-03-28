@@ -585,8 +585,9 @@ func (p *Peer) generateOpen(peerHeader, peerBody []byte) []byte {
 }
 
 // applyCapabilityOverrides modifies OPEN optional parameters by dropping/adding capabilities.
-// Each BGP OPEN optional parameter of type 2 (Capability) wraps a single capability TLV:
-// [ParamType=2, ParamLen, CapCode, CapLen, CapValue...].
+// Handles both per-capability wrapping (each cap in its own type-2 parameter) and RFC 5492
+// bundled format (all caps in a single type-2 parameter). In bundled format, the function
+// iterates inside the type-2 parameter to filter individual capability TLVs.
 func applyCapabilityOverrides(open []byte, overrides []CapabilityOverride) []byte {
 	if len(open) < 29 { // 19 header + 10 min body (version+AS+hold+id+optlen)
 		return open
@@ -603,7 +604,8 @@ func applyCapabilityOverrides(open []byte, overrides []CapabilityOverride) []byt
 		}
 	}
 
-	// Iterate optional parameters, keeping those not dropped.
+	// Iterate optional parameters. For type-2 (Capability), iterate inside the
+	// parameter to filter individual capability TLVs (handles bundled format).
 	var keptParams []byte
 	pos := 10
 	for pos+2 <= len(body) && pos < 10+optParamLen {
@@ -613,21 +615,33 @@ func applyCapabilityOverrides(open []byte, overrides []CapabilityOverride) []byt
 			break
 		}
 
-		keep := true
 		if paramType == 2 && paramLen >= 2 {
-			capCode := body[pos+2]
-			if dropCodes[capCode] {
-				keep = false
+			// Iterate capability TLVs within this type-2 parameter.
+			var keptCaps []byte
+			capPos := 0
+			paramData := body[pos+2 : pos+2+paramLen]
+			for capPos+2 <= len(paramData) {
+				capCode := paramData[capPos]
+				capLen := int(paramData[capPos+1])
+				if capPos+2+capLen > len(paramData) {
+					break
+				}
+				if !dropCodes[capCode] {
+					keptCaps = append(keptCaps, paramData[capPos:capPos+2+capLen]...)
+				}
+				capPos += 2 + capLen
 			}
-		}
-
-		if keep {
+			if len(keptCaps) > 0 {
+				keptParams = append(keptParams, 2, byte(len(keptCaps)))
+				keptParams = append(keptParams, keptCaps...)
+			}
+		} else {
 			keptParams = append(keptParams, body[pos:pos+2+paramLen]...)
 		}
 		pos += 2 + paramLen
 	}
 
-	// Add new capabilities.
+	// Add new capabilities as a separate type-2 parameter.
 	for _, o := range overrides {
 		if !o.Add {
 			continue

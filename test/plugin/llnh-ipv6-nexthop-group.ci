@@ -10,7 +10,7 @@ option=open:value=inspect-open-message
 option=timeout:value=10s
 
 # Same expected OPEN as standalone test
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003101040001005A01020304140206010400020001020641040000000102024D00
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D01040001005A0102030410020E0104000200014104000000014D00
 EOF_PEER
 
 # ze bgp configuration -- peer inside group

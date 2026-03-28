@@ -11,12 +11,13 @@ option=open:value=inspect-open-message
 option=timeout:value=10s
 
 # Full OPEN message (exact hex match):
-# marker(16xFF) + len(0031=49) + type(01=OPEN) + version(04) + ASN(0001) + hold(005A=90s)
-# + router-id(01020304=1.2.3.4) + opt-params-len(14=20)
-# + MP IPv6/unicast: param(02) len(06) cap(01) cap-len(04) AFI(0002) res(00) SAFI(01)
-# + ASN4: param(02) len(06) cap(41) cap-len(04) ASN(00000001)
-# + LLNH: param(02) len(02) cap(4D) cap-len(00)
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003101040001005A01020304140206010400020001020641040000000102024D00
+# marker(16xFF) + len(002D=45) + type(01=OPEN) + version(04) + ASN(0001) + hold(005A=90s)
+# + router-id(01020304=1.2.3.4) + opt-params-len(10=16)
+# + Bundled caps (RFC 5492): param(02) len(0E=14)
+#   MP IPv6/unicast: cap(01) cap-len(04) AFI(0002) res(00) SAFI(01)
+#   ASN4: cap(41) cap-len(04) ASN(00000001)
+#   LLNH: cap(4D) cap-len(00)
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D01040001005A0102030410020E0104000200014104000000014D00
 EOF_PEER
 
 # ze bgp configuration with link-local-nexthop enabled

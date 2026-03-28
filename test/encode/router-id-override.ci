@@ -8,11 +8,12 @@ option=open:value=inspect-open-message
 option=timeout:value=10s
 
 # OPEN with router-id 10.20.30.40 (0A141E28):
-# marker(16xFF) + len(002D=45) + type(01=OPEN) + ver(04) + ASN(0001) + hold(005A=90)
-# + router-id(0A141E28) + opt-len(10=16)
-# + MP ipv4/unicast: param(02) len(06) cap(01) len(04) AFI(0001) res(00) SAFI(01)
-# + ASN4: param(02) len(06) cap(41) len(04) ASN(00000001)
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D01040001005A0A141E281002060104000100010206410400000001
+# marker(16xFF) + len(002B=43) + type(01=OPEN) + ver(04) + ASN(0001) + hold(005A=90)
+# + router-id(0A141E28) + opt-len(0E=14)
+# + bundled caps: param(02) len(0C=12)
+#   MP ipv4/unicast: cap(01) len(04) AFI(0001) res(00) SAFI(01)
+#   ASN4: cap(41) len(04) ASN(00000001)
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002B01040001005A0A141E280E020C010400010001410400000001
 EOF_PEER
 
 # ze bgp configuration with per-peer router-id
