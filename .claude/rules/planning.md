@@ -226,9 +226,9 @@ Every row must be answered Yes/No. Every Yes must name the file and what to add.
 When a spec is complete, write a concise summary to `plan/learned/` using the next available number:
 
 ```bash
-LAST=`command ls -1 plan/learned/ 2>/dev/null | sort -n | tail -1 | cut -c1-3`
+LAST=$(for f in plan/learned/[0-9]*-*.md; do basename "$f" | cut -d- -f1; done 2>/dev/null | sort -n | tail -1)
 test -z "$LAST" && LAST=0
-NEXT=`printf "%03d" \`expr $LAST + 1\``
+NEXT=$(printf "%03d" $((LAST + 1)))
 # Write summary to plan/learned/${NEXT}-<name>.md (see TEMPLATE.md for format)
 ```
 
