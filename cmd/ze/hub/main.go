@@ -424,7 +424,7 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool) 
 	// Auth wrapper for protecting individual routes.
 	var authWrap func(http.Handler) http.Handler
 	if insecureWeb {
-		authWrap = func(h http.Handler) http.Handler { return h }
+		authWrap = zeweb.InsecureMiddleware
 	} else {
 		authWrap = func(h http.Handler) http.Handler {
 			return zeweb.AuthMiddleware(sessionStore, users, loginRenderer, h)

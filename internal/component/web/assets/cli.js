@@ -296,11 +296,28 @@
     });
   }
 
+  // After a tristate toggle POST completes, reload the detail panel to show new state.
+  function initTristate() {
+    document.addEventListener('htmx:afterRequest', function(e) {
+      if (e.detail && e.detail.elt && e.detail.elt.hasAttribute('data-tristate')) {
+        var curPath = window.location.pathname.replace(/^\/show\//, '').replace(/\/$/, '');
+        var detail = document.getElementById('detail');
+        if (detail && window.htmx) {
+          htmx.ajax('GET', '/fragment/detail?path=' + encodeURIComponent(curPath), {
+            target: '#detail',
+            swap: 'innerHTML'
+          });
+        }
+      }
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
     init();
     initViewToggle();
     initSSE();
     initNumberInputs();
     initActions();
+    initTristate();
   });
 })();

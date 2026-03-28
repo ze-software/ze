@@ -44,6 +44,14 @@ func GetUsernameFromRequest(r *http.Request) string {
 	return ""
 }
 
+// InsecureMiddleware wraps a handler to inject a default username without
+// authentication. Used only with --insecure-web for local testing.
+func InsecureMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r.WithContext(withUsername(r.Context(), "insecure")))
+	})
+}
+
 var logger = slogutil.Logger("web.auth")
 
 // sessionTTL is the maximum lifetime of a web session before it must be

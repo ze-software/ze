@@ -133,6 +133,15 @@ func Run(args []string) int {
 
 	// Find or create a config file for the editor.
 	configPath := resolveConfigPath()
+	if !store.Exists(configPath) {
+		dir := filepath.Dir(configPath)
+		if dir != "." && dir != "/" {
+			_ = os.MkdirAll(dir, 0o750)
+		}
+		if writeErr := store.WriteFile(configPath, []byte("# ze config\n"), 0o600); writeErr != nil {
+			fmt.Fprintf(os.Stderr, "warning: cannot create config: %v\n", writeErr)
+		}
+	}
 	editorMgr := zeweb.NewEditorManager(store, configPath, schema)
 
 	// CLI completer for Tab/? autocomplete.
@@ -152,7 +161,7 @@ func Run(args []string) int {
 
 	var authWrap func(http.Handler) http.Handler
 	if *insecure {
-		authWrap = func(h http.Handler) http.Handler { return h }
+		authWrap = zeweb.InsecureMiddleware
 	} else {
 		authWrap = func(h http.Handler) http.Handler {
 			return zeweb.AuthMiddleware(sessionStore, users, loginRenderer, h)

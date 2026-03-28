@@ -1,15 +1,23 @@
 {{define "input_bool"}}
+<div class="ze-tristate" id="tristate-{{.Leaf}}">
 {{if or (eq .Value "true") (eq .Value "1")}}
-<button type="button" class="ze-toggle ze-toggle-on"
-        hx-post="/config/set/{{.Path}}" hx-swap="none"
-        hx-vals='{"leaf":"{{.Leaf}}","value":"false"}'>on</button>
+  <span class="ze-tristate-label ze-tristate-active">yes</span>
+  <button type="button" class="ze-tristate-track ze-tristate-yes"
+          hx-post="/config/set/{{.Path}}" hx-swap="none"
+          hx-vals='{"leaf":"{{.Leaf}}","value":"false"}' data-tristate><span class="ze-tristate-thumb"></span></button>
+  <span class="ze-tristate-label">no</span>
 {{else if eq .Value "false"}}
-<button type="button" class="ze-toggle ze-toggle-off"
-        hx-post="/config/set/{{.Path}}" hx-swap="none"
-        hx-vals='{"leaf":"{{.Leaf}}","value":"__default__"}'>off</button>
+  <span class="ze-tristate-label">yes</span>
+  <button type="button" class="ze-tristate-track ze-tristate-no"
+          hx-post="/config/set/{{.Path}}" hx-swap="none"
+          hx-vals='{"leaf":"{{.Leaf}}","value":"__default__"}' data-tristate><span class="ze-tristate-thumb"></span></button>
+  <span class="ze-tristate-label ze-tristate-active">no</span>
 {{else}}
-<button type="button" class="ze-toggle ze-toggle-default"
-        hx-post="/config/set/{{.Path}}" hx-swap="none"
-        hx-vals='{"leaf":"{{.Leaf}}","value":"true"}'>default</button>
+  <span class="ze-tristate-label">yes</span>
+  <button type="button" class="ze-tristate-track ze-tristate-default"
+          hx-post="/config/set/{{.Path}}" hx-swap="none"
+          hx-vals='{"leaf":"{{.Leaf}}","value":"true"}' data-tristate><span class="ze-tristate-thumb"></span></button>
+  <span class="ze-tristate-label">no</span>
 {{end}}
+</div>
 {{end}}
