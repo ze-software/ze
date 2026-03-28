@@ -162,13 +162,31 @@ func HandleConfigSet(mgr *EditorManager, schema *config.Schema, renderer *Render
 			}
 		}
 
-		// HTMX/AJAX requests: return OOB commit bar with change count.
+		// HTMX requests: return re-rendered field + OOB commit bar.
 		if r.Header.Get("HX-Request") == htmxRequestTrue || r.Header.Get("X-Requested-With") == "fetch" {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+			// Re-render the field with updated value.
+			if renderer != nil {
+				effectiveValue := value
+				if value == "__default__" {
+					effectiveValue = ""
+				}
+				leafNode := findLeafNode(schema, path, leaf)
+				if leafNode != nil {
+					field := buildFieldMetaFromLeaf(leaf, leafNode, effectiveValue, strings.Join(path, "/"))
+					fieldHTML := renderer.RenderField(field)
+					if _, writeErr := w.Write([]byte(fieldHTML)); writeErr != nil {
+						return
+					}
+				}
+			}
+
+			// OOB commit bar with change count.
 			type saveOK struct{ ChangeCount int }
 			count := mgr.ChangeCount(username)
-			html := renderer.RenderFragment("oob_save_ok", saveOK{ChangeCount: count})
-			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			if _, writeErr := w.Write([]byte(html)); writeErr != nil {
+			oob := renderer.RenderFragment("oob_save_ok", saveOK{ChangeCount: count})
+			if _, writeErr := w.Write([]byte(oob)); writeErr != nil {
 				return
 			}
 			return

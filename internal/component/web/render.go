@@ -179,6 +179,30 @@ func (r *Renderer) RenderFragment(name string, data any) template.HTML {
 	return template.HTML(buf.String()) //nolint:gosec // trusted template output
 }
 
+// RenderField renders a single field (wrapper + input + badge) using the
+// fragment templates directly. Returns the full field HTML for HTMX swap.
+func (r *Renderer) RenderField(field FieldMeta) template.HTML {
+	var buf bytes.Buffer
+
+	if err := r.fragments.ExecuteTemplate(&buf, "field_wrapper_start", field); err != nil {
+		return ""
+	}
+
+	inputName := "input_" + field.GetType()
+	if err := r.fragments.ExecuteTemplate(&buf, inputName, field); err != nil {
+		// Fall back to text input for unknown types.
+		if err2 := r.fragments.ExecuteTemplate(&buf, "input_text", field); err2 != nil {
+			return ""
+		}
+	}
+
+	if err := r.fragments.ExecuteTemplate(&buf, "field_wrapper_end", field); err != nil {
+		return ""
+	}
+
+	return template.HTML(buf.String()) //nolint:gosec // trusted template output
+}
+
 // RenderConfigTemplate renders a config view template by name with the given data.
 // The name should match a config template (e.g., "container.html", "list.html").
 // Renders to a buffer first to avoid partial writes on template errors.

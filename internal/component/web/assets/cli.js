@@ -296,71 +296,11 @@
     });
   }
 
-  // After a tristate toggle POST succeeds, cycle the visual state locally.
-  // Server saved the value; we update the DOM to reflect the new position.
-  function initTristate() {
-    document.addEventListener('htmx:afterRequest', function(e) {
-      var btn = e.detail && e.detail.elt;
-      if (!btn || !btn.hasAttribute('data-tristate')) return;
-      if (!e.detail.successful) return;
-
-      var track = btn;
-      var container = track.closest('.ze-tristate');
-      if (!container) return;
-
-      var labels = container.querySelectorAll('.ze-tristate-label');
-      var yesLabel = labels[0];
-      var noLabel = labels[1];
-
-      // Determine default color class from data-default attribute.
-      var yangDefault = track.getAttribute('data-default') || '';
-      var defaultColorClass = '';
-      if (yangDefault === 'true') defaultColorClass = ' ze-tristate-default-yes';
-      else if (yangDefault === 'false') defaultColorClass = ' ze-tristate-default-no';
-
-      // Determine current state from CSS class and cycle.
-      if (track.className.indexOf('ze-tristate-default') >= 0) {
-        // default -> yes
-        track.className = 'ze-tristate-track ze-tristate-yes';
-        if (yesLabel) yesLabel.classList.add('ze-tristate-active');
-        if (noLabel) noLabel.classList.remove('ze-tristate-active');
-        updateHxVals(track, 'false');
-      } else if (track.classList.contains('ze-tristate-yes')) {
-        // yes -> no
-        track.className = 'ze-tristate-track ze-tristate-no';
-        if (yesLabel) yesLabel.classList.remove('ze-tristate-active');
-        if (noLabel) noLabel.classList.add('ze-tristate-active');
-        updateHxVals(track, '__default__');
-      } else if (track.classList.contains('ze-tristate-no')) {
-        // no -> default (with YANG default color hint)
-        track.className = 'ze-tristate-track ze-tristate-default' + defaultColorClass;
-        if (yesLabel) yesLabel.classList.remove('ze-tristate-active');
-        if (noLabel) noLabel.classList.remove('ze-tristate-active');
-        updateHxVals(track, 'true');
-      }
-
-      // Re-process HTMX attributes on the changed element.
-      if (window.htmx) htmx.process(track);
-    });
-  }
-
-  // Update the value field in hx-vals JSON attribute.
-  function updateHxVals(el, newValue) {
-    var raw = el.getAttribute('hx-vals');
-    if (!raw) return;
-    try {
-      var obj = JSON.parse(raw);
-      obj.value = newValue;
-      el.setAttribute('hx-vals', JSON.stringify(obj));
-    } catch (_) { /* ignore parse errors */ }
-  }
-
   document.addEventListener('DOMContentLoaded', function() {
     init();
     initViewToggle();
     initSSE();
     initNumberInputs();
     initActions();
-    initTristate();
   });
 })();

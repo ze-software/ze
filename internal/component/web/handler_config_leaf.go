@@ -148,3 +148,27 @@ func isBoolLeaf(schema *config.Schema, path []string, leaf string) bool {
 
 	return leafNode.Type == config.TypeBool
 }
+
+// findLeafNode walks the schema to find a LeafNode at path + leaf.
+func findLeafNode(schema *config.Schema, path []string, leaf string) *config.LeafNode {
+	fullPath := make([]string, len(path)+1)
+	copy(fullPath, path)
+	fullPath[len(path)] = leaf
+
+	node, err := walkSchema(schema, fullPath)
+	if err != nil {
+		return nil
+	}
+
+	leafNode, ok := node.(*config.LeafNode)
+	if !ok {
+		return nil
+	}
+
+	return leafNode
+}
+
+// buildFieldMetaFromLeaf creates a FieldMeta from a leaf name, YANG node, value, and parent path.
+func buildFieldMetaFromLeaf(name string, leaf *config.LeafNode, value, parentPath string) FieldMeta {
+	return buildFieldMeta(name, leaf, value, value != "", parentPath)
+}
