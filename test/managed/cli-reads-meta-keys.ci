@@ -19,8 +19,8 @@ printf 'admin\nsecret123\n10.0.0.1\n3333\n\n' | ZE_CONFIG_DIR="$INIT_DIR" ze ini
 HOST=$(ze data --path "$DB" cat meta/ssh/host)
 [ "$HOST" = "10.0.0.1" ] || { echo "FAIL: host expected '10.0.0.1', got '$HOST'" >&2; exit 1; }
 
-PORT=$(ze data --path "$DB" cat meta/ssh/port)
-[ "$PORT" = "3333" ] || { echo "FAIL: port expected '3333', got '$PORT'" >&2; exit 1; }
+STORED_PORT=$(ze data --path "$DB" cat meta/ssh/port)
+[ "$STORED_PORT" = "3333" ] || { echo "FAIL: port expected '3333', got '$STORED_PORT'" >&2; exit 1; }
 
 # Password is stored as bcrypt hash
 PASSWORD=$(ze data --path "$DB" cat meta/ssh/password)
