@@ -1,0 +1,21 @@
+# Test: setting a value persists after navigating away and back
+# VALIDATES: editor tree is used for rendering, not static empty tree
+# PREVENTS: set values and created entries disappearing after navigation
+
+option=timeout:value=30s
+
+action=open:path=/show/environment/bgp/
+expect=element:text=120
+
+# Set openwait to 999
+action=fill:text=120:value=999
+action=wait:ms=2000
+
+# Navigate to root
+action=open:path=/show/
+
+# Navigate back to environment/bgp
+action=open:path=/show/environment/bgp/
+
+# The value should still be 999, not default 120
+expect=element:text=999

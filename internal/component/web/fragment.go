@@ -106,11 +106,24 @@ type FragmentData struct {
 // A full page request renders the layout with all fragments embedded.
 // An HTMX request (HX-Request header) returns only the requested fragment
 // with out-of-band swaps for sidebar and breadcrumb.
-func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree, insecure bool) http.HandlerFunc {
+func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree, mgr *EditorManager, insecure bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		path := extractPath(r)
-		data := buildFragmentData(schema, tree, path)
-		data.Username = GetUsernameFromRequest(r)
+		if err := ValidatePathSegments(path); err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+		// Use the editor's working tree if the user has an active session,
+		// so config changes (set values, created entries) are visible.
+		viewTree := tree
+		username := GetUsernameFromRequest(r)
+		if mgr != nil && username != "" {
+			if userTree := mgr.Tree(username); userTree != nil {
+				viewTree = userTree
+			}
+		}
+		data := buildFragmentData(schema, viewTree, path)
+		data.Username = username
 		data.Insecure = insecure
 
 		// HTMX partial request: render OOB response via template.

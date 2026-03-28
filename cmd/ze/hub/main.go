@@ -373,7 +373,7 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool) 
 	}
 
 	// Fragment handler serves HTMX components for YANG tree navigation.
-	fragmentHandler := zeweb.HandleFragment(renderer, schema, tree, insecureWeb)
+	fragmentHandler := zeweb.HandleFragment(renderer, schema, tree, editorMgr, insecureWeb)
 
 	// Config set handler for editing leaf values.
 	setHandler := zeweb.HandleConfigSet(editorMgr, schema, renderer)
