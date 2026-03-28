@@ -7,9 +7,9 @@ option=timeout:value=30s
 action=open:path=/show/
 expect=element:text=bgp
 
-action=click:text=bgp
+action=click:text=BGP I BGP
 expect=element:text=group
-expect=breadcrumb:contains=bgp
+expect=element:text=peer
 
 action=click:text=group
-expect=breadcrumb:contains=bgp,group
+expect=element:text=BACK

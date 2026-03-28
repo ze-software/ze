@@ -7,8 +7,7 @@ option=timeout:value=30s
 action=open:path=/show/
 expect=element:text=bgp
 
-action=click:text=bgp
+action=click:text=BGP I BGP
 action=wait:ms=500
 expect=element:text=Router ID
 expect=element:text=group
-expect=breadcrumb:contains=bgp

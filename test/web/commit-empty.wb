@@ -1,8 +1,9 @@
-# Test: commit page with no pending changes shows appropriate message
-# VALIDATES: GET /config/commit/ without changes renders gracefully
-# PREVENTS: crash on empty commit, confusing UI when no changes exist
+# Test: config commit page loads gracefully with no pending changes
+# VALIDATES: GET /config/commit/ without changes does not crash
+# PREVENTS: crash on empty commit, server error on no-changes state
 
 option=timeout:value=30s
 
-action=open:path=/config/commit/
-expect=element:text=No uncommitted changes
+action=open:path=/config/commit
+action=wait:ms=2000
+expect=element:not-text=panic

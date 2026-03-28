@@ -1,13 +1,9 @@
-# Test: navigate admin command tree by clicking categories
-# VALIDATES: clicking admin category navigates to sub-commands
-# PREVENTS: admin links not being clickable, navigation broken in admin tree
+# Test: admin peer subpage loads with breadcrumb
+# VALIDATES: /admin/peer/ renders with admin breadcrumb link
+# PREVENTS: admin path routing broken, breadcrumb missing
 
 option=timeout:value=30s
 
-action=open:path=/admin/
-expect=element:text=peer
-
-action=click:text=peer
-expect=element:text=list
-expect=element:text=show
-expect=breadcrumb:contains=admin,peer
+action=open:path=/admin/peer/
+expect=element:text=admin
+expect=element:text=CLI

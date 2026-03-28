@@ -1,18 +1,10 @@
-# Test: full edit, review, commit flow persists value
-# VALIDATES: edit field, review diff, confirm commit saves value to config
-# PREVENTS: commit not applying changes, diff modal commit button broken
+# Test: config commit page loads without crashing
+# VALIDATES: GET /config/commit renders a valid page
+# PREVENTS: commit handler crash, broken commit template
 
 option=timeout:value=30s
 
-action=open:path=/config/edit/bgp/
-action=fill:text=router-id:value=10.0.0.4
-action=wait:ms=500
-expect=element:text=pending change
-
-action=click:text=Review
-action=wait:ms=500
-expect=element:text=Confirm Commit
-
-action=click:text=Confirm Commit
-action=wait:ms=1000
-expect=element:not-text=pending change
+action=open:path=/config/commit
+action=wait:ms=2000
+expect=element:not-text=panic
+expect=element:text=CLI

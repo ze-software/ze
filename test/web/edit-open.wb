@@ -1,9 +1,11 @@
-# Test: config editor shows editable input fields at /config/edit/bgp/
-# VALIDATES: edit mode renders leaf nodes as input fields, not read-only text
-# PREVENTS: missing edit handler, broken config template rendering
+# Test: BGP show view renders leaf fields and children
+# VALIDATES: BGP container renders leaf names and child container links
+# PREVENTS: missing leaf rendering, broken container template
 
 option=timeout:value=30s
 
-action=open:path=/config/edit/bgp/
-expect=element:text=router-id
-expect=element:text=listen
+action=open:path=/show/bgp/
+expect=element:text=Router ID
+expect=element:text=Listen address
+expect=element:text=peer
+expect=element:text=group

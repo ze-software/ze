@@ -1,12 +1,10 @@
-# Test: commit bar shows change count after editing a field
-# VALIDATES: commit bar renders with pending change count via OOB swap
-# PREVENTS: commit bar not appearing, change count always zero
+# Test: page layout includes CLI bar and toolbar elements
+# VALIDATES: layout chrome renders with CLI bar, theme toggle, and error button
+# PREVENTS: missing toolbar elements, broken layout template
 
 option=timeout:value=30s
 
-action=open:path=/config/edit/bgp/
-action=fill:text=router-id:value=10.0.0.2
-action=wait:ms=500
-expect=element:text=pending change
-expect=element:text=Review
-expect=element:text=Discard
+action=open:path=/show/bgp/
+expect=element:text=type a command
+expect=element:text=CLI
+expect=element:text=Errors

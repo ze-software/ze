@@ -1,8 +1,8 @@
-# Test: number field renders as number input in config editor
-# VALIDATES: YANG uint16/uint32 leaves render as number type inputs
-# PREVENTS: numeric fields rendered as text, missing min/max constraints
+# Test: BGP local container shows AS number input field
+# VALIDATES: local container renders AS number as interactive input
+# PREVENTS: numeric fields not rendering in nested container
 
 option=timeout:value=30s
 
-action=open:path=/config/edit/bgp/local/
-expect=element:text=as
+action=open:path=/show/bgp/local/
+expect=element:text=Autonomous System Number

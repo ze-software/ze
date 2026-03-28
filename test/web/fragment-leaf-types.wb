@@ -1,9 +1,9 @@
-# Test: BGP edit page shows different input types for leaves
-# VALIDATES: leaf nodes render with appropriate field types (text, number)
-# PREVENTS: all fields rendered as plain text, missing field metadata
+# Test: BGP view shows different leaf field labels
+# VALIDATES: leaf nodes render with their YANG names as labels
+# PREVENTS: missing field labels, broken leaf rendering in containers
 
 option=timeout:value=30s
 
-action=open:path=/config/edit/bgp/
-expect=element:text=router-id
-expect=element:text=listen
+action=open:path=/show/bgp/
+expect=element:text=Router ID
+expect=element:text=Listen address

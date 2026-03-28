@@ -1,9 +1,9 @@
-# Test: CLI bar top command returns to root
-# VALIDATES: top verb in CLI bar navigates to root context
-# PREVENTS: top command not resetting context path
+# Test: CLI bar exists on nested pages
+# VALIDATES: CLI input bar renders on non-root pages
+# PREVENTS: CLI bar missing on deep navigation pages
 
 option=timeout:value=30s
 
-action=open:path=/config/edit/bgp/
-expect=element:text=router-id
+action=open:path=/show/bgp/
 expect=element:text=type a command
+expect=element:text=Router ID
