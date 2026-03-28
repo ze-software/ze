@@ -194,6 +194,30 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) (*Schema, error) {
 		}
 	}
 
+	// Load ze-web-conf module (environment > web)
+	webEntry := loader.GetEntry("ze-web-conf")
+	if webEntry != nil {
+		for _, name := range sortedKeys(webEntry.Dir) {
+			child := webEntry.Dir[name]
+			node := yangToNode(child, name)
+			if node != nil {
+				schema.Define(name, node)
+			}
+		}
+	}
+
+	// Load ze-mcp-conf module (environment > mcp)
+	mcpEntry := loader.GetEntry("ze-mcp-conf")
+	if mcpEntry != nil {
+		for _, name := range sortedKeys(mcpEntry.Dir) {
+			child := mcpEntry.Dir[name]
+			node := yangToNode(child, name)
+			if node != nil {
+				schema.Define(name, node)
+			}
+		}
+	}
+
 	// Load ze-telemetry-conf module (telemetry)
 	telemetryEntry := loader.GetEntry("ze-telemetry-conf")
 	if telemetryEntry != nil {

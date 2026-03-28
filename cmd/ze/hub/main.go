@@ -1,4 +1,5 @@
-// Design: docs/architecture/hub-architecture.md — hub CLI entry point
+// Design: docs/architecture/hub-architecture.md -- hub CLI entry point
+// Detail: mcp.go -- MCP server startup
 //
 // Package hub provides the ze hub subcommand.
 package hub
@@ -38,8 +39,15 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
-// Env var registration for hub readiness signal.
-var _ = env.MustRegister(env.EnvEntry{Key: "ze.ready.file", Type: "string", Description: "Write signal file when hub is ready (test infrastructure)"})
+// Env var registrations.
+var (
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.ready.file", Type: "string", Description: "Write signal file when hub is ready (test infrastructure)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.host", Type: "string", Description: "Web server listen host"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.port", Type: "string", Description: "Web server listen port"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.insecure", Type: "bool", Description: "Disable web authentication"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.host", Type: "string", Description: "MCP server listen host (127.0.0.1 only)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.port", Type: "string", Description: "MCP server listen port"})
+)
 
 // RunWebOnly starts only the web server (no BGP engine).
 // Used when ze start --web is called without a config.
@@ -79,7 +87,7 @@ func forceExitOnSignal(sigCh <-chan os.Signal) {
 // store provides the I/O backend (filesystem or blob); used for config reads and reload.
 // chaosSeed > 0 enables chaos self-test mode; chaosRate < 0 means "use default".
 // Returns exit code.
-func Run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool, webListenAddr string, insecureWeb bool) int {
+func Run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr string) int {
 	// Read config content first (to probe type without parsing).
 	// When reading from stdin, we look for a NUL sentinel that signals
 	// "config complete but pipe stays open for liveness monitoring."
@@ -100,7 +108,7 @@ func Run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	switch zeconfig.ProbeConfigType(string(data)) {
 	case zeconfig.ConfigTypeBGP:
 		// Run BGP in-process using YANG parser
-		return runBGPInProcess(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb)
+		return runBGPInProcess(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb, mcpAddr)
 	case zeconfig.ConfigTypeHub:
 		// Run hub orchestrator using hub parser
 		// TODO: pass plugins to orchestrator when hub mode supports them
@@ -148,7 +156,7 @@ func readStdinConfig() (data []byte, stdinOpen bool, err error) {
 // runBGPInProcess loads BGP config using YANG parser and runs reactor in-process.
 // When stdinOpen is true, a background goroutine monitors stdin for EOF and
 // triggers shutdown when the upstream process exits (pipe mode).
-func runBGPInProcess(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool) int {
+func runBGPInProcess(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool, mcpAddr string) int {
 	// Phase 1: Parse config and resolve plugins (no reactor created yet).
 	loadResult, err := bgpconfig.LoadConfig(string(data), configPath, plugins)
 	if err != nil {
@@ -156,10 +164,43 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 		return 1
 	}
 
-	// Enable web server if config has a system { web { } } block.
-	if !webEnabled && bgpconfig.HasWebConfig(loadResult.Tree) {
-		webEnabled = true
+	// Precedence: CLI > env > config.
+	// Config provides defaults, env overrides config, CLI overrides everything.
+
+	// Layer 1: config file values.
+	if webCfg, ok := bgpconfig.ExtractWebConfig(loadResult.Tree); ok {
+		if !webEnabled {
+			webEnabled = true
+			webListenAddr = webCfg.Listen()
+			insecureWeb = webCfg.Insecure
+		}
 	}
+	if mcpCfg, ok := bgpconfig.ExtractMCPConfig(loadResult.Tree); ok {
+		if mcpAddr == "" {
+			mcpAddr = mcpCfg.Listen()
+		}
+	}
+
+	// Layer 2: environment variables override config (but not CLI).
+	if h, p := env.Get("ze.web.host"), env.Get("ze.web.port"); p != "" && webListenAddr == "" {
+		webEnabled = true
+		host := h
+		if host == "" {
+			host = "0.0.0.0"
+		}
+		webListenAddr = host + ":" + p
+	}
+	if env.IsEnabled("ze.web.insecure") && !insecureWeb {
+		insecureWeb = true
+	}
+	if h, p := env.Get("ze.mcp.host"), env.Get("ze.mcp.port"); p != "" && mcpAddr == "" {
+		host := h
+		if host == "" {
+			host = "127.0.0.1"
+		}
+		mcpAddr = host + ":" + p
+	}
+	// Layer 3: CLI flags already applied (they were set before this point).
 
 	// Phase 2: Populate ConfigProvider with parsed config tree.
 	configProvider := zeconfig.NewProvider()
@@ -267,6 +308,12 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 		}
 	}
 
+	// Start MCP server if --mcp flag was passed.
+	var mcpSrv *http.Server
+	if mcpAddr != "" {
+		mcpSrv = startMCPServer(mcpAddr, reactor.ExecuteCommand)
+	}
+
 	// Wait for either signal or reactor to stop itself
 	doneCh := make(chan struct{})
 	go func() {
@@ -289,6 +336,13 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 		fmt.Println("\nShutting down...")
 	case <-doneCh:
 		fmt.Println("\nShutting down...")
+	}
+
+	// Shut down MCP before reactor to prevent requests during teardown.
+	if mcpSrv != nil {
+		mcpCtx, mcpCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		_ = mcpSrv.Shutdown(mcpCtx)
+		mcpCancel()
 	}
 
 	stopCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)

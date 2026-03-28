@@ -188,7 +188,9 @@ type testWebServer struct {
 
 func startTestWebServer(zeBin, listenAddr string) (*testWebServer, error) {
 	ctx := context.Background()
-	cmd := exec.CommandContext(ctx, zeBin, "start", "--web", "--insecure-web", "--listen", listenAddr) //nolint:gosec // test binary path
+	// Extract port from listenAddr (e.g. "127.0.0.1:8443" -> "8443").
+	_, port, _ := net.SplitHostPort(listenAddr)
+	cmd := exec.CommandContext(ctx, zeBin, "start", "--web", port, "--insecure-web") //nolint:gosec // test binary path
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 

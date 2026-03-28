@@ -37,6 +37,8 @@ import (
 // Uses LazyLogger to pick up config file settings applied after init().
 var configLogger = slogutil.LazyLogger("config")
 
+const loopbackIP = "127.0.0.1"
+
 // Origin attribute values.
 const (
 	originIGP = "igp"
@@ -589,20 +591,19 @@ func extractAuthzSection(container *config.Tree) authz.Section {
 // extractSSHConfig extracts SSH server configuration from the parsed config tree.
 // Returns the SSH config and true if a system.ssh block is present.
 func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
-	sys := tree.GetContainer("system")
-	if sys == nil {
+	// SSH server settings live under environment.ssh.
+	env := tree.GetContainer("environment")
+	if env == nil {
 		return zessh.Config{}, false
 	}
 
-	sshContainer := sys.GetContainer("ssh")
+	sshContainer := env.GetContainer("ssh")
 	if sshContainer == nil {
 		return zessh.Config{}, false
 	}
 
-	// ConfigDir intentionally left empty — host key resolves from binary
-	// location via paths.DefaultConfigDir() (e.g., ./bin/ze → etc/ze/).
-	// The configDir parameter is the config file directory (or cwd for stdin),
-	// which is wrong for host key placement.
+	// ConfigDir intentionally left empty -- host key resolves from binary
+	// location via paths.DefaultConfigDir() (e.g., ./bin/ze -> etc/ze/).
 	var cfg zessh.Config
 
 	if addrs := sshContainer.GetSlice("listen"); len(addrs) > 0 {
@@ -623,28 +624,109 @@ func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
 		}
 	}
 
-	// Extract users from system.authentication.user list.
-	if auth := sys.GetContainer("authentication"); auth != nil {
-		for name, entry := range auth.GetList("user") {
-			var uc zessh.UserConfig
-			uc.Name = name
-			if pw, ok := entry.Get("password"); ok {
-				uc.Hash = pw
+	// Users stay under system.authentication.
+	if sys := tree.GetContainer("system"); sys != nil {
+		if auth := sys.GetContainer("authentication"); auth != nil {
+			for name, entry := range auth.GetList("user") {
+				var uc zessh.UserConfig
+				uc.Name = name
+				if pw, ok := entry.Get("password"); ok {
+					uc.Hash = pw
+				}
+				cfg.Users = append(cfg.Users, uc)
 			}
-			cfg.Users = append(cfg.Users, uc)
 		}
 	}
 
 	return cfg, true
 }
 
-// HasWebConfig returns true if the parsed config tree has a system.web block.
-func HasWebConfig(tree *config.Tree) bool {
-	sys := tree.GetContainer("system")
-	if sys == nil {
-		return false
+// WebConfig holds parsed environment.web settings.
+type WebConfig struct {
+	Host     string // Listen host (e.g. 0.0.0.0)
+	Port     string // Listen port (e.g. 8443)
+	Insecure bool   // Disable authentication
+}
+
+// Listen returns host:port.
+func (c WebConfig) Listen() string { return c.Host + ":" + c.Port }
+
+// ExtractWebConfig returns the environment.web config if present.
+func ExtractWebConfig(tree *config.Tree) (WebConfig, bool) {
+	envBlock := tree.GetContainer("environment")
+	if envBlock == nil {
+		return WebConfig{}, false
 	}
-	return sys.GetContainer("web") != nil
+	web := envBlock.GetContainer("web")
+	if web == nil {
+		return WebConfig{}, false
+	}
+
+	cfg := WebConfig{Host: "0.0.0.0", Port: "8443"}
+	if v, ok := web.Get("host"); ok {
+		cfg.Host = v
+	}
+	if v, ok := web.Get("port"); ok {
+		cfg.Port = v
+	}
+	if v, ok := web.Get("insecure"); ok && v == "true" {
+		cfg.Insecure = true
+	}
+
+	// Validate: insecure requires 127.0.0.1 binding.
+	if cfg.Insecure && cfg.Host != loopbackIP {
+		configLogger().Error("environment.web: insecure forces host to 127.0.0.1", "host", cfg.Host)
+		cfg.Host = loopbackIP
+	}
+
+	return cfg, true
+}
+
+// HasWebConfig returns true if the parsed config tree has an environment.web block.
+func HasWebConfig(tree *config.Tree) bool {
+	_, ok := ExtractWebConfig(tree)
+	return ok
+}
+
+// MCPConfig holds parsed environment.mcp settings.
+type MCPConfig struct {
+	Host string // Listen host (127.0.0.1 enforced)
+	Port string // Listen port
+}
+
+// Listen returns host:port.
+func (c MCPConfig) Listen() string { return c.Host + ":" + c.Port }
+
+// ExtractMCPConfig returns the environment.mcp config if present.
+func ExtractMCPConfig(tree *config.Tree) (MCPConfig, bool) {
+	envBlock := tree.GetContainer("environment")
+	if envBlock == nil {
+		return MCPConfig{}, false
+	}
+	mcp := envBlock.GetContainer("mcp")
+	if mcp == nil {
+		return MCPConfig{}, false
+	}
+
+	cfg := MCPConfig{Host: loopbackIP}
+	if v, ok := mcp.Get("host"); ok {
+		cfg.Host = v
+	}
+	if v, ok := mcp.Get("port"); ok {
+		cfg.Port = v
+	}
+
+	// Enforce loopbackIP binding.
+	if cfg.Host != loopbackIP {
+		configLogger().Error("environment.mcp: host must be 127.0.0.1", "host", cfg.Host)
+		cfg.Host = loopbackIP
+	}
+
+	if cfg.Port == "" {
+		return MCPConfig{}, false // No port = MCP not enabled
+	}
+
+	return cfg, true
 }
 
 // resolveSSHStorage returns blob storage for SSH host key persistence.

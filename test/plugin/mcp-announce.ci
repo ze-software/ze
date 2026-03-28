@@ -1,0 +1,48 @@
+# mcp-announce - announce routes via MCP and verify peer receives BGP UPDATE
+# Tests the MCP server integration: ze start --mcp, ze-test mcp sends commands,
+# ze-peer validates the resulting BGP wire messages.
+
+# ze-peer expectations: EOR then one UPDATE with 10.0.0.0/24
+stdin=peer:terminator=EOF_PEER
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003046501650140050400000064180a0000
+EOF_PEER
+
+# MCP commands: wait for session, then announce a route via ze_announce tool
+stdin=mcp:terminator=EOF_MCP
+wait-established
+@ze_announce {"origin":"igp","local-preference":100,"next-hop":"101.1.101.1","family":"ipv4/unicast","prefixes":["10.0.0.0/24"]}
+EOF_MCP
+
+# Ze config: single peer, no plugin (routes injected via MCP)
+stdin=ze-bgp:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+			accept false
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		group-updates disable
+
+		family {
+			ipv4/unicast { prefix { maximum 10000; } }
+		}
+	}
+}
+EOF_CONF
+
+option=tcp_connections:value=1
+
+# Process orchestration:
+# 1. ze-peer listens for BGP connections
+# 2. ze daemon starts with MCP server on $PORT2
+# 3. ze-test mcp sends commands via MCP HTTP endpoint
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=background:seq=2:exec=ze --mcp $PORT2 -:stdin=ze-bgp
+cmd=foreground:seq=3:exec=ze-test mcp --port $PORT2:stdin=mcp:timeout=15s

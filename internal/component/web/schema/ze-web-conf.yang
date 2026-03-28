@@ -8,16 +8,28 @@ module ze-web-conf {
         description "Initial revision";
     }
 
-    container system {
-        description "System-level settings (augments ze-ssh-conf system container)";
+    container environment {
+        description "Environment settings for web interface";
 
         container web {
             description "Web interface settings";
 
-            leaf listen {
+            leaf host {
                 type string;
-                default "0.0.0.0:8443";
-                description "Listen address and port for HTTPS server";
+                default "0.0.0.0";
+                description "Listen host address";
+            }
+
+            leaf port {
+                type uint16;
+                default 8443;
+                description "Listen port";
+            }
+
+            leaf insecure {
+                type boolean;
+                default false;
+                description "Disable authentication (forces host to 127.0.0.1)";
             }
         }
     }

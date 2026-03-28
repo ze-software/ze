@@ -1,0 +1,29 @@
+module ze-mcp-conf {
+    namespace "urn:ze:mcp:conf";
+    prefix mcp;
+
+    description "MCP (Model Context Protocol) server configuration for Ze";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    container environment {
+        description "Environment settings for MCP server";
+
+        container mcp {
+            description "MCP server settings (AI assistant control interface)";
+
+            leaf host {
+                type string;
+                default "127.0.0.1";
+                description "Listen host address (127.0.0.1 only for security)";
+            }
+
+            leaf port {
+                type uint16;
+                description "Listen port";
+            }
+        }
+    }
+}

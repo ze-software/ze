@@ -11,6 +11,7 @@
 //	ze-test rpki [flags]           Deterministic RPKI mock server (IP modulo)
 //	ze-test peeringdb [flags]      Deterministic PeeringDB mock server (ASN-derived)
 //	ze-test syslog [flags]         Run syslog server for testing
+//	ze-test mcp [flags]            MCP client (send commands to daemon via MCP)
 //	ze-test text-plugin            Run minimal text-mode plugin (for .ci tests)
 package main
 
@@ -41,6 +42,8 @@ func main() {
 		os.Exit(editorCmd())
 	case "ui":
 		os.Exit(uiCmd())
+	case "mcp":
+		os.Exit(mcpCmd())
 	case "managed":
 		os.Exit(managedCmd())
 	case "peer":
@@ -74,6 +77,7 @@ Commands:
   bgp          Run BGP functional tests (encoding, plugin, decoding, parsing)
   editor       Run editor functional tests (.et files)
   ui           Run UI functional tests (completion, CLI)
+  mcp          MCP client (send commands to daemon via MCP endpoint)
   managed      Run managed config tests (hub, auth, fleet)
   web          Run web browser functional tests (.wb files)
   peer         BGP test peer (sink/echo/check modes)

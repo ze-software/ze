@@ -23,6 +23,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/system/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/mcp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/ssh/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/telemetry/schema"

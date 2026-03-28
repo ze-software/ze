@@ -36,6 +36,10 @@ module ze-ssh-conf {
                 }
             }
         }
+    }
+
+    container environment {
+        description "Environment settings for SSH server";
 
         container ssh {
             description "SSH server settings";

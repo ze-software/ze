@@ -28,13 +28,14 @@ func TestSchema_ZeWebModule(t *testing.T) {
 
 	assert.Equal(t, "urn:ze:web:conf", mod.Namespace.Name)
 
-	var systemContainer bool
+	// Web config lives under environment.web (moved from system.web).
+	var envContainer bool
 	for _, c := range mod.Container {
-		if c.Name != "system" {
+		if c.Name != "environment" {
 			continue
 		}
 
-		systemContainer = true
+		envContainer = true
 
 		var webChild bool
 		for _, child := range c.Container {
@@ -44,9 +45,9 @@ func TestSchema_ZeWebModule(t *testing.T) {
 			}
 		}
 
-		assert.True(t, webChild, "system.web container should exist")
+		assert.True(t, webChild, "environment.web container should exist")
 
 		break
 	}
-	assert.True(t, systemContainer, "system container should exist")
+	assert.True(t, envContainer, "environment container should exist")
 }

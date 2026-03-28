@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -87,6 +88,9 @@ func main() {
 	var chaosRate float64 = -1 // -1 means "not set by CLI"
 	var pprofAddr string
 	var fileOverride string // -f flag: bypass blob, use filesystem directly
+	var mcpAddr string      // --mcp <port>: start MCP server on 127.0.0.1:<port>
+	var webPort string      // --web <port>: start web server
+	var insecureWeb bool    // --insecure-web: disable web auth
 	args := os.Args[1:]
 	for len(args) > 0 && (strings.HasPrefix(args[0], "--") || args[0] == "-d" || args[0] == "-V" || args[0] == "-f") {
 		switch args[0] {
@@ -164,6 +168,31 @@ func main() {
 			}
 			chaosRate = f
 			args = args[2:]
+		case "--mcp":
+			if len(args) < 2 {
+				fmt.Fprintf(os.Stderr, "error: --mcp requires a port\n")
+				os.Exit(1)
+			}
+			if !validPort(args[1]) {
+				fmt.Fprintf(os.Stderr, "error: --mcp port must be 1-65535, got %q\n", args[1])
+				os.Exit(1)
+			}
+			mcpAddr = "127.0.0.1:" + args[1]
+			args = args[2:]
+		case "--web":
+			if len(args) < 2 {
+				fmt.Fprintf(os.Stderr, "error: --web requires a port\n")
+				os.Exit(1)
+			}
+			if !validPort(args[1]) {
+				fmt.Fprintf(os.Stderr, "error: --web port must be 1-65535, got %q\n", args[1])
+				os.Exit(1)
+			}
+			webPort = args[1]
+			args = args[2:]
+		case "--insecure-web":
+			insecureWeb = true
+			args = args[1:]
 		case "--plugins":
 			// Handle here to avoid breaking the loop — this is a standalone flag
 			args = args[0:] // Keep it for dispatch below
@@ -191,7 +220,7 @@ dispatch:
 		fileOverride = config.ResolveConfigPath(fileOverride)
 		switch detectConfigType(store, fileOverride) {
 		case config.ConfigTypeBGP, config.ConfigTypeHub:
-			os.Exit(hub.Run(store, fileOverride, plugins, chaosSeed, chaosRate, false, "", false))
+			os.Exit(hub.Run(store, fileOverride, plugins, chaosSeed, chaosRate, false, "", false, ""))
 		case config.ConfigTypeUnknown:
 			fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
 			os.Exit(1)
@@ -244,9 +273,17 @@ dispatch:
 		printVersion()
 		os.Exit(0)
 	case "start":
-		os.Exit(cmdStart(args[1:], plugins, chaosSeed, chaosRate))
+		os.Exit(cmdStart(args[1:], plugins, chaosSeed, chaosRate, mcpAddr, webPort, insecureWeb))
 	case "help", "-h", "--help":
-		usage()
+		subArgs := args[1:]
+		switch {
+		case aiHelpRequested(subArgs):
+			printAIHelp(subArgs)
+		case slices.Contains(subArgs, "--help") || slices.Contains(subArgs, "-h"):
+			helpUsage()
+		default:
+			usage()
+		}
 		os.Exit(0)
 	case "--plugins":
 		// Check for --json flag
@@ -255,11 +292,25 @@ dispatch:
 		os.Exit(0)
 	}
 
+	// Derive web settings from global flags.
+	webEnabled := webPort != ""
+	webListenAddr := ""
+	if webEnabled {
+		webListenAddr = "0.0.0.0:" + webPort
+		if insecureWeb {
+			webListenAddr = "127.0.0.1:" + webPort
+		}
+	}
+	if insecureWeb && !webEnabled {
+		fmt.Fprintf(os.Stderr, "error: --insecure-web requires --web <port>\n")
+		os.Exit(1)
+	}
+
 	// If arg looks like a config file, dispatch based on content
 	if looksLikeConfig(arg) {
 		// For stdin, skip blob - hub.Run reads and probes internally
 		if arg == "-" {
-			os.Exit(hub.Run(storage.NewFilesystem(), arg, plugins, chaosSeed, chaosRate, false, "", false))
+			os.Exit(hub.Run(storage.NewFilesystem(), arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr))
 		}
 		store := resolveStorage()
 		// Search XDG config paths if not found locally
@@ -273,10 +324,10 @@ dispatch:
 		switch detectConfigType(store, arg) {
 		case config.ConfigTypeBGP:
 			// Start BGP daemon in-process via hub
-			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, false, "", false))
+			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr))
 		case config.ConfigTypeHub:
 			// Start hub orchestrator (forks external plugins)
-			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, false, "", false))
+			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr))
 		case config.ConfigTypeUnknown:
 			fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
 			os.Exit(1)
@@ -286,7 +337,7 @@ dispatch:
 	// Unknown command
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
 	commands := []string{
-		"bgp", "plugin", "cli", "config", "data", "init", "start", "schema", "yang",
+		"bgp", "plugin", "cli", "config", "data", "env", "init", "start", "schema", "yang",
 		"exabgp", "signal", "status", "show", "run", "completion", "version", "help",
 	}
 	if suggestion := suggest.Command(arg, commands); suggestion != "" {
@@ -361,30 +412,60 @@ func resolveStorage() storage.Storage {
 // For managed clients (meta/instance/managed=true), connects to hub to fetch config
 // before starting, falling back to cached config if hub is unreachable.
 // When --web is set and no config exists, starts the web server standalone.
-func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64) int {
-	var webEnabled bool
-	var webListenAddr string
-	var insecureWeb bool
+// validPort checks a string is a numeric port in range 1-65535.
+func validPort(s string) bool {
+	n, err := strconv.Atoi(s)
+	return err == nil && n >= 1 && n <= 65535
+}
+
+func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, globalMCPAddr, globalWebPort string, globalInsecureWeb bool) int {
+	// Start with global flag values, allow local flags to override.
+	mcpAddr := globalMCPAddr
+	webPort := globalWebPort
+	insecureWeb := globalInsecureWeb
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
 		case "--web":
-			webEnabled = true
-		case "--insecure-web":
-			insecureWeb = true
-		case "--listen":
 			if i+1 < len(args) {
 				i++
-				webListenAddr = args[i]
+				if !validPort(args[i]) {
+					fmt.Fprintf(os.Stderr, "error: --web port must be 1-65535, got %q\n", args[i])
+					return 1
+				}
+				webPort = args[i]
+			} else {
+				fmt.Fprintf(os.Stderr, "error: --web requires a port\n")
+				return 1
+			}
+		case "--insecure-web":
+			insecureWeb = true
+		case "--mcp":
+			if i+1 < len(args) {
+				i++
+				if !validPort(args[i]) {
+					fmt.Fprintf(os.Stderr, "error: --mcp port must be 1-65535, got %q\n", args[i])
+					return 1
+				}
+				mcpAddr = "127.0.0.1:" + args[i]
+			} else {
+				fmt.Fprintf(os.Stderr, "error: --mcp requires a port\n")
+				return 1
 			}
 		}
 	}
 
-	if insecureWeb {
-		if !strings.HasPrefix(webListenAddr, "127.0.0.1:") {
-			fmt.Fprintf(os.Stderr, "error: --insecure-web requires --listen 127.0.0.1:<port>\n")
-			return 1
+	webEnabled := webPort != ""
+	webListenAddr := ""
+	if webEnabled {
+		webListenAddr = "0.0.0.0:" + webPort
+		if insecureWeb {
+			webListenAddr = "127.0.0.1:" + webPort
 		}
+	}
+	if insecureWeb && !webEnabled {
+		fmt.Fprintf(os.Stderr, "error: --insecure-web requires --web <port>\n")
+		return 1
 	}
 
 	store := resolveStorage()
@@ -421,7 +502,7 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64) int {
 		return 1
 	}
 
-	return hub.Run(store, configName, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb)
+	return hub.Run(store, configName, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr)
 }
 
 // isManaged returns true if the blob has meta/instance/managed=true.
@@ -454,7 +535,7 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 			go managed.RunManagedClient(ctx, *clientCfg)
 		}
 
-		return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false, "", false)
+		return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false, "", false, "")
 	}
 
 	// No cached config: first boot after ze init --managed.
@@ -503,7 +584,7 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 		go managed.RunManagedClient(ctx, *clientCfg)
 	}
 
-	return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false, "", false)
+	return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false, "", false, "")
 }
 
 // extractManagedClientConfig reads config from blob and extracts the hub client block.
@@ -670,9 +751,12 @@ Options:
   --server <host:port>  Override hub address for managed mode
   --name <name>         Override client name for managed mode
   --token <token>       Override auth token for managed mode
+  --mcp <port>          Start MCP server on 127.0.0.1:<port>
+  --web <port>          Start web server on 0.0.0.0:<port>
+  --insecure-web        Disable web auth (forces 127.0.0.1, requires --web)
 
 Commands:
-  start        Start daemon (--web adds web interface, --insecure-web disables auth)
+  start        Start daemon (--web <port>, --insecure-web, --mcp <port>)
   init         Bootstrap database with SSH credentials
   config       Configuration management (validate, edit, migrate, ...)
   data         Blob store management
@@ -688,7 +772,7 @@ Commands:
   exabgp       ExaBGP bridge tools
   completion   Generate shell completion scripts
   version      Show version
-  help         Show this help
+  help         Show this help (--ai for machine-readable reference)
 
 Examples:
   ze config.conf                       Start with config
