@@ -238,30 +238,28 @@ ze init -force                   # Replace existing database
 Prompts for: username, password, host (127.0.0.1), port (2222), name (hostname).
 <!-- source: cmd/ze/init/main.go -- Run, defaultHost, defaultPort -->
 
-### ze web
+### ze start --web
 
-Start the HTTPS web interface for configuration viewing, editing, and admin commands.
+Add the HTTPS web interface alongside the BGP daemon. The web server runs on a
+separate port and provides configuration viewing, editing, and admin commands.
 
 ```
-ze web                                              # Start with auto-generated self-signed cert
-ze web --listen 0.0.0.0:8443                        # Listen on all interfaces
-ze web --cert server.pem --key server-key.pem       # Use provided TLS certificate
-ze web --insecure-web --listen 127.0.0.1:8443       # Test without authentication
+ze start --web                                            # Start daemon + web on default port
+ze start --web --listen 127.0.0.1:8443                    # Web on specific address
+ze start --web --insecure-web --listen 127.0.0.1:8443     # No authentication (testing only)
 ```
 
 | Flag | Purpose |
 |------|---------|
-| `--cert <path>` | TLS certificate PEM file |
-| `--key <path>` | TLS private key PEM file (required with `--cert`) |
-| `--listen <addr>` | Listen address (default: `0.0.0.0:8443`) |
+| `--web` | Enable the web interface alongside the daemon |
+| `--listen <addr>` | Web server listen address (default: `0.0.0.0:8443`) |
 | `--insecure-web` | Disable authentication (requires `--listen 127.0.0.1:*`) |
 
-When `--cert` is not provided, an ECDSA P-256 self-signed certificate is generated automatically with SANs for localhost, 127.0.0.1, ::1, and the listen address.
-
-Exit codes: 0 = clean shutdown, 1 = error, 2 = cert/key file not found.
+The web server uses a self-signed ECDSA P-256 certificate (persisted in zefs) with SANs
+for localhost, 127.0.0.1, ::1, and the listen address.
 
 See [Web Interface Guide](web-interface.md) for full usage documentation.
-<!-- source: cmd/ze/web/main.go -- Run, usage -->
+<!-- source: cmd/ze/main.go -- cmdStart, cmd/ze/hub/main.go -- startWebServer -->
 
 ### ze data
 

@@ -169,7 +169,7 @@ type testWebServer struct {
 
 func startTestWebServer(zeBin, listenAddr string) (*testWebServer, error) {
 	ctx := context.Background()
-	cmd := exec.CommandContext(ctx, zeBin, "web", "--insecure-web", "--listen", listenAddr) //nolint:gosec // test binary path
+	cmd := exec.CommandContext(ctx, zeBin, "start", "--web", "--insecure-web", "--listen", listenAddr) //nolint:gosec // test binary path
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr
 
