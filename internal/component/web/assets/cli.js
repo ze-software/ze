@@ -51,10 +51,15 @@
         var tokens = cmd.split(/\s+/);
         var verb = tokens[0];
 
-        // Navigation commands: go to the path.
+        // Navigation commands: use HTMX so OOB swaps update breadcrumb and prompt.
         if (verb === 'show' || verb === 'edit') {
-          var navPath = tokens.slice(1).map(encodeURIComponent).join('/');
-          window.location.href = '/show/' + navPath + '/';
+          if (window.htmx) {
+            htmx.ajax('POST', '/cli', {
+              target: '#content-area',
+              swap: 'outerHTML',
+              values: {command: cmd}
+            });
+          }
           return;
         }
 

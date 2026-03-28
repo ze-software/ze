@@ -657,10 +657,10 @@ func writeCLIResponse(w http.ResponseWriter, renderer *Renderer, path []string, 
 
 	var buf strings.Builder
 
-	// Main content area.
-	fmt.Fprintf(&buf, `<div id="content-area">`)
+	// Main content area (must match layout.html element for outerHTML swap).
+	fmt.Fprintf(&buf, `<main class="content-area" id="content-area">`)
 	buildViewDataHTML(&buf, viewData)
-	fmt.Fprintf(&buf, `</div>`)
+	fmt.Fprintf(&buf, `</main>`)
 
 	// OOB breadcrumb update.
 	buildBreadcrumbOOB(&buf, crumbs)
