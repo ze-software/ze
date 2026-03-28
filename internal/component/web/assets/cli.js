@@ -53,7 +53,7 @@
 
         // Navigation commands: go to the path.
         if (verb === 'show' || verb === 'edit') {
-          var navPath = tokens.slice(1).join('/');
+          var navPath = tokens.slice(1).map(encodeURIComponent).join('/');
           window.location.href = '/show/' + navPath + '/';
           return;
         }
@@ -301,7 +301,7 @@
       if (e.key === 'Enter') {
         e.preventDefault();
         var name = input.value.trim();
-        if (name) window.location.href = baseURL + name + '/';
+        if (name) window.location.href = baseURL + encodeURIComponent(name) + '/';
       }
       if (e.key === 'Escape') overlay.remove();
     });

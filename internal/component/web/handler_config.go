@@ -110,6 +110,8 @@ func HandleConfigSet(mgr *EditorManager, schema *config.Schema, renderer *Render
 
 		path := parsed.Path
 
+		r.Body = http.MaxBytesReader(w, r.Body, 65536)
+
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, fmt.Sprintf("parse form: %v", err), http.StatusBadRequest)
 			return
@@ -221,6 +223,8 @@ func HandleConfigDelete(mgr *EditorManager) http.HandlerFunc {
 		}
 
 		path := parsed.Path
+
+		r.Body = http.MaxBytesReader(w, r.Body, 65536)
 
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, fmt.Sprintf("parse form: %v", err), http.StatusBadRequest)

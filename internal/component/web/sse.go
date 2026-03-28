@@ -177,6 +177,9 @@ func writeSSEEvent(w http.ResponseWriter, ev sseEvent) error {
 	var err error
 
 	if ev.eventType != "" {
+		if strings.ContainsAny(ev.eventType, "\n\r") {
+			return fmt.Errorf("invalid SSE event type: contains newline")
+		}
 		_, err = fmt.Fprintf(w, "event: %s\n", ev.eventType)
 	}
 

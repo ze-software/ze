@@ -124,6 +124,8 @@ func HandleCLICommand(mgr *EditorManager, schema *config.Schema, renderer *Rende
 			return
 		}
 
+		r.Body = http.MaxBytesReader(w, r.Body, 65536)
+
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, fmt.Sprintf("parse form: %v", err), http.StatusBadRequest)
 			return
@@ -427,6 +429,8 @@ func HandleCLITerminal(mgr *EditorManager) http.HandlerFunc {
 			return
 		}
 
+		r.Body = http.MaxBytesReader(w, r.Body, 65536)
+
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, fmt.Sprintf("parse form: %v", err), http.StatusBadRequest)
 			return
@@ -568,6 +572,8 @@ func HandleCLIModeToggle(mgr *EditorManager, schema *config.Schema, renderer *Re
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
+
+		r.Body = http.MaxBytesReader(w, r.Body, 65536)
 
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, fmt.Sprintf("parse form: %v", err), http.StatusBadRequest)

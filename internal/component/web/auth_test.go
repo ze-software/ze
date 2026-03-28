@@ -228,7 +228,7 @@ func TestSecurityHeaders(t *testing.T) {
 	expectedHeaders := map[string]string{
 		"X-Frame-Options":           "DENY",
 		"X-Content-Type-Options":    "nosniff",
-		"Content-Security-Policy":   "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'",
+		"Content-Security-Policy":   "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'",
 		"Strict-Transport-Security": "max-age=63072000; includeSubDomains",
 		"Cache-Control":             "no-store",
 	}
