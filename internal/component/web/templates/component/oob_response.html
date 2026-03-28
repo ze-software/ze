@@ -1,7 +1,7 @@
 {{define "oob_response"}}
 <div class="main-split">
   {{template "finder" .}}
-  <div class="detail-panel" id="detail">{{template "detail" .}}</div>
+  <div class="detail-panel" id="detail"{{if .Monitor}} hx-get="/monitor/{{.CurrentPath}}" hx-trigger="every 5s" hx-target="#content-area" hx-swap="innerHTML" hx-select=".main-split"{{end}}>{{template "detail" .}}</div>
 </div>
 <nav id="breadcrumb" hx-swap-oob="innerHTML">{{template "breadcrumb_inner" .}}</nav>
 {{end}}
@@ -9,6 +9,6 @@
 {{define "full_content"}}
 <div class="main-split">
   {{template "finder" .}}
-  <div class="detail-panel" id="detail">{{template "detail" .}}</div>
+  <div class="detail-panel" id="detail"{{if .Monitor}} hx-get="/monitor/{{.CurrentPath}}" hx-trigger="every 5s" hx-target="#content-area" hx-swap="innerHTML" hx-select=".main-split"{{end}}>{{template "detail" .}}</div>
 </div>
 {{end}}

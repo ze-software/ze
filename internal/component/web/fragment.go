@@ -119,6 +119,8 @@ type FragmentData struct {
 	Username string
 	// Insecure is true when --insecure-web mode is active.
 	Insecure bool
+	// Monitor is true when the view is auto-refreshing (/monitor/ URL).
+	Monitor bool
 	// CommandForm holds admin command form data when viewing a leaf command.
 	CommandForm *CommandFormData
 	// CommandResult holds admin command execution result.
@@ -148,6 +150,7 @@ func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree
 		data := buildFragmentData(schema, viewTree, path)
 		data.Username = username
 		data.Insecure = insecure
+		data.Monitor = strings.HasPrefix(r.URL.Path, "/monitor/")
 
 		// HTMX partial request: render OOB response via template.
 		if r.Header.Get("HX-Request") == "true" {
@@ -195,8 +198,9 @@ func extractPath(r *http.Request) []string {
 		return splitPath(p)
 	}
 
-	// Show endpoint: /show/bgp/peer/1.2.3.4
+	// Show/monitor endpoint: /show/bgp/peer or /monitor/bgp/peer.
 	raw := strings.TrimPrefix(r.URL.Path, "/show/")
+	raw = strings.TrimPrefix(raw, "/monitor/")
 	raw = strings.TrimPrefix(raw, "/fragment/detail/")
 	raw = strings.TrimSuffix(raw, "/")
 
