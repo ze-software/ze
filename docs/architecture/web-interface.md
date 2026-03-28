@@ -1,53 +1,74 @@
 # Web Interface Architecture
 
-The ze web interface is an HTTPS server that renders YANG-driven configuration views, handles config editing with per-user draft sessions, and provides an integrated CLI bar and SSE-based live updates.
+The ze web interface is an HTTPS server that renders YANG-driven configuration views using HTMX components. All UI is server-rendered Go templates. HTMX handles navigation, auto-save, and error display via out-of-band swaps. The only JavaScript is `cli.js` for Tab/? autocomplete in the CLI bar.
+
+For the component design, template filesystem, and interaction flows, see [web-components.md](web-components.md).
 
 All source files in `internal/component/web/` reference this document via `// Design:` comments.
 
-## Component Placement
+## Source Files
 
 | File | Responsibility |
 |------|---------------|
-| `internal/component/web/server.go` | HTTPS server, TLS config, self-signed cert generation |
-| `internal/component/web/auth.go` | Session store, auth middleware, login handler, Basic Auth |
-| `internal/component/web/handler.go` | URL parsing, content negotiation, route registration |
-| `internal/component/web/handler_config.go` | Config tree view, set/delete/commit/discard handlers |
-| `internal/component/web/handler_admin.go` | Admin command tree navigation and execution |
-| `internal/component/web/cli.go` | CLI bar (integrated + terminal modes), tab completion |
-| `internal/component/web/editor.go` | Per-user EditorManager, working tree isolation |
-| `internal/component/web/render.go` | Template loading (embedded), layout/login/config rendering |
-| `internal/component/web/sse.go` | EventBroker, SSE client management, config change broadcast |
-| `internal/component/web/schema/` | YANG schema (`ze-web-conf.yang`) and registration |
-| `internal/component/web/templates/` | HTML templates (layout, login, config views, CLI, admin) |
-| `internal/component/web/assets/` | Static CSS, JS, images |
-| `cmd/ze/web/main.go` | CLI entry point (`ze web` command) |
+| `server.go` | HTTPS server, TLS config, self-signed cert generation, cert persistence |
+| `auth.go` | Session store, auth middleware, login handler, Basic Auth, `GetUsernameFromRequest` |
+| `handler.go` | URL parsing, content negotiation, route registration |
+| `fragment.go` | HTMX fragment handler, `FragmentData`, `FieldMeta`, sidebar builder, OOB error writer |
+| `handler_config.go` | Config set/delete/commit/discard handlers, `ConfigViewData`, `HandleConfigView` |
+| `handler_config_walk.go` | Schema + tree walking, `buildConfigViewData`, `populateContainerView` |
+| `handler_config_leaf.go` | `buildLeafField`, `leafInputType`, `nodeKindToTemplate`, breadcrumbs |
+| `handler_admin.go` | Admin command tree navigation and execution |
+| `cli.go` | CLI bar (integrated + terminal modes), tab completion |
+| `editor.go` | Per-user `EditorManager`, working tree isolation, change tracking |
+| `render.go` | Template loading (embedded), `RenderFragment`, `fieldFor` dispatch |
+| `sse.go` | `EventBroker`, SSE client management, config change broadcast |
 
 <!-- source: internal/component/web/server.go -- WebServer struct -->
 <!-- source: internal/component/web/auth.go -- SessionStore, AuthMiddleware -->
-<!-- source: internal/component/web/handler.go -- ParseURL, RegisterRoutes -->
+<!-- source: internal/component/web/fragment.go -- HandleFragment, FragmentData -->
 <!-- source: internal/component/web/editor.go -- EditorManager -->
+
+## Template Structure
+
+Templates are organized by visual concern:
+
+```
+templates/
+  page/        layout.html, login.html
+  component/   breadcrumb, sidebar, detail, cli_bar, commit_bar,
+               error_panel, diff_modal, oob_response, oob_save, oob_error
+  input/       wrapper, bool, enum, number, text
+```
+
+Each input type is one file. The `fieldFor()` template function dispatches to `input_<type>` at render time based on the YANG `ValueType`. No if/else chain in templates.
+
+<!-- source: internal/component/web/render.go -- NewRenderer, fieldFor func -->
 
 ## URL Scheme
 
-URLs follow a verb-first three-tier pattern. Each tier represents a different authorization level.
-
 ```
-/show/<yang-path>           View tier (GET, read-only)
-/monitor/<yang-path>        View tier (GET, auto-poll)
-/config/<verb>/<path>       Config tier (edit/set/delete/commit/discard/compare)
-/admin/<yang-path>          Admin tier (GET browse, POST execute)
-/login                      Authentication (POST, no auth required)
-/assets/                    Static files (GET, no auth required)
+/show/<yang-path>           Full page or HTMX fragment (GET)
+/fragment/detail?path=X     HTMX partial: detail + OOB sidebar/breadcrumb (GET)
+/config/set/<path>          Save field value (POST, returns OOB commit bar or error)
+/config/diff                Diff modal with changes (GET, returns open modal HTML)
+/config/diff-close          Close diff modal (GET, returns closed modal HTML)
+/config/commit              Apply pending changes (POST)
+/config/discard             Revert pending changes (POST)
+/cli                        CLI command execution (POST)
+/cli/complete?input=X       Tab/? autocomplete (GET, returns JSON)
+/cli/terminal               Terminal mode command (POST, returns plain text)
+/cli/mode                   Toggle CLI/GUI mode (POST)
+/admin/<yang-path>          Admin commands (GET browse, POST execute)
+/login                      Authentication (POST)
+/assets/                    Static files (CSS, JS)
 /                           Redirects to /show/
 ```
 
-<!-- source: internal/component/web/handler.go -- Tier constants, knownPrefixes, configVerbs -->
+<!-- source: internal/component/web/handler.go -- ParseURL, knownPrefixes -->
 
-The `ParseURL` function decomposes each request into a `ParsedURL` struct containing the tier, verb, YANG path segments, and negotiated format (HTML or JSON). Path segments are validated against YANG identifier characters `[a-zA-Z0-9._:-]` with explicit rejection of path traversal (`..`), empty segments, and null bytes.
+## Authentication
 
-## Authentication Model
-
-Authentication reuses the SSH user database (`[]ssh.UserConfig`). Two mechanisms are supported:
+Reuses SSH user database (`[]ssh.UserConfig`). Two mechanisms:
 
 | Mechanism | When Used | Session Created |
 |-----------|-----------|-----------------|
@@ -56,99 +77,69 @@ Authentication reuses the SSH user database (`[]ssh.UserConfig`). Two mechanisms
 
 <!-- source: internal/component/web/auth.go -- AuthMiddleware, parseBasicAuth -->
 
-The `SessionStore` maps tokens to `WebSession` objects and enforces one session per user. Tokens are 32 bytes from `crypto/rand`, hex-encoded to 64 characters. The session cookie is `Secure`, `HttpOnly`, and `SameSite=Strict`.
+Session tokens: 32 bytes from `crypto/rand`, hex-encoded. Cookie: `Secure`, `HttpOnly`, `SameSite=Strict`. One session per user, 24h TTL.
 
-The `AuthMiddleware` wraps protected routes. It checks the session cookie first, then falls back to Basic Auth. HTMX requests with expired sessions receive a login overlay instead of a full-page redirect, enabling in-place session recovery.
+## Per-User Editor
 
-## YANG-to-HTML Template Rendering
+The `EditorManager` creates independent `cli.Editor` instances per authenticated user.
 
-The `Renderer` loads HTML templates from `embed.FS` at startup. Templates are organized by config node kind:
+<!-- source: internal/component/web/editor.go -- EditorManager, GetOrCreate -->
 
-| Template | Renders |
-|----------|---------|
-| `layout.html` | Page wrapper (breadcrumb, CLI bar, content area, notification bar) |
-| `login.html` | Login form |
-| `container.html` | Container nodes (leaf fields + child links) |
-| `list.html` | List nodes (key enumeration + entry detail) |
-| `flex.html` | Flex nodes |
-| `freeform.html` | Freeform nodes (raw value lists) |
-| `inline_list.html` | Inline list nodes |
-| `leaf_input.html` | Partial: leaf input field (text, checkbox, number, select) |
-| `command.html` | Admin command result card |
-| `command_form.html` | Admin command parameter form |
+Each session has an isolated working tree, change tracking, and serialized access via per-user mutex. Operations: `SetValue`, `DeleteValue`, `Commit`, `Discard`, `Diff`, `ChangeCount`, `Tree`.
 
-<!-- source: internal/component/web/render.go -- NewRenderer, configTemplateNames -->
+`Commit` detects conflicts when two users modify the same leaf and returns `CommitResult` with conflict details. Limits: 50 concurrent sessions, 1 hour idle timeout.
 
-Config view handlers walk the YANG schema and config tree in parallel (`walkSchema`, `walkTree`) to the requested path, then assemble a `ConfigViewData` struct. Leaf nodes are mapped to HTML input types based on their YANG `ValueType` (string to text, bool to checkbox, uint16/uint32 to number with min/max, IP addresses to text with pattern validation).
+## YANG Schema Integration
 
-<!-- source: internal/component/web/handler_config.go -- buildConfigViewData, leafInputType -->
+The YANG schema drives the entire UI. No hardcoded field lists.
 
-Content negotiation determines the format: JSON requests receive the config subtree as a `map[string]any`. HTML requests render through the template pipeline. HTMX partial requests (identified by the `HX-Request` header) return content fragments without the layout wrapper.
+| Schema element | UI rendering |
+|---------------|-------------|
+| `ContainerNode` | Sidebar heading (clickable, navigable) |
+| `ListNode` | Sidebar heading + entry list + add form |
+| `LeafNode` type `TypeBool` | Toggle button (on/off) |
+| `LeafNode` type `TypeUint16/32` | Number input with min/max |
+| `LeafNode` type `TypeIP/IPv4/IPv6` | Text input with pattern validation |
+| `LeafNode` type `TypeString` with `Enums` | Select dropdown |
+| `LeafNode` type `TypeString` | Text input |
+| `LeafNode.Description` | (i) tooltip on hover (field label and sidebar heading) |
+| `ContainerNode.Description` | (i) tooltip on sidebar heading |
+| `ListNode.Description` | (i) tooltip on sidebar heading |
 
-## Per-User Editor Management
-
-The `EditorManager` creates and manages independent `cli.Editor` instances per authenticated user. Each user session has:
-
-- An isolated working tree (copy-on-write from the committed config)
-- Change tracking (set/delete operations recorded per session)
-- Serialized access via a per-user mutex
-
-<!-- source: internal/component/web/editor.go -- EditorManager, userSession, GetOrCreate -->
-
-Operations: `SetValue`, `DeleteValue`, `Commit`, `Discard`, `Diff`, `ChangeCount`, `Tree`, `ContentAtPath`. The `Commit` method detects conflicts when two users modify the same leaf and returns a `CommitResult` with conflict details.
-
-Session limits: 50 concurrent sessions maximum, 1 hour idle timeout. Idle sessions are evicted on capacity overflow.
-
-## SSE Broker Pattern
-
-The `EventBroker` manages Server-Sent Events for live config change notifications.
-
-<!-- source: internal/component/web/sse.go -- EventBroker, Subscribe, Broadcast -->
-
-```
-Commit handler --> BroadcastConfigChange() --> EventBroker.Broadcast()
-                                                    |
-                                    +---------------+---------------+
-                                    |               |               |
-                                client A        client B        client C
-                              (chan, 16 buf)   (chan, 16 buf)  (chan, 16 buf)
-```
-
-Design choices:
-
-| Choice | Rationale |
-|--------|-----------|
-| Non-blocking send to client channels | Slow clients lose events rather than blocking the broker |
-| 16-event channel buffer per client | Absorbs short bursts without drops |
-| 100 client maximum (configurable) | Prevents resource exhaustion |
-| Pre-rendered HTML fragments as event data | Clients swap HTML directly via htmx OOB, no client-side rendering |
-
-The `BroadcastConfigChange` function renders a notification banner template with the username and reason, then broadcasts it as a `config-change` SSE event. The banner includes "Refresh" and "Dismiss" buttons.
-
-## CLI Bar
-
-The CLI bar provides two modes, both using the same command grammar as the SSH CLI.
-
-<!-- source: internal/component/web/cli.go -- HandleCLICommand, HandleCLITerminal -->
-
-**Integrated mode** (`/cli` POST): Commands update the page via HTMX multi-target responses. Navigation commands (`edit`, `top`, `up`) swap the content area and update breadcrumbs. Mutation commands (`set`, `delete`) redirect back to the config edit view. `commit` and `discard` redirect to `/config/edit/`.
-
-**Terminal mode** (`/cli/terminal` POST): Commands produce plain text output appended to a scrollback area. The prompt echoes `ze[<path>]#` before each command.
-
-**Tab completion** (`/cli/complete` GET): Returns JSON array of completion candidates with text, description, and type fields. Input is capped at 1024 characters, results at 50 candidates.
-
-**Mode toggle** (`/cli/mode` POST): Switches between integrated and terminal modes, re-rendering the content area for the target mode.
-
-## Admin Command Tree
-
-The `/admin/` tier provides a browsable command tree. The `HandleAdminView` handler receives a static `children` map describing the command hierarchy. Container paths display navigable links. Leaf paths display a parameter form.
-
-<!-- source: internal/component/web/handler_admin.go -- HandleAdminView, HandleAdminExecute -->
-
-The `HandleAdminExecute` handler reconstructs the command string from URL path segments, dispatches through a `CommandDispatcher` function, and returns a result card (HTML) or JSON object with command, output, and error fields.
+<!-- source: internal/component/config/schema.go -- LeafNode, ContainerNode, ListNode -->
+<!-- source: internal/component/web/fragment.go -- buildFieldMeta, nodeDescription -->
 
 ## TLS
 
-The web server enforces TLS 1.2 as the minimum version. When no certificate is provided, `GenerateWebCertWithAddr` creates an ECDSA P-256 self-signed certificate valid for 365 days with SANs for localhost, 127.0.0.1, ::1, and the configured listen address (if non-loopback). The `CertStore` interface abstracts certificate persistence for reuse across restarts.
+Self-signed ECDSA P-256 certificate, valid 365 days. When listening on `0.0.0.0`, all non-loopback interface IPs are added as SANs so the cert is valid regardless of which IP the client connects to.
 
-<!-- source: internal/component/web/server.go -- NewTLSConfig, GenerateWebCertWithAddr, CertStore -->
+Certificates are persisted in zefs (`meta/web/cert`, `meta/web/key`) via the `CertStore` interface. On restart, the existing cert is loaded instead of regenerated, so browsers don't need to re-accept.
+
+TLS handshake errors from browsers rejecting self-signed certs are suppressed in the server error log.
+
+<!-- source: internal/component/web/server.go -- GenerateWebCertWithAddr, LoadOrGenerateCert, addInterfaceIPs -->
+
+## Security Headers
+
+```
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'
+X-Frame-Options: DENY
+X-Content-Type-Options: nosniff
+Strict-Transport-Security: max-age=63072000; includeSubDomains
+Cache-Control: no-store
+```
+
+No `unsafe-eval`. All scripts are external files. No inline `<script>` blocks.
+
+<!-- source: internal/component/web/auth.go -- addSecurityHeaders -->
+
+## Starting the Web Server
+
+| Method | Command |
+|--------|---------|
+| CLI flag | `ze start --web` |
+| Config | `system { web { listen 0.0.0.0:8443; } }` |
+
+Both paths call `startWebServer()` in `cmd/ze/hub/main.go`. Web-only mode (no BGP config) starts the web server standalone for initial setup.
+
+<!-- source: cmd/ze/hub/main.go -- startWebServer, RunWebOnly -->

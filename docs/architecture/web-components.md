@@ -1,120 +1,173 @@
-# Spec: Web Interface Component Architecture
+# Web Component Architecture
 
-| Field | Value |
-|-------|-------|
-| Status | `in-progress` |
-| Depends | `-` |
-| Phase | `1/1` |
-| Updated | `2026-03-28` |
+<!-- source: internal/component/web/fragment.go -- HandleFragment, FragmentData -->
+<!-- source: internal/component/web/render.go -- Renderer, RenderFragment, fieldFor -->
 
-## Task
+## Design Principles
 
-Replace the monolithic page-render web interface with reusable HTMX components.
-Each UI element is an independent fragment with its own endpoint. Navigation
-triggers partial updates via HTMX out-of-band swaps -- no full page reloads
-after initial load.
+The web interface follows three rules:
 
-## Requirements from User Feedback
+1. **Server renders HTML, HTMX handles interaction.** No custom JavaScript creates UI elements. All HTML comes from Go templates. HTMX attributes on elements handle save, navigation, and error display. The only JS file (`cli.js`) handles Tab/? key interception for CLI autocomplete, which has no HTMX equivalent.
 
-| # | Requirement |
-|---|------------|
-| 1 | YANG schema tree must be navigable from the browser |
-| 2 | List nodes (peer, group) need a panel showing existing entries + Add button to create new ones |
-| 3 | Fields must use type-appropriate inputs: checkbox for bool, dropdown for enum, number for integers |
-| 4 | YANG metadata (type, options, default, min, max, pattern, description) embedded as data attributes so browser handles validation and autocomplete locally |
-| 5 | Breadcrumb at bottom above CLI prompt, not at top |
-| 6 | CLI bar: Tab and ? trigger autocomplete, completions are clickable |
-| 7 | "set ?" appends space before querying so completions show what follows the verb |
-| 8 | TLS certificate persisted in zefs, not regenerated every restart |
-| 9 | `ze start --web` works without BGP config (web-only mode) |
-| 10 | `ze init --force` works with piped input (reads data first, prompts on /dev/tty) |
-| 11 | Suppress TLS handshake error log spam from browsers rejecting self-signed certs |
-| 12 | Content area left-aligned, no wasted header space |
+2. **One template per visual concern.** Each file in `templates/` renders exactly one thing. Adding a new input type means adding one file. The template filesystem mirrors the page structure.
 
-## Component Architecture
+3. **One HTTP request updates multiple components.** HTMX out-of-band (OOB) swaps let a single response update the detail panel, sidebar, breadcrumb, commit bar, and error panel simultaneously.
 
-### Fragments
-
-| Component | ID | Endpoint | Content |
-|-----------|----|----------|---------|
-| Detail | `#detail` | `GET /fragment/detail?path=X` | Navigation tiles + leaf fields for current node |
-| Sidebar | `#sidebar` | `GET /fragment/sidebar?path=X` | List entries + Add form (only for list nodes, hidden otherwise) |
-| Breadcrumb | `#breadcrumb` | `GET /fragment/breadcrumb?path=X` | Path trail with links |
-
-### Navigation Flow
-
-A click on a navigation tile or sidebar entry triggers:
-1. `hx-get="/fragment/detail?path=NEW"` replaces `#detail`
-2. Response includes `hx-swap-oob` fragments for `#sidebar` and `#breadcrumb`
-
-One HTTP request, three component updates.
-
-### Field Component
-
-A single `ze-field` div carries YANG metadata as data attributes. One shared JS
-function reads the attributes and constructs the appropriate input element.
-
-| data attribute | Purpose | Example |
-|---------------|---------|---------|
-| `data-type` | YANG value type | `bool`, `string`, `enum`, `uint16`, `ip`, `prefix`, `duration` |
-| `data-options` | Enum values (comma-separated) | `igp,egp,incomplete` |
-| `data-default` | YANG default value | `igp` |
-| `data-min` | Numeric minimum | `0` |
-| `data-max` | Numeric maximum | `65535` |
-| `data-pattern` | Validation regex | `^(\d{1,3}\.){3}\d{1,3}$` |
-| `data-description` | YANG description (tooltip) | `BGP router identifier` |
-| `data-path` | YANG path for POST | `bgp` |
-| `data-leaf` | Leaf name for POST | `router-id` |
-| `data-value` | Current configured value | `1.2.3.4` |
-
-Browser JS renders:
-- `bool` -> toggle/checkbox
-- `enum` -> `<select>` with options
-- `uint16`/`uint32`/`int` -> `<input type="number">` with min/max
-- `ip`/`prefix` -> `<input type="text">` with pattern
-- `string`/`duration` -> `<input type="text">`
-
-Set button POSTs to `/config/set/<data-path>` with `leaf=<data-leaf>&value=<input-value>`.
-
-### Layout
+## Page Layout
 
 ```
-+------------------------------------------+
-| #detail                                  |
-|  [bgp]  [system]  [plugin]              |
-|  router-id: [___________] [Set]         |
-|  listen:    [___________] [Set]         |
-+------------------------------------------+
-| #sidebar  (list entries, only for lists) |
-|  [1.2.3.4] [10.0.0.1]  [+ Add: ____]  |
-+------------------------------------------+
-| #breadcrumb  / > bgp > peer > 1.2.3.4  |
-+------------------------------------------+
-| /> set bgp peer 1.2.3.4 remote-as 65001 |
-+------------------------------------------+
++--------------------------------------------------+
+| #breadcrumb   / > bgp > peer > 1.2.3.4    [CLI] |
++----------+---------------------------------------+
+| #sidebar | #detail                               |
+|          |                                       |
+| <- BACK  |  router-id: [1.2.3.4______]          |
+|          |  listen:    [0.0.0.0:179___]          |
+| GROUP    |  hold-time: [90_____________]         |
+| LOCAL    |                                       |
+| PEER     |                                       |
+|  1.2.3.4 |                                       |
+|  10.0.0.1|                                       |
+|  [+add]  |                                       |
+| RIB      |                                       |
+| RPKI     |                                       |
++----------+---------------------------------------+
+| #commit-bar   3 pending changes [Review] [Discard]|
++--------------------------------------------------+
+| /> set bgp peer 1.2.3.4 remote-as 65001         |
++--------------------------------------------------+
 ```
 
-### Server Handler
+Hidden overlays (shown on demand):
+- `#diff-modal` -- diff review with Confirm Commit / Cancel
+- `#error-panel` -- collapsible right-side panel for validation errors
 
-One handler serves all fragments. Query params: `path`, `fragment` (optional).
+## Template Filesystem
 
-- No `fragment` param -> full page (layout + all fragments)
-- `fragment=detail` -> detail HTML only
-- Response always includes OOB swaps for breadcrumb + sidebar
+```
+templates/
+  page/                          -- document shells
+    layout.html                  -- grid layout, includes all component templates
+    login.html                   -- login form
 
-## Files to Modify
+  component/                     -- page sections (one file = one visual region)
+    breadcrumb.html              -- breadcrumb_inner: path trail + CLI/GUI toggle
+    sidebar.html                 -- sidebar + sidebar_section: back link, headings, entries, add forms
+    detail.html                  -- detail: leaf fields via fieldFor(), hint when empty
+    cli_bar.html                 -- cli_bar: prompt + input + completions container
+    commit_bar.html              -- commit_bar: change count + Review/Discard buttons
+    error_panel.html             -- error_panel: collapsible panel with error list
+    diff_modal.html              -- diff_modal (closed) + diff_modal_open (with content)
+    oob_response.html            -- oob_response: HTMX partial (detail + OOB sidebar/breadcrumb)
+                                    full_content: initial page (sidebar + detail)
+    oob_save.html                -- oob_save_ok: OOB commit bar after successful save
+    oob_error.html               -- oob_error: OOB error item appended to error list
 
-| File | Change |
-|------|--------|
-| `internal/component/web/fragment.go` | New: fragment handlers |
-| `internal/component/web/templates/layout.html` | Component slots with IDs |
-| `internal/component/web/templates/detail.html` | New: detail fragment |
-| `internal/component/web/templates/sidebar.html` | New: sidebar fragment |
-| `internal/component/web/templates/breadcrumb.html` | Rewrite: standalone fragment |
-| `internal/component/web/templates/field.html` | New: single field with data attributes |
-| `internal/component/web/assets/style.css` | Component styles |
-| `internal/component/web/assets/field.js` | New: field renderer + inline validation |
-| `internal/component/web/handler_config.go` | Adapt to use fragments |
-| `internal/component/web/handler_config_walk.go` | Add FieldMeta to carry YANG metadata |
-| `internal/component/web/render.go` | Fragment rendering helpers |
-| `cmd/ze/hub/main.go` | Wire fragment endpoint |
+  input/                         -- one file per YANG value type
+    wrapper.html                 -- field_wrapper_start/end: label, (i) tooltip, container div
+    bool.html                    -- input_bool: toggle button (on/off), hx-post on click
+    enum.html                    -- input_enum: <select> dropdown, hx-post on change
+    number.html                  -- input_number: <input type=number>, hx-post on blur
+    text.html                    -- input_text: <input type=text>, hx-post on blur
+
+  *.html                         -- legacy config templates (container, list, flex, etc.)
+```
+
+## Navigation Flow
+
+All navigation uses HTMX. No full page reloads after initial load.
+
+```
+User clicks "peer" in sidebar
+  Browser: hx-get="/fragment/detail?path=bgp/peer" hx-target="#detail"
+  Server:  HandleFragment builds FragmentData for path ["bgp","peer"]
+  Response: detail HTML (fields)
+            + <aside id="sidebar" hx-swap-oob="innerHTML"> (new sidebar children)
+            + <nav id="breadcrumb" hx-swap-oob="innerHTML"> (updated breadcrumb)
+  HTMX:    replaces #detail content, OOB-swaps sidebar and breadcrumb
+```
+
+## Field Save Flow
+
+Fields save automatically. No submit button. No custom JavaScript.
+
+```
+User blurs a text input (or clicks a toggle, or changes a select)
+  Browser: hx-post="/config/set/bgp" with leaf=router-id&value=1.2.3.4
+  Server:  HandleConfigSet calls EditorManager.SetValue
+           Returns OOB commit bar with updated change count (oob_save_ok template)
+  HTMX:    OOB-swaps #commit-bar to show "N pending changes"
+
+On error:
+  Server:  Returns OOB error item appended to #error-list (oob_error template)
+           Opens #error-panel by swapping its class to remove "collapsed"
+  HTMX:    OOB-swaps error panel content
+```
+
+## Commit Flow
+
+```
+User clicks "Review & Commit" in commit bar
+  Browser: hx-get="/config/diff" hx-target="#diff-modal" hx-swap="outerHTML"
+  Server:  Returns diff_modal_open template (modal with class="open", diff content)
+  HTMX:    replaces #diff-modal with open version
+
+User clicks "Confirm Commit" in diff modal
+  Browser: hx-post="/config/commit"
+  Server:  Calls EditorManager.Commit, returns OOB closed commit bar + closed modal
+
+User clicks "Cancel"
+  Browser: hx-get="/config/diff-close" hx-target="#diff-modal" hx-swap="outerHTML"
+  Server:  Returns diff_modal template (closed, no content)
+```
+
+## Template Dispatch (fieldFor)
+
+The `fieldFor` template function renders a field by dispatching to the correct input template based on the YANG type. No if/else chain in templates.
+
+```
+Go render.go:
+  fieldFor(FieldMeta{Type:"bool", ...})
+    -> executes "field_wrapper_start" (label + tooltip)
+    -> executes "input_bool" (toggle button with hx-post)
+    -> executes "field_wrapper_end" (closing div)
+
+Adding a new type:
+  1. Create templates/input/<type>.html with {{define "input_<type>"}}
+  2. Add case to valueTypeToFieldType() in fragment.go
+  3. Done -- fieldFor dispatches automatically
+```
+
+## Data Types
+
+<!-- source: internal/component/web/fragment.go -- FieldMeta, SidebarSection, FragmentData -->
+
+| Type | Purpose | Used by |
+|------|---------|---------|
+| `FragmentData` | All data for rendering any page state | HandleFragment |
+| `FieldMeta` | YANG metadata for one leaf field | fieldFor, input templates |
+| `SidebarSection` | One heading in the sidebar (with entries for lists) | sidebar template |
+| `SidebarEntry` | One key in a list section | sidebar_section template |
+| `ChildEntry` | One navigation link | detail template (legacy) |
+| `ErrorData` | One error item | oob_error template |
+
+## Starting the Web Server
+
+Two ways:
+
+| Method | What happens |
+|--------|-------------|
+| `ze start --web` | Starts web server alongside BGP engine (or standalone if no config) |
+| `system { web { } }` in config | Detected during config load, enables web server |
+
+Both paths call `startWebServer()` in `cmd/ze/hub/main.go` which wires all routes, creates the EditorManager, CLI completer, and session store.
+
+## Security
+
+| Aspect | Implementation |
+|--------|---------------|
+| TLS | Self-signed ECDSA P-256, persisted in zefs, includes all interface IPs as SANs |
+| CSP | `script-src 'self'` -- no inline scripts, no unsafe-eval |
+| Auth | Session cookie (Secure, HttpOnly, SameSite=Strict) or Basic Auth for API |
+| Sessions | 32-byte random token, 24h TTL, one per user, bcrypt password check |
+| Paths | YANG identifier validation, path traversal rejected |
