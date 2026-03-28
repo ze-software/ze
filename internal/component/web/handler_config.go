@@ -332,7 +332,23 @@ func handleCommitPost(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 	// This runs only after CommitSession() returned successfully (AC-13).
 	BroadcastConfigChange(broker, username, "committed")
 
-	htmxRedirect(w, r, "/config/edit/")
+	// Return closed diff modal + empty commit bar. No redirect -- the page
+	// underneath the overlay stays unchanged.
+	if r.Header.Get("HX-Request") == htmxRequestTrue {
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		modal := renderer.RenderFragment("diff_modal", nil)
+		type saveOK struct{ ChangeCount int }
+		bar := renderer.RenderFragment("oob_save_ok", saveOK{ChangeCount: 0})
+		if _, writeErr := w.Write([]byte(modal)); writeErr != nil {
+			return
+		}
+		if _, writeErr := w.Write([]byte(bar)); writeErr != nil {
+			return
+		}
+		return
+	}
+
+	htmxRedirect(w, r, "/")
 }
 
 // HandleConfigDiscard returns a POST handler for /config/discard/.

@@ -3,7 +3,7 @@
   <div class="diff-title">Review changes</div>
   <pre class="diff-content"></pre>
   <div class="diff-actions">
-    <button class="commit-btn" hx-post="/config/commit" hx-swap="none">Confirm Commit</button>
+    <button class="commit-btn" hx-post="/config/commit" hx-target="#diff-modal" hx-swap="outerHTML">Confirm Commit</button>
     <button class="commit-discard-btn" hx-get="/config/diff-close" hx-target="#diff-modal" hx-swap="outerHTML">Cancel</button>
   </div>
 </div>
@@ -14,7 +14,7 @@
   <div class="diff-title">Review changes ({{.ChangeCount}})</div>
   <pre class="diff-content">{{.Diff}}</pre>
   <div class="diff-actions">
-    <button class="commit-btn" hx-post="/config/commit" hx-swap="none">Confirm Commit</button>
+    <button class="commit-btn" hx-post="/config/commit" hx-target="#diff-modal" hx-swap="outerHTML">Confirm Commit</button>
     <button class="commit-discard-btn" hx-get="/config/diff-close" hx-target="#diff-modal" hx-swap="outerHTML">Cancel</button>
   </div>
 </div>

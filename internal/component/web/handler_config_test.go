@@ -695,9 +695,9 @@ func TestHandleConfigCommitPOST(t *testing.T) {
 
 	handler.ServeHTTP(rec, req)
 
-	// Expect a redirect (303 See Other) to /config/edit/.
+	// Expect a redirect (303 See Other) to root.
 	assert.Equal(t, http.StatusSeeOther, rec.Code,
 		"successful commit must redirect with 303")
-	assert.Equal(t, "/config/edit/", rec.Header().Get("Location"),
-		"commit must redirect to /config/edit/")
+	assert.Equal(t, "/", rec.Header().Get("Location"),
+		"commit must redirect to root")
 }
