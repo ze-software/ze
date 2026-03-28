@@ -3,6 +3,6 @@
        hx-post="/config/set/{{.Path}}" hx-trigger="blur changed" hx-swap="none"
        hx-vals='{"leaf":"{{.Leaf}}"}'
        {{- if .Pattern}} pattern="{{.Pattern}}"{{end}}
-       {{- if and (not .Value) .Default}} placeholder="{{.Default}}"
+       {{- if and (not .Value) .Default}} placeholder="default: {{.Default}}"
        {{- else if and (not .Value) .Description}} placeholder="{{.Description}}"{{end}}>
 {{end}}

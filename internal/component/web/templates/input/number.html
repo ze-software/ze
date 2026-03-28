@@ -4,5 +4,6 @@
        hx-vals='{"leaf":"{{.Leaf}}"}'
        {{- if .Min}} min="{{.Min}}"{{end}}
        {{- if .Max}} max="{{.Max}}"{{end}}
-       {{- if and (not .Value) .Default}} placeholder="{{.Default}}"{{end}}>
+       {{- if and (not .Value) .Default}} placeholder="default: {{.Default}}"
+       {{- else if and (not .Value) .Description}} placeholder="{{.Description}}"{{end}}>
 {{end}}

@@ -583,7 +583,7 @@ module ze-bgp-conf {
                 default true;
                 description "Accept inbound connections";
             }
-            leaf openwait { type int32; }
+            leaf openwait { type int32; default "120"; description "Seconds to wait for OPEN after TCP connect"; }
         }
 
         container cache {
