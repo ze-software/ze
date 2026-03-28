@@ -9,10 +9,16 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"strings"
+	"syscall"
 
+	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/ssh"
-	"codeberg.org/thomas-mangin/ze/internal/component/web"
+	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
@@ -30,10 +36,17 @@ func Run(args []string) int {
 	cert := fs.String("cert", "", "Path to TLS certificate PEM file")
 	key := fs.String("key", "", "Path to TLS private key PEM file")
 	listen := fs.String("listen", "0.0.0.0:8443", "Listen address (host:port)")
+	insecure := fs.Bool("insecure-web", false, "Disable authentication (testing only)")
 
 	fs.Usage = usage
 
 	if err := fs.Parse(args); err != nil {
+		return 1
+	}
+
+	// --insecure-web requires 127.0.0.1 to prevent accidental exposure.
+	if *insecure && !strings.HasPrefix(*listen, "127.0.0.1:") {
+		fmt.Fprintf(os.Stderr, "error: --insecure-web requires --listen 127.0.0.1:<port>\n")
 		return 1
 	}
 
@@ -72,7 +85,7 @@ func Run(args []string) int {
 
 		// No certificate provided: generate a self-signed one
 		var err error
-		certPEM, keyPEM, err = web.GenerateWebCertWithAddr(*listen)
+		certPEM, keyPEM, err = zeweb.GenerateWebCertWithAddr(*listen)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "error: generating self-signed certificate: %v\n", err)
 			return 1
@@ -81,21 +94,27 @@ func Run(args []string) int {
 	}
 
 	// Load user credentials from zefs (created by ze init).
-	users, err := loadZefsUsers()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error: loading credentials: %v\n", err)
-		fmt.Fprintf(os.Stderr, "hint: run 'ze init' to create credentials\n")
-		return 1
+	var users []ssh.UserConfig
+	if !*insecure {
+		var loadErr error
+		users, loadErr = loadZefsUsers()
+		if loadErr != nil {
+			fmt.Fprintf(os.Stderr, "error: loading credentials: %v\n", loadErr)
+			fmt.Fprintf(os.Stderr, "hint: run 'ze init' to create credentials, or use --insecure-web for testing\n")
+			return 1
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "WARNING: authentication disabled (--insecure-web)\n")
 	}
 
 	// Create renderer for templates and static assets.
-	renderer, err := web.NewRenderer()
+	renderer, err := zeweb.NewRenderer()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: initializing renderer: %v\n", err)
 		return 1
 	}
 
-	srv, err := web.NewWebServer(web.WebConfig{
+	srv, err := zeweb.NewWebServer(zeweb.WebConfig{
 		ListenAddr: *listen,
 		CertPEM:    certPEM,
 		KeyPEM:     keyPEM,
@@ -105,54 +124,121 @@ func Run(args []string) int {
 		return 1
 	}
 
-	// Wire authentication and routes.
-	store := web.NewSessionStore()
+	// Load YANG schema for config tree navigation.
+	schema := zeconfig.YANGSchema()
+	tree := zeconfig.NewTree()
 
-	loginRenderer := func(w http.ResponseWriter, r *http.Request) {
-		if renderErr := renderer.RenderLogin(w, web.LoginData{}); renderErr != nil {
+	// Use filesystem storage for standalone mode.
+	store := storage.NewFilesystem()
+
+	// Find or create a config file for the editor.
+	configPath := resolveConfigPath()
+	editorMgr := zeweb.NewEditorManager(store, configPath, schema)
+
+	// CLI completer for Tab/? autocomplete.
+	completer := cli.NewCompleter()
+
+	// SSE broker for live config change notifications.
+	broker := zeweb.NewEventBroker(0)
+	defer broker.Close()
+
+	// Wire authentication.
+	sessionStore := zeweb.NewSessionStore()
+	loginRenderer := func(w http.ResponseWriter, _ *http.Request) {
+		if renderErr := renderer.RenderLogin(w, zeweb.LoginData{}); renderErr != nil {
 			http.Error(w, "render error", http.StatusInternalServerError)
 		}
 	}
 
-	contentHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		parsed, parseErr := web.ParseURL(r)
-		if parseErr != nil {
-			http.Error(w, parseErr.Error(), http.StatusBadRequest)
+	var authWrap func(http.Handler) http.Handler
+	if *insecure {
+		authWrap = func(h http.Handler) http.Handler { return h }
+	} else {
+		authWrap = func(h http.Handler) http.Handler {
+			return zeweb.AuthMiddleware(sessionStore, users, loginRenderer, h)
+		}
+	}
+
+	// Handlers.
+	fragmentHandler := zeweb.HandleFragment(renderer, schema, tree)
+	setHandler := zeweb.HandleConfigSet(editorMgr, schema, renderer)
+	commitHandler := zeweb.HandleConfigCommit(editorMgr, renderer, broker)
+	discardHandler := zeweb.HandleConfigDiscard(editorMgr)
+	cliHandler := zeweb.HandleCLICommand(editorMgr, schema, renderer)
+	completeHandler := zeweb.HandleCLIComplete(completer)
+	terminalHandler := zeweb.HandleCLITerminal(editorMgr)
+	modeHandler := zeweb.HandleCLIModeToggle(editorMgr, schema, renderer)
+
+	// Diff handlers.
+	diffHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username := zeweb.GetUsernameFromRequest(r)
+		if username == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
 		}
-
-		if parsed.Format == "json" {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			if _, writeErr := fmt.Fprintf(w, `{"status":"ok","mode":"standalone"}`); writeErr != nil {
-				return // client disconnected
-			}
+		diff, _ := editorMgr.Diff(username)
+		count := editorMgr.ChangeCount(username)
+		type diffData struct {
+			Diff        string
+			ChangeCount int
+		}
+		html := renderer.RenderFragment("diff_modal_open", diffData{Diff: diff, ChangeCount: count})
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if _, writeErr := w.Write([]byte(html)); writeErr != nil {
 			return
 		}
-
-		if renderErr := renderer.RenderLayout(w, web.LayoutData{
-			Title:      "Ze Web",
-			HasSession: true,
-		}); renderErr != nil {
-			http.Error(w, "render error", http.StatusInternalServerError)
+	})
+	diffCloseHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		html := renderer.RenderFragment("diff_modal", nil)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if _, writeErr := w.Write([]byte(html)); writeErr != nil {
+			return
 		}
 	})
 
-	loginHandler := web.LoginHandler(store, users, loginRenderer)
-	authMiddleware := web.AuthMiddleware(store, users, loginRenderer, contentHandler)
+	// Admin command tree (view-only in standalone mode, no dispatcher).
+	adminChildren := zeweb.BuildAdminCommandTree()
+	adminViewHandler := zeweb.HandleAdminView(renderer, adminChildren)
+
+	// Register routes.
+	loginHandler := zeweb.LoginHandler(sessionStore, users, loginRenderer)
 	assetHandler := http.StripPrefix("/assets/", renderer.AssetHandler())
 
 	srv.HandleFunc("POST /login", loginHandler)
 	srv.Handle("/assets/", assetHandler)
+	srv.Handle("/events", authWrap(broker))
+	srv.Handle("/admin/", authWrap(adminViewHandler))
+	srv.Handle("POST /cli", authWrap(cliHandler))
+	srv.Handle("/cli/complete", authWrap(completeHandler))
+	srv.Handle("POST /cli/terminal", authWrap(terminalHandler))
+	srv.Handle("POST /cli/mode", authWrap(modeHandler))
+	srv.Handle("/fragment/detail", authWrap(fragmentHandler))
+	srv.Handle("POST /config/set/", authWrap(setHandler))
+	srv.Handle("/config/diff", authWrap(diffHandler))
+	srv.Handle("/config/diff-close", authWrap(diffCloseHandler))
+	srv.Handle("/config/commit", authWrap(commitHandler))
+	srv.Handle("POST /config/discard", authWrap(discardHandler))
 	srv.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			http.Redirect(w, r, "/show/", http.StatusFound)
 			return
 		}
-		authMiddleware.ServeHTTP(w, r)
+		authWrap(fragmentHandler).ServeHTTP(w, r)
 	})
 
 	fmt.Fprintf(os.Stderr, "web server starting on https://%s/\n", *listen)
+
+	// Handle shutdown signals.
+	sigCh := make(chan os.Signal, 2)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigCh
+		fmt.Fprintf(os.Stderr, "\nshutting down...\n")
+		_ = srv.Shutdown(context.Background())
+		<-sigCh
+		os.Exit(1) // Second signal: force exit.
+	}()
 
 	if err := srv.ListenAndServe(context.Background()); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -160,6 +246,15 @@ func Run(args []string) int {
 	}
 
 	return 0
+}
+
+// resolveConfigPath returns a config file path for standalone web editing.
+func resolveConfigPath() string {
+	dir := paths.DefaultConfigDir()
+	if dir == "" {
+		return "ze.conf"
+	}
+	return filepath.Join(dir, "ze.conf")
 }
 
 // loadZefsUsers reads credentials from the zefs database (created by ze init).
@@ -201,16 +296,18 @@ func usage() {
 Start the Ze web interface.
 
 Options:
-  --cert <path>    TLS certificate PEM file
-  --key <path>     TLS private key PEM file (required with --cert)
-  --listen <addr>  Listen address (default: 0.0.0.0:8443)
+  --cert <path>      TLS certificate PEM file
+  --key <path>       TLS private key PEM file (required with --cert)
+  --listen <addr>    Listen address (default: 0.0.0.0:8443)
+  --insecure-web     Disable authentication (requires --listen 127.0.0.1:*)
 
 When --cert is not provided, a self-signed certificate is generated automatically.
 Credentials are loaded from zefs (run 'ze init' first).
 
 Examples:
-  ze web                                       Start with auto-generated cert
-  ze web --listen 0.0.0.0:8443                 Listen on all interfaces
-  ze web --cert server.pem --key server-key.pem  Use provided certificate
+  ze web                                              Start with auto-generated cert
+  ze web --listen 0.0.0.0:8443                        Listen on all interfaces
+  ze web --cert server.pem --key server-key.pem       Use provided certificate
+  ze web --insecure-web --listen 127.0.0.1:8443       Test without authentication
 `)
 }

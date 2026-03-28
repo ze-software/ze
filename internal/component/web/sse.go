@@ -207,7 +207,7 @@ const notificationBannerSource = `<div id="notification-bar" hx-swap-oob="innerH
 	`<div class="notification-banner">` +
 	`<span class="notification-reason">{{.Reason}}</span>` +
 	`<button class="btn btn-sm" hx-get="{{.RefreshURL}}" hx-target="#content-area" hx-swap="innerHTML">Refresh</button>` +
-	`<button class="btn btn-sm btn-dismiss" onclick="this.closest('.notification-banner').remove()">Dismiss</button>` +
+	`<button class="btn btn-sm btn-dismiss" data-action="dismiss-banner">Dismiss</button>` +
 	`</div>` +
 	`</div>`
 

@@ -94,6 +94,8 @@ type FragmentData struct {
 	ParentHxPath string
 	// Breadcrumbs for the breadcrumb fragment.
 	Breadcrumbs []BreadcrumbSegment
+	// HasSession is true when an authenticated session exists (for breadcrumb template).
+	HasSession bool
 }
 
 // HandleFragment returns an HTTP handler that serves HTMX fragments.
@@ -172,6 +174,7 @@ func buildFragmentData(schema *config.Schema, tree *config.Tree, path []string) 
 		Path:        path,
 		CurrentPath: strings.Join(path, "/"),
 		Breadcrumbs: buildBreadcrumbs(path),
+		HasSession:  true, // Fragment handler is always behind auth middleware.
 	}
 
 	// Build sidebar for all levels including root.

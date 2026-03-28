@@ -192,7 +192,7 @@ dispatch:
 		fileOverride = config.ResolveConfigPath(fileOverride)
 		switch detectConfigType(store, fileOverride) {
 		case config.ConfigTypeBGP, config.ConfigTypeHub:
-			os.Exit(hub.Run(store, fileOverride, plugins, chaosSeed, chaosRate, false))
+			os.Exit(hub.Run(store, fileOverride, plugins, chaosSeed, chaosRate, false, "", false))
 		case config.ConfigTypeUnknown:
 			fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
 			os.Exit(1)
@@ -262,7 +262,7 @@ dispatch:
 	if looksLikeConfig(arg) {
 		// For stdin, skip blob - hub.Run reads and probes internally
 		if arg == "-" {
-			os.Exit(hub.Run(storage.NewFilesystem(), arg, plugins, chaosSeed, chaosRate, false))
+			os.Exit(hub.Run(storage.NewFilesystem(), arg, plugins, chaosSeed, chaosRate, false, "", false))
 		}
 		store := resolveStorage()
 		// Search XDG config paths if not found locally
@@ -276,10 +276,10 @@ dispatch:
 		switch detectConfigType(store, arg) {
 		case config.ConfigTypeBGP:
 			// Start BGP daemon in-process via hub
-			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, false))
+			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, false, "", false))
 		case config.ConfigTypeHub:
 			// Start hub orchestrator (forks external plugins)
-			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, false))
+			os.Exit(hub.Run(store, arg, plugins, chaosSeed, chaosRate, false, "", false))
 		case config.ConfigTypeUnknown:
 			fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
 			os.Exit(1)
@@ -366,9 +366,27 @@ func resolveStorage() storage.Storage {
 // When --web is set and no config exists, starts the web server standalone.
 func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64) int {
 	var webEnabled bool
-	for _, a := range args {
-		if a == "--web" {
+	var webListenAddr string
+	var insecureWeb bool
+
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--web":
 			webEnabled = true
+		case "--insecure-web":
+			insecureWeb = true
+		case "--listen":
+			if i+1 < len(args) {
+				i++
+				webListenAddr = args[i]
+			}
+		}
+	}
+
+	if insecureWeb {
+		if !strings.HasPrefix(webListenAddr, "127.0.0.1:") {
+			fmt.Fprintf(os.Stderr, "error: --insecure-web requires --listen 127.0.0.1:<port>\n")
+			return 1
 		}
 	}
 
@@ -394,19 +412,19 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64) int {
 			fmt.Fprintf(os.Stderr, "error: no config found in database (run ze config edit first)\n")
 			return 1
 		}
-		return hub.RunWebOnly(store)
+		return hub.RunWebOnly(store, webListenAddr, insecureWeb)
 	}
 
 	ct := detectConfigType(store, configName)
 	if ct == config.ConfigTypeUnknown {
 		if webEnabled {
-			return hub.RunWebOnly(store)
+			return hub.RunWebOnly(store, webListenAddr, insecureWeb)
 		}
 		fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
 		return 1
 	}
 
-	return hub.Run(store, configName, plugins, chaosSeed, chaosRate, webEnabled)
+	return hub.Run(store, configName, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb)
 }
 
 // isManaged returns true if the blob has meta/instance/managed=true.
@@ -439,7 +457,7 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 			go managed.RunManagedClient(ctx, *clientCfg)
 		}
 
-		return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false)
+		return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false, "", false)
 	}
 
 	// No cached config: first boot after ze init --managed.
@@ -488,7 +506,7 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 		go managed.RunManagedClient(ctx, *clientCfg)
 	}
 
-	return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false)
+	return hub.Run(store, configName, plugins, chaosSeed, chaosRate, false, "", false)
 }
 
 // extractManagedClientConfig reads config from blob and extracts the hub client block.

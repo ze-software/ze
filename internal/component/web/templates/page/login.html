@@ -1,7 +1,7 @@
 {{if .Overlay}}
 <div class="login-overlay" id="login-overlay">
   <div class="login-card">
-    <button class="login-close" onclick="document.getElementById('login-overlay').remove()">&times;</button>
+    <button class="login-close" data-action="dismiss-login">&times;</button>
     <h2>Login</h2>
     {{if .Error}}<div class="login-error">{{.Error}}</div>{{end}}
     <form method="POST" action="/login">

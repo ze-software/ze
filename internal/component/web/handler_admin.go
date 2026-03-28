@@ -160,6 +160,11 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher) http.Han
 		path := parsed.Path
 		commandStr := strings.Join(path, " ")
 
+		if dispatch == nil {
+			http.Error(w, "admin commands not available in standalone mode", http.StatusServiceUnavailable)
+			return
+		}
+
 		output, execErr := dispatch(commandStr)
 
 		result := CommandResultData{
@@ -269,5 +274,18 @@ func containerFromAdmin(data *AdminViewData) struct {
 		LeafFields        []LeafField
 	}{
 		ContainerChildren: data.Children,
+	}
+}
+
+// BuildAdminCommandTree returns the static admin command tree derived from
+// the ze-bgp-api YANG RPCs. The tree groups commands by category (peer,
+// route, cache, system) for web UI navigation.
+func BuildAdminCommandTree() map[string][]string {
+	return map[string][]string{
+		"":       {"peer", "route", "cache", "system"},
+		"peer":   {"list", "show", "summary", "capabilities", "statistics", "add", "remove", "teardown", "clear-soft", "flush"},
+		"route":  {"update", "borr", "eorr", "raw"},
+		"cache":  {"list", "retain", "release", "expire", "forward"},
+		"system": {"commit", "subscribe", "unsubscribe", "events"},
 	}
 }

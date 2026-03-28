@@ -3,10 +3,7 @@
   <div class="terminal-input-line">
     <span class="terminal-prompt">{{.CLIPrompt}}</span>
     <input type="text" class="terminal-input" id="terminal-input"
-           autocomplete="off" spellcheck="false"
-           hx-post="/cli/terminal" hx-trigger="keydown[key=='Enter']"
-           hx-target="#terminal-scrollback" hx-swap="beforeend"
-           hx-include="this" name="command">
+           autocomplete="off" spellcheck="false" name="command">
   </div>
   <div class="terminal-controls">
     <button hx-post="/cli/mode" hx-vals='{"mode":"integrated"}' hx-target="#content-area" hx-swap="outerHTML">

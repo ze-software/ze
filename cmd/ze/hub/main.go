@@ -43,8 +43,9 @@ var _ = env.MustRegister(env.EnvEntry{Key: "ze.ready.file", Type: "string", Desc
 
 // RunWebOnly starts only the web server (no BGP engine).
 // Used when ze start --web is called without a config.
-func RunWebOnly(store storage.Storage) int {
-	webSrv := startWebServer(store)
+// listenAddr overrides the default "0.0.0.0:8443" when non-empty.
+func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int {
+	webSrv := startWebServer(store, listenAddr, insecureWeb)
 	if webSrv == nil {
 		return 1
 	}
@@ -78,7 +79,7 @@ func forceExitOnSignal(sigCh <-chan os.Signal) {
 // store provides the I/O backend (filesystem or blob); used for config reads and reload.
 // chaosSeed > 0 enables chaos self-test mode; chaosRate < 0 means "use default".
 // Returns exit code.
-func Run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool) int {
+func Run(store storage.Storage, configPath string, plugins []string, chaosSeed int64, chaosRate float64, webEnabled bool, webListenAddr string, insecureWeb bool) int {
 	// Read config content first (to probe type without parsing).
 	// When reading from stdin, we look for a NUL sentinel that signals
 	// "config complete but pipe stays open for liveness monitoring."
@@ -99,7 +100,7 @@ func Run(store storage.Storage, configPath string, plugins []string, chaosSeed i
 	switch zeconfig.ProbeConfigType(string(data)) {
 	case zeconfig.ConfigTypeBGP:
 		// Run BGP in-process using YANG parser
-		return runBGPInProcess(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled)
+		return runBGPInProcess(store, configPath, data, plugins, chaosSeed, chaosRate, stdinOpen, webEnabled, webListenAddr, insecureWeb)
 	case zeconfig.ConfigTypeHub:
 		// Run hub orchestrator using hub parser
 		// TODO: pass plugins to orchestrator when hub mode supports them
@@ -147,7 +148,7 @@ func readStdinConfig() (data []byte, stdinOpen bool, err error) {
 // runBGPInProcess loads BGP config using YANG parser and runs reactor in-process.
 // When stdinOpen is true, a background goroutine monitors stdin for EOF and
 // triggers shutdown when the upstream process exits (pipe mode).
-func runBGPInProcess(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool) int {
+func runBGPInProcess(store storage.Storage, configPath string, data []byte, plugins []string, chaosSeed int64, chaosRate float64, stdinOpen, webEnabled bool, webListenAddr string, insecureWeb bool) int {
 	// Phase 1: Parse config and resolve plugins (no reactor created yet).
 	loadResult, err := bgpconfig.LoadConfig(string(data), configPath, plugins)
 	if err != nil {
@@ -257,7 +258,7 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 
 	// Start web server if --web flag was passed.
 	if webEnabled {
-		if webSrv := startWebServer(store); webSrv != nil {
+		if webSrv := startWebServer(store, webListenAddr, insecureWeb); webSrv != nil {
 			defer func() {
 				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer shutdownCancel()
@@ -305,13 +306,21 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 // startWebServer creates and starts the web server with zefs credentials.
 // Returns the server on success, nil on failure (logged, non-fatal).
 // If the port is already in use, attempts to identify and kill the stale process.
-func startWebServer(store storage.Storage) *zeweb.WebServer {
-	const listenAddr = "0.0.0.0:8443"
+func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool) *zeweb.WebServer {
+	if listenAddr == "" {
+		listenAddr = "0.0.0.0:8443"
+	}
 
-	users, err := loadZefsUsers()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "warning: web server disabled: %v\n", err)
-		return nil
+	var users []ssh.UserConfig
+	if !insecureWeb {
+		var err error
+		users, err = loadZefsUsers()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "warning: web server disabled: %v\n", err)
+			return nil
+		}
+	} else {
+		fmt.Fprintf(os.Stderr, "WARNING: authentication disabled (--insecure-web)\n")
 	}
 
 	// Persist TLS cert in zefs so browsers don't have to re-accept on every restart.
@@ -369,8 +378,12 @@ func startWebServer(store storage.Storage) *zeweb.WebServer {
 	// Config set handler for editing leaf values.
 	setHandler := zeweb.HandleConfigSet(editorMgr, schema, renderer)
 
+	// SSE broker for live config change notifications.
+	broker := zeweb.NewEventBroker(0)
+	defer broker.Close()
+
 	// Commit and discard handlers.
-	commitHandler := zeweb.HandleConfigCommit(editorMgr, renderer, nil)
+	commitHandler := zeweb.HandleConfigCommit(editorMgr, renderer, broker)
 	discardHandler := zeweb.HandleConfigDiscard(editorMgr)
 
 	// Diff handler: returns the diff modal HTML (open, with content).
@@ -409,15 +422,33 @@ func startWebServer(store storage.Storage) *zeweb.WebServer {
 	modeHandler := zeweb.HandleCLIModeToggle(editorMgr, schema, renderer)
 
 	// Auth wrapper for protecting individual routes.
-	authWrap := func(h http.Handler) http.Handler {
-		return zeweb.AuthMiddleware(sessionStore, users, loginRenderer, h)
+	var authWrap func(http.Handler) http.Handler
+	if insecureWeb {
+		authWrap = func(h http.Handler) http.Handler { return h }
+	} else {
+		authWrap = func(h http.Handler) http.Handler {
+			return zeweb.AuthMiddleware(sessionStore, users, loginRenderer, h)
+		}
 	}
 
 	loginHandler := zeweb.LoginHandler(sessionStore, users, loginRenderer)
 	assetHandler := http.StripPrefix("/assets/", renderer.AssetHandler())
 
+	// Admin command tree for web UI.
+	adminChildren := zeweb.BuildAdminCommandTree()
+	adminViewHandler := zeweb.HandleAdminView(renderer, adminChildren)
+	adminExecHandler := zeweb.HandleAdminExecute(renderer, nil)
+
 	srv.HandleFunc("POST /login", loginHandler)
 	srv.Handle("/assets/", assetHandler)
+	srv.Handle("/events", authWrap(broker))
+	srv.Handle("/admin/", authWrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			adminExecHandler(w, r)
+			return
+		}
+		adminViewHandler(w, r)
+	})))
 	srv.Handle("POST /cli", authWrap(cliHandler))
 	srv.Handle("/cli/complete", authWrap(completeHandler))
 	srv.Handle("POST /cli/terminal", authWrap(terminalHandler))

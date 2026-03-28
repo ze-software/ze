@@ -248,7 +248,7 @@ func LoginHandler(store *SessionStore, users []ssh.UserConfig, loginRenderer fun
 func addSecurityHeaders(w http.ResponseWriter) {
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'")
 	w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains")
 	w.Header().Set("Cache-Control", "no-store")
 }

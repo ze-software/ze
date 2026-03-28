@@ -243,16 +243,18 @@ Prompts for: username, password, host (127.0.0.1), port (2222), name (hostname).
 Start the HTTPS web interface for configuration viewing, editing, and admin commands.
 
 ```
-ze web                                        # Start with auto-generated self-signed cert
-ze web --listen 0.0.0.0:8443                  # Listen on all interfaces
-ze web --cert server.pem --key server-key.pem # Use provided TLS certificate
+ze web                                              # Start with auto-generated self-signed cert
+ze web --listen 0.0.0.0:8443                        # Listen on all interfaces
+ze web --cert server.pem --key server-key.pem       # Use provided TLS certificate
+ze web --insecure-web --listen 127.0.0.1:8443       # Test without authentication
 ```
 
 | Flag | Purpose |
 |------|---------|
 | `--cert <path>` | TLS certificate PEM file |
 | `--key <path>` | TLS private key PEM file (required with `--cert`) |
-| `--listen <addr>` | Listen address (default: `127.0.0.1:8443`) |
+| `--listen <addr>` | Listen address (default: `0.0.0.0:8443`) |
+| `--insecure-web` | Disable authentication (requires `--listen 127.0.0.1:*`) |
 
 When `--cert` is not provided, an ECDSA P-256 self-signed certificate is generated automatically with SANs for localhost, 127.0.0.1, ::1, and the listen address.
 

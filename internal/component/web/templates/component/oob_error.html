@@ -7,6 +7,6 @@
 <div class="error-item" id="error-{{.ID}}">
   <b>{{.Path}}</b>
   <span>{{.Message}}</span>
-  <button class="error-dismiss" onclick="this.parentNode.remove(); document.dispatchEvent(new Event('ze-error-update'))">x</button>
+  <button class="error-dismiss" data-action="dismiss-error">x</button>
 </div>
 {{end}}

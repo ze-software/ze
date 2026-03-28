@@ -243,8 +243,64 @@
     });
   }
 
+  // SSE: listen for config-change events from /events endpoint.
+  function initSSE() {
+    if (typeof EventSource === 'undefined') return;
+    var src = new EventSource('/events');
+    src.addEventListener('config-change', function(e) {
+      var bar = document.getElementById('notification-bar');
+      if (!bar || !e.data) return;
+      bar.outerHTML = e.data;
+    });
+  }
+
+  // Block 'e/E/+/-' on number inputs (scientific notation).
+  function initNumberInputs() {
+    document.addEventListener('keydown', function(e) {
+      if (e.target && e.target.type === 'number') {
+        if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
+          e.preventDefault();
+        }
+      }
+    });
+  }
+
+  // Delegated click handlers for data-action buttons (CSP-safe, no inline handlers).
+  function initActions() {
+    document.addEventListener('click', function(e) {
+      var btn = e.target.closest('[data-action]');
+      if (!btn) return;
+      var action = btn.getAttribute('data-action');
+      if (action === 'dismiss-banner') {
+        var banner = btn.closest('.notification-banner');
+        if (banner) banner.remove();
+      } else if (action === 'dismiss-error') {
+        var item = btn.parentNode;
+        if (item) item.remove();
+        document.dispatchEvent(new Event('ze-error-update'));
+      } else if (action === 'dismiss-login') {
+        var overlay = document.getElementById('login-overlay');
+        if (overlay) overlay.remove();
+      }
+    });
+
+    // Key-form: append input value to base URL before submitting.
+    document.addEventListener('submit', function(e) {
+      var form = e.target.closest('[data-action="key-form"]');
+      if (!form) return;
+      var base = form.getAttribute('data-base-url') || '';
+      var input = form.querySelector('input[type="text"]');
+      if (input && input.value) {
+        form.action = base + input.value + '/';
+      }
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
     init();
     initViewToggle();
+    initSSE();
+    initNumberInputs();
+    initActions();
   });
 })();

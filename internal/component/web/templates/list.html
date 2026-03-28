@@ -9,8 +9,7 @@
       </li>
       {{end}}
     </ul>
-    <form class="config-key-add" action="{{.BasePath}}" method="GET"
-          onsubmit="this.action=this.action+this.elements['newkey'].value+'/'; return true;">
+    <form class="config-key-add" data-action="key-form" data-base-url="{{.BasePath}}" action="{{.BasePath}}" method="GET">
       <input type="text" name="newkey" class="config-input" placeholder="new entry key...">
       <button type="submit" class="config-btn-set">Add</button>
     </form>

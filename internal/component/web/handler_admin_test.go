@@ -337,6 +337,50 @@ func TestAdminExecuteMethodNotAllowed(t *testing.T) {
 	assert.Equal(t, http.StatusMethodNotAllowed, rec.Code)
 }
 
+// TestBuildAdminCommandTree verifies that the production command tree has
+// the expected top-level categories and peer sub-commands.
+//
+// VALIDATES: BuildAdminCommandTree returns a valid tree structure.
+// PREVENTS: Missing top-level categories, empty sub-command lists.
+func TestBuildAdminCommandTree(t *testing.T) {
+	tree := BuildAdminCommandTree()
+
+	// Root must have top-level categories.
+	root := tree[""]
+	require.NotEmpty(t, root, "root must have children")
+	assert.Contains(t, root, "peer")
+	assert.Contains(t, root, "route")
+	assert.Contains(t, root, "cache")
+	assert.Contains(t, root, "system")
+
+	// Peer must have operational sub-commands.
+	peer := tree["peer"]
+	require.NotEmpty(t, peer, "peer must have children")
+	assert.Contains(t, peer, "teardown")
+	assert.Contains(t, peer, "show")
+	assert.Contains(t, peer, "list")
+}
+
+// TestAdminExecuteNilDispatcher verifies that POST with nil dispatcher
+// returns 503 instead of panicking.
+//
+// VALIDATES: nil dispatcher guard prevents panic.
+// PREVENTS: nil pointer dereference on command execution.
+func TestAdminExecuteNilDispatcher(t *testing.T) {
+	renderer, err := NewRenderer()
+	require.NoError(t, err)
+
+	handler := HandleAdminExecute(renderer, nil)
+
+	req := httptest.NewRequest(http.MethodPost, "/admin/peer/teardown", http.NoBody)
+	rec := httptest.NewRecorder()
+
+	handler.ServeHTTP(rec, req)
+
+	assert.Equal(t, http.StatusServiceUnavailable, rec.Code)
+	assert.Contains(t, rec.Body.String(), "not available")
+}
+
 // TestAdminRootView verifies that GET /admin/ renders the root admin view
 // with top-level command modules as navigable links.
 //

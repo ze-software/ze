@@ -19,7 +19,7 @@
     <a class="sidebar-entry{{if .Selected}} selected{{end}}" href="{{.URL}}"
        hx-get="/fragment/detail?path={{.HxPath}}" hx-target="#detail" hx-push-url="{{.URL}}">{{.Key}}</a>
     {{end}}
-    <form class="sidebar-add" onsubmit="this.action=this.action+this.elements['key'].value+'/'; return true;" action="{{.AddURL}}" method="GET">
+    <form class="sidebar-add" data-action="key-form" data-base-url="{{.AddURL}}" action="{{.AddURL}}" method="GET">
       <input type="text" name="key" class="sidebar-add-input" placeholder="add...">
       <button type="submit" class="ze-field-btn">+</button>
     </form>
