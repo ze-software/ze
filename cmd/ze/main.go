@@ -9,8 +9,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"net"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -408,10 +411,8 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 			return 1
 		}
 
-		// Extract hub client block for background connection.
-		clientCfg := extractManagedClientConfig(store, configName)
-
 		// Start background hub connection if client block found.
+		clientCfg := extractManagedClientConfig(store, configName)
 		if clientCfg != nil {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
@@ -422,10 +423,9 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 	}
 
 	// No cached config: first boot after ze init --managed.
-	// Hub connection is required to fetch initial config.
-	// CLI flags or env vars provide hub connection info for bootstrap.
 	server := env.Get("ze.managed.server")
 	name := env.Get("ze.managed.name")
+	token := env.Get("ze.managed.token")
 
 	if server == "" || name == "" {
 		fmt.Fprintf(os.Stderr, "error: managed mode with no cached config\n")
@@ -435,10 +435,14 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 		fmt.Fprintf(os.Stderr, "  export ZE_MANAGED_TOKEN=secret\n")
 		return 1
 	}
+	if token == "" {
+		fmt.Fprintf(os.Stderr, "error: ze.managed.token is required for first boot\n")
+		return 1
+	}
 
 	// First boot: connect to hub, fetch config, cache it, then start.
 	fmt.Fprintf(os.Stderr, "managed: first boot, connecting to hub %s as %s\n", server, name)
-	configData, err := fetchInitialConfig(server, name, env.Get("ze.managed.token"))
+	configData, err := fetchInitialConfig(server, name, token)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: fetch config from hub: %v\n", err)
 		return 1
@@ -456,25 +460,38 @@ func cmdStartManaged(store storage.Storage, plugins []string, chaosSeed int64, c
 		return 1
 	}
 
+	// Start background hub connection for first-boot too.
+	clientCfg := extractManagedClientConfig(store, configName)
+	if clientCfg != nil {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		go managed.RunManagedClient(ctx, *clientCfg)
+	}
+
 	return hub.Run(store, configName, plugins, chaosSeed, chaosRate)
 }
 
 // extractManagedClientConfig reads config from blob and extracts the hub client block.
-// Returns nil if no client block is found (standalone mode).
+// Returns nil if no client block is found (standalone mode). Logs warnings on failures.
 func extractManagedClientConfig(store storage.Storage, configName string) *managed.ClientConfig {
 	data, err := store.ReadFile(configName)
 	if err != nil {
+		slog.Warn("managed: cannot read config for hub extraction", "config", configName, "error", err)
 		return nil
 	}
 
-	// Parse config to extract hub client block.
 	loadResult, err := bgpconfig.LoadConfig(string(data), "", nil)
 	if err != nil {
+		slog.Warn("managed: cannot parse config for hub extraction", "config", configName, "error", err)
 		return nil
 	}
 
 	hubCfg, err := bgpconfig.ExtractHubConfig(loadResult.Tree)
-	if err != nil || len(hubCfg.Clients) == 0 {
+	if err != nil {
+		slog.Warn("managed: cannot extract hub config", "error", err)
+		return nil
+	}
+	if len(hubCfg.Clients) == 0 {
 		return nil
 	}
 
@@ -486,6 +503,10 @@ func extractManagedClientConfig(store storage.Storage, configName string) *manag
 		Token:   cli.Secret,
 		Version: fleet.VersionHash(data),
 		Handler: &managed.Handler{
+			Validate: func(cfgData []byte) error {
+				_, parseErr := bgpconfig.LoadConfig(string(cfgData), "", nil)
+				return parseErr
+			},
 			Cache: func(cfgData []byte) error {
 				return store.WriteFile(configName, cfgData, 0)
 			},
@@ -516,15 +537,18 @@ func fetchInitialConfig(server, name, token string) ([]byte, error) {
 		return nil, fmt.Errorf("auth: %w", err)
 	}
 
-	// Read auth response before wrapping in MuxConn.
-	// Auth response is a single line: "#0 ok ...\n"
-	authResp := make([]byte, 256)
-	n, readErr := conn.Read(authResp)
+	// Read auth response line (newline-terminated) before wrapping in MuxConn.
+	_ = conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+	authLine, readErr := readAuthLine(conn, 512)
 	if readErr != nil {
 		return nil, fmt.Errorf("read auth response: %w", readErr)
 	}
-	if !strings.Contains(string(authResp[:n]), "ok") {
-		return nil, fmt.Errorf("auth rejected: %s", strings.TrimSpace(string(authResp[:n])))
+	_ = conn.SetReadDeadline(time.Time{})
+
+	// Parse: #<id> <verb> [payload]. Verb must be "ok".
+	_, verb, _, parseErr := rpc.ParseLine(authLine)
+	if parseErr != nil || verb != "ok" {
+		return nil, fmt.Errorf("auth rejected")
 	}
 
 	rc := rpc.NewConn(conn, conn)
@@ -548,14 +572,41 @@ func fetchInitialConfig(server, name, token string) ([]byte, error) {
 	return data, nil
 }
 
+// readAuthLine reads from conn byte-by-byte until newline or maxSize.
+func readAuthLine(conn net.Conn, maxSize int) ([]byte, error) {
+	buf := make([]byte, 0, 128)
+	b := make([]byte, 1)
+	for {
+		n, err := conn.Read(b)
+		if err != nil {
+			return nil, err
+		}
+		if n == 0 {
+			continue
+		}
+		if b[0] == '\n' {
+			return buf, nil
+		}
+		buf = append(buf, b[0])
+		if len(buf) >= maxSize {
+			return nil, fmt.Errorf("auth response exceeds %d bytes", maxSize)
+		}
+	}
+}
+
+// validInstanceName matches alphanumeric names with hyphens, max 64 chars.
+// Same validation as plugin names -- prevents path traversal in blob keys.
+var validInstanceName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9-]{0,63}$`)
+
 // resolveDefaultConfig returns the config name from meta/instance/name or the fallback.
+// Validates the name to prevent path traversal via blob key injection.
 func resolveDefaultConfig(store storage.Storage) string {
 	data, err := store.ReadFile("meta/instance/name")
 	if err != nil || len(data) == 0 {
 		return "ze.conf"
 	}
 	name := strings.TrimSpace(string(data))
-	if name == "" {
+	if name == "" || !validInstanceName.MatchString(name) {
 		return "ze.conf"
 	}
 	return name + ".conf"

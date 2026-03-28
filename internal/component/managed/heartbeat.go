@@ -1,4 +1,5 @@
 // Design: docs/architecture/fleet-config.md — heartbeat liveness detection
+// Related: client.go — runConnection uses Heartbeat for liveness
 // Related: reconnect.go — backoff used after heartbeat timeout
 
 package managed
@@ -12,6 +13,8 @@ import (
 // Heartbeat monitors connection liveness by counting missed pong intervals.
 // When missedMax consecutive intervals pass without a RecordPong call,
 // the onTimeout callback fires (once). Safe for concurrent use.
+//
+// Caller MUST call Stop after Start to prevent goroutine leak.
 type Heartbeat struct {
 	interval  time.Duration
 	missedMax int32

@@ -1,4 +1,5 @@
 // Design: docs/architecture/fleet-config.md — reconnect backoff
+// Related: client.go — RunManagedClient uses Backoff for reconnect delays
 // Related: heartbeat.go — liveness detection triggers reconnect
 
 package managed

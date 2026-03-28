@@ -201,7 +201,7 @@ func readLineRaw(conn net.Conn, maxSize int) ([]byte, error) {
 			return buf, nil
 		}
 		buf = append(buf, b[0])
-		if len(buf) > maxSize {
+		if len(buf) >= maxSize {
 			return nil, fmt.Errorf("auth frame exceeds %d bytes", maxSize)
 		}
 	}

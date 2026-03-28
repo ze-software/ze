@@ -1,5 +1,5 @@
 // Design: docs/architecture/fleet-config.md — managed client RPC handlers
-// Related: doc.go — package overview
+// Related: client.go — connection lifecycle uses Handler for config processing
 
 package managed
 

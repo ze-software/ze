@@ -42,6 +42,7 @@ func NewManagedConfigService(reader ConfigReader) *ManagedConfigService {
 
 // RegisterClient marks a client as connected. Returns ErrDuplicateClient
 // if a client with the same name is already connected.
+// Caller MUST call UnregisterClient when the client disconnects.
 func (s *ManagedConfigService) RegisterClient(name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
