@@ -911,6 +911,91 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   overflow: hidden;
 }
 
+/* --- Finder column navigation (macOS Finder style) --- */
+.finder-columns {
+  display: flex;
+  flex-shrink: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.finder-col {
+  width: 12rem;
+  min-width: 12rem;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+
+.finder-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.finder-item:hover {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.finder-item.selected {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.finder-item.has-children::after {
+  content: "›";
+  color: inherit;
+  font-size: 1rem;
+  margin-left: 0.5rem;
+  opacity: 0.6;
+}
+
+.finder-item.selected.has-children::after {
+  opacity: 1;
+}
+
+.finder-count {
+  font-size: 0.65rem;
+  padding: 0 0.3rem;
+  min-width: 1.2rem;
+  text-align: center;
+  border-radius: 0.5rem;
+  background: var(--bg-inset);
+  color: var(--text-muted);
+}
+
+.finder-item.selected .finder-count {
+  background: rgba(255,255,255,0.2);
+  color: #ffffff;
+}
+
+.finder-add {
+  width: 100%;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-style: italic;
+  text-align: left;
+}
+
+.finder-add:hover {
+  color: var(--accent);
+  background: var(--accent-subtle);
+}
+
 .sidebar-panel {
   width: 14rem;
   min-width: 14rem;

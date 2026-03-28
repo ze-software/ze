@@ -1,0 +1,19 @@
+{{define "finder"}}
+<div class="finder-columns" id="finder">
+  {{range .Columns}}
+  <div class="finder-col">
+    {{range .Items}}
+    {{if and .IsList (eq .Name "+ new")}}
+    <button class="finder-item finder-add" data-action="add-entry" data-base-url="{{.AddURL}}">+ new</button>
+    {{else}}
+    <a class="finder-item{{if .Selected}} selected{{end}}{{if .HasChildren}} has-children{{end}}"
+       href="{{.URL}}"
+       hx-get="/fragment/detail?path={{.HxPath}}" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="{{.URL}}">
+      {{.Name}}{{if .IsList}} <span class="finder-count">{{.Count}}</span>{{end}}
+    </a>
+    {{end}}
+    {{end}}
+  </div>
+  {{end}}
+</div>
+{{end}}

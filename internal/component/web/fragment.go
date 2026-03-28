@@ -76,6 +76,23 @@ type SidebarSection struct {
 	Selected    string         // Currently selected entry key
 }
 
+// ColumnItem is a single row in a Finder column.
+type ColumnItem struct {
+	Name        string // Display name
+	URL         string // Navigation URL
+	HxPath      string // YANG path for hx-get
+	Selected    bool   // Currently selected (highlighted)
+	HasChildren bool   // Shows > indicator (has sub-containers/lists)
+	IsList      bool   // This item is a list node (shows entry count)
+	Count       int    // Number of list entries (when IsList)
+	AddURL      string // Base URL for add-entry overlay (lists only)
+}
+
+// FinderColumn is one column in the Finder-style navigation.
+type FinderColumn struct {
+	Items []ColumnItem
+}
+
 // FragmentData holds all data needed to render any fragment.
 type FragmentData struct {
 	// Path segments for the current view.
@@ -86,8 +103,10 @@ type FragmentData struct {
 	Children []ChildEntry
 	// Fields are leaf nodes with YANG metadata.
 	Fields []FieldMeta
-	// Sidebar is the hierarchical navigation tree for the left panel.
+	// Sidebar is the hierarchical navigation tree for the left panel (legacy).
 	Sidebar []SidebarSection
+	// Columns is the Finder-style column navigation (up to 3 visible).
+	Columns []FinderColumn
 	// ParentURL is the URL of the parent node (empty at root).
 	ParentURL string
 	// ParentHxPath is the YANG path for the parent (for hx-get).
@@ -204,6 +223,8 @@ func buildFragmentData(schema *config.Schema, tree *config.Tree, path []string) 
 
 	// Build sidebar for all levels including root.
 	data.Sidebar = buildSidebarHierarchy(schema, tree, path)
+	// Build Finder-style column navigation.
+	data.Columns = buildFinderColumns(schema, tree, path)
 
 	// Parent URL for back navigation in sidebar.
 	if len(path) > 0 {
@@ -413,4 +434,135 @@ func buildSidebarHierarchy(schema *config.Schema, tree *config.Tree, path []stri
 	}
 
 	return sections
+}
+
+// hasNonLeafChildren returns true if the node has at least one child that
+// is a container, list, or other navigable node (not a leaf).
+func hasNonLeafChildren(node config.Node) bool {
+	cl, ok := node.(childLister)
+	if !ok {
+		return false
+	}
+	for _, name := range cl.Children() {
+		child := cl.Get(name)
+		if child != nil && child.Kind() != config.NodeLeaf {
+			return true
+		}
+	}
+	return false
+}
+
+// buildFinderColumns builds the Finder-style column navigation.
+// For a path like ["bgp", "peer", "thomas"], it produces columns:
+//
+//	col 0: root children (env, system, plugin, bgp*, telemetry)
+//	col 1: bgp children (community, filter, group, local, peer*)
+//	col 2: peer entries (thomas*, alice, [+ new])
+//
+// Only the last 3 columns are kept visible.
+func buildFinderColumns(schema *config.Schema, tree *config.Tree, path []string) []FinderColumn {
+	var columns []FinderColumn
+
+	// Build a column for each level from root to current.
+	for depth := 0; depth <= len(path); depth++ {
+		prefix := path[:depth]
+		var selectedName string
+		if depth < len(path) {
+			selectedName = path[depth]
+		}
+
+		col := buildColumnAt(schema, tree, prefix, selectedName)
+		if col != nil {
+			columns = append(columns, *col)
+		}
+	}
+
+	// Keep at most 3 columns visible.
+	if len(columns) > 3 {
+		columns = columns[len(columns)-3:]
+	}
+
+	return columns
+}
+
+// buildColumnAt builds one Finder column showing children of the node at prefix.
+func buildColumnAt(schema *config.Schema, tree *config.Tree, prefix []string, selectedName string) *FinderColumn {
+	var provider childLister
+
+	if len(prefix) == 0 {
+		provider = schema
+	} else {
+		node, err := walkSchema(schema, prefix)
+		if err != nil || node == nil {
+			return nil
+		}
+		// If this is a list node, show entries instead of schema children.
+		if listNode, ok := node.(*config.ListNode); ok {
+			return buildListColumn(tree, schema, prefix, listNode, selectedName)
+		}
+		cl, ok := node.(childLister)
+		if !ok {
+			return nil
+		}
+		provider = cl
+	}
+
+	col := &FinderColumn{}
+	for _, name := range provider.Children() {
+		child := provider.Get(name)
+		if child == nil || child.Kind() == config.NodeLeaf {
+			continue
+		}
+
+		childPath := append(append([]string{}, prefix...), name)
+		url := "/show/" + strings.Join(childPath, "/") + "/"
+		hxPath := strings.Join(childPath, "/")
+
+		item := ColumnItem{
+			Name:     name,
+			URL:      url,
+			HxPath:   hxPath,
+			Selected: name == selectedName,
+		}
+
+		if _, ok := child.(*config.ListNode); ok {
+			item.IsList = true
+			item.HasChildren = true
+			item.AddURL = url
+			item.Count = len(collectListKeys(tree, schema, childPath))
+		} else {
+			item.HasChildren = hasNonLeafChildren(child)
+		}
+
+		col.Items = append(col.Items, item)
+	}
+
+	return col
+}
+
+// buildListColumn builds a column showing list entries (e.g., peer names).
+func buildListColumn(tree *config.Tree, schema *config.Schema, prefix []string, _ *config.ListNode, selectedName string) *FinderColumn {
+	col := &FinderColumn{}
+	keys := collectListKeys(tree, schema, prefix)
+	url := "/show/" + strings.Join(prefix, "/") + "/"
+
+	for _, k := range keys {
+		entryPath := strings.Join(prefix, "/") + "/" + k
+		col.Items = append(col.Items, ColumnItem{
+			Name:        k,
+			URL:         url + k + "/",
+			HxPath:      entryPath,
+			Selected:    k == selectedName,
+			HasChildren: true,
+		})
+	}
+
+	// Add "+ new" entry.
+	col.Items = append(col.Items, ColumnItem{
+		Name:   "+ new",
+		IsList: true,
+		AddURL: url,
+	})
+
+	return col
 }
