@@ -53,6 +53,8 @@ func main() {
 		os.Exit(rpkiCmd())
 	case "peeringdb":
 		os.Exit(peeringdbCmd())
+	case "web":
+		os.Exit(webCmd())
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n", cmd)
 		printUsage()
@@ -73,6 +75,7 @@ Commands:
   editor       Run editor functional tests (.et files)
   ui           Run UI functional tests (completion, CLI)
   managed      Run managed config tests (hub, auth, fleet)
+  web          Run web browser functional tests (.wb files)
   peer         BGP test peer (sink/echo/check modes)
   rpki         Deterministic RPKI mock server (IP modulo for validation state)
   peeringdb    Deterministic PeeringDB mock server (ASN-derived prefix counts)

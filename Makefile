@@ -153,6 +153,9 @@ ze-ui-test: bin/ze-test
 ze-editor-test: bin/ze-test
 	@bin/ze-test editor
 
+ze-web-test: bin/ze bin/ze-test
+	@bin/ze-test web
+
 ze-managed-test: bin/ze-test
 	@bin/ze-test managed --all
 

@@ -1,0 +1,11 @@
+# Test: BGP page shows config fields and children
+# VALIDATES: HTMX fragment renders BGP container with leaves and sub-containers
+# PREVENTS: empty HTMX response, broken fragment handler
+
+option=timeout:value=30s
+
+action=open:path=/show/bgp/
+expect=element:text=Listen address
+expect=element:text=Router ID
+expect=element:text=peer
+expect=element:text=group

@@ -1,0 +1,10 @@
+# Test: root page loads with YANG schema sidebar
+# VALIDATES: web interface renders YANG tree at /show/
+# PREVENTS: blank page, missing sidebar, HTMX not loading
+
+option=timeout:value=30s
+
+action=open:path=/show/
+expect=element:text=environment
+expect=element:text=bgp
+expect=element:text=system

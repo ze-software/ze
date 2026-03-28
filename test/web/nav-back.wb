@@ -1,0 +1,15 @@
+# Test: navigate forward then back preserves breadcrumb
+# VALIDATES: back navigation returns to root with clean breadcrumb
+# PREVENTS: breadcrumb corruption (fragment/detail in path)
+
+option=timeout:value=30s
+
+action=open:path=/show/
+action=click:text=environment
+expect=element:text=BACK
+
+action=click:text=BACK
+expect=element:text=environment
+expect=element:text=bgp
+expect=breadcrumb:not-contains=fragment
+expect=breadcrumb:not-contains=detail
