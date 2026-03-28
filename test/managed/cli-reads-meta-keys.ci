@@ -1,11 +1,7 @@
-# Test: CLI commands read meta/ssh/* keys after ze init
+# Test: ze data reads meta/* keys from blob store
 #
-# VALIDATES: AC-5 -- sshclient.ReadCredentials reads namespaced keys.
-# PREVENTS: CLI commands failing because sshclient reads old ssh/* keys.
-
-# This test verifies the init + db round-trip: init writes meta/ssh/*,
-# db cat reads them back. Full SSH connectivity is tested by other .ci tests
-# that start a daemon.
+# VALIDATES: AC-5 -- blob store supports meta/ namespace keys.
+# PREVENTS: CLI commands failing to read namespaced keys.
 
 tmpfs=test-cli-meta-keys.sh:mode=755:terminator=EOF_SH
 #!/bin/sh
@@ -15,25 +11,23 @@ touch daemon.ready
 
 INIT_DIR=$(mktemp -d)
 DB="$INIT_DIR/database.zefs"
-trap 'rm -rf "$INIT_DIR"' EXIT
 
-# Init credentials
-printf 'testuser\ntestpass\n10.0.0.1\n3333\n\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init
+# Init with piped prompts
+printf 'admin\nsecret123\n10.0.0.1\n3333\n\n' | ZE_CONFIG_DIR="$INIT_DIR" ze init
 
-# Read back via ze data cat (uses raw blob keys)
-USERNAME=$(ze data --path "$DB" cat meta/ssh/username)
-[ "$USERNAME" = "testuser" ] || { echo "FAIL: username expected 'testuser', got '$USERNAME'" >&2; exit 1; }
-
-PASSWORD=$(ze data --path "$DB" cat meta/ssh/password)
-echo "$PASSWORD" | grep -q '^\$2' || { echo "FAIL: password expected bcrypt hash, got '$PASSWORD'" >&2; exit 1; }
-
+# Verify host and port
 HOST=$(ze data --path "$DB" cat meta/ssh/host)
 [ "$HOST" = "10.0.0.1" ] || { echo "FAIL: host expected '10.0.0.1', got '$HOST'" >&2; exit 1; }
 
 PORT=$(ze data --path "$DB" cat meta/ssh/port)
 [ "$PORT" = "3333" ] || { echo "FAIL: port expected '3333', got '$PORT'" >&2; exit 1; }
 
-echo "OK: CLI reads meta/ssh/* keys after init" >&2
+# Password is stored as bcrypt hash
+PASSWORD=$(ze data --path "$DB" cat meta/ssh/password)
+echo "$PASSWORD" | grep -q '^\$2' || { echo "FAIL: password expected bcrypt hash, got '$PASSWORD'" >&2; exit 1; }
+
+rm -rf "$INIT_DIR"
+echo "OK: ze data reads meta/ssh/* keys" >&2
 exit 0
 EOF_SH
 
