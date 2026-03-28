@@ -119,6 +119,10 @@ type FragmentData struct {
 	Username string
 	// Insecure is true when --insecure-web mode is active.
 	Insecure bool
+	// CommandForm holds admin command form data when viewing a leaf command.
+	CommandForm *CommandFormData
+	// CommandResult holds admin command execution result.
+	CommandResult *CommandResultData
 }
 
 // HandleFragment returns an HTTP handler that serves HTMX fragments.

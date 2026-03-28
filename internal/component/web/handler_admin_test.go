@@ -60,17 +60,20 @@ func TestAdminRouteDispatch(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, rec.Code)
 
-	viewData := buildAdminViewData([]string{"peer"}, children)
-	assert.False(t, viewData.IsLeaf, "peer is a container, not a leaf")
-	require.Len(t, viewData.Children, 2, "peer has 2 sub-commands")
+	fragData := buildAdminFragmentData([]string{"peer"}, children)
+	assert.Nil(t, fragData.CommandForm, "peer is a container, not a leaf")
+	// Finder columns: root column + peer column.
+	require.GreaterOrEqual(t, len(fragData.Columns), 2, "root + peer columns")
 
-	childNames := make(map[string]bool)
-	for _, ch := range viewData.Children {
-		childNames[ch.Name] = true
+	// Last column should show peer's sub-commands.
+	lastCol := fragData.Columns[len(fragData.Columns)-1]
+	itemNames := make(map[string]bool)
+	for _, item := range lastCol.Items {
+		itemNames[item.Name] = true
 	}
 
-	assert.True(t, childNames["teardown"], "teardown must be in children")
-	assert.True(t, childNames["refresh"], "refresh must be in children")
+	assert.True(t, itemNames["teardown"], "teardown must be in finder column")
+	assert.True(t, itemNames["refresh"], "refresh must be in finder column")
 }
 
 // TestAdminBreadcrumb verifies that /admin/peer/ produces breadcrumb segments
@@ -142,13 +145,12 @@ func TestAdminBreadcrumbDeep(t *testing.T) {
 func TestCommandFormRendering(t *testing.T) {
 	children := testCommandTree()
 
-	viewData := buildAdminViewData([]string{"peer", "teardown"}, children)
+	fragData := buildAdminFragmentData([]string{"peer", "teardown"}, children)
 
-	assert.True(t, viewData.IsLeaf, "peer/teardown is a leaf command")
-	require.NotNil(t, viewData.Form, "leaf command must have form data")
+	require.NotNil(t, fragData.CommandForm, "leaf command must have form data")
 
-	assert.Equal(t, "peer teardown", viewData.Form.CommandName)
-	assert.Equal(t, "/admin/peer/teardown", viewData.Form.ActionURL)
+	assert.Equal(t, "peer teardown", fragData.CommandForm.CommandName)
+	assert.Equal(t, "/admin/peer/teardown", fragData.CommandForm.ActionURL)
 }
 
 // TestAdminCommandExecution verifies that POST /admin/peer/192.168.1.1/teardown
@@ -389,23 +391,24 @@ func TestAdminExecuteNilDispatcher(t *testing.T) {
 func TestAdminRootView(t *testing.T) {
 	children := testCommandTree()
 
-	viewData := buildAdminViewData(nil, children)
+	fragData := buildAdminFragmentData(nil, children)
 
-	assert.False(t, viewData.IsLeaf, "root is a container")
-	require.Len(t, viewData.Children, 2, "root has 2 top-level commands")
+	assert.Nil(t, fragData.CommandForm, "root is a container")
+	// Root column should list top-level commands.
+	require.Len(t, fragData.Columns, 1, "root has 1 finder column")
 
-	childNames := make(map[string]bool)
-	for _, ch := range viewData.Children {
-		childNames[ch.Name] = true
+	itemNames := make(map[string]bool)
+	for _, item := range fragData.Columns[0].Items {
+		itemNames[item.Name] = true
 	}
 
-	assert.True(t, childNames["peer"], "peer must be in top-level commands")
-	assert.True(t, childNames["rib"], "rib must be in top-level commands")
+	assert.True(t, itemNames["peer"], "peer must be in root column")
+	assert.True(t, itemNames["rib"], "rib must be in root column")
 
 	// Verify URLs use /admin/ prefix.
-	for _, ch := range viewData.Children {
-		assert.True(t, strings.HasPrefix(ch.URL, "/admin/"),
-			"child URL %q must start with /admin/", ch.URL)
+	for _, item := range fragData.Columns[0].Items {
+		assert.True(t, strings.HasPrefix(item.URL, "/admin/"),
+			"item URL %q must start with /admin/", item.URL)
 	}
 }
 

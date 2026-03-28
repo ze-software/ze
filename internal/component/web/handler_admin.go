@@ -49,34 +49,15 @@ type CommandParameter struct {
 	Placeholder string
 }
 
-// AdminViewData holds the data for rendering the admin command tree navigation.
-// Containers show navigable links to sub-commands. Leaf commands show a form.
-type AdminViewData struct {
-	// Path is the current YANG path segments under /admin/.
-	Path []string
-	// Breadcrumbs is the navigation trail for /admin/ paths.
-	Breadcrumbs []BreadcrumbSegment
-	// Children lists sub-commands as navigable links (for container nodes).
-	Children []ChildEntry
-	// IsLeaf is true when the resolved node is a leaf command (no sub-commands).
-	IsLeaf bool
-	// Form holds the command form data when IsLeaf is true.
-	Form *CommandFormData
-}
-
 // CommandDispatcher executes an admin command and returns the output.
 // The command string is the full command path (e.g., "peer 192.168.1.1 teardown").
 // Returns the output text and any error from execution.
 type CommandDispatcher func(command string) (string, error)
 
 // HandleAdminView returns an HTTP handler that serves the admin command tree
-// navigation view. It builds breadcrumbs for /admin/ paths and lists
-// sub-commands as navigable links. When children is nil (leaf command),
-// it renders a command form instead.
-//
-// The children map provides the static command tree structure. Each key is
-// a path prefix, and the value is the list of child command names at that
-// level. An empty or missing entry means the path is a leaf command.
+// using finder-style column navigation (same layout as config). Leaf commands
+// render a form in the detail panel. The children map provides the static
+// command tree structure.
 func HandleAdminView(renderer *Renderer, children map[string][]string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		parsed, err := ParseURL(r)
@@ -106,29 +87,25 @@ func HandleAdminView(renderer *Renderer, children map[string][]string) http.Hand
 			return
 		}
 
-		viewData := buildAdminViewData(path, children)
+		fragData := buildAdminFragmentData(path, children)
 
-		// HTMX partial: return content fragment without layout wrapper.
+		// HTMX partial: return finder + detail via oob_response.
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
-			if viewData.IsLeaf && viewData.Form != nil {
-				if err := renderer.RenderConfigTemplate(w, "command_form.html", viewData.Form); err != nil {
-					http.Error(w, fmt.Sprintf("render: %v", err), http.StatusInternalServerError)
-				}
-
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			html := renderer.RenderFragment("oob_response", fragData)
+			if _, writeErr := w.Write([]byte(html)); writeErr != nil {
 				return
 			}
-
-			if err := renderer.RenderConfigTemplate(w, "container.html", containerFromAdmin(viewData)); err != nil {
-				http.Error(w, fmt.Sprintf("render: %v", err), http.StatusInternalServerError)
-			}
-
 			return
 		}
 
-		// Full HTML: render inside layout with breadcrumb.
+		// Full HTML: render inside layout.
+		content := renderer.RenderFragment("full_content", fragData)
 		layoutData := LayoutData{
 			Title:       "Admin: /" + strings.Join(path, "/"),
-			Breadcrumbs: viewData.Breadcrumbs,
+			Content:     content,
+			HasSession:  true,
+			Breadcrumbs: fragData.Breadcrumbs,
 		}
 
 		if err := renderer.RenderLayout(w, layoutData); err != nil {
@@ -140,10 +117,11 @@ func HandleAdminView(renderer *Renderer, children map[string][]string) http.Hand
 // HandleAdminExecute returns an HTTP handler that executes admin commands
 // via POST. It reconstructs the command string from the URL path segments,
 // dispatches the command through the provided dispatcher, and returns a
-// titled result card. On error, the result card has the error styling.
+// result in the detail panel.
 //
 // Content negotiation: JSON requests receive the raw command output as
 // a JSON object with "command", "output", and "error" fields.
+// HTMX requests receive the result rendered as a detail panel fragment.
 func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -194,51 +172,86 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher) http.Han
 			return
 		}
 
-		// HTML response: render result card template.
-		if err := renderer.RenderConfigTemplate(w, "command.html", result); err != nil {
-			http.Error(w, fmt.Sprintf("render: %v", err), http.StatusInternalServerError)
+		// HTMX: render result in the detail panel.
+		fragData := &FragmentData{
+			CommandResult: &result,
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		html := renderer.RenderFragment("detail", fragData)
+		if _, writeErr := w.Write([]byte(html)); writeErr != nil {
+			return
 		}
 	}
 }
 
-// buildAdminViewData assembles the view data for an admin command tree path.
-// It builds breadcrumbs for /admin/ paths and determines whether the path
-// points to a container (has children) or a leaf command (no children).
-func buildAdminViewData(path []string, children map[string][]string) *AdminViewData {
-	data := &AdminViewData{
+// buildAdminFragmentData builds FragmentData for the admin command tree,
+// using finder-style columns for navigation and a command form in the detail
+// panel for leaf commands.
+func buildAdminFragmentData(path []string, children map[string][]string) *FragmentData {
+	data := &FragmentData{
 		Path:        path,
+		CurrentPath: strings.Join(path, "/"),
 		Breadcrumbs: buildAdminBreadcrumbs(path),
+		HasSession:  true,
+		Columns:     buildAdminFinderColumns(path, children),
 	}
 
+	// Leaf command: show form in detail panel.
 	pathKey := strings.Join(path, "/")
-	kids, hasChildren := children[pathKey]
-
-	if !hasChildren || len(kids) == 0 {
-		// Leaf command: render a form.
-		data.IsLeaf = true
-		data.Form = &CommandFormData{
+	kids := children[pathKey]
+	if len(path) > 0 && len(kids) == 0 {
+		data.CommandForm = &CommandFormData{
 			CommandName: strings.Join(path, " "),
 			ActionURL:   "/admin/" + strings.Join(path, "/"),
 		}
-
-		return data
-	}
-
-	// Container: list children as navigable links.
-	prefix := "/admin/"
-	if len(path) > 0 {
-		prefix = "/admin/" + strings.Join(path, "/") + "/"
-	}
-
-	for _, name := range kids {
-		data.Children = append(data.Children, ChildEntry{
-			Name: name,
-			Kind: "container",
-			URL:  prefix + name + "/",
-		})
 	}
 
 	return data
+}
+
+// buildAdminFinderColumns builds finder columns from the admin command tree.
+// Each level of the tree gets a column showing available sub-commands.
+func buildAdminFinderColumns(path []string, children map[string][]string) []FinderColumn {
+	var columns []FinderColumn
+
+	for depth := 0; depth <= len(path); depth++ {
+		prefix := path[:depth]
+		pathKey := strings.Join(prefix, "/")
+		kids := children[pathKey]
+		if len(kids) == 0 && depth < len(path) {
+			break
+		}
+
+		var selectedName string
+		if depth < len(path) {
+			selectedName = path[depth]
+		}
+
+		col := FinderColumn{}
+		for _, name := range kids {
+			childPath := append(append([]string{}, prefix...), name)
+			childKey := strings.Join(childPath, "/")
+			url := "/admin/" + strings.Join(childPath, "/") + "/"
+
+			col.Items = append(col.Items, ColumnItem{
+				Name:        name,
+				URL:         url,
+				HxPath:      "admin/" + childKey,
+				Selected:    name == selectedName,
+				HasChildren: len(children[childKey]) > 0,
+			})
+		}
+		if len(col.Items) > 0 {
+			columns = append(columns, col)
+		}
+	}
+
+	// Keep at most 3 columns visible.
+	if len(columns) > 3 {
+		columns = columns[len(columns)-3:]
+	}
+
+	return columns
 }
 
 // buildAdminBreadcrumbs creates breadcrumb navigation entries for /admin/ paths.
@@ -258,23 +271,6 @@ func buildAdminBreadcrumbs(path []string) []BreadcrumbSegment {
 	}
 
 	return crumbs
-}
-
-// containerFromAdmin adapts AdminViewData to a minimal struct that the
-// container.html template can render. This reuses the existing container
-// template for command tree navigation.
-func containerFromAdmin(data *AdminViewData) struct {
-	ContainerChildren []ChildEntry
-	ListChildren      []ChildEntry
-	LeafFields        []LeafField
-} {
-	return struct {
-		ContainerChildren []ChildEntry
-		ListChildren      []ChildEntry
-		LeafFields        []LeafField
-	}{
-		ContainerChildren: data.Children,
-	}
 }
 
 // BuildAdminCommandTree returns the static admin command tree derived from

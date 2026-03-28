@@ -263,6 +263,31 @@ func (m *EditorManager) ContentAtPath(username string, path []string) string {
 	return us.editor.ContentAtPath(path)
 }
 
+// ActiveSessions returns a summary of active web editing sessions.
+// Each entry is formatted as "user@web%timestamp - N pending changes".
+func (m *EditorManager) ActiveSessions() []string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	result := make([]string, 0, len(m.sessions))
+	for _, us := range m.sessions {
+		us.mu.Lock()
+		sid := us.editor.SessionID()
+		count := 0
+		if sid != "" {
+			count = len(us.editor.SessionChanges(sid))
+		}
+		us.mu.Unlock()
+
+		changeWord := "changes"
+		if count == 1 {
+			changeWord = "change"
+		}
+		result = append(result, fmt.Sprintf("%s - %d pending %s", sid, count, changeWord))
+	}
+	return result
+}
+
 // evictInactive removes sessions with lastActivity older than idleTimeout.
 // Caller MUST hold m.mu in write mode.
 func (m *EditorManager) evictInactive() {

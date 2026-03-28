@@ -37,6 +37,7 @@ const (
 	verbCommit  = "commit"
 	verbDiscard = "discard"
 	verbHelp    = "help"
+	verbWho     = "who"
 )
 
 // cliCommand holds the parsed verb and arguments from a CLI bar input.
@@ -162,7 +163,7 @@ func HandleCLICommand(mgr *EditorManager, schema *config.Schema, renderer *Rende
 var knownCLIVerbs = map[string]bool{
 	verbEdit: true, verbSet: true, verbDelete: true, verbShow: true,
 	verbTop: true, verbUp: true, verbCommit: true, verbDiscard: true,
-	verbHelp: true,
+	verbHelp: true, verbWho: true,
 }
 
 // dispatchCLICommand routes a parsed CLI command to the appropriate handler.
@@ -190,8 +191,10 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 		handleCLICommit(w, r, mgr, username)
 	case verbDiscard:
 		handleCLIDiscard(w, r, mgr, username)
+	case verbWho:
+		handleCLIWho(w, mgr)
 	case verbHelp:
-		writeCLINotification(w, "commands: edit, set, delete, show, top, up, commit, discard, help", "info")
+		writeCLINotification(w, "commands: edit, set, delete, show, top, up, commit, discard, who, help", "info")
 	}
 }
 
@@ -267,6 +270,22 @@ func handleCLIDelete(w http.ResponseWriter, r *http.Request, contextPath, args [
 	}
 
 	htmxRedirect(w, r, buildConfigEditURL(contextPath))
+}
+
+// handleCLIWho processes the "who" verb: lists active web editing sessions.
+func handleCLIWho(w http.ResponseWriter, mgr *EditorManager) {
+	sessions := mgr.ActiveSessions()
+	if len(sessions) == 0 {
+		writeCLINotification(w, "No active web sessions.", "info")
+		return
+	}
+
+	var buf strings.Builder
+	buf.WriteString("Active web sessions:\n")
+	for _, s := range sessions {
+		fmt.Fprintf(&buf, "  %s\n", s)
+	}
+	writeCLINotification(w, buf.String(), "info")
 }
 
 // handleCLIShow processes the "show" verb: renders config text in the content area.
