@@ -1,0 +1,14 @@
+# Test: CLI bar edit command navigates to target path
+# VALIDATES: edit verb changes context to target YANG path
+# PREVENTS: CLI edit not triggering navigation, path resolution broken
+
+option=timeout:value=30s
+
+action=open:path=/show/
+expect=element:text=type a command
+
+action=fill:text=type a command:value=edit environment
+action=press:key=Enter
+action=wait:ms=1000
+expect=element:text=log
+expect=element:text=daemon

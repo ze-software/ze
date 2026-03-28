@@ -1,0 +1,17 @@
+# Test: CLI set then commit persists value
+# VALIDATES: set command followed by commit saves to config
+# PREVENTS: commit not applying CLI-set values
+
+option=timeout:value=30s
+
+action=open:path=/show/bgp/
+expect=element:text=type a command
+
+action=fill:text=type a command:value=set listen 0.0.0.0:1179
+action=press:key=Enter
+action=wait:ms=1000
+
+action=fill:text=type a command:value=commit
+action=press:key=Enter
+action=wait:ms=1000
+expect=element:not-text=pending

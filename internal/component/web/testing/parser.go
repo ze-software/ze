@@ -1,4 +1,6 @@
 // Design: docs/architecture/testing/ci-format.md -- web browser test parser
+// Related: runner.go -- .wb test execution and browser control
+// Related: expect.go -- expectation checking
 //
 // Package webtesting provides a declarative test framework for the web interface.
 // Tests are written as .wb files with action= and expect= directives, executed
@@ -27,9 +29,9 @@ type WBStep struct {
 	ExpectIndex int
 }
 
-// WBAction represents a browser action (navigate, click, fill, wait).
+// WBAction represents a browser action (navigate, click, fill, press, wait).
 type WBAction struct {
-	Kind   string            // open, click, fill, hover, wait, screenshot
+	Kind   string            // open, click, fill, press, hover, wait, screenshot
 	Values map[string]string // key=value pairs (path, text, ref, value, file, ms, load)
 	Line   int               // source line number for error reporting
 }

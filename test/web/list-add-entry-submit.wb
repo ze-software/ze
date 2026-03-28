@@ -1,0 +1,17 @@
+# Test: add-entry overlay creates new list entry on Enter
+# VALIDATES: filling entry name and pressing Enter creates the entry
+# PREVENTS: add-entry form not submitting, entry not created
+
+option=timeout:value=30s
+
+action=open:path=/show/bgp/group/
+expect=element:text=+ new
+
+action=click:text=+ new
+action=wait:ms=500
+expect=element:text=New entry
+
+action=fill:text=name:value=test-group
+action=press:key=Enter
+action=wait:ms=2000
+expect=element:text=test-group

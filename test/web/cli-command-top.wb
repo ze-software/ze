@@ -1,0 +1,14 @@
+# Test: CLI bar top command returns to root
+# VALIDATES: top verb resets context path to root
+# PREVENTS: top command not resetting context
+
+option=timeout:value=30s
+
+action=open:path=/show/bgp/local/
+expect=element:text=type a command
+
+action=fill:text=type a command:value=top
+action=press:key=Enter
+action=wait:ms=1000
+expect=element:text=environment
+expect=element:text=bgp

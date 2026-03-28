@@ -58,6 +58,36 @@ func (b *Browser) Snapshot() (string, error) {
 	return runAgentOutput("snapshot", "-i")
 }
 
+// Press sends a key press (e.g., "Enter", "Tab", "Escape").
+func (b *Browser) Press(key string) error {
+	if err := runAgent("press", key); err != nil {
+		return fmt.Errorf("press %s: %w", key, err)
+	}
+	return b.WaitLoad()
+}
+
+// PressOn finds an element by visible text, focuses it, and presses a key.
+func (b *Browser) PressOn(text, key string) error {
+	snap, err := b.Snapshot()
+	if err != nil {
+		return fmt.Errorf("snapshot before press: %w", err)
+	}
+
+	ref := findRefByText(snap, text)
+	if ref == "" {
+		return fmt.Errorf("no element with text containing %q for press", text)
+	}
+
+	if err := runAgent("focus", ref); err != nil {
+		return fmt.Errorf("focus %s (text=%q): %w", ref, text, err)
+	}
+
+	if err := runAgent("press", key); err != nil {
+		return fmt.Errorf("press %s on %s (text=%q): %w", key, ref, text, err)
+	}
+	return b.WaitLoad()
+}
+
 // Click finds an element by visible text in the snapshot, then clicks its @ref.
 func (b *Browser) Click(text string) error {
 	snap, err := b.Snapshot()
@@ -222,6 +252,15 @@ func executeAction(b *Browser, a *WBAction) error {
 			return b.WaitMs(ms)
 		}
 		return b.WaitLoad()
+	case "press":
+		key := a.Values["key"]
+		if key == "" {
+			return fmt.Errorf("press action requires key= parameter")
+		}
+		if text, ok := a.Values["text"]; ok {
+			return b.PressOn(text, key)
+		}
+		return b.Press(key)
 	case "screenshot":
 		return b.Screenshot(a.Values["file"])
 	}
