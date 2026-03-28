@@ -386,7 +386,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	}
 
 	// Execute commands in order
-	for _, cmd := range cmds {
+	for cmdIdx, cmd := range cmds {
 		// Expand $PORT2 before $PORT to avoid partial match ("$PORT2" contains "$PORT")
 		execStr := strings.ReplaceAll(cmd.Exec, "$PORT2", fmt.Sprintf("%d", rec.Port+1))
 		execStr = strings.ReplaceAll(execStr, "$PORT", fmt.Sprintf("%d", rec.Port))
@@ -560,7 +560,8 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			return false
 		}
 
-		if cmd.Mode == "background" {
+		switch {
+		case cmd.Mode == "background":
 			bgProcs = append(bgProcs, proc)
 			// Wait for ze-peer to be ready (listening) instead of fixed sleep
 			// Skip waiting for peer if this is an exit code test (peer may not start)
@@ -578,8 +579,20 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				// Non-peer background process: brief sleep for startup
 				time.Sleep(100 * time.Millisecond)
 			}
-		} else {
-			// Foreground (daemon): start but don't wait - we wait for peer instead
+		case cmd.Mode == modeForeground && binName != "ze" && binName != binNameZePeer && cmdIdx < len(cmds)-1:
+			// Foreground setup script (non-daemon, e.g., create-marker.sh) that
+			// precedes other commands: wait for completion before starting the
+			// next command. Without this, the setup script may not finish before
+			// ze reads its output, causing races under concurrent test load.
+			// Only applies when followed by more commands; if it's the last
+			// command, fall through to normal exit code handling.
+			if err := proc.Wait(); err != nil {
+				rec.Error = fmt.Errorf("setup script %s: %w", binName, err)
+				return false
+			}
+			continue // Already finished, don't track for cleanup
+		default:
+			// Foreground daemon (ze): start but don't wait - we wait for peer instead
 			bgProcs = append(bgProcs, proc) // Track for cleanup
 
 			// Write daemon PID to tmpfs dir so background scripts can send signals.

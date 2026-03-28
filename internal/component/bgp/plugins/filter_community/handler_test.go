@@ -11,12 +11,12 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
 
-// buildFullAttr builds a full attribute (flags+code+extlen+data) for handler tests.
+// buildFullCommunityAttr builds a full COMMUNITY attribute (flags+code+extlen+data) for handler tests.
 // Matches the format that buildModifiedPayload passes to AttrModHandlers.
-func buildFullAttr(code attribute.AttributeCode, data []byte) []byte {
+func buildFullCommunityAttr(data []byte) []byte {
 	attr := make([]byte, 4+len(data))
 	attr[0] = 0xC0 | 0x10 // Optional Transitive + Extended Length
-	attr[1] = byte(code)
+	attr[1] = byte(attribute.AttrCommunity)
 	binary.BigEndian.PutUint16(attr[2:4], uint16(len(data))) //nolint:gosec // test data
 	copy(attr[4:], data)
 	return attr
@@ -38,7 +38,7 @@ func buildCommunityValues(values ...uint32) []byte {
 // PREVENTS: Tag values silently dropped during egress build.
 func TestCommunityAttrModHandlerAdd(t *testing.T) {
 	// Full attribute: COMMUNITY with value 1:1
-	src := buildFullAttr(attribute.AttrCommunity, buildCommunityValues(0x0001_0001))
+	src := buildFullCommunityAttr(buildCommunityValues(0x0001_0001))
 
 	// Op: add community 2:2
 	addBuf := make([]byte, 4)
@@ -67,7 +67,7 @@ func TestCommunityAttrModHandlerAdd(t *testing.T) {
 // PREVENTS: Strip leaving values in the egress wire output.
 func TestCommunityAttrModHandlerRemove(t *testing.T) {
 	// Full attribute: COMMUNITY with values 1:1 and 2:2
-	src := buildFullAttr(attribute.AttrCommunity, buildCommunityValues(0x0001_0001, 0x0002_0002))
+	src := buildFullCommunityAttr(buildCommunityValues(0x0001_0001, 0x0002_0002))
 
 	// Op: remove 1:1
 	rmBuf := make([]byte, 4)
@@ -89,7 +89,7 @@ func TestCommunityAttrModHandlerRemove(t *testing.T) {
 // VALIDATES: Empty attribute not written to wire.
 // PREVENTS: Malformed zero-length attribute in egress output.
 func TestCommunityAttrModHandlerRemoveAll(t *testing.T) {
-	src := buildFullAttr(attribute.AttrCommunity, buildCommunityValues(0x0001_0001))
+	src := buildFullCommunityAttr(buildCommunityValues(0x0001_0001))
 
 	rmBuf := make([]byte, 4)
 	binary.BigEndian.PutUint32(rmBuf, 0x0001_0001)
@@ -186,7 +186,7 @@ func TestExtCommunityAttrModHandler(t *testing.T) {
 // PREVENTS: Set silently appending instead of replacing.
 func TestCommunityAttrModHandlerSet(t *testing.T) {
 	// Existing: communities 1:1 and 2:2
-	src := buildFullAttr(attribute.AttrCommunity, buildCommunityValues(0x0001_0001, 0x0002_0002))
+	src := buildFullCommunityAttr(buildCommunityValues(0x0001_0001, 0x0002_0002))
 
 	// Set to 3:3 only (replaces everything).
 	setBuf := make([]byte, 4)
