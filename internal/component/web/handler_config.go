@@ -128,25 +128,38 @@ func HandleConfigSet(mgr *EditorManager, schema *config.Schema, renderer *Render
 
 		value := r.FormValue("value")
 
-		// For boolean leaves, normalize to "true"/"false".
-		// Toggle buttons send value=true/false explicitly.
-		// HTML checkboxes send the field only when checked (legacy path).
-		if isBoolLeaf(schema, path, leaf) {
-			if value == boolTrue || value == "1" || value == "on" {
-				value = boolTrue
-			} else {
-				value = boolFalse
+		// __default__ means "delete this leaf, revert to YANG default".
+		if value == "__default__" {
+			if err := mgr.DeleteValue(username, path, leaf); err != nil {
+				errPath := strings.Join(append(path, leaf), "/")
+				if renderer != nil {
+					WriteOOBError(w, renderer, errPath, err.Error(), http.StatusBadRequest)
+				} else {
+					http.Error(w, fmt.Sprintf("delete value: %v", err), http.StatusBadRequest)
+				}
+				return
 			}
-		}
+		} else {
+			// For boolean leaves, normalize to "true"/"false".
+			// Toggle buttons send value=true/false explicitly.
+			// HTML checkboxes send the field only when checked (legacy path).
+			if isBoolLeaf(schema, path, leaf) {
+				if value == boolTrue || value == "1" || value == "on" {
+					value = boolTrue
+				} else {
+					value = boolFalse
+				}
+			}
 
-		if err := mgr.SetValue(username, path, leaf, value); err != nil {
-			errPath := strings.Join(append(path, leaf), "/")
-			if renderer != nil {
-				WriteOOBError(w, renderer, errPath, err.Error(), http.StatusBadRequest)
-			} else {
-				http.Error(w, fmt.Sprintf("set value: %v", err), http.StatusBadRequest)
+			if err := mgr.SetValue(username, path, leaf, value); err != nil {
+				errPath := strings.Join(append(path, leaf), "/")
+				if renderer != nil {
+					WriteOOBError(w, renderer, errPath, err.Error(), http.StatusBadRequest)
+				} else {
+					http.Error(w, fmt.Sprintf("set value: %v", err), http.StatusBadRequest)
+				}
+				return
 			}
-			return
 		}
 
 		// HTMX/AJAX requests: return OOB commit bar with change count.

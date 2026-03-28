@@ -509,6 +509,19 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   border-color: var(--success);
 }
 
+.ze-toggle-off {
+  color: var(--error);
+  background: var(--error-subtle, var(--bg-inset));
+  border-color: var(--error);
+}
+
+.ze-toggle-default {
+  color: var(--text-muted);
+  background: var(--bg-inset);
+  border-color: var(--border);
+  font-style: italic;
+}
+
 .ze-field-btn {
   padding: 0.3rem 0.75rem;
   font-size: 0.8rem;
