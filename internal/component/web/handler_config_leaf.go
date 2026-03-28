@@ -15,7 +15,7 @@ import (
 // /show/<path-up-to-here>/.
 func buildBreadcrumbs(path []string) []BreadcrumbSegment {
 	crumbs := make([]BreadcrumbSegment, 0, 1+len(path))
-	crumbs = append(crumbs, BreadcrumbSegment{Name: "/", URL: "/show/", Active: len(path) == 0})
+	crumbs = append(crumbs, BreadcrumbSegment{Name: "ze", URL: "/show/", Active: len(path) == 0})
 
 	for i, seg := range path {
 		url := "/show/" + strings.Join(path[:i+1], "/") + "/"

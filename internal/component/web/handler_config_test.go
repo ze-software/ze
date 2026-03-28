@@ -149,7 +149,7 @@ func TestBuildBreadcrumbs(t *testing.T) {
 	require.Len(t, segments, 4, "root + 3 path segments")
 
 	// Root segment.
-	assert.Equal(t, "/", segments[0].Name)
+	assert.Equal(t, "ze", segments[0].Name)
 	assert.Equal(t, "/show/", segments[0].URL)
 	assert.False(t, segments[0].Active)
 
@@ -178,7 +178,7 @@ func TestBreadcrumbRoot(t *testing.T) {
 
 	require.Len(t, segments, 1, "root only")
 
-	assert.Equal(t, "/", segments[0].Name)
+	assert.Equal(t, "ze", segments[0].Name)
 	assert.Equal(t, "/show/", segments[0].URL)
 	assert.True(t, segments[0].Active, "root is active when it is the only segment")
 }
