@@ -359,7 +359,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			attrsWire, _ := wireUpdate.Attrs()
 			updateText := FormatAttrsForFilter(attrsWire, nil)
 			action, _ := PolicyFilterChain(filters, "import", peerAddr.String(), peerInfo.PeerAS,
-				updateText, r.policyFilterFunc(),
+				updateText, r.policyFilterFunc(wireUpdate.Payload()),
 			)
 			if action == PolicyReject {
 				return false // Route rejected by policy filter; don't cache or dispatch.

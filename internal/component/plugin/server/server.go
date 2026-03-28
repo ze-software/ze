@@ -302,6 +302,29 @@ func (s *Server) FilterOnError(pluginName, filterName string) string {
 	return FilterOnErrorReject
 }
 
+// FilterInfo returns declaration info for a named filter: declared attributes and raw flag.
+// Returns nil attributes and false if the plugin or filter is not found.
+func (s *Server) FilterInfo(pluginName, filterName string) (declaredAttrs []string, raw bool) {
+	pm := s.procManager.Load()
+	if pm == nil {
+		return nil, false
+	}
+	proc := pm.GetProcess(pluginName)
+	if proc == nil {
+		return nil, false
+	}
+	reg := proc.Registration()
+	if reg == nil {
+		return nil, false
+	}
+	for _, f := range reg.Filters {
+		if f.Name == filterName {
+			return f.Attributes, f.Raw
+		}
+	}
+	return nil, false
+}
+
 // Running returns true if the server is running.
 func (s *Server) Running() bool {
 	return s.running.Load()

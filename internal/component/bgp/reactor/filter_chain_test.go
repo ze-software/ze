@@ -183,3 +183,60 @@ func TestApplyFilterDelta(t *testing.T) {
 		})
 	}
 }
+
+// TestValidateModifyDelta verifies declared attribute enforcement.
+//
+// VALIDATES: AC-13 -- Filter modifying undeclared attribute is rejected.
+// PREVENTS: Plugin modifying attributes it didn't declare interest in.
+func TestValidateModifyDelta(t *testing.T) {
+	tests := []struct {
+		name     string
+		delta    string
+		declared []string
+		wantViol string
+	}{
+		{
+			name:     "valid modify of declared attr",
+			delta:    "local-preference 200",
+			declared: []string{"local-preference", "community"},
+			wantViol: "",
+		},
+		{
+			name:     "modify undeclared attr",
+			delta:    "community 65000:1",
+			declared: []string{"local-preference"},
+			wantViol: "community",
+		},
+		{
+			name:     "empty delta is valid",
+			delta:    "",
+			declared: []string{"local-preference"},
+			wantViol: "",
+		},
+		{
+			name:     "empty declared list rejects any modify",
+			delta:    "community 65000:1",
+			declared: nil,
+			wantViol: "community", // empty declared = all modifications invalid (caller skips validation when declared is empty)
+		},
+		{
+			name:     "nlri modification when declared",
+			delta:    "nlri ipv4/unicast add 10.0.0.0/24",
+			declared: []string{"nlri"},
+			wantViol: "",
+		},
+		{
+			name:     "nlri modification when not declared",
+			delta:    "nlri ipv4/unicast add 10.0.0.0/24",
+			declared: []string{"local-preference"},
+			wantViol: "nlri",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := validateModifyDelta(tt.delta, tt.declared)
+			assert.Equal(t, tt.wantViol, got)
+		})
+	}
+}

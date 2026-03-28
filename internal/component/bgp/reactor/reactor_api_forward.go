@@ -286,7 +286,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 			attrsWire, _ := update.WireUpdate.Attrs()
 			updateText := FormatAttrsForFilter(attrsWire, nil)
 			action, _ := PolicyFilterChain(exportFilters, "export", peer.Settings().Address.String(), peer.Settings().PeerAS,
-				updateText, a.r.policyFilterFunc(),
+				updateText, a.r.policyFilterFunc(update.WireUpdate.Payload()),
 			)
 			if action == PolicyReject {
 				continue // Route suppressed by policy export filter for this peer.

@@ -198,11 +198,22 @@ const policyFilterTimeout = 5 * time.Second
 
 // policyFilterFunc returns a PolicyFilterFunc that calls external plugins via IPC.
 // The reactor's API server is used to look up plugin connections.
-func (r *Reactor) policyFilterFunc() PolicyFilterFunc {
+// rawPayload is the raw UPDATE body bytes for AC-15 (raw mode) - may be nil.
+// Implements AC-13 (reject modify of undeclared attributes) and AC-15 (raw mode).
+func (r *Reactor) policyFilterFunc(rawPayload []byte) PolicyFilterFunc {
 	return func(pluginName, filterName, direction, peer string, peerAS uint32, updateText string) PolicyResponse {
 		if r.api == nil {
 			reactorLogger().Warn("policy filter: no API server", "plugin", pluginName, "filter", filterName)
 			return PolicyResponse{Action: PolicyReject} // fail-closed
+		}
+
+		// Look up filter declaration for AC-13 (attribute validation) and AC-15 (raw mode).
+		declaredAttrs, wantsRaw := r.api.FilterInfo(pluginName, filterName)
+
+		// AC-15: If filter declared raw=true, include hex-encoded raw UPDATE body.
+		var rawHex string
+		if wantsRaw && len(rawPayload) > 0 {
+			rawHex = fmt.Sprintf("%X", rawPayload)
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), policyFilterTimeout)
@@ -214,6 +225,7 @@ func (r *Reactor) policyFilterFunc() PolicyFilterFunc {
 			Peer:      peer,
 			PeerAS:    peerAS,
 			Update:    updateText,
+			Raw:       rawHex,
 		}
 
 		out, err := r.api.CallFilterUpdate(ctx, pluginName, input)
@@ -232,8 +244,36 @@ func (r *Reactor) policyFilterFunc() PolicyFilterFunc {
 			return PolicyResponse{Action: PolicyReject} // fail-closed on invalid response
 		}
 
+		// AC-13: Validate that modify delta only touches declared attributes.
+		if action == PolicyModify && len(declaredAttrs) > 0 && out.Update != "" {
+			if violation := validateModifyDelta(out.Update, declaredAttrs); violation != "" {
+				reactorLogger().Warn("policy filter: modify of undeclared attribute",
+					"plugin", pluginName, "filter", filterName, "violation", violation)
+				return PolicyResponse{Action: PolicyReject} // reject invalid modify
+			}
+		}
+
 		return PolicyResponse{Action: action, Delta: out.Update}
 	}
+}
+
+// validateModifyDelta checks that a modify delta only contains attributes
+// from the declared set. Returns the first violating attribute name, or "".
+func validateModifyDelta(delta string, declaredAttrs []string) string {
+	allowed := make(map[string]bool, len(declaredAttrs))
+	for _, a := range declaredAttrs {
+		allowed[a] = true
+	}
+
+	// Parse the delta to find which attributes it touches.
+	deltaAttrs := parseFilterAttrs(delta)
+	for key := range deltaAttrs {
+		if !allowed[key] {
+			return key
+		}
+	}
+
+	return ""
 }
 
 // parsePolicyAction converts a string action from the wire protocol to PolicyAction.
