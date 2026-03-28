@@ -118,9 +118,9 @@ func TestRenderLayout(t *testing.T) {
 		t.Error("output missing cli-input")
 	}
 
-	// Session indicator
-	if !strings.Contains(body, `class="session-indicator"`) {
-		t.Error("output missing session indicator when HasSession=true")
+	// Theme toggle
+	if !strings.Contains(body, `id="theme-toggle"`) {
+		t.Error("output missing theme toggle button")
 	}
 
 	// Content-Type header

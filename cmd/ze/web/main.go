@@ -169,7 +169,7 @@ func Run(args []string) int {
 	}
 
 	// Handlers.
-	fragmentHandler := zeweb.HandleFragment(renderer, schema, tree)
+	fragmentHandler := zeweb.HandleFragment(renderer, schema, tree, *insecure)
 	setHandler := zeweb.HandleConfigSet(editorMgr, schema, renderer)
 	commitHandler := zeweb.HandleConfigCommit(editorMgr, renderer, broker)
 	discardHandler := zeweb.HandleConfigDiscard(editorMgr)

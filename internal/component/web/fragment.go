@@ -96,16 +96,22 @@ type FragmentData struct {
 	Breadcrumbs []BreadcrumbSegment
 	// HasSession is true when an authenticated session exists (for breadcrumb template).
 	HasSession bool
+	// Username is the authenticated user's name (for display in breadcrumb).
+	Username string
+	// Insecure is true when --insecure-web mode is active.
+	Insecure bool
 }
 
 // HandleFragment returns an HTTP handler that serves HTMX fragments.
 // A full page request renders the layout with all fragments embedded.
 // An HTMX request (HX-Request header) returns only the requested fragment
 // with out-of-band swaps for sidebar and breadcrumb.
-func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree) http.HandlerFunc {
+func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree, insecure bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		path := extractPath(r)
 		data := buildFragmentData(schema, tree, path)
+		data.Username = GetUsernameFromRequest(r)
+		data.Insecure = insecure
 
 		// HTMX partial request: render OOB response via template.
 		if r.Header.Get("HX-Request") == "true" {
@@ -132,6 +138,8 @@ func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree
 			HasSession:  true,
 			CLIPrompt:   prompt,
 			Breadcrumbs: data.Breadcrumbs,
+			Username:    data.Username,
+			Insecure:    insecure,
 		}
 
 		if err := renderer.RenderLayout(w, layoutData); err != nil {

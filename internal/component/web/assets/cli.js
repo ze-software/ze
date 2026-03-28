@@ -281,6 +281,12 @@
       } else if (action === 'dismiss-login') {
         var overlay = document.getElementById('login-overlay');
         if (overlay) overlay.remove();
+      } else if (action === 'toggle-theme') {
+        var html = document.documentElement;
+        var current = html.getAttribute('data-theme');
+        var next = current === 'light' ? 'dark' : 'light';
+        html.setAttribute('data-theme', next);
+        try { localStorage.setItem('ze-theme', next); } catch(_) {}
       }
     });
 
@@ -296,7 +302,16 @@
     });
   }
 
+  // Restore saved theme preference.
+  function initTheme() {
+    try {
+      var saved = localStorage.getItem('ze-theme');
+      if (saved) document.documentElement.setAttribute('data-theme', saved);
+    } catch(_) {}
+  }
+
   document.addEventListener('DOMContentLoaded', function() {
+    initTheme();
     init();
     initViewToggle();
     initSSE();

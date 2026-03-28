@@ -33,6 +33,35 @@
   --radius-sm: 3px;
 }
 
+/* --- Light mode --- */
+[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f8fa;
+  --bg-surface: #f0f2f5;
+  --bg-inset: #e8eaed;
+  --text-primary: #1f2328;
+  --text-secondary: #656d76;
+  --text-muted: #8b949e;
+  --accent: #0969da;
+  --accent-hover: #0550ae;
+  --accent-subtle: rgba(9, 105, 218, 0.1);
+  --border: #d0d7de;
+  --border-focus: #0969da;
+  --input-bg: #ffffff;
+  --success: #1a7f37;
+  --success-subtle: rgba(26, 127, 55, 0.1);
+  --warning: #9a6700;
+  --warning-subtle: rgba(154, 103, 0, 0.1);
+  --error: #cf222e;
+  --error-subtle: rgba(207, 34, 46, 0.1);
+  --diff-add: #dafbe1;
+  --diff-add-text: #1a7f37;
+  --diff-del: #ffebe9;
+  --diff-del-text: #cf222e;
+  --diff-change: #fff8c5;
+  --diff-change-text: #9a6700;
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -130,6 +159,40 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.user-badge {
+  padding: 0.15rem 0.5rem;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.user-insecure {
+  color: var(--error);
+  background: var(--error-subtle);
+  border-color: var(--error);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.theme-toggle {
+  padding: 0.15rem 0.4rem;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--text-muted);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.theme-toggle:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
 }
 
 .view-toggle {

@@ -10,7 +10,10 @@
   </ol>
 </div>
 <div class="breadcrumb-actions">
-  {{if .HasSession}}<span class="session-indicator" title="Authenticated session"></span>{{end}}
+  {{if .Insecure}}<span class="user-badge user-insecure">NOT SECURED</span>
+  {{else if .Username}}<span class="user-badge">{{.Username}}</span>
+  {{end}}
+  <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode" data-action="toggle-theme">&#9681;</button>
   <button class="view-toggle" id="view-toggle" title="Switch to text/CLI view">CLI</button>
 </div>
 {{end}}

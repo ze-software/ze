@@ -37,6 +37,8 @@ type LayoutData struct {
 	NotificationHTML template.HTML
 	CLIPrompt        string
 	HasSession       bool
+	Username         string
+	Insecure         bool
 }
 
 // LoginData holds the data passed to the login template.

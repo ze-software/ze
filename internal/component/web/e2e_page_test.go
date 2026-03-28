@@ -18,7 +18,7 @@ func TestE2E_FragmentHandlerRendersHTMX(t *testing.T) {
 	schema := config.YANGSchema()
 	tree := config.NewTree()
 
-	handler := HandleFragment(renderer, schema, tree)
+	handler := HandleFragment(renderer, schema, tree, false)
 
 	// Full page request to /show/ (root)
 	req := httptest.NewRequest(http.MethodGet, "/show/", http.NoBody)
