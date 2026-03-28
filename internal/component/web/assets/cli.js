@@ -312,30 +312,30 @@
       var yesLabel = labels[0];
       var noLabel = labels[1];
 
+      // Determine default color class from data-default attribute.
+      var yangDefault = track.getAttribute('data-default') || '';
+      var defaultColorClass = '';
+      if (yangDefault === 'true') defaultColorClass = ' ze-tristate-default-yes';
+      else if (yangDefault === 'false') defaultColorClass = ' ze-tristate-default-no';
+
       // Determine current state from CSS class and cycle.
-      if (track.classList.contains('ze-tristate-default')) {
+      if (track.className.indexOf('ze-tristate-default') >= 0) {
         // default -> yes
-        track.classList.remove('ze-tristate-default');
-        track.classList.add('ze-tristate-yes');
+        track.className = 'ze-tristate-track ze-tristate-yes';
         if (yesLabel) yesLabel.classList.add('ze-tristate-active');
         if (noLabel) noLabel.classList.remove('ze-tristate-active');
-        // Next click sends false
         updateHxVals(track, 'false');
       } else if (track.classList.contains('ze-tristate-yes')) {
         // yes -> no
-        track.classList.remove('ze-tristate-yes');
-        track.classList.add('ze-tristate-no');
+        track.className = 'ze-tristate-track ze-tristate-no';
         if (yesLabel) yesLabel.classList.remove('ze-tristate-active');
         if (noLabel) noLabel.classList.add('ze-tristate-active');
-        // Next click sends __default__
         updateHxVals(track, '__default__');
       } else if (track.classList.contains('ze-tristate-no')) {
-        // no -> default
-        track.classList.remove('ze-tristate-no');
-        track.classList.add('ze-tristate-default');
+        // no -> default (with YANG default color hint)
+        track.className = 'ze-tristate-track ze-tristate-default' + defaultColorClass;
         if (yesLabel) yesLabel.classList.remove('ze-tristate-active');
         if (noLabel) noLabel.classList.remove('ze-tristate-active');
-        // Next click sends true
         updateHxVals(track, 'true');
       }
 

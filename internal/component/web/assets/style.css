@@ -530,9 +530,9 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   transition: left 0.2s, background 0.2s;
 }
 
-/* Thumb positions: yes=right, default=center, no=left */
+/* Thumb positions: yes=left (green), default=center, no=right (red) */
 .ze-tristate-yes .ze-tristate-thumb {
-  left: calc(100% - 0.85rem - 2px);
+  left: 2px;
   background: var(--success);
 }
 
@@ -546,8 +546,12 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   background: var(--text-muted);
 }
 
+.ze-tristate-default-yes .ze-tristate-thumb { background: var(--success); }
+
+.ze-tristate-default-no .ze-tristate-thumb { background: var(--error); }
+
 .ze-tristate-no .ze-tristate-thumb {
-  left: 2px;
+  left: calc(100% - 0.85rem - 2px);
   background: var(--error);
 }
 
