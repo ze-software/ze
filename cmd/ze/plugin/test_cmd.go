@@ -94,9 +94,9 @@ Examples:
 	// Show schema if requested
 	if *showSchema {
 		fmt.Println("📋 Schema capability fields:")
-		schema := config.YANGSchemaWithPlugins(pluginYANG)
-		if schema == nil {
-			fmt.Fprintf(os.Stderr, "error: failed to load YANG schema\n")
+		schema, schemaErr := config.YANGSchemaWithPlugins(pluginYANG)
+		if schemaErr != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", schemaErr)
 			return 1
 		}
 
@@ -112,9 +112,9 @@ Examples:
 	}
 
 	// Parse config with plugin YANG
-	schema := config.YANGSchemaWithPlugins(pluginYANG)
-	if schema == nil {
-		fmt.Fprintf(os.Stderr, "error: failed to load YANG schema\n")
+	schema, schemaErr := config.YANGSchemaWithPlugins(pluginYANG)
+	if schemaErr != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", schemaErr)
 		return 1
 	}
 

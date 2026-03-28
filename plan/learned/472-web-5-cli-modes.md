@@ -1,4 +1,4 @@
-# 443 -- CLI Modes (Bar and Terminal)
+# 472 -- CLI Modes (Bar and Terminal)
 
 ## Context
 Not all users prefer GUI forms. The web interface needed a CLI escape hatch -- a persistent input bar accepting the same command grammar as the SSH CLI. Two modes: integrated (commands drive the GUI) and terminal (full text CLI over HTTPS replacing the content area).

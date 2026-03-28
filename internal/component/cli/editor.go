@@ -75,9 +75,9 @@ func NewEditorWithStorage(store storage.Storage, configPath string) (*Editor, er
 	content := string(data)
 
 	// Parse config into tree using YANG-derived schema
-	schema := config.YANGSchema()
-	if schema == nil {
-		return nil, fmt.Errorf("failed to load YANG schema")
+	schema, err := config.YANGSchema()
+	if err != nil {
+		return nil, fmt.Errorf("YANG schema: %w", err)
 	}
 	parser := config.NewParser(schema)
 	tree, err := parser.Parse(content)

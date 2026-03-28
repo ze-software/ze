@@ -679,8 +679,8 @@ func TestPreviousQuoteEscapeRoundTrip(t *testing.T) {
 // VALIDATES: ParseInlineArgs builds correct Tree from flat token sequence.
 // PREVENTS: Schema-driven parsing silently dropping or misplacing values.
 func TestParseInlineArgs(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, schemaErr := YANGSchema()
+	require.NoError(t, schemaErr)
 
 	peerNode, err := schema.Lookup("bgp.peer")
 	require.NoError(t, err)
@@ -716,8 +716,8 @@ func TestParseInlineArgs(t *testing.T) {
 // VALIDATES: ParseInlineArgs handles NodeList (key + field + value).
 // PREVENTS: List-type YANG nodes rejected as unsupported.
 func TestParseInlineArgsListNode(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, schemaErr := YANGSchema()
+	require.NoError(t, schemaErr)
 
 	peerNode, err := schema.Lookup("bgp.peer")
 	require.NoError(t, err)
@@ -743,8 +743,8 @@ func TestParseInlineArgsListNode(t *testing.T) {
 // VALIDATES: ParseInlineArgs rejects keys not in the schema.
 // PREVENTS: Typos silently accepted.
 func TestParseInlineArgsUnknownKey(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, schemaErr := YANGSchema()
+	require.NoError(t, schemaErr)
 
 	peerNode, err := schema.Lookup("bgp.peer")
 	require.NoError(t, err)

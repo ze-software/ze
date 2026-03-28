@@ -15,7 +15,10 @@ func TestE2E_FragmentHandlerRendersHTMX(t *testing.T) {
 		t.Fatalf("NewRenderer: %v", err)
 	}
 
-	schema := config.YANGSchema()
+	schema, schemaErr := config.YANGSchema()
+	if schemaErr != nil {
+		t.Fatal(schemaErr)
+	}
 	tree := config.NewTree()
 
 	handler := HandleFragment(renderer, schema, tree, nil, false)

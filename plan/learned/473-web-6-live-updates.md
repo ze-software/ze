@@ -1,4 +1,4 @@
-# 444 -- SSE Live Updates
+# 473 -- SSE Live Updates
 
 ## Context
 When one user commits config changes, other web sessions need to know without polling. Server-Sent Events (SSE) push notifications to all connected browsers. The chaos dashboard already proved the SSE + HTMX pattern works in Ze.

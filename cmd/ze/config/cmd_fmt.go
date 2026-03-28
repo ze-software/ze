@@ -19,9 +19,9 @@ var ErrOldConfig = errors.New("config needs migration")
 // ConfigFmtBytes formats config bytes and returns formatted output and whether changes were made.
 // Exported for testing.
 func ConfigFmtBytes(input []byte) (string, bool, error) {
-	schema := config.YANGSchema()
-	if schema == nil {
-		return "", false, fmt.Errorf("failed to load YANG schema")
+	schema, err := config.YANGSchema()
+	if err != nil {
+		return "", false, fmt.Errorf("YANG schema: %w", err)
 	}
 	p := config.NewParser(schema)
 	tree, err := p.Parse(string(input))
@@ -84,9 +84,9 @@ Examples:
 		return exitError
 	}
 
-	schema := config.YANGSchema()
-	if schema == nil {
-		fmt.Fprintf(os.Stderr, "error: failed to load YANG schema\n")
+	schema, err := config.YANGSchema()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}
 	p := config.NewParser(schema)

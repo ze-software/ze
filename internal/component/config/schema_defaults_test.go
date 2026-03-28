@@ -166,9 +166,9 @@ func TestSchemaDefaultInt_Parsing(t *testing.T) {
 // VALIDATES: YANG augments for api, chaos, etc. are resolved into the environment container.
 // PREVENTS: Missing environment sections due to YANG parse errors.
 func TestEnvironmentSchemaChildren(t *testing.T) {
-	schema := YANGSchema()
-	if schema == nil {
-		t.Skip("YANG schema not available")
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
 	}
 	env := schema.Get("environment")
 	require.NotNil(t, env, "environment node must exist")
@@ -190,9 +190,9 @@ func TestEnvironmentSchemaChildren(t *testing.T) {
 // VALIDATES: YANG schema has RFC-compliant default values.
 // PREVENTS: Drift between YANG declarations and RFC requirements.
 func TestYANGDefaultsMatchRFC(t *testing.T) {
-	schema := YANGSchema()
-	if schema == nil {
-		t.Skip("YANG schema not available")
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	tests := []struct {

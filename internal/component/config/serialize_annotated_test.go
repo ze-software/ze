@@ -19,7 +19,8 @@ func testAnnotatedTime() time.Time {
 // Meta: router-id has user=thomas, source=local, time=testTime.
 func buildSimpleTreeWithMeta(t *testing.T) (*Tree, *MetaTree, *Schema) {
 	t.Helper()
-	schema := YANGSchema()
+	schema, schemaErr := YANGSchema()
+	require.NoError(t, schemaErr)
 	parser := NewParser(schema)
 	tree, err := parser.Parse("bgp { router-id 1.2.3.4; }")
 	require.NoError(t, err)
@@ -38,7 +39,8 @@ func buildSimpleTreeWithMeta(t *testing.T) (*Tree, *MetaTree, *Schema) {
 // buildMultiLeafTreeWithMeta creates a tree with multiple leaves for alignment testing.
 func buildMultiLeafTreeWithMeta(t *testing.T) (*Tree, *MetaTree, *Schema) {
 	t.Helper()
-	schema := YANGSchema()
+	schema, schemaErr := YANGSchema()
+	require.NoError(t, schemaErr)
 	parser := NewParser(schema)
 	tree, err := parser.Parse(`bgp {
   router-id 1.2.3.4;
@@ -161,7 +163,8 @@ func TestSerializeAnnotatedSet(t *testing.T) {
 // VALIDATES: Lines without metadata get blank padding to maintain column alignment.
 // PREVENTS: Misaligned output when some lines have metadata and others don't.
 func TestSerializeAnnotatedTreeNoMeta(t *testing.T) {
-	schema := YANGSchema()
+	schema, schemaErr := YANGSchema()
+	require.NoError(t, schemaErr)
 	parser := NewParser(schema)
 	tree, err := parser.Parse("bgp { router-id 1.2.3.4; }")
 	require.NoError(t, err)
@@ -261,7 +264,8 @@ func TestSerializeAnnotatedTreeNoColumns(t *testing.T) {
 // VALIDATES: Username longer than 14 chars is truncated to fit fixed-width column.
 // PREVENTS: Jagged gutter with long usernames.
 func TestAnnotatedAuthorTruncation(t *testing.T) {
-	schema := YANGSchema()
+	schema, schemaErr := YANGSchema()
+	require.NoError(t, schemaErr)
 	parser := NewParser(schema)
 	tree, err := parser.Parse("bgp { router-id 1.2.3.4; }")
 	require.NoError(t, err)
@@ -285,7 +289,8 @@ func TestAnnotatedAuthorTruncation(t *testing.T) {
 // VALIDATES: Nil safety for all public annotated serializer functions.
 // PREVENTS: Nil pointer dereference when called with missing data.
 func TestSerializeAnnotatedNilInputs(t *testing.T) {
-	schema := YANGSchema()
+	schema, schemaErr := YANGSchema()
+	require.NoError(t, schemaErr)
 	tree := NewTree()
 
 	assert.Equal(t, "", SerializeAnnotatedTree(nil, nil, schema, ShowColumns{Author: true}))

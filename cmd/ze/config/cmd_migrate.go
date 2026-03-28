@@ -130,7 +130,13 @@ func cmdMigrateDryRun(configPath string) int {
 
 	content := string(data)
 
-	p := config.NewParser(config.YANGSchema())
+	schema, err := config.YANGSchema()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return exitError
+	}
+
+	p := config.NewParser(schema)
 	tree, err := p.Parse(content)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: parse error: %v\n", err)
@@ -257,9 +263,9 @@ func configMigrateWithWarnings(inputPath, outputPath, outputFormat string) (stri
 	content := string(data)
 
 	// Parse any format: auto-detect and use the appropriate parser.
-	schema := config.YANGSchema()
-	if schema == nil {
-		return "", nil, nil, fmt.Errorf("failed to load YANG schema")
+	schema, err := config.YANGSchema()
+	if err != nil {
+		return "", nil, nil, fmt.Errorf("YANG schema: %w", err)
 	}
 
 	sourceFormat := config.DetectFormat(content)

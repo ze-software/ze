@@ -70,13 +70,14 @@ func normalizeListenAddr(addr string, defaultPort int) string {
 func parseTreeWithYANG(input string, pluginYANG map[string]string) (*config.Tree, error) {
 	// Parse input using YANG-derived schema with plugin augmentations
 	var schema *config.Schema
+	var schemaErr error
 	if len(pluginYANG) > 0 {
-		schema = config.YANGSchemaWithPlugins(pluginYANG)
+		schema, schemaErr = config.YANGSchemaWithPlugins(pluginYANG)
 	} else {
-		schema = config.YANGSchema()
+		schema, schemaErr = config.YANGSchema()
 	}
-	if schema == nil {
-		return nil, fmt.Errorf("failed to load YANG schema")
+	if schemaErr != nil {
+		return nil, fmt.Errorf("YANG schema: %w", schemaErr)
 	}
 	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
@@ -282,7 +283,7 @@ func LoadReactorFileWithPlugins(store storage.Storage, path string, cliPlugins [
 	}
 
 	// Wire YANG validator for runtime attribute validation (origin enum, med/local-pref ranges)
-	if v := config.YANGValidatorWithPlugins(pluginYANG); v != nil {
+	if v, vErr := config.YANGValidatorWithPlugins(pluginYANG); vErr == nil && v != nil {
 		plugin.SetYANGValidator(v)
 	}
 
@@ -713,9 +714,9 @@ func createReloadFunc(store storage.Storage) reactor.ReloadFunc {
 		}
 
 		// Parse the config using YANG-derived schema.
-		schema := config.YANGSchema()
-		if schema == nil {
-			return nil, fmt.Errorf("failed to load YANG schema")
+		schema, err := config.YANGSchema()
+		if err != nil {
+			return nil, fmt.Errorf("YANG schema: %w", err)
 		}
 		p := config.NewParser(schema)
 		tree, err := p.Parse(string(data))

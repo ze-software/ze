@@ -97,8 +97,9 @@ func GetSchemaNode(path string) config.Node {
 		return node
 	}
 
-	schema := config.YANGSchema()
-	if schema == nil {
+	schema, err := config.YANGSchema()
+	if err != nil {
+		slog.Debug("YANG schema load failed", "error", err)
 		return nil
 	}
 	node, err := schema.Lookup(path)

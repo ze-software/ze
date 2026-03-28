@@ -5,6 +5,7 @@
 package config
 
 import (
+	"fmt"
 	"log/slog"
 	"sort"
 	"strings"
@@ -27,16 +28,16 @@ func sortedKeys(m map[string]*gyang.Entry) []string {
 // PluginOnlySchema returns a schema that only accepts plugin blocks.
 // Used for two-phase config parsing: first extract plugins, then parse full config.
 // This loads only the ze-plugin-conf.yang module.
-func PluginOnlySchema() *Schema {
+func PluginOnlySchema() (*Schema, error) {
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
-		return nil
+		return nil, fmt.Errorf("load embedded YANG: %w", err)
 	}
 	if err := loader.LoadRegistered(); err != nil {
-		return nil
+		return nil, fmt.Errorf("load registered YANG: %w", err)
 	}
 	if err := loader.Resolve(); err != nil {
-		return nil
+		return nil, fmt.Errorf("resolve YANG modules: %w", err)
 	}
 
 	schema := NewSchema()
@@ -53,48 +54,47 @@ func PluginOnlySchema() *Schema {
 		}
 	}
 
-	return schema
+	return schema, nil
 }
 
 // YANGSchema loads YANG and creates a schema from it.
 // Internal plugin schemas are loaded via init()-based registration (LoadRegistered).
-// Returns nil if YANG loading fails.
-func YANGSchema() *Schema {
+func YANGSchema() (*Schema, error) {
 	return YANGSchemaWithPlugins(nil)
 }
 
 // loadYANGModules creates a resolved YANG loader with all modules.
 // Shared by YANGSchemaWithPlugins and YANGValidatorWithPlugins.
-func loadYANGModules(pluginYANG map[string]string) *yang.Loader {
+func loadYANGModules(pluginYANG map[string]string) (*yang.Loader, error) {
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
-		return nil
+		return nil, fmt.Errorf("load embedded YANG: %w", err)
 	}
 	if err := loader.LoadRegistered(); err != nil {
-		return nil
+		return nil, fmt.Errorf("load registered YANG: %w", err)
 	}
 	// Load external plugin YANG modules not covered by init()-based registration.
 	// Skip duplicate modules — they may already be loaded via LoadRegistered().
 	for name, content := range pluginYANG {
 		if err := loader.AddModuleFromText(name, content); err != nil {
 			if !strings.Contains(err.Error(), "duplicate module") {
-				return nil
+				return nil, fmt.Errorf("add plugin YANG module %q: %w", name, err)
 			}
 		}
 	}
 	if err := loader.Resolve(); err != nil {
-		return nil
+		return nil, fmt.Errorf("resolve YANG modules: %w", err)
 	}
-	return loader
+	return loader, nil
 }
 
 // YANGValidatorWithPlugins creates a YANG value validator with all modules loaded.
 // Registers custom validators, attaches registry, and checks integrity.
 // Used for runtime attribute validation (origin enum, med/local-pref uint32 ranges).
-func YANGValidatorWithPlugins(pluginYANG map[string]string) *yang.Validator {
-	loader := loadYANGModules(pluginYANG)
-	if loader == nil {
-		return nil
+func YANGValidatorWithPlugins(pluginYANG map[string]string) (*yang.Validator, error) {
+	loader, err := loadYANGModules(pluginYANG)
+	if err != nil {
+		return nil, err
 	}
 
 	v := yang.NewValidator(loader)
@@ -109,16 +109,15 @@ func YANGValidatorWithPlugins(pluginYANG map[string]string) *yang.Validator {
 		slog.Error("YANG validator integrity check failed", "error", err)
 	}
 
-	return v
+	return v, nil
 }
 
 // YANGSchemaWithPlugins loads YANG with additional plugin modules.
 // pluginYANG maps module filename to YANG content.
-// Returns nil if YANG loading fails.
-func YANGSchemaWithPlugins(pluginYANG map[string]string) *Schema {
-	loader := loadYANGModules(pluginYANG)
-	if loader == nil {
-		return nil
+func YANGSchemaWithPlugins(pluginYANG map[string]string) (*Schema, error) {
+	loader, err := loadYANGModules(pluginYANG)
+	if err != nil {
+		return nil, err
 	}
 
 	schema := NewSchema()
@@ -207,7 +206,7 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) *Schema {
 		}
 	}
 
-	return schema
+	return schema, nil
 }
 
 // yangToNode converts a YANG entry to a schema node.

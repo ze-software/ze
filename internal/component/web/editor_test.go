@@ -34,8 +34,8 @@ func newTestEditorManager(t *testing.T) *EditorManager {
 	require.NoError(t, err, "writing test config")
 
 	store := storage.NewFilesystem()
-	schema := config.YANGSchema()
-	require.NotNil(t, schema, "YANG schema must load")
+	schema, schemaErr := config.YANGSchema()
+	require.NoError(t, schemaErr, "YANG schema must load")
 
 	return NewEditorManager(store, configPath, schema)
 }

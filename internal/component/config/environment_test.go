@@ -971,7 +971,11 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	schema, schemaErr := YANGSchema()
+	if schemaErr != nil {
+		t.Fatal(schemaErr)
+	}
+	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	if err != nil {
 		t.Fatalf("Parse error: %v", err)
@@ -1029,7 +1033,11 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	schema, schemaErr := YANGSchema()
+	if schemaErr != nil {
+		t.Fatal(schemaErr)
+	}
+	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	if err != nil {
 		t.Fatalf("Parse error: %v", err)
@@ -1067,7 +1075,11 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	schema, schemaErr := YANGSchema()
+	if schemaErr != nil {
+		t.Fatal(schemaErr)
+	}
+	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	if err != nil {
 		t.Fatalf("Parse error: %v", err)
@@ -1100,7 +1112,11 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	schema, schemaErr := YANGSchema()
+	if schemaErr != nil {
+		t.Fatal(schemaErr)
+	}
+	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	if err != nil {
 		t.Fatalf("Parse error: %v", err)
@@ -1147,7 +1163,11 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	schema, schemaErr := YANGSchema()
+	if schemaErr != nil {
+		t.Fatal(schemaErr)
+	}
+	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	if err != nil {
 		t.Fatalf("Parse error: %v", err)
@@ -1186,7 +1206,11 @@ bgp {
     }
 }
 `
-	p := NewParser(YANGSchema())
+	schema, schemaErr := YANGSchema()
+	if schemaErr != nil {
+		t.Fatal(schemaErr)
+	}
+	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	if err != nil {
 		t.Fatalf("Parse error: %v", err)

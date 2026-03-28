@@ -125,7 +125,11 @@ func Run(args []string) int {
 	}
 
 	// Load YANG schema for config tree navigation.
-	schema := zeconfig.YANGSchema()
+	schema, schemaErr := zeconfig.YANGSchema()
+	if schemaErr != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", schemaErr)
+		return 1
+	}
 	tree := zeconfig.NewTree()
 
 	// Use filesystem storage for standalone mode.
@@ -171,6 +175,7 @@ func Run(args []string) int {
 	// Handlers.
 	fragmentHandler := zeweb.HandleFragment(renderer, schema, tree, editorMgr, *insecure)
 	setHandler := zeweb.HandleConfigSet(editorMgr, schema, renderer)
+	deleteHandler := zeweb.HandleConfigDelete(editorMgr)
 	commitHandler := zeweb.HandleConfigCommit(editorMgr, renderer, broker)
 	discardHandler := zeweb.HandleConfigDiscard(editorMgr)
 	cliHandler := zeweb.HandleCLICommand(editorMgr, schema, renderer)
@@ -205,9 +210,10 @@ func Run(args []string) int {
 		}
 	})
 
-	// Admin command tree (view-only in standalone mode, no dispatcher).
+	// Admin command tree (nil dispatcher in standalone mode -- no BGP engine).
 	adminChildren := zeweb.BuildAdminCommandTree()
 	adminViewHandler := zeweb.HandleAdminView(renderer, adminChildren)
+	adminExecHandler := zeweb.HandleAdminExecute(renderer, nil)
 
 	// Register routes.
 	loginHandler := zeweb.LoginHandler(sessionStore, users, loginRenderer)
@@ -216,13 +222,20 @@ func Run(args []string) int {
 	srv.HandleFunc("POST /login", loginHandler)
 	srv.Handle("/assets/", assetHandler)
 	srv.Handle("/events", authWrap(broker))
-	srv.Handle("/admin/", authWrap(adminViewHandler))
+	srv.Handle("/admin/", authWrap(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			adminExecHandler(w, r)
+			return
+		}
+		adminViewHandler(w, r)
+	})))
 	srv.Handle("POST /cli", authWrap(cliHandler))
 	srv.Handle("/cli/complete", authWrap(completeHandler))
 	srv.Handle("POST /cli/terminal", authWrap(terminalHandler))
 	srv.Handle("POST /cli/mode", authWrap(modeHandler))
 	srv.Handle("/fragment/detail", authWrap(fragmentHandler))
 	srv.Handle("POST /config/set/", authWrap(setHandler))
+	srv.Handle("POST /config/delete/", authWrap(deleteHandler))
 	srv.Handle("/config/diff", authWrap(diffHandler))
 	srv.Handle("/config/diff-close", authWrap(diffCloseHandler))
 	srv.Handle("/config/commit", authWrap(commitHandler))

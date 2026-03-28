@@ -50,9 +50,9 @@ Options:
 		return 1
 	}
 
-	schema := config.YANGSchema()
-	if schema == nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to load YANG schema\n")
+	schema, err := config.YANGSchema()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 	p := config.NewParser(schema)

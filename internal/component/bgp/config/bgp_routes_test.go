@@ -30,8 +30,12 @@ bgp {
     }
 }
 `
-	p := config.NewParser(config.YANGSchema())
-	_, err := p.Parse(input)
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
+	_, err = p.Parse(input)
 	// YANG schema validates uint32, so error happens at parse time
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "med")
@@ -40,7 +44,7 @@ bgp {
 // TestNLRIListStorage verifies NLRI is stored as list entries keyed by family,
 // not as freeform container values.
 //
-// VALIDATES: Phase 10 — NLRI uses standard list with key="name", child "content".
+// VALIDATES: Phase 10 -- NLRI uses standard list with key="name", child "content".
 // PREVENTS: Regression to freeform storage.
 func TestNLRIListStorage(t *testing.T) {
 	input := `
@@ -62,7 +66,11 @@ bgp {
     }
 }
 `
-	p := config.NewParser(config.YANGSchema())
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -135,7 +143,11 @@ bgp {
     }
 }
 `
-			p := config.NewParser(config.YANGSchema())
+			schema, err := config.YANGSchema()
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := config.NewParser(schema)
 			tree, err := p.Parse(input)
 			require.NoError(t, err, "parse should succeed (freeform NLRI)")
 
@@ -185,8 +197,12 @@ bgp {
     }
 }
 `
-			p := config.NewParser(config.YANGSchema())
-			_, err := p.Parse(input)
+			schema, err := config.YANGSchema()
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := config.NewParser(schema)
+			_, err = p.Parse(input)
 			require.NoError(t, err, "expected no error for %s", tt.name)
 		})
 	}
@@ -214,8 +230,12 @@ bgp {
     }
 }
 `
-	p := config.NewParser(config.YANGSchema())
-	_, err := p.Parse(input)
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
+	_, err = p.Parse(input)
 	require.NoError(t, err, "multiple prefixes on one line should parse successfully")
 }
 
@@ -241,8 +261,12 @@ bgp {
     }
 }
 `
-	p := config.NewParser(config.YANGSchema())
-	_, err := p.Parse(input)
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
+	_, err = p.Parse(input)
 	require.NoError(t, err, "VPN route with add should parse successfully")
 }
 
@@ -268,8 +292,12 @@ bgp {
     }
 }
 `
-	p := config.NewParser(config.YANGSchema())
-	_, err := p.Parse(input)
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
+	_, err = p.Parse(input)
 	require.NoError(t, err, "FlowSpec route with add should parse successfully")
 }
 
@@ -307,8 +335,12 @@ bgp {
     }
 }
 `
-			p := config.NewParser(config.YANGSchema())
-			_, err := p.Parse(input)
+			schema, err := config.YANGSchema()
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := config.NewParser(schema)
+			_, err = p.Parse(input)
 			require.NoError(t, err, "expected no error for %s", tt.name)
 		})
 	}
@@ -358,7 +390,11 @@ bgp {
     }
 }
 `
-	p := config.NewParser(config.YANGSchema())
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err, "parse should succeed")
 

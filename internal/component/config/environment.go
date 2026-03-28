@@ -147,12 +147,10 @@ func LoadEnvironment() (*Environment, error) {
 // YANG sources: ze-hub-conf.yang (daemon, log) and ze-bgp-conf.yang augment (tcp, bgp, cache, api, reactor, chaos).
 // Returns error if any required YANG default is missing -- that is a schema bug.
 func (e *Environment) loadDefaults() error {
-	schema := YANGSchema()
-	if schema == nil {
-		return fmt.Errorf("YANG schema failed to load")
+	schema, err := YANGSchema()
+	if err != nil {
+		return fmt.Errorf("YANG schema: %w", err)
 	}
-
-	var err error
 
 	// Daemon (ze-hub-conf.yang > environment > daemon)
 	if e.Daemon.User, err = SchemaDefaultString(schema, "environment.daemon.user"); err != nil {

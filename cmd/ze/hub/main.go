@@ -45,7 +45,7 @@ var _ = env.MustRegister(env.EnvEntry{Key: "ze.ready.file", Type: "string", Desc
 // Used when ze start --web is called without a config.
 // listenAddr overrides the default "0.0.0.0:8443" when non-empty.
 func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int {
-	webSrv := startWebServer(store, listenAddr, insecureWeb)
+	webSrv := startWebServer(store, listenAddr, insecureWeb, nil)
 	if webSrv == nil {
 		return 1
 	}
@@ -258,7 +258,7 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 
 	// Start web server if --web flag was passed.
 	if webEnabled {
-		if webSrv := startWebServer(store, webListenAddr, insecureWeb); webSrv != nil {
+		if webSrv := startWebServer(store, webListenAddr, insecureWeb, reactor.ExecuteCommand); webSrv != nil {
 			defer func() {
 				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer shutdownCancel()
@@ -306,7 +306,7 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 // startWebServer creates and starts the web server with zefs credentials.
 // Returns the server on success, nil on failure (logged, non-fatal).
 // If the port is already in use, attempts to identify and kill the stale process.
-func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool) *zeweb.WebServer {
+func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, dispatch zeweb.CommandDispatcher) *zeweb.WebServer {
 	if listenAddr == "" {
 		listenAddr = "0.0.0.0:8443"
 	}
@@ -348,7 +348,11 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool) 
 	}
 
 	// Load YANG schema for config tree navigation.
-	schema := zeconfig.YANGSchema()
+	schema, schemaErr := zeconfig.YANGSchema()
+	if schemaErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: web server disabled: YANG schema: %v\n", schemaErr)
+		return nil
+	}
 	tree := zeconfig.NewTree()
 
 	// Ensure a config file exists for the editor.
@@ -375,8 +379,9 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool) 
 	// Fragment handler serves HTMX components for YANG tree navigation.
 	fragmentHandler := zeweb.HandleFragment(renderer, schema, tree, editorMgr, insecureWeb)
 
-	// Config set handler for editing leaf values.
+	// Config set and delete handlers for editing leaf values.
 	setHandler := zeweb.HandleConfigSet(editorMgr, schema, renderer)
+	deleteHandler := zeweb.HandleConfigDelete(editorMgr)
 
 	// SSE broker for live config change notifications.
 	broker := zeweb.NewEventBroker(0)
@@ -437,7 +442,7 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool) 
 	// Admin command tree for web UI.
 	adminChildren := zeweb.BuildAdminCommandTree()
 	adminViewHandler := zeweb.HandleAdminView(renderer, adminChildren)
-	adminExecHandler := zeweb.HandleAdminExecute(renderer, nil)
+	adminExecHandler := zeweb.HandleAdminExecute(renderer, dispatch)
 
 	srv.HandleFunc("POST /login", loginHandler)
 	srv.Handle("/assets/", assetHandler)
@@ -455,6 +460,7 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool) 
 	srv.Handle("POST /cli/mode", authWrap(modeHandler))
 	srv.Handle("/fragment/detail", authWrap(fragmentHandler))
 	srv.Handle("POST /config/set/", authWrap(setHandler))
+	srv.Handle("POST /config/delete/", authWrap(deleteHandler))
 	srv.Handle("/config/diff", authWrap(diffHandler))
 	srv.Handle("/config/diff-close", authWrap(diffCloseHandler))
 	srv.Handle("/config/commit", authWrap(commitHandler))

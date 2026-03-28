@@ -71,9 +71,9 @@ Examples:
 		return exitError
 	}
 
-	schema := config.YANGSchema()
-	if schema == nil {
-		fmt.Fprintf(os.Stderr, "error: failed to load YANG schema\n")
+	schema, err := config.YANGSchema()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}
 

@@ -164,11 +164,11 @@ func runValidation(input, path string) *validationResult {
 	}
 
 	// Parse with YANG-derived schema.
-	schema := config.YANGSchema()
-	if schema == nil {
+	schema, err := config.YANGSchema()
+	if err != nil {
 		result.Valid = false
 		result.Errors = append(result.Errors, validationError{
-			Message: "failed to load YANG schema",
+			Message: fmt.Sprintf("YANG schema: %v", err),
 		})
 		return result
 	}

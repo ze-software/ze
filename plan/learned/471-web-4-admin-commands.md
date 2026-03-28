@@ -1,4 +1,4 @@
-# 442 -- Admin/Operational Commands
+# 471 -- Admin/Operational Commands
 
 ## Context
 The web interface needed a way to execute operational commands (peer teardown, rib clear, daemon shutdown) alongside config editing. These are admin-tier mutations under `/admin/` -- distinct from view-tier reads (`/show/`, `/monitor/`) and config-tier edits (`/config/`).

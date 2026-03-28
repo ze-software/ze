@@ -176,8 +176,8 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 // This makes YANG the single source of truth for defaults (RFC hold-time, port, etc.)
 // instead of duplicating them as Go constants in NewPeerSettings.
 func applyPeerSchemaDefaults(bgpTree map[string]any) {
-	schema := config.YANGSchema()
-	if schema == nil {
+	schema, err := config.YANGSchema()
+	if err != nil {
 		return
 	}
 	// Navigate to the peer ListNode in the schema (bgp > peer).

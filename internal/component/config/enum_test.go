@@ -13,8 +13,8 @@ import (
 // VALIDATES: yangToLeaf extracts inline enum values from YANG leaf.
 // PREVENTS: Inline enums silently dropped, leaving empty Enums slice.
 func TestInlineEnumExtraction(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, err := YANGSchema()
+	require.NoError(t, err)
 
 	bgpNode := schema.Get("bgp")
 	require.NotNil(t, bgpNode, "bgp must exist in schema")
@@ -56,8 +56,8 @@ func TestInlineEnumExtraction(t *testing.T) {
 // VALIDATES: yangToLeaf extracts typedef enum values after goyang resolution.
 // PREVENTS: Typedef enums not resolved, leaving empty Enums slice.
 func TestTypedefEnumExtraction(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, err := YANGSchema()
+	require.NoError(t, err)
 
 	bgpNode := schema.Get("bgp")
 	require.NotNil(t, bgpNode, "bgp must exist in schema")

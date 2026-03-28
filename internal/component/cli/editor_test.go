@@ -925,7 +925,8 @@ func TestEditorSerializeRoundtrip(t *testing.T) {
 	content := ed.WorkingContent()
 
 	// Parse again
-	schema := config.YANGSchema()
+	schema, schemaErr := config.YANGSchema()
+	require.NoError(t, schemaErr)
 	parser := config.NewParser(schema)
 	tree2, err := parser.Parse(content)
 	require.NoError(t, err, "serialized content should be parseable")
@@ -1064,7 +1065,8 @@ func TestSerializationRoundTrip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			schema := config.YANGSchema()
+			schema, schemaErr := config.YANGSchema()
+			require.NoError(t, schemaErr)
 			require.NotNil(t, schema)
 
 			parser := config.NewParser(schema)
@@ -1251,7 +1253,8 @@ func TestEditorWriteThroughPrevious(t *testing.T) {
 	require.NoError(t, err)
 
 	// Parse change file to extract metadata.
-	schema := config.YANGSchema()
+	schema, schemaErr := config.YANGSchema()
+	require.NoError(t, schemaErr)
 	parser := config.NewSetParser(schema)
 	_, meta, err := parser.ParseWithMeta(string(changeData))
 	require.NoError(t, err)
@@ -1301,7 +1304,8 @@ func TestEditorWriteThroughListEntry(t *testing.T) {
 	assert.Contains(t, changeContent, "#thomas @local", "change file should contain user metadata for list entry leaf")
 
 	// Verify metadata is correctly structured by re-parsing.
-	schema := config.YANGSchema()
+	schema, schemaErr := config.YANGSchema()
+	require.NoError(t, schemaErr)
 	parser := config.NewSetParser(schema)
 	_, meta, parseErr := parser.ParseWithMeta(changeContent)
 	require.NoError(t, parseErr)
@@ -1369,7 +1373,8 @@ func TestEditorConcurrentWrite(t *testing.T) {
 	}
 
 	// Each per-user change file should be parseable (not corrupted).
-	schema := config.YANGSchema()
+	schema, schemaErr := config.YANGSchema()
+	require.NoError(t, schemaErr)
 	parser := config.NewSetParser(schema)
 	for i := range goroutines {
 		changePath := ChangePath(configPath, fmt.Sprintf("user%d", i))

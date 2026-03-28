@@ -139,7 +139,11 @@ plugin {
     }
 }
 `
-	p := config.NewParser(config.YANGSchema())
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 	plugins, err := ExtractPluginsFromTree(tree)
@@ -161,7 +165,11 @@ plugin {
     }
 }
 `
-	p := config.NewParser(config.YANGSchema())
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 	plugins, err := ExtractPluginsFromTree(tree)
@@ -183,7 +191,11 @@ plugin {
     }
 }
 `
-	p := config.NewParser(config.YANGSchema())
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err) // Parsing succeeds (schema accepts string)
 
@@ -205,7 +217,11 @@ plugin {
     }
 }
 `
-	p := config.NewParser(config.YANGSchema())
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err) // Parsing succeeds (schema accepts string)
 
@@ -240,7 +256,11 @@ plugin {
     }
 }
 `
-			p := config.NewParser(config.YANGSchema())
+			schema, err := config.YANGSchema()
+			if err != nil {
+				t.Fatal(err)
+			}
+			p := config.NewParser(schema)
 			tree, err := p.Parse(input)
 			require.NoError(t, err)
 			plugins, err := ExtractPluginsFromTree(tree)

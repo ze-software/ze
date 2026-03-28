@@ -9,9 +9,14 @@ import (
 )
 
 // schemaWithGR returns a YANG schema with the GR plugin YANG loaded.
-// GR schema is loaded via init()-based registration (all_import_test.go → plugin/all).
-func schemaWithGR() *config.Schema {
-	return config.YANGSchema()
+// GR schema is loaded via init()-based registration (all_import_test.go -> plugin/all).
+func schemaWithGR(t *testing.T) *config.Schema {
+	t.Helper()
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	return schema
 }
 
 // TestBGPSchemaNeighbor verifies group configuration parsing.
@@ -33,7 +38,11 @@ bgp {
     }
 }
 `
-	p := config.NewParser(config.YANGSchema())
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -86,7 +95,11 @@ bgp {
     }
 }
 `
-	p := config.NewParser(config.YANGSchema())
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -123,7 +136,11 @@ bgp {
     }
 }
 `
-	p := config.NewParser(config.YANGSchema())
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -167,7 +184,11 @@ bgp {
     }
 }
 `
-	p := config.NewParser(config.YANGSchema())
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -252,7 +273,7 @@ bgp {
     }
 }
 `
-	p := config.NewParser(schemaWithGR()) // Use schema with GR plugin YANG
+	p := config.NewParser(schemaWithGR(t)) // Use schema with GR plugin YANG
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -301,7 +322,11 @@ bgp {
     }
 }
 `
-	p := config.NewParser(config.YANGSchema())
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -309,13 +334,13 @@ bgp {
 	nhList := cap.GetList("nexthop")
 	require.Len(t, nhList, 2)
 
-	// ipv4/unicast → nhafi=ipv6
+	// ipv4/unicast -> nhafi=ipv6
 	ipv4u := nhList["ipv4/unicast"]
 	nhafi, ok := ipv4u.Get("nhafi")
 	require.True(t, ok)
 	require.Equal(t, "ipv6", nhafi)
 
-	// ipv4/multicast → nhafi=ipv6, mode=require
+	// ipv4/multicast -> nhafi=ipv6, mode=require
 	ipv4m := nhList["ipv4/multicast"]
 	nhafi, ok = ipv4m.Get("nhafi")
 	require.True(t, ok)
@@ -343,7 +368,11 @@ bgp {
     }
 }
 `
-	p := config.NewParser(config.YANGSchema())
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -351,13 +380,13 @@ bgp {
 	apList := n.GetList("add-path")
 	require.Len(t, apList, 2)
 
-	// ipv4/unicast → direction=send
+	// ipv4/unicast -> direction=send
 	ipv4u := apList["ipv4/unicast"]
 	dir, ok := ipv4u.Get("direction")
 	require.True(t, ok)
 	require.Equal(t, "send", dir)
 
-	// ipv6/unicast → direction=send/receive, mode=require
+	// ipv6/unicast -> direction=send/receive, mode=require
 	ipv6u := apList["ipv6/unicast"]
 	dir, ok = ipv6u.Get("direction")
 	require.True(t, ok)
@@ -385,7 +414,11 @@ plugin {
     }
 }
 `
-	p := config.NewParser(config.YANGSchema())
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -416,7 +449,11 @@ bgp {
     listen 0.0.0.0:179;
 }
 `
-	p := config.NewParser(config.YANGSchema())
+	schema, err := config.YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 

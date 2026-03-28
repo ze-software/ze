@@ -72,9 +72,9 @@ Examples:
 	}
 
 	// Parse config to extract system and archive settings
-	schema := iconfig.YANGSchema()
-	if schema == nil {
-		fmt.Fprintf(os.Stderr, "error: failed to load YANG schema\n")
+	schema, err := iconfig.YANGSchema()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return exitError
 	}
 

@@ -12,8 +12,10 @@ import (
 )
 
 func TestYANGSchemaLoads(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema, "YANGSchema should load")
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Should have bgp from ze-bgp-conf.yang
 	bgp := schema.Get("bgp")
@@ -33,8 +35,10 @@ func TestYANGSchemaLoads(t *testing.T) {
 }
 
 func TestYANGSchemaLeafTypes(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	bgpNode := schema.Get("bgp")
 	require.NotNil(t, bgpNode)
@@ -64,8 +68,10 @@ func TestYANGSchemaLeafTypes(t *testing.T) {
 }
 
 func TestYANGSchemaSensitiveExtension(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	bgpNode := schema.Get("bgp")
 	require.NotNil(t, bgpNode)
@@ -96,8 +102,10 @@ func TestYANGSchemaSensitiveExtension(t *testing.T) {
 }
 
 func TestYANGSchemaSyntaxHints(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Navigate to capability
 	bgpNode := schema.Get("bgp")
@@ -126,8 +134,10 @@ func TestYANGSchemaSyntaxHints(t *testing.T) {
 }
 
 func TestYANGSchemaCanParse(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// Test that parser works with YANG-derived schema
 	config := `bgp {
@@ -178,8 +188,10 @@ func TestYANGSchemaCanParse(t *testing.T) {
 // VALIDATES: ExaBGP announce syntax is not accepted by YANGSchema.
 // PREVENTS: Regression allowing legacy ExaBGP syntax in engine.
 func TestYANGSchema_NoAnnounce(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// ExaBGP-style announce block should be rejected
 	config := `bgp {
@@ -201,7 +213,7 @@ func TestYANGSchema_NoAnnounce(t *testing.T) {
 }`
 
 	parser := NewParser(schema)
-	_, err := parser.Parse(config)
+	_, err = parser.Parse(config)
 	require.Error(t, err, "announce block should be rejected")
 	assert.Contains(t, err.Error(), "announce", "error should mention announce")
 }
@@ -211,8 +223,10 @@ func TestYANGSchema_NoAnnounce(t *testing.T) {
 // VALIDATES: ExaBGP static syntax is not accepted by YANGSchema.
 // PREVENTS: Regression allowing legacy ExaBGP syntax in engine.
 func TestYANGSchema_NoStatic(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	// ExaBGP-style static block should be rejected
 	config := `bgp {
@@ -232,7 +246,7 @@ func TestYANGSchema_NoStatic(t *testing.T) {
 }`
 
 	parser := NewParser(schema)
-	_, err := parser.Parse(config)
+	_, err = parser.Parse(config)
 	require.Error(t, err, "static block should be rejected")
 	assert.Contains(t, err.Error(), "static", "error should mention static")
 }
@@ -241,13 +255,15 @@ func TestYANGSchema_NoStatic(t *testing.T) {
 // without ze:syntax annotations produce ValueOrArrayNode (accepts both
 // single value and bracket list syntax).
 //
-// VALIDATES: Phase 7 — leaf-list natively accepts value; and [ v1 v2 ];
+// VALIDATES: Phase 7 -- leaf-list natively accepts value; and [ v1 v2 ];
 // PREVENTS: Regression to MultiLeafNode default (no bracket support).
 func TestYANGLeafListDefaultIsValueOrArray(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// Navigate to bgp → peer → process → receive (a leaf-list)
+	// Navigate to bgp -> peer -> process -> receive (a leaf-list)
 	bgpNode := schema.Get("bgp")
 	require.NotNil(t, bgpNode)
 	bgp, ok := bgpNode.(*ContainerNode)
@@ -261,13 +277,13 @@ func TestYANGLeafListDefaultIsValueOrArray(t *testing.T) {
 	process, ok := processNode.(*ListNode)
 	require.True(t, ok)
 
-	// 'receive' is a leaf-list — should be ValueOrArrayNode
+	// 'receive' is a leaf-list -- should be ValueOrArrayNode
 	receiveNode := process.Get("receive")
 	require.NotNil(t, receiveNode, "receive node should exist")
 	_, ok = receiveNode.(*ValueOrArrayNode)
 	assert.True(t, ok, "leaf-list 'receive' should be ValueOrArrayNode, got %T", receiveNode)
 
-	// 'send' is also a leaf-list — should be ValueOrArrayNode
+	// 'send' is also a leaf-list -- should be ValueOrArrayNode
 	sendNode := process.Get("send")
 	require.NotNil(t, sendNode, "send node should exist")
 	_, ok = sendNode.(*ValueOrArrayNode)
@@ -278,13 +294,15 @@ func TestYANGLeafListDefaultIsValueOrArray(t *testing.T) {
 // a `presence` statement (and no ze:syntax annotation) becomes a
 // ContainerNode with Presence=true in the schema.
 //
-// VALIDATES: Phase 8 — presence containers detected from standard YANG.
+// VALIDATES: Phase 8 -- presence containers detected from standard YANG.
 // PREVENTS: Presence containers being treated as regular containers.
 func TestYANGPresenceContainerDetected(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	// Navigate to bgp → peer → capability → route-refresh
+	// Navigate to bgp -> peer -> capability -> route-refresh
 	// After Phase 8 YANG changes, route-refresh should be a presence container
 	bgpNode := schema.Get("bgp")
 	require.NotNil(t, bgpNode)
@@ -308,13 +326,15 @@ func TestYANGPresenceContainerDetected(t *testing.T) {
 }
 
 // TestPresenceContainerParsesAllForms verifies that a presence container
-// accepts flag, value, and block forms — the same behavior as FlexNode.
+// accepts flag, value, and block forms -- the same behavior as FlexNode.
 //
-// VALIDATES: Phase 8 — presence containers replace flex parsing.
+// VALIDATES: Phase 8 -- presence containers replace flex parsing.
 // PREVENTS: Regression in capability config parsing after ze:syntax removal.
 func TestPresenceContainerParsesAllForms(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tests := []struct {
 		name      string
@@ -417,11 +437,13 @@ func TestPresenceContainerParsesAllForms(t *testing.T) {
 // TestPresenceContainerSerializesAllForms verifies that presence containers
 // serialize correctly in flag, value, and block forms with roundtrip.
 //
-// VALIDATES: Phase 8 — presence container serialization roundtrip.
+// VALIDATES: Phase 8 -- presence container serialization roundtrip.
 // PREVENTS: Lost data during serialization of presence containers.
 func TestPresenceContainerSerializesAllForms(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tests := []struct {
 		name  string
@@ -481,11 +503,13 @@ func TestPresenceContainerSerializesAllForms(t *testing.T) {
 // TestYANGLeafListParsesBothForms verifies that a leaf-list node
 // accepts both `name value;` and `name [ v1 v2 ];` syntax.
 //
-// VALIDATES: Phase 7 — leaf-list parsing unification.
+// VALIDATES: Phase 7 -- leaf-list parsing unification.
 // PREVENTS: Bracket syntax failing after ze:syntax removal.
 func TestYANGLeafListParsesBothForms(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tests := []struct {
 		name  string
@@ -577,8 +601,10 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
 // VALIDATES: AC-1, AC-2, AC-3: multi-session/operational/aigp rejected
 // PREVENTS: Dead capabilities being silently accepted in config.
 func TestDeadCapabilityRejected(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tests := []struct {
 		name       string
@@ -618,8 +644,10 @@ func TestDeadCapabilityRejected(t *testing.T) {
 // VALIDATES: AC-4: peer-level multi-session leaf rejected
 // PREVENTS: Dead peer-level config being silently accepted.
 func TestDeadPeerLeafRejected(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	input := `bgp {
     local {
@@ -634,7 +662,7 @@ func TestDeadPeerLeafRejected(t *testing.T) {
     }
 }`
 	parser := NewParser(schema)
-	_, err := parser.Parse(input)
+	_, err = parser.Parse(input)
 	require.Error(t, err, "multi-session as peer leaf should be rejected")
 	assert.Contains(t, err.Error(), "multi-session", "error should mention multi-session")
 }
@@ -645,8 +673,10 @@ func TestDeadPeerLeafRejected(t *testing.T) {
 // VALIDATES: AC-9: receive/send use type string in YANG, runtime validates event types.
 // PREVENTS: YANG rejecting plugin-registered event types like "update-rpki".
 func TestProcessReceiveAcceptsStrings(t *testing.T) {
-	schema := YANGSchema()
-	require.NotNil(t, schema)
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	tests := []struct {
 		name  string

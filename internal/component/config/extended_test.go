@@ -13,10 +13,15 @@ import (
 )
 
 // extendedSchemaWithGR returns schema with GR plugin YANG for extended tests.
-func extendedSchemaWithGR() *Schema {
-	return YANGSchemaWithPlugins(map[string]string{
+func extendedSchemaWithGR(t *testing.T) *Schema {
+	t.Helper()
+	schema, err := YANGSchemaWithPlugins(map[string]string{
 		"ze-graceful-restart.yang": grschema.ZeGracefulRestartYANG,
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return schema
 }
 
 // TestFlagSyntax verifies flag-only capability syntax.
@@ -42,7 +47,7 @@ bgp {
     }
 }
 `
-	schema := extendedSchemaWithGR() // Use schema with GR plugin YANG
+	schema := extendedSchemaWithGR(t) // Use schema with GR plugin YANG
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -87,7 +92,7 @@ bgp {
     }
 }
 `
-	schema := extendedSchemaWithGR() // Use schema with GR plugin YANG
+	schema := extendedSchemaWithGR(t) // Use schema with GR plugin YANG
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -127,7 +132,7 @@ bgp {
     }
 }
 `
-	schema := extendedSchemaWithGR() // Use schema with GR plugin YANG
+	schema := extendedSchemaWithGR(t) // Use schema with GR plugin YANG
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -168,7 +173,8 @@ bgp {
     }
 }
 `
-	schema := YANGSchema()
+	schema, schemaErr := YANGSchema()
+	require.NoError(t, schemaErr)
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -213,7 +219,8 @@ bgp {
     }
 }
 `
-	schema := YANGSchema()
+	schema, schemaErr := YANGSchema()
+	require.NoError(t, schemaErr)
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -256,7 +263,8 @@ bgp {
     }
 }
 `
-	schema := YANGSchema()
+	schema, schemaErr := YANGSchema()
+	require.NoError(t, schemaErr)
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -299,7 +307,8 @@ bgp {
     }
 }
 `
-	schema := YANGSchema()
+	schema, schemaErr := YANGSchema()
+	require.NoError(t, schemaErr)
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)

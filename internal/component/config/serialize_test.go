@@ -12,7 +12,7 @@ import (
 )
 
 // serializeSchemaWithGR returns schema with GR plugin YANG for serialize tests.
-func serializeSchemaWithGR() *Schema {
+func serializeSchemaWithGR() (*Schema, error) {
 	return YANGSchemaWithPlugins(map[string]string{
 		"ze-graceful-restart.yang": grschema.ZeGracefulRestartYANG,
 	})
@@ -31,7 +31,10 @@ func TestSerializeSimple(t *testing.T) {
     }
 }
 `
-	schema := YANGSchema()
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -69,7 +72,10 @@ func TestSerializeNeighbor(t *testing.T) {
     }
 }
 `
-	schema := YANGSchema()
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -105,7 +111,10 @@ func TestSerializeFamily(t *testing.T) {
     }
 }
 `
-	schema := YANGSchema()
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -131,7 +140,10 @@ func TestSerializePlugin(t *testing.T) {
     }
 }
 `
-	schema := YANGSchema()
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -169,7 +181,10 @@ func TestSerializeCapability(t *testing.T) {
     }
 }
 `
-	schema := serializeSchemaWithGR() // Use schema with GR plugin YANG
+	schema, err := serializeSchemaWithGR() // Use schema with GR plugin YANG
+	if err != nil {
+		t.Fatal(err)
+	}
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -192,7 +207,10 @@ func TestSerializeLeafRoundtrip(t *testing.T) {
     listen 0.0.0.0:179
 }
 `
-	schema := YANGSchema()
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -217,7 +235,10 @@ func TestRoundtripConfigFiles(t *testing.T) {
 		t.Skip("no config files found")
 	}
 
-	schema := YANGSchema()
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 	p := NewParser(schema)
 
 	var passed, failed, skipped int
@@ -399,7 +420,10 @@ func TestSerializeQuotedStrings(t *testing.T) {
     }
 }
 `
-	schema := YANGSchema()
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)

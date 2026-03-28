@@ -124,9 +124,9 @@ func loadAndResolve(store storage.Storage, path string) (map[string]any, error) 
 		return nil, err
 	}
 
-	schema := config.YANGSchema()
-	if schema == nil {
-		return nil, fmt.Errorf("failed to load YANG schema")
+	schema, err := config.YANGSchema()
+	if err != nil {
+		return nil, fmt.Errorf("YANG schema: %w", err)
 	}
 
 	p := config.NewParser(schema)

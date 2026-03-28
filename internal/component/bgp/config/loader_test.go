@@ -422,7 +422,9 @@ plugin {
 }
 `
 	// config.PluginOnlySchema should only parse plugin blocks
-	p := config.NewParser(config.PluginOnlySchema())
+	pluginSchema, schemaErr := config.PluginOnlySchema()
+	require.NoError(t, schemaErr)
+	p := config.NewParser(pluginSchema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -461,7 +463,9 @@ peer 192.0.2.1 {
     peer-as 65001;
 }
 `
-	p := config.NewParser(config.PluginOnlySchema())
+	pluginSchema2, schemaErr2 := config.PluginOnlySchema()
+	require.NoError(t, schemaErr2)
+	p := config.NewParser(pluginSchema2)
 	_, err := p.Parse(input)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "unknown top-level keyword: peer")
@@ -472,7 +476,8 @@ peer 192.0.2.1 {
 // VALIDATES: Schema.ExtendCapability adds new capability sub-blocks.
 // PREVENTS: Plugin-declared capabilities being rejected as unknown.
 func TestSchemaExtendCapability(t *testing.T) {
-	schema := config.YANGSchema()
+	schema, schemaErr := config.YANGSchema()
+	require.NoError(t, schemaErr)
 
 	// Before extension, custom capability should fail
 	inputBefore := `
@@ -845,7 +850,9 @@ bgp {
 }
 `
 	// config.YANGSchema() now includes all internal plugin YANG (hostname, gr, etc.)
-	p := config.NewParser(config.YANGSchema())
+	fullSchema, fullErr := config.YANGSchema()
+	require.NoError(t, fullErr)
+	p := config.NewParser(fullSchema)
 	tree, err := p.Parse(input)
 
 	// Parsing should succeed - internal plugin YANG is always loaded
