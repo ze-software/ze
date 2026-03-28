@@ -7,6 +7,7 @@ package web
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -164,7 +165,8 @@ func (m *EditorManager) Discard(username string) error {
 	return nil
 }
 
-// Diff returns a textual diff of the user's pending changes against the original.
+// Diff returns a textual diff of the user's pending changes.
+// For session-based editing, formats the change entries as a readable diff.
 // Returns an empty string if no session exists or no changes are pending.
 func (m *EditorManager) Diff(username string) (string, error) {
 	m.mu.RLock()
@@ -178,7 +180,31 @@ func (m *EditorManager) Diff(username string) (string, error) {
 	us.mu.Lock()
 	defer us.mu.Unlock()
 
-	return us.editor.Diff(), nil
+	// Try text diff first (non-session mode).
+	if d := us.editor.Diff(); d != "" {
+		return d, nil
+	}
+
+	// Session mode: build diff from tracked changes.
+	sid := us.editor.SessionID()
+	if sid == "" {
+		return "", nil
+	}
+
+	entries := us.editor.SessionChanges(sid)
+	if len(entries) == 0 {
+		return "", nil
+	}
+
+	var b strings.Builder
+	for _, e := range entries {
+		if e.Entry.Previous != "" {
+			fmt.Fprintf(&b, "- %s = %s\n+ %s = %s\n", e.Path, e.Entry.Previous, e.Path, e.Entry.Value)
+		} else {
+			fmt.Fprintf(&b, "+ %s = %s\n", e.Path, e.Entry.Value)
+		}
+	}
+	return b.String(), nil
 }
 
 // ChangeCount returns the number of pending changes for the user's session.
