@@ -276,7 +276,7 @@ func TestPendingRequests_StreamingResponse(t *testing.T) {
 		}
 		// Wait for this partial to be received before sending next.
 		require.Eventually(t, func() bool {
-			return len(respCh) >= i+1
+			return len(respCh) > i
 		}, 2*time.Second, time.Millisecond, "partial %d should be received", i)
 	}
 

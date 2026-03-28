@@ -4,6 +4,7 @@ import (
 	"net/netip"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -50,14 +51,24 @@ func TestFwdSupersedeKeyEmpty(t *testing.T) {
 func TestFwdPool_RouteSuperseding(t *testing.T) {
 	t.Parallel()
 
-	fp := newFwdPool(func(_ fwdKey, _ []fwdItem) {}, fwdPoolConfig{chanSize: 1, overflowPoolSize: 100})
-	defer fp.Stop()
+	// Block the handler so the worker can't drain overflow while we inspect it.
+	block := make(chan struct{})
+	fp := newFwdPool(func(_ fwdKey, _ []fwdItem) {
+		<-block
+	}, fwdPoolConfig{chanSize: 1, overflowPoolSize: 100})
+	defer func() { close(block); fp.Stop() }()
 
 	key := fwdKey{peerAddr: mustAddrPort("10.0.0.1:179")}
 
 	// Fill the channel to force overflow.
 	blocker := fwdItem{peer: &Peer{}}
 	fp.TryDispatch(key, blocker)
+	// Wait for worker to pick up the item and block in handler.
+	require.Eventually(t, func() bool {
+		return fp.WorkerCount() == 1
+	}, 2*time.Second, time.Millisecond)
+	// Re-fill the channel while worker is blocked.
+	fp.TryDispatch(key, fwdItem{peer: &Peer{}})
 
 	body := []byte{0x00, 0x00, 0x00, 0x10, 0x40, 0x01, 0x01, 0x00}
 	superKey := fwdSupersedeKey([][]byte{body})
