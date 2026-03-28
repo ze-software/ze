@@ -143,7 +143,11 @@ func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree
 // extractPath parses the YANG path from the URL, handling both /show/X and ?path=X.
 func extractPath(r *http.Request) []string {
 	// Fragment endpoint: ?path=bgp/peer/1.2.3.4
-	if p := r.URL.Query().Get("path"); p != "" {
+	if r.URL.Query().Has("path") {
+		p := r.URL.Query().Get("path")
+		if p == "" {
+			return nil
+		}
 		return splitPath(p)
 	}
 
