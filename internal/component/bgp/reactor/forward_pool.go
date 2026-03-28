@@ -6,6 +6,18 @@
 // Related: reactor_api_forward.go — UPDATE forwarding dispatches to forward pool
 // Related: reactor_metrics.go — metrics loop polls overflow depth, pool ratio, source stats
 // Related: bufmux.go — block-backed buffer multiplexer (shared buffer pools)
+//
+// Algorithm overview:
+//
+// Each destination peer gets a worker goroutine + bounded channel. Incoming
+// UPDATEs are dispatched to the destination's channel (TryDispatch). If the
+// channel is full, items spill into a shared overflow pool. Workers drain
+// their channel in batches, writing wire bytes directly to the peer's TCP
+// bufio.Writer, then flushing once per batch.
+//
+// Weight tracking sizes per-peer channel capacity proportional to the peer's
+// NLRI volume. Congestion control uses two thresholds (warn/critical) on the
+// shared buffer pool usage ratio to pause slow peers before memory exhaustion.
 
 package reactor
 

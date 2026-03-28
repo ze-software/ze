@@ -37,7 +37,8 @@ func NewEngine(bus ze.Bus, config ze.ConfigProvider, plugins ze.PluginManager) *
 }
 
 // RegisterSubsystem adds a subsystem to be started by Start.
-// Returns error if the name is already registered or if Start has been called.
+// Caller MUST call before Start. Returns error if the name is already
+// registered or if Start has been called.
 func (e *Engine) RegisterSubsystem(sub ze.Subsystem) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()

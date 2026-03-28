@@ -244,7 +244,7 @@ func LoadReactorFileWithPlugins(store storage.Storage, path string, cliPlugins [
 	// Parse config into tree
 	tree, err := parseTreeWithYANG(string(data), pluginYANG)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
 	// Determine config directory
@@ -267,7 +267,7 @@ func LoadReactorFileWithPlugins(store storage.Storage, path string, cliPlugins [
 	// Extract plugins from tree
 	plugins, err := ExtractPluginsFromTree(tree)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("extract plugins: %w", err)
 	}
 
 	// Merge CLI plugins with config plugins
@@ -279,7 +279,7 @@ func LoadReactorFileWithPlugins(store storage.Storage, path string, cliPlugins [
 	// Expand dependencies before creating reactor
 	plugins, err = expandDependencies(plugins)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("expand plugin dependencies: %w", err)
 	}
 
 	// Wire YANG validator for runtime attribute validation (origin enum, med/local-pref ranges)
@@ -426,12 +426,12 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 	// Build peers from tree (resolves templates, extracts routes)
 	peers, err := PeersFromConfigTree(tree)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("build peers: %w", err)
 	}
 
 	// Validate plugin references
 	if err := ValidatePluginReferences(tree, plugins); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("validate plugin references: %w", err)
 	}
 
 	// Derive ConfiguredFamilies from peer capabilities.
@@ -710,7 +710,7 @@ func createReloadFunc(store storage.Storage) reactor.ReloadFunc {
 	return func(configPath string) ([]*reactor.PeerSettings, error) {
 		data, err := store.ReadFile(configPath)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("read config %s: %w", configPath, err)
 		}
 
 		// Parse the config using YANG-derived schema.
@@ -1034,17 +1034,17 @@ func loadZefsUsers() ([]zessh.UserConfig, error) {
 	dbPath := filepath.Join(dir, "database.zefs")
 	db, err := zefs.Open(dbPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("open credential store %s: %w", dbPath, err)
 	}
 	defer db.Close() //nolint:errcheck // read-only access
 
 	username, err := db.ReadFile("meta/ssh/username")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read ssh username: %w", err)
 	}
 	hash, err := db.ReadFile("meta/ssh/password")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read ssh password hash: %w", err)
 	}
 	name := string(username)
 	if name == "" {
