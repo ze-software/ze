@@ -83,14 +83,14 @@
         }
 
         // GUI mode: POST then refresh view.
+        var curPath = window.location.pathname.replace(/^\/show\//, '').replace(/^\/config\/edit\//, '').replace(/\/$/, '');
         fetch('/cli', {
           method: 'POST',
           credentials: 'same-origin',
           redirect: 'manual',
           headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-          body: 'command=' + encodeURIComponent(cmd)
+          body: 'command=' + encodeURIComponent(cmd) + '&path=' + encodeURIComponent(curPath)
         }).then(function() {
-          var curPath = window.location.pathname.replace(/^\/show\//, '').replace(/\/$/, '');
           refreshDetail(curPath);
           if (verb === 'set' || verb === 'delete') {
             if (window.zeCommitBump) window.zeCommitBump();

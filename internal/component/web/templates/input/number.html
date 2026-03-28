@@ -1,6 +1,6 @@
 {{define "input_number"}}
 <input type="number" class="ze-field-input{{if .Value}} ze-field-set{{end}}" name="value" value="{{.Value}}" inputmode="numeric"
-       hx-post="/config/set/{{.Path}}" hx-trigger="blur changed, keyup[key=='Enter']" hx-target="closest .ze-field" hx-swap="outerHTML"
+       hx-post="/config/set/{{.Path}}" hx-trigger="blur changed, keyup[key=='Enter'], input changed delay:1s" hx-target="closest .ze-field" hx-swap="outerHTML"
        hx-vals='{"leaf":"{{.Leaf}}"}'
        {{- if .Min}} min="{{.Min}}"{{end}}
        {{- if .Max}} max="{{.Max}}"{{end}}
