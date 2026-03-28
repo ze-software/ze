@@ -753,11 +753,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 
 	for _, spec := range specs {
 		if err := r.startListenerForAddressPort(spec.addr, spec.port, spec.peerKey); err != nil {
-			r.stopAllListeners()
-			if r.listener != nil {
-				r.listener.Stop()
-			}
-			r.cancel()
+			r.abortStartup()
 			return err
 		}
 	}
@@ -814,11 +810,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		r.SetAPIProcessCount(len(r.config.Plugins))
 
 		if err := r.api.StartWithContext(r.ctx); err != nil {
-			r.stopAllListeners()
-			if r.listener != nil {
-				r.listener.Stop()
-			}
-			r.cancel()
+			r.abortStartup()
 			return err
 		}
 	}
@@ -877,11 +869,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	// If no family config, plugin decode families will be used (validated in sendOpen).
 	if err := r.validatePeerFamilies(peersToStart); err != nil {
 		r.mu.Lock()
-		r.stopAllListeners()
-		if r.listener != nil {
-			r.listener.Stop()
-		}
-		r.cancel()
+		r.abortStartup()
 		return err
 	}
 
@@ -900,6 +888,16 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	go r.monitor()
 
 	return nil
+}
+
+// abortStartup tears down listeners and cancels the context on startup failure.
+// Caller MUST hold r.mu.
+func (r *Reactor) abortStartup() {
+	r.stopAllListeners()
+	if r.listener != nil {
+		r.listener.Stop()
+	}
+	r.cancel()
 }
 
 // Stop signals the reactor to stop.
