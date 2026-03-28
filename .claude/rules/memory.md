@@ -121,3 +121,9 @@ Do NOT flag these as "identity wrappers adding no value."
 - User found many errors: old syntax, wrong data, stale information.
 - Root cause: described what I *thought* the code does, not what it *actually* does. No verification step.
 - **Rule:** `rules/documentation.md` Source Anchors section. Read the source file BEFORE writing any factual claim. Add `<!-- source: path -- symbol -->` HTML comments. Never describe code from memory.
+
+### Worktree File Copy Overwrites Main Repo (ZERO TOLERANCE)
+- Worktree agent copied files directly from `.claude/worktrees/agent-*/` into the main repo.
+- Overwrote uncommitted changes made by other concurrent Claude sessions.
+- Root cause: worktree code was not committed, so the agent tried to preserve it by copying files.
+- **Rule:** NEVER copy files from a worktree into the main repo. Worktree agents must commit their work. Use `git merge` or `git cherry-pick` to bring changes into main. Hook `block-worktree-copy.sh` (exit 2) enforces this.

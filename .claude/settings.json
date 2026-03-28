@@ -40,6 +40,17 @@
         "hooks": [
           {
             "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/block-worktree-copy.sh",
+            "timeout": 5000,
+            "blocking": true
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/block-destructive-git.sh",
             "timeout": 5000,
             "blocking": true
