@@ -6,6 +6,7 @@
       "Glob(*)",
       "Grep(*)",
       "Bash(go:*)",
+      "Bash(agent-browser:*)",
       "Bash(make:*)",
       "Bash(golangci-lint:*)",
       "Bash(rg:*)",
