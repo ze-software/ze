@@ -61,7 +61,7 @@ All BGP events have the same structure: type in `message`, `peer` and event-spec
 | bgp.message.id | int | Message identifier (omitted if 0) |
 | bgp.message.direction | string | "received" or "sent" (omitted if empty) |
 | bgp.peer.address | string | Peer IP address |
-| bgp.peer.asn | int | Peer AS number |
+| bgp.peer.remote.as | int | Peer AS number |
 
 ### Event Types
 

@@ -428,7 +428,7 @@ class MAC:
 
 ### RouteDistinguisher Structure
 
-Defined in `internal/component/bgp/nlri/ipvpn.go`:
+Defined in `internal/component/bgp/nlri/rd.go`:
 
 ```go
 type RouteDistinguisher struct {

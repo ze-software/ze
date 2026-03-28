@@ -472,8 +472,6 @@ type Attribute interface {
     Code() AttributeCode
     Flags() AttributeFlags
     Len() int
-    Pack() []byte
-    PackWithContext(srcCtx, dstCtx *bgpctx.EncodingContext) []byte
     WriteTo(buf []byte, off int) int
     WriteToWithContext(buf []byte, off int, srcCtx, dstCtx *bgpctx.EncodingContext) int
 }

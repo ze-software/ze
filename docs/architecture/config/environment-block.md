@@ -220,5 +220,5 @@ However, for clarity, use a single environment block.
 
 ## Related
 
-- [ENVIRONMENT.md](ENVIRONMENT.md) - OS environment variable reference
-- [SYNTAX.md](SYNTAX.md) - Config file syntax overview
+- [environment.md](environment.md) - OS environment variable reference
+- [syntax.md](syntax.md) - Config file syntax overview

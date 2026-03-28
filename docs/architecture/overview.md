@@ -90,72 +90,84 @@ ze/
 │   │   ├── schema/             # ze schema subcommands
 │   │   ├── hub/                # ze hub subcommands
 │   │   └── exabgp/             # ze exabgp subcommands
-│   ├── ze-peer/                # BGP test peer tool
 │   ├── ze-test/                # Functional test runner
-│   └── ze-subsystem/           # Subsystem utility
+│   ├── ze-perf/                # Performance benchmarking
+│   ├── ze-chaos/               # Chaos testing
+│   └── ze-analyse/             # Analysis tools
 │
 ├── internal/
-│   ├── component/
-│   │   ├── config/             # Configuration pipeline
-│   │   │   ├── loader.go       # Config loading
-│   │   │   ├── parser.go       # Config parsing
-│   │   │   ├── editor/         # Interactive config editor
-│   │   │   └── migration/      # Config migration
-│   │   │
-│   │   ├── plugin/             # Plugin infrastructure (generic, zero BGP knowledge)
-│   │   │   ├── server.go       # Plugin server
-│   │   │   ├── process.go      # External process management
-│   │   │   ├── hub.go          # Message routing
-│   │   │   ├── types.go        # Shared types
-│   │   │   ├── registry/       # Plugin registry
-│   │   │   └── all/            # Blank imports triggering init()
-│   │   │
+│   ├── component/              # Main application components
+│   │   ├── authz/              # Authorization
 │   │   ├── bgp/                # BGP subsystem (engine core)
-│   │   │   ├── message/        # BGP messages (OPEN, UPDATE, etc.)
 │   │   │   ├── attribute/      # Path attributes
-│   │   │   ├── nlri/           # NLRI types (INET, VPN, EVPN, FlowSpec, etc.)
+│   │   │   ├── attrpool/       # Per-attribute-type dedup pools
 │   │   │   ├── capability/     # BGP capabilities + negotiation
 │   │   │   ├── context/        # Encoding context registry
 │   │   │   ├── fsm/            # Finite state machine
+│   │   │   ├── message/        # BGP messages (OPEN, UPDATE, etc.)
+│   │   │   ├── nlri/           # NLRI types (INET, VPN, EVPN, FlowSpec, etc.)
+│   │   │   ├── plugins/        # Plugin implementations (rib, rs, gr, role, etc.)
 │   │   │   ├── reactor/        # Core event loop
-│   │   │   ├── server/         # EventDispatcher (reactor → plugin bridge)
-│   │   │   ├── wire/           # Wire format utilities
+│   │   │   ├── rib/            # RIB storage
+│   │   │   ├── route/          # Route building
 │   │   │   ├── schema/         # YANG schema
-│   │   │   └── plugins/        # Plugin implementations (rib, rs, gr, role, etc.)
-│   │   │
-│   │   └── hub/                # Hub architecture
-│   │       └── schema/         # Hub schema
+│   │   │   ├── server/         # EventDispatcher (reactor -> plugin bridge)
+│   │   │   ├── store/          # Deduplication stores
+│   │   │   ├── subsystem/      # BGPSubsystem adapter
+│   │   │   ├── types/          # Shared BGP types (RouteSpec, etc.)
+│   │   │   ├── wire/           # Wire format utilities
+│   │   │   └── wireu/          # WireUpdate type
+│   │   ├── bus/                # Content-agnostic pub/sub bus
+│   │   ├── cli/                # CLI infrastructure
+│   │   ├── cmd/                # Command handling
+│   │   ├── command/            # Command dispatch
+│   │   ├── config/             # Configuration pipeline
+│   │   ├── engine/             # Engine supervisor
+│   │   ├── hub/                # Hub architecture
+│   │   ├── managed/            # Managed services
+│   │   ├── mcp/                # MCP server
+│   │   ├── plugin/             # Plugin infrastructure (generic, zero BGP knowledge)
+│   │   │   ├── all/            # Blank imports triggering init()
+│   │   │   ├── manager/        # Plugin lifecycle management
+│   │   │   ├── process/        # External process management
+│   │   │   ├── registry/       # Plugin registry
+│   │   │   └── server/         # Plugin server
+│   │   ├── ssh/                # SSH transport
+│   │   ├── telemetry/          # Telemetry
+│   │   └── web/                # Web interface
 │   │
-│   ├── attrpool/               # Memory pools
-│   │   ├── pool.go             # Core Pool type
-│   │   ├── handle.go           # Handle type
-│   │   └── compaction.go       # Compaction logic
-│   │
-│   ├── store/                  # Deduplication stores
-│   ├── slogutil/               # Logging utilities
-│   ├── source/                 # Source identification
-│   ├── selector/               # Peer selection
-│   ├── env/                    # Environment handling
+│   ├── chaos/                  # Chaos testing framework
+│   ├── core/                   # Core utilities
+│   │   ├── env/                # Environment handling
+│   │   ├── ipc/                # IPC utilities
+│   │   ├── selector/           # Peer selection
+│   │   ├── slogutil/           # Logging utilities
+│   │   ├── source/             # Source identification
+│   │   └── ...                 # clock, metrics, network, parse, etc.
 │   ├── exabgp/                 # ExaBGP compatibility bridge
-│   ├── yang/                   # YANG modules
-│   ├── tmpfs/                  # Temporary filesystem
+│   ├── iter/                   # Iterator utilities
+│   ├── perf/                   # Performance testing
 │   └── test/                   # Test utilities
 │       ├── ci/                 # CI test format
 │       ├── peer/               # Test peer library
 │       ├── runner/             # Test runner
 │       └── syslog/             # Syslog testing
 │
-├── test/                       # Functional tests
-│   ├── encode/                 # Encoding tests (.ci files)
+├── test/                       # Functional tests (.ci files)
+│   ├── encode/                 # Encoding tests
 │   ├── decode/                 # Decoding tests
 │   ├── parse/                  # Config parsing tests
 │   ├── plugin/                 # Plugin tests
 │   ├── exabgp/                 # ExaBGP compatibility tests
-│   └── integration/            # Integration tests
+│   ├── integration/            # Integration tests
+│   ├── editor/                 # Editor TUI tests (.et files)
+│   └── ...                     # hub, web, managed, etc.
 │
 ├── docs/
 │   ├── architecture/           # Architecture documentation
-│   └── plan/                   # Specs and plans
+│   └── guide/                  # User guides
+│
+├── plan/                       # Specs, learned summaries, deferrals
 │
 └── rfc/                        # RFC references
     ├── full/                   # Full RFC text
@@ -166,13 +178,13 @@ ze/
 
 ## 4. Core Components
 
-### 4.1 Plugin Server (`internal/component/plugin/server.go`)
+### 4.1 Plugin Server (`internal/component/plugin/server/`)
 
 Manages plugin lifecycle and communication:
 - Starts/stops external processes
 - Routes commands to appropriate plugins
 - Handles JSON events from reactor
-<!-- source: internal/component/plugin/server/ -- plugin server implementation -->
+<!-- source: internal/component/plugin/server/server.go -- plugin server implementation -->
 
 ### 4.2 Reactor (`internal/component/bgp/reactor/`)
 

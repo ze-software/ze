@@ -6,7 +6,7 @@ ZeBGP aims for **easy migration from ExaBGP**, not 100% compatibility.
 
 | Principle | Description |
 |-----------|-------------|
-| **Config migration** | `ze bgp config migrate` converts ExaBGP configs |
+| **Config migration** | `ze config migrate` converts ExaBGP configs |
 | **API differences OK** | Document differences, provide migration path |
 | **No silent breakage** | Breaking changes must have migration or clear error |
 | **Plural communities** | ZeBGP uses `communities` (plural), ExaBGP uses `community` |
@@ -14,7 +14,7 @@ ZeBGP aims for **easy migration from ExaBGP**, not 100% compatibility.
 ## Migration Rules
 
 ### 1. Config Files
-- ExaBGP configs MUST work with `ze bgp config migrate`
+- ExaBGP configs MUST work with `ze config migrate`
 - New ZeBGP-only features MAY use different syntax
 - Deprecated ExaBGP syntax MUST be migrated automatically
 
@@ -102,12 +102,12 @@ for key, ops in event.items():
 When introducing a breaking change:
 
 1. **Check if migration is possible**
-   - If yes: Add to `internal/config/migration/`
+   - If yes: Add to `internal/exabgp/migration/`
    - If no: Require user action with clear error
 
 2. **Document the difference**
    - Add to this file
-   - Update `docs/architecture/api/ARCHITECTURE.md` if API-related
+   - Update `docs/architecture/api/architecture.md` if API-related
    - Add to release notes
 
 3. **Provide compatibility option (if practical)**
@@ -123,10 +123,10 @@ When introducing a breaking change:
 ze config validate old.conf
 
 # Preview changes
-ze bgp config migrate --dry-run old.conf
+ze config migrate --dry-run old.conf
 
 # Migrate in place
-ze bgp config migrate --in-place old.conf
+ze config migrate --in-place old.conf
 ```
 
 ### Running ExaBGP Plugins

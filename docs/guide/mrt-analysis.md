@@ -88,7 +88,7 @@ bin/ze-analyse attributes test/internet/latest-bview.gz >/dev/null           # s
 **Output:** JSON to stdout, human summary to stderr.
 
 **Used for:** attribute pool sizing, cache strategy decisions. Results documented
-in [research/output/mrt-attribute-caching.md](../../research/output/mrt-attribute-caching.md).
+in [mrt-attribute-caching.md](../research/mrt-attribute-caching.md).
 
 ### communities
 

@@ -90,7 +90,7 @@ Output shows the exact line sent to plugins:
 
 ### Config Delivery Tests
 
-Location: `internal/component/plugin/server_config_test.go`
+Location: `internal/component/plugin/server/config_test.go`
 
 | Test | Validates |
 |------|-----------|
@@ -100,12 +100,12 @@ Location: `internal/component/plugin/server_config_test.go`
 
 Run:
 ```bash
-go test -v ./internal/component/plugin/... -run "TestConfigTree|TestHostname|TestParseCap"
+go test -v ./internal/component/plugin/server/... -run "TestConfigTree|TestHostname|TestParseCap"
 ```
 
 ### Hostname Plugin Tests
 
-Location: `internal/component/plugin/hostname/hostname_test.go`
+Location: `internal/component/bgp/plugins/hostname/hostname_test.go`
 
 | Test | Validates |
 |------|-----------|
@@ -114,11 +114,11 @@ Location: `internal/component/plugin/hostname/hostname_test.go`
 | `TestHostnamePluginMultiplePeers` | Per-peer config isolation |
 | `TestHostnamePluginBoundary` | 255-byte length limits |
 | `TestHostnamePluginDeclarations` | Startup protocol messages |
-<!-- source: internal/component/plugin/server_config_test.go -- TestConfigTreeStructure, TestHostnamePluginFullFlow -->
+<!-- source: internal/component/plugin/server/config_test.go -- TestConfigTreeStructure, TestHostnamePluginFullFlow -->
 
 Run:
 ```bash
-go test -v ./internal/component/plugin/hostname/...
+go test -v ./internal/component/bgp/plugins/hostname/...
 ```
 
 ### Capability Injection Tests
@@ -185,7 +185,7 @@ When plugin capabilities aren't appearing in OPEN messages:
 
 4. **Run unit tests:**
    ```bash
-   go test -v ./internal/component/plugin/hostname/...
+   go test -v ./internal/component/bgp/plugins/hostname/...
    go test -v ./internal/component/plugin/... -run "Capability"
    ```
 

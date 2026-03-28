@@ -156,7 +156,7 @@ For internal plugins (running as goroutines inside the engine), the connection i
 
 ## Example Plugins
 
-- [Go Example](../examples/plugin/go/) -- Complete Go plugin
+- [Go Example](../../examples/plugin/go/) -- Complete Go plugin
 
 ## SDK Reference
 

@@ -1,5 +1,11 @@
 # ZeBGP vs ExaBGP Implementation Comparison Report
 
+> **Note:** This report was generated in December 2025 and has not been updated to reflect
+> subsequent development. Many features listed as "missing" have since been implemented,
+> including: VPLS, RTC, config reload, Adj-RIB-In/Out, FlowSpec, Graceful Restart,
+> and dynamic peer management. Capability count has increased from 9 to 12+.
+> See `docs/features.md` for the current feature list.
+
 **Generated:** 2025-12-20
 **Purpose:** Identify logic differences between ZeBGP (Go) and ExaBGP (Python) implementations
 

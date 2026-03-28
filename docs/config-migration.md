@@ -2,8 +2,8 @@
 
 ZeBGP migrates configurations using named transformations. Each transformation has a specific purpose and can be previewed before applying.
 
-<!-- source: cmd/ze/config/cmd_migrate.go -- ze bgp config migrate command -->
-<!-- source: cmd/ze/config/cmd_fmt.go -- ze bgp config fmt command -->
+<!-- source: cmd/ze/config/cmd_migrate.go -- ze config migrate command -->
+<!-- source: cmd/ze/config/cmd_fmt.go -- ze config fmt command -->
 <!-- source: cmd/ze/config/cmd_validate.go -- ze config validate command -->
 
 ## Quick Start
@@ -13,22 +13,22 @@ ZeBGP migrates configurations using named transformations. Each transformation h
 ze config validate myconfig.conf
 
 # Preview migration changes
-ze bgp config migrate --dry-run myconfig.conf
+ze config migrate --dry-run myconfig.conf
 
 # Migrate in place (creates backup)
-ze bgp config migrate --in-place myconfig.conf
+ze config migrate --in-place myconfig.conf
 
 # Migrate to new file
-ze bgp config migrate myconfig.conf -o myconfig-v3.conf
+ze config migrate myconfig.conf -o myconfig-v3.conf
 
 # Format/normalize a v3 config
-ze bgp config fmt myconfig.conf
+ze config fmt myconfig.conf
 
 # Format in place
-ze bgp config fmt -w myconfig.conf
+ze config fmt -w myconfig.conf
 
 # Check if formatting needed (for CI)
-ze bgp config fmt --check myconfig.conf
+ze config fmt --check myconfig.conf
 ```
 
 ## Available Transformations
@@ -36,7 +36,7 @@ ze bgp config fmt --check myconfig.conf
 View available transformations with:
 
 ```bash
-$ ze bgp config migrate --list
+$ ze config migrate --list
 
 Available transformations (in order):
   neighbor->peer            Rename 'neighbor' blocks to 'peer'
@@ -132,28 +132,28 @@ Deprecated patterns found:
   • template.neighbor defaults → template.group defaults
 
 To migrate, run:
-  ze bgp config migrate <file> -o <output>
-  ze bgp config migrate <file> --in-place
+  ze config migrate <file> -o <output>
+  ze config migrate <file> --in-place
 ```
 
-### ze bgp config fmt
+### ze config fmt
 
 Formats and normalizes v3 config files:
 
 ```bash
 # Print formatted config to stdout
-$ ze bgp config fmt config.conf
+$ ze config fmt config.conf
 
 # Write back to file
-$ ze bgp config fmt -w config.conf
+$ ze config fmt -w config.conf
 
 # Check if formatting needed (for CI)
-$ ze bgp config fmt --check config.conf
+$ ze config fmt --check config.conf
 # Exit 0 = no changes needed
 # Exit 1 = changes needed
 
 # Show diff of changes
-$ ze bgp config fmt --diff config.conf
+$ ze config fmt --diff config.conf
 ```
 
 **Flags:**
@@ -165,16 +165,16 @@ $ ze bgp config fmt --diff config.conf
 
 **Note:** `fmt` only works on v3 configs. Run `migrate` first for v2 configs.
 
-### ze bgp config migrate
+### ze config migrate
 
 Converts config to current format:
 
 ```bash
 # List available transformations
-$ ze bgp config migrate --list
+$ ze config migrate --list
 
 # Preview what would happen
-$ ze bgp config migrate --dry-run old.conf
+$ ze config migrate --dry-run old.conf
 Transformation analysis:
   ⏳ neighbor->peer (pending)
   ⏳ api->new-format (pending)
@@ -185,7 +185,7 @@ Transformation analysis:
 Result: 2 transformation(s) would apply. All would succeed.
 
 # Migrate to stdout (config to stdout, progress to stderr)
-$ ze bgp config migrate old.conf
+$ ze config migrate old.conf
 Transformations:
   ✅ neighbor->peer
   ⏭️  peer-glob->template.match (not needed)
@@ -193,10 +193,10 @@ Transformations:
 2 applied, 3 skipped.
 
 # Write to new file
-$ ze bgp config migrate old.conf -o new.conf
+$ ze config migrate old.conf -o new.conf
 
 # Modify in place (creates .bak backup)
-$ ze bgp config migrate --in-place old.conf
+$ ze config migrate --in-place old.conf
 ```
 
 **Flags:**

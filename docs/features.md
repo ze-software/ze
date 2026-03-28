@@ -12,8 +12,8 @@ Ze is a BGP daemon written in Go. This document lists all user-facing features.
 | IPv6 Unicast | `ipv6/unicast` | 2/1 | Yes | Yes | Yes |
 | IPv4 Multicast | `ipv4/multicast` | 1/2 | Yes | Yes | Yes |
 | IPv6 Multicast | `ipv6/multicast` | 2/2 | Yes | Yes | Yes |
-| IPv4 VPN | `ipv4/mpls-vpn` | 1/128 | Yes | Yes | Yes |
-| IPv6 VPN | `ipv6/mpls-vpn` | 2/128 | Yes | Yes | Yes |
+| IPv4 VPN | `ipv4/vpn` | 1/128 | Yes | Yes | Yes |
+| IPv6 VPN | `ipv6/vpn` | 2/128 | Yes | Yes | Yes |
 | IPv4 FlowSpec | `ipv4/flow` | 1/133 | Yes | Yes | Yes |
 | IPv6 FlowSpec | `ipv6/flow` | 2/133 | Yes | Yes | Yes |
 | IPv4 FlowSpec VPN | `ipv4/flow-vpn` | 1/134 | Yes | Yes | Yes |
@@ -44,6 +44,7 @@ Ze is a BGP daemon written in Go. This document lists all user-facing features.
 
 | Capability | Code | RFC | Description |
 |------------|------|-----|-------------|
+| Multiprotocol Extensions | 1 | RFC 4760 | Multi-protocol BGP (AFI/SAFI negotiation) |
 | 4-byte ASN | 65 | RFC 6793 | 32-bit AS numbers |
 | Route Refresh | 2 | RFC 2918 | Request full route re-advertisement |
 | Enhanced Route Refresh | 70 | RFC 7313 | Bounded clear and re-send |
@@ -253,14 +254,16 @@ Three filter categories:
 | Plugin | Description |
 |--------|-------------|
 | bgp-gr | Graceful Restart (RFC 4724) and Long-Lived GR (RFC 9494) state machine |
+| bgp-aigp | Accumulated IGP Metric (RFC 7311) |
 | bgp-rpki | RPKI origin validation via RTR protocol (RFC 6811, RFC 8210). [Guide](guide/rpki.md) |
-| bgp-rpki-decorator | Merged UPDATE+RPKI events (correlates update and rpki streams into update-rpki) |
+| bgp-rpki-decorator | Correlates UPDATE + RPKI events into merged update-rpki events |
 | bgp-route-refresh | Route Refresh handling (RFC 2918, RFC 7313) |
 | role | BGP Role capability enforcement (RFC 9234) |
 | bgp-llnh | Link-local next-hop for IPv6 (RFC 2545) |
 | bgp-hostname | FQDN capability for peer identification |
 | bgp-softver | Software version capability advertisement |
-| bgp-llnh | Link-local next-hop for IPv6 (RFC 2545) |
+| filter-community | Community tag/strip filter (standard, large, extended) |
+| loop | Route loop detection (RFC 4271 S9, RFC 4456 S8) |
 
 <!-- source: internal/component/bgp/plugins/gr/register.go -- bgp-gr -->
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki -->
@@ -270,6 +273,9 @@ Three filter categories:
 <!-- source: internal/component/bgp/plugins/llnh/register.go -- bgp-llnh -->
 <!-- source: internal/component/bgp/plugins/hostname/register.go -- bgp-hostname -->
 <!-- source: internal/component/bgp/plugins/softver/register.go -- bgp-softver -->
+<!-- source: internal/component/bgp/plugins/aigp/register.go -- bgp-aigp -->
+<!-- source: internal/component/bgp/plugins/filter_community/register.go -- filter-community -->
+<!-- source: internal/component/bgp/reactor/filter/register.go -- loop -->
 
 ## CLI Commands
 

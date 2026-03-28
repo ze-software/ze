@@ -31,12 +31,12 @@ Routes that fail validation never enter best-path selection.
 | 5 | `attr-value-invalid` | Per-attribute validation (ORIGIN range, AS_PATH structure, NEXT_HOP format, length checks for MED/LOCAL_PREF/AGGREGATOR/COMMUNITY/ORIGINATOR_ID/CLUSTER_LIST/EXT_COMMUNITY/LARGE_COMMUNITY, MP_REACH/MP_UNREACH structure) | 7606 | `message/rfc7606.go` |
 | 6 | `mandatory-attr-missing` | ORIGIN, AS_PATH, or NEXT_HOP absent (when required) | 4271 | `message/rfc7606.go` |
 | 7 | `family-not-negotiated` | MP_REACH/MP_UNREACH AFI/SAFI not in OPEN capabilities | 4271 | `reactor/session_validation.go` |
-| 8 | `as-loop` | Local ASN found in AS_PATH (AS_SEQUENCE or AS_SET) | 4271 S9 | `reactor/session_validation.go` |
-| 9 | `originator-id-loop` | ORIGINATOR_ID matches local Router ID (iBGP only) | 4456 S8 | `reactor/session_validation.go` |
-| 10 | `cluster-list-loop` | Local Router ID found in CLUSTER_LIST (iBGP only) | 4456 S8 | `reactor/session_validation.go` |
+| 8 | `as-loop` | Local ASN found in AS_PATH (AS_SEQUENCE or AS_SET) | 4271 S9 | Not yet implemented |
+| 9 | `originator-id-loop` | ORIGINATOR_ID matches local Router ID (iBGP only) | 4456 S8 | Not yet implemented |
+| 10 | `cluster-list-loop` | Local Router ID found in CLUSTER_LIST (iBGP only) | 4456 S8 | Not yet implemented |
 | 11 | `rpki-invalid` | Origin AS does not match any covering VRP | 6811 | `plugins/adj_rib_in/rib_validation.go` |
 <!-- source: internal/component/bgp/message/rfc7606.go -- RFC 7606 validation checks -->
-<!-- source: internal/component/bgp/reactor/session_validation.go -- family, loop detection checks -->
+<!-- source: internal/component/bgp/reactor/session_validation.go -- family negotiation check (validateUpdateFamilies) -->
 
 ### RFC 7606 Error Escalation
 

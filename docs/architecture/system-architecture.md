@@ -550,9 +550,9 @@ declare done
 | `ze-plugin-conf` | `internal/component/plugin/schema/` | `container plugin` for process declarations |
 <!-- source: internal/component/bgp/schema/ -- BGP YANG schemas -->
 <!-- source: internal/component/plugin/schema/ -- plugin YANG schemas -->
-| `ze-rib` | `internal/component/plugin/rib/schema/ze-rib.yang` | Augments `ze-bgp-conf` with `container rib` |
-| `ze-graceful-restart` | `internal/component/plugin/gr/schema/ze-graceful-restart.yang` | Augments `ze-bgp-conf` for graceful-restart |
-| `ze-hostname` | `internal/component/plugin/hostname/schema/ze-hostname.yang` | Augments `ze-bgp-conf` for FQDN capability |
+| `ze-rib` | `internal/component/bgp/plugins/rib/schema/ze-rib.yang` | Augments `ze-bgp-conf` with `container rib` |
+| `ze-graceful-restart` | `internal/component/bgp/plugins/gr/schema/ze-graceful-restart.yang` | Augments `ze-bgp-conf` for graceful-restart |
+| `ze-hostname` | `internal/component/bgp/plugins/hostname/schema/ze-hostname.yang` | Augments `ze-bgp-conf` for FQDN capability |
 
 **Note:** Plugin YANG schemas augment `ze-bgp-conf` to extend the configuration tree. Each plugin owns its YANG in a `schema/` subdirectory.
 
@@ -571,7 +571,8 @@ Plugins can augment other plugins' YANG schemas. Hub merges all YANG modules int
 
 ## Package Structure
 
-After refactoring, the code will be organized as:
+**Planned (aspirational).** This is the target package structure, not the current layout. See `docs/architecture/overview.md` for the actual directory structure.
+
 
 ```
 internal/
@@ -732,7 +733,7 @@ $ kill -TERM $(pgrep -f "ze config.conf")
 - [Hub Architecture](hub-architecture.md) - Hub mode internal design details
 - [Process Protocol](api/process-protocol.md) - 5-stage protocol specification
 - [YANG Config Design](config/yang-config-design.md) - Schema design
-- [Spec: Config Dispatch](../../plan/spec-config-dispatch.md) - Mode selection by config content
+- [Config Dispatch](../../plan/learned/189-config-dispatch.md) - Mode selection by config content (completed)
 
 ---
 

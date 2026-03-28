@@ -612,8 +612,8 @@ peers where it is configured (e.g., `allow-own-as:relaxed` overrides `rfc:no-sel
 | `plugin/rib.Route` (strings) | Remove | Use core RIB |
 | `plugin/rr.Route` | Remove | Use core RIB |
 | `RouteSpec`, `FlowSpecRoute`, etc. | Keep | Parsing intermediates (not stored) |
-| `attribute.AttributesWire` | Merge | `Attributes` (read + write) |
-| `attribute.Builder` | Merge | `Attributes` (read + write) |
+| `attribute.AttributesWire` | Keep | Read/iterate received wire bytes (zero-copy, lazy parsing) |
+| `attribute.Builder` | Keep | Construct new attribute wire bytes for outgoing UPDATEs |
 
 ---
 
@@ -672,10 +672,9 @@ Connection collision detection follows RFC 4271 S6.8: when both sides connect si
 
 ## 13. Implementation Priority
 
-1. **Merge Attributes types** - Single type for read + write
-2. **Implement RIB with pools** - Per-attribute-type deduplication
-3. **Unified parser** - Family-specific NLRI builders
-4. **Remove duplicates** - plugin/rib, plugin/rr; share UPDATE parsing between message.Update and WireUpdate
+1. **Implement RIB with pools** - Per-attribute-type deduplication
+2. **Unified parser** - Family-specific NLRI builders
+3. **Remove duplicates** - Share UPDATE parsing between message.Update and WireUpdate
 
 ---
 

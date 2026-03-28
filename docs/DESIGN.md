@@ -41,7 +41,7 @@ correctness for speed of implementation.
 FlowSpec, FlowSpec VPN, EVPN, VPLS, BGP-LS, MPLS, MUP, MVPN, RTC), 13 capabilities
 (Multiprotocol Extensions, ASN4, ADD-PATH, Extended Message, Extended Next Hop,
 Graceful Restart, Long-Lived Graceful Restart, Route Refresh, Enhanced Route Refresh,
-BGP Role, Hostname, Software Version, Link-Local Next Hop), and 15 path attribute
+BGP Role, Hostname, Software Version, Link-Local Next Hop), 25 plugins, and 15 path attribute
 types. RFC 8203 Administrative Shutdown Communication for graceful teardown with
 human-readable messages. All encode, decode, and round-trip through the same wire
 representation.
@@ -314,6 +314,10 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `bgp-softver` | Software version capability (code 75) |
 | `bgp-llnh` | Link-local next-hop for IPv6 |
 | `bgp-rpki` | RPKI origin validation (RFC 6811, RFC 8210) |
+| `bgp-rpki-decorator` | Correlates UPDATE + RPKI events into merged update-rpki events |
+| `bgp-aigp` | Accumulated IGP Metric (RFC 7311) |
+| `filter-community` | Community tag/strip filter (standard, large, extended) |
+| `loop` | Route loop detection (RFC 4271 S9, RFC 4456 S8) |
 | `bgp-evpn` | EVPN NLRI encode/decode (5 route types) |
 | `bgp-flowspec` | FlowSpec NLRI encode/decode |
 | `bgp-ls` | BGP-LS NLRI decode |
@@ -330,6 +334,10 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 <!-- source: internal/component/bgp/plugins/role/register.go -- role plugin -->
 <!-- source: internal/component/bgp/plugins/watchdog/register.go -- bgp-watchdog plugin -->
 <!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki plugin -->
+<!-- source: internal/component/bgp/plugins/rpki_decorator/register.go -- bgp-rpki-decorator plugin -->
+<!-- source: internal/component/bgp/plugins/aigp/register.go -- bgp-aigp plugin -->
+<!-- source: internal/component/bgp/plugins/filter_community/register.go -- filter-community plugin -->
+<!-- source: internal/component/bgp/reactor/filter/register.go -- loop plugin -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- bgp-evpn plugin -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- bgp-flowspec plugin -->
 <!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- bgp-ls plugin -->
@@ -657,7 +665,7 @@ All JSON output follows these conventions:
 | Category | Count |
 |----------|-------|
 | Go test functions | ~6,000 |
-| Functional tests (`.ci` files) | ~400 |
+| Functional tests (`.ci` files) | 481 |
 | Fuzz targets | ~40 |
 
 Functional tests by area: plugin behavior (140), CLI/UI (73), config parsing (60),

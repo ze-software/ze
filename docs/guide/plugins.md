@@ -172,7 +172,7 @@ NLRI plugins register address family support. They are loaded automatically when
 
 | Plugin | Families |
 |--------|----------|
-| `bgp-nlri-vpn` | ipv4/mpls-vpn, ipv6/mpls-vpn |
+| `bgp-nlri-vpn` | ipv4/vpn, ipv6/vpn |
 | `bgp-nlri-evpn` | l2vpn/evpn |
 | `bgp-nlri-vpls` | l2vpn/vpls |
 | `bgp-nlri-flowspec` | ipv4/flow, ipv6/flow, ipv4/flow-vpn, ipv6/flow-vpn |

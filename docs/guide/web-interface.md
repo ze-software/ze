@@ -27,11 +27,14 @@ When no certificate is configured, ze generates an ECDSA P-256 self-signed certi
 The web server listen address can also be set in the ze configuration file:
 
 ```
-web {
-    listen 0.0.0.0:8443;
+environment {
+    web {
+        host 0.0.0.0;
+        port 8443;
+    }
 }
 ```
-<!-- source: internal/component/web/schema/ze-web-conf.yang -- web container, listen leaf -->
+<!-- source: internal/component/web/schema/ze-web-conf.yang -- web container, host/port leaves -->
 
 ## Authentication
 

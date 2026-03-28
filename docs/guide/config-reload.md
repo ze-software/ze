@@ -25,7 +25,7 @@ kill -HUP $(pidof ze)               # Direct signal
 
 | Change | Why |
 |--------|-----|
-| BGP globals (`router-id`, `local-as`) | Affects all peers, requires full restart |
+| BGP globals (`router-id`, `local { as }`) | Affects all peers, requires full restart |
 | Hub listen address/port | Listener cannot be changed at runtime |
 | SSH server settings | Server cannot be reconfigured live |
 
@@ -47,7 +47,8 @@ If a plugin reload fails:
 | `SIGHUP` | Reload configuration (add/remove/update peers) |
 | `SIGTERM` / `SIGINT` | Graceful shutdown (NOTIFICATION Cease to all peers) |
 | `SIGUSR1` | Dump status to stderr |
-<!-- source: cmd/ze/hub/main.go -- signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP) -->
+<!-- source: cmd/ze/hub/main.go -- signal.Notify for SIGINT/SIGTERM/SIGHUP -->
+<!-- source: internal/component/bgp/reactor/signal.go -- SignalHandler, SIGUSR1 status dump -->
 
 ## Reload Workflow
 

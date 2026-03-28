@@ -61,9 +61,9 @@ Pack attributes in this order (within the RFC attribute section):
 
 ### Why This Order
 
-1. **Regular attributes first**: Cacheable blob, shared between updates with same path
-2. **MP_REACH before MP_UNREACH**: Maintains RFC type-code ordering (14 < 15)
-3. **MP attributes at end**: Clear boundary - easy to find where cacheable attrs stop
+1. **MP_UNREACH first**: Withdrawals logically precede announcements
+2. **Regular attributes second**: Cacheable blob, shared between updates with same path
+3. **MP_REACH last**: Announcements follow the attributes that describe them
 4. **Preserves RFC compliance**: Just reorders within attribute section (allowed)
 
 ### Benefits

@@ -23,12 +23,12 @@ Indentation is not significant. Unknown keys are rejected with a suggestion for 
 # Global BGP settings
 bgp {
     router-id 1.2.3.4;
-    local-as 65000;
+    local { as 65000; }
 
     # Peer group with shared defaults
     group upstream {
         timer {
-            hold-time 180;
+            receive-hold-time 180;
         }
         local { connect false; }   # passive: don't initiate outbound
 
@@ -49,7 +49,7 @@ bgp {
         peer transit-b {
             remote { ip 10.0.0.2; as 65002; }
             timer {
-                hold-time 90;    # overrides group value
+                receive-hold-time 90;    # overrides group value
             }
         }
     }
@@ -74,10 +74,10 @@ Configuration uses 3-level inheritance: BGP globals, group defaults, peer overri
 | Level | Scope | Example |
 |-------|-------|---------|
 | BGP | All peers | `bgp { router-id 1.2.3.4; }` |
-| Group | Peers in group | `group upstream { timer { hold-time 180; } }` |
-| Peer | Single peer | `peer transit-a { timer { hold-time 90; } }` |
+| Group | Peers in group | `group upstream { timer { receive-hold-time 180; } }` |
+| Peer | Single peer | `peer transit-a { timer { receive-hold-time 90; } }` |
 
-Containers (like `capability`, `family`, `timer`) are deep-merged across levels. Leaf values (like `hold-time` inside `timer`) override.
+Containers (like `capability`, `family`, `timer`) are deep-merged across levels. Leaf values (like `receive-hold-time` inside `timer`) override.
 <!-- source: internal/component/bgp/config/resolve.go -- ResolveBGPTree, inheritance merging -->
 
 ## Peer Settings
@@ -90,8 +90,9 @@ Peers are keyed by name (`peer <name> { }`) where the name must start with a let
 | `local { ip; as; }` | Local bind address and AS | Yes (ip can be `auto`) |
 | `router-id` | BGP router ID | Yes (or inherited) |
 | `description` | Human-readable description | No |
-| `timer { }` | Timer container: `hold-time` (seconds, 0 or 3-65535, default 180), `connect-retry` (seconds, default 120) | No |
-| `connection` | Connect mode: `active` (dial out only), `passive` (accept only), `both` (dial out + accept inbound) | No (default: both) |
+| `timer { }` | Timer container: `receive-hold-time` (seconds, 0 or 3-65535, default 90), `send-hold-time` (seconds, 0 or 480-65535, default 0), `connect-retry` (seconds, default 120) | No |
+| `local { connect }` | Initiate outbound TCP connections: `true` or `false` (default: true) | No |
+| `remote { accept }` | Accept inbound TCP connections: `true` or `false` (default: true) | No |
 | `port` | TCP port | No (default: 179) |
 | `md5-password` | TCP MD5 authentication | No |
 | `ttl-security` | Minimum TTL for incoming packets | No |
@@ -122,7 +123,7 @@ Configured under `family { }`. Each family requires a `prefix { maximum N; }` bl
 family {
     ipv4/unicast { prefix { maximum 1000000; } }
     ipv6/unicast { prefix { maximum 200000; } }
-    ipv4/mpls-vpn { prefix { maximum 500; } }
+    ipv4/vpn { prefix { maximum 500; } }
     l2vpn/evpn { prefix { maximum 10000; } }
 }
 ```

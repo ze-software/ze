@@ -19,7 +19,7 @@ Ze uses target-first syntax with JSON or text encoding.
 | Multi-session filters | Supported (draft) | Not supported |
 | Forward command | Not available | `forward update-id` for route reflection |
 
-See [JSON_FORMAT.md](JSON_FORMAT.md#exabgp-differences) for output format differences.
+See [json-format.md](json-format.md#exabgp-differences) for output format differences.
 <!-- source: internal/component/plugin/server/command.go -- Dispatcher -->
 
 ---
@@ -261,7 +261,7 @@ bgp log set <subsystem> <level>   # Change subsystem log level at runtime
 ```
 
 Levels: `debug`, `info`, `warn`, `err`. Changes take effect immediately via `slog.LevelVar` atomic swap. Only loggers created via `slogutil.Logger()` or `slogutil.LazyLogger()` (non-disabled) are shown and modifiable.
-<!-- source: internal/component/bgp/plugins/cmd/log/schema/ -- ze-bgp-cmd-log-api.yang -->
+<!-- source: internal/component/cmd/log/schema/ -- ze-bgp-cmd-log-api.yang -->
 
 ### Metrics Commands (Ze)
 
@@ -271,7 +271,7 @@ bgp metrics list          # List metric names only (no values)
 ```
 
 Requires telemetry to be enabled in config (`telemetry { prometheus { ... } }`). Returns error if metrics registry is not available.
-<!-- source: internal/component/bgp/plugins/cmd/metrics/schema/ -- ze-bgp-cmd-metrics-api.yang -->
+<!-- source: internal/component/cmd/metrics/schema/ -- ze-bgp-cmd-metrics-api.yang -->
 
 ### Peer Selectors
 

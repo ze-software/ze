@@ -35,7 +35,7 @@ ze run peer upstream1 teardown 2     # Full access including destructive command
 | `bgp summary` | BGP summary table |
 
 **Peer selector:** `*` (all), exact IP, glob patterns (`192.168.*.*`), exclusion (`!addr`), or peer name.
-<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/reactor/reactor_api.go -- selectPeers -->
+<!-- source: internal/component/bgp/plugins/cmd/peer/peer.go -- peer command handlers; internal/component/bgp/reactor/reactor_api.go -- getMatchingPeers -->
 
 ## Route Commands
 

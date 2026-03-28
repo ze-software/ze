@@ -8,32 +8,35 @@ Ze has multiple route representations serving different purposes in the data flo
 
 | Struct | Location | Purpose | Key Fields |
 |--------|----------|---------|------------|
-| `RouteSpec` | `internal/component/plugin/types.go` | API input for announce/withdraw | Prefix, NextHop, PathAttributes |
-| `PathAttributes` | `internal/component/plugin/types.go` | Shared BGP attributes | Origin, ASPath, MED, LocalPref, Communities |
-| `rib.Route` | `internal/component/plugin/rib/rib.go` | Plugin storage for replay/resend | All attributes as strings + MsgID |
-| `rr.Route` | `internal/component/plugin/rr/rib.go` | Minimal for zero-copy forwarding | MsgID, Family, Prefix only |
-| `RIBRoute` | `internal/component/plugin/types.go` | Query output | Peer, Prefix, NextHop, ASPath (strings) |
+| `RouteSpec` | `internal/component/bgp/types/types.go` | API input for announce/withdraw | Prefix, NextHop, Wire (AttributesWire) |
+| `FlowSpecRoute` | `internal/component/bgp/types/types.go` | FlowSpec route announcement | Family, DestPrefix, SourcePrefix, Actions |
+| `L3VPNRoute` | `internal/component/bgp/types/types.go` | MPLS VPN route (RFC 4364) | Prefix, NextHop, RD, Labels, Wire |
+| `LabeledUnicastRoute` | `internal/component/bgp/types/types.go` | MPLS labeled unicast (RFC 8277) | Prefix, NextHop, Labels, PathID, Wire |
+| `L2VPNRoute` | `internal/component/bgp/types/types.go` | L2VPN/EVPN route | RouteType, RD, MAC, IP, Labels |
+| `MUPRouteSpec` | `internal/component/bgp/types/types.go` | Mobile User Plane (SAFI 85) | RouteType, Prefix, RD, TEID, Wire |
+| `VPLSRoute` | `internal/component/bgp/types/types.go` | VPLS route | RD, VEBlockOffset, LabelBase |
 | `rib.Route` | `internal/component/bgp/rib/route.go` | Core engine storage | NLRI, Attrs, ASPath, wire cache, refcount |
-<!-- source: internal/component/plugin/types.go -- RouteSpec, PathAttributes, RIBRoute -->
+<!-- source: internal/component/bgp/types/types.go -- RouteSpec, FlowSpecRoute, L3VPNRoute, L2VPNRoute, MUPRouteSpec -->
 <!-- source: internal/component/bgp/rib/route.go -- rib.Route (core engine) -->
 
-**Note:** Two different `rib.Route` types exist - one in `internal/component/plugin/rib/` (plugin) and one in `internal/component/bgp/rib/` (core engine).
+**Note:** `rib.Route` in `internal/component/bgp/rib/` is the core engine storage type.
 
 ## Route Type Families
 
 ### Unicast Routes
-- `RouteSpec` - IPv4/IPv6 unicast with PathAttributes
+- `RouteSpec` - IPv4/IPv6 unicast with Wire (AttributesWire)
 
 ### VPN Routes
-- `L3VPNRoute` - MPLS VPN (RFC 4364) - embeds PathAttributes
-- `LabeledUnicastRoute` - MPLS labeled unicast - embeds PathAttributes
+- `L3VPNRoute` - MPLS VPN (RFC 4364) - has Wire (AttributesWire)
+- `LabeledUnicastRoute` - MPLS labeled unicast - has Wire (AttributesWire)
 
 ### EVPN Routes
 - `L2VPNRoute` - EVPN types (RFC 7432) - separate structure
 
 ### Special Routes
 - `FlowSpecRoute` - FlowSpec (RFC 8955) - separate structure
-- `MUPRouteSpec` - Mobile User Plane - embeds PathAttributes
+- `MUPRouteSpec` - Mobile User Plane - has Wire (AttributesWire)
+- `VPLSRoute` - VPLS - separate structure
 
 ## Data Flow
 
@@ -57,50 +60,41 @@ Command Input                    Wire Reception
 │ rib.Route   │               │ rib.Route   │
 │ (full store)│               │ (full store)│
 └─────────────┘               └─────────────┘
-     │
-     ▼
-┌─────────────┐
-│ RIBRoute    │
-│ (query out) │
-└─────────────┘
 ```
 
-## PathAttributes Embedding Pattern
+## Wire Attributes Pattern
 
-Routes that embed `PathAttributes`:
+Routes that carry `*attribute.AttributesWire` for path attributes in wire format:
 - `RouteSpec`
 - `L3VPNRoute`
 - `LabeledUnicastRoute`
 - `MUPRouteSpec`
 
-Routes with separate structure:
+Routes with separate structure (no Wire field):
 - `FlowSpecRoute` (actions instead of attributes)
 - `L2VPNRoute` (EVPN-specific fields)
+- `VPLSRoute` (VPLS-specific fields)
 
 ## Package Organization
 
 ```
-internal/component/plugin/
-├── types.go          # RouteSpec, PathAttributes, RIBRoute, route families
-├── nexthop.go        # RouteNextHop (policy: explicit/self)
-├── route.go          # Parsing: ParseRouteAttributes(), parseCommonAttribute()
-├── json.go           # JSON encoding: RouteAnnounce(), RouteWithdraw()
-│
-├── rib/
-│   └── rib.go        # rib.Route (full storage)
-│
-└── rr/
-    └── rib.go        # rr.Route (minimal/zero-copy)
+internal/component/bgp/types/
+└── types.go          # RouteSpec, FlowSpecRoute, L3VPNRoute, L2VPNRoute, etc.
 
-internal/selector/
+internal/component/bgp/rib/
+└── route.go          # rib.Route (core engine storage)
+
+internal/core/selector/
 └── selector.go       # Peer selectors (*, IP, !IP, ip,ip,ip)
 
 internal/component/bgp/attribute/
+├── wire.go           # AttributesWire (read/iterate received wire bytes)
+├── builder.go        # Builder (construct new attribute wire bytes)
 ├── text.go           # Text formatting: FormatASPath(), FormatCommunities()
 └── *.go              # Wire format encoding/decoding
 ```
-<!-- source: internal/component/plugin/types.go -- route type definitions -->
-<!-- source: internal/core/selector/ -- peer selector implementation -->
+<!-- source: internal/component/bgp/types/types.go -- route type definitions -->
+<!-- source: internal/core/selector/selector.go -- peer selector implementation -->
 
 ## Design Principles
 

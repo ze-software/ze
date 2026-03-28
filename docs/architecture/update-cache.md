@@ -13,7 +13,7 @@ Not all plugins that receive UPDATE events participate in cache lifecycle manage
 |-------------|-------------|------------------|-----------------|----------|
 | Cache consumer (e.g., RIB, route reflector) | `"cache-consumer": true` | Yes | Yes | Yes |
 | Observer (e.g., monitor, counter, logger) | default (`false`) | Yes | No | No |
-<!-- source: internal/component/plugin/process.go -- IsCacheConsumer/SetCacheConsumer -->
+<!-- source: internal/component/plugin/process/process.go -- IsCacheConsumer/SetCacheConsumer -->
 <!-- source: pkg/plugin/rpc/types.go -- CacheConsumer field on DeclareRegistrationInput -->
 
 ### Opting In
@@ -38,7 +38,7 @@ p.Run(ctx, sdk.Registration{
     CacheConsumer: true,
 })
 ```
-<!-- source: internal/component/plugin/server.go -- Stage 1 reads cache-consumer from registration -->
+<!-- source: internal/component/plugin/server/server.go -- Stage 1 reads cache-consumer from registration -->
 
 This is a permanent property set once at startup. The engine stores it on the process and uses it to filter which plugin deliveries are counted for `Activate()`.
 
@@ -164,6 +164,6 @@ Configured via: `environment { reactor { cache-max N; } }` or `ze_reactor_cache_
 | `internal/component/bgp/reactor/recent_cache.go` | Cache implementation (Add, Activate, Ack, eviction) |
 | `internal/component/bgp/plugins/cmd/cache/` | Command dispatch (list, retain, release) |
 | `internal/component/bgp/server/events.go` | Event delivery + cache consumer filtering |
-| `internal/component/plugin/process.go` | `IsCacheConsumer()` / `SetCacheConsumer()` on Process |
-| `internal/component/plugin/server.go` | Stage 1 reads `cache-consumer` from registration |
+| `internal/component/plugin/process/process.go` | `IsCacheConsumer()` / `SetCacheConsumer()` on Process |
+| `internal/component/plugin/server/server.go` | Stage 1 reads `cache-consumer` from registration |
 | `pkg/plugin/rpc/types.go` | `CacheConsumer` field on `DeclareRegistrationInput` |

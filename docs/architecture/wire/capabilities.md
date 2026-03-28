@@ -483,7 +483,8 @@ Defined in `internal/component/bgp/capability/capability.go`:
 ```go
 type Capability interface {
     Code() Code
-    Pack() []byte
+    Len() int
+    WriteTo(buf []byte, off int) int
 }
 
 type Code uint8

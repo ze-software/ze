@@ -3,7 +3,8 @@
 **Source:** ExaBGP `bgp/message/update/nlri/flow.py`
 **Family:** AFI 1/2, SAFI 133 (flow_ip) or 134 (flow_vpn)
 
-<!-- source: internal/component/bgp/nlri/constants.go -- SAFIFlowSpec, SAFIFlowSpecVPN -->
+<!-- source: internal/component/bgp/nlri/nlri.go -- SAFIFlowSpec -->
+<!-- source: internal/component/bgp/nlri/constants.go -- SAFIFlowSpecVPN -->
 
 ---
 

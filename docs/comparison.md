@@ -30,8 +30,8 @@ Last updated: 2026-03-25
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | IPv4 Unicast | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | IPv6 Unicast | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| IPv4 Multicast | No | No | Yes | No | No | Yes | Yes | No | No | Yes | Yes |
-| IPv6 Multicast | No | No | Yes | No | No | Yes | Yes | No | No | Yes | Yes |
+| IPv4 Multicast | Yes | No | Yes | No | No | Yes | Yes | No | No | Yes | Yes |
+| IPv6 Multicast | Yes | No | Yes | No | No | Yes | Yes | No | No | Yes | Yes |
 | IPv4 Labeled Unicast | Yes | No | No | No | No | Yes | Yes | Yes | No | No | Yes |
 | IPv6 Labeled Unicast | Yes | No | No | No | No | Yes | Yes | Yes | No | No | Yes |
 | VPNv4 (RFC 4364) | Yes | No | Yes | No | No | Yes | Yes | Yes | Yes | Yes | Yes |

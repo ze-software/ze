@@ -1,7 +1,7 @@
 # Configuration Editor
 
 Ze includes an interactive configuration editor with YANG-driven tab completion, rollback history, and live validation.
-<!-- source: cmd/ze/config/cmd_edit.go -- cmdEditWithStorage; internal/component/config/ -- editor model -->
+<!-- source: cmd/ze/config/cmd_edit.go -- cmdEditWithStorage; internal/component/cli/ -- editor model -->
 
 ## Usage
 
@@ -30,7 +30,7 @@ The editor starts an ephemeral ze instance in the background for live YANG valid
 | `up` | Navigate up one level |
 | `edit <path>` | Navigate into a section |
 | `exit` | Exit editor |
-<!-- source: internal/component/config/editor/ -- editor commands (set, delete, show, diff, commit, rollback) -->
+<!-- source: internal/component/cli/editor_commands.go -- editor commands (set, delete, show, diff, commit, rollback) -->
 
 ## Other Config Subcommands
 

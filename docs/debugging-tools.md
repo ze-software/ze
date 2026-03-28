@@ -6,7 +6,7 @@ This document describes the debugging tools available in ZeBGP for troubleshooti
 
 | Tool | Purpose | Usage |
 |------|---------|-------|
-| `ze bgp config-dump` | Inspect parsed config | `ze bgp config-dump [--json] config.conf` |
+| `ze config dump` | Inspect parsed config | `ze config dump [--json] config.conf` |
 | `ze-peer --decode` | Decode BGP messages | `ze-peer --decode --sink` |
 | `ze.log.*` | Per-subsystem logging | `ze.log.bgp.routes=debug ze bgp server config.conf` |
 | Functional test diff | Test failure analysis | Automatic on message mismatch |
@@ -16,7 +16,7 @@ This document describes the debugging tools available in ZeBGP for troubleshooti
 
 ## 1. Config Dump Command
 
-**Location:** `cmd/ze/bgp/configdump.go`
+**Location:** `cmd/ze/config/cmd_dump.go`
 <!-- source: cmd/ze/config/cmd_dump.go -- config dump command -->
 
 Parses a config file and displays the interpreted values. Useful for verifying that config parsing works correctly.
@@ -25,10 +25,10 @@ Parses a config file and displays the interpreted values. Useful for verifying t
 
 ```bash
 # Human-readable output
-ze bgp config-dump config.conf
+ze config dump config.conf
 
 # JSON output (for scripting)
-ze bgp config-dump --json config.conf
+ze config dump --json config.conf
 ```
 
 ### Example Output
@@ -216,13 +216,13 @@ The parser now collects warnings for potentially problematic patterns, accessibl
 
 ```bash
 # config-dump shows warnings
-ze bgp config-dump config.conf
+ze config dump config.conf
 # Output:
 # Warnings:
 #   line 5: freeform 'flow' contains nested block 'route match' - data may be lost
 
-# Also visible with ZEBGP_TRACE=config
-ZEBGP_TRACE=config ze bgp server config.conf
+# Also visible with debug logging
+ze.log.config=debug ze bgp server config.conf
 ```
 
 ---
@@ -233,13 +233,13 @@ ZEBGP_TRACE=config ze bgp server config.conf
 
 ```bash
 # Step 1: Check parsed config
-ze bgp config-dump config.conf
+ze config dump config.conf
 
 # Step 2: Look for warnings
-ze bgp config-dump config.conf 2>&1 | grep -i warning
+ze config dump config.conf 2>&1 | grep -i warning
 
 # Step 3: Check JSON for exact values
-ze bgp config-dump --json config.conf | jq '.Neighbors[0].StaticRoutes'
+ze config dump --json config.conf | jq '.Neighbors[0].StaticRoutes'
 ```
 
 ### 2. Route Not Being Sent
@@ -322,13 +322,13 @@ Subsystem naming convention: `ze.log.` + simplified package path (e.g., `bgp.rea
 
 | File | Purpose |
 |------|---------|
-| `internal/test/peer/decode.go` | BGP message decoder |
+| `internal/test/runner/decode.go` | BGP message decoder |
 | `internal/test/peer/peer.go` | Test peer with decode support |
-| `internal/slogutil/slogutil.go` | Logging infrastructure |
-| `cmd/ze/bgp/configdump.go` | config-dump command |
-| `cmd/ze-peer/main.go` | --decode flag |
+| `internal/core/slogutil/slogutil.go` | Logging infrastructure |
+| `cmd/ze/config/cmd_dump.go` | config dump command |
+| `cmd/ze-test/peer.go` | --decode flag |
 | `internal/component/config/parser.go` | Parser warnings |
-| `internal/component/config/loader.go` | Config logging (configLogger) |
+| `internal/component/bgp/config/loader.go` | Config logging (configLogger) |
 | `internal/component/bgp/reactor/peer.go` | Peer/route logging (peerLogger, routesLogger) |
 | `internal/component/bgp/reactor/session.go` | Session logging (sessionLogger) |
 | `internal/component/bgp/reactor/reactor.go` | Reactor logging (reactorLogger, routesLogger) |

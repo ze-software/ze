@@ -119,16 +119,15 @@ JSON with `type` field indicating the payload key:
 
 ### Event Format (Engine → Plugin)
 
-JSON with `type` field indicating which key contains the payload. The `peer` field is at the `bgp` level; event-specific data is nested under the event type key:
+JSON with `type` field indicating which key contains the payload. The `peer` field is at the `bgp` level; event type is in `bgp.message.type`; event-specific data is nested under the event type key:
 
 ```json
 {
   "type": "bgp",
   "bgp": {
-    "type": "update",
+    "message": {"type": "update", "id": 123, "direction": "received"},
     "peer": {"address": "10.0.0.1", "group": "transit", "name": "upstream1", "remote": {"as": 65001}},
     "update": {
-      "message": {"id": 123, "direction": "received"},
       "attr": {"origin": "igp", "as-path": [65001]},
       "nlri": {"ipv4/unicast": [{"action": "add", "next-hop": "10.0.0.1", "nlri": ["10.0.0.0/24"]}]}
     }
@@ -139,7 +138,7 @@ JSON with `type` field indicating which key contains the payload. The `peer` fie
 **Exception:** State events use a simple string value for `state` instead of a container:
 
 ```json
-{"type": "bgp", "bgp": {"type": "state", "peer": {...}, "state": "up"}}
+{"type": "bgp", "bgp": {"message": {"type": "state"}, "peer": {...}, "state": "up"}}
 ```
 
 | Field | Type | Required | Description |
@@ -152,15 +151,22 @@ JSON with `type` field indicating which key contains the payload. The `peer` fie
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `type` | string | Always | `update`, `open`, `notification`, `keepalive`, `refresh`, `state`, `negotiated` |
+| `message` | object | Always | `{"type":"<event>"}` with optional `"id"` and `"direction"` fields |
 | `peer` | object | Always | `{"address":"<ip>", "remote":{"as":<asn>}}` - at bgp level. Optional `"name"` and `"group"` when configured. |
 | `<type>` | object/string | Usually | Event data nested under event type key (string for state events) |
+
+**Message metadata fields (inside `bgp.message`):**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Always | `update`, `open`, `notification`, `keepalive`, `refresh`, `state`, `negotiated` |
+| `id` | int | If > 0 | Message identifier |
+| `direction` | string | If set | `"received"` or `"sent"` |
 
 **BGP event data fields (inside `bgp.<type>` object, except state):**
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `message` | object | For wire messages | `{"id": <N>, "direction": "<dir>"}` |
 | `attr` | object | For UPDATE | Path attributes (origin, as-path, etc.) |
 | `nlri` | object | For UPDATE | `{"<family>": [operations...]}` |
 | `raw` | object | If format=full | Wire bytes (see Raw Format below) |

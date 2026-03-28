@@ -1,5 +1,9 @@
 # ExaBGP to Ze Code Map
 
+> **Note:** This code map was generated in January 2026 and many file paths are now stale
+> due to package restructuring. The `capability/` directory was consolidated from ~16 files
+> to ~6, and `message/` was reorganized. See `make ze-inventory` for current package layout.
+
 ## TL;DR (Read This First)
 
 | ExaBGP | Ze | Notes |

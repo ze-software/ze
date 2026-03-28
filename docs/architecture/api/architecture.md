@@ -8,17 +8,17 @@
 
 | Feature | Status | Code Location |
 |---------|--------|---------------|
-| Process management | ✅ Done | `internal/component/plugin/process.go` |
-| Backpressure (1000/100) | ✅ Done | `internal/component/plugin/process.go` |
-| Respawn limits (5/60s) | ✅ Done | `internal/component/plugin/process.go` |
-| Command dispatch | ✅ Done | `internal/component/plugin/command.go`, `internal/ipc/dispatch.go` |
-| YANG API schema | ✅ Done | `internal/component/bgp/schema/`, `internal/ipc/schema/`, `internal/component/plugin/rib/schema/` |
-| Plugin commands | ✅ Done | `internal/component/plugin/registry.go`, `internal/component/plugin/plugin.go` |
-| Route injection | ✅ Done | `internal/component/plugin/rib/` |
-| BGP cache commands | ✅ Done | `internal/component/plugin/cache.go` |
-| Session sync | ✅ Done | `internal/component/plugin/session.go` |
-| JSON/text encoding | ✅ Done | `internal/component/plugin/json.go` |
-| RR plugin | ✅ Done | `internal/component/plugin/rr/` |
+| Process management | ✅ Done | `internal/component/plugin/process/process.go` |
+| Backpressure (1000/100) | ✅ Done | `internal/component/plugin/process/process.go` |
+| Respawn limits (5/60s) | ✅ Done | `internal/component/plugin/process/process.go` |
+| Command dispatch | ✅ Done | `internal/component/plugin/server/command.go`, `internal/component/plugin/server/dispatch.go` |
+| YANG API schema | ✅ Done | `internal/component/bgp/schema/`, `internal/core/ipc/schema/`, `internal/component/bgp/plugins/rib/schema/` |
+| Plugin commands | ✅ Done | `internal/component/plugin/registration.go`, `internal/component/plugin/server/server.go` |
+| Route injection | ✅ Done | `internal/component/bgp/plugins/rib/` |
+| BGP cache commands | ✅ Done | `internal/component/plugin/server/subsystem.go` |
+| Session sync | ✅ Done | `internal/component/plugin/server/session.go` |
+| JSON/text encoding | ✅ Done | `internal/component/bgp/format/json.go` |
+| RR plugin | ✅ Done | `internal/component/bgp/plugins/rs/` |
 | RIB plugin | ✅ Done | `internal/component/bgp/plugins/rib/` |
 | Adj-RIB-In plugin | ✅ Done | `internal/component/bgp/plugins/adj_rib_in/` |
 | Shared BGP types | ✅ Done | `internal/component/bgp/` |

@@ -334,16 +334,23 @@ const (
 var Marker = [16]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
                       0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
 
-func ParseHeader(data []byte) (length uint16, msgType MessageType, err error) {
+func ParseHeader(data []byte) (Header, error) {
     if len(data) < HeaderLen {
-        return 0, 0, ErrShortRead
+        return Header{}, ErrShortRead
     }
-    if !bytes.Equal(data[:16], Marker[:]) {
-        return 0, 0, ErrInvalidMarker
+    for i := range MarkerLen {
+        if data[i] != 0xFF {
+            return Header{}, ErrInvalidMarker
+        }
     }
-    length = binary.BigEndian.Uint16(data[16:18])
-    msgType = MessageType(data[18])
-    return length, msgType, nil
+    length := binary.BigEndian.Uint16(data[16:18])
+    if length < HeaderLen {
+        return Header{}, ErrInvalidLength
+    }
+    return Header{
+        Length: length,
+        Type:   MessageType(data[18]),
+    }, nil
 }
 ```
 

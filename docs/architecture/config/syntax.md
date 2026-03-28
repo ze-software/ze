@@ -106,7 +106,7 @@ bgp {
 ### environment
 
 Ze-specific block for setting environment configuration from the config file.
-See [ENVIRONMENT_BLOCK.md](ENVIRONMENT_BLOCK.md) for full documentation.
+See [environment-block.md](environment-block.md) for full documentation.
 
 ```
 environment {
@@ -828,7 +828,7 @@ bgp {
 ## Related
 
 - [ExaBGP Legacy Syntax](exabgp-syntax.md) -- `static`, `announce`, `flow` blocks accepted for migration
-- [API Update Syntax](../api/UPDATE_SYNTAX.md) -- API command syntax for route injection (not yet implemented)
+- [API Update Syntax](../api/update-syntax.md) -- API command syntax for route injection (not yet implemented)
 
 ---
 

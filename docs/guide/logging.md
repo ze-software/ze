@@ -29,7 +29,7 @@ environment {
 }
 ```
 
-<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- environment log config block -->
+<!-- source: internal/component/hub/schema/ze-hub-conf.yang -- environment log config block -->
 
 ### Environment Variables
 
