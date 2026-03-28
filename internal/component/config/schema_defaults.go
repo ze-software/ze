@@ -143,3 +143,18 @@ func SchemaDefaultString(schema *Schema, path string) (string, error) {
 	}
 	return s, nil
 }
+
+// SchemaDefaultOctal returns the octal integer YANG default for a schema path.
+// The YANG value is a string like "0137" parsed as octal.
+// Returns error if the YANG default is missing or unparseable.
+func SchemaDefaultOctal(schema *Schema, path string) (int, error) {
+	s := SchemaDefault(schema, path)
+	if s == "" {
+		return 0, fmt.Errorf("YANG default missing: %s", path)
+	}
+	v, err := strconv.ParseInt(s, 8, 32)
+	if err != nil {
+		return 0, fmt.Errorf("YANG default for %s not octal: %w", path, err)
+	}
+	return int(v), nil
+}

@@ -161,7 +161,9 @@ func (e *Environment) loadDefaults() error {
 	if e.Daemon.Drop, err = SchemaDefaultBool(schema, "environment.daemon.drop"); err != nil {
 		return err
 	}
-	e.Daemon.Umask = 0o137 // octal -- YANG stores "0137" string, parsed separately
+	if e.Daemon.Umask, err = SchemaDefaultOctal(schema, "environment.daemon.umask"); err != nil {
+		return err
+	}
 
 	// Log (ze-hub-conf.yang > environment > log)
 	if e.Log.Enable, err = SchemaDefaultBool(schema, "environment.log.enable"); err != nil {

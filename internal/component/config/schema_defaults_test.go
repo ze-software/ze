@@ -211,6 +211,7 @@ func TestYANGDefaultsMatchRFC(t *testing.T) {
 		// Environment (ze-hub-conf.yang + ze-bgp-conf.yang augment)
 		{"environment.daemon.user", "zeuser", "ze-hub-conf.yang"},
 		{"environment.daemon.drop", "true", "ze-hub-conf.yang"},
+		{"environment.daemon.umask", "0137", "ze-hub-conf.yang"},
 		{"environment.log.enable", "true", "ze-hub-conf.yang"},
 		{"environment.log.level", "INFO", "ze-hub-conf.yang"},
 		{"environment.log.destination", "stdout", "ze-hub-conf.yang"},
