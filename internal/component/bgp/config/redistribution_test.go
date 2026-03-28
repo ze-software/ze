@@ -1,4 +1,4 @@
-// Design: (none -- new redistribution filter config parsing)
+// Design: (none -- redistribution filter config tests)
 package bgpconfig
 
 import (
@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestRedistributionConfigParse verifies parsing redistribution leaf-lists from config tree.
+// TestRedistributionConfigParse verifies parsing redistribution leaf-lists.
 //
 // VALIDATES: AC-2 -- Config with redistribution import/export validates successfully.
 // PREVENTS: Redistribution config silently ignored.
@@ -34,21 +34,18 @@ bgp {
 `
 	tree, err := parseTreeWithYANG(input, nil)
 	require.NoError(t, err)
-
 	peers, err := PeersFromConfigTree(tree)
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
 
 	ps := peers[0]
-	// Cumulative: bgp import + group import
 	assert.Equal(t, []string{"rpki:validate", "community:scrub"}, ps.ImportFilters)
-	// Only group export
 	assert.Equal(t, []string{"aspath:prepend"}, ps.ExportFilters)
 }
 
 // TestFilterChainResolution verifies bgp > group > peer cumulative merging.
 //
-// VALIDATES: AC-12 -- Config hierarchy bgp > group > peer produces correct chain.
+// VALIDATES: AC-12 -- Config hierarchy produces correct chain order.
 // PREVENTS: Filters from wrong level or wrong order.
 func TestFilterChainResolution(t *testing.T) {
 	input := `
@@ -74,16 +71,13 @@ bgp {
 `
 	tree, err := parseTreeWithYANG(input, nil)
 	require.NoError(t, err)
-
 	peers, err := PeersFromConfigTree(tree)
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
-
-	ps := peers[0]
-	assert.Equal(t, []string{"a:x", "b:y", "c:z"}, ps.ImportFilters)
+	assert.Equal(t, []string{"a:x", "b:y", "c:z"}, peers[0].ImportFilters)
 }
 
-// TestRedistributionConfigValidation verifies format validation of filter references.
+// TestRedistributionConfigValidation verifies format validation.
 //
 // VALIDATES: AC-3c -- Config error on invalid filter reference format.
 // PREVENTS: Malformed filter references reaching the reactor.
@@ -101,10 +95,8 @@ bgp {
     local { as 65000; }
     peer p1 {
         remote { ip 10.0.0.1; as 65001; }
-            local { ip auto; }
-        redistribution {
-            import [ badformat ];
-        }
+        local { ip auto; }
+        redistribution { import [ badformat ]; }
     }
 }`,
 			wantErr: "invalid filter reference",
@@ -117,10 +109,8 @@ bgp {
     local { as 65000; }
     peer p1 {
         remote { ip 10.0.0.1; as 65001; }
-            local { ip auto; }
-        redistribution {
-            import [ :filter ];
-        }
+        local { ip auto; }
+        redistribution { import [ :filter ]; }
     }
 }`,
 			wantErr: "empty plugin name",
@@ -133,21 +123,17 @@ bgp {
     local { as 65000; }
     peer p1 {
         remote { ip 10.0.0.1; as 65001; }
-            local { ip auto; }
-        redistribution {
-            export [ plugin: ];
-        }
+        local { ip auto; }
+        redistribution { export [ plugin: ]; }
     }
 }`,
 			wantErr: "empty filter name",
 		},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tree, err := parseTreeWithYANG(tt.input, nil)
 			require.NoError(t, err)
-
 			_, err = PeersFromConfigTree(tree)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
@@ -157,7 +143,7 @@ bgp {
 
 // TestRedistributionStandalonePeer verifies standalone peers get bgp-level filters.
 //
-// VALIDATES: Standalone peers (no group) still accumulate bgp-level filters.
+// VALIDATES: Standalone peers accumulate bgp-level filters.
 // PREVENTS: Bgp-level filters lost for standalone peers.
 func TestRedistributionStandalonePeer(t *testing.T) {
 	input := `
@@ -169,29 +155,24 @@ bgp {
     }
     peer standalone {
         remote { ip 10.0.0.1; as 65001; }
-            local { ip auto; }
-        redistribution {
-            export [ peer:export ];
-        }
+        local { ip auto; }
+        redistribution { export [ peer:export ]; }
     }
 }
 `
 	tree, err := parseTreeWithYANG(input, nil)
 	require.NoError(t, err)
-
 	peers, err := PeersFromConfigTree(tree)
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
-
-	ps := peers[0]
-	assert.Equal(t, []string{"global:filter"}, ps.ImportFilters)
-	assert.Equal(t, []string{"peer:export"}, ps.ExportFilters)
+	assert.Equal(t, []string{"global:filter"}, peers[0].ImportFilters)
+	assert.Equal(t, []string{"peer:export"}, peers[0].ExportFilters)
 }
 
 // TestRedistributionEmpty verifies empty redistribution block is valid.
 //
-// VALIDATES: No filters configured = no filters in chain (no crash).
-// PREVENTS: Panic or error on missing redistribution block.
+// VALIDATES: No filters = no crash.
+// PREVENTS: Panic on missing redistribution block.
 func TestRedistributionEmpty(t *testing.T) {
 	input := `
 bgp {
@@ -199,18 +180,52 @@ bgp {
     local { as 65000; }
     peer p1 {
         remote { ip 10.0.0.1; as 65001; }
-            local { ip auto; }
+        local { ip auto; }
     }
 }
 `
 	tree, err := parseTreeWithYANG(input, nil)
 	require.NoError(t, err)
-
 	peers, err := PeersFromConfigTree(tree)
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
+	assert.Empty(t, peers[0].ImportFilters)
+	assert.Empty(t, peers[0].ExportFilters)
+}
 
-	ps := peers[0]
-	assert.Empty(t, ps.ImportFilters)
-	assert.Empty(t, ps.ExportFilters)
+// TestDefaultFilterOverride verifies override removes default filters.
+//
+// VALIDATES: AC-19 -- Filter with overrides removes default filter.
+// PREVENTS: Override declarations ignored.
+func TestDefaultFilterOverride(t *testing.T) {
+	defaults := []string{"rfc:no-self-as", "rfc:bogon-check"}
+	userFilters := []string{"allow-own-as:relaxed", "rpki:validate"}
+	overrideMap := map[string][]string{
+		"allow-own-as:relaxed": {"rfc:no-self-as"},
+	}
+	result := applyOverrides(defaults, userFilters, overrideMap)
+	assert.Equal(t, []string{"rfc:bogon-check"}, result)
+}
+
+// TestMandatoryFilterCannotBeOverridden verifies mandatory filters survive.
+//
+// VALIDATES: AC-21 -- Override targeting mandatory filter is ignored.
+// PREVENTS: User removing RFC-mandated safety filters.
+func TestMandatoryFilterCannotBeOverridden(t *testing.T) {
+	// Mandatory filters are NOT in defaults -- they're always prepended
+	// by the reactor. This test verifies overriding a non-default has no effect.
+	defaults := []string{"rfc:no-self-as"}
+	userFilters := []string{"evil:bypass"}
+	overrideMap := map[string][]string{
+		"evil:bypass": {"rfc:otc"}, // rfc:otc is mandatory, not in defaults
+	}
+	result := applyOverrides(defaults, userFilters, overrideMap)
+	assert.Equal(t, []string{"rfc:no-self-as"}, result)
+}
+
+// TestApplyOverridesEmpty verifies no crash on empty inputs.
+func TestApplyOverridesEmpty(t *testing.T) {
+	assert.Nil(t, applyOverrides(nil, nil, nil))
+	assert.Equal(t, []string{"a:b"}, applyOverrides([]string{"a:b"}, nil, nil))
+	assert.Equal(t, []string{"a:b"}, applyOverrides([]string{"a:b"}, []string{"c:d"}, nil))
 }

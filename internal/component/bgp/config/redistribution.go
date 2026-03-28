@@ -55,6 +55,46 @@ func validateFilterRefs(refs []string) ([]string, error) {
 	return result, nil
 }
 
+// DefaultImportFilters are default import filters prepended to every peer's chain.
+// Can be overridden by user filters that declare matching overrides.
+// Populated at init time by protocol filter packages.
+var DefaultImportFilters []string
+
+// DefaultExportFilters are default export filters prepended to every peer's chain.
+var DefaultExportFilters []string
+
+// applyOverrides removes default filters that are overridden by user filters.
+// overrideMap maps "<plugin>:<filter>" to a list of default filter names it replaces.
+// Returns the filtered default list with overridden entries removed.
+func applyOverrides(defaults, userFilters []string, overrideMap map[string][]string) []string {
+	if len(defaults) == 0 || len(overrideMap) == 0 {
+		return defaults
+	}
+
+	// Collect all overridden default filter names.
+	overridden := make(map[string]bool)
+	for _, ref := range userFilters {
+		if targets, ok := overrideMap[ref]; ok {
+			for _, t := range targets {
+				overridden[t] = true
+			}
+		}
+	}
+
+	if len(overridden) == 0 {
+		return defaults
+	}
+
+	result := make([]string, 0, len(defaults))
+	for _, d := range defaults {
+		if !overridden[d] {
+			result = append(result, d)
+		}
+	}
+
+	return result
+}
+
 // concatFilters concatenates multiple filter slices into a single ordered chain.
 // Nil slices are skipped. Returns nil if all inputs are empty.
 func concatFilters(chains ...[]string) []string {
