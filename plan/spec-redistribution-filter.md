@@ -567,17 +567,12 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 9. **Complete spec** -- In progress
 
-### Remaining Work (for next session)
+### Remaining Work (future specs)
 
-| Item | What | Why blocked |
-|------|------|-------------|
-| Wire-to-text formatting | Convert WireUpdate attributes to text format for filter-update input | Needs attribute parsing integration (lazy parse → text format per declared attributes) |
-| 7 functional .ci tests | End-to-end tests with external filter plugin | Depends on wire-to-text |
-| Override resolution | Default/mandatory filter registry + removal logic | Needs catalog of default filters (only rfc:no-self-as exists conceptually) |
-| Override tests | TestDefaultFilterOverride, TestMandatoryFilterCannotBeOverridden | Depends on override resolution |
-| Per-filter on-error | Use filter's declared on-error (reject/accept) on IPC failure | Need filter registry lookup in policyFilterFunc |
-| AC-13 validation | Reject modify of undeclared attributes | Need attribute registry per filter |
-| AC-15 raw mode | Include raw hex for filters declaring raw=true | Need raw bytes pass-through |
+| Item | What | Status |
+|------|------|--------|
+| Default filter registry | Populate DefaultImportFilters with named defaults (e.g., rfc:no-self-as) | Infrastructure built (applyOverrides + DefaultImportFilters/DefaultExportFilters), no default named filters exist yet. Current loop check is an in-process IngressFilterFunc, not a named policy filter. Converting it is a separate refactor. |
+| Wire-level dirty tracking | Re-encode only modified attributes into wire UPDATE using ModAccumulator | Text-level delta works. Wire-level re-encoding deferred -- requires integrating text delta back into wire bytes via attribute Builder. |
 
 ### Critical Review Checklist (/implement stage 5)
 
