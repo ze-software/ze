@@ -182,54 +182,28 @@
     box.style.display = 'block';
   }
 
-  // View toggle: GUI <-> CLI text mode.
-  var cliMode = false;
-  var savedGUI = null;
-
+  // Track terminal mode state for CLI Enter key routing.
+  // Updated after HTMX mode toggle completes.
   function initViewToggle() {
-    var btn = document.getElementById('view-toggle');
-    if (!btn) return;
-
-    btn.addEventListener('click', function() {
-      var content = document.querySelector('.content-area');
-      if (!content) return;
-
-      if (!cliMode) {
-        // Switch to CLI text view: save current GUI, show terminal.
-        savedGUI = content.cloneNode(true);
-        var terminal = document.createElement('div');
-        terminal.id = 'terminal-view';
-        terminal.className = 'terminal-view';
-        var output = document.createElement('pre');
-        output.id = 'terminal-output';
-        output.className = 'terminal-output';
-        output.textContent = 'Ze CLI -- type commands below, output appears here.\n\n';
-        terminal.appendChild(output);
-        while (content.firstChild) content.removeChild(content.firstChild);
-        content.appendChild(terminal);
-        cliMode = true;
+    document.addEventListener('htmx:afterSwap', function(e) {
+      if (!e.detail || !e.detail.elt) return;
+      var content = e.detail.elt;
+      if (!content.classList || !content.classList.contains('content-area')) return;
+      // Check if content now has a terminal view.
+      var hasTerminal = content.querySelector('#terminal-output');
+      window.zeTerminalMode = !!hasTerminal;
+      var btn = document.getElementById('view-toggle');
+      if (!btn) return;
+      if (hasTerminal) {
         btn.textContent = 'GUI';
         btn.title = 'Switch to GUI view';
-
-        // Redirect CLI Enter to terminal output.
-        window.zeTerminalMode = true;
+        btn.setAttribute('hx-vals', '{"mode":"integrated"}');
       } else {
-        // Switch back to GUI: restore saved content.
-        if (savedGUI) {
-          while (content.firstChild) content.removeChild(content.firstChild);
-          while (savedGUI.firstChild) content.appendChild(savedGUI.firstChild);
-          savedGUI = null;
-          // Re-init fields.
-          document.dispatchEvent(new Event('htmx:afterSwap'));
-        } else {
-          // No saved GUI, reload page.
-          window.location.reload();
-        }
-        cliMode = false;
         btn.textContent = 'CLI';
         btn.title = 'Switch to text/CLI view';
-        window.zeTerminalMode = false;
+        btn.setAttribute('hx-vals', '{"mode":"terminal"}');
       }
+      if (window.htmx) htmx.process(btn);
     });
   }
 
@@ -240,17 +214,6 @@
     htmx.ajax('GET', '/fragment/detail?path=' + encodeURIComponent(path), {
       target: '#detail',
       swap: 'innerHTML'
-    });
-  }
-
-  // SSE: listen for config-change events from /events endpoint.
-  function initSSE() {
-    if (typeof EventSource === 'undefined') return;
-    var src = new EventSource('/events');
-    src.addEventListener('config-change', function(e) {
-      var bar = document.getElementById('notification-bar');
-      if (!bar || !e.data) return;
-      bar.outerHTML = e.data;
     });
   }
 
@@ -314,7 +277,6 @@
     initTheme();
     init();
     initViewToggle();
-    initSSE();
     initNumberInputs();
     initActions();
   });

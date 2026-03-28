@@ -96,10 +96,11 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 1rem 0.5rem 1rem;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
   font-size: 0.85rem;
+  overflow: visible;
 }
 
 .breadcrumb-nav {
@@ -159,6 +160,8 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
+  padding-right: 0.25rem;
 }
 
 .user-badge {

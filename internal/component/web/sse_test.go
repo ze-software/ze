@@ -367,8 +367,8 @@ func TestBroadcastConfigChange(t *testing.T) {
 			t.Error("missing Dismiss button")
 		}
 
-		if !strings.Contains(ev.data, "hx-swap-oob") {
-			t.Error("missing hx-swap-oob attribute for OOB swap")
+		if !strings.Contains(ev.data, "notification-banner") {
+			t.Error("missing notification-banner class")
 		}
 
 		if !strings.Contains(ev.data, `hx-target="#content-area"`) {

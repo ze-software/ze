@@ -6,6 +6,7 @@
 <title>{{.Title}}</title>
 <link rel="stylesheet" href="/assets/style.css">
 <script src="/assets/htmx.min.js"></script>
+<script src="/assets/sse.js"></script>
 <script src="/assets/cli.js"></script>
 </head>
 <body>
@@ -19,7 +20,8 @@
   {{.Content}}
 </main>
 
-<aside class="notification-bar" id="notification-bar">
+<aside class="notification-bar" id="notification-bar"
+       hx-ext="sse" sse-connect="/events" sse-swap="config-change" hx-swap="innerHTML">
   {{.NotificationHTML}}
 </aside>
 

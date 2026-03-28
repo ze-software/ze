@@ -203,12 +203,12 @@ func writeSSEEvent(w http.ResponseWriter, ev sseEvent) error {
 // notificationBannerSource is the template for rendering config change
 // notification banners. Rendered server-side for SSE delivery via
 // html/template which auto-escapes the reason text.
-const notificationBannerSource = `<div id="notification-bar" hx-swap-oob="innerHTML:#notification-bar">` +
-	`<div class="notification-banner">` +
+// SSE event data is swapped into #notification-bar innerHTML by the HTMX SSE
+// extension (sse-swap="config-change"). No OOB wrapper needed.
+const notificationBannerSource = `<div class="notification-banner">` +
 	`<span class="notification-reason">{{.Reason}}</span>` +
 	`<button class="btn btn-sm" hx-get="{{.RefreshURL}}" hx-target="#content-area" hx-swap="innerHTML">Refresh</button>` +
 	`<button class="btn btn-sm btn-dismiss" data-action="dismiss-banner">Dismiss</button>` +
-	`</div>` +
 	`</div>`
 
 // notificationBannerTmpl is the pre-compiled template for config change

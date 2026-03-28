@@ -14,6 +14,7 @@
   {{else if .Username}}<span class="user-badge">{{.Username}}</span>
   {{end}}
   <button class="theme-toggle" id="theme-toggle" title="Toggle light/dark mode" data-action="toggle-theme">&#9681;</button>
-  <button class="view-toggle" id="view-toggle" title="Switch to text/CLI view">CLI</button>
+  <button class="view-toggle" id="view-toggle" title="Switch to text/CLI view"
+          hx-post="/cli/mode" hx-vals='{"mode":"terminal"}' hx-target=".content-area" hx-swap="innerHTML">CLI</button>
 </div>
 {{end}}
