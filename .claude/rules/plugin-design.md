@@ -137,8 +137,8 @@ Auto-populated: CLI dispatch, plugin runners, YANG schemas, config roots, family
 | Plugin type | Transport | Auth | Config |
 |-------------|-----------|------|--------|
 | Internal (goroutine) | `net.Pipe()` then DirectBridge | N/A | implicit |
-| External (local) | TLS over TCP (single connection) | Token via `ZE_PLUGIN_HUB_TOKEN` env | `plugin { hub { listen ...; secret ...; } }` |
-| External (remote) | TLS over TCP (single connection) | Token via out-of-band config | `plugin { hub { listen ...; secret ...; } }` |
+| External (local) | TLS over TCP (single connection) | Token via `ZE_PLUGIN_HUB_TOKEN` env | `plugin { hub { server <name> { host ...; port ...; secret ...; } } }` |
+| External (remote) | TLS over TCP (single connection) | Token via out-of-band config | `plugin { hub { server <name> { host ...; port ...; secret ...; } } }` |
 
 External plugins connect back to the engine's TLS listener. Auth is stage 0: `#0 auth {"token":"...","name":"..."}`. After auth, the standard 5-stage handshake proceeds over the same single MuxConn connection.
 

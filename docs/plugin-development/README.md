@@ -72,8 +72,11 @@ ze plugin validate binary ./my-plugin
 ```
 plugin {
     hub {
-        listen 127.0.0.1:12700;
-        secret "shared-token";
+        server local {
+            host 127.0.0.1;
+            port 12700;
+            secret "shared-token";
+        }
     }
 }
 

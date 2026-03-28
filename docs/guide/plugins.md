@@ -190,8 +190,11 @@ For external plugins that connect over TLS (non-internal mode), configure the hu
 ```
 plugin {
     hub {
-        listen 127.0.0.1:0;                      # auto-assign port
-        secret my-shared-secret-key-here;         # TLS auth token
+        server local {
+            host 127.0.0.1;
+            port 0;                               # auto-assign port
+            secret my-shared-secret-key-here;     # TLS auth token
+        }
     }
 }
 ```

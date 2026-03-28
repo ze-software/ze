@@ -74,8 +74,11 @@ EOF_RUN
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	hub {
-		listen 127.0.0.1:0;
-		secret rpki-autoload-test-secret-0123456789abcdef;
+		server local {
+			host 127.0.0.1;
+			port 0;
+			secret rpki-autoload-test-secret-0123456789abcdef;
+		}
 	}
 	# NOTE: No explicit rpki, rpki-decorator, or adj-rib-in plugins!
 	# The engine should auto-load bgp-rpki-decorator (and its dependency bgp-rpki)

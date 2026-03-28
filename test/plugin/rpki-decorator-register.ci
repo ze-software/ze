@@ -76,8 +76,11 @@ EOF_RUN
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	hub {
-		listen 127.0.0.1:0;
-		secret rpki-reg-test-secret-0123456789abcdef;
+		server local {
+			host 127.0.0.1;
+			port 0;
+			secret rpki-reg-test-secret-0123456789abcdef;
+		}
 	}
 	external rpki-reg-test {
 		run ./rpki-reg-test.run
