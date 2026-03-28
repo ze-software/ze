@@ -561,13 +561,15 @@ func TestStoreRemovePersistence(t *testing.T) {
 	for _, tc := range []struct{ key, want string }{
 		{"a", "aaa"}, {"c", "ccc"},
 	} {
-		got, readErr := s2.ReadFile(tc.key)
-		if readErr != nil {
-			t.Fatalf("ReadFile(%s): %v", tc.key, readErr)
-		}
-		if string(got) != tc.want {
-			t.Errorf("ReadFile(%s): got %q, want %q", tc.key, got, tc.want)
-		}
+		t.Run(tc.key, func(t *testing.T) {
+			got, readErr := s2.ReadFile(tc.key)
+			if readErr != nil {
+				t.Fatalf("ReadFile(%s): %v", tc.key, readErr)
+			}
+			if string(got) != tc.want {
+				t.Errorf("ReadFile(%s): got %q, want %q", tc.key, got, tc.want)
+			}
+		})
 	}
 	if err := s2.Close(); err != nil {
 		t.Fatal(err)
@@ -604,13 +606,15 @@ func TestStoreRemoveThenAdd(t *testing.T) {
 	for _, tc := range []struct{ key, want string }{
 		{"x", "111"}, {"z", "333"}, {"w", "444"}, {"y", "555"},
 	} {
-		got, readErr := s2.ReadFile(tc.key)
-		if readErr != nil {
-			t.Fatalf("ReadFile(%s): %v", tc.key, readErr)
-		}
-		if string(got) != tc.want {
-			t.Errorf("ReadFile(%s): got %q, want %q", tc.key, got, tc.want)
-		}
+		t.Run(tc.key, func(t *testing.T) {
+			got, readErr := s2.ReadFile(tc.key)
+			if readErr != nil {
+				t.Fatalf("ReadFile(%s): %v", tc.key, readErr)
+			}
+			if string(got) != tc.want {
+				t.Errorf("ReadFile(%s): got %q, want %q", tc.key, got, tc.want)
+			}
+		})
 	}
 	all := s2.List("")
 	if len(all) != 4 {
