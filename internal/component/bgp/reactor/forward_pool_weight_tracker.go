@@ -1,6 +1,7 @@
 // Design: docs/architecture/forward-congestion-pool.md -- two-tier pool sizing
 // Overview: forward_pool.go -- forward pool dispatch
 // Related: forward_pool_weight.go -- weight calculation functions
+// Related: forward_pool_congestion.go -- two-threshold congestion enforcement
 
 package reactor
 

@@ -89,7 +89,7 @@ func TestFwdPool_RouteSuperseding(t *testing.T) {
 
 	// Verify: overflow depth is 1 (not 2).
 	depths := fp.OverflowDepths()
-	assert.Equal(t, 1, depths[key.peerAddr.String()])
+	assert.Equal(t, 1, depths[key.peerAddr.Addr().String()])
 }
 
 // TestFwdPool_SupersedingDifferentKeys verifies items with different keys
@@ -121,7 +121,7 @@ func TestFwdPool_SupersedingDifferentKeys(t *testing.T) {
 	})
 
 	depths := fp.OverflowDepths()
-	assert.Equal(t, 2, depths[key.peerAddr.String()])
+	assert.Equal(t, 2, depths[key.peerAddr.Addr().String()])
 }
 
 // --- AC-25: Withdrawal priority ---
@@ -168,6 +168,51 @@ func TestFwdIsWithdrawal_ParsedUpdate(t *testing.T) {
 	ann := &message.Update{PathAttributes: []byte{0x40, 0x01, 0x01, 0x00}, NLRI: []byte{0x18, 0x0a, 0x00}}
 	item2 := fwdItem{updates: []*message.Update{ann}, peer: &Peer{}}
 	assert.False(t, fwdIsWithdrawal(&item2))
+}
+
+// TestFwdIsWithdrawal_MPUnreach verifies MP_UNREACH_NLRI (non-IPv4) withdrawal detection.
+//
+// VALIDATES: AC-25 withdrawal detection for IPv6/VPN/EVPN families.
+// PREVENTS: MP_UNREACH withdrawals misclassified as announcements (finding 3).
+func TestFwdIsWithdrawal_MPUnreach(t *testing.T) {
+	t.Parallel()
+
+	// MP_UNREACH_NLRI withdrawal: withdrawn_len=0, attrs contain code 15, no NLRI.
+	// Attr: flags=0x90 (optional, transitive, extended), code=15, len=3, AFI/SAFI+data
+	mpUnreachBody := []byte{
+		0x00, 0x00, // withdrawn_len = 0
+		0x00, 0x05, // attr_len = 5
+		0x80, 0x0f, 0x03, 0x00, 0x02, // attr: optional, code=15(MP_UNREACH), len=3
+		// no NLRI
+	}
+	item := fwdItem{rawBodies: [][]byte{mpUnreachBody}}
+	assert.True(t, fwdIsWithdrawal(&item), "MP_UNREACH_NLRI should be classified as withdrawal")
+
+	// MP_REACH_NLRI announcement: withdrawn_len=0, attrs contain code 14, no legacy NLRI.
+	mpReachBody := []byte{
+		0x00, 0x00, // withdrawn_len = 0
+		0x00, 0x05, // attr_len = 5
+		0x80, 0x0e, 0x03, 0x00, 0x01, // attr: optional, code=14(MP_REACH), len=3
+		// no NLRI
+	}
+	item2 := fwdItem{rawBodies: [][]byte{mpReachBody}}
+	assert.False(t, fwdIsWithdrawal(&item2), "MP_REACH_NLRI should be classified as announcement")
+}
+
+// TestFwdIsWithdrawal_Truncated verifies truncated bodies are not classified.
+//
+// VALIDATES: AC-25 edge case: malformed input handling.
+// PREVENTS: Truncated body misclassified as withdrawal (finding 10).
+func TestFwdIsWithdrawal_Truncated(t *testing.T) {
+	t.Parallel()
+
+	// Body too short to parse.
+	item := fwdItem{rawBodies: [][]byte{{0x00, 0x01, 0xFF}}}
+	assert.False(t, fwdIsWithdrawal(&item), "truncated body should not be classified as withdrawal")
+
+	// Empty item.
+	item2 := fwdItem{}
+	assert.False(t, fwdIsWithdrawal(&item2), "empty item should not be withdrawal")
 }
 
 // TestFwdReorderWithdrawalsFirst verifies batch reordering.

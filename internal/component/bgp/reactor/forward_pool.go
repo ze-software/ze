@@ -2,6 +2,7 @@
 // Overview: reactor.go — BGP reactor event loop and peer management
 // Detail: forward_pool_weight.go — burst fraction, buffer demand calculation
 // Detail: forward_pool_weight_tracker.go — per-peer weight tracking and pool budget
+// Detail: forward_pool_congestion.go — two-threshold congestion enforcement
 // Related: reactor_api_forward.go — UPDATE forwarding dispatches to forward pool
 // Related: reactor_metrics.go — metrics loop polls overflow depth, pool ratio, source stats
 // Related: bufmux.go — block-backed buffer multiplexer (shared buffer pools)
@@ -9,6 +10,7 @@
 package reactor
 
 import (
+	"bytes"
 	"hash/fnv"
 	"net/netip"
 	"sync"
@@ -456,7 +458,7 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 	// destination peer is the worst offender, skip pool acquisition. The item
 	// still goes to unbounded overflow (routes never dropped), but the denial
 	// signal feeds into teardown decisions.
-	denied := fp.congestion.ShouldDeny(key.peerAddr.String())
+	denied := fp.congestion.ShouldDeny(key.peerAddr.Addr().String())
 
 	// Acquire overflow pool token if pool exists and not denied.
 	// Skip for sentinel items (peer == nil) — they carry no route data
@@ -487,6 +489,10 @@ func (fp *fwdPool) DispatchOverflow(key fwdKey, item fwdItem) bool {
 	if item.supersedeKey != 0 {
 		for i := range w.overflow {
 			if w.overflow[i].supersedeKey != item.supersedeKey {
+				continue
+			}
+			// Verify content match (guard against FNV hash collision).
+			if !fwdBodiesEqual(w.overflow[i].rawBodies, item.rawBodies) {
 				continue
 			}
 			// Supersede: release old item's resources, replace with new.
@@ -598,14 +604,16 @@ func (fp *fwdPool) WorkerCount() int {
 }
 
 // OverflowDepths returns a snapshot of per-destination-peer overflow depth.
-// Each entry maps peer address string to the number of items currently in its overflow buffer.
+// Each entry maps peer address string (IP-only, no port) to the number of
+// items currently in its overflow buffer. IP-only format matches the key
+// format used by weightTracker (peerAddrLabel) and Prometheus labels.
 // Called by the metrics update loop; must not block.
 func (fp *fwdPool) OverflowDepths() map[string]int {
 	fp.mu.Lock()
 	result := make(map[string]int, len(fp.workers))
 	for key, w := range fp.workers {
 		w.overflowMu.Lock()
-		result[key.peerAddr.String()] = len(w.overflow)
+		result[key.peerAddr.Addr().String()] = len(w.overflow)
 		w.overflowMu.Unlock()
 	}
 	fp.mu.Unlock()
@@ -747,43 +755,133 @@ func fwdSupersedeKey(rawBodies [][]byte) uint64 {
 	return h.Sum64()
 }
 
-// fwdIsWithdrawal returns true if the fwdItem contains only withdrawals
-// (no announcements). For raw bodies, checks the UPDATE wire format:
-// non-zero Unfeasible Routes Length AND empty NLRI section.
-// For parsed updates, checks WithdrawnRoutes non-empty AND NLRI empty.
-// Used by AC-25 withdrawal priority.
-func fwdIsWithdrawal(item *fwdItem) bool {
-	// Check parsed updates first (re-encode path).
-	for _, u := range item.updates {
-		if len(u.NLRI) > 0 || len(u.PathAttributes) > 0 {
-			return false // Has announcements or attributes (likely announcement).
-		}
-		if len(u.WithdrawnRoutes) > 0 {
-			return true
+// fwdBodiesEqual compares two rawBodies slices for byte-level equality.
+// Used as a guard against FNV hash collisions during superseding (finding 6).
+// Only called on the rare hash-match path -- negligible performance impact.
+func fwdBodiesEqual(a, b [][]byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !bytes.Equal(a[i], b[i]) {
+			return false
 		}
 	}
+	return true
+}
+
+// fwdIsWithdrawal returns true if the fwdItem contains only withdrawals
+// (no announcements). Handles both IPv4 withdrawals (legacy Withdrawn Routes
+// field) and non-IPv4 withdrawals (MP_UNREACH_NLRI attribute code 15).
+// Used by AC-25 withdrawal priority.
+//
+// Classification rules:
+//   - Legacy NLRI present (IPv4 announce) -> announcement
+//   - MP_REACH_NLRI (attr code 14) present -> announcement
+//   - Legacy Withdrawn Routes present -> withdrawal (if no announcements)
+//   - MP_UNREACH_NLRI (attr code 15) present -> withdrawal (if no announcements)
+//   - Truncated or malformed body -> not classified (skipped)
+func fwdIsWithdrawal(item *fwdItem) bool {
+	hasWithdrawal := false
+
+	// Check parsed updates (re-encode path).
+	for _, u := range item.updates {
+		if len(u.NLRI) > 0 {
+			return false // Has IPv4 announcements.
+		}
+		if len(u.WithdrawnRoutes) > 0 {
+			hasWithdrawal = true
+		}
+		// Check PathAttributes for MP_REACH_NLRI (14) vs MP_UNREACH_NLRI (15).
+		if fwdAttrsHaveReach(u.PathAttributes) {
+			return false // Has MP_REACH = announcement.
+		}
+		if fwdAttrsHaveUnreach(u.PathAttributes) {
+			hasWithdrawal = true
+		}
+	}
+
 	// Check raw bodies (zero-copy path).
 	// UPDATE body format: [2B withdrawn_len][withdrawn][2B attr_len][attrs][nlri]
 	for _, body := range item.rawBodies {
 		if len(body) < 4 {
-			continue
+			continue // Truncated, skip (don't classify malformed data).
 		}
 		wdLen := int(body[0])<<8 | int(body[1])
-		if wdLen == 0 {
-			return false // No withdrawn routes = announcement.
+		if wdLen > 0 {
+			hasWithdrawal = true
 		}
-		// Check if NLRI section exists after withdrawn + attributes.
+
 		off := 2 + wdLen
 		if off+2 > len(body) {
-			continue
+			continue // Truncated after withdrawn routes.
 		}
 		attrLen := int(body[off])<<8 | int(body[off+1])
-		nlriStart := off + 2 + attrLen
-		if nlriStart < len(body) {
-			return false // Has NLRI = announcement.
+		attrStart := off + 2
+		attrEnd := attrStart + attrLen
+
+		// Check for legacy NLRI after attributes.
+		if attrEnd < len(body) {
+			return false // Has NLRI section = announcement.
+		}
+
+		// Check attributes for MP_REACH (14) / MP_UNREACH (15).
+		if attrEnd <= len(body) {
+			attrs := body[attrStart:attrEnd]
+			if fwdAttrsHaveReach(attrs) {
+				return false // MP_REACH = announcement.
+			}
+			if fwdAttrsHaveUnreach(attrs) {
+				hasWithdrawal = true
+			}
 		}
 	}
-	return len(item.rawBodies) > 0 || len(item.updates) > 0
+
+	return hasWithdrawal
+}
+
+// fwdAttrsHaveReach scans path attributes for MP_REACH_NLRI (code 14).
+// Uses minimal parsing: reads flags + type code, skips by length.
+func fwdAttrsHaveReach(attrs []byte) bool {
+	return fwdAttrsScanCode(attrs, 14)
+}
+
+// fwdAttrsHaveUnreach scans path attributes for MP_UNREACH_NLRI (code 15).
+func fwdAttrsHaveUnreach(attrs []byte) bool {
+	return fwdAttrsScanCode(attrs, 15)
+}
+
+// fwdAttrsScanCode scans path attributes for a specific attribute code.
+// Attribute format: [1B flags][1B code][1-2B length][data].
+// Extended length (flag bit 4 set) uses 2-byte length.
+func fwdAttrsScanCode(attrs []byte, code byte) bool {
+	off := 0
+	for off+2 < len(attrs) {
+		flags := attrs[off]
+		attrCode := attrs[off+1]
+		off += 2
+
+		var attrLen int
+		if flags&0x10 != 0 { // Extended length.
+			if off+2 > len(attrs) {
+				return false
+			}
+			attrLen = int(attrs[off])<<8 | int(attrs[off+1])
+			off += 2
+		} else {
+			if off >= len(attrs) {
+				return false
+			}
+			attrLen = int(attrs[off])
+			off++
+		}
+
+		if attrCode == code {
+			return true
+		}
+		off += attrLen
+	}
+	return false
 }
 
 // fwdReorderWithdrawalsFirst reorders a batch so withdrawals come before

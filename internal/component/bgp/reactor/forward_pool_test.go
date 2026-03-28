@@ -1143,15 +1143,15 @@ func TestFwdPool_OverflowDepths(t *testing.T) {
 	}
 
 	depths := pool.OverflowDepths()
-	assert.Equal(t, 3, depths["10.0.0.1:179"], "peer 10.0.0.1 should have 3 overflow items")
-	assert.Equal(t, 0, depths["10.0.0.2:179"], "peer 10.0.0.2 should have 0 overflow items")
+	assert.Equal(t, 3, depths["10.0.0.1"], "peer 10.0.0.1 should have 3 overflow items")
+	assert.Equal(t, 0, depths["10.0.0.2"], "peer 10.0.0.2 should have 0 overflow items")
 
 	// Unblock and verify depths return to 0 after drain.
 	close(blocker)
 
 	require.Eventually(t, func() bool {
 		d := pool.OverflowDepths()
-		return d["10.0.0.1:179"] == 0
+		return d["10.0.0.1"] == 0
 	}, time.Second, time.Millisecond, "overflow depth should return to 0 after drain")
 }
 

@@ -101,9 +101,10 @@ type congestionConfig struct {
 }
 
 // newCongestionController creates a congestion controller.
+// Requires poolUsedRatio, overflowDepths, and weights to be non-nil.
 func newCongestionController(cfg congestionConfig) *congestionController {
 	grace := cfg.gracePeriod
-	if grace <= 0 {
+	if grace < time.Second {
 		grace = congestionGraceDefault
 	}
 	clk := cfg.clock
@@ -151,7 +152,7 @@ func (cc *congestionController) ShouldDeny(destPeerAddr string) bool {
 }
 
 // CheckTeardown evaluates whether forced teardown should fire for the
-// given peer. Called from fwdBatchHandler when a write deadline fails (AC-4).
+// given peer. Called by the worker goroutine after each batch (AC-4).
 //
 // Teardown fires when ALL conditions hold:
 //   - Pool > 95% full
@@ -175,8 +176,17 @@ func (cc *congestionController) CheckTeardown(failedPeerAddr netip.AddrPort) {
 	worstAddr, worstRatio := cc.weights.WorstPeerRatio(depths)
 
 	// The failed peer must be the worst offender AND exceed 2x weight.
-	if worstAddr != failedPeerAddr.String() || worstRatio < congestionTeardownRatio {
-		cc.clearGrace()
+	// Compare IP-only (no port) to match weightTracker and OverflowDepths key format.
+	failedAddr := failedPeerAddr.Addr().String()
+	if worstAddr != failedAddr || worstRatio < congestionTeardownRatio {
+		if worstAddr == failedAddr {
+			// This peer IS worst but ratio < 2x. Don't clear grace for
+			// other peers (finding 5: non-worst workers were resetting grace).
+			return
+		}
+		// Different peer or no worst peer -- don't reset grace for the
+		// actual worst peer. Only clear when pool drops below threshold
+		// (handled at line 169-172 above).
 		return
 	}
 
@@ -248,13 +258,15 @@ func congestionTeardownPeer(peers func(netip.AddrPort) *Peer) func(netip.AddrPor
 			// GR-aware: close TCP without NOTIFICATION.
 			// Per RFC 4724 Section 4: TCP failure without NOTIFICATION
 			// triggers route retention (Event 18), not route deletion.
+			// Uses EventTCPConnectionFails (not EventManualStop) to match
+			// the semantic intent: we are simulating a TCP failure.
 			peer.mu.Lock()
 			session := peer.session
 			peer.mu.Unlock()
 			if session != nil {
 				session.setCloseReason(ErrCongestionTeardown)
 				session.closeConn()
-				_ = session.fsm.Event(fsm.EventManualStop)
+				_ = session.fsm.Event(fsm.EventTCPConnectionFails)
 			}
 		} else {
 			// Non-GR: send NOTIFICATION Cease/OutOfResources (subcode 8).
