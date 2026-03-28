@@ -9,22 +9,18 @@ Ze provides an HTTPS web interface for browsing configuration, editing values, a
 ### Command Line
 
 ```bash
-ze web                                        # Auto-generated self-signed cert, listen on 127.0.0.1:8443
-ze web --listen 0.0.0.0:8443                  # Listen on all interfaces
-ze web --cert server.pem --key server-key.pem # Use provided TLS certificate
+ze start --web 8443                              # Start daemon + web on port 8443
+ze start --web 8443 --insecure-web               # No authentication (forces 127.0.0.1)
 ```
 
-When `--cert` is omitted, ze generates an ECDSA P-256 self-signed certificate automatically. The certificate includes SANs for localhost, 127.0.0.1, ::1, and the listen address (if it is a non-loopback IP).
-<!-- source: cmd/ze/web/main.go -- Run, flag parsing -->
+When no certificate is configured, ze generates an ECDSA P-256 self-signed certificate automatically. The certificate includes SANs for localhost, 127.0.0.1, ::1, and the listen address.
+<!-- source: cmd/ze/main.go -- cmdStart, webPort/insecureWeb flags -->
 <!-- source: internal/component/web/server.go -- GenerateWebCertWithAddr -->
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--cert` | (none) | Path to TLS certificate PEM file |
-| `--key` | (none) | Path to TLS private key PEM file (required with `--cert`) |
-| `--listen` | `127.0.0.1:8443` | Listen address (host:port) |
-
-Exit codes: 0 = clean shutdown, 1 = error, 2 = file not found (cert/key).
+| Flag | Description |
+|------|-------------|
+| `--web <port>` | Start web interface on `0.0.0.0:<port>` |
+| `--insecure-web` | Disable authentication (forces `127.0.0.1`, requires `--web`) |
 
 ### Configuration
 
