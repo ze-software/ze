@@ -13,6 +13,7 @@ import (
 	"html/template"
 	"io/fs"
 	"net/http"
+	"strings"
 )
 
 //go:embed templates
@@ -32,7 +33,7 @@ type BreadcrumbSegment struct {
 type LayoutData struct {
 	Title            string
 	Content          template.HTML
-	Breadcrumb       []BreadcrumbSegment
+	Breadcrumbs      []BreadcrumbSegment
 	NotificationHTML template.HTML
 	CLIPrompt        string
 	HasSession       bool
@@ -47,10 +48,11 @@ type LoginData struct {
 // Renderer loads and renders HTML templates from embedded files.
 // Caller MUST use NewRenderer to create an instance; zero value is not usable.
 type Renderer struct {
-	layout *template.Template
-	login  *template.Template
-	config map[string]*template.Template // keyed by template name (e.g., "container.html")
-	assets fs.FS
+	layout    *template.Template
+	login     *template.Template
+	config    map[string]*template.Template // keyed by template name (e.g., "container.html")
+	fragments *template.Template            // parsed fragment templates (detail, sidebar, pathbar, oob)
+	assets    fs.FS
 }
 
 // NewRenderer parses all embedded templates and returns a ready Renderer.
@@ -60,12 +62,19 @@ func NewRenderer() (*Renderer, error) {
 		"sub": func(a, b int) int { return a - b },
 	}
 
-	layout, err := template.New("layout.html").Funcs(funcMap).ParseFS(templatesFS, "templates/layout.html")
+	layout, err := template.New("layout.html").Funcs(funcMap).ParseFS(templatesFS,
+		"templates/page/layout.html",
+		"templates/component/breadcrumb.html",
+		"templates/component/cli_bar.html",
+		"templates/component/commit_bar.html",
+		"templates/component/error_panel.html",
+		"templates/component/diff_modal.html",
+	)
 	if err != nil {
 		return nil, fmt.Errorf("parse layout template: %w", err)
 	}
 
-	login, err := template.New("login.html").Funcs(funcMap).ParseFS(templatesFS, "templates/login.html")
+	login, err := template.New("login.html").Funcs(funcMap).ParseFS(templatesFS, "templates/page/login.html")
 	if err != nil {
 		return nil, fmt.Errorf("parse login template: %w", err)
 	}
@@ -99,17 +108,75 @@ func NewRenderer() (*Renderer, error) {
 		configTemplates[name] = t
 	}
 
+	// Parse fragment templates together so they can reference each other.
+	// Each input type is a separate file, dispatched by fieldFor() at render time.
+	var fragments *template.Template
+	fragFuncs := template.FuncMap{
+		"joinpath": func(path []string, upTo int) string {
+			if upTo >= len(path) {
+				return strings.Join(path, "/")
+			}
+			return strings.Join(path[:upTo+1], "/")
+		},
+		"splitopts": func(opts string) []string {
+			if opts == "" {
+				return nil
+			}
+			return strings.Split(opts, ",")
+		},
+		"fieldFor": func(f any) template.HTML {
+			// Render: wrapper_start + input_<type> + wrapper_end.
+			// Dispatches to the right input template based on FieldMeta.Type.
+			type typer interface{ GetType() string }
+			typeName := "text"
+			if ft, ok := f.(typer); ok {
+				typeName = ft.GetType()
+			}
+			var buf bytes.Buffer
+			if err := fragments.ExecuteTemplate(&buf, "field_wrapper_start", f); err != nil {
+				return ""
+			}
+			inputName := "input_" + typeName
+			if err := fragments.ExecuteTemplate(&buf, inputName, f); err != nil {
+				// Fall back to text input for unknown types.
+				_ = fragments.ExecuteTemplate(&buf, "input_text", f)
+			}
+			if err := fragments.ExecuteTemplate(&buf, "field_wrapper_end", f); err != nil {
+				return ""
+			}
+			return template.HTML(buf.String()) //nolint:gosec // trusted template output
+		},
+	}
+	fragments, err = template.New("fragments").Funcs(funcMap).Funcs(fragFuncs).ParseFS(templatesFS,
+		"templates/component/*.html",
+		"templates/input/*.html",
+	)
+	if err != nil {
+		return nil, fmt.Errorf("parse fragment templates: %w", err)
+	}
+
 	assets, err := fs.Sub(assetsFS, "assets")
 	if err != nil {
 		return nil, fmt.Errorf("embedded assets sub-fs: %w", err)
 	}
 
 	return &Renderer{
-		layout: layout,
-		login:  login,
-		config: configTemplates,
-		assets: assets,
+		layout:    layout,
+		login:     login,
+		config:    configTemplates,
+		fragments: fragments,
+		assets:    assets,
 	}, nil
+}
+
+// RenderFragment renders a named fragment template to a string.
+// Used for composing page content and HTMX partial responses.
+func (r *Renderer) RenderFragment(name string, data any) template.HTML {
+	var buf bytes.Buffer
+	if err := r.fragments.ExecuteTemplate(&buf, name, data); err != nil {
+		return ""
+	}
+	return template.HTML(buf.String()) //nolint:gosec // trusted template output
 }
 
 // RenderConfigTemplate renders a config view template by name with the given data.

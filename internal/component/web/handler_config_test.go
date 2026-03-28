@@ -454,7 +454,7 @@ func postConfigRequest(t *testing.T, urlPath string, formData url.Values, userna
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	// Inject the authenticated username into the request context so
-	// getUsernameFromContext returns it.
+	// GetUsernameFromRequest returns it.
 	ctx := context.WithValue(req.Context(), ctxKeyUsername, username)
 
 	return req.WithContext(ctx)
@@ -467,7 +467,7 @@ func postConfigRequest(t *testing.T, urlPath string, formData url.Values, userna
 // PREVENTS: SetValue not called, wrong redirect target, missing form parsing.
 func TestHandleConfigSet(t *testing.T) {
 	mgr, schema := newHandlerTestManager(t)
-	handler := HandleConfigSet(mgr, schema)
+	handler := HandleConfigSet(mgr, schema, nil)
 
 	form := url.Values{
 		"leaf":  {"router-id"},
@@ -560,7 +560,7 @@ func TestHandleConfigDiscard(t *testing.T) {
 // PREVENTS: Invalid paths silently accepted into the draft.
 func TestHandleConfigSetValidationError(t *testing.T) {
 	mgr, schema := newHandlerTestManager(t)
-	handler := HandleConfigSet(mgr, schema)
+	handler := HandleConfigSet(mgr, schema, nil)
 
 	form := url.Values{
 		"leaf":  {"router-id"},
@@ -594,7 +594,7 @@ func TestBoolCheckboxConversion(t *testing.T) {
 	// config.YANGSchema() might not have an easily addressable bool leaf
 	// at a short path. Use the test schema for isBoolLeaf detection.
 	testSchema, _ := buildTestSchemaAndTree()
-	handler := HandleConfigSet(mgr, testSchema)
+	handler := HandleConfigSet(mgr, testSchema, nil)
 
 	// POST with value="on" for a bool leaf (simulating a checked checkbox).
 	form := url.Values{

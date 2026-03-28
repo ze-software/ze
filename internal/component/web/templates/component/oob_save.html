@@ -1,0 +1,7 @@
+{{define "oob_save_ok"}}
+<div id="commit-bar" class="commit-bar visible" hx-swap-oob="outerHTML">
+  <span id="commit-count" class="commit-count">{{.ChangeCount}} pending change{{if ne .ChangeCount 1}}s{{end}}</span>
+  <button class="commit-btn" id="commit-review-btn" hx-get="/config/diff" hx-target="#diff-modal" hx-swap="outerHTML">Review &amp; Commit</button>
+  <button class="commit-discard-btn" id="commit-discard-btn" hx-post="/config/discard" hx-swap="none">Discard</button>
+</div>
+{{end}}

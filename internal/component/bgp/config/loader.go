@@ -562,38 +562,9 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 		}
 	}
 
-	// Start web server from system config block.
-	// Follows the same pattern as SSH: bind port now, wire handlers post-start.
+	// Web server startup moved to hub/main.go startWebServer() which wires
+	// full route handling. Config detection via HasWebConfig().
 	var webSrv *zeweb.WebServer
-	if webCfg, ok := extractWebConfig(tree); ok {
-		certPEM, keyPEM, certErr := zeweb.GenerateWebCertWithAddr(webCfg.ListenAddr)
-		if certErr != nil {
-			configLogger().Warn("web TLS cert error", "error", certErr)
-		} else {
-			webCfg.CertPEM = certPEM
-			webCfg.KeyPEM = keyPEM
-			srv, webErr := zeweb.NewWebServer(webCfg)
-			if webErr != nil {
-				configLogger().Warn("web server config error", "error", webErr)
-			} else {
-				go func() {
-					if serveErr := srv.ListenAndServe(context.Background()); serveErr != nil {
-						configLogger().Error("web server error", "error", serveErr)
-					}
-				}()
-				readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
-				if waitErr := srv.WaitReady(readyCtx); waitErr != nil {
-					configLogger().Warn("web server failed to start", "error", waitErr)
-					// Shut down the already-started ListenAndServe goroutine to prevent leak.
-					_ = srv.Shutdown(context.Background())
-				} else {
-					configLogger().Info("web server listening", "address", srv.Address())
-					webSrv = srv
-				}
-				readyCancel()
-			}
-		}
-	}
 
 	// Deferred wiring: after reactor starts and Dispatcher is available,
 	// connect authorization store, SSH executor, and web handlers (if configured).
@@ -1009,6 +980,15 @@ func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
 	}
 
 	return cfg, true
+}
+
+// HasWebConfig returns true if the parsed config tree has a system.web block.
+func HasWebConfig(tree *config.Tree) bool {
+	sys := tree.GetContainer("system")
+	if sys == nil {
+		return false
+	}
+	return sys.GetContainer("web") != nil
 }
 
 // extractWebConfig extracts web server configuration from the parsed config tree.

@@ -1,0 +1,10 @@
+{{define "input_enum"}}
+<select class="ze-field-select" name="value"
+        hx-post="/config/set/{{.Path}}" hx-trigger="change" hx-swap="none"
+        hx-vals='{"leaf":"{{.Leaf}}"}'>
+  <option value="">{{if .Default}}({{.Default}}){{else}}-- select --{{end}}</option>
+  {{range splitopts .Options}}
+  <option value="{{.}}"{{if eq . $.Value}} selected{{end}}>{{.}}</option>
+  {{end}}
+</select>
+{{end}}

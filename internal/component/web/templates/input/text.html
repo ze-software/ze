@@ -1,0 +1,8 @@
+{{define "input_text"}}
+<input type="text" class="ze-field-input" name="value" value="{{.Value}}"
+       hx-post="/config/set/{{.Path}}" hx-trigger="blur changed" hx-swap="none"
+       hx-vals='{"leaf":"{{.Leaf}}"}'
+       {{- if .Pattern}} pattern="{{.Pattern}}"{{end}}
+       {{- if and (not .Value) .Default}} placeholder="{{.Default}}"
+       {{- else if and (not .Value) .Description}} placeholder="{{.Description}}"{{end}}>
+{{end}}

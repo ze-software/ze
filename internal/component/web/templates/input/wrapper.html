@@ -1,0 +1,10 @@
+{{define "field_wrapper_start"}}
+<div class="ze-field" id="field-{{.Leaf}}">
+  <label class="ze-field-label">{{.Leaf}}{{if .Description}}
+    <span class="ze-field-info" data-tooltip="{{.Description}}">i</span>{{end}}
+  </label>
+{{end}}
+
+{{define "field_wrapper_end"}}
+</div>
+{{end}}

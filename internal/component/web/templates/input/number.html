@@ -1,0 +1,8 @@
+{{define "input_number"}}
+<input type="number" class="ze-field-input" name="value" value="{{.Value}}" inputmode="numeric"
+       hx-post="/config/set/{{.Path}}" hx-trigger="blur changed" hx-swap="none"
+       hx-vals='{"leaf":"{{.Leaf}}"}'
+       {{- if .Min}} min="{{.Min}}"{{end}}
+       {{- if .Max}} max="{{.Max}}"{{end}}
+       {{- if and (not .Value) .Default}} placeholder="{{.Default}}"{{end}}>
+{{end}}

@@ -1,0 +1,21 @@
+{{define "diff_modal"}}
+<div id="diff-modal" class="diff-modal">
+  <div class="diff-title">Review changes</div>
+  <pre class="diff-content"></pre>
+  <div class="diff-actions">
+    <button class="commit-btn" hx-post="/config/commit" hx-swap="none">Confirm Commit</button>
+    <button class="commit-discard-btn" hx-get="/config/diff-close" hx-target="#diff-modal" hx-swap="outerHTML">Cancel</button>
+  </div>
+</div>
+{{end}}
+
+{{define "diff_modal_open"}}
+<div id="diff-modal" class="diff-modal open">
+  <div class="diff-title">Review changes ({{.ChangeCount}})</div>
+  <pre class="diff-content">{{.Diff}}</pre>
+  <div class="diff-actions">
+    <button class="commit-btn" hx-post="/config/commit" hx-swap="none">Confirm Commit</button>
+    <button class="commit-discard-btn" hx-get="/config/diff-close" hx-target="#diff-modal" hx-swap="outerHTML">Cancel</button>
+  </div>
+</div>
+{{end}}

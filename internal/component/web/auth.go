@@ -25,7 +25,7 @@ import (
 type contextKey struct{ name string }
 
 // ctxKeyUsername is the context key used to store the authenticated username.
-// Set by AuthMiddleware, read by getUsernameFromContext.
+// Set by AuthMiddleware, read by GetUsernameFromRequest.
 var ctxKeyUsername = &contextKey{"username"}
 
 // withUsername returns a derived context carrying the authenticated username.
@@ -33,10 +33,10 @@ func withUsername(ctx context.Context, username string) context.Context {
 	return context.WithValue(ctx, ctxKeyUsername, username)
 }
 
-// getUsernameFromContext extracts the authenticated username from the request
+// GetUsernameFromRequest extracts the authenticated username from the request
 // context. Returns an empty string if the context does not carry a username
 // (e.g., the request was not processed by AuthMiddleware).
-func getUsernameFromContext(r *http.Request) string {
+func GetUsernameFromRequest(r *http.Request) string {
 	if v, ok := r.Context().Value(ctxKeyUsername).(string); ok {
 		return v
 	}

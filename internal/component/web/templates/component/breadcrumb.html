@@ -1,0 +1,14 @@
+{{define "breadcrumb_inner"}}
+<div class="breadcrumb-nav">
+  <ol class="breadcrumb-list">
+    {{range .Breadcrumbs}}
+    <li class="breadcrumb-item{{if .Active}} breadcrumb-active{{end}}">
+      {{if .Active}}<span>{{.Name}}</span>{{else}}<a href="{{.URL}}">{{.Name}}</a>{{end}}
+    </li>
+    {{end}}
+  </ol>
+</div>
+<div class="breadcrumb-actions">
+  <button class="view-toggle" id="view-toggle" title="Switch to text/CLI view">CLI</button>
+</div>
+{{end}}

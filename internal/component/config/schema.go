@@ -113,9 +113,11 @@ type Node interface {
 
 // LeafNode represents a terminal value.
 type LeafNode struct {
-	Type      ValueType
-	Default   string
-	Sensitive bool // ze:sensitive — value is a password/key, masked in display
+	Type        ValueType
+	Default     string
+	Sensitive   bool     // ze:sensitive — value is a password/key, masked in display
+	Description string   // YANG description for tooltips/help
+	Enums       []string // Valid enum values (nil for non-enum types)
 }
 
 func (n *LeafNode) Kind() NodeKind { return NodeLeaf }
@@ -126,6 +128,7 @@ type ContainerNode struct {
 	order        []string // preserve definition order
 	AllowUnknown bool     // accept arbitrary key-value pairs (ze:allow-unknown-fields)
 	Presence     bool     // YANG presence container: accepts flag (;), value (word;), or block ({})
+	Description  string   // YANG description for tooltips
 }
 
 func (n *ContainerNode) Kind() NodeKind { return NodeContainer }
@@ -148,10 +151,11 @@ func (n *ContainerNode) Children() []string {
 
 // ListNode represents a keyed collection of containers.
 type ListNode struct {
-	KeyType  ValueType
-	KeyName  string // YANG key name (empty = keyless list like update)
-	children map[string]Node
-	order    []string
+	KeyType     ValueType
+	KeyName     string // YANG key name (empty = keyless list like update)
+	Description string // YANG description for tooltips
+	children    map[string]Node
+	order       []string
 }
 
 func (n *ListNode) Kind() NodeKind { return NodeList }

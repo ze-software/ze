@@ -44,6 +44,10 @@ type ConfigViewData struct {
 	SelectedKey string
 	// SelectedDetail holds the detail view for a selected list entry.
 	SelectedDetail *ConfigViewData
+	// BasePath is the URL prefix for list key links (e.g., "/show/bgp/peer/").
+	BasePath string
+	// DetailPath is the URL path for the selected list entry's set forms.
+	DetailPath string
 	// LeafFields holds input field data for leaf nodes within a container or entry.
 	LeafFields []LeafField
 	// Entries holds freeform node entries.
@@ -52,9 +56,10 @@ type ConfigViewData struct {
 
 // ChildEntry represents a child node in a container view.
 type ChildEntry struct {
-	Name string
-	Kind string // "container", "list", "leaf"
-	URL  string
+	Name   string
+	Kind   string // "container", "list", "leaf"
+	URL    string
+	HxPath string // YANG path for hx-get (without /show/ prefix)
 }
 
 // LeafField holds the data for rendering a leaf input field.
@@ -71,6 +76,8 @@ type LeafField struct {
 	Options      []string
 	IsConfigured bool
 	ReadOnly     bool
+	Modified     bool   // true when user has pending changes vs committed config
+	OldValue     string // previous value before modification
 }
 
 // HandleConfigSet returns a POST handler for /config/set/<yang-path>/.
@@ -82,14 +89,14 @@ type LeafField struct {
 // On success, redirects one level up in the path hierarchy.
 // On validation error from SetValue, returns an error notification.
 // HTMX requests receive HX-Redirect instead of an HTTP redirect.
-func HandleConfigSet(mgr *EditorManager, schema *config.Schema) http.HandlerFunc {
+func HandleConfigSet(mgr *EditorManager, schema *config.Schema, renderer *Renderer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
-		username := getUsernameFromContext(r)
+		username := GetUsernameFromRequest(r)
 		if username == "" {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -121,18 +128,36 @@ func HandleConfigSet(mgr *EditorManager, schema *config.Schema) http.HandlerFunc
 
 		value := r.FormValue("value")
 
-		// For boolean leaves, HTML checkboxes send the value only when
-		// checked. Convert presence/absence to "true"/"false".
+		// For boolean leaves, normalize to "true"/"false".
+		// Toggle buttons send value=true/false explicitly.
+		// HTML checkboxes send the field only when checked (legacy path).
 		if isBoolLeaf(schema, path, leaf) {
-			if _, present := r.Form["value"]; present {
+			if value == boolTrue || value == "1" || value == "on" {
 				value = boolTrue
 			} else {
-				value = "false"
+				value = boolFalse
 			}
 		}
 
 		if err := mgr.SetValue(username, path, leaf, value); err != nil {
-			http.Error(w, fmt.Sprintf("set value: %v", err), http.StatusBadRequest)
+			errPath := strings.Join(append(path, leaf), "/")
+			if renderer != nil {
+				WriteOOBError(w, renderer, errPath, err.Error(), http.StatusBadRequest)
+			} else {
+				http.Error(w, fmt.Sprintf("set value: %v", err), http.StatusBadRequest)
+			}
+			return
+		}
+
+		// HTMX/AJAX requests: return OOB commit bar with change count.
+		if r.Header.Get("HX-Request") == htmxRequestTrue || r.Header.Get("X-Requested-With") == "fetch" {
+			type saveOK struct{ ChangeCount int }
+			count := mgr.ChangeCount(username)
+			html := renderer.RenderFragment("oob_save_ok", saveOK{ChangeCount: count})
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			if _, writeErr := w.Write([]byte(html)); writeErr != nil {
+				return
+			}
 			return
 		}
 
@@ -152,7 +177,7 @@ func HandleConfigDelete(mgr *EditorManager) http.HandlerFunc {
 			return
 		}
 
-		username := getUsernameFromContext(r)
+		username := GetUsernameFromRequest(r)
 		if username == "" {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -202,7 +227,7 @@ func HandleConfigDelete(mgr *EditorManager) http.HandlerFunc {
 // HTMX requests receive HX-Redirect instead of an HTTP redirect.
 func HandleConfigCommit(mgr *EditorManager, renderer *Renderer, broker *EventBroker) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		username := getUsernameFromContext(r)
+		username := GetUsernameFromRequest(r)
 		if username == "" {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -288,7 +313,7 @@ func HandleConfigDiscard(mgr *EditorManager) http.HandlerFunc {
 			return
 		}
 
-		username := getUsernameFromContext(r)
+		username := GetUsernameFromRequest(r)
 		if username == "" {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -389,11 +414,11 @@ func HandleConfigView(renderer *Renderer, schema *config.Schema, tree *config.Tr
 
 		// Full HTML: render config content inside layout.
 		layoutData := LayoutData{
-			Title:      "Ze: /" + strings.Join(path, "/"),
-			Content:    contentHTML,
-			Breadcrumb: viewData.Breadcrumbs,
-			HasSession: true,
-			CLIPrompt:  "/" + strings.Join(path, "/") + ">",
+			Title:       "Ze: /" + strings.Join(path, "/"),
+			Content:     contentHTML,
+			Breadcrumbs: viewData.Breadcrumbs,
+			HasSession:  true,
+			CLIPrompt:   "/" + strings.Join(path, "/") + ">",
 		}
 
 		if err := renderer.RenderLayout(w, layoutData); err != nil {

@@ -16,12 +16,8 @@
     <h3 class="config-section-title">Fields</h3>
     <div class="config-fields">
       {{range .LeafFields}}
-      <form class="config-field-row" method="POST" action="/config/set/{{$.CurrentPath}}">
-        <label class="config-field-name">{{.Name}}</label>
-        <input type="hidden" name="leaf" value="{{.Name}}">
-        <input type="text" name="value" class="config-field-input"
-               value="{{.Value}}"
-               placeholder="{{if .Default}}{{.Default}}{{else}}{{.Description}}{{end}}">
+      <form class="config-set-form" method="POST" action="/config/set/{{$.CurrentPath}}">
+        {{template "leaf_input" .}}
         <button type="submit" class="config-btn-set">Set</button>
       </form>
       {{end}}

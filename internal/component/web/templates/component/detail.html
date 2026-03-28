@@ -1,0 +1,13 @@
+{{define "detail"}}
+{{if .Fields}}
+<section class="config-section">
+  <div class="config-fields">
+    {{range .Fields}}{{fieldFor .}}{{end}}
+  </div>
+</section>
+{{else if not .Sidebar}}
+<section class="config-section">
+  <p class="config-hint">Select an item from the sidebar.</p>
+</section>
+{{end}}
+{{end}}

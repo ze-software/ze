@@ -1,18 +1,19 @@
 <div class="config-list-layout">
   <div class="config-key-panel">
-    <h3 class="config-section-title">Keys</h3>
+    <h3 class="config-section-title">Entries</h3>
     <ul class="config-key-list">
       {{range .Keys}}
       <li>
         <a class="config-key-item{{if eq . $.SelectedKey}} selected{{end}}"
-           hx-get="{{$.BasePath}}{{.}}/" hx-target="#detail-panel" hx-push-url="true"
            href="{{$.BasePath}}{{.}}/">{{.}}</a>
       </li>
       {{end}}
     </ul>
-    <div class="config-key-actions">
-      <button class="config-btn config-btn-add" title="Add entry">+ Add</button>
-    </div>
+    <form class="config-key-add" action="{{.BasePath}}" method="GET"
+          onsubmit="this.action=this.action+this.elements['newkey'].value+'/'; return true;">
+      <input type="text" name="newkey" class="config-input" placeholder="new entry key...">
+      <button type="submit" class="config-btn-set">Add</button>
+    </form>
   </div>
 
   <div class="config-detail-panel" id="detail-panel">
@@ -23,12 +24,9 @@
         <h3 class="config-section-title">Fields</h3>
         <div class="config-fields">
           {{range .SelectedDetail.LeafFields}}
-          <form class="config-set-form{{if .Modified}} modified{{end}}"
-                hx-post="/config/set/{{$.DetailPath}}"
-                hx-target="#notification-bar"
-                hx-swap="innerHTML">
+          <form class="config-set-form" method="POST" action="/config/set/{{$.DetailPath}}">
             {{template "leaf_input" .}}
-            <button type="submit" class="config-btn config-btn-set">Set</button>
+            <button type="submit" class="config-btn-set">Set</button>
           </form>
           {{end}}
         </div>
@@ -37,11 +35,10 @@
 
       {{if .SelectedDetail.Children}}
       <section class="config-section">
-        <h3 class="config-section-title">Children</h3>
         <ul class="config-nav-list">
           {{range .SelectedDetail.Children}}
           <li>
-            <a class="config-nav-link" hx-get="{{.URL}}" hx-target="#content-area" hx-push-url="true" href="{{.URL}}">{{.Name}}</a>
+            <a class="config-nav-link config-nav-{{.Kind}}" href="{{.URL}}">{{.Name}}</a>
           </li>
           {{end}}
         </ul>
@@ -50,7 +47,7 @@
     </div>
     {{else}}
     <div class="config-empty-detail">
-      <p class="config-hint">Select an item from the list.</p>
+      <p class="config-hint">Select an entry or add a new one.</p>
     </div>
     {{end}}
   </div>

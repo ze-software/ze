@@ -1,0 +1,11 @@
+{{define "input_bool"}}
+{{if or (eq .Value "true") (eq .Value "1")}}
+<button type="button" class="ze-toggle ze-toggle-on"
+        hx-post="/config/set/{{.Path}}" hx-swap="none"
+        hx-vals='{"leaf":"{{.Leaf}}","value":"false"}'>on</button>
+{{else}}
+<button type="button" class="ze-toggle"
+        hx-post="/config/set/{{.Path}}" hx-swap="none"
+        hx-vals='{"leaf":"{{.Leaf}}","value":"true"}'>off</button>
+{{end}}
+{{end}}

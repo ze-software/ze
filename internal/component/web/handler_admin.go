@@ -128,7 +128,7 @@ func HandleAdminView(renderer *Renderer, children map[string][]string) http.Hand
 		// Full HTML: render inside layout with breadcrumb.
 		layoutData := LayoutData{
 			Title:      "Admin: /" + strings.Join(path, "/"),
-			Breadcrumb: viewData.Breadcrumbs,
+			Breadcrumbs: viewData.Breadcrumbs,
 		}
 
 		if err := renderer.RenderLayout(w, layoutData); err != nil {

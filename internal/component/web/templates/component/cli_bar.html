@@ -1,0 +1,10 @@
+{{define "cli_bar"}}
+<footer class="cli-bar" id="cli-bar">
+  <span class="cli-prompt" id="cli-prompt">{{.CLIPrompt}}</span>
+  <input type="text" class="cli-input" id="cli-input"
+         placeholder="type a command..."
+         autocomplete="off" spellcheck="false"
+         name="command">
+  <div class="cli-completions" id="cli-completions" style="display:none"></div>
+</footer>
+{{end}}

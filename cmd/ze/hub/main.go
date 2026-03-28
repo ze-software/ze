@@ -5,6 +5,7 @@ package hub
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -47,19 +48,30 @@ func RunWebOnly(store storage.Storage) int {
 	if webSrv == nil {
 		return 1
 	}
-	defer func() {
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
-		defer shutdownCancel()
-		_ = webSrv.Shutdown(shutdownCtx)
-	}()
 
-	sigCh := make(chan os.Signal, 1)
+	sigCh := make(chan os.Signal, 2) //nolint:mnd // buffer 2: graceful + force
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 
 	fmt.Println("Ze web running. Press Ctrl+C to stop.")
 	<-sigCh
-	fmt.Println("\nShutting down...")
+	fmt.Println("\nShutting down (Ctrl+C again to force)...")
+
+	// Second signal forces immediate exit (lifecycle goroutine, not hot path).
+	go forceExitOnSignal(sigCh)
+
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer shutdownCancel()
+	_ = webSrv.Shutdown(shutdownCtx)
+
 	return 0
+}
+
+// forceExitOnSignal waits for a second signal and exits immediately.
+// Started once during shutdown to handle impatient Ctrl+C.
+func forceExitOnSignal(sigCh <-chan os.Signal) {
+	<-sigCh
+	fmt.Fprintf(os.Stderr, "forced exit\n")
+	os.Exit(1)
 }
 
 // Run executes the hub with the given config file path and optional CLI plugins.
@@ -141,6 +153,11 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
 		return 1
+	}
+
+	// Enable web server if config has a system { web { } } block.
+	if !webEnabled && bgpconfig.HasWebConfig(loadResult.Tree) {
+		webEnabled = true
 	}
 
 	// Phase 2: Populate ConfigProvider with parsed config tree.
@@ -287,6 +304,7 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 
 // startWebServer creates and starts the web server with zefs credentials.
 // Returns the server on success, nil on failure (logged, non-fatal).
+// If the port is already in use, attempts to identify and kill the stale process.
 func startWebServer(store storage.Storage) *zeweb.WebServer {
 	const listenAddr = "0.0.0.0:8443"
 
@@ -345,14 +363,50 @@ func startWebServer(store storage.Storage) *zeweb.WebServer {
 		}
 	}
 
-	// Config view handler shows YANG schema tree with current values.
-	viewHandler := zeweb.HandleConfigView(renderer, schema, tree)
+	// Fragment handler serves HTMX components for YANG tree navigation.
+	fragmentHandler := zeweb.HandleFragment(renderer, schema, tree)
 
 	// Config set handler for editing leaf values.
-	setHandler := zeweb.HandleConfigSet(editorMgr, schema)
+	setHandler := zeweb.HandleConfigSet(editorMgr, schema, renderer)
 
-	// CLI autocomplete handler.
+	// Commit and discard handlers.
+	commitHandler := zeweb.HandleConfigCommit(editorMgr, renderer, nil)
+	discardHandler := zeweb.HandleConfigDiscard(editorMgr)
+
+	// Diff handler: returns the diff modal HTML (open, with content).
+	diffHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username := zeweb.GetUsernameFromRequest(r)
+		if username == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		diff, _ := editorMgr.Diff(username)
+		count := editorMgr.ChangeCount(username)
+		type diffData struct {
+			Diff        string
+			ChangeCount int
+		}
+		html := renderer.RenderFragment("diff_modal_open", diffData{Diff: diff, ChangeCount: count})
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if _, writeErr := w.Write([]byte(html)); writeErr != nil {
+			return
+		}
+	})
+
+	// Diff close: returns the closed modal HTML.
+	diffCloseHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		html := renderer.RenderFragment("diff_modal", nil)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if _, writeErr := w.Write([]byte(html)); writeErr != nil {
+			return
+		}
+	})
+
+	// CLI handlers: command execution, autocomplete, terminal mode.
+	cliHandler := zeweb.HandleCLICommand(editorMgr, schema, renderer)
 	completeHandler := zeweb.HandleCLIComplete(completer)
+	terminalHandler := zeweb.HandleCLITerminal(editorMgr)
+	modeHandler := zeweb.HandleCLIModeToggle(editorMgr, schema, renderer)
 
 	// Auth wrapper for protecting individual routes.
 	authWrap := func(h http.Handler) http.Handler {
@@ -364,18 +418,26 @@ func startWebServer(store storage.Storage) *zeweb.WebServer {
 
 	srv.HandleFunc("POST /login", loginHandler)
 	srv.Handle("/assets/", assetHandler)
+	srv.Handle("POST /cli", authWrap(cliHandler))
 	srv.Handle("/cli/complete", authWrap(completeHandler))
+	srv.Handle("POST /cli/terminal", authWrap(terminalHandler))
+	srv.Handle("POST /cli/mode", authWrap(modeHandler))
+	srv.Handle("/fragment/detail", authWrap(fragmentHandler))
 	srv.Handle("POST /config/set/", authWrap(setHandler))
+	srv.Handle("/config/diff", authWrap(diffHandler))
+	srv.Handle("/config/diff-close", authWrap(diffCloseHandler))
+	srv.Handle("/config/commit", authWrap(commitHandler))
+	srv.Handle("POST /config/discard", authWrap(discardHandler))
 	srv.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" {
 			http.Redirect(w, r, "/show/", http.StatusFound)
 			return
 		}
-		authWrap(viewHandler).ServeHTTP(w, r)
+		authWrap(fragmentHandler).ServeHTTP(w, r)
 	})
 
 	go func() {
-		if serveErr := srv.ListenAndServe(context.Background()); serveErr != nil {
+		if serveErr := srv.ListenAndServe(context.Background()); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
 			slogutil.Logger("web.server").Error("web server error", "error", serveErr)
 		}
 	}()

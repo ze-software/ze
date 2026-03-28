@@ -1,0 +1,12 @@
+{{define "oob_response"}}
+{{template "detail" .}}
+<aside id="sidebar" hx-swap-oob="innerHTML">{{template "sidebar" .}}</aside>
+<nav id="breadcrumb" hx-swap-oob="innerHTML">{{template "breadcrumb_inner" .}}</nav>
+{{end}}
+
+{{define "full_content"}}
+<div class="main-split">
+  <aside class="sidebar-panel" id="sidebar">{{template "sidebar" .}}</aside>
+  <div class="detail-panel" id="detail">{{template "detail" .}}</div>
+</div>
+{{end}}

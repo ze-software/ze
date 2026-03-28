@@ -118,7 +118,7 @@ func HandleCLICommand(mgr *EditorManager, schema *config.Schema, renderer *Rende
 			return
 		}
 
-		username := getUsernameFromContext(r)
+		username := GetUsernameFromRequest(r)
 		if username == "" {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -361,7 +361,7 @@ func HandleCLIComplete(completer *cli.Completer) http.HandlerFunc {
 			return
 		}
 
-		username := getUsernameFromContext(r)
+		username := GetUsernameFromRequest(r)
 		if username == "" {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -421,7 +421,7 @@ func HandleCLITerminal(mgr *EditorManager) http.HandlerFunc {
 			return
 		}
 
-		username := getUsernameFromContext(r)
+		username := GetUsernameFromRequest(r)
 		if username == "" {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return
@@ -563,7 +563,7 @@ func HandleCLIModeToggle(mgr *EditorManager, schema *config.Schema, renderer *Re
 			return
 		}
 
-		username := getUsernameFromContext(r)
+		username := GetUsernameFromRequest(r)
 		if username == "" {
 			http.Error(w, "unauthorized", http.StatusUnauthorized)
 			return

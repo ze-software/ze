@@ -45,7 +45,7 @@ func TestRenderLayout(t *testing.T) {
 
 	data := LayoutData{
 		Title: "Test Page",
-		Breadcrumb: []BreadcrumbSegment{
+		Breadcrumbs: []BreadcrumbSegment{
 			{Name: "Home", URL: "/", Active: false},
 			{Name: "BGP", URL: "/bgp", Active: false},
 			{Name: "Peers", URL: "/bgp/peers", Active: true},

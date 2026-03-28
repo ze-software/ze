@@ -227,7 +227,7 @@ func RegisterRoutes(mux *http.ServeMux, auth, assets http.Handler) {
 }
 
 // RegisterCLIRoutes registers CLI bar endpoint handlers on the given ServeMux.
-// All routes require authentication (callers use getUsernameFromContext).
+// All routes require authentication (callers use GetUsernameFromRequest).
 // The auth middleware must wrap these handlers before registration.
 func RegisterCLIRoutes(mux *http.ServeMux, authWrap func(http.HandlerFunc) http.Handler, cliCmd, cliComplete, cliTerminal, cliMode http.HandlerFunc) {
 	mux.Handle("/cli", authWrap(cliCmd))

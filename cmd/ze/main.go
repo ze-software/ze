@@ -399,6 +399,9 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64) int {
 
 	ct := detectConfigType(store, configName)
 	if ct == config.ConfigTypeUnknown {
+		if webEnabled {
+			return hub.RunWebOnly(store)
+		}
 		fmt.Fprintf(os.Stderr, "error: config has no recognized block (bgp, plugin)\n")
 		return 1
 	}

@@ -263,13 +263,15 @@ func buildConfigViewData(schema *config.Schema, tree *config.Tree, path []string
 
 	case *config.ListNode:
 		// When the path ends at the list itself (no key selected),
-		// show the list of keys.
+		// show the list of keys with the base path for navigation.
 		data.Keys = collectListKeys(tree, schema, path)
+		data.BasePath = "/show/" + strings.Join(path, "/") + "/"
 
 		// When we have a list node and the path included a key (walkTree
 		// descended into an entry), also populate leaf fields.
 		subtree := walkTree(tree, schema, path)
 		if subtree != nil {
+			data.DetailPath = strings.Join(path, "/")
 			populateContainerView(data, n, subtree, prefix)
 		}
 

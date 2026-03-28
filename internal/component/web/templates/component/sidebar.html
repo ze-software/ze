@@ -1,0 +1,29 @@
+{{define "sidebar"}}
+{{if .ParentURL}}
+<div class="sidebar-back">
+  <a class="sidebar-back-link" href="{{.ParentURL}}"
+     hx-get="/fragment/detail?path={{.ParentHxPath}}" hx-target="#detail" hx-push-url="{{.ParentURL}}">&larr; back</a>
+</div>
+{{end}}
+{{range .Sidebar}}{{template "sidebar_section" .}}{{end}}
+{{end}}
+
+{{define "sidebar_section"}}
+<div class="sidebar-section">
+  <a class="sidebar-heading" href="{{.URL}}"
+     hx-get="/fragment/detail?path={{.HxPath}}" hx-target="#detail" hx-push-url="{{.URL}}">{{.Name}}{{if .Description}}
+    <span class="ze-field-info" data-tooltip="{{.Description}}">i</span>{{end}}</a>
+  {{if .IsList}}
+  <div class="sidebar-entries">
+    {{range .Entries}}
+    <a class="sidebar-entry{{if .Selected}} selected{{end}}" href="{{.URL}}"
+       hx-get="/fragment/detail?path={{.HxPath}}" hx-target="#detail" hx-push-url="{{.URL}}">{{.Key}}</a>
+    {{end}}
+    <form class="sidebar-add" onsubmit="this.action=this.action+this.elements['key'].value+'/'; return true;" action="{{.AddURL}}" method="GET">
+      <input type="text" name="key" class="sidebar-add-input" placeholder="add...">
+      <button type="submit" class="ze-field-btn">+</button>
+    </form>
+  </div>
+  {{end}}
+</div>
+{{end}}

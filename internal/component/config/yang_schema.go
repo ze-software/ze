@@ -307,6 +307,10 @@ func yangToLeaf(entry *gyang.Entry) *LeafNode {
 		node.Default = entry.Default[0]
 	}
 	node.Sensitive = hasSensitiveExtension(entry)
+	node.Description = entry.Description
+	if entry.Type != nil && entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
+		node.Enums = entry.Type.Enum.Names()
+	}
 	return node
 }
 
@@ -330,6 +334,7 @@ func yangToContainer(entry *gyang.Entry, path string) *ContainerNode {
 
 	// Check for YANG presence statement — enables flag/value/block modes
 	container.Presence = hasPresenceStatement(entry)
+	container.Description = entry.Description
 
 	return container
 }
@@ -382,6 +387,7 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 	}
 	l := List(keyType, fields...)
 	l.KeyName = entry.Key
+	l.Description = entry.Description
 	return l
 }
 
