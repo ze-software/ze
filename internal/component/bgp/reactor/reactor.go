@@ -718,101 +718,12 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		}
 	}
 
-	// Start multi-listeners based on peer LocalAddresses and ports.
-	// Each unique (LocalAddress, port) pair gets a listener.
-	// Peers with custom ports get per-peer listeners (direct routing);
-	// peers with default port share a listener (remote-IP routing).
-	type listenerSpec struct {
-		addr    netip.Addr
-		port    int
-		peerKey netip.AddrPort // valid (non-zero) for per-peer-port listeners
-	}
-	seen := make(map[string]struct{})
-	var specs []listenerSpec
-	for _, peer := range r.peers {
-		s := peer.Settings()
-		if !s.LocalAddress.IsValid() {
-			continue
-		}
-		// Skip listener for peers that don't accept inbound (passive bit not set).
-		if !s.Connection.IsPassive() {
-			continue
-		}
-		listenPort := r.peerListenPort(s)
-		lkey := net.JoinHostPort(s.LocalAddress.String(), strconv.Itoa(listenPort))
-		if _, ok := seen[lkey]; ok {
-			continue
-		}
-		seen[lkey] = struct{}{}
-		var peerKey netip.AddrPort
-		if s.Port != 0 && s.Port != DefaultBGPPort {
-			peerKey = s.PeerKey() // Per-peer-port: direct routing
-		}
-		specs = append(specs, listenerSpec{addr: s.LocalAddress, port: listenPort, peerKey: peerKey})
+	if err := r.startMultiListeners(); err != nil {
+		return err
 	}
 
-	for _, spec := range specs {
-		if err := r.startListenerForAddressPort(spec.addr, spec.port, spec.peerKey); err != nil {
-			r.abortStartup()
-			return err
-		}
-	}
-
-	// Start API server
-	{
-		apiConfig := &pluginserver.ServerConfig{
-			ConfigPath:                r.config.ConfigPath,
-			ConfiguredFamilies:        r.config.ConfiguredFamilies,
-			ConfiguredCustomEvents:    r.config.ConfiguredCustomEvents,
-			ConfiguredCustomSendTypes: r.config.ConfiguredCustomSendTypes,
-			Hub:                       r.config.Hub,
-			RPCFallback:               bgpserver.CodecRPCHandler,
-			CommitManager:             transaction.NewCommitManager(),
-		}
-		// Convert plugin configs
-		for _, pc := range r.config.Plugins {
-			apiConfig.Plugins = append(apiConfig.Plugins, plugin.PluginConfig{
-				Name:          pc.Name,
-				Run:           pc.Run,
-				Encoder:       pc.Encoder,
-				Respawn:       pc.Respawn,
-				WorkDir:       r.config.ConfigDir,
-				ReceiveUpdate: pc.ReceiveUpdate,
-				StageTimeout:  pc.StageTimeout,
-				Internal:      pc.Internal, // Run in-process via goroutine
-			})
-		}
-		var serverErr error
-		r.api, serverErr = pluginserver.NewServer(apiConfig, &reactorAPIAdapter{r})
-		if serverErr != nil {
-			return fmt.Errorf("create plugin server: %w", serverErr)
-		}
-		// Wire PluginManager as process spawner (if set).
-		if r.processSpawner != nil {
-			r.api.SetProcessSpawner(r.processSpawner)
-		}
-		// Create EventDispatcher for BGP event delivery (type-safe, no hooks indirection)
-		r.eventDispatcher = bgpserver.NewEventDispatcher(r.api)
-		// Propagate Bus to EventDispatcher for EOR notifications.
-		if r.bus != nil {
-			r.eventDispatcher.SetBus(r.bus)
-		}
-		// Set EventDispatcher as message receiver for raw byte access
-		r.messageReceiver = r.eventDispatcher
-		// Collect peer filter chains and mod handlers from plugin registry.
-		r.ingressFilters = registry.IngressFilters()
-		r.egressFilters = registry.EgressFilters()
-		r.attrModHandlers = registry.AttrModHandlers()
-		// Register API state observer for peer lifecycle events
-		r.AddPeerObserver(&apiStateObserver{dispatcher: r.eventDispatcher, reactor: r})
-
-		// Set plugin count for API sync - wait for all plugins to send "api ready"
-		r.SetAPIProcessCount(len(r.config.Plugins))
-
-		if err := r.api.StartWithContext(r.ctx); err != nil {
-			r.abortStartup()
-			return err
-		}
+	if err := r.startAPIServer(); err != nil {
+		return err
 	}
 
 	// Run post-start hook after API server is ready.
@@ -821,32 +732,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		r.postStartFunc()
 	}
 
-	// Start signal handler
-	r.signals = NewSignalHandler()
-	r.signals.OnShutdown(func() {
-		r.Stop()
-	})
-	r.signals.OnReload(func() {
-		// Use the reload coordinator (verify→apply protocol with plugins)
-		// when the API server has a config loader configured. Falls back
-		// to direct reload via reloadFunc otherwise (production default
-		// until config loader is wired).
-		if r.api != nil && r.api.HasConfigLoader() {
-			if err := r.api.ReloadFromDisk(r.ctx); err != nil {
-				reactorLogger().Error("config reload failed", "error", err)
-			} else {
-				reactorLogger().Info("config reloaded via coordinator")
-			}
-		} else {
-			adapter := &reactorAPIAdapter{r: r}
-			if err := adapter.Reload(); err != nil {
-				reactorLogger().Error("config reload failed", "error", err)
-			} else {
-				reactorLogger().Info("config reloaded")
-			}
-		}
-	})
-	r.signals.StartWithContext(r.ctx)
+	r.startSignalHandler()
 
 	// Copy peer map before releasing lock — map alias would race with
 	// concurrent AddDynamicPeer (concurrent map read+write panics in Go).
@@ -888,6 +774,124 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	go r.monitor()
 
 	return nil
+}
+
+// startMultiListeners starts per-address listeners based on peer LocalAddresses.
+// Each unique (LocalAddress, port) pair gets a listener. Peers with custom ports
+// get per-peer listeners (direct routing); peers with default port share a listener.
+// Caller MUST hold r.mu.
+func (r *Reactor) startMultiListeners() error {
+	type listenerSpec struct {
+		addr    netip.Addr
+		port    int
+		peerKey netip.AddrPort
+	}
+	seen := make(map[string]struct{})
+	var specs []listenerSpec
+	for _, peer := range r.peers {
+		s := peer.Settings()
+		if !s.LocalAddress.IsValid() {
+			continue
+		}
+		if !s.Connection.IsPassive() {
+			continue
+		}
+		listenPort := r.peerListenPort(s)
+		lkey := net.JoinHostPort(s.LocalAddress.String(), strconv.Itoa(listenPort))
+		if _, ok := seen[lkey]; ok {
+			continue
+		}
+		seen[lkey] = struct{}{}
+		var peerKey netip.AddrPort
+		if s.Port != 0 && s.Port != DefaultBGPPort {
+			peerKey = s.PeerKey()
+		}
+		specs = append(specs, listenerSpec{addr: s.LocalAddress, port: listenPort, peerKey: peerKey})
+	}
+
+	for _, spec := range specs {
+		if err := r.startListenerForAddressPort(spec.addr, spec.port, spec.peerKey); err != nil {
+			r.abortStartup()
+			return err
+		}
+	}
+	return nil
+}
+
+// startAPIServer creates and starts the plugin server, event dispatcher,
+// and wires filters and observers. Caller MUST hold r.mu.
+func (r *Reactor) startAPIServer() error {
+	apiConfig := &pluginserver.ServerConfig{
+		ConfigPath:                r.config.ConfigPath,
+		ConfiguredFamilies:        r.config.ConfiguredFamilies,
+		ConfiguredCustomEvents:    r.config.ConfiguredCustomEvents,
+		ConfiguredCustomSendTypes: r.config.ConfiguredCustomSendTypes,
+		Hub:                       r.config.Hub,
+		RPCFallback:               bgpserver.CodecRPCHandler,
+		CommitManager:             transaction.NewCommitManager(),
+	}
+	for _, pc := range r.config.Plugins {
+		apiConfig.Plugins = append(apiConfig.Plugins, plugin.PluginConfig{
+			Name:          pc.Name,
+			Run:           pc.Run,
+			Encoder:       pc.Encoder,
+			Respawn:       pc.Respawn,
+			WorkDir:       r.config.ConfigDir,
+			ReceiveUpdate: pc.ReceiveUpdate,
+			StageTimeout:  pc.StageTimeout,
+			Internal:      pc.Internal,
+		})
+	}
+	var serverErr error
+	r.api, serverErr = pluginserver.NewServer(apiConfig, &reactorAPIAdapter{r})
+	if serverErr != nil {
+		return fmt.Errorf("create plugin server: %w", serverErr)
+	}
+	if r.processSpawner != nil {
+		r.api.SetProcessSpawner(r.processSpawner)
+	}
+	r.eventDispatcher = bgpserver.NewEventDispatcher(r.api)
+	if r.bus != nil {
+		r.eventDispatcher.SetBus(r.bus)
+	}
+	r.messageReceiver = r.eventDispatcher
+	r.ingressFilters = registry.IngressFilters()
+	r.egressFilters = registry.EgressFilters()
+	r.attrModHandlers = registry.AttrModHandlers()
+	r.AddPeerObserver(&apiStateObserver{dispatcher: r.eventDispatcher, reactor: r})
+	r.SetAPIProcessCount(len(r.config.Plugins))
+
+	if err := r.api.StartWithContext(r.ctx); err != nil {
+		r.abortStartup()
+		return err
+	}
+	return nil
+}
+
+// startSignalHandler creates and starts the signal handler for SIGHUP/SIGTERM.
+// Caller MUST hold r.mu.
+func (r *Reactor) startSignalHandler() {
+	r.signals = NewSignalHandler()
+	r.signals.OnShutdown(func() {
+		r.Stop()
+	})
+	r.signals.OnReload(func() {
+		if r.api != nil && r.api.HasConfigLoader() {
+			if err := r.api.ReloadFromDisk(r.ctx); err != nil {
+				reactorLogger().Error("config reload failed", "error", err)
+			} else {
+				reactorLogger().Info("config reloaded via coordinator")
+			}
+		} else {
+			adapter := &reactorAPIAdapter{r: r}
+			if err := adapter.Reload(); err != nil {
+				reactorLogger().Error("config reload failed", "error", err)
+			} else {
+				reactorLogger().Info("config reloaded")
+			}
+		}
+	})
+	r.signals.StartWithContext(r.ctx)
 }
 
 // abortStartup tears down listeners and cancels the context on startup failure.
