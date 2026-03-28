@@ -232,14 +232,25 @@ standard verification suite.
 ## Current Scope
 
 Interop scenarios cover core BGP: session establishment, route exchange, withdrawal,
-capabilities (4-byte ASN, ADD-PATH, GR, route refresh), communities, MD5 auth, and
-route server behavior. ExaBGP compat covers wire encoding for all supported address
-families.
+capabilities (4-byte ASN, ADD-PATH, GR, route refresh), communities, MD5 auth,
+route server behavior, and non-unicast address families (EVPN, VPN, FlowSpec).
+ExaBGP compat covers wire encoding for all supported address families.
+<!-- source: test/interop/scenarios/ -- scenario directories -->
 
 Not yet covered by interop tests:
 
 - Long-Lived Graceful Restart with live peers (LLGR not yet implemented)
 - BFD (no BFD protocol support in Ze)
+
+## Known Vendor Limitations
+
+| Vendor | Limitation | Affected Scenario | Workaround |
+|--------|-----------|-------------------|------------|
+| GoBGP 3.31 | Deduplicates Multiprotocol capabilities by AFI. When two families share the same AFI (e.g., ipv4-unicast + l3vpn-ipv4-unicast, both AFI=1), GoBGP keeps only one. | 29-vpn-gobgp | None from Ze side. Ze's OPEN is correct per RFC 4760. Families with different AFIs (e.g., ipv4-unicast + l2vpn-evpn) work fine. |
+| BIRD 2.15 | Enforces next-hop reachability for IPv6 routes. On IPv4-only Docker networks, IPv6 next-hops are unreachable and BIRD rejects routes as invalid (RFC 7606 treat-as-withdraw). | 25-ipv6-ebgp-bird | Add `multihop;` to BIRD config to disable the directly-connected next-hop check. |
+
+<!-- source: test/interop/scenarios/29-vpn-gobgp -- GoBGP same-AFI dedup -->
+<!-- source: test/interop/scenarios/25-ipv6-ebgp-bird -- BIRD next-hop reachability -->
 
 ## Related Documents
 
