@@ -1323,9 +1323,11 @@ func (m *Model) SetInput(value string) {
 	m.textInput.SetValue(value)
 }
 
-// DisableBlink is a no-op in bubbletea v2. The virtual cursor does not produce
-// blink timer commands, so no suppression is needed in headless test models.
+// DisableBlink disables cursor blink for headless test models.
+// Sets the textinput to use a real cursor (no-op in headless mode) which
+// skips all virtual cursor processing including 530ms blink timers.
 func (m *Model) DisableBlink() {
+	m.textInput.SetVirtualCursor(false)
 }
 
 // UpdateCompletions refreshes the completion list based on current input.
