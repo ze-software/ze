@@ -223,6 +223,12 @@ const (
 	loadActionMerge      = "merge"
 )
 
+// Status messages for unavailable daemon operations.
+const (
+	msgStopNotAvailable    = "stop not available (not connected to daemon)"
+	msgRestartNotAvailable = "restart not available (not connected to daemon)"
+)
+
 // commandResult carries state changes from a command back to Update.
 // This allows commands to run in a tea.Cmd closure without losing state changes.
 type commandResult struct {
@@ -871,7 +877,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	if input == cmdStop {
 		if m.shutdownFunc == nil {
 			m.textInput.SetValue("")
-			m.statusMessage = "stop not available (not connected to daemon)"
+			m.statusMessage = msgStopNotAvailable
 			return m, nil
 		}
 		m.textInput.SetValue("")
@@ -882,7 +888,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	if input == cmdRestart {
 		if m.restartFunc == nil {
 			m.textInput.SetValue("")
-			m.statusMessage = "restart not available (not connected to daemon)"
+			m.statusMessage = msgRestartNotAvailable
 			return m, nil
 		}
 		m.textInput.SetValue("")

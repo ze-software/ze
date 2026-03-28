@@ -1,5 +1,6 @@
 {{define "breadcrumb_inner"}}
 <div class="breadcrumb-nav">
+  {{if gt (len .Breadcrumbs) 1}}{{with index .Breadcrumbs (sub (len .Breadcrumbs) 2)}}<a class="breadcrumb-back" href="{{.URL}}">&#8592;</a>{{end}}{{end}}
   <ol class="breadcrumb-list">
     {{range .Breadcrumbs}}
     <li class="breadcrumb-item{{if .Active}} breadcrumb-active{{end}}">
@@ -9,6 +10,7 @@
   </ol>
 </div>
 <div class="breadcrumb-actions">
+  {{if .HasSession}}<span class="session-indicator" title="Authenticated session"></span>{{end}}
   <button class="view-toggle" id="view-toggle" title="Switch to text/CLI view">CLI</button>
 </div>
 {{end}}

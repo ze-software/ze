@@ -991,30 +991,6 @@ func HasWebConfig(tree *config.Tree) bool {
 	return sys.GetContainer("web") != nil
 }
 
-// extractWebConfig extracts web server configuration from the parsed config tree.
-// Returns the web config and true if a system.web block is present.
-func extractWebConfig(tree *config.Tree) (zeweb.WebConfig, bool) {
-	sys := tree.GetContainer("system")
-	if sys == nil {
-		return zeweb.WebConfig{}, false
-	}
-
-	webContainer := sys.GetContainer("web")
-	if webContainer == nil {
-		return zeweb.WebConfig{}, false
-	}
-
-	var cfg zeweb.WebConfig
-
-	if v, ok := webContainer.Get("listen"); ok {
-		cfg.ListenAddr = v
-	} else {
-		cfg.ListenAddr = "0.0.0.0:8443"
-	}
-
-	return cfg, true
-}
-
 // resolveSSHStorage returns blob storage for SSH host key persistence.
 // When the main storage is already blob-backed, it is used directly.
 // Otherwise, opens the zefs database independently so SSH host keys

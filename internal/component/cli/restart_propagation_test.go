@@ -43,7 +43,7 @@ func TestRestartFuncSurvivesUpdateChain(t *testing.T) {
 	if m.restartFunc == nil {
 		t.Error("restartFunc nil after Enter -- lost during Update chain")
 	}
-	if m.statusMessage == "restart not available (not connected to daemon)" {
+	if m.statusMessage == msgRestartNotAvailable {
 		t.Error("got 'not available' despite restartFunc being set")
 	}
 }
@@ -92,7 +92,7 @@ func TestRestartFuncSurvivesWithCmdProcessing(t *testing.T) {
 
 	t.Logf("status after Enter+cmd: %q, restartFunc nil: %v", m.statusMessage, m.restartFunc == nil)
 
-	if m.statusMessage == "restart not available (not connected to daemon)" {
+	if m.statusMessage == msgRestartNotAvailable {
 		t.Error("got 'not available' despite restartFunc being set -- command processing lost it")
 	}
 }
