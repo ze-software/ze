@@ -17,6 +17,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
+const configEditPath = "/config/edit/"
+
 // maxCommandLength is the maximum allowed CLI command text length.
 const maxCommandLength = 4096
 
@@ -360,7 +362,7 @@ func handleCLICommit(w http.ResponseWriter, r *http.Request, mgr *EditorManager,
 		return
 	}
 
-	htmxRedirect(w, r, "/config/edit/")
+	htmxRedirect(w, r, configEditPath)
 }
 
 // handleCLIDiscard processes the "discard" verb.
@@ -370,7 +372,7 @@ func handleCLIDiscard(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 		return
 	}
 
-	htmxRedirect(w, r, "/config/edit/")
+	htmxRedirect(w, r, configEditPath)
 }
 
 // HandleCLIComplete returns a GET handler for /cli/complete that provides
@@ -789,8 +791,8 @@ func buildBreadcrumbHTML(buf *strings.Builder, crumbs []BreadcrumbSegment) {
 // buildConfigEditURL constructs the /config/edit/ URL for a context path.
 func buildConfigEditURL(path []string) string {
 	if len(path) == 0 {
-		return "/config/edit/"
+		return configEditPath
 	}
 
-	return "/config/edit/" + strings.Join(path, "/") + "/"
+	return configEditPath + strings.Join(path, "/") + "/"
 }

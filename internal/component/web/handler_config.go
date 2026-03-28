@@ -391,7 +391,7 @@ func parentFromCurrentURL(r *http.Request) string {
 		current = r.Referer()
 	}
 	if current == "" {
-		return "/config/edit/"
+		return configEditPath
 	}
 
 	// Strip scheme+host if present (HX-Current-URL is a full URL).
@@ -407,16 +407,16 @@ func parentFromCurrentURL(r *http.Request) string {
 		return current[:last+1]
 	}
 
-	return "/config/edit/"
+	return configEditPath
 }
 
 // redirectBackOneLevel computes the parent path by removing the last segment
 // and redirects to /config/edit/<parent>/. For HTMX requests, it sets the
 // HX-Redirect header instead of returning an HTTP redirect.
 func redirectBackOneLevel(w http.ResponseWriter, r *http.Request, currentPath []string) {
-	parentPath := "/config/edit/"
+	parentPath := configEditPath
 	if len(currentPath) > 0 {
-		parentPath = "/config/edit/" + strings.Join(currentPath[:len(currentPath)-1], "/")
+		parentPath = configEditPath + strings.Join(currentPath[:len(currentPath)-1], "/")
 		if len(currentPath) > 1 {
 			parentPath += "/"
 		}
