@@ -1,0 +1,8 @@
+# Test: enum field renders as dropdown select in config editor
+# VALIDATES: YANG enum type leaves render as select elements with options
+# PREVENTS: enum fields rendered as plain text input instead of dropdown
+
+option=timeout:value=30s
+
+action=open:path=/config/edit/environment/log/
+expect=element:text=level

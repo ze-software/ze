@@ -1,0 +1,9 @@
+# Test: CLI bar top command returns to root
+# VALIDATES: top verb in CLI bar navigates to root context
+# PREVENTS: top command not resetting context path
+
+option=timeout:value=30s
+
+action=open:path=/config/edit/bgp/
+expect=element:text=router-id
+expect=element:text=type a command

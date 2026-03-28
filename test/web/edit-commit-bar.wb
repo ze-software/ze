@@ -1,0 +1,12 @@
+# Test: commit bar shows change count after editing a field
+# VALIDATES: commit bar renders with pending change count via OOB swap
+# PREVENTS: commit bar not appearing, change count always zero
+
+option=timeout:value=30s
+
+action=open:path=/config/edit/bgp/
+action=fill:text=router-id:value=10.0.0.2
+action=wait:ms=500
+expect=element:text=pending change
+expect=element:text=Review
+expect=element:text=Discard

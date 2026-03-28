@@ -1,0 +1,14 @@
+# Test: navigate into admin subtree then back to categories
+# VALIDATES: breadcrumb admin link returns to top-level categories
+# PREVENTS: no way to go back in admin tree, breadcrumb admin link broken
+
+option=timeout:value=30s
+
+action=open:path=/admin/peer/
+expect=element:text=list
+expect=breadcrumb:contains=admin,peer
+
+action=click:text=admin
+expect=element:text=peer
+expect=element:text=route
+expect=element:text=cache

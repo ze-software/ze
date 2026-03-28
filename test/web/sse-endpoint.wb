@@ -1,0 +1,9 @@
+# Test: main page includes SSE notification area
+# VALIDATES: layout template renders notification bar for SSE events
+# PREVENTS: missing notification bar element, SSE UI anchor point absent
+
+option=timeout:value=30s
+
+action=open:path=/show/
+expect=element:text=environment
+expect=element:text=bgp

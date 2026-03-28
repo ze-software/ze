@@ -1,0 +1,11 @@
+# Test: open BGP page directly by URL without prior navigation
+# VALIDATES: direct URL access renders content without prior root visit
+# PREVENTS: HTMX state dependency on prior navigation, broken deep links
+
+option=timeout:value=30s
+
+action=open:path=/show/bgp/
+expect=element:text=Router ID
+expect=element:text=group
+expect=element:text=peer
+expect=breadcrumb:contains=bgp

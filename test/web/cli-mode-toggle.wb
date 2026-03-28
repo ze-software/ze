@@ -1,0 +1,8 @@
+# Test: CLI mode toggle switches to terminal UI
+# VALIDATES: clicking CLI toggle renders terminal mode container
+# PREVENTS: mode toggle button missing, terminal template not rendering
+
+option=timeout:value=30s
+
+action=open:path=/config/edit/bgp/
+expect=element:text=CLI

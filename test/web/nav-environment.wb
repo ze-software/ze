@@ -1,0 +1,10 @@
+# Test: environment container renders its children
+# VALIDATES: environment node from YANG schema renders with child containers
+# PREVENTS: missing YANG schema registration for environment, broken container rendering
+
+option=timeout:value=30s
+
+action=open:path=/show/environment/
+expect=element:text=log
+expect=element:text=daemon
+expect=breadcrumb:contains=environment

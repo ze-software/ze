@@ -1,0 +1,14 @@
+# Test: discard button reverts pending changes
+# VALIDATES: discard POST clears editor state and removes commit bar
+# PREVENTS: discard not clearing changes, stale commit bar after discard
+
+option=timeout:value=30s
+
+action=open:path=/config/edit/bgp/
+action=fill:text=router-id:value=10.99.99.99
+action=wait:ms=500
+expect=element:text=pending change
+
+action=click:text=Discard
+action=wait:ms=500
+expect=element:not-text=pending change

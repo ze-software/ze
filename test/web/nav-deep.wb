@@ -1,0 +1,15 @@
+# Test: navigate root to bgp to group via clicks
+# VALIDATES: click navigation traverses YANG tree to nested containers
+# PREVENTS: broken HTMX click handlers, dead navigation links
+
+option=timeout:value=30s
+
+action=open:path=/show/
+expect=element:text=bgp
+
+action=click:text=bgp
+expect=element:text=group
+expect=breadcrumb:contains=bgp
+
+action=click:text=group
+expect=breadcrumb:contains=bgp,group

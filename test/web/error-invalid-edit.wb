@@ -1,0 +1,8 @@
+# Test: editing nonexistent path returns graceful error
+# VALIDATES: /config/edit/nonexistent/ handles missing schema node gracefully
+# PREVENTS: server crash on invalid edit path, nil pointer in config walk
+
+option=timeout:value=30s
+
+action=open:path=/config/edit/nonexistent/
+expect=element:not-text=panic

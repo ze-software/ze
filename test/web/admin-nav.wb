@@ -1,0 +1,13 @@
+# Test: navigate admin command tree by clicking categories
+# VALIDATES: clicking admin category navigates to sub-commands
+# PREVENTS: admin links not being clickable, navigation broken in admin tree
+
+option=timeout:value=30s
+
+action=open:path=/admin/
+expect=element:text=peer
+
+action=click:text=peer
+expect=element:text=list
+expect=element:text=show
+expect=breadcrumb:contains=admin,peer

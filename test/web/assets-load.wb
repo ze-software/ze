@@ -1,0 +1,10 @@
+# Test: root page loads with styled content (CSS and JS present)
+# VALIDATES: static assets (style.css, htmx.min.js) are served and loaded
+# PREVENTS: broken /assets/ handler, missing embedded CSS/JS files
+
+option=timeout:value=30s
+
+action=open:path=/show/
+expect=element:text=environment
+expect=element:text=bgp
+expect=title:contains=Ze

@@ -1,0 +1,10 @@
+# Test: root URL redirects to /show/ and renders content
+# VALIDATES: / redirects to /show/ and YANG tree appears
+# PREVENTS: broken root redirect, blank page at /
+
+option=timeout:value=30s
+
+action=open:path=/
+expect=element:text=environment
+expect=element:text=bgp
+expect=element:text=system

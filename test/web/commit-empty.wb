@@ -1,0 +1,8 @@
+# Test: commit page with no pending changes shows appropriate message
+# VALIDATES: GET /config/commit/ without changes renders gracefully
+# PREVENTS: crash on empty commit, confusing UI when no changes exist
+
+option=timeout:value=30s
+
+action=open:path=/config/commit/
+expect=element:text=No uncommitted changes

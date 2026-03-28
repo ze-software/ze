@@ -1,0 +1,8 @@
+# Test: nonexistent YANG path returns graceful error
+# VALIDATES: /show/nonexistent/ does not crash, returns error or empty content
+# PREVENTS: server panic on invalid path, unhandled 500 error
+
+option=timeout:value=30s
+
+action=open:path=/show/nonexistent/
+expect=element:not-text=panic

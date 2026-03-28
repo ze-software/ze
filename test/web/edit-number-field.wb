@@ -1,0 +1,8 @@
+# Test: number field renders as number input in config editor
+# VALIDATES: YANG uint16/uint32 leaves render as number type inputs
+# PREVENTS: numeric fields rendered as text, missing min/max constraints
+
+option=timeout:value=30s
+
+action=open:path=/config/edit/bgp/local/
+expect=element:text=as

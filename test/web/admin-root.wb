@@ -1,0 +1,12 @@
+# Test: admin root page shows command categories
+# VALIDATES: /admin/ renders the command tree with top-level categories
+# PREVENTS: broken admin handler, missing command tree structure
+
+option=timeout:value=30s
+
+action=open:path=/admin/
+expect=element:text=peer
+expect=element:text=route
+expect=element:text=cache
+expect=element:text=system
+expect=breadcrumb:contains=admin

@@ -1,0 +1,12 @@
+# Test: click intermediate breadcrumb to navigate up
+# VALIDATES: breadcrumb segments are clickable links that navigate to parent
+# PREVENTS: non-functional breadcrumb links, broken upward navigation
+
+option=timeout:value=30s
+
+action=open:path=/show/environment/log/
+expect=breadcrumb:contains=environment,log
+
+action=click:text=environment
+expect=element:text=log
+expect=element:text=daemon

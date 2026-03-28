@@ -1,0 +1,12 @@
+# Test: fill a text field in config editor and verify commit bar appears
+# VALIDATES: text input fields accept values and trigger commit bar visibility
+# PREVENTS: broken hx-post on blur, commit bar not updating on field change
+
+option=timeout:value=30s
+
+action=open:path=/config/edit/bgp/
+expect=element:text=router-id
+
+action=fill:text=router-id:value=10.0.0.1
+action=wait:ms=500
+expect=element:text=pending change

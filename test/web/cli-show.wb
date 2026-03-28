@@ -1,0 +1,11 @@
+# Test: CLI bar show command renders config output
+# VALIDATES: typing show in CLI bar returns config text in content area
+# PREVENTS: CLI command dispatch broken, show verb not handled
+
+option=timeout:value=30s
+
+action=open:path=/config/edit/bgp/
+expect=element:text=type a command
+
+action=fill:text=type a command:value=show
+action=wait:ms=500

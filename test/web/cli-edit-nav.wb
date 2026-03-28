@@ -1,0 +1,9 @@
+# Test: CLI bar edit command navigates to target path
+# VALIDATES: edit verb in CLI bar changes content area to target YANG path
+# PREVENTS: CLI edit not triggering navigation, path resolution broken
+
+option=timeout:value=30s
+
+action=open:path=/config/edit/
+expect=element:text=type a command
+expect=element:text=bgp

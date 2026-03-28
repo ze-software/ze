@@ -1,0 +1,16 @@
+# Test: review button opens diff modal overlay
+# VALIDATES: clicking Review & Commit fetches diff and opens modal
+# PREVENTS: diff modal not rendering, hx-get /config/diff broken
+
+option=timeout:value=30s
+
+action=open:path=/config/edit/bgp/
+action=fill:text=router-id:value=10.0.0.3
+action=wait:ms=500
+expect=element:text=pending change
+
+action=click:text=Review
+action=wait:ms=500
+expect=element:text=Review changes
+expect=element:text=Confirm Commit
+expect=element:text=Cancel

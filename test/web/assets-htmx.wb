@@ -1,0 +1,14 @@
+# Test: HTMX navigation updates content without full page reload
+# VALIDATES: clicking a sidebar link swaps content via HTMX partial response
+# PREVENTS: HTMX not loaded, hx-get handlers broken, full page reloads
+
+option=timeout:value=30s
+
+action=open:path=/show/
+expect=element:text=bgp
+
+action=click:text=bgp
+action=wait:ms=500
+expect=element:text=Router ID
+expect=element:text=group
+expect=breadcrumb:contains=bgp

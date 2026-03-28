@@ -1,0 +1,8 @@
+# Test: system container renders
+# VALIDATES: system node from YANG schema renders content
+# PREVENTS: missing YANG schema registration for system container
+
+option=timeout:value=30s
+
+action=open:path=/show/system/
+expect=breadcrumb:contains=system

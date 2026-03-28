@@ -1,0 +1,9 @@
+# Test: config editor shows editable input fields at /config/edit/bgp/
+# VALIDATES: edit mode renders leaf nodes as input fields, not read-only text
+# PREVENTS: missing edit handler, broken config template rendering
+
+option=timeout:value=30s
+
+action=open:path=/config/edit/bgp/
+expect=element:text=router-id
+expect=element:text=listen

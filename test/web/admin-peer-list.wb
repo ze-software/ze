@@ -1,0 +1,11 @@
+# Test: admin peer category shows sub-commands
+# VALIDATES: navigating to /admin/peer/ lists peer sub-commands
+# PREVENTS: empty admin sub-tree, broken BuildAdminCommandTree
+
+option=timeout:value=30s
+
+action=open:path=/admin/peer/
+expect=element:text=list
+expect=element:text=show
+expect=element:text=summary
+expect=breadcrumb:contains=admin,peer

@@ -1,0 +1,14 @@
+# Test: edit a field then discard reverts to original
+# VALIDATES: discard clears pending changes without applying them
+# PREVENTS: discard accidentally committing, changes surviving discard
+
+option=timeout:value=30s
+
+action=open:path=/config/edit/bgp/
+action=fill:text=router-id:value=10.99.99.1
+action=wait:ms=500
+expect=element:text=pending change
+
+action=click:text=Discard
+action=wait:ms=500
+expect=element:not-text=10.99.99.1
