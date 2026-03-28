@@ -79,7 +79,7 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 
 	hdr, err := message.ParseHeader(buf.Buf[:message.HeaderLen])
 	if err != nil {
-		_ = s.fsm.Event(fsm.EventBGPHeaderErr)
+		s.logFSMEvent(fsm.EventBGPHeaderErr)
 		return fmt.Errorf("parse header: %w", err)
 	}
 
@@ -88,12 +88,12 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 		// RFC 8654 Section 5: Send NOTIFICATION with Bad Message Length.
 		var lengthBuf [2]byte
 		binary.BigEndian.PutUint16(lengthBuf[:], hdr.Length)
-		_ = s.sendNotification(conn,
+		s.logNotifyErr(conn,
 			message.NotifyMessageHeader,
 			message.NotifyHeaderBadLength,
 			lengthBuf[:],
 		)
-		_ = s.fsm.Event(fsm.EventBGPHeaderErr)
+		s.logFSMEvent(fsm.EventBGPHeaderErr)
 		s.closeConn()
 		return fmt.Errorf("message length %d exceeds max for %s: %w", hdr.Length, hdr.Type, err)
 	}
@@ -150,7 +150,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 			s.timers.ResetHoldTimer()
 			// RFC 4271 Section 8.2.2: FSM must process Event 27 (UpdateMsg)
 			// for any received UPDATE, even if treated as withdrawal.
-			_ = s.fsm.Event(fsm.EventUpdateMsg)
+			s.logFSMEvent(fsm.EventUpdateMsg)
 			return nil, false
 		}
 		// ActionNone or ActionAttributeDiscard: continue to dispatch.
@@ -172,8 +172,8 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 			s.mu.RLock()
 			conn := s.conn
 			s.mu.RUnlock()
-			_ = s.sendNotification(conn, prefixNotif.ErrorCode, prefixNotif.ErrorSubcode, prefixNotif.Data)
-			_ = s.fsm.Event(fsm.EventNotifMsg)
+			s.logNotifyErr(conn, prefixNotif.ErrorCode, prefixNotif.ErrorSubcode, prefixNotif.Data)
+			s.logFSMEvent(fsm.EventNotifMsg)
 			s.closeConn()
 			return fmt.Errorf("%w: %w", ErrConnectionClosed, ErrPrefixLimitExceeded), false
 		}
@@ -181,7 +181,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 			// AC-27: teardown=false, exceeded. Skip plugin delivery but keep session.
 			// Withdrawals were already counted. The UPDATE is consumed but not forwarded.
 			s.timers.ResetHoldTimer()
-			_ = s.fsm.Event(fsm.EventUpdateMsg)
+			s.logFSMEvent(fsm.EventUpdateMsg)
 			return nil, false
 		}
 	}
@@ -215,7 +215,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 // handleConnectionClose handles TCP connection close.
 func (s *Session) handleConnectionClose() {
 	s.timers.StopAll()
-	_ = s.fsm.Event(fsm.EventTCPConnectionFails)
+	s.logFSMEvent(fsm.EventTCPConnectionFails)
 	s.closeConn()
 }
 

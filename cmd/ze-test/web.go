@@ -117,11 +117,17 @@ Examples:
 
 	// Pick a free port if none specified.
 	if *port == "" {
-		ln, listenErr := net.Listen("tcp", "127.0.0.1:0")
+		lc := net.ListenConfig{}
+		ln, listenErr := lc.Listen(context.Background(), "tcp", "127.0.0.1:0")
 		if listenErr != nil {
 			return fmt.Errorf("find free port: %w", listenErr)
 		}
-		*port = fmt.Sprintf("%d", ln.Addr().(*net.TCPAddr).Port)
+		tcpAddr, ok := ln.Addr().(*net.TCPAddr)
+		if !ok {
+			ln.Close() //nolint:errcheck // best-effort cleanup
+			return fmt.Errorf("unexpected listener address type: %T", ln.Addr())
+		}
+		*port = fmt.Sprintf("%d", tcpAddr.Port)
 		if closeErr := ln.Close(); closeErr != nil {
 			return fmt.Errorf("close temp listener: %w", closeErr)
 		}

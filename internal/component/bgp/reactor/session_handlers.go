@@ -23,12 +23,12 @@ func (s *Session) handleUnknownType(msgType message.MessageType) error {
 
 	// ExaBGP format: Message Header Error (1), subcode 0, text message.
 	errMsg := fmt.Sprintf("can not decode update message of type \"%d\"", msgType)
-	_ = s.sendNotification(conn,
+	s.logNotifyErr(conn,
 		message.NotifyMessageHeader,
 		0, // ExaBGP uses subcode 0
 		[]byte(errMsg),
 	)
-	_ = s.fsm.Event(fsm.EventBGPHeaderErr)
+	s.logFSMEvent(fsm.EventBGPHeaderErr)
 	s.closeConn()
 
 	return fmt.Errorf("%w: unknown type %d", ErrInvalidMessage, msgType)
@@ -38,7 +38,7 @@ func (s *Session) handleUnknownType(msgType message.MessageType) error {
 func (s *Session) handleOpen(body []byte) error {
 	open, err := message.UnpackOpen(body)
 	if err != nil {
-		_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+		s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 		return fmt.Errorf("unpack OPEN: %w", err)
 	}
 
@@ -48,12 +48,12 @@ func (s *Session) handleOpen(body []byte) error {
 		conn := s.conn
 		s.mu.RUnlock()
 
-		_ = s.sendNotification(conn,
+		s.logNotifyErr(conn,
 			message.NotifyOpenMessage,
 			message.NotifyOpenUnsupportedVersion,
 			[]byte{4}, // We support version 4
 		)
-		_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+		s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 		s.closeConn()
 		return ErrUnsupportedVersion
 	}
@@ -68,9 +68,9 @@ func (s *Session) handleOpen(body []byte) error {
 		// Send NOTIFICATION with the error (already a *Notification).
 		var notif *message.Notification
 		if errors.As(err, &notif) {
-			_ = s.sendNotification(conn, notif.ErrorCode, notif.ErrorSubcode, notif.Data)
+			s.logNotifyErr(conn, notif.ErrorCode, notif.ErrorSubcode, notif.Data)
 		}
-		_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+		s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 		s.closeConn()
 		return fmt.Errorf("invalid hold time %d: %w", open.HoldTime, err)
 	}
@@ -106,7 +106,7 @@ func (s *Session) handleOpen(body []byte) error {
 				notifySubcode = sub
 			}
 
-			_ = s.sendNotification(valConn, notifyCode, notifySubcode, nil)
+			s.logNotifyErr(valConn, notifyCode, notifySubcode, nil)
 			return fmt.Errorf("open validation failed: %w", err)
 		}
 	}
@@ -135,12 +135,12 @@ func (s *Session) handleOpen(body []byte) error {
 			// Required families not negotiated - send NOTIFICATION and reject.
 			// RFC 5492 Section 3: Use Unsupported Capability subcode.
 			capData := buildUnsupportedCapabilityData(missing)
-			_ = s.sendNotification(conn,
+			s.logNotifyErr(conn,
 				message.NotifyOpenMessage,
 				message.NotifyOpenUnsupportedCapability,
 				capData,
 			)
-			_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+			s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 			s.closeConn()
 			return fmt.Errorf("%w: required families not negotiated: %v", ErrInvalidState, missing)
 		}
@@ -211,7 +211,7 @@ func (s *Session) handleUpdate(wu *wireu.WireUpdate) error {
 func (s *Session) handleNotification(body []byte) error {
 	notif, err := message.UnpackNotification(body)
 	if err != nil {
-		_ = s.fsm.Event(fsm.EventNotifMsgVerErr)
+		s.logFSMEvent(fsm.EventNotifMsgVerErr)
 		return fmt.Errorf("unpack NOTIFICATION: %w", err)
 	}
 
@@ -234,7 +234,7 @@ func (s *Session) handleNotification(body []byte) error {
 	}
 
 	s.timers.StopAll()
-	_ = s.fsm.Event(fsm.EventNotifMsg)
+	s.logFSMEvent(fsm.EventNotifMsg)
 	s.closeConn()
 
 	return fmt.Errorf("%w: %s", ErrNotificationRecv, notif.String())
@@ -256,12 +256,12 @@ func (s *Session) handleRouteRefresh(body []byte) error {
 		conn := s.conn
 		s.mu.RUnlock()
 
-		_ = s.sendNotification(conn,
+		s.logNotifyErr(conn,
 			message.NotifyRouteRefresh,
 			message.NotifyRouteRefreshInvalidLength,
 			body,
 		)
-		_ = s.fsm.Event(fsm.EventBGPHeaderErr)
+		s.logFSMEvent(fsm.EventBGPHeaderErr)
 		s.closeConn()
 		return fmt.Errorf("%w: ROUTE-REFRESH invalid length %d", ErrInvalidMessage, len(body))
 	}

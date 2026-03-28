@@ -334,7 +334,7 @@ func NewSession(settings *PeerSettings) *Session {
 		}
 
 		s.mu.Lock()
-		_ = s.fsm.Event(fsm.EventHoldTimerExpires)
+		s.logFSMEvent(fsm.EventHoldTimerExpires)
 		s.mu.Unlock()
 		select {
 		case s.errChan <- ErrHoldTimerExpired:
@@ -345,14 +345,16 @@ func NewSession(settings *PeerSettings) *Session {
 	s.timers.OnKeepaliveTimerExpires(func() {
 		// RFC 4271 Section 8.2.2: Event 11 (KeepaliveTimer_Expires)
 		// "sends a KEEPALIVE message" — fire the FSM event first, then send.
-		_ = s.fsm.Event(fsm.EventKeepaliveTimerExpires)
+		s.logFSMEvent(fsm.EventKeepaliveTimerExpires)
 
 		s.mu.Lock()
 		conn := s.conn
 		s.mu.Unlock()
 
 		if conn != nil {
-			_ = s.sendKeepalive(conn)
+			if err := s.sendKeepalive(conn); err != nil {
+				sessionLogger().Debug("keepalive send failed", "peer", s.settings.Address, "error", err)
+			}
 		}
 	})
 
@@ -523,6 +525,31 @@ func (s *Session) Stop() error {
 
 // ErrTeardown is returned when the session is torn down via API.
 var ErrTeardown = errors.New("session teardown")
+
+// logNotifyErr sends a NOTIFICATION and logs if the send fails.
+// Used on error/shutdown paths where the connection may already be dead.
+func (s *Session) logNotifyErr(conn net.Conn, code message.NotifyErrorCode, subcode uint8, data []byte) {
+	if err := s.sendNotification(conn, code, subcode, data); err != nil {
+		sessionLogger().Debug("notification send failed",
+			"peer", s.settings.Address,
+			"code", uint8(code), "subcode", subcode,
+			"error", err,
+		)
+	}
+}
+
+// logFSMEvent fires an FSM event and logs if the transition fails.
+// FSM transition failures on error paths indicate unexpected state.
+func (s *Session) logFSMEvent(event fsm.Event) {
+	if err := s.fsm.Event(event); err != nil {
+		sessionLogger().Warn("FSM event failed",
+			"peer", s.settings.Address,
+			"event", event,
+			"state", s.fsm.State(),
+			"error", err,
+		)
+	}
+}
 
 // Run is the main session loop. It processes messages until context is
 // canceled or an error occurs.

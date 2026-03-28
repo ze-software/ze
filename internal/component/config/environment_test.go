@@ -592,7 +592,9 @@ func TestSetConfigValue(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.section+"_"+tt.option, func(t *testing.T) {
 			env := &Environment{}
-			env.loadDefaults()
+			if err := env.loadDefaults(); err != nil {
+				t.Fatalf("loadDefaults: %v", err)
+			}
 
 			if err := env.SetConfigValue(tt.section, tt.option, tt.value); err != nil {
 				t.Errorf("SetConfigValue(%q, %q, %q) error: %v", tt.section, tt.option, tt.value, err)
@@ -630,7 +632,9 @@ func TestSetConfigValueErrors(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.section+"_"+tt.option+"_"+tt.value, func(t *testing.T) {
 			env := &Environment{}
-			env.loadDefaults()
+			if err := env.loadDefaults(); err != nil {
+				t.Fatalf("loadDefaults: %v", err)
+			}
 
 			err := env.SetConfigValue(tt.section, tt.option, tt.value)
 			if err == nil {

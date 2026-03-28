@@ -126,12 +126,12 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 
 		// RFC 4271 Section 6.3: "If any ... error ... is detected ... a NOTIFICATION
 		// message MUST be sent with the Error Code UPDATE Message Error."
-		_ = s.sendNotification(conn,
+		s.logNotifyErr(conn,
 			message.NotifyUpdateMessage,
 			message.NotifyUpdateMalformedAttr,
 			nil,
 		)
-		_ = s.fsm.Event(fsm.EventUpdateMsgErr)
+		s.logFSMEvent(fsm.EventUpdateMsgErr)
 		s.closeConn()
 
 		return wu, message.RFC7606ActionSessionReset, fmt.Errorf("RFC 7606 session reset: %s", result.Description)
@@ -235,12 +235,12 @@ func (s *Session) validateCapabilityModes(conn net.Conn, neg *capability.Negotia
 	if len(required) > 0 && neg != nil {
 		if missing := neg.CheckRequiredCodes(required); len(missing) > 0 {
 			capData := buildUnsupportedCapabilityDataCodes(missing)
-			_ = s.sendNotification(conn,
+			s.logNotifyErr(conn,
 				message.NotifyOpenMessage,
 				message.NotifyOpenUnsupportedCapability,
 				capData,
 			)
-			_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+			s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 			s.closeConn()
 			return fmt.Errorf("%w: required capabilities not negotiated: %v", ErrInvalidState, missing)
 		}
@@ -249,12 +249,12 @@ func (s *Session) validateCapabilityModes(conn net.Conn, neg *capability.Negotia
 	if len(refused) > 0 && neg != nil {
 		if present := neg.CheckRefusedCodes(refused); len(present) > 0 {
 			capData := buildUnsupportedCapabilityDataCodes(present)
-			_ = s.sendNotification(conn,
+			s.logNotifyErr(conn,
 				message.NotifyOpenMessage,
 				message.NotifyOpenUnsupportedCapability,
 				capData,
 			)
-			_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+			s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 			s.closeConn()
 			return fmt.Errorf("%w: refused capabilities present in peer OPEN: %v", ErrInvalidState, present)
 		}

@@ -36,7 +36,7 @@ func (s *Session) Connect(ctx context.Context) error {
 
 	conn, err := s.dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
-		_ = s.fsm.Event(fsm.EventTCPConnectionFails)
+		s.logFSMEvent(fsm.EventTCPConnectionFails)
 		return fmt.Errorf("connect to %s: %w", addr, err)
 	}
 
@@ -123,12 +123,12 @@ func (s *Session) processOpen(open *message.Open) error {
 		conn := s.conn
 		s.mu.RUnlock()
 
-		_ = s.sendNotification(conn,
+		s.logNotifyErr(conn,
 			message.NotifyOpenMessage,
 			message.NotifyOpenUnsupportedVersion,
 			[]byte{4},
 		)
-		_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+		s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 		s.closeConn()
 		return ErrUnsupportedVersion
 	}
@@ -141,9 +141,9 @@ func (s *Session) processOpen(open *message.Open) error {
 
 		var notif *message.Notification
 		if errors.As(err, &notif) {
-			_ = s.sendNotification(conn, notif.ErrorCode, notif.ErrorSubcode, notif.Data)
+			s.logNotifyErr(conn, notif.ErrorCode, notif.ErrorSubcode, notif.Data)
 		}
-		_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+		s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 		s.closeConn()
 		return fmt.Errorf("invalid hold time %d: %w", open.HoldTime, err)
 	}
@@ -175,12 +175,12 @@ func (s *Session) processOpen(open *message.Open) error {
 	if len(requiredFamilies) > 0 && neg != nil {
 		if missing := neg.CheckRequired(requiredFamilies); len(missing) > 0 {
 			capData := buildUnsupportedCapabilityData(missing)
-			_ = s.sendNotification(conn,
+			s.logNotifyErr(conn,
 				message.NotifyOpenMessage,
 				message.NotifyOpenUnsupportedCapability,
 				capData,
 			)
-			_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+			s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 			s.closeConn()
 			return fmt.Errorf("%w: required families not negotiated: %v", ErrInvalidState, missing)
 		}
@@ -275,7 +275,7 @@ func (s *Session) Close() error {
 
 	if conn != nil {
 		// Send NOTIFICATION (Cease/Administrative Shutdown).
-		_ = s.sendNotification(conn,
+		s.logNotifyErr(conn,
 			message.NotifyCease,
 			message.NotifyCeaseAdminShutdown,
 			nil,
@@ -283,7 +283,7 @@ func (s *Session) Close() error {
 	}
 
 	s.closeConn()
-	_ = s.fsm.Event(fsm.EventManualStop)
+	s.logFSMEvent(fsm.EventManualStop)
 
 	return nil
 }
@@ -298,11 +298,11 @@ func (s *Session) CloseWithNotification(code message.NotifyErrorCode, subcode ui
 	s.mu.Unlock()
 
 	if conn != nil {
-		_ = s.sendNotification(conn, code, subcode, nil)
+		s.logNotifyErr(conn, code, subcode, nil)
 	}
 
 	s.closeConn()
-	_ = s.fsm.Event(fsm.EventManualStop)
+	s.logFSMEvent(fsm.EventManualStop)
 
 	return nil
 }
@@ -334,7 +334,7 @@ func (s *Session) Teardown(subcode uint8, shutdownMsg string) error {
 			data = message.BuildShutdownData(msg)
 		}
 
-		_ = s.sendNotification(conn,
+		s.logNotifyErr(conn,
 			message.NotifyCease,
 			subcode,
 			data,
@@ -345,7 +345,7 @@ func (s *Session) Teardown(subcode uint8, shutdownMsg string) error {
 	// as a teardown (not just a connection reset) after ReadFull returns error.
 	s.setCloseReason(ErrTeardown)
 	s.closeConn()
-	_ = s.fsm.Event(fsm.EventManualStop)
+	s.logFSMEvent(fsm.EventManualStop)
 
 	// Signal errChan so the cancel goroutine in Run() exits cleanly.
 	// Non-blocking: channel may be full if cancel goroutine already consumed

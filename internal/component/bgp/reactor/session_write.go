@@ -178,7 +178,7 @@ func (s *Session) sendHoldTimerExpired() {
 
 	// Try to send NOTIFICATION (may fail if TCP is stuck -- that's expected).
 	if conn != nil {
-		_ = s.sendNotification(conn,
+		s.logNotifyErr(conn,
 			message.NotifySendHoldTimerExpired,
 			0, // No subcode defined by RFC 9687
 			nil,
@@ -186,7 +186,7 @@ func (s *Session) sendHoldTimerExpired() {
 	}
 
 	s.mu.Lock()
-	_ = s.fsm.Event(fsm.EventHoldTimerExpires)
+	s.logFSMEvent(fsm.EventHoldTimerExpires)
 	s.mu.Unlock()
 
 	s.setCloseReason(ErrSendHoldTimerExpired)
@@ -202,7 +202,7 @@ func (s *Session) sendHoldTimerExpired() {
 // Exposed for testing.
 func (s *Session) TriggerHoldTimerExpiry() {
 	s.timers.StopAll()
-	_ = s.fsm.Event(fsm.EventHoldTimerExpires)
+	s.logFSMEvent(fsm.EventHoldTimerExpires)
 	s.closeConn()
 }
 
