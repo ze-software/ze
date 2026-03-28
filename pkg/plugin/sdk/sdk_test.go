@@ -1149,6 +1149,71 @@ func TestSDKConnectionCloseCleanShutdown(t *testing.T) {
 	}
 }
 
+// TestSDKStage5ConnectionCloseCleanShutdown verifies that closing the connection
+// during stage 5 (after reading the ready request but before responding) causes
+// Run() to return nil (clean shutdown), not a "stage 5 (ready)" error.
+//
+// VALIDATES: Connection close at any startup stage is treated as clean shutdown.
+// PREVENTS: "stage 5 (ready)" error logged when engine shuts down mid-handshake.
+func TestSDKStage5ConnectionCloseCleanShutdown(t *testing.T) {
+	t.Parallel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	t.Cleanup(func() {
+		pluginEnd.Close() //nolint:errcheck // test cleanup
+		engineEnd.Close() //nolint:errcheck // test cleanup
+	})
+
+	p := NewWithConn("test-plugin", pluginEnd)
+	engine := &engineSide{mux: rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))}
+	t.Cleanup(func() { engine.mux.Close() }) //nolint:errcheck // test cleanup
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- p.Run(ctx, Registration{})
+	}()
+
+	// Stage 1: read and respond to declare-registration
+	req := readEngineRequest(t, ctx, engine.mux)
+	assert.Equal(t, "ze-plugin-engine:declare-registration", req.Method)
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+
+	// Stage 2: send configure
+	configInput := struct {
+		Sections []ConfigSection `json:"sections"`
+	}{}
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:configure", configInput))
+
+	// Stage 3: read and respond to declare-capabilities
+	req = readEngineRequest(t, ctx, engine.mux)
+	assert.Equal(t, "ze-plugin-engine:declare-capabilities", req.Method)
+	require.NoError(t, engine.mux.SendOK(ctx, req.ID))
+
+	// Stage 4: send share-registry
+	registryInput := struct {
+		Commands []RegistryCommand `json:"commands"`
+	}{}
+	require.NoError(t, callAndExpectOK(ctx, engine.mux, "ze-plugin-callback:share-registry", registryInput))
+
+	// Stage 5: read the ready request but close BEFORE responding.
+	req = readEngineRequest(t, ctx, engine.mux)
+	assert.Equal(t, "ze-plugin-engine:ready", req.Method)
+
+	// Close the engine connection instead of sending OK.
+	require.NoError(t, engine.mux.Close())
+
+	select {
+	case err := <-errCh:
+		// Must be nil -- connection close during stage 5 is a clean shutdown, not an error.
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		t.Fatal("plugin did not exit after connection close during stage 5")
+	}
+}
+
 // TestSDKDispatchValidateOpen verifies validate-open dispatch in the event loop.
 //
 // VALIDATES: Engine sends validate-open, SDK dispatches to registered handler, returns accept.

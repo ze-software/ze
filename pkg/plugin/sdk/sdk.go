@@ -258,6 +258,12 @@ func (p *Plugin) Run(ctx context.Context, reg Registration) error {
 	p.mu.Unlock()
 
 	if err := p.callEngine(ctx, "ze-plugin-engine:ready", readyInput); err != nil {
+		// Connection closed during stage 5 is a clean shutdown: the engine
+		// received the ready request and may have closed the pipe before
+		// the write-deadline clear completes on this side.
+		if isConnectionClosed(err) {
+			return nil
+		}
 		return fmt.Errorf("stage 5 (ready): %w", err)
 	}
 

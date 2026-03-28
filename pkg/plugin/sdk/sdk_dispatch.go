@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
@@ -66,11 +67,14 @@ func (p *Plugin) sendCallbackResult(ctx context.Context, id uint64, data any) er
 // During shutdown the engine closes the socket, producing EOF or
 // "use of closed network connection" — both are clean exit signals.
 func isConnectionClosed(err error) bool {
-	if errors.Is(err, io.EOF) {
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrClosedPipe) || errors.Is(err, net.ErrClosed) {
 		return true
 	}
-	// net.Pipe and Unix sockets surface this as an opaque string.
-	return strings.Contains(err.Error(), "use of closed network connection")
+	// Fallback: net.Pipe and Unix sockets may surface these as opaque strings
+	// when error chains don't wrap the sentinel values.
+	msg := err.Error()
+	return strings.Contains(msg, "use of closed network connection") ||
+		strings.Contains(msg, "read/write on closed pipe")
 }
 
 // eventLoop handles runtime RPCs from the engine.
