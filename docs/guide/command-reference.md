@@ -188,7 +188,13 @@ ze exabgp migrate <file>         # Convert ExaBGP config to ze
 | `--family <family>` | Address family (repeatable) |
 | `--route-refresh` | Enable route-refresh |
 | `--add-path <mode>` | ADD-PATH mode: receive, send, both |
+
+When launched by ze's process manager (as an external plugin), the bridge detects
+`ZE_PLUGIN_HUB_TOKEN` and automatically uses TLS connect-back with the SDK.
+In standalone mode (no env var), it uses stdin/stdout with inline MuxConn framing.
+
 <!-- source: cmd/ze/exabgp/main.go -- Run, cmdPlugin, cmdMigrate -->
+<!-- source: cmd/ze/exabgp/main_sdk.go -- runSDKMode TLS connect-back -->
 
 ### ze schema
 

@@ -61,6 +61,19 @@ The bridge translates bidirectionally:
 | Events (to plugin) | Ze JSON events | ExaBGP JSON format |
 | Commands (from plugin) | ExaBGP text commands | Ze command format |
 
+<!-- source: internal/exabgp/bridge/bridge_event.go -- ZebgpToExabgpJSON -->
+<!-- source: internal/exabgp/bridge/bridge_command.go -- ExabgpToZebgpCommand -->
+
+When launched by ze's process manager, the bridge detects `ZE_PLUGIN_HUB_TOKEN` and
+connects back via TLS using the SDK. The SDK handles the 5-stage startup protocol
+and MuxConn multiplexing automatically. In standalone mode (no env var), the bridge
+uses stdin/stdout with inline MuxConn framing.
+
+After each route command, the bridge injects a `peer <addr> flush` to block until
+the forward pool drains, ensuring the engine processes the route before continuing.
+
+<!-- source: cmd/ze/exabgp/main_sdk.go -- runSDKMode TLS connect-back -->
+
 ### Bridge Flags
 
 | Flag | Description |
