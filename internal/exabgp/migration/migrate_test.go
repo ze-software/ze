@@ -1337,3 +1337,33 @@ neighbor 10.0.0.1 {
 	assert.Contains(t, output, "peer a-quagga-test-peer {", "description sanitized to peer name")
 	assert.NotContains(t, output, "peer a quagga", "spaces must not appear in peer name")
 }
+
+// TestMigrateExaBGPSetsUpdateGroupsFalse verifies that migrated configs disable update groups.
+//
+// VALIDATES: ExaBGP migration injects environment { reactor { update-groups false; } }.
+// PREVENTS: Migrated configs silently enabling cross-peer UPDATE grouping,
+// which would change behavior vs ExaBGP (per-peer UPDATE building).
+func TestMigrateExaBGPSetsUpdateGroupsFalse(t *testing.T) {
+	input := `
+neighbor 10.0.0.1 {
+	local-as 65001
+	peer-as 65002
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	require.NoError(t, err, "parse")
+
+	result, err := MigrateFromExaBGP(tree)
+	require.NoError(t, err, "migrate")
+
+	// Verify the tree structure directly.
+	env := result.Tree.GetContainer("environment")
+	require.NotNil(t, env, "environment container must exist")
+
+	reactor := env.GetContainer("reactor")
+	require.NotNil(t, reactor, "reactor container must exist")
+
+	val, ok := reactor.Get("update-groups")
+	require.True(t, ok, "update-groups key must exist")
+	assert.Equal(t, "false", val, "update-groups must be false for migrated ExaBGP configs")
+}

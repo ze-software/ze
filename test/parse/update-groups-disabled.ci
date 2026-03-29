@@ -1,0 +1,26 @@
+# Test: config with update-groups disabled parses successfully
+# VALIDATES: YANG leaf update-groups accepted by schema validation
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65533
+		}
+		local {
+			as 65533
+			ip 127.0.0.1
+		}
+	}
+}
+
+environment {
+	reactor {
+		update-groups false
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

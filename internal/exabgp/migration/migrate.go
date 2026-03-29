@@ -82,6 +82,10 @@ func MigrateFromExaBGP(tree *config.Tree) (*MigrateResult, error) {
 	// Copy other top-level items (excluding templates - they're expanded)
 	copyOtherItems(tree, result)
 
+	// ExaBGP builds UPDATEs per-peer with no cross-peer sharing.
+	// Disable update groups to preserve this behavior in migrated configs.
+	injectUpdateGroupsDisabled(result.Tree)
+
 	return result, nil
 }
 
@@ -660,6 +664,25 @@ func addProcessBinding(dst *config.Tree, name string) {
 func checkUnsupported(_ *config.Tree, _ *MigrateResult) {
 	// L2VPN/VPLS: handled by convertL2VPNToUpdate.
 	// Flow blocks: handled by convertFlowToUpdate.
+}
+
+// injectUpdateGroupsDisabled adds environment { reactor { update-groups false; } }
+// to the output tree. ExaBGP builds UPDATEs per-peer; migrated configs preserve
+// this behavior so users see identical output until they opt into update groups.
+func injectUpdateGroupsDisabled(tree *config.Tree) {
+	env := tree.GetContainer("environment")
+	if env == nil {
+		env = config.NewTree()
+		tree.SetContainer("environment", env)
+	}
+
+	reactor := env.GetContainer("reactor")
+	if reactor == nil {
+		reactor = config.NewTree()
+		env.SetContainer("reactor", reactor)
+	}
+
+	reactor.Set("update-groups", "false")
 }
 
 // copyOtherItems copies non-neighbor, non-process items.

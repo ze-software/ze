@@ -618,6 +618,7 @@ module ze-bgp-conf {
             leaf speed { type string; default "1.0"; description "Reactor loop time multiplier (0.1-10.0)"; }
             leaf cache-ttl { type uint32; default 60; description "Update cache TTL in seconds (0=immediate)"; }
             leaf cache-max { type uint32; default 1000000; description "Update cache max entries (0=unlimited)"; }
+            leaf update-groups { type boolean; default true; description "Cross-peer UPDATE grouping (build once, send to all peers with same encoding context)"; }
         }
     }
 }

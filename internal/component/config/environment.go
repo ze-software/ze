@@ -76,6 +76,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.speed", Type: "string", Default: "1.0", Description: "Reactor loop time multiplier (0.1-10.0)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.cache-ttl", Type: "int", Default: "60", Description: "Update cache TTL in seconds (0=immediate)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.cache-max", Type: "int", Default: "1000000", Description: "Update cache max entries (0=unlimited)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.update-groups", Type: "bool", Default: "true", Description: "Cross-peer UPDATE grouping (build once, send to all peers with same encoding context)"})
 
 	// Debug section (ze-hub-conf.yang).
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.debug.pdb", Type: "bool", Description: "Enable pdb on errors"})
