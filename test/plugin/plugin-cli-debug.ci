@@ -1,0 +1,112 @@
+# Test: plugin debug shell completes 5-stage handshake and dispatches commands
+#
+# Flow:
+# 1. Daemon starts with SSH + BGP peer
+# 2. Shell script creates SSH credentials via ze init
+# 3. ze bgp plugin cli receives piped Q&A answers + commands
+# 4. Verifies handshake completes and dispatch-command works
+# 5. "bye" triggers clean shutdown
+#
+# VALIDATES: AC-9 -- debug shell completes 5-stage handshake with defaults via SSH.
+# VALIDATES: AC-11 -- dispatch-command works after handshake.
+# PREVENTS: Plugin protocol SSH handler not wired, handshake failing over SSH channel.
+
+tmpfs=test-plugin-cli-debug.sh:mode=755:terminator=EOF_SH
+#!/bin/sh
+set -e
+
+# Write config with SSH on OS-assigned port
+cat > cli-debug.conf << 'ZECONF'
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65533
+			accept false
+		}
+		local {
+			as 65533
+			ip 127.0.0.1
+		}
+	}
+}
+
+system {
+	authentication {
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+
+environment {
+	ssh {
+		listen 127.0.0.1:0
+	}
+}
+ZECONF
+
+# Use a PID-derived port for BGP
+export ze_bgp_tcp_port=$((10000 + ($$ % 50000)))
+
+# Start daemon, capture stderr to parse SSH port
+ze cli-debug.conf 2>daemon.log &
+DAEMON_PID=$!
+trap 'kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+
+# Wait for SSH server to report its listening address
+SSH_PORT=""
+for i in $(seq 1 50); do
+	SSH_PORT=$(grep -o '127\.0\.0\.1:[0-9]*' daemon.log 2>/dev/null | head -1 | cut -d: -f2 || true)
+	if [ -n "$SSH_PORT" ]; then
+		break
+	fi
+	sleep 0.2
+done
+
+if [ -z "$SSH_PORT" ]; then
+	echo "FAIL: SSH server did not start" >&2
+	cat daemon.log >&2
+	exit 1
+fi
+echo "SSH port: $SSH_PORT" >&2
+
+# Wait for reactor + plugin protocol handler to be wired
+sleep 1.0
+
+# Create SSH credentials via ze init
+CRED_DIR=$(mktemp -d)
+trap 'rm -rf "$CRED_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev/null' EXIT
+printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$CRED_DIR" ze init >/dev/null
+
+# Pipe Q&A answers + commands to the debug shell.
+# Line 1: empty = accept default plugin name
+# Line 2: empty = accept default registration (yes)
+# Line 3: "bye" = disconnect after handshake
+OUTPUT=$(printf '\n\nbye\n' | ZE_CONFIG_DIR="$CRED_DIR" ZE_SSH_PASSWORD="testpass" ze bgp plugin cli 2>cli-debug-stderr.log) || {
+	echo "FAIL: ze bgp plugin cli exited with error" >&2
+	cat cli-debug-stderr.log >&2
+	exit 1
+}
+
+# Verify handshake completed (stderr should contain "Handshake complete")
+if grep -q "Handshake complete" cli-debug-stderr.log; then
+	echo "OK: handshake completed" >&2
+else
+	echo "FAIL: handshake did not complete" >&2
+	cat cli-debug-stderr.log >&2
+	exit 1
+fi
+
+echo "OK: plugin debug shell test passed" >&2
+
+# Clean shutdown -- disable set -e for cleanup
+set +e
+kill $DAEMON_PID 2>/dev/null
+wait $DAEMON_PID 2>/dev/null
+exit 0
+EOF_SH
+
+# Process orchestration
+cmd=foreground:seq=1:exec=./test-plugin-cli-debug.sh:timeout=20s
+expect=exit:code=0

@@ -274,6 +274,11 @@ func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plug
 						FormatFunc: pluginserver.MonitorEventFormatter(),
 					}, nil
 				})
+				// Wire plugin protocol handler for debug shell sessions.
+				// The SSH channel becomes bidirectional plugin transport.
+				sshSrv.SetPluginProtocolFunc(func(ctx context.Context, reader io.ReadCloser, writer io.WriteCloser) error {
+					return apiServer.HandleAdHocPluginSession(reader, writer)
+				})
 				sshSrv.SetShutdownFunc(func() { r.Stop() })
 				sshSrv.SetRestartFunc(func() {
 					// Compute max restart-time from all GR capabilities and write marker.
