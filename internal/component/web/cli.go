@@ -151,14 +151,17 @@ func HandleCLICommand(mgr *EditorManager, schema *config.Schema, renderer *Rende
 			return
 		}
 
-		// If the path ends at a named list (not an entry), step back one level.
-		// The CLI can't be "at" a list -- you're before it or inside an entry.
-		contextPath = adjustListContext(schema, contextPath)
-
 		cmd := parseCLICommand(command)
 		if cmd.Verb == "" {
 			http.Error(w, "empty command", http.StatusBadRequest)
 			return
+		}
+
+		// If the path ends at a named list (not an entry), step back one level.
+		// The CLI can't be "at" a list -- you're before it or inside an entry.
+		// Skip for navigation commands (up/top) that manage their own path.
+		if cmd.Verb != verbUp && cmd.Verb != verbTop {
+			contextPath = adjustListContext(schema, contextPath)
 		}
 
 		dispatchCLICommand(w, r, cmd, contextPath, mgr, schema, renderer, username)

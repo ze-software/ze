@@ -56,5 +56,6 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rs"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/watchdog"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor/filter"
 )
 

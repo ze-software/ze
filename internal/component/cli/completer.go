@@ -226,9 +226,10 @@ func (c *Completer) completeSetPath(tokens, contextPath []string, endsWithSpace 
 	}
 
 	// If we ended with space, show next level.
-	// Check if current path ends at a list that still needs a key
-	// (either from tokens or from the context path itself).
-	if c.isListNeedingKey(currentPath) && len(currentPath) > 0 {
+	// Only show list key completions if the user navigated here via tokens.
+	// When the context path itself ends at a list (tokensAdded == 0),
+	// show schema children instead -- the user is already in that context.
+	if c.isListNeedingKey(currentPath) && len(currentPath) > 0 && tokensAdded > 0 {
 		listName := currentPath[len(currentPath)-1]
 		parentPath := currentPath[:len(currentPath)-1]
 		return c.listKeyCompletions(listName, "", parentPath)
