@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Depends | - |
-| Phase | - |
-| Updated | 2026-03-04 |
+| Phase | 1/3 |
+| Updated | 2026-03-29 |
 
 ## Post-Compaction Recovery
 
@@ -24,7 +24,9 @@ Implement **automatic cross-peer update groups** — when multiple peers share t
 
 Today Ze computes outbound UPDATEs independently per peer: for N peers with identical capabilities and policy, it builds N identical UPDATEs. Update groups reduce this to 1 build + N sends.
 
-**Auto-grouping:** Peers are grouped automatically by the engine based on `sendCtxID` + policy equivalence. No user configuration needed (unlike FRR/VyOS peer-groups which require explicit assignment).
+**Auto-grouping:** Peers are grouped automatically by the engine based on `sendCtxID` + policy equivalence. No per-peer configuration needed (unlike FRR/VyOS peer-groups which require explicit assignment).
+
+**Default behavior:** Update groups are ON by default. ExaBGP compatibility mode disables them via `ze.bgp.reactor.update-groups false` injected during `ze exabgp migrate`, matching ExaBGP's per-peer UPDATE building.
 
 ## Required Reading
 
@@ -51,11 +53,22 @@ Today Ze computes outbound UPDATEs independently per peer: for N peers with iden
 - [ ] `rfc/short/rfc8654.md` — Extended Message
   → Constraint: max message size differs (4096 vs 65535) — peers with different ExtMsg cannot share wire bytes
 
+### ExaBGP Migration & Env Var
+- [ ] `internal/exabgp/migration/migrate.go` — MigrateFromExaBGP orchestration
+  → Constraint: migration produces a config tree; env settings go in `environment > reactor` container
+- [ ] `internal/component/config/environment.go` — env var registration (ze.bgp.reactor.*)
+  → Constraint: every YANG environment leaf needs matching `env.MustRegister()` call
+- [ ] `internal/component/bgp/schema/ze-bgp-conf.yang` — reactor container in environment augment
+  → Constraint: new leaf goes in existing `container reactor { }` block (line 616)
+- [ ] `.claude/rules/config-design.md` — env var registration required for YANG config leaves
+  → Constraint: YANG leaf + env.MustRegister() + extraction must all exist
+
 **Key insights:**
 - ContextID already captures all encoding-relevant differences (ASN4, ADD-PATH, ExtMsg, ExtNH, iBGP/eBGP, ASN values)
 - Peers with same `sendCtxID` produce bit-identical wire bytes for the same route set
 - Today's policy is uniform (no per-peer route-maps) — so `sendCtxID` alone defines groups
 - The forward pool (`fwdPool`) already has per-peer workers with batch drain — update groups sit above this
+- ExaBGP builds UPDATEs per-peer with no cross-peer sharing; migrated configs must preserve this behavior
 
 ## Current Behavior (MANDATORY)
 
@@ -204,6 +217,28 @@ Lower priority. When a new peer joins an existing group, it could reuse wire byt
 | Per-peer `writeMu` | TCP write serialization remains per-session. |
 | `group-updates` config | Controls within-UPDATE NLRI grouping, not cross-peer grouping. |
 
+### Env Var: `ze.bgp.reactor.update-groups`
+
+| Aspect | Detail |
+|--------|--------|
+| YANG path | `environment > reactor > update-groups` |
+| Env var key | `ze.bgp.reactor.update-groups` |
+| Type | boolean |
+| Default | `true` (update groups enabled) |
+| Effect when false | Reactor skips group optimization; per-peer build as today |
+
+**YANG leaf** added to existing `container reactor { }` in `ze-bgp-conf.yang` augment. Registration via `env.MustRegister()` in `environment.go`. Reactor reads at startup via `env.GetBool("ze.bgp.reactor.update-groups", true)`.
+
+### ExaBGP Migration Integration
+
+During `MigrateFromExaBGP()`, inject `environment { reactor { update-groups false; } }` into the output tree. This ensures migrated configs match ExaBGP's per-peer UPDATE behavior. Users can later remove this setting to opt into update groups.
+
+| Migration step | What happens |
+|----------------|-------------|
+| `ze exabgp migrate old.conf` | Output config includes `environment { reactor { update-groups false; } }` |
+| User edits migrated config | Can remove the line to enable update groups |
+| `ze bgp config migrate` (structural) | Does NOT inject this setting (Ze-to-Ze migration preserves existing behavior) |
+
 ### Naming
 
 - **Update group:** cross-peer optimization (this spec)
@@ -230,6 +265,8 @@ The optimization is proportional to average group size. Worst case (all unique) 
 | AnnounceNLRIBatch to peers in same group | → | UPDATE built once, sent to all members | `TestUpdateGroupSharedBuild` |
 | ForwardUpdate to peers in same group | → | fwdItem computed once per group | `TestUpdateGroupSharedForward` |
 | Peer session closed | → | Peer removed from group, group deleted if empty | `TestUpdateGroupTeardown` |
+| Config with `update-groups false` in environment | → | Reactor disables update group optimization | `test/parse/update-groups-disabled.ci` |
+| `ze exabgp migrate` with any ExaBGP config | → | Output includes `update-groups false` in environment | `TestMigrateExaBGPSetsUpdateGroupsFalse` |
 
 ## Acceptance Criteria
 
@@ -243,6 +280,9 @@ The optimization is proportional to average group size. Worst case (all unique) 
 | AC-6 | Peer renegotiates with different capabilities | Moves to new group (old group shrinks, new group grows or is created) |
 | AC-7 | All peers have unique ContextIDs | Each group has 1 member; behavior identical to current (no regression) |
 | AC-8 | Mixed: some peers grouped, some unique | Grouped peers share builds, unique peers build independently |
+| AC-9 | Default config (no explicit `update-groups` setting) | `ze.bgp.reactor.update-groups` defaults to true; update groups active |
+| AC-10 | `ze exabgp migrate` output | Migrated config contains `environment { reactor { update-groups false; } }` |
+| AC-11 | `ze.bgp.reactor.update-groups` explicitly set to false | Peers NOT grouped; each builds UPDATE independently (current behavior preserved) |
 
 ## 🧪 TDD Test Plan
 
@@ -258,6 +298,9 @@ The optimization is proportional to average group size. Worst case (all unique) 
 | `TestUpdateGroupSharedBuild` | same | AnnounceNLRIBatch builds once per group | |
 | `TestUpdateGroupSharedForward` | same | ForwardUpdate computes once per group | |
 | `TestUpdateGroupNoRegression` | same | All-unique-context case identical to current behavior | |
+| `TestUpdateGroupEnvVarDefault` | same | Default env var value is true, groups enabled | |
+| `TestUpdateGroupDisabledByEnv` | same | Env var false disables grouping, per-peer build | |
+| `TestMigrateExaBGPSetsUpdateGroupsFalse` | `internal/exabgp/migration/migrate_test.go` | Migration output tree contains update-groups false | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -270,34 +313,42 @@ The optimization is proportional to average group size. Worst case (all unique) 
 |------|----------|-------------------|--------|
 | `test-update-groups-basic` | `test/plugin/update-groups-basic.ci` | Two peers with same config receive routes; verify both get identical UPDATEs | |
 | `test-update-groups-mixed` | `test/plugin/update-groups-mixed.ci` | Mix of iBGP and eBGP peers; verify correct grouping | |
+| `test-update-groups-disabled` | `test/parse/update-groups-disabled.ci` | Config with `environment { reactor { update-groups false; } }` parses successfully | |
 
 ### Future (if deferring any tests)
 - Benchmark comparing N-peer UPDATE throughput with/without groups (performance, not correctness)
 - Initial sync reuse from existing group (optimization, not MVP)
 
 ## Files to Modify
-- `internal/component/bgp/reactor/reactor.go` — add `updateGroups` map, group management methods
+- `internal/component/bgp/reactor/reactor.go` — add `updateGroups` map, group management methods, read env var
 - `internal/component/bgp/reactor/reactor_api_batch.go` — loop over groups instead of peers
 - `internal/component/bgp/reactor/reactor_api_forward.go` — shared fwdItem per group
 - `internal/component/bgp/reactor/peer.go` — group join/leave on session events
+- `internal/component/bgp/schema/ze-bgp-conf.yang` — add `leaf update-groups` to reactor container
+- `internal/component/config/environment.go` — register `ze.bgp.reactor.update-groups` env var
+- `internal/exabgp/migration/migrate.go` — inject `environment { reactor { update-groups false; } }` in output
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
+| YANG schema (new leaf) | Yes | `ze-bgp-conf.yang` — `leaf update-groups` in reactor container |
+| Env var registration | Yes | `environment.go` — `env.MustRegister()` for `ze.bgp.reactor.update-groups` |
+| ExaBGP migration | Yes | `migrate.go` — inject `update-groups false` in output tree |
 | YANG schema (new RPCs) | No | N/A |
 | RPC count in architecture docs | No | N/A |
-| CLI commands/flags | No | N/A (auto-grouping, no user config) |
+| CLI commands/flags | No | N/A |
 | CLI usage/help text | No | N/A |
 | API commands doc | No | N/A |
 | Plugin SDK docs | No | N/A |
-| Editor autocomplete | No | N/A |
-| Functional test for new RPC/API | No | N/A (internal optimization) |
+| Editor autocomplete | No | N/A (YANG leaf auto-discovered) |
+| Functional test for config | Yes | `test/parse/update-groups-disabled.ci` |
 
 ## Files to Create
 - `internal/component/bgp/reactor/update_group.go` — UpdateGroup type, GroupKey, index management
 - `internal/component/bgp/reactor/update_group_test.go` — unit tests
 - `test/plugin/update-groups-basic.ci` — functional test
 - `test/plugin/update-groups-mixed.ci` — functional test
+- `test/parse/update-groups-disabled.ci` — parse test for env var config
 
 ### Documentation Update Checklist (BLOCKING)
 <!-- Every row MUST be answered Yes/No during the Completion Checklist (planning.md step 1). -->
@@ -305,41 +356,100 @@ The optimization is proportional to average group size. Worst case (all unique) 
 <!-- See planning.md "Documentation Update Checklist" for the full table with examples. -->
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature? | [ ] | `docs/features.md` |
-| 2 | Config syntax changed? | [ ] | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` |
-| 3 | CLI command added/changed? | [ ] | `docs/guide/command-reference.md` |
-| 4 | API/RPC added/changed? | [ ] | `docs/architecture/api/commands.md` |
-| 5 | Plugin added/changed? | [ ] | `docs/guide/plugins.md` |
-| 6 | Has a user guide page? | [ ] | `docs/guide/<topic>.md` |
-| 7 | Wire format changed? | [ ] | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | [ ] | `.claude/rules/plugin-design.md`, `docs/architecture/api/process-protocol.md` |
-| 9 | RFC behavior implemented? | [ ] | `rfc/short/rfcNNNN.md` |
-| 10 | Test infrastructure changed? | [ ] | `docs/functional-tests.md` |
-| 11 | Affects daemon comparison? | [ ] | `docs/comparison.md` |
-| 12 | Internal architecture changed? | [ ] | `docs/architecture/core-design.md` or subsystem doc |
+| 1 | New user-facing feature? | Yes | `docs/features.md` — add update groups (cross-peer UPDATE sharing) |
+| 2 | Config syntax changed? | Yes | `docs/guide/configuration.md` — document `environment { reactor { update-groups } }` |
+| 3 | CLI command added/changed? | No | N/A |
+| 4 | API/RPC added/changed? | No | N/A |
+| 5 | Plugin added/changed? | No | N/A |
+| 6 | Has a user guide page? | No | N/A (env var is sufficient documentation) |
+| 7 | Wire format changed? | No | N/A |
+| 8 | Plugin SDK/protocol changed? | No | N/A |
+| 9 | RFC behavior implemented? | No | N/A (optimization, not new RFC compliance) |
+| 10 | Test infrastructure changed? | No | N/A |
+| 11 | Affects daemon comparison? | Yes | `docs/comparison.md` — update groups vs FRR/BIRD peer-groups |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/update-building.md` — document cross-peer grouping |
+
+## Critical Review Checklist
+
+| # | What to verify | How to verify |
+|---|---------------|---------------|
+| 1 | GroupKey correctly separates peers with different encoding contexts | Unit test: peers with different sendCtxID get different GroupKeys |
+| 2 | GroupKey correctly groups peers with identical contexts | Unit test: peers with same sendCtxID share GroupKey |
+| 3 | Env var `ze.bgp.reactor.update-groups` defaults to true | Unit test: read env var without setting it, verify true |
+| 4 | Env var false disables all grouping | Unit test: set env false, verify no groups formed |
+| 5 | ExaBGP migration injects `update-groups false` | Unit test: run MigrateFromExaBGP, verify output tree |
+| 6 | Group lifecycle correct on peer up/down | Unit test: add/remove peers, verify group membership and cleanup |
+| 7 | UPDATE built once per group, not per peer | Unit test: mock build, count invocations |
+| 8 | Forward path computes once per group | Unit test: mock context check, count invocations |
+| 9 | YANG leaf exists in reactor container | Grep ze-bgp-conf.yang for `update-groups` in reactor |
+| 10 | Env var registered | Grep environment.go for `ze.bgp.reactor.update-groups` |
+| 11 | No regression when all peers unique | Unit test: N peers, N groups, same behavior as today |
+
+## Deliverables Checklist
+
+| # | Deliverable | Verification Method |
+|---|-------------|-------------------|
+| 1 | `update_group.go` with UpdateGroup type and index | `ls internal/component/bgp/reactor/update_group.go` |
+| 2 | `update_group_test.go` with all unit tests | `go test -run TestUpdateGroup -v ./internal/component/bgp/reactor/...` |
+| 3 | YANG leaf in reactor container | `grep update-groups internal/component/bgp/schema/ze-bgp-conf.yang` |
+| 4 | Env var registration | `grep ze.bgp.reactor.update-groups internal/component/config/environment.go` |
+| 5 | ExaBGP migration injection | `grep update-groups internal/exabgp/migration/migrate.go` |
+| 6 | ExaBGP migration test | `go test -run TestMigrateExaBGP.*UpdateGroups -v ./internal/exabgp/migration/...` |
+| 7 | Parse functional test | `ls test/parse/update-groups-disabled.ci` |
+| 8 | Plugin functional tests | `ls test/plugin/update-groups-basic.ci test/plugin/update-groups-mixed.ci` |
+| 9 | Reactor reads env var and enables/disables groups | grep reactor.go or update_group.go for `env.GetBool` |
+| 10 | `make ze-verify` passes | Run and paste output |
+
+## Security Review Checklist
+
+| # | Concern | What to check |
+|---|---------|--------------|
+| 1 | Group key collision | Two peers with different capabilities must NEVER share a group. Verify GroupKey includes all encoding-relevant fields via ContextID. |
+| 2 | Unbounded group size | Group member count is bounded by peer count (uint16 ContextID range). No separate allocation. Verify no unbounded slice growth. |
+| 3 | Resource exhaustion on churn | Rapid peer up/down creating/destroying groups. Verify no leaked goroutines, channels, or map entries. |
+| 4 | Shared buffer safety | Wire bytes built once and sent to multiple peers. Verify no concurrent writes to shared buffer. Each peer session write is serialized by existing writeMu. |
+| 5 | Env var injection | `ze.bgp.reactor.update-groups` is boolean. Verify `env.GetBool` with explicit default, no string parsing. |
 
 ## Implementation Steps
 
 Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
 
-1. **Write unit tests** for UpdateGroup type (add/remove/lookup) → Review: edge cases? Boundary tests?
-2. **Run tests** → Verify FAIL (paste output). Fail for RIGHT reason?
-3. **Implement UpdateGroup type** in `update_group.go` — GroupKey, index, add/remove → Minimal code to pass. Simplest solution?
-4. **Run tests** → Verify PASS (paste output). All pass?
-5. **Write unit tests** for group-aware AnnounceNLRIBatch (verify single build per group)
-6. **Run tests** → Verify FAIL
-7. **Modify AnnounceNLRIBatch** to iterate groups → build once per group → fan out
-8. **Run tests** → Verify PASS
-9. **Write unit tests** for group-aware ForwardUpdate
-10. **Run tests** → Verify FAIL
-11. **Modify ForwardUpdate** to compute fwdItem once per group
-12. **Run tests** → Verify PASS
+### Phase 1: Config / Env Var / Migration (AC-9, AC-10, AC-11)
+
+1. **YANG leaf** — add `leaf update-groups` to `container reactor` in `ze-bgp-conf.yang`
+2. **Env var registration** — add `env.MustRegister()` in `environment.go` reactor section
+3. **Write migration test** — `TestMigrateExaBGPSetsUpdateGroupsFalse` → MUST FAIL
+4. **Implement migration injection** — `MigrateFromExaBGP()` injects setting in output tree
+5. **Run migration test** → MUST PASS
+6. **Write parse functional test** — `test/parse/update-groups-disabled.ci`
+7. **Run parse test** → MUST PASS
+8. **Run `make ze-verify`** → All green before proceeding
+
+### Phase 2: UpdateGroup Type (AC-1, AC-2, AC-5, AC-6, AC-7)
+
+9. **Write unit tests** for UpdateGroup type (add/remove/lookup) → Review: edge cases? Boundary tests?
+10. **Run tests** → Verify FAIL (paste output). Fail for RIGHT reason?
+11. **Implement UpdateGroup type** in `update_group.go` — GroupKey, index, add/remove → Minimal code to pass. Simplest solution?
+12. **Run tests** → Verify PASS (paste output). All pass?
 13. **Wire group join/leave** into peer session lifecycle (session established / closed)
-14. **Write functional tests** — multi-peer scenarios
-15. **RFC refs** → Add `// RFC 4271 Section 4.3` comments where relevant
-16. **Verify all** → `make ze-test` (lint + all ze tests including fuzz + exabgp)
-17. **Critical Review** → All 6 checks from `rules/quality.md`
-18. **Complete spec** → Fill audit tables, write learned summary
+14. **Write env var tests** — `TestUpdateGroupEnvVarDefault`, `TestUpdateGroupDisabledByEnv`
+15. **Implement env var gating** — reactor reads `ze.bgp.reactor.update-groups`, skips grouping when false
+
+### Phase 3: Group-Aware Build & Forward (AC-3, AC-4, AC-8)
+
+16. **Write unit tests** for group-aware AnnounceNLRIBatch (verify single build per group)
+17. **Run tests** → Verify FAIL
+18. **Modify AnnounceNLRIBatch** to iterate groups → build once per group → fan out
+19. **Run tests** → Verify PASS
+20. **Write unit tests** for group-aware ForwardUpdate
+21. **Run tests** → Verify FAIL
+22. **Modify ForwardUpdate** to compute fwdItem once per group
+23. **Run tests** → Verify PASS
+24. **Write functional tests** — multi-peer scenarios (`update-groups-basic.ci`, `update-groups-mixed.ci`)
+25. **RFC refs** → Add `// RFC 4271 Section 4.3` comments where relevant
+26. **Verify all** → `make ze-verify`
+27. **Critical Review** → All checks from Critical Review Checklist + `rules/quality.md`
+28. **Complete spec** → Fill audit tables, write learned summary
 
 ### Failure Routing
 
@@ -423,7 +533,7 @@ MUST document: identical attributes per UPDATE (§4.3), ADD-PATH mode per peer (
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-8 all demonstrated
+- [ ] AC-1..AC-11 all demonstrated
 - [ ] Wiring Test table complete — every row has a concrete test name, none deferred
 - [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
