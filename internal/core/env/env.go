@@ -173,20 +173,26 @@ func GetInt64(key string, defaultVal int64) int64 {
 	return v
 }
 
-// GetBool returns a boolean env var value: "true"/"1" = true, "false"/"0" = false.
-// Returns defaultVal if unset or unrecognized.
+// GetBool returns a boolean env var value.
+// True values: "true", "1", "yes", "on", "enable", "enabled" (case-insensitive).
+// False values: "false", "0", "no", "off", "disable", "disabled" (case-insensitive).
+// Returns defaultVal if unset, empty, or not one of the recognized values above.
+// Unrecognized non-empty values are logged to stderr as a diagnostic since the env
+// package cannot import slog (circular dependency).
 func GetBool(key string, defaultVal bool) bool {
 	s := Get(key)
 	if s == "" {
 		return defaultVal
 	}
 	v := strings.ToLower(s)
-	if v == "true" || v == "1" {
+	if v == "true" || v == "1" || v == "yes" || v == "on" || v == "enable" || v == "enabled" {
 		return true
 	}
-	if v == "false" || v == "0" {
+	if v == "false" || v == "0" || v == "no" || v == "off" || v == "disable" || v == "disabled" {
 		return false
 	}
+	// Unrecognized value: warn and fall back to default.
+	os.Stderr.WriteString("WARNING: env var " + key + " has unrecognized boolean value " + s + ", using default\n") //nolint:errcheck // pre-exit diagnostic
 	return defaultVal
 }
 

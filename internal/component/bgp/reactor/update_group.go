@@ -37,6 +37,11 @@ type UpdateGroup struct {
 // When enabled is false, all methods are no-ops and callers fall back
 // to per-peer behavior.
 //
+// The groups map provides lifecycle tracking and debugging state (which peers
+// are in which group). It is NOT queried in the hot path: AnnounceNLRIBatch
+// and ForwardUpdate do their own inline grouping with finer-grained keys
+// (e.g., next-hop, isIBGP, extended message) that go beyond ContextID alone.
+//
 // Safe for concurrent use. Add/Remove are called from peer goroutines
 // (via notifyPeerEstablished/notifyPeerClosed), while GroupsForPeers
 // is called from the reactor API path.
@@ -73,15 +78,15 @@ func (idx *UpdateGroupIndex) Add(peer *Peer) {
 	if !idx.enabled {
 		return
 	}
-	ctxID := peer.sendCtxID
+	ctxID := peer.SendContextID() // locked accessor (peer.mu.RLock)
 	if ctxID == 0 {
 		return // Not established or context not set
 	}
 
 	key := GroupKey{CtxID: ctxID, PolicyKey: 0}
-	peer.updateGroupKey = key
 
 	idx.mu.Lock()
+	peer.updateGroupKey = key // store under idx.mu to avoid racing with Remove
 	group, ok := idx.groups[key]
 	if !ok {
 		group = &UpdateGroup{Key: key}
@@ -98,15 +103,17 @@ func (idx *UpdateGroupIndex) Remove(peer *Peer) {
 	if !idx.enabled {
 		return
 	}
-	key := peer.updateGroupKey
+
+	idx.mu.Lock()
+	key := peer.updateGroupKey // read under idx.mu to avoid racing with Add
 	if key.CtxID == 0 {
+		idx.mu.Unlock()
 		return // Never added
 	}
 
 	// Clear stored key so double-Remove is safe.
 	peer.updateGroupKey = GroupKey{}
 
-	idx.mu.Lock()
 	group, ok := idx.groups[key]
 	if !ok {
 		idx.mu.Unlock()
@@ -144,7 +151,7 @@ func (idx *UpdateGroupIndex) GroupsForPeers(peers []*Peer) []UpdateGroup {
 	// because the caller may pass a filtered subset of peers.
 	tmp := make(map[GroupKey][]*Peer)
 	for _, peer := range peers {
-		ctxID := peer.sendCtxID
+		ctxID := peer.SendContextID() // locked accessor (peer.mu.RLock)
 		if ctxID == 0 {
 			continue
 		}

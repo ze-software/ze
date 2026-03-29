@@ -93,9 +93,6 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch bgptype
 			continue
 		}
 
-		// Build AS_PATH per peer (iBGP vs eBGP)
-		asPath := a.buildBatchASPath(userASPath, isIBGP, peer.Settings().LocalAS)
-
 		if !peer.ShouldQueue() {
 			// Check family negotiation
 			nc := peer.negotiated.Load()
@@ -139,6 +136,9 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch bgptype
 			}
 		} else {
 			// Session not established or queue draining: queue to preserve order
+			// Build AS_PATH only for queue path (iBGP vs eBGP); the established
+			// path builds AS_PATH inside the UPDATE wire bytes directly.
+			asPath := a.buildBatchASPath(userASPath, isIBGP, peer.Settings().LocalAS)
 			for _, n := range batch.NLRIs {
 				ribRoute := rib.NewRouteWithASPath(n, nextHop, attrs, asPath)
 				peer.QueueAnnounce(ribRoute)
@@ -148,6 +148,9 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch bgptype
 	}
 
 	// Build once per group, send to all members.
+	// INVARIANT: sendUpdateWithSplit is synchronous -- it blocks until bytes are
+	// written to TCP. The shared *message.Update references pooled buffers that
+	// are returned after this loop. Async writes would cause use-after-return.
 	for _, bg := range buildGroups {
 		maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, bg.key.extended))
 
@@ -249,6 +252,9 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch bgptype
 	}
 
 	// Build once per group, send to all members.
+	// INVARIANT: sendUpdateWithSplit is synchronous -- it blocks until bytes are
+	// written to TCP. The shared *message.Update references pooled buffers that
+	// are returned after this loop. Async writes would cause use-after-return.
 	for _, wg := range wdGroups {
 		maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, wg.key.extended))
 

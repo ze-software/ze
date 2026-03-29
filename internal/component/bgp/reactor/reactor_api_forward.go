@@ -187,47 +187,110 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		return fmt.Errorf("no peers match selector %s", sel)
 	}
 
-	// EBGP preparation: scan for EBGP peers and pre-generate patched wires.
+	// EBGP preparation: lazily generate patched wires keyed by (localAS, asn4).
 	// RFC 4271 §9.1.2: EBGP speakers MUST prepend their own AS to AS_PATH.
-	// RFC 6793 §4: ASN4→ASN2 transcoding uses AS_TRANS=23456.
-	var ebgpWireASN4, ebgpWireASN2 *wireu.WireUpdate
-	var hasEBGPasn4, hasEBGPasn2 bool
-	var ebgpASN4Failed, ebgpASN2Failed bool
-	var ebgpLocalAS uint32
-	for _, peer := range matchingPeers {
-		if peer.State() != PeerStateEstablished {
-			continue
-		}
-		if peer.Settings().IsEBGP() {
-			ebgpLocalAS = peer.Settings().LocalAS
-			if peer.asn4() {
-				hasEBGPasn4 = true
-			} else {
-				hasEBGPasn2 = true
-			}
-		}
+	// RFC 6793 §4: ASN4->ASN2 transcoding uses AS_TRANS=23456.
+	//
+	// LocalAS can differ per peer (RFC 7705 local-as override), so wire variants
+	// are cached per (localAS, dstASN4) combination rather than assuming a single
+	// LocalAS for all EBGP peers.
+	//
+	// The first LocalAS per dstASN4 uses ReceivedUpdate.EBGPWire (which caches
+	// in the ReceivedUpdate for reuse across ForwardUpdate calls). Additional
+	// LocalAS values for the same dstASN4 are generated directly via
+	// wireu.RewriteASPath, since ReceivedUpdate's cache is keyed by dstASN4 only.
+	type ebgpWireKey struct {
+		localAS uint32
+		asn4    bool
 	}
-	if hasEBGPasn4 || hasEBGPasn2 {
-		srcCtxID := update.WireUpdate.SourceCtxID()
-		srcCtx := bgpctx.Registry.Get(srcCtxID)
-		srcASN4 := srcCtx != nil && srcCtx.ASN4()
+	type ebgpWireEntry struct {
+		wire   *wireu.WireUpdate
+		failed bool
+	}
+	var ebgpWireCache map[ebgpWireKey]*ebgpWireEntry
+	var srcASN4 bool // computed once if any EBGP peer exists
+	var srcASN4Set bool
+	// Track the first localAS used per dstASN4 variant for ReceivedUpdate cache.
+	var cachedLocalASN4, cachedLocalASN2 uint32
+	var cachedLocalASN4Set, cachedLocalASN2Set bool
 
-		if hasEBGPasn4 {
-			var err error
-			ebgpWireASN4, err = update.EBGPWire(ebgpLocalAS, srcASN4, true)
-			if err != nil {
-				fwdLogger().Warn("EBGP ASN4 wire rewrite failed", "id", updateID, "err", err)
-				ebgpASN4Failed = true
+	// getEBGPWire returns the cached EBGP wire for the given (localAS, asn4)
+	// combination, generating it lazily on first access.
+	getEBGPWire := func(localAS uint32, asn4 bool) (*wireu.WireUpdate, bool) {
+		ek := ebgpWireKey{localAS: localAS, asn4: asn4}
+		if ebgpWireCache == nil {
+			ebgpWireCache = make(map[ebgpWireKey]*ebgpWireEntry)
+		}
+		if entry, ok := ebgpWireCache[ek]; ok {
+			return entry.wire, !entry.failed
+		}
+		// Compute srcASN4 once.
+		if !srcASN4Set {
+			srcCtxID := update.WireUpdate.SourceCtxID()
+			srcCtx := bgpctx.Registry.Get(srcCtxID)
+			srcASN4 = srcCtx != nil && srcCtx.ASN4()
+			srcASN4Set = true
+		}
+
+		// Use ReceivedUpdate cache for the first localAS per dstASN4 variant.
+		// For subsequent different localAS values, generate directly to avoid
+		// ReceivedUpdate returning a stale cached result (keyed by dstASN4 only).
+		canUseUpdateCache := false
+		if asn4 {
+			if !cachedLocalASN4Set {
+				cachedLocalASN4 = localAS
+				cachedLocalASN4Set = true
+				canUseUpdateCache = true
+			} else if cachedLocalASN4 == localAS {
+				canUseUpdateCache = true
+			}
+		} else {
+			if !cachedLocalASN2Set {
+				cachedLocalASN2 = localAS
+				cachedLocalASN2Set = true
+				canUseUpdateCache = true
+			} else if cachedLocalASN2 == localAS {
+				canUseUpdateCache = true
 			}
 		}
-		if hasEBGPasn2 {
-			var err error
-			ebgpWireASN2, err = update.EBGPWire(ebgpLocalAS, srcASN4, false)
+
+		if canUseUpdateCache {
+			wire, err := update.EBGPWire(localAS, srcASN4, asn4)
 			if err != nil {
-				fwdLogger().Warn("EBGP ASN2 wire rewrite failed", "id", updateID, "err", err)
-				ebgpASN2Failed = true
+				fwdLogger().Warn("EBGP wire rewrite failed",
+					"id", updateID, "localAS", localAS, "asn4", asn4, "err", err)
+				ebgpWireCache[ek] = &ebgpWireEntry{failed: true}
+				return nil, false
 			}
+			ebgpWireCache[ek] = &ebgpWireEntry{wire: wire}
+			return wire, true
 		}
+
+		// Different localAS for same dstASN4: generate directly.
+		payload := update.WireUpdate.Payload()
+		extendedMessage := len(payload) > message.MaxMsgLen-message.HeaderLen
+		dst := getReadBuf(extendedMessage)
+		if dst.Buf == nil {
+			ebgpWireCache[ek] = &ebgpWireEntry{failed: true}
+			return nil, false
+		}
+		n, err := wireu.RewriteASPath(dst.Buf, payload, localAS, srcASN4, asn4)
+		if err != nil {
+			ReturnReadBuffer(dst)
+			fwdLogger().Warn("EBGP wire rewrite failed",
+				"id", updateID, "localAS", localAS, "asn4", asn4, "err", err)
+			ebgpWireCache[ek] = &ebgpWireEntry{failed: true}
+			return nil, false
+		}
+		wire := wireu.NewWireUpdate(dst.Buf[:n], update.WireUpdate.SourceCtxID())
+		wire.SetMessageID(update.WireUpdate.MessageID())
+		wire.SetSourceID(update.WireUpdate.SourceID())
+		// Note: dst (pool buffer) is intentionally not returned here.
+		// It backs wire for the duration of this ForwardUpdate call.
+		// The buffer will be GC'd when the WireUpdate is no longer referenced.
+		// This is acceptable for the rare multi-LocalAS case.
+		ebgpWireCache[ek] = &ebgpWireEntry{wire: wire}
+		return wire, true
 	}
 
 	// Pre-compute send operations per peer, then dispatch to pool.
@@ -303,7 +366,11 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		}
 		// Policy export filter chain: external plugin filters (after in-process filters).
 		if exportFilters := peer.Settings().ExportFilters; len(exportFilters) > 0 && a.r.api != nil {
-			attrsWire, _ := update.WireUpdate.Attrs()
+			attrsWire, attrErr := update.WireUpdate.Attrs()
+			if attrErr != nil {
+				fwdLogger().Debug("attrs extraction for export filter",
+					"peer", peer.Settings().Address, "error", attrErr)
+			}
 			updateText := FormatAttrsForFilter(attrsWire, nil)
 			action, _ := PolicyFilterChain(exportFilters, "export", peer.Settings().Address.String(), peer.Settings().PeerAS,
 				updateText, a.r.policyFilterFunc(update.WireUpdate.Payload()),
@@ -318,20 +385,12 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		// IBGP peers get original wire unchanged.
 		peerWire := update.WireUpdate
 		if peer.Settings().IsEBGP() {
-			if peer.asn4() {
-				if ebgpASN4Failed {
-					continue // Skip: cannot forward without AS_PATH prepend (RFC 4271 §9.1.2)
-				}
-				if ebgpWireASN4 != nil {
-					peerWire = ebgpWireASN4
-				}
-			} else {
-				if ebgpASN2Failed {
-					continue // Skip: cannot forward without AS_PATH prepend (RFC 4271 §9.1.2)
-				}
-				if ebgpWireASN2 != nil {
-					peerWire = ebgpWireASN2
-				}
+			wire, ok := getEBGPWire(peer.Settings().LocalAS, peer.asn4())
+			if !ok {
+				continue // Skip: cannot forward without AS_PATH prepend (RFC 4271 §9.1.2)
+			}
+			if wire != nil {
+				peerWire = wire
 			}
 		}
 
@@ -401,7 +460,9 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 						var parseErr error
 						parsedUpdate, parseErr = message.UnpackUpdate(peerWire.Payload())
 						if parseErr != nil {
-							return fmt.Errorf("parsing cached update: %w", parseErr)
+							fwdLogger().Warn("parsing cached update",
+								"peer", peer.Settings().Address, "error", parseErr)
+							continue // Skip this peer, consistent with split failures
 						}
 						parsedWire = peerWire
 					}

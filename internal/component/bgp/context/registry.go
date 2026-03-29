@@ -58,6 +58,10 @@ func (r *ContextRegistry) Register(ctx *EncodingContext) ContextID {
 
 	id := r.nextID
 	r.nextID++
+	// Skip 0 on overflow: 0 is the sentinel for "not registered".
+	if r.nextID == 0 {
+		r.nextID = 1
+	}
 
 	r.contexts[id] = ctx
 	r.byHash[hash] = id
