@@ -136,7 +136,7 @@ func ReadCredentials(dbPath string) (Credentials, error) {
 	}
 	defer store.Close() //nolint:errcheck // read-only access
 
-	username, err := readKey(store, "meta/ssh/username")
+	username, err := readKey(store, zefs.KeySSHUsername.Pattern)
 	if err != nil {
 		return Credentials{}, err
 	}
@@ -144,7 +144,7 @@ func ReadCredentials(dbPath string) (Credentials, error) {
 	// Password: env var overrides zefs.
 	password := env.Get("ze.ssh.password")
 	if password == "" {
-		password, err = readKey(store, "meta/ssh/password")
+		password, err = readKey(store, zefs.KeySSHPassword.Pattern)
 		if err != nil {
 			return Credentials{}, err
 		}
@@ -155,12 +155,12 @@ func ReadCredentials(dbPath string) (Credentials, error) {
 	port := env.Get("ze.ssh.port")
 
 	if host == "" {
-		if h, hErr := readKey(store, "meta/ssh/host"); hErr == nil {
+		if h, hErr := readKey(store, zefs.KeySSHHost.Pattern); hErr == nil {
 			host = h
 		}
 	}
 	if port == "" {
-		if p, pErr := readKey(store, "meta/ssh/port"); pErr == nil {
+		if p, pErr := readKey(store, zefs.KeySSHPort.Pattern); pErr == nil {
 			port = p
 		}
 	}

@@ -775,11 +775,11 @@ func loadZefsUsers() ([]zessh.UserConfig, error) {
 	}
 	defer db.Close() //nolint:errcheck // read-only access
 
-	username, err := db.ReadFile("meta/ssh/username")
+	username, err := db.ReadFile(zefs.KeySSHUsername.Pattern)
 	if err != nil {
 		return nil, fmt.Errorf("read ssh username: %w", err)
 	}
-	hash, err := db.ReadFile("meta/ssh/password")
+	hash, err := db.ReadFile(zefs.KeySSHPassword.Pattern)
 	if err != nil {
 		return nil, fmt.Errorf("read ssh password hash: %w", err)
 	}

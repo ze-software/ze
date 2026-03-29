@@ -240,7 +240,7 @@ func resolveKey(name, configDir string) string {
 
 	key := resolvePathToKey(name, configDir)
 
-	return "file/active/" + key
+	return zefs.KeyFileActive.Key(key)
 }
 
 // resolvePathToKey resolves a filesystem path to a bare key (no namespace prefix).
@@ -283,7 +283,7 @@ func migrateExistingFiles(store *zefs.BlobStore, configDir string) {
 			if absErr != nil {
 				continue
 			}
-			key := "file/active/" + filepath.Base(abs)
+			key := zefs.KeyFileActive.Key(filepath.Base(abs))
 			if wl.Has(key) {
 				continue // idempotent: skip if already in blob
 			}

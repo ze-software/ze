@@ -7,12 +7,17 @@ import (
 	"io/fs"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
-// History key paths in the zefs meta namespace.
+// History key paths sourced from the zefs key registry.
+var (
+	historyKeyPrefix = zefs.KeyHistory.Prefix()
+	historyKeyMax    = zefs.KeyHistoryMax.Pattern
+)
+
 const (
-	historyKeyPrefix  = "meta/history/"
-	historyKeyMax     = "meta/history/max"
 	historyMaxDefault = 100
 	historyMaxCeiling = 10000 // #7: upper bound to prevent unbounded growth
 )

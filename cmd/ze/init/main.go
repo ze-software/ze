@@ -23,16 +23,17 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
-// SSH credential keys stored in zefs under meta/ namespace.
+// Key aliases for readability (from zefs key registry).
+var (
+	keyUsername     = zefs.KeySSHUsername.Pattern
+	keyPassword     = zefs.KeySSHPassword.Pattern
+	keyHost         = zefs.KeySSHHost.Pattern
+	keyPort         = zefs.KeySSHPort.Pattern
+	keyIdentityName = zefs.KeyInstanceName.Pattern
+	keyManaged      = zefs.KeyInstanceManaged.Pattern
+)
+
 const (
-	keyUsername = "meta/ssh/username"
-	keyPassword = "meta/ssh/password" //nolint:gosec // key name, not a credential
-	keyHost     = "meta/ssh/host"
-	keyPort     = "meta/ssh/port"
-
-	keyIdentityName = "meta/instance/name"
-	keyManaged      = "meta/instance/managed"
-
 	defaultHost = "127.0.0.1"
 	defaultPort = "2222"
 )

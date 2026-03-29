@@ -6,6 +6,7 @@
 // Detail: file.go -- fs.File and fs.DirEntry wrappers
 // Detail: mmap_unix.go -- mmap/munmap for zero-copy reads
 // Detail: mmap_other.go -- heap fallback for non-unix
+// Detail: registry.go -- key registry for centralized key definitions
 // Related: ../../cmd/ze/internal/ssh/client/client.go — reads SSH credentials from meta/ssh/*
 
 package zefs
@@ -181,7 +182,7 @@ func (s *BlobStore) writeFileNoFlush(name string, data []byte, _ fs.FileMode) er
 		// Pre-allocate 20 extra bytes of key capacity for file/active/ keys
 		// so backup renames (appending "-YYYYMMDD-HHMMSS.mmm") fit in-place.
 		keyCap := len(name)
-		if strings.HasPrefix(name, "file/active/") {
+		if strings.HasPrefix(name, KeyFileActive.Prefix()) {
 			keyCap += 20
 		}
 		s.slots[name] = slotInfo{

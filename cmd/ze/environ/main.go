@@ -20,13 +20,16 @@ import (
 // Returns exit code.
 func Run(args []string) int {
 	if len(args) == 0 {
-		return showAll(false)
+		usage()
+		return 0
 	}
 
 	switch args[0] {
 	case "help", "-h", "--help":
 		usage()
 		return 0
+	case "registered":
+		return cmdRegistered(args[1:])
 	case "list":
 		return cmdList(args[1:])
 	case "get":
@@ -39,6 +42,14 @@ func Run(args []string) int {
 
 	// Default: treat as a key to look up
 	return showOne(args[0])
+}
+
+// cmdRegistered lists all registered env vars or shows details for one.
+func cmdRegistered(args []string) int {
+	if len(args) > 0 {
+		return showOne(args[0])
+	}
+	return showAll(false)
 }
 
 // cmdList parses flags for "ze env list" and displays the table.
@@ -170,14 +181,15 @@ func valueOrDash(v string) string {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze env [command]
+	fmt.Fprintf(os.Stderr, `Usage: ze env <command> [args...]
 
 Commands:
-  list [-v]     List all Ze environment variables (default)
-  get <key>     Show details for a specific env var
-  help          Show this help
+  registered [key]    List all registered env vars, or show one by key
+  list [-v]           List all registered env vars (with optional values)
+  get <key>           Show details for a specific env var
+  help                Show this help
 
-The -v flag shows the current effective value alongside defaults.
+The -v flag (with list) shows the current effective value alongside defaults.
 
 All Ze env vars accept three notation forms:
   ze.foo.bar         (dot notation, highest priority)
@@ -185,9 +197,9 @@ All Ze env vars accept three notation forms:
   ZE_FOO_BAR         (uppercase underscore, shell convention)
 
 Examples:
-  ze env                        # List all env vars
-  ze env list -v                # List with current values
-  ze env get ze.log             # Show details for ze.log
-  ze env ZE_PLUGIN_HUB_HOST    # Look up by any notation
+  ze env registered                # List all registered env vars
+  ze env registered ze.log         # Show details for ze.log
+  ze env list -v                   # List with current values
+  ze env ZE_PLUGIN_HUB_HOST       # Look up by any notation
 `)
 }

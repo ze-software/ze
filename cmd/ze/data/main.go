@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"text/tabwriter"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
@@ -19,10 +20,11 @@ const defaultBlobName = "database.zefs"
 // subcommandHandlers maps subcommand names to their handler functions.
 // Each handler receives the blob path and remaining args.
 var subcommandHandlers = map[string]func(string, []string) int{
-	"import": cmdImport,
-	"rm":     cmdRm,
-	"ls":     cmdLs,
-	"cat":    cmdCat,
+	"import":     cmdImport,
+	"rm":         cmdRm,
+	"ls":         cmdLs,
+	"cat":        cmdCat,
+	"registered": cmdRegistered,
 }
 
 // Run executes the data subcommand with the given arguments.
@@ -107,7 +109,7 @@ func openOrCreateStore(storePath string) (*zefs.BlobStore, error) {
 // filePathToKey converts a filesystem path to a blob key under the file/active/ namespace.
 // Only the base filename is used as the key (not the full path).
 func filePathToKey(path string) string {
-	return "file/active/" + filepath.Base(path)
+	return zefs.KeyFileActive.Key(filepath.Base(path))
 }
 
 func cmdImport(storePath string, args []string) int {
@@ -244,6 +246,47 @@ func cmdCat(storePath string, args []string) int {
 	return 0
 }
 
+func cmdRegistered(_ string, args []string) int {
+	if len(args) > 0 {
+		return showRegisteredKey(args[0])
+	}
+	return listRegisteredKeys()
+}
+
+func listRegisteredKeys() int {
+	w := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+	printKeyRow(w, "PATTERN", "DESCRIPTION")
+	printKeyRow(w, "-------", "-----------")
+	for _, e := range zefs.Entries() {
+		printKeyRow(w, e.Pattern, e.Description)
+	}
+	if err := w.Flush(); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+	return 0
+}
+
+func showRegisteredKey(key string) int {
+	for _, e := range zefs.Entries() {
+		if e.Pattern != key {
+			continue
+		}
+		fmt.Printf("Pattern:     %s\n", e.Pattern)
+		fmt.Printf("Description: %s\n", e.Description)
+		return 0
+	}
+	fmt.Fprintf(os.Stderr, "error: unknown key %q\n", key)
+	return 1
+}
+
+// printKeyRow writes a tab-separated row to w.
+func printKeyRow(w *tabwriter.Writer, cols ...string) {
+	if _, err := fmt.Fprintln(w, strings.Join(cols, "\t")); err != nil {
+		return
+	}
+}
+
 func usage() {
 	fmt.Fprintf(os.Stderr, `Usage: ze data [--path <store>] <command> [args...]
 
@@ -254,6 +297,7 @@ Commands:
   rm <key>...         Remove entries from the blob store
   ls [prefix]         List entries in the blob store
   cat <key>           Print entry content to stdout
+  registered          List all registered key patterns
 
 Flags:
   --path <store>      Path to the blob store (default: {configDir}/database.zefs)
@@ -265,6 +309,7 @@ Examples:
   ze data ls meta/
   ze data cat file/active/etc/ze/router.conf
   ze data rm file/active/etc/ze/old-router.conf
+  ze data registered
   ze data --path /tmp/test.zefs import router.conf
 `)
 }

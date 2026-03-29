@@ -562,11 +562,11 @@ func loadZefsUsers() ([]ssh.UserConfig, error) {
 		return nil, fmt.Errorf("open %s: %w", dbPath, err)
 	}
 	defer db.Close() //nolint:errcheck // read-only access
-	username, err := db.ReadFile("meta/ssh/username")
+	username, err := db.ReadFile(zefs.KeySSHUsername.Pattern)
 	if err != nil {
 		return nil, fmt.Errorf("read username: %w", err)
 	}
-	hash, err := db.ReadFile("meta/ssh/password")
+	hash, err := db.ReadFile(zefs.KeySSHPassword.Pattern)
 	if err != nil {
 		return nil, fmt.Errorf("read password hash: %w", err)
 	}
@@ -582,21 +582,21 @@ type blobCertStore struct {
 	store storage.Storage
 }
 
-func (s *blobCertStore) ReadCert() ([]byte, error) { return s.store.ReadFile("meta/web/cert") }
-func (s *blobCertStore) ReadKey() ([]byte, error)  { return s.store.ReadFile("meta/web/key") }
+func (s *blobCertStore) ReadCert() ([]byte, error) { return s.store.ReadFile(zefs.KeyWebCert.Pattern) }
+func (s *blobCertStore) ReadKey() ([]byte, error)  { return s.store.ReadFile(zefs.KeyWebKey.Pattern) }
 func (s *blobCertStore) WriteCert(data []byte) error {
-	return s.store.WriteFile("meta/web/cert", data, 0o600)
+	return s.store.WriteFile(zefs.KeyWebCert.Pattern, data, 0o600)
 }
 func (s *blobCertStore) WriteKey(data []byte) error {
-	return s.store.WriteFile("meta/web/key", data, 0o600)
+	return s.store.WriteFile(zefs.KeyWebKey.Pattern, data, 0o600)
 }
 func (s *blobCertStore) Exists() bool {
-	return s.store.Exists("meta/web/cert") && s.store.Exists("meta/web/key")
+	return s.store.Exists(zefs.KeyWebCert.Pattern) && s.store.Exists(zefs.KeyWebKey.Pattern)
 }
 
 // resolveConfigPath returns the config file path for the editor.
 func resolveConfigPath(store storage.Storage) string {
-	data, err := store.ReadFile("meta/instance/name")
+	data, err := store.ReadFile(zefs.KeyInstanceName.Pattern)
 	if err == nil && len(data) > 0 {
 		name := strings.TrimSpace(string(data))
 		if name != "" {

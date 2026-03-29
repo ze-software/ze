@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 // cmdLsWithStorage lists config files from both blob storage and filesystem.
@@ -17,7 +18,7 @@ func cmdLsWithStorage(store storage.Storage, _ []string) int {
 
 	// List from blob storage
 	if storage.IsBlobStorage(store) {
-		for _, prefix := range []string{"file/active", "file/draft"} {
+		for _, prefix := range []string{zefs.KeyFileActive.Dir(), zefs.KeyFileDraft.Dir()} {
 			keys, err := store.List(prefix)
 			if err != nil {
 				continue // directory doesn't exist yet

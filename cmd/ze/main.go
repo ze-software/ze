@@ -46,6 +46,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/pkg/fleet"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 
 	// Import all plugins to trigger init() registration.
 	// Must happen at the binary entry point (not in internal/plugin)
@@ -507,7 +508,7 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 
 // isManaged returns true if the blob has meta/instance/managed=true.
 func isManaged(store storage.Storage) bool {
-	data, err := store.ReadFile("meta/instance/managed")
+	data, err := store.ReadFile(zefs.KeyInstanceManaged.Pattern)
 	if err != nil {
 		return false
 	}
@@ -721,7 +722,7 @@ var validInstanceName = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9-]{0,63}$`)
 // resolveDefaultConfig returns the config name from meta/instance/name or the fallback.
 // Validates the name to prevent path traversal via blob key injection.
 func resolveDefaultConfig(store storage.Storage) string {
-	data, err := store.ReadFile("meta/instance/name")
+	data, err := store.ReadFile(zefs.KeyInstanceName.Pattern)
 	if err != nil || len(data) == 0 {
 		return "ze.conf"
 	}

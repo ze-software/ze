@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 // Store is the minimal interface for reading/writing the GR marker.
@@ -24,7 +25,8 @@ type Store interface {
 }
 
 // markerKey is the zefs key for the GR restart marker.
-const markerKey = "meta/bgp/gr-marker"
+// Treat as const -- var only because Go requires const values to be compile-time literals.
+var markerKey = zefs.KeyGRMarker.Pattern
 
 // grCapCode is the BGP capability code for Graceful Restart (RFC 4724).
 const grCapCode = 64

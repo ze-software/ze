@@ -26,13 +26,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/system"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
+	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
 
 // fallbackConfigName is used when meta/instance/name is not set.
 const fallbackConfigName = "ze.conf"
-
-// identityNameKey is the blob key for the instance name.
-const identityNameKey = "meta/instance/name"
 
 // defaultConfigName returns the default config filename from the blob's
 // meta/instance/name (e.g. "ze-first" -> "ze-first.conf"), falling back
@@ -41,7 +39,7 @@ func defaultConfigName(store storage.Storage) string {
 	if !storage.IsBlobStorage(store) {
 		return fallbackConfigName
 	}
-	data, err := store.ReadFile(identityNameKey)
+	data, err := store.ReadFile(zefs.KeyInstanceName.Pattern)
 	if err != nil || len(data) == 0 {
 		return fallbackConfigName
 	}
