@@ -1,4 +1,5 @@
 // Design: docs/architecture/core-design.md — external format bridge CLI
+// Detail: main_sdk.go — SDK/TLS connect-back mode for engine-launched bridge
 //
 // Package exabgp provides the ze exabgp subcommand.
 package exabgp
@@ -144,6 +145,12 @@ Use in ze config:
 
 	pluginCmd := fs.Args()
 
+	// Determine effective families list.
+	effectiveFamilies := []string(families)
+	if len(effectiveFamilies) == 0 {
+		effectiveFamilies = []string{"ipv4/unicast"}
+	}
+
 	// Set up signal handling
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -155,11 +162,17 @@ Use in ze config:
 		cancel()
 	}()
 
-	// Run the bridge
-	b := bridge.NewBridge(pluginCmd)
-	if len(families) > 0 {
-		b.Families = families
+	// When launched by ze's process manager, ZE_PLUGIN_HUB_TOKEN is set.
+	// Use SDK mode (TLS connect-back) instead of stdin/stdout.
+	// NOTE: os.Getenv is correct here -- the bridge runs as a subprocess
+	// before ze's env registry is initialized.
+	if os.Getenv("ZE_PLUGIN_HUB_TOKEN") != "" { //nolint:forbidigo // system env var, not ze env registry
+		return runSDKMode(ctx, pluginCmd, effectiveFamilies, *routeRefresh, *addPath)
 	}
+
+	// Standalone mode: stdin/stdout with MuxConn framing.
+	b := bridge.NewBridge(pluginCmd)
+	b.Families = effectiveFamilies
 	b.RouteRefresh = *routeRefresh
 	b.AddPathMode = *addPath
 	if err := b.Run(ctx); err != nil {

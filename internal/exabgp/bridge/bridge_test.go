@@ -189,7 +189,7 @@ func TestExabgpToZebgpCommand_AnnounceBasic(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 announce route 192.168.1.0/24 next-hop 1.1.1.1"
 	result := ExabgpToZebgpCommand(cmd)
 
-	assert.Equal(t, "peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 192.168.1.0/24", result)
+	assert.Equal(t, "peer 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 192.168.1.0/24", result)
 }
 
 // TestExabgpToZebgpCommand_AnnounceWithAttributes verifies attribute conversion.
@@ -205,27 +205,27 @@ func TestExabgpToZebgpCommand_AnnounceWithAttributes(t *testing.T) {
 		{
 			name:    "with_origin",
 			input:   "neighbor 10.0.0.1 announce route 10.0.0.0/24 next-hop 1.1.1.1 origin igp",
-			contain: []string{"nhop set 1.1.1.1", "origin set igp", "nlri ipv4/unicast add 10.0.0.0/24"},
+			contain: []string{"nhop 1.1.1.1", "origin igp", "nlri ipv4/unicast add 10.0.0.0/24"},
 		},
 		{
 			name:    "with_as_path",
 			input:   "neighbor 10.0.0.1 announce route 10.0.0.0/24 next-hop 1.1.1.1 as-path [65001 65002]",
-			contain: []string{"as-path set 65001 65002"},
+			contain: []string{"as-path 65001 65002"},
 		},
 		{
 			name:    "with_med",
 			input:   "neighbor 10.0.0.1 announce route 10.0.0.0/24 next-hop 1.1.1.1 med 100",
-			contain: []string{"med set 100"},
+			contain: []string{"med 100"},
 		},
 		{
 			name:    "with_local_pref",
 			input:   "neighbor 10.0.0.1 announce route 10.0.0.0/24 next-hop 1.1.1.1 local-preference 200",
-			contain: []string{"local-preference set 200"},
+			contain: []string{"local-preference 200"},
 		},
 		{
 			name:    "with_community",
 			input:   "neighbor 10.0.0.1 announce route 10.0.0.0/24 next-hop 1.1.1.1 community 65001:100",
-			contain: []string{"community add 65001:100"},
+			contain: []string{"community 65001:100"},
 		},
 	}
 
@@ -384,8 +384,8 @@ func TestRoundTrip(t *testing.T) {
 	cmd := "neighbor 10.0.0.1 announce route 10.0.0.0/24 next-hop 192.168.0.1 origin igp"
 	zebgpCmd := ExabgpToZebgpCommand(cmd)
 	assert.Contains(t, zebgpCmd, "peer 10.0.0.1")
-	assert.Contains(t, zebgpCmd, "nhop set 192.168.0.1")
-	assert.Contains(t, zebgpCmd, "origin set igp")
+	assert.Contains(t, zebgpCmd, "nhop 192.168.0.1")
+	assert.Contains(t, zebgpCmd, "origin igp")
 	assert.Contains(t, zebgpCmd, "nlri ipv4/unicast add 10.0.0.0/24")
 }
 
@@ -749,6 +749,36 @@ func TestValidateFamily(t *testing.T) {
 	}
 }
 
+// TestEncodeAddPathHex verifies standalone ADD-PATH capability encoding.
+//
+// VALIDATES: EncodeAddPathHex produces correct RFC 7911 hex payload.
+// PREVENTS: SDK mode sending malformed ADD-PATH capability to engine.
+func TestEncodeAddPathHex(t *testing.T) {
+	tests := []struct {
+		name     string
+		families []string
+		mode     string
+		want     string
+	}{
+		{"receive_ipv4", []string{"ipv4/unicast"}, "receive", "00010101"},
+		{"send_ipv4", []string{"ipv4/unicast"}, "send", "00010102"},
+		{"both_ipv4", []string{"ipv4/unicast"}, "both", "00010103"},
+		{"both_ipv6", []string{"ipv6/unicast"}, "both", "00020103"},
+		{"multi_family", []string{"ipv4/unicast", "ipv6/unicast"}, "both", "0001010300020103"},
+		{"invalid_mode", []string{"ipv4/unicast"}, "invalid", ""},
+		{"empty_mode", []string{"ipv4/unicast"}, "", ""},
+		{"empty_families", nil, "both", "00010103"}, // defaults to ipv4/unicast
+		{"unknown_family", []string{"unknown/family"}, "both", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := EncodeAddPathHex(tt.families, tt.mode)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 // TestBridgeCapabilityWiring verifies Bridge passes capability config to StartupProtocol.
 //
 // VALIDATES: Bridge.RouteRefresh and Bridge.AddPathMode are wired to protocol output.
@@ -1094,14 +1124,14 @@ func TestFormatMuxRequest(t *testing.T) {
 		{
 			name:    "simple_command",
 			id:      1,
-			command: "peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24",
-			want:    `#1 ze-plugin-engine:dispatch-command {"command":"peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24"}`,
+			command: "peer 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24",
+			want:    `#1 ze-plugin-engine:dispatch-command {"command":"peer 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24"}`,
 		},
 		{
 			name:    "command_with_special_chars",
 			id:      99,
-			command: `peer 2001:db8::1 update text nhop set 2001:db8::2 nlri ipv6/unicast add 2001:db8::/32`,
-			want:    `#99 ze-plugin-engine:dispatch-command {"command":"peer 2001:db8::1 update text nhop set 2001:db8::2 nlri ipv6/unicast add 2001:db8::/32"}`,
+			command: `peer 2001:db8::1 update text nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8::/32`,
+			want:    `#99 ze-plugin-engine:dispatch-command {"command":"peer 2001:db8::1 update text nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8::/32"}`,
 		},
 	}
 
@@ -1363,15 +1393,15 @@ func TestExtractPeerAddress(t *testing.T) {
 		command string
 		want    string
 	}{
-		{"ipv4", "peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24", "10.0.0.1"},
-		{"ipv6", "peer 2001:db8::1 update text nhop set 2001:db8::2 nlri ipv6/unicast add 2001:db8::/32", "2001:db8::1"},
+		{"ipv4", "peer 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24", "10.0.0.1"},
+		{"ipv6", "peer 2001:db8::1 update text nhop 2001:db8::2 nlri ipv6/unicast add 2001:db8::/32", "2001:db8::1"},
 		{"not_peer", "show bgp summary", ""},
 		{"peer_only", "peer ", ""},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, extractPeerAddress(tt.command))
+			assert.Equal(t, tt.want, ExtractPeerAddress(tt.command))
 		})
 	}
 }
@@ -1381,9 +1411,9 @@ func TestExtractPeerAddress(t *testing.T) {
 // VALIDATES: Only route update commands trigger flush injection.
 // PREVENTS: Flush injected for non-route commands.
 func TestIsRouteCommand(t *testing.T) {
-	assert.True(t, isRouteCommand("peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24"))
-	assert.False(t, isRouteCommand("peer 10.0.0.1 show bgp summary"))
-	assert.False(t, isRouteCommand(""))
+	assert.True(t, IsRouteCommand("peer 10.0.0.1 update text nhop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24"))
+	assert.False(t, IsRouteCommand("peer 10.0.0.1 show bgp summary"))
+	assert.False(t, IsRouteCommand(""))
 }
 
 // TestFlushBlocksUntilResponse verifies that pluginToZebgp blocks on flush until

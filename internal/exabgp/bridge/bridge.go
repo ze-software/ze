@@ -184,6 +184,43 @@ func (sp *StartupProtocol) addPathModeValue() byte {
 	}
 }
 
+// EncodeAddPathHex encodes ADD-PATH capability payload for the given families and mode.
+// Standalone version of encodeAddPath for use outside StartupProtocol (e.g., SDK mode).
+//
+// RFC 7911 Section 4: Each tuple is 4 octets: AFI (2) + SAFI (1) + Send/Receive (1).
+// Returns "" if mode is invalid or no valid families.
+func EncodeAddPathHex(families []string, mode string) string {
+	var m byte
+	switch strings.ToLower(mode) {
+	case modeReceive:
+		m = 1
+	case modeSend:
+		m = 2
+	case modeBoth:
+		m = 3
+	}
+	// Unrecognized mode -- validated by cmdPlugin before reaching here.
+	if m == 0 {
+		return ""
+	}
+
+	if len(families) == 0 {
+		families = []string{defaultFamily}
+	}
+
+	var result []byte
+	for _, family := range families {
+		afi, safi := parseFamilyToAFISAFI(family)
+		if afi == 0 {
+			slog.Warn("unknown family ignored for ADD-PATH", "family", family)
+			continue
+		}
+		result = append(result, byte(afi>>8), byte(afi), byte(safi), m)
+	}
+
+	return fmt.Sprintf("%x", result)
+}
+
 // parseFamilyToAFISAFI converts "ipv4/unicast" to AFI and SAFI values.
 // Returns (0, 0) for invalid/unsupported families.
 func parseFamilyToAFISAFI(family string) (afi, safi uint16) {
@@ -585,8 +622,8 @@ func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, zeOut *syncWrit
 		zeOut.Fprintln(formatDispatchRequest(reqID, zebgpCmd))
 
 		// For route commands, inject a flush and block until the forward pool drains.
-		if isRouteCommand(zebgpCmd) {
-			peerAddr := extractPeerAddress(zebgpCmd)
+		if IsRouteCommand(zebgpCmd) {
+			peerAddr := ExtractPeerAddress(zebgpCmd)
 			if peerAddr != "" {
 				flushID := b.nextRequestID.Add(1)
 				flushCh := pending.register(flushID)

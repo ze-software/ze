@@ -79,9 +79,9 @@ func formatFlushRequest(id uint64, selector string) string {
 	return fmt.Sprintf("#%d ze-bgp:peer-flush %s", id, string(payload))
 }
 
-// extractPeerAddress extracts the peer address from a translated ZeBGP command.
+// ExtractPeerAddress extracts the peer address from a translated ZeBGP command.
 // Commands have the format "peer <addr> update text ...". Returns "" if no peer prefix.
-func extractPeerAddress(command string) string {
+func ExtractPeerAddress(command string) string {
 	if !strings.HasPrefix(command, "peer ") {
 		return ""
 	}
@@ -92,8 +92,8 @@ func extractPeerAddress(command string) string {
 	return addr
 }
 
-// isRouteCommand returns true if the translated command is a route update.
-func isRouteCommand(command string) bool {
+// IsRouteCommand returns true if the translated command is a route update.
+func IsRouteCommand(command string) bool {
 	return strings.Contains(command, "update text")
 }
 

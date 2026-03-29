@@ -1,0 +1,78 @@
+# ExaBGP bridge SDK mode: TLS connect-back via SDK when launched by engine.
+# The bridge detects ZE_PLUGIN_HUB_TOKEN and uses SDK instead of stdin/stdout.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+cmd=api:conn=1:seq=1:text=peer * update text origin igp local-preference 100 nhop 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304650165014005040000006418010100
+EOF_PEER
+
+# ExaBGP-style plugin script (writes ExaBGP text commands to stdout)
+tmpfs=exabgp-plugin.py:mode=755:terminator=EOF_PLUGIN
+#!/usr/bin/env python3
+"""Simple ExaBGP plugin that announces one route using ExaBGP command syntax."""
+
+import sys
+import time
+
+def main() -> None:
+    # Give the bridge time to finish startup
+    time.sleep(0.5)
+
+    # Send ExaBGP-format announce command.
+    # The bridge translates this to:
+    #   peer 127.0.0.1 update text nhop 101.1.101.1 origin igp
+    #     local-preference 100 nlri ipv4/unicast add 1.1.0.0/24
+    cmd = "neighbor 127.0.0.1 announce route 1.1.0.0/24 next-hop 101.1.101.1 origin igp local-preference 100"
+    print(cmd, flush=True)
+
+    # Keep alive until parent exits
+    while True:
+        try:
+            line = sys.stdin.readline()
+            if not line:
+                break
+        except (EOFError, OSError):
+            break
+
+if __name__ == '__main__':
+    main()
+EOF_PLUGIN
+
+# ze bgp configuration — bridge runs as external plugin
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external exabgp-bridge {
+		run "ze exabgp plugin --family ipv4/unicast ./exabgp-plugin.py"
+		encoder json
+	}
+}
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+			accept false
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		group-updates disable
+
+		family {
+			ipv4/unicast { prefix { maximum 10000; } }
+		}
+		capability {
+			graceful-restart
+		}
+		process exabgp-bridge {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s

@@ -14,7 +14,7 @@ import (
 // ExabgpToZebgpCommand converts an ExaBGP text command to ZeBGP format.
 //
 // ExaBGP: neighbor <ip> announce route <prefix> next-hop <nh> [origin <o>] ...
-// ZeBGP:  peer <ip> update text nhop set <nh> origin set <o> nlri ipv4/unicast add <prefix>.
+// ZeBGP:  peer <ip> update text nhop <nh> origin <o> nlri ipv4/unicast add <prefix>.
 func ExabgpToZebgpCommand(line string) string {
 	line = strings.TrimSpace(line)
 	if line == "" || strings.HasPrefix(line, "#") {
@@ -76,14 +76,14 @@ func convertAnnounce(peerIP, routeStr string) string {
 		switch key {
 		case "next-hop":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("nhop set %s", attrs[i+1]))
+				cmdParts = append(cmdParts, fmt.Sprintf("nhop %s", attrs[i+1]))
 				i += 2
 			} else {
 				i++
 			}
 		case "origin":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("origin set %s", strings.ToLower(attrs[i+1])))
+				cmdParts = append(cmdParts, fmt.Sprintf("origin %s", strings.ToLower(attrs[i+1])))
 				i += 2
 			} else {
 				i++
@@ -104,35 +104,35 @@ func convertAnnounce(peerIP, routeStr string) string {
 				asp = strings.Trim(asp, "[]")
 				asp = strings.TrimSpace(asp)
 				if asp != "" {
-					cmdParts = append(cmdParts, fmt.Sprintf("as-path set %s", asp))
+					cmdParts = append(cmdParts, fmt.Sprintf("as-path %s", asp))
 				}
 			} else {
 				i++
 			}
 		case "med":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("med set %s", attrs[i+1]))
+				cmdParts = append(cmdParts, fmt.Sprintf("med %s", attrs[i+1]))
 				i += 2
 			} else {
 				i++
 			}
 		case "local-preference":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("local-preference set %s", attrs[i+1]))
+				cmdParts = append(cmdParts, fmt.Sprintf("local-preference %s", attrs[i+1]))
 				i += 2
 			} else {
 				i++
 			}
 		case "community":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("community add %s", attrs[i+1]))
+				cmdParts = append(cmdParts, fmt.Sprintf("community %s", attrs[i+1]))
 				i += 2
 			} else {
 				i++
 			}
 		case "large-community":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("large-community add %s", attrs[i+1]))
+				cmdParts = append(cmdParts, fmt.Sprintf("large-community %s", attrs[i+1]))
 				i += 2
 			} else {
 				i++
@@ -217,28 +217,28 @@ func convertAnnounceWithFamily(peerIP, family, routeStr string) string {
 		switch key {
 		case "next-hop":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("nhop set %s", attrs[i+1]))
+				cmdParts = append(cmdParts, fmt.Sprintf("nhop %s", attrs[i+1]))
 				i += 2
 			} else {
 				i++
 			}
 		case "origin":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("origin set %s", strings.ToLower(attrs[i+1])))
+				cmdParts = append(cmdParts, fmt.Sprintf("origin %s", strings.ToLower(attrs[i+1])))
 				i += 2
 			} else {
 				i++
 			}
 		case "label":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("label set %s", attrs[i+1]))
+				cmdParts = append(cmdParts, fmt.Sprintf("label %s", attrs[i+1]))
 				i += 2
 			} else {
 				i++
 			}
 		case "rd":
 			if i+1 < len(attrs) {
-				cmdParts = append(cmdParts, fmt.Sprintf("rd set %s", attrs[i+1]))
+				cmdParts = append(cmdParts, fmt.Sprintf("rd %s", attrs[i+1]))
 				i += 2
 			} else {
 				i++

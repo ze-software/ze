@@ -438,7 +438,7 @@ func TestBridgeIntegration_RealPlugin(t *testing.T) {
 
 	assert.True(t, strings.HasPrefix(line, "peer 10.0.0.1 update text"),
 		"expected 'peer 10.0.0.1 update text ...', got: %s", line)
-	assert.Contains(t, line, "nhop set 10.0.0.1") // Uses actual next-hop from JSON
+	assert.Contains(t, line, "nhop 10.0.0.1") // Uses actual next-hop from JSON
 	assert.Contains(t, line, "nlri ipv4/unicast add 192.168.1.0/24")
 
 	// === Stage 7: Test withdraw ===
