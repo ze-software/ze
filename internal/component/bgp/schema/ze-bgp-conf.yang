@@ -52,6 +52,10 @@ module ze-bgp-conf {
             }
         }
 
+        // Global update blocks - default routes applied to all peers.
+        // Group and peer levels accumulate additional routes.
+        uses update-block;
+
         // Peer groups - Junos-style: peers nested inside named groups
         list group {
             key "name";
@@ -94,6 +98,66 @@ module ze-bgp-conf {
             }
 
             uses peer-fields;
+        }
+    }
+
+    // Update block grouping - reused at bgp, group, and peer levels.
+    grouping update-block {
+        // Native update syntax - Ze-native route announcements
+        // update { attribute { origin igp; next-hop 10.0.0.1; } nlri { ipv4/unicast 1.0.0.0/24; } }
+        list update {
+            description "Native Ze route announcements";
+
+            container attribute {
+                description "Path attributes for routes in this block";
+                leaf origin {
+                    type enumeration {
+                        enum igp { description "Interior Gateway Protocol"; }
+                        enum egp { description "Exterior Gateway Protocol"; }
+                        enum incomplete { description "Incomplete origin"; }
+                    }
+                    description "ORIGIN attribute (RFC 4271 Section 4.3)";
+                }
+                leaf next-hop {
+                    type union {
+                        type zt:ip-address;
+                        type enumeration {
+                            enum self;
+                        }
+                    }
+                    description "Next hop address or 'self'";
+                }
+                leaf med { type uint32; description "Multi-Exit Discriminator"; }
+                leaf local-preference { type uint32; description "Local preference"; }
+                leaf-list as-path { type string; description "AS path"; }
+                leaf-list community { type string; description "Communities"; }
+                leaf-list large-community { type string; description "Large communities"; }
+                leaf-list extended-community { type string; description "Extended communities"; }
+                leaf label { type string; description "MPLS label"; }
+                leaf-list labels { type string; description "Multi-label stack (RFC 8277)"; }
+                leaf path-information { type string; description "ADD-PATH path-id"; }
+                leaf rd { type zt:route-distinguisher; description "Route Distinguisher (RFC 4364)"; }
+                leaf aggregator { type string; description "Aggregator AS:IP"; }
+                leaf atomic-aggregate { type boolean; description "Atomic aggregate flag"; }
+                leaf originator-id { type zt:ipv4-address; description "Originator ID"; }
+                leaf-list cluster-list { type zt:ipv4-address; description "Cluster list"; }
+                leaf-list attribute { type string; description "Generic hex attributes"; }
+                container bgp-prefix-sid { presence "Prefix-SID enabled"; description "Prefix-SID (label index)"; }
+                container bgp-prefix-sid-srv6 { presence "SRv6 Prefix-SID enabled"; description "SRv6 Prefix-SID"; }
+                leaf split { type string; description "Prefix splitting"; }
+            }
+
+            list nlri {
+                key "name";
+                leaf name { type zt:address-family; description "Address family (e.g., ipv4/unicast)"; }
+                leaf content { type string; description "Operation, qualifiers, and payload"; }
+            }
+
+            container watchdog {
+                description "Watchdog-controlled route - held until 'bgp watchdog announce <name>'";
+                leaf name { type string; description "Watchdog group name"; }
+                leaf withdraw { type boolean; description "Start in withdrawn state (default true)"; }
+            }
         }
     }
 
@@ -341,62 +405,7 @@ module ze-bgp-conf {
             description "Maintain Adj-RIB-In";
         }
 
-        // Native update syntax - Ze-native route announcements
-        // update { attribute { origin igp; next-hop 10.0.0.1; } nlri { ipv4/unicast 1.0.0.0/24; } }
-        list update {
-            description "Native Ze route announcements";
-
-            container attribute {
-                description "Path attributes for routes in this block";
-                leaf origin {
-                    type enumeration {
-                        enum igp { description "Interior Gateway Protocol"; }
-                        enum egp { description "Exterior Gateway Protocol"; }
-                        enum incomplete { description "Incomplete origin"; }
-                    }
-                    description "ORIGIN attribute (RFC 4271 Section 4.3)";
-                }
-                leaf next-hop {
-                    type union {
-                        type zt:ip-address;
-                        type enumeration {
-                            enum self;
-                        }
-                    }
-                    description "Next hop address or 'self'";
-                }
-                leaf med { type uint32; description "Multi-Exit Discriminator"; }
-                leaf local-preference { type uint32; description "Local preference"; }
-                leaf-list as-path { type string; description "AS path"; }
-                leaf-list community { type string; description "Communities"; }
-                leaf-list large-community { type string; description "Large communities"; }
-                leaf-list extended-community { type string; description "Extended communities"; }
-                leaf label { type string; description "MPLS label"; }
-                leaf-list labels { type string; description "Multi-label stack (RFC 8277)"; }
-                leaf path-information { type string; description "ADD-PATH path-id"; }
-                leaf rd { type zt:route-distinguisher; description "Route Distinguisher (RFC 4364)"; }
-                leaf aggregator { type string; description "Aggregator AS:IP"; }
-                leaf atomic-aggregate { type boolean; description "Atomic aggregate flag"; }
-                leaf originator-id { type zt:ipv4-address; description "Originator ID"; }
-                leaf-list cluster-list { type zt:ipv4-address; description "Cluster list"; }
-                leaf-list attribute { type string; description "Generic hex attributes"; }
-                container bgp-prefix-sid { presence "Prefix-SID enabled"; description "Prefix-SID (label index)"; }
-                container bgp-prefix-sid-srv6 { presence "SRv6 Prefix-SID enabled"; description "SRv6 Prefix-SID"; }
-                leaf split { type string; description "Prefix splitting"; }
-            }
-
-            list nlri {
-                key "name";
-                leaf name { type zt:address-family; description "Address family (e.g., ipv4/unicast)"; }
-                leaf content { type string; description "Operation, qualifiers, and payload"; }
-            }
-
-            container watchdog {
-                description "Watchdog-controlled route - held until 'bgp watchdog announce <name>'";
-                leaf name { type string; description "Watchdog group name"; }
-                leaf withdraw { type boolean; description "Start in withdrawn state (default true)"; }
-            }
-        }
+        uses update-block;
 
         // Per-family add-path configuration
         list add-path {

@@ -67,6 +67,13 @@ func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
 		peerIndex[ps.Name] = ps
 	}
 
+	// Layer 0: BGP-level routes (global defaults for all peers).
+	for _, ps := range peers {
+		if err := patchRoutes(ps, ps.Name, bgpContainer); err != nil {
+			return nil, err
+		}
+	}
+
 	// Grouped peers: routes from group + peer layers.
 	for _, groupEntry := range bgpContainer.GetListOrdered("group") {
 		groupTree := groupEntry.Value
