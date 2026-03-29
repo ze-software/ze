@@ -291,6 +291,20 @@ Three filter categories:
 <!-- source: internal/component/bgp/plugins/filter_community/register.go -- filter-community -->
 <!-- source: internal/component/bgp/reactor/filter/register.go -- loop -->
 
+### Plugin Health Metrics
+
+Plugin infrastructure exposes per-plugin Prometheus metrics for operational visibility:
+
+| Metric | Type | Description |
+|--------|------|-------------|
+| `ze_plugin_status{plugin}` | Gauge | Current plugin stage (0=init, 6=running). Absent when disabled. |
+| `ze_plugin_restarts_total{plugin}` | Counter | Cumulative restart count. |
+| `ze_plugin_events_delivered_total{plugin}` | Counter | Total events enqueued to plugin. |
+
+When a plugin is disabled (respawn limit exceeded), its metrics are deleted rather than showing a stale value.
+
+<!-- source: internal/component/plugin/process/manager.go -- pluginMetrics -->
+
 ## CLI Commands
 
 ### Protocol Tools

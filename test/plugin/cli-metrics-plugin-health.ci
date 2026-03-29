@@ -1,0 +1,154 @@
+# Test: bgp metrics list includes plugin health metric names
+#
+# Flow:
+# 1. BGP session establishes with telemetry enabled
+# 2. Python plugin dispatches "metrics list" via dispatch-command
+# 3. Verifies response names array contains plugin health metrics
+# 4. Shuts down daemon
+#
+# VALIDATES: AC-1/AC-2/AC-3 — plugin health metrics are registered and reachable.
+# PREVENTS: Plugin metrics not wired into Prometheus registry.
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=15s
+
+# EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python test plugin: verifies plugin health metrics in list output
+tmpfs=plugin-health-metrics-test.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Test: plugin health metrics appear in metrics list output."""
+
+import json
+import sys
+import time
+
+from ze_api import API
+
+
+def dispatch(api, command):
+    """Call dispatch-command and return result dict."""
+    try:
+        resp = api._call_engine(
+            'ze-plugin-engine:dispatch-command', {'command': command})
+        return resp.get('result', {})
+    except RuntimeError as e:
+        print(f'WARN: dispatch({command!r}) failed: {e}', file=sys.stderr)
+        return {'status': 'error', 'message': str(e)}
+
+
+def main():
+    api = API()
+    api.declare_done()
+    api.wait_for_config()
+    api.capability_done()
+    api.wait_for_registry()
+    api.ready()
+
+    # Wait for BGP session to establish
+    time.sleep(1.0)
+
+    failed = False
+
+    # Test: bgp metrics list should include plugin health metric names
+    r = dispatch(api, 'metrics list')
+    status = r.get('status')
+    if status != 'done':
+        print(f'FAIL: expected status=done, got={status}', file=sys.stderr)
+        failed = True
+    else:
+        data_str = r.get('data', '{}')
+        try:
+            data = json.loads(data_str) if isinstance(data_str, str) else data_str
+        except (json.JSONDecodeError, TypeError) as e:
+            print(f'WARN: JSON parse failed: {e}, raw={data_str!r}', file=sys.stderr)
+            data = {}
+
+        names = data.get('names', [])
+        if not isinstance(names, list):
+            print(f'FAIL: names not a list, data={data}', file=sys.stderr)
+            failed = True
+        else:
+            # Plugin health metrics registered by ProcessManager.
+            # Vec metrics appear in "metrics list" even without observations.
+            required = [
+                'ze_plugin_status',
+                'ze_plugin_restarts_total',
+                'ze_plugin_events_delivered_total',
+            ]
+            missing = [n for n in required if n not in names]
+
+            if missing:
+                print(f'FAIL: missing plugin health metrics: {missing}', file=sys.stderr)
+                print(f'Got {len(names)} names: {sorted(names)}', file=sys.stderr)
+                failed = True
+            else:
+                print(f'OK: metrics list contains all {len(required)} plugin health metrics', file=sys.stderr)
+
+    # Always shutdown daemon
+    dispatch(api, 'daemon shutdown')
+    api.wait_for_shutdown()
+
+    if failed:
+        sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration with telemetry enabled
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external plugin-health-metrics-test {
+		run ./plugin-health-metrics-test.run
+		encoder json
+	}
+}
+
+environment {
+	tcp {
+		attempts 3
+	}
+}
+
+telemetry {
+	prometheus {
+		port 19278
+	}
+}
+
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 1
+			accept false
+		}
+		local {
+			as 1
+			ip 127.0.0.1
+		}
+		router-id 1.2.3.4
+		group-updates disable
+
+		family {
+			ipv4/unicast { prefix { maximum 10000; } }
+		}
+		capability {
+			graceful-restart disable
+		}
+		process plugin-health-metrics-test {
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze -:stdin=ze-bgp:timeout=15s
+expect=exit:code=0

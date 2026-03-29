@@ -71,6 +71,9 @@ func (p *Process) Deliver(d EventDelivery) bool {
 
 	select {
 	case p.eventChan <- d:
+		if p.deliveryInc != nil {
+			p.deliveryInc()
+		}
 		return true
 	case <-p.ctx.Done():
 		return false

@@ -12,6 +12,7 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 )
 
 const (
@@ -34,6 +35,14 @@ var (
 	ErrProcessNotFound      = errors.New("process not found")
 )
 
+// pluginMetrics holds Prometheus metrics for plugin health.
+// Created by SetMetricsRegistry; nil when metrics are disabled.
+type pluginMetrics struct {
+	status    metrics.GaugeVec   // ze_plugin_status: current stage per plugin
+	restarts  metrics.CounterVec // ze_plugin_restarts_total: cumulative restart count
+	delivered metrics.CounterVec // ze_plugin_events_delivered_total: events enqueued
+}
+
 // ProcessManager manages multiple external processes.
 type ProcessManager struct {
 	configs   []plugin.PluginConfig
@@ -51,6 +60,9 @@ type ProcessManager struct {
 	// TLS acceptor for external plugin connect-back (nil = use socketpairs).
 	acceptor *ipc.PluginAcceptor
 
+	// Plugin health metrics (nil when metrics disabled).
+	pmetrics *pluginMetrics
+
 	ctx    context.Context
 	cancel context.CancelFunc
 	mu     sync.RWMutex
@@ -60,6 +72,40 @@ type ProcessManager struct {
 // Must be called before StartWithContext.
 func (pm *ProcessManager) SetAcceptor(a *ipc.PluginAcceptor) {
 	pm.acceptor = a
+}
+
+// SetMetricsRegistry creates plugin health metrics from the given registry.
+// Must be called before StartWithContext. Nil registry disables metrics.
+// Idempotent: second call is a no-op.
+func (pm *ProcessManager) SetMetricsRegistry(reg metrics.Registry) {
+	if reg == nil || pm.pmetrics != nil {
+		return
+	}
+	pm.pmetrics = &pluginMetrics{
+		status:    reg.GaugeVec("ze_plugin_status", "Current plugin stage (0=init, 6=running)", []string{"plugin"}),
+		restarts:  reg.CounterVec("ze_plugin_restarts_total", "Total plugin restart attempts (process started)", []string{"plugin"}),
+		delivered: reg.CounterVec("ze_plugin_events_delivered_total", "Total events delivered to plugin", []string{"plugin"}),
+	}
+}
+
+// wireMetrics sets metrics callbacks on a process.
+// No-op when metrics are disabled (pm.pmetrics is nil) or plugin name is empty.
+// Must be called before the process is started.
+func (pm *ProcessManager) wireMetrics(proc *Process) {
+	if pm.pmetrics == nil {
+		return
+	}
+	name := proc.Name()
+	if name == "" {
+		return
+	}
+	m := pm.pmetrics
+	proc.onStageChange = func(stage plugin.PluginStage) {
+		m.status.With(name).Set(float64(stage))
+	}
+	proc.deliveryInc = func() {
+		m.delivered.With(name).Inc()
+	}
 }
 
 // NewProcessManager creates a new process manager.
@@ -84,6 +130,7 @@ func (pm *ProcessManager) StartWithContext(ctx context.Context) error {
 
 	for _, cfg := range pm.configs {
 		proc := NewProcess(cfg)
+		pm.wireMetrics(proc)
 		// Pass TLS acceptor to external plugins for connect-back.
 		if pm.acceptor != nil && !cfg.Internal {
 			proc.SetAcceptor(pm.acceptor)
@@ -176,7 +223,9 @@ func (pm *ProcessManager) GetProcess(name string) *Process {
 }
 
 // AddProcess registers a process by name. Used by tests to inject mock processes.
+// Wires metrics callbacks if a metrics registry is configured.
 func (pm *ProcessManager) AddProcess(name string, proc *Process) {
+	pm.wireMetrics(proc)
 	pm.mu.Lock()
 	defer pm.mu.Unlock()
 	pm.processes[name] = proc
@@ -277,6 +326,8 @@ func (pm *ProcessManager) Respawn(name string) error {
 	// Check per-window limit
 	if len(validTimes) >= RespawnLimit {
 		pm.disabled[name] = true
+		pm.clearProcessCallbacks(name)
+		pm.deletePluginStatusLabel(name)
 		logger().Warn("respawn limit exceeded, process disabled",
 			"process", name, "limit", RespawnLimit, "window", RespawnWindow)
 		return ErrRespawnLimitExceeded
@@ -286,6 +337,8 @@ func (pm *ProcessManager) Respawn(name string) error {
 	pm.totalRespawns[name]++
 	if pm.totalRespawns[name] > MaxTotalRespawns {
 		pm.disabled[name] = true
+		pm.clearProcessCallbacks(name)
+		pm.deletePluginStatusLabel(name)
 		logger().Warn("cumulative respawn limit exceeded, process disabled",
 			"process", name, "total", pm.totalRespawns[name], "limit", MaxTotalRespawns)
 		return ErrRespawnLimitExceeded
@@ -295,17 +348,24 @@ func (pm *ProcessManager) Respawn(name string) error {
 	validTimes = append(validTimes, now)
 	pm.respawnTimes[name] = validTimes
 
-	// Stop existing process if running
-	if proc, ok := pm.processes[name]; ok && proc.Running() {
-		proc.Stop()
-		// Wait briefly for stop
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-		_ = proc.Wait(ctx)
-		cancel()
+	// Stop existing process if running.
+	// Nil out metrics callbacks before stopping to prevent the dying process
+	// from re-creating deleted status labels via SetStage during shutdown.
+	if proc, ok := pm.processes[name]; ok {
+		proc.onStageChange = nil
+		proc.deliveryInc = nil
+		if proc.Running() {
+			proc.Stop()
+			// Wait briefly for stop
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+			_ = proc.Wait(ctx)
+			cancel()
+		}
 	}
 
 	// Start new process with acceptor if configured.
 	newProc := NewProcess(*cfg)
+	pm.wireMetrics(newProc)
 	if pm.acceptor != nil && !cfg.Internal {
 		newProc.SetAcceptor(pm.acceptor)
 	}
@@ -314,5 +374,32 @@ func (pm *ProcessManager) Respawn(name string) error {
 	}
 	pm.processes[name] = newProc
 
+	// Increment restart counter after successful start.
+	if pm.pmetrics != nil {
+		pm.pmetrics.restarts.With(name).Inc()
+	}
+
 	return nil
+}
+
+// clearProcessCallbacks nils out metrics callbacks on the named process.
+// Prevents a dying process from re-creating deleted metric labels via
+// SetStage or Deliver during shutdown.
+func (pm *ProcessManager) clearProcessCallbacks(name string) {
+	if proc, ok := pm.processes[name]; ok {
+		proc.onStageChange = nil
+		proc.deliveryInc = nil
+	}
+}
+
+// deletePluginStatusLabel removes the status gauge label for a plugin.
+// Called when a plugin is disabled (respawn limit exceeded).
+// Only deletes the status gauge; restarts and delivered counters are
+// preserved for post-mortem monitoring (counters must not be deleted
+// mid-lifetime as it breaks rate() and increase() queries).
+func (pm *ProcessManager) deletePluginStatusLabel(name string) {
+	if pm.pmetrics == nil {
+		return
+	}
+	pm.pmetrics.status.Delete(name)
 }

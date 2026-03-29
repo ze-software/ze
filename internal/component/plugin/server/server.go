@@ -248,8 +248,14 @@ func (s *Server) ProcessManager() *process.ProcessManager {
 // When set, runPluginPhase delegates process creation to the spawner
 // instead of creating ProcessManager directly.
 // Must be called before Start.
+// If the spawner supports SetMetricsRegistry (e.g., PluginManager),
+// the server's metrics registry is forwarded for plugin health metrics.
 func (s *Server) SetProcessSpawner(sp plugin.ProcessSpawner) {
 	s.spawner = sp
+	// Thread metrics registry to the spawner if it supports it.
+	if setter, ok := sp.(interface{ SetMetricsRegistry(any) }); ok && s.config.MetricsRegistry != nil {
+		setter.SetMetricsRegistry(s.config.MetricsRegistry)
+	}
 }
 
 // CallFilterUpdate sends a filter-update RPC to a named plugin and returns the response.

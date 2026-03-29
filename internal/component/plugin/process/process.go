@@ -88,6 +88,10 @@ type Process struct {
 	stageCh      chan struct{}              // Signals stage completion
 	stageMu      sync.Mutex                 // Protects stage transitions
 
+	// Metrics callbacks (set by ProcessManager, nil when metrics disabled).
+	onStageChange func(plugin.PluginStage) // Called after stage transition
+	deliveryInc   func()                   // Called after successful Deliver enqueue
+
 	// Direct transport bridge for internal plugins (nil for external).
 	// After 5-stage startup, events and RPCs bypass socket I/O via function calls.
 	bridge *rpc.DirectBridge
@@ -122,14 +126,23 @@ func (p *Process) Stage() plugin.PluginStage {
 }
 
 // SetStage sets the current stage and notifies waiters.
+// If an onStageChange callback is set (by ProcessManager metrics), it is called
+// after the stage is stored and waiters are notified, outside the lock.
 func (p *Process) SetStage(stage plugin.PluginStage) {
+	var cb func(plugin.PluginStage)
 	p.stageMu.Lock()
-	defer p.stageMu.Unlock()
 	// Safe: PluginStage has only values 0-6 (StageInit..StageRunning).
 	p.stage.Store(int32(stage)) //nolint:gosec // G115: bounded enum
+	cb = p.onStageChange
 	// Close and recreate channel to notify all waiters
 	close(p.stageCh)
 	p.stageCh = make(chan struct{})
+	p.stageMu.Unlock()
+	// Call metrics callback outside the lock to avoid holding stageMu
+	// during Prometheus internal lock acquisition.
+	if cb != nil {
+		cb(stage)
+	}
 }
 
 // WaitForStage waits for the process to reach or pass the given stage.

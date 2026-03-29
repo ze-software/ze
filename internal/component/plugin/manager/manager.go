@@ -14,6 +14,7 @@ import (
 	parent "codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginipc "codeberg.org/thomas-mangin/ze/internal/component/plugin/ipc"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/process"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 	"codeberg.org/thomas-mangin/ze/pkg/ze"
 )
@@ -50,8 +51,9 @@ type Manager struct {
 	cancel context.CancelFunc
 
 	// Stored references.
-	bus    ze.Bus
-	config ze.ConfigProvider
+	bus             ze.Bus
+	config          ze.ConfigProvider
+	metricsRegistry any // metrics.Registry, stored as any to avoid import
 }
 
 // pluginState tracks a single plugin's registration and lifecycle.
@@ -71,6 +73,14 @@ func NewManager() *Manager {
 // Must be called before StartAll if external plugins are configured.
 func (m *Manager) SetHubConfig(cfg *parent.HubConfig) {
 	m.hubConfig = cfg
+}
+
+// SetMetricsRegistry stores the metrics registry for plugin health metrics.
+// Must be called before SpawnMore. The registry is passed to each ProcessManager.
+func (m *Manager) SetMetricsRegistry(reg any) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.metricsRegistry = reg
 }
 
 // Register adds a plugin for startup. Returns error if the name
@@ -136,6 +146,16 @@ func (m *Manager) SpawnMore(configs []parent.PluginConfig) error {
 // Must be called with m.mu held.
 func (m *Manager) spawnProcesses(configs []parent.PluginConfig) error {
 	pm := process.NewProcessManager(configs)
+
+	// Thread metrics registry to ProcessManager for plugin health metrics.
+	if m.metricsRegistry != nil {
+		if reg, ok := m.metricsRegistry.(metrics.Registry); ok {
+			pm.SetMetricsRegistry(reg)
+		} else {
+			logger().Warn("metrics registry type mismatch, plugin health metrics disabled",
+				"type", fmt.Sprintf("%T", m.metricsRegistry))
+		}
+	}
 
 	// Set up TLS acceptor for external plugins (shared across all spawn phases).
 	if err := m.ensureAcceptor(configs); err != nil {

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 
 	plugin "codeberg.org/thomas-mangin/ze/internal/component/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/core/metrics"
 )
 
 // ServerConfig holds API server configuration.
@@ -20,4 +21,5 @@ type ServerConfig struct {
 	Hub                       *plugin.HubConfig                               // TLS transport config (nil = no TLS listener)
 	RPCFallback               func(string) func(json.RawMessage) (any, error) // Resolves RPC methods not in core dispatch
 	CommitManager             any                                             // Commit manager instance (injected by reactor, type-asserted by handlers)
+	MetricsRegistry           metrics.Registry                                // Prometheus metrics registry (nil = metrics disabled)
 }

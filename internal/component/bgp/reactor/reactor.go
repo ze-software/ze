@@ -835,6 +835,7 @@ func (r *Reactor) startAPIServer() error {
 		Hub:                       r.config.Hub,
 		RPCFallback:               bgpserver.CodecRPCHandler,
 		CommitManager:             transaction.NewCommitManager(),
+		MetricsRegistry:           r.metricsRegistry,
 	}
 	for _, pc := range r.config.Plugins {
 		apiConfig.Plugins = append(apiConfig.Plugins, plugin.PluginConfig{
