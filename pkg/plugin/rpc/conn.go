@@ -21,11 +21,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
 )
+
+// writeDeadliner is an optional interface for writers that support deadlines.
+// net.Conn implements this; os.Stdout and SSH channels do not.
+// When the writer does not support deadlines, writes may block longer
+// but context cancellation on reads still prevents hangs.
+type writeDeadliner interface {
+	SetWriteDeadline(time.Time) error
+}
 
 // defaultWriteDeadline is used when the context has no deadline.
 // Generous enough to never trigger during normal operation, but prevents
@@ -45,14 +54,17 @@ const defaultWriteDeadline = 30 * time.Second
 //   - Single-socket: NewConn(conn, conn) -- read and write on the same socket.
 //   - Cross-socket: NewConn(readConn, writeConn) -- read from one connection,
 //     write to another. Used in tests with separate read/write endpoints.
+//   - Stdio: NewConn(os.Stdin, os.Stdout) -- read from stdin, write to stdout.
+//     Deadline-based write timeouts are skipped when the writer does not implement
+//     SetWriteDeadline (e.g., os.File, SSH channels).
 //
 // Callers must call Close() to release resources. Close() unblocks the
 // persistent reader by closing the read connection.
 type Conn struct {
-	reader    *FrameReader
-	writer    *FrameWriter
-	readConn  net.Conn
-	writeConn net.Conn
+	reader      *FrameReader
+	writer      *FrameWriter
+	readCloser  io.ReadCloser
+	writeCloser io.WriteCloser
 
 	mu     sync.Mutex // Protects writes
 	callMu sync.Mutex // Serializes CallRPC (write + read must be atomic)
@@ -65,28 +77,35 @@ type Conn struct {
 	readerErr  atomic.Pointer[error] // Terminal error stored by reader on exit.
 }
 
-// NewConn creates a Conn that reads from readConn and writes to writeConn.
+// NewConn creates a Conn that reads from reader and writes to writer.
 // For single-socket use, pass the same conn for both arguments.
-func NewConn(readConn, writeConn net.Conn) *Conn {
+// The arguments accept any io.ReadCloser/io.WriteCloser; net.Conn satisfies both.
+// When the writer supports SetWriteDeadline (e.g., net.Conn), writes use
+// deadline-based timeouts. Otherwise (e.g., os.Stdout), deadlines are skipped.
+func NewConn(reader io.ReadCloser, writer io.WriteCloser) *Conn {
 	return &Conn{
-		reader:    NewFrameReader(readConn),
-		writer:    NewFrameWriter(writeConn),
-		readConn:  readConn,
-		writeConn: writeConn,
+		reader:      NewFrameReader(reader),
+		writer:      NewFrameWriter(writer),
+		readCloser:  reader,
+		writeCloser: writer,
 	}
 }
 
-// WriteConn returns the underlying write connection.
-// Used for out-of-band operations (SCM_RIGHTS fd passing) that need the raw net.Conn.
+// WriteConn returns the underlying write connection as a net.Conn, or nil
+// if the writer is not a net.Conn. Used for out-of-band operations
+// (SCM_RIGHTS fd passing) that need the raw net.Conn.
 func (c *Conn) WriteConn() net.Conn {
-	return c.writeConn
+	if nc, ok := c.writeCloser.(net.Conn); ok {
+		return nc
+	}
+	return nil
 }
 
 // Close closes the read connection, unblocking the persistent reader goroutine.
 // Safe to call multiple times. Does not close the write connection separately
 // (in single-socket mode they are the same connection).
 func (c *Conn) Close() error {
-	return c.readConn.Close()
+	return c.readCloser.Close()
 }
 
 // startReader lazily starts the persistent reader goroutine. Safe to call
@@ -150,6 +169,8 @@ func (c *Conn) NextID() uint64 {
 // writeLineWithContext writes a line with context-derived write deadline.
 // The deadline set, write, and deadline clear are all performed under c.mu
 // to prevent interleaving when multiple goroutines write concurrently.
+// When the writer does not support SetWriteDeadline (e.g., os.Stdout),
+// deadline setting is skipped and writes may block longer.
 func (c *Conn) writeLineWithContext(ctx context.Context, line []byte) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -161,12 +182,17 @@ func (c *Conn) writeLineWithContext(ctx context.Context, line []byte) error {
 	}
 
 	c.mu.Lock()
-	if err := c.writeConn.SetWriteDeadline(deadline); err != nil {
-		c.mu.Unlock()
-		return fmt.Errorf("set write deadline: %w", err)
+	dlWriter, hasDL := c.writeCloser.(writeDeadliner)
+	if hasDL {
+		if err := dlWriter.SetWriteDeadline(deadline); err != nil {
+			c.mu.Unlock()
+			return fmt.Errorf("set write deadline: %w", err)
+		}
 	}
 	writeErr := c.writer.Write(line)
-	clearErr := c.writeConn.SetWriteDeadline(time.Time{})
+	if hasDL {
+		_ = dlWriter.SetWriteDeadline(time.Time{})
+	}
 	c.mu.Unlock()
 
 	if writeErr != nil {
@@ -181,9 +207,6 @@ func (c *Conn) writeLineWithContext(ctx context.Context, line []byte) error {
 			return context.DeadlineExceeded
 		}
 		return writeErr
-	}
-	if clearErr != nil {
-		return fmt.Errorf("clear write deadline: %w", clearErr)
 	}
 	return nil
 }
@@ -296,6 +319,7 @@ func (c *Conn) CallBatchRPC(ctx context.Context, events [][]byte) (json.RawMessa
 // from the context. Falls back to defaultWriteDeadline if ctx has no deadline.
 // The deadline set, write, and deadline clear are all performed under c.mu
 // to prevent interleaving when multiple goroutines write concurrently.
+// When the writer does not support SetWriteDeadline, deadline setting is skipped.
 func (c *Conn) writeBatchWithDeadline(ctx context.Context, id uint64, events [][]byte) error {
 	dl, hasDeadline := ctx.Deadline()
 	deadline := dl
@@ -304,12 +328,17 @@ func (c *Conn) writeBatchWithDeadline(ctx context.Context, id uint64, events [][
 	}
 
 	c.mu.Lock()
-	if err := c.writeConn.SetWriteDeadline(deadline); err != nil {
-		c.mu.Unlock()
-		return fmt.Errorf("set write deadline: %w", err)
+	dlWriter, hasDL := c.writeCloser.(writeDeadliner)
+	if hasDL {
+		if err := dlWriter.SetWriteDeadline(deadline); err != nil {
+			c.mu.Unlock()
+			return fmt.Errorf("set write deadline: %w", err)
+		}
 	}
 	writeErr := WriteBatchFrame(c.writer.RawWriter(), id, events)
-	clearErr := c.writeConn.SetWriteDeadline(time.Time{})
+	if hasDL {
+		_ = dlWriter.SetWriteDeadline(time.Time{})
+	}
 	c.mu.Unlock()
 
 	// Match writeLineWithContext: prioritize writeErr, translate to ctx error.
@@ -321,9 +350,6 @@ func (c *Conn) writeBatchWithDeadline(ctx context.Context, id uint64, events [][
 			return context.DeadlineExceeded
 		}
 		return writeErr
-	}
-	if clearErr != nil {
-		return fmt.Errorf("clear write deadline: %w", clearErr)
 	}
 	return nil
 }
