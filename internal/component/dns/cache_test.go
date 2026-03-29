@@ -1,6 +1,7 @@
 package dns
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -126,4 +127,74 @@ func TestCacheDifferentTypes(t *testing.T) {
 	require.True(t, okTXT)
 	assert.Equal(t, []string{"1.2.3.4"}, aRecords)
 	assert.Equal(t, []string{"v=spf1 ..."}, txtRecords)
+}
+
+// TestCacheTTLZeroNotStored verifies TTL=0 entries are not cached per RFC 1035.
+//
+// VALIDATES: AC-10 -- TTL=0 from DNS server means "do not cache."
+// PREVENTS: Caching records the server says should not be cached.
+func TestCacheTTLZeroNotStored(t *testing.T) {
+	c := newCache(100, 0)
+
+	c.put("example.com", 1, []string{"1.2.3.4"}, 0)
+	_, ok := c.get("example.com", 1)
+
+	assert.False(t, ok, "TTL=0 entry should not be stored in cache")
+}
+
+// TestCacheMaxTTLZeroUsesResponseTTL verifies maxTTL=0 does not cap response TTL.
+//
+// VALIDATES: AC-10 -- maxTTL=0 means use response TTL as-is.
+// PREVENTS: maxTTL=0 accidentally zeroing out effective TTL.
+func TestCacheMaxTTLZeroUsesResponseTTL(t *testing.T) {
+	c := newCache(100, 0)
+
+	c.put("example.com", 1, []string{"1.2.3.4"}, 300)
+	records, ok := c.get("example.com", 1)
+
+	require.True(t, ok, "entry with response TTL=300 should be cached when maxTTL=0")
+	assert.Equal(t, []string{"1.2.3.4"}, records)
+}
+
+// TestCacheOverwrite verifies putting the same key twice replaces the old value.
+//
+// VALIDATES: AC-8 -- cache stores latest result for repeated queries.
+// PREVENTS: Stale data persisting after a newer result arrives.
+func TestCacheOverwrite(t *testing.T) {
+	c := newCache(100, 3600)
+
+	c.put("example.com", 1, []string{"1.1.1.1"}, 300)
+	c.put("example.com", 1, []string{"2.2.2.2"}, 300)
+
+	records, ok := c.get("example.com", 1)
+	require.True(t, ok)
+	assert.Equal(t, []string{"2.2.2.2"}, records, "should return updated value")
+
+	// Verify no duplicate entries: cache should have exactly 1 entry.
+	c.mu.Lock()
+	count := len(c.entries)
+	c.mu.Unlock()
+	assert.Equal(t, 1, count, "overwrite should not create duplicate entries")
+}
+
+// TestCacheConcurrent verifies cache is safe for concurrent access.
+//
+// VALIDATES: cache "safe for concurrent use" contract.
+// PREVENTS: Data races on concurrent get/put.
+func TestCacheConcurrent(t *testing.T) {
+	c := newCache(100, 3600)
+
+	var wg sync.WaitGroup
+	for i := range 10 {
+		wg.Add(1)
+		go func(n int) {
+			defer wg.Done()
+			key := "domain" + string(rune('0'+n)) + ".com"
+			c.put(key, 1, []string{"1.2.3.4"}, 300)
+			c.get(key, 1)
+			c.put(key, 1, []string{"5.6.7.8"}, 300)
+			c.get(key, 1)
+		}(i)
+	}
+	wg.Wait()
 }

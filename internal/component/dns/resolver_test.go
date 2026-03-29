@@ -70,6 +70,37 @@ func testHandler() mdns.Handler {
 				})
 			case q.Name == "nonexistent.invalid." && q.Qtype == mdns.TypeA:
 				m.Rcode = mdns.RcodeNameError // NXDOMAIN
+			case q.Name == "alias.example.com." && q.Qtype == mdns.TypeCNAME:
+				m.Answer = append(m.Answer, &mdns.CNAME{
+					Hdr:    mdns.RR_Header{Name: q.Name, Rrtype: mdns.TypeCNAME, Class: mdns.ClassINET, Ttl: 300},
+					Target: "target.example.com.",
+				})
+			case q.Name == "example.com." && q.Qtype == mdns.TypeMX:
+				m.Answer = append(m.Answer, &mdns.MX{
+					Hdr:        mdns.RR_Header{Name: q.Name, Rrtype: mdns.TypeMX, Class: mdns.ClassINET, Ttl: 300},
+					Preference: 10,
+					Mx:         "mail.example.com.",
+				})
+			case q.Name == "example.com." && q.Qtype == mdns.TypeNS:
+				m.Answer = append(m.Answer, &mdns.NS{
+					Hdr: mdns.RR_Header{Name: q.Name, Rrtype: mdns.TypeNS, Class: mdns.ClassINET, Ttl: 300},
+					Ns:  "ns1.example.com.",
+				})
+			case q.Name == "_sip._tcp.example.com." && q.Qtype == mdns.TypeSRV:
+				m.Answer = append(m.Answer, &mdns.SRV{
+					Hdr:      mdns.RR_Header{Name: q.Name, Rrtype: mdns.TypeSRV, Class: mdns.ClassINET, Ttl: 300},
+					Priority: 10,
+					Weight:   60,
+					Port:     5060,
+					Target:   "sip.example.com.",
+				})
+			case q.Name == "multi.example.com." && q.Qtype == mdns.TypeA:
+				for _, ip := range []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"} {
+					m.Answer = append(m.Answer, &mdns.A{
+						Hdr: mdns.RR_Header{Name: q.Name, Rrtype: mdns.TypeA, Class: mdns.ClassINET, Ttl: 300},
+						A:   net.ParseIP(ip),
+					})
+				}
 			}
 		}
 
@@ -114,8 +145,10 @@ func TestResolveDefaultServer(t *testing.T) {
 	})
 	defer r.Close()
 
-	// We can't guarantee system DNS works in CI, so just verify the resolver
-	// was created successfully and doesn't panic.
+	// Verify system DNS was resolved at construction.
+	// On any system with /etc/resolv.conf, server should be non-empty.
+	// On systems without it (containers), server will be empty and queries will
+	// return a clear error. Either way, the resolver was created without panic.
 	assert.NotNil(t, r)
 }
 
@@ -203,6 +236,24 @@ func TestResolvePTR(t *testing.T) {
 	assert.Contains(t, records, "example.com.")
 }
 
+// TestResolvePTRInvalidAddress verifies PTR with invalid address returns error.
+//
+// VALIDATES: AC-5 -- invalid address returns clear error.
+// PREVENTS: Panic or confusing error on malformed input.
+func TestResolvePTRInvalidAddress(t *testing.T) {
+	r := NewResolver(ResolverConfig{
+		Server:    "127.0.0.1:53",
+		Timeout:   1,
+		CacheSize: 0,
+		CacheTTL:  0,
+	})
+	defer r.Close()
+
+	_, err := r.ResolvePTR("not-an-ip")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "reverse addr")
+}
+
 // TestResolveNXDOMAIN verifies non-existent domain returns empty result.
 //
 // VALIDATES: AC-6 -- query for non-existent domain returns empty result, no error.
@@ -222,6 +273,37 @@ func TestResolveNXDOMAIN(t *testing.T) {
 	records, err := r.ResolveA("nonexistent.invalid")
 	require.NoError(t, err, "NXDOMAIN should not return an error")
 	assert.Empty(t, records, "NXDOMAIN should return empty results")
+}
+
+// TestResolveNXDOMAINNotCached verifies NXDOMAIN results are not cached.
+//
+// VALIDATES: AC-6 -- NXDOMAIN is not cached, repeated queries hit network.
+// PREVENTS: Negative caching when not intended.
+func TestResolveNXDOMAINNotCached(t *testing.T) {
+	var queryCount atomic.Int32
+	handler := mdns.HandlerFunc(func(w mdns.ResponseWriter, r *mdns.Msg) {
+		queryCount.Add(1)
+		m := new(mdns.Msg)
+		m.SetReply(r)
+		m.Rcode = mdns.RcodeNameError
+		_ = w.WriteMsg(m)
+	})
+
+	addr, cleanup := testDNSServer(t, handler)
+	defer cleanup()
+
+	r := NewResolver(ResolverConfig{
+		Server:    addr,
+		Timeout:   5,
+		CacheSize: 100,
+		CacheTTL:  3600,
+	})
+	defer r.Close()
+
+	r.ResolveA("nope.invalid") //nolint:errcheck // testing side effect
+	r.ResolveA("nope.invalid") //nolint:errcheck // testing side effect
+
+	assert.Equal(t, int32(2), queryCount.Load(), "NXDOMAIN should not be cached, both queries hit server")
 }
 
 // TestResolveTimeout verifies timeout handling.
@@ -288,6 +370,38 @@ func TestResolveCacheIntegration(t *testing.T) {
 	assert.Equal(t, int32(1), queryCount.Load(), "second query should come from cache, not server")
 }
 
+// TestResolveServerPortAppended verifies port :53 is appended when missing.
+//
+// VALIDATES: AC-1 -- server address normalized with default port.
+// PREVENTS: Connection failure when user omits port in config.
+func TestResolveServerPortAppended(t *testing.T) {
+	r := NewResolver(ResolverConfig{
+		Server:    "127.0.0.1",
+		Timeout:   1,
+		CacheSize: 0,
+		CacheTTL:  0,
+	})
+	defer r.Close()
+
+	assert.Equal(t, "127.0.0.1:53", r.server, "port :53 should be appended when missing")
+}
+
+// TestResolveTimeoutZeroDefault verifies Timeout=0 defaults to 5 seconds.
+//
+// VALIDATES: boundary testing for timeout.
+// PREVENTS: Zero timeout causing instant failure.
+func TestResolveTimeoutZeroDefault(t *testing.T) {
+	r := NewResolver(ResolverConfig{
+		Server:    "127.0.0.1:53",
+		Timeout:   0,
+		CacheSize: 0,
+		CacheTTL:  0,
+	})
+	defer r.Close()
+
+	assert.Equal(t, 5*time.Second, r.client.Timeout, "timeout=0 should default to 5s")
+}
+
 // TestResolveBoundaryTimeout verifies timeout boundary values.
 //
 // VALIDATES: boundary testing for timeout range 1-60.
@@ -314,4 +428,109 @@ func TestResolveBoundaryTimeout(t *testing.T) {
 			assert.NotNil(t, r)
 		})
 	}
+}
+
+// TestResolveCNAME verifies CNAME record extraction.
+//
+// VALIDATES: extractRecords handles CNAME type.
+// PREVENTS: CNAME records silently dropped.
+func TestResolveCNAME(t *testing.T) {
+	addr, cleanup := testDNSServer(t, testHandler())
+	defer cleanup()
+
+	r := NewResolver(ResolverConfig{
+		Server:    addr,
+		Timeout:   5,
+		CacheSize: 0,
+		CacheTTL:  0,
+	})
+	defer r.Close()
+
+	records, err := r.Resolve("alias.example.com", mdns.TypeCNAME)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"target.example.com."}, records)
+}
+
+// TestResolveMX verifies MX record extraction.
+//
+// VALIDATES: extractRecords handles MX type.
+// PREVENTS: MX records silently dropped.
+func TestResolveMX(t *testing.T) {
+	addr, cleanup := testDNSServer(t, testHandler())
+	defer cleanup()
+
+	r := NewResolver(ResolverConfig{
+		Server:    addr,
+		Timeout:   5,
+		CacheSize: 0,
+		CacheTTL:  0,
+	})
+	defer r.Close()
+
+	records, err := r.Resolve("example.com", mdns.TypeMX)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"mail.example.com."}, records)
+}
+
+// TestResolveNS verifies NS record extraction.
+//
+// VALIDATES: extractRecords handles NS type.
+// PREVENTS: NS records silently dropped.
+func TestResolveNS(t *testing.T) {
+	addr, cleanup := testDNSServer(t, testHandler())
+	defer cleanup()
+
+	r := NewResolver(ResolverConfig{
+		Server:    addr,
+		Timeout:   5,
+		CacheSize: 0,
+		CacheTTL:  0,
+	})
+	defer r.Close()
+
+	records, err := r.Resolve("example.com", mdns.TypeNS)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"ns1.example.com."}, records)
+}
+
+// TestResolveSRV verifies SRV record extraction with target:port format.
+//
+// VALIDATES: extractRecords handles SRV type with correct formatting.
+// PREVENTS: SRV records silently dropped or wrongly formatted.
+func TestResolveSRV(t *testing.T) {
+	addr, cleanup := testDNSServer(t, testHandler())
+	defer cleanup()
+
+	r := NewResolver(ResolverConfig{
+		Server:    addr,
+		Timeout:   5,
+		CacheSize: 0,
+		CacheTTL:  0,
+	})
+	defer r.Close()
+
+	records, err := r.Resolve("_sip._tcp.example.com", mdns.TypeSRV)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"sip.example.com.:5060"}, records)
+}
+
+// TestResolveMultipleRecords verifies multiple records in a single response.
+//
+// VALIDATES: extractRecords returns all records, not just the first.
+// PREVENTS: Only first record extracted from multi-record responses.
+func TestResolveMultipleRecords(t *testing.T) {
+	addr, cleanup := testDNSServer(t, testHandler())
+	defer cleanup()
+
+	r := NewResolver(ResolverConfig{
+		Server:    addr,
+		Timeout:   5,
+		CacheSize: 0,
+		CacheTTL:  0,
+	})
+	defer r.Close()
+
+	records, err := r.ResolveA("multi.example.com")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"1.1.1.1", "2.2.2.2", "3.3.3.3"}, records)
 }

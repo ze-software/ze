@@ -46,6 +46,9 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 		if _, _, err := net.SplitHostPort(server); err != nil {
 			server = net.JoinHostPort(server, "53")
 		}
+	} else {
+		// Resolve system default DNS server once at construction.
+		server = resolveSystemDNS()
 	}
 
 	return &Resolver{
@@ -57,6 +60,16 @@ func NewResolver(cfg ResolverConfig) *Resolver {
 		cache:  newCache(cfg.CacheSize, cfg.CacheTTL),
 		logger: slogutil.Logger("dns"),
 	}
+}
+
+// resolveSystemDNS reads the system DNS server from /etc/resolv.conf.
+// Returns empty string if the file cannot be read (query will fail later with a clear error).
+func resolveSystemDNS() string {
+	config, err := mdns.ClientConfigFromFile("/etc/resolv.conf")
+	if err != nil || len(config.Servers) == 0 {
+		return ""
+	}
+	return net.JoinHostPort(config.Servers[0], config.Port)
 }
 
 // Close releases resolver resources.
@@ -79,7 +92,7 @@ func (r *Resolver) Resolve(name string, qtype uint16) ([]string, error) {
 		return nil, err
 	}
 
-	// Cache the result (even empty results to avoid repeated NXDOMAIN queries).
+	// Only cache non-empty results. NXDOMAIN returns empty records and is not cached.
 	if len(records) > 0 {
 		r.cache.put(name, qtype, records, ttl)
 	}
@@ -124,20 +137,16 @@ func (r *Resolver) query(name string, qtype uint16) ([]string, uint32, error) {
 
 	server := r.server
 	if server == "" {
-		// Use system default resolver.
-		config, err := mdns.ClientConfigFromFile("/etc/resolv.conf")
-		if err != nil {
-			return nil, 0, fmt.Errorf("read system DNS config: %w", err)
-		}
-		if len(config.Servers) == 0 {
-			return nil, 0, fmt.Errorf("no DNS servers in system config")
-		}
-		server = net.JoinHostPort(config.Servers[0], config.Port)
+		return nil, 0, fmt.Errorf("no DNS server configured and system DNS unavailable")
 	}
 
 	resp, _, err := r.client.Exchange(m, server)
 	if err != nil {
 		return nil, 0, fmt.Errorf("dns query %s %s: %w", name, mdns.TypeToString[qtype], err)
+	}
+
+	if resp == nil {
+		return nil, 0, fmt.Errorf("dns query %s %s: nil response", name, mdns.TypeToString[qtype])
 	}
 
 	// NXDOMAIN and other non-error response codes return empty results, not errors.
@@ -149,11 +158,14 @@ func (r *Resolver) query(name string, qtype uint16) ([]string, uint32, error) {
 }
 
 // extractRecords pulls string values and minimum TTL from DNS answer records.
+// Returns TTL=0 when answers have TTL=0 (caller should not cache per RFC 1035).
 func extractRecords(resp *mdns.Msg) ([]string, uint32, error) {
 	var records []string
 	var minTTL uint32
+	hasAnswers := false
 
 	for _, rr := range resp.Answer {
+		hasAnswers = true
 		hdr := rr.Header()
 		if minTTL == 0 || hdr.Ttl < minTTL {
 			minTTL = hdr.Ttl
@@ -179,8 +191,10 @@ func extractRecords(resp *mdns.Msg) ([]string, uint32, error) {
 		}
 	}
 
-	if minTTL == 0 {
-		minTTL = 300 // Default 5 minutes if no TTL in response.
+	// Only apply a default TTL when there were no answers at all.
+	// When answers have TTL=0, the server explicitly says "do not cache."
+	if !hasAnswers && minTTL == 0 {
+		minTTL = 300
 	}
 
 	return records, minTTL, nil

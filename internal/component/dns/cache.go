@@ -5,16 +5,23 @@
 package dns
 
 import (
-	"fmt"
+	"container/list"
 	"sync"
 	"time"
 )
 
+// cacheKey identifies a cached DNS query by name and record type.
+type cacheKey struct {
+	name  string
+	qtype uint16
+}
+
 // cacheEntry holds a cached DNS result with expiry time.
 type cacheEntry struct {
+	key     cacheKey
 	records []string
 	expires time.Time
-	key     string // For LRU eviction tracking.
+	element *list.Element // Position in LRU list for O(1) removal/touch.
 }
 
 // cache is an in-memory DNS cache with TTL-based expiry and LRU eviction.
@@ -23,8 +30,8 @@ type cache struct {
 	mu      sync.Mutex
 	maxSize uint32
 	maxTTL  uint32 // Seconds. 0 means use response TTL only.
-	entries map[string]*cacheEntry
-	order   []string // LRU order: oldest first.
+	entries map[cacheKey]*cacheEntry
+	lru     *list.List // Front = oldest (evict first), Back = newest.
 }
 
 // newCache creates a DNS cache. maxSize=0 disables caching.
@@ -33,13 +40,9 @@ func newCache(maxSize, maxTTL uint32) *cache {
 	return &cache{
 		maxSize: maxSize,
 		maxTTL:  maxTTL,
-		entries: make(map[string]*cacheEntry),
+		entries: make(map[cacheKey]*cacheEntry),
+		lru:     list.New(),
 	}
-}
-
-// cacheKey builds a lookup key from domain name and record type.
-func cacheKey(name string, qtype uint16) string {
-	return fmt.Sprintf("%s:%d", name, qtype)
 }
 
 // get looks up a cached result. Returns records and true on hit, nil and false on miss.
@@ -52,19 +55,19 @@ func (c *cache) get(name string, qtype uint16) ([]string, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	key := cacheKey(name, qtype)
+	key := cacheKey{name: name, qtype: qtype}
 	entry, ok := c.entries[key]
 	if !ok {
 		return nil, false
 	}
 
 	if time.Now().After(entry.expires) {
-		c.removeLocked(key)
+		c.removeLocked(entry)
 		return nil, false
 	}
 
-	// Move to end of LRU order (most recently used).
-	c.touchLocked(key)
+	// Move to back of LRU list (most recently used).
+	c.lru.MoveToBack(entry.element)
 
 	// Return a copy to prevent caller mutation.
 	result := make([]string, len(entry.records))
@@ -74,6 +77,7 @@ func (c *cache) get(name string, qtype uint16) ([]string, bool) {
 
 // put stores a DNS result in the cache. responseTTL is the TTL from the DNS response
 // in seconds. The effective TTL is min(responseTTL, maxTTL) when maxTTL > 0.
+// A responseTTL of 0 means "do not cache" per RFC 1035; the entry is not stored.
 func (c *cache) put(name string, qtype uint16, records []string, responseTTL uint32) {
 	if c.maxSize == 0 {
 		return
@@ -84,53 +88,49 @@ func (c *cache) put(name string, qtype uint16, records []string, responseTTL uin
 		ttl = c.maxTTL
 	}
 
+	// TTL=0 means the DNS server says "do not cache." Respect that.
+	if ttl == 0 {
+		return
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	key := cacheKey(name, qtype)
+	key := cacheKey{name: name, qtype: qtype}
 
 	// Update existing entry.
-	if _, exists := c.entries[key]; exists {
-		c.removeLocked(key)
+	if existing, exists := c.entries[key]; exists {
+		c.removeLocked(existing)
 	}
 
 	// Evict LRU if at capacity.
 	for uint32(len(c.entries)) >= c.maxSize {
-		if len(c.order) == 0 {
+		front := c.lru.Front()
+		if front == nil {
 			break
 		}
-		c.removeLocked(c.order[0])
+		entry, ok := front.Value.(*cacheEntry)
+		if !ok {
+			c.lru.Remove(front)
+			break
+		}
+		c.removeLocked(entry)
 	}
 
 	stored := make([]string, len(records))
 	copy(stored, records)
 
-	c.entries[key] = &cacheEntry{
+	entry := &cacheEntry{
+		key:     key,
 		records: stored,
 		expires: time.Now().Add(time.Duration(ttl) * time.Second),
-		key:     key,
 	}
-	c.order = append(c.order, key)
+	entry.element = c.lru.PushBack(entry)
+	c.entries[key] = entry
 }
 
-// removeLocked removes an entry by key. Caller MUST hold c.mu.
-func (c *cache) removeLocked(key string) {
-	delete(c.entries, key)
-	for i, k := range c.order {
-		if k == key {
-			c.order = append(c.order[:i], c.order[i+1:]...)
-			break
-		}
-	}
-}
-
-// touchLocked moves a key to the end of the LRU order. Caller MUST hold c.mu.
-func (c *cache) touchLocked(key string) {
-	for i, k := range c.order {
-		if k == key {
-			c.order = append(c.order[:i], c.order[i+1:]...)
-			c.order = append(c.order, key)
-			break
-		}
-	}
+// removeLocked removes an entry from both the map and LRU list. Caller MUST hold c.mu.
+func (c *cache) removeLocked(entry *cacheEntry) {
+	delete(c.entries, entry.key)
+	c.lru.Remove(entry.element)
 }
