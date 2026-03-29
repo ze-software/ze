@@ -97,6 +97,19 @@ func (m *EditorManager) GetOrCreate(username string) (*userSession, error) {
 	return us, nil
 }
 
+// CreateEntry creates an empty list entry at the given path in the user's working tree.
+func (m *EditorManager) CreateEntry(username string, path []string) error {
+	us, err := m.GetOrCreate(username)
+	if err != nil {
+		return err
+	}
+
+	us.mu.Lock()
+	defer us.mu.Unlock()
+
+	return us.editor.CreateEntry(path)
+}
+
 // SetValue sets a leaf value at the given path in the user's working tree.
 func (m *EditorManager) SetValue(username string, path []string, key, value string) error {
 	us, err := m.GetOrCreate(username)

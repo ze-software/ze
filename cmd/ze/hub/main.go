@@ -433,8 +433,9 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, 
 	// Fragment handler serves HTMX components for YANG tree navigation.
 	fragmentHandler := zeweb.HandleFragment(renderer, schema, tree, editorMgr, insecureWeb)
 
-	// Config set and delete handlers for editing leaf values.
+	// Config set, add, and delete handlers for editing leaf values.
 	setHandler := zeweb.HandleConfigSet(editorMgr, schema, renderer)
+	addHandler := zeweb.HandleConfigAdd(editorMgr, schema)
 	deleteHandler := zeweb.HandleConfigDelete(editorMgr)
 
 	// SSE broker for live config change notifications.
@@ -514,6 +515,7 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, 
 	srv.Handle("POST /cli/mode", authWrap(modeHandler))
 	srv.Handle("/fragment/detail", authWrap(fragmentHandler))
 	srv.Handle("POST /config/set/", authWrap(setHandler))
+	srv.Handle("POST /config/add/", authWrap(addHandler))
 	srv.Handle("POST /config/delete/", authWrap(deleteHandler))
 	srv.Handle("/config/diff", authWrap(diffHandler))
 	srv.Handle("/config/diff-close", authWrap(diffCloseHandler))

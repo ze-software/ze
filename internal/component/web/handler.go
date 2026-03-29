@@ -56,6 +56,7 @@ type ParsedURL struct {
 var configVerbs = map[string]bool{
 	"edit":    true,
 	"set":     true,
+	"add":     true,
 	"delete":  true,
 	"commit":  true,
 	"discard": true,

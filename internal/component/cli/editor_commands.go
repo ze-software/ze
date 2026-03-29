@@ -128,6 +128,21 @@ func (e *Editor) walkOrCreate(path []string) (*config.Tree, error) {
 	return currentTree, nil
 }
 
+// CreateEntry creates an empty list entry at the given path.
+// The path must end at a list entry (e.g., ["bgp", "peer", "london"]).
+// If the entry already exists, this is a no-op.
+func (e *Editor) CreateEntry(path []string) error {
+	if e.session != nil {
+		return e.writeThroughCreate(path)
+	}
+	_, err := e.walkOrCreate(path)
+	if err != nil {
+		return err
+	}
+	e.dirty.Store(true)
+	return nil
+}
+
 // SetValue sets a leaf value at the given path in the tree.
 func (e *Editor) SetValue(path []string, key, value string) error {
 	if e.session != nil {

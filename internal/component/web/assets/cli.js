@@ -290,7 +290,8 @@
 
   }
 
-  // Add-entry overlay: shows a modal to name a new list entry, then navigates to it.
+  // Add-entry overlay: shows a modal to name a new list entry.
+  // POSTs to /config/add/<path>/<name> to create the entry, then navigates to it.
   function showAddEntryOverlay(baseURL) {
     var overlay = document.createElement('div');
     overlay.className = 'add-entry-overlay';
@@ -306,7 +307,17 @@
       if (e.key === 'Enter') {
         e.preventDefault();
         var name = input.value.trim();
-        if (name) window.location.href = baseURL + encodeURIComponent(name) + '/';
+        if (!name) return;
+        // Convert /show/bgp/peer/ to /config/add/bgp/peer/<name>
+        var addPath = baseURL.replace(/^\/show\//, '/config/add/') + encodeURIComponent(name) + '/';
+        fetch(addPath, {
+          method: 'POST',
+          credentials: 'same-origin'
+        }).then(function(r) {
+          if (r.ok) {
+            window.location.href = baseURL + encodeURIComponent(name) + '/';
+          }
+        });
       }
       if (e.key === 'Escape') overlay.remove();
     });

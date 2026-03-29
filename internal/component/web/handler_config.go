@@ -198,6 +198,44 @@ func HandleConfigSet(mgr *EditorManager, schema *config.Schema, renderer *Render
 	}
 }
 
+// HandleConfigAdd returns a POST handler for /config/add/<yang-path>/.
+// It creates an empty list entry at the given path. The last path segment
+// is the entry key (e.g., /config/add/bgp/peer/london creates peer "london").
+// Returns 200 on success so the JS can navigate to the new entry.
+func HandleConfigAdd(mgr *EditorManager, schema *config.Schema) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		username := GetUsernameFromRequest(r)
+		if username == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		parsed, err := ParseURL(r)
+		if err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+
+		path := parsed.Path
+		if len(path) < 2 {
+			http.Error(w, "path must include list name and entry key", http.StatusBadRequest)
+			return
+		}
+
+		if err := mgr.CreateEntry(username, path); err != nil {
+			http.Error(w, fmt.Sprintf("create entry: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
 // HandleConfigDelete returns a POST handler for /config/delete/<yang-path>/.
 // It extracts the authenticated username, parses the form body for "leaf",
 // and calls mgr.DeleteValue to remove the configured value.

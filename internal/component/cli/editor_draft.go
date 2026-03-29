@@ -111,6 +111,49 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 	return nil
 }
 
+// writeThroughCreate implements the write-through protocol for creating empty list entries.
+// It ensures the path exists in both the change file and in-memory tree without setting any leaf.
+func (e *Editor) writeThroughCreate(path []string) error {
+	guard, err := e.store.AcquireLock(e.originalPath)
+	if err != nil {
+		return fmt.Errorf("write-through lock: %w", err)
+	}
+	defer guard.Release() //nolint:errcheck // Best effort unlock on all paths
+	guard.SetModifier(e.session.ID)
+
+	// Validate the path against the schema.
+	if _, walkErr := e.walkOrCreateIn(e.tree.Clone(), path); walkErr != nil {
+		return fmt.Errorf("write-through create path: %w", walkErr)
+	}
+
+	// Read change file.
+	changePath := ChangePath(e.originalPath, e.session.User)
+	changeTree, changeMeta, err := e.readChangeFile(guard, changePath)
+	if err != nil {
+		return fmt.Errorf("write-through read change: %w", err)
+	}
+
+	// Create the path in the change tree (no leaf set).
+	if _, walkErr := e.walkOrCreateIn(changeTree, path); walkErr != nil {
+		return fmt.Errorf("write-through create change path: %w", walkErr)
+	}
+
+	// Serialize and write change file.
+	output := config.SerializeSetWithMeta(changeTree, changeMeta, e.schema)
+	if err := guard.WriteFile(changePath, []byte(output), 0o600); err != nil {
+		return fmt.Errorf("write-through write: %w", err)
+	}
+
+	// Update in-memory tree.
+	if _, walkErr := e.walkOrCreateIn(e.tree, path); walkErr != nil {
+		return fmt.Errorf("write-through create in-memory: %w", walkErr)
+	}
+
+	e.dirty.Store(true)
+	e.draftSaved = false
+	return nil
+}
+
 // writeThroughDelete implements the write-through protocol for delete commands.
 // Writes to the per-user change file (not shared draft).
 func (e *Editor) writeThroughDelete(path []string, key string) error {
