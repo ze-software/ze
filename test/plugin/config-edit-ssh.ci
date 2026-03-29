@@ -84,12 +84,12 @@ system {
 			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ0123"
 		}
 	}
-	ssh {
-		listen 127.0.0.1:2222
-	}
 }
 
 environment {
+	ssh {
+		listen 127.0.0.1:2222
+	}
 	tcp {
 		attempts 3
 	}

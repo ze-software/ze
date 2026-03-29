@@ -7,6 +7,6 @@
 # This file exists for spec audit hooks. When the test runner gains
 # HTTPS support, replace this with a real startup + request test.
 
-cmd=foreground:seq=1:exec=ze web --help
+cmd=foreground:seq=1:exec=ze help
 expect=exit:code=0
-expect=stderr:contains=ze web
+expect=stderr:contains=--web

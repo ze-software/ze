@@ -69,12 +69,12 @@ system {
 			password "$2a$10$abcdefghijklmnopqrstuuABCDEFGHIJKLMNOPQRSTUVWXYZ0123"
 		}
 	}
-	ssh {
-		listen 127.0.0.1:0
-	}
 }
 
 environment {
+	ssh {
+		listen 127.0.0.1:0
+	}
 	tcp {
 		attempts 3
 	}
