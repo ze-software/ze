@@ -54,13 +54,33 @@ func ensureCache() {
 	})
 }
 
+// secretCleared tracks which Secret keys have already been cleared from OS env.
+// Prevents repeated os.Unsetenv calls on subsequent Get() invocations.
+// Protected by cacheMu.
+var secretCleared = make(map[string]bool)
+
 // Get returns the value of a Ze environment variable.
 // key is the canonical dot-notation form (e.g. "ze.plugin.hub.host").
 // Matching is case-insensitive and treats dots and underscores as equivalent.
 // Aborts if the key was not registered via MustRegister (programming error).
+// For vars registered with Secret: true, the first Get() clears the var from the
+// OS environment (removes it from /proc/<pid>/environ). The value stays in cache.
 func Get(key string) string {
 	mustBeRegistered(key)
 	ensureCache()
+
+	// For secret vars, use write lock to protect both cache read and secretCleared.
+	if IsSecret(key) {
+		cacheMu.Lock()
+		v := cache[normalize(key)]
+		if !secretCleared[key] {
+			clearSecretFromEnv(key)
+			secretCleared[key] = true
+		}
+		cacheMu.Unlock()
+		return v
+	}
+
 	cacheMu.RLock()
 	v := cache[normalize(key)]
 	cacheMu.RUnlock()
@@ -101,12 +121,29 @@ func mustBeRegistered(key string) {
 	}
 }
 
+// clearSecretFromEnv removes all OS environment forms of a dot-notation key.
+// The value remains in the in-process cache for subsequent Get() calls.
+func clearSecretFromEnv(dotKey string) {
+	norm := normalize(dotKey)
+	for _, entry := range os.Environ() {
+		envKey, _, ok := strings.Cut(entry, "=")
+		if !ok {
+			continue
+		}
+		if normalize(envKey) == norm {
+			_ = os.Unsetenv(envKey) //nolint:errcheck // best-effort cleanup
+		}
+	}
+}
+
 // ResetCache clears the cache, forcing a rebuild from os.Environ() on next access.
 // Intended for tests that manipulate env vars via os.Setenv directly.
+// Also resets the secret-cleared tracking so secrets are re-cleared on next Get().
 func ResetCache() {
 	cacheMu.Lock()
 	cacheOnce = sync.Once{}
 	cache = nil
+	secretCleared = make(map[string]bool)
 	cacheMu.Unlock()
 }
 

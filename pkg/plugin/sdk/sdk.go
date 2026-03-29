@@ -117,7 +117,8 @@ func NewFromEnv(name string) (*Plugin, error) {
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.host", Type: "string", Default: "127.0.0.1", Description: "TLS host for plugin-to-engine connection"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.port", Type: "string", Default: "12700", Description: "TLS port for plugin-to-engine connection"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.token", Type: "string", Description: "Auth token for plugin-to-engine TLS (required for external plugins)", Private: true})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.token", Type: "string", Description: "Auth token for plugin-to-engine TLS (required for external plugins)", Private: true, Secret: true})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.cert.fp", Type: "string", Description: "SHA-256 fingerprint of engine TLS cert for pinning"})
 )
 
 // Default plugin transport address (matches hub config default listen address).
@@ -127,10 +128,11 @@ const (
 )
 
 // NewFromTLSEnv creates a plugin by reading ze.plugin.hub.host, ze.plugin.hub.port,
-// and ze.plugin.hub.token env vars (dot or underscore notation).
+// ze.plugin.hub.token, and ze.plugin.cert.fp env vars (dot or underscore notation).
 // Connects to the engine via TLS, authenticates, and returns a single-conn plugin.
 // ze.plugin.hub.host defaults to 127.0.0.1, ze.plugin.hub.port defaults to 12700.
 // ze.plugin.hub.token is required.
+// If ze.plugin.cert.fp is set, the TLS handshake verifies the server cert fingerprint.
 func NewFromTLSEnv(name string) (*Plugin, error) {
 	host := env.Get("ze.plugin.hub.host")
 	if host == "" {
@@ -145,11 +147,10 @@ func NewFromTLSEnv(name string) (*Plugin, error) {
 		return nil, fmt.Errorf("ze.plugin.hub.token must be set")
 	}
 
+	certFP := env.Get("ze.plugin.cert.fp")
+
 	addr := net.JoinHostPort(host, port)
-	tlsConf := &tls.Config{
-		InsecureSkipVerify: true, //nolint:gosec // engine uses self-signed cert
-		MinVersion:         tls.VersionTLS13,
-	}
+	tlsConf := ipc.TLSConfigWithFingerprint(certFP)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

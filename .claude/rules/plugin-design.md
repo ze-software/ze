@@ -137,10 +137,10 @@ Auto-populated: CLI dispatch, plugin runners, YANG schemas, config roots, family
 | Plugin type | Transport | Auth | Config |
 |-------------|-----------|------|--------|
 | Internal (goroutine) | `net.Pipe()` then DirectBridge | N/A | implicit |
-| External (local) | TLS over TCP (single connection) | Token via `ZE_PLUGIN_HUB_TOKEN` env | `plugin { hub { server <name> { host ...; port ...; secret ...; } } }` |
+| External (local) | TLS over TCP (single connection) | Per-plugin token via `ZE_PLUGIN_HUB_TOKEN` env + cert pinning via `ZE_PLUGIN_CERT_FP` | `plugin { hub { server <name> { host ...; port ...; secret ...; } } }` |
 | External (remote) | TLS over TCP (single connection) | Token via out-of-band config | `plugin { hub { server <name> { host ...; port ...; secret ...; } } }` |
 
-External plugins connect back to the engine's TLS listener. Auth is stage 0: `#0 auth {"token":"...","name":"..."}`. After auth, the standard 5-stage handshake proceeds over the same single MuxConn connection.
+External plugins connect back to the engine's TLS listener. Auth is stage 0: `#0 auth {"token":"...","name":"..."}`. Each forked plugin receives a unique random token bound to its name. A plugin cannot use its token to impersonate another. The token is cleared from the OS environment after first read (`Secret: true` on the env registration). The engine also passes its TLS certificate SHA-256 fingerprint via `ZE_PLUGIN_CERT_FP` so the SDK verifies the server identity during the TLS handshake.
 
 ## Structured Event Delivery (DirectBridge)
 

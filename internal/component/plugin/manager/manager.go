@@ -217,7 +217,7 @@ func (m *Manager) ensureAcceptor(configs []parent.PluginConfig) error {
 		return fmt.Errorf("start TLS listeners: %w", err)
 	}
 
-	m.acceptor = pluginipc.NewPluginAcceptor(listeners[0], server.Secret)
+	m.acceptor = pluginipc.NewPluginAcceptor(listeners[0], server.Secret, pluginipc.CertFingerprint(cert))
 
 	// Wire per-client secrets if the server block has any.
 	if len(server.Clients) > 0 {

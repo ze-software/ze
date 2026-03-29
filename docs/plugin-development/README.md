@@ -85,8 +85,21 @@ process my-plugin {
 }
 ```
 
-The engine sets `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, and `ZE_PLUGIN_HUB_TOKEN` environment variables before launching the plugin process.
+The engine sets these environment variables before launching the plugin process:
+
+| Variable | Purpose |
+|----------|---------|
+| `ZE_PLUGIN_HUB_HOST` | TLS host to connect to (default 127.0.0.1) |
+| `ZE_PLUGIN_HUB_PORT` | TLS port to connect to (default 12700) |
+| `ZE_PLUGIN_HUB_TOKEN` | Per-plugin auth token (unique per plugin, cleared from env after read) |
+| `ZE_PLUGIN_CERT_FP` | SHA-256 fingerprint of the engine's TLS certificate (for cert pinning) |
+| `ZE_PLUGIN_NAME` | Plugin name as configured in ze |
+
+Each plugin receives its own unique auth token. The token is bound to the plugin name: a plugin cannot use its token to authenticate as a different plugin. The token is automatically cleared from the OS environment after the SDK reads it, so it is not visible in `/proc/<pid>/environ`.
+
+When `ZE_PLUGIN_CERT_FP` is set, the SDK verifies the engine's TLS certificate fingerprint during the handshake, preventing man-in-the-middle attacks.
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv, env var registrations -->
+<!-- source: internal/component/plugin/process/process.go -- startExternal env var setup -->
 
 ## What Can Plugins Do?
 

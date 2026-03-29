@@ -52,6 +52,13 @@ Never add new third-party imports (not already in `go.mod`) without asking the u
 
 **Registration required:** Every env var must be registered via package-level `var _ = env.MustRegister(...)`. Calling `env.Get()` with an unregistered key aborts the process.
 
+**Registration flags:**
+
+| Flag | Meaning |
+|------|---------|
+| `Private: true` | Hidden from `ze env list` and autocomplete |
+| `Secret: true` | Cleared from OS environment after first `Get()` (value stays in cache) |
+
 **`os.Getenv` IS OK for:** System env vars (`HOME`, `PATH`, `XDG_*`, `NO_COLOR`, `USER`, `SSH_*`).
 
 ## Forbidden

@@ -12,6 +12,7 @@ type EnvEntry struct {
 	Default     string // Default value ("" if required or no default)
 	Description string // One-line description
 	Private     bool   // If true, hidden from "ze env list" and autocomplete
+	Secret      bool   // If true, cleared from OS env after first Get() (value stays in cache)
 }
 
 // registered holds all known env var keys.
@@ -57,6 +58,12 @@ func Entries() []EnvEntry {
 		}
 	}
 	return result
+}
+
+// IsSecret returns true if the key is registered with Secret: true.
+func IsSecret(key string) bool {
+	e, ok := registered[key]
+	return ok && e.Secret
 }
 
 // AllEntries returns all registered env var entries including private ones (unordered).

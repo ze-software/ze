@@ -531,10 +531,17 @@ func (p *Process) startExternal() error {
 		binDir := filepath.Dir(exe)
 		p.cmd.Env = append(p.cmd.Env, "PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	}
+	// Generate a per-plugin token for name-bound authentication.
+	pluginToken, tokenErr := p.acceptor.TokenForPlugin(p.config.Name)
+	if tokenErr != nil {
+		return fmt.Errorf("plugin %s: generate token: %w", p.config.Name, tokenErr)
+	}
+
 	p.cmd.Env = append(p.cmd.Env,
 		"ZE_PLUGIN_HUB_HOST="+host,
 		"ZE_PLUGIN_HUB_PORT="+port,
-		"ZE_PLUGIN_HUB_TOKEN="+p.acceptor.Token(),
+		"ZE_PLUGIN_HUB_TOKEN="+pluginToken,
+		"ZE_PLUGIN_CERT_FP="+p.acceptor.CertFP(),
 		"ZE_PLUGIN_NAME="+p.config.Name,
 	)
 

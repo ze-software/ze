@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -313,7 +314,7 @@ func TestPluginAcceptorStartStop(t *testing.T) {
 	serverTLS, _ := selfSignedTLSConfig(t)
 	ln := startTestListener(t, serverTLS)
 
-	acceptor := NewPluginAcceptor(ln, "test-secret-that-is-long-enough-32ch")
+	acceptor := NewPluginAcceptor(ln, "test-secret-that-is-long-enough-32ch", "")
 	acceptor.Start()
 
 	addr := acceptor.Addr()
@@ -335,7 +336,7 @@ func TestPluginAcceptorWaitForPlugin(t *testing.T) {
 	serverTLS, clientTLS := selfSignedTLSConfig(t)
 	ln := startTestListener(t, serverTLS)
 
-	acceptor := NewPluginAcceptor(ln, "acceptor-secret-at-least-32-chars")
+	acceptor := NewPluginAcceptor(ln, "acceptor-secret-at-least-32-chars", "")
 	acceptor.Start()
 	defer acceptor.Stop()
 
@@ -376,7 +377,7 @@ func TestPluginAcceptorWaitTimeout(t *testing.T) {
 	serverTLS, _ := selfSignedTLSConfig(t)
 	ln := startTestListener(t, serverTLS)
 
-	acceptor := NewPluginAcceptor(ln, "timeout-secret-at-least-32-chars")
+	acceptor := NewPluginAcceptor(ln, "timeout-secret-at-least-32-chars", "")
 	acceptor.Start()
 	defer acceptor.Stop()
 
@@ -398,7 +399,7 @@ func TestPluginAcceptorWaitAfterStop(t *testing.T) {
 	serverTLS, _ := selfSignedTLSConfig(t)
 	ln := startTestListener(t, serverTLS)
 
-	acceptor := NewPluginAcceptor(ln, "stop-secret-at-least-32-chars-x")
+	acceptor := NewPluginAcceptor(ln, "stop-secret-at-least-32-chars-x", "")
 	acceptor.Start()
 
 	errCh := make(chan error, 1)
@@ -589,4 +590,292 @@ func TestPerClientSecretUnknownName(t *testing.T) {
 	result := <-resultCh
 	require.NoError(t, result.Err)
 	assert.Equal(t, "bgp-rib", result.Name)
+}
+
+// --- Per-Plugin Token and Name Binding Tests ---
+
+// TestPerPluginTokenNameBinding verifies that the correct token with the wrong name
+// is rejected when name binding is enforced.
+//
+// VALIDATES: AC-4 -- correct token + wrong name -> auth rejected.
+// PREVENTS: A plugin impersonating another by sending a different name with a valid token.
+func TestPerPluginTokenNameBinding(t *testing.T) {
+	t.Parallel()
+
+	serverTLS, clientTLS := selfSignedTLSConfig(t)
+	ln := startTestListener(t, serverTLS)
+	defer ln.Close() //nolint:errcheck // test cleanup
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resultCh := make(chan authResult, 1)
+	go func() {
+		conn, acceptErr := ln.Accept()
+		if acceptErr != nil {
+			resultCh <- authResult{Err: acceptErr}
+			return
+		}
+		// Expect name "bgp-rib" but client will send "bgp-gr".
+		name, authErr := AuthenticateWithName(ctx, conn, "per-plugin-secret-at-least-32-ch", "bgp-rib")
+		resultCh <- authResult{Name: name, Conn: conn, Err: authErr}
+	}()
+
+	conn, err := (&tls.Dialer{Config: clientTLS}).DialContext(ctx, "tcp", ln.Addr().String())
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck // test cleanup
+
+	// Send correct token but wrong name.
+	require.NoError(t, SendAuth(ctx, conn, "per-plugin-secret-at-least-32-ch", "bgp-gr"))
+
+	result := <-resultCh
+	require.Error(t, result.Err)
+	assert.Contains(t, result.Err.Error(), "name mismatch")
+}
+
+// TestPerPluginTokenWrongToken verifies that a wrong per-plugin token is rejected.
+//
+// VALIDATES: AC-5 -- another plugin's token -> auth rejected.
+// PREVENTS: Cross-plugin token reuse.
+func TestPerPluginTokenWrongToken(t *testing.T) {
+	t.Parallel()
+
+	serverTLS, clientTLS := selfSignedTLSConfig(t)
+	ln := startTestListener(t, serverTLS)
+	defer ln.Close() //nolint:errcheck // test cleanup
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resultCh := make(chan authResult, 1)
+	go func() {
+		conn, acceptErr := ln.Accept()
+		if acceptErr != nil {
+			resultCh <- authResult{Err: acceptErr}
+			return
+		}
+		name, authErr := AuthenticateWithName(ctx, conn, "correct-token-at-least-32-chars!", "bgp-rib")
+		resultCh <- authResult{Name: name, Conn: conn, Err: authErr}
+	}()
+
+	conn, err := (&tls.Dialer{Config: clientTLS}).DialContext(ctx, "tcp", ln.Addr().String())
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck // test cleanup
+
+	// Send wrong token with correct name.
+	require.NoError(t, SendAuth(ctx, conn, "wrong-token-at-least-32-chars!!!", "bgp-rib"))
+
+	result := <-resultCh
+	require.Error(t, result.Err)
+	assert.Contains(t, result.Err.Error(), "invalid token")
+}
+
+// TestPerPluginTokenNameBindingSuccess verifies that the correct token with the correct
+// name succeeds when name binding is enforced.
+//
+// VALIDATES: AC-3 -- correct per-plugin token + matching name -> auth succeeds.
+// PREVENTS: False rejection of valid per-plugin auth.
+func TestPerPluginTokenNameBindingSuccess(t *testing.T) {
+	t.Parallel()
+
+	serverTLS, clientTLS := selfSignedTLSConfig(t)
+	ln := startTestListener(t, serverTLS)
+	defer ln.Close() //nolint:errcheck // test cleanup
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	resultCh := make(chan authResult, 1)
+	go func() {
+		conn, acceptErr := ln.Accept()
+		if acceptErr != nil {
+			resultCh <- authResult{Err: acceptErr}
+			return
+		}
+		name, authErr := AuthenticateWithName(ctx, conn, "per-plugin-secret-at-least-32-ch", "bgp-rib")
+		resultCh <- authResult{Name: name, Conn: conn, Err: authErr}
+	}()
+
+	conn, err := (&tls.Dialer{Config: clientTLS}).DialContext(ctx, "tcp", ln.Addr().String())
+	require.NoError(t, err)
+	defer conn.Close() //nolint:errcheck // test cleanup
+
+	require.NoError(t, SendAuth(ctx, conn, "per-plugin-secret-at-least-32-ch", "bgp-rib"))
+
+	result := <-resultCh
+	require.NoError(t, result.Err)
+	assert.Equal(t, "bgp-rib", result.Name)
+}
+
+// TestTokenForPluginUniqueness verifies that TokenForPlugin generates different
+// tokens for different plugin names.
+//
+// VALIDATES: AC-1 -- different plugins get different tokens.
+// PREVENTS: All plugins sharing the same token.
+func TestTokenForPluginUniqueness(t *testing.T) {
+	t.Parallel()
+
+	serverTLS, _ := selfSignedTLSConfig(t)
+	ln := startTestListener(t, serverTLS)
+
+	acceptor := NewPluginAcceptor(ln, "shared-secret-at-least-32-chars!", "")
+	defer acceptor.Stop()
+
+	token1, err1 := acceptor.TokenForPlugin("bgp-rib")
+	token2, err2 := acceptor.TokenForPlugin("bgp-gr")
+	require.NoError(t, err1)
+	require.NoError(t, err2)
+
+	assert.NotEmpty(t, token1)
+	assert.NotEmpty(t, token2)
+	assert.NotEqual(t, token1, token2, "different plugins must get different tokens")
+
+	// Same plugin name returns the same token.
+	token1again, err3 := acceptor.TokenForPlugin("bgp-rib")
+	require.NoError(t, err3)
+	assert.Equal(t, token1, token1again, "same plugin must get same token")
+}
+
+// TestCertFingerprintComputation verifies that CertFingerprint returns a stable
+// SHA-256 hex digest of the DER-encoded certificate.
+//
+// VALIDATES: Cert fingerprint is deterministic SHA-256 of DER bytes.
+// PREVENTS: Wrong hash algorithm or encoding producing unstable fingerprints.
+func TestCertFingerprintComputation(t *testing.T) {
+	t.Parallel()
+
+	cert, err := GenerateSelfSignedCert()
+	require.NoError(t, err)
+
+	fp1 := CertFingerprint(cert)
+	fp2 := CertFingerprint(cert)
+
+	assert.NotEmpty(t, fp1)
+	assert.Equal(t, fp1, fp2, "fingerprint must be deterministic")
+	assert.Len(t, fp1, 64, "SHA-256 hex is 64 characters")
+}
+
+// TestCertFingerprintVerification verifies that a TLS connection succeeds when the
+// client verifies the server cert fingerprint.
+//
+// VALIDATES: AC-6 -- cert fingerprint matches -> TLS connects.
+// PREVENTS: Valid fingerprints being rejected.
+func TestCertFingerprintVerification(t *testing.T) {
+	t.Parallel()
+
+	cert, err := GenerateSelfSignedCert()
+	require.NoError(t, err)
+	fp := CertFingerprint(cert)
+
+	serverConf := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+	}
+	ln, listenErr := tls.Listen("tcp", "127.0.0.1:0", serverConf)
+	require.NoError(t, listenErr)
+	defer ln.Close() //nolint:errcheck // test cleanup
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	doneCh := make(chan error, 1)
+	go func() {
+		conn, acceptErr := ln.Accept()
+		if acceptErr != nil {
+			doneCh <- acceptErr
+			return
+		}
+		defer conn.Close() //nolint:errcheck // test cleanup
+		if tlsConn, ok := conn.(*tls.Conn); ok {
+			doneCh <- tlsConn.HandshakeContext(ctx)
+		}
+	}()
+
+	clientConf := TLSConfigWithFingerprint(fp)
+	conn, dialErr := (&tls.Dialer{Config: clientConf}).DialContext(ctx, "tcp", ln.Addr().String())
+	require.NoError(t, dialErr)
+	require.NoError(t, conn.Close())
+
+	require.NoError(t, <-doneCh)
+}
+
+// TestCertFingerprintMismatch verifies that a TLS connection fails when the
+// fingerprint doesn't match.
+//
+// VALIDATES: AC-7 -- wrong fingerprint -> TLS handshake fails.
+// PREVENTS: Accepting connections to a server with a different cert.
+func TestCertFingerprintMismatch(t *testing.T) {
+	t.Parallel()
+
+	cert, err := GenerateSelfSignedCert()
+	require.NoError(t, err)
+
+	serverConf := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+	}
+	ln, listenErr := tls.Listen("tcp", "127.0.0.1:0", serverConf)
+	require.NoError(t, listenErr)
+	defer ln.Close() //nolint:errcheck // test cleanup
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	go func() {
+		conn, acceptErr := ln.Accept()
+		if acceptErr != nil {
+			return
+		}
+		defer conn.Close() //nolint:errcheck // test cleanup
+		if tlsConn, ok := conn.(*tls.Conn); ok {
+			_ = tlsConn.HandshakeContext(ctx) // Will fail because client rejects
+		}
+	}()
+
+	// Use a fake fingerprint that doesn't match.
+	wrongFP := "deadbeef" + strings.Repeat("00", 28)
+	clientConf := TLSConfigWithFingerprint(wrongFP)
+	_, dialErr := (&tls.Dialer{Config: clientConf}).DialContext(ctx, "tcp", ln.Addr().String())
+	require.Error(t, dialErr)
+	assert.Contains(t, dialErr.Error(), "fingerprint mismatch")
+}
+
+// TestCertFingerprintFallback verifies that an empty fingerprint falls back
+// to InsecureSkipVerify behavior.
+//
+// VALIDATES: AC-8 -- no fingerprint -> InsecureSkipVerify (backwards compat).
+// PREVENTS: Breaking manual external plugins that don't have a fingerprint.
+func TestCertFingerprintFallback(t *testing.T) {
+	t.Parallel()
+
+	cert, err := GenerateSelfSignedCert()
+	require.NoError(t, err)
+
+	serverConf := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+	}
+	ln, listenErr := tls.Listen("tcp", "127.0.0.1:0", serverConf)
+	require.NoError(t, listenErr)
+	defer ln.Close() //nolint:errcheck // test cleanup
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	go func() {
+		conn, acceptErr := ln.Accept()
+		if acceptErr != nil {
+			return
+		}
+		defer conn.Close() //nolint:errcheck // test cleanup
+		if tlsConn, ok := conn.(*tls.Conn); ok {
+			_ = tlsConn.HandshakeContext(ctx)
+		}
+	}()
+
+	// Empty fingerprint should fall back to InsecureSkipVerify.
+	clientConf := TLSConfigWithFingerprint("")
+	conn, dialErr := (&tls.Dialer{Config: clientConf}).DialContext(ctx, "tcp", ln.Addr().String())
+	require.NoError(t, dialErr)
+	require.NoError(t, conn.Close())
 }

@@ -21,6 +21,8 @@ func TestMain(m *testing.M) {
 	MustRegister(EnvEntry{Key: "ze.test.set.val", Type: "string", Description: "test key"})
 	MustRegister(EnvEntry{Key: "ze.test.private.val", Type: "string", Description: "secret", Private: true})
 	MustRegister(EnvEntry{Key: "ze.test.public.val", Type: "string", Description: "visible"})
+	MustRegister(EnvEntry{Key: "ze.test.secret.val", Type: "string", Description: "sensitive token", Secret: true})
+	MustRegister(EnvEntry{Key: "ze.test.nonsecret.val", Type: "string", Description: "normal var"})
 	os.Exit(m.Run())
 }
 
@@ -329,4 +331,70 @@ func TestEntriesExcludesPrivate(t *testing.T) {
 	}
 	assert.True(t, allKeys["ze.test.private.val"], "private key should appear in AllEntries()")
 	assert.True(t, allKeys["ze.test.public.val"], "public key should appear in AllEntries()")
+}
+
+// TestSecretEnvVarCleared verifies that Secret vars are removed from the OS
+// environment after the first Get() call.
+//
+// VALIDATES: AC-2 -- Secret var cleared from /proc/<pid>/environ after first read.
+// PREVENTS: Sensitive tokens lingering in the process environment.
+func TestSecretEnvVarCleared(t *testing.T) {
+	const key = "ze.test.secret.val"
+
+	unsetAll(t, key)
+	defer unsetAll(t, key)
+
+	require.NoError(t, os.Setenv("ZE_TEST_SECRET_VAL", "my-token-123"))
+	ResetCache()
+
+	// First Get should return the value and clear the OS env.
+	val := Get(key)
+	assert.Equal(t, "my-token-123", val)
+
+	// OS env should no longer have the variable.
+	assert.Empty(t, os.Getenv("ZE_TEST_SECRET_VAL"), "secret var must be cleared from OS env after Get")
+}
+
+// TestSecretEnvVarCachedAfterClear verifies that a Secret var is still
+// retrievable from cache after being cleared from the OS environment.
+//
+// VALIDATES: AC-2 -- subsequent Get() still returns cached value.
+// PREVENTS: Secret vars becoming unreadable after the first access.
+func TestSecretEnvVarCachedAfterClear(t *testing.T) {
+	const key = "ze.test.secret.val"
+
+	unsetAll(t, key)
+	defer unsetAll(t, key)
+
+	require.NoError(t, os.Setenv("ZE_TEST_SECRET_VAL", "cached-token"))
+	ResetCache()
+
+	// First read caches + clears OS env.
+	val1 := Get(key)
+	assert.Equal(t, "cached-token", val1)
+
+	// Second read should still return the cached value.
+	val2 := Get(key)
+	assert.Equal(t, "cached-token", val2)
+}
+
+// TestNonSecretEnvVarNotCleared verifies that non-Secret vars are NOT removed
+// from the OS environment.
+//
+// VALIDATES: Only Secret vars are cleared, normal vars remain.
+// PREVENTS: Accidentally clearing all env vars.
+func TestNonSecretEnvVarNotCleared(t *testing.T) {
+	const key = "ze.test.nonsecret.val"
+
+	unsetAll(t, key)
+	defer unsetAll(t, key)
+
+	require.NoError(t, os.Setenv("ZE_TEST_NONSECRET_VAL", "keep-me"))
+	ResetCache()
+
+	val := Get(key)
+	assert.Equal(t, "keep-me", val)
+
+	// OS env should still have the variable.
+	assert.Equal(t, "keep-me", os.Getenv("ZE_TEST_NONSECRET_VAL"), "non-secret var must NOT be cleared from OS env")
 }
