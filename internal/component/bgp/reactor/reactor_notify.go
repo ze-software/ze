@@ -2,6 +2,7 @@
 // Overview: reactor.go — BGP reactor event loop and peer management
 // Related: received_update.go — ReceivedUpdate created on inbound UPDATE
 // Related: forward_build.go — progressive build for egress attribute modification
+// Related: update_group.go — update group Add/Remove on peer lifecycle
 
 package reactor
 
@@ -64,6 +65,11 @@ func (r *Reactor) notifyPeerEstablished(peer *Peer) {
 		}
 	}
 
+	// Register peer in update group index by sendCtxID.
+	if r.updateGroups != nil {
+		r.updateGroups.Add(peer)
+	}
+
 	r.observersMu.RLock()
 	observers := r.peerObservers
 	r.observersMu.RUnlock()
@@ -106,6 +112,12 @@ func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
 
 // notifyPeerClosed calls all observers when peer leaves Established.
 func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
+	// Remove peer from update group index before notifying observers.
+	// Must happen before clearEncodingContexts resets sendCtxID to 0.
+	if r.updateGroups != nil {
+		r.updateGroups.Remove(peer)
+	}
+
 	r.observersMu.RLock()
 	observers := r.peerObservers
 	r.observersMu.RUnlock()

@@ -8,6 +8,7 @@
 // Detail: peer_stats.go — atomic message/route counters and uptime
 // Detail: peer_run.go — peer run loop and session lifecycle
 // Detail: routerid_unique.go — router-ID conflict detection
+// Related: update_group.go — group join/leave keyed by sendCtxID
 
 package reactor
 

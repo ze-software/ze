@@ -3,6 +3,7 @@
 // Related: reactor_api_batch.go — NLRI batch operations
 // Related: reactor_wire.go — zero-allocation wire UPDATE builders
 // Related: forward_pool.go — per-peer forward worker pool used by ForwardUpdate
+// Related: update_group.go — cross-peer UPDATE grouping index
 // Detail: forward_build.go — progressive build for egress attribute modification
 package reactor
 
@@ -236,6 +237,25 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 	var parsedWire *wireu.WireUpdate
 	var dispatchedCount int
 
+	// Group-aware forward cache: when update groups are enabled, peers with
+	// the same sendCtxID receiving the same peerWire (no per-peer mods) get
+	// identical fwdItem bodies. Cache the computed rawBodies/updates per
+	// (destCtxID, peerWire) to avoid redundant context checks and parsing.
+	type fwdBodyCacheKey struct {
+		destCtxID bgpctx.ContextID
+		wire      *wireu.WireUpdate // pointer identity (same wire = same payload)
+		extended  bool              // ExtendedMessage affects maxMsgSize and split decisions
+	}
+	type fwdBodyCacheEntry struct {
+		rawBodies [][]byte
+		updates   []*message.Update
+	}
+	groupsEnabled := a.r.updateGroups != nil && a.r.updateGroups.Enabled()
+	var fwdBodyCache map[fwdBodyCacheKey]*fwdBodyCacheEntry
+	if groupsEnabled {
+		fwdBodyCache = make(map[fwdBodyCacheKey]*fwdBodyCacheEntry)
+	}
+
 	// Build source PeerFilterInfo once for egress filter chain.
 	var srcFilter registry.PeerFilterInfo
 	if len(a.r.egressFilters) > 0 {
@@ -334,73 +354,94 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint6
 		extendedMessage := nc != nil && nc.ExtendedMessage
 		maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, extendedMessage))
 
-		// Calculate update size for this peer's wire version (header + body)
-		updateSize := message.HeaderLen + len(peerWire.Payload())
-
-		// Check if UPDATE exceeds peer's max message size
-		if updateSize > maxMsgSize {
-			// Wire-level split: get source context for per-family ADD-PATH lookup
-			srcCtxID := peerWire.SourceCtxID()
-			srcCtx := bgpctx.Registry.Get(srcCtxID) // May be nil if not registered
-
-			maxBodySize := maxMsgSize - message.HeaderLen
-			splits, err := wireu.SplitWireUpdate(peerWire, maxBodySize, srcCtx)
-			if err != nil {
-				fwdLogger().Warn("forward split failed",
-					"peer", peer.Settings().Address,
-					"err", err,
-				)
-				continue
+		// Group-aware forward: check cache for peers with identical context
+		// and wire version. Avoids redundant context checks and parsing.
+		destCtxID := peer.SendContextID()
+		if groupsEnabled {
+			cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage}
+			if cached, ok := fwdBodyCache[cacheKey]; ok {
+				item.rawBodies = cached.rawBodies
+				item.updates = cached.updates
+				goto dispatch
 			}
-			for _, split := range splits {
-				item.rawBodies = append(item.rawBodies, split.Payload())
-			}
-		} else {
-			// Normal path: UPDATE fits within peer's message limit
-			destCtxID := peer.SendContextID()
+		}
 
-			// Zero-copy path: use raw bytes when contexts match
-			// Both must be non-zero (registered) and equal
-			srcCtxID := peerWire.SourceCtxID()
-			if srcCtxID != 0 && destCtxID != 0 && srcCtxID == destCtxID {
-				item.rawBodies = append(item.rawBodies, peerWire.Payload())
-			} else {
-				// Re-encode path: parse (lazily) and send.
-				// Reset cached parse if wire version changed (IBGP vs EBGP use different payloads).
-				if parsedUpdate == nil || parsedWire != peerWire {
-					var parseErr error
-					parsedUpdate, parseErr = message.UnpackUpdate(peerWire.Payload())
-					if parseErr != nil {
-						return fmt.Errorf("parsing cached update: %w", parseErr)
-					}
-					parsedWire = peerWire
+		{
+			// Calculate update size for this peer's wire version (header + body)
+			updateSize := message.HeaderLen + len(peerWire.Payload())
+
+			// Check if UPDATE exceeds peer's max message size
+			if updateSize > maxMsgSize {
+				// Wire-level split: get source context for per-family ADD-PATH lookup
+				srcCtxID := peerWire.SourceCtxID()
+				srcCtx := bgpctx.Registry.Get(srcCtxID) // May be nil if not registered
+
+				maxBodySize := maxMsgSize - message.HeaderLen
+				splits, err := wireu.SplitWireUpdate(peerWire, maxBodySize, srcCtx)
+				if err != nil {
+					fwdLogger().Warn("forward split failed",
+						"peer", peer.Settings().Address,
+						"err", err,
+					)
+					continue
 				}
-
-				// Check repacked size - may differ from original due to ASN4 encoding changes
-				// Size = Header(19) + WithdrawnLen(2) + Withdrawn + AttrLen(2) + Attrs + NLRI
-				repackedSize := message.HeaderLen + 4 + len(parsedUpdate.WithdrawnRoutes) +
-					len(parsedUpdate.PathAttributes) + len(parsedUpdate.NLRI)
-				if repackedSize > maxMsgSize {
-					// Split via parsed UPDATE using destination's ADD-PATH state.
-					// RFC 7911: ADD-PATH is negotiated per AFI/SAFI, so determine
-					// the UPDATE's dominant family and query that.
-					destSendCtx := peer.SendContext()
-					addPath := addPathForUpdate(destSendCtx, parsedUpdate)
-
-					chunks, splitErr := message.SplitUpdateWithAddPath(parsedUpdate, maxMsgSize, addPath)
-					if splitErr != nil {
-						fwdLogger().Warn("forward split failed",
-							"peer", peer.Settings().Address,
-							"err", splitErr,
-						)
-						continue
-					}
-					item.updates = append(item.updates, chunks...)
+				for _, split := range splits {
+					item.rawBodies = append(item.rawBodies, split.Payload())
+				}
+			} else {
+				// Zero-copy path: use raw bytes when contexts match
+				// Both must be non-zero (registered) and equal
+				srcCtxID := peerWire.SourceCtxID()
+				if srcCtxID != 0 && destCtxID != 0 && srcCtxID == destCtxID {
+					item.rawBodies = append(item.rawBodies, peerWire.Payload())
 				} else {
-					item.updates = append(item.updates, parsedUpdate)
+					// Re-encode path: parse (lazily) and send.
+					// Reset cached parse if wire version changed (IBGP vs EBGP use different payloads).
+					if parsedUpdate == nil || parsedWire != peerWire {
+						var parseErr error
+						parsedUpdate, parseErr = message.UnpackUpdate(peerWire.Payload())
+						if parseErr != nil {
+							return fmt.Errorf("parsing cached update: %w", parseErr)
+						}
+						parsedWire = peerWire
+					}
+
+					// Check repacked size - may differ from original due to ASN4 encoding changes
+					// Size = Header(19) + WithdrawnLen(2) + Withdrawn + AttrLen(2) + Attrs + NLRI
+					repackedSize := message.HeaderLen + 4 + len(parsedUpdate.WithdrawnRoutes) +
+						len(parsedUpdate.PathAttributes) + len(parsedUpdate.NLRI)
+					if repackedSize > maxMsgSize {
+						// Split via parsed UPDATE using destination's ADD-PATH state.
+						// RFC 7911: ADD-PATH is negotiated per AFI/SAFI, so determine
+						// the UPDATE's dominant family and query that.
+						destSendCtx := peer.SendContext()
+						addPath := addPathForUpdate(destSendCtx, parsedUpdate)
+
+						chunks, splitErr := message.SplitUpdateWithAddPath(parsedUpdate, maxMsgSize, addPath)
+						if splitErr != nil {
+							fwdLogger().Warn("forward split failed",
+								"peer", peer.Settings().Address,
+								"err", splitErr,
+							)
+							continue
+						}
+						item.updates = append(item.updates, chunks...)
+					} else {
+						item.updates = append(item.updates, parsedUpdate)
+					}
+				}
+			}
+
+			// Store in cache for subsequent group members with same context.
+			if groupsEnabled {
+				cacheKey := fwdBodyCacheKey{destCtxID: destCtxID, wire: peerWire, extended: extendedMessage}
+				fwdBodyCache[cacheKey] = &fwdBodyCacheEntry{
+					rawBodies: item.rawBodies,
+					updates:   item.updates,
 				}
 			}
 		}
+	dispatch:
 
 		// Route superseding key (AC-23): FNV hash of raw body content.
 		// Zero for re-encode path items (updates only, no raw bodies).

@@ -7,6 +7,7 @@
 // Detail: config.go — config tree parsing (PeersFromTree)
 // Detail: listener.go — TCP listener management
 // Detail: signal.go — OS signal handling
+// Detail: update_group.go — cross-peer UPDATE grouping index
 // Detail: forward_pool.go — per-peer forward worker pool
 // Detail: recent_cache.go — recent UPDATE cache
 // Detail: reactor_metrics.go — Prometheus metrics initialization and update loop
@@ -250,6 +251,10 @@ type Reactor struct {
 	// budget when peers are added, removed, or complete EOR.
 	fwdWeights *weightTracker
 
+	// updateGroups indexes established peers by encoding context for
+	// group-aware UPDATE building and forwarding. nil when disabled.
+	updateGroups *UpdateGroupIndex
+
 	// Config tree for plugin JSON delivery
 	configTree map[string]any
 
@@ -354,7 +359,8 @@ func New(config *Config) *Reactor {
 			overflowPoolSize: fwdPoolSize,
 			batchLimit:       fwdBatchLimit,
 		}),
-		configTree: config.ConfigTree,
+		configTree:   config.ConfigTree,
+		updateGroups: NewUpdateGroupIndexFromEnv(),
 	}
 
 	// Weight tracker: recalculates pool budget when peers change.

@@ -1,6 +1,7 @@
 // Design: docs/architecture/core-design.md — NLRI batch announce/withdraw and wire attribute building
 // Overview: reactor_api.go — API command handling core
 // Related: reactor_api_forward.go — forwarding and grouped sending
+// Related: update_group.go — cross-peer UPDATE grouping index
 package reactor
 
 import (
@@ -58,6 +59,30 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch bgptype
 	var lastErr error
 	var acceptedCount int
 
+	// Group-aware path: when update groups are enabled, collect established
+	// peers with identical build parameters and build the UPDATE once per group.
+	// Falls back to per-peer when disabled or when peers differ.
+	type announceBuildKey struct {
+		nextHop  netip.Addr
+		isIBGP   bool
+		localAS  uint32
+		addPath  bool
+		asn4     bool
+		extended bool // ExtendedMessage negotiated
+	}
+	type announceBuildGroup struct {
+		key     announceBuildKey
+		peers   []*Peer
+		nextHop netip.Addr
+	}
+
+	groupsEnabled := a.r.updateGroups != nil && a.r.updateGroups.Enabled()
+	var buildGroups map[announceBuildKey]*announceBuildGroup
+
+	if groupsEnabled {
+		buildGroups = make(map[announceBuildKey]*announceBuildGroup)
+	}
+
 	for _, peer := range peers {
 		isIBGP := peer.Settings().IsIBGP()
 
@@ -78,26 +103,40 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch bgptype
 				continue // Skip peer that doesn't support this family
 			}
 
-			// Get max message size from capabilities
-			// RFC 8654: 65535 if ExtendedMessage, else 4096
-			maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
-			addPath := peer.addPathFor(batch.Family)
-			asn4 := peer.asn4()
-
-			// Build UPDATE message for this batch using pooled buffers
-			attrHandle := getBuildBuf()
-			nlriHandle := getBuildBuf()
-			update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, asn4, addPath, peer.Settings().LocalAS)
-
-			// Send with splitting for large batches
-			// RFC 4271: Each split UPDATE is self-contained with full attributes
-			if err := peer.sendUpdateWithSplit(update, maxMsgSize, addPath); err != nil {
-				lastErr = err
+			if groupsEnabled {
+				// Collect peer into build group for deferred batch build.
+				bk := announceBuildKey{
+					nextHop:  nextHop,
+					isIBGP:   isIBGP,
+					localAS:  peer.Settings().LocalAS,
+					addPath:  peer.addPathFor(batch.Family),
+					asn4:     peer.asn4(),
+					extended: nc.ExtendedMessage,
+				}
+				bg, ok := buildGroups[bk]
+				if !ok {
+					bg = &announceBuildGroup{key: bk, nextHop: nextHop}
+					buildGroups[bk] = bg
+				}
+				bg.peers = append(bg.peers, peer)
 			} else {
-				acceptedCount++
+				// Per-peer path (update groups disabled).
+				maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
+				addPath := peer.addPathFor(batch.Family)
+				asn4 := peer.asn4()
+
+				attrHandle := getBuildBuf()
+				nlriHandle := getBuildBuf()
+				update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, nextHop, isIBGP, asn4, addPath, peer.Settings().LocalAS)
+
+				if err := peer.sendUpdateWithSplit(update, maxMsgSize, addPath); err != nil {
+					lastErr = err
+				} else {
+					acceptedCount++
+				}
+				putBuildBuf(attrHandle)
+				putBuildBuf(nlriHandle)
 			}
-			putBuildBuf(attrHandle)
-			putBuildBuf(nlriHandle)
 		} else {
 			// Session not established or queue draining: queue to preserve order
 			for _, n := range batch.NLRIs {
@@ -106,6 +145,25 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch bgptype
 			}
 			acceptedCount++ // Queued counts as accepted
 		}
+	}
+
+	// Build once per group, send to all members.
+	for _, bg := range buildGroups {
+		maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, bg.key.extended))
+
+		attrHandle := getBuildBuf()
+		nlriHandle := getBuildBuf()
+		update := a.buildBatchAnnounceUpdate(attrHandle.Buf, nlriHandle.Buf, batch, bg.nextHop, bg.key.isIBGP, bg.key.asn4, bg.key.addPath, bg.key.localAS)
+
+		for _, peer := range bg.peers {
+			if err := peer.sendUpdateWithSplit(update, maxMsgSize, bg.key.addPath); err != nil {
+				lastErr = err
+			} else {
+				acceptedCount++
+			}
+		}
+		putBuildBuf(attrHandle)
+		putBuildBuf(nlriHandle)
 	}
 
 	// Return warning-level error if no peers accepted (all skipped due to family)
@@ -127,6 +185,24 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch bgptype
 	var lastErr error
 	var acceptedCount int
 
+	// Group-aware path for withdraw: peers with the same addPath and
+	// ExtendedMessage produce identical withdraw UPDATEs.
+	type withdrawBuildKey struct {
+		addPath  bool
+		extended bool
+	}
+	type withdrawBuildGroup struct {
+		key   withdrawBuildKey
+		peers []*Peer
+	}
+
+	groupsEnabled := a.r.updateGroups != nil && a.r.updateGroups.Enabled()
+	var wdGroups map[withdrawBuildKey]*withdrawBuildGroup
+
+	if groupsEnabled {
+		wdGroups = make(map[withdrawBuildKey]*withdrawBuildGroup)
+	}
+
 	for _, peer := range peers {
 		if !peer.ShouldQueue() {
 			// Check family negotiation
@@ -135,23 +211,34 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch bgptype
 				continue // Skip peer that doesn't support this family
 			}
 
-			// Get max message size from capabilities
-			maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
-			addPath := peer.addPathFor(batch.Family)
-
-			// Build withdraw UPDATE for this batch using pooled buffers
-			attrHandle := getBuildBuf()
-			nlriHandle := getBuildBuf()
-			update := a.buildBatchWithdrawUpdate(attrHandle.Buf, nlriHandle.Buf, batch, addPath)
-
-			// Send with splitting for large batches
-			if err := peer.sendUpdateWithSplit(update, maxMsgSize, addPath); err != nil {
-				lastErr = err
+			if groupsEnabled {
+				wk := withdrawBuildKey{
+					addPath:  peer.addPathFor(batch.Family),
+					extended: nc.ExtendedMessage,
+				}
+				wg, ok := wdGroups[wk]
+				if !ok {
+					wg = &withdrawBuildGroup{key: wk}
+					wdGroups[wk] = wg
+				}
+				wg.peers = append(wg.peers, peer)
 			} else {
-				acceptedCount++
+				// Per-peer path (update groups disabled).
+				maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
+				addPath := peer.addPathFor(batch.Family)
+
+				attrHandle := getBuildBuf()
+				nlriHandle := getBuildBuf()
+				update := a.buildBatchWithdrawUpdate(attrHandle.Buf, nlriHandle.Buf, batch, addPath)
+
+				if err := peer.sendUpdateWithSplit(update, maxMsgSize, addPath); err != nil {
+					lastErr = err
+				} else {
+					acceptedCount++
+				}
+				putBuildBuf(attrHandle)
+				putBuildBuf(nlriHandle)
 			}
-			putBuildBuf(attrHandle)
-			putBuildBuf(nlriHandle)
 		} else {
 			// Session not established or queue draining: queue to preserve order
 			for _, n := range batch.NLRIs {
@@ -159,6 +246,25 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch bgptype
 			}
 			acceptedCount++ // Queued counts as accepted
 		}
+	}
+
+	// Build once per group, send to all members.
+	for _, wg := range wdGroups {
+		maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, wg.key.extended))
+
+		attrHandle := getBuildBuf()
+		nlriHandle := getBuildBuf()
+		update := a.buildBatchWithdrawUpdate(attrHandle.Buf, nlriHandle.Buf, batch, wg.key.addPath)
+
+		for _, peer := range wg.peers {
+			if err := peer.sendUpdateWithSplit(update, maxMsgSize, wg.key.addPath); err != nil {
+				lastErr = err
+			} else {
+				acceptedCount++
+			}
+		}
+		putBuildBuf(attrHandle)
+		putBuildBuf(nlriHandle)
 	}
 
 	// Return warning-level error if no peers accepted (all skipped due to family)
