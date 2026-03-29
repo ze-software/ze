@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"net/netip"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -246,4 +247,123 @@ func TestUpdateGroupZeroContextID(t *testing.T) {
 	idx.Add(peer)
 
 	assert.Len(t, idx.groups, 0, "ctxID=0 peer should not be added to any group")
+}
+
+// VALIDATES: Double-Remove safety -- peer.updateGroupKey cleared on first Remove.
+// PREVENTS: Panic or corruption on redundant Remove calls.
+func TestUpdateGroupDoubleRemove(t *testing.T) {
+	idx := NewUpdateGroupIndex(true)
+
+	peer := testPeerWithCtxID(netip.MustParseAddr("10.0.0.1"), 11)
+	idx.Add(peer)
+
+	key := GroupKey{CtxID: 11, PolicyKey: 0}
+	require.Len(t, idx.groups[key].Members, 1, "peer should be in group after Add")
+
+	idx.Remove(peer)
+	assert.Len(t, idx.groups, 0, "group should be gone after first Remove")
+
+	// Second Remove must not panic or corrupt state.
+	assert.NotPanics(t, func() { idx.Remove(peer) }, "double Remove must not panic")
+	assert.Len(t, idx.groups, 0, "index should still be empty after double Remove")
+	assert.Equal(t, GroupKey{}, peer.updateGroupKey, "updateGroupKey should be zero after Remove")
+}
+
+// VALIDATES: Re-establishment with identical capabilities works.
+// PREVENTS: Stale state from previous session interfering with new group membership.
+func TestUpdateGroupReestablishSameCtxID(t *testing.T) {
+	idx := NewUpdateGroupIndex(true)
+
+	peer := testPeerWithCtxID(netip.MustParseAddr("10.0.0.1"), 12)
+	idx.Add(peer)
+
+	key := GroupKey{CtxID: 12, PolicyKey: 0}
+	require.Len(t, idx.groups[key].Members, 1)
+
+	// Simulate session teardown + re-establishment with same ctxID.
+	idx.Remove(peer)
+	assert.Len(t, idx.groups, 0, "group should be gone after Remove")
+
+	// Re-add with same ctxID (same capabilities negotiated again).
+	peer.sendCtxID = 12
+	idx.Add(peer)
+
+	group, ok := idx.groups[key]
+	require.True(t, ok, "group should exist after re-Add")
+	assert.Len(t, group.Members, 1, "should have exactly one member after re-establishment")
+	assert.Equal(t, peer, group.Members[0], "member should be the re-added peer")
+}
+
+// VALIDATES: Mutex protects concurrent access correctly.
+// PREVENTS: Data races between concurrent peer lifecycle events.
+func TestUpdateGroupConcurrentAddRemove(t *testing.T) {
+	idx := NewUpdateGroupIndex(true)
+
+	const numPeers = 100
+	peers := make([]*Peer, numPeers)
+	for i := range peers {
+		addr := netip.AddrFrom4([4]byte{10, 0, byte(i / 256), byte(i % 256)})
+		// Use a small set of ctxIDs to force contention on the same groups.
+		ctxID := bgpctx.ContextID((i % 5) + 1)
+		peers[i] = testPeerWithCtxID(addr, ctxID)
+	}
+
+	var wg sync.WaitGroup
+
+	// Launch goroutines that Add all peers concurrently.
+	for i := range peers {
+		wg.Add(1)
+		go func(p *Peer) {
+			defer wg.Done()
+			idx.Add(p)
+		}(peers[i])
+	}
+	wg.Wait()
+
+	// All peers should be in groups -- 5 groups with 20 members each.
+	assert.Len(t, idx.groups, 5, "should have 5 groups after concurrent Add")
+	total := 0
+	for _, g := range idx.groups {
+		total += len(g.Members)
+	}
+	assert.Equal(t, numPeers, total, "total members should equal number of peers added")
+
+	// Launch goroutines that Remove all peers concurrently.
+	for i := range peers {
+		wg.Add(1)
+		go func(p *Peer) {
+			defer wg.Done()
+			idx.Remove(p)
+		}(peers[i])
+	}
+	wg.Wait()
+
+	assert.Len(t, idx.groups, 0, "all groups should be empty after concurrent Remove")
+}
+
+// VALIDATES: Empty input handled correctly.
+// PREVENTS: Nil pointer dereference on empty peer list.
+func TestUpdateGroupGroupsForPeersEmpty(t *testing.T) {
+	idx := NewUpdateGroupIndex(true)
+
+	// Add a peer so the index is non-empty, then query with empty slice.
+	peer := testPeerWithCtxID(netip.MustParseAddr("10.0.0.1"), 13)
+	idx.Add(peer)
+
+	groups := idx.GroupsForPeers([]*Peer{})
+	assert.Nil(t, groups, "GroupsForPeers with empty slice should return nil")
+}
+
+// VALIDATES: Unestablished peers filtered correctly.
+// PREVENTS: Groups created for unestablished peers.
+func TestUpdateGroupGroupsForPeersAllZeroCtxID(t *testing.T) {
+	idx := NewUpdateGroupIndex(true)
+
+	// Create peers with ctxID=0 (not established).
+	peer1 := testPeerWithCtxID(netip.MustParseAddr("10.0.0.1"), 0)
+	peer2 := testPeerWithCtxID(netip.MustParseAddr("10.0.0.2"), 0)
+	peer3 := testPeerWithCtxID(netip.MustParseAddr("10.0.0.3"), 0)
+
+	groups := idx.GroupsForPeers([]*Peer{peer1, peer2, peer3})
+	assert.Nil(t, groups, "GroupsForPeers with all ctxID=0 peers should return nil")
 }
