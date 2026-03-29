@@ -12,8 +12,8 @@ import (
 )
 
 // coordinatorLogger is the coordinator subsystem logger (lazy initialization).
-// Controlled by ze.log.coordinator environment variable.
-var coordinatorLogger = slogutil.LazyLogger("coordinator")
+// Controlled by ze.log.plugin.coordinator environment variable.
+var coordinatorLogger = slogutil.LazyLogger("plugin.coordinator")
 
 // StartupCoordinator synchronizes plugin startup across stages.
 // All plugins must complete each stage before any can proceed to the next.

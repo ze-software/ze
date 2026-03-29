@@ -1,6 +1,5 @@
 // Design: docs/architecture/config/syntax.md — environment extraction from config tree
 // Overview: environment.go — environment configuration loading and defaults
-// Related: system.go — system identity extraction (same tree-walking pattern)
 
 package config
 
@@ -15,8 +14,8 @@ func ExtractEnvironment(tree *Tree) map[string]map[string]string {
 
 	result := make(map[string]map[string]string)
 
-	// Extract each section (daemon, log, tcp, bgp, cache, api, reactor, debug)
-	sections := []string{"daemon", "log", "tcp", "bgp", "cache", "api", "reactor", "debug"}
+	// Extract each section.
+	sections := []string{"daemon", "log", "tcp", "bgp", "cache", "api", "reactor", "debug", "chaos"}
 	for _, section := range sections {
 		sectionContainer := envContainer.GetContainer(section)
 		if sectionContainer == nil {

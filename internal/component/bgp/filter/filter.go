@@ -18,8 +18,8 @@ import (
 )
 
 // filterLogger is the filter subsystem logger (lazy initialization).
-// Controlled by ze.log.filter environment variable.
-var filterLogger = slogutil.LazyLogger("filter")
+// Controlled by ze.log.bgp.filter environment variable.
+var filterLogger = slogutil.LazyLogger("bgp.filter")
 
 // Filter keywords.
 const (

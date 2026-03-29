@@ -156,9 +156,9 @@ ze plugin hostname --log-level debug
 
 | Variable | Subsystem |
 |----------|-----------|
-| `ze.log.server` | Plugin server, process management |
-| `ze.log.config` | Config parsing, YANG loading |
-| `ze.log.hostname` | Hostname plugin (via CLI flag) |
+| `ze.log.plugin.server` | Plugin RPC server and stage protocol |
+| `ze.log.plugin` | Plugin process lifecycle and event delivery |
+| `ze.log.bgp.config` | Config parsing, YANG loading |
 <!-- source: internal/core/slogutil/ -- Logger, PluginLogger, LazyLogger -->
 
 ## Debugging Checklist

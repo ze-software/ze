@@ -21,7 +21,7 @@ import (
 	sdk "codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
-var logger = slogutil.LazyLogger("filter-community")
+var logger = slogutil.LazyLogger("bgp.filter.community")
 
 // state holds the plugin's runtime state, populated via OnConfigure callback.
 // Protected by mu for concurrent access from filter closures.

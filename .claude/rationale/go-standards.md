@@ -4,25 +4,27 @@ Why: `.claude/rules/go-standards.md`
 
 ## Logging Subsystem Env Vars
 
+Names follow `<domain>.<component>` convention. Run `ze env` for the full list.
+
 | Variable | Purpose |
 |----------|---------|
 | `ze.log` | Base level for ALL |
-| `ze.log.bgp` | All bgp.* |
+| `ze.log.bgp` | All bgp.* subsystems |
+| `ze.log.bgp.config` | Config parsing |
+| `ze.log.bgp.filter` | Route filtering |
 | `ze.log.bgp.reactor` | All bgp.reactor.* |
-| `ze.log.server` | Plugin server |
-| `ze.log.coordinator` | Startup coordinator |
-| `ze.log.filter` | Filter/NLRI |
-| `ze.log.config` | Config parsing |
 | `ze.log.bgp.reactor.peer` | Peer FSM/session |
 | `ze.log.bgp.reactor.session` | Session handling |
 | `ze.log.bgp.routes` | Route operations |
-| `ze.log.gr` | GR plugin |
-| `ze.log.rib` | RIB plugin |
-| `ze.log.relay` | Plugin stderr relay |
+| `ze.log.plugin` | All plugin.* subsystems |
+| `ze.log.plugin.coordinator` | Startup coordinator |
+| `ze.log.plugin.relay` | Plugin stderr relay |
+| `ze.log.plugin.server` | Plugin RPC server |
+| `ze.log.web` | All web.* subsystems |
 | `ze.log.backend` | Output: stderr/stdout/syslog |
 | `ze.log.destination` | Syslog address |
 
-Shell-compatible: `ze_log_server` (dot→underscore).
+Shell-compatible: `ze_log_plugin_server` (dot to underscore).
 
 ## Config File Logging
 

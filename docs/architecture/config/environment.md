@@ -73,7 +73,7 @@ They can also be set via the config file `environment { <section> { <option> <va
 | `ze.bgp.log.short` | bool | true | Short log format |
 <!-- source: internal/component/config/environment.go -- LogEnv struct, loadDefaults -->
 
-Per-subsystem log levels are also supported via `ze.log.<subsystem>=<level>` (handled by `slogutil.ApplyLogConfig()`).
+Per-subsystem log levels are also supported via `ze.log.<subsystem>=<level>` (handled by `slogutil.ApplyLogConfig()`). Subsystem names follow `<domain>.<component>` convention (e.g. `bgp.reactor`, `plugin.server`). Run `ze env` for the full list.
 
 ### tcp
 
@@ -94,7 +94,7 @@ Per-subsystem log levels are also supported via `ze.log.<subsystem>=<level>` (ha
 |----------|------|---------|-------------|
 | `ze.bgp.bgp.connect` | bool | true | Initiate outbound connections |
 | `ze.bgp.bgp.accept` | bool | true | Accept inbound connections |
-| `ze.bgp.bgp.openwait` | int | 60 | Seconds to wait for OPEN (1-3600) |
+| `ze.bgp.bgp.openwait` | int | 120 | Seconds to wait for OPEN (1-3600) |
 <!-- source: internal/component/config/environment.go -- BGPEnv struct, validateOpenWait -->
 
 ### cache

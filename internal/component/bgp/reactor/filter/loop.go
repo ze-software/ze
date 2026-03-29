@@ -15,7 +15,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
-var logger = slogutil.LazyLogger("filter")
+var logger = slogutil.LazyLogger("bgp.filter")
 
 // LoopIngress checks for route loops in received UPDATE messages.
 // Returns accept=false if a loop is detected.

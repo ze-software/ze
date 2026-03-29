@@ -147,30 +147,32 @@ Environment variables that enable structured logging at key points in the pipeli
 ze.log=debug ze bgp server config.conf
 
 # Enable specific subsystems
-ze.log.config=debug ze.log.bgp.routes=debug ze bgp server config.conf
+ze.log.bgp.config=debug ze.log.bgp.routes=debug ze bgp server config.conf
 ```
 
 ### Subsystems
 
+Names follow `<domain>.<component>` convention. Run `ze env` for the full list.
+
 | Variable | What it logs |
 |----------|---------------|
 | `ze.log` | Base level for ALL subsystems |
-| `ze.log.config` | Config parsing and loading |
+| `ze.log.bgp.config` | Config parsing and loading |
 | `ze.log.bgp.routes` | Static route handling, UPDATE sending |
 | `ze.log.bgp.reactor.session` | BGP session handling |
 | `ze.log.bgp.reactor.peer` | Peer FSM transitions, session events |
 | `ze.log.bgp.reactor` | Reactor operations (reload, etc.) |
-| `ze.log.server` | Plugin server |
-| `ze.log.relay` | Plugin stderr relay |
+| `ze.log.plugin.server` | Plugin RPC server |
+| `ze.log.plugin.relay` | Plugin stderr relay |
 
 Levels: `disabled`, `debug`, `info`, `warn`, `err` (case-insensitive)
 
 ### Example Output
 
 ```
-time=2024-01-15T13:53:41.182Z level=DEBUG msg="config parsed" subsystem=config warnings=0
-time=2024-01-15T13:53:41.183Z level=DEBUG msg="config loaded" subsystem=config peers=1
-time=2024-01-15T13:53:41.183Z level=DEBUG msg="peer routes configured" subsystem=config peer=127.0.0.1 routes=2
+time=2024-01-15T13:53:41.182Z level=DEBUG msg="config parsed" subsystem=bgp.config warnings=0
+time=2024-01-15T13:53:41.183Z level=DEBUG msg="config loaded" subsystem=bgp.config peers=1
+time=2024-01-15T13:53:41.183Z level=DEBUG msg="peer routes configured" subsystem=bgp.config peer=127.0.0.1 routes=2
 time=2024-01-15T13:53:41.184Z level=DEBUG msg="FSM transition" subsystem=bgp.reactor.peer peer=127.0.0.1 from=OPENSENT to=OPENCONFIRM
 time=2024-01-15T13:53:41.184Z level=INFO msg="session established" subsystem=bgp.reactor.peer peer=127.0.0.1 localAS=1 peerAS=1
 time=2024-01-15T13:53:41.184Z level=DEBUG msg="route sent" subsystem=bgp.routes peer=127.0.0.1 prefix=193.0.2.1/32 nextHop=10.0.0.1
@@ -246,10 +248,10 @@ ze config dump --json config.conf | jq '.Neighbors[0].StaticRoutes'
 
 ```bash
 # Step 1: Enable route logging
-ze.log.bgp.routes=debug ze bgp server config.conf
+ze.log.bgp.routes=debug ze.log.bgp.config=debug ze bgp server config.conf
 
 # Expected output when working:
-# level=DEBUG msg="peer routes configured" subsystem=config peer=X routes=2
+# level=DEBUG msg="peer routes configured" subsystem=bgp.config peer=X routes=2
 # level=DEBUG msg="route sent" subsystem=bgp.routes peer=X prefix=10.0.0.0/24 nextHop=192.168.0.1
 ```
 

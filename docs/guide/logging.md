@@ -24,7 +24,7 @@ environment {
         backend stderr          # output destination
         bgp.reactor debug      # subsystem-specific override
         bgp.routes info        # another override
-        relay warn             # plugin stderr relay level
+        plugin.relay warn      # plugin stderr relay level
     }
 }
 ```
@@ -98,30 +98,63 @@ environment {
 
 ## Plugin Stderr Relay
 
-External plugins (forked processes) write to stderr. Ze captures this output and relays it through the logging system tagged with subsystem `relay`.
+External plugins (forked processes) write to stderr. Ze captures this output and relays it through the logging system tagged with subsystem `plugin.relay`.
 
 ```bash
-export ZE_LOG_RELAY=debug      # see all plugin stderr
-export ZE_LOG_RELAY=disabled   # silence plugin output
+export ZE_LOG_PLUGIN_RELAY=debug      # see all plugin stderr
+export ZE_LOG_PLUGIN_RELAY=disabled   # silence plugin output
 ```
 
 Default relay level: `warn`.
-<!-- source: internal/component/plugin/process/delivery.go -- plugin delivery/relay -->
+<!-- source: internal/component/plugin/process/process.go -- stderrLogger -->
 
-## Common Subsystems
+## Naming Convention
 
-| Subsystem | What it covers |
-|-----------|---------------|
-| `bgp` | All BGP activity |
-| `bgp.reactor` | Event loop, peer management |
-| `bgp.fsm` | FSM state transitions |
-| `bgp.routes` | Route processing |
-| `bgp.wire` | Wire encoding/decoding |
-| `plugin` | Plugin lifecycle |
-| `hub` | Plugin hub, IPC |
-| `gr` | Graceful restart |
-| `relay` | Plugin stderr relay |
-<!-- source: internal/core/slogutil/slogutil.go -- subsystem logger creation -->
+Subsystem names follow `<domain>.<component>[.<concern>]`:
+
+| Domain | Covers |
+|--------|--------|
+| `bgp` | BGP protocol (config, filter, reactor, routes, server) |
+| `chaos` | Chaos fault injection |
+| `cli` | CLI and editor |
+| `hub` | Hub process management |
+| `plugin` | Plugin infrastructure |
+| `web` | Web UI |
+
+Setting a parent level applies to all children. `ze.log.bgp=debug` enables debug for every `bgp.*` subsystem. `ze.log.plugin=info` enables info for every `plugin.*` subsystem.
+<!-- source: internal/core/slogutil/slogutil.go -- getLogEnv hierarchical lookup -->
+
+## Subsystems
+
+Run `ze env` to see the full list with descriptions. Below is the complete inventory:
+
+| Subsystem | Description |
+|-----------|-------------|
+| `bgp.config` | Configuration parsing and loading |
+| `bgp.filter` | Route filtering (AS loop, originator-ID) |
+| `bgp.filter.community` | Community-based route filtering plugin |
+| `bgp.gr` | Graceful restart marker handling |
+| `bgp.reactor` | Reactor event loop and peer management |
+| `bgp.reactor.cache` | UPDATE cache gap-based eviction |
+| `bgp.reactor.forward` | Per-peer forward worker pool |
+| `bgp.reactor.peer` | Peer lifecycle and FSM transitions |
+| `bgp.reactor.session` | Session wire protocol handling |
+| `bgp.routes` | Route processing and announcements |
+| `bgp.server` | TCP server and connection handling |
+| `bgp.watchdog` | Watchdog timer plugin |
+| `chaos` | Chaos fault injection orchestration |
+| `chaos.peer` | Chaos testing simulated peers |
+| `cli.editor.draft` | Config editor draft persistence |
+| `hub.managed` | Managed mode client connection |
+| `hub.reload` | Configuration reload handling |
+| `plugin` | Plugin process lifecycle and event delivery |
+| `plugin.coordinator` | Plugin startup stage coordination |
+| `plugin.manager` | Multi-plugin coordination and respawn |
+| `plugin.relay` | Plugin stderr relay to engine log |
+| `plugin.server` | Plugin RPC server and stage protocol |
+| `web.auth` | Web UI authentication |
+| `web.server` | Web UI HTTP server |
+<!-- source: internal/core/slogutil/slogutil.go -- subsystemDescriptions map -->
 
 ## Inspecting Current Configuration
 

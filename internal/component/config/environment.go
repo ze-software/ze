@@ -16,9 +16,82 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
-// Env var prefix registration for all ze.bgp.* environment variables.
-// The pattern ze.bgp.<section>.<option> matches any key starting with "ze.bgp.".
-var _ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.<section>.<option>", Type: "string", Description: "BGP environment configuration (section.option)"})
+// Env var registrations for ze.bgp.* environment configuration.
+// Defaults from YANG: ze-hub-conf.yang (daemon, log, api, debug, chaos)
+// and ze-bgp-conf.yang augment (tcp, bgp, cache, reactor).
+var (
+	// Wildcard prefix (private) for forward compatibility with new YANG leaves.
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.<section>.<option>", Type: "string", Description: "BGP environment configuration (section.option)", Private: true})
+
+	// Daemon section (ze-hub-conf.yang).
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.daemon.pid", Type: "string", Description: "PID file location"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.daemon.user", Type: "string", Default: "zeuser", Description: "System user for privilege drop"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.daemon.daemonize", Type: "bool", Description: "Run in background"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.daemon.drop", Type: "bool", Default: "true", Description: "Drop privileges after startup"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.daemon.umask", Type: "string", Default: "0137", Description: "File creation mask (octal)"})
+
+	// Log section (ze-hub-conf.yang).
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.level", Type: "string", Default: "INFO", Description: "Syslog level: DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.enable", Type: "bool", Default: "true", Description: "Enable logging"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.destination", Type: "string", Default: "stdout", Description: "Log destination: stdout, stderr, syslog, or filename"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.all", Type: "bool", Description: "Debug everything"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.configuration", Type: "bool", Default: "true", Description: "Log config parsing"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.reactor", Type: "bool", Default: "true", Description: "Log signals, reloads"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.daemon", Type: "bool", Default: "true", Description: "Log pid, forking"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.processes", Type: "bool", Default: "true", Description: "Log process handling"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.network", Type: "bool", Default: "true", Description: "Log TCP/IP, network state"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.statistics", Type: "bool", Default: "true", Description: "Log packet statistics"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.packets", Type: "bool", Description: "Log BGP packets"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.rib", Type: "bool", Description: "Log local route changes"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.message", Type: "bool", Description: "Log route announcements"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.timers", Type: "bool", Description: "Log keepalive timers"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.routes", Type: "bool", Description: "Log received routes"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.parser", Type: "bool", Description: "Log message parsing"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.log.short", Type: "bool", Default: "true", Description: "Short log format"})
+
+	// TCP section (ze-bgp-conf.yang).
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.tcp.port", Type: "int", Default: "179", Description: "BGP port (RFC 4271)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.tcp.attempts", Type: "int", Description: "Max connection attempts (0 = unlimited)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.tcp.delay", Type: "int", Description: "Delay announcements by N minutes"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.tcp.acl", Type: "bool", Description: "Experimental ACL"})
+
+	// BGP section (ze-bgp-conf.yang).
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.bgp.connect", Type: "bool", Default: "true", Description: "Initiate outbound connections"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.bgp.accept", Type: "bool", Default: "true", Description: "Accept inbound connections"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.bgp.openwait", Type: "int", Default: "120", Description: "Seconds to wait for OPEN after TCP connect"})
+
+	// Cache section (ze-bgp-conf.yang).
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.cache.attributes", Type: "bool", Default: "true", Description: "Cache path attributes for deduplication"})
+
+	// API section (ze-hub-conf.yang).
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.api.ack", Type: "bool", Default: "true", Description: "Acknowledge API commands"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.api.chunk", Type: "int", Default: "1", Description: "Max lines before yield"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.api.encoder", Type: "string", Default: "json", Description: "Encoder type: json or text"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.api.compact", Type: "bool", Description: "Compact JSON for INET"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.api.respawn", Type: "bool", Default: "true", Description: "Respawn dead processes"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.api.terminate", Type: "bool", Description: "Terminate if process dies"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.api.cli", Type: "bool", Default: "true", Description: "Create CLI named pipe"})
+
+	// Reactor section (ze-bgp-conf.yang).
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.speed", Type: "string", Default: "1.0", Description: "Reactor loop time multiplier (0.1-10.0)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.cache-ttl", Type: "int", Default: "60", Description: "Update cache TTL in seconds (0=immediate)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.reactor.cache-max", Type: "int", Default: "1000000", Description: "Update cache max entries (0=unlimited)"})
+
+	// Debug section (ze-hub-conf.yang).
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.debug.pdb", Type: "bool", Description: "Enable pdb on errors"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.debug.memory", Type: "bool", Description: "Memory debug"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.debug.configuration", Type: "bool", Description: "Raise on config errors"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.debug.selfcheck", Type: "bool", Description: "Self-check config"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.debug.route", Type: "string", Description: "Decode route from config"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.debug.defensive", Type: "bool", Description: "Generate random faults"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.debug.rotate", Type: "bool", Description: "Rotate config on reload"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.debug.timing", Type: "bool", Description: "Reactor timing analysis"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.debug.pprof", Type: "string", Description: "pprof HTTP server address (e.g. :6060)"})
+
+	// Chaos section (ze-hub-conf.yang).
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.chaos.seed", Type: "int64", Description: "PRNG seed (0 = disabled)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.chaos.rate", Type: "string", Default: "0.1", Description: "Fault probability per operation (0.0-1.0)"})
+)
 
 // Environment constants.
 const (

@@ -33,9 +33,9 @@ import (
 )
 
 // configLogger is the config subsystem logger (lazy initialization).
-// Controlled by ze.log.config environment variable.
+// Controlled by ze.log.bgp.config environment variable.
 // Uses LazyLogger to pick up config file settings applied after init().
-var configLogger = slogutil.LazyLogger("config")
+var configLogger = slogutil.LazyLogger("bgp.config")
 
 const loopbackIP = "127.0.0.1"
 

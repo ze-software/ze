@@ -27,8 +27,8 @@ import (
 )
 
 // logger is the plugin server subsystem logger (lazy initialization).
-// Controlled by ze.log.server environment variable.
-var logger = slogutil.LazyLogger("server")
+// Controlled by ze.log.plugin.server environment variable.
+var logger = slogutil.LazyLogger("plugin.server")
 
 // Default stage timeout for plugin registration protocol.
 // Each stage must complete within this duration.

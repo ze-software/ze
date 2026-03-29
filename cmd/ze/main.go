@@ -60,7 +60,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.server", Type: "string", Description: "Override hub address (host:port) for managed mode"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.name", Type: "string", Description: "Override client name for managed mode"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.token", Type: "string", Description: "Override auth token for managed mode"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.connect.timeout", Type: "string", Default: "5s", Description: "Connection timeout for managed hub"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.managed.connect.timeout", Type: "duration", Default: "5s", Description: "Connection timeout for managed hub"})
 )
 
 // version and buildDate are set via ldflags at build time.

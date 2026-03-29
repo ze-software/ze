@@ -18,12 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor"
 )
 
-// Env var registrations for BGP config overrides.
-var (
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.tcp.port", Type: "int", Default: "179", Description: "Override BGP TCP port for all peers"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.bgp.connect", Type: "bool", Default: "true", Description: "Override peer connect mode (initiate outbound)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.bgp.accept", Type: "bool", Default: "true", Description: "Override peer accept mode (accept inbound)"})
-)
+// Env var registrations for BGP config overrides are centralized in config/environment.go.
 
 // PeersFromConfigTree builds PeerSettings from a config tree.
 // This replaces the TreeToConfig → configToPeer pipeline by:

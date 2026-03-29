@@ -68,7 +68,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.size", Type: "int", Default: "100000", Description: "Global overflow pool capacity for forward workers (0 = unbounded)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.maxbytes", Type: "int64", Default: "0", Description: "Combined byte budget for 4K+64K buffer pools (0 = unlimited)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.batch.limit", Type: "int", Default: "1024", Description: "Max items per forward batch, bounds writeMu hold time (0 = unlimited)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.teardown.grace", Type: "duration", Default: "5s", Description: "Seconds at >95% pool + >2x weight before forced teardown"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.teardown.grace", Type: "duration", Default: "5s", Description: "Grace period at >95% pool + >2x weight before forced teardown"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.fwd.pool.headroom", Type: "int64", Default: "0", Description: "Extra bytes beyond auto-sized pool baseline (0 = no extra)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.cache.safety.valve", Type: "duration", Default: "5m", Description: "Safety valve duration for UPDATE cache gap-based eviction"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.buf.read.size", Type: "int", Default: "65536", Description: "Per-session TCP read buffer size (bytes)"})

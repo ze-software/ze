@@ -311,17 +311,17 @@ ze completion nushell
 
 ### ze env
 
-Environment variable management.
+Environment variable management. Lists all registered variables sorted by key, followed by log subsystems with descriptions.
 
 ```
-ze env                           # Show all env vars
-ze env list                      # Show all with current values
-ze env get <key>                 # Show single env var
+ze env                           # Show all env vars + log subsystems
+ze env list -v                   # Include current effective values
+ze env get <key>                 # Show single env var details
 ```
 
 | Flag | Purpose |
 |------|---------|
-| `-v`, `--verbose` | Verbose output (list) |
+| `-v`, `--verbose` | Show current effective values (list) |
 <!-- source: cmd/ze/environ/main.go -- Run -->
 
 ### ze-perf

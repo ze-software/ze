@@ -31,6 +31,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 
@@ -40,11 +41,83 @@ import (
 // Env var registrations for logging.
 var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.log", Type: "string", Default: "warn", Description: "Base log level for all subsystems"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.<subsystem>", Type: "string", Description: "Log level for specific subsystem (e.g. ze.log.bgp.fsm)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.backend", Type: "string", Default: "stderr", Description: "Log output backend (stderr/stdout/syslog)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.destination", Type: "string", Description: "Syslog address (when backend=syslog)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.relay", Type: "string", Description: "Plugin stderr relay level"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.<subsystem>", Type: "string", Description: "Log level for specific subsystem (e.g. ze.log.bgp.fsm)", Private: true})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.backend", Type: "string", Default: "stderr", Description: "Log output: stderr, stdout, or syslog (requires ze.log.destination)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.destination", Type: "string", Description: "Syslog address when backend=syslog (e.g. localhost:514, /dev/log)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.log.relay", Type: "string", Description: "Plugin stderr relay level (disabled/debug/info/warn/err)"})
 )
+
+// SubsystemInfo describes a log subsystem for ze env listing.
+type SubsystemInfo struct {
+	Name        string
+	Description string
+}
+
+// subsystemNames tracks all registered subsystem names for ze env listing.
+var subsystemNames sync.Map
+
+// subsystemDescriptions maps subsystem names to human-readable descriptions.
+//
+//nolint:gochecknoglobals // Central registry, intentionally global.
+var subsystemDescriptions = map[string]string{
+	// bgp.* -- BGP protocol subsystem.
+	"bgp.config":           "Configuration parsing and loading",
+	"bgp.filter":           "Route filtering (AS loop, originator-ID)",
+	"bgp.filter.community": "Community-based route filtering plugin",
+	"bgp.gr":               "Graceful restart marker handling",
+	"bgp.reactor":          "Reactor event loop and peer management",
+	"bgp.reactor.cache":    "UPDATE cache gap-based eviction",
+	"bgp.reactor.forward":  "Per-peer forward worker pool",
+	"bgp.reactor.peer":     "Peer lifecycle and FSM transitions",
+	"bgp.reactor.session":  "Session wire protocol handling",
+	"bgp.routes":           "Route processing and announcements",
+	"bgp.server":           "TCP server and connection handling",
+	"bgp.watchdog":         "Watchdog timer plugin",
+	// chaos.* -- Chaos fault injection.
+	"chaos":      "Chaos fault injection orchestration",
+	"chaos.peer": "Chaos testing simulated peers",
+	// cli.* -- CLI and editor.
+	"cli.editor.draft": "Config editor draft persistence",
+	// hub.* -- Hub process management.
+	"hub.managed": "Managed mode client connection",
+	"hub.reload":  "Configuration reload handling",
+	// plugin.* -- Plugin infrastructure.
+	"plugin":             "Plugin process lifecycle and event delivery",
+	"plugin.coordinator": "Plugin startup stage coordination",
+	"plugin.manager":     "Multi-plugin coordination and respawn",
+	"plugin.relay":       "Plugin stderr relay to engine log",
+	"plugin.server":      "Plugin RPC server and stage protocol",
+	// test.* -- Test infrastructure.
+	"test.record": "Test recording infrastructure",
+	"test.runner": "Test runner infrastructure",
+	// web.* -- Web UI.
+	"web.auth":   "Web UI authentication",
+	"web.server": "Web UI HTTP server",
+}
+
+// registerSubsystem records a subsystem name for discovery by ze env.
+func registerSubsystem(name string) {
+	subsystemNames.Store(name, true)
+}
+
+// Subsystems returns all known subsystem info, sorted alphabetically.
+// These are subsystems that have created a logger via Logger() or LazyLogger().
+func Subsystems() []SubsystemInfo {
+	var infos []SubsystemInfo
+	subsystemNames.Range(func(key, _ any) bool {
+		if name, ok := key.(string); ok {
+			infos = append(infos, SubsystemInfo{
+				Name:        name,
+				Description: subsystemDescriptions[name],
+			})
+		}
+		return true
+	})
+	slices.SortFunc(infos, func(a, b SubsystemInfo) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+	return infos
+}
 
 // Log level and backend string constants.
 const (
@@ -94,6 +167,7 @@ func getSpecialEnv(key string) string {
 // Default: WARN level (shows warnings and errors). Use ze.log=disabled to silence.
 // Enabled loggers are registered in the level registry for runtime level changes.
 func Logger(subsystem string) *slog.Logger {
+	registerSubsystem(subsystem)
 	v := getLogEnv(subsystem)
 	if v == "" {
 		// Default to WARN level - show warnings and errors
@@ -226,12 +300,13 @@ func DiscardLogger() *slog.Logger {
 //
 // Usage:
 //
-//	var configLogger = slogutil.LazyLogger("config")
+//	var configLogger = slogutil.LazyLogger("bgp.config")
 //
 //	func foo() {
 //	    configLogger().Debug("message")  // Note the () to get the logger
 //	}
 func LazyLogger(subsystem string) func() *slog.Logger {
+	registerSubsystem(subsystem)
 	var logger *slog.Logger
 	var once sync.Once
 	return func() *slog.Logger {

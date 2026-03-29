@@ -35,9 +35,9 @@ import (
 var logger = slogutil.LazyLogger("plugin")
 
 // stderrLogger is used for relaying plugin stderr to engine logs (lazy initialization).
-// Tagged with subsystem=relay to distinguish from engine logs.
-// Level controlled by ze.log.relay env var.
-var stderrLogger = slogutil.LazyLogger("relay")
+// Tagged with subsystem=plugin.relay to distinguish from engine logs.
+// Level controlled by ze.log.plugin.relay env var.
+var stderrLogger = slogutil.LazyLogger("plugin.relay")
 
 // Process represents a plugin subprocess (internal goroutine or external fork).
 //
@@ -594,7 +594,7 @@ func (p *Process) relayStderrFrom(stderr io.Reader) {
 	scanner := bufio.NewScanner(stderr)
 	for scanner.Scan() {
 		line := scanner.Text()
-		// Parse the slog line and relay with subsystem=relay
+		// Parse the slog line and relay with subsystem=plugin.relay
 		level, msg, attrs := slogutil.ParseLogLine(line)
 		// Filter by configured relay level
 		if level < relayLevel {

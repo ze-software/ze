@@ -24,12 +24,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
-// Env var registrations for child mode and chaos testing.
-var (
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.child.mode", Type: "bool", Description: "Run as hub child process"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.chaos.seed", Type: "string", Description: "Chaos testing random seed"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.bgp.chaos.rate", Type: "string", Description: "Chaos testing failure rate"})
-)
+// Env var registration for child mode. Chaos vars are centralized in config/environment.go.
+var _ = env.MustRegister(env.EnvEntry{Key: "ze.child.mode", Type: "bool", Description: "Run as hub child process"})
 
 // isChildMode returns true if ze bgp should run as a hub child process.
 // Detection order:

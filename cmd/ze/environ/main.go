@@ -8,10 +8,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"text/tabwriter"
 
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
 
 // Run executes the env subcommand with the given arguments.
@@ -69,7 +71,11 @@ func showAll(verbose bool) int {
 		printRow(w, "---", "----", "-------", "-----------")
 	}
 
-	for _, e := range env.Entries() {
+	entries := env.Entries()
+	slices.SortFunc(entries, func(a, b env.EnvEntry) int {
+		return strings.Compare(a.Key, b.Key)
+	})
+	for _, e := range entries {
 		dflt := valueOrDash(e.Default)
 		if verbose {
 			current := currentValue(e.Key)
@@ -83,6 +89,27 @@ func showAll(verbose bool) int {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
+
+	// Show registered log subsystems.
+	if subs := slogutil.Subsystems(); len(subs) > 0 {
+		fmt.Println()
+		fmt.Println("Log subsystems (ze.log.<name>=<level>, hierarchical: ze.log.bgp sets all bgp.* subsystems):")
+		fmt.Println("Levels: disabled, debug, info, warn, err")
+		fmt.Println()
+		sw := tabwriter.NewWriter(os.Stdout, 0, 4, 2, ' ', 0)
+		for _, sub := range subs {
+			desc := sub.Description
+			if desc == "" {
+				desc = "-"
+			}
+			printRow(sw, "  ze.log."+sub.Name, desc)
+		}
+		if err := sw.Flush(); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return 1
+		}
+	}
+
 	return 0
 }
 

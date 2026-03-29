@@ -26,7 +26,7 @@ const (
 	maxAuthResponse   = 512
 )
 
-var logger = slogutil.LazyLogger("managed")
+var logger = slogutil.LazyLogger("hub.managed")
 
 // ClientConfig holds the configuration for a managed client connection.
 type ClientConfig struct {

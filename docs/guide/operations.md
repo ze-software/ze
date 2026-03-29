@@ -132,7 +132,7 @@ ze env get ze.log              # details for one var
 | `ze.log.<subsystem>` | -- | Per-subsystem log level |
 | `ze.log.backend` | `stderr` | Log output: stderr, stdout, syslog |
 | `ze.log.destination` | -- | Syslog address (when backend=syslog) |
-| `ze.log.relay` | `warn` | Plugin stderr relay level |
+| `ze.log.relay` | `warn` | Plugin stderr relay threshold |
 | `ze.ssh.host` | -- | Override SSH host for CLI commands |
 | `ze.ssh.port` | -- | Override SSH port for CLI commands |
 | `ze.config.dir` | -- | Override config directory |
@@ -258,7 +258,7 @@ Symptom: session establishes briefly then NOTIFICATION received
 
 2. **Check plugin is bound to peer:** Config must have `process <name> { receive [...] }` on the peer
 
-3. **Check plugin logs:** Set `ZE_LOG_RELAY=debug` to see plugin stderr output
+3. **Check plugin logs:** Set `ZE_LOG_PLUGIN_RELAY=debug` to see plugin stderr output
 
 4. **Plugin not reaching Ready state:** Enable `ZE_LOG_PLUGIN=debug` and look for startup stage failures
 <!-- source: internal/component/plugin/server/server.go -- plugin stage timeout; internal/component/plugin/registry/registry.go -- plugin registration -->

@@ -19,8 +19,9 @@ import (
 	coreenv "codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
-// Env var prefix registration for all ze.bgp.* variables accessed via this package.
-var _ = coreenv.MustRegister(coreenv.EnvEntry{Key: "ze.bgp.<section>.<option>", Type: "string", Description: "BGP environment configuration (section.option)"})
+// Env var prefix registration for ze.bgp.* variables accessed via this package.
+// Private because individual entries are registered in config/environment.go.
+var _ = coreenv.MustRegister(coreenv.EnvEntry{Key: "ze.bgp.<section>.<option>", Type: "string", Description: "BGP environment configuration (section.option)", Private: true})
 
 // Get returns the environment variable value with Ze BGP naming.
 // Checks dot notation (ze.bgp.section.key), lowercase underscore (ze_bgp_section_key),
