@@ -558,16 +558,16 @@ func TestStoreRemovePersistence(t *testing.T) {
 	if s2.Has("b") {
 		t.Error("removed entry 'b' should not exist after reopen")
 	}
-	for _, tc := range []struct{ key, want string }{
+	for _, tt := range []struct{ key, want string }{
 		{"a", "aaa"}, {"c", "ccc"},
 	} {
-		t.Run(tc.key, func(t *testing.T) {
-			got, readErr := s2.ReadFile(tc.key)
+		t.Run(tt.key, func(t *testing.T) {
+			got, readErr := s2.ReadFile(tt.key)
 			if readErr != nil {
-				t.Fatalf("ReadFile(%s): %v", tc.key, readErr)
+				t.Fatalf("ReadFile(%s): %v", tt.key, readErr)
 			}
-			if string(got) != tc.want {
-				t.Errorf("ReadFile(%s): got %q, want %q", tc.key, got, tc.want)
+			if string(got) != tt.want {
+				t.Errorf("ReadFile(%s): got %q, want %q", tt.key, got, tt.want)
 			}
 		})
 	}
@@ -603,16 +603,16 @@ func TestStoreRemoveThenAdd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, tc := range []struct{ key, want string }{
+	for _, tt := range []struct{ key, want string }{
 		{"x", "111"}, {"z", "333"}, {"w", "444"}, {"y", "555"},
 	} {
-		t.Run(tc.key, func(t *testing.T) {
-			got, readErr := s2.ReadFile(tc.key)
+		t.Run(tt.key, func(t *testing.T) {
+			got, readErr := s2.ReadFile(tt.key)
 			if readErr != nil {
-				t.Fatalf("ReadFile(%s): %v", tc.key, readErr)
+				t.Fatalf("ReadFile(%s): %v", tt.key, readErr)
 			}
-			if string(got) != tc.want {
-				t.Errorf("ReadFile(%s): got %q, want %q", tc.key, got, tc.want)
+			if string(got) != tt.want {
+				t.Errorf("ReadFile(%s): got %q, want %q", tt.key, got, tt.want)
 			}
 		})
 	}

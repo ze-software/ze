@@ -55,7 +55,7 @@ func TestEventBrokerBroadcast(t *testing.T) {
 
 	broker.Broadcast("test", "hello")
 
-	for _, tc := range []struct {
+	for _, tt := range []struct {
 		name   string
 		client *sseClient
 	}{
@@ -63,12 +63,12 @@ func TestEventBrokerBroadcast(t *testing.T) {
 		{"c2", c2},
 	} {
 		select {
-		case ev := <-tc.client.ch:
+		case ev := <-tt.client.ch:
 			if ev.eventType != "test" || ev.data != "hello" {
-				t.Fatalf("%s got (%q, %q), want (\"test\", \"hello\")", tc.name, ev.eventType, ev.data)
+				t.Fatalf("%s got (%q, %q), want (\"test\", \"hello\")", tt.name, ev.eventType, ev.data)
 			}
 		case <-time.After(time.Second):
-			t.Fatalf("%s did not receive event", tc.name)
+			t.Fatalf("%s did not receive event", tt.name)
 		}
 	}
 }
