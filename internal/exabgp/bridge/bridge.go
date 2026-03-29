@@ -1,6 +1,7 @@
 // Design: docs/architecture/core-design.md — startup protocol and bridge runtime
 // Detail: bridge_event.go — ZeBGP to ExaBGP JSON event translation
 // Detail: bridge_command.go — ExaBGP text command translation
+// Detail: bridge_muxconn.go — MuxConn wire format parsing for post-startup I/O
 //
 // Package bridge provides runtime ExaBGP plugin protocol translation.
 package bridge
@@ -16,6 +17,8 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 )
 
 // StartupProtocol handles the 5-stage ZeBGP plugin registration protocol.
@@ -308,6 +311,9 @@ type Bridge struct {
 	running   bool
 	mu        sync.Mutex
 
+	// nextRequestID generates unique MuxConn request IDs for dispatch commands.
+	nextRequestID atomic.Uint64
+
 	// Families to declare during startup (ZeBGP format: "ipv4/unicast")
 	Families []string
 
@@ -368,13 +374,14 @@ func (b *Bridge) Stop() {
 }
 
 // Run runs the bridge, translating between ZeBGP (stdin/stdout) and the plugin.
-// It first completes the 5-stage startup protocol, then begins JSON translation.
+// It first completes the 5-stage startup protocol (raw text), then switches to
+// MuxConn wire format for runtime I/O.
 func (b *Bridge) Run(ctx context.Context) error {
-	// Create a single scanner for os.Stdin - used for both startup and JSON events.
+	// Create a single scanner for os.Stdin - used for both startup and MuxConn events.
 	// This prevents data loss from buffered reads.
 	stdinScanner := bufio.NewScanner(os.Stdin)
 
-	// Stage 1-5: Complete startup protocol with ZeBGP
+	// Stage 1-5: Complete startup protocol with ZeBGP (raw text, no MuxConn)
 	sp := NewStartupProtocol(stdinScanner, os.Stdout)
 	sp.Families = b.Families
 	sp.RouteRefresh = b.RouteRefresh
@@ -383,32 +390,43 @@ func (b *Bridge) Run(ctx context.Context) error {
 		return fmt.Errorf("startup protocol: %w", err)
 	}
 
-	// Stage 6: Running - start plugin and begin JSON translation
+	// Stage 6: Running - start plugin and begin MuxConn translation.
+	// After stage 5, ze wraps the connection in MuxConn. All subsequent I/O
+	// uses #<id> verb [payload]\n framing.
 	if err := b.Start(ctx); err != nil {
 		return err
 	}
 	defer b.Stop()
 
+	// Shared writer for ze stdout -- both goroutines write MuxConn lines.
+	zeOut := &syncWriter{w: os.Stdout}
+
+	// Pending responses: command goroutine registers flush requests,
+	// event goroutine signals when responses arrive.
+	pending := newPendingResponses()
+
 	var wg sync.WaitGroup
 	wg.Add(3)
 
-	// ZeBGP stdin → plugin stdin (translate ZeBGP JSON → ExaBGP JSON)
+	// ZeBGP stdin -> plugin stdin (parse MuxConn deliver-batch, translate events)
 	// Uses the SAME scanner that completed startup to avoid losing buffered data.
 	go func() {
 		defer wg.Done()
-		b.zebgpToPluginWithScanner(ctx, stdinScanner, b.stdin)
+		b.zebgpToPluginWithScanner(ctx, stdinScanner, b.stdin, zeOut, pending)
 	}()
 
-	// Plugin stdout → ZeBGP stdout (translate ExaBGP commands → ZeBGP commands)
+	// Plugin stdout -> ZeBGP stdout (translate commands, wrap in MuxConn dispatch + flush)
 	go func() {
 		defer wg.Done()
-		b.pluginToZebgp(ctx, b.stdout, os.Stdout)
+		b.pluginToZebgp(ctx, b.stdout, zeOut, pending)
 	}()
 
-	// Plugin stderr → ZeBGP stderr (pass through)
+	// Plugin stderr -> ZeBGP stderr (pass through)
 	go func() {
 		defer wg.Done()
-		_, _ = io.Copy(os.Stderr, b.stderr)
+		if _, err := io.Copy(os.Stderr, b.stderr); err != nil {
+			slog.Debug("stderr copy ended", "error", err)
+		}
 	}()
 
 	// Wait for plugin to exit
@@ -417,13 +435,15 @@ func (b *Bridge) Run(ctx context.Context) error {
 	return err
 }
 
-func (b *Bridge) zebgpToPluginWithScanner(ctx context.Context, scanner *bufio.Scanner, w io.Writer) {
+// zebgpToPluginWithScanner reads MuxConn lines from ze, extracts deliver-batch events,
+// translates each from ZeBGP JSON to ExaBGP JSON, writes to the plugin, and sends
+// back a MuxConn ok response to ze. It also routes "ok"/"error" responses to pending
+// flush waiters via the pending parameter.
+func (b *Bridge) zebgpToPluginWithScanner(ctx context.Context, scanner *bufio.Scanner, pluginW io.Writer, zeOut *syncWriter, pending *pendingResponses) {
 	for scanner.Scan() {
-		select {
-		case <-ctx.Done():
-			slog.Debug("zebgp→plugin: context canceled")
+		if ctx.Err() != nil {
+			slog.Debug("zebgp->plugin: context canceled")
 			return
-		default:
 		}
 
 		b.mu.Lock()
@@ -438,38 +458,109 @@ func (b *Bridge) zebgpToPluginWithScanner(ctx context.Context, scanner *bufio.Sc
 			continue
 		}
 
-		var zebgp map[string]any
-		if err := json.Unmarshal([]byte(line), &zebgp); err != nil {
-			slog.Warn("zebgp→plugin: invalid JSON from ZeBGP",
+		// Parse MuxConn wire format: #<id> <verb> [<payload>]
+		id, verb, payload, err := parseMuxLine(line)
+		if err != nil {
+			slog.Warn("zebgp->plugin: invalid MuxConn line",
 				"error", err,
 				"line", truncate(line, 100))
 			continue
 		}
 
-		exabgp := ZebgpToExabgpJSON(zebgp)
-		out, err := json.Marshal(exabgp)
-		if err != nil {
-			slog.Warn("zebgp→plugin: failed to marshal ExaBGP JSON",
-				"error", err)
-			continue
-		}
+		switch verb {
+		case "ze-plugin-callback:deliver-batch":
+			b.handleDeliverBatch(id, payload, pluginW, zeOut)
 
-		_, _ = fmt.Fprintln(w, string(out))
+		case "ze-plugin-callback:deliver-event":
+			b.handleDeliverEvent(id, payload, pluginW, zeOut)
+
+		case "ok", "error": // response to a dispatch or flush we sent
+			if !pending.signal(id) {
+				slog.Debug("zebgp->plugin: orphaned response", "id", id, "verb", verb)
+			}
+
+		default: // unknown verb -- ack to avoid stalling ze
+			slog.Warn("zebgp->plugin: unknown MuxConn verb", "verb", verb, "id", id)
+			zeOut.Fprintln(formatMuxOK(id))
+		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		slog.Warn("zebgp→plugin: scanner error", "error", err)
+		slog.Warn("zebgp->plugin: scanner error", "error", err)
 	}
 }
 
-func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, w io.Writer) {
+// handleDeliverBatch processes a deliver-batch request: extracts events, translates
+// each from ZeBGP JSON to ExaBGP JSON, writes to the plugin, sends ok to ze.
+func (b *Bridge) handleDeliverBatch(id uint64, payload string, pluginW io.Writer, zeOut *syncWriter) {
+	events, err := extractBatchEvents(payload)
+	if err != nil {
+		slog.Warn("zebgp->plugin: failed to extract batch events",
+			"error", err,
+			"id", id)
+		zeOut.Fprintln(formatMuxOK(id))
+		return
+	}
+
+	for _, eventStr := range events {
+		b.translateAndForward(eventStr, pluginW)
+	}
+
+	zeOut.Fprintln(formatMuxOK(id))
+}
+
+// handleDeliverEvent processes a single deliver-event request.
+func (b *Bridge) handleDeliverEvent(id uint64, payload string, pluginW io.Writer, zeOut *syncWriter) {
+	var input struct {
+		Event string `json:"event"`
+	}
+	if err := json.Unmarshal([]byte(payload), &input); err != nil {
+		slog.Warn("zebgp->plugin: failed to parse deliver-event",
+			"error", err,
+			"id", id)
+		zeOut.Fprintln(formatMuxOK(id))
+		return
+	}
+
+	b.translateAndForward(input.Event, pluginW)
+	zeOut.Fprintln(formatMuxOK(id))
+}
+
+// translateAndForward parses a ZeBGP JSON event string, translates it to ExaBGP
+// JSON format, and writes it to the plugin's stdin.
+func (b *Bridge) translateAndForward(eventStr string, pluginW io.Writer) {
+	var zebgp map[string]any
+	if err := json.Unmarshal([]byte(eventStr), &zebgp); err != nil {
+		slog.Warn("zebgp->plugin: invalid JSON event",
+			"error", err,
+			"event", truncate(eventStr, 100))
+		return
+	}
+
+	exabgp := ZebgpToExabgpJSON(zebgp)
+	out, err := json.Marshal(exabgp)
+	if err != nil {
+		slog.Warn("zebgp->plugin: failed to marshal ExaBGP JSON",
+			"error", err)
+		return
+	}
+
+	if _, err := fmt.Fprintln(pluginW, string(out)); err != nil {
+		slog.Warn("zebgp->plugin: write to plugin failed", "error", err)
+	}
+}
+
+// pluginToZebgp reads ExaBGP text commands from the plugin, translates them to ze
+// commands, wraps each in MuxConn dispatch-command format, writes to ze stdout,
+// and injects a peer-flush RPC after route commands (blocking until the flush completes).
+func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, zeOut *syncWriter, pending *pendingResponses) {
+	const flushTimeout = 30 * time.Second
+
 	scanner := bufio.NewScanner(r)
 	for scanner.Scan() {
-		select {
-		case <-ctx.Done():
-			slog.Debug("plugin→zebgp: context canceled")
+		if ctx.Err() != nil {
+			slog.Debug("plugin->zebgp: context canceled")
 			return
-		default:
 		}
 
 		b.mu.Lock()
@@ -485,13 +576,34 @@ func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, w io.Writer) {
 		}
 
 		zebgpCmd := ExabgpToZebgpCommand(line)
-		if zebgpCmd != "" {
-			_, _ = fmt.Fprintln(w, zebgpCmd)
+		if zebgpCmd == "" {
+			continue
+		}
+
+		// Wrap in MuxConn dispatch-command format with unique request ID.
+		reqID := b.nextRequestID.Add(1)
+		zeOut.Fprintln(formatDispatchRequest(reqID, zebgpCmd))
+
+		// For route commands, inject a flush and block until the forward pool drains.
+		if isRouteCommand(zebgpCmd) {
+			peerAddr := extractPeerAddress(zebgpCmd)
+			if peerAddr != "" {
+				flushID := b.nextRequestID.Add(1)
+				flushCh := pending.register(flushID)
+				zeOut.Fprintln(formatFlushRequest(flushID, peerAddr))
+
+				flushCtx, cancel := context.WithTimeout(ctx, flushTimeout)
+				if err := pending.wait(flushCtx, flushCh); err != nil {
+					slog.Warn("plugin->zebgp: flush wait error",
+						"error", err, "peer", peerAddr)
+				}
+				cancel()
+			}
 		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		slog.Warn("plugin→zebgp: scanner error", "error", err)
+		slog.Warn("plugin->zebgp: scanner error", "error", err)
 	}
 }
 

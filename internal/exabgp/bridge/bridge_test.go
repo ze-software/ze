@@ -2,9 +2,13 @@ package bridge
 
 import (
 	"bufio"
+	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -971,4 +975,477 @@ func TestTruncate(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// TestParseMuxLine verifies MuxConn line parsing.
+//
+// VALIDATES: MuxConn lines are correctly parsed into id, verb, payload.
+// PREVENTS: Events dropped because bridge cannot parse MuxConn wire format.
+func TestParseMuxLine(t *testing.T) {
+	tests := []struct {
+		name    string
+		line    string
+		wantID  uint64
+		wantV   string
+		wantP   string
+		wantErr bool
+	}{
+		{
+			name:   "deliver_batch",
+			line:   `#42 ze-plugin-callback:deliver-batch {"events":["ev1"]}`,
+			wantID: 42,
+			wantV:  "ze-plugin-callback:deliver-batch",
+			wantP:  `{"events":["ev1"]}`,
+		},
+		{
+			name:   "ok_response",
+			line:   `#7 ok {"status":"done"}`,
+			wantID: 7,
+			wantV:  "ok",
+			wantP:  `{"status":"done"}`,
+		},
+		{
+			name:   "ok_empty",
+			line:   "#99 ok",
+			wantID: 99,
+			wantV:  "ok",
+			wantP:  "",
+		},
+		{
+			name:   "error_response",
+			line:   `#5 error {"message":"fail"}`,
+			wantID: 5,
+			wantV:  "error",
+			wantP:  `{"message":"fail"}`,
+		},
+		{
+			name:    "missing_hash",
+			line:    "42 ok",
+			wantErr: true,
+		},
+		{
+			name:    "empty_line",
+			line:    "",
+			wantErr: true,
+		},
+		{
+			name:    "hash_only",
+			line:    "#42",
+			wantErr: true,
+		},
+		{
+			name:   "large_id",
+			line:   "#18446744073709551615 ok",
+			wantID: 18446744073709551615,
+			wantV:  "ok",
+			wantP:  "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			id, verb, payload, err := parseMuxLine(tt.line)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantID, id)
+			assert.Equal(t, tt.wantV, verb)
+			assert.Equal(t, tt.wantP, payload)
+		})
+	}
+}
+
+// TestFormatMuxResponse verifies MuxConn response formatting.
+//
+// VALIDATES: Responses formatted as #<id> ok\n for acknowledgements.
+// PREVENTS: Ze dropping bridge responses due to malformed framing.
+func TestFormatMuxResponse(t *testing.T) {
+	tests := []struct {
+		name string
+		id   uint64
+		want string
+	}{
+		{"zero_id", 0, "#0 ok"},
+		{"normal_id", 42, "#42 ok"},
+		{"large_id", 999999, "#999999 ok"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatMuxOK(tt.id)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestFormatMuxRequest verifies MuxConn request formatting for dispatch.
+//
+// VALIDATES: Commands wrapped as #<id> ze-plugin-engine:dispatch-command {"command":"..."}\n.
+// PREVENTS: Ze dropping bridge commands due to missing MuxConn framing.
+func TestFormatMuxRequest(t *testing.T) {
+	tests := []struct {
+		name    string
+		id      uint64
+		command string
+		want    string
+	}{
+		{
+			name:    "simple_command",
+			id:      1,
+			command: "peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24",
+			want:    `#1 ze-plugin-engine:dispatch-command {"command":"peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24"}`,
+		},
+		{
+			name:    "command_with_special_chars",
+			id:      99,
+			command: `peer 2001:db8::1 update text nhop set 2001:db8::2 nlri ipv6/unicast add 2001:db8::/32`,
+			want:    `#99 ze-plugin-engine:dispatch-command {"command":"peer 2001:db8::1 update text nhop set 2001:db8::2 nlri ipv6/unicast add 2001:db8::/32"}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatDispatchRequest(tt.id, tt.command)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestExtractBatchEvents verifies deliver-batch event extraction.
+//
+// VALIDATES: Events extracted from deliver-batch JSON payload.
+// PREVENTS: Events lost because bridge cannot extract them from MuxConn batch payload.
+func TestExtractBatchEvents(t *testing.T) {
+	tests := []struct {
+		name    string
+		payload string
+		want    []string
+		wantErr bool
+	}{
+		{
+			name:    "single_event",
+			payload: `{"events":["{\"type\":\"bgp\"}"]}`,
+			want:    []string{`{"type":"bgp"}`},
+		},
+		{
+			name:    "multiple_events",
+			payload: `{"events":["{\"type\":\"bgp\",\"bgp\":{}}","{\"type\":\"bgp\",\"bgp\":{}}"]}`,
+			want:    []string{`{"type":"bgp","bgp":{}}`, `{"type":"bgp","bgp":{}}`},
+		},
+		{
+			name:    "empty_events",
+			payload: `{"events":[]}`,
+			want:    []string{},
+		},
+		{
+			name:    "invalid_json",
+			payload: `not json`,
+			wantErr: true,
+		},
+		{
+			name:    "missing_events_key",
+			payload: `{"data":"foo"}`,
+			want:    nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			events, err := extractBatchEvents(tt.payload)
+			if tt.wantErr {
+				assert.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, events)
+		})
+	}
+}
+
+// TestMuxConnEventTranslation verifies end-to-end MuxConn event reception and translation.
+//
+// VALIDATES: Bridge receives MuxConn deliver-batch, translates events, forwards to plugin, sends ok.
+// PREVENTS: Events silently dropped after 5-stage startup.
+func TestMuxConnEventTranslation(t *testing.T) {
+	// Build a MuxConn deliver-batch line containing a ze-bgp UPDATE event.
+	zeEvent := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"type":"update","direction":"received"},"update":{"attr":{"origin":"igp"},"nlri":{"ipv4/unicast":[{"action":"add","next-hop":"10.0.0.1","nlri":["192.168.1.0/24"]}]}}}}`
+	// The event is JSON-encoded as a string inside the events array.
+	eventsJSON, err := json.Marshal([]string{zeEvent})
+	require.NoError(t, err)
+	batchLine := fmt.Sprintf(`#1 ze-plugin-callback:deliver-batch {"events":%s}`, string(eventsJSON))
+
+	// Set up a scanner reading the batch line.
+	scanner := bufio.NewScanner(strings.NewReader(batchLine + "\n"))
+
+	// Capture plugin output and ze response output.
+	var pluginBuf strings.Builder
+	var zeBuf strings.Builder
+	zeOut := &syncWriter{w: &zeBuf}
+
+	b := NewBridge([]string{"echo"})
+	b.running = true
+
+	ctx := context.Background()
+	b.zebgpToPluginWithScanner(ctx, scanner, &pluginBuf, zeOut, newPendingResponses())
+
+	// The bridge should have written ExaBGP JSON to the plugin.
+	pluginOutput := pluginBuf.String()
+	assert.Contains(t, pluginOutput, "exabgp")
+	assert.Contains(t, pluginOutput, "10.0.0.1")
+
+	// The bridge should have sent #1 ok back to ze.
+	zeOutput := zeBuf.String()
+	assert.Contains(t, zeOutput, "#1 ok")
+}
+
+// TestMuxConnCommandFormatting verifies bridge wraps commands in MuxConn dispatch format
+// and injects a flush after route commands.
+//
+// VALIDATES: ExaBGP commands translated, wrapped in MuxConn dispatch-command RPC,
+// followed by a ze-bgp:peer-flush RPC that blocks until response.
+// PREVENTS: Commands dropped by ze because bridge writes raw text instead of MuxConn frames.
+func TestMuxConnCommandFormatting(t *testing.T) {
+	pluginOutput := "neighbor 10.0.0.1 announce route 192.168.1.0/24 next-hop 1.1.1.1\n"
+
+	pluginReader := strings.NewReader(pluginOutput)
+	var zeBuf strings.Builder
+	zeOut := &syncWriter{w: &zeBuf}
+	pending := newPendingResponses()
+
+	b := NewBridge([]string{"echo"})
+	b.running = true
+
+	// pluginToZebgp blocks on flush response. Signal from a goroutine
+	// after a brief delay so the flush unblocks.
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		pending.signal(2) // flush ID (dispatch=1, flush=2)
+	}()
+
+	ctx := context.Background()
+	b.pluginToZebgp(ctx, pluginReader, zeOut, pending)
+
+	// The output to ze should have both dispatch-command and peer-flush.
+	zeOutput := zeBuf.String()
+	assert.Contains(t, zeOutput, "ze-plugin-engine:dispatch-command")
+	assert.Contains(t, zeOutput, "peer 10.0.0.1 update text")
+	assert.Contains(t, zeOutput, "nlri ipv4/unicast add 192.168.1.0/24")
+	assert.Contains(t, zeOutput, "ze-bgp:peer-flush")
+	assert.Contains(t, zeOutput, `"selector":"10.0.0.1"`)
+}
+
+// TestMuxConnDeliverEvent verifies single event delivery via deliver-event RPC.
+//
+// VALIDATES: Bridge parses deliver-event MuxConn request, translates, forwards to plugin.
+// PREVENTS: Single-event delivery broken while batch works.
+func TestMuxConnDeliverEvent(t *testing.T) {
+	zeEvent := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.2","remote":{"as":65002}},"message":{"type":"state","direction":"received"},"state":"up"}}`
+	eventPayload, err := json.Marshal(map[string]string{"event": zeEvent})
+	require.NoError(t, err)
+	line := fmt.Sprintf("#5 ze-plugin-callback:deliver-event %s", string(eventPayload))
+
+	scanner := bufio.NewScanner(strings.NewReader(line + "\n"))
+
+	var pluginBuf strings.Builder
+	var zeBuf strings.Builder
+	zeOut := &syncWriter{w: &zeBuf}
+
+	b := NewBridge([]string{"echo"})
+	b.running = true
+
+	ctx := context.Background()
+	b.zebgpToPluginWithScanner(ctx, scanner, &pluginBuf, zeOut, newPendingResponses())
+
+	// Plugin should receive ExaBGP formatted state event.
+	pluginOutput := pluginBuf.String()
+	assert.Contains(t, pluginOutput, "exabgp")
+	assert.Contains(t, pluginOutput, "10.0.0.2")
+	assert.Contains(t, pluginOutput, "state")
+
+	// Bridge should send ok response back to ze.
+	assert.Contains(t, zeBuf.String(), "#5 ok")
+}
+
+// TestMuxConnUnknownVerbRespondsOK verifies unknown verbs get an ok response.
+//
+// VALIDATES: Bridge does not stall ze on unknown MuxConn verbs.
+// PREVENTS: Ze hanging because bridge never responds to an unknown request.
+func TestMuxConnUnknownVerbRespondsOK(t *testing.T) {
+	line := `#99 ze-plugin-callback:some-future-rpc {"data":"test"}`
+	scanner := bufio.NewScanner(strings.NewReader(line + "\n"))
+
+	var pluginBuf strings.Builder
+	var zeBuf strings.Builder
+	zeOut := &syncWriter{w: &zeBuf}
+
+	b := NewBridge([]string{"echo"})
+	b.running = true
+
+	ctx := context.Background()
+	b.zebgpToPluginWithScanner(ctx, scanner, &pluginBuf, zeOut, newPendingResponses())
+
+	// Bridge should respond ok even for unknown verbs.
+	assert.Contains(t, zeBuf.String(), "#99 ok")
+
+	// Plugin should receive nothing (unknown verb not forwarded).
+	assert.Empty(t, pluginBuf.String())
+}
+
+// TestMuxConnDispatchResponseIgnored verifies ok/error responses are silently handled.
+//
+// VALIDATES: Dispatch responses (from commands sent by pluginToZebgp) do not cause errors.
+// PREVENTS: Bridge treating dispatch responses as unknown requests.
+func TestMuxConnDispatchResponseIgnored(t *testing.T) {
+	// Simulate a dispatch response arriving on the event scanner.
+	line := `#1 ok {"status":"done"}`
+	scanner := bufio.NewScanner(strings.NewReader(line + "\n"))
+
+	var pluginBuf strings.Builder
+	var zeBuf strings.Builder
+	zeOut := &syncWriter{w: &zeBuf}
+
+	b := NewBridge([]string{"echo"})
+	b.running = true
+
+	ctx := context.Background()
+	b.zebgpToPluginWithScanner(ctx, scanner, &pluginBuf, zeOut, newPendingResponses())
+
+	// No output to plugin (response, not an event).
+	assert.Empty(t, pluginBuf.String())
+
+	// No output to ze (response doesn't need a response).
+	assert.Empty(t, zeBuf.String())
+}
+
+// TestMuxConnMultipleBatchEvents verifies multiple events in a single batch.
+//
+// VALIDATES: All events in a deliver-batch are translated and forwarded.
+// PREVENTS: Only first event processed, rest dropped.
+func TestMuxConnMultipleBatchEvents(t *testing.T) {
+	event1 := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.1","remote":{"as":65001}},"message":{"type":"update","direction":"received"},"update":{"nlri":{"ipv4/unicast":[{"action":"add","next-hop":"10.0.0.1","nlri":["192.168.1.0/24"]}]}}}}`
+	event2 := `{"type":"bgp","bgp":{"peer":{"address":"10.0.0.2","remote":{"as":65002}},"message":{"type":"update","direction":"received"},"update":{"nlri":{"ipv4/unicast":[{"action":"add","next-hop":"10.0.0.2","nlri":["172.16.0.0/16"]}]}}}}`
+	eventsJSON, err := json.Marshal([]string{event1, event2})
+	require.NoError(t, err)
+	line := fmt.Sprintf(`#10 ze-plugin-callback:deliver-batch {"events":%s}`, string(eventsJSON))
+
+	scanner := bufio.NewScanner(strings.NewReader(line + "\n"))
+
+	var pluginBuf strings.Builder
+	var zeBuf strings.Builder
+	zeOut := &syncWriter{w: &zeBuf}
+
+	b := NewBridge([]string{"echo"})
+	b.running = true
+
+	ctx := context.Background()
+	b.zebgpToPluginWithScanner(ctx, scanner, &pluginBuf, zeOut, newPendingResponses())
+
+	// Both events should be translated and forwarded.
+	pluginOutput := pluginBuf.String()
+	assert.Contains(t, pluginOutput, "10.0.0.1")
+	assert.Contains(t, pluginOutput, "192.168.1.0/24")
+	assert.Contains(t, pluginOutput, "10.0.0.2")
+	assert.Contains(t, pluginOutput, "172.16.0.0/16")
+
+	// Single ok response for the batch.
+	assert.Contains(t, zeBuf.String(), "#10 ok")
+}
+
+// TestExtractPeerAddress verifies peer address extraction from translated commands.
+//
+// VALIDATES: Peer address extracted correctly for flush injection.
+// PREVENTS: Flush sent with wrong selector or empty selector.
+func TestExtractPeerAddress(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		want    string
+	}{
+		{"ipv4", "peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24", "10.0.0.1"},
+		{"ipv6", "peer 2001:db8::1 update text nhop set 2001:db8::2 nlri ipv6/unicast add 2001:db8::/32", "2001:db8::1"},
+		{"not_peer", "show bgp summary", ""},
+		{"peer_only", "peer ", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, extractPeerAddress(tt.command))
+		})
+	}
+}
+
+// TestIsRouteCommand verifies route command detection.
+//
+// VALIDATES: Only route update commands trigger flush injection.
+// PREVENTS: Flush injected for non-route commands.
+func TestIsRouteCommand(t *testing.T) {
+	assert.True(t, isRouteCommand("peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24"))
+	assert.False(t, isRouteCommand("peer 10.0.0.1 show bgp summary"))
+	assert.False(t, isRouteCommand(""))
+}
+
+// TestFlushBlocksUntilResponse verifies that pluginToZebgp blocks on flush until
+// the event goroutine signals the response.
+//
+// VALIDATES: AC-3 -- flush injection blocks until response arrives.
+// PREVENTS: Bridge continuing before engine finishes processing routes.
+func TestFlushBlocksUntilResponse(t *testing.T) {
+	pluginOutput := "neighbor 10.0.0.1 announce route 10.0.0.0/24 next-hop 1.1.1.1\n"
+
+	pluginReader := strings.NewReader(pluginOutput)
+	var zeBuf strings.Builder
+	zeOut := &syncWriter{w: &zeBuf}
+	pending := newPendingResponses()
+
+	b := NewBridge([]string{"echo"})
+	b.running = true
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ctx := context.Background()
+		b.pluginToZebgp(ctx, pluginReader, zeOut, pending)
+	}()
+
+	// pluginToZebgp should NOT finish yet -- it's blocked on flush.
+	select {
+	case <-done:
+		t.Fatal("pluginToZebgp should block until flush response")
+	case <-time.After(50 * time.Millisecond):
+		// Expected: still blocked.
+	}
+
+	// Signal the flush response.
+	pending.signal(2) // flush ID
+
+	// Now it should finish.
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("pluginToZebgp did not complete after flush signal")
+	}
+}
+
+// TestPendingResponseSignalAndWait verifies the pending response mechanism.
+//
+// VALIDATES: register/signal/wait cycle works correctly.
+// PREVENTS: Flush hanging forever or signaling wrong waiter.
+func TestPendingResponseSignalAndWait(t *testing.T) {
+	p := newPendingResponses()
+
+	// Register and signal immediately.
+	ch := p.register(42)
+	assert.True(t, p.signal(42))
+	assert.NoError(t, p.wait(context.Background(), ch))
+
+	// Signal without registration returns false.
+	assert.False(t, p.signal(99))
+
+	// Wait with canceled context returns error.
+	ch2 := p.register(100)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	assert.Error(t, p.wait(ctx, ch2))
 }
