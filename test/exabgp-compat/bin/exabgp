@@ -114,8 +114,8 @@ def get_exabgp_env_vars() -> dict:
 def inject_ssh_config(config_text: str, ssh_port: int) -> str:
     """Inject SSH server config into migrated Ze config for process bridging.
 
-    Adds a system block with SSH credentials so the process bridge can
-    send commands (e.g., watchdog announce/withdraw) to the running daemon.
+    Adds system (authentication) and environment (ssh) blocks so the process
+    bridge can send commands (e.g., watchdog announce/withdraw) to the running daemon.
     """
     ssh_block = f"""
 system {{
@@ -124,6 +124,9 @@ system {{
 \t\t\tpassword "{_SSH_HASH}"
 \t\t}}
 \t}}
+}}
+
+environment {{
 \tssh {{
 \t\tlisten 127.0.0.1:{ssh_port}
 \t}}
