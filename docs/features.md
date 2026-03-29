@@ -580,6 +580,7 @@ Uses `github.com/miekg/dns` (the library CoreDNS is built on).
 | Concurrent safe | Mutex-protected cache, safe for multi-goroutine use |
 | System fallback | Empty server config uses `/etc/resolv.conf` (resolved once at startup) |
 | Timeout control | Per-resolver configurable timeout (1-60 seconds) |
+| Env override | `ze.dns.server` overrides config file DNS server |
 
 Configured under `environment { dns { } }` in the config file.
 

@@ -305,8 +305,20 @@ environment {
 The cache respects DNS response TTLs: entries expire at `min(response TTL, cache-ttl)`.
 Records with TTL=0 from the server are not cached (per RFC 1035).
 
+### Environment Variable Override
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `ze.dns.server` | string | DNS server address (e.g., `8.8.8.8:53`) |
+| `ze.dns.timeout` | int | Query timeout in seconds (1-60) |
+| `ze.dns.cache-size` | int | Max cached entries (0 = disabled) |
+| `ze.dns.cache-ttl` | int | Max cache TTL in seconds (0 = response TTL only) |
+
+Precedence: env var > config file > system default (`/etc/resolv.conf`).
+
 <!-- source: internal/component/dns/schema/ze-dns-conf.yang -- DNS YANG schema -->
 <!-- source: internal/component/dns/resolver.go -- NewResolver, Resolve -->
+<!-- source: cmd/ze/hub/main.go -- ze.dns.server env registration -->
 
 ## Hub Configuration
 

@@ -48,6 +48,9 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.host", Type: "string", Description: "MCP server listen host (127.0.0.1 only)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.port", Type: "string", Description: "MCP server listen port"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.server", Type: "string", Description: "DNS server address (e.g., 8.8.8.8:53)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.timeout", Type: "int", Description: "DNS query timeout in seconds (1-60)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.cache-size", Type: "int", Description: "DNS cache max entries (0 = disabled)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.cache-ttl", Type: "int", Description: "DNS cache max TTL in seconds (0 = response TTL only)"})
 )
 
 // RunWebOnly starts only the web server (no BGP engine).
