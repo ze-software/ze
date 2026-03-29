@@ -3037,10 +3037,10 @@ func TestDiscardSessionNoDraft(t *testing.T) {
 	assert.False(t, ed.Dirty(), "should remain clean after discarding nothing")
 }
 
-// TestWriteThroughCorruptDraft verifies write-through fails gracefully on corrupt change file.
+// TestWriteThroughCorruptDraft verifies write-through discards corrupt change file and proceeds.
 //
-// VALIDATES: readChangeFile parse error path.
-// PREVENTS: Silent data corruption when change file is malformed.
+// VALIDATES: readChangeFile corrupt file recovery.
+// PREVENTS: Corrupt change file blocking all future edits.
 func TestWriteThroughCorruptDraft(t *testing.T) {
 	configPath := writeTestConfig(t, validBGPConfig)
 
@@ -3056,10 +3056,9 @@ func TestWriteThroughCorruptDraft(t *testing.T) {
 	err = os.WriteFile(changePath, []byte("this is not valid set format {{{{"), 0o600) //nolint:gosec // test file
 	require.NoError(t, err)
 
-	// Write-through set should fail with parse error from readChangeFile.
+	// Write-through set succeeds: corrupt change file is discarded and replaced.
 	err = ed.SetValue([]string{"bgp"}, "router-id", "5.6.7.8")
-	require.Error(t, err, "write-through should fail on corrupt change file")
-	assert.Contains(t, err.Error(), "write-through read")
+	require.NoError(t, err, "write-through should succeed after discarding corrupt change file")
 }
 
 // TestCommitInMemoryShowsDraftWithRemaining verifies that after commit, the committing

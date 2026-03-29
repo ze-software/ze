@@ -65,10 +65,7 @@ func (e *Editor) writeThroughSet(path []string, key, value string) error {
 
 	// Read change file (sparse tree of this user's changes).
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, err := e.readChangeFile(guard, changePath)
-	if err != nil {
-		return fmt.Errorf("write-through read change: %w", err)
-	}
+	changeTree, changeMeta := e.readChangeFile(guard, changePath)
 
 	// Apply the set to the change tree.
 	changeTarget, err := e.walkOrCreateIn(changeTree, path)
@@ -131,10 +128,7 @@ func (e *Editor) writeThroughCreate(path []string) error {
 
 	// Read change file.
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, err := e.readChangeFile(guard, changePath)
-	if err != nil {
-		return fmt.Errorf("write-through read change: %w", err)
-	}
+	changeTree, changeMeta := e.readChangeFile(guard, changePath)
 
 	// Create the path in the change tree (no leaf set).
 	if _, walkErr := e.walkOrCreateIn(changeTree, path); walkErr != nil {
@@ -175,10 +169,7 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 
 	// Read change file.
 	changePath := ChangePath(e.originalPath, e.session.User)
-	changeTree, changeMeta, err := e.readChangeFile(guard, changePath)
-	if err != nil {
-		return fmt.Errorf("write-through read change: %w", err)
-	}
+	changeTree, changeMeta := e.readChangeFile(guard, changePath)
 
 	// Read committed value for Previous field.
 	metaPath := append(path, key) //nolint:gocritic // intentional new slice
@@ -221,12 +212,12 @@ func (e *Editor) writeThroughDelete(path []string, key string) error {
 }
 
 // readChangeFile reads and parses a per-user change file.
-// Returns empty tree and meta if the file does not exist.
-func (e *Editor) readChangeFile(guard storage.WriteGuard, changePath string) (*config.Tree, *config.MetaTree, error) {
+// Returns empty tree and meta if the file does not exist or is corrupt.
+func (e *Editor) readChangeFile(guard storage.WriteGuard, changePath string) (*config.Tree, *config.MetaTree) {
 	data, readErr := guard.ReadFile(changePath)
 	if readErr != nil {
 		// No change file: start with empty sparse tree.
-		return config.NewTree(), config.NewMetaTree(), nil //nolint:nilerr // file-not-found is expected, start fresh
+		return config.NewTree(), config.NewMetaTree()
 	}
 	parser := config.NewSetParser(e.schema)
 	tree, meta, parseErr := parser.ParseWithMeta(string(data))
@@ -234,9 +225,9 @@ func (e *Editor) readChangeFile(guard storage.WriteGuard, changePath string) (*c
 		// Corrupt change file (e.g., from a previous bug). Log and start fresh
 		// rather than blocking all future edits.
 		draftLogger.Warn("discarding corrupt change file", "path", changePath, "error", parseErr)
-		return config.NewTree(), config.NewMetaTree(), nil
+		return config.NewTree(), config.NewMetaTree()
 	}
-	return tree, meta, nil
+	return tree, meta
 }
 
 // SaveDraft applies changes from the per-user change file to config.conf.draft.
@@ -254,10 +245,7 @@ func (e *Editor) SaveDraft() error {
 
 	// Read the change file.
 	changePath := ChangePath(e.originalPath, e.session.User)
-	_, changeMeta, err := e.readChangeFile(guard, changePath)
-	if err != nil {
-		return fmt.Errorf("save read change: %w", err)
-	}
+	_, changeMeta := e.readChangeFile(guard, changePath)
 
 	myEntries := changeMeta.SessionEntries(e.session.ID)
 	if len(myEntries) == 0 {

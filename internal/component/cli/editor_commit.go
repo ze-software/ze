@@ -188,10 +188,7 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 		guard.Remove(changePath) //nolint:errcheck // Best effort
 	} else {
 		// Partial discard: remove matching entries from change file.
-		changeTree, changeMeta, readErr := e.readChangeFile(guard, changePath)
-		if readErr != nil {
-			return fmt.Errorf("discard read change: %w", readErr)
-		}
+		changeTree, changeMeta := e.readChangeFile(guard, changePath)
 
 		myEntries := changeMeta.SessionEntries(e.session.ID)
 		for _, se := range myEntries {
@@ -248,32 +245,29 @@ func (e *Editor) DiscardSessionPath(path []string) error {
 
 	// Re-apply remaining changes from change file (if partial discard).
 	if pathPrefix != "" {
-		changeTree, changeMeta, readErr := e.readChangeFile(guard, changePath)
-		if readErr == nil {
-			for _, sid := range changeMeta.AllSessions() {
-				for _, se := range changeMeta.SessionEntries(sid) {
-					pathParts := strings.Fields(se.Path)
-					if len(pathParts) == 0 {
-						continue
-					}
-					leafName := pathParts[len(pathParts)-1]
-					parentPath := pathParts[:len(pathParts)-1]
-					if se.Entry.Value != "" {
-						target, walkErr := e.walkOrCreateIn(baseTree, parentPath)
-						if walkErr == nil {
-							target.Set(leafName, se.Entry.Value)
-						}
-					} else {
-						// Delete operation: remove leaf from base tree.
-						if target := walkPath(baseTree, e.schema, parentPath); target != nil {
-							target.Delete(leafName)
-						}
-					}
-					metaTarget := walkOrCreateMeta(baseMeta, e.schema, parentPath)
-					metaTarget.SetEntry(leafName, se.Entry)
+		_, changeMeta := e.readChangeFile(guard, changePath)
+		for _, sid := range changeMeta.AllSessions() {
+			for _, se := range changeMeta.SessionEntries(sid) {
+				pathParts := strings.Fields(se.Path)
+				if len(pathParts) == 0 {
+					continue
 				}
+				leafName := pathParts[len(pathParts)-1]
+				parentPath := pathParts[:len(pathParts)-1]
+				if se.Entry.Value != "" {
+					target, walkErr := e.walkOrCreateIn(baseTree, parentPath)
+					if walkErr == nil {
+						target.Set(leafName, se.Entry.Value)
+					}
+				} else {
+					// Delete operation: remove leaf from base tree.
+					if target := walkPath(baseTree, e.schema, parentPath); target != nil {
+						target.Delete(leafName)
+					}
+				}
+				metaTarget := walkOrCreateMeta(baseMeta, e.schema, parentPath)
+				metaTarget.SetEntry(leafName, se.Entry)
 			}
-			_ = changeTree // metadata-only scan; tree not needed
 		}
 	}
 
