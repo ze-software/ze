@@ -1,8 +1,42 @@
 {{define "finder"}}
 <div class="finder-columns" id="finder">
   {{range .Columns}}
+  {{if .Table}}
+  {{$table := .Table}}
+  <div class="finder-table-col">
+    <div class="finder-table-header">{{$table.Name}}</div>
+    <table class="finder-table">
+      <thead>
+        <tr>
+          <th class="finder-table-action"></th>
+          {{range $table.Columns}}
+          <th>{{.Name}}</th>
+          {{end}}
+          <th class="finder-table-action"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range $table.Rows}}
+        <tr>
+          <td class="finder-table-action"><button class="finder-rename-btn" data-action="rename-entry" data-url="{{.URL}}" data-key="{{.KeyValue}}" title="Rename">&#9998;</button></td>
+          <td><a class="finder-table-link" href="{{.URL}}"
+                 hx-get="/fragment/detail?path={{.HxPath}}" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="{{.URL}}">{{.KeyValue}}</a></td>
+          {{range .Cells}}
+          <td><input class="finder-table-input" type="text" value="{{.Value}}"
+                     hx-post="/config/set/{{.Path}}" hx-trigger="blur changed, keyup[key=='Enter']"
+                     hx-target="closest td" hx-swap="innerHTML"
+                     name="value" hx-vals='{"leaf":"{{.Leaf}}"}'></td>
+          {{end}}
+          <td class="finder-table-action"><button class="finder-delete-btn" data-action="delete-entry" data-path="{{.HxPath}}" data-key="{{.KeyValue}}" title="Delete">&#128465;</button></td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    <button class="finder-item finder-add" data-action="add-entry" data-base-url="{{$table.AddURL}}">+ new</button>
+  </div>
+  {{else}}
   <div class="finder-col">
-    {{range .Items}}
+    {{range .NamedItems}}
     {{if and .IsList (eq .Name "+ new")}}
     <button class="finder-item finder-add" data-action="add-entry" data-base-url="{{.AddURL}}">+ new</button>
     {{else}}
@@ -13,7 +47,16 @@
     </a>
     {{end}}
     {{end}}
+    {{if and .NamedItems .UnnamedItems}}<hr class="finder-separator">{{end}}
+    {{range .UnnamedItems}}
+    <a class="finder-item{{if .Selected}} selected{{end}}{{if .HasChildren}} has-children{{end}}"
+       href="{{.URL}}"
+       hx-get="/fragment/detail?path={{.HxPath}}" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="{{.URL}}">
+      {{.Name}}{{if .IsList}} <span class="finder-count">{{.Count}}</span>{{end}}
+    </a>
+    {{end}}
   </div>
+  {{end}}
   {{end}}
 </div>
 {{end}}

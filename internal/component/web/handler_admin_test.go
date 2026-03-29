@@ -68,7 +68,7 @@ func TestAdminRouteDispatch(t *testing.T) {
 	// Last column should show peer's sub-commands.
 	lastCol := fragData.Columns[len(fragData.Columns)-1]
 	itemNames := make(map[string]bool)
-	for _, item := range lastCol.Items {
+	for _, item := range lastCol.UnnamedItems {
 		itemNames[item.Name] = true
 	}
 
@@ -398,7 +398,7 @@ func TestAdminRootView(t *testing.T) {
 	require.Len(t, fragData.Columns, 1, "root has 1 finder column")
 
 	itemNames := make(map[string]bool)
-	for _, item := range fragData.Columns[0].Items {
+	for _, item := range fragData.Columns[0].UnnamedItems {
 		itemNames[item.Name] = true
 	}
 
@@ -406,7 +406,7 @@ func TestAdminRootView(t *testing.T) {
 	assert.True(t, itemNames["rib"], "rib must be in root column")
 
 	// Verify URLs use /admin/ prefix.
-	for _, item := range fragData.Columns[0].Items {
+	for _, item := range fragData.Columns[0].UnnamedItems {
 		assert.True(t, strings.HasPrefix(item.URL, "/admin/"),
 			"item URL %q must start with /admin/", item.URL)
 	}

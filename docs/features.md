@@ -516,6 +516,8 @@ Ze includes an HTTPS web interface for configuration viewing, editing, and runti
 | Feature | Description |
 |---------|-------------|
 | YANG-driven UI | Config tree navigation generated from YANG schemas |
+| Finder navigation | macOS-style column browser; named containers above unnamed with separator |
+| List table view | Lists with YANG `unique` constraints shown as interactive tables with inline editing |
 | Config viewing | Browse the config tree with breadcrumb navigation |
 | Config editing | Set and delete leaf values with per-user draft sessions |
 | Inline diff | Review pending changes before committing |

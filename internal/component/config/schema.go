@@ -152,8 +152,9 @@ func (n *ContainerNode) Children() []string {
 // ListNode represents a keyed collection of containers.
 type ListNode struct {
 	KeyType     ValueType
-	KeyName     string // YANG key name (empty = keyless list like update)
-	Description string // YANG description for tooltips
+	KeyName     string     // YANG key name (empty = keyless list like update)
+	Unique      [][]string // YANG unique constraints: each sub-slice is leaf paths for one constraint
+	Description string     // YANG description for tooltips
 	children    map[string]Node
 	order       []string
 }

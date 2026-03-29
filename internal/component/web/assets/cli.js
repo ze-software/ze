@@ -279,6 +279,14 @@
       } else if (action === 'add-entry') {
         var baseURL = btn.getAttribute('data-base-url') || '/show/';
         showAddEntryOverlay(baseURL);
+      } else if (action === 'rename-entry') {
+        var url = btn.getAttribute('data-url');
+        var key = btn.getAttribute('data-key');
+        showRenameOverlay(url, key);
+      } else if (action === 'delete-entry') {
+        var path = btn.getAttribute('data-path');
+        var entryKey = btn.getAttribute('data-key');
+        deleteEntry(path, entryKey);
       } else if (action === 'toggle-theme') {
         var html = document.documentElement;
         var current = html.getAttribute('data-theme');
@@ -329,6 +337,62 @@
     });
     document.body.appendChild(overlay);
     input.focus();
+  }
+
+  // Rename overlay: shows a modal to rename a list entry key.
+  function showRenameOverlay(currentURL, currentKey) {
+    var overlay = document.createElement('div');
+    overlay.className = 'add-entry-overlay';
+    var card = document.createElement('div');
+    card.className = 'add-entry-card';
+    var heading = document.createElement('h3');
+    heading.textContent = 'Rename ' + currentKey;
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'add-entry-input';
+    input.value = currentKey;
+    input.placeholder = 'new name';
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        var newName = input.value.trim();
+        if (newName && newName !== currentKey) {
+          // TODO: implement rename via API when backend supports it
+          overlay.remove();
+        }
+      }
+      if (e.key === 'Escape') overlay.remove();
+    });
+    card.appendChild(heading);
+    card.appendChild(input);
+    overlay.appendChild(card);
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) overlay.remove();
+    });
+    document.body.appendChild(overlay);
+    input.select();
+  }
+
+  // Delete a list entry and refresh the view.
+  function deleteEntry(path, key) {
+    if (!confirm('Delete ' + key + '?')) return;
+    // Extract parent path (remove the key segment) for the delete command
+    var parts = path.split('/');
+    var entryKey = parts.pop();
+    var parentPath = parts.join('/');
+    var deletePath = '/config/delete/' + parentPath + '/';
+    fetch(deletePath, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'leaf=' + encodeURIComponent(entryKey)
+    }).then(function(r) {
+      if (r.ok) {
+        // Refresh the current view
+        var curPath = window.location.pathname.replace(/^\/show\//, '').replace(/\/$/, '');
+        refreshDetail(curPath);
+      }
+    });
   }
 
   // Sidebar flyout: position and show on hover over list groups.

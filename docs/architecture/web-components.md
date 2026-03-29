@@ -17,26 +17,41 @@ The web interface follows three rules:
 
 ```
 +--------------------------------------------------+
-| #breadcrumb   / > bgp > peer > 1.2.3.4    [CLI] |
+| #breadcrumb   / > bgp > peer > london     [CLI] |
 +----------+---------------------------------------+
-| #sidebar | #detail                               |
+| #finder  | #detail                               |
 |          |                                       |
-| <- BACK  |  router-id: [1.2.3.4______]          |
-|          |  listen:    [0.0.0.0:179___]          |
-| GROUP    |  hold-time: [90_____________]         |
-| LOCAL    |                                       |
-| PEER     |                                       |
-|  1.2.3.4 |                                       |
-|  10.0.0.1|                                       |
-|  [+add]  |                                       |
-| RIB      |                                       |
-| RPKI     |                                       |
+| PEER  3  |  router-id: [1.2.3.4______]          |
+| GROUP 1  |  listen:    [0.0.0.0:179___]          |
+| -------- |  hold-time: [90_____________]         |
+| local    |                                       |
+| timer    |                                       |
+| rib      |                                       |
 +----------+---------------------------------------+
 | #commit-bar   3 pending changes [Review] [Discard]|
 +--------------------------------------------------+
-| /> set bgp peer 1.2.3.4 remote-as 65001         |
+| /> set bgp peer london remote as 65001           |
 +--------------------------------------------------+
 ```
+
+<!-- source: internal/component/web/fragment.go -- FinderColumn NamedItems/UnnamedItems -->
+
+Named containers (lists with YANG keys) appear above the separator line. Unnamed containers and settings appear below. When a list has YANG `unique` constraints, it renders as an interactive table:
+
+```
++-----------------------------------------------+
+| peer                                          |
++-----------------------------------------------+
+| [E] name    | remote/ip    |                  |
++-----------------------------------------------+
+| [E] london  | 10.0.0.1     | [D]             |
+| [E] paris   | 10.0.0.2     | [D]             |
++-----------------------------------------------+
+| [+ new]                                       |
++-----------------------------------------------+
+```
+
+<!-- source: internal/component/web/fragment.go -- buildListTable, ListTableView -->
 
 Hidden overlays (shown on demand):
 - `#diff-modal` -- diff review with Confirm Commit / Cancel
@@ -146,6 +161,9 @@ Adding a new type:
 |------|---------|---------|
 | `FragmentData` | All data for rendering any page state | HandleFragment |
 | `FieldMeta` | YANG metadata for one leaf field | fieldFor, input templates |
+| `FinderColumn` | One column in the Finder navigation (NamedItems, UnnamedItems, or Table) | finder template |
+| `ListTableView` | Table view for lists with YANG unique constraints | finder template |
+| `ListTableRow` | One entry row in a list table (key + editable cells) | finder template |
 | `SidebarSection` | One heading in the sidebar (with entries for lists) | sidebar template |
 | `SidebarEntry` | One key in a list section | sidebar_section template |
 | `ChildEntry` | One navigation link | detail template (legacy) |

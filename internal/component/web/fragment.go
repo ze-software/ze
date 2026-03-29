@@ -88,9 +88,41 @@ type ColumnItem struct {
 	AddURL      string // Base URL for add-entry overlay (lists only)
 }
 
+// ListTableColumn describes one column in a list table view.
+type ListTableColumn struct {
+	Name string // Display name (leaf name or dotted path like "remote/ip")
+	Key  bool   // True for the list key column (clickable, navigates)
+}
+
+// ListTableCell is one editable cell in a list table row.
+type ListTableCell struct {
+	Value string // Current value
+	Leaf  string // Leaf name for the set command (e.g., "ip")
+	Path  string // Full YANG path for hx-post (e.g., "bgp/peer/london/remote")
+}
+
+// ListTableRow is one entry row in a list table.
+type ListTableRow struct {
+	KeyValue string          // The list key value (e.g., peer name)
+	Cells    []ListTableCell // Editable cells (same order as non-key columns)
+	URL      string          // Navigation URL for this entry
+	HxPath   string          // YANG path for hx-get
+}
+
+// ListTableView holds data for rendering a multi-key list as a table.
+type ListTableView struct {
+	Name    string            // List name (e.g., "peer")
+	Columns []ListTableColumn // Column definitions
+	Rows    []ListTableRow    // Entry rows
+	AddURL  string            // Base URL for adding entries
+	SetURL  string            // Base URL for config/set (inline edits)
+}
+
 // FinderColumn is one column in the Finder-style navigation.
 type FinderColumn struct {
-	Items []ColumnItem
+	NamedItems   []ColumnItem   // Named containers (lists with keys) - shown first
+	UnnamedItems []ColumnItem   // Unnamed containers (no list key) - shown after separator
+	Table        *ListTableView // Non-nil when this column shows a table instead of a list
 }
 
 // FragmentData holds all data needed to render any fragment.
@@ -533,30 +565,46 @@ func buildColumnAt(schema *config.Schema, tree *config.Tree, prefix []string, se
 			Selected: name == selectedName,
 		}
 
-		if _, ok := child.(*config.ListNode); ok {
+		// Named lists (with KeyName) go in NamedItems, everything else in UnnamedItems.
+		if listNode, ok := child.(*config.ListNode); ok {
 			item.IsList = true
 			item.HasChildren = true
 			item.AddURL = url
 			item.Count = len(collectListKeys(tree, schema, childPath))
+			if listNode.KeyName != "" {
+				col.NamedItems = append(col.NamedItems, item)
+			} else {
+				col.UnnamedItems = append(col.UnnamedItems, item)
+			}
 		} else {
 			item.HasChildren = hasNonLeafChildren(child)
+			col.UnnamedItems = append(col.UnnamedItems, item)
 		}
-
-		col.Items = append(col.Items, item)
 	}
 
 	return col
 }
 
 // buildListColumn builds a column showing list entries (e.g., peer names).
-func buildListColumn(tree *config.Tree, schema *config.Schema, prefix []string, _ *config.ListNode, selectedName string) *FinderColumn {
+// For lists with unique constraints, it builds a table view instead of a simple list.
+func buildListColumn(tree *config.Tree, schema *config.Schema, prefix []string, listNode *config.ListNode, selectedName string) *FinderColumn {
 	col := &FinderColumn{}
 	keys := collectListKeys(tree, schema, prefix)
 	url := "/show/" + strings.Join(prefix, "/") + "/"
 
+	// Collect all unique field paths (flattened from all unique constraints).
+	uniqueFields := collectUniqueFields(listNode)
+
+	// If the list has unique fields, render as a table.
+	if len(uniqueFields) > 0 {
+		col.Table = buildListTable(tree, schema, prefix, listNode, keys, uniqueFields, url)
+		return col
+	}
+
+	// Simple list: show entries in the column.
 	for _, k := range keys {
 		entryPath := strings.Join(prefix, "/") + "/" + k
-		col.Items = append(col.Items, ColumnItem{
+		col.NamedItems = append(col.NamedItems, ColumnItem{
 			Name:        k,
 			URL:         url + k + "/",
 			HxPath:      entryPath,
@@ -566,11 +614,102 @@ func buildListColumn(tree *config.Tree, schema *config.Schema, prefix []string, 
 	}
 
 	// Add "+ new" entry.
-	col.Items = append(col.Items, ColumnItem{
+	col.NamedItems = append(col.NamedItems, ColumnItem{
 		Name:   "+ new",
 		IsList: true,
 		AddURL: url,
 	})
 
 	return col
+}
+
+// collectUniqueFields returns all distinct leaf paths from a list's unique constraints.
+func collectUniqueFields(listNode *config.ListNode) []string {
+	seen := make(map[string]bool)
+	var fields []string
+	for _, constraint := range listNode.Unique {
+		for _, field := range constraint {
+			if !seen[field] {
+				seen[field] = true
+				fields = append(fields, field)
+			}
+		}
+	}
+	return fields
+}
+
+// buildListTable builds a ListTableView for a list with unique constraints.
+func buildListTable(tree *config.Tree, schema *config.Schema, prefix []string, listNode *config.ListNode, keys, uniqueFields []string, baseURL string) *ListTableView {
+	listName := prefix[len(prefix)-1]
+	table := &ListTableView{
+		Name:   listName,
+		AddURL: baseURL,
+		SetURL: "/config/set/" + strings.Join(prefix, "/") + "/",
+	}
+
+	// Key column first, then unique field columns.
+	table.Columns = append(table.Columns, ListTableColumn{Name: listNode.KeyName, Key: true})
+	for _, f := range uniqueFields {
+		table.Columns = append(table.Columns, ListTableColumn{Name: f})
+	}
+
+	// Build rows from configured entries.
+	for _, key := range keys {
+		row := ListTableRow{
+			KeyValue: key,
+			URL:      baseURL + key + "/",
+			HxPath:   strings.Join(prefix, "/") + "/" + key,
+		}
+
+		// Resolve each unique field's value from the entry's subtree.
+		entryPath := append(append([]string{}, prefix...), key)
+		entryTree := walkTree(tree, schema, entryPath)
+		for _, field := range uniqueFields {
+			// Split "remote/ip" into parent path "remote" and leaf "ip".
+			leaf, parentSuffix := splitFieldPath(field)
+			cellPath := strings.Join(entryPath, "/")
+			if parentSuffix != "" {
+				cellPath += "/" + parentSuffix
+			}
+			row.Cells = append(row.Cells, ListTableCell{
+				Value: resolveNestedValue(entryTree, field),
+				Leaf:  leaf,
+				Path:  cellPath,
+			})
+		}
+
+		table.Rows = append(table.Rows, row)
+	}
+
+	return table
+}
+
+// splitFieldPath splits a slash-separated field path into the leaf name and the parent path suffix.
+// "remote/ip" returns ("ip", "remote"). "ip" returns ("ip", "").
+func splitFieldPath(field string) (leaf, parentSuffix string) {
+	idx := strings.LastIndex(field, "/")
+	if idx < 0 {
+		return field, ""
+	}
+	return field[idx+1:], field[:idx]
+}
+
+// resolveNestedValue resolves a slash-separated path (e.g., "remote/ip") to a leaf value in a tree.
+func resolveNestedValue(tree *config.Tree, path string) string {
+	if tree == nil {
+		return ""
+	}
+	parts := strings.Split(path, "/")
+	current := tree
+	for i, part := range parts {
+		if i == len(parts)-1 {
+			val, _ := current.Get(part)
+			return val
+		}
+		current = current.GetContainer(part)
+		if current == nil {
+			return ""
+		}
+	}
+	return ""
 }

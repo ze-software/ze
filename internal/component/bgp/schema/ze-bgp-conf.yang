@@ -66,6 +66,7 @@ module ze-bgp-conf {
 
             list peer {
                 key "name";
+                unique "remote/ip";
                 description "BGP peer in this group";
 
                 leaf name {
@@ -82,6 +83,7 @@ module ze-bgp-conf {
         // Standalone peers (not in a group)
         list peer {
             key "name";
+            unique "remote/ip";
             description "BGP peer configuration (standalone, no group)";
 
             leaf name {

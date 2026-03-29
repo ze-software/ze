@@ -74,6 +74,7 @@ URLs follow a verb-first three-tier pattern:
 | View | `/monitor/<yang-path>` | GET | View with auto-polling |
 | Config | `/config/edit/<path>` | GET | Editable config tree view |
 | Config | `/config/set/<path>` | POST | Set a leaf value |
+| Config | `/config/add/<path>` | POST | Create an empty list entry |
 | Config | `/config/delete/<path>` | POST | Delete a leaf value |
 | Config | `/config/commit/` | GET/POST | View diff and commit changes |
 | Config | `/config/discard/` | POST | Discard pending changes |
@@ -83,6 +84,27 @@ URLs follow a verb-first three-tier pattern:
 | Static | `/assets/` | GET | CSS, JS, images (no auth required) |
 
 The root URL `/` redirects to `/show/`.
+
+### Finder Navigation
+
+The left panel uses a Finder-style column browser (similar to macOS Finder). It shows up to 3 columns, scrolling horizontally as you navigate deeper.
+<!-- source: internal/component/web/fragment.go -- buildFinderColumns, buildColumnAt -->
+
+**Named vs unnamed containers:** Named containers (lists with YANG keys, like `peer`, `group`) appear above unnamed containers (global settings like `local`, `timer`), separated by a horizontal rule. This makes keyed sections easy to find.
+
+**Table view for lists with unique fields:** Lists that have YANG `unique` constraints (e.g., `peer` with `unique "remote/ip"`) display as an interactive table instead of a simple list. The table shows the list key and all unique fields as columns.
+<!-- source: internal/component/web/fragment.go -- buildListTable, collectUniqueFields -->
+
+| Column | Behavior |
+|--------|----------|
+| Rename button | Opens a modal to change the entry's key (name) |
+| Key column (e.g., name) | Clickable link, navigates into the entry's config subtree |
+| Unique field columns (e.g., ip) | Editable inline, saves on blur or Enter |
+| Delete button | Removes the entry after confirmation |
+
+The `+ new` button below the table creates a new entry (prompts for the key value).
+
+**Simple lists:** Lists without unique constraints continue to show as a flat column of clickable entries.
 
 ### Breadcrumb Navigation
 

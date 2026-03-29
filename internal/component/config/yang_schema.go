@@ -411,6 +411,19 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 	l := List(keyType, fields...)
 	l.KeyName = entry.Key
 	l.Description = entry.Description
+
+	// Extract YANG unique constraints from Entry.Extra.
+	if vals, ok := entry.Extra["unique"]; ok {
+		for _, v := range vals {
+			if uv, ok := v.(*gyang.Value); ok {
+				fields := strings.Fields(uv.Name)
+				if len(fields) > 0 {
+					l.Unique = append(l.Unique, fields)
+				}
+			}
+		}
+	}
+
 	return l
 }
 

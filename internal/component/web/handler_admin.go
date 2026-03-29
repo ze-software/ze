@@ -233,7 +233,7 @@ func buildAdminFinderColumns(path []string, children map[string][]string) []Find
 			childKey := strings.Join(childPath, "/")
 			url := "/admin/" + strings.Join(childPath, "/") + "/"
 
-			col.Items = append(col.Items, ColumnItem{
+			col.UnnamedItems = append(col.UnnamedItems, ColumnItem{
 				Name:        name,
 				URL:         url,
 				HxPath:      "admin/" + childKey,
@@ -241,7 +241,7 @@ func buildAdminFinderColumns(path []string, children map[string][]string) []Find
 				HasChildren: len(children[childKey]) > 0,
 			})
 		}
-		if len(col.Items) > 0 {
+		if len(col.UnnamedItems) > 0 {
 			columns = append(columns, col)
 		}
 	}
