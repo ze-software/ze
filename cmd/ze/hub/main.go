@@ -47,10 +47,10 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.insecure", Type: "bool", Description: "Disable web authentication"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.host", Type: "string", Description: "MCP server listen host (127.0.0.1 only)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.port", Type: "string", Description: "MCP server listen port"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.server", Type: "string", Description: "DNS server address (e.g., 8.8.8.8:53)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.timeout", Type: "int", Description: "DNS query timeout in seconds (1-60)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.cache-size", Type: "int", Description: "DNS cache max entries (0 = disabled)"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.cache-ttl", Type: "int", Description: "DNS cache max TTL in seconds (0 = response TTL only)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.server", Type: "string", Default: defaultDNSServer(), Description: "DNS server address (e.g., 8.8.8.8:53)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.timeout", Type: "int", Default: "5", Description: "DNS query timeout in seconds (1-60)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.cache-size", Type: "int", Default: "10000", Description: "DNS cache max entries (0 = disabled)"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.cache-ttl", Type: "int", Default: "86400", Description: "DNS cache max TTL in seconds (0 = response TTL only)"})
 )
 
 // RunWebOnly starts only the web server (no BGP engine).
@@ -644,6 +644,22 @@ func monitorStdinEOF(sigCh chan<- os.Signal) {
 	case sigCh <- syscall.SIGTERM:
 	default:
 	}
+}
+
+// defaultDNSServer reads /etc/resolv.conf and returns the first nameserver,
+// or "8.8.8.8:53" if unavailable. Used at init time for env var default display.
+func defaultDNSServer() string {
+	data, err := os.ReadFile("/etc/resolv.conf")
+	if err != nil {
+		return "8.8.8.8:53"
+	}
+	for line := range strings.SplitSeq(string(data), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[0] == "nameserver" {
+			return fields[1] + ":53"
+		}
+	}
+	return "8.8.8.8:53"
 }
 
 // runOrchestratorWithData parses hub config and runs the orchestrator.
