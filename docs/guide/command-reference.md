@@ -271,6 +271,8 @@ ze data import <file>...           # Import files into blob
 ze data rm <key>...                # Remove entries
 ze data ls [prefix]                # List entries
 ze data cat <key>                  # Print entry content
+ze data registered                 # List all registered key patterns
+ze data registered <pattern>       # Show details for a key pattern
 ```
 
 | Flag | Purpose |
@@ -311,11 +313,12 @@ ze completion nushell
 
 ### ze env
 
-Environment variable management. Lists all registered variables sorted by key, followed by log subsystems with descriptions.
+Environment variable management.
 
 ```
-ze env                           # Show all env vars + log subsystems
-ze env list -v                   # Include current effective values
+ze env registered                # List all registered env vars + log subsystems
+ze env registered <key>          # Show details for a specific env var
+ze env list -v                   # List with current effective values
 ze env get <key>                 # Show single env var details
 ```
 

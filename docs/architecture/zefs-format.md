@@ -179,6 +179,23 @@ The Storage interface (`internal/component/config/storage/`) translates filesyst
 
 `ze data` operates on raw blob keys. `ze init` writes `meta/` keys directly.
 
+## Key Registry
+
+All known key patterns are registered in `pkg/zefs/keys.go` via `MustRegister()`, following the same pattern as `env.MustRegister()` for environment variables. Each `KeyEntry` has a Pattern, Description, and Private flag.
+<!-- source: pkg/zefs/registry.go -- MustRegister, KeyEntry -->
+<!-- source: pkg/zefs/keys.go -- registered key definitions -->
+
+Template keys use `{param}` placeholders for variable segments. The `Key()` method substitutes params and validates them (rejects empty and `..`). `Prefix()` and `Dir()` extract the fixed prefix for directory listing.
+
+| Method | Purpose | Example |
+|--------|---------|---------|
+| `.Pattern` | Raw pattern string | `"meta/history/{username}/{mode}"` |
+| `.Key(params...)` | Instantiate with concrete values | `KeyHistory.Key("alice", "edit")` returns `"meta/history/alice/edit"` |
+| `.Prefix()` | Fixed prefix with trailing `/` | `KeyFileActive.Prefix()` returns `"file/active/"` |
+| `.Dir()` | Fixed prefix without trailing `/` | `KeyFileActive.Dir()` returns `"file/active"` |
+
+Discovery: `ze data registered` lists all public key patterns. `ze data registered <pattern>` shows details for one.
+
 ## Implementation
 
 Reference implementation: `pkg/zefs/` in the ze repository.
