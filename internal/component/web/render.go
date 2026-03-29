@@ -2,6 +2,8 @@
 // Related: handler_config.go -- Config tree view handlers
 // Related: handler_admin.go -- Admin command handlers
 // Related: sse.go -- SSE event rendering
+// Detail: decorator.go -- Decorator registry and interface
+// Detail: decorator_asn.go -- ASN name decorator via Team Cymru DNS
 
 // Package web provides the ze web interface with template rendering and static assets.
 package web
@@ -50,11 +52,12 @@ type LoginData struct {
 // Renderer loads and renders HTML templates from embedded files.
 // Caller MUST use NewRenderer to create an instance; zero value is not usable.
 type Renderer struct {
-	layout    *template.Template
-	login     *template.Template
-	config    map[string]*template.Template // keyed by template name (e.g., "container.html")
-	fragments *template.Template            // parsed fragment templates (detail, sidebar, pathbar, oob)
-	assets    fs.FS
+	layout     *template.Template
+	login      *template.Template
+	config     map[string]*template.Template // keyed by template name (e.g., "container.html")
+	fragments  *template.Template            // parsed fragment templates (detail, sidebar, pathbar, oob)
+	assets     fs.FS
+	decorators *DecoratorRegistry // optional: resolves display-time annotations for decorated leaves
 }
 
 // NewRenderer parses all embedded templates and returns a ready Renderer.
@@ -181,9 +184,33 @@ func (r *Renderer) RenderFragment(name string, data any) template.HTML {
 	return template.HTML(buf.String()) //nolint:gosec // trusted template output
 }
 
+// SetDecorators sets the decorator registry used to resolve display-time
+// annotations for leaves with ze:decorate. Optional; nil disables decoration.
+// MUST be called before the HTTP server starts serving (not concurrent-safe).
+func (r *Renderer) SetDecorators(reg *DecoratorRegistry) {
+	r.decorators = reg
+}
+
+// ResolveDecorations resolves display-time annotations for all fields.
+// Call after building FieldMeta slices and before passing to templates.
+func (r *Renderer) ResolveDecorations(fields []FieldMeta) {
+	if r.decorators == nil {
+		return
+	}
+
+	for i := range fields {
+		r.decorators.ResolveField(&fields[i])
+	}
+}
+
 // RenderField renders a single field (wrapper + input + badge) using the
 // fragment templates directly. Returns the full field HTML for HTMX swap.
 func (r *Renderer) RenderField(field FieldMeta) template.HTML {
+	// Resolve decoration if a registry is available.
+	if r.decorators != nil {
+		r.decorators.ResolveField(&field)
+	}
+
 	var buf bytes.Buffer
 
 	if err := r.fragments.ExecuteTemplate(&buf, "field_wrapper_start", field); err != nil {

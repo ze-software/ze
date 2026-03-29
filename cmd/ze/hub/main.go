@@ -25,6 +25,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	zeconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/component/dns"
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
 	pluginmgr "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
@@ -400,6 +401,12 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, 
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: renderer: %v\n", err)
 		return nil
 	}
+
+	// Register display-time decorators (e.g., ASN -> org name via Team Cymru DNS).
+	dnsResolver := dns.NewResolver(dns.ResolverConfig{})
+	decorators := zeweb.NewDecoratorRegistry()
+	decorators.Register(zeweb.NewASNNameDecoratorFromResolver(dnsResolver))
+	renderer.SetDecorators(decorators)
 
 	srv, err := zeweb.NewWebServer(zeweb.WebConfig{
 		ListenAddr: listenAddr,

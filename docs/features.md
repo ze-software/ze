@@ -529,8 +529,11 @@ Ze includes an HTTPS web interface for configuration viewing, editing, and runti
 | Live updates | SSE notifications when another user commits config changes |
 | HTTPS only | TLS 1.2 minimum; auto-generated ECDSA P-256 self-signed certificate when no cert is provided |
 | Security headers | HSTS, CSP, X-Frame-Options DENY, no-store cache on all authenticated responses |
+| YANG decorators | Leaves with `ze:decorate` extension show enriched display text (e.g., ASN numbers annotated with organization name via Team Cymru DNS) |
 
 <!-- source: internal/component/web/server.go -- WebServer, TLS config, cert generation -->
+<!-- source: internal/component/web/decorator.go -- Decorator registry and interface -->
+<!-- source: internal/component/web/decorator_asn.go -- ASN name decorator via Team Cymru DNS -->
 <!-- source: internal/component/web/auth.go -- SessionStore, AuthMiddleware, LoginHandler -->
 <!-- source: internal/component/web/handler.go -- URL routing, content negotiation, three-tier scheme -->
 <!-- source: internal/component/web/handler_config.go -- Config view and edit handlers -->

@@ -1,0 +1,23 @@
+# Test: ze config validate with YANG leaves having ze:decorate extension
+# VALIDATES: AC-7 -- ze:decorate extension does not break config parsing
+# VALIDATES: AC-2 -- non-decorated leaves still parse correctly
+stdin=config:terminator=EOF_CONF
+bgp {
+	local {
+		as 64500
+	}
+	peer upstream {
+		remote {
+			ip 192.168.1.1
+			as 13335
+		}
+		local {
+			ip 192.168.1.2
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

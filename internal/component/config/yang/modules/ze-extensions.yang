@@ -121,4 +121,16 @@ module ze-extensions {
                      Values from bgp, group, and peer levels are accumulated
                      (appended) instead of the most-specific level replacing others.";
     }
+
+    // Extension: decorate
+    // Attaches a display-time decorator to a leaf.
+    // The argument names a registered decorator function (e.g., "asn-name").
+    // When the web UI renders a decorated leaf, it calls the decorator to
+    // obtain supplementary display text (e.g., AS number -> org name).
+    extension decorate {
+        argument name;
+        description "Attaches a display-time decorator to a leaf.
+                     The argument names a registered decorator function
+                     that resolves supplementary display text for the value.";
+    }
 }

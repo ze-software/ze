@@ -17,16 +17,18 @@ import (
 // FieldMeta carries YANG metadata for a single field, rendered as data-* attributes
 // so the browser JS can construct type-appropriate inputs without server round-trips.
 type FieldMeta struct {
-	Leaf        string // YANG leaf name
-	Path        string // Parent YANG path for POST target
-	Type        string // bool, string, enum, uint16, uint32, int, ip, prefix, duration
-	Value       string // Current configured value
-	Default     string // YANG default
-	Description string // YANG description
-	Options     string // Comma-separated enum values
-	Min         string // Numeric min
-	Max         string // Numeric max
-	Pattern     string // Validation regex
+	Leaf          string // YANG leaf name
+	Path          string // Parent YANG path for POST target
+	Type          string // bool, string, enum, uint16, uint32, int, ip, prefix, duration
+	Value         string // Current configured value
+	Default       string // YANG default
+	Description   string // YANG description
+	Options       string // Comma-separated enum values
+	Min           string // Numeric min
+	Max           string // Numeric max
+	Pattern       string // Validation regex
+	DecoratorName string // ze:decorate extension argument (decorator name)
+	Decoration    string // Resolved display-time annotation (e.g., AS org name)
 }
 
 // ErrorData holds the data for rendering an error item via the oob_error template.
@@ -210,6 +212,7 @@ func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree
 		}
 
 		data := buildFragmentData(schema, viewTree, path)
+		renderer.ResolveDecorations(data.Fields)
 		data.Username = username
 		data.Insecure = insecure
 		data.Monitor = strings.HasPrefix(r.URL.Path, "/monitor/")
@@ -391,11 +394,12 @@ func populateFragmentFields(data *FragmentData, provider childLister, subtree *c
 // buildFieldMeta creates a FieldMeta from a LeafNode with full YANG metadata.
 func buildFieldMeta(name string, leaf *config.LeafNode, value string, _ bool, parentPath string) FieldMeta {
 	meta := FieldMeta{
-		Leaf:        name,
-		Path:        parentPath,
-		Value:       value,
-		Default:     leaf.Default,
-		Description: leaf.Description,
+		Leaf:          name,
+		Path:          parentPath,
+		Value:         value,
+		Default:       leaf.Default,
+		Description:   leaf.Description,
+		DecoratorName: leaf.Decorate,
 	}
 
 	meta.Type = valueTypeToFieldType(leaf.Type)

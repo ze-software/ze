@@ -334,6 +334,17 @@ func hasDisplayKeyExtension(entry *gyang.Entry) bool {
 	return false
 }
 
+// getDecorateExtension reads the ze:decorate extension argument from a YANG entry.
+// Returns empty string if no decorate extension is present.
+func getDecorateExtension(entry *gyang.Entry) string {
+	for _, ext := range entry.Exts {
+		if ext.Keyword == "ze:decorate" || strings.HasSuffix(ext.Keyword, ":decorate") {
+			return ext.Argument
+		}
+	}
+	return ""
+}
+
 // hasSensitiveExtension checks if a YANG entry has the ze:sensitive extension.
 func hasSensitiveExtension(entry *gyang.Entry) bool {
 	for _, ext := range entry.Exts {
@@ -352,6 +363,7 @@ func yangToLeaf(entry *gyang.Entry) *LeafNode {
 		node.Default = entry.Default[0]
 	}
 	node.Sensitive = hasSensitiveExtension(entry)
+	node.Decorate = getDecorateExtension(entry)
 	node.Description = entry.Description
 	if entry.Type != nil && entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
 		node.Enums = entry.Type.Enum.Names()

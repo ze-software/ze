@@ -27,6 +27,7 @@ module ze-bgp-conf {
             leaf as {
                 type zt:asn;
                 mandatory true;
+                ze:decorate "asn-name";
                 description "Local Autonomous System Number (required)";
             }
         }
@@ -178,6 +179,7 @@ module ze-bgp-conf {
             description "Remote peer identity defaults";
             leaf as {
                 type zt:asn;
+                ze:decorate "asn-name";
                 description "Peer Autonomous System Number";
             }
             leaf accept {
@@ -192,6 +194,7 @@ module ze-bgp-conf {
             description "Local identity overrides";
             leaf as {
                 type zt:asn;
+                ze:decorate "asn-name";
                 description "Local AS (overrides global)";
             }
             leaf connect {

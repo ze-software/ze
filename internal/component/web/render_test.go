@@ -1,6 +1,7 @@
 package web
 
 import (
+	"errors"
 	"html/template"
 	"net/http"
 	"net/http/httptest"
@@ -241,6 +242,221 @@ func TestRenderLoginOverlay(t *testing.T) {
 	// Should NOT contain full-page login class
 	if strings.Contains(body, `class="login-page"`) {
 		t.Error("overlay login should not contain login-page class")
+	}
+}
+
+// TestRenderDecoratedLeaf verifies that a FieldMeta with Decoration renders the annotation.
+// VALIDATES: AC-1, AC-9 -- annotation appears wherever the decorated leaf is rendered.
+// PREVENTS: Decoration silently dropped during template rendering.
+func TestRenderDecoratedLeaf(t *testing.T) {
+	r, err := NewRenderer()
+	if err != nil {
+		t.Fatalf("NewRenderer() error: %v", err)
+	}
+
+	field := FieldMeta{
+		Leaf:          "as",
+		Path:          "bgp/peer/upstream/remote",
+		Type:          "uint32",
+		Value:         "13335",
+		Description:   "Peer ASN",
+		Min:           "0",
+		Max:           "4294967295",
+		DecoratorName: "asn-name",
+		Decoration:    "Cloudflare, Inc.",
+	}
+
+	html := r.RenderField(field)
+	body := string(html)
+
+	if !strings.Contains(body, "Cloudflare, Inc.") {
+		t.Error("rendered output missing decoration text 'Cloudflare, Inc.'")
+	}
+
+	if !strings.Contains(body, "ze-field-decoration") {
+		t.Error("rendered output missing ze-field-decoration CSS class")
+	}
+
+	// Value should still be present.
+	if !strings.Contains(body, `value="13335"`) {
+		t.Error("rendered output missing input value")
+	}
+}
+
+// TestRenderUnDecoratedLeaf verifies that a plain leaf renders without decoration markup.
+// VALIDATES: AC-2 -- no regression for undecorated leaves.
+// PREVENTS: Empty decoration span appearing on all leaves.
+func TestRenderUnDecoratedLeaf(t *testing.T) {
+	r, err := NewRenderer()
+	if err != nil {
+		t.Fatalf("NewRenderer() error: %v", err)
+	}
+
+	field := FieldMeta{
+		Leaf:  "router-id",
+		Path:  "bgp",
+		Type:  "ip",
+		Value: "1.2.3.4",
+	}
+
+	html := r.RenderField(field)
+	body := string(html)
+
+	if strings.Contains(body, "ze-field-decoration") {
+		t.Error("undecorated leaf should not contain ze-field-decoration class")
+	}
+
+	// Value should be present.
+	if !strings.Contains(body, `value="1.2.3.4"`) {
+		t.Error("rendered output missing input value")
+	}
+}
+
+// TestDecoratorRegistryResolveField verifies that ResolveField populates Decoration.
+// VALIDATES: AC-1 -- decorator resolution populates FieldMeta.Decoration.
+// PREVENTS: Decoration not filled even when decorator is registered.
+func TestDecoratorRegistryResolveField(t *testing.T) {
+	reg := NewDecoratorRegistry()
+	reg.Register(DecoratorFunc("asn-name", func(value string) (string, error) {
+		return "Test Org", nil
+	}))
+
+	field := FieldMeta{
+		Leaf:          "as",
+		Value:         "64500",
+		DecoratorName: "asn-name",
+	}
+
+	reg.ResolveField(&field)
+	if field.Decoration != "Test Org" {
+		t.Errorf("Decoration = %q, want %q", field.Decoration, "Test Org")
+	}
+
+	// No decorator name -- should not change.
+	field2 := FieldMeta{Leaf: "port", Value: "179"}
+	reg.ResolveField(&field2)
+	if field2.Decoration != "" {
+		t.Errorf("field without decorator should have empty Decoration, got %q", field2.Decoration)
+	}
+
+	// Empty value -- should not call decorator.
+	field3 := FieldMeta{Leaf: "as", DecoratorName: "asn-name"}
+	reg.ResolveField(&field3)
+	if field3.Decoration != "" {
+		t.Errorf("field with empty value should have empty Decoration, got %q", field3.Decoration)
+	}
+
+	// Unknown decorator name -- should not change. (Finding #15)
+	field4 := FieldMeta{Leaf: "as", Value: "64500", DecoratorName: "nonexistent"}
+	reg.ResolveField(&field4)
+	if field4.Decoration != "" {
+		t.Errorf("unknown decorator should have empty Decoration, got %q", field4.Decoration)
+	}
+
+	// Decorator returns error -- Decoration should stay empty. (Finding #7)
+	reg.Register(DecoratorFunc("failing", func(string) (string, error) {
+		return "", errors.New("lookup failed")
+	}))
+	field5 := FieldMeta{Leaf: "as", Value: "64500", DecoratorName: "failing"}
+	reg.ResolveField(&field5)
+	if field5.Decoration != "" {
+		t.Errorf("failing decorator should have empty Decoration, got %q", field5.Decoration)
+	}
+}
+
+// TestRenderFieldResolvesDecoration verifies that RenderField calls SetDecorators
+// to resolve decoration at render time, not relying on pre-set Decoration.
+// VALIDATES: AC-1 -- renderer resolves decoration from registry during RenderField.
+// PREVENTS: Decoration only working with pre-set values, not via registry lookup.
+func TestRenderFieldResolvesDecoration(t *testing.T) {
+	r, err := NewRenderer()
+	if err != nil {
+		t.Fatalf("NewRenderer() error: %v", err)
+	}
+
+	reg := NewDecoratorRegistry()
+	reg.Register(DecoratorFunc("asn-name", func(value string) (string, error) {
+		if value == "13335" {
+			return "Cloudflare, Inc.", nil
+		}
+		return "", nil
+	}))
+	r.SetDecorators(reg)
+
+	field := FieldMeta{
+		Leaf:          "as",
+		Path:          "bgp/peer/upstream/remote",
+		Type:          "uint32",
+		Value:         "13335",
+		Min:           "0",
+		Max:           "4294967295",
+		DecoratorName: "asn-name",
+		// Decoration intentionally NOT pre-set.
+	}
+
+	html := r.RenderField(field)
+	body := string(html)
+
+	if !strings.Contains(body, "Cloudflare, Inc.") {
+		t.Error("RenderField should resolve decoration via registry, but annotation not found")
+	}
+}
+
+// TestResolveDecorationsOnRenderer verifies ResolveDecorations on Renderer.
+// VALIDATES: AC-9 -- renderer resolves decorations for field slices.
+// PREVENTS: ResolveDecorations silently broken or panicking on nil registry.
+func TestResolveDecorationsOnRenderer(t *testing.T) {
+	r, err := NewRenderer()
+	if err != nil {
+		t.Fatalf("NewRenderer() error: %v", err)
+	}
+
+	// Nil decorators -- should not panic.
+	fields := []FieldMeta{{Leaf: "as", Value: "64500", DecoratorName: "asn-name"}}
+	r.ResolveDecorations(fields)
+	if fields[0].Decoration != "" {
+		t.Error("nil decorator registry should leave Decoration empty")
+	}
+
+	// With decorators set.
+	reg := NewDecoratorRegistry()
+	reg.Register(DecoratorFunc("asn-name", func(string) (string, error) {
+		return "Test Org", nil
+	}))
+	r.SetDecorators(reg)
+
+	fields2 := []FieldMeta{{Leaf: "as", Value: "64500", DecoratorName: "asn-name"}}
+	r.ResolveDecorations(fields2)
+	if fields2[0].Decoration != "Test Org" {
+		t.Errorf("Decoration = %q, want %q", fields2[0].Decoration, "Test Org")
+	}
+}
+
+// TestDecorationHTMLEscaped verifies that decoration text with HTML is escaped.
+// VALIDATES: Security -- XSS prevention in decoration output.
+// PREVENTS: Malicious DNS TXT records injecting HTML/JS into rendered page.
+func TestDecorationHTMLEscaped(t *testing.T) {
+	r, err := NewRenderer()
+	if err != nil {
+		t.Fatalf("NewRenderer() error: %v", err)
+	}
+
+	field := FieldMeta{
+		Leaf:       "as",
+		Path:       "bgp",
+		Type:       "uint32",
+		Value:      "64500",
+		Decoration: `<script>alert("xss")</script>`,
+	}
+
+	html := r.RenderField(field)
+	body := string(html)
+
+	if strings.Contains(body, "<script>") {
+		t.Error("decoration with <script> tag should be HTML-escaped, found raw <script>")
+	}
+	if !strings.Contains(body, "&lt;script&gt;") {
+		t.Error("decoration should contain escaped &lt;script&gt;")
 	}
 }
 

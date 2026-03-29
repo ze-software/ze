@@ -101,6 +101,54 @@ func TestYANGSchemaSensitiveExtension(t *testing.T) {
 	assert.False(t, peerASLeaf.Sensitive, "remote.as should not be sensitive")
 }
 
+// TestYANGSchemaDecorateExtension verifies that ze:decorate is extracted from YANG leaves.
+// VALIDATES: AC-7 -- ze:decorate extension available for YANG modules.
+// PREVENTS: Decorator name lost during YANG-to-schema conversion.
+func TestYANGSchemaDecorateExtension(t *testing.T) {
+	schema, err := YANGSchema()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bgpNode := schema.Get("bgp")
+	require.NotNil(t, bgpNode)
+	bgp, ok := bgpNode.(*ContainerNode)
+	require.True(t, ok)
+
+	// Global local.as should have ze:decorate "asn-name"
+	localNode := bgp.Get("local")
+	require.NotNil(t, localNode)
+	local, ok := localNode.(*ContainerNode)
+	require.True(t, ok)
+	localAS := local.Get("as")
+	require.NotNil(t, localAS)
+	localASLeaf, ok := localAS.(*LeafNode)
+	require.True(t, ok)
+	assert.Equal(t, "asn-name", localASLeaf.Decorate, "global local.as should have ze:decorate asn-name")
+
+	// Peer remote.as should have ze:decorate "asn-name"
+	peerNode := bgp.Get("peer")
+	require.NotNil(t, peerNode)
+	peer, ok := peerNode.(*ListNode)
+	require.True(t, ok)
+	remoteNode := peer.Get("remote")
+	require.NotNil(t, remoteNode)
+	remote, ok := remoteNode.(*ContainerNode)
+	require.True(t, ok)
+	peerAS := remote.Get("as")
+	require.NotNil(t, peerAS)
+	peerASLeaf, ok := peerAS.(*LeafNode)
+	require.True(t, ok)
+	assert.Equal(t, "asn-name", peerASLeaf.Decorate, "peer remote.as should have ze:decorate asn-name")
+
+	// router-id should NOT be decorated
+	routerID := bgp.Get("router-id")
+	require.NotNil(t, routerID)
+	ridLeaf, ok := routerID.(*LeafNode)
+	require.True(t, ok)
+	assert.Empty(t, ridLeaf.Decorate, "router-id should not be decorated")
+}
+
 func TestYANGSchemaSyntaxHints(t *testing.T) {
 	schema, err := YANGSchema()
 	if err != nil {

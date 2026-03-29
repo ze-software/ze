@@ -116,6 +116,7 @@ type LeafNode struct {
 	Type        ValueType
 	Default     string
 	Sensitive   bool     // ze:sensitive — value is a password/key, masked in display
+	Decorate    string   // ze:decorate — decorator name for display-time enrichment
 	Description string   // YANG description for tooltips/help
 	Enums       []string // Valid enum values (nil for non-enum types)
 }

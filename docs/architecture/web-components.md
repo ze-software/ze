@@ -79,7 +79,7 @@ templates/
     oob_error.html               -- oob_error: OOB error item appended to error list
 
   input/                         -- one file per YANG value type
-    wrapper.html                 -- field_wrapper_start/end: label, (i) tooltip, container div
+    wrapper.html                 -- field_wrapper_start/end: label, (i) tooltip, decoration, container div
     bool.html                    -- input_bool: toggle button (on/off), hx-post on click
     enum.html                    -- input_enum: <select> dropdown, hx-post on change
     number.html                  -- input_number: <input type=number>, hx-post on blur
@@ -87,6 +87,18 @@ templates/
 
   *.html                         -- legacy config templates (container, list, flex, etc.)
 ```
+
+## Decorators
+
+Leaves with the `ze:decorate` YANG extension show enriched display text alongside their value. The decorator name in the YANG schema (e.g., `ze:decorate "asn-name"`) maps to a registered `Decorator` implementation that resolves the annotation at render time.
+
+The `DecoratorRegistry` is set on the `Renderer` via `SetDecorators()`. When `RenderField()` or `ResolveDecorations()` runs, each field with a `DecoratorName` is resolved and its `Decoration` is set. The wrapper template renders the decoration in a `ze-field-decoration` span next to the label.
+
+Currently registered: `asn-name` (resolves AS numbers to organization names via Team Cymru DNS TXT queries). Errors are silently ignored for graceful degradation.
+
+<!-- source: internal/component/web/decorator.go -- DecoratorRegistry, Decorator interface -->
+<!-- source: internal/component/web/decorator_asn.go -- ASN name decorator, Team Cymru parsing -->
+<!-- source: internal/component/config/yang/modules/ze-extensions.yang -- ze:decorate extension -->
 
 ## Navigation Flow
 

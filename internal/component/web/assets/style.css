@@ -609,6 +609,13 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   background: var(--bg-inset);
 }
 
+.ze-field-decoration {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-left: 0.3rem;
+}
+
 /* Toggle button for booleans */
 /* Tristate slider: yes / default / no */
 .ze-tristate {
