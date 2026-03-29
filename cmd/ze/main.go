@@ -473,11 +473,8 @@ func cmdStart(args, plugins []string, chaosSeed int64, chaosRate float64, global
 	defer store.Close() //nolint:errcheck // best-effort cleanup
 
 	if !storage.IsBlobStorage(store) {
-		if !webEnabled {
-			fmt.Fprintf(os.Stderr, "error: ze start requires blob storage (run ze init first)\n")
-			return 1
-		}
-		return hub.RunWebOnly(store, webListenAddr, insecureWeb)
+		fmt.Fprintf(os.Stderr, "error: ze start requires blob storage (run ze init first)\n")
+		return 1
 	}
 
 	// Check managed mode: meta/instance/managed=true in blob.

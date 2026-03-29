@@ -360,7 +360,13 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 // startWebServer creates and starts the web server with zefs credentials.
 // Returns the server on success, nil on failure (logged, non-fatal).
 // If the port is already in use, attempts to identify and kill the stale process.
+// Requires blob storage -- TLS keys and config must not leak to the filesystem.
 func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, dispatch zeweb.CommandDispatcher) *zeweb.WebServer {
+	if !storage.IsBlobStorage(store) {
+		fmt.Fprintf(os.Stderr, "warning: web server disabled: requires blob storage (run ze init first)\n")
+		return nil
+	}
+
 	if listenAddr == "" {
 		listenAddr = "0.0.0.0:8443"
 	}
