@@ -136,6 +136,20 @@ Auto-reconnect uses exponential backoff: idle-timeout x 2^(N-1), capped at 1 hou
 <!-- source: internal/component/bgp/reactor/peer.go -- idle-timeout and reconnect logic -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/prefix_update.go -- PeeringDB update command -->
 
+### Cross-Peer Update Groups
+
+Peers with identical outbound encoding contexts (same ContextID, same policy) are automatically grouped. The reactor builds each UPDATE once per group and fans out the wire bytes to all members, eliminating redundant per-peer UPDATE construction. GroupKey combines the peer's `sendCtxID` (which encodes ASN4, ADD-PATH, Extended Message, Extended Next Hop, iBGP/eBGP, and ASN values) with a policy key (uniform today, extensible for per-peer export policy).
+
+Groups are maintained by the reactor: peers are added on session establishment and removed on session close. When disabled or when all peers have unique contexts, behavior is identical to per-peer building with negligible overhead (one map lookup per peer lifecycle event).
+
+Default enabled. Configurable via `ze.bgp.reactor.update-groups` (boolean, default true). ExaBGP migrated configs automatically set `update-groups false` to preserve per-peer UPDATE behavior.
+<!-- source: internal/component/bgp/reactor/update_group.go -- UpdateGroupIndex, GroupKey, Add, Remove, GroupsForPeers -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- updateGroups.Add on established, Remove on closed -->
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- group-aware AnnounceNLRIBatch -->
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- group-aware ForwardUpdate with fwdBodyCache -->
+<!-- source: internal/component/config/environment.go -- ze.bgp.reactor.update-groups env var registration -->
+<!-- source: internal/exabgp/migration/migrate.go -- injectUpdateGroupsDisabled -->
+
 ### Session Resilience
 
 | Feature | Description |

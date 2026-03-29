@@ -155,6 +155,10 @@ RFC-mandated checks run as default filters that can be selectively overridden.
 | Healthcheck tool | No | No | No | Partial | No | No | No | Yes | No | No | No |
 | PeeringDB prefix integration | Yes | No | No | No | No | No | No | No | No | No | No |
 | Propagation benchmark tool | Yes | No | No | No | No | No | No | No | No | No | No |
+| Update groups | Auto | No | No | No | No | Explicit | No | No | No | No | No |
+
+**Update groups:** Ze automatically groups peers by encoding context (ContextID) and builds each UPDATE once per group, fanning out the wire bytes to all members. No configuration needed. FRR requires explicit peer-group assignment for update group optimization. BIRD batches updates in its write loop but does not have a cross-peer build-sharing mechanism.
+<!-- source: internal/component/bgp/reactor/update_group.go -- automatic grouping by sendCtxID -->
 
 ## Best-Path Selection
 

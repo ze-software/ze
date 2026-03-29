@@ -293,6 +293,67 @@ adj-rib-out Routes → GroupByAttributesTwoLevel() → ASPathGroups → BuildGro
 
 ---
 
+## Cross-Peer Update Groups
+
+Update groups are an orthogonal optimization that sits above route grouping. Where route grouping packs multiple NLRIs into a single UPDATE for one peer, update groups share a single UPDATE build across multiple peers.
+
+### GroupKey
+
+Each established peer is assigned a GroupKey combining two fields:
+
+| Field | Source | Purpose |
+|-------|--------|---------|
+| `CtxID` | `peer.sendCtxID` (ContextID) | Encodes all encoding-relevant capability differences: ASN4, ADD-PATH mode, Extended Message, Extended Next Hop, iBGP/eBGP, and ASN values |
+| `PolicyKey` | Currently `0` for all peers | Reserved for future per-peer outbound policy differentiation |
+
+Peers with the same GroupKey produce bit-identical UPDATE wire bytes for the same route set and can share a single build.
+<!-- source: internal/component/bgp/reactor/update_group.go -- GroupKey struct, CtxID and PolicyKey fields -->
+
+### Group Lifecycle
+
+The reactor maintains an `UpdateGroupIndex` that maps GroupKey to a set of member peers:
+
+| Event | Action |
+|-------|--------|
+| Peer session established | Reactor calls `updateGroups.Add(peer)` using the peer's `sendCtxID` |
+| Peer session closed | Reactor calls `updateGroups.Remove(peer)` before clearing encoding contexts |
+| Group becomes empty | Group entry is deleted from the index |
+
+The index is a simple map with no goroutines or channels. It is accessed only from the reactor event loop.
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- Add on established, Remove on closed (before clearEncodingContexts) -->
+<!-- source: internal/component/bgp/reactor/update_group.go -- UpdateGroupIndex, Add, Remove -->
+
+### Group-Aware Build Path (AnnounceNLRIBatch / WithdrawNLRIBatch)
+
+When update groups are enabled, the batch API groups peers by build-equivalent parameters (encoding context, next-hop resolution, AS_PATH form) and builds the UPDATE once per parameter set. All peers sharing those parameters receive the same pre-built wire bytes.
+
+When disabled or when each peer has a unique context, the code falls back to per-peer building with no behavior change.
+<!-- source: internal/component/bgp/reactor/reactor_api_batch.go -- groupsEnabled check, announceBuildKey, withdrawBuildKey -->
+
+### Group-Aware Forward Path (ForwardUpdate)
+
+When forwarding a received UPDATE to multiple peers, the forward path caches the per-context body computation. For peers sharing the same destination context, the context compatibility check and any re-encoding happen once. The cached result is reused for all group members.
+<!-- source: internal/component/bgp/reactor/reactor_api_forward.go -- fwdBodyCache, fwdBodyCacheKey -->
+
+### Env Var Gating
+
+Update groups are controlled by `ze.bgp.reactor.update-groups` (boolean, default `true`). The reactor reads this at startup via `NewUpdateGroupIndexFromEnv()`. When false, the `UpdateGroupIndex` reports disabled and all group-aware code paths fall back to per-peer behavior.
+
+ExaBGP migrated configs inject `update-groups false` in the environment reactor block to preserve ExaBGP's per-peer UPDATE semantics.
+<!-- source: internal/component/bgp/reactor/update_group.go -- NewUpdateGroupIndexFromEnv, Enabled -->
+<!-- source: internal/exabgp/migration/migrate.go -- injectUpdateGroupsDisabled -->
+
+### Relationship to Route Grouping
+
+| Concept | Scope | Config | Purpose |
+|---------|-------|--------|---------|
+| Route grouping | Within one UPDATE for one peer | `group-updates` per peer | Pack multiple NLRIs with identical attributes into one UPDATE |
+| Update groups | Across peers | `ze.bgp.reactor.update-groups` global | Build UPDATE once, send to all peers with same encoding context |
+
+Both optimizations can be active simultaneously and are independent.
+
+---
+
 ## Summary
 
 ```

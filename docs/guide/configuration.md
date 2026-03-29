@@ -320,6 +320,42 @@ Precedence: env var > config file > system default (`/etc/resolv.conf`).
 <!-- source: internal/component/dns/resolver.go -- NewResolver, Resolve -->
 <!-- source: cmd/ze/hub/main.go -- ze.dns.server env registration -->
 
+### Reactor Settings
+
+Configure reactor behavior under `environment { reactor { } }`:
+
+```
+environment {
+    reactor {
+        update-groups true;   # cross-peer UPDATE grouping (default: true)
+    }
+}
+```
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `update-groups` | boolean | `true` | Enable cross-peer UPDATE grouping. When enabled, peers with identical encoding contexts share a single UPDATE build. |
+
+When `update-groups` is true (the default), the reactor groups established peers by their outbound encoding context (ContextID + policy). UPDATEs are built once per group and the wire bytes are fanned out to all group members. This reduces CPU usage proportionally to group size -- for a route server with 100 peers sharing the same capabilities, UPDATE building work is reduced by approximately 100x.
+
+Disable update groups when:
+
+- **ExaBGP compatibility:** migrated configs need per-peer UPDATE behavior matching ExaBGP's model. The `ze exabgp migrate` command automatically injects `update-groups false` into migrated configs.
+- **Debugging:** isolating per-peer UPDATE building to diagnose encoding issues.
+
+When disabled (or when all peers have unique encoding contexts), behavior is identical to per-peer building with negligible overhead.
+
+#### Environment Variable Override
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `ze.bgp.reactor.update-groups` | bool | Cross-peer UPDATE grouping (default: true) |
+
+<!-- source: internal/component/bgp/schema/ze-bgp-conf.yang -- reactor container, leaf update-groups -->
+<!-- source: internal/component/config/environment.go -- ze.bgp.reactor.update-groups registration -->
+<!-- source: internal/component/bgp/reactor/update_group.go -- NewUpdateGroupIndexFromEnv -->
+<!-- source: internal/exabgp/migration/migrate.go -- injectUpdateGroupsDisabled -->
+
 ## Hub Configuration
 
 The plugin hub provides TLS transport for plugin communication and fleet management.
