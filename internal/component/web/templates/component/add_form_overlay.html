@@ -4,10 +4,16 @@
     <h3>New entry</h3>
     <form hx-post="{{.AddURL}}" hx-target="#detail" hx-swap="innerHTML"
           hx-on::after-request="document.getElementById('add-entry-overlay')?.remove()">
-      <input type="text" class="add-entry-input" name="name" placeholder="name" required autofocus
-             onkeydown="if(event.key==='Escape'){document.getElementById('add-entry-overlay')?.remove()}">
+      <div class="add-entry-row">
+        <label class="add-entry-label">name</label>
+        <input type="text" class="add-entry-input" name="name" required autofocus
+               onkeydown="if(event.key==='Escape'){document.getElementById('add-entry-overlay')?.remove()}">
+      </div>
       {{range .Fields}}
-      <input type="text" class="add-entry-input" name="field:{{.Path}}" placeholder="{{.Placeholder}}">
+      <div class="add-entry-row">
+        <label class="add-entry-label">{{.Path}}</label>
+        <input type="text" class="add-entry-input" name="field:{{.Path}}">
+      </div>
       {{end}}
       <div class="add-entry-actions">
         <button type="submit" class="add-entry-submit">Create</button>

@@ -190,7 +190,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   padding: 0.15rem 0.4rem;
   font-size: 1rem;
   line-height: 1;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -206,7 +206,7 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   padding: 0.15rem 0.5rem;
   font-family: var(--font-mono);
   font-size: 0.7rem;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   background: var(--bg-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
@@ -1362,8 +1362,24 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   color: var(--text-primary);
 }
 
+.add-entry-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.add-entry-label {
+  flex-shrink: 0;
+  min-width: 5rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
 .add-entry-input {
-  width: 100%;
+  flex: 1;
   padding: 0.4rem 0.6rem;
   font-family: var(--font-mono);
   font-size: 0.85rem;
