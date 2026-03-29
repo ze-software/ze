@@ -312,6 +312,16 @@ func getKeyTypeExtension(entry *gyang.Entry) ValueType {
 	return TypePrefix // Default for route-like lists
 }
 
+// hasDisplayKeyExtension checks if a YANG entry has the ze:display-key extension.
+func hasDisplayKeyExtension(entry *gyang.Entry) bool {
+	for _, ext := range entry.Exts {
+		if ext.Keyword == "ze:display-key" || strings.HasSuffix(ext.Keyword, ":display-key") {
+			return true
+		}
+	}
+	return false
+}
+
 // hasSensitiveExtension checks if a YANG entry has the ze:sensitive extension.
 func hasSensitiveExtension(entry *gyang.Entry) bool {
 	for _, ext := range entry.Exts {
@@ -411,6 +421,16 @@ func yangToList(entry *gyang.Entry, path string) *ListNode {
 	l := List(keyType, fields...)
 	l.KeyName = entry.Key
 	l.Description = entry.Description
+
+	// Scan children for ze:display-key extension (keyless lists only).
+	if entry.Key == "" {
+		for _, name := range names {
+			if child, ok := entry.Dir[name]; ok && hasDisplayKeyExtension(child) {
+				l.DisplayKey = name
+				break
+			}
+		}
+	}
 
 	// Extract YANG unique constraints from Entry.Extra.
 	if vals, ok := entry.Extra["unique"]; ok {

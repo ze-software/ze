@@ -153,6 +153,7 @@ func (n *ContainerNode) Children() []string {
 type ListNode struct {
 	KeyType     ValueType
 	KeyName     string     // YANG key name (empty = keyless list like update)
+	DisplayKey  string     // ze:display-key leaf name for UI label (keyless lists)
 	Unique      [][]string // YANG unique constraints: each sub-slice is leaf paths for one constraint
 	Description string     // YANG description for tooltips
 	children    map[string]Node

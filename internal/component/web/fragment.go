@@ -651,24 +651,44 @@ func buildListColumn(tree *config.Tree, schema *config.Schema, prefix []string, 
 	keys := collectListKeys(tree, schema, prefix)
 	url := "/show/" + strings.Join(prefix, "/") + "/"
 
-	// Simple list: show entries in the column.
+	// Show entries in the column.
+	keyless := listNode.KeyName == ""
 	for _, k := range keys {
 		entryPath := strings.Join(prefix, "/") + "/" + k
-		col.NamedItems = append(col.NamedItems, ColumnItem{
-			Name:        k,
+		displayName := k
+		hasName := false
+		if keyless {
+			// For keyless lists, show a summary from the entry content
+			// instead of the meaningless numeric key.
+			entryTree := walkTree(tree, schema, append(append([]string{}, prefix...), k))
+			if summary := keylessEntrySummary(entryTree, listNode); summary != "" {
+				displayName = summary
+				hasName = true
+			} else {
+				displayName = "#" + k
+			}
+		}
+		item := ColumnItem{
+			Name:        displayName,
 			URL:         url + k + "/",
 			HxPath:      entryPath,
 			Selected:    k == selectedName,
 			HasChildren: true,
-		})
+		}
+		// Named keyless entries before numbered ones.
+		if keyless && !hasName {
+			col.UnnamedItems = append(col.UnnamedItems, item)
+		} else {
+			col.NamedItems = append(col.NamedItems, item)
+		}
 	}
 
-	// Add "+ new" entry.
-	col.NamedItems = append(col.NamedItems, ColumnItem{
+	// Add "+ new" entry at the top.
+	col.NamedItems = append([]ColumnItem{{
 		Name:   "+ new",
 		IsList: true,
 		AddURL: url,
-	})
+	}}, col.NamedItems...)
 
 	return col
 }
@@ -820,6 +840,48 @@ func buildContextHeading(schema *config.Schema, path []string) []ContextEntry {
 		i++
 	}
 	return entries
+}
+
+// keylessEntrySummary builds a human-readable label for a keyless list entry
+// by inspecting its content. Prefers the ze:display-key leaf, then looks for
+// child list keys (e.g., nlri families in an update block), then falls back
+// to the first non-empty leaf value.
+func keylessEntrySummary(tree *config.Tree, schema *config.ListNode) string {
+	if tree == nil {
+		return ""
+	}
+	// Prefer ze:display-key leaf if set.
+	if dk := schema.DisplayKey; dk != "" {
+		if v, ok := tree.Get(dk); ok && v != "" {
+			return v
+		}
+	}
+	// Look for list children and collect their keys as the summary.
+	for _, name := range schema.Children() {
+		child := schema.Get(name)
+		if _, ok := child.(*config.ListNode); ok {
+			entries := tree.GetListOrdered(name)
+			if len(entries) > 0 {
+				var keys []string
+				for _, e := range entries {
+					keys = append(keys, e.Key)
+				}
+				return strings.Join(keys, ", ")
+			}
+		}
+	}
+	// Fallback: first non-empty leaf value (skip display-key, already checked).
+	for _, name := range schema.Children() {
+		if name == schema.DisplayKey {
+			continue
+		}
+		if _, ok := schema.Get(name).(*config.LeafNode); ok {
+			if v, ok := tree.Get(name); ok && v != "" {
+				return v
+			}
+		}
+	}
+	return ""
 }
 
 // resolveNestedValue resolves a slash-separated path (e.g., "remote/ip") to a leaf value in a tree.

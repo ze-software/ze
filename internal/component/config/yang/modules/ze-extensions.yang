@@ -100,6 +100,17 @@ module ze-extensions {
                      'run' prefix.";
     }
 
+    // Extension: display-key
+    // Marks a leaf in a keyless list as the display label for UI navigation.
+    // The web interface uses this leaf's value as the entry name in the finder,
+    // and shows it as an optional input when creating new entries.
+    // If the leaf is empty, the UI falls back to child list keys or the index.
+    extension display-key {
+        description "Marks a leaf as the display label for keyless list entries.
+                     The web interface reads this extension to determine which
+                     leaf to show in navigation and prompt for on creation.";
+    }
+
     // Extension: cumulative
     // Marks a leaf-list as cumulative during config resolution.
     // Normal leaf-lists are replaced by more-specific config levels (peer > group > bgp).

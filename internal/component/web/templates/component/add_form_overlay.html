@@ -1,14 +1,24 @@
 {{define "add_form_overlay"}}
 <div class="add-entry-overlay" id="add-entry-overlay" onclick="if(event.target===this)this.remove()">
   <div class="add-entry-card">
-    <h3>New entry</h3>
+    <h3>New {{.ListName}}</h3>
     <form hx-post="{{.AddURL}}" hx-target="#detail" hx-swap="innerHTML"
           hx-on::after-request="document.getElementById('add-entry-overlay')?.remove()">
+      {{if .Keyless}}
+        {{if .DisplayKey}}
       <div class="add-entry-row">
-        <label class="add-entry-label">name</label>
+        <label class="add-entry-label">{{.DisplayKey}}</label>
+        <input type="text" class="add-entry-input" name="field:{{.DisplayKey}}" autofocus
+               onkeydown="if(event.key==='Escape'){document.getElementById('add-entry-overlay')?.remove()}">
+      </div>
+        {{end}}
+      {{else}}
+      <div class="add-entry-row">
+        <label class="add-entry-label">{{if .KeyName}}{{.KeyName}}{{else}}name{{end}}</label>
         <input type="text" class="add-entry-input" name="name" required autofocus
                onkeydown="if(event.key==='Escape'){document.getElementById('add-entry-overlay')?.remove()}">
       </div>
+      {{end}}
       {{range .Fields}}
       <div class="add-entry-row">
         <label class="add-entry-label">{{.Path}}</label>

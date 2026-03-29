@@ -259,6 +259,12 @@ func HandleConfigAdd(mgr *EditorManager, schema *config.Schema, renderer *Render
 		// Keys are always lowercase.
 		if name := strings.ToLower(strings.TrimSpace(r.FormValue("name"))); name != "" {
 			path = append(path, name)
+		} else if len(path) > 0 {
+			// Keyless list: auto-generate a sequential key.
+			if listNode, ok := findListNode(schema, path); ok && listNode.KeyName == "" {
+				existing := collectListKeys(mgr.Tree(username), schema, path)
+				path = append(path, fmt.Sprintf("%d", len(existing)+1))
+			}
 		}
 
 		if len(path) < 2 {
@@ -331,6 +337,14 @@ func HandleConfigAdd(mgr *EditorManager, schema *config.Schema, renderer *Render
 
 		// HTMX: return updated list table + commit bar + finder for the parent list path.
 		if r.Header.Get("HX-Request") == htmxRequestTrue {
+			// Keyless lists: redirect to the new entry so the page reloads with it.
+			if ln, ok := listNode.(*config.ListNode); ok && ln.KeyName == "" {
+				target := "/show/" + strings.Join(path, "/") + "/"
+				w.Header().Set("HX-Redirect", target)
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
 			tree = mgr.Tree(username)
 			data := buildFragmentData(schema, tree, listPath)
 			tableHTML := renderer.RenderFragment("list_table", data)
@@ -372,7 +386,7 @@ func returnAddError(w http.ResponseWriter, r *http.Request, renderer *Renderer, 
 
 // HandleConfigAddForm returns a GET handler for /config/add-form/<yang-path>/.
 // It renders an overlay form with inputs for the list key and unique fields.
-func HandleConfigAddForm(schema *config.Schema, renderer *Renderer) http.HandlerFunc {
+func HandleConfigAddForm(mgr *EditorManager, schema *config.Schema, renderer *Renderer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		username := GetUsernameFromRequest(r)
 		if username == "" {
@@ -409,11 +423,23 @@ func HandleConfigAddForm(schema *config.Schema, renderer *Renderer) http.Handler
 			Placeholder string
 		}
 
+		listName := strings.ToUpper(listPath[len(listPath)-1][:1]) + listPath[len(listPath)-1][1:]
+		keyless := listNode.KeyName == ""
+		displayKey := listNode.DisplayKey
+
 		data := struct {
-			AddURL string
-			Fields []formField
+			AddURL     string
+			ListName   string
+			KeyName    string
+			Keyless    bool
+			DisplayKey string
+			Fields     []formField
 		}{
-			AddURL: "/config/add/" + strings.Join(listPath, "/") + "/",
+			AddURL:     "/config/add/" + strings.Join(listPath, "/") + "/",
+			ListName:   listName,
+			KeyName:    listNode.KeyName,
+			Keyless:    keyless,
+			DisplayKey: displayKey,
 		}
 
 		for _, field := range collectUniqueFields(listNode) {

@@ -92,7 +92,7 @@ module ze-bgp-conf {
 
             leaf name {
                 type string {
-                    pattern '[a-zA-Z_].*';
+                    pattern '[a-zA-Z_][a-zA-Z0-9_.\-]*';
                 }
                 description "Peer name (must start with a letter, not a digit)";
             }
@@ -107,6 +107,14 @@ module ze-bgp-conf {
         // update { attribute { origin igp; next-hop 10.0.0.1; } nlri { ipv4/unicast 1.0.0.0/24; } }
         list update {
             description "Native Ze route announcements";
+
+            leaf name {
+                type string {
+                    pattern '[a-zA-Z0-9_][a-zA-Z0-9_.\-]*';
+                }
+                ze:display-key;
+                description "Optional label for this update block (display only)";
+            }
 
             container attribute {
                 description "Path attributes for routes in this block";
@@ -272,7 +280,7 @@ module ze-bgp-conf {
                     type uint32 {
                         range "1..max";
                     }
-                    description "Hard maximum number of prefixes accepted. Mandatory for every negotiated family.";
+                    description "Hard maximum number of prefixes accepted";
                 }
                 leaf warning {
                     type uint32;
@@ -465,9 +473,9 @@ module ze-bgp-conf {
             // New syntax fields
             container content {
                 description "Content configuration";
-                leaf encoding { type string; }
-                leaf format { type string; }
-                leaf attribute { type string; }
+                leaf encoding { type string; description "Event encoding format"; }
+                leaf format { type string; description "Event output format"; }
+                leaf attribute { type string; description "Attribute filter expression"; }
             }
 
             leaf-list receive {
@@ -577,9 +585,9 @@ module ze-bgp-conf {
         container tcp {
             description "TCP settings";
             leaf port { type zt:port; default 179; description "BGP port (RFC 4271)"; }
-            leaf attempts { type int32; }
-            leaf delay { type int32; }
-            leaf acl { type boolean; }
+            leaf attempts { type int32; description "TCP connection attempts before giving up"; }
+            leaf delay { type int32; description "Delay between TCP connection attempts in seconds"; }
+            leaf acl { type boolean; description "Enable TCP ACL filtering"; }
         }
 
         container bgp {

@@ -438,8 +438,10 @@ func HandleCLIComplete(completer *cli.Completer, mgr *EditorManager, schema *con
 		contextPath = adjustListContext(schema, contextPath)
 
 		// Set the editor tree so completions can see existing list entries.
-		if userTree := mgr.Tree(username); userTree != nil {
-			completer.SetTree(userTree)
+		if mgr != nil {
+			if userTree := mgr.Tree(username); userTree != nil {
+				completer.SetTree(userTree)
+			}
 		}
 
 		completions := completer.Complete(input, contextPath)

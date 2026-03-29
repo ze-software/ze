@@ -311,44 +311,34 @@
 
   }
 
-  // Add-entry overlay: shows a modal to name a new list entry (simple lists in finder).
-  // Lists with unique constraints use the HTMX-served form instead (hx-get on + new button).
+  // Add-entry overlay: fetches the server-rendered form for the list at baseURL.
+  // The server template handles keyed vs keyless lists, title, and field labels.
+  // Keyless lists create the entry server-side and return a redirect (no form).
   function showAddEntryOverlay(baseURL) {
-    var overlay = document.createElement('div');
-    overlay.className = 'add-entry-overlay';
-    var card = document.createElement('div');
-    card.className = 'add-entry-card';
-    var heading = document.createElement('h3');
-    heading.textContent = 'New entry';
-    var input = document.createElement('input');
-    input.type = 'text';
-    input.className = 'add-entry-input';
-    input.placeholder = 'name';
-    input.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter') {
-        e.preventDefault();
-        var name = input.value.trim();
-        if (!name) return;
-        var addPath = baseURL.replace(/^\/show\//, '/config/add/') + encodeURIComponent(name) + '/';
-        fetch(addPath, {
-          method: 'POST',
-          credentials: 'same-origin'
-        }).then(function(r) {
-          if (r.ok) {
-            window.location.href = baseURL + encodeURIComponent(name) + '/';
-          }
-        });
-      }
-      if (e.key === 'Escape') overlay.remove();
-    });
-    card.appendChild(heading);
-    card.appendChild(input);
-    overlay.appendChild(card);
-    overlay.addEventListener('click', function(e) {
-      if (e.target === overlay) overlay.remove();
-    });
-    document.body.appendChild(overlay);
-    input.focus();
+    var formURL = baseURL.replace(/^\/show\//, '/config/add-form/');
+    fetch(formURL, { credentials: 'same-origin' })
+      .then(function(r) {
+        // Keyless lists: server creates entry and returns HX-Redirect.
+        var redirect = r.headers.get('HX-Redirect');
+        if (redirect) {
+          window.location.href = redirect;
+          return '';
+        }
+        return r.text();
+      })
+      .then(function(html) {
+        if (!html) return;
+        // Safe: HTML is server-rendered from our own templates, not user input.
+        var wrapper = document.createElement('div');
+        wrapper.innerHTML = html; // nosec: trusted same-origin server response
+        var overlay = wrapper.firstElementChild;
+        if (overlay) {
+          document.body.appendChild(overlay);
+          if (window.htmx) htmx.process(overlay);
+          var input = overlay.querySelector('.add-entry-input');
+          if (input) input.focus();
+        }
+      });
   }
 
   // Rename overlay: shows a modal to rename a list entry key.

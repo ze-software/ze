@@ -448,6 +448,16 @@ func checkUniqueConstraint(tree *config.Tree, schema *config.Schema, listPath []
 	return ""
 }
 
+// findListNode returns the ListNode at path if it resolves to one.
+func findListNode(schema *config.Schema, path []string) (*config.ListNode, bool) {
+	node, err := walkSchema(schema, path)
+	if err != nil {
+		return nil, false
+	}
+	ln, ok := node.(*config.ListNode)
+	return ln, ok
+}
+
 func collectListKeys(tree *config.Tree, schema *config.Schema, path []string) []string {
 	var parentTree *config.Tree
 	listName := path[len(path)-1]

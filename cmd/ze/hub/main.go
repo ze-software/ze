@@ -436,7 +436,7 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, 
 	// Config set, add, and delete handlers for editing leaf values.
 	setHandler := zeweb.HandleConfigSet(editorMgr, schema, renderer)
 	addHandler := zeweb.HandleConfigAdd(editorMgr, schema, renderer)
-	addFormHandler := zeweb.HandleConfigAddForm(schema, renderer)
+	addFormHandler := zeweb.HandleConfigAddForm(editorMgr, schema, renderer)
 	deleteHandler := zeweb.HandleConfigDelete(editorMgr)
 
 	// SSE broker for live config change notifications.
