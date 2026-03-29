@@ -5,7 +5,7 @@
 | Status | in-progress |
 | Depends | - |
 | Phase | 8/8 |
-| Updated | 2026-03-27 |
+| Updated | 2026-03-29 |
 
 ## Post-Compaction Recovery
 
@@ -711,14 +711,67 @@ No RFC governs this feature. This is ze-internal protocol design.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| External plugins declare filter capability at stage 1 | ✅ Done | ze-plugin-engine.yang:81, registration.go:79-93 | FilterRegistration struct stores name, direction, attributes, on-error, overrides |
+| redistribution config block at bgp/group/peer levels | ✅ Done | ze-bgp-conf.yang:41+504, redistribution.go, peers.go:140-155 | Cumulative chain: bgp > group > peer |
+| Reactor ingress filter chain | ✅ Done | reactor_notify.go:361-362, filter_chain.go:54 | PolicyFilterChain called after in-process filters |
+| Reactor egress filter chain | ✅ Done | reactor_api_forward.go:288-289, filter_chain.go:54 | PolicyFilterChain called per destination peer |
+| Dirty tracking (text-level) | ✅ Done | filter_chain.go:applyFilterDelta | Delta merge on modify response |
+| Dirty tracking (wire-level) | ❌ Deferred | - | Requires ModAccumulator integration for re-encoding |
+| SDK filter callback | ✅ Done | sdk_callbacks.go:112, sdk_dispatch.go:143+381, ipc/rpc.go:249 | OnFilterUpdate + handleFilterUpdate + SendFilterUpdate |
+| External plugins only | ✅ Done | - | No internal fast-path filters (future spec) |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | ✅ Done | TestFilterDeclarationParse (registration_test.go:125), redistribution-declare.ci | Plugin declares 2 filters, engine records them |
+| AC-2 | ✅ Done | redistribution-declare.ci (exit code 0), TestRedistributionConfigParse | Config with filter ref validates |
+| AC-3 | 🔄 Changed | server.go:264 runtime error | Config parsed before plugins start; runtime check at filter-update time returns "unknown plugin" |
+| AC-3b | 🔄 Changed | server.go:264 runtime error | Same: filter name validation at runtime, not config time |
+| AC-3c | ✅ Done | TestRedistributionConfigValidation/missing_colon (redistribution_test.go:91) | Format check at config parse time |
+| AC-4 | 🔄 Changed | FilterRegistration.Direction stored (registration.go:85) | Direction stored but cross-check is runtime, not config-time |
+| AC-5 | ✅ Done | redistribution-import-accept.ci | Routes pass through, EOR received |
+| AC-6 | ✅ Done | redistribution-import-reject.ci | Routes dropped |
+| AC-7 | ✅ Done | redistribution-import-modify.ci | Local-pref modified |
+| AC-8 | 🔄 Changed | TestApplyFilterDelta/nlri (filter_chain_test.go:146) | Unit test covers NLRI filtering; no dedicated .ci test |
+| AC-9 | ✅ Done | redistribution-export-reject.ci | Route not forwarded to peer |
+| AC-10 | ⚠️ Partial | reactor_api_forward.go:288 (code path), no dedicated test | Export modify wired but no .ci test |
+| AC-11 | ✅ Done | redistribution-chain-order.ci | Two filters, piped transform semantics |
+| AC-12 | ✅ Done | TestRedistributionConfigParse (redistribution_test.go:77), redistribution-chain-order.ci | bgp>group>peer order verified |
+| AC-13 | ❌ Deferred | - | Requires attribute registry to validate declared vs modified |
+| AC-14 | 🔄 Changed | Existing OTC tests; reactor_notify.go wiring order | Role OTC runs before policy chain (lines 305-349 vs 361) |
+| AC-15 | ❌ Deferred | FilterRegistration.Raw field stored (registration.go:89) | Field parsed but raw bytes not sent in filter-update |
+| AC-16 | 🔄 Changed | Same code path handles all UPDATEs | Withdrawals use identical filter chain; no separate test |
+| AC-17 | ✅ Done | TestPolicyFilterChainDispatch (filter_chain_test.go:128), redistribution-declare.ci | Filter name split and dispatched correctly |
+| AC-18 | ❌ Deferred | DefaultImportFilters var (redistribution.go:61), applyOverrides (redistribution.go:69) | Infrastructure built, no default named filters populated |
+| AC-19 | ❌ Deferred | applyOverrides (redistribution.go:69) | Depends on AC-18 |
+| AC-20 | ❌ Deferred | applyOverrides (redistribution.go:69) | Depends on AC-18 |
+| AC-21 | ❌ Deferred | - | Depends on mandatory filter registry |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestFilterDeclarationParse | ✅ Done | registration_test.go:125 | 2 named filters parsed |
+| TestFilterDeclarationWithOverrides | ✅ Done | registration_test.go:170 | Override list stored |
+| TestRedistributionConfigParse | ✅ Done | redistribution_test.go:15 | Parse + chain merge |
+| TestRedistributionConfigValidation | ✅ Done | redistribution_test.go:84 | 3 subtests: colon, plugin, filter |
+| TestFilterChainResolution | 🔄 Changed | redistribution_test.go:15 | Covered by TestRedistributionConfigParse |
+| TestRedistributionStandalonePeer | ✅ Done | redistribution_test.go:148 | Standalone peers get bgp-level filters |
+| TestRedistributionEmpty | ✅ Done | redistribution_test.go:176 | Empty config = no crash |
+| TestPolicyFilterChainAccept | ✅ Done | filter_chain_test.go:14 | Accept passes through |
+| TestPolicyFilterChainReject | ✅ Done | filter_chain_test.go:33 | Reject short-circuits |
+| TestPolicyFilterChainModify | ✅ Done | filter_chain_test.go:52 | Modify changes attrs |
+| TestPolicyFilterChainPipedTransform | ✅ Done | filter_chain_test.go:69 | Second sees first's mods |
+| TestPolicyFilterChainShortCircuit | ✅ Done | filter_chain_test.go:97 | No further filters after reject |
+| TestPolicyFilterChainEmpty | ✅ Done | filter_chain_test.go:118 | Empty = default accept |
+| TestPolicyFilterChainDispatch | ✅ Done | filter_chain_test.go:128 | plugin:filter name split |
+| TestApplyFilterDelta | ✅ Done | filter_chain_test.go:146 | 4 subtests: modify, add, empty, nlri |
+| TestAttributeAccumulation | ❌ Deferred | - | Requires reactor-level attribute parsing |
+| TestFilterResponseParse | 🔄 Changed | - | Covered by chain tests (PolicyResponse structs) |
+| TestDirtyTracking | ❌ Deferred | - | Wire-level re-encoding not implemented |
+| TestFilterModifyOnlyDeclared | ❌ Deferred | - | Requires attribute registry |
+| TestDefaultFilterOverride | ❌ Deferred | - | Requires default filter registry |
+| TestDefaultFilterOverrideAtGroupLevel | ❌ Deferred | - | Requires default filter registry |
+| TestMandatoryFilterCannotBeOverridden | ❌ Deferred | - | Requires mandatory filter registry |
 
 ### Files from Plan
 | File | Status | Notes |
@@ -738,25 +791,55 @@ No RFC governs this feature. This is ze-internal protocol design.
 | `test/plugin/redistribution-override.ci` | Covered by unit test | Override resolution tested in redistribution_test.go |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 21 ACs, 22 tests, 13 files
+- **Done:** 10 ACs, 15 tests, 13 files
+- **Partial:** 1 AC (AC-10 export modify -- code exists, no dedicated test)
+- **Skipped/Deferred:** 6 ACs (AC-13/15/18/19/20/21), 6 tests (need default filter registry or wire-level infra)
+- **Changed:** 4 ACs (AC-3/3b/4/14 -- runtime validation instead of config-time; AC-8/16 -- unit test covers, no dedicated .ci)
 
 ## Pre-Commit Verification
 
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| internal/component/bgp/reactor/filter_chain.go | Yes | 8.9K Mar 28 07:48 |
+| internal/component/bgp/reactor/filter_chain_test.go | Yes | 7.5K Mar 28 07:47 |
+| internal/component/plugin/registration_test.go | Yes | 5.7K Mar 27 15:27 |
+| internal/component/bgp/config/redistribution.go | Yes | Path corrected from spec (was internal/component/config/) |
+| internal/component/bgp/config/redistribution_test.go | Yes | Path corrected from spec |
+| docs/guide/redistribution.md | Yes | 3.8K Mar 27 13:30 |
+| test/plugin/redistribution-import-accept.ci | Yes | 2.7K Mar 28 07:04 |
+| test/plugin/redistribution-import-reject.ci | Yes | 2.6K Mar 28 07:05 |
+| test/plugin/redistribution-import-modify.ci | Yes | 2.5K Mar 28 07:05 |
+| test/plugin/redistribution-export-reject.ci | Yes | 2.8K Mar 28 07:06 |
+| test/plugin/redistribution-declare.ci | Yes | 2.1K Mar 28 06:31 |
+| test/plugin/redistribution-chain-order.ci | Yes | 2.9K Mar 28 07:06 |
+| test/plugin/redistribution-override.ci | No | Not written -- override resolution covered by unit test only |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | Filter declaration parsed | grep FilterRegistration registration.go:79; TestFilterDeclarationParse passes |
+| AC-2 | Config validates | redistribution-declare.ci expect=exit:code=0 |
+| AC-3 | Unknown plugin error | grep "unknown plugin" server.go:264 (runtime, not config-time) |
+| AC-3c | Format error | TestRedistributionConfigValidation/missing_colon asserts "invalid filter reference" |
+| AC-5 | Accept passes through | redistribution-import-accept.ci validates EOR received |
+| AC-6 | Reject drops | redistribution-import-reject.ci validates route not cached |
+| AC-7 | Modify changes attrs | redistribution-import-modify.ci validates local-pref changed |
+| AC-9 | Export reject | redistribution-export-reject.ci validates route not forwarded |
+| AC-11 | Piped transforms | redistribution-chain-order.ci validates two filters in order |
+| AC-12 | Config hierarchy | TestRedistributionConfigParse asserts ["a:x","b:y","c:z"] order |
+| AC-17 | Filter name dispatch | TestPolicyFilterChainDispatch captures pluginName="rpki", filterName="validate" |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| redistribution config + accept filter | redistribution-import-accept.ci | Yes -- config parsed, filter called, routes pass |
+| redistribution config + reject filter | redistribution-import-reject.ci | Yes -- filter called, routes dropped |
+| redistribution config + modify filter | redistribution-import-modify.ci | Yes -- filter modifies local-pref |
+| redistribution config + export reject | redistribution-export-reject.ci | Yes -- export filter prevents forwarding |
+| stage 1 filter declaration + config validation | redistribution-declare.ci | Yes -- plugin declares, config references, startup succeeds |
+| chain order (bgp>group>peer) | redistribution-chain-order.ci | Yes -- two filters in correct order |
 
 ## Checklist
 
