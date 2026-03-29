@@ -4,11 +4,11 @@
 # 1. Daemon starts with SSH + BGP peer
 # 2. Shell script creates SSH credentials via ze init
 # 3. ze bgp plugin cli receives piped Q&A answers + commands
-# 4. Verifies handshake completes and dispatch-command works
+# 4. Verifies handshake completes and dispatch-command returns data
 # 5. "bye" triggers clean shutdown
 #
 # VALIDATES: AC-9 -- debug shell completes 5-stage handshake with defaults via SSH.
-# VALIDATES: AC-11 -- dispatch-command works after handshake.
+# VALIDATES: AC-11 -- dispatch-command works after handshake and returns data.
 # PREVENTS: Plugin protocol SSH handler not wired, handshake failing over SSH channel.
 
 tmpfs=test-plugin-cli-debug.sh:mode=755:terminator=EOF_SH
@@ -82,8 +82,10 @@ printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$CRED_DIR
 # Pipe Q&A answers + commands to the debug shell.
 # Line 1: empty = accept default plugin name
 # Line 2: empty = accept default registration (yes)
-# Line 3: "bye" = disconnect after handshake
-OUTPUT=$(printf '\n\nbye\n' | ZE_CONFIG_DIR="$CRED_DIR" ZE_SSH_PASSWORD="testpass" ze bgp plugin cli 2>cli-debug-stderr.log) || {
+# Line 3: "command list" = dispatch engine command (returns JSON with registered commands)
+# Line 4: "help" = dispatch help command (returns command list with descriptions)
+# Line 5: "bye" = disconnect after handshake
+OUTPUT=$(printf '\n\ncommand list\nhelp\nbye\n' | ZE_CONFIG_DIR="$CRED_DIR" ZE_SSH_PASSWORD="testpass" ze bgp plugin cli 2>cli-debug-stderr.log) || {
 	echo "FAIL: ze bgp plugin cli exited with error" >&2
 	cat cli-debug-stderr.log >&2
 	exit 1
@@ -95,6 +97,27 @@ if grep -q "Handshake complete" cli-debug-stderr.log; then
 else
 	echo "FAIL: handshake did not complete" >&2
 	cat cli-debug-stderr.log >&2
+	exit 1
+fi
+
+# Verify dispatch-command returned data (stdout captures command output).
+# "command list" returns JSON with a "commands" array containing registered commands.
+echo "OUTPUT: $OUTPUT" >&2
+if echo "$OUTPUT" | grep -q '"commands"'; then
+	echo "OK: dispatch-command returned command data" >&2
+else
+	echo "FAIL: dispatch-command did not return expected data" >&2
+	echo "stdout was: $OUTPUT" >&2
+	cat cli-debug-stderr.log >&2
+	exit 1
+fi
+
+# Verify the help command also returned data (commands with descriptions).
+if echo "$OUTPUT" | grep -q 'command list'; then
+	echo "OK: help command returned command descriptions" >&2
+else
+	echo "FAIL: help command did not return expected data" >&2
+	echo "stdout was: $OUTPUT" >&2
 	exit 1
 fi
 

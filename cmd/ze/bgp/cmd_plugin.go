@@ -95,16 +95,21 @@ Options:
 		return 1
 	}
 
+	// Shared scanner for all stdin reads (Q&A + interactive).
+	// A single scanner avoids losing buffered input when multiple scanners
+	// are created over the same reader.
+	scanner := bufio.NewScanner(os.Stdin)
+
 	// Q&A phase: ask about handshake parameters on local terminal.
 	pluginName := *name
 	if pluginName == "" {
-		pluginName = promptWithDefault("Plugin name", "cli-debug")
+		pluginName = promptWithDefault(scanner, "Plugin name", "cli-debug")
 	}
-	useDefaults := promptYesNo("Use default registration?", true)
+	useDefaults := promptYesNo(scanner, "Use default registration?", true)
 
 	var families string
 	if !useDefaults {
-		families = promptWithDefault("Families (comma-separated, e.g., ipv4/unicast)", "")
+		families = promptWithDefault(scanner, "Families (comma-separated, e.g., ipv4/unicast)", "")
 	}
 
 	fmt.Fprintf(os.Stderr, "\nConnecting to daemon as %q...\n", pluginName)
@@ -143,7 +148,7 @@ Options:
 		fmt.Fprintf(os.Stderr, "Handshake complete. Interactive mode (type 'bye' to quit).\n\n")
 		go func() {
 			defer close(interactiveDone)
-			runInteractive(ctx, p)
+			runInteractive(ctx, p, scanner)
 			cancel() // Signal SDK to shut down when user types 'bye'.
 		}()
 		return nil
@@ -163,9 +168,8 @@ Options:
 	return 0
 }
 
-// runInteractive reads commands from stdin and dispatches them via the SDK.
-func runInteractive(ctx context.Context, p *sdk.Plugin) {
-	scanner := bufio.NewScanner(os.Stdin)
+// runInteractive reads commands from the shared scanner and dispatches them via the SDK.
+func runInteractive(ctx context.Context, p *sdk.Plugin, scanner *bufio.Scanner) {
 	fmt.Fprint(os.Stderr, "> ")
 
 	for scanner.Scan() {
@@ -195,15 +199,15 @@ func runInteractive(ctx context.Context, p *sdk.Plugin) {
 }
 
 // promptWithDefault asks a question with a default value.
-// Returns the default on empty input.
-func promptWithDefault(prompt, defaultVal string) string {
+// Returns the default on empty input. Uses the shared scanner to avoid
+// losing buffered input when piped.
+func promptWithDefault(scanner *bufio.Scanner, prompt, defaultVal string) string {
 	if defaultVal != "" {
 		fmt.Fprintf(os.Stderr, "%s (default: %s): ", prompt, defaultVal)
 	} else {
 		fmt.Fprintf(os.Stderr, "%s: ", prompt)
 	}
 
-	scanner := bufio.NewScanner(os.Stdin)
 	if scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line != "" {
@@ -214,14 +218,14 @@ func promptWithDefault(prompt, defaultVal string) string {
 }
 
 // promptYesNo asks a yes/no question with a default.
-func promptYesNo(prompt string, defaultYes bool) bool {
+// Uses the shared scanner to avoid losing buffered input when piped.
+func promptYesNo(scanner *bufio.Scanner, prompt string, defaultYes bool) bool {
 	if defaultYes {
 		fmt.Fprintf(os.Stderr, "%s (Y/n): ", prompt)
 	} else {
 		fmt.Fprintf(os.Stderr, "%s (y/N): ", prompt)
 	}
 
-	scanner := bufio.NewScanner(os.Stdin)
 	if scanner.Scan() {
 		line := strings.ToLower(strings.TrimSpace(scanner.Text()))
 		if line == "" {
