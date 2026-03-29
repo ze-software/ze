@@ -293,7 +293,7 @@ func TestCLIBarUpNavigates(t *testing.T) {
 func TestCLIBarAutocomplete(t *testing.T) {
 	completer := cli.NewCompleter()
 
-	handler := HandleCLIComplete(completer)
+	handler := HandleCLIComplete(completer, nil, nil)
 
 	w := httptest.NewRecorder()
 	r := authedRequest(http.MethodGet, "/cli/complete?input=ed", nil)

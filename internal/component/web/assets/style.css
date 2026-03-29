@@ -85,8 +85,8 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 /* --- Page layout grid --- */
 .layout {
   display: grid;
-  grid-template-rows: auto 1fr auto auto;
-  grid-template-areas: "breadcrumb" "content" "notification" "cli";
+  grid-template-rows: auto 1fr auto auto auto;
+  grid-template-areas: "breadcrumb" "content" "notification" "commit" "cli";
   height: 100vh;
   width: 100%;
   overflow: hidden;
@@ -311,6 +311,22 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 /* --- Config sections --- */
 .config-container { max-width: 56rem; }
+
+.context-heading {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+.context-label {
+  text-transform: uppercase;
+  opacity: 0.5;
+  font-size: 0.75rem;
+  margin-right: 0.25rem;
+}
+.context-key {
+  font-weight: 600;
+  margin-right: 1rem;
+}
 
 .config-section {
   margin-bottom: 1.5rem;
@@ -804,10 +820,11 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 /* --- Commit bar (above CLI) --- */
 .commit-bar {
+  grid-area: commit;
   display: none;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.4rem 1rem;
+  padding: 0.3rem 1rem;
   background: var(--warning-subtle);
   border-top: 1px solid var(--warning);
 }
@@ -821,6 +838,53 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   font-size: 0.8rem;
   color: var(--warning);
   flex: 1;
+}
+
+.notification-area {
+  position: fixed;
+  top: 3rem;
+  right: 1rem;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 24rem;
+}
+.notification {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  animation: notification-in 0.3s ease-out;
+}
+.notification-error {
+  background: #2d1114;
+  color: #f8d7da;
+  border: 1px solid #842029;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.notification-close {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1rem;
+  opacity: 0.7;
+  margin-left: auto;
+}
+.notification-close:hover { opacity: 1; }
+.notification-countdown {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  opacity: 0.7;
+  min-width: 1.5em;
+  text-align: center;
+}
+@keyframes notification-in {
+  from { opacity: 0; transform: translateX(1rem); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 .commit-review-btn, .commit-btn, .commit-discard-btn {

@@ -212,9 +212,9 @@ func (m *EditorManager) Diff(username string) (string, error) {
 	var b strings.Builder
 	for _, e := range entries {
 		if e.Entry.Previous != "" {
-			fmt.Fprintf(&b, "- %s = %s\n+ %s = %s\n", e.Path, e.Entry.Previous, e.Path, e.Entry.Value)
+			fmt.Fprintf(&b, "- %s %s\n+ %s %s\n", e.Path, e.Entry.Previous, e.Path, e.Entry.Value)
 		} else {
-			fmt.Fprintf(&b, "+ %s = %s\n", e.Path, e.Entry.Value)
+			fmt.Fprintf(&b, "+ %s %s\n", e.Path, e.Entry.Value)
 		}
 	}
 	return b.String(), nil

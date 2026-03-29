@@ -92,8 +92,8 @@
           body: 'command=' + encodeURIComponent(cmd) + '&path=' + encodeURIComponent(curPath)
         }).then(function() {
           refreshDetail(curPath);
-          if (verb === 'set' || verb === 'delete') {
-            if (window.zeCommitBump) window.zeCommitBump();
+          if (verb === 'set' || verb === 'delete' || verb === 'commit' || verb === 'discard') {
+            refreshCommitBar();
           }
         });
         return;
@@ -136,7 +136,8 @@
   }
 
   function doComplete(input, box, val) {
-    fetch('/cli/complete?input=' + encodeURIComponent(val), {credentials: 'same-origin'})
+    var completePath = window.location.pathname.replace(/^\/show\//, '').replace(/^\/config\/edit\//, '').replace(/\/$/, '');
+    fetch('/cli/complete?input=' + encodeURIComponent(val) + '&path=' + encodeURIComponent(completePath), {credentials: 'same-origin'})
       .then(function(r){ return r.json(); })
       .then(function(items){
         if (!items || items.length === 0) {
@@ -240,11 +241,23 @@
   }
 
   // Refresh the detail panel via fragment endpoint without full page reload.
+  function refreshCommitBar() {
+    fetch('/config/changes', { credentials: 'same-origin' })
+      .then(function(r) { return r.text(); })
+      .then(function(html) {
+        var bar = document.getElementById('commit-bar');
+        if (bar) {
+          bar.outerHTML = html;
+          var newBar = document.getElementById('commit-bar');
+          if (newBar && window.htmx) htmx.process(newBar);
+        }
+      });
+  }
+
   function refreshDetail(path) {
-    var detail = document.getElementById('detail');
-    if (!detail || !window.htmx) return;
+    if (!window.htmx) return;
     htmx.ajax('GET', '/fragment/detail?path=' + encodeURIComponent(path), {
-      target: '#detail',
+      target: '#content-area',
       swap: 'innerHTML'
     });
   }
@@ -298,8 +311,8 @@
 
   }
 
-  // Add-entry overlay: shows a modal to name a new list entry.
-  // POSTs to /config/add/<path>/<name> to create the entry, then navigates to it.
+  // Add-entry overlay: shows a modal to name a new list entry (simple lists in finder).
+  // Lists with unique constraints use the HTMX-served form instead (hx-get on + new button).
   function showAddEntryOverlay(baseURL) {
     var overlay = document.createElement('div');
     overlay.className = 'add-entry-overlay';
@@ -316,7 +329,6 @@
         e.preventDefault();
         var name = input.value.trim();
         if (!name) return;
-        // Convert /show/bgp/peer/ to /config/add/bgp/peer/<name>
         var addPath = baseURL.replace(/^\/show\//, '/config/add/') + encodeURIComponent(name) + '/';
         fetch(addPath, {
           method: 'POST',

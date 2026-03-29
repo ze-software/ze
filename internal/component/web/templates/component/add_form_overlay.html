@@ -1,0 +1,16 @@
+{{define "add_form_overlay"}}
+<div class="add-entry-overlay" id="add-entry-overlay" onclick="if(event.target===this)this.remove()">
+  <div class="add-entry-card">
+    <h3>New entry</h3>
+    <form hx-post="{{.AddURL}}" hx-target="#detail" hx-swap="innerHTML"
+          hx-on::after-request="document.getElementById('add-entry-overlay')?.remove()">
+      <input type="text" class="add-entry-input" name="name" placeholder="name" required autofocus
+             onkeydown="if(event.key==='Escape'){document.getElementById('add-entry-overlay')?.remove()}">
+      {{range .Fields}}
+      <input type="text" class="add-entry-input" name="field:{{.Path}}" placeholder="{{.Placeholder}}">
+      {{end}}
+      <button type="submit" class="add-entry-submit">Create</button>
+    </form>
+  </div>
+</div>
+{{end}}

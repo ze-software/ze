@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"time"
 )
 
 // sseEvent is a server-sent event with a named event type and data payload.
@@ -131,7 +132,8 @@ func (b *EventBroker) Close() {
 
 // ServeHTTP handles SSE client connections. It sets the appropriate headers,
 // registers the client, and streams events until the client disconnects
-// or the broker is closed.
+// or the broker is closed. A heartbeat comment is sent every 30 seconds
+// to detect dead connections and prevent client accumulation.
 func (b *EventBroker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -154,6 +156,8 @@ func (b *EventBroker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer b.Unsubscribe(client)
 
 	ctx := r.Context()
+	heartbeat := time.NewTicker(30 * time.Second)
+	defer heartbeat.Stop()
 
 	for {
 		select {
@@ -165,7 +169,12 @@ func (b *EventBroker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if writeSSEEvent(w, ev) != nil {
 				return
 			}
-
+			flusher.Flush()
+		case <-heartbeat.C:
+			// SSE comment keeps the connection alive and detects dead clients.
+			if _, err := fmt.Fprint(w, ": heartbeat\n\n"); err != nil {
+				return
+			}
 			flusher.Flush()
 		}
 	}

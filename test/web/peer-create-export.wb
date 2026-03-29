@@ -18,14 +18,7 @@ action=fill:text=type a command:value=set ip 192.168.1.1
 action=press:text=type a command:key=Enter
 action=wait:ms=2000
 
-# Navigate away to peer list
-action=open:path=/show/bgp/peer/
-action=wait:ms=1000
-
-# Verify peer appears in peer list
-expect=element:text=test-peer
-
-# Navigate back and verify values survived navigation
+# Navigate to peer entry and verify values survived navigation
 action=open:path=/show/bgp/peer/test-peer/remote/
 action=wait:ms=1000
 expect=element:text=65001

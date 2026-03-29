@@ -151,6 +151,10 @@ func HandleCLICommand(mgr *EditorManager, schema *config.Schema, renderer *Rende
 			return
 		}
 
+		// If the path ends at a named list (not an entry), step back one level.
+		// The CLI can't be "at" a list -- you're before it or inside an entry.
+		contextPath = adjustListContext(schema, contextPath)
+
 		cmd := parseCLICommand(command)
 		if cmd.Verb == "" {
 			http.Error(w, "empty command", http.StatusBadRequest)
@@ -180,7 +184,7 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 	case verbEdit:
 		handleCLIEdit(w, contextPath, cmd.Args, schema, renderer, mgr, username)
 	case verbSet:
-		handleCLISet(w, r, contextPath, cmd.Args, mgr, username)
+		handleCLISet(w, r, contextPath, cmd.Args, schema, mgr, username)
 	case verbDelete:
 		handleCLIDelete(w, r, contextPath, cmd.Args, mgr, username)
 	case verbShow:
@@ -229,22 +233,28 @@ func handleCLIEdit(w http.ResponseWriter, contextPath, args []string, schema *co
 }
 
 // handleCLISet processes the "set" verb: sets a value at the current context path.
-func handleCLISet(w http.ResponseWriter, r *http.Request, contextPath, args []string, mgr *EditorManager, username string) {
+// Supports paths into containers: "set local ip 127.0.0.1" navigates into "local"
+// and sets "ip" to "127.0.0.1". The last token is the value, the second-to-last
+// is the leaf name, and any preceding tokens extend the context path.
+// The full path (context + args) must resolve to a specific list entry, not an
+// anonymous list access (which would create a "default" entry).
+func handleCLISet(w http.ResponseWriter, r *http.Request, contextPath, args []string, _ *config.Schema, mgr *EditorManager, username string) {
 	if len(args) < 2 { //nolint:mnd // set requires key and value
 		writeCLINotification(w, "usage: set <leaf> <value>", "error")
 		return
 	}
 
-	key := args[0]
-
-	if err := ValidatePathSegments([]string{key}); err != nil {
-		writeCLINotification(w, "invalid leaf name", "error")
+	if err := ValidatePathSegments(args[:len(args)-1]); err != nil {
+		writeCLINotification(w, "invalid path", "error")
 		return
 	}
 
-	value := strings.Join(args[1:], " ")
+	// Last token is value, second-to-last is leaf, rest extend the path.
+	value := args[len(args)-1]
+	key := args[len(args)-2]
+	setPath := append(append([]string{}, contextPath...), args[:len(args)-2]...)
 
-	if err := mgr.SetValue(username, contextPath, key, value); err != nil {
+	if err := mgr.SetValue(username, setPath, key, value); err != nil {
 		writeCLINotification(w, fmt.Sprintf("set error: %s", err), "error")
 		return
 	}
@@ -377,7 +387,25 @@ func handleCLIDiscard(w http.ResponseWriter, r *http.Request, mgr *EditorManager
 
 // HandleCLIComplete returns a GET handler for /cli/complete that provides
 // tab-completion candidates for the CLI bar input.
-func HandleCLIComplete(completer *cli.Completer) http.HandlerFunc {
+// adjustListContext corrects the web URL path for CLI use.
+// The web can display a named node's table (e.g., /show/bgp/peer/), but in the CLI
+// you are always before the named node or after (inside an entry) -- never at it.
+// Path ["bgp", "peer"] becomes ["bgp"]. Path ["bgp", "peer", "thomas"] stays.
+func adjustListContext(schema *config.Schema, path []string) []string {
+	if len(path) == 0 {
+		return path
+	}
+	node, err := walkSchema(schema, path)
+	if err != nil {
+		return path
+	}
+	if _, isList := node.(*config.ListNode); isList && !isListEntryPath(schema, path) {
+		return path[:len(path)-1]
+	}
+	return path
+}
+
+func HandleCLIComplete(completer *cli.Completer, mgr *EditorManager, schema *config.Schema) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -404,6 +432,14 @@ func HandleCLIComplete(completer *cli.Completer) http.HandlerFunc {
 		if err := ValidatePathSegments(contextPath); err != nil {
 			http.Error(w, "invalid path", http.StatusBadRequest)
 			return
+		}
+
+		// Adjust context: CLI can't be "at" a list, step back to parent.
+		contextPath = adjustListContext(schema, contextPath)
+
+		// Set the editor tree so completions can see existing list entries.
+		if userTree := mgr.Tree(username); userTree != nil {
+			completer.SetTree(userTree)
 		}
 
 		completions := completer.Complete(input, contextPath)

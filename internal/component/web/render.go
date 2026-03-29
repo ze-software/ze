@@ -273,7 +273,12 @@ func (r *Renderer) RenderLogin(w http.ResponseWriter, data LoginData) error {
 }
 
 // AssetHandler returns an http.Handler that serves embedded static assets.
-// Mount at /assets/ with http.StripPrefix.
+// Mount at /assets/ with http.StripPrefix. Assets use no-cache so browsers
+// pick up changes after binary updates without requiring a hard refresh.
 func (r *Renderer) AssetHandler() http.Handler {
-	return http.FileServer(http.FS(r.assets))
+	fs := http.FileServer(http.FS(r.assets))
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache, must-revalidate")
+		fs.ServeHTTP(w, req)
+	})
 }

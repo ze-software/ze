@@ -1,0 +1,35 @@
+{{define "list_table"}}
+{{$table := .ListTable}}
+<section class="config-section">
+  <table class="finder-table detail-table">
+    <thead>
+      <tr>
+        <th class="finder-table-action"></th>
+        {{range $table.Columns}}
+        <th>{{.Name}}</th>
+        {{end}}
+        <th class="finder-table-action"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {{range $table.Rows}}
+      <tr>
+        <td class="finder-table-action"><button class="finder-rename-btn" data-action="rename-entry" data-url="{{.URL}}" data-key="{{.KeyValue}}" title="Rename">&#9998;</button></td>
+        <td><a class="finder-table-link" href="{{.URL}}"
+               hx-get="/fragment/detail?path={{.HxPath}}" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="{{.URL}}">{{.KeyValue}}</a></td>
+        {{range .Cells}}
+        <td><input class="finder-table-input" type="text" value="{{.Value}}"
+                   placeholder="{{.Placeholder}}"
+                   hx-post="/config/set/{{.Path}}" hx-trigger="blur changed, keyup[key=='Enter'], input changed delay:1s"
+                   hx-target="closest td" hx-swap="innerHTML"
+                   name="value" hx-vals='{"leaf":"{{.Leaf}}"}'></td>
+        {{end}}
+        <td class="finder-table-action"><button class="finder-delete-btn" data-action="delete-entry" data-path="{{.HxPath}}" data-key="{{.KeyValue}}" title="Delete">&#128465;</button></td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  <button class="finder-item finder-add"
+          hx-get="{{$table.FormURL}}" hx-target="body" hx-swap="beforeend">+ new</button>
+</section>
+{{end}}

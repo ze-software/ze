@@ -435,7 +435,8 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, 
 
 	// Config set, add, and delete handlers for editing leaf values.
 	setHandler := zeweb.HandleConfigSet(editorMgr, schema, renderer)
-	addHandler := zeweb.HandleConfigAdd(editorMgr, schema)
+	addHandler := zeweb.HandleConfigAdd(editorMgr, schema, renderer)
+	addFormHandler := zeweb.HandleConfigAddForm(schema, renderer)
 	deleteHandler := zeweb.HandleConfigDelete(editorMgr)
 
 	// SSE broker for live config change notifications.
@@ -477,7 +478,7 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, 
 
 	// CLI handlers: command execution, autocomplete, terminal mode.
 	cliHandler := zeweb.HandleCLICommand(editorMgr, schema, renderer)
-	completeHandler := zeweb.HandleCLIComplete(completer)
+	completeHandler := zeweb.HandleCLIComplete(completer, editorMgr, schema)
 	terminalHandler := zeweb.HandleCLITerminal(editorMgr)
 	modeHandler := zeweb.HandleCLIModeToggle(editorMgr, schema, renderer)
 
@@ -516,6 +517,8 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, 
 	srv.Handle("/fragment/detail", authWrap(fragmentHandler))
 	srv.Handle("POST /config/set/", authWrap(setHandler))
 	srv.Handle("POST /config/add/", authWrap(addHandler))
+	srv.Handle("GET /config/add-form/", authWrap(addFormHandler))
+	srv.Handle("GET /config/changes", authWrap(zeweb.HandleConfigChanges(editorMgr, renderer)))
 	srv.Handle("POST /config/delete/", authWrap(deleteHandler))
 	srv.Handle("/config/diff", authWrap(diffHandler))
 	srv.Handle("/config/diff-close", authWrap(diffCloseHandler))

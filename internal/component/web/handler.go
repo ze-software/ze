@@ -54,13 +54,15 @@ type ParsedURL struct {
 
 // configVerbs is the set of valid verbs under /config/.
 var configVerbs = map[string]bool{
-	"edit":    true,
-	"set":     true,
-	"add":     true,
-	"delete":  true,
-	"commit":  true,
-	"discard": true,
-	"compare": true,
+	"edit":     true,
+	"set":      true,
+	"add":      true,
+	"add-form": true,
+	"changes":  true,
+	"delete":   true,
+	"commit":   true,
+	"discard":  true,
+	"compare":  true,
 }
 
 // knownPrefixes maps top-level URL prefixes to their handler logic.

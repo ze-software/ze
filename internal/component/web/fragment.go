@@ -8,6 +8,7 @@ package web
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -96,9 +97,10 @@ type ListTableColumn struct {
 
 // ListTableCell is one editable cell in a list table row.
 type ListTableCell struct {
-	Value string // Current value
-	Leaf  string // Leaf name for the set command (e.g., "ip")
-	Path  string // Full YANG path for hx-post (e.g., "bgp/peer/london/remote")
+	Value       string // Current value
+	Leaf        string // Leaf name for the set command (e.g., "ip")
+	Path        string // Full YANG path for hx-post (e.g., "bgp/peer/london/remote")
+	Placeholder string // YANG description or type hint for empty cells
 }
 
 // ListTableRow is one entry row in a list table.
@@ -114,15 +116,21 @@ type ListTableView struct {
 	Name    string            // List name (e.g., "peer")
 	Columns []ListTableColumn // Column definitions
 	Rows    []ListTableRow    // Entry rows
-	AddURL  string            // Base URL for adding entries
+	AddURL  string            // Base URL for adding entries (/config/add/bgp/peer/)
+	FormURL string            // URL for the HTMX add-form overlay (/config/add-form/bgp/peer/)
 	SetURL  string            // Base URL for config/set (inline edits)
 }
 
 // FinderColumn is one column in the Finder-style navigation.
 type FinderColumn struct {
-	NamedItems   []ColumnItem   // Named containers (lists with keys) - shown first
-	UnnamedItems []ColumnItem   // Unnamed containers (no list key) - shown after separator
-	Table        *ListTableView // Non-nil when this column shows a table instead of a list
+	NamedItems   []ColumnItem // Named containers (lists with keys) - shown first
+	UnnamedItems []ColumnItem // Unnamed containers (no list key) - shown after separator
+}
+
+// ContextEntry is one named node in the context heading (e.g., ListName="peer", Key="thomas").
+type ContextEntry struct {
+	ListName string
+	Key      string
 }
 
 // FragmentData holds all data needed to render any fragment.
@@ -153,6 +161,12 @@ type FragmentData struct {
 	Insecure bool
 	// Monitor is true when the view is auto-refreshing (/monitor/ URL).
 	Monitor bool
+	// ContextHeading shows the current named node context (e.g., "Peer thomas").
+	// Only populated when inside a list entry. Each entry is "ListName KeyValue".
+	ContextHeading []ContextEntry
+	// ListTable holds data for rendering a list with unique constraints as a table.
+	// Populated when the current path ends at a list node with unique fields.
+	ListTable *ListTableView
 	// CommandForm holds admin command form data when viewing a leaf command.
 	CommandForm *CommandFormData
 	// CommandResult holds admin command execution result.
@@ -179,6 +193,22 @@ func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree
 				viewTree = userTree
 			}
 		}
+		// Redirect to root if path is invalid or refers to a non-existent entry.
+		if len(path) > 0 {
+			schemaNode, walkErr := walkSchema(schema, path)
+			if walkErr != nil || schemaNode == nil {
+				target := "/show/?error=" + url.QueryEscape(fmt.Sprintf("invalid path: %s", strings.Join(path, "/")))
+				http.Redirect(w, r, target, http.StatusFound)
+				return
+			}
+			if isListEntryPath(schema, path) && walkTree(viewTree, schema, path) == nil {
+				entryKey := path[len(path)-1]
+				target := "/show/?error=" + url.QueryEscape(fmt.Sprintf("entry %q does not exist", entryKey))
+				http.Redirect(w, r, target, http.StatusFound)
+				return
+			}
+		}
+
 		data := buildFragmentData(schema, viewTree, path)
 		data.Username = username
 		data.Insecure = insecure
@@ -265,6 +295,8 @@ func buildFragmentData(schema *config.Schema, tree *config.Tree, path []string) 
 	data.Sidebar = buildSidebarHierarchy(schema, tree, path)
 	// Build Finder-style column navigation.
 	data.Columns = buildFinderColumns(schema, tree, path)
+	// Build context heading from named nodes (list entries) in the path.
+	data.ContextHeading = buildContextHeading(schema, path)
 
 	// Parent URL for back navigation in sidebar.
 	if len(path) > 0 {
@@ -295,10 +327,24 @@ func buildFragmentData(schema *config.Schema, tree *config.Tree, path []string) 
 		populateFragmentFields(data, n, subtree, prefix)
 
 	case *config.ListNode:
-		// List at the leaf of the path: entries shown in sidebar (built above).
-		subtree := walkTree(tree, schema, path)
-		if subtree != nil {
-			populateFragmentFields(data, n, subtree, prefix)
+		// Distinguish list view (bgp/peer) from entry view (bgp/peer/thomas).
+		// If the last path segment is NOT a schema child of the list, it's an entry key.
+		atEntry := isListEntryPath(schema, path)
+
+		if atEntry {
+			// Entry view: show the entry's fields (same as container).
+			subtree := walkTree(tree, schema, path)
+			if subtree != nil {
+				populateFragmentFields(data, n, subtree, prefix)
+			}
+		} else {
+			// List view: render table for lists with unique constraints.
+			uniqueFields := collectUniqueFields(n)
+			if len(uniqueFields) > 0 {
+				keys := collectListKeys(tree, schema, path)
+				baseURL := "/show/" + strings.Join(path, "/") + "/"
+				data.ListTable = buildListTable(tree, schema, path, n, keys, uniqueFields, baseURL)
+			}
 		}
 
 	case *config.FlexNode:
@@ -536,9 +582,16 @@ func buildColumnAt(schema *config.Schema, tree *config.Tree, prefix []string, se
 		if err != nil || node == nil {
 			return nil
 		}
-		// If this is a list node, show entries instead of schema children.
+		// If this is a list node at the list level (not an entry), handle specially.
 		if listNode, ok := node.(*config.ListNode); ok {
-			return buildListColumn(tree, schema, prefix, listNode, selectedName)
+			if !isListEntryPath(schema, prefix) {
+				// List view: lists with unique constraints show table in detail panel.
+				if len(collectUniqueFields(listNode)) > 0 {
+					return nil
+				}
+				return buildListColumn(tree, schema, prefix, listNode, selectedName)
+			}
+			// Entry view: fall through to show schema children.
 		}
 		cl, ok := node.(childLister)
 		if !ok {
@@ -586,20 +639,11 @@ func buildColumnAt(schema *config.Schema, tree *config.Tree, prefix []string, se
 }
 
 // buildListColumn builds a column showing list entries (e.g., peer names).
-// For lists with unique constraints, it builds a table view instead of a simple list.
+// Lists with unique constraints render their table in the detail panel (not here).
 func buildListColumn(tree *config.Tree, schema *config.Schema, prefix []string, listNode *config.ListNode, selectedName string) *FinderColumn {
 	col := &FinderColumn{}
 	keys := collectListKeys(tree, schema, prefix)
 	url := "/show/" + strings.Join(prefix, "/") + "/"
-
-	// Collect all unique field paths (flattened from all unique constraints).
-	uniqueFields := collectUniqueFields(listNode)
-
-	// If the list has unique fields, render as a table.
-	if len(uniqueFields) > 0 {
-		col.Table = buildListTable(tree, schema, prefix, listNode, keys, uniqueFields, url)
-		return col
-	}
 
 	// Simple list: show entries in the column.
 	for _, k := range keys {
@@ -642,9 +686,10 @@ func collectUniqueFields(listNode *config.ListNode) []string {
 func buildListTable(tree *config.Tree, schema *config.Schema, prefix []string, listNode *config.ListNode, keys, uniqueFields []string, baseURL string) *ListTableView {
 	listName := prefix[len(prefix)-1]
 	table := &ListTableView{
-		Name:   listName,
-		AddURL: baseURL,
-		SetURL: "/config/set/" + strings.Join(prefix, "/") + "/",
+		Name:    listName,
+		AddURL:  "/config/add/" + strings.Join(prefix, "/") + "/",
+		FormURL: "/config/add-form/" + strings.Join(prefix, "/") + "/",
+		SetURL:  "/config/set/" + strings.Join(prefix, "/") + "/",
 	}
 
 	// Key column first, then unique field columns.
@@ -672,9 +717,10 @@ func buildListTable(tree *config.Tree, schema *config.Schema, prefix []string, l
 				cellPath += "/" + parentSuffix
 			}
 			row.Cells = append(row.Cells, ListTableCell{
-				Value: resolveNestedValue(entryTree, field),
-				Leaf:  leaf,
-				Path:  cellPath,
+				Value:       resolveNestedValue(entryTree, field),
+				Leaf:        leaf,
+				Path:        cellPath,
+				Placeholder: resolveLeafDescription(listNode, field),
 			})
 		}
 
@@ -692,6 +738,82 @@ func splitFieldPath(field string) (leaf, parentSuffix string) {
 		return field, ""
 	}
 	return field[idx+1:], field[:idx]
+}
+
+// resolveLeafDescription walks the YANG list schema to find the description of a unique field leaf.
+// field is a slash-separated path like "remote/ip".
+func resolveLeafDescription(listNode *config.ListNode, field string) string {
+	parts := strings.Split(field, "/")
+	var current schemaGetter = listNode
+	for i, part := range parts {
+		child := current.Get(part)
+		if child == nil {
+			return ""
+		}
+		if i == len(parts)-1 {
+			return nodeDescription(child)
+		}
+		if next, ok := child.(schemaGetter); ok {
+			current = next
+		} else {
+			return ""
+		}
+	}
+	return ""
+}
+
+// resolveLeafType walks the YANG list schema to find the ValueType of a unique field leaf.
+func resolveLeafType(listNode *config.ListNode, field string) config.ValueType {
+	parts := strings.Split(field, "/")
+	var current schemaGetter = listNode
+	for i, part := range parts {
+		child := current.Get(part)
+		if child == nil {
+			return config.TypeString
+		}
+		if i == len(parts)-1 {
+			if leaf, ok := child.(*config.LeafNode); ok {
+				return leaf.Type
+			}
+			return config.TypeString
+		}
+		if next, ok := child.(schemaGetter); ok {
+			current = next
+		} else {
+			return config.TypeString
+		}
+	}
+	return config.TypeString
+}
+
+// buildContextHeading extracts named nodes (list entries) from the path.
+// For path ["bgp", "peer", "thomas", "family", "ipv4/unicast"],
+// returns [{"peer", "thomas"}, {"family", "ipv4/unicast"}].
+func buildContextHeading(schema *config.Schema, path []string) []ContextEntry {
+	var entries []ContextEntry
+	var current schemaGetter = schema
+	for i := 0; i < len(path); {
+		node := current.Get(path[i])
+		if node == nil {
+			break
+		}
+		if listNode, ok := node.(*config.ListNode); ok {
+			if i+1 < len(path) && listNode.Get(path[i+1]) == nil {
+				entries = append(entries, ContextEntry{ListName: path[i], Key: path[i+1]})
+				current = listNode
+				i += 2
+				continue
+			}
+			current = listNode
+			i++
+			continue
+		}
+		if sg, ok := node.(schemaGetter); ok {
+			current = sg
+		}
+		i++
+	}
+	return entries
 }
 
 // resolveNestedValue resolves a slash-separated path (e.g., "remote/ip") to a leaf value in a tree.

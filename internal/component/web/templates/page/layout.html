@@ -6,8 +6,8 @@
 <title>{{.Title}}</title>
 <link rel="stylesheet" href="/assets/style.css">
 <script src="/assets/htmx.min.js"></script>
-<script src="/assets/sse.js"></script>
 <script src="/assets/cli.js"></script>
+<script src="/assets/sse-client.js"></script>
 </head>
 <body>
 <div class="layout">
@@ -20,8 +20,7 @@
   {{.Content}}
 </main>
 
-<aside class="notification-bar" id="notification-bar"
-       hx-ext="sse" sse-connect="/events" sse-swap="config-change" hx-swap="innerHTML">
+<aside class="notification-bar" id="notification-bar">
   {{.NotificationHTML}}
 </aside>
 
@@ -29,9 +28,40 @@
 {{template "cli_bar" .}}
 
 </div>
+<div id="notification-area" class="notification-area"></div>
 
 {{template "diff_modal" .}}
 {{template "error_panel" .}}
 
+<script>
+(function(){
+  var p = new URLSearchParams(window.location.search);
+  var err = p.get('error');
+  if (!err) return;
+  var area = document.getElementById('notification-area');
+  if (!area) return;
+  var div = document.createElement('div');
+  div.className = 'notification notification-error';
+  div.id = 'notif-toast';
+  var msg = document.createElement('span');
+  msg.className = 'notification-message';
+  msg.textContent = err;
+  var cd = document.createElement('span');
+  cd.className = 'notification-countdown';
+  cd.textContent = '30';
+  var btn = document.createElement('button');
+  btn.className = 'notification-close';
+  btn.textContent = '\u00D7';
+  div.appendChild(msg); div.appendChild(cd); div.appendChild(btn);
+  area.appendChild(div);
+  var secs = 30, tid;
+  function tick() { secs--; cd.textContent = secs; if (secs <= 0) div.remove(); else tid = setTimeout(tick, 1000); }
+  tid = setTimeout(tick, 1000);
+  cd.style.cursor = 'pointer';
+  cd.onclick = function() { clearTimeout(tid); cd.textContent = '\u23F8'; };
+  btn.onclick = function() { clearTimeout(tid); div.remove(); };
+  history.replaceState(null, '', window.location.pathname);
+})();
+</script>
 </body>
 </html>

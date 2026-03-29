@@ -1,5 +1,5 @@
-{{define "finder"}}
-<div class="finder-columns" id="finder">
+{{define "finder_oob"}}
+<div class="finder-columns" id="finder" hx-swap-oob="outerHTML">
   {{range .Columns}}
   <div class="finder-col">
     {{range .NamedItems}}

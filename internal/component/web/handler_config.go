@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"slices"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -153,6 +154,30 @@ func HandleConfigSet(mgr *EditorManager, schema *config.Schema, renderer *Render
 				}
 			}
 
+			// Validate YANG type for the leaf.
+			if leafNode := findLeafNode(schema, path, leaf); leafNode != nil {
+				if valErr := config.ValidateValue(leafNode.Type, value); valErr != nil {
+					errPath := strings.Join(append(path, leaf), "/")
+					if renderer != nil {
+						WriteOOBError(w, renderer, errPath, valErr.Error(), http.StatusBadRequest)
+					} else {
+						http.Error(w, valErr.Error(), http.StatusBadRequest)
+					}
+					return
+				}
+			}
+
+			// Check unique constraints for inline table edits.
+			if uniqueErr := validateUniqueOnSet(mgr.Tree(username), schema, path, leaf, value); uniqueErr != "" {
+				errPath := strings.Join(append(path, leaf), "/")
+				if renderer != nil {
+					WriteOOBError(w, renderer, errPath, uniqueErr, http.StatusConflict)
+				} else {
+					http.Error(w, uniqueErr, http.StatusConflict)
+				}
+				return
+			}
+
 			if err := mgr.SetValue(username, path, leaf, value); err != nil {
 				errPath := strings.Join(append(path, leaf), "/")
 				if renderer != nil {
@@ -199,10 +224,11 @@ func HandleConfigSet(mgr *EditorManager, schema *config.Schema, renderer *Render
 }
 
 // HandleConfigAdd returns a POST handler for /config/add/<yang-path>/.
-// It creates an empty list entry at the given path. The last path segment
-// is the entry key (e.g., /config/add/bgp/peer/london creates peer "london").
-// Returns 200 on success so the JS can navigate to the new entry.
-func HandleConfigAdd(mgr *EditorManager, schema *config.Schema) http.HandlerFunc {
+// It creates a list entry and sets any form field values.
+// The entry key comes from the URL path (last segment) or the "name" form field.
+// Form fields with "field:" prefix set values on the new entry (e.g., field:remote/ip=1.2.3.4).
+// For HTMX requests, returns the updated list table fragment.
+func HandleConfigAdd(mgr *EditorManager, schema *config.Schema, renderer *Renderer) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -221,18 +247,212 @@ func HandleConfigAdd(mgr *EditorManager, schema *config.Schema) http.HandlerFunc
 			return
 		}
 
+		r.Body = http.MaxBytesReader(w, r.Body, 65536)
+		if parseErr := r.ParseForm(); parseErr != nil {
+			http.Error(w, "bad form data", http.StatusBadRequest)
+			return
+		}
+
 		path := parsed.Path
+
+		// Accept entry key from "name" form field (HTMX form) or URL path (JS).
+		// Keys are always lowercase.
+		if name := strings.ToLower(strings.TrimSpace(r.FormValue("name"))); name != "" {
+			path = append(path, name)
+		}
+
 		if len(path) < 2 {
 			http.Error(w, "path must include list name and entry key", http.StatusBadRequest)
 			return
 		}
 
-		if err := mgr.CreateEntry(username, path); err != nil {
-			http.Error(w, fmt.Sprintf("create entry: %v", err), http.StatusBadRequest)
+		// Validate all fields BEFORE creating the entry.
+		entryKey := path[len(path)-1]
+		listPath := path[:len(path)-1]
+		tree := mgr.Tree(username)
+		listNode, _ := walkSchema(schema, listPath)
+
+		// Check duplicate key.
+		if tree != nil && slices.Contains(collectListKeys(tree, schema, listPath), entryKey) {
+			returnAddError(w, r, renderer, schema, mgr, username, listPath, fmt.Sprintf("entry %q already exists", entryKey))
+			return
+		}
+
+		// Collect and validate field values before any mutation.
+		type fieldSet struct {
+			fieldPath, leaf, parentSuffix, value string
+		}
+		var fields []fieldSet
+		for formKey, values := range r.PostForm {
+			if !strings.HasPrefix(formKey, "field:") || len(values) == 0 {
+				continue
+			}
+			fieldPath := strings.TrimPrefix(formKey, "field:")
+			value := strings.TrimSpace(values[0])
+			if value == "" {
+				continue
+			}
+
+			// Validate value against YANG type.
+			if ln, ok := listNode.(*config.ListNode); ok {
+				fieldType := resolveLeafType(ln, fieldPath)
+				if valErr := config.ValidateValue(fieldType, value); valErr != nil {
+					returnAddError(w, r, renderer, schema, mgr, username, listPath,
+						fmt.Sprintf("invalid %s: %v", fieldPath, valErr))
+					return
+				}
+				// Check unique constraint.
+				if conflict := checkUniqueConstraint(tree, schema, listPath, entryKey, fieldPath, value); conflict != "" {
+					returnAddError(w, r, renderer, schema, mgr, username, listPath,
+						fmt.Sprintf("duplicate %s %q (already used by %s)", fieldPath, value, conflict))
+					return
+				}
+			}
+
+			leaf, parentSuffix := splitFieldPath(fieldPath)
+			fields = append(fields, fieldSet{fieldPath, leaf, parentSuffix, value})
+		}
+
+		// All validation passed. Create entry and set fields.
+		if createErr := mgr.CreateEntry(username, path); createErr != nil {
+			returnAddError(w, r, renderer, schema, mgr, username, listPath, fmt.Sprintf("create entry: %v", createErr))
+			return
+		}
+		for _, f := range fields {
+			setPath := make([]string, len(path))
+			copy(setPath, path)
+			if f.parentSuffix != "" {
+				setPath = append(setPath, strings.Split(f.parentSuffix, "/")...)
+			}
+			if setErr := mgr.SetValue(username, setPath, f.leaf, f.value); setErr != nil {
+				serverLogger.Warn("add-entry set field failed", "field", f.fieldPath, "error", setErr)
+			}
+		}
+
+		// HTMX: return updated list table + commit bar + finder for the parent list path.
+		if r.Header.Get("HX-Request") == htmxRequestTrue {
+			tree = mgr.Tree(username)
+			data := buildFragmentData(schema, tree, listPath)
+			tableHTML := renderer.RenderFragment("list_table", data)
+
+			type saveOK struct{ ChangeCount int }
+			count := mgr.ChangeCount(username)
+			commitHTML := renderer.RenderFragment("oob_save_ok", saveOK{ChangeCount: count})
+
+			// OOB finder update so the peer count refreshes.
+			finderHTML := renderer.RenderFragment("finder_oob", data)
+
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			if _, writeErr := w.Write([]byte(string(tableHTML) + string(commitHTML) + string(finderHTML))); writeErr != nil {
+				return
+			}
 			return
 		}
 
 		w.WriteHeader(http.StatusOK)
+	}
+}
+
+// returnAddError returns the list table with an error notification for HTMX add requests,
+// or a plain HTTP error for non-HTMX requests.
+func returnAddError(w http.ResponseWriter, r *http.Request, renderer *Renderer, schema *config.Schema, mgr *EditorManager, username string, listPath []string, errMsg string) {
+	if r.Header.Get("HX-Request") != htmxRequestTrue {
+		http.Error(w, errMsg, http.StatusConflict)
+		return
+	}
+	tree := mgr.Tree(username)
+	data := buildFragmentData(schema, tree, listPath)
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	tableHTML := renderer.RenderFragment("list_table", data)
+	notifHTML := renderer.RenderFragment("notification_error", struct{ Message string }{Message: errMsg})
+	if _, writeErr := w.Write([]byte(string(tableHTML) + string(notifHTML))); writeErr != nil {
+		return
+	}
+}
+
+// HandleConfigAddForm returns a GET handler for /config/add-form/<yang-path>/.
+// It renders an overlay form with inputs for the list key and unique fields.
+func HandleConfigAddForm(schema *config.Schema, renderer *Renderer) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		username := GetUsernameFromRequest(r)
+		if username == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		parsed, err := ParseURL(r)
+		if err != nil {
+			http.Error(w, "bad request", http.StatusBadRequest)
+			return
+		}
+
+		listPath := parsed.Path
+		if len(listPath) == 0 {
+			http.Error(w, "path required", http.StatusBadRequest)
+			return
+		}
+
+		schemaNode, walkErr := walkSchema(schema, listPath)
+		if walkErr != nil {
+			http.Error(w, "invalid path", http.StatusBadRequest)
+			return
+		}
+
+		listNode, ok := schemaNode.(*config.ListNode)
+		if !ok {
+			http.Error(w, "not a list", http.StatusBadRequest)
+			return
+		}
+
+		type formField struct {
+			Path        string
+			Placeholder string
+		}
+
+		data := struct {
+			AddURL string
+			Fields []formField
+		}{
+			AddURL: "/config/add/" + strings.Join(listPath, "/") + "/",
+		}
+
+		for _, field := range collectUniqueFields(listNode) {
+			data.Fields = append(data.Fields, formField{
+				Path:        field,
+				Placeholder: resolveLeafDescription(listNode, field),
+			})
+		}
+
+		html := renderer.RenderFragment("add_form_overlay", data)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if _, writeErr := w.Write([]byte(html)); writeErr != nil {
+			return
+		}
+	}
+}
+
+// HandleConfigChanges returns a GET handler for /config/changes that returns
+// the commit bar HTML reflecting current pending change count.
+func HandleConfigChanges(mgr *EditorManager, renderer *Renderer) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		username := GetUsernameFromRequest(r)
+		if username == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		type saveOK struct{ ChangeCount int }
+		count := mgr.ChangeCount(username)
+		var html template.HTML
+		if count > 0 {
+			html = renderer.RenderFragment("oob_save_ok", saveOK{ChangeCount: count})
+		} else {
+			html = renderer.RenderFragment("commit_bar", nil)
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		if _, writeErr := w.Write([]byte(html)); writeErr != nil {
+			return
+		}
 	}
 }
 

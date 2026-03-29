@@ -44,6 +44,38 @@ var errEmptyPath = fmt.Errorf("empty schema path")
 // node at the path end. List keys consume 2 path segments (name + key value),
 // except when the next segment is a valid child of the list (anonymous entry).
 // Returns errEmptyPath when path has no segments.
+// isListEntryPath returns true if the path ends at a list entry (key consumed),
+// false if it ends at the list itself (no key). Only meaningful when walkSchema returns a ListNode.
+func isListEntryPath(schema *config.Schema, path []string) bool {
+	var current schemaGetter = schema
+	for i := 0; i < len(path); {
+		node := current.Get(path[i])
+		if node == nil {
+			return false
+		}
+		if listNode, ok := node.(*config.ListNode); ok {
+			if i+1 >= len(path) {
+				return false // Path ends at list name, no entry key.
+			}
+			if listNode.Get(path[i+1]) != nil {
+				i++ // Anonymous access.
+			} else {
+				if i+2 >= len(path) {
+					return true // Path ends at the entry key.
+				}
+				i += 2
+			}
+			current = listNode
+			continue
+		}
+		if sg, ok := node.(schemaGetter); ok {
+			current = sg
+		}
+		i++
+	}
+	return false
+}
+
 func walkSchema(schema *config.Schema, path []string) (config.Node, error) {
 	if len(path) == 0 {
 		return nil, errEmptyPath
@@ -334,6 +366,88 @@ func populateContainerView(data *ConfigViewData, provider childLister, subtree *
 
 // collectListKeys reads the configured list keys from the tree for the list
 // at the end of path. Returns key strings in insertion order.
+// validateUniqueOnSet checks if setting a leaf value would violate a unique constraint.
+// path is the set target (e.g., ["bgp", "peer", "thomas", "remote"]), leaf is "ip".
+// It walks up the path to find the enclosing list, reconstructs the unique field path,
+// and checks against other entries. Returns an error message or empty string.
+func validateUniqueOnSet(tree *config.Tree, schema *config.Schema, path []string, leaf, value string) string {
+	if tree == nil || value == "" {
+		return ""
+	}
+	// Walk the schema to find the enclosing list node and where the entry key is.
+	var current schemaGetter = schema
+	for i := 0; i < len(path); i++ {
+		node := current.Get(path[i])
+		if node == nil {
+			return ""
+		}
+		if listNode, ok := node.(*config.ListNode); ok {
+			uniqueFields := collectUniqueFields(listNode)
+			if len(uniqueFields) == 0 {
+				current = listNode
+				if i+1 < len(path) && listNode.Get(path[i+1]) == nil {
+					i++ // skip entry key
+				}
+				continue
+			}
+			// Found a list with unique constraints. Entry key is path[i+1].
+			if i+1 >= len(path) {
+				return ""
+			}
+			entryKey := path[i+1]
+			listPath := path[:i+1]
+			// Reconstruct the unique field path from the remaining path segments + leaf.
+			// e.g., path=["bgp","peer","thomas","remote"], leaf="ip" → fieldPath="remote/ip"
+			suffix := path[i+2:]
+			fieldPath := strings.Join(append(suffix, leaf), "/")
+			// Check if this field is actually a unique field.
+			for _, uf := range uniqueFields {
+				if uf == fieldPath {
+					if conflict := checkUniqueConstraint(tree, schema, listPath, entryKey, fieldPath, value); conflict != "" {
+						return fmt.Sprintf("duplicate %s %q (already used by %s)", fieldPath, value, conflict)
+					}
+					return ""
+				}
+			}
+			return ""
+		}
+		if sg, ok := node.(schemaGetter); ok {
+			current = sg
+		} else {
+			return ""
+		}
+	}
+	return ""
+}
+
+// checkUniqueConstraint checks if setting a value would violate a YANG unique constraint.
+// listPath is the path to the list (e.g., ["bgp", "peer"]).
+// entryKey is the key of the entry being modified.
+// fieldPath is the unique field being set (e.g., "remote/ip").
+// newValue is the value being set.
+// Returns the conflicting entry key if a duplicate is found, empty string otherwise.
+func checkUniqueConstraint(tree *config.Tree, schema *config.Schema, listPath []string, entryKey, fieldPath, newValue string) string {
+	if newValue == "" {
+		return ""
+	}
+	keys := collectListKeys(tree, schema, listPath)
+	for _, k := range keys {
+		if k == entryKey {
+			continue // Skip the entry being modified.
+		}
+		entryPath := append(append([]string{}, listPath...), k)
+		entryTree := walkTree(tree, schema, entryPath)
+		if entryTree == nil {
+			continue
+		}
+		existing := resolveNestedValue(entryTree, fieldPath)
+		if existing == newValue {
+			return k
+		}
+	}
+	return ""
+}
+
 func collectListKeys(tree *config.Tree, schema *config.Schema, path []string) []string {
 	var parentTree *config.Tree
 	listName := path[len(path)-1]

@@ -14,7 +14,10 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
+	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
+
+var draftLogger = slogutil.Logger("cli.editor.draft")
 
 // ConflictType identifies whether a conflict is a live disagreement or stale previous.
 type ConflictType int
@@ -228,7 +231,10 @@ func (e *Editor) readChangeFile(guard storage.WriteGuard, changePath string) (*c
 	parser := config.NewSetParser(e.schema)
 	tree, meta, parseErr := parser.ParseWithMeta(string(data))
 	if parseErr != nil {
-		return nil, nil, fmt.Errorf("parse change file: %w", parseErr)
+		// Corrupt change file (e.g., from a previous bug). Log and start fresh
+		// rather than blocking all future edits.
+		draftLogger.Warn("discarding corrupt change file", "path", changePath, "error", parseErr)
+		return config.NewTree(), config.NewMetaTree(), nil
 	}
 	return tree, meta, nil
 }

@@ -74,10 +74,12 @@ URLs follow a verb-first three-tier pattern:
 | View | `/monitor/<yang-path>` | GET | View with auto-polling |
 | Config | `/config/edit/<path>` | GET | Editable config tree view |
 | Config | `/config/set/<path>` | POST | Set a leaf value |
-| Config | `/config/add/<path>` | POST | Create an empty list entry |
+| Config | `/config/add/<path>` | POST | Create a list entry (with optional field values) |
+| Config | `/config/add-form/<path>` | GET | Fetch add-entry overlay form |
 | Config | `/config/delete/<path>` | POST | Delete a leaf value |
 | Config | `/config/commit/` | GET/POST | View diff and commit changes |
 | Config | `/config/discard/` | POST | Discard pending changes |
+| Config | `/config/changes` | GET | Commit bar state (pending change count) |
 | Config | `/config/compare/` | GET | Compare pending vs committed |
 | Admin | `/admin/<yang-path>` | GET/POST | Administrative commands |
 | Auth | `/login` | POST | Login (no auth required) |
@@ -92,19 +94,29 @@ The left panel uses a Finder-style column browser (similar to macOS Finder). It 
 
 **Named vs unnamed containers:** Named containers (lists with YANG keys, like `peer`, `group`) appear above unnamed containers (global settings like `local`, `timer`), separated by a horizontal rule. This makes keyed sections easy to find.
 
-**Table view for lists with unique fields:** Lists that have YANG `unique` constraints (e.g., `peer` with `unique "remote/ip"`) display as an interactive table instead of a simple list. The table shows the list key and all unique fields as columns.
+**Simple lists:** Lists without unique constraints show as a flat column of clickable entries with a `+ new` button.
+
+### Context Heading
+
+When inside a list entry, the detail panel shows a context heading at the top with the list name and entry key (e.g., `PEER london`). This provides immediate context without checking the breadcrumb.
+<!-- source: internal/component/web/fragment.go -- buildContextHeading, ContextEntry -->
+
+### List Table View
+
+Lists that have YANG `unique` constraints (e.g., `peer` with `unique "remote/ip"`) display as an interactive table in the detail panel. The table shows the list key and all unique fields as columns.
 <!-- source: internal/component/web/fragment.go -- buildListTable, collectUniqueFields -->
+<!-- source: internal/component/web/templates/component/list_table.html -->
 
 | Column | Behavior |
 |--------|----------|
 | Rename button | Opens a modal to change the entry's key (name) |
 | Key column (e.g., name) | Clickable link, navigates into the entry's config subtree |
-| Unique field columns (e.g., ip) | Editable inline, saves on blur or Enter |
+| Unique field columns (e.g., remote/ip) | Editable inline, saves on blur/Enter/auto-save (1s debounce) |
 | Delete button | Removes the entry after confirmation |
 
-The `+ new` button below the table creates a new entry (prompts for the key value).
-
-**Simple lists:** Lists without unique constraints continue to show as a flat column of clickable entries.
+The `+ new` button below the table opens a server-rendered form (via HTMX) with inputs for the entry name and all unique fields. Field values are validated against YANG types before the entry is created.
+<!-- source: internal/component/web/handler_config.go -- HandleConfigAdd, HandleConfigAddForm -->
+<!-- source: internal/component/web/templates/component/add_form_overlay.html -->
 
 ### Breadcrumb Navigation
 
@@ -126,12 +138,46 @@ Each authenticated user gets an independent editor session with its own working 
 
 ### Workflow
 
-1. **Browse:** Navigate to `/config/edit/<path>/` to see containers, lists, and leaf values.
-2. **Set:** Change a leaf value through the form or the CLI bar (`set <leaf> <value>`).
-3. **Delete:** Remove a configured value through the form or CLI bar (`delete <leaf>`).
-4. **Review:** Visit `/config/commit/` to see a diff of pending changes.
-5. **Commit:** POST to `/config/commit/` to apply changes. Conflicts with other users are detected and reported.
-6. **Discard:** POST to `/config/discard/` to abandon all pending changes.
+1. **Browse:** Navigate to a list (e.g., `/show/bgp/peer/`) to see entries in a table.
+2. **Add:** Click `+ new` to create an entry. Fill in the name and unique fields. Values are validated against YANG types (e.g., IP addresses must be valid).
+3. **Edit:** Click an entry name to see its full config. Edit leaf values through inline fields.
+4. **Review:** The commit bar at the bottom shows pending change count. Click "Review & Commit" to see a diff.
+5. **Commit:** Apply changes. Conflicts with other users are detected and reported.
+6. **Discard:** Click "Discard" to abandon all pending changes.
+
+### Validation
+
+Field values are validated server-side against YANG types before being accepted:
+<!-- source: internal/component/config/schema.go -- ValidateValue -->
+
+| Type | Validation |
+|------|-----------|
+| IP address | Must be a valid IPv4 or IPv6 address |
+| IPv4 | Must be a valid IPv4 address |
+| IPv6 | Must be a valid IPv6 address |
+| Prefix | Must be a valid CIDR prefix |
+| Uint16/Uint32 | Must be a valid unsigned integer in range |
+| Boolean | Normalized to `true`/`false` |
+
+YANG `unique` constraints are enforced: duplicate values are rejected with an error naming the conflicting entry.
+<!-- source: internal/component/web/handler_config_walk.go -- checkUniqueConstraint, validateUniqueOnSet -->
+
+Entry key names are automatically lowercased and trimmed.
+
+Duplicate entry keys are rejected. Validation runs before the entry is created, so invalid input never produces a partial entry.
+
+Navigating to a non-existent list entry (e.g., `/show/bgp/peer/london/` when `london` has not been created) redirects to the root view with an error notification.
+<!-- source: internal/component/web/fragment.go -- HandleFragment, isListEntryPath check -->
+
+### Notifications
+
+Error notifications appear as toasts in the top-right corner with a 30-second countdown. Click the countdown to pause (for screenshots). Click the close button to dismiss immediately.
+<!-- source: internal/component/web/templates/component/notification_error.html -->
+
+### Input Auto-Save
+
+Text and number fields auto-save 1 second after the user stops typing, in addition to saving on blur and Enter. This prevents data loss when navigating away before a field loses focus.
+<!-- source: internal/component/web/templates/input/text.html -- hx-trigger with input changed delay:1s -->
 
 ### Conflict Detection
 
@@ -145,8 +191,9 @@ The editor manager allows up to 50 concurrent user sessions. Idle sessions (no a
 
 ## CLI Bar
 
-The web interface includes a CLI bar at the bottom of the page that accepts the same command grammar as the SSH CLI.
+The web interface includes a CLI bar at the bottom of the page that accepts the same command grammar as the SSH CLI. The CLI bar sends the current URL path as context, so `set` and `delete` commands operate relative to the current view.
 <!-- source: internal/component/web/cli.go -- HandleCLICommand, knownCLIVerbs -->
+<!-- source: internal/component/web/assets/cli.js -- path extraction, fetch to /cli -->
 
 ### Integrated Mode
 
@@ -174,8 +221,9 @@ Terminal mode provides a scrollback terminal in the browser. Commands produce pl
 
 ### Tab Completion
 
-The CLI bar provides tab completion via a JSON endpoint at `/cli/complete`. Completions are context-aware and respect the current path.
+The CLI bar provides tab completion via a JSON endpoint at `/cli/complete`. Completions are context-aware: when at `/show/bgp/peer/london/`, typing `set ` + Tab suggests `remote`, `local`, `timer` (children of the peer entry), not root-level items. For YANG union types that include an enum (e.g., `local/ip` accepting an IP address or `auto`), the enum values are offered as completions.
 <!-- source: internal/component/web/cli.go -- HandleCLIComplete -->
+<!-- source: internal/component/cli/completer.go -- valueCompletions, Yunion handling -->
 
 ## Live Updates
 
@@ -201,3 +249,11 @@ The `/admin/` tier provides a browsable tree of administrative commands. Contain
 <!-- source: internal/component/web/handler_admin.go -- HandleAdminView, HandleAdminExecute -->
 
 Admin command results are displayed as titled cards showing the command name, output text, and success/error styling.
+
+## Resilience
+
+**Corrupt change files:** If a per-user change file in the blob store is unparseable (e.g., from a previous bug), it is automatically discarded with a warning log. The user can continue editing without manual intervention.
+<!-- source: internal/component/cli/editor_draft.go -- readChangeFile -->
+
+**Asset caching:** Static assets (`/assets/`) are served with `Cache-Control: no-cache, must-revalidate` so browsers always pick up changes after binary updates without requiring a hard refresh.
+<!-- source: internal/component/web/render.go -- AssetHandler -->

@@ -197,9 +197,9 @@ func (c *Completer) completeSetPath(tokens, contextPath []string, endsWithSpace 
 		isLast := i == len(tokens)-1
 
 		if isLast && !endsWithSpace {
-			// Partial match on this token
-			// Check if we're at a list that hasn't been keyed yet — show existing keys
-			if tokensAdded > 0 && c.isListNeedingKey(currentPath) {
+			// Partial match on this token.
+			// Check if we're at a list that needs a key — show existing keys.
+			if c.isListNeedingKey(currentPath) {
 				return c.listKeyCompletions(currentPath[len(currentPath)-1], token, currentPath[:len(currentPath)-1])
 			}
 			return c.matchChildren(currentPath, token)
@@ -225,9 +225,10 @@ func (c *Completer) completeSetPath(tokens, contextPath []string, endsWithSpace 
 		tokensAdded++
 	}
 
-	// If we ended with space, show next level
+	// If we ended with space, show next level.
 	// Check if current path ends at a list that still needs a key
-	if tokensAdded > 0 && c.isListNeedingKey(currentPath) && len(currentPath) > 0 {
+	// (either from tokens or from the context path itself).
+	if c.isListNeedingKey(currentPath) && len(currentPath) > 0 {
 		listName := currentPath[len(currentPath)-1]
 		parentPath := currentPath[:len(currentPath)-1]
 		return c.listKeyCompletions(listName, "", parentPath)
@@ -704,6 +705,27 @@ func (c *Completer) valueCompletions(entry *gyang.Entry, prefix string) []Comple
 			{Text: "true", Description: "Enable", Type: "value"},
 			{Text: "false", Description: "Disable", Type: "value"},
 		}, prefix)
+	}
+
+	// Handle unions: collect enum values from member types, add type hint for non-enum members.
+	if entry.Type.Kind == gyang.Yunion {
+		var completions []Completion
+		for _, t := range entry.Type.Type {
+			if t.Kind == gyang.Yenum && t.Enum != nil {
+				for _, name := range t.Enum.Names() {
+					if prefix == "" || strings.HasPrefix(name, prefix) {
+						completions = append(completions, Completion{
+							Text:        name,
+							Description: "enum value",
+							Type:        "value",
+						})
+					}
+				}
+			}
+		}
+		if len(completions) > 0 {
+			return completions
+		}
 	}
 
 	// Type hint based on YANG type — hint-only, not applicable by Tab

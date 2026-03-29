@@ -1,0 +1,21 @@
+{{define "command_form"}}
+<div class="command-form">
+  <h3 class="command-form-title">{{.CommandForm.CommandName}}</h3>
+  {{if .CommandForm.Description}}
+  <p class="command-form-description">{{.CommandForm.Description}}</p>
+  {{end}}
+  <form method="post" action="{{.CommandForm.ActionURL}}"
+        hx-post="{{.CommandForm.ActionURL}}"
+        hx-target="#detail"
+        hx-swap="innerHTML">
+    {{range .CommandForm.Parameters}}
+    <div class="command-form-field">
+      <label class="command-form-label" for="param-{{.Name}}">{{.Name}}</label>
+      <input type="text" class="command-form-input" id="param-{{.Name}}"
+             name="{{.Name}}" value="{{.Value}}" placeholder="{{.Placeholder}}">
+    </div>
+    {{end}}
+    <button type="submit" class="command-form-execute">Execute</button>
+  </form>
+</div>
+{{end}}

@@ -1,34 +1,15 @@
 {{define "detail"}}
+{{if .ContextHeading}}
+<div class="context-heading">
+  {{range .ContextHeading}}<span class="context-label">{{.ListName}}</span> <span class="context-key">{{.Key}}</span> {{end}}
+</div>
+{{end}}
 {{if .CommandResult}}
-<div class="command-result{{if .CommandResult.Error}} command-error{{end}}">
-  <div class="command-result-header">
-    <span class="command-result-title">{{.CommandResult.CommandName}}</span>
-    {{if .CommandResult.Error}}<span class="command-result-error-badge">error</span>{{end}}
-  </div>
-  <div class="command-result-body">
-    <pre class="command-result-output">{{.CommandResult.Output}}</pre>
-  </div>
-</div>
+{{template "command_result" .}}
 {{else if .CommandForm}}
-<div class="command-form">
-  <h3 class="command-form-title">{{.CommandForm.CommandName}}</h3>
-  {{if .CommandForm.Description}}
-  <p class="command-form-description">{{.CommandForm.Description}}</p>
-  {{end}}
-  <form method="post" action="{{.CommandForm.ActionURL}}"
-        hx-post="{{.CommandForm.ActionURL}}"
-        hx-target="#detail"
-        hx-swap="innerHTML">
-    {{range .CommandForm.Parameters}}
-    <div class="command-form-field">
-      <label class="command-form-label" for="param-{{.Name}}">{{.Name}}</label>
-      <input type="text" class="command-form-input" id="param-{{.Name}}"
-             name="{{.Name}}" value="{{.Value}}" placeholder="{{.Placeholder}}">
-    </div>
-    {{end}}
-    <button type="submit" class="command-form-execute">Execute</button>
-  </form>
-</div>
+{{template "command_form" .}}
+{{else if .ListTable}}
+{{template "list_table" .}}
 {{else if .Fields}}
 <section class="config-section">
   <div class="config-fields">
