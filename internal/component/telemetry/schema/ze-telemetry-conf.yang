@@ -23,7 +23,7 @@ module ze-telemetry-conf {
             }
 
             leaf address {
-                type string;
+                type zt:ip-address;
                 default "0.0.0.0";
                 description "Listen IP address";
             }

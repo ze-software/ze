@@ -16,9 +16,9 @@ module ze-hub-conf {
 
         container daemon {
             description "Daemon settings";
-            leaf pid { type string; }
+            leaf pid { type string; description "PID file path"; }
             leaf user { type string; default "zeuser"; description "System user for privilege drop"; }
-            leaf daemonize { type boolean; }
+            leaf daemonize { type boolean; description "Run as background daemon"; }
             leaf drop { type boolean; default true; description "Drop privileges after startup"; }
             leaf umask { type string; default "0137"; description "File creation mask (octal)"; }
         }
@@ -30,13 +30,17 @@ module ze-hub-conf {
             leaf level {
                 type string;
                 default "INFO";
-                description "Base log level for all subsystems: disabled, debug, info, warn, err";
+                description "Base log level: DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL (case-insensitive)";
             }
 
             // Log output backend
             leaf backend {
-                type string;
-                description "Log output destination: stderr (default), stdout, syslog";
+                type enumeration {
+                    enum stderr { description "Standard error output"; }
+                    enum stdout { description "Standard output"; }
+                    enum syslog { description "Syslog daemon"; }
+                }
+                description "Log output backend (default: stderr)";
             }
 
             // Syslog destination address
@@ -49,25 +53,25 @@ module ze-hub-conf {
             // Plugin stderr relay level
             leaf relay {
                 type string;
-                description "Plugin stderr relay level: disabled, debug, info, warn, err";
+                description "Plugin stderr relay level: DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL (case-insensitive)";
             }
 
             // Legacy ExaBGP-compatible settings
-            leaf enable { type boolean; default true; }
-            leaf all { type boolean; }
-            leaf configuration { type boolean; default true; }
-            leaf reactor { type boolean; default true; }
-            leaf daemon { type boolean; default true; }
-            leaf processes { type boolean; default true; }
-            leaf network { type boolean; default true; }
-            leaf statistics { type boolean; default true; }
-            leaf packets { type boolean; }
-            leaf rib { type boolean; }
-            leaf message { type boolean; }
-            leaf timers { type boolean; }
-            leaf routes { type boolean; }
-            leaf parser { type boolean; }
-            leaf short { type boolean; default true; }
+            leaf enable { type boolean; default true; description "Enable logging (legacy)"; }
+            leaf all { type boolean; description "Log all subsystems (legacy)"; }
+            leaf configuration { type boolean; default true; description "Log configuration parsing (legacy)"; }
+            leaf reactor { type boolean; default true; description "Log reactor events (legacy)"; }
+            leaf daemon { type boolean; default true; description "Log daemon lifecycle (legacy)"; }
+            leaf processes { type boolean; default true; description "Log process management (legacy)"; }
+            leaf network { type boolean; default true; description "Log network events (legacy)"; }
+            leaf statistics { type boolean; default true; description "Log statistics (legacy)"; }
+            leaf packets { type boolean; description "Log packet details (legacy)"; }
+            leaf rib { type boolean; description "Log RIB operations (legacy)"; }
+            leaf message { type boolean; description "Log BGP messages (legacy)"; }
+            leaf timers { type boolean; description "Log timer events (legacy)"; }
+            leaf routes { type boolean; description "Log route changes (legacy)"; }
+            leaf parser { type boolean; description "Log parser details (legacy)"; }
+            leaf short { type boolean; default true; description "Use short log format (legacy)"; }
 
             // Subsystem-specific log levels (any key allowed)
             // Syntax: <subsystem-path> <level>;
@@ -80,7 +84,14 @@ module ze-hub-conf {
             description "API settings";
             leaf ack { type boolean; default true; description "Acknowledge API commands"; }
             leaf chunk { type int32; default 1; description "Max lines before yield"; }
-            leaf encoder { type string; default "json"; description "Encoder type: json or text"; }
+            leaf encoder {
+                type enumeration {
+                    enum json { description "JSON encoding"; }
+                    enum text { description "Human-readable text encoding"; }
+                }
+                default "json";
+                description "Encoder type";
+            }
             leaf compact { type boolean; description "Compact JSON for INET"; }
             leaf respawn { type boolean; default true; description "Respawn dead processes"; }
             leaf terminate { type boolean; description "Terminate if process dies"; }
@@ -89,14 +100,14 @@ module ze-hub-conf {
 
         container debug {
             description "Debug settings";
-            leaf pdb { type boolean; }
-            leaf memory { type boolean; }
-            leaf configuration { type boolean; }
-            leaf selfcheck { type boolean; }
-            leaf route { type string; }
-            leaf defensive { type boolean; }
-            leaf rotate { type boolean; }
-            leaf timing { type boolean; }
+            leaf pdb { type boolean; description "Enable Python debugger (legacy)"; }
+            leaf memory { type boolean; description "Track memory usage"; }
+            leaf configuration { type boolean; description "Debug configuration parsing"; }
+            leaf selfcheck { type boolean; description "Run internal consistency checks"; }
+            leaf route { type string; description "Debug specific route prefix"; }
+            leaf defensive { type boolean; description "Enable defensive checks"; }
+            leaf rotate { type boolean; description "Rotate debug output files"; }
+            leaf timing { type boolean; description "Log operation timing"; }
             leaf pprof { type string; description "pprof HTTP server address (e.g. :6060)"; }
         }
 

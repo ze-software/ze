@@ -2,6 +2,8 @@ module ze-web-conf {
     namespace "urn:ze:web:conf";
     prefix web;
 
+    import ze-types { prefix zt; }
+
     description "Web interface configuration for Ze";
 
     revision 2026-01-01 {
@@ -15,7 +17,7 @@ module ze-web-conf {
             description "Web interface settings";
 
             leaf host {
-                type string;
+                type zt:ip-address;
                 default "0.0.0.0";
                 description "Listen host address";
             }

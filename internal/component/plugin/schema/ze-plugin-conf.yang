@@ -3,7 +3,6 @@ module ze-plugin-conf {
     prefix plug;
 
     import ze-extensions { prefix ze; }
-    import ze-hub-conf { prefix hub; }
 
     description "Plugin configuration for ZeBGP";
 
@@ -38,6 +37,7 @@ module ze-plugin-conf {
 
                 leaf secret {
                     type string;
+                    ze:sensitive;
                     description "Auth token for plugin connections (min 32 chars)";
                 }
 
@@ -52,6 +52,7 @@ module ze-plugin-conf {
 
                     leaf secret {
                         type string;
+                        ze:sensitive;
                         description "Per-client auth token (min 32 chars)";
                     }
                 }
@@ -78,6 +79,7 @@ module ze-plugin-conf {
 
                 leaf secret {
                     type string;
+                    ze:sensitive;
                     description "Auth token (min 32 chars)";
                 }
             }
@@ -100,8 +102,11 @@ module ze-plugin-conf {
             }
 
             leaf encoder {
-                type string;
-                description "Event encoding format (json, text)";
+                type enumeration {
+                    enum json { description "JSON encoding"; }
+                    enum text { description "Human-readable text encoding"; }
+                }
+                description "Event encoding format";
             }
 
             leaf respawn {
@@ -116,17 +121,4 @@ module ze-plugin-conf {
         }
     }
 
-    // Plugin-owned environment settings — augment hub's environment container
-    augment "/hub:environment" {
-        container api {
-            description "API settings";
-            leaf ack { type boolean; }
-            leaf chunk { type int32; }
-            leaf encoder { type string; }
-            leaf compact { type boolean; }
-            leaf respawn { type boolean; }
-            leaf terminate { type boolean; }
-            leaf cli { type boolean; }
-        }
-    }
 }

@@ -67,8 +67,13 @@ module ze-system-conf {
             }
 
             leaf trigger {
-                type string;
-                description "When to archive: commit, manual, daily, hourly";
+                type enumeration {
+                    enum commit { description "Archive on every config commit"; }
+                    enum manual { description "Archive only on explicit request"; }
+                    enum daily { description "Archive once per day"; }
+                    enum hourly { description "Archive once per hour"; }
+                }
+                description "When to archive";
             }
 
             leaf on-change {

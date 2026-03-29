@@ -27,6 +27,7 @@ module ze-ssh-conf {
 
                 leaf password {
                     type string;
+                    ze:sensitive;
                     description "Bcrypt-hashed password";
                 }
 

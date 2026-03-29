@@ -2,6 +2,8 @@ module ze-mcp-conf {
     namespace "urn:ze:mcp:conf";
     prefix mcp;
 
+    import ze-types { prefix zt; }
+
     description "MCP (Model Context Protocol) server configuration for Ze";
 
     revision 2026-01-01 {
@@ -15,7 +17,7 @@ module ze-mcp-conf {
             description "MCP server settings (AI assistant control interface)";
 
             leaf host {
-                type string;
+                type zt:ip-address;
                 default "127.0.0.1";
                 description "Listen host address (127.0.0.1 only for security)";
             }
