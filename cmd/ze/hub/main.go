@@ -47,6 +47,7 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.insecure", Type: "bool", Description: "Disable web authentication"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.host", Type: "string", Description: "MCP server listen host (127.0.0.1 only)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.port", Type: "string", Description: "MCP server listen port"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.server", Type: "string", Description: "DNS server address (e.g., 8.8.8.8:53)"})
 )
 
 // RunWebOnly starts only the web server (no BGP engine).
