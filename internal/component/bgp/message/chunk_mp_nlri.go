@@ -37,9 +37,9 @@ func NewNLRIElements(nlriData []byte, sizeFunc NLRISizeFunc) iter.Elements {
 // RFC 7432 - EVPN: [route-type:1][length:1][payload].
 // RFC 5575 - FlowSpec: max 4095 bytes per NLRI (CAN split).
 // RFC 7752 - BGP-LS: 2-byte length, single NLRI can exceed 4096.
-func ChunkMPNLRI(nlriData []byte, afi nlri.AFI, safi nlri.SAFI, addPath bool, maxSize int) ([][]byte, error) {
+func ChunkMPNLRI(nlriData []byte, afi nlri.AFI, safi nlri.SAFI, addPath bool, maxSize int, dst [][]byte) ([][]byte, error) {
 	if len(nlriData) == 0 {
-		return nil, nil
+		return dst, nil
 	}
 
 	sizeFunc := GetNLRISizeFunc(afi, safi, addPath)
@@ -50,13 +50,12 @@ func ChunkMPNLRI(nlriData []byte, afi nlri.AFI, safi nlri.SAFI, addPath bool, ma
 		for e.Next() != nil {
 		}
 		if err := e.Err(); err != nil {
-			return nil, err
+			return dst, err
 		}
-		return [][]byte{nlriData}, nil
+		return append(dst, nlriData), nil
 	}
 
 	// Slow path: split into chunks respecting element boundaries
-	chunks := make([][]byte, 0, (len(nlriData)+maxSize-1)/maxSize+1)
 	chunkStart := 0
 	prevOffset := 0
 
@@ -67,12 +66,12 @@ func ChunkMPNLRI(nlriData []byte, afi nlri.AFI, safi nlri.SAFI, addPath bool, ma
 		// Single NLRI can exceed standard 4096-byte message size.
 		// MUST return error if single NLRI > maxSize (cannot split).
 		if nlriSize > maxSize {
-			return nil, fmt.Errorf("%w: %d bytes, max %d", ErrNLRITooLarge, nlriSize, maxSize)
+			return dst, fmt.Errorf("%w: %d bytes, max %d", ErrNLRITooLarge, nlriSize, maxSize)
 		}
 
 		// Would overflow? Emit current chunk as subslice
 		if e.Offset()-chunkStart > maxSize && prevOffset > chunkStart {
-			chunks = append(chunks, nlriData[chunkStart:prevOffset])
+			dst = append(dst, nlriData[chunkStart:prevOffset])
 			chunkStart = prevOffset
 		}
 
@@ -80,15 +79,15 @@ func ChunkMPNLRI(nlriData []byte, afi nlri.AFI, safi nlri.SAFI, addPath bool, ma
 	}
 
 	if err := e.Err(); err != nil {
-		return nil, err
+		return dst, err
 	}
 
 	// Emit remainder as subslice
 	if prevOffset > chunkStart {
-		chunks = append(chunks, nlriData[chunkStart:prevOffset])
+		dst = append(dst, nlriData[chunkStart:prevOffset])
 	}
 
-	return chunks, nil
+	return dst, nil
 }
 
 // ErrNLRIMalformed is returned when NLRI structure is invalid.

@@ -344,7 +344,7 @@ func chunkIPv4NLRI(nlriData []byte, maxSize int, addPath bool) ([][]byte, error)
 
 	// Use family-aware chunker for both cases (it handles Add-Path correctly)
 	// AFI=IPv4, SAFI=Unicast
-	return ChunkMPNLRI(nlriData, nlri.AFIIPv4, nlri.SAFIUnicast, addPath, maxSize)
+	return ChunkMPNLRI(nlriData, nlri.AFIIPv4, nlri.SAFIUnicast, addPath, maxSize, nil)
 }
 
 // =============================================================================
@@ -394,7 +394,7 @@ func SplitMPReachNLRIWithAddPath(mp *attribute.MPReachNLRI, maxAttrSize int, add
 	nlriSpace := maxAttrSize - overhead
 
 	// Use family-aware chunking
-	nlriChunks, err := ChunkMPNLRI(mp.NLRI, nlri.AFI(mp.AFI), nlri.SAFI(mp.SAFI), addPath, nlriSpace)
+	nlriChunks, err := ChunkMPNLRI(mp.NLRI, nlri.AFI(mp.AFI), nlri.SAFI(mp.SAFI), addPath, nlriSpace, nil)
 	if err != nil {
 		return nil, fmt.Errorf("chunking MP_REACH_NLRI: %w", err)
 	}
@@ -452,7 +452,7 @@ func SplitMPUnreachNLRIWithAddPath(mp *attribute.MPUnreachNLRI, maxAttrSize int,
 	nlriSpace := maxAttrSize - overhead
 
 	// Use family-aware chunking
-	nlriChunks, err := ChunkMPNLRI(mp.NLRI, nlri.AFI(mp.AFI), nlri.SAFI(mp.SAFI), addPath, nlriSpace)
+	nlriChunks, err := ChunkMPNLRI(mp.NLRI, nlri.AFI(mp.AFI), nlri.SAFI(mp.SAFI), addPath, nlriSpace, nil)
 	if err != nil {
 		return nil, fmt.Errorf("chunking MP_UNREACH_NLRI: %w", err)
 	}

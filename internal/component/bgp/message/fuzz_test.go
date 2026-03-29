@@ -237,7 +237,7 @@ func FuzzChunkMPNLRI(f *testing.F) {
 		if maxSize < 1 {
 			maxSize = 1 // Avoid zero/negative
 		}
-		chunks, err := ChunkMPNLRI(data, 1, 1, false, maxSize) // MUST NOT panic
+		chunks, err := ChunkMPNLRI(data, 1, 1, false, maxSize, nil) // MUST NOT panic
 		if err != nil {
 			return // Malformed input is expected in fuzz testing
 		}

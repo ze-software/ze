@@ -3,6 +3,7 @@ package message
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"net/netip"
 	"testing"
 	"unsafe"
@@ -55,7 +56,7 @@ func TestChunkMPNLRI_IPv6_SmallFits(t *testing.T) {
 	// 2001:db8::/64 = [64, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00]
 	nlri := []byte{64, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00}
 
-	chunks, err := ChunkMPNLRI(nlri, 2, 1, false, 100)
+	chunks, err := ChunkMPNLRI(nlri, 2, 1, false, 100, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, nlri, chunks[0])
@@ -74,7 +75,7 @@ func TestChunkMPNLRI_IPv6_MultiplePrefixes(t *testing.T) {
 	// Total: 90 bytes
 
 	// maxSize = 30, so ~3 prefixes per chunk (27 bytes)
-	chunks, err := ChunkMPNLRI(nlri, 2, 1, false, 30)
+	chunks, err := ChunkMPNLRI(nlri, 2, 1, false, 30, nil)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1)
 
@@ -105,7 +106,7 @@ func TestChunkMPNLRI_IPv6_VariableLengths(t *testing.T) {
 	)
 
 	// maxSize = 20, split between /64 and /128
-	chunks, err := ChunkMPNLRI(nlri, 2, 1, false, 20)
+	chunks, err := ChunkMPNLRI(nlri, 2, 1, false, 20, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 2)
 
@@ -140,7 +141,7 @@ func TestChunkMPNLRI_IPv6_EdgePrefixLengths(t *testing.T) {
 				nlri[i] = byte(i)
 			}
 
-			chunks, err := ChunkMPNLRI(nlri, 2, 1, false, 100)
+			chunks, err := ChunkMPNLRI(nlri, 2, 1, false, 100, nil)
 			require.NoError(t, err)
 			require.Len(t, chunks, 1)
 			assert.Equal(t, nlri, chunks[0])
@@ -161,7 +162,7 @@ func TestChunkMPNLRI_AddPath_SinglePrefix(t *testing.T) {
 	// [0x00, 0x00, 0x00, 0x01, 24, 192, 168, 1]
 	nlri := []byte{0x00, 0x00, 0x00, 0x01, 24, 192, 168, 1}
 
-	chunks, err := ChunkMPNLRI(nlri, 1, 1, true, 100)
+	chunks, err := ChunkMPNLRI(nlri, 1, 1, true, 100, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, nlri, chunks[0])
@@ -179,7 +180,7 @@ func TestChunkMPNLRI_AddPath_MultipleNoSplit(t *testing.T) {
 	}
 	// Each: 8 bytes, total: 40 bytes
 
-	chunks, err := ChunkMPNLRI(nlri, 1, 1, true, 100)
+	chunks, err := ChunkMPNLRI(nlri, 1, 1, true, 100, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, nlri, chunks[0])
@@ -197,7 +198,7 @@ func TestChunkMPNLRI_AddPath_Split(t *testing.T) {
 	// Each: 8 bytes, total: 80 bytes
 
 	// maxSize = 20, fits 2 prefixes (16 bytes)
-	chunks, err := ChunkMPNLRI(nlri, 1, 1, true, 20)
+	chunks, err := ChunkMPNLRI(nlri, 1, 1, true, 20, nil)
 	require.NoError(t, err)
 
 	// Should split into 5 chunks of 2 prefixes each
@@ -225,7 +226,7 @@ func TestChunkMPNLRI_AddPath_IPv6(t *testing.T) {
 		0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00) // 2001:db8::/64
 	// Total: 13 bytes
 
-	chunks, err := ChunkMPNLRI(nlri, 2, 1, true, 100)
+	chunks, err := ChunkMPNLRI(nlri, 2, 1, true, 100, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, nlri, chunks[0])
@@ -239,7 +240,7 @@ func TestChunkMPNLRI_AddPath_LargePathID(t *testing.T) {
 	// Path-ID = 0xFFFFFFFF (max), 10.0.0.0/8
 	nlri := []byte{0xFF, 0xFF, 0xFF, 0xFF, 8, 10}
 
-	chunks, err := ChunkMPNLRI(nlri, 1, 1, true, 100)
+	chunks, err := ChunkMPNLRI(nlri, 1, 1, true, 100, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 
@@ -266,7 +267,7 @@ func TestChunkMPNLRI_VPN_SinglePrefix(t *testing.T) {
 		10, 0, 0) // 10.0.0.0/24
 	// Total: 15 bytes
 
-	chunks, err := ChunkMPNLRI(nlri, 1, 128, false, 100)
+	chunks, err := ChunkMPNLRI(nlri, 1, 128, false, 100, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, nlri, chunks[0])
@@ -288,7 +289,7 @@ func TestChunkMPNLRI_VPN_MultipleWithSplit(t *testing.T) {
 	// Each: 15 bytes, total: 150 bytes
 
 	// maxSize = 40, fits 2 prefixes (30 bytes)
-	chunks, err := ChunkMPNLRI(nlri, 1, 128, false, 40)
+	chunks, err := ChunkMPNLRI(nlri, 1, 128, false, 40, nil)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1)
 
@@ -314,7 +315,7 @@ func TestChunkMPNLRI_VPN_LabelStack(t *testing.T) {
 		10, 0, 0) // prefix
 	// Total: 18 bytes
 
-	chunks, err := ChunkMPNLRI(nlri, 1, 128, false, 100)
+	chunks, err := ChunkMPNLRI(nlri, 1, 128, false, 100, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, nlri, chunks[0])
@@ -334,7 +335,7 @@ func TestChunkMPNLRI_VPN_IPv6(t *testing.T) {
 		0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0) // 2001:db8::/64
 	// Total: 20 bytes
 
-	chunks, err := ChunkMPNLRI(nlri, 2, 128, false, 100)
+	chunks, err := ChunkMPNLRI(nlri, 2, 128, false, 100, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, nlri, chunks[0])
@@ -357,7 +358,7 @@ func TestChunkMPNLRI_Labeled_Single(t *testing.T) {
 		10, 0, 0) // 10.0.0.0/24
 	// Total: 7 bytes
 
-	chunks, err := ChunkMPNLRI(nlri, 1, 4, false, 100)
+	chunks, err := ChunkMPNLRI(nlri, 1, 4, false, 100, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, nlri, chunks[0])
@@ -376,7 +377,7 @@ func TestChunkMPNLRI_Labeled_IPv6(t *testing.T) {
 		0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0) // 2001:db8::/64
 	// Total: 12 bytes
 
-	chunks, err := ChunkMPNLRI(nlri, 2, 4, false, 100)
+	chunks, err := ChunkMPNLRI(nlri, 2, 4, false, 100, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, nlri, chunks[0])
@@ -398,7 +399,7 @@ func TestChunkMPNLRI_EVPN_Type2(t *testing.T) {
 	nlri = append(nlri, make([]byte, 33)...) // payload (zeros for test)
 	// Total: 35 bytes
 
-	chunks, err := ChunkMPNLRI(nlri, 25, 70, false, 100)
+	chunks, err := ChunkMPNLRI(nlri, 25, 70, false, 100, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, nlri, chunks[0])
@@ -416,7 +417,7 @@ func TestChunkMPNLRI_EVPN_Type5(t *testing.T) {
 	nlri = append(nlri, make([]byte, 34)...) // payload
 	// Total: 36 bytes
 
-	chunks, err := ChunkMPNLRI(nlri, 25, 70, false, 100)
+	chunks, err := ChunkMPNLRI(nlri, 25, 70, false, 100, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, nlri, chunks[0])
@@ -437,7 +438,7 @@ func TestChunkMPNLRI_EVPN_MultipleSplit(t *testing.T) {
 	// Each: 22 bytes, total: 110 bytes
 
 	// maxSize = 50, fits 2 routes (44 bytes)
-	chunks, err := ChunkMPNLRI(nlri, 25, 70, false, 50)
+	chunks, err := ChunkMPNLRI(nlri, 25, 70, false, 50, nil)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1)
 
@@ -464,7 +465,7 @@ func TestChunkMPNLRI_FlowSpec_ShortLength(t *testing.T) {
 	nlri = append(nlri, make([]byte, 50)...) // flow components
 	// Total: 51 bytes
 
-	chunks, err := ChunkMPNLRI(nlri, 1, 133, false, 100)
+	chunks, err := ChunkMPNLRI(nlri, 1, 133, false, 100, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, nlri, chunks[0])
@@ -482,7 +483,7 @@ func TestChunkMPNLRI_FlowSpec_LongLength(t *testing.T) {
 	nlri = append(nlri, make([]byte, 300)...) // flow components
 	// Total: 302 bytes
 
-	chunks, err := ChunkMPNLRI(nlri, 1, 133, false, 500)
+	chunks, err := ChunkMPNLRI(nlri, 1, 133, false, 500, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, nlri, chunks[0])
@@ -495,14 +496,14 @@ func TestChunkMPNLRI_FlowSpec_LongLength(t *testing.T) {
 func TestChunkMPNLRI_FlowSpec_Boundary(t *testing.T) {
 	// Length=239 (last 1-byte)
 	nlri239 := append([]byte{239}, make([]byte, 239)...)
-	chunks, err := ChunkMPNLRI(nlri239, 1, 133, false, 500)
+	chunks, err := ChunkMPNLRI(nlri239, 1, 133, false, 500, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, 240, len(chunks[0])) // 1 + 239
 
 	// Length=240 (first 2-byte: 0xF0, 0xF0)
 	nlri240 := append([]byte{0xF0, 0xF0}, make([]byte, 240)...)
-	chunks, err = ChunkMPNLRI(nlri240, 1, 133, false, 500)
+	chunks, err = ChunkMPNLRI(nlri240, 1, 133, false, 500, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, 242, len(chunks[0])) // 2 + 240
@@ -523,7 +524,7 @@ func TestChunkMPNLRI_BGPLS_Node(t *testing.T) {
 	nlri = append(nlri, make([]byte, 20)...) // payload
 	// Total: 24 bytes
 
-	chunks, err := ChunkMPNLRI(nlri, 16388, 71, false, 100)
+	chunks, err := ChunkMPNLRI(nlri, 16388, 71, false, 100, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, nlri, chunks[0])
@@ -540,7 +541,7 @@ func TestChunkMPNLRI_BGPLS_Link(t *testing.T) {
 	nlri = append(nlri, make([]byte, 50)...)
 	// Total: 54 bytes
 
-	chunks, err := ChunkMPNLRI(nlri, 16388, 71, false, 100)
+	chunks, err := ChunkMPNLRI(nlri, 16388, 71, false, 100, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, nlri, chunks[0])
@@ -561,7 +562,7 @@ func TestChunkMPNLRI_BGPLS_Split(t *testing.T) {
 	// Each: 34 bytes, total: 170 bytes
 
 	// maxSize = 70, fits 2 NLRIs (68 bytes)
-	chunks, err := ChunkMPNLRI(nlri, 16388, 71, false, 70)
+	chunks, err := ChunkMPNLRI(nlri, 16388, 71, false, 70, nil)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1)
 
@@ -597,7 +598,7 @@ func TestChunkMPNLRI_EVPN_AddPath(t *testing.T) {
 
 	// Each EVPN Add-Path NLRI = 4 + 2 + 33 = 39 bytes
 	// 5 * 39 = 195 bytes total
-	chunks, err := ChunkMPNLRI(nlri, 25, 70, true, 80) // AFI=L2VPN(25), SAFI=EVPN(70)
+	chunks, err := ChunkMPNLRI(nlri, 25, 70, true, 80, nil) // AFI=L2VPN(25), SAFI=EVPN(70)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split")
 
@@ -627,7 +628,7 @@ func TestChunkMPNLRI_FlowSpec_AddPath(t *testing.T) {
 
 	// Each FlowSpec Add-Path NLRI = 4 + 1 + 10 = 15 bytes
 	// 10 * 15 = 150 bytes total
-	chunks, err := ChunkMPNLRI(nlri, 1, 133, true, 50) // AFI=IPv4(1), SAFI=FlowSpec(133)
+	chunks, err := ChunkMPNLRI(nlri, 1, 133, true, 50, nil) // AFI=IPv4(1), SAFI=FlowSpec(133)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split")
 
@@ -653,7 +654,7 @@ func TestChunkMPNLRI_FlowSpec_AddPath_LongLength(t *testing.T) {
 	}
 
 	// Total = 4 + 2 + 250 = 256 bytes
-	chunks, err := ChunkMPNLRI(nlri, 1, 133, true, 300)
+	chunks, err := ChunkMPNLRI(nlri, 1, 133, true, 300, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, nlri, chunks[0])
@@ -679,7 +680,7 @@ func TestChunkMPNLRI_BGPLS_AddPath(t *testing.T) {
 
 	// Each BGP-LS Add-Path NLRI = 4 + 4 + 20 = 28 bytes
 	// 5 * 28 = 140 bytes total
-	chunks, err := ChunkMPNLRI(nlri, 16388, 71, true, 60) // AFI=BGP-LS(16388), SAFI=71
+	chunks, err := ChunkMPNLRI(nlri, 16388, 71, true, 60, nil) // AFI=BGP-LS(16388), SAFI=71
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split")
 
@@ -882,11 +883,11 @@ func TestSplitMPNLRI_MultipleSplits(t *testing.T) {
 // VALIDATES: Empty input returns nil/empty without error.
 // PREVENTS: Panic on empty input.
 func TestChunkMPNLRI_Empty(t *testing.T) {
-	chunks, err := ChunkMPNLRI(nil, 1, 1, false, 100)
+	chunks, err := ChunkMPNLRI(nil, 1, 1, false, 100, nil)
 	require.NoError(t, err)
 	assert.Nil(t, chunks)
 
-	chunks, err = ChunkMPNLRI([]byte{}, 1, 1, false, 100)
+	chunks, err = ChunkMPNLRI([]byte{}, 1, 1, false, 100, nil)
 	require.NoError(t, err)
 	assert.Nil(t, chunks)
 }
@@ -899,7 +900,7 @@ func TestChunkMPNLRI_Truncated(t *testing.T) {
 	// IPv6 /64 should be 9 bytes, but only 5 provided
 	nlri := []byte{64, 0x20, 0x01, 0x0d, 0xb8}
 
-	_, err := ChunkMPNLRI(nlri, 2, 1, false, 100)
+	_, err := ChunkMPNLRI(nlri, 2, 1, false, 100, nil)
 	require.Error(t, err)
 }
 
@@ -912,7 +913,7 @@ func TestChunkMPNLRI_SingleTooLarge(t *testing.T) {
 	nlri := make([]byte, 17)
 	nlri[0] = 128
 
-	_, err := ChunkMPNLRI(nlri, 2, 1, false, 10)
+	_, err := ChunkMPNLRI(nlri, 2, 1, false, 10, nil)
 	require.Error(t, err)
 }
 
@@ -933,18 +934,19 @@ func TestChunkMPNLRI_ZeroAlloc(t *testing.T) {
 		nlri[i*7+6] = byte(i)
 	}
 
-	// Warm up
-	chunks, err := ChunkMPNLRI(nlri, 2, 1, false, 20)
+	// Warm up with nil dst (allocates)
+	chunks, err := ChunkMPNLRI(nlri, 2, 1, false, 20, nil)
 	require.NoError(t, err)
 	require.True(t, len(chunks) > 1, "should produce multiple chunks")
 
-	// Measure allocations — maxSize 20 forces multiple chunks
+	// Measure allocations with reusable dst — should be zero
+	dst := make([][]byte, 0, len(chunks))
 	allocs := testing.AllocsPerRun(100, func() {
-		chunks, err = ChunkMPNLRI(nlri, 2, 1, false, 20)
+		chunks, err = ChunkMPNLRI(nlri, 2, 1, false, 20, dst[:0])
 	})
 
 	assert.NoError(t, err)
-	assert.LessOrEqual(t, allocs, float64(1), "ChunkMPNLRI should only allocate the result slice")
+	assert.Equal(t, float64(0), allocs, "ChunkMPNLRI with reusable dst should be zero-alloc")
 }
 
 // TestChunkMPNLRI_SubsliceVerification verifies chunks are subslices of original buffer.
@@ -966,7 +968,7 @@ func TestChunkMPNLRI_SubsliceVerification(t *testing.T) {
 	}
 
 	// maxSize 20 → 2 NLRIs per chunk (14 bytes), 3 chunks
-	chunks, err := ChunkMPNLRI(nlri, 2, 1, false, 20)
+	chunks, err := ChunkMPNLRI(nlri, 2, 1, false, 20, nil)
 	require.NoError(t, err)
 	require.Len(t, chunks, 3)
 
@@ -1248,4 +1250,126 @@ func TestSplitUpdate_AddPath(t *testing.T) {
 		totalNLRIBytes += len(chunk.NLRI)
 	}
 	assert.Equal(t, len(nlri), totalNLRIBytes, "all Add-Path NLRIs should be preserved")
+}
+
+// =============================================================================
+// Benchmarks
+// =============================================================================
+
+// buildIPv4NLRIs builds n IPv4 /24 unicast NLRIs (4 bytes each).
+func buildIPv4NLRIs(n int) []byte {
+	data := make([]byte, 0, n*4)
+	for i := range n {
+		data = append(data, 24, 10, byte(i>>8), byte(i))
+	}
+	return data
+}
+
+// buildIPv6NLRIs builds n IPv6 /64 NLRIs (9 bytes each).
+func buildIPv6NLRIs(n int) []byte {
+	data := make([]byte, 0, n*9)
+	for i := range n {
+		data = append(data, 64, 0x20, 0x01, 0x0d, 0xb8, byte(i>>8), byte(i), 0x00, 0x00)
+	}
+	return data
+}
+
+// buildAddPathNLRIs builds n IPv4 /24 Add-Path NLRIs (8 bytes each).
+func buildAddPathNLRIs(n int) []byte {
+	data := make([]byte, 0, n*8)
+	for i := range n {
+		data = append(data, 0, 0, byte(i>>8), byte(i), 24, 10, byte(i>>8), byte(i))
+	}
+	return data
+}
+
+// BenchmarkChunkMPNLRI_FastPath benchmarks the fast path (all fits, no split).
+func BenchmarkChunkMPNLRI_FastPath(b *testing.B) {
+	for _, n := range []int{10, 100, 1000} {
+		nlri := buildIPv4NLRIs(n)
+		dst := make([][]byte, 0, 1)
+		b.Run(fmt.Sprintf("ipv4_%d", n), func(b *testing.B) {
+			b.SetBytes(int64(len(nlri)))
+			b.ReportAllocs()
+			for range b.N {
+				chunks, err := ChunkMPNLRI(nlri, 1, 1, false, 65535, dst[:0])
+				if err != nil || len(chunks) != 1 {
+					b.Fatal(err, len(chunks))
+				}
+			}
+		})
+	}
+}
+
+// BenchmarkChunkMPNLRI_Split benchmarks the slow path (must split).
+// Uses IPv6 /64 NLRIs (9 bytes each) to exceed maxSize at realistic counts.
+func BenchmarkChunkMPNLRI_Split(b *testing.B) {
+	for _, n := range []int{500, 2000, 5000} {
+		nlri := buildIPv6NLRIs(n)
+		dst := make([][]byte, 0, (len(nlri)+4095)/4096+1)
+		b.Run(fmt.Sprintf("ipv6_%d_max4096", n), func(b *testing.B) {
+			b.SetBytes(int64(len(nlri)))
+			b.ReportAllocs()
+			for range b.N {
+				chunks, err := ChunkMPNLRI(nlri, 2, 1, false, 4096, dst[:0])
+				if err != nil || len(chunks) < 2 {
+					b.Fatalf("err=%v chunks=%d (input=%d bytes, need >1 chunk)", err, len(chunks), len(nlri))
+				}
+			}
+		})
+	}
+}
+
+// BenchmarkChunkMPNLRI_IPv6Split benchmarks IPv6 splitting.
+func BenchmarkChunkMPNLRI_IPv6Split(b *testing.B) {
+	nlri := buildIPv6NLRIs(500)
+	dst := make([][]byte, 0, 2)
+	b.SetBytes(int64(len(nlri)))
+	b.ReportAllocs()
+	for range b.N {
+		chunks, err := ChunkMPNLRI(nlri, 2, 1, false, 4096, dst[:0])
+		if err != nil || len(chunks) == 0 {
+			b.Fatal(err, len(chunks))
+		}
+	}
+}
+
+// BenchmarkChunkMPNLRI_AddPathSplit benchmarks Add-Path splitting.
+func BenchmarkChunkMPNLRI_AddPathSplit(b *testing.B) {
+	nlri := buildAddPathNLRIs(500)
+	dst := make([][]byte, 0, 1)
+	b.SetBytes(int64(len(nlri)))
+	b.ReportAllocs()
+	for range b.N {
+		chunks, err := ChunkMPNLRI(nlri, 1, 1, true, 4096, dst[:0])
+		if err != nil || len(chunks) == 0 {
+			b.Fatal(err, len(chunks))
+		}
+	}
+}
+
+// BenchmarkSplitMPNLRI_FastPath benchmarks SplitMPNLRI when all fits.
+func BenchmarkSplitMPNLRI_FastPath(b *testing.B) {
+	nlri := buildIPv4NLRIs(100)
+	b.SetBytes(int64(len(nlri)))
+	b.ReportAllocs()
+	for range b.N {
+		fitting, remaining, err := SplitMPNLRI(nlri, 1, 1, false, 65535)
+		if err != nil || fitting == nil || remaining != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+// BenchmarkSplitMPNLRI_Split benchmarks SplitMPNLRI when split needed.
+func BenchmarkSplitMPNLRI_Split(b *testing.B) {
+	nlri := buildIPv6NLRIs(1000) // 9000 bytes, exceeds 4096
+	b.SetBytes(int64(len(nlri)))
+	b.ReportAllocs()
+	for range b.N {
+		fitting, remaining, err := SplitMPNLRI(nlri, 2, 1, false, 4096)
+		if err != nil || fitting == nil || remaining == nil {
+			b.Fatal(err)
+		}
+	}
 }

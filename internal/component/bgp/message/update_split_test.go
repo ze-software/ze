@@ -1058,7 +1058,7 @@ func TestSplitUpdate_FlowSpec_Split(t *testing.T) {
 
 	// Use ChunkMPNLRI to verify FlowSpec splitting
 	// maxSize = 50, each FlowSpec = 11 bytes, fits 4 per chunk
-	chunks, err := ChunkMPNLRI(fsNLRI, 1, 133, false, 50)
+	chunks, err := ChunkMPNLRI(fsNLRI, 1, 133, false, 50, nil)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "FlowSpec should split")
 
@@ -1088,7 +1088,7 @@ func TestSplitUpdate_BGPLS_TooLarge(t *testing.T) {
 	// Total: 4 + 256 = 260 bytes
 
 	// Try to split with maxSize smaller than single NLRI
-	_, err := ChunkMPNLRI(bgplsNLRI, 16388, 71, false, 200)
+	_, err := ChunkMPNLRI(bgplsNLRI, 16388, 71, false, 200, nil)
 	require.Error(t, err, "should error on oversized BGP-LS NLRI")
 	assert.ErrorIs(t, err, ErrNLRITooLarge)
 
