@@ -2,6 +2,7 @@
 // Related: parser.go — config parser core
 // Related: serialize.go — Tree serialization to config text
 // Related: meta.go — MetaTree mirrors Tree navigation for metadata
+// Related: prune.go — inactive node pruning
 
 package config
 

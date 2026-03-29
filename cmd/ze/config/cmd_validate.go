@@ -183,6 +183,18 @@ func runValidation(input, path string) *validationResult {
 		return result
 	}
 
+	// Surface parser warnings (e.g., inactive: prefix on leaf nodes).
+	for _, w := range p.Warnings() {
+		result.Warnings = append(result.Warnings, validationWarning{
+			Line:    extractLine(w),
+			Message: w,
+		})
+	}
+
+	// Prune inactive nodes before resolution so the validation summary
+	// reflects only active config (inactive peers are not started).
+	config.PruneInactive(tree, schema)
+
 	// Resolve templates and get BGP tree as map.
 	bgpTree, err := bgpconfig.ResolveBGPTree(tree)
 	if err != nil {

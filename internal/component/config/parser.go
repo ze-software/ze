@@ -209,6 +209,20 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 		fieldName := tok.Value
 		p.tok.Next()
 
+		// Handle "inactive: <field> { ... }" sugar.
+		// The tokenizer reads "inactive:" as a single word.
+		markInactive := false
+		if fieldName == InactiveLeafName+":" {
+			markInactive = true
+			// The real field name is the next token.
+			tok = p.tok.Peek()
+			if tok.Type != TokenWord {
+				return p.errorf(tok, "expected field name after inactive:, got %s", tok.Type)
+			}
+			fieldName = tok.Value
+			p.tok.Next()
+		}
+
 		fieldNode := node.Get(fieldName)
 		if fieldNode == nil {
 			// Check if container allows unknown fields (ze:allow-unknown-fields)
@@ -224,6 +238,24 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 
 		if err := p.parseNode(child, fieldName, fieldNode); err != nil {
 			return err
+		}
+
+		// Apply inactive flag to the parsed node.
+		if markInactive {
+			if sub := child.GetContainer(fieldName); sub != nil {
+				sub.Set(InactiveLeafName, configTrue)
+			} else if entries := child.GetList(fieldName); entries != nil {
+				// Mark the last added entry as inactive.
+				order := child.listOrder[fieldName]
+				if len(order) > 0 {
+					lastKey := order[len(order)-1]
+					if entry, ok := entries[lastKey]; ok {
+						entry.Set(InactiveLeafName, configTrue)
+					}
+				}
+			} else {
+				p.warn(tok.Line, "inactive: prefix ignored on leaf %s (only containers and list entries support inactive)", fieldName)
+			}
 		}
 	}
 

@@ -530,10 +530,12 @@ func mergeAtContext(fullConfig string, contextPath []string, newContent string) 
 // Recognizes show-specific pipes (format, compare) and delegates to cmdShowDisplay,
 // then applies text filters (grep, head, tail) to the result.
 func (m *Model) cmdShowPipe(_ []string, filters []PipeFilter) (commandResult, error) {
-	// Extract show-specific pipes (format, compare) from the filter list.
+	// Extract show-specific pipes (format, compare, active/inactive) from the filter list.
+	// Tree-level filters (active/inactive) are applied first regardless of position.
 	// Remaining filters (grep, head, tail) are applied as text transforms.
 	format := fmtTree
 	compareTarget := ""
+	treeFilter := "" // "", "active", or "inactive"
 	var textFilters []PipeFilter
 
 	for _, f := range filters {
@@ -551,8 +553,18 @@ func (m *Model) cmdShowPipe(_ []string, filters []PipeFilter) (commandResult, er
 			}
 			continue
 		}
+		if f.Type == cmdActive || f.Type == cmdInactive {
+			treeFilter = f.Type
+			continue
+		}
 		// Text filters (grep, head, tail) -- applied after rendering.
 		textFilters = append(textFilters, f)
+	}
+
+	// Tree-level filter: show only active or only inactive nodes.
+	// Applied before serialization by rendering a filtered tree copy.
+	if treeFilter != "" {
+		return m.cmdShowFiltered(treeFilter, textFilters)
 	}
 
 	// Use cmdShowDisplay for format/compare aware rendering.

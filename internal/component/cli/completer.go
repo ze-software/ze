@@ -74,6 +74,8 @@ var commands = []Completion{
 	{Text: cmdRun, Description: "Run operational command", Type: "command"},
 	{Text: cmdWho, Description: "List active editing sessions", Type: "command"},
 	{Text: cmdDisconnect, Description: "Remove another session", Type: "command"},
+	{Text: cmdDeactivate, Description: "Mark a config block inactive", Type: "command"},
+	{Text: cmdActivate, Description: "Reactivate an inactive config block", Type: "command"},
 }
 
 // Complete returns completions for the given input at cursor position.
@@ -123,7 +125,7 @@ func (c *Completer) Complete(input string, contextPath []string) []Completion {
 
 	// Dispatch based on command
 	switch cmd {
-	case cmdSet, cmdDelete:
+	case cmdSet, cmdDelete, cmdDeactivate, cmdActivate:
 		return c.completeSetPath(tokens[1:], contextPath, endsWithSpace)
 	case cmdEdit:
 		return c.completeEditPath(tokens[1:], contextPath, endsWithSpace)
@@ -384,6 +386,8 @@ var textPipeFilters = []Completion{
 var showPipeFilters = append([]Completion{
 	{Text: cmdFormat, Description: "Output format (tree or config)", Type: "keyword"},
 	{Text: cmdCompare, Description: "Compare with committed config", Type: "keyword"},
+	{Text: cmdActive, Description: "Show only active nodes (hide inactive)", Type: "keyword"},
+	{Text: cmdInactive, Description: "Show only inactive nodes", Type: "keyword"},
 }, textPipeFilters...)
 
 // completePipeFilter completes pipe filter names and their arguments.

@@ -1,6 +1,7 @@
 // Design: docs/architecture/config/syntax.md — config parsing and loading
 // Related: tree.go — Tree data structure
 // Related: serialize_annotated.go — column-aware annotated serialization
+// Related: prune.go — inactive node pruning (uses isInactiveTree)
 
 package config
 
@@ -35,7 +36,13 @@ func normalizeBool(v string) string {
 	}
 }
 
-// Serialize converts a Tree back to ExaBGP config format.
+// isInactiveTree checks if a tree node has the inactive leaf set to true.
+func isInactiveTree(tree *Tree) bool {
+	v, ok := tree.Get(InactiveLeafName)
+	return ok && v == configTrue
+}
+
+// Serialize converts a Tree back to config text format.
 func Serialize(tree *Tree, schema *Schema) string {
 	var b strings.Builder
 	serializeTree(&b, tree, schema.root, 0)
@@ -112,6 +119,9 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 
 	switch n := node.(type) {
 	case *LeafNode:
+		if name == InactiveLeafName {
+			break // Rendered as "inactive: " prefix on the parent, not as a leaf
+		}
 		if v, ok := tree.values[name]; ok {
 			b.WriteString(prefix)
 			b.WriteString(name)
@@ -163,6 +173,9 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 			serializePresenceContainer(b, tree, name, n, indent)
 		} else if child := tree.containers[name]; child != nil {
 			b.WriteString(prefix)
+			if isInactiveTree(child) {
+				b.WriteString("inactive: ")
+			}
 			b.WriteString(name)
 			b.WriteString(" {\n")
 			serializeTree(b, child, n, indent+1)
@@ -186,6 +199,9 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 				for _, key := range keys {
 					entry := entries[key]
 					b.WriteString(prefix)
+					if isInactiveTree(entry) {
+						b.WriteString("inactive: ")
+					}
 					b.WriteString(name)
 					// Skip outputting KeyDefault - it's the implicit default
 					if key != KeyDefault {
@@ -435,6 +451,9 @@ func serializePresenceContainer(b *strings.Builder, tree *Tree, name string, nod
 	// Block form (container children)
 	if child := tree.containers[name]; child != nil {
 		b.WriteString(prefix)
+		if isInactiveTree(child) {
+			b.WriteString("inactive: ")
+		}
 		b.WriteString(name)
 		b.WriteString(" {\n")
 		serializeTree(b, child, node, indent+1)

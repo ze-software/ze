@@ -21,6 +21,9 @@ import (
 // Env var registrations for BGP config overrides are centralized in config/environment.go.
 
 // PeersFromConfigTree builds PeerSettings from a config tree.
+// MUST: The input tree is modified in place (inactive nodes are pruned).
+// Callers that need the original tree must clone it first.
+//
 // This replaces the TreeToConfig → configToPeer pipeline by:
 //  1. Resolving templates at the map level (ResolveBGPTree)
 //  2. Parsing basic peer settings via reactor.PeersFromTree
@@ -30,6 +33,14 @@ import (
 // Routes stay in the config package because they depend on config-internal
 // types (StaticRouteConfig, ParseRouteAttributes, etc.) that reactor cannot import.
 func PeersFromConfigTree(tree *config.Tree) ([]*reactor.PeerSettings, error) {
+	// Step 0: Prune inactive containers and list entries.
+	// Inactive nodes are treated as if they were not in the config.
+	schema, err := config.YANGSchema()
+	if err != nil {
+		return nil, fmt.Errorf("load schema for inactive pruning: %w", err)
+	}
+	config.PruneInactive(tree, schema)
+
 	// Step 1: Resolve templates at the map level.
 	bgpTree, err := ResolveBGPTree(tree)
 	if err != nil {

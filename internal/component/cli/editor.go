@@ -357,6 +357,41 @@ func (e *Editor) ContentAtPath(path []string) string {
 	return config.SerializeSubtree(subtree, schemaNode)
 }
 
+// ActiveContentAtPath returns config text showing only active nodes (inactive pruned).
+func (e *Editor) ActiveContentAtPath(path []string) string {
+	if !e.treeValid || e.tree == nil || e.schema == nil {
+		return e.workingContent
+	}
+	clone := e.tree.Clone()
+	config.PruneInactive(clone, e.schema)
+	if len(path) == 0 {
+		return config.Serialize(clone, e.schema)
+	}
+	subtree, schemaNode := e.walkPathWithSchemaFrom(clone, path)
+	if subtree == nil || schemaNode == nil {
+		return config.Serialize(clone, e.schema)
+	}
+	return config.SerializeSubtree(subtree, schemaNode)
+}
+
+// InactiveContentAtPath returns config text showing only inactive nodes.
+// Active nodes are pruned; inactive nodes are shown with their full subtree.
+func (e *Editor) InactiveContentAtPath(path []string) string {
+	if !e.treeValid || e.tree == nil || e.schema == nil {
+		return ""
+	}
+	clone := e.tree.Clone()
+	config.PruneActive(clone, e.schema)
+	if len(path) == 0 {
+		return config.Serialize(clone, e.schema)
+	}
+	subtree, schemaNode := e.walkPathWithSchemaFrom(clone, path)
+	if subtree == nil || schemaNode == nil {
+		return config.Serialize(clone, e.schema)
+	}
+	return config.SerializeSubtree(subtree, schemaNode)
+}
+
 // schemaGetter is any schema node that can look up children by name.
 // Satisfied by *config.Schema, *config.ContainerNode, *config.ListNode, *config.FlexNode.
 type schemaGetter interface {

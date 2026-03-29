@@ -122,6 +122,12 @@ func (m *Model) dispatchCommand(input string) (commandResult, error) {
 	case cmdDelete:
 		return m.cmdDelete(args)
 
+	case cmdDeactivate:
+		return m.cmdDeactivate(args)
+
+	case cmdActivate:
+		return m.cmdActivate(args)
+
 	case cmdSave:
 		return m.cmdSave()
 
@@ -471,6 +477,84 @@ func (m *Model) cmdDelete(args []string) (commandResult, error) {
 	msg := fmt.Sprintf("Deleted %s", strings.Join(fullPath, " "))
 
 	// Detect conflicts with other users' change files after each edit.
+	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
+		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
+	}
+
+	return commandResult{
+		statusMessage: msg,
+		configView:    m.configViewAtPath(m.contextPath),
+		revalidate:    true,
+	}, nil
+}
+
+// cmdDeactivate marks a config node as inactive.
+// Syntax: deactivate <path> — equivalent to "set <path> inactive true".
+func (m *Model) cmdDeactivate(args []string) (commandResult, error) {
+	if len(args) < 1 {
+		return commandResult{}, fmt.Errorf("usage: deactivate <path>")
+	}
+
+	fullPath := make([]string, 0, len(m.contextPath)+len(args))
+	fullPath = append(fullPath, m.contextPath...)
+	fullPath = append(fullPath, args...)
+
+	// Validate path exists in schema and points to a container or list entry.
+	entry, err := m.completer.validateTokenPath(fullPath)
+	if err != nil {
+		return commandResult{}, err
+	}
+	if entry != nil && entry.IsLeaf() {
+		return commandResult{}, fmt.Errorf("cannot deactivate a leaf value, use delete instead")
+	}
+
+	// Set inactive = true on the target node.
+	if err := m.editor.SetValue(fullPath, config.InactiveLeafName, "true"); err != nil {
+		return commandResult{}, fmt.Errorf("deactivate failed: %w", err)
+	}
+
+	m.completer.SetTree(m.editor.Tree())
+	msg := fmt.Sprintf("Deactivated %s", strings.Join(fullPath, " "))
+
+	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
+		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
+	}
+
+	return commandResult{
+		statusMessage: msg,
+		configView:    m.configViewAtPath(m.contextPath),
+		revalidate:    true,
+	}, nil
+}
+
+// cmdActivate removes the inactive flag from a config node.
+// Syntax: activate <path> — removes the inactive leaf, restoring default (active).
+func (m *Model) cmdActivate(args []string) (commandResult, error) {
+	if len(args) < 1 {
+		return commandResult{}, fmt.Errorf("usage: activate <path>")
+	}
+
+	fullPath := make([]string, 0, len(m.contextPath)+len(args))
+	fullPath = append(fullPath, m.contextPath...)
+	fullPath = append(fullPath, args...)
+
+	// Validate path exists in schema and points to a container or list entry.
+	entry, err := m.completer.validateTokenPath(fullPath)
+	if err != nil {
+		return commandResult{}, err
+	}
+	if entry != nil && entry.IsLeaf() {
+		return commandResult{}, fmt.Errorf("cannot activate a leaf value")
+	}
+
+	// Delete the inactive leaf (restoring default false = active).
+	if err := m.editor.DeleteValue(fullPath, config.InactiveLeafName); err != nil {
+		return commandResult{}, fmt.Errorf("activate failed: %w", err)
+	}
+
+	m.completer.SetTree(m.editor.Tree())
+	msg := fmt.Sprintf("Activated %s", strings.Join(fullPath, " "))
+
 	if conflicts := m.editor.DetectConflicts(); len(conflicts) > 0 {
 		msg += fmt.Sprintf(" (conflict with %s on %s)", conflicts[0].OtherUser, conflicts[0].Path)
 	}

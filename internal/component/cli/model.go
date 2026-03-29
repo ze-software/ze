@@ -191,6 +191,10 @@ const (
 	cmdFormat     = "format"
 	cmdEnable     = "enable"
 	cmdDisable    = "disable"
+	cmdActivate   = "activate"
+	cmdDeactivate = "deactivate"
+	cmdActive     = "active"
+	cmdInactive   = "inactive"
 )
 
 // Show column names used as DB keys under /meta/show/<column>.

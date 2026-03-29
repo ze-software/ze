@@ -201,6 +201,9 @@ func serializeAnnotatedTreeNode(b *strings.Builder, tree *Tree, meta *MetaTree, 
 
 	switch n := node.(type) {
 	case *LeafNode:
+		if name == InactiveLeafName {
+			break // Rendered as "inactive: " prefix on the parent
+		}
 		if v, ok := tree.values[name]; ok {
 			writeAnnotatedLeafGutter(b, meta, name, columns)
 			b.WriteString(prefix)
@@ -288,6 +291,9 @@ func serializeAnnotatedContainer(b *strings.Builder, tree *Tree, meta *MetaTree,
 		childMeta := metaContainerChild(meta, name)
 		writeAnnotatedOpenBraceGutter(b, childMeta, columns)
 		b.WriteString(prefix)
+		if isInactiveTree(child) {
+			b.WriteString("inactive: ")
+		}
 		b.WriteString(name)
 		b.WriteString(" {\n")
 		serializeAnnotatedTree(b, child, childMeta, node, columns, indent+1)
@@ -323,6 +329,9 @@ func serializeAnnotatedList(b *strings.Builder, tree *Tree, meta *MetaTree, name
 		entryMeta := metaListEntry(meta, name, key)
 		writeAnnotatedOpenBraceGutter(b, entryMeta, columns)
 		b.WriteString(prefix)
+		if isInactiveTree(entry) {
+			b.WriteString("inactive: ")
+		}
 		b.WriteString(name)
 		if key != KeyDefault {
 			b.WriteString(" ")

@@ -87,6 +87,18 @@ func (p *Parser) parseListFieldBlock(tree *Tree, name string, node *ListNode, ke
 		fieldName := tok.Value
 		p.tok.Next()
 
+		// Handle "inactive: <field> { ... }" sugar (same as in parseContainer).
+		markInactive := false
+		if fieldName == InactiveLeafName+":" {
+			markInactive = true
+			tok = p.tok.Peek()
+			if tok.Type != TokenWord {
+				return p.errorf(tok, "expected field name after inactive:, got %s", tok.Type)
+			}
+			fieldName = tok.Value
+			p.tok.Next()
+		}
+
 		fieldNode := node.Get(fieldName)
 		if fieldNode == nil {
 			return p.errorf(tok, "unknown field in %s: %s (line %d)", name, fieldName, tok.Line)
@@ -94,6 +106,22 @@ func (p *Parser) parseListFieldBlock(tree *Tree, name string, node *ListNode, ke
 
 		if err := p.parseNode(entry, fieldName, fieldNode); err != nil {
 			return err
+		}
+
+		if markInactive {
+			if sub := entry.GetContainer(fieldName); sub != nil {
+				sub.Set(InactiveLeafName, configTrue)
+			} else if lists := entry.GetList(fieldName); lists != nil {
+				order := entry.listOrder[fieldName]
+				if len(order) > 0 {
+					lastKey := order[len(order)-1]
+					if listEntry, ok := lists[lastKey]; ok {
+						listEntry.Set(InactiveLeafName, configTrue)
+					}
+				}
+			} else {
+				p.warn(tok.Line, "inactive: prefix ignored on leaf %s (only containers and list entries support inactive)", fieldName)
+			}
 		}
 	}
 

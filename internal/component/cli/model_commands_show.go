@@ -93,6 +93,32 @@ func (m *Model) cmdShowDisplayWithSource(format, compareTarget, source string) (
 	return commandResult{output: content}, nil
 }
 
+// cmdShowFiltered renders config with a tree-level filter (active or inactive).
+// The filter clones the tree and prunes it before serialization, then applies text filters.
+func (m *Model) cmdShowFiltered(filter string, textFilters []PipeFilter) (commandResult, error) {
+	content := m.editor.ActiveContentAtPath(m.contextPath)
+	if filter == cmdInactive {
+		content = m.editor.InactiveContentAtPath(m.contextPath)
+	}
+
+	if content == "" {
+		return commandResult{output: fmt.Sprintf("(no %s configuration)", filter)}, nil
+	}
+
+	if len(textFilters) == 0 {
+		return commandResult{output: content}, nil
+	}
+
+	var err error
+	for _, f := range textFilters {
+		content, err = applyPipeFilter(content, f)
+		if err != nil {
+			return commandResult{}, err
+		}
+	}
+	return commandResult{output: content}, nil
+}
+
 // showAlternateSource displays pre-rendered content from a non-working source (confirmed/saved).
 // Supports compare and format pipes applied to the alternate content.
 func (m *Model) showAlternateSource(content, compareTarget string) (commandResult, error) {

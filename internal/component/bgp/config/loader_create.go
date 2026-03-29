@@ -32,6 +32,15 @@ import (
 
 // CreateReactorFromTree creates a Reactor directly from a parsed config tree.
 func CreateReactorFromTree(tree *config.Tree, configDir, configPath string, plugins []reactor.PluginConfig, store storage.Storage) (*reactor.Reactor, error) {
+	// Prune inactive containers and list entries before reading any config values.
+	// PeersFromConfigTree also prunes (idempotent), but we need to prune early
+	// so that ExtractEnvironment and BGP field extraction see the pruned tree.
+	pruneSchema, err := config.YANGSchema()
+	if err != nil {
+		return nil, fmt.Errorf("load schema for inactive pruning: %w", err)
+	}
+	config.PruneInactive(tree, pruneSchema)
+
 	// Load environment with config block values (if any)
 	envValues := config.ExtractEnvironment(tree)
 	env, err := config.LoadEnvironmentWithConfig(envValues)

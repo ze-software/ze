@@ -644,6 +644,245 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
 	}
 }
 
+// TestInactiveLeafInjected verifies that every ContainerNode and ListNode
+// in the schema has an auto-injected "inactive" boolean leaf.
+//
+// VALIDATES: AC-11 -- inactive is a valid keyword in any container/list.
+// PREVENTS: Missing inactive leaf causing "unknown field" errors.
+func TestInactiveLeafInjected(t *testing.T) {
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+
+	// Check bgp container has inactive
+	bgpNode := schema.Get("bgp")
+	require.NotNil(t, bgpNode)
+	bgp, ok := bgpNode.(*ContainerNode)
+	require.True(t, ok)
+	inactiveNode := bgp.Get("inactive")
+	require.NotNil(t, inactiveNode, "bgp container should have inactive leaf")
+	inactiveLeaf, ok := inactiveNode.(*LeafNode)
+	require.True(t, ok, "inactive should be LeafNode, got %T", inactiveNode)
+	assert.Equal(t, TypeBool, inactiveLeaf.Type)
+	assert.Equal(t, "false", inactiveLeaf.Default)
+
+	// Check peer list has inactive
+	peerNode := bgp.Get("peer")
+	require.NotNil(t, peerNode)
+	peer, ok := peerNode.(*ListNode)
+	require.True(t, ok)
+	inactiveNode = peer.Get("inactive")
+	require.NotNil(t, inactiveNode, "peer list should have inactive leaf")
+	inactiveLeaf, ok = inactiveNode.(*LeafNode)
+	require.True(t, ok)
+	assert.Equal(t, TypeBool, inactiveLeaf.Type)
+
+	// Check nested container (capability) has inactive
+	capNode := peer.Get("capability")
+	require.NotNil(t, capNode)
+	capContainer, ok := capNode.(*ContainerNode)
+	require.True(t, ok)
+	inactiveNode = capContainer.Get("inactive")
+	require.NotNil(t, inactiveNode, "capability container should have inactive leaf")
+
+	// Check group list has inactive
+	groupNode := bgp.Get("group")
+	require.NotNil(t, groupNode)
+	group, ok := groupNode.(*ListNode)
+	require.True(t, ok)
+	inactiveNode = group.Get("inactive")
+	require.NotNil(t, inactiveNode, "group list should have inactive leaf")
+
+	// Check update list has inactive
+	updateNode := peer.Get("update")
+	require.NotNil(t, updateNode)
+	update, ok := updateNode.(*ListNode)
+	require.True(t, ok)
+	inactiveNode = update.Get("inactive")
+	require.NotNil(t, inactiveNode, "update list should have inactive leaf")
+}
+
+// TestInactiveParses verifies that config with inactive true parses successfully.
+//
+// VALIDATES: AC-6 -- inactive enable is accepted as valid config.
+// PREVENTS: YANG rejecting inactive leaf in config.
+func TestInactiveParses(t *testing.T) {
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+
+	input := `bgp {
+    local {
+        as 65000
+    }
+    router-id 1.2.3.4
+    peer upstream {
+        inactive enable
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
+    }
+}`
+	parser := NewParser(schema)
+	tree, err := parser.Parse(input)
+	require.NoError(t, err)
+
+	bgp := tree.GetContainer("bgp")
+	require.NotNil(t, bgp)
+	peers := bgp.GetList("peer")
+	require.Len(t, peers, 1)
+	peer := peers["upstream"]
+	require.NotNil(t, peer)
+	v, ok := peer.Get("inactive")
+	require.True(t, ok, "inactive should be set on peer")
+	assert.Equal(t, "true", v, "inactive enable should normalize to true")
+}
+
+// TestParseInactivePrefix verifies that "inactive: node { }" is accepted
+// as sugar for "node { inactive enable; ... }".
+//
+// VALIDATES: AC-5 -- inactive: prefix parsed correctly.
+// PREVENTS: inactive: prefix rejected as unknown keyword.
+func TestParseInactivePrefix(t *testing.T) {
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+
+	input := `bgp {
+    local {
+        as 65000
+    }
+    router-id 1.2.3.4
+    inactive: peer upstream {
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
+    }
+}`
+	parser := NewParser(schema)
+	tree, err := parser.Parse(input)
+	require.NoError(t, err)
+
+	bgp := tree.GetContainer("bgp")
+	require.NotNil(t, bgp)
+	peers := bgp.GetList("peer")
+	require.Len(t, peers, 1)
+	peer := peers["upstream"]
+	require.NotNil(t, peer)
+	v, ok := peer.Get("inactive")
+	require.True(t, ok, "inactive should be set on peer")
+	assert.Equal(t, "true", v, "inactive: prefix should set inactive=true")
+}
+
+// TestParseInactiveRoundTrip verifies that parse -> serialize -> parse
+// produces identical trees for configs with inactive nodes.
+//
+// VALIDATES: AC-5, AC-7 -- round-trip preserves inactive state.
+// PREVENTS: Lost inactive state during serialize/parse cycle.
+func TestParseInactiveRoundTrip(t *testing.T) {
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+
+	input := `bgp {
+    local {
+        as 65000
+    }
+    router-id 1.2.3.4
+    peer active-peer {
+        remote {
+            ip 10.0.0.1
+            as 65001
+        }
+    }
+    inactive: peer disabled-peer {
+        remote {
+            ip 10.0.0.2
+            as 65002
+        }
+    }
+}`
+	parser := NewParser(schema)
+	tree1, err := parser.Parse(input)
+	require.NoError(t, err)
+
+	output := Serialize(tree1, schema)
+	tree2, err := parser.Parse(output)
+	require.NoError(t, err)
+	assert.True(t, TreeEqual(tree1, tree2), "trees should be equal after roundtrip\nSerialized:\n%s", output)
+}
+
+// TestParseInactivePrefixInsideListEntry verifies that "inactive:" prefix
+// works inside a list entry block (parseListFieldBlock), not just at
+// the container level (parseContainer).
+//
+// VALIDATES: AC-5 -- inactive: prefix works at all nesting levels.
+// PREVENTS: inactive: prefix failing inside peer { } blocks.
+func TestParseInactivePrefixInsideListEntry(t *testing.T) {
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+
+	input := `bgp {
+    local {
+        as 65000
+    }
+    router-id 1.2.3.4
+    peer upstream {
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
+        inactive: capability {
+            route-refresh
+        }
+    }
+}`
+	parser := NewParser(schema)
+	tree, err := parser.Parse(input)
+	require.NoError(t, err)
+
+	bgp := tree.GetContainer("bgp")
+	require.NotNil(t, bgp)
+	peers := bgp.GetList("peer")
+	peer := peers["upstream"]
+	require.NotNil(t, peer)
+	cap := peer.GetContainer("capability")
+	require.NotNil(t, cap, "capability container should exist")
+	v, ok := cap.Get("inactive")
+	require.True(t, ok, "inactive should be set on capability")
+	assert.Equal(t, "true", v, "inactive: prefix should set inactive=true on capability")
+}
+
+// TestSerializeInactivePrefix verifies that inactive containers and list
+// entries are serialized with the "inactive: " prefix instead of showing
+// the inactive leaf as a normal value.
+//
+// VALIDATES: AC-7 -- text output shows inactive: prefix.
+// PREVENTS: Inactive shown as "inactive enable" leaf inside the block.
+func TestSerializeInactivePrefix(t *testing.T) {
+	schema, err := YANGSchema()
+	require.NoError(t, err)
+
+	input := `bgp {
+    local {
+        as 65000
+    }
+    router-id 1.2.3.4
+    peer upstream {
+        inactive enable
+        remote {
+            ip 192.168.1.1
+            as 65001
+        }
+    }
+}`
+	parser := NewParser(schema)
+	tree, err := parser.Parse(input)
+	require.NoError(t, err)
+
+	output := Serialize(tree, schema)
+	assert.Contains(t, output, "inactive: peer upstream", "should render inactive: prefix")
+	assert.NotContains(t, output, "inactive enable", "should not render inactive as leaf value")
+}
+
 // TestDeadCapabilityRejected verifies that dead capabilities are rejected.
 //
 // VALIDATES: AC-1, AC-2, AC-3: multi-session/operational/aigp rejected
