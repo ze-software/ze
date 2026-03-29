@@ -532,11 +532,15 @@ For external plugins (Python, Rust, etc.) -- runs as separate process:
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv -->
 
 1. Engine starts TLS listener from `plugin { hub { server <name> { host ...; port ...; secret ...; } } }` config
-2. `startExternalTLS()` forks child with `ZE_PLUGIN_HUB_HOST`/`ZE_PLUGIN_HUB_PORT`/`ZE_PLUGIN_HUB_TOKEN` env vars
-3. Child connects to engine via TLS, authenticates with `#0 auth {"token":"...","name":"..."}`
-4. Single bidirectional connection using `MuxConn` (responses routed by `#id`, requests via `Requests()` channel)
-5. No `DirectBridge` -- always uses JSON-RPC over TLS
-6. Same 5-stage handshake over the same connection
+2. Engine forks child with env vars: `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` (per-plugin unique token), `ZE_PLUGIN_CERT_FP` (server cert SHA-256 fingerprint), `ZE_PLUGIN_NAME`
+3. Child verifies server cert fingerprint during TLS handshake, authenticates with `#0 auth {"token":"...","name":"..."}`
+4. Engine validates token matches the per-plugin token generated for that name (name binding prevents impersonation)
+5. Token is cleared from the child's OS environment after first read (`Secret: true` registration)
+6. Single bidirectional connection using `MuxConn` (responses routed by `#id`, requests via `Requests()` channel)
+7. No `DirectBridge` -- always uses JSON-RPC over TLS
+8. Same 5-stage handshake over the same connection
+<!-- source: internal/component/plugin/process/process.go -- startExternal env var setup -->
+<!-- source: internal/component/plugin/ipc/tls.go -- TokenForPlugin, CertFingerprint, combinedLookup -->
 
 ### Benefits of Long-Lived Design
 
@@ -740,12 +744,14 @@ Transport: single TLS connection per plugin.
 <!-- source: pkg/plugin/sdk/sdk.go -- NewFromTLSEnv -->
 
 1. Engine reads `plugin { hub { server <name> { host ...; port ...; secret ...; } } }` from config
-2. Engine starts TLS listener(s) (one per `server` entry), creates `PluginAcceptor`
-3. Engine forks child with `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` env vars
-4. Child connects to engine via TLS, sends `#0 auth {"token":"...","name":"..."}`
-5. Engine authenticates (constant-time token comparison, plugin name validation)
-6. Single `MuxConn` handles bidirectional RPC (responses by `#id`, requests via `Requests()` channel)
-7. Standard 5-stage handshake proceeds over the same connection
+2. Engine starts TLS listener(s) (one per `server` entry), creates `PluginAcceptor` with cert fingerprint
+3. Engine generates per-plugin token, forks child with `ZE_PLUGIN_HUB_HOST`, `ZE_PLUGIN_HUB_PORT`, `ZE_PLUGIN_HUB_TOKEN` (unique per plugin), `ZE_PLUGIN_CERT_FP`, `ZE_PLUGIN_NAME` env vars
+4. Child verifies server cert fingerprint, connects via TLS, sends `#0 auth {"token":"...","name":"..."}`
+5. Engine authenticates: per-plugin token lookup by name (constant-time comparison), name binding enforced
+6. Token cleared from child OS environment after first read
+7. Single `MuxConn` handles bidirectional RPC (responses by `#id`, requests via `Requests()` channel)
+8. Standard 5-stage handshake proceeds over the same connection
+<!-- source: internal/component/plugin/ipc/tls.go -- combinedLookup, AuthenticateWithLookup -->
 
 ### Config
 

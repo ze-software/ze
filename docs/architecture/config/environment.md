@@ -183,4 +183,22 @@ Any other value causes a startup error.
 
 ---
 
-**Last Updated:** 2026-03-16
+## Env Var Registry
+
+All Ze environment variables are registered via `env.MustRegister()` at package init time.
+Calling `env.Get()` with an unregistered key aborts the process.
+<!-- source: internal/core/env/registry.go -- MustRegister, EnvEntry -->
+
+**Registration flags:**
+
+| Flag | Meaning |
+|------|---------|
+| `Private` | Hidden from `ze env list` and autocomplete (e.g., auth tokens) |
+| `Secret` | Cleared from OS environment after first `env.Get()` read. Value stays in the in-process cache for subsequent reads, but is removed from `/proc/<pid>/environ`. Used for sensitive credentials like plugin auth tokens. |
+
+A var can be both `Private` and `Secret` (e.g., `ze.plugin.hub.token`).
+<!-- source: internal/core/env/env.go -- Get, clearSecretFromEnv -->
+
+---
+
+**Last Updated:** 2026-03-29
