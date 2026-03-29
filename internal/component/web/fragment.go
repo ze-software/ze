@@ -400,6 +400,12 @@ func buildFieldMeta(name string, leaf *config.LeafNode, value string, _ bool, pa
 
 	meta.Type = valueTypeToFieldType(leaf.Type)
 
+	// Booleans without an explicit YANG default are implicitly false.
+	// Show the "default-no" color hint so the toggle isn't colorless.
+	if leaf.Type == config.TypeBool && meta.Default == "" {
+		meta.Default = "false"
+	}
+
 	switch leaf.Type {
 	case config.TypeUint16:
 		meta.Min = "0"
