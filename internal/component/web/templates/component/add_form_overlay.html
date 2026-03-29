@@ -9,7 +9,10 @@
       {{range .Fields}}
       <input type="text" class="add-entry-input" name="field:{{.Path}}" placeholder="{{.Placeholder}}">
       {{end}}
-      <button type="submit" class="add-entry-submit">Create</button>
+      <div class="add-entry-actions">
+        <button type="submit" class="add-entry-submit">Create</button>
+        <button type="button" class="add-entry-cancel" onclick="document.getElementById('add-entry-overlay')?.remove()">Cancel</button>
+      </div>
     </form>
   </div>
 </div>

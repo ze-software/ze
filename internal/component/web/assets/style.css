@@ -412,6 +412,16 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 .config-input:focus { border-color: var(--border-focus); }
 
+.config-input::placeholder,
+.ze-field-input::placeholder,
+.ze-field-select::placeholder,
+.cli-input::placeholder,
+.command-form-input::placeholder,
+.add-entry-input::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
 .config-input.default-value {
   color: var(--text-muted);
   font-style: italic;
@@ -1367,6 +1377,42 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   outline: none;
   border-color: var(--accent);
 }
+
+.add-entry-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.add-entry-cancel {
+  flex: 1;
+  padding: 0.45rem 1.2rem;
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.add-entry-cancel:hover { color: var(--text-primary); border-color: var(--text-muted); }
+
+.add-entry-submit {
+  flex: 1;
+  padding: 0.45rem 1.2rem;
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.add-entry-submit:hover { background: var(--accent-hover); }
   color: var(--text-primary);
   background: var(--input-bg);
   border: 1px solid var(--border);
