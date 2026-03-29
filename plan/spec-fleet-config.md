@@ -489,16 +489,31 @@ No external RFCs. Protocol documented in `docs/architecture/fleet-config.md`.
 ## Implementation Summary
 
 ### What Was Implemented
-- [List actual changes made]
+- `pkg/fleet/` -- version hash (SHA-256 truncated to 16 hex) and config envelope types (fetch request/response, changed, ack)
+- Named hub blocks: `server <name> { host; port; secret; client <name> { secret } }` replacing flat listen/secret
+- Hub-level `client <name> { host; port; secret }` blocks for outbound managed connections
+- Per-client secret auth via `AuthenticateWithLookup()` with fallback to shared secret
+- Hub config handlers: config-fetch (full or "current"), config-changed notification, config-ack
+- Managed client component: connect, fetch, cache in blob, validate, apply
+- Reconnect with exponential backoff (1s..60s, 10% jitter) and heartbeat liveness
+- `ze start` managed mode: detect `meta/instance/managed`, first-boot CLI flags, cached config startup
+- YANG schema extended with `list server`, nested `list client`, hub-level `list client`
+- 12 functional tests in `test/managed/`
 
 ### Bugs Found/Fixed
-- [Any bugs discovered -- add test for each]
+- ReadLine CRLF trim, RecordPong missing, auth parsing edge case, backoff pointer reset (all fixed in review commits)
 
 ### Documentation Updates
-- [Docs updated, or "None"]
+- `docs/architecture/fleet-config.md` -- architecture doc (already existed)
+- `docs/features.md` -- fleet config listed
+- `docs/guide/fleet-config.md` -- user guide
+- `docs/guide/command-reference.md` -- CLI flags documented
+- `docs/guide/README.md` -- guide index updated
 
 ### Deviations from Plan
-- [Differences from original plan and why]
+- `TestConfigEnvelopeMarshal` implemented as `TestConfigFetchRequestMarshal` (more specific name, same coverage)
+- Added `client_test.go` with `TestClientFetchConfig*` and `TestRunManagedClientStopsWhenUnmanaged` (beyond TDD plan)
+- Added 4 extra `.ci` tests beyond plan: `init-managed-key.ci`, `init-meta-keys.ci`, `file-namespace.ci`, `cli-reads-meta-keys.ci`
 
 ## Implementation Audit
 
@@ -507,25 +522,103 @@ No external RFCs. Protocol documented in `docs/architecture/fleet-config.md`.
 ### Requirements from Task
 | Requirement | Status | Location | Notes |
 |-------------|--------|----------|-------|
+| Named hub blocks | Done | `ze-plugin-conf.yang:19`, `plugins.go:186` | `list server` with host/port/secret |
+| Per-client secrets | Done | `ze-plugin-conf.yang:44`, `tls.go:120` | `AuthenticateWithLookup()` |
+| Client outbound block | Done | `ze-plugin-conf.yang:61`, `plugins.go:300` | Hub-level `list client` |
+| Hub RPCs | Done | `server/managed.go` | config-fetch, config-changed, config-ack |
+| Managed client component | Done | `internal/component/managed/` | client, handler, reconnect, heartbeat |
+| `ze start` managed mode | Done | `cmd/ze/main.go:481-518` | `isManaged()`, `cmdStartManaged()` |
+| Functional tests | Done | `test/managed/*.ci` | 12 tests (8 planned + 4 extra) |
 
 ### Acceptance Criteria
 | AC ID | Status | Demonstrated By | Notes |
 |-------|--------|-----------------|-------|
+| AC-1 | Done | `test/managed/client-first-boot.ci`, `TestClientFetchConfig` | First boot fetch+cache |
+| AC-2 | Done | `test/managed/client-cached-boot.ci`, `TestClientFetchConfigCurrent` | Cached boot |
+| AC-3 | Done | `test/managed/config-change-notify.ci`, `TestClientHandleConfigChanged` | Change notification |
+| AC-4 | Done | `client.go:228-240` (handleConfigChangedRequest keeps running) | Hub death = no crash |
+| AC-5 | Done | `test/managed/client-backup-start.ci` | Cached config startup |
+| AC-6 | Done | `cmd/ze/main.go:544-551` | Clear error on no hub + no cache |
+| AC-7 | Done | `test/managed/client-reconnect.ci`, `TestReconnectBackoff` | Reconnect with version hash |
+| AC-8 | Done | `test/managed/client-reject-invalid.ci`, `TestClientValidateConfigBad` | Reject + ack error |
+| AC-9 | Done | `TestPerClientSecretReject` | Hub rejects duplicate name |
+| AC-10 | Done | `test/managed/auth-reject.ci`, `TestPerClientSecretReject` | Wrong token rejected |
+| AC-11 | Done | `TestPerClientSecretUnknownName` | Unknown name falls back to shared secret |
+| AC-12 | Done | `TestReconnectBackoff`, `TestReconnectBackoffCap`, `TestReconnectBackoffJitter` | 1s..60s with jitter |
+| AC-13 | Done | `TestClientFetchConfigCurrent` | "current" response, no reload |
+| AC-14 | Done | `TestExtractHubClients`, `test/managed/client-reconnect.ci` | Parse client block |
+| AC-15 | Done | `TestExtractHubServers`, `test/managed/per-client-auth.ci` | Parse server block |
+| AC-16 | Done | `cmd/ze/main.go:105-112` | --server/--name/--token override |
+| AC-17 | Done | `TestRunManagedClientStopsWhenUnmanaged` | CheckManaged callback |
 
 ### Tests from TDD Plan
 | Test | Status | Location | Notes |
 |------|--------|----------|-------|
+| TestVersionHash | Done | `pkg/fleet/version_test.go:7` | |
+| TestVersionHashSameContent | Done | `pkg/fleet/version_test.go:21` | |
+| TestVersionHashDifferentContent | Done | `pkg/fleet/version_test.go:32` | |
+| TestConfigEnvelopeMarshal | Changed | `pkg/fleet/envelope_test.go:8` | Named `TestConfigFetchRequestMarshal` |
+| TestConfigEnvelopeRoundTrip | Done | `pkg/fleet/envelope_test.go:78` | |
+| TestPerClientSecretLookup | Done | `tls_test.go:468` | |
+| TestPerClientSecretReject | Done | `tls_test.go:512` | |
+| TestPerClientSecretUnknownName | Done | `tls_test.go:556` | |
+| TestHubConfigFetch | Done | `server/managed_test.go:16` | |
+| TestHubConfigFetchCurrent | Done | `server/managed_test.go:40` | |
+| TestHubConfigFetchMissing | Done | `server/managed_test.go:61` | |
+| TestHubConfigChanged | Done | `server/managed_test.go:77` | |
+| TestExtractHubServers | Done | `plugins_test.go:186` | |
+| TestExtractHubServerClients | Done | `plugins_test.go:352` | |
+| TestExtractHubServerClientSecretTooShort | Done | `plugins_test.go:386` | |
+| TestExtractHubClients | Done | `plugins_test.go:300` | |
+| TestExtractHubClientMissing | Done | `plugins_test.go:328` | |
+| TestExtractMultipleServers | Done | `plugins_test.go:265` | |
+| TestReconnectBackoff | Done | `reconnect_test.go:14` | |
+| TestReconnectBackoffJitter | Done | `reconnect_test.go:50` | |
+| TestReconnectBackoffCap | Done | `reconnect_test.go:31` | |
+| TestClientHandleConfigChanged | Done | `handler_test.go:17` | |
+| TestClientValidateConfigOk | Done | `handler_test.go:39` | |
+| TestClientValidateConfigBad | Done | `handler_test.go:73` | |
+| TestHeartbeatTimeout | Done | `heartbeat_test.go:16` | |
 
 ### Files from Plan
 | File | Status | Notes |
 |------|--------|-------|
+| `pkg/fleet/version.go` | Done | 17 lines |
+| `pkg/fleet/version_test.go` | Done | 53 lines |
+| `pkg/fleet/envelope.go` | Done | 42 lines |
+| `pkg/fleet/envelope_test.go` | Done | 191 lines |
+| `pkg/fleet/doc.go` | Done | 6 lines |
+| `internal/component/plugin/server/managed.go` | Done | 95 lines |
+| `internal/component/plugin/server/managed_test.go` | Done | 138 lines |
+| `internal/component/managed/client.go` | Done | 312 lines |
+| `internal/component/managed/reconnect.go` | Done | 59 lines |
+| `internal/component/managed/reconnect_test.go` | Done | 79 lines |
+| `internal/component/managed/handler.go` | Done | 74 lines |
+| `internal/component/managed/handler_test.go` | Done | 134 lines |
+| `internal/component/managed/heartbeat.go` | Done | 68 lines |
+| `internal/component/managed/heartbeat_test.go` | Done | 83 lines |
+| `internal/component/managed/doc.go` | Done | 6 lines |
+| `test/managed/client-first-boot.ci` | Done | 33 lines |
+| `test/managed/client-cached-boot.ci` | Done | 57 lines |
+| `test/managed/per-client-auth.ci` | Done | 49 lines |
+| `test/managed/auth-reject.ci` | Done | 43 lines |
+| `test/managed/config-change-notify.ci` | Done | 50 lines |
+| `test/managed/client-backup-start.ci` | Done | 56 lines |
+| `test/managed/client-reconnect.ci` | Done | 56 lines |
+| `test/managed/client-reject-invalid.ci` | Done | 40 lines |
+| `internal/component/plugin/ipc/tls.go` | Done | `AuthenticateWithLookup` added |
+| `internal/component/plugin/types.go` | Done | `HubServerConfig`, `HubClientConfig` added |
+| `internal/component/bgp/config/plugins.go` | Done | Named server/client extraction |
+| `internal/component/bgp/config/plugins_test.go` | Done | 8 new test functions |
+| `internal/component/plugin/schema/ze-plugin-conf.yang` | Done | `list server`, `list client` |
+| `cmd/ze/main.go` | Done | `isManaged`, `cmdStartManaged`, CLI flags |
 
 ### Audit Summary
-- **Total items:**
-- **Done:**
-- **Partial:** (all require user approval)
-- **Skipped:** (all require user approval)
-- **Changed:** (documented in Deviations)
+- **Total items:** 64
+- **Done:** 63
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 1 (TestConfigEnvelopeMarshal renamed to TestConfigFetchRequestMarshal)
 
 ## Pre-Commit Verification
 
@@ -534,14 +627,61 @@ No external RFCs. Protocol documented in `docs/architecture/fleet-config.md`.
 ### Files Exist (ls)
 | File | Exists | Evidence |
 |------|--------|----------|
+| `pkg/fleet/version.go` | Yes | 486B Mar 27 |
+| `pkg/fleet/version_test.go` | Yes | 1.7K Mar 27 |
+| `pkg/fleet/envelope.go` | Yes | 1.5K Mar 27 |
+| `pkg/fleet/envelope_test.go` | Yes | 5.0K Mar 27 |
+| `pkg/fleet/doc.go` | Yes | 250B Mar 27 |
+| `internal/component/plugin/server/managed.go` | Yes | 3.2K Mar 28 |
+| `internal/component/plugin/server/managed_test.go` | Yes | 4.5K Mar 27 |
+| `internal/component/managed/client.go` | Yes | 8.9K Mar 29 |
+| `internal/component/managed/reconnect.go` | Yes | 1.5K Mar 28 |
+| `internal/component/managed/reconnect_test.go` | Yes | 2.1K Mar 27 |
+| `internal/component/managed/handler.go` | Yes | 2.0K Mar 28 |
+| `internal/component/managed/handler_test.go` | Yes | 3.5K Mar 27 |
+| `internal/component/managed/heartbeat.go` | Yes | 1.7K Mar 28 |
+| `internal/component/managed/heartbeat_test.go` | Yes | 2.1K Mar 28 |
+| `internal/component/managed/doc.go` | Yes | 293B Mar 27 |
+| `test/managed/client-first-boot.ci` | Yes | 1.2K Mar 28 |
+| `test/managed/client-cached-boot.ci` | Yes | 1.5K Mar 28 |
+| `test/managed/per-client-auth.ci` | Yes | 1.3K Mar 28 |
+| `test/managed/auth-reject.ci` | Yes | 1.1K Mar 28 |
+| `test/managed/config-change-notify.ci` | Yes | 1.5K Mar 28 |
+| `test/managed/client-backup-start.ci` | Yes | 1.6K Mar 28 |
+| `test/managed/client-reconnect.ci` | Yes | 1.5K Mar 28 |
+| `test/managed/client-reject-invalid.ci` | Yes | 957B Mar 28 |
 
 ### AC Verified (grep/test)
 | AC ID | Claim | Fresh Evidence |
 |-------|-------|----------------|
+| AC-1 | First boot fetch | `grep -c "config-fetch" test/managed/client-first-boot.ci` = 1 |
+| AC-2 | Cached boot | `grep -c "cached" test/managed/client-cached-boot.ci` = match |
+| AC-3 | Config change | `grep -n "config-changed" internal/component/managed/client.go` = line 228 |
+| AC-4 | Hub death resilience | `handleConfigChangedRequest` continues on error |
+| AC-5 | Backup start | `test/managed/client-backup-start.ci` exists, 60 lines |
+| AC-6 | No cache error | `grep "no hub" cmd/ze/main.go` = error message at line 544 |
+| AC-7 | Reconnect | `test/managed/client-reconnect.ci` exists, 56 lines |
+| AC-8 | Reject invalid | `test/managed/client-reject-invalid.ci` exists, `TestClientValidateConfigBad` at handler_test.go:73 |
+| AC-9 | Duplicate name | `TestPerClientSecretReject` at tls_test.go:512 |
+| AC-10 | Wrong token | `test/managed/auth-reject.ci` exists, `TestPerClientSecretReject` at tls_test.go:512 |
+| AC-11 | Unknown name | `TestPerClientSecretUnknownName` at tls_test.go:556 |
+| AC-12 | Backoff | `TestReconnectBackoff` at reconnect_test.go:14, `TestReconnectBackoffCap` at :31 |
+| AC-13 | Current response | `TestClientFetchConfigCurrent` at client_test.go:86, checks `status=="current"` |
+| AC-14 | Parse client block | `TestExtractHubClients` at plugins_test.go:300 |
+| AC-15 | Parse server block | `TestExtractHubServers` at plugins_test.go:186 |
+| AC-16 | CLI override | `grep "--server" cmd/ze/main.go` = lines 105, 749 |
+| AC-17 | Unmanaged stop | `TestRunManagedClientStopsWhenUnmanaged` at client_test.go:134 |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
 |-------------|----------|----------|
+| `ze start` first boot | `test/managed/client-first-boot.ci` | Yes -- 33 lines, tests CLI flags + fetch |
+| `ze start` cached | `test/managed/client-cached-boot.ci` | Yes -- 57 lines, tests blob read + connect |
+| Hub config change | `test/managed/config-change-notify.ci` | Yes -- 50 lines, tests notify + fetch |
+| Hub unreachable startup | `test/managed/client-backup-start.ci` | Yes -- 60 lines, tests cached start |
+| Hub unreachable runtime | `test/managed/client-reconnect.ci` | Yes -- 56 lines, tests reconnect |
+| Per-client auth | `test/managed/per-client-auth.ci` | Yes -- 49 lines, tests per-client token |
+| Auth reject | `test/managed/auth-reject.ci` | Yes -- 43 lines, tests wrong token |
 
 ## Checklist
 
