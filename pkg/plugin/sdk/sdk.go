@@ -31,6 +31,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 	"time"
@@ -105,6 +106,19 @@ func NewWithConn(name string, conn net.Conn) *Plugin {
 		p.bridge = bridger.Bridge()
 	}
 	return p
+}
+
+// NewWithIO creates a plugin from separate reader and writer streams.
+// Use this for non-TCP transports (SSH channels, stdin/stdout pipes) where
+// a net.Conn is not available. MuxConn is created immediately for
+// bidirectional RPC multiplexing.
+func NewWithIO(name string, reader io.ReadCloser, writer io.WriteCloser) *Plugin {
+	rc := rpc.NewConn(reader, writer)
+	return &Plugin{
+		name:       name,
+		engineConn: rc,
+		engineMux:  rpc.NewMuxConn(rc),
+	}
 }
 
 // NewFromEnv creates a plugin by reading ZE_PLUGIN_HUB_HOST, ZE_PLUGIN_HUB_PORT, and

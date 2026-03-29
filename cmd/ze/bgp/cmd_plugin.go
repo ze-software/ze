@@ -1,18 +1,20 @@
-// Design: docs/architecture/api/process-protocol.md — plugin CLI simulator
+// Design: docs/architecture/api/process-protocol.md — plugin debug shell
 // Related: main.go — bgp subcommand dispatch
-// Related: ../internal/ssh/client/client.go — SSH credentials from zefs and ExecCommand
+// Related: ../internal/ssh/client/client.go — SSH credentials and protocol sessions
 
 package bgp
 
 import (
+	"bufio"
+	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
-
-	tea "charm.land/bubbletea/v2"
+	"strings"
 
 	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
-	"codeberg.org/thomas-mangin/ze/internal/component/cli"
+	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
 
 // cmdPlugin dispatches plugin subcommands.
@@ -36,36 +38,41 @@ func cmdPlugin(args []string) int {
 }
 
 func pluginUsage() {
-	fmt.Fprintf(os.Stderr, `ze bgp plugin - Interactive plugin simulator
+	fmt.Fprintf(os.Stderr, `ze bgp plugin - Plugin debug shell
 
 Usage:
   ze bgp plugin <command> [options]
 
 Commands:
-  cli                  Interactive plugin CLI (simulates a text-mode plugin)
+  cli                  Interactive plugin debug shell (5-stage handshake + commands)
   help                 Show this help
 
 Examples:
-  ze bgp plugin cli                          Enter interactive plugin command mode
+  ze bgp plugin cli                          Enter plugin debug shell (defaults)
+  ze bgp plugin cli --name my-test           Enter with custom plugin name
 `)
 }
 
-// cmdPluginCLI runs the interactive plugin CLI.
-// Connects to the daemon via SSH and enters interactive command mode
-// with plugin SDK method completion.
+// cmdPluginCLI runs the plugin debug shell.
+// Asks Q&A about handshake parameters (with defaults), connects via SSH,
+// runs the 5-stage handshake over the SSH channel, then enters interactive
+// command mode for debugging.
 func cmdPluginCLI(args []string) int {
 	fs := flag.NewFlagSet("plugin cli", flag.ExitOnError)
+	name := fs.String("name", "", "Plugin name (default: auto-generated)")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze bgp plugin cli [options]
 
-Interactive plugin CLI. Connects to the daemon via SSH and enters
-command mode with tab completion for plugin SDK methods.
+Plugin debug shell. Connects to the daemon via SSH, runs the 5-stage
+plugin handshake, then enters interactive command mode.
 
-Commands:
-  update-route <selector> <command>   Inject route update
+Hit Enter at each prompt to accept defaults.
+
+Post-handshake commands:
   dispatch-command <command>          Dispatch engine command
   subscribe-events [events...]        Subscribe to events
+  unsubscribe-events                 Unsubscribe from events
   decode-nlri <family> <hex>          Decode NLRI
   encode-nlri <family> <args...>      Encode NLRI
   bye                                 Disconnect
@@ -80,7 +87,7 @@ Options:
 		return 1
 	}
 
-	// Load SSH credentials
+	// Load SSH credentials.
 	creds, err := sshclient.LoadCredentials()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -88,19 +95,139 @@ Options:
 		return 1
 	}
 
-	// Create unified model in command-only mode with plugin SDK method completions
-	m := cli.NewCommandModel()
-	m.SetCommandCompleter(cli.NewPluginCompleter())
-	m.SetCommandExecutor(func(input string) (string, error) {
-		return sshclient.ExecCommand(creds, input)
-	})
+	// Q&A phase: ask about handshake parameters on local terminal.
+	pluginName := *name
+	if pluginName == "" {
+		pluginName = promptWithDefault("Plugin name", "cli-debug")
+	}
+	useDefaults := promptYesNo("Use default registration?", true)
 
-	// Run the bubbletea program
-	p := tea.NewProgram(m)
-	if _, err := p.Run(); err != nil {
+	var families string
+	if !useDefaults {
+		families = promptWithDefault("Families (comma-separated, e.g., ipv4/unicast)", "")
+	}
+
+	fmt.Fprintf(os.Stderr, "\nConnecting to daemon as %q...\n", pluginName)
+
+	// Open persistent SSH session with "plugin protocol" command.
+	ps, err := sshclient.OpenProtocolSession(creds, "plugin protocol")
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
+	defer ps.Close() //nolint:errcheck,gosec // best-effort cleanup
 
+	// Create SDK plugin wrapping the SSH channel.
+	// Stdout from SSH is what we read (engine -> plugin).
+	// Stdin to SSH is what we write (plugin -> engine).
+	p := sdk.NewWithIO(pluginName, io.NopCloser(ps.Stdout), ps.Stdin)
+	defer p.Close() //nolint:errcheck,gosec // best-effort cleanup
+
+	// Build registration from Q&A answers.
+	reg := sdk.Registration{}
+	if families != "" {
+		for f := range strings.SplitSeq(families, ",") {
+			f = strings.TrimSpace(f)
+			if f != "" {
+				reg.Families = append(reg.Families, sdk.FamilyDecl{Name: f, Mode: "both"})
+			}
+		}
+	}
+
+	// Set up post-handshake callback: start interactive mode.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	interactiveDone := make(chan struct{})
+	p.OnStarted(func(_ context.Context) error {
+		fmt.Fprintf(os.Stderr, "Handshake complete. Interactive mode (type 'bye' to quit).\n\n")
+		go func() {
+			defer close(interactiveDone)
+			runInteractive(ctx, p)
+			cancel() // Signal SDK to shut down when user types 'bye'.
+		}()
+		return nil
+	})
+
+	// Run 5-stage handshake + event loop (blocks until shutdown).
+	fmt.Fprintf(os.Stderr, "Running 5-stage handshake...\n")
+	if err := p.Run(ctx, reg); err != nil {
+		// Context cancellation from interactive bye is expected.
+		if ctx.Err() == nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return 1
+		}
+	}
+
+	<-interactiveDone
 	return 0
+}
+
+// runInteractive reads commands from stdin and dispatches them via the SDK.
+func runInteractive(ctx context.Context, p *sdk.Plugin) {
+	scanner := bufio.NewScanner(os.Stdin)
+	fmt.Fprint(os.Stderr, "> ")
+
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			fmt.Fprint(os.Stderr, "> ")
+			continue
+		}
+
+		if line == "bye" {
+			fmt.Fprintln(os.Stderr, "goodbye")
+			return
+		}
+
+		// Dispatch command via SDK.
+		status, data, err := p.DispatchCommand(ctx, line)
+		switch {
+		case err != nil:
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		case data != "":
+			fmt.Printf("%s: %s\n", status, data)
+		default:
+			fmt.Println(status)
+		}
+		fmt.Fprint(os.Stderr, "> ")
+	}
+}
+
+// promptWithDefault asks a question with a default value.
+// Returns the default on empty input.
+func promptWithDefault(prompt, defaultVal string) string {
+	if defaultVal != "" {
+		fmt.Fprintf(os.Stderr, "%s (default: %s): ", prompt, defaultVal)
+	} else {
+		fmt.Fprintf(os.Stderr, "%s: ", prompt)
+	}
+
+	scanner := bufio.NewScanner(os.Stdin)
+	if scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line != "" {
+			return line
+		}
+	}
+	return defaultVal
+}
+
+// promptYesNo asks a yes/no question with a default.
+func promptYesNo(prompt string, defaultYes bool) bool {
+	if defaultYes {
+		fmt.Fprintf(os.Stderr, "%s (Y/n): ", prompt)
+	} else {
+		fmt.Fprintf(os.Stderr, "%s (y/N): ", prompt)
+	}
+
+	scanner := bufio.NewScanner(os.Stdin)
+	if scanner.Scan() {
+		line := strings.ToLower(strings.TrimSpace(scanner.Text()))
+		if line == "" {
+			return defaultYes
+		}
+		return line == "y" || line == "yes"
+	}
+	return defaultYes
 }

@@ -8,6 +8,7 @@ package client
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strings"
 	"time"
@@ -123,6 +124,81 @@ func StreamCommand(creds Credentials, command string, callback func(line string)
 		return scanErr
 	}
 	return waitErr
+}
+
+// ProtocolSession holds an open SSH session for bidirectional protocol communication.
+// The caller reads from Stdout and writes to Stdin to speak the plugin protocol.
+// Caller MUST call Close when done to release SSH resources.
+type ProtocolSession struct {
+	Stdin  io.WriteCloser
+	Stdout io.Reader
+	sess   *ssh.Session
+	client *ssh.Client
+}
+
+// Close terminates the SSH session and underlying connection.
+func (ps *ProtocolSession) Close() error {
+	ps.sess.Close()   //nolint:errcheck,gosec // best-effort cleanup
+	ps.client.Close() //nolint:errcheck,gosec // best-effort cleanup
+	return nil
+}
+
+// Wait blocks until the remote command exits.
+func (ps *ProtocolSession) Wait() error {
+	return ps.sess.Wait()
+}
+
+// OpenProtocolSession connects to the daemon via SSH and starts a persistent
+// bidirectional session with the given command. Returns stdin (write) and
+// stdout (read) pipes for speaking the plugin protocol over the SSH channel.
+func OpenProtocolSession(creds Credentials, command string) (*ProtocolSession, error) {
+	config := &ssh.ClientConfig{
+		User: creds.Username,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(creds.Auth),
+		},
+		HostKeyCallback: hostKeyCallback(creds.Host),
+		Timeout:         dialTimeout,
+	}
+
+	addr := creds.Host + ":" + creds.Port
+	client, err := ssh.Dial("tcp", addr, config)
+	if err != nil {
+		return nil, fmt.Errorf("connect to %s: %w", addr, err)
+	}
+
+	session, err := client.NewSession()
+	if err != nil {
+		client.Close() //nolint:errcheck,gosec // cleanup on error
+		return nil, fmt.Errorf("create session: %w", err)
+	}
+
+	stdin, err := session.StdinPipe()
+	if err != nil {
+		session.Close() //nolint:errcheck,gosec // cleanup on error
+		client.Close()  //nolint:errcheck,gosec // cleanup on error
+		return nil, fmt.Errorf("stdin pipe: %w", err)
+	}
+
+	stdout, err := session.StdoutPipe()
+	if err != nil {
+		session.Close() //nolint:errcheck,gosec // cleanup on error
+		client.Close()  //nolint:errcheck,gosec // cleanup on error
+		return nil, fmt.Errorf("stdout pipe: %w", err)
+	}
+
+	if err := session.Start(command); err != nil {
+		session.Close() //nolint:errcheck,gosec // cleanup on error
+		client.Close()  //nolint:errcheck,gosec // cleanup on error
+		return nil, fmt.Errorf("start command: %w", err)
+	}
+
+	return &ProtocolSession{
+		Stdin:  stdin,
+		Stdout: stdout,
+		sess:   session,
+		client: client,
+	}, nil
 }
 
 // ReadCredentials reads SSH credentials from a zefs database.

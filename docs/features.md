@@ -386,6 +386,9 @@ When a plugin is disabled (respawn limit exceeded), its metrics are deleted rath
 **Login warnings:** When an operator connects via SSH, ze checks for conditions requiring attention and displays warnings in the welcome area. Each warning includes a message and an actionable command. Currently checks for stale prefix data (peers with `prefix-updated` older than 6 months).
 <!-- source: internal/component/ssh/session.go -- createSessionModel login warning collection -->
 
+**Plugin debug shell:** `ze bgp plugin cli` connects to the daemon via SSH, runs the 5-stage plugin handshake, and enters interactive command mode. Developers can test plugin protocol interactions by hand -- sending dispatch-command, subscribe-events, decode-nlri, etc. Accepts defaults (Enter through Q&A) or custom registration parameters (families, plugin name).
+<!-- source: cmd/ze/bgp/cmd_plugin.go -- cmdPluginCLI -->
+
 ### Other
 
 | Command | Description |

@@ -64,6 +64,12 @@ type StreamingExecutor func(ctx context.Context, w io.Writer, args []string) err
 // Called when execMiddleware detects a streaming command (e.g., "bgp monitor").
 type StreamingExecutorFactory func(username string) StreamingExecutor
 
+// PluginProtocolFunc handles a "plugin protocol" SSH session by running
+// the 5-stage plugin handshake and runtime command loop over the SSH channel.
+// The SSH channel provides bidirectional io.ReadCloser/io.WriteCloser transport.
+// Blocks until the session ends. Called by execMiddleware.
+type PluginProtocolFunc func(ctx context.Context, reader io.ReadCloser, writer io.WriteCloser) error
+
 // Config holds SSH server configuration parsed from the config file.
 type Config struct {
 	Listen      string
@@ -98,6 +104,7 @@ type Server struct {
 	activeSessions           atomic.Int32
 	executorFactory          CommandExecutorFactory   // set after reactor starts; creates per-session executors
 	streamingExecutorFactory StreamingExecutorFactory // set after reactor starts; for monitor commands
+	pluginProtocolFunc       PluginProtocolFunc       // set after reactor starts; for plugin debug shell
 	monitorFactory           cli.MonitorFactory       // set after reactor starts; for TUI monitor mode
 	shutdownFunc             ShutdownFunc             // set by daemon; called on "stop" exec command
 	restartFunc              RestartFunc              // set by daemon; called on "restart" exec command
@@ -183,6 +190,14 @@ func (s *Server) SetStreamingExecutorFactory(f StreamingExecutorFactory) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.streamingExecutorFactory = f
+}
+
+// SetPluginProtocolFunc sets the handler for "plugin protocol" SSH sessions.
+// Called after the reactor starts to enable plugin debug shell.
+func (s *Server) SetPluginProtocolFunc(f PluginProtocolFunc) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.pluginProtocolFunc = f
 }
 
 // SetMonitorFactory sets the factory for TUI monitor sessions.
@@ -440,7 +455,24 @@ func (s *Server) execMiddleware() wish.Middleware {
 			s.mu.Lock()
 			factory := s.executorFactory
 			streamFactory := s.streamingExecutorFactory
+			pluginProto := s.pluginProtocolFunc
 			s.mu.Unlock()
+
+			// Handle plugin protocol sessions (debug shell).
+			// The SSH channel becomes bidirectional plugin transport.
+			if lcInput == "plugin protocol" {
+				if pluginProto == nil {
+					fmt.Fprintln(sess.Stderr(), "error: plugin protocol not available (daemon still starting)") //nolint:errcheck // best-effort
+					sess.Exit(1)                                                                                //nolint:errcheck // best-effort
+					return
+				}
+				s.logger.Info("SSH plugin protocol session", "user", sess.User(), "remote", sess.RemoteAddr().String())
+				if err := pluginProto(sess.Context(), sess, sess); err != nil {
+					fmt.Fprintf(sess.Stderr(), "error: %v\n", err) //nolint:errcheck // best-effort
+					sess.Exit(1)                                   //nolint:errcheck // best-effort
+				}
+				return
+			}
 
 			// Check for streaming commands (e.g., "monitor event ...").
 			// Pass the full input to the executor; the executor does handler lookup.

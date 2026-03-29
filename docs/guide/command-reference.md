@@ -145,7 +145,8 @@ BGP protocol tools (offline, no daemon needed).
 ```
 ze bgp decode <hex>              # Decode BGP message hex to JSON
 ze bgp encode <route-command>    # Encode route command to BGP hex
-ze bgp plugin                    # Interactive plugin simulator
+ze bgp plugin cli                # Plugin debug shell (5-stage handshake + interactive)
+ze bgp plugin cli --name <name>  # Debug shell with custom plugin name
 ```
 
 **decode flags:**

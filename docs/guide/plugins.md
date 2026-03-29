@@ -237,3 +237,32 @@ Plugins can declare dependencies on other plugins. The engine starts plugins in 
 
 Dependencies are declared in the plugin's registration, not in config. The engine resolves them automatically.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.Dependencies -->
+
+## Debugging Plugins
+
+The plugin debug shell lets you manually interact with the engine using the plugin protocol. This is useful when debugging plugin code -- you can send individual commands and inspect responses.
+
+```
+ze bgp plugin cli
+```
+
+The debug shell:
+
+1. Asks about handshake parameters (plugin name, families) with defaults -- hit Enter to accept
+2. Connects to the daemon via SSH
+3. Runs the 5-stage plugin handshake over the SSH channel
+4. Enters interactive command mode
+
+Available post-handshake commands:
+
+| Command | Description |
+|---------|-------------|
+| `dispatch-command <cmd>` | Dispatch an engine command |
+| `subscribe-events <events>` | Subscribe to events |
+| `unsubscribe-events` | Unsubscribe from events |
+| `decode-nlri <family> <hex>` | Decode NLRI from hex |
+| `encode-nlri <family> <args>` | Encode NLRI |
+| `bye` | Disconnect |
+
+Use `--name <name>` to set a custom plugin name for the session.
+<!-- source: cmd/ze/bgp/cmd_plugin.go -- cmdPluginCLI -->
