@@ -280,6 +280,34 @@ environment {
 
 <!-- source: internal/component/config/environment.go -- environment block parsing; internal/core/slogutil/slogutil.go -- log level config -->
 
+### DNS Resolver
+
+Configure a shared DNS resolver for all Ze components:
+
+```
+environment {
+    dns {
+        server 8.8.8.8:53;    # upstream DNS server (empty = system default)
+        timeout 5;             # query timeout in seconds (1-60)
+        cache-size 10000;      # max cached entries (0 = disable cache)
+        cache-ttl 86400;       # max cache TTL in seconds (0 = use response TTL only)
+    }
+}
+```
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `server` | string | `""` | DNS server address with port. Empty uses system `/etc/resolv.conf`. |
+| `timeout` | uint16 | `5` | Query timeout in seconds. Range: 1-60. |
+| `cache-size` | uint32 | `10000` | Maximum cached entries. 0 disables caching entirely. |
+| `cache-ttl` | uint32 | `86400` | Maximum cache entry TTL in seconds. 0 means use only the response TTL. |
+
+The cache respects DNS response TTLs: entries expire at `min(response TTL, cache-ttl)`.
+Records with TTL=0 from the server are not cached (per RFC 1035).
+
+<!-- source: internal/component/dns/schema/ze-dns-conf.yang -- DNS YANG schema -->
+<!-- source: internal/component/dns/resolver.go -- NewResolver, Resolve -->
+
 ## Hub Configuration
 
 The plugin hub provides TLS transport for plugin communication and fleet management.

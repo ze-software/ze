@@ -16,12 +16,16 @@ for all Ze components.
   infrastructure, not specific to any subsystem.
 - YANG config under `environment/dns` following the same pattern as `environment/web`,
   `environment/ssh`, `environment/mcp`.
-- Cache uses simple LRU with mutex over a fancier concurrent map because the cache is not a hot
-  path (DNS queries are infrequent compared to BGP UPDATE processing).
-- `ResolverConfig` named to avoid collision with existing `Config` types in other components
-  (hook enforced uniqueness).
-- NXDOMAIN returns empty results (no error) to simplify caller code -- callers check for empty
-  results rather than distinguishing error types.
+- Cache uses `container/list` for O(1) LRU with mutex over a fancier concurrent map because the
+  cache is not a hot path (DNS queries are infrequent compared to BGP UPDATE processing). The
+  initial slice-based O(n) LRU was replaced after deep review flagged it as problematic at the
+  YANG-allowed max of 1M entries.
+- TTL=0 from DNS responses means "do not cache" per RFC 1035. The cache respects this by skipping
+  storage entirely. The `extractRecords` function preserves TTL=0 when answers exist, only
+  applying a 300s default when there are no answers at all.
+- NXDOMAIN returns empty results (no error) and is not cached. Callers check for empty results
+  rather than distinguishing error types.
+- System DNS (`/etc/resolv.conf`) is resolved once at construction, not per-query.
 
 ## Consequences
 
@@ -32,6 +36,9 @@ for all Ze components.
 - New YANG modules that define containers under `environment` must be explicitly loaded in
   `internal/component/config/yang_schema.go` (the `GetEntry` + `Define` pattern). Registration
   alone is not enough.
+- The resolver is library-only: `ExtractEnvironment` does not yet include `"dns"` in its sections
+  list because no consumer wires config to the resolver at runtime. This is intentional and will
+  be addressed when the decorator framework integrates.
 
 ## Gotchas
 
@@ -45,13 +52,15 @@ for all Ze components.
   type cases only and omit default.
 - Race detector caught a data race in test code accessing a counter from both the test goroutine
   and the DNS server handler goroutine. Used `atomic.Int32` to fix.
+- Deep review found comment/code mismatch: comment claimed NXDOMAIN caching but code skipped it.
+  Always verify comments match implementation before presenting work.
 
 ## Files
 
-- `internal/component/dns/cache.go` -- in-memory cache with TTL and LRU eviction
-- `internal/component/dns/cache_test.go` -- 7 cache tests
+- `internal/component/dns/cache.go` -- O(1) LRU cache with TTL, struct keys, container/list
+- `internal/component/dns/cache_test.go` -- 11 cache tests (including concurrent, overwrite, TTL=0)
 - `internal/component/dns/resolver.go` -- miekg/dns client with cache integration
-- `internal/component/dns/resolver_test.go` -- 10 resolver tests (local DNS server)
+- `internal/component/dns/resolver_test.go` -- 19 resolver tests (A/AAAA/TXT/PTR/CNAME/MX/NS/SRV)
 - `internal/component/dns/schema/ze-dns-conf.yang` -- YANG config schema
 - `internal/component/dns/schema/embed.go` -- embedded YANG file
 - `internal/component/dns/schema/register.go` -- YANG module registration

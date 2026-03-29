@@ -670,7 +670,31 @@ Connection collision detection follows RFC 4271 S6.8: when both sides connect si
 
 ---
 
-## 13. Implementation Priority
+## 13. DNS Resolution
+
+Ze includes a built-in DNS resolver component (`internal/component/dns/`) that provides cached
+DNS queries to all Ze components. It is cross-cutting infrastructure, not a plugin.
+
+| Concept | Description |
+|---------|-------------|
+| **Library** | `github.com/miekg/dns` (the library CoreDNS is built on) |
+| **Cache** | O(1) LRU using `container/list`, struct keys, mutex-protected |
+| **TTL** | Respects response TTL, caps at configured max, honors TTL=0 (RFC 1035: do not cache) |
+| **Config** | YANG under `environment/dns` (server, timeout, cache-size, cache-ttl) |
+| **Concurrency** | Thread-safe. Immutable fields after construction, mutex on cache |
+| **System fallback** | Reads `/etc/resolv.conf` once at construction when no server configured |
+
+The resolver exposes `Resolve(name, qtype)` and convenience methods (`ResolveA`, `ResolveTXT`,
+`ResolvePTR`, etc.). Consumers receive a `*dns.Resolver` instance; they never import miekg/dns
+directly. NXDOMAIN returns empty results (not an error) and is not cached.
+
+<!-- source: internal/component/dns/resolver.go -- Resolver type, NewResolver, Resolve -->
+<!-- source: internal/component/dns/cache.go -- O(1) LRU cache with TTL and eviction -->
+<!-- source: internal/component/dns/schema/ze-dns-conf.yang -- YANG config schema -->
+
+---
+
+## 14. Implementation Priority
 
 1. **Implement RIB with pools** - Per-attribute-type deduplication
 2. **Unified parser** - Family-specific NLRI builders
@@ -687,4 +711,4 @@ Connection collision detection follows RFC 4271 S6.8: when both sides connect si
 
 ---
 
-**Last Updated:** 2026-03-23 (Added TCP socket tuning, graceful close, connection modes)
+**Last Updated:** 2026-03-29 (Added DNS resolution component)

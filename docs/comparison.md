@@ -118,6 +118,7 @@ RFC-mandated checks run as default filters that can be selectively overridden.
 | MRT dump (RFC 6396) | No | Yes | Yes | No | Yes | Yes | Yes | No | Yes | Yes | Yes |
 | Streaming route events | Yes | Yes | No | Yes | No | No | Yes | Yes | No | No | No |
 | JSON event protocol | Yes | No | No | No | No | No | No | Yes | No | No | No |
+| Built-in DNS resolver | Yes | No | No | No | No | No | No | No | No | No | No |
 
 ## API & Programmability
 
