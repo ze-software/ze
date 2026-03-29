@@ -145,7 +145,10 @@ If a spec describes work that is **already implemented**, run the full Completio
 [ ] 1. Documentation updates — check Documentation Update Checklist below.
       Every question must be answered Yes/No. Every Yes requires a file path.
       BLOCKING: code that changes documented behavior without updating docs is not done.
-[ ] 2. Dead code check — search unused functions/types, ASK before removing
+[ ] 2. Env var check — if YANG config leaves were added under `environment/`,
+      verify matching `ze.<name>.<leaf>` env vars are registered via `env.MustRegister()`.
+      Run `ze env registered` (or grep for `MustRegister`) to confirm.
+[ ] 3. Dead code check — search unused functions/types, ASK before removing
 [ ] 3. File modularity check — for each modified .go file:
       Line count: >600 → review concerns, >1000 → split (rules/file-modularity.md)
       // Design: topic annotation still matches file's actual concern?
