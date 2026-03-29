@@ -1,0 +1,48 @@
+module ze-dns-conf {
+    namespace "urn:ze:dns:conf";
+    prefix dns;
+
+    description "DNS resolver configuration for Ze";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    container environment {
+        description "Environment settings for DNS resolver";
+
+        container dns {
+            description "DNS resolver settings";
+
+            leaf server {
+                type string;
+                default "";
+                description "DNS server address (e.g., 8.8.8.8:53). Empty uses system default.";
+            }
+
+            leaf timeout {
+                type uint16 {
+                    range "1..60";
+                }
+                default 5;
+                description "Query timeout in seconds";
+            }
+
+            leaf cache-size {
+                type uint32 {
+                    range "0..1000000";
+                }
+                default 10000;
+                description "Maximum cached entries (0 disables caching)";
+            }
+
+            leaf cache-ttl {
+                type uint32 {
+                    range "0..604800";
+                }
+                default 86400;
+                description "Maximum cache TTL in seconds (0 uses response TTL only)";
+            }
+        }
+    }
+}

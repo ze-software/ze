@@ -22,6 +22,7 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/subscribe/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/cmd/update/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/config/system/schema"
+	_ "codeberg.org/thomas-mangin/ze/internal/component/dns/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/hub/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/mcp/schema"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/plugin/schema"
@@ -55,7 +56,5 @@ import (
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rs"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/softver"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/watchdog"
-
-	// Filter packages -- outside plugins/ scan path, manually imported.
-	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/reactor/filter"
 )
+

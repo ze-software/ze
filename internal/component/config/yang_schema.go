@@ -218,6 +218,18 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) (*Schema, error) {
 		}
 	}
 
+	// Load ze-dns-conf module (environment > dns)
+	dnsEntry := loader.GetEntry("ze-dns-conf")
+	if dnsEntry != nil {
+		for _, name := range sortedKeys(dnsEntry.Dir) {
+			child := dnsEntry.Dir[name]
+			node := yangToNode(child, name)
+			if node != nil {
+				schema.Define(name, node)
+			}
+		}
+	}
+
 	// Load ze-telemetry-conf module (telemetry)
 	telemetryEntry := loader.GetEntry("ze-telemetry-conf")
 	if telemetryEntry != nil {

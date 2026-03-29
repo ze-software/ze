@@ -1,0 +1,30 @@
+# Test: ze config validate with valid DNS resolver config block
+# VALIDATES: AC-1 -- YANG config specifies dns server address, accepted by schema
+# VALIDATES: AC-2 -- config with dns section parses without error
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65533
+		}
+		local {
+			as 65533
+			ip 127.0.0.1
+		}
+	}
+}
+
+environment {
+	dns {
+		server 8.8.8.8:53
+		timeout 10
+		cache-size 5000
+		cache-ttl 3600
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid
