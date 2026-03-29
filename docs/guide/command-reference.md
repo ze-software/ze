@@ -88,7 +88,7 @@ ze config fmt <file>             # Format and normalize
 ```
 ze config history <file>         # List rollback revisions
 ze config rollback <N> <file>    # Restore revision N
-ze config archive <name> <file>  # Archive config
+ze config archive <name> <file>  # Archive config (see config-archive.md)
 ```
 
 **Migration:**

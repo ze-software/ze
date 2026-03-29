@@ -301,8 +301,12 @@ Three filter categories:
 | `ze config set` | Set a configuration value programmatically |
 | `ze config import` | Import a configuration file into ze |
 | `ze config rename` | Rename a configuration element |
+| `ze config archive <name>` | Archive config to a named destination ([guide](guide/config-archive.md)) |
+| `ze config history` | List rollback revisions |
+| `ze config rollback <N>` | Restore revision N |
 
 <!-- source: cmd/ze/config/main.go -- config subcommand dispatch -->
+<!-- source: cmd/ze/config/cmd_archive.go -- archive subcommand -->
 <!-- source: cmd/ze/config/cmd_validate.go -- validate command -->
 <!-- source: cmd/ze/config/cmd_migrate.go -- migrate command -->
 <!-- source: cmd/ze/config/cmd_dump.go -- dump command -->

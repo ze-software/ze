@@ -45,7 +45,7 @@ The editor starts an ephemeral ze instance in the background for live YANG valid
 | `ze config set <file> <path> <value>` | Set a single value programmatically |
 | `ze config history <file>` | List available rollback revisions |
 | `ze config rollback <N> <file>` | Restore revision N |
-| `ze config archive <name> <file>` | Copy config to named archive |
+| `ze config archive <name> <file>` | Archive config to named destination ([details](config-archive.md)) |
 | `ze config completion <file>` | Query YANG completion engine (debugging) |
 <!-- source: cmd/ze/config/main.go -- subcommandHandlers, storageHandlers -->
 
@@ -91,5 +91,5 @@ ze config validate config.conf      # Pre-flight validation
 ze config edit config.conf          # Interactive editing
 ze config diff 3 config.conf       # Compare with revision 3
 ze config rollback 3 config.conf   # Restore revision 3
-ze config archive prod config.conf # Save a named copy
+ze config archive prod config.conf # Archive to named destination
 ```
