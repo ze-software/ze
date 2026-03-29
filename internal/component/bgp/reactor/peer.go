@@ -158,6 +158,12 @@ type Peer struct {
 	sendCtx   atomic.Pointer[bgpctx.EncodingContext]
 	sendCtxID bgpctx.ContextID
 
+	// updateGroupKey is the key under which this peer was registered in
+	// the update group index. Stored here so Remove can find the correct
+	// group even if sendCtxID has been cleared by clearEncodingContexts.
+	// Zero value means not in any group.
+	updateGroupKey GroupKey
+
 	// Per-peer message and route counters for operational statistics.
 	counters peerCounters
 

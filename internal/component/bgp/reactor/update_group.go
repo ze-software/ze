@@ -8,6 +8,8 @@
 package reactor
 
 import (
+	"sync"
+
 	bgpctx "codeberg.org/thomas-mangin/ze/internal/component/bgp/context"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
@@ -35,9 +37,11 @@ type UpdateGroup struct {
 // When enabled is false, all methods are no-ops and callers fall back
 // to per-peer behavior.
 //
-// NOT safe for concurrent use. The reactor event loop is single-threaded,
-// so no locking is needed.
+// Safe for concurrent use. Add/Remove are called from peer goroutines
+// (via notifyPeerEstablished/notifyPeerClosed), while GroupsForPeers
+// is called from the reactor API path.
 type UpdateGroupIndex struct {
+	mu      sync.Mutex
 	groups  map[GroupKey]*UpdateGroup
 	enabled bool
 }
@@ -63,7 +67,8 @@ func (idx *UpdateGroupIndex) Enabled() bool {
 }
 
 // Add registers a peer in the index under its current sendCtxID.
-// No-op when disabled or when the peer has ctxID=0 (not established).
+// Stores the GroupKey on the peer so Remove can find it even after
+// sendCtxID is cleared. No-op when disabled or ctxID=0.
 func (idx *UpdateGroupIndex) Add(peer *Peer) {
 	if !idx.enabled {
 		return
@@ -74,28 +79,37 @@ func (idx *UpdateGroupIndex) Add(peer *Peer) {
 	}
 
 	key := GroupKey{CtxID: ctxID, PolicyKey: 0}
+	peer.updateGroupKey = key
+
+	idx.mu.Lock()
 	group, ok := idx.groups[key]
 	if !ok {
 		group = &UpdateGroup{Key: key}
 		idx.groups[key] = group
 	}
 	group.Members = append(group.Members, peer)
+	idx.mu.Unlock()
 }
 
 // Remove unregisters a peer from the index. Deletes the group if empty.
-// No-op when disabled.
+// Uses the GroupKey stored on the peer by Add, so it works even after
+// sendCtxID has been cleared by clearEncodingContexts. No-op when disabled.
 func (idx *UpdateGroupIndex) Remove(peer *Peer) {
 	if !idx.enabled {
 		return
 	}
-	ctxID := peer.sendCtxID
-	if ctxID == 0 {
-		return
+	key := peer.updateGroupKey
+	if key.CtxID == 0 {
+		return // Never added
 	}
 
-	key := GroupKey{CtxID: ctxID, PolicyKey: 0}
+	// Clear stored key so double-Remove is safe.
+	peer.updateGroupKey = GroupKey{}
+
+	idx.mu.Lock()
 	group, ok := idx.groups[key]
 	if !ok {
+		idx.mu.Unlock()
 		return
 	}
 
@@ -114,6 +128,7 @@ func (idx *UpdateGroupIndex) Remove(peer *Peer) {
 	if len(group.Members) == 0 {
 		delete(idx.groups, key)
 	}
+	idx.mu.Unlock()
 }
 
 // GroupsForPeers returns the update groups formed by the given peer subset.
