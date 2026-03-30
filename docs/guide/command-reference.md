@@ -147,6 +147,10 @@ ze bgp decode <hex>              # Decode BGP message hex to JSON
 ze bgp encode <route-command>    # Encode route command to BGP hex
 ze bgp plugin cli                # Plugin debug shell (5-stage handshake + interactive)
 ze bgp plugin cli --name <name>  # Debug shell with custom plugin name
+
+# Also available via YANG verb dispatch (same behavior, no daemon needed):
+ze show bgp decode <hex>
+ze show bgp encode <route-command>
 ```
 
 **decode flags:**
