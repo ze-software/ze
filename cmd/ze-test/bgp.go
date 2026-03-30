@@ -326,10 +326,6 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 		r.SetExtraBinaries(map[string]string{
 			"ze-chaos": "./cmd/ze-chaos",
 		})
-	case cmdPlugin:
-		r.SetExtraBinaries(map[string]string{
-			"ze-rtr-mock": "./cmd/ze-rtr-mock",
-		})
 	}
 
 	// Section header first, then all info within it

@@ -212,7 +212,7 @@ EOF_CONF
 
 # RTR mock: 9.0.0.0/8 maxlen=32 AS=65001 (Valid), 10.0.0.0/8 maxlen=32 AS=65099 (Invalid)
 # No VRP for 11.0.0.0/8 → NotFound
-cmd=background:seq=1:exec=ze-rtr-mock --port $PORT2 --vrp 9.0.0.0/8,32,65001 --vrp 10.0.0.0/8,32,65099
+cmd=background:seq=1:exec=ze-test rtr-mock --port $PORT2 --vrp 9.0.0.0/8,32,65001 --vrp 10.0.0.0/8,32,65099
 cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=25s
 expect=exit:code=0

@@ -1,12 +1,12 @@
 // Design: docs/architecture/testing/ci-format.md -- mock RTR cache server for RPKI testing
 //
-// ze-rtr-mock is a lightweight RTR (RFC 8210) cache server for functional tests.
+// ze-test rtr-mock is a lightweight RTR (RFC 8210) cache server for functional tests.
 // It listens on TCP, accepts Reset Query or Serial Query PDUs, and responds
 // with Cache Response + configured VRPs + End of Data.
 //
 // Usage:
 //
-//	ze-rtr-mock --port 3323 --vrp 10.0.0.0/8,24,65001 --vrp 192.168.0.0/16,24,65002
+//	ze-test rtr-mock --port 3323 --vrp 10.0.0.0/8,24,65001 --vrp 192.168.0.0/16,24,65002
 package main
 
 import (
@@ -23,15 +23,15 @@ import (
 
 // RTR PDU types (RFC 8210 Section 5).
 const (
-	pduSerialQuery = 1
-	pduResetQuery  = 2
-	pduCacheResp   = 3
-	pduIPv4Prefix  = 4
-	pduIPv6Prefix  = 6
-	pduEndOfData   = 7
+	rtrMockPDUSerialQuery = 1
+	rtrMockPDUResetQuery  = 2
+	rtrMockPDUCacheResp   = 3
+	rtrMockPDUIPv4Prefix  = 4
+	rtrMockPDUIPv6Prefix  = 6
+	rtrMockPDUEndOfData   = 7
 
-	rtrVersion1  = 1
-	pduHeaderLen = 8
+	rtrMockVersion1  = 1
+	rtrMockHeaderLen = 8
 )
 
 // vrpFlag describes a VRP entry from command-line flags.
@@ -75,25 +75,25 @@ func (v *vrpList) Set(s string) error {
 	return nil
 }
 
-func main() {
+func rtrMockCmd() int {
 	var (
 		port   int
 		serial uint32
 		vrps   vrpList
 	)
 
-	fs := flag.NewFlagSet("ze-rtr-mock", flag.ExitOnError)
+	fs := flag.NewFlagSet("ze-test rtr-mock", flag.ExitOnError)
 	fs.IntVar(&port, "port", 0, "TCP listen port (0 = auto)")
 	fs.Var(&vrps, "vrp", "VRP entry: prefix,maxlen,asn (repeatable)")
 	serialFlag := fs.Uint("serial", 1, "initial serial number")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: ze-rtr-mock [flags]\n\nMock RTR cache server for RPKI testing.\n\nFlags:\n")
+		fmt.Fprintf(os.Stderr, "Usage: ze-test rtr-mock [flags]\n\nMock RTR cache server for RPKI testing.\n\nFlags:\n")
 		fs.PrintDefaults()
 	}
 
 	if err := fs.Parse(os.Args[1:]); err != nil {
-		os.Exit(1)
+		return 1
 	}
 	serial = uint32(*serialFlag) //nolint:gosec // serial number fits uint32
 
@@ -101,27 +101,27 @@ func main() {
 	ln, err := lc.Listen(context.Background(), "tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: listen: %v\n", err)
-		os.Exit(1)
+		return 1
 	}
 	defer func() { _ = ln.Close() }()
 
 	// Print the actual port for test infrastructure to discover.
 	_, portStr, _ := net.SplitHostPort(ln.Addr().String())
-	fmt.Fprintf(os.Stderr, "ze-rtr-mock: listening on port %s with %d VRPs\n", portStr, len(vrps))
+	fmt.Fprintf(os.Stderr, "ze-test rtr-mock: listening on port %s with %d VRPs\n", portStr, len(vrps))
 
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			return // Listener closed
+			return 0 // Listener closed
 		}
-		go handleConn(conn, vrps, serial)
+		go rtrMockHandleConn(conn, vrps, serial)
 	}
 }
 
-func handleConn(conn net.Conn, vrps vrpList, serial uint32) {
+func rtrMockHandleConn(conn net.Conn, vrps vrpList, serial uint32) {
 	defer func() { _ = conn.Close() }()
 
-	header := make([]byte, pduHeaderLen)
+	header := make([]byte, rtrMockHeaderLen)
 	for {
 		if _, err := io.ReadFull(conn, header); err != nil {
 			return // Connection closed
@@ -131,7 +131,11 @@ func handleConn(conn net.Conn, vrps vrpList, serial uint32) {
 		pduLen := binary.BigEndian.Uint32(header[4:8])
 
 		// Read remaining bytes if any.
-		remaining := int(pduLen) - pduHeaderLen
+		// Cap to prevent unbounded allocation from malformed PDU length.
+		remaining := int(pduLen) - rtrMockHeaderLen
+		if remaining > 4096 {
+			return // Malformed PDU, close connection.
+		}
 		if remaining > 0 {
 			discard := make([]byte, remaining)
 			if _, err := io.ReadFull(conn, discard); err != nil {
@@ -140,8 +144,8 @@ func handleConn(conn net.Conn, vrps vrpList, serial uint32) {
 		}
 
 		switch pduType {
-		case pduResetQuery, pduSerialQuery:
-			if err := sendResponse(conn, vrps, serial); err != nil {
+		case rtrMockPDUResetQuery, rtrMockPDUSerialQuery:
+			if err := rtrMockSendResponse(conn, vrps, serial); err != nil {
 				return
 			}
 		default:
@@ -150,30 +154,30 @@ func handleConn(conn net.Conn, vrps vrpList, serial uint32) {
 	}
 }
 
-func sendResponse(conn net.Conn, vrps vrpList, serial uint32) error {
+func rtrMockSendResponse(conn net.Conn, vrps vrpList, serial uint32) error {
 	sessionID := uint16(1)
 
 	// Cache Response PDU
-	cr := make([]byte, pduHeaderLen)
-	cr[0] = rtrVersion1
-	cr[1] = pduCacheResp
+	cr := make([]byte, rtrMockHeaderLen)
+	cr[0] = rtrMockVersion1
+	cr[1] = rtrMockPDUCacheResp
 	binary.BigEndian.PutUint16(cr[2:4], sessionID)
-	binary.BigEndian.PutUint32(cr[4:8], pduHeaderLen)
+	binary.BigEndian.PutUint32(cr[4:8], rtrMockHeaderLen)
 	if _, err := conn.Write(cr); err != nil {
 		return err
 	}
 
 	// Send each VRP as IPv4 or IPv6 Prefix PDU
 	for _, vrp := range vrps {
-		if err := sendPrefixPDU(conn, sessionID, vrp); err != nil {
+		if err := rtrMockSendPrefixPDU(conn, vrp); err != nil {
 			return err
 		}
 	}
 
 	// End of Data PDU (version 1: 24 bytes)
 	eod := make([]byte, 24)
-	eod[0] = rtrVersion1
-	eod[1] = pduEndOfData
+	eod[0] = rtrMockVersion1
+	eod[1] = rtrMockPDUEndOfData
 	binary.BigEndian.PutUint16(eod[2:4], sessionID)
 	binary.BigEndian.PutUint32(eod[4:8], 24)
 	binary.BigEndian.PutUint32(eod[8:12], serial)
@@ -187,13 +191,13 @@ func sendResponse(conn net.Conn, vrps vrpList, serial uint32) error {
 	return nil
 }
 
-func sendPrefixPDU(conn net.Conn, _ uint16, vrp vrpFlag) error {
+func rtrMockSendPrefixPDU(conn net.Conn, vrp vrpFlag) error {
 	ip4 := vrp.prefix.IP.To4()
 	if ip4 != nil {
 		// IPv4 Prefix PDU: 20 bytes
 		pdu := make([]byte, 20)
-		pdu[0] = rtrVersion1
-		pdu[1] = pduIPv4Prefix
+		pdu[0] = rtrMockVersion1
+		pdu[1] = rtrMockPDUIPv4Prefix
 		// bytes 2-3: zero (reserved)
 		binary.BigEndian.PutUint32(pdu[4:8], 20) // length
 		pdu[8] = 1                               // flags: announce
@@ -210,8 +214,8 @@ func sendPrefixPDU(conn net.Conn, _ uint16, vrp vrpFlag) error {
 	// IPv6 Prefix PDU: 32 bytes
 	ip6 := vrp.prefix.IP.To16()
 	pdu := make([]byte, 32)
-	pdu[0] = rtrVersion1
-	pdu[1] = pduIPv6Prefix
+	pdu[0] = rtrMockVersion1
+	pdu[1] = rtrMockPDUIPv6Prefix
 	binary.BigEndian.PutUint32(pdu[4:8], 32) // length
 	pdu[8] = 1                               // flags: announce
 	prefixLen, _ := vrp.prefix.Mask.Size()

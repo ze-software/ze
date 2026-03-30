@@ -122,7 +122,7 @@ bgp {
 EOF_CONF
 
 # VRP: 10.0.0.0/8 maxlen=24 AS=65001 (10.0.1.0/25 exceeds maxLength = Invalid)
-cmd=background:seq=1:exec=ze-rtr-mock --port $PORT2 --vrp 10.0.0.0/8,24,65001
+cmd=background:seq=1:exec=ze-test rtr-mock --port $PORT2 --vrp 10.0.0.0/8,24,65001
 cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0

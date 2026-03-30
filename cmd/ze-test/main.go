@@ -8,6 +8,7 @@
 //	ze-test ui [flags]             Run UI functional tests (completion, CLI)
 //	ze-test editor [flags]         Run editor functional tests (.et files)
 //	ze-test peer [flags]           BGP test peer (sink/echo/check modes)
+//	ze-test rtr-mock [flags]       Mock RTR cache server (explicit VRPs)
 //	ze-test rpki [flags]           Deterministic RPKI mock server (IP modulo)
 //	ze-test peeringdb [flags]      Deterministic PeeringDB mock server (ASN-derived)
 //	ze-test syslog [flags]         Run syslog server for testing
@@ -52,6 +53,8 @@ func main() {
 		os.Exit(syslogCmd())
 	case "text-plugin":
 		os.Exit(textPluginCmd())
+	case "rtr-mock":
+		os.Exit(rtrMockCmd())
 	case "rpki":
 		os.Exit(rpkiCmd())
 	case "peeringdb":
@@ -81,6 +84,7 @@ Commands:
   managed      Run managed config tests (hub, auth, fleet)
   web          Run web browser functional tests (.wb files)
   peer         BGP test peer (sink/echo/check modes)
+  rtr-mock     Mock RTR cache server (explicit VRPs for RPKI testing)
   rpki         Deterministic RPKI mock server (IP modulo for validation state)
   peeringdb    Deterministic PeeringDB mock server (ASN-derived prefix counts)
   syslog       Run syslog server for testing
