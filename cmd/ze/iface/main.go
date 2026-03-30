@@ -36,11 +36,13 @@ func Run(args []string) int {
 		return cmdUnit(subArgs)
 	case "addr":
 		return cmdAddr(subArgs)
+	case "migrate":
+		return cmdMigrate(subArgs)
 	}
 
 	fmt.Fprintf(os.Stderr, "error: unknown interface subcommand: %s\n", subcmd)
 	if s := suggest.Command(subcmd, []string{
-		"show", "create", "delete", "unit", "addr", "help",
+		"show", "create", "delete", "unit", "addr", "migrate", "help",
 	}); s != "" {
 		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", s)
 	}
@@ -63,6 +65,7 @@ Commands:
   unit del <name> <id>                 Delete a logical unit
   addr add <name> unit <id> <cidr>     Add an IP address to a unit
   addr del <name> unit <id> <cidr>     Remove an IP address from a unit
+  migrate --from .. --to .. --address  Make-before-break IP migration
   help                                 Show this help
 
 Examples:

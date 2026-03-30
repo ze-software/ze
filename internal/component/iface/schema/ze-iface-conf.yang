@@ -116,6 +116,66 @@ module ze-iface-conf {
                     description "Enable IPv6 forwarding";
                 }
             }
+
+            container dhcp {
+                description "DHCPv4 client configuration";
+
+                leaf enabled {
+                    type boolean;
+                    default false;
+                    description "Enable DHCPv4 client";
+                }
+
+                leaf client-id {
+                    type string;
+                    description "Client identifier";
+                }
+
+                leaf hostname {
+                    type string;
+                    description "Hostname in DHCP requests";
+                }
+            }
+
+            container dhcpv6 {
+                description "DHCPv6 client configuration";
+
+                leaf enabled {
+                    type boolean;
+                    default false;
+                    description "Enable DHCPv6 client";
+                }
+
+                container pd {
+                    description "Prefix delegation";
+
+                    leaf length {
+                        type uint8 {
+                            range "48..64";
+                        }
+                        description "Requested prefix length";
+                    }
+                }
+
+                leaf duid {
+                    type string;
+                    description "DUID override";
+                }
+            }
+
+            container mirror {
+                description "Traffic mirroring";
+
+                leaf ingress {
+                    type string;
+                    description "Mirror ingress traffic to this interface";
+                }
+
+                leaf egress {
+                    type string;
+                    description "Mirror egress traffic to this interface";
+                }
+            }
         }
     }
 

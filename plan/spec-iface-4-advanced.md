@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-iface-2, spec-iface-3 |
 | Phase | - |
-| Updated | 2026-03-25 |
+| Updated | 2026-03-30 |
 
 ## Post-Compaction Recovery
 

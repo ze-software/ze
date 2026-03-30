@@ -3,6 +3,10 @@
 // Detail: manage_linux.go — interface management via netlink
 // Detail: monitor_linux.go — netlink interface monitor
 // Detail: sysctl_linux.go — per-interface sysctl management
+// Detail: mirror_linux.go — traffic mirroring via tc mirred
+// Detail: slaac_linux.go — IPv6 SLAAC control
+// Detail: migrate_linux.go — make-before-break interface migration
+// Detail: dhcp_linux.go — DHCP client for interface plugin
 
 // Package iface implements the interface monitoring and management plugin.
 //
@@ -29,6 +33,13 @@ const (
 	TopicAddrAdded = "interface/addr/added"
 	// TopicAddrRemoved is published when an IP is removed.
 	TopicAddrRemoved = "interface/addr/removed"
+
+	// TopicDHCPLeaseAcquired is published when a DHCP lease is first obtained.
+	TopicDHCPLeaseAcquired = "interface/dhcp/lease-acquired"
+	// TopicDHCPLeaseRenewed is published when a DHCP lease is renewed.
+	TopicDHCPLeaseRenewed = "interface/dhcp/lease-renewed"
+	// TopicDHCPLeaseExpired is published when a DHCP lease expires.
+	TopicDHCPLeaseExpired = "interface/dhcp/lease-expired"
 )
 
 // AddrPayload is the JSON payload for address events (addr/added, addr/removed).
@@ -56,4 +67,16 @@ type LinkPayload struct {
 type StatePayload struct {
 	Name  string `json:"name"`
 	Index int    `json:"index"`
+}
+
+// DHCPPayload is the JSON payload for DHCP lease events.
+// Field names use kebab-case per rules/json-format.md.
+type DHCPPayload struct {
+	Name         string `json:"name"`
+	Unit         int    `json:"unit"`
+	Address      string `json:"address"`
+	PrefixLength int    `json:"prefix-length"`
+	Router       string `json:"router,omitempty"`
+	DNS          string `json:"dns,omitempty"`
+	LeaseTime    int    `json:"lease-time"`
 }
