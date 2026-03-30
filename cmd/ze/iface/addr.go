@@ -88,6 +88,10 @@ func parseAddrArgs(action string, args []string) (string, string, bool) {
 		fmt.Fprintf(os.Stderr, "error: invalid unit id %q: %v\n", args[2], err)
 		return "", "", false
 	}
+	if unitID < 0 {
+		fmt.Fprintf(os.Stderr, "error: unit id must be >= 0\n")
+		return "", "", false
+	}
 
 	cidr := args[3]
 

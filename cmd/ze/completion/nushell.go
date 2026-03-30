@@ -174,6 +174,10 @@ extern "ze" [
     --chaos-rate: number                                        # Fault probability per operation (0.0-1.0)
 ]
 
+# --- interface ---
+
+extern "ze interface" { }
+
 # --- bgp ---
 
 extern "ze bgp" [

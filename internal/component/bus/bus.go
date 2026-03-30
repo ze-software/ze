@@ -78,6 +78,7 @@ func (b *Bus) Publish(topic string, payload []byte, metadata map[string]string) 
 	}
 
 	b.subMu.RLock()
+	var targets []*worker
 	for _, s := range b.subs {
 		if !matchesPrefix(topic, s.prefix) {
 			continue
@@ -85,12 +86,15 @@ func (b *Bus) Publish(topic string, payload []byte, metadata map[string]string) 
 		if !matchesFilter(metadata, s.filter) {
 			continue
 		}
-		w := b.workers[s.workerID]
-		if w != nil {
-			w.ch <- event
+		if w := b.workers[s.workerID]; w != nil {
+			targets = append(targets, w)
 		}
 	}
 	b.subMu.RUnlock()
+
+	for _, w := range targets {
+		w.ch <- event
+	}
 }
 
 // Subscribe registers a consumer for all topics matching the given prefix.
@@ -99,6 +103,7 @@ func (b *Bus) Publish(topic string, payload []byte, metadata map[string]string) 
 func (b *Bus) Subscribe(prefix string, filter map[string]string, consumer ze.Consumer) (ze.Subscription, error) {
 	id := b.nextID.Add(1)
 
+	b.subMu.Lock()
 	w := b.findOrCreateWorker(consumer)
 
 	s := &subscription{
@@ -108,7 +113,6 @@ func (b *Bus) Subscribe(prefix string, filter map[string]string, consumer ze.Con
 		workerID: w.id,
 	}
 
-	b.subMu.Lock()
 	b.subs = append(b.subs, s)
 	b.subMu.Unlock()
 

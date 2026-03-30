@@ -164,6 +164,7 @@ func cliSubcommands() []cliCmd {
 		{"run", "daemon", "All daemon commands (dynamic from RPCs)", "connects via SSH to running daemon"},
 		{"plugin", "offline", "Plugin system", "<plugin-name> for plugin CLI, test for debugging"},
 		{"init", "setup", "Bootstrap database with SSH credentials", "--managed for fleet mode, --force to replace"},
+		{"interface", "offline", "Manage OS network interfaces", "show, create, delete, unit, addr, migrate"},
 		{"data", "offline", "ZeFS blob store management", "import, rm, ls, cat"},
 		{"schema", "offline", "Schema discovery", "list, show <module>, handlers, methods, events, protocol"},
 		{"yang", "offline", "YANG tree analysis", "completion, tree, doc"},

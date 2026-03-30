@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/netip"
 	"strings"
 	"time"
 
@@ -87,7 +88,9 @@ func (c *bgpReadyConsumer) Deliver(events []ze.Event) error {
 		}
 		targetIP := stripPrefix(c.targetAddr)
 		addrIP := stripPrefix(addr)
-		if addrIP == targetIP || addr == c.targetAddr {
+		targetParsed, targetErr := netip.ParseAddr(targetIP)
+		addrParsed, addrErr := netip.ParseAddr(addrIP)
+		if (targetErr == nil && addrErr == nil && targetParsed == addrParsed) || addr == c.targetAddr {
 			select {
 			case c.ready <- struct{}{}: // signal readiness
 			default: // already signaled

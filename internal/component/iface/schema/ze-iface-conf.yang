@@ -74,9 +74,11 @@ module ze-iface-conf {
             }
 
             leaf-list address {
-                type string;
+                type string {
+                    pattern '[0-9a-fA-F:./]+';
+                }
                 ze:syntax "bracket";
-                description "Interface addresses in CIDR notation";
+                description "Interface addresses in CIDR notation (e.g., 10.0.0.1/24, fd00::1/64)";
             }
 
             container ipv4 {

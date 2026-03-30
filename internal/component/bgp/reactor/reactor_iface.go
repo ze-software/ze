@@ -52,6 +52,7 @@ func (r *Reactor) handleAddrAdded(ev ze.Event) {
 		reactorLogger().Debug("iface: parse address", "address", payload.Address, "error", err)
 		return
 	}
+	addr = addr.Unmap()
 
 	// Find peers whose LocalAddress matches.
 	r.mu.RLock()
@@ -77,6 +78,11 @@ func (r *Reactor) handleAddrAdded(ev ze.Event) {
 	if err := r.startListenerForAddressPort(addr, port, netip.AddrPort{}); err != nil {
 		reactorLogger().Error("iface: start listener failed",
 			"address", payload.Address, "port", port, "error", err)
+	} else if r.bus != nil {
+		readyPayload, _ := json.Marshal(map[string]string{"address": payload.Address})
+		r.bus.Publish("bgp/listener/ready", readyPayload, map[string]string{
+			"address": payload.Address,
+		})
 	}
 	r.mu.Unlock()
 }
@@ -93,6 +99,7 @@ func (r *Reactor) handleAddrRemoved(ev ze.Event) {
 	if err != nil {
 		return
 	}
+	addr = addr.Unmap()
 
 	r.mu.Lock()
 	port := r.config.Port

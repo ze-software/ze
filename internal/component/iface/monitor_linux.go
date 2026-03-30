@@ -77,8 +77,11 @@ func (m *Monitor) Start() error {
 }
 
 // Stop closes the netlink socket and waits for the monitor goroutine to exit.
-// Safe to call multiple times.
+// Safe to call multiple times. Safe to call if Start was never called or failed.
 func (m *Monitor) Stop() {
+	if !m.started.Load() {
+		return
+	}
 	m.stopFn.Do(func() { close(m.stop) })
 	<-m.done
 }

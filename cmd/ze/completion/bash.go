@@ -64,7 +64,7 @@ _ze() {
         cword=${COMP_CWORD}
     fi
 
-    local commands="bgp config cli schema show run status plugin exabgp signal completion version help"
+    local commands="bgp config cli exabgp interface plugin schema show run status signal completion version help"
 
     # Complete argument for flags that take a value
     case "${prev}" in

@@ -40,7 +40,7 @@ func validateIfaceName(name string) error {
 	}
 	for i := range n {
 		c := name[i]
-		if c == '/' || c == 0 || c == ' ' || c == '\t' {
+		if c == '/' || c == 0 || c == ' ' || c == '\t' || c == '\n' || c == '\r' {
 			return fmt.Errorf("iface: name %q contains forbidden character", name)
 		}
 	}

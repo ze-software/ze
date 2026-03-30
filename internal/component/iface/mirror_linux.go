@@ -5,10 +5,17 @@ package iface
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
 )
+
+// isNotFound returns true if the error indicates a missing qdisc ("no such"
+// device or object), which is expected during idempotent cleanup.
+func isNotFound(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "no such")
+}
 
 // SetupMirror configures ingress and/or egress traffic mirroring from srcIface
 // to dstIface using tc qdiscs and matchall filters with mirred actions.
@@ -197,9 +204,14 @@ func RemoveMirror(srcIface string) error {
 
 	// Both clsact and ingress share the same parent handle (HANDLE_CLSACT ==
 	// HANDLE_INGRESS), so in practice only one will exist. If both deletions
-	// fail, neither qdisc was present, which is fine for idempotent cleanup.
-	_ = clsactErr
-	_ = ingressErr
+	// fail with "not found", neither qdisc was present, which is fine for
+	// idempotent cleanup. Real errors are returned.
+	if clsactErr != nil && !isNotFound(clsactErr) {
+		return fmt.Errorf("iface: mirror: remove clsact qdisc: %w", clsactErr)
+	}
+	if ingressErr != nil && !isNotFound(ingressErr) {
+		return fmt.Errorf("iface: mirror: remove ingress qdisc: %w", ingressErr)
+	}
 
 	return nil
 }

@@ -211,8 +211,13 @@ func (c *DHCPClient) runV4() {
 		}
 
 		// T1 renewal attempt.
-		renewed := c.renewV4(lease)
+		newLease, renewed := c.renewV4(lease)
 		if renewed {
+			lease = newLease
+			ack = lease.ACK
+			leaseTime = c.v4LeaseTime(ack)
+			t1 = leaseTime / 2
+			t2 = leaseTime * 7 / 8
 			if !c.sleepOrStop(t2 - t1) {
 				c.removeV4Addr(ack)
 				return
@@ -225,7 +230,13 @@ func (c *DHCPClient) runV4() {
 				c.removeV4Addr(ack)
 				return
 			}
-			renewed = c.renewV4(lease)
+			newLease, renewed = c.renewV4(lease)
+			if renewed {
+				lease = newLease
+				ack = lease.ACK
+				leaseTime = c.v4LeaseTime(ack)
+				t2 = leaseTime * 7 / 8
+			}
 		}
 
 		if renewed {
@@ -242,15 +253,17 @@ func (c *DHCPClient) runV4() {
 	}
 }
 
-// renewV4 attempts to renew the DHCPv4 lease. Returns true on success.
-func (c *DHCPClient) renewV4(lease *nclient4.Lease) bool {
+// renewV4 attempts to renew the DHCPv4 lease. Returns the renewed lease and
+// true on success, or nil and false on failure. Callers MUST update their
+// local ack/leaseTime/t1/t2 from the returned lease on success.
+func (c *DHCPClient) renewV4(lease *nclient4.Lease) (*nclient4.Lease, bool) {
 	logger := loggerPtr.Load()
 
 	client, err := nclient4.New(c.ifaceName)
 	if err != nil {
 		logger.Warn("iface dhcp v4: renewal client failed",
 			"iface", c.ifaceName, "err", err)
-		return false
+		return nil, false
 	}
 	defer func() {
 		if closeErr := client.Close(); closeErr != nil {
@@ -265,15 +278,15 @@ func (c *DHCPClient) renewV4(lease *nclient4.Lease) bool {
 	if err != nil {
 		logger.Warn("iface dhcp v4: renewal failed",
 			"iface", c.ifaceName, "err", err)
-		return false
+		return nil, false
 	}
 
 	if renewed == nil || renewed.ACK == nil {
-		return false
+		return nil, false
 	}
 
 	c.handleV4Lease(renewed.ACK, TopicDHCPLeaseRenewed)
-	return true
+	return renewed, true
 }
 
 // handleV4Lease installs the leased address on the interface and publishes an event.
@@ -464,8 +477,10 @@ func (c *DHCPClient) runV6() {
 		}
 
 		// T1 renewal.
-		renewed := c.renewV6()
+		newMsg, renewed := c.renewV6()
 		if renewed {
+			msg = newMsg
+			t1, t2, validLft = c.v6Timers(msg)
 			if !c.sleepOrStop(t2 - t1) {
 				c.removeV6Addrs(msg)
 				return
@@ -473,8 +488,17 @@ func (c *DHCPClient) runV6() {
 		}
 
 		if !renewed {
+			// Wait until T2 before rebind attempt, matching v4 behavior.
+			if !c.sleepOrStop(t2 - t1) {
+				c.removeV6Addrs(msg)
+				return
+			}
 			// T2 rebind attempt.
-			renewed = c.renewV6()
+			newMsg, renewed = c.renewV6()
+			if renewed {
+				msg = newMsg
+				_, t2, validLft = c.v6Timers(msg)
+			}
 		}
 
 		if renewed {
@@ -494,15 +518,21 @@ func (c *DHCPClient) runV6() {
 	}
 }
 
-// renewV6 attempts to renew the DHCPv6 lease. Returns true on success.
-func (c *DHCPClient) renewV6() bool {
+// renewV6 attempts to renew the DHCPv6 lease. Returns the new message and
+// true on success, or nil and false on failure. Callers MUST update their
+// local msg/t1/t2/validLft from the returned message on success.
+//
+// Note: nclient6 does not expose Renew/Rebind methods. RapidSolicit performs
+// a full re-solicitation which may return different addresses. This is a known
+// limitation -- proper DHCPv6 Renew requires raw message construction.
+func (c *DHCPClient) renewV6() (*dhcpv6.Message, bool) {
 	logger := loggerPtr.Load()
 
 	client, err := nclient6.New(c.ifaceName)
 	if err != nil {
 		logger.Warn("iface dhcp v6: renewal client failed",
 			"iface", c.ifaceName, "err", err)
-		return false
+		return nil, false
 	}
 	defer func() {
 		if closeErr := client.Close(); closeErr != nil {
@@ -517,15 +547,15 @@ func (c *DHCPClient) renewV6() bool {
 	if err != nil {
 		logger.Warn("iface dhcp v6: renewal failed",
 			"iface", c.ifaceName, "err", err)
-		return false
+		return nil, false
 	}
 
 	if reply == nil {
-		return false
+		return nil, false
 	}
 
 	c.handleV6Reply(reply, TopicDHCPLeaseRenewed)
-	return true
+	return reply, true
 }
 
 // handleV6Reply installs leased addresses from IA_NA options and publishes events.
@@ -595,9 +625,16 @@ func (c *DHCPClient) handleV6Reply(msg *dhcpv6.Message, topic string) {
 		}
 	}
 
-	// Process IA_PD (prefix delegation).
+	// Process IA_PD (prefix delegation). Cap iterations like IA_NA above.
+	pdCount := 0
 	for _, iapd := range msg.Options.IAPD() {
 		for _, prefix := range iapd.Options.Prefixes() {
+			if pdCount >= maxAddrs {
+				logger.Warn("iface dhcp v6: too many IA_PD prefixes, capping",
+					"iface", c.ifaceName, "max", maxAddrs)
+				break
+			}
+			pdCount++
 			pfx := prefix.Prefix
 			if pfx == nil {
 				continue
@@ -631,8 +668,14 @@ func (c *DHCPClient) removeV6Addrs(msg *dhcpv6.Message) {
 		return
 	}
 
+	const maxAddrs = 16
+	count := 0
 	for _, iana := range msg.Options.IANA() {
 		for _, iaAddr := range iana.Options.Addresses() {
+			if count >= maxAddrs {
+				break
+			}
+			count++
 			ip := iaAddr.IPv6Addr
 			if ip == nil {
 				continue
@@ -652,8 +695,14 @@ func (c *DHCPClient) removeV6Addrs(msg *dhcpv6.Message) {
 
 // publishV6Expired publishes lease-expired events for all IA_NA addresses.
 func (c *DHCPClient) publishV6Expired(msg *dhcpv6.Message) {
+	const maxAddrs = 16
+	count := 0
 	for _, iana := range msg.Options.IANA() {
 		for _, iaAddr := range iana.Options.Addresses() {
+			if count >= maxAddrs {
+				break
+			}
+			count++
 			ip := iaAddr.IPv6Addr
 			if ip == nil {
 				continue
