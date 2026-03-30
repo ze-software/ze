@@ -27,6 +27,7 @@ type LocalHandler func(args []string) int
 // localHandlers maps CLI command paths (space-joined, e.g. "show version")
 // to local handler functions. Commands registered here run in-process
 // instead of being dispatched via SSH to the daemon.
+// MUST be populated at startup before any concurrent use of RunCommand.
 var localHandlers = make(map[string]LocalHandler)
 
 // RegisterLocalCommand registers a handler for a CLI command path that
@@ -73,9 +74,6 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 		return -1 // signal caller to show usage
 	}
 
-	// Extract output format keyword (yaml/json/table) from end of command.
-	cmdWords, format := ExtractOutputFormat(cmdWords)
-
 	tree := cli.BuildCommandTree(readOnly)
 
 	// Extract peer selector (IP/glob) from command words.
@@ -84,12 +82,20 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 	treeWords, selector := ExtractSelector(cmdWords, tree)
 
 	// Check local handler registry first (offline commands like version, completion).
-	// Note: output format (yaml/json/table) is not passed to local handlers.
-	// If a future local handler needs format support, extend LocalHandler signature.
+	// Local handlers receive all remaining args including any format keywords.
 	// Try longest prefix match: "show bgp decode update hex" matches handler "show bgp decode"
 	// with remaining args ["update", "hex"].
 	if handler, handlerArgs := matchLocalHandler(treeWords, selector); handler != nil {
 		return handler(handlerArgs)
+	}
+
+	// Extract output format keyword (yaml/json/table) from end of command.
+	// Done after local handler check so format keywords don't get silently stripped
+	// from commands that don't support them.
+	cmdWords, format := ExtractOutputFormat(cmdWords)
+
+	if len(cmdWords) == 0 {
+		return -1 // signal caller to show usage (all words were format keyword)
 	}
 
 	if !IsValidCommand(treeWords, tree) {

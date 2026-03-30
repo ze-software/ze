@@ -82,15 +82,66 @@ func registerLocalCommands() {
 		path    string
 		handler cmdutil.LocalHandler
 	}{
+		// Version.
 		{"show version", func(_ []string) int {
 			printVersion()
 			return 0
 		}},
+		// BGP offline tools.
 		{"show bgp decode", func(args []string) int {
 			return bgp.Run(append([]string{"decode"}, args...))
 		}},
 		{"show bgp encode", func(args []string) int {
 			return bgp.Run(append([]string{"encode"}, args...))
+		}},
+		// Environment variables.
+		{"show env list", func(args []string) int {
+			return zeenv.Run(append([]string{"list"}, args...))
+		}},
+		{"show env get", func(args []string) int {
+			return zeenv.Run(append([]string{"get"}, args...))
+		}},
+		{"show env registered", func(args []string) int {
+			return zeenv.Run(append([]string{"registered"}, args...))
+		}},
+		// Schema discovery.
+		{"show schema list", func(args []string) int {
+			return schema.Run(append([]string{"list"}, args...), nil)
+		}},
+		{"show schema methods", func(args []string) int {
+			return schema.Run(append([]string{"methods"}, args...), nil)
+		}},
+		{"show schema events", func(args []string) int {
+			return schema.Run(append([]string{"events"}, args...), nil)
+		}},
+		{"show schema handlers", func(args []string) int {
+			return schema.Run(append([]string{"handlers"}, args...), nil)
+		}},
+		{"show schema protocol", func(_ []string) int {
+			return schema.Run([]string{"protocol"}, nil)
+		}},
+		// YANG analysis.
+		{"show yang tree", func(args []string) int {
+			return zeyang.Run(append([]string{"tree"}, args...))
+		}},
+		{"show yang completion", func(args []string) int {
+			return zeyang.Run(append([]string{"completion"}, args...))
+		}},
+		{"show yang doc", func(args []string) int {
+			return zeyang.Run(append([]string{"doc"}, args...))
+		}},
+		// Shell completion.
+		{"show completion bash", func(_ []string) int {
+			return zecompletion.Run([]string{"bash"})
+		}},
+		{"show completion zsh", func(_ []string) int {
+			return zecompletion.Run([]string{"zsh"})
+		}},
+		{"show completion fish", func(_ []string) int {
+			return zecompletion.Run([]string{"fish"})
+		}},
+		{"show completion nushell", func(_ []string) int {
+			return zecompletion.Run([]string{"nushell"})
 		}},
 	}
 	for _, cmd := range localCmds {

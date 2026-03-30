@@ -43,5 +43,115 @@ module ze-cli-show-cmd {
                 description "Encode API route command to BGP hex";
             }
         }
+
+        container env {
+            config false;
+            description "Environment variable inspection";
+
+            container list {
+                config false;
+                ze:command "ze-show:env-list";
+                description "List registered environment variables";
+            }
+
+            container get {
+                config false;
+                ze:command "ze-show:env-get";
+                description "Show details for a specific environment variable";
+            }
+
+            container registered {
+                config false;
+                ze:command "ze-show:env-registered";
+                description "List all registered environment variables";
+            }
+        }
+
+        container schema {
+            config false;
+            description "Schema discovery and introspection";
+
+            container list {
+                config false;
+                ze:command "ze-show:schema-list";
+                description "List all registered YANG schemas";
+            }
+
+            container methods {
+                config false;
+                ze:command "ze-show:schema-methods";
+                description "List RPCs from YANG API modules";
+            }
+
+            container events {
+                config false;
+                ze:command "ze-show:schema-events";
+                description "List notifications from YANG API modules";
+            }
+
+            container handlers {
+                config false;
+                ze:command "ze-show:schema-handlers";
+                description "List handler to module mapping";
+            }
+
+            container protocol {
+                config false;
+                ze:command "ze-show:schema-protocol";
+                description "Show protocol version and format info";
+            }
+        }
+
+        container yang {
+            config false;
+            description "YANG tree analysis and documentation";
+
+            container tree {
+                config false;
+                ze:command "ze-show:yang-tree";
+                description "Display YANG tree for a module";
+            }
+
+            container completion {
+                config false;
+                ze:command "ze-show:yang-completion";
+                description "Show YANG completion paths";
+            }
+
+            container doc {
+                config false;
+                ze:command "ze-show:yang-doc";
+                description "Generate command documentation from YANG";
+            }
+        }
+
+        container completion {
+            config false;
+            description "Shell completion script generation";
+
+            container bash {
+                config false;
+                ze:command "ze-show:completion-bash";
+                description "Generate bash completion script";
+            }
+
+            container zsh {
+                config false;
+                ze:command "ze-show:completion-zsh";
+                description "Generate zsh completion script";
+            }
+
+            container fish {
+                config false;
+                ze:command "ze-show:completion-fish";
+                description "Generate fish completion script";
+            }
+
+            container nushell {
+                config false;
+                ze:command "ze-show:completion-nushell";
+                description "Generate nushell completion script";
+            }
+        }
     }
 }
