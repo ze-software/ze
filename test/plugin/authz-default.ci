@@ -100,7 +100,7 @@ printf 'unknown\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$UNK_DI
 
 # Test 1: unknown user (no profile assignment) can run any read-only command
 # Store.Authorize returns Allow for users with no assignment (built-in admin)
-OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ZE_SSH_PASSWORD="testpass" ze cli --run "peer list" 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "peer list" 2>&1) || {
 	echo "FAIL: unknown user should get admin default (allow 'peer list')" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1
@@ -108,7 +108,7 @@ OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ZE_SSH_PASSWORD="testpass" ze cli --run "peer 
 echo "OK: unknown user allowed peer list (admin default)" >&2
 
 # Test 2: unknown user can also run commands that restricted profile would deny
-OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ZE_SSH_PASSWORD="testpass" ze cli --run "peer detail" 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$UNK_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "peer detail" 2>&1) || {
 	echo "FAIL: unknown user should get admin default (allow 'peer detail')" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1

@@ -114,7 +114,7 @@ trap 'rm -rf "$ADMIN_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_PID 2>/dev
 printf 'admin\ntestpass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$ADMIN_DIR" ze init >/dev/null
 
 # Test 1: admin can run read-only command
-OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli --run "peer list" 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$ADMIN_DIR" ZE_SSH_PASSWORD="testpass" ze cli -c "peer list" 2>&1) || {
 	echo "FAIL: admin should be allowed to run 'peer list'" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1
@@ -127,7 +127,7 @@ trap 'rm -rf "$ADMIN_DIR" "$OP_DIR"; kill $DAEMON_PID 2>/dev/null; wait $DAEMON_
 printf 'operator\noppass\n127.0.0.1\n%s\n' "$SSH_PORT" | ZE_CONFIG_DIR="$OP_DIR" ze init >/dev/null
 
 # ... "peer list")
-OUTPUT=$(ZE_CONFIG_DIR="$OP_DIR" ZE_SSH_PASSWORD="oppass" ze cli --run "peer list" 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$OP_DIR" ZE_SSH_PASSWORD="oppass" ze cli -c "peer list" 2>&1) || {
 	echo "FAIL: operator should be allowed to run 'peer list' (entry 10)" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1
@@ -135,7 +135,7 @@ OUTPUT=$(ZE_CONFIG_DIR="$OP_DIR" ZE_SSH_PASSWORD="oppass" ze cli --run "peer lis
 echo "OK: operator allowed peer list (entry match)" >&2
 
 # ... "summary")
-OUTPUT=$(ZE_CONFIG_DIR="$OP_DIR" ZE_SSH_PASSWORD="oppass" ze cli --run "summary" 2>&1) || {
+OUTPUT=$(ZE_CONFIG_DIR="$OP_DIR" ZE_SSH_PASSWORD="oppass" ze cli -c "summary" 2>&1) || {
 	echo "FAIL: operator should be allowed to run 'summary' (entry 20)" >&2
 	echo "OUTPUT: $OUTPUT" >&2
 	exit 1

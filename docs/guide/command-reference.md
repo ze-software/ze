@@ -484,7 +484,7 @@ Commands sent to the running daemon. Access through three entry points:
 bgp decode/encode, env, schema, yang, completion). These are dispatched
 via local handlers before attempting SSH connection.
 
-`ze cli` accepts `--run <command>` for single-shot execution and
+`ze cli` accepts `-c <command>` for single-shot execution and
 `--format <format>` (default: yaml).
 <!-- source: cmd/ze/cli/main.go -- Run; cmd/ze/show/main.go -- Run; cmd/ze/run/main.go -- Run -->
 

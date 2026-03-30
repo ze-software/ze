@@ -178,11 +178,11 @@ Ze exposes Prometheus metrics when `telemetry { prometheus { ... } }` is configu
 
 ## Single Command
 
-For scripting, use `--run` to execute a single command and exit:
+For scripting, use `-c` to execute a single command and exit:
 
 ```
-ze cli --run "bgp summary"
-ze cli --run "rib routes received"
-ze cli --run "rpki status"
+ze cli -c "bgp summary"
+ze cli -c "rib routes received"
+ze cli -c "rpki status"
 ```
 <!-- source: cmd/ze/cli/main.go -- Run, Execute, StreamMonitor -->

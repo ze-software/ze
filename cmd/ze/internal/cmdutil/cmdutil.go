@@ -127,7 +127,7 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 	if format != "" {
 		cliArgs = append(cliArgs, "--format", format)
 	}
-	cliArgs = append(cliArgs, "--run", runCmd)
+	cliArgs = append(cliArgs, "-c", runCmd)
 
 	return cli.Run(cliArgs)
 }

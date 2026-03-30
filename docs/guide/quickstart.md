@@ -125,13 +125,13 @@ In another terminal:
 bin/ze status
 
 # List peers
-bin/ze cli --run "peer list"
+bin/ze cli -c "peer list"
 
 # Show peer details
-bin/ze cli --run "peer test-peer detail"
+bin/ze cli -c "peer test-peer detail"
 
 # Watch live events
-bin/ze cli --run "bgp monitor"
+bin/ze cli -c "bgp monitor"
 ```
 <!-- source: cmd/ze/cli/main.go -- Execute, StreamMonitor -->
 

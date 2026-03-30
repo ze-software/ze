@@ -61,7 +61,7 @@ Change log levels on a running daemon without restart:
 ```bash
 ze run bgp log set bgp.fsm debug
 ze run bgp log set bgp.reactor info
-ze cli --run "bgp log levels"         # show current levels
+ze cli -c "bgp log levels"         # show current levels
 ```
 <!-- source: internal/component/cmd/log/ -- log show/set RPCs -->
 
@@ -161,5 +161,5 @@ Run `ze env` to see the full list with descriptions. Below is the complete inven
 ```bash
 ze env list -v                 # show all env vars with current values
 ze env get ze.log              # show specific var details
-ze cli --run "bgp log levels"  # show runtime log levels
+ze cli -c "bgp log levels"  # show runtime log levels
 ```

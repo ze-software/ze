@@ -1,4 +1,4 @@
-# Test: ze cli --run command dispatch works through daemon
+# Test: ze cli -c command dispatch works through daemon
 # VALIDATES: command dispatch serves help with command data
 # PREVENTS: command dispatch returning empty or broken help response
 

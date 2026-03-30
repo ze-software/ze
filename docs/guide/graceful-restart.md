@@ -85,7 +85,7 @@ The GR plugin depends on `bgp-rib` (declared in its registration). The engine en
 ## CLI
 
 ```
-$ ze cli --run "rib routes received"
+$ ze cli -c "rib routes received"
 # Shows routes with stale flag when applicable
 ```
 

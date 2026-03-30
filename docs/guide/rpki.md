@@ -120,7 +120,7 @@ Query RPKI status through the ze CLI:
 Example:
 
 ```
-$ ze cli --run "rpki status"
+$ ze cli -c "rpki status"
 {"running":true,"vrp-count-ipv4":3,"vrp-count-ipv6":0,"sessions":1}
 ```
 <!-- source: internal/component/bgp/plugins/rpki/ -- RPKI CLI commands (status, cache, roa, summary) -->

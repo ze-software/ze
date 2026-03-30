@@ -554,9 +554,19 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			proc.Stderr = &clientStderr
 		}
 
-		// Start the process
-		if err := proc.Start(); err != nil {
-			rec.Error = fmt.Errorf("start %s: %w", binName, err)
+		// Start the process. Retry on ETXTBSY which occurs when a concurrent
+		// fork+exec in another test goroutine holds a write-open fd to the
+		// script between fork and execve (see https://go.dev/issue/22315).
+		var startErr error
+		for range 3 {
+			startErr = proc.Start()
+			if startErr == nil || !errors.Is(startErr, syscall.ETXTBSY) {
+				break
+			}
+			time.Sleep(10 * time.Millisecond)
+		}
+		if startErr != nil {
+			rec.Error = fmt.Errorf("start %s: %w", binName, startErr)
 			return false
 		}
 

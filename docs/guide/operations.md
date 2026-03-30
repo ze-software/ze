@@ -35,7 +35,7 @@ ze init --force                # prompts for confirmation interactively
 
 ```bash
 ze cli                         # interactive CLI
-ze cli --run "peer list"       # single command
+ze cli -c "peer list"       # single command
 ze show peer list              # read-only shorthand
 ze run peer transit teardown 2 # read-write shorthand
 ```
@@ -108,8 +108,8 @@ fi
 ### Peer Health
 
 ```bash
-ze cli --run "peer list"       # brief peer list with state
-ze cli --run "bgp summary"    # summary table with uptime and prefix counts
+ze cli -c "peer list"       # brief peer list with state
+ze cli -c "bgp summary"    # summary table with uptime and prefix counts
 ```
 
 ## Environment Variables
@@ -208,7 +208,7 @@ Symptom: peer stays in Connect/Active state
 3. **Enable debug logging:**
    ```bash
    ze run bgp log set bgp.fsm debug
-   ze cli --run "bgp monitor event state"
+   ze cli -c "bgp monitor event state"
    ```
 
 4. **Common causes:**
@@ -267,17 +267,17 @@ Symptom: session establishes briefly then NOTIFICATION received
 
 1. **Check RIB plugin is loaded and bound:**
    ```bash
-   ze cli --run "rib status"
+   ze cli -c "rib status"
    ```
 
 2. **Check peer is sending updates:**
    ```bash
-   ze cli --run "bgp monitor peer transit-a event update direction received"
+   ze cli -c "bgp monitor peer transit-a event update direction received"
    ```
 
 3. **Check RPKI validation:** If bgp-rpki is loaded, routes may be pending validation. Check:
    ```bash
-   ze cli --run "rpki status"
+   ze cli -c "rpki status"
    ```
 
 ### Collecting Debug Information
@@ -288,8 +288,8 @@ For bug reports, collect:
 ze --version                   # ze version
 ze config validate config.conf        # config validity
 ze status                      # daemon state
-ze cli --run "peer list"       # peer states
-ze cli --run "bgp summary"    # session summary
+ze cli -c "peer list"       # peer states
+ze cli -c "bgp summary"    # session summary
 ze env list -v                 # effective configuration
 ze signal quit                 # goroutine dump (kills daemon!)
 ```

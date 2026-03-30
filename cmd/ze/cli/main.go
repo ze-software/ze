@@ -68,7 +68,7 @@ Subsystems:
   bgp    BGP daemon (default)
 
 Options:
-  --run <command>    Execute single command and exit
+  -c <command>    Execute single command and exit (like ssh -c)
 
 Pipe operators (interactive mode only, Tab completes after |):
   <command> | match <pattern>    Filter lines matching pattern
@@ -81,15 +81,15 @@ Pipe operators (interactive mode only, Tab completes after |):
 Examples:
   ze cli                           Interactive BGP CLI
   ze cli bgp                       Interactive BGP CLI (explicit)
-  ze cli --run "peer list"         Execute command
-  ze cli bgp --run "daemon status" Execute command (explicit)
+  ze cli -c "peer list"            Execute command and exit
+  ze cli -c "show version"         One-shot command
 `)
 }
 
 // runBGP runs the BGP CLI using the unified cli.Model.
 func runBGP(args []string) int {
 	fs := flag.NewFlagSet("cli", flag.ExitOnError)
-	runCmd := fs.String("run", "", "Execute single command and exit")
+	runCmd := fs.String("c", "", "Execute single command and exit")
 	format := fs.String("format", "yaml", "Output format: yaml, json, table")
 
 	if err := fs.Parse(args); err != nil {
@@ -108,7 +108,7 @@ func runBGP(args []string) int {
 	// Create SSH-based client
 	client := newCLIClient(creds)
 
-	// If --run specified, execute single command and exit.
+	// If -c specified, execute single command and exit.
 	if *runCmd != "" {
 		// Streaming commands (bgp monitor) use StreamCommand for line-by-line output.
 		if isMonitorCommand(*runCmd) {

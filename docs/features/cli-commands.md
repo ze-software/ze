@@ -63,7 +63,7 @@
 
 | Command | Description |
 |---------|-------------|
-| `ze cli` | Interactive CLI (with `--run <cmd>` for single command) |
+| `ze cli` | Interactive CLI (with `-c <cmd>` for single command) |
 | `ze show <command>` | Read-only daemon commands |
 | `ze run <command>` | All daemon commands |
 

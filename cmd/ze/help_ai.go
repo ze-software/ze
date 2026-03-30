@@ -159,7 +159,7 @@ func cliSubcommands() []cliCmd {
 	return []cliCmd{
 		{"bgp", "offline", "BGP protocol tools", "decode <hex>, encode <route>, plugin"},
 		{"config", "offline", "Configuration management", "edit, validate, dump, fmt, diff, set, migrate, import, ls, cat, history, rollback, archive, rename, completion"},
-		{"cli", "daemon", "Interactive CLI for running daemons", "--run <cmd> for single command"},
+		{"cli", "daemon", "Interactive CLI for running daemons", "-c <cmd> for single command"},
 		{"show", "daemon", "Read-only daemon commands (dynamic from RPCs)", "connects via SSH to running daemon"},
 		{"run", "daemon", "All daemon commands (dynamic from RPCs)", "connects via SSH to running daemon"},
 		{"plugin", "offline", "Plugin system", "<plugin-name> for plugin CLI, test for debugging"},
@@ -430,26 +430,26 @@ func printRecipes() {
 	fmt.Println("    ze config validate example.conf && ze --mcp 9718 example.conf")
 	fmt.Println()
 	fmt.Println("  Announce a route (CLI):")
-	fmt.Println("    ze cli --run \"peer * update text origin igp next-hop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24\"")
+	fmt.Println("    ze cli -c \"peer * update text origin igp next-hop 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24\"")
 	fmt.Println()
 	fmt.Println("  Announce a route (MCP):")
 	fmt.Println("    {\"method\":\"tools/call\",\"params\":{\"name\":\"ze_announce\",\"arguments\":{\"family\":\"ipv4/unicast\",\"origin\":\"igp\",\"next-hop\":\"1.1.1.1\",\"prefixes\":[\"10.0.0.0/24\"]}}}")
 	fmt.Println()
 	fmt.Println("  Check peer state:")
-	fmt.Println("    ze cli --run \"peer list\"")
-	fmt.Println("    ze cli --run \"peer test-peer detail\"")
+	fmt.Println("    ze cli -c \"peer list\"")
+	fmt.Println("    ze cli -c \"peer test-peer detail\"")
 	fmt.Println()
 	fmt.Println("  Show RIB:")
-	fmt.Println("    ze cli --run \"rib show received family ipv4/unicast\"")
-	fmt.Println("    ze cli --run \"rib best\"")
+	fmt.Println("    ze cli -c \"rib show received family ipv4/unicast\"")
+	fmt.Println("    ze cli -c \"rib best\"")
 	fmt.Println()
 	fmt.Println("  Monitor live events:")
-	fmt.Println("    ze cli --run \"bgp monitor\"")
+	fmt.Println("    ze cli -c \"bgp monitor\"")
 	fmt.Println()
 	fmt.Println("  Drain and teardown a peer:")
-	fmt.Println("    ze cli --run \"peer 10.0.0.1 pause\"")
-	fmt.Println("    ze cli --run \"peer * flush\"")
-	fmt.Println("    ze cli --run \"peer 10.0.0.1 teardown\"")
+	fmt.Println("    ze cli -c \"peer 10.0.0.1 pause\"")
+	fmt.Println("    ze cli -c \"peer * flush\"")
+	fmt.Println("    ze cli -c \"peer 10.0.0.1 teardown\"")
 	fmt.Println()
 	fmt.Println("  Test without a real peer:")
 	fmt.Println("    ze-test peer --mode sink --port 1179 --asn 65001")
@@ -464,7 +464,7 @@ func printCommonErrors() {
 	fmt.Println("  database already exists              Run: ze init --force (backs up old database)")
 	fmt.Println("  connection refused (SSH)             Daemon not running; start with: ze start")
 	fmt.Println("  no prefixes specified                REQUIRED field missing in ze_announce/ze_withdraw")
-	fmt.Println("  unknown command \"...\"                Use: ze_commands (MCP) or ze cli --run \"help\"")
+	fmt.Println("  unknown command \"...\"                Use: ze_commands (MCP) or ze cli -c \"help\"")
 	fmt.Println()
 }
 

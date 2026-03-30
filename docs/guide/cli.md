@@ -7,7 +7,7 @@ Ze provides an interactive CLI and single-command execution for runtime queries 
 
 ```bash
 ze cli                              # Interactive CLI with tab completion
-ze cli --run "peer list"            # Execute single command and exit
+ze cli -c "peer list"            # Execute single command and exit
 ze show peer upstream1 detail         # Read-only query (safe for scripts)
 ze run peer upstream1 teardown 2     # Full access including destructive commands
 ```
