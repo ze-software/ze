@@ -4,7 +4,7 @@
 |-------|-------|
 | Status | in-progress |
 | Depends | - |
-| Phase | 4/8 |
+| Phase | 4/10 |
 | Updated | 2026-03-30 |
 
 ## Post-Compaction Recovery
@@ -18,6 +18,8 @@
 6. `cmd/ze/cli/main.go` - BuildCommandTree and YANG-to-path mapping
 7. `internal/component/plugin/server/handler.go` - RPCRegistration struct
 8. `internal/component/plugin/server/rpc_register.go` - RegisterRPCs
+9. `cmd/ze/help_ai.go` - AI help flags and printAPICommands()
+10. `cmd/ze/internal/ssh/client/client.go` - ExecCommand() SSH transport
 
 ## Task
 
@@ -80,6 +82,18 @@ Meanwhile, daemon commands (`ze show`/`ze run`) already have dynamic dispatch vi
 - [ ] `internal/component/config/yang/command.go` - `WireMethodToPath()`, `BuildCommandTree()` from YANG
 - [ ] `internal/component/command/node.go` - Node struct, `BuildTree()` from RPCInfo entries
 
+**Source files read (new phases 8-9):**
+- [ ] `cmd/ze/cli/main.go:89-148` - `runBGP()`: flags `--run`/`--format`, SSH credential loading, `client.Execute()` for one-shot, `client.StreamMonitor()` for streaming, then interactive TUI setup
+  -> Decision: replace `--run` with `-c`, same Execute/StreamMonitor paths
+- [ ] `cmd/ze/help_ai.go:31-78` - `printAIHelp()`: flag parsing via `slices.Contains`, routes to `printCLICommands`/`printAPICommands`/`printMCPTools`
+  -> Decision: `--dispatch` added same way as `--cli`/`--api`/`--mcp`
+- [ ] `cmd/ze/help_ai.go:181-246` - `printAPICommands()`: prints WireMethod (left), description (right), input params. Uses `buildAISchemaRegistry().ListRPCs("")` for YANG RPCs, `AllBuiltinRPCs()` for YANG-less builtins
+  -> Decision: augment with dispatch key column from `cliWireToPath`
+- [ ] `internal/component/plugin/server/command.go:155-284` - Dispatcher: `commands map[string]*Command`, `sortedKeys []string` (longest-first), `Commands()` returns all, no public export of keys
+  -> Decision: dispatch keys are `cliWireToPath` values, accessible without Dispatcher access
+- [ ] `cmd/ze/cli/main.go:258-260` - `cliWireToPath`: package-level var, `yang.WireMethodToPath(cliLoader)`, maps WireMethod to CLI dispatch string
+  -> Constraint: this is the authoritative WireMethod-to-dispatch-key mapping
+
 **Behavior to preserve:**
 - `ze cli` interactive editor behavior (completion, pipe operators, peer selectors)
 - Plugin 5-stage protocol and registration
@@ -121,6 +135,8 @@ Meanwhile, daemon commands (`ze show`/`ze run`) already have dynamic dispatch vi
 | `ze` shell -> daemon | SSH connection for daemon commands | [ ] |
 | `ze` shell -> local | Direct handler call for offline commands | [ ] |
 | Config tree -> YANG schema | `set`/`del` walk config YANG nodes | [ ] |
+| `ze cli -c` -> daemon | SSH via `sshclient.ExecCommand(creds, cmd)` -> daemon:2222 -> `execMiddleware` -> `Dispatcher.Dispatch()` | [ ] |
+| `ze help --ai --dispatch` -> dispatch keys | `AllBuiltinRPCs()` + `cliWireToPath` (YANG-derived) -> print CLI paths | [ ] |
 
 ### Integration Points
 - `internal/component/config/yang/command.go` -- existing `BuildCommandTree()` from YANG, extend to cover all verbs
@@ -181,6 +197,8 @@ Verbs are defined in core YANG. Components add commands under them via YANG `aug
 | `ze config edit` | `ze set config edit` |
 | `ze version` | `ze show version` |
 | `ze completion bash` | `ze show completion bash` |
+| (no equivalent) | `ze cli -c "show version"` (non-interactive one-shot) |
+| (no equivalent) | `ze help --ai --dispatch` (list dispatch keys) |
 
 ### Handler Registration
 
@@ -227,6 +245,55 @@ The current 20-case switch in `main.go:240-297` becomes a tree walk:
 4. If not found: check if it's a config file path (existing behavior for `ze config.conf`)
 5. Otherwise: error with suggestion
 
+### Non-Interactive One-Shot CLI (`ze cli -c`)
+
+**Problem:** Today `ze cli --run "command"` exists (`cmd/ze/cli/main.go:92`) but `--run` is non-standard. Every shell uses `-c` (ssh, bash, sh). Replace `--run` with `-c`.
+
+**Mechanism:** The path already exists: `runBGP()` parses `--run`, loads SSH credentials via `sshclient.LoadCredentials()`, creates a `cliClient`, and calls `client.Execute(command, format)` which calls `sshclient.ExecCommand()`. For streaming commands it calls `client.StreamMonitor()`.
+
+**Design:**
+1. Replace `--run` with `-c` in `runBGP()` FlagSet (line 91-93). No alias, no keeping both.
+2. Expose at the `Run()` level too: `ze cli -c "command"` should work without requiring `bgp` subsystem prefix
+3. Update `usage()` (line 62-87) to show `-c`
+
+**Data flow:** `ze cli -c "peer summary"` -> `Run(args)` -> `runBGP(args)` -> parse `-c` flag -> `sshclient.LoadCredentials()` -> `cliClient.Execute(command, format)` -> `sshclient.ExecCommand(creds, command)` -> SSH connect to daemon:2222 -> daemon `execMiddleware` -> `Dispatcher.Dispatch()` -> response -> stdout -> exit
+
+**Migration:** `--run` is deleted, not kept alongside `-c`. No backwards compatibility needed (ze has never been released).
+
+**Key files:** `cmd/ze/cli/main.go` (flag parsing + dispatch), `cmd/ze/internal/ssh/client/client.go` (transport, no changes needed)
+
+### Dispatch Key Listing (`ze help --ai --dispatch`)
+
+**Problem:** `ze help --ai --api` prints YANG RPC WireMethod names (e.g., `ze-bgp:summary`). Users have no way to discover the actual strings accepted by the Dispatcher. The mapping from WireMethod to dispatch key happens in `LoadBuiltins()` (`command.go:49-58`) via `wireToPath[reg.WireMethod]`, but this is internal.
+
+**Mechanism:** The Dispatcher already has `sortedKeys []string` (line 158) containing every registered dispatch key. `Commands()` (line 278) returns command structs. Neither is currently exposed to the help system.
+
+**Design:**
+1. Add `DispatchKeys() []string` method on `Dispatcher` that returns a copy of `sortedKeys` (already sorted longest-first; re-sort alphabetically for display)
+2. The Dispatcher is not directly accessible from `cmd/ze/help_ai.go`. But `AllBuiltinRPCs()` + `cliWireToPath` are accessible (both used in `cmd/ze/cli/main.go`). The dispatch keys are exactly the values in `cliWireToPath` -- no need to access the Dispatcher at runtime
+3. New function in `cmd/ze/help_ai.go`: `printDispatchKeys()` that iterates `AllBuiltinRPCs()`, looks up each `WireMethod` in `cliWireToPath`, and prints the CLI path (dispatch key) alongside the WireMethod
+4. Add `--dispatch` to the flag check in `printAIHelp()` (line 31-41)
+
+**Output format for `--dispatch`:**
+
+| Column | Content |
+|--------|---------|
+| Dispatch key (what you type) | Left-aligned, 40 chars |
+| WireMethod (YANG RPC) | Right side |
+
+This answers "what string do I type?" directly.
+
+### Help Shows Dispatch Strings (`ze help --ai --api` enhancement)
+
+**Problem:** `printAPICommands()` (line 181-246) prints WireMethod as the left column. Users see `ze-bgp:summary` but need to type `bgp summary` (the dispatch key). The WireMethod is useful for protocol-level work but useless for CLI interaction.
+
+**Design:**
+1. Augment each line in `printAPICommands()` to show the dispatch key alongside the WireMethod
+2. Format: `dispatch-key (WireMethod)` or two-column with both
+3. Use `cliWireToPath` (already computed in `cmd/ze/cli/main.go:260`, needs to be importable from `help_ai.go`)
+4. If `cliWireToPath` is not directly accessible from `help_ai.go`, either: (a) move the `WireMethodToPath` call to a shared location, or (b) compute it in `help_ai.go` using the same `yang.WireMethodToPath(loader)` call
+5. RPCs without a dispatch key (editor-internal) are shown as before (WireMethod only, marked "internal")
+
 ### Packages To Remove
 
 | Package | Replaced By |
@@ -271,6 +338,8 @@ After migration, `cmd/ze/` packages become thin wrappers or disappear entirely. 
 | `ze show bgp decode <hex>` | -> | BGP decode handler through unified tree | `test/decode/cli-dispatch-decode.ci` |
 | `ze help` | -> | Dynamic help from YANG tree | `test/parse/cli-dispatch-help.ci` |
 | `ze show help` | -> | Dynamic verb-level help | `test/parse/cli-dispatch-show-help.ci` |
+| `ze cli -c "show version"` | -> | Non-interactive one-shot via SSH | `test/parse/cli-dispatch-oneshot.ci` |
+| `ze help --ai --dispatch` | -> | Dispatch key listing | `test/parse/cli-dispatch-ai-dispatch.ci` |
 
 ## Acceptance Criteria
 
@@ -291,6 +360,10 @@ After migration, `cmd/ze/` packages become thin wrappers or disappear entirely. 
 | AC-13 | `show peer list` in `ze cli` | Same result as `ze show peer list` -- same grammar |
 | AC-14 | `ze update peeringdb` | PeeringDB refresh handler dispatched through unified tree |
 | AC-15 | YANG `description` changed | Help output reflects the new description without Go code changes |
+| AC-16 | `ze cli -c "show version"` | Connects to daemon via SSH, executes command, prints result, exits (non-interactive one-shot) |
+| AC-17 | `ze cli -c "peer summary"` | Same as AC-16 for a daemon command requiring a running instance |
+| AC-18 | `ze help --ai --dispatch` | Prints every key in the Dispatcher's sorted lookup table (the strings users actually type) |
+| AC-19 | `ze help --ai --api` | Shows dispatch strings (what users type) alongside YANG RPC names, not just RPC names alone |
 
 ## 🧪 TDD Test Plan
 
@@ -303,6 +376,8 @@ After migration, `cmd/ze/` packages become thin wrappers or disappear entirely. 
 | `TestTreeLookup` | `internal/component/command/node_test.go` | Command lookup by path works for all verbs | |
 | `TestHelpAtEveryLevel` | `internal/component/command/help_test.go` | `ze help`, `ze show help`, `ze show bgp help` all produce output | |
 | `TestUnknownCommandSuggestion` | `internal/component/command/node_test.go` | Unknown command returns "did you mean?" from tree | |
+| `TestDispatchKeyListing` | `internal/component/plugin/server/command_test.go` | Dispatcher exports sorted list of all registered dispatch keys | |
+| `TestAIHelpIncludesDispatchStrings` | `cmd/ze/help_ai_test.go` | AI help output includes dispatch strings alongside RPC names | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -317,6 +392,8 @@ After migration, `cmd/ze/` packages become thin wrappers or disappear entirely. 
 | `cli-dispatch-show-help` | `test/parse/cli-dispatch-show-help.ci` | `ze show help` lists show commands | |
 | `cli-dispatch-decode` | `test/decode/cli-dispatch-decode.ci` | `ze show bgp decode <hex>` decodes message | |
 | `cli-dispatch-unknown` | `test/parse/cli-dispatch-unknown.ci` | Unknown command gives suggestion | |
+| `cli-dispatch-oneshot` | `test/parse/cli-dispatch-oneshot.ci` | `ze cli -c "show version"` prints version and exits | |
+| `cli-dispatch-ai-dispatch` | `test/parse/cli-dispatch-ai-dispatch.ci` | `ze help --ai --dispatch` prints dispatch keys | |
 
 ### Future (if deferring any tests)
 - `ze set interface create` and `ze del interface` functional tests -- deferred to interface component migration phase
@@ -335,6 +412,7 @@ After migration, `cmd/ze/` packages become thin wrappers or disappear entirely. 
 - `internal/component/plugin/server/rpc_register.go` -- adapt `RegisterRPCs()` for unified registration
 - `internal/component/plugin/server/command.go` -- adapt Dispatcher for verb-based routing
 - `cmd/ze/internal/cmdutil/cmdutil.go` -- adapt help formatting for all verbs
+- `cmd/ze/internal/ssh/client/client.go` -- already has `ExecCommand()`, no changes expected (dependency for one-shot CLI)
 
 ### Integration Checklist
 | Integration Point | Needed? | File |
@@ -349,7 +427,7 @@ After migration, `cmd/ze/` packages become thin wrappers or disappear entirely. 
 |---|----------|----------|---------------|
 | 1 | New user-facing feature? | Yes | `docs/features.md` -- unified CLI dispatch |
 | 2 | Config syntax changed? | No | N/A |
-| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` -- all commands change to verb-first |
+| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` -- all commands change to verb-first, add `ze cli -c`, document `ze help --ai --dispatch` |
 | 4 | API/RPC added/changed? | No | N/A (dispatch changes, RPCs stay same) |
 | 5 | Plugin added/changed? | No | N/A |
 | 6 | Has a user guide page? | Yes | `docs/guide/command-reference.md` -- complete rewrite |
@@ -371,6 +449,8 @@ After migration, `cmd/ze/` packages become thin wrappers or disappear entirely. 
 - `test/parse/cli-dispatch-show-help.ci`
 - `test/decode/cli-dispatch-decode.ci`
 - `test/parse/cli-dispatch-unknown.ci`
+- `test/parse/cli-dispatch-oneshot.ci`
+- `test/parse/cli-dispatch-ai-dispatch.ci`
 
 ## Implementation Steps
 
@@ -430,7 +510,17 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
    - Files: `internal/component/command/help.go`, `cmd/ze/help_ai.go`
    - Verify: tests fail -> implement -> tests pass
 
-8. **Functional tests + docs + learned summary**
+8. **Phase: Non-interactive one-shot CLI** -- Replace `--run` with `-c` in `cmd/ze/cli/main.go`. The SSH client and credential loading already exist. This phase renames the flag and updates usage text.
+   - Tests: `cli-dispatch-oneshot.ci`, AC-16, AC-17
+   - Files: `cmd/ze/cli/main.go` (replace `--run` with `-c`, update usage)
+   - Verify: tests fail -> implement -> tests pass
+
+9. **Phase: Dispatch discoverability** -- Add `ze help --ai --dispatch` that prints the dispatch keys (the actual strings users type). Augment `ze help --ai --api` to show dispatch keys alongside YANG RPC names. Dispatch keys are the values in `cliWireToPath` (YANG WireMethod -> CLI path mapping). No runtime Dispatcher access needed -- compute from `AllBuiltinRPCs()` + `yang.WireMethodToPath()` at help-generation time, same way `cmd/ze/cli/main.go` does.
+   - Tests: `TestDispatchKeyListing`, `TestAIHelpIncludesDispatchStrings`, `cli-dispatch-ai-dispatch.ci`, AC-18, AC-19
+   - Files: `cmd/ze/help_ai.go` (add `--dispatch` flag, `printDispatchKeys()`, augment `printAPICommands()` with dispatch key column)
+   - Verify: tests fail -> implement -> tests pass
+
+10. **Functional tests + docs + learned summary**
    - Create remaining functional tests
    - Write documentation updates
    - Full verification: `make ze-verify`
@@ -448,6 +538,8 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | Rule: cli-patterns | Exit codes, stderr errors preserved |
 | Rule: plugin-design | YANG required for all commands, init() registration |
 | Backward compat | `ze bgp decode` gives error with hint to use `ze show bgp decode` |
+| One-shot CLI | `ze cli -c "show version"` works, `--run` is deleted |
+| Dispatch discoverability | `ze help --ai --dispatch` lists all dispatch keys; `ze help --ai --api` shows dispatch keys alongside WireMethod |
 
 ### Deliverables Checklist (/implement stage 9)
 
@@ -462,6 +554,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | `RPCRegistration.ReadOnly` removed | `grep "ReadOnly " internal/component/plugin/server/handler.go` finds no field |
 | `cmd/ze/show/` deleted | `ls cmd/ze/show/` returns error |
 | `cmd/ze/run/` deleted | `ls cmd/ze/run/` returns error |
+| `ze cli -c` one-shot works | `ze cli -c "show version"` prints version and exits 0 |
+| `ze help --ai --dispatch` works | Output lists dispatch keys (actual strings users type) |
+| `ze help --ai --api` shows dispatch strings | Output includes dispatch strings alongside RPC names |
 
 ### Security Review Checklist (/implement stage 10)
 
@@ -482,6 +577,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 | YANG augment fails to resolve | Check imports and module dependencies |
 | Help output missing commands | Verify YANG module registered and loaded |
 | Lint failure | Fix inline |
+| `cliWireToPath` not accessible from `help_ai.go` | Move `WireMethodToPath` call to shared package or recompute in `help_ai.go` |
+| `-c` flag conflicts with existing flag | Check `flag.NewFlagSet` -- `-c` replaces `--run`, no conflict |
+| One-shot test needs running daemon | Use `test/parse/` pattern with offline commands (e.g., `show version` works offline), or daemon fixture for `test/plugin/` |
 | 3 fix attempts fail | STOP. Report all 3 approaches. Ask user. |
 
 ## Mistake Log
@@ -505,6 +603,9 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 - `ze run` and `ze show` were workarounds for static dispatch, not fundamental design
 - One grammar, two entry points: `ze <verb> <noun>` and `ze cli` then `<verb> <noun>`
 - Components register their CLI surface; help reflects registration automatically
+- The dispatch keys ARE the `cliWireToPath` values -- the mapping from YANG WireMethod to CLI path. `LoadBuiltins()` uses `wireToPath[reg.WireMethod]` as the key when registering with the Dispatcher. So `cliWireToPath` is the authoritative source for "what string does the user type?" No need to access the runtime Dispatcher to list dispatch keys
+- CLI-to-daemon transport is SSH (port 2222, wish library), not TLS or Unix socket. Credentials from zefs database. `sshclient.ExecCommand()` is the one-shot path. `--run` flag already does exactly what `-c` needs -- rename it, delete `--run`
+- `printAPICommands()` already has access to `AllBuiltinRPCs()` and can compute `WireMethodToPath()` the same way `cmd/ze/cli/main.go` does. The YANG loader is the bridge
 
 ## RFC Documentation
 
@@ -566,7 +667,7 @@ N/A -- no protocol changes.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-15 all demonstrated
+- [ ] AC-1..AC-19 all demonstrated
 - [ ] Wiring Test table complete -- every row has a concrete test name, none deferred
 - [ ] `make ze-test` passes (lint + all ze tests)
 - [ ] Feature code integrated (`internal/*`, `cmd/*`)
