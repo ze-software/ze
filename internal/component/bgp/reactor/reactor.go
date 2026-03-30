@@ -20,6 +20,7 @@ package reactor
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
@@ -554,7 +555,11 @@ func (r *Reactor) ExecuteCommand(input string) (string, error) {
 	}
 	data, ok := resp.Data.(string)
 	if !ok {
-		return fmt.Sprintf("%v", resp.Data), nil
+		b, err := json.Marshal(resp.Data)
+		if err != nil {
+			return "", fmt.Errorf("marshal response: %w", err)
+		}
+		return string(b), nil
 	}
 	return data, nil
 }
