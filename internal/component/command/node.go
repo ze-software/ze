@@ -1,5 +1,6 @@
 // Design: docs/architecture/api/commands.md — command tree types
 // Related: completer.go — command completion using tree
+// Related: help.go — dynamic help generation
 
 // Package command provides shared types and logic for operational command execution.
 // Both the standalone CLI (cmd/ze/cli) and the unified CLI model's command mode
