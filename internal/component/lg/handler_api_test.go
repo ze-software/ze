@@ -38,6 +38,9 @@ func TestTransformStatusFields(t *testing.T) {
 	if _, ok := status["server_time"]; !ok {
 		t.Error("missing server_time field")
 	}
+	if _, ok := status["current_server"]; !ok {
+		t.Error("missing current_server field (required by Alice-LG)")
+	}
 
 	api, ok := bw["api"].(map[string]any)
 	if !ok {
@@ -45,6 +48,9 @@ func TestTransformStatusFields(t *testing.T) {
 	}
 	if api["Version"] != "Ze Looking Glass" {
 		t.Errorf("api.Version = %v, want Ze Looking Glass", api["Version"])
+	}
+	if api["result_from_cache"] != false {
+		t.Errorf("api.result_from_cache = %v, want false", api["result_from_cache"])
 	}
 }
 
@@ -58,7 +64,9 @@ func TestTransformProtocolsFields(t *testing.T) {
 				"peer-address":    "10.0.0.1",
 				"remote-as":       float64(65001),
 				"state":           "established",
+				"state-changed":   "2026-01-15T10:00:00Z",
 				"description":     "test peer",
+				"last-error":      "hold timer expired",
 				"routes-received": float64(100),
 				"routes-accepted": float64(95),
 				"routes-sent":     float64(50),
@@ -83,8 +91,11 @@ func TestTransformProtocolsFields(t *testing.T) {
 	strChecks := map[string]string{
 		"bird_protocol":    "peer1",
 		"state":            "established",
+		"state_changed":    "2026-01-15T10:00:00Z",
 		"neighbor_address": "10.0.0.1",
 		"description":      "test peer",
+		"last_error":       "hold timer expired",
+		"table":            "master",
 	}
 	for key, want := range strChecks {
 		got, _ := peer[key].(string)
@@ -106,6 +117,21 @@ func TestTransformProtocolsFields(t *testing.T) {
 		if got != want {
 			t.Errorf("peer[%q] = %v, want %v", key, got, want)
 		}
+	}
+
+	// Nested routes object for Alice-LG.
+	routes, ok := peer["routes"].(map[string]any)
+	if !ok {
+		t.Fatal("missing nested routes object")
+	}
+	if routes["imported"] != float64(95) {
+		t.Errorf("routes.imported = %v, want 95", routes["imported"])
+	}
+	if routes["filtered"] != float64(5) {
+		t.Errorf("routes.filtered = %v, want 5", routes["filtered"])
+	}
+	if routes["exported"] != float64(50) {
+		t.Errorf("routes.exported = %v, want 50", routes["exported"])
 	}
 }
 
@@ -151,6 +177,7 @@ func TestTransformRoutesFields(t *testing.T) {
 				"local-preference": float64(100),
 				"med":              float64(50),
 				"community":        []any{"65000:100"},
+				"large-community":  []any{"65000:0:100"},
 				"peer-address":     "10.0.0.1",
 			},
 		},
@@ -174,6 +201,10 @@ func TestTransformRoutesFields(t *testing.T) {
 	if route["from_protocol"] != "10.0.0.1" {
 		t.Errorf("from_protocol = %v, want 10.0.0.1 (override from peer-address)", route["from_protocol"])
 	}
+	// learnt_from from peer-address.
+	if route["learnt_from"] != "10.0.0.1" {
+		t.Errorf("learnt_from = %v, want 10.0.0.1", route["learnt_from"])
+	}
 
 	bgp, ok := route["bgp"].(map[string]any)
 	if !ok {
@@ -187,6 +218,32 @@ func TestTransformRoutesFields(t *testing.T) {
 	}
 	if bgp["med"] != float64(50) {
 		t.Errorf("bgp.med = %v, want 50", bgp["med"])
+	}
+
+	// Communities converted to integer-pair format.
+	communities, ok := bgp["communities"].([]any)
+	if !ok || len(communities) != 1 {
+		t.Fatalf("expected 1 community, got %v", bgp["communities"])
+	}
+	comm, ok := communities[0].([]any)
+	if !ok || len(comm) != 2 {
+		t.Fatalf("community should be [int,int], got %v", communities[0])
+	}
+	if comm[0] != 65000 || comm[1] != 100 {
+		t.Errorf("community = %v, want [65000, 100]", comm)
+	}
+
+	// Large communities converted to integer-triple format.
+	largeCommunities, ok := bgp["large_communities"].([]any)
+	if !ok || len(largeCommunities) != 1 {
+		t.Fatalf("expected 1 large community, got %v", bgp["large_communities"])
+	}
+	lc, ok := largeCommunities[0].([]any)
+	if !ok || len(lc) != 3 {
+		t.Fatalf("large community should be [int,int,int], got %v", largeCommunities[0])
+	}
+	if lc[0] != 65000 || lc[1] != 0 || lc[2] != 100 {
+		t.Errorf("large community = %v, want [65000, 0, 100]", lc)
 	}
 
 	count, _ := bw["routes_count"].(int)
@@ -210,6 +267,24 @@ func TestTransformRoutesPrefixesFallback(t *testing.T) {
 	}
 }
 
+func TestTransformRoutesEmptyNotNull(t *testing.T) {
+	// VALIDATES: empty routes produces [] not null in JSON.
+	// PREVENTS: Alice-LG breaking on null routes array.
+	ze := map[string]any{}
+
+	bw := transformRoutes(ze, "")
+	routes, ok := bw["routes"].([]any)
+	if !ok {
+		t.Fatal("routes should be []any, not nil")
+	}
+	if routes == nil {
+		t.Fatal("routes should be empty slice, not nil (json: [] not null)")
+	}
+	if len(routes) != 0 {
+		t.Errorf("expected 0 routes, got %d", len(routes))
+	}
+}
+
 func TestGetStr(t *testing.T) {
 	// VALIDATES: string extraction from map with type fallback.
 	// PREVENTS: panic on missing key or non-string value.
@@ -226,7 +301,7 @@ func TestGetStr(t *testing.T) {
 	}{
 		{"str", "hello"},
 		{"num", "42"},
-		{"nil", "<nil>"},
+		{"nil", ""},
 		{"bool", "true"},
 		{"missing", ""},
 	}

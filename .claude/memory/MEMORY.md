@@ -9,6 +9,7 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 ## Project
 
 - [project_cli_dispatch_discovery.md](project_cli_dispatch_discovery.md) - Three CLI gaps blocking debugging: no one-shot command, help shows RPC names not dispatch keys, no dispatch key listing
+- [project_no_filtered_routes.md](project_no_filtered_routes.md) - Ze does not track filtered/noexport routes; birdwatcher endpoints return empty
 
 ## User Profile
 

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -40,6 +41,20 @@ func (s *LGServer) handleAPIProtocols(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, bw)
 }
 
+// handleAPIProtocolsShort returns short protocol status in birdwatcher format.
+func (s *LGServer) handleAPIProtocolsShort(w http.ResponseWriter, _ *http.Request) {
+	result := s.query("summary")
+
+	zeData := parseJSON(result)
+	if zeData == nil {
+		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable")
+		return
+	}
+
+	bw := transformProtocolsShort(zeData)
+	writeJSON(w, bw)
+}
+
 // handleAPIRoutesProtocol returns routes from a named peer in birdwatcher format.
 func (s *LGServer) handleAPIRoutesProtocol(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
@@ -53,7 +68,7 @@ func (s *LGServer) handleAPIRoutesProtocol(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	result := s.query(fmt.Sprintf("rib show peer %s", name))
+	result := s.query(fmt.Sprintf("peer %s rib show received", name))
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -67,6 +82,36 @@ func (s *LGServer) handleAPIRoutesProtocol(w http.ResponseWriter, r *http.Reques
 	}
 
 	bw := transformRoutes(zeData, name)
+	writeJSON(w, bw)
+}
+
+// handleAPIRoutesPeer returns routes from a peer by IP address in birdwatcher format.
+func (s *LGServer) handleAPIRoutesPeer(w http.ResponseWriter, r *http.Request) {
+	peer := r.PathValue("peer")
+	if peer == "" {
+		writeJSONError(w, http.StatusBadRequest, "peer address required")
+		return
+	}
+
+	if !isValidPeerName(peer) {
+		writeJSONError(w, http.StatusBadRequest, "invalid peer address")
+		return
+	}
+
+	result := s.query(fmt.Sprintf("peer %s rib show received", peer))
+
+	zeData := parseJSON(result)
+	if zeData == nil {
+		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable")
+		return
+	}
+
+	if errMsg, ok := zeData["error"].(string); ok {
+		writeJSONError(w, http.StatusNotFound, errMsg)
+		return
+	}
+
+	bw := transformRoutes(zeData, peer)
 	writeJSON(w, bw)
 }
 
@@ -96,7 +141,16 @@ func (s *LGServer) handleAPIRoutesTable(w http.ResponseWriter, r *http.Request) 
 }
 
 // handleAPIRoutesFiltered returns filtered routes per peer.
-func (s *LGServer) handleAPIRoutesFiltered(w http.ResponseWriter, r *http.Request) {
+// Ze does not track import-filtered routes (BIRD's "import keep filtered on").
+// Returns an empty route list for API compatibility.
+func (s *LGServer) handleAPIRoutesFiltered(w http.ResponseWriter, _ *http.Request) {
+	result := apiEnvelope("routes", make([]any, 0))
+	result["routes_count"] = 0
+	writeJSON(w, result)
+}
+
+// handleAPIRoutesExport returns exported routes per peer.
+func (s *LGServer) handleAPIRoutesExport(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	if name == "" {
 		writeJSONError(w, http.StatusBadRequest, "peer name required")
@@ -108,7 +162,7 @@ func (s *LGServer) handleAPIRoutesFiltered(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	result := s.query(fmt.Sprintf("rib show peer %s filtered", name))
+	result := s.query(fmt.Sprintf("peer %s rib show sent", name))
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -125,8 +179,42 @@ func (s *LGServer) handleAPIRoutesFiltered(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, bw)
 }
 
-// handleAPIRoutesSearch searches for routes matching a prefix.
-func (s *LGServer) handleAPIRoutesSearch(w http.ResponseWriter, r *http.Request) {
+// handleAPIRoutesNoExport returns not-exported routes per peer.
+// Ze does not track export-filtered routes separately.
+// Returns an empty route list for API compatibility.
+func (s *LGServer) handleAPIRoutesNoExport(w http.ResponseWriter, _ *http.Request) {
+	result := apiEnvelope("routes", make([]any, 0))
+	result["routes_count"] = 0
+	writeJSON(w, result)
+}
+
+// handleAPIRoutesCount returns the route count for a protocol.
+func (s *LGServer) handleAPIRoutesCount(w http.ResponseWriter, r *http.Request) {
+	name := r.PathValue("name")
+	if name == "" {
+		writeJSONError(w, http.StatusBadRequest, "peer name required")
+		return
+	}
+
+	if !isValidPeerName(name) {
+		writeJSONError(w, http.StatusBadRequest, "invalid peer name")
+		return
+	}
+
+	result := s.query(fmt.Sprintf("peer %s rib show received count", name))
+
+	zeData := parseJSON(result)
+	if zeData == nil {
+		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable")
+		return
+	}
+
+	count := getNum(zeData, "count")
+	writeJSON(w, apiEnvelope("routes", int(count)))
+}
+
+// handleAPIRoutesPrefix searches routes by prefix (birdwatcher: /routes/prefix?prefix=...).
+func (s *LGServer) handleAPIRoutesPrefix(w http.ResponseWriter, r *http.Request) {
 	prefix := r.URL.Query().Get("prefix")
 	if prefix == "" {
 		writeJSONError(w, http.StatusBadRequest, "prefix query parameter required")
@@ -148,6 +236,11 @@ func (s *LGServer) handleAPIRoutesSearch(w http.ResponseWriter, r *http.Request)
 
 	bw := transformRoutes(zeData, "")
 	writeJSON(w, bw)
+}
+
+// handleAPIRoutesSearch is an alias for handleAPIRoutesPrefix (ze-specific path).
+func (s *LGServer) handleAPIRoutesSearch(w http.ResponseWriter, r *http.Request) {
+	s.handleAPIRoutesPrefix(w, r)
 }
 
 // writeJSON writes a JSON response with Content-Type header.
@@ -219,22 +312,29 @@ func isValidPrefix(prefix string) bool {
 	return true
 }
 
-// transformStatus converts Ze bgp status JSON to birdwatcher status format.
-func transformStatus(ze map[string]any) map[string]any {
+// apiEnvelope wraps a payload with the standard birdwatcher api metadata.
+func apiEnvelope(key string, value any) map[string]any {
 	return map[string]any{
 		"api": map[string]any{
-			"Version":         "Ze Looking Glass",
-			"ResultFromCache": false,
+			"Version":           "Ze Looking Glass",
+			"result_from_cache": false,
 		},
-		"status": map[string]any{
-			"router_id":     getStr(ze, "router-id"),
-			"server_time":   time.Now().UTC().Format(time.RFC3339),
-			"last_reboot":   getStr(ze, "start-time"),
-			"last_reconfig": getStr(ze, "last-config-change"),
-			"message":       "Ze BGP daemon",
-			"version":       getStr(ze, "version"),
-		},
+		key: value,
 	}
+}
+
+// transformStatus converts Ze bgp status JSON to birdwatcher status format.
+func transformStatus(ze map[string]any) map[string]any {
+	result := apiEnvelope("status", map[string]any{
+		"router_id":      getStr(ze, "router-id"),
+		"current_server": time.Now().UTC().Format(time.RFC3339),
+		"server_time":    time.Now().UTC().Format(time.RFC3339),
+		"last_reboot":    getStr(ze, "start-time"),
+		"last_reconfig":  getStr(ze, "last-config-change"),
+		"message":        "Ze BGP daemon",
+		"version":        getStr(ze, "version"),
+	})
+	return result
 }
 
 // transformProtocols converts Ze peer summary to birdwatcher protocols format.
@@ -253,27 +353,65 @@ func transformProtocols(ze map[string]any) map[string]any {
 			name = getStr(peer, "peer-address")
 		}
 
+		received := getNum(peer, "routes-received")
+		accepted := getNum(peer, "routes-accepted")
+		sent := getNum(peer, "routes-sent")
+		filtered := getNum(peer, "routes-filtered")
+
 		protocols[name] = map[string]any{
 			"bird_protocol":    name,
 			"state":            getStr(peer, "state"),
+			"state_changed":    getStr(peer, "state-changed"),
 			"neighbor_address": getStr(peer, "peer-address"),
 			"neighbor_as":      getNum(peer, "remote-as"),
 			"description":      getStr(peer, "description"),
-			"routes_received":  getNum(peer, "routes-received"),
-			"routes_imported":  getNum(peer, "routes-accepted"),
-			"routes_exported":  getNum(peer, "routes-sent"),
-			"routes_filtered":  getNum(peer, "routes-filtered"),
-			"uptime":           getNum(peer, "uptime"),
+			"last_error":       getStr(peer, "last-error"),
+			"table":            "master",
+			// Flat fields for simple consumers.
+			"routes_received": received,
+			"routes_imported": accepted,
+			"routes_exported": sent,
+			"routes_filtered": filtered,
+			"uptime":          getNum(peer, "uptime"),
+			// Nested routes object for Alice-LG.
+			"routes": map[string]any{
+				"imported":  accepted,
+				"filtered":  filtered,
+				"exported":  sent,
+				"preferred": accepted,
+			},
 		}
 	}
 
-	return map[string]any{
-		"api": map[string]any{
-			"Version":         "Ze Looking Glass",
-			"ResultFromCache": false,
-		},
-		"protocols": protocols,
+	return apiEnvelope("protocols", protocols)
+}
+
+// transformProtocolsShort converts Ze peer summary to birdwatcher short protocols format.
+func transformProtocolsShort(ze map[string]any) map[string]any {
+	peers, _ := ze["peers"].([]any)
+
+	protocols := make(map[string]any)
+	for _, p := range peers {
+		peer, ok := p.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		name := getStr(peer, "name")
+		if name == "" {
+			name = getStr(peer, "peer-address")
+		}
+
+		protocols[name] = map[string]any{
+			"proto": "BGP",
+			"table": "master",
+			"state": getStr(peer, "state"),
+			"since": getStr(peer, "state-changed"),
+			"info":  getStr(peer, "state"),
+		}
 	}
+
+	return apiEnvelope("protocols", protocols)
 }
 
 // transformRoutes converts Ze route data to birdwatcher routes format.
@@ -283,7 +421,7 @@ func transformRoutes(ze map[string]any, peerName string) map[string]any {
 		routes, _ = ze["prefixes"].([]any)
 	}
 
-	var bwRoutes []any
+	bwRoutes := make([]any, 0, len(routes))
 	for _, r := range routes {
 		route, ok := r.(map[string]any)
 		if !ok {
@@ -297,15 +435,17 @@ func transformRoutes(ze map[string]any, peerName string) map[string]any {
 			"interface":     "",
 			"from_protocol": peerName,
 			"age":           getNum(route, "age"),
+			"learnt_from":   getStr(route, "peer-address"),
+			"primary":       getBool(route, "best"),
 			"bgp": map[string]any{
-				"origin":          getStr(route, "origin"),
-				"as_path":         route["as-path"],
-				"next_hop":        getStr(route, "next-hop"),
-				"local_pref":      getNum(route, "local-preference"),
-				"med":             getNum(route, "med"),
-				"community":       route["community"],
-				"large_community": route["large-community"],
-				"ext_community":   route["extended-community"],
+				"origin":            getStr(route, "origin"),
+				"as_path":           route["as-path"],
+				"next_hop":          getStr(route, "next-hop"),
+				"local_pref":        getNum(route, "local-preference"),
+				"med":               getNum(route, "med"),
+				"communities":       transformCommunities(route["community"]),
+				"large_communities": transformLargeCommunities(route["large-community"]),
+				"ext_communities":   route["extended-community"],
 			},
 		}
 
@@ -316,20 +456,86 @@ func transformRoutes(ze map[string]any, peerName string) map[string]any {
 		bwRoutes = append(bwRoutes, bwRoute)
 	}
 
-	return map[string]any{
-		"api": map[string]any{
-			"Version":         "Ze Looking Glass",
-			"ResultFromCache": false,
-		},
-		"routes":       bwRoutes,
-		"routes_count": len(bwRoutes),
-	}
+	result := apiEnvelope("routes", bwRoutes)
+	result["routes_count"] = len(bwRoutes)
+	return result
 }
 
-// getStr extracts a string value from a map, returning empty string if missing.
+// transformCommunities converts Ze community strings ("65000:100") to birdwatcher
+// integer-pair format ([[65000, 100], ...]).
+func transformCommunities(v any) any {
+	arr, ok := v.([]any)
+	if !ok || arr == nil {
+		return nil
+	}
+
+	var result []any
+	for _, c := range arr {
+		s, ok := c.(string)
+		if !ok {
+			result = append(result, c)
+			continue
+		}
+
+		parts := strings.SplitN(s, ":", 2)
+		if len(parts) != 2 {
+			result = append(result, c)
+			continue
+		}
+
+		major, err1 := strconv.Atoi(parts[0])
+		minor, err2 := strconv.Atoi(parts[1])
+		if err1 != nil || err2 != nil {
+			result = append(result, c)
+			continue
+		}
+
+		result = append(result, []any{major, minor})
+	}
+
+	return result
+}
+
+// transformLargeCommunities converts Ze large community strings ("65000:0:100") to
+// birdwatcher integer-triple format ([[65000, 0, 100], ...]).
+func transformLargeCommunities(v any) any {
+	arr, ok := v.([]any)
+	if !ok || arr == nil {
+		return nil
+	}
+
+	var result []any
+	for _, c := range arr {
+		s, ok := c.(string)
+		if !ok {
+			result = append(result, c)
+			continue
+		}
+
+		parts := strings.SplitN(s, ":", 3)
+		if len(parts) != 3 {
+			result = append(result, c)
+			continue
+		}
+
+		admin, err1 := strconv.Atoi(parts[0])
+		val1, err2 := strconv.Atoi(parts[1])
+		val2, err3 := strconv.Atoi(parts[2])
+		if err1 != nil || err2 != nil || err3 != nil {
+			result = append(result, c)
+			continue
+		}
+
+		result = append(result, []any{admin, val1, val2})
+	}
+
+	return result
+}
+
+// getStr extracts a string value from a map, returning empty string if missing or nil.
 func getStr(m map[string]any, key string) string {
 	v, ok := m[key]
-	if !ok {
+	if !ok || v == nil {
 		return ""
 	}
 
@@ -358,4 +564,19 @@ func getNum(m map[string]any, key string) float64 {
 	}
 
 	return 0
+}
+
+// getBool extracts a boolean value from a map, returning false if missing.
+func getBool(m map[string]any, key string) bool {
+	v, ok := m[key]
+	if !ok {
+		return false
+	}
+
+	b, ok := v.(bool)
+	if ok {
+		return b
+	}
+
+	return false
 }

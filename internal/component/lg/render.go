@@ -25,6 +25,7 @@ func init() {
 			}
 			return "state-unknown"
 		},
+		"formatNum": formatNumCommas,
 		"formatASPath": func(v any) string {
 			arr, ok := v.([]any)
 			if !ok {
@@ -55,6 +56,60 @@ func init() {
 // joinStrings joins a string slice with a separator.
 func joinStrings(parts []string, sep string) string {
 	return strings.Join(parts, sep)
+}
+
+// formatNumCommas formats a value as an integer with comma separators.
+// Handles float64, int, int64, and string inputs. Returns the value as-is for non-numeric types.
+func formatNumCommas(v any) string {
+	var n int64
+
+	switch val := v.(type) {
+	case float64:
+		n = int64(val)
+	case int:
+		n = int64(val)
+	case int64:
+		n = val
+	case string:
+		// Try to parse numeric strings.
+		var f float64
+		if _, err := fmt.Sscanf(val, "%f", &f); err != nil {
+			return val
+		}
+		n = int64(f)
+	case nil:
+		return ""
+	case bool:
+		// Not a number; render as-is.
+		return fmt.Sprintf("%v", val)
+	}
+
+	if n == 0 {
+		return "0"
+	}
+
+	negative := n < 0
+	if negative {
+		n = -n
+	}
+
+	// Format with commas by grouping digits in threes.
+	s := fmt.Sprintf("%d", n)
+	length := len(s)
+
+	var result strings.Builder
+	if negative {
+		result.WriteByte('-')
+	}
+
+	for i, c := range s {
+		if i > 0 && (length-i)%3 == 0 {
+			result.WriteByte(',')
+		}
+		result.WriteRune(c)
+	}
+
+	return result.String()
 }
 
 // renderPage renders a full HTML page with layout wrapper.
@@ -166,9 +221,9 @@ const allTemplates = `
 <td>{{.RemoteAS}}</td>
 <td class="state">{{.State}}</td>
 <td>{{.Uptime}}</td>
-<td>{{.RoutesReceived}}</td>
-<td>{{.RoutesAccepted}}</td>
-<td>{{.RoutesSent}}</td>
+<td>{{formatNum .RoutesReceived}}</td>
+<td>{{formatNum .RoutesAccepted}}</td>
+<td>{{formatNum .RoutesSent}}</td>
 <td>{{.Description}}</td>
 </tr>{{end}}
 {{end}}
@@ -208,8 +263,8 @@ const allTemplates = `
 <td>{{index . "next-hop"}}</td>
 <td>{{formatASPath (index . "as-path")}}</td>
 <td>{{index . "origin"}}</td>
-<td>{{index . "local-preference"}}</td>
-<td>{{index . "med"}}</td>
+<td>{{formatNum (index . "local-preference")}}</td>
+<td>{{formatNum (index . "med")}}</td>
 <td>{{index . "peer-address"}}</td>
 </tr>{{end}}
 </tbody>
@@ -227,8 +282,8 @@ const allTemplates = `
 <dt>Next Hop</dt><dd>{{index .Route "next-hop"}}</dd>
 <dt>Origin</dt><dd>{{index .Route "origin"}}</dd>
 <dt>AS Path</dt><dd>{{formatASPath (index .Route "as-path")}}</dd>
-<dt>Local Preference</dt><dd>{{index .Route "local-preference"}}</dd>
-<dt>MED</dt><dd>{{index .Route "med"}}</dd>
+<dt>Local Preference</dt><dd>{{formatNum (index .Route "local-preference")}}</dd>
+<dt>MED</dt><dd>{{formatNum (index .Route "med")}}</dd>
 <dt>Communities</dt><dd>{{formatCommunities (index .Route "community")}}</dd>
 <dt>Large Communities</dt><dd>{{formatCommunities (index .Route "large-community")}}</dd>
 <dt>Extended Communities</dt><dd>{{formatCommunities (index .Route "extended-community")}}</dd>
@@ -302,8 +357,8 @@ const allTemplates = `
 <td>{{index . "next-hop"}}</td>
 <td>{{formatASPath (index . "as-path")}}</td>
 <td>{{index . "origin"}}</td>
-<td>{{index . "local-preference"}}</td>
-<td>{{index . "med"}}</td>
+<td>{{formatNum (index . "local-preference")}}</td>
+<td>{{formatNum (index . "med")}}</td>
 </tr>{{end}}
 </tbody>
 </table>

@@ -17,9 +17,11 @@ func mockDispatch() CommandDispatcher {
 		case cmd == "bgp status":
 			return `{"router-id":"1.2.3.4","version":"test","start-time":"2026-01-01T00:00:00Z"}`, nil
 		case cmd == "summary":
-			return `[{"name":"peer1","peer-address":"10.0.0.1","remote-as":"65001","state":"established","routes-received":"100","routes-accepted":"95","routes-sent":"50"}]`, nil
+			return `[{"name":"peer1","peer-address":"10.0.0.1","remote-as":"65001","state":"established","state-changed":"2026-01-15T10:00:00Z","routes-received":"100","routes-accepted":"95","routes-sent":"50","routes-filtered":"5"}]`, nil
+		case strings.Contains(cmd, "rib show") && strings.Contains(cmd, "count"):
+			return `{"count":100}`, nil
 		case strings.HasPrefix(cmd, "rib show"), strings.Contains(cmd, "rib show"):
-			return `{"routes":[{"prefix":"10.0.0.0/24","next-hop":"10.0.0.1","origin":"igp","as-path":[65001,65002],"local-preference":100,"med":0,"peer-address":"10.0.0.1"}]}`, nil
+			return `{"routes":[{"prefix":"10.0.0.0/24","next-hop":"10.0.0.1","origin":"igp","as-path":[65001,65002],"local-preference":100,"med":0,"peer-address":"10.0.0.1","community":["65000:100","65001:200"],"large-community":["65000:0:100"]}]}`, nil
 		case strings.HasPrefix(cmd, "rib best"):
 			return `{"routes":[{"prefix":"10.0.0.0/24","next-hop":"10.0.0.1","origin":"igp","as-path":[65001],"local-preference":100}]}`, nil
 		}
@@ -166,6 +168,12 @@ func TestLGServerRouting(t *testing.T) {
 		{"/api/looking-glass/routes/protocol/peer1", 200, "application/json"},
 		{"/api/looking-glass/routes/table/ipv4%2Funicast", 200, "application/json"},
 		{"/api/looking-glass/routes/search?prefix=10.0.0.0/24", 200, "application/json"},
+		{"/api/looking-glass/protocols/short", 200, "application/json"},
+		{"/api/looking-glass/routes/peer/10.0.0.1", 200, "application/json"},
+		{"/api/looking-glass/routes/export/peer1", 200, "application/json"},
+		{"/api/looking-glass/routes/noexport/peer1", 200, "application/json"},
+		{"/api/looking-glass/routes/count/protocol/peer1", 200, "application/json"},
+		{"/api/looking-glass/routes/prefix?prefix=10.0.0.0/24", 200, "application/json"},
 		{"/api/looking-glass/nonexistent", 404, "application/json"},
 		{"/lg/peers", 200, "text/html"},
 		{"/lg/lookup", 200, "text/html"},

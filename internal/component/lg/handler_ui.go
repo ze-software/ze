@@ -181,25 +181,25 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := s.query(fmt.Sprintf("peer %s rib show received", address))
-	zeData := parseJSON(result)
-
-	if zeData == nil {
-		http.NotFound(w, r)
-		return
-	}
-
-	if _, ok := zeData["error"].(string); ok {
-		http.NotFound(w, r)
-		return
-	}
-
-	routes := extractRoutes(zeData)
-
-	// Get peer info.
+	// Get peer info first to confirm the peer exists.
 	peerResult := s.query("summary")
 	peerData := parseJSON(peerResult)
 	peerInfo := findPeer(peerData, address)
+
+	if peerInfo == nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	var routes []any
+	result := s.query(fmt.Sprintf("peer %s rib show received", address))
+	zeData := parseJSON(result)
+
+	if zeData != nil {
+		if _, isErr := zeData["error"].(string); !isErr {
+			routes = extractRoutes(zeData)
+		}
+	}
 
 	data := map[string]any{
 		"Title":   fmt.Sprintf("Routes from %s", address),

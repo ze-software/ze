@@ -160,9 +160,15 @@ func (s *LGServer) registerRoutes() {
 	// API handlers (birdwatcher-compatible REST).
 	s.mux.HandleFunc("GET /api/looking-glass/status", s.handleAPIStatus)
 	s.mux.HandleFunc("GET /api/looking-glass/protocols/bgp", s.handleAPIProtocols)
+	s.mux.HandleFunc("GET /api/looking-glass/protocols/short", s.handleAPIProtocolsShort)
 	s.mux.HandleFunc("GET /api/looking-glass/routes/protocol/{name}", s.handleAPIRoutesProtocol)
+	s.mux.HandleFunc("GET /api/looking-glass/routes/peer/{peer}", s.handleAPIRoutesPeer)
 	s.mux.HandleFunc("GET /api/looking-glass/routes/table/{family}", s.handleAPIRoutesTable)
 	s.mux.HandleFunc("GET /api/looking-glass/routes/filtered/{name}", s.handleAPIRoutesFiltered)
+	s.mux.HandleFunc("GET /api/looking-glass/routes/export/{name}", s.handleAPIRoutesExport)
+	s.mux.HandleFunc("GET /api/looking-glass/routes/noexport/{name}", s.handleAPIRoutesNoExport)
+	s.mux.HandleFunc("GET /api/looking-glass/routes/count/protocol/{name}", s.handleAPIRoutesCount)
+	s.mux.HandleFunc("GET /api/looking-glass/routes/prefix", s.handleAPIRoutesPrefix)
 	s.mux.HandleFunc("GET /api/looking-glass/routes/search", s.handleAPIRoutesSearch)
 
 	// UI handlers (HTMX web pages).
