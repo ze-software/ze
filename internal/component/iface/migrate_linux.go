@@ -34,11 +34,11 @@ type MigrateConfig struct {
 // validateMigrateConfig checks that all required fields are set and the
 // interface type (if specified) is one of the known types.
 func validateMigrateConfig(cfg MigrateConfig) error {
-	if cfg.OldIface == "" {
-		return errors.New("migrate: old interface name is empty")
+	if err := validateIfaceName(cfg.OldIface); err != nil {
+		return fmt.Errorf("migrate: old interface: %w", err)
 	}
-	if cfg.NewIface == "" {
-		return errors.New("migrate: new interface name is empty")
+	if err := validateIfaceName(cfg.NewIface); err != nil {
+		return fmt.Errorf("migrate: new interface: %w", err)
 	}
 	if cfg.Address == "" {
 		return errors.New("migrate: address is empty")
@@ -86,7 +86,8 @@ func (c *bgpReadyConsumer) Deliver(events []ze.Event) error {
 			}
 		}
 		targetIP := stripPrefix(c.targetAddr)
-		if addr == targetIP || addr == c.targetAddr {
+		addrIP := stripPrefix(addr)
+		if addrIP == targetIP || addr == c.targetAddr {
 			select {
 			case c.ready <- struct{}{}: // signal readiness
 			default: // already signaled
@@ -178,21 +179,17 @@ func MigrateInterface(cfg MigrateConfig, bus ze.Bus, timeout time.Duration) erro
 		return fmt.Errorf("migrate phase 3: timed out waiting for BGP readiness on %s", cfg.Address)
 	}
 
-	// Phase 4: Remove address from old interface.
+	// Phase 4: Remove address from old interface. The new address is live and BGP
+	// is running. Failure means the old address remains (dual-homed temporarily).
 	if err := RemoveAddress(oldOSName, cfg.Address); err != nil {
-		// Log warning but continue -- the old address is stale but the new one is active.
-		loggerPtr.Load().Warn("migrate phase 4: failed to remove old address",
+		loggerPtr.Load().Warn("migrate phase 4: old address not removed (dual-homed)",
 			"interface", oldOSName, "address", cfg.Address, "err", err)
+		return fmt.Errorf("migrate phase 4: remove old address: %w", err)
 	}
 
-	// Phase 5: Optionally delete old interface (only if Ze-managed, i.e., type was set).
-	// This is a best-effort cleanup. A failure here means a stale interface with no IP.
-	if cfg.NewIfaceType != "" {
-		if err := DeleteInterface(cfg.OldIface); err != nil {
-			loggerPtr.Load().Warn("migrate phase 5: failed to delete old interface",
-				"interface", cfg.OldIface, "err", err)
-		}
-	}
+	// Phase 5: Old interface cleanup is left to the caller. We cannot determine
+	// whether the old interface is Ze-managed or a physical NIC from this context.
+	// Callers should use DeleteInterface explicitly if the old interface should be removed.
 
 	return nil
 }

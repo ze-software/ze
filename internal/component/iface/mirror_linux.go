@@ -82,7 +82,7 @@ func setupClsactMirror(srcIndex, dstIndex int, ingress, egress bool) error {
 			Actions: []netlink.Action{
 				&netlink.MirredAction{
 					ActionAttrs: netlink.ActionAttrs{
-						Action: netlink.TC_ACT_STOLEN,
+						Action: netlink.TC_ACT_PIPE,
 					},
 					MirredAction: netlink.TCA_EGRESS_MIRROR,
 					Ifindex:      dstIndex,
@@ -106,7 +106,7 @@ func setupClsactMirror(srcIndex, dstIndex int, ingress, egress bool) error {
 			Actions: []netlink.Action{
 				&netlink.MirredAction{
 					ActionAttrs: netlink.ActionAttrs{
-						Action: netlink.TC_ACT_STOLEN,
+						Action: netlink.TC_ACT_PIPE,
 					},
 					MirredAction: netlink.TCA_EGRESS_MIRROR,
 					Ifindex:      dstIndex,
@@ -138,14 +138,14 @@ func setupIngressMirror(srcIndex, dstIndex int) error {
 	filter := &netlink.MatchAll{
 		FilterAttrs: netlink.FilterAttrs{
 			LinkIndex: srcIndex,
-			Parent:    netlink.MakeHandle(0xffff, 0),
+			Parent:    netlink.HANDLE_MIN_INGRESS,
 			Priority:  1,
 			Protocol:  unix.ETH_P_ALL,
 		},
 		Actions: []netlink.Action{
 			&netlink.MirredAction{
 				ActionAttrs: netlink.ActionAttrs{
-					Action: netlink.TC_ACT_STOLEN,
+					Action: netlink.TC_ACT_PIPE,
 				},
 				MirredAction: netlink.TCA_EGRESS_MIRROR,
 				Ifindex:      dstIndex,

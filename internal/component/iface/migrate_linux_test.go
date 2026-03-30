@@ -54,12 +54,12 @@ func TestMigrateConfigValidation(t *testing.T) {
 		{
 			name:    "empty old iface",
 			cfg:     MigrateConfig{OldIface: "", NewIface: "lo1", Address: "10.0.0.1/24"},
-			wantErr: "old interface name is empty",
+			wantErr: "migrate: old interface:",
 		},
 		{
 			name:    "empty new iface",
 			cfg:     MigrateConfig{OldIface: "lo0", NewIface: "", Address: "10.0.0.1/24"},
-			wantErr: "new interface name is empty",
+			wantErr: "migrate: new interface:",
 		},
 		{
 			name:    "empty address",

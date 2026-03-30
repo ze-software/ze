@@ -49,8 +49,8 @@ func NewDHCPClient(ifaceName string, unit int, bus ze.Bus, v4, v6 bool) (*DHCPCl
 	if !v4 && !v6 {
 		return nil, errors.New("iface dhcp: at least one of v4 or v6 must be enabled")
 	}
-	if ifaceName == "" {
-		return nil, errors.New("iface dhcp: interface name is empty")
+	if err := validateIfaceName(ifaceName); err != nil {
+		return nil, fmt.Errorf("iface dhcp: %w", err)
 	}
 	return &DHCPClient{
 		ifaceName: ifaceName,
@@ -105,10 +105,12 @@ func (c *DHCPClient) Start() error {
 }
 
 // Stop signals DHCP goroutines to exit and waits for completion.
-// Safe to call multiple times.
+// Safe to call multiple times. Safe to call if Start was never called.
 func (c *DHCPClient) Stop() {
 	c.stopOnce.Do(func() { close(c.stop) })
-	<-c.done
+	if c.started.Load() {
+		<-c.done
+	}
 }
 
 // stopped returns true if stop has been signaled.
@@ -116,7 +118,7 @@ func (c *DHCPClient) stopped() bool {
 	select {
 	case <-c.stop:
 		return true
-	case <-time.After(0): // non-blocking check without bare default
+	default: // non-blocking: not stopped yet
 		return false
 	}
 }
@@ -169,8 +171,9 @@ func (c *DHCPClient) runV4() {
 			continue
 		}
 
-		ctx := c.stoppableContext()
+		ctx, ctxCancel := c.stoppableContext()
 		lease, err := client.Request(ctx)
+		ctxCancel()
 		if closeErr := client.Close(); closeErr != nil {
 			logger.Debug("iface dhcp v4: client close failed",
 				"iface", c.ifaceName, "err", closeErr)
@@ -217,7 +220,11 @@ func (c *DHCPClient) runV4() {
 		}
 
 		if !renewed {
-			// T2 rebind attempt.
+			// Wait until T2 before rebind attempt (RFC 2131).
+			if !c.sleepOrStop(t2 - t1) {
+				c.removeV4Addr(ack)
+				return
+			}
 			renewed = c.renewV4(lease)
 		}
 
@@ -252,7 +259,8 @@ func (c *DHCPClient) renewV4(lease *nclient4.Lease) bool {
 		}
 	}()
 
-	ctx := c.stoppableContext()
+	ctx, ctxCancel := c.stoppableContext()
+	defer ctxCancel()
 	renewed, err := client.Renew(ctx, lease)
 	if err != nil {
 		logger.Warn("iface dhcp v4: renewal failed",
@@ -281,8 +289,9 @@ func (c *DHCPClient) handleV4Lease(ack *dhcpv4.DHCPv4, topic string) {
 
 	ones, _ := mask.Size()
 	if ones == 0 {
-		// Default to /24 if no subnet mask option present.
 		ones = 24
+		logger.Warn("iface dhcp v4: no subnet mask in ACK, defaulting to /24",
+			"iface", c.ifaceName, "address", ip.String())
 	}
 
 	cidr := fmt.Sprintf("%s/%d", ip.String(), ones)
@@ -418,9 +427,10 @@ func (c *DHCPClient) runV6() {
 			continue
 		}
 
-		ctx := c.stoppableContext()
+		ctx, ctxCancel := c.stoppableContext()
 		// RapidSolicit tries rapid commit first; falls back to full SARR.
 		msg, err := client.RapidSolicit(ctx)
+		ctxCancel()
 		if closeErr := client.Close(); closeErr != nil {
 			logger.Debug("iface dhcp v6: client close failed",
 				"iface", c.ifaceName, "err", closeErr)
@@ -501,7 +511,8 @@ func (c *DHCPClient) renewV6() bool {
 		}
 	}()
 
-	ctx := c.stoppableContext()
+	ctx, ctxCancel := c.stoppableContext()
+	defer ctxCancel()
 	reply, err := client.RapidSolicit(ctx)
 	if err != nil {
 		logger.Warn("iface dhcp v6: renewal failed",
@@ -529,9 +540,18 @@ func (c *DHCPClient) handleV6Reply(msg *dhcpv6.Message, topic string) {
 		return
 	}
 
-	// Process IA_NA (non-temporary addresses).
+	// Process IA_NA (non-temporary addresses). Cap iterations to prevent
+	// unbounded processing from a rogue DHCPv6 server.
+	const maxAddrs = 16
+	addrCount := 0
 	for _, iana := range msg.Options.IANA() {
 		for _, iaAddr := range iana.Options.Addresses() {
+			if addrCount >= maxAddrs {
+				logger.Warn("iface dhcp v6: too many IA_NA addresses, capping",
+					"iface", c.ifaceName, "max", maxAddrs)
+				break
+			}
+			addrCount++
 			ip := iaAddr.IPv6Addr
 			if ip == nil {
 				continue
@@ -685,9 +705,10 @@ func (c *DHCPClient) v6Timers(msg *dhcpv6.Message) (t1, t2, validLft time.Durati
 	return t1, t2, validLft
 }
 
-// stoppableContext returns a context.Context that is canceled when the
-// DHCP client's stop channel is closed.
-func (c *DHCPClient) stoppableContext() context.Context {
+// stoppableContext returns a context that is canceled when the DHCP client's
+// stop channel is closed. Callers MUST call the returned cancel function when
+// the operation completes to release the monitoring goroutine.
+func (c *DHCPClient) stoppableContext() (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
 		select {
@@ -696,7 +717,7 @@ func (c *DHCPClient) stoppableContext() context.Context {
 		case <-ctx.Done():
 		}
 	}()
-	return ctx
+	return ctx, cancel
 }
 
 // sleepOrStop blocks for the given duration or until stop is signaled.
