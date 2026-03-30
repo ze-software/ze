@@ -93,6 +93,7 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 	// Done after local handler check so format keywords don't get silently stripped
 	// from commands that don't support them.
 	cmdWords, format := ExtractOutputFormat(cmdWords)
+	treeWords, selector = ExtractSelector(cmdWords, tree)
 
 	if len(cmdWords) == 0 {
 		return -1 // signal caller to show usage (all words were format keyword)

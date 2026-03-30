@@ -18,4 +18,5 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze show version
 expect=exit:code=0
-expect=stdout:contains=ze
+expect=stdout:contains=ze dev
+expect=stdout:contains=(built

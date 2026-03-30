@@ -7,7 +7,9 @@ and **runtime commands** sent to the running daemon via SSH.
 ## Shell Commands
 
 Run directly from the terminal. No daemon required (except `ze signal`, `ze status`,
-`ze show`, `ze run`, `ze cli`).
+`ze run`, `ze cli`, and daemon-targeted `ze show` subcommands).
+Some `ze show` subcommands run locally: `version`, `bgp decode`, `bgp encode`,
+`env`, `schema`, `yang`, `completion`.
 
 ### ze
 
@@ -25,7 +27,7 @@ ze start                         # Start daemon from database
 | `--plugin <name>` | Load plugin before starting (repeatable) |
 | `--plugins` | List available internal plugins |
 | `--pprof <addr:port>` | Start pprof HTTP server |
-| `-V`, `--version` | Show version |
+| `-V`, `--version` | Show version (also available as `ze show version`) |
 | `--chaos-seed <N>` | Enable chaos self-test mode |
 | `--chaos-rate <0-1>` | Fault probability per operation |
 | `--server <host:port>` | Override hub address for managed mode |
@@ -477,6 +479,10 @@ Commands sent to the running daemon. Access through three entry points:
 | `ze cli` | Full (interactive) | Exploration, monitoring |
 | `ze show <cmd>` | Read-only | Scripting, dashboards |
 | `ze run <cmd>` | Full | Automation, route injection |
+
+**Note:** Some `ze show` subcommands run locally without a daemon (version,
+bgp decode/encode, env, schema, yang, completion). These are dispatched
+via local handlers before attempting SSH connection.
 
 `ze cli` accepts `--run <command>` for single-shot execution and
 `--format <format>` (default: yaml).

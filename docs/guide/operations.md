@@ -4,7 +4,7 @@ Running Ze in production: SSH access, signals, health checks, environment variab
 
 ## SSH Server
 
-Ze exposes its CLI over SSH. All `ze cli`, `ze show`, `ze run`, and `ze signal` commands connect to this server.
+Ze exposes its CLI over SSH. `ze cli`, `ze run`, and `ze signal` commands connect to this server. Most `ze show` subcommands do too, except local ones (version, bgp decode/encode, env, schema, yang, completion) which run in-process.
 
 ### Setup
 

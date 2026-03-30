@@ -1,0 +1,21 @@
+# Test: ze show bgp encode dispatches through YANG verb tree
+# VALIDATES: show bgp encode is wired via local handler to bgp.Run
+# PREVENTS: show bgp encode not reaching the encode handler
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65533
+		}
+		local {
+			as 65533
+			ip 127.0.0.1
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze show bgp encode --help
+expect=exit:code=0
+expect=stdout:contains=Encode BGP UPDATE

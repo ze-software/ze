@@ -4,7 +4,126 @@ package cmdutil
 
 import (
 	"testing"
+
+	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 )
+
+// VALIDATES: ExtractOutputFormat removes trailing format keyword.
+// PREVENTS: format extraction breaking command dispatch.
+func TestExtractOutputFormat(t *testing.T) {
+	tests := []struct {
+		name       string
+		words      []string
+		wantWords  []string
+		wantFormat string
+	}{
+		{"json suffix", []string{"peer", "list", "json"}, []string{"peer", "list"}, "json"},
+		{"yaml suffix", []string{"peer", "list", "yaml"}, []string{"peer", "list"}, "yaml"},
+		{"table suffix", []string{"peer", "list", "table"}, []string{"peer", "list"}, "table"},
+		{"no format", []string{"peer", "list"}, []string{"peer", "list"}, ""},
+		{"format in middle", []string{"peer", "json", "list"}, []string{"peer", "json", "list"}, ""},
+		{"only format", []string{"json"}, nil, "json"},
+		{"empty", nil, nil, ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			words, format := ExtractOutputFormat(tt.words)
+			if format != tt.wantFormat {
+				t.Errorf("format = %q, want %q", format, tt.wantFormat)
+			}
+			if len(words) != len(tt.wantWords) {
+				t.Errorf("words = %v, want %v", words, tt.wantWords)
+				return
+			}
+			for i, w := range words {
+				if w != tt.wantWords[i] {
+					t.Errorf("words[%d] = %q, want %q", i, w, tt.wantWords[i])
+				}
+			}
+		})
+	}
+}
+
+// VALIDATES: looksLikeSelector matches IPv4, IPv6, and glob patterns.
+// PREVENTS: IPv6 peer selectors not being recognized.
+func TestLooksLikeSelector(t *testing.T) {
+	tests := []struct {
+		input string
+		want  bool
+	}{
+		{"127.0.0.1", true},
+		{"192.168.*.*", true},
+		{"*", true},
+		{"::1", true},
+		{"2001:db8::1", true},
+		{"fe80::1%eth0", true},
+		{"peer-name", false},
+		{"show", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := looksLikeSelector(tt.input)
+			if got != tt.want {
+				t.Errorf("looksLikeSelector(%q) = %v, want %v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+// VALIDATES: DescribeCommand returns description or summarizes children.
+// PREVENTS: garbled help output for group commands.
+func TestDescribeCommand(t *testing.T) {
+	// Leaf with description.
+	leaf := &cli.Command{Description: "Show BGP peers"}
+	if got := DescribeCommand(leaf); got != "Show BGP peers" {
+		t.Errorf("leaf desc = %q, want %q", got, "Show BGP peers")
+	}
+
+	// Group with children.
+	group := &cli.Command{
+		Children: map[string]*cli.Command{
+			"bgp":  {},
+			"peer": {},
+		},
+	}
+	got := DescribeCommand(group)
+	want := "subcommands: bgp, peer"
+	if got != want {
+		t.Errorf("group desc = %q, want %q", got, want)
+	}
+
+	// Empty node.
+	empty := &cli.Command{}
+	if got := DescribeCommand(empty); got != "" {
+		t.Errorf("empty desc = %q, want empty", got)
+	}
+}
+
+// VALIDATES: SuggestFromTree returns suggestions for typos.
+// PREVENTS: missing "did you mean?" hints for unknown commands.
+func TestSuggestFromTree(t *testing.T) {
+	tree := &cli.Command{
+		Children: map[string]*cli.Command{
+			"peer":    {Description: "Peer commands"},
+			"summary": {Description: "Summary"},
+		},
+	}
+
+	// Close match should suggest.
+	got := SuggestFromTree("pear", tree)
+	if got != "peer" {
+		t.Errorf("SuggestFromTree(pear) = %q, want %q", got, "peer")
+	}
+
+	// Nil tree children.
+	got = SuggestFromTree("anything", &cli.Command{})
+	if got != "" {
+		t.Errorf("SuggestFromTree(nil children) = %q, want empty", got)
+	}
+}
 
 // VALIDATES: RegisterLocalCommand stores handler and RunCommand dispatches it.
 // PREVENTS: local handler registration silently failing.
