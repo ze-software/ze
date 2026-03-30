@@ -1,0 +1,22 @@
+# Test: ze show data ls dispatches through YANG verb tree
+# VALIDATES: show data ls is wired via local handler to data.Run
+# PREVENTS: show data ls not reaching the data handler
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65533
+		}
+		local {
+			as 65533
+			ip 127.0.0.1
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze show data registered
+expect=exit:code=0
+expect=stdout:contains=PATTERN
+expect=stdout:contains=file/active

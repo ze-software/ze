@@ -1,0 +1,21 @@
+# Test: ze show interface dispatches through YANG verb tree
+# VALIDATES: show interface is wired via local handler to iface.Run
+# PREVENTS: show interface not reaching the interface handler
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65533
+		}
+		local {
+			as 65533
+			ip 127.0.0.1
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze show interface
+expect=exit:code=0
+expect=stdout:contains=interface
