@@ -22,3 +22,4 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 - [feedback_trust_learned_summaries.md](feedback_trust_learned_summaries.md) - Verify "deferred/impossible" claims in learned summaries against actual code before reporting
 - [feedback_confirm_before_switching.md](feedback_confirm_before_switching.md) - Do not switch line of work without explicit user confirmation
 - [feedback_never_disable_gpg.md](feedback_never_disable_gpg.md) - Never bypass GPG signing on commits. Investigate failures, ask user.
+- [feedback_gpg_signing_recovery.md](feedback_gpg_signing_recovery.md) - On GPG sign failure, ask user to run `! echo test | gpg --clearsign` then retry
