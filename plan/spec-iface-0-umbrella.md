@@ -60,6 +60,7 @@ The plugin both **monitors all OS interfaces** (reacting to external changes) an
 | 2 | `spec-iface-2-manage.md` | Interface create/delete/addr + YANG config + CLI | iface-1 |
 | 3 | `spec-iface-3-bgp-react.md` | BGP reacts to addr events (listener start/stop, drain, `local-address` by name) | iface-1 |
 | 4 | `spec-iface-4-advanced.md` | DHCP, make-before-break migration, traffic mirroring, SLAAC | iface-2, iface-3 |
+| 5 | `spec-iface-5-vm-tests.md` | Linux integration tests (netlink, tc, sysctl, DHCP) in network namespaces | iface-4 |
 
 Phases 2 and 3 are independent and can proceed in parallel.
 
