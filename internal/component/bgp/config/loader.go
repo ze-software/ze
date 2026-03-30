@@ -644,7 +644,7 @@ func extractSSHConfig(tree *config.Tree) (zessh.Config, bool) {
 // WebConfig holds parsed environment.web settings.
 type WebConfig struct {
 	Host     string // Listen host (e.g. 0.0.0.0)
-	Port     string // Listen port (e.g. 8443)
+	Port     string // Listen port (e.g. 3443)
 	Insecure bool   // Disable authentication
 }
 
@@ -662,7 +662,7 @@ func ExtractWebConfig(tree *config.Tree) (WebConfig, bool) {
 		return WebConfig{}, false
 	}
 
-	cfg := WebConfig{Host: "0.0.0.0", Port: "8443"}
+	cfg := WebConfig{Host: "0.0.0.0", Port: "3443"}
 	if v, ok := web.Get("host"); ok {
 		cfg.Host = v
 	}
@@ -753,7 +753,7 @@ func ExtractLGConfig(tree *config.Tree) (LGConfig, bool) {
 		return LGConfig{}, false
 	}
 
-	cfg := LGConfig{Host: "0.0.0.0", Port: "3443"}
+	cfg := LGConfig{Host: "0.0.0.0", Port: "8443"}
 	if v, ok := lg.Get("host"); ok {
 		cfg.Host = v
 	}

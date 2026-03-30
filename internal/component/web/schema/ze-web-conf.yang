@@ -24,7 +24,7 @@ module ze-web-conf {
 
             leaf port {
                 type uint16;
-                default 8443;
+                default 3443;
                 description "Listen port";
             }
 

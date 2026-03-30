@@ -138,7 +138,7 @@ No `unsafe-eval`. All scripts are external files. No inline `<script>` blocks.
 | Method | Command |
 |--------|---------|
 | CLI flag | `ze start --web <port>` |
-| Config | `environment { web { host 0.0.0.0; port 8443; } }` |
+| Config | `environment { web { host 0.0.0.0; port 3443; } }` |
 
 Both paths call `startWebServer()` in `cmd/ze/hub/main.go`. Web-only mode (no BGP config) starts the web server standalone for initial setup.
 
@@ -146,7 +146,7 @@ Both paths call `startWebServer()` in `cmd/ze/hub/main.go`. Web-only mode (no BG
 
 ## Looking Glass
 
-The looking glass is a separate HTTP server (`internal/component/lg/`) that provides public, read-only access to BGP state. It runs on its own port (default 3443), independent from the authenticated web UI.
+The looking glass is a separate HTTP server (`internal/component/lg/`) that provides public, read-only access to BGP state. It runs on its own port (default 8443), independent from the authenticated web UI.
 
 All source files in `internal/component/lg/` reference this document via `// Design:` comments.
 
@@ -201,7 +201,7 @@ The birdwatcher API uses `snake_case` JSON keys (`router_id`, `neighbor_address`
 
 | Method | Config |
 |--------|--------|
-| Config | `environment { looking-glass { host 0.0.0.0; port 3443; } }` |
+| Config | `environment { looking-glass { host 0.0.0.0; port 8443; } }` |
 | Env vars | `ze.lg.host`, `ze.lg.port`, `ze.lg.tls` |
 
 Started by `startLGServer()` in `cmd/ze/hub/main.go` alongside the web server, after engine startup.

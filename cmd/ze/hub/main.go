@@ -60,7 +60,7 @@ var (
 
 // RunWebOnly starts only the web server (no BGP engine).
 // Used when ze start --web is called without a config.
-// listenAddr overrides the default "0.0.0.0:8443" when non-empty.
+// listenAddr overrides the default "0.0.0.0:3443" when non-empty.
 func RunWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int {
 	webSrv := startWebServer(store, listenAddr, insecureWeb, nil)
 	if webSrv == nil {
@@ -407,7 +407,7 @@ func startWebServer(store storage.Storage, listenAddr string, insecureWeb bool, 
 	}
 
 	if listenAddr == "" {
-		listenAddr = "0.0.0.0:8443"
+		listenAddr = "0.0.0.0:3443"
 	}
 
 	var users []ssh.UserConfig

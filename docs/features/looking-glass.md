@@ -1,6 +1,6 @@
 # Looking Glass
 
-Ze includes a built-in looking glass that exposes BGP session state and route information via both an HTMX web UI and a birdwatcher-compatible REST API. The looking glass runs as a separate HTTP server on its own port (default 3443), with no authentication (public, read-only). TLS is optional.
+Ze includes a built-in looking glass that exposes BGP session state and route information via both an HTMX web UI and a birdwatcher-compatible REST API. The looking glass runs as a separate HTTP server on its own port (default 8443), with no authentication (public, read-only). TLS is optional.
 
 | Feature | Description |
 |---------|-------------|

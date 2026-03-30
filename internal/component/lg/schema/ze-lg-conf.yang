@@ -24,7 +24,7 @@ module ze-lg-conf {
 
             leaf port {
                 type uint16;
-                default 3443;
+                default 8443;
                 description "Listen port";
             }
 

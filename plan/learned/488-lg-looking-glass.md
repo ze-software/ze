@@ -7,12 +7,12 @@ Ze had no built-in looking glass. Network operators at IXPs need public, read-on
 ## Decisions
 
 - **Component, not plugin** (over placing in `bgp/plugins/`): the looking glass is infrastructure, not BGP behavior. The "delete the folder" test: deleting `bgp/plugins/` should not remove the looking glass.
-- **Separate HTTP server** (over extending the web UI): different access model (public vs authenticated), different port (3443 vs 8443). Operators expose LG to the internet while keeping the web UI firewalled.
+- **Separate HTTP server** (over extending the web UI): different access model (public vs authenticated), different port (8443 vs 3443). Operators expose LG to the internet while keeping the web UI firewalled.
 - **Server-side SVG** (over client-side JS graph library): zero external dependencies, perfect HTMX fit, sufficient for AS path DAGs (typically 3-10 nodes).
 - **Birdwatcher snake_case** (over Ze's kebab-case): de facto standard for looking glass APIs. Alice-LG compatibility requires it. Documented as the only exception in `json-format.md`.
 - **CommandDispatcher for data access** (over direct RIB imports): preserves plugin isolation. LG queries the engine the same way the web UI does.
 - **Plain HTTP by default** (over mandatory TLS): looking glasses are typically behind reverse proxies. TLS is opt-in. When TLS is explicitly configured but cert loading fails, the server refuses to start (no silent downgrade).
-- **Default port 3443** (changed from initial 8444 during implementation).
+- **Default port 8443** (LG). Web UI moved to 3443.
 
 ## Consequences
 
