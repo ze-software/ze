@@ -31,9 +31,16 @@ var localHandlers = make(map[string]LocalHandler)
 
 // RegisterLocalCommand registers a handler for a CLI command path that
 // runs in-process. The path is the full CLI path (e.g., "show version").
-// Called from init() in component packages.
-func RegisterLocalCommand(path string, handler LocalHandler) {
+// Called at startup to register in-process commands before dispatch.
+func RegisterLocalCommand(path string, handler LocalHandler) error {
+	if path == "" {
+		return fmt.Errorf("RegisterLocalCommand: empty path")
+	}
+	if handler == nil {
+		return fmt.Errorf("RegisterLocalCommand: nil handler for %q", path)
+	}
 	localHandlers[path] = handler
+	return nil
 }
 
 // RunCommand extracts flags, validates command words against the tree,
@@ -58,6 +65,8 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 	treeWords, selector := ExtractSelector(cmdWords, tree)
 
 	// Check local handler registry first (offline commands like version, completion).
+	// Note: output format (yaml/json/table) is not passed to local handlers.
+	// If a future local handler needs format support, extend LocalHandler signature.
 	localPath := strings.Join(treeWords, " ")
 	if handler, ok := localHandlers[localPath]; ok {
 		var handlerArgs []string

@@ -1,0 +1,21 @@
+# Test: ze show version prints version without daemon
+# VALIDATES: show version is wired through YANG verb dispatch and local handler
+# PREVENTS: show version requiring a daemon connection
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65533
+		}
+		local {
+			as 65533
+			ip 127.0.0.1
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze show version
+expect=exit:code=0
+expect=stdout:contains=ze

@@ -78,10 +78,13 @@ func printVersion() {
 }
 
 func registerLocalCommands() {
-	cmdutil.RegisterLocalCommand("show version", func(_ []string) int {
+	if err := cmdutil.RegisterLocalCommand("show version", func(_ []string) int {
 		printVersion()
 		return 0
-	})
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
+	}
 }
 
 func main() {
@@ -262,8 +265,10 @@ dispatch:
 				fmt.Fprintf(os.Stderr, "%s (%s).\n\n", strings.ToUpper(arg[:1])+arg[1:], desc)
 			}
 			fmt.Fprintf(os.Stderr, "Available commands:\n")
-			if yangNode != nil {
+			if yangNode != nil && len(yangNode.Children) > 0 {
 				command.WriteHelp(os.Stderr, yangNode, nil)
+			} else {
+				fmt.Fprintf(os.Stderr, "  (no commands registered)\n")
 			}
 			fmt.Fprintln(os.Stderr)
 			os.Exit(0)
