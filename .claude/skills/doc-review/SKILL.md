@@ -279,3 +279,4 @@ Each agent runs steps 3-6 for its scope. Results are merged in step 7.
 - Does not review `plan/` specs or `plan/learned/` summaries
 - Does not review `rfc/` (those are reference material, not project docs)
 - Does not review code comments or `// Design:` annotations (covered by `/review-for-issues` and `/deep-review`)
+- For change-scoped doc accuracy (do docs match a specific diff?), use `/deep-review docs` instead

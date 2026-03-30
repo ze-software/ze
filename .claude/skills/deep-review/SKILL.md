@@ -23,7 +23,7 @@ Read the diff to understand the full changeset. Build a file list.
 
 ### 2. Select agents
 
-If the user's argument names specific agents (keywords: security, concurrency, error, test, logic, data, api, rules), run only those. Otherwise, present this menu and **wait for the user to choose**:
+If the user's argument names specific agents (keywords: security, concurrency, error, test, logic, data, api, rules, docs/documentation), run only those. Otherwise, present this menu and **wait for the user to choose**:
 
 ```
 Which review agents should I run?
@@ -36,6 +36,7 @@ Which review agents should I run?
 6. Data Flow & Boundary Violations
 7. API Compatibility & Contract Violations
 8. Project Rules Compliance
+9. Documentation Accuracy
 
 Enter numbers (e.g., 1,5), "all", or names (e.g., "security, logic"):
 ```
@@ -260,6 +261,38 @@ FILE:LINE | RULE | VIOLATION | FIX
 If all rules are followed, say "All project rules satisfied" with a brief summary.
 ```
 
+**Agent 9 — Documentation Accuracy**
+```
+You are a documentation accuracy auditor. Your job is to verify that documentation matches the changed code and that doc updates were made where required.
+
+SCOPE: Review these changed files: {file_list}
+
+For every changed function, struct, config option, CLI flag, or RPC:
+1. Does `docs/` contain documentation for this feature? Search for mentions.
+2. If docs exist: do they match the current code? Check field names, syntax, behavior descriptions.
+3. If the change modifies documented behavior: was the doc updated in this diff?
+4. For every `<!-- source: path -- symbol -->` anchor in related docs: does the anchor still point to valid code?
+
+Check these specific doc locations against changes:
+- CLI changes → `docs/guide/command-reference.md`
+- Config changes → `docs/guide/configuration.md`, `docs/architecture/config/syntax.md`
+- Wire format changes → `docs/architecture/wire/`
+- Plugin changes → `docs/guide/plugins.md`, `docs/plugin-development/`
+- API/RPC changes → `docs/architecture/api/commands.md`
+- New features → `docs/features.md`
+
+Also check:
+- `// Design:` comments in changed .go files: do they reference correct architecture docs?
+- `// Related:` / `// Detail:` / `// Overview:` cross-references: are they bidirectional and accurate?
+- Source anchors in docs that reference changed files: are the claims still correct?
+- Code examples in docs that reference changed functions/types: are they still valid?
+
+For each finding report:
+FILE:LINE | SEVERITY (critical/high/medium/low) | CATEGORY (stale-doc/missing-doc/broken-anchor/wrong-example/missing-update) | EVIDENCE (what the doc says vs what the code does) | FIX
+
+If documentation is accurate and complete, say "Documentation is accurate" with a brief summary of what was checked.
+```
+
 ---
 
 ### 4. Consolidate results
@@ -301,6 +334,7 @@ After all selected agents complete, consolidate their findings into a single rep
 | Data Flow | N | ... |
 | API Compat | N | ... |
 | Project Rules | N | ... |
+| Documentation | N | ... |
 | **Total** | **N** | **highest** |
 
 ### Verdict
@@ -319,6 +353,6 @@ Multiple agents may find the same issue from different angles. Merge duplicates,
 - Do NOT fix anything. Report findings only.
 - Do NOT make any changes to code — no Edit, Write, or Bash commands that modify files.
 - After presenting the report, ask the user which findings to fix.
-- Each agent runs in the background — launch all 8 simultaneously.
+- Each agent runs in the background -- launch all selected agents simultaneously.
 - If an agent finds nothing, that's fine — report "clean" for that category.
 - False positive filter: discard findings on unmodified lines, linter-catchable issues, and intentional changes clearly visible in the diff.

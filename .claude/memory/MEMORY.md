@@ -6,6 +6,10 @@ Do NOT duplicate entries here. Read the repo copy.
 Repo memory includes: project knowledge, mistake log (feature not wired, wrong production path,
 count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 
+## Project
+
+- [project_cli_dispatch_discovery.md](project_cli_dispatch_discovery.md) - Three CLI gaps blocking debugging: no one-shot command, help shows RPC names not dispatch keys, no dispatch key listing
+
 ## User Profile
 
 - [user_trust_and_delegation.md](user_trust_and_delegation.md) - User trusts Claude with hard, long work and delegates the difficult parts. Honor that trust with thoroughness.
