@@ -1,6 +1,4 @@
 // Design: docs/architecture/core-design.md — interactive CLI
-// Related: ../run/main.go — run convenience command (uses BuildCommandTree)
-// Related: ../show/main.go — show convenience command (uses BuildCommandTree)
 // Related: ../internal/cmdutil/cmdutil.go — shared command utilities (uses BuildCommandTree)
 //
 // Package cli provides the ze cli subcommand.
@@ -277,7 +275,8 @@ func YANGCommandTree() *Command {
 }
 
 // BuildCommandTree builds the command tree from registered RPCs.
-// If readOnly is true, only includes RPCs marked ReadOnly (for "ze show").
+// If readOnly is true, only includes RPCs whose CLI path starts with a read-only verb (for "ze show").
+// Descriptions come from the YANG command tree, not from the RPC registration.
 func BuildCommandTree(readOnly bool) *Command {
 	rpcs := AllCLIRPCs()
 	infos := make([]cmd.RPCInfo, 0, len(rpcs))
@@ -286,16 +285,37 @@ func BuildCommandTree(readOnly bool) *Command {
 		if cliPath == "" {
 			continue
 		}
-		if readOnly && !reg.ReadOnly {
+		isRO := pluginserver.IsReadOnlyPath(cliPath)
+		if readOnly && !isRO {
 			continue
 		}
 		infos = append(infos, cmd.RPCInfo{
 			CLICommand: cliPath,
-			Help:       reg.Help,
-			ReadOnly:   reg.ReadOnly,
+			Help:       yangDescription(cliPath),
+			ReadOnly:   isRO,
 		})
 	}
 	return cmd.BuildTree(infos, false) // readOnly already filtered above
+}
+
+// yangDescription returns the YANG description for a CLI path by walking the
+// YANG command tree. Returns empty string if the path or tree is not found.
+func yangDescription(cliPath string) string {
+	node := yangCmdTree
+	if node == nil {
+		return ""
+	}
+	for part := range strings.FieldsSeq(cliPath) {
+		if node.Children == nil {
+			return ""
+		}
+		child, ok := node.Children[part]
+		if !ok {
+			return ""
+		}
+		node = child
+	}
+	return node.Description
 }
 
 // Command is an alias for command.Node. Use command.Node directly in new code.
@@ -334,7 +354,7 @@ func buildRuntimeTree(client *cliClient) *Command {
 	var filtered []cmd.RPCInfo
 	for _, reg := range AllCLIRPCs() {
 		if reg.PluginCommand != "" && !available[strings.ToLower(reg.PluginCommand)] {
-			continue // Plugin not running — skip this proxy command
+			continue // Plugin not running -- skip this proxy command
 		}
 		cliPath := cliWireToPath[reg.WireMethod]
 		if cliPath == "" {
@@ -342,8 +362,8 @@ func buildRuntimeTree(client *cliClient) *Command {
 		}
 		filtered = append(filtered, cmd.RPCInfo{
 			CLICommand: cliPath,
-			Help:       reg.Help,
-			ReadOnly:   reg.ReadOnly,
+			Help:       yangDescription(cliPath),
+			ReadOnly:   pluginserver.IsReadOnlyPath(cliPath),
 		})
 	}
 

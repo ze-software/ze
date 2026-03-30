@@ -8,7 +8,7 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-editor:mode-command", Help: "Switch to operational command mode (or run <cmd> to execute)", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-editor:mode-edit", Help: "Switch back to config edit mode", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-editor:mode-command"},
+		pluginserver.RPCRegistration{WireMethod: "ze-editor:mode-edit"},
 	)
 }

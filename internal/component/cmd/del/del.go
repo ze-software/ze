@@ -13,7 +13,6 @@ func init() {
 		pluginserver.RPCRegistration{
 			WireMethod:       "ze-del:bgp-peer",
 			Handler:          peer.HandleBgpPeerRemove,
-			Help:             "Remove a peer dynamically",
 			RequiresSelector: true,
 		},
 	)

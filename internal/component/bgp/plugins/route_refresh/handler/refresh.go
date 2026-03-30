@@ -14,9 +14,9 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-refresh", Handler: handleRefresh, Help: "Send ROUTE-REFRESH to peer (RFC 2918)", RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-borr", Handler: handleBoRR, Help: "Send Beginning of Route Refresh", RequiresSelector: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-eorr", Handler: handleEoRR, Help: "Send End of Route Refresh", RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-refresh", Handler: handleRefresh, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-borr", Handler: handleBoRR, RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-eorr", Handler: handleEoRR, RequiresSelector: true},
 	)
 }
 

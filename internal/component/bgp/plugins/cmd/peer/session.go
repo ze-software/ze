@@ -10,7 +10,7 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-plugin:session-peer-ready", Handler: handlePeerSessionReady, Help: "Signal peer-specific plugin init complete"},
+		pluginserver.RPCRegistration{WireMethod: "ze-plugin:session-peer-ready", Handler: handlePeerSessionReady},
 	)
 }
 

@@ -15,9 +15,9 @@ var ErrSilent = errors.New("silent")
 
 func init() {
 	RegisterRPCs(
-		RPCRegistration{WireMethod: "ze-plugin:session-ready", Handler: handlePluginSessionReady, Help: "Signal plugin init complete"},
-		RPCRegistration{WireMethod: "ze-plugin:session-ping", Handler: handlePluginSessionPing, Help: "Health check (returns PID)", ReadOnly: true},
-		RPCRegistration{WireMethod: "ze-plugin:session-bye", Handler: handlePluginSessionBye, Help: "Disconnect"},
+		RPCRegistration{WireMethod: "ze-plugin:session-ready", Handler: handlePluginSessionReady},
+		RPCRegistration{WireMethod: "ze-plugin:session-ping", Handler: handlePluginSessionPing},
+		RPCRegistration{WireMethod: "ze-plugin:session-bye", Handler: handlePluginSessionBye},
 	)
 }
 

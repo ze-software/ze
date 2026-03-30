@@ -23,7 +23,6 @@ func TestDelRPCRegistered(t *testing.T) {
 		}
 		found = true
 		assert.NotNil(t, reg.Handler, "handler must not be nil")
-		assert.NotEmpty(t, reg.Help, "help text must not be empty")
 		assert.True(t, reg.RequiresSelector, "del peer requires peer selector")
 		break
 	}

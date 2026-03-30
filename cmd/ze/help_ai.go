@@ -237,7 +237,7 @@ func printAPICommands() {
 		}
 
 		ro := ""
-		if b := findBuiltinRPC(rpc.WireMethod); b != nil && b.ReadOnly {
+		if cliPath := wireToPath[rpc.WireMethod]; cliPath != "" && pluginserver.IsReadOnlyPath(cliPath) {
 			ro = " [read-only]"
 		}
 
@@ -275,16 +275,13 @@ func printAPICommands() {
 		if shown[b.WireMethod] {
 			continue
 		}
-		help := b.Help
-		if help == "" {
-			help = "(no description)"
-		}
+		help := b.WireMethod
 		ro := ""
-		if b.ReadOnly {
-			ro = " [read-only]"
-		}
 		dispatch := wireToPath[b.WireMethod]
 		if dispatch != "" {
+			if pluginserver.IsReadOnlyPath(dispatch) {
+				ro = " [read-only]"
+			}
 			fmt.Printf("  %-44s (%-30s) %s%s\n", b.WireMethod, dispatch, help, ro)
 		} else {
 			fmt.Printf("  %-44s %-32s %s%s\n", b.WireMethod, "", help, ro)

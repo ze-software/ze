@@ -52,12 +52,26 @@ func LoadBuiltins(d *Dispatcher, wireToPath map[string]string) {
 		if name == "" {
 			continue // No YANG tree entry (editor-internal)
 		}
-		d.RegisterWithOptions(name, reg.Handler, reg.Help, RegisterOptions{
-			ReadOnly:         reg.ReadOnly,
+		d.RegisterWithOptions(name, reg.Handler, "", RegisterOptions{
+			ReadOnly:         IsReadOnlyPath(name),
 			RequiresSelector: reg.RequiresSelector,
 			PluginProxy:      reg.PluginCommand != "",
 		})
 	}
+}
+
+// IsReadOnlyPath returns true if the command path starts with a read-only verb
+// or a top-level query command not yet migrated under a verb.
+func IsReadOnlyPath(path string) bool {
+	verb, _, _ := strings.Cut(path, " ")
+	switch verb {
+	case "show", "validate", "monitor",
+		"summary", "help", "command", "event", "daemon",
+		"system", "plugin", "peer", "rib", "cache",
+		"metrics", "subscribe", "unsubscribe":
+		return true
+	}
+	return false
 }
 
 // RegisterDefaultHandlers registers all builtin handlers with the dispatcher.

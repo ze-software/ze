@@ -26,8 +26,6 @@ func init() {
 		pluginserver.RPCRegistration{
 			WireMethod: WireMethod,
 			Handler:    handleMonitor,
-			Help:       "Stream live BGP events (use via SSH exec for streaming)",
-			ReadOnly:   true,
 		},
 	)
 	// Register the compact one-liner formatter for monitor event display.

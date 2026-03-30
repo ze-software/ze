@@ -17,7 +17,7 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-raw", Handler: handleRaw, Help: "Send raw bytes to peer (no validation)", RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-raw", Handler: handleRaw, RequiresSelector: true},
 	)
 }
 

@@ -33,7 +33,6 @@ func TestBgpHandlerRPCs(t *testing.T) {
 
 		bgpCount++
 		assert.NotNil(t, reg.Handler, "missing handler for %s", reg.WireMethod)
-		assert.NotEmpty(t, reg.Help, "missing help for %s", reg.WireMethod)
 
 		assert.False(t, wireMethodsSeen[reg.WireMethod], "duplicate wire method: %s", reg.WireMethod)
 		wireMethodsSeen[reg.WireMethod] = true

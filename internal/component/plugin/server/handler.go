@@ -153,11 +153,11 @@ const (
 // RPCRegistration maps a YANG RPC wire method to its handler function.
 // The CLI command name is derived from the YANG command tree (-cmd.yang modules)
 // via yang.WireMethodToPath(). It is not stored in the registration.
+// Help text comes from YANG descriptions. Read-only classification comes from
+// the verb position in the command tree (show/validate/monitor = read-only).
 type RPCRegistration struct {
 	WireMethod       string  // "module:rpc-name" format (e.g., "ze-bgp:peer-list")
 	Handler          Handler // Handler function
-	Help             string  // Human-readable description
-	ReadOnly         bool    // True if command only reads state (safe for "ze show")
 	RequiresSelector bool    // True if peer commands must have explicit selector (not default "*")
 	PluginCommand    string  // If set, this builtin proxies to a runtime plugin command (e.g., "rib show")
 }

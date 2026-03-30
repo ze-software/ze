@@ -47,7 +47,7 @@ func requireCommitManager(ctx *pluginserver.CommandContext) (*transaction.Commit
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:commit", Handler: handleCommit, Help: "Named commit operations"},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:commit", Handler: handleCommit},
 	)
 }
 

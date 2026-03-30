@@ -9,7 +9,7 @@ import (
 )
 
 // TestRibProxyRPCRegistration verifies all RIB proxy RPCs are registered
-// with correct wire methods, CLI commands, and read-only flags.
+// with correct wire methods.
 //
 // VALIDATES: init() registers 6 RIB proxy RPCs with correct metadata.
 // PREVENTS: Misspelled wire methods or CLI commands silently breaking dispatch.
@@ -17,52 +17,31 @@ func TestRibProxyRPCRegistration(t *testing.T) {
 	allRPCs := pluginserver.AllBuiltinRPCs()
 
 	// Collect RIB RPCs (wire method starts with "ze-rib-api:")
-	type ribRPC struct {
-		WireMethod string
-		ReadOnly   bool
-	}
-	var found []ribRPC
+	var found []string
 	for _, reg := range allRPCs {
 		if len(reg.WireMethod) > 11 && reg.WireMethod[:11] == "ze-rib-api:" {
-			found = append(found, ribRPC{
-				WireMethod: reg.WireMethod,
-				ReadOnly:   reg.ReadOnly,
-			})
+			found = append(found, reg.WireMethod)
 		}
 	}
 
 	assert.Len(t, found, 6, "expected 6 RIB proxy RPCs")
 
 	// Build lookup for assertions
-	byWire := make(map[string]ribRPC, len(found))
-	for _, r := range found {
-		byWire[r.WireMethod] = r
+	byWire := make(map[string]bool, len(found))
+	for _, w := range found {
+		byWire[w] = true
 	}
 
-	// Read-only commands
+	// All expected wire methods present
 	for _, wire := range []string{
 		"ze-rib-api:status",
 		"ze-rib-api:routes",
 		"ze-rib-api:best",
 		"ze-rib-api:best-status",
-	} {
-		r, ok := byWire[wire]
-		assert.True(t, ok, "missing RPC: %s", wire)
-		if ok {
-			assert.True(t, r.ReadOnly, "%s should be read-only", wire)
-		}
-	}
-
-	// Write commands
-	for _, wire := range []string{
 		"ze-rib-api:clear-in",
 		"ze-rib-api:clear-out",
 	} {
-		r, ok := byWire[wire]
-		assert.True(t, ok, "missing RPC: %s", wire)
-		if ok {
-			assert.False(t, r.ReadOnly, "%s should NOT be read-only", wire)
-		}
+		assert.True(t, byWire[wire], "missing RPC: %s", wire)
 	}
 }
 

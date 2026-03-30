@@ -13,15 +13,11 @@ func init() {
 		pluginserver.RPCRegistration{
 			WireMethod:       "ze-show:bgp-peer",
 			Handler:          peer.HandleBgpPeerDetail,
-			Help:             "Show peer(s) details",
-			ReadOnly:         true,
 			RequiresSelector: true,
 		},
 		pluginserver.RPCRegistration{
 			WireMethod: "ze-show:bgp-warnings",
 			Handler:    peer.HandleBgpWarnings,
-			Help:       "Show active prefix warnings (stale data, threshold exceeded)",
-			ReadOnly:   true,
 		},
 	)
 }

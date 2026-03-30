@@ -307,6 +307,8 @@ func AllRPCDocs() ([]RPCDoc, error) {
 	}
 	wireToPath := yang.WireMethodToPath(loader)
 
+	cmdTree := yang.BuildCommandTree(loader)
+
 	rpcs := pluginserver.AllBuiltinRPCs()
 	docs := make([]RPCDoc, 0, len(rpcs))
 	for _, reg := range rpcs {
@@ -316,8 +318,8 @@ func AllRPCDocs() ([]RPCDoc, error) {
 		}
 		docs = append(docs, RPCDoc{
 			CLICommand: cliPath,
-			Help:       reg.Help,
-			ReadOnly:   reg.ReadOnly,
+			Help:       lookupYANGDesc(cmdTree, cliPath),
+			ReadOnly:   pluginserver.IsReadOnlyPath(cliPath),
 			WireMethod: reg.WireMethod,
 		})
 	}
@@ -385,6 +387,25 @@ func loadRPCParams() (map[string]rpcParams, error) {
 	}
 
 	return result, nil
+}
+
+// lookupYANGDesc walks a command tree by CLI path and returns the leaf description.
+func lookupYANGDesc(root *command.Node, cliPath string) string {
+	if root == nil {
+		return ""
+	}
+	node := root
+	for part := range strings.FieldsSeq(cliPath) {
+		if node.Children == nil {
+			return ""
+		}
+		child, ok := node.Children[part]
+		if !ok {
+			return ""
+		}
+		node = child
+	}
+	return node.Description
 }
 
 // RPCDoc holds documentation for a single operational command.

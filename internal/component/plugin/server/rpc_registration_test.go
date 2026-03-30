@@ -73,9 +73,6 @@ func TestRPCRegistrationTable(t *testing.T) {
 			// All server-package RPCs must have handlers (editor RPCs moved to editor package)
 			assert.NotNil(t, reg.Handler, "nil handler for %s", reg.WireMethod)
 
-			// Non-empty help
-			assert.NotEmpty(t, reg.Help, "missing help text")
-
 			// Unique wire method
 			assert.False(t, wireMethodsSeen[reg.WireMethod], "duplicate wire method: %s", reg.WireMethod)
 			wireMethodsSeen[reg.WireMethod] = true

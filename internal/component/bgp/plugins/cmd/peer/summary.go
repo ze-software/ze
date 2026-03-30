@@ -13,9 +13,9 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:summary", Handler: handleBgpSummary, Help: "Show BGP summary (peer table with statistics)", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-capabilities", Handler: handleBgpPeerCapabilities, Help: "Negotiated capabilities for peer(s)", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-statistics", Handler: handleBgpPeerStatistics, Help: "Per-peer update statistics with rates", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:summary", Handler: handleBgpSummary},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-capabilities", Handler: handleBgpPeerCapabilities},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-statistics", Handler: handleBgpPeerStatistics},
 	)
 }
 

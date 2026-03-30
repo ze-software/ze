@@ -638,7 +638,7 @@ func parseLabelFlat(args []string, accum *parsedAttrs) (int, error) {
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-update", Handler: handleUpdate, Help: "Batch UPDATE with text/hex/b64 encoding", RequiresSelector: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:peer-update", Handler: handleUpdate, RequiresSelector: true},
 	)
 }
 

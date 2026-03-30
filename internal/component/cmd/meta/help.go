@@ -13,12 +13,12 @@ import (
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:help", Handler: handleBgpHelp, Help: "List subcommands", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-list", Handler: handleBgpCommandList, Help: "List commands", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-help", Handler: handleBgpCommandHelp, Help: "Show command details", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-complete", Handler: handleBgpCommandComplete, Help: "Complete command/args", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:event-list", Handler: handleBgpEventList, Help: "List available BGP event types", ReadOnly: true},
-		pluginserver.RPCRegistration{WireMethod: "ze-event:monitor", Handler: handleEventMonitor, Help: "Stream live events (use SSH for streaming)", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:help", Handler: handleBgpHelp},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-list", Handler: handleBgpCommandList},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-help", Handler: handleBgpCommandHelp},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:command-complete", Handler: handleBgpCommandComplete},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:event-list", Handler: handleBgpEventList},
+		pluginserver.RPCRegistration{WireMethod: "ze-event:monitor", Handler: handleEventMonitor},
 	)
 }
 

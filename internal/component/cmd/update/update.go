@@ -13,7 +13,6 @@ func init() {
 		pluginserver.RPCRegistration{
 			WireMethod:       "ze-update:bgp-peer-prefix",
 			Handler:          peer.HandleBgpPeerPrefixUpdate,
-			Help:             "Update prefix maximums from PeeringDB for matched peer(s)",
 			RequiresSelector: true,
 		},
 	)

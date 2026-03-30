@@ -17,7 +17,7 @@ const prefixStalenessThreshold = 180 * 24 * time.Hour
 
 func init() {
 	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: "ze-bgp:warnings", Handler: HandleBgpWarnings, Help: "Show active prefix warnings (stale data, threshold exceeded)", ReadOnly: true},
+		pluginserver.RPCRegistration{WireMethod: "ze-bgp:warnings", Handler: HandleBgpWarnings},
 	)
 }
 

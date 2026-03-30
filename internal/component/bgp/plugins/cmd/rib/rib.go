@@ -29,13 +29,13 @@ const (
 func init() {
 	pluginserver.RegisterRPCs(
 		// Read-only commands (exposed via "ze show")
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:status", Handler: forwardRibStatus, Help: "RIB summary (peer count, route counts)", ReadOnly: true, PluginCommand: cmdRibStatus},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:routes", Handler: forwardRibRoutes, Help: "Routes (scope + filters + terminal)", ReadOnly: true, PluginCommand: cmdRibShow},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:best", Handler: forwardRibBest, Help: "Best-path per prefix", ReadOnly: true, PluginCommand: cmdRibBest},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:best-status", Handler: forwardRibBestStatus, Help: "Best-path computation status", ReadOnly: true, PluginCommand: cmdRibBestStatus},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:status", Handler: forwardRibStatus, PluginCommand: cmdRibStatus},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:routes", Handler: forwardRibRoutes, PluginCommand: cmdRibShow},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:best", Handler: forwardRibBest, PluginCommand: cmdRibBest},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:best-status", Handler: forwardRibBestStatus, PluginCommand: cmdRibBestStatus},
 		// Write commands (exposed via "ze run" only)
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:clear-in", Handler: forwardRibClearIn, Help: "Clear Adj-RIB-In routes", PluginCommand: cmdRibClearIn},
-		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:clear-out", Handler: forwardRibClearOut, Help: "Resend Adj-RIB-Out routes", PluginCommand: cmdRibClearOut},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:clear-in", Handler: forwardRibClearIn, PluginCommand: cmdRibClearIn},
+		pluginserver.RPCRegistration{WireMethod: "ze-rib-api:clear-out", Handler: forwardRibClearOut, PluginCommand: cmdRibClearOut},
 	)
 }
 

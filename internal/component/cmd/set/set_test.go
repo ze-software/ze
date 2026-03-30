@@ -25,7 +25,6 @@ func TestSetRPCsRegistered(t *testing.T) {
 			}
 			found = true
 			assert.NotNil(t, reg.Handler, "%s handler must not be nil", wm)
-			assert.NotEmpty(t, reg.Help, "%s help text must not be empty", wm)
 			assert.True(t, reg.RequiresSelector, "%s requires peer selector", wm)
 			break
 		}

@@ -168,7 +168,7 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 		if cliPath == "" {
 			continue // Skip RPCs without YANG path (no authz possible)
 		}
-		if err := s.rpcDispatcher.Register(reg.WireMethod, s.wrapHandler(reg.Handler, cliPath, reg.ReadOnly)); err != nil {
+		if err := s.rpcDispatcher.Register(reg.WireMethod, s.wrapHandler(reg.Handler, cliPath, IsReadOnlyPath(cliPath))); err != nil {
 			logger().Error("rpc dispatcher: registration failed", "method", reg.WireMethod, "error", err)
 		}
 	}
