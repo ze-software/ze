@@ -1,12 +1,9 @@
 // Design: docs/architecture/api/commands.md — shared CLI command utilities
-// Related: ../../run/main.go — ze run consumer
-// Related: ../../show/main.go — ze show consumer
 // Related: ../../cli/main.go — CLI client and BuildCommandTree
 //
-// Package cmdutil provides shared logic for ze show and ze run subcommands.
-// Both commands discover commands dynamically from RPC registrations and delegate
-// execution to cli.Run. This package holds the common tree walking, validation,
-// flag extraction, and help formatting used by both.
+// Package cmdutil provides shared logic for unified CLI verb dispatch.
+// Verb commands (show, set, del, etc.) use this package for tree walking,
+// local handler lookup, validation, flag extraction, and help formatting.
 package cmdutil
 
 import (

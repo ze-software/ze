@@ -32,7 +32,6 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdutil"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	zeplugin "codeberg.org/thomas-mangin/ze/cmd/ze/plugin"
-	zerun "codeberg.org/thomas-mangin/ze/cmd/ze/run"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	zeyang "codeberg.org/thomas-mangin/ze/cmd/ze/yang"
@@ -409,8 +408,11 @@ dispatch:
 	case "env":
 		os.Exit(zeenv.Run(args[1:]))
 	case "run":
-		// Fallback: ze run delegates to the run package until migration is complete.
-		os.Exit(zerun.Run(args[1:]))
+		fmt.Fprintf(os.Stderr, "error: 'ze run' has been replaced by direct verb dispatch\n")
+		fmt.Fprintf(os.Stderr, "hint: use 'ze show <command>' for read-only commands\n")
+		fmt.Fprintf(os.Stderr, "hint: use 'ze set/del/update <command>' for mutations\n")
+		fmt.Fprintf(os.Stderr, "hint: run 'ze help' for available verbs\n")
+		os.Exit(1)
 	case "completion":
 		os.Exit(zecompletion.Run(args[1:]))
 	case "version":

@@ -1,8 +1,8 @@
-# Test: ze run help lists all available commands
-# VALIDATES: run command dispatch is wired and lists commands from YANG RPCs
-# PREVENTS: run command dispatch broken or missing command list
+# Test: ze run prints deprecation error with migration hints
+# VALIDATES: ze run is replaced by direct verb dispatch
+# PREVENTS: users silently getting no output from removed command
 
 cmd=foreground:seq=1:exec=ze run help
-expect=exit:code=0
-expect=stderr:contains=ze run
-expect=stderr:contains=Available commands
+expect=exit:code=1
+expect=stderr:contains=replaced
+expect=stderr:contains=ze show
