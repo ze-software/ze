@@ -29,14 +29,15 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
 	zeiface "codeberg.org/thomas-mangin/ze/cmd/ze/iface"
 	zeinit "codeberg.org/thomas-mangin/ze/cmd/ze/init"
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdutil"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	zeplugin "codeberg.org/thomas-mangin/ze/cmd/ze/plugin"
 	zerun "codeberg.org/thomas-mangin/ze/cmd/ze/run"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
-	"codeberg.org/thomas-mangin/ze/cmd/ze/show"
 	zesignal "codeberg.org/thomas-mangin/ze/cmd/ze/signal"
 	zeyang "codeberg.org/thomas-mangin/ze/cmd/ze/yang"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 	"codeberg.org/thomas-mangin/ze/internal/component/managed"
@@ -202,7 +203,7 @@ func main() {
 		case "--version", "-V":
 			printVersion()
 			os.Exit(0)
-		case "--help", "-h":
+		case "--help", "-h": //nolint:goconst // consistent pattern across cmd files
 			args = args[0:]
 			goto dispatch
 		default:
@@ -236,7 +237,43 @@ dispatch:
 
 	arg := args[0]
 
-	// Check for known commands first
+	// Dispatch YANG verb commands (show, set, del, update, validate, monitor).
+	// These go through the unified command tree, same path as the CLI editor.
+	if isYANGVerb(arg) {
+		if len(args) < 2 || args[1] == "help" || args[1] == "-h" || args[1] == "--help" {
+			// Use both trees: YANG tree for descriptions, RPC tree for command list.
+			yangTree := cli.YANGCommandTree()
+			yangNode := command.FindNode(yangTree, []string{arg})
+			rpcTree := cli.BuildCommandTree(false)
+			rpcNode := command.FindNode(rpcTree, []string{arg})
+
+			desc := ""
+			if yangNode != nil {
+				desc = yangNode.Description
+			}
+			fmt.Fprintf(os.Stderr, "Usage: ze %s <command> [options]\n\n", arg)
+			if desc != "" {
+				fmt.Fprintf(os.Stderr, "%s (%s).\n\n", strings.ToUpper(arg[:1])+arg[1:], desc)
+			}
+			fmt.Fprintf(os.Stderr, "Available commands:\n")
+			if rpcNode != nil {
+				command.WriteHelp(os.Stderr, rpcNode, nil)
+			}
+			fmt.Fprintln(os.Stderr)
+			os.Exit(0)
+		}
+		// ReadOnly is determined by the verb, not a flag on the registration.
+		readOnly := command.IsReadOnlyVerb(arg)
+		code := cmdutil.RunCommand(args, readOnly, arg)
+		if code == -1 {
+			fmt.Fprintf(os.Stderr, "unknown %s command: %s\n", arg, strings.Join(args[1:], " "))
+			fmt.Fprintf(os.Stderr, "hint: run 'ze %s help' for available commands\n", arg)
+			os.Exit(1)
+		}
+		os.Exit(code)
+	}
+
+	// Static dispatch for commands not yet migrated to YANG verb registration.
 	switch arg {
 	case "bgp":
 		os.Exit(bgp.Run(args[1:]))
@@ -265,11 +302,10 @@ dispatch:
 		os.Exit(zesignal.Run(args[1:]))
 	case "status":
 		os.Exit(zesignal.RunStatus(args[1:]))
-	case "show":
-		os.Exit(show.Run(args[1:]))
 	case "env":
 		os.Exit(zeenv.Run(args[1:]))
 	case "run":
+		// Fallback: ze run delegates to the run package until migration is complete.
 		os.Exit(zerun.Run(args[1:]))
 	case "completion":
 		os.Exit(zecompletion.Run(args[1:]))
@@ -341,14 +377,27 @@ dispatch:
 	// Unknown command
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
 	commands := []string{
+		"show", "set", "del", "update", "validate", "monitor",
 		"bgp", "plugin", "cli", "config", "data", "env", "init", "interface", "start", "schema",
-		"yang", "exabgp", "signal", "status", "show", "run", "completion", "version", "help",
+		"yang", "exabgp", "signal", "status", "completion", "version", "help",
 	}
 	if suggestion := suggest.Command(arg, commands); suggestion != "" {
 		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", suggestion)
 	}
 	usage()
 	os.Exit(1)
+}
+
+// yangVerbs are the top-level verbs dispatched through the unified YANG command tree.
+var yangVerbs = map[string]bool{
+	"show": true, "set": true, "del": true,
+	"update": true, "validate": true, "monitor": true,
+}
+
+// isYANGVerb returns true if the argument is a YANG verb that should be
+// dispatched through the unified command tree rather than the static switch.
+func isYANGVerb(arg string) bool {
+	return yangVerbs[arg]
 }
 
 // looksLikeConfig returns true if the argument looks like a config file path.
@@ -738,25 +787,16 @@ func usage() {
 
 Usage:
   ze [--plugin <name>]... <config>   Start with config file
-  ze <command> [options]             Execute command
+  ze <verb> <command> [options]      Execute command (same grammar as ze cli)
 
-Options:
-  -d, --debug           Enable debug logging (sets ze.log=debug for all subsystems)
-  -f <file>             Use filesystem directly, bypass blob store
-  --plugin <name>       Load plugin before starting (repeatable)
-  --plugins             List available internal plugins
-  --pprof <addr:port>   Start pprof HTTP server (e.g. :6060)
-  -V, --version         Show version and exit
-  --chaos-seed <N>      Enable chaos self-test mode with PRNG seed N (-1 = time-based)
-  --chaos-rate <0-1>    Fault probability per operation (default: 0.1)
-  --server <host:port>  Override hub address for managed mode
-  --name <name>         Override client name for managed mode
-  --token <token>       Override auth token for managed mode
-  --mcp <port>          Start MCP server on 127.0.0.1:<port>
-  --web <port>          Start web server on 0.0.0.0:<port>
-  --insecure-web        Disable web auth (forces 127.0.0.1, requires --web)
+Verbs (dispatched via YANG command tree):
+`)
+	// Dynamic verb list from YANG tree.
+	verbTree := cli.BuildCommandTree(false)
+	command.WriteHelp(os.Stderr, verbTree, nil)
 
-Commands:
+	fmt.Fprintf(os.Stderr, `
+Tools:
   start        Start daemon (--web <port>, --insecure-web, --mcp <port>)
   init         Bootstrap database with SSH credentials
   config       Configuration management (validate, edit, migrate, ...)
@@ -764,8 +804,6 @@ Commands:
   schema       Schema discovery
   yang         YANG tree analysis and command docs
   cli          Interactive CLI for running daemons
-  show         Show daemon state (read-only commands)
-  run          Execute daemon command (all commands)
   status       Check if daemon is running
   bgp          BGP protocol tools (decode, encode)
   plugin       Plugin system (rib, rr, gr, etc.)
@@ -776,17 +814,23 @@ Commands:
   version      Show version
   help         Show this help (--ai for machine-readable reference)
 
+Options:
+  -d, --debug           Enable debug logging (sets ze.log=debug for all subsystems)
+  -f <file>             Use filesystem directly, bypass blob store
+  --plugin <name>       Load plugin before starting (repeatable)
+  --plugins             List available internal plugins
+  --pprof <addr:port>   Start pprof HTTP server (e.g. :6060)
+  -V, --version         Show version and exit
+
 Examples:
   ze config.conf                       Start with config
   ze --plugin ze.hostname config.conf  Start with hostname plugin
   ze --plugins                         List available plugins
   ze cli                               Interactive CLI
-  ze cli --run "peer list"             Execute CLI command
-  ze show help                         List read-only commands
-  ze show <command>                    Show daemon state
-  ze run help                          List all commands
-  ze run <command>                     Execute daemon command
-  ze bgp help                          Show BGP commands
+  ze show peer list                    Show peer list
+  ze show help                         List available show commands
+  ze del bgp peer 10.0.0.1            Remove a peer
+  ze bgp decode <hex>                  Decode BGP message
 `)
 }
 

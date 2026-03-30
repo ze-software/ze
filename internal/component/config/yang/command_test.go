@@ -540,7 +540,7 @@ func TestBuildCommandTree(t *testing.T) {
 	// "peer" merged from 3 modules
 	peer := tree.Children["peer"]
 	require.NotNil(t, peer, "peer should exist (merged)")
-	assert.Equal(t, "", peer.Description, "peer is a grouping, no description from ze:command")
+	assert.Equal(t, "Peer operations", peer.Description, "peer grouping gets YANG description")
 	assert.Equal(t, "", peer.WireMethod, "peer grouping has no WireMethod")
 
 	// From ze-peer-cmd -- verify WireMethod on merged leaves
@@ -603,7 +603,7 @@ func TestBuildCommandTreeCommandNodes(t *testing.T) {
 
 	rib := tree.Children["rib"]
 	require.NotNil(t, rib)
-	assert.Equal(t, "", rib.Description, "rib is a grouping -- no ze:command, no description in tree")
+	assert.Equal(t, "RIB operations", rib.Description, "rib grouping gets YANG description")
 
 	status := rib.Children["status"]
 	require.NotNil(t, status)
@@ -621,7 +621,7 @@ func TestBuildCommandTreeCommandNodes(t *testing.T) {
 	// rib > clear is a grouping (no ze:command), has children
 	clear := rib.Children["clear"]
 	require.NotNil(t, clear)
-	assert.Equal(t, "", clear.Description, "clear is a grouping")
+	assert.Equal(t, "Clear operations", clear.Description, "clear grouping gets YANG description")
 	assert.Equal(t, "", clear.WireMethod, "clear grouping has no WireMethod")
 	assert.NotNil(t, clear.Children["in"], "clear has child in")
 	assert.Equal(t, "ze-rib-api:clear-in", clear.Children["in"].WireMethod)

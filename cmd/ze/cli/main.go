@@ -246,15 +246,29 @@ func AllCLIRPCs() []pluginserver.RPCRegistration {
 	return pluginserver.AllBuiltinRPCs()
 }
 
-// cliWireToPath is the YANG-derived WireMethod -> CLI path mapping.
-// Built once at package init from the shared DefaultLoader.
-var cliWireToPath = func() map[string]string {
+// cliLoader is the shared YANG loader, built once at init.
+var cliLoader = func() *yang.Loader {
 	loader, err := yang.DefaultLoader()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "cli: %v\n", err)
 	}
-	return yang.WireMethodToPath(loader)
+	return loader
 }()
+
+// cliWireToPath is the YANG-derived WireMethod -> CLI path mapping.
+// Built once at package init from the shared DefaultLoader.
+var cliWireToPath = yang.WireMethodToPath(cliLoader)
+
+// yangCmdTree is the YANG command tree with descriptions from YANG modules.
+// Used for help text generation (verb descriptions come from YANG, not RPC registrations).
+var yangCmdTree = yang.BuildCommandTree(cliLoader)
+
+// YANGCommandTree returns the YANG-derived command tree with descriptions.
+// The returned tree has verb containers (show, set, del, etc.) at the top level
+// with descriptions from YANG modules.
+func YANGCommandTree() *Command {
+	return yangCmdTree
+}
 
 // BuildCommandTree builds the command tree from registered RPCs.
 // If readOnly is true, only includes RPCs marked ReadOnly (for "ze show").

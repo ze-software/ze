@@ -99,10 +99,12 @@ func mergeYANGEntry(node *command.Node, entry *gyang.Entry) {
 		}
 
 		// ze:command nodes get their WireMethod and description (executable commands).
-		// Grouping containers (no ze:command) stay empty.
+		// Grouping containers also get their YANG description for help text.
 		wm := GetCommandExtension(child)
 		if wm != "" && target.WireMethod == "" {
 			target.WireMethod = wm
+			target.Description = child.Description
+		} else if target.Description == "" && child.Description != "" {
 			target.Description = child.Description
 		}
 
