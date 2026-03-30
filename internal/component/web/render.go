@@ -38,6 +38,8 @@ type LayoutData struct {
 	Breadcrumbs      []BreadcrumbSegment
 	NotificationHTML template.HTML
 	CLIPrompt        string
+	CLIContextPath   string        // Slash-separated YANG path for hidden context tracking
+	CLIPathBar       template.HTML // Pre-built path bar HTML with clickable segments
 	HasSession       bool
 	Username         string
 	Insecure         bool

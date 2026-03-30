@@ -1,0 +1,4 @@
+{{define "path_bar_inner"}}
+<a class="cli-path-seg cli-path-root" href="/show/" hx-get="/fragment/detail" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="/show/">/</a>
+{{- range .CLIPathSegments}} <span class="cli-path-sep">/</span> <a class="cli-path-seg" href="{{.URL}}" hx-get="/fragment/detail?path={{.HxPath}}" hx-target="#content-area" hx-swap="innerHTML" hx-push-url="{{.URL}}">{{.Name}}</a>{{end}}
+{{end}}

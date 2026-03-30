@@ -1738,11 +1738,42 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   grid-area: cli;
   position: relative;
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.25rem;
   padding: 0.4rem 1rem;
   background: var(--bg-secondary);
   border-top: 1px solid var(--border);
+}
+
+.cli-path-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 0.1rem 0;
+}
+
+.cli-path-seg {
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 0.1rem 0.2rem;
+  border-radius: var(--radius-sm);
+}
+
+.cli-path-seg:hover {
+  color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.cli-path-sep { color: var(--text-muted); }
+
+.cli-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
 }
 
 .cli-prompt {

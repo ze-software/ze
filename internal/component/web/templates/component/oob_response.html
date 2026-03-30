@@ -4,6 +4,9 @@
   <div class="detail-panel" id="detail"{{if .Monitor}} hx-get="/monitor/{{.CurrentPath}}" hx-trigger="every 5s" hx-target="#content-area" hx-swap="innerHTML" hx-select=".main-split"{{end}}>{{template "detail" .}}</div>
 </div>
 <nav id="breadcrumb" hx-swap-oob="innerHTML">{{template "breadcrumb_inner" .}}</nav>
+<span class="cli-prompt" id="cli-prompt" hx-swap-oob="innerHTML">{{.CLIPrompt}}</span>
+<div class="cli-path-bar" id="cli-path-bar" hx-swap-oob="innerHTML">{{template "path_bar_inner" .}}</div>
+<span id="cli-context-path" style="display:none" hx-swap-oob="true">{{.CLIContextPath}}</span>
 {{end}}
 
 {{define "full_content"}}

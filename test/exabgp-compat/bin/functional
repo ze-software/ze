@@ -260,16 +260,6 @@ def cyan() -> str:
     return color(0, 36)  # CYAN
 
 
-class Port:
-    base: int = 1900
-
-    @classmethod
-    def get(cls) -> int:
-        current = cls.base
-        cls.base += 1
-        return current
-
-
 class Path:
     PROGRAM: str = os.path.realpath(__file__)
     # ROOT is test/exabgp-compat (one level up from bin/)
@@ -1617,7 +1607,7 @@ class EncodingTests(Tests):
             test.conf['ci'] = self.path_config.ci_path(name, 'ci')
             # .ci file now contains message expectations (merged format)
             test.conf['msg'] = test.conf['ci']
-            test.conf['port'] = Port.get()
+            test.conf['port'] = 0
             # Only .ci file for --edit (merged format contains everything)
             test.files.append(test.conf['ci'])
 
@@ -1718,6 +1708,44 @@ class EncodingTests(Tests):
             )
         return '\n'.join(result)
 
+    def _discover_port(self, test: 'EncodingTests.Test', timeout: float = 10.0) -> bool:
+        """Read the OS-assigned port from the server's stdout temp file.
+
+        The bgp mock server prints 'PORT <N>' to stdout after binding.
+        Since stdout is captured to a temp file by Exec.run(), we can
+        poll that file until the PORT line appears.
+
+        Args:
+            test: The test whose server port to discover
+            timeout: Maximum seconds to wait for port discovery
+
+        Returns:
+            True if port was discovered, False on timeout or error
+        """
+        if not hasattr(test, '_stdout_file') or test._stdout_file is None:
+            return False
+
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            # Check if server process has died
+            if test._process is not None and test._process.poll() is not None:
+                return False
+
+            try:
+                with open(test._stdout_file.name, 'r') as f:
+                    for line in f:
+                        if line.startswith('PORT '):
+                            port = int(line.strip().split()[1])
+                            if port > 0:
+                                test.conf['port'] = port
+                                return True
+            except (OSError, ValueError):
+                pass
+
+            time.sleep(0.05)
+
+        return False
+
     def _retry_failed_tests(self, client: Dict[str, Exec], timeout: int, quiet: bool) -> bool:
         """Retry all failed tests individually.
 
@@ -1756,6 +1784,7 @@ class EncodingTests(Tests):
             test.stdout = b''
             test.stderr = b''
             test.start_time = None
+            test.conf['port'] = 0  # Fresh dynamic port for retry
 
             # Start server
             cmd = [
@@ -1764,14 +1793,21 @@ class EncodingTests(Tests):
                 '--server',
                 test.nick,
                 '--port',
-                f'{test.conf["port"]}',
+                '0',
             ]
             if self._save_dir:
                 cmd.extend(['--save', self._save_dir])
             test.run(cmd, env=None)
             test.setup()
             test.setup()  # Call twice to advance to RUNNING state
-            time.sleep(0.1)
+
+            # Discover OS-assigned port before starting client
+            if not self._discover_port(test):
+                if not quiet:
+                    flush(f'{red()}ERROR: Failed to discover port for {test.nick}{reset()}')
+                test.state = State.FAIL
+                all_retries_passed = False
+                continue
 
             # Start client
             client[test.nick] = Exec().run(
@@ -1935,12 +1971,10 @@ class EncodingTests(Tests):
             flush('WARNING: Another functional test instance is running!')
             flush('=' * 60)
             flush('Running tests concurrently may cause failures due to:')
-            flush('  - Port conflicts (tests use same port numbers)')
             flush('  - Process cleanup conflicts')
             flush('  - Resource contention')
             flush('')
             flush('If you see unexpected test failures, this may be the cause.')
-            flush('Wait for other test run to complete, or use different ports.')
             flush('=' * 60)
             flush('')
             time.sleep(2)  # Give user time to read warning
@@ -1988,13 +2022,23 @@ class EncodingTests(Tests):
         # Final display for daemons (only if not already displayed)
         if daemons_started != last_daemon_display:
             self.display(daemons_started=daemons_started, clients_started=0)
-        time.sleep(0.02)
+
+        # Discover OS-assigned ports from all servers before starting clients
+        for test in self.selected():
+            if test.conf['port'] == 0:
+                if not self._discover_port(test):
+                    flush(f'{red()}ERROR: Failed to discover port for {test.nick}{reset()}')
+                    test.state = State.FAIL
+                    success = False
 
         # Start clients - timer shows [0/max] during setup
         # Use slightly longer delay than daemons to reduce CPU contention
         clients_started = 0
         last_client_display = -1  # Track last displayed count to avoid duplicates
         for test in self.selected():
+            # Skip tests whose server failed to start (e.g., port discovery failed)
+            if test.state == State.FAIL:
+                continue
             test.setup()
             client[test.nick] = Exec().run(
                 [
@@ -2723,7 +2767,7 @@ def add_test(
             default=20,
         )
     if 'port' in extra:
-        sub.add_argument('--port', help='base port to use', type=int, default=1900)
+        sub.add_argument('--port', help='port to use (0 or omit for OS-assigned dynamic port)', type=int, default=None)
     if 'save' in extra:
         sub.add_argument(
             '--save', help='save run logs to directory (for debugging intermittent failures)', type=str, default=None

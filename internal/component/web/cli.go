@@ -191,7 +191,7 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 	case verbDelete:
 		handleCLIDelete(w, r, contextPath, cmd.Args, mgr, username)
 	case verbShow:
-		handleCLIShow(w, contextPath, cmd.Args, mgr, username)
+		handleCLIShow(w, contextPath, cmd.Args, renderer, mgr, username)
 	case verbTop:
 		handleCLITop(w, schema, renderer, mgr, username)
 	case verbUp:
@@ -304,7 +304,7 @@ func handleCLIWho(w http.ResponseWriter, mgr *EditorManager) {
 }
 
 // handleCLIShow processes the "show" verb: renders config text in the content area.
-func handleCLIShow(w http.ResponseWriter, contextPath, args []string, mgr *EditorManager, username string) {
+func handleCLIShow(w http.ResponseWriter, contextPath, args []string, renderer *Renderer, mgr *EditorManager, username string) {
 	if err := ValidatePathSegments(args); err != nil {
 		writeCLINotification(w, fmt.Sprintf("invalid path: %s", err), "error")
 		return
@@ -321,6 +321,8 @@ func handleCLIShow(w http.ResponseWriter, contextPath, args []string, mgr *Edito
 	fmt.Fprintf(&buf, `<pre class="config-output">%s</pre>`, template.HTMLEscapeString(content))
 	fmt.Fprintf(&buf, `</main>`)
 	buildPromptOOB(&buf, prompt)
+	buildPathBarOOB(&buf, showPath, renderer)
+	buildContextOOB(&buf, showPath)
 
 	writeHTML(w, buf.String())
 }
@@ -693,7 +695,8 @@ func writeTerminalContent(w http.ResponseWriter, contextPath []string) {
 }
 
 // writeCLIResponse writes an HTMX multi-target response with content area,
-// breadcrumb OOB swap, and CLI prompt OOB swap.
+// breadcrumb OOB swap, CLI prompt OOB swap, path bar OOB swap, and context
+// path OOB swap.
 func writeCLIResponse(w http.ResponseWriter, renderer *Renderer, path []string, viewData *ConfigViewData) {
 	crumbs := buildBreadcrumbs(path)
 	prompt := formatCLIPrompt(path)
@@ -711,7 +714,9 @@ func writeCLIResponse(w http.ResponseWriter, renderer *Renderer, path []string, 
 	// OOB CLI prompt update.
 	buildPromptOOB(&buf, prompt)
 
-	_ = renderer // renderer passed for consistency with template-based handlers
+	// OOB path bar and context updates.
+	buildPathBarOOB(&buf, path, renderer)
+	buildContextOOB(&buf, path)
 	writeHTML(w, buf.String())
 }
 
@@ -729,6 +734,47 @@ func writeHTML(w http.ResponseWriter, html string) {
 	if _, err := io.WriteString(w, html); err != nil {
 		http.Error(w, fmt.Sprintf("write response: %v", err), http.StatusInternalServerError)
 	}
+}
+
+// PathBarSegment holds one clickable segment in the CLI path bar.
+type PathBarSegment struct {
+	Name   string // Display name (e.g., "bgp", "peer", "127.0.0.1")
+	URL    string // Navigation URL (e.g., "/show/bgp/")
+	HxPath string // YANG path for hx-get (e.g., "bgp")
+}
+
+// buildPathBarSegments returns the pre-computed segments for the CLI path bar.
+func buildPathBarSegments(path []string) []PathBarSegment {
+	segments := make([]PathBarSegment, len(path))
+	for i, seg := range path {
+		joined := strings.Join(path[:i+1], "/")
+		segments[i] = PathBarSegment{
+			Name:   seg,
+			URL:    "/show/" + joined + "/",
+			HxPath: joined,
+		}
+	}
+
+	return segments
+}
+
+// buildPathBarOOB appends a CLI path bar OOB swap using the path_bar_inner
+// template rendered via the Renderer. Falls back to empty if renderer is nil.
+func buildPathBarOOB(buf *strings.Builder, path []string, renderer *Renderer) {
+	fmt.Fprintf(buf, `<div class="cli-path-bar" id="cli-path-bar" hx-swap-oob="innerHTML">`)
+	if renderer != nil {
+		data := struct {
+			CLIPathSegments []PathBarSegment
+		}{CLIPathSegments: buildPathBarSegments(path)}
+		buf.WriteString(string(renderer.RenderFragment("path_bar_inner", data)))
+	}
+	fmt.Fprintf(buf, `</div>`)
+}
+
+// buildContextOOB appends a hidden context path OOB swap element to buf.
+func buildContextOOB(buf *strings.Builder, path []string) {
+	fmt.Fprintf(buf, `<span id="cli-context-path" style="display:none" hx-swap-oob="true">%s</span>`,
+		template.HTMLEscapeString(strings.Join(path, "/")))
 }
 
 // buildBreadcrumbOOB appends a breadcrumb OOB swap element to buf.

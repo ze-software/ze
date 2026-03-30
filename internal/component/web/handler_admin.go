@@ -188,12 +188,16 @@ func HandleAdminExecute(renderer *Renderer, dispatch CommandDispatcher) http.Han
 // using finder-style columns for navigation and a command form in the detail
 // panel for leaf commands.
 func buildAdminFragmentData(path []string, children map[string][]string) *FragmentData {
+	currentPath := strings.Join(path, "/")
 	data := &FragmentData{
-		Path:        path,
-		CurrentPath: strings.Join(path, "/"),
-		Breadcrumbs: buildAdminBreadcrumbs(path),
-		HasSession:  true,
-		Columns:     buildAdminFinderColumns(path, children),
+		Path:            path,
+		CurrentPath:     currentPath,
+		Breadcrumbs:     buildAdminBreadcrumbs(path),
+		HasSession:      true,
+		Columns:         buildAdminFinderColumns(path, children),
+		CLIPrompt:       formatCLIPrompt(nil),
+		CLIContextPath:  "",
+		CLIPathSegments: nil,
 	}
 
 	// Leaf command: show form in detail panel.

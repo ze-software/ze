@@ -9,6 +9,12 @@
   var historyPos = -1;     // Current position in history (-1 = not browsing).
   var historyDraft = '';   // Saved input before browsing history.
 
+  // Read CLI context path from the hidden element (updated via OOB swaps).
+  function getContextPath() {
+    var el = document.getElementById('cli-context-path');
+    return el ? el.textContent.trim() : '';
+  }
+
   function init() {
     var input = document.getElementById('cli-input');
     var box = document.getElementById('cli-completions');
@@ -50,14 +56,15 @@
 
         var tokens = cmd.split(/\s+/);
         var verb = tokens[0];
+        var ctxPath = getContextPath();
 
-        // Navigation commands: use HTMX so OOB swaps update breadcrumb and prompt.
-        if (verb === 'show' || verb === 'edit') {
+        // Navigation commands: use HTMX so OOB swaps update breadcrumb, prompt, path bar, and context.
+        if (verb === 'show' || verb === 'edit' || verb === 'top' || verb === 'up') {
           if (window.htmx) {
             htmx.ajax('POST', '/cli', {
               target: '#content-area',
               swap: 'outerHTML',
-              values: {command: cmd}
+              values: {command: cmd, path: ctxPath}
             });
           }
           return;
@@ -69,7 +76,7 @@
             method: 'POST',
             credentials: 'same-origin',
             headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: 'command=' + encodeURIComponent(cmd)
+            body: 'command=' + encodeURIComponent(cmd) + '&path=' + encodeURIComponent(ctxPath)
           }).then(function(r) { return r.text(); })
             .then(function(html) {
               var out = document.getElementById('terminal-scrollback');
@@ -83,15 +90,14 @@
         }
 
         // GUI mode: POST then refresh view.
-        var curPath = window.location.pathname.replace(/^\/show\//, '').replace(/^\/config\/edit\//, '').replace(/\/$/, '');
         fetch('/cli', {
           method: 'POST',
           credentials: 'same-origin',
           redirect: 'manual',
           headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-          body: 'command=' + encodeURIComponent(cmd) + '&path=' + encodeURIComponent(curPath)
+          body: 'command=' + encodeURIComponent(cmd) + '&path=' + encodeURIComponent(ctxPath)
         }).then(function() {
-          refreshDetail(curPath);
+          refreshDetail(ctxPath);
           if (verb === 'set' || verb === 'delete' || verb === 'commit' || verb === 'discard') {
             refreshCommitBar();
           }
@@ -136,7 +142,7 @@
   }
 
   function doComplete(input, box, val) {
-    var completePath = window.location.pathname.replace(/^\/show\//, '').replace(/^\/config\/edit\//, '').replace(/\/$/, '');
+    var completePath = getContextPath();
     fetch('/cli/complete?input=' + encodeURIComponent(val) + '&path=' + encodeURIComponent(completePath), {credentials: 'same-origin'})
       .then(function(r){ return r.json(); })
       .then(function(items){
@@ -237,6 +243,17 @@
         btn.setAttribute('hx-vals', '{"mode":"terminal"}');
       }
       if (window.htmx) htmx.process(btn);
+
+      // Sync URL with CLI context after navigation commands.
+      // Only push state when the swap was triggered by a CLI POST (not finder clicks
+      // which use hx-push-url and handle URL updates themselves).
+      if (e.detail && e.detail.requestConfig && e.detail.requestConfig.path === '/cli') {
+        var ctxPath = getContextPath();
+        var newURL = '/show/' + (ctxPath ? ctxPath + '/' : '');
+        if (window.location.pathname !== newURL) {
+          window.history.pushState(null, '', newURL);
+        }
+      }
     });
   }
 

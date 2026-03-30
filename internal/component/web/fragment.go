@@ -173,6 +173,12 @@ type FragmentData struct {
 	CommandForm *CommandFormData
 	// CommandResult holds admin command execution result.
 	CommandResult *CommandResultData
+	// CLIPrompt is the formatted CLI prompt for this path (e.g., "ze[bgp peer thomas]# ").
+	CLIPrompt string
+	// CLIContextPath is the slash-separated path for tracking CLI context in JS.
+	CLIContextPath string
+	// CLIPathSegments holds pre-computed path segments for the CLI path bar template.
+	CLIPathSegments []PathBarSegment
 }
 
 // HandleFragment returns an HTTP handler that serves HTMX fragments.
@@ -229,21 +235,18 @@ func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree
 
 		// Full page: render all fragments via templates.
 		content := renderer.RenderFragment("full_content", data)
-
-		prompt := "/" + data.CurrentPath
-		if prompt != "/" {
-			prompt += "/"
-		}
-		prompt += ">"
+		pathBar := renderer.RenderFragment("path_bar_inner", data)
 
 		layoutData := LayoutData{
-			Title:       "Ze: /" + data.CurrentPath,
-			Content:     content,
-			HasSession:  true,
-			CLIPrompt:   prompt,
-			Breadcrumbs: data.Breadcrumbs,
-			Username:    data.Username,
-			Insecure:    insecure,
+			Title:          "Ze: /" + data.CurrentPath,
+			Content:        content,
+			HasSession:     true,
+			CLIPrompt:      data.CLIPrompt,
+			CLIContextPath: data.CLIContextPath,
+			CLIPathBar:     pathBar,
+			Breadcrumbs:    data.Breadcrumbs,
+			Username:       data.Username,
+			Insecure:       insecure,
 		}
 
 		if err := renderer.RenderLayout(w, layoutData); err != nil {
@@ -287,11 +290,19 @@ func splitPath(s string) []string {
 
 // buildFragmentData walks the schema/tree and assembles data for all fragments.
 func buildFragmentData(schema *config.Schema, tree *config.Tree, path []string) *FragmentData {
+	currentPath := strings.Join(path, "/")
+	// CLI can't be "at" a list node (e.g., /bgp/peer/) -- only before it
+	// or inside an entry. Adjust CLI fields to match.
+	cliPath := adjustListContext(schema, path)
+	cliContextPath := strings.Join(cliPath, "/")
 	data := &FragmentData{
-		Path:        path,
-		CurrentPath: strings.Join(path, "/"),
-		Breadcrumbs: buildBreadcrumbs(path),
-		HasSession:  true, // Fragment handler is always behind auth middleware.
+		Path:            path,
+		CurrentPath:     currentPath,
+		Breadcrumbs:     buildBreadcrumbs(path),
+		HasSession:      true, // Fragment handler is always behind auth middleware.
+		CLIPrompt:       formatCLIPrompt(cliPath),
+		CLIContextPath:  cliContextPath,
+		CLIPathSegments: buildPathBarSegments(cliPath),
 	}
 
 	// Build sidebar for all levels including root.

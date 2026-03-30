@@ -183,7 +183,7 @@ Options:
   -v, --verbose       Show output for each test
   -q, --quiet         Minimal output
   -s, --save DIR      Save logs to directory
-  --port N            Base port to use (default: 1790)
+  --port N            Port to use (0 or omit for OS-assigned dynamic port)
   -c, --count N       Run each test N times (stress/benchmark mode)
 
 Debugging:
@@ -744,6 +744,12 @@ Usage: `ze-test rpki --port 3323 [--valid-asn 65001] [--invalid-asn 65099]`
 - Process isolation via `Setpgid`
 - Context timeouts on all execution
 - Dynamic port allocation prevents conflicts
+
+### ExaBGP Compatibility Test Ports
+
+ExaBGP compatibility tests (`make ze-exabgp-test`) use OS-assigned dynamic ports. The mock BGP server (`test/exabgp-compat/bin/bgp`) binds to port 0, receives an OS-assigned port, and prints `PORT <N>` to stdout. The test runner (`test/exabgp-compat/bin/functional`) reads this line from the server's stdout temp file and passes the discovered port to the client subprocess. This eliminates port collisions when running concurrent test instances. Use `--port N` to override with an explicit port for debugging.
+<!-- source: test/exabgp-compat/bin/bgp -- dynamic port binding and PORT line output -->
+<!-- source: test/exabgp-compat/bin/functional -- _discover_port method -->
 
 ---
 

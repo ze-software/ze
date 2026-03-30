@@ -1438,7 +1438,7 @@ def parse_cmdline():
     # Don't allow 4-byte ASN, as peer maybe not supports 4-byte asn
     if (
         cmdarg.help
-        or cmdarg.port <= 0
+        or cmdarg.port < 0
         or cmdarg.port > 65535
         or cmdarg.asn is not None
         and (cmdarg.asn < 0 or cmdarg.asn > 65535)
@@ -1542,10 +1542,13 @@ async def main(options, checker, queue):
         host = '::1' if options['ipv6'] else '::FFFF:127.0.0.1'
         port = options['port']
         sock.bind((host, port))
+        actual_port = sock.getsockname()[1]
     except (PermissionError, OSError) as exc:
         flushed(f'could not bind to {host}:{port}')
         flushed(exc)
         sys.exit(1)
+
+    flushed(f'PORT {actual_port}')
 
     loop = asyncio.get_running_loop()
     service = BGPService(loop, queue, options, checker)
