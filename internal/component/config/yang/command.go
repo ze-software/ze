@@ -45,6 +45,36 @@ func collectPaths(node *command.Node, prefix string, result map[string]string) {
 	}
 }
 
+// PathToDescription walks all -cmd YANG modules and builds a map from
+// CLI path (space-joined) to description. Used to populate help text
+// when registering commands in the dispatcher.
+func PathToDescription(loader *Loader) map[string]string {
+	result := make(map[string]string)
+	if loader == nil {
+		return result
+	}
+	tree := BuildCommandTree(loader)
+	collectDescriptions(tree, "", result)
+	return result
+}
+
+// collectDescriptions recursively walks the command tree and collects path -> description.
+func collectDescriptions(node *command.Node, prefix string, result map[string]string) {
+	if node == nil {
+		return
+	}
+	for name, child := range node.Children {
+		path := name
+		if prefix != "" {
+			path = prefix + " " + name
+		}
+		if child.Description != "" {
+			result[path] = child.Description
+		}
+		collectDescriptions(child, path, result)
+	}
+}
+
 // BuildCommandTree walks all -cmd YANG modules in the loader and builds
 // a merged command.Node tree. Multiple modules contributing to the same
 // container path (e.g., 4 modules defining peer > ...) are merged.

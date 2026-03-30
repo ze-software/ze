@@ -155,9 +155,10 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 		return nil, fmt.Errorf("YANG command tree: %w", err)
 	}
 	wireToPath := yang.WireMethodToPath(loader)
+	pathToDesc := yang.PathToDescription(loader)
 
 	// Register core handlers (text dispatcher for plugin protocol)
-	RegisterDefaultHandlers(s.dispatcher, wireToPath)
+	RegisterDefaultHandlers(s.dispatcher, wireToPath, pathToDesc)
 
 	// Register all builtin RPCs with wire method dispatcher (for socket clients)
 	for _, reg := range AllBuiltinRPCs() {

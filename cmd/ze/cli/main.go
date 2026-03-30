@@ -294,7 +294,31 @@ func BuildCommandTree(readOnly bool) *Command {
 			ReadOnly:   isRO,
 		})
 	}
-	return cmd.BuildTree(infos, false) // readOnly already filtered above
+	tree := cmd.BuildTree(infos, false) // readOnly already filtered above
+	// Merge descriptions from the YANG command tree into the RPC-built tree.
+	// BuildTree creates nodes without descriptions; YANG modules define them.
+	if yangCmdTree != nil {
+		mergeDescriptions(tree, yangCmdTree)
+	}
+	return tree
+}
+
+// mergeDescriptions copies Description fields from the YANG tree into dst
+// for nodes that exist in both trees but have an empty description in dst.
+func mergeDescriptions(dst, src *Command) {
+	if dst == nil || src == nil {
+		return
+	}
+	for name, dstChild := range dst.Children {
+		srcChild, ok := src.Children[name]
+		if !ok {
+			continue
+		}
+		if dstChild.Description == "" && srcChild.Description != "" {
+			dstChild.Description = srcChild.Description
+		}
+		mergeDescriptions(dstChild, srcChild)
+	}
 }
 
 // Command is an alias for command.Node. Use command.Node directly in new code.

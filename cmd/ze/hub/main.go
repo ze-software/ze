@@ -50,9 +50,9 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.insecure", Type: "bool", Description: "Disable web authentication"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.host", Type: "string", Description: "MCP server listen host (127.0.0.1 only)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.port", Type: "string", Description: "MCP server listen port"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.lg.host", Type: "string", Description: "Looking glass listen host"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.lg.port", Type: "string", Description: "Looking glass listen port"})
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.lg.tls", Type: "bool", Description: "Enable TLS for looking glass"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.host", Type: "string", Description: "Looking glass listen host"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.port", Type: "string", Description: "Looking glass listen port"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.looking-glass.tls", Type: "bool", Description: "Enable TLS for looking glass"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.server", Type: "string", Default: defaultDNSServer(), Description: "DNS server address (e.g., 8.8.8.8:53)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.timeout", Type: "int", Default: "5", Description: "DNS query timeout in seconds (1-60)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.cache-size", Type: "int", Default: "10000", Description: "DNS cache max entries (0 = disabled)"})
@@ -200,14 +200,14 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 	}
 
 	// Layer 2: environment variables override config (but not CLI).
-	if h, p := env.Get("ze.lg.host"), env.Get("ze.lg.port"); p != "" && lgListenAddr == "" {
+	if h, p := env.Get("ze.looking-glass.host"), env.Get("ze.looking-glass.port"); p != "" && lgListenAddr == "" {
 		host := h
 		if host == "" {
 			host = "0.0.0.0"
 		}
 		lgListenAddr = host + ":" + p
 	}
-	if env.IsEnabled("ze.lg.tls") {
+	if env.IsEnabled("ze.looking-glass.tls") {
 		lgTLS = true
 	}
 

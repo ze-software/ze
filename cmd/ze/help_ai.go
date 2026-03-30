@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 
+	gyang "github.com/openconfig/goyang/pkg/yang"
+
 	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 	ribschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
@@ -16,6 +18,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
+	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	ipcschema "codeberg.org/thomas-mangin/ze/internal/core/ipc/schema"
 )
 
@@ -76,6 +79,7 @@ func printAIHelp(args []string) {
 
 	// Recipes and errors are useful in any detailed view.
 	if showCLI || showAPI || showMCP {
+		printServices()
 		printRecipes()
 		printCommonErrors()
 	}
@@ -500,6 +504,211 @@ func printRIBPipeline() {
 	fmt.Println()
 }
 
+// serviceInfo describes a service extracted from YANG environment containers.
+type serviceInfo struct {
+	name        string // container name (e.g., "web", "looking-glass")
+	description string // from YANG description
+	leaves      []serviceLeaf
+	envVars     []string // registered ze.* env vars for this service
+}
+
+type serviceLeaf struct {
+	name        string
+	typ         string
+	defVal      string
+	description string
+}
+
+// printServices generates the Services section from YANG conf modules.
+// It walks all registered YANG modules looking for environment containers,
+// extracts leaves with their types and defaults, and matches env vars.
+func printServices() {
+	fmt.Println("## Services (from YANG environment containers)")
+	fmt.Println()
+	fmt.Println("  Optional services started alongside the BGP daemon.")
+	fmt.Println("  Enable via config block or CLI flag. Web UI requires ze init (blob storage).")
+	fmt.Println()
+
+	services := extractServices()
+	if len(services) == 0 {
+		fmt.Println("  (no services found)")
+		fmt.Println()
+		return
+	}
+
+	// CLI flag mapping: service name -> flag syntax.
+	cliFlags := map[string]string{
+		"web": "--web <port>  --insecure-web",
+		"mcp": "--mcp <port>",
+	}
+
+	for _, svc := range services {
+		desc := svc.description
+		if desc == "" {
+			desc = svc.name
+		}
+		fmt.Printf("  %s: %s\n", svc.name, desc)
+
+		if flag, ok := cliFlags[svc.name]; ok {
+			fmt.Printf("    CLI flag:  %s\n", flag)
+		}
+
+		// Config syntax from leaves.
+		fmt.Printf("    Config:    environment { %s {", svc.name)
+		for _, leaf := range svc.leaves {
+			if leaf.defVal != "" {
+				fmt.Printf(" %s %s;", leaf.name, leaf.defVal)
+			}
+		}
+		fmt.Println(" } }")
+
+		// Leaf details.
+		for _, leaf := range svc.leaves {
+			def := ""
+			if leaf.defVal != "" {
+				def = " (default: " + leaf.defVal + ")"
+			}
+			desc := leaf.description
+			if desc == "" {
+				desc = leaf.typ
+			}
+			fmt.Printf("    %-20s %s%s\n", leaf.name, desc, def)
+		}
+
+		// Env vars.
+		if len(svc.envVars) > 0 {
+			fmt.Printf("    Env vars:  %s\n", strings.Join(svc.envVars, ", "))
+		}
+
+		fmt.Println()
+	}
+}
+
+// extractServices walks registered YANG conf modules for environment containers.
+func extractServices() []serviceInfo {
+	loader := yang.NewLoader()
+	if err := loader.LoadEmbedded(); err != nil {
+		return nil
+	}
+	if err := loader.LoadRegistered(); err != nil {
+		return nil
+	}
+	if err := loader.Resolve(); err != nil {
+		return nil
+	}
+
+	// Build env var groups keyed by second segment: "ze.web.host" -> "web", "ze.looking-glass.host" -> "looking-glass".
+	envByPrefix := make(map[string][]string)
+	for _, e := range env.Entries() {
+		parts := strings.SplitN(e.Key, ".", 3) //nolint:mnd // ze.<group>.<leaf>
+		if len(parts) >= 2 {
+			envByPrefix[parts[1]] = append(envByPrefix[parts[1]], e.Key)
+		}
+	}
+
+	// Map YANG service container names to env prefixes.
+	// Most match directly (web->web, mcp->mcp, ssh->ssh).
+	// Abbreviations are found by checking leaf names against env var leaf names.
+	matchEnvVars := func(svcName string, leafNames []string) []string {
+		// Direct match first.
+		if vars, ok := envByPrefix[svcName]; ok {
+			return vars
+		}
+		// Try matching by leaf name overlap: find the env prefix whose leaves
+		// best overlap with the YANG container's leaves.
+		leafSet := make(map[string]bool, len(leafNames))
+		for _, n := range leafNames {
+			leafSet[n] = true
+		}
+		var bestPrefix string
+		var bestCount int
+		for prefix, vars := range envByPrefix {
+			count := 0
+			for _, v := range vars {
+				parts := strings.SplitN(v, ".", 3)        //nolint:mnd // ze.<group>.<leaf>
+				if len(parts) == 3 && leafSet[parts[2]] { //nolint:mnd // ze.<group>.<leaf>
+					count++
+				}
+			}
+			if count > bestCount {
+				bestCount = count
+				bestPrefix = prefix
+			}
+		}
+		if bestCount > 0 {
+			return envByPrefix[bestPrefix]
+		}
+		return nil
+	}
+
+	var services []serviceInfo
+
+	for _, mod := range yang.Modules() {
+		// Only look at conf modules.
+		if !strings.HasSuffix(mod.Name, "-conf.yang") {
+			continue
+		}
+		modName := strings.TrimSuffix(mod.Name, ".yang")
+		entry := loader.GetEntry(modName)
+		if entry == nil || entry.Dir == nil {
+			continue
+		}
+
+		// Find "environment" container.
+		envEntry, ok := entry.Dir["environment"]
+		if !ok || envEntry.Dir == nil {
+			continue
+		}
+
+		// Each child of environment is a service.
+		for svcName, svcEntry := range envEntry.Dir {
+			if svcEntry.Kind != gyang.DirectoryEntry {
+				continue
+			}
+
+			svc := serviceInfo{
+				name:        svcName,
+				description: svcEntry.Description,
+			}
+
+			// Extract leaves.
+			leafNames := make([]string, 0, len(svcEntry.Dir))
+			for name := range svcEntry.Dir {
+				leafNames = append(leafNames, name)
+			}
+			sort.Strings(leafNames)
+
+			for _, leafName := range leafNames {
+				child := svcEntry.Dir[leafName]
+				leaf := serviceLeaf{
+					name:        leafName,
+					description: child.Description,
+				}
+				if child.Type != nil {
+					leaf.typ = child.Type.Name
+				}
+				if len(child.Default) > 0 {
+					leaf.defVal = child.Default[0]
+				}
+				svc.leaves = append(svc.leaves, leaf)
+			}
+
+			// Match env vars by leaf name overlap.
+			svc.envVars = matchEnvVars(svcName, leafNames)
+			sort.Strings(svc.envVars)
+
+			services = append(services, svc)
+		}
+	}
+
+	// Sort by name for stable output.
+	sort.Slice(services, func(i, j int) bool {
+		return services[i].name < services[j].name
+	})
+
+	return services
+}
+
 func printRecipes() {
 	fmt.Println("## Recipes")
 	fmt.Println()
@@ -545,6 +754,7 @@ func printCommonErrors() {
 	fmt.Println("  connection refused (SSH)             Daemon not running; start with: ze start")
 	fmt.Println("  no prefixes specified                REQUIRED field missing in ze_announce/ze_withdraw")
 	fmt.Println("  unknown command \"...\"                Use: ze_commands (MCP) or ze cli -c \"help\"")
+	fmt.Println("  web server disabled: requires blob  Run: ze init (creates database.zefs with TLS certs)")
 	fmt.Println()
 }
 
@@ -609,16 +819,6 @@ func buildAISchemaRegistry() *pluginserver.SchemaRegistry {
 	}
 
 	return schemaReg
-}
-
-// findBuiltinRPC finds a builtin RPC by wire method.
-func findBuiltinRPC(wireMethod string) *pluginserver.RPCRegistration {
-	for _, b := range pluginserver.AllBuiltinRPCs() {
-		if b.WireMethod == wireMethod {
-			return &b
-		}
-	}
-	return nil
 }
 
 // aiHelpRequested checks if --ai was passed in the help args.
