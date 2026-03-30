@@ -10,6 +10,7 @@ import (
 	"os"
 	"sync/atomic"
 
+	ifaceschema "codeberg.org/thomas-mangin/ze/internal/component/iface/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
@@ -26,6 +27,9 @@ func init() {
 	reg := registry.Registration{
 		Name:        "iface",
 		Description: "OS network interface monitoring and management",
+		Features:    "yang",
+		YANG:        ifaceschema.ZeIfaceConfYANG,
+		ConfigRoots: []string{"interface"},
 		RunEngine:   runEngine,
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))

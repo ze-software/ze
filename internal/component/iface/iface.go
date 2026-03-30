@@ -1,5 +1,8 @@
 // Design: plan/spec-iface-0-umbrella.md — Interface plugin shared types
 // Detail: register.go — plugin registration
+// Detail: manage_linux.go — interface management via netlink
+// Detail: monitor_linux.go — netlink interface monitor
+// Detail: sysctl_linux.go — per-interface sysctl management
 
 // Package iface implements the interface monitoring and management plugin.
 //

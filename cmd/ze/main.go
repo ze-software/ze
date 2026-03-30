@@ -27,6 +27,7 @@ import (
 	zeenv "codeberg.org/thomas-mangin/ze/cmd/ze/environ"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
+	zeiface "codeberg.org/thomas-mangin/ze/cmd/ze/iface"
 	zeinit "codeberg.org/thomas-mangin/ze/cmd/ze/init"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	zeplugin "codeberg.org/thomas-mangin/ze/cmd/ze/plugin"
@@ -256,6 +257,8 @@ dispatch:
 		os.Exit(schema.Run(args[1:], plugins))
 	case "yang":
 		os.Exit(zeyang.Run(args[1:]))
+	case "interface":
+		os.Exit(zeiface.Run(args[1:]))
 	case "exabgp":
 		os.Exit(exabgp.Run(args[1:]))
 	case "signal":
