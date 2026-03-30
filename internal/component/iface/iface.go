@@ -9,6 +9,8 @@
 // Detail: dhcp_linux.go — DHCP client types and lifecycle
 // Detail: dhcp_v4_linux.go — DHCPv4 worker, renewal, lease handling
 // Detail: dhcp_v6_linux.go — DHCPv6 worker, renewal, lease handling
+// Detail: manage_other.go — non-Linux interface management stub
+// Detail: monitor_other.go — non-Linux monitor stub
 
 // Package iface implements the interface monitoring and management plugin.
 //
