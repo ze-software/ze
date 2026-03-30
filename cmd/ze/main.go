@@ -77,8 +77,16 @@ func printVersion() {
 	fmt.Printf("ze %s (built %s)\n", version, buildDate)
 }
 
+func registerLocalCommands() {
+	cmdutil.RegisterLocalCommand("show version", func(_ []string) int {
+		printVersion()
+		return 0
+	})
+}
+
 func main() {
 	pluginserver.SetVersion(version, buildDate)
+	registerLocalCommands()
 
 	if len(os.Args) < 2 {
 		usage()
@@ -241,11 +249,9 @@ dispatch:
 	// These go through the unified command tree, same path as the CLI editor.
 	if isYANGVerb(arg) {
 		if len(args) < 2 || args[1] == "help" || args[1] == "-h" || args[1] == "--help" {
-			// Use both trees: YANG tree for descriptions, RPC tree for command list.
+			// YANG tree is the authority for help: descriptions and command list.
 			yangTree := cli.YANGCommandTree()
 			yangNode := command.FindNode(yangTree, []string{arg})
-			rpcTree := cli.BuildCommandTree(false)
-			rpcNode := command.FindNode(rpcTree, []string{arg})
 
 			desc := ""
 			if yangNode != nil {
@@ -256,8 +262,8 @@ dispatch:
 				fmt.Fprintf(os.Stderr, "%s (%s).\n\n", strings.ToUpper(arg[:1])+arg[1:], desc)
 			}
 			fmt.Fprintf(os.Stderr, "Available commands:\n")
-			if rpcNode != nil {
-				command.WriteHelp(os.Stderr, rpcNode, nil)
+			if yangNode != nil {
+				command.WriteHelp(os.Stderr, yangNode, nil)
 			}
 			fmt.Fprintln(os.Stderr)
 			os.Exit(0)

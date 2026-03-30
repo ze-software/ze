@@ -19,8 +19,26 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 )
 
+// LocalHandler is a function that handles a command locally (in-process),
+// without connecting to the daemon. Used for offline commands like version
+// and completion that are registered in the YANG command tree.
+type LocalHandler func(args []string) int
+
+// localHandlers maps CLI command paths (space-joined, e.g. "show version")
+// to local handler functions. Commands registered here run in-process
+// instead of being dispatched via SSH to the daemon.
+var localHandlers = make(map[string]LocalHandler)
+
+// RegisterLocalCommand registers a handler for a CLI command path that
+// runs in-process. The path is the full CLI path (e.g., "show version").
+// Called from init() in component packages.
+func RegisterLocalCommand(path string, handler LocalHandler) {
+	localHandlers[path] = handler
+}
+
 // RunCommand extracts flags, validates command words against the tree,
-// and delegates to cli.Run with --run. The readOnly flag controls whether only
+// and delegates execution. Local handlers run in-process; daemon commands
+// go through cli.Run via SSH. The readOnly flag controls whether only
 // read-only commands are accepted. The cmdName is used in error/hint messages.
 func RunCommand(args []string, readOnly bool, cmdName string) int {
 	cmdWords := args
@@ -38,6 +56,16 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 	// User types "peer 127.0.0.2 show" but the tree has peer → show.
 	// The selector is passed to the CLI client as a trailing argument.
 	treeWords, selector := ExtractSelector(cmdWords, tree)
+
+	// Check local handler registry first (offline commands like version, completion).
+	localPath := strings.Join(treeWords, " ")
+	if handler, ok := localHandlers[localPath]; ok {
+		var handlerArgs []string
+		if selector != "" {
+			handlerArgs = append(handlerArgs, selector)
+		}
+		return handler(handlerArgs)
+	}
 
 	if !IsValidCommand(treeWords, tree) {
 		fmt.Fprintf(os.Stderr, "error: unknown command: %s\n", strings.Join(cmdWords, " "))
