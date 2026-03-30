@@ -346,18 +346,16 @@ dispatch:
 	// Dispatch YANG verb commands (show, set, del, update, validate, monitor).
 	// These go through the unified command tree, same path as the CLI editor.
 	if isYANGVerb(arg) {
-		if len(args) < 2 || args[1] == "help" || args[1] == "-h" || args[1] == "--help" {
-			// YANG tree is the authority for help: descriptions and command list.
+		// Check for help at any depth: "show help", "show bgp help", "show bgp decode help"
+		if helpPath := extractHelpPath(args); helpPath != nil {
 			yangTree := cli.YANGCommandTree()
-			yangNode := command.FindNode(yangTree, []string{arg})
+			yangNode := command.FindNode(yangTree, helpPath)
 
-			desc := ""
-			if yangNode != nil {
-				desc = yangNode.Description
-			}
-			fmt.Fprintf(os.Stderr, "Usage: ze %s <command> [options]\n\n", arg)
-			if desc != "" {
-				fmt.Fprintf(os.Stderr, "%s (%s).\n\n", strings.ToUpper(arg[:1])+arg[1:], desc)
+			pathStr := strings.Join(helpPath, " ")
+			fmt.Fprintf(os.Stderr, "Usage: ze %s <command> [options]\n\n", pathStr)
+			if yangNode != nil && yangNode.Description != "" {
+				label := strings.ToUpper(helpPath[len(helpPath)-1][:1]) + helpPath[len(helpPath)-1][1:]
+				fmt.Fprintf(os.Stderr, "%s (%s).\n\n", label, yangNode.Description)
 			}
 			fmt.Fprintf(os.Stderr, "Available commands:\n")
 			if yangNode != nil && len(yangNode.Children) > 0 {
@@ -505,6 +503,29 @@ var yangVerbs = map[string]bool{
 // dispatched through the unified command tree rather than the static switch.
 func isYANGVerb(arg string) bool {
 	return yangVerbs[arg]
+}
+
+// extractHelpPath checks if args end with help/-h/--help or have no subcommand,
+// and returns the path to show help for. Returns nil if not a help request.
+// Examples:
+//
+//	["show"] -> ["show"]
+//	["show", "help"] -> ["show"]
+//	["show", "bgp", "help"] -> ["show", "bgp"]
+//	["show", "bgp", "--help"] -> ["show", "bgp"]
+//	["show", "bgp", "decode", "hex"] -> nil (not a help request)
+func extractHelpPath(args []string) []string {
+	if len(args) < 1 {
+		return nil
+	}
+	if len(args) == 1 {
+		return args
+	}
+	last := args[len(args)-1]
+	if last == "help" || last == "-h" || last == "--help" {
+		return args[:len(args)-1]
+	}
+	return nil
 }
 
 // looksLikeConfig returns true if the argument looks like a config file path.

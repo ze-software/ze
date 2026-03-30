@@ -12,6 +12,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 	ribschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
+	"codeberg.org/thomas-mangin/ze/internal/component/command"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -160,28 +161,56 @@ func printCLICommands() {
 }
 
 // cliSubcommands returns the CLI subcommand tree.
-// Separated into a function to keep the string content away from hook pattern matching.
+// Verb commands (show, set, del, etc.) are generated from the YANG tree.
+// Root commands (completion, exabgp, etc.) are listed statically.
 func cliSubcommands() []cliCmd {
-	return []cliCmd{
-		{"bgp", "offline", "BGP protocol tools", "decode <hex>, encode <route>, plugin"},
-		{"config", "offline", "Configuration management", "edit, validate, dump, fmt, diff, set, migrate, import, ls, cat, history, rollback, archive, rename, completion"},
-		{"cli", "daemon", "Interactive CLI for running daemons", "-c <cmd> for single command"},
-		{"show", "daemon", "Read-only daemon commands (dynamic from RPCs)", "connects via SSH to running daemon"},
-		{"run", "daemon", "All daemon commands (dynamic from RPCs)", "connects via SSH to running daemon"},
-		{"plugin", "offline", "Plugin system", "<plugin-name> for plugin CLI, test for debugging"},
-		{"init", "setup", "Bootstrap database with SSH credentials", "--managed for fleet mode, --force to replace"},
-		{"interface", "offline", "Manage OS network interfaces", "show, create, delete, unit, addr, migrate"},
-		{"data", "offline", "ZeFS blob store management", "import, rm, ls, cat"},
-		{"schema", "offline", "Schema discovery", "list, show <module>, handlers, methods, events, protocol"},
-		{"yang", "offline", "YANG tree analysis", "completion, tree, doc"},
-		{"signal", "daemon", "Send signals to daemon via SSH", "reload, stop, restart, quit"},
-		{"status", "daemon", "Check if daemon is running", "exit 0 = running, 1 = not"},
-		{"env", "offline", "Environment variable inspection", "list [-v], get <key>"},
-		{"completion", "offline", "Shell completion scripts", "bash, zsh, fish, nushell"},
-		{"start", "setup", "Start daemon from database config", "--web <port>, --insecure-web, --mcp <port>"},
-		{"version", "offline", "Show version and build date", ""},
-		{"help", "offline", "Show help", "--ai [--cli|--api|--mcp|--all]"},
+	var cmds []cliCmd
+
+	// Dynamic: verb commands from YANG tree.
+	yangTree := cli.YANGCommandTree()
+	if yangTree != nil {
+		for _, name := range sortedChildren(yangTree) {
+			child := yangTree.Children[name]
+			desc := child.Description
+			if desc == "" {
+				desc = name + " commands"
+			}
+			mode := "daemon"
+			if command.IsReadOnlyVerb(name) {
+				mode = "read-only"
+			}
+			cmds = append(cmds, cliCmd{name, mode, desc, "ze " + name + " help"})
+		}
 	}
+
+	// Static: root commands that stay outside the verb tree.
+	cmds = append(cmds,
+		cliCmd{"bgp", "offline", "BGP protocol tools", "decode <hex>, encode <route>, plugin"},
+		cliCmd{"cli", "daemon", "Interactive CLI for running daemons", "-c <cmd> for single command"},
+		cliCmd{"completion", "offline", "Shell completion scripts", "bash, zsh, fish, nushell"},
+		cliCmd{"config", "offline", "Configuration management", "edit, set, migrate, rollback, archive, import, rename"},
+		cliCmd{"data", "offline", "ZeFS blob store management", "import, rm, ls, cat"},
+		cliCmd{"exabgp", "offline", "ExaBGP bridge tools", "plugin, migrate"},
+		cliCmd{"init", "setup", "Bootstrap database with SSH credentials", "--managed for fleet mode, --force to replace"},
+		cliCmd{"interface", "offline", "Manage OS network interfaces", "create, delete, unit, addr, migrate"},
+		cliCmd{"plugin", "offline", "Plugin system", "<plugin-name> for plugin CLI, test for debugging"},
+		cliCmd{"signal", "daemon", "Send signals to daemon via SSH", "reload, stop, restart, quit"},
+		cliCmd{"start", "setup", "Start daemon from database config", "--web <port>, --insecure-web, --mcp <port>"},
+		cliCmd{"status", "daemon", "Check if daemon is running", "exit 0 = running, 1 = not"},
+		cliCmd{"help", "offline", "Show help", "--ai [--cli|--api|--mcp|--dispatch|--all]"},
+	)
+
+	return cmds
+}
+
+// sortedChildren returns sorted child names of a command node.
+func sortedChildren(node *command.Node) []string {
+	names := make([]string, 0, len(node.Children))
+	for name := range node.Children {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func printAPICommands() {
