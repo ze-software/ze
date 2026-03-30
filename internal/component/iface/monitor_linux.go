@@ -63,10 +63,12 @@ func (m *Monitor) Start() error {
 	addrCh := make(chan netlink.AddrUpdate, 64)
 
 	if err := netlink.LinkSubscribe(linkCh, m.stop); err != nil {
+		m.started.Store(false) // allow retry after failure
 		return fmt.Errorf("iface monitor: link subscribe: %w", err)
 	}
 	if err := netlink.AddrSubscribe(addrCh, m.stop); err != nil {
 		m.stopFn.Do(func() { close(m.stop) })
+		m.started.Store(false) // allow retry after failure
 		return fmt.Errorf("iface monitor: addr subscribe: %w", err)
 	}
 
@@ -181,7 +183,7 @@ func (m *Monitor) handleAddrUpdate(au netlink.AddrUpdate) {
 	}
 
 	// Skip tentative IPv6 (DAD incomplete).
-	if au.Flags&0x40 != 0 { // IFA_F_TENTATIVE
+	if au.Flags&unix.IFA_F_TENTATIVE != 0 {
 		return
 	}
 

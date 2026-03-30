@@ -341,8 +341,8 @@ dispatch:
 	// Unknown command
 	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
 	commands := []string{
-		"bgp", "plugin", "cli", "config", "data", "env", "init", "start", "schema", "yang",
-		"exabgp", "signal", "status", "show", "run", "completion", "version", "help",
+		"bgp", "plugin", "cli", "config", "data", "env", "init", "interface", "start", "schema",
+		"yang", "exabgp", "signal", "status", "show", "run", "completion", "version", "help",
 	}
 	if suggestion := suggest.Command(arg, commands); suggestion != "" {
 		fmt.Fprintf(os.Stderr, "hint: did you mean '%s'?\n", suggestion)
@@ -770,6 +770,7 @@ Commands:
   bgp          BGP protocol tools (decode, encode)
   plugin       Plugin system (rib, rr, gr, etc.)
   signal       Send signals to running daemon (reload, stop, quit)
+  interface    Manage OS network interfaces
   exabgp       ExaBGP bridge tools
   completion   Generate shell completion scripts
   version      Show version

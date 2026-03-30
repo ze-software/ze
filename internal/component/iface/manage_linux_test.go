@@ -17,6 +17,14 @@ func TestValidateInterfaceName(t *testing.T) {
 		{"max length 15", "abcdefghijklmno", false},
 		{"too long 16", "abcdefghijklmnop", true},
 		{"way too long", "this-name-is-way-too-long-for-linux", true},
+		{"slash", "eth/0", true},
+		{"null byte", "eth\x000", true},
+		{"space", "eth 0", true},
+		{"tab", "eth\t0", true},
+		{"path traversal", "../../etc/a", true},
+		{"dot-dot mid", "a..b", true},
+		{"valid with dot", "eth0.100", false},
+		{"valid with dash", "veth-a", false},
 	}
 
 	for _, tt := range tests {

@@ -8,6 +8,7 @@
 // Detail: listener.go — TCP listener management
 // Detail: signal.go — OS signal handling
 // Detail: update_group.go — cross-peer UPDATE grouping index
+// Detail: reactor_iface.go — BGP reactions to interface events
 // Detail: forward_pool.go — per-peer forward worker pool
 // Detail: recent_cache.go — recent UPDATE cache
 // Detail: reactor_metrics.go — Prometheus metrics initialization and update loop
@@ -1100,6 +1101,12 @@ func (r *Reactor) monitor() {
 // under a single shared deadline. This prevents sequential timeouts from
 // compounding (e.g., api(1s) + listener(2s) + peers(N×2s) = unbounded).
 func (r *Reactor) cleanup() {
+	// Unsubscribe from Bus BEFORE acquiring r.mu. The Bus delivery worker
+	// may be processing events that acquire r.mu.RLock() (e.g., handleAddrAdded).
+	// Unsubscribing drains the worker, avoiding deadlock between cleanup's
+	// write lock and the worker's read lock.
+	r.unsubscribeBus()
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -1154,7 +1161,6 @@ func (r *Reactor) cleanup() {
 
 	// Phase 3: Cleanup remaining resources.
 	r.recentUpdates.Stop()
-	r.unsubscribeBus()
 
 	r.running = false
 	r.cancel = nil

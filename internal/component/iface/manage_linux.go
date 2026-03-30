@@ -5,6 +5,7 @@ package iface
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/vishvananda/netlink"
 )
@@ -29,11 +30,22 @@ const (
 )
 
 // validateIfaceName checks that name is a valid Linux interface name.
+// Linux kernel forbids '/' and NUL in interface names (IFNAMSIZ).
+// We also reject ".." sequences to prevent path traversal in sysctl writes.
 func validateIfaceName(name string) error {
 	n := len(name)
 	if n < minIfaceNameLen || n > maxIfaceNameLen {
 		return fmt.Errorf("iface: name %q length %d not in [%d, %d]",
 			name, n, minIfaceNameLen, maxIfaceNameLen)
+	}
+	for i := range n {
+		c := name[i]
+		if c == '/' || c == 0 || c == ' ' || c == '\t' {
+			return fmt.Errorf("iface: name %q contains forbidden character", name)
+		}
+	}
+	if strings.Contains(name, "..") {
+		return fmt.Errorf("iface: name %q contains path traversal sequence", name)
 	}
 	return nil
 }
@@ -69,6 +81,7 @@ func CreateDummy(name string) error {
 		return fmt.Errorf("iface: create dummy %q: %w", name, err)
 	}
 	if err := netlink.LinkSetUp(link); err != nil {
+		_ = netlink.LinkDel(link) // best-effort cleanup
 		return fmt.Errorf("iface: set up dummy %q: %w", name, err)
 	}
 	return nil
@@ -91,14 +104,17 @@ func CreateVeth(name, peerName string) error {
 		return fmt.Errorf("iface: create veth %q/%q: %w", name, peerName, err)
 	}
 	if err := netlink.LinkSetUp(link); err != nil {
+		_ = netlink.LinkDel(link) // best-effort cleanup
 		return fmt.Errorf("iface: set up veth %q: %w", name, err)
 	}
 
 	peer, err := netlink.LinkByName(peerName)
 	if err != nil {
+		_ = netlink.LinkDel(link) // best-effort cleanup
 		return fmt.Errorf("iface: lookup veth peer %q: %w", peerName, err)
 	}
 	if err := netlink.LinkSetUp(peer); err != nil {
+		_ = netlink.LinkDel(link) // best-effort cleanup (removes both ends)
 		return fmt.Errorf("iface: set up veth peer %q: %w", peerName, err)
 	}
 	return nil
@@ -117,6 +133,7 @@ func CreateBridge(name string) error {
 		return fmt.Errorf("iface: create bridge %q: %w", name, err)
 	}
 	if err := netlink.LinkSetUp(link); err != nil {
+		_ = netlink.LinkDel(link) // best-effort cleanup
 		return fmt.Errorf("iface: set up bridge %q: %w", name, err)
 	}
 	return nil
@@ -138,6 +155,9 @@ func CreateVLAN(parentName string, vlanID int) error {
 	}
 
 	vlanName := fmt.Sprintf("%s.%d", parentName, vlanID)
+	if err := validateIfaceName(vlanName); err != nil {
+		return fmt.Errorf("iface: create vlan: composed name too long: %w", err)
+	}
 	vlan := &netlink.Vlan{
 		LinkAttrs: netlink.LinkAttrs{
 			Name:        vlanName,
@@ -149,6 +169,7 @@ func CreateVLAN(parentName string, vlanID int) error {
 		return fmt.Errorf("iface: create vlan %q: %w", vlanName, err)
 	}
 	if err := netlink.LinkSetUp(vlan); err != nil {
+		_ = netlink.LinkDel(vlan) // best-effort cleanup
 		return fmt.Errorf("iface: set up vlan %q: %w", vlanName, err)
 	}
 	return nil

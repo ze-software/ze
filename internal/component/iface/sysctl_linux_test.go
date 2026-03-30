@@ -61,6 +61,42 @@ func TestSysctlIPv4Forwarding(t *testing.T) {
 	}
 }
 
+func TestSysctlIPv4ArpFilter(t *testing.T) {
+	root := testSysctlDir(t, "eth0")
+
+	if err := SetIPv4ArpFilter("eth0", true); err != nil {
+		t.Fatalf("SetIPv4ArpFilter(true): %v", err)
+	}
+	if got := readSysctl(t, root, "net/ipv4/conf/eth0/arp_filter"); got != "1" {
+		t.Errorf("arp_filter=true: got %q, want %q", got, "1")
+	}
+
+	if err := SetIPv4ArpFilter("eth0", false); err != nil {
+		t.Fatalf("SetIPv4ArpFilter(false): %v", err)
+	}
+	if got := readSysctl(t, root, "net/ipv4/conf/eth0/arp_filter"); got != "0" {
+		t.Errorf("arp_filter=false: got %q, want %q", got, "0")
+	}
+}
+
+func TestSysctlIPv4ArpAccept(t *testing.T) {
+	root := testSysctlDir(t, "eth0")
+
+	if err := SetIPv4ArpAccept("eth0", true); err != nil {
+		t.Fatalf("SetIPv4ArpAccept(true): %v", err)
+	}
+	if got := readSysctl(t, root, "net/ipv4/conf/eth0/arp_accept"); got != "1" {
+		t.Errorf("arp_accept=true: got %q, want %q", got, "1")
+	}
+
+	if err := SetIPv4ArpAccept("eth0", false); err != nil {
+		t.Fatalf("SetIPv4ArpAccept(false): %v", err)
+	}
+	if got := readSysctl(t, root, "net/ipv4/conf/eth0/arp_accept"); got != "0" {
+		t.Errorf("arp_accept=false: got %q, want %q", got, "0")
+	}
+}
+
 func TestSysctlIPv6ForwardingAcceptRA(t *testing.T) {
 	root := testSysctlDir(t, "eth0")
 

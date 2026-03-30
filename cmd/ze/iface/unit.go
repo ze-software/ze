@@ -33,13 +33,14 @@ func cmdUnit(args []string) int {
 	}
 }
 
-// cmdUnitAdd handles: unit add <name> <id> [vlan-id <vid>]
+// cmdUnitAdd handles: unit add <name> <id>
 //
-// Creates a VLAN subinterface. The VLAN ID defaults to the unit ID
-// unless overridden with "vlan-id <vid>".
+// Creates a VLAN subinterface. The unit ID is the VLAN ID (consistent with
+// JunOS where unit N on a VLAN-tagged interface is VLAN N). The OS interface
+// is named "<parent>.<id>".
 func cmdUnitAdd(args []string) int {
-	if len(args) < 2 {
-		fmt.Fprintf(os.Stderr, "error: unit add requires at least: <name> <id>\n")
+	if len(args) != 2 {
+		fmt.Fprintf(os.Stderr, "error: unit add requires exactly: <name> <id>\n")
 		unitUsage()
 		return 1
 	}
@@ -50,34 +51,17 @@ func cmdUnitAdd(args []string) int {
 		fmt.Fprintf(os.Stderr, "error: invalid unit id %q: %v\n", args[1], err)
 		return 1
 	}
-
-	// Default VLAN ID to unit ID.
-	vlanID := unitID
-	remaining := args[2:]
-
-	// Parse optional "vlan-id <vid>".
-	if len(remaining) >= 2 && remaining[0] == "vlan-id" {
-		vid, err := strconv.Atoi(remaining[1])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: invalid vlan-id %q: %v\n", remaining[1], err)
-			return 1
-		}
-		vlanID = vid
-		remaining = remaining[2:]
-	}
-
-	if len(remaining) > 0 {
-		fmt.Fprintf(os.Stderr, "error: unexpected arguments after unit add: %v\n", remaining)
-		unitUsage()
+	if unitID <= 0 {
+		fmt.Fprintf(os.Stderr, "error: unit id must be > 0 (unit 0 is the parent interface)\n")
 		return 1
 	}
 
-	if err := mgr.CreateVLAN(name, vlanID); err != nil {
+	if err := mgr.CreateVLAN(name, unitID); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
 
-	fmt.Printf("added unit %d on %s (vlan-id %d)\n", unitID, name, vlanID)
+	fmt.Printf("added unit %d on %s\n", unitID, name)
 	return 0
 }
 
@@ -95,6 +79,10 @@ func cmdUnitDel(args []string) int {
 	unitID, err := strconv.Atoi(args[1])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: invalid unit id %q: %v\n", args[1], err)
+		return 1
+	}
+	if unitID <= 0 {
+		fmt.Fprintf(os.Stderr, "error: unit id must be > 0 (use 'ze interface delete' for the parent)\n")
 		return 1
 	}
 
@@ -115,15 +103,14 @@ func unitUsage() {
 Manage logical units (VLAN subinterfaces) on an interface.
 
 Actions:
-  add <name> <id> [vlan-id <vid>]    Add a VLAN subinterface
-  del <name> <id>                     Delete a VLAN subinterface
+  add <name> <id>    Add a VLAN unit (creates <name>.<id> subinterface)
+  del <name> <id>    Delete a VLAN unit
 
-The VLAN ID defaults to the unit ID unless overridden with vlan-id.
+Unit ID must be > 0. Unit 0 is the parent interface (implicit).
 The OS interface name for unit N on parent P is "P.N".
 
 Examples:
   ze interface unit add eth0 100
-  ze interface unit add eth0 100 vlan-id 200
   ze interface unit del eth0 100
 `)
 }

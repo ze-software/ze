@@ -23,6 +23,9 @@ func Run(args []string) int {
 	subArgs := args[1:]
 
 	switch subcmd {
+	case "help", "-h", "--help": //nolint:goconst // consistent pattern across cmd files
+		usage()
+		return 0
 	case "show":
 		return cmdShow(subArgs)
 	case "create":
@@ -33,12 +36,9 @@ func Run(args []string) int {
 		return cmdUnit(subArgs)
 	case "addr":
 		return cmdAddr(subArgs)
-	case "help", "-h", "--help": //nolint:goconst // consistent pattern across cmd files
-		usage()
-		return 0
 	}
 
-	fmt.Fprintf(os.Stderr, "unknown interface subcommand: %s\n", subcmd)
+	fmt.Fprintf(os.Stderr, "error: unknown interface subcommand: %s\n", subcmd)
 	if s := suggest.Command(subcmd, []string{
 		"show", "create", "delete", "unit", "addr", "help",
 	}); s != "" {

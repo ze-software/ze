@@ -1,5 +1,6 @@
 // Design: docs/architecture/core-design.md — Bus subscription for cross-component events
 // Overview: reactor.go — Reactor struct and lifecycle
+// Related: reactor_iface.go — BGP reactions to interface events
 
 package reactor
 
