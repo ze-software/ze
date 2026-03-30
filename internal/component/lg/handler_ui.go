@@ -194,7 +194,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var routes []any
-	result := s.query(fmt.Sprintf("peer %s rib show received", address))
+	result := s.query(fmt.Sprintf("peer %s rib show", address))
 	zeData := parseJSON(result)
 
 	if zeData != nil {

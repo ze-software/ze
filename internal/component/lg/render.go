@@ -342,7 +342,8 @@ const allTemplates = `
 <span>{{index .Peer "description"}}</span>
 </div>
 {{end}}
-<p>{{.Count}} routes</p>
+{{if .Routes}}
+<p>{{formatNum .Count}} routes</p>
 <table class="route-table">
 <thead>
 <tr>
@@ -362,5 +363,8 @@ const allTemplates = `
 </tr>{{end}}
 </tbody>
 </table>
+{{else}}
+<p class="empty-state">No routes available for this peer.</p>
+{{end}}
 {{end}}
 `

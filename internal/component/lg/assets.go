@@ -110,6 +110,7 @@ tbody tr:hover { background: var(--table-hover); cursor: pointer; }
 #graph-container svg { max-width: 100%; height: auto; }
 
 .error-banner { padding: 0.8rem 1rem; background: var(--error-bg); border: 1px solid var(--error-border); border-radius: 6px; color: var(--error-text); margin-bottom: 1rem; font-weight: 500; }
+.empty-state { padding: 2rem; text-align: center; color: var(--state-unknown); font-style: italic; }
 
 @media (max-width: 768px) {
   .search-form { flex-direction: column; align-items: stretch; }
