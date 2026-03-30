@@ -197,6 +197,11 @@ func (s *LGServer) registerRoutes() {
 		http.Redirect(w, r, "/lg/peers", http.StatusFound)
 	})
 
+	// Site root redirect.
+	s.mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/lg/peers", http.StatusFound)
+	})
+
 	// Catch-all for unknown API paths.
 	s.mux.HandleFunc("/api/looking-glass/", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSONError(w, http.StatusNotFound, "unknown API endpoint")

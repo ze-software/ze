@@ -364,12 +364,20 @@ func resolveAsset(path string) (content, contentType string) {
 }
 
 // extractPeers converts Ze peer summary data into template-friendly format.
+// The summary command returns {"summary": {"peers": [...], ...}}.
 func extractPeers(ze map[string]any) []map[string]any {
 	if ze == nil {
 		return nil
 	}
 
-	peers, _ := ze["peers"].([]any)
+	// Navigate into the "summary" envelope.
+	summary, _ := ze["summary"].(map[string]any)
+	if summary == nil {
+		// Fall back to top-level "peers" for direct array responses.
+		summary = ze
+	}
+
+	peers, _ := summary["peers"].([]any)
 	var result []map[string]any
 
 	for _, p := range peers {
@@ -378,8 +386,14 @@ func extractPeers(ze map[string]any) []map[string]any {
 			continue
 		}
 
+		// The summary handler uses "address"; map to template field "Address".
+		address := getStr(peer, "address")
+		if address == "" {
+			address = getStr(peer, "peer-address")
+		}
+
 		result = append(result, map[string]any{
-			"Address":        getStr(peer, "peer-address"),
+			"Address":        address,
 			"RemoteAS":       getStr(peer, "remote-as"),
 			"State":          getStr(peer, "state"),
 			"Uptime":         getStr(peer, "uptime"),

@@ -63,6 +63,37 @@ func TestExtractPeers(t *testing.T) {
 		}
 	})
 
+	t.Run("summary envelope", func(t *testing.T) {
+		// Real summary handler returns {"summary": {"peers": [...]}}.
+		ze := map[string]any{
+			"summary": map[string]any{
+				"router-id":         "10.0.0.1",
+				"local-as":          float64(65000),
+				"peers-configured":  float64(1),
+				"peers-established": float64(1),
+				"peers": []any{
+					map[string]any{
+						"address":   "10.0.0.2",
+						"remote-as": float64(65001),
+						"state":     "established",
+						"uptime":    "1h0m0s",
+						"name":      "peer1",
+					},
+				},
+			},
+		}
+		peers := extractPeers(ze)
+		if len(peers) != 1 {
+			t.Fatalf("expected 1 peer, got %d", len(peers))
+		}
+		if peers[0]["Address"] != "10.0.0.2" {
+			t.Errorf("Address = %q, want 10.0.0.2", peers[0]["Address"])
+		}
+		if peers[0]["Name"] != "peer1" {
+			t.Errorf("Name = %q, want peer1", peers[0]["Name"])
+		}
+	})
+
 	t.Run("non-map entry skipped", func(t *testing.T) {
 		ze := map[string]any{
 			"peers": []any{"not-a-map", map[string]any{"peer-address": "10.0.0.1"}},

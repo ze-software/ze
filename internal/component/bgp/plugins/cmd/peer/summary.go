@@ -42,6 +42,8 @@ func handleBgpSummary(ctx *pluginserver.CommandContext, _ []string) (*plugin.Res
 		}
 		peerRows[i] = map[string]any{
 			"address":             p.Address.String(),
+			"name":                p.Name,
+			"description":         p.GroupName,
 			"remote-as":           p.PeerAS,
 			"state":               p.State,
 			"uptime":              p.Uptime.String(),
