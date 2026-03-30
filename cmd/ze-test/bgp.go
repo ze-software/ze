@@ -321,8 +321,7 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 	defer r.Cleanup()
 
 	// Extra binaries needed by specific test suites.
-	switch cli.command {
-	case cmdChaosWeb:
+	if cli.command == cmdChaosWeb {
 		r.SetExtraBinaries(map[string]string{
 			"ze-chaos": "./cmd/ze-chaos",
 		})
