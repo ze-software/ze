@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/cli"
 	ribschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/yang"
@@ -32,15 +33,17 @@ func printAIHelp(args []string) {
 	showCLI := slices.Contains(args, "--cli")
 	showAPI := slices.Contains(args, "--api")
 	showMCP := slices.Contains(args, "--mcp")
+	showDispatch := slices.Contains(args, "--dispatch")
 	showAll := slices.Contains(args, "--all")
 
 	if showAll {
 		showCLI = true
 		showAPI = true
 		showMCP = true
+		showDispatch = true
 	}
 
-	summaryOnly := !showCLI && !showAPI && !showMCP
+	summaryOnly := !showCLI && !showAPI && !showMCP && !showDispatch
 
 	fmt.Println("# Ze AI Reference")
 	fmt.Println("# Generated from code -- always matches this binary.")
@@ -62,6 +65,9 @@ func printAIHelp(args []string) {
 		printPeerSelectors()
 		printFamilyAttributes()
 		printRIBPipeline()
+	}
+	if showDispatch {
+		printDispatchKeys()
 	}
 	if showMCP {
 		printMCPTools()
@@ -181,7 +187,10 @@ func cliSubcommands() []cliCmd {
 func printAPICommands() {
 	fmt.Println("## Daemon API Commands (YANG RPCs)")
 	fmt.Println()
+	fmt.Println("Format: wire-method (dispatch-key) description")
+	fmt.Println()
 
+	wireToPath := cli.WireToPath()
 	schemaReg := buildAISchemaRegistry()
 
 	rpcs := schemaReg.ListRPCs("")
@@ -203,7 +212,12 @@ func printAPICommands() {
 			ro = " [read-only]"
 		}
 
-		fmt.Printf("  %-44s %s%s\n", rpc.WireMethod, desc, ro)
+		dispatch := wireToPath[rpc.WireMethod]
+		if dispatch != "" {
+			fmt.Printf("  %-44s (%-30s) %s%s\n", rpc.WireMethod, dispatch, desc, ro)
+		} else {
+			fmt.Printf("  %-44s %-32s %s%s\n", rpc.WireMethod, "", desc, ro)
+		}
 		for _, leaf := range rpc.Input {
 			req := ""
 			if leaf.Mandatory {
@@ -240,7 +254,47 @@ func printAPICommands() {
 		if b.ReadOnly {
 			ro = " [read-only]"
 		}
-		fmt.Printf("  %-44s %s%s\n", b.WireMethod, help, ro)
+		dispatch := wireToPath[b.WireMethod]
+		if dispatch != "" {
+			fmt.Printf("  %-44s (%-30s) %s%s\n", b.WireMethod, dispatch, help, ro)
+		} else {
+			fmt.Printf("  %-44s %-32s %s%s\n", b.WireMethod, "", help, ro)
+		}
+	}
+	fmt.Println()
+}
+
+func printDispatchKeys() {
+	fmt.Println("## Dispatch Keys (what you type)")
+	fmt.Println()
+	fmt.Println("These are the strings accepted by the daemon dispatcher.")
+	fmt.Println("Use with: ze cli -c \"<dispatch-key>\"")
+	fmt.Println()
+
+	wireToPath := cli.WireToPath()
+	builtins := pluginserver.AllBuiltinRPCs()
+
+	type entry struct {
+		dispatch   string
+		wireMethod string
+	}
+
+	var entries []entry
+	for _, b := range builtins {
+		path := wireToPath[b.WireMethod]
+		if path == "" {
+			continue
+		}
+		entries = append(entries, entry{dispatch: path, wireMethod: b.WireMethod})
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].dispatch < entries[j].dispatch
+	})
+
+	fmt.Printf("  %-40s %s\n", "DISPATCH KEY", "WIRE METHOD")
+	for _, e := range entries {
+		fmt.Printf("  %-40s %s\n", e.dispatch, e.wireMethod)
 	}
 	fmt.Println()
 }

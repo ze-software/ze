@@ -259,6 +259,12 @@ var cliLoader = func() *yang.Loader {
 // Built once at package init from the shared DefaultLoader.
 var cliWireToPath = yang.WireMethodToPath(cliLoader)
 
+// WireToPath returns the YANG-derived WireMethod to CLI dispatch path mapping.
+// Used by help generation to show dispatch keys alongside RPC names.
+func WireToPath() map[string]string {
+	return cliWireToPath
+}
+
 // yangCmdTree is the YANG command tree with descriptions from YANG modules.
 // Used for help text generation (verb descriptions come from YANG, not RPC registrations).
 var yangCmdTree = yang.BuildCommandTree(cliLoader)
