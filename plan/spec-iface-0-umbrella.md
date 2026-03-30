@@ -22,6 +22,22 @@ Add interface lifecycle management to Ze via the Bus. An **interface plugin** (o
 
 The primary use case is **make-before-break interface migration**: create a new interface, add an IP, wait for BGP to bind, remove the IP from the old interface, then remove the old interface — ensuring the IP is always reachable.
 
+### Design Decision: JunOS-Style Logical Units
+
+All interface types use a **two-layer model** inspired by JunOS IFD/IFL:
+- **Physical layer** (the interface itself): MTU, description, disable, hardware properties
+- **Logical layer** (units): IP addresses, VLAN ID, VRF binding, per-unit sysctl, firewall filters
+
+Every interface has at least `unit 0`. Addresses are always configured on units, never directly on interfaces. VLAN units (with `vlan-id`) create Linux VLAN subinterfaces via netlink. Non-VLAN units share the parent OS interface (Linux supports multiple IPs natively).
+
+| Ze concept | Linux mapping |
+|-----------|---------------|
+| `ethernet eth0 unit 0` (no vlan-id) | Addresses on `eth0` directly |
+| `ethernet eth0 unit 100` (vlan-id 100) | `ip link add link eth0 name eth0.100 type vlan id 100` |
+| `dummy lo0 unit 0` | Addresses on `lo0` directly |
+| `dummy lo0 unit 5` (no vlan-id) | Addresses on `lo0` (alias grouping, no OS subinterface) |
+| `loopback unit 0` | Addresses on `lo` directly |
+
 ### Design Decision: Plugin per OS
 
 Interface management is implemented as a **plugin** (not a subsystem). Implementation is **Linux-only** for now, using `_linux.go` file suffixes so macOS/BSD support can be added later without restructuring.
@@ -142,19 +158,20 @@ Phases 2 and 3 are independent and can proceed in parallel.
 | `interface/deleted` | Interface removed | `name`, `index` |
 | `interface/up` | Link state → up | `name`, `index` |
 | `interface/down` | Link state → down | `name`, `index` |
-| `interface/addr/added` | IP assigned (DAD complete for IPv6) | `name`, `index`, `address`, `prefix-length`, `family` |
-| `interface/addr/removed` | IP removed | `name`, `index`, `address`, `prefix-length`, `family` |
-| `interface/dhcp/lease-acquired` | DHCPv4 lease obtained | `name`, `address`, `prefix-length`, `router`, `dns`, `lease-time` |
+| `interface/addr/added` | IP assigned (DAD complete for IPv6) | `name`, `unit`, `index`, `address`, `prefix-length`, `family` |
+| `interface/addr/removed` | IP removed | `name`, `unit`, `index`, `address`, `prefix-length`, `family` |
+| `interface/dhcp/lease-acquired` | DHCPv4 lease obtained | `name`, `unit`, `address`, `prefix-length`, `router`, `dns`, `lease-time` |
 | `interface/dhcp/lease-renewed` | DHCPv4 lease renewed | Same as above |
-| `interface/dhcp/lease-expired` | DHCPv4 lease expired | `name`, `address` |
-| `interface/dhcpv6/lease-acquired` | DHCPv6 lease/PD obtained | `name`, `address` or `prefix`, `prefix-length`, `lease-time` |
-| `interface/dhcpv6/lease-expired` | DHCPv6 lease expired | `name`, `address` or `prefix` |
+| `interface/dhcp/lease-expired` | DHCPv4 lease expired | `name`, `unit`, `address` |
+| `interface/dhcpv6/lease-acquired` | DHCPv6 lease/PD obtained | `name`, `unit`, `address` or `prefix`, `prefix-length`, `lease-time` |
+| `interface/dhcpv6/lease-expired` | DHCPv6 lease expired | `name`, `unit`, `address` or `prefix` |
 
 ### Metadata for Filtering
 
 | Key | Value | Purpose |
 |-----|-------|---------|
-| `name` | Interface name (e.g., `"eth0"`) | Filter by interface |
+| `name` | Interface name (e.g., `"eth0"`) | Filter by physical interface |
+| `unit` | Unit ID as string (e.g., `"0"`, `"100"`) | Filter by logical unit |
 | `address` | IP address string (e.g., `"10.0.0.1"`) | BGP matches against peer `LocalAddress` |
 | `family` | `"ipv4"` or `"ipv6"` | Address family filter |
 
@@ -164,7 +181,8 @@ All payloads follow `rules/json-format.md`:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `name` | string | Interface name |
+| `name` | string | Physical interface name |
+| `unit` | integer | Logical unit ID |
 | `index` | integer | OS interface index |
 | `address` | string | IP address (no prefix) |
 | `prefix-length` | integer | CIDR prefix length |
@@ -173,15 +191,15 @@ All payloads follow `rules/json-format.md`:
 
 ## Interface Migration Protocol (overview)
 
-Detailed in `spec-iface-4-advanced.md`. Five phases, strict ordering:
+Detailed in `spec-iface-4-advanced.md`. Five phases, strict ordering. Migration operates at the **unit level** -- moving an IP from one unit to another (possibly on a different physical interface):
 
 | Phase | Action | Bus Event | BGP Reaction |
 |-------|--------|-----------|-------------|
-| 1 | Create new interface | `interface/created` + `interface/up` | None |
-| 2 | Add IP to new interface | `interface/addr/added` | Start listener, begin connections |
+| 1 | Create new interface/unit | `interface/created` + `interface/up` | None |
+| 2 | Add IP to new unit | `interface/addr/added` (with new unit) | Start listener, begin connections |
 | 3 | Confirm BGP ready | `bgp/listener/ready` | N/A (BGP is publisher) |
-| 4 | Remove IP from old interface | `interface/addr/removed` | Drain sessions |
-| 5 | Remove old interface | `interface/deleted` | No impact |
+| 4 | Remove IP from old unit | `interface/addr/removed` (with old unit) | Drain sessions |
+| 5 | Remove old interface/unit | `interface/deleted` | No impact |
 
 Phase 4 MUST NOT start until Phase 3 confirms BGP has established sessions on the new address.
 
@@ -192,19 +210,30 @@ Phase 4 MUST NOT start until Phase 3 confirms BGP has established sessions on th
 | Operation | Netlink Message | Key Attributes |
 |-----------|-----------------|----------------|
 | Create interface | `RTM_NEWLINK` + `NLM_F_CREATE` | `IFLA_IFNAME`, `IFLA_LINKINFO` |
+| Create VLAN unit | `RTM_NEWLINK` + `NLM_F_CREATE` | `IFLA_LINKINFO` (type vlan), `IFLA_LINK` (parent index), `IFLA_IFNAME` (e.g., `eth0.100`) |
 | Set interface up | `RTM_NEWLINK` | `ifi_change = IFF_UP`, `ifi_flags = IFF_UP` |
 | Set MTU | `RTM_NEWLINK` | `IFLA_MTU` |
 | Add IPv4 address | `RTM_NEWADDR` + `NLM_F_CREATE` | `IFA_LOCAL` + `IFA_ADDRESS` (both required) |
 | Add IPv6 address | `RTM_NEWADDR` + `NLM_F_CREATE` | `IFA_ADDRESS` only |
 | Remove address | `RTM_DELADDR` | `IFA_LOCAL` + `IFA_ADDRESS` (IPv4) or `IFA_ADDRESS` (IPv6) |
 | Delete interface | `RTM_DELLINK` | `IFLA_IFNAME` |
+| Delete VLAN unit | `RTM_DELLINK` | `IFLA_IFNAME` (e.g., `eth0.100`) |
 | Monitor changes | Multicast groups | `RTMGRP_LINK`, `RTMGRP_IPV4_IFADDR`, `RTMGRP_IPV6_IFADDR` |
+
+### Unit-to-Linux Mapping
+
+| Unit config | Linux result | Notes |
+|-------------|-------------|-------|
+| `unit 0` (no vlan-id) | Addresses on parent interface | Default untagged unit |
+| `unit N` with `vlan-id V` | `ip link add link <parent> name <parent>.V type vlan id V` | Separate OS subinterface |
+| `unit N` without `vlan-id` (N>0) | Addresses on parent interface | Logical grouping only (VRF, policy), no OS subinterface |
 
 Dependencies: `github.com/vishvananda/netlink` (3200+ stars), `github.com/insomniacslk/dhcp` (815+ stars, Phase 4 only)
 
-### Key Netlink Detail
+### Key Netlink Details
 
-IPv4 `RTM_NEWADDR` requires both `IFA_LOCAL` and `IFA_ADDRESS`. IPv6 requires only `IFA_ADDRESS`. The `vishvananda/netlink` library abstracts this via `netlink.AddrAdd()`.
+- IPv4 `RTM_NEWADDR` requires both `IFA_LOCAL` and `IFA_ADDRESS`. IPv6 requires only `IFA_ADDRESS`. The `vishvananda/netlink` library abstracts this via `netlink.AddrAdd()`.
+- VLAN subinterfaces: `netlink.LinkAdd(&netlink.Vlan{LinkAttrs: netlink.LinkAttrs{Name: "eth0.100", ParentIndex: parentIdx}, VlanId: 100})`
 
 ## Design Insights
 
@@ -253,15 +282,15 @@ IPv4 `RTM_NEWADDR` requires both `IFA_LOCAL` and `IFA_ADDRESS`. IPv6 requires on
 
 | Test | File | Phase | Validates |
 |------|------|-------|-----------|
-| `TestBusTopicCreation` | `internal/plugins/iface/iface_test.go` | 1 | Plugin creates correct Bus topics |
-| `TestNetlinkEventToTopic` | `internal/plugins/iface/monitor_linux_test.go` | 1 | Maps netlink types to Bus topics |
-| `TestPayloadFormat` | `internal/plugins/iface/iface_test.go` | 1 | JSON payload matches spec |
-| `TestIfaceCreate` | `internal/plugins/iface/iface_linux_test.go` | 2 | Creates interface via netlink |
-| `TestSysctlAutoconf` | `internal/plugins/iface/sysctl_linux_test.go` | 2 | IPv6 sysctl writes correct values |
+| `TestBusTopicCreation` | `internal/component/iface/iface_test.go` | 1 | Plugin creates correct Bus topics |
+| `TestNetlinkEventToTopic` | `internal/component/iface/monitor_linux_test.go` | 1 | Maps netlink types to Bus topics |
+| `TestPayloadFormat` | `internal/component/iface/iface_test.go` | 1 | JSON payload matches spec |
+| `TestIfaceCreate` | `internal/component/iface/iface_linux_test.go` | 2 | Creates interface via netlink |
+| `TestSysctlAutoconf` | `internal/component/iface/sysctl_linux_test.go` | 2 | IPv6 sysctl writes correct values |
 | `TestBGPAddrAddedReaction` | `internal/component/bgp/reactor/reactor_iface_test.go` | 3 | Listener started on matching addr event |
 | `TestBGPAddrRemovedReaction` | `internal/component/bgp/reactor/reactor_iface_test.go` | 3 | Sessions drained on addr removed |
-| `TestDHCPLeaseToEvent` | `internal/plugins/iface/dhcp_linux_test.go` | 4 | DHCP lease publishes correct events |
-| `TestMirrorSetup` | `internal/plugins/iface/mirror_linux_test.go` | 4 | tc mirred filter created |
+| `TestDHCPLeaseToEvent` | `internal/component/iface/dhcp_linux_test.go` | 4 | DHCP lease publishes correct events |
+| `TestMirrorSetup` | `internal/component/iface/mirror_linux_test.go` | 4 | tc mirred filter created |
 | `TestMigrationOrdering` | `internal/component/bgp/reactor/reactor_iface_test.go` | 4 | Old IP not removed until new confirmed |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
@@ -272,6 +301,7 @@ IPv4 `RTM_NEWADDR` requires both `IFA_LOCAL` and `IFA_ADDRESS`. IPv6 requires on
 | Prefix length IPv4 | 0-32 | 32 | N/A | 33 |
 | Prefix length IPv6 | 0-128 | 128 | N/A | 129 |
 | VLAN ID | 1-4094 | 4094 | 0 | 4095 |
+| Unit ID | 0-16385 | 16385 | N/A (0 is valid) | 16386 |
 | Interface name | 1-15 chars (IFNAMSIZ-1) | 15 chars | empty | 16 chars |
 
 ### Functional Tests
@@ -297,25 +327,25 @@ IPv4 `RTM_NEWADDR` requires both `IFA_LOCAL` and `IFA_ADDRESS`. IPv6 requires on
 
 | File | Phase | Purpose |
 |------|-------|---------|
-| `internal/plugins/iface/iface.go` | 1 | Shared types, Bus topic constants, payload encoding |
-| `internal/plugins/iface/register.go` | 1 | `init()` → `registry.Register()` |
-| `internal/plugins/iface/monitor_linux.go` | 1 | Netlink multicast monitor goroutine |
-| `internal/plugins/iface/iface_linux.go` | 2 | Interface create/delete/addr management |
-| `internal/plugins/iface/sysctl_linux.go` | 2 | sysctl writes for IPv4/IPv6 options |
-| `internal/plugins/iface/schema/ze-iface-conf.yang` | 2 | YANG config schema |
+| `internal/component/iface/iface.go` | 1 | Shared types, Bus topic constants, payload encoding |
+| `internal/component/iface/register.go` | 1 | `init()` → `registry.Register()` |
+| `internal/component/iface/monitor_linux.go` | 1 | Netlink multicast monitor goroutine |
+| `internal/component/iface/iface_linux.go` | 2 | Interface create/delete/addr management |
+| `internal/component/iface/sysctl_linux.go` | 2 | sysctl writes for IPv4/IPv6 options |
+| `internal/component/iface/schema/ze-iface-conf.yang` | 2 | YANG config schema |
 | `cmd/ze/interface/main.go` | 2 | CLI subcommand dispatch |
 | `cmd/ze/interface/show.go` | 2 | `ze interface show` |
 | `cmd/ze/interface/create.go` | 2 | `ze interface create` |
 | `cmd/ze/interface/addr.go` | 2 | `ze interface addr add/del` |
-| `internal/plugins/iface/dhcp_linux.go` | 4 | DHCPv4/v6 client |
-| `internal/plugins/iface/mirror_linux.go` | 4 | tc mirred setup |
+| `internal/component/iface/dhcp_linux.go` | 4 | DHCPv4/v6 client |
+| `internal/component/iface/mirror_linux.go` | 4 | tc mirred setup |
 | `cmd/ze/interface/migrate.go` | 4 | `ze interface migrate` |
 
 ### Integration Checklist
 
 | Integration Point | Needed? | File | Phase |
 |-------------------|---------|------|-------|
-| YANG schema (new module) | [x] | `internal/plugins/iface/schema/ze-iface-conf.yang` | 2 |
+| YANG schema (new module) | [x] | `internal/component/iface/schema/ze-iface-conf.yang` | 2 |
 | YANG schema (BGP update) | [x] | `internal/component/bgp/schema/ze-bgp-conf.yang` | 3 |
 | CLI commands/flags | [x] | `cmd/ze/interface/main.go` | 2 |
 | API commands doc | [x] | `docs/architecture/api/commands.md` | 2 |

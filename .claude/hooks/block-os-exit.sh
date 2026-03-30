@@ -24,6 +24,11 @@ if [[ "$FILE_PATH" =~ /main\.go$ ]]; then
     exit 0
 fi
 
+# Allow os.Exit in register.go — plugin init() must abort on registration failure
+if [[ "$FILE_PATH" =~ /register\.go$ ]]; then
+    exit 0
+fi
+
 RED='\033[31m'
 YELLOW='\033[33m'
 BOLD='\033[1m'

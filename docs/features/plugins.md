@@ -62,6 +62,14 @@ Three filter categories:
 <!-- source: internal/component/bgp/plugins/filter_community/register.go -- filter-community -->
 <!-- source: internal/component/bgp/reactor/filter/register.go -- loop -->
 
+### Infrastructure
+
+| Plugin | Description |
+|--------|-------------|
+| iface | OS network interface monitoring via netlink (Linux). Publishes interface and address events to the Bus. |
+
+<!-- source: internal/component/iface/register.go -- iface -->
+
 ### Plugin Health Metrics
 
 Plugin infrastructure exposes per-plugin Prometheus metrics for operational visibility:

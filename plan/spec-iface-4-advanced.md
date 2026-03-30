@@ -12,7 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file
 2. `plan/spec-iface-0-umbrella.md` — migration protocol, DHCP topics, YANG
-3. `internal/plugins/iface/` — plugin code from Phases 1-2
+3. `internal/component/iface/` — plugin code from Phases 1-2
 4. `internal/component/bgp/reactor/reactor_iface.go` — BGP reactions from Phase 3
 
 ## Task
@@ -43,9 +43,9 @@ Add advanced interface features: DHCP client (v4/v6 with Prefix Delegation), mak
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/iface/iface_linux.go` — interface management from Phase 2
+- [ ] `internal/component/iface/iface_linux.go` — interface management from Phase 2
 - [ ] `internal/component/bgp/reactor/reactor_iface.go` — BGP reactions from Phase 3
-- [ ] `internal/plugins/iface/schema/ze-iface-conf.yang` — YANG schema from Phase 2
+- [ ] `internal/component/iface/schema/ze-iface-conf.yang` — YANG schema from Phase 2
 
 **Behavior to preserve:**
 - Phase 1 monitoring continues
@@ -74,11 +74,12 @@ Add advanced interface features: DHCP client (v4/v6 with Prefix Delegation), mak
 6. **Expiry** — address removed, publishes `interface/dhcp/lease-expired` + `interface/addr/removed`
 
 ### Transformation Path (Migration)
-1. **Trigger** — config reload or CLI command
-2. **Phase 1-2** — create new interface, add IP (Phase 2 management)
-3. **Phase 3** — BGP confirms on new address (Phase 3 reactions publish `bgp/listener/ready`)
-4. **Phase 4** — orchestrator removes old IP (Phase 2 management)
-5. **Phase 5** — orchestrator removes old interface (Phase 2 management)
+Migration operates at the unit level -- moving an IP from one unit to another:
+1. **Trigger** -- config reload or CLI command
+2. **Phase 1-2** -- create new interface/unit, add IP (Phase 2 management)
+3. **Phase 3** -- BGP confirms on new address (Phase 3 reactions publish `bgp/listener/ready`)
+4. **Phase 4** -- orchestrator removes old IP from old unit (Phase 2 management)
+5. **Phase 5** -- orchestrator removes old interface/unit (Phase 2 management)
 
 ### Boundaries Crossed
 
@@ -102,25 +103,29 @@ Add advanced interface features: DHCP client (v4/v6 with Prefix Delegation), mak
 
 ## DHCP Configuration (from umbrella)
 
+DHCP is configured per-unit (a unit acquires addresses, not the physical interface):
+
 | YANG Path | Description |
 |-----------|-------------|
-| `<type>/<name>/dhcp/enabled` | Enable DHCPv4 (default: false) |
-| `<type>/<name>/dhcp/client-id` | Optional client identifier |
-| `<type>/<name>/dhcp/hostname` | Hostname in DHCP requests |
-| `<type>/<name>/dhcpv6/enabled` | Enable DHCPv6 (default: false) |
-| `<type>/<name>/dhcpv6/pd/length` | Requested prefix length |
-| `<type>/<name>/dhcpv6/duid` | Optional DUID override |
+| `<type>/<name>/unit/<id>/dhcp/enabled` | Enable DHCPv4 (default: false) |
+| `<type>/<name>/unit/<id>/dhcp/client-id` | Optional client identifier |
+| `<type>/<name>/unit/<id>/dhcp/hostname` | Hostname in DHCP requests |
+| `<type>/<name>/unit/<id>/dhcpv6/enabled` | Enable DHCPv6 (default: false) |
+| `<type>/<name>/unit/<id>/dhcpv6/pd/length` | Requested prefix length |
+| `<type>/<name>/unit/<id>/dhcpv6/duid` | Optional DUID override |
 
 Dependency: `github.com/insomniacslk/dhcp` (BSD-3-Clause, 815+ stars)
 
 ## Traffic Mirroring (from umbrella)
 
+Mirroring is per-unit. For VLAN units, tc targets the VLAN subinterface. For unit 0, tc targets the parent.
+
 | YANG Path | Description |
 |-----------|-------------|
-| `<type>/<name>/mirror/ingress` | Mirror ingress to this interface |
-| `<type>/<name>/mirror/egress` | Mirror egress to this interface |
+| `<type>/<name>/unit/<id>/mirror/ingress` | Mirror ingress to this unit's OS interface |
+| `<type>/<name>/unit/<id>/mirror/egress` | Mirror egress to this unit's OS interface |
 
-Implementation: ingress/egress qdisc + matchall filter with `MirredAction` via netlink. Optional — omitting `mirror` means no mirroring.
+Implementation: ingress/egress qdisc + matchall filter with `MirredAction` via netlink. Optional -- omitting `mirror` means no mirroring.
 
 ## Migration Failure Handling (from umbrella)
 
@@ -158,13 +163,13 @@ Implementation: ingress/egress qdisc + matchall filter with `MirredAction` via n
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestDHCPLeaseToEvent` | `internal/plugins/iface/dhcp_linux_test.go` | DHCP lease publishes correct Bus events | |
-| `TestDHCPv6PDToEvent` | `internal/plugins/iface/dhcp_linux_test.go` | DHCPv6 PD publishes correct Bus events | |
-| `TestDHCPLeaseExpiry` | `internal/plugins/iface/dhcp_linux_test.go` | Lease expiry removes address and publishes events | |
-| `TestMirrorSetup` | `internal/plugins/iface/mirror_linux_test.go` | tc qdisc + mirred filter created | |
-| `TestMirrorTeardown` | `internal/plugins/iface/mirror_linux_test.go` | tc filter and qdisc removed | |
+| `TestDHCPLeaseToEvent` | `internal/component/iface/dhcp_linux_test.go` | DHCP lease publishes correct Bus events | |
+| `TestDHCPv6PDToEvent` | `internal/component/iface/dhcp_linux_test.go` | DHCPv6 PD publishes correct Bus events | |
+| `TestDHCPLeaseExpiry` | `internal/component/iface/dhcp_linux_test.go` | Lease expiry removes address and publishes events | |
+| `TestMirrorSetup` | `internal/component/iface/mirror_linux_test.go` | tc qdisc + mirred filter created | |
+| `TestMirrorTeardown` | `internal/component/iface/mirror_linux_test.go` | tc filter and qdisc removed | |
 | `TestMigrationOrdering` | `internal/component/bgp/reactor/reactor_iface_test.go` | Old IP not removed until new confirmed | |
-| `TestMigrationAbortOnFailure` | `internal/plugins/iface/iface_linux_test.go` | Failed migration cleans up new interface | |
+| `TestMigrationAbortOnFailure` | `internal/component/iface/iface_linux_test.go` | Failed migration cleans up new interface | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 
@@ -187,15 +192,15 @@ Implementation: ingress/egress qdisc + matchall filter with `MirredAction` via n
 
 ## Files to Modify
 
-- `internal/plugins/iface/register.go` — add DHCP dependency on `insomniacslk/dhcp`
-- `internal/plugins/iface/schema/ze-iface-conf.yang` — DHCP, mirror, SLAAC YANG sections
+- `internal/component/iface/register.go` — add DHCP dependency on `insomniacslk/dhcp`
+- `internal/component/iface/schema/ze-iface-conf.yang` — DHCP, mirror, SLAAC YANG sections
 - `go.mod` — add `github.com/insomniacslk/dhcp`
 
 ### Integration Checklist
 
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (extend) | [x] | `internal/plugins/iface/schema/ze-iface-conf.yang` — DHCP + mirror |
+| YANG schema (extend) | [x] | `internal/component/iface/schema/ze-iface-conf.yang` — DHCP + mirror |
 | CLI commands/flags | [x] | `cmd/ze/interface/migrate.go` |
 | Functional test | [x] | `test/plugin/iface-dhcp.ci`, `test/plugin/iface-mirror.ci`, `test/plugin/iface-migrate.ci` |
 
@@ -218,11 +223,11 @@ Implementation: ingress/egress qdisc + matchall filter with `MirredAction` via n
 
 ## Files to Create
 
-- `internal/plugins/iface/dhcp_linux.go` — DHCPv4/v6 client using `insomniacslk/dhcp`
-- `internal/plugins/iface/mirror_linux.go` — tc mirred setup via netlink
+- `internal/component/iface/dhcp_linux.go` — DHCPv4/v6 client using `insomniacslk/dhcp`
+- `internal/component/iface/mirror_linux.go` — tc mirred setup via netlink
 - `cmd/ze/interface/migrate.go` — `ze interface migrate` handler
-- `internal/plugins/iface/dhcp_linux_test.go` — DHCP unit tests
-- `internal/plugins/iface/mirror_linux_test.go` — Mirror unit tests
+- `internal/component/iface/dhcp_linux_test.go` — DHCP unit tests
+- `internal/component/iface/mirror_linux_test.go` — Mirror unit tests
 - `test/plugin/iface-dhcp.ci` — Functional test
 - `test/plugin/iface-mirror.ci` — Functional test
 - `test/plugin/iface-migrate.ci` — Functional test
@@ -279,8 +284,8 @@ Implementation: ingress/egress qdisc + matchall filter with `MirredAction` via n
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| `internal/plugins/iface/dhcp_linux.go` exists | `ls -la` |
-| `internal/plugins/iface/mirror_linux.go` exists | `ls -la` |
+| `internal/component/iface/dhcp_linux.go` exists | `ls -la` |
+| `internal/component/iface/mirror_linux.go` exists | `ls -la` |
 | `cmd/ze/interface/migrate.go` exists | `ls -la` |
 | `test/plugin/iface-dhcp.ci` exists | `ls -la` |
 | `test/plugin/iface-mirror.ci` exists | `ls -la` |

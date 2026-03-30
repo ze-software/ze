@@ -12,7 +12,7 @@
 **Re-read these after context compaction:**
 1. This spec file
 2. `plan/spec-iface-0-umbrella.md` — shared topics, payloads, YANG hierarchy, CLI design
-3. `internal/plugins/iface/iface.go` — shared types from Phase 1
+3. `internal/component/iface/iface.go` — shared types from Phase 1
 4. `internal/component/config/` — config pipeline
 5. `cmd/ze/` — CLI patterns
 
@@ -46,8 +46,8 @@ Add interface management capability to the `iface` plugin (from Phase 1): create
 ## Current Behavior (MANDATORY)
 
 **Source files read:**
-- [ ] `internal/plugins/iface/iface.go` — shared types from Phase 1
-- [ ] `internal/plugins/iface/register.go` — plugin registration
+- [ ] `internal/component/iface/iface.go` — shared types from Phase 1
+- [ ] `internal/component/iface/register.go` — plugin registration
 - [ ] `internal/component/config/resolve.go` — config resolution pipeline
 - [ ] `cmd/ze/bgp/main.go` — CLI pattern reference
 - [ ] `internal/component/bgp/schema/ze-bgp-conf.yang` — YANG pattern reference
@@ -96,53 +96,82 @@ Add interface management capability to the `iface` plugin (from Phase 1): create
 
 ## YANG Configuration (from umbrella)
 
-### Hierarchy (VyOS-aligned)
+### Design: JunOS-Style Two-Layer Model
+
+All interface types use a physical/logical split. Physical properties live on the interface, logical properties (addresses, VRF, VLAN) live on units. Every interface has at least `unit 0`.
+
+### Hierarchy (JunOS-aligned)
 
 | YANG Path | Node Type | Description |
 |-----------|-----------|-------------|
 | `interface` | container | Top-level interface container |
 | `interface/ethernet` | list (key: `name`) | Physical ethernet (configure only) |
+| `interface/ethernet/<name>/unit` | list (key: `id`) | Logical units |
 | `interface/dummy` | list (key: `name`) | Dummy/loopback-like interfaces |
+| `interface/dummy/<name>/unit` | list (key: `id`) | Logical units |
 | `interface/veth` | list (key: `name`) | Virtual ethernet pairs |
+| `interface/veth/<name>/unit` | list (key: `id`) | Logical units |
 | `interface/bridge` | list (key: `name`) | Bridge interfaces |
+| `interface/bridge/<name>/unit` | list (key: `id`) | Logical units |
 | `interface/loopback` | container | Loopback (singleton) |
+| `interface/loopback/unit` | list (key: `id`) | Logical units |
 | `interface/monitor` | container | OS monitoring settings |
 
-### Shared Grouping: `interface-common`
+### Shared Grouping: `interface-physical`
+
+Physical-level properties on the interface itself:
 
 | Field | Type | Default | Constraint |
 |-------|------|---------|------------|
-| `address` | leaf-list string | — | CIDR format |
 | `description` | leaf string | — | max 255 chars |
 | `mtu` | leaf uint16 | 1500 | 68-16000 |
 | `disable` | leaf empty | — | present = disabled |
+
+### Shared Grouping: `interface-unit`
+
+Logical-level properties on each unit:
+
+| Field | Type | Default | Constraint |
+|-------|------|---------|------------|
+| `id` | leaf uint32 | — | 0-16385 (key) |
+| `vlan-id` | leaf uint16 | — | 1-4094, optional (absent = untagged) |
+| `description` | leaf string | — | max 255 chars |
+| `disable` | leaf empty | — | present = disabled |
 | `vrf` | leaf string | — | must reference existing VRF |
+| `address` | leaf-list string | — | CIDR format |
 
-### IPv4/IPv6 Options (sysctl)
+### IPv4/IPv6 Options (sysctl, per-unit)
 
-| YANG Path | Description | sysctl |
-|-----------|-------------|--------|
-| `ipv4/forwarding` | IPv4 forwarding | `net.ipv4.conf.<iface>.forwarding` |
-| `ipv4/arp-filter` | ARP filtering | `net.ipv4.conf.<iface>.arp_filter` |
-| `ipv4/arp-accept` | Gratuitous ARP | `net.ipv4.conf.<iface>.arp_accept` |
-| `ipv6/autoconf` | SLAAC | `net.ipv6.conf.<iface>.autoconf` |
-| `ipv6/accept-ra` | Accept RAs | `net.ipv6.conf.<iface>.accept_ra` |
-| `ipv6/forwarding` | IPv6 forwarding | `net.ipv6.conf.<iface>.forwarding` |
+Configured on units. For VLAN units, sysctl targets the VLAN subinterface (e.g., `eth0.100`). For non-VLAN units, targets the parent interface.
+
+| YANG Path (under unit) | Description | sysctl |
+|------------------------|-------------|--------|
+| `ipv4/forwarding` | IPv4 forwarding | `net.ipv4.conf.<os-iface>.forwarding` |
+| `ipv4/arp-filter` | ARP filtering | `net.ipv4.conf.<os-iface>.arp_filter` |
+| `ipv4/arp-accept` | Gratuitous ARP | `net.ipv4.conf.<os-iface>.arp_accept` |
+| `ipv6/autoconf` | SLAAC | `net.ipv6.conf.<os-iface>.autoconf` |
+| `ipv6/accept-ra` | Accept RAs | `net.ipv6.conf.<os-iface>.accept_ra` |
+| `ipv6/forwarding` | IPv6 forwarding | `net.ipv6.conf.<os-iface>.forwarding` |
 
 Note: when `forwarding=true`, `accept_ra` must be `2` (not `1`) to still accept RAs.
+Note: `<os-iface>` is the parent name for unit 0 / non-VLAN units, or `<parent>.V` for VLAN units.
 
 ## CLI Design (from umbrella)
 
 | Command | Description |
 |---------|-------------|
-| `ze interface show` | List all interfaces with state + addresses |
-| `ze interface show <name>` | Detail for one interface |
+| `ze interface show` | List all interfaces with units, state + addresses |
+| `ze interface show <name>` | Detail for one interface (all units) |
+| `ze interface show <name> unit <id>` | Detail for one unit |
 | `ze interface show --json` | JSON output |
-| `ze interface create dummy <name>` | Create dummy interface |
-| `ze interface create veth <name> <peer>` | Create veth pair |
-| `ze interface delete <name>` | Delete Ze-managed interface |
-| `ze interface addr add <name> <addr/prefix>` | Add IP address |
-| `ze interface addr del <name> <addr/prefix>` | Remove IP address |
+| `ze interface create dummy <name>` | Create dummy interface (unit 0 implicit) |
+| `ze interface create veth <name> <peer>` | Create veth pair (unit 0 implicit) |
+| `ze interface unit add <name> <id>` | Add a logical unit to an interface |
+| `ze interface unit add <name> <id> vlan-id <vid>` | Add a VLAN unit (creates OS subinterface) |
+| `ze interface unit del <name> <id>` | Remove a logical unit |
+| `ze interface delete <name>` | Delete Ze-managed interface (all units) |
+| `ze interface addr add <name> unit <id> <addr/prefix>` | Add IP address to a unit |
+| `ze interface addr del <name> unit <id> <addr/prefix>` | Remove IP address from a unit |
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 
@@ -156,7 +185,9 @@ Note: when `forwarding=true`, `accept_ra` must be `2` (not `1`) to still accept 
 
 | AC ID | Input / Condition | Expected Behavior |
 |-------|-------------------|-------------------|
-| AC-3 | Config specifies managed interface | Plugin creates interface via netlink `RTM_NEWLINK`, brings it up, assigns configured addresses |
+| AC-3 | Config specifies managed interface with units | Plugin creates interface via netlink `RTM_NEWLINK`, brings it up, creates VLAN subinterfaces for VLAN units, assigns configured addresses to correct units |
+| AC-3a | Config specifies VLAN unit on ethernet | Plugin creates OS VLAN subinterface (`<parent>.V`), brings it up, assigns addresses |
+| AC-3b | Config specifies non-VLAN unit (id > 0, no vlan-id) | Plugin assigns addresses on parent interface (logical grouping, no OS subinterface) |
 
 ## 🧪 TDD Test Plan
 
@@ -164,19 +195,25 @@ Note: when `forwarding=true`, `accept_ra` must be `2` (not `1`) to still accept 
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestIfaceCreate` | `internal/plugins/iface/iface_linux_test.go` | Creates dummy interface via netlink | |
-| `TestIfaceDelete` | `internal/plugins/iface/iface_linux_test.go` | Deletes Ze-managed interface | |
-| `TestIfaceAddrAdd` | `internal/plugins/iface/iface_linux_test.go` | Adds IPv4 and IPv6 addresses | |
-| `TestIfaceAddrDel` | `internal/plugins/iface/iface_linux_test.go` | Removes addresses | |
-| `TestSysctlAutoconf` | `internal/plugins/iface/sysctl_linux_test.go` | Writes correct sysctl values | |
-| `TestSysctlForwardingAcceptRA` | `internal/plugins/iface/sysctl_linux_test.go` | forwarding=true sets accept_ra=2 | |
-| `TestCLIInterfaceShow` | `cmd/ze/interface/main_test.go` | CLI output format | |
+| `TestIfaceCreate` | `internal/component/iface/iface_linux_test.go` | Creates dummy interface via netlink | |
+| `TestIfaceDelete` | `internal/component/iface/iface_linux_test.go` | Deletes Ze-managed interface (and all units) | |
+| `TestUnitAddNoVlan` | `internal/component/iface/iface_linux_test.go` | Adds non-VLAN unit (logical grouping only) | |
+| `TestUnitAddVlan` | `internal/component/iface/iface_linux_test.go` | Adds VLAN unit, creates OS VLAN subinterface | |
+| `TestUnitDelVlan` | `internal/component/iface/iface_linux_test.go` | Deletes VLAN unit, removes OS subinterface | |
+| `TestIfaceAddrAddOnUnit` | `internal/component/iface/iface_linux_test.go` | Adds IPv4 and IPv6 addresses to a unit | |
+| `TestIfaceAddrDelOnUnit` | `internal/component/iface/iface_linux_test.go` | Removes addresses from a unit | |
+| `TestVlanUnitAddrTargetsSubiface` | `internal/component/iface/iface_linux_test.go` | Address on VLAN unit targets `<parent>.V` OS interface | |
+| `TestSysctlAutoconf` | `internal/component/iface/sysctl_linux_test.go` | Writes correct sysctl values | |
+| `TestSysctlForwardingAcceptRA` | `internal/component/iface/sysctl_linux_test.go` | forwarding=true sets accept_ra=2 | |
+| `TestSysctlVlanUnit` | `internal/component/iface/sysctl_linux_test.go` | Sysctl targets VLAN subinterface name | |
+| `TestCLIInterfaceShow` | `cmd/ze/interface/main_test.go` | CLI output shows units hierarchy | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
 | MTU | 68-16000 | 16000 | 67 | 16001 |
+| Unit ID | 0-16385 | 16385 | N/A (0 is valid) | 16386 |
 | VLAN ID | 1-4094 | 4094 | 0 | 4095 |
 | Interface name | 1-15 chars | 15 chars | empty | 16 chars |
 | Description | 0-255 chars | 255 chars | N/A | 256 chars |
@@ -193,14 +230,14 @@ Note: when `forwarding=true`, `accept_ra` must be `2` (not `1`) to still accept 
 
 ## Files to Modify
 
-- `internal/plugins/iface/register.go` — add `ConfigRoots: ["interface"]`, YANG schema
+- `internal/component/iface/register.go` — add `ConfigRoots: ["interface"]`, YANG schema
 - `cmd/ze/bgp/main.go` — reference for CLI pattern (not modified)
 
 ### Integration Checklist
 
 | Integration Point | Needed? | File |
 |-------------------|---------|------|
-| YANG schema (new module) | [x] | `internal/plugins/iface/schema/ze-iface-conf.yang` |
+| YANG schema (new module) | [x] | `internal/component/iface/schema/ze-iface-conf.yang` |
 | CLI commands/flags | [x] | `cmd/ze/interface/main.go` |
 | CLI usage/help text | [x] | Same |
 | Editor autocomplete | [x] | YANG-driven |
@@ -225,15 +262,16 @@ Note: when `forwarding=true`, `accept_ra` must be `2` (not `1`) to still accept 
 
 ## Files to Create
 
-- `internal/plugins/iface/iface_linux.go` — Interface create/delete/addr management
-- `internal/plugins/iface/sysctl_linux.go` — sysctl writes for IPv4/IPv6 options
-- `internal/plugins/iface/schema/ze-iface-conf.yang` — YANG config schema
+- `internal/component/iface/iface_linux.go` — Interface + unit create/delete/addr management
+- `internal/component/iface/sysctl_linux.go` — sysctl writes for IPv4/IPv6 options (per-unit)
+- `internal/component/iface/schema/ze-iface-conf.yang` — YANG config schema (physical + unit groupings)
 - `cmd/ze/interface/main.go` — CLI subcommand dispatch
-- `cmd/ze/interface/show.go` — `ze interface show`
+- `cmd/ze/interface/show.go` — `ze interface show` (displays unit hierarchy)
 - `cmd/ze/interface/create.go` — `ze interface create`
-- `cmd/ze/interface/addr.go` — `ze interface addr add/del`
-- `internal/plugins/iface/iface_linux_test.go` — Management unit tests
-- `internal/plugins/iface/sysctl_linux_test.go` — sysctl unit tests
+- `cmd/ze/interface/unit.go` — `ze interface unit add/del` (VLAN unit management)
+- `cmd/ze/interface/addr.go` — `ze interface addr add/del` (per-unit addressing)
+- `internal/component/iface/iface_linux_test.go` — Management + unit tests
+- `internal/component/iface/sysctl_linux_test.go` — sysctl unit tests
 - `test/plugin/iface-create.ci` — Functional test
 - `test/parse/iface-invalid.ci` — Config validation test
 
@@ -293,9 +331,9 @@ Note: when `forwarding=true`, `accept_ra` must be `2` (not `1`) to still accept 
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| `internal/plugins/iface/iface_linux.go` exists | `ls -la` |
-| `internal/plugins/iface/sysctl_linux.go` exists | `ls -la` |
-| `internal/plugins/iface/schema/ze-iface-conf.yang` exists | `ls -la` |
+| `internal/component/iface/iface_linux.go` exists | `ls -la` |
+| `internal/component/iface/sysctl_linux.go` exists | `ls -la` |
+| `internal/component/iface/schema/ze-iface-conf.yang` exists | `ls -la` |
 | `cmd/ze/interface/main.go` exists | `ls -la` |
 | `test/plugin/iface-create.ci` exists | `ls -la` |
 

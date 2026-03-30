@@ -2,10 +2,10 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-iface-0 |
 | Phase | - |
-| Updated | 2026-03-25 |
+| Updated | 2026-03-30 |
 
 ## Post-Compaction Recovery
 
@@ -37,7 +37,9 @@ Create the interface monitoring plugin (`iface`). Linux-only for now. The plugin
 **Key insights:**
 - Netlink multicast groups: `RTMGRP_LINK`, `RTMGRP_IPV4_IFADDR`, `RTMGRP_IPV6_IFADDR`
 - `vishvananda/netlink` provides `LinkSubscribe` and `AddrSubscribe` for async monitoring
-- IPv6 DAD must complete before publishing `addr/added` — check `IFA_F_TENTATIVE` flag
+- IPv6 DAD must complete before publishing `addr/added` -- check `IFA_F_TENTATIVE` flag
+- Monitor must resolve OS VLAN subinterfaces (e.g., `eth0.100`) back to Ze unit identifiers (parent `eth0`, unit with `vlan-id 100`) for Bus event payloads
+- For non-VLAN units, all addresses on the parent OS interface belong to unit 0 from the monitor's perspective (unit assignment for non-VLAN units > 0 is a config-level abstraction)
 
 ## Current Behavior (MANDATORY)
 
@@ -62,11 +64,12 @@ Create the interface monitoring plugin (`iface`). Linux-only for now. The plugin
 - Format: raw netlink messages (`RTM_NEWLINK`, `RTM_NEWADDR`, etc.)
 
 ### Transformation Path
-1. **Receive** — `vishvananda/netlink` delivers `LinkUpdate` or `AddrUpdate` structs
-2. **Classify** — map update type to Bus topic string (see umbrella topic table)
-3. **Filter** — skip tentative IPv6 (DAD incomplete), skip loopback unless configured
-4. **Encode** — serialize to JSON `[]byte` with kebab-case keys
-5. **Publish** — `bus.Publish(topic, payload, metadata)`
+1. **Receive** -- `vishvananda/netlink` delivers `LinkUpdate` or `AddrUpdate` structs
+2. **Classify** -- map update type to Bus topic string (see umbrella topic table)
+3. **Resolve unit** -- if OS interface is a VLAN subinterface (e.g., `eth0.100`), resolve to parent name + unit with matching `vlan-id`. Otherwise unit 0.
+4. **Filter** -- skip tentative IPv6 (DAD incomplete), skip loopback unless configured
+5. **Encode** -- serialize to JSON `[]byte` with kebab-case keys (includes `unit` field)
+6. **Publish** -- `bus.Publish(topic, payload, metadata)` with `unit` in metadata
 
 ### Boundaries Crossed
 
@@ -108,11 +111,12 @@ Create the interface monitoring plugin (`iface`). Linux-only for now. The plugin
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestBusTopicCreation` | `internal/plugins/iface/iface_test.go` | Plugin creates correct Bus topics on start | |
-| `TestNetlinkEventToTopic` | `internal/plugins/iface/monitor_linux_test.go` | Maps netlink message types to correct Bus topics | |
-| `TestPayloadFormat` | `internal/plugins/iface/iface_test.go` | JSON payload matches spec (kebab-case, correct fields) | |
-| `TestIfacePluginRegistered` | `internal/plugins/iface/iface_test.go` | Plugin found in registry after init() | |
-| `TestMonitorStartStop` | `internal/plugins/iface/monitor_linux_test.go` | Monitor goroutine starts and stops cleanly | |
+| `TestBusTopicCreation` | `internal/component/iface/iface_test.go` | Plugin creates correct Bus topics on start | |
+| `TestNetlinkEventToTopic` | `internal/component/iface/monitor_linux_test.go` | Maps netlink message types to correct Bus topics | |
+| `TestPayloadFormat` | `internal/component/iface/iface_test.go` | JSON payload matches spec (kebab-case, includes `unit` field) | |
+| `TestPayloadVlanUnit` | `internal/component/iface/monitor_linux_test.go` | VLAN subinterface event resolves to parent name + unit | |
+| `TestIfacePluginRegistered` | `internal/component/iface/iface_test.go` | Plugin found in registry after init() | |
+| `TestMonitorStartStop` | `internal/component/iface/monitor_linux_test.go` | Monitor goroutine starts and stops cleanly | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 
@@ -163,11 +167,11 @@ Create the interface monitoring plugin (`iface`). Linux-only for now. The plugin
 
 ## Files to Create
 
-- `internal/plugins/iface/iface.go` — Shared types, Bus topic constants, payload encoding
-- `internal/plugins/iface/register.go` — Plugin registration (`init()` → `registry.Register()`)
-- `internal/plugins/iface/monitor_linux.go` — Netlink multicast monitor goroutine
-- `internal/plugins/iface/iface_test.go` — Unit tests for topics, payload format, registration
-- `internal/plugins/iface/monitor_linux_test.go` — Unit tests for netlink event mapping
+- `internal/component/iface/iface.go` — Shared types, Bus topic constants, payload encoding
+- `internal/component/iface/register.go` — Plugin registration (`init()` → `registry.Register()`)
+- `internal/component/iface/monitor_linux.go` — Netlink multicast monitor goroutine
+- `internal/component/iface/iface_test.go` — Unit tests for topics, payload format, registration
+- `internal/component/iface/monitor_linux_test.go` — Unit tests for netlink event mapping
 - `test/plugin/iface-monitor.ci` — Functional test
 
 ## Implementation Steps
@@ -224,10 +228,10 @@ Each phase ends with a **Self-Critical Review**. Fix issues before proceeding.
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| `internal/plugins/iface/iface.go` exists | `ls -la internal/plugins/iface/iface.go` |
-| `internal/plugins/iface/register.go` exists | `ls -la internal/plugins/iface/register.go` |
-| `internal/plugins/iface/monitor_linux.go` exists | `ls -la internal/plugins/iface/monitor_linux.go` |
-| Plugin in registry | `grep -r '"iface"' internal/plugins/iface/register.go` |
+| `internal/component/iface/iface.go` exists | `ls -la internal/component/iface/iface.go` |
+| `internal/component/iface/register.go` exists | `ls -la internal/component/iface/register.go` |
+| `internal/component/iface/monitor_linux.go` exists | `ls -la internal/component/iface/monitor_linux.go` |
+| Plugin in registry | `grep -r '"iface"' internal/component/iface/register.go` |
 | `test/plugin/iface-monitor.ci` exists | `ls -la test/plugin/iface-monitor.ci` |
 
 ### Security Review Checklist (/implement stage 10)

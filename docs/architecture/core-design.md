@@ -694,7 +694,31 @@ directly. NXDOMAIN returns empty results (not an error) and is not cached.
 
 ---
 
-## 14. Implementation Priority
+## 14. Interface Monitoring
+
+The `iface` plugin (`internal/component/iface/`) monitors OS network interfaces and
+publishes events to the Bus. It is cross-cutting infrastructure, not a BGP-specific plugin.
+
+| Concept | Description |
+|---------|-------------|
+| **Library** | `github.com/vishvananda/netlink` (netlink socket abstraction) |
+| **Monitoring** | Netlink multicast groups: `RTMGRP_LINK`, `RTMGRP_IPV4_IFADDR`, `RTMGRP_IPV6_IFADDR` |
+| **Events** | `interface/created`, `interface/deleted`, `interface/up`, `interface/down`, `interface/addr/added`, `interface/addr/removed` |
+| **Unit model** | JunOS-style two-layer: physical interface + logical units (VLANs) |
+| **VLAN mapping** | VLAN units create Linux VLAN subinterfaces (`eth0.100`); non-VLAN units share parent |
+| **Bus integration** | Publishes events with metadata for filtering (name, unit, address, family) |
+
+BGP subscribes to `interface/` events and reacts: starting listeners when addresses appear,
+draining sessions when addresses disappear. The plugin never imports BGP code and BGP never
+imports the plugin -- all communication flows through the Bus.
+
+<!-- source: internal/component/iface/iface.go -- topic constants and payload types -->
+<!-- source: internal/component/iface/monitor_linux.go -- netlink monitor -->
+<!-- source: internal/component/iface/register.go -- plugin registration -->
+
+---
+
+## 15. Implementation Priority
 
 1. **Implement RIB with pools** - Per-attribute-type deduplication
 2. **Unified parser** - Family-specific NLRI builders

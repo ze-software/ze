@@ -69,11 +69,11 @@ Make the BGP reactor react to interface address events on the Bus. When `interfa
 - Format: `ze.Event` with topic string and JSON `[]byte` payload
 
 ### Transformation Path
-1. **Receive** — reactor's `Deliver()` dispatches to `interface/` handler
-2. **Decode** — parse JSON payload to extract `address` field
-3. **Match** — check if address matches any peer's `LocalAddress` (or resolved interface name)
-4. **React** — on `addr/added`: start listener + initiate connections. On `addr/removed`: drain + remove
-5. **Interface name resolution** — if `local-address` is an interface name, resolve to IP and re-resolve on events
+1. **Receive** -- reactor's `Deliver()` dispatches to `interface/` handler
+2. **Decode** -- parse JSON payload to extract `address` and `unit` fields
+3. **Match** -- check if address matches any peer's `LocalAddress` (or resolved interface unit)
+4. **React** -- on `addr/added`: start listener + initiate connections. On `addr/removed`: drain + remove
+5. **Interface unit resolution** -- if `local-address` is an interface unit (e.g., `eth0.0`), resolve to the unit's primary IP and re-resolve on events with matching `name` + `unit` metadata
 
 ### Boundaries Crossed
 
@@ -118,9 +118,9 @@ Make the BGP reactor react to interface address events on the Bus. When `interfa
 
 | Current | Proposed |
 |---------|----------|
-| IP string or `"auto"` | IP string, interface name, or `"auto"` |
+| IP string or `"auto"` | IP string, interface unit (`<name>.<unit>`), or `"auto"` |
 
-When `local-address` is an interface name, BGP resolves it to the interface's primary IP and re-resolves on address events.
+When `local-address` is an interface unit reference (e.g., `eth0.0`, `eth0.100`), BGP resolves it to the unit's primary IP and re-resolves on address events. The `unit` metadata field in Bus events enables efficient matching.
 
 ## Wiring Test (MANDATORY — NOT deferrable)
 
@@ -128,7 +128,7 @@ When `local-address` is an interface name, BGP resolves it to the interface's pr
 |-------------|---|--------------|------|
 | Bus event `interface/addr/added` | → | BGP starts listener on that address | `TestBGPStartsListenerOnAddrAdded` |
 | Bus event `interface/addr/removed` | → | BGP drains sessions on that address | `TestBGPDrainsOnAddrRemoved` |
-| Config with `local-address` as interface name | → | BGP resolves to IP | `test/plugin/iface-bgp-bind.ci` |
+| Config with `local-address` as interface unit | → | BGP resolves to IP | `test/plugin/iface-bgp-bind.ci` |
 
 ## Acceptance Criteria
 
@@ -147,7 +147,7 @@ When `local-address` is an interface name, BGP resolves it to the interface's pr
 | `TestBGPAddrAddedReaction` | `internal/component/bgp/reactor/reactor_iface_test.go` | Listener started when matching addr event received | |
 | `TestBGPAddrRemovedReaction` | `internal/component/bgp/reactor/reactor_iface_test.go` | Sessions drained when addr removed event received | |
 | `TestBGPSharedListener` | `internal/component/bgp/reactor/reactor_iface_test.go` | Multiple peers share one listener for same address | |
-| `TestLocalAddressInterfaceName` | `internal/component/bgp/reactor/reactor_iface_test.go` | Interface name resolved to IP address | |
+| `TestLocalAddressInterfaceUnit` | `internal/component/bgp/reactor/reactor_iface_test.go` | Interface unit (`eth0.0`) resolved to IP address | |
 | `TestAddrRemovedDrainSequence` | `internal/component/bgp/reactor/reactor_iface_test.go` | Drain follows correct 5-step sequence | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
@@ -170,7 +170,7 @@ When `local-address` is an interface name, BGP resolves it to the interface's pr
 - `internal/component/bgp/reactor/reactor.go` — register `OnBusEvent("interface/", handler)` before Start
 - `internal/component/bgp/reactor/listener.go` — dynamic listener start/stop methods
 - `internal/component/bgp/reactor/reactor_peers.go` — peer connection management reacts to address availability
-- `internal/component/bgp/schema/ze-bgp-conf.yang` — `local-address` accepts interface names
+- `internal/component/bgp/schema/ze-bgp-conf.yang` — `local-address` accepts interface unit references (`<name>.<unit>`)
 
 ### Integration Checklist
 

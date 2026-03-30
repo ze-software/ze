@@ -13,6 +13,7 @@ Ze uses a plugin architecture for all features beyond core BGP session managemen
 | With merged RPKI events | Add `bgp-rpki-decorator` (+ above) | Receive UPDATE events pre-merged with RPKI state |
 | With graceful restart | Add `bgp-gr` | Hold routes across restarts (RFC 4724) |
 | Monitor only (no RIB) | None | Ze runs without plugins -- peers connect, events fire, no routes stored |
+| Interface-aware BGP | `iface` + `bgp-rib` | React to OS interface changes -- start/stop BGP listeners when addresses appear/disappear |
 
 NLRI family plugins (bgp-nlri-evpn, bgp-nlri-vpn, etc.) are loaded automatically when you configure the corresponding address family. You don't need to declare them.
 <!-- source: internal/component/bgp/plugins/nlri/ -- NLRI plugin registrations with Families field -->
@@ -144,6 +145,29 @@ ze --plugins
 | `bgp-softver` | Software version capability | -- |
 | `bgp-llnh` | Link-local next-hop (RFC 2545) | -- |
 <!-- source: internal/component/bgp/plugins/gr/register.go; internal/component/bgp/plugins/rpki/register.go; internal/component/bgp/plugins/rpki_decorator/register.go; internal/component/bgp/plugins/route_refresh/register.go; internal/component/bgp/plugins/role/register.go; internal/component/bgp/plugins/hostname/register.go; internal/component/bgp/plugins/softver/register.go; internal/component/bgp/plugins/llnh/register.go -->
+
+### Infrastructure
+
+| Plugin | Description | Process Binding |
+|--------|-------------|-----------------|
+| `iface` | OS interface monitor and manager (Linux netlink) | -- (Bus events, no peer binding) |
+
+The `iface` plugin monitors OS network interface changes and publishes events
+to the Bus. BGP reacts to address events by starting/stopping listeners. Uses
+a JunOS-style two-layer model: physical interfaces + logical units (VLANs).
+
+Bus topics published:
+
+| Topic | When |
+|-------|------|
+| `interface/created` | Interface appeared |
+| `interface/deleted` | Interface removed |
+| `interface/up` | Link state to up |
+| `interface/down` | Link state to down |
+| `interface/addr/added` | IP assigned |
+| `interface/addr/removed` | IP removed |
+
+<!-- source: internal/component/iface/iface.go -- topic constants and payload types -->
 
 ### Redistribution Filters (planned)
 

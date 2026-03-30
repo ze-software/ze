@@ -1,0 +1,5 @@
+# iface-registered - verify iface plugin is registered and discoverable
+# Tests that ze recognises the iface plugin via CLI dispatch.
+
+cmd=foreground:seq=1:exec=ze plugin iface --help
+expect=exit:code=1
