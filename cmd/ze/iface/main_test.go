@@ -37,8 +37,7 @@ func TestCmdShow(t *testing.T) {
 	}{
 		// cmdShow with nil args: fs.Parse(nil) succeeds, len(remaining)==0 -> returns 0
 		{name: "nil args returns stub", args: nil, want: 0},
-		// --help with ContinueOnError: fs.Parse returns ErrHelp -> returns 1
-		{name: "dash dash help", args: []string{"--help"}, want: 1},
+		{name: "dash dash help", args: []string{"--help"}, want: 0},
 	}
 
 	for _, tt := range tests {
@@ -302,8 +301,7 @@ func TestCmdMigrate(t *testing.T) {
 	}{
 		// nil args: fs.Parse(nil) succeeds, from=="" -> prints error -> returns 1
 		{name: "nil args", args: nil, want: 1},
-		// --help with ContinueOnError: fs.Parse returns ErrHelp -> returns 1
-		{name: "dash dash help", args: []string{"--help"}, want: 1},
+		{name: "dash dash help", args: []string{"--help"}, want: 0},
 	}
 
 	for _, tt := range tests {

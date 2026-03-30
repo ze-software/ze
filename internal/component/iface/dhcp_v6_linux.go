@@ -101,11 +101,12 @@ func (c *DHCPClient) runV6() {
 			}
 		}
 
-		if renewed {
-			remaining := validLft - t2
-			if remaining < 0 {
-				remaining = time.Minute
-			}
+		// Wait for remaining valid lifetime before expiry.
+		remaining := validLft - t2
+		if remaining < 0 {
+			remaining = time.Minute
+		}
+		if remaining > 0 {
 			if !c.sleepOrStop(remaining) {
 				c.removeV6Addrs(msg)
 				return

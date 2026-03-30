@@ -2,6 +2,7 @@ package iface
 
 import (
 	"encoding/json"
+	"sync"
 	"testing"
 
 	"github.com/vishvananda/netlink"
@@ -12,18 +13,31 @@ import (
 )
 
 // collectingBus is a minimal Bus that records published events.
+// Thread-safe: Publish and event reads are protected by a mutex.
 type collectingBus struct {
+	mu     sync.Mutex
 	events []ze.Event
 }
 
 func (b *collectingBus) CreateTopic(string) (ze.Topic, error) { return ze.Topic{}, nil }
 func (b *collectingBus) Publish(topic string, payload []byte, metadata map[string]string) {
+	b.mu.Lock()
 	b.events = append(b.events, ze.Event{Topic: topic, Payload: payload, Metadata: metadata})
+	b.mu.Unlock()
 }
 func (b *collectingBus) Subscribe(string, map[string]string, ze.Consumer) (ze.Subscription, error) {
 	return ze.Subscription{}, nil
 }
 func (b *collectingBus) Unsubscribe(ze.Subscription) {}
+
+// snapshot returns a copy of all collected events (thread-safe).
+func (b *collectingBus) snapshot() []ze.Event {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	cp := make([]ze.Event, len(b.events))
+	copy(cp, b.events)
+	return cp
+}
 
 func newTestMonitor() (*Monitor, *collectingBus) {
 	bus := &collectingBus{}
@@ -47,11 +61,12 @@ func TestHandleLinkUpdate_Create(t *testing.T) {
 
 	m.handleLinkUpdate(lu)
 
-	if len(bus.events) != 1 {
-		t.Fatalf("expected 1 event, got %d", len(bus.events))
+	events := bus.snapshot()
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
 	}
-	if bus.events[0].Topic != TopicCreated {
-		t.Errorf("topic = %q, want %q", bus.events[0].Topic, TopicCreated)
+	if events[0].Topic != TopicCreated {
+		t.Errorf("topic = %q, want %q", events[0].Topic, TopicCreated)
 	}
 }
 

@@ -107,8 +107,9 @@ func (c *DHCPClient) runV4() {
 			}
 		}
 
-		if renewed {
-			remainingLease := leaseTime - t2
+		// Wait for remaining lease time before expiry.
+		remainingLease := leaseTime - t2
+		if remainingLease > 0 {
 			if !c.sleepOrStop(remainingLease) {
 				c.removeV4Addr(ack)
 				return

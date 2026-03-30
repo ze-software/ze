@@ -28,6 +28,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/dns"
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
+	"codeberg.org/thomas-mangin/ze/internal/component/iface"
 	"codeberg.org/thomas-mangin/ze/internal/component/lg"
 	pluginmgr "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
 	"codeberg.org/thomas-mangin/ze/internal/component/ssh"
@@ -302,6 +303,7 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 	// Plugin data delivery stays on the existing EventDispatcher direct path.
 	b := bus.NewBus()
 	reactor.SetBus(b)
+	iface.SetBus(b)
 	pm := pluginmgr.NewManager()
 	reactor.SetProcessSpawner(pm)
 	bgpSub := subsystem.NewBGPSubsystem(reactor)

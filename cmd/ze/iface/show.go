@@ -3,6 +3,7 @@
 package iface
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -29,6 +30,9 @@ Examples:
 	}
 
 	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
 		return 1
 	}
 

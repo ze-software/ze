@@ -3,6 +3,7 @@
 package iface
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -34,6 +35,9 @@ func cmdMigrate(args []string) int {
 	fs.Usage = func() { migrateUsage() }
 
 	if err := fs.Parse(args); err != nil {
+		if errors.Is(err, flag.ErrHelp) {
+			return 0
+		}
 		return 1
 	}
 
