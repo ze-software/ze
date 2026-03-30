@@ -842,4 +842,62 @@ RPKI data, connects ze's RTR client, and validates known prefixes:
 
 ---
 
-**Updated:** 2026-03-26
+## Integration Tests (Network Namespaces)
+
+Integration tests exercise the `internal/component/iface/` package against the real Linux
+kernel inside ephemeral network namespaces. They require `CAP_NET_ADMIN` (typically root)
+and are excluded from all normal test targets.
+
+<!-- source: internal/component/iface/integration_helpers_linux_test.go -- withNetNS, waitForEvent -->
+
+```bash
+make ze-integration-test        # Run all integration tests
+make ze-integration-iface-test  # Run iface integration tests only
+```
+
+### Build Tag
+
+Integration tests use `//go:build integration && linux`. They are excluded from
+`ze-unit-test`, `ze-functional-test`, and `ze-verify`. The `ze-integration-iface-test`
+make target passes `-tags integration` to include them.
+
+### How They Work
+
+Each test calls `withNetNS(t, func() { ... })` which:
+
+1. Locks the goroutine to its OS thread (`runtime.LockOSThread`)
+2. Creates a named network namespace (`netns.NewNamed`)
+3. Switches into it (`netns.Set`)
+4. Runs the test function (creating interfaces, addresses, etc.)
+5. Restores the original namespace and deletes the test namespace in `t.Cleanup`
+
+If namespace creation fails (missing `CAP_NET_ADMIN`), the test is skipped with `t.Skip`.
+
+### Test Categories
+
+| File | Covers | Tests |
+|------|--------|-------|
+| `manage_integration_linux_test.go` | Interface CRUD, addresses, MTU | 9 tests |
+| `monitor_integration_linux_test.go` | Netlink event monitoring | 5 tests |
+| `sysctl_integration_linux_test.go` | Real /proc/sys writes | 2 tests |
+| `mirror_integration_linux_test.go` | tc qdisc/filter setup | 5 tests |
+| `dhcp_integration_linux_test.go` | DHCPv4 with in-process server | 2 tests |
+| `migrate_integration_linux_test.go` | Make-before-break migration | 2 tests |
+
+### Shared Helpers
+
+`integration_helpers_linux_test.go` provides:
+
+| Helper | Purpose |
+|--------|---------|
+| `withNetNS(t, fn)` | Ephemeral namespace wrapper |
+| `waitForEvent(t, bus, topic, timeout)` | Poll collectingBus for an event |
+| `linkExists(name)` | Check if interface exists via netlink |
+| `hasAddress(iface, cidr)` | Check if address is on interface |
+| `requireLinkUp(t, name)` | Assert link is UP |
+| `createDummyForTest(t, name)` | Create dummy with cleanup |
+| `createVethForTest(t, name, peer)` | Create veth pair with cleanup |
+
+---
+
+**Updated:** 2026-03-30
