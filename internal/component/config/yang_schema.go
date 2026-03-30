@@ -231,6 +231,18 @@ func YANGSchemaWithPlugins(pluginYANG map[string]string) (*Schema, error) {
 		}
 	}
 
+	// Load ze-lg-conf module (environment > looking-glass)
+	lgEntry := loader.GetEntry("ze-lg-conf")
+	if lgEntry != nil {
+		for _, name := range sortedKeys(lgEntry.Dir) {
+			child := lgEntry.Dir[name]
+			node := yangToNode(child, name)
+			if node != nil {
+				schema.Define(name, node)
+			}
+		}
+	}
+
 	// Load ze-telemetry-conf module (telemetry)
 	telemetryEntry := loader.GetEntry("ze-telemetry-conf")
 	if telemetryEntry != nil {

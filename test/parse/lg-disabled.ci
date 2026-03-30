@@ -1,0 +1,21 @@
+# Test: ze config validate without looking-glass config
+# VALIDATES: Config without LG section is valid (no LG server started)
+# PREVENTS: LG section incorrectly required
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65533
+		}
+		local {
+			as 65533
+			ip 127.0.0.1
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=config
+expect=exit:code=0
+expect=stdout:contains=configuration valid

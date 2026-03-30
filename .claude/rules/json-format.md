@@ -7,6 +7,8 @@ Rationale: `.claude/rationale/json-format.md`
 
 All JSON keys: lowercase kebab-case. Never camelCase or snake_case.
 
+**Exception:** `internal/component/lg/handler_api.go` uses birdwatcher-convention `snake_case` for external compatibility with Alice-LG and other looking glass frontends. This is the only file exempt from kebab-case.
+
 ## Ze IPC Envelope
 
 ```json

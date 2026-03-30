@@ -729,6 +729,44 @@ func ExtractMCPConfig(tree *config.Tree) (MCPConfig, bool) {
 	return cfg, true
 }
 
+// LGConfig holds parsed environment.looking-glass settings.
+type LGConfig struct {
+	Host string // Listen host (e.g., 0.0.0.0).
+	Port string // Listen port (e.g., 8444).
+	TLS  bool   // Enable TLS.
+}
+
+// Listen returns host:port.
+func (c LGConfig) Listen() string { return c.Host + ":" + c.Port }
+
+// ExtractLGConfig returns the environment.looking-glass config if present.
+func ExtractLGConfig(tree *config.Tree) (LGConfig, bool) {
+	if tree == nil {
+		return LGConfig{}, false
+	}
+	envBlock := tree.GetContainer("environment")
+	if envBlock == nil {
+		return LGConfig{}, false
+	}
+	lg := envBlock.GetContainer("looking-glass")
+	if lg == nil {
+		return LGConfig{}, false
+	}
+
+	cfg := LGConfig{Host: "0.0.0.0", Port: "3443"}
+	if v, ok := lg.Get("host"); ok {
+		cfg.Host = v
+	}
+	if v, ok := lg.Get("port"); ok {
+		cfg.Port = v
+	}
+	if v, ok := lg.Get("tls"); ok && v == configTrue {
+		cfg.TLS = true
+	}
+
+	return cfg, true
+}
+
 // resolveSSHStorage returns blob storage for SSH host key persistence.
 // When the main storage is already blob-backed, it is used directly.
 // Otherwise, opens the zefs database independently so SSH host keys

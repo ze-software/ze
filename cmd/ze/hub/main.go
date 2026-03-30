@@ -28,6 +28,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/dns"
 	"codeberg.org/thomas-mangin/ze/internal/component/engine"
 	"codeberg.org/thomas-mangin/ze/internal/component/hub"
+	"codeberg.org/thomas-mangin/ze/internal/component/lg"
 	pluginmgr "codeberg.org/thomas-mangin/ze/internal/component/plugin/manager"
 	"codeberg.org/thomas-mangin/ze/internal/component/ssh"
 	zeweb "codeberg.org/thomas-mangin/ze/internal/component/web"
@@ -48,6 +49,9 @@ var (
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.web.insecure", Type: "bool", Description: "Disable web authentication"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.host", Type: "string", Description: "MCP server listen host (127.0.0.1 only)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.mcp.port", Type: "string", Description: "MCP server listen port"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.lg.host", Type: "string", Description: "Looking glass listen host"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.lg.port", Type: "string", Description: "Looking glass listen port"})
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.lg.tls", Type: "bool", Description: "Enable TLS for looking glass"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.server", Type: "string", Default: defaultDNSServer(), Description: "DNS server address (e.g., 8.8.8.8:53)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.timeout", Type: "int", Default: "5", Description: "DNS query timeout in seconds (1-60)"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.dns.cache-size", Type: "int", Default: "10000", Description: "DNS cache max entries (0 = disabled)"})
@@ -186,7 +190,26 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 		}
 	}
 
+	// Layer 1: looking glass config from file.
+	var lgListenAddr string
+	var lgTLS bool
+	if lgCfg, ok := bgpconfig.ExtractLGConfig(loadResult.Tree); ok {
+		lgListenAddr = lgCfg.Listen()
+		lgTLS = lgCfg.TLS
+	}
+
 	// Layer 2: environment variables override config (but not CLI).
+	if h, p := env.Get("ze.lg.host"), env.Get("ze.lg.port"); p != "" && lgListenAddr == "" {
+		host := h
+		if host == "" {
+			host = "0.0.0.0"
+		}
+		lgListenAddr = host + ":" + p
+	}
+	if env.IsEnabled("ze.lg.tls") {
+		lgTLS = true
+	}
+
 	if h, p := env.Get("ze.web.host"), env.Get("ze.web.port"); p != "" && webListenAddr == "" {
 		webEnabled = true
 		host := h
@@ -309,6 +332,17 @@ func runBGPInProcess(store storage.Storage, configPath string, data []byte, plug
 				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
 				defer shutdownCancel()
 				_ = webSrv.Shutdown(shutdownCtx)
+			}()
+		}
+	}
+
+	// Start looking glass server if config has environment.looking-glass.
+	if lgListenAddr != "" {
+		if lgSrv := startLGServer(store, lgListenAddr, lgTLS, reactor.ExecuteCommand); lgSrv != nil {
+			defer func() {
+				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
+				defer shutdownCancel()
+				_ = lgSrv.Shutdown(shutdownCtx)
 			}()
 		}
 	}
@@ -621,6 +655,68 @@ func resolveConfigPath(store storage.Storage) string {
 		}
 	}
 	return "ze.conf"
+}
+
+// startLGServer creates and starts the looking glass HTTP server.
+// Returns the server on success, nil on failure (logged, non-fatal).
+func startLGServer(store storage.Storage, listenAddr string, useTLS bool, dispatch lg.CommandDispatcher) *lg.LGServer {
+	cfg := lg.LGConfig{
+		ListenAddr: listenAddr,
+		TLS:        useTLS,
+		Dispatch:   dispatch,
+	}
+
+	// When TLS is enabled, load or generate cert from blob storage.
+	if useTLS {
+		if !storage.IsBlobStorage(store) {
+			fmt.Fprintf(os.Stderr, "error: looking glass TLS requires blob storage (run ze init first)\n")
+			return nil
+		}
+		certStore := &blobCertStore{store: store}
+		certPEM, keyPEM, err := zeweb.LoadOrGenerateCert(certStore, listenAddr)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "error: looking glass TLS cert: %v\n", err)
+			return nil
+		}
+		cfg.CertPEM = certPEM
+		cfg.KeyPEM = keyPEM
+	}
+
+	srv, err := lg.NewLGServer(cfg)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "warning: looking glass disabled: %v\n", err)
+		return nil
+	}
+
+	// Component startup goroutine (one-time, same pattern as startWebServer).
+	serveLG(srv)
+
+	readyCtx, readyCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer readyCancel()
+	if waitErr := srv.WaitReady(readyCtx); waitErr != nil {
+		fmt.Fprintf(os.Stderr, "warning: looking glass server failed to start: %v\n", waitErr)
+		_ = srv.Shutdown(context.Background())
+		return nil
+	}
+
+	scheme := "http"
+	if cfg.TLS {
+		scheme = "https"
+	}
+	fmt.Fprintf(os.Stderr, "looking glass listening on %s://%s/\n", scheme, srv.Address())
+	return srv
+}
+
+// serveLG runs the LG server's ListenAndServe in a background goroutine.
+// This is a one-time component startup, not a per-event goroutine.
+func serveLG(srv *lg.LGServer) {
+	go serveLGBlocking(srv)
+}
+
+func serveLGBlocking(srv *lg.LGServer) {
+	if serveErr := srv.ListenAndServe(context.Background()); serveErr != nil && !errors.Is(serveErr, http.ErrServerClosed) {
+		slogutil.Logger("lg.server").Error("looking glass server error", "error", serveErr)
+	}
 }
 
 // dropPrivileges drops to the user/group from ze.user/ze.group env vars.

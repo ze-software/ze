@@ -1,0 +1,38 @@
+module ze-lg-conf {
+    namespace "urn:ze:lg:conf";
+    prefix lg;
+
+    import ze-types { prefix zt; }
+
+    description "Looking glass configuration for Ze";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    container environment {
+        description "Environment settings for looking glass";
+
+        container looking-glass {
+            description "Looking glass HTTP server settings";
+
+            leaf host {
+                type zt:ip-address;
+                default "0.0.0.0";
+                description "Listen host address";
+            }
+
+            leaf port {
+                type uint16;
+                default 3443;
+                description "Listen port";
+            }
+
+            leaf tls {
+                type boolean;
+                default false;
+                description "Enable TLS (requires blob storage for certificates)";
+            }
+        }
+    }
+}
