@@ -30,6 +30,18 @@ module ze-cli-show-cmd {
                 ze:command "ze-show:bgp-warnings";
                 description "Show active prefix warnings (stale data, threshold exceeded)";
             }
+
+            container decode {
+                config false;
+                ze:command "ze-show:bgp-decode";
+                description "Decode BGP message from hex to JSON";
+            }
+
+            container encode {
+                config false;
+                ze:command "ze-show:bgp-encode";
+                description "Encode API route command to BGP hex";
+            }
         }
     }
 }

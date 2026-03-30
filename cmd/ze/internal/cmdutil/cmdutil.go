@@ -43,6 +43,25 @@ func RegisterLocalCommand(path string, handler LocalHandler) error {
 	return nil
 }
 
+// matchLocalHandler finds the longest prefix of words that matches a local handler.
+// Returns the handler and remaining words as args (plus selector if present).
+// Returns nil handler if no match.
+func matchLocalHandler(words []string, selector string) (LocalHandler, []string) {
+	// Try longest prefix first: "show bgp decode" before "show bgp" before "show".
+	for i := len(words); i > 0; i-- {
+		path := strings.Join(words[:i], " ")
+		if handler, ok := localHandlers[path]; ok {
+			var args []string
+			args = append(args, words[i:]...)
+			if selector != "" {
+				args = append(args, selector)
+			}
+			return handler, args
+		}
+	}
+	return nil, nil
+}
+
 // RunCommand extracts flags, validates command words against the tree,
 // and delegates execution. Local handlers run in-process; daemon commands
 // go through cli.Run via SSH. The readOnly flag controls whether only
@@ -67,12 +86,9 @@ func RunCommand(args []string, readOnly bool, cmdName string) int {
 	// Check local handler registry first (offline commands like version, completion).
 	// Note: output format (yaml/json/table) is not passed to local handlers.
 	// If a future local handler needs format support, extend LocalHandler signature.
-	localPath := strings.Join(treeWords, " ")
-	if handler, ok := localHandlers[localPath]; ok {
-		var handlerArgs []string
-		if selector != "" {
-			handlerArgs = append(handlerArgs, selector)
-		}
+	// Try longest prefix match: "show bgp decode update hex" matches handler "show bgp decode"
+	// with remaining args ["update", "hex"].
+	if handler, handlerArgs := matchLocalHandler(treeWords, selector); handler != nil {
 		return handler(handlerArgs)
 	}
 

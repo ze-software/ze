@@ -78,12 +78,26 @@ func printVersion() {
 }
 
 func registerLocalCommands() {
-	if err := cmdutil.RegisterLocalCommand("show version", func(_ []string) int {
-		printVersion()
-		return 0
-	}); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+	localCmds := []struct {
+		path    string
+		handler cmdutil.LocalHandler
+	}{
+		{"show version", func(_ []string) int {
+			printVersion()
+			return 0
+		}},
+		{"show bgp decode", func(args []string) int {
+			return bgp.Run(append([]string{"decode"}, args...))
+		}},
+		{"show bgp encode", func(args []string) int {
+			return bgp.Run(append([]string{"encode"}, args...))
+		}},
+	}
+	for _, cmd := range localCmds {
+		if err := cmdutil.RegisterLocalCommand(cmd.path, cmd.handler); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			os.Exit(1)
+		}
 	}
 }
 
