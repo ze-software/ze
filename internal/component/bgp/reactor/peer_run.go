@@ -28,12 +28,25 @@ func (p *Peer) run() {
 	defer p.cleanup()
 
 	delay := p.reconnectMin
+	attempt := 0
 
 	for {
 		select {
 		case <-p.ctx.Done():
 			return
 		default: // no cancellation pending
+		}
+
+		attempt++
+		attemptStart := time.Now()
+		addr := p.settings.Address.String()
+		peerLogger().Debug("timing: connection attempt starting",
+			"peer", p.settings.Address,
+			"port", p.settings.Port,
+			"attempt", attempt,
+		)
+		if p.reactor != nil && p.reactor.rmetrics != nil {
+			p.reactor.rmetrics.peerConnectAttempts.With(addr).Inc()
 		}
 
 		// Attempt connection with panic recovery.
@@ -47,6 +60,17 @@ func (p *Peer) run() {
 		case <-p.ctx.Done():
 			return
 		default: // no cancellation pending
+		}
+
+		sessionElapsed := time.Since(attemptStart)
+		peerLogger().Debug("timing: safeRunOnce returned",
+			"peer", p.settings.Address,
+			"attempt", attempt,
+			"elapsed", sessionElapsed,
+			"error", err,
+		)
+		if p.reactor != nil && p.reactor.rmetrics != nil {
+			p.reactor.rmetrics.peerSessionSeconds.With(addr).Observe(sessionElapsed.Seconds())
 		}
 
 		if err != nil {
@@ -88,6 +112,11 @@ func (p *Peer) run() {
 
 			// Normal error: Backoff before retry
 			p.setState(PeerStateConnecting)
+			backoffStart := time.Now()
+			peerLogger().Debug("timing: backoff starting",
+				"peer", p.settings.Address,
+				"delay", delay,
+			)
 
 			select {
 			case <-p.ctx.Done():
@@ -98,6 +127,10 @@ func (p *Peer) run() {
 				// Restart runOnce immediately without doubling delay.
 				delay = p.reconnectMin
 				continue
+			}
+
+			if p.reactor != nil && p.reactor.rmetrics != nil {
+				p.reactor.rmetrics.peerBackoffSeconds.With(addr).Observe(time.Since(backoffStart).Seconds())
 			}
 
 			// Exponential backoff
@@ -139,6 +172,8 @@ func (p *Peer) safeRunOnce() (err error) {
 
 // runOnce attempts a single connection cycle.
 func (p *Peer) runOnce() error {
+	runOnceStart := time.Now()
+
 	// Create session
 	session := NewSession(p.settings)
 	session.SetClock(p.clock)
@@ -184,10 +219,37 @@ func (p *Peer) runOnce() error {
 		return err
 	}
 
+	peerLogger().Debug("timing: session created, dialing",
+		"peer", p.settings.Address,
+		"port", p.settings.Port,
+		"elapsed_since_runOnce", time.Since(runOnceStart),
+	)
+
 	// Dial out if active bit is set (active or both).
 	if p.settings.Connection.IsActive() {
+		addr := p.settings.Address.String()
+		dialStart := time.Now()
 		if err := session.Connect(p.ctx); err != nil {
+			dialElapsed := time.Since(dialStart)
+			peerLogger().Debug("timing: dial failed",
+				"peer", p.settings.Address,
+				"port", p.settings.Port,
+				"elapsed_dial", dialElapsed,
+				"error", err,
+			)
+			if p.reactor != nil && p.reactor.rmetrics != nil {
+				p.reactor.rmetrics.peerDialSeconds.With(addr, "fail").Observe(dialElapsed.Seconds())
+			}
 			return err
+		}
+		dialElapsed := time.Since(dialStart)
+		peerLogger().Debug("timing: dial succeeded",
+			"peer", p.settings.Address,
+			"port", p.settings.Port,
+			"elapsed_dial", dialElapsed,
+		)
+		if p.reactor != nil && p.reactor.rmetrics != nil {
+			p.reactor.rmetrics.peerDialSeconds.With(addr, "ok").Observe(dialElapsed.Seconds())
 		}
 	}
 

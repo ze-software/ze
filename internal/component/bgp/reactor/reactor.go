@@ -752,10 +752,22 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 
 	// Wait for plugin startup to complete (Phase 1 + Phase 2) before validating.
 	// This ensures auto-loaded plugins have registered their families.
+	pluginWaitStart := time.Now()
 	r.WaitForPluginStartupComplete()
+	pluginElapsed := time.Since(pluginWaitStart)
+	reactorLogger().Debug("timing: WaitForPluginStartupComplete done", "elapsed", pluginElapsed)
+	if r.rmetrics != nil {
+		r.rmetrics.pluginStartupSeconds.Observe(pluginElapsed.Seconds())
+	}
 
 	// Also wait for individual plugins to signal ready (backwards compat).
+	apiWaitStart := time.Now()
 	r.WaitForAPIReady()
+	apiElapsed := time.Since(apiWaitStart)
+	reactorLogger().Debug("timing: WaitForAPIReady done", "elapsed", apiElapsed)
+	if r.rmetrics != nil {
+		r.rmetrics.apiReadySeconds.Observe(apiElapsed.Seconds())
+	}
 
 	// Validate peer families against available plugin decoders.
 	// If a peer has explicit family config, all families must have decoders.
