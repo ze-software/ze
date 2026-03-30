@@ -125,33 +125,33 @@ module ze-cli-show-cmd {
             }
         }
 
-        container completion {
+        container data {
             config false;
-            description "Shell completion script generation";
+            description "ZeFS blob store inspection";
 
-            container bash {
+            container ls {
                 config false;
-                ze:command "ze-show:completion-bash";
-                description "Generate bash completion script";
+                ze:command "ze-show:data-ls";
+                description "List entries in the blob store";
             }
 
-            container zsh {
+            container cat {
                 config false;
-                ze:command "ze-show:completion-zsh";
-                description "Generate zsh completion script";
+                ze:command "ze-show:data-cat";
+                description "Print entry content to stdout";
             }
 
-            container fish {
+            container registered {
                 config false;
-                ze:command "ze-show:completion-fish";
-                description "Generate fish completion script";
+                ze:command "ze-show:data-registered";
+                description "List registered key patterns";
             }
+        }
 
-            container nushell {
-                config false;
-                ze:command "ze-show:completion-nushell";
-                description "Generate nushell completion script";
-            }
+        container interface {
+            config false;
+            ze:command "ze-show:interface";
+            description "List OS network interfaces";
         }
     }
 }

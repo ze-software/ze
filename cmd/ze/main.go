@@ -130,18 +130,19 @@ func registerLocalCommands() {
 		{"show yang doc", func(args []string) int {
 			return zeyang.Run(append([]string{"doc"}, args...))
 		}},
-		// Shell completion.
-		{"show completion bash", func(_ []string) int {
-			return zecompletion.Run([]string{"bash"})
+		// Data store inspection (read-only).
+		{"show data ls", func(args []string) int {
+			return zedata.Run(append([]string{"ls"}, args...))
 		}},
-		{"show completion zsh", func(_ []string) int {
-			return zecompletion.Run([]string{"zsh"})
+		{"show data cat", func(args []string) int {
+			return zedata.Run(append([]string{"cat"}, args...))
 		}},
-		{"show completion fish", func(_ []string) int {
-			return zecompletion.Run([]string{"fish"})
+		{"show data registered", func(args []string) int {
+			return zedata.Run(append([]string{"registered"}, args...))
 		}},
-		{"show completion nushell", func(_ []string) int {
-			return zecompletion.Run([]string{"nushell"})
+		// Interface (read-only).
+		{"show interface", func(args []string) int {
+			return zeiface.Run(append([]string{"show"}, args...))
 		}},
 	}
 	for _, cmd := range localCmds {
