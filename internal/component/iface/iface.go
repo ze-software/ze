@@ -6,7 +6,9 @@
 // Detail: mirror_linux.go — traffic mirroring via tc mirred
 // Detail: slaac_linux.go — IPv6 SLAAC control
 // Detail: migrate_linux.go — make-before-break interface migration
-// Detail: dhcp_linux.go — DHCP client for interface plugin
+// Detail: dhcp_linux.go — DHCP client types and lifecycle
+// Detail: dhcp_v4_linux.go — DHCPv4 worker, renewal, lease handling
+// Detail: dhcp_v6_linux.go — DHCPv6 worker, renewal, lease handling
 
 // Package iface implements the interface monitoring and management plugin.
 //
