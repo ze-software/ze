@@ -148,6 +148,47 @@ module ze-cli-show-cmd {
             }
         }
 
+        container config {
+            config false;
+            description "Configuration inspection";
+
+            container dump {
+                config false;
+                ze:command "ze-show:config-dump";
+                description "Parse and display configuration";
+            }
+
+            container diff {
+                config false;
+                ze:command "ze-show:config-diff";
+                description "Compare two configurations";
+            }
+
+            container history {
+                config false;
+                ze:command "ze-show:config-history";
+                description "List rollback revisions";
+            }
+
+            container ls {
+                config false;
+                ze:command "ze-show:config-ls";
+                description "List configs in the database";
+            }
+
+            container cat {
+                config false;
+                ze:command "ze-show:config-cat";
+                description "Print a database entry";
+            }
+
+            container fmt {
+                config false;
+                ze:command "ze-show:config-fmt";
+                description "Format and normalize configuration";
+            }
+        }
+
         container interface {
             config false;
             ze:command "ze-show:interface";

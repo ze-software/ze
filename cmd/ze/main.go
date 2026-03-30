@@ -140,6 +140,35 @@ func registerLocalCommands() {
 		{"show data registered", func(args []string) int {
 			return zedata.Run(append([]string{"registered"}, args...))
 		}},
+		// Configuration inspection (read-only).
+		{"show config dump", func(args []string) int {
+			return zeconfig.Run(append([]string{"dump"}, args...))
+		}},
+		{"show config diff", func(args []string) int {
+			return zeconfig.Run(append([]string{"diff"}, args...))
+		}},
+		{"show config history", func(args []string) int {
+			store := resolveStorage()
+			defer store.Close() //nolint:errcheck // best-effort
+			return zeconfig.RunWithStorage(store, append([]string{"history"}, args...))
+		}},
+		{"show config ls", func(args []string) int {
+			store := resolveStorage()
+			defer store.Close() //nolint:errcheck // best-effort
+			return zeconfig.RunWithStorage(store, append([]string{"ls"}, args...))
+		}},
+		{"show config cat", func(args []string) int {
+			store := resolveStorage()
+			defer store.Close() //nolint:errcheck // best-effort
+			return zeconfig.RunWithStorage(store, append([]string{"cat"}, args...))
+		}},
+		{"show config fmt", func(args []string) int {
+			return zeconfig.Run(append([]string{"fmt"}, args...))
+		}},
+		// Config validation.
+		{"validate config", func(args []string) int {
+			return zeconfig.Run(append([]string{"validate"}, args...))
+		}},
 		// Interface (read-only).
 		{"show interface", func(args []string) int {
 			return zeiface.Run(append([]string{"show"}, args...))
