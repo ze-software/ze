@@ -291,31 +291,10 @@ func BuildCommandTree(readOnly bool) *Command {
 		}
 		infos = append(infos, cmd.RPCInfo{
 			CLICommand: cliPath,
-			Help:       yangDescription(cliPath),
 			ReadOnly:   isRO,
 		})
 	}
 	return cmd.BuildTree(infos, false) // readOnly already filtered above
-}
-
-// yangDescription returns the YANG description for a CLI path by walking the
-// YANG command tree. Returns empty string if the path or tree is not found.
-func yangDescription(cliPath string) string {
-	node := yangCmdTree
-	if node == nil {
-		return ""
-	}
-	for part := range strings.FieldsSeq(cliPath) {
-		if node.Children == nil {
-			return ""
-		}
-		child, ok := node.Children[part]
-		if !ok {
-			return ""
-		}
-		node = child
-	}
-	return node.Description
 }
 
 // Command is an alias for command.Node. Use command.Node directly in new code.
@@ -362,7 +341,6 @@ func buildRuntimeTree(client *cliClient) *Command {
 		}
 		filtered = append(filtered, cmd.RPCInfo{
 			CLICommand: cliPath,
-			Help:       yangDescription(cliPath),
 			ReadOnly:   pluginserver.IsReadOnlyPath(cliPath),
 		})
 	}

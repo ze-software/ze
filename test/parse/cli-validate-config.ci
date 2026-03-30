@@ -1,0 +1,39 @@
+# Test: ze validate config <file> via unified verb dispatch
+# VALIDATES: validate config verb dispatches to config validate handler
+# PREVENTS: regression in unified verb dispatch for validate command
+stdin=config:terminator=EOF_STDIN
+bgp {
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65533
+		}
+		local {
+			as 65533
+			ip 127.0.0.1
+		}
+	}
+}
+EOF_STDIN
+
+tmpfs=test.conf:terminator=EOF_CONF
+bgp {
+	router-id 10.0.0.1
+	local {
+		as 65533
+	}
+	peer peer1 {
+		remote {
+			ip 127.0.0.1
+			as 65534
+		}
+		local {
+			ip 127.0.0.1
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze validate config test.conf
+expect=exit:code=0
+expect=stdout:contains=configuration valid

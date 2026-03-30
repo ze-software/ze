@@ -26,7 +26,6 @@ type Node struct {
 // Callers convert their domain-specific RPC types to this before calling BuildTree.
 type RPCInfo struct {
 	CLICommand string
-	Help       string
 	ReadOnly   bool
 }
 
@@ -57,7 +56,6 @@ func BuildTree(rpcs []RPCInfo, readOnly bool) *Node {
 			}
 			current = child
 		}
-		current.Description = rpc.Help
 	}
 
 	return root
