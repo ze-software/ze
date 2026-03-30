@@ -16,7 +16,7 @@ const maxSearchResults = 1000
 
 // handleUIPeers renders the peer dashboard page.
 func (s *LGServer) handleUIPeers(w http.ResponseWriter, r *http.Request) {
-	result := s.query("peer summary")
+	result := s.query("summary")
 	zeData := parseJSON(result)
 
 	peers := extractPeers(zeData)
@@ -197,7 +197,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	routes := extractRoutes(zeData)
 
 	// Get peer info.
-	peerResult := s.query("peer summary")
+	peerResult := s.query("summary")
 	peerData := parseJSON(peerResult)
 	peerInfo := findPeer(peerData, address)
 
@@ -300,7 +300,7 @@ func (s *LGServer) handleUIEvents(w http.ResponseWriter, r *http.Request) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			result := s.query("peer summary")
+			result := s.query("summary")
 			zeData := parseJSON(result)
 
 			if zeData == nil {
