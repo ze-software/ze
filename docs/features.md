@@ -14,6 +14,9 @@ Ze is a BGP daemon written in Go.
 | [Performance Benchmarking](features/benchmarking.md) | Cross-implementation latency benchmarking with ze-perf |
 | [Web Interface](features/web-interface.md) | HTTPS config editor with YANG-driven UI and CLI bar |
 | [Looking Glass](features/looking-glass.md) | Public BGP looking glass with birdwatcher API and AS path graphs |
+| [AI-First Design](features/ai-first.md) | Self-describing CLI-as-API with MCP transport for AI assistants |
+| [Self-Documenting System](features/introspection.md) | Runtime introspection of plugins, env vars, RPCs, schemas, commands |
+| [Interoperability Testing](features/interoperability-testing.md) | 32 Docker-based scenarios against FRR, BIRD, GoBGP |
 | [MCP Integration](features/mcp-integration.md) | AI-assisted BGP operations via Model Context Protocol |
 | [DNS Resolver](features/dns-resolver.md) | Built-in cached DNS resolver for all components |
 | [ExaBGP Compatibility](features/exabgp-compatibility.md) | Automatic config migration and plugin bridge |
