@@ -143,3 +143,67 @@ No `unsafe-eval`. All scripts are external files. No inline `<script>` blocks.
 Both paths call `startWebServer()` in `cmd/ze/hub/main.go`. Web-only mode (no BGP config) starts the web server standalone for initial setup.
 
 <!-- source: cmd/ze/hub/main.go -- startWebServer, RunWebOnly -->
+
+## Looking Glass
+
+The looking glass is a separate HTTP server (`internal/component/lg/`) that provides public, read-only access to BGP state. It runs on its own port (default 3443), independent from the authenticated web UI.
+
+All source files in `internal/component/lg/` reference this document via `// Design:` comments.
+
+### LG Source Files
+
+| File | Responsibility |
+|------|---------------|
+| `server.go` | HTTP server lifecycle, mux setup, TLS support, CommandDispatcher |
+| `handler_api.go` | Birdwatcher-compatible REST API (JSON, snake_case), input validation |
+| `handler_ui.go` | HTMX pages (peers, lookup, search), SSE events, asset serving |
+| `handler_graph.go` | AS path topology SVG endpoint |
+| `graph.go` | Graph data model (nodes/edges from AS paths), prepending dedup |
+| `layout.go` | Layered layout algorithm, SVG rendering |
+| `render.go` | Go html/template rendering, page vs fragment detection |
+| `assets.go` | Embedded CSS and minimal HTMX JS shim |
+
+<!-- source: internal/component/lg/server.go -- LGServer, NewLGServer -->
+<!-- source: internal/component/lg/handler_api.go -- API handlers, birdwatcher transform -->
+<!-- source: internal/component/lg/handler_ui.go -- UI handlers, SSE -->
+<!-- source: internal/component/lg/graph.go -- buildGraph, extractASPath -->
+<!-- source: internal/component/lg/layout.go -- computeLayout, renderGraphSVG -->
+
+### LG URL Scheme
+
+```
+/api/looking-glass/status              Router status (JSON, birdwatcher format)
+/api/looking-glass/protocols/bgp       Peer list (JSON)
+/api/looking-glass/routes/protocol/X   Routes from peer X (JSON)
+/api/looking-glass/routes/table/X      Best routes by family (JSON)
+/api/looking-glass/routes/filtered/X   Filtered routes per peer (JSON)
+/api/looking-glass/routes/search?prefix=X  Prefix lookup (JSON)
+/lg/peers                              Peer dashboard (HTML)
+/lg/lookup                             Route lookup form (HTML)
+/lg/search/aspath                      AS path search (HTML)
+/lg/search/community                   Community search (HTML)
+/lg/peer/{address}                     Per-peer routes (HTML)
+/lg/route/detail                       Route detail fragment (HTMX)
+/lg/graph?prefix=X                     AS path topology (SVG)
+/lg/events                             SSE peer state stream
+/lg/assets/                            Static CSS/JS
+```
+
+### LG Data Access
+
+All BGP data is queried via `CommandDispatcher` (same `func(string) (string, error)` as the web UI's admin handlers). The LG never imports RIB or peer plugin packages. The dispatcher routes commands to the engine, preserving plugin isolation.
+
+### LG JSON Convention Exception
+
+The birdwatcher API uses `snake_case` JSON keys (`router_id`, `neighbor_address`, `routes_received`) instead of Ze's standard `kebab-case`. This is intentional for compatibility with Alice-LG and other birdwatcher consumers.
+
+### Starting the Looking Glass
+
+| Method | Config |
+|--------|--------|
+| Config | `environment { looking-glass { host 0.0.0.0; port 3443; } }` |
+| Env vars | `ze.lg.host`, `ze.lg.port`, `ze.lg.tls` |
+
+Started by `startLGServer()` in `cmd/ze/hub/main.go` alongside the web server, after engine startup.
+
+<!-- source: cmd/ze/hub/main.go -- startLGServer, serveLG -->
