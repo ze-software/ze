@@ -19,6 +19,8 @@ type ConfigParams struct {
 	NoPlugin  bool   // When true, omit the plugin block (in-process mode adds plugins via CLI args).
 	PprofAddr string // When set, inject environment { debug { pprof <addr>; } } into generated config.
 	SSHPort   int    // When >0, add system { ssh + authentication } block with test/test user.
+	WebUIPort int    // When >0, add environment { web { insecure; } } block.
+	LGPort    int    // When >0, add environment { looking-glass { } } block.
 }
 
 // GenerateConfig produces a Ze configuration string from the given parameters.
@@ -49,16 +51,37 @@ func GenerateConfig(params ConfigParams) string {
 		fmt.Fprintf(&b, "}\n\n")
 	}
 
-	// Environment block — inject debug settings when requested.
-	if params.PprofAddr != "" {
+	// Environment block — debug settings, SSH, web UI, looking glass.
+	hasEnv := params.PprofAddr != "" || params.SSHPort > 0 || params.WebUIPort > 0 || params.LGPort > 0
+	if hasEnv {
 		fmt.Fprintf(&b, "environment {\n")
-		fmt.Fprintf(&b, "    debug {\n")
-		fmt.Fprintf(&b, "        pprof %s;\n", params.PprofAddr)
-		fmt.Fprintf(&b, "    }\n")
+		if params.PprofAddr != "" {
+			fmt.Fprintf(&b, "    debug {\n")
+			fmt.Fprintf(&b, "        pprof %s;\n", params.PprofAddr)
+			fmt.Fprintf(&b, "    }\n")
+		}
+		if params.SSHPort > 0 {
+			fmt.Fprintf(&b, "    ssh {\n")
+			fmt.Fprintf(&b, "        listen 127.0.0.1:%d;\n", params.SSHPort)
+			fmt.Fprintf(&b, "    }\n")
+		}
+		if params.WebUIPort > 0 {
+			fmt.Fprintf(&b, "    web {\n")
+			fmt.Fprintf(&b, "        host 127.0.0.1;\n")
+			fmt.Fprintf(&b, "        port %d;\n", params.WebUIPort)
+			fmt.Fprintf(&b, "        insecure true;\n")
+			fmt.Fprintf(&b, "    }\n")
+		}
+		if params.LGPort > 0 {
+			fmt.Fprintf(&b, "    looking-glass {\n")
+			fmt.Fprintf(&b, "        host 127.0.0.1;\n")
+			fmt.Fprintf(&b, "        port %d;\n", params.LGPort)
+			fmt.Fprintf(&b, "    }\n")
+		}
 		fmt.Fprintf(&b, "}\n\n")
 	}
 
-	// SSH server block — test user with bcrypt-hashed "test" password.
+	// SSH authentication — test user with bcrypt-hashed "test" password.
 	if params.SSHPort > 0 {
 		fmt.Fprintf(&b, "system {\n")
 		fmt.Fprintf(&b, "    authentication {\n")
@@ -66,9 +89,6 @@ func GenerateConfig(params ConfigParams) string {
 		// bcrypt hash of "test" at cost 10.
 		fmt.Fprintf(&b, "            password \"$2a$10$4A3D3GHd7l3FZXyL/YgH4.bWB2G1oHD1IXgyUDClqIThEcPEJY8Sq\";\n")
 		fmt.Fprintf(&b, "        }\n")
-		fmt.Fprintf(&b, "    }\n")
-		fmt.Fprintf(&b, "    ssh {\n")
-		fmt.Fprintf(&b, "        listen 127.0.0.1:%d;\n", params.SSHPort)
 		fmt.Fprintf(&b, "    }\n")
 		fmt.Fprintf(&b, "}\n\n")
 	}
@@ -153,9 +173,11 @@ func writeFullPeerBlock(b *strings.Builder, params ConfigParams, p PeerProfile) 
 	if len(families) == 0 {
 		families = []string{"ipv4/unicast"}
 	}
+	// Prefix maximum: 10% headroom over route count, minimum 10000.
+	maxPrefix := max(p.RouteCount+p.RouteCount/10, 10000)
 	fmt.Fprintf(b, "        family {\n")
 	for _, f := range families {
-		fmt.Fprintf(b, "            %s { prefix { maximum 10000; } }\n", f)
+		fmt.Fprintf(b, "            %s { prefix { maximum %d; } }\n", f, maxPrefix)
 	}
 	fmt.Fprintf(b, "        }\n")
 

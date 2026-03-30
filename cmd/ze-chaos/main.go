@@ -83,6 +83,10 @@ func run(args []string) int {
 	// SSH flags
 	sshPort := fs.Int("ssh", 0, "Enable SSH server on port (user: test, password: test)")
 
+	// Ze service flags (injected into generated config)
+	webUIPort := fs.Int("web-ui", 0, "Enable Ze web UI on port (insecure, 127.0.0.1)")
+	lgPort := fs.Int("lg", 0, "Enable Ze looking glass on port (127.0.0.1)")
+
 	// Output flags
 	configOut := fs.String("config-out", "", "Write Ze config to file instead of stdout")
 	eventLog := fs.String("event-log", "", "NDJSON event log file")
@@ -175,6 +179,10 @@ Properties:
 
 SSH:
   --ssh <port>               Enable SSH server on port (user: test, password: test)
+
+Ze Services (injected into generated config):
+  --web-ui <port>            Enable Ze web UI on port (insecure, 127.0.0.1)
+  --lg <port>                Enable Ze looking glass on port (127.0.0.1)
 
 Control:
   --duration <dur>           Max runtime (default: 0 = run forever until Ctrl-C)
@@ -392,6 +400,8 @@ Control:
 		Profiles:  profiles,
 		PprofAddr: *debugAddr,
 		SSHPort:   *sshPort,
+		WebUIPort: *webUIPort,
+		LGPort:    *lgPort,
 	}
 	zeConfig := scenario.GenerateConfig(configParams)
 

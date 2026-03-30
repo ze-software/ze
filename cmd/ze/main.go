@@ -348,9 +348,10 @@ dispatch:
 
 	// If arg looks like a config file, dispatch based on content
 	if looksLikeConfig(arg) {
-		// For stdin, skip blob - hub.Run reads and probes internally
+		// For stdin, config data comes from stdin but we still need blob
+		// storage for TLS certs, SSH host keys, and other persistent state.
 		if arg == "-" {
-			os.Exit(hub.Run(storage.NewFilesystem(), arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr))
+			os.Exit(hub.Run(resolveStorage(), arg, plugins, chaosSeed, chaosRate, webEnabled, webListenAddr, insecureWeb, mcpAddr))
 		}
 		store := resolveStorage()
 		// Search XDG config paths if not found locally
