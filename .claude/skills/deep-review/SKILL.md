@@ -1,11 +1,14 @@
 # Deep Review
 
-Exhaustive multi-agent code review (~10 min). Spawns 8 parallel focused agents, each reviewing a different aspect of the code changes. Use before merge or commit of significant work. For a quicker single-pass review, use `/review-for-issues` instead.
+Multi-agent code review. Spawns parallel focused agents, each reviewing a different aspect of the code changes. Use before merge or commit of significant work. For a quicker single-pass review, use `/review-for-issues` instead.
 
-The user may optionally specify a scope: `/deep-review [path|branch|files]`
-- No argument: reviews all uncommitted changes (`git diff HEAD`)
-- Path argument: reviews only that path (e.g., `/deep-review internal/plugin/`)
-- `branch` argument: reviews current branch vs base (`git diff main...HEAD`)
+The user may optionally specify a scope and/or agent selection:
+- `/deep-review` -- all uncommitted changes, ask which agents to run
+- `/deep-review internal/plugin/` -- path scope
+- `/deep-review for security and logic only` -- run only named agents (skip selection prompt)
+- `/deep-review branch` -- current branch vs base
+
+When the argument contains agent names (e.g., "security", "logic", "concurrency"), run only those agents without prompting. Otherwise, present the agent menu and wait for selection.
 
 ## Steps
 
@@ -18,14 +21,35 @@ Determine what code to review based on the argument:
 
 Read the diff to understand the full changeset. Build a file list.
 
-### 2. Launch 8 parallel agents
+### 2. Select agents
 
-Launch ALL of these agents simultaneously using the Agent tool. Each agent gets the file list and diff context. Each agent MUST:
+If the user's argument names specific agents (keywords: security, concurrency, error, test, logic, data, api, rules), run only those. Otherwise, present this menu and **wait for the user to choose**:
+
+```
+Which review agents should I run?
+
+1. Security & Input Validation
+2. Concurrency & Race Conditions
+3. Error Handling & Edge Cases
+4. Test Coverage Gaps
+5. Logic & Correctness Bugs
+6. Data Flow & Boundary Violations
+7. API Compatibility & Contract Violations
+8. Project Rules Compliance
+
+Enter numbers (e.g., 1,5), "all", or names (e.g., "security, logic"):
+```
+
+**Do NOT launch agents before the user responds.** Only skip the prompt when the original `/deep-review` argument already specifies which agents to run.
+
+### 3. Launch selected agents
+
+Launch the selected agents simultaneously using the Agent tool. Each agent gets the file list and diff context. Each agent MUST:
 - Read the actual changed files (not just the diff)
 - Apply its specific lens exhaustively
 - Return findings in the structured format below
 
-**IMPORTANT:** Launch all 8 in a SINGLE message with 8 parallel Agent tool calls.
+**IMPORTANT:** Launch all selected agents in a SINGLE message with parallel Agent tool calls.
 
 ---
 
@@ -238,16 +262,16 @@ If all rules are followed, say "All project rules satisfied" with a brief summar
 
 ---
 
-### 3. Consolidate results
+### 4. Consolidate results
 
-After all 8 agents complete, consolidate their findings into a single report:
+After all selected agents complete, consolidate their findings into a single report:
 
 #### Report Format
 
 ```
 ## Deep Review: [scope description]
 
-**Files Reviewed:** [count] | **Agents:** 8/8 complete
+**Files Reviewed:** [count] | **Agents:** N/N complete
 
 ### Critical & High Findings
 
@@ -286,7 +310,7 @@ After all 8 agents complete, consolidate their findings into a single report:
 - **CONSIDER:** [count] low issues worth reviewing
 ```
 
-### 4. Deduplicate
+### 5. Deduplicate
 
 Multiple agents may find the same issue from different angles. Merge duplicates, keeping the most specific description and the highest severity.
 
