@@ -20,8 +20,8 @@ tmpfs=create-marker.sh:mode=755:terminator=EOF_MARKER
 set -e
 mkdir -p meta/bgp
 # Far-future timestamp (year 2099): 4070910976 = 0x00000000F2A52C00
-# 8-byte big-endian int64 UNIX seconds
-printf '\x00\x00\x00\x00\xf2\xa5\x2c\x00' > meta/bgp/gr-marker
+# 8-byte big-endian int64 UNIX seconds (octal: \x not portable in /bin/sh)
+printf '\000\000\000\000\362\245\054\000' > meta/bgp/gr-marker
 EOF_MARKER
 
 # ze-peer expectations

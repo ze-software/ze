@@ -15,8 +15,8 @@ tmpfs=create-expired-marker.sh:mode=755:terminator=EOF_MARKER
 set -e
 mkdir -p meta/bgp
 # Past timestamp (September 9, 2001): 1000000000 = 0x000000003B9ACA00
-# 8-byte big-endian int64 UNIX seconds
-printf '\x00\x00\x00\x00\x3b\x9a\xca\x00' > meta/bgp/gr-marker
+# 8-byte big-endian int64 UNIX seconds (octal: \x not portable in /bin/sh)
+printf '\000\000\000\000\073\232\312\000' > meta/bgp/gr-marker
 EOF_MARKER
 
 # ze-peer expectations

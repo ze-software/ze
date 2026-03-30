@@ -8,12 +8,18 @@ bgp {
 	}
 	router-id 1.2.3.4
 	peer active-peer {
+		local {
+			ip auto
+		}
 		remote {
 			ip 10.0.0.1
 			as 65001
 		}
 	}
 	inactive: peer disabled-peer {
+		local {
+			ip auto
+		}
 		remote {
 			ip 10.0.0.2
 			as 65002
