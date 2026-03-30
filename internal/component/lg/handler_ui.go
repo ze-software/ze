@@ -6,7 +6,9 @@ package lg
 
 import (
 	"fmt"
+	"net"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 )
@@ -415,6 +417,17 @@ func extractPeers(ze map[string]any) []map[string]any {
 			"Name":           getStr(peer, "name"),
 		})
 	}
+
+	sort.Slice(result, func(i, j int) bool {
+		addrI, _ := result[i]["Address"].(string)
+		addrJ, _ := result[j]["Address"].(string)
+		ipI := net.ParseIP(addrI)
+		ipJ := net.ParseIP(addrJ)
+		if ipI == nil || ipJ == nil {
+			return addrI < addrJ
+		}
+		return string(ipI.To16()) < string(ipJ.To16())
+	})
 
 	return result
 }
