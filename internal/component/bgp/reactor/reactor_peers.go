@@ -243,6 +243,11 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 		r.rmetrics.fwdCongestionResume.Delete(label)
 		r.rmetrics.prefixTeardownTotal.Delete(label)
 		r.rmetrics.prefixStale.Delete(label)
+		r.rmetrics.peerConnectAttempts.Delete(label)
+		r.rmetrics.peerConnectAttemptSeconds.Delete(label)
+		r.rmetrics.peerDialSeconds.Delete(label, "ok")
+		r.rmetrics.peerDialSeconds.Delete(label, "fail")
+		r.rmetrics.peerBackoffSeconds.Delete(label)
 	}
 
 	// Clean up source stats so disconnected peers don't accumulate in srcStats.

@@ -9,6 +9,7 @@ package server
 import (
 	"fmt"
 	"sort"
+	"time"
 
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/format"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
@@ -646,6 +647,7 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer plu
 	if len(procs) == 0 && !hasMonitors {
 		return
 	}
+	sentStart := time.Now()
 	logger().Debug("OnMessageSent", "peer", peerAddr, "type", eventType, "count", len(procs))
 
 	isUpdate := msg.Type == message.TypeUPDATE
@@ -697,8 +699,13 @@ func onMessageSent(s *pluginserver.Server, encoder *format.JSONEncoder, peer plu
 	for range sent {
 		r := <-results
 		if r.Err != nil && s.Context().Err() == nil {
-			logger().Warn("OnMessageSent write failed", "proc", r.ProcName, "err", r.Err)
+			logger().Warn("OnMessageSent write failed", "proc", r.ProcName, "err", r.Err,
+				"elapsed", time.Since(sentStart))
 		}
+	}
+	if elapsed := time.Since(sentStart); elapsed > 500*time.Millisecond {
+		logger().Warn("timing: OnMessageSent slow", "peer", peerAddr, "type", eventType,
+			"procs", len(procs), "elapsed", elapsed)
 	}
 
 	// Return pooled StructuredEvents after all consumers are done.

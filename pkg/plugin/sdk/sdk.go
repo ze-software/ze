@@ -174,6 +174,15 @@ func NewFromTLSEnv(name string) (*Plugin, error) {
 		return nil, fmt.Errorf("TLS dial %s: %w", addr, err)
 	}
 
+	// Disable Nagle's algorithm for plugin IPC. Plugin RPCs are
+	// small request-response messages; Nagle adds latency without
+	// batching benefit.
+	if tc, ok := conn.(interface{ NetConn() net.Conn }); ok {
+		if tcp, ok := tc.NetConn().(*net.TCPConn); ok {
+			_ = tcp.SetNoDelay(true)
+		}
+	}
+
 	// Send auth request directly (no rpc.Conn to avoid reader goroutine leak).
 	if authErr := ipc.SendAuth(ctx, conn, token, name); authErr != nil {
 		conn.Close() //nolint:errcheck,gosec // cleanup on auth failure

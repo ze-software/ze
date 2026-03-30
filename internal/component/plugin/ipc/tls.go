@@ -29,6 +29,21 @@ import (
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/rpc"
 )
 
+// setTCPNoDelay disables Nagle's algorithm on a connection if it wraps a TCP socket.
+// Plugin IPC uses small request-response messages where Nagle adds latency
+// without batching benefit.
+func setTCPNoDelay(conn net.Conn) {
+	type tcpConner interface{ NetConn() net.Conn }
+	c := conn
+	// Unwrap TLS to get the underlying TCP connection.
+	if tc, ok := c.(tcpConner); ok {
+		c = tc.NetConn()
+	}
+	if tcp, ok := c.(*net.TCPConn); ok {
+		_ = tcp.SetNoDelay(true)
+	}
+}
+
 // maxAuthFrameSize is the maximum size of an auth RPC frame (4 KB).
 const maxAuthFrameSize = 4096
 
@@ -567,6 +582,11 @@ func (pa *PluginAcceptor) acceptLoop() {
 			slog.Debug("acceptor: accept error", "error", err)
 			continue
 		}
+
+		// Disable Nagle's algorithm for plugin IPC. Plugin RPCs are
+		// small request-response messages; Nagle adds latency without
+		// batching benefit.
+		setTCPNoDelay(conn)
 
 		// Limit concurrent unauthenticated connections.
 		select {

@@ -341,6 +341,36 @@ class API:
         else:
             os.write(self._callback_fd, line)
 
+    def _handle_callback(self, req_id: int, method: str, params: dict | None) -> None:
+        """Handle an inbound callback RPC, respond, and buffer any events.
+
+        Centralizes callback dispatch for both the _pending_requests drain
+        and the main read loop in read_line().
+        """
+        if method == 'ze-plugin-callback:deliver-batch':
+            self._respond_ok(req_id)
+            if params:
+                events = params.get('events', [])
+                for event in events:
+                    self._pending_events.append(
+                        json.dumps(event, separators=(',', ':')) if isinstance(event, dict) else str(event)
+                    )
+        elif method == 'ze-plugin-callback:deliver-event':
+            self._respond_ok(req_id)
+            if params:
+                self._pending_events.append(params.get('event', ''))
+        elif method == 'ze-plugin-callback:bye':
+            self._respond_ok(req_id)
+            self._shutdown = True
+        elif method == 'ze-plugin-callback:filter-update':
+            if self._filter_handler and params:
+                result = self._filter_handler(params)
+                self._respond_result(req_id, result)
+            else:
+                self._respond_result(req_id, {'action': 'accept'})
+        else:
+            self._respond_ok(req_id)
+
     def _serve_one(self, expected_method: str, timeout: float = 10.0) -> dict | None:
         """Read one RPC request, verify method, respond OK.
 
@@ -758,58 +788,58 @@ class API:
         Returns:
             Event JSON string, or None if no event available
         """
-        if self._shutdown:
-            return None
+        # Iterative dispatch loop: handles pending requests, buffered events,
+        # and incoming RPCs without recursion (avoids stack overflow under
+        # sustained filter-update or unknown callback streams).
+        while True:
+            if self._shutdown:
+                return None
 
-        # Return buffered events from a previous deliver-batch first.
-        if self._pending_events:
-            return self._pending_events.pop(0)
+            # Drain RPCs that arrived during _call_engine() (TLS muxing).
+            # When _call_engine() reads a callback (e.g. deliver-batch) before
+            # the expected response, it queues the callback in _pending_requests.
+            # Process them here so they are not lost.
+            while self._tls_mode and self._pending_requests:
+                req_id, method, params = self._pending_requests.pop(0)
+                self._handle_callback(req_id, method, params)
 
-        if self._tls_mode:
-            raw = self._read_tls_line(timeout=timeout)
-        else:
-            raw = self._read_line(self._callback_fd, '_callback_buf', timeout=timeout)
-        if raw is None:
-            return None
-
-        req_id, method, params = self._parse_line(raw)
-
-        if method == 'ze-plugin-callback:deliver-event':
-            self._respond_ok(req_id)
-            if params:
-                return params.get('event', '')
-            return ''
-
-        if method == 'ze-plugin-callback:deliver-batch':
-            self._respond_ok(req_id)
-            if params:
-                events = params.get('events', [])
-                # Convert each event object to a JSON string for the plugin.
-                for event in events:
-                    self._pending_events.append(
-                        json.dumps(event, separators=(',', ':')) if isinstance(event, dict) else str(event)
-                    )
+            # Return buffered events from a previous deliver-batch first.
             if self._pending_events:
                 return self._pending_events.pop(0)
-            return ''
 
-        if method == 'ze-plugin-callback:bye':
-            self._respond_ok(req_id)
-            self._shutdown = True
-            return None
+            if self._shutdown:
+                return None
 
-        if method == 'ze-plugin-callback:filter-update':
-            if self._filter_handler and params:
-                result = self._filter_handler(params)
-                self._respond_result(req_id, result)
+            if self._tls_mode:
+                raw = self._read_tls_line(timeout=timeout)
             else:
-                # No handler registered: default accept
-                self._respond_result(req_id, {'action': 'accept'})
-            return self.read_line(timeout)
+                raw = self._read_line(self._callback_fd, '_callback_buf', timeout=timeout)
+            if raw is None:
+                return None
 
-        # Other callbacks -- respond OK and skip
-        self._respond_ok(req_id)
-        return self.read_line(timeout)
+            req_id, method, params = self._parse_line(raw)
+
+            if method in ('ze-plugin-callback:deliver-event',
+                          'ze-plugin-callback:deliver-batch'):
+                self._handle_callback(req_id, method, params)
+                # Events were buffered; loop back to return from _pending_events.
+                continue
+
+            if method == 'ze-plugin-callback:bye':
+                self._handle_callback(req_id, method, params)
+                # Flush any buffered events before returning None.
+                if self._pending_events:
+                    return self._pending_events.pop(0)
+                return None
+
+            if method == 'ze-plugin-callback:filter-update':
+                self._handle_callback(req_id, method, params)
+                # Filter handled; loop back to read next event.
+                continue
+
+            # Other callbacks -- respond OK and skip, loop back.
+            self._respond_ok(req_id)
+            continue
 
     def parse_answer(self, line: str) -> str | None:
         """Parse answer type from response line.

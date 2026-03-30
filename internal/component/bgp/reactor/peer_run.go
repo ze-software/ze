@@ -39,14 +39,14 @@ func (p *Peer) run() {
 
 		attempt++
 		attemptStart := time.Now()
-		addr := p.settings.Address.String()
+		peerLabel := p.peerAddrLabel()
 		peerLogger().Debug("timing: connection attempt starting",
 			"peer", p.settings.Address,
 			"port", p.settings.Port,
 			"attempt", attempt,
 		)
 		if p.reactor != nil && p.reactor.rmetrics != nil {
-			p.reactor.rmetrics.peerConnectAttempts.With(addr).Inc()
+			p.reactor.rmetrics.peerConnectAttempts.With(peerLabel).Inc()
 		}
 
 		// Attempt connection with panic recovery.
@@ -70,7 +70,7 @@ func (p *Peer) run() {
 			"error", err,
 		)
 		if p.reactor != nil && p.reactor.rmetrics != nil {
-			p.reactor.rmetrics.peerSessionSeconds.With(addr).Observe(sessionElapsed.Seconds())
+			p.reactor.rmetrics.peerConnectAttemptSeconds.With(peerLabel).Observe(sessionElapsed.Seconds())
 		}
 
 		if err != nil {
@@ -87,6 +87,11 @@ func (p *Peer) run() {
 			// Uses separate backoff from normal reconnect: idle-timeout x 2^(N-1), capped at 1 hour.
 			if errors.Is(err, ErrPrefixLimitExceeded) && p.settings.PrefixIdleTimeout > 0 {
 				p.prefixTeardownCount++
+				// Cap exponent to prevent time.Duration overflow (~62 doublings
+				// overflow int64 nanoseconds before the hour cap can fire).
+				if p.prefixTeardownCount > 60 {
+					p.prefixTeardownCount = 60
+				}
 				idleBase := time.Duration(p.settings.PrefixIdleTimeout) * time.Second
 				prefixDelay := idleBase
 				for i := uint32(1); i < p.prefixTeardownCount; i++ {
@@ -125,12 +130,15 @@ func (p *Peer) run() {
 			case <-p.inboundNotify:
 				// Inbound connection arrived while session was nil.
 				// Restart runOnce immediately without doubling delay.
+				if p.reactor != nil && p.reactor.rmetrics != nil {
+					p.reactor.rmetrics.peerBackoffSeconds.With(peerLabel).Observe(time.Since(backoffStart).Seconds())
+				}
 				delay = p.reconnectMin
 				continue
 			}
 
 			if p.reactor != nil && p.reactor.rmetrics != nil {
-				p.reactor.rmetrics.peerBackoffSeconds.With(addr).Observe(time.Since(backoffStart).Seconds())
+				p.reactor.rmetrics.peerBackoffSeconds.With(peerLabel).Observe(time.Since(backoffStart).Seconds())
 			}
 
 			// Exponential backoff
@@ -227,7 +235,7 @@ func (p *Peer) runOnce() error {
 
 	// Dial out if active bit is set (active or both).
 	if p.settings.Connection.IsActive() {
-		addr := p.settings.Address.String()
+		dialLabel := p.peerAddrLabel()
 		dialStart := time.Now()
 		if err := session.Connect(p.ctx); err != nil {
 			dialElapsed := time.Since(dialStart)
@@ -238,7 +246,7 @@ func (p *Peer) runOnce() error {
 				"error", err,
 			)
 			if p.reactor != nil && p.reactor.rmetrics != nil {
-				p.reactor.rmetrics.peerDialSeconds.With(addr, "fail").Observe(dialElapsed.Seconds())
+				p.reactor.rmetrics.peerDialSeconds.With(dialLabel, "fail").Observe(dialElapsed.Seconds())
 			}
 			return err
 		}
@@ -249,7 +257,7 @@ func (p *Peer) runOnce() error {
 			"elapsed_dial", dialElapsed,
 		)
 		if p.reactor != nil && p.reactor.rmetrics != nil {
-			p.reactor.rmetrics.peerDialSeconds.With(addr, "ok").Observe(dialElapsed.Seconds())
+			p.reactor.rmetrics.peerDialSeconds.With(dialLabel, "ok").Observe(dialElapsed.Seconds())
 		}
 	}
 

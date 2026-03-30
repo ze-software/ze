@@ -152,6 +152,18 @@ Ze exposes Prometheus metrics when `telemetry { prometheus { ... } }` is configu
 | `ze_peer_messages_received_total` | counter | `peer`, `type` | Messages received (type: update, keepalive, open, notification, refresh, eor) |
 | `ze_peer_messages_sent_total` | counter | `peer`, `type` | Messages sent (type: update, keepalive, open, notification, refresh, eor) |
 
+### Startup and Connection Timing
+
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `ze_plugin_startup_seconds` | histogram | - | WaitForPluginStartupComplete duration |
+| `ze_api_ready_seconds` | histogram | - | WaitForAPIReady duration |
+| `ze_peer_dial_seconds` | histogram | `peer`, `result` | TCP dial duration (result: ok, fail) |
+| `ze_peer_connect_attempt_seconds` | histogram | `peer` | Full connection attempt (runOnce) duration |
+| `ze_peer_connect_attempts_total` | counter | `peer` | Connection attempts |
+| `ze_peer_backoff_seconds` | histogram | `peer` | Backoff wait duration before retry |
+<!-- source: internal/component/bgp/reactor/reactor_metrics.go -- initReactorMetrics -->
+
 ### Forward Pool / Congestion
 
 | Metric | Type | Labels | Description |

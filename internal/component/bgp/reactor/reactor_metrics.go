@@ -64,12 +64,12 @@ type reactorMetrics struct {
 	wireWriteErrors metrics.CounterVec // labels: peer
 
 	// Startup timing (histograms)
-	pluginStartupSeconds metrics.Histogram    // WaitForPluginStartupComplete duration
-	apiReadySeconds      metrics.Histogram    // WaitForAPIReady duration
-	peerDialSeconds      metrics.HistogramVec // TCP dial duration (labels: peer, result)
-	peerSessionSeconds   metrics.HistogramVec // Full runOnce duration (labels: peer)
-	peerConnectAttempts  metrics.CounterVec   // Connection attempts (labels: peer)
-	peerBackoffSeconds   metrics.HistogramVec // Backoff wait duration (labels: peer)
+	pluginStartupSeconds      metrics.Histogram    // WaitForPluginStartupComplete duration
+	apiReadySeconds           metrics.Histogram    // WaitForAPIReady duration
+	peerDialSeconds           metrics.HistogramVec // TCP dial duration (labels: peer, result)
+	peerConnectAttemptSeconds metrics.HistogramVec // Full runOnce duration (labels: peer)
+	peerConnectAttempts       metrics.CounterVec   // Connection attempts (labels: peer)
+	peerBackoffSeconds        metrics.HistogramVec // Backoff wait duration (labels: peer)
 
 	// Prefix limits (labeled by peer + family)
 	prefixCount           metrics.GaugeVec   // Current prefix count per family
@@ -135,7 +135,7 @@ func initReactorMetrics(reg metrics.Registry, version, routerID, localAS string)
 			[]float64{0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 15}),
 		peerDialSeconds: reg.HistogramVec("ze_peer_dial_seconds", "TCP dial duration.",
 			[]float64{0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5}, []string{"peer", "result"}),
-		peerSessionSeconds: reg.HistogramVec("ze_peer_session_seconds", "Full connection attempt (runOnce) duration.",
+		peerConnectAttemptSeconds: reg.HistogramVec("ze_peer_connect_attempt_seconds", "Full connection attempt (runOnce) duration.",
 			[]float64{0.1, 0.5, 1, 5, 10, 30, 60, 300}, []string{"peer"}),
 		peerConnectAttempts: reg.CounterVec("ze_peer_connect_attempts_total", "Connection attempts.", []string{"peer"}),
 		peerBackoffSeconds: reg.HistogramVec("ze_peer_backoff_seconds", "Backoff wait duration before retry.",

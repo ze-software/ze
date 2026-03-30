@@ -111,8 +111,35 @@ func (p *Process) deliveryLoop() {
 
 	for first := range p.eventChan {
 		batchBuf = p.drainBatch(batchBuf, first)
-		eventsBuf = p.deliverBatch(batchBuf, eventsBuf, timeout)
+		eventsBuf = p.safeDeliverBatch(batchBuf, eventsBuf, timeout)
 	}
+}
+
+// safeDeliverBatch wraps deliverBatch with panic recovery.
+// If sendBatch panics, all pending result channels are signaled with
+// the panic error so callers (e.g., onPeerStateChange) are not blocked forever.
+func (p *Process) safeDeliverBatch(batch []EventDelivery, eventsBuf []string, timeout time.Duration) (result []string) {
+	defer func() {
+		if rec := recover(); rec != nil {
+			panicErr := fmt.Errorf("delivery panic: %v", rec)
+			logger().Error("deliveryLoop panic recovered",
+				"plugin", p.config.Name,
+				"panic", rec,
+				"stack", string(debug.Stack()),
+			)
+			// Signal all waiting callers so they are not blocked forever.
+			for _, req := range batch {
+				if req.Result != nil {
+					req.Result <- EventResult{
+						ProcName: p.config.Name,
+						Err:      panicErr,
+					}
+				}
+			}
+			result = eventsBuf
+		}
+	}()
+	return p.deliverBatch(batch, eventsBuf, timeout)
 }
 
 // drainBatch collects the first event plus any additional events available
@@ -240,7 +267,18 @@ func (p *Process) deliverViaConn(events []string, timeout time.Duration) error {
 	if conn == nil {
 		return ErrConnectionClosed
 	}
+	start := time.Now()
 	ctx, cancel := context.WithTimeout(p.ctx, timeout)
 	defer cancel()
-	return conn.SendDeliverBatch(ctx, events)
+	err := conn.SendDeliverBatch(ctx, events)
+	elapsed := time.Since(start)
+	if elapsed > 500*time.Millisecond {
+		logger().Warn("timing: slow deliverViaConn",
+			"plugin", p.config.Name,
+			"events", len(events),
+			"elapsed", elapsed,
+			"error", err,
+		)
+	}
+	return err
 }
