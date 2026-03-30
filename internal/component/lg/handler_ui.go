@@ -181,7 +181,7 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := s.query(fmt.Sprintf("rib show peer %s", address))
+	result := s.query(fmt.Sprintf("peer %s rib show received", address))
 	zeData := parseJSON(result)
 
 	if zeData == nil {
@@ -392,14 +392,25 @@ func extractPeers(ze map[string]any) []map[string]any {
 			address = getStr(peer, "peer-address")
 		}
 
+		// Route counts: prefer NLRI-level if available, fall back to UPDATE message counts.
+		received := getStr(peer, "routes-received")
+		if received == "" {
+			received = getStr(peer, "updates-received")
+		}
+		accepted := getStr(peer, "routes-accepted")
+		sent := getStr(peer, "routes-sent")
+		if sent == "" {
+			sent = getStr(peer, "updates-sent")
+		}
+
 		result = append(result, map[string]any{
 			"Address":        address,
 			"RemoteAS":       getStr(peer, "remote-as"),
 			"State":          getStr(peer, "state"),
 			"Uptime":         getStr(peer, "uptime"),
-			"RoutesReceived": getStr(peer, "routes-received"),
-			"RoutesAccepted": getStr(peer, "routes-accepted"),
-			"RoutesSent":     getStr(peer, "routes-sent"),
+			"RoutesReceived": received,
+			"RoutesAccepted": accepted,
+			"RoutesSent":     sent,
 			"Description":    getStr(peer, "description"),
 			"Name":           getStr(peer, "name"),
 		})
@@ -428,13 +439,23 @@ func findPeer(ze map[string]any, address string) map[string]any {
 		return nil
 	}
 
-	peers, _ := ze["peers"].([]any)
+	// Navigate into the "summary" envelope.
+	summary, _ := ze["summary"].(map[string]any)
+	if summary == nil {
+		summary = ze
+	}
+
+	peers, _ := summary["peers"].([]any)
 	for _, p := range peers {
 		peer, ok := p.(map[string]any)
 		if !ok {
 			continue
 		}
-		if getStr(peer, "peer-address") == address || getStr(peer, "name") == address {
+		addr := getStr(peer, "address")
+		if addr == "" {
+			addr = getStr(peer, "peer-address")
+		}
+		if addr == address || getStr(peer, "name") == address {
 			return peer
 		}
 	}

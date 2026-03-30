@@ -164,6 +164,20 @@ func TestFindPeer(t *testing.T) {
 			t.Error("expected nil for missing peer")
 		}
 	})
+
+	t.Run("summary envelope with address field", func(t *testing.T) {
+		ze := map[string]any{
+			"summary": map[string]any{
+				"peers": []any{
+					map[string]any{"address": "10.0.0.3", "name": "peer3"},
+				},
+			},
+		}
+		got := findPeer(ze, "10.0.0.3")
+		if got == nil || getStr(got, "name") != "peer3" {
+			t.Error("expected peer3")
+		}
+	})
 }
 
 func TestEngineError(t *testing.T) {
