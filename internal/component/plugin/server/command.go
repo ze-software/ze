@@ -385,8 +385,15 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*plugin.Respon
 				return d.dispatchSubsystem(ctx, handler, input)
 			}
 		}
-		// No subsystem match, try plugin registry
-		return d.dispatchPlugin(ctx, input, peerSelector)
+		// When a peer selector was extracted, rebuildWithoutSelector keeps the
+		// "peer" keyword (needed for peer commands like "peer list"). But for
+		// cross-domain commands ("peer 10.0.0.1 rib show"), the "peer" prefix
+		// is not part of the target command. Strip it and retry.
+		stripped := input
+		if hasExplicitSelector && strings.HasPrefix(lowerInput, "peer ") {
+			stripped = strings.TrimSpace(input[len("peer "):])
+		}
+		return d.dispatchPlugin(ctx, stripped, peerSelector)
 	}
 
 	// Extract remaining args

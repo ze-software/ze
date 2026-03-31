@@ -450,6 +450,42 @@ func TestForwardToPluginRegistered(t *testing.T) {
 	assert.Nil(t, resp)
 }
 
+// TestDispatchPeerScopedPluginCommand verifies that "peer <addr> rib show"
+// reaches the plugin registry after stripping the "peer" keyword.
+// The builtin table has "peer list" etc., but "rib show" is only in the
+// plugin CommandRegistry. The dispatcher must strip "peer" before the
+// plugin fallback so "rib show" matches.
+//
+// VALIDATES: Cross-domain peer-scoped commands reach plugin dispatch.
+// PREVENTS: "unknown command" for "peer 10.0.0.1 rib show".
+func TestDispatchPeerScopedPluginCommand(t *testing.T) {
+	d := NewDispatcher()
+
+	// Register a peer command builtin (so "peer" is in the builtin table).
+	nop := func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+		return &plugin.Response{Status: plugin.StatusDone}, nil
+	}
+	d.Register("peer list", nop, "List peers")
+
+	// Register "rib show" as a plugin command (not a builtin).
+	proc := process.NewProcess(plugin.PluginConfig{Name: "bgp-rib"})
+	d.Registry().Register(proc, []CommandDef{
+		{Name: "rib show", Description: "Show routes"},
+	})
+
+	// Dispatch "peer 10.0.0.1 rib show" -- should find "rib show" in plugin registry.
+	ctx := &CommandContext{}
+	_, err := d.Dispatch(ctx, "peer 10.0.0.1 rib show")
+
+	// routeToProcess fails because the process isn't running, but the LOOKUP
+	// must succeed (not ErrUnknownCommand). ErrPluginProcessNotRunning means
+	// the command WAS found in the registry.
+	require.Error(t, err)
+	assert.False(t, errors.Is(err, ErrUnknownCommand),
+		"'rib show' should be found after stripping 'peer' prefix, got: %v", err)
+	assert.Equal(t, "10.0.0.1", ctx.PeerSelector())
+}
+
 // TestHasCommandPrefix verifies the prefix matching for dispatch routing.
 //
 // VALIDATES: HasCommandPrefix correctly identifies registered builtin and plugin commands.
