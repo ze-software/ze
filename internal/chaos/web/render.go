@@ -138,7 +138,7 @@ function tpSync(){
 <div class="layout" hx-ext="sse" sse-connect="/events">
 
 <div class="header">
-  <h1>Ze Chaos</h1>
+  <h1><img class="ze-logo" src="/assets/ze.svg" alt="Ze" width="24" height="24"> Ze Chaos</h1>
   <span class="run-info">peers: ` + itoa(s.PeerCount) + ` | uptime: <span id="uptime" data-start="` + itoa(int(time.Since(s.StartTime).Seconds())) + `">` + uptime + `</span></span>
 </div>`)
 

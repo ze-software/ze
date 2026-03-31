@@ -50,7 +50,11 @@ html, body {
   font-size: 16px;
   font-weight: 600;
   color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
+.ze-logo { vertical-align: middle; flex-shrink: 0; }
 
 .header .run-info {
   font-family: var(--font-mono);
