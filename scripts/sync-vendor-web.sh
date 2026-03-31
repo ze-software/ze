@@ -42,6 +42,23 @@ for dest in "${CONSUMERS[@]}"; do
             changed=$((changed + 1))
         fi
     done
+
+    # Ze logo (source: third_party/web/ze/).
+    for file in ze.svg; do
+        src="$ROOT/third_party/web/ze/$file"
+        dst="$dest/$file"
+
+        if [ ! -f "$src" ]; then
+            echo "warning: vendor file not found: $src" >&2
+            continue
+        fi
+
+        if [ ! -f "$dst" ] || ! diff -q "$src" "$dst" > /dev/null 2>&1; then
+            cp "$src" "$dst"
+            echo "synced: $dst"
+            changed=$((changed + 1))
+        fi
+    done
 done
 
 if [ "$changed" -eq 0 ]; then
