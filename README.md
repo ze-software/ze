@@ -1,6 +1,6 @@
 # Ze -- A Modern BGP Daemon
 
-> **Early Development** -- not yet production-ready. APIs and config syntax may change.
+> **Early Development** -- Ze has not been released. The code has known bugs and is not ready for production. APIs and config syntax may change. But if you try it, it will replace ExaBGP.
 
 Ze is a BGP daemon in Go from the creator of [ExaBGP](https://github.com/Exa-Networks/exabgp). Plugin-based architecture: the engine handles the protocol, plugins handle everything else -- RIB, policy, route reflection, graceful restart. Plugins can be written in any language.
 
@@ -59,4 +59,4 @@ Ze exists because AI coding assistants (Claude Code) made a ground-up BGP rewrit
 
 [GNU Affero General Public License v3.0](LICENSE)
 
-**Repository:** [codeberg.org/thomas-mangin/ze](https://codeberg.org/thomas-mangin/ze) -- [Issues](https://codeberg.org/thomas-mangin/ze/issues) -- [ExaBGP](https://github.com/Exa-Networks/exabgp)
+**Official repo:** [github.com/ze-software/ze](https://github.com/ze-software/ze) -- **Development:** [codeberg.org/thomas-mangin/ze](https://codeberg.org/thomas-mangin/ze) -- [Issues](https://github.com/ze-software/ze/issues) -- [Discord](https://discord.gg/ykJb8meS4) -- [ExaBGP](https://github.com/Exa-Networks/exabgp)
