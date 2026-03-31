@@ -69,8 +69,13 @@ func TestTypedefEnumExtraction(t *testing.T) {
 	peer, ok := peerNode.(*ListNode)
 	require.True(t, ok)
 
-	capNode := peer.Get("capability")
-	require.NotNil(t, capNode, "capability must exist under peer")
+	sessionNode := peer.Get("session")
+	require.NotNil(t, sessionNode, "session must exist under peer")
+	session, ok := sessionNode.(*ContainerNode)
+	require.True(t, ok)
+
+	capNode := session.Get("capability")
+	require.NotNil(t, capNode, "capability must exist under session")
 	cap, ok := capNode.(*ContainerNode)
 	require.True(t, ok)
 

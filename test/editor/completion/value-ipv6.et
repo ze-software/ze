@@ -6,9 +6,15 @@ tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
   peer peer-v6-1 {
-  	remote {
-  		ip 2001:db8::1
-  		as 65001;
+  	connection {
+  		remote {
+  			ip 2001:db8::1
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65001
+  		}
   	}
   }
 }
@@ -26,4 +32,4 @@ expect=error:none
 # Completions should work in IPv6 peer context
 input=type:text=set
 input=space
-expect=completion:contains=remote,local,timer
+expect=completion:contains=connection,session,timer

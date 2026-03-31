@@ -40,19 +40,27 @@ plugin {
 }
 bgp {
 	peer peer1 {
-		remote {
-			ip 127.0.0.1
-			as 1
-			accept false
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
 		}
-		local {
-			as 1
-			ip 127.0.0.1
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			capability {
+				graceful-restart disable
+			}
 		}
-		router-id 1.2.3.4
-		group-updates disable
-		capability {
-			graceful-restart disable
+		behavior {
+			group-updates disable
 		}
 		process announce-routes {
 		}

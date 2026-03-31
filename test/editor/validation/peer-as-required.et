@@ -5,12 +5,16 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local {
-  	as 65000
+  session {
+  	asn {
+  		local 65000
+  	}
   }
   peer peer1 {
-  	remote {
-  		ip 1.1.1.1
+  	connection {
+  		remote {
+  			ip 1.1.1.1
+  		}
   	}
     timer { receive-hold-time 90; }
   }

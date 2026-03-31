@@ -8,8 +8,10 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local {
-  	as 65000
+  session {
+  	asn {
+  		local 65000
+  	}
   }
 }
 EOF_CONF
@@ -19,7 +21,7 @@ option=timeout:value=10s
 
 # Alice makes a change
 session=alice:user=alice,origin=ssh
-input=type:text=set bgp local as 65001
+input=type:text=set bgp session asn local 65001
 input=enter
 expect=status:contains=set
 

@@ -26,28 +26,28 @@ func TestExtractHostnameCapabilities(t *testing.T) {
 	}{
 		{
 			name:       "bgp_json_both",
-			jsonStr:    `{"peer":{"192.168.1.1":{"capability":{"hostname":{"host":"router1","domain":"example.com"}}}}}`,
+			jsonStr:    `{"peer":{"192.168.1.1":{"session":{"capability":{"hostname":{"host":"router1","domain":"example.com"}}}}}}`,
 			wantCount:  1,
 			wantHost:   "router1",
 			wantDomain: "example.com",
 		},
 		{
 			name:       "bgp_json_host_only",
-			jsonStr:    `{"peer":{"10.0.0.1":{"capability":{"hostname":{"host":"myhost"}}}}}`,
+			jsonStr:    `{"peer":{"10.0.0.1":{"session":{"capability":{"hostname":{"host":"myhost"}}}}}}`,
 			wantCount:  1,
 			wantHost:   "myhost",
 			wantDomain: "",
 		},
 		{
 			name:       "bgp_json_domain_only",
-			jsonStr:    `{"peer":{"10.0.0.1":{"capability":{"hostname":{"domain":"mydomain.net"}}}}}`,
+			jsonStr:    `{"peer":{"10.0.0.1":{"session":{"capability":{"hostname":{"domain":"mydomain.net"}}}}}}`,
 			wantCount:  1,
 			wantHost:   "",
 			wantDomain: "mydomain.net",
 		},
 		{
 			name:      "bgp_json_no_hostname",
-			jsonStr:   `{"peer":{"10.0.0.1":{"capability":{}}}}`,
+			jsonStr:   `{"peer":{"10.0.0.1":{"session":{"capability":{}}}}}`,
 			wantCount: 0,
 		},
 		{
@@ -57,7 +57,7 @@ func TestExtractHostnameCapabilities(t *testing.T) {
 		},
 		{
 			name:      "bgp_json_empty_both_values",
-			jsonStr:   `{"peer":{"10.0.0.1":{"capability":{"hostname":{"host":"","domain":""}}}}}`,
+			jsonStr:   `{"peer":{"10.0.0.1":{"session":{"capability":{"hostname":{"host":"","domain":""}}}}}}`,
 			wantCount: 0,
 		},
 		{
@@ -96,7 +96,7 @@ func TestExtractHostnameCapabilities(t *testing.T) {
 // VALIDATES: extractHostnameCapabilities handles {"bgp": {...}} wrapper.
 // PREVENTS: Double-nesting issue when config is delivered with root wrapper.
 func TestExtractHostnameCapabilitiesWrapped(t *testing.T) {
-	jsonStr := `{"bgp":{"peer":{"192.168.1.1":{"capability":{"hostname":{"host":"router1","domain":"example.com"}}}}}}`
+	jsonStr := `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"hostname":{"host":"router1","domain":"example.com"}}}}}}}`
 	caps := extractHostnameCapabilities(jsonStr)
 
 	require.Len(t, caps, 1)
@@ -159,7 +159,7 @@ func TestHostnamePluginEncode(t *testing.T) {
 // VALIDATES: Different peers get different hostname/domain values.
 // PREVENTS: Config values leaking between peers.
 func TestExtractHostnameCapabilitiesMultiplePeers(t *testing.T) {
-	jsonStr := `{"peer":{"192.168.1.1":{"capability":{"hostname":{"host":"router1","domain":"example.com"}}},"10.0.0.1":{"capability":{"hostname":{"host":"router2","domain":"test.org"}}}}}`
+	jsonStr := `{"peer":{"192.168.1.1":{"session":{"capability":{"hostname":{"host":"router1","domain":"example.com"}}}},"10.0.0.1":{"session":{"capability":{"hostname":{"host":"router2","domain":"test.org"}}}}}}`
 
 	caps := extractHostnameCapabilities(jsonStr)
 	require.Len(t, caps, 2)
@@ -550,9 +550,9 @@ func hexNibble(b byte) (byte, error) {
 // PREVENTS: Group-level hostname suppressing per-peer overrides.
 func TestExtractHostnameCapabilities_GroupPeerOverride(t *testing.T) {
 	jsonStr := `{"bgp":{"group":{"transit":{
-		"capability":{"hostname":{"host":"group-host","domain":"group.com"}},
+		"session":{"capability":{"hostname":{"host":"group-host","domain":"group.com"}}},
 		"peer":{
-			"10.0.0.1":{"capability":{"hostname":{"host":"peer1-host","domain":"peer1.com"}}},
+			"10.0.0.1":{"session":{"capability":{"hostname":{"host":"peer1-host","domain":"peer1.com"}}}},
 			"10.0.0.2":{"peer-as":65002}
 		}
 	}}}}`

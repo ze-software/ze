@@ -3,26 +3,40 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	router-id 10.0.0.1
-	local {
-		as 65000
+	session {
+		asn {
+			local 65000
+		}
 	}
 	peer upstream-1 {
-		remote {
-			ip 10.0.0.2
-			as 65002
+		connection {
+			remote {
+				ip 10.0.0.2
+			}
+			local {
+				ip 10.0.0.1
+			}
 		}
-		local {
-			ip 10.0.0.1
+		session {
+			asn {
+				remote 65002
+			}
 		}
 	}
 	peer upstream-2 {
-		remote {
-			ip 10.0.0.3
-			as 65003
+		connection {
+			remote {
+				ip 10.0.0.3
+			}
+			local {
+				ip 10.0.0.1
+			}
 		}
-		local {
-			as 65100
-			ip 10.0.0.1
+		session {
+			asn {
+				local 65100
+				remote 65003
+			}
 		}
 	}
 }

@@ -7,8 +7,10 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local {
-  	as 65000
+  session {
+  	asn {
+  		local 65000
+  	}
   }
 }
 EOF_CONF
@@ -18,7 +20,7 @@ option=timeout:value=10s
 
 # Verify original content before any changes
 expect=content:contains=router-id 1.2.3.4
-expect=content:contains=as 65000
+expect=content:contains=local 65000
 
 # Make a change and commit to create backup
 input=type:text=set bgp router-id 5.6.7.8
@@ -46,4 +48,4 @@ expect=error:none
 input=type:text=show
 input=enter
 expect=viewport:contains=router-id 1.2.3.4
-expect=viewport:contains=as 65000
+expect=viewport:contains=local 65000

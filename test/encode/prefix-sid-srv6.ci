@@ -12,26 +12,34 @@ EOF_PEER
 stdin=ze-bgp:terminator=EOF_CONF
 bgp {
 	peer peer1 {
-		remote {
-			ip 127.0.0.1
-			as 65000
-			accept false
-		}
-		local {
-			as 65000
-			ip 127.0.0.1
-		}
-		router-id 198.51.100.200
-		group-updates disable
-
-		family {
-			ipv4/mpls-vpn { prefix { maximum 10000; } }
-		}
-		capability {
-			nexthop {
-				ipv4/mpls-vpn ipv6
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
 			}
 		}
+		session {
+			asn {
+				local 65000
+				remote 65000
+			}
+			router-id 198.51.100.200
+			family {
+				ipv4/mpls-vpn { prefix { maximum 10000; } }
+			}
+			capability {
+				nexthop {
+					ipv4/mpls-vpn ipv6
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+
 		update {
 			attribute {
 				origin igp

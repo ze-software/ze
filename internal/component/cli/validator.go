@@ -263,16 +263,18 @@ func (v *ConfigValidator) validatePeer(peerAddr string, peerTree, groupTree *con
 		}
 	}
 
-	// Custom check: remote > as is required for peers (not mandatory in YANG because
+	// Custom check: session > asn > remote is required for peers (not mandatory in YANG because
 	// groups can set it at group level, but every peer must have it resolved).
 	hasRemoteAS := false
-	if remoteContainer := resolved.GetContainer("remote"); remoteContainer != nil {
-		_, hasRemoteAS = remoteContainer.Get("as")
+	if sessionContainer := resolved.GetContainer("session"); sessionContainer != nil {
+		if asnContainer := sessionContainer.GetContainer("asn"); asnContainer != nil {
+			_, hasRemoteAS = asnContainer.Get("remote")
+		}
 	}
 	if !hasRemoteAS {
 		*warns = append(*warns, ConfigValidationError{
 			Line:     findPeerLine(lines, peerAddr),
-			Message:  fmt.Sprintf("peer %s: missing required field \"remote as\" (set bgp peer %s remote as <value>)", peerAddr, peerAddr),
+			Message:  fmt.Sprintf("peer %s: missing required field \"session asn remote\" (set bgp peer %s session asn remote <value>)", peerAddr, peerAddr),
 			Severity: severityWarning,
 		})
 	}
@@ -459,7 +461,11 @@ func (v *ConfigValidator) checkDuplicateRemoteIPs(bgp *config.Tree, lines []stri
 	seen := make(map[string]string) // remote IP -> first peer name
 
 	checkPeer := func(peerName string, peerTree *config.Tree) {
-		remoteContainer := peerTree.GetContainer("remote")
+		connContainer := peerTree.GetContainer("connection")
+		if connContainer == nil {
+			return
+		}
+		remoteContainer := connContainer.GetContainer("remote")
 		if remoteContainer == nil {
 			return
 		}

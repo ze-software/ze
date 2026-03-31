@@ -6,9 +6,15 @@ tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
   peer peer1 {
-  	remote {
-  		ip 1.1.1.1
-  		as 65001;
+  	connection {
+  		remote {
+  			ip 1.1.1.1
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65001
+  		}
   	}
   }
 }
@@ -32,7 +38,7 @@ input=type:text=load file relative merge extra.conf
 input=enter
 
 # Original peer content preserved
-expect=content:contains=as 65001
+expect=content:contains=remote 65001
 
 # Merged content added
 expect=content:contains=description

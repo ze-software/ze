@@ -2,16 +2,22 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer peer-v6-1 {
-		remote {
-			ip 2a02:b80::2
-			as 65533
+		connection {
+			remote {
+				ip 2a02:b80::2
+			}
+			local {
+				ip 2a02:b80::1
+			}
 		}
-		local {
-			as 65533
-			ip 2a02:b80::1
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 10.0.0.2
 		}
 		description "a quagga test peer over ipv6"
-		router-id 10.0.0.2
 		update {
 			attribute {
 				origin igp

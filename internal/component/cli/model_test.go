@@ -16,24 +16,48 @@ import (
 
 // Test config constants to avoid duplication.
 const (
-	testValidBGPConfig         = `bgp { router-id 1.2.3.4; local { as 65000; } }`
-	testValidBGPConfigOneLine  = `bgp { router-id 1.2.3.4; local { as 65000; } }`
+	testValidBGPConfig         = `bgp { router-id 1.2.3.4; session { asn { local 65000; } } }`
+	testValidBGPConfigOneLine  = `bgp { router-id 1.2.3.4; session { asn { local 65000; } } }`
 	testValidBGPConfigWithPeer = `bgp {
   router-id 1.2.3.4
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
-    local { ip auto; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
     timer { receive-hold-time 90; }
   }
 }`
 	// testValidBGPConfigSimplePeer is for tests that don't need receive-hold-time.
 	testValidBGPConfigSimplePeer = `bgp {
   router-id 1.2.3.4
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
-    local { ip auto; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
   }
 }`
 )
@@ -49,9 +73,22 @@ func TestModelValidationOnLoad(t *testing.T) {
 	// Write config with validation error (receive-hold-time 1 inside peer)
 	content := `bgp {
   router-id 1.2.3.4
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
     timer { receive-hold-time 1; }
   }
 }`
@@ -80,9 +117,22 @@ func TestModelCommitBlockedOnErrors(t *testing.T) {
 	// Write config with validation error (receive-hold-time 2 inside peer)
 	content := `bgp {
   router-id 1.2.3.4
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
     timer { receive-hold-time 2; }
   }
 }`
@@ -114,10 +164,22 @@ func TestModelCommitSucceedsWhenValid(t *testing.T) {
 	// Write valid config
 	content := `bgp {
   router-id 1.2.3.4
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
-    local { ip auto; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
     timer { receive-hold-time 90; }
   }
 }`
@@ -298,7 +360,7 @@ func TestModelValidationDebounce(t *testing.T) {
 
 	// Simulate receiving tick with matching ID
 	// First change content to something with errors
-	ed.SetWorkingContent(`bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { receive-hold-time 1; } } }`)
+	ed.SetWorkingContent(`bgp { peer peer1 { connection { remote { ip 1.1.1.1; } } session { asn { remote 65001; } } timer { receive-hold-time 1; } } }`)
 	currentID := model.validationID
 
 	// Update returns a new model - we need to use that
@@ -339,7 +401,16 @@ func TestModelStatusBarErrorIndicator(t *testing.T) {
 	// Write config with validation error
 	content := `bgp {
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
     timer { receive-hold-time 1; }
   }
 }`
@@ -736,7 +807,7 @@ func TestTabOnListKeyShowsChildrenImmediately(t *testing.T) {
 
 	// Should contain peer-specific fields
 	texts := completionTexts(m.Completions())
-	assert.Contains(t, texts, "remote", "should show remote in children")
+	assert.Contains(t, texts, "connection", "should show connection in children")
 }
 
 // TestExitAfterDiscard verifies that "exit" works after set + discard.

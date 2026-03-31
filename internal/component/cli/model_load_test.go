@@ -143,7 +143,7 @@ func TestModelAbortRollsBack(t *testing.T) {
 
 	originalContent := `bgp {
   router-id 1.2.3.4
-  local { as 65000; }
+  session { asn { local 65000; } }
 }`
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
@@ -187,7 +187,7 @@ func TestModelLoadFile(t *testing.T) {
 	loadPath := filepath.Join(tmpDir, "load.conf")
 
 	originalContent := `bgp { router-id 1.2.3.4; }`
-	loadContent := `bgp { router-id 5.6.7.8; local { as 65000; } }`
+	loadContent := `bgp { router-id 5.6.7.8; session { asn { local 65000; } } }`
 
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
@@ -207,7 +207,7 @@ func TestModelLoadFile(t *testing.T) {
 
 	// Content should be replaced
 	assert.Contains(t, ed.WorkingContent(), "5.6.7.8", "content should have new router-id")
-	assert.Contains(t, ed.WorkingContent(), "local", "content should have local")
+	assert.Contains(t, ed.WorkingContent(), "session", "content should have session")
 	assert.NotContains(t, ed.WorkingContent(), "1.2.3.4", "old content should be gone")
 
 	// Should be marked dirty
@@ -226,11 +226,20 @@ func TestModelLoadMerge(t *testing.T) {
 
 	originalContent := `bgp {
   router-id 1.2.3.4
-  local { as 65000; }
+  session { asn { local 65000; } }
 }`
 	mergeContent := `bgp {
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
   }
 }`
 
@@ -490,7 +499,7 @@ func TestLoadFileAbsoluteReplace(t *testing.T) {
 	loadPath := filepath.Join(tmpDir, "load.conf")
 
 	originalContent := `bgp { router-id 1.2.3.4; }`
-	loadContent := `bgp { router-id 5.6.7.8; local { as 65000; } }`
+	loadContent := `bgp { router-id 5.6.7.8; session { asn { local 65000; } } }`
 
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
 	require.NoError(t, err)
@@ -510,7 +519,7 @@ func TestLoadFileAbsoluteReplace(t *testing.T) {
 
 	// Content should be fully replaced
 	assert.Contains(t, ed.WorkingContent(), "5.6.7.8", "should have new router-id")
-	assert.Contains(t, ed.WorkingContent(), "local", "should have local")
+	assert.Contains(t, ed.WorkingContent(), "session", "should have session")
 	assert.NotContains(t, ed.WorkingContent(), "1.2.3.4", "old router-id should be gone")
 	assert.True(t, ed.Dirty(), "should be marked dirty")
 	assert.Contains(t, result.statusMessage, "loaded", "status should mention loaded")
@@ -527,11 +536,20 @@ func TestLoadFileAbsoluteMerge(t *testing.T) {
 
 	originalContent := `bgp {
   router-id 1.2.3.4
-  local { as 65000; }
+  session { asn { local 65000; } }
 }`
 	mergeContent := `bgp {
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
   }
 }`
 
@@ -572,14 +590,27 @@ func TestLoadFileRelativeReplace(t *testing.T) {
 
 	originalContent := `bgp {
   router-id 1.2.3.4
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
     timer { receive-hold-time 90; }
   }
 }`
 	// Content to replace the peer block with
-	loadContent := `remote { ip 1.1.1.1; as 65002; }
+	loadContent := `connection { remote { ip 1.1.1.1; } } session { asn { remote 65002; } }
 description "new peer"`
 
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
@@ -605,10 +636,10 @@ description "new peer"`
 
 	// Root config should be preserved
 	assert.Contains(t, ed.WorkingContent(), "router-id", "root router-id preserved")
-	assert.Contains(t, ed.WorkingContent(), "local", "root local preserved")
+	assert.Contains(t, ed.WorkingContent(), "session", "root session preserved")
 
 	// Peer content should be replaced
-	assert.Contains(t, ed.WorkingContent(), "65002", "new remote as present")
+	assert.Contains(t, ed.WorkingContent(), "65002", "new remote asn present")
 	assert.Contains(t, ed.WorkingContent(), "description", "new description present")
 	assert.NotContains(t, ed.WorkingContent(), "receive-hold-time", "old receive-hold-time removed")
 	assert.True(t, ed.Dirty(), "should be marked dirty")
@@ -627,7 +658,16 @@ func TestLoadFileRelativeMerge(t *testing.T) {
 	originalContent := `bgp {
   router-id 1.2.3.4
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
   }
 }`
 	mergeContent := `description "merged peer"
@@ -752,12 +792,21 @@ func TestLoadFileRelativeReplaceSingleContext(t *testing.T) {
 
 	originalContent := `bgp {
   router-id 1.2.3.4
-  local { as 65000; }
+  session { asn { local 65000; } }
 }`
 	// Content to replace the bgp block with
 	loadContent := `router-id 5.6.7.8
 peer peer1 {
-  remote { ip 1.1.1.1; as 65001; }
+  connection {
+    remote {
+      ip 1.1.1.1
+    }
+  }
+  session {
+    asn {
+      remote 65001
+    }
+  }
 }`
 
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
@@ -817,7 +866,7 @@ func TestLoadFileRelativeMergeSingleContext(t *testing.T) {
   router-id 1.2.3.4
 }`
 	// Content to merge into the bgp block
-	mergeContent := `local { as 65000; }
+	mergeContent := `session { asn { local 65000; } }
 description "merged content"`
 
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
@@ -848,14 +897,14 @@ description "merged content"`
 	assert.Contains(t, ed.WorkingContent(), "router-id 1.2.3.4", "original router-id preserved")
 
 	// Verify NEW content merged
-	assert.Contains(t, ed.WorkingContent(), "local", "merged local present")
+	assert.Contains(t, ed.WorkingContent(), "session", "merged session present")
 	assert.Contains(t, ed.WorkingContent(), "merged content", "merged description present")
 
 	// Verify STRUCTURE: merged content is INSIDE the bgp block (before final brace)
 	content := ed.WorkingContent()
-	localPos := strings.Index(content, "local")
+	sessionPos := strings.Index(content, "session")
 	lastBracePos := strings.LastIndex(content, "}")
-	assert.True(t, localPos < lastBracePos, "merged content should be inside bgp block, not after it")
+	assert.True(t, sessionPos < lastBracePos, "merged content should be inside bgp block, not after it")
 
 	assert.True(t, ed.Dirty(), "should be marked dirty")
 	assert.True(t, result.revalidate, "should trigger revalidation")

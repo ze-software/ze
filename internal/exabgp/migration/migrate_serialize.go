@@ -131,7 +131,34 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		}
 	}
 
-	// Write local container (local > as, local > ip).
+	// Write connection container (connection > remote, local, md5, ttl, link-local).
+	if conn := tree.GetContainer("connection"); conn != nil {
+		buf.WriteString(indent)
+		buf.WriteString("connection {\n")
+		serializeTreeIndent(conn, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Write session container (session > asn, router-id, link-local, family, capability, add-path).
+	if session := tree.GetContainer("session"); session != nil {
+		buf.WriteString(indent)
+		buf.WriteString("session {\n")
+		serializeTreeIndent(session, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Write behavior container (behavior > group-updates, manual-eor, auto-flush).
+	if behavior := tree.GetContainer("behavior"); behavior != nil {
+		buf.WriteString(indent)
+		buf.WriteString("behavior {\n")
+		serializeTreeIndent(behavior, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Write local container (for sub-containers like connection > local).
 	if local := tree.GetContainer("local"); local != nil {
 		buf.WriteString(indent)
 		buf.WriteString("local {\n")
@@ -140,11 +167,38 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		buf.WriteString("}\n")
 	}
 
-	// Write remote container (remote > as, remote > ip).
+	// Write remote container (for sub-containers like connection > remote).
 	if remote := tree.GetContainer("remote"); remote != nil {
 		buf.WriteString(indent)
 		buf.WriteString("remote {\n")
 		serializeTreeIndent(remote, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Write asn container (for session > asn).
+	if asn := tree.GetContainer("asn"); asn != nil {
+		buf.WriteString(indent)
+		buf.WriteString("asn {\n")
+		serializeTreeIndent(asn, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Write md5 container (for connection > md5).
+	if md5 := tree.GetContainer("md5"); md5 != nil {
+		buf.WriteString(indent)
+		buf.WriteString("md5 {\n")
+		serializeTreeIndent(md5, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Write ttl container (for connection > ttl).
+	if ttl := tree.GetContainer("ttl"); ttl != nil {
+		buf.WriteString(indent)
+		buf.WriteString("ttl {\n")
+		serializeTreeIndent(ttl, buf, indent+"\t", false)
 		buf.WriteString(indent)
 		buf.WriteString("}\n")
 	}
@@ -206,6 +260,24 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string,
 		buf.WriteString(indent)
 		buf.WriteString("nexthop {\n")
 		serializeTreeIndent(nexthop, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Write rib container.
+	if rib := tree.GetContainer("rib"); rib != nil {
+		buf.WriteString(indent)
+		buf.WriteString("rib {\n")
+		serializeTreeIndent(rib, buf, indent+"\t", false)
+		buf.WriteString(indent)
+		buf.WriteString("}\n")
+	}
+
+	// Write adj container (for rib > adj).
+	if adj := tree.GetContainer("adj"); adj != nil {
+		buf.WriteString(indent)
+		buf.WriteString("adj {\n")
+		serializeTreeIndent(adj, buf, indent+"\t", false)
 		buf.WriteString(indent)
 		buf.WriteString("}\n")
 	}

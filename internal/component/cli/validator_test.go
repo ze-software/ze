@@ -35,7 +35,16 @@ func TestValidateSyntaxMissingSemicolon(t *testing.T) {
 			name: "block_no_semicolon_needed",
 			content: `bgp {
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
   }
 }`,
 			wantErr: false,
@@ -44,7 +53,16 @@ func TestValidateSyntaxMissingSemicolon(t *testing.T) {
 			name: "auto_semicolon_at_newline",
 			content: `bgp {
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
   }
 }`,
 			wantErr: false,
@@ -80,7 +98,16 @@ func TestValidateSyntaxUnclosedBrace(t *testing.T) {
 			name: "balanced_braces",
 			content: `bgp {
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
   }
 }`,
 			wantErr: false,
@@ -89,7 +116,11 @@ func TestValidateSyntaxUnclosedBrace(t *testing.T) {
 			name: "unclosed_brace",
 			content: `bgp {
   peer 1.1.1.1 {
-    remote { as 65001; }
+    session {
+      asn {
+        remote 65001
+      }
+    }
 `,
 			wantErr: true,
 		},
@@ -97,7 +128,16 @@ func TestValidateSyntaxUnclosedBrace(t *testing.T) {
 			name: "extra_close_brace",
 			content: `bgp {
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
   }
 }}`,
 			wantErr: true,
@@ -106,9 +146,18 @@ func TestValidateSyntaxUnclosedBrace(t *testing.T) {
 			name: "nested_balanced",
 			content: `bgp {
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
-    capability {
-      route-refresh
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+      capability {
+        route-refresh
+      }
     }
   }
 }`,
@@ -145,9 +194,22 @@ func TestValidateSemanticPeerAsLocalAs(t *testing.T) {
 		{
 			name: "different_as",
 			content: `bgp {
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
   }
 }`,
 			wantErr: false,
@@ -155,9 +217,22 @@ func TestValidateSemanticPeerAsLocalAs(t *testing.T) {
 		{
 			name: "same_as_ibgp",
 			content: `bgp {
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   peer peer1 {
-    remote { ip 1.1.1.1; as 65000; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65000
+      }
+    }
   }
 }`,
 			// iBGP (remote as == local as) is valid config.
@@ -195,10 +270,23 @@ func TestValidateSemanticDuplicatePeer(t *testing.T) {
 			name: "unique_peers",
 			content: `bgp {
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
   }
   peer 2.2.2.2 {
-    remote { as 65002; }
+    session {
+      asn {
+        remote 65002
+      }
+    }
   }
 }`,
 			wantErr: false,
@@ -278,32 +366,32 @@ func TestValidateSemanticHoldTime(t *testing.T) {
 	}{
 		{
 			name:    "hold_time_0_valid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { receive-hold-time 0; } } }",
+			content: "bgp { peer peer1 { connection { remote { ip 1.1.1.1; } } session { asn { remote 65001; } } timer { receive-hold-time 0; } } }",
 			wantErr: false,
 		},
 		{
 			name:    "hold_time_1_invalid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { receive-hold-time 1; } } }",
+			content: "bgp { peer peer1 { connection { remote { ip 1.1.1.1; } } session { asn { remote 65001; } } timer { receive-hold-time 1; } } }",
 			wantErr: true,
 		},
 		{
 			name:    "hold_time_2_invalid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { receive-hold-time 2; } } }",
+			content: "bgp { peer peer1 { connection { remote { ip 1.1.1.1; } } session { asn { remote 65001; } } timer { receive-hold-time 2; } } }",
 			wantErr: true,
 		},
 		{
 			name:    "hold_time_3_valid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { receive-hold-time 3; } } }",
+			content: "bgp { peer peer1 { connection { remote { ip 1.1.1.1; } } session { asn { remote 65001; } } timer { receive-hold-time 3; } } }",
 			wantErr: false,
 		},
 		{
 			name:    "hold_time_90_valid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { receive-hold-time 90; } } }",
+			content: "bgp { peer peer1 { connection { remote { ip 1.1.1.1; } } session { asn { remote 65001; } } timer { receive-hold-time 90; } } }",
 			wantErr: false,
 		},
 		{
 			name:    "hold_time_65535_valid",
-			content: "bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } timer { receive-hold-time 65535; } } }",
+			content: "bgp { peer peer1 { connection { remote { ip 1.1.1.1; } } session { asn { remote 65001; } } timer { receive-hold-time 65535; } } }",
 			wantErr: false,
 		},
 	}
@@ -331,9 +419,22 @@ func TestValidateAll(t *testing.T) {
 	// Valid config
 	validConfig := `bgp {
   router-id 1.2.3.4
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
     timer { receive-hold-time 90; }
   }
 }`
@@ -343,9 +444,22 @@ func TestValidateAll(t *testing.T) {
 	// Config with semantic error (invalid receive-hold-time)
 	invalidConfig := `bgp {
   router-id 1.2.3.4
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
     timer { receive-hold-time 1; }
   }
 }`
@@ -366,7 +480,16 @@ func TestValidationErrorFormat(t *testing.T) {
 	content := `bgp {
   router-id 1.2.3.4
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
     timer { receive-hold-time 1; }
   }
 }`
@@ -396,7 +519,16 @@ func TestValidatePeerAddress(t *testing.T) {
 			name: "valid_ipv4_peer",
 			content: `bgp {
   peer peer1 {
-    remote { ip 192.168.1.1; as 65001; }
+    connection {
+      remote {
+        ip 192.168.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
   }
 }`,
 			wantErr: false,
@@ -405,7 +537,16 @@ func TestValidatePeerAddress(t *testing.T) {
 			name: "valid_ipv6_peer",
 			content: `bgp {
   peer peer1 {
-    remote { ip 2001:db8::1; as 65001; }
+    connection {
+      remote {
+        ip 2001:db8::1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
   }
 }`,
 			wantErr: false,
@@ -458,9 +599,22 @@ func TestValidateMissingPeerAS(t *testing.T) {
 			name: "peer_with_remote_as",
 			content: `bgp {
   router-id 1.1.1.1
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   peer peer1 {
-    remote { ip 192.0.2.1; as 65001; }
+    connection {
+      remote {
+        ip 192.0.2.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
   }
 }`,
 			wantErr: false,
@@ -469,9 +623,17 @@ func TestValidateMissingPeerAS(t *testing.T) {
 			name: "peer_missing_remote_as",
 			content: `bgp {
   router-id 1.1.1.1
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   peer peer1 {
-    remote { ip 192.0.2.1; }
+    connection {
+      remote {
+        ip 192.0.2.1
+      }
+    }
     timer { receive-hold-time 90; }
   }
 }`,
@@ -519,12 +681,20 @@ func TestValidatePeerASInheritance(t *testing.T) {
 			name: "remote_as_inherited_from_group",
 			content: `bgp {
   router-id 1.1.1.1
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   group ibgp {
-    remote { as 65000; }
+    session { asn { remote 65000; } }
     timer { receive-hold-time 60; }
     peer peer1 {
-      remote { ip 192.0.2.1; }
+      connection {
+        remote {
+          ip 192.0.2.1
+        }
+      }
     }
   }
 }`,
@@ -533,11 +703,24 @@ func TestValidatePeerASInheritance(t *testing.T) {
 			name: "remote_as_override_in_group_peer",
 			content: `bgp {
   router-id 1.1.1.1
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   group ibgp {
-    remote { as 65000; }
+    session { asn { remote 65000; } }
     peer peer1 {
-      remote { ip 192.0.2.1; as 65001; }
+      connection {
+        remote {
+          ip 192.0.2.1
+        }
+      }
+      session {
+        asn {
+          remote 65001
+        }
+      }
     }
   }
 }`,
@@ -546,11 +729,19 @@ func TestValidatePeerASInheritance(t *testing.T) {
 			name: "group_without_remote_as",
 			content: `bgp {
   router-id 1.1.1.1
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   group base {
     timer { receive-hold-time 60; }
     peer peer1 {
-      remote { ip 192.0.2.1; }
+      connection {
+        remote {
+          ip 192.0.2.1
+        }
+      }
     }
   }
 }`,
@@ -561,9 +752,17 @@ func TestValidatePeerASInheritance(t *testing.T) {
 			name: "standalone_peer_missing_remote_as",
 			content: `bgp {
   router-id 1.1.1.1
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   peer peer1 {
-    remote { ip 192.0.2.1; }
+    connection {
+      remote {
+        ip 192.0.2.1
+      }
+    }
     timer { receive-hold-time 90; }
   }
 }`,
@@ -574,12 +773,20 @@ func TestValidatePeerASInheritance(t *testing.T) {
 			name: "invalid_receive-hold-time_from_group",
 			content: `bgp {
   router-id 1.1.1.1
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   group bad {
-    remote { as 65001; }
+    session { asn { remote 65001; } }
     timer { receive-hold-time 1; }
     peer peer1 {
-      remote { ip 192.0.2.1; }
+      connection {
+        remote {
+          ip 192.0.2.1
+        }
+      }
     }
   }
 }`,
@@ -634,17 +841,17 @@ func TestValidateASNBoundary(t *testing.T) {
 	}{
 		{
 			name:    "asn_min_valid",
-			content: "bgp { local { as 1; } }",
+			content: "bgp { session { asn { local 1; } } }",
 			wantErr: false,
 		},
 		{
 			name:    "asn_max_valid",
-			content: "bgp { local { as 4294967295; } }",
+			content: "bgp { session { asn { local 4294967295; } } }",
 			wantErr: false,
 		},
 		{
 			name:    "asn_typical",
-			content: "bgp { local { as 65000; } }",
+			content: "bgp { session { asn { local 65000; } } }",
 			wantErr: false,
 		},
 		// Note: ASN 0 is technically reserved but parser accepts it as valid number.
@@ -678,12 +885,12 @@ func TestValidateSetFormat(t *testing.T) {
 	}{
 		{
 			name:    "set_format_valid",
-			content: "set bgp router-id 1.2.3.4\nset bgp local as 65000\nset bgp peer peer1 remote ip 192.0.2.1\nset bgp peer peer1 remote as 65001\nset bgp peer peer1 local ip auto\n",
+			content: "set bgp router-id 1.2.3.4\nset bgp session asn local 65000\nset bgp peer peer1 connection remote ip 192.0.2.1\nset bgp peer peer1 session asn remote 65001\n",
 			wantErr: false,
 		},
 		{
 			name:    "set_meta_format_valid",
-			content: "#user@local @2025-01-01T00:00:00Z set bgp router-id 1.2.3.4\n#user@local @2025-01-01T00:00:00Z set bgp local as 65000\n#user@local @2025-01-01T00:00:00Z set bgp peer peer1 remote ip 192.0.2.1\n#user@local @2025-01-01T00:00:00Z set bgp peer peer1 remote as 65001\n#user@local @2025-01-01T00:00:00Z set bgp peer peer1 local ip auto\n",
+			content: "#user@local @2025-01-01T00:00:00Z set bgp router-id 1.2.3.4\n#user@local @2025-01-01T00:00:00Z set bgp session asn local 65000\n#user@local @2025-01-01T00:00:00Z set bgp peer peer1 connection remote ip 192.0.2.1\n#user@local @2025-01-01T00:00:00Z set bgp peer peer1 session asn remote 65001\n",
 			wantErr: false,
 		},
 		{

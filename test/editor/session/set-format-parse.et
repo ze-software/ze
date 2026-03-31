@@ -4,7 +4,7 @@
 # PREVENTS: Set-format files rejected or parsed incorrectly
 
 tmpfs=test.conf:terminator=EOF_CONF
-set bgp local as 65000
+set bgp session asn local 65000
 set bgp router-id 1.2.3.4
 EOF_CONF
 

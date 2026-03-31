@@ -34,7 +34,7 @@ func TestCompleterSetKeywords(t *testing.T) {
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
-	assert.Contains(t, texts, "local")
+	assert.Contains(t, texts, "session")
 	assert.Contains(t, texts, "router-id")
 	assert.Contains(t, texts, "peer")
 }
@@ -42,12 +42,12 @@ func TestCompleterSetKeywords(t *testing.T) {
 func TestCompleterSetPartialKeyword(t *testing.T) {
 	c := NewCompleter()
 
-	// "set local" should complete to "local" in bgp context
-	completions := c.Complete("set local", []string{"bgp"})
+	// "set session" should complete to "session" in bgp context
+	completions := c.Complete("set session", []string{"bgp"})
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
-	assert.Contains(t, texts, "local")
+	assert.Contains(t, texts, "session")
 }
 
 func TestCompleterNestedPath(t *testing.T) {
@@ -58,7 +58,7 @@ func TestCompleterNestedPath(t *testing.T) {
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
-	assert.Contains(t, texts, "remote")
+	assert.Contains(t, texts, "connection")
 	assert.Contains(t, texts, "name", "list key 'name' should appear at list level")
 }
 
@@ -105,16 +105,16 @@ func TestCompleterYANGDescription(t *testing.T) {
 	completions := c.Complete("set ", []string{"bgp"})
 	require.NotEmpty(t, completions)
 
-	// Find local completion
-	var localComp *Completion
+	// Find session completion
+	var sessionComp *Completion
 	for i := range completions {
-		if completions[i].Text == "local" {
-			localComp = &completions[i]
+		if completions[i].Text == "session" {
+			sessionComp = &completions[i]
 			break
 		}
 	}
-	require.NotNil(t, localComp, "local should be in completions")
-	assert.NotEmpty(t, localComp.Description, "should have YANG description")
+	require.NotNil(t, sessionComp, "session should be in completions")
+	assert.NotEmpty(t, sessionComp.Description, "should have YANG description")
 }
 
 func TestCompleterYANGMandatory(t *testing.T) {
@@ -123,22 +123,22 @@ func TestCompleterYANGMandatory(t *testing.T) {
 	// Mandatory fields should be marked in description
 	completions := c.Complete("set ", []string{"bgp"})
 
-	// Find local (container) and peer (not mandatory - it's a list)
-	var localComp, peer *Completion
+	// Find session (container) and peer (not mandatory - it's a list)
+	var sessionComp, peer *Completion
 	for i := range completions {
 		switch completions[i].Text {
-		case "local":
-			localComp = &completions[i]
+		case "session":
+			sessionComp = &completions[i]
 		case "peer":
 			peer = &completions[i]
 		}
 	}
 
-	require.NotNil(t, localComp, "local should be in completions")
+	require.NotNil(t, sessionComp, "session should be in completions")
 	require.NotNil(t, peer, "peer should be in completions")
 
 	// Container with mandatory child should be indicated
-	assert.NotEmpty(t, localComp.Description)
+	assert.NotEmpty(t, sessionComp.Description)
 	// List is not mandatory
 	assert.NotContains(t, peer.Description, "required")
 }
@@ -146,8 +146,8 @@ func TestCompleterYANGMandatory(t *testing.T) {
 func TestCompleterEnumValues(t *testing.T) {
 	c := NewCompleter()
 
-	// In capability/add-path context, should show send/receive children
-	completions := c.Complete("set ", []string{"bgp", "peer", "capability", "add-path"})
+	// In session/capability/add-path context, should show send/receive children
+	completions := c.Complete("set ", []string{"bgp", "peer", "session", "capability", "add-path"})
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
@@ -290,7 +290,7 @@ func TestCompleterListKeyAcceptedThenShowsChildren(t *testing.T) {
 
 	texts := completionTexts(completions)
 	// Should show peer children, not key completions
-	assert.Contains(t, texts, "remote", "should show peer children after key")
+	assert.Contains(t, texts, "connection", "should show peer children after key")
 	assert.Contains(t, texts, "timer", "should show peer children after key")
 	assert.NotContains(t, texts, "<value>", "should not show key hint inside peer")
 	assert.NotContains(t, texts, "name", "list key 'name' hidden inside entry")
@@ -388,7 +388,7 @@ func TestCompleterInvalidKeyWithSpaceNoChildren(t *testing.T) {
 	// Any string value with trailing space — should show children (string-typed key)
 	completions := c.Complete("set bgp peer transit1 ", nil)
 	texts := completionTexts(completions)
-	assert.Contains(t, texts, "remote",
+	assert.Contains(t, texts, "connection",
 		"valid key with trailing space should show children")
 }
 

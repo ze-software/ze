@@ -2,13 +2,19 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer peer3 {
-		remote {
-			ip 10.0.0.3
-			as 65533
+		connection {
+			remote {
+				ip 10.0.0.3
+			}
+			local {
+				ip 10.0.0.2
+			}
 		}
-		local {
-			as 65533
-			ip 10.0.0.2
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
 		}
 		update {
 			attribute {

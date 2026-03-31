@@ -206,13 +206,13 @@ func TestHandlerPeerAddBasic(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "192.0.2.1"
 
-	resp, err := HandleBgpPeerWith(ctx, []string{"remote", "as", "65001"})
+	resp, err := HandleBgpPeerWith(ctx, []string{"session", "asn", "remote", "65001"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
 	pt := appliedPeerTree(t, reactor)
-	assert.Equal(t, "65001", treeString(pt, "remote", "as"))
-	assert.Equal(t, "192.0.2.1", treeString(pt, "remote", "ip"))
+	assert.Equal(t, "65001", treeString(pt, "session", "asn", "remote"))
+	assert.Equal(t, "192.0.2.1", treeString(pt, "connection", "remote", "ip"))
 }
 
 // TestHandlerPeerAddAllOptions verifies peer add with all options set.
@@ -225,23 +225,23 @@ func TestHandlerPeerAddAllOptions(t *testing.T) {
 	ctx.Peer = "192.0.2.1"
 
 	resp, err := HandleBgpPeerWith(ctx, []string{
-		"remote", "as", "65001",
-		"local", "as", "65000",
-		"local", "ip", "10.0.0.1",
-		"router-id", "1.2.3.4",
+		"session", "asn", "remote", "65001",
+		"session", "asn", "local", "65000",
+		"connection", "local", "ip", "10.0.0.1",
+		"session", "router-id", "1.2.3.4",
 		"timer", "receive-hold-time", "90",
-		"local", "connect", "false",
+		"connection", "local", "connect", "false",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
 	pt := appliedPeerTree(t, reactor)
-	assert.Equal(t, "65001", treeString(pt, "remote", "as"))
-	assert.Equal(t, "65000", treeString(pt, "local", "as"))
-	assert.Equal(t, "10.0.0.1", treeString(pt, "local", "ip"))
-	assert.Equal(t, "1.2.3.4", treeString(pt, "router-id"))
+	assert.Equal(t, "65001", treeString(pt, "session", "asn", "remote"))
+	assert.Equal(t, "65000", treeString(pt, "session", "asn", "local"))
+	assert.Equal(t, "10.0.0.1", treeString(pt, "connection", "local", "ip"))
+	assert.Equal(t, "1.2.3.4", treeString(pt, "session", "router-id"))
 	assert.Equal(t, "90", treeString(pt, "timer", "receive-hold-time"))
-	assert.Equal(t, "false", treeString(pt, "local", "connect"))
+	assert.Equal(t, "false", treeString(pt, "connection", "local", "connect"))
 }
 
 // TestHandlerPeerAddMissingASN verifies peer add requires remote AS.
@@ -427,12 +427,12 @@ func TestSetPeerWithRemoteAS(t *testing.T) {
 	ctx := newTestContext(reactor)
 	ctx.Peer = "10.0.0.1"
 
-	resp, err := HandleBgpPeerWith(ctx, []string{"remote", "as", "65001"})
+	resp, err := HandleBgpPeerWith(ctx, []string{"session", "asn", "remote", "65001"})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
 	pt := appliedPeerTree(t, reactor)
-	assert.Equal(t, "65001", treeString(pt, "remote", "as"))
+	assert.Equal(t, "65001", treeString(pt, "session", "asn", "remote"))
 }
 
 // TestSetPeerWithFullConfig verifies all optional fields via config syntax.
@@ -445,19 +445,19 @@ func TestSetPeerWithFullConfig(t *testing.T) {
 	ctx.Peer = "10.0.0.1"
 
 	resp, err := HandleBgpPeerWith(ctx, []string{
-		"remote", "as", "65001",
-		"router-id", "1.2.3.4",
+		"session", "asn", "remote", "65001",
+		"session", "router-id", "1.2.3.4",
 		"timer", "receive-hold-time", "180",
-		"local", "connect", "false",
+		"connection", "local", "connect", "false",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
 	pt := appliedPeerTree(t, reactor)
-	assert.Equal(t, "65001", treeString(pt, "remote", "as"))
-	assert.Equal(t, "1.2.3.4", treeString(pt, "router-id"))
+	assert.Equal(t, "65001", treeString(pt, "session", "asn", "remote"))
+	assert.Equal(t, "1.2.3.4", treeString(pt, "session", "router-id"))
 	assert.Equal(t, "180", treeString(pt, "timer", "receive-hold-time"))
-	assert.Equal(t, "false", treeString(pt, "local", "connect"))
+	assert.Equal(t, "false", treeString(pt, "connection", "local", "connect"))
 }
 
 // TestSetPeerWithLocalOverrides verifies local as + local ip via config syntax.
@@ -470,17 +470,17 @@ func TestSetPeerWithLocalOverrides(t *testing.T) {
 	ctx.Peer = "10.0.0.1"
 
 	resp, err := HandleBgpPeerWith(ctx, []string{
-		"remote", "as", "65001",
-		"local", "as", "65000",
-		"local", "ip", "192.168.1.1",
+		"session", "asn", "remote", "65001",
+		"session", "asn", "local", "65000",
+		"connection", "local", "ip", "192.168.1.1",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
 	pt := appliedPeerTree(t, reactor)
-	assert.Equal(t, "65001", treeString(pt, "remote", "as"))
-	assert.Equal(t, "65000", treeString(pt, "local", "as"))
-	assert.Equal(t, "192.168.1.1", treeString(pt, "local", "ip"))
+	assert.Equal(t, "65001", treeString(pt, "session", "asn", "remote"))
+	assert.Equal(t, "65000", treeString(pt, "session", "asn", "local"))
+	assert.Equal(t, "192.168.1.1", treeString(pt, "connection", "local", "ip"))
 }
 
 // TestSetPeerWithDescription verifies description field.
@@ -493,7 +493,7 @@ func TestSetPeerWithDescription(t *testing.T) {
 	ctx.Peer = "10.0.0.1"
 
 	resp, err := HandleBgpPeerWith(ctx, []string{
-		"remote", "as", "65001",
+		"session", "asn", "remote", "65001",
 		"description", "my peer",
 	})
 	require.NoError(t, err)
@@ -557,7 +557,7 @@ func TestSetPeerWithASNOutOfRange(t *testing.T) {
 	ctx := newTestContext(&mockReactor{})
 	ctx.Peer = "10.0.0.1"
 
-	resp, err := HandleBgpPeerWith(ctx, []string{"remote", "as", "99999999999"})
+	resp, err := HandleBgpPeerWith(ctx, []string{"session", "asn", "remote", "99999999999"})
 	require.Error(t, err)
 	assert.Equal(t, plugin.StatusError, resp.Status)
 	assert.Contains(t, resp.Data, "invalid uint32")
@@ -573,14 +573,14 @@ func TestSetPeerWithLinkLocal(t *testing.T) {
 	ctx.Peer = "10.0.0.1"
 
 	resp, err := HandleBgpPeerWith(ctx, []string{
-		"remote", "as", "65001",
-		"link-local", "fe80::1",
+		"session", "asn", "remote", "65001",
+		"session", "link-local", "fe80::1",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
 	pt := appliedPeerTree(t, reactor)
-	assert.Equal(t, "fe80::1", treeString(pt, "link-local"))
+	assert.Equal(t, "fe80::1", treeString(pt, "session", "link-local"))
 }
 
 // TestSetPeerWithPort verifies port field.
@@ -593,14 +593,14 @@ func TestSetPeerWithPort(t *testing.T) {
 	ctx.Peer = "10.0.0.1"
 
 	resp, err := HandleBgpPeerWith(ctx, []string{
-		"remote", "as", "65001",
-		"port", "1179",
+		"session", "asn", "remote", "65001",
+		"connection", "local", "port", "1179",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
 	pt := appliedPeerTree(t, reactor)
-	assert.Equal(t, "1179", treeString(pt, "port"))
+	assert.Equal(t, "1179", treeString(pt, "connection", "local", "port"))
 }
 
 // TestSetPeerWithGroupUpdates verifies group-updates enable/disable.
@@ -613,14 +613,14 @@ func TestSetPeerWithGroupUpdates(t *testing.T) {
 	ctx.Peer = "10.0.0.1"
 
 	resp, err := HandleBgpPeerWith(ctx, []string{
-		"remote", "as", "65001",
-		"group-updates", "disable",
+		"session", "asn", "remote", "65001",
+		"behavior", "group-updates", "false",
 	})
 	require.NoError(t, err)
 	assert.Equal(t, plugin.StatusDone, resp.Status)
 
 	pt := appliedPeerTree(t, reactor)
-	assert.Equal(t, "disable", treeString(pt, "group-updates"))
+	assert.Equal(t, "false", treeString(pt, "behavior", "group-updates"))
 }
 
 // TestPeerPauseHandler verifies pause command calls reactor.PausePeer.

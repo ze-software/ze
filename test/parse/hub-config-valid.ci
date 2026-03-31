@@ -14,15 +14,21 @@ plugin {
 }
 bgp {
     peer peer1 {
-    	remote {
-    		ip 127.0.0.1
-    		as 1
+    	connection {
+    		remote {
+    			ip 127.0.0.1
+    		}
+    		local {
+    			ip 127.0.0.1
+    		}
     	}
-    	local {
-    		as 1
-    		ip 127.0.0.1
+    	session {
+    		asn {
+    			local 1
+    			remote 1
+    		}
+    		router-id 1.2.3.4
     	}
-        router-id 1.2.3.4
     }
 }
 EOF_CONF

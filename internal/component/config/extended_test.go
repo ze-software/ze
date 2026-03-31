@@ -33,16 +33,20 @@ func TestFlagSyntax(t *testing.T) {
 	input := `
 bgp {
     peer peer1 {
-        remote {
-            ip 192.0.2.1
-            as 65001
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
         }
-        local {
-            as 65000
-        }
-        capability {
-            graceful-restart
-            route-refresh
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            capability {
+                graceful-restart
+                route-refresh
+            }
         }
     }
 }
@@ -57,7 +61,9 @@ bgp {
 	neighbors := bgpContainer.GetList("peer")
 	n := neighbors["peer1"]
 
-	cap := n.GetContainer("capability")
+	sessionC := n.GetContainer("session")
+	require.NotNil(t, sessionC)
+	cap := sessionC.GetContainer("capability")
 	require.NotNil(t, cap)
 
 	// Flags should be set to "true"
@@ -79,54 +85,18 @@ func TestFlagWithValue(t *testing.T) {
 	input := `
 bgp {
     peer peer1 {
-        remote {
-            ip 192.0.2.1
-            as 65001
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
         }
-        local {
-            as 65000
-        }
-        capability {
-            graceful-restart 120
-        }
-    }
-}
-`
-	schema := extendedSchemaWithGR(t) // Use schema with GR plugin YANG
-	p := NewParser(schema)
-	tree, err := p.Parse(input)
-	require.NoError(t, err)
-
-	bgpContainer := tree.GetContainer("bgp")
-	require.NotNil(t, bgpContainer)
-	neighbors := bgpContainer.GetList("peer")
-	n := neighbors["peer1"]
-
-	cap := n.GetContainer("capability")
-	val, ok := cap.GetFlex("graceful-restart")
-	require.True(t, ok)
-	require.Equal(t, "120", val)
-}
-
-// TestFlagWithBlock verifies flag with block still works.
-//
-// VALIDATES: "graceful-restart { restart-time 120; }" parses.
-//
-// PREVENTS: Breaking block syntax.
-func TestFlagWithBlock(t *testing.T) {
-	input := `
-bgp {
-    peer peer1 {
-        remote {
-            ip 192.0.2.1
-            as 65001
-        }
-        local {
-            as 65000
-        }
-        capability {
-            graceful-restart {
-                restart-time 120
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            capability {
+                graceful-restart 120
             }
         }
     }
@@ -142,7 +112,51 @@ bgp {
 	neighbors := bgpContainer.GetList("peer")
 	n := neighbors["peer1"]
 
-	cap := n.GetContainer("capability")
+	cap := n.GetContainer("session").GetContainer("capability")
+	val, ok := cap.GetFlex("graceful-restart")
+	require.True(t, ok)
+	require.Equal(t, "120", val)
+}
+
+// TestFlagWithBlock verifies flag with block still works.
+//
+// VALIDATES: "graceful-restart { restart-time 120; }" parses.
+//
+// PREVENTS: Breaking block syntax.
+func TestFlagWithBlock(t *testing.T) {
+	input := `
+bgp {
+    peer peer1 {
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+        }
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            capability {
+                graceful-restart {
+                    restart-time 120
+                }
+            }
+        }
+    }
+}
+`
+	schema := extendedSchemaWithGR(t) // Use schema with GR plugin YANG
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	bgpContainer := tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer)
+	neighbors := bgpContainer.GetList("peer")
+	n := neighbors["peer1"]
+
+	cap := n.GetContainer("session").GetContainer("capability")
 	gr := cap.GetContainer("graceful-restart")
 	require.NotNil(t, gr)
 
@@ -160,15 +174,19 @@ func TestEnableDisable(t *testing.T) {
 	input := `
 bgp {
     peer peer1 {
-        remote {
-            ip 192.0.2.1
-            as 65001
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
         }
-        local {
-            as 65000
-        }
-        capability {
-            asn4 enable
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            capability {
+                asn4 enable
+            }
         }
     }
 }
@@ -184,7 +202,7 @@ bgp {
 	neighbors := bgpContainer.GetList("peer")
 	n := neighbors["peer1"]
 
-	cap := n.GetContainer("capability")
+	cap := n.GetContainer("session").GetContainer("capability")
 	val, ok := cap.Get("asn4")
 	require.True(t, ok)
 	require.Equal(t, "true", val)
@@ -206,12 +224,16 @@ plugin {
 
 bgp {
     peer peer1 {
-        remote {
-            ip 192.0.2.1
-            as 65001
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
         }
-        local {
-            as 65000
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
         }
         process {
             processes [ watcher ]
@@ -250,12 +272,16 @@ func TestArrayMultipleValues(t *testing.T) {
 	input := `
 bgp {
     peer peer1 {
-        remote {
-            ip 192.0.2.1
-            as 65001
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
         }
-        local {
-            as 65000
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
         }
         process {
             processes [ watcher announcer receiver ]
@@ -294,12 +320,16 @@ func TestArrayRoundtrip(t *testing.T) {
 	input := `
 bgp {
     peer peer1 {
-        remote {
-            ip 192.0.2.1
-            as 65001
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
         }
-        local {
-            as 65000
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
         }
         process {
             processes [ watcher ]

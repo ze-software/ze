@@ -20,9 +20,21 @@ printf 'admin\nsecret123\n127.0.0.1\n2222\nedge-01\n' | ZE_CONFIG_DIR="$INIT_DIR
 cat > "$INIT_DIR/edge-01.conf" <<'CONF'
 bgp {
     peer p1 {
-        remote { ip 127.0.0.1; as 65001; }
-        local { ip 127.0.0.1; as 65000; }
-        router-id 1.2.3.4;
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+            local {
+                ip 127.0.0.1
+            }
+        }
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            router-id 1.2.3.4
+        }
     }
 }
 plugin {

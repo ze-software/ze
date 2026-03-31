@@ -5,8 +5,10 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local {
-    as 65000;
+  session {
+    asn {
+      local 65000
+    }
   }
   group internal {
     timer { receive-hold-time 90; }

@@ -19,8 +19,10 @@ func TestETSessionOption(t *testing.T) {
 	et := `
 tmpfs=test.conf:terminator=EOF
 bgp {
-  local {
-    as 65000
+  session {
+    asn {
+      local 65000
+    }
   }
   router-id 1.2.3.4
 }
@@ -28,7 +30,7 @@ EOF
 option=file:path=test.conf
 option=session:user=thomas:origin=local
 
-input=type:text=set bgp local as 65001
+input=type:text=set bgp session asn local 65001
 input=enter
 expect=dirty:true
 expect=file:path=test.conf.change.thomas:contains=#thomas @local
@@ -47,8 +49,10 @@ func TestETMultiSession(t *testing.T) {
 	et := `
 tmpfs=test.conf:terminator=EOF
 bgp {
-  local {
-    as 65000
+  session {
+    asn {
+      local 65000
+    }
   }
   router-id 1.2.3.4
 }
@@ -56,7 +60,7 @@ EOF
 option=file:path=test.conf
 
 session=alice:user=alice,origin=ssh
-input=type:text=set bgp local as 65001
+input=type:text=set bgp session asn local 65001
 input=enter
 expect=dirty:true
 
@@ -127,8 +131,10 @@ func TestETSessionSwitch(t *testing.T) {
 	et := `
 tmpfs=test.conf:terminator=EOF
 bgp {
-  local {
-    as 65000
+  session {
+    asn {
+      local 65000
+    }
   }
   router-id 1.2.3.4
 }
@@ -136,7 +142,7 @@ EOF
 option=file:path=test.conf
 
 session=alice:user=alice,origin=ssh
-input=type:text=set bgp local as 65001
+input=type:text=set bgp session asn local 65001
 input=enter
 
 session=bob:user=bob,origin=ssh

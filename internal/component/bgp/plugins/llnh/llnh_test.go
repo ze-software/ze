@@ -15,9 +15,9 @@ func TestExtractLLNHCapabilities(t *testing.T) {
 		"bgp": {
 			"peer": {
 				"10.0.0.1": {
-					"capability": {
+					"session": {"capability": {
 						"link-local-nexthop": "enable"
-					}
+					}}
 				}
 			}
 		}
@@ -49,9 +49,9 @@ func TestExtractLLNHCapabilitiesWrapped(t *testing.T) {
 	jsonStr := `{
 		"peer": {
 			"10.0.0.1": {
-				"capability": {
+				"session": {"capability": {
 					"link-local-nexthop": "enable"
-				}
+				}}
 			}
 		}
 	}`
@@ -74,9 +74,9 @@ func TestExtractLLNHCapabilitiesNoCap(t *testing.T) {
 		"bgp": {
 			"peer": {
 				"10.0.0.1": {
-					"capability": {
+					"session": {"capability": {
 						"route-refresh": "enable"
-					}
+					}}
 				}
 			}
 		}
@@ -97,19 +97,19 @@ func TestExtractLLNHCapabilitiesMultiplePeers(t *testing.T) {
 		"bgp": {
 			"peer": {
 				"10.0.0.1": {
-					"capability": {
+					"session": {"capability": {
 						"link-local-nexthop": "enable"
-					}
+					}}
 				},
 				"10.0.0.2": {
-					"capability": {
+					"session": {"capability": {
 						"route-refresh": "enable"
-					}
+					}}
 				},
 				"10.0.0.3": {
-					"capability": {
+					"session": {"capability": {
 						"link-local-nexthop": "enable"
-					}
+					}}
 				}
 			}
 		}
@@ -272,9 +272,9 @@ func TestDecodableCapabilities(t *testing.T) {
 // PREVENTS: Group-level capability suppressing per-peer overrides.
 func TestExtractLLNHCapabilities_GroupPeerOverride(t *testing.T) {
 	jsonStr := `{"bgp":{"group":{"transit":{
-		"capability":{"link-local-nexthop":"enable"},
+		"session":{"capability":{"link-local-nexthop":"enable"}},
 		"peer":{
-			"10.0.0.1":{"capability":{"link-local-nexthop":"disable"}},
+			"10.0.0.1":{"session":{"capability":{"link-local-nexthop":"disable"}}},
 			"10.0.0.2":{"peer-as":65002}
 		}
 	}}}}`

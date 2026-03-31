@@ -23,7 +23,7 @@ func TestEditorManagerListEntryPersistence(t *testing.T) {
 	mgr := NewEditorManager(store, configPath, schema)
 
 	// Simulate CLI set from web handler
-	err = mgr.SetValue("insecure", []string{"bgp", "peer", "test-peer", "remote"}, "as", "65001")
+	err = mgr.SetValue("insecure", []string{"bgp", "peer", "test-peer", "session", "asn"}, "remote", "65001")
 	require.NoError(t, err, "SetValue must succeed")
 
 	// Check the tree

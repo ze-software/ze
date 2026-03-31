@@ -57,12 +57,12 @@ func TestConfigGenPeerBlock(t *testing.T) {
 
 	config := GenerateConfig(params)
 
-	// eBGP peer (index 0): remote as should be 65001
-	assert.Contains(t, config, "as 65001;")
-	// iBGP peer (index 1): remote as should be 65000
-	assert.Contains(t, config, "as 65000;")
-	// local container always present
-	assert.Contains(t, config, "local {")
+	// eBGP peer (index 0): remote ASN should be 65001
+	assert.Contains(t, config, "remote 65001;")
+	// iBGP peer (index 1): remote ASN should be 65000
+	assert.Contains(t, config, "remote 65000;")
+	// connection container with local sub-container always present
+	assert.Contains(t, config, "connection {")
 	// Family block
 	assert.Contains(t, config, "ipv4/unicast { prefix { maximum 10000; } }")
 	// Passive peer should have connect false inside local block

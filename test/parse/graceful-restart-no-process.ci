@@ -2,17 +2,23 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer peer1 {
-		remote {
-			ip 10.0.0.1
-			as 65002
+		connection {
+			remote {
+				ip 10.0.0.1
+			}
+			local {
+				ip 192.0.2.1
+			}
 		}
-		local {
-			as 65001
-			ip 192.0.2.1
-		}
-		router-id 1.2.3.4
-		capability {
-			graceful-restart { restart-time 120; }
+		session {
+			asn {
+				local 65001
+				remote 65002
+			}
+			router-id 1.2.3.4
+			capability {
+				graceful-restart { restart-time 120; }
+			}
 		}
 	}
 }

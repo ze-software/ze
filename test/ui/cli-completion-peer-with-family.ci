@@ -4,30 +4,38 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
 	router-id 1.2.3.4
-	local {
-		as 65000
+	session {
+		asn {
+			local 65000
+		}
 	}
 	peer peer1 {
-		remote {
-			ip 1.1.1.1
-			as 65001
+		connection {
+			remote {
+				ip 1.1.1.1
+			}
+			local {
+				ip 127.0.0.1
+			}
 		}
-		local {
-			ip 127.0.0.1
-		}
-		family ipv4/unicast {
-			mode enable
-			prefix { maximum 10000; }
-		}
-		family ipv6/unicast {
-			mode enable
-			prefix { maximum 10000; }
+		session {
+			asn {
+				remote 65001
+			}
+			family ipv4/unicast {
+				mode enable
+				prefix { maximum 10000; }
+			}
+			family ipv6/unicast {
+				mode enable
+				prefix { maximum 10000; }
+			}
 		}
 	}
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1 --input edit+family+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/session --input edit+family+ test.conf
 expect=exit:code=0
 expect=stdout:contains=ipv4/unicast
 expect=stdout:contains=ipv6/unicast

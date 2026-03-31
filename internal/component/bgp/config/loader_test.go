@@ -30,20 +30,47 @@ func TestLoadReactor(t *testing.T) {
 	input := `
 bgp {
     router-id 10.0.0.1;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     listen 127.0.0.1:1179;
 
     peer transit1 {
-        remote { ip 192.0.2.1; as 65001; }
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+            local {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
         timer {
             receive-hold-time 90;
         }
-        local { ip 192.168.1.1; }
     }
 
     peer transit2 {
-        remote { ip 192.0.2.2; as 65002; }
-        local { ip 192.168.1.1; connect false; }
+        connection {
+            remote {
+                ip 192.0.2.2
+            }
+            local {
+                ip 192.168.1.1
+                connect false
+            }
+        }
+        session {
+            asn {
+                remote 65002
+            }
+        }
     }
 }
 `
@@ -65,11 +92,26 @@ func TestLoadReactorInheritance(t *testing.T) {
 	input := `
 bgp {
     router-id 10.0.0.1;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
 
     peer transit1 {
-        remote { ip 192.0.2.1; as 65001; }
-        local { ip 192.168.1.1; }
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+            local {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
     }
 }
 `
@@ -95,11 +137,27 @@ func TestLoadReactorPassive(t *testing.T) {
 	input := `
 bgp {
     router-id 10.0.0.1;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
 
     peer transit1 {
-        remote { ip 192.0.2.1; as 65001; }
-        local { ip 192.168.1.1; connect false; }
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+            local {
+                ip 192.168.1.1
+                connect false
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
     }
 }
 `
@@ -125,13 +183,28 @@ plugin { external rib { run ./rib; } }
 
 bgp {
     router-id 10.0.0.1;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
 
     peer transit1 {
-        remote { ip 192.0.2.1; as 65001; }
-        local { ip 192.168.1.1; }
-        capability {
-            route-refresh;
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+            local {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+            capability {
+                route-refresh;
+            }
         }
         process rib { send [ update ]; }
     }
@@ -170,7 +243,16 @@ func TestLoadReactorError(t *testing.T) {
 	input := `
 bgp {
     peer bad1 {
-        remote { ip 192.0.2.1; as not-a-number; }
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+        }
+        session {
+            asn {
+                remote not-a-number
+            }
+        }
     }
 }
 `
@@ -210,8 +292,8 @@ func TestOldSyntaxHint(t *testing.T) {
 	})
 
 	t.Run("current syntax no hint", func(t *testing.T) {
-		// Valid current config should parse without error (no hint needed)
-		input := `bgp { local { as 65000; } peer transit1 { remote { ip 192.0.2.1; as 65001; } local { ip 192.168.1.1; } } }`
+		// Valid current config should parse without error (no hint needed).
+		input := `bgp { session { asn { local 65000; } } peer transit1 { connection { remote { ip 192.0.2.1; } local { ip 192.168.1.1; } } session { asn { remote 65001; } } } }`
 		_, err := LoadReactor(input)
 		require.NoError(t, err)
 	})
@@ -483,10 +565,19 @@ func TestSchemaExtendCapability(t *testing.T) {
 	inputBefore := `
 bgp {
     peer transit1 {
-        remote { ip 192.0.2.1; as 65001; }
-        capability {
-            custom-cap {
-                some-value 42;
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+            capability {
+                custom-cap {
+                    some-value 42;
+                }
             }
         }
     }
@@ -506,10 +597,19 @@ bgp {
 	inputAfter := `
 bgp {
     peer transit1 {
-        remote { ip 192.0.2.1; as 65001; }
-        capability {
-            custom-cap {
-                some-value 42;
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+            capability {
+                custom-cap {
+                    some-value 42;
+                }
             }
         }
     }
@@ -529,7 +629,10 @@ bgp {
 	peer := peers["transit1"]
 	require.NotNil(t, peer)
 
-	cap := peer.GetContainer("capability")
+	session := peer.GetContainer("session")
+	require.NotNil(t, session)
+
+	cap := session.GetContainer("capability")
 	require.NotNil(t, cap)
 
 	customCap := cap.GetContainer("custom-cap")
@@ -556,15 +659,30 @@ func TestParseBGPBlock(t *testing.T) {
 	input := `
 bgp {
     router-id 10.0.0.1;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     listen 127.0.0.1:1179;
 
     peer transit1 {
-        remote { ip 192.0.2.1; as 65001; }
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+            local {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
         timer {
             receive-hold-time 90;
         }
-        local { ip 192.168.1.1; }
     }
 }
 `
@@ -591,7 +709,16 @@ router-id 10.0.0.1;
 local { as 65000; }
 
 peer transit1 {
-    remote { ip 192.0.2.1; as 65001; }
+    connection {
+        remote {
+            ip 192.0.2.1
+        }
+    }
+    session {
+        asn {
+            remote 65001
+        }
+    }
 }
 `
 
@@ -608,7 +735,11 @@ func TestParseGroupWithInheritance(t *testing.T) {
 	input := `
 bgp {
     router-id 10.0.0.1;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
 
     group backbone {
         timer {
@@ -616,8 +747,19 @@ bgp {
         }
 
         peer rtr1 {
-            remote { ip 10.0.0.1; as 65001; }
-            local { ip auto; }
+            connection {
+                remote {
+                    ip 10.0.0.1
+                }
+                local {
+                    ip auto
+                }
+            }
+            session {
+                asn {
+                    remote 65001
+                }
+            }
         }
     }
 }
@@ -643,7 +785,11 @@ func TestGroupNameKeyword(t *testing.T) {
 	input := `
 bgp {
     router-id 10.0.0.1;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
 
     group backbone {
         timer {
@@ -651,8 +797,19 @@ bgp {
         }
 
         peer transit1 {
-            remote { ip 192.0.2.1; as 65001; }
-            local { ip auto; }
+            connection {
+                remote {
+                    ip 192.0.2.1
+                }
+                local {
+                    ip auto
+                }
+            }
+            session {
+                asn {
+                    remote 65001
+                }
+            }
         }
     }
 }
@@ -678,13 +835,28 @@ func TestUnknownKeywordInGroup(t *testing.T) {
 	input := `
 bgp {
     router-id 10.0.0.1;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
 
     group backbone {
         nonexistent-field value;
         peer transit1 {
-            remote { ip 192.0.2.1; as 65001; }
-            local { ip auto; }
+            connection {
+                remote {
+                    ip 192.0.2.1
+                }
+                local {
+                    ip auto
+                }
+            }
+            session {
+                asn {
+                    remote 65001
+                }
+            }
         }
     }
 }
@@ -709,11 +881,26 @@ func TestPeerNameValidation(t *testing.T) {
 	input := `
 bgp {
     router-id 10.0.0.1;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
 
     peer "10.0.0.1" {
-        remote { ip 192.168.1.1; as 65001; }
-        local { ip auto; }
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+            local {
+                ip auto
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
     }
 }
 `
@@ -844,8 +1031,17 @@ func TestHostnameAlwaysAvailable(t *testing.T) {
 	input := `
 bgp {
     peer transit1 {
-        remote { ip 192.0.2.1; as 65001; }
-        host-name my-host-name;
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+            host-name my-host-name;
+        }
     }
 }
 `
@@ -875,13 +1071,28 @@ func TestHoldTimeZeroPreserved(t *testing.T) {
 			config: `
 bgp {
     router-id 10.0.0.1;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer transit1 {
-        remote { ip 192.0.2.1; as 65001; }
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+            local {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
         timer {
             receive-hold-time 0;
         }
-        local { ip 192.168.1.1; }
     }
 }`,
 			wantHoldTime: 0,
@@ -891,10 +1102,25 @@ bgp {
 			config: `
 bgp {
     router-id 10.0.0.1;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer transit1 {
-        remote { ip 192.0.2.1; as 65001; }
-        local { ip 192.168.1.1; }
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+            local {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
     }
 }`,
 			wantHoldTime: 90,
@@ -904,13 +1130,28 @@ bgp {
 			config: `
 bgp {
     router-id 10.0.0.1;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer transit1 {
-        remote { ip 192.0.2.1; as 65001; }
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+            local {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
         timer {
             receive-hold-time 30;
         }
-        local { ip 192.168.1.1; }
     }
 }`,
 			wantHoldTime: 30,
@@ -1025,10 +1266,25 @@ func TestExpandDependencies_Integration(t *testing.T) {
 	input := `
 bgp {
     router-id 10.0.0.1;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer transit1 {
-        remote { ip 192.0.2.1; as 65001; }
-        local { ip 192.168.1.1; }
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+            local {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
     }
 }
 `
@@ -1052,10 +1308,25 @@ func TestLoaderWithBlobStorage(t *testing.T) {
 	configContent := `
 bgp {
     router-id 10.0.0.1;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer transit1 {
-        remote { ip 192.0.2.1; as 65001; }
-        local { ip 192.168.1.1; }
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+            local {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
     }
 }
 `
@@ -1097,10 +1368,25 @@ func TestReloadWithBlobStorage(t *testing.T) {
 	initialConfig := `
 bgp {
     router-id 10.0.0.1;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer transit1 {
-        remote { ip 192.0.2.1; as 65001; }
-        local { ip 192.168.1.1; }
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+            local {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
     }
 }
 `
@@ -1124,14 +1410,40 @@ bgp {
 	updatedConfig := `
 bgp {
     router-id 10.0.0.1;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer transit1 {
-        remote { ip 192.0.2.1; as 65001; }
-        local { ip 192.168.1.1; }
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+            local {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
     }
     peer transit2 {
-        remote { ip 192.0.2.2; as 65002; }
-        local { ip 192.168.1.1; }
+        connection {
+            remote {
+                ip 192.0.2.2
+            }
+            local {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65002
+            }
+        }
     }
 }
 `

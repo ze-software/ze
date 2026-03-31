@@ -19,11 +19,13 @@ func TestMigrateDefaultOutputSet(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "test.conf")
 
-	// Write a hierarchical config (router-id and local { as } are under bgp {}).
+	// Write a hierarchical config (router-id and session { asn { local } } are under bgp {}).
 	hierarchical := `bgp {
     router-id 1.2.3.4
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
 }
 `
@@ -53,8 +55,10 @@ func TestMigrateExplicitHierarchical(t *testing.T) {
 
 	hierarchical := `bgp {
     router-id 1.2.3.4
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
 }
 `

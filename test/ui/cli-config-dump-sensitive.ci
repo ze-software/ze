@@ -2,15 +2,25 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	router-id 10.0.0.1
-	local {
-		as 65533
+	session {
+		asn {
+			local 65533
+		}
 	}
 	peer peer3 {
-		remote {
-			ip 10.0.0.3
-			as 65534
+		connection {
+			remote {
+				ip 10.0.0.3
+			}
+			md5 {
+				password abc123
+			}
 		}
-		md5-password abc123
+		session {
+			asn {
+				remote 65534
+			}
+		}
 	}
 }
 EOF_CONF
@@ -18,15 +28,25 @@ EOF_CONF
 tmpfs=test.conf:terminator=EOF_FILE
 bgp {
 	router-id 10.0.0.1
-	local {
-		as 65533
+	session {
+		asn {
+			local 65533
+		}
 	}
 	peer peer3 {
-		remote {
-			ip 10.0.0.3
-			as 65534
+		connection {
+			remote {
+				ip 10.0.0.3
+			}
+			md5 {
+				password abc123
+			}
 		}
-		md5-password abc123
+		session {
+			asn {
+				remote 65534
+			}
+		}
 	}
 }
 EOF_FILE

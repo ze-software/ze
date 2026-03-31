@@ -413,8 +413,10 @@ func TestParseExpectGhost(t *testing.T) {
 func TestParseTmpfs(t *testing.T) {
 	content := `tmpfs=test.conf:terminator=EOF_CONF
 bgp {
-  local {
-    as 65000
+  session {
+    asn {
+      local 65000
+    }
   }
   router-id 1.2.3.4
 }
@@ -427,7 +429,7 @@ EOF_CONF`
 	tf := tc.Tmpfs[0]
 	assert.Equal(t, "test.conf", tf.Path)
 	assert.Contains(t, tf.Content, "bgp {")
-	assert.Contains(t, tf.Content, "as 65000")
+	assert.Contains(t, tf.Content, "local 65000")
 	assert.Contains(t, tf.Content, "router-id 1.2.3.4")
 }
 
@@ -437,11 +439,11 @@ EOF_CONF`
 // PREVENTS: Only first file captured.
 func TestParseTmpfsMultiple(t *testing.T) {
 	content := `tmpfs=original.conf:terminator=EOF_ORIG
-bgp { local { as 65000; } }
+bgp { session { asn { local 65000; } } }
 EOF_ORIG
 
 tmpfs=merge.conf:terminator=EOF_MERGE
-bgp { peer peer1 { remote { ip 1.1.1.1; as 65001; } } }
+bgp { peer peer1 { connection { remote { ip 1.1.1.1; } } session { asn { remote 65001; } } } }
 EOF_MERGE`
 
 	tc, err := ParseETFile(content)
@@ -449,7 +451,7 @@ EOF_MERGE`
 	require.Len(t, tc.Tmpfs, 2)
 
 	assert.Equal(t, "original.conf", tc.Tmpfs[0].Path)
-	assert.Contains(t, tc.Tmpfs[0].Content, "as 65000")
+	assert.Contains(t, tc.Tmpfs[0].Content, "local 65000")
 
 	assert.Equal(t, "merge.conf", tc.Tmpfs[1].Path)
 	assert.Contains(t, tc.Tmpfs[1].Content, "peer peer1")
@@ -531,14 +533,22 @@ func TestParseCompleteExample(t *testing.T) {
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
-  local {
-    as 65000
+  session {
+    asn {
+      local 65000
+    }
   }
   router-id 1.2.3.4
   peer peer1 {
-    remote {
-      ip 1.1.1.1
-      as 65001
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
     }
   }
 }
@@ -588,7 +598,7 @@ func TestParseInvalidLine(t *testing.T) {
 // PREVENTS: Content bleeding into next section.
 func TestParseMissingTerminator(t *testing.T) {
 	content := `tmpfs=test.conf:terminator=EOF_CONF
-bgp { local { as 65000; } }
+bgp { session { asn { local 65000; } } }
 # Missing EOF_CONF terminator`
 
 	_, err := ParseETFile(content)

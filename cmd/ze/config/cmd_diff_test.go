@@ -10,17 +10,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// minimal ze config: router-id + local as + one peer with remote as.
+// minimal ze config: router-id + session asn local + one peer with connection/session.
 const testConfigBase = `
 bgp {
     router-id 1.1.1.1;
-    local {
-        as 65000;
+    session {
+        asn {
+            local 65000;
+        }
     }
     peer peer1 {
-        remote {
-            ip 10.0.0.1;
-            as 65001;
+        connection {
+            remote {
+                ip 10.0.0.1;
+            }
+        }
+        session {
+            asn {
+                remote 65001;
+            }
         }
     }
 }
@@ -30,13 +38,21 @@ bgp {
 const testConfigChanged = `
 bgp {
     router-id 1.1.1.1;
-    local {
-        as 65000;
+    session {
+        asn {
+            local 65000;
+        }
     }
     peer peer1 {
-        remote {
-            ip 10.0.0.1;
-            as 65002;
+        connection {
+            remote {
+                ip 10.0.0.1;
+            }
+        }
+        session {
+            asn {
+                remote 65002;
+            }
         }
     }
 }
@@ -46,19 +62,33 @@ bgp {
 const testConfigAdded = `
 bgp {
     router-id 1.1.1.1;
-    local {
-        as 65000;
+    session {
+        asn {
+            local 65000;
+        }
     }
     peer peer1 {
-        remote {
-            ip 10.0.0.1;
-            as 65001;
+        connection {
+            remote {
+                ip 10.0.0.1;
+            }
+        }
+        session {
+            asn {
+                remote 65001;
+            }
         }
     }
     peer peer2 {
-        remote {
-            ip 10.0.0.2;
-            as 65003;
+        connection {
+            remote {
+                ip 10.0.0.2;
+            }
+        }
+        session {
+            asn {
+                remote 65003;
+            }
         }
     }
 }

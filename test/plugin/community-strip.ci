@@ -85,40 +85,52 @@ bgp {
 	}
 
 	peer source-peer {
-		remote {
-			ip 127.0.0.1
-			as 65001
-			accept false
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
 		}
-		local {
-			as 65000
-			ip 127.0.0.1
+		session {
+			asn {
+				local 65000
+				remote 65001
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
 		}
-		router-id 1.2.3.4
 
-		family {
-			ipv4/unicast { prefix { maximum 10000; } }
-		}
 		process test-strip {
 			receive [ update state ]
 		}
 	}
 
 	peer dest-peer {
-		remote {
-			ip 127.0.0.2
-			as 65002
-			accept false
+		connection {
+			remote {
+				ip 127.0.0.2
+				accept false
+			}
+			local {
+				ip 127.0.0.2
+			}
 		}
-		local {
-			as 65000
-			ip 127.0.0.2
+		session {
+			asn {
+				local 65000
+				remote 65002
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
 		}
-		router-id 1.2.3.4
 
-		family {
-			ipv4/unicast { prefix { maximum 10000; } }
-		}
 		filter {
 			egress {
 				community {

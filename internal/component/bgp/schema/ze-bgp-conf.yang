@@ -22,13 +22,16 @@ module ze-bgp-conf {
             description "BGP Router ID (required)";
         }
 
-        container local {
-            description "Local BGP identity";
-            leaf as {
-                type zt:asn;
-                mandatory true;
-                ze:decorate "asn-name";
-                description "Local Autonomous System Number (required)";
+        container session {
+            description "Global BGP session defaults";
+            container asn {
+                description "AS number configuration";
+                leaf local {
+                    type zt:asn;
+                    mandatory true;
+                    ze:decorate "asn-name";
+                    description "Local Autonomous System Number (required)";
+                }
             }
         }
 
@@ -71,7 +74,7 @@ module ze-bgp-conf {
 
             list peer {
                 key "name";
-                unique "remote/ip";
+                unique "connection/remote/ip";
                 description "BGP peer in this group";
 
                 leaf name {
@@ -88,7 +91,7 @@ module ze-bgp-conf {
         // Standalone peers (not in a group)
         list peer {
             key "name";
-            unique "remote/ip";
+            unique "connection/remote/ip";
             description "BGP peer configuration (standalone, no group)";
 
             leaf name {
@@ -174,33 +177,246 @@ module ze-bgp-conf {
     grouping peer-fields {
         description "Common peer/group configuration fields";
 
-        // Remote ASN default (group level sets default for child peers)
-        container remote {
-            description "Remote peer identity defaults";
-            leaf as {
-                type zt:asn;
-                ze:decorate "asn-name";
-                description "Peer Autonomous System Number";
+        // Connection container - transport-level settings
+        container connection {
+            description "Transport-level connection settings";
+
+            container local {
+                description "Local connection settings";
+                leaf port {
+                    type zt:port;
+                    description "Local bind port (overrides global tcp.port for this peer)";
+                }
+                leaf connect {
+                    type boolean;
+                    default true;
+                    description "Initiate outbound TCP connections to this peer (RFC 4271 Section 8.1.1)";
+                }
             }
-            leaf accept {
+
+            container remote {
+                description "Remote connection settings";
+                leaf port {
+                    type zt:port;
+                    description "Remote connection port";
+                }
+                leaf accept {
+                    type boolean;
+                    default true;
+                    description "Accept inbound TCP connections from this peer (RFC 4271 Section 8.1.1)";
+                }
+            }
+
+            container md5 {
+                description "TCP MD5 authentication (RFC 2385)";
+                leaf password {
+                    type string;
+                    ze:sensitive;
+                    description "MD5 authentication password";
+                }
+                leaf ip {
+                    type zt:ip-address;
+                    description "MD5 authentication IP";
+                }
+            }
+
+            container ttl {
+                description "TTL settings for BGP sessions";
+                leaf max {
+                    type uint8;
+                    description "TTL security / GTSM (RFC 5082)";
+                }
+                leaf set {
+                    type uint8;
+                    description "Outgoing TTL value";
+                }
+                leaf min {
+                    type uint8;
+                    description "Minimum incoming TTL";
+                }
+            }
+
+            leaf link-local {
                 type boolean;
-                default true;
-                description "Accept inbound TCP connections from this peer (RFC 4271 Section 8.1.1)";
+                description "Auto-discover IPv6 link-local address for TCP connection";
             }
         }
 
-        // Local identity overrides
-        container local {
-            description "Local identity overrides";
-            leaf as {
-                type zt:asn;
-                ze:decorate "asn-name";
-                description "Local AS (overrides global)";
+        // Session container - BGP session settings
+        container session {
+            description "BGP session settings";
+
+            container asn {
+                description "AS number configuration";
+                leaf local {
+                    type zt:asn;
+                    ze:decorate "asn-name";
+                    description "Local AS (overrides global)";
+                }
+                leaf remote {
+                    type zt:asn;
+                    ze:decorate "asn-name";
+                    description "Peer Autonomous System Number";
+                }
             }
-            leaf connect {
+
+            leaf router-id {
+                type zt:ipv4-address;
+                description "Override router ID for this peer";
+            }
+
+            leaf link-local {
+                type zt:ipv6-address;
+                description "IPv6 link-local address for next-hop (RFC 2545 Section 3)";
+            }
+
+            // Address families
+            list family {
+                key "name";
+                description "Address families to negotiate";
+                leaf name {
+                    type zt:address-family;
+                    ze:validate "registered-address-family";
+                    description "AFI/SAFI (e.g. ipv4/unicast)";
+                }
+                leaf mode {
+                    type enumeration {
+                        enum enable { description "Enable this address family"; }
+                        enum disable { description "Disable this address family"; }
+                        enum require { description "Require this address family"; }
+                        enum ignore { description "Ignore this address family"; }
+                    }
+                    description "Address family negotiation mode";
+                }
+
+                // Per-family prefix limits (RFC 4486)
+                container prefix {
+                    description "Prefix limit configuration for this address family";
+                    leaf maximum {
+                        type uint32 {
+                            range "1..max";
+                        }
+                        description "Hard maximum number of prefixes accepted";
+                    }
+                    leaf warning {
+                        type uint32;
+                        description "Warning threshold. Defaults to 90% of maximum when not set.";
+                    }
+                    leaf teardown {
+                        type boolean;
+                        default true;
+                        description "Tear down session when prefix maximum exceeded (false = warn only)";
+                    }
+                    leaf idle-timeout {
+                        type uint16;
+                        default 0;
+                        description "Seconds before auto-reconnect after prefix teardown (0 = no reconnect)";
+                    }
+                    leaf updated {
+                        type string;
+                        ze:hidden true;
+                        description "ISO date (YYYY-MM-DD) when prefix maximum was last updated from PeeringDB. Hidden leaf.";
+                    }
+                }
+            }
+
+            // Capabilities
+            container capability {
+                description "BGP capability negotiation";
+
+                leaf asn4 {
+                    type boolean;
+                    default true;
+                    description "4-byte ASN support";
+                }
+
+                container route-refresh {
+                    presence "Route Refresh capability enabled";
+                    description "Route Refresh capability";
+                }
+
+                // NOTE: graceful-restart moved to GR plugin (ze-graceful-restart.yang)
+
+                container add-path {
+                    presence "ADD-PATH capability enabled";
+                    description "ADD-PATH capability";
+                    leaf send {
+                        type boolean;
+                        default false;
+                        description "Send ADD-PATH";
+                    }
+                    leaf receive {
+                        type boolean;
+                        default false;
+                        description "Receive ADD-PATH";
+                    }
+                }
+
+                container extended-message {
+                    presence "Extended Message capability enabled";
+                    description "Extended Message capability";
+                }
+
+                list nexthop {
+                    key "family";
+                    description "Extended Next Hop capability (RFC 8950)";
+                    leaf family { type zt:address-family; description "NLRI family (e.g. ipv4/unicast)"; }
+                    leaf nhafi { type zt:afi; description "Next-hop AFI (e.g. ipv6)"; }
+                    leaf mode {
+                        type enumeration {
+                            enum enable { description "Enable extended next hop"; }
+                            enum disable { description "Disable extended next hop"; }
+                            enum require { description "Require extended next hop"; }
+                            enum refuse { description "Refuse extended next hop"; }
+                        }
+                        description "Extended next hop negotiation mode";
+                    }
+                }
+            }
+
+            // Per-family add-path configuration
+            list add-path {
+                key "family";
+                description "Per-family ADD-PATH configuration (RFC 7911)";
+                leaf family { type zt:address-family; description "Address family (e.g. ipv4/unicast)"; }
+                leaf direction {
+                    type enumeration {
+                        enum send { description "Send ADD-PATH"; }
+                        enum receive { description "Receive ADD-PATH"; }
+                        enum send/receive { description "Both send and receive ADD-PATH"; }
+                    }
+                    description "ADD-PATH direction";
+                }
+                leaf mode {
+                    type enumeration {
+                        enum enable { description "Enable ADD-PATH for this family"; }
+                        enum disable { description "Disable ADD-PATH for this family"; }
+                        enum require { description "Require ADD-PATH for this family"; }
+                        enum refuse { description "Refuse ADD-PATH for this family"; }
+                    }
+                    description "ADD-PATH negotiation mode";
+                }
+            }
+        }
+
+        // Behaviour container - operational knobs
+        container behavior {
+            description "Operational behavior settings";
+
+            leaf group-updates {
                 type boolean;
                 default true;
-                description "Initiate outbound TCP connections to this peer (RFC 4271 Section 8.1.1)";
+                description "Group UPDATE messages";
+            }
+
+            leaf manual-eor {
+                type boolean;
+                description "Manual End-of-RIB";
+            }
+
+            leaf auto-flush {
+                type boolean;
+                description "Auto-flush routes";
             }
         }
 
@@ -208,16 +424,6 @@ module ze-bgp-conf {
         leaf description {
             type string;
             description "Peer description";
-        }
-
-        leaf router-id {
-            type zt:ipv4-address;
-            description "Override router ID for this peer";
-        }
-
-        leaf link-local {
-            type zt:ipv6-address;
-            description "IPv6 link-local address for next-hop (RFC 2545 Section 3)";
         }
 
         container timer {
@@ -246,201 +452,7 @@ module ze-bgp-conf {
             }
         }
 
-        leaf port {
-            type zt:port;
-            description "Per-peer listen port (overrides global tcp.port for this peer)";
-        }
-
-        leaf group-updates {
-            type boolean;
-            default true;
-            description "Group UPDATE messages";
-        }
-
-        // Address families
-        list family {
-            key "name";
-            description "Address families to negotiate";
-            leaf name {
-                type zt:address-family;
-                ze:validate "registered-address-family";
-                description "AFI/SAFI (e.g. ipv4/unicast)";
-            }
-            leaf mode {
-                type enumeration {
-                    enum enable { description "Enable this address family"; }
-                    enum disable { description "Disable this address family"; }
-                    enum require { description "Require this address family"; }
-                    enum ignore { description "Ignore this address family"; }
-                }
-                description "Address family negotiation mode";
-            }
-
-            // Per-family prefix limits (RFC 4486)
-            container prefix {
-                description "Prefix limit configuration for this address family";
-                leaf maximum {
-                    type uint32 {
-                        range "1..max";
-                    }
-                    description "Hard maximum number of prefixes accepted";
-                }
-                leaf warning {
-                    type uint32;
-                    description "Warning threshold. Defaults to 90% of maximum when not set.";
-                }
-            }
-        }
-
-        // Peer-level prefix enforcement settings
-        container prefix {
-            description "Peer-level prefix limit enforcement settings";
-            leaf teardown {
-                type boolean;
-                default true;
-                description "Tear down session when prefix maximum exceeded (false = warn only)";
-            }
-            leaf idle-timeout {
-                type uint16;
-                default 0;
-                description "Seconds before auto-reconnect after prefix teardown (0 = no reconnect)";
-            }
-            leaf updated {
-                type string;
-                ze:hidden true;
-                description "ISO date (YYYY-MM-DD) when prefix maximum was last updated from PeeringDB. Hidden leaf.";
-            }
-        }
-
-        // Capabilities
-        container capability {
-            description "BGP capability negotiation";
-
-            leaf asn4 {
-                type boolean;
-                default true;
-                description "4-byte ASN support";
-            }
-
-            container route-refresh {
-                presence "Route Refresh capability enabled";
-                description "Route Refresh capability";
-            }
-
-            // NOTE: graceful-restart moved to GR plugin (ze-graceful-restart.yang)
-
-            container add-path {
-                presence "ADD-PATH capability enabled";
-                description "ADD-PATH capability";
-                leaf send {
-                    type boolean;
-                    default false;
-                    description "Send ADD-PATH";
-                }
-                leaf receive {
-                    type boolean;
-                    default false;
-                    description "Receive ADD-PATH";
-                }
-            }
-
-            container extended-message {
-                presence "Extended Message capability enabled";
-                description "Extended Message capability";
-            }
-
-            list nexthop {
-                key "family";
-                description "Extended Next Hop capability (RFC 8950)";
-                leaf family { type zt:address-family; description "NLRI family (e.g. ipv4/unicast)"; }
-                leaf nhafi { type zt:afi; description "Next-hop AFI (e.g. ipv6)"; }
-                leaf mode {
-                    type enumeration {
-                        enum enable { description "Enable extended next hop"; }
-                        enum disable { description "Disable extended next hop"; }
-                        enum require { description "Require extended next hop"; }
-                        enum refuse { description "Refuse extended next hop"; }
-                    }
-                    description "Extended next hop negotiation mode";
-                }
-            }
-
-        }
-
-        // Additional peer settings
-        // NOTE: host-name/domain-name moved to hostname plugin (ze-hostname.yang)
-
-        leaf md5-password {
-            type string;
-            ze:sensitive;
-            description "MD5 authentication password";
-        }
-
-        leaf md5-ip {
-            type zt:ip-address;
-            description "MD5 authentication IP";
-        }
-
-        leaf ttl-security {
-            type uint8;
-            description "TTL security (GTSM)";
-        }
-
-        leaf outgoing-ttl {
-            type uint8;
-            description "Outgoing TTL";
-        }
-
-        leaf incoming-ttl {
-            type uint8;
-            description "Incoming TTL";
-        }
-
-        leaf manual-eor {
-            type boolean;
-            description "Manual End-of-RIB";
-        }
-
-        leaf auto-flush {
-            type boolean;
-            description "Auto-flush routes";
-        }
-
-        leaf adj-rib-out {
-            type boolean;
-            description "Maintain Adj-RIB-Out";
-        }
-
-        leaf adj-rib-in {
-            type boolean;
-            description "Maintain Adj-RIB-In";
-        }
-
         uses update-block;
-
-        // Per-family add-path configuration
-        list add-path {
-            key "family";
-            description "Per-family ADD-PATH configuration (RFC 7911)";
-            leaf family { type zt:address-family; description "Address family (e.g. ipv4/unicast)"; }
-            leaf direction {
-                type enumeration {
-                    enum send { description "Send ADD-PATH"; }
-                    enum receive { description "Receive ADD-PATH"; }
-                    enum send/receive { description "Both send and receive ADD-PATH"; }
-                }
-                description "ADD-PATH direction";
-            }
-            leaf mode {
-                type enumeration {
-                    enum enable { description "Enable ADD-PATH for this family"; }
-                    enum disable { description "Disable ADD-PATH for this family"; }
-                    enum require { description "Require ADD-PATH for this family"; }
-                    enum refuse { description "Refuse ADD-PATH for this family"; }
-                }
-                description "ADD-PATH negotiation mode";
-            }
-        }
 
         // Process bindings
         list process {
@@ -519,6 +531,17 @@ module ze-bgp-conf {
         // RIB configuration
         container rib {
             description "RIB configuration";
+            container adj {
+                description "Adjacency RIB settings";
+                leaf in {
+                    type boolean;
+                    description "Maintain Adj-RIB-In";
+                }
+                leaf out {
+                    type boolean;
+                    description "Maintain Adj-RIB-Out";
+                }
+            }
             container out {
                 description "Outbound RIB settings";
                 leaf group-updates {
@@ -541,18 +564,18 @@ module ze-bgp-conf {
 
     }
 
-    // Peer-level IP addresses — augmented into peer remote/local containers.
+    // Peer-level IP addresses — augmented into peer connection > remote/local containers.
     // Groups do NOT get these (remote > ip makes no sense at group level).
 
-    // Standalone peer: remote > ip
-    augment "/bgp:bgp/bgp:peer/bgp:remote" {
+    // Standalone peer: connection > remote > ip
+    augment "/bgp:bgp/bgp:peer/bgp:connection/bgp:remote" {
         leaf ip {
             type zt:ip-address;
             description "Peer IP address (required at peer level)";
         }
     }
-    // Standalone peer: local > ip
-    augment "/bgp:bgp/bgp:peer/bgp:local" {
+    // Standalone peer: connection > local > ip
+    augment "/bgp:bgp/bgp:peer/bgp:connection/bgp:local" {
         leaf ip {
             type union {
                 type zt:ip-address;
@@ -563,15 +586,15 @@ module ze-bgp-conf {
             description "Local address for connection (use IP address or 'auto')";
         }
     }
-    // Grouped peer: remote > ip
-    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:remote" {
+    // Grouped peer: connection > remote > ip
+    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:connection/bgp:remote" {
         leaf ip {
             type zt:ip-address;
             description "Peer IP address (required at peer level)";
         }
     }
-    // Grouped peer: local > ip
-    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:local" {
+    // Grouped peer: connection > local > ip
+    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:connection/bgp:local" {
         leaf ip {
             type union {
                 type zt:ip-address;

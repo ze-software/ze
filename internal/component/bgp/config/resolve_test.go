@@ -1163,30 +1163,37 @@ func TestResolveBGPTree_BGPLevelFamilyInheritance(t *testing.T) {
 	assert.Equal(t, "500000", p2Prefix["maximum"], "peer2 should use its own maximum")
 }
 
-// TestResolveBGPTree_DuplicateRemoteIP verifies error on duplicate remote > ip across peers.
+// newTestPeer builds a peer tree with connection > remote > ip and session > asn > remote.
+func newTestPeer(ip, as string) *config.Tree {
+	peer := config.NewTree()
+	conn := config.NewTree()
+	remote := config.NewTree()
+	remote.Set("ip", ip)
+	conn.SetContainer("remote", remote)
+	peer.SetContainer("connection", conn)
+	session := config.NewTree()
+	asn := config.NewTree()
+	asn.Set("remote", as)
+	session.SetContainer("asn", asn)
+	peer.SetContainer("session", session)
+	return peer
+}
+
+// TestResolveBGPTree_DuplicateRemoteIP verifies error on duplicate connection > remote > ip across peers.
 //
 // VALIDATES: Duplicate remote IP addresses produce config validation error.
 // PREVENTS: Two peers with different names but same remote IP causing ambiguous connections.
 func TestResolveBGPTree_DuplicateRemoteIP(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgpLocal := config.NewTree()
-	bgpLocal.Set("as", "65000")
-	bgp.SetContainer("local", bgpLocal)
+	bgpSession := config.NewTree()
+	bgpASN := config.NewTree()
+	bgpASN.Set("local", "65000")
+	bgpSession.SetContainer("asn", bgpASN)
+	bgp.SetContainer("session", bgpSession)
 
-	peer1 := config.NewTree()
-	peer1Remote := config.NewTree()
-	peer1Remote.Set("ip", "10.0.0.1")
-	peer1Remote.Set("as", "65001")
-	peer1.SetContainer("remote", peer1Remote)
-	bgp.AddListEntry("peer", "peer_alpha", peer1)
-
-	peer2 := config.NewTree()
-	peer2Remote := config.NewTree()
-	peer2Remote.Set("ip", "10.0.0.1") // Same IP as peer1.
-	peer2Remote.Set("as", "65002")
-	peer2.SetContainer("remote", peer2Remote)
-	bgp.AddListEntry("peer", "peer_beta", peer2)
+	bgp.AddListEntry("peer", "peer_alpha", newTestPeer("10.0.0.1", "65001"))
+	bgp.AddListEntry("peer", "peer_beta", newTestPeer("10.0.0.1", "65002")) // Same IP.
 
 	tree.SetContainer("bgp", bgp)
 
@@ -1196,33 +1203,25 @@ func TestResolveBGPTree_DuplicateRemoteIP(t *testing.T) {
 	assert.Contains(t, err.Error(), "duplicate remote IP")
 }
 
-// TestResolveBGPTree_DuplicateRemoteIPAcrossGroups verifies error on duplicate remote > ip in different groups.
+// TestResolveBGPTree_DuplicateRemoteIPAcrossGroups verifies error on duplicate connection > remote > ip in different groups.
 //
 // VALIDATES: Duplicate remote IP addresses across groups produce config validation error.
 // PREVENTS: Two peers in different groups with same remote IP.
 func TestResolveBGPTree_DuplicateRemoteIPAcrossGroups(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgpLocal := config.NewTree()
-	bgpLocal.Set("as", "65000")
-	bgp.SetContainer("local", bgpLocal)
+	bgpSession := config.NewTree()
+	bgpASN := config.NewTree()
+	bgpASN.Set("local", "65000")
+	bgpSession.SetContainer("asn", bgpASN)
+	bgp.SetContainer("session", bgpSession)
 
 	group1 := config.NewTree()
-	peer1 := config.NewTree()
-	peer1Remote := config.NewTree()
-	peer1Remote.Set("ip", "10.0.0.1")
-	peer1Remote.Set("as", "65001")
-	peer1.SetContainer("remote", peer1Remote)
-	group1.AddListEntry("peer", "peer_alpha", peer1)
+	group1.AddListEntry("peer", "peer_alpha", newTestPeer("10.0.0.1", "65001"))
 	bgp.AddListEntry("group", "group1", group1)
 
 	group2 := config.NewTree()
-	peer2 := config.NewTree()
-	peer2Remote := config.NewTree()
-	peer2Remote.Set("ip", "10.0.0.1") // Same IP as peer1 in group1.
-	peer2Remote.Set("as", "65002")
-	peer2.SetContainer("remote", peer2Remote)
-	group2.AddListEntry("peer", "peer_beta", peer2)
+	group2.AddListEntry("peer", "peer_beta", newTestPeer("10.0.0.1", "65002")) // Same IP.
 	bgp.AddListEntry("group", "group2", group2)
 
 	tree.SetContainer("bgp", bgp)
@@ -1233,32 +1232,24 @@ func TestResolveBGPTree_DuplicateRemoteIPAcrossGroups(t *testing.T) {
 	assert.Contains(t, err.Error(), "duplicate remote IP")
 }
 
-// TestResolveBGPTree_DuplicateRemoteIPGroupAndStandalone verifies error on duplicate remote > ip across group and standalone.
+// TestResolveBGPTree_DuplicateRemoteIPGroupAndStandalone verifies error on duplicate connection > remote > ip across group and standalone.
 //
 // VALIDATES: Duplicate remote IP between grouped and standalone peers produces error.
 // PREVENTS: Same remote IP used in group peer and standalone peer.
 func TestResolveBGPTree_DuplicateRemoteIPGroupAndStandalone(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgpLocal := config.NewTree()
-	bgpLocal.Set("as", "65000")
-	bgp.SetContainer("local", bgpLocal)
+	bgpSession := config.NewTree()
+	bgpASN := config.NewTree()
+	bgpASN.Set("local", "65000")
+	bgpSession.SetContainer("asn", bgpASN)
+	bgp.SetContainer("session", bgpSession)
 
 	group1 := config.NewTree()
-	peer1 := config.NewTree()
-	peer1Remote := config.NewTree()
-	peer1Remote.Set("ip", "10.0.0.1")
-	peer1Remote.Set("as", "65001")
-	peer1.SetContainer("remote", peer1Remote)
-	group1.AddListEntry("peer", "peer_alpha", peer1)
+	group1.AddListEntry("peer", "peer_alpha", newTestPeer("10.0.0.1", "65001"))
 	bgp.AddListEntry("group", "group1", group1)
 
-	peer2 := config.NewTree()
-	peer2Remote := config.NewTree()
-	peer2Remote.Set("ip", "10.0.0.1") // Same IP as peer1 in group1.
-	peer2Remote.Set("as", "65002")
-	peer2.SetContainer("remote", peer2Remote)
-	bgp.AddListEntry("peer", "peer_beta", peer2)
+	bgp.AddListEntry("peer", "peer_beta", newTestPeer("10.0.0.1", "65002")) // Same IP.
 
 	tree.SetContainer("bgp", bgp)
 
@@ -1275,23 +1266,14 @@ func TestResolveBGPTree_DuplicateRemoteIPGroupAndStandalone(t *testing.T) {
 func TestResolveBGPTree_UniqueRemoteIPsAccepted(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgpLocal := config.NewTree()
-	bgpLocal.Set("as", "65000")
-	bgp.SetContainer("local", bgpLocal)
+	bgpSession := config.NewTree()
+	bgpASN := config.NewTree()
+	bgpASN.Set("local", "65000")
+	bgpSession.SetContainer("asn", bgpASN)
+	bgp.SetContainer("session", bgpSession)
 
-	peer1 := config.NewTree()
-	peer1Remote := config.NewTree()
-	peer1Remote.Set("ip", "10.0.0.1")
-	peer1Remote.Set("as", "65001")
-	peer1.SetContainer("remote", peer1Remote)
-	bgp.AddListEntry("peer", "peer_alpha", peer1)
-
-	peer2 := config.NewTree()
-	peer2Remote := config.NewTree()
-	peer2Remote.Set("ip", "10.0.0.2") // Different IP.
-	peer2Remote.Set("as", "65002")
-	peer2.SetContainer("remote", peer2Remote)
-	bgp.AddListEntry("peer", "peer_beta", peer2)
+	bgp.AddListEntry("peer", "peer_alpha", newTestPeer("10.0.0.1", "65001"))
+	bgp.AddListEntry("peer", "peer_beta", newTestPeer("10.0.0.2", "65002")) // Different IP.
 
 	tree.SetContainer("bgp", bgp)
 
@@ -1299,29 +1281,34 @@ func TestResolveBGPTree_UniqueRemoteIPsAccepted(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestResolveBGPTree_MissingRemoteIPNoDuplicateError verifies peers without remote > ip don't cause false duplicates.
+// TestResolveBGPTree_MissingRemoteIPNoDuplicateError verifies peers without connection > remote > ip don't cause false duplicates.
 //
-// VALIDATES: Peers without remote > ip are not treated as duplicates of each other.
+// VALIDATES: Peers without remote IP are not treated as duplicates of each other.
 // PREVENTS: Empty-string IP being treated as a duplicate.
 func TestResolveBGPTree_MissingRemoteIPNoDuplicateError(t *testing.T) {
 	tree := config.NewTree()
 	bgp := config.NewTree()
-	bgpLocal := config.NewTree()
-	bgpLocal.Set("as", "65000")
-	bgp.SetContainer("local", bgpLocal)
+	bgpSession := config.NewTree()
+	bgpASN := config.NewTree()
+	bgpASN.Set("local", "65000")
+	bgpSession.SetContainer("asn", bgpASN)
+	bgp.SetContainer("session", bgpSession)
 
+	// Peers with session > asn > remote but no connection > remote > ip.
 	peer1 := config.NewTree()
-	peer1Remote := config.NewTree()
-	peer1Remote.Set("as", "65001")
-	// No ip set.
-	peer1.SetContainer("remote", peer1Remote)
+	p1Session := config.NewTree()
+	p1ASN := config.NewTree()
+	p1ASN.Set("remote", "65001")
+	p1Session.SetContainer("asn", p1ASN)
+	peer1.SetContainer("session", p1Session)
 	bgp.AddListEntry("peer", "peer_alpha", peer1)
 
 	peer2 := config.NewTree()
-	peer2Remote := config.NewTree()
-	peer2Remote.Set("as", "65002")
-	// No ip set.
-	peer2.SetContainer("remote", peer2Remote)
+	p2Session := config.NewTree()
+	p2ASN := config.NewTree()
+	p2ASN.Set("remote", "65002")
+	p2Session.SetContainer("asn", p2ASN)
+	peer2.SetContainer("session", p2Session)
 	bgp.AddListEntry("peer", "peer_beta", peer2)
 
 	tree.SetContainer("bgp", bgp)

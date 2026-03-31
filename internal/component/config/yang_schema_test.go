@@ -45,16 +45,20 @@ func TestYANGSchemaLeafTypes(t *testing.T) {
 	bgp, ok := bgpNode.(*ContainerNode)
 	require.True(t, ok, "bgp should be ContainerNode")
 
-	// local.as should be uint32 (nested in local container)
-	localNode := bgp.Get("local")
-	require.NotNil(t, localNode)
-	localContainer, ok := localNode.(*ContainerNode)
-	require.True(t, ok, "local should be ContainerNode")
-	localAS := localContainer.Get("as")
+	// session.asn.local should be uint32 (nested in session > asn container).
+	sessionNode := bgp.Get("session")
+	require.NotNil(t, sessionNode)
+	sessionContainer, ok := sessionNode.(*ContainerNode)
+	require.True(t, ok, "session should be ContainerNode")
+	asnNode := sessionContainer.Get("asn")
+	require.NotNil(t, asnNode)
+	asnContainer, ok := asnNode.(*ContainerNode)
+	require.True(t, ok, "asn should be ContainerNode")
+	localAS := asnContainer.Get("local")
 	require.NotNil(t, localAS)
 	leaf, ok := localAS.(*LeafNode)
 	require.True(t, ok)
-	assert.Equal(t, TypeUint32, leaf.Type, "local.as type: got %v", leaf.Type)
+	assert.Equal(t, TypeUint32, leaf.Type, "session.asn.local type: got %v", leaf.Type)
 
 	// router-id should be IPv4 - check actual type for debugging
 	routerID := bgp.Get("router-id")
@@ -82,23 +86,35 @@ func TestYANGSchemaSensitiveExtension(t *testing.T) {
 	peer, ok := peerNode.(*ListNode)
 	require.True(t, ok)
 
-	// md5-password should be marked sensitive
-	md5 := peer.Get("md5-password")
-	require.NotNil(t, md5, "peer should have md5-password")
-	md5Leaf, ok := md5.(*LeafNode)
-	require.True(t, ok, "md5-password should be LeafNode")
-	assert.True(t, md5Leaf.Sensitive, "md5-password should be marked sensitive")
+	// connection.md5.password should be marked sensitive
+	connNode := peer.Get("connection")
+	require.NotNil(t, connNode, "peer should have connection")
+	conn, ok := connNode.(*ContainerNode)
+	require.True(t, ok, "connection should be ContainerNode")
+	md5Node := conn.Get("md5")
+	require.NotNil(t, md5Node, "connection should have md5")
+	md5Container, ok := md5Node.(*ContainerNode)
+	require.True(t, ok, "md5 should be ContainerNode")
+	md5Pass := md5Container.Get("password")
+	require.NotNil(t, md5Pass, "md5 should have password")
+	md5Leaf, ok := md5Pass.(*LeafNode)
+	require.True(t, ok, "md5.password should be LeafNode")
+	assert.True(t, md5Leaf.Sensitive, "md5.password should be marked sensitive")
 
-	// remote.as should NOT be sensitive
-	remoteNode := peer.Get("remote")
-	require.NotNil(t, remoteNode, "peer should have remote")
-	remote, ok := remoteNode.(*ContainerNode)
-	require.True(t, ok, "remote should be ContainerNode")
-	peerAS := remote.Get("as")
-	require.NotNil(t, peerAS, "remote should have as")
+	// session.asn.remote should NOT be sensitive
+	sessionNode := peer.Get("session")
+	require.NotNil(t, sessionNode, "peer should have session")
+	session, ok := sessionNode.(*ContainerNode)
+	require.True(t, ok, "session should be ContainerNode")
+	asnNode := session.Get("asn")
+	require.NotNil(t, asnNode, "session should have asn")
+	asnContainer, ok := asnNode.(*ContainerNode)
+	require.True(t, ok, "asn should be ContainerNode")
+	peerAS := asnContainer.Get("remote")
+	require.NotNil(t, peerAS, "asn should have remote")
 	peerASLeaf, ok := peerAS.(*LeafNode)
 	require.True(t, ok)
-	assert.False(t, peerASLeaf.Sensitive, "remote.as should not be sensitive")
+	assert.False(t, peerASLeaf.Sensitive, "session.asn.remote should not be sensitive")
 }
 
 // TestYANGSchemaDecorateExtension verifies that ze:decorate is extracted from YANG leaves.
@@ -115,31 +131,39 @@ func TestYANGSchemaDecorateExtension(t *testing.T) {
 	bgp, ok := bgpNode.(*ContainerNode)
 	require.True(t, ok)
 
-	// Global local.as should have ze:decorate "asn-name"
-	localNode := bgp.Get("local")
-	require.NotNil(t, localNode)
-	local, ok := localNode.(*ContainerNode)
+	// Global session.asn.local should have ze:decorate "asn-name"
+	sessionNode := bgp.Get("session")
+	require.NotNil(t, sessionNode)
+	session, ok := sessionNode.(*ContainerNode)
 	require.True(t, ok)
-	localAS := local.Get("as")
+	asnNode := session.Get("asn")
+	require.NotNil(t, asnNode)
+	asnContainer, ok := asnNode.(*ContainerNode)
+	require.True(t, ok)
+	localAS := asnContainer.Get("local")
 	require.NotNil(t, localAS)
 	localASLeaf, ok := localAS.(*LeafNode)
 	require.True(t, ok)
-	assert.Equal(t, "asn-name", localASLeaf.Decorate, "global local.as should have ze:decorate asn-name")
+	assert.Equal(t, "asn-name", localASLeaf.Decorate, "global session.asn.local should have ze:decorate asn-name")
 
-	// Peer remote.as should have ze:decorate "asn-name"
+	// Peer session.asn.remote should have ze:decorate "asn-name"
 	peerNode := bgp.Get("peer")
 	require.NotNil(t, peerNode)
 	peer, ok := peerNode.(*ListNode)
 	require.True(t, ok)
-	remoteNode := peer.Get("remote")
-	require.NotNil(t, remoteNode)
-	remote, ok := remoteNode.(*ContainerNode)
+	peerSessionNode := peer.Get("session")
+	require.NotNil(t, peerSessionNode)
+	peerSession, ok := peerSessionNode.(*ContainerNode)
 	require.True(t, ok)
-	peerAS := remote.Get("as")
+	peerAsnNode := peerSession.Get("asn")
+	require.NotNil(t, peerAsnNode)
+	peerAsnContainer, ok := peerAsnNode.(*ContainerNode)
+	require.True(t, ok)
+	peerAS := peerAsnContainer.Get("remote")
 	require.NotNil(t, peerAS)
 	peerASLeaf, ok := peerAS.(*LeafNode)
 	require.True(t, ok)
-	assert.Equal(t, "asn-name", peerASLeaf.Decorate, "peer remote.as should have ze:decorate asn-name")
+	assert.Equal(t, "asn-name", peerASLeaf.Decorate, "peer session.asn.remote should have ze:decorate asn-name")
 
 	// router-id should NOT be decorated
 	routerID := bgp.Get("router-id")
@@ -155,7 +179,7 @@ func TestYANGSchemaSyntaxHints(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Navigate to capability
+	// Navigate to session.capability
 	bgpNode := schema.Get("bgp")
 	require.NotNil(t, bgpNode)
 	bgp, ok := bgpNode.(*ContainerNode)
@@ -164,7 +188,11 @@ func TestYANGSchemaSyntaxHints(t *testing.T) {
 	require.NotNil(t, peerNode)
 	peer, ok := peerNode.(*ListNode)
 	require.True(t, ok)
-	cap := peer.Get("capability")
+	sessionNode := peer.Get("session")
+	require.NotNil(t, sessionNode)
+	session, ok := sessionNode.(*ContainerNode)
+	require.True(t, ok, "session should be ContainerNode")
+	cap := session.Get("capability")
 	require.NotNil(t, cap)
 
 	capContainer, ok := cap.(*ContainerNode)
@@ -189,14 +217,22 @@ func TestYANGSchemaCanParse(t *testing.T) {
 
 	// Test that parser works with YANG-derived schema
 	config := `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     router-id 1.2.3.4
     peer upstream {
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
         }
     }
 }`
@@ -210,9 +246,11 @@ func TestYANGSchemaCanParse(t *testing.T) {
 	bgp := tree.GetContainer("bgp")
 	require.NotNil(t, bgp)
 
-	localContainer := bgp.GetContainer("local")
-	require.NotNil(t, localContainer)
-	localAS, ok := localContainer.Get("as")
+	sessionContainer := bgp.GetContainer("session")
+	require.NotNil(t, sessionContainer)
+	asnContainer := sessionContainer.GetContainer("asn")
+	require.NotNil(t, asnContainer)
+	localAS, ok := asnContainer.Get("local")
 	assert.True(t, ok)
 	assert.Equal(t, "65000", localAS)
 
@@ -224,9 +262,11 @@ func TestYANGSchemaCanParse(t *testing.T) {
 	assert.Len(t, peers, 1)
 	peerTree := peers["upstream"]
 	require.NotNil(t, peerTree)
-	remoteContainer := peerTree.GetContainer("remote")
-	require.NotNil(t, remoteContainer)
-	peerAS, ok := remoteContainer.Get("as")
+	peerSessionContainer := peerTree.GetContainer("session")
+	require.NotNil(t, peerSessionContainer)
+	peerAsnContainer := peerSessionContainer.GetContainer("asn")
+	require.NotNil(t, peerAsnContainer)
+	peerAS, ok := peerAsnContainer.Get("remote")
 	assert.True(t, ok)
 	assert.Equal(t, "65001", peerAS)
 }
@@ -243,14 +283,22 @@ func TestYANGSchema_NoAnnounce(t *testing.T) {
 
 	// ExaBGP-style announce block should be rejected
 	config := `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     router-id 1.2.3.4
     peer upstream {
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
         }
         announce {
             ipv4 {
@@ -278,14 +326,22 @@ func TestYANGSchema_NoStatic(t *testing.T) {
 
 	// ExaBGP-style static block should be rejected
 	config := `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     router-id 1.2.3.4
     peer upstream {
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
         }
         static {
             route 10.0.0.0/24 next-hop 10.0.0.1
@@ -350,7 +406,7 @@ func TestYANGPresenceContainerDetected(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Navigate to bgp -> peer -> capability -> route-refresh
+	// Navigate to bgp -> peer -> session -> capability -> route-refresh
 	// After Phase 8 YANG changes, route-refresh should be a presence container
 	bgpNode := schema.Get("bgp")
 	require.NotNil(t, bgpNode)
@@ -360,7 +416,11 @@ func TestYANGPresenceContainerDetected(t *testing.T) {
 	require.NotNil(t, peerNode)
 	peer, ok := peerNode.(*ListNode)
 	require.True(t, ok)
-	cap := peer.Get("capability")
+	sessionNode := peer.Get("session")
+	require.NotNil(t, sessionNode)
+	session, ok := sessionNode.(*ContainerNode)
+	require.True(t, ok)
+	cap := session.Get("capability")
 	require.NotNil(t, cap)
 	capContainer, ok := cap.(*ContainerNode)
 	require.True(t, ok)
@@ -392,16 +452,24 @@ func TestPresenceContainerParsesAllForms(t *testing.T) {
 		{
 			name: "flag form",
 			input: `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     peer upstream {
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
         }
-        capability {
-            route-refresh
+        session {
+            asn {
+                remote 65001
+            }
+            capability {
+                route-refresh
+            }
         }
     }
 }`,
@@ -414,16 +482,24 @@ func TestPresenceContainerParsesAllForms(t *testing.T) {
 		{
 			name: "value form",
 			input: `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     peer upstream {
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
         }
-        capability {
-            route-refresh true
+        session {
+            asn {
+                remote 65001
+            }
+            capability {
+                route-refresh true
+            }
         }
     }
 }`,
@@ -436,18 +512,26 @@ func TestPresenceContainerParsesAllForms(t *testing.T) {
 		{
 			name: "block form with children",
 			input: `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     peer upstream {
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
         }
-        capability {
-            add-path {
-                send true
-                receive true
+        session {
+            asn {
+                remote 65001
+            }
+            capability {
+                add-path {
+                    send true
+                    receive true
+                }
             }
         }
     }
@@ -474,7 +558,9 @@ func TestPresenceContainerParsesAllForms(t *testing.T) {
 			require.Len(t, peers, 1)
 			peer := peers["upstream"]
 			require.NotNil(t, peer)
-			cap := peer.GetContainer("capability")
+			session := peer.GetContainer("session")
+			require.NotNil(t, session)
+			cap := session.GetContainer("capability")
 			require.NotNil(t, cap)
 
 			tt.checkTree(t, cap)
@@ -500,16 +586,24 @@ func TestPresenceContainerSerializesAllForms(t *testing.T) {
 		{
 			name: "flag form roundtrip",
 			input: `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     peer upstream {
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
         }
-        capability {
-            route-refresh
+        session {
+            asn {
+                remote 65001
+            }
+            capability {
+                route-refresh
+            }
         }
     }
 }`,
@@ -517,17 +611,25 @@ func TestPresenceContainerSerializesAllForms(t *testing.T) {
 		{
 			name: "block form roundtrip",
 			input: `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     peer upstream {
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
         }
-        capability {
-            extended-message
-            software-version
+        session {
+            asn {
+                remote 65001
+            }
+            capability {
+                extended-message
+                software-version
+            }
         }
     }
 }`,
@@ -567,13 +669,21 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
 		{
 			name: "bracket form",
 			input: `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     peer upstream {
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
         }
         process rib {
             receive [ update state ]
@@ -585,13 +695,21 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
 		{
 			name: "single value",
 			input: `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     peer upstream {
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
         }
         process rib {
             receive update
@@ -603,13 +721,21 @@ func TestYANGLeafListParsesBothForms(t *testing.T) {
 		{
 			name: "space-separated values",
 			input: `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     peer upstream {
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
         }
         process rib {
             receive update state
@@ -676,8 +802,12 @@ func TestInactiveLeafInjected(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, TypeBool, inactiveLeaf.Type)
 
-	// Check nested container (capability) has inactive
-	capNode := peer.Get("capability")
+	// Check nested container (session.capability) has inactive
+	sessionNode := peer.Get("session")
+	require.NotNil(t, sessionNode)
+	sessionContainer, ok := sessionNode.(*ContainerNode)
+	require.True(t, ok)
+	capNode := sessionContainer.Get("capability")
 	require.NotNil(t, capNode)
 	capContainer, ok := capNode.(*ContainerNode)
 	require.True(t, ok)
@@ -710,16 +840,24 @@ func TestInactiveParses(t *testing.T) {
 	require.NoError(t, err)
 
 	input := `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     router-id 1.2.3.4
     peer upstream {
-        inactive enable
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
         }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+        inactive enable
     }
 }`
 	parser := NewParser(schema)
@@ -747,14 +885,22 @@ func TestParseInactivePrefix(t *testing.T) {
 	require.NoError(t, err)
 
 	input := `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     router-id 1.2.3.4
     inactive: peer upstream {
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
         }
     }
 }`
@@ -783,20 +929,34 @@ func TestParseInactiveRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 
 	input := `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     router-id 1.2.3.4
     peer active-peer {
-        remote {
-            ip 10.0.0.1
-            as 65001
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
         }
     }
     inactive: peer disabled-peer {
-        remote {
-            ip 10.0.0.2
-            as 65002
+        connection {
+            remote {
+                ip 10.0.0.2
+            }
+        }
+        session {
+            asn {
+                remote 65002
+            }
         }
     }
 }`
@@ -821,17 +981,25 @@ func TestParseInactivePrefixInsideListEntry(t *testing.T) {
 	require.NoError(t, err)
 
 	input := `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     router-id 1.2.3.4
     peer upstream {
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
         }
-        inactive: capability {
-            route-refresh
+        session {
+            asn {
+                remote 65001
+            }
+            inactive: capability {
+                route-refresh
+            }
         }
     }
 }`
@@ -844,7 +1012,9 @@ func TestParseInactivePrefixInsideListEntry(t *testing.T) {
 	peers := bgp.GetList("peer")
 	peer := peers["upstream"]
 	require.NotNil(t, peer)
-	cap := peer.GetContainer("capability")
+	session := peer.GetContainer("session")
+	require.NotNil(t, session)
+	cap := session.GetContainer("capability")
 	require.NotNil(t, cap, "capability container should exist")
 	v, ok := cap.Get("inactive")
 	require.True(t, ok, "inactive should be set on capability")
@@ -862,16 +1032,24 @@ func TestSerializeInactivePrefix(t *testing.T) {
 	require.NoError(t, err)
 
 	input := `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     router-id 1.2.3.4
     peer upstream {
-        inactive enable
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
         }
+        session {
+            asn {
+                remote 65001
+            }
+        }
+        inactive enable
     }
 }`
 	parser := NewParser(schema)
@@ -905,15 +1083,23 @@ func TestDeadCapabilityRejected(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     peer upstream {
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
         }
-        capability {
+        session {
+            asn {
+                remote 65001
+            }
+            capability {
+        }
             ` + tt.capability + `
         }
     }
@@ -937,13 +1123,21 @@ func TestDeadPeerLeafRejected(t *testing.T) {
 	}
 
 	input := `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     peer upstream {
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
         }
         multi-session
     }
@@ -986,15 +1180,24 @@ func TestProcessReceiveAcceptsStrings(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     peer upstream {
-        remote {
-            ip 192.168.1.1
-            as 65001
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
         }
         process rib {
+            
             ` + tt.field + `
         }
     }

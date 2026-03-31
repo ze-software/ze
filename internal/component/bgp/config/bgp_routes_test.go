@@ -16,7 +16,16 @@ func TestParseUpdateBlock_InvalidMED(t *testing.T) {
 	input := `
 bgp {
     peer transit1 {
-        remote { ip 192.0.2.1; as 65001; }
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
         update {
             attribute {
                 origin igp;
@@ -49,9 +58,22 @@ bgp {
 func TestNLRIListStorage(t *testing.T) {
 	input := `
 bgp {
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer mypeer {
-        remote { ip 192.168.1.1; as 65001; }
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
         update {
             attribute {
                 origin igp;
@@ -128,15 +150,29 @@ func TestNLRIMandatoryOperation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `
 bgp {
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer mypeer {
-        remote { ip 192.168.1.1; as 65001; }
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
         update {
             attribute {
                 origin igp;
                 next-hop 10.0.0.1;
             }
             nlri {
+                
                 ` + tt.familyLine + `;
             }
         }
@@ -182,15 +218,29 @@ func TestNLRIWithAdd(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `
 bgp {
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer mypeer {
-        remote { ip 192.168.1.1; as 65001; }
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
         update {
             attribute {
                 origin igp;
                 next-hop 10.0.0.1;
             }
             nlri {
+                
                 ` + tt.familyLine + `;
             }
         }
@@ -215,9 +265,22 @@ bgp {
 func TestNLRIBracketList(t *testing.T) {
 	input := `
 bgp {
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer mypeer {
-        remote { ip 192.168.1.1; as 65001; }
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
         update {
             attribute {
                 origin igp;
@@ -246,9 +309,22 @@ bgp {
 func TestNLRIVPNWithAdd(t *testing.T) {
 	input := `
 bgp {
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer mypeer {
-        remote { ip 192.168.1.1; as 65001; }
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
         update {
             attribute {
                 origin igp;
@@ -277,9 +353,22 @@ bgp {
 func TestNLRIFlowSpecWithAdd(t *testing.T) {
 	input := `
 bgp {
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer mypeer {
-        remote { ip 192.168.1.1; as 65001; }
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
         update {
             attribute {
                 origin igp;
@@ -320,15 +409,29 @@ func TestNLRIDelAndEor(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `
 bgp {
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer mypeer {
-        remote { ip 192.168.1.1; as 65001; }
+        connection {
+            remote {
+                ip 192.168.1.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
         update {
             attribute {
                 origin igp;
                 next-hop 10.0.0.1;
             }
             nlri {
+                
                 ` + tt.familyLine + `;
             }
         }
@@ -355,8 +458,17 @@ func TestWatchdogUpdateBlocksFilteredFromStaticRoutes(t *testing.T) {
 	input := `
 bgp {
     peer loopback {
-        remote { ip 127.0.0.1; as 65533; }
-        local { as 65533; }
+        connection {
+            remote {
+                ip 127.0.0.1
+            }
+        }
+        session {
+            asn {
+                local 65533
+                remote 65533
+            }
+        }
         update {
             attribute {
                 next-hop 1.2.3.4;

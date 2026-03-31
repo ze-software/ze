@@ -18,9 +18,11 @@ func findPeerByRemoteIP(t *testing.T, tree *config.Tree, addr string) *config.Tr
 	t.Helper()
 	for _, groupEntry := range tree.GetListOrdered("group") {
 		for _, peerEntry := range groupEntry.Value.GetListOrdered("peer") {
-			if remote := peerEntry.Value.GetContainer("remote"); remote != nil {
-				if ip, ok := remote.Get("ip"); ok && ip == addr {
-					return peerEntry.Value
+			if conn := peerEntry.Value.GetContainer("connection"); conn != nil {
+				if remote := conn.GetContainer("remote"); remote != nil {
+					if ip, ok := remote.Get("ip"); ok && ip == addr {
+						return peerEntry.Value
+					}
 				}
 			}
 		}
@@ -316,8 +318,10 @@ neighbor 10.0.0.1 {
 	assert.Contains(t, sendValue, "refresh")
 
 	// Check capability uses enable syntax
-	capBlock := peerTree.GetContainer("capability")
-	require.NotNil(t, capBlock, "expected capability block")
+	sessionBlock := peerTree.GetContainer("session")
+	require.NotNil(t, sessionBlock, "expected session block")
+	capBlock := sessionBlock.GetContainer("capability")
+	require.NotNil(t, capBlock, "expected session > capability block")
 	rrValue, ok := capBlock.Get("route-refresh")
 	require.True(t, ok, "expected route-refresh key")
 	assert.Equal(t, "enable", rrValue, "expected route-refresh enable")
@@ -458,13 +462,13 @@ neighbor 10.0.0.1 {
 
 	output := SerializeTree(result.Tree)
 
-	// Peer should have inherited local-as inside local container.
-	assert.Contains(t, output, "local {", "expected local container")
-	assert.Contains(t, output, "as 65001", "expected inherited local-as in local container")
+	// Peer should have inherited local-as inside session > asn container.
+	assert.Contains(t, output, "session {", "expected session container")
+	assert.Contains(t, output, "asn {", "expected asn container")
+	assert.Contains(t, output, "local 65001", "expected inherited local-as in session > asn")
 
-	// Peer should have its own peer-as inside remote container.
-	assert.Contains(t, output, "remote {", "expected remote container")
-	assert.Contains(t, output, "as 65002", "expected peer-as in remote container")
+	// Peer should have its own peer-as inside session > asn container.
+	assert.Contains(t, output, "remote 65002", "expected peer-as in session > asn")
 
 	// Template should NOT appear in output (expanded inline).
 	assert.NotContains(t, output, "template", "template block should be expanded")
@@ -891,11 +895,11 @@ neighbor 10.0.0.1 {
 	// Template should NOT appear (expanded inline).
 	assert.NotContains(t, output, "peer base", "template should be expanded")
 
-	// Inherited local-as should be present inside local container.
-	assert.Contains(t, output, "local {", "expected local container")
-	assert.Contains(t, output, "as 65001", "expected inherited local-as in local container")
+	// Inherited local-as should be present inside session > asn container.
+	assert.Contains(t, output, "session {", "expected session container")
+	assert.Contains(t, output, "local 65001", "expected inherited local-as in session > asn")
 
-	// Nexthop block should be inside capability.
+	// Nexthop block should be inside session > capability.
 	assert.Contains(t, output, "capability {", "expected capability block")
 	assert.Contains(t, output, "nexthop {", "expected nexthop block")
 

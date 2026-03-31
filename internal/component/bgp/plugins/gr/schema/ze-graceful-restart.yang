@@ -45,17 +45,17 @@ module ze-graceful-restart {
     }
 
     // Standalone peer capability
-    augment "/bgp:bgp/bgp:peer/bgp:capability" {
+    augment "/bgp:bgp/bgp:peer/bgp:session/bgp:capability" {
         uses graceful-restart-config;
     }
 
     // Peer inside group capability
-    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:capability" {
+    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:session/bgp:capability" {
         uses graceful-restart-config;
     }
 
     // Group-level capability
-    augment "/bgp:bgp/bgp:group/bgp:capability" {
+    augment "/bgp:bgp/bgp:group/bgp:session/bgp:capability" {
         uses graceful-restart-config;
     }
 }

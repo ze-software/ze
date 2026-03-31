@@ -149,24 +149,30 @@ func writeFullPeerBlock(b *strings.Builder, params ConfigParams, p PeerProfile) 
 	}
 	fmt.Fprintf(b, "    peer chaos-peer-%d {\n", p.Index)
 	fmt.Fprintf(b, "        description \"chaos-peer-%d\";\n", p.Index)
-	fmt.Fprintf(b, "        router-id %s;\n", params.RouterID)
-	fmt.Fprintf(b, "        remote {\n")
-	fmt.Fprintf(b, "            ip %s;\n", peerAddr)
-	fmt.Fprintf(b, "            as %d;\n", p.ASN)
-	fmt.Fprintf(b, "        }\n")
-	fmt.Fprintf(b, "        local {\n")
-	fmt.Fprintf(b, "            as %d;\n", params.LocalAS)
-	fmt.Fprintf(b, "            ip %s;\n", params.LocalAddr)
+
+	// Connection container — transport-level settings.
+	fmt.Fprintf(b, "        connection {\n")
+	fmt.Fprintf(b, "            remote {\n")
+	fmt.Fprintf(b, "                ip %s;\n", peerAddr)
+	fmt.Fprintf(b, "            }\n")
+	fmt.Fprintf(b, "            local {\n")
+	fmt.Fprintf(b, "                ip %s;\n", params.LocalAddr)
 	// All chaos peers are passive from Ze's perspective: Ze never dials out.
 	// This avoids needing loopback aliases for the fake peer addresses.
-	fmt.Fprintf(b, "            connect false;\n")
-	fmt.Fprintf(b, "        }\n")
-	fmt.Fprintf(b, "        timer { receive-hold-time %d; }\n", p.HoldTime)
-
-	// Per-peer port: Ze listens on a unique port for each peer.
+	fmt.Fprintf(b, "                connect false;\n")
 	if p.ZePort > 0 {
-		fmt.Fprintf(b, "        port %d;\n", p.ZePort)
+		fmt.Fprintf(b, "                port %d;\n", p.ZePort)
 	}
+	fmt.Fprintf(b, "            }\n")
+	fmt.Fprintf(b, "        }\n")
+
+	// Session container — BGP session settings.
+	fmt.Fprintf(b, "        session {\n")
+	fmt.Fprintf(b, "            asn {\n")
+	fmt.Fprintf(b, "                remote %d;\n", p.ASN)
+	fmt.Fprintf(b, "                local %d;\n", params.LocalAS)
+	fmt.Fprintf(b, "            }\n")
+	fmt.Fprintf(b, "            router-id %s;\n", params.RouterID)
 
 	// Family block — per-peer families from profile.
 	families := p.Families
@@ -175,11 +181,14 @@ func writeFullPeerBlock(b *strings.Builder, params ConfigParams, p PeerProfile) 
 	}
 	// Prefix maximum: 10% headroom over route count, minimum 10000.
 	maxPrefix := max(p.RouteCount+p.RouteCount/10, 10000)
-	fmt.Fprintf(b, "        family {\n")
+	fmt.Fprintf(b, "            family {\n")
 	for _, f := range families {
-		fmt.Fprintf(b, "            %s { prefix { maximum %d; } }\n", f, maxPrefix)
+		fmt.Fprintf(b, "                %s { prefix { maximum %d; } }\n", f, maxPrefix)
 	}
+	fmt.Fprintf(b, "            }\n")
 	fmt.Fprintf(b, "        }\n")
+
+	fmt.Fprintf(b, "        timer { receive-hold-time %d; }\n", p.HoldTime)
 
 	fmt.Fprintf(b, "    }\n")
 }

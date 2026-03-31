@@ -4,8 +4,10 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
 	router-id 1.2.3.4
-	local {
-		as 65000
+	session {
+		asn {
+			local 65000
+		}
 	}
 }
 EOF_CONF
@@ -13,6 +15,6 @@ EOF_CONF
 cmd=foreground:seq=1:exec=ze config completion --context bgp --input set+ test.conf
 expect=exit:code=0
 expect=stdout:contains=router-id
-expect=stdout:contains=local
+expect=stdout:contains=session
 expect=stdout:contains=listen
 expect=stdout:contains=peer

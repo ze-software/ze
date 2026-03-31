@@ -43,12 +43,12 @@ func TestExtractSoftverCapabilities(t *testing.T) {
 		"bgp": {
 			"peer": {
 				"192.168.1.1": {
-					"capability": {
+					"session": {"capability": {
 						"software-version": {}
-					}
+					}}
 				},
 				"192.168.1.2": {
-					"capability": {}
+					"session": {"capability": {}}
 				}
 			}
 		}
@@ -82,7 +82,7 @@ func TestExtractSoftverCapabilitiesMode(t *testing.T) {
 			if tt.mode != "" {
 				inner = "{" + tt.mode + "}"
 			}
-			config := `{"bgp":{"peer":{"10.0.0.1":{"capability":{"software-version":` + inner + `}}}}}`
+			config := `{"bgp":{"peer":{"10.0.0.1":{"session":{"capability":{"software-version":` + inner + `}}}}}}`
 			caps := extractSoftverCapabilities(config)
 			if tt.wantCap {
 				assert.Len(t, caps, 1, "expected capability for mode %s", tt.name)
@@ -125,7 +125,7 @@ func TestExtractSoftverCapabilitiesEmpty(t *testing.T) {
 	}{
 		{"no_peers", `{"bgp": {}}`},
 		{"no_capability", `{"bgp": {"peer": {"10.0.0.1": {}}}}`},
-		{"no_softver", `{"bgp": {"peer": {"10.0.0.1": {"capability": {}}}}}`},
+		{"no_softver", `{"bgp": {"peer": {"10.0.0.1": {"session": {"capability": {}}}}}}`},
 		{"invalid_json", `not json`},
 	}
 
@@ -186,9 +186,9 @@ func TestRunCLIDecode(t *testing.T) {
 // PREVENTS: Group-level capability suppressing per-peer overrides.
 func TestExtractSoftverCapabilities_GroupPeerOverride(t *testing.T) {
 	jsonStr := `{"bgp":{"group":{"transit":{
-		"capability":{"software-version":{"mode":"enable"}},
+		"session":{"capability":{"software-version":{"mode":"enable"}}},
 		"peer":{
-			"10.0.0.1":{"capability":{"software-version":{"mode":"disable"}}},
+			"10.0.0.1":{"session":{"capability":{"software-version":{"mode":"disable"}}}},
 			"10.0.0.2":{"peer-as":65002}
 		}
 	}}}}`

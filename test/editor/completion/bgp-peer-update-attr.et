@@ -6,9 +6,15 @@ tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
   peer peer1 {
-  	remote {
-  		ip 1.1.1.1
-  		as 65001;
+  	connection {
+  		remote {
+  			ip 1.1.1.1
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65001
+  		}
   	}
     update {
       attribute {

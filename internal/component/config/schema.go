@@ -293,7 +293,7 @@ func (s *Schema) ExtendCapability(name string, fields ...FieldDef) error {
 	return nil
 }
 
-// extendPeerListCapability adds a capability to a peer list's capability container.
+// extendPeerListCapability adds a capability to a peer list's session > capability container.
 func (s *Schema) extendPeerListCapability(parent *ContainerNode, listName, capName string, fields []FieldDef) error {
 	peerNode := parent.Get(listName)
 	if peerNode == nil {
@@ -305,9 +305,19 @@ func (s *Schema) extendPeerListCapability(parent *ContainerNode, listName, capNa
 		return fmt.Errorf("%s is not a ListNode", listName)
 	}
 
-	capNode := listNode.Get("capability")
+	sessionNode := listNode.Get("session")
+	if sessionNode == nil {
+		return fmt.Errorf("session node not found in %s schema", listName)
+	}
+
+	sessionContainer, ok := sessionNode.(*ContainerNode)
+	if !ok {
+		return fmt.Errorf("session is not a ContainerNode in %s schema", listName)
+	}
+
+	capNode := sessionContainer.Get("capability")
 	if capNode == nil {
-		return fmt.Errorf("capability node not found in %s schema", listName)
+		return fmt.Errorf("capability node not found in %s > session schema", listName)
 	}
 
 	container, ok := capNode.(*ContainerNode)
@@ -321,7 +331,7 @@ func (s *Schema) extendPeerListCapability(parent *ContainerNode, listName, capNa
 	return nil
 }
 
-// extendGroupPeerCapability extends capability schema in group peer lists.
+// extendGroupPeerCapability extends capability schema in group peer lists (session > capability).
 func (s *Schema) extendGroupPeerCapability(bgpContainer *ContainerNode, name string, fields []FieldDef) {
 	groupNode := bgpContainer.Get("group")
 	if groupNode == nil {
@@ -344,7 +354,17 @@ func (s *Schema) extendGroupPeerCapability(bgpContainer *ContainerNode, name str
 		return
 	}
 
-	capNode := peerList.Get("capability")
+	sessionNode := peerList.Get("session")
+	if sessionNode == nil {
+		return
+	}
+
+	sessionContainer, ok := sessionNode.(*ContainerNode)
+	if !ok {
+		return
+	}
+
+	capNode := sessionContainer.Get("capability")
 	if capNode == nil {
 		return
 	}
@@ -355,7 +375,7 @@ func (s *Schema) extendGroupPeerCapability(bgpContainer *ContainerNode, name str
 	}
 }
 
-// extendGroupCapability extends capability schema at the group level (bgp.group.capability).
+// extendGroupCapability extends capability schema at the group level (bgp.group.session.capability).
 func (s *Schema) extendGroupCapability(bgpContainer *ContainerNode, name string, fields []FieldDef) {
 	groupNode := bgpContainer.Get("group")
 	if groupNode == nil {
@@ -367,7 +387,17 @@ func (s *Schema) extendGroupCapability(bgpContainer *ContainerNode, name string,
 		return
 	}
 
-	capNode := groupList.Get("capability")
+	sessionNode := groupList.Get("session")
+	if sessionNode == nil {
+		return
+	}
+
+	sessionContainer, ok := sessionNode.(*ContainerNode)
+	if !ok {
+		return
+	}
+
+	capNode := sessionContainer.Get("capability")
 	if capNode == nil {
 		return
 	}

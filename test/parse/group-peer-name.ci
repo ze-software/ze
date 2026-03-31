@@ -2,17 +2,25 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	router-id 1.2.3.4
-	local {
-		as 65000
+	session {
+		asn {
+			local 65000
+		}
 	}
 	group peering {
 		peer router-east {
-			remote {
-				ip 127.0.0.1
-				as 65001
+			connection {
+				remote {
+					ip 127.0.0.1
+				}
+				local {
+					ip 127.0.0.1
+				}
 			}
-			local {
-				ip 127.0.0.1
+			session {
+				asn {
+					remote 65001
+				}
 			}
 		}
 	}

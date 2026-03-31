@@ -3,16 +3,24 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	router-id 1.1.1.1
-	local {
-		as 65000
+	session {
+		asn {
+			local 65000
+		}
 	}
 	peer peer1 {
-		remote {
-			ip 10.0.0.1
-			as 65001
+		connection {
+			remote {
+				ip 10.0.0.1
+			}
+			local {
+				ip 10.0.0.254
+			}
 		}
-		local {
-			ip 10.0.0.254
+		session {
+			asn {
+				remote 65001
+			}
 		}
 	}
 }
@@ -21,16 +29,24 @@ EOF_CONF
 tmpfs=file1.conf:terminator=EOF_FILE1
 bgp {
 	router-id 1.1.1.1
-	local {
-		as 65000
+	session {
+		asn {
+			local 65000
+		}
 	}
 	peer peer1 {
-		remote {
-			ip 10.0.0.1
-			as 65001
+		connection {
+			remote {
+				ip 10.0.0.1
+			}
+			local {
+				ip 10.0.0.254
+			}
 		}
-		local {
-			ip 10.0.0.254
+		session {
+			asn {
+				remote 65001
+			}
 		}
 	}
 }
@@ -39,16 +55,24 @@ EOF_FILE1
 tmpfs=file2.conf:terminator=EOF_FILE2
 bgp {
 	router-id 1.1.1.1
-	local {
-		as 65000
+	session {
+		asn {
+			local 65000
+		}
 	}
 	peer peer1 {
-		remote {
-			ip 10.0.0.1
-			as 65001
+		connection {
+			remote {
+				ip 10.0.0.1
+			}
+			local {
+				ip 10.0.0.254
+			}
 		}
-		local {
-			ip 10.0.0.254
+		session {
+			asn {
+				remote 65001
+			}
 		}
 	}
 }

@@ -5,8 +5,10 @@
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
-  local {
-  	as 65000
+  session {
+  	asn {
+  		local 65000
+  	}
   }
   router-id 1.2.3.4;
 }
@@ -20,7 +22,7 @@ option=session:user=thomas:origin=local
 expect=dirty:false
 
 # Set a value -- should write through to per-user change file
-input=type:text=set bgp local as 65001
+input=type:text=set bgp session asn local 65001
 input=enter
 expect=dirty:true
 expect=error:none

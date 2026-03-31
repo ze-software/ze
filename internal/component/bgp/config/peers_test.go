@@ -11,29 +11,53 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 )
 
+// buildMinimalPeer creates a minimal peer tree with the new container structure.
+func buildMinimalPeer(remoteIP, remoteAS, localIP string) *config.Tree {
+	peerTree := config.NewTree()
+
+	connTree := config.NewTree()
+	connRemote := config.NewTree()
+	connRemote.Set("ip", remoteIP)
+	connTree.SetContainer("remote", connRemote)
+	connLocal := config.NewTree()
+	connLocal.Set("ip", localIP)
+	connTree.SetContainer("local", connLocal)
+	peerTree.SetContainer("connection", connTree)
+
+	sessionTree := config.NewTree()
+	asnTree := config.NewTree()
+	asnTree.Set("remote", remoteAS)
+	sessionTree.SetContainer("asn", asnTree)
+	peerTree.SetContainer("session", sessionTree)
+
+	return peerTree
+}
+
+// buildBGPBlock creates a minimal BGP block with router-id 1.2.3.4 and local AS 65000.
+func buildBGPBlock() *config.Tree {
+	bgp := config.NewTree()
+	bgp.Set("router-id", "1.2.3.4")
+	sessionTree := config.NewTree()
+	asnTree := config.NewTree()
+	asnTree.Set("local", "65000")
+	sessionTree.SetContainer("asn", asnTree)
+	bgp.SetContainer("session", sessionTree)
+	return bgp
+}
+
 // TestPeersFromConfigTreeBasic verifies basic peer extraction without routes.
 //
 // VALIDATES: PeersFromConfigTree returns correct PeerSettings from a simple tree.
 // PREVENTS: Regression where basic fields (address, AS, receive-hold-time) are lost.
 func TestPeersFromConfigTreeBasic(t *testing.T) {
 	tree := config.NewTree()
-	bgp := config.NewTree()
-	bgp.Set("router-id", "1.2.3.4")
-	bgpLocal := config.NewTree()
-	bgpLocal.Set("as", "65000")
-	bgp.SetContainer("local", bgpLocal)
+	bgp := buildBGPBlock()
 
-	peerTree := config.NewTree()
-	remoteTree := config.NewTree()
-	remoteTree.Set("ip", "10.0.0.1")
-	remoteTree.Set("as", "65001")
-	peerTree.SetContainer("remote", remoteTree)
+	peerTree := buildMinimalPeer("10.0.0.1", "65001", "auto")
 	peerTimerTree := config.NewTree()
 	peerTimerTree.Set("receive-hold-time", "180")
 	peerTree.SetContainer("timer", peerTimerTree)
-	peerLocalTree := config.NewTree()
-	peerLocalTree.Set("ip", "auto")
-	peerTree.SetContainer("local", peerLocalTree)
+
 	bgp.AddListEntry("peer", "peer1", peerTree)
 	tree.SetContainer("bgp", bgp)
 
@@ -53,20 +77,9 @@ func TestPeersFromConfigTreeBasic(t *testing.T) {
 // PREVENTS: Route loss when extracting routes from peer tree subtrees.
 func TestPeersFromConfigTreeStaticRoute(t *testing.T) {
 	tree := config.NewTree()
-	bgp := config.NewTree()
-	bgp.Set("router-id", "1.2.3.4")
-	bgpLocal := config.NewTree()
-	bgpLocal.Set("as", "65000")
-	bgp.SetContainer("local", bgpLocal)
+	bgp := buildBGPBlock()
 
-	peerTree := config.NewTree()
-	remoteTree := config.NewTree()
-	remoteTree.Set("ip", "10.0.0.1")
-	remoteTree.Set("as", "65001")
-	peerTree.SetContainer("remote", remoteTree)
-	peerLocalTree := config.NewTree()
-	peerLocalTree.Set("ip", "auto")
-	peerTree.SetContainer("local", peerLocalTree)
+	peerTree := buildMinimalPeer("10.0.0.1", "65001", "auto")
 
 	// Build static route: static { route 10.10.0.0/24 { next-hop 192.168.1.1; origin igp; } }
 	staticTree := config.NewTree()
@@ -94,27 +107,21 @@ func TestPeersFromConfigTreeStaticRoute(t *testing.T) {
 // PREVENTS: Group resolution breaking route extraction pipeline.
 func TestPeersFromConfigTreeGroupWithRoutes(t *testing.T) {
 	tree := config.NewTree()
-	bgp := config.NewTree()
-	bgp.Set("router-id", "1.2.3.4")
-	bgpLocal := config.NewTree()
-	bgpLocal.Set("as", "65000")
-	bgp.SetContainer("local", bgpLocal)
+	bgp := buildBGPBlock()
 
-	// Group with receive-hold-time default.
+	// Group with receive-hold-time default and remote AS.
 	groupTree := config.NewTree()
 	groupTimerTree := config.NewTree()
 	groupTimerTree.Set("receive-hold-time", "300")
 	groupTree.SetContainer("timer", groupTimerTree)
+	groupSession := config.NewTree()
+	groupASN := config.NewTree()
+	groupASN.Set("remote", "65001")
+	groupSession.SetContainer("asn", groupASN)
+	groupTree.SetContainer("session", groupSession)
 
 	// Peer inside group with a static route.
-	peerTree := config.NewTree()
-	remoteTree := config.NewTree()
-	remoteTree.Set("ip", "10.0.0.1")
-	remoteTree.Set("as", "65001")
-	peerTree.SetContainer("remote", remoteTree)
-	peerLocalTree := config.NewTree()
-	peerLocalTree.Set("ip", "auto")
-	peerTree.SetContainer("local", peerLocalTree)
+	peerTree := buildMinimalPeer("10.0.0.1", "65001", "auto")
 
 	staticTree := config.NewTree()
 	routeTree := config.NewTree()
@@ -152,20 +159,9 @@ func TestPeersFromConfigTreePortOverride(t *testing.T) {
 	env.ResetCache()
 
 	tree := config.NewTree()
-	bgp := config.NewTree()
-	bgp.Set("router-id", "1.2.3.4")
-	bgpLocal := config.NewTree()
-	bgpLocal.Set("as", "65000")
-	bgp.SetContainer("local", bgpLocal)
+	bgp := buildBGPBlock()
 
-	peerTree := config.NewTree()
-	remoteTree := config.NewTree()
-	remoteTree.Set("ip", "10.0.0.1")
-	remoteTree.Set("as", "65001")
-	peerTree.SetContainer("remote", remoteTree)
-	peerLocalTree := config.NewTree()
-	peerLocalTree.Set("ip", "auto")
-	peerTree.SetContainer("local", peerLocalTree)
+	peerTree := buildMinimalPeer("10.0.0.1", "65001", "auto")
 	bgp.AddListEntry("peer", "peer1", peerTree)
 	tree.SetContainer("bgp", bgp)
 
@@ -182,11 +178,7 @@ func TestPeersFromConfigTreePortOverride(t *testing.T) {
 // PREVENTS: Panic on configs with no peers (validation-only configs).
 func TestPeersFromConfigTreeNoPeers(t *testing.T) {
 	tree := config.NewTree()
-	bgp := config.NewTree()
-	bgp.Set("router-id", "1.2.3.4")
-	bgpLocal := config.NewTree()
-	bgpLocal.Set("as", "65000")
-	bgp.SetContainer("local", bgpLocal)
+	bgp := buildBGPBlock()
 	tree.SetContainer("bgp", bgp)
 
 	peers, err := PeersFromConfigTree(tree)
@@ -200,17 +192,16 @@ func TestPeersFromConfigTreeNoPeers(t *testing.T) {
 // PREVENTS: Group-level routes silently dropped, or peer routes replacing group routes.
 func TestPeersFromConfigTree_GroupRoutes(t *testing.T) {
 	tree := config.NewTree()
-	bgp := config.NewTree()
-	bgp.Set("router-id", "1.2.3.4")
-	bgpLocal := config.NewTree()
-	bgpLocal.Set("as", "65000")
-	bgp.SetContainer("local", bgpLocal)
+	bgp := buildBGPBlock()
 
-	// Group with a route at group level.
+	// Group with a route at group level and remote AS default.
 	group := config.NewTree()
-	groupRemote := config.NewTree()
-	groupRemote.Set("as", "65001")
-	group.SetContainer("remote", groupRemote)
+	groupSession := config.NewTree()
+	groupASN := config.NewTree()
+	groupASN.Set("remote", "65001")
+	groupSession.SetContainer("asn", groupASN)
+	group.SetContainer("session", groupSession)
+
 	groupUpdate := config.NewTree()
 	groupAttr := config.NewTree()
 	groupAttr.Set("origin", "igp")
@@ -222,13 +213,8 @@ func TestPeersFromConfigTree_GroupRoutes(t *testing.T) {
 	group.AddListEntry("update", "", groupUpdate)
 
 	// Peer with its own route.
-	peer := config.NewTree()
-	peerRemote := config.NewTree()
-	peerRemote.Set("ip", "10.0.0.1")
-	peer.SetContainer("remote", peerRemote)
-	peerLocal := config.NewTree()
-	peerLocal.Set("ip", "127.0.0.1")
-	peer.SetContainer("local", peerLocal)
+	peer := buildMinimalPeer("10.0.0.1", "65001", "127.0.0.1")
+
 	peerUpdate := config.NewTree()
 	peerAttr := config.NewTree()
 	peerAttr.Set("origin", "igp")
@@ -263,17 +249,15 @@ func TestPeersFromConfigTree_GroupRoutes(t *testing.T) {
 // PREVENTS: Cross-group route contamination via shared patchRoutes calls.
 func TestPeersFromConfigTree_GroupRoutesIsolation(t *testing.T) {
 	tree := config.NewTree()
-	bgp := config.NewTree()
-	bgp.Set("router-id", "1.2.3.4")
-	bgpLocal := config.NewTree()
-	bgpLocal.Set("as", "65000")
-	bgp.SetContainer("local", bgpLocal)
+	bgp := buildBGPBlock()
 
 	// Group A: has a route to 10.0.0.0/24
 	groupA := config.NewTree()
-	groupARemote := config.NewTree()
-	groupARemote.Set("as", "65001")
-	groupA.SetContainer("remote", groupARemote)
+	groupASession := config.NewTree()
+	groupAASN := config.NewTree()
+	groupAASN.Set("remote", "65001")
+	groupASession.SetContainer("asn", groupAASN)
+	groupA.SetContainer("session", groupASession)
 	updateA := config.NewTree()
 	attrA := config.NewTree()
 	attrA.Set("origin", "igp")
@@ -283,21 +267,17 @@ func TestPeersFromConfigTree_GroupRoutesIsolation(t *testing.T) {
 	nlriA.Set("content", "add 10.0.0.0/24")
 	updateA.AddListEntry("nlri", "ipv4/unicast", nlriA)
 	groupA.AddListEntry("update", "", updateA)
-	peerA := config.NewTree()
-	peerARemote := config.NewTree()
-	peerARemote.Set("ip", "10.0.0.1")
-	peerA.SetContainer("remote", peerARemote)
-	peerALocal := config.NewTree()
-	peerALocal.Set("ip", "127.0.0.1")
-	peerA.SetContainer("local", peerALocal)
+	peerA := buildMinimalPeer("10.0.0.1", "65001", "127.0.0.1")
 	groupA.AddListEntry("peer", "peerA", peerA)
 	bgp.AddListEntry("group", "group-a", groupA)
 
 	// Group B: has a route to 20.0.0.0/24
 	groupB := config.NewTree()
-	groupBRemote := config.NewTree()
-	groupBRemote.Set("as", "65002")
-	groupB.SetContainer("remote", groupBRemote)
+	groupBSession := config.NewTree()
+	groupBASN := config.NewTree()
+	groupBASN.Set("remote", "65002")
+	groupBSession.SetContainer("asn", groupBASN)
+	groupB.SetContainer("session", groupBSession)
 	updateB := config.NewTree()
 	attrB := config.NewTree()
 	attrB.Set("origin", "igp")
@@ -307,13 +287,7 @@ func TestPeersFromConfigTree_GroupRoutesIsolation(t *testing.T) {
 	nlriB.Set("content", "add 20.0.0.0/24")
 	updateB.AddListEntry("nlri", "ipv4/unicast", nlriB)
 	groupB.AddListEntry("update", "", updateB)
-	peerB := config.NewTree()
-	peerBRemote := config.NewTree()
-	peerBRemote.Set("ip", "10.0.0.2")
-	peerB.SetContainer("remote", peerBRemote)
-	peerBLocal := config.NewTree()
-	peerBLocal.Set("ip", "127.0.0.1")
-	peerB.SetContainer("local", peerBLocal)
+	peerB := buildMinimalPeer("10.0.0.2", "65002", "127.0.0.1")
 	groupB.AddListEntry("peer", "peerB", peerB)
 	bgp.AddListEntry("group", "group-b", groupB)
 

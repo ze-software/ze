@@ -79,28 +79,30 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 			peerKey = p.Address.String()
 		}
 		peerPath := []string{"bgp", "peer", peerKey}
-		remotePath := []string{"bgp", "peer", peerKey, "remote"}
-		localPath := []string{"bgp", "peer", peerKey, "local"}
+		sessionASNPath := append(slices.Clone(peerPath), "session", "asn")
+		sessionPath := append(slices.Clone(peerPath), "session")
+		connRemotePath := append(slices.Clone(peerPath), "connection", "remote")
+		connLocalPath := append(slices.Clone(peerPath), "connection", "local")
 
-		// remote > as is required
-		if err := ed.SetValue(remotePath, "as", fmt.Sprintf("%d", p.PeerAS)); err != nil {
-			return saveFieldError(p.Address, "remote as", err)
+		// session > asn > remote is required
+		if err := ed.SetValue(sessionASNPath, "remote", fmt.Sprintf("%d", p.PeerAS)); err != nil {
+			return saveFieldError(p.Address, "session asn remote", err)
 		}
 
-		// remote > ip is required
-		if err := ed.SetValue(remotePath, "ip", p.Address.String()); err != nil {
-			return saveFieldError(p.Address, "remote ip", err)
+		// connection > remote > ip is required
+		if err := ed.SetValue(connRemotePath, "ip", p.Address.String()); err != nil {
+			return saveFieldError(p.Address, "connection remote ip", err)
 		}
 
 		// Only write optional fields if they differ from defaults
 		if p.LocalAS != 0 && p.LocalAS != stats.LocalAS {
-			if err := ed.SetValue(localPath, "as", fmt.Sprintf("%d", p.LocalAS)); err != nil {
-				return saveFieldError(p.Address, "local as", err)
+			if err := ed.SetValue(sessionASNPath, "local", fmt.Sprintf("%d", p.LocalAS)); err != nil {
+				return saveFieldError(p.Address, "session asn local", err)
 			}
 		}
 		if p.LocalAddress.IsValid() {
-			if err := ed.SetValue(localPath, "ip", p.LocalAddress.String()); err != nil {
-				return saveFieldError(p.Address, "local ip", err)
+			if err := ed.SetValue(connLocalPath, "ip", p.LocalAddress.String()); err != nil {
+				return saveFieldError(p.Address, "connection local ip", err)
 			}
 		}
 		if p.RouterID != 0 && p.RouterID != stats.RouterID {
@@ -108,8 +110,8 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 				byte(p.RouterID >> 24), byte(p.RouterID >> 16),
 				byte(p.RouterID >> 8), byte(p.RouterID),
 			})
-			if err := ed.SetValue(peerPath, "router-id", rid.String()); err != nil {
-				return saveFieldError(p.Address, "router-id", err)
+			if err := ed.SetValue(sessionPath, "router-id", rid.String()); err != nil {
+				return saveFieldError(p.Address, "session router-id", err)
 			}
 		}
 		// Timer container: receive-hold-time, send-hold-time, and connect-retry (only if non-default).
@@ -130,13 +132,13 @@ func HandleBgpPeerSave(ctx *pluginserver.CommandContext, _ []string) (*plugin.Re
 			}
 		}
 		if !p.Connect {
-			if err := ed.SetValue(localPath, "connect", "false"); err != nil {
-				return saveFieldError(p.Address, "local connect", err)
+			if err := ed.SetValue(connLocalPath, "connect", "false"); err != nil {
+				return saveFieldError(p.Address, "connection local connect", err)
 			}
 		}
 		if !p.Accept {
-			if err := ed.SetValue(remotePath, "accept", "false"); err != nil {
-				return saveFieldError(p.Address, "remote accept", err)
+			if err := ed.SetValue(connRemotePath, "accept", "false"); err != nil {
+				return saveFieldError(p.Address, "connection remote accept", err)
 			}
 		}
 

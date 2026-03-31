@@ -4,8 +4,10 @@
 
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
-  local {
-  	as 65000
+  session {
+  	asn {
+  		local 65000
+  	}
   }
   router-id 1.2.3.4;
 }
@@ -16,7 +18,7 @@ option=timeout:value=10s
 option=session:user=thomas:origin=local
 
 # Set a value -- writes to change file
-input=type:text=set bgp local as 65001
+input=type:text=set bgp session asn local 65001
 input=enter
 expect=dirty:true
 expect=error:none

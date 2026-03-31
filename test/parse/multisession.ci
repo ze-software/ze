@@ -8,16 +8,22 @@ plugin {
 }
 bgp {
 	peer peer3 {
-		remote {
-			ip 10.0.0.3
-			as 123456
+		connection {
+			remote {
+				ip 10.0.0.3
+			}
+			local {
+				ip 10.0.0.2
+			}
 		}
-		local {
-			as 123456
-			ip 10.0.0.2
+		session {
+			asn {
+				local 123456
+				remote 123456
+			}
+			router-id 10.0.0.2
 		}
 		description "will pass received routes to the program"
-		router-id 10.0.0.2
 		timer {
 			receive-hold-time 180
 		}

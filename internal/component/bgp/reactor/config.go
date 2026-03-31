@@ -37,46 +37,64 @@ const (
 // name is the peer's name (the list key in the config).
 // localAS and routerID are global defaults from the bgp block.
 func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint32) (*PeerSettings, error) {
-	// Remote container (required: ip and as).
-	remoteMap, hasRemote := mapMap(tree, "remote")
-	if !hasRemote {
-		return nil, fmt.Errorf("peer %s: missing required remote container", name)
+	// Navigate nested containers.
+	connMap, _ := mapMap(tree, "connection")
+	sessionMap, _ := mapMap(tree, "session")
+	behaviorMap, _ := mapMap(tree, "behavior")
+
+	// Remote AS from session > asn > remote (required).
+	var peerAS uint32
+	if sessionMap != nil {
+		if asnMap, ok := mapMap(sessionMap, "asn"); ok {
+			if v, ok := mapUint32(asnMap, "remote"); ok {
+				peerAS = v
+			}
+		}
+	}
+	if peerAS == 0 {
+		return nil, fmt.Errorf("peer %s: missing required session > asn > remote", name)
 	}
 
-	remoteIPStr, ok := mapString(remoteMap, "ip")
-	if !ok {
-		return nil, fmt.Errorf("peer %s: missing required remote ip", name)
+	// Remote IP from connection > remote > ip (required).
+	var remoteIPStr string
+	var connRemoteMap map[string]any
+	if connMap != nil {
+		connRemoteMap, _ = mapMap(connMap, "remote")
+		if connRemoteMap != nil {
+			remoteIPStr, _ = mapString(connRemoteMap, "ip")
+		}
+	}
+	if remoteIPStr == "" {
+		return nil, fmt.Errorf("peer %s: missing required connection > remote > ip", name)
 	}
 	ip, err := netip.ParseAddr(remoteIPStr)
 	if err != nil {
 		return nil, fmt.Errorf("peer %s: invalid remote ip %q: %w", name, remoteIPStr, err)
 	}
 
-	peerAS, ok := mapUint32(remoteMap, "as")
-	if !ok {
-		return nil, fmt.Errorf("peer %s: missing required remote as", name)
-	}
-
-	// Local container (optional per-peer overrides).
+	// Local AS from session > asn > local (optional per-peer override).
 	peerLocalAS := localAS
-	localMap, _ := mapMap(tree, "local")
-	if localMap != nil {
-		if v, ok := mapUint32(localMap, "as"); ok {
-			peerLocalAS = v
+	if sessionMap != nil {
+		if asnMap, ok := mapMap(sessionMap, "asn"); ok {
+			if v, ok := mapUint32(asnMap, "local"); ok {
+				peerLocalAS = v
+			}
 		}
 	}
 	if peerLocalAS == 0 {
 		return nil, fmt.Errorf("peer %s: missing required local as (neither global nor peer-level)", name)
 	}
 
-	// Router ID (peer-level overrides global).
+	// Router ID from session > router-id (peer-level overrides global).
 	peerRouterID := routerID
-	if v, ok := mapString(tree, "router-id"); ok {
-		rid, err := netip.ParseAddr(v)
-		if err != nil {
-			return nil, fmt.Errorf("peer %s: invalid router-id: %w", name, err)
+	if sessionMap != nil {
+		if v, ok := mapString(sessionMap, "router-id"); ok {
+			rid, err := netip.ParseAddr(v)
+			if err != nil {
+				return nil, fmt.Errorf("peer %s: invalid router-id: %w", name, err)
+			}
+			peerRouterID = ipToUint32(rid)
 		}
-		peerRouterID = ipToUint32(rid)
 	}
 
 	ps := NewPeerSettings(ip, peerLocalAS, peerAS, peerRouterID)
@@ -103,38 +121,57 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		}
 	}
 
-	// Connection mode: local { connect } and remote { accept }.
-	if localMap != nil {
-		if v, ok := mapBool(localMap, "connect"); ok {
-			ps.Connection.Connect = v
+	// Connection mode from connection > local > connect and connection > remote > accept.
+	if connMap != nil {
+		if connLocalMap, ok := mapMap(connMap, "local"); ok {
+			if v, ok := mapBool(connLocalMap, "connect"); ok {
+				ps.Connection.Connect = v
+			}
 		}
-	}
-	if hasRemote {
-		if v, ok := mapBool(remoteMap, "accept"); ok {
-			ps.Connection.Accept = v
+		if connRemoteMap != nil {
+			if v, ok := mapBool(connRemoteMap, "accept"); ok {
+				ps.Connection.Accept = v
+			}
 		}
 	}
 	if !ps.Connection.Connect && !ps.Connection.Accept {
 		return nil, fmt.Errorf("peer %s: connect and accept cannot both be false", name)
 	}
 
-	// Per-peer listen port (overrides global tcp.port for this peer).
-	if v, ok := mapUint32(tree, "port"); ok {
-		if v < 1 || v > 65535 {
-			return nil, fmt.Errorf("peer %s: port must be 1-65535, got %d", name, v)
+	// Per-peer listen port from connection > local > port or connection > remote > port.
+	if connMap != nil {
+		if connLocalMap, ok := mapMap(connMap, "local"); ok {
+			if v, ok := mapUint32(connLocalMap, "port"); ok {
+				if v < 1 || v > 65535 {
+					return nil, fmt.Errorf("peer %s: port must be 1-65535, got %d", name, v)
+				}
+				ps.Port = uint16(v)
+			}
 		}
-		ps.Port = uint16(v)
+		if connRemoteMap, ok := mapMap(connMap, "remote"); ok {
+			if v, ok := mapUint32(connRemoteMap, "port"); ok {
+				if v < 1 || v > 65535 {
+					return nil, fmt.Errorf("peer %s: remote port must be 1-65535, got %d", name, v)
+				}
+				// Use remote port for connection target if set.
+				ps.Port = uint16(v)
+			}
+		}
 	}
 
-	// Group updates (default true from NewPeerSettings).
-	if v, ok := mapBool(tree, "group-updates"); ok {
-		ps.GroupUpdates = v
+	// Group updates from behavior > group-updates (default true from NewPeerSettings).
+	if behaviorMap != nil {
+		if v, ok := mapBool(behaviorMap, "group-updates"); ok {
+			ps.GroupUpdates = v
+		}
 	}
 
-	// Local address from local > ip (required).
+	// Local address from connection > local > ip (required).
 	var localAddrStr string
-	if localMap != nil {
-		localAddrStr, _ = mapString(localMap, "ip")
+	if connMap != nil {
+		if connLocalMap, ok := mapMap(connMap, "local"); ok {
+			localAddrStr, _ = mapString(connLocalMap, "ip")
+		}
 	}
 	if localAddrStr == "" {
 		return nil, fmt.Errorf("peer %s: local ip is required (use IP address or \"auto\")", name)
@@ -147,47 +184,54 @@ func parsePeerFromTree(name string, tree map[string]any, localAS, routerID uint3
 		ps.LocalAddress = la
 	}
 
-	// RFC 2545 Section 3: IPv6 link-local address for MP_REACH next-hop.
-	if v, ok := mapString(tree, "link-local"); ok {
-		ll, err := netip.ParseAddr(v)
-		if err != nil {
-			return nil, fmt.Errorf("peer %s: invalid link-local: %w", name, err)
+	// RFC 2545 Section 3: IPv6 link-local address for MP_REACH next-hop from session > link-local.
+	if sessionMap != nil {
+		if v, ok := mapString(sessionMap, "link-local"); ok {
+			ll, err := netip.ParseAddr(v)
+			if err != nil {
+				return nil, fmt.Errorf("peer %s: invalid link-local: %w", name, err)
+			}
+			ps.LinkLocal = ll
 		}
-		ps.LinkLocal = ll
 	}
 
-	// Parse families (includes per-family prefix limits).
-	if err := parseFamiliesFromTree(tree, ps); err != nil {
-		return nil, fmt.Errorf("peer %s: %w", name, err)
+	// Parse families from session > family (includes per-family prefix limits).
+	if sessionMap != nil {
+		if err := parseFamiliesFromTree(sessionMap, ps); err != nil {
+			return nil, fmt.Errorf("peer %s: %w", name, err)
+		}
 	}
 
-	// Parse peer-level prefix settings (teardown, idle-timeout).
-	parsePrefixSettingsFromTree(tree, ps)
-
-	// Parse capabilities.
-	parseCapabilitiesFromTree(tree, ps)
+	// Parse capabilities from session > capability and session > add-path.
+	if sessionMap != nil {
+		parseCapabilitiesFromTree(sessionMap, ps)
+	}
 
 	// Parse process bindings.
 	if err := parseProcessBindingsFromTree(tree, ps); err != nil {
 		return nil, fmt.Errorf("peer %s: %w", name, err)
 	}
 
-	// TCP MD5 authentication (RFC 2385).
-	if md5, ok := mapString(tree, "md5-password"); ok {
-		if !network.TCPMD5Supported() {
-			reactorLogger().Warn("md5-password configured but TCP MD5 is not supported on this platform; connections will fail",
-				"peer", name)
-		}
-		ps.MD5Key = md5
-		if md5ip, ok := mapString(tree, "md5-ip"); ok {
-			a, err := netip.ParseAddr(md5ip)
-			if err != nil {
-				return nil, fmt.Errorf("peer %s: invalid md5-ip: %w", name, err)
+	// TCP MD5 authentication (RFC 2385) from connection > md5.
+	if connMap != nil {
+		if md5Map, ok := mapMap(connMap, "md5"); ok {
+			if md5, ok := mapString(md5Map, "password"); ok {
+				if !network.TCPMD5Supported() {
+					reactorLogger().Warn("md5-password configured but TCP MD5 is not supported on this platform; connections will fail",
+						"peer", name)
+				}
+				ps.MD5Key = md5
+				if md5ip, ok := mapString(md5Map, "ip"); ok {
+					a, err := netip.ParseAddr(md5ip)
+					if err != nil {
+						return nil, fmt.Errorf("peer %s: invalid md5 ip: %w", name, err)
+					}
+					ps.MD5IP = a
+				}
+			} else if _, hasMD5IP := mapString(md5Map, "ip"); hasMD5IP {
+				return nil, fmt.Errorf("peer %s: md5 ip requires md5 password", name)
 			}
-			ps.MD5IP = a
 		}
-	} else if _, hasMD5IP := mapString(tree, "md5-ip"); hasMD5IP {
-		return nil, fmt.Errorf("peer %s: md5-ip requires md5-password", name)
 	}
 
 	return ps, nil
@@ -209,10 +253,12 @@ func PeersFromTree(bgpTree map[string]any) ([]*PeerSettings, error) {
 	plugin.RegisterPluginSendTypes()
 
 	// Extract global defaults (both optional -- peers can provide their own).
-	// Global local AS is under bgp > local > as.
+	// Global local AS is under bgp > session > asn > local.
 	var localAS uint32
-	if localMap, ok := mapMap(bgpTree, "local"); ok {
-		localAS, _ = mapUint32(localMap, "as")
+	if sessionMap, ok := mapMap(bgpTree, "session"); ok {
+		if asnMap, ok := mapMap(sessionMap, "asn"); ok {
+			localAS, _ = mapUint32(asnMap, "local")
+		}
 	}
 
 	var routerID uint32
@@ -344,7 +390,8 @@ func parseFamiliesFromTree(tree map[string]any, ps *PeerSettings) error {
 	return nil
 }
 
-// parsePrefixLimitFromFamily extracts prefix maximum and warning from a family entry.
+// parsePrefixLimitFromFamily extracts prefix maximum, warning, teardown, idle-timeout,
+// and updated from a family entry's prefix block.
 // RFC 4486 Section 4: Maximum Number of Prefixes Reached.
 // Every non-disabled family MUST have a prefix maximum configured.
 func parsePrefixLimitFromFamily(familyKey string, entryMap map[string]any, ps *PeerSettings) error {
@@ -379,17 +426,7 @@ func parsePrefixLimitFromFamily(familyKey string, entryMap map[string]any, ps *P
 		ps.PrefixWarning[familyKey] = maximum * 9 / 10
 	}
 
-	return nil
-}
-
-// parsePrefixSettingsFromTree extracts peer-level prefix enforcement settings.
-// These are in the peer's top-level "prefix" container (not per-family).
-func parsePrefixSettingsFromTree(tree map[string]any, ps *PeerSettings) {
-	prefixMap, ok := mapMap(tree, "prefix")
-	if !ok {
-		return
-	}
-
+	// Per-family prefix enforcement settings (teardown, idle-timeout, updated).
 	if v, ok := mapString(prefixMap, "teardown"); ok {
 		ps.PrefixTeardown = v != valFalse
 	}
@@ -401,6 +438,8 @@ func parsePrefixSettingsFromTree(tree map[string]any, ps *PeerSettings) {
 	if v, ok := mapString(prefixMap, "updated"); ok {
 		ps.PrefixUpdated = v
 	}
+
+	return nil
 }
 
 // familyMode represents the negotiation mode for an address family.

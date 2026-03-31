@@ -2,22 +2,32 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer peer3 {
-		remote {
-			ip 10.0.0.3
-			as 65533
+		connection {
+			remote {
+				ip 10.0.0.3
+			}
+			local {
+				ip 10.0.0.2
+			}
+			md5 {
+				password abc123
+				ip 10.0.0.2
+			}
 		}
-		local {
-			as 65533
-			ip 10.0.0.2
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 198.111.227.39
+		}
+		behavior {
+			group-updates disable
 		}
 		description "will announce a route protected by a MD5"
-		router-id 198.111.227.39
 		timer {
 			receive-hold-time 180
 		}
-		group-updates disable
-		md5-password abc123
-		md5-ip 10.0.0.2
 		update {
 			attribute {
 				origin igp

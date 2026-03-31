@@ -24,17 +24,17 @@ module ze-link-local-nexthop {
     }
 
     // Standalone peer capability
-    augment "/bgp:bgp/bgp:peer/bgp:capability" {
+    augment "/bgp:bgp/bgp:peer/bgp:session/bgp:capability" {
         uses link-local-nexthop-config;
     }
 
     // Peer inside group capability
-    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:capability" {
+    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:session/bgp:capability" {
         uses link-local-nexthop-config;
     }
 
     // Group-level capability
-    augment "/bgp:bgp/bgp:group/bgp:capability" {
+    augment "/bgp:bgp/bgp:group/bgp:session/bgp:capability" {
         uses link-local-nexthop-config;
     }
 }

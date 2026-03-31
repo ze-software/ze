@@ -7,8 +7,10 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local {
-  	as 65000
+  session {
+  	asn {
+  		local 65000
+  	}
   }
 }
 EOF_CONF
@@ -18,13 +20,13 @@ option=timeout:value=10s
 
 # Alice sets local as to 65001
 session=alice:user=alice,origin=ssh
-input=type:text=set bgp local as 65001
+input=type:text=set bgp session asn local 65001
 input=enter
 expect=status:contains=set
 
 # Bob sets local as to 65002 (same path, different value)
 session=bob:user=bob,origin=ssh
-input=type:text=set bgp local as 65002
+input=type:text=set bgp session asn local 65002
 input=enter
 expect=status:contains=set
 

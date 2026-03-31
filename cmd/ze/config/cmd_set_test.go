@@ -48,18 +48,22 @@ func writeBlobConfig(t *testing.T, content string) (storage.Storage, string) {
 func TestCmdSetBasic(t *testing.T) {
 	configPath := writeTestConfig(t, `bgp {
 	peer peer1 {
-		remote {
-			ip 127.0.0.1;
-			as 2;
+		connection {
+			remote {
+				ip 127.0.0.1;
+			}
 		}
-		local {
-			as 1;
+		session {
+			asn {
+				remote 2;
+				local 1;
+			}
 		}
 	}
 }
 `)
 
-	code := cmdSet([]string{"--no-reload", configPath, "bgp", "peer", "peer1", "local", "as", "65000"})
+	code := cmdSet([]string{"--no-reload", configPath, "bgp", "peer", "peer1", "session", "asn", "local", "65000"})
 	if code != exitOK {
 		t.Fatalf("cmdSet returned %d, want %d", code, exitOK)
 	}
@@ -81,18 +85,22 @@ func TestCmdSetBasic(t *testing.T) {
 func TestCmdSetCreatesBackup(t *testing.T) {
 	configPath := writeTestConfig(t, `bgp {
 	peer peer1 {
-		remote {
-			ip 127.0.0.1;
-			as 2;
+		connection {
+			remote {
+				ip 127.0.0.1;
+			}
 		}
-		local {
-			as 1;
+		session {
+			asn {
+				remote 2;
+				local 1;
+			}
 		}
 	}
 }
 `)
 
-	code := cmdSet([]string{"--no-reload", configPath, "bgp", "peer", "peer1", "local", "as", "65000"})
+	code := cmdSet([]string{"--no-reload", configPath, "bgp", "peer", "peer1", "session", "asn", "local", "65000"})
 	if code != exitOK {
 		t.Fatalf("cmdSet returned %d, want %d", code, exitOK)
 	}
@@ -123,19 +131,23 @@ func TestCmdSetCreatesBackup(t *testing.T) {
 func TestCmdSetDryRun(t *testing.T) {
 	content := `bgp {
 	peer peer1 {
-		remote {
-			ip 127.0.0.1;
-			as 2;
+		connection {
+			remote {
+				ip 127.0.0.1;
+			}
 		}
-		local {
-			as 1;
+		session {
+			asn {
+				remote 2;
+				local 1;
+			}
 		}
 	}
 }
 `
 	configPath := writeTestConfig(t, content)
 
-	code := cmdSet([]string{"--dry-run", configPath, "bgp", "peer", "peer1", "local", "as", "65000"})
+	code := cmdSet([]string{"--dry-run", configPath, "bgp", "peer", "peer1", "session", "asn", "local", "65000"})
 	if code != exitOK {
 		t.Fatalf("cmdSet --dry-run returned %d, want %d", code, exitOK)
 	}
@@ -155,7 +167,7 @@ func TestCmdSetDryRun(t *testing.T) {
 // VALIDATES: Missing file returns error exit code.
 // PREVENTS: Panic on nonexistent file.
 func TestCmdSetMissingFile(t *testing.T) {
-	code := cmdSet([]string{"/nonexistent/config.conf", "bgp", "local", "as", "65000"})
+	code := cmdSet([]string{"/nonexistent/config.conf", "bgp", "session", "asn", "local", "65000"})
 	if code != exitError {
 		t.Errorf("cmdSet on missing file returned %d, want %d", code, exitError)
 	}
@@ -201,18 +213,22 @@ func TestCmdSetDispatch(t *testing.T) {
 func TestCmdSetWithBlobStorage(t *testing.T) {
 	store, configPath := writeBlobConfig(t, `bgp {
 	peer peer1 {
-		remote {
-			ip 127.0.0.1;
-			as 2;
+		connection {
+			remote {
+				ip 127.0.0.1;
+			}
 		}
-		local {
-			as 1;
+		session {
+			asn {
+				remote 2;
+				local 1;
+			}
 		}
 	}
 }
 `)
 
-	code := cmdSetWithStorage(store, []string{"--no-reload", configPath, "bgp", "peer", "peer1", "local", "as", "65000"})
+	code := cmdSetWithStorage(store, []string{"--no-reload", configPath, "bgp", "peer", "peer1", "session", "asn", "local", "65000"})
 	if code != exitOK {
 		t.Fatalf("cmdSetWithStorage returned %d, want %d", code, exitOK)
 	}
@@ -234,18 +250,22 @@ func TestCmdSetWithBlobStorage(t *testing.T) {
 func TestRunWithStorageDispatches(t *testing.T) {
 	store, configPath := writeBlobConfig(t, `bgp {
 	peer peer1 {
-		remote {
-			ip 127.0.0.1;
-			as 2;
+		connection {
+			remote {
+				ip 127.0.0.1;
+			}
 		}
-		local {
-			as 1;
+		session {
+			asn {
+				remote 2;
+				local 1;
+			}
 		}
 	}
 }
 `)
 
-	code := RunWithStorage(store, []string{"set", "--no-reload", configPath, "bgp", "peer", "peer1", "local", "as", "65000"})
+	code := RunWithStorage(store, []string{"set", "--no-reload", configPath, "bgp", "peer", "peer1", "session", "asn", "local", "65000"})
 	if code != exitOK {
 		t.Fatalf("RunWithStorage set returned %d, want %d", code, exitOK)
 	}

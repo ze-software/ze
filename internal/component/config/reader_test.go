@@ -98,13 +98,21 @@ func TestReader_ParseBlocks(t *testing.T) {
 
 	configContent := `
 bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     peer upstream {
-        remote {
-            ip 192.0.2.1
-            as 65001
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
         }
     }
 }
@@ -280,13 +288,21 @@ func TestReader_Reload(t *testing.T) {
 	// Initial config.
 	initial := `
 bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     peer upstream {
-        remote {
-            ip 192.0.2.1
-            as 65001
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
         }
     }
 }
@@ -300,19 +316,33 @@ bgp {
 	// Modify config: change peer AS and add a second peer.
 	modified := `
 bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     peer upstream {
-        remote {
-            ip 192.0.2.1
-            as 65099
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
+        }
+        session {
+            asn {
+                remote 65099
+            }
         }
     }
     peer downstream {
-        remote {
-            ip 192.0.2.2
-            as 65002
+        connection {
+            remote {
+                ip 192.0.2.2
+            }
+        }
+        session {
+            asn {
+                remote 65002
+            }
         }
     }
 }
@@ -322,18 +352,19 @@ bgp {
 	changes, err := r.Reload()
 	require.NoError(t, err)
 
-	// Expect 2 changes:
-	// - bgp.peer[key=upstream] modified (remote as changed)
+	// Expect 3 changes:
 	// - bgp.peer[key=downstream] created (new peer)
+	// - bgp.peer.connection.remote modified (upstream connection remote changed)
+	// - bgp.peer.session.asn modified (upstream session asn changed)
 	// Note: bgp._default is NOT modified because walkMap stores only flat
 	// fields which didn't change between initial and modified configs.
-	require.Len(t, changes, 2)
+	require.Len(t, changes, 3)
 
 	actions := make(map[string]int)
 	for _, c := range changes {
 		actions[c.Action]++
 	}
-	assert.Equal(t, 1, actions["modify"])
+	assert.Equal(t, 2, actions["modify"])
 	assert.Equal(t, 1, actions["create"])
 
 	// Verify the new peer was created.
@@ -394,16 +425,24 @@ func TestReader_ValidateBlock_ValidTypes(t *testing.T) {
 	configContent := `
 bgp {
     router-id 192.0.2.1
-    local {
-        as 65001
+    session {
+        asn {
+            local 65001
+        }
     }
     peer peer1 {
-        remote {
-            ip 10.0.0.1
-            as 65002
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+            local {
+                ip auto
+            }
         }
-        local {
-            ip auto
+        session {
+            asn {
+                remote 65002
+            }
         }
     }
 }
@@ -430,14 +469,31 @@ bgp {
 func TestReader_ValidateBlock_InvalidRange(t *testing.T) {
 	validator := newTestValidator(t)
 	schemas := []SchemaInfo{
-		{Module: "ze-bgp-conf", Handlers: []string{"bgp"}},
+		{Module: "ze-bgp-conf", Handlers: []string{"bgp", "bgp.peer", "bgp.peer.timer"}},
 	}
 
 	configContent := `
 bgp {
     router-id 192.0.2.1
-    local {
-        as 0
+    session {
+        asn {
+            local 65001
+        }
+    }
+    peer test-peer {
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65002
+            }
+        }
+        timer {
+            receive-hold-time 2
+        }
     }
 }
 `
@@ -464,8 +520,10 @@ func TestReader_ValidateBlock_InvalidPattern(t *testing.T) {
 	configContent := `
 bgp {
     router-id not-an-ip
-    local {
-        as 65001
+    session {
+        asn {
+            local 65001
+        }
     }
 }
 `
@@ -516,8 +574,10 @@ func TestReader_Load_NoValidator(t *testing.T) {
 	configContent := `
 bgp {
     router-id not-an-ip
-    local {
-        as 0
+    session {
+        asn {
+            local 0
+        }
     }
 }
 `
@@ -539,7 +599,7 @@ bgp {
 func TestReader_Reload_WithValidator(t *testing.T) {
 	validator := newTestValidator(t)
 	schemas := []SchemaInfo{
-		{Module: "ze-bgp-conf", Handlers: []string{"bgp"}},
+		{Module: "ze-bgp-conf", Handlers: []string{"bgp", "bgp.peer", "bgp.peer.timer"}},
 	}
 
 	dir := t.TempDir()
@@ -549,8 +609,25 @@ func TestReader_Reload_WithValidator(t *testing.T) {
 	initial := `
 bgp {
     router-id 192.0.2.1
-    local {
-        as 65001
+    session {
+        asn {
+            local 65001
+        }
+    }
+    peer test-peer {
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65002
+            }
+        }
+        timer {
+            receive-hold-time 90
+        }
     }
 }
 `
@@ -560,12 +637,29 @@ bgp {
 	_, err := r.Load()
 	require.NoError(t, err)
 
-	// Reload with invalid config (ASN 0 violates range 1..max).
+	// Reload with invalid config (hold-time 2 violates range 0|3..65535).
 	invalid := `
 bgp {
     router-id 192.0.2.1
-    local {
-        as 0
+    session {
+        asn {
+            local 65001
+        }
+    }
+    peer test-peer {
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65002
+            }
+        }
+        timer {
+            receive-hold-time 2
+        }
     }
 }
 `
@@ -712,19 +806,15 @@ func TestFrontend_SetParser_YANGValidation(t *testing.T) {
 		{Module: "ze-bgp-conf", Handlers: []string{"bgp"}},
 	}
 
-	// Set-style config with invalid ASN (0 violates range 1..max).
-	// Must be nested under "bgp" to match handler routing.
+	// Set-style config with invalid router-id (not a valid IP pattern).
+	// router-id is a flat field at the bgp handler level, so YANG validates it.
 	content := `
-set bgp router-id 192.0.2.1
-set bgp local as 0
+set bgp router-id not-an-ip
 `
 	// Build a schema that matches the YANG module structure for SetParser.
 	setSchema := NewSchema()
 	setSchema.Define("bgp", Container(
 		Field("router-id", Leaf(TypeString)),
-		Field("local", Container(
-			Field("as", Leaf(TypeString)), // String type — YANG validates range.
-		)),
 	))
 
 	dir := t.TempDir()
@@ -735,7 +825,7 @@ set bgp local as 0
 	r := NewReader(schemas, confPath, validator, fe)
 	_, err := r.Load()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "range")
+	assert.Contains(t, err.Error(), "pattern")
 }
 
 // mapKeys returns sorted keys of a map.

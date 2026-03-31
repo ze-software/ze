@@ -686,24 +686,29 @@ func TestParseInlineArgs(t *testing.T) {
 	require.NoError(t, err)
 
 	tree, err := ParseInlineArgs(peerNode, []string{
-		"remote", "as", "65001",
-		"local", "as", "65000",
+		"session", "asn", "remote", "65001",
+		"session", "asn", "local", "65000",
 		"timer", "receive-hold-time", "90",
-		"local", "connect", "false",
+		"connection", "local", "connect", "false",
 	})
 	require.NoError(t, err)
 
 	m := tree.ToMap()
 
-	// Verify container fields
-	remote, ok := m["remote"].(map[string]any)
-	require.True(t, ok, "remote should be a map")
-	assert.Equal(t, "65001", remote["as"])
+	// Verify session.asn container fields
+	session, ok := m["session"].(map[string]any)
+	require.True(t, ok, "session should be a map")
+	asn, ok := session["asn"].(map[string]any)
+	require.True(t, ok, "asn should be a map")
+	assert.Equal(t, "65001", asn["remote"])
+	assert.Equal(t, "65000", asn["local"])
 
-	local, ok := m["local"].(map[string]any)
-	require.True(t, ok, "local should be a map")
-	assert.Equal(t, "65000", local["as"])
-	assert.Equal(t, "false", local["connect"])
+	// Verify connection.local.connect
+	connection, ok := m["connection"].(map[string]any)
+	require.True(t, ok, "connection should be a map")
+	connLocal, ok := connection["local"].(map[string]any)
+	require.True(t, ok, "connection.local should be a map")
+	assert.Equal(t, "false", connLocal["connect"])
 
 	// Verify timer container with receive-hold-time leaf
 	timer, ok := m["timer"].(map[string]any)
@@ -723,15 +728,17 @@ func TestParseInlineArgsListNode(t *testing.T) {
 	require.NoError(t, err)
 
 	tree, err := ParseInlineArgs(peerNode, []string{
-		"remote", "as", "65001",
-		"family", "ipv4/unicast", "mode", "enable",
+		"session", "asn", "remote", "65001",
+		"session", "family", "ipv4/unicast", "mode", "enable",
 	})
 	require.NoError(t, err)
 
 	m := tree.ToMap()
 
-	// Verify list entry
-	familyMap, ok := m["family"].(map[string]any)
+	// Verify list entry under session.family
+	session, ok := m["session"].(map[string]any)
+	require.True(t, ok, "session should be a map")
+	familyMap, ok := session["family"].(map[string]any)
 	require.True(t, ok, "family should be a map")
 	entry, ok := familyMap["ipv4/unicast"].(map[string]any)
 	require.True(t, ok, "ipv4/unicast entry should be a map")

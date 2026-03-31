@@ -3,16 +3,24 @@
 # VALIDATES: AC-2 -- non-decorated leaves still parse correctly
 stdin=config:terminator=EOF_CONF
 bgp {
-	local {
-		as 64500
+	session {
+		asn {
+			local 64500
+		}
 	}
 	peer upstream {
-		remote {
-			ip 192.168.1.1
-			as 13335
+		connection {
+			remote {
+				ip 192.168.1.1
+			}
+			local {
+				ip 192.168.1.2
+			}
 		}
-		local {
-			ip 192.168.1.2
+		session {
+			asn {
+				remote 13335
+			}
 		}
 	}
 }

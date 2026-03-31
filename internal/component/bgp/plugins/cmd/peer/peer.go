@@ -301,24 +301,31 @@ func preparePeerTree(selector string, nodeTree map[string]any) (*plugin.Response
 		}, fmt.Errorf("invalid peer address %s: %w", selector, err)
 	}
 
-	// Validate required remote as and inject remote.ip from selector.
-	remote, ok := nodeTree["remote"].(map[string]any)
-	if !ok || remote["as"] == nil {
+	// Validate required session.asn.remote and inject connection.remote.ip from selector.
+	session, _ := nodeTree["session"].(map[string]any)
+	var asn map[string]any
+	if session != nil {
+		asn, _ = session["asn"].(map[string]any)
+	}
+	if asn == nil || asn["remote"] == nil {
 		return &plugin.Response{
 			Status: plugin.StatusError,
-			Data:   "remote as is required: set bgp peer <ip> with remote as <asn>",
+			Data:   "remote as is required: set bgp peer <ip> with session asn remote <asn>",
 		}, fmt.Errorf("missing required remote as")
 	}
-	remote["ip"] = addr.String()
 
-	// Inject local.ip = "auto" if not set (parsePeerFromTree requires it).
-	if local, ok := nodeTree["local"].(map[string]any); ok {
-		if _, hasIP := local["ip"]; !hasIP {
-			local["ip"] = "auto"
-		}
-	} else {
-		nodeTree["local"] = map[string]any{"ip": "auto"}
+	// Inject connection.remote.ip from the peer selector address.
+	conn, ok := nodeTree["connection"].(map[string]any)
+	if !ok {
+		conn = map[string]any{}
+		nodeTree["connection"] = conn
 	}
+	remote, ok := conn["remote"].(map[string]any)
+	if !ok {
+		remote = map[string]any{}
+		conn["remote"] = remote
+	}
+	remote["ip"] = addr.String()
 
 	return nil, nil //nolint:nilnil // success
 }

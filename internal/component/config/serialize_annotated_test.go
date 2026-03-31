@@ -44,7 +44,7 @@ func buildMultiLeafTreeWithMeta(t *testing.T) (*Tree, *MetaTree, *Schema) {
 	parser := NewParser(schema)
 	tree, err := parser.Parse(`bgp {
   router-id 1.2.3.4;
-  local { as 65000; }
+  session { asn { local 65000; } }
 }`)
 	require.NoError(t, err)
 

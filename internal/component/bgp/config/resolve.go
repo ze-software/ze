@@ -139,8 +139,8 @@ func ResolveBGPTree(tree *config.Tree) (map[string]any, error) {
 	return result, nil
 }
 
-// checkDuplicateRemoteIPs checks that no two peers share the same remote > ip value.
-// Peers without a remote > ip are skipped (they will fail mandatory field validation elsewhere).
+// checkDuplicateRemoteIPs checks that no two peers share the same connection > remote > ip value.
+// Peers without a connection > remote > ip are skipped (they will fail mandatory field validation elsewhere).
 func checkDuplicateRemoteIPs(peerMap map[string]any) error {
 	seen := make(map[string]string) // remote IP -> first peer name
 	for peerName, v := range peerMap {
@@ -148,7 +148,11 @@ func checkDuplicateRemoteIPs(peerMap map[string]any) error {
 		if !ok {
 			continue
 		}
-		remoteMap, ok := peer["remote"].(map[string]any)
+		connMap, ok := peer["connection"].(map[string]any)
+		if !ok {
+			continue
+		}
+		remoteMap, ok := connMap["remote"].(map[string]any)
 		if !ok {
 			continue
 		}

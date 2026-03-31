@@ -24,7 +24,7 @@ expect=error:none
 # Completions in bgp context - space after set triggers set targets
 input=type:text=set
 input=space
-expect=completion:contains=router-id,local,peer
+expect=completion:contains=router-id,session,peer
 
 # Clear and try edit completions (should show containers/lists only)
 input=ctrl:key=u

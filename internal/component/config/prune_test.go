@@ -21,22 +21,36 @@ func TestPruneInactiveContainer(t *testing.T) {
 	require.NoError(t, err)
 
 	input := `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     router-id 1.2.3.4
     peer active-peer {
-        remote {
-            ip 10.0.0.1
-            as 65001
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
         }
     }
     peer inactive-peer {
-        inactive enable
-        remote {
-            ip 10.0.0.2
-            as 65002
+        connection {
+            remote {
+                ip 10.0.0.2
+            }
         }
+        session {
+            asn {
+                remote 65002
+            }
+        }
+        inactive enable
     }
 }`
 	parser := NewParser(schema)
@@ -69,20 +83,34 @@ func TestPruneInactivePreservesActive(t *testing.T) {
 	require.NoError(t, err)
 
 	input := `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     router-id 1.2.3.4
     peer alice {
-        remote {
-            ip 10.0.0.1
-            as 65001
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
         }
     }
     peer bob {
-        remote {
-            ip 10.0.0.2
-            as 65002
+        connection {
+            remote {
+                ip 10.0.0.2
+            }
+        }
+        session {
+            asn {
+                remote 65002
+            }
         }
     }
 }`
@@ -107,14 +135,22 @@ func TestPruneInactiveDefault(t *testing.T) {
 	require.NoError(t, err)
 
 	input := `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     router-id 1.2.3.4
     peer alice {
-        remote {
-            ip 10.0.0.1
-            as 65001
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
         }
     }
 }`
@@ -139,23 +175,31 @@ func TestPruneInactiveNested(t *testing.T) {
 	require.NoError(t, err)
 
 	input := `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     router-id 1.2.3.4
     group mygroup {
         inactive enable
-        remote {
-            as 65001
+        session {
+            asn {
+                remote 65001
+            }
         }
         peer alice {
-            remote {
-                ip 10.0.0.1
+            connection {
+                remote {
+                    ip 10.0.0.1
+                }
             }
         }
         peer bob {
-            remote {
-                ip 10.0.0.2
+            connection {
+                remote {
+                    ip 10.0.0.2
+                }
             }
         }
     }
@@ -185,14 +229,22 @@ func TestPruneInactiveListEntry(t *testing.T) {
 	require.NoError(t, err)
 
 	input := `bgp {
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
     router-id 1.2.3.4
     peer alice {
-        remote {
-            ip 10.0.0.1
-            as 65001
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
         }
         update {
             attribute {

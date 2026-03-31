@@ -5,13 +5,21 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local {
-  	as 65000
+  session {
+  	asn {
+  		local 65000
+  	}
   }
   peer peer1 {
-  	remote {
-  		ip 1.1.1.1
-  		as 65001;
+  	connection {
+  		remote {
+  			ip 1.1.1.1
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65001
+  		}
   	}
   }
 }
@@ -24,6 +32,6 @@ option=timeout:value=10s
 input=type:text=show | format config
 input=enter
 expect=viewport:contains=set bgp router-id 1.2.3.4
-expect=viewport:contains=set bgp local as 65000
+expect=viewport:contains=set bgp session asn local 65000
 expect=viewport:not-contains=bgp {
 expect=error:none

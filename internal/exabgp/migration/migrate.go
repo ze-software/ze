@@ -1,7 +1,7 @@
-// Design: docs/architecture/core-design.md — ExaBGP migration orchestration
-// Detail: migrate_routes.go — route conversion to Ze update blocks
-// Detail: migrate_family.go — family and nexthop syntax conversion
-// Detail: migrate_serialize.go — config tree serialization
+// Design: docs/architecture/core-design.md -- ExaBGP migration orchestration
+// Detail: migrate_routes.go -- route conversion to Ze update blocks
+// Detail: migrate_family.go -- family and nexthop syntax conversion
+// Detail: migrate_serialize.go -- config tree serialization
 
 // Package migration converts ExaBGP configuration to Ze format.
 package migration
@@ -35,7 +35,7 @@ type ExternalProcess struct {
 	RunCmd string // Run command (e.g., "./run/watchdog.run")
 }
 
-// MigrateResult holds the outcome of ExaBGP→ZeBGP migration.
+// MigrateResult holds the outcome of ExaBGP->ZeBGP migration.
 type MigrateResult struct {
 	Tree        *config.Tree      // Transformed tree
 	RIBInjected bool              // True if RIB plugin was auto-injected
@@ -46,11 +46,11 @@ type MigrateResult struct {
 // MigrateFromExaBGP converts an ExaBGP config tree to ZeBGP format.
 //
 // Transformations applied:
-//   - neighbor → peer
-//   - process → plugin (wrapped with ze exabgp plugin bridge)
-//   - process { processes [...] } → process NAME { ... } inside peer
-//   - capability { route-refresh; } → capability { route-refresh enable; }
-//   - template { neighbor X { } } + inherit X → expanded peer
+//   - neighbor -> peer
+//   - process -> plugin (wrapped with ze exabgp plugin bridge)
+//   - process { processes [...] } -> process NAME { ... } inside peer
+//   - capability { route-refresh; } -> capability { route-refresh enable; }
+//   - template { neighbor X { } } + inherit X -> expanded peer
 //   - If GR or route-refresh: inject RIB plugin
 func MigrateFromExaBGP(tree *config.Tree) (*MigrateResult, error) {
 	if tree == nil {
@@ -71,10 +71,10 @@ func MigrateFromExaBGP(tree *config.Tree) (*MigrateResult, error) {
 		injectRIBPlugin(result.Tree)
 	}
 
-	// Migrate processes → plugins (wrapped with bridge)
+	// Migrate processes -> plugins (wrapped with bridge)
 	processMap := migrateProcesses(tree, result)
 
-	// Migrate neighbors → peers (with template expansion)
+	// Migrate neighbors -> peers (with template expansion)
 	if err := migrateNeighbors(tree, result, processMap, needsRIB, templates); err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func MigrateFromExaBGP(tree *config.Tree) (*MigrateResult, error) {
 }
 
 // collectTemplates extracts template definitions for inheritance expansion.
-// Returns map of template name → neighbor tree.
+// Returns map of template name -> neighbor tree.
 func collectTemplates(tree *config.Tree) map[string]*config.Tree {
 	templates := make(map[string]*config.Tree)
 
@@ -164,7 +164,7 @@ func injectRIBPlugin(tree *config.Tree) {
 // migrateProcesses collects ExaBGP process definitions for the wrapper to handle.
 // ExaBGP processes cannot run as Ze plugins because the protocols are incompatible
 // (ExaBGP uses stdout text API, Ze uses YANG RPC over socket pairs).
-// Returns an empty map — no process bindings are created since there are no plugins.
+// Returns an empty map -- no process bindings are created since there are no plugins.
 func migrateProcesses(tree *config.Tree, result *MigrateResult) map[string]string {
 	for _, entry := range tree.GetListOrdered("process") {
 		processTree := entry.Value
@@ -178,7 +178,7 @@ func migrateProcesses(tree *config.Tree, result *MigrateResult) map[string]strin
 	}
 
 	// Return empty map: no plugins created, so no process bindings should reference them.
-	// Ze validates that process bindings reference defined plugins — undefined refs are fatal.
+	// Ze validates that process bindings reference defined plugins -- undefined refs are fatal.
 	return make(map[string]string)
 }
 
@@ -215,11 +215,16 @@ func migrateNeighbors(tree *config.Tree, result *MigrateResult, processMap map[s
 			return fmt.Errorf("neighbor %s: %w", addr, err)
 		}
 
-		// Store the neighbor IP address as remote > ip.
-		remoteContainer := peer.GetContainer("remote")
+		// Store the neighbor IP address as connection > remote > ip.
+		connContainer := peer.GetContainer("connection")
+		if connContainer == nil {
+			connContainer = config.NewTree()
+			peer.SetContainer("connection", connContainer)
+		}
+		remoteContainer := connContainer.GetContainer("remote")
 		if remoteContainer == nil {
 			remoteContainer = config.NewTree()
-			peer.SetContainer("remote", remoteContainer)
+			connContainer.SetContainer("remote", remoteContainer)
 		}
 		remoteContainer.Set("ip", addr)
 
@@ -316,12 +321,12 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 	}
 	for _, key := range leafFields {
 		if v, ok := neighbor.Get(key); ok {
-			// ExaBGP "local-link-local" → Ze "link-local"
+			// ExaBGP "local-link-local" -> Ze "link-local"
 			outKey := key
 			if key == "local-link-local" {
 				outKey = "link-local"
 			}
-			// ExaBGP "passive true" → Ze local { connect false } (handled in copySimpleFields)
+			// ExaBGP "passive true" -> Ze connection { local { connect false } } (handled in copySimpleFields)
 			if key == "passive" {
 				merged.Set("passive", v)
 				continue
@@ -363,16 +368,21 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 }
 
 // copySimpleFields copies simple leaf values from neighbor to peer.
-// Fields that move into containers:
-//   - peer-as -> remote > as
-//   - local-as -> local > as
-//   - local-address -> local > ip
+// Fields that move into new containers:
+//   - peer-as -> session > asn > remote
+//   - local-as -> session > asn > local
+//   - local-address -> connection > local > ip
+//   - router-id -> session > router-id
+//   - passive -> connection > local > connect false, connection > remote > accept true
+//   - ttl-security -> connection > ttl > max
+//   - md5-password -> connection > md5 > password
+//   - group-updates -> behavior > group-updates
+//   - auto-flush -> behavior > auto-flush
+//   - local-link-local -> connection > link-local true + session > link-local <addr>
 func copySimpleFields(src, dst *config.Tree) {
 	// Fields that remain as direct leaves on the peer.
 	directFields := []string{
-		"description", "router-id",
-		"listen", "ttl-security",
-		"md5-password", "md5-base64", "group-updates", "auto-flush",
+		"description",
 	}
 
 	for _, field := range directFields {
@@ -388,20 +398,115 @@ func copySimpleFields(src, dst *config.Tree) {
 		dst.SetContainer("timer", timerContainer)
 	}
 
-	// ExaBGP "local-link-local" -> Ze "link-local"
+	// ExaBGP "local-link-local" -> Ze connection > link-local true + session > link-local <addr>
 	if v, ok := src.Get("local-link-local"); ok {
-		dst.Set("link-local", v)
+		// Set connection > link-local true
+		connContainer := dst.GetContainer("connection")
+		if connContainer == nil {
+			connContainer = config.NewTree()
+			dst.SetContainer("connection", connContainer)
+		}
+		connContainer.Set("link-local", configTrue)
+
+		// Set session > link-local <addr>
+		sessionContainer := dst.GetContainer("session")
+		if sessionContainer == nil {
+			sessionContainer = config.NewTree()
+			dst.SetContainer("session", sessionContainer)
+		}
+		sessionContainer.Set("link-local", v)
 	}
 
-	// Fields that move into the "local" container: local-as -> as, local-address -> ip, passive -> connect false.
+	// ExaBGP "router-id" -> Ze session > router-id
+	if v, ok := src.Get("router-id"); ok {
+		sessionContainer := dst.GetContainer("session")
+		if sessionContainer == nil {
+			sessionContainer = config.NewTree()
+			dst.SetContainer("session", sessionContainer)
+		}
+		sessionContainer.Set("router-id", v)
+	}
+
+	// ExaBGP "ttl-security" -> Ze connection > ttl > max
+	if v, ok := src.Get("ttl-security"); ok {
+		connContainer := dst.GetContainer("connection")
+		if connContainer == nil {
+			connContainer = config.NewTree()
+			dst.SetContainer("connection", connContainer)
+		}
+		ttlContainer := config.NewTree()
+		ttlContainer.Set("max", v)
+		connContainer.SetContainer("ttl", ttlContainer)
+	}
+
+	// ExaBGP "md5-password" -> Ze connection > md5 > password
+	if v, ok := src.Get("md5-password"); ok {
+		connContainer := dst.GetContainer("connection")
+		if connContainer == nil {
+			connContainer = config.NewTree()
+			dst.SetContainer("connection", connContainer)
+		}
+		md5Container := config.NewTree()
+		md5Container.Set("password", v)
+		connContainer.SetContainer("md5", md5Container)
+	}
+
+	// ExaBGP "group-updates" -> Ze behavior > group-updates
+	if v, ok := src.Get("group-updates"); ok {
+		behaviorContainer := dst.GetContainer("behavior")
+		if behaviorContainer == nil {
+			behaviorContainer = config.NewTree()
+			dst.SetContainer("behavior", behaviorContainer)
+		}
+		behaviorContainer.Set("group-updates", v)
+	}
+
+	// ExaBGP "auto-flush" -> Ze behavior > auto-flush
+	if v, ok := src.Get("auto-flush"); ok {
+		behaviorContainer := dst.GetContainer("behavior")
+		if behaviorContainer == nil {
+			behaviorContainer = config.NewTree()
+			dst.SetContainer("behavior", behaviorContainer)
+		}
+		behaviorContainer.Set("auto-flush", v)
+	}
+
+	// Fields that move into session > asn: local-as -> local, peer-as -> remote.
 	localAS, hasLocalAS := src.Get("local-as")
+	peerAS, hasPeerAS := src.Get("peer-as")
+	if hasLocalAS || hasPeerAS {
+		sessionContainer := dst.GetContainer("session")
+		if sessionContainer == nil {
+			sessionContainer = config.NewTree()
+			dst.SetContainer("session", sessionContainer)
+		}
+		asnContainer := sessionContainer.GetContainer("asn")
+		if asnContainer == nil {
+			asnContainer = config.NewTree()
+			sessionContainer.SetContainer("asn", asnContainer)
+		}
+		if hasLocalAS {
+			asnContainer.Set("local", localAS)
+		}
+		if hasPeerAS {
+			asnContainer.Set("remote", peerAS)
+		}
+	}
+
+	// Fields that move into connection > local: local-address -> ip, passive -> connect false.
 	localAddr, hasLocalAddr := src.Get("local-address")
 	passive, hasPassive := src.Get("passive")
 	isPassive := hasPassive && passive == configTrue
-	if hasLocalAS || hasLocalAddr || isPassive {
-		localContainer := config.NewTree()
-		if hasLocalAS {
-			localContainer.Set("as", localAS)
+	if hasLocalAddr || isPassive {
+		connContainer := dst.GetContainer("connection")
+		if connContainer == nil {
+			connContainer = config.NewTree()
+			dst.SetContainer("connection", connContainer)
+		}
+		localContainer := connContainer.GetContainer("local")
+		if localContainer == nil {
+			localContainer = config.NewTree()
+			connContainer.SetContainer("local", localContainer)
 		}
 		if hasLocalAddr {
 			localContainer.Set("ip", localAddr)
@@ -409,29 +514,27 @@ func copySimpleFields(src, dst *config.Tree) {
 		if isPassive {
 			localContainer.Set("connect", "false")
 		}
-		dst.SetContainer("local", localContainer)
 	}
 
-	// Fields that move into the "remote" container: peer-as -> as, passive -> accept.
-	peerAS, hasPeerAS := src.Get("peer-as")
-	if hasPeerAS || isPassive {
-		remoteContainer := dst.GetContainer("remote")
+	// Passive also sets connection > remote > accept true.
+	if isPassive {
+		connContainer := dst.GetContainer("connection")
+		if connContainer == nil {
+			connContainer = config.NewTree()
+			dst.SetContainer("connection", connContainer)
+		}
+		remoteContainer := connContainer.GetContainer("remote")
 		if remoteContainer == nil {
 			remoteContainer = config.NewTree()
-			dst.SetContainer("remote", remoteContainer)
+			connContainer.SetContainer("remote", remoteContainer)
 		}
-		if hasPeerAS {
-			remoteContainer.Set("as", peerAS)
-		}
-		if isPassive {
-			remoteContainer.Set("accept", "true")
-		}
+		remoteContainer.Set("accept", "true")
 	}
 }
 
 // migrateCapability converts ExaBGP capability syntax to ZeBGP.
 // ExaBGP: capability { route-refresh; graceful-restart 120; }.
-// ZeBGP: capability { route-refresh enable; graceful-restart 120; }.
+// ZeBGP: session { capability { route-refresh enable; graceful-restart 120; } }.
 //
 // RFC 8950: Infers nexthop capability from nexthop { } block presence.
 func migrateCapability(src, dst *config.Tree) error {
@@ -493,7 +596,7 @@ func migrateCapability(src, dst *config.Tree) error {
 
 	// RFC 8950: Move nexthop block into capability.
 	// ExaBGP: nexthop { ipv4 unicast ipv6; } at neighbor level
-	// ZeBGP: capability { nexthop { ipv4/unicast ipv6; } }
+	// ZeBGP: session { capability { nexthop { ipv4/unicast ipv6; } } }
 	if nexthop := src.GetContainer("nexthop"); nexthop != nil {
 		dstCap.SetContainer("nexthop", convertNexthopBlock(nexthop))
 		hasCapabilities = true
@@ -508,11 +611,17 @@ func migrateCapability(src, dst *config.Tree) error {
 
 	// Convert host-name/domain-name from peer level to capability hostname block.
 	// ExaBGP: host-name foo; domain-name bar; (at neighbor level)
-	// ZeBGP: capability { hostname { host foo; domain bar; } }
+	// ZeBGP: session { capability { hostname { host foo; domain bar; } } }
 	migrateHostnameToCapability(src, dstCap, &hasCapabilities)
 
 	if hasCapabilities {
-		dst.SetContainer("capability", dstCap)
+		// Capabilities go into session > capability.
+		sessionContainer := dst.GetContainer("session")
+		if sessionContainer == nil {
+			sessionContainer = config.NewTree()
+			dst.SetContainer("session", sessionContainer)
+		}
+		sessionContainer.SetContainer("capability", dstCap)
 	}
 	return nil
 }
@@ -541,7 +650,8 @@ func migrateHostnameToCapability(src, dstCap *config.Tree, hasCapabilities *bool
 // copyContainers copies container blocks from neighbor to peer.
 func copyContainers(src, dst *config.Tree) {
 	// Copy and convert family block.
-	// ExaBGP: "ipv4 unicast" → ZeBGP list entries: key="ipv4/unicast".
+	// ExaBGP: "ipv4 unicast" -> ZeBGP list entries: key="ipv4/unicast".
+	// Families go into session > family.
 	if family := src.GetContainer("family"); family != nil {
 		convertFamilyToList(family, dst)
 	}
@@ -600,7 +710,7 @@ func migrateProcessBindings(src, dst *config.Tree, processMap map[string]string)
 		for _, name := range processNames {
 			newName, ok := processMap[name]
 			if !ok {
-				continue // No plugin created for this process — skip binding.
+				continue // No plugin created for this process -- skip binding.
 			}
 			addProcessBinding(dst, newName)
 		}
@@ -619,7 +729,7 @@ func migrateProcessBindings(src, dst *config.Tree, processMap map[string]string)
 			for _, name := range processNames {
 				newName, ok := processMap[name]
 				if !ok {
-					continue // No plugin created — skip binding.
+					continue // No plugin created -- skip binding.
 				}
 				addProcessBinding(dst, newName)
 			}
@@ -627,7 +737,7 @@ func migrateProcessBindings(src, dst *config.Tree, processMap map[string]string)
 			// New-style named binding - copy with name mapping.
 			newName, ok := processMap[key]
 			if !ok {
-				continue // No plugin created — skip binding.
+				continue // No plugin created -- skip binding.
 			}
 			dst.AddListEntry("process", newName, procTree.Clone())
 		}

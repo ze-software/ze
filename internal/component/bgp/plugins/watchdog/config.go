@@ -104,9 +104,14 @@ func parseWatchdogPeers(peerMap, groupMap map[string]any, result map[string]*Poo
 }
 
 // extractRemoteIP extracts the remote IP address from a peer config tree.
-// Returns empty string if the remote container or ip field is missing.
+// With the YANG peer config reorganization, remote IP is at connection > remote > ip.
+// Returns empty string if the connection or remote container or ip field is missing.
 func extractRemoteIP(peerTree map[string]any) string {
-	remoteMap, ok := getMap(peerTree, "remote")
+	connMap, ok := getMap(peerTree, "connection")
+	if !ok {
+		return ""
+	}
+	remoteMap, ok := getMap(connMap, "remote")
 	if !ok {
 		return ""
 	}

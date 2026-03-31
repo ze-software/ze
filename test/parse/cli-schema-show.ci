@@ -5,13 +5,19 @@ stdin=config:terminator=EOF_CONF
 # Minimal valid config for test framework
 bgp {
 	peer peer1 {
-		remote {
-			ip 127.0.0.1
-			as 65533
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
 		}
-		local {
-			as 65533
-			ip 127.0.0.1
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
 		}
 	}
 }

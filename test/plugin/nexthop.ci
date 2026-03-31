@@ -53,23 +53,29 @@ plugin {
 }
 bgp {
 	peer peer1 {
-		remote {
-			ip 127.0.0.1
-			as 65512
-			accept false
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
+			}
 		}
-		local {
-			as 65512
-			ip 127.0.0.1
+		session {
+			asn {
+				local 65512
+				remote 65512
+			}
+			router-id 10.0.0.139
+			family {
+				ipv6/unicast { prefix { maximum 10000; } }
+			}
 		}
-		router-id 10.0.0.139
 		timer {
 			receive-hold-time 30
 		}
 
-		family {
-			ipv6/unicast { prefix { maximum 10000; } }
-		}
 		process announce-routes {
 		}
 	}

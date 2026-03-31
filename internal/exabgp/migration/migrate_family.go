@@ -13,14 +13,21 @@ import (
 )
 
 // convertFamilyToList converts ExaBGP family syntax to ZeBGP list entries.
-// ExaBGP: "ipv4 unicast;" → ZeBGP list: key="ipv4/unicast".
+// ExaBGP: "ipv4 unicast;" -> ZeBGP: session > family list: key="ipv4/unicast".
 func convertFamilyToList(src, dst *config.Tree) {
 	// Get keys and sort for deterministic output.
 	keys := src.Values()
 	sort.Strings(keys)
 
+	// Families go into session > family.
+	sessionContainer := dst.GetContainer("session")
+	if sessionContainer == nil {
+		sessionContainer = config.NewTree()
+		dst.SetContainer("session", sessionContainer)
+	}
+
 	for _, key := range keys {
-		// Convert "ipv4 unicast" → "ipv4/unicast".
+		// Convert "ipv4 unicast" -> "ipv4/unicast".
 		converted := convertFamilySyntax(key)
 		// Every family requires prefix { maximum N; } (RFC 4486).
 		// Use 10000 as a sensible default for migrated configs.
@@ -28,7 +35,7 @@ func convertFamilyToList(src, dst *config.Tree) {
 		prefixTree := config.NewTree()
 		prefixTree.Set("maximum", "10000")
 		familyTree.SetContainer("prefix", prefixTree)
-		dst.AddListEntry("family", converted, familyTree)
+		sessionContainer.AddListEntry("family", converted, familyTree)
 	}
 }
 

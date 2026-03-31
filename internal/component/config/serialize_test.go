@@ -26,8 +26,10 @@ func serializeSchemaWithGR() (*Schema, error) {
 func TestSerializeSimple(t *testing.T) {
 	input := `bgp {
     router-id 1.2.3.4
-    local {
-        as 65000
+    session {
+        asn {
+            local 65000
+        }
     }
 }
 `
@@ -58,14 +60,18 @@ func TestSerializeSimple(t *testing.T) {
 func TestSerializeNeighbor(t *testing.T) {
 	input := `bgp {
     peer peer1 {
-        remote {
-            ip 192.0.2.1
-            as 65001
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
         }
-        local {
-            as 65000
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            router-id 1.2.3.4
         }
-        router-id 1.2.3.4
         timer {
             receive-hold-time 90
         }
@@ -97,16 +103,20 @@ func TestSerializeNeighbor(t *testing.T) {
 func TestSerializeFamily(t *testing.T) {
 	input := `bgp {
     peer peer1 {
-        remote {
-            ip 192.0.2.1
-            as 65001
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
         }
-        local {
-            as 65000
-        }
-        family {
-            ipv4/unicast
-            ipv6/unicast
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            family {
+                ipv4/unicast
+                ipv6/unicast
+            }
         }
     }
 }
@@ -164,18 +174,22 @@ func TestSerializePlugin(t *testing.T) {
 func TestSerializeCapability(t *testing.T) {
 	input := `bgp {
     peer peer1 {
-        remote {
-            ip 192.0.2.1
-            as 65001
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
         }
-        local {
-            as 65000
-        }
-        capability {
-            asn4 true
-            route-refresh true
-            graceful-restart {
-                restart-time 120
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            capability {
+                asn4 true
+                route-refresh true
+                graceful-restart {
+                    restart-time 120
+                }
             }
         }
     }
@@ -409,12 +423,16 @@ func TestSerializeArray(t *testing.T) {
 func TestSerializeQuotedStrings(t *testing.T) {
 	input := `bgp {
     peer peer1 {
-        remote {
-            ip 192.0.2.1
-            as 65001
+        connection {
+            remote {
+                ip 192.0.2.1
+            }
         }
-        local {
-            as 65000
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
         }
         description "My BGP Peer"
     }

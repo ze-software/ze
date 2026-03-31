@@ -89,7 +89,7 @@ func TestHandlerPeerSave(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	// Write minimal valid config for the editor to parse (bgp container required)
-	initial := "bgp {\n\trouter-id 1.2.3.4;\n\tlocal {\n\t\tas 65000;\n\t}\n}\n"
+	initial := "bgp {\n\trouter-id 1.2.3.4;\n\tsession {\n\t\tasn {\n\t\t\tlocal 65000;\n\t\t}\n\t}\n}\n"
 	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
@@ -122,7 +122,7 @@ func TestHandlerPeerSave(t *testing.T) {
 	content, err := os.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "192.0.2.1")
-	assert.Contains(t, string(content), "as 65001")
+	assert.Contains(t, string(content), "remote 65001")
 	// local-as matches reactor default, so should NOT be written for this peer
 	// receive-hold-time is default 90s, so should NOT be written
 }
@@ -135,7 +135,7 @@ func TestHandlerPeerSaveNonDefaultHoldTime(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	initial := "bgp {\n\trouter-id 1.2.3.4;\n\tlocal {\n\t\tas 65000;\n\t}\n}\n"
+	initial := "bgp {\n\trouter-id 1.2.3.4;\n\tsession {\n\t\tasn {\n\t\t\tlocal 65000;\n\t\t}\n\t}\n}\n"
 	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 
@@ -176,7 +176,7 @@ func TestHandlerPeerSaveLocalAddress(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	initial := "bgp {\n\trouter-id 1.2.3.4;\n\tlocal {\n\t\tas 65000;\n\t}\n}\n"
+	initial := "bgp {\n\trouter-id 1.2.3.4;\n\tsession {\n\t\tasn {\n\t\t\tlocal 65000;\n\t\t}\n\t}\n}\n"
 	err := os.WriteFile(configPath, []byte(initial), 0o600)
 	require.NoError(t, err)
 

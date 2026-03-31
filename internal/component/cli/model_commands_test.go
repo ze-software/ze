@@ -192,9 +192,18 @@ func TestModelCmdEditFromContext(t *testing.T) {
 	content := `bgp {
   router-id 1.2.3.4
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
-    capability {
-      route-refresh
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+      capability {
+        route-refresh
+      }
     }
   }
 }`
@@ -230,10 +239,28 @@ func TestModelCmdEditExactMatch(t *testing.T) {
 	// Config with multiple peer blocks
 	content := `bgp {
   peer transit1 {
-    remote { ip 2.2.2.2; as 65001; }
+    connection {
+      remote {
+        ip 2.2.2.2
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
   }
   peer transit2 {
-    remote { ip 1.1.1.1; as 65002; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65002
+      }
+    }
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
@@ -356,12 +383,34 @@ func TestModelPipeShowGrep(t *testing.T) {
 
 	content := `bgp {
   router-id 1.2.3.4
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
   }
   peer peer2 {
-    remote { ip 2.2.2.2; as 65002; }
+    connection {
+      remote {
+        ip 2.2.2.2
+      }
+    }
+    session {
+      asn {
+        remote 65002
+      }
+    }
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
@@ -395,9 +444,22 @@ func TestModelPipeShowHead(t *testing.T) {
 
 	content := `bgp {
   router-id 1.2.3.4
-  local { as 65000; }
+  session {
+  	asn {
+  		local 65000
+  	}
+  }
   peer peer1 {
-    remote { ip 1.1.1.1; as 65001; }
+    connection {
+      remote {
+        ip 1.1.1.1
+      }
+    }
+    session {
+      asn {
+        remote 65001
+      }
+    }
   }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
@@ -428,10 +490,14 @@ func TestModelPipeChain(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	content := `bgp {
-  peer a1 { remote { ip 1.1.1.1; as 65001; } }
-  peer a2 { remote { ip 1.1.1.2; as 65002; } }
-  peer a3 { remote { ip 1.1.1.3; as 65003; } }
-  peer b1 { remote { ip 2.2.2.1; as 65004; } }
+  peer a1 { connection { remote { ip 1.1.1.1; } } session { asn { remote 65001; } } }
+  peer a1 { connection { remote { ip 1.1.1.1; } } session { asn { remote 65001; } } }
+  peer a2 { connection { remote { ip 1.1.1.2; } } session { asn { remote 65002; } } }
+  peer a2 { connection { remote { ip 1.1.1.2; } } session { asn { remote 65002; } } }
+  peer a3 { connection { remote { ip 1.1.1.3; } } session { asn { remote 65003; } } }
+  peer a3 { connection { remote { ip 1.1.1.3; } } session { asn { remote 65003; } } }
+  peer b1 { connection { remote { ip 2.2.2.1; } } session { asn { remote 65004; } } }
+  peer b1 { connection { remote { ip 2.2.2.1; } } session { asn { remote 65004; } } }
 }`
 	err := os.WriteFile(configPath, []byte(content), 0o600)
 	require.NoError(t, err)
@@ -470,7 +536,16 @@ func TestSetCommandModifiesConfig(t *testing.T) {
 	originalContent := `bgp {
 	router-id 1.2.3.4
 	peer peer1 {
-		remote { ip 1.1.1.1; as 65001; }
+		connection {
+			remote {
+				ip 1.1.1.1
+			}
+		}
+		session {
+			asn {
+				remote 65001
+			}
+		}
 	}
 }`
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
@@ -575,7 +650,16 @@ func TestSetCommandUpdatesExistingValue(t *testing.T) {
 	originalContent := `bgp {
 	router-id 1.2.3.4
 	peer peer1 {
-		remote { ip 1.1.1.1; as 65001; }
+		connection {
+			remote {
+				ip 1.1.1.1
+			}
+		}
+		session {
+			asn {
+				remote 65001
+			}
+		}
 		description "old value"
 	}
 }`
@@ -702,7 +786,7 @@ func TestEditQuotedListKey(t *testing.T) {
 	// bgp.group is a string-keyed list (key "name")
 	originalContent := `bgp {
 	group "my group" {
-		remote { as 65001; }
+		session { asn { remote 65001; } }
 	}
 }`
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
@@ -738,7 +822,7 @@ func TestSetInQuotedListEntry(t *testing.T) {
 	// bgp.group is a string-keyed list (key "name")
 	originalContent := `bgp {
 	group "my group" {
-		remote { as 65001; }
+		session { asn { remote 65001; } }
 	}
 }`
 	err := os.WriteFile(configPath, []byte(originalContent), 0o600)
@@ -757,7 +841,7 @@ func TestSetInQuotedListEntry(t *testing.T) {
 	model.ApplyResult(editResult)
 
 	// Set a value inside the group block
-	setResult, err := model.cmdSet([]string{"remote", "as", "65002"})
+	setResult, err := model.cmdSet([]string{"session", "asn", "remote", "65002"})
 	require.NoError(t, err)
 
 	// Verify the content was modified correctly
@@ -1489,7 +1573,7 @@ func TestCmdShowChangesAllGrouping(t *testing.T) {
 
 	session2 := NewEditSession("bob", "local")
 	ed2.SetSession(session2)
-	err = ed2.SetValue([]string{"bgp", "local"}, "as", "65001")
+	err = ed2.SetValue([]string{"bgp", "session", "asn"}, "local", "65001")
 	require.NoError(t, err)
 
 	model, err := NewModel(ed2)

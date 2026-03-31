@@ -2,17 +2,25 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer peer3 {
-		remote {
-			ip 10.0.0.3
-			as 65533
+		connection {
+			remote {
+				ip 10.0.0.3
+			}
+			local {
+				ip 192.0.2.92
+			}
 		}
-		local {
-			as 65533
-			ip 192.0.2.92
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 192.0.2.92
+		}
+		behavior {
+			group-updates disable
 		}
 		description "a quagga test peer"
-		router-id 192.0.2.92
-		group-updates disable
 		update {
 			attribute {
 				origin igp
@@ -28,16 +36,22 @@ bgp {
 }
 bgp {
 	peer peer4 {
-		remote {
-			ip 10.0.0.4
-			as 65500
+		connection {
+			remote {
+				ip 10.0.0.4
+			}
+			local {
+				ip 10.0.0.2
+			}
 		}
-		local {
-			as 65500
-			ip 10.0.0.2
+		session {
+			asn {
+				local 65500
+				remote 65500
+			}
+			router-id 10.0.0.2
 		}
 		description "a quagga test peer"
-		router-id 10.0.0.2
 		update {
 			attribute {
 				origin igp

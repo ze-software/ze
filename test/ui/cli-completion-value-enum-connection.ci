@@ -4,22 +4,30 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
 	router-id 1.2.3.4
-	local {
-		as 65000
+	session {
+		asn {
+			local 65000
+		}
 	}
 	peer peer1 {
-		remote {
-			ip 1.1.1.1
-			as 65001
+		connection {
+			remote {
+				ip 1.1.1.1
+			}
+			local {
+				ip 127.0.0.1
+			}
 		}
-		local {
-			ip 127.0.0.1
+		session {
+			asn {
+				remote 65001
+			}
 		}
 	}
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/local --input set+connect+ test.conf
+cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1/connection/local --input set+connect+ test.conf
 expect=exit:code=0
 expect=stdout:contains=true
 expect=stdout:contains=false

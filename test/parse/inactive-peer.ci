@@ -3,26 +3,40 @@
 # and that the inactive: prefix sugar is also valid.
 stdin=config:terminator=EOF_CONF
 bgp {
-	local {
-		as 65000
+	session {
+		asn {
+			local 65000
+		}
 	}
 	router-id 1.2.3.4
 	peer active-peer {
-		local {
-			ip auto
+		connection {
+			remote {
+				ip 10.0.0.1
+			}
+			local {
+				ip auto
+			}
 		}
-		remote {
-			ip 10.0.0.1
-			as 65001
+		session {
+			asn {
+				remote 65001
+			}
 		}
 	}
 	inactive: peer disabled-peer {
-		local {
-			ip auto
+		connection {
+			local {
+				ip auto
+			}
+			remote {
+				ip 10.0.0.2
+			}
 		}
-		remote {
-			ip 10.0.0.2
-			as 65002
+		session {
+			asn {
+				remote 65002
+			}
 		}
 	}
 }

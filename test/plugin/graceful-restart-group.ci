@@ -36,18 +36,23 @@ environment {
 
 bgp {
 	group gr-peers {
-		remote {
-			accept false
-		}
-		group-updates disable
-
-		family {
-			ipv4/unicast { prefix { maximum 10000; } }
-		}
-		capability {
-			graceful-restart {
-				restart-time 120
+		connection {
+			remote {
+				accept false
 			}
+		}
+		session {
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart {
+					restart-time 120
+				}
+			}
+		}
+		behavior {
+			group-updates disable
 		}
 
 		process gr {
@@ -55,15 +60,21 @@ bgp {
 		}
 
 		peer peer1 {
-			remote {
-				ip 127.0.0.1
-				as 1
+			connection {
+				remote {
+					ip 127.0.0.1
+				}
+				local {
+					ip 127.0.0.1
+				}
 			}
-			local {
-				as 1
-				ip 127.0.0.1
+			session {
+				asn {
+					local 1
+					remote 1
+				}
+				router-id 1.2.3.4
 			}
-			router-id 1.2.3.4
 			timer { connect-retry 5; }
 
 			update {

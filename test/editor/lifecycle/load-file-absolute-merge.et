@@ -7,8 +7,10 @@
 tmpfs=original.conf:terminator=EOF_ORIG
 bgp {
   router-id 1.2.3.4;
-  local {
-  	as 65000
+  session {
+  	asn {
+  		local 65000
+  	}
   }
 }
 EOF_ORIG
@@ -17,9 +19,15 @@ tmpfs=merge.conf:terminator=EOF_MERGE
 bgp {
   router-id 5.6.7.8;
   peer peer1 {
-  	remote {
-  		ip 1.1.1.1
-  		as 65001;
+  	connection {
+  		remote {
+  			ip 1.1.1.1
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65001
+  		}
   	}
   }
 }
@@ -42,7 +50,7 @@ expect=content:contains=65000
 
 # Merged content should be added
 expect=content:contains=peer peer1
-expect=content:contains=as 65001
+expect=content:contains=remote 65001
 
 # Merge file's router-id should NOT overwrite original
 expect=content:not-contains=5.6.7.8

@@ -6,8 +6,10 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local {
-  	as 65000
+  session {
+  	asn {
+  		local 65000
+  	}
   }
 }
 EOF_CONF
@@ -19,14 +21,14 @@ option=timeout:value=10s
 expect=dirty:false
 
 # Add a new peer with required attributes
-input=type:text=set bgp peer 10.0.0.1 remote as 65001
+input=type:text=set bgp peer 10.0.0.1 session asn remote 65001
 input=enter
 expect=status:contains=set
 expect=dirty:true
 expect=error:none
 
-# Set local ip on the same peer
-input=type:text=set bgp peer 10.0.0.1 local ip auto
+# Set remote ip on the same peer
+input=type:text=set bgp peer 10.0.0.1 connection remote ip 10.0.0.1
 input=enter
 expect=status:contains=set
 expect=error:none

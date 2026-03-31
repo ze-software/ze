@@ -431,7 +431,7 @@ func newHandlerTestManager(t *testing.T) (*EditorManager, *config.Schema) {
 	configPath := filepath.Join(dir, "test.conf")
 
 	// Minimal valid BGP config for write-through editing.
-	bgpConfig := "bgp {\n\trouter-id 1.2.3.4\n\tlocal { as 65000; }\n}\n"
+	bgpConfig := "bgp {\n\trouter-id 1.2.3.4\n\tsession { asn { local 65000; } }\n}\n"
 	err := os.WriteFile(configPath, []byte(bgpConfig), 0o600)
 	require.NoError(t, err, "writing test config")
 

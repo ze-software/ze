@@ -13,7 +13,7 @@ module ze-hostname {
     }
 
     // Standalone peers: augment capability container
-    augment "/bgp:bgp/bgp:peer/bgp:capability" {
+    augment "/bgp:bgp/bgp:peer/bgp:session/bgp:capability" {
         container hostname {
             description "FQDN capability configuration.";
 
@@ -34,7 +34,7 @@ module ze-hostname {
     }
 
     // Group-level capability
-    augment "/bgp:bgp/bgp:group/bgp:capability" {
+    augment "/bgp:bgp/bgp:group/bgp:session/bgp:capability" {
         container hostname {
             description "FQDN capability configuration.";
 
@@ -55,7 +55,7 @@ module ze-hostname {
     }
 
     // Grouped peers: augment capability container
-    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:capability" {
+    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:session/bgp:capability" {
         container hostname {
             description "FQDN capability configuration.";
 
@@ -75,8 +75,8 @@ module ze-hostname {
         }
     }
 
-    // Standalone peers: legacy syntax
-    augment "/bgp:bgp/bgp:peer" {
+    // Standalone peers: legacy syntax (in session container)
+    augment "/bgp:bgp/bgp:peer/bgp:session" {
         leaf host-name {
             type string {
                 length "0..255";
@@ -92,8 +92,8 @@ module ze-hostname {
         }
     }
 
-    // Grouped peers: legacy syntax
-    augment "/bgp:bgp/bgp:group/bgp:peer" {
+    // Grouped peers: legacy syntax (in session container)
+    augment "/bgp:bgp/bgp:group/bgp:peer/bgp:session" {
         leaf host-name {
             type string {
                 length "0..255";
@@ -109,8 +109,8 @@ module ze-hostname {
         }
     }
 
-    // Group-level: legacy syntax
-    augment "/bgp:bgp/bgp:group" {
+    // Group-level: legacy syntax (in session container)
+    augment "/bgp:bgp/bgp:group/bgp:session" {
         leaf host-name {
             type string {
                 length "0..255";

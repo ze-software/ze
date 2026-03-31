@@ -232,7 +232,7 @@ func TestExpectContentContains(t *testing.T) {
 func TestExpectContentNotContains(t *testing.T) {
 	exp := Expectation{Type: "content", Values: map[string]string{"not-contains": "error"}}
 
-	err := CheckExpectation(exp, &MockState{workingContent: "bgp { local { as 65000; } }"})
+	err := CheckExpectation(exp, &MockState{workingContent: "bgp { session { asn { local 65000; } } }"})
 	assert.NoError(t, err)
 
 	err = CheckExpectation(exp, &MockState{workingContent: "error: something wrong"})

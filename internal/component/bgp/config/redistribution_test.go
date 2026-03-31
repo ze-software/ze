@@ -16,7 +16,11 @@ func TestRedistributionConfigParse(t *testing.T) {
 	input := `
 bgp {
     router-id 1.2.3.4;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     redistribution {
         import [ rpki:validate ];
     }
@@ -26,8 +30,19 @@ bgp {
             export [ aspath:prepend ];
         }
         peer customer-a {
-            remote { ip 10.0.0.1; as 65001; }
-            local { ip auto; }
+            connection {
+                remote {
+                    ip 10.0.0.1
+                }
+                local {
+                    ip auto
+                }
+            }
+            session {
+                asn {
+                    remote 65001
+                }
+            }
         }
     }
 }
@@ -51,7 +66,11 @@ func TestFilterChainResolution(t *testing.T) {
 	input := `
 bgp {
     router-id 1.2.3.4;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     redistribution {
         import [ a:x ];
     }
@@ -60,8 +79,19 @@ bgp {
             import [ b:y ];
         }
         peer p1 {
-            remote { ip 10.0.0.1; as 65001; }
-            local { ip auto; }
+            connection {
+                remote {
+                    ip 10.0.0.1
+                }
+                local {
+                    ip auto
+                }
+            }
+            session {
+                asn {
+                    remote 65001
+                }
+            }
             redistribution {
                 import [ c:z ];
             }
@@ -92,10 +122,25 @@ func TestRedistributionConfigValidation(t *testing.T) {
 			input: `
 bgp {
     router-id 1.2.3.4;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer p1 {
-        remote { ip 10.0.0.1; as 65001; }
-        local { ip auto; }
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+            local {
+                ip auto
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
         redistribution { import [ badformat ]; }
     }
 }`,
@@ -106,10 +151,25 @@ bgp {
 			input: `
 bgp {
     router-id 1.2.3.4;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer p1 {
-        remote { ip 10.0.0.1; as 65001; }
-        local { ip auto; }
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+            local {
+                ip auto
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
         redistribution { import [ :filter ]; }
     }
 }`,
@@ -120,10 +180,25 @@ bgp {
 			input: `
 bgp {
     router-id 1.2.3.4;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer p1 {
-        remote { ip 10.0.0.1; as 65001; }
-        local { ip auto; }
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+            local {
+                ip auto
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
         redistribution { export [ plugin: ]; }
     }
 }`,
@@ -149,13 +224,28 @@ func TestRedistributionStandalonePeer(t *testing.T) {
 	input := `
 bgp {
     router-id 1.2.3.4;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     redistribution {
         import [ global:filter ];
     }
     peer standalone {
-        remote { ip 10.0.0.1; as 65001; }
-        local { ip auto; }
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+            local {
+                ip auto
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
         redistribution { export [ peer:export ]; }
     }
 }
@@ -177,10 +267,25 @@ func TestRedistributionEmpty(t *testing.T) {
 	input := `
 bgp {
     router-id 1.2.3.4;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer p1 {
-        remote { ip 10.0.0.1; as 65001; }
-        local { ip auto; }
+        connection {
+            remote {
+                ip 10.0.0.1
+            }
+            local {
+                ip auto
+            }
+        }
+        session {
+            asn {
+                remote 65001
+            }
+        }
     }
 }
 `

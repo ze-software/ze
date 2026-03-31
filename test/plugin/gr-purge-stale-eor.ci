@@ -57,27 +57,35 @@ environment {
 
 bgp {
 	peer peer1 {
-		remote {
-			ip 127.0.0.1
-			as 1
-			accept false
-		}
-		local {
-			as 1
-			ip 127.0.0.1
-		}
-		router-id 1.2.3.4
-		timer { connect-retry 5; }
-		group-updates disable
-
-		family {
-			ipv4/unicast { prefix { maximum 10000; } }
-		}
-		capability {
-			graceful-restart {
-				restart-time 120
+		connection {
+			remote {
+				ip 127.0.0.1
+				accept false
+			}
+			local {
+				ip 127.0.0.1
 			}
 		}
+		session {
+			asn {
+				local 1
+				remote 1
+			}
+			router-id 1.2.3.4
+			family {
+				ipv4/unicast { prefix { maximum 10000; } }
+			}
+			capability {
+				graceful-restart {
+					restart-time 120
+				}
+			}
+		}
+		behavior {
+			group-updates disable
+		}
+		timer { connect-retry 5; }
+
 
 		update {
 			attribute {

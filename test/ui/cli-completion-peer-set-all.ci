@@ -4,16 +4,24 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
 	router-id 1.2.3.4
-	local {
-		as 65000
+	session {
+		asn {
+			local 65000
+		}
 	}
 	peer peer1 {
-		remote {
-			ip 1.1.1.1
-			as 65001
+		connection {
+			remote {
+				ip 1.1.1.1
+			}
+			local {
+				ip 127.0.0.1
+			}
 		}
-		local {
-			ip 127.0.0.1
+		session {
+			asn {
+				remote 65001
+			}
 		}
 	}
 }
@@ -21,31 +29,16 @@ EOF_CONF
 
 cmd=foreground:seq=1:exec=ze config completion --context bgp/peer/peer1 --input set+ test.conf
 expect=exit:code=0
-# Core peer fields
-expect=stdout:contains=remote
-expect=stdout:contains=local
-expect=stdout:contains=local
-expect=stdout:contains=router-id
+# Peer containers
+expect=stdout:contains=connection
+expect=stdout:contains=session
+expect=stdout:contains=behavior
 expect=stdout:contains=timer
 expect=stdout:contains=description
-expect=stdout:contains=port
-expect=stdout:contains=md5-password
-expect=stdout:contains=ttl-security
-expect=stdout:contains=outgoing-ttl
-expect=stdout:contains=incoming-ttl
-expect=stdout:contains=auto-flush
-expect=stdout:contains=adj-rib-out
-expect=stdout:contains=adj-rib-in
-expect=stdout:contains=manual-eor
-expect=stdout:contains=group-updates
 # Containers/lists
-expect=stdout:contains=capability
-expect=stdout:contains=family
 expect=stdout:contains=update
-expect=stdout:contains=add-path
 expect=stdout:contains=process
 expect=stdout:contains=rib
+expect=stdout:contains=redistribution
 # Plugin augments
 expect=stdout:contains=role
-expect=stdout:contains=host-name
-expect=stdout:contains=domain-name

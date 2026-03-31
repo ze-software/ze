@@ -76,16 +76,26 @@ plugin {
 }
 bgp {
     router-id 1.2.3.4;
-    local { as 65000; }
+    session {
+    	asn {
+    		local 65000
+    	}
+    }
     peer peer1 {
-        remote {
-            ip 127.0.0.1;
-            as 65001;
-            accept false;
+        connection {
+            remote {
+                ip 127.0.0.1
+                accept false
+            }
+            local {
+                ip auto
+            }
         }
-        local {
-            as 65000;
-            ip auto;
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
         }
         redistribution {
             export [ filter-export-reject-test:block-export ];

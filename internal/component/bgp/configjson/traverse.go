@@ -62,11 +62,16 @@ func ForEachPeer(bgpTree map[string]any, visit PeerVisitor) {
 }
 
 // GetCapability returns the capability map for a peer or group config map.
+// Capabilities live under session > capability in the YANG peer config structure.
 // Returns nil if no capability container exists.
 func GetCapability(m map[string]any) map[string]any {
 	if m == nil {
 		return nil
 	}
-	capMap, _ := m["capability"].(map[string]any)
+	session, ok := m["session"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	capMap, _ := session["capability"].(map[string]any)
 	return capMap
 }

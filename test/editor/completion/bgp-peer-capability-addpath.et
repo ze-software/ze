@@ -6,14 +6,20 @@ tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
   peer peer1 {
-  	remote {
-  		ip 1.1.1.1
-  		as 65001;
+  	connection {
+  		remote {
+  			ip 1.1.1.1
+  		}
   	}
-    capability {
-      add-path {
-      }
-    }
+  	session {
+  		asn {
+  			remote 65001
+  		}
+  		capability {
+  		  add-path {
+  		  }
+  		}
+  	}
   }
 }
 EOF_CONF
@@ -21,14 +27,16 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# Navigate to capability.add-path context
+# Navigate to session.capability.add-path context
 input=type:text=edit bgp peer peer1
+input=enter
+input=type:text=edit session
 input=enter
 input=type:text=edit capability
 input=enter
 input=type:text=edit add-path
 input=enter
-expect=context:path=bgp.peer.peer1.capability.add-path
+expect=context:path=bgp.peer.peer1.session.capability.add-path
 
 # Completions should show add-path settings
 input=type:text=set

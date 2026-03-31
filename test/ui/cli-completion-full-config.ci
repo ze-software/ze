@@ -12,17 +12,35 @@ environment {
 }
 bgp {
 	router-id 10.0.0.1
-	local {
-		as 65000
+	session {
+		asn {
+			local 65000
+		}
 	}
 	peer peer1 {
-		remote {
-			ip 192.168.1.1
-			as 65001
+		connection {
+			remote {
+				ip 192.168.1.1
+			}
+			local {
+				ip 192.168.1.254
+				connect false
+			}
 		}
-		local {
-			ip 192.168.1.254
-			connect false
+		session {
+			asn {
+				remote 65001
+			}
+			capability {
+				asn4 true
+				graceful-restart {
+					restart-time 120
+				}
+			}
+			family ipv4/unicast {
+				mode enable
+				prefix { maximum 10000; }
+			}
 		}
 		timer {
 			receive-hold-time 90
@@ -30,24 +48,20 @@ bgp {
 		role {
 			import customer
 		}
-		capability {
-			asn4 true
-			graceful-restart {
-				restart-time 120
-			}
-		}
-		family ipv4/unicast {
-			mode enable
-			prefix { maximum 10000; }
-		}
 	}
 	peer peer1-2 {
-		remote {
-			ip 192.168.2.1
-			as 65002
+		connection {
+			remote {
+				ip 192.168.2.1
+			}
+			local {
+				ip 192.168.2.254
+			}
 		}
-		local {
-			ip 192.168.2.254
+		session {
+			asn {
+				remote 65002
+			}
 		}
 		role {
 			import provider

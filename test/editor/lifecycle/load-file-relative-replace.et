@@ -5,13 +5,21 @@
 tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
-  local {
-  	as 65000
+  session {
+  	asn {
+  		local 65000
+  	}
   }
   peer peer1 {
-  	remote {
-  		ip 1.1.1.1
-  		as 65001;
+  	connection {
+  		remote {
+  			ip 1.1.1.1
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65001
+  		}
   	}
     timer { receive-hold-time 90; }
   }
@@ -19,7 +27,7 @@ bgp {
 EOF_CONF
 
 tmpfs=peer-content.conf:terminator=EOF_PEER
-remote as 65002;
+session { asn { remote 65002; } }
 description "replaced peer";
 EOF_PEER
 
@@ -37,7 +45,7 @@ input=enter
 
 # Root config should be preserved
 expect=content:contains=router-id
-expect=content:contains=local
+expect=content:contains=local 65000
 
 # Peer content should be replaced
 expect=content:contains=65002

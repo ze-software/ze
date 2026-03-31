@@ -6,17 +6,23 @@
 stdin=config:terminator=EOF_CONF
 bgp {
 	peer peer1 {
-		remote {
-			ip 127.0.0.1
-			as 65533
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
 		}
-		local {
-			as 65533
-			ip 127.0.0.1
-		}
-		router-id 10.0.0.2
-		family {
-			ipv4/unicast
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+			router-id 10.0.0.2
+			family {
+				ipv4/unicast
+			}
 		}
 	}
 }

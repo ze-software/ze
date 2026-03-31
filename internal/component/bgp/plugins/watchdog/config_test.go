@@ -14,7 +14,7 @@ func TestParseConfigBasic(t *testing.T) {
 		"bgp": {
 			"peer": {
 			"peer1": {
-				"remote": {"ip": "127.0.0.1", "as": "65533"},
+				"connection": {"remote": {"ip": "127.0.0.1", "as": "65533"}},
 				"update": {
 					"default": {
 						"attribute": {
@@ -85,7 +85,7 @@ func TestParseConfigWithdrawFlag(t *testing.T) {
 		"bgp": {
 			"peer": {
 			"peer1": {
-				"remote": {"ip": "10.0.0.1"},
+				"connection": {"remote": {"ip": "10.0.0.1"}},
 				"update": {
 					"default": {
 						"attribute": {"origin": "igp", "next-hop": "10.0.0.1"},
@@ -121,7 +121,7 @@ func TestParseConfigMultiplePeers(t *testing.T) {
 		"bgp": {
 			"peer": {
 			"peer1": {
-				"remote": {"ip": "10.0.0.1"},
+				"connection": {"remote": {"ip": "10.0.0.1"}},
 				"update": {
 					"default": {
 						"attribute": {"origin": "igp", "next-hop": "10.0.0.1"},
@@ -131,7 +131,7 @@ func TestParseConfigMultiplePeers(t *testing.T) {
 				}
 			},
 			"peer2": {
-				"remote": {"ip": "10.0.0.2"},
+				"connection": {"remote": {"ip": "10.0.0.2"}},
 				"update": {
 					"default": {
 						"attribute": {"origin": "igp", "next-hop": "10.0.0.2"},
@@ -174,7 +174,7 @@ func TestParseConfigSkipsNonWatchdog(t *testing.T) {
 		"bgp": {
 			"peer": {
 			"peer1": {
-				"remote": {"ip": "10.0.0.1"},
+				"connection": {"remote": {"ip": "10.0.0.1"}},
 				"update": {
 					"default": {
 						"attribute": {"origin": "igp", "next-hop": "10.0.0.1"},
@@ -222,7 +222,7 @@ func TestParseConfigMultiplePrefixes(t *testing.T) {
 		"bgp": {
 			"peer": {
 			"peer1": {
-				"remote": {"ip": "10.0.0.1"},
+				"connection": {"remote": {"ip": "10.0.0.1"}},
 				"update": {
 					"default": {
 						"attribute": {"origin": "igp", "next-hop": "1.2.3.4"},
@@ -257,7 +257,7 @@ func TestParseConfigNhopSelf(t *testing.T) {
 		"bgp": {
 			"peer": {
 			"peer1": {
-				"remote": {"ip": "10.0.0.1"},
+				"connection": {"remote": {"ip": "10.0.0.1"}},
 				"update": {
 					"default": {
 						"attribute": {"origin": "igp", "next-hop": "self"},
@@ -291,7 +291,7 @@ func TestParseConfigBareIPNormalized(t *testing.T) {
 		"bgp": {
 			"peer": {
 			"peer1": {
-				"remote": {"ip": "127.0.0.1"},
+				"connection": {"remote": {"ip": "127.0.0.1"}},
 				"update": {
 					"default": {
 						"attribute": {"origin": "igp", "next-hop": "1.2.3.4"},
@@ -336,7 +336,7 @@ func TestParseConfigBareIPv6Normalized(t *testing.T) {
 		"bgp": {
 			"peer": {
 			"peer1": {
-				"remote": {"ip": "10.0.0.1"},
+				"connection": {"remote": {"ip": "10.0.0.1"}},
 				"update": {
 					"default": {
 						"attribute": {"origin": "igp", "next-hop": "::1"},
@@ -370,7 +370,7 @@ func TestParseConfigAllAttributes(t *testing.T) {
 		"bgp": {
 			"peer": {
 			"peer1": {
-				"remote": {"ip": "10.0.0.1"},
+				"connection": {"remote": {"ip": "10.0.0.1"}},
 				"update": {
 					"default": {
 						"attribute": {
@@ -428,7 +428,7 @@ func TestParseConfigGroupAndPeerBothHaveWatchdog(t *testing.T) {
 					},
 					"peer": {
 						"peer1": {
-							"remote": {"ip": "10.0.0.1"},
+							"connection": {"remote": {"ip": "10.0.0.1"}},
 							"update": {
 								"default": {
 									"attribute": {"origin": "igp", "next-hop": "2.2.2.2"},
@@ -492,7 +492,7 @@ func TestParseConfigGroupWatchdogPeerNoUpdate(t *testing.T) {
 					},
 					"peer": {
 						"peer1": {
-							"remote": {"ip": "10.0.0.1"}
+							"connection": {"remote": {"ip": "10.0.0.1"}}
 						}
 					}
 				}

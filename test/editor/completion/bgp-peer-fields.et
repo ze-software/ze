@@ -6,9 +6,15 @@ tmpfs=test.conf:terminator=EOF_CONF
 bgp {
   router-id 1.2.3.4;
   peer peer1 {
-  	remote {
-  		ip 1.1.1.1
-  		as 65001;
+  	connection {
+  		remote {
+  			ip 1.1.1.1
+  		}
+  	}
+  	session {
+  		asn {
+  			remote 65001
+  		}
   	}
   }
 }
@@ -22,6 +28,6 @@ input=type:text=edit bgp peer peer1
 input=enter
 expect=context:path=bgp.peer.peer1
 
-# Check set completions - should show remote and local containers
-input=type:text=set r
-expect=completion:contains=remote
+# Check set completions - should show connection and session containers
+input=type:text=set c
+expect=completion:contains=connection
