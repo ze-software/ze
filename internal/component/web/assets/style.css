@@ -105,6 +105,9 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
   min-width: 0;
 }
 
+.ze-logo-link { display: flex; align-items: center; margin-right: 8px; flex-shrink: 0; }
+.ze-logo { vertical-align: middle; }
+
 .breadcrumb-nav {
   display: flex;
   align-items: center;
@@ -114,16 +117,15 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 }
 
 .breadcrumb-back {
-  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
   text-decoration: none;
-  font-size: 1.1rem;
   padding: 0.1rem 0.3rem;
   border-radius: var(--radius-sm);
 }
 
 .breadcrumb-back:hover {
   background: var(--accent-subtle);
-  color: var(--accent);
   text-decoration: none;
 }
 

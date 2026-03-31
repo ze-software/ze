@@ -1,6 +1,6 @@
 {{define "breadcrumb_inner"}}
 <div class="breadcrumb-nav">
-  {{if gt (len .Breadcrumbs) 1}}{{with index .Breadcrumbs (sub (len .Breadcrumbs) 2)}}<a class="breadcrumb-back" href="{{.URL}}">&#8592;</a>{{end}}{{end}}
+  {{if gt (len .Breadcrumbs) 1}}{{with index .Breadcrumbs (sub (len .Breadcrumbs) 2)}}<a class="breadcrumb-back" href="{{.URL}}"><img class="ze-logo" src="/assets/ze.svg" alt="Back" width="24" height="24"></a>{{end}}{{else if gt (len .Breadcrumbs) 0}}<a class="breadcrumb-back" href="/show/"><img class="ze-logo" src="/assets/ze.svg" alt="Back" width="24" height="24"></a>{{else}}<span class="ze-logo-link"><img class="ze-logo" src="/assets/ze.svg" alt="Ze" width="24" height="24"></span>{{end}}
   <ol class="breadcrumb-list">
     {{range .Breadcrumbs}}
     <li class="breadcrumb-item{{if .Active}} breadcrumb-active{{end}}">

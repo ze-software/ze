@@ -146,27 +146,22 @@ func TestNodeKindToTemplate(t *testing.T) {
 func TestBuildBreadcrumbs(t *testing.T) {
 	segments := buildBreadcrumbs([]string{"bgp", "peer", "192.168.1.1"})
 
-	require.Len(t, segments, 4, "root + 3 path segments")
-
-	// Root segment.
-	assert.Equal(t, "ze", segments[0].Name)
-	assert.Equal(t, "/show/", segments[0].URL)
-	assert.False(t, segments[0].Active)
+	require.Len(t, segments, 3, "3 path segments (logo serves as root)")
 
 	// "bgp" segment.
-	assert.Equal(t, "bgp", segments[1].Name)
-	assert.Equal(t, "/show/bgp/", segments[1].URL)
-	assert.False(t, segments[1].Active)
+	assert.Equal(t, "bgp", segments[0].Name)
+	assert.Equal(t, "/show/bgp/", segments[0].URL)
+	assert.False(t, segments[0].Active)
 
 	// "peer" segment.
-	assert.Equal(t, "peer", segments[2].Name)
-	assert.Equal(t, "/show/bgp/peer/", segments[2].URL)
-	assert.False(t, segments[2].Active)
+	assert.Equal(t, "peer", segments[1].Name)
+	assert.Equal(t, "/show/bgp/peer/", segments[1].URL)
+	assert.False(t, segments[1].Active)
 
 	// "192.168.1.1" segment (last = active).
-	assert.Equal(t, "192.168.1.1", segments[3].Name)
-	assert.Equal(t, "/show/bgp/peer/192.168.1.1/", segments[3].URL)
-	assert.True(t, segments[3].Active)
+	assert.Equal(t, "192.168.1.1", segments[2].Name)
+	assert.Equal(t, "/show/bgp/peer/192.168.1.1/", segments[2].URL)
+	assert.True(t, segments[2].Active)
 }
 
 // TestBreadcrumbRoot verifies that an empty path produces only a root segment
@@ -176,11 +171,7 @@ func TestBuildBreadcrumbs(t *testing.T) {
 func TestBreadcrumbRoot(t *testing.T) {
 	segments := buildBreadcrumbs(nil)
 
-	require.Len(t, segments, 1, "root only")
-
-	assert.Equal(t, "ze", segments[0].Name)
-	assert.Equal(t, "/show/", segments[0].URL)
-	assert.True(t, segments[0].Active, "root is active when it is the only segment")
+	require.Len(t, segments, 0, "empty at root (logo serves as root navigation)")
 }
 
 // TestSchemaWalkContainer verifies that walking a schema path to a container

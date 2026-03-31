@@ -10,12 +10,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
-// buildBreadcrumbs creates breadcrumb navigation entries. The root segment
-// is named "/" and links to /show/. Each path segment links to
-// /show/<path-up-to-here>/.
+// buildBreadcrumbs creates breadcrumb navigation entries. Each path segment
+// links to /show/<path-up-to-here>/. The ze logo serves as root navigation.
 func buildBreadcrumbs(path []string) []BreadcrumbSegment {
-	crumbs := make([]BreadcrumbSegment, 0, 1+len(path))
-	crumbs = append(crumbs, BreadcrumbSegment{Name: "ze", URL: "/show/", Active: len(path) == 0})
+	crumbs := make([]BreadcrumbSegment, 0, len(path))
 
 	for i, seg := range path {
 		url := "/show/" + strings.Join(path[:i+1], "/") + "/"
