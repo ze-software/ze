@@ -30,3 +30,4 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 - [feedback_confirm_before_switching.md](feedback_confirm_before_switching.md) - Do not switch line of work without explicit user confirmation
 - [feedback_never_disable_gpg.md](feedback_never_disable_gpg.md) - Never bypass GPG signing on commits. Investigate failures, ask user.
 - [feedback_gpg_signing_recovery.md](feedback_gpg_signing_recovery.md) - On GPG sign failure, ask user to run `! echo test | gpg --clearsign` then retry
+- [feedback_no_git_reset.md](feedback_no_git_reset.md) - git reset is blocked; use git restore --staged or just commit what's staged
