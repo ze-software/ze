@@ -178,10 +178,9 @@ func (i *INET) Key() string {
 	return i.prefix.String()
 }
 
-// String returns the prefix in command-style format: prefix <addr/len>.
-// Path-ID is not included — it is added by the formatter as `nlri path-id <id> add`.
+// String returns the CIDR representation of the prefix (e.g., "10.0.0.0/24").
 func (i *INET) String() string {
-	return "prefix " + i.prefix.String()
+	return i.prefix.String()
 }
 
 // AppendKey appends the compact unique identifier (bare CIDR) to b.
@@ -190,10 +189,9 @@ func (i *INET) AppendKey(b []byte) []byte {
 	return i.prefix.AppendTo(b)
 }
 
-// AppendString appends the command-style representation to b: "prefix <addr/len>".
+// AppendString appends the CIDR representation to b.
 // Zero-alloc alternative to String() for hot paths.
 func (i *INET) AppendString(b []byte) []byte {
-	b = append(b, "prefix "...)
 	return i.prefix.AppendTo(b)
 }
 

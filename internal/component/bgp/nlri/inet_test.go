@@ -187,22 +187,22 @@ func TestINETBytesWithPathID(t *testing.T) {
 	assert.Equal(t, expectedWithPath, buf)
 }
 
-// TestINETString verifies string representation.
+// TestINETString verifies string representation returns bare CIDR.
 func TestINETString(t *testing.T) {
 	t.Parallel()
 	inet := NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0)
-	assert.Equal(t, "prefix 10.0.0.0/8", inet.String())
+	assert.Equal(t, "10.0.0.0/8", inet.String())
 
 	inetWithPath := NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 5)
-	assert.Equal(t, "prefix 10.0.0.0/8", inetWithPath.String())
+	assert.Equal(t, "10.0.0.0/8", inetWithPath.String())
 }
 
-// TestINETStringCommandStyle verifies command-style string representation.
+// TestINETStringCIDR verifies CIDR string representation.
 //
-// VALIDATES: INET String() outputs command-style format for API round-trip.
-// Format: prefix <addr/len> (path-id handled by formatter, not String()).
+// VALIDATES: INET String() outputs bare CIDR format for logs and display.
+// Format: <addr/len> (path-id handled by formatter, not String()).
 //
-// PREVENTS: Output format not matching input parser, breaking round-trip.
+// PREVENTS: Output format containing redundant type keywords.
 func TestINETStringCommandStyle(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -213,22 +213,22 @@ func TestINETStringCommandStyle(t *testing.T) {
 		{
 			name:     "ipv4 prefix without path-id",
 			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0),
-			expected: "prefix 10.0.0.0/8",
+			expected: "10.0.0.0/8",
 		},
 		{
 			name:     "ipv4 prefix with path-id",
 			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 42),
-			expected: "prefix 192.168.1.0/24",
+			expected: "192.168.1.0/24",
 		},
 		{
 			name:     "ipv6 prefix without path-id",
 			inet:     NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0),
-			expected: "prefix 2001:db8::/32",
+			expected: "2001:db8::/32",
 		},
 		{
 			name:     "ipv6 prefix with path-id",
 			inet:     NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 100),
-			expected: "prefix 2001:db8::/32",
+			expected: "2001:db8::/32",
 		},
 	}
 
@@ -240,15 +240,15 @@ func TestINETStringCommandStyle(t *testing.T) {
 	}
 }
 
-// TestINETKey verifies Key() returns compact identifier without type keyword.
+// TestINETKey verifies Key() returns compact CIDR identifier.
 //
-// VALIDATES: Key() returns bare CIDR for map keys, String() keeps "prefix" keyword.
-// PREVENTS: Key() and String() returning the same value.
+// VALIDATES: Key() returns bare CIDR for map keys, matching String().
+// PREVENTS: Key() and String() diverging.
 func TestINETKey(t *testing.T) {
 	t.Parallel()
 	inet := NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0)
 	assert.Equal(t, "10.0.0.0/8", inet.Key(), "Key() should return bare CIDR")
-	assert.Equal(t, "prefix 10.0.0.0/8", inet.String(), "String() should include prefix keyword")
+	assert.Equal(t, "10.0.0.0/8", inet.String(), "String() should return bare CIDR")
 
 	inet6 := NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 42)
 	assert.Equal(t, "2001:db8::/32", inet6.Key(), "Key() should return bare CIDR for IPv6")
