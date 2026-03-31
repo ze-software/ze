@@ -640,7 +640,7 @@ func TestParseUpdateText_NLRISectionBasic(t *testing.T) {
 	g := result.Groups[0]
 	assert.Equal(t, nlri.IPv4Unicast, g.Family)
 	require.Len(t, g.Announce, 1)
-	assert.Equal(t, "prefix 10.0.0.0/24", g.Announce[0].String())
+	assert.Equal(t, "10.0.0.0/24", g.Announce[0].String())
 	assert.Empty(t, g.Withdraw)
 }
 
@@ -671,8 +671,8 @@ func TestParseUpdateText_NLRIMixedAddDel(t *testing.T) {
 	g := result.Groups[0]
 	require.Len(t, g.Announce, 1)
 	require.Len(t, g.Withdraw, 1)
-	assert.Equal(t, "prefix 10.0.0.0/24", g.Announce[0].String())
-	assert.Equal(t, "prefix 10.0.1.0/24", g.Withdraw[0].String())
+	assert.Equal(t, "10.0.0.0/24", g.Announce[0].String())
+	assert.Equal(t, "10.0.1.0/24", g.Withdraw[0].String())
 }
 
 // TestParseUpdateText_NLRIWithdrawOnly verifies del-only section.
@@ -689,7 +689,7 @@ func TestParseUpdateText_NLRIWithdrawOnly(t *testing.T) {
 	g := result.Groups[0]
 	assert.Empty(t, g.Announce)
 	require.Len(t, g.Withdraw, 1)
-	assert.Equal(t, "prefix 10.0.0.0/24", g.Withdraw[0].String())
+	assert.Equal(t, "10.0.0.0/24", g.Withdraw[0].String())
 }
 
 // TestParseUpdateText_NLRIPrefixKeyword verifies "prefix" type keyword is skipped.
@@ -704,7 +704,7 @@ func TestParseUpdateText_NLRIPrefixKeyword(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Announce, 1)
-	assert.Equal(t, "prefix 10.0.0.0/24", result.Groups[0].Announce[0].String())
+	assert.Equal(t, "10.0.0.0/24", result.Groups[0].Announce[0].String())
 
 	// Del with prefix keyword
 	result, err = ParseUpdateText([]string{
@@ -713,7 +713,7 @@ func TestParseUpdateText_NLRIPrefixKeyword(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	require.Len(t, result.Groups[0].Withdraw, 1)
-	assert.Equal(t, "prefix 10.0.0.0/24", result.Groups[0].Withdraw[0].String())
+	assert.Equal(t, "10.0.0.0/24", result.Groups[0].Withdraw[0].String())
 
 	// Mixed: add with prefix, del with prefix
 	result, err = ParseUpdateText([]string{
@@ -826,7 +826,7 @@ func TestParseUpdateText_IPv6(t *testing.T) {
 	g := result.Groups[0]
 	assert.Equal(t, nlri.IPv6Unicast, g.Family)
 	require.Len(t, g.Announce, 1)
-	assert.Equal(t, "prefix 2001:db8::/32", g.Announce[0].String())
+	assert.Equal(t, "2001:db8::/32", g.Announce[0].String())
 }
 
 // TestParseUpdateText_FamilyMismatch verifies family/prefix validation.

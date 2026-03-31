@@ -163,14 +163,21 @@ func updatePeerPrefixConfig(ed *cli.Editor, p *plugin.PeerInfo, counts peeringdb
 
 	// Build config path. Grouped peers use group path; standalone use peer path.
 	// This matches the save.go convention (always writes to standalone peer path).
+	// After YANG reorg, family/prefix are inside the session container.
 	basePath := []string{"bgp", "peer", peerKey}
 
 	if counts.IPv4 > 0 {
 		newMax := peeringdb.ApplyMargin(counts.IPv4, margin)
-		familyPath := append(basePath, "family", "ipv4/unicast", "prefix") //nolint:gocritic // append to copy is intentional
+		familyPath := append(basePath, "session", "family", "ipv4/unicast", "prefix") //nolint:gocritic // append to copy is intentional
 		if setErr := ed.SetValue(familyPath, "maximum", fmt.Sprintf("%d", newMax)); setErr != nil {
 			result.Status = statusError
 			result.Error = fmt.Sprintf("set ipv4 maximum: %v", setErr)
+			return false
+		}
+		// Set updated timestamp per-family (YANG: prefix.updated is inside family).
+		if setErr := ed.SetValue(familyPath, "updated", today); setErr != nil {
+			result.Status = statusError
+			result.Error = fmt.Sprintf("set ipv4 updated timestamp: %v", setErr)
 			return false
 		}
 		changes["ipv4/unicast"] = newMax
@@ -178,21 +185,18 @@ func updatePeerPrefixConfig(ed *cli.Editor, p *plugin.PeerInfo, counts peeringdb
 
 	if counts.IPv6 > 0 {
 		newMax := peeringdb.ApplyMargin(counts.IPv6, margin)
-		familyPath := append(basePath, "family", "ipv6/unicast", "prefix") //nolint:gocritic // append to copy is intentional
+		familyPath := append(basePath, "session", "family", "ipv6/unicast", "prefix") //nolint:gocritic // append to copy is intentional
 		if setErr := ed.SetValue(familyPath, "maximum", fmt.Sprintf("%d", newMax)); setErr != nil {
 			result.Status = statusError
 			result.Error = fmt.Sprintf("set ipv6 maximum: %v", setErr)
 			return false
 		}
+		if setErr := ed.SetValue(familyPath, "updated", today); setErr != nil {
+			result.Status = statusError
+			result.Error = fmt.Sprintf("set ipv6 updated timestamp: %v", setErr)
+			return false
+		}
 		changes["ipv6/unicast"] = newMax
-	}
-
-	// Set updated timestamp (hidden leaf).
-	prefixPath := append(basePath, "prefix") //nolint:gocritic // append to copy is intentional
-	if setErr := ed.SetValue(prefixPath, "updated", today); setErr != nil {
-		result.Status = statusError
-		result.Error = fmt.Sprintf("set updated timestamp: %v", setErr)
-		return false
 	}
 
 	result.Changes = changes

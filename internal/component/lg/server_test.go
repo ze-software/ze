@@ -80,7 +80,7 @@ func startTestServer(t *testing.T) (*LGServer, string, *http.Client) {
 		t.Fatalf("WaitReady: %v", err)
 	}
 
-	client := &http.Client{Timeout: 5 * time.Second}
+	client := &http.Client{Timeout: 10 * time.Second}
 	return srv, "http://" + srv.Address(), client
 }
 

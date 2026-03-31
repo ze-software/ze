@@ -307,7 +307,7 @@ func TestFormatMessageText(t *testing.T) {
 	if !strings.Contains(got, "pref 100") {
 		t.Error("missing local-preference (short form: pref)")
 	}
-	if !strings.Contains(got, "next 10.0.0.1 nlri ipv4/unicast add prefix 192.168.1.0/24") {
+	if !strings.Contains(got, "next 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24") {
 		t.Error("missing next-hop/nlri add (short form: next)")
 	}
 }

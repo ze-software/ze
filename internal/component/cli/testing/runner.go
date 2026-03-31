@@ -293,16 +293,23 @@ func runTestCase(tc *TestCase) *TestResult {
 			// exceeded the 900ms processCmdWithDepth timeout). Under
 			// concurrent test load with race detector, this wait is
 			// essential -- non-blocking Settle alone is insufficient.
-			hm.SettleWait()
+			//
+			// Multiple retries handle cascading pending items: draining
+			// one snapshot may spawn new commands (e.g., command result
+			// triggers status update) that need a subsequent SettleWait.
 			exp := tc.Expects[step.ExpectIndex]
-			if err := CheckExpectation(exp, hm); err != nil {
-				// Command may still be in-flight under extreme load.
-				// One more blocking settle as safety net.
+			var lastErr error
+			for attempt := range 5 {
 				hm.SettleWait()
-				if retryErr := CheckExpectation(exp, hm); retryErr != nil {
-					result.Error = fmt.Sprintf("step %d (expect %s): %v", stepIdx+1, exp.Type, retryErr)
-					return result
+				lastErr = CheckExpectation(exp, hm)
+				if lastErr == nil {
+					break
 				}
+				_ = attempt
+			}
+			if lastErr != nil {
+				result.Error = fmt.Sprintf("step %d (expect %s): %v", stepIdx+1, exp.Type, lastErr)
+				return result
 			}
 
 		case StepWait:
