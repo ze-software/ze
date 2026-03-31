@@ -34,7 +34,7 @@ var (
 // RunFilterCommunity runs the community filter plugin using the SDK RPC protocol.
 // This is the in-process entry point called via InternalPluginRunner.
 func RunFilterCommunity(conn net.Conn) int {
-	p := sdk.NewWithConn("filter-community", conn)
+	p := sdk.NewWithConn("bgp-filter-community", conn)
 	defer p.Close() //nolint:errcheck // best-effort cleanup
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {

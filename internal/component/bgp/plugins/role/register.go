@@ -19,7 +19,7 @@ func init() {
 	registry.RegisterAttrModHandler(otcAttrCode, otcAttrModHandler)
 
 	reg := registry.Registration{
-		Name:            "role",
+		Name:            "bgp-role",
 		Description:     "RFC 9234 BGP Role capability",
 		RFCs:            []string{"9234"},
 		SupportsCapa:    true,
@@ -46,7 +46,7 @@ func init() {
 		return cli.RunPlugin(cfg, args)
 	}
 	if err := registry.Register(reg); err != nil {
-		logger().Error("role: registration failed", "error", err)
+		logger().Error("bgp-role: registration failed", "error", err)
 		os.Exit(1)
 	}
 }

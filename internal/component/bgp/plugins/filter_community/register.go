@@ -13,7 +13,7 @@ func init() {
 	registry.RegisterAttrModHandler(byte(attribute.AttrExtCommunity), extCommunityAttrModHandler)
 
 	_ = registry.Register(registry.Registration{
-		Name:           "filter-community",
+		Name:           "bgp-filter-community",
 		Description:    "Community tag/strip filter (standard, large, extended)",
 		ConfigRoots:    []string{"bgp"},
 		YANG:           fcschema.ZeFilterCommunityYANG,

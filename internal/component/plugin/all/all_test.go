@@ -17,6 +17,7 @@ func TestAllPluginsRegistered(t *testing.T) {
 	expected := []string{
 		"bgp-adj-rib-in",
 		"bgp-aigp",
+		"bgp-filter-community",
 		"bgp-gr",
 		"bgp-hostname",
 		"bgp-llnh",
@@ -31,16 +32,15 @@ func TestAllPluginsRegistered(t *testing.T) {
 		"bgp-nlri-vpn",
 		"bgp-persist",
 		"bgp-rib",
+		"bgp-role",
 		"bgp-route-refresh",
 		"bgp-rpki",
 		"bgp-rpki-decorator",
 		"bgp-rs",
 		"bgp-softver",
 		"bgp-watchdog",
-		"filter-community",
 		"iface",
 		"loop",
-		"role",
 	}
 
 	names := registry.Names()
@@ -154,8 +154,8 @@ func TestCapabilityMappings(t *testing.T) {
 	if cm[77] != "bgp-llnh" {
 		t.Errorf("CapabilityMap[77] = %q, want bgp-llnh", cm[77])
 	}
-	if cm[9] != "role" {
-		t.Errorf("CapabilityMap[9] = %q, want role", cm[9])
+	if cm[9] != "bgp-role" {
+		t.Errorf("CapabilityMap[9] = %q, want bgp-role", cm[9])
 	}
 	if cm[2] != "bgp-route-refresh" {
 		t.Errorf("CapabilityMap[2] = %q, want bgp-route-refresh", cm[2])

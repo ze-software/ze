@@ -142,5 +142,5 @@ EOF_CONF
 # Process orchestration: two ze-peer instances on different loopback addresses
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=source
 cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --mode sink --port $PORT2:stdin=dest
-cmd=foreground:seq=3:exec=ze --plugin ze.role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=20s
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-role --plugin ze.bgp-adj-rib-in -:stdin=ze-bgp:timeout=20s
 expect=exit:code=0

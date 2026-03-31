@@ -2,7 +2,7 @@
 # Tests Role capability human-readable decode output
 # Provider role has wire value 0x00
 
-cmd=foreground:seq=1:exec=ze plugin role --capa 00 --text
+cmd=foreground:seq=1:exec=ze plugin bgp-role --capa 00 --text
 expect=exit:code=0
 expect=stdout:contains=role
 expect=stdout:contains=provider
