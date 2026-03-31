@@ -171,7 +171,12 @@ If a spec describes work that is **already implemented**, run the full Completio
 [ ] 11. Executive Summary Report — present to user with what was done and what is left (including deferred).
         BLOCKING: learned summary (step 9) must exist. Name the file in the report.
         Do NOT ask to commit. The user will tell you when to commit.
-[ ] 12. Commit (when user says so) — related changes in one commit. Disjoint systems (e.g., CLI and BGP encoding) get separate commits.
+[ ] 12. Commit (when user says so) — TWO commits, in order:
+        **Commit A:** code + tests + docs + completed spec (with filled audit/verification tables).
+        This preserves the completed spec in git history for future review.
+        **Commit B:** delete spec (`git rm plan/spec-<name>.md`) + add learned summary (`plan/learned/NNN-<name>.md`).
+        The learned summary replaces the spec as the durable artifact.
+        Disjoint systems (e.g., CLI and BGP encoding) get separate commit pairs.
 ```
 
 ## Deferred Work (BLOCKING)

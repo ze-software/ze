@@ -122,6 +122,11 @@ Do NOT flag these as "identity wrappers adding no value."
 - Root cause: described what I *thought* the code does, not what it *actually* does. No verification step.
 - **Rule:** `rules/documentation.md` Source Anchors section. Read the source file BEFORE writing any factual claim. Add `<!-- source: path -- symbol -->` HTML comments. Never describe code from memory.
 
+### Spec Deleted Without Committing (lg-overhaul, ZERO TOLERANCE)
+- Spec `plan/spec-lg-overhaul.md` was created as untracked file, never committed, then `git rm -f` deleted it. Content lost forever. Audit tables, verification evidence, design decisions -- all gone.
+- Root cause: treated spec deletion as a single step instead of two commits. Commit A should include the completed spec; Commit B should delete it and add the learned summary.
+- **Rule:** `rules/spec-preservation.md`. TWO commits: (A) code + completed spec, (B) `git rm` spec + add learned summary. Never delete a spec that has not been committed.
+
 ### Reinventing What Exists in the Repo (lg-overhaul)
 - Wrote a 40-line custom HTMX JS shim instead of using real htmx.min.js (v2.0.4) already vendored at `third_party/web/htmx/` and synced to the web UI via `scripts/sync-vendor-web.sh`.
 - ASN decorator framework was production-ready in `internal/component/web/decorator_asn.go` with Team Cymru DNS, but was never wired into the LG. The learned summary even said "future decorator wiring requires populating GraphNode.Name" while claiming the work was done.
