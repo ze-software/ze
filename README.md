@@ -2,15 +2,57 @@
 
 > **Early Development** -- Ze has not been released. The code has known bugs and is not ready for production. APIs and config syntax may change. But if you try it, it will replace ExaBGP.
 
-Ze is a BGP daemon in Go from the creator of [ExaBGP](https://github.com/Exa-Networks/exabgp). Plugin-based architecture: the engine handles the protocol, plugins handle everything else -- RIB, policy, route reflection, graceful restart. Plugins can be written in any language.
+Ze is a BGP daemon written in Go, by the creator of [ExaBGP](https://github.com/Exa-Networks/exabgp).
 
-**Wire-first performance.** Lazy parsing via iterators, zero-copy forwarding, buffer-first encoding, per-type attribute dedup pools.
+The engine provides a message bus. Components and plugins connect to it. The engine handles TCP, FSM, OPEN/UPDATE parsing, and capability negotiation. Everything else is a plugin. Plugins can be written in any language.
 
-**21 plugins.** IPv4/IPv6 Unicast/Multicast, VPN, EVPN, FlowSpec, BGP-LS, Labeled Unicast, VPLS, MVPN, RTC, MUP, ADD-PATH, Graceful Restart, Route Reflection, RPKI, and more.
+### Components
 
-**ExaBGP compatibility.** Existing plugins work unchanged via a bridge; `ze config migrate` converts configs.
+| Component | Role |
+|-----------|------|
+| BGP engine | TCP connections, FSM, message parsing, capability negotiation |
+| Config | YANG-modeled configuration, validation, live reload |
+| CLI | SSH-accessible interactive editor and command shell |
+| Web UI | Browser-based configuration editor |
+| Looking glass | Peer status and route viewer, [birdwatcher](https://github.com/alice-lg/birdwatcher)-compatible API |
+| Telemetry | Prometheus metrics export |
+| MCP | Model Context Protocol server for AI tool integration |
 
-**Tested.** 18,000+ test functions, 26 linters, functional tests, fuzz testing, and [chaos testing](docs/guide/chaos-testing.md) with deterministic replay.
+### Plugins
+
+| Type | Plugins |
+|------|---------|
+| Storage | bgp-rib, bgp-adj-rib-in, bgp-persist |
+| Policy | bgp-rs, bgp-filter-community, bgp-role |
+| Resilience | bgp-gr, bgp-watchdog, bgp-route-refresh |
+| Validation | bgp-rpki, bgp-rpki-decorator |
+| Capabilities | bgp-aigp, bgp-hostname, bgp-llnh, bgp-softver |
+| Address families | bgp-nlri-vpn, bgp-nlri-evpn, bgp-nlri-flowspec, bgp-nlri-ls, bgp-nlri-labeled, bgp-nlri-vpls, bgp-nlri-mvpn, bgp-nlri-rtc, bgp-nlri-mup |
+
+IPv4/IPv6 unicast and multicast are built into the engine. See [Feature Inventory](docs/features.md) for details.
+
+### Wire Performance
+
+| Aspect | Detail |
+|--------|--------|
+| Parsing | Lazy via offset iterators, no upfront deserialization |
+| Forwarding | Zero-copy when source and destination share encoding context |
+| Encoding | Buffer-first: all wire writes into pooled, bounded buffers |
+| Dedup | Per-attribute-type pools with refcounted handles |
+
+### ExaBGP
+
+Existing ExaBGP plugins work unchanged via a bridge. `ze config migrate` converts ExaBGP configs.
+
+### Testing
+
+| Type | Scope |
+|------|-------|
+| Unit tests | 18,000+ test functions |
+| Linting | 26 linters |
+| Functional tests | Config parsing, wire encoding, plugin behavior |
+| Fuzz testing | All external input parsing |
+| Chaos testing | Deterministic replay with [configurable scenarios](docs/guide/chaos-testing.md) |
 
 ## Quick Start
 
@@ -30,7 +72,7 @@ Requires **Go 1.25+**. See the [Quick Start guide](docs/guide/quickstart.md).
 |------|-----------|
 | Try Ze for the first time | [Quick Start](docs/guide/quickstart.md) |
 | Announce routes to my upstream | [Route Injection](docs/guide/route-injection.md) |
-| Build a route server at an IXP | [Route Reflection](docs/guide/route-reflection.md) |
+| Build a route server at an IXP | [Route Reflection](docs/guide/route-reflection.md) (please don't, not yet) |
 | Monitor BGP sessions | [Monitoring](docs/guide/monitoring.md) |
 | Validate routes against RPKI | [RPKI](docs/guide/rpki.md) |
 | Restart without dropping routes | [Graceful Restart](docs/guide/graceful-restart.md) |
@@ -55,8 +97,10 @@ Requires **Go 1.25+**. See the [Quick Start guide](docs/guide/quickstart.md).
 
 Ze exists because AI coding assistants (Claude Code) made a ground-up BGP rewrite feasible for a solo developer. The author focused on architecture and design decisions informed by a decade of ExaBGP; AI handled the volume of protocol encoding, boilerplate, and test generation.
 
-## License
+## License and Contributions
 
 [GNU Affero General Public License v3.0](LICENSE)
+
+Ze is not actively seeking contributions, but they are welcome under a [Contributor License Agreement](CLA.md).
 
 **Official repo:** [github.com/ze-software/ze](https://github.com/ze-software/ze) -- **Development:** [codeberg.org/thomas-mangin/ze](https://codeberg.org/thomas-mangin/ze) -- [Issues](https://github.com/ze-software/ze/issues) -- [Discord](https://discord.gg/ykJb8meS4) -- [ExaBGP](https://github.com/Exa-Networks/exabgp)
