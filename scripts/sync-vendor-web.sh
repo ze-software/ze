@@ -10,6 +10,7 @@ VENDOR="$ROOT/third_party/web/htmx"
 
 CONSUMERS=(
     "$ROOT/internal/chaos/web/assets"
+    "$ROOT/internal/component/lg/assets"
     "$ROOT/internal/component/web/assets"
 )
 

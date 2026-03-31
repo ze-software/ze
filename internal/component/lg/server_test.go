@@ -177,6 +177,7 @@ func TestLGServerRouting(t *testing.T) {
 		{"/api/looking-glass/nonexistent", 404, "application/json"},
 		{"/lg/peers", 200, "text/html"},
 		{"/lg/lookup", 200, "text/html"},
+		{"/lg/search", 200, "text/html"},
 		{"/lg/peer/peer1", 200, "text/html"},
 	}
 
@@ -389,11 +390,11 @@ func TestUILookupPost(t *testing.T) {
 }
 
 func TestUIASPathSearchPost(t *testing.T) {
-	// VALIDATES: POST /lg/search/aspath returns results.
+	// VALIDATES: POST /lg/search with type=aspath returns results.
 	srv, base, client := startTestServer(t)
 	defer func() { _ = srv.Shutdown(context.Background()) }()
 
-	resp := doPost(t, client, base+"/lg/search/aspath", "pattern=65001")
+	resp := doPost(t, client, base+"/lg/search", "type=aspath&query=65001")
 	resp.Body.Close() //nolint:errcheck // test cleanup
 
 	if resp.StatusCode != http.StatusOK {
@@ -402,15 +403,41 @@ func TestUIASPathSearchPost(t *testing.T) {
 }
 
 func TestUICommunitySearchPost(t *testing.T) {
-	// VALIDATES: POST /lg/search/community returns results.
+	// VALIDATES: POST /lg/search with type=community returns results.
 	srv, base, client := startTestServer(t)
 	defer func() { _ = srv.Shutdown(context.Background()) }()
 
-	resp := doPost(t, client, base+"/lg/search/community", "community=65000:100")
+	resp := doPost(t, client, base+"/lg/search", "type=community&query=65000:100")
 	resp.Body.Close() //nolint:errcheck // test cleanup
 
 	if resp.StatusCode != http.StatusOK {
 		t.Errorf("status = %d, want 200", resp.StatusCode)
+	}
+}
+
+func TestUISearchPrefixPost(t *testing.T) {
+	// VALIDATES: POST /lg/search with default type (prefix) returns results.
+	srv, base, client := startTestServer(t)
+	defer func() { _ = srv.Shutdown(context.Background()) }()
+
+	resp := doPost(t, client, base+"/lg/search", "query=10.0.0.0/24")
+	resp.Body.Close() //nolint:errcheck // test cleanup
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want 200", resp.StatusCode)
+	}
+}
+
+func TestUISearchEmptyQuery(t *testing.T) {
+	// VALIDATES: POST /lg/search with empty query returns 400.
+	srv, base, client := startTestServer(t)
+	defer func() { _ = srv.Shutdown(context.Background()) }()
+
+	resp := doPost(t, client, base+"/lg/search", "type=aspath&query=")
+	resp.Body.Close() //nolint:errcheck // test cleanup
+
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", resp.StatusCode)
 	}
 }
 

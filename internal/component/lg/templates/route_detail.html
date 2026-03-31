@@ -1,0 +1,25 @@
+{{define "route_detail"}}
+<tr class="route-detail">
+<td colspan="8">
+<div class="detail-panel">
+{{if .Route}}
+<h3>Route Detail: {{.Prefix}}</h3>
+<dl>
+<dt>Prefix</dt><dd>{{index .Route "prefix"}}</dd>
+<dt>Next Hop</dt><dd>{{index .Route "next-hop"}}</dd>
+<dt>Origin</dt><dd>{{index .Route "origin"}}</dd>
+<dt>AS Path</dt><dd>{{formatASPath (index .Route "as-path")}}</dd>
+<dt>Local Preference</dt><dd>{{formatNum (index .Route "local-preference")}}</dd>
+<dt>MED</dt><dd>{{formatNum (index .Route "med")}}</dd>
+<dt>Communities</dt><dd>{{formatCommunities (index .Route "community")}}</dd>
+<dt>Large Communities</dt><dd>{{formatCommunities (index .Route "large-community")}}</dd>
+<dt>Extended Communities</dt><dd>{{formatCommunities (index .Route "extended-community")}}</dd>
+<dt>Peer</dt><dd>{{index .Route "peer-address"}}</dd>
+</dl>
+{{else}}
+<p>Route not found</p>
+{{end}}
+</div>
+</td>
+</tr>
+{{end}}

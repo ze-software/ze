@@ -16,21 +16,25 @@ import (
 // maxSearchResults caps the number of routes returned by search queries.
 const maxSearchResults = 1000
 
+// maxFormBytes limits POST body size to prevent memory exhaustion.
+const maxFormBytes = 4096
+
 // handleUIPeers renders the peer dashboard page.
 func (s *LGServer) handleUIPeers(w http.ResponseWriter, r *http.Request) {
 	result := s.query("summary")
 	zeData := parseJSON(result)
 
-	peers := extractPeers(zeData)
+	peers := s.extractPeers(zeData)
 
 	data := map[string]any{
-		"Peers": peers,
-		"Title": "BGP Peers",
-		"Error": engineError(zeData),
+		"Peers":     peers,
+		"Title":     "BGP Peers",
+		"ActiveTab": "peers",
+		"Error":     engineError(zeData),
 	}
 
 	if isHTMXRequest(r) {
-		s.renderFragment(w, "peers_content", data)
+		s.renderFragment(w, "peers", data)
 		return
 	}
 	s.renderPage(w, "peers", data)
@@ -39,47 +43,51 @@ func (s *LGServer) handleUIPeers(w http.ResponseWriter, r *http.Request) {
 // handleUILookupForm renders the route lookup form.
 func (s *LGServer) handleUILookupForm(w http.ResponseWriter, r *http.Request) {
 	data := map[string]any{
-		"Title": "Route Lookup",
+		"Title":     "Route Lookup",
+		"ActiveTab": "lookup",
+		"Family":    "",
+		"Prefix":    "",
 	}
 
 	if isHTMXRequest(r) {
-		s.renderFragment(w, "lookup_form", data)
+		s.renderFragment(w, "lookup", data)
 		return
 	}
 	s.renderPage(w, "lookup", data)
 }
 
-// searchParams defines a route search query.
-type searchParams struct {
-	formField string              // form field name to read
-	validate  func(string) bool   // validation function
-	errEmpty  string              // error when field is empty
-	errBad    string              // error when validation fails
-	command   func(string) string // builds the dispatch command
-	title     string              // page title
-	dataKey   string              // extra data key (e.g., "Prefix", "Pattern")
-	page      string              // full page template name
-}
+// handleUILookup processes the route lookup form submission.
+func (s *LGServer) handleUILookup(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBytes)
 
-// handleSearch is the common handler for route search operations.
-func (s *LGServer) handleSearch(w http.ResponseWriter, r *http.Request, p searchParams) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "invalid form data", http.StatusBadRequest)
 		return
 	}
 
-	value := r.FormValue(p.formField)
-	if value == "" {
-		http.Error(w, p.errEmpty, http.StatusBadRequest)
+	prefix := r.FormValue("prefix")
+	if prefix == "" {
+		http.Error(w, "prefix required", http.StatusBadRequest)
 		return
 	}
 
-	if !p.validate(value) {
-		http.Error(w, p.errBad, http.StatusBadRequest)
+	if !isValidPrefix(prefix) {
+		http.Error(w, "invalid prefix", http.StatusBadRequest)
 		return
 	}
 
-	result := s.query(p.command(value))
+	family := r.FormValue("family")
+	if family != "" && !isValidFamily(family) {
+		http.Error(w, "invalid family", http.StatusBadRequest)
+		return
+	}
+
+	cmd := fmt.Sprintf("rib show prefix %s", prefix)
+	if family != "" {
+		cmd = fmt.Sprintf("rib show prefix %s family %s", prefix, family)
+	}
+
+	result := s.query(cmd)
 	zeData := parseJSON(result)
 	routes := extractRoutes(zeData)
 
@@ -88,86 +96,119 @@ func (s *LGServer) handleSearch(w http.ResponseWriter, r *http.Request, p search
 	}
 
 	data := map[string]any{
-		"Title":   p.title,
-		p.dataKey: value,
-		"Routes":  routes,
-		"Count":   len(routes),
-		"Error":   engineError(zeData),
+		"Title":     "Route Lookup",
+		"ActiveTab": "lookup",
+		"Prefix":    prefix,
+		"Family":    family,
+		"Routes":    routes,
+		"Count":     len(routes),
+		"Error":     engineError(zeData),
 	}
 
 	if isHTMXRequest(r) {
 		s.renderFragment(w, "route_results", data)
 		return
 	}
-	s.renderPage(w, p.page, data)
+	s.renderPage(w, "lookup", data)
 }
 
-// handleUILookup processes the route lookup form submission.
-func (s *LGServer) handleUILookup(w http.ResponseWriter, r *http.Request) {
-	s.handleSearch(w, r, searchParams{
-		formField: "prefix",
-		validate:  isValidPrefix,
-		errEmpty:  "prefix required",
-		errBad:    "invalid prefix",
-		command:   func(v string) string { return fmt.Sprintf("rib show prefix %s", v) },
-		title:     "Route Lookup",
-		dataKey:   "Prefix",
-		page:      "lookup",
-	})
-}
-
-// handleUIASPathSearchForm renders the AS path search form.
-func (s *LGServer) handleUIASPathSearchForm(w http.ResponseWriter, r *http.Request) {
+// handleUISearchForm renders the unified search form.
+func (s *LGServer) handleUISearchForm(w http.ResponseWriter, r *http.Request) {
 	data := map[string]any{
-		"Title": "AS Path Search",
+		"Title":      "Route Search",
+		"ActiveTab":  "search",
+		"SearchType": "",
+		"Query":      "",
+		"Family":     "",
 	}
 
 	if isHTMXRequest(r) {
-		s.renderFragment(w, "aspath_form", data)
+		s.renderFragment(w, "search", data)
 		return
 	}
-	s.renderPage(w, "search_aspath", data)
+	s.renderPage(w, "search", data)
 }
 
-// handleUIASPathSearch processes the AS path search form.
-func (s *LGServer) handleUIASPathSearch(w http.ResponseWriter, r *http.Request) {
-	s.handleSearch(w, r, searchParams{
-		formField: "pattern",
-		validate:  isValidASPathPattern,
-		errEmpty:  "AS path pattern required",
-		errBad:    "invalid AS path pattern",
-		command:   func(v string) string { return fmt.Sprintf("rib show aspath %s", v) },
-		title:     "AS Path Search",
-		dataKey:   "Pattern",
-		page:      "search_aspath",
-	})
-}
+// handleUISearch processes the unified search form.
+func (s *LGServer) handleUISearch(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBytes)
 
-// handleUICommunitySearchForm renders the community search form.
-func (s *LGServer) handleUICommunitySearchForm(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form data", http.StatusBadRequest)
+		return
+	}
+
+	searchType := r.FormValue("type")
+	query := r.FormValue("query")
+	family := r.FormValue("family")
+
+	if query == "" {
+		http.Error(w, "query required", http.StatusBadRequest)
+		return
+	}
+
+	if family != "" && !isValidFamily(family) {
+		http.Error(w, "invalid family", http.StatusBadRequest)
+		return
+	}
+
+	var cmd string
+
+	switch searchType {
+	case "aspath":
+		if !isValidASPathPattern(query) {
+			http.Error(w, "invalid AS path pattern", http.StatusBadRequest)
+			return
+		}
+		cmd = fmt.Sprintf("rib show aspath %s", query)
+	case "community":
+		if !isValidCommunity(query) {
+			http.Error(w, "invalid community", http.StatusBadRequest)
+			return
+		}
+		cmd = fmt.Sprintf("rib show community %s", query)
+	default: // prefix
+		if !isValidPrefix(query) {
+			http.Error(w, "invalid prefix", http.StatusBadRequest)
+			return
+		}
+		cmd = fmt.Sprintf("rib show prefix %s", query)
+	}
+
+	// Append family filter if specified.
+	if family != "" {
+		cmd = fmt.Sprintf("%s family %s", cmd, family)
+	}
+
+	result := s.query(cmd)
+	zeData := parseJSON(result)
+	routes := extractRoutes(zeData)
+
+	if len(routes) > maxSearchResults {
+		routes = routes[:maxSearchResults]
+	}
+
 	data := map[string]any{
-		"Title": "Community Search",
+		"Title":      "Route Search",
+		"ActiveTab":  "search",
+		"SearchType": searchType,
+		"Query":      query,
+		"Family":     family,
+		"Routes":     routes,
+		"Count":      len(routes),
+		"Error":      engineError(zeData),
+	}
+
+	// For prefix searches, include the prefix for the graph.
+	if searchType == "" || searchType == "prefix" {
+		data["Prefix"] = query
 	}
 
 	if isHTMXRequest(r) {
-		s.renderFragment(w, "community_form", data)
+		s.renderFragment(w, "route_results", data)
 		return
 	}
-	s.renderPage(w, "search_community", data)
-}
-
-// handleUICommunitySearch processes the community search form.
-func (s *LGServer) handleUICommunitySearch(w http.ResponseWriter, r *http.Request) {
-	s.handleSearch(w, r, searchParams{
-		formField: "community",
-		validate:  isValidCommunity,
-		errEmpty:  "community required",
-		errBad:    "invalid community",
-		command:   func(v string) string { return fmt.Sprintf("rib show community %s", v) },
-		title:     "Community Search",
-		dataKey:   "Community",
-		page:      "search_community",
-	})
+	s.renderPage(w, "search", data)
 }
 
 // handleUIPeerRoutes renders routes from a specific peer.
@@ -193,6 +234,11 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Decorate peer AS name.
+	if remoteAS := getStr(peerInfo, "remote-as"); remoteAS != "" {
+		peerInfo["remote-as-name"] = s.resolveASN(remoteAS)
+	}
+
 	var routes []any
 	result := s.query(fmt.Sprintf("peer %s rib show", address))
 	zeData := parseJSON(result)
@@ -204,15 +250,17 @@ func (s *LGServer) handleUIPeerRoutes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]any{
-		"Title":   fmt.Sprintf("Routes from %s", address),
-		"Address": address,
-		"Peer":    peerInfo,
-		"Routes":  routes,
-		"Count":   len(routes),
+		"Title":     fmt.Sprintf("Routes from %s", address),
+		"ActiveTab": "peers",
+		"Address":   address,
+		"Peer":      peerInfo,
+		"Routes":    routes,
+		"Count":     len(routes),
+		"Error":     engineError(zeData),
 	}
 
 	if isHTMXRequest(r) {
-		s.renderFragment(w, "peer_routes_content", data)
+		s.renderFragment(w, "peer_routes", data)
 		return
 	}
 	s.renderPage(w, "peer_routes", data)
@@ -285,6 +333,12 @@ func (s *LGServer) handleUIEvents(w http.ResponseWriter, r *http.Request) {
 	}
 	defer s.sseClients.Add(-1)
 
+	// Disable write timeout for SSE (long-lived connection).
+	rc := http.NewResponseController(w)
+	if err := rc.SetWriteDeadline(time.Time{}); err != nil {
+		s.logger.Debug("SSE: cannot clear write deadline", "error", err)
+	}
+
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -314,7 +368,7 @@ func (s *LGServer) handleUIEvents(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			peers := extractPeers(zeData)
+			peers := s.extractPeers(zeData)
 			data := map[string]any{"Peers": peers}
 			html := s.renderToString("peers_table_body", data)
 
@@ -323,7 +377,6 @@ func (s *LGServer) handleUIEvents(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// SSE requires each line prefixed with "data: ".
-			// Handle \r\n and bare \r in addition to \n.
 			sseData := strings.ReplaceAll(html, "\r\n", "\n")
 			sseData = strings.ReplaceAll(sseData, "\r", "\n")
 			sseData = strings.TrimRight(sseData, "\n")
@@ -337,37 +390,9 @@ func (s *LGServer) handleUIEvents(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleAssets serves static CSS and JS files. Unknown paths return 404.
-func (s *LGServer) handleAssets(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/lg/assets/")
-
-	content, contentType := resolveAsset(path)
-	if content == "" {
-		http.NotFound(w, r)
-		return
-	}
-
-	w.Header().Set("Content-Type", contentType)
-	w.Header().Set("Cache-Control", "public, max-age=86400")
-	if _, err := fmt.Fprint(w, content); err != nil {
-		lgLogger.Debug("write asset failed", "path", path, "error", err)
-	}
-}
-
-// resolveAsset returns the content and content-type for a known asset, or empty strings for unknown.
-func resolveAsset(path string) (content, contentType string) {
-	if path == "style.css" {
-		return lgStyleCSS, "text/css"
-	}
-	if path == "htmx.min.js" {
-		return htmxMinJS, "application/javascript"
-	}
-	return "", ""
-}
-
-// extractPeers converts Ze peer summary data into template-friendly format.
-// The summary command returns {"summary": {"peers": [...], ...}}.
-func extractPeers(ze map[string]any) []map[string]any {
+// extractPeers converts Ze peer summary data into template-friendly format
+// and decorates ASN names.
+func (s *LGServer) extractPeers(ze map[string]any) []map[string]any {
 	if ze == nil {
 		return nil
 	}
@@ -375,7 +400,6 @@ func extractPeers(ze map[string]any) []map[string]any {
 	// Navigate into the "summary" envelope.
 	summary, _ := ze["summary"].(map[string]any)
 	if summary == nil {
-		// Fall back to top-level "peers" for direct array responses.
 		summary = ze
 	}
 
@@ -388,7 +412,6 @@ func extractPeers(ze map[string]any) []map[string]any {
 			continue
 		}
 
-		// The summary handler uses "address"; map to template field "Address".
 		address := getStr(peer, "address")
 		if address == "" {
 			address = getStr(peer, "peer-address")
@@ -405,9 +428,12 @@ func extractPeers(ze map[string]any) []map[string]any {
 			sent = getStr(peer, "updates-sent")
 		}
 
-		result = append(result, map[string]any{
+		remoteAS := getStr(peer, "remote-as")
+
+		entry := map[string]any{
 			"Address":        address,
-			"RemoteAS":       getStr(peer, "remote-as"),
+			"RemoteAS":       remoteAS,
+			"RemoteASName":   s.resolveASN(remoteAS),
 			"State":          getStr(peer, "state"),
 			"Uptime":         getStr(peer, "uptime"),
 			"RoutesReceived": received,
@@ -415,7 +441,9 @@ func extractPeers(ze map[string]any) []map[string]any {
 			"RoutesSent":     sent,
 			"Description":    getStr(peer, "description"),
 			"Name":           getStr(peer, "name"),
-		})
+		}
+
+		result = append(result, entry)
 	}
 
 	sort.Slice(result, func(i, j int) bool {
@@ -452,7 +480,6 @@ func findPeer(ze map[string]any, address string) map[string]any {
 		return nil
 	}
 
-	// Navigate into the "summary" envelope.
 	summary, _ := ze["summary"].(map[string]any)
 	if summary == nil {
 		summary = ze

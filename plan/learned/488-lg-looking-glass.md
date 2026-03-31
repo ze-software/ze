@@ -18,9 +18,9 @@ Ze had no built-in looking glass. Network operators at IXPs need public, read-on
 
 - Alice-LG can use Ze as a direct data source without any adapter.
 - The LG URL namespace (`/lg/*`, `/api/looking-glass/*`) is reserved on the LG port.
-- The `environment/looking-glass` YANG block, env vars `ze.lg.*`, and `ExtractLGConfig` follow the same pattern as web/mcp/dns components.
-- Future decorator wiring (ASN name resolution in graph nodes) requires populating `GraphNode.Name` from the decorator framework.
-- The HTMX JS shim is minimal; a production deployment may want the full htmx.min.js embedded.
+- The `environment/looking-glass` YANG block, env vars `ze.looking-glass.*`, and `ExtractLGConfig` follow the same pattern as web/mcp/dns components.
+- ASN name resolution wired via `DecorateASN` callback using Team Cymru DNS. Graph nodes and peer tables show organization names.
+- Uses real htmx.min.js (v2.0.4) and SSE extension, synced from the same vendor directory as the web UI.
 
 ## Gotchas
 

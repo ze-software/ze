@@ -147,7 +147,7 @@ RFC-mandated checks run as default filters that can be selectively overridden.
 | FIB/kernel integration | No | No | Yes | Yes | No | Yes | Yes | No | Yes | Yes | Yes |
 | Route server mode | Yes | Yes | Yes | Yes | No | Yes | Yes | No | Yes | Yes | Yes |
 | Dynamic neighbors | No | No | Yes | No | Yes | Yes | Yes | No | No | Yes | Yes |
-| Looking glass | No | Yes | Yes | Yes | No | No | No | No | Yes | Yes | Yes |
+| Looking glass | Yes | Yes | Yes | Yes | No | No | No | No | Yes | Yes | Yes |
 | BFD integration | No | No | Yes | No | No | Yes | No | No | No | Yes | Yes |
 | Chaos testing framework | Yes | No | No | No | No | No | No | No | No | No | No |
 | Atomic commit workflow | Yes | No | No | No | No | No | No | No | No | No | No |

@@ -1,0 +1,24 @@
+{{define "layout"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.Title}} - Ze Looking Glass</title>
+<link rel="stylesheet" href="/lg/assets/style.css">
+<script src="/lg/assets/htmx.min.js"></script>
+<script src="/lg/assets/sse.js"></script>
+</head>
+<body>
+<header>
+<div class="header-top">
+<a href="/lg/peers" class="nav-brand">Ze Looking Glass</a>
+</div>
+<nav class="tab-bar">
+<a href="/lg/peers" hx-get="/lg/peers" hx-target="#content" hx-push-url="true"{{if eq .ActiveTab "peers"}} class="tab-active"{{end}}>Peers</a>
+<a href="/lg/lookup" hx-get="/lg/lookup" hx-target="#content" hx-push-url="true"{{if eq .ActiveTab "lookup"}} class="tab-active"{{end}}>Lookup</a>
+<a href="/lg/search" hx-get="/lg/search" hx-target="#content" hx-push-url="true"{{if eq .ActiveTab "search"}} class="tab-active"{{end}}>Search</a>
+</nav>
+</header>
+<main><div id="content">{{.Content}}</div></main>
+</body>
+</html>{{end}}

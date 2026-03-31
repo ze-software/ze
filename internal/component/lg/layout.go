@@ -137,14 +137,14 @@ func renderGraphSVG(g *Graph, layout *Layout) string {
 		layout.Width, layout.Height, layout.Width, layout.Height)
 	sb.WriteString("\n")
 
-	// Style.
+	// Style uses CSS variables from the page for dark mode support.
 	sb.WriteString(`<style>
-.node rect { fill: #f0f4f8; stroke: #4a90d9; stroke-width: 2; rx: 6; }
-.node rect:hover { fill: #dce8f5; stroke: #2a6cb8; }
-.node text { font-family: monospace; font-size: 12px; fill: #333; }
+.node rect { fill: var(--node-fill, #f0f4f8); stroke: var(--node-stroke, #4a90d9); stroke-width: 2; rx: 6; }
+.node rect:hover { fill: var(--node-fill-hover, #dce8f5); stroke: var(--node-stroke-hover, #2a6cb8); }
+.node text { font-family: monospace; font-size: 12px; fill: var(--node-text, #333); }
 .node .asn { font-weight: bold; }
-.edge line { stroke: #999; stroke-width: 1.5; }
-.edge polygon { fill: #999; }
+.edge line { stroke: var(--edge-stroke, #999); stroke-width: 1.5; }
+.edge polygon { fill: var(--edge-stroke, #999); }
 </style>`)
 	sb.WriteString("\n")
 

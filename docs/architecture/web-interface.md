@@ -161,7 +161,7 @@ All source files in `internal/component/lg/` reference this document via `// Des
 | `graph.go` | Graph data model (nodes/edges from AS paths), prepending dedup |
 | `layout.go` | Layered layout algorithm, SVG rendering |
 | `render.go` | Go html/template rendering, page vs fragment detection |
-| `assets.go` | Embedded CSS and minimal HTMX JS shim |
+| `embed.go` | Embedded assets (CSS, HTMX, SSE) and templates via go:embed |
 
 <!-- source: internal/component/lg/server.go -- LGServer, NewLGServer -->
 <!-- source: internal/component/lg/handler_api.go -- API handlers, birdwatcher transform -->
@@ -180,8 +180,7 @@ All source files in `internal/component/lg/` reference this document via `// Des
 /api/looking-glass/routes/search?prefix=X  Prefix lookup (JSON)
 /lg/peers                              Peer dashboard (HTML)
 /lg/lookup                             Route lookup form (HTML)
-/lg/search/aspath                      AS path search (HTML)
-/lg/search/community                   Community search (HTML)
+/lg/search                             Unified search: prefix, AS path, community (HTML)
 /lg/peer/{address}                     Per-peer routes (HTML)
 /lg/route/detail                       Route detail fragment (HTMX)
 /lg/graph?prefix=X                     AS path topology (SVG)
@@ -202,7 +201,7 @@ The birdwatcher API uses `snake_case` JSON keys (`router_id`, `neighbor_address`
 | Method | Config |
 |--------|--------|
 | Config | `environment { looking-glass { host 0.0.0.0; port 8443; } }` |
-| Env vars | `ze.lg.host`, `ze.lg.port`, `ze.lg.tls` |
+| Env vars | `ze.looking-glass.host`, `ze.looking-glass.port`, `ze.looking-glass.tls` |
 
 Started by `startLGServer()` in `cmd/ze/hub/main.go` alongside the web server, after engine startup.
 

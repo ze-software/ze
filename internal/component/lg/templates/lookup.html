@@ -1,0 +1,22 @@
+{{define "lookup"}}
+<h1>Route Lookup</h1>
+{{template "lookup_form" .}}
+<div id="results">
+{{if .Routes}}{{template "route_results" .}}{{end}}
+</div>
+{{end}}
+
+{{define "lookup_form"}}
+<form hx-post="/lg/lookup" hx-target="#results" hx-indicator="#lookup-spinner" class="search-form">
+<label for="prefix">Prefix or IP address:</label>
+<input type="text" id="prefix" name="prefix" value="{{.Prefix}}" placeholder="10.0.0.0/24 or 10.0.0.1" required>
+<label for="family">Family:</label>
+<select id="family" name="family">
+<option value="">All</option>
+<option value="ipv4/unicast"{{if eq .Family "ipv4/unicast"}} selected{{end}}>IPv4 Unicast</option>
+<option value="ipv6/unicast"{{if eq .Family "ipv6/unicast"}} selected{{end}}>IPv6 Unicast</option>
+</select>
+<button type="submit">Search</button>
+<span id="lookup-spinner" class="htmx-indicator"><span class="spinner"></span></span>
+</form>
+{{end}}

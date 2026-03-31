@@ -4,18 +4,30 @@ import (
 	"testing"
 )
 
+// testServer returns a minimal LGServer for unit tests (no decorator).
+func testServer() *LGServer {
+	return &LGServer{}
+}
+
+// testServerWithDecorator returns an LGServer with an ASN decorator for testing.
+func testServerWithDecorator(fn ASNDecorator) *LGServer {
+	return &LGServer{decorateASN: fn}
+}
+
 func TestExtractPeers(t *testing.T) {
 	// VALIDATES: peer data extraction from engine JSON.
 	// PREVENTS: nil panic or missing fields in template data.
+	srv := testServer()
+
 	t.Run("nil input", func(t *testing.T) {
-		if got := extractPeers(nil); got != nil {
+		if got := srv.extractPeers(nil); got != nil {
 			t.Errorf("expected nil, got %v", got)
 		}
 	})
 
 	t.Run("empty peers array", func(t *testing.T) {
 		ze := map[string]any{"peers": []any{}}
-		got := extractPeers(ze)
+		got := srv.extractPeers(ze)
 		if len(got) != 0 {
 			t.Errorf("expected 0 peers, got %d", len(got))
 		}
@@ -38,7 +50,7 @@ func TestExtractPeers(t *testing.T) {
 			},
 		}
 
-		peers := extractPeers(ze)
+		peers := srv.extractPeers(ze)
 		if len(peers) != 1 {
 			t.Fatalf("expected 1 peer, got %d", len(peers))
 		}
@@ -82,7 +94,7 @@ func TestExtractPeers(t *testing.T) {
 				},
 			},
 		}
-		peers := extractPeers(ze)
+		peers := srv.extractPeers(ze)
 		if len(peers) != 1 {
 			t.Fatalf("expected 1 peer, got %d", len(peers))
 		}
@@ -98,11 +110,42 @@ func TestExtractPeers(t *testing.T) {
 		ze := map[string]any{
 			"peers": []any{"not-a-map", map[string]any{"peer-address": "10.0.0.1"}},
 		}
-		peers := extractPeers(ze)
+		peers := srv.extractPeers(ze)
 		if len(peers) != 1 {
 			t.Errorf("expected 1 peer (skip non-map), got %d", len(peers))
 		}
 	})
+}
+
+func TestExtractPeersWithASNNames(t *testing.T) {
+	// VALIDATES: AC-2 -- ASN names populated from decorator.
+	// PREVENTS: empty RemoteASName when decorator is wired.
+	srv := testServerWithDecorator(func(asn string) string {
+		if asn == "65001" {
+			return "Test Org"
+		}
+		return ""
+	})
+
+	ze := map[string]any{
+		"peers": []any{
+			map[string]any{
+				"peer-address": "10.0.0.1",
+				"remote-as":    "65001",
+				"state":        "established",
+			},
+		},
+	}
+
+	peers := srv.extractPeers(ze)
+	if len(peers) != 1 {
+		t.Fatalf("expected 1 peer, got %d", len(peers))
+	}
+
+	name, _ := peers[0]["RemoteASName"].(string)
+	if name != "Test Org" {
+		t.Errorf("RemoteASName = %q, want %q", name, "Test Org")
+	}
 }
 
 func TestExtractRoutes(t *testing.T) {
@@ -187,5 +230,120 @@ func TestEngineError(t *testing.T) {
 	}
 	if got := engineError(map[string]any{}); got != "" {
 		t.Errorf("non-nil: got %q, want empty", got)
+	}
+}
+
+func TestResolveASN(t *testing.T) {
+	// VALIDATES: resolveASN handles nil decorator and empty input.
+	t.Run("nil decorator", func(t *testing.T) {
+		srv := testServer()
+		if got := srv.resolveASN("65001"); got != "" {
+			t.Errorf("nil decorator: got %q, want empty", got)
+		}
+	})
+
+	t.Run("empty asn", func(t *testing.T) {
+		srv := testServerWithDecorator(func(asn string) string { return "should not be called" })
+		if got := srv.resolveASN(""); got != "" {
+			t.Errorf("empty asn: got %q, want empty", got)
+		}
+	})
+
+	t.Run("decorator returns name", func(t *testing.T) {
+		srv := testServerWithDecorator(func(asn string) string {
+			if asn == "65001" {
+				return "Acme Corp"
+			}
+			return ""
+		})
+		if got := srv.resolveASN("65001"); got != "Acme Corp" {
+			t.Errorf("got %q, want %q", got, "Acme Corp")
+		}
+	})
+
+	t.Run("decorator returns empty", func(t *testing.T) {
+		srv := testServerWithDecorator(func(string) string { return "" })
+		if got := srv.resolveASN("99999"); got != "" {
+			t.Errorf("got %q, want empty", got)
+		}
+	})
+}
+
+func TestDecorateGraphNodes(t *testing.T) {
+	// VALIDATES: AC-6 -- graph node names populated from decorator.
+	// PREVENTS: empty node labels when decorator is wired.
+	srv := testServerWithDecorator(func(asn string) string {
+		if asn == "65001" {
+			return "Acme Corp"
+		}
+		return ""
+	})
+
+	g := &Graph{
+		Nodes: []GraphNode{
+			{ASN: 65001, Layer: 1},
+			{ASN: 65002, Layer: 0},
+		},
+	}
+
+	srv.decorateGraphNodes(g)
+
+	if g.Nodes[0].Name != "Acme Corp" {
+		t.Errorf("Node[0].Name = %q, want %q", g.Nodes[0].Name, "Acme Corp")
+	}
+	if g.Nodes[1].Name != "" {
+		t.Errorf("Node[1].Name = %q, want empty", g.Nodes[1].Name)
+	}
+}
+
+func TestExtractPeersSortOrder(t *testing.T) {
+	// VALIDATES: peers sorted by IP address numerically, not lexicographically.
+	srv := testServer()
+	ze := map[string]any{
+		"peers": []any{
+			map[string]any{"peer-address": "10.0.0.10", "state": "established"},
+			map[string]any{"peer-address": "10.0.0.2", "state": "established"},
+			map[string]any{"peer-address": "10.0.0.1", "state": "established"},
+		},
+	}
+
+	peers := srv.extractPeers(ze)
+	if len(peers) != 3 {
+		t.Fatalf("expected 3 peers, got %d", len(peers))
+	}
+
+	want := []string{"10.0.0.1", "10.0.0.2", "10.0.0.10"}
+	for i, w := range want {
+		got, _ := peers[i]["Address"].(string)
+		if got != w {
+			t.Errorf("peers[%d].Address = %q, want %q", i, got, w)
+		}
+	}
+}
+
+func TestIsBestTemplateFunc(t *testing.T) {
+	// VALIDATES: AC-8 -- isBest correctly reads "best" field from route map.
+	tests := []struct {
+		name string
+		in   any
+		want bool
+	}{
+		{"best true", map[string]any{"best": true, "prefix": "10.0.0.0/24"}, true},
+		{"best false", map[string]any{"best": false, "prefix": "10.0.0.0/24"}, false},
+		{"missing best", map[string]any{"prefix": "10.0.0.0/24"}, false},
+		{"nil input", nil, false},
+		{"non-map", "not-a-map", false},
+	}
+
+	fn, ok := lgFuncMap["isBest"].(func(any) bool)
+	if !ok {
+		t.Fatal("isBest not found in lgFuncMap")
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := fn(tt.in); got != tt.want {
+				t.Errorf("isBest(%v) = %v, want %v", tt.in, got, tt.want)
+			}
+		})
 	}
 }

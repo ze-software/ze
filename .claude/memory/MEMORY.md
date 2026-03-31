@@ -15,6 +15,8 @@ count-only assertions, wrapper struct pattern, plugin placement anchor bias).
 
 - [user_trust_and_delegation.md](user_trust_and_delegation.md) - User trusts Claude with hard, long work and delegates the difficult parts. Honor that trust with thoroughness.
 
+- [feedback_autonomous_work.md](feedback_autonomous_work.md) - Work autonomously, do not ask questions or wait for confirmation
+
 ## User Preferences (cross-project, not in repo)
 
 - [feedback_no_em_dashes.md](feedback_no_em_dashes.md) - Never use em dashes in English text (AI writing tell)

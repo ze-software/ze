@@ -25,7 +25,7 @@ environment {
 | `port` | `8443` | Listen port. Must differ from the web UI port. |
 | `tls` | `false` | Enable TLS. Requires blob storage (`ze init`). |
 
-Environment variable overrides: `ze.lg.host`, `ze.lg.port`, `ze.lg.tls`.
+Environment variable overrides: `ze.looking-glass.host`, `ze.looking-glass.port`, `ze.looking-glass.tls`.
 
 When the `looking-glass` block is absent, no HTTP server is started and no resources are consumed.
 
@@ -35,14 +35,16 @@ When the `looking-glass` block is absent, no HTTP server is started and no resou
 
 The HTMX web UI is available at `http://<host>:<port>/lg/`. No authentication is required.
 
-| Page | URL | Description |
-|------|-----|-------------|
-| Peer dashboard | `/lg/peers` | All peers with state, ASN, route counts. Live SSE updates. |
-| Route lookup | `/lg/lookup` | Search by IP address or CIDR prefix. |
-| AS path search | `/lg/search/aspath` | Filter routes by AS path pattern. |
-| Community search | `/lg/search/community` | Filter routes by community value. |
-| Per-peer routes | `/lg/peer/{address}` | Routes received from a specific peer. |
-| AS path graph | `/lg/graph?prefix=X` | Server-side SVG topology visualization. |
+| Tab / View | URL | Description |
+|------------|-----|-------------|
+| Peers tab | `/lg/peers` | All peers with state, ASN names (Team Cymru), route counts. Live SSE updates. |
+| Lookup tab | `/lg/lookup` | Prefix/IP lookup with inline all-peers AS path topology graph (SVG). |
+| Search tab | `/lg/search` | Unified search: prefix, AS path pattern, or community. Type selector. |
+| Per-peer routes | `/lg/peer/{address}` | Routes received from a specific peer (inline below peers table). |
+| Route detail | `/lg/route/detail` | Expanded route attributes (HTMX fragment, click-to-expand). |
+| AS path graph | `/lg/graph?prefix=X` | Server-side SVG topology from all peers (auto-loaded on lookup). |
+
+Navigation uses a single-page tab layout with HTMX fragment swapping. The real htmx.min.js (v2.0.4) and SSE extension are embedded.
 
 <!-- source: internal/component/lg/handler_ui.go -- UI handlers -->
 <!-- source: internal/component/lg/handler_graph.go -- Graph handler -->

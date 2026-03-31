@@ -122,6 +122,18 @@ Do NOT flag these as "identity wrappers adding no value."
 - Root cause: described what I *thought* the code does, not what it *actually* does. No verification step.
 - **Rule:** `rules/documentation.md` Source Anchors section. Read the source file BEFORE writing any factual claim. Add `<!-- source: path -- symbol -->` HTML comments. Never describe code from memory.
 
+### Reinventing What Exists in the Repo (lg-overhaul)
+- Wrote a 40-line custom HTMX JS shim instead of using real htmx.min.js (v2.0.4) already vendored at `third_party/web/htmx/` and synced to the web UI via `scripts/sync-vendor-web.sh`.
+- ASN decorator framework was production-ready in `internal/component/web/decorator_asn.go` with Team Cymru DNS, but was never wired into the LG. The learned summary even said "future decorator wiring requires populating GraphNode.Name" while claiming the work was done.
+- Root cause: did not read the existing codebase before writing new code. The web UI already solved both problems.
+- **Rule:** `rules/before-writing-code.md` step 1: "Search for existing implementations -- extend if found." Before writing ANY new infrastructure, grep the repo for existing solutions. If `third_party/` or another component already has it, use it.
+
+### Spec Claimed Complete With Features Unimplemented (lg-0 through lg-4)
+- Five LG specs created in "design" status, deleted next day as "completed." Learned summary written as if all features worked. But: no real HTMX (custom shim), no ASN names (decorator never wired), no family selector, broken SSE (shim had no SSE support), SVG invisible in dark mode (hardcoded colors).
+- The learned summary itself documented the gaps ("HTMX shim is minimal", "future decorator wiring") while the specs were deleted as done.
+- Root cause: writing the learned summary before implementing the features. The summary became a description of intent, not of reality.
+- **Rule:** `rules/implementation-audit.md`. The audit MUST verify each AC against running code, not against the spec's description. A learned summary that says "future X" is proof the spec is NOT done.
+
 ### Worktree File Copy Overwrites Main Repo (ZERO TOLERANCE)
 - Worktree agent copied files directly from `.claude/worktrees/agent-*/` into the main repo.
 - Overwrote uncommitted changes made by other concurrent Claude sessions.

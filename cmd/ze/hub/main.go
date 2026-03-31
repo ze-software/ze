@@ -662,10 +662,23 @@ func resolveConfigPath(store storage.Storage) string {
 // startLGServer creates and starts the looking glass HTTP server.
 // Returns the server on success, nil on failure (logged, non-fatal).
 func startLGServer(store storage.Storage, listenAddr string, useTLS bool, dispatch lg.CommandDispatcher) *lg.LGServer {
+	// Create ASN name decorator for the looking glass via Team Cymru DNS.
+	lgDNS := dns.NewResolver(dns.ResolverConfig{})
+	lgDecorators := zeweb.NewDecoratorRegistry()
+	lgDecorators.Register(zeweb.NewASNNameDecoratorFromResolver(lgDNS))
+	asnDecorator := lgDecorators.Get("asn-name")
+
 	cfg := lg.LGConfig{
 		ListenAddr: listenAddr,
 		TLS:        useTLS,
 		Dispatch:   dispatch,
+		DecorateASN: func(asn string) string {
+			if asnDecorator == nil {
+				return ""
+			}
+			name, _ := asnDecorator.Decorate(asn)
+			return name
+		},
 	}
 
 	// When TLS is enabled, load or generate cert from blob storage.

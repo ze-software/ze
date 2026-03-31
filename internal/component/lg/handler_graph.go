@@ -14,7 +14,7 @@ import (
 const maxGraphNodes = 100
 
 // handleGraph renders an AS path topology graph as SVG for the given prefix.
-
+// Node labels include organization names from the ASN decorator when available.
 func (s *LGServer) handleGraph(w http.ResponseWriter, r *http.Request) {
 	prefix := r.URL.Query().Get("prefix")
 	if prefix == "" {
@@ -35,14 +35,17 @@ func (s *LGServer) handleGraph(w http.ResponseWriter, r *http.Request) {
 	graph := buildGraph(routes)
 
 	if len(graph.Nodes) == 0 {
-		writeSVG(w, `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="50"><text x="10" y="30" font-family="monospace" font-size="14" fill="#666">No routes found</text></svg>`)
+		writeSVG(w, `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="50"><text x="10" y="30" font-family="monospace" font-size="14" fill="currentColor">No routes found</text></svg>`)
 		return
 	}
 
 	if len(graph.Nodes) > maxGraphNodes {
-		writeSVG(w, fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="50"><text x="10" y="30" font-family="monospace" font-size="14" fill="#666">Too many ASes (%d) for graph</text></svg>`, len(graph.Nodes)))
+		writeSVG(w, fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" width="400" height="50"><text x="10" y="30" font-family="monospace" font-size="14" fill="currentColor">Too many ASes (%d) for graph</text></svg>`, len(graph.Nodes)))
 		return
 	}
+
+	// Populate node names from ASN decorator.
+	s.decorateGraphNodes(graph)
 
 	// Assign layout positions.
 	layout := computeLayout(graph)
@@ -51,4 +54,11 @@ func (s *LGServer) handleGraph(w http.ResponseWriter, r *http.Request) {
 	svg := renderGraphSVG(graph, layout)
 
 	writeSVG(w, svg)
+}
+
+// decorateGraphNodes resolves ASN names for all graph nodes via the decorator.
+func (s *LGServer) decorateGraphNodes(g *Graph) {
+	for i := range g.Nodes {
+		g.Nodes[i].Name = s.resolveASN(fmt.Sprintf("%d", g.Nodes[i].ASN))
+	}
 }

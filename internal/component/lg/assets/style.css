@@ -1,11 +1,3 @@
-// Design: docs/architecture/web-interface.md -- LG static assets
-// Overview: server.go -- LG server and route registration
-
-package lg
-
-// lgStyleCSS is the embedded CSS for the looking glass UI.
-// Supports light and dark modes via prefers-color-scheme.
-const lgStyleCSS = `
 :root {
   --bg: #f5f7fa;
   --text: #333;
@@ -35,6 +27,13 @@ const lgStyleCSS = `
   --error-bg: #fff3cd;
   --error-border: #ffc107;
   --error-text: #856404;
+  --node-fill: #f0f4f8;
+  --node-stroke: #4a90d9;
+  --node-stroke-hover: #2a6cb8;
+  --node-fill-hover: #dce8f5;
+  --node-text: #333;
+  --edge-stroke: #999;
+  --best-bg: #e6f4ea;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -67,100 +66,101 @@ const lgStyleCSS = `
     --error-bg: #3b2e00;
     --error-border: #9e6a00;
     --error-text: #f0c000;
+    --node-fill: #2a2d32;
+    --node-stroke: #4a90d9;
+    --node-stroke-hover: #5a9ee6;
+    --node-fill-hover: #333842;
+    --node-text: #d4d4d8;
+    --edge-stroke: #6e7681;
+    --best-bg: #1a3326;
   }
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--text); background: var(--bg); }
-header { background: var(--header-bg); padding: 0.5rem 1rem; }
-nav { display: flex; align-items: center; gap: 1.5rem; max-width: 1200px; margin: 0 auto; }
-nav a { color: var(--header-text); text-decoration: none; font-size: 0.9rem; opacity: 0.85; }
-nav a:hover { opacity: 1; }
-nav .nav-brand { font-weight: bold; font-size: 1.1rem; opacity: 1; margin-right: 1rem; }
-main { max-width: 1200px; margin: 1.5rem auto; padding: 0 1rem; }
-h1 { margin-bottom: 1rem; color: var(--heading); }
 
+/* Header and tab navigation */
+header { background: var(--header-bg); padding: 0; }
+.header-top { display: flex; align-items: center; padding: 0.5rem 1rem; max-width: 1400px; margin: 0 auto; }
+.header-top .nav-brand { color: var(--header-text); text-decoration: none; font-weight: bold; font-size: 1.1rem; }
+
+.tab-bar { display: flex; gap: 0; max-width: 1400px; margin: 0 auto; padding: 0 1rem; }
+.tab-bar a {
+  color: var(--header-text); text-decoration: none; font-size: 0.9rem;
+  padding: 0.5rem 1rem; opacity: 0.7; border-bottom: 2px solid transparent;
+  transition: opacity 0.15s, border-color 0.15s;
+}
+.tab-bar a:hover { opacity: 1; }
+.tab-bar a.tab-active { opacity: 1; border-bottom-color: var(--btn-bg); font-weight: 600; }
+
+main { max-width: 1400px; margin: 1.5rem auto; padding: 0 1rem; }
+h1 { margin-bottom: 1rem; color: var(--heading); font-size: 1.3rem; }
+h2 { margin: 1rem 0 0.5rem; color: var(--heading); font-size: 1.1rem; }
+
+/* Search form */
 .search-form { display: flex; gap: 0.5rem; align-items: end; margin-bottom: 1rem; flex-wrap: wrap; }
 .search-form label { font-weight: 500; font-size: 0.9rem; }
-.search-form input { padding: 0.4rem 0.6rem; border: 1px solid var(--input-border); border-radius: 4px; font-size: 0.9rem; min-width: 250px; background: var(--input-bg); color: var(--input-text); }
-.search-form button { padding: 0.4rem 1rem; background: var(--btn-bg); color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9rem; }
+.search-form input, .search-form select {
+  padding: 0.4rem 0.6rem; border: 1px solid var(--input-border); border-radius: 4px;
+  font-size: 0.9rem; background: var(--input-bg); color: var(--input-text);
+}
+.search-form input { min-width: 250px; }
+.search-form select { min-width: 120px; }
+.search-form button {
+  padding: 0.4rem 1rem; background: var(--btn-bg); color: #fff; border: none;
+  border-radius: 4px; cursor: pointer; font-size: 0.9rem;
+}
 .search-form button:hover { background: var(--btn-hover); }
 
+/* Tables */
 table { width: 100%; border-collapse: collapse; background: var(--table-bg); border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px var(--shadow); }
 thead { background: var(--table-head); }
 th { padding: 0.6rem 0.8rem; text-align: left; font-size: 0.85rem; font-weight: 600; color: var(--th-text); border-bottom: 2px solid var(--table-border); }
 td { padding: 0.5rem 0.8rem; font-size: 0.85rem; border-bottom: 1px solid var(--table-row-border); }
 tbody tr:hover { background: var(--table-hover); cursor: pointer; }
+tbody tr.best-route { background: var(--best-bg); }
 
+/* Peer state colors */
 .state-up .state { color: var(--state-up); font-weight: 600; }
 .state-down .state { color: var(--state-down); font-weight: 600; }
 .state-unknown .state { color: var(--state-unknown); }
 
+/* Peer info banner */
 .peer-info { display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem; padding: 0.8rem; background: var(--peer-info-bg); border-radius: 6px; box-shadow: 0 1px 3px var(--shadow); }
 
+/* Route detail panel */
 .detail-panel { padding: 1rem; background: var(--detail-bg); border-left: 3px solid var(--detail-border); }
 .detail-panel h3 { margin-bottom: 0.5rem; }
 .detail-panel dl { display: grid; grid-template-columns: 160px 1fr; gap: 0.3rem; }
 .detail-panel dt { font-weight: 600; color: var(--detail-dt); }
 .detail-panel dd { color: var(--detail-dd); }
-
 .route-detail { background: var(--detail-bg); }
 
-#graph-container { margin: 1rem 0; }
+/* Graph container */
+#graph-container { margin: 1rem 0; overflow-x: auto; }
 #graph-container svg { max-width: 100%; height: auto; }
 
+/* ASN name annotation */
+.asn-name { color: var(--th-text); font-size: 0.8rem; margin-left: 0.3rem; }
+
+/* Error and empty states */
 .error-banner { padding: 0.8rem 1rem; background: var(--error-bg); border: 1px solid var(--error-border); border-radius: 6px; color: var(--error-text); margin-bottom: 1rem; font-weight: 500; }
 .empty-state { padding: 2rem; text-align: center; color: var(--state-unknown); font-style: italic; }
 
+/* HTMX loading indicator */
+.htmx-indicator { display: none; }
+.htmx-request .htmx-indicator, .htmx-request.htmx-indicator { display: inline-block; }
+.spinner { display: inline-block; width: 1rem; height: 1rem; border: 2px solid var(--table-border); border-top-color: var(--btn-bg); border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Result count */
+.result-count { color: var(--th-text); font-size: 0.9rem; margin-bottom: 0.5rem; }
+
+/* Responsive */
 @media (max-width: 768px) {
   .search-form { flex-direction: column; align-items: stretch; }
-  .search-form input { min-width: auto; }
+  .search-form input, .search-form select { min-width: auto; }
   table { font-size: 0.8rem; }
   th, td { padding: 0.4rem; }
+  .tab-bar a { padding: 0.5rem 0.6rem; font-size: 0.8rem; }
 }
-`
-
-// htmxMinJS is a minimal HTMX shim for the looking glass.
-// It handles hx-get, hx-post, hx-target, and hx-swap for basic functionality.
-// All HTML content is server-rendered via Go html/template which auto-escapes,
-// so the DOM insertion here processes only trusted server output.
-const htmxMinJS = `
-(function(){
-  function process(elt) {
-    var triggers = elt.querySelectorAll('[hx-get],[hx-post]');
-    triggers.forEach(function(el) {
-      if (el._htmxBound) return;
-      el._htmxBound = true;
-      var event = el.tagName === 'FORM' ? 'submit' : 'click';
-      el.addEventListener(event, function(e) {
-        e.preventDefault();
-        var method = el.getAttribute('hx-post') ? 'POST' : 'GET';
-        var url = el.getAttribute('hx-post') || el.getAttribute('hx-get');
-        var target = el.getAttribute('hx-target');
-        var swap = el.getAttribute('hx-swap') || 'outerHTML';
-        var push = el.getAttribute('hx-push-url');
-        var targetEl = target ? document.querySelector(target) : el;
-        var opts = {method: method, headers: {'HX-Request': 'true'}};
-        if (method === 'POST' && el.tagName === 'FORM') {
-          opts.body = new FormData(el);
-        }
-        fetch(url, opts)
-          .then(function(r) { return r.text(); })
-          .then(function(html) {
-            if (targetEl) {
-              // Server-rendered content from Go html/template (auto-escaped).
-              if (swap === 'afterend') {
-                targetEl.insertAdjacentHTML('afterend', html);
-              } else {
-                targetEl.outerHTML = html;
-              }
-            }
-            if (push === 'true') { history.pushState({}, '', url); }
-            process(document.body);
-          });
-      });
-    });
-  }
-  document.addEventListener('DOMContentLoaded', function() { process(document.body); });
-})();
-`

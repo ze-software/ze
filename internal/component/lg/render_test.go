@@ -7,6 +7,11 @@ import (
 
 func TestStateClassTemplateFunc(t *testing.T) {
 	// VALIDATES: stateClass maps FSM states to CSS classes.
+	tpl, err := parseLGTemplates()
+	if err != nil {
+		t.Fatalf("parse templates: %v", err)
+	}
+
 	tests := []struct {
 		state string
 		want  string
@@ -21,25 +26,10 @@ func TestStateClassTemplateFunc(t *testing.T) {
 		{"", "state-unknown"},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.state, func(t *testing.T) {
-			var buf bytes.Buffer
-			err := templates.ExecuteTemplate(&buf, "test_state_class", map[string]any{"State": tt.state})
-			if err != nil {
-				// Template not defined -- test the function directly via a simple template.
-				tmpl := templates.Lookup("peers_table_body")
-				if tmpl == nil {
-					t.Skip("peers_table_body template not available")
-				}
-			}
-		})
-	}
-
-	// Direct function test via template execution.
 	tmplStr := `{{stateClass .}}`
 	for _, tt := range tests {
 		t.Run("func_"+tt.state, func(t *testing.T) {
-			tmpl, err := templates.Clone()
+			tmpl, err := tpl.Clone()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -60,6 +50,11 @@ func TestStateClassTemplateFunc(t *testing.T) {
 
 func TestFormatASPathTemplateFunc(t *testing.T) {
 	// VALIDATES: formatASPath renders AS path array as space-separated string.
+	tpl, err := parseLGTemplates()
+	if err != nil {
+		t.Fatalf("parse templates: %v", err)
+	}
+
 	tests := []struct {
 		name string
 		in   any
@@ -74,7 +69,7 @@ func TestFormatASPathTemplateFunc(t *testing.T) {
 	tmplStr := `{{formatASPath .}}`
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpl, err := templates.Clone()
+			tmpl, err := tpl.Clone()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -95,6 +90,11 @@ func TestFormatASPathTemplateFunc(t *testing.T) {
 
 func TestFormatCommunitiesTemplateFunc(t *testing.T) {
 	// VALIDATES: formatCommunities renders community array as comma-separated string.
+	tpl, err := parseLGTemplates()
+	if err != nil {
+		t.Fatalf("parse templates: %v", err)
+	}
+
 	tests := []struct {
 		name string
 		in   any
@@ -109,7 +109,7 @@ func TestFormatCommunitiesTemplateFunc(t *testing.T) {
 	tmplStr := `{{formatCommunities .}}`
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tmpl, err := templates.Clone()
+			tmpl, err := tpl.Clone()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -123,6 +123,31 @@ func TestFormatCommunitiesTemplateFunc(t *testing.T) {
 			}
 			if buf.String() != tt.want {
 				t.Errorf("formatCommunities(%v) = %q, want %q", tt.in, buf.String(), tt.want)
+			}
+		})
+	}
+}
+
+func TestFormatNumCommas(t *testing.T) {
+	// VALIDATES: formatNumCommas renders numbers with comma separators.
+	tests := []struct {
+		name string
+		in   any
+		want string
+	}{
+		{"zero_float", float64(0), "0"},
+		{"small", float64(42), "42"},
+		{"thousands", float64(1234), "1,234"},
+		{"millions", float64(1234567), "1,234,567"},
+		{"string_num", "1234", "1,234"},
+		{"nil", nil, ""},
+		{"bool", true, "true"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatNumCommas(tt.in)
+			if got != tt.want {
+				t.Errorf("formatNumCommas(%v) = %q, want %q", tt.in, got, tt.want)
 			}
 		})
 	}

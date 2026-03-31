@@ -1,0 +1,39 @@
+{{define "peer_routes"}}
+<h1>{{.Title}}</h1>
+{{template "peer_routes_content" .}}
+{{end}}
+
+{{define "peer_routes_content"}}
+{{if .Peer}}
+<div class="peer-info">
+<span class="{{stateClass (index .Peer "state")}}">{{index .Peer "state"}}</span>
+<span>AS {{index .Peer "remote-as"}}{{if index .Peer "remote-as-name"}} <span class="asn-name">{{index .Peer "remote-as-name"}}</span>{{end}}</span>
+<span>{{index .Peer "description"}}</span>
+</div>
+{{end}}
+{{if .Routes}}
+<p class="result-count">{{formatNum .Count}} routes</p>
+<table class="route-table">
+<thead>
+<tr>
+<th></th><th>Prefix</th><th>Next Hop</th><th>AS Path</th><th>Origin</th>
+<th>Local Pref</th><th>MED</th>
+</tr>
+</thead>
+<tbody>
+{{range .Routes}}
+<tr{{if isBest .}} class="best-route"{{end}} hx-get="/lg/route/detail?prefix={{index . "prefix"}}&amp;peer={{index . "peer-address"}}" hx-target="this" hx-swap="afterend">
+<td>{{if isBest .}}&#9733;{{end}}</td>
+<td>{{index . "prefix"}}</td>
+<td>{{index . "next-hop"}}</td>
+<td>{{formatASPath (index . "as-path")}}</td>
+<td>{{index . "origin"}}</td>
+<td>{{formatNum (index . "local-preference")}}</td>
+<td>{{formatNum (index . "med")}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{else}}
+<p class="empty-state">No routes available for this peer.</p>
+{{end}}
+{{end}}
