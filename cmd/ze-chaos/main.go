@@ -91,7 +91,7 @@ func run(args []string) int {
 	configOut := fs.String("config-out", "", "Write Ze config to file instead of stdout")
 	eventLog := fs.String("event-log", "", "NDJSON event log file")
 	metricsAddr := fs.String("metrics", "", "Prometheus metrics endpoint (addr:port)")
-	webAddr := fs.String("web", "", "Live web dashboard (addr:port, e.g. :8080)")
+	webAddr := fs.String("web", "", "Live web dashboard (addr:port, e.g. :8000)")
 	pprofAddr := fs.String("pprof", "", "pprof HTTP server for ze-chaos (addr:port, e.g. :6060)")
 	debugAddr := fs.String("ze-pprof", "", "pprof HTTP server for ze (injected into generated config, e.g. :6061)")
 	quiet := fs.Bool("quiet", false, "Only errors and summary")
@@ -160,7 +160,7 @@ Output:
   --config-out <path>        Write Ze config to file instead of stdout
   --event-log <path>         NDJSON event log file (replayable)
   --metrics <addr:port>      Prometheus metrics endpoint
-  --web <addr:port>          Live web dashboard (e.g. :8080)
+  --web <addr:port>          Live web dashboard (e.g. :8000)
   --pprof <addr:port>        pprof HTTP server for ze-chaos (e.g. :6060)
   --ze-pprof <addr:port>     pprof HTTP server for ze (injected into config, e.g. :6061)
   -d, --debug                Enable debug logging (sets ze.log=debug, implies --verbose)

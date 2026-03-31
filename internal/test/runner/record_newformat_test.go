@@ -425,8 +425,8 @@ func TestParseCmdExec(t *testing.T) {
 		{
 			name: "exec_with_colon_port",
 			mode: "background",
-			line: "cmd=background:seq=1:exec=ze-chaos --web :8080 --quiet",
-			want: RunCommand{Mode: "background", Seq: 1, Exec: "ze-chaos --web :8080 --quiet"},
+			line: "cmd=background:seq=1:exec=ze-chaos --web :8000 --quiet",
+			want: RunCommand{Mode: "background", Seq: 1, Exec: "ze-chaos --web :8000 --quiet"},
 		},
 		{
 			name: "exec_with_stdin",
@@ -493,13 +493,13 @@ func TestParseHTTP(t *testing.T) {
 	}{
 		{
 			name: "basic_get",
-			line: "http=get:seq=1:url=http://127.0.0.1:8080/:status=200",
-			want: HTTPCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:8080/", Status: 200},
+			line: "http=get:seq=1:url=http://127.0.0.1:8000/:status=200",
+			want: HTTPCheck{Seq: 1, Method: "get", URL: "http://127.0.0.1:8000/", Status: 200},
 		},
 		{
 			name: "with_contains",
-			line: "http=get:seq=2:url=http://127.0.0.1:8080/peers:status=200:contains=peer-0",
-			want: HTTPCheck{Seq: 2, Method: "get", URL: "http://127.0.0.1:8080/peers", Status: 200, Contains: "peer-0"},
+			line: "http=get:seq=2:url=http://127.0.0.1:8000/peers:status=200:contains=peer-0",
+			want: HTTPCheck{Seq: 2, Method: "get", URL: "http://127.0.0.1:8000/peers", Status: 200, Contains: "peer-0"},
 		},
 		{
 			name: "url_with_query_params",

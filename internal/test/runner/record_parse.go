@@ -427,7 +427,7 @@ func (et *EncodingTests) parseCmd(r *Record, cmdType string, kv map[string]strin
 
 	case "background", "foreground":
 		// Use marker-based parsing because exec= values may contain colons
-		// (e.g., --web :8080). The standard KV parser splits on colons and
+		// (e.g., --web :8000). The standard KV parser splits on colons and
 		// would truncate the exec value.
 		rc, err := parseCmdExec(cmdType, rawLine)
 		if err != nil {

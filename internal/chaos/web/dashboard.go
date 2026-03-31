@@ -18,7 +18,7 @@ import (
 
 // Config holds configuration for the web dashboard.
 type Config struct {
-	// Addr is the listen address (e.g., ":8080").
+	// Addr is the listen address (e.g., ":8000").
 	Addr string
 
 	// PeerCount is the total number of simulated peers.

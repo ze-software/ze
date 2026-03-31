@@ -108,7 +108,7 @@ Currently `--in-process` mode can only test steady-state BGP behavior. The chaos
 | AC-4 | `executeReconnectStorm` in-process | Uses `SimulatorConfig.Dialer` to create mock connections |
 | AC-5 | `executeConnectionCollision` in-process | Uses `SimulatorConfig.Dialer` to create mock connections |
 | AC-6 | No `--chaos-rate` flag with `--in-process` | Behavior unchanged from current (no chaos channels) |
-| AC-7 | `--in-process --chaos-rate 0.1 --web :8080` | Dashboard shows chaos events in real-time |
+| AC-7 | `--in-process --chaos-rate 0.1 --web :8000` | Dashboard shows chaos events in real-time |
 
 ## 🧪 TDD Test Plan
 
