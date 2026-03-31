@@ -1,3 +1,8 @@
+---
+paths:
+  - "docs/architecture/**"
+---
+
 # Architecture Summary
 
 Rationale: `.claude/rationale/architecture-summary.md`

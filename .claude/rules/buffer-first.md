@@ -1,3 +1,8 @@
+---
+paths:
+  - "**/*.go"
+---
+
 # Buffer-First Encoding -- Mechanical Reference
 
 **BLOCKING:** All wire encoding MUST write into pooled, bounded buffers.

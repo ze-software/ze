@@ -1,3 +1,9 @@
+---
+paths:
+  - "**/*.go"
+  - "**/*.json"
+---
+
 # JSON Format
 
 **BLOCKING:** All JSON output MUST follow these conventions.

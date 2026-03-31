@@ -1,3 +1,8 @@
+---
+paths:
+  - "**/*.go"
+---
+
 # Design Document References
 
 **BLOCKING:** All `.go` source files (non-test, non-generated) MUST have `// Design:` comment.

@@ -1,8 +1,3 @@
----
-paths:
-  - "*"
----
-
 # No Backwards Compatibility
 
 Rationale: `.claude/rationale/compatibility.md`

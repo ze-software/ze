@@ -1,3 +1,10 @@
+---
+paths:
+  - "internal/plugin/**"
+  - "internal/plugins/**"
+  - "pkg/plugin/**"
+---
+
 # Plugin Design
 
 **BLOCKING:** All plugins MUST follow these patterns.

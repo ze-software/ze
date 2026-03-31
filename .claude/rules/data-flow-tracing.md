@@ -1,3 +1,9 @@
+---
+paths:
+  - "plan/**"
+  - ".claude/selected-spec"
+---
+
 # Data Flow Tracing
 
 **BLOCKING:** Trace full data flow before writing or reviewing specs.

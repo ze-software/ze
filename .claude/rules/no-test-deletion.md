@@ -1,3 +1,9 @@
+---
+paths:
+  - "**/*.go"
+  - "test/**"
+---
+
 # Test Deletion
 
 Rationale: `.claude/rationale/no-test-deletion.md`

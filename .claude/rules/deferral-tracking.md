@@ -1,3 +1,9 @@
+---
+paths:
+  - "plan/**"
+  - ".claude/selected-spec"
+---
+
 # Deferral Tracking
 
 **BLOCKING:** Every decision to not perform in-scope work MUST be recorded.

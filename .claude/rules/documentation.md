@@ -1,3 +1,9 @@
+---
+paths:
+  - "**/*.go"
+  - "docs/**"
+---
+
 # Documentation
 
 **BLOCKING:** Every feature change MUST update the specific documentation it affects.

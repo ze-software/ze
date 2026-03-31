@@ -1,3 +1,9 @@
+---
+paths:
+  - "plan/**"
+  - ".claude/selected-spec"
+---
+
 # Feature Integration Completeness
 
 **BLOCKING:** Every new feature MUST be proven to work integrated, not just in isolation.

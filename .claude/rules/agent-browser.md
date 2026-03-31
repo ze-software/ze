@@ -1,3 +1,10 @@
+---
+paths:
+  - "internal/component/web/**"
+  - "internal/component/lg/**"
+  - "internal/chaos/web/**"
+---
+
 # Agent Browser
 
 Tool: `agent-browser` (CLI, via Bash). Headless browser automation.

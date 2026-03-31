@@ -1,3 +1,9 @@
+---
+paths:
+  - "plan/**"
+  - ".claude/selected-spec"
+---
+
 # Spec Preservation
 
 Rationale: `.claude/rationale/spec-preservation.md`

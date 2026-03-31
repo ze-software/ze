@@ -1,3 +1,8 @@
+---
+paths:
+  - "**/*.go"
+---
+
 # File Cross-References
 
 Rationale: `.claude/rationale/related-refs.md`

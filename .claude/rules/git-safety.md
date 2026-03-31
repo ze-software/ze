@@ -1,8 +1,3 @@
----
-paths:
-  - "*"
----
-
 # Git Safety
 
 Rationale: `.claude/rationale/git-safety.md`

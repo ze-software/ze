@@ -1,3 +1,8 @@
+---
+paths:
+  - "cmd/**"
+---
+
 # CLI Patterns
 
 **BLOCKING:** All CLI commands MUST follow these patterns.

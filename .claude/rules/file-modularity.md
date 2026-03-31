@@ -1,3 +1,8 @@
+---
+paths:
+  - "**/*.go"
+---
+
 # File Modularity
 
 Rationale: `.claude/rationale/file-modularity.md`

@@ -1,3 +1,9 @@
+---
+paths:
+  - "plan/**"
+  - ".claude/selected-spec"
+---
+
 # Planning
 
 **BLOCKING:** Complete before implementing any non-trivial feature.

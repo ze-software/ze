@@ -1,3 +1,8 @@
+---
+paths:
+  - "**/*.go"
+---
+
 # Goroutine Lifecycle
 
 **BLOCKING:** All goroutines MUST be long-lived workers. Never per-event goroutines in hot paths.
