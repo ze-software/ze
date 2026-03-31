@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // lgFuncMap defines the template functions available to LG templates.
@@ -23,7 +24,8 @@ var lgFuncMap = template.FuncMap{
 		}
 		return "state-unknown"
 	},
-	"formatNum": formatNumCommas,
+	"formatNum":    formatNumCommas,
+	"formatUptime": formatUptime,
 	"formatASPath": func(v any) string {
 		arr, ok := v.([]any)
 		if !ok {
@@ -68,6 +70,34 @@ func parseLGTemplates() (*template.Template, error) {
 	}
 
 	return t, nil
+}
+
+// formatUptime converts a Go duration string like "6m10.766415s" to "6m 10s".
+func formatUptime(v string) string {
+	d, err := time.ParseDuration(v)
+	if err != nil {
+		return v
+	}
+
+	total := int(d.Seconds())
+	if total < 0 {
+		total = -total
+	}
+
+	days := total / 86400
+	hours := (total % 86400) / 3600
+	mins := (total % 3600) / 60
+	secs := total % 60
+
+	switch {
+	case days > 0:
+		return fmt.Sprintf("%dd %dh %dm", days, hours, mins)
+	case hours > 0:
+		return fmt.Sprintf("%dh %dm %ds", hours, mins, secs)
+	case mins > 0:
+		return fmt.Sprintf("%dm %ds", mins, secs)
+	}
+	return fmt.Sprintf("%ds", secs)
 }
 
 // formatNumCommas formats a value as an integer with comma separators.
@@ -148,6 +178,7 @@ func (s *LGServer) renderPage(w http.ResponseWriter, name string, data map[strin
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
 	if _, err := w.Write(page.Bytes()); err != nil {
 		s.logger.Debug("write page failed", "error", err)
 	}
@@ -164,6 +195,7 @@ func (s *LGServer) renderFragment(w http.ResponseWriter, name string, data any) 
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
 	if _, err := w.Write(buf.Bytes()); err != nil {
 		s.logger.Debug("write fragment failed", "error", err)
 	}

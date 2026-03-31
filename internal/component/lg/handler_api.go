@@ -1,6 +1,14 @@
 // Design: docs/architecture/web-interface.md -- Birdwatcher REST API handlers
 // Overview: server.go -- LG server and route registration
 // Related: handler_ui.go -- HTMX web UI handlers
+//
+// Implements the birdwatcher API consumed by Alice-LG and other looking glass frontends.
+// Reference: https://github.com/alice-lg/birdwatcher
+// API spec: https://github.com/alice-lg/birdwatcher/blob/master/endpoints.go
+// Alice-LG: https://github.com/alice-lg/alice-lg
+//
+// Field names use snake_case (birdwatcher convention), NOT ze's kebab-case.
+// See .claude/rules/json-format.md for the exception note.
 
 package lg
 
@@ -416,10 +424,7 @@ func transformProtocolsShort(ze map[string]any) map[string]any {
 
 // transformRoutes converts Ze route data to birdwatcher routes format.
 func transformRoutes(ze map[string]any, peerName string) map[string]any {
-	routes, _ := ze["routes"].([]any)
-	if routes == nil {
-		routes, _ = ze["prefixes"].([]any)
-	}
+	routes := extractRoutes(ze)
 
 	bwRoutes := make([]any, 0, len(routes))
 	for _, r := range routes {

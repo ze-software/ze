@@ -1,9 +1,7 @@
 {{define "peers"}}
 <h1>BGP Peers</h1>
 {{template "error_banner" .}}
-<div id="peers-table" hx-ext="sse" sse-connect="/lg/events" sse-swap="peer-update">
 {{template "peers_content" .}}
-</div>
 {{template "peer_detail_area" .}}
 {{end}}
 
@@ -12,22 +10,24 @@
 <thead>
 <tr>
 <th>Peer</th><th>Remote AS</th><th>State</th><th>Uptime</th>
-<th>Received</th><th>Accepted</th><th>Sent</th><th>Description</th>
+<th>Received</th><th>Accepted</th><th>Sent</th><th>Updates In</th><th>Updates Out</th><th>Description</th>
 </tr>
 </thead>
-<tbody>{{template "peers_table_body" .}}</tbody>
+<tbody hx-ext="sse" sse-connect="/lg/events" sse-swap="peer-update">{{template "peers_table_body" .}}</tbody>
 </table>
 {{end}}
 
 {{define "peers_table_body"}}{{range .Peers}}
-<tr class="{{stateClass .State}}" hx-get="/lg/peer/{{.Address}}" hx-target="#peer-detail" hx-swap="innerHTML">
+<tr class="{{stateClass .State}}" hx-get="/lg/peer/{{.Address}}" hx-target="#peer-detail" hx-swap="innerHTML" hx-sync="#peer-detail:replace" hx-indicator="#peer-detail">
 <td>{{.Address}}</td>
 <td>{{.RemoteAS}}{{if .RemoteASName}}<span class="asn-name">{{.RemoteASName}}</span>{{end}}</td>
 <td class="state">{{.State}}</td>
-<td>{{.Uptime}}</td>
+<td>{{formatUptime .Uptime}}</td>
 <td>{{formatNum .RoutesReceived}}</td>
 <td>{{formatNum .RoutesAccepted}}</td>
 <td>{{formatNum .RoutesSent}}</td>
+<td>{{formatNum .UpdatesReceived}}</td>
+<td>{{formatNum .UpdatesSent}}</td>
 <td>{{.Description}}</td>
 </tr>{{end}}
 {{end}}

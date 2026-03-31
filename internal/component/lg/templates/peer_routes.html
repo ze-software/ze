@@ -1,18 +1,34 @@
 {{define "peer_routes"}}
-<h1>{{.Title}}</h1>
+<h2>{{.Title}}</h2>
+{{template "error_banner" .}}
 {{template "peer_routes_content" .}}
 {{end}}
 
 {{define "peer_routes_content"}}
 {{if .Peer}}
 <div class="peer-info">
-<span class="{{stateClass (index .Peer "state")}}">{{index .Peer "state"}}</span>
+<span class="peer-info-state {{stateClass (index .Peer "state")}}">{{index .Peer "state"}}</span>
 <span>AS {{index .Peer "remote-as"}}{{if index .Peer "remote-as-name"}} <span class="asn-name">{{index .Peer "remote-as-name"}}</span>{{end}}</span>
-<span>{{index .Peer "description"}}</span>
+{{if index .Peer "description"}}<span class="peer-info-desc">{{index .Peer "description"}}</span>{{end}}
+<a href="/lg/peer/{{.Address}}/download" class="btn-download" title="Download all routes as compressed CSV">Download CSV</a>
 </div>
 {{end}}
+{{if .PrefixSummary}}
+<table class="route-table">
+<thead>
+<tr><th>Family</th><th>Prefix Length</th><th>Count</th></tr>
+</thead>
+<tbody>
+{{range .PrefixSummary}}<tr>
+<td>{{index . "Family"}}</td>
+<td>/{{index . "Length"}}</td>
+<td>{{formatNum (index . "Count")}}</td>
+</tr>{{end}}
+</tbody>
+</table>
+{{end}}
 {{if .Routes}}
-<p class="result-count">{{formatNum .Count}} routes</p>
+<h3>Routes</h3>
 <table class="route-table">
 <thead>
 <tr>
@@ -33,7 +49,7 @@
 </tr>{{end}}
 </tbody>
 </table>
-{{else}}
+{{else if not .Error}}{{if not .PrefixSummary}}
 <p class="empty-state">No routes available for this peer.</p>
-{{end}}
+{{end}}{{end}}
 {{end}}

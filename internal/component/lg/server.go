@@ -202,11 +202,14 @@ func (s *LGServer) registerRoutes() error {
 
 	// UI handlers (HTMX web pages with tab layout).
 	s.mux.HandleFunc("GET /lg/peers", s.handleUIPeers)
-	s.mux.HandleFunc("GET /lg/lookup", s.handleUILookupForm)
-	s.mux.HandleFunc("POST /lg/lookup", s.handleUILookup)
 	s.mux.HandleFunc("GET /lg/search", s.handleUISearchForm)
 	s.mux.HandleFunc("POST /lg/search", s.handleUISearch)
+	// Legacy /lg/lookup redirects to unified search.
+	s.mux.HandleFunc("GET /lg/lookup", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/lg/search", http.StatusFound)
+	})
 	s.mux.HandleFunc("GET /lg/peer/{address}", s.handleUIPeerRoutes)
+	s.mux.HandleFunc("GET /lg/peer/{address}/download", s.handleUIPeerDownload)
 	s.mux.HandleFunc("GET /lg/route/detail", s.handleUIRouteDetail)
 	s.mux.HandleFunc("GET /lg/events", s.handleUIEvents)
 
@@ -306,12 +309,14 @@ func (s *LGServer) Shutdown(ctx context.Context) error {
 }
 
 // query dispatches a command to the engine and returns the result string.
-// On error, returns an empty string (callers check for nil parseJSON result).
+// On dispatch error, returns a JSON error envelope so callers can surface
+// the failure reason instead of showing a generic "engine unavailable".
 func (s *LGServer) query(cmd string) string {
 	result, err := s.dispatch(cmd)
 	if err != nil {
-		s.logger.Debug("dispatch error", "command", cmd, "error", err)
-		return ""
+		s.logger.Warn("dispatch error", "command", cmd, "error", err)
+		b, _ := json.Marshal(map[string]any{"error": err.Error()})
+		return string(b)
 	}
 	return result
 }

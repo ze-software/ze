@@ -8,21 +8,32 @@
 
 {{define "search_form"}}
 <form hx-post="/lg/search" hx-target="#results" hx-indicator="#search-spinner" class="search-form">
-<label for="type">Type:</label>
-<select id="type" name="type">
-<option value="prefix"{{if eq .SearchType "prefix"}} selected{{end}}>Prefix</option>
-<option value="aspath"{{if eq .SearchType "aspath"}} selected{{end}}>AS Path</option>
-<option value="community"{{if eq .SearchType "community"}} selected{{end}}>Community</option>
-</select>
-<label for="query">Query:</label>
-<input type="text" id="query" name="query" value="{{.Query}}" placeholder="10.0.0.0/24, 64500 64501, or 65000:100" required>
-<label for="family">Family:</label>
+<div class="search-row">
+<div class="search-field">
+<label for="prefix">Prefix</label>
+<input type="text" id="prefix" name="prefix" value="{{.Prefix}}" placeholder="10.0.0.0/24 or 10.0.0.1">
+</div>
+<div class="search-field">
+<label for="aspath">AS Path</label>
+<input type="text" id="aspath" name="aspath" value="{{.ASPath}}" placeholder="64500 64501">
+</div>
+<div class="search-field">
+<label for="community">Community</label>
+<input type="text" id="community" name="community" value="{{.Community}}" placeholder="65000:100">
+</div>
+<div class="search-field search-field-narrow">
+<label for="family">Family</label>
 <select id="family" name="family">
 <option value="">All</option>
 <option value="ipv4/unicast"{{if eq .Family "ipv4/unicast"}} selected{{end}}>IPv4 Unicast</option>
 <option value="ipv6/unicast"{{if eq .Family "ipv6/unicast"}} selected{{end}}>IPv6 Unicast</option>
 </select>
+</div>
+<div class="search-field search-field-btn">
+<label>&nbsp;</label>
 <button type="submit">Search</button>
+</div>
+</div>
 <span id="search-spinner" class="htmx-indicator"><span class="spinner"></span></span>
 </form>
 {{end}}

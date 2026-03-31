@@ -603,6 +603,73 @@ func (ct *countTerminal) Meta() PipelineMeta {
 	return ct.meta
 }
 
+// prefixSummaryTerminal drains the upstream and counts routes by family and prefix length.
+type prefixSummaryTerminal struct {
+	upstream PipelineIterator
+	meta     PipelineMeta
+	drained  bool
+}
+
+func newPrefixSummaryTerminal(upstream PipelineIterator) *prefixSummaryTerminal {
+	return &prefixSummaryTerminal{upstream: upstream}
+}
+
+func (ps *prefixSummaryTerminal) Next() (RouteItem, bool) {
+	if !ps.drained {
+		ps.drain()
+	}
+	return RouteItem{}, false
+}
+
+func (ps *prefixSummaryTerminal) drain() {
+	ps.drained = true
+
+	// family -> prefix-length -> count
+	summary := make(map[string]map[string]int)
+	count := 0
+
+	for {
+		item, ok := ps.upstream.Next()
+		if !ok {
+			break
+		}
+		count++
+
+		prefixLen := extractPrefixLength(item.Prefix)
+		fam := item.Family
+		if fam == "" {
+			fam = "unknown"
+		}
+
+		byLen, exists := summary[fam]
+		if !exists {
+			byLen = make(map[string]int)
+			summary[fam] = byLen
+		}
+		byLen[prefixLen]++
+	}
+
+	ps.meta.Count = count
+	data, _ := json.Marshal(map[string]any{"prefix-summary": summary, "count": count})
+	ps.meta.JSON = string(data)
+}
+
+func (ps *prefixSummaryTerminal) Meta() PipelineMeta {
+	if !ps.drained {
+		ps.drain()
+	}
+	return ps.meta
+}
+
+// extractPrefixLength returns the "/N" suffix from a prefix string like "10.0.0.0/24".
+func extractPrefixLength(prefix string) string {
+	idx := strings.LastIndexByte(prefix, '/')
+	if idx < 0 {
+		return "unknown"
+	}
+	return prefix[idx+1:]
+}
+
 // jsonTerminal drains the upstream, serializes all items to JSON, and records metadata.
 type jsonTerminal struct {
 	upstream PipelineIterator
@@ -782,9 +849,9 @@ type pipelineStage struct {
 
 func (s pipelineStage) apply(upstream PipelineIterator) PipelineIterator {
 	switch s.kind {
-	case filterPath:
+	case filterPath, "aspath":
 		return newPathFilter(upstream, s.arg)
-	case "cidr":
+	case "cidr", "prefix":
 		return newCIDRFilter(upstream, s.arg)
 	case "community":
 		return newCommunityFilter(upstream, s.arg)
@@ -796,6 +863,8 @@ func (s pipelineStage) apply(upstream PipelineIterator) PipelineIterator {
 		return newCountTerminal(upstream)
 	case "json":
 		return newJSONTerminal(upstream)
+	case "prefix-summary":
+		return newPrefixSummaryTerminal(upstream)
 	}
 	// parsePipelineArgs validates all keywords before reaching here,
 	// so this is unreachable in normal operation.
@@ -805,7 +874,9 @@ func (s pipelineStage) apply(upstream PipelineIterator) PipelineIterator {
 // filterKeywords are pipeline stage keywords that require a value argument.
 var filterKeywords = map[string]bool{
 	filterPath:  true,
+	"aspath":    true,
 	"cidr":      true,
+	"prefix":    true,
 	"community": true,
 	"family":    true,
 	"match":     true,
@@ -813,8 +884,9 @@ var filterKeywords = map[string]bool{
 
 // terminalKeywords are pipeline terminal keywords that take no value.
 var terminalKeywords = map[string]bool{
-	"count": true,
-	"json":  true,
+	"count":          true,
+	"json":           true,
+	"prefix-summary": true,
 }
 
 // scopeKeywords are positional scope keywords (must appear first).

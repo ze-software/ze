@@ -7,17 +7,18 @@
 <link rel="stylesheet" href="/lg/assets/style.css">
 <script src="/lg/assets/htmx.min.js"></script>
 <script src="/lg/assets/sse.js"></script>
+<script src="/lg/assets/theme.js"></script>
 </head>
 <body>
 <header>
-<div class="header-top">
-<a href="/lg/peers" class="nav-brand">Ze Looking Glass</a>
-</div>
+<div class="header-row">
 <nav class="tab-bar">
 <a href="/lg/peers" hx-get="/lg/peers" hx-target="#content" hx-push-url="true"{{if eq .ActiveTab "peers"}} class="tab-active"{{end}}>Peers</a>
-<a href="/lg/lookup" hx-get="/lg/lookup" hx-target="#content" hx-push-url="true"{{if eq .ActiveTab "lookup"}} class="tab-active"{{end}}>Lookup</a>
 <a href="/lg/search" hx-get="/lg/search" hx-target="#content" hx-push-url="true"{{if eq .ActiveTab "search"}} class="tab-active"{{end}}>Search</a>
 </nav>
+<a class="nav-brand" href="/lg/peers"><img class="ze-logo" src="/lg/assets/ze.svg" alt="Ze" width="28" height="28"> Ze Looking Glass</a>
+<button class="theme-toggle" id="theme-toggle" title="Toggle dark/light mode">&#9789;</button>
+</div>
 </header>
 <main><div id="content">{{.Content}}</div></main>
 </body>

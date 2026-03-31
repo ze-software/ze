@@ -149,7 +149,7 @@ func TestExtractPeersWithASNNames(t *testing.T) {
 }
 
 func TestExtractRoutes(t *testing.T) {
-	// VALIDATES: route extraction with routes/prefixes fallback.
+	// VALIDATES: route extraction with routes/prefixes/adj-rib-in formats.
 	t.Run("nil input", func(t *testing.T) {
 		if got := extractRoutes(nil); got != nil {
 			t.Errorf("expected nil, got %v", got)
@@ -169,6 +169,62 @@ func TestExtractRoutes(t *testing.T) {
 		got := extractRoutes(ze)
 		if len(got) != 1 {
 			t.Errorf("expected 1 route from prefixes fallback, got %d", len(got))
+		}
+	})
+
+	t.Run("adj-rib-in format", func(t *testing.T) {
+		ze := map[string]any{
+			"adj-rib-in": map[string]any{
+				"10.0.0.1": []any{
+					map[string]any{"prefix": "192.168.0.0/24", "family": "ipv4/unicast"},
+					map[string]any{"prefix": "192.168.1.0/24", "family": "ipv4/unicast"},
+				},
+			},
+		}
+		got := extractRoutes(ze)
+		if len(got) != 2 {
+			t.Fatalf("expected 2 routes, got %d", len(got))
+		}
+		r0, _ := got[0].(map[string]any)
+		if r0["peer-address"] != "10.0.0.1" {
+			t.Errorf("peer-address = %q, want 10.0.0.1", r0["peer-address"])
+		}
+	})
+
+	t.Run("adj-rib-in and adj-rib-out combined", func(t *testing.T) {
+		ze := map[string]any{
+			"adj-rib-in": map[string]any{
+				"10.0.0.1": []any{
+					map[string]any{"prefix": "192.168.0.0/24"},
+				},
+			},
+			"adj-rib-out": map[string]any{
+				"10.0.0.1": []any{
+					map[string]any{"prefix": "10.0.0.0/8"},
+				},
+			},
+		}
+		got := extractRoutes(ze)
+		if len(got) != 2 {
+			t.Errorf("expected 2 routes (in + out), got %d", len(got))
+		}
+	})
+
+	t.Run("adj-rib-in preserves existing peer-address", func(t *testing.T) {
+		ze := map[string]any{
+			"adj-rib-in": map[string]any{
+				"10.0.0.1": []any{
+					map[string]any{"prefix": "192.168.0.0/24", "peer-address": "10.0.0.1"},
+				},
+			},
+		}
+		got := extractRoutes(ze)
+		if len(got) != 1 {
+			t.Fatalf("expected 1 route, got %d", len(got))
+		}
+		r0, _ := got[0].(map[string]any)
+		if r0["peer-address"] != "10.0.0.1" {
+			t.Errorf("peer-address = %q, want 10.0.0.1", r0["peer-address"])
 		}
 	})
 }

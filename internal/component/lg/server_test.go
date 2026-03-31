@@ -372,12 +372,34 @@ func TestHTMXFragmentVsFullPage(t *testing.T) {
 	}
 }
 
-func TestUILookupPost(t *testing.T) {
-	// VALIDATES: POST /lg/lookup returns route results.
+func TestUILookupRedirect(t *testing.T) {
+	// VALIDATES: GET /lg/lookup redirects to /lg/search.
 	srv, base, client := startTestServer(t)
 	defer func() { _ = srv.Shutdown(context.Background()) }()
 
-	resp := doPost(t, client, base+"/lg/lookup", "prefix=10.0.0.0/24")
+	// Don't follow redirects.
+	client.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+
+	resp := doGet(t, client, base+"/lg/lookup")
+	resp.Body.Close() //nolint:errcheck // test cleanup
+
+	if resp.StatusCode != http.StatusFound {
+		t.Errorf("status = %d, want 302", resp.StatusCode)
+	}
+	loc := resp.Header.Get("Location")
+	if loc != "/lg/search" {
+		t.Errorf("Location = %q, want /lg/search", loc)
+	}
+}
+
+func TestUISearchPrefixPost(t *testing.T) {
+	// VALIDATES: POST /lg/search with prefix filter returns results.
+	srv, base, client := startTestServer(t)
+	defer func() { _ = srv.Shutdown(context.Background()) }()
+
+	resp := doPost(t, client, base+"/lg/search", "prefix=10.0.0.0/24")
 	body, _ := io.ReadAll(resp.Body)
 	resp.Body.Close() //nolint:errcheck // test cleanup
 
@@ -389,12 +411,12 @@ func TestUILookupPost(t *testing.T) {
 	}
 }
 
-func TestUIASPathSearchPost(t *testing.T) {
-	// VALIDATES: POST /lg/search with type=aspath returns results.
+func TestUISearchASPathPost(t *testing.T) {
+	// VALIDATES: POST /lg/search with aspath filter returns results.
 	srv, base, client := startTestServer(t)
 	defer func() { _ = srv.Shutdown(context.Background()) }()
 
-	resp := doPost(t, client, base+"/lg/search", "type=aspath&query=65001")
+	resp := doPost(t, client, base+"/lg/search", "aspath=65001")
 	resp.Body.Close() //nolint:errcheck // test cleanup
 
 	if resp.StatusCode != http.StatusOK {
@@ -402,12 +424,12 @@ func TestUIASPathSearchPost(t *testing.T) {
 	}
 }
 
-func TestUICommunitySearchPost(t *testing.T) {
-	// VALIDATES: POST /lg/search with type=community returns results.
+func TestUISearchCommunityPost(t *testing.T) {
+	// VALIDATES: POST /lg/search with community filter returns results.
 	srv, base, client := startTestServer(t)
 	defer func() { _ = srv.Shutdown(context.Background()) }()
 
-	resp := doPost(t, client, base+"/lg/search", "type=community&query=65000:100")
+	resp := doPost(t, client, base+"/lg/search", "community=65000:100")
 	resp.Body.Close() //nolint:errcheck // test cleanup
 
 	if resp.StatusCode != http.StatusOK {
@@ -415,12 +437,12 @@ func TestUICommunitySearchPost(t *testing.T) {
 	}
 }
 
-func TestUISearchPrefixPost(t *testing.T) {
-	// VALIDATES: POST /lg/search with default type (prefix) returns results.
+func TestUISearchStackedFilters(t *testing.T) {
+	// VALIDATES: POST /lg/search with multiple filters stacked.
 	srv, base, client := startTestServer(t)
 	defer func() { _ = srv.Shutdown(context.Background()) }()
 
-	resp := doPost(t, client, base+"/lg/search", "query=10.0.0.0/24")
+	resp := doPost(t, client, base+"/lg/search", "prefix=10.0.0.0/24&aspath=65001&family=ipv4/unicast")
 	resp.Body.Close() //nolint:errcheck // test cleanup
 
 	if resp.StatusCode != http.StatusOK {
@@ -428,16 +450,16 @@ func TestUISearchPrefixPost(t *testing.T) {
 	}
 }
 
-func TestUISearchEmptyQuery(t *testing.T) {
-	// VALIDATES: POST /lg/search with empty query returns 400.
+func TestUISearchNoFilters(t *testing.T) {
+	// VALIDATES: POST /lg/search with no filters returns error (not 400, rendered in-page).
 	srv, base, client := startTestServer(t)
 	defer func() { _ = srv.Shutdown(context.Background()) }()
 
-	resp := doPost(t, client, base+"/lg/search", "type=aspath&query=")
+	resp := doPost(t, client, base+"/lg/search", "prefix=&aspath=&community=")
 	resp.Body.Close() //nolint:errcheck // test cleanup
 
-	if resp.StatusCode != http.StatusBadRequest {
-		t.Errorf("status = %d, want 400", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want 200 (error rendered in-page)", resp.StatusCode)
 	}
 }
 

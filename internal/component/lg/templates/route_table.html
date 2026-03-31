@@ -1,6 +1,7 @@
 {{define "route_results"}}
 {{template "error_banner" .}}
-<p class="result-count">{{.Count}} routes found{{if .Prefix}} for {{.Prefix}}{{end}}{{if .Pattern}} matching {{.Pattern}}{{end}}{{if .Community}} with community {{.Community}}{{end}}</p>
+{{if .Routes}}
+<p class="result-count">{{formatNum .Count}} routes{{if .Prefix}} for {{.Prefix}}{{end}}{{if .ASPath}} matching AS path {{.ASPath}}{{end}}{{if .Community}} with community {{.Community}}{{end}}</p>
 {{if .Prefix}}
 <div id="graph-container" hx-get="/lg/graph?prefix={{.Prefix}}" hx-trigger="load" hx-swap="innerHTML">
 <span class="spinner"></span> Loading topology...
@@ -14,7 +15,7 @@
 </tr>
 </thead>
 <tbody>
-{{range .Routes}}{{$route := .}}
+{{range .Routes}}
 <tr{{if isBest .}} class="best-route"{{end}} hx-get="/lg/route/detail?prefix={{index . "prefix"}}&amp;peer={{index . "peer-address"}}" hx-target="this" hx-swap="afterend">
 <td>{{if isBest .}}&#9733;{{end}}</td>
 <td>{{index . "prefix"}}</td>
@@ -27,4 +28,7 @@
 </tr>{{end}}
 </tbody>
 </table>
+{{else if not .Error}}
+<p class="empty-state">No routes found. Try a different query.</p>
+{{end}}
 {{end}}
