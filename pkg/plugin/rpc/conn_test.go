@@ -8,6 +8,7 @@ import (
 	"net"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -360,6 +361,77 @@ func TestConn_CallBatchRPC_DeadlineWrite(t *testing.T) {
 
 	_, err := conn.CallBatchRPC(ctx, events)
 	require.NoError(t, err)
+}
+
+// TestConn_CallBatchRPC_OversizedSplit verifies CallBatchRPC splits batches
+// that exceed MaxMessageSize into multiple sub-batch frames.
+//
+// VALIDATES: Oversized batches are split transparently; no bufio.ErrTooLong.
+// PREVENTS: 16MB frame limit crash with large UPDATE batches (1M+ routes).
+func TestConn_CallBatchRPC_OversizedSplit(t *testing.T) {
+	t.Parallel()
+
+	pluginEnd, engineEnd := net.Pipe()
+	defer closePipe(t, "pluginEnd", pluginEnd)
+	defer closePipe(t, "engineEnd", engineEnd)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// Build events totaling > MaxMessageSize (~20MB).
+	// Each event is ~300 bytes; need ~55K events to exceed 16MB.
+	var events [][]byte
+	totalSize := 0
+	for i := 0; totalSize < MaxMessageSize+1024*1024; i++ {
+		e := fmt.Appendf(nil,
+			`{"type":"bgp","bgp":{"type":"update","peer":{"address":"10.0.0.%d","remote":{"as":65001}},"message":{"id":%d},"update":{"attribute":{"origin":"igp","as-path":[65001,65002],"next-hop":"10.0.0.1"},"announce":{"ipv4/unicast":{"10.0.0.1":["192.168.%d.%d/24"]}}}}}`,
+			i%256, i, i/256, i%256,
+		)
+		events = append(events, e)
+		totalSize += len(e)
+		if i > 0 {
+			totalSize++ // comma separator in frame
+		}
+	}
+
+	// Engine side: read all batch requests, respond OK to each.
+	var batchCount int32
+	var eventTotal int32
+	engineDone := make(chan struct{})
+	go func() {
+		defer close(engineDone)
+		engineConn := NewConn(engineEnd, engineEnd)
+		for {
+			req, readErr := engineConn.ReadRequest(ctx)
+			if readErr != nil {
+				return
+			}
+			atomic.AddInt32(&batchCount, 1)
+			if req.Params != nil {
+				if evts, parseErr := ParseBatchEvents(req.Params); parseErr == nil {
+					atomic.AddInt32(&eventTotal, int32(len(evts)))
+				}
+			}
+			if sendErr := engineConn.SendOK(ctx, req.ID); sendErr != nil {
+				return
+			}
+		}
+	}()
+
+	conn := NewConn(pluginEnd, pluginEnd)
+
+	_, err := conn.CallBatchRPC(ctx, events)
+	require.NoError(t, err)
+
+	// Close plugin end so engine goroutine exits.
+	require.NoError(t, conn.Close())
+	<-engineDone
+
+	// Verify splitting happened.
+	assert.Greater(t, atomic.LoadInt32(&batchCount), int32(1),
+		"batch should have been split into multiple frames")
+	assert.Equal(t, int32(len(events)), atomic.LoadInt32(&eventTotal),
+		"all events should have been delivered across sub-batches")
 }
 
 // TestConn_WriteLineWithContext_Deadline verifies writeLineWithContext uses

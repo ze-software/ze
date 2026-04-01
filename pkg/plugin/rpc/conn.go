@@ -293,20 +293,73 @@ func (c *Conn) CallRPC(ctx context.Context, method string, params any) (json.Raw
 	return parseResponse(data, id)
 }
 
-// CallBatchRPC writes a deliver-batch frame using a pooled buffer and reads the response.
-// Bypasses json.Marshal and FrameWriter.Write allocation. Serialized via callMu.
+// batchFrameOverhead is the maximum size of the non-event portion of a batch
+// frame: #<id> ze-plugin-callback:deliver-batch {"events":[]}\n
+// Conservative upper bound covering a 20-digit ID.
+const batchFrameOverhead = 128
+
+// CallBatchRPC writes deliver-batch frame(s) and reads response(s). If the
+// events would produce a frame exceeding MaxMessageSize, the batch is split
+// into sub-batches that each fit within the limit. Serialized via callMu.
 func (c *Conn) CallBatchRPC(ctx context.Context, events [][]byte) (json.RawMessage, error) {
 	c.callMu.Lock()
 	defer c.callMu.Unlock()
 
+	// Estimate total frame size.
+	frameSize := batchFrameOverhead
+	for i, e := range events {
+		if i > 0 {
+			frameSize++ // comma separator
+		}
+		frameSize += len(e)
+	}
+
+	// Fast path: single frame (common case).
+	if frameSize <= MaxMessageSize {
+		return c.callBatchOnce(ctx, events)
+	}
+
+	// Slow path: split into sub-batches that each fit within MaxMessageSize.
+	maxPayload := MaxMessageSize - batchFrameOverhead
+	var lastResp json.RawMessage
+	start := 0
+
+	for start < len(events) {
+		end := start
+		size := 0
+
+		for end < len(events) {
+			eventSize := len(events[end])
+			if end > start {
+				eventSize++ // comma separator
+			}
+			if size+eventSize > maxPayload && end > start {
+				break
+			}
+			size += eventSize
+			end++
+		}
+
+		resp, err := c.callBatchOnce(ctx, events[start:end])
+		if err != nil {
+			return nil, err
+		}
+		lastResp = resp
+		start = end
+	}
+
+	return lastResp, nil
+}
+
+// callBatchOnce writes a single deliver-batch frame and reads its response.
+// MUST be called with callMu held.
+func (c *Conn) callBatchOnce(ctx context.Context, events [][]byte) (json.RawMessage, error) {
 	id := c.idSeq.Add(1)
 
-	// Write batch frame using deadline-based write.
 	if err := c.writeBatchWithDeadline(ctx, id, events); err != nil {
 		return nil, fmt.Errorf("send batch: %w", err)
 	}
 
-	// Read response frame via persistent reader.
 	data, err := c.readFrame(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("read response: %w", err)
