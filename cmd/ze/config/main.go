@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
@@ -114,43 +115,47 @@ func loadConfigData(path string) ([]byte, error) {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze config <command> [options]
-
-Create and manage Ze configurations.
-
-Editing:
-  edit [file]              Interactive editor (default: <identity>.conf)
-  set <file> <path> <val>  Set a value by path
-
-Storage:
-  import [--name n] <file>...  Import files into the database
-  rename <old> <new>           Rename a config in the database
-  ls [prefix]                  List configs in the database
-  cat <key>                    Print a database entry
-
-Inspection:
-  validate <file>          Validate configuration file
-  dump <file>              Parse and display config
-  diff <f1> <f2>           Compare two configs
-  diff <N> <file>          Compare rollback revision N against current
-  fmt <file>               Format and normalize
-
-History:
-  history <file>           List rollback revisions
-  rollback <N> <file>      Restore from rollback revision N
-  archive <name> <file>    Archive to a named destination
-
-Migration:
-  migrate <file>           Convert old format to current
-
-Options:
-  -f                       Bypass database, use filesystem directly
-
-Examples:
-  ze config edit
-  ze config import router.conf
-  ze config import --name production.conf /etc/ze/router.conf
-  ze config validate router.conf
-  ze config set router.conf bgp local as 65000
-`)
+	p := helpfmt.Page{
+		Command: "ze config",
+		Summary: "Create and manage Ze configurations",
+		Usage:   []string{"ze config <command> [options]"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Editing", Entries: []helpfmt.HelpEntry{
+				{Name: "edit [file]", Desc: "Interactive editor (default: <identity>.conf)"},
+				{Name: "set <file> <path> <val>", Desc: "Set a value by path"},
+			}},
+			{Title: "Storage", Entries: []helpfmt.HelpEntry{
+				{Name: "import [--name n] <file>...", Desc: "Import files into the database"},
+				{Name: "rename <old> <new>", Desc: "Rename a config in the database"},
+				{Name: "ls [prefix]", Desc: "List configs in the database"},
+				{Name: "cat <key>", Desc: "Print a database entry"},
+			}},
+			{Title: "Inspection", Entries: []helpfmt.HelpEntry{
+				{Name: "validate <file>", Desc: "Validate configuration file"},
+				{Name: "dump <file>", Desc: "Parse and display config"},
+				{Name: "diff <f1> <f2>", Desc: "Compare two configs"},
+				{Name: "diff <N> <file>", Desc: "Compare rollback revision N against current"},
+				{Name: "fmt <file>", Desc: "Format and normalize"},
+			}},
+			{Title: "History", Entries: []helpfmt.HelpEntry{
+				{Name: "history <file>", Desc: "List rollback revisions"},
+				{Name: "rollback <N> <file>", Desc: "Restore from rollback revision N"},
+				{Name: "archive <name> <file>", Desc: "Archive to a named destination"},
+			}},
+			{Title: "Migration", Entries: []helpfmt.HelpEntry{
+				{Name: "migrate <file>", Desc: "Convert old format to current"},
+			}},
+			{Title: "Options", Entries: []helpfmt.HelpEntry{
+				{Name: "-f", Desc: "Bypass database, use filesystem directly"},
+			}},
+		},
+		Examples: []string{
+			"ze config edit",
+			"ze config import router.conf",
+			"ze config import --name production.conf /etc/ze/router.conf",
+			"ze config validate router.conf",
+			"ze config set router.conf bgp local as 65000",
+		},
+	}
+	p.Write()
 }

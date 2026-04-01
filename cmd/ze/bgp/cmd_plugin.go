@@ -13,6 +13,7 @@ import (
 	"os"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
 	"codeberg.org/thomas-mangin/ze/pkg/plugin/sdk"
 )
@@ -38,19 +39,22 @@ func cmdPlugin(args []string) int {
 }
 
 func pluginUsage() {
-	fmt.Fprintf(os.Stderr, `ze bgp plugin - Plugin debug shell
-
-Usage:
-  ze bgp plugin <command> [options]
-
-Commands:
-  cli                  Interactive plugin debug shell (5-stage handshake + commands)
-  help                 Show this help
-
-Examples:
-  ze bgp plugin cli                          Enter plugin debug shell (defaults)
-  ze bgp plugin cli --name my-test           Enter with custom plugin name
-`)
+	p := helpfmt.Page{
+		Command: "ze bgp plugin",
+		Summary: "Plugin debug shell",
+		Usage:   []string{"ze bgp plugin <command> [options]"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Commands", Entries: []helpfmt.HelpEntry{
+				{Name: "cli", Desc: "Interactive plugin debug shell (5-stage handshake + commands)"},
+				{Name: "help", Desc: "Show this help"},
+			}},
+		},
+		Examples: []string{
+			"ze bgp plugin cli                          Enter plugin debug shell (defaults)",
+			"ze bgp plugin cli --name my-test           Enter with custom plugin name",
+		},
+	}
+	p.Write()
 }
 
 // cmdPluginCLI runs the plugin debug shell.
@@ -62,24 +66,26 @@ func cmdPluginCLI(args []string) int {
 	name := fs.String("name", "", "Plugin name (default: auto-generated)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze bgp plugin cli [options]
-
-Plugin debug shell. Connects to the daemon via SSH, runs the 5-stage
-plugin handshake, then enters interactive command mode.
-
-Hit Enter at each prompt to accept defaults.
-
-Post-handshake commands:
-  dispatch-command <command>          Dispatch engine command
-  subscribe-events [events...]        Subscribe to events
-  unsubscribe-events                 Unsubscribe from events
-  decode-nlri <family> <hex>          Decode NLRI
-  encode-nlri <family> <args...>      Encode NLRI
-  bye                                 Disconnect
-
-Options:
-`)
-		fs.PrintDefaults()
+		p := helpfmt.Page{
+			Command: "ze bgp plugin cli",
+			Summary: "Plugin debug shell. Connects to the daemon via SSH, runs the 5-stage plugin handshake, then enters interactive command mode",
+			Usage:   []string{"ze bgp plugin cli [options]"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Post-handshake commands", Entries: []helpfmt.HelpEntry{
+					{Name: "dispatch-command <command>", Desc: "Dispatch engine command"},
+					{Name: "subscribe-events [events...]", Desc: "Subscribe to events"},
+					{Name: "unsubscribe-events", Desc: "Unsubscribe from events"},
+					{Name: "decode-nlri <family> <hex>", Desc: "Decode NLRI"},
+					{Name: "encode-nlri <family> <args...>", Desc: "Encode NLRI"},
+					{Name: "bye", Desc: "Disconnect"},
+				}},
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "--name <name>", Desc: "Plugin name (default: auto-generated)"},
+				}},
+			},
+		}
+		p.Write()
+		fmt.Fprintf(os.Stderr, "\nHit Enter at each prompt to accept defaults.\n")
 	}
 
 	if err := fs.Parse(args); err != nil {

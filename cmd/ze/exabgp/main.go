@@ -13,6 +13,7 @@ import (
 	"strings"
 	"syscall"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	"codeberg.org/thomas-mangin/ze/internal/exabgp/bridge"
 	"codeberg.org/thomas-mangin/ze/internal/exabgp/migration"
@@ -50,23 +51,26 @@ func Run(args []string) int {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze exabgp <subcommand> [options]
-
-ExaBGP compatibility tools.
-
-Subcommands:
-  plugin <cmd>     Run ExaBGP plugin with ze (bidirectional translation)
-  migrate <file>   Convert ExaBGP config to ze format
-
-Examples:
-  ze exabgp plugin /path/to/exabgp-plugin.py
-  ze exabgp migrate /path/to/exabgp.conf > ze-bgp.conf
-
-Use in ze config:
-  plugin exabgp-compat {
-      run "ze exabgp plugin /path/to/plugin.py";
-  }
-`)
+	p := helpfmt.Page{
+		Command: "ze exabgp",
+		Summary: "ExaBGP compatibility tools",
+		Usage:   []string{"ze exabgp <subcommand> [options]"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Subcommands", Entries: []helpfmt.HelpEntry{
+				{Name: "plugin <cmd>", Desc: "Run ExaBGP plugin with ze (bidirectional translation)"},
+				{Name: "migrate <file>", Desc: "Convert ExaBGP config to ze format"},
+			}},
+		},
+		Examples: []string{
+			"ze exabgp plugin /path/to/exabgp-plugin.py",
+			"ze exabgp migrate /path/to/exabgp.conf > ze-bgp.conf",
+			`Use in ze config:`,
+			`  plugin exabgp-compat {`,
+			`      run "ze exabgp plugin /path/to/plugin.py";`,
+			`  }`,
+		},
+	}
+	p.Write()
 }
 
 // familyList is a custom flag type for repeatable --family flags.
@@ -88,30 +92,29 @@ func cmdPlugin(args []string) int {
 	addPath := fs.String("add-path", "", "ADD-PATH mode: receive, send, or both (RFC 7911)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze exabgp plugin [flags] <cmd> [args...]
-
-Run an ExaBGP plugin with ze by translating between formats:
-- ze-bgp JSON events -> ExaBGP JSON format (to plugin stdin)
-- ExaBGP text commands -> ze commands (from plugin stdout)
-
-Flags:
-  --family <family>     Address family to support (repeatable)
-                        Default: ipv4/unicast
-                        Examples: ipv4/unicast, ipv6/unicast, ipv4/flow
-  --route-refresh       Enable route-refresh capability (RFC 2918)
-  --add-path <mode>     ADD-PATH mode: receive, send, both (RFC 7911)
-
-Examples:
-  ze exabgp plugin /path/to/exabgp-plugin.py
-  ze exabgp plugin --route-refresh /path/to/plugin.py
-  ze exabgp plugin --family ipv4/unicast --family ipv6/unicast /path/to/plugin.py
-  ze exabgp plugin --add-path receive python3 /path/to/plugin.py
-
-Use in ze config:
-  plugin exabgp-compat {
-      run "ze exabgp plugin --route-refresh /path/to/plugin.py";
-  }
-`)
+		p := helpfmt.Page{
+			Command: "ze exabgp plugin",
+			Summary: "Run an ExaBGP plugin with ze by translating between formats",
+			Usage:   []string{"ze exabgp plugin [flags] <cmd> [args...]"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Flags", Entries: []helpfmt.HelpEntry{
+					{Name: "--family <family>", Desc: "Address family to support (repeatable, default: ipv4/unicast)"},
+					{Name: "--route-refresh", Desc: "Enable route-refresh capability (RFC 2918)"},
+					{Name: "--add-path <mode>", Desc: "ADD-PATH mode: receive, send, both (RFC 7911)"},
+				}},
+			},
+			Examples: []string{
+				"ze exabgp plugin /path/to/exabgp-plugin.py",
+				"ze exabgp plugin --route-refresh /path/to/plugin.py",
+				"ze exabgp plugin --family ipv4/unicast --family ipv6/unicast /path/to/plugin.py",
+				"ze exabgp plugin --add-path receive python3 /path/to/plugin.py",
+				`Use in ze config:`,
+				`  plugin exabgp-compat {`,
+				`      run "ze exabgp plugin --route-refresh /path/to/plugin.py";`,
+				`  }`,
+			},
+		}
+		p.Write()
 	}
 
 	if err := fs.Parse(args); err != nil {
@@ -191,26 +194,28 @@ func cmdMigrate(args []string) int {
 	fs := flag.NewFlagSet("exabgp migrate", flag.ExitOnError)
 	dryRun := fs.Bool("dry-run", false, "Show what would be done without making changes")
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze exabgp migrate [options] <config-file>
-
-Convert an ExaBGP configuration file to ze format.
-
-The migrated config is written to stdout. Redirect to save:
-  ze exabgp migrate exabgp.conf > ze-bgp.conf
-
-Options:
-  -dry-run    Show what would be done without output
-
-Transformations applied:
-  - neighbor -> peer
-  - process -> plugin (wrapped with ze exabgp plugin bridge)
-  - api { processes [...] } -> process NAME { ... } inside peer
-  - capability { route-refresh; } -> capability { route-refresh enable; }
-  - If GR or route-refresh: inject RIB plugin
-
-Example:
-  ze exabgp migrate /etc/exabgp/exabgp.conf > /etc/ze/bgp/ze-bgp.conf
-`)
+		p := helpfmt.Page{
+			Command: "ze exabgp migrate",
+			Summary: "Convert an ExaBGP configuration file to ze format",
+			Usage:   []string{"ze exabgp migrate [options] <config-file>"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "-dry-run", Desc: "Show what would be done without output"},
+				}},
+				{Title: "Transformations applied", Entries: []helpfmt.HelpEntry{
+					{Name: "neighbor -> peer", Desc: ""},
+					{Name: "process -> plugin", Desc: "Wrapped with ze exabgp plugin bridge"},
+					{Name: "api { processes [...] }", Desc: "-> process NAME { ... } inside peer"},
+					{Name: "capability { route-refresh; }", Desc: "-> capability { route-refresh enable; }"},
+					{Name: "If GR or route-refresh", Desc: "Inject RIB plugin"},
+				}},
+			},
+			Examples: []string{
+				"ze exabgp migrate exabgp.conf > ze-bgp.conf",
+				"ze exabgp migrate /etc/exabgp/exabgp.conf > /etc/ze/bgp/ze-bgp.conf",
+			},
+		}
+		p.Write()
 	}
 
 	if err := fs.Parse(args); err != nil {

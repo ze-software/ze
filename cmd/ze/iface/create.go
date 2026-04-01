@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	mgr "codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
 
@@ -68,16 +69,20 @@ func cmdCreateVeth(args []string) int {
 }
 
 func createUsage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze interface create <type> <args>
-
-Create a new network interface.
-
-Types:
-  dummy <name>          Create a dummy interface and bring it up
-  veth <name> <peer>    Create a veth pair and bring both ends up
-
-Examples:
-  ze interface create dummy lo1
-  ze interface create veth ze0 ze1
-`)
+	p := helpfmt.Page{
+		Command: "ze interface create",
+		Summary: "Create a new network interface",
+		Usage:   []string{"ze interface create <type> <args>"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Types", Entries: []helpfmt.HelpEntry{
+				{Name: "dummy <name>", Desc: "Create a dummy interface and bring it up"},
+				{Name: "veth <name> <peer>", Desc: "Create a veth pair and bring both ends up"},
+			}},
+		},
+		Examples: []string{
+			"ze interface create dummy lo1",
+			"ze interface create veth ze0 ze1",
+		},
+	}
+	p.Write()
 }

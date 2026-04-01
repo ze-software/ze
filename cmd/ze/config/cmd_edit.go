@@ -18,6 +18,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/command"
@@ -292,44 +293,47 @@ func cmdEditWithStorage(store storage.Storage, args []string) int {
 	fileOverride := fs.Bool("f", false, "Use filesystem directly, bypass blob store")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze config edit [options] [config-file]
-
-Interactive configuration editor with VyOS-like set commands.
-Config file defaults to <name>.conf (from meta/instance/name) or ze.conf.
-
-Options:
-`)
-		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, `
-Commands:
-  set <path> <value>    Set a configuration value
-  delete <path>         Delete a configuration value
-  edit <path>           Enter a subsection (narrowed context)
-  edit <list> *         Edit template for all entries (inheritance)
-  top                   Return to root context
-  up                    Go up one level
-  show [section]        Display current configuration
-  compare               Show diff vs original
-  commit                Save changes (creates backup)
-  discard               Revert all changes
-  history               List backup files
-  rollback <N>          Restore backup N
-  exit/quit             Exit (prompts if unsaved changes)
-
-Mode switching:
-  command               Switch to operational command mode
-  edit                  Switch back to config edit mode (in command mode)
-
-Tab completion:
-  Type partial text + Tab for completion
-  Multiple matches show dropdown, Tab cycles through
-  Ghost text shows best match in gray
-
-Examples:
-  ze config edit                         Edit default config (<identity>.conf)
-  ze config edit router.conf             Edit specific config
-  ze config edit -f /etc/ze/config.conf  Edit from filesystem
-`)
+		p := helpfmt.Page{
+			Command: "ze config edit",
+			Summary: "Interactive configuration editor with VyOS-like set commands",
+			Usage:   []string{"ze config edit [options] [config-file]"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "-f", Desc: "Use filesystem directly, bypass blob store"},
+				}},
+				{Title: "Commands", Entries: []helpfmt.HelpEntry{
+					{Name: "set <path> <value>", Desc: "Set a configuration value"},
+					{Name: "delete <path>", Desc: "Delete a configuration value"},
+					{Name: "edit <path>", Desc: "Enter a subsection (narrowed context)"},
+					{Name: "edit <list> *", Desc: "Edit template for all entries (inheritance)"},
+					{Name: "top", Desc: "Return to root context"},
+					{Name: "up", Desc: "Go up one level"},
+					{Name: "show [section]", Desc: "Display current configuration"},
+					{Name: "compare", Desc: "Show diff vs original"},
+					{Name: "commit", Desc: "Save changes (creates backup)"},
+					{Name: "discard", Desc: "Revert all changes"},
+					{Name: "history", Desc: "List backup files"},
+					{Name: "rollback <N>", Desc: "Restore backup N"},
+					{Name: "exit/quit", Desc: "Exit (prompts if unsaved changes)"},
+				}},
+				{Title: "Mode switching", Entries: []helpfmt.HelpEntry{
+					{Name: "command", Desc: "Switch to operational command mode"},
+					{Name: "edit", Desc: "Switch back to config edit mode (in command mode)"},
+				}},
+				{Title: "Tab completion", Entries: []helpfmt.HelpEntry{
+					{Name: "Tab", Desc: "Type partial text + Tab for completion"},
+					{Name: "Multiple matches", Desc: "Show dropdown, Tab cycles through"},
+					{Name: "Ghost text", Desc: "Shows best match in gray"},
+				}},
+			},
+			Examples: []string{
+				"ze config edit                         Edit default config (<identity>.conf)",
+				"ze config edit router.conf             Edit specific config",
+				"ze config edit -f /etc/ze/config.conf  Edit from filesystem",
+			},
+		}
+		p.Write()
+		fmt.Fprintf(os.Stderr, "\nConfig file defaults to <name>.conf (from meta/instance/name) or ze.conf.\n")
 	}
 
 	if err := fs.Parse(args); err != nil {

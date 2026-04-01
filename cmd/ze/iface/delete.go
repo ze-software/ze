@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	mgr "codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
 
@@ -40,12 +41,14 @@ func cmdDelete(args []string) int {
 }
 
 func deleteUsage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze interface delete <name>
-
-Delete a network interface.
-
-Examples:
-  ze interface delete lo1
-  ze interface delete ze0
-`)
+	p := helpfmt.Page{
+		Command: "ze interface delete",
+		Summary: "Delete a network interface",
+		Usage:   []string{"ze interface delete <name>"},
+		Examples: []string{
+			"ze interface delete lo1",
+			"ze interface delete ze0",
+		},
+	}
+	p.Write()
 }

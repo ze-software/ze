@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	ribschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/rib/schema"
 	bgpschema "codeberg.org/thomas-mangin/ze/internal/component/bgp/schema"
@@ -81,32 +82,35 @@ func Run(args, plugins []string) int {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `ze schema - Schema discovery commands
-
-Usage:
-  ze schema <command> [options]
-
-Commands:
-  list              List all registered schemas
-  show <module>     Show YANG content for a module
-  handlers          List handler → module mapping
-  methods [module]  List RPCs from YANG (all or specific module)
-  events [module]   List notifications from YANG
-  protocol          Show protocol version and format info
-  help              Show this help
-
-Options (list, show, handlers, methods, events):
-  --json            Output as JSON
-
-Examples:
-  ze schema list
-  ze schema list --json
-  ze schema show ze-bgp
-  ze schema handlers
-  ze schema methods
-  ze schema methods ze-bgp-api
-  ze schema events
-`)
+	p := helpfmt.Page{
+		Command: "ze schema",
+		Summary: "Schema discovery commands",
+		Usage:   []string{"ze schema <command> [options]"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Commands", Entries: []helpfmt.HelpEntry{
+				{Name: "list", Desc: "List all registered schemas"},
+				{Name: "show <module>", Desc: "Show YANG content for a module"},
+				{Name: "handlers", Desc: "List handler -> module mapping"},
+				{Name: "methods [module]", Desc: "List RPCs from YANG (all or specific module)"},
+				{Name: "events [module]", Desc: "List notifications from YANG"},
+				{Name: "protocol", Desc: "Show protocol version and format info"},
+				{Name: "help", Desc: "Show this help"},
+			}},
+			{Title: "Options (list, show, handlers, methods, events)", Entries: []helpfmt.HelpEntry{
+				{Name: "--json", Desc: "Output as JSON"},
+			}},
+		},
+		Examples: []string{
+			"ze schema list",
+			"ze schema list --json",
+			"ze schema show ze-bgp",
+			"ze schema handlers",
+			"ze schema methods",
+			"ze schema methods ze-bgp-api",
+			"ze schema events",
+		},
+	}
+	p.Write()
 }
 
 // encodeJSON writes v as indented JSON to stdout.

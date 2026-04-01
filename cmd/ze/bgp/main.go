@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 )
 
@@ -49,26 +50,29 @@ func Run(args []string) int {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `ze bgp - BGP protocol tools
-
-Usage:
-  ze bgp <command> [options]
-
-Commands:
-  decode <hex>         Decode BGP message from hex to JSON
-  encode <route>       Encode API route command to BGP hex
-  plugin               Interactive plugin simulator
-  help                 Show this help
-
-See also:
-  ze config validate   Validate configuration
-  ze config            Configuration management
-  ze plugin            Plugin system (rib, rr, gr, etc.)
-  ze schema            Schema discovery
-  ze version           Show version
-
-Examples:
-  ze bgp decode update <hex>
-  ze bgp encode "nlri ipv4/unicast add 10.0.0.0/24"
-`)
+	p := helpfmt.Page{
+		Command: "ze bgp",
+		Summary: "BGP protocol tools",
+		Usage:   []string{"ze bgp <command> [options]"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Commands", Entries: []helpfmt.HelpEntry{
+				{Name: "decode <hex>", Desc: "Decode BGP message from hex to JSON"},
+				{Name: "encode <route>", Desc: "Encode API route command to BGP hex"},
+				{Name: "plugin", Desc: "Interactive plugin simulator"},
+				{Name: "help", Desc: "Show this help"},
+			}},
+		},
+		Examples: []string{
+			"ze bgp decode update <hex>",
+			`ze bgp encode "nlri ipv4/unicast add 10.0.0.0/24"`,
+		},
+		SeeAlso: []string{
+			"ze config validate   Validate configuration",
+			"ze config            Configuration management",
+			"ze plugin            Plugin system (rib, rr, gr, etc.)",
+			"ze schema            Schema discovery",
+			"ze version           Show version",
+		},
+	}
+	p.Write()
 }

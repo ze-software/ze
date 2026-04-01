@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	iconfig "codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/archive"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -27,22 +28,18 @@ func cmdArchiveImpl(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config archive", flag.ExitOnError)
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze config archive [options] <name> <config-file>
-
-Archive a configuration file to a named archive destination.
-
-The named archive block must be defined in the config's system { archive { } } section.
-
-Supported schemes: file://, http://, https://
-
-Options:
-`)
-		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, `
-Examples:
-  ze config archive local-backup config.conf
-  ze config archive offsite config.conf
-`)
+		p := helpfmt.Page{
+			Command: "ze config archive",
+			Summary: "Archive a configuration file to a named archive destination",
+			Usage:   []string{"ze config archive [options] <name> <config-file>"},
+			Examples: []string{
+				"ze config archive local-backup config.conf",
+				"ze config archive offsite config.conf",
+			},
+		}
+		p.Write()
+		fmt.Fprintf(os.Stderr, "\nThe named archive block must be defined in the config's system { archive { } } section.\n")
+		fmt.Fprintf(os.Stderr, "Supported schemes: file://, http://, https://\n")
 	}
 
 	if err := fs.Parse(args); err != nil {

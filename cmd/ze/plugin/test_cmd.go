@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin"
 	pluginserver "codeberg.org/thomas-mangin/ze/internal/component/plugin/server"
@@ -46,22 +47,31 @@ func cmdPluginTest(args []string) int {
 	showJSON := fs.Bool("json", false, "show JSON that would be sent to each plugin")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze plugin test [options] <config-file>
-
-Test plugin configuration and protocol behavior.
-Useful for debugging plugin YANG schema loading and config delivery.
-
-Options:
-`)
-		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, `
-Examples:
-  ze plugin test --plugin ze.hostname --schema config.conf
-  ze plugin test --plugin ze.hostname --tree config.conf
-  ze plugin test --plugin ze.hostname --json config.conf
-  ze plugin test --plugin ze.hostname --json --root bgp --root rib config.conf
-  ze plugin test --json --root bgp/peer config.conf
-`)
+		p := helpfmt.Page{
+			Command: "ze plugin test",
+			Summary: "Test plugin configuration and protocol behavior",
+			Usage:   []string{"ze plugin test [options] <config-file>"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Description", Entries: []helpfmt.HelpEntry{
+					{Name: "", Desc: "Useful for debugging plugin YANG schema loading and config delivery."},
+				}},
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "--plugin <name>", Desc: "Plugin to test (repeatable: ze.hostname, ze.rib, ...)"},
+					{Name: "--root <path>", Desc: "Config root to show (repeatable, default: bgp)"},
+					{Name: "--schema", Desc: "Show schema fields for capability block"},
+					{Name: "--tree", Desc: "Show raw config tree that would be sent to plugins"},
+					{Name: "--json", Desc: "Show JSON that would be sent to each plugin"},
+				}},
+			},
+			Examples: []string{
+				"ze plugin test --plugin ze.hostname --schema config.conf",
+				"ze plugin test --plugin ze.hostname --tree config.conf",
+				"ze plugin test --plugin ze.hostname --json config.conf",
+				"ze plugin test --plugin ze.hostname --json --root bgp --root rib config.conf",
+				"ze plugin test --json --root bgp/peer config.conf",
+			},
+		}
+		p.Write()
 	}
 
 	if err := fs.Parse(args); err != nil {

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
 
@@ -18,19 +19,22 @@ func cmdImportWithStorage(store storage.Storage, args []string) int {
 	name := fs.String("name", "", "store under this name instead of the filename")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze config import [--name <name>] <file>...
-
-Import config files from the filesystem into the database.
-
-Options:
-`)
-		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, `
-Examples:
-  ze config import router.conf
-  ze config import --name production.conf /etc/ze/router.conf
-  ze config import site-a.conf site-b.conf
-`)
+		p := helpfmt.Page{
+			Command: "ze config import",
+			Summary: "Import config files from the filesystem into the database",
+			Usage:   []string{"ze config import [--name <name>] <file>..."},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "--name <name>", Desc: "Store under this name instead of the filename"},
+				}},
+			},
+			Examples: []string{
+				"ze config import router.conf",
+				"ze config import --name production.conf /etc/ze/router.conf",
+				"ze config import site-a.conf site-b.conf",
+			},
+		}
+		p.Write()
 	}
 
 	if err := fs.Parse(args); err != nil {

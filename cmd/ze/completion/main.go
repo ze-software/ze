@@ -14,6 +14,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 )
 
 // Run executes the completion subcommand with the given arguments.
@@ -48,23 +50,27 @@ func Run(args []string) int {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze completion <shell>
-
-Generate shell completion scripts.
-
-Shells:
-  bash      Generate bash completion script
-  zsh       Generate zsh completion script
-  fish      Generate fish completion script
-  nushell   Generate nushell completion script (alias: nu)
-
-Examples:
-  eval "$(ze completion bash)"
-  ze completion bash > /etc/bash_completion.d/ze
-  ze completion zsh > ~/.zsh/completions/_ze
-  ze completion fish > ~/.config/fish/completions/ze.fish
-  ze completion nushell | save -f ($nu.default-config-dir | path join "completions" "ze.nu")
-`)
+	p := helpfmt.Page{
+		Command: "ze completion",
+		Summary: "Generate shell completion scripts",
+		Usage:   []string{"ze completion <shell>"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Shells", Entries: []helpfmt.HelpEntry{
+				{Name: "bash", Desc: "Generate bash completion script"},
+				{Name: "zsh", Desc: "Generate zsh completion script"},
+				{Name: "fish", Desc: "Generate fish completion script"},
+				{Name: "nushell", Desc: "Generate nushell completion script (alias: nu)"},
+			}},
+		},
+		Examples: []string{
+			`eval "$(ze completion bash)"`,
+			"ze completion bash > /etc/bash_completion.d/ze",
+			"ze completion zsh > ~/.zsh/completions/_ze",
+			"ze completion fish > ~/.config/fish/completions/ze.fish",
+			`ze completion nushell | save -f ($nu.default-config-dir | path join "completions" "ze.nu")`,
+		},
+	}
+	p.Write()
 }
 
 // generate writes the completion script for the given shell to w.

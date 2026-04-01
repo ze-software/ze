@@ -7,6 +7,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 )
 
 // cmdShow lists interfaces or shows details for a specific one.
@@ -15,18 +17,22 @@ func cmdShow(args []string) int {
 	fs := flag.NewFlagSet("ze interface show", flag.ContinueOnError)
 	jsonOutput := fs.Bool("json", false, "Output in JSON format")
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze interface show [options] [name]
-
-List all interfaces or show details for a specific interface.
-
-Options:
-  --json    Output in JSON format
-
-Examples:
-  ze interface show
-  ze interface show eth0
-  ze interface show --json
-`)
+		p := helpfmt.Page{
+			Command: "ze interface show",
+			Summary: "List all interfaces or show details for a specific interface",
+			Usage:   []string{"ze interface show [options] [name]"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "--json", Desc: "Output in JSON format"},
+				}},
+			},
+			Examples: []string{
+				"ze interface show",
+				"ze interface show eth0",
+				"ze interface show --json",
+			},
+		}
+		p.Write()
 	}
 
 	if err := fs.Parse(args); err != nil {

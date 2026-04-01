@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/migration"
 )
@@ -20,27 +21,35 @@ func cmdMigrate(args []string) int {
 	listTransforms := fs.Bool("list", false, "list available transformations")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze config migrate [options] <config-file>
-
-Convert configuration to current format. Default output is set format.
-Use - to read from stdin.
-
-Options:
-`)
-		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, `
-Exit codes:
-  0  Success
-  2  Error (file not found, parse error, write error)
-
-Examples:
-  ze config migrate config.conf                          # Convert to set format (stdout)
-  ze config migrate config.conf -o new.conf              # Convert to new file
-  ze config migrate --format hierarchical config.conf    # Explicit hierarchical output
-  ze config migrate config.conf --dry-run                # Preview transformations
-  ze config migrate --list                               # List available transformations
-  cat config.conf | ze config migrate -                  # Read from stdin
-`)
+		p := helpfmt.Page{
+			Command: "ze config migrate",
+			Summary: "Convert configuration to current format",
+			Usage:   []string{"ze config migrate [options] <config-file>"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Description", Entries: []helpfmt.HelpEntry{
+					{Name: "", Desc: "Default output is set format. Use - to read from stdin."},
+				}},
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "-o <file>", Desc: "Write output to file"},
+					{Name: "--format <fmt>", Desc: "Output format: set (default) or hierarchical"},
+					{Name: "--dry-run", Desc: "Show what would be migrated without making changes"},
+					{Name: "--list", Desc: "List available transformations"},
+				}},
+				{Title: "Exit codes", Entries: []helpfmt.HelpEntry{
+					{Name: "0", Desc: "Success"},
+					{Name: "2", Desc: "Error (file not found, parse error, write error)"},
+				}},
+			},
+			Examples: []string{
+				"ze config migrate config.conf                          # Convert to set format (stdout)",
+				"ze config migrate config.conf -o new.conf              # Convert to new file",
+				"ze config migrate --format hierarchical config.conf    # Explicit hierarchical output",
+				"ze config migrate config.conf --dry-run                # Preview transformations",
+				"ze config migrate --list                               # List available transformations",
+				"cat config.conf | ze config migrate -                  # Read from stdin",
+			},
+		}
+		p.Write()
 	}
 
 	if err := fs.Parse(args); err != nil {

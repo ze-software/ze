@@ -84,6 +84,46 @@ func WriteHelp(w io.Writer, root *Node, path []string) bool {
 	return true
 }
 
+// HelpEntry is a name + description pair for use with helpfmt.
+type HelpEntry struct {
+	Name string
+	Desc string
+}
+
+// HelpEntries returns the children of the node at path as name/description pairs.
+// Returns nil if the path is not found or root is nil.
+func HelpEntries(root *Node, path []string) []HelpEntry {
+	if root == nil {
+		return nil
+	}
+	node := root
+	if len(path) > 0 {
+		node = FindNode(root, path)
+		if node == nil {
+			return nil
+		}
+	}
+	if len(node.Children) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(node.Children))
+	for name := range node.Children {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	entries := make([]HelpEntry, 0, len(names))
+	for _, name := range names {
+		child := node.Children[name]
+		desc := child.Description
+		if desc == "" && len(child.Children) > 0 {
+			desc = describeChildren(child)
+		}
+		entries = append(entries, HelpEntry{Name: name, Desc: desc})
+	}
+	return entries
+}
+
 // writeHelpLine writes a single indented line to w.
 // Help output goes to stderr; write errors are not actionable.
 func writeHelpLine(w io.Writer, text string) {

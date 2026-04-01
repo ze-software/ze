@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	mgr "codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
 
@@ -105,20 +106,22 @@ func parseAddrArgs(action string, args []string) (string, string, bool) {
 }
 
 func addrUsage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze interface addr <action> <name> unit <id> <cidr>
-
-Manage IP addresses on interface units.
-
-Actions:
-  add <name> unit <id> <cidr>    Add an IP address to a unit
-  del <name> unit <id> <cidr>    Remove an IP address from a unit
-
-Unit 0 refers to the parent interface itself.
-Unit N (N > 0) refers to VLAN subinterface "<name>.<N>".
-
-Examples:
-  ze interface addr add eth0 unit 0 10.0.0.1/24
-  ze interface addr add eth0 unit 100 192.168.1.1/24
-  ze interface addr del eth0 unit 0 10.0.0.1/24
-`)
+	p := helpfmt.Page{
+		Command: "ze interface addr",
+		Summary: "Manage IP addresses on interface units",
+		Usage:   []string{"ze interface addr <action> <name> unit <id> <cidr>"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Actions", Entries: []helpfmt.HelpEntry{
+				{Name: "add <name> unit <id> <cidr>", Desc: "Add an IP address to a unit"},
+				{Name: "del <name> unit <id> <cidr>", Desc: "Remove an IP address from a unit"},
+			}},
+		},
+		Examples: []string{
+			"ze interface addr add eth0 unit 0 10.0.0.1/24",
+			"ze interface addr add eth0 unit 100 192.168.1.1/24",
+			"ze interface addr del eth0 unit 0 10.0.0.1/24",
+		},
+	}
+	p.Write()
+	fmt.Fprintf(os.Stderr, "\nUnit 0 refers to the parent interface itself.\nUnit N (N > 0) refers to VLAN subinterface \"<name>.<N>\".\n")
 }

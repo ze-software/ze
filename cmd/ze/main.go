@@ -30,6 +30,7 @@ import (
 	zeiface "codeberg.org/thomas-mangin/ze/cmd/ze/iface"
 	zeinit "codeberg.org/thomas-mangin/ze/cmd/ze/init"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/cmdutil"
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	zeplugin "codeberg.org/thomas-mangin/ze/cmd/ze/plugin"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/schema"
@@ -919,55 +920,64 @@ func resolveDefaultConfig(store storage.Storage) string {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `ze - Ze toolchain
-
-Usage:
-  ze [--plugin <name>]... <config>   Start with config file
-  ze <verb> <command> [options]      Execute command (same grammar as ze cli)
-
-Verbs (dispatched via YANG command tree):
-`)
 	// Dynamic verb list from YANG tree.
 	verbTree := cli.BuildCommandTree(false)
-	command.WriteHelp(os.Stderr, verbTree, nil)
+	cmdEntries := command.HelpEntries(verbTree, nil)
+	verbEntries := make([]helpfmt.HelpEntry, len(cmdEntries))
+	for i, e := range cmdEntries {
+		verbEntries[i] = helpfmt.HelpEntry{Name: e.Name, Desc: e.Desc}
+	}
 
-	fmt.Fprintf(os.Stderr, `
-Tools:
-  start        Start daemon (--web <port>, --insecure-web, --mcp <port>)
-  init         Bootstrap database with SSH credentials
-  config       Configuration management (validate, edit, migrate, ...)
-  data         Blob store management
-  schema       Schema discovery
-  yang         YANG tree analysis and command docs
-  cli          Interactive CLI for running daemons
-  status       Check if daemon is running
-  bgp          BGP protocol tools (decode, encode)
-  plugin       Plugin system (rib, rr, gr, etc.)
-  signal       Send signals to running daemon (reload, stop, quit)
-  interface    Manage OS network interfaces
-  exabgp       ExaBGP bridge tools
-  completion   Generate shell completion scripts
-  version      Show version
-  help         Show this help (--ai for machine-readable reference)
-
-Options:
-  -d, --debug           Enable debug logging (sets ze.log=debug for all subsystems)
-  -f <file>             Use filesystem directly, bypass blob store
-  --plugin <name>       Load plugin before starting (repeatable)
-  --plugins             List available internal plugins
-  --pprof <addr:port>   Start pprof HTTP server (e.g. :6060)
-  -V, --version         Show version and exit
-
-Examples:
-  ze config.conf                       Start with config
-  ze --plugin ze.hostname config.conf  Start with hostname plugin
-  ze --plugins                         List available plugins
-  ze cli                               Interactive CLI
-  ze show peer list                    Show peer list
-  ze show help                         List available show commands
-  ze del bgp peer 10.0.0.1            Remove a peer
-  ze bgp decode <hex>                  Decode BGP message
-`)
+	p := helpfmt.Page{
+		Command:  "ze",
+		Software: "ze Software",
+		Usage: []string{
+			"ze [--plugin <name>]... <config>   Start with config file",
+			"ze <verb> <command> [options]      Execute command (same grammar as ze cli)",
+		},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Verbs (dispatched via YANG command tree)", Entries: verbEntries},
+			{Title: "Tools", Entries: []helpfmt.HelpEntry{
+				{Name: "start", Desc: "Start daemon (--web <port>, --insecure-web, --mcp <port>)"},
+				{Name: "init", Desc: "Bootstrap database with SSH credentials"},
+				{Name: "config", Desc: "Configuration management (validate, edit, migrate, ...)"},
+				{Name: "data", Desc: "Blob store management"},
+				{Name: "schema", Desc: "Schema discovery"},
+				{Name: "yang", Desc: "YANG tree analysis and command docs"},
+				{Name: "cli", Desc: "Interactive CLI for running daemons"},
+				{Name: "status", Desc: "Check if daemon is running"},
+				{Name: "bgp", Desc: "BGP protocol tools (decode, encode)"},
+				{Name: "plugin", Desc: "Plugin system (rib, rr, gr, etc.)"},
+				{Name: "signal", Desc: "Send signals to running daemon (reload, stop, quit)"},
+				{Name: "interface", Desc: "Manage OS network interfaces"},
+				{Name: "exabgp", Desc: "ExaBGP bridge tools"},
+				{Name: "completion", Desc: "Generate shell completion scripts"},
+				{Name: "version", Desc: "Show version"},
+				{Name: "help", Desc: "Show this help (--ai for machine-readable reference)"},
+			}},
+			{Title: "Options", Entries: []helpfmt.HelpEntry{
+				{Name: "-d, --debug", Desc: "Enable debug logging (sets ze.log=debug for all subsystems)"},
+				{Name: "-f <file>", Desc: "Use filesystem directly, bypass blob store"},
+				{Name: "--plugin <name>", Desc: "Load plugin before starting (repeatable)"},
+				{Name: "--plugins", Desc: "List available internal plugins"},
+				{Name: "--pprof <addr:port>", Desc: "Start pprof HTTP server (e.g. :6060)"},
+				{Name: "--color", Desc: "Force colored output (even when not a TTY)"},
+				{Name: "--no-color", Desc: "Disable colored output (also: NO_COLOR env var, TERM=dumb)"},
+				{Name: "-V, --version", Desc: "Show version and exit"},
+			}},
+		},
+		Examples: []string{
+			"ze config.conf                       Start with config",
+			"ze --plugin ze.hostname config.conf  Start with hostname plugin",
+			"ze --plugins                         List available plugins",
+			"ze cli                               Interactive CLI",
+			"ze show peer list                    Show peer list",
+			"ze show help                         List available show commands",
+			"ze del bgp peer 10.0.0.1            Remove a peer",
+			"ze bgp decode <hex>                  Decode BGP message",
+		},
+	}
+	p.Write()
 }
 
 // printPlugins outputs available plugins in table or JSON format.

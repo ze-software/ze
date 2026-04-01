@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
@@ -62,28 +63,34 @@ func cmdValidate(args []string) int {
 	limit := fs.String("limit", "", "limit validation to section (environment)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze config validate [options] <config-file>
-
-Validate a ze configuration file.
-
-Options:
-`)
-		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, `
-Limit values:
-  environment    Validate environment variables only (no config file needed)
-
-Exit codes:
-  0  Configuration is valid
-  1  Configuration has errors
-  2  File not found or unreadable
-
-Examples:
-  ze config validate config.conf
-  ze config validate -v config.conf       # verbose output
-  ze config validate -q config.conf       # quiet mode
-  ze config validate --limit environment  # validate env vars only
-`)
+		p := helpfmt.Page{
+			Command: "ze config validate",
+			Summary: "Validate a ze configuration file",
+			Usage:   []string{"ze config validate [options] <config-file>"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "-v", Desc: "Verbose output"},
+					{Name: "-q", Desc: "Quiet mode (exit code only)"},
+					{Name: "--json", Desc: "Output as JSON"},
+					{Name: "--limit <section>", Desc: "Limit validation to section (environment)"},
+				}},
+				{Title: "Limit values", Entries: []helpfmt.HelpEntry{
+					{Name: "environment", Desc: "Validate environment variables only (no config file needed)"},
+				}},
+				{Title: "Exit codes", Entries: []helpfmt.HelpEntry{
+					{Name: "0", Desc: "Configuration is valid"},
+					{Name: "1", Desc: "Configuration has errors"},
+					{Name: "2", Desc: "File not found or unreadable"},
+				}},
+			},
+			Examples: []string{
+				"ze config validate config.conf",
+				"ze config validate -v config.conf       # verbose output",
+				"ze config validate -q config.conf       # quiet mode",
+				"ze config validate --limit environment  # validate env vars only",
+			},
+		}
+		p.Write()
 	}
 
 	if err := fs.Parse(args); err != nil {

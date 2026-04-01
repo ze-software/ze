@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 )
 
 // cmdMigrate handles: ze interface migrate --from <iface>.<unit> --to <iface>.<unit> --address <cidr> [--create <type>] [--timeout <duration>]
@@ -93,29 +95,33 @@ func parseIfaceUnit(s string) (string, int, bool) {
 }
 
 func migrateUsage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze interface migrate --from <iface>.<unit> --to <iface>.<unit> --address <cidr> [options]
-
-Perform a make-before-break IP migration between interfaces.
-
-Five phases:
-  1. Create new interface (if --create is set)
-  2. Add address to new interface unit
-  3. Wait for BGP readiness on new address
-  4. Remove address from old interface unit
-  5. Clean up old interface (if Ze-managed)
-
-Required flags:
-  --from <iface>.<unit>     Source interface and unit (e.g., eth0.0)
-  --to <iface>.<unit>       Destination interface and unit (e.g., lo1.0)
-  --address <cidr>          IP address to migrate (e.g., 10.0.0.1/24)
-
-Optional flags:
-  --create <type>           Create new interface: dummy, veth, bridge
-  --timeout <duration>      BGP readiness timeout (default: 30s)
-
-Examples:
-  ze interface migrate --from eth0.0 --to lo1.0 --address 10.0.0.1/24
-  ze interface migrate --from eth0.0 --to lo1.0 --address 10.0.0.1/24 --create dummy
-  ze interface migrate --from eth0.100 --to lo2.0 --address fd00::1/64 --timeout 60s
-`)
+	p := helpfmt.Page{
+		Command: "ze interface migrate",
+		Summary: "Perform a make-before-break IP migration between interfaces",
+		Usage:   []string{"ze interface migrate --from <iface>.<unit> --to <iface>.<unit> --address <cidr> [options]"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Five phases", Entries: []helpfmt.HelpEntry{
+				{Name: "1.", Desc: "Create new interface (if --create is set)"},
+				{Name: "2.", Desc: "Add address to new interface unit"},
+				{Name: "3.", Desc: "Wait for BGP readiness on new address"},
+				{Name: "4.", Desc: "Remove address from old interface unit"},
+				{Name: "5.", Desc: "Clean up old interface (if Ze-managed)"},
+			}},
+			{Title: "Required flags", Entries: []helpfmt.HelpEntry{
+				{Name: "--from <iface>.<unit>", Desc: "Source interface and unit (e.g., eth0.0)"},
+				{Name: "--to <iface>.<unit>", Desc: "Destination interface and unit (e.g., lo1.0)"},
+				{Name: "--address <cidr>", Desc: "IP address to migrate (e.g., 10.0.0.1/24)"},
+			}},
+			{Title: "Optional flags", Entries: []helpfmt.HelpEntry{
+				{Name: "--create <type>", Desc: "Create new interface: dummy, veth, bridge"},
+				{Name: "--timeout <duration>", Desc: "BGP readiness timeout (default: 30s)"},
+			}},
+		},
+		Examples: []string{
+			"ze interface migrate --from eth0.0 --to lo1.0 --address 10.0.0.1/24",
+			"ze interface migrate --from eth0.0 --to lo1.0 --address 10.0.0.1/24 --create dummy",
+			"ze interface migrate --from eth0.100 --to lo2.0 --address fd00::1/64 --timeout 60s",
+		},
+	}
+	p.Write()
 }

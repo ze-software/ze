@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	mgr "codeberg.org/thomas-mangin/ze/internal/component/iface"
 )
 
@@ -98,19 +99,21 @@ func cmdUnitDel(args []string) int {
 }
 
 func unitUsage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze interface unit <action> <args>
-
-Manage logical units (VLAN subinterfaces) on an interface.
-
-Actions:
-  add <name> <id>    Add a VLAN unit (creates <name>.<id> subinterface)
-  del <name> <id>    Delete a VLAN unit
-
-Unit ID must be > 0. Unit 0 is the parent interface (implicit).
-The OS interface name for unit N on parent P is "P.N".
-
-Examples:
-  ze interface unit add eth0 100
-  ze interface unit del eth0 100
-`)
+	p := helpfmt.Page{
+		Command: "ze interface unit",
+		Summary: "Manage logical units (VLAN subinterfaces) on an interface",
+		Usage:   []string{"ze interface unit <action> <args>"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Actions", Entries: []helpfmt.HelpEntry{
+				{Name: "add <name> <id>", Desc: "Add a VLAN unit (creates <name>.<id> subinterface)"},
+				{Name: "del <name> <id>", Desc: "Delete a VLAN unit"},
+			}},
+		},
+		Examples: []string{
+			"ze interface unit add eth0 100",
+			"ze interface unit del eth0 100",
+		},
+	}
+	p.Write()
+	fmt.Fprintf(os.Stderr, "\nUnit ID must be > 0. Unit 0 is the parent interface (implicit).\nThe OS interface name for unit N on parent P is \"P.N\".\n")
 }

@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/secret"
@@ -20,16 +21,21 @@ func cmdDump(args []string) int {
 	jsonOutput := fs.Bool("json", false, "output as JSON")
 	stripPrivate := fs.Bool("strip-private", false, "replace sensitive values with /* SECRET-DATA */")
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze config dump [options] <config>
-
-Dump parsed configuration in human-readable or JSON format.
-Sensitive values (passwords, keys) are displayed as $9$-encoded by default.
-Use --strip-private to replace them with /* SECRET-DATA */ for sharing.
-Use - to read from stdin.
-
-Options:
-`)
-		fs.PrintDefaults()
+		p := helpfmt.Page{
+			Command: "ze config dump",
+			Summary: "Dump parsed configuration in human-readable or JSON format",
+			Usage:   []string{"ze config dump [options] <config>"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "--json", Desc: "Output as JSON"},
+					{Name: "--strip-private", Desc: "Replace sensitive values with /* SECRET-DATA */"},
+				}},
+			},
+		}
+		p.Write()
+		fmt.Fprintf(os.Stderr, "\nSensitive values (passwords, keys) are displayed as $9$-encoded by default.\n")
+		fmt.Fprintf(os.Stderr, "Use --strip-private to replace them with /* SECRET-DATA */ for sharing.\n")
+		fmt.Fprintf(os.Stderr, "Use - to read from stdin.\n")
 	}
 
 	if err := fs.Parse(args); err != nil {

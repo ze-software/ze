@@ -1,0 +1,32 @@
+# Test: ze bgp --help exits 0 and contains expected sections
+# VALIDATES: AC-3: bgp help uses helpfmt with correct content
+# PREVENTS: Help output regression after migration
+# Note: config help doesn't need config input, but test runner requires stdin
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=NO_COLOR:value=1
+cmd=foreground:seq=1:exec=ze bgp --help
+expect=exit:code=0
+expect=stdout:contains=Commands:
+expect=stdout:contains=decode
+expect=stdout:contains=Examples:
+expect=stdout:contains=See also:

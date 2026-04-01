@@ -15,6 +15,7 @@ import (
 	"os"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 )
 
@@ -39,23 +40,30 @@ func cmdDecode(args []string) int {
 	fs.Var(&plugins, "plugin", "plugin for capability/NLRI decoding (e.g., ze.hostname, flowspec)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze bgp decode [options] <hex-payload>
-
-Decode BGP message from hexadecimal and output Ze-format JSON.
-
-Options:
-`)
-		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, `
-Examples:
-  ze bgp decode --open FFFF...       # Decode OPEN message
-  ze bgp decode --update FFFF...     # Decode UPDATE message
-  ze bgp decode --plugin ze.hostname --open FFFF...  # Decode with hostname plugin
-  ze bgp decode --nlri l2vpn/evpn 02...  # Decode NLRI with family
-  ze bgp decode --plugin flowspec --nlri ipv4/flow 07...  # Decode NLRI via plugin
-
-The hex payload can include colons or spaces which will be stripped.
-`)
+		p := helpfmt.Page{
+			Command: "ze bgp decode",
+			Summary: "Decode BGP message from hexadecimal and output Ze-format JSON",
+			Usage:   []string{"ze bgp decode [options] <hex-payload>"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "--open", Desc: "Decode as OPEN message"},
+					{Name: "--update", Desc: "Decode as UPDATE message"},
+					{Name: "--nlri <family>", Desc: "Decode as NLRI with family (e.g., 'ipv4/flow')"},
+					{Name: "-f <family>", Desc: "Address family for UPDATE (e.g., 'ipv4/unicast', 'l2vpn/evpn')"},
+					{Name: "--json", Desc: "Output JSON instead of human-readable format"},
+					{Name: "--plugin <name>", Desc: "Plugin for capability/NLRI decoding (e.g., ze.hostname, flowspec)"},
+				}},
+			},
+			Examples: []string{
+				"ze bgp decode --open FFFF...                          Decode OPEN message",
+				"ze bgp decode --update FFFF...                        Decode UPDATE message",
+				"ze bgp decode --plugin ze.hostname --open FFFF...     Decode with hostname plugin",
+				"ze bgp decode --nlri l2vpn/evpn 02...                 Decode NLRI with family",
+				"ze bgp decode --plugin flowspec --nlri ipv4/flow 07...  Decode NLRI via plugin",
+			},
+		}
+		p.Write()
+		fmt.Fprintf(os.Stderr, "\nThe hex payload can include colons or spaces which will be stripped.\n")
 	}
 
 	if err := fs.Parse(args); err != nil {

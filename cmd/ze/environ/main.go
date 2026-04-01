@@ -12,6 +12,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/core/env"
 	"codeberg.org/thomas-mangin/ze/internal/core/slogutil"
 )
@@ -181,25 +182,32 @@ func valueOrDash(v string) string {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze env <command> [args...]
-
-Commands:
-  registered [key]    List all registered env vars, or show one by key
-  list [-v]           List all registered env vars (with optional values)
-  get <key>           Show details for a specific env var
-  help                Show this help
-
-The -v flag (with list) shows the current effective value alongside defaults.
-
-All Ze env vars accept three notation forms:
-  ze.foo.bar         (dot notation, highest priority)
-  ze_foo_bar         (lowercase underscore)
-  ZE_FOO_BAR         (uppercase underscore, shell convention)
-
-Examples:
-  ze env registered                # List all registered env vars
-  ze env registered ze.log         # Show details for ze.log
-  ze env list -v                   # List with current values
-  ze env ZE_PLUGIN_HUB_HOST       # Look up by any notation
-`)
+	p := helpfmt.Page{
+		Command: "ze env",
+		Summary: "List and inspect Ze environment variables",
+		Usage:   []string{"ze env <command> [args...]"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Commands", Entries: []helpfmt.HelpEntry{
+				{Name: "registered [key]", Desc: "List all registered env vars, or show one by key"},
+				{Name: "list [-v]", Desc: "List all registered env vars (with optional values)"},
+				{Name: "get <key>", Desc: "Show details for a specific env var"},
+				{Name: "help", Desc: "Show this help"},
+			}},
+			{Title: "Notes", Entries: []helpfmt.HelpEntry{
+				{Name: "-v", Desc: "With list, shows the current effective value alongside defaults"},
+			}},
+			{Title: "All Ze env vars accept three notation forms", Entries: []helpfmt.HelpEntry{
+				{Name: "ze.foo.bar", Desc: "(dot notation, highest priority)"},
+				{Name: "ze_foo_bar", Desc: "(lowercase underscore)"},
+				{Name: "ZE_FOO_BAR", Desc: "(uppercase underscore, shell convention)"},
+			}},
+		},
+		Examples: []string{
+			"ze env registered                # List all registered env vars",
+			"ze env registered ze.log         # Show details for ze.log",
+			"ze env list -v                   # List with current values",
+			"ze env ZE_PLUGIN_HUB_HOST       # Look up by any notation",
+		},
+	}
+	p.Write()
 }

@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strconv"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	bgpconfig "codeberg.org/thomas-mangin/ze/internal/component/bgp/config"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
@@ -30,22 +31,27 @@ func cmdDiffImpl(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config diff", flag.ExitOnError)
 	jsonOutput := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze config diff [options] <file1> <file2>
-       ze config diff [options] <N> <file>
-
-Compare two configuration files and show differences.
-When first argument is a number, compares current config against rollback revision N.
-Operates on resolved config (after template expansion).
-Use - for stdin (only one file can be stdin).
-
-Options:
-`)
-		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, `
-Exit codes:
-  0  Success (differences shown, or no differences)
-  2  File not found or parse error
-`)
+		p := helpfmt.Page{
+			Command: "ze config diff",
+			Summary: "Compare two configuration files and show differences",
+			Usage: []string{
+				"ze config diff [options] <file1> <file2>",
+				"ze config diff [options] <N> <file>",
+			},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "--json", Desc: "Output as JSON"},
+				}},
+				{Title: "Exit codes", Entries: []helpfmt.HelpEntry{
+					{Name: "0", Desc: "Success (differences shown, or no differences)"},
+					{Name: "2", Desc: "File not found or parse error"},
+				}},
+			},
+		}
+		p.Write()
+		fmt.Fprintf(os.Stderr, "\nWhen first argument is a number, compares current config against rollback revision N.\n")
+		fmt.Fprintf(os.Stderr, "Operates on resolved config (after template expansion).\n")
+		fmt.Fprintf(os.Stderr, "Use - for stdin (only one file can be stdin).\n")
 	}
 
 	if err := fs.Parse(args); err != nil {

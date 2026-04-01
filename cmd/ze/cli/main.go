@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/monitor"           // init() registers monitor streaming RPCs
 	_ "codeberg.org/thomas-mangin/ze/internal/component/bgp/plugins/cmd/peer"              // init() registers peer management RPCs
@@ -58,30 +59,34 @@ func Run(args []string) int {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze cli [subsystem] [options]
-
-Interactive CLI for Ze daemons.
-
-Subsystems:
-  bgp    BGP daemon (default)
-
-Options:
-  -c <command>    Execute single command and exit (like ssh -c)
-
-Pipe operators (interactive mode only, Tab completes after |):
-  <command> | match <pattern>    Filter lines matching pattern
-  <command> | count              Count output lines
-  <command> | table              Render as nushell-style table
-  <command> | json               Pretty-print JSON (default)
-  <command> | json compact       Single-line JSON
-  <command> | no-more            Disable paging
-
-Examples:
-  ze cli                           Interactive BGP CLI
-  ze cli bgp                       Interactive BGP CLI (explicit)
-  ze cli -c "peer list"            Execute command and exit
-  ze cli -c "show version"         One-shot command
-`)
+	p := helpfmt.Page{
+		Command: "ze cli",
+		Summary: "Interactive CLI for Ze daemons",
+		Usage:   []string{"ze cli [subsystem] [options]"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Subsystems", Entries: []helpfmt.HelpEntry{
+				{Name: "bgp", Desc: "BGP daemon (default)"},
+			}},
+			{Title: "Options", Entries: []helpfmt.HelpEntry{
+				{Name: "-c <command>", Desc: "Execute single command and exit (like ssh -c)"},
+			}},
+			{Title: "Pipe operators (interactive mode only, Tab completes after |)", Entries: []helpfmt.HelpEntry{
+				{Name: "<command> | match <pattern>", Desc: "Filter lines matching pattern"},
+				{Name: "<command> | count", Desc: "Count output lines"},
+				{Name: "<command> | table", Desc: "Render as nushell-style table"},
+				{Name: "<command> | json", Desc: "Pretty-print JSON (default)"},
+				{Name: "<command> | json compact", Desc: "Single-line JSON"},
+				{Name: "<command> | no-more", Desc: "Disable paging"},
+			}},
+		},
+		Examples: []string{
+			"ze cli                           Interactive BGP CLI",
+			"ze cli bgp                       Interactive BGP CLI (explicit)",
+			`ze cli -c "peer list"            Execute command and exit`,
+			`ze cli -c "show version"         One-shot command`,
+		},
+	}
+	p.Write()
 }
 
 // runBGP runs the BGP CLI using the unified cli.Model.

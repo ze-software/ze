@@ -10,6 +10,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	"codeberg.org/thomas-mangin/ze/internal/core/paths"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
@@ -288,28 +289,32 @@ func printKeyRow(w *tabwriter.Writer, cols ...string) {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze data [--path <store>] <command> [args...]
-
-Manage ZeFS blob stores.
-
-Commands:
-  import <file>...    Import files into the blob store
-  rm <key>...         Remove entries from the blob store
-  ls [prefix]         List entries in the blob store
-  cat <key>           Print entry content to stdout
-  registered          List all registered key patterns
-
-Flags:
-  --path <store>      Path to the blob store (default: {configDir}/database.zefs)
-
-Examples:
-  ze data import /etc/ze/router.conf /etc/ze/site-b.conf
-  ze data ls
-  ze data ls file/active/
-  ze data ls meta/
-  ze data cat file/active/etc/ze/router.conf
-  ze data rm file/active/etc/ze/old-router.conf
-  ze data registered
-  ze data --path /tmp/test.zefs import router.conf
-`)
+	p := helpfmt.Page{
+		Command: "ze data",
+		Summary: "Manage ZeFS blob stores",
+		Usage:   []string{"ze data [--path <store>] <command> [args...]"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Commands", Entries: []helpfmt.HelpEntry{
+				{Name: "import <file>...", Desc: "Import files into the blob store"},
+				{Name: "rm <key>...", Desc: "Remove entries from the blob store"},
+				{Name: "ls [prefix]", Desc: "List entries in the blob store"},
+				{Name: "cat <key>", Desc: "Print entry content to stdout"},
+				{Name: "registered", Desc: "List all registered key patterns"},
+			}},
+			{Title: "Flags", Entries: []helpfmt.HelpEntry{
+				{Name: "--path <store>", Desc: "Path to the blob store (default: {configDir}/database.zefs)"},
+			}},
+		},
+		Examples: []string{
+			"ze data import /etc/ze/router.conf /etc/ze/site-b.conf",
+			"ze data ls",
+			"ze data ls file/active/",
+			"ze data ls meta/",
+			"ze data cat file/active/etc/ze/router.conf",
+			"ze data rm file/active/etc/ze/old-router.conf",
+			"ze data registered",
+			"ze data --path /tmp/test.zefs import router.conf",
+		},
+	}
+	p.Write()
 }

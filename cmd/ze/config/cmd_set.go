@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
@@ -28,23 +29,28 @@ func cmdSetImpl(store storage.Storage, args []string) int {
 	noReload := fs.Bool("no-reload", false, "do not notify running daemon after save")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze config set [options] <config-file> <path...> <value>
-
-Set a configuration value in a config file.
-
-The last argument is the value, the second-to-last is the leaf name,
-and everything between the config file and the leaf is the container path.
-
-Options:
-`)
-		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, `
-Examples:
-  ze config set config.conf bgp local as 65000
-  ze config set config.conf bgp peer peer1 remote as 65001
-  ze config set config.conf bgp peer peer1 description "my peer"
-  ze config set --dry-run config.conf bgp peer peer1 timer receive-hold-time 90
-`)
+		p := helpfmt.Page{
+			Command: "ze config set",
+			Summary: "Set a configuration value in a config file",
+			Usage:   []string{"ze config set [options] <config-file> <path...> <value>"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Description", Entries: []helpfmt.HelpEntry{
+					{Name: "", Desc: "The last argument is the value, the second-to-last is the leaf name,"},
+					{Name: "", Desc: "and everything between the config file and the leaf is the container path."},
+				}},
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "--dry-run", Desc: "Show what would change without writing"},
+					{Name: "--no-reload", Desc: "Do not notify running daemon after save"},
+				}},
+			},
+			Examples: []string{
+				"ze config set config.conf bgp local as 65000",
+				"ze config set config.conf bgp peer peer1 remote as 65001",
+				"ze config set config.conf bgp peer peer1 description \"my peer\"",
+				"ze config set --dry-run config.conf bgp peer peer1 timer receive-hold-time 90",
+			},
+		}
+		p.Write()
 	}
 
 	if err := fs.Parse(args); err != nil {

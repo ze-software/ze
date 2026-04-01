@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
 
@@ -42,28 +43,32 @@ func cmdFmt(args []string) int {
 	diff := fs.Bool("diff", false, "show unified diff of changes")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze config fmt [options] <config-file>
-
-Format and normalize configuration file.
-
-Formats current config files only. For old configs, run "ze config migrate" first.
-
-Options:
-`)
-		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, `
-Exit codes:
-  0  Success (or no changes needed with --check)
-  1  Changes needed (with --check)
-  2  Error (file not found, parse error, old config detected)
-
-Examples:
-  ze config fmt config.conf          # Print formatted config to stdout
-  ze config fmt -w config.conf       # Write back to file
-  ze config fmt --check config.conf  # Check if formatting needed (for CI)
-  ze config fmt --diff config.conf   # Show what would change
-  ze config fmt -                    # Read from stdin, write to stdout
-`)
+		p := helpfmt.Page{
+			Command: "ze config fmt",
+			Summary: "Format and normalize configuration file",
+			Usage:   []string{"ze config fmt [options] <config-file>"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "-w", Desc: "Write result to source file"},
+					{Name: "--check", Desc: "Check if formatting needed (exit 1 if changes)"},
+					{Name: "--diff", Desc: "Show unified diff of changes"},
+				}},
+				{Title: "Exit codes", Entries: []helpfmt.HelpEntry{
+					{Name: "0", Desc: "Success (or no changes needed with --check)"},
+					{Name: "1", Desc: "Changes needed (with --check)"},
+					{Name: "2", Desc: "Error (file not found, parse error, old config detected)"},
+				}},
+			},
+			Examples: []string{
+				"ze config fmt config.conf          Print formatted config to stdout",
+				"ze config fmt -w config.conf       Write back to file",
+				"ze config fmt --check config.conf  Check if formatting needed (for CI)",
+				"ze config fmt --diff config.conf   Show what would change",
+				"ze config fmt -                    Read from stdin, write to stdout",
+			},
+		}
+		p.Write()
+		fmt.Fprintf(os.Stderr, "\nFormats current config files only. For old configs, run \"ze config migrate\" first.\n")
 	}
 
 	if err := fs.Parse(args); err != nil {

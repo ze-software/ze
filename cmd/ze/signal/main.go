@@ -12,6 +12,7 @@ import (
 	"os"
 	"time"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 )
@@ -83,24 +84,32 @@ func Run(args []string) int {
 	port := fs.String("port", "", "SSH port (default from env or 2222)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: ze signal <command> [options]\n\n")
-		fmt.Fprintf(os.Stderr, "Send commands to a running Ze daemon via SSH.\n\n")
-		fmt.Fprintf(os.Stderr, "Commands:\n")
-		for _, cmd := range commands {
-			fmt.Fprintf(os.Stderr, "  %-10s %s\n", cmd.Name, cmd.Description)
+		cmdEntries := make([]helpfmt.HelpEntry, len(commands))
+		for i, cmd := range commands {
+			cmdEntries[i] = helpfmt.HelpEntry{Name: cmd.Name, Desc: cmd.Description}
 		}
-		fmt.Fprintf(os.Stderr, "\nOptions:\n")
-		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, `
-Environment:
-  ze_ssh_host / ze.ssh.host   Override connection host
-  ze_ssh_port / ze.ssh.port   Override connection port
-
-Examples:
-  ze signal reload
-  ze signal stop
-  ze signal stop --host 10.0.0.1 --port 2222
-`)
+		p := helpfmt.Page{
+			Command: "ze signal",
+			Summary: "Send commands to a running Ze daemon via SSH",
+			Usage:   []string{"ze signal <command> [options]"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Commands", Entries: cmdEntries},
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "--host", Desc: "SSH host (default from env or 127.0.0.1)"},
+					{Name: "--port", Desc: "SSH port (default from env or 2222)"},
+				}},
+				{Title: "Environment", Entries: []helpfmt.HelpEntry{
+					{Name: "ze_ssh_host / ze.ssh.host", Desc: "Override connection host"},
+					{Name: "ze_ssh_port / ze.ssh.port", Desc: "Override connection port"},
+				}},
+			},
+			Examples: []string{
+				"ze signal reload",
+				"ze signal stop",
+				"ze signal stop --host 10.0.0.1 --port 2222",
+			},
+		}
+		p.Write()
 	}
 
 	if err := fs.Parse(args); err != nil {
@@ -142,26 +151,30 @@ func RunStatus(args []string) int {
 	port := fs.String("port", "", "SSH port (default from env or 2222)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze status [options]
-
-Check if a Ze daemon is running by dialing the SSH port.
-
-Exit codes:
-  0  Daemon is running (SSH port reachable)
-  1  Daemon is not running
-
-Options:
-`)
-		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, `
-Environment:
-  ze_ssh_host / ze.ssh.host   Override connection host
-  ze_ssh_port / ze.ssh.port   Override connection port
-
-Examples:
-  ze status
-  ze status --host 10.0.0.1 --port 2222
-`)
+		p := helpfmt.Page{
+			Command: "ze status",
+			Summary: "Check if a Ze daemon is running by dialing the SSH port",
+			Usage:   []string{"ze status [options]"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Exit codes", Entries: []helpfmt.HelpEntry{
+					{Name: "0", Desc: "Daemon is running (SSH port reachable)"},
+					{Name: "1", Desc: "Daemon is not running"},
+				}},
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "--host", Desc: "SSH host (default from env or 127.0.0.1)"},
+					{Name: "--port", Desc: "SSH port (default from env or 2222)"},
+				}},
+				{Title: "Environment", Entries: []helpfmt.HelpEntry{
+					{Name: "ze_ssh_host / ze.ssh.host", Desc: "Override connection host"},
+					{Name: "ze_ssh_port / ze.ssh.port", Desc: "Override connection port"},
+				}},
+			},
+			Examples: []string{
+				"ze status",
+				"ze status --host 10.0.0.1 --port 2222",
+			},
+		}
+		p.Write()
 	}
 
 	if err := fs.Parse(args); err != nil {

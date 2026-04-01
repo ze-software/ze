@@ -2,9 +2,9 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Depends | spec-colored-slog (UseColor) |
-| Phase | - |
+| Phase | 1/4 |
 | Updated | 2026-04-01 |
 
 ## Post-Compaction Recovery

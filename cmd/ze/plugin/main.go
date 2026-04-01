@@ -6,7 +6,9 @@ package plugin
 import (
 	"fmt"
 	"os"
+	"strings"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 	"codeberg.org/thomas-mangin/ze/internal/component/plugin/registry"
 )
@@ -42,34 +44,36 @@ func Run(args []string) int {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze plugin <subcommand>
-
-Plugin Subcommands:
-`)
-	if err := registry.WriteUsage(os.Stderr); err != nil {
-		fmt.Fprintf(os.Stderr, "  (error listing plugins: %v)\n", err)
+	// Build plugin entries dynamically from the registry.
+	regs := registry.All()
+	pluginEntries := make([]helpfmt.HelpEntry, 0, len(regs)+2)
+	for _, reg := range regs {
+		desc := reg.Description
+		if len(reg.RFCs) > 0 {
+			desc += " (RFC " + strings.Join(reg.RFCs, ", ") + ")"
+		}
+		pluginEntries = append(pluginEntries, helpfmt.HelpEntry{Name: reg.Name, Desc: desc})
 	}
-	fmt.Fprintf(os.Stderr, `  test         Test plugin YANG schema and config delivery (debugging)
-  help         Show this help
+	pluginEntries = append(pluginEntries,
+		helpfmt.HelpEntry{Name: "test", Desc: "Test plugin YANG schema and config delivery (debugging)"},
+		helpfmt.HelpEntry{Name: "help", Desc: "Show this help"},
+	)
 
-The plugin subcommands run as API processes that communicate with ze
-router via stdin/stdout. They are spawned by the router based
-on plugin configuration.
-
-Example config:
-  plugin rr {
-      run "ze plugin rr";
-      encoder json;
-  }
-
-  plugin rib {
-      run "ze plugin rib";
-      encoder json;
-  }
-
-Testing:
-  ze plugin test --plugin ze.hostname --schema config.conf
-  ze plugin test --plugin ze.hostname --tree config.conf
-  ze plugin test --plugin ze.hostname --json config.conf
-`)
+	p := helpfmt.Page{
+		Command: "ze plugin",
+		Summary: "Plugin subcommands",
+		Usage:   []string{"ze plugin <subcommand>"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Plugin Subcommands", Entries: pluginEntries},
+		},
+		Examples: []string{
+			`ze plugin test --plugin ze.hostname --schema config.conf`,
+			`ze plugin test --plugin ze.hostname --tree config.conf`,
+			`ze plugin test --plugin ze.hostname --json config.conf`,
+		},
+		SeeAlso: []string{
+			"Plugins run as API processes spawned by the router via plugin configuration.",
+		},
+	}
+	p.Write()
 }

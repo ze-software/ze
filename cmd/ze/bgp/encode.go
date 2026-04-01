@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/component/bgp/nlri"
@@ -48,37 +49,45 @@ func cmdEncode(args []string) int {
 	asn4 := fs.Bool("asn4", true, "use 4-byte ASN encoding")
 
 	fs.Usage = func() {
-		_, _ = fmt.Fprintf(encodeStderr, `Usage: ze bgp encode [options] [route-command]
-
-Encode API route command to BGP message hex.
-Route command can be provided as argument or via stdin.
-
-Options:
-`)
-		fs.PrintDefaults()
-		_, _ = fmt.Fprintf(encodeStderr, `
-Examples:
-  # IPv4/IPv6 Unicast
-  ze bgp encode "route 10.0.0.0/24 next-hop 192.168.1.1"
-  ze bgp encode -f "ipv6/unicast" "route 2001:db8::/32 next-hop 2001:db8::1"
-
-  # L3VPN (mpls-vpn)
-  ze bgp encode -f "ipv4/mpls-vpn" "10.0.0.0/24 rd 100:1 next-hop 1.2.3.4 label 100"
-  ze bgp encode -f "ipv4/mpls-vpn" "10.0.0.0/24 rd 1.2.3.4:100 next-hop 1.2.3.4 label 100"
-
-  # Labeled Unicast (nlri-mpls)
-  ze bgp encode -f "ipv4/nlri-mpls" "10.0.0.0/24 next-hop 1.2.3.4 label 100"
-
-  # EVPN
-  ze bgp encode -f "l2vpn/evpn" "mac-ip rd 100:1 esi 0 etag 0 mac 00:11:22:33:44:55 label 100 next-hop 1.2.3.4"
-  ze bgp encode -f "l2vpn/evpn" "ip-prefix rd 100:1 esi 0 etag 0 prefix 10.0.0.0/24 gateway 0.0.0.0 label 100 next-hop 1.2.3.4"
-  ze bgp encode -f "l2vpn/evpn" "multicast rd 100:1 etag 0 next-hop 1.2.3.4"
-
-  # Output options
-  ze bgp encode -n "route 10.0.0.0/24 next-hop 1.2.3.4"       # NLRI only
-  ze bgp encode --no-header "route 10.0.0.0/24 next-hop 1.2.3.4"  # No BGP header
-  echo "route 10.0.0.0/24 next-hop 1.2.3.4" | ze bgp encode   # stdin
-`)
+		p := helpfmt.Page{
+			Command: "ze bgp encode",
+			Summary: "Encode API route command to BGP message hex. Route command can be provided as argument or via stdin",
+			Usage:   []string{"ze bgp encode [options] [route-command]"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "-f <family>", Desc: "Address family (default: ipv4/unicast) (e.g., 'ipv4/unicast', 'ipv6/unicast', 'l2vpn/evpn')"},
+					{Name: "-a <asn>", Desc: "Local AS number (default: 65533)"},
+					{Name: "-z <asn>", Desc: "Peer AS number (default: 65533)"},
+					{Name: "-i", Desc: "Enable ADD-PATH (include path-id)"},
+					{Name: "-n", Desc: "Output only NLRI bytes"},
+					{Name: "--no-header", Desc: "Exclude 19-byte BGP header"},
+					{Name: "--asn4", Desc: "Use 4-byte ASN encoding (default: true)"},
+				}},
+			},
+			Examples: []string{
+				"# IPv4/IPv6 Unicast",
+				`ze bgp encode "route 10.0.0.0/24 next-hop 192.168.1.1"`,
+				`ze bgp encode -f "ipv6/unicast" "route 2001:db8::/32 next-hop 2001:db8::1"`,
+				"",
+				"# L3VPN (mpls-vpn)",
+				`ze bgp encode -f "ipv4/mpls-vpn" "10.0.0.0/24 rd 100:1 next-hop 1.2.3.4 label 100"`,
+				`ze bgp encode -f "ipv4/mpls-vpn" "10.0.0.0/24 rd 1.2.3.4:100 next-hop 1.2.3.4 label 100"`,
+				"",
+				"# Labeled Unicast (nlri-mpls)",
+				`ze bgp encode -f "ipv4/nlri-mpls" "10.0.0.0/24 next-hop 1.2.3.4 label 100"`,
+				"",
+				"# EVPN",
+				`ze bgp encode -f "l2vpn/evpn" "mac-ip rd 100:1 esi 0 etag 0 mac 00:11:22:33:44:55 label 100 next-hop 1.2.3.4"`,
+				`ze bgp encode -f "l2vpn/evpn" "ip-prefix rd 100:1 esi 0 etag 0 prefix 10.0.0.0/24 gateway 0.0.0.0 label 100 next-hop 1.2.3.4"`,
+				`ze bgp encode -f "l2vpn/evpn" "multicast rd 100:1 etag 0 next-hop 1.2.3.4"`,
+				"",
+				"# Output options",
+				`ze bgp encode -n "route 10.0.0.0/24 next-hop 1.2.3.4"                NLRI only`,
+				`ze bgp encode --no-header "route 10.0.0.0/24 next-hop 1.2.3.4"       No BGP header`,
+				`echo "route 10.0.0.0/24 next-hop 1.2.3.4" | ze bgp encode            stdin`,
+			},
+		}
+		p.WriteTo(encodeStderr, false)
 	}
 
 	if err := fs.Parse(args); err != nil {

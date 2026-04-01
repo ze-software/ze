@@ -19,6 +19,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	sshclient "codeberg.org/thomas-mangin/ze/cmd/ze/internal/ssh/client"
 	"codeberg.org/thomas-mangin/ze/pkg/zefs"
 )
@@ -46,27 +47,30 @@ func Run(args []string) int {
 	forceFlag := fs.Bool("force", false, "Replace existing database (moves old to .replaced-<date>)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze init [options]
-
-Bootstrap the ze database with SSH credentials.
-Must be run before any other ze command.
-
-Reads from stdin (piped) or prompts interactively:
-  Line 1: username
-  Line 2: password
-  Line 3: host (default: 127.0.0.1)
-  Line 4: port (default: 2222)
-  Line 5: name (default: hostname)
-
-Options:
-`)
-		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, `
-Examples:
-  echo -e "admin\nsecret\n127.0.0.1\n2222\nmy-router" | ze init
-  ze init --managed  (interactive prompts, managed mode)
-  ze init --force    (replace existing database)
-`)
+		p := helpfmt.Page{
+			Command: "ze init",
+			Summary: "Bootstrap the ze database with SSH credentials",
+			Usage:   []string{"ze init [options]"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Input (stdin or interactive prompts)", Entries: []helpfmt.HelpEntry{
+					{Name: "Line 1: username", Desc: ""},
+					{Name: "Line 2: password", Desc: ""},
+					{Name: "Line 3: host", Desc: "(default: 127.0.0.1)"},
+					{Name: "Line 4: port", Desc: "(default: 2222)"},
+					{Name: "Line 5: name", Desc: "(default: hostname)"},
+				}},
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "--managed", Desc: "Enable managed (fleet) mode"},
+					{Name: "--force", Desc: "Replace existing database (moves old to .replaced-<date>)"},
+				}},
+			},
+			Examples: []string{
+				`echo -e "admin\nsecret\n127.0.0.1\n2222\nmy-router" | ze init`,
+				"ze init --managed  (interactive prompts, managed mode)",
+				"ze init --force    (replace existing database)",
+			},
+		}
+		p.Write()
 	}
 
 	if err := fs.Parse(args); err != nil {

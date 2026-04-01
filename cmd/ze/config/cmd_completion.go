@@ -10,6 +10,7 @@ import (
 	"os"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config"
 )
@@ -21,27 +22,32 @@ func cmdCompletion(args []string) int {
 	jsonOutput := fs.Bool("json", false, "output as JSON")
 	ghost := fs.Bool("ghost", false, "show ghost text instead of completions")
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze config completion [options] <config-file>
-
-Query the YANG-driven completion engine non-interactively.
-Useful for testing and debugging config editor completions.
-Use - to read config from stdin.
-
-Options:
-`)
-		fs.PrintDefaults()
-		fmt.Fprintf(os.Stderr, `
-Input uses + for spaces (unquoted), or regular spaces (quoted):
-  --input set+           equivalent to "set "
-  --input set+local      equivalent to "set local"
-
-Examples:
-  ze config completion --input set+ config.conf
-  ze config completion --context bgp --input set+ config.conf
-  ze config completion --context bgp --input set+local config.conf
-  ze config completion --json --context bgp/peer/1.1.1.1 --input set+p config.conf
-  ze config completion --ghost --context bgp --input set+router config.conf
-`)
+		p := helpfmt.Page{
+			Command: "ze config completion",
+			Summary: "Query the YANG-driven completion engine non-interactively",
+			Usage:   []string{"ze config completion [options] <config-file>"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "--context <path>", Desc: "Context path with / separator (e.g., bgp/peer/1.1.1.1)"},
+					{Name: "--input <text>", Desc: "Input text to complete (e.g., \"set \", \"set local\")"},
+					{Name: "--json", Desc: "Output as JSON"},
+					{Name: "--ghost", Desc: "Show ghost text instead of completions"},
+				}},
+			},
+			Examples: []string{
+				"ze config completion --input set+ config.conf",
+				"ze config completion --context bgp --input set+ config.conf",
+				"ze config completion --context bgp --input set+local config.conf",
+				"ze config completion --json --context bgp/peer/1.1.1.1 --input set+p config.conf",
+				"ze config completion --ghost --context bgp --input set+router config.conf",
+			},
+		}
+		p.Write()
+		fmt.Fprintf(os.Stderr, "\nUseful for testing and debugging config editor completions.\n")
+		fmt.Fprintf(os.Stderr, "Use - to read config from stdin.\n")
+		fmt.Fprintf(os.Stderr, "\nInput uses + for spaces (unquoted), or regular spaces (quoted):\n")
+		fmt.Fprintf(os.Stderr, "  --input set+           equivalent to \"set \"\n")
+		fmt.Fprintf(os.Stderr, "  --input set+local      equivalent to \"set local\"\n")
 	}
 
 	if err := fs.Parse(args); err != nil {

@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/suggest"
 )
 
@@ -44,28 +45,31 @@ func Run(args []string) int {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `ze yang - YANG analysis and documentation
-
-Usage:
-  ze yang <command> [options]
-
-Commands:
-  completion          Detect prefix collisions in config and command trees
-  tree                Print unified config + command tree
-  doc                 Command documentation
-  help                Show this help
-
-Examples:
-  ze yang completion
-  ze yang completion --json
-  ze yang completion --min-prefix 3
-  ze yang tree
-  ze yang tree --commands
-  ze yang tree --config
-  ze yang tree --json
-  ze yang doc --list
-  ze yang doc "peer list"
-`)
+	p := helpfmt.Page{
+		Command: "ze yang",
+		Summary: "YANG analysis and documentation",
+		Usage:   []string{"ze yang <command> [options]"},
+		Sections: []helpfmt.HelpSection{
+			{Title: "Commands", Entries: []helpfmt.HelpEntry{
+				{Name: "completion", Desc: "Detect prefix collisions in config and command trees"},
+				{Name: "tree", Desc: "Print unified config + command tree"},
+				{Name: "doc", Desc: "Command documentation"},
+				{Name: "help", Desc: "Show this help"},
+			}},
+		},
+		Examples: []string{
+			"ze yang completion",
+			"ze yang completion --json",
+			"ze yang completion --min-prefix 3",
+			"ze yang tree",
+			"ze yang tree --commands",
+			"ze yang tree --config",
+			"ze yang tree --json",
+			"ze yang doc --list",
+			`ze yang doc "peer list"`,
+		},
+	}
+	p.Write()
 }
 
 func cmdCompletion(args []string) int {
@@ -73,8 +77,18 @@ func cmdCompletion(args []string) int {
 	jsonOutput := fs.Bool("json", false, "output as JSON")
 	minPrefix := fs.Int("min-prefix", 1, "minimum disambiguation depth to report (1-10)")
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: ze yang completion [--json] [--min-prefix N]\n")
-		fs.PrintDefaults()
+		p := helpfmt.Page{
+			Command: "ze yang completion",
+			Summary: "Detect prefix collisions in config and command trees",
+			Usage:   []string{"ze yang completion [--json] [--min-prefix N]"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "--json", Desc: "Output as JSON"},
+					{Name: "--min-prefix N", Desc: "Minimum disambiguation depth to report (1-10)"},
+				}},
+			},
+		}
+		p.Write()
 	}
 	if err := fs.Parse(args); err != nil {
 		return 1
@@ -114,8 +128,19 @@ func cmdTree(args []string) int {
 	commands := fs.Bool(FilterCommands, false, "show command nodes only")
 	config := fs.Bool("config", false, "show config nodes only")
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: ze yang tree [--json] [--commands] [--config]\n")
-		fs.PrintDefaults()
+		p := helpfmt.Page{
+			Command: "ze yang tree",
+			Summary: "Print unified config + command tree",
+			Usage:   []string{"ze yang tree [--json] [--commands] [--config]"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "--json", Desc: "Output as JSON"},
+					{Name: "--commands", Desc: "Show command nodes only"},
+					{Name: "--config", Desc: "Show config nodes only"},
+				}},
+			},
+		}
+		p.Write()
 	}
 	if err := fs.Parse(args); err != nil {
 		return 1
@@ -159,8 +184,17 @@ func cmdDoc(args []string) int {
 	fs := flag.NewFlagSet("yang doc", flag.ExitOnError)
 	list := fs.Bool("list", false, "list all commands")
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: ze yang doc [--list] [<command>]\n")
-		fs.PrintDefaults()
+		p := helpfmt.Page{
+			Command: "ze yang doc",
+			Summary: "Command documentation",
+			Usage:   []string{"ze yang doc [--list] [<command>]"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Options", Entries: []helpfmt.HelpEntry{
+					{Name: "--list", Desc: "List all commands"},
+				}},
+			},
+		}
+		p.Write()
 	}
 	if err := fs.Parse(args); err != nil {
 		return 1

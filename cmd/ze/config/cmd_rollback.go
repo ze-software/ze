@@ -9,6 +9,7 @@ import (
 	"os"
 	"strconv"
 
+	"codeberg.org/thomas-mangin/ze/cmd/ze/internal/helpfmt"
 	"codeberg.org/thomas-mangin/ze/internal/component/cli"
 	"codeberg.org/thomas-mangin/ze/internal/component/config/storage"
 )
@@ -24,15 +25,22 @@ func cmdRollback(args []string) int {
 func cmdRollbackImpl(store storage.Storage, args []string) int {
 	fs := flag.NewFlagSet("config rollback", flag.ExitOnError)
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: ze config rollback <N> <file>
-
-Restore a configuration file from rollback revision N.
-Use 'ze config history <file>' to list available revisions.
-
-Exit codes:
-  0  Success
-  2  Error (file not found, invalid revision, etc.)
-`)
+		p := helpfmt.Page{
+			Command: "ze config rollback",
+			Summary: "Restore a configuration file from rollback revision N",
+			Usage:   []string{"ze config rollback <N> <file>"},
+			Sections: []helpfmt.HelpSection{
+				{Title: "Description", Entries: []helpfmt.HelpEntry{
+					{Name: "", Desc: "Use 'ze config history <file>' to list available revisions."},
+				}},
+				{Title: "Exit codes", Entries: []helpfmt.HelpEntry{
+					{Name: "0", Desc: "Success"},
+					{Name: "2", Desc: "Error (file not found, invalid revision, etc.)"},
+				}},
+			},
+			SeeAlso: []string{"ze config history"},
+		}
+		p.Write()
 	}
 
 	if err := fs.Parse(args); err != nil {

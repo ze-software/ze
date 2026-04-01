@@ -1,0 +1,31 @@
+# Test: ze --help with NO_COLOR produces no ANSI codes
+# VALIDATES: AC-2: NO_COLOR disables color in help output
+# PREVENTS: ANSI escape codes in piped/redirected help
+# Note: config help doesn't need config input, but test runner requires stdin
+stdin=config:terminator=EOF_CONF
+bgp {
+	peer peer1 {
+		connection {
+			remote {
+				ip 127.0.0.1
+			}
+			local {
+				ip 127.0.0.1
+			}
+		}
+		session {
+			asn {
+				local 65533
+				remote 65533
+			}
+		}
+	}
+}
+EOF_CONF
+
+option=env:var=NO_COLOR:value=1
+cmd=foreground:seq=1:exec=ze --help
+expect=exit:code=0
+expect=stdout:contains=Usage:
+expect=stdout:contains=Tools:
+reject=stdout:pattern=\x1b\[
