@@ -3,7 +3,19 @@
 {{if .Routes}}
 <p class="result-count">{{formatNum .Count}} routes{{if .Prefix}} for {{.Prefix}}{{end}}{{if .ASPath}} matching AS path {{.ASPath}}{{end}}{{if .Community}} with community {{.Community}}{{end}}</p>
 {{if .Prefix}}
-<div id="graph-container" hx-get="/lg/graph?prefix={{.Prefix}}" hx-trigger="load" hx-swap="innerHTML">
+<div class="graph-controls">
+<button class="graph-mode-btn" data-mode="aspath" data-prefix="{{.Prefix}}"
+  hx-get="/lg/graph?prefix={{.Prefix}}&amp;mode=aspath" hx-target="#graph-container" hx-swap="innerHTML"
+  onclick="document.querySelectorAll('.graph-mode-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')">
+  AS Path
+</button>
+<button class="graph-mode-btn" data-mode="nexthop" data-prefix="{{.Prefix}}"
+  hx-get="/lg/graph?prefix={{.Prefix}}&amp;mode=nexthop" hx-target="#graph-container" hx-swap="innerHTML"
+  onclick="document.querySelectorAll('.graph-mode-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active')">
+  Next Hop
+</button>
+</div>
+<div id="graph-container">
 <span class="spinner"></span> Loading topology...
 </div>
 {{end}}
